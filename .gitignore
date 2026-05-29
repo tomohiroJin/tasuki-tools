@@ -1,0 +1,29 @@
+# 依存・ビルド成果物
+node_modules/
+dist/
+build/
+out/
+.turbo/
+*.tsbuildinfo
+
+# テスト・カバレッジ
+coverage/
+.vitest/
+
+# ログ・一時ファイル
+*.log
+npm-debug.log*
+pnpm-debug.log*
+.DS_Store
+Thumbs.db
+
+# 環境・機密（コミット禁止）
+.env
+.env.*
+!.env.example
+
+# エディタ
+.idea/
+*.swp
+.vscode/*
+!.vscode/extensions.json
