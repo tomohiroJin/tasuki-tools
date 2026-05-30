@@ -1,0 +1,174 @@
+/**
+ * evolve 関数のテスト
+ * T012: FR-003, FR-007, FR-008
+ */
+
+import { describe, it, expect } from "vitest";
+import { evolve } from "../src/evolve.js";
+import { initialAggregate } from "../src/aggregate.js";
+import type { SessionConfig } from "../src/aggregate.js";
+
+const baseConfig: SessionConfig = {
+  language: "TypeScript",
+  difficulty: "easy",
+  members: ["Alice", "Bob", "Charlie"],
+  intervalMinutes: 5,
+};
+
+const baseAgg = initialAggregate(baseConfig);
+const NOW = 1000000;
+
+describe("evolve: SessionStarted", () => {
+  it("セッション開始で clock.running=true になる", () => {
+    const agg = evolve(baseAgg, { type: "SessionStarted", now: NOW }, NOW);
+    expect(agg.clock.running).toBe(true);
+  });
+
+  it("anchorServerTime が now に設定される", () => {
+    const agg = evolve(baseAgg, { type: "SessionStarted", now: NOW }, NOW);
+    expect(agg.clock.anchorServerTime).toBe(NOW);
+  });
+
+  it("runningSince が now に設定される", () => {
+    const agg = evolve(baseAgg, { type: "SessionStarted", now: NOW }, NOW);
+    expect(agg.clock.runningSince).toBe(NOW);
+  });
+});
+
+describe("evolve: DriverSwitched", () => {
+  const runningAgg = {
+    ...baseAgg,
+    clock: {
+      ...baseAgg.clock,
+      running: true,
+      anchorServerTime: NOW,
+      secondsLeftAtAnchor: 300,
+      runningSince: NOW,
+    },
+  };
+
+  it("交代でインデックスが進む", () => {
+    const agg = evolve(
+      runningAgg,
+      { type: "DriverSwitched", nextIndex: 1, now: NOW + 10000 },
+      NOW + 10000,
+    );
+    expect(agg.session.currentIndex).toBe(1);
+  });
+
+  it("交代で現ドライバーの driverCounts が加算される", () => {
+    const agg = evolve(
+      runningAgg,
+      { type: "DriverSwitched", nextIndex: 1, now: NOW + 10000 },
+      NOW + 10000,
+    );
+    expect(agg.session.driverCounts[0]).toBe(1);
+  });
+
+  it("交代で totalSwitches が増加する", () => {
+    const agg = evolve(
+      runningAgg,
+      { type: "DriverSwitched", nextIndex: 1, now: NOW + 10000 },
+      NOW + 10000,
+    );
+    expect(agg.session.totalSwitches).toBe(1);
+  });
+
+  it("交代後 clock アンカーが更新される", () => {
+    const switchTime = NOW + 10000;
+    const agg = evolve(
+      runningAgg,
+      { type: "DriverSwitched", nextIndex: 1, now: switchTime },
+      switchTime,
+    );
+    expect(agg.clock.anchorServerTime).toBe(switchTime);
+    expect(agg.clock.secondsLeftAtAnchor).toBe(runningAgg.clock.intervalSeconds);
+  });
+});
+
+describe("evolve: SessionPaused / SessionResumed", () => {
+  const runningAgg = {
+    ...baseAgg,
+    clock: {
+      ...baseAgg.clock,
+      running: true,
+      anchorServerTime: NOW,
+      secondsLeftAtAnchor: 300,
+      accumulatedElapsedMs: 5000,
+      runningSince: NOW - 10000,
+    },
+  };
+
+  it("PAUSE で running=false, isPaused=true になる", () => {
+    const pauseTime = NOW + 5000;
+    const agg = evolve(
+      runningAgg,
+      { type: "SessionPaused", now: pauseTime },
+      pauseTime,
+    );
+    expect(agg.clock.running).toBe(false);
+    expect(agg.session.isPaused).toBe(true);
+  });
+
+  it("PAUSE で稼働区間が accumulatedElapsedMs に加算される（停止除外）", () => {
+    const pauseTime = NOW + 5000;
+    const agg = evolve(
+      runningAgg,
+      { type: "SessionPaused", now: pauseTime },
+      pauseTime,
+    );
+    // runningSince = NOW - 10000, pauseTime = NOW + 5000 → +15000ms
+    expect(agg.clock.accumulatedElapsedMs).toBe(5000 + 15000);
+    expect(agg.clock.runningSince).toBeNull();
+  });
+
+  it("RESUME で running=true, isPaused=false になる", () => {
+    const pausedAgg = {
+      ...baseAgg,
+      session: { ...baseAgg.session, isPaused: true },
+      clock: {
+        ...baseAgg.clock,
+        running: false,
+        secondsLeftAtAnchor: 250,
+        runningSince: null,
+      },
+    };
+    const resumeTime = NOW + 20000;
+    const agg = evolve(
+      pausedAgg,
+      { type: "SessionResumed", now: resumeTime },
+      resumeTime,
+    );
+    expect(agg.clock.running).toBe(true);
+    expect(agg.session.isPaused).toBe(false);
+    expect(agg.clock.runningSince).toBe(resumeTime);
+    expect(agg.clock.anchorServerTime).toBe(resumeTime);
+  });
+});
+
+describe("evolve: 不変条件（FR-008）", () => {
+  it("rotation.length === driverCounts.length が常に成立する", () => {
+    const agg1 = evolve(
+      baseAgg,
+      { type: "MemberAdded", name: "Dave", now: NOW },
+      NOW,
+    );
+    expect(agg1.session.rotation.length).toBe(agg1.session.driverCounts.length);
+
+    const agg2 = evolve(
+      agg1,
+      { type: "MemberRemoved", index: 0, now: NOW },
+      NOW,
+    );
+    expect(agg2.session.rotation.length).toBe(agg2.session.driverCounts.length);
+  });
+
+  it("currentIndex は rotation.length 未満に収まる", () => {
+    const agg = evolve(
+      baseAgg,
+      { type: "DriverSwitched", nextIndex: 0, now: NOW },
+      NOW,
+    );
+    expect(agg.session.currentIndex).toBeLessThan(agg.session.rotation.length);
+  });
+});

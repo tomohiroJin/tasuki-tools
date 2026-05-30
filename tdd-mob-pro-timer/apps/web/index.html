@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TDD Mob Pro Timer</title>
+    <meta name="description" content="モブプログラミング TDD 交代タイマー" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      // FOUC 回避: 描画前に保存済みテーマを適用する
+      try {
+        var t = localStorage.getItem("theme");
+        if (t === "dark" || t === "light") {
+          document.documentElement.setAttribute("data-theme", t);
+        }
+      } catch (e) {}
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

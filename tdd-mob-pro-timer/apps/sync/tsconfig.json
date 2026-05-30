@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "lib": ["ES2022"],
+    "paths": {
+      "@tdd-mob/core": ["../../packages/core/src/index.ts"],
+      "@tdd-mob/core/*": ["../../packages/core/src/*.ts"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

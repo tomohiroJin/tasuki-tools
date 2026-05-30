@@ -1,0 +1,150 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =============================================================================
+ * デザイントークン
+ * 設計: chrome（背景/面/境界/文字）はテーマで切替、intent（操作色）は
+ * 固定値で「文字とのコントラストがテーマ非依存で AA を満たす」ようにする。
+ * ========================================================================== */
+
+:root {
+  /* --- タイポグラフィ ---------------------------------------------------- */
+  --font-sans: "Inter", "Noto Sans JP", system-ui, -apple-system,
+    "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, "SFMono-Regular",
+    Menlo, Consolas, monospace;
+
+  /* 流動的タイポスケール（clamp でブレイクポイント不要） */
+  --font-size-xs: clamp(0.75rem, 0.72rem + 0.15vw, 0.82rem);
+  --font-size-sm: clamp(0.83rem, 0.79rem + 0.22vw, 0.95rem);
+  --font-size-base: clamp(0.95rem, 0.9rem + 0.3vw, 1.05rem);
+  --font-size-lg: clamp(1.15rem, 1.05rem + 0.5vw, 1.4rem);
+  --font-size-xl: clamp(1.4rem, 1.2rem + 0.9vw, 1.9rem);
+  --font-size-timer: clamp(3.5rem, 2.5rem + 5vw, 5.5rem);
+
+  --line-tight: 1.2;
+  --line-normal: 1.7; /* 日本語向けに広め */
+
+  /* --- スペーシング（8px ベース） --------------------------------------- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+
+  /* --- 角丸 ------------------------------------------------------------- */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-full: 9999px;
+
+  /* --- intent（操作色・テーマ非依存・各自で AA を満たす） ---------------- */
+  --color-primary: #4f46e5; /* indigo-600 / 白文字 ≈ 6.6:1 */
+  --color-on-primary: #ffffff;
+  --color-success: #15803d; /* green-700 / 白文字 ≈ 5.3:1 */
+  --color-on-success: #ffffff;
+  --color-warning: #f59e0b; /* amber-500 / 濃文字 ≈ 8:1 */
+  --color-on-warning: #1f2937;
+  --color-danger: #b91c1c; /* red-700 / 白文字 ≈ 6.0:1 */
+  --color-on-danger: #ffffff;
+  --color-accent: #7c3aed; /* violet-600 / 白文字 ≈ 5.9:1 */
+  --color-on-accent: #ffffff;
+
+  /* --- 在室状況（色 + テキスト/アイコン併記で色のみ依存を回避） --------- */
+  --color-presence-online: #16a34a;
+  --color-presence-idle: #d97706;
+  --color-presence-offline: #94a3b8;
+
+  /* --- chrome（ライトモード既定・7段の明度で深度表現） ------------------ */
+  --color-bg: #f1f5f9; /* slate-100 ページ背景（純白を避け目に優しく） */
+  --color-surface: #ffffff; /* カード/パネル */
+  --color-surface-2: #f1f5f9; /* サブ面 */
+  --color-line: #cbd5e1; /* 境界（slate-300） */
+  --color-fg: #0f172a; /* 主要文字（slate-900）≈ 16:1 */
+  --color-fg-muted: #475569; /* 副次文字（slate-600）白上 ≈ 7:1 */
+  --color-fg-subtle: #526078; /* 補足。淡色ページ背景(#f1f5f9)上でも ≈ 4.9:1 */
+  --color-ring: #6366f1; /* フォーカスリング */
+  --color-shadow: rgba(15, 23, 42, 0.1);
+  --color-overlay: rgba(15, 23, 42, 0.45);
+}
+
+/* システム設定がダークで、明示的にライト指定が無い場合 */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-bg: #0f1117;
+    --color-surface: #1a1d29;
+    --color-surface-2: #242838;
+    --color-line: #333a4d;
+    --color-fg: #e6e8ee;
+    --color-fg-muted: #aab2c2;
+    --color-fg-subtle: #8b94a7;
+    --color-ring: #818cf8;
+    --color-shadow: rgba(0, 0, 0, 0.45);
+    --color-overlay: rgba(0, 0, 0, 0.6);
+  }
+}
+
+/* 手動ダーク指定（システム設定より優先） */
+:root[data-theme="dark"] {
+  --color-bg: #0f1117;
+  --color-surface: #1a1d29;
+  --color-surface-2: #242838;
+  --color-line: #333a4d;
+  --color-fg: #e6e8ee;
+  --color-fg-muted: #aab2c2;
+  --color-fg-subtle: #8b94a7;
+  --color-ring: #818cf8;
+  --color-shadow: rgba(0, 0, 0, 0.45);
+  --color-overlay: rgba(0, 0, 0, 0.6);
+}
+
+/* =============================================================================
+ * ベーススタイル
+ * ========================================================================== */
+
+html {
+  font-family: var(--font-sans);
+  color-scheme: light dark;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+  font-size: var(--font-size-base);
+  line-height: var(--line-normal);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* キーボードフォーカスを常に視認可能に（a11y） */
+:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+}
+
+/* スクリーンリーダー専用 */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* モーション軽減設定の尊重（FR-034） */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

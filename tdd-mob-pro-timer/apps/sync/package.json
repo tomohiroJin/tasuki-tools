@@ -1,0 +1,25 @@
+{
+  "name": "@tdd-mob/sync",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "dev": "bun run --watch src/server.ts",
+    "start": "bun run src/server.ts",
+    "test": "vitest run",
+    "test:unit": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tdd-mob/core": "workspace:*",
+    "nanoid": "^5.0.9",
+    "neverthrow": "^8.2.0",
+    "valibot": "^1.4.1",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.5.13",
+    "vitest": "^2.1.8"
+  }
+}

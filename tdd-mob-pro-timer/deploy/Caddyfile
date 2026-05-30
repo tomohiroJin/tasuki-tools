@@ -1,0 +1,28 @@
+{
+	# グローバル設定
+	admin off
+}
+
+:80, :443 {
+	# 静的 SPA 配信
+	root * /srv/web
+
+	# /ws エンドポイントは同期サーバーへ reverse proxy
+	handle /ws* {
+		reverse_proxy sync:8787 {
+			# WebSocket ヘッダー
+			header_up Host {host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+		}
+	}
+
+	# SPA フォールバック（React Router 対応）
+	handle {
+		try_files {path} /index.html
+		file_server
+	}
+
+	# HTTPS / WSS は Caddy が自動発行
+	tls internal
+}
