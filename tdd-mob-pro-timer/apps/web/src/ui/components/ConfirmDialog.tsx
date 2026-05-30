@@ -69,7 +69,7 @@ export function ConfirmDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
       style={{ background: "var(--color-overlay)" }}
       onClick={onCancel}
     >
@@ -78,7 +78,7 @@ export function ConfirmDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="confirm-title"
-        className="w-full max-w-sm rounded-lg bg-surface p-5 shadow-lg"
+        className="w-full max-w-sm rounded-lg border border-line bg-surface p-5 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 id="confirm-title" className="text-lg font-bold text-fg">

@@ -160,3 +160,11 @@ TypeScript 型チェック: core / sync / web 全パス ✅
 推奨対応: モジュールレベル可変 Map をクロージャ化、`SessionReset` の `as never` 撤去、`??` 誤用を明示分岐化、ping 相関を FIFO 化。
 
 > M3 残: 代表生成・タイムアウト・再委譲（T054-T055, problem.request/submit）は未実装。共有 AI お題は problem.submit 経路の配線が必要。
+
+## デザイン磨き込み（壊さない範囲での polish）
+
+- フォーカストラップ＋復帰（ConfirmDialog）、淡色背景キャプションの AA 調整、エラー/警告バナーの danger/warning 分離
+- Button の hover/active（brightness）、お題生成中スケルトン（`awaitingProblem`・ソロ非表示）
+- **P3 色域**: intent/presence を `@supports` 分岐で上書き。ビルド後 CSS に sRGB フォールバック（#4f46e5）と display-p3 が共存することを確認
+- ConfirmDialog バックドロップの **glassmorphism**（`backdrop-blur`・graceful degradation）
+- 見送り（壊さない方針）: 外部 Web フォント読込（オフライン性/プライバシー）、コンテナクエリ（プラグイン＋回帰リスク）、完成色変更（紫は「再開=緑」との識別のため意図的）

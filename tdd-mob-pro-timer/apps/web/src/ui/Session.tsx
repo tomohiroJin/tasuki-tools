@@ -14,6 +14,8 @@ interface SessionProps {
   room: Room;
   participantId: string;
   clockOffset?: number;
+  /** お題の代表生成を待っている間 true（共有時のみ）。生成中表示に使う */
+  awaitingProblem?: boolean;
   onSkip: () => void;
   onPause: () => void;
   onResume: () => void;
@@ -30,6 +32,7 @@ export function Session({
   room,
   participantId,
   clockOffset = 0,
+  awaitingProblem = false,
   onSkip,
   onPause,
   onResume,
@@ -97,12 +100,32 @@ export function Session({
       aria-label="セッション"
       className="mx-auto flex max-w-2xl flex-col items-center gap-6 p-6"
     >
-      {/* お題 */}
-      {room.problem && (
+      {/* お題（確定後）。未確定で生成待ちなら生成中表示（FR-003, US3-AC5） */}
+      {room.problem ? (
         <div className="w-full rounded-lg border border-line bg-surface p-4 shadow-card">
           <h2 className="text-lg font-bold text-fg">{room.problem.title}</h2>
           <p className="mt-2 text-fg-muted">{room.problem.description}</p>
         </div>
+      ) : (
+        awaitingProblem && (
+          <div
+            className="w-full rounded-lg border border-line bg-surface p-4 shadow-card"
+            aria-live="polite"
+          >
+            <div className="flex items-center gap-3 text-fg-muted">
+              <span
+                className="h-4 w-4 animate-pulse rounded-full bg-primary"
+                aria-hidden="true"
+              />
+              <span>お題を生成中…</span>
+            </div>
+            {/* スケルトン（reduced-motion 時は静止） */}
+            <div className="mt-3 space-y-2" aria-hidden="true">
+              <div className="h-3 w-3/4 animate-pulse rounded bg-surface-2" />
+              <div className="h-3 w-1/2 animate-pulse rounded bg-surface-2" />
+            </div>
+          </div>
+        )
       )}
 
       {/* タイマー（残り10秒で緊急色） */}

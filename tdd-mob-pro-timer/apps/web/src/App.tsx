@@ -221,6 +221,7 @@ export default function App() {
           room={currentRoom}
           participantId={participantId}
           clockOffset={client?.clockOffset ?? 0}
+          awaitingProblem={!!client && !currentRoom.problem}
           onSkip={() => act("SWITCH")}
           onPause={() => act("PAUSE")}
           onResume={() => act("RESUME")}
