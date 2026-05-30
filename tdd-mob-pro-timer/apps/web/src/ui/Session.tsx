@@ -3,12 +3,13 @@
  * T057: FR-007, FR-017, FR-030 ＋ デザインシステム適用
  */
 
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { secondsLeft, elapsedMs } from "@tdd-mob/core/aggregate";
 import type { Room, Participant } from "@tdd-mob/core";
 import { Button } from "./components/Button.js";
 import { ConfirmDialog } from "./components/ConfirmDialog.js";
 import { presenceLabel, presenceDotClass } from "./presence.js";
+import { deriveAnnouncement, type AnnounceState } from "./announce.js";
 
 interface SessionProps {
   room: Room;
@@ -84,6 +85,39 @@ export function Session({
 
   const isUrgent = room.clock.running && remaining <= URGENT_THRESHOLD_SECONDS;
 
+  // 支援技術向けの離散アナウンス（FR-035）。
+  // 連続カウントは読み上げず、状態変化だけを assertive リージョンへ流す。
+  // 同一文言が連続しても再読み上げされるよう、不可視のゼロ幅スペースを末尾に
+  // 交互付与して DOM テキストを必ず変化させる（aria-live はテキスト変化時のみ発火）。
+  const [announcement, setAnnouncement] = useState("");
+  const prevStateRef = useRef<AnnounceState | null>(null);
+  const seqRef = useRef(0);
+  useEffect(() => {
+    const next: AnnounceState = {
+      running: room.clock.running,
+      isPaused: room.session.isPaused,
+      onBreak: room.onBreak,
+      currentIndex: room.session.currentIndex,
+      isUrgent,
+      driverName: currentDriverName,
+    };
+    const prev = prevStateRef.current;
+    prevStateRef.current = next;
+    if (!prev) return;
+    const msg = deriveAnnouncement(prev, next);
+    if (msg) {
+      seqRef.current += 1;
+      setAnnouncement(msg + "​".repeat(seqRef.current % 2));
+    }
+  }, [
+    room.clock.running,
+    room.session.isPaused,
+    room.onBreak,
+    room.session.currentIndex,
+    isUrgent,
+    currentDriverName,
+  ]);
+
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
     const s = Math.floor(seconds % 60);
@@ -128,13 +162,16 @@ export function Session({
         )
       )}
 
-      {/* タイマー（残り10秒で緊急色） */}
+      {/* タイマー（残り10秒で緊急色）
+          role="timer" で意味を与えつつ aria-live は off（毎秒の読み上げ過多を防ぐ）。
+          残り10秒等の節目は下部の離散アナウンサーが伝える（FR-035）。 */}
       <div
+        role="timer"
+        aria-live="off"
+        aria-label={`残り時間 ${formatTime(remaining)}`}
         className={`font-mono text-timer font-bold tabular-nums ${
           isUrgent ? "text-danger" : "text-fg"
         }`}
-        aria-live="polite"
-        aria-label={`残り時間 ${formatTime(remaining)}`}
       >
         {formatTime(remaining)}
       </div>
@@ -242,7 +279,9 @@ export function Session({
       )}
 
       {/* 交代・残り10秒・一時停止・休憩を支援技術へ通知（FR-035） */}
-      <div aria-live="assertive" className="sr-only" id="aria-announcer" />
+      <div aria-live="assertive" role="status" className="sr-only">
+        {announcement}
+      </div>
 
       {/* リセット確認（破壊的操作） */}
       <ConfirmDialog
