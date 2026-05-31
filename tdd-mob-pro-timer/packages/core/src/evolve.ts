@@ -51,10 +51,18 @@ export function evolve(agg: Aggregate, event: DomainEvent, now: number): Aggrega
     case "BreakStarted":
     case "BreakEnded":
     case "SessionCompleted":
+    case "SessionAborted":
+    case "ProxyMemberAdded":
+    case "ParticipantRenamed":
+    case "DriverSkipped":
+    case "DriverResumed":
+    case "ProblemEdited":
+    case "ProblemModeSet":
       // これらはルーム全体のフィールドに影響するが集約(session+clock)は変わらない
       return agg;
   }
 }
+
 
 // ─── 各イベントの適用 ─────────────────────────────────────────────────────────
 

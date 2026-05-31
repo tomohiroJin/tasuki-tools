@@ -6,10 +6,7 @@
 import { ok, err, type Result } from "neverthrow";
 import * as v from "valibot";
 import { ProblemSchema } from "./schemas.js";
-import type { Problem } from "./aggregate.js";
-
-/** お題のソース種別 */
-export type ProblemSource = "ai" | "fallback";
+import type { Problem, ProblemSource } from "./aggregate.js";
 
 /** ソース付きお題 */
 export interface ProblemWithSource {
@@ -212,17 +209,17 @@ export function buildProblemPrompt(language: string, difficulty: string): string
 
 Return ONLY a valid JSON object with this exact structure (no markdown, no explanation):
 {
-  "title": "kata name",
-  "description": "clear description of what to implement",
-  "requirements": ["requirement 1", "requirement 2", "..."],
-  "exampleTest": "example test code showing expected behavior",
+  "title": "short kata name (3-10 words)",
+  "description": "clear description of what to implement (1-2 sentences)",
+  "requirements": ["requirement 1", "requirement 2", "requirement 3", "requirement 4"],
+  "exampleTest": "example test code showing expected behavior in ${language} syntax",
   "hints": ["hint 1", "hint 2"]
 }
 
-Requirements:
-- The kata should be suitable for TDD practice (test-first approach)
-- Include 3-5 clear, testable requirements
-- The exampleTest should be valid ${language} test code
-- Difficulty: ${difficulty} (easy=beginner, medium=intermediate, hard=advanced)
-- Make it fun and educational`;
+Rules:
+- The kata must be suitable for TDD practice (test-first approach)
+- Include 4-6 clear, testable requirements. Each requirement must be verifiable by a test (avoid vague or ambiguous phrasing).
+- The exampleTest MUST be valid ${language} syntax and show at least one concrete input/output assertion.
+- Difficulty: ${difficulty} (easy=beginner/30min, medium=intermediate/60min, hard=advanced/90min+)
+- Make it practical and educational; avoid trivial one-liners`;
 }

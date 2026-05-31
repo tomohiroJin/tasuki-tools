@@ -64,6 +64,9 @@ export interface SessionConfig {
   assertiveSwitch?: boolean;
 }
 
+/** お題の出所 */
+export type ProblemSource = "ai" | "fallback" | "custom";
+
 /** お題 */
 export interface Problem {
   title: string;
@@ -71,6 +74,10 @@ export interface Problem {
   requirements: string[];
   exampleTest: string;
   hints: string[];
+  /** 出所（v2追加・省略時は undefined = 出所不明） */
+  source?: ProblemSource;
+  /** 利用者が編集済みか（v2追加） */
+  edited?: boolean;
 }
 
 /** 参加者 */
@@ -82,7 +89,14 @@ export interface Participant {
   presence: "online" | "idle" | "offline";
   hasAiKey: boolean;
   joinedAt: number;
+  /** Web 非接続の代理参加者か（v2追加。既定 false 相当） */
+  isPlaceholder?: boolean;
+  /** ドライバーローテーション対象か（v2追加。既定 true 相当） */
+  driverEligible?: boolean;
 }
+
+/** 出題モード（v2追加） */
+export type ProblemMode = "ai" | "fallback";
 
 /** ルームフェーズ */
 export type RoomPhase = "setup" | "ready" | "session" | "celebration";
@@ -101,6 +115,8 @@ export interface Room {
   sessionRecords: CompletionRecord[];
   handoffNote: string;
   onBreak: boolean;
+  /** 出題モード（v2追加。既定 "fallback"） */
+  problemMode?: ProblemMode;
 }
 
 /** 完成記録 */
@@ -175,6 +191,33 @@ export function initialAggregate(config: SessionConfig): Aggregate {
       runningSince: null,
     },
   };
+}
+
+/**
+ * ドライバー対象（driverEligible !== false）の次のインデックスを返す。
+ * @param session セッション状態
+ * @param currentIndex 現在のインデックス
+ * @param ineligible ドライバー対象外のインデックス集合（undefined = 全員対象）
+ * @returns 次の eligible インデックス。全員 ineligible の場合は currentIndex を返す。
+ */
+export function nextEligibleIndex(
+  session: Pick<SessionState, "rotation">,
+  currentIndex: number,
+  ineligible: Set<number> | undefined,
+): number {
+  const len = session.rotation.length;
+  if (len === 0) return 0;
+  if (!ineligible || ineligible.size === 0) {
+    return (currentIndex + 1) % len;
+  }
+
+  // 最大 len 回試行して eligible を見つける
+  for (let i = 1; i <= len; i++) {
+    const candidate = (currentIndex + i) % len;
+    if (!ineligible.has(candidate)) return candidate;
+  }
+  // 全員 ineligible → 現状維持
+  return currentIndex;
 }
 
 /** 交代間隔として許容される分の一覧 */

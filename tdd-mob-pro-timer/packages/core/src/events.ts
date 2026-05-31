@@ -2,7 +2,7 @@
  * ドメインイベント定義
  */
 
-import type { SessionConfig, Problem, RoomPhase } from "./aggregate.js";
+import type { SessionConfig, Problem, RoomPhase, ProblemMode } from "./aggregate.js";
 
 /** セッション開始 */
 export interface SessionStarted {
@@ -104,6 +104,65 @@ export interface SessionCompleted {
   now: number;
 }
 
+/**
+ * 中断（途中でやめる）
+ * 記録を生成しない。締めくくり画面の表示のみを目的とする。
+ */
+export interface SessionAborted {
+  type: "SessionAborted";
+  now: number;
+}
+
+/** 代理参加者追加（Web 非接続の人をプレースホルダーとして追加） */
+export interface ProxyMemberAdded {
+  type: "ProxyMemberAdded";
+  participantId: string;
+  displayName: string;
+  now: number;
+}
+
+/** 表示名変更 */
+export interface ParticipantRenamed {
+  type: "ParticipantRenamed";
+  participantId: string;
+  displayName: string;
+  now: number;
+}
+
+/** ドライバー対象から一時離脱 */
+export interface DriverSkipped {
+  type: "DriverSkipped";
+  participantId: string;
+  now: number;
+}
+
+/** ドライバー対象に復帰 */
+export interface DriverResumed {
+  type: "DriverResumed";
+  participantId: string;
+  now: number;
+}
+
+/** お題の内容を編集（フィールド単位のパッチ） */
+export interface ProblemEdited {
+  type: "ProblemEdited";
+  patch: {
+    title?: string;
+    description?: string;
+    requirements?: string[];
+    exampleTest?: string;
+    hints?: string[];
+  };
+  now: number;
+}
+
+/** 出題モード変更（AI/定型） */
+export interface ProblemModeSet {
+  type: "ProblemModeSet";
+  mode: ProblemMode;
+  now: number;
+}
+
 /** ドメインイベントの合併型 */
 export type DomainEvent =
   | SessionStarted
@@ -120,4 +179,11 @@ export type DomainEvent =
   | HandoffNoteSet
   | BreakStarted
   | BreakEnded
-  | SessionCompleted;
+  | SessionCompleted
+  | SessionAborted
+  | ProxyMemberAdded
+  | ParticipantRenamed
+  | DriverSkipped
+  | DriverResumed
+  | ProblemEdited
+  | ProblemModeSet;

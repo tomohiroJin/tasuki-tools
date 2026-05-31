@@ -89,3 +89,29 @@ describe("buildCompletionRecord", () => {
     expect(r1.id).not.toBe(r2.id);
   });
 });
+
+// ─── T008: 中断（abort）は記録を生成しない ────────────────────────────────────
+
+describe("中断（SessionAborted）の記録扱い", () => {
+  it("SessionAborted イベント自体は CompletionRecord を持たない", () => {
+    // SessionAborted イベントには記録生成に必要な情報が無いことを確認する。
+    // （実際の「保存を呼ばない」制御は handlers/App.tsx 層で行う。
+    //   ここではドメインイベント型の設計確認。）
+    const abortedEvent: import("../src/events.js").SessionAborted = {
+      type: "SessionAborted",
+      now: 1000000,
+    };
+    expect(abortedEvent.type).toBe("SessionAborted");
+    // CompletionRecord に必要な problemTitle / members 等が存在しないことを型で確認
+    expect("problemTitle" in abortedEvent).toBe(false);
+    expect("members" in abortedEvent).toBe(false);
+  });
+
+  it("SessionCompleted イベントには now が含まれ、buildCompletionRecord で記録を作れる", () => {
+    const agg = initialAggregate(baseConfig);
+    // 完成時のみ記録を生成することを再確認（abort とは対照的に）
+    const record = buildCompletionRecord(agg, problem, baseConfig, 1000000);
+    expect(record.problemTitle).toBe(problem.title);
+    expect(record.completedAt).toBe(1000000);
+  });
+});

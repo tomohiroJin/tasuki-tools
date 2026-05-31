@@ -32,9 +32,12 @@ export const SessionConfigSchema = v.object({
 export const ProblemSchema = v.object({
   title: nonEmptyString,
   description: nonEmptyString,
-  requirements: v.array(nonEmptyString),
+  requirements: v.pipe(v.array(nonEmptyString), v.maxLength(20)),
   exampleTest: nonEmptyString,
   hints: v.array(v.string()),
+  // v2 追加フィールド（任意化で後方互換）
+  source: v.optional(v.picklist(["ai", "fallback", "custom"])),
+  edited: v.optional(v.boolean()),
 });
 
 // ─── Command スキーマ ────────────────────────────────────────────────────────
@@ -127,6 +130,52 @@ const BreakEndCommand = v.object({
   command: v.literal("break.end"),
 });
 
+// ─── v2 新コマンド ────────────────────────────────────────────────────────────
+
+const SessionAbortCommand = v.object({
+  command: v.literal("session.abort"),
+});
+
+const ParticipantAddProxyCommand = v.object({
+  command: v.literal("participant.addProxy"),
+  participantId,
+  displayName: nonEmptyString,
+});
+
+const ParticipantRenameCommand = v.object({
+  command: v.literal("participant.rename"),
+  participantId,
+  displayName: nonEmptyString,
+});
+
+const DriverSkipCommand = v.object({
+  command: v.literal("driver.skip"),
+  participantId,
+});
+
+const DriverResumeCommand = v.object({
+  command: v.literal("driver.resume"),
+  participantId,
+});
+
+const ProblemPatchSchema = v.partial(v.object({
+  title: nonEmptyString,
+  description: nonEmptyString,
+  requirements: v.pipe(v.array(nonEmptyString), v.maxLength(20)),
+  exampleTest: nonEmptyString,
+  hints: v.array(v.string()),
+}));
+
+const ProblemEditCommand = v.object({
+  command: v.literal("problem.edit"),
+  patch: ProblemPatchSchema,
+});
+
+const ProblemModeSetCommand = v.object({
+  command: v.literal("problem.mode.set"),
+  mode: v.picklist(["ai", "fallback"]),
+});
+
 const RoleSetCommand = v.object({
   command: v.literal("role.set"),
   participantId,
@@ -152,6 +201,7 @@ export const CommandSchema = v.variant("command", [
   ProblemSubmitCommand,
   SessionActCommand,
   SessionCompleteCommand,
+  SessionAbortCommand,
   SessionResetCommand,
   MemberAddCommand,
   MemberRemoveCommand,
@@ -159,6 +209,12 @@ export const CommandSchema = v.variant("command", [
   HandoffNoteSetCommand,
   BreakStartCommand,
   BreakEndCommand,
+  ParticipantAddProxyCommand,
+  ParticipantRenameCommand,
+  DriverSkipCommand,
+  DriverResumeCommand,
+  ProblemEditCommand,
+  ProblemModeSetCommand,
   RoleSetCommand,
   PresencePingCommand,
   TimePingCommand,
@@ -177,6 +233,9 @@ export const ParticipantSchema = v.object({
   presence: v.picklist(["online", "idle", "offline"]),
   hasAiKey: v.boolean(),
   joinedAt: v.number(),
+  // v2 追加フィールド（任意化で後方互換）
+  isPlaceholder: v.optional(v.boolean()),
+  driverEligible: v.optional(v.boolean()),
 });
 
 export const ServerClockSchema = v.object({
@@ -221,6 +280,8 @@ export const RoomSchema = v.object({
   sessionRecords: v.array(CompletionRecordSchema),
   handoffNote: v.string(),
   onBreak: v.boolean(),
+  // v2 追加フィールド（任意化で後方互換）
+  problemMode: v.optional(v.picklist(["ai", "fallback"])),
 });
 
 const SnapshotMsg = v.object({

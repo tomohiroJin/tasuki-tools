@@ -4,7 +4,7 @@
  */
 
 import { ok, err, type Result } from "neverthrow";
-import type { Aggregate, SessionConfig, IntervalMinutes } from "./aggregate.js";
+import type { Aggregate, SessionConfig, IntervalMinutes, ProblemMode } from "./aggregate.js";
 import {
   VALID_INTERVAL_MINUTES,
   MIN_MEMBERS,
@@ -17,6 +17,7 @@ import type { DomainError } from "./errors.js";
 export type DecideCommand =
   | { command: "session.act"; action: "START" | "SWITCH" | "PAUSE" | "RESUME" }
   | { command: "session.complete" }
+  | { command: "session.abort" }
   | { command: "session.reset"; config?: SessionConfig }
   | { command: "member.add"; name: string }
   | { command: "member.remove"; index: number }
@@ -25,7 +26,13 @@ export type DecideCommand =
   | { command: "phase.set"; phase: "setup" | "ready" | "session" | "celebration" }
   | { command: "handoff.note.set"; text: string }
   | { command: "break.start" }
-  | { command: "break.end" };
+  | { command: "break.end" }
+  | { command: "participant.addProxy"; displayName: string; participantId: string }
+  | { command: "participant.rename"; participantId: string; displayName: string }
+  | { command: "driver.skip"; participantId: string }
+  | { command: "driver.resume"; participantId: string }
+  | { command: "problem.edit"; patch: { title?: string; description?: string; requirements?: string[]; exampleTest?: string; hints?: string[] } }
+  | { command: "problem.mode.set"; mode: ProblemMode };
 
 /**
  * コマンドを受け取り、DomainEvent[] または DomainError を返す純粋関数
@@ -41,6 +48,9 @@ export function decide(
 
     case "session.complete":
       return ok([{ type: "SessionCompleted", now }]);
+
+    case "session.abort":
+      return ok([{ type: "SessionAborted", now }]);
 
     case "session.reset":
       return ok([{ type: "SessionReset", now }]);
@@ -68,7 +78,71 @@ export function decide(
 
     case "break.end":
       return ok([{ type: "BreakEnded", now }]);
+
+    case "participant.addProxy":
+      return decideAddProxy(cmd.displayName, cmd.participantId, agg, now);
+
+    case "participant.rename":
+      return decideRename(cmd.participantId, cmd.displayName, now);
+
+    case "driver.skip":
+      return ok([{ type: "DriverSkipped", participantId: cmd.participantId, now }]);
+
+    case "driver.resume":
+      return ok([{ type: "DriverResumed", participantId: cmd.participantId, now }]);
+
+    case "problem.edit":
+      return decideProblemEdit(cmd.patch, now);
+
+    case "problem.mode.set":
+      return ok([{ type: "ProblemModeSet", mode: cmd.mode, now }]);
   }
+}
+
+// ─── v2 新コマンド ────────────────────────────────────────────────────────────
+
+function decideAddProxy(
+  displayName: string,
+  participantId: string,
+  agg: Aggregate,
+  now: number,
+): Result<DomainEvent[], DomainError> {
+  const trimmed = displayName.trim();
+  if (trimmed.length === 0) {
+    return err({ type: "EmptyName" });
+  }
+  // 既存の表示名と重複しないか確認
+  const existingNames = agg.session.rotation.map((n) => n.toLowerCase());
+  if (existingNames.includes(trimmed.toLowerCase())) {
+    return err({ type: "DuplicateName", name: trimmed });
+  }
+  if (agg.session.rotation.length >= MAX_MEMBERS) {
+    return err({ type: "MemberLimitExceeded", limit: MAX_MEMBERS });
+  }
+  return ok([{ type: "ProxyMemberAdded", participantId, displayName: trimmed, now }]);
+}
+
+function decideRename(
+  participantId: string,
+  displayName: string,
+  now: number,
+): Result<DomainEvent[], DomainError> {
+  const trimmed = displayName.trim();
+  if (trimmed.length === 0) {
+    return err({ type: "EmptyName" });
+  }
+  return ok([{ type: "ParticipantRenamed", participantId, displayName: trimmed, now }]);
+}
+
+function decideProblemEdit(
+  patch: { title?: string; description?: string; requirements?: string[]; exampleTest?: string; hints?: string[] },
+  now: number,
+): Result<DomainEvent[], DomainError> {
+  // requirements のサイズ上限チェック
+  if (patch.requirements !== undefined && patch.requirements.length > 20) {
+    return err({ type: "MemberLimitExceeded", limit: 20 });
+  }
+  return ok([{ type: "ProblemEdited", patch, now }]);
 }
 
 // ─── セッション操作 ──────────────────────────────────────────────────────────

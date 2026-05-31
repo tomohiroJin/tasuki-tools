@@ -114,3 +114,33 @@ describe("FALLBACK_PROBLEMS: 定型お題バンク", () => {
     }
   });
 });
+
+// ─── T021: buildProblemPrompt の要件下限テスト ────────────────────────────────
+
+import { buildProblemPrompt } from "../src/problem.js";
+
+describe("buildProblemPrompt（T021）", () => {
+  it("言語と難易度がプロンプトに含まれる", () => {
+    const prompt = buildProblemPrompt("TypeScript", "easy");
+    expect(prompt).toContain("TypeScript");
+    expect(prompt).toContain("easy");
+  });
+
+  it("4件以上の要件を促す指示を含む", () => {
+    const prompt = buildProblemPrompt("Python", "medium");
+    // 「4〜6件」または「4-6 requirements」等の数値指示が含まれること
+    expect(prompt).toMatch(/[4-6].*requirement|requirement.*[4-6]/i);
+  });
+
+  it("例示テストの必須化を指示する文言を含む", () => {
+    const prompt = buildProblemPrompt("Go", "hard");
+    expect(prompt.toLowerCase()).toMatch(/example.*test|test.*example/i);
+  });
+
+  it("JSON フォーマットの返却を指示する文言を含む", () => {
+    const prompt = buildProblemPrompt("TypeScript", "easy");
+    expect(prompt).toContain("JSON");
+    // requirements フィールドがスキーマに含まれること
+    expect(prompt).toContain("requirements");
+  });
+});
