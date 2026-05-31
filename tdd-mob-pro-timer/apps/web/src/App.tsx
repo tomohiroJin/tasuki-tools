@@ -2,7 +2,7 @@
  * メインアプリコンポーネント
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Setup } from "./ui/Setup.js";
 import { Lobby } from "./ui/Lobby.js";
 import { Session } from "./ui/Session.js";
@@ -35,18 +35,23 @@ export default function App() {
   const [soloEngine, setSoloEngine] = useState<LocalEngine | null>(null);
   const [soloRoom, setSoloRoom] = useState<Room | null>(null);
   const [banner, setBanner] = useState<{ text: string; kind: "warn" | "error" } | null>(null);
+  // onNeedProblem など closure から最新ルームの設定を参照するための ref
+  const roomRef = useRef<Room | null>(null);
 
-  const handleCreateRoom = (config: SessionConfig) => {
+  // SyncClient の配線を create/join で共有する。
+  // getConfig は onNeedProblem 用に「お題生成に使う言語・難易度」を返す。
+  const makeClient = (
+    getConfig: () => { language: string; difficulty: string },
+  ): SyncClient => {
     const wsUrl = `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/ws`;
-
     const newClient = new SyncClient({
       url: wsUrl,
       onRoom: (r) => {
+        roomRef.current = r;
         setRoom(r);
         // サーバー権威の phase に全参加者が追従する（ホストの開始/完成が全員に反映）
         setMode(screenForPhase(r.phase));
-        // 完成フェーズに入ったら各端末でローカル記録を生成する（FR-028）。
-        // 既に記録があれば上書きしない。
+        // 完成フェーズに入ったら各端末でローカル記録を生成する（FR-028）。既に記録があれば上書きしない。
         if (r.phase === "celebration" && r.problem) {
           const problem = r.problem;
           setRecord((prev) =>
@@ -61,20 +66,13 @@ export default function App() {
           );
         }
       },
-      onIdentity: ({ participantId: pid }) => {
-        setParticipantId(pid);
-      },
+      onIdentity: ({ participantId: pid }) => setParticipantId(pid),
       onNeedProblem: async (requestId) => {
-        // 代表に選ばれたらお題を生成して投入する（FR-025）。
-        // 鍵があれば BYOK、無ければ定型。失敗時もプロバイダが定型へ縮退する。
-        // 生成や送信が失敗してもサーバー側の deadline で次候補へ再委譲されるため、
-        // ここでの例外は握りつぶしてクライアントを壊さない。
+        // 代表に選ばれたらお題を生成して投入する（FR-025）。失敗時もプロバイダが定型へ縮退。
         try {
+          const cfg = getConfig();
           const provider = resolveProvider();
-          const { problem, source } = await provider.generate(
-            config.language,
-            config.difficulty,
-          );
+          const { problem, source } = await provider.generate(cfg.language, cfg.difficulty);
           newClient.send({
             command: "problem.submit",
             requestId,
@@ -93,15 +91,30 @@ export default function App() {
       onDisconnected: () =>
         setBanner({ text: "接続が切れました。再接続しています...", kind: "warn" }),
     });
-
     newClient.connect();
     setClient(newClient);
+    return newClient;
+  };
 
-    newClient.send({
+  const handleCreateRoom = (config: SessionConfig) => {
+    const c = makeClient(() => ({
+      language: config.language,
+      difficulty: config.difficulty,
+    }));
+    c.send({
       command: "room.create",
       displayName: config.members[0] ?? "Host",
       config,
     });
+  };
+
+  // 共有 URL（?room=コード）からの参加。観覧者として加わり snapshot に追従する。
+  const handleJoinRoom = (code: string, displayName = "ゲスト") => {
+    const c = makeClient(() => ({
+      language: roomRef.current?.config.language ?? "TypeScript",
+      difficulty: roomRef.current?.config.difficulty ?? "easy",
+    }));
+    c.send({ command: "room.join", code, displayName, hasAiKey: false });
   };
 
   const handleSolo = (config: SessionConfig) => {
@@ -144,22 +157,28 @@ export default function App() {
   };
 
   const handleComplete = () => {
-    // 共有/ソロのどちらでも現在のルームから記録を生成する
-    const current = room ?? soloRoom;
-    if (current?.problem) {
-      const now = Date.now();
-      const agg = { session: current.session, clock: current.clock };
-      const r = buildCompletionRecord(
-        agg,
-        current.problem,
-        current.config,
-        now,
-        current.code,
-      );
-      setRecord(r);
+    if (client) {
+      // 共有時: サーバーへ完成を通知し、画面遷移と記録生成は snapshot 受信
+      // （onRoom の celebration 処理）で全参加者一斉に行う。ホストだけ先行しない。
+      client.send({ command: "session.complete" });
+      return;
     }
-    // 共有時はサーバーへ完成を通知（host のみ）
-    client?.send({ command: "session.complete" });
+    // ソロ時: ローカルで記録を生成して完成画面へ。
+    // お題未選択でも完成へ到達できるよう、お題が無ければプレースホルダで記録する。
+    if (soloRoom) {
+      const now = Date.now();
+      const agg = { session: soloRoom.session, clock: soloRoom.clock };
+      const problem = soloRoom.problem ?? {
+        title: "（お題なし）",
+        description: "",
+        requirements: [],
+        exampleTest: "",
+        hints: [],
+      };
+      setRecord(
+        buildCompletionRecord(agg, problem, soloRoom.config, now, soloRoom.code),
+      );
+    }
     soloEngine?.pause();
     setMode("celebration");
   };
@@ -175,6 +194,18 @@ export default function App() {
     setRecord(null);
     setMode("setup");
   };
+
+  // 共有 URL（?room=コード）で開かれたら自動的に参加する（初回マウント時のみ）。
+  const joinedFromUrlRef = useRef(false);
+  useEffect(() => {
+    if (joinedFromUrlRef.current) return;
+    const code = new URLSearchParams(window.location.search).get("room");
+    if (code) {
+      joinedFromUrlRef.current = true;
+      handleJoinRoom(code);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     return () => {

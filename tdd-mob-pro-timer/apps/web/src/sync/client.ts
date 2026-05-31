@@ -39,6 +39,8 @@ export class SyncClient {
   private readonly pingSamples: PingSample[] = [];
   private pingTimer: ReturnType<typeof setInterval> | null = null;
   private disposed = false;
+  /** OPEN 前に送ろうとしたメッセージのキュー（接続確立時にフラッシュする） */
+  private readonly pendingMessages: Record<string, unknown>[] = [];
 
   constructor(options: SyncClientOptions) {
     this.options = options;
@@ -62,6 +64,11 @@ export class SyncClient {
       this.backoff.reset();
       this.options.onConnected?.();
       this.startPingLoop();
+      // 接続確立前にキューされたメッセージをフラッシュする
+      const queued = this.pendingMessages.splice(0, this.pendingMessages.length);
+      for (const cmd of queued) {
+        this.ws?.send(JSON.stringify(cmd));
+      }
     };
 
     this.ws.onmessage = (event: MessageEvent) => {
@@ -81,10 +88,13 @@ export class SyncClient {
     };
   }
 
-  /** コマンドを送信する */
+  /** コマンドを送信する。未接続なら接続確立時までキューに退避する。 */
   send(cmd: Record<string, unknown>): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(cmd));
+    } else if (!this.disposed) {
+      // CONNECTING 中などはキューに積み、onopen でフラッシュする
+      this.pendingMessages.push(cmd);
     }
   }
 
