@@ -156,6 +156,38 @@ body {
   border-width: 0;
 }
 
+/* =============================================================================
+ * ステージ型ダークトークン（v2: 集中・ステージ型ビジュアル）
+ * セッション/ロビーのキャンバスは data-theme に関わらずこれらを使い、
+ * 「暗い舞台に最重要要素が最も明るく浮かぶ」構図を実現する（FR-028/029）。
+ * ========================================================================== */
+
+:root {
+  /* ステージ背景（最暗）*/
+  --stage-bg: #0a0b12;
+  /* 焦点ゾーン背景（ステージより僅かに明るい凹み感）*/
+  --stage-focus-bg: #12141f;
+  /* 焦点エリアのグロウ（タイマー・現ドライバーに当てる光）*/
+  --focus-glow: rgba(99, 102, 241, 0.18);
+  /* 現ドライバー名のサイズ（フォントトークン）*/
+  --font-size-driver: clamp(1.8rem, 1.4rem + 2vw, 2.8rem);
+  /* 焦点ゾーンの縦余白 */
+  --stage-focus-py: clamp(2rem, 3vw, 4rem);
+  /* 周辺情報の最大輝度（焦点を圧迫しない）*/
+  --stage-peripheral-opacity: 0.65;
+
+  /* 節目演出（≤300ms。交代・残りわずか） */
+  --transition-switch: 260ms ease-out;
+  --transition-urgent: 180ms ease-in;
+}
+
+/* ステージキャンバスクラス（テーマ非依存でダーク固定） */
+.stage-canvas {
+  background-color: var(--stage-bg);
+  color-scheme: dark;
+  min-height: 100dvh;
+}
+
 /* モーション軽減設定の尊重（FR-034） */
 @media (prefers-reduced-motion: reduce) {
   *,
