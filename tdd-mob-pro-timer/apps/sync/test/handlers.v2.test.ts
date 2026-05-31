@@ -81,6 +81,19 @@ describe("v2 コマンドの結合テスト（T028/T029）", () => {
     expect(proxy?.connId).toBeNull();
   });
 
+  it("participant.addProxy で代理参加者が rotation とドライバー対象に含まれる（FR-047）", async () => {
+    await handlers.handleCommand(hostConn, {
+      command: "participant.addProxy",
+      displayName: "Dave",
+      participantId: "proxy-dave2",
+    });
+    const room = getLatestSnapshot(broadcaster);
+    // rotation に Dave が含まれる（ドライバーローテーション参加）
+    expect(room?.session.rotation).toContain("Dave");
+    // 不変条件: rotation.length === driverCounts.length
+    expect(room?.session.rotation.length).toBe(room?.session.driverCounts.length);
+  });
+
   // ─── participant.rename ───────────────────────────────────────────────────
 
   it("host が自分の名前を変更すると snapshot に反映される（FR-048）", async () => {
@@ -98,6 +111,25 @@ describe("v2 コマンドの結合テスト（T028/T029）", () => {
     const updated = getLatestSnapshot(broadcaster);
     const renamed = updated?.participants.find((p) => p.participantId === hostParticipant!.participantId);
     expect(renamed?.displayName).toBe("NewHostName");
+  });
+
+  it("participant.rename で rotation 内の旧名も新名に更新される（FR-048）", async () => {
+    const room = store.get(roomCode);
+    const hostParticipant = room?.participants.find((p) => p.connId === hostConn);
+    const oldName = hostParticipant!.displayName;
+    // rotation に旧名が入っていることを前提確認
+    expect(room?.session.rotation).toContain(oldName);
+
+    await handlers.handleCommand(hostConn, {
+      command: "participant.rename",
+      participantId: hostParticipant!.participantId,
+      displayName: "RenamedDriver",
+    });
+
+    const updated = getLatestSnapshot(broadcaster);
+    // rotation も新名に更新される（旧名は消える）
+    expect(updated?.session.rotation).toContain("RenamedDriver");
+    expect(updated?.session.rotation).not.toContain(oldName);
   });
 
   // ─── driver.skip / driver.resume ─────────────────────────────────────────

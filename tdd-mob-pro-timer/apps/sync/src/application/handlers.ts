@@ -375,10 +375,18 @@ export function makeHandlers(deps: HandlerDeps) {
       return err(result.error.type);
     }
 
-    // イベントを適用して新しい集約を取得
+    // まず evolve で集約（session+clock）を更新する。
     let newAgg = agg;
     for (const event of result.value) {
       newAgg = evolve(newAgg, event, now);
+    }
+
+    // evolve の結果を Room に反映してから、Room レベルイベントを適用する。
+    // applyRoomLevelEvent は session.rotation 等をさらに更新しうる
+    // （ProxyMemberAdded の rotation 追加・ParticipantRenamed の rotation 改名）ため、
+    // evolve 結果を基底に置かないと session 変更が捨てられる。
+    targetRoom = { ...targetRoom, session: newAgg.session, clock: newAgg.clock };
+    for (const event of result.value) {
       // PhaseSet/ProblemSet/ConfigSet/SessionCompleted 等はルームレベルで処理
       targetRoom = applyRoomLevelEvent(targetRoom, event, now);
     }
@@ -386,11 +394,9 @@ export function makeHandlers(deps: HandlerDeps) {
     const updatedRoom: Room = {
       ...targetRoom,
       // config.members を session.rotation に同期する。
-      // member.add/remove/move は rotation のみ更新するため、ミラーしないと
+      // member.add/remove/move・addProxy は rotation のみ更新するため、ミラーしないと
       // 完成記録（config.members を使用）が古いメンバーになる。
-      config: { ...targetRoom.config, members: [...newAgg.session.rotation] },
-      session: newAgg.session,
-      clock: newAgg.clock,
+      config: { ...targetRoom.config, members: [...targetRoom.session.rotation] },
     };
 
     store.put(updatedRoom);
@@ -752,7 +758,8 @@ function applyRoomLevelEvent(
       // 中断: 記録を生成せず締めくくりフェーズへ（FR-020）
       return { ...room, phase: "celebration" };
     case "ProxyMemberAdded": {
-      // 代理参加者をルームに追加し rotation にも追加（FR-047）
+      // 代理参加者をルームに追加し、rotation・driverCounts にも追加して
+      // ドライバーローテーションに含める（FR-047）。
       const proxyParticipant: Participant = {
         participantId: event.participantId,
         connId: null,
@@ -767,9 +774,19 @@ function applyRoomLevelEvent(
       return {
         ...room,
         participants: [...room.participants, proxyParticipant],
+        session: {
+          ...room.session,
+          rotation: [...room.session.rotation, event.displayName],
+          driverCounts: [...room.session.driverCounts, 0],
+        },
       };
     }
-    case "ParticipantRenamed":
+    case "ParticipantRenamed": {
+      // 改名対象の旧名をループ外で一度だけ解決する。rotation は名前配列であり
+      // participantId を持たないため、旧名で位置を特定して置換する。
+      // 重複名は member.add/addProxy で拒否されるため rotation 内に同名はなく、一意に特定できる。
+      const target = room.participants.find((p) => p.participantId === event.participantId);
+      const oldName = target?.displayName;
       return {
         ...room,
         participants: room.participants.map((p) =>
@@ -777,15 +794,17 @@ function applyRoomLevelEvent(
             ? { ...p, displayName: event.displayName }
             : p,
         ),
-        // rotation の名前も更新する（session 側は evolve が担当しないためここで）
-        session: {
-          ...room.session,
-          rotation: room.session.rotation.map((name) => {
-            const target = room.participants.find((p) => p.participantId === event.participantId);
-            return target && name === target.displayName ? event.displayName : name;
-          }),
-        },
+        session:
+          oldName === undefined
+            ? room.session
+            : {
+                ...room.session,
+                rotation: room.session.rotation.map((name) =>
+                  name === oldName ? event.displayName : name,
+                ),
+              },
       };
+    }
     case "DriverSkipped":
       return {
         ...room,

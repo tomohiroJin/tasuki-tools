@@ -14,7 +14,11 @@ import { presenceLabel, presenceDotClass } from "../presence.js";
 
 interface RosterPanelProps {
   participants: Participant[];
-  currentDriverIndex: number;
+  /** 現ドライバーの表示名（session.rotation[currentIndex]）。
+   *  participants 配列のインデックスと rotation のインデックスは一致しないため、
+   *  配列位置ではなく名前で現ドライバーを判定する。重複名は member.add/addProxy で
+   *  拒否されるため displayName は一意。 */
+  currentDriverName: string;
   myParticipantId: string;
   canHostAction: boolean;
   onRename: (participantId: string, displayName: string) => void;
@@ -25,7 +29,7 @@ interface RosterPanelProps {
 
 export function RosterPanel({
   participants,
-  currentDriverIndex,
+  currentDriverName,
   myParticipantId,
   canHostAction,
   onRename,
@@ -79,8 +83,9 @@ export function RosterPanel({
       )}
 
       <ul className="flex flex-col gap-1">
-        {participants.map((p, idx) => {
-          const isCurrentDriver = idx === currentDriverIndex;
+        {participants.map((p) => {
+          const isCurrentDriver =
+            currentDriverName !== "" && p.displayName === currentDriverName;
           const isMine = p.participantId === myParticipantId;
           const isSkipping = p.driverEligible === false;
 

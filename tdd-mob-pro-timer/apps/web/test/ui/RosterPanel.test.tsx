@@ -29,7 +29,7 @@ describe("RosterPanel（T056/T057）", () => {
       makeParticipant({ participantId: "p1", displayName: "Alice", role: "host" }),
       makeParticipant({ participantId: "p2", displayName: "Bob", role: "editor", connId: "conn2" }),
     ],
-    currentDriverIndex: 0,
+    currentDriverName: "Alice",
     myParticipantId: "p1",
     canHostAction: true,
     onRename: noop,
@@ -42,6 +42,22 @@ describe("RosterPanel（T056/T057）", () => {
     render(<RosterPanel {...baseProps} />);
     expect(screen.getByText("Alice")).toBeTruthy();
     expect(screen.getByText("Bob")).toBeTruthy();
+  });
+
+  it("rotation 上の現ドライバーが participants 配列と不一致でも正しい人がハイライトされる（バグ修正）", () => {
+    // participants[1] が viewer のとき、rotation=["Alice","Carol"] となり
+    // currentDriverName="Carol" が指すのは participants[2]。配列インデックス比較だと誤る。
+    const participants = [
+      makeParticipant({ participantId: "p1", displayName: "Alice", role: "host" }),
+      makeParticipant({ participantId: "p2", displayName: "Bob", role: "viewer", connId: "c2" }),
+      makeParticipant({ participantId: "p3", displayName: "Carol", role: "editor", connId: "c3" }),
+    ];
+    render(<RosterPanel {...baseProps} participants={participants} currentDriverName="Carol" />);
+    // Carol の li に「現在」マーカーが付く（Bob には付かない）
+    const carolItem = screen.getByText("Carol").closest("li");
+    const bobItem = screen.getByText("Bob").closest("li");
+    expect(carolItem?.textContent).toMatch(/現在/);
+    expect(bobItem?.textContent).not.toMatch(/現在/);
   });
 
   it("在席状態がテキストで表示される（色＋テキスト併記: FR-050/032）", () => {
