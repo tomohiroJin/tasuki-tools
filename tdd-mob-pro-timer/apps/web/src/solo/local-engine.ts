@@ -96,6 +96,16 @@ export class LocalEngine {
     }
   }
 
+  /** セッションを中断する（記録を生成しない: FR-020）。画面遷移は呼び出し側が担当。 */
+  abort(): void {
+    const now = Date.now();
+    const result = decide({ command: "session.abort" }, this._agg, now);
+    if (result.isOk()) {
+      this._clearTimer();
+      this._applyEvents(result.value, now);
+    }
+  }
+
   dispose(): void {
     this._disposed = true;
     this._clearTimer();

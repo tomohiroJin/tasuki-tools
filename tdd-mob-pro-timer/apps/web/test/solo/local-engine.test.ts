@@ -124,3 +124,28 @@ describe("LocalEngine: ローカル完結（FR-031）", () => {
     expect(engine.aggregate.session.totalSwitches).toBe(0);
   });
 });
+
+// ─── T064: v2 新コマンドのソロ対応テスト ─────────────────────────────────────
+
+describe("LocalEngine v2 新コマンド（T064/T065）", () => {
+  const config: SessionConfig = {
+    language: "TypeScript",
+    difficulty: "easy",
+    members: ["Alice", "Bob"],
+    intervalMinutes: 5 as const,
+  };
+
+  it("abort() が呼べる（エラーにならない）", () => {
+    const engine = new LocalEngine(config);
+    expect(() => engine.abort()).not.toThrow();
+  });
+
+  it("abort() の後は集約がリセットに向かわず現状維持（ソロでは画面切替はUIが担当）", () => {
+    const engine = new LocalEngine(config);
+    engine.start();
+    const aggBefore = engine.aggregate;
+    engine.abort();
+    // abort はドメインイベントを発行するだけで集約の session/clock に影響しない
+    expect(engine.aggregate.session).toEqual(aggBefore.session);
+  });
+});
