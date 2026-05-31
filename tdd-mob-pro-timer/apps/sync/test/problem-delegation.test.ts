@@ -249,3 +249,86 @@ describe("ProblemDelegator: 代表生成", () => {
     expect(targets).toEqual(["host-conn"]);
   });
 });
+
+// ─── T030: problemMode による委譲分岐テスト ──────────────────────────────────
+
+import type { Room, Participant } from "@tdd-mob/core";
+
+function makeRoomWithMode(mode: "ai" | "fallback", hasAiKey: boolean): Room {
+  const participant: Participant = {
+    participantId: "host-p",
+    connId: "host-c",
+    displayName: "Host",
+    role: "host",
+    presence: "online",
+    hasAiKey,
+    joinedAt: 1000000,
+  };
+  return {
+    code: "MODERM",
+    createdAt: 1000000,
+    hostParticipantId: "host-p",
+    config: {
+      language: "TypeScript",
+      difficulty: "easy",
+      members: ["Host"],
+      intervalMinutes: 5,
+    },
+    problem: null,
+    session: { rotation: ["Host"], currentIndex: 0, isPaused: false, driverCounts: [0], totalSwitches: 0 },
+    clock: { running: false, intervalSeconds: 300, anchorServerTime: 0, secondsLeftAtAnchor: 300, accumulatedElapsedMs: 0, runningSince: null },
+    phase: "setup",
+    participants: [participant],
+    sessionRecords: [],
+    handoffNote: "",
+    onBreak: false,
+    problemMode: mode,
+  };
+}
+
+describe("ProblemDelegator: problemMode による分岐（T030）", () => {
+  it("problemMode=fallback の場合、候補を確認せず即座に定型で確定する", () => {
+    const store = new InMemoryRoomStore();
+    const sentSignals: string[] = [];
+    const snapshots: Room[] = [];
+
+    const broadcaster: Broadcaster = {
+      broadcastSnapshot: (_code: string, room: Room) => snapshots.push(room),
+      sendTo: (connId: string) => sentSignals.push(connId),
+      broadcastSignal: () => {},
+    };
+
+    const room = makeRoomWithMode("fallback", true);
+    store.put(room);
+
+    const delegator = new ProblemDelegator({ store, clock: new FakeClock(1000000), broadcaster, deadlineMs: 100 });
+    delegator.request("MODERM", "req-mode-fallback");
+
+    // fallback モード: need-problem シグナルを送らずに即座に定型 snapshot
+    expect(sentSignals).toHaveLength(0);
+    expect(snapshots).toHaveLength(1);
+    expect(snapshots[0]?.problem).toBeTruthy();
+  });
+
+  it("problemMode=ai かつ候補がいない場合でも定型で確定する（FR-011）", () => {
+    const store = new InMemoryRoomStore();
+    const snapshots: Room[] = [];
+
+    const broadcaster: Broadcaster = {
+      broadcastSnapshot: (_code: string, room: Room) => snapshots.push(room),
+      sendTo: () => {},
+      broadcastSignal: () => {},
+    };
+
+    // hasAiKey=false なので AI 候補なし
+    const room = makeRoomWithMode("ai", false);
+    store.put(room);
+
+    const delegator = new ProblemDelegator({ store, clock: new FakeClock(1000000), broadcaster, deadlineMs: 100 });
+    delegator.request("MODERM", "req-no-candidate");
+
+    // 候補なし→定型で確定
+    expect(snapshots).toHaveLength(1);
+    expect(snapshots[0]?.problem).toBeTruthy();
+  });
+});

@@ -15,6 +15,7 @@ import {
   type Participant,
   type SessionConfig,
   type Problem,
+  type ProblemMode,
   type DomainEvent,
   type IntervalMinutes,
 } from "@tdd-mob/core";
@@ -583,11 +584,13 @@ export function makeHandlers(deps: HandlerDeps) {
 /** ホスト限定操作 */
 const HOST_ONLY_COMMANDS = new Set([
   "session.complete",
+  "session.abort",
   "session.reset",
   "phase.set",
   "break.start",
   "break.end",
   "role.set",
+  "participant.addProxy",
 ]);
 
 /** 編集者以上が必要な操作 */
@@ -599,7 +602,11 @@ const EDITOR_PLUS_COMMANDS = new Set([
   "session.act",
   "problem.request",
   "problem.submit",
+  "problem.edit",
+  "problem.mode.set",
   "handoff.note.set",
+  "driver.skip",
+  "driver.resume",
 ]);
 
 function authorize(
@@ -665,6 +672,27 @@ function buildDomainCommand(cmd: { command: string; [key: string]: unknown }) {
       return { command: "break.start" as const };
     case "break.end":
       return { command: "break.end" as const };
+    // ─── v2 新コマンド ─────────────────────────────────────────────────────
+    case "session.abort":
+      return { command: "session.abort" as const };
+    case "participant.addProxy":
+      if (typeof cmd.displayName !== "string" || typeof cmd.participantId !== "string") return null;
+      return { command: "participant.addProxy" as const, displayName: cmd.displayName, participantId: cmd.participantId };
+    case "participant.rename":
+      if (typeof cmd.participantId !== "string" || typeof cmd.displayName !== "string") return null;
+      return { command: "participant.rename" as const, participantId: cmd.participantId, displayName: cmd.displayName };
+    case "driver.skip":
+      if (typeof cmd.participantId !== "string") return null;
+      return { command: "driver.skip" as const, participantId: cmd.participantId };
+    case "driver.resume":
+      if (typeof cmd.participantId !== "string") return null;
+      return { command: "driver.resume" as const, participantId: cmd.participantId };
+    case "problem.edit":
+      if (typeof cmd.patch !== "object" || cmd.patch === null) return null;
+      return { command: "problem.edit" as const, patch: cmd.patch as { title?: string; description?: string; requirements?: string[]; exampleTest?: string; hints?: string[] } };
+    case "problem.mode.set":
+      if (cmd.mode !== "ai" && cmd.mode !== "fallback") return null;
+      return { command: "problem.mode.set" as const, mode: cmd.mode as ProblemMode };
     default:
       return null;
   }
@@ -719,6 +747,72 @@ function applyRoomLevelEvent(
       }
       return next;
     }
+    // ─── v2 イベント ──────────────────────────────────────────────────────
+    case "SessionAborted":
+      // 中断: 記録を生成せず締めくくりフェーズへ（FR-020）
+      return { ...room, phase: "celebration" };
+    case "ProxyMemberAdded": {
+      // 代理参加者をルームに追加し rotation にも追加（FR-047）
+      const proxyParticipant: Participant = {
+        participantId: event.participantId,
+        connId: null,
+        displayName: event.displayName,
+        role: "editor",
+        presence: "offline",
+        hasAiKey: false,
+        joinedAt: _now,
+        isPlaceholder: true,
+        driverEligible: true,
+      };
+      return {
+        ...room,
+        participants: [...room.participants, proxyParticipant],
+      };
+    }
+    case "ParticipantRenamed":
+      return {
+        ...room,
+        participants: room.participants.map((p) =>
+          p.participantId === event.participantId
+            ? { ...p, displayName: event.displayName }
+            : p,
+        ),
+        // rotation の名前も更新する（session 側は evolve が担当しないためここで）
+        session: {
+          ...room.session,
+          rotation: room.session.rotation.map((name) => {
+            const target = room.participants.find((p) => p.participantId === event.participantId);
+            return target && name === target.displayName ? event.displayName : name;
+          }),
+        },
+      };
+    case "DriverSkipped":
+      return {
+        ...room,
+        participants: room.participants.map((p) =>
+          p.participantId === event.participantId
+            ? { ...p, driverEligible: false }
+            : p,
+        ),
+      };
+    case "DriverResumed":
+      return {
+        ...room,
+        participants: room.participants.map((p) =>
+          p.participantId === event.participantId
+            ? { ...p, driverEligible: true }
+            : p,
+        ),
+      };
+    case "ProblemEdited": {
+      if (!room.problem) return room;
+      return {
+        ...room,
+        problem: { ...room.problem, ...event.patch, edited: true },
+      };
+    }
+    case "ProblemModeSet":
+      return { ...room, problemMode: event.mode };
     default:
       return room;
   }

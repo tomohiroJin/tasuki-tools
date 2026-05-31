@@ -105,3 +105,93 @@ describe("authorize: 権限テスト（FR-016, FR-017）", () => {
     expect(error).toBeTruthy();
   });
 });
+
+// ─── T026: v2 新コマンドの権限テスト ──────────────────────────────────────────
+
+describe("authorize: v2 新コマンド（T026）", () => {
+  let store: InMemoryRoomStore;
+  let broadcaster: SpyBroadcaster;
+  let handlers: ReturnType<typeof makeHandlers>;
+  let roomCode: string;
+  let hostConnId: string;
+  let viewerConnId: string;
+
+  beforeEach(async () => {
+    store = new InMemoryRoomStore();
+    broadcaster = new SpyBroadcaster();
+    handlers = makeHandlers({
+      store,
+      clock: new FakeClock(1000000),
+      broadcaster,
+      codeGen: new FakeCodeGen(),
+    });
+    hostConnId = "host-conn-v2";
+    viewerConnId = "viewer-conn-v2";
+
+    const result = await handlers.handleCommand(hostConnId, {
+      command: "room.create",
+      displayName: "Host",
+    });
+    if (result.isOk()) roomCode = result.value.code;
+
+    await handlers.handleCommand(viewerConnId, {
+      command: "room.join",
+      code: roomCode,
+      displayName: "Viewer",
+      hasAiKey: false,
+    });
+
+    broadcaster.sent.length = 0;
+    broadcaster.snapshots.length = 0;
+  });
+
+  it("viewer は session.abort を実行できない（FR-055）", async () => {
+    await handlers.handleCommand(viewerConnId, { command: "session.abort" });
+    const error = broadcaster.sent.find((s) => s.msg.type === "error");
+    expect(error).toBeTruthy();
+    if (error?.msg.type === "error") {
+      expect(error.msg.code).toBe("UNAUTHORIZED");
+    }
+  });
+
+  it("viewer は participant.addProxy を実行できない（FR-055）", async () => {
+    await handlers.handleCommand(viewerConnId, {
+      command: "participant.addProxy",
+      displayName: "Dave",
+      participantId: "proxy-1",
+    });
+    const error = broadcaster.sent.find((s) => s.msg.type === "error");
+    expect(error).toBeTruthy();
+    if (error?.msg.type === "error") {
+      expect(error.msg.code).toBe("UNAUTHORIZED");
+    }
+  });
+
+  it("viewer は problem.edit を実行できない（FR-055）", async () => {
+    await handlers.handleCommand(viewerConnId, {
+      command: "problem.edit",
+      patch: { title: "ハック" },
+    });
+    const error = broadcaster.sent.find((s) => s.msg.type === "error");
+    expect(error).toBeTruthy();
+    if (error?.msg.type === "error") {
+      expect(error.msg.code).toBe("UNAUTHORIZED");
+    }
+  });
+
+  it("host は session.abort を実行できる（FR-055）", async () => {
+    await handlers.handleCommand(hostConnId, { command: "session.abort" });
+    const error = broadcaster.sent.find((s) => s.msg.type === "error");
+    expect(error).toBeUndefined();
+  });
+
+  it("host は participant.addProxy を実行できる（FR-055）", async () => {
+    await handlers.handleCommand(hostConnId, {
+      command: "participant.addProxy",
+      displayName: "Dave",
+      participantId: "proxy-99",
+    });
+    const error = broadcaster.sent.find((s) => s.msg.type === "error");
+    expect(error).toBeUndefined();
+  });
+});
