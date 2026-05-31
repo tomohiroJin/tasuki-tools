@@ -20,9 +20,14 @@ export default defineConfig({
     ],
   },
   server: {
+    // 全インターフェース(IPv4含む)で待受。コンテナ/WSL からホスト側ブラウザへ
+    // ポートフォワードできるようにする（既定の localhost だと IPv6 [::1] のみで掴めない）。
+    host: true,
+    port: 5173,
     proxy: {
       "/ws": {
-        target: "ws://localhost:8787",
+        // sync サーバーは IPv4 で確実に解決する 127.0.0.1 を指定（localhost の IPv6 解決差を回避）
+        target: "ws://127.0.0.1:8787",
         ws: true,
       },
     },
