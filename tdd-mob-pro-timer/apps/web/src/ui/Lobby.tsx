@@ -4,24 +4,40 @@
  */
 
 import React, { useState, useEffect } from "react";
-import type { Room } from "@tdd-mob/core";
+import type { Room, Problem } from "@tdd-mob/core";
 import { Button } from "./components/Button.js";
+import { ProblemEditor } from "./components/ProblemEditor.js";
 import { presenceDotClass, presenceLabel } from "./presence.js";
 
 interface LobbyProps {
   room: Room;
   participantId: string;
   onStartSession: () => void;
+  /** お題まわり（開始前にロビーでお題を決める・US3）。editor+ のみ編集できる。 */
+  onEditProblem?: (patch: Partial<Omit<Problem, "source" | "edited">>) => void;
+  onRegenerateProblem?: () => void;
+  onPasteProblem?: () => void;
+  onCopyProblem?: () => void;
+  onOpenAiSettings?: () => void;
 }
 
-export function Lobby({ room, participantId, onStartSession }: LobbyProps) {
+export function Lobby({
+  room,
+  participantId,
+  onStartSession,
+  onEditProblem,
+  onRegenerateProblem,
+  onPasteProblem,
+  onCopyProblem,
+  onOpenAiSettings,
+}: LobbyProps) {
   const [copied, setCopied] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
   const roomUrl = `${window.location.origin}?room=${room.code}`;
-  const isHost =
-    room.participants.find((p) => p.participantId === participantId)?.role ===
-    "host";
+  const myRole = room.participants.find((p) => p.participantId === participantId)?.role;
+  const isHost = myRole === "host";
+  const isEditor = myRole === "host" || myRole === "editor";
 
   // クリップボード API が無い環境では黙って無視する
   const copyText = async (text: string) => {
@@ -102,8 +118,40 @@ export function Lobby({ room, participantId, onStartSession }: LobbyProps) {
         </ul>
       </div>
 
+      {/* お題（開始前にここで決める・US3）。確定済みなら editor+ は編集できる。
+          未確定なら準備中を示す。お題を見て納得してからタイマーを開始する流れ。 */}
+      <div className="w-full">
+        <div className="mb-2 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-fg-subtle">お題</h3>
+          {onOpenAiSettings && (
+            <Button size="sm" intent="neutral" onClick={onOpenAiSettings}>
+              AI 設定
+            </Button>
+          )}
+        </div>
+        {room.problem ? (
+          <ProblemEditor
+            problem={room.problem}
+            canEdit={isEditor}
+            onEdit={onEditProblem ?? (() => {})}
+            onRegenerate={onRegenerateProblem ?? (() => {})}
+            onPaste={onPasteProblem ?? (() => {})}
+            onCopy={onCopyProblem ?? (() => {})}
+          />
+        ) : (
+          <p className="rounded-md border border-line bg-surface p-3 text-sm text-fg-muted">
+            お題を準備中です…
+          </p>
+        )}
+      </div>
+
       {isHost ? (
-        <Button intent="primary" className="w-full" onClick={onStartSession}>
+        <Button
+          intent="primary"
+          className="w-full"
+          onClick={onStartSession}
+          disabled={!room.problem}
+        >
           セッションを開始
         </Button>
       ) : (

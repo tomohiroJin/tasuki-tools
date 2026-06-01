@@ -181,11 +181,36 @@ body {
   --transition-urgent: 180ms ease-in;
 }
 
-/* ステージキャンバスクラス（テーマ非依存でダーク固定） */
+/* ステージキャンバスクラス（テーマ非依存でダーク固定）。
+ * 背景だけでなく chrome トークン（文字・面・境界）もステージ用のダーク値へ上書きする。
+ * これをしないと、ライトテーマのまま舞台に入ったとき「暗い背景に暗い文字」で
+ * タイマーや本文が読めなくなる（plan.md L33: ライト時も舞台は暗い、を正しく具現化）。 */
 .stage-canvas {
   background-color: var(--stage-bg);
   color-scheme: dark;
   min-height: 100dvh;
+
+  /* chrome（面・境界・文字）をステージのダーク基調に固定 */
+  --color-bg: var(--stage-bg);
+  --color-surface: #161a27;
+  --color-surface-2: #1f2433;
+  --color-line: #2c3344;
+  --color-fg: #eef1f7; /* 主要文字（最明）。ステージ上で本文・現ドライバーに使う */
+  --color-fg-muted: #b8c0d0;
+  --color-fg-subtle: #8b94a7;
+  --color-ring: #818cf8;
+  --color-shadow: rgba(0, 0, 0, 0.5);
+  --color-overlay: rgba(0, 0, 0, 0.6);
+
+  color: var(--color-fg);
+}
+
+/* 焦点ゾーン: タイマー＋現ドライバーは舞台で最も明るく（図と地・FR-028）。
+ * タイマーは緊急時(text-danger)以外は最明の白系で表示する。 */
+.stage-canvas .font-timer,
+.stage-canvas [role="timer"] {
+  color: #ffffff;
+  text-shadow: 0 0 24px var(--focus-glow);
 }
 
 /* モーション軽減設定の尊重（FR-034） */

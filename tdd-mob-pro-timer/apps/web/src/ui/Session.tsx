@@ -7,9 +7,9 @@ import React, { useMemo, useState, useEffect, useRef } from "react";
 import { secondsLeft, elapsedMs } from "@tdd-mob/core/aggregate";
 import type { Room, Problem } from "@tdd-mob/core";
 import { Button } from "./components/Button.js";
-import { ConfirmDialog } from "./components/ConfirmDialog.js";
 import { RosterPanel } from "./components/RosterPanel.js";
 import { ProblemEditor } from "./components/ProblemEditor.js";
+import { EndSessionZone } from "./components/EndSessionZone.js";
 import { deriveAnnouncement, type AnnounceState } from "./announce.js";
 
 interface SessionProps {
@@ -22,6 +22,7 @@ interface SessionProps {
   onPause: () => void;
   onResume: () => void;
   onComplete: () => void;
+  onAbort: () => void;
   onReset: () => void;
   onBreakStart: () => void;
   onBreakEnd: () => void;
@@ -51,6 +52,7 @@ export function Session({
   onPause,
   onResume,
   onComplete,
+  onAbort,
   onReset,
   onBreakStart,
   onBreakEnd,
@@ -73,8 +75,6 @@ export function Session({
     const id = setInterval(() => setNowTick(Date.now()), 250);
     return () => clearInterval(id);
   }, [room.clock.running, room.clock.anchorServerTime]);
-
-  const [confirmReset, setConfirmReset] = useState(false);
 
   const now = nowTick;
   const remaining = useMemo(
@@ -251,25 +251,28 @@ export function Session({
         </div>
       )}
 
-      {/* ホスト操作 */}
+      {/* ホスト操作: 休憩（副操作）と、終了系3操作の隔離ゾーン（完成/中断/リセット）。
+          終了系は EndSessionZone が確認ダイアログを内蔵し、語彙と意味差を明確にする（FR-018/019/044）。 */}
       {isHost && (
-        <div className="flex flex-wrap justify-center gap-3 border-t border-line pt-4">
-          {room.onBreak ? (
-            <Button intent="success" onClick={onBreakEnd}>
-              休憩終了
-            </Button>
-          ) : (
-            <Button intent="neutral" onClick={onBreakStart}>
-              休憩
-            </Button>
-          )}
-          <Button intent="accent" onClick={onComplete}>
-            完成！
-          </Button>
-          <Button intent="danger" onClick={() => setConfirmReset(true)}>
-            リセット
-          </Button>
-        </div>
+        <>
+          <div className="flex flex-wrap justify-center gap-3">
+            {room.onBreak ? (
+              <Button intent="neutral" onClick={onBreakEnd}>
+                休憩終了
+              </Button>
+            ) : (
+              <Button intent="neutral" onClick={onBreakStart}>
+                休憩
+              </Button>
+            )}
+          </div>
+          <EndSessionZone
+            onComplete={onComplete}
+            onAbort={onAbort}
+            onReset={onReset}
+            isShared={room.code !== "SOLO"}
+          />
+        </>
       )}
 
       {/* 在席一覧（RosterPanel）。改名・一時離脱・代理追加・観覧表示・現ドライバー
@@ -300,20 +303,6 @@ export function Session({
       <div aria-live="assertive" role="status" className="sr-only">
         {announcement}
       </div>
-
-      {/* リセット確認（破壊的操作） */}
-      <ConfirmDialog
-        open={confirmReset}
-        title="セッションをリセットしますか？"
-        description="進行中のタイマー・交代回数・お題が初期状態に戻ります。完成記録は保持されます。"
-        confirmLabel="リセットする"
-        confirmIntent="danger"
-        onConfirm={() => {
-          setConfirmReset(false);
-          onReset();
-        }}
-        onCancel={() => setConfirmReset(false)}
-      />
     </div>
   );
 }

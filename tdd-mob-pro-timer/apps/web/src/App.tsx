@@ -6,7 +6,11 @@ import React, { useState, useEffect, useRef } from "react";
 import { Setup } from "./ui/Setup.js";
 import { Lobby } from "./ui/Lobby.js";
 import { Session } from "./ui/Session.js";
-import { Celebration } from "./ui/Celebration.js";
+import { Summary, type EndType } from "./ui/Summary.js";
+import { StatusStrip, type ConnectionStatus } from "./ui/components/StatusStrip.js";
+import { AiSettingsModal } from "./ui/components/AiSettingsModal.js";
+import { saveApiKey, clearApiKey, loadApiKey } from "./ai/key-storage.js";
+import { getInitialTheme } from "./ui/theme.js";
 import { SyncClient } from "./sync/client.js";
 import { LocalEngine } from "./solo/local-engine.js";
 import { computeSoloIneligibleIndices } from "./solo/eligibility.js";
@@ -18,11 +22,10 @@ import { screenForPhase } from "./ui/screen.js";
 import { buildCompletionRecord } from "@tdd-mob/core";
 import type { Room, SessionConfig, CompletionRecord, Problem } from "@tdd-mob/core";
 
-/** ローカルに API 鍵があれば BYOK、無ければ定型のみのプロバイダを返す */
+/** ローカルに API 鍵があれば BYOK、無ければ定型のみのプロバイダを返す。
+ *  鍵の保存先（session/local）は key-storage が一元管理する（AI 設定モーダルと同じ経路）。 */
 function resolveProvider(): ProblemProvider {
-  const key = typeof localStorage !== "undefined"
-    ? localStorage.getItem("anthropic_api_key")
-    : null;
+  const key = loadApiKey();
   return key ? new ByokProvider({ apiKey: key }) : new NoAiProvider();
 }
 
@@ -37,6 +40,15 @@ export default function App() {
   const [soloEngine, setSoloEngine] = useState<LocalEngine | null>(null);
   const [soloRoom, setSoloRoom] = useState<Room | null>(null);
   const [banner, setBanner] = useState<{ text: string; kind: "warn" | "error" } | null>(null);
+  // 終了種別（完成/中断）。Summary の見出し・記録の出し分けに使う（FR-020）。
+  const [endType, setEndType] = useState<EndType>("complete");
+  // セッション喪失（room-not-found）。StatusStrip を lost 表示にし、再接続では消えない。
+  const [sessionLost, setSessionLost] = useState(false);
+  // AI 設定モーダルの開閉と出題モード（AI/定型）。
+  const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [problemMode, setProblemMode] = useState<"ai" | "fallback">("ai");
+  // 鍵の保存/削除で StatusStrip・モーダルの hasKey 表示を更新するためのバージョン。
+  const [keyVersion, setKeyVersion] = useState(0);
   // onNeedProblem など closure から最新ルームの設定を参照するための ref
   const roomRef = useRef<Room | null>(null);
   // ソロのロスター差分（改名/一時離脱/代理追加）。コアは v2 ロスターイベントを no-op 化し
@@ -103,6 +115,13 @@ export default function App() {
       },
       onError: (code, message) => {
         console.error("WS error:", code, message);
+        // ルーム喪失（揮発サーバー再起動等）は明示的に「セッション喪失」を表示する（FR-007/059）。
+        // ローカル記録は保持され、再接続では消えないよう sessionLost を立てる。
+        if (code === "ROOM_NOT_FOUND") {
+          setSessionLost(true);
+          setBanner({ text: "セッションが見つかりません。ローカルの記録は保持されています。", kind: "error" });
+          return;
+        }
         setBanner({ text: message || "エラーが発生しました", kind: "error" });
       },
       onConnected: () => setBanner(null),
@@ -169,11 +188,38 @@ export default function App() {
     setParticipantId("solo");
     setSoloEngine(engine);
     setSoloRoom(buildRoom());
+    // お題をタイマー前に決める（US3）: ロビーでお題をプレビュー/編集してから開始する。
+    // まずは出題モードに応じてお題を用意し、ロビーへ遷移する（engine.start はまだしない）。
+    setMode("lobby");
+    if (problemMode === "ai") {
+      resolveProvider()
+        .generate(config.language, config.difficulty)
+        .then(({ problem, source }) => {
+          soloProblemRef.current = { ...problem, source, edited: false };
+          soloRebuildRef.current?.();
+        })
+        .catch((e) => console.error("お題生成に失敗しました:", e));
+    } else {
+      // 定型モード: 定型バンクから取得（NoAiProvider が定型を返す）。
+      new NoAiProvider()
+        .generate(config.language, config.difficulty)
+        .then(({ problem, source }) => {
+          soloProblemRef.current = { ...problem, source, edited: false };
+          soloRebuildRef.current?.();
+        })
+        .catch((e) => console.error("定型お題の取得に失敗しました:", e));
+    }
+  };
+
+  /** ソロでロビーからセッションを開始する（お題確定後にタイマーを回す）。 */
+  const handleSoloStart = () => {
+    if (!soloEngine) return;
     setMode("solo");
-    engine.start();
+    soloEngine.start();
   };
 
   const handleComplete = () => {
+    setEndType("complete");
     if (client) {
       // 共有時: サーバーへ完成を通知し、画面遷移と記録生成は snapshot 受信
       // （onRoom の celebration 処理）で全参加者一斉に行う。ホストだけ先行しない。
@@ -200,6 +246,20 @@ export default function App() {
     setMode("celebration");
   };
 
+  /** 途中で終える（中断）。完成と異なり記録は残さない（FR-020）。 */
+  const handleAbort = () => {
+    setEndType("abort");
+    setRecord(null);
+    if (client) {
+      // 共有時: サーバーへ中断を通知。画面遷移は snapshot（celebration）受信で全員一斉。
+      client.send({ command: "session.abort" });
+      return;
+    }
+    // ソロ時: 記録を作らず締めくくり画面（中断表示）へ。
+    soloEngine?.pause();
+    setMode("celebration");
+  };
+
   const handleNewSession = () => {
     client?.dispose();
     setClient(null);
@@ -213,7 +273,21 @@ export default function App() {
     soloRosterRef.current = { renames: {}, skips: new Set(), proxies: [] };
     soloProblemRef.current = null;
     soloRebuildRef.current = null;
+    setEndType("complete");
+    setSessionLost(false);
+    setAiModalOpen(false);
     setMode("setup");
+  };
+
+  // ─── AI 設定（鍵・出題モード）操作 ─────────────────────────────────────────
+  // 鍵は key-storage が session/local を管理し、サーバーへは送らない（FR-017）。
+  const handleKeySave = (key: string, persistent: boolean) => {
+    saveApiKey(key, persistent);
+    setKeyVersion((v) => v + 1);
+  };
+  const handleKeyClear = () => {
+    clearApiKey();
+    setKeyVersion((v) => v + 1);
   };
 
   // 共有 URL（?room=コード）で開かれたら自動的に参加する（初回マウント時のみ）。
@@ -234,6 +308,16 @@ export default function App() {
       soloEngine?.dispose();
     };
   }, [client, soloEngine]);
+
+  // ロビー/セッションは「ダークステージ固定」（plan.md L33・FR-028/SC-006）。
+  // 既存の data-theme=dark 機構（実績あり）で舞台を暗くし、文字・面トークンを確実に
+  // ダーク値へ切り替える。Setup/Summary では利用者本来のテーマへ復帰する。
+  // ここでは DOM 属性のみ操作し localStorage には保存しない（テーマトグルの保存値を汚さない）。
+  useEffect(() => {
+    const onStage = mode === "lobby" || mode === "session" || mode === "solo";
+    const theme = onStage ? "dark" : getInitialTheme();
+    document.documentElement.setAttribute("data-theme", theme);
+  }, [mode]);
 
   // 共有時は client へコマンド送信、ソロ時は soloEngine を直接駆動する。
   // void を返す send() に対する `??` の誤用を避け、モードで明示分岐する。
@@ -364,38 +448,66 @@ export default function App() {
       });
   };
 
-  const renderScreen = () => {
-    if (mode === "lobby" && room) {
+  // StatusStrip 用に「自分」の表示名・役割を導出する。ソロはホスト固定。
+  const activeRoom = room ?? soloRoom;
+  const self = activeRoom?.participants.find((p) => p.participantId === participantId);
+  const selfName = self?.displayName ?? activeRoom?.config.members[0] ?? "あなた";
+  const selfRole = self?.role ?? "host";
+  // 接続状態: 喪失 > 再接続中(warn バナー) > オンライン。ソロは常にオンライン相当。
+  const connectionStatus: ConnectionStatus = sessionLost
+    ? "lost"
+    : client && banner?.kind === "warn"
+      ? "reconnecting"
+      : "online";
+
+  /** セッション/ロビーはダークステージ固定。Setup/Summary は通常テーマ。 */
+  const renderBody = () => {
+    if (mode === "lobby" && activeRoom) {
+      // ソロはこのロビーでお題を確認・編集してから handleSoloStart で開始する。
+      const isSolo = !client && !!soloEngine;
       return (
         <Lobby
-          room={room}
+          room={activeRoom}
           participantId={participantId}
-          onStartSession={() => {
-            // お題が未確定なら代表生成を依頼してからセッションへ（FR-025）
-            if (!room.problem) {
-              client?.send({ command: "problem.request", requestId: `req-${room.code}` });
-            }
-            client?.send({ command: "phase.set", phase: "session" });
-            client?.send({ command: "session.act", action: "START" });
-            setMode("session");
-          }}
+          onStartSession={
+            isSolo
+              ? handleSoloStart
+              : () => {
+                  if (!activeRoom.problem) {
+                    client?.send({ command: "problem.request", requestId: `req-${activeRoom.code}` });
+                  }
+                  client?.send({ command: "phase.set", phase: "session" });
+                  client?.send({ command: "session.act", action: "START" });
+                  setMode("session");
+                }
+          }
+          onEditProblem={editProblem}
+          onRegenerateProblem={regenerateProblem}
+          onPasteProblem={pasteProblem}
+          onCopyProblem={copyProblem}
+          onOpenAiSettings={() => setAiModalOpen(true)}
         />
       );
     }
 
-    if ((mode === "session" || mode === "solo") && (room || soloRoom)) {
-      const currentRoom = (room ?? soloRoom)!;
+    if ((mode === "session" || mode === "solo") && activeRoom) {
       return (
         <Session
-          room={currentRoom}
+          room={activeRoom}
           participantId={participantId}
           clockOffset={client?.clockOffset ?? 0}
-          awaitingProblem={!!client && !currentRoom.problem}
+          awaitingProblem={!!client && !activeRoom.problem}
           onSkip={() => act("SWITCH")}
           onPause={() => act("PAUSE")}
           onResume={() => act("RESUME")}
           onComplete={handleComplete}
-          onReset={() => client?.send({ command: "session.reset" })}
+          onAbort={handleAbort}
+          onReset={() =>
+            client
+              ? client.send({ command: "session.reset" })
+              : (soloRosterRef.current = { renames: {}, skips: new Set(), proxies: [] },
+                 handleNewSession())
+          }
           onBreakStart={() => client?.send({ command: "break.start" })}
           onBreakEnd={() => client?.send({ command: "break.end" })}
           onRenameParticipant={rosterRename}
@@ -410,12 +522,16 @@ export default function App() {
       );
     }
 
-    if (mode === "celebration" && (room || soloRoom) && record) {
+    if (mode === "celebration") {
+      // 完成/中断で出し分け（FR-020/045）。完成のみ記録あり、中断は record=null。
       return (
-        <Celebration
-          room={(room ?? soloRoom)!}
-          record={record}
+        <Summary
+          endType={endType}
+          record={endType === "complete" ? record : null}
           onNewSession={handleNewSession}
+          onSaveRecord={() => {
+            /* 記録の永続化は別経路（IndexedDB）。ここでは UI 上のダウンロード等に使う想定 */
+          }}
         />
       );
     }
@@ -423,8 +539,23 @@ export default function App() {
     return <Setup onCreateRoom={handleCreateRoom} onSolo={handleSolo} />;
   };
 
+  // ロビー/セッションはダークステージ固定（FR-028/SC-006）。Setup/Summary は通常テーマ。
+  const isStage = mode === "lobby" || mode === "session" || mode === "solo";
+
   return (
-    <>
+    <div className={isStage ? "stage-canvas min-h-screen" : "min-h-screen"}>
+      {/* 永続ステータスストリップ（全画面共通・FR-036）。Setup では参加前なので出さない。 */}
+      {mode !== "setup" && (
+        <StatusStrip
+          phase={mode === "solo" ? "session" : mode}
+          displayName={selfName}
+          role={selfRole}
+          connectionStatus={connectionStatus}
+          problemMode={problemMode}
+          roomCode={client ? activeRoom?.code : undefined}
+        />
+      )}
+
       {banner && (
         <div
           role={banner.kind === "error" ? "alert" : "status"}
@@ -438,7 +569,19 @@ export default function App() {
           {banner.text}
         </div>
       )}
-      {renderScreen()}
-    </>
+
+      {renderBody()}
+
+      {/* AI 設定モーダル（鍵・出題モード）。鍵はサーバー送信しない（FR-017）。 */}
+      <AiSettingsModal
+        open={aiModalOpen}
+        mode={problemMode}
+        hasKey={loadApiKey() !== null}
+        onClose={() => setAiModalOpen(false)}
+        onModeChange={setProblemMode}
+        onKeySave={handleKeySave}
+        onKeyClear={handleKeyClear}
+      />
+    </div>
   );
 }
