@@ -220,6 +220,92 @@ describe("v2 コマンドの結合テスト（T028/T029）", () => {
   });
 });
 
+// ─── participant.rename の認可（FR-046/048）────────────────────────────────
+
+describe("participant.rename の認可（FR-046/048）", () => {
+  let store: InMemoryRoomStore;
+  let broadcaster: SpyBroadcaster;
+  let handlers: ReturnType<typeof makeHandlers>;
+  let roomCode: string;
+  let hostPid: string;
+  let viewerPid: string;
+  const hostConn = "host-conn";
+  const viewerConn = "viewer-conn";
+
+  beforeEach(async () => {
+    store = new InMemoryRoomStore();
+    broadcaster = new SpyBroadcaster();
+    handlers = makeHandlers({
+      store,
+      clock: new FakeClock(1000000),
+      broadcaster,
+      codeGen: new FakeCodeGen(),
+    });
+
+    const created = await handlers.handleCommand(hostConn, {
+      command: "room.create",
+      displayName: "Host",
+    });
+    if (created.isOk()) {
+      roomCode = created.value.code;
+      hostPid = created.value.participantId;
+    }
+
+    // viewer として参加（新規参加者は viewer 既定）
+    const joined = await handlers.handleCommand(viewerConn, {
+      command: "room.join",
+      code: roomCode,
+      displayName: "Viewer",
+      hasAiKey: false,
+    });
+    if (joined.isOk()) viewerPid = joined.value.participantId;
+
+    broadcaster.snapshotRooms.length = 0;
+    broadcaster.sent.length = 0;
+  });
+
+  it("viewer が他人を rename しようとすると UNAUTHORIZED で拒否される", async () => {
+    const result = await handlers.handleCommand(viewerConn, {
+      command: "participant.rename",
+      participantId: hostPid, // 他人（host）を改名しようとする
+      displayName: "Hijacked",
+    });
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) expect(result.error).toBe("UNAUTHORIZED");
+    // snapshot は発行されず、host 名は変わらない
+    const room = store.get(roomCode);
+    const host = room?.participants.find((p) => p.participantId === hostPid);
+    expect(host?.displayName).toBe("Host");
+  });
+
+  it("viewer が自分自身を rename するのは許可される", async () => {
+    const result = await handlers.handleCommand(viewerConn, {
+      command: "participant.rename",
+      participantId: viewerPid, // 本人
+      displayName: "ViewerNew",
+    });
+
+    expect(result.isOk()).toBe(true);
+    const updated = getLatestSnapshot(broadcaster);
+    const self = updated?.participants.find((p) => p.participantId === viewerPid);
+    expect(self?.displayName).toBe("ViewerNew");
+  });
+
+  it("host は他人（viewer）を rename できる", async () => {
+    const result = await handlers.handleCommand(hostConn, {
+      command: "participant.rename",
+      participantId: viewerPid, // 他人
+      displayName: "RenamedByHost",
+    });
+
+    expect(result.isOk()).toBe(true);
+    const updated = getLatestSnapshot(broadcaster);
+    const target = updated?.participants.find((p) => p.participantId === viewerPid);
+    expect(target?.displayName).toBe("RenamedByHost");
+  });
+});
+
 // ─── T032/T033: room-not-found のテスト ──────────────────────────────────────
 
 describe("room-not-found 応答（T032/T033）", () => {

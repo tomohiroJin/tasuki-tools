@@ -340,6 +340,22 @@ export function makeHandlers(deps: HandlerDeps) {
       return err("PARTICIPANT_NOT_FOUND");
     }
 
+    // participant.rename は「自分の名前は本人、他人は host」（FR-046/048）。
+    // 対象 participantId に依存する関係的権限のため、集合方式の authorize では
+    // 表現できず（既定 fail-open で viewer が他人を改名できてしまう）、ここで個別判定する。
+    if (cmd.command === "participant.rename") {
+      const isSelf = cmd.participantId === participant.participantId;
+      const isHost = participant.role === "host";
+      if (!isSelf && !isHost) {
+        broadcaster.sendTo(connId, {
+          type: "error",
+          code: "UNAUTHORIZED",
+          message: "他の参加者の名前変更はホストのみ実行できます",
+        });
+        return err("UNAUTHORIZED");
+      }
+    }
+
     // 権限チェック（FR-017）
     const authError = authorize(participant.role, cmd.command as string, targetRoom.hostParticipantId, participant.participantId);
     if (authError) {
