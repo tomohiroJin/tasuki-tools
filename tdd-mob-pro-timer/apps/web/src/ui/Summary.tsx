@@ -36,6 +36,21 @@ export function Summary({ endType, record, onNewSession, onSaveRecord }: Summary
         {isComplete ? "セッション完了" : "セッション終了（中断）"}
       </h2>
 
+      {/* 達成バナー（完成時のみ・S1）。達成感を内省レベルで後押しする祝祭表現。
+          中断では出さない（達成として扱わない）。装飾は accent の控えめ強調で、
+          演出は prefers-reduced-motion で自動的に抑制される（index.css）。 */}
+      {isComplete && (
+        <div
+          aria-label="達成"
+          className="w-full rounded-lg border border-accent/40 bg-accent/10 p-4 text-accent"
+        >
+          <p className="text-2xl font-bold">🎉 ナイスワーク！</p>
+          <p className="mt-1 text-sm text-fg-muted">
+            お題をやり遂げました。お疲れさまでした。
+          </p>
+        </div>
+      )}
+
       {/* 完成時のみ記録詳細を表示 */}
       {isComplete && record && (
         <>

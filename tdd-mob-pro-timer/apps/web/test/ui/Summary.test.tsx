@@ -72,6 +72,31 @@ describe("Summary（T047/T048）", () => {
     expect(screen.queryByRole("button", { name: /保存|save/i })).toBeNull();
   });
 
+  // ─── 達成演出（S1: 完成時のみ祝祭バナー）─────────────────────────────────
+  it("完成のとき達成バナー（aria-label=達成）を表示する", () => {
+    render(
+      <Summary
+        endType="complete"
+        record={baseRecord}
+        onNewSession={noop}
+        onSaveRecord={noop}
+      />,
+    );
+    expect(screen.getByLabelText("達成")).toBeTruthy();
+  });
+
+  it("中断のとき達成バナーを表示しない（達成として扱わない）", () => {
+    render(
+      <Summary
+        endType="abort"
+        record={null}
+        onNewSession={noop}
+        onSaveRecord={noop}
+      />,
+    );
+    expect(screen.queryByLabelText("達成")).toBeNull();
+  });
+
   it("次の行動（新規セッション）への導線を提示する（FR-021）", () => {
     render(
       <Summary

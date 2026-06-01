@@ -66,8 +66,19 @@ export function Setup({ onCreateRoom }: SetupProps) {
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-6 p-6">
-      <header className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-fg">TDD Mob Pro Timer</h1>
+      {/* ブランドヘッダー（R2）。他フェーズ（ステージ）と視覚言語を繋ぐため、
+          アクセントのマーク＋サブタイトルで第一印象に基調を与える。 */}
+      <header className="flex items-start justify-between">
+        <div className="flex flex-col gap-0.5">
+          <h1 className="flex items-center gap-2 text-xl font-bold text-fg">
+            <span
+              aria-hidden="true"
+              className="inline-block h-5 w-1.5 rounded-full bg-accent"
+            />
+            TDD Mob Pro Timer
+          </h1>
+          <p className="text-sm text-fg-subtle">モブプロの TDD 交代タイマー</p>
+        </div>
         <ThemeToggle />
       </header>
 
