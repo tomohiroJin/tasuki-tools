@@ -195,3 +195,117 @@ describe("authorize: v2 新コマンド（T026）", () => {
     expect(error).toBeUndefined();
   });
 });
+
+// ─── driver.skip / driver.resume の関係的権限（本人 or host） ─────────────────
+// plan.md L209-210: driver.skip / driver.resume はいずれも「本人 / host」権限。
+// 集合方式（EDITOR_PLUS）では「対象が本人か」を判定できず、editor が他人を skip でき
+// （fail-open）、viewer が自分すら skip できない（過剰拒否）という二重の誤りになる。
+describe("authorize: driver.skip / driver.resume の関係的権限（本人 or host）", () => {
+  let store: InMemoryRoomStore;
+  let broadcaster: SpyBroadcaster;
+  let handlers: ReturnType<typeof makeHandlers>;
+  let roomCode: string;
+  let hostConnId: string;
+  let editorConnId: string;
+  let viewerConnId: string;
+  let editorPid: string;
+  let viewerPid: string;
+
+  beforeEach(async () => {
+    store = new InMemoryRoomStore();
+    broadcaster = new SpyBroadcaster();
+    handlers = makeHandlers({
+      store,
+      clock: new FakeClock(1000000),
+      broadcaster,
+      codeGen: new FakeCodeGen(),
+    });
+    hostConnId = "host-conn-rel";
+    editorConnId = "editor-conn-rel";
+    viewerConnId = "viewer-conn-rel";
+
+    const result = await handlers.handleCommand(hostConnId, {
+      command: "room.create",
+      displayName: "Host",
+    });
+    if (result.isOk()) roomCode = result.value.code;
+
+    await handlers.handleCommand(editorConnId, {
+      command: "room.join",
+      code: roomCode,
+      displayName: "Editor",
+      hasAiKey: false,
+    });
+    await handlers.handleCommand(viewerConnId, {
+      command: "room.join",
+      code: roomCode,
+      displayName: "Viewer",
+      hasAiKey: false,
+    });
+
+    // 参加者 ID を解決し、Editor を editor ロールへ昇格
+    const room = store.get(roomCode)!;
+    editorPid = room.participants.find((p) => p.displayName === "Editor")!.participantId;
+    viewerPid = room.participants.find((p) => p.displayName === "Viewer")!.participantId;
+
+    await handlers.handleCommand(hostConnId, {
+      command: "role.set",
+      participantId: editorPid,
+      role: "editor",
+    });
+
+    broadcaster.sent.length = 0;
+    broadcaster.snapshots.length = 0;
+  });
+
+  it("editor は他人を driver.skip できない（fail-closed）", async () => {
+    await handlers.handleCommand(editorConnId, {
+      command: "driver.skip",
+      participantId: viewerPid,
+    });
+    const error = broadcaster.sent.find((s) => s.msg.type === "error");
+    expect(error).toBeTruthy();
+    if (error?.msg.type === "error") {
+      expect(error.msg.code).toBe("UNAUTHORIZED");
+    }
+  });
+
+  it("viewer は自分を driver.skip できる（本人）", async () => {
+    await handlers.handleCommand(viewerConnId, {
+      command: "driver.skip",
+      participantId: viewerPid,
+    });
+    const error = broadcaster.sent.find((s) => s.msg.type === "error");
+    expect(error).toBeUndefined();
+  });
+
+  it("host は他人を driver.skip できる（host）", async () => {
+    await handlers.handleCommand(hostConnId, {
+      command: "driver.skip",
+      participantId: viewerPid,
+    });
+    const error = broadcaster.sent.find((s) => s.msg.type === "error");
+    expect(error).toBeUndefined();
+  });
+
+  it("editor は他人を driver.resume できない（fail-closed）", async () => {
+    await handlers.handleCommand(editorConnId, {
+      command: "driver.resume",
+      participantId: viewerPid,
+    });
+    const error = broadcaster.sent.find((s) => s.msg.type === "error");
+    expect(error).toBeTruthy();
+    if (error?.msg.type === "error") {
+      expect(error.msg.code).toBe("UNAUTHORIZED");
+    }
+  });
+
+  it("viewer は自分を driver.resume できる（本人）", async () => {
+    await handlers.handleCommand(viewerConnId, {
+      command: "driver.resume",
+      participantId: viewerPid,
+    });
+    const error = broadcaster.sent.find((s) => s.msg.type === "error");
+    expect(error).toBeUndefined();
+  });
+});

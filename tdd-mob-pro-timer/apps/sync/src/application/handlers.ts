@@ -340,17 +340,24 @@ export function makeHandlers(deps: HandlerDeps) {
       return err("PARTICIPANT_NOT_FOUND");
     }
 
-    // participant.rename は「自分の名前は本人、他人は host」（FR-046/048）。
-    // 対象 participantId に依存する関係的権限のため、集合方式の authorize では
-    // 表現できず（既定 fail-open で viewer が他人を改名できてしまう）、ここで個別判定する。
-    if (cmd.command === "participant.rename") {
+    // participant.rename / driver.skip / driver.resume は「本人 or host」権限
+    // （FR-046/048・plan.md L209-210）。いずれも対象 participantId に依存する関係的
+    // 権限で、集合方式の authorize（ロール集合）では「対象が本人か」を表現できない。
+    // EDITOR_PLUS に置くと editor が他人を skip/resume でき（fail-open）、かつ viewer が
+    // 自分すら skip できない（過剰拒否）ため、ここで個別に fail-closed 判定する。
+    const RELATIONAL_SELF_OR_HOST = new Set([
+      "participant.rename",
+      "driver.skip",
+      "driver.resume",
+    ]);
+    if (RELATIONAL_SELF_OR_HOST.has(cmd.command)) {
       const isSelf = cmd.participantId === participant.participantId;
       const isHost = participant.role === "host";
       if (!isSelf && !isHost) {
         broadcaster.sendTo(connId, {
           type: "error",
           code: "UNAUTHORIZED",
-          message: "他の参加者の名前変更はホストのみ実行できます",
+          message: "他の参加者への操作はホストのみ実行できます",
         });
         return err("UNAUTHORIZED");
       }
@@ -635,8 +642,8 @@ const EDITOR_PLUS_COMMANDS = new Set([
   "problem.edit",
   "problem.mode.set",
   "handoff.note.set",
-  "driver.skip",
-  "driver.resume",
+  // driver.skip / driver.resume は「本人 or host」の関係的権限のため EDITOR_PLUS に
+  // は含めない（handleRoomCommand の RELATIONAL_SELF_OR_HOST ガードで判定する）。
 ]);
 
 function authorize(
