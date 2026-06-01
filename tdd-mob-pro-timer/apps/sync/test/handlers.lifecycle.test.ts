@@ -342,4 +342,113 @@ describe("自動交代: スケジューラ配線（FR-003）", () => {
     const after = store.get(code)!;
     expect(after.session.totalSwitches).toBe(0);
   });
+
+  it("自動交代は ineligible（skip 済み）のメンバーを飛ばして次の eligible へ進む（plan.md L194）", async () => {
+    const code = await setupRoom(handlers);
+    // Bob を参加者として join させ、host が Bob を skip して ineligible にする
+    await handlers.handleCommand("bob-conn", {
+      command: "room.join",
+      code,
+      displayName: "Bob",
+      hasAiKey: false,
+    });
+    const bob = store.get(code)!.participants.find((p) => p.connId === "bob-conn")!;
+    await handlers.handleCommand("host-conn", {
+      command: "driver.skip",
+      participantId: bob.participantId,
+    });
+
+    await handlers.handleCommand("host-conn", { command: "session.act", action: "START" });
+    expect(store.get(code)!.session.currentIndex).toBe(0); // Alice
+
+    // 交代間隔の経過 → 自動交代は Bob(1) を飛ばして Charlie(2) へ
+    clock.advance(300000);
+    vi.advanceTimersByTime(300000 + 100);
+
+    expect(store.get(code)!.session.currentIndex).toBe(2);
+  });
+});
+
+describe("ドライバー一時離脱と現ドライバー skip の繰り上げ（FR-051, plan.md L209）", () => {
+  let store: InMemoryRoomStore;
+  let clock: FakeClock;
+  let broadcaster: SpyBroadcaster;
+  let scheduler: Scheduler;
+  let handlers: ReturnType<typeof makeHandlers>;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    store = new InMemoryRoomStore();
+    clock = new FakeClock(1000000);
+    broadcaster = new SpyBroadcaster();
+    scheduler = new Scheduler(clock);
+    handlers = makeHandlers({ store, clock, broadcaster, codeGen: new FakeCodeGen(), scheduler });
+  });
+
+  afterEach(() => {
+    scheduler.clearAll();
+    vi.useRealTimers();
+  });
+
+  it("稼働中に現ドライバーを driver.skip すると次の eligible へ繰り上がる", async () => {
+    const code = await setupRoom(handlers);
+    await handlers.handleCommand("host-conn", { command: "session.act", action: "START" });
+    const host = store.get(code)!.participants.find((p) => p.connId === "host-conn")!;
+    expect(store.get(code)!.session.currentIndex).toBe(0); // Alice が現ドライバー
+
+    await handlers.handleCommand("host-conn", {
+      command: "driver.skip",
+      participantId: host.participantId,
+    });
+
+    const after = store.get(code)!;
+    expect(after.session.currentIndex).toBe(1); // Bob へ繰り上がる
+    const skipped = after.participants.find((p) => p.participantId === host.participantId);
+    expect(skipped?.driverEligible).toBe(false);
+  });
+
+  it("現ドライバー skip でタイマーが次担当向けにリセットされる", async () => {
+    const code = await setupRoom(handlers);
+    await handlers.handleCommand("host-conn", { command: "session.act", action: "START" });
+    // 開始から 100 秒経過させてから skip する
+    clock.advance(100000);
+    const host = store.get(code)!.participants.find((p) => p.connId === "host-conn")!;
+
+    await handlers.handleCommand("host-conn", {
+      command: "driver.skip",
+      participantId: host.participantId,
+    });
+
+    const after = store.get(code)!;
+    // 次担当でタイマーが満タンに再アンカーされる
+    expect(after.clock.anchorServerTime).toBe(clock.now());
+    expect(after.clock.secondsLeftAtAnchor).toBe(after.clock.intervalSeconds);
+  });
+
+  it("全員 ineligible のときは現ドライバー skip でも現状維持（無限ループしない）", async () => {
+    // メンバー1名のルームを作り、現ドライバー（唯一の eligible）を skip する
+    const create = await handlers.handleCommand("solo-conn", {
+      command: "room.create",
+      displayName: "Onlyone",
+      config: { language: "TypeScript", difficulty: "easy", members: ["Onlyone"], intervalMinutes: 5 },
+    });
+    const code = create.isOk() ? create.value.code : "";
+    await handlers.handleCommand("solo-conn", { command: "session.act", action: "START" });
+    const me = store.get(code)!.participants.find((p) => p.connId === "solo-conn")!;
+
+    await handlers.handleCommand("solo-conn", {
+      command: "driver.skip",
+      participantId: me.participantId,
+    });
+
+    const after = store.get(code)!;
+    // 交代先が無いので現状維持（currentIndex 据え置き・switch カウント無し）
+    expect(after.session.currentIndex).toBe(0);
+    expect(after.session.totalSwitches).toBe(0);
+
+    // タイマーを進めても無限ループせず、自動交代は現状維持のまま
+    clock.advance(600000);
+    vi.advanceTimersByTime(600000 + 100);
+    expect(store.get(code)!.session.currentIndex).toBe(0);
+  });
 });

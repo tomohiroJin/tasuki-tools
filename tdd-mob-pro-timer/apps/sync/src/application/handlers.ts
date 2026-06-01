@@ -8,6 +8,7 @@ import { ok, err, type Result } from "neverthrow";
 import {
   decide,
   evolve,
+  advanceDriver,
   initialAggregate,
   secondsLeft,
   buildCompletionRecord,
@@ -70,16 +71,14 @@ export function makeHandlers(deps: HandlerDeps) {
     }
   }
 
-  /** タイマー発火時にサーバー側で SWITCH を実行し再スケジュールする */
+  /** タイマー発火時にサーバー側で交代を実行し再スケジュールする。
+   *  driverEligible=false の参加者を飛ばし、全員 ineligible なら現状維持する（plan.md L194）。 */
   function autoSwitch(roomCode: string): void {
     const room = store.get(roomCode);
     if (!room || !room.clock.running) return;
     const now = clock.now();
     const agg = { session: room.session, clock: room.clock };
-    const result = decide({ command: "session.act", action: "SWITCH" }, agg, now);
-    if (result.isErr()) return;
-    let newAgg = agg;
-    for (const event of result.value) newAgg = evolve(newAgg, event, now);
+    const newAgg = advanceDriver(agg, computeIneligibleIndices(room), now);
     const updated: Room = { ...room, session: newAgg.session, clock: newAgg.clock };
     store.put(updated);
     broadcaster.broadcastSnapshot(updated.code, updated);
@@ -422,6 +421,20 @@ export function makeHandlers(deps: HandlerDeps) {
       targetRoom = applyRoomLevelEvent(targetRoom, event, now);
     }
 
+    // 現ドライバーが driver.skip で ineligible になり、かつ稼働中なら即座に次の eligible へ
+    // 繰り上げる（plan.md L209）。交代先が無ければ advanceDriver が現状維持する。
+    if (domainCmd.command === "driver.skip" && targetRoom.clock.running) {
+      const ineligible = computeIneligibleIndices(targetRoom);
+      if (ineligible.has(targetRoom.session.currentIndex)) {
+        const advanced = advanceDriver(
+          { session: targetRoom.session, clock: targetRoom.clock },
+          ineligible,
+          now,
+        );
+        targetRoom = { ...targetRoom, session: advanced.session, clock: advanced.clock };
+      }
+    }
+
     const updatedRoom: Room = {
       ...targetRoom,
       // config.members を session.rotation に同期する。
@@ -734,6 +747,26 @@ function buildDomainCommand(cmd: { command: string; [key: string]: unknown }) {
     default:
       return null;
   }
+}
+
+// ─── ドライバー対象外の判定 ──────────────────────────────────────────────────
+
+/**
+ * driverEligible===false の参加者を rotation インデックスへ対応付けた集合を返す。
+ * rotation は表示名配列で participantId を持たないため、表示名で突き合わせる
+ * （改名時の一意性ガードにより rotation 内に同名は無く、一意に対応付く）。
+ */
+function computeIneligibleIndices(room: Room): Set<number> {
+  const ineligibleNames = new Set(
+    room.participants
+      .filter((p) => p.driverEligible === false)
+      .map((p) => p.displayName),
+  );
+  const set = new Set<number>();
+  room.session.rotation.forEach((name, i) => {
+    if (ineligibleNames.has(name)) set.add(i);
+  });
+  return set;
 }
 
 // ─── ルームレベルのイベント適用 ──────────────────────────────────────────────

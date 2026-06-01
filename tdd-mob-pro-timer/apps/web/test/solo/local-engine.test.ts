@@ -149,3 +149,75 @@ describe("LocalEngine v2 新コマンド（T064/T065）", () => {
     expect(engine.aggregate.session).toEqual(aggBefore.session);
   });
 });
+
+// ─── 項目2: ソロでもドライバー対象外を飛ばす（plan.md L194/L209）─────────────────
+describe("LocalEngine: ドライバー対象外（ineligible）を飛ばす交代", () => {
+  const threeConfig: SessionConfig = {
+    language: "TypeScript",
+    difficulty: "easy",
+    members: ["Alice", "Bob", "Charlie"],
+    intervalMinutes: 5 as const,
+  };
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("skip() は ineligible のメンバーを飛ばして次の eligible へ進む", () => {
+    const engine = new LocalEngine(threeConfig);
+    engine.setIneligibleProvider(() => new Set([1])); // Bob を対象外に
+    engine.start();
+    expect(engine.aggregate.session.currentIndex).toBe(0);
+    engine.skip();
+    expect(engine.aggregate.session.currentIndex).toBe(2); // Bob を飛ばして Charlie
+    engine.dispose();
+  });
+
+  it("自動交代も ineligible を飛ばす", () => {
+    const engine = new LocalEngine(threeConfig);
+    engine.setIneligibleProvider(() => new Set([1]));
+    engine.start();
+    vi.advanceTimersByTime(300 * 1000 + 100);
+    expect(engine.aggregate.session.currentIndex).toBe(2);
+    engine.dispose();
+  });
+
+  it("全員 ineligible のときは現状維持（無限ループしない）", () => {
+    const engine = new LocalEngine(threeConfig);
+    engine.setIneligibleProvider(() => new Set([0, 1, 2]));
+    engine.start();
+    engine.skip();
+    expect(engine.aggregate.session.currentIndex).toBe(0);
+    // タイマーを大きく進めても現状維持（同期的な無限ループにならない）
+    vi.advanceTimersByTime(900 * 1000);
+    expect(engine.aggregate.session.currentIndex).toBe(0);
+    engine.dispose();
+  });
+
+  it("reconcileCurrentDriver() は現ドライバーが ineligible になったら次の eligible へ繰り上げる", () => {
+    let ineligible = new Set<number>();
+    const engine = new LocalEngine(threeConfig);
+    engine.setIneligibleProvider(() => ineligible);
+    engine.start();
+    expect(engine.aggregate.session.currentIndex).toBe(0);
+
+    // Alice(0) を対象外にしてから調停 → Bob(1) へ繰り上がる
+    ineligible = new Set([0]);
+    engine.reconcileCurrentDriver();
+    expect(engine.aggregate.session.currentIndex).toBe(1);
+    engine.dispose();
+  });
+
+  it("reconcileCurrentDriver() は現ドライバーが eligible のままなら何もしない", () => {
+    const engine = new LocalEngine(threeConfig);
+    engine.setIneligibleProvider(() => new Set([2])); // Charlie のみ対象外、現ドライバー Alice は対象
+    engine.start();
+    engine.reconcileCurrentDriver();
+    expect(engine.aggregate.session.currentIndex).toBe(0);
+    expect(engine.aggregate.session.totalSwitches).toBe(0);
+    engine.dispose();
+  });
+});

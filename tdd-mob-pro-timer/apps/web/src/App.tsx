@@ -9,6 +9,7 @@ import { Session } from "./ui/Session.js";
 import { Celebration } from "./ui/Celebration.js";
 import { SyncClient } from "./sync/client.js";
 import { LocalEngine } from "./solo/local-engine.js";
+import { computeSoloIneligibleIndices } from "./solo/eligibility.js";
 import { NoAiProvider } from "./ai/no-ai.js";
 import { ByokProvider } from "./ai/byok.js";
 import type { ProblemProvider } from "./ai/provider.js";
@@ -193,6 +194,22 @@ export default function App() {
       };
     };
 
+    // 離脱（driver.skip 相当）を交代ロジックへ伝える。共有時の handlers と同様に
+    // driverEligible=false のメンバーを飛ばすため、ロスター差分から対象外インデックスを導く。
+    engine.setIneligibleProvider(() =>
+      computeSoloIneligibleIndices(engine.aggregate.session.rotation, {
+        hostId: "solo",
+        hostName: soloRosterRef.current.renames["solo"] ?? (config.members[0] ?? "You"),
+        skips: soloRosterRef.current.skips,
+        proxyNames: Object.fromEntries(
+          soloRosterRef.current.proxies.map((px) => [
+            px.participantId,
+            soloRosterRef.current.renames[px.participantId] ?? px.displayName,
+          ]),
+        ),
+      }),
+    );
+
     // エンジンの状態変化を soloRoom へ反映（タイマー駆動・交代を画面に伝播）
     engine.setOnChange(() => setSoloRoom(buildSoloRoom()));
     // ロスター操作後に soloRoom を再構築できるよう関数を保持する
@@ -294,6 +311,8 @@ export default function App() {
       client.send({ command: "driver.skip", participantId: pid });
     } else if (soloEngine) {
       soloRosterRef.current.skips.add(pid);
+      // 現ドライバーを離脱させたら即座に次の eligible へ繰り上げる（共有時と整合）。
+      soloEngine.reconcileCurrentDriver();
       soloRebuildRef.current?.();
     }
   };

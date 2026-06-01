@@ -12,7 +12,7 @@ import {
   type SessionConfig,
 } from "@tdd-mob/core";
 import { decide } from "@tdd-mob/core";
-import { evolve } from "@tdd-mob/core";
+import { evolve, advanceDriver } from "@tdd-mob/core";
 import type { DomainEvent } from "@tdd-mob/core";
 
 export class LocalEngine {
@@ -21,6 +21,8 @@ export class LocalEngine {
   private _timer: ReturnType<typeof setTimeout> | null = null;
   private _onChange: ((agg: Aggregate) => void) | null = null;
   private _disposed = false;
+  /** ドライバー対象外（driverEligible=false）の rotation インデックス集合を返すプロバイダ */
+  private _getIneligible: (() => Set<number>) | null = null;
 
   constructor(config: SessionConfig) {
     this._config = config;
@@ -41,6 +43,15 @@ export class LocalEngine {
 
   setOnChange(cb: (agg: Aggregate) => void): void {
     this._onChange = cb;
+  }
+
+  /**
+   * ドライバー対象外のインデックス集合プロバイダを登録する。
+   * 交代（手動 skip・自動交代）時に参照し、ineligible を飛ばして次の eligible へ進む。
+   * ソロでは離脱状態が App 側（soloRosterRef）にあるため、関数で都度取得する。
+   */
+  setIneligibleProvider(fn: () => Set<number>): void {
+    this._getIneligible = fn;
   }
 
   start(): void {
@@ -83,17 +94,28 @@ export class LocalEngine {
   }
 
   skip(): void {
+    if (!this._agg.clock.running) return;
     const now = Date.now();
-    const result = decide(
-      { command: "session.act", action: "SWITCH" },
-      this._agg,
-      now,
-    );
-    if (result.isOk()) {
-      this._clearTimer();
-      this._applyEvents(result.value, now);
-      this._scheduleNextSwitch();
-    }
+    this._clearTimer();
+    // ineligible を飛ばして次の eligible へ。交代先が無ければ advanceDriver が現状維持する。
+    this._agg = advanceDriver(this._agg, this._getIneligible?.(), now);
+    this._onChange?.(this._agg);
+    this._scheduleNextSwitch();
+  }
+
+  /**
+   * 現ドライバーが ineligible になっていれば次の eligible へ繰り上げる（共有時の handlers と整合）。
+   * ロスター操作（離脱）の直後に呼び出す。稼働中のみ作用する。
+   */
+  reconcileCurrentDriver(): void {
+    if (!this._agg.clock.running) return;
+    const ineligible = this._getIneligible?.();
+    if (!ineligible || !ineligible.has(this._agg.session.currentIndex)) return;
+    const now = Date.now();
+    this._clearTimer();
+    this._agg = advanceDriver(this._agg, ineligible, now);
+    this._onChange?.(this._agg);
+    this._scheduleNextSwitch();
   }
 
   /** セッションを中断する（記録を生成しない: FR-020）。画面遷移は呼び出し側が担当。 */
@@ -136,15 +158,11 @@ export class LocalEngine {
   private _autoSwitch(): void {
     if (this._disposed || !this._agg.clock.running) return;
     const now = Date.now();
-    const result = decide(
-      { command: "session.act", action: "SWITCH" },
-      this._agg,
-      now,
-    );
-    if (result.isOk()) {
-      this._applyEvents(result.value, now);
-      this._scheduleNextSwitch();
-    }
+    // 自動交代も ineligible を飛ばす。全員 ineligible なら advanceDriver が
+    // タイマーを再アンカーして現状維持し、残り0での即再発火を防ぐ。
+    this._agg = advanceDriver(this._agg, this._getIneligible?.(), now);
+    this._onChange?.(this._agg);
+    this._scheduleNextSwitch();
   }
 
   private _clearTimer(): void {
