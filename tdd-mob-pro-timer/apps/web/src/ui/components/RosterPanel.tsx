@@ -39,12 +39,27 @@ export function RosterPanel({
 }: RosterPanelProps) {
   const [proxyName, setProxyName] = useState("");
   const [showProxyInput, setShowProxyInput] = useState(false);
+  // 改名中の参加者 ID と編集中の名前（同時に1人だけ編集できる）
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
 
   const handleAddProxy = () => {
     if (!proxyName.trim()) return;
     onAddProxy(proxyName.trim());
     setProxyName("");
     setShowProxyInput(false);
+  };
+
+  const startRename = (participantId: string, current: string) => {
+    setEditingId(participantId);
+    setEditName(current);
+  };
+
+  const submitRename = (participantId: string) => {
+    const trimmed = editName.trim();
+    if (trimmed) onRename(participantId, trimmed);
+    setEditingId(null);
+    setEditName("");
   };
 
   const rotation = participants.filter(
@@ -88,6 +103,9 @@ export function RosterPanel({
             currentDriverName !== "" && p.displayName === currentDriverName;
           const isMine = p.participantId === myParticipantId;
           const isSkipping = p.driverEligible === false;
+          // 改名は本人 or ホストが可能（観覧者でも自分自身は改名可: FR-046）
+          const canRename = isMine || canHostAction;
+          const isEditing = editingId === p.participantId;
 
           return (
             <li
@@ -104,10 +122,29 @@ export function RosterPanel({
                 aria-hidden="true"
               />
 
-              {/* 名前 */}
-              <span className="flex-1 text-fg">{p.displayName}</span>
+              {/* 名前（改名中は入力＋保存/キャンセル） */}
+              {isEditing ? (
+                <span className="flex flex-1 gap-1">
+                  <input
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    aria-label={`${p.displayName} の新しい名前`}
+                    className="flex-1 rounded-md border border-line bg-surface px-2 py-0.5 text-sm text-fg"
+                  />
+                  <Button intent="primary" size="sm" onClick={() => submitRename(p.participantId)}>
+                    保存
+                  </Button>
+                  <Button intent="neutral" size="sm" onClick={() => setEditingId(null)}>
+                    取消
+                  </Button>
+                </span>
+              ) : (
+                <span className="flex-1 text-fg">{p.displayName}</span>
+              )}
 
-              {/* バッジ */}
+              {/* バッジ（改名中は隠す） */}
+              {!isEditing && (
               <span className="flex items-center gap-1 text-xs">
                 <span className="sr-only">{presenceLabel(p.presence)}</span>
                 <span className={presenceDotClass(p.presence).replace("bg-", "text-").replace("rounded-full", "").trim()}>
@@ -130,27 +167,37 @@ export function RosterPanel({
                   <span className="text-primary font-semibold">▶ 現在</span>
                 )}
               </span>
+              )}
 
-              {/* アクション（本人 or ホスト） */}
-              {(isMine || canHostAction) && p.role !== "viewer" && (
+              {/* アクション（本人 or ホスト）。改名は観覧者の自己にも許可、
+                  スキップ/復帰はローテーション対象（非観覧者）のみ。 */}
+              {!isEditing && canRename && (
                 <span className="flex gap-1">
-                  {isSkipping ? (
-                    <Button
-                      intent="neutral"
-                      size="sm"
-                      onClick={() => onResume(p.participantId)}
-                    >
-                      復帰
-                    </Button>
-                  ) : (
-                    <Button
-                      intent="neutral"
-                      size="sm"
-                      onClick={() => onSkip(p.participantId)}
-                    >
-                      スキップ
-                    </Button>
-                  )}
+                  <Button
+                    intent="neutral"
+                    size="sm"
+                    onClick={() => startRename(p.participantId, p.displayName)}
+                  >
+                    改名
+                  </Button>
+                  {p.role !== "viewer" &&
+                    (isSkipping ? (
+                      <Button
+                        intent="neutral"
+                        size="sm"
+                        onClick={() => onResume(p.participantId)}
+                      >
+                        復帰
+                      </Button>
+                    ) : (
+                      <Button
+                        intent="neutral"
+                        size="sm"
+                        onClick={() => onSkip(p.participantId)}
+                      >
+                        スキップ
+                      </Button>
+                    ))}
                 </span>
               )}
             </li>

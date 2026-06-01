@@ -5,10 +5,10 @@
 
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { secondsLeft, elapsedMs } from "@tdd-mob/core/aggregate";
-import type { Room, Participant } from "@tdd-mob/core";
+import type { Room } from "@tdd-mob/core";
 import { Button } from "./components/Button.js";
 import { ConfirmDialog } from "./components/ConfirmDialog.js";
-import { presenceLabel, presenceDotClass } from "./presence.js";
+import { RosterPanel } from "./components/RosterPanel.js";
 import { deriveAnnouncement, type AnnounceState } from "./announce.js";
 
 interface SessionProps {
@@ -24,6 +24,12 @@ interface SessionProps {
   onReset: () => void;
   onBreakStart: () => void;
   onBreakEnd: () => void;
+  /** 在席一覧（RosterPanel）の操作ハンドラ（FR-046/047/048/051）。
+   *  既存の onSkip（= SWITCH 交代）とは別物の driver.skip/resume を扱う。 */
+  onRenameParticipant: (participantId: string, displayName: string) => void;
+  onDriverSkip: (participantId: string) => void;
+  onDriverResume: (participantId: string) => void;
+  onAddProxy: (displayName: string) => void;
 }
 
 /** 残り時間がこの秒数以下で緊急表示にする */
@@ -41,6 +47,10 @@ export function Session({
   onReset,
   onBreakStart,
   onBreakEnd,
+  onRenameParticipant,
+  onDriverSkip,
+  onDriverResume,
+  onAddProxy,
 }: SessionProps) {
   // 稼働中は定期的に再レンダリングしてカウントダウンを進める（FR-007）
   const [nowTick, setNowTick] = useState(() => Date.now());
@@ -243,30 +253,19 @@ export function Session({
         </div>
       )}
 
-      {/* 参加者一覧（状態は色＋テキスト併記） */}
-      <div className="w-full">
-        <h3 className="mb-2 text-sm font-semibold text-fg-subtle">参加者</h3>
-        <ul className="flex flex-wrap gap-2">
-          {room.participants.map((p: Participant) => (
-            <li
-              key={p.participantId}
-              className="flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1.5 text-sm text-fg"
-            >
-              <span
-                className={`h-2 w-2 rounded-full ${presenceDotClass(p.presence)}`}
-                aria-hidden="true"
-              />
-              <span>{p.displayName}</span>
-              <span className="text-xs text-fg-subtle">
-                ({presenceLabel(p.presence)})
-              </span>
-              {p.role === "host" && (
-                <span className="text-xs font-semibold text-primary">主催者</span>
-              )}
-            </li>
-          ))}
-        </ul>
-      </div>
+      {/* 在席一覧（RosterPanel）。改名・一時離脱・代理追加・観覧表示・現ドライバー
+          ハイライトを提供（FR-046/047/048/050/051/061）。現ドライバーは rotation の
+          名前で判定する（participants 配列の位置とはずれるため）。 */}
+      <RosterPanel
+        participants={room.participants}
+        currentDriverName={room.session.rotation[room.session.currentIndex] ?? ""}
+        myParticipantId={participantId}
+        canHostAction={isHost}
+        onRename={onRenameParticipant}
+        onSkip={onDriverSkip}
+        onResume={onDriverResume}
+        onAddProxy={onAddProxy}
+      />
 
       {/* 引き継ぎメモ */}
       {room.handoffNote && (

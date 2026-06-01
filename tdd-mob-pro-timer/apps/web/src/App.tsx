@@ -14,7 +14,7 @@ import { ByokProvider } from "./ai/byok.js";
 import type { ProblemProvider } from "./ai/provider.js";
 import { screenForPhase } from "./ui/screen.js";
 import { buildCompletionRecord } from "@tdd-mob/core";
-import type { Room, SessionConfig, CompletionRecord } from "@tdd-mob/core";
+import type { Room, SessionConfig, CompletionRecord, Participant } from "@tdd-mob/core";
 
 /** ローカルに API 鍵があれば BYOK、無ければ定型のみのプロバイダを返す */
 function resolveProvider(): ProblemProvider {
@@ -37,6 +37,19 @@ export default function App() {
   const [banner, setBanner] = useState<{ text: string; kind: "warn" | "error" } | null>(null);
   // onNeedProblem など closure から最新ルームの設定を参照するための ref
   const roomRef = useRef<Room | null>(null);
+  // ソロのロスター差分（改名/一時離脱/代理追加）。コアは v2 ロスターイベントを no-op 化し
+  // rotation 反映は sync 層のみで行うため、ソロでは App がローカルに差分を保持して
+  // buildSoloRoom で重ねる（共有では client.send が真実源なので使わない）。
+  const soloRosterRef = useRef<{
+    renames: Record<string, string>;
+    skips: Set<string>;
+    proxies: { participantId: string; displayName: string }[];
+  }>({ renames: {}, skips: new Set(), proxies: [] });
+  // 最新の buildSoloRoom で soloRoom を再構築する関数を保持（ロスター操作後の再描画用）
+  const soloRebuildRef = useRef<(() => void) | null>(null);
+
+  /** 代理参加者の一意な participantId を生成する（衝突回避のため乱数を含める） */
+  const makeProxyId = () => `proxy-${Math.random().toString(36).slice(2, 10)}`;
 
   // SyncClient の配線を create/join で共有する。
   // getConfig は onNeedProblem 用に「お題生成に使う言語・難易度」を返す。
@@ -120,34 +133,70 @@ export default function App() {
   const handleSolo = (config: SessionConfig) => {
     const engine = new LocalEngine(config);
 
-    // ソロ用の合成ルームを集約から組み立てる（共有時の Room 形と互換）
-    const buildSoloRoom = (): Room => ({
-      code: "SOLO",
-      createdAt: engine.aggregate.clock.anchorServerTime || 0,
-      hostParticipantId: "solo",
-      config,
-      problem: null,
-      session: engine.aggregate.session,
-      clock: engine.aggregate.clock,
-      phase: "session",
-      participants: [
-        {
-          participantId: "solo",
-          connId: null,
-          displayName: config.members[0] ?? "You",
-          role: "host",
-          presence: "online",
-          hasAiKey: false,
-          joinedAt: 0,
-        },
-      ],
-      sessionRecords: [],
-      handoffNote: "",
-      onBreak: false,
-    });
+    // ソロ用の合成ルームを集約から組み立てる（共有時の Room 形と互換）。
+    // ロスター差分（改名/一時離脱/代理追加）をエンジンの session に重ねて
+    // participants・rotation を再構成する。
+    const buildSoloRoom = (): Room => {
+      const ov = soloRosterRef.current;
+      const hostId = "solo";
+      const hostBaseName = config.members[0] ?? "You";
+      const hostName = ov.renames[hostId] ?? hostBaseName;
+
+      const host: Participant = {
+        participantId: hostId,
+        connId: null,
+        displayName: hostName,
+        role: "host",
+        presence: "online",
+        hasAiKey: false,
+        joinedAt: 0,
+        driverEligible: !ov.skips.has(hostId),
+      };
+      const proxyParticipants: Participant[] = ov.proxies.map((px) => ({
+        participantId: px.participantId,
+        connId: null,
+        displayName: ov.renames[px.participantId] ?? px.displayName,
+        role: "editor",
+        presence: "offline",
+        hasAiKey: false,
+        joinedAt: 0,
+        isPlaceholder: true,
+        driverEligible: !ov.skips.has(px.participantId),
+      }));
+
+      // rotation はホスト改名を反映し、代理名を末尾に追加する。
+      // driverCounts も同数だけ伸ばし不変条件 rotation.length === driverCounts.length を保つ。
+      const engSession = engine.aggregate.session;
+      const baseRotation = engSession.rotation.map((n) =>
+        n === hostBaseName ? hostName : n,
+      );
+      const proxyNames = proxyParticipants.map((p) => p.displayName);
+      const rotation = [...baseRotation, ...proxyNames];
+      const driverCounts = [
+        ...engSession.driverCounts,
+        ...proxyNames.map(() => 0),
+      ];
+
+      return {
+        code: "SOLO",
+        createdAt: engine.aggregate.clock.anchorServerTime || 0,
+        hostParticipantId: hostId,
+        config,
+        problem: null,
+        session: { ...engSession, rotation, driverCounts },
+        clock: engine.aggregate.clock,
+        phase: "session",
+        participants: [host, ...proxyParticipants],
+        sessionRecords: [],
+        handoffNote: "",
+        onBreak: false,
+      };
+    };
 
     // エンジンの状態変化を soloRoom へ反映（タイマー駆動・交代を画面に伝播）
     engine.setOnChange(() => setSoloRoom(buildSoloRoom()));
+    // ロスター操作後に soloRoom を再構築できるよう関数を保持する
+    soloRebuildRef.current = () => setSoloRoom(buildSoloRoom());
 
     setParticipantId("solo");
     setSoloEngine(engine);
@@ -192,6 +241,9 @@ export default function App() {
     setSoloRoom(null);
     setParticipantId("");
     setRecord(null);
+    // ソロのロスター差分をクリア（次セッションへ持ち越さない）
+    soloRosterRef.current = { renames: {}, skips: new Set(), proxies: [] };
+    soloRebuildRef.current = null;
     setMode("setup");
   };
 
@@ -223,6 +275,42 @@ export default function App() {
       if (action === "SWITCH") soloEngine.skip();
       else if (action === "PAUSE") soloEngine.pause();
       else soloEngine.resume();
+    }
+  };
+
+  // ─── 在席一覧（RosterPanel）操作 ───────────────────────────────────────────
+  // 共有時は WS コマンドを送信（サーバーが rotation/participants をミラー）。
+  // ソロ時は App ローカルのロスター差分を更新して再描画する。
+  const rosterRename = (pid: string, displayName: string) => {
+    if (client) {
+      client.send({ command: "participant.rename", participantId: pid, displayName });
+    } else if (soloEngine) {
+      soloRosterRef.current.renames[pid] = displayName;
+      soloRebuildRef.current?.();
+    }
+  };
+  const rosterSkip = (pid: string) => {
+    if (client) {
+      client.send({ command: "driver.skip", participantId: pid });
+    } else if (soloEngine) {
+      soloRosterRef.current.skips.add(pid);
+      soloRebuildRef.current?.();
+    }
+  };
+  const rosterResume = (pid: string) => {
+    if (client) {
+      client.send({ command: "driver.resume", participantId: pid });
+    } else if (soloEngine) {
+      soloRosterRef.current.skips.delete(pid);
+      soloRebuildRef.current?.();
+    }
+  };
+  const rosterAddProxy = (displayName: string) => {
+    if (client) {
+      client.send({ command: "participant.addProxy", participantId: makeProxyId(), displayName });
+    } else if (soloEngine) {
+      soloRosterRef.current.proxies.push({ participantId: makeProxyId(), displayName });
+      soloRebuildRef.current?.();
     }
   };
 
@@ -260,6 +348,10 @@ export default function App() {
           onReset={() => client?.send({ command: "session.reset" })}
           onBreakStart={() => client?.send({ command: "break.start" })}
           onBreakEnd={() => client?.send({ command: "break.end" })}
+          onRenameParticipant={rosterRename}
+          onDriverSkip={rosterSkip}
+          onDriverResume={rosterResume}
+          onAddProxy={rosterAddProxy}
         />
       );
     }

@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import React from "react";
 import { RosterPanel } from "../../src/ui/components/RosterPanel.js";
 import type { Participant } from "@tdd-mob/core";
@@ -105,6 +105,43 @@ describe("RosterPanel（T056/T057）", () => {
     const submitBtn = screen.getByRole("button", { name: /^追加$/ });
     fireEvent.click(submitBtn);
     expect(onAddProxy).toHaveBeenCalledWith("Dave");
+  });
+
+  it("改名ボタンを押して名前を編集し保存すると onRename が呼ばれる（FR-046/048）", () => {
+    const onRename = vi.fn();
+    render(<RosterPanel {...baseProps} onRename={onRename} />);
+    // 自分（Alice, p1）の行の改名ボタンを押すと、現在名がプリフィルされた入力が現れる
+    const aliceItem = screen.getByText("Alice").closest("li") as HTMLElement;
+    fireEvent.click(within(aliceItem).getByRole("button", { name: /改名/ }));
+    const input = screen.getByDisplayValue("Alice");
+    fireEvent.change(input, { target: { value: "Alicia" } });
+    const saveBtn = screen.getByRole("button", { name: /^保存$/ });
+    fireEvent.click(saveBtn);
+    expect(onRename).toHaveBeenCalledWith("p1", "Alicia");
+  });
+
+  it("ホストでない観覧者でも自分自身は改名できる（FR-046）", () => {
+    const onRename = vi.fn();
+    const participants = [
+      makeParticipant({ participantId: "p1", displayName: "Alice", role: "host" }),
+      makeParticipant({ participantId: "v9", displayName: "Vic", role: "viewer", connId: "cv" }),
+    ];
+    // viewer 視点: canHostAction=false, myParticipantId=v9
+    render(
+      <RosterPanel
+        {...baseProps}
+        participants={participants}
+        canHostAction={false}
+        myParticipantId="v9"
+        onRename={onRename}
+      />,
+    );
+    const renameBtn = screen.getByRole("button", { name: /改名/ });
+    fireEvent.click(renameBtn);
+    const input = screen.getByDisplayValue("Vic");
+    fireEvent.change(input, { target: { value: "Victor" } });
+    fireEvent.click(screen.getByRole("button", { name: /^保存$/ }));
+    expect(onRename).toHaveBeenCalledWith("v9", "Victor");
   });
 
   it("一時離脱中の参加者に離脱バッジが表示される（FR-051）", () => {
