@@ -12,9 +12,6 @@ import { AiSettingsModal } from "./ui/components/AiSettingsModal.js";
 import { saveApiKey, clearApiKey, loadApiKey } from "./ai/key-storage.js";
 import { getInitialTheme } from "./ui/theme.js";
 import { SyncClient } from "./sync/client.js";
-import { LocalEngine } from "./solo/local-engine.js";
-import { computeSoloIneligibleIndices } from "./solo/eligibility.js";
-import { buildSoloRoom, soloRosterMembers, canAddSoloProxy } from "./solo/roster.js";
 import { NoAiProvider } from "./ai/no-ai.js";
 import { ByokProvider } from "./ai/byok.js";
 import type { ProblemProvider } from "./ai/provider.js";
@@ -29,7 +26,7 @@ function resolveProvider(): ProblemProvider {
   return key ? new ByokProvider({ apiKey: key }) : new NoAiProvider();
 }
 
-type AppMode = "setup" | "lobby" | "session" | "celebration" | "solo";
+type AppMode = "setup" | "lobby" | "session" | "celebration";
 
 export default function App() {
   const [mode, setMode] = useState<AppMode>("setup");
@@ -37,8 +34,6 @@ export default function App() {
   const [participantId, setParticipantId] = useState<string>("");
   const [record, setRecord] = useState<CompletionRecord | null>(null);
   const [client, setClient] = useState<SyncClient | null>(null);
-  const [soloEngine, setSoloEngine] = useState<LocalEngine | null>(null);
-  const [soloRoom, setSoloRoom] = useState<Room | null>(null);
   const [banner, setBanner] = useState<{ text: string; kind: "warn" | "error" } | null>(null);
   // 終了種別（完成/中断）。Summary の見出し・記録の出し分けに使う（FR-020）。
   const [endType, setEndType] = useState<EndType>("complete");
@@ -51,19 +46,6 @@ export default function App() {
   const [keyVersion, setKeyVersion] = useState(0);
   // onNeedProblem など closure から最新ルームの設定を参照するための ref
   const roomRef = useRef<Room | null>(null);
-  // ソロのロスター差分（改名/一時離脱/代理追加）。コアは v2 ロスターイベントを no-op 化し
-  // rotation 反映は sync 層のみで行うため、ソロでは App がローカルに差分を保持して
-  // buildSoloRoom で重ねる（共有では client.send が真実源なので使わない）。
-  const soloRosterRef = useRef<{
-    renames: Record<string, string>;
-    skips: Set<string>;
-    proxies: { participantId: string; displayName: string }[];
-  }>({ renames: {}, skips: new Set(), proxies: [] });
-  // 最新の buildSoloRoom で soloRoom を再構築する関数を保持（ロスター操作後の再描画用）
-  const soloRebuildRef = useRef<(() => void) | null>(null);
-  // ソロのお題。共有では Room.problem がサーバー権威だが、ソロは App がローカルに保持し
-  // buildSoloRoom で重ねる（編集/持ち込み/やり直しを反映する）。
-  const soloProblemRef = useRef<Problem | null>(null);
 
   /** 代理参加者の一意な participantId を生成する（衝突回避のため乱数を含める） */
   const makeProxyId = () => `proxy-${Math.random().toString(36).slice(2, 10)}`;
@@ -154,125 +136,27 @@ export default function App() {
     c.send({ command: "room.join", code, displayName, hasAiKey: false });
   };
 
-  const handleSolo = (config: SessionConfig) => {
-    const engine = new LocalEngine(config);
-
-    // ソロ用の合成ルームを集約から組み立てる（共有時の Room 形と互換）。
-    // config.members 全員＋代理の Participant を生成し、ロスター差分（改名/離脱/代理）を
-    // 重ねる。構築ロジックは roster.ts に切り出してユニットテスト可能にしている。
-    const buildRoom = (): Room =>
-      buildSoloRoom({
-        config,
-        engineSession: engine.aggregate.session,
-        clock: engine.aggregate.clock,
-        createdAt: engine.aggregate.clock.anchorServerTime || 0,
-        overrides: soloRosterRef.current,
-        problem: soloProblemRef.current,
-      });
-
-    // 離脱（driver.skip 相当）を交代ロジックへ伝える。共有時の handlers と同様に
-    // driverEligible=false のメンバーを飛ばすため、ロスター差分から対象外インデックスを導く。
-    // 非代理メンバーは rotation と index が 1:1 のため、index ベースで対象外を判定する。
-    engine.setIneligibleProvider(() =>
-      computeSoloIneligibleIndices(
-        soloRosterMembers(config.members, soloRosterRef.current),
-        soloRosterRef.current.skips,
-      ),
-    );
-
-    // エンジンの状態変化を soloRoom へ反映（タイマー駆動・交代を画面に伝播）
-    engine.setOnChange(() => setSoloRoom(buildRoom()));
-    // ロスター操作後に soloRoom を再構築できるよう関数を保持する
-    soloRebuildRef.current = () => setSoloRoom(buildRoom());
-
-    setParticipantId("solo");
-    setSoloEngine(engine);
-    setSoloRoom(buildRoom());
-    // お題をタイマー前に決める（US3）: ロビーでお題をプレビュー/編集してから開始する。
-    // まずは出題モードに応じてお題を用意し、ロビーへ遷移する（engine.start はまだしない）。
-    setMode("lobby");
-    if (problemMode === "ai") {
-      resolveProvider()
-        .generate(config.language, config.difficulty)
-        .then(({ problem, source }) => {
-          soloProblemRef.current = { ...problem, source, edited: false };
-          soloRebuildRef.current?.();
-        })
-        .catch((e) => console.error("お題生成に失敗しました:", e));
-    } else {
-      // 定型モード: 定型バンクから取得（NoAiProvider が定型を返す）。
-      new NoAiProvider()
-        .generate(config.language, config.difficulty)
-        .then(({ problem, source }) => {
-          soloProblemRef.current = { ...problem, source, edited: false };
-          soloRebuildRef.current?.();
-        })
-        .catch((e) => console.error("定型お題の取得に失敗しました:", e));
-    }
-  };
-
-  /** ソロでロビーからセッションを開始する（お題確定後にタイマーを回す）。 */
-  const handleSoloStart = () => {
-    if (!soloEngine) return;
-    setMode("solo");
-    soloEngine.start();
-  };
-
   const handleComplete = () => {
     setEndType("complete");
-    if (client) {
-      // 共有時: サーバーへ完成を通知し、画面遷移と記録生成は snapshot 受信
-      // （onRoom の celebration 処理）で全参加者一斉に行う。ホストだけ先行しない。
-      client.send({ command: "session.complete" });
-      return;
-    }
-    // ソロ時: ローカルで記録を生成して完成画面へ。
-    // お題未選択でも完成へ到達できるよう、お題が無ければプレースホルダで記録する。
-    if (soloRoom) {
-      const now = Date.now();
-      const agg = { session: soloRoom.session, clock: soloRoom.clock };
-      const problem = soloRoom.problem ?? {
-        title: "（お題なし）",
-        description: "",
-        requirements: [],
-        exampleTest: "",
-        hints: [],
-      };
-      setRecord(
-        buildCompletionRecord(agg, problem, soloRoom.config, now, soloRoom.code),
-      );
-    }
-    soloEngine?.pause();
-    setMode("celebration");
+    // サーバーへ完成を通知。画面遷移と記録生成は snapshot 受信（onRoom の celebration
+    // 処理）で全参加者一斉に行う。ホストだけ先行しない。
+    client?.send({ command: "session.complete" });
   };
 
-  /** 途中で終える（中断）。完成と異なり記録は残さない（FR-020）。 */
+  /** 途中で終える（中断）。完成と異なり記録は残さない（FR-020）。
+   *  画面遷移は snapshot（celebration）受信で全員一斉。 */
   const handleAbort = () => {
     setEndType("abort");
     setRecord(null);
-    if (client) {
-      // 共有時: サーバーへ中断を通知。画面遷移は snapshot（celebration）受信で全員一斉。
-      client.send({ command: "session.abort" });
-      return;
-    }
-    // ソロ時: 記録を作らず締めくくり画面（中断表示）へ。
-    soloEngine?.pause();
-    setMode("celebration");
+    client?.send({ command: "session.abort" });
   };
 
   const handleNewSession = () => {
     client?.dispose();
     setClient(null);
-    soloEngine?.dispose();
-    setSoloEngine(null);
     setRoom(null);
-    setSoloRoom(null);
     setParticipantId("");
     setRecord(null);
-    // ソロのロスター差分・お題をクリア（次セッションへ持ち越さない）
-    soloRosterRef.current = { renames: {}, skips: new Set(), proxies: [] };
-    soloProblemRef.current = null;
-    soloRebuildRef.current = null;
     setEndType("complete");
     setSessionLost(false);
     setAiModalOpen(false);
@@ -305,81 +189,41 @@ export default function App() {
   useEffect(() => {
     return () => {
       client?.dispose();
-      soloEngine?.dispose();
     };
-  }, [client, soloEngine]);
+  }, [client]);
 
   // ロビー/セッションは「ダークステージ固定」（plan.md L33・FR-028/SC-006）。
   // 既存の data-theme=dark 機構（実績あり）で舞台を暗くし、文字・面トークンを確実に
   // ダーク値へ切り替える。Setup/Summary では利用者本来のテーマへ復帰する。
   // ここでは DOM 属性のみ操作し localStorage には保存しない（テーマトグルの保存値を汚さない）。
   useEffect(() => {
-    const onStage = mode === "lobby" || mode === "session" || mode === "solo";
+    const onStage = mode === "lobby" || mode === "session";
     const theme = onStage ? "dark" : getInitialTheme();
     document.documentElement.setAttribute("data-theme", theme);
   }, [mode]);
 
-  // 共有時は client へコマンド送信、ソロ時は soloEngine を直接駆動する。
-  // void を返す send() に対する `??` の誤用を避け、モードで明示分岐する。
+  // 共有時の操作はすべて WS コマンド送信（サーバーが状態をミラーし全員へ反映）。
   const act = (action: "SWITCH" | "PAUSE" | "RESUME") => {
-    if (client) {
-      client.send({ command: "session.act", action });
-    } else if (soloEngine) {
-      if (action === "SWITCH") soloEngine.skip();
-      else if (action === "PAUSE") soloEngine.pause();
-      else soloEngine.resume();
-    }
+    client?.send({ command: "session.act", action });
   };
 
   // ─── 在席一覧（RosterPanel）操作 ───────────────────────────────────────────
-  // 共有時は WS コマンドを送信（サーバーが rotation/participants をミラー）。
-  // ソロ時は App ローカルのロスター差分を更新して再描画する。
+  // WS コマンドを送信し、サーバーが rotation/participants をミラーして全員へ反映する。
   const rosterRename = (pid: string, displayName: string) => {
-    if (client) {
-      client.send({ command: "participant.rename", participantId: pid, displayName });
-    } else if (soloEngine) {
-      soloRosterRef.current.renames[pid] = displayName;
-      soloRebuildRef.current?.();
-    }
+    client?.send({ command: "participant.rename", participantId: pid, displayName });
   };
   const rosterSkip = (pid: string) => {
-    if (client) {
-      client.send({ command: "driver.skip", participantId: pid });
-    } else if (soloEngine) {
-      soloRosterRef.current.skips.add(pid);
-      // 現ドライバーを離脱させたら即座に次の eligible へ繰り上げる（共有時と整合）。
-      soloEngine.reconcileCurrentDriver();
-      soloRebuildRef.current?.();
-    }
+    client?.send({ command: "driver.skip", participantId: pid });
   };
   const rosterResume = (pid: string) => {
-    if (client) {
-      client.send({ command: "driver.resume", participantId: pid });
-    } else if (soloEngine) {
-      soloRosterRef.current.skips.delete(pid);
-      soloRebuildRef.current?.();
-    }
+    client?.send({ command: "driver.resume", participantId: pid });
   };
   const rosterAddProxy = (displayName: string) => {
-    if (client) {
-      client.send({ command: "participant.addProxy", participantId: makeProxyId(), displayName });
-    } else if (soloEngine) {
-      // ソロでも共有時（core.decideAddProxy）と同じ基準で重複名・空名を拒否する。
-      // 重複表示名を許すと rotation 一意性が崩れ RosterPanel の名前ベース判定が壊れるため fail-closed。
-      const members = soloRoom?.config.members ?? [];
-      if (!canAddSoloProxy(members, soloRosterRef.current, displayName)) {
-        setBanner({ text: `「${displayName.trim()}」は既存の名前と重複しています`, kind: "warn" });
-        return;
-      }
-      setBanner(null);
-      soloRosterRef.current.proxies.push({ participantId: makeProxyId(), displayName });
-      soloRebuildRef.current?.();
-    }
+    client?.send({ command: "participant.addProxy", participantId: makeProxyId(), displayName });
   };
 
   // ─── お題編集（ProblemEditor）操作 ─────────────────────────────────────────
-  // 共有時は WS コマンド（サーバーが problem を全員へ反映: FR-041）。
-  // ソロ時は soloProblemRef を更新して再描画する。編集は editor+（UI 側で制御）。
+  // WS コマンドでサーバーが problem を全員へ反映する（FR-041）。編集は editor+（UI 側で制御）。
 
   /** お題を可搬なプレーンテキストへ整形する（FR-013 コピー用） */
   const formatProblemText = (p: Problem): string => {
@@ -393,16 +237,11 @@ export default function App() {
   };
 
   const editProblem = (patch: Partial<Omit<Problem, "source" | "edited">>) => {
-    if (client) {
-      client.send({ command: "problem.edit", patch });
-    } else if (soloEngine && soloProblemRef.current) {
-      soloProblemRef.current = { ...soloProblemRef.current, ...patch, edited: true };
-      soloRebuildRef.current?.();
-    }
+    client?.send({ command: "problem.edit", patch });
   };
 
   const copyProblem = () => {
-    const p = (roomRef.current ?? soloRoom)?.problem;
+    const p = roomRef.current?.problem;
     if (!p || !navigator.clipboard?.writeText) return;
     navigator.clipboard.writeText(formatProblemText(p)).catch(() => {
       /* 権限拒否等は無視 */
@@ -410,21 +249,10 @@ export default function App() {
   };
 
   const regenerateProblem = () => {
-    if (client) {
-      const code = roomRef.current?.code;
-      if (code) {
-        // 直近のお題と重複しにくい新規生成を代表へ依頼する（FR-012）
-        client.send({ command: "problem.request", requestId: `req-${code}-regen` });
-      }
-    } else if (soloEngine && soloRoom) {
-      const { language, difficulty } = soloRoom.config;
-      resolveProvider()
-        .generate(language, difficulty)
-        .then(({ problem, source }) => {
-          soloProblemRef.current = { ...problem, source, edited: false };
-          soloRebuildRef.current?.();
-        })
-        .catch((e) => console.error("お題のやり直しに失敗しました:", e));
+    const code = roomRef.current?.code;
+    if (code) {
+      // 直近のお題と重複しにくい新規生成を代表へ依頼する（FR-012）
+      client?.send({ command: "problem.request", requestId: `req-${code}-regen` });
     }
   };
 
@@ -448,39 +276,32 @@ export default function App() {
       });
   };
 
-  // StatusStrip 用に「自分」の表示名・役割を導出する。ソロはホスト固定。
-  const activeRoom = room ?? soloRoom;
-  const self = activeRoom?.participants.find((p) => p.participantId === participantId);
-  const selfName = self?.displayName ?? activeRoom?.config.members[0] ?? "あなた";
+  // StatusStrip 用に「自分」の表示名・役割を導出する。
+  const self = room?.participants.find((p) => p.participantId === participantId);
+  const selfName = self?.displayName ?? room?.config.members[0] ?? "あなた";
   const selfRole = self?.role ?? "host";
-  // 接続状態: 喪失 > 再接続中(warn バナー) > オンライン。ソロは常にオンライン相当。
+  // 接続状態: 喪失 > 再接続中(warn バナー) > オンライン。
   const connectionStatus: ConnectionStatus = sessionLost
     ? "lost"
-    : client && banner?.kind === "warn"
+    : banner?.kind === "warn"
       ? "reconnecting"
       : "online";
 
   /** セッション/ロビーはダークステージ固定。Setup/Summary は通常テーマ。 */
   const renderBody = () => {
-    if (mode === "lobby" && activeRoom) {
-      // ソロはこのロビーでお題を確認・編集してから handleSoloStart で開始する。
-      const isSolo = !client && !!soloEngine;
+    if (mode === "lobby" && room) {
       return (
         <Lobby
-          room={activeRoom}
+          room={room}
           participantId={participantId}
-          onStartSession={
-            isSolo
-              ? handleSoloStart
-              : () => {
-                  if (!activeRoom.problem) {
-                    client?.send({ command: "problem.request", requestId: `req-${activeRoom.code}` });
-                  }
-                  client?.send({ command: "phase.set", phase: "session" });
-                  client?.send({ command: "session.act", action: "START" });
-                  setMode("session");
-                }
-          }
+          onStartSession={() => {
+            if (!room.problem) {
+              client?.send({ command: "problem.request", requestId: `req-${room.code}` });
+            }
+            client?.send({ command: "phase.set", phase: "session" });
+            client?.send({ command: "session.act", action: "START" });
+            setMode("session");
+          }}
           onEditProblem={editProblem}
           onRegenerateProblem={regenerateProblem}
           onPasteProblem={pasteProblem}
@@ -490,24 +311,19 @@ export default function App() {
       );
     }
 
-    if ((mode === "session" || mode === "solo") && activeRoom) {
+    if (mode === "session" && room) {
       return (
         <Session
-          room={activeRoom}
+          room={room}
           participantId={participantId}
           clockOffset={client?.clockOffset ?? 0}
-          awaitingProblem={!!client && !activeRoom.problem}
+          awaitingProblem={!room.problem}
           onSkip={() => act("SWITCH")}
           onPause={() => act("PAUSE")}
           onResume={() => act("RESUME")}
           onComplete={handleComplete}
           onAbort={handleAbort}
-          onReset={() =>
-            client
-              ? client.send({ command: "session.reset" })
-              : (soloRosterRef.current = { renames: {}, skips: new Set(), proxies: [] },
-                 handleNewSession())
-          }
+          onReset={() => client?.send({ command: "session.reset" })}
           onBreakStart={() => client?.send({ command: "break.start" })}
           onBreakEnd={() => client?.send({ command: "break.end" })}
           onRenameParticipant={rosterRename}
@@ -536,23 +352,23 @@ export default function App() {
       );
     }
 
-    return <Setup onCreateRoom={handleCreateRoom} onSolo={handleSolo} />;
+    return <Setup onCreateRoom={handleCreateRoom} />;
   };
 
   // ロビー/セッションはダークステージ固定（FR-028/SC-006）。Setup/Summary は通常テーマ。
-  const isStage = mode === "lobby" || mode === "session" || mode === "solo";
+  const isStage = mode === "lobby" || mode === "session";
 
   return (
     <div className={isStage ? "stage-canvas min-h-screen" : "min-h-screen"}>
       {/* 永続ステータスストリップ（全画面共通・FR-036）。Setup では参加前なので出さない。 */}
       {mode !== "setup" && (
         <StatusStrip
-          phase={mode === "solo" ? "session" : mode}
+          phase={mode}
           displayName={selfName}
           role={selfRole}
           connectionStatus={connectionStatus}
           problemMode={problemMode}
-          roomCode={client ? activeRoom?.code : undefined}
+          roomCode={room?.code}
         />
       )}
 

@@ -27,14 +27,13 @@ const DIFFICULTIES = [
 
 interface SetupProps {
   onCreateRoom: (config: SessionConfig) => void;
-  onSolo: (config: SessionConfig) => void;
 }
 
 const SELECT_CLASS =
   "w-full min-h-11 rounded-md border border-line bg-surface px-3 text-fg " +
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
-export function Setup({ onCreateRoom, onSolo }: SetupProps) {
+export function Setup({ onCreateRoom }: SetupProps) {
   const [members, setMembers] = useState<string[]>(["Alice", "Bob"]);
   const [newMember, setNewMember] = useState("");
   const [language, setLanguage] = useState("TypeScript");
@@ -173,11 +172,8 @@ export function Setup({ onCreateRoom, onSolo }: SetupProps) {
         )}
       </div>
 
-      {/* アクション */}
+      {/* アクション（ソロ練習は v2 で非推奨化し入口を閉鎖。共有ルーム一本に統一） */}
       <div className="flex gap-3">
-        <Button intent="neutral" className="flex-1" onClick={() => onSolo(buildConfig())}>
-          ソロ練習
-        </Button>
         <Button intent="primary" className="flex-1" onClick={() => onCreateRoom(buildConfig())}>
           ルームを作成
         </Button>
