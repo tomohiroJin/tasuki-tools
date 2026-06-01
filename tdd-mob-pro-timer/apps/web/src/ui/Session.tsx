@@ -5,10 +5,11 @@
 
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { secondsLeft, elapsedMs } from "@tdd-mob/core/aggregate";
-import type { Room } from "@tdd-mob/core";
+import type { Room, Problem } from "@tdd-mob/core";
 import { Button } from "./components/Button.js";
 import { ConfirmDialog } from "./components/ConfirmDialog.js";
 import { RosterPanel } from "./components/RosterPanel.js";
+import { ProblemEditor } from "./components/ProblemEditor.js";
 import { deriveAnnouncement, type AnnounceState } from "./announce.js";
 
 interface SessionProps {
@@ -30,6 +31,12 @@ interface SessionProps {
   onDriverSkip: (participantId: string) => void;
   onDriverResume: (participantId: string) => void;
   onAddProxy: (displayName: string) => void;
+  /** お題編集まわり（editor+）。お題が確定している間のみ ProblemEditor から呼ばれる（US3）。
+   *  共有時は problem.edit/submit/request、ソロ時は LocalEngine 経由で App が処理する。 */
+  onEditProblem?: (patch: Partial<Omit<Problem, "source" | "edited">>) => void;
+  onCopyProblem?: () => void;
+  onRegenerateProblem?: () => void;
+  onPasteProblem?: () => void;
 }
 
 /** 残り時間がこの秒数以下で緊急表示にする */
@@ -51,6 +58,10 @@ export function Session({
   onDriverSkip,
   onDriverResume,
   onAddProxy,
+  onEditProblem,
+  onCopyProblem,
+  onRegenerateProblem,
+  onPasteProblem,
 }: SessionProps) {
   // 稼働中は定期的に再レンダリングしてカウントダウンを進める（FR-007）
   const [nowTick, setNowTick] = useState(() => Date.now());
@@ -144,11 +155,18 @@ export function Session({
       aria-label="セッション"
       className="mx-auto flex max-w-2xl flex-col items-center gap-6 p-6"
     >
-      {/* お題（確定後）。未確定で生成待ちなら生成中表示（FR-003, US3-AC5） */}
+      {/* お題（確定後）。ProblemEditor を本番接続し、editor+ は各フィールドを編集できる
+          （FR-009/013/038/040/041）。未確定で生成待ちなら生成中表示（FR-003, US3-AC5）。 */}
       {room.problem ? (
         <div className="w-full rounded-lg border border-line bg-surface p-4 shadow-card">
-          <h2 className="text-lg font-bold text-fg">{room.problem.title}</h2>
-          <p className="mt-2 text-fg-muted">{room.problem.description}</p>
+          <ProblemEditor
+            problem={room.problem}
+            canEdit={isEditor}
+            onEdit={(patch) => onEditProblem?.(patch)}
+            onCopy={() => onCopyProblem?.()}
+            onRegenerate={() => onRegenerateProblem?.()}
+            onPaste={() => onPasteProblem?.()}
+          />
         </div>
       ) : (
         awaitingProblem && (

@@ -123,4 +123,59 @@ describe("ProblemEditor（T050/T051）", () => {
     );
     expect(screen.getByText(/編集済|edited/i)).toBeTruthy();
   });
+
+  // ─── お題編集 UI（onEdit 発火）─────────────────────────────────────────────
+  it("編集モードでタイトルを変更すると onEdit が title patch で呼ばれる（FR-038）", () => {
+    const onEdit = vi.fn();
+    render(
+      <ProblemEditor
+        problem={baseProblem}
+        onEdit={onEdit}
+        onCopy={noop}
+        onRegenerate={noop}
+        onPaste={noop}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /^編集$/ }));
+    const titleInput = screen.getByLabelText("お題タイトル");
+    fireEvent.change(titleInput, { target: { value: "新タイトル" } });
+    fireEvent.blur(titleInput);
+    expect(onEdit).toHaveBeenCalledWith({ title: "新タイトル" });
+  });
+
+  it("編集モードで要件を変更すると onEdit が requirements 配列 patch で呼ばれる（FR-038）", () => {
+    const onEdit = vi.fn();
+    render(
+      <ProblemEditor
+        problem={baseProblem}
+        onEdit={onEdit}
+        onCopy={noop}
+        onRegenerate={noop}
+        onPaste={noop}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /^編集$/ }));
+    const reqInput = screen.getByLabelText(/要件/);
+    fireEvent.change(reqInput, { target: { value: "条件A\n条件B\n条件C" } });
+    fireEvent.blur(reqInput);
+    expect(onEdit).toHaveBeenCalledWith({
+      requirements: ["条件A", "条件B", "条件C"],
+    });
+  });
+
+  it("canEdit=false（観覧者）では編集ボタンを表示しない（FR-055）", () => {
+    render(
+      <ProblemEditor
+        problem={baseProblem}
+        canEdit={false}
+        onEdit={noop}
+        onCopy={noop}
+        onRegenerate={noop}
+        onPaste={noop}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: /^編集$/ })).toBeNull();
+    // コピーは全員可（FR-013）
+    expect(screen.getByRole("button", { name: /コピー/ })).toBeTruthy();
+  });
 });

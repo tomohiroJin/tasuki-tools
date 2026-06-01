@@ -15,7 +15,7 @@ import { ByokProvider } from "./ai/byok.js";
 import type { ProblemProvider } from "./ai/provider.js";
 import { screenForPhase } from "./ui/screen.js";
 import { buildCompletionRecord } from "@tdd-mob/core";
-import type { Room, SessionConfig, CompletionRecord, Participant } from "@tdd-mob/core";
+import type { Room, SessionConfig, CompletionRecord, Participant, Problem } from "@tdd-mob/core";
 
 /** ローカルに API 鍵があれば BYOK、無ければ定型のみのプロバイダを返す */
 function resolveProvider(): ProblemProvider {
@@ -48,6 +48,9 @@ export default function App() {
   }>({ renames: {}, skips: new Set(), proxies: [] });
   // 最新の buildSoloRoom で soloRoom を再構築する関数を保持（ロスター操作後の再描画用）
   const soloRebuildRef = useRef<(() => void) | null>(null);
+  // ソロのお題。共有では Room.problem がサーバー権威だが、ソロは App がローカルに保持し
+  // buildSoloRoom で重ねる（編集/持ち込み/やり直しを反映する）。
+  const soloProblemRef = useRef<Problem | null>(null);
 
   /** 代理参加者の一意な participantId を生成する（衝突回避のため乱数を含める） */
   const makeProxyId = () => `proxy-${Math.random().toString(36).slice(2, 10)}`;
@@ -183,7 +186,7 @@ export default function App() {
         createdAt: engine.aggregate.clock.anchorServerTime || 0,
         hostParticipantId: hostId,
         config,
-        problem: null,
+        problem: soloProblemRef.current,
         session: { ...engSession, rotation, driverCounts },
         clock: engine.aggregate.clock,
         phase: "session",
@@ -258,8 +261,9 @@ export default function App() {
     setSoloRoom(null);
     setParticipantId("");
     setRecord(null);
-    // ソロのロスター差分をクリア（次セッションへ持ち越さない）
+    // ソロのロスター差分・お題をクリア（次セッションへ持ち越さない）
     soloRosterRef.current = { renames: {}, skips: new Set(), proxies: [] };
+    soloProblemRef.current = null;
     soloRebuildRef.current = null;
     setMode("setup");
   };
@@ -333,6 +337,77 @@ export default function App() {
     }
   };
 
+  // ─── お題編集（ProblemEditor）操作 ─────────────────────────────────────────
+  // 共有時は WS コマンド（サーバーが problem を全員へ反映: FR-041）。
+  // ソロ時は soloProblemRef を更新して再描画する。編集は editor+（UI 側で制御）。
+
+  /** お題を可搬なプレーンテキストへ整形する（FR-013 コピー用） */
+  const formatProblemText = (p: Problem): string => {
+    const lines: string[] = [p.title, "", p.description, ""];
+    if (p.requirements.length > 0) {
+      lines.push("要件:", ...p.requirements.map((r) => `- ${r}`), "");
+    }
+    if (p.exampleTest) lines.push("例示テスト:", p.exampleTest, "");
+    if (p.hints.length > 0) lines.push("ヒント:", ...p.hints.map((h) => `- ${h}`));
+    return lines.join("\n").trim();
+  };
+
+  const editProblem = (patch: Partial<Omit<Problem, "source" | "edited">>) => {
+    if (client) {
+      client.send({ command: "problem.edit", patch });
+    } else if (soloEngine && soloProblemRef.current) {
+      soloProblemRef.current = { ...soloProblemRef.current, ...patch, edited: true };
+      soloRebuildRef.current?.();
+    }
+  };
+
+  const copyProblem = () => {
+    const p = (roomRef.current ?? soloRoom)?.problem;
+    if (!p || !navigator.clipboard?.writeText) return;
+    navigator.clipboard.writeText(formatProblemText(p)).catch(() => {
+      /* 権限拒否等は無視 */
+    });
+  };
+
+  const regenerateProblem = () => {
+    if (client) {
+      const code = roomRef.current?.code;
+      if (code) {
+        // 直近のお題と重複しにくい新規生成を代表へ依頼する（FR-012）
+        client.send({ command: "problem.request", requestId: `req-${code}-regen` });
+      }
+    } else if (soloEngine && soloRoom) {
+      const { language, difficulty } = soloRoom.config;
+      resolveProvider()
+        .generate(language, difficulty)
+        .then(({ problem, source }) => {
+          soloProblemRef.current = { ...problem, source, edited: false };
+          soloRebuildRef.current?.();
+        })
+        .catch((e) => console.error("お題のやり直しに失敗しました:", e));
+    }
+  };
+
+  const pasteProblem = () => {
+    // 自前のお題を持ち込む（FR-040）。クリップボードから取り込み、1行目をタイトル・
+    // 残りを説明として編集経路へ反映する（共有/ソロ共通の problem.edit を再利用）。
+    if (!navigator.clipboard?.readText) return;
+    navigator.clipboard
+      .readText()
+      .then((text) => {
+        const trimmed = text.trim();
+        if (!trimmed) return;
+        const [first = "", ...rest] = trimmed.split("\n");
+        editProblem({
+          title: first.trim(),
+          description: rest.join("\n").trim(),
+        });
+      })
+      .catch(() => {
+        /* 権限拒否等は無視 */
+      });
+  };
+
   const renderScreen = () => {
     if (mode === "lobby" && room) {
       return (
@@ -371,6 +446,10 @@ export default function App() {
           onDriverSkip={rosterSkip}
           onDriverResume={rosterResume}
           onAddProxy={rosterAddProxy}
+          onEditProblem={editProblem}
+          onCopyProblem={copyProblem}
+          onRegenerateProblem={regenerateProblem}
+          onPasteProblem={pasteProblem}
         />
       );
     }
