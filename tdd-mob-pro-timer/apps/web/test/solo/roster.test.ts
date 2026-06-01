@@ -7,7 +7,7 @@
 import { describe, it, expect } from "vitest";
 import { initialAggregate } from "@tdd-mob/core";
 import type { SessionConfig } from "@tdd-mob/core";
-import { buildSoloRoom, soloMemberId } from "../../src/solo/roster.js";
+import { buildSoloRoom, soloMemberId, canAddSoloProxy } from "../../src/solo/roster.js";
 
 const config: SessionConfig = {
   language: "TypeScript",
@@ -100,5 +100,36 @@ describe("soloMemberId（項目4）", () => {
     expect(soloMemberId(0)).toBe("solo");
     expect(soloMemberId(1)).toBe("solo-member-1");
     expect(soloMemberId(2)).toBe("solo-member-2");
+  });
+});
+
+describe("canAddSoloProxy（項目5: ソロ代理追加の重複名チェック）", () => {
+  it("既存メンバー名と重複する代理追加は拒否される（大文字小文字無視）", () => {
+    // 既定メンバーは ["Alice", "Bob"]。大文字小文字を変えても重複とみなす（共有 decideAddProxy と同基準）
+    expect(canAddSoloProxy(config.members, emptyOverrides(), "alice")).toBe(false);
+    expect(canAddSoloProxy(config.members, emptyOverrides(), "BOB")).toBe(false);
+  });
+
+  it("既存の代理名と重複する代理追加は拒否される", () => {
+    const ov = emptyOverrides();
+    ov.proxies.push({ participantId: "px-1", displayName: "Carol" });
+    expect(canAddSoloProxy(config.members, ov, "carol")).toBe(false);
+  });
+
+  it("host 改名後の名前と重複する代理追加も拒否される", () => {
+    // host(Alice) を Zoe に改名 → 既存名は ["Zoe", "Bob"]。Zoe との重複を拒否し、解放された Alice は許可
+    const ov = emptyOverrides();
+    ov.renames["solo"] = "Zoe";
+    expect(canAddSoloProxy(config.members, ov, "zoe")).toBe(false);
+    expect(canAddSoloProxy(config.members, ov, "Alice")).toBe(true);
+  });
+
+  it("空名（空白のみ含む）は拒否される", () => {
+    expect(canAddSoloProxy(config.members, emptyOverrides(), "")).toBe(false);
+    expect(canAddSoloProxy(config.members, emptyOverrides(), "   ")).toBe(false);
+  });
+
+  it("既存名と重複しない一意な代理名は許可される", () => {
+    expect(canAddSoloProxy(config.members, emptyOverrides(), "Carol")).toBe(true);
   });
 });

@@ -7,6 +7,7 @@
  * 表示名一致」「members[1..n] の改名/skip」をユニットテスト可能にする。
  */
 
+import { MAX_MEMBERS } from "@tdd-mob/core";
 import type {
   Participant,
   Problem,
@@ -73,6 +74,35 @@ export function soloRosterMembers(
     isProxy: true,
   }));
   return [...base, ...proxies];
+}
+
+/**
+ * ソロの代理追加が許可されるか判定する（項目5）。
+ * 共有時の core.decideAddProxy と同じ基準に揃える:
+ *  - 空名（trim 後 0 文字）は不可
+ *  - 既存 rotation 名（members の改名反映後＋既存代理名）と大文字小文字無視で重複する場合は不可
+ *  - rotation 長が MAX_MEMBERS 以上のときは不可
+ * これによりソロでも rotation の表示名一意性（RosterPanel の名前ベース判定の前提）を保つ。
+ */
+export function canAddSoloProxy(
+  members: string[],
+  overrides: SoloRosterOverrides,
+  displayName: string,
+): boolean {
+  const trimmed = displayName.trim();
+  if (trimmed.length === 0) {
+    return false;
+  }
+  const existingNames = soloRosterMembers(members, overrides).map((m) =>
+    m.displayName.toLowerCase(),
+  );
+  if (existingNames.includes(trimmed.toLowerCase())) {
+    return false;
+  }
+  if (existingNames.length >= MAX_MEMBERS) {
+    return false;
+  }
+  return true;
 }
 
 /**

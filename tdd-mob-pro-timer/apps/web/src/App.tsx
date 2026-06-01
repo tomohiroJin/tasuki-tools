@@ -10,7 +10,7 @@ import { Celebration } from "./ui/Celebration.js";
 import { SyncClient } from "./sync/client.js";
 import { LocalEngine } from "./solo/local-engine.js";
 import { computeSoloIneligibleIndices } from "./solo/eligibility.js";
-import { buildSoloRoom, soloRosterMembers } from "./solo/roster.js";
+import { buildSoloRoom, soloRosterMembers, canAddSoloProxy } from "./solo/roster.js";
 import { NoAiProvider } from "./ai/no-ai.js";
 import { ByokProvider } from "./ai/byok.js";
 import type { ProblemProvider } from "./ai/provider.js";
@@ -280,6 +280,14 @@ export default function App() {
     if (client) {
       client.send({ command: "participant.addProxy", participantId: makeProxyId(), displayName });
     } else if (soloEngine) {
+      // ソロでも共有時（core.decideAddProxy）と同じ基準で重複名・空名を拒否する。
+      // 重複表示名を許すと rotation 一意性が崩れ RosterPanel の名前ベース判定が壊れるため fail-closed。
+      const members = soloRoom?.config.members ?? [];
+      if (!canAddSoloProxy(members, soloRosterRef.current, displayName)) {
+        setBanner({ text: `「${displayName.trim()}」は既存の名前と重複しています`, kind: "warn" });
+        return;
+      }
+      setBanner(null);
       soloRosterRef.current.proxies.push({ participantId: makeProxyId(), displayName });
       soloRebuildRef.current?.();
     }
