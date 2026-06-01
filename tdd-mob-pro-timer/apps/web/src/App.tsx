@@ -46,6 +46,10 @@ export default function App() {
   const [keyVersion, setKeyVersion] = useState(0);
   // onNeedProblem など closure から最新ルームの設定を参照するための ref
   const roomRef = useRef<Room | null>(null);
+  // このクライアントがルーム作成者（＝当初ホスト）か。ロビーでお題生成を自動依頼する判定に使う。
+  const isCreatorRef = useRef(false);
+  // ロビーでのお題自動生成依頼を一度だけ行うためのガード。
+  const problemRequestedRef = useRef(false);
 
   /** 代理参加者の一意な participantId を生成する（衝突回避のため乱数を含める） */
   const makeProxyId = () => `proxy-${Math.random().toString(36).slice(2, 10)}`;
@@ -63,6 +67,17 @@ export default function App() {
         setRoom(r);
         // サーバー権威の phase に全参加者が追従する（ホストの開始/完成が全員に反映）
         setMode(screenForPhase(r.phase));
+        // ロビー（開始前）でお題が未確定なら、作成者が一度だけ代表生成を依頼する（US3）。
+        // これがないと誰も problem.request を送らず「お題を準備中」のまま開始できない。
+        if (
+          (r.phase === "setup" || r.phase === "ready") &&
+          !r.problem &&
+          isCreatorRef.current &&
+          !problemRequestedRef.current
+        ) {
+          problemRequestedRef.current = true;
+          newClient.send({ command: "problem.request", requestId: `req-${r.code}-lobby` });
+        }
         // 完成フェーズに入ったら各端末でローカル記録を生成する（FR-028）。既に記録があれば上書きしない。
         if (r.phase === "celebration" && r.problem) {
           const problem = r.problem;
@@ -116,6 +131,9 @@ export default function App() {
   };
 
   const handleCreateRoom = (config: SessionConfig) => {
+    // 作成者＝当初ホスト。ロビーでお題自動生成を依頼する（onRoom）。
+    isCreatorRef.current = true;
+    problemRequestedRef.current = false;
     const c = makeClient(() => ({
       language: config.language,
       difficulty: config.difficulty,
@@ -129,6 +147,7 @@ export default function App() {
 
   // 共有 URL（?room=コード）からの参加。観覧者として加わり snapshot に追従する。
   const handleJoinRoom = (code: string, displayName = "ゲスト") => {
+    isCreatorRef.current = false;
     const c = makeClient(() => ({
       language: roomRef.current?.config.language ?? "TypeScript",
       difficulty: roomRef.current?.config.difficulty ?? "easy",
@@ -160,6 +179,8 @@ export default function App() {
     setEndType("complete");
     setSessionLost(false);
     setAiModalOpen(false);
+    isCreatorRef.current = false;
+    problemRequestedRef.current = false;
     setMode("setup");
   };
 

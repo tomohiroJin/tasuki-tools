@@ -213,6 +213,18 @@ body {
   text-shadow: 0 0 24px var(--focus-glow);
 }
 
+/* 現ドライバーのスポットライト強調（S3）。タイマー直下で「次」より明確に格上げ。
+ * --font-size-driver で大きく、白＋発光でステージ上に浮かせる（plan.md「現ドライバーを
+ * スポットライト」）。reduced-motion 環境でも静的な強調は保つ。 */
+.driver-spotlight {
+  font-size: var(--font-size-driver);
+  line-height: 1.1;
+}
+.stage-canvas .driver-spotlight {
+  color: #ffffff;
+  text-shadow: 0 0 18px var(--focus-glow);
+}
+
 /* モーション軽減設定の尊重（FR-034） */
 @media (prefers-reduced-motion: reduce) {
   *,

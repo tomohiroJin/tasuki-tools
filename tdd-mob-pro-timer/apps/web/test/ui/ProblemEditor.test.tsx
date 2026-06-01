@@ -163,6 +163,46 @@ describe("ProblemEditor（T050/T051）", () => {
     });
   });
 
+  // ─── 詳細の折りたたみ（S2: ロビー縦長の解消）─────────────────────────────
+  it("既定では詳細（要件・例示テスト・ヒント）が折りたたまれ表示されない", () => {
+    render(
+      <ProblemEditor
+        problem={baseProblem}
+        onEdit={noop}
+        onCopy={noop}
+        onRegenerate={noop}
+        onPaste={noop}
+      />,
+    );
+    // タイトル・説明は常時表示
+    expect(screen.getByText("FizzBuzz")).toBeTruthy();
+    expect(screen.getByText(/3の倍数でFizz/)).toBeTruthy();
+    // 詳細（例示テスト・要件・ヒント）は既定で非表示
+    expect(screen.queryByText(/expect\(fizzbuzz/)).toBeNull();
+    expect(screen.queryByText("3の倍数はFizz")).toBeNull();
+    expect(screen.queryByText(/剰余を使う/)).toBeNull();
+  });
+
+  it("「詳細を表示」トグルで詳細が開き、もう一度押すと閉じる", () => {
+    render(
+      <ProblemEditor
+        problem={baseProblem}
+        onEdit={noop}
+        onCopy={noop}
+        onRegenerate={noop}
+        onPaste={noop}
+      />,
+    );
+    const toggle = screen.getByRole("button", { name: /詳細を表示|詳細を隠す/ });
+    // 開く
+    fireEvent.click(toggle);
+    expect(screen.getByText(/expect\(fizzbuzz/)).toBeTruthy();
+    expect(screen.getByText("3の倍数はFizz")).toBeTruthy();
+    // 閉じる
+    fireEvent.click(screen.getByRole("button", { name: /詳細を表示|詳細を隠す/ }));
+    expect(screen.queryByText(/expect\(fizzbuzz/)).toBeNull();
+  });
+
   it("canEdit=false（観覧者）では編集ボタンを表示しない（FR-055）", () => {
     render(
       <ProblemEditor

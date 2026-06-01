@@ -105,7 +105,10 @@ describe("Session × ProblemEditor 結合（項目3）", () => {
   it("problem があるとき ProblemEditor を描画しお題タイトル・要件を表示する（FR-009 接続）", () => {
     const handlers = baseHandlers();
     render(<Session room={makeRoom()} participantId="host-1" {...handlers} />);
+    // タイトルは常時表示
     expect(screen.getByText("FizzBuzz")).toBeTruthy();
+    // 要件は詳細の折りたたみ内（S2）。「詳細を表示」を開いてから確認する。
+    fireEvent.click(screen.getByRole("button", { name: /詳細を表示/ }));
     expect(screen.getByText("3の倍数はFizz")).toBeTruthy();
     // ProblemEditor 由来の操作（コピー）が描画されている
     expect(screen.getByRole("button", { name: /コピー/ })).toBeTruthy();

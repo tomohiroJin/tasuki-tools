@@ -65,6 +65,9 @@ export function ProblemEditor({
   onPaste,
 }: ProblemEditorProps) {
   const [editing, setEditing] = useState(false);
+  // 詳細（要件・例示テスト・ヒント）の開閉。既定は折りたたみ、ロビーの縦長を抑える（S2）。
+  // タイトル・説明は常時表示し「何の問題か」は一目で分かる。
+  const [showDetails, setShowDetails] = useState(false);
   // 編集中の下書き。外部からお題が更新（やり直し/持ち込み/他者編集の snapshot 反映）
   // されたら同期する。コミットは各フィールドの blur で onEdit へ送る。
   const [draft, setDraft] = useState<Problem>(problem);
@@ -172,44 +175,63 @@ export function ProblemEditor({
         </div>
       ) : (
         <>
-          {/* 説明 */}
+          {/* 説明（常時表示・何の問題か一目で分かる） */}
           <p className="text-sm text-fg-muted">{problem.description}</p>
 
-          {/* 要件 */}
-          {problem.requirements.length > 0 && (
-            <div>
-              <p className="mb-1 text-xs font-semibold text-fg-subtle">要件</p>
-              <ul className="space-y-1">
-                {problem.requirements.map((req, i) => (
-                  <li key={i} className="flex items-start gap-1.5 text-sm text-fg">
-                    <span className="mt-0.5 text-fg-subtle">·</span>
-                    <span>{req}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+          {/* 詳細（要件・例示テスト・ヒント）の開閉トグル。詳細が1つでもあるときのみ表示。
+              既定は折りたたみで、ロビーが縦に伸びすぎないようにする（S2）。 */}
+          {(problem.requirements.length > 0 ||
+            !!problem.exampleTest ||
+            problem.hints.length > 0) && (
+            <Button
+              intent="neutral"
+              size="sm"
+              onClick={() => setShowDetails((v) => !v)}
+              aria-expanded={showDetails}
+            >
+              {showDetails ? "詳細を隠す" : "詳細を表示"}
+            </Button>
           )}
 
-          {/* 例示テスト */}
-          {problem.exampleTest && (
-            <div>
-              <p className="mb-1 text-xs font-semibold text-fg-subtle">例示テスト</p>
-              <pre className="rounded-md bg-surface-2 p-3 text-xs font-mono text-fg overflow-x-auto">
-                {problem.exampleTest}
-              </pre>
-            </div>
-          )}
+          {showDetails && (
+            <>
+              {/* 要件 */}
+              {problem.requirements.length > 0 && (
+                <div>
+                  <p className="mb-1 text-xs font-semibold text-fg-subtle">要件</p>
+                  <ul className="space-y-1">
+                    {problem.requirements.map((req) => (
+                      <li key={req} className="flex items-start gap-1.5 text-sm text-fg">
+                        <span className="mt-0.5 text-fg-subtle">·</span>
+                        <span>{req}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
-          {/* ヒント */}
-          {problem.hints.length > 0 && (
-            <div>
-              <p className="mb-1 text-xs font-semibold text-fg-subtle">ヒント</p>
-              <ul className="space-y-1">
-                {problem.hints.map((hint, i) => (
-                  <li key={i} className="text-sm text-fg-muted">💡 {hint}</li>
-                ))}
-              </ul>
-            </div>
+              {/* 例示テスト */}
+              {problem.exampleTest && (
+                <div>
+                  <p className="mb-1 text-xs font-semibold text-fg-subtle">例示テスト</p>
+                  <pre className="rounded-md bg-surface-2 p-3 text-xs font-mono text-fg overflow-x-auto">
+                    {problem.exampleTest}
+                  </pre>
+                </div>
+              )}
+
+              {/* ヒント */}
+              {problem.hints.length > 0 && (
+                <div>
+                  <p className="mb-1 text-xs font-semibold text-fg-subtle">ヒント</p>
+                  <ul className="space-y-1">
+                    {problem.hints.map((hint) => (
+                      <li key={hint} className="text-sm text-fg-muted">💡 {hint}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </>
           )}
         </>
       )}

@@ -208,7 +208,9 @@ export function Session({
       <div className="flex flex-wrap justify-center gap-8 text-center">
         <div>
           <p className="text-sm text-fg-subtle">ドライバー</p>
-          <p className="text-xl font-bold text-fg">{currentDriverName}</p>
+          {/* 現ドライバーはスポットライト強調（S3）。ステージ上で発光＋大サイズにし、
+              「次」との階層差を明確にする。CSS は .driver-spotlight（index.css）。 */}
+          <p className="driver-spotlight font-bold text-fg">{currentDriverName}</p>
         </div>
         {room.config.navigatorEnabled && navigatorName && (
           <div>

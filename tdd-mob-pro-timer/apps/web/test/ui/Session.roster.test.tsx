@@ -142,4 +142,28 @@ describe("Session × RosterPanel 結合（T057）", () => {
     fireEvent.click(screen.getByRole("button", { name: /^追加$/ }));
     expect(handlers.onAddProxy).toHaveBeenCalledWith("Dave");
   });
+
+  // ─── 現ドライバーのスポットライト強調（S3）─────────────────────────────────
+  it("現ドライバー名がスポットライト強調（.driver-spotlight）され、その中身が現ドライバー名である", () => {
+    const handlers = baseHandlers();
+    const { container } = render(
+      <Session room={makeRoom()} participantId="host-1" {...handlers} />,
+    );
+    // 焦点ゾーンの現ドライバー名にスポットライト用クラスが付く
+    const spotlight = container.querySelector(".driver-spotlight");
+    expect(spotlight).toBeTruthy();
+    // 中身は現ドライバー（rotation[currentIndex=1] = "Carol"）
+    expect(spotlight?.textContent).toBe("Carol");
+  });
+
+  it("「次」ドライバー名はスポットライト強調されない", () => {
+    const handlers = baseHandlers();
+    const { container } = render(
+      <Session room={makeRoom()} participantId="host-1" {...handlers} />,
+    );
+    // スポットライトは現ドライバーのみ。次（Alice）の要素には付かない。
+    const spotlights = container.querySelectorAll(".driver-spotlight");
+    expect(spotlights.length).toBe(1);
+    expect(spotlights[0]?.textContent).not.toBe("Alice");
+  });
 });
