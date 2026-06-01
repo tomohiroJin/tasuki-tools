@@ -4,7 +4,7 @@
  */
 
 import * as v from "valibot";
-import { VALID_INTERVAL_MINUTES, MIN_MEMBERS, MAX_MEMBERS } from "./aggregate.js";
+import { VALID_INTERVAL_MINUTES, MIN_MEMBERS, MAX_MEMBERS, MAX_PROBLEM_REQUIREMENTS } from "./aggregate.js";
 
 // ─── 共通 ───────────────────────────────────────────────────────────────────
 
@@ -32,7 +32,7 @@ export const SessionConfigSchema = v.object({
 export const ProblemSchema = v.object({
   title: nonEmptyString,
   description: nonEmptyString,
-  requirements: v.pipe(v.array(nonEmptyString), v.maxLength(20)),
+  requirements: v.pipe(v.array(nonEmptyString), v.maxLength(MAX_PROBLEM_REQUIREMENTS)),
   exampleTest: nonEmptyString,
   hints: v.array(v.string()),
   // v2 追加フィールド（任意化で後方互換）
@@ -161,7 +161,7 @@ const DriverResumeCommand = v.object({
 const ProblemPatchSchema = v.partial(v.object({
   title: nonEmptyString,
   description: nonEmptyString,
-  requirements: v.pipe(v.array(nonEmptyString), v.maxLength(20)),
+  requirements: v.pipe(v.array(nonEmptyString), v.maxLength(MAX_PROBLEM_REQUIREMENTS)),
   exampleTest: nonEmptyString,
   hints: v.array(v.string()),
 }));

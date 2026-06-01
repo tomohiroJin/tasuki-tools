@@ -229,3 +229,7 @@ export type IntervalMinutes = (typeof VALID_INTERVAL_MINUTES)[number];
 /** メンバー人数の制約 */
 export const MIN_MEMBERS = 2;
 export const MAX_MEMBERS = 10;
+
+/** お題の要件（requirements）配列の最大件数。巨大入力を拒否するための上限。
+ *  decide（ドメイン検証）と schemas（Valibot 境界検証）の両方から参照し、値を一元化する。 */
+export const MAX_PROBLEM_REQUIREMENTS = 20;
