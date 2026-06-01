@@ -381,7 +381,17 @@ export function makeHandlers(deps: HandlerDeps) {
       const target = targetRoom.participants.find(
         (p) => p.participantId === domainCmd.participantId,
       );
-      domainCmd.currentDisplayName = target?.displayName;
+      // 対象が存在しなければ早期に拒否する。ここで弾かないと旧名 undefined のまま decide に渡り、
+      // 自己同一の除外が効かず DuplicateName 等の誤った理由で失敗しうる（実体は対象不在）。
+      if (!target) {
+        broadcaster.sendTo(connId, {
+          type: "error",
+          code: "PARTICIPANT_NOT_FOUND",
+          message: "対象の参加者が見つかりません",
+        });
+        return err("PARTICIPANT_NOT_FOUND");
+      }
+      domainCmd.currentDisplayName = target.displayName;
     }
     if (!domainCmd) {
       broadcaster.sendTo(connId, {

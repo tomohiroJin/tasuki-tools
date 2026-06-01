@@ -148,13 +148,17 @@ function decideRename(
   return ok([{ type: "ParticipantRenamed", participantId, displayName: trimmed, now }]);
 }
 
+/** お題の要件（requirements）配列の最大件数。巨大入力を拒否するための上限。 */
+const MAX_PROBLEM_REQUIREMENTS = 20;
+
 function decideProblemEdit(
   patch: { title?: string; description?: string; requirements?: string[]; exampleTest?: string; hints?: string[] },
   now: number,
 ): Result<DomainEvent[], DomainError> {
-  // requirements のサイズ上限チェック
-  if (patch.requirements !== undefined && patch.requirements.length > 20) {
-    return err({ type: "MemberLimitExceeded", limit: 20 });
+  // requirements のサイズ上限チェック。メンバー数上限（MemberLimitExceeded）の流用ではなく、
+  // 入力サイズ専用の InputLimitExceeded を返す（クライアント/ログでの誤解を避ける）。
+  if (patch.requirements !== undefined && patch.requirements.length > MAX_PROBLEM_REQUIREMENTS) {
+    return err({ type: "InputLimitExceeded", field: "requirements", limit: MAX_PROBLEM_REQUIREMENTS });
   }
   return ok([{ type: "ProblemEdited", patch, now }]);
 }

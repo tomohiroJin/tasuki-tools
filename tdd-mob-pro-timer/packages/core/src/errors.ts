@@ -54,6 +54,14 @@ export interface InvalidIndex {
   max: number;
 }
 
+/** 入力サイズが上限超過（メンバー数とは別。お題の要件数などの配列長制限に使う） */
+export interface InputLimitExceeded {
+  type: "InputLimitExceeded";
+  /** どの入力か（例: "requirements"） */
+  field: string;
+  limit: number;
+}
+
 /** ドメインエラーの合併型 */
 export type DomainError =
   | EmptyName
@@ -63,4 +71,5 @@ export type DomainError =
   | Unauthorized
   | PhaseConflict
   | InvalidInterval
-  | InvalidIndex;
+  | InvalidIndex
+  | InputLimitExceeded;

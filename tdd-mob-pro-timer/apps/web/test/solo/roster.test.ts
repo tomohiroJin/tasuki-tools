@@ -93,6 +93,20 @@ describe("buildSoloRoom（項目4）", () => {
       isPlaceholder: true,
     });
   });
+
+  it("renames に現行メンバー以外の古いキーが残っていても現行メンバーの表示名には影響しない", () => {
+    // 旧セッションの残骸（存在しない participantId への改名差分）が紛れていても、
+    // buildSoloRoom は現行 config.members ＋ proxies のみを参照するので無害であることを保証する。
+    const ov = emptyOverrides();
+    ov.renames["solo-member-99"] = "Stale";
+    ov.renames["ghost"] = "Phantom";
+    const room = build(1, ov);
+    expect(room.participants).toHaveLength(2);
+    expect(room.participants[0]?.displayName).toBe("Alice");
+    expect(room.participants[1]?.displayName).toBe("Bob");
+    expect(room.session.rotation).not.toContain("Stale");
+    expect(room.session.rotation).not.toContain("Phantom");
+  });
 });
 
 describe("soloMemberId（項目4）", () => {

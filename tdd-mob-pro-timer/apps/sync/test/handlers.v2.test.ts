@@ -349,6 +349,19 @@ describe("participant.rename の認可（FR-046/048）", () => {
     const target = updated?.participants.find((p) => p.participantId === viewerPid);
     expect(target?.displayName).toBe("RenamedByHost");
   });
+
+  it("存在しない participantId への rename は PARTICIPANT_NOT_FOUND で拒否される", async () => {
+    const result = await handlers.handleCommand(hostConn, {
+      command: "participant.rename",
+      participantId: "no-such-participant",
+      displayName: "Ghost",
+    });
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) expect(result.error).toBe("PARTICIPANT_NOT_FOUND");
+    // snapshot は発行されない（誰の名前も変わらない）
+    expect(getLatestSnapshot(broadcaster)).toBeUndefined();
+  });
 });
 
 // ─── T032/T033: room-not-found のテスト ──────────────────────────────────────

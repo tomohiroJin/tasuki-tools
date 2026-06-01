@@ -433,6 +433,30 @@ describe("decide: problem.edit（T015）", () => {
       expect(result.value[0]?.type).toBe("ProblemEdited");
     }
   });
+
+  it("requirements が上限を超えると InputLimitExceeded で拒否される（メンバー上限とは別エラー）", () => {
+    const tooMany = Array.from({ length: 21 }, (_, i) => `要件${i}`);
+    const result = decide(
+      { command: "problem.edit", patch: { requirements: tooMany } },
+      baseAgg,
+      NOW,
+    );
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      // メンバー数上限（MemberLimitExceeded）の流用ではなく、入力サイズ専用のエラー型を使う。
+      expect(result.error.type).toBe("InputLimitExceeded");
+    }
+  });
+
+  it("requirements が上限ちょうど（20件）なら許可される", () => {
+    const exactly = Array.from({ length: 20 }, (_, i) => `要件${i}`);
+    const result = decide(
+      { command: "problem.edit", patch: { requirements: exactly } },
+      baseAgg,
+      NOW,
+    );
+    expect(result.isOk()).toBe(true);
+  });
 });
 
 describe("decide: problem.mode.set（T019）", () => {
