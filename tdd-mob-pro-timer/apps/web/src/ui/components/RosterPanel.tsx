@@ -10,7 +10,7 @@
 import React, { useState } from "react";
 import type { Participant } from "@tdd-mob/core";
 import { Button } from "./Button.js";
-import { presenceLabel, presenceDotClass } from "../presence.js";
+import { presenceLabel, presenceDotClass, presenceTextClass } from "../presence.js";
 
 interface RosterPanelProps {
   participants: Participant[];
@@ -147,7 +147,7 @@ export function RosterPanel({
               {!isEditing && (
               <span className="flex items-center gap-1 text-xs">
                 <span className="sr-only">{presenceLabel(p.presence)}</span>
-                <span className={presenceDotClass(p.presence).replace("bg-", "text-").replace("rounded-full", "").trim()}>
+                <span className={presenceTextClass(p.presence)}>
                   {presenceLabel(p.presence)}
                 </span>
 

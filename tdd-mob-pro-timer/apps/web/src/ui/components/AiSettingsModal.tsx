@@ -6,9 +6,10 @@
  * 鍵は key-storage.ts 経由で保存し、サーバー送信禁止（FR-017）。
  */
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import type { ProblemMode } from "@tdd-mob/core";
 import { Button } from "./Button.js";
+import { useFocusTrap } from "../useFocusTrap.js";
 
 interface AiSettingsModalProps {
   open: boolean;
@@ -32,16 +33,15 @@ export function AiSettingsModal({
   const [keyInput, setKeyInput] = useState("");
   const [persistent, setPersistent] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    closeRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  // Esc クローズ・Tab トラップ・初期フォーカス（閉じるボタン）・フォーカス復帰を共用フックで担う。
+  useFocusTrap({
+    open,
+    containerRef: dialogRef,
+    onClose,
+    initialFocusRef: closeRef,
+  });
 
   if (!open) return null;
 
@@ -58,6 +58,7 @@ export function AiSettingsModal({
       onClick={onClose}
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label="AI 設定"
@@ -105,6 +106,10 @@ export function AiSettingsModal({
           <label htmlFor="ai-api-key" className="block text-sm font-semibold text-fg mb-1">
             Anthropic API キー
           </label>
+          {/* 信頼感のための明示（FR-017）。鍵は本人端末内のみで使い、同期サーバーへは送らない。 */}
+          <p className="text-xs text-fg-subtle mb-2">
+            鍵はこの端末内でのみ使われ、サーバーには送信されません。
+          </p>
           {hasKey ? (
             <div className="flex items-center gap-2">
               <span className="text-sm text-fg-muted flex-1">●●●●●●●●（設定済み）</span>

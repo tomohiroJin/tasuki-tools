@@ -218,7 +218,8 @@ export function Session({
         )}
         <div>
           <p className="text-sm text-fg-subtle">次</p>
-          <p className="text-xl font-bold text-fg-muted">{nextDriverName}</p>
+          {/* 「次」は現ドライバーより一段下げ、図と地の階層差を明確にする（サイズ・明度とも） */}
+          <p className="text-lg font-medium text-fg-subtle">{nextDriverName}</p>
         </div>
       </div>
 

@@ -3,8 +3,9 @@
  * a11y: role="dialog" aria-modal、Esc で閉じる、開いたら取消ボタンへフォーカス。
  */
 
-import React, { useEffect, useRef } from "react";
+import React, { useRef } from "react";
 import { Button, type ButtonIntent } from "./Button.js";
+import { useFocusTrap } from "../useFocusTrap.js";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -30,40 +31,13 @@ export function ConfirmDialog({
   const cancelRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    // 開く前のフォーカス位置を保持し、閉じたら復帰させる
-    const previouslyFocused = document.activeElement as HTMLElement | null;
-    cancelRef.current?.focus();
-
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onCancel();
-        return;
-      }
-      // Tab をダイアログ内に閉じ込める（フォーカストラップ）
-      if (e.key === "Tab" && dialogRef.current) {
-        const focusables = dialogRef.current.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-        );
-        if (focusables.length === 0) return;
-        const first = focusables[0]!;
-        const last = focusables[focusables.length - 1]!;
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
-    };
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      previouslyFocused?.focus?.();
-    };
-  }, [open, onCancel]);
+  // Esc クローズ・Tab トラップ・初期フォーカス（取消ボタン）・フォーカス復帰を共用フックで担う。
+  useFocusTrap({
+    open,
+    containerRef: dialogRef,
+    onClose: onCancel,
+    initialFocusRef: cancelRef,
+  });
 
   if (!open) return null;
 

@@ -116,4 +116,52 @@ describe("AiSettingsModal（T054/T055）", () => {
     expect(aiRadio).toBeTruthy();
     expect((aiRadio as HTMLInputElement).checked).toBe(true);
   });
+
+  it("Escape で onClose が呼ばれる（a11y）", () => {
+    const onClose = vi.fn();
+    render(
+      <AiSettingsModal
+        open={true}
+        mode="ai"
+        hasKey={false}
+        onClose={onClose}
+        onModeChange={noop}
+        onKeySave={noop}
+        onKeyClear={noop}
+      />,
+    );
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("Tab がモーダル内に閉じ込められる（末尾でフォワード Tab すると先頭へ循環）", () => {
+    render(
+      <AiSettingsModal
+        open={true}
+        mode="ai"
+        hasKey={false}
+        onClose={noop}
+        onModeChange={noop}
+        onKeySave={noop}
+        onKeyClear={noop}
+      />,
+    );
+    const dialog = screen.getByRole("dialog");
+    const focusables = dialog.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    );
+    expect(focusables.length).toBeGreaterThan(1);
+    const first = focusables[0]!;
+    const last = focusables[focusables.length - 1]!;
+
+    // 末尾にフォーカスがある状態で Tab → preventDefault され先頭へ移る
+    last.focus();
+    expect(document.activeElement).toBe(last);
+    fireEvent.keyDown(document, { key: "Tab" });
+    expect(document.activeElement).toBe(first);
+
+    // 先頭で Shift+Tab → 末尾へ循環
+    fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(last);
+  });
 });

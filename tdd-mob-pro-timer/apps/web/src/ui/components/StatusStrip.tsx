@@ -33,10 +33,13 @@ const ROLE_LABEL: Record<string, string> = {
   viewer: "観覧 (viewer)",
 };
 
+// 接続状態の色はデザイントークン（presence-* / intent）に揃える。Tailwind 直値
+// （text-green-400 等）はテーマ非依存の AA 保証から外れ、StatusStrip は全画面共通で
+// ライト背景にも出るため避ける。online=在席色 / reconnecting=離席色 / lost=危険色。
 const CONNECTION_CONFIG: Record<ConnectionStatus, { label: string; className: string }> = {
-  online: { label: "接続中 (Connected)", className: "text-green-400" },
-  reconnecting: { label: "再接続中… (Reconnecting)", className: "text-yellow-400" },
-  lost: { label: "セッション喪失 (Session Lost)", className: "text-red-400" },
+  online: { label: "接続中 (Connected)", className: "text-presence-online" },
+  reconnecting: { label: "再接続中… (Reconnecting)", className: "text-presence-idle" },
+  lost: { label: "セッション喪失 (Session Lost)", className: "text-danger" },
 };
 
 export function StatusStrip({
