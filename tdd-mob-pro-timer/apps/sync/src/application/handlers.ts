@@ -369,6 +369,14 @@ export function makeHandlers(deps: HandlerDeps) {
 
     // ドメインコマンドを構築して decide/evolve を実行
     const domainCmd = buildDomainCommand(cmd);
+    // 改名は対象の現在名を解決して decide へ渡す。decide は「自分の現在名と同一」を
+    // 重複検査から除外するために旧名を必要とする（rotation は名前配列のみで participantId を持たない）。
+    if (domainCmd && domainCmd.command === "participant.rename") {
+      const target = targetRoom.participants.find(
+        (p) => p.participantId === domainCmd.participantId,
+      );
+      domainCmd.currentDisplayName = target?.displayName;
+    }
     if (!domainCmd) {
       broadcaster.sendTo(connId, {
         type: "error",
@@ -702,7 +710,8 @@ function buildDomainCommand(cmd: { command: string; [key: string]: unknown }) {
       return { command: "participant.addProxy" as const, displayName: cmd.displayName, participantId: cmd.participantId };
     case "participant.rename":
       if (typeof cmd.participantId !== "string" || typeof cmd.displayName !== "string") return null;
-      return { command: "participant.rename" as const, participantId: cmd.participantId, displayName: cmd.displayName };
+      // currentDisplayName は呼び出し側（handleRoomCommand）が対象の現在名を解決して埋める
+      return { command: "participant.rename" as const, participantId: cmd.participantId, displayName: cmd.displayName, currentDisplayName: undefined as string | undefined };
     case "driver.skip":
       if (typeof cmd.participantId !== "string") return null;
       return { command: "driver.skip" as const, participantId: cmd.participantId };

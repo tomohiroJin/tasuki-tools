@@ -28,7 +28,7 @@ export type DecideCommand =
   | { command: "break.start" }
   | { command: "break.end" }
   | { command: "participant.addProxy"; displayName: string; participantId: string }
-  | { command: "participant.rename"; participantId: string; displayName: string }
+  | { command: "participant.rename"; participantId: string; displayName: string; currentDisplayName?: string }
   | { command: "driver.skip"; participantId: string }
   | { command: "driver.resume"; participantId: string }
   | { command: "problem.edit"; patch: { title?: string; description?: string; requirements?: string[]; exampleTest?: string; hints?: string[] } }
@@ -83,7 +83,7 @@ export function decide(
       return decideAddProxy(cmd.displayName, cmd.participantId, agg, now);
 
     case "participant.rename":
-      return decideRename(cmd.participantId, cmd.displayName, now);
+      return decideRename(cmd.participantId, cmd.displayName, cmd.currentDisplayName, agg, now);
 
     case "driver.skip":
       return ok([{ type: "DriverSkipped", participantId: cmd.participantId, now }]);
@@ -125,11 +125,25 @@ function decideAddProxy(
 function decideRename(
   participantId: string,
   displayName: string,
+  currentDisplayName: string | undefined,
+  agg: Aggregate,
   now: number,
 ): Result<DomainEvent[], DomainError> {
   const trimmed = displayName.trim();
   if (trimmed.length === 0) {
     return err({ type: "EmptyName" });
+  }
+  // rotation 一意性の保護: 既存の表示名へ改名すると applyRoomLevelEvent の rotation 置換が
+  // 同名を生み一意性が壊れる（FR-046/048）。大文字小文字を無視して重複を検査する。
+  // ただし「自分の現在名」と同一への改名は no-op 相当なので許可する（rotation は名前配列のみで
+  // participantId→名前の対応を持たないため、対象の旧名を currentDisplayName で受け取り除外する）。
+  const lower = trimmed.toLowerCase();
+  const ownNameLower = currentDisplayName?.trim().toLowerCase();
+  const conflicts = agg.session.rotation.some(
+    (name) => name.toLowerCase() === lower && name.toLowerCase() !== ownNameLower,
+  );
+  if (conflicts) {
+    return err({ type: "DuplicateName", name: trimmed });
   }
   return ok([{ type: "ParticipantRenamed", participantId, displayName: trimmed, now }]);
 }

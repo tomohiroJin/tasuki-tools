@@ -337,6 +337,60 @@ describe("decide: participant.rename（T011）", () => {
       expect(result.error.type).toBe("EmptyName");
     }
   });
+
+  it("既存の他メンバー名への変更は拒否される（DuplicateName）", () => {
+    // rotation=["Alice","Bob","Charlie"]。現在名 Alice の参加者を Bob へ改名すると
+    // rotation 一意性が壊れるため DuplicateName で拒否する。
+    const result = decide(
+      {
+        command: "participant.rename",
+        participantId: "p1",
+        displayName: "Bob",
+        currentDisplayName: "Alice",
+      },
+      baseAgg,
+      NOW,
+    );
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.type).toBe("DuplicateName");
+    }
+  });
+
+  it("大文字小文字違いの既存名への変更も拒否される（DuplicateName）", () => {
+    const result = decide(
+      {
+        command: "participant.rename",
+        participantId: "p1",
+        displayName: "bOb",
+        currentDisplayName: "Alice",
+      },
+      baseAgg,
+      NOW,
+    );
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.type).toBe("DuplicateName");
+    }
+  });
+
+  it("自分の現在名と同一への変更はエラーにしない（no-op 相当で許可）", () => {
+    // Alice → Alice。rotation に同名があっても本人の現在名なので許可する。
+    const result = decide(
+      {
+        command: "participant.rename",
+        participantId: "p1",
+        displayName: "Alice",
+        currentDisplayName: "Alice",
+      },
+      baseAgg,
+      NOW,
+    );
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value[0]?.type).toBe("ParticipantRenamed");
+    }
+  });
 });
 
 describe("decide: driver.skip / driver.resume（T013）", () => {

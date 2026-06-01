@@ -132,6 +132,51 @@ describe("v2 コマンドの結合テスト（T028/T029）", () => {
     expect(updated?.session.rotation).not.toContain(oldName);
   });
 
+  it("既存の他メンバー名への rename は DuplicateName で拒否される（FR-048）", async () => {
+    // 代理メンバー Dave を追加し rotation=["Host","Dave"] にする
+    await handlers.handleCommand(hostConn, {
+      command: "participant.addProxy",
+      displayName: "Dave",
+      participantId: "proxy-dup",
+    });
+    const room = store.get(roomCode);
+    const hostParticipant = room?.participants.find((p) => p.connId === hostConn);
+    broadcaster.snapshotRooms.length = 0;
+
+    // Host を既存の Dave へ改名 → rotation 一意性が壊れるため拒否
+    const result = await handlers.handleCommand(hostConn, {
+      command: "participant.rename",
+      participantId: hostParticipant!.participantId,
+      displayName: "Dave",
+    });
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) expect(result.error).toBe("DuplicateName");
+    // 名前は変わらず rotation 一意性は保たれる
+    const after = store.get(roomCode);
+    expect(after?.session.rotation).toEqual(["Host", "Dave"]);
+  });
+
+  it("自分の現在名と同一への rename は許可される（no-op 相当）", async () => {
+    const room = store.get(roomCode);
+    const hostParticipant = room?.participants.find((p) => p.connId === hostConn);
+    const sameName = hostParticipant!.displayName;
+    broadcaster.snapshotRooms.length = 0;
+
+    const result = await handlers.handleCommand(hostConn, {
+      command: "participant.rename",
+      participantId: hostParticipant!.participantId,
+      displayName: sameName,
+    });
+
+    expect(result.isOk()).toBe(true);
+    const updated = getLatestSnapshot(broadcaster);
+    const self = updated?.participants.find(
+      (p) => p.participantId === hostParticipant!.participantId,
+    );
+    expect(self?.displayName).toBe(sameName);
+  });
+
   // ─── driver.skip / driver.resume ─────────────────────────────────────────
 
   it("driver.skip で参加者の driverEligible が false になる（FR-051）", async () => {
