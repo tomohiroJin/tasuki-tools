@@ -1,54 +1,58 @@
 /**
  * ソロモードのドライバー対象外インデックス算出のテスト
- * 項目2: 共有時と同じ「driverEligible=false → 交代対象外」を soloRosterRef 差分から導く。
+ * 項目2/4: 共有時と同じ「driverEligible=false → 交代対象外」を、index ベースで
+ * soloRosterMembers から導く（改名されても participantId は index 安定なので名前照合不要）。
  */
 
 import { describe, it, expect } from "vitest";
 import { computeSoloIneligibleIndices } from "../../src/solo/eligibility.js";
+import { soloRosterMembers, soloMemberId } from "../../src/solo/roster.js";
 
-const HOST_ID = "solo";
+/** ロスター差分を作るヘルパー */
+const overrides = (over: Partial<{
+  renames: Record<string, string>;
+  skips: Set<string>;
+  proxies: { participantId: string; displayName: string }[];
+}> = {}) => ({
+  renames: {},
+  skips: new Set<string>(),
+  proxies: [],
+  ...over,
+});
 
-describe("computeSoloIneligibleIndices", () => {
+describe("computeSoloIneligibleIndices（項目2/4）", () => {
   it("離脱が無ければ空集合を返す", () => {
-    const set = computeSoloIneligibleIndices(["Alice", "Bob"], {
-      hostId: HOST_ID,
-      hostName: "Alice",
-      skips: new Set(),
-      proxyNames: {},
-    });
-    expect(set.size).toBe(0);
+    const members = soloRosterMembers(["Alice", "Bob"], overrides());
+    expect(computeSoloIneligibleIndices(members, new Set()).size).toBe(0);
   });
 
-  it("ホストを skip するとホスト名の rotation インデックスが対象外になる", () => {
-    const set = computeSoloIneligibleIndices(["Alice", "Bob"], {
-      hostId: HOST_ID,
-      hostName: "Alice",
-      skips: new Set([HOST_ID]),
-      proxyNames: {},
-    });
+  it("ホストを skip すると index 0 が対象外になる", () => {
+    const skips = new Set(["solo"]);
+    const members = soloRosterMembers(["Alice", "Bob"], overrides({ skips }));
+    const set = computeSoloIneligibleIndices(members, skips);
     expect(set.has(0)).toBe(true);
     expect(set.has(1)).toBe(false);
   });
 
-  it("改名後のホスト名でも rotation と突き合わせて対象外にできる", () => {
-    // ホストを "Renamed" に改名済み。rotation も改名後の名前で構成される前提。
-    const set = computeSoloIneligibleIndices(["Renamed", "Bob"], {
-      hostId: HOST_ID,
-      hostName: "Renamed",
-      skips: new Set([HOST_ID]),
-      proxyNames: {},
-    });
-    expect(set.has(0)).toBe(true);
-  });
-
-  it("skip された代理参加者の名前も rotation にあれば対象外になる", () => {
-    const set = computeSoloIneligibleIndices(["Alice", "Carol"], {
-      hostId: HOST_ID,
-      hostName: "Alice",
-      skips: new Set(["px-1"]),
-      proxyNames: { "px-1": "Carol" },
-    });
+  it("members[1] を skip すると index 1 が対象外になる（改名後も index で安定）", () => {
+    const id = soloMemberId(1);
+    const skips = new Set([id]);
+    const members = soloRosterMembers(
+      ["Alice", "Bob"],
+      overrides({ skips, renames: { [id]: "Bobby" } }),
+    );
+    const set = computeSoloIneligibleIndices(members, skips);
     expect(set.has(1)).toBe(true);
     expect(set.has(0)).toBe(false);
+  });
+
+  it("代理の skip は driver rotation に含まれないため対象外集合に影響しない", () => {
+    const skips = new Set(["px-1"]);
+    const members = soloRosterMembers(
+      ["Alice", "Bob"],
+      overrides({ skips, proxies: [{ participantId: "px-1", displayName: "Carol" }] }),
+    );
+    const set = computeSoloIneligibleIndices(members, skips);
+    expect(set.size).toBe(0);
   });
 });

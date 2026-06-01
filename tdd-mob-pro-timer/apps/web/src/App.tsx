@@ -10,12 +10,13 @@ import { Celebration } from "./ui/Celebration.js";
 import { SyncClient } from "./sync/client.js";
 import { LocalEngine } from "./solo/local-engine.js";
 import { computeSoloIneligibleIndices } from "./solo/eligibility.js";
+import { buildSoloRoom, soloRosterMembers } from "./solo/roster.js";
 import { NoAiProvider } from "./ai/no-ai.js";
 import { ByokProvider } from "./ai/byok.js";
 import type { ProblemProvider } from "./ai/provider.js";
 import { screenForPhase } from "./ui/screen.js";
 import { buildCompletionRecord } from "@tdd-mob/core";
-import type { Room, SessionConfig, CompletionRecord, Participant, Problem } from "@tdd-mob/core";
+import type { Room, SessionConfig, CompletionRecord, Problem } from "@tdd-mob/core";
 
 /** ローカルに API 鍵があれば BYOK、無ければ定型のみのプロバイダを返す */
 function resolveProvider(): ProblemProvider {
@@ -138,89 +139,36 @@ export default function App() {
     const engine = new LocalEngine(config);
 
     // ソロ用の合成ルームを集約から組み立てる（共有時の Room 形と互換）。
-    // ロスター差分（改名/一時離脱/代理追加）をエンジンの session に重ねて
-    // participants・rotation を再構成する。
-    const buildSoloRoom = (): Room => {
-      const ov = soloRosterRef.current;
-      const hostId = "solo";
-      const hostBaseName = config.members[0] ?? "You";
-      const hostName = ov.renames[hostId] ?? hostBaseName;
-
-      const host: Participant = {
-        participantId: hostId,
-        connId: null,
-        displayName: hostName,
-        role: "host",
-        presence: "online",
-        hasAiKey: false,
-        joinedAt: 0,
-        driverEligible: !ov.skips.has(hostId),
-      };
-      const proxyParticipants: Participant[] = ov.proxies.map((px) => ({
-        participantId: px.participantId,
-        connId: null,
-        displayName: ov.renames[px.participantId] ?? px.displayName,
-        role: "editor",
-        presence: "offline",
-        hasAiKey: false,
-        joinedAt: 0,
-        isPlaceholder: true,
-        driverEligible: !ov.skips.has(px.participantId),
-      }));
-
-      // rotation はホスト改名を反映し、代理名を末尾に追加する。
-      // driverCounts も同数だけ伸ばし不変条件 rotation.length === driverCounts.length を保つ。
-      const engSession = engine.aggregate.session;
-      const baseRotation = engSession.rotation.map((n) =>
-        n === hostBaseName ? hostName : n,
-      );
-      const proxyNames = proxyParticipants.map((p) => p.displayName);
-      const rotation = [...baseRotation, ...proxyNames];
-      const driverCounts = [
-        ...engSession.driverCounts,
-        ...proxyNames.map(() => 0),
-      ];
-
-      return {
-        code: "SOLO",
-        createdAt: engine.aggregate.clock.anchorServerTime || 0,
-        hostParticipantId: hostId,
+    // config.members 全員＋代理の Participant を生成し、ロスター差分（改名/離脱/代理）を
+    // 重ねる。構築ロジックは roster.ts に切り出してユニットテスト可能にしている。
+    const buildRoom = (): Room =>
+      buildSoloRoom({
         config,
-        problem: soloProblemRef.current,
-        session: { ...engSession, rotation, driverCounts },
+        engineSession: engine.aggregate.session,
         clock: engine.aggregate.clock,
-        phase: "session",
-        participants: [host, ...proxyParticipants],
-        sessionRecords: [],
-        handoffNote: "",
-        onBreak: false,
-      };
-    };
+        createdAt: engine.aggregate.clock.anchorServerTime || 0,
+        overrides: soloRosterRef.current,
+        problem: soloProblemRef.current,
+      });
 
     // 離脱（driver.skip 相当）を交代ロジックへ伝える。共有時の handlers と同様に
     // driverEligible=false のメンバーを飛ばすため、ロスター差分から対象外インデックスを導く。
+    // 非代理メンバーは rotation と index が 1:1 のため、index ベースで対象外を判定する。
     engine.setIneligibleProvider(() =>
-      computeSoloIneligibleIndices(engine.aggregate.session.rotation, {
-        hostId: "solo",
-        hostName: soloRosterRef.current.renames["solo"] ?? (config.members[0] ?? "You"),
-        skips: soloRosterRef.current.skips,
-        proxyNames: Object.fromEntries(
-          soloRosterRef.current.proxies.map((px) => [
-            px.participantId,
-            soloRosterRef.current.renames[px.participantId] ?? px.displayName,
-          ]),
-        ),
-      }),
+      computeSoloIneligibleIndices(
+        soloRosterMembers(config.members, soloRosterRef.current),
+        soloRosterRef.current.skips,
+      ),
     );
 
     // エンジンの状態変化を soloRoom へ反映（タイマー駆動・交代を画面に伝播）
-    engine.setOnChange(() => setSoloRoom(buildSoloRoom()));
+    engine.setOnChange(() => setSoloRoom(buildRoom()));
     // ロスター操作後に soloRoom を再構築できるよう関数を保持する
-    soloRebuildRef.current = () => setSoloRoom(buildSoloRoom());
+    soloRebuildRef.current = () => setSoloRoom(buildRoom());
 
     setParticipantId("solo");
     setSoloEngine(engine);
-    setSoloRoom(buildSoloRoom());
+    setSoloRoom(buildRoom());
     setMode("solo");
     engine.start();
   };
