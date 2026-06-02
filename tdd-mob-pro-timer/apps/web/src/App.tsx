@@ -16,6 +16,8 @@ import { NoAiProvider } from "./ai/no-ai.js";
 import { ByokProvider } from "./ai/byok.js";
 import type { ProblemProvider } from "./ai/provider.js";
 import { screenForPhase } from "./ui/screen.js";
+import { saveRecord } from "./records/indexeddb.js";
+import { persistRecordIfComplete } from "./records/persist.js";
 import { buildCompletionRecord } from "@tdd-mob/core";
 import type { Room, SessionConfig, CompletionRecord, Problem } from "@tdd-mob/core";
 
@@ -42,14 +44,20 @@ export default function App() {
   // AI 設定モーダルの開閉と出題モード（AI/定型）。
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [problemMode, setProblemMode] = useState<"ai" | "fallback">("ai");
-  // 鍵の保存/削除で StatusStrip・モーダルの hasKey 表示を更新するためのバージョン。
-  const [keyVersion, setKeyVersion] = useState(0);
+  // 鍵の保存/削除後に hasKey 表示（loadApiKey() の評価）を再描画で更新するための
+  // バージョン setter。値自体は参照せず、setter 呼び出しによる再描画だけが目的。
+  const [, setKeyVersion] = useState(0);
   // onNeedProblem など closure から最新ルームの設定を参照するための ref
   const roomRef = useRef<Room | null>(null);
   // このクライアントがルーム作成者（＝当初ホスト）か。ロビーでお題生成を自動依頼する判定に使う。
   const isCreatorRef = useRef(false);
   // ロビーでのお題自動生成依頼を一度だけ行うためのガード。
   const problemRequestedRef = useRef(false);
+  // 終了種別を onRoom（snapshot 受信）クロージャから参照するための ref。
+  // 中断時に完成記録を作らない判定に使う（FR-020）。
+  const endTypeRef = useRef<EndType>("complete");
+  // 完成記録の二重保存を防ぐガード（celebration の snapshot が複数回来ても1回だけ保存）。
+  const recordSavedRef = useRef(false);
 
   /** 代理参加者の一意な participantId を生成する（衝突回避のため乱数を含める） */
   const makeProxyId = () => `proxy-${Math.random().toString(36).slice(2, 10)}`;
@@ -78,18 +86,27 @@ export default function App() {
           problemRequestedRef.current = true;
           newClient.send({ command: "problem.request", requestId: `req-${r.code}-lobby` });
         }
-        // 完成フェーズに入ったら各端末でローカル記録を生成する（FR-028）。既に記録があれば上書きしない。
-        if (r.phase === "celebration" && r.problem) {
-          const problem = r.problem;
-          setRecord((prev) =>
-            prev ??
-            buildCompletionRecord(
-              { session: r.session, clock: r.clock },
-              problem,
-              r.config,
-              Date.now(),
-              r.code,
-            ),
+        // 完成フェーズかつ「完成（中断でない）」のとき、各端末でローカル記録を生成し
+        // IndexedDB へ永続化する（FR-020/028/059）。中断（abort）では記録を作らない。
+        // 二重保存は recordSavedRef でガードする（celebration の snapshot が複数回来ても1回）。
+        if (
+          r.phase === "celebration" &&
+          r.problem &&
+          endTypeRef.current !== "abort" &&
+          !recordSavedRef.current
+        ) {
+          recordSavedRef.current = true;
+          const built = buildCompletionRecord(
+            { session: r.session, clock: r.clock },
+            r.problem,
+            r.config,
+            Date.now(),
+            r.code,
+          );
+          setRecord((prev) => prev ?? built);
+          // 完成記録を端末ローカルに自動保存（押し忘れ防止・FR-020「達成を記録」）。
+          persistRecordIfComplete("complete", built, saveRecord).catch((e) =>
+            console.error("完成記録の保存に失敗しました:", e),
           );
         }
       },
@@ -157,7 +174,8 @@ export default function App() {
 
   const handleComplete = () => {
     setEndType("complete");
-    // サーバーへ完成を通知。画面遷移と記録生成は snapshot 受信（onRoom の celebration
+    endTypeRef.current = "complete";
+    // サーバーへ完成を通知。画面遷移と記録生成・保存は snapshot 受信（onRoom の celebration
     // 処理）で全参加者一斉に行う。ホストだけ先行しない。
     client?.send({ command: "session.complete" });
   };
@@ -166,6 +184,7 @@ export default function App() {
    *  画面遷移は snapshot（celebration）受信で全員一斉。 */
   const handleAbort = () => {
     setEndType("abort");
+    endTypeRef.current = "abort";
     setRecord(null);
     client?.send({ command: "session.abort" });
   };
@@ -181,6 +200,8 @@ export default function App() {
     setAiModalOpen(false);
     isCreatorRef.current = false;
     problemRequestedRef.current = false;
+    endTypeRef.current = "complete";
+    recordSavedRef.current = false;
     setMode("setup");
   };
 
