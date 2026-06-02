@@ -16,6 +16,7 @@
   "dependencies": {
     "@tdd-mob/core": "workspace:*",
     "dompurify": "^3.2.2",
+    "lucide-react": "^1.17.0",
     "neverthrow": "^8.2.0",
     "partysocket": "^1.0.2",
     "qrcode": "^1.5.4",

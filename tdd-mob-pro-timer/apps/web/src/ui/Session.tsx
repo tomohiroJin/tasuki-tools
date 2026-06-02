@@ -4,9 +4,14 @@
  */
 
 import React, { useMemo, useState, useEffect, useRef } from "react";
+import {
+  Crown, ArrowRight, Play, Pause, SkipForward, Flag, RotateCcw, Coffee,
+} from "lucide-react";
 import { secondsLeft, elapsedMs } from "@tdd-mob/core/aggregate";
 import type { Room, Problem } from "@tdd-mob/core";
-import { Button } from "./components/Button.js";
+import { Card, GhostButton, PrimaryButton } from "./primitives.js";
+import { CircularProgress } from "./components/CircularProgress.js";
+import { TeamOrbit } from "./components/TeamOrbit.js";
 import { RosterPanel } from "./components/RosterPanel.js";
 import { ProblemEditor } from "./components/ProblemEditor.js";
 import { EndSessionZone } from "./components/EndSessionZone.js";
@@ -149,16 +154,17 @@ export function Session({
     return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
   };
 
+  const intervalSeconds = room.clock.intervalSeconds || 1;
+  const progress = ((intervalSeconds - remaining) / intervalSeconds) * 100;
+  const isPaused = room.session.isPaused;
+  const running = room.clock.running;
+
   return (
-    <div
-      role="main"
-      aria-label="セッション"
-      className="mx-auto flex max-w-2xl flex-col items-center gap-6 p-6"
-    >
-      {/* お題（確定後）。ProblemEditor を本番接続し、editor+ は各フィールドを編集できる
+    <div role="main" aria-label="セッション" className="space-y-6">
+      {/* お題（確定後）。editor+ は ProblemEditor で各フィールドを編集できる
           （FR-009/013/038/040/041）。未確定で生成待ちなら生成中表示（FR-003, US3-AC5）。 */}
       {room.problem ? (
-        <div className="w-full rounded-lg border border-line bg-surface p-4 shadow-card">
+        <Card>
           <ProblemEditor
             problem={room.problem}
             canEdit={isEditor}
@@ -167,138 +173,127 @@ export function Session({
             onRegenerate={() => onRegenerateProblem?.()}
             onPaste={() => onPasteProblem?.()}
           />
-        </div>
+        </Card>
       ) : (
         awaitingProblem && (
-          <div
-            className="w-full rounded-lg border border-line bg-surface p-4 shadow-card"
-            aria-live="polite"
-          >
-            <div className="flex items-center gap-3 text-fg-muted">
-              <span
-                className="h-4 w-4 animate-pulse rounded-full bg-primary"
-                aria-hidden="true"
-              />
-              <span>お題を生成中…</span>
+          <Card>
+            <div className="py-8 text-center text-white/60" aria-live="polite">
+              <span className="inline-block h-4 w-4 animate-pulse rounded-full bg-fuchsia-400 mb-2" aria-hidden="true" />
+              <p>お題を生成中…</p>
             </div>
-            {/* スケルトン（reduced-motion 時は静止） */}
-            <div className="mt-3 space-y-2" aria-hidden="true">
-              <div className="h-3 w-3/4 animate-pulse rounded bg-surface-2" />
-              <div className="h-3 w-1/2 animate-pulse rounded bg-surface-2" />
-            </div>
-          </div>
+          </Card>
         )
       )}
 
-      {/* タイマー（残り10秒で緊急色）
-          role="timer" で意味を与えつつ aria-live は off（毎秒の読み上げ過多を防ぐ）。
-          残り10秒等の節目は下部の離散アナウンサーが伝える（FR-035）。 */}
-      <div
-        role="timer"
-        aria-live="off"
-        aria-label={`残り時間 ${formatTime(remaining)}`}
-        className={`font-mono text-timer font-bold tabular-nums ${
-          isUrgent ? "text-danger" : "text-fg"
-        }`}
-      >
-        {formatTime(remaining)}
-      </div>
-
-      {/* ドライバー情報 */}
-      <div className="flex flex-wrap justify-center gap-8 text-center">
-        <div>
-          <p className="text-sm text-fg-subtle">ドライバー</p>
-          {/* 現ドライバーはスポットライト強調（S3）。ステージ上で発光＋大サイズにし、
-              「次」との階層差を明確にする。CSS は .driver-spotlight（index.css）。 */}
-          <p className="driver-spotlight font-bold text-fg">{currentDriverName}</p>
-        </div>
-        {room.config.navigatorEnabled && navigatorName && (
-          <div>
-            <p className="text-sm text-fg-subtle">ナビゲーター</p>
-            <p className="text-xl font-bold text-fg">{navigatorName}</p>
+      {/* ドライバーパネル（タイマー＝円形プログレス、人＝円周配置、現ドライバー＝Crown） */}
+      <Card className={`relative overflow-hidden transition-all`}>
+        <div className="absolute inset-0 bg-gradient-to-br from-fuchsia-500/20 via-transparent to-violet-500/20 pointer-events-none" />
+        <div className="relative text-center py-4">
+          <div className="text-xs uppercase tracking-widest text-white/50 mb-2">Current Driver</div>
+          <div
+            key={currentDriverName}
+            className="text-4xl md:text-5xl font-black mb-4 bg-gradient-to-r from-amber-300 to-orange-400 bg-clip-text text-transparent animate-fade-up"
+          >
+            <Crown className="w-9 h-9 inline mr-3 text-amber-400" aria-hidden="true" />
+            {currentDriverName}
           </div>
-        )}
-        <div>
-          <p className="text-sm text-fg-subtle">次</p>
-          {/* 「次」は現ドライバーより一段下げ、図と地の階層差を明確にする（サイズ・明度とも） */}
-          <p className="text-lg font-medium text-fg-subtle">{nextDriverName}</p>
-        </div>
-      </div>
 
-      {/* 統計 */}
-      <div className="flex gap-6 text-sm text-fg-subtle">
-        <span>経過: {formatElapsed(elapsed)}</span>
-        <span>交代: {room.session.totalSwitches}回</span>
-      </div>
+          <div className="flex justify-center mb-4">
+            <TeamOrbit members={room.session.rotation} currentIndex={room.session.currentIndex} size={340}>
+              <CircularProgress progress={progress} warning={isUrgent} size={220} strokeWidth={10}>
+                {/* タイマー（残り10秒で緊急色）。role="timer" で意味付与、aria-live は off。 */}
+                <div
+                  role="timer"
+                  aria-live="off"
+                  aria-label={`残り時間 ${formatTime(remaining)}`}
+                  className={`text-4xl md:text-5xl font-black font-mono tabular-nums tracking-tight ${
+                    isUrgent ? "text-red-400 animate-pulse" : "text-white"
+                  } ${isPaused ? "opacity-50" : ""}`}
+                >
+                  {formatTime(remaining)}
+                </div>
+                {isPaused && (
+                  <div className="text-[10px] uppercase tracking-widest text-white/40 mt-1">Paused</div>
+                )}
+              </CircularProgress>
+            </TeamOrbit>
+          </div>
 
-      {/* 編集者操作 */}
-      {isEditor && (
-        <div className="flex flex-wrap justify-center gap-3">
-          <Button intent="primary" onClick={onSkip} disabled={!room.clock.running}>
-            スキップ
-          </Button>
-          {room.clock.running && !room.session.isPaused ? (
-            <Button intent="warning" onClick={onPause}>
-              一時停止
-            </Button>
-          ) : (
-            <Button
-              intent="success"
-              onClick={onResume}
-              disabled={!room.session.isPaused}
-            >
-              再開
-            </Button>
-          )}
-        </div>
-      )}
-
-      {/* ホスト操作: 休憩（副操作）と、終了系3操作の隔離ゾーン（完成/中断/リセット）。
-          終了系は EndSessionZone が確認ダイアログを内蔵し、語彙と意味差を明確にする（FR-018/019/044）。 */}
-      {isHost && (
-        <>
-          <div className="flex flex-wrap justify-center gap-3">
-            {room.onBreak ? (
-              <Button intent="neutral" onClick={onBreakEnd}>
-                休憩終了
-              </Button>
-            ) : (
-              <Button intent="neutral" onClick={onBreakStart}>
-                休憩
-              </Button>
+          <div className="flex items-center justify-center gap-2 text-sm text-white/60">
+            <ArrowRight className="w-4 h-4" aria-hidden="true" />
+            次: <span className="text-white font-bold">{nextDriverName}</span>
+            {room.config.navigatorEnabled && navigatorName && (
+              <span className="ml-3 text-white/40">ナビ: <span className="text-white/80">{navigatorName}</span></span>
             )}
           </div>
+
+          {/* 統計 */}
+          <div className="mt-3 flex justify-center gap-6 text-sm text-white/50">
+            <span>経過 {formatElapsed(elapsed)}</span>
+            <span>交代 {room.session.totalSwitches}回</span>
+          </div>
+        </div>
+
+        {/* 操作（編集者：スキップ／一時停止・再開、ホスト：休憩） */}
+        <div className="relative flex flex-wrap justify-center gap-2 pt-2">
+          {isEditor && (
+            <>
+              {isPaused || !running ? (
+                <PrimaryButton onClick={onResume} disabled={!isPaused}>
+                  <span className="flex items-center gap-2"><Play className="w-5 h-5" /> 再開</span>
+                </PrimaryButton>
+              ) : (
+                <GhostButton onClick={onPause}>
+                  <span className="flex items-center gap-2"><Pause className="w-4 h-4" /> 一時停止</span>
+                </GhostButton>
+              )}
+              <GhostButton onClick={onSkip} disabled={!running}>
+                <span className="flex items-center gap-2"><SkipForward className="w-4 h-4" /> スキップ</span>
+              </GhostButton>
+            </>
+          )}
+          {isHost && (
+            <GhostButton onClick={room.onBreak ? onBreakEnd : onBreakStart}>
+              <span className="flex items-center gap-2"><Coffee className="w-4 h-4" /> {room.onBreak ? "休憩終了" : "休憩"}</span>
+            </GhostButton>
+          )}
+        </div>
+      </Card>
+
+      {/* ホスト操作: 終了系3操作の隔離ゾーン（完成/中断/リセット・確認つき・FR-018/019/044） */}
+      {isHost && (
+        <Card>
           <EndSessionZone
             onComplete={onComplete}
             onAbort={onAbort}
             onReset={onReset}
             isShared={room.code !== "SOLO"}
           />
-        </>
+        </Card>
       )}
 
       {/* 在席一覧（RosterPanel）。改名・一時離脱・代理追加・観覧表示・現ドライバー
-          ハイライトを提供（FR-046/047/048/050/051/061）。現ドライバーは rotation の
-          名前で判定する（participants 配列の位置とはずれるため）。 */}
-      <RosterPanel
-        participants={room.participants}
-        currentDriverName={room.session.rotation[room.session.currentIndex] ?? ""}
-        myParticipantId={participantId}
-        canHostAction={isHost}
-        onRename={onRenameParticipant}
-        onSkip={onDriverSkip}
-        onResume={onDriverResume}
-        onAddProxy={onAddProxy}
-      />
+          ハイライト（FR-046/047/048/050/051/061）。現ドライバーは rotation の名前で判定。 */}
+      <Card>
+        <RosterPanel
+          participants={room.participants}
+          currentDriverName={room.session.rotation[room.session.currentIndex] ?? ""}
+          myParticipantId={participantId}
+          canHostAction={isHost}
+          onRename={onRenameParticipant}
+          onSkip={onDriverSkip}
+          onResume={onDriverResume}
+          onAddProxy={onAddProxy}
+        />
+      </Card>
 
       {/* 引き継ぎメモ */}
       {room.handoffNote && (
-        <div
-          className="w-full rounded-md border border-line bg-surface-2 p-3 text-sm text-fg"
-          aria-live="polite"
-        >
-          <strong>引き継ぎメモ:</strong> {room.handoffNote}
-        </div>
+        <Card>
+          <p className="text-sm text-white/80" aria-live="polite">
+            <strong className="text-white">引き継ぎメモ:</strong> {room.handoffNote}
+          </p>
+        </Card>
       )}
 
       {/* 交代・残り10秒・一時停止・休憩を支援技術へ通知（FR-035） */}

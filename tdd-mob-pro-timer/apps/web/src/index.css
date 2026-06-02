@@ -225,6 +225,51 @@ body {
   text-shadow: 0 0 18px var(--focus-glow);
 }
 
+/* =============================================================================
+ * 没入型ステージ演出（参考デザイン準拠）
+ * 背景 orbs のドリフト・交代の shake/pulse・要素の fade-up/pop-in・confetti。
+ * すべて下の prefers-reduced-motion ブロックで抑制される。
+ * ========================================================================== */
+
+@keyframes confetti-fall {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+.animate-confetti { animation: confetti-fall linear forwards; }
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-8px); }
+  75% { transform: translateX(8px); }
+}
+.animate-shake { animation: shake 0.4s ease-in-out; }
+
+@keyframes pulse-fast {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+.animate-pulse-fast { animation: pulse-fast 0.5s ease-in-out; }
+
+@keyframes drift-1 { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(80px, 60px); } }
+@keyframes drift-2 { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(-100px, -80px); } }
+@keyframes drift-3 { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(60px, -100px); } }
+.animate-drift-1 { animation: drift-1 18s ease-in-out infinite; }
+.animate-drift-2 { animation: drift-2 22s ease-in-out infinite; }
+.animate-drift-3 { animation: drift-3 26s ease-in-out infinite; }
+
+@keyframes fade-up {
+  0% { transform: translateY(20px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+.animate-fade-up { animation: fade-up 0.55s cubic-bezier(0.16, 1, 0.3, 1); }
+
+@keyframes pop-in {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.animate-pop-in { animation: pop-in 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
+
 /* モーション軽減設定の尊重（FR-034） */
 @media (prefers-reduced-motion: reduce) {
   *,

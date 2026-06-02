@@ -48,13 +48,10 @@ describe("Setup オンボーディング（T043/T044）", () => {
 
   it("メンバー名が重複したときエラーを表示する（FR-003）", () => {
     render(<Setup onCreateRoom={noop} />);
-    // aria-label="新しいメンバー名" のテキストボックス
-    const input = screen.getByRole("textbox", { name: /新しいメンバー名|member|name/i });
-    // 既存メンバー "Alice" と同じ名前を入力
-    fireEvent.change(input, { target: { value: "Alice" } });
-    const addBtn = screen.getByRole("button", { name: /追加/i });
-    fireEvent.click(addBtn);
-    // role="alert" のエラーメッセージが表示される
+    // 既定メンバー（Alice/Bob）のうち 2 人目の名前入力を "Alice" に変えて重複させる
+    const member2 = screen.getByLabelText("メンバー2の名前") as HTMLInputElement;
+    fireEvent.change(member2, { target: { value: "Alice" } });
+    // role="alert" の重複エラーが表示される
     expect(screen.getByRole("alert")).toBeTruthy();
   });
 
@@ -68,10 +65,10 @@ describe("Setup オンボーディング（T043/T044）", () => {
       intervalMinutes: 10,
     });
     render(<Setup onCreateRoom={noop} />);
-    // 保存したメンバーが表示される（既定の Alice/Bob ではない）
-    expect(screen.getByText("Carol")).toBeTruthy();
-    expect(screen.getByText("Dave")).toBeTruthy();
-    expect(screen.queryByText("Bob")).toBeNull();
+    // 保存したメンバーが名前入力欄に復元される（3人＝Carol/Dave/Eve）
+    expect((screen.getByLabelText("メンバー1の名前") as HTMLInputElement).value).toBe("Carol");
+    expect((screen.getByLabelText("メンバー2の名前") as HTMLInputElement).value).toBe("Dave");
+    expect((screen.getByLabelText("メンバー3の名前") as HTMLInputElement).value).toBe("Eve");
     // 言語の select が Python になっている
     const lang = screen.getByLabelText(/言語/) as HTMLSelectElement;
     expect(lang.value).toBe("Python");

@@ -143,27 +143,21 @@ describe("Session × RosterPanel 結合（T057）", () => {
     expect(handlers.onAddProxy).toHaveBeenCalledWith("Dave");
   });
 
-  // ─── 現ドライバーのスポットライト強調（S3）─────────────────────────────────
-  it("現ドライバー名がスポットライト強調（.driver-spotlight）され、その中身が現ドライバー名である", () => {
+  // ─── 現ドライバーの強調（CURRENT DRIVER 見出し）───────────────────────────
+  it("現ドライバー名が CURRENT DRIVER 見出しに表示される", () => {
     const handlers = baseHandlers();
-    const { container } = render(
-      <Session room={makeRoom()} participantId="host-1" {...handlers} />,
-    );
-    // 焦点ゾーンの現ドライバー名にスポットライト用クラスが付く
-    const spotlight = container.querySelector(".driver-spotlight");
-    expect(spotlight).toBeTruthy();
-    // 中身は現ドライバー（rotation[currentIndex=1] = "Carol"）
-    expect(spotlight?.textContent).toBe("Carol");
+    render(<Session room={makeRoom()} participantId="host-1" {...handlers} />);
+    // 「CURRENT DRIVER」ラベルの直近に現ドライバー（rotation[1]="Carol"）が表示される
+    const label = screen.getByText(/current driver/i);
+    const panel = label.closest("div")?.parentElement ?? label.parentElement!;
+    expect(panel.textContent).toContain("Carol");
   });
 
-  it("「次」ドライバー名はスポットライト強調されない", () => {
+  it("「次」ドライバーが現ドライバーとは別に表示される", () => {
     const handlers = baseHandlers();
-    const { container } = render(
-      <Session room={makeRoom()} participantId="host-1" {...handlers} />,
-    );
-    // スポットライトは現ドライバーのみ。次（Alice）の要素には付かない。
-    const spotlights = container.querySelectorAll(".driver-spotlight");
-    expect(spotlights.length).toBe(1);
-    expect(spotlights[0]?.textContent).not.toBe("Alice");
+    render(<Session room={makeRoom()} participantId="host-1" {...handlers} />);
+    // 「次:」の近傍に次ドライバー（rotation[0]="Alice"）が出る
+    const nextLabel = screen.getByText(/次:/);
+    expect(nextLabel.parentElement?.textContent).toContain("Alice");
   });
 });

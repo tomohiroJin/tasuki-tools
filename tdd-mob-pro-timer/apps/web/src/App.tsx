@@ -10,12 +10,12 @@ import { Summary, type EndType } from "./ui/Summary.js";
 import { StatusStrip, type ConnectionStatus } from "./ui/components/StatusStrip.js";
 import { AiSettingsModal } from "./ui/components/AiSettingsModal.js";
 import { saveApiKey, clearApiKey, loadApiKey } from "./ai/key-storage.js";
-import { getInitialTheme } from "./ui/theme.js";
 import { SyncClient } from "./sync/client.js";
 import { NoAiProvider } from "./ai/no-ai.js";
 import { ByokProvider } from "./ai/byok.js";
 import type { ProblemProvider } from "./ai/provider.js";
 import { screenForPhase } from "./ui/screen.js";
+import { Stage } from "./ui/primitives.js";
 import { saveRecord } from "./records/indexeddb.js";
 import { persistRecordIfComplete } from "./records/persist.js";
 import { buildCompletionRecord } from "@tdd-mob/core";
@@ -234,15 +234,6 @@ export default function App() {
     };
   }, [client]);
 
-  // ロビー/セッションは「ダークステージ固定」（plan.md L33・FR-028/SC-006）。
-  // 既存の data-theme=dark 機構（実績あり）で舞台を暗くし、文字・面トークンを確実に
-  // ダーク値へ切り替える。Setup/Summary では利用者本来のテーマへ復帰する。
-  // ここでは DOM 属性のみ操作し localStorage には保存しない（テーマトグルの保存値を汚さない）。
-  useEffect(() => {
-    const onStage = mode === "lobby" || mode === "session";
-    const theme = onStage ? "dark" : getInitialTheme();
-    document.documentElement.setAttribute("data-theme", theme);
-  }, [mode]);
 
   // 共有時の操作はすべて WS コマンド送信（サーバーが状態をミラーし全員へ反映）。
   const act = (action: "SWITCH" | "PAUSE" | "RESUME") => {
@@ -397,31 +388,30 @@ export default function App() {
     return <Setup onCreateRoom={handleCreateRoom} />;
   };
 
-  // ロビー/セッションはダークステージ固定（FR-028/SC-006）。Setup/Summary は通常テーマ。
-  const isStage = mode === "lobby" || mode === "session";
-
   return (
-    <div className={isStage ? "stage-canvas min-h-screen" : "min-h-screen"}>
+    <Stage>
       {/* 永続ステータスストリップ（全画面共通・FR-036）。Setup では参加前なので出さない。 */}
       {mode !== "setup" && (
-        <StatusStrip
-          phase={mode}
-          displayName={selfName}
-          role={selfRole}
-          connectionStatus={connectionStatus}
-          problemMode={problemMode}
-          roomCode={room?.code}
-        />
+        <div className="mb-4">
+          <StatusStrip
+            phase={mode}
+            displayName={selfName}
+            role={selfRole}
+            connectionStatus={connectionStatus}
+            problemMode={problemMode}
+            roomCode={room?.code}
+          />
+        </div>
       )}
 
       {banner && (
         <div
           role={banner.kind === "error" ? "alert" : "status"}
           aria-live={banner.kind === "error" ? "assertive" : "polite"}
-          className={`sticky top-0 z-40 px-4 py-2 text-center text-sm ${
+          className={`mb-4 rounded-xl px-4 py-2 text-center text-sm backdrop-blur-sm border ${
             banner.kind === "error"
-              ? "bg-danger text-on-danger"
-              : "bg-warning text-on-warning"
+              ? "bg-red-500/20 border-red-400/40 text-red-100"
+              : "bg-amber-500/20 border-amber-400/40 text-amber-100"
           }`}
         >
           {banner.text}
@@ -440,6 +430,6 @@ export default function App() {
         onKeySave={handleKeySave}
         onKeyClear={handleKeyClear}
       />
-    </div>
+    </Stage>
   );
 }
