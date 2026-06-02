@@ -37,6 +37,8 @@ interface SessionProps {
   onDriverSkip: (participantId: string) => void;
   onDriverResume: (participantId: string) => void;
   onAddProxy: (displayName: string) => void;
+  /** 引き継ぎメモの更新（editor+ のみ・§9.1）。handoff.note.set を送る。 */
+  onHandoffNoteSet?: (text: string) => void;
   /** お題編集まわり（editor+）。お題が確定している間のみ ProblemEditor から呼ばれる（US3）。
    *  共有時は problem.edit/submit/request、ソロ時は LocalEngine 経由で App が処理する。 */
   onEditProblem?: (patch: Partial<Omit<Problem, "source" | "edited">>) => void;
@@ -65,6 +67,7 @@ export function Session({
   onDriverSkip,
   onDriverResume,
   onAddProxy,
+  onHandoffNoteSet,
   onEditProblem,
   onCopyProblem,
   onRegenerateProblem,
@@ -143,6 +146,16 @@ export function Session({
     isUrgent,
     currentDriverName,
   ]);
+
+  // 引き継ぎメモのローカル編集状態（§9.1）。サーバー snapshot が来たら追従し、
+  // 入力確定（blur）時にだけ handoff.note.set を送る（楽観更新は最小・§5.3）。
+  const [noteDraft, setNoteDraft] = useState(room.handoffNote);
+  useEffect(() => {
+    setNoteDraft(room.handoffNote);
+  }, [room.handoffNote]);
+  const commitNote = () => {
+    if (noteDraft !== room.handoffNote) onHandoffNoteSet?.(noteDraft);
+  };
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -287,13 +300,33 @@ export function Session({
         />
       </Card>
 
-      {/* 引き継ぎメモ */}
-      {room.handoffNote && (
+      {/* 引き継ぎメモ（§9.1）。editor+ は編集でき、交代時に次ドライバーへ提示される。
+          viewer はメモがある時だけ読み取り表示する。 */}
+      {isEditor ? (
         <Card>
-          <p className="text-sm text-white/80" aria-live="polite">
-            <strong className="text-white">引き継ぎメモ:</strong> {room.handoffNote}
-          </p>
+          <label htmlFor="handoff-note" className="flex items-center gap-2 text-sm font-semibold text-white mb-2">
+            <ArrowRight className="w-4 h-4 text-cyan-400" aria-hidden="true" />
+            次のドライバーへの引き継ぎメモ
+          </label>
+          <textarea
+            id="handoff-note"
+            aria-label="引き継ぎメモ"
+            value={noteDraft}
+            onChange={(e) => setNoteDraft(e.target.value)}
+            onBlur={commitNote}
+            rows={2}
+            placeholder="例: API のモックまで完了。次はバリデーションから。"
+            className="w-full resize-y rounded-lg bg-white/10 border border-white/20 px-3 py-2 text-sm text-white outline-none focus:border-cyan-400 transition-colors"
+          />
         </Card>
+      ) : (
+        room.handoffNote && (
+          <Card>
+            <p className="text-sm text-white/80" aria-live="polite">
+              <strong className="text-white">引き継ぎメモ:</strong> {room.handoffNote}
+            </p>
+          </Card>
+        )
       )}
 
       {/* 交代・残り10秒・一時停止・休憩を支援技術へ通知（FR-035） */}

@@ -359,6 +359,7 @@ export default function App() {
           onReset={() => client?.send({ command: "session.reset" })}
           onBreakStart={() => client?.send({ command: "break.start" })}
           onBreakEnd={() => client?.send({ command: "break.end" })}
+          onHandoffNoteSet={(text) => client?.send({ command: "handoff.note.set", text })}
           onRenameParticipant={rosterRename}
           onDriverSkip={rosterSkip}
           onDriverResume={rosterResume}
