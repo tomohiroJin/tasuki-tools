@@ -268,6 +268,8 @@ export const CompletionRecordSchema = v.object({
   members: v.array(nonEmptyString),
   totalSwitches: v.pipe(v.number(), v.integer(), v.minValue(0)),
   completedAt: v.number(),
+  driverCounts: v.optional(v.array(v.pipe(v.number(), v.integer(), v.minValue(0)))),
+  rounds: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
 });
 
 export const RoomSchema = v.object({

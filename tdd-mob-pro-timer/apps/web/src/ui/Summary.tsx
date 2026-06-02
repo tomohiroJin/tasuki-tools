@@ -59,16 +59,45 @@ export function Summary({ endType, record, onNewSession, onSaveRecord }: Summary
       {/* 完成時のみ記録詳細を表示 */}
       {isComplete && record && (
         <>
-          <div className="grid w-full grid-cols-2 gap-3">
+          <div className="grid w-full grid-cols-3 gap-3">
             <Card className="p-4">
               <p className="text-sm text-white/50">所要時間</p>
-              <p className="text-2xl font-bold text-white">{formatTime(record.elapsedSeconds)}</p>
+              <p className="text-xl font-bold text-white">{formatTime(record.elapsedSeconds)}</p>
             </Card>
             <Card className="p-4">
               <p className="text-sm text-white/50">交代回数</p>
-              <p className="text-2xl font-bold text-white">{record.totalSwitches}回</p>
+              <p className="text-xl font-bold text-white">{record.totalSwitches}回</p>
+            </Card>
+            <Card className="p-4">
+              <p className="text-sm text-white/50">周回数</p>
+              <p className="text-xl font-bold text-white">{record.rounds ?? 0}周</p>
             </Card>
           </div>
+
+          {/* 個人別ドライバー回数（偏りが一目で分かるバー・UX 再設計の振り返り） */}
+          {record.driverCounts && record.driverCounts.length > 0 && (
+            <Card className="w-full p-4 text-left">
+              <p className="text-sm font-semibold text-white mb-3">ドライバー別の回数</p>
+              <ul className="space-y-2">
+                {record.members.map((name, i) => {
+                  const count = record.driverCounts?.[i] ?? 0;
+                  const max = Math.max(1, ...(record.driverCounts ?? [1]));
+                  return (
+                    <li key={`${name}-${i}`} className="flex items-center gap-3 text-sm">
+                      <span className="w-24 truncate text-white/80">{name}</span>
+                      <span className="flex-1 h-2 rounded-full bg-white/10 overflow-hidden">
+                        <span
+                          className="block h-full bg-gradient-to-r from-fuchsia-400 to-cyan-400"
+                          style={{ width: `${(count / max) * 100}%` }}
+                        />
+                      </span>
+                      <span className="w-10 text-right text-white/70">{count}回</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </Card>
+          )}
 
           <div className="flex w-full gap-3">
             <GhostButton className="flex-1" onClick={() => onSaveRecord(record)}>

@@ -130,6 +130,10 @@ export interface CompletionRecord {
   members: string[];
   totalSwitches: number;
   completedAt: number;
+  /** ドライバー別の担当回数（members と同順・§振り返り）。旧記録には無いので任意。 */
+  driverCounts?: number[];
+  /** ローテーションが一巡した回数（totalSwitches / rotation 長）。任意。 */
+  rounds?: number;
 }
 
 // ─── 導出関数 ───────────────────────────────────────────────────────────────

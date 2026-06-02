@@ -97,6 +97,23 @@ describe("Summary（T047/T048）", () => {
     expect(screen.queryByLabelText("達成")).toBeNull();
   });
 
+  // ─── 振り返り: 個人別ドライバー回数・周回数（UX 再設計 C3）─────────────────
+  it("完成のとき個人別ドライバー回数と周回数を表示する", () => {
+    render(
+      <Summary
+        endType="complete"
+        record={{ ...baseRecord, members: ["Alice", "Bob"], driverCounts: [2, 1], rounds: 1 }}
+        onNewSession={noop}
+        onSaveRecord={noop}
+      />,
+    );
+    // 各メンバー名と回数
+    expect(screen.getByText("Alice")).toBeTruthy();
+    expect(screen.getByText("Bob")).toBeTruthy();
+    // 周回数（値「1周」）
+    expect(screen.getByText("1周")).toBeTruthy();
+  });
+
   it("次の行動（新規セッション）への導線を提示する（FR-021）", () => {
     render(
       <Summary

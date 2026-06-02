@@ -21,6 +21,7 @@ export function buildCompletionRecord(
   roomId?: string,
 ): CompletionRecord {
   const totalElapsedMs = elapsedMs(agg.clock, now);
+  const rotationLen = agg.session.rotation.length;
 
   return {
     id: generateId(now),
@@ -32,6 +33,9 @@ export function buildCompletionRecord(
     members: [...config.members],
     totalSwitches: agg.session.totalSwitches,
     completedAt: now,
+    // 振り返り用: ドライバー別回数（rotation と同順）と周回数。
+    driverCounts: [...agg.session.driverCounts],
+    rounds: rotationLen > 0 ? Math.floor(agg.session.totalSwitches / rotationLen) : 0,
   };
 }
 
