@@ -203,13 +203,15 @@ describe("decide: メンバー管理", () => {
     }
   });
 
-  it("2人未満になる削除はエラー（BelowMinMembers）", () => {
-    const twoMemberConfig: SessionConfig = {
-      ...baseConfig,
-      members: ["Alice", "Bob"],
-    };
-    const twoMemberAgg = initialAggregate(twoMemberConfig);
+  it("2人のとき1人削除はできる（2層モデル: 下限は1人）", () => {
+    const twoMemberAgg = initialAggregate({ ...baseConfig, members: ["Alice", "Bob"] });
     const result = decide({ command: "member.remove", index: 0 }, twoMemberAgg, NOW);
+    expect(result.isOk()).toBe(true);
+  });
+
+  it("最後の1人を削除しようとするとエラー（BelowMinMembers）", () => {
+    const oneMemberAgg = initialAggregate({ ...baseConfig, members: ["Alice"] });
+    const result = decide({ command: "member.remove", index: 0 }, oneMemberAgg, NOW);
     expect(result.isErr()).toBe(true);
     if (result.isErr()) {
       expect(result.error.type).toBe("BelowMinMembers");

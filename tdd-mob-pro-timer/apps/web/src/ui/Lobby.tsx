@@ -24,6 +24,10 @@ interface LobbyProps {
   onOpenAiSettings?: () => void;
   /** セッション設定の変更（言語/難易度/間隔/オプション）。editor+ のみ。config.set を送る。 */
   onConfigSet?: (patch: Partial<SessionConfig>) => void;
+  /** 自分をドライバーローテーションに加える（member.add 自名）。2層モデル。 */
+  onJoinRotation?: (displayName: string) => void;
+  /** 自分をローテーションから外す（member.remove 自分の index）。 */
+  onLeaveRotation?: (index: number) => void;
 }
 
 export function Lobby({
@@ -36,6 +40,8 @@ export function Lobby({
   onCopyProblem,
   onOpenAiSettings,
   onConfigSet,
+  onJoinRotation,
+  onLeaveRotation,
 }: LobbyProps) {
   const [copied, setCopied] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
@@ -106,19 +112,45 @@ export function Lobby({
       <Card>
         <SectionHeader icon={Users} color="text-violet-400" title={`参加者 (${room.participants.length}人)`} />
         <ul className="space-y-1.5">
-          {room.participants.map((p) => (
-            <li
-              key={p.participantId}
-              className="flex items-center gap-2 text-sm text-white rounded-xl bg-white/5 border border-white/10 px-3 py-2"
-            >
-              <span className={`h-2 w-2 rounded-full ${presenceDotClass(p.presence)}`} aria-hidden="true" />
-              <span className="flex-1">{p.displayName}</span>
-              <span className="text-xs text-white/40">{presenceLabel(p.presence)}</span>
-              {p.role === "host" && (
-                <span className="text-xs font-semibold text-fuchsia-300">主催者</span>
-              )}
-            </li>
-          ))}
+          {room.participants.map((p) => {
+            const rotationIndex = room.session.rotation.indexOf(p.displayName);
+            const inRotation = rotationIndex >= 0;
+            const isMe = p.participantId === participantId;
+            return (
+              <li
+                key={p.participantId}
+                className="flex items-center gap-2 text-sm text-white rounded-xl bg-white/5 border border-white/10 px-3 py-2"
+              >
+                <span className={`h-2 w-2 rounded-full ${presenceDotClass(p.presence)}`} aria-hidden="true" />
+                <span className="flex-1">{p.displayName}</span>
+                {/* ドライバー（rotation 内）/ 見学 の区別（§9.2・2層モデル） */}
+                <span className={`text-xs font-semibold ${inRotation ? "text-cyan-300" : "text-white/40"}`}>
+                  {inRotation ? "ドライバー" : "見学"}
+                </span>
+                {p.role === "host" && (
+                  <span className="text-xs font-semibold text-fuchsia-300">主催者</span>
+                )}
+                {/* 本人だけ、ローテーション加入/離脱を切り替えられる */}
+                {isMe && (
+                  inRotation ? (
+                    <GhostButton
+                      onClick={() => onLeaveRotation?.(rotationIndex)}
+                      className="text-xs px-2 py-1"
+                    >
+                      列から外れる
+                    </GhostButton>
+                  ) : (
+                    <PrimaryButton
+                      onClick={() => onJoinRotation?.(p.displayName)}
+                      className="text-xs px-2 py-1"
+                    >
+                      ドライバーに加わる
+                    </PrimaryButton>
+                  )
+                )}
+              </li>
+            );
+          })}
         </ul>
       </Card>
 

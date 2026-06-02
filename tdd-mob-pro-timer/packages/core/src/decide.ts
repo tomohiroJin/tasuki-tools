@@ -253,8 +253,10 @@ function decideMemberRemove(
     });
   }
 
-  if (agg.session.rotation.length <= MIN_MEMBERS) {
-    return err({ type: "BelowMinMembers", min: MIN_MEMBERS });
+  // 2層モデル: ドライバーは各自が出入りする。最後の1人だけは外れられない
+  // （rotation が 0 になると交代先が無く evolve が破綻するため）。
+  if (agg.session.rotation.length <= 1) {
+    return err({ type: "BelowMinMembers", min: 1 });
   }
 
   return ok([{ type: "MemberRemoved", index, now }]);

@@ -111,7 +111,7 @@ describe("不変条件プロパティテスト", () => {
     );
   });
 
-  it("メンバー数は常に MIN_MEMBERS〜MAX_MEMBERS の範囲に収まる", () => {
+  it("メンバー数は常に 1〜MAX_MEMBERS の範囲に収まる（2層モデル: 各自が出入りするので下限は1）", () => {
     const config: SessionConfig = {
       language: "TypeScript",
       difficulty: "easy",
@@ -146,8 +146,8 @@ describe("不変条件プロパティテスト", () => {
                 agg = evolve(agg, event, now);
               }
             }
-            // メンバー数の範囲検証
-            expect(agg.session.rotation.length).toBeGreaterThanOrEqual(MIN_MEMBERS);
+            // メンバー数の範囲検証（最後の1人は外れられない＝下限1）
+            expect(agg.session.rotation.length).toBeGreaterThanOrEqual(1);
             expect(agg.session.rotation.length).toBeLessThanOrEqual(MAX_MEMBERS);
           }
         },

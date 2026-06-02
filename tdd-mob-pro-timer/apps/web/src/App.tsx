@@ -355,6 +355,8 @@ export default function App() {
           onCopyProblem={copyProblem}
           onOpenAiSettings={() => setAiModalOpen(true)}
           onConfigSet={(patch) => client?.send({ command: "config.set", config: patch })}
+          onJoinRotation={(name) => client?.send({ command: "member.add", name })}
+          onLeaveRotation={(index) => client?.send({ command: "member.remove", index })}
         />
       );
     }
