@@ -7,7 +7,7 @@
  */
 
 import React, { useState } from "react";
-import { Code, Users, Timer, Sparkles, AlertTriangle } from "lucide-react";
+import { Code, Users, Timer, Sparkles, AlertTriangle, Settings2 } from "lucide-react";
 import {
   VALID_INTERVAL_MINUTES,
   MIN_MEMBERS,
@@ -29,8 +29,36 @@ const DIFFICULTIES = [
   { value: "hard", label: "上級" },
 ];
 
+/** 休憩リマインダ ON 時の既定の周回間隔（§9.1）。N 巡ごとに休憩を提案する。 */
+const DEFAULT_BREAK_EVERY_ROTATIONS = 4;
+
 interface SetupProps {
   onCreateRoom: (config: SessionConfig) => void;
+}
+
+interface OptionToggleProps {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  label: string;
+  hint: string;
+}
+
+/** チェックボックス + 説明文の 1 行オプション。色だけに依存せずラベルで意味を伝える。 */
+function OptionToggle({ checked, onChange, label, hint }: OptionToggleProps) {
+  return (
+    <label className="flex items-start gap-3 cursor-pointer">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="mt-1 h-5 w-5 shrink-0 accent-fuchsia-500"
+      />
+      <span>
+        <span className="block text-sm font-medium text-white">{label}</span>
+        <span className="block text-xs text-white/40">{hint}</span>
+      </span>
+    </label>
+  );
 }
 
 const SELECT_CLASS =
@@ -69,6 +97,10 @@ export function Setup({ onCreateRoom }: SetupProps) {
   const [language, setLanguage] = useState(saved?.language ?? "TypeScript");
   const [difficulty, setDifficulty] = useState(saved?.difficulty ?? "easy");
   const [interval, setInterval] = useState<IntervalMinutes>(savedInterval);
+  // v3.0 追加オプション（§9.1）。既定はすべて OFF（現行のソフトな挙動）。
+  const [navigatorEnabled, setNavigatorEnabled] = useState(false);
+  const [assertiveSwitch, setAssertiveSwitch] = useState(false);
+  const [breakReminder, setBreakReminder] = useState(false);
 
   const dupes = duplicateIndices(members);
   const allFilled = members.every((m) => m.trim().length > 0);
@@ -93,6 +125,10 @@ export function Setup({ onCreateRoom }: SetupProps) {
     difficulty,
     members: members.map((m) => m.trim()),
     intervalMinutes: interval,
+    // OFF のフラグは省略し、既定の挙動を維持する（config に余計なキーを乗せない）。
+    ...(navigatorEnabled && { navigatorEnabled: true }),
+    ...(assertiveSwitch && { assertiveSwitch: true }),
+    ...(breakReminder && { breakEveryRotations: DEFAULT_BREAK_EVERY_ROTATIONS }),
   });
 
   /** ルーム作成。作成前に現在の設定を端末へ保存し、次回の既定にする（FR-053）。 */
@@ -231,6 +267,34 @@ export function Setup({ onCreateRoom }: SetupProps) {
               </button>
             );
           })}
+        </div>
+        <p className="mt-3 text-xs text-white/40">
+          推奨は 5〜10 分。短いほど集中と学習が高まります。
+        </p>
+      </Card>
+
+      {/* v3.0 追加オプション（ナビゲーター役・強い交代通知・休憩リマインダ） */}
+      <Card>
+        <SectionHeader icon={Settings2} color="text-emerald-400" title="オプション" />
+        <div className="space-y-3">
+          <OptionToggle
+            checked={navigatorEnabled}
+            onChange={setNavigatorEnabled}
+            label="ナビゲーター役を明示する"
+            hint="次の人をナビゲーター（指示役）として強調表示します。"
+          />
+          <OptionToggle
+            checked={assertiveSwitch}
+            onChange={setAssertiveSwitch}
+            label="強い交代通知"
+            hint="交代の瞬間に全画面で割り込み、見落としを防ぎます。"
+          />
+          <OptionToggle
+            checked={breakReminder}
+            onChange={setBreakReminder}
+            label={`休憩リマインダ（${DEFAULT_BREAK_EVERY_ROTATIONS}巡ごと）`}
+            hint="長時間セッションで定期的に休憩を提案します。"
+          />
         </div>
       </Card>
 
