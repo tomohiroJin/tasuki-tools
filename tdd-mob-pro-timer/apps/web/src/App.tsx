@@ -184,6 +184,17 @@ export default function App() {
     c.send({ command: "room.join", code, displayName, hasAiKey: false });
   };
 
+  /** 自分をドライバーに加える（名前で追加・冪等は重複名ガードに委ねる）。 */
+  const joinRotation = (displayName: string) => {
+    client?.send({ command: "member.add", name: displayName });
+  };
+  /** 自分をローテーションから外す。index は描画時ではなく送信時の最新 snapshot
+   *  （roomRef）から解決し、同時編集による index ずれで別人を外す事故を防ぐ（レビュー #1）。 */
+  const leaveRotation = (displayName: string) => {
+    const idx = roomRef.current?.session.rotation.indexOf(displayName) ?? -1;
+    if (idx >= 0) client?.send({ command: "member.remove", index: idx });
+  };
+
   const handleComplete = () => {
     setEndType("complete");
     endTypeRef.current = "complete";
@@ -214,6 +225,9 @@ export default function App() {
     problemRequestedRef.current = false;
     endTypeRef.current = "complete";
     recordSavedRef.current = false;
+    // ?room= 由来の参加状態もリセットし、次回は通常の Setup から始める（レビュー #6）。
+    joinedFromUrlRef.current = false;
+    setJoinCode(null);
     setMode("setup");
   };
 
@@ -355,8 +369,8 @@ export default function App() {
           onCopyProblem={copyProblem}
           onOpenAiSettings={() => setAiModalOpen(true)}
           onConfigSet={(patch) => client?.send({ command: "config.set", config: patch })}
-          onJoinRotation={(name) => client?.send({ command: "member.add", name })}
-          onLeaveRotation={(index) => client?.send({ command: "member.remove", index })}
+          onJoinRotation={joinRotation}
+          onLeaveRotation={leaveRotation}
         />
       );
     }
@@ -377,8 +391,8 @@ export default function App() {
           onBreakStart={() => client?.send({ command: "break.start" })}
           onBreakEnd={() => client?.send({ command: "break.end" })}
           onHandoffNoteSet={(text) => client?.send({ command: "handoff.note.set", text })}
-          onJoinRotation={(name) => client?.send({ command: "member.add", name })}
-          onLeaveRotation={(index) => client?.send({ command: "member.remove", index })}
+          onJoinRotation={joinRotation}
+          onLeaveRotation={leaveRotation}
           onRenameParticipant={rosterRename}
           onDriverSkip={rosterSkip}
           onDriverResume={rosterResume}

@@ -57,10 +57,11 @@ describe("Session ドライバー加入/離脱（D1）", () => {
     expect(onJoinRotation).toHaveBeenCalledWith("Bob");
   });
 
-  it("ローテーション加入済みの自分には「列から外れる」が出て index で離脱する", () => {
+  it("ローテーション加入済みの自分には「列から外れる」が出て自名で離脱する", () => {
     const onLeaveRotation = vi.fn();
     render(<Session room={makeRoom()} participantId="host-p" {...handlers()} onLeaveRotation={onLeaveRotation} />);
     fireEvent.click(screen.getByRole("button", { name: /列から外れる|外れる/ }));
-    expect(onLeaveRotation).toHaveBeenCalledWith(0);
+    // index ではなく自名を渡す（レビュー #1）
+    expect(onLeaveRotation).toHaveBeenCalledWith("Alice");
   });
 });

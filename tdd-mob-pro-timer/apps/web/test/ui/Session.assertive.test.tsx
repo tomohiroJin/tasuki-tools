@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within, act } from "@testing-library/react";
 import React from "react";
 import { Session } from "../../src/ui/Session.js";
 import type { Room, Participant, SessionConfig } from "@tdd-mob/core";
@@ -69,6 +69,39 @@ describe("Session 強い交代通知（§9.1）", () => {
     );
     rerender(<Session room={makeRoom(false, 1)} participantId="host-1" {...handlers()} />);
     expect(screen.queryByRole("alertdialog")).toBeNull();
+  });
+
+  it("オーバーレイは約2.5秒で自動的に閉じる", () => {
+    vi.useFakeTimers();
+    try {
+      const { rerender } = render(
+        <Session room={makeRoom(true, 0)} participantId="host-1" {...handlers()} />,
+      );
+      rerender(<Session room={makeRoom(true, 1)} participantId="host-1" {...handlers()} />);
+      expect(screen.queryByRole("alertdialog")).not.toBeNull();
+      act(() => { vi.advanceTimersByTime(2600); });
+      expect(screen.queryByRole("alertdialog")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("表示中に再レンダリングされても自動消滅が妨げられない（レビュー #2）", () => {
+    vi.useFakeTimers();
+    try {
+      const { rerender } = render(
+        <Session room={makeRoom(true, 0)} participantId="host-1" {...handlers()} />,
+      );
+      rerender(<Session room={makeRoom(true, 1)} participantId="host-1" {...handlers()} />);
+      expect(screen.queryByRole("alertdialog")).not.toBeNull();
+      // 表示中に再レンダリング（同じ index・別 props 相当）。タイマーは消えない。
+      act(() => { vi.advanceTimersByTime(1000); });
+      rerender(<Session room={makeRoom(true, 1)} participantId="host-1" {...handlers()} />);
+      act(() => { vi.advanceTimersByTime(1700); });
+      expect(screen.queryByRole("alertdialog")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("prefers-reduced-motion 時は控えめ版（data-reduced-motion=true）になる", () => {

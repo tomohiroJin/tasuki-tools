@@ -476,6 +476,10 @@ export function makeHandlers(deps: HandlerDeps) {
 
     store.put(updatedRoom);
     broadcaster.broadcastSnapshot(updatedRoom.code, updatedRoom);
+    // 手動スキップ等で交代が起きた場合も、自動交代と同様に巡境界で休憩を提案する（レビュー #3）。
+    if (updatedRoom.session.currentIndex !== agg.session.currentIndex) {
+      maybeSuggestBreak(updatedRoom);
+    }
     // clock 状態が変わった可能性があるので自動交代を調停する（FR-003）
     reconcileSchedule(updatedRoom);
 

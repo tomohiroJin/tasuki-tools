@@ -102,4 +102,13 @@ describe("休憩提案シグナル（§9.1）", () => {
     advanceOneSwitch();
     expect(suggestBreakCount(broadcaster)).toBe(0);
   });
+
+  it("手動スキップ(SWITCH)で巡境界に達しても suggest-break が出る（レビュー #3）", async () => {
+    await setup({ breakEveryRotations: 1 });
+    // 手動 SWITCH を 2 回 = 2 人ローテーションの 1 巡
+    await handlers.handleCommand(hostConn, { command: "session.act", action: "SWITCH" });
+    expect(suggestBreakCount(broadcaster)).toBe(0);
+    await handlers.handleCommand(hostConn, { command: "session.act", action: "SWITCH" });
+    expect(suggestBreakCount(broadcaster)).toBe(1);
+  });
 });

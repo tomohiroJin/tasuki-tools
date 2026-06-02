@@ -24,10 +24,10 @@ interface LobbyProps {
   onOpenAiSettings?: () => void;
   /** セッション設定の変更（言語/難易度/間隔/オプション）。editor+ のみ。config.set を送る。 */
   onConfigSet?: (patch: Partial<SessionConfig>) => void;
-  /** 自分をドライバーローテーションに加える（member.add 自名）。2層モデル。 */
+  /** 自分をドライバーローテーションに加える（自名で member.add）。2層モデル。 */
   onJoinRotation?: (displayName: string) => void;
-  /** 自分をローテーションから外す（member.remove 自分の index）。 */
-  onLeaveRotation?: (index: number) => void;
+  /** 自分をローテーションから外す（自名を渡し、index は App が最新 snapshot から解決）。 */
+  onLeaveRotation?: (displayName: string) => void;
 }
 
 export function Lobby({
@@ -134,7 +134,7 @@ export function Lobby({
                 {isMe && (
                   inRotation ? (
                     <GhostButton
-                      onClick={() => onLeaveRotation?.(rotationIndex)}
+                      onClick={() => onLeaveRotation?.(p.displayName)}
                       className="text-xs px-2 py-1"
                     >
                       列から外れる

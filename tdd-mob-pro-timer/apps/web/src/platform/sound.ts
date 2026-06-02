@@ -22,28 +22,29 @@ export function playSwitchChime(): void {
   try {
     const ctx = new Ctor();
     const now = ctx.currentTime;
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.connect(ctx.destination);
+    // 音ごとに独立した gain を持たせ、各音のエンベロープが干渉しないようにする。
     [660, 990].forEach((freq, i) => {
+      const start = now + i * 0.12;
       const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
       osc.type = "sine";
       osc.frequency.value = freq;
-      const start = now + i * 0.12;
       osc.connect(gain);
+      gain.connect(ctx.destination);
+      gain.gain.setValueAtTime(0.0001, start);
       gain.gain.exponentialRampToValueAtTime(0.18, start + 0.01);
       gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.11);
       osc.start(start);
       osc.stop(start + 0.12);
     });
-    osc_close(ctx);
+    closeContextSoon(ctx);
   } catch {
     /* 自動再生制限・未対応は無視 */
   }
 }
 
 /** 再生後にコンテキストを閉じる（リーク防止）。失敗は無視。 */
-function osc_close(ctx: AudioContext): void {
+function closeContextSoon(ctx: AudioContext): void {
   setTimeout(() => {
     void ctx.close().catch(() => {});
   }, 400);
