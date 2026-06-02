@@ -1,4 +1,8 @@
 /**
+ * @deprecated 未使用。v2 で Summary.tsx（完成/中断 出し分け）に置き換え、App からは参照していない。
+ * 記録の閲覧/書き出し（loadRecords/exportRecords 等）を本画面が抱えていたが、v2 では完成記録は
+ * App が自動保存（records/persist）するのみで、閲覧 UI は将来枠（スコープ外）。テスト維持のため残置。
+ *
  * 完成画面
  * T058: FR-001, FR-028 ＋ デザインシステム適用
  */

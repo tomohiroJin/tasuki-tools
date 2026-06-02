@@ -1,6 +1,9 @@
 /**
+ * @deprecated 未配線（将来枠）。デスクトップ通知/振動は spec の必須要件ではなく
+ * （状態変化は画面更新＋aria-live で伝達: FR-035）、App から未参照。導入する場合は
+ * Session の交代検知から notifyDriverChange を呼び、初回に requestNotificationPermission する。
+ *
  * 通知・振動
- * T061: FR-033
  */
 
 export async function requestNotificationPermission(): Promise<boolean> {

@@ -13,6 +13,7 @@ import {
 import type { SessionConfig } from "@tdd-mob/core";
 import { Button } from "./components/Button.js";
 import { ThemeToggle } from "./components/ThemeToggle.js";
+import { savePreferences, loadPreferences } from "../prefs/local-prefs.js";
 
 const LANGUAGES = [
   "TypeScript", "JavaScript", "Python", "Java",
@@ -34,11 +35,21 @@ const SELECT_CLASS =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 export function Setup({ onCreateRoom }: SetupProps) {
-  const [members, setMembers] = useState<string[]>(["Alice", "Bob"]);
+  // 前回保存した設定を既定として復元する（FR-054）。未保存なら標準既定。
+  const saved = loadPreferences();
+  const savedInterval = VALID_INTERVAL_MINUTES.includes(
+    saved?.intervalMinutes as IntervalMinutes,
+  )
+    ? (saved!.intervalMinutes as IntervalMinutes)
+    : (5 as IntervalMinutes);
+
+  const [members, setMembers] = useState<string[]>(
+    saved?.members?.length ? saved.members : ["Alice", "Bob"],
+  );
   const [newMember, setNewMember] = useState("");
-  const [language, setLanguage] = useState("TypeScript");
-  const [difficulty, setDifficulty] = useState("easy");
-  const [interval, setInterval] = useState<IntervalMinutes>(5);
+  const [language, setLanguage] = useState(saved?.language ?? "TypeScript");
+  const [difficulty, setDifficulty] = useState(saved?.difficulty ?? "easy");
+  const [interval, setInterval] = useState<IntervalMinutes>(savedInterval);
   const [error, setError] = useState("");
 
   const addMember = () => {
@@ -63,6 +74,18 @@ export function Setup({ onCreateRoom }: SetupProps) {
     members,
     intervalMinutes: interval,
   });
+
+  /** ルーム作成。作成前に現在の設定を端末へ保存し、次回の既定にする（FR-053）。 */
+  const handleCreate = () => {
+    savePreferences({
+      displayName: members[0] ?? "",
+      language,
+      difficulty,
+      members,
+      intervalMinutes: interval,
+    });
+    onCreateRoom(buildConfig());
+  };
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-6 p-6">
@@ -185,7 +208,7 @@ export function Setup({ onCreateRoom }: SetupProps) {
 
       {/* アクション（ソロ練習は v2 で非推奨化し入口を閉鎖。共有ルーム一本に統一） */}
       <div className="flex gap-3">
-        <Button intent="primary" className="flex-1" onClick={() => onCreateRoom(buildConfig())}>
+        <Button intent="primary" className="flex-1" onClick={handleCreate}>
           ルームを作成
         </Button>
       </div>
