@@ -8,7 +8,9 @@ import { Copy, Check, Users, Code, Play } from "lucide-react";
 import type { Room, Problem } from "@tdd-mob/core";
 import { Card, PrimaryButton, GhostButton, SectionHeader } from "./primitives.js";
 import { ProblemEditor } from "./components/ProblemEditor.js";
+import { ConfigPanel } from "./components/ConfigPanel.js";
 import { presenceDotClass, presenceLabel } from "./presence.js";
+import type { SessionConfig } from "@tdd-mob/core";
 
 interface LobbyProps {
   room: Room;
@@ -20,6 +22,8 @@ interface LobbyProps {
   onPasteProblem?: () => void;
   onCopyProblem?: () => void;
   onOpenAiSettings?: () => void;
+  /** セッション設定の変更（言語/難易度/間隔/オプション）。editor+ のみ。config.set を送る。 */
+  onConfigSet?: (patch: Partial<SessionConfig>) => void;
 }
 
 export function Lobby({
@@ -31,6 +35,7 @@ export function Lobby({
   onPasteProblem,
   onCopyProblem,
   onOpenAiSettings,
+  onConfigSet,
 }: LobbyProps) {
   const [copied, setCopied] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
@@ -115,6 +120,15 @@ export function Lobby({
             </li>
           ))}
         </ul>
+      </Card>
+
+      {/* セッション設定（言語/難易度/間隔/詳細設定）。host(editor+) が開始前に決める。 */}
+      <Card>
+        <ConfigPanel
+          config={room.config}
+          canEdit={isEditor}
+          onChange={(patch) => onConfigSet?.(patch)}
+        />
       </Card>
 
       {/* お題（開始前にここで決める・US3）。確定済みなら editor+ は編集できる。 */}

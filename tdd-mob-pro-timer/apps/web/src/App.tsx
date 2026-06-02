@@ -349,6 +349,7 @@ export default function App() {
           onPasteProblem={pasteProblem}
           onCopyProblem={copyProblem}
           onOpenAiSettings={() => setAiModalOpen(true)}
+          onConfigSet={(patch) => client?.send({ command: "config.set", config: patch })}
         />
       );
     }

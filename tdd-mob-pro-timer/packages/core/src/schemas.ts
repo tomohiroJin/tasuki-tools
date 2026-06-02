@@ -4,7 +4,7 @@
  */
 
 import * as v from "valibot";
-import { VALID_INTERVAL_MINUTES, MIN_MEMBERS, MAX_MEMBERS, MAX_PROBLEM_REQUIREMENTS } from "./aggregate.js";
+import { VALID_INTERVAL_MINUTES, MAX_MEMBERS, MAX_PROBLEM_REQUIREMENTS } from "./aggregate.js";
 
 // ─── 共通 ───────────────────────────────────────────────────────────────────
 
@@ -16,14 +16,17 @@ const participantId = nonEmptyString;
 export const SessionConfigSchema = v.object({
   language: nonEmptyString,
   difficulty: nonEmptyString,
+  // 境界では 1 人以上を許可する（ルームは作成者 1 人で始まり、join で増える＝2層モデル）。
+  // 「セッション中に 2 人未満へ削除しない」という不変条件は decide の guard 側で担保する。
   members: v.pipe(
     v.array(nonEmptyString),
-    v.minLength(MIN_MEMBERS),
+    v.minLength(1),
     v.maxLength(MAX_MEMBERS),
   ),
   intervalMinutes: v.picklist(VALID_INTERVAL_MINUTES),
   navigatorEnabled: v.optional(v.boolean()),
-  breakEveryRotations: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))),
+  // 0 は「休憩提案オフ」を表す（ロビーでトグルを外したときに送る）。1 以上で N 巡ごと。
+  breakEveryRotations: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
   assertiveSwitch: v.optional(v.boolean()),
 });
 
