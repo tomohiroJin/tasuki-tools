@@ -8,9 +8,26 @@
  */
 
 import React, { useState } from "react";
+import { Users } from "lucide-react";
 import type { Participant } from "@tdd-mob/core";
-import { Button } from "./Button.js";
+import { GhostButton, PrimaryButton, SectionHeader } from "../primitives.js";
 import { presenceLabel, presenceDotClass, presenceTextClass } from "../presence.js";
+
+/** 小さなダーク用ボタン（glass）。RosterPanel 内の改名/スキップ等のコンパクト操作用。 */
+function MiniButton({
+  children,
+  ...rest
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & { children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      className="px-2.5 py-1 rounded-lg text-xs font-medium bg-white/10 hover:bg-white/20 border border-white/10 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+      {...rest}
+    >
+      {children}
+    </button>
+  );
+}
 
 interface RosterPanelProps {
   participants: Participant[];
@@ -62,42 +79,37 @@ export function RosterPanel({
     setEditName("");
   };
 
-  const rotation = participants.filter(
-    (p) => !p.isPlaceholder && p.driverEligible !== false && p.role !== "viewer",
-  );
-
   return (
     <div className="w-full">
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-semibold text-fg-subtle">参加者</h3>
-        {canHostAction && (
-          <Button
-            intent="neutral"
-            size="sm"
-            onClick={() => setShowProxyInput((v) => !v)}
-            aria-label="代理参加者を追加"
-          >
-            代理追加
-          </Button>
-        )}
-      </div>
+      <SectionHeader
+        icon={Users}
+        color="text-violet-400"
+        title="参加者"
+        right={
+          canHostAction ? (
+            <GhostButton onClick={() => setShowProxyInput((v) => !v)} aria-label="代理参加者を追加" className="text-sm">
+              代理追加
+            </GhostButton>
+          ) : undefined
+        }
+      />
 
       {/* 代理追加フォーム */}
       {showProxyInput && (
-        <div className="flex gap-2 mb-2">
+        <div className="flex gap-2 mb-3">
           <input
             type="text"
             value={proxyName}
             onChange={(e) => setProxyName(e.target.value)}
             placeholder="Web 非接続のメンバー名"
             aria-label="代理参加者の名前"
-            className="flex-1 rounded-md border border-line bg-surface px-2 py-1 text-sm text-fg"
+            className="flex-1 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white outline-none focus:border-fuchsia-400"
           />
-          <Button intent="primary" size="sm" onClick={handleAddProxy}>追加</Button>
+          <PrimaryButton onClick={handleAddProxy} className="px-4 py-2 text-sm">追加</PrimaryButton>
         </div>
       )}
 
-      <ul className="flex flex-col gap-1">
+      <ul className="flex flex-col gap-1.5">
         {participants.map((p) => {
           const isCurrentDriver =
             currentDriverName !== "" && p.displayName === currentDriverName;
@@ -110,10 +122,10 @@ export function RosterPanel({
           return (
             <li
               key={p.participantId}
-              className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-sm ${
+              className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition-colors ${
                 isCurrentDriver
-                  ? "bg-primary/10 border border-primary/30"
-                  : "bg-surface"
+                  ? "bg-amber-400/15 border border-amber-400/40"
+                  : "bg-white/5 border border-white/10"
               }`}
             >
               {/* 在席ドット（色＋ラベル） */}
@@ -130,73 +142,50 @@ export function RosterPanel({
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
                     aria-label={`${p.displayName} の新しい名前`}
-                    className="flex-1 rounded-md border border-line bg-surface px-2 py-0.5 text-sm text-fg"
+                    className="flex-1 rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-sm text-white outline-none focus:border-fuchsia-400"
                   />
-                  <Button intent="primary" size="sm" onClick={() => submitRename(p.participantId)}>
-                    保存
-                  </Button>
-                  <Button intent="neutral" size="sm" onClick={() => setEditingId(null)}>
-                    取消
-                  </Button>
+                  <MiniButton onClick={() => submitRename(p.participantId)}>保存</MiniButton>
+                  <MiniButton onClick={() => setEditingId(null)}>取消</MiniButton>
                 </span>
               ) : (
-                <span className="flex-1 text-fg">{p.displayName}</span>
+                <span className="flex-1 text-white">{p.displayName}</span>
               )}
 
               {/* バッジ（改名中は隠す） */}
               {!isEditing && (
-              <span className="flex items-center gap-1 text-xs">
-                <span className="sr-only">{presenceLabel(p.presence)}</span>
-                <span className={presenceTextClass(p.presence)}>
-                  {presenceLabel(p.presence)}
+                <span className="flex items-center gap-1.5 text-xs">
+                  <span className="sr-only">{presenceLabel(p.presence)}</span>
+                  <span className={presenceTextClass(p.presence)}>
+                    {presenceLabel(p.presence)}
+                  </span>
+                  {p.role === "host" && (
+                    <span className="text-fuchsia-300 font-semibold">主催者</span>
+                  )}
+                  {p.role === "viewer" && (
+                    <span className="text-white/40">観覧</span>
+                  )}
+                  {p.isPlaceholder && (
+                    <span className="text-amber-300">代理</span>
+                  )}
+                  {isSkipping && (
+                    <span className="text-white/40">離脱中</span>
+                  )}
+                  {isCurrentDriver && (
+                    <span className="text-amber-300 font-semibold">▶ 現在</span>
+                  )}
                 </span>
-
-                {p.role === "host" && (
-                  <span className="text-primary font-semibold">主催者</span>
-                )}
-                {p.role === "viewer" && (
-                  <span className="text-fg-subtle">観覧 (viewer)</span>
-                )}
-                {p.isPlaceholder && (
-                  <span className="text-warning">代理 (Proxy)</span>
-                )}
-                {isSkipping && (
-                  <span className="text-fg-subtle">離脱中 (skip)</span>
-                )}
-                {isCurrentDriver && (
-                  <span className="text-primary font-semibold">▶ 現在</span>
-                )}
-              </span>
               )}
 
               {/* アクション（本人 or ホスト）。改名は観覧者の自己にも許可、
                   スキップ/復帰はローテーション対象（非観覧者）のみ。 */}
               {!isEditing && canRename && (
                 <span className="flex gap-1">
-                  <Button
-                    intent="neutral"
-                    size="sm"
-                    onClick={() => startRename(p.participantId, p.displayName)}
-                  >
-                    改名
-                  </Button>
+                  <MiniButton onClick={() => startRename(p.participantId, p.displayName)}>改名</MiniButton>
                   {p.role !== "viewer" &&
                     (isSkipping ? (
-                      <Button
-                        intent="neutral"
-                        size="sm"
-                        onClick={() => onResume(p.participantId)}
-                      >
-                        復帰
-                      </Button>
+                      <MiniButton onClick={() => onResume(p.participantId)}>復帰</MiniButton>
                     ) : (
-                      <Button
-                        intent="neutral"
-                        size="sm"
-                        onClick={() => onSkip(p.participantId)}
-                      >
-                        スキップ
-                      </Button>
+                      <MiniButton onClick={() => onSkip(p.participantId)}>スキップ</MiniButton>
                     ))}
                 </span>
               )}

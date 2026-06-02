@@ -84,7 +84,7 @@ describe("EndSessionZone（T045/T046）", () => {
     expect(screen.getByText(/全員|他の参加者|参加者/i)).toBeTruthy();
   });
 
-  it("完成ボタンには感嘆符を付けない（語彙が実態と一致: FR-044）", () => {
+  it("完成ボタンは全角の大げさな感嘆符『！』を使わない（FR-044・参考デザインは半角 ! の祝祭表現を許容）", () => {
     render(
       <EndSessionZone
         onComplete={noop}
@@ -93,9 +93,9 @@ describe("EndSessionZone（T045/T046）", () => {
         isShared={false}
       />,
     );
-    // 「完成！」ではなく「完成」
+    // 参考デザイン準拠で「完成!」（半角・達成感の演出）。全角の大げさな「！」は使わない。
     const btn = screen.getByRole("button", { name: /完成/i });
+    expect(btn.textContent).toContain("完成");
     expect(btn.textContent).not.toContain("！");
-    expect(btn.textContent).not.toContain("!");
   });
 });

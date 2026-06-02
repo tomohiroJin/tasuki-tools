@@ -4,8 +4,9 @@
  */
 
 import React, { useState, useEffect } from "react";
+import { Copy, Check, Users, Code, Play } from "lucide-react";
 import type { Room, Problem } from "@tdd-mob/core";
-import { Button } from "./components/Button.js";
+import { Card, PrimaryButton, GhostButton, SectionHeader } from "./primitives.js";
 import { ProblemEditor } from "./components/ProblemEditor.js";
 import { presenceDotClass, presenceLabel } from "./presence.js";
 
@@ -67,68 +68,67 @@ export function Lobby({
   }, [roomUrl]);
 
   return (
-    <div className="mx-auto flex max-w-md flex-col items-center gap-6 p-6">
-      <h2 className="text-xl font-bold text-fg">ロビー</h2>
-
-      {/* ルームコード */}
-      <div className="w-full text-center">
-        <p className="mb-1 text-sm text-fg-subtle">ルームコード</p>
+    <div className="space-y-6">
+      {/* ルームコード＋QR＋招待（1操作コピー） */}
+      <Card className="text-center">
+        <p className="text-sm text-white/50 mb-1">ルームコード</p>
         <div className="flex items-center justify-center gap-3">
-          <span className="font-mono text-4xl font-bold tracking-widest text-fg">
+          <span className="font-mono text-4xl font-black tracking-widest bg-gradient-to-r from-fuchsia-400 to-cyan-400 bg-clip-text text-transparent">
             {room.code}
           </span>
-          <Button size="sm" intent="neutral" onClick={() => copyText(room.code)}>
-            {copied ? "コピーしました" : "コピー"}
-          </Button>
+          <GhostButton onClick={() => copyText(room.code)} aria-label="ルームコードをコピー">
+            <span className="flex items-center gap-1 text-sm">
+              {copied ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
+              {copied ? "コピーしました" : "コピー"}
+            </span>
+          </GhostButton>
         </div>
-      </div>
-
-      {/* QR コード（白背景固定で読み取り保証） */}
-      {qrDataUrl && (
-        <img
-          src={qrDataUrl}
-          alt={`ルーム ${room.code} の QR コード`}
-          className="h-48 w-48 rounded-md bg-white p-2"
-        />
-      )}
-
-      <Button size="sm" intent="neutral" onClick={() => copyText(roomUrl)}>
-        参加 URL をコピー
-      </Button>
+        {qrDataUrl && (
+          <img
+            src={qrDataUrl}
+            alt={`ルーム ${room.code} の QR コード`}
+            className="h-44 w-44 rounded-xl bg-white p-2 mx-auto mt-4"
+          />
+        )}
+        <div className="mt-3">
+          <GhostButton onClick={() => copyText(roomUrl)}>
+            <span className="flex items-center gap-1 text-sm"><Copy className="w-4 h-4" /> 参加 URL をコピー</span>
+          </GhostButton>
+        </div>
+      </Card>
 
       {/* 参加者一覧 */}
-      <div className="w-full">
-        <h3 className="mb-2 text-sm font-semibold text-fg-subtle">
-          参加者 ({room.participants.length}人)
-        </h3>
-        <ul className="space-y-1">
+      <Card>
+        <SectionHeader icon={Users} color="text-violet-400" title={`参加者 (${room.participants.length}人)`} />
+        <ul className="space-y-1.5">
           {room.participants.map((p) => (
-            <li key={p.participantId} className="flex items-center gap-2 text-sm text-fg">
-              <span
-                className={`h-2 w-2 rounded-full ${presenceDotClass(p.presence)}`}
-                aria-hidden="true"
-              />
-              <span>{p.displayName}</span>
-              <span className="text-xs text-fg-subtle">({presenceLabel(p.presence)})</span>
+            <li
+              key={p.participantId}
+              className="flex items-center gap-2 text-sm text-white rounded-xl bg-white/5 border border-white/10 px-3 py-2"
+            >
+              <span className={`h-2 w-2 rounded-full ${presenceDotClass(p.presence)}`} aria-hidden="true" />
+              <span className="flex-1">{p.displayName}</span>
+              <span className="text-xs text-white/40">{presenceLabel(p.presence)}</span>
               {p.role === "host" && (
-                <span className="text-xs font-semibold text-primary">主催者</span>
+                <span className="text-xs font-semibold text-fuchsia-300">主催者</span>
               )}
             </li>
           ))}
         </ul>
-      </div>
+      </Card>
 
-      {/* お題（開始前にここで決める・US3）。確定済みなら editor+ は編集できる。
-          未確定なら準備中を示す。お題を見て納得してからタイマーを開始する流れ。 */}
-      <div className="w-full">
-        <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-fg-subtle">お題</h3>
-          {onOpenAiSettings && (
-            <Button size="sm" intent="neutral" onClick={onOpenAiSettings}>
-              AI 設定
-            </Button>
-          )}
-        </div>
+      {/* お題（開始前にここで決める・US3）。確定済みなら editor+ は編集できる。 */}
+      <Card>
+        <SectionHeader
+          icon={Code}
+          color="text-fuchsia-400"
+          title="お題"
+          right={
+            onOpenAiSettings ? (
+              <GhostButton onClick={onOpenAiSettings} className="text-sm">AI 設定</GhostButton>
+            ) : undefined
+          }
+        />
         {room.problem ? (
           <ProblemEditor
             problem={room.problem}
@@ -139,23 +139,19 @@ export function Lobby({
             onCopy={onCopyProblem ?? (() => {})}
           />
         ) : (
-          <p className="rounded-md border border-line bg-surface p-3 text-sm text-fg-muted">
-            お題を準備中です…
-          </p>
+          <div className="py-8 text-center text-white/60">
+            <span className="inline-block h-4 w-4 animate-pulse rounded-full bg-fuchsia-400 mb-2" aria-hidden="true" />
+            <p>お題を準備中です…</p>
+          </div>
         )}
-      </div>
+      </Card>
 
       {isHost ? (
-        <Button
-          intent="primary"
-          className="w-full"
-          onClick={onStartSession}
-          disabled={!room.problem}
-        >
-          セッションを開始
-        </Button>
+        <PrimaryButton className="w-full" onClick={onStartSession} disabled={!room.problem}>
+          <span className="flex items-center justify-center gap-2"><Play className="w-5 h-5" /> セッションを開始</span>
+        </PrimaryButton>
       ) : (
-        <p className="text-sm text-fg-subtle">主催者のセッション開始を待っています...</p>
+        <p className="text-center text-sm text-white/50">主催者のセッション開始を待っています...</p>
       )}
     </div>
   );

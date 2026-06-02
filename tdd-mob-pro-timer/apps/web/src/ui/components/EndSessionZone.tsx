@@ -7,7 +7,8 @@
  */
 
 import React, { useState } from "react";
-import { Button } from "./Button.js";
+import { Flag, XCircle, RotateCcw } from "lucide-react";
+import { GhostButton } from "../primitives.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 
 interface EndSessionZoneProps {
@@ -53,22 +54,30 @@ export function EndSessionZone({
   return (
     <div
       aria-label="セッションを終える"
-      className="flex flex-wrap justify-center gap-2 border-t border-line pt-4 mt-4"
+      className="flex flex-wrap justify-center gap-2"
     >
-      {/* 完成（達成として記録する）*/}
-      <Button intent="accent" onClick={onComplete}>
-        完成
-      </Button>
+      {/* 完成（達成として記録する）。最重要なので amber グラデで強調。 */}
+      <button
+        type="button"
+        onClick={onComplete}
+        className="px-5 py-2 rounded-xl font-bold bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-black transition-all shadow-lg shadow-amber-500/40 active:scale-95 ring-1 ring-amber-300/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200"
+      >
+        <span className="flex items-center gap-2"><Flag className="w-4 h-4" /> 完成!</span>
+      </button>
 
       {/* 途中で終える（記録なし・確認あり）*/}
-      <Button intent="warning" onClick={() => setPending("abort")}>
-        途中で終える
-      </Button>
+      <GhostButton onClick={() => setPending("abort")}>
+        <span className="flex items-center gap-2"><XCircle className="w-4 h-4" /> 途中で終える</span>
+      </GhostButton>
 
       {/* リセット（初期化・確認あり）*/}
-      <Button intent="danger" onClick={() => setPending("reset")}>
-        リセット
-      </Button>
+      <button
+        type="button"
+        onClick={() => setPending("reset")}
+        className="px-4 py-2 rounded-xl font-medium bg-red-500/80 hover:bg-red-500 text-white border border-red-400/40 transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
+      >
+        <span className="flex items-center gap-2"><RotateCcw className="w-4 h-4" /> リセット</span>
+      </button>
 
       {/* 確認ダイアログ */}
       {pending && (
