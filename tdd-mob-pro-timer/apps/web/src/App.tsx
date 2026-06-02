@@ -377,6 +377,8 @@ export default function App() {
           onBreakStart={() => client?.send({ command: "break.start" })}
           onBreakEnd={() => client?.send({ command: "break.end" })}
           onHandoffNoteSet={(text) => client?.send({ command: "handoff.note.set", text })}
+          onJoinRotation={(name) => client?.send({ command: "member.add", name })}
+          onLeaveRotation={(index) => client?.send({ command: "member.remove", index })}
           onRenameParticipant={rosterRename}
           onDriverSkip={rosterSkip}
           onDriverResume={rosterResume}

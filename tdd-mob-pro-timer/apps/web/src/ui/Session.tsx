@@ -42,6 +42,10 @@ interface SessionProps {
   onAddProxy: (displayName: string) => void;
   /** 引き継ぎメモの更新（editor+ のみ・§9.1）。handoff.note.set を送る。 */
   onHandoffNoteSet?: (text: string) => void;
+  /** 自分をドライバーローテーションに加える（member.add 自名・2層モデル）。途中参加対応。 */
+  onJoinRotation?: (displayName: string) => void;
+  /** 自分をローテーションから外す（member.remove 自分の index）。 */
+  onLeaveRotation?: (index: number) => void;
   /** お題編集まわり（editor+）。お題が確定している間のみ ProblemEditor から呼ばれる（US3）。
    *  共有時は problem.edit/submit/request、ソロ時は LocalEngine 経由で App が処理する。 */
   onEditProblem?: (patch: Partial<Omit<Problem, "source" | "edited">>) => void;
@@ -71,6 +75,8 @@ export function Session({
   onDriverResume,
   onAddProxy,
   onHandoffNoteSet,
+  onJoinRotation,
+  onLeaveRotation,
   onEditProblem,
   onCopyProblem,
   onRegenerateProblem,
@@ -320,6 +326,30 @@ export function Session({
       {/* 在席一覧（RosterPanel）。改名・一時離脱・代理追加・観覧表示・現ドライバー
           ハイライト（FR-046/047/048/050/051/061）。現ドライバーは rotation の名前で判定。 */}
       <Card>
+        {/* 自分のドライバー状態と加入/離脱（2層モデル・途中参加対応・D1）。
+            editor+ のみ。member.add(自名)/member.remove(自 index) を送る。 */}
+        {isEditor && currentParticipant && (() => {
+          const myIndex = room.session.rotation.indexOf(currentParticipant.displayName);
+          const inRotation = myIndex >= 0;
+          return (
+            <div className="mb-3 flex items-center justify-between gap-2 rounded-xl bg-white/5 border border-white/10 px-3 py-2">
+              <span className="text-sm">
+                あなた: {inRotation
+                  ? <span className="font-semibold text-cyan-300">ドライバー</span>
+                  : <span className="text-white/50">見学中</span>}
+              </span>
+              {inRotation ? (
+                <GhostButton onClick={() => onLeaveRotation?.(myIndex)} className="text-xs px-2 py-1">
+                  列から外れる
+                </GhostButton>
+              ) : (
+                <PrimaryButton onClick={() => onJoinRotation?.(currentParticipant.displayName)} className="text-xs px-2 py-1">
+                  ドライバーに加わる
+                </PrimaryButton>
+              )}
+            </div>
+          );
+        })()}
         <RosterPanel
           participants={room.participants}
           currentDriverName={room.session.rotation[room.session.currentIndex] ?? ""}
