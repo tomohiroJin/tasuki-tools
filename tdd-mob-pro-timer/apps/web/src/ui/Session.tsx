@@ -15,7 +15,10 @@ import { TeamOrbit } from "./components/TeamOrbit.js";
 import { RosterPanel } from "./components/RosterPanel.js";
 import { ProblemEditor } from "./components/ProblemEditor.js";
 import { EndSessionZone } from "./components/EndSessionZone.js";
+import { SwitchAlert } from "./components/SwitchAlert.js";
 import { deriveAnnouncement, type AnnounceState } from "./announce.js";
+import { usePrefersReducedMotion } from "./use-reduced-motion.js";
+import { playSwitchChime, vibrateSwitch } from "../platform/sound.js";
 
 interface SessionProps {
   room: Room;
@@ -156,6 +159,24 @@ export function Session({
   const commitNote = () => {
     if (noteDraft !== room.handoffNote) onHandoffNoteSet?.(noteDraft);
   };
+
+  // 強い交代通知（§9.1 assertiveSwitch）。currentIndex の変化を交代と見なし、
+  // 設定が ON のときだけ全画面オーバーレイ＋音＋振動で割り込む。
+  // reduced-motion 時は SwitchAlert 側でアニメを外す。
+  const reducedMotion = usePrefersReducedMotion();
+  const [switchAlertName, setSwitchAlertName] = useState<string | null>(null);
+  const prevIndexRef = useRef(room.session.currentIndex);
+  useEffect(() => {
+    const prev = prevIndexRef.current;
+    prevIndexRef.current = room.session.currentIndex;
+    if (prev === room.session.currentIndex) return;
+    if (!room.config.assertiveSwitch) return;
+    setSwitchAlertName(currentDriverName);
+    playSwitchChime();
+    vibrateSwitch();
+    const id = setTimeout(() => setSwitchAlertName(null), 2500);
+    return () => clearTimeout(id);
+  }, [room.session.currentIndex, room.config.assertiveSwitch, currentDriverName]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -333,6 +354,15 @@ export function Session({
       <div aria-live="assertive" role="status" className="sr-only">
         {announcement}
       </div>
+
+      {/* 強い交代通知の全画面オーバーレイ（§9.1） */}
+      {switchAlertName && (
+        <SwitchAlert
+          driverName={switchAlertName}
+          reducedMotion={reducedMotion}
+          onDismiss={() => setSwitchAlertName(null)}
+        />
+      )}
     </div>
   );
 }
