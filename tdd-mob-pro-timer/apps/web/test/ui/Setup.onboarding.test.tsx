@@ -1,6 +1,7 @@
 /**
- * Setup 画面のオンボーディング導線テスト
- * T043/T044: FR-001,002,003 (US1)
+ * Setup 画面（名前だけ）のテスト
+ * UX 再設計（2026-06-03 合意フロー）: 最初の画面は「自分の名前 → ルームを作る」だけ。
+ * 言語/難易度/間隔/オプション/お題はルーム作成後の Lobby で選ぶ。
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -13,73 +14,56 @@ import {
   clearPreferences,
 } from "../../src/prefs/local-prefs.js";
 
-describe("Setup オンボーディング（T043/T044）", () => {
+describe("Setup（名前だけのオンボーディング）", () => {
   const noop = vi.fn();
-
   beforeEach(() => clearPreferences());
 
-  it("画面を開いた際に主要アクション（ルーム作成）が一目で分かる（FR-001）", () => {
+  it("名前入力欄と『ルームを作る』ボタンがある（FR-001）", () => {
     render(<Setup onCreateRoom={noop} />);
-    // 主要アクションボタンが少なくとも1つある
-    const buttons = screen.getAllByRole("button");
-    expect(buttons.length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByLabelText(/あなたの名前|名前/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /ルームを作る|ルームを作成/ })).toBeTruthy();
   });
 
-  it("既定値のまま（追加入力なし）で開始操作を行えること（FR-002）", () => {
+  it("最初の画面に言語/難易度/メンバー入力を出さない（選びすぎ解消）", () => {
+    render(<Setup onCreateRoom={noop} />);
+    expect(screen.queryByLabelText(/言語/)).toBeNull();
+    expect(screen.queryByLabelText(/難易度/)).toBeNull();
+    expect(screen.queryByLabelText(/メンバー1の名前/)).toBeNull();
+  });
+
+  it("名前が空のときは作成できない", () => {
     const onCreateRoom = vi.fn();
     render(<Setup onCreateRoom={onCreateRoom} />);
-    // ルーム作成ボタンを押す（既定値のまま追加入力不要）
-    const createBtn = screen.getByRole("button", { name: /ルームを作成|create|room/i });
-    fireEvent.click(createBtn);
-    // コールバックが呼ばれる（= 入力エラーで止まらない）
-    expect(onCreateRoom).toHaveBeenCalledOnce();
+    const input = screen.getByLabelText(/あなたの名前|名前/);
+    fireEvent.change(input, { target: { value: "   " } });
+    fireEvent.click(screen.getByRole("button", { name: /ルームを作る|ルームを作成/ }));
+    expect(onCreateRoom).not.toHaveBeenCalled();
   });
 
-  it("既定値で送信したとき渡る config に language と members が含まれる（FR-002）", () => {
+  it("名前を入れて作成すると onCreateRoom が名前で呼ばれる", () => {
     const onCreateRoom = vi.fn();
     render(<Setup onCreateRoom={onCreateRoom} />);
-    const createBtn = screen.getByRole("button", { name: /ルームを作成|create|room/i });
-    fireEvent.click(createBtn);
-    const config = onCreateRoom.mock.calls[0]?.[0];
-    expect(config).toBeTruthy();
-    expect(config.language).toBeTruthy();
-    expect(config.members.length).toBeGreaterThanOrEqual(2);
+    fireEvent.change(screen.getByLabelText(/あなたの名前|名前/), { target: { value: "Tomohiro" } });
+    fireEvent.click(screen.getByRole("button", { name: /ルームを作る|ルームを作成/ }));
+    expect(onCreateRoom).toHaveBeenCalledWith("Tomohiro");
   });
 
-  it("メンバー名が重複したときエラーを表示する（FR-003）", () => {
-    render(<Setup onCreateRoom={noop} />);
-    // 既定メンバー（Alice/Bob）のうち 2 人目の名前入力を "Alice" に変えて重複させる
-    const member2 = screen.getByLabelText("メンバー2の名前") as HTMLInputElement;
-    fireEvent.change(member2, { target: { value: "Alice" } });
-    // role="alert" の重複エラーが表示される
-    expect(screen.getByRole("alert")).toBeTruthy();
-  });
-
-  // ─── 設定のローカル保存/復元（M2: FR-053/054）────────────────────────────
-  it("保存済み設定があると Setup の初期値に復元される（FR-054）", () => {
+  it("保存済みの名前が初期値に復元される（FR-054）", () => {
     savePreferences({
       displayName: "Carol",
       language: "Python",
       difficulty: "hard",
-      members: ["Carol", "Dave", "Eve"],
+      members: ["Carol"],
       intervalMinutes: 10,
     });
     render(<Setup onCreateRoom={noop} />);
-    // 保存したメンバーが名前入力欄に復元される（3人＝Carol/Dave/Eve）
-    expect((screen.getByLabelText("メンバー1の名前") as HTMLInputElement).value).toBe("Carol");
-    expect((screen.getByLabelText("メンバー2の名前") as HTMLInputElement).value).toBe("Dave");
-    expect((screen.getByLabelText("メンバー3の名前") as HTMLInputElement).value).toBe("Eve");
-    // 言語の select が Python になっている
-    const lang = screen.getByLabelText(/言語/) as HTMLSelectElement;
-    expect(lang.value).toBe("Python");
+    expect((screen.getByLabelText(/あなたの名前|名前/) as HTMLInputElement).value).toBe("Carol");
   });
 
-  it("ルーム作成時に現在の設定が savePreferences で保存される（FR-053）", () => {
+  it("作成時に名前が savePreferences で保存される（FR-053）", () => {
     render(<Setup onCreateRoom={noop} />);
-    fireEvent.click(screen.getByRole("button", { name: /ルームを作成/ }));
-    const saved = loadPreferences();
-    expect(saved).not.toBeNull();
-    expect(saved?.language).toBe("TypeScript");
-    expect(saved?.members.length).toBeGreaterThanOrEqual(2);
+    fireEvent.change(screen.getByLabelText(/あなたの名前|名前/), { target: { value: "Dave" } });
+    fireEvent.click(screen.getByRole("button", { name: /ルームを作る|ルームを作成/ }));
+    expect(loadPreferences()?.displayName).toBe("Dave");
   });
 });
