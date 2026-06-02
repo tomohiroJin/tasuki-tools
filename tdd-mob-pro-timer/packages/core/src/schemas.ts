@@ -313,6 +313,13 @@ const SignalNeedProblemMsg = v.object({
   deadlineMs: v.number(),
 });
 
+const SignalSuggestBreakMsg = v.object({
+  type: v.literal("signal"),
+  signal: v.literal("suggest-break"),
+  // 何巡したかの参考値（演出のみ・状態ではない・§5.2）
+  rounds: v.number(),
+});
+
 const TimePongMsg = v.object({
   type: v.literal("time.pong"),
   serverTime: v.number(),
@@ -339,6 +346,7 @@ export const ServerMsgSchema = v.variant("type", [
   SignalSwitchMsg,
   SignalCelebrationMsg,
   SignalNeedProblemMsg,
+  SignalSuggestBreakMsg,
   TimePongMsg,
   RoomCreatedMsg,
   RoomJoinedMsg,

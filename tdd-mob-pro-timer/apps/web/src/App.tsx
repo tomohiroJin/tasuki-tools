@@ -138,6 +138,11 @@ export default function App() {
         }
         setBanner({ text: message || "エラーが発生しました", kind: "error" });
       },
+      onSuggestBreak: (rounds) =>
+        setBanner({
+          text: `${rounds}巡しました。そろそろ休憩しませんか？（ホストは「休憩」で全員のタイマーを止められます）`,
+          kind: "warn",
+        }),
       onConnected: () => setBanner(null),
       onDisconnected: () =>
         setBanner({ text: "接続が切れました。再接続しています...", kind: "warn" }),

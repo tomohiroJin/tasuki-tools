@@ -87,7 +87,26 @@ export function makeHandlers(deps: HandlerDeps) {
       signal: "switch",
       nextDriverName: updated.session.rotation[updated.session.currentIndex] ?? "",
     });
+    maybeSuggestBreak(updated);
     reconcileSchedule(updated);
+  }
+
+  /** breakEveryRotations 巡ごとに休憩提案シグナルを配信する（§9.1）。
+   *  巡 = rotation 一周（rotation 長ぶんの交代）。シグナルは演出専用で状態ではない（§5.2）。 */
+  function maybeSuggestBreak(room: Room): void {
+    const every = room.config.breakEveryRotations;
+    if (!every || every < 1) return;
+    const len = room.session.rotation.length;
+    if (len === 0) return;
+    // 巡の境界（一周完了）でのみ判定する
+    if (room.session.totalSwitches % len !== 0) return;
+    const rounds = room.session.totalSwitches / len;
+    if (rounds === 0 || rounds % every !== 0) return;
+    broadcaster.broadcastSignal(room.code, {
+      type: "signal",
+      signal: "suggest-break",
+      rounds,
+    });
   }
 
   /**
