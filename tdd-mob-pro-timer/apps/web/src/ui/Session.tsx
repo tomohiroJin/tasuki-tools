@@ -195,6 +195,17 @@ export function Session({
 
   return (
     <div role="main" aria-label="セッション" className="space-y-6">
+      {/* 休憩中バナー（§9.1）。タイマー停止中であることを明示する。 */}
+      {room.onBreak && (
+        <div
+          role="status"
+          className="flex items-center justify-center gap-2 rounded-2xl border border-amber-400/40 bg-amber-400/10 px-4 py-3 text-amber-200 font-bold"
+        >
+          <Coffee className="w-5 h-5" aria-hidden="true" />
+          休憩中 — タイマーは停止しています
+        </div>
+      )}
+
       {/* お題（確定後）。editor+ は ProblemEditor で各フィールドを編集できる
           （FR-009/013/038/040/041）。未確定で生成待ちなら生成中表示（FR-003, US3-AC5）。 */}
       {room.problem ? (
@@ -242,7 +253,7 @@ export function Session({
                   aria-label={`残り時間 ${formatTime(remaining)}`}
                   className={`text-4xl md:text-5xl font-black font-mono tabular-nums tracking-tight ${
                     isUrgent ? "text-red-400 animate-pulse" : "text-white"
-                  } ${isPaused ? "opacity-50" : ""}`}
+                  } ${isPaused || room.onBreak ? "opacity-50" : ""}`}
                 >
                   {formatTime(remaining)}
                 </div>
