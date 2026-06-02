@@ -286,7 +286,9 @@ export function makeHandlers(deps: HandlerDeps) {
       }
     }
 
-    // 新規参加者は viewer として登録（FR-016）
+    // 新規参加者は editor として登録（UX 再設計の2層モデル: 名乗って参加した人は
+    // すぐドライバーに加われる。ローテーション加入は別操作＝「ドライバーに加わる」）。
+    // 純粋な見学者は host が role.set で viewer へ降格できる。
     const participantId = codeGen.generateParticipantId();
     const resumeToken = codeGen.generateResumeToken();
 
@@ -294,7 +296,7 @@ export function makeHandlers(deps: HandlerDeps) {
       participantId,
       connId,
       displayName: cmd.displayName,
-      role: "viewer",
+      role: "editor",
       presence: "online",
       hasAiKey: cmd.hasAiKey,
       joinedAt: now,

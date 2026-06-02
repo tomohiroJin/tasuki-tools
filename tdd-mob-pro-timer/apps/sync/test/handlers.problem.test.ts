@@ -120,6 +120,13 @@ describe("handlers: problem.request / problem.submit", () => {
       hasAiKey: false,
     });
     expect(join.isOk()).toBe(true);
+    // 既定 editor を host が viewer へ降格してから制限を検証する。
+    const carolPid = store.get(code)!.participants.find((p) => p.displayName === "Carol")!.participantId;
+    await handlers.handleCommand("host-conn", {
+      command: "role.set",
+      participantId: carolPid,
+      role: "viewer",
+    });
     broadcaster.sent.length = 0;
 
     await handlers.handleCommand("viewer-conn", {

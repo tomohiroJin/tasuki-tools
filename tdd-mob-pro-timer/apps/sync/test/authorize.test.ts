@@ -52,22 +52,36 @@ describe("authorize: 権限テスト（FR-016, FR-017）", () => {
       roomCode = result.value.code;
     }
 
-    // viewer が参加
+    // 参加者が join（既定は editor）。viewer 制限の検証用に host が viewer へ降格する。
     await handlers.handleCommand("viewer-conn", {
       command: "room.join",
       code: roomCode,
       displayName: "Viewer",
       hasAiKey: false,
     });
+    const joined = store.get(roomCode)!;
+    const viewerPid = joined.participants.find((p) => p.displayName === "Viewer")!.participantId;
+    await handlers.handleCommand("host-conn", {
+      command: "role.set",
+      participantId: viewerPid,
+      role: "viewer",
+    });
 
     broadcaster.sent.length = 0;
     broadcaster.snapshots.length = 0;
   });
 
-  it("新規参加者はデフォルトで viewer（FR-016）", () => {
+  it("新規参加者はデフォルトで editor（UX 再設計: すぐ参加して回せる）", async () => {
+    // 別の参加者を join させ、既定ロールを確認する（beforeEach の Viewer は降格済みのため）。
+    await handlers.handleCommand("fresh-conn", {
+      command: "room.join",
+      code: roomCode,
+      displayName: "Fresh",
+      hasAiKey: false,
+    });
     const room = store.get(roomCode);
-    const viewer = room?.participants.find((p) => p.displayName === "Viewer");
-    expect(viewer?.role).toBe("viewer");
+    const fresh = room?.participants.find((p) => p.displayName === "Fresh");
+    expect(fresh?.role).toBe("editor");
   });
 
   it("viewer は session.act を実行できない（FR-017）", async () => {
@@ -139,6 +153,14 @@ describe("authorize: v2 新コマンド（T026）", () => {
       code: roomCode,
       displayName: "Viewer",
       hasAiKey: false,
+    });
+    // 既定 editor を viewer へ降格して制限を検証する。
+    const joined = store.get(roomCode)!;
+    const viewerPid = joined.participants.find((p) => p.displayName === "Viewer")!.participantId;
+    await handlers.handleCommand(hostConnId, {
+      command: "role.set",
+      participantId: viewerPid,
+      role: "viewer",
     });
 
     broadcaster.sent.length = 0;

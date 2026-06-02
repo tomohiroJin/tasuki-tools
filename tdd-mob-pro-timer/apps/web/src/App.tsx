@@ -4,6 +4,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { Setup } from "./ui/Setup.js";
+import { Join } from "./ui/Join.js";
 import { Lobby } from "./ui/Lobby.js";
 import { Session } from "./ui/Session.js";
 import { Summary, type EndType } from "./ui/Summary.js";
@@ -28,10 +29,12 @@ function resolveProvider(): ProblemProvider {
   return key ? new ByokProvider({ apiKey: key }) : new NoAiProvider();
 }
 
-type AppMode = "setup" | "lobby" | "session" | "celebration";
+type AppMode = "setup" | "join" | "lobby" | "session" | "celebration";
 
 export default function App() {
   const [mode, setMode] = useState<AppMode>("setup");
+  // ?room= で来たときに参加画面に渡すルームコード（未参加の間だけ保持）。
+  const [joinCode, setJoinCode] = useState<string | null>(null);
   const [room, setRoom] = useState<Room | null>(null);
   const [participantId, setParticipantId] = useState<string>("");
   const [record, setRecord] = useState<CompletionRecord | null>(null);
@@ -225,14 +228,16 @@ export default function App() {
     setKeyVersion((v) => v + 1);
   };
 
-  // 共有 URL（?room=コード）で開かれたら自動的に参加する（初回マウント時のみ）。
+  // 共有 URL（?room=コード）で開かれたら参加画面を表示する（ゲスト自動参加は廃止）。
+  // 名前を入れて「モブに参加」したときに初めて room.join する。
   const joinedFromUrlRef = useRef(false);
   useEffect(() => {
     if (joinedFromUrlRef.current) return;
     const code = new URLSearchParams(window.location.search).get("room");
     if (code) {
       joinedFromUrlRef.current = true;
-      handleJoinRoom(code);
+      setJoinCode(code);
+      setMode("join");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -396,13 +401,17 @@ export default function App() {
       );
     }
 
+    if (mode === "join" && joinCode && !room) {
+      return <Join code={joinCode} onJoin={(name) => handleJoinRoom(joinCode, name)} />;
+    }
+
     return <Setup onCreateRoom={handleCreateRoom} />;
   };
 
   return (
     <Stage>
-      {/* 永続ステータスストリップ（全画面共通・FR-036）。Setup では参加前なので出さない。 */}
-      {mode !== "setup" && (
+      {/* 永続ステータスストリップ（全画面共通・FR-036）。参加前（Setup/Join）は出さない。 */}
+      {mode !== "setup" && mode !== "join" && (
         <div className="mb-4">
           <StatusStrip
             phase={mode}
