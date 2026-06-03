@@ -61,14 +61,14 @@ export function StatusStrip({
       <span className="flex items-center gap-1">
         <span aria-label="フェーズ">{PHASE_LABEL[phase] ?? phase}</span>
         {roomCode && (
-          <span className="font-mono text-white/40">({roomCode})</span>
+          <span className="font-mono text-white/60">({roomCode})</span>
         )}
       </span>
 
       {/* 自分の名前と役割 */}
       <span className="flex items-center gap-1">
         <span className="text-white">{displayName}</span>
-        <span className="text-white/40">/ {ROLE_LABEL[role] ?? role}</span>
+        <span className="text-white/60">/ {ROLE_LABEL[role] ?? role}</span>
       </span>
 
       {/* 接続状態（色＋テキスト併記） */}

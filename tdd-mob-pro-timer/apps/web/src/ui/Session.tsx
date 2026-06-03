@@ -282,7 +282,7 @@ export function Session({
                   {formatTime(remaining)}
                 </div>
                 {isPaused && (
-                  <div className="text-[10px] uppercase tracking-widest text-white/40 mt-1">Paused</div>
+                  <div className="text-[10px] uppercase tracking-widest text-white/60 mt-1">Paused</div>
                 )}
               </CircularProgress>
             </TeamOrbit>

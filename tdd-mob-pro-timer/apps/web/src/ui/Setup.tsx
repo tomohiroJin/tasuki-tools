@@ -72,7 +72,7 @@ export function Setup({ onCreateRoom }: SetupProps) {
             ルームを作る
           </span>
         </PrimaryButton>
-        <p className="mt-3 text-center text-xs text-white/40">
+        <p className="mt-3 text-center text-xs text-white/60">
           言語・難易度・お題・交代間隔は次のロビー画面で決められます。
         </p>
       </Card>

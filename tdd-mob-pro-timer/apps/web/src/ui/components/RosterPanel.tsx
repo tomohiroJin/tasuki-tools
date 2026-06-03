@@ -162,13 +162,13 @@ export function RosterPanel({
                     <span className="text-fuchsia-300 font-semibold">主催者</span>
                   )}
                   {p.role === "viewer" && (
-                    <span className="text-white/40">観覧</span>
+                    <span className="text-white/60">観覧</span>
                   )}
                   {p.isPlaceholder && (
                     <span className="text-amber-300">代理</span>
                   )}
                   {isSkipping && (
-                    <span className="text-white/40">離脱中</span>
+                    <span className="text-white/60">離脱中</span>
                   )}
                   {isCurrentDriver && (
                     <span className="text-amber-300 font-semibold">▶ 現在</span>

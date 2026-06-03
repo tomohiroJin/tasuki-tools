@@ -34,7 +34,7 @@ export function SwitchAlert({ driverName, reducedMotion, onDismiss }: SwitchAler
         <Crown className="w-12 h-12 md:w-16 md:h-16 text-amber-400 shrink-0" aria-hidden="true" />
         {driverName}
       </div>
-      <p className="mt-8 text-white/40 text-sm">画面をタップで閉じる</p>
+      <p className="mt-8 text-white/60 text-sm">画面をタップで閉じる</p>
     </div>
   );
 }

@@ -68,7 +68,7 @@ export function Join({ code, onJoin }: JoinProps) {
             モブに参加
           </span>
         </PrimaryButton>
-        <p className="mt-3 text-center text-xs text-white/40">
+        <p className="mt-3 text-center text-xs text-white/60">
           参加後は「ドライバーに加わる」で交代の輪に入れます。見学だけでも OK です。
         </p>
       </Card>

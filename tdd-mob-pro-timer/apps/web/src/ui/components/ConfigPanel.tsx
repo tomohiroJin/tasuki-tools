@@ -108,7 +108,7 @@ export function ConfigPanel({ config, canEdit, onChange }: ConfigPanelProps) {
             );
           })}
         </div>
-        <p className="mt-2 text-xs text-white/40">推奨は 5〜10 分。短いほど集中と学習が高まります。</p>
+        <p className="mt-2 text-xs text-white/60">推奨は 5〜10 分。短いほど集中と学習が高まります。</p>
       </div>
 
       {/* 詳細設定（オプション3点・既定 OFF）。最初は折りたたみ。 */}
@@ -116,7 +116,7 @@ export function ConfigPanel({ config, canEdit, onChange }: ConfigPanelProps) {
         <summary className="flex items-center gap-2 cursor-pointer select-none px-4 py-3 text-sm font-medium text-white">
           <Settings2 className="w-4 h-4 text-emerald-400" aria-hidden="true" />
           詳細設定
-          <ChevronDown className="w-4 h-4 ml-auto text-white/40" aria-hidden="true" />
+          <ChevronDown className="w-4 h-4 ml-auto text-white/60" aria-hidden="true" />
         </summary>
         <div className="space-y-3 px-4 pb-4">
           <Toggle
@@ -161,7 +161,7 @@ function Toggle({ checked, onChange, label, hint }: ToggleProps) {
       />
       <span>
         <span className="block text-sm font-medium text-white">{label}</span>
-        <span className="block text-xs text-white/40">{hint}</span>
+        <span className="block text-xs text-white/60">{hint}</span>
       </span>
     </label>
   );
