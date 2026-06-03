@@ -337,6 +337,7 @@ export function Session({
         {isEditor && currentParticipant && (
           <SelfDriverToggle
             inRotation={room.session.rotation.includes(currentParticipant.displayName)}
+            canLeave={room.session.rotation.length > 1}
             displayName={currentParticipant.displayName}
             onJoin={onJoinRotation}
             onLeave={onLeaveRotation}
@@ -402,13 +403,15 @@ export function Session({
 
 interface SelfDriverToggleProps {
   inRotation: boolean;
+  /** 列から外れられるか（最後の1人は外れられないため false）。 */
+  canLeave: boolean;
   displayName: string;
   onJoin?: (displayName: string) => void;
   onLeave?: (displayName: string) => void;
 }
 
 /** 自分のドライバー状態（ドライバー/見学中）と加入・離脱の切替（2層モデル・D1）。 */
-function SelfDriverToggle({ inRotation, displayName, onJoin, onLeave }: SelfDriverToggleProps) {
+function SelfDriverToggle({ inRotation, canLeave, displayName, onJoin, onLeave }: SelfDriverToggleProps) {
   return (
     <div className="mb-3 flex items-center justify-between gap-2 rounded-xl bg-white/5 border border-white/10 px-3 py-2">
       <span className="text-sm">
@@ -417,7 +420,12 @@ function SelfDriverToggle({ inRotation, displayName, onJoin, onLeave }: SelfDriv
           : <span className="text-white/50">見学中</span>}
       </span>
       {inRotation ? (
-        <GhostButton onClick={() => onLeave?.(displayName)} className="text-xs px-2 py-1">
+        <GhostButton
+          onClick={() => onLeave?.(displayName)}
+          disabled={!canLeave}
+          title={canLeave ? undefined : "最後のドライバーは外れられません"}
+          className="text-xs px-2 py-1"
+        >
           列から外れる
         </GhostButton>
       ) : (

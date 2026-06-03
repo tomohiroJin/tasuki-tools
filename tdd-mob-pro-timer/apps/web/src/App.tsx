@@ -31,6 +31,19 @@ function resolveProvider(): ProblemProvider {
 
 type AppMode = "setup" | "join" | "lobby" | "session" | "celebration";
 
+/** ドメインエラーコードを利用者向けの日本語文へ変換する（生のコードを画面に出さない）。 */
+const ERROR_MESSAGES: Record<string, string> = {
+  BelowMinMembers: "最後のドライバーは外れられません。",
+  DuplicateName: "その名前はすでに使われています。",
+  EmptyName: "名前を入力してください。",
+  MemberLimitExceeded: "メンバーが上限に達しています。",
+  InvalidInterval: "その交代間隔は選べません。",
+  UNAUTHORIZED: "この操作の権限がありません。",
+};
+function friendlyError(code: string): string {
+  return ERROR_MESSAGES[code] ?? "操作を完了できませんでした。";
+}
+
 export default function App() {
   const [mode, setMode] = useState<AppMode>("setup");
   // ?room= で来たときに参加画面に渡すルームコード（未参加の間だけ保持）。
@@ -61,6 +74,8 @@ export default function App() {
   const endTypeRef = useRef<EndType>("complete");
   // 完成記録の二重保存を防ぐガード（celebration の snapshot が複数回来ても1回だけ保存）。
   const recordSavedRef = useRef(false);
+  // 一時的な操作エラーバナーの自動消去タイマー。
+  const bannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /** 代理参加者の一意な participantId を生成する（衝突回避のため乱数を含める） */
   const makeProxyId = () => `proxy-${Math.random().toString(36).slice(2, 10)}`;
@@ -130,16 +145,20 @@ export default function App() {
           console.error("お題生成に失敗しました（deadline で再委譲されます）:", e);
         }
       },
-      onError: (code, message) => {
-        console.error("WS error:", code, message);
-        // ルーム喪失（揮発サーバー再起動等）は明示的に「セッション喪失」を表示する（FR-007/059）。
+      onError: (code) => {
+        console.error("WS error:", code);
+        // ルーム喪失（揮発サーバー再起動等）は明示的に「セッション喪失」を表示し、継続する（FR-007/059）。
         // ローカル記録は保持され、再接続では消えないよう sessionLost を立てる。
         if (code === "ROOM_NOT_FOUND") {
           setSessionLost(true);
           setBanner({ text: "セッションが見つかりません。ローカルの記録は保持されています。", kind: "error" });
           return;
         }
-        setBanner({ text: message || "エラーが発生しました", kind: "error" });
+        // それ以外は「一時的な操作エラー」。分かりやすい日本語にし、数秒で自動消去する
+        // （生のコードを残し続けない・画面遷移後も居座らせない）。
+        setBanner({ text: friendlyError(code), kind: "warn" });
+        if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
+        bannerTimerRef.current = setTimeout(() => setBanner(null), 4000);
       },
       onSuggestBreak: (rounds) =>
         setBanner({

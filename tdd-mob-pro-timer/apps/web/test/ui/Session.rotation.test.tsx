@@ -59,9 +59,23 @@ describe("Session ドライバー加入/離脱（D1）", () => {
 
   it("ローテーション加入済みの自分には「列から外れる」が出て自名で離脱する", () => {
     const onLeaveRotation = vi.fn();
-    render(<Session room={makeRoom()} participantId="host-p" {...handlers()} onLeaveRotation={onLeaveRotation} />);
+    // 2人ローテーションにして「外れる」を有効化（最後の1人は外れられないため）。
+    const room = makeRoom();
+    room.session.rotation = ["Alice", "Bob"];
+    room.session.driverCounts = [0, 0];
+    render(<Session room={room} participantId="host-p" {...handlers()} onLeaveRotation={onLeaveRotation} />);
     fireEvent.click(screen.getByRole("button", { name: /列から外れる|外れる/ }));
     // index ではなく自名を渡す（レビュー #1）
     expect(onLeaveRotation).toHaveBeenCalledWith("Alice");
+  });
+
+  it("最後の1人のときは「列から外れる」が無効化される", () => {
+    const onLeaveRotation = vi.fn();
+    // makeRoom は rotation=[Alice] の単独。Alice 視点では外れられない。
+    render(<Session room={makeRoom()} participantId="host-p" {...handlers()} onLeaveRotation={onLeaveRotation} />);
+    const btn = screen.getByRole("button", { name: /列から外れる|外れる/ });
+    expect((btn as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(btn);
+    expect(onLeaveRotation).not.toHaveBeenCalled();
   });
 });

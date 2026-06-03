@@ -135,6 +135,8 @@ export function Lobby({
                   inRotation ? (
                     <GhostButton
                       onClick={() => onLeaveRotation?.(p.displayName)}
+                      disabled={room.session.rotation.length <= 1}
+                      title={room.session.rotation.length <= 1 ? "最後のドライバーは外れられません" : undefined}
                       className="text-xs px-2 py-1"
                     >
                       列から外れる

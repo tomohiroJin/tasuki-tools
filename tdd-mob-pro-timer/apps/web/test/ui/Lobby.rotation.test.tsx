@@ -53,10 +53,13 @@ describe("Lobby ドライバー加入トグル（C2）", () => {
 
   it("ローテーション加入済みの自分には「列から外れる」が出て自名で離脱する", () => {
     const onLeaveRotation = vi.fn();
-    // Alice(host) を自分として見ると、rotation に居るので「外れる」。
+    // 2人ローテーションにして「外れる」を有効化（最後の1人は外れられないため）。
+    const room = makeRoom();
+    room.session.rotation = ["Alice", "Bob"];
+    room.session.driverCounts = [0, 0];
     // index ではなく自名を渡す（index は App が最新 snapshot から解決・レビュー #1）。
     render(
-      <Lobby room={makeRoom()} participantId="host-p" onStartSession={noop} onLeaveRotation={onLeaveRotation} />,
+      <Lobby room={room} participantId="host-p" onStartSession={noop} onLeaveRotation={onLeaveRotation} />,
     );
     fireEvent.click(screen.getByRole("button", { name: /列から外れる|外れる/ }));
     expect(onLeaveRotation).toHaveBeenCalledWith("Alice");
