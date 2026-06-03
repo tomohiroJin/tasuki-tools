@@ -27,6 +27,8 @@ interface LobbyProps {
   onJoinRotation?: (displayName: string) => void;
   /** 自分をローテーションから外す（自名を渡し、index は App が最新 snapshot から解決）。 */
   onLeaveRotation?: (displayName: string) => void;
+  /** ホストが参加者を退出させる（⑪・host 限定）。 */
+  onRemoveParticipant?: (participantId: string) => void;
 }
 
 export function Lobby({
@@ -40,6 +42,7 @@ export function Lobby({
   onConfigSet,
   onJoinRotation,
   onLeaveRotation,
+  onRemoveParticipant,
 }: LobbyProps) {
   const [copied, setCopied] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
@@ -150,6 +153,16 @@ export function Lobby({
                       ドライバーに加わる
                     </PrimaryButton>
                   )
+                )}
+                {/* ホストは他の参加者を退出させられる（⑪） */}
+                {!isMe && isHost && onRemoveParticipant && (
+                  <GhostButton
+                    onClick={() => onRemoveParticipant(p.participantId)}
+                    aria-label={`${p.displayName} を退出させる`}
+                    className="text-xs px-3 py-1.5"
+                  >
+                    外す
+                  </GhostButton>
                 )}
               </li>
             );

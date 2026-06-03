@@ -206,6 +206,10 @@ export default function App() {
     const idx = roomRef.current?.session.rotation.indexOf(displayName) ?? -1;
     if (idx >= 0) client?.send({ command: "member.remove", index: idx });
   };
+  /** ホストが参加者を退出させる（⑪・host 限定）。 */
+  const removeParticipant = (participantId: string) => {
+    client?.send({ command: "participant.remove", participantId });
+  };
 
   const handleComplete = () => {
     setEndType("complete");
@@ -375,6 +379,7 @@ export default function App() {
           onConfigSet={(patch) => client?.send({ command: "config.set", config: patch })}
           onJoinRotation={joinRotation}
           onLeaveRotation={leaveRotation}
+          onRemoveParticipant={removeParticipant}
         />
       );
     }
@@ -401,6 +406,7 @@ export default function App() {
           onDriverSkip={rosterSkip}
           onDriverResume={rosterResume}
           onAddProxy={rosterAddProxy}
+          onRemoveParticipant={removeParticipant}
           onEditProblem={editProblem}
           onCopyProblem={copyProblem}
           onRegenerateProblem={regenerateProblem}

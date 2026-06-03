@@ -47,6 +47,8 @@ interface SessionProps {
   onJoinRotation?: (displayName: string) => void;
   /** 自分をローテーションから外す（自名を渡し、index は App が最新 snapshot から解決）。 */
   onLeaveRotation?: (displayName: string) => void;
+  /** ホストが参加者を退出させる（⑪・host 限定）。 */
+  onRemoveParticipant?: (participantId: string) => void;
   /** お題編集まわり（editor+）。お題が確定している間のみ ProblemEditor から呼ばれる（US3）。
    *  共有時は problem.edit/submit/request、ソロ時は LocalEngine 経由で App が処理する。 */
   onEditProblem?: (patch: Partial<Omit<Problem, "source" | "edited">>) => void;
@@ -78,6 +80,7 @@ export function Session({
   onHandoffNoteSet,
   onJoinRotation,
   onLeaveRotation,
+  onRemoveParticipant,
   onEditProblem,
   onCopyProblem,
   onRegenerateProblem,
@@ -380,6 +383,7 @@ export function Session({
           onSkip={onDriverSkip}
           onResume={onDriverResume}
           onAddProxy={onAddProxy}
+          onRemove={onRemoveParticipant}
         />
       </Card>
 

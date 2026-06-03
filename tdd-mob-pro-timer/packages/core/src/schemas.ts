@@ -153,6 +153,11 @@ const ParticipantRenameCommand = v.object({
   displayName: nonEmptyString,
 });
 
+const ParticipantRemoveCommand = v.object({
+  command: v.literal("participant.remove"),
+  participantId,
+});
+
 const DriverSkipCommand = v.object({
   command: v.literal("driver.skip"),
   participantId,
@@ -216,6 +221,7 @@ export const CommandSchema = v.variant("command", [
   BreakEndCommand,
   ParticipantAddProxyCommand,
   ParticipantRenameCommand,
+  ParticipantRemoveCommand,
   DriverSkipCommand,
   DriverResumeCommand,
   ProblemEditCommand,

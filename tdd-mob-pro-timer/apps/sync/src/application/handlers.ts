@@ -398,6 +398,44 @@ export function makeHandlers(deps: HandlerDeps) {
       return err("UNAUTHORIZED");
     }
 
+    // 参加者の退出（host 限定・⑪）。参加者は Room レベルのため decide ではなくここで扱う。
+    // rotation に居れば rotation からも外し（現ドライバーなら evolve が繰り上げ）、
+    // 最後の1人は外せない（rotation を空にしない）。
+    if (cmd.command === "participant.remove") {
+      const now = clock.now();
+      const targetId = cmd.participantId;
+      if (typeof targetId !== "string" || targetId === participant.participantId) {
+        broadcaster.sendTo(connId, { type: "error", code: "INVALID", message: "自分自身や不正な対象は外せません" });
+        return err("INVALID");
+      }
+      const target = targetRoom.participants.find((p) => p.participantId === targetId);
+      if (!target) {
+        broadcaster.sendTo(connId, { type: "error", code: "PARTICIPANT_NOT_FOUND", message: "対象の参加者が見つかりません" });
+        return err("PARTICIPANT_NOT_FOUND");
+      }
+      const idx = targetRoom.session.rotation.indexOf(target.displayName);
+      let next: Room = {
+        ...targetRoom,
+        participants: targetRoom.participants.filter((p) => p.participantId !== targetId),
+      };
+      if (idx >= 0) {
+        if (targetRoom.session.rotation.length <= 1) {
+          broadcaster.sendTo(connId, { type: "error", code: "BelowMinMembers", message: "最後のドライバーは外せません" });
+          return err("BelowMinMembers");
+        }
+        const agg = evolve(
+          { session: targetRoom.session, clock: targetRoom.clock },
+          { type: "MemberRemoved", index: idx, now },
+          now,
+        );
+        next = { ...next, session: agg.session, clock: agg.clock, config: { ...next.config, members: [...agg.session.rotation] } };
+      }
+      store.put(next);
+      broadcaster.broadcastSnapshot(next.code, next);
+      reconcileSchedule(next);
+      return ok({ code: next.code, participantId: "", hostToken: "", resumeToken: "" });
+    }
+
     // ドメインコマンドを構築して decide/evolve を実行
     const domainCmd = buildDomainCommand(cmd);
     // 改名は対象の現在名を解決して decide へ渡す。decide は「自分の現在名と同一」を
@@ -680,6 +718,7 @@ const HOST_ONLY_COMMANDS = new Set([
   "break.end",
   "role.set",
   "participant.addProxy",
+  "participant.remove",
 ]);
 
 /** 編集者以上が必要な操作 */

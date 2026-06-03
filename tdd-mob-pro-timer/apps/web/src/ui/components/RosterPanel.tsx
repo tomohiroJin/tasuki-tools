@@ -42,6 +42,8 @@ interface RosterPanelProps {
   onSkip: (participantId: string) => void;
   onResume: (participantId: string) => void;
   onAddProxy: (displayName: string) => void;
+  /** ホストが参加者を退出させる（⑪・host 限定）。 */
+  onRemove?: (participantId: string) => void;
 }
 
 export function RosterPanel({
@@ -53,6 +55,7 @@ export function RosterPanel({
   onSkip,
   onResume,
   onAddProxy,
+  onRemove,
 }: RosterPanelProps) {
   const [proxyName, setProxyName] = useState("");
   const [showProxyInput, setShowProxyInput] = useState(false);
@@ -187,6 +190,15 @@ export function RosterPanel({
                     ) : (
                       <MiniButton onClick={() => onSkip(p.participantId)}>スキップ</MiniButton>
                     ))}
+                  {/* ホストは他の参加者を退出させられる（⑪） */}
+                  {canHostAction && !isMine && onRemove && (
+                    <MiniButton
+                      onClick={() => onRemove(p.participantId)}
+                      aria-label={`${p.displayName} を退出させる`}
+                    >
+                      外す
+                    </MiniButton>
+                  )}
                 </span>
               )}
             </li>
