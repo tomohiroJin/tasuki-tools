@@ -11,14 +11,15 @@ import { Card, PrimaryButton } from "./primitives.js";
 import { savePreferences, loadPreferences } from "../prefs/local-prefs.js";
 
 interface SetupProps {
-  /** 入力された自分の名前でルームを作成する。 */
-  onCreateRoom: (displayName: string) => void;
+  /** 入力された自分の名前（と任意のルーム名）でルームを作成する。 */
+  onCreateRoom: (displayName: string, roomName?: string) => void;
 }
 
 export function Setup({ onCreateRoom }: SetupProps) {
   // 前回の名前を既定として復元する（FR-054）。
   const saved = loadPreferences();
   const [name, setName] = useState(saved?.displayName ?? "");
+  const [roomName, setRoomName] = useState("");
 
   const trimmed = name.trim();
   const canProceed = trimmed.length > 0;
@@ -34,7 +35,7 @@ export function Setup({ onCreateRoom }: SetupProps) {
       members: [trimmed],
       intervalMinutes: saved?.intervalMinutes ?? 5,
     });
-    onCreateRoom(trimmed);
+    onCreateRoom(trimmed, roomName.trim() || undefined);
   };
 
   return (
@@ -65,6 +66,20 @@ export function Setup({ onCreateRoom }: SetupProps) {
           placeholder="例: Tomohiro"
           autoFocus
           className="w-full rounded-lg bg-white/10 border border-white/20 px-4 py-3 text-white text-lg outline-none focus:border-fuchsia-400 transition-colors"
+        />
+        <label htmlFor="room-name" className="mt-4 block text-sm font-semibold text-white mb-2">
+          ルーム名（任意）
+        </label>
+        <input
+          id="room-name"
+          aria-label="ルーム名"
+          value={roomName}
+          onChange={(e) => setRoomName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleCreate();
+          }}
+          placeholder="例: 朝会モブ（未入力ならランダムなコード）"
+          className="w-full rounded-lg bg-white/10 border border-white/20 px-4 py-2.5 text-white outline-none focus:border-fuchsia-400 transition-colors"
         />
         <PrimaryButton onClick={handleCreate} disabled={!canProceed} className="w-full mt-4 text-lg py-3">
           <span className="flex items-center justify-center gap-2">

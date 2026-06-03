@@ -45,7 +45,17 @@ describe("Setup（名前だけのオンボーディング）", () => {
     render(<Setup onCreateRoom={onCreateRoom} />);
     fireEvent.change(screen.getByLabelText(/あなたの名前|名前/), { target: { value: "Tomohiro" } });
     fireEvent.click(screen.getByRole("button", { name: /ルームを作る|ルームを作成/ }));
-    expect(onCreateRoom).toHaveBeenCalledWith("Tomohiro");
+    // ルーム名は任意（未入力）なので displayName と undefined で呼ばれる。
+    expect(onCreateRoom).toHaveBeenCalledWith("Tomohiro", undefined);
+  });
+
+  it("ルーム名を入れて作成すると onCreateRoom に渡る（①）", () => {
+    const onCreateRoom = vi.fn();
+    render(<Setup onCreateRoom={onCreateRoom} />);
+    fireEvent.change(screen.getByLabelText(/あなたの名前|名前/), { target: { value: "Tomohiro" } });
+    fireEvent.change(screen.getByLabelText("ルーム名"), { target: { value: "朝会モブ" } });
+    fireEvent.click(screen.getByRole("button", { name: /ルームを作る|ルームを作成/ }));
+    expect(onCreateRoom).toHaveBeenCalledWith("Tomohiro", "朝会モブ");
   });
 
   it("保存済みの名前が初期値に復元される（FR-054）", () => {

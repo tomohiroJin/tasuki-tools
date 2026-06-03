@@ -120,7 +120,7 @@ export function makeHandlers(deps: HandlerDeps) {
       case "room.create":
         return handleRoomCreate(
           connId,
-          cmd as { command: "room.create"; displayName: string; config?: SessionConfig },
+          cmd as { command: "room.create"; displayName: string; config?: SessionConfig; roomName?: string },
         );
 
       case "room.join":
@@ -172,10 +172,14 @@ export function makeHandlers(deps: HandlerDeps) {
   /** ルーム作成 */
   async function handleRoomCreate(
     connId: string,
-    cmd: { command: "room.create"; displayName: string; config?: SessionConfig },
+    cmd: { command: "room.create"; displayName: string; config?: SessionConfig; roomName?: string },
   ): Promise<Result<CreateResult, string>> {
     const now = clock.now();
-    const code = codeGen.generate();
+    // ルーム名があれば「slug-接尾辞」、無ければランダム。衝突時は接尾辞を引き直す。
+    let code = codeGen.generate(cmd.roomName);
+    for (let i = 0; i < 5 && store.get(code) !== undefined; i++) {
+      code = codeGen.generate(cmd.roomName);
+    }
     const participantId = codeGen.generateParticipantId();
     const resumeToken = codeGen.generateResumeToken();
     const hostToken = codeGen.generateResumeToken();

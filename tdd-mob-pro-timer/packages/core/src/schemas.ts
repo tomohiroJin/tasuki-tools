@@ -49,6 +49,8 @@ const RoomCreateCommand = v.object({
   command: v.literal("room.create"),
   displayName: nonEmptyString,
   config: v.optional(SessionConfigSchema),
+  // 任意のルーム名。コード生成のシードに使う（slug-接尾辞）。
+  roomName: v.optional(v.string()),
 });
 
 const RoomJoinCommand = v.object({

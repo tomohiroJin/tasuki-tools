@@ -167,7 +167,7 @@ export default function App() {
     return newClient;
   };
 
-  const handleCreateRoom = (displayName: string) => {
+  const handleCreateRoom = (displayName: string, roomName?: string) => {
     // 作成者＝当初ホスト。言語/難易度/間隔/オプションは既定で作成し、Lobby で host が
     // config.set で調整する（最初の画面で選びすぎない・UX 再設計）。お題はロビーで自動生成。
     isCreatorRef.current = true;
@@ -183,7 +183,7 @@ export default function App() {
       language: roomRef.current?.config.language ?? config.language,
       difficulty: roomRef.current?.config.difficulty ?? config.difficulty,
     }));
-    c.send({ command: "room.create", displayName, config });
+    c.send({ command: "room.create", displayName, config, ...(roomName && { roomName }) });
   };
 
   // 共有 URL（?room=コード）からの参加。観覧者として加わり snapshot に追従する。
