@@ -25,7 +25,7 @@ export function Stage({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-purple-950 text-white relative">
       <BackgroundOrbs />
       {/* PC を主役にするため広めに。Setup/Join/Summary は内側で max-w-md 等を維持。 */}
-      <div className="relative max-w-6xl mx-auto px-4 py-8">{children}</div>
+      <div className="relative max-w-6xl mx-auto px-4 py-10 md:py-12">{children}</div>
     </div>
   );
 }
@@ -40,7 +40,7 @@ export function Card({
 }) {
   return (
     <div
-      className={`bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 ${className}`}
+      className={`bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 md:p-7 ${className}`}
     >
       {children}
     </div>

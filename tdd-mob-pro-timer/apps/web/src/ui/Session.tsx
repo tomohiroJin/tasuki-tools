@@ -218,10 +218,10 @@ export function Session({
   const isPaused = room.session.isPaused;
   const running = room.clock.running;
 
-  // PC ではタイマーを主役として拡大する（モバイルは収まるサイズに）。
+  // PC ではタイマーを主役として大きく見せる（ステージ感・モバイルは収まるサイズに）。
   const isWide = useIsWide();
-  const orbitSize = isWide ? 400 : 320;
-  const ringSize = isWide ? 264 : 210;
+  const orbitSize = isWide ? 460 : 340;
+  const ringSize = isWide ? 300 : 224;
 
   return (
     <div role="main" aria-label="セッション" className="space-y-6">
@@ -272,24 +272,24 @@ export function Session({
       <Card className={`relative overflow-hidden transition-all`}>
         <div className="absolute inset-0 bg-gradient-to-br from-fuchsia-500/20 via-transparent to-violet-500/20 pointer-events-none" />
         <div className="relative text-center py-4">
-          <div className="text-xs uppercase tracking-widest text-white/50 mb-2">Current Driver</div>
+          <div className="text-sm uppercase tracking-[0.2em] text-white/50 mb-3">Current Driver</div>
           <div
             key={currentDriverName}
-            className="driver-name-fluid font-black mb-4 bg-gradient-to-r from-amber-300 to-orange-400 bg-clip-text text-transparent animate-fade-up"
+            className="driver-name-fluid font-black mb-5 bg-gradient-to-r from-amber-300 to-orange-400 bg-clip-text text-transparent animate-fade-up"
           >
-            <Crown className="w-9 h-9 inline mr-3 text-amber-400" aria-hidden="true" />
+            <Crown className="w-10 h-10 md:w-12 md:h-12 inline mr-3 text-amber-400" aria-hidden="true" />
             {currentDriverName}
           </div>
 
           <div className="flex justify-center mb-4">
             <TeamOrbit members={room.session.rotation} currentIndex={room.session.currentIndex} size={orbitSize}>
-              <CircularProgress progress={progress} warning={isUrgent} size={ringSize} strokeWidth={isWide ? 12 : 10}>
+              <CircularProgress progress={progress} warning={isUrgent} size={ringSize} strokeWidth={isWide ? 14 : 11}>
                 {/* タイマー（残り10秒で緊急色）。role="timer" で意味付与、aria-live は off。 */}
                 <div
                   role="timer"
                   aria-live="off"
                   aria-label={`残り時間 ${formatTime(displayRemaining)}`}
-                  className={`text-5xl lg:text-6xl font-black font-mono tabular-nums tracking-tight ${
+                  className={`text-6xl lg:text-7xl font-black font-mono tabular-nums tracking-tight ${
                     isUrgent ? "text-red-400 animate-pulse" : "text-white"
                   } ${isPaused || room.onBreak ? "opacity-50" : ""}`}
                 >
@@ -302,8 +302,8 @@ export function Session({
             </TeamOrbit>
           </div>
 
-          <div className="flex items-center justify-center gap-2 text-base text-white/70">
-            <ArrowRight className="w-4 h-4" aria-hidden="true" />
+          <div className="flex flex-wrap items-center justify-center gap-2 text-lg text-white/70">
+            <ArrowRight className="w-5 h-5" aria-hidden="true" />
             次: <span className="text-white font-bold">{nextDriverName}</span>
             {room.config.navigatorEnabled && navigatorName && (
               <span className="ml-3 text-white/60">ナビ: <span className="text-white/90">{navigatorName}</span></span>
@@ -311,7 +311,7 @@ export function Session({
           </div>
 
           {/* 統計 */}
-          <div className="mt-3 flex justify-center gap-6 text-sm text-white/60">
+          <div className="mt-4 flex justify-center gap-6 text-base text-white/60">
             <span>経過 {formatElapsed(elapsed)}</span>
             <span>交代 {room.session.totalSwitches}回</span>
           </div>

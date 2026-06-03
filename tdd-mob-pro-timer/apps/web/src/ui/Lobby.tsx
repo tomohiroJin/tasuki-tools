@@ -110,9 +110,9 @@ export function Lobby({
       <div className="space-y-6 lg:min-w-0">
       {/* ルームコード＋QR＋招待（1操作コピー） */}
       <Card className="text-center">
-        <p className="text-sm text-white/50 mb-1">ルームコード</p>
-        <div className="flex items-center justify-center gap-3">
-          <span className="font-mono text-4xl font-black tracking-widest bg-gradient-to-r from-fuchsia-400 to-cyan-400 bg-clip-text text-transparent">
+        <p className="text-sm text-white/50 mb-2">ルームコード</p>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <span className="font-mono text-4xl md:text-5xl font-black tracking-wider break-all bg-gradient-to-r from-fuchsia-400 to-cyan-400 bg-clip-text text-transparent">
             {room.code}
           </span>
           <GhostButton onClick={() => copyText(room.code)} aria-label="ルームコードをコピー">
@@ -126,7 +126,7 @@ export function Lobby({
           <img
             src={qrDataUrl}
             alt={`ルーム ${room.code} の QR コード`}
-            className="h-44 w-44 rounded-xl bg-white p-2 mx-auto mt-4"
+            className="h-52 w-52 rounded-xl bg-white p-2.5 mx-auto mt-4"
           />
         )}
         <div className="mt-3">
