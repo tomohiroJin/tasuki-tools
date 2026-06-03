@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { Copy, Check, Users, Code, Play } from "lucide-react";
+import { Copy, Check, Users, Code, Play, UserPlus, UserMinus, ChevronUp, ChevronDown, X } from "lucide-react";
 import type { Room, Problem } from "@tdd-mob/core";
 import { Card, PrimaryButton, GhostButton, SectionHeader } from "./primitives.js";
 import { ProblemEditor } from "./components/ProblemEditor.js";
@@ -29,6 +29,29 @@ interface LobbyProps {
   onLeaveRotation?: (displayName: string) => void;
   /** ホストが参加者を退出させる（⑪・host 限定）。 */
   onRemoveParticipant?: (participantId: string) => void;
+  /** ドライバー順の入れ替え（④・host）。fromIndex→toIndex（rotation 内の位置）。 */
+  onMoveRotation?: (fromIndex: number, toIndex: number) => void;
+}
+
+/** 参加者行のコンパクトなアイコンボタン（行が改行だらけにならないよう小さく揃える）。 */
+function RowIconButton({
+  icon: Icon,
+  label,
+  onClick,
+  disabled,
+}: { icon: typeof UserPlus; label: string; onClick: () => void; disabled?: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={label}
+      className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed border border-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+    >
+      <Icon className="w-4 h-4" />
+    </button>
+  );
 }
 
 export function Lobby({
@@ -43,6 +66,7 @@ export function Lobby({
   onJoinRotation,
   onLeaveRotation,
   onRemoveParticipant,
+  onMoveRotation,
 }: LobbyProps) {
   const [copied, setCopied] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
@@ -120,50 +144,88 @@ export function Lobby({
             const rotationIndex = room.session.rotation.indexOf(p.displayName);
             const inRotation = rotationIndex >= 0;
             const isMe = p.participantId === participantId;
+            const rotationLen = room.session.rotation.length;
+            const isLastDriver = inRotation && rotationLen <= 1;
             return (
               <li
                 key={p.participantId}
-                className="flex items-center gap-2 text-sm text-white rounded-xl bg-white/5 border border-white/10 px-3 py-2"
+                className="flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm text-white"
               >
-                <span className={`h-2 w-2 rounded-full ${presenceDotClass(p.presence)}`} aria-hidden="true" />
-                <span className="flex-1">{p.displayName}</span>
-                {/* ドライバー（rotation 内）/ 見学 の区別（§9.2・2層モデル） */}
-                <span className={`text-xs font-semibold ${inRotation ? "text-cyan-300" : "text-white/60"}`}>
-                  {inRotation ? "ドライバー" : "見学"}
+                <span className={`h-2 w-2 shrink-0 rounded-full ${presenceDotClass(p.presence)}`} aria-hidden="true" />
+                <span className="min-w-0 flex-1 truncate font-medium">{p.displayName}</span>
+                {/* ドライバー（順番つき）/ 見学 の区別（§9.2・④ 順番可視化） */}
+                <span
+                  className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${
+                    inRotation ? "bg-cyan-500/20 text-cyan-200" : "bg-white/10 text-white/60"
+                  }`}
+                >
+                  {inRotation ? `ドライバー${rotationIndex + 1}` : "見学"}
                 </span>
                 {p.role === "host" && (
-                  <span className="text-xs font-semibold text-fuchsia-300">主催者</span>
+                  <span className="shrink-0 rounded-full bg-fuchsia-500/20 px-2 py-0.5 text-xs font-semibold text-fuchsia-300">主催者</span>
                 )}
-                {/* 本人だけ、ローテーション加入/離脱を切り替えられる */}
-                {isMe && (
-                  inRotation ? (
-                    <GhostButton
-                      onClick={() => onLeaveRotation?.(p.displayName)}
-                      disabled={room.session.rotation.length <= 1}
-                      title={room.session.rotation.length <= 1 ? "最後のドライバーは外れられません" : undefined}
-                      className="text-xs px-3 py-1.5"
-                    >
-                      列から外れる
-                    </GhostButton>
-                  ) : (
-                    <PrimaryButton
-                      onClick={() => onJoinRotation?.(p.displayName)}
-                      className="text-xs px-3 py-1.5"
-                    >
-                      ドライバーに加わる
-                    </PrimaryButton>
-                  )
-                )}
-                {/* ホストは他の参加者を退出させられる（⑪） */}
-                {!isMe && isHost && onRemoveParticipant && (
-                  <GhostButton
-                    onClick={() => onRemoveParticipant(p.participantId)}
-                    aria-label={`${p.displayName} を退出させる`}
-                    className="text-xs px-3 py-1.5"
-                  >
-                    外す
-                  </GhostButton>
-                )}
+
+                {/* 操作エリア（本人＝加入/離脱、ホスト＝他人の加入/離脱・並び替え・退出） */}
+                <span className="ml-auto flex shrink-0 items-center gap-1">
+                  {isMe && (
+                    inRotation ? (
+                      <GhostButton
+                        onClick={() => onLeaveRotation?.(p.displayName)}
+                        disabled={isLastDriver}
+                        title={isLastDriver ? "最後のドライバーは外れられません" : undefined}
+                        className="text-xs px-3 py-1.5"
+                      >
+                        列から外れる
+                      </GhostButton>
+                    ) : (
+                      <PrimaryButton onClick={() => onJoinRotation?.(p.displayName)} className="text-xs px-3 py-1.5">
+                        ドライバーに加わる
+                      </PrimaryButton>
+                    )
+                  )}
+                  {/* ホストは他参加者のドライバー加入/離脱を制御できる（②） */}
+                  {!isMe && isHost && (
+                    inRotation ? (
+                      <RowIconButton
+                        icon={UserMinus}
+                        label={`${p.displayName} をドライバーから外す`}
+                        onClick={() => onLeaveRotation?.(p.displayName)}
+                        disabled={isLastDriver}
+                      />
+                    ) : (
+                      <RowIconButton
+                        icon={UserPlus}
+                        label={`${p.displayName} をドライバーに追加`}
+                        onClick={() => onJoinRotation?.(p.displayName)}
+                      />
+                    )
+                  )}
+                  {/* ホストはドライバー順を入れ替えられる（④） */}
+                  {isHost && inRotation && rotationLen > 1 && onMoveRotation && (
+                    <>
+                      <RowIconButton
+                        icon={ChevronUp}
+                        label={`${p.displayName} を前の順番へ`}
+                        onClick={() => onMoveRotation(rotationIndex, rotationIndex - 1)}
+                        disabled={rotationIndex === 0}
+                      />
+                      <RowIconButton
+                        icon={ChevronDown}
+                        label={`${p.displayName} を後の順番へ`}
+                        onClick={() => onMoveRotation(rotationIndex, rotationIndex + 1)}
+                        disabled={rotationIndex === rotationLen - 1}
+                      />
+                    </>
+                  )}
+                  {/* ホストは他参加者を退出させられる（⑪） */}
+                  {!isMe && isHost && onRemoveParticipant && (
+                    <RowIconButton
+                      icon={X}
+                      label={`${p.displayName} を退出させる`}
+                      onClick={() => onRemoveParticipant(p.participantId)}
+                    />
+                  )}
+                </span>
               </li>
             );
           })}

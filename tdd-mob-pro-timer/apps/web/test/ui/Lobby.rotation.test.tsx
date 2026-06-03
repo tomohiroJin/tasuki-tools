@@ -64,4 +64,27 @@ describe("Lobby ドライバー加入トグル（C2）", () => {
     fireEvent.click(screen.getByRole("button", { name: /列から外れる|外れる/ }));
     expect(onLeaveRotation).toHaveBeenCalledWith("Alice");
   });
+
+  it("ホストは見学者を『ドライバーに追加』できる（②）", () => {
+    const onJoinRotation = vi.fn();
+    // host=Alice 視点。Bob は rotation 未加入（見学）。
+    render(
+      <Lobby room={makeRoom()} participantId="host-p" onStartSession={noop} onJoinRotation={onJoinRotation} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Bob をドライバーに追加" }));
+    expect(onJoinRotation).toHaveBeenCalledWith("Bob");
+  });
+
+  it("ホストはドライバー順を入れ替えられる（④）", () => {
+    const onMoveRotation = vi.fn();
+    const room = makeRoom();
+    room.session.rotation = ["Alice", "Bob"];
+    room.session.driverCounts = [0, 0];
+    render(
+      <Lobby room={room} participantId="host-p" onStartSession={noop} onMoveRotation={onMoveRotation} />,
+    );
+    // Bob（rotation index 1）を前の順番へ → move(1, 0)
+    fireEvent.click(screen.getByRole("button", { name: "Bob を前の順番へ" }));
+    expect(onMoveRotation).toHaveBeenCalledWith(1, 0);
+  });
 });

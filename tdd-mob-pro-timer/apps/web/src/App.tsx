@@ -82,6 +82,7 @@ export default function App() {
     const newClient = new SyncClient({
       url: wsUrl,
       onRoom: (r) => {
+        const prevRoom = roomRef.current;
         roomRef.current = r;
         setRoom(r);
         // サーバー権威の phase に全参加者が追従する（ホストの開始/完成が全員に反映）
@@ -96,6 +97,20 @@ export default function App() {
         ) {
           problemRequestedRef.current = true;
           newClient.send({ command: "problem.request", requestId: `req-${r.code}-lobby` });
+        }
+        // 難易度・言語をロビーで変えたら、お題を作り直して選択と中身を一致させる（①）。
+        // 代表（作成者）のみが依頼し、変化時だけ発火するのでループしない。
+        const cfgChanged =
+          prevRoom?.code === r.code &&
+          (prevRoom.config.difficulty !== r.config.difficulty ||
+            prevRoom.config.language !== r.config.language);
+        if (
+          cfgChanged &&
+          isCreatorRef.current &&
+          (r.phase === "setup" || r.phase === "ready") &&
+          !!r.problem
+        ) {
+          newClient.send({ command: "problem.request", requestId: `req-${r.code}-cfg-${Date.now()}` });
         }
         // 完成フェーズかつ「完成（中断でない）」のとき、各端末でローカル記録を生成し
         // IndexedDB へ永続化する（FR-020/028/059）。中断（abort）では記録を作らない。
@@ -210,6 +225,10 @@ export default function App() {
   const removeParticipant = (participantId: string) => {
     client?.send({ command: "participant.remove", participantId });
   };
+  /** ドライバー順を入れ替える（④・member.move）。host/editor が操作。 */
+  const moveRotation = (fromIndex: number, toIndex: number) => {
+    client?.send({ command: "member.move", fromIndex, toIndex });
+  };
 
   const handleComplete = () => {
     setEndType("complete");
@@ -321,8 +340,9 @@ export default function App() {
   const regenerateProblem = () => {
     const code = roomRef.current?.code;
     if (code) {
-      // 直近のお題と重複しにくい新規生成を代表へ依頼する（FR-012）
-      client?.send({ command: "problem.request", requestId: `req-${code}-regen` });
+      // 直近のお題と重複しにくい新規生成を代表へ依頼する（FR-012）。
+      // requestId を一意にして「別のお題にする」を毎回有効にする。
+      client?.send({ command: "problem.request", requestId: `req-${code}-regen-${Date.now()}` });
     }
   };
 
@@ -380,6 +400,7 @@ export default function App() {
           onJoinRotation={joinRotation}
           onLeaveRotation={leaveRotation}
           onRemoveParticipant={removeParticipant}
+          onMoveRotation={moveRotation}
         />
       );
     }

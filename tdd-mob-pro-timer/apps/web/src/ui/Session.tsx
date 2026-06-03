@@ -7,7 +7,7 @@ import React, { useMemo, useState, useEffect, useRef } from "react";
 import {
   Crown, ArrowRight, Play, Pause, SkipForward, Flag, RotateCcw, Coffee,
 } from "lucide-react";
-import { elapsedMs } from "@tdd-mob/core/aggregate";
+import { secondsLeft, elapsedMs } from "@tdd-mob/core/aggregate";
 import type { Room, Problem } from "@tdd-mob/core";
 import { Card, GhostButton, PrimaryButton } from "./primitives.js";
 import { CircularProgress } from "./components/CircularProgress.js";
@@ -93,7 +93,7 @@ export function Session({
       setNowTick(Date.now());
       return;
     }
-    const id = setInterval(() => setNowTick(Date.now()), 250);
+    const id = setInterval(() => setNowTick(Date.now()), 200);
     return () => clearInterval(id);
   }, [room.clock.running, room.clock.anchorServerTime]);
 
@@ -103,20 +103,13 @@ export function Session({
     [room.clock, now, clockOffset],
   );
 
-  // 表示用の残り時間（⑭ 連続性）。secondsLeft は 0 でクランプされるため、稼働中に
-  // 0 を跨いだら次インターバルへ「ロールオーバー」して連続的に動かす。サーバーの
-  // 交代 snapshot（新アンカー）が届けば通常導出に滑らかに引き継がれる。
-  const displayRemaining = useMemo(() => {
-    const interval = room.clock.intervalSeconds || 1;
-    if (!room.clock.running) return room.clock.secondsLeftAtAnchor;
-    const raw =
-      room.clock.secondsLeftAtAnchor -
-      (now + clockOffset - room.clock.anchorServerTime) / 1000;
-    if (raw >= 0) return raw;
-    // 0 を過ぎた分を周回させ、止まって見えないようにする。
-    const overflow = -raw % interval;
-    return interval - overflow;
-  }, [room.clock, now, clockOffset]);
+  // 表示用の残り時間。サーバー権威の secondsLeft をそのまま使う（0 でクランプ）。
+  // 交代＝サーバーの新アンカー snapshot で「ドライバー変更」と「時間リセット」が同時に
+  // 反映されるため、二重リセットや先走りロールオーバーは行わない（⑥ 致命傷の修正）。
+  const displayRemaining = useMemo(
+    () => secondsLeft(room.clock, now, clockOffset),
+    [room.clock, now, clockOffset],
+  );
 
   const currentParticipant = room.participants.find(
     (p) => p.participantId === participantId,
@@ -131,9 +124,13 @@ export function Session({
     room.session.rotation[room.session.currentIndex] ?? "—";
   const nextDriverName =
     rotationLen > 0 ? (room.session.rotation[nextIndex] ?? "—") : "—";
+  // ナビゲーター（⑦）。次ドライバーと別概念にし、既定では「現ドライバーの前の人
+  //（直前に運転していた退役ドライバー）」をメインナビとする。文脈を最も持つ人。
+  // rotation が1人のときは現ドライバーと一致するため表示しない。
+  const prevIndex = rotationLen > 0 ? (room.session.currentIndex - 1 + rotationLen) % rotationLen : 0;
   const navigatorName =
-    room.config.navigatorEnabled && rotationLen > 0
-      ? room.session.rotation[nextIndex]
+    room.config.navigatorEnabled && rotationLen > 1
+      ? room.session.rotation[prevIndex]
       : null;
 
   const isUrgent = room.clock.running && displayRemaining <= URGENT_THRESHOLD_SECONDS;
@@ -391,18 +388,18 @@ export function Session({
           viewer はメモがある時だけ読み取り表示する。 */}
       {isEditor ? (
         <Card>
-          <label htmlFor="handoff-note" className="flex items-center gap-2 text-sm font-semibold text-white mb-2">
+          <label htmlFor="shared-memo" className="flex items-center gap-2 text-sm font-semibold text-white mb-2">
             <ArrowRight className="w-4 h-4 text-cyan-400" aria-hidden="true" />
-            次のドライバーへの引き継ぎメモ
+            共有メモ
           </label>
           <textarea
-            id="handoff-note"
-            aria-label="引き継ぎメモ"
+            id="shared-memo"
+            aria-label="共有メモ"
             value={noteDraft}
             onChange={(e) => setNoteDraft(e.target.value)}
             onBlur={commitNote}
             rows={2}
-            placeholder="例: API のモックまで完了。次はバリデーションから。"
+            placeholder="例: API のモックまで完了。残タスクやメモを全員で共有。"
             className="w-full resize-y rounded-lg bg-white/10 border border-white/20 px-3 py-2 text-sm text-white outline-none focus:border-cyan-400 transition-colors"
           />
         </Card>
@@ -410,7 +407,7 @@ export function Session({
         room.handoffNote && (
           <Card>
             <p className="text-sm text-white/80" aria-live="polite">
-              <strong className="text-white">引き継ぎメモ:</strong> {room.handoffNote}
+              <strong className="text-white">共有メモ:</strong> {room.handoffNote}
             </p>
           </Card>
         )

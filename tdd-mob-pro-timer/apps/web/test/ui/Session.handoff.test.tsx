@@ -87,7 +87,7 @@ function baseHandlers() {
 }
 
 describe("Session 引き継ぎノート入力（§9.1）", () => {
-  it("editor+ には引き継ぎメモの入力欄が表示される", () => {
+  it("editor+ には共有メモの入力欄が表示される", () => {
     render(
       <Session
         room={makeRoom()}
@@ -96,7 +96,7 @@ describe("Session 引き継ぎノート入力（§9.1）", () => {
         onHandoffNoteSet={vi.fn()}
       />,
     );
-    const field = screen.getByLabelText(/引き継ぎメモ/);
+    const field = screen.getByLabelText(/共有メモ/);
     // textarea/input であること（読み取り専用テキストではない）
     expect(["TEXTAREA", "INPUT"]).toContain((field as HTMLElement).tagName);
   });
@@ -111,7 +111,7 @@ describe("Session 引き継ぎノート入力（§9.1）", () => {
         onHandoffNoteSet={onHandoffNoteSet}
       />,
     );
-    const field = screen.getByLabelText(/引き継ぎメモ/);
+    const field = screen.getByLabelText(/共有メモ/);
     fireEvent.change(field, { target: { value: "API のモックまで完了" } });
     fireEvent.blur(field);
     expect(onHandoffNoteSet).toHaveBeenCalledWith("API のモックまで完了");
@@ -126,7 +126,7 @@ describe("Session 引き継ぎノート入力（§9.1）", () => {
         onHandoffNoteSet={vi.fn()}
       />,
     );
-    const field = screen.getByLabelText(/引き継ぎメモ/) as HTMLTextAreaElement;
+    const field = screen.getByLabelText(/共有メモ/) as HTMLTextAreaElement;
     expect(field.value).toBe("次はバリデーションから");
   });
 
@@ -140,7 +140,7 @@ describe("Session 引き継ぎノート入力（§9.1）", () => {
       />,
     );
     // viewer 視点（rotation 外の閲覧者）。編集欄は無い。
-    expect(screen.queryByLabelText(/引き継ぎメモ/)).toBeNull();
+    expect(screen.queryByLabelText(/共有メモ/)).toBeNull();
     // ただしメモ内容は読める
     expect(screen.getByText(/残りはリファクタ/)).toBeTruthy();
   });
