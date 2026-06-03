@@ -21,7 +21,7 @@ function MiniButton({
   return (
     <button
       type="button"
-      className="px-2.5 py-1 rounded-lg text-xs font-medium bg-white/10 hover:bg-white/20 border border-white/10 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+      className="px-3 py-1.5 min-h-[36px] rounded-lg text-xs font-medium bg-white/10 hover:bg-white/20 border border-white/10 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
       {...rest}
     >
       {children}

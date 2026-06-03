@@ -261,7 +261,7 @@ export function Session({
           <div className="text-xs uppercase tracking-widest text-white/50 mb-2">Current Driver</div>
           <div
             key={currentDriverName}
-            className="text-4xl md:text-5xl font-black mb-4 bg-gradient-to-r from-amber-300 to-orange-400 bg-clip-text text-transparent animate-fade-up"
+            className="driver-name-fluid font-black mb-4 bg-gradient-to-r from-amber-300 to-orange-400 bg-clip-text text-transparent animate-fade-up"
           >
             <Crown className="w-9 h-9 inline mr-3 text-amber-400" aria-hidden="true" />
             {currentDriverName}
@@ -440,12 +440,12 @@ function SelfDriverToggle({ inRotation, canLeave, displayName, onJoin, onLeave }
           onClick={() => onLeave?.(displayName)}
           disabled={!canLeave}
           title={canLeave ? undefined : "最後のドライバーは外れられません"}
-          className="text-xs px-2 py-1"
+          className="text-xs px-3 py-1.5"
         >
           列から外れる
         </GhostButton>
       ) : (
-        <PrimaryButton onClick={() => onJoin?.(displayName)} className="text-xs px-2 py-1">
+        <PrimaryButton onClick={() => onJoin?.(displayName)} className="text-xs px-3 py-1.5">
           ドライバーに加わる
         </PrimaryButton>
       )}

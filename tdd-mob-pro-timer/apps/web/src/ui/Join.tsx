@@ -37,7 +37,7 @@ export function Join({ code, onJoin }: JoinProps) {
   return (
     <div className="mx-auto flex min-h-[60vh] max-w-md flex-col justify-center gap-8">
       <header className="text-center">
-        <h1 className="text-3xl md:text-4xl font-black bg-gradient-to-r from-fuchsia-400 via-violet-400 to-cyan-400 bg-clip-text text-transparent">
+        <h1 className="brand-title font-black bg-gradient-to-r from-fuchsia-400 via-violet-400 to-cyan-400 bg-clip-text text-transparent">
           モブに参加
         </h1>
         <p className="text-white/60 mt-2 text-sm">

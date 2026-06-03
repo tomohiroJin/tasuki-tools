@@ -140,14 +140,14 @@ export function Lobby({
                       onClick={() => onLeaveRotation?.(p.displayName)}
                       disabled={room.session.rotation.length <= 1}
                       title={room.session.rotation.length <= 1 ? "最後のドライバーは外れられません" : undefined}
-                      className="text-xs px-2 py-1"
+                      className="text-xs px-3 py-1.5"
                     >
                       列から外れる
                     </GhostButton>
                   ) : (
                     <PrimaryButton
                       onClick={() => onJoinRotation?.(p.displayName)}
-                      className="text-xs px-2 py-1"
+                      className="text-xs px-3 py-1.5"
                     >
                       ドライバーに加わる
                     </PrimaryButton>

@@ -220,6 +220,17 @@ body {
   font-size: var(--font-size-driver);
   line-height: 1.1;
 }
+
+/* 流動的タイポ（ブレイクポイント不要・clamp）。ブランド見出しと現ドライバー名を
+ * 画面幅に対して滑らかにスケールさせる（段階クラスの飛びを解消）。 */
+.brand-title {
+  font-size: clamp(1.875rem, 1.1rem + 3vw, 3rem);
+  line-height: 1.1;
+}
+.driver-name-fluid {
+  font-size: clamp(2rem, 1.2rem + 3vw, 3.5rem);
+  line-height: 1.1;
+}
 .stage-canvas .driver-spotlight {
   color: #ffffff;
   text-shadow: 0 0 18px var(--focus-glow);
