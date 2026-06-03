@@ -6,10 +6,10 @@
  */
 
 import React from "react";
-import { Settings2, Languages, ChevronDown } from "lucide-react";
+import { Settings2, Languages, ChevronDown, Dices } from "lucide-react";
 import { VALID_INTERVAL_MINUTES, type IntervalMinutes } from "@tdd-mob/core/aggregate";
 import type { SessionConfig } from "@tdd-mob/core";
-import { SectionHeader } from "../primitives.js";
+import { GhostButton, SectionHeader } from "../primitives.js";
 
 const LANGUAGES = [
   "TypeScript", "JavaScript", "Python", "Java",
@@ -53,9 +53,25 @@ export function ConfigPanel({ config, canEdit, onChange }: ConfigPanelProps) {
   const assertiveSwitch = config.assertiveSwitch === true;
   const breakOn = (config.breakEveryRotations ?? 0) >= 1;
 
+  // 言語・難易度をランダムに決める（③ 復活）。迷ったとき用。
+  const randomize = () => {
+    const lang = LANGUAGES[Math.floor(Math.random() * LANGUAGES.length)] ?? config.language;
+    const diff = DIFFICULTIES[Math.floor(Math.random() * DIFFICULTIES.length)]?.value ?? config.difficulty;
+    onChange({ language: lang, difficulty: diff });
+  };
+
   return (
     <div className="space-y-5">
-      <SectionHeader icon={Languages} color="text-cyan-400" title="セッション設定" />
+      <SectionHeader
+        icon={Languages}
+        color="text-cyan-400"
+        title="セッション設定"
+        right={
+          <GhostButton onClick={randomize} aria-label="設定をランダムに決める" className="text-sm">
+            <span className="flex items-center gap-1.5"><Dices className="w-4 h-4" /> ランダム</span>
+          </GhostButton>
+        }
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>

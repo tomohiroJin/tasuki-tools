@@ -1,13 +1,15 @@
 /**
- * お題エディタ/持ち込みコンポーネント
+ * お題エディタ/持ち込みコンポーネント（課題シート型）
  * T051: FR-009,012,013,038,039,040,041 (US3)
  *
- * お題の表示・出所バッジ・コピー・再生成・持ち込みを提供する。
- * 各フィールドの編集は problem.edit コマンドで onEdit 経由で送る。
+ * 難易度/言語バッジ＋タイトル、要件・テスト例・ヒントは折りたたみ。
+ * アクションは言葉＋アイコンで明快に（別のお題/編集/貼り付け/コピー）。
+ * compact=true（セッション中）は1行バーに畳み、目立たせない（⑫）。
  * 編集・やり直し・持ち込みは editor+ のみ（canEdit）。コピーは全員可（FR-013/055）。
  */
 
 import React, { useState, useEffect } from "react";
+import { Dices, Pencil, ClipboardPaste, Copy, ChevronDown, ChevronRight } from "lucide-react";
 import type { Problem } from "@tdd-mob/core";
 import { GhostButton } from "../primitives.js";
 
@@ -15,34 +17,47 @@ interface ProblemEditorProps {
   problem: Problem;
   /** editor+ のとき true。編集・やり直し・持ち込みを許可する（FR-055）。既定 true。 */
   canEdit?: boolean;
+  /** 出題の難易度（room.config 由来）。バッジ表示用。 */
+  difficulty?: string;
+  /** 出題の言語（room.config 由来）。バッジ表示用。 */
+  language?: string;
+  /** セッション中など、1行バーに畳んで表示する（⑫ 目立たせない）。 */
+  compact?: boolean;
   onEdit: (patch: Partial<Omit<Problem, "source" | "edited">>) => void;
   onCopy: () => void;
   onRegenerate: () => void;
   onPaste: () => void;
 }
 
-function SourceBadge({ source, edited }: { source?: string; edited?: boolean }) {
+const DIFFICULTY_LABEL: Record<string, string> = { easy: "初級", medium: "中級", hard: "上級" };
+const DIFFICULTY_CLASS: Record<string, string> = {
+  easy: "bg-emerald-500/20 text-emerald-200",
+  medium: "bg-amber-500/20 text-amber-200",
+  hard: "bg-rose-500/20 text-rose-200",
+};
+
+function Badges({
+  difficulty,
+  language,
+  edited,
+  source,
+}: { difficulty?: string; language?: string; edited?: boolean; source?: string }) {
   return (
-    <span className="flex items-center gap-1.5 text-xs">
-      {source === "ai" && (
-        <span className="rounded bg-fuchsia-500/20 px-1.5 py-0.5 font-medium text-fuchsia-200">
-          AI 生成
+    <span className="flex flex-wrap items-center gap-1.5 text-xs">
+      {difficulty && (
+        <span className={`rounded-full px-2 py-0.5 font-semibold ${DIFFICULTY_CLASS[difficulty] ?? "bg-white/10 text-white/70"}`}>
+          {DIFFICULTY_LABEL[difficulty] ?? difficulty}
         </span>
       )}
-      {source === "fallback" && (
-        <span className="rounded bg-white/10 px-1.5 py-0.5 text-white/70">
-          定型 (fallback)
-        </span>
+      {language && (
+        <span className="rounded-full bg-cyan-500/20 px-2 py-0.5 font-semibold text-cyan-200">{language}</span>
       )}
+      {/* 持ち込み（自前のお題）は明示する。定型/AI はバッジ化しない（出題源が一意のため）。 */}
       {source === "custom" && (
-        <span className="rounded bg-emerald-500/20 px-1.5 py-0.5 text-emerald-200">
-          持ち込み
-        </span>
+        <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-emerald-200">持ち込み</span>
       )}
       {edited && (
-        <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-amber-200">
-          編集済
-        </span>
+        <span className="rounded-full bg-violet-500/20 px-2 py-0.5 text-violet-200">編集済</span>
       )}
     </span>
   );
@@ -50,26 +65,25 @@ function SourceBadge({ source, edited }: { source?: string; edited?: boolean }) 
 
 /** 改行区切りテキストを配列へ（空行は除去・前後空白トリム） */
 function linesToArray(text: string): string[] {
-  return text
-    .split("\n")
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
+  return text.split("\n").map((s) => s.trim()).filter((s) => s.length > 0);
 }
 
 export function ProblemEditor({
   problem,
   canEdit = true,
+  difficulty,
+  language,
+  compact = false,
   onEdit,
   onCopy,
   onRegenerate,
   onPaste,
 }: ProblemEditorProps) {
   const [editing, setEditing] = useState(false);
-  // 詳細（要件・例示テスト・ヒント）の開閉。既定は折りたたみ、ロビーの縦長を抑える（S2）。
-  // タイトル・説明は常時表示し「何の問題か」は一目で分かる。
-  const [showDetails, setShowDetails] = useState(false);
-  // 編集中の下書き。外部からお題が更新（やり直し/持ち込み/他者編集の snapshot 反映）
-  // されたら同期する。コミットは各フィールドの blur で onEdit へ送る。
+  // compact（セッション中）の1行バーを開いたか。非 compact では常にフルカード。
+  const [barOpen, setBarOpen] = useState(false);
+  // 要件・テスト例・ヒントの開閉。既定は閉じ（ロビーの縦長を抑える・スペック準拠）。
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [draft, setDraft] = useState<Problem>(problem);
   useEffect(() => {
     setDraft(problem);
@@ -79,36 +93,55 @@ export function ProblemEditor({
     "w-full rounded-md border border-white/20 bg-white/10 px-2 py-1 text-sm text-white " +
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-400";
 
+  const hasDetails =
+    problem.requirements.length > 0 || !!problem.exampleTest || problem.hints.length > 0;
+
+  // compact かつ未展開 = 1行バーのみ（難易度＋タイトル＋開く）。
+  if (compact && !barOpen) {
+    return (
+      <button
+        type="button"
+        onClick={() => setBarOpen(true)}
+        aria-expanded={false}
+        className="flex w-full items-center gap-2 text-left text-sm text-white/80 hover:text-white"
+      >
+        <Badges difficulty={difficulty} edited={problem.edited} source={problem.source} />
+        <span className="font-semibold text-white truncate">{problem.title}</span>
+        <span className="ml-auto flex items-center gap-1 text-white/60">詳細を開く <ChevronDown className="w-4 h-4" /></span>
+      </button>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-3">
-      {/* ヘッダー: タイトル + 出所バッジ + アクション */}
+      {/* ヘッダー: バッジ＋タイトル＋アクション */}
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1.5">
+          <Badges difficulty={difficulty} language={language} edited={problem.edited} source={problem.source} />
           <h3 className="text-lg font-bold text-white">{problem.title}</h3>
-          <SourceBadge source={problem.source} edited={problem.edited} />
         </div>
-        <div className="flex gap-2">
-          <GhostButton onClick={onCopy} aria-label="お題をコピー">
-            コピー
-          </GhostButton>
+        <div className="flex flex-wrap gap-2">
+          {canEdit && (
+            <GhostButton onClick={onRegenerate} aria-label="別のお題にする" className="text-sm">
+              <span className="flex items-center gap-1.5"><Dices className="w-4 h-4" /> 別のお題にする</span>
+            </GhostButton>
+          )}
           {canEdit && (
             <GhostButton
               onClick={() => setEditing((v) => !v)}
-              className={editing ? "ring-2 ring-fuchsia-400" : ""}
+              className={`text-sm ${editing ? "ring-2 ring-fuchsia-400" : ""}`}
             >
-              {editing ? "編集を閉じる" : "編集"}
+              <span className="flex items-center gap-1.5"><Pencil className="w-4 h-4" aria-hidden="true" /> {editing ? "編集を閉じる" : "内容を編集"}</span>
             </GhostButton>
           )}
           {canEdit && (
-            <GhostButton onClick={onRegenerate} aria-label="お題をやり直す">
-              やり直す
+            <GhostButton onClick={onPaste} aria-label="お題を持ち込む（貼り付け）" className="text-sm">
+              <span className="flex items-center gap-1.5"><ClipboardPaste className="w-4 h-4" /> 貼り付け</span>
             </GhostButton>
           )}
-          {canEdit && (
-            <GhostButton onClick={onPaste} aria-label="お題を持ち込む">
-              持ち込み
-            </GhostButton>
-          )}
+          <GhostButton onClick={onCopy} aria-label="お題をコピー" className="text-sm">
+            <span className="flex items-center gap-1.5"><Copy className="w-4 h-4" /> コピー</span>
+          </GhostButton>
         </div>
       </div>
 
@@ -116,7 +149,7 @@ export function ProblemEditor({
         /* 編集フォーム（各フィールドの blur で problem.edit を送る: FR-038） */
         <div className="flex flex-col gap-3">
           <label className="flex flex-col gap-1">
-            <span className="text-xs font-semibold text-white/50">タイトル</span>
+            <span className="text-xs font-semibold text-white/60">タイトル</span>
             <input
               aria-label="お題タイトル"
               className={inputClass}
@@ -126,7 +159,7 @@ export function ProblemEditor({
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-xs font-semibold text-white/50">説明</span>
+            <span className="text-xs font-semibold text-white/60">説明</span>
             <textarea
               aria-label="お題の説明"
               className={inputClass}
@@ -137,20 +170,18 @@ export function ProblemEditor({
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-xs font-semibold text-white/50">要件（1行に1件）</span>
+            <span className="text-xs font-semibold text-white/60">要件（1行に1件）</span>
             <textarea
               aria-label="要件（1行に1件）"
               className={inputClass}
               rows={3}
               value={draft.requirements.join("\n")}
-              onChange={(e) =>
-                setDraft({ ...draft, requirements: e.target.value.split("\n") })
-              }
+              onChange={(e) => setDraft({ ...draft, requirements: e.target.value.split("\n") })}
               onBlur={(e) => onEdit({ requirements: linesToArray(e.target.value) })}
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-xs font-semibold text-white/50">例示テスト</span>
+            <span className="text-xs font-semibold text-white/60">例示テスト</span>
             <textarea
               aria-label="例示テスト"
               className={`${inputClass} font-mono`}
@@ -161,7 +192,7 @@ export function ProblemEditor({
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-xs font-semibold text-white/50">ヒント（1行に1件）</span>
+            <span className="text-xs font-semibold text-white/60">ヒント（1行に1件）</span>
             <textarea
               aria-label="ヒント（1行に1件）"
               className={inputClass}
@@ -174,53 +205,48 @@ export function ProblemEditor({
         </div>
       ) : (
         <>
-          {/* 説明（常時表示・何の問題か一目で分かる） */}
-          <p className="text-sm text-white/70">{problem.description}</p>
+          {/* 説明 */}
+          <p className="text-sm text-white/80">{problem.description}</p>
 
-          {/* 詳細（要件・例示テスト・ヒント）の開閉トグル。詳細が1つでもあるときのみ表示。
-              既定は折りたたみで、ロビーが縦に伸びすぎないようにする（S2）。 */}
-          {(problem.requirements.length > 0 ||
-            !!problem.exampleTest ||
-            problem.hints.length > 0) && (
-            <GhostButton
-              onClick={() => setShowDetails((v) => !v)}
-              aria-expanded={showDetails}
+          {/* 詳細トグル（要件件数を明示・既定は閉じ） */}
+          {hasDetails && (
+            <button
+              type="button"
+              onClick={() => setDetailsOpen((v) => !v)}
+              aria-expanded={detailsOpen}
+              className="flex items-center gap-1 self-start text-sm text-white/70 hover:text-white"
             >
-              {showDetails ? "詳細を隠す" : "詳細を表示"}
-            </GhostButton>
+              {detailsOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              {detailsOpen ? "詳細を隠す" : "詳細を表示"}（要件 {problem.requirements.length}・テスト例・ヒント）
+            </button>
           )}
 
-          {showDetails && (
+          {detailsOpen && hasDetails && (
             <>
-              {/* 要件 */}
               {problem.requirements.length > 0 && (
                 <div>
-                  <p className="mb-1 text-xs font-semibold text-white/50">要件</p>
+                  <p className="mb-1 text-xs font-semibold text-white/60">要件</p>
                   <ul className="space-y-1">
                     {problem.requirements.map((req) => (
                       <li key={req} className="flex items-start gap-1.5 text-sm text-white">
-                        <span className="mt-0.5 text-white/50">·</span>
+                        <span className="mt-0.5 text-white/60">·</span>
                         <span>{req}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
               )}
-
-              {/* 例示テスト */}
               {problem.exampleTest && (
                 <div>
-                  <p className="mb-1 text-xs font-semibold text-white/50">例示テスト</p>
+                  <p className="mb-1 text-xs font-semibold text-white/60">例示テスト</p>
                   <pre className="rounded-md bg-white/10 p-3 text-xs font-mono text-white overflow-x-auto">
                     {problem.exampleTest}
                   </pre>
                 </div>
               )}
-
-              {/* ヒント */}
               {problem.hints.length > 0 && (
                 <div>
-                  <p className="mb-1 text-xs font-semibold text-white/50">ヒント</p>
+                  <p className="mb-1 text-xs font-semibold text-white/60">ヒント</p>
                   <ul className="space-y-1">
                     {problem.hints.map((hint) => (
                       <li key={hint} className="text-sm text-white/70">💡 {hint}</li>
@@ -229,6 +255,17 @@ export function ProblemEditor({
                 </div>
               )}
             </>
+          )}
+
+          {/* compact 展開時はバーへ畳むボタン */}
+          {compact && (
+            <button
+              type="button"
+              onClick={() => setBarOpen(false)}
+              className="flex items-center gap-1 self-start text-xs text-white/60 hover:text-white"
+            >
+              <ChevronDown className="w-3 h-3 rotate-180" /> 畳む
+            </button>
           )}
         </>
       )}

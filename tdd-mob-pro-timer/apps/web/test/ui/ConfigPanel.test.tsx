@@ -65,4 +65,13 @@ describe("ConfigPanel（ロビー設定・UX 再設計）", () => {
     // 現在値（言語・難易度）はテキストで読める
     expect(screen.getByText(/TypeScript/)).toBeTruthy();
   });
+
+  it("『ランダム』で言語と難易度の両方が onChange に渡る（③ 復活）", () => {
+    const onChange = vi.fn();
+    render(<ConfigPanel config={config} canEdit onChange={onChange} />);
+    fireEvent.click(screen.getByRole("button", { name: /ランダム/ }));
+    const patch = onChange.mock.calls.at(-1)?.[0];
+    expect(patch).toHaveProperty("language");
+    expect(patch).toHaveProperty("difficulty");
+  });
 });

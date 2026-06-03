@@ -36,17 +36,20 @@ describe("ProblemEditor（T050/T051）", () => {
     expect(screen.getByText(/3の倍数でFizz/)).toBeTruthy();
   });
 
-  it("出所バッジ（定型）が表示される（FR-015）", () => {
+  it("難易度・言語バッジが表示される（課題シート型）", () => {
     render(
       <ProblemEditor
         problem={baseProblem}
+        difficulty="easy"
+        language="TypeScript"
         onEdit={noop}
         onCopy={noop}
         onRegenerate={noop}
         onPaste={noop}
       />,
     );
-    expect(screen.getByText(/定型|fallback|Template/i)).toBeTruthy();
+    expect(screen.getByText("初級")).toBeTruthy();
+    expect(screen.getByText("TypeScript")).toBeTruthy();
   });
 
   it("コピーボタンを押すと onCopy が呼ばれる（FR-013）", () => {
@@ -77,7 +80,7 @@ describe("ProblemEditor（T050/T051）", () => {
         onPaste={noop}
       />,
     );
-    const regenBtn = screen.getByRole("button", { name: /やり直|再生成|regenerate/i });
+    const regenBtn = screen.getByRole("button", { name: /別のお題|やり直|再生成/i });
     fireEvent.click(regenBtn);
     expect(onRegenerate).toHaveBeenCalledOnce();
   });
@@ -98,17 +101,17 @@ describe("ProblemEditor（T050/T051）", () => {
     expect(onPaste).toHaveBeenCalledOnce();
   });
 
-  it("AI 由来のとき AI バッジが表示される（FR-015）", () => {
+  it("持ち込み（custom）のとき持ち込みバッジが表示される", () => {
     render(
       <ProblemEditor
-        problem={{ ...baseProblem, source: "ai" }}
+        problem={{ ...baseProblem, source: "custom" }}
         onEdit={noop}
         onCopy={noop}
         onRegenerate={noop}
         onPaste={noop}
       />,
     );
-    expect(screen.getByText(/AI/i)).toBeTruthy();
+    expect(screen.getByText(/持ち込み/)).toBeTruthy();
   });
 
   it("edited=true のとき編集済みバッジが表示される（FR-038）", () => {
@@ -136,7 +139,7 @@ describe("ProblemEditor（T050/T051）", () => {
         onPaste={noop}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: /^編集$/ }));
+    fireEvent.click(screen.getByRole("button", { name: /内容を編集/ }));
     const titleInput = screen.getByLabelText("お題タイトル");
     fireEvent.change(titleInput, { target: { value: "新タイトル" } });
     fireEvent.blur(titleInput);
@@ -154,7 +157,7 @@ describe("ProblemEditor（T050/T051）", () => {
         onPaste={noop}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: /^編集$/ }));
+    fireEvent.click(screen.getByRole("button", { name: /内容を編集/ }));
     const reqInput = screen.getByLabelText(/要件/);
     fireEvent.change(reqInput, { target: { value: "条件A\n条件B\n条件C" } });
     fireEvent.blur(reqInput);
@@ -214,7 +217,7 @@ describe("ProblemEditor（T050/T051）", () => {
         onPaste={noop}
       />,
     );
-    expect(screen.queryByRole("button", { name: /^編集$/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /内容を編集/ })).toBeNull();
     // コピーは全員可（FR-013）
     expect(screen.getByRole("button", { name: /コピー/ })).toBeTruthy();
   });

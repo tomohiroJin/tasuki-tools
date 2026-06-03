@@ -105,19 +105,21 @@ describe("Session × ProblemEditor 結合（項目3）", () => {
   it("problem があるとき ProblemEditor を描画しお題タイトル・要件を表示する（FR-009 接続）", () => {
     const handlers = baseHandlers();
     render(<Session room={makeRoom()} participantId="host-1" {...handlers} />);
-    // タイトルは常時表示
+    // セッション中は折りたたみバー（⑫）。タイトルはバーに常時表示。
     expect(screen.getByText("FizzBuzz")).toBeTruthy();
-    // 要件は詳細の折りたたみ内（S2）。「詳細を表示」を開いてから確認する。
+    // バーを開く → フルカード。さらに「詳細を表示」で要件を確認する。
+    fireEvent.click(screen.getByRole("button", { name: /詳細を開く/ }));
+    expect(screen.getByRole("button", { name: /コピー/ })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /詳細を表示/ }));
     expect(screen.getByText("3の倍数はFizz")).toBeTruthy();
-    // ProblemEditor 由来の操作（コピー）が描画されている
-    expect(screen.getByRole("button", { name: /コピー/ })).toBeTruthy();
   });
 
   it("editor+ がタイトルを編集すると onEditProblem が patch で発火する（FR-038/041）", () => {
     const handlers = baseHandlers();
     render(<Session room={makeRoom()} participantId="host-1" {...handlers} />);
-    fireEvent.click(screen.getByRole("button", { name: /^編集$/ }));
+    // 折りたたみバーを開いてから編集に入る。
+    fireEvent.click(screen.getByRole("button", { name: /詳細を開く/ }));
+    fireEvent.click(screen.getByRole("button", { name: /内容を編集/ }));
     const titleInput = screen.getByLabelText("お題タイトル");
     fireEvent.change(titleInput, { target: { value: "改題FizzBuzz" } });
     fireEvent.blur(titleInput);
@@ -127,6 +129,8 @@ describe("Session × ProblemEditor 結合（項目3）", () => {
   it("観覧者には編集ボタンが出ない（編集は editor+: FR-055）", () => {
     const handlers = baseHandlers();
     render(<Session room={makeRoom()} participantId="view-1" {...handlers} />);
-    expect(screen.queryByRole("button", { name: /^編集$/ })).toBeNull();
+    // バーを開いてもフルカードに編集ボタンは無い。
+    fireEvent.click(screen.getByRole("button", { name: /詳細を開く/ }));
+    expect(screen.queryByRole("button", { name: /内容を編集/ })).toBeNull();
   });
 });

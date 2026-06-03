@@ -176,6 +176,8 @@ export function Lobby({
           <ProblemEditor
             problem={room.problem}
             canEdit={isEditor}
+            difficulty={room.config.difficulty}
+            language={room.config.language}
             onEdit={onEditProblem ?? (() => {})}
             onRegenerate={onRegenerateProblem ?? (() => {})}
             onPaste={onPasteProblem ?? (() => {})}

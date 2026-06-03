@@ -232,6 +232,9 @@ export function Session({
           <ProblemEditor
             problem={room.problem}
             canEdit={isEditor}
+            difficulty={room.config.difficulty}
+            language={room.config.language}
+            compact
             onEdit={(patch) => onEditProblem?.(patch)}
             onCopy={() => onCopyProblem?.()}
             onRegenerate={() => onRegenerateProblem?.()}
