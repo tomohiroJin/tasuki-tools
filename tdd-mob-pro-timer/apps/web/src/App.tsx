@@ -242,6 +242,11 @@ export default function App() {
     setMode("setup");
   };
 
+  // 画面遷移時は先頭へスクロールする（ロビー→セッションでタイマーが最上部に来るように・⑨）。
+  useEffect(() => {
+    if (typeof window !== "undefined") window.scrollTo({ top: 0 });
+  }, [mode]);
+
   // 共有 URL（?room=コード）で開かれたら参加画面を表示する（ゲスト自動参加は廃止）。
   // 名前を入れて「モブに参加」したときに初めて room.join する。
   const joinedFromUrlRef = useRef(false);

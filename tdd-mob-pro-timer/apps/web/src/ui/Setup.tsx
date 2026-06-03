@@ -38,7 +38,7 @@ export function Setup({ onCreateRoom }: SetupProps) {
   };
 
   return (
-    <div className="mx-auto flex min-h-[60vh] max-w-md flex-col justify-center gap-8">
+    <div className="mx-auto flex min-h-[60vh] max-w-lg flex-col justify-center gap-8">
       {/* ブランドヘッダー（グラデーションタイトル） */}
       <header className="text-center">
         <h1 className="brand-title font-black bg-gradient-to-r from-fuchsia-400 via-violet-400 to-cyan-400 bg-clip-text text-transparent">

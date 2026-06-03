@@ -224,8 +224,10 @@ body {
 /* 流動的タイポ（ブレイクポイント不要・clamp）。ブランド見出しと現ドライバー名を
  * 画面幅に対して滑らかにスケールさせる（段階クラスの飛びを解消）。 */
 .brand-title {
-  font-size: clamp(1.875rem, 1.1rem + 3vw, 3rem);
-  line-height: 1.1;
+  /* max を 2.75rem に抑え、max-w-lg のカード内で 1 行に収まるようにする（②）。 */
+  font-size: clamp(1.75rem, 1.1rem + 2.4vw, 2.75rem);
+  line-height: 1.15;
+  text-wrap: balance;
 }
 .driver-name-fluid {
   font-size: clamp(2rem, 1.2rem + 3vw, 3.5rem);

@@ -7,7 +7,7 @@ import React, { useMemo, useState, useEffect, useRef } from "react";
 import {
   Crown, ArrowRight, Play, Pause, SkipForward, Flag, RotateCcw, Coffee,
 } from "lucide-react";
-import { secondsLeft, elapsedMs } from "@tdd-mob/core/aggregate";
+import { elapsedMs } from "@tdd-mob/core/aggregate";
 import type { Room, Problem } from "@tdd-mob/core";
 import { Card, GhostButton, PrimaryButton } from "./primitives.js";
 import { CircularProgress } from "./components/CircularProgress.js";
@@ -95,14 +95,25 @@ export function Session({
   }, [room.clock.running, room.clock.anchorServerTime]);
 
   const now = nowTick;
-  const remaining = useMemo(
-    () => secondsLeft(room.clock, now, clockOffset),
-    [room.clock, now, clockOffset],
-  );
   const elapsed = useMemo(
     () => elapsedMs(room.clock, now, clockOffset),
     [room.clock, now, clockOffset],
   );
+
+  // 表示用の残り時間（⑭ 連続性）。secondsLeft は 0 でクランプされるため、稼働中に
+  // 0 を跨いだら次インターバルへ「ロールオーバー」して連続的に動かす。サーバーの
+  // 交代 snapshot（新アンカー）が届けば通常導出に滑らかに引き継がれる。
+  const displayRemaining = useMemo(() => {
+    const interval = room.clock.intervalSeconds || 1;
+    if (!room.clock.running) return room.clock.secondsLeftAtAnchor;
+    const raw =
+      room.clock.secondsLeftAtAnchor -
+      (now + clockOffset - room.clock.anchorServerTime) / 1000;
+    if (raw >= 0) return raw;
+    // 0 を過ぎた分を周回させ、止まって見えないようにする。
+    const overflow = -raw % interval;
+    return interval - overflow;
+  }, [room.clock, now, clockOffset]);
 
   const currentParticipant = room.participants.find(
     (p) => p.participantId === participantId,
@@ -122,7 +133,7 @@ export function Session({
       ? room.session.rotation[nextIndex]
       : null;
 
-  const isUrgent = room.clock.running && remaining <= URGENT_THRESHOLD_SECONDS;
+  const isUrgent = room.clock.running && displayRemaining <= URGENT_THRESHOLD_SECONDS;
 
   // 支援技術向けの離散アナウンス（FR-035）。
   // 連続カウントは読み上げず、状態変化だけを assertive リージョンへ流す。
@@ -203,7 +214,7 @@ export function Session({
   };
 
   const intervalSeconds = room.clock.intervalSeconds || 1;
-  const progress = ((intervalSeconds - remaining) / intervalSeconds) * 100;
+  const progress = ((intervalSeconds - displayRemaining) / intervalSeconds) * 100;
   const isPaused = room.session.isPaused;
   const running = room.clock.running;
 
@@ -277,12 +288,12 @@ export function Session({
                 <div
                   role="timer"
                   aria-live="off"
-                  aria-label={`残り時間 ${formatTime(remaining)}`}
+                  aria-label={`残り時間 ${formatTime(displayRemaining)}`}
                   className={`text-5xl lg:text-6xl font-black font-mono tabular-nums tracking-tight ${
                     isUrgent ? "text-red-400 animate-pulse" : "text-white"
                   } ${isPaused || room.onBreak ? "opacity-50" : ""}`}
                 >
-                  {formatTime(remaining)}
+                  {formatTime(displayRemaining)}
                 </div>
                 {isPaused && (
                   <div className="text-[10px] uppercase tracking-widest text-white/60 mt-1">Paused</div>
