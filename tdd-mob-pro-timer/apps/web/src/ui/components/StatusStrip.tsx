@@ -16,7 +16,6 @@ interface StatusStripProps {
   displayName: string;
   role: "host" | "editor" | "viewer";
   connectionStatus: ConnectionStatus;
-  problemMode?: "ai" | "fallback";
   roomCode?: string;
 }
 
@@ -46,7 +45,6 @@ export function StatusStrip({
   displayName,
   role,
   connectionStatus,
-  problemMode,
   roomCode,
 }: StatusStripProps) {
   const conn = CONNECTION_CONFIG[connectionStatus];
@@ -76,20 +74,6 @@ export function StatusStrip({
         <span aria-hidden="true">●</span>
         <span>{conn.label}</span>
       </span>
-
-      {/* 出題モードチップ */}
-      {problemMode !== undefined && (
-        <span
-          className={`rounded-lg px-2 py-0.5 font-medium ${
-            problemMode === "ai"
-              ? "bg-fuchsia-500/20 text-fuchsia-200"
-              : "bg-white/10 text-white/60"
-          }`}
-          aria-label="出題モード"
-        >
-          {problemMode === "ai" ? "AI 生成" : "定型 (fallback)"}
-        </span>
-      )}
     </div>
   );
 }

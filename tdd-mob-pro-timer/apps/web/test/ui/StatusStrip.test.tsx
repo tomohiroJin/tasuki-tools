@@ -45,15 +45,7 @@ describe("StatusStrip（T039/T040）", () => {
     expect(screen.getByText(/host|ホスト/i)).toBeTruthy();
   });
 
-  it("problemMode=ai のとき AI バッジを表示する（FR-042）", () => {
-    render(<StatusStrip {...baseProps} problemMode="ai" />);
-    expect(screen.getByText(/AI/i)).toBeTruthy();
-  });
-
-  it("problemMode=fallback のとき定型バッジを表示する（FR-042）", () => {
-    render(<StatusStrip {...baseProps} problemMode="fallback" />);
-    expect(screen.getByText(/定型|fallback|Template/i)).toBeTruthy();
-  });
+  // 出題モード（AI/定型）バッジは AI 撤去に伴い廃止（定型のみのため表示しない）。
 
   it("roomCode を表示する（FR-036）", () => {
     render(<StatusStrip {...baseProps} roomCode="ABCD01" />);

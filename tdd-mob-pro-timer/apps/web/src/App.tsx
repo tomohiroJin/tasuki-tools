@@ -9,11 +9,8 @@ import { Lobby } from "./ui/Lobby.js";
 import { Session } from "./ui/Session.js";
 import { Summary, type EndType } from "./ui/Summary.js";
 import { StatusStrip, type ConnectionStatus } from "./ui/components/StatusStrip.js";
-import { AiSettingsModal } from "./ui/components/AiSettingsModal.js";
-import { saveApiKey, clearApiKey, loadApiKey } from "./ai/key-storage.js";
 import { SyncClient } from "./sync/client.js";
 import { NoAiProvider } from "./ai/no-ai.js";
-import { ByokProvider } from "./ai/byok.js";
 import type { ProblemProvider } from "./ai/provider.js";
 import { screenForPhase } from "./ui/screen.js";
 import { Stage } from "./ui/primitives.js";
@@ -25,8 +22,8 @@ import type { Room, SessionConfig, CompletionRecord, Problem } from "@tdd-mob/co
 /** ローカルに API 鍵があれば BYOK、無ければ定型のみのプロバイダを返す。
  *  鍵の保存先（session/local）は key-storage が一元管理する（AI 設定モーダルと同じ経路）。 */
 function resolveProvider(): ProblemProvider {
-  const key = loadApiKey();
-  return key ? new ByokProvider({ apiKey: key }) : new NoAiProvider();
+  // AI はいったん撤去。常に定型バンク（NoAiProvider）を使う。
+  return new NoAiProvider();
 }
 
 type AppMode = "setup" | "join" | "lobby" | "session" | "celebration";
@@ -57,12 +54,8 @@ export default function App() {
   const [endType, setEndType] = useState<EndType>("complete");
   // セッション喪失（room-not-found）。StatusStrip を lost 表示にし、再接続では消えない。
   const [sessionLost, setSessionLost] = useState(false);
-  // AI 設定モーダルの開閉と出題モード（AI/定型）。
-  const [aiModalOpen, setAiModalOpen] = useState(false);
-  const [problemMode, setProblemMode] = useState<"ai" | "fallback">("ai");
-  // 鍵の保存/削除後に hasKey 表示（loadApiKey() の評価）を再描画で更新するための
-  // バージョン setter。値自体は参照せず、setter 呼び出しによる再描画だけが目的。
-  const [, setKeyVersion] = useState(0);
+  // 注: AI（BYOK/サブスク）はいったん UI から撤去。お題は定型バンクのみ（NoAiProvider）。
+  // ByokProvider / AiSettingsModal / key-storage は将来の再有効化に備えて残置（休眠）。
   // onNeedProblem など closure から最新ルームの設定を参照するための ref
   const roomRef = useRef<Room | null>(null);
   // このクライアントがルーム作成者（＝当初ホスト）か。ロビーでお題生成を自動依頼する判定に使う。
@@ -239,7 +232,6 @@ export default function App() {
     setRecord(null);
     setEndType("complete");
     setSessionLost(false);
-    setAiModalOpen(false);
     isCreatorRef.current = false;
     problemRequestedRef.current = false;
     endTypeRef.current = "complete";
@@ -248,17 +240,6 @@ export default function App() {
     joinedFromUrlRef.current = false;
     setJoinCode(null);
     setMode("setup");
-  };
-
-  // ─── AI 設定（鍵・出題モード）操作 ─────────────────────────────────────────
-  // 鍵は key-storage が session/local を管理し、サーバーへは送らない（FR-017）。
-  const handleKeySave = (key: string, persistent: boolean) => {
-    saveApiKey(key, persistent);
-    setKeyVersion((v) => v + 1);
-  };
-  const handleKeyClear = () => {
-    clearApiKey();
-    setKeyVersion((v) => v + 1);
   };
 
   // 共有 URL（?room=コード）で開かれたら参加画面を表示する（ゲスト自動参加は廃止）。
@@ -386,7 +367,6 @@ export default function App() {
           onRegenerateProblem={regenerateProblem}
           onPasteProblem={pasteProblem}
           onCopyProblem={copyProblem}
-          onOpenAiSettings={() => setAiModalOpen(true)}
           onConfigSet={(patch) => client?.send({ command: "config.set", config: patch })}
           onJoinRotation={joinRotation}
           onLeaveRotation={leaveRotation}
@@ -455,7 +435,6 @@ export default function App() {
             displayName={selfName}
             role={selfRole}
             connectionStatus={connectionStatus}
-            problemMode={problemMode}
             roomCode={room?.code}
           />
         </div>
@@ -476,17 +455,6 @@ export default function App() {
       )}
 
       {renderBody()}
-
-      {/* AI 設定モーダル（鍵・出題モード）。鍵はサーバー送信しない（FR-017）。 */}
-      <AiSettingsModal
-        open={aiModalOpen}
-        mode={problemMode}
-        hasKey={loadApiKey() !== null}
-        onClose={() => setAiModalOpen(false)}
-        onModeChange={setProblemMode}
-        onKeySave={handleKeySave}
-        onKeyClear={handleKeyClear}
-      />
     </Stage>
   );
 }

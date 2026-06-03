@@ -21,7 +21,6 @@ interface LobbyProps {
   onRegenerateProblem?: () => void;
   onPasteProblem?: () => void;
   onCopyProblem?: () => void;
-  onOpenAiSettings?: () => void;
   /** セッション設定の変更（言語/難易度/間隔/オプション）。editor+ のみ。config.set を送る。 */
   onConfigSet?: (patch: Partial<SessionConfig>) => void;
   /** 自分をドライバーローテーションに加える（自名で member.add）。2層モデル。 */
@@ -38,7 +37,6 @@ export function Lobby({
   onRegenerateProblem,
   onPasteProblem,
   onCopyProblem,
-  onOpenAiSettings,
   onConfigSet,
   onJoinRotation,
   onLeaveRotation,
@@ -173,16 +171,7 @@ export function Lobby({
 
       {/* お題（開始前にここで決める・US3）。確定済みなら editor+ は編集できる。 */}
       <Card>
-        <SectionHeader
-          icon={Code}
-          color="text-fuchsia-400"
-          title="お題"
-          right={
-            onOpenAiSettings ? (
-              <GhostButton onClick={onOpenAiSettings} className="text-sm">AI 設定</GhostButton>
-            ) : undefined
-          }
-        />
+        <SectionHeader icon={Code} color="text-fuchsia-400" title="お題" />
         {room.problem ? (
           <ProblemEditor
             problem={room.problem}
