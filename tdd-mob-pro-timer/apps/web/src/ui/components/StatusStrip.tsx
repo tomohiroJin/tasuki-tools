@@ -21,10 +21,11 @@ interface StatusStripProps {
 }
 
 const PHASE_LABEL: Record<string, string> = {
-  setup: "setup",
-  lobby: "lobby",
-  session: "session",
-  celebration: "celebration",
+  setup: "準備",
+  lobby: "ロビー",
+  ready: "準備完了",
+  session: "セッション中",
+  celebration: "完了",
 };
 
 const ROLE_LABEL: Record<string, string> = {

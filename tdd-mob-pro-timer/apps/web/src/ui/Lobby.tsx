@@ -79,7 +79,10 @@ export function Lobby({
   }, [roomUrl]);
 
   return (
-    <div className="space-y-6">
+    // PC（lg+）は「左＝招待＋参加者 / 右＝設定＋お題＋開始」の2カラム。モバイルは縦積み。
+    <div className="lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start space-y-6 lg:space-y-0">
+      {/* ── 左: 招待（コード/QR）＋参加者 ── */}
+      <div className="space-y-6 lg:min-w-0">
       {/* ルームコード＋QR＋招待（1操作コピー） */}
       <Card className="text-center">
         <p className="text-sm text-white/50 mb-1">ルームコード</p>
@@ -124,7 +127,7 @@ export function Lobby({
                 <span className={`h-2 w-2 rounded-full ${presenceDotClass(p.presence)}`} aria-hidden="true" />
                 <span className="flex-1">{p.displayName}</span>
                 {/* ドライバー（rotation 内）/ 見学 の区別（§9.2・2層モデル） */}
-                <span className={`text-xs font-semibold ${inRotation ? "text-cyan-300" : "text-white/40"}`}>
+                <span className={`text-xs font-semibold ${inRotation ? "text-cyan-300" : "text-white/60"}`}>
                   {inRotation ? "ドライバー" : "見学"}
                 </span>
                 {p.role === "host" && (
@@ -155,7 +158,10 @@ export function Lobby({
           })}
         </ul>
       </Card>
+      </div>{/* /左 */}
 
+      {/* ── 右: セッション設定＋お題＋開始 ── */}
+      <div className="space-y-6 lg:min-w-0">
       {/* セッション設定（言語/難易度/間隔/詳細設定）。host(editor+) が開始前に決める。 */}
       <Card>
         <ConfigPanel
@@ -199,8 +205,9 @@ export function Lobby({
           <span className="flex items-center justify-center gap-2"><Play className="w-5 h-5" /> セッションを開始</span>
         </PrimaryButton>
       ) : (
-        <p className="text-center text-sm text-white/50">主催者のセッション開始を待っています...</p>
+        <p className="text-center text-sm text-white/60">主催者のセッション開始を待っています...</p>
       )}
+      </div>{/* /右 */}
     </div>
   );
 }

@@ -18,6 +18,7 @@ import { EndSessionZone } from "./components/EndSessionZone.js";
 import { SwitchAlert } from "./components/SwitchAlert.js";
 import { deriveAnnouncement, type AnnounceState } from "./announce.js";
 import { usePrefersReducedMotion } from "./use-reduced-motion.js";
+import { useIsWide } from "./use-breakpoint.js";
 import { playSwitchChime, vibrateSwitch } from "../platform/sound.js";
 
 interface SessionProps {
@@ -206,6 +207,11 @@ export function Session({
   const isPaused = room.session.isPaused;
   const running = room.clock.running;
 
+  // PC ではタイマーを主役として拡大する（モバイルは収まるサイズに）。
+  const isWide = useIsWide();
+  const orbitSize = isWide ? 400 : 320;
+  const ringSize = isWide ? 264 : 210;
+
   return (
     <div role="main" aria-label="セッション" className="space-y-6">
       {/* 休憩中バナー（§9.1）。タイマー停止中であることを明示する。 */}
@@ -243,6 +249,11 @@ export function Session({
         )
       )}
 
+      {/* PC（lg+）は「左＝タイマー主役＋ホスト操作 / 右＝参加者・引き継ぎ」の2カラム。
+          モバイルは素直に縦積み（space-y-6）になる。 */}
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-6 lg:items-start space-y-6 lg:space-y-0">
+      {/* ── 左（メイン）: タイマー＋ホスト操作 ── */}
+      <div className="space-y-6 lg:min-w-0">
       {/* ドライバーパネル（タイマー＝円形プログレス、人＝円周配置、現ドライバー＝Crown） */}
       <Card className={`relative overflow-hidden transition-all`}>
         <div className="absolute inset-0 bg-gradient-to-br from-fuchsia-500/20 via-transparent to-violet-500/20 pointer-events-none" />
@@ -257,14 +268,14 @@ export function Session({
           </div>
 
           <div className="flex justify-center mb-4">
-            <TeamOrbit members={room.session.rotation} currentIndex={room.session.currentIndex} size={340}>
-              <CircularProgress progress={progress} warning={isUrgent} size={220} strokeWidth={10}>
+            <TeamOrbit members={room.session.rotation} currentIndex={room.session.currentIndex} size={orbitSize}>
+              <CircularProgress progress={progress} warning={isUrgent} size={ringSize} strokeWidth={isWide ? 12 : 10}>
                 {/* タイマー（残り10秒で緊急色）。role="timer" で意味付与、aria-live は off。 */}
                 <div
                   role="timer"
                   aria-live="off"
                   aria-label={`残り時間 ${formatTime(remaining)}`}
-                  className={`text-4xl md:text-5xl font-black font-mono tabular-nums tracking-tight ${
+                  className={`text-5xl lg:text-6xl font-black font-mono tabular-nums tracking-tight ${
                     isUrgent ? "text-red-400 animate-pulse" : "text-white"
                   } ${isPaused || room.onBreak ? "opacity-50" : ""}`}
                 >
@@ -277,16 +288,16 @@ export function Session({
             </TeamOrbit>
           </div>
 
-          <div className="flex items-center justify-center gap-2 text-sm text-white/60">
+          <div className="flex items-center justify-center gap-2 text-base text-white/70">
             <ArrowRight className="w-4 h-4" aria-hidden="true" />
             次: <span className="text-white font-bold">{nextDriverName}</span>
             {room.config.navigatorEnabled && navigatorName && (
-              <span className="ml-3 text-white/40">ナビ: <span className="text-white/80">{navigatorName}</span></span>
+              <span className="ml-3 text-white/60">ナビ: <span className="text-white/90">{navigatorName}</span></span>
             )}
           </div>
 
           {/* 統計 */}
-          <div className="mt-3 flex justify-center gap-6 text-sm text-white/50">
+          <div className="mt-3 flex justify-center gap-6 text-sm text-white/60">
             <span>経過 {formatElapsed(elapsed)}</span>
             <span>交代 {room.session.totalSwitches}回</span>
           </div>
@@ -329,7 +340,10 @@ export function Session({
           />
         </Card>
       )}
+      </div>{/* /左（メイン） */}
 
+      {/* ── 右（サイド）: 参加者一覧＋引き継ぎメモ ── */}
+      <div className="space-y-6 lg:min-w-0">
       {/* 在席一覧（RosterPanel）。改名・一時離脱・代理追加・観覧表示・現ドライバー
           ハイライト（FR-046/047/048/050/051/061）。現ドライバーは rotation の名前で判定。 */}
       <Card>
@@ -383,6 +397,8 @@ export function Session({
           </Card>
         )
       )}
+      </div>{/* /右（サイド） */}
+      </div>{/* /2カラムグリッド */}
 
       {/* 交代・残り10秒・一時停止・休憩を支援技術へ通知（FR-035） */}
       <div aria-live="assertive" role="status" className="sr-only">

@@ -24,7 +24,8 @@ export function Stage({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-purple-950 text-white relative">
       <BackgroundOrbs />
-      <div className="relative max-w-5xl mx-auto px-4 py-8">{children}</div>
+      {/* PC を主役にするため広めに。Setup/Join/Summary は内側で max-w-md 等を維持。 */}
+      <div className="relative max-w-6xl mx-auto px-4 py-8">{children}</div>
     </div>
   );
 }
