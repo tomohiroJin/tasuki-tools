@@ -109,13 +109,13 @@ describe("Session × RosterPanel 結合（T057）", () => {
     expect(screen.getByText(/観覧/)).toBeTruthy();
   });
 
-  it("RosterPanel のスキップ操作が driver.skip ハンドラを participantId 付きで発火する（FR-051）", () => {
+  it("RosterPanel の離脱操作が driver.skip ハンドラを participantId 付きで発火する（FR-051）", () => {
     const handlers = baseHandlers();
     render(<Session room={makeRoom()} participantId="host-1" {...handlers} />);
-    // Carol（editor）の行内のスキップボタンを押す（編集者の SWITCH ボタンと混同しない）
+    // Carol（editor）の行内の「離脱」ボタンを押す（タイマー下の即時交代「スキップ」と混同しない）
     const list = screen.getByRole("list");
     const carolItem = within(list).getByText("Carol").closest("li") as HTMLElement;
-    const skipBtn = within(carolItem).getByRole("button", { name: /スキップ/ });
+    const skipBtn = within(carolItem).getByRole("button", { name: /離脱/ });
     fireEvent.click(skipBtn);
     expect(handlers.onDriverSkip).toHaveBeenCalledWith("edit-1");
   });

@@ -106,8 +106,10 @@ export function Session({
   // 表示用の残り時間。サーバー権威の secondsLeft をそのまま使う（0 でクランプ）。
   // 交代＝サーバーの新アンカー snapshot で「ドライバー変更」と「時間リセット」が同時に
   // 反映されるため、二重リセットや先走りロールオーバーは行わない（⑥ 致命傷の修正）。
+  // 上限を間隔でクランプする。交代直後に clockOffset 等で残りが一瞬 interval を僅かに超え、
+  // ceil 表示で「05:01」のような interval+1 秒が1フレーム出るのを防ぐ（0 下限は secondsLeft 側）。
   const displayRemaining = useMemo(
-    () => secondsLeft(room.clock, now, clockOffset),
+    () => Math.min(room.clock.intervalSeconds, secondsLeft(room.clock, now, clockOffset)),
     [room.clock, now, clockOffset],
   );
 
@@ -203,9 +205,13 @@ export function Session({
     return () => clearTimeout(id);
   }, [switchAlertName]);
 
+  // カウントダウンは ceil 表示。floor だと残り 0.9 秒でも「00:00」になり、最後の約1秒間
+  // 00:00 が据え置かれてから交代するため「時間が来てもすぐ交代しない」ラグに見える。
+  // ceil なら最後の1秒は「00:01」、真の 0（＝交代の瞬間）だけ「00:00」になり即時交代に見える。
   const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = Math.floor(seconds % 60);
+    const total = Math.ceil(Math.max(0, seconds));
+    const m = Math.floor(total / 60);
+    const s = total % 60;
     return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   };
   const formatElapsed = (ms: number) => {
@@ -229,7 +235,7 @@ export function Session({
       {room.onBreak && (
         <div
           role="status"
-          className="flex items-center justify-center gap-2 rounded-2xl border border-amber-400/40 bg-amber-400/10 px-4 py-3 text-amber-200 font-bold"
+          className="flex items-center justify-center gap-2 rounded-md border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-amber-200 font-bold"
         >
           <Coffee className="w-5 h-5" aria-hidden="true" />
           休憩中 — タイマーは停止しています
@@ -255,8 +261,8 @@ export function Session({
       ) : (
         awaitingProblem && (
           <Card>
-            <div className="py-8 text-center text-white/60" aria-live="polite">
-              <span className="inline-block h-4 w-4 animate-pulse rounded-full bg-fuchsia-400 mb-2" aria-hidden="true" />
+            <div className="py-8 text-center text-[var(--bone-subtle)]" aria-live="polite">
+              <span className="inline-block h-4 w-4 animate-pulse rounded-full bg-[var(--signal)] mb-2" aria-hidden="true" />
               <p>お題を生成中…</p>
             </div>
           </Card>
@@ -270,55 +276,62 @@ export function Session({
       <div className="space-y-6 lg:min-w-0">
       {/* ドライバーパネル（タイマー＝円形プログレス、人＝円周配置、現ドライバー＝Crown） */}
       <Card className={`relative overflow-hidden transition-all`}>
-        <div className="absolute inset-0 bg-gradient-to-br from-fuchsia-500/20 via-transparent to-violet-500/20 pointer-events-none" />
+        {/* 現ドライバー背後の微かな朱の発光（計器の照明）。虹色グラデは廃止。 */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_22%,rgba(255,74,46,0.1),transparent_58%)] pointer-events-none" />
         <div className="relative text-center py-4">
-          <div className="text-sm uppercase tracking-[0.2em] text-white/50 mb-3">Current Driver</div>
+          <div className="instrument-label mb-3">Current Driver</div>
           <div
             key={currentDriverName}
-            className="driver-name-fluid font-black mb-5 bg-gradient-to-r from-amber-300 to-orange-400 bg-clip-text text-transparent animate-fade-up"
+            className="driver-name-fluid font-black mb-5 text-[var(--bone)] animate-fade-up"
           >
-            <Crown className="w-10 h-10 md:w-12 md:h-12 inline mr-3 text-amber-400" aria-hidden="true" />
+            <Crown className="w-10 h-10 md:w-12 md:h-12 inline mr-3 text-[var(--signal)]" aria-hidden="true" />
             {currentDriverName}
           </div>
 
-          <div className="flex justify-center mb-4">
+          <div className="flex justify-center mb-4 boot-reveal" style={{ animationDelay: "60ms" }}>
             <TeamOrbit members={room.session.rotation} currentIndex={room.session.currentIndex} size={orbitSize}>
-              <CircularProgress progress={progress} warning={isUrgent} size={ringSize} strokeWidth={isWide ? 14 : 11}>
+              <CircularProgress
+                progress={progress}
+                warning={isUrgent}
+                running={running && !isPaused && !room.onBreak}
+                size={ringSize}
+                strokeWidth={isWide ? 14 : 11}
+              >
                 {/* タイマー（残り10秒で緊急色）。role="timer" で意味付与、aria-live は off。 */}
                 <div
                   role="timer"
                   aria-live="off"
                   aria-label={`残り時間 ${formatTime(displayRemaining)}`}
-                  className={`text-6xl lg:text-7xl font-black font-mono tabular-nums tracking-tight ${
-                    isUrgent ? "text-red-400 animate-pulse" : "text-white"
+                  className={`text-6xl lg:text-7xl font-black tabular tracking-tight ${
+                    isUrgent ? "text-[var(--urgent)] animate-pulse" : "text-white"
                   } ${isPaused || room.onBreak ? "opacity-50" : ""}`}
                 >
                   {formatTime(displayRemaining)}
                 </div>
                 {isPaused && (
-                  <div className="text-[10px] uppercase tracking-widest text-white/60 mt-1">Paused</div>
+                  <div className="instrument-label mt-1 text-[10px]">Paused</div>
                 )}
               </CircularProgress>
             </TeamOrbit>
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-2 text-lg text-white/70">
-            <ArrowRight className="w-5 h-5" aria-hidden="true" />
-            次: <span className="text-white font-bold">{nextDriverName}</span>
+          <div className="flex flex-wrap items-center justify-center gap-2 text-lg text-[var(--bone-muted)] boot-reveal" style={{ animationDelay: "150ms" }}>
+            <ArrowRight className="w-5 h-5 text-[var(--steel)]" aria-hidden="true" />
+            次: <span className="text-[var(--bone)] font-bold">{nextDriverName}</span>
             {room.config.navigatorEnabled && navigatorName && (
-              <span className="ml-3 text-white/60">ナビ: <span className="text-white/90">{navigatorName}</span></span>
+              <span className="ml-3 text-[var(--bone-subtle)]">ナビ: <span className="text-[var(--bone-muted)]">{navigatorName}</span></span>
             )}
           </div>
 
-          {/* 統計 */}
-          <div className="mt-4 flex justify-center gap-6 text-base text-white/60">
-            <span>経過 {formatElapsed(elapsed)}</span>
-            <span>交代 {room.session.totalSwitches}回</span>
+          {/* 統計（等幅タビュラーで計測値らしく） */}
+          <div className="mt-4 flex justify-center gap-6 text-base text-[var(--bone-subtle)]">
+            <span>経過 <span className="tabular text-[var(--bone-muted)]">{formatElapsed(elapsed)}</span></span>
+            <span>交代 <span className="tabular text-[var(--bone-muted)]">{room.session.totalSwitches}</span>回</span>
           </div>
         </div>
 
         {/* 操作（編集者：スキップ／一時停止・再開、ホスト：休憩） */}
-        <div className="relative flex flex-wrap justify-center gap-2 pt-2">
+        <div className="relative flex flex-wrap justify-center gap-2 pt-2 boot-reveal" style={{ animationDelay: "230ms" }}>
           {isEditor && (
             <>
               {isPaused || !running ? (
@@ -388,8 +401,8 @@ export function Session({
           viewer はメモがある時だけ読み取り表示する。 */}
       {isEditor ? (
         <Card>
-          <label htmlFor="shared-memo" className="flex items-center gap-2 text-sm font-semibold text-white mb-2">
-            <ArrowRight className="w-4 h-4 text-cyan-400" aria-hidden="true" />
+          <label htmlFor="shared-memo" className="flex items-center gap-2 text-sm font-semibold text-[var(--bone)] mb-2">
+            <ArrowRight className="w-4 h-4 text-[var(--signal)]" aria-hidden="true" />
             共有メモ
           </label>
           <textarea
@@ -400,14 +413,14 @@ export function Session({
             onBlur={commitNote}
             rows={2}
             placeholder="例: API のモックまで完了。残タスクやメモを全員で共有。"
-            className="w-full resize-y rounded-lg bg-white/10 border border-white/20 px-3 py-2 text-sm text-white outline-none focus:border-cyan-400 transition-colors"
+            className="w-full resize-y rounded-md bg-[var(--panel-2)] border border-[var(--hairline-strong)] px-3 py-2 text-sm text-[var(--bone)] outline-none focus:border-[var(--signal)] transition-colors"
           />
         </Card>
       ) : (
         room.handoffNote && (
           <Card>
-            <p className="text-sm text-white/80" aria-live="polite">
-              <strong className="text-white">共有メモ:</strong> {room.handoffNote}
+            <p className="text-sm text-[var(--bone-muted)]" aria-live="polite">
+              <strong className="text-[var(--bone)]">共有メモ:</strong> {room.handoffNote}
             </p>
           </Card>
         )
@@ -444,11 +457,11 @@ interface SelfDriverToggleProps {
 /** 自分のドライバー状態（ドライバー/見学中）と加入・離脱の切替（2層モデル・D1）。 */
 function SelfDriverToggle({ inRotation, canLeave, displayName, onJoin, onLeave }: SelfDriverToggleProps) {
   return (
-    <div className="mb-3 flex items-center justify-between gap-2 rounded-xl bg-white/5 border border-white/10 px-3 py-2">
+    <div className="mb-3 flex items-center justify-between gap-2 rounded-md bg-[var(--panel-2)] border border-[var(--hairline)] px-3 py-2">
       <span className="text-sm">
         あなた: {inRotation
-          ? <span className="font-semibold text-cyan-300">ドライバー</span>
-          : <span className="text-white/50">見学中</span>}
+          ? <span className="font-semibold text-[var(--signal)]">ドライバー</span>
+          : <span className="text-[var(--bone-subtle)]">見学中</span>}
       </span>
       {inRotation ? (
         <GhostButton

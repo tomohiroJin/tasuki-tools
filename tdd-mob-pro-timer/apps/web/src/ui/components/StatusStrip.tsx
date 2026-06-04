@@ -35,9 +35,9 @@ const ROLE_LABEL: Record<string, string> = {
 
 // 接続状態の色（ダークステージ上で視認できる明るめの値・色＋テキスト併記）。
 const CONNECTION_CONFIG: Record<ConnectionStatus, { label: string; className: string }> = {
-  online: { label: "接続中 (Connected)", className: "text-emerald-300" },
+  online: { label: "接続中 (Connected)", className: "text-[var(--ok)]" },
   reconnecting: { label: "再接続中… (Reconnecting)", className: "text-amber-300" },
-  lost: { label: "セッション喪失 (Session Lost)", className: "text-red-300" },
+  lost: { label: "セッション喪失 (Session Lost)", className: "text-[var(--urgent)]" },
 };
 
 export function StatusStrip({
@@ -53,20 +53,20 @@ export function StatusStrip({
     <div
       role="status"
       aria-label="ステータス情報"
-      className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 px-4 py-2 text-xs text-white/60"
+      className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-md bg-[var(--panel)] border border-[var(--hairline)] px-4 py-2 text-xs text-[var(--bone-subtle)]"
     >
       {/* フェーズ + ルームコード */}
       <span className="flex items-center gap-1">
         <span aria-label="フェーズ">{PHASE_LABEL[phase] ?? phase}</span>
         {roomCode && (
-          <span className="font-mono text-white/60">({roomCode})</span>
+          <span className="tabular text-[var(--signal)]">({roomCode})</span>
         )}
       </span>
 
       {/* 自分の名前と役割 */}
       <span className="flex items-center gap-1">
-        <span className="text-white">{displayName}</span>
-        <span className="text-white/60">/ {ROLE_LABEL[role] ?? role}</span>
+        <span className="text-[var(--bone)]">{displayName}</span>
+        <span className="text-[var(--bone-subtle)]">/ {ROLE_LABEL[role] ?? role}</span>
       </span>
 
       {/* 接続状態（色＋テキスト併記） */}

@@ -8,6 +8,10 @@ import type { Clock } from "../ports/clock.js";
 
 export type SwitchCallback = (roomCode: string) => void;
 
+/** 1 刻みの最大待機(ms)。長い単発 setTimeout はランタイム/負荷でドリフトするため、
+ * 締切まで最大この間隔で区切り、毎回壁時計から残りを再計算して待ち直す（自己補正）。 */
+const MAX_TICK_MS = 1000;
+
 export class Scheduler {
   private readonly timers = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly clock: Clock;
@@ -17,8 +21,9 @@ export class Scheduler {
   }
 
   /**
-   * ルームのタイマーをスケジュールする
-   * 前のタイマーがあれば上書きする
+   * ルームのタイマーをスケジュールする（前のタイマーがあれば上書き）。
+   * 締切の絶対時刻を固定し、自己補正チャンクで待つことで総間隔が長くても
+   * タイマードリフトを累積させず、交代を締切から 1 刻み未満の精度で発火させる。
    */
   schedule(
     roomCode: string,
@@ -26,13 +31,27 @@ export class Scheduler {
     onSwitch: SwitchCallback,
   ): void {
     this.clear(roomCode);
+    const deadline = this.clock.now() + Math.max(0, secondsLeft * 1000);
+    this.armTick(roomCode, deadline, onSwitch);
+  }
 
-    const ms = Math.max(0, secondsLeft * 1000);
-    const timer = setTimeout(() => {
+  /** 締切(絶対epoch)まで最大 MAX_TICK_MS 刻みで待ち、毎回壁時計から残りを再計算する。 */
+  private armTick(
+    roomCode: string,
+    deadline: number,
+    onSwitch: SwitchCallback,
+  ): void {
+    const remaining = deadline - this.clock.now();
+    if (remaining <= 0) {
       this.timers.delete(roomCode);
       onSwitch(roomCode);
-    }, ms);
-
+      return;
+    }
+    const wait = Math.min(remaining, MAX_TICK_MS);
+    const timer = setTimeout(
+      () => this.armTick(roomCode, deadline, onSwitch),
+      wait,
+    );
     this.timers.set(roomCode, timer);
   }
 

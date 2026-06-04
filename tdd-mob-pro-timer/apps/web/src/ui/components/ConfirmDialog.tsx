@@ -13,7 +13,7 @@ interface ConfirmDialogProps {
   description?: string;
   confirmLabel: string;
   cancelLabel?: string;
-  /** 確認ボタンの色味。"danger"（赤・既定）か "primary"（fuchsia）。 */
+  /** 確認ボタンの色味。"danger"（赤・既定）か "primary"（シグナル朱）。 */
   confirmIntent?: "danger" | "primary";
   onConfirm: () => void;
   onCancel: () => void;
@@ -44,12 +44,12 @@ export function ConfirmDialog({
 
   const confirmClass =
     confirmIntent === "primary"
-      ? "bg-gradient-to-r from-fuchsia-500 to-violet-500 hover:from-fuchsia-400 hover:to-violet-400 shadow-fuchsia-500/30"
-      : "bg-red-500/90 hover:bg-red-500 shadow-red-500/30 ring-1 ring-red-400/40";
+      ? "bg-[var(--signal)] hover:bg-[#ff6147] text-[#160603] shadow-[0_0_0_1px_rgba(255,74,46,0.5),0_6px_20px_var(--signal-glow)]"
+      : "bg-[rgba(255,53,42,0.9)] hover:bg-[var(--urgent)] text-white shadow-[0_4px_16px_rgba(255,53,42,0.3)] ring-1 ring-[rgba(255,53,42,0.4)]";
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
       onClick={onCancel}
     >
       <div
@@ -57,28 +57,28 @@ export function ConfirmDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="confirm-title"
-        className="w-full max-w-sm rounded-2xl border border-white/10 bg-slate-900/90 backdrop-blur-md p-5 shadow-2xl text-white"
+        className="relative w-full max-w-sm rounded-lg border border-[var(--hairline-strong)] bg-[var(--panel)] p-5 shadow-[inset_0_1px_0_rgba(236,232,220,0.05),0_20px_50px_rgba(0,0,0,0.6)] text-[var(--bone)]"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 id="confirm-title" className="text-lg font-bold text-white">
+        <h2 id="confirm-title" className="text-lg font-bold text-[var(--bone)]">
           {title}
         </h2>
         {description && (
-          <p className="mt-2 text-sm text-white/70">{description}</p>
+          <p className="mt-2 text-sm text-[var(--bone-muted)]">{description}</p>
         )}
         <div className="mt-5 flex justify-end gap-3">
           <button
             ref={cancelRef}
             type="button"
             onClick={onCancel}
-            className="px-4 py-2 rounded-xl font-medium bg-white/10 hover:bg-white/20 border border-white/10 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+            className="px-4 py-2 rounded-md font-medium text-[var(--bone)] bg-[var(--panel-2)] hover:bg-[#252934] border border-[var(--hairline-strong)] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]"
           >
             {cancelLabel}
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className={`px-5 py-2 rounded-xl font-bold text-white shadow-lg transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 ${confirmClass}`}
+            className={`px-5 py-2 rounded-md font-bold transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)] ${confirmClass}`}
           >
             {confirmLabel}
           </button>

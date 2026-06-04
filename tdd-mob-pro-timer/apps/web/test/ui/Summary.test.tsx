@@ -31,7 +31,8 @@ describe("Summary（T047/T048）", () => {
         onSaveRecord={noop}
       />,
     );
-    expect(screen.getByText(/完了|Complete|完成/i)).toBeTruthy();
+    // 見出しで達成を示す（計器ラベル "Session Complete" とも併記されるため heading を特定する）
+    expect(screen.getByRole("heading", { name: /完了|完成/ })).toBeTruthy();
   });
 
   it("中断（endType=abort）では中断を示すタイトルを表示し「完了」と区別される（FR-020/044）", () => {

@@ -32,25 +32,28 @@ export function Summary({ endType, record, onNewSession, onSaveRecord }: Summary
 
   return (
     <div className="mx-auto flex max-w-md flex-col items-center gap-6 text-center">
-      {/* タイトル: 完成/中断で明確に出し分け（完成はグラデで祝祭感） */}
+      {/* タイトル: 完成/中断で明確に出し分け（完成はシグナル朱で達成感） */}
       {isComplete ? (
-        <h2 className="text-3xl font-black bg-gradient-to-r from-amber-300 via-orange-400 to-fuchsia-400 bg-clip-text text-transparent">
-          セッション完了
-        </h2>
+        <>
+          <p className="instrument-label text-[var(--signal)]">Session Complete</p>
+          <h2 className="text-3xl font-black text-[var(--bone)]">
+            セッション完了
+          </h2>
+        </>
       ) : (
-        <h2 className="text-2xl font-bold text-white/80">セッション終了（中断）</h2>
+        <h2 className="text-2xl font-bold text-[var(--bone-muted)]">セッション終了（中断）</h2>
       )}
 
       {/* 達成バナー（完成時のみ・S1）。中断では出さない（達成として扱わない）。 */}
       {isComplete && (
         <div
           aria-label="達成"
-          className="w-full rounded-2xl border border-amber-400/40 bg-amber-400/10 p-5 text-amber-200"
+          className="w-full rounded-md border border-[rgba(255,74,46,0.4)] bg-[rgba(255,74,46,0.1)] p-5 text-[var(--signal)]"
         >
           <p className="text-2xl font-bold flex items-center justify-center gap-2">
             <Trophy className="w-7 h-7" /> ナイスワーク！
           </p>
-          <p className="mt-1 text-sm text-white/70">
+          <p className="mt-1 text-sm text-[var(--bone-muted)]">
             お題をやり遂げました。お疲れさまでした。
           </p>
         </div>
@@ -61,37 +64,37 @@ export function Summary({ endType, record, onNewSession, onSaveRecord }: Summary
         <>
           <div className="grid w-full grid-cols-3 gap-3">
             <Card className="p-4">
-              <p className="text-sm text-white/50">所要時間</p>
-              <p className="text-xl font-bold text-white">{formatTime(record.elapsedSeconds)}</p>
+              <p className="instrument-label">所要時間</p>
+              <p className="whitespace-nowrap text-xl font-bold tabular text-[var(--bone)]">{formatTime(record.elapsedSeconds)}</p>
             </Card>
             <Card className="p-4">
-              <p className="text-sm text-white/50">交代回数</p>
-              <p className="text-xl font-bold text-white">{record.totalSwitches}回</p>
+              <p className="instrument-label">交代回数</p>
+              <p className="whitespace-nowrap text-xl font-bold tabular text-[var(--bone)]">{record.totalSwitches}回</p>
             </Card>
             <Card className="p-4">
-              <p className="text-sm text-white/50">周回数</p>
-              <p className="text-xl font-bold text-white">{record.rounds ?? 0}周</p>
+              <p className="instrument-label">周回数</p>
+              <p className="whitespace-nowrap text-xl font-bold tabular text-[var(--bone)]">{record.rounds ?? 0}周</p>
             </Card>
           </div>
 
           {/* 個人別ドライバー回数（偏りが一目で分かるバー・UX 再設計の振り返り） */}
           {record.driverCounts && record.driverCounts.length > 0 && (
             <Card className="w-full p-4 text-left">
-              <p className="text-sm font-semibold text-white mb-3">ドライバー別の回数</p>
+              <p className="instrument-label mb-3">ドライバー別の回数</p>
               <ul className="space-y-2">
                 {record.members.map((name, i) => {
                   const count = record.driverCounts?.[i] ?? 0;
                   const max = Math.max(1, ...(record.driverCounts ?? [1]));
                   return (
                     <li key={`${name}-${i}`} className="flex items-center gap-3 text-sm">
-                      <span className="w-24 truncate text-white/80">{name}</span>
-                      <span className="flex-1 h-2 rounded-full bg-white/10 overflow-hidden">
+                      <span className="w-24 truncate text-[var(--bone-muted)]">{name}</span>
+                      <span className="flex-1 h-2 rounded-sm bg-[var(--panel-2)] overflow-hidden">
                         <span
-                          className="block h-full bg-gradient-to-r from-fuchsia-400 to-cyan-400"
+                          className="block h-full bg-[var(--signal)]"
                           style={{ width: `${(count / max) * 100}%` }}
                         />
                       </span>
-                      <span className="w-10 text-right text-white/70">{count}回</span>
+                      <span className="w-10 text-right tabular text-[var(--bone-muted)]">{count}回</span>
                     </li>
                   );
                 })}
@@ -109,7 +112,7 @@ export function Summary({ endType, record, onNewSession, onSaveRecord }: Summary
 
       {/* 中断時のメッセージ */}
       {!isComplete && (
-        <p className="text-white/60 text-sm">
+        <p className="text-[var(--bone-subtle)] text-sm">
           記録は残りません。お疲れさまでした。
         </p>
       )}

@@ -37,17 +37,18 @@ export function Join({ code, onJoin }: JoinProps) {
   return (
     <div className="mx-auto flex min-h-[60vh] max-w-lg flex-col justify-center gap-8">
       <header className="text-center">
-        <h1 className="brand-title font-black bg-gradient-to-r from-fuchsia-400 via-violet-400 to-cyan-400 bg-clip-text text-transparent">
+        <p className="instrument-label mb-2 text-[var(--signal)]">Join Session</p>
+        <h1 className="brand-title font-black text-[var(--bone)]">
           モブに参加
         </h1>
-        <p className="text-white/60 mt-2 text-sm">
-          ルーム <span className="font-mono font-bold text-white">{code}</span> に参加します
+        <p className="text-[var(--bone-muted)] mt-2 text-sm">
+          ルーム <span className="tabular font-bold text-[var(--signal)]">{code}</span> に参加します
         </p>
       </header>
 
       <Card>
-        <label htmlFor="join-name" className="flex items-center gap-2 text-sm font-semibold text-white mb-3">
-          <UserRound className="w-4 h-4 text-fuchsia-400" aria-hidden="true" />
+        <label htmlFor="join-name" className="flex items-center gap-2 text-sm font-semibold text-[var(--bone)] mb-3">
+          <UserRound className="w-4 h-4 text-[var(--signal)]" aria-hidden="true" />
           あなたの名前
         </label>
         <input
@@ -60,7 +61,7 @@ export function Join({ code, onJoin }: JoinProps) {
           }}
           placeholder="例: Bob"
           autoFocus
-          className="w-full rounded-lg bg-white/10 border border-white/20 px-4 py-3 text-white text-lg outline-none focus:border-fuchsia-400 transition-colors"
+          className="w-full rounded-md bg-[var(--panel-2)] border border-[var(--hairline-strong)] px-4 py-3 text-[var(--bone)] text-lg outline-none focus:border-[var(--signal)] transition-colors"
         />
         <PrimaryButton onClick={handleJoin} disabled={!canJoin} className="w-full mt-4 text-lg py-3">
           <span className="flex items-center justify-center gap-2">
@@ -68,7 +69,7 @@ export function Join({ code, onJoin }: JoinProps) {
             モブに参加
           </span>
         </PrimaryButton>
-        <p className="mt-3 text-center text-xs text-white/60">
+        <p className="mt-3 text-center text-xs text-[var(--bone-subtle)]">
           参加後は「ドライバーに加わる」で交代の輪に入れます。見学だけでも OK です。
         </p>
       </Card>

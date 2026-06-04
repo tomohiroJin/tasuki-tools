@@ -476,10 +476,10 @@ export default function App() {
         <div
           role={banner.kind === "error" ? "alert" : "status"}
           aria-live={banner.kind === "error" ? "assertive" : "polite"}
-          className={`mb-4 rounded-xl px-4 py-2 text-center text-sm backdrop-blur-sm border ${
+          className={`mb-4 rounded-md px-4 py-2 text-center text-sm border ${
             banner.kind === "error"
-              ? "bg-red-500/20 border-red-400/40 text-red-100"
-              : "bg-amber-500/20 border-amber-400/40 text-amber-100"
+              ? "bg-[rgba(255,53,42,0.15)] border-[rgba(255,53,42,0.45)] text-[#ffd5d1]"
+              : "bg-amber-500/15 border-amber-400/40 text-amber-100"
           }`}
         >
           {banner.text}

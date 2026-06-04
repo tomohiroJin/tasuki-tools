@@ -47,7 +47,7 @@ function RowIconButton({
       disabled={disabled}
       aria-label={label}
       title={label}
-      className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed border border-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+      className="grid h-10 w-10 sm:h-8 sm:w-8 shrink-0 place-items-center rounded-md bg-[var(--panel)] hover:bg-[#252934] disabled:opacity-30 disabled:cursor-not-allowed border border-[var(--hairline)] text-[var(--bone-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]"
     >
       <Icon className="w-4 h-4" />
     </button>
@@ -110,14 +110,14 @@ export function Lobby({
       <div className="space-y-6 lg:min-w-0">
       {/* ルームコード＋QR＋招待（1操作コピー） */}
       <Card className="text-center">
-        <p className="text-sm text-white/50 mb-2">ルームコード</p>
+        <p className="instrument-label mb-2">ルームコード</p>
         <div className="flex flex-wrap items-center justify-center gap-3">
-          <span className="font-mono text-4xl md:text-5xl font-black tracking-wider break-all bg-gradient-to-r from-fuchsia-400 to-cyan-400 bg-clip-text text-transparent">
+          <span className="tabular text-4xl md:text-5xl font-black tracking-wider break-all text-[var(--signal)]">
             {room.code}
           </span>
           <GhostButton onClick={() => copyText(room.code)} aria-label="ルームコードをコピー">
             <span className="flex items-center gap-1 text-sm">
-              {copied ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
+              {copied ? <Check className="w-4 h-4 text-[var(--ok)]" /> : <Copy className="w-4 h-4" />}
               {copied ? "コピーしました" : "コピー"}
             </span>
           </GhostButton>
@@ -138,7 +138,7 @@ export function Lobby({
 
       {/* 参加者一覧 */}
       <Card>
-        <SectionHeader icon={Users} color="text-violet-400" title={`参加者 (${room.participants.length}人)`} />
+        <SectionHeader icon={Users} color="text-[var(--signal)]" title={`参加者 (${room.participants.length}人)`} />
         <ul className="space-y-1.5">
           {room.participants.map((p) => {
             const rotationIndex = room.session.rotation.indexOf(p.displayName);
@@ -149,20 +149,22 @@ export function Lobby({
             return (
               <li
                 key={p.participantId}
-                className="flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm text-white"
+                className="flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-md bg-[var(--panel-2)] border border-[var(--hairline)] px-3 py-2 text-sm text-[var(--bone)]"
               >
                 <span className={`h-2 w-2 shrink-0 rounded-full ${presenceDotClass(p.presence)}`} aria-hidden="true" />
                 <span className="min-w-0 flex-1 truncate font-medium">{p.displayName}</span>
                 {/* ドライバー（順番つき）/ 見学 の区別（§9.2・④ 順番可視化） */}
                 <span
-                  className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${
-                    inRotation ? "bg-cyan-500/20 text-cyan-200" : "bg-white/10 text-white/60"
+                  className={`shrink-0 rounded-sm px-2 py-0.5 text-xs font-semibold tabular ${
+                    inRotation
+                      ? "bg-[rgba(255,74,46,0.14)] text-[var(--signal)] border border-[rgba(255,74,46,0.3)]"
+                      : "bg-[var(--panel)] text-[var(--bone-subtle)] border border-[var(--hairline)]"
                   }`}
                 >
                   {inRotation ? `ドライバー${rotationIndex + 1}` : "見学"}
                 </span>
                 {p.role === "host" && (
-                  <span className="shrink-0 rounded-full bg-fuchsia-500/20 px-2 py-0.5 text-xs font-semibold text-fuchsia-300">主催者</span>
+                  <span className="instrument-label shrink-0 rounded-sm bg-[var(--panel)] px-2 py-0.5 border border-[var(--hairline-strong)] text-[var(--bone-muted)]">主催者</span>
                 )}
 
                 {/* 操作エリア（本人＝加入/離脱、ホスト＝他人の加入/離脱・並び替え・退出） */}
@@ -246,7 +248,7 @@ export function Lobby({
 
       {/* お題（開始前にここで決める・US3）。確定済みなら editor+ は編集できる。 */}
       <Card>
-        <SectionHeader icon={Code} color="text-fuchsia-400" title="お題" />
+        <SectionHeader icon={Code} color="text-[var(--signal)]" title="お題" />
         {room.problem ? (
           <ProblemEditor
             problem={room.problem}
@@ -259,8 +261,8 @@ export function Lobby({
             onCopy={onCopyProblem ?? (() => {})}
           />
         ) : (
-          <div className="py-8 text-center text-white/60">
-            <span className="inline-block h-4 w-4 animate-pulse rounded-full bg-fuchsia-400 mb-2" aria-hidden="true" />
+          <div className="py-8 text-center text-[var(--bone-subtle)]">
+            <span className="inline-block h-4 w-4 animate-pulse rounded-full bg-[var(--signal)] mb-2" aria-hidden="true" />
             <p>お題を準備中です…</p>
           </div>
         )}

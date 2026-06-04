@@ -19,6 +19,19 @@ describe("Scheduler: サーバー権威タイマー（FR-003）", () => {
     vi.useRealTimers();
   });
 
+  /** 自己補正スケジューラは毎刻み clock.now() を読むため、テストでも時計とタイマーを
+   *  同期させて進める（本番の Date.now() は実時間で進むのと同じ）。刻み <= MAX_TICK_MS。 */
+  const advance = (ms: number): void => {
+    const STEP = 100;
+    let remaining = ms;
+    while (remaining > 0) {
+      const step = Math.min(STEP, remaining);
+      clock.advance(step);
+      vi.advanceTimersByTime(step);
+      remaining -= step;
+    }
+  };
+
   it("schedule で setTimeout が1本設定される", () => {
     const scheduler = new Scheduler(clock);
     const onSwitch = vi.fn();
@@ -34,7 +47,7 @@ describe("Scheduler: サーバー権威タイマー（FR-003）", () => {
     const onSwitch = vi.fn();
 
     scheduler.schedule("ROOM01", 300, onSwitch);
-    vi.advanceTimersByTime(300 * 1000 + 100);
+    advance(300 * 1000 + 100);
 
     expect(onSwitch).toHaveBeenCalledOnce();
     expect(onSwitch).toHaveBeenCalledWith("ROOM01");
@@ -47,7 +60,7 @@ describe("Scheduler: サーバー権威タイマー（FR-003）", () => {
     scheduler.schedule("ROOM01", 300, onSwitch);
     scheduler.clear("ROOM01");
 
-    vi.advanceTimersByTime(300 * 1000 + 100);
+    advance(300 * 1000 + 100);
 
     expect(onSwitch).not.toHaveBeenCalled();
   });
@@ -60,7 +73,7 @@ describe("Scheduler: サーバー権威タイマー（FR-003）", () => {
     scheduler.schedule("ROOM01", 60, onSwitch);
 
     // 60秒後に発火
-    vi.advanceTimersByTime(60 * 1000 + 100);
+    advance(60 * 1000 + 100);
     expect(onSwitch).toHaveBeenCalledOnce();
   });
 
@@ -72,11 +85,11 @@ describe("Scheduler: サーバー権威タイマー（FR-003）", () => {
     scheduler.schedule("ROOM01", 60, onSwitch1);
     scheduler.schedule("ROOM02", 120, onSwitch2);
 
-    vi.advanceTimersByTime(60 * 1000 + 100);
+    advance(60 * 1000 + 100);
     expect(onSwitch1).toHaveBeenCalledOnce();
     expect(onSwitch2).not.toHaveBeenCalled();
 
-    vi.advanceTimersByTime(60 * 1000);
+    advance(60 * 1000);
     expect(onSwitch2).toHaveBeenCalledOnce();
   });
 });

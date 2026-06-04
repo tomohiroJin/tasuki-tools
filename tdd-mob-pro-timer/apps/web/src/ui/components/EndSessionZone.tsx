@@ -56,11 +56,11 @@ export function EndSessionZone({
       aria-label="セッションを終える"
       className="flex flex-wrap justify-center gap-2"
     >
-      {/* 完成（達成として記録する）。最重要なので amber グラデで強調。 */}
+      {/* 完成（達成として記録する）。正常完了は計器の安全色（緑）で強調し、危険操作と峻別する。 */}
       <button
         type="button"
         onClick={onComplete}
-        className="px-5 py-2 rounded-xl font-bold bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-black transition-all shadow-lg shadow-amber-500/40 active:scale-95 ring-1 ring-amber-300/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200"
+        className="px-5 py-2 rounded-md font-bold bg-[var(--ok)] hover:bg-[#4ac28c] text-[#04130c] transition-all shadow-[0_0_0_1px_rgba(63,178,127,0.5),0_4px_16px_rgba(63,178,127,0.3)] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ok)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]"
       >
         <span className="flex items-center gap-2"><Flag className="w-4 h-4" /> 完成!</span>
       </button>
@@ -74,7 +74,7 @@ export function EndSessionZone({
       <button
         type="button"
         onClick={() => setPending("reset")}
-        className="px-4 py-2 rounded-xl font-medium bg-red-500/80 hover:bg-red-500 text-white border border-red-400/40 transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
+        className="px-4 py-2 rounded-md font-medium bg-[rgba(255,53,42,0.85)] hover:bg-[var(--urgent)] text-white border border-[rgba(255,53,42,0.4)] transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--urgent)]"
       >
         <span className="flex items-center gap-2"><RotateCcw className="w-4 h-4" /> リセット</span>
       </button>

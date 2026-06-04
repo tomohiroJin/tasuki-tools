@@ -1,36 +1,41 @@
 /**
- * 没入型ステージ UI の共通プリミティブ（参考デザイン準拠）
+ * 計器（Mob Chronometer）UI の共通プリミティブ
  *
- * Stage（グラデ背景＋浮遊 orbs）・Card（glassmorphism）・各種ボタン・SectionHeader。
- * 全画面でこれらを使い、一貫した視覚言語（ダーク基調・glass・fuchsia/violet/cyan アクセント）を実現する。
+ * 夜のコックピットの精密計器をモチーフにした視覚言語:
+ * - Stage（ほぼ黒の盤面＋製図グリッド＋グレイン＋ビネット。地は index.css の .instrument-stage）
+ * - Card（計器パネル: ヘアライン枠＋コーナーティック＋内側の僅かな立ち上がり）
+ * - 主操作はシグナル朱、副操作はスチール枠のゴースト
+ * 全画面でこれらを使い、単一アクセント（朱）と等幅刻印で一貫した「計測器」感を出す。
  */
 
 import React from "react";
 import type { LucideIcon } from "lucide-react";
 
-/** 背景の浮遊する光の玉（drift アニメ）。reduced-motion で静止する。 */
-export function BackgroundOrbs() {
-  return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
-      <div className="absolute -top-32 -left-32 w-[420px] h-[420px] rounded-full bg-fuchsia-500/15 blur-3xl animate-drift-1" />
-      <div className="absolute -bottom-32 -right-32 w-[500px] h-[500px] rounded-full bg-cyan-500/15 blur-3xl animate-drift-2" />
-      <div className="absolute top-1/3 right-1/4 w-[340px] h-[340px] rounded-full bg-violet-500/20 blur-3xl animate-drift-3" />
-    </div>
-  );
-}
-
-/** 全画面共通の舞台。ダークグラデ＋orbs＋中央寄せコンテナ（max-w-5xl）。 */
+/** 全画面共通の舞台。計器盤面（grid+grain+vignette は CSS の ::before/::after）＋中央寄せコンテナ。 */
 export function Stage({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-purple-950 text-white relative">
-      <BackgroundOrbs />
+    <div className="instrument-stage text-[var(--bone)]">
       {/* PC を主役にするため広めに。Setup/Join/Summary は内側で max-w-md 等を維持。 */}
       <div className="relative max-w-6xl mx-auto px-4 py-10 md:py-12">{children}</div>
     </div>
   );
 }
 
-/** glassmorphism カード。 */
+/** 計器パネルの四隅に置く小さなコーナーティック（盤面の位置決めマーク）。装飾なので aria-hidden。 */
+function CornerTicks() {
+  const base = "pointer-events-none absolute h-2.5 w-2.5";
+  const c = "border-[rgba(236,232,220,0.22)]";
+  return (
+    <>
+      <span className={`${base} left-2 top-2 border-l border-t ${c}`} aria-hidden="true" />
+      <span className={`${base} right-2 top-2 border-r border-t ${c}`} aria-hidden="true" />
+      <span className={`${base} left-2 bottom-2 border-l border-b ${c}`} aria-hidden="true" />
+      <span className={`${base} right-2 bottom-2 border-r border-b ${c}`} aria-hidden="true" />
+    </>
+  );
+}
+
+/** 計器パネル。ヘアライン枠＋四隅ティック＋上端の僅かな立ち上がり（盤面のベゼル）。 */
 export function Card({
   children,
   className = "",
@@ -40,8 +45,9 @@ export function Card({
 }) {
   return (
     <div
-      className={`bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 md:p-7 ${className}`}
+      className={`relative rounded-lg border border-[var(--hairline)] bg-[var(--panel)] p-6 md:p-7 shadow-[inset_0_1px_0_rgba(236,232,220,0.05),0_10px_30px_rgba(0,0,0,0.5)] ${className}`}
     >
+      <CornerTicks />
       {children}
     </div>
   );
@@ -51,12 +57,12 @@ interface BtnProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
 }
 
-/** 主操作ボタン（fuchsia→violet グラデ＋発光）。 */
+/** 主操作ボタン（シグナル朱・実体ボタン＝計測開始/確定の唯一の朱）。 */
 export function PrimaryButton({ children, className = "", ...rest }: BtnProps) {
   return (
     <button
       type="button"
-      className={`px-6 py-3 rounded-xl font-bold bg-gradient-to-r from-fuchsia-500 to-violet-500 hover:from-fuchsia-400 hover:to-violet-400 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-lg shadow-fuchsia-500/30 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-300 ${className}`}
+      className={`px-6 py-3 rounded-md font-bold tracking-wide text-[#160603] bg-[var(--signal)] hover:bg-[#ff6147] disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-[0_0_0_1px_rgba(255,74,46,0.5),0_6px_20px_var(--signal-glow)] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)] ${className}`}
       {...rest}
     >
       {children}
@@ -64,12 +70,12 @@ export function PrimaryButton({ children, className = "", ...rest }: BtnProps) {
   );
 }
 
-/** 副操作ボタン（glass）。 */
+/** 副操作ボタン（スチール枠のゴースト）。 */
 export function GhostButton({ children, className = "", ...rest }: BtnProps) {
   return (
     <button
       type="button"
-      className={`px-4 py-2 rounded-xl font-medium bg-white/10 hover:bg-white/20 disabled:opacity-40 transition-all border border-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${className}`}
+      className={`px-4 py-2 rounded-md font-medium text-[var(--bone)] bg-[var(--panel-2)] hover:bg-[#252934] disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95 border border-[var(--hairline-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)] ${className}`}
       {...rest}
     >
       {children}
@@ -89,7 +95,7 @@ export function IconButton({
       type="button"
       title={title}
       aria-label={title}
-      className={`w-9 h-9 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/80 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${className}`}
+      className={`w-10 h-10 sm:w-9 sm:h-9 rounded-md bg-[var(--panel-2)] hover:bg-[#252934] flex items-center justify-center text-[var(--bone-muted)] transition-all border border-[var(--hairline)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)] ${className}`}
       {...rest}
     >
       {children}
@@ -97,7 +103,7 @@ export function IconButton({
   );
 }
 
-/** カード見出し（アイコン＋タイトル、右に補助操作）。 */
+/** カード見出し（アイコン＋計器ラベル、右に補助操作）。タイトルは大文字トラッキングの刻印調。 */
 export function SectionHeader({
   icon: Icon,
   color,
@@ -111,9 +117,9 @@ export function SectionHeader({
 }) {
   return (
     <div className="flex items-center justify-between mb-4">
-      <div className="flex items-center gap-2">
-        <Icon className={`w-5 h-5 ${color}`} />
-        <h2 className="font-bold text-lg">{title}</h2>
+      <div className="flex items-center gap-2.5">
+        <Icon className={`w-4 h-4 ${color}`} />
+        <h2 className="font-bold text-base tracking-wide text-[var(--bone)]">{title}</h2>
       </div>
       {right}
     </div>

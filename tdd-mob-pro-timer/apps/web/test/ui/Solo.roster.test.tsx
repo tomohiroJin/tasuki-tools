@@ -71,7 +71,7 @@ describe("ソロ × RosterPanel（項目4）", () => {
       />,
     );
     const bobItem = screen.getByText("Bob").closest("li") as HTMLElement;
-    fireEvent.click(within(bobItem).getByRole("button", { name: /スキップ/ }));
+    fireEvent.click(within(bobItem).getByRole("button", { name: /離脱/ }));
     expect(onSkip).toHaveBeenCalledWith(soloMemberId(1));
   });
 

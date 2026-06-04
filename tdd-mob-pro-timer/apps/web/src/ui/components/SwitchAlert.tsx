@@ -21,20 +21,20 @@ export function SwitchAlert({ driverName, reducedMotion, onDismiss }: SwitchAler
       aria-label="ドライバー交代通知"
       data-reduced-motion={reducedMotion ? "true" : "false"}
       onClick={onDismiss}
-      className={`fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-950/90 backdrop-blur-sm cursor-pointer ${
+      className={`fixed inset-0 z-50 flex flex-col items-center justify-center bg-[rgba(8,9,12,0.92)] backdrop-blur-sm cursor-pointer ${
         reducedMotion ? "" : "animate-pop-in"
       }`}
     >
-      <div className="text-sm uppercase tracking-widest text-white/60 mb-3">ドライバー交代</div>
+      <div className="instrument-label mb-3 text-[var(--signal)]">ドライバー交代</div>
       <div
-        className={`flex items-center gap-4 text-5xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-orange-400 ${
+        className={`flex items-center gap-4 text-5xl md:text-7xl font-black text-[var(--bone)] ${
           reducedMotion ? "" : "animate-fade-up"
         }`}
       >
-        <Crown className="w-12 h-12 md:w-16 md:h-16 text-amber-400 shrink-0" aria-hidden="true" />
+        <Crown className="w-12 h-12 md:w-16 md:h-16 text-[var(--signal)] shrink-0" aria-hidden="true" />
         {driverName}
       </div>
-      <p className="mt-8 text-white/60 text-sm">画面をタップで閉じる</p>
+      <p className="mt-8 text-[var(--bone-subtle)] text-sm">画面をタップで閉じる</p>
     </div>
   );
 }

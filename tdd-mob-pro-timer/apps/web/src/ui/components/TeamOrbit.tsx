@@ -1,7 +1,7 @@
 /**
  * チームの円周配置（参考デザイン準拠）
- * メンバーをアバター（頭文字）として円周に並べ、現ドライバーを amber グラデ＋Crown で強調、
- * 次ドライバーを枠線で示す。中心に children（タイマー）を置く。
+ * メンバーをアバター（頭文字）として円周に並べ、現ドライバーをシグナル朱＋Crown で強調、
+ * 次ドライバーを朱の枠線で示す。中心に children（タイマー）を置く。計器の周回目盛りの趣。
  */
 
 import React from "react";
@@ -31,13 +31,15 @@ export function TeamOrbit({ members, currentIndex, size = 340, children }: TeamO
           cy={center}
           r={orbitRadius}
           fill="none"
-          stroke="rgba(255,255,255,0.08)"
+          stroke="rgba(92,100,115,0.35)"
           strokeWidth="1"
-          strokeDasharray="4 6"
+          strokeDasharray="2 7"
         />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">{children}</div>
-      {members.map((name, i) => {
+      {/* 1 人だけのときは周回アバターを出さない（文字盤 12 時上に孤立した点が乗るのを避ける）。
+          現ドライバーは中央の Crown＋名前で十分に伝わる。複数人で初めて周回を可視化する。 */}
+      {len > 1 && members.map((name, i) => {
         const angle = (i / len) * 2 * Math.PI - Math.PI / 2;
         const x = center + Math.cos(angle) * orbitRadius;
         const y = center + Math.sin(angle) * orbitRadius;
@@ -46,12 +48,12 @@ export function TeamOrbit({ members, currentIndex, size = 340, children }: TeamO
         return (
           <div
             key={name}
-            className={`absolute flex items-center justify-center rounded-full font-bold text-sm transition-all duration-700 animate-pop-in ${
+            className={`absolute flex items-center justify-center rounded-full font-bold text-sm tabular transition-all duration-700 animate-pop-in ${
               isCurrent
-                ? "bg-gradient-to-br from-amber-300 to-orange-500 text-black scale-125 shadow-lg shadow-amber-400/60 z-20"
+                ? "bg-[var(--signal)] text-[#160603] scale-125 shadow-[0_0_0_2px_rgba(255,74,46,0.4),0_6px_18px_var(--signal-glow)] z-20"
                 : isNext
-                  ? "bg-white/15 text-white border-2 border-amber-400/60 z-10"
-                  : "bg-white/10 text-white/60 border border-white/15"
+                  ? "bg-[var(--panel-2)] text-[var(--bone)] border-2 border-[rgba(255,74,46,0.55)] z-10"
+                  : "bg-[var(--panel-2)] text-[var(--bone-subtle)] border border-[var(--hairline-strong)]"
             }`}
             style={{
               width: avatarSize,
@@ -62,7 +64,7 @@ export function TeamOrbit({ members, currentIndex, size = 340, children }: TeamO
             title={name}
           >
             {isCurrent && (
-              <Crown className="w-3.5 h-3.5 absolute -top-2 -right-1 text-amber-200 drop-shadow rotate-12" />
+              <Crown className="w-3.5 h-3.5 absolute -top-2 -right-1 text-[#160603] drop-shadow rotate-12" />
             )}
             <span className="select-none">{name.charAt(0).toUpperCase()}</span>
           </div>

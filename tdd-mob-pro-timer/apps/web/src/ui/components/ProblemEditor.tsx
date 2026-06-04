@@ -30,10 +30,11 @@ interface ProblemEditorProps {
 }
 
 const DIFFICULTY_LABEL: Record<string, string> = { easy: "初級", medium: "中級", hard: "上級" };
+// 難易度は計器の「危険度」表示として段階色を残す（緑→琥珀→朱赤・色のみ依存はラベル併記で回避）。
 const DIFFICULTY_CLASS: Record<string, string> = {
-  easy: "bg-emerald-500/20 text-emerald-200",
-  medium: "bg-amber-500/20 text-amber-200",
-  hard: "bg-rose-500/20 text-rose-200",
+  easy: "bg-[rgba(63,178,127,0.15)] text-[var(--ok)] border border-[rgba(63,178,127,0.3)]",
+  medium: "bg-amber-400/15 text-amber-300 border border-amber-400/30",
+  hard: "bg-[rgba(255,74,46,0.15)] text-[var(--signal)] border border-[rgba(255,74,46,0.3)]",
 };
 
 function Badges({
@@ -45,19 +46,19 @@ function Badges({
   return (
     <span className="flex flex-wrap items-center gap-1.5 text-xs">
       {difficulty && (
-        <span className={`rounded-full px-2 py-0.5 font-semibold ${DIFFICULTY_CLASS[difficulty] ?? "bg-white/10 text-white/70"}`}>
+        <span className={`rounded-sm px-2 py-0.5 font-semibold tabular ${DIFFICULTY_CLASS[difficulty] ?? "bg-[var(--panel-2)] text-[var(--bone-muted)] border border-[var(--hairline)]"}`}>
           {DIFFICULTY_LABEL[difficulty] ?? difficulty}
         </span>
       )}
       {language && (
-        <span className="rounded-full bg-cyan-500/20 px-2 py-0.5 font-semibold text-cyan-200">{language}</span>
+        <span className="rounded-sm bg-[var(--panel-2)] px-2 py-0.5 font-semibold text-[var(--bone-muted)] border border-[var(--hairline)]">{language}</span>
       )}
       {/* 持ち込み（自前のお題）は明示する。定型/AI はバッジ化しない（出題源が一意のため）。 */}
       {source === "custom" && (
-        <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-emerald-200">持ち込み</span>
+        <span className="rounded-sm bg-[rgba(63,178,127,0.15)] px-2 py-0.5 text-[var(--ok)] border border-[rgba(63,178,127,0.3)]">持ち込み</span>
       )}
       {edited && (
-        <span className="rounded-full bg-violet-500/20 px-2 py-0.5 text-violet-200">編集済</span>
+        <span className="rounded-sm bg-[rgba(255,74,46,0.14)] px-2 py-0.5 text-[var(--signal)] border border-[rgba(255,74,46,0.3)]">編集済</span>
       )}
     </span>
   );
@@ -90,8 +91,8 @@ export function ProblemEditor({
   }, [problem]);
 
   const inputClass =
-    "w-full rounded-md border border-white/20 bg-white/10 px-2 py-1 text-sm text-white " +
-    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-400";
+    "w-full rounded-md border border-[var(--hairline-strong)] bg-[var(--panel-2)] px-2 py-1 text-sm text-[var(--bone)] " +
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--signal)]";
 
   const hasDetails =
     problem.requirements.length > 0 || !!problem.exampleTest || problem.hints.length > 0;
@@ -129,7 +130,7 @@ export function ProblemEditor({
           {canEdit && (
             <GhostButton
               onClick={() => setEditing((v) => !v)}
-              className={`text-sm ${editing ? "ring-2 ring-fuchsia-400" : ""}`}
+              className={`text-sm ${editing ? "ring-2 ring-[var(--signal)]" : ""}`}
             >
               <span className="flex items-center gap-1.5"><Pencil className="w-4 h-4" aria-hidden="true" /> {editing ? "編集を閉じる" : "内容を編集"}</span>
             </GhostButton>
@@ -239,7 +240,7 @@ export function ProblemEditor({
               {problem.exampleTest && (
                 <div>
                   <p className="mb-1 text-xs font-semibold text-white/60">例示テスト</p>
-                  <pre className="rounded-md bg-white/10 p-3 text-xs font-mono text-white overflow-x-auto">
+                  <pre className="rounded-md bg-[var(--panel-2)] border border-[var(--hairline)] p-3 text-xs font-mono text-[var(--bone)] overflow-x-auto">
                     {problem.exampleTest}
                   </pre>
                 </div>
