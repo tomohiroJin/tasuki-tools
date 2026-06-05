@@ -13,6 +13,7 @@ import { Dices, Pencil, ClipboardPaste, Copy, ChevronDown, ChevronRight } from "
 import type { Problem } from "@tdd-mob/core";
 import { MAX_PROBLEM_TITLE, MAX_PROBLEM_TEXT } from "@tdd-mob/core/aggregate";
 import { GhostButton } from "../primitives.js";
+import { Markdown } from "./Markdown.js";
 
 interface ProblemEditorProps {
   problem: Problem;
@@ -84,8 +85,9 @@ export function ProblemEditor({
   const [editing, setEditing] = useState(false);
   // compact（セッション中）の1行バーを開いたか。非 compact では常にフルカード。
   const [barOpen, setBarOpen] = useState(false);
-  // 要件・テスト例・ヒントの開閉。既定は閉じ（ロビーの縦長を抑える・スペック準拠）。
-  const [detailsOpen, setDetailsOpen] = useState(false);
+  // 要件・テスト例・ヒントの開閉。Lobby（非 compact）は既定で開いて内容をしっかり見せ、
+  // セッション中（compact）は縦長を抑えるため既定で閉じる。
+  const [detailsOpen, setDetailsOpen] = useState(!compact);
   const [draft, setDraft] = useState<Problem>(problem);
   useEffect(() => {
     setDraft(problem);
@@ -211,7 +213,7 @@ export function ProblemEditor({
       ) : (
         <>
           {/* 説明 */}
-          <p className="text-sm text-white/80">{problem.description}</p>
+          <Markdown source={problem.description} />
 
           {/* 詳細トグル（要件件数を明示・既定は閉じ） */}
           {hasDetails && (

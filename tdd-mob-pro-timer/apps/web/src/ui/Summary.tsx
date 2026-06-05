@@ -6,8 +6,8 @@
  * 中断（abort）: 中断表示 + 記録なし + 次の行動導線のみ
  */
 
-import React from "react";
-import { Trophy, Sparkles } from "lucide-react";
+import React, { useState } from "react";
+import { Trophy, Sparkles, Check } from "lucide-react";
 import type { CompletionRecord } from "@tdd-mob/core";
 import { Card, PrimaryButton, GhostButton } from "./primitives.js";
 
@@ -29,6 +29,8 @@ function formatTime(seconds: number): string {
 
 export function Summary({ endType, record, onNewSession, onSaveRecord }: SummaryProps) {
   const isComplete = endType === "complete";
+  // 保存ボタンの押下フィードバック（無反応に見えていた #4 の修正）。
+  const [saved, setSaved] = useState(false);
 
   return (
     <div className="mx-auto flex max-w-md flex-col items-center gap-6 text-center">
@@ -102,10 +104,22 @@ export function Summary({ endType, record, onNewSession, onSaveRecord }: Summary
             </Card>
           )}
 
-          <div className="flex w-full gap-3">
-            <GhostButton className="flex-1" onClick={() => onSaveRecord(record)}>
-              記録を保存
+          <div className="flex w-full flex-col items-center gap-1">
+            <GhostButton
+              className="w-full"
+              onClick={() => {
+                onSaveRecord(record);
+                setSaved(true);
+              }}
+            >
+              <span className="flex items-center justify-center gap-2">
+                {saved ? <Check className="w-4 h-4 text-[var(--ok)]" /> : null}
+                {saved ? "保存しました" : "記録を保存"}
+              </span>
             </GhostButton>
+            <p className="text-xs text-[var(--bone-subtle)]">
+              完了時に自動保存されています。手動で再保存もできます。
+            </p>
           </div>
         </>
       )}

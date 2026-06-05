@@ -180,13 +180,13 @@ describe("ProblemEditor（T050/T051）", () => {
     // タイトル・説明は常時表示
     expect(screen.getByText("FizzBuzz")).toBeTruthy();
     expect(screen.getByText(/3の倍数でFizz/)).toBeTruthy();
-    // 詳細（例示テスト・要件・ヒント）は既定で非表示
-    expect(screen.queryByText(/expect\(fizzbuzz/)).toBeNull();
-    expect(screen.queryByText("3の倍数はFizz")).toBeNull();
-    expect(screen.queryByText(/剰余を使う/)).toBeNull();
+    // 非 compact（ロビー）では詳細（例示テスト・要件・ヒント）を既定で表示する（お題をしっかり見せる）。
+    expect(screen.getByText(/expect\(fizzbuzz/)).toBeTruthy();
+    expect(screen.getByText("3の倍数はFizz")).toBeTruthy();
+    expect(screen.getByText(/剰余を使う/)).toBeTruthy();
   });
 
-  it("「詳細を表示」トグルで詳細が開き、もう一度押すと閉じる", () => {
+  it("「詳細を隠す/表示」トグルで詳細を開閉できる（非 compact は既定で開）", () => {
     render(
       <ProblemEditor
         problem={baseProblem}
@@ -196,14 +196,14 @@ describe("ProblemEditor（T050/T051）", () => {
         onPaste={noop}
       />,
     );
-    const toggle = screen.getByRole("button", { name: /詳細を表示|詳細を隠す/ });
-    // 開く
-    fireEvent.click(toggle);
+    // 既定で開いている。
     expect(screen.getByText(/expect\(fizzbuzz/)).toBeTruthy();
-    expect(screen.getByText("3の倍数はFizz")).toBeTruthy();
     // 閉じる
     fireEvent.click(screen.getByRole("button", { name: /詳細を表示|詳細を隠す/ }));
     expect(screen.queryByText(/expect\(fizzbuzz/)).toBeNull();
+    // 再び開く
+    fireEvent.click(screen.getByRole("button", { name: /詳細を表示|詳細を隠す/ }));
+    expect(screen.getByText(/expect\(fizzbuzz/)).toBeTruthy();
   });
 
   it("canEdit=false（観覧者）では編集ボタンを表示しない（FR-055）", () => {

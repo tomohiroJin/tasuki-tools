@@ -126,6 +126,8 @@ describe("Session 引き継ぎノート入力（§9.1）", () => {
         onHandoffNoteSet={vi.fn()}
       />,
     );
+    // 既存メモがある場合は既定でプレビュー表示。「編集」に切り替えると入力欄に初期値が入る。
+    fireEvent.click(screen.getByRole("button", { name: "編集" }));
     const field = screen.getByLabelText(/共有メモ/) as HTMLTextAreaElement;
     expect(field.value).toBe("次はバリデーションから");
   });

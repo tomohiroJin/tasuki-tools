@@ -469,8 +469,13 @@ export default function App() {
           endType={endType}
           record={endType === "complete" ? record : null}
           onNewSession={handleNewSession}
-          onSaveRecord={() => {
-            /* 記録の永続化は別経路（IndexedDB）。ここでは UI 上のダウンロード等に使う想定 */
+          onSaveRecord={(rec) => {
+            // 明示保存。完成時に自動保存済みだが put（upsert）なので冪等。
+            // ボタン側で「保存しました」を表示するため、ここでは永続化と失敗時通知のみ行う。
+            saveRecord(rec).catch((e) => {
+              console.error("記録の保存に失敗しました:", e);
+              setBanner({ text: "記録の保存に失敗しました。", kind: "error" });
+            });
           }}
         />
       );
