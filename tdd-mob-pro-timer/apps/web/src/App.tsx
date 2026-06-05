@@ -162,6 +162,31 @@ export default function App() {
           setBanner({ text: "セッションが見つかりません。ローカルの記録は保持されています。", kind: "error" });
           return;
         }
+        // ホストに外された: 取り残さず、退出を明示して参加画面へ戻す（ルームコード保持で再参加可・#3/#4）。
+        if (code === "REMOVED_BY_HOST") {
+          const removedFrom = roomRef.current?.code ?? null;
+          newClient.dispose();
+          roomRef.current = null;
+          setRoom(null);
+          setClient(null);
+          setParticipantId("");
+          isCreatorRef.current = false;
+          problemRequestedRef.current = false;
+          recordSavedRef.current = false;
+          setSessionLost(false);
+          setRecord(null);
+          setBanner({
+            text: "ホストにより退出しました。再参加するには名前を入力してください。",
+            kind: "warn",
+          });
+          if (removedFrom) {
+            setJoinCode(removedFrom);
+            setMode("join");
+          } else {
+            setMode("setup");
+          }
+          return;
+        }
         // それ以外は「一時的な操作エラー」。分かりやすい日本語にし、数秒で自動消去する
         // （生のコードを残し続けない・画面遷移後も居座らせない）。
         setBanner({ text: friendlyError(code), kind: "warn" });

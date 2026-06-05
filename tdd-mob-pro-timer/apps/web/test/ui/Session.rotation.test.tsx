@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import React from "react";
 import { Session } from "../../src/ui/Session.js";
 import type { Room, Participant, SessionConfig } from "@tdd-mob/core";
@@ -67,6 +67,29 @@ describe("Session ドライバー加入/離脱（D1）", () => {
     fireEvent.click(screen.getByRole("button", { name: /列から外れる|外れる/ }));
     // index ではなく自名を渡す（レビュー #1）
     expect(onLeaveRotation).toHaveBeenCalledWith("Alice");
+  });
+
+  /** 自己操作トグル（「あなた:」を含む行）に限定する。RosterPanel 行にも同名ボタンが出るため。 */
+  const selfToggle = () => screen.getByText(/あなた:/).closest("div") as HTMLElement;
+
+  it("ドライバーの自分には「一時離脱」が出て onDriverSkip(自ID) を呼ぶ（#2）", () => {
+    const onDriverSkip = vi.fn();
+    // Alice(host-p) は rotation 加入・driverEligible 未設定（=稼働中）。
+    render(<Session room={makeRoom()} participantId="host-p" {...handlers()} onDriverSkip={onDriverSkip} />);
+    fireEvent.click(within(selfToggle()).getByRole("button", { name: /一時離脱/ }));
+    expect(onDriverSkip).toHaveBeenCalledWith("host-p");
+  });
+
+  it("離脱中の自分には「復帰」が出て onDriverResume(自ID) を呼ぶ（#2）", () => {
+    const onDriverResume = vi.fn();
+    const room = makeRoom();
+    // 自分(host-p=Alice)を離脱中にする。
+    room.participants = room.participants.map((pp) =>
+      pp.participantId === "host-p" ? { ...pp, driverEligible: false } : pp,
+    );
+    render(<Session room={room} participantId="host-p" {...handlers()} onDriverResume={onDriverResume} />);
+    fireEvent.click(within(selfToggle()).getByRole("button", { name: /復帰/ }));
+    expect(onDriverResume).toHaveBeenCalledWith("host-p");
   });
 
   it("最後の1人のときは「列から外れる」が無効化される", () => {

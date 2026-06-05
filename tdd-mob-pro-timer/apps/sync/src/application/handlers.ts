@@ -433,6 +433,16 @@ export function makeHandlers(deps: HandlerDeps) {
       store.put(next);
       broadcaster.broadcastSnapshot(next.code, next);
       reconcileSchedule(next);
+      // 外された本人へ専用通知を送る（残りメンバーの snapshot には含まれず取り残されるため）。
+      // クライアントはこれを受けて退出メッセージ＋参加画面へ遷移し、再参加可能にする。
+      // 代理(connId=null)はクライアントが無いので送らない。
+      if (target.connId) {
+        broadcaster.sendTo(target.connId, {
+          type: "error",
+          code: "REMOVED_BY_HOST",
+          message: "ホストにより退出させられました",
+        });
+      }
       return ok({ code: next.code, participantId: "", hostToken: "", resumeToken: "" });
     }
 
