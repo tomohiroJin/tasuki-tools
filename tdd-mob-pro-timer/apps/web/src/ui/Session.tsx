@@ -7,7 +7,7 @@ import React, { useMemo, useState, useEffect, useRef } from "react";
 import {
   Crown, ArrowRight, Play, Pause, SkipForward, Flag, RotateCcw, Coffee,
 } from "lucide-react";
-import { secondsLeft, elapsedMs, MAX_HANDOFF_NOTE } from "@tdd-mob/core/aggregate";
+import { secondsLeft, elapsedMs } from "@tdd-mob/core/aggregate";
 import type { Room, Problem } from "@tdd-mob/core";
 import { Card, GhostButton, PrimaryButton } from "./primitives.js";
 import { CircularProgress } from "./components/CircularProgress.js";
@@ -16,7 +16,7 @@ import { RosterPanel } from "./components/RosterPanel.js";
 import { ProblemEditor } from "./components/ProblemEditor.js";
 import { EndSessionZone } from "./components/EndSessionZone.js";
 import { SwitchAlert } from "./components/SwitchAlert.js";
-import { Markdown } from "./components/Markdown.js";
+import { SharedMemo } from "./components/SharedMemo.js";
 import { deriveAnnouncement, type AnnounceState } from "./announce.js";
 import { usePrefersReducedMotion } from "./use-reduced-motion.js";
 import { useIsWide } from "./use-breakpoint.js";
@@ -171,20 +171,6 @@ export function Session({
     currentDriverName,
   ]);
 
-  // 引き継ぎメモのローカル編集状態（§9.1）。サーバー snapshot が来たら追従し、
-  // 入力確定（blur）時にだけ handoff.note.set を送る（楽観更新は最小・§5.3）。
-  const [noteDraft, setNoteDraft] = useState(room.handoffNote);
-  useEffect(() => {
-    setNoteDraft(room.handoffNote);
-  }, [room.handoffNote]);
-  const commitNote = () => {
-    if (noteDraft !== room.handoffNote) onHandoffNoteSet?.(noteDraft);
-  };
-  // 共有メモの編集/プレビュー切替（§9.1 拡張）。プレビューは Markdown で表示し、
-  // 途中参加者への Live Share リンクやルール提示を読みやすくする。既定は内容があればプレビュー。
-  const [memoMode, setMemoMode] = useState<"edit" | "preview">(
-    room.handoffNote.trim() ? "preview" : "edit",
-  );
 
   // 強い交代通知（§9.1 assertiveSwitch）。currentIndex の変化を交代と見なし、
   // 設定が ON のときだけ全画面オーバーレイ＋音＋振動で割り込む。
@@ -409,75 +395,8 @@ export function Session({
         />
       </Card>
 
-      {/* 共有メモ（§9.1 拡張）。editor+ は 編集/プレビュー を切替でき、プレビューは Markdown 表示。
-          途中参加者への Live Share リンクやルール提示が主用途のため、表示領域を広めに確保する。
-          viewer はメモがある時だけ Markdown で読み取り表示する。 */}
-      {isEditor ? (
-        <Card>
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <span className="flex items-center gap-2 text-sm font-semibold text-[var(--bone)]">
-              <ArrowRight className="w-4 h-4 text-[var(--signal)]" aria-hidden="true" />
-              共有メモ
-              <span className="instrument-label">Markdown</span>
-            </span>
-            {/* 編集/プレビュー切替（セグメント）。プレビュー切替時に未確定分を送信する。 */}
-            <span className="flex rounded-md border border-[var(--hairline)] overflow-hidden text-xs" role="group" aria-label="メモの表示モード切替">
-              <button
-                type="button"
-                aria-pressed={memoMode === "edit"}
-                onClick={() => setMemoMode("edit")}
-                className={`px-3 py-1.5 transition-colors ${memoMode === "edit" ? "bg-[var(--signal)] text-[#160603] font-semibold" : "bg-[var(--panel-2)] text-[var(--bone-muted)] hover:bg-[#252934]"}`}
-              >
-                編集
-              </button>
-              <button
-                type="button"
-                aria-pressed={memoMode === "preview"}
-                onClick={() => { commitNote(); setMemoMode("preview"); }}
-                className={`px-3 py-1.5 transition-colors ${memoMode === "preview" ? "bg-[var(--signal)] text-[#160603] font-semibold" : "bg-[var(--panel-2)] text-[var(--bone-muted)] hover:bg-[#252934]"}`}
-              >
-                プレビュー
-              </button>
-            </span>
-          </div>
-          {memoMode === "edit" ? (
-            <textarea
-              id="shared-memo"
-              aria-label="共有メモ"
-              value={noteDraft}
-              onChange={(e) => setNoteDraft(e.target.value)}
-              onBlur={commitNote}
-              rows={10}
-              maxLength={MAX_HANDOFF_NOTE}
-              placeholder={"例（Markdown 可）:\n## 参加方法\nVSCode Live Share に参加してください:\nhttps://prod.liveshare.vsengsaas.visualstudio.com/...\n\n## ルール\n- 5分で交代\n- 困ったら一時停止"}
-              className="w-full min-h-[200px] resize-y rounded-md bg-[var(--panel-2)] border border-[var(--hairline-strong)] px-3 py-2 text-sm font-mono text-[var(--bone)] outline-none focus:border-[var(--signal)] transition-colors"
-            />
-          ) : (
-            <div
-              className="min-h-[200px] rounded-md bg-[var(--panel-2)] border border-[var(--hairline)] px-3 py-2"
-              aria-live="polite"
-            >
-              {noteDraft.trim() ? (
-                <Markdown source={noteDraft} />
-              ) : (
-                <p className="text-sm text-[var(--bone-subtle)]">メモはまだありません。「編集」から Markdown で記入できます（リンク・箇条書き・見出しなど）。</p>
-              )}
-            </div>
-          )}
-        </Card>
-      ) : (
-        room.handoffNote && (
-          <Card>
-            <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--bone)]">
-              <ArrowRight className="w-4 h-4 text-[var(--signal)]" aria-hidden="true" />
-              共有メモ
-            </div>
-            <div aria-live="polite">
-              <Markdown source={room.handoffNote} />
-            </div>
-          </Card>
-        )
-      )}
+      {/* 共有メモ（§9.1 拡張）。編集/プレビュー・Markdown 表示・閲覧者の読み取りは SharedMemo に集約。 */}
+      <SharedMemo note={room.handoffNote} canEdit={isEditor} onCommit={onHandoffNoteSet} />
       </div>{/* /右（サイド） */}
       </div>{/* /2カラムグリッド */}
 
