@@ -763,7 +763,12 @@ export function makeHandlers(deps: HandlerDeps) {
       .find((r) => r.participants.some((p) => p.connId === connId));
   }
 
-  return { handleCommand };
+  /** 接続クローズ時の後始末。レート制限用の失敗履歴を解放しマップのリークを防ぐ。 */
+  function handleConnectionClose(connId: string): void {
+    joinFailures.delete(connId);
+  }
+
+  return { handleCommand, handleConnectionClose };
 }
 
 // ─── 権限チェック ─────────────────────────────────────────────────────────────

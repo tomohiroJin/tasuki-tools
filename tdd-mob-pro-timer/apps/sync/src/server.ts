@@ -65,6 +65,8 @@ wsAdapter = new WsAdapter({
   },
   onDisconnect: (connId) => {
     presenceManager.handleDisconnect(connId);
+    // レート制限用の失敗履歴を解放（マップのリーク防止）。
+    handlers.handleConnectionClose(connId);
   },
 });
 

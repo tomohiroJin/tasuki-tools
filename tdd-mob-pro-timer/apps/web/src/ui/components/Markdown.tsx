@@ -34,8 +34,11 @@ function Link({ href, children }: { href: string; children: React.ReactNode }) {
 }
 
 // インライン記法の先頭一致を拾う正規表現（コード→太字→斜体→リンク→生URL の順で評価）。
+// リンク部は lazy 量化子を避け文字クラスで閉じ括弧/空白/改行を除外して線形時間にする
+// （`[` の羅列など病的入力での O(N^2) バックトラックを防ぐ）。
+// 生 URL autolink は末尾の約物（. , ; : 。 、 ) ）等）を URL に含めない。
 const INLINE_RE =
-  /(`[^`]+`)|(\*\*[^*]+?\*\*)|(\*[^*]+?\*)|(\[[^\]]+?\]\([^)\s]+?\))|((?:https?:\/\/|mailto:)[^\s)]+)/;
+  /(`[^`]+`)|(\*\*[^*]+?\*\*)|(\*[^*]+?\*)|(\[[^\]\n]*\]\([^)\s\n]*\))|((?:https?:\/\/|mailto:)[^\s)]*[^\s).,;:。、）])/;
 
 /** 1 行（インライン）をパースして React ノード配列にする。 */
 function renderInline(text: string, keyBase: string): React.ReactNode[] {

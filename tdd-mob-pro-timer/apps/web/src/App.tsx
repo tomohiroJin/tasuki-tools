@@ -408,6 +408,7 @@ export default function App() {
     if (mode === "lobby" && room) {
       return (
         <Lobby
+          key={room.code}
           room={room}
           participantId={participantId}
           onStartSession={() => {
@@ -434,6 +435,7 @@ export default function App() {
     if (mode === "session" && room) {
       return (
         <Session
+          key={room.code}
           room={room}
           participantId={participantId}
           clockOffset={client?.clockOffset ?? 0}
