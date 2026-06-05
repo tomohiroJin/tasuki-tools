@@ -11,6 +11,7 @@
 import React, { useState, useEffect } from "react";
 import { Dices, Pencil, ClipboardPaste, Copy, ChevronDown, ChevronRight } from "lucide-react";
 import type { Problem } from "@tdd-mob/core";
+import { MAX_PROBLEM_TITLE, MAX_PROBLEM_TEXT } from "@tdd-mob/core/aggregate";
 import { GhostButton } from "../primitives.js";
 
 interface ProblemEditorProps {
@@ -154,6 +155,7 @@ export function ProblemEditor({
             <input
               aria-label="お題タイトル"
               className={inputClass}
+              maxLength={MAX_PROBLEM_TITLE}
               value={draft.title}
               onChange={(e) => setDraft({ ...draft, title: e.target.value })}
               onBlur={(e) => onEdit({ title: e.target.value })}
@@ -165,6 +167,7 @@ export function ProblemEditor({
               aria-label="お題の説明"
               className={inputClass}
               rows={2}
+              maxLength={MAX_PROBLEM_TEXT}
               value={draft.description}
               onChange={(e) => setDraft({ ...draft, description: e.target.value })}
               onBlur={(e) => onEdit({ description: e.target.value })}
@@ -187,6 +190,7 @@ export function ProblemEditor({
               aria-label="例示テスト"
               className={`${inputClass} font-mono`}
               rows={3}
+              maxLength={MAX_PROBLEM_TEXT}
               value={draft.exampleTest ?? ""}
               onChange={(e) => setDraft({ ...draft, exampleTest: e.target.value })}
               onBlur={(e) => onEdit({ exampleTest: e.target.value })}

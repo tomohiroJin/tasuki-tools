@@ -6,6 +6,12 @@
  * オプトイン: localStorage（明示的な永続化同意後）
  *
  * 鍵はサーバーへ送信しない。いかなる WS メッセージにも含めない。
+ *
+ * ⚠ セキュリティ注記（2026-06-05 監査）:
+ * 現状この BYOK 一式（key-storage / byok / AiSettingsModal）は **live tree から未参照の
+ * 休眠コード**（AI 機能は UI から撤去済み・App は NoAiProvider のみ使用）。テスト維持のため残置。
+ * localStorage 永続化（persistent=true）は XSS で漏洩しうる secret 保存経路のため、
+ * 再有効化する場合も既定は sessionStorage を維持し、localStorage はユーザの明示同意時のみに限ること。
  */
 
 export const API_KEY_SESSION_STORAGE_KEY = "tdd-mob:ai-key:session";

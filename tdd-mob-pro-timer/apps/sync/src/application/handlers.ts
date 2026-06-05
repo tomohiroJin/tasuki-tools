@@ -57,6 +57,21 @@ export function makeHandlers(deps: HandlerDeps) {
     { participantId: string; roomCode: string }
   >();
 
+  // 単一接続あたりの room.join 連続失敗のレート制限（コード列挙の緩和）。
+  // 正常利用には干渉しない緩い閾値。本来の防御はエッジ/IP 層（リバースプロキシ等）で行うべき。
+  const JOIN_FAIL_WINDOW_MS = 10_000;
+  const JOIN_FAIL_MAX = 30;
+  /** connId → 直近の join 失敗時刻（epoch ms） */
+  const joinFailures = new Map<string, number[]>();
+  const recentJoinFailures = (connId: string, now: number): number[] => {
+    const arr = (joinFailures.get(connId) ?? []).filter(
+      (t) => now - t < JOIN_FAIL_WINDOW_MS,
+    );
+    if (arr.length === 0) joinFailures.delete(connId);
+    else joinFailures.set(connId, arr);
+    return arr;
+  };
+
   // ─── サーバー権威タイマーの調停 ───────────────────────────────────────────
 
   /** ルームの clock 状態に応じて次回自動交代をスケジュール/解除する（FR-003） */
@@ -247,9 +262,22 @@ export function makeHandlers(deps: HandlerDeps) {
     },
   ): Promise<Result<CreateResult, string>> {
     const now = clock.now();
+
+    // 連続失敗が閾値を超えた接続は一時的に拒否（コード総当たりの緩和）。
+    if (recentJoinFailures(connId, now).length >= JOIN_FAIL_MAX) {
+      broadcaster.sendTo(connId, {
+        type: "error",
+        code: "RATE_LIMITED",
+        message: "参加の試行が多すぎます。しばらく待ってから再試行してください。",
+      });
+      return err("RATE_LIMITED");
+    }
+
     const room = store.get(cmd.code);
 
     if (!room) {
+      // 失敗を記録（次回以降のレート判定に使う）。
+      joinFailures.set(connId, [...(joinFailures.get(connId) ?? []), now]);
       broadcaster.sendTo(connId, {
         type: "error",
         code: "ROOM_NOT_FOUND",
@@ -382,6 +410,28 @@ export function makeHandlers(deps: HandlerDeps) {
           type: "error",
           code: "UNAUTHORIZED",
           message: "他の参加者への操作はホストのみ実行できます",
+        });
+        return err("UNAUTHORIZED");
+      }
+    }
+
+    // member.add/remove の関係的権限（横方向の権限濫用防止）。
+    // editor は「自分の rotation 出入り」のみ許可し、他人分の追加/除外は host に限定する。
+    // （UI は自名/自 index のみ送るが、コマンド直送で他人を操作されないようサーバで強制。）
+    if (
+      participant.role !== "host" &&
+      (cmd.command === "member.add" || cmd.command === "member.remove")
+    ) {
+      const ownName = participant.displayName;
+      const ownsTarget =
+        cmd.command === "member.add"
+          ? cmd.name === ownName
+          : targetRoom.session.rotation[Number(cmd.index)] === ownName;
+      if (!ownsTarget) {
+        broadcaster.sendTo(connId, {
+          type: "error",
+          code: "UNAUTHORIZED",
+          message: "他の参加者のローテーション操作はホストのみ実行できます",
         });
         return err("UNAUTHORIZED");
       }
@@ -729,14 +779,17 @@ const HOST_ONLY_COMMANDS = new Set([
   "role.set",
   "participant.addProxy",
   "participant.remove",
+  // 並べ替えはホスト専用（UI も host のみ提供）。editor による他人の順序操作を防ぐ。
+  "member.move",
 ]);
 
 /** 編集者以上が必要な操作 */
 const EDITOR_PLUS_COMMANDS = new Set([
   "config.set",
+  // member.add/remove は EDITOR_PLUS だが、handleRoomCommand の関係ガードで
+  // 「自分の rotation 出入りのみ本人可・他人分は host」に絞る（横方向の権限濫用防止）。
   "member.add",
   "member.remove",
-  "member.move",
   "session.act",
   "problem.request",
   "problem.submit",

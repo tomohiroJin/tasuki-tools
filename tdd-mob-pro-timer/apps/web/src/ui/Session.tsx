@@ -7,7 +7,7 @@ import React, { useMemo, useState, useEffect, useRef } from "react";
 import {
   Crown, ArrowRight, Play, Pause, SkipForward, Flag, RotateCcw, Coffee,
 } from "lucide-react";
-import { secondsLeft, elapsedMs } from "@tdd-mob/core/aggregate";
+import { secondsLeft, elapsedMs, MAX_HANDOFF_NOTE } from "@tdd-mob/core/aggregate";
 import type { Room, Problem } from "@tdd-mob/core";
 import { Card, GhostButton, PrimaryButton } from "./primitives.js";
 import { CircularProgress } from "./components/CircularProgress.js";
@@ -416,6 +416,7 @@ export function Session({
             onChange={(e) => setNoteDraft(e.target.value)}
             onBlur={commitNote}
             rows={2}
+            maxLength={MAX_HANDOFF_NOTE}
             placeholder="例: API のモックまで完了。残タスクやメモを全員で共有。"
             className="w-full resize-y rounded-md bg-[var(--panel-2)] border border-[var(--hairline-strong)] px-3 py-2 text-sm text-[var(--bone)] outline-none focus:border-[var(--signal)] transition-colors"
           />

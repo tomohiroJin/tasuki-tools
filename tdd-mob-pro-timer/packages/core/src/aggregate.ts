@@ -237,3 +237,14 @@ export const MAX_MEMBERS = 10;
 /** お題の要件（requirements）配列の最大件数。巨大入力を拒否するための上限。
  *  decide（ドメイン検証）と schemas（Valibot 境界検証）の両方から参照し、値を一元化する。 */
 export const MAX_PROBLEM_REQUIREMENTS = 20;
+
+/** ユーザ入力文字列の最大長（S・A04 安全でない設計）。巨大文字列の保存/ブロードキャスト/
+ *  描画による DoS を防ぐため、信頼境界（Valibot コマンドスキーマ）で一律に上限を課す。
+ *  UI 側の入力欄 maxLength とも揃えて二重防御にする。 */
+export const MAX_DISPLAY_NAME = 40;
+export const MAX_ROOM_NAME = 60;
+export const MAX_HANDOFF_NOTE = 2000;
+export const MAX_PROBLEM_TITLE = 200;
+export const MAX_PROBLEM_TEXT = 4000; // description / exampleTest
+export const MAX_PROBLEM_HINT = 500; // ヒント 1 件あたり
+export const MAX_PROBLEM_HINTS = 20; // ヒント配列の件数

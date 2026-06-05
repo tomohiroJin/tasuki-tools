@@ -9,6 +9,7 @@ import React, { useState } from "react";
 import { Sparkles, UserRound } from "lucide-react";
 import { Card, PrimaryButton } from "./primitives.js";
 import { savePreferences, loadPreferences } from "../prefs/local-prefs.js";
+import { MAX_DISPLAY_NAME, MAX_ROOM_NAME } from "@tdd-mob/core/aggregate";
 
 interface SetupProps {
   /** 入力された自分の名前（と任意のルーム名）でルームを作成する。 */
@@ -66,6 +67,7 @@ export function Setup({ onCreateRoom }: SetupProps) {
           }}
           placeholder="例: Tomohiro"
           autoFocus
+          maxLength={MAX_DISPLAY_NAME}
           className="w-full rounded-md bg-[var(--panel-2)] border border-[var(--hairline-strong)] px-4 py-3 text-[var(--bone)] text-lg outline-none focus:border-[var(--signal)] transition-colors"
         />
         <label htmlFor="room-name" className="mt-4 block text-sm font-semibold text-[var(--bone)] mb-2">
@@ -80,6 +82,7 @@ export function Setup({ onCreateRoom }: SetupProps) {
             if (e.key === "Enter") handleCreate();
           }}
           placeholder="例: 朝会モブ（未入力ならランダムなコード）"
+          maxLength={MAX_ROOM_NAME}
           className="w-full rounded-md bg-[var(--panel-2)] border border-[var(--hairline-strong)] px-4 py-2.5 text-[var(--bone)] outline-none focus:border-[var(--signal)] transition-colors"
         />
         <PrimaryButton onClick={handleCreate} disabled={!canProceed} className="w-full mt-4 text-lg py-3">

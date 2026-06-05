@@ -36,6 +36,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   MemberLimitExceeded: "メンバーが上限に達しています。",
   InvalidInterval: "その交代間隔は選べません。",
   UNAUTHORIZED: "この操作の権限がありません。",
+  RATE_LIMITED: "試行が多すぎます。しばらく待ってから再試行してください。",
 };
 function friendlyError(code: string): string {
   return ERROR_MESSAGES[code] ?? "操作を完了できませんでした。";

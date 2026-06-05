@@ -4,12 +4,30 @@
  */
 
 import * as v from "valibot";
-import { VALID_INTERVAL_MINUTES, MAX_MEMBERS, MAX_PROBLEM_REQUIREMENTS } from "./aggregate.js";
+import {
+  VALID_INTERVAL_MINUTES,
+  MAX_MEMBERS,
+  MAX_PROBLEM_REQUIREMENTS,
+  MAX_DISPLAY_NAME,
+  MAX_ROOM_NAME,
+  MAX_HANDOFF_NOTE,
+  MAX_PROBLEM_TITLE,
+  MAX_PROBLEM_TEXT,
+  MAX_PROBLEM_HINT,
+  MAX_PROBLEM_HINTS,
+} from "./aggregate.js";
 
 // ─── 共通 ───────────────────────────────────────────────────────────────────
 
 const nonEmptyString = v.pipe(v.string(), v.minLength(1));
 const participantId = nonEmptyString;
+
+// ユーザ入力文字列は信頼境界で最大長を課す（A04・巨大入力 DoS 対策）。
+const displayNameStr = v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_DISPLAY_NAME));
+const problemTitleStr = v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_PROBLEM_TITLE));
+const problemTextStr = v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_PROBLEM_TEXT));
+const requirementStr = v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_PROBLEM_TEXT));
+const hintStr = v.pipe(v.string(), v.maxLength(MAX_PROBLEM_HINT));
 
 // ─── SessionConfig スキーマ ─────────────────────────────────────────────────
 
@@ -19,7 +37,7 @@ export const SessionConfigSchema = v.object({
   // 境界では 1 人以上を許可する（ルームは作成者 1 人で始まり、join で増える＝2層モデル）。
   // 「セッション中に 2 人未満へ削除しない」という不変条件は decide の guard 側で担保する。
   members: v.pipe(
-    v.array(nonEmptyString),
+    v.array(displayNameStr),
     v.minLength(1),
     v.maxLength(MAX_MEMBERS),
   ),
@@ -33,11 +51,11 @@ export const SessionConfigSchema = v.object({
 // ─── Problem スキーマ ────────────────────────────────────────────────────────
 
 export const ProblemSchema = v.object({
-  title: nonEmptyString,
-  description: nonEmptyString,
-  requirements: v.pipe(v.array(nonEmptyString), v.maxLength(MAX_PROBLEM_REQUIREMENTS)),
-  exampleTest: nonEmptyString,
-  hints: v.array(v.string()),
+  title: problemTitleStr,
+  description: problemTextStr,
+  requirements: v.pipe(v.array(requirementStr), v.maxLength(MAX_PROBLEM_REQUIREMENTS)),
+  exampleTest: problemTextStr,
+  hints: v.pipe(v.array(hintStr), v.maxLength(MAX_PROBLEM_HINTS)),
   // v2 追加フィールド（任意化で後方互換）
   source: v.optional(v.picklist(["ai", "fallback", "custom"])),
   edited: v.optional(v.boolean()),
@@ -47,16 +65,16 @@ export const ProblemSchema = v.object({
 
 const RoomCreateCommand = v.object({
   command: v.literal("room.create"),
-  displayName: nonEmptyString,
+  displayName: displayNameStr,
   config: v.optional(SessionConfigSchema),
   // 任意のルーム名。コード生成のシードに使う（slug-接尾辞）。
-  roomName: v.optional(v.string()),
+  roomName: v.optional(v.pipe(v.string(), v.maxLength(MAX_ROOM_NAME))),
 });
 
 const RoomJoinCommand = v.object({
   command: v.literal("room.join"),
   code: nonEmptyString,
-  displayName: nonEmptyString,
+  displayName: displayNameStr,
   hasAiKey: v.boolean(),
   resumeToken: v.optional(v.string()),
 });
@@ -124,7 +142,7 @@ const MemberMoveCommand = v.object({
 
 const HandoffNoteSetCommand = v.object({
   command: v.literal("handoff.note.set"),
-  text: v.string(),
+  text: v.pipe(v.string(), v.maxLength(MAX_HANDOFF_NOTE)),
 });
 
 const BreakStartCommand = v.object({
@@ -144,13 +162,13 @@ const SessionAbortCommand = v.object({
 const ParticipantAddProxyCommand = v.object({
   command: v.literal("participant.addProxy"),
   participantId,
-  displayName: nonEmptyString,
+  displayName: displayNameStr,
 });
 
 const ParticipantRenameCommand = v.object({
   command: v.literal("participant.rename"),
   participantId,
-  displayName: nonEmptyString,
+  displayName: displayNameStr,
 });
 
 const ParticipantRemoveCommand = v.object({
@@ -169,11 +187,11 @@ const DriverResumeCommand = v.object({
 });
 
 const ProblemPatchSchema = v.partial(v.object({
-  title: nonEmptyString,
-  description: nonEmptyString,
-  requirements: v.pipe(v.array(nonEmptyString), v.maxLength(MAX_PROBLEM_REQUIREMENTS)),
-  exampleTest: nonEmptyString,
-  hints: v.array(v.string()),
+  title: problemTitleStr,
+  description: problemTextStr,
+  requirements: v.pipe(v.array(requirementStr), v.maxLength(MAX_PROBLEM_REQUIREMENTS)),
+  exampleTest: problemTextStr,
+  hints: v.pipe(v.array(hintStr), v.maxLength(MAX_PROBLEM_HINTS)),
 }));
 
 const ProblemEditCommand = v.object({

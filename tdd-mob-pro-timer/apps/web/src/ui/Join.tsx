@@ -8,6 +8,7 @@ import React, { useState } from "react";
 import { LogIn, UserRound } from "lucide-react";
 import { Card, PrimaryButton } from "./primitives.js";
 import { savePreferences, loadPreferences } from "../prefs/local-prefs.js";
+import { MAX_DISPLAY_NAME } from "@tdd-mob/core/aggregate";
 
 interface JoinProps {
   code: string;
@@ -61,6 +62,7 @@ export function Join({ code, onJoin }: JoinProps) {
           }}
           placeholder="例: Bob"
           autoFocus
+          maxLength={MAX_DISPLAY_NAME}
           className="w-full rounded-md bg-[var(--panel-2)] border border-[var(--hairline-strong)] px-4 py-3 text-[var(--bone)] text-lg outline-none focus:border-[var(--signal)] transition-colors"
         />
         <PrimaryButton onClick={handleJoin} disabled={!canJoin} className="w-full mt-4 text-lg py-3">

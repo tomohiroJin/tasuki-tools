@@ -69,6 +69,14 @@ wsAdapter = new WsAdapter({
 });
 
 console.log(`🚀 同期サーバー起動 port=${PORT}`);
+// ALLOWED_ORIGINS 未設定だと Origin 検証がスキップされ全 Origin を許可する（CSWSH リスク）。
+// 開発では許容だが、本番デプロイ時は必ず設定する。空のときは明示的に警告する。
+if (ALLOWED_ORIGINS.length === 0) {
+  console.warn(
+    "⚠ ALLOWED_ORIGINS 未設定: 全 Origin からの WebSocket 接続を許可します。" +
+      "本番では ALLOWED_ORIGINS にカンマ区切りで許可オリジンを設定してください。",
+  );
+}
 
 // グレースフルシャットダウン
 process.on("SIGTERM", async () => {

@@ -10,6 +10,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Users } from "lucide-react";
 import type { Participant } from "@tdd-mob/core";
+import { MAX_DISPLAY_NAME } from "@tdd-mob/core/aggregate";
 import { GhostButton, PrimaryButton, SectionHeader } from "../primitives.js";
 import { presenceLabel, presenceDotClass, presenceTextClass } from "../presence.js";
 
@@ -121,6 +122,7 @@ export function RosterPanel({
             onChange={(e) => setProxyName(e.target.value)}
             placeholder="Web 非接続のメンバー名"
             aria-label="代理参加者の名前"
+            maxLength={MAX_DISPLAY_NAME}
             className="flex-1 rounded-md border border-[var(--hairline-strong)] bg-[var(--panel-2)] px-3 py-2 text-sm text-[var(--bone)] outline-none focus:border-[var(--signal)]"
           />
           <PrimaryButton onClick={handleAddProxy} className="px-4 py-2 text-sm">追加</PrimaryButton>
@@ -154,6 +156,7 @@ export function RosterPanel({
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
                     aria-label={`${p.displayName} の新しい名前`}
+                    maxLength={MAX_DISPLAY_NAME}
                     className="min-w-0 flex-1 rounded-md border border-[var(--hairline-strong)] bg-[var(--panel-2)] px-2 py-1 text-sm text-[var(--bone)] outline-none focus:border-[var(--signal)]"
                   />
                   <MiniButton onClick={() => submitRename(p.participantId)}>保存</MiniButton>
