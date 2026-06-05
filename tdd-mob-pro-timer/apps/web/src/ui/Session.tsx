@@ -393,6 +393,8 @@ export function Session({
           currentDriverName={room.session.rotation[room.session.currentIndex] ?? ""}
           myParticipantId={participantId}
           canHostAction={isHost}
+          // 自分の一時離脱/復帰は上の SelfDriverToggle が担うため、行には出さず重複を避ける（#1）。
+          selfHasExternalToggle={isEditor}
           onRename={onRenameParticipant}
           onSkip={onDriverSkip}
           onResume={onDriverResume}

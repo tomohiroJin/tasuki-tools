@@ -92,6 +92,17 @@ describe("Session ドライバー加入/離脱（D1）", () => {
     expect(onDriverResume).toHaveBeenCalledWith("host-p");
   });
 
+  it("Session では自分の行に「一時離脱」を出さず自己トグルに集約する（#1 重複解消）", () => {
+    render(<Session room={makeRoom()} participantId="host-p" {...handlers()} onDriverSkip={vi.fn()} />);
+    // 自己トグルには一時離脱がある。
+    expect(within(selfToggle()).getByRole("button", { name: /一時離脱/ })).toBeTruthy();
+    // 自分(Alice)の参加者行には一時離脱を出さない（改名は残す）。
+    const list = screen.getByRole("list");
+    const aliceRow = within(list).getByText("Alice").closest("li") as HTMLElement;
+    expect(within(aliceRow).queryByRole("button", { name: /一時離脱/ })).toBeNull();
+    expect(within(aliceRow).getByRole("button", { name: /改名/ })).toBeTruthy();
+  });
+
   it("最後の1人のときは「列から外れる」が無効化される", () => {
     const onLeaveRotation = vi.fn();
     // makeRoom は rotation=[Alice] の単独。Alice 視点では外れられない。

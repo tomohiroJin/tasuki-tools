@@ -60,6 +60,10 @@ interface RosterPanelProps {
   onAddProxy: (displayName: string) => void;
   /** ホストが参加者を退出させる（⑪・host 限定）。 */
   onRemove?: (participantId: string) => void;
+  /** 自分のローテーション操作（一時離脱/復帰）を外部の自己トグルが担うか。
+   *  true（Session）なら自分の行には一時離脱/復帰を出さず重複を避ける。
+   *  false/未指定（Solo 等・自己トグル無し）なら自分の行にも出す。 */
+  selfHasExternalToggle?: boolean;
 }
 
 export function RosterPanel({
@@ -67,6 +71,7 @@ export function RosterPanel({
   currentDriverName,
   myParticipantId,
   canHostAction,
+  selfHasExternalToggle = false,
   onRename,
   onSkip,
   onResume,
@@ -198,18 +203,19 @@ export function RosterPanel({
                       <span className="text-[var(--signal)] font-semibold">▶ 現在</span>
                     )}
 
-                    {/* アクション（本人 or ホスト）。改名は観覧者の自己にも許可、
-                        スキップ/復帰はローテーション対象（非観覧者）のみ。右寄せ・塊で折り返す。 */}
+                    {/* アクション。改名は本人 or ホスト。一時離脱/復帰は driver.skip で、
+                        自分の分は外部の自己トグルがあるなら出さず重複を避ける（#1）。他人分はホストのみ。
+                        語は自己トグルと統一して「一時離脱」（状態バッジ「離脱中」とも整合）。右寄せ・塊で折返し。 */}
                     {canRename && (
                       <span className="ml-auto flex shrink-0 gap-1">
                         <MiniButton onClick={() => startRename(p.participantId, p.displayName)}>改名</MiniButton>
+                        {/* 一時離脱/復帰の表示可否: 自分=外部トグルが無いときのみ／他人=ホストのみ。観覧者は対象外。 */}
                         {p.role !== "viewer" &&
+                          (isMine ? !selfHasExternalToggle : canHostAction) &&
                           (isSkipping ? (
                             <MiniButton onClick={() => onResume(p.participantId)}>復帰</MiniButton>
                           ) : (
-                            // 「離脱」=一時的にローテから外れる（driver.skip）。タイマー下の
-                            // 「スキップ」(即時交代)と語を分け、状態バッジ「離脱中」とも一致させる。
-                            <MiniButton onClick={() => onSkip(p.participantId)}>離脱</MiniButton>
+                            <MiniButton onClick={() => onSkip(p.participantId)}>一時離脱</MiniButton>
                           ))}
                         {/* ホストは他の参加者を退出させられる（⑪） */}
                         {canHostAction && !isMine && onRemove && (
