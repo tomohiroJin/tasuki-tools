@@ -19,8 +19,8 @@ import { SwitchAlert } from "./components/SwitchAlert.js";
 import { SharedMemo } from "./components/SharedMemo.js";
 import { deriveAnnouncement, type AnnounceState } from "./announce.js";
 import { usePrefersReducedMotion } from "./use-reduced-motion.js";
+import { useSwitchAlert } from "./use-switch-alert.js";
 import { useIsWide } from "./use-breakpoint.js";
-import { playSwitchChime, vibrateSwitch } from "../platform/sound.js";
 
 interface SessionProps {
   room: Room;
@@ -172,30 +172,14 @@ export function Session({
   ]);
 
 
-  // 強い交代通知（§9.1 assertiveSwitch）。currentIndex の変化を交代と見なし、
-  // 設定が ON のときだけ全画面オーバーレイ＋音＋振動で割り込む。
-  // reduced-motion 時は SwitchAlert 側でアニメを外す。
+  // 強い交代通知（§9.1 assertiveSwitch）はカスタムフックに集約。reduced-motion は
+  // SwitchAlert の描画にのみ使う（アニメ抑制）。
   const reducedMotion = usePrefersReducedMotion();
-  const [switchAlertName, setSwitchAlertName] = useState<string | null>(null);
-  const prevIndexRef = useRef(room.session.currentIndex);
-  useEffect(() => {
-    const prev = prevIndexRef.current;
-    prevIndexRef.current = room.session.currentIndex;
-    if (prev === room.session.currentIndex) return;
-    if (!room.config.assertiveSwitch) return;
-    setSwitchAlertName(currentDriverName);
-    playSwitchChime();
-    vibrateSwitch();
-  }, [room.session.currentIndex, room.config.assertiveSwitch, currentDriverName]);
-
-  // 自動消滅タイマーは表示状態だけに依存させる（検知 effect と分離・レビュー #2）。
-  // こうしないと表示中に currentDriverName だけ変化した際、cleanup でタイマーが消え
-  // 新規分が張られず、オーバーレイが閉じなくなる。
-  useEffect(() => {
-    if (!switchAlertName) return;
-    const id = setTimeout(() => setSwitchAlertName(null), 2500);
-    return () => clearTimeout(id);
-  }, [switchAlertName]);
+  const { switchAlertName, dismissSwitchAlert } = useSwitchAlert(
+    room.session.currentIndex,
+    room.config.assertiveSwitch === true,
+    currentDriverName,
+  );
 
   // カウントダウンは ceil 表示。floor だと残り 0.9 秒でも「00:00」になり、最後の約1秒間
   // 00:00 が据え置かれてから交代するため「時間が来てもすぐ交代しない」ラグに見える。
@@ -410,7 +394,7 @@ export function Session({
         <SwitchAlert
           driverName={switchAlertName}
           reducedMotion={reducedMotion}
-          onDismiss={() => setSwitchAlertName(null)}
+          onDismiss={dismissSwitchAlert}
         />
       )}
     </div>
