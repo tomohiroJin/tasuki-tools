@@ -3,7 +3,7 @@
  * T057: FR-007, FR-017, FR-030 ＋ デザインシステム適用
  */
 
-import React, { useMemo, useState, useEffect, useRef } from "react";
+import React, { useMemo } from "react";
 import {
   Crown, ArrowRight, Play, Pause, SkipForward, Flag, RotateCcw, Coffee,
 } from "lucide-react";
@@ -17,7 +17,8 @@ import { ProblemEditor } from "./components/ProblemEditor.js";
 import { EndSessionZone } from "./components/EndSessionZone.js";
 import { SwitchAlert } from "./components/SwitchAlert.js";
 import { SharedMemo } from "./components/SharedMemo.js";
-import { deriveAnnouncement, type AnnounceState } from "./announce.js";
+import { useNowTick } from "./use-now-tick.js";
+import { useDiscreteAnnouncement } from "./use-discrete-announcement.js";
 import { usePrefersReducedMotion } from "./use-reduced-motion.js";
 import { useSwitchAlert } from "./use-switch-alert.js";
 import { useIsWide } from "./use-breakpoint.js";
@@ -87,18 +88,8 @@ export function Session({
   onRegenerateProblem,
   onPasteProblem,
 }: SessionProps) {
-  // 稼働中は定期的に再レンダリングしてカウントダウンを進める（FR-007）
-  const [nowTick, setNowTick] = useState(() => Date.now());
-  useEffect(() => {
-    if (!room.clock.running) {
-      setNowTick(Date.now());
-      return;
-    }
-    const id = setInterval(() => setNowTick(Date.now()), 200);
-    return () => clearInterval(id);
-  }, [room.clock.running, room.clock.anchorServerTime]);
-
-  const now = nowTick;
+  // 稼働中は定期的に再レンダリングしてカウントダウンを進める（FR-007・フックに分離）。
+  const now = useNowTick(room.clock.running, room.clock.anchorServerTime);
   const elapsed = useMemo(
     () => elapsedMs(room.clock, now, clockOffset),
     [room.clock, now, clockOffset],
@@ -138,38 +129,15 @@ export function Session({
 
   const isUrgent = room.clock.running && displayRemaining <= URGENT_THRESHOLD_SECONDS;
 
-  // 支援技術向けの離散アナウンス（FR-035）。
-  // 連続カウントは読み上げず、状態変化だけを assertive リージョンへ流す。
-  // 同一文言が連続しても再読み上げされるよう、不可視のゼロ幅スペースを末尾に
-  // 交互付与して DOM テキストを必ず変化させる（aria-live はテキスト変化時のみ発火）。
-  const [announcement, setAnnouncement] = useState("");
-  const prevStateRef = useRef<AnnounceState | null>(null);
-  const seqRef = useRef(0);
-  useEffect(() => {
-    const next: AnnounceState = {
-      running: room.clock.running,
-      isPaused: room.session.isPaused,
-      onBreak: room.onBreak,
-      currentIndex: room.session.currentIndex,
-      isUrgent,
-      driverName: currentDriverName,
-    };
-    const prev = prevStateRef.current;
-    prevStateRef.current = next;
-    if (!prev) return;
-    const msg = deriveAnnouncement(prev, next);
-    if (msg) {
-      seqRef.current += 1;
-      setAnnouncement(msg + "​".repeat(seqRef.current % 2));
-    }
-  }, [
-    room.clock.running,
-    room.session.isPaused,
-    room.onBreak,
-    room.session.currentIndex,
+  // 支援技術向けの離散アナウンス（FR-035・フックに分離）。
+  const announcement = useDiscreteAnnouncement({
+    running: room.clock.running,
+    isPaused: room.session.isPaused,
+    onBreak: room.onBreak,
+    currentIndex: room.session.currentIndex,
     isUrgent,
-    currentDriverName,
-  ]);
+    driverName: currentDriverName,
+  });
 
 
   // 強い交代通知（§9.1 assertiveSwitch）はカスタムフックに集約。reduced-motion は
