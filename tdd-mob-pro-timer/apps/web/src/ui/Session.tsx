@@ -15,6 +15,7 @@ import { TeamOrbit } from "./components/TeamOrbit.js";
 import { RosterPanel } from "./components/RosterPanel.js";
 import { ProblemEditor } from "./components/ProblemEditor.js";
 import { EndSessionZone } from "./components/EndSessionZone.js";
+import { SelfDriverToggle } from "./components/SelfDriverToggle.js";
 import { SwitchAlert } from "./components/SwitchAlert.js";
 import { SharedMemo } from "./components/SharedMemo.js";
 import { useNowTick } from "./use-now-tick.js";
@@ -22,6 +23,7 @@ import { useDiscreteAnnouncement } from "./use-discrete-announcement.js";
 import { usePrefersReducedMotion } from "./use-reduced-motion.js";
 import { useSwitchAlert } from "./use-switch-alert.js";
 import { useIsWide } from "./use-breakpoint.js";
+import { formatRemaining, formatElapsed } from "./format-time.js";
 
 interface SessionProps {
   room: Room;
@@ -149,20 +151,6 @@ export function Session({
     currentDriverName,
   );
 
-  // カウントダウンは ceil 表示。floor だと残り 0.9 秒でも「00:00」になり、最後の約1秒間
-  // 00:00 が据え置かれてから交代するため「時間が来てもすぐ交代しない」ラグに見える。
-  // ceil なら最後の1秒は「00:01」、真の 0（＝交代の瞬間）だけ「00:00」になり即時交代に見える。
-  const formatTime = (seconds: number) => {
-    const total = Math.ceil(Math.max(0, seconds));
-    const m = Math.floor(total / 60);
-    const s = total % 60;
-    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  };
-  const formatElapsed = (ms: number) => {
-    const total = Math.floor(ms / 1000);
-    return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
-  };
-
   const intervalSeconds = room.clock.intervalSeconds || 1;
   const progress = ((intervalSeconds - displayRemaining) / intervalSeconds) * 100;
   const isPaused = room.session.isPaused;
@@ -245,12 +233,12 @@ export function Session({
                 <div
                   role="timer"
                   aria-live="off"
-                  aria-label={`残り時間 ${formatTime(displayRemaining)}`}
+                  aria-label={`残り時間 ${formatRemaining(displayRemaining)}`}
                   className={`text-6xl lg:text-7xl font-black tabular tracking-tight ${
                     isUrgent ? "text-[var(--urgent)] animate-pulse" : "text-white"
                   } ${isPaused || room.onBreak ? "opacity-50" : ""}`}
                 >
-                  {formatTime(displayRemaining)}
+                  {formatRemaining(displayRemaining)}
                 </div>
                 {isPaused && (
                   <div className="instrument-label mt-1 text-[10px]">Paused</div>
@@ -369,72 +357,3 @@ export function Session({
   );
 }
 
-interface SelfDriverToggleProps {
-  inRotation: boolean;
-  /** 一時離脱中（driverEligible=false）。順番は保持され、復帰で戻れる。 */
-  isSkipping: boolean;
-  /** 列から外れられるか（最後の1人は外れられないため false）。 */
-  canLeave: boolean;
-  displayName: string;
-  participantId: string;
-  onJoin?: (displayName: string) => void;
-  onLeave?: (displayName: string) => void;
-  onSkip?: (participantId: string) => void;
-  onResume?: (participantId: string) => void;
-}
-
-/** 自分のドライバー状態と操作（2層モデル・D1）。
- * 「一時離脱／復帰」(driver.skip/resume・順番を保持して一時的に飛ばす) と
- * 「列から外れる／ドライバーに加わる」(rotation の出入り・恒久) を併記し、
- * 「ちょっと抜ける」と「もう運転しない」を明確に分ける。 */
-function SelfDriverToggle({
-  inRotation,
-  isSkipping,
-  canLeave,
-  displayName,
-  participantId,
-  onJoin,
-  onLeave,
-  onSkip,
-  onResume,
-}: SelfDriverToggleProps) {
-  const status = !inRotation ? (
-    <span className="text-[var(--bone-subtle)]">見学中</span>
-  ) : isSkipping ? (
-    <span className="font-semibold text-amber-300">離脱中</span>
-  ) : (
-    <span className="font-semibold text-[var(--signal)]">ドライバー</span>
-  );
-  return (
-    <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-md bg-[var(--panel-2)] border border-[var(--hairline)] px-3 py-2">
-      <span className="text-sm">あなた: {status}</span>
-      <span className="flex flex-wrap items-center gap-1.5">
-        {!inRotation && (
-          <PrimaryButton onClick={() => onJoin?.(displayName)} className="text-xs px-3 py-1.5">
-            ドライバーに加わる
-          </PrimaryButton>
-        )}
-        {inRotation && isSkipping && (
-          <PrimaryButton onClick={() => onResume?.(participantId)} className="text-xs px-3 py-1.5">
-            復帰
-          </PrimaryButton>
-        )}
-        {inRotation && !isSkipping && (
-          <GhostButton onClick={() => onSkip?.(participantId)} className="text-xs px-3 py-1.5">
-            一時離脱
-          </GhostButton>
-        )}
-        {inRotation && (
-          <GhostButton
-            onClick={() => onLeave?.(displayName)}
-            disabled={!canLeave}
-            title={canLeave ? undefined : "最後のドライバーは外れられません"}
-            className="text-xs px-3 py-1.5"
-          >
-            列から外れる
-          </GhostButton>
-        )}
-      </span>
-    </div>
-  );
-}
