@@ -9,6 +9,18 @@
 - sync は systemd + Bun でホスト常駐（`127.0.0.1:8787`・揮発インメモリ）
 - 更新は `deploy.sh` でローカルからビルド→転送→再起動
 
+## 前提（デプロイ実行環境）
+
+- **SSH**: `deploy.sh` の `SSH_HOST`（既定 `niku9`）を `~/.ssh/config` か known_hosts に
+  事前登録しておく（初回接続のホスト鍵確認で止まらないように）。
+- **sudo**: `deploy.sh` は SSH 先で `sudo systemctl restart` を実行する。SSH ユーザーが
+  **root**ならそのまま動く。一般ユーザーで運用する場合は `systemctl` への passwordless sudo
+  （例: `/etc/sudoers.d/tasuki-deploy` に `<user> ALL=(root) NOPASSWD: /usr/bin/systemctl restart tasuki-sync`）
+  を設定しないと、リモートでパスワード入力待ちになり処理が止まる。
+- **bun パス**: `tasuki-sync.service` の `ExecStart` は `/usr/local/bin/bun` を既定にしているが、
+  `curl | bash` 導入だと実際は `/root/.bun/bin/bun` 等になる。**必ず `which bun` の結果に合わせて
+  ユニットの `ExecStart` を書き換える**こと（不一致だと `systemctl start` が即失敗する）。
+
 ## ファイル
 
 | ファイル | 用途 |
@@ -35,6 +47,8 @@
    sudo useradd --system --no-create-home --shell /usr/sbin/nologin tasuki || true
    sudo mkdir -p /opt/tasuki /var/www/tasuki
    sudo chown -R tasuki:tasuki /opt/tasuki
+   # /var/www/tasuki は rsync が SSH ユーザー（通常 root）として書き込む。
+   # Caddy が読めれば良い（既存 gallery/play の web root 所有モデルに合わせる）。
    ```
 
 4. **env を配置**:
