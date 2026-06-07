@@ -12,6 +12,7 @@ const MAX_MESSAGE_BYTES = 64 * 1024; // 64KB
 
 export interface WsAdapterOptions {
   port: number;
+  host?: string;
   allowedOrigins: string[];
   onMessage: (connId: string, msg: unknown) => Promise<void>;
   onDisconnect: (connId: string) => void;
@@ -23,7 +24,7 @@ export class WsAdapter {
   private connCounter = 0;
 
   constructor(private readonly options: WsAdapterOptions) {
-    this.wss = new WebSocketServer({ port: options.port });
+    this.wss = new WebSocketServer({ port: options.port, host: options.host });
     this.wss.on("connection", this.handleConnection.bind(this));
   }
 

@@ -14,6 +14,7 @@ import { NanoidCodeGen } from "./adapters/nanoid-code-gen.js";
 import type { Room, ServerMsg } from "@tdd-mob/core";
 
 const PORT = parseInt(process.env["PORT"] ?? "8787", 10);
+const HOST = process.env["HOST"] ?? "127.0.0.1";
 const ALLOWED_ORIGINS = (process.env["ALLOWED_ORIGINS"] ?? "")
   .split(",")
   .filter(Boolean);
@@ -52,6 +53,7 @@ const presenceManager = new PresenceManager({ store, broadcaster, clock });
 
 wsAdapter = new WsAdapter({
   port: PORT,
+  host: HOST,
   allowedOrigins: ALLOWED_ORIGINS,
   onMessage: async (connId, msg) => {
     const cmd = msg as { command: string; [key: string]: unknown };
@@ -70,7 +72,7 @@ wsAdapter = new WsAdapter({
   },
 });
 
-console.log(`🚀 同期サーバー起動 port=${PORT}`);
+console.log(`🚀 同期サーバー起動 host=${HOST} port=${PORT}`);
 // ALLOWED_ORIGINS 未設定だと Origin 検証がスキップされ全 Origin を許可する（CSWSH リスク）。
 // 開発では許容だが、本番デプロイ時は必ず設定する。空のときは明示的に警告する。
 if (ALLOWED_ORIGINS.length === 0) {
