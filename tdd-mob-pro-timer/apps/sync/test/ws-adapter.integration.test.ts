@@ -54,4 +54,18 @@ describe("WsAdapter 接続数上限", () => {
     const code = await waitClose(ws);
     expect(code).toBe(1008);
   });
+
+  it("allowedOrigins 空なら任意 Origin の接続を許可する（dev）", async () => {
+    adapter = new WsAdapter({
+      port: PORT,
+      host: "127.0.0.1",
+      allowedOrigins: [],
+      maxConnections: 100,
+      onMessage: async () => {},
+      onDisconnect: () => {},
+    });
+    const ws = new WebSocket(`ws://127.0.0.1:${PORT}`, { origin: "https://anything.example" });
+    await expect(waitOpen(ws)).resolves.toBeUndefined();
+    ws.close();
+  });
 });

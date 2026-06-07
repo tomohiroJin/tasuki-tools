@@ -59,4 +59,16 @@ describe("RoomReclaimer", () => {
     r.sweep(1950);
     expect(onReclaim).toHaveBeenCalledWith("CCC");
   });
+
+  it("回収後（store から削除）は二重に回収しない", () => {
+    const store = new InMemoryRoomStore();
+    store.put(room("DDD", ["offline"]));
+    const onReclaim = vi.fn((code: string) => store.remove(code));
+    const r = new RoomReclaimer({ store, idleTtlMs: 1000, onReclaim });
+    r.sweep(0);      // empty 初検知
+    r.sweep(1000);   // TTL 到達 → 回収（store からも削除）
+    r.sweep(2000);   // すでに無い → 何もしない
+    expect(onReclaim).toHaveBeenCalledTimes(1);
+    expect(onReclaim).toHaveBeenCalledWith("DDD");
+  });
 });

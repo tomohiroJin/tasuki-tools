@@ -50,4 +50,11 @@ describe("loadSyncConfig", () => {
     expect(c.maxConnections).toBe(200);
     expect(c.port).toBe(8787);
   });
+
+  it("0 や負数は既定値にフォールバック（上限を無効化させない）", () => {
+    const c = loadSyncConfig({ MAX_CONNECTIONS: "0", MAX_ROOMS: "-1", PORT: "0" });
+    expect(c.maxConnections).toBe(200);
+    expect(c.maxRooms).toBe(50);
+    expect(c.port).toBe(8787);
+  });
 });
