@@ -105,6 +105,114 @@ describe("handlers: room.create", () => {
   });
 });
 
+describe("handlers: room.create — maxRooms 上限", () => {
+  let store: InMemoryRoomStore;
+  let clock: FakeClock;
+  let codeGen: FakeCodeGen;
+  let broadcaster: SpyBroadcaster;
+  let handlers: ReturnType<typeof makeHandlers>;
+
+  beforeEach(() => {
+    store = new InMemoryRoomStore();
+    clock = new FakeClock(1000000);
+    codeGen = new FakeCodeGen();
+    broadcaster = new SpyBroadcaster();
+    // maxRooms: 1 で上限を1に設定
+    handlers = makeHandlers({ store, clock, broadcaster, codeGen, maxRooms: 1 });
+  });
+
+  it("maxRooms に達した場合、2件目の room.create は ROOM_LIMIT_EXCEEDED を返す", async () => {
+    // 1件目は成功する
+    const first = await handlers.handleCommand("conn-001", {
+      command: "room.create",
+      displayName: "Alice",
+    });
+    expect(first.isOk()).toBe(true);
+
+    // 2件目はルーム上限に達しているので失敗する
+    const second = await handlers.handleCommand("conn-002", {
+      command: "room.create",
+      displayName: "Bob",
+    });
+    expect(second.isErr()).toBe(true);
+    if (second.isErr()) {
+      expect(second.error).toBe("ROOM_LIMIT_EXCEEDED");
+    }
+
+    // conn-002 に error メッセージが届いていること
+    const errorMsg = broadcaster.sent.find(
+      (s) => s.connId === "conn-002" && s.msg.type === "error",
+    );
+    expect(errorMsg).toBeTruthy();
+    if (errorMsg?.msg.type === "error") {
+      expect(errorMsg.msg.code).toBe("ROOM_LIMIT_EXCEEDED");
+    }
+  });
+});
+
+describe("handlers: releaseRoom", () => {
+  let store: InMemoryRoomStore;
+  let clock: FakeClock;
+  let codeGen: FakeCodeGen;
+  let broadcaster: SpyBroadcaster;
+  let handlers: ReturnType<typeof makeHandlers>;
+
+  beforeEach(() => {
+    store = new InMemoryRoomStore();
+    clock = new FakeClock(1000000);
+    codeGen = new FakeCodeGen();
+    broadcaster = new SpyBroadcaster();
+    handlers = makeHandlers({ store, clock, broadcaster, codeGen });
+  });
+
+  it("releaseRoom はエラーなく実行でき、同じコードで2回呼んでも冪等である", async () => {
+    const result = await handlers.handleCommand("conn-001", {
+      command: "room.create",
+      displayName: "Alice",
+    });
+    expect(result.isOk()).toBe(true);
+    if (!result.isOk()) return;
+
+    const { code } = result.value;
+
+    // 1回目: エラーなく実行できること
+    expect(() => handlers.releaseRoom(code)).not.toThrow();
+    // 2回目（冪等性）: 2回目もエラーなく実行できること
+    expect(() => handlers.releaseRoom(code)).not.toThrow();
+  });
+
+  it("releaseRoom 後はリジュームトークンが無効化される", async () => {
+    const result = await handlers.handleCommand("conn-001", {
+      command: "room.create",
+      displayName: "Alice",
+    });
+    expect(result.isOk()).toBe(true);
+    if (!result.isOk()) return;
+
+    const { code, resumeToken } = result.value;
+
+    // releaseRoom でトークンを解放する
+    handlers.releaseRoom(code);
+
+    // リジュームトークンを使った参加が新規参加として扱われること（ルームが既に存在する場合）
+    // ルームは store に残っているが resumeToken は無効化されているため、新規 participantId が割り当てられる
+    const joinResult = await handlers.handleCommand("conn-002", {
+      command: "room.join",
+      code,
+      displayName: "Alice",
+      hasAiKey: false,
+      resumeToken,
+    });
+    // ルームは store に残っているので参加自体は成功するが
+    // resumeToken が無効化されているため、新規参加者として別の participantId が発行される
+    expect(joinResult.isOk()).toBe(true);
+    if (joinResult.isOk()) {
+      // 元の participantId とは異なる新規 participantId が発行される
+      expect(joinResult.value.participantId).not.toBe(result.value.participantId);
+    }
+  });
+});
+
 describe("handlers: room.join", () => {
   let store: InMemoryRoomStore;
   let clock: FakeClock;
