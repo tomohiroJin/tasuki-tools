@@ -111,6 +111,15 @@ sudo ss -tlnp | grep 8787                            # 127.0.0.1:8787 のみ
 ```
 ブラウザで `https://tasuki.niku9.click/` を開き、ルーム作成→別タブで参加し WS 同期を確認。
 
+## リソース上限・Origin 保護（公開運用）
+
+- 本番 env に `NODE_ENV=production` を置くと、`ALLOWED_ORIGINS` 未設定時に sync が
+  **起動を拒否**する（CSWSH 防止の fail-closed）。
+- `MAX_CONNECTIONS`（既定 200）/ `MAX_ROOMS`（既定 50）で同時接続数・ルーム数を制限。
+  超過接続は WS 1013、超過 room.create は `ROOM_LIMIT_EXCEEDED` で拒否。
+- `ROOM_IDLE_TTL_MS`（既定 30 分）全員切断が継続したルームを定期回収（60 秒間隔）。
+  揮発設計のため回収されたルームは復帰不可（再作成すればよい）。
+
 ## ロールバック
 
 sync を一旦止めて前バージョンの `server.js` に戻す:

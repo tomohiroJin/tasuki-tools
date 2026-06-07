@@ -122,12 +122,17 @@ v2.0.0（tag `v2.0.0`）として完成した Tasuki を、既存の VPS に公�
   - 入力長上限（displayName/roomName/handoffNote/お題各種）
   - secret-zero（鍵・秘密を持たない）
 - **localhost 限定バインド**で sync の直接到達を遮断（HOST バインド or firewall）。
+- **本ブランチで追加した堅牢化（M-1 / M-2）**:
+  - **M-1 fail-closed Origin**: `NODE_ENV=production` かつ `ALLOWED_ORIGINS` 空なら起動を拒否（`config.ts` の `loadSyncConfig`）。Origin 検証がサイレントに全許可へ緩む CSWSH を防ぐ。
+  - **M-2 同時接続数上限**: `MAX_CONNECTIONS`（既定 200）超過の WS 接続を `1013` で拒否（`WsAdapter`）。
+  - **M-2 ルーム数上限**: `MAX_ROOMS`（既定 50）到達時の `room.create` を `ROOM_LIMIT_EXCEEDED` で拒否（handlers）。
+  - **M-2 アイドル回収**: `ROOM_IDLE_TTL_MS`（既定 30 分）全員 offline が継続したルームを 60 秒間隔の sweep で削除（`RoomReclaimer`）。回収時に scheduler/delegator/presence タイマーと token を解放。
 
 ## 9. スコープ外（今回やらないこと）
 
-- **M4 のリソース上限**（同時接続数 / ルーム数 / アイドル回収 / グローバルレート制限）は
-  本デプロイの前提条件ではない。公開運用で必要になれば**別タスク**として追加する。
-  （アプリ層の既存防御 + noindex で初期公開には十分と判断）
+- **M4 のリソース上限**: 最小サブセット（同時接続数 / ルーム数 / アイドル回収）は
+  公開運用のため**本ブランチで実装済み**（§8 の M-2 参照）。
+  重い M4 項目（グローバル/IP 単位レート制限・クロスチーム永続化）は引き続きスコープ外。
 - **CI/CD（GitHub Actions 等）**: 現状ローカル完結方針のため不採用。将来リモート整備時に検討。
 - **AI お題生成**: v2.0.0 後に保留中。本デプロイとは独立。
 - **PWA / 永続記録ストア**: M4 将来枠。
