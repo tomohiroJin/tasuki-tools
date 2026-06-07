@@ -6,8 +6,13 @@ tasuki.niku9.click {
 	root * /var/www/tasuki
 	encode zstd gzip
 
-	# 検索除外（robots.txt と二重）
-	header X-Robots-Tag "noindex, nofollow"
+	# レスポンスヘッダ（検索除外 + 基本的なセキュリティヘッダ）
+	header {
+		X-Robots-Tag "noindex, nofollow"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "same-origin"
+	}
 
 	# WebSocket 同期サーバーへ（Upgrade は自動処理）
 	handle /ws* {

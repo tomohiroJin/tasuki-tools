@@ -1,7 +1,7 @@
 # Tasuki デプロイ手順（niku9.click）
 
 `tasuki.niku9.click` で公開するための手順。設計の正本は
-`../docs/superpowers/specs/2026-06-07-tasuki-vps-deployment-design.md`。
+`../../docs/superpowers/specs/2026-06-07-tasuki-vps-deployment-design.md`。
 
 ## 構成
 
@@ -11,8 +11,12 @@
 
 ## 前提（デプロイ実行環境）
 
-- **SSH**: `deploy.sh` の `SSH_HOST`（既定 `niku9`）を `~/.ssh/config` か known_hosts に
-  事前登録しておく（初回接続のホスト鍵確認で止まらないように）。
+- **成果物の転送**: 初回セットアップで使う `tasuki-sync.service` / `tasuki-sync.env.example` /
+  `Caddyfile.production` は VPS 側に置く必要がある。リポジトリを VPS に clone するか、
+  ローカルから `scp deploy/tasuki-sync.service deploy/tasuki-sync.env.example deploy/Caddyfile.production <host>:/tmp/`
+  で転送してから以降の手順を実行する（以下の手順は転送済み前提）。
+- **SSH**: deploy.sh の接続先は環境変数 `TASUKI_SSH_HOST`（内部変数 `SSH_HOST`・既定 `niku9`）。
+  これを `~/.ssh/config` か known_hosts に事前登録しておく（初回接続のホスト鍵確認で止まらないように）。
 - **sudo**: `deploy.sh` は SSH 先で `sudo systemctl restart` を実行する。SSH ユーザーが
   **root**ならそのまま動く。一般ユーザーで運用する場合は `systemctl` への passwordless sudo
   （例: `/etc/sudoers.d/tasuki-deploy` に `<user> ALL=(root) NOPASSWD: /usr/bin/systemctl restart tasuki-sync`）
@@ -20,6 +24,10 @@
 - **bun パス**: `tasuki-sync.service` の `ExecStart` は `/usr/local/bin/bun` を既定にしているが、
   `curl | bash` 導入だと実際は `/root/.bun/bin/bun` 等になる。**必ず `which bun` の結果に合わせて
   ユニットの `ExecStart` を書き換える**こと（不一致だと `systemctl start` が即失敗する）。
+  ⚠ 重要: bun が `/root/.bun/bin/bun` にある場合、ユニットの `ProtectHome=true` により
+  実行ユーザー `tasuki` は `/root` にアクセスできず起動に失敗する。
+  `sudo cp /root/.bun/bin/bun /usr/local/bin/bun && sudo chmod 755 /usr/local/bin/bun` で
+  `/usr/local/bin/` にコピーし、`ExecStart` を `/usr/local/bin/bun` のままにするのが確実。
 
 ## ファイル
 
@@ -63,8 +71,9 @@
    ```bash
    sudo cp tasuki-sync.service /etc/systemd/system/
    sudo systemctl daemon-reload
+   sudo systemctl enable tasuki-sync   # 自動起動を有効化（start はまだしない）
    ```
-   ※ この時点では `server.js` 未配置のため enable のみ。初回 `deploy.sh` 実行後に起動する。
+   ※ この時点では `server.js` 未配置のため enable のみで start しない。初回 `deploy.sh` 実行後に start（step 7）。
 
 6. **Caddy 設定を取り込む**: `Caddyfile.production` の `tasuki.niku9.click { ... }` ブロックを
    既存ホストの Caddyfile（gallery/play と同じファイル）へ追記し、検証して reload:
@@ -73,9 +82,9 @@
    sudo systemctl reload caddy
    ```
 
-7. **初回デプロイ**（ローカルから・下記「更新」と同じ）を実行し、最後に:
+7. **初回デプロイ**（ローカルから・下記「更新」と同じ）を実行して `server.js` を配置し、最後に起動:
    ```bash
-   sudo systemctl enable --now tasuki-sync
+   sudo systemctl start tasuki-sync    # enable は step 5 で済み
    sudo systemctl status tasuki-sync
    ```
 
@@ -90,7 +99,7 @@ TASUKI_SSH_HOST=user@157.7.141.211 ./deploy/deploy.sh
 
 配置パスを変える場合は `TASUKI_WEB_ROOT` / `TASUKI_APP_DIR` / `TASUKI_SERVICE` を指定。
 `pnpm` が PATH に無い環境は `PNPM=~/.local/bin/pnpm ./deploy/deploy.sh`。
-（前提: `SSH_HOST` は `~/.ssh/config` か known_hosts に事前設定しておくこと。初回接続のホスト鍵確認で止まらないように。）
+（前提: 接続先 `TASUKI_SSH_HOST` は `~/.ssh/config` か known_hosts に事前設定しておくこと。初回接続のホスト鍵確認で止まらないように。）
 
 ## 動作確認
 

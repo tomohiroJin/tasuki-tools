@@ -7,6 +7,13 @@ WEB_ROOT="${TASUKI_WEB_ROOT:-/var/www/tasuki}"
 APP_DIR="${TASUKI_APP_DIR:-/opt/tasuki}"
 SERVICE="${TASUKI_SERVICE:-tasuki-sync}"
 
+# SERVICE はリモートの sudo コマンド文字列に埋め込むため、シェルメタ文字を弾く
+# （環境変数経由のコマンドインジェクション防止）。
+if ! [[ "${SERVICE}" =~ ^[A-Za-z0-9_.@-]+$ ]]; then
+	echo "ERROR: TASUKI_SERVICE に使える文字は英数と _.@- のみです: ${SERVICE}" >&2
+	exit 1
+fi
+
 # モノレポルート（このスクリプトの1つ上）へ移動
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
