@@ -1,0 +1,22 @@
+# Tasuki 本番用 Caddy 設定
+# 既存ホストの Caddyfile（gallery/play と同じファイル）へこのブロックを取り込む。
+# ドメイン名を指定しているため TLS は Caddy が自動取得する（ACME）。
+# 前提: tasuki.niku9.click の A レコードが 157.7.141.211 を指していること。
+tasuki.niku9.click {
+	root * /var/www/tasuki
+	encode zstd gzip
+
+	# 検索除外（robots.txt と二重）
+	header X-Robots-Tag "noindex, nofollow"
+
+	# WebSocket 同期サーバーへ（Upgrade は自動処理）
+	handle /ws* {
+		reverse_proxy 127.0.0.1:8787
+	}
+
+	# 静的 SPA（ディープリンクは index.html へフォールバック）
+	handle {
+		try_files {path} /index.html
+		file_server
+	}
+}
