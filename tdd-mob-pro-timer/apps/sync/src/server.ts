@@ -11,13 +11,18 @@ import { WsAdapter } from "./adapters/ws-adapter.js";
 import { InMemoryRoomStore } from "./adapters/in-memory-room-store.js";
 import { SystemClock } from "./adapters/system-clock.js";
 import { NanoidCodeGen } from "./adapters/nanoid-code-gen.js";
+import { loadSyncConfig } from "./config.js";
+import { RoomReclaimer } from "./application/room-reclaimer.js";
 import type { Room, ServerMsg } from "@tdd-mob/core";
 
-const PORT = parseInt(process.env["PORT"] ?? "8787", 10);
-const HOST = process.env["HOST"] ?? "127.0.0.1";
-const ALLOWED_ORIGINS = (process.env["ALLOWED_ORIGINS"] ?? "")
-  .split(",")
-  .filter(Boolean);
+const config = (() => {
+  try {
+    return loadSyncConfig(process.env);
+  } catch (e) {
+    console.error(`❌ 設定エラー: ${(e as Error).message}`);
+    process.exit(1);
+  }
+})();
 
 const store = new InMemoryRoomStore();
 const clock = new SystemClock();
@@ -48,13 +53,14 @@ const broadcaster = {
 };
 
 const delegator = new ProblemDelegator({ store, clock, broadcaster });
-const handlers = makeHandlers({ store, clock, broadcaster, codeGen, scheduler, delegator });
+const handlers = makeHandlers({ store, clock, broadcaster, codeGen, scheduler, delegator, maxRooms: config.maxRooms });
 const presenceManager = new PresenceManager({ store, broadcaster, clock });
 
 wsAdapter = new WsAdapter({
-  port: PORT,
-  host: HOST,
-  allowedOrigins: ALLOWED_ORIGINS,
+  port: config.port,
+  host: config.host,
+  allowedOrigins: config.allowedOrigins,
+  maxConnections: config.maxConnections,
   onMessage: async (connId, msg) => {
     const cmd = msg as { command: string; [key: string]: unknown };
 
@@ -72,19 +78,34 @@ wsAdapter = new WsAdapter({
   },
 });
 
-console.log(`🚀 同期サーバー起動 host=${HOST} port=${PORT}`);
-// ALLOWED_ORIGINS 未設定だと Origin 検証がスキップされ全 Origin を許可する（CSWSH リスク）。
-// 開発では許容だが、本番デプロイ時は必ず設定する。空のときは明示的に警告する。
-if (ALLOWED_ORIGINS.length === 0) {
+const RECLAIM_SWEEP_MS = 60_000;
+const reclaimer = new RoomReclaimer({
+  store,
+  idleTtlMs: config.roomIdleTtlMs,
+  onReclaim: (code) => {
+    scheduler.clear(code);
+    delegator.cancel(code);
+    presenceManager.clearRoomTimers(code);
+    handlers.releaseRoom(code);
+    store.remove(code);
+  },
+});
+reclaimer.start(RECLAIM_SWEEP_MS);
+
+console.log(
+  `🚀 同期サーバー起動 host=${config.host} port=${config.port} ` +
+    `maxConn=${config.maxConnections} maxRooms=${config.maxRooms}`,
+);
+if (config.allowedOrigins.length === 0) {
   console.warn(
-    "⚠ ALLOWED_ORIGINS 未設定: 全 Origin からの WebSocket 接続を許可します。" +
-      "本番では ALLOWED_ORIGINS にカンマ区切りで許可オリジンを設定してください。",
+    "⚠ ALLOWED_ORIGINS 未設定: 全 Origin からの WebSocket 接続を許可します（dev 用）。",
   );
 }
 
 // グレースフルシャットダウン
 process.on("SIGTERM", async () => {
   console.log("SIGTERM 受信: シャットダウン中...");
+  reclaimer.stop();
   scheduler.clearAll();
   delegator.cancelAll();
   await wsAdapter.close();
