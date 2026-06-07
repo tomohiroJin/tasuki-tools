@@ -1,0 +1,43 @@
+/**
+ * sync サーバーの環境変数を集約・検証する。
+ * 本番（NODE_ENV=production）で ALLOWED_ORIGINS が空なら fail-closed で起動を拒否する
+ * （CSWSH 防止。Origin 検証がサイレントに全許可へ緩むのを防ぐ）。
+ */
+
+export interface SyncConfig {
+  port: number;
+  host: string;
+  allowedOrigins: string[];
+  maxConnections: number;
+  maxRooms: number;
+  roomIdleTtlMs: number;
+}
+
+/** env 値を整数として解釈し、不正なら既定値を返す。 */
+function intEnv(value: string | undefined, fallback: number): number {
+  const n = parseInt(value ?? "", 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+export function loadSyncConfig(env: Record<string, string | undefined>): SyncConfig {
+  const allowedOrigins = (env["ALLOWED_ORIGINS"] ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (env["NODE_ENV"] === "production" && allowedOrigins.length === 0) {
+    throw new Error(
+      "本番（NODE_ENV=production）では ALLOWED_ORIGINS の設定が必須です。" +
+        "全 Origin 許可（CSWSH リスク）を防ぐため起動を中止します。",
+    );
+  }
+
+  return {
+    port: intEnv(env["PORT"], 8787),
+    host: env["HOST"] ?? "127.0.0.1",
+    allowedOrigins,
+    maxConnections: intEnv(env["MAX_CONNECTIONS"], 200),
+    maxRooms: intEnv(env["MAX_ROOMS"], 50),
+    roomIdleTtlMs: intEnv(env["ROOM_IDLE_TTL_MS"], 1_800_000),
+  };
+}
