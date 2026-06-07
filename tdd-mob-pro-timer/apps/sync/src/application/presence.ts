@@ -108,6 +108,11 @@ export class PresenceManager {
     this.hostAbsenceTimers.set(roomCode, timer);
   }
 
+  /** ルーム回収時に、そのルームのプレゼンス関連タイマーを解放する。 */
+  clearRoomTimers(roomCode: string): void {
+    this.clearHostAbsenceTimer(roomCode);
+  }
+
   private clearHostAbsenceTimer(roomCode: string): void {
     const timer = this.hostAbsenceTimers.get(roomCode);
     if (timer !== undefined) {
