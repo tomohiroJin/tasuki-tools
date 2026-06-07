@@ -117,6 +117,7 @@ describe("resume: 再接続・復帰（FR-019, SC-005）", () => {
     const room = store.get(code);
     const charlie = room?.participants.find((p) => p.displayName === "Charlie");
     expect(charlie).toBeTruthy();
-    expect(charlie?.role).toBe("viewer");
+    // 既定 editor で新規参加扱い（UX 再設計）。
+    expect(charlie?.role).toBe("editor");
   });
 });

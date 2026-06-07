@@ -19,6 +19,43 @@ const baseConfig: SessionConfig = {
 const baseAgg = initialAggregate(baseConfig);
 const NOW = 1000000;
 
+// ─── ABORT ──────────────────────────────────────────────────────────────────
+
+describe("decide: session.abort", () => {
+  it("session.abort で SessionAborted イベントを発行する", () => {
+    const result = decide({ command: "session.abort" }, baseAgg, NOW);
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value).toHaveLength(1);
+      expect(result.value[0]?.type).toBe("SessionAborted");
+    }
+  });
+
+  it("SessionAborted は SessionCompleted とは異なるイベント型である", () => {
+    const abortResult = decide({ command: "session.abort" }, baseAgg, NOW);
+    const completeResult = decide({ command: "session.complete" }, baseAgg, NOW);
+    expect(abortResult.isOk()).toBe(true);
+    expect(completeResult.isOk()).toBe(true);
+    if (abortResult.isOk() && completeResult.isOk()) {
+      expect(abortResult.value[0]?.type).toBe("SessionAborted");
+      expect(completeResult.value[0]?.type).toBe("SessionCompleted");
+      expect(abortResult.value[0]?.type).not.toBe(completeResult.value[0]?.type);
+    }
+  });
+});
+
+// ─── COMPLETE（回帰） ────────────────────────────────────────────────────────
+
+describe("decide: session.complete（回帰テスト）", () => {
+  it("session.complete は SessionCompleted イベントを発行し変わらない", () => {
+    const result = decide({ command: "session.complete" }, baseAgg, NOW);
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value[0]?.type).toBe("SessionCompleted");
+    }
+  });
+});
+
 // ─── START ──────────────────────────────────────────────────────────────────
 
 describe("decide: START", () => {
@@ -166,13 +203,15 @@ describe("decide: メンバー管理", () => {
     }
   });
 
-  it("2人未満になる削除はエラー（BelowMinMembers）", () => {
-    const twoMemberConfig: SessionConfig = {
-      ...baseConfig,
-      members: ["Alice", "Bob"],
-    };
-    const twoMemberAgg = initialAggregate(twoMemberConfig);
+  it("2人のとき1人削除はできる（2層モデル: 下限は1人）", () => {
+    const twoMemberAgg = initialAggregate({ ...baseConfig, members: ["Alice", "Bob"] });
     const result = decide({ command: "member.remove", index: 0 }, twoMemberAgg, NOW);
+    expect(result.isOk()).toBe(true);
+  });
+
+  it("最後の1人を削除しようとするとエラー（BelowMinMembers）", () => {
+    const oneMemberAgg = initialAggregate({ ...baseConfig, members: ["Alice"] });
+    const result = decide({ command: "member.remove", index: 0 }, oneMemberAgg, NOW);
     expect(result.isErr()).toBe(true);
     if (result.isErr()) {
       expect(result.error.type).toBe("BelowMinMembers");
@@ -232,6 +271,221 @@ describe("decide: config.set", () => {
         NOW,
       );
       expect(result.isOk(), `interval ${interval} should be valid`).toBe(true);
+    }
+  });
+});
+
+// ─── T009/T011/T013: 在席の柔軟化（v2） ─────────────────────────────────────
+
+describe("decide: participant.addProxy（T009）", () => {
+  it("有効な名前でプレースホルダー参加者を追加できる", () => {
+    const result = decide(
+      { command: "participant.addProxy", displayName: "Dave", participantId: "proxy-1" },
+      baseAgg,
+      NOW,
+    );
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value[0]?.type).toBe("ProxyMemberAdded");
+    }
+  });
+
+  it("空の表示名は拒否される", () => {
+    const result = decide(
+      { command: "participant.addProxy", displayName: "  ", participantId: "proxy-2" },
+      baseAgg,
+      NOW,
+    );
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.type).toBe("EmptyName");
+    }
+  });
+
+  it("既存の表示名と重複する名前は拒否される", () => {
+    const result = decide(
+      { command: "participant.addProxy", displayName: "Alice", participantId: "proxy-3" },
+      baseAgg,
+      NOW,
+    );
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.type).toBe("DuplicateName");
+    }
+  });
+});
+
+describe("decide: participant.rename（T011）", () => {
+  it("有効な表示名への変更でイベントを発行する", () => {
+    const result = decide(
+      { command: "participant.rename", participantId: "p1", displayName: "NewName" },
+      baseAgg,
+      NOW,
+    );
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value[0]?.type).toBe("ParticipantRenamed");
+    }
+  });
+
+  it("空の表示名への変更は拒否される", () => {
+    const result = decide(
+      { command: "participant.rename", participantId: "p1", displayName: "" },
+      baseAgg,
+      NOW,
+    );
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.type).toBe("EmptyName");
+    }
+  });
+
+  it("既存の他メンバー名への変更は拒否される（DuplicateName）", () => {
+    // rotation=["Alice","Bob","Charlie"]。現在名 Alice の参加者を Bob へ改名すると
+    // rotation 一意性が壊れるため DuplicateName で拒否する。
+    const result = decide(
+      {
+        command: "participant.rename",
+        participantId: "p1",
+        displayName: "Bob",
+        currentDisplayName: "Alice",
+      },
+      baseAgg,
+      NOW,
+    );
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.type).toBe("DuplicateName");
+    }
+  });
+
+  it("大文字小文字違いの既存名への変更も拒否される（DuplicateName）", () => {
+    const result = decide(
+      {
+        command: "participant.rename",
+        participantId: "p1",
+        displayName: "bOb",
+        currentDisplayName: "Alice",
+      },
+      baseAgg,
+      NOW,
+    );
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.type).toBe("DuplicateName");
+    }
+  });
+
+  it("自分の現在名と同一への変更はエラーにしない（no-op 相当で許可）", () => {
+    // Alice → Alice。rotation に同名があっても本人の現在名なので許可する。
+    const result = decide(
+      {
+        command: "participant.rename",
+        participantId: "p1",
+        displayName: "Alice",
+        currentDisplayName: "Alice",
+      },
+      baseAgg,
+      NOW,
+    );
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value[0]?.type).toBe("ParticipantRenamed");
+    }
+  });
+});
+
+describe("decide: driver.skip / driver.resume（T013）", () => {
+  it("driver.skip で DriverSkipped イベントを発行する", () => {
+    const result = decide(
+      { command: "driver.skip", participantId: "p1" },
+      baseAgg,
+      NOW,
+    );
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value[0]?.type).toBe("DriverSkipped");
+    }
+  });
+
+  it("driver.resume で DriverResumed イベントを発行する", () => {
+    const result = decide(
+      { command: "driver.resume", participantId: "p1" },
+      baseAgg,
+      NOW,
+    );
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value[0]?.type).toBe("DriverResumed");
+    }
+  });
+});
+
+// ─── T015/T017/T019: お題の出所・編集・出題モード（v2） ─────────────────────
+
+describe("decide: problem.edit（T015）", () => {
+  it("フィールドパッチで ProblemEdited イベントを発行する", () => {
+    const result = decide(
+      { command: "problem.edit", patch: { title: "新タイトル" } },
+      baseAgg,
+      NOW,
+    );
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value[0]?.type).toBe("ProblemEdited");
+    }
+  });
+
+  it("requirements が上限を超えると InputLimitExceeded で拒否される（メンバー上限とは別エラー）", () => {
+    const tooMany = Array.from({ length: 21 }, (_, i) => `要件${i}`);
+    const result = decide(
+      { command: "problem.edit", patch: { requirements: tooMany } },
+      baseAgg,
+      NOW,
+    );
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      // メンバー数上限（MemberLimitExceeded）の流用ではなく、入力サイズ専用のエラー型を使う。
+      expect(result.error.type).toBe("InputLimitExceeded");
+    }
+  });
+
+  it("requirements が上限ちょうど（20件）なら許可される", () => {
+    const exactly = Array.from({ length: 20 }, (_, i) => `要件${i}`);
+    const result = decide(
+      { command: "problem.edit", patch: { requirements: exactly } },
+      baseAgg,
+      NOW,
+    );
+    expect(result.isOk()).toBe(true);
+  });
+});
+
+describe("decide: problem.mode.set（T019）", () => {
+  it("AI モードへの切り替えで ProblemModeSet を発行する", () => {
+    const result = decide(
+      { command: "problem.mode.set", mode: "ai" },
+      baseAgg,
+      NOW,
+    );
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value[0]?.type).toBe("ProblemModeSet");
+    }
+  });
+
+  it("定型モードへの切り替えで ProblemModeSet を発行する", () => {
+    const result = decide(
+      { command: "problem.mode.set", mode: "fallback" },
+      baseAgg,
+      NOW,
+    );
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      const evt = result.value[0];
+      if (evt?.type === "ProblemModeSet") {
+        expect(evt.mode).toBe("fallback");
+      }
     }
   });
 });

@@ -3,8 +3,9 @@
  * a11y: role="dialog" aria-modal、Esc で閉じる、開いたら取消ボタンへフォーカス。
  */
 
-import React, { useEffect, useRef } from "react";
-import { Button, type ButtonIntent } from "./Button.js";
+import React, { useRef } from "react";
+import { GhostButton } from "../primitives.js";
+import { useFocusTrap } from "../useFocusTrap.js";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -12,7 +13,8 @@ interface ConfirmDialogProps {
   description?: string;
   confirmLabel: string;
   cancelLabel?: string;
-  confirmIntent?: ButtonIntent;
+  /** 確認ボタンの色味。"danger"（赤・既定）か "primary"（シグナル朱）。 */
+  confirmIntent?: "danger" | "primary";
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -30,47 +32,24 @@ export function ConfirmDialog({
   const cancelRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    // 開く前のフォーカス位置を保持し、閉じたら復帰させる
-    const previouslyFocused = document.activeElement as HTMLElement | null;
-    cancelRef.current?.focus();
-
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onCancel();
-        return;
-      }
-      // Tab をダイアログ内に閉じ込める（フォーカストラップ）
-      if (e.key === "Tab" && dialogRef.current) {
-        const focusables = dialogRef.current.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-        );
-        if (focusables.length === 0) return;
-        const first = focusables[0]!;
-        const last = focusables[focusables.length - 1]!;
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
-    };
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      previouslyFocused?.focus?.();
-    };
-  }, [open, onCancel]);
+  // Esc クローズ・Tab トラップ・初期フォーカス（取消ボタン）・フォーカス復帰を共用フックで担う。
+  useFocusTrap({
+    open,
+    containerRef: dialogRef,
+    onClose: onCancel,
+    initialFocusRef: cancelRef,
+  });
 
   if (!open) return null;
 
+  const confirmClass =
+    confirmIntent === "primary"
+      ? "bg-[var(--signal)] hover:bg-[#ff6147] text-[#160603] shadow-[0_0_0_1px_rgba(255,74,46,0.5),0_6px_20px_var(--signal-glow)]"
+      : "bg-[rgba(255,53,42,0.9)] hover:bg-[var(--urgent)] text-white shadow-[0_4px_16px_rgba(255,53,42,0.3)] ring-1 ring-[rgba(255,53,42,0.4)]";
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
-      style={{ background: "var(--color-overlay)" }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
       onClick={onCancel}
     >
       <div
@@ -78,22 +57,31 @@ export function ConfirmDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="confirm-title"
-        className="w-full max-w-sm rounded-lg border border-line bg-surface p-5 shadow-lg"
+        className="relative w-full max-w-sm rounded-lg border border-[var(--hairline-strong)] bg-[var(--panel)] p-5 shadow-[inset_0_1px_0_rgba(236,232,220,0.05),0_20px_50px_rgba(0,0,0,0.6)] text-[var(--bone)]"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 id="confirm-title" className="text-lg font-bold text-fg">
+        <h2 id="confirm-title" className="text-lg font-bold text-[var(--bone)]">
           {title}
         </h2>
         {description && (
-          <p className="mt-2 text-sm text-fg-muted">{description}</p>
+          <p className="mt-2 text-sm text-[var(--bone-muted)]">{description}</p>
         )}
         <div className="mt-5 flex justify-end gap-3">
-          <Button ref={cancelRef} intent="neutral" onClick={onCancel}>
+          <button
+            ref={cancelRef}
+            type="button"
+            onClick={onCancel}
+            className="px-4 py-2 rounded-md font-medium text-[var(--bone)] bg-[var(--panel-2)] hover:bg-[#252934] border border-[var(--hairline-strong)] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]"
+          >
             {cancelLabel}
-          </Button>
-          <Button intent={confirmIntent} onClick={onConfirm}>
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className={`px-5 py-2 rounded-md font-bold transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)] ${confirmClass}`}
+          >
             {confirmLabel}
-          </Button>
+          </button>
         </div>
       </div>
     </div>

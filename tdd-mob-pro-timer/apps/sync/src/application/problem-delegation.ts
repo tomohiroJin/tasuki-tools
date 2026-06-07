@@ -57,6 +57,13 @@ export class ProblemDelegator {
     const room = this.store.get(roomCode);
     if (!room) return;
 
+    // problemMode=fallback の場合は AI 候補へ委譲せず即座に定型で確定する（FR-037/043）
+    if (room.problemMode === "fallback") {
+      const fb = pickFallback(room.config.language, room.config.difficulty);
+      this.finalize(roomCode, { ...fb.problem, source: "fallback" });
+      return;
+    }
+
     const candidates = buildCandidates(room);
     this.active.set(roomCode, { requestId, candidates, index: 0, timer: null });
     this.offerToCurrent(roomCode);

@@ -64,6 +64,9 @@ export interface SessionConfig {
   assertiveSwitch?: boolean;
 }
 
+/** お題の出所 */
+export type ProblemSource = "ai" | "fallback" | "custom";
+
 /** お題 */
 export interface Problem {
   title: string;
@@ -71,6 +74,10 @@ export interface Problem {
   requirements: string[];
   exampleTest: string;
   hints: string[];
+  /** 出所（v2追加・省略時は undefined = 出所不明） */
+  source?: ProblemSource;
+  /** 利用者が編集済みか（v2追加） */
+  edited?: boolean;
 }
 
 /** 参加者 */
@@ -82,7 +89,14 @@ export interface Participant {
   presence: "online" | "idle" | "offline";
   hasAiKey: boolean;
   joinedAt: number;
+  /** Web 非接続の代理参加者か（v2追加。既定 false 相当） */
+  isPlaceholder?: boolean;
+  /** ドライバーローテーション対象か（v2追加。既定 true 相当） */
+  driverEligible?: boolean;
 }
+
+/** 出題モード（v2追加） */
+export type ProblemMode = "ai" | "fallback";
 
 /** ルームフェーズ */
 export type RoomPhase = "setup" | "ready" | "session" | "celebration";
@@ -101,6 +115,8 @@ export interface Room {
   sessionRecords: CompletionRecord[];
   handoffNote: string;
   onBreak: boolean;
+  /** 出題モード（v2追加。既定 "fallback"） */
+  problemMode?: ProblemMode;
 }
 
 /** 完成記録 */
@@ -114,6 +130,10 @@ export interface CompletionRecord {
   members: string[];
   totalSwitches: number;
   completedAt: number;
+  /** ドライバー別の担当回数（members と同順・§振り返り）。旧記録には無いので任意。 */
+  driverCounts?: number[];
+  /** ローテーションが一巡した回数（totalSwitches / rotation 長）。任意。 */
+  rounds?: number;
 }
 
 // ─── 導出関数 ───────────────────────────────────────────────────────────────
@@ -177,6 +197,33 @@ export function initialAggregate(config: SessionConfig): Aggregate {
   };
 }
 
+/**
+ * ドライバー対象（driverEligible !== false）の次のインデックスを返す。
+ * @param session セッション状態
+ * @param currentIndex 現在のインデックス
+ * @param ineligible ドライバー対象外のインデックス集合（undefined = 全員対象）
+ * @returns 次の eligible インデックス。全員 ineligible の場合は currentIndex を返す。
+ */
+export function nextEligibleIndex(
+  session: Pick<SessionState, "rotation">,
+  currentIndex: number,
+  ineligible: Set<number> | undefined,
+): number {
+  const len = session.rotation.length;
+  if (len === 0) return 0;
+  if (!ineligible || ineligible.size === 0) {
+    return (currentIndex + 1) % len;
+  }
+
+  // 最大 len 回試行して eligible を見つける
+  for (let i = 1; i <= len; i++) {
+    const candidate = (currentIndex + i) % len;
+    if (!ineligible.has(candidate)) return candidate;
+  }
+  // 全員 ineligible → 現状維持
+  return currentIndex;
+}
+
 /** 交代間隔として許容される分の一覧 */
 export const VALID_INTERVAL_MINUTES = [3, 5, 7, 10, 15] as const;
 
@@ -186,3 +233,18 @@ export type IntervalMinutes = (typeof VALID_INTERVAL_MINUTES)[number];
 /** メンバー人数の制約 */
 export const MIN_MEMBERS = 2;
 export const MAX_MEMBERS = 10;
+
+/** お題の要件（requirements）配列の最大件数。巨大入力を拒否するための上限。
+ *  decide（ドメイン検証）と schemas（Valibot 境界検証）の両方から参照し、値を一元化する。 */
+export const MAX_PROBLEM_REQUIREMENTS = 20;
+
+/** ユーザ入力文字列の最大長（S・A04 安全でない設計）。巨大文字列の保存/ブロードキャスト/
+ *  描画による DoS を防ぐため、信頼境界（Valibot コマンドスキーマ）で一律に上限を課す。
+ *  UI 側の入力欄 maxLength とも揃えて二重防御にする。 */
+export const MAX_DISPLAY_NAME = 40;
+export const MAX_ROOM_NAME = 60;
+export const MAX_HANDOFF_NOTE = 2000;
+export const MAX_PROBLEM_TITLE = 200;
+export const MAX_PROBLEM_TEXT = 4000; // description / exampleTest
+export const MAX_PROBLEM_HINT = 500; // ヒント 1 件あたり
+export const MAX_PROBLEM_HINTS = 20; // ヒント配列の件数

@@ -9,11 +9,14 @@
  * ========================================================================== */
 
 :root {
-  /* --- タイポグラフィ ---------------------------------------------------- */
-  --font-sans: "Inter", "Noto Sans JP", system-ui, -apple-system,
+  /* --- タイポグラフィ ----------------------------------------------------
+   * 計器（クロノグラフ）基調: 数字・ラベルは等幅タビュラーで「計測器の目盛り」感を出す。
+   * 外部フォント取得は行わない（secret-zero / 既定で外部リクエストなし）方針のため、
+   * すべてシステム/自己ホストのスタックに退避させる（Inter 等の外部依存名は使わない）。 */
+  --font-sans: "Noto Sans JP", system-ui, -apple-system,
     "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
-  --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, "SFMono-Regular",
-    Menlo, Consolas, monospace;
+  --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas,
+    "DejaVu Sans Mono", monospace;
 
   /* 流動的タイポスケール（clamp でブレイクポイント不要） */
   --font-size-xs: clamp(0.75rem, 0.72rem + 0.15vw, 0.82rem);
@@ -68,6 +71,34 @@
   --color-ring: #6366f1; /* フォーカスリング */
   --color-shadow: rgba(15, 23, 42, 0.1);
   --color-overlay: rgba(15, 23, 42, 0.45);
+
+  /* --- 計器（Mob Chronometer）パレット ----------------------------------
+   * 夜のコックピット計器: ほぼ黒の地に、白＝最高輝度の文字、単一のシグナル朱を
+   * 「計測中の針/弧」にのみ使う。虹色（fuchsia/violet/cyan/amber）は使わない。
+   * グローバルに置くことで各画面が任意値 text-[var(--signal)] 等で一貫参照できる。 */
+  --ink: #0a0b0e; /* 地（最暗・コックピット盤面） */
+  --panel: #14161c; /* 計器パネル面 */
+  --panel-2: #1b1e26; /* サブ面（入力・チップ） */
+  --hairline: rgba(236, 232, 220, 0.1); /* ヘアライン境界（骨色の極薄） */
+  --hairline-strong: rgba(236, 232, 220, 0.2);
+  --steel: #5c6473; /* 目盛り・補助のスチールグレー */
+  --bone: #f4f1e8; /* 盤面の刻印色（最明テキスト） */
+  --bone-muted: #b7bdc9; /* 副次テキスト（暗背景で読みやすいよう明度を上げる） */
+  --bone-subtle: #97a0b0; /* 補足・ラベル（旧 #79808f は panel 上で AA 境界だったため引き上げ） */
+  --signal: #ff4a2e; /* シグナル朱（クロノグラフの針/弧・主操作） */
+  --signal-glow: rgba(255, 74, 46, 0.35);
+  --urgent: #ff352a; /* 残りわずか（赤・発光） */
+  --ok: #3fb27f; /* 正常/オンライン（緑・計器の安全表示） */
+}
+
+/* P3 対応ディスプレイでは計器の朱/緑を一段鮮やかに（非対応は上の sRGB 値が残る）。 */
+@supports (color: color(display-p3 1 1 1)) {
+  :root {
+    --signal: color(display-p3 0.95 0.28 0.16);
+    --signal-glow: color(display-p3 0.95 0.28 0.16 / 0.35);
+    --urgent: color(display-p3 0.95 0.2 0.16);
+    --ok: color(display-p3 0.24 0.69 0.49);
+  }
 }
 
 /* システム設定がダークで、明示的にライト指定が無い場合 */
@@ -130,11 +161,16 @@ html {
 
 body {
   margin: 0;
-  background-color: var(--color-bg);
-  color: var(--color-fg);
+  /* 全画面が計器ステージ（ダーク）に統一されたため、白フラッシュ防止に地を朱黒で塗る。 */
+  background-color: var(--ink);
+  color: var(--bone);
   font-size: var(--font-size-base);
   line-height: var(--line-normal);
   -webkit-font-smoothing: antialiased;
+
+  /* フォーカスリング（グローバルな :focus-visible が参照）を計器の朱に統一する。
+   * これをしないと outline-none していない入力/select/textarea に旧トーンの藍色が漏れる。 */
+  --color-ring: var(--signal);
 }
 
 /* キーボードフォーカスを常に視認可能に（a11y） */
@@ -155,6 +191,217 @@ body {
   white-space: nowrap;
   border-width: 0;
 }
+
+/* =============================================================================
+ * ステージ型ダークトークン（v2: 集中・ステージ型ビジュアル）
+ * セッション/ロビーのキャンバスは data-theme に関わらずこれらを使い、
+ * 「暗い舞台に最重要要素が最も明るく浮かぶ」構図を実現する（FR-028/029）。
+ * ========================================================================== */
+
+:root {
+  /* ステージ背景（最暗）*/
+  --stage-bg: #0a0b12;
+  /* 焦点ゾーン背景（ステージより僅かに明るい凹み感）*/
+  --stage-focus-bg: #12141f;
+  /* 焦点エリアのグロウ（タイマー・現ドライバーに当てる光・骨色の弱発光）*/
+  --focus-glow: rgba(244, 241, 232, 0.14);
+  /* 現ドライバー名のサイズ（フォントトークン）*/
+  --font-size-driver: clamp(1.8rem, 1.4rem + 2vw, 2.8rem);
+  /* 焦点ゾーンの縦余白 */
+  --stage-focus-py: clamp(2rem, 3vw, 4rem);
+  /* 周辺情報の最大輝度（焦点を圧迫しない）*/
+  --stage-peripheral-opacity: 0.65;
+
+  /* 節目演出（≤300ms。交代・残りわずか） */
+  --transition-switch: 260ms ease-out;
+  --transition-urgent: 180ms ease-in;
+}
+
+/* ステージキャンバスクラス（テーマ非依存でダーク固定）。
+ * 背景だけでなく chrome トークン（文字・面・境界）もステージ用のダーク値へ上書きする。
+ * これをしないと、ライトテーマのまま舞台に入ったとき「暗い背景に暗い文字」で
+ * タイマーや本文が読めなくなる（plan.md L33: ライト時も舞台は暗い、を正しく具現化）。 */
+.stage-canvas {
+  background-color: var(--stage-bg);
+  color-scheme: dark;
+  min-height: 100dvh;
+
+  /* chrome（面・境界・文字）をステージのダーク基調に固定 */
+  --color-bg: var(--stage-bg);
+  --color-surface: #161a27;
+  --color-surface-2: #1f2433;
+  --color-line: #2c3344;
+  --color-fg: #eef1f7; /* 主要文字（最明）。ステージ上で本文・現ドライバーに使う */
+  --color-fg-muted: #b8c0d0;
+  --color-fg-subtle: #8b94a7;
+  --color-ring: #818cf8;
+  --color-shadow: rgba(0, 0, 0, 0.5);
+  --color-overlay: rgba(0, 0, 0, 0.6);
+
+  color: var(--color-fg);
+}
+
+/* 焦点ゾーン: タイマー＋現ドライバーは舞台で最も明るく（図と地・FR-028）。
+ * タイマーは緊急時(text-danger)以外は最明の白系で表示する。 */
+.stage-canvas .font-timer,
+.stage-canvas [role="timer"] {
+  color: #ffffff;
+  text-shadow: 0 0 24px var(--focus-glow);
+}
+
+/* 現ドライバーのスポットライト強調（S3）。タイマー直下で「次」より明確に格上げ。
+ * --font-size-driver で大きく、白＋発光でステージ上に浮かせる（plan.md「現ドライバーを
+ * スポットライト」）。reduced-motion 環境でも静的な強調は保つ。 */
+.driver-spotlight {
+  font-size: var(--font-size-driver);
+  line-height: 1.1;
+}
+
+/* 流動的タイポ（ブレイクポイント不要・clamp）。ブランド見出しと現ドライバー名を
+ * 画面幅に対して滑らかにスケールさせる（段階クラスの飛びを解消）。 */
+.brand-title {
+  /* max を 2.75rem に抑え、max-w-lg のカード内で 1 行に収まるようにする（②）。
+   * 計器の刻印として等幅・大文字寄りのトラッキングで「機材名」感を出す。 */
+  font-family: var(--font-mono);
+  font-size: clamp(1.75rem, 1.1rem + 2.4vw, 2.75rem);
+  line-height: 1.15;
+  letter-spacing: 0.04em;
+  text-wrap: balance;
+}
+.driver-name-fluid {
+  font-size: clamp(2.5rem, 1.6rem + 3.5vw, 4.5rem);
+  line-height: 1.1;
+}
+.stage-canvas .driver-spotlight {
+  color: #ffffff;
+  text-shadow: 0 0 18px var(--focus-glow);
+}
+
+/* =============================================================================
+ * 計器ステージ（Mob Chronometer）の地
+ * 旧: 浮遊する光の玉（orbs）。新: 製図方眼グリッド＋微粒グレイン＋周辺ビネット。
+ * 外部画像は使わず、CSS グラデと inline SVG data-URI（ネットワーク不要）で構成する。
+ * ========================================================================== */
+
+.instrument-stage {
+  position: relative;
+  min-height: 100dvh;
+  background-color: var(--ink);
+  color: var(--bone);
+  color-scheme: dark;
+  isolation: isolate;
+}
+
+/* 方眼グリッド＋中央を明るく落とすビネット（盤面の凹み感）。 */
+.instrument-stage::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(92, 100, 115, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(92, 100, 115, 0.06) 1px, transparent 1px),
+    radial-gradient(
+      circle at 50% 38%,
+      rgba(20, 22, 28, 0) 0%,
+      rgba(8, 9, 12, 0.55) 70%,
+      rgba(6, 7, 9, 0.9) 100%
+    );
+  background-size: 40px 40px, 40px 40px, 100% 100%;
+}
+
+/* 微粒グレイン（fractalNoise）。data-URI なので外部リクエストは発生しない。 */
+.instrument-stage::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.04;
+  mix-blend-mode: screen;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* 計器ラベル: 等幅・大文字・トラッキング広め（盤面の刻印）。 */
+.instrument-label {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.7rem;
+  font-weight: 600;
+  /* 小さい大文字ラベルでも panel 上で AA(4.5:1) を満たすよう muted まで上げる。 */
+  color: var(--bone-muted);
+}
+
+/* 数字は常に等幅タビュラー（桁が揺れない計測表示）。 */
+.tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* クロノグラフの運針（秒針ピップ）。rim を 60s/周で時計回りに回り、計測中の生命感を出す。
+ * data-running="false" で静止（停止/一時停止/休憩）。reduced-motion では凍結を避け非表示にする。 */
+@keyframes chrono-sweep {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.chrono-hand {
+  animation: chrono-sweep 60s linear infinite;
+  will-change: transform;
+}
+.chrono-hand[data-running="false"] {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .chrono-hand { display: none; }
+}
+
+/* ブート演出: セッション入場時に計器の各要素を段階的に立ち上げる（電源投入のステージング）。
+ * fill-mode both で animation-delay 中は 0% 状態（不可視）を保持しフラッシュを防ぐ。
+ * マウント時に一度だけ走る（要素の identity は不変なので毎フレーム再生はしない）。 */
+.boot-reveal {
+  animation: fade-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* =============================================================================
+ * 没入型ステージ演出（参考デザイン準拠）
+ * 交代の shake/pulse・要素の fade-up/pop-in・confetti。
+ * すべて下の prefers-reduced-motion ブロックで抑制される。
+ * ========================================================================== */
+
+@keyframes confetti-fall {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+.animate-confetti { animation: confetti-fall linear forwards; }
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-8px); }
+  75% { transform: translateX(8px); }
+}
+.animate-shake { animation: shake 0.4s ease-in-out; }
+
+@keyframes pulse-fast {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+.animate-pulse-fast { animation: pulse-fast 0.5s ease-in-out; }
+
+@keyframes fade-up {
+  0% { transform: translateY(20px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+.animate-fade-up { animation: fade-up 0.55s cubic-bezier(0.16, 1, 0.3, 1); }
+
+@keyframes pop-in {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.animate-pop-in { animation: pop-in 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
 
 /* モーション軽減設定の尊重（FR-034） */
 @media (prefers-reduced-motion: reduce) {

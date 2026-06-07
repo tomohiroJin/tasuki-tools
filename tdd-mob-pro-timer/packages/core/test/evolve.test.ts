@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { evolve } from "../src/evolve.js";
+import { evolve, advanceDriver } from "../src/evolve.js";
 import { initialAggregate } from "../src/aggregate.js";
 import type { SessionConfig } from "../src/aggregate.js";
 
@@ -170,5 +170,49 @@ describe("evolve: 不変条件（FR-008）", () => {
       NOW,
     );
     expect(agg.session.currentIndex).toBeLessThan(agg.session.rotation.length);
+  });
+});
+
+// ─── advanceDriver（eligible を尊重する交代ヘルパ）──────────────────────────────
+describe("advanceDriver: ineligible を飛ばす交代（plan.md L194/L209）", () => {
+  const runningAgg = {
+    ...baseAgg,
+    clock: {
+      ...baseAgg.clock,
+      running: true,
+      anchorServerTime: NOW,
+      secondsLeftAtAnchor: 300,
+      runningSince: NOW,
+    },
+  };
+
+  it("全員 eligible のときは次のインデックスへ進み交代相当になる", () => {
+    const agg = advanceDriver(runningAgg, undefined, NOW + 10000);
+    expect(agg.session.currentIndex).toBe(1);
+    expect(agg.session.totalSwitches).toBe(1);
+    // 交代相当: タイマーが次担当でリセットされる
+    expect(agg.clock.anchorServerTime).toBe(NOW + 10000);
+    expect(agg.clock.secondsLeftAtAnchor).toBe(runningAgg.clock.intervalSeconds);
+  });
+
+  it("次が ineligible のときはスキップしてその次の eligible へ進む", () => {
+    // currentIndex=0、Bob(1) が ineligible → Charlie(2) へ
+    const agg = advanceDriver(runningAgg, new Set([1]), NOW + 10000);
+    expect(agg.session.currentIndex).toBe(2);
+  });
+
+  it("全員 ineligible のときは現状維持しつつタイマーのみ再アンカーする（無限ループ防止）", () => {
+    const agg = advanceDriver(runningAgg, new Set([0, 1, 2]), NOW + 10000);
+    // 現ドライバーは維持
+    expect(agg.session.currentIndex).toBe(0);
+    expect(agg.session.totalSwitches).toBe(0);
+    // タイマーは再アンカーされる（残り0で即再発火する無限ループを防ぐ）
+    expect(agg.clock.anchorServerTime).toBe(NOW + 10000);
+    expect(agg.clock.secondsLeftAtAnchor).toBe(runningAgg.clock.intervalSeconds);
+  });
+
+  it("交代後も rotation.length === driverCounts.length が保たれる", () => {
+    const agg = advanceDriver(runningAgg, new Set([1]), NOW + 10000);
+    expect(agg.session.rotation.length).toBe(agg.session.driverCounts.length);
   });
 });

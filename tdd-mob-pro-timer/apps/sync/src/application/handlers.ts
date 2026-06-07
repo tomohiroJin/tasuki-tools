@@ -8,6 +8,7 @@ import { ok, err, type Result } from "neverthrow";
 import {
   decide,
   evolve,
+  advanceDriver,
   initialAggregate,
   secondsLeft,
   buildCompletionRecord,
@@ -15,6 +16,7 @@ import {
   type Participant,
   type SessionConfig,
   type Problem,
+  type ProblemMode,
   type DomainEvent,
   type IntervalMinutes,
 } from "@tdd-mob/core";
@@ -55,6 +57,21 @@ export function makeHandlers(deps: HandlerDeps) {
     { participantId: string; roomCode: string }
   >();
 
+  // 単一接続あたりの room.join 連続失敗のレート制限（コード列挙の緩和）。
+  // 正常利用には干渉しない緩い閾値。本来の防御はエッジ/IP 層（リバースプロキシ等）で行うべき。
+  const JOIN_FAIL_WINDOW_MS = 10_000;
+  const JOIN_FAIL_MAX = 30;
+  /** connId → 直近の join 失敗時刻（epoch ms） */
+  const joinFailures = new Map<string, number[]>();
+  const recentJoinFailures = (connId: string, now: number): number[] => {
+    const arr = (joinFailures.get(connId) ?? []).filter(
+      (t) => now - t < JOIN_FAIL_WINDOW_MS,
+    );
+    if (arr.length === 0) joinFailures.delete(connId);
+    else joinFailures.set(connId, arr);
+    return arr;
+  };
+
   // ─── サーバー権威タイマーの調停 ───────────────────────────────────────────
 
   /** ルームの clock 状態に応じて次回自動交代をスケジュール/解除する（FR-003） */
@@ -69,16 +86,14 @@ export function makeHandlers(deps: HandlerDeps) {
     }
   }
 
-  /** タイマー発火時にサーバー側で SWITCH を実行し再スケジュールする */
+  /** タイマー発火時にサーバー側で交代を実行し再スケジュールする。
+   *  driverEligible=false の参加者を飛ばし、全員 ineligible なら現状維持する（plan.md L194）。 */
   function autoSwitch(roomCode: string): void {
     const room = store.get(roomCode);
     if (!room || !room.clock.running) return;
     const now = clock.now();
     const agg = { session: room.session, clock: room.clock };
-    const result = decide({ command: "session.act", action: "SWITCH" }, agg, now);
-    if (result.isErr()) return;
-    let newAgg = agg;
-    for (const event of result.value) newAgg = evolve(newAgg, event, now);
+    const newAgg = advanceDriver(agg, computeIneligibleIndices(room), now);
     const updated: Room = { ...room, session: newAgg.session, clock: newAgg.clock };
     store.put(updated);
     broadcaster.broadcastSnapshot(updated.code, updated);
@@ -87,7 +102,26 @@ export function makeHandlers(deps: HandlerDeps) {
       signal: "switch",
       nextDriverName: updated.session.rotation[updated.session.currentIndex] ?? "",
     });
+    maybeSuggestBreak(updated);
     reconcileSchedule(updated);
+  }
+
+  /** breakEveryRotations 巡ごとに休憩提案シグナルを配信する（§9.1）。
+   *  巡 = rotation 一周（rotation 長ぶんの交代）。シグナルは演出専用で状態ではない（§5.2）。 */
+  function maybeSuggestBreak(room: Room): void {
+    const every = room.config.breakEveryRotations;
+    if (!every || every < 1) return;
+    const len = room.session.rotation.length;
+    if (len === 0) return;
+    // 巡の境界（一周完了）でのみ判定する
+    if (room.session.totalSwitches % len !== 0) return;
+    const rounds = room.session.totalSwitches / len;
+    if (rounds === 0 || rounds % every !== 0) return;
+    broadcaster.broadcastSignal(room.code, {
+      type: "signal",
+      signal: "suggest-break",
+      rounds,
+    });
   }
 
   /**
@@ -101,7 +135,7 @@ export function makeHandlers(deps: HandlerDeps) {
       case "room.create":
         return handleRoomCreate(
           connId,
-          cmd as { command: "room.create"; displayName: string; config?: SessionConfig },
+          cmd as { command: "room.create"; displayName: string; config?: SessionConfig; roomName?: string },
         );
 
       case "room.join":
@@ -153,10 +187,14 @@ export function makeHandlers(deps: HandlerDeps) {
   /** ルーム作成 */
   async function handleRoomCreate(
     connId: string,
-    cmd: { command: "room.create"; displayName: string; config?: SessionConfig },
+    cmd: { command: "room.create"; displayName: string; config?: SessionConfig; roomName?: string },
   ): Promise<Result<CreateResult, string>> {
     const now = clock.now();
-    const code = codeGen.generate();
+    // ルーム名があれば「slug-接尾辞」、無ければランダム。衝突時は接尾辞を引き直す。
+    let code = codeGen.generate(cmd.roomName);
+    for (let i = 0; i < 5 && store.get(code) !== undefined; i++) {
+      code = codeGen.generate(cmd.roomName);
+    }
     const participantId = codeGen.generateParticipantId();
     const resumeToken = codeGen.generateResumeToken();
     const hostToken = codeGen.generateResumeToken();
@@ -224,9 +262,22 @@ export function makeHandlers(deps: HandlerDeps) {
     },
   ): Promise<Result<CreateResult, string>> {
     const now = clock.now();
+
+    // 連続失敗が閾値を超えた接続は一時的に拒否（コード総当たりの緩和）。
+    if (recentJoinFailures(connId, now).length >= JOIN_FAIL_MAX) {
+      broadcaster.sendTo(connId, {
+        type: "error",
+        code: "RATE_LIMITED",
+        message: "参加の試行が多すぎます。しばらく待ってから再試行してください。",
+      });
+      return err("RATE_LIMITED");
+    }
+
     const room = store.get(cmd.code);
 
     if (!room) {
+      // 失敗を記録（次回以降のレート判定に使う）。
+      joinFailures.set(connId, [...(joinFailures.get(connId) ?? []), now]);
       broadcaster.sendTo(connId, {
         type: "error",
         code: "ROOM_NOT_FOUND",
@@ -267,7 +318,9 @@ export function makeHandlers(deps: HandlerDeps) {
       }
     }
 
-    // 新規参加者は viewer として登録（FR-016）
+    // 新規参加者は editor として登録（UX 再設計の2層モデル: 名乗って参加した人は
+    // すぐドライバーに加われる。ローテーション加入は別操作＝「ドライバーに加わる」）。
+    // 純粋な見学者は host が role.set で viewer へ降格できる。
     const participantId = codeGen.generateParticipantId();
     const resumeToken = codeGen.generateResumeToken();
 
@@ -275,7 +328,7 @@ export function makeHandlers(deps: HandlerDeps) {
       participantId,
       connId,
       displayName: cmd.displayName,
-      role: "viewer",
+      role: "editor",
       presence: "online",
       hasAiKey: cmd.hasAiKey,
       joinedAt: now,
@@ -339,6 +392,51 @@ export function makeHandlers(deps: HandlerDeps) {
       return err("PARTICIPANT_NOT_FOUND");
     }
 
+    // participant.rename / driver.skip / driver.resume は「本人 or host」権限
+    // （FR-046/048・plan.md L209-210）。いずれも対象 participantId に依存する関係的
+    // 権限で、集合方式の authorize（ロール集合）では「対象が本人か」を表現できない。
+    // EDITOR_PLUS に置くと editor が他人を skip/resume でき（fail-open）、かつ viewer が
+    // 自分すら skip できない（過剰拒否）ため、ここで個別に fail-closed 判定する。
+    const RELATIONAL_SELF_OR_HOST = new Set([
+      "participant.rename",
+      "driver.skip",
+      "driver.resume",
+    ]);
+    if (RELATIONAL_SELF_OR_HOST.has(cmd.command)) {
+      const isSelf = cmd.participantId === participant.participantId;
+      const isHost = participant.role === "host";
+      if (!isSelf && !isHost) {
+        broadcaster.sendTo(connId, {
+          type: "error",
+          code: "UNAUTHORIZED",
+          message: "他の参加者への操作はホストのみ実行できます",
+        });
+        return err("UNAUTHORIZED");
+      }
+    }
+
+    // member.add/remove の関係的権限（横方向の権限濫用防止）。
+    // editor は「自分の rotation 出入り」のみ許可し、他人分の追加/除外は host に限定する。
+    // （UI は自名/自 index のみ送るが、コマンド直送で他人を操作されないようサーバで強制。）
+    if (
+      participant.role !== "host" &&
+      (cmd.command === "member.add" || cmd.command === "member.remove")
+    ) {
+      const ownName = participant.displayName;
+      const ownsTarget =
+        cmd.command === "member.add"
+          ? cmd.name === ownName
+          : targetRoom.session.rotation[Number(cmd.index)] === ownName;
+      if (!ownsTarget) {
+        broadcaster.sendTo(connId, {
+          type: "error",
+          code: "UNAUTHORIZED",
+          message: "他の参加者のローテーション操作はホストのみ実行できます",
+        });
+        return err("UNAUTHORIZED");
+      }
+    }
+
     // 権限チェック（FR-017）
     const authError = authorize(participant.role, cmd.command as string, targetRoom.hostParticipantId, participant.participantId);
     if (authError) {
@@ -350,8 +448,74 @@ export function makeHandlers(deps: HandlerDeps) {
       return err("UNAUTHORIZED");
     }
 
+    // 参加者の退出（host 限定・⑪）。参加者は Room レベルのため decide ではなくここで扱う。
+    // rotation に居れば rotation からも外し（現ドライバーなら evolve が繰り上げ）、
+    // 最後の1人は外せない（rotation を空にしない）。
+    if (cmd.command === "participant.remove") {
+      const now = clock.now();
+      const targetId = cmd.participantId;
+      if (typeof targetId !== "string" || targetId === participant.participantId) {
+        broadcaster.sendTo(connId, { type: "error", code: "INVALID", message: "自分自身や不正な対象は外せません" });
+        return err("INVALID");
+      }
+      const target = targetRoom.participants.find((p) => p.participantId === targetId);
+      if (!target) {
+        broadcaster.sendTo(connId, { type: "error", code: "PARTICIPANT_NOT_FOUND", message: "対象の参加者が見つかりません" });
+        return err("PARTICIPANT_NOT_FOUND");
+      }
+      const idx = targetRoom.session.rotation.indexOf(target.displayName);
+      let next: Room = {
+        ...targetRoom,
+        participants: targetRoom.participants.filter((p) => p.participantId !== targetId),
+      };
+      if (idx >= 0) {
+        if (targetRoom.session.rotation.length <= 1) {
+          broadcaster.sendTo(connId, { type: "error", code: "BelowMinMembers", message: "最後のドライバーは外せません" });
+          return err("BelowMinMembers");
+        }
+        const agg = evolve(
+          { session: targetRoom.session, clock: targetRoom.clock },
+          { type: "MemberRemoved", index: idx, now },
+          now,
+        );
+        next = { ...next, session: agg.session, clock: agg.clock, config: { ...next.config, members: [...agg.session.rotation] } };
+      }
+      store.put(next);
+      broadcaster.broadcastSnapshot(next.code, next);
+      reconcileSchedule(next);
+      // 外された本人へ専用通知を送る（残りメンバーの snapshot には含まれず取り残されるため）。
+      // クライアントはこれを受けて退出メッセージ＋参加画面へ遷移し、再参加可能にする。
+      // 代理(connId=null)はクライアントが無いので送らない。
+      if (target.connId) {
+        broadcaster.sendTo(target.connId, {
+          type: "error",
+          code: "REMOVED_BY_HOST",
+          message: "ホストにより退出させられました",
+        });
+      }
+      return ok({ code: next.code, participantId: "", hostToken: "", resumeToken: "" });
+    }
+
     // ドメインコマンドを構築して decide/evolve を実行
     const domainCmd = buildDomainCommand(cmd);
+    // 改名は対象の現在名を解決して decide へ渡す。decide は「自分の現在名と同一」を
+    // 重複検査から除外するために旧名を必要とする（rotation は名前配列のみで participantId を持たない）。
+    if (domainCmd && domainCmd.command === "participant.rename") {
+      const target = targetRoom.participants.find(
+        (p) => p.participantId === domainCmd.participantId,
+      );
+      // 対象が存在しなければ早期に拒否する。ここで弾かないと旧名 undefined のまま decide に渡り、
+      // 自己同一の除外が効かず DuplicateName 等の誤った理由で失敗しうる（実体は対象不在）。
+      if (!target) {
+        broadcaster.sendTo(connId, {
+          type: "error",
+          code: "PARTICIPANT_NOT_FOUND",
+          message: "対象の参加者が見つかりません",
+        });
+        return err("PARTICIPANT_NOT_FOUND");
+      }
+      domainCmd.currentDisplayName = target.displayName;
+    }
     if (!domainCmd) {
       broadcaster.sendTo(connId, {
         type: "error",
@@ -374,26 +538,50 @@ export function makeHandlers(deps: HandlerDeps) {
       return err(result.error.type);
     }
 
-    // イベントを適用して新しい集約を取得
+    // まず evolve で集約（session+clock）を更新する。
     let newAgg = agg;
     for (const event of result.value) {
       newAgg = evolve(newAgg, event, now);
+    }
+
+    // evolve の結果を Room に反映してから、Room レベルイベントを適用する。
+    // applyRoomLevelEvent は session.rotation 等をさらに更新しうる
+    // （ProxyMemberAdded の rotation 追加・ParticipantRenamed の rotation 改名）ため、
+    // evolve 結果を基底に置かないと session 変更が捨てられる。
+    targetRoom = { ...targetRoom, session: newAgg.session, clock: newAgg.clock };
+    for (const event of result.value) {
       // PhaseSet/ProblemSet/ConfigSet/SessionCompleted 等はルームレベルで処理
       targetRoom = applyRoomLevelEvent(targetRoom, event, now);
+    }
+
+    // 現ドライバーが driver.skip で ineligible になり、かつ稼働中なら即座に次の eligible へ
+    // 繰り上げる（plan.md L209）。交代先が無ければ advanceDriver が現状維持する。
+    if (domainCmd.command === "driver.skip" && targetRoom.clock.running) {
+      const ineligible = computeIneligibleIndices(targetRoom);
+      if (ineligible.has(targetRoom.session.currentIndex)) {
+        const advanced = advanceDriver(
+          { session: targetRoom.session, clock: targetRoom.clock },
+          ineligible,
+          now,
+        );
+        targetRoom = { ...targetRoom, session: advanced.session, clock: advanced.clock };
+      }
     }
 
     const updatedRoom: Room = {
       ...targetRoom,
       // config.members を session.rotation に同期する。
-      // member.add/remove/move は rotation のみ更新するため、ミラーしないと
+      // member.add/remove/move・addProxy は rotation のみ更新するため、ミラーしないと
       // 完成記録（config.members を使用）が古いメンバーになる。
-      config: { ...targetRoom.config, members: [...newAgg.session.rotation] },
-      session: newAgg.session,
-      clock: newAgg.clock,
+      config: { ...targetRoom.config, members: [...targetRoom.session.rotation] },
     };
 
     store.put(updatedRoom);
     broadcaster.broadcastSnapshot(updatedRoom.code, updatedRoom);
+    // 手動スキップ等で交代が起きた場合も、自動交代と同様に巡境界で休憩を提案する（レビュー #3）。
+    if (updatedRoom.session.currentIndex !== agg.session.currentIndex) {
+      maybeSuggestBreak(updatedRoom);
+    }
     // clock 状態が変わった可能性があるので自動交代を調停する（FR-003）
     reconcileSchedule(updatedRoom);
 
@@ -575,7 +763,12 @@ export function makeHandlers(deps: HandlerDeps) {
       .find((r) => r.participants.some((p) => p.connId === connId));
   }
 
-  return { handleCommand };
+  /** 接続クローズ時の後始末。レート制限用の失敗履歴を解放しマップのリークを防ぐ。 */
+  function handleConnectionClose(connId: string): void {
+    joinFailures.delete(connId);
+  }
+
+  return { handleCommand, handleConnectionClose };
 }
 
 // ─── 権限チェック ─────────────────────────────────────────────────────────────
@@ -583,23 +776,33 @@ export function makeHandlers(deps: HandlerDeps) {
 /** ホスト限定操作 */
 const HOST_ONLY_COMMANDS = new Set([
   "session.complete",
+  "session.abort",
   "session.reset",
   "phase.set",
   "break.start",
   "break.end",
   "role.set",
+  "participant.addProxy",
+  "participant.remove",
+  // 並べ替えはホスト専用（UI も host のみ提供）。editor による他人の順序操作を防ぐ。
+  "member.move",
 ]);
 
 /** 編集者以上が必要な操作 */
 const EDITOR_PLUS_COMMANDS = new Set([
   "config.set",
+  // member.add/remove は EDITOR_PLUS だが、handleRoomCommand の関係ガードで
+  // 「自分の rotation 出入りのみ本人可・他人分は host」に絞る（横方向の権限濫用防止）。
   "member.add",
   "member.remove",
-  "member.move",
   "session.act",
   "problem.request",
   "problem.submit",
+  "problem.edit",
+  "problem.mode.set",
   "handoff.note.set",
+  // driver.skip / driver.resume は「本人 or host」の関係的権限のため EDITOR_PLUS に
+  // は含めない（handleRoomCommand の RELATIONAL_SELF_OR_HOST ガードで判定する）。
 ]);
 
 function authorize(
@@ -665,9 +868,51 @@ function buildDomainCommand(cmd: { command: string; [key: string]: unknown }) {
       return { command: "break.start" as const };
     case "break.end":
       return { command: "break.end" as const };
+    // ─── v2 新コマンド ─────────────────────────────────────────────────────
+    case "session.abort":
+      return { command: "session.abort" as const };
+    case "participant.addProxy":
+      if (typeof cmd.displayName !== "string" || typeof cmd.participantId !== "string") return null;
+      return { command: "participant.addProxy" as const, displayName: cmd.displayName, participantId: cmd.participantId };
+    case "participant.rename":
+      if (typeof cmd.participantId !== "string" || typeof cmd.displayName !== "string") return null;
+      // currentDisplayName は呼び出し側（handleRoomCommand）が対象の現在名を解決して埋める
+      return { command: "participant.rename" as const, participantId: cmd.participantId, displayName: cmd.displayName, currentDisplayName: undefined as string | undefined };
+    case "driver.skip":
+      if (typeof cmd.participantId !== "string") return null;
+      return { command: "driver.skip" as const, participantId: cmd.participantId };
+    case "driver.resume":
+      if (typeof cmd.participantId !== "string") return null;
+      return { command: "driver.resume" as const, participantId: cmd.participantId };
+    case "problem.edit":
+      if (typeof cmd.patch !== "object" || cmd.patch === null) return null;
+      return { command: "problem.edit" as const, patch: cmd.patch as { title?: string; description?: string; requirements?: string[]; exampleTest?: string; hints?: string[] } };
+    case "problem.mode.set":
+      if (cmd.mode !== "ai" && cmd.mode !== "fallback") return null;
+      return { command: "problem.mode.set" as const, mode: cmd.mode as ProblemMode };
     default:
       return null;
   }
+}
+
+// ─── ドライバー対象外の判定 ──────────────────────────────────────────────────
+
+/**
+ * driverEligible===false の参加者を rotation インデックスへ対応付けた集合を返す。
+ * rotation は表示名配列で participantId を持たないため、表示名で突き合わせる
+ * （改名時の一意性ガードにより rotation 内に同名は無く、一意に対応付く）。
+ */
+function computeIneligibleIndices(room: Room): Set<number> {
+  const ineligibleNames = new Set(
+    room.participants
+      .filter((p) => p.driverEligible === false)
+      .map((p) => p.displayName),
+  );
+  const set = new Set<number>();
+  room.session.rotation.forEach((name, i) => {
+    if (ineligibleNames.has(name)) set.add(i);
+  });
+  return set;
 }
 
 // ─── ルームレベルのイベント適用 ──────────────────────────────────────────────
@@ -719,6 +964,85 @@ function applyRoomLevelEvent(
       }
       return next;
     }
+    // ─── v2 イベント ──────────────────────────────────────────────────────
+    case "SessionAborted":
+      // 中断: 記録を生成せず締めくくりフェーズへ（FR-020）
+      return { ...room, phase: "celebration" };
+    case "ProxyMemberAdded": {
+      // 代理参加者をルームに追加し、rotation・driverCounts にも追加して
+      // ドライバーローテーションに含める（FR-047）。
+      const proxyParticipant: Participant = {
+        participantId: event.participantId,
+        connId: null,
+        displayName: event.displayName,
+        role: "editor",
+        presence: "offline",
+        hasAiKey: false,
+        joinedAt: _now,
+        isPlaceholder: true,
+        driverEligible: true,
+      };
+      return {
+        ...room,
+        participants: [...room.participants, proxyParticipant],
+        session: {
+          ...room.session,
+          rotation: [...room.session.rotation, event.displayName],
+          driverCounts: [...room.session.driverCounts, 0],
+        },
+      };
+    }
+    case "ParticipantRenamed": {
+      // 改名対象の旧名をループ外で一度だけ解決する。rotation は名前配列であり
+      // participantId を持たないため、旧名で位置を特定して置換する。
+      // 重複名は member.add/addProxy で拒否されるため rotation 内に同名はなく、一意に特定できる。
+      const target = room.participants.find((p) => p.participantId === event.participantId);
+      const oldName = target?.displayName;
+      return {
+        ...room,
+        participants: room.participants.map((p) =>
+          p.participantId === event.participantId
+            ? { ...p, displayName: event.displayName }
+            : p,
+        ),
+        session:
+          oldName === undefined
+            ? room.session
+            : {
+                ...room.session,
+                rotation: room.session.rotation.map((name) =>
+                  name === oldName ? event.displayName : name,
+                ),
+              },
+      };
+    }
+    case "DriverSkipped":
+      return {
+        ...room,
+        participants: room.participants.map((p) =>
+          p.participantId === event.participantId
+            ? { ...p, driverEligible: false }
+            : p,
+        ),
+      };
+    case "DriverResumed":
+      return {
+        ...room,
+        participants: room.participants.map((p) =>
+          p.participantId === event.participantId
+            ? { ...p, driverEligible: true }
+            : p,
+        ),
+      };
+    case "ProblemEdited": {
+      if (!room.problem) return room;
+      return {
+        ...room,
+        problem: { ...room.problem, ...event.patch, edited: true },
+      };
+    }
+    case "ProblemModeSet":
+      return { ...room, problemMode: event.mode };
     default:
       return room;
   }

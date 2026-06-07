@@ -176,7 +176,7 @@ describe("handlers: room.join", () => {
     expect(error).toBeTruthy();
   });
 
-  it("新規参加者はデフォルトで viewer になる（FR-016）", async () => {
+  it("新規参加者はデフォルトで editor になる（UX 再設計: 名乗って参加した人はすぐ回せる）", async () => {
     const createResult = await handlers.handleCommand("conn-001", {
       command: "room.create",
       displayName: "Alice",
@@ -192,6 +192,6 @@ describe("handlers: room.join", () => {
 
     const room = store.get(createResult.value.code);
     const bob = room?.participants.find((p) => p.displayName === "Bob");
-    expect(bob?.role).toBe("viewer");
+    expect(bob?.role).toBe("editor");
   });
 });

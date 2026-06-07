@@ -111,7 +111,7 @@ describe("不変条件プロパティテスト", () => {
     );
   });
 
-  it("メンバー数は常に MIN_MEMBERS〜MAX_MEMBERS の範囲に収まる", () => {
+  it("メンバー数は常に 1〜MAX_MEMBERS の範囲に収まる（2層モデル: 各自が出入りするので下限は1）", () => {
     const config: SessionConfig = {
       language: "TypeScript",
       difficulty: "easy",
@@ -146,9 +146,75 @@ describe("不変条件プロパティテスト", () => {
                 agg = evolve(agg, event, now);
               }
             }
-            // メンバー数の範囲検証
-            expect(agg.session.rotation.length).toBeGreaterThanOrEqual(MIN_MEMBERS);
+            // メンバー数の範囲検証（最後の1人は外れられない＝下限1）
+            expect(agg.session.rotation.length).toBeGreaterThanOrEqual(1);
             expect(agg.session.rotation.length).toBeLessThanOrEqual(MAX_MEMBERS);
+          }
+        },
+      ),
+      { numRuns: 50 },
+    );
+  });
+});
+
+// ─── T024: v2 不変条件 ─────────────────────────────────────────────────────────
+
+describe("v2 不変条件プロパティテスト（T024）", () => {
+  it("SessionAborted は常に成功し、集約状態に影響を与えない", () => {
+    const config: SessionConfig = {
+      language: "TypeScript",
+      difficulty: "easy",
+      members: ["Alice", "Bob", "Charlie"],
+      intervalMinutes: 5,
+    };
+
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 1000000, max: 2000000 }),
+        (now) => {
+          const agg = initialAggregate(config);
+          const result = decide({ command: "session.abort" }, agg, now);
+          expect(result.isOk()).toBe(true);
+          if (result.isOk()) {
+            // abort イベントを evolve に渡しても集約が変わらない
+            const newAgg = evolve(agg, result.value[0]!, now);
+            expect(newAgg.session).toEqual(agg.session);
+            expect(newAgg.clock).toEqual(agg.clock);
+          }
+        },
+      ),
+      { numRuns: 50 },
+    );
+  });
+
+  it("driver.skip/resume の操作列でも rotation の不変条件が成立する", () => {
+    const config: SessionConfig = {
+      language: "TypeScript",
+      difficulty: "easy",
+      members: ["Alice", "Bob", "Charlie"],
+      intervalMinutes: 5,
+    };
+
+    fc.assert(
+      fc.property(
+        fc.array(
+          fc.oneof(
+            fc.constant({ command: "driver.skip" as const, participantId: "p1" }),
+            fc.constant({ command: "driver.resume" as const, participantId: "p1" }),
+          ),
+          { minLength: 0, maxLength: 10 },
+        ),
+        fc.integer({ min: 1000000, max: 2000000 }),
+        (ops, now) => {
+          let agg = initialAggregate(config);
+          for (const op of ops) {
+            const result = decide(op, agg, now);
+            if (result.isOk()) {
+              for (const event of result.value) {
+                agg = evolve(agg, event, now);
+              }
+            }
+            assertInvariants(agg);
           }
         },
       ),

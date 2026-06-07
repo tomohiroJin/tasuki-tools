@@ -4,7 +4,7 @@
  */
 
 import type { Aggregate, SessionConfig, IntervalMinutes } from "./aggregate.js";
-import { initialAggregate } from "./aggregate.js";
+import { initialAggregate, nextEligibleIndex } from "./aggregate.js";
 import type { DomainEvent } from "./events.js";
 
 /**
@@ -51,9 +51,55 @@ export function evolve(agg: Aggregate, event: DomainEvent, now: number): Aggrega
     case "BreakStarted":
     case "BreakEnded":
     case "SessionCompleted":
+    case "SessionAborted":
+    case "ProxyMemberAdded":
+    case "ParticipantRenamed":
+    case "DriverSkipped":
+    case "DriverResumed":
+    case "ProblemEdited":
+    case "ProblemModeSet":
       // これらはルーム全体のフィールドに影響するが集約(session+clock)は変わらない
       return agg;
   }
+}
+
+
+/**
+ * 稼働中に次の eligible ドライバーへ交代する（plan.md L194/L209）。
+ * `ineligible`（driverEligible===false のインデックス集合）を飛ばして次の対象を選ぶ。
+ * 交代先が見つかれば DriverSwitched 相当（担当回数加算・タイマー再アンカー・交代回数加算）を適用する。
+ * 全員 ineligible で交代先が現状と同じ場合は、ドライバーを維持しつつタイマーのみ再アンカーして
+ * 自動交代が残り0で即再発火する無限ループを防ぐ。
+ * 不変条件 rotation.length === driverCounts.length は evolve(DriverSwitched) が保つ。
+ *
+ * @param agg 集約
+ * @param ineligible ドライバー対象外のインデックス集合（undefined = 全員対象）
+ * @param now 現在時刻 (epoch ms)
+ */
+export function advanceDriver(
+  agg: Aggregate,
+  ineligible: Set<number> | undefined,
+  now: number,
+): Aggregate {
+  const cur = agg.session.currentIndex;
+  const nextIndex = nextEligibleIndex(agg.session, cur, ineligible);
+  if (nextIndex !== cur) {
+    return evolve(agg, { type: "DriverSwitched", nextIndex, now }, now);
+  }
+
+  // 交代先が現状と同じ（全員 ineligible 等）→ 現状維持。タイマーのみ再アンカーする。
+  const addedMs =
+    agg.clock.runningSince !== null ? now - agg.clock.runningSince : 0;
+  return {
+    session: agg.session,
+    clock: {
+      ...agg.clock,
+      anchorServerTime: now,
+      secondsLeftAtAnchor: agg.clock.intervalSeconds,
+      accumulatedElapsedMs: agg.clock.accumulatedElapsedMs + addedMs,
+      runningSince: now,
+    },
+  };
 }
 
 // ─── 各イベントの適用 ─────────────────────────────────────────────────────────

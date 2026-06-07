@@ -26,6 +26,8 @@ export interface SyncClientOptions {
   onError?: ErrorCallback;
   /** need-problem 受信時（代表に選ばれたとき）に呼ばれる */
   onNeedProblem?: (requestId: string, deadlineMs: number) => void;
+  /** 休憩提案シグナル受信時（§9.1）。rounds は何巡したか。 */
+  onSuggestBreak?: (rounds: number) => void;
   onConnected?: () => void;
   onDisconnected?: () => void;
 }
@@ -116,6 +118,7 @@ export class SyncClient {
       onError: (code, message) => this.options.onError?.(code, message),
       onNeedProblem: (requestId, deadlineMs) =>
         this.options.onNeedProblem?.(requestId, deadlineMs),
+      onSuggestBreak: (rounds) => this.options.onSuggestBreak?.(rounds),
       onTimePong: (serverTime) => this.recordPong(serverTime),
     });
   }

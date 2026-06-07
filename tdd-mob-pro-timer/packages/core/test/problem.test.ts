@@ -114,3 +114,63 @@ describe("FALLBACK_PROBLEMS: 定型お題バンク", () => {
     }
   });
 });
+
+// ─── T021: buildProblemPrompt の要件下限テスト ────────────────────────────────
+
+import { buildProblemPrompt } from "../src/problem.js";
+
+describe("buildProblemPrompt（T021）", () => {
+  it("言語と難易度がプロンプトに含まれる", () => {
+    const prompt = buildProblemPrompt("TypeScript", "easy");
+    expect(prompt).toContain("TypeScript");
+    expect(prompt).toContain("easy");
+  });
+
+  it("4件以上の要件を促す指示を含む", () => {
+    const prompt = buildProblemPrompt("Python", "medium");
+    // 「4〜6件」または「4-6 requirements」等の数値指示が含まれること
+    expect(prompt).toMatch(/[4-6].*requirement|requirement.*[4-6]/i);
+  });
+
+  it("例示テストの必須化を指示する文言を含む", () => {
+    const prompt = buildProblemPrompt("Go", "hard");
+    expect(prompt.toLowerCase()).toMatch(/example.*test|test.*example/i);
+  });
+
+  it("JSON フォーマットの返却を指示する文言を含む", () => {
+    const prompt = buildProblemPrompt("TypeScript", "easy");
+    expect(prompt).toContain("JSON");
+    // requirements フィールドがスキーマに含まれること
+    expect(prompt).toContain("requirements");
+  });
+});
+
+describe("FALLBACK_PROBLEMS バンク（AI なしの唯一の出題源）", () => {
+  it("30 件以上ある", () => {
+    expect(FALLBACK_PROBLEMS.length).toBeGreaterThanOrEqual(30);
+  });
+
+  it("全エントリがスキーマ検証を通る具体的なお題である", () => {
+    for (const entry of FALLBACK_PROBLEMS) {
+      const result = validateProblem(entry.problem);
+      expect(result.isOk()).toBe(true);
+      // 具体性: 説明は十分な長さ、要件は2件以上、テスト例あり
+      expect(entry.problem.description.length).toBeGreaterThanOrEqual(15);
+      expect(entry.problem.requirements.length).toBeGreaterThanOrEqual(2);
+      expect(entry.problem.exampleTest.length).toBeGreaterThan(0);
+      expect(entry.languages.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("難易度が easy/medium/hard に分散している", () => {
+    const diffs = new Set(FALLBACK_PROBLEMS.map((e) => e.difficulty));
+    expect(diffs.has("easy")).toBe(true);
+    expect(diffs.has("medium")).toBe(true);
+    expect(diffs.has("hard")).toBe(true);
+  });
+
+  it("タイトルが重複していない", () => {
+    const titles = FALLBACK_PROBLEMS.map((e) => e.problem.title);
+    expect(new Set(titles).size).toBe(titles.length);
+  });
+});

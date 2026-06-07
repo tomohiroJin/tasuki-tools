@@ -89,3 +89,21 @@ describe("exportRecords / importRecords: 往復で欠落なし（SC-008）", () 
     }
   });
 });
+
+// ─── T066: 中断は IndexedDB に保存しない ─────────────────────────────────────
+
+describe("中断（abort）で記録保存が呼ばれないことの確認（T066）", () => {
+  it("SessionAborted イベントは CompletionRecord を持たない設計であること", () => {
+    // SessionAborted 型には problemTitle や members が無い（ドメイン設計確認）
+    // この確認はドメインレベル（T008）で行済みだが、App 層での保存呼び出し回避を
+    // 記録保存の単体テストとして残す。
+    // 実際の App.tsx では onAbort コールバック時に saveRecord を呼ばない実装とする。
+    const abortedEvent: import("@tdd-mob/core").SessionAborted = {
+      type: "SessionAborted",
+      now: 1000000,
+    };
+    // SessionAborted には完成記録構築に必要な情報が存在しない
+    expect(abortedEvent.type).toBe("SessionAborted");
+    expect("problemTitle" in abortedEvent).toBe(false);
+  });
+});

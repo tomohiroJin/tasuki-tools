@@ -1,187 +1,100 @@
 /**
- * セットアップ画面
- * T058: FR-001, FR-009, FR-010 ＋ デザインシステム適用
+ * セットアップ画面（名前だけ）
+ * UX 再設計（2026-06-03 合意フロー）: 最初の画面は「自分の名前 → ルームを作る」だけに絞る。
+ * 言語/難易度/交代間隔/オプション/お題はルーム作成後の Lobby で選ぶ（最初の画面で選びすぎない）。
+ * FR-001/053/054
  */
 
 import React, { useState } from "react";
-import {
-  VALID_INTERVAL_MINUTES,
-  MIN_MEMBERS,
-  MAX_MEMBERS,
-  type IntervalMinutes,
-} from "@tdd-mob/core/aggregate";
-import type { SessionConfig } from "@tdd-mob/core";
-import { Button } from "./components/Button.js";
-import { ThemeToggle } from "./components/ThemeToggle.js";
-
-const LANGUAGES = [
-  "TypeScript", "JavaScript", "Python", "Java",
-  "Go", "Ruby", "Rust", "C#", "Kotlin", "Swift",
-];
-
-const DIFFICULTIES = [
-  { value: "easy", label: "初級" },
-  { value: "medium", label: "中級" },
-  { value: "hard", label: "上級" },
-];
+import { Sparkles, UserRound } from "lucide-react";
+import { Card, PrimaryButton } from "./primitives.js";
+import { savePreferences, loadPreferences } from "../prefs/local-prefs.js";
+import { MAX_DISPLAY_NAME, MAX_ROOM_NAME } from "@tdd-mob/core/aggregate";
 
 interface SetupProps {
-  onCreateRoom: (config: SessionConfig) => void;
-  onSolo: (config: SessionConfig) => void;
+  /** 入力された自分の名前（と任意のルーム名）でルームを作成する。 */
+  onCreateRoom: (displayName: string, roomName?: string) => void;
 }
 
-const SELECT_CLASS =
-  "w-full min-h-11 rounded-md border border-line bg-surface px-3 text-fg " +
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+export function Setup({ onCreateRoom }: SetupProps) {
+  // 前回の名前を既定として復元する（FR-054）。
+  const saved = loadPreferences();
+  const [name, setName] = useState(saved?.displayName ?? "");
+  const [roomName, setRoomName] = useState("");
 
-export function Setup({ onCreateRoom, onSolo }: SetupProps) {
-  const [members, setMembers] = useState<string[]>(["Alice", "Bob"]);
-  const [newMember, setNewMember] = useState("");
-  const [language, setLanguage] = useState("TypeScript");
-  const [difficulty, setDifficulty] = useState("easy");
-  const [interval, setInterval] = useState<IntervalMinutes>(5);
-  const [error, setError] = useState("");
+  const trimmed = name.trim();
+  const canProceed = trimmed.length > 0;
 
-  const addMember = () => {
-    const trimmed = newMember.trim();
-    if (!trimmed) return setError("名前を入力してください");
-    if (members.includes(trimmed)) return setError("この名前はすでに使われています");
-    if (members.length >= MAX_MEMBERS) return setError(`メンバーは最大${MAX_MEMBERS}人までです`);
-    setMembers([...members, trimmed]);
-    setNewMember("");
-    setError("");
+  /** ルーム作成。作成前に名前を端末へ保存し次回の既定にする（FR-053）。
+   *  言語/難易度/間隔は既存の保存値があれば引き継ぎ、無ければ Lobby 側の既定に委ねる。 */
+  const handleCreate = () => {
+    if (!canProceed) return;
+    savePreferences({
+      displayName: trimmed,
+      language: saved?.language ?? "TypeScript",
+      difficulty: saved?.difficulty ?? "easy",
+      members: [trimmed],
+      intervalMinutes: saved?.intervalMinutes ?? 5,
+    });
+    onCreateRoom(trimmed, roomName.trim() || undefined);
   };
-
-  const removeMember = (index: number) => {
-    if (members.length <= MIN_MEMBERS) return setError(`メンバーは最低${MIN_MEMBERS}人必要です`);
-    setMembers(members.filter((_, i) => i !== index));
-    setError("");
-  };
-
-  const buildConfig = (): SessionConfig => ({
-    language,
-    difficulty,
-    members,
-    intervalMinutes: interval,
-  });
 
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-6 p-6">
-      <header className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-fg">TDD Mob Pro Timer</h1>
-        <ThemeToggle />
+    <div className="mx-auto flex min-h-[60vh] max-w-lg flex-col justify-center gap-8">
+      {/* ブランドヘッダー（計器の機材名としての刻印＋型番ライン） */}
+      <header className="text-center">
+        <p className="instrument-label mb-2 text-[var(--signal)]">Mob Chronometer</p>
+        <h1 className="brand-title font-black text-[var(--bone)]">
+          TDD Mob Pro Timer
+        </h1>
+        <p className="text-[var(--bone-muted)] mt-2 text-sm md:text-base">
+          モブプロ × TDD でチーム駆動開発
+        </p>
       </header>
 
-      {/* 言語 */}
-      <div>
-        <label className="mb-1 block text-sm font-medium text-fg" htmlFor="language">
-          言語
+      <Card>
+        <label htmlFor="display-name" className="flex items-center gap-2 text-sm font-semibold text-[var(--bone)] mb-3">
+          <UserRound className="w-4 h-4 text-[var(--signal)]" aria-hidden="true" />
+          あなたの名前
         </label>
-        <select
-          id="language"
-          value={language}
-          onChange={(e) => setLanguage(e.target.value)}
-          className={SELECT_CLASS}
-        >
-          {LANGUAGES.map((l) => (
-            <option key={l} value={l}>{l}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* 難易度 */}
-      <div>
-        <label className="mb-1 block text-sm font-medium text-fg" htmlFor="difficulty">
-          難易度
+        <input
+          id="display-name"
+          aria-label="あなたの名前"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleCreate();
+          }}
+          placeholder="例: Tomohiro"
+          autoFocus
+          maxLength={MAX_DISPLAY_NAME}
+          className="w-full rounded-md bg-[var(--panel-2)] border border-[var(--hairline-strong)] px-4 py-3 text-[var(--bone)] text-lg outline-none focus:border-[var(--signal)] transition-colors"
+        />
+        <label htmlFor="room-name" className="mt-4 block text-sm font-semibold text-[var(--bone)] mb-2">
+          ルーム名（任意）
         </label>
-        <select
-          id="difficulty"
-          value={difficulty}
-          onChange={(e) => setDifficulty(e.target.value)}
-          className={SELECT_CLASS}
-        >
-          {DIFFICULTIES.map((d) => (
-            <option key={d.value} value={d.value}>{d.label}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* 交代間隔（セグメント） */}
-      <div>
-        <span className="mb-1 block text-sm font-medium text-fg">交代間隔</span>
-        <div className="flex gap-2" role="group" aria-label="交代間隔">
-          {VALID_INTERVAL_MINUTES.map((min: IntervalMinutes) => {
-            const selected = interval === min;
-            return (
-              <button
-                key={min}
-                type="button"
-                aria-pressed={selected}
-                onClick={() => setInterval(min)}
-                className={`min-h-11 flex-1 rounded-md border text-sm font-medium
-                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
-                  ${
-                    selected
-                      ? "border-primary bg-primary text-on-primary"
-                      : "border-line bg-surface text-fg"
-                  }`}
-              >
-                {min}分
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* メンバー */}
-      <div>
-        <span className="mb-1 block text-sm font-medium text-fg">
-          メンバー ({members.length}/{MAX_MEMBERS})
-        </span>
-        <div className="mb-2 flex gap-2">
-          <input
-            type="text"
-            value={newMember}
-            onChange={(e) => setNewMember(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && addMember()}
-            placeholder="名前を入力"
-            aria-label="新しいメンバー名"
-            className="min-h-11 flex-1 rounded-md border border-line bg-surface px-3 text-sm text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          />
-          <Button size="md" onClick={addMember}>追加</Button>
-        </div>
-        <ul className="space-y-1">
-          {members.map((m, i) => (
-            <li
-              key={m}
-              className="flex items-center justify-between rounded-md bg-surface-2 px-3 py-2 text-fg"
-            >
-              <span>{m}</span>
-              <button
-                type="button"
-                onClick={() => removeMember(i)}
-                aria-label={`${m}を削除`}
-                className="flex h-9 w-9 items-center justify-center rounded-md text-danger hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                ×
-              </button>
-            </li>
-          ))}
-        </ul>
-        {error && (
-          <p className="mt-1 text-sm text-danger" role="alert">{error}</p>
-        )}
-      </div>
-
-      {/* アクション */}
-      <div className="flex gap-3">
-        <Button intent="neutral" className="flex-1" onClick={() => onSolo(buildConfig())}>
-          ソロ練習
-        </Button>
-        <Button intent="primary" className="flex-1" onClick={() => onCreateRoom(buildConfig())}>
-          ルームを作成
-        </Button>
-      </div>
+        <input
+          id="room-name"
+          aria-label="ルーム名"
+          value={roomName}
+          onChange={(e) => setRoomName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleCreate();
+          }}
+          placeholder="例: 朝会モブ（未入力ならランダムなコード）"
+          maxLength={MAX_ROOM_NAME}
+          className="w-full rounded-md bg-[var(--panel-2)] border border-[var(--hairline-strong)] px-4 py-2.5 text-[var(--bone)] outline-none focus:border-[var(--signal)] transition-colors"
+        />
+        <PrimaryButton onClick={handleCreate} disabled={!canProceed} className="w-full mt-4 text-lg py-3">
+          <span className="flex items-center justify-center gap-2">
+            <Sparkles className="w-5 h-5" />
+            ルームを作る
+          </span>
+        </PrimaryButton>
+        <p className="mt-3 text-center text-xs text-[var(--bone-subtle)]">
+          言語・難易度・お題・交代間隔は次のロビー画面で決められます。
+        </p>
+      </Card>
     </div>
   );
 }

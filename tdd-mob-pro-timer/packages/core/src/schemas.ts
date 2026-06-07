@@ -4,51 +4,77 @@
  */
 
 import * as v from "valibot";
-import { VALID_INTERVAL_MINUTES, MIN_MEMBERS, MAX_MEMBERS } from "./aggregate.js";
+import {
+  VALID_INTERVAL_MINUTES,
+  MAX_MEMBERS,
+  MAX_PROBLEM_REQUIREMENTS,
+  MAX_DISPLAY_NAME,
+  MAX_ROOM_NAME,
+  MAX_HANDOFF_NOTE,
+  MAX_PROBLEM_TITLE,
+  MAX_PROBLEM_TEXT,
+  MAX_PROBLEM_HINT,
+  MAX_PROBLEM_HINTS,
+} from "./aggregate.js";
 
 // ─── 共通 ───────────────────────────────────────────────────────────────────
 
 const nonEmptyString = v.pipe(v.string(), v.minLength(1));
 const participantId = nonEmptyString;
 
+// ユーザ入力文字列は信頼境界で最大長を課す（A04・巨大入力 DoS 対策）。
+const displayNameStr = v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_DISPLAY_NAME));
+const problemTitleStr = v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_PROBLEM_TITLE));
+const problemTextStr = v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_PROBLEM_TEXT));
+const requirementStr = v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_PROBLEM_TEXT));
+const hintStr = v.pipe(v.string(), v.maxLength(MAX_PROBLEM_HINT));
+
 // ─── SessionConfig スキーマ ─────────────────────────────────────────────────
 
 export const SessionConfigSchema = v.object({
   language: nonEmptyString,
   difficulty: nonEmptyString,
+  // 境界では 1 人以上を許可する（ルームは作成者 1 人で始まり、join で増える＝2層モデル）。
+  // 「セッション中に 2 人未満へ削除しない」という不変条件は decide の guard 側で担保する。
   members: v.pipe(
-    v.array(nonEmptyString),
-    v.minLength(MIN_MEMBERS),
+    v.array(displayNameStr),
+    v.minLength(1),
     v.maxLength(MAX_MEMBERS),
   ),
   intervalMinutes: v.picklist(VALID_INTERVAL_MINUTES),
   navigatorEnabled: v.optional(v.boolean()),
-  breakEveryRotations: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))),
+  // 0 は「休憩提案オフ」を表す（ロビーでトグルを外したときに送る）。1 以上で N 巡ごと。
+  breakEveryRotations: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
   assertiveSwitch: v.optional(v.boolean()),
 });
 
 // ─── Problem スキーマ ────────────────────────────────────────────────────────
 
 export const ProblemSchema = v.object({
-  title: nonEmptyString,
-  description: nonEmptyString,
-  requirements: v.array(nonEmptyString),
-  exampleTest: nonEmptyString,
-  hints: v.array(v.string()),
+  title: problemTitleStr,
+  description: problemTextStr,
+  requirements: v.pipe(v.array(requirementStr), v.maxLength(MAX_PROBLEM_REQUIREMENTS)),
+  exampleTest: problemTextStr,
+  hints: v.pipe(v.array(hintStr), v.maxLength(MAX_PROBLEM_HINTS)),
+  // v2 追加フィールド（任意化で後方互換）
+  source: v.optional(v.picklist(["ai", "fallback", "custom"])),
+  edited: v.optional(v.boolean()),
 });
 
 // ─── Command スキーマ ────────────────────────────────────────────────────────
 
 const RoomCreateCommand = v.object({
   command: v.literal("room.create"),
-  displayName: nonEmptyString,
+  displayName: displayNameStr,
   config: v.optional(SessionConfigSchema),
+  // 任意のルーム名。コード生成のシードに使う（slug-接尾辞）。
+  roomName: v.optional(v.pipe(v.string(), v.maxLength(MAX_ROOM_NAME))),
 });
 
 const RoomJoinCommand = v.object({
   command: v.literal("room.join"),
   code: nonEmptyString,
-  displayName: nonEmptyString,
+  displayName: displayNameStr,
   hasAiKey: v.boolean(),
   resumeToken: v.optional(v.string()),
 });
@@ -116,7 +142,7 @@ const MemberMoveCommand = v.object({
 
 const HandoffNoteSetCommand = v.object({
   command: v.literal("handoff.note.set"),
-  text: v.string(),
+  text: v.pipe(v.string(), v.maxLength(MAX_HANDOFF_NOTE)),
 });
 
 const BreakStartCommand = v.object({
@@ -125,6 +151,57 @@ const BreakStartCommand = v.object({
 
 const BreakEndCommand = v.object({
   command: v.literal("break.end"),
+});
+
+// ─── v2 新コマンド ────────────────────────────────────────────────────────────
+
+const SessionAbortCommand = v.object({
+  command: v.literal("session.abort"),
+});
+
+const ParticipantAddProxyCommand = v.object({
+  command: v.literal("participant.addProxy"),
+  participantId,
+  displayName: displayNameStr,
+});
+
+const ParticipantRenameCommand = v.object({
+  command: v.literal("participant.rename"),
+  participantId,
+  displayName: displayNameStr,
+});
+
+const ParticipantRemoveCommand = v.object({
+  command: v.literal("participant.remove"),
+  participantId,
+});
+
+const DriverSkipCommand = v.object({
+  command: v.literal("driver.skip"),
+  participantId,
+});
+
+const DriverResumeCommand = v.object({
+  command: v.literal("driver.resume"),
+  participantId,
+});
+
+const ProblemPatchSchema = v.partial(v.object({
+  title: problemTitleStr,
+  description: problemTextStr,
+  requirements: v.pipe(v.array(requirementStr), v.maxLength(MAX_PROBLEM_REQUIREMENTS)),
+  exampleTest: problemTextStr,
+  hints: v.pipe(v.array(hintStr), v.maxLength(MAX_PROBLEM_HINTS)),
+}));
+
+const ProblemEditCommand = v.object({
+  command: v.literal("problem.edit"),
+  patch: ProblemPatchSchema,
+});
+
+const ProblemModeSetCommand = v.object({
+  command: v.literal("problem.mode.set"),
+  mode: v.picklist(["ai", "fallback"]),
 });
 
 const RoleSetCommand = v.object({
@@ -152,6 +229,7 @@ export const CommandSchema = v.variant("command", [
   ProblemSubmitCommand,
   SessionActCommand,
   SessionCompleteCommand,
+  SessionAbortCommand,
   SessionResetCommand,
   MemberAddCommand,
   MemberRemoveCommand,
@@ -159,6 +237,13 @@ export const CommandSchema = v.variant("command", [
   HandoffNoteSetCommand,
   BreakStartCommand,
   BreakEndCommand,
+  ParticipantAddProxyCommand,
+  ParticipantRenameCommand,
+  ParticipantRemoveCommand,
+  DriverSkipCommand,
+  DriverResumeCommand,
+  ProblemEditCommand,
+  ProblemModeSetCommand,
   RoleSetCommand,
   PresencePingCommand,
   TimePingCommand,
@@ -177,6 +262,9 @@ export const ParticipantSchema = v.object({
   presence: v.picklist(["online", "idle", "offline"]),
   hasAiKey: v.boolean(),
   joinedAt: v.number(),
+  // v2 追加フィールド（任意化で後方互換）
+  isPlaceholder: v.optional(v.boolean()),
+  driverEligible: v.optional(v.boolean()),
 });
 
 export const ServerClockSchema = v.object({
@@ -206,6 +294,8 @@ export const CompletionRecordSchema = v.object({
   members: v.array(nonEmptyString),
   totalSwitches: v.pipe(v.number(), v.integer(), v.minValue(0)),
   completedAt: v.number(),
+  driverCounts: v.optional(v.array(v.pipe(v.number(), v.integer(), v.minValue(0)))),
+  rounds: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
 });
 
 export const RoomSchema = v.object({
@@ -221,6 +311,8 @@ export const RoomSchema = v.object({
   sessionRecords: v.array(CompletionRecordSchema),
   handoffNote: v.string(),
   onBreak: v.boolean(),
+  // v2 追加フィールド（任意化で後方互換）
+  problemMode: v.optional(v.picklist(["ai", "fallback"])),
 });
 
 const SnapshotMsg = v.object({
@@ -252,6 +344,13 @@ const SignalNeedProblemMsg = v.object({
   deadlineMs: v.number(),
 });
 
+const SignalSuggestBreakMsg = v.object({
+  type: v.literal("signal"),
+  signal: v.literal("suggest-break"),
+  // 何巡したかの参考値（演出のみ・状態ではない・§5.2）
+  rounds: v.number(),
+});
+
 const TimePongMsg = v.object({
   type: v.literal("time.pong"),
   serverTime: v.number(),
@@ -278,6 +377,7 @@ export const ServerMsgSchema = v.variant("type", [
   SignalSwitchMsg,
   SignalCelebrationMsg,
   SignalNeedProblemMsg,
+  SignalSuggestBreakMsg,
   TimePongMsg,
   RoomCreatedMsg,
   RoomJoinedMsg,

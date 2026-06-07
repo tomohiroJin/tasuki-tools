@@ -67,6 +67,15 @@ describe("dispatchServerMessage", () => {
     expect(onNeedProblem).not.toHaveBeenCalled();
   });
 
+  it("signal suggest-break は onSuggestBreak を rounds で呼ぶ", () => {
+    const onSuggestBreak = vi.fn();
+    dispatchServerMessage(
+      JSON.stringify({ type: "signal", signal: "suggest-break", rounds: 4 }),
+      { onSuggestBreak },
+    );
+    expect(onSuggestBreak).toHaveBeenCalledWith(4);
+  });
+
   it("time.pong は onTimePong を serverTime で呼ぶ", () => {
     const onTimePong = vi.fn();
     dispatchServerMessage(
