@@ -9,6 +9,29 @@
 - sync は systemd + Bun でホスト常駐（`127.0.0.1:8787`・揮発インメモリ）
 - 更新は `deploy.sh` でローカルからビルド→転送→再起動
 
+## 実際のセットアップ手順（スクリプト方式・推奨）
+
+2026-06-09 に niku9.click（Debian 12・ログインユーザー `tomohiro`・非 root）へ実デプロイ済み。
+**サービスは `tomohiro` ユーザーで実行**する（専用 `tasuki` ユーザーは作らない＝転送の所有権と env
+読取りが単純になる）。実際に使った流れ:
+
+1. **SSH 準備**: ローカル（deploy 実行環境）から `ssh niku9` が通ること。`~/.ssh/config` に
+   `Host niku9 / HostName niku9.click / User tomohiro / IdentityFile <鍵>` を用意。
+2. **Bun 導入**（VPS で・非 sudo）: `ssh niku9 'curl -fsSL https://bun.sh/install | bash'`
+3. **初回セットアップ**（VPS で・root）: `vps-setup.sh` を VPS へ転送し
+   `sudo bash vps-setup.sh` を実行。bun を `/usr/local/bin` へ、`/opt/tasuki`・`/var/www/tasuki`
+   を tomohiro 所有で作成、env 配置、systemd ユニット（`User=tomohiro`）配置＋enable、
+   `systemctl {restart,status,start,stop} tasuki-sync` だけの NOPASSWD sudoers を設置。
+4. **Caddy 設定**（VPS で・root）: `caddy-setup.sh` を転送し `sudo bash caddy-setup.sh`。
+   既存 Caddyfile をバックアップ→tasuki ブロック追記→`caddy validate`→OK なら reload／NG なら自動復元。
+5. **配置・起動**: ローカルから `./deploy/deploy.sh`（web ビルド＋sync バンドル→rsync/scp→
+   `sudo systemctl restart tasuki-sync`。手順3の NOPASSWD で非対話に通る）。
+
+> `vps-setup.sh` / `caddy-setup.sh` は冪等（再実行可）。手順3・4は VPS の sudo パスワードが要るため
+> 端末で対話実行（例: `ssh -t niku9 'sudo bash /tmp/xxx.sh'`）。手順2・5はローカルから自動実行可。
+
+以下の「前提」「初回セットアップ（手動）」は上記スクリプトの内訳・参考。
+
 ## 前提（デプロイ実行環境）
 
 - **成果物の転送**: 初回セットアップで使う `tasuki-sync.service` / `tasuki-sync.env.example` /
