@@ -12,6 +12,9 @@ const MAX_MESSAGE_BYTES = 64 * 1024; // 64KB
 
 export interface WsAdapterOptions {
   port: number;
+  host?: string;
+  /** 同時接続数の上限。超過分は 1013 で拒否する。 */
+  maxConnections?: number;
   allowedOrigins: string[];
   onMessage: (connId: string, msg: unknown) => Promise<void>;
   onDisconnect: (connId: string) => void;
@@ -23,7 +26,7 @@ export class WsAdapter {
   private connCounter = 0;
 
   constructor(private readonly options: WsAdapterOptions) {
-    this.wss = new WebSocketServer({ port: options.port });
+    this.wss = new WebSocketServer({ port: options.port, host: options.host });
     this.wss.on("connection", this.handleConnection.bind(this));
   }
 
@@ -56,6 +59,15 @@ export class WsAdapter {
       !this.options.allowedOrigins.includes(origin)
     ) {
       ws.close(1008, "Origin not allowed");
+      return;
+    }
+
+    // 同時接続数の上限（DoS 緩和）。超過は 1013（Try Again Later）で閉じる。
+    if (
+      this.options.maxConnections !== undefined &&
+      this.connections.size >= this.options.maxConnections
+    ) {
+      ws.close(1013, "Server connection limit reached");
       return;
     }
 

@@ -1,0 +1,3 @@
+dist/
+# 実 env ファイル（テンプレートのみコミット。万一 deploy/ に置かれても誤コミット防止）
+tasuki-sync.env

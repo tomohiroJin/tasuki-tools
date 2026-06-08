@@ -1,3 +1,5 @@
+# ⚠ 非推奨: これは Docker Compose 用の旧ドラフト（reverse_proxy 先がサービス名 sync、
+# tls internal）。本番 VPS では使わない。本番は Caddyfile.production を使うこと。
 {
 	# グローバル設定
 	admin off

@@ -36,6 +36,8 @@ export interface HandlerDeps {
   scheduler?: Scheduler;
   /** お題代表生成（省略時は problem.request/submit を受け付けない） */
   delegator?: ProblemDelegator;
+  /** サーバー全体のルーム数上限（省略時は 50）。DoS 緩和用。 */
+  maxRooms?: number;
 }
 
 export interface CreateResult {
@@ -47,6 +49,7 @@ export interface CreateResult {
 
 export function makeHandlers(deps: HandlerDeps) {
   const { store, clock, broadcaster, codeGen, scheduler, delegator } = deps;
+  const maxRooms = deps.maxRooms ?? 50;
 
   // トークンはハンドラインスタンスごとに保持（モジュール共有を避け、テスト間汚染を防ぐ）。
   /** ホストトークンのマップ（roomCode → hostToken） */
@@ -190,6 +193,15 @@ export function makeHandlers(deps: HandlerDeps) {
     cmd: { command: "room.create"; displayName: string; config?: SessionConfig; roomName?: string },
   ): Promise<Result<CreateResult, string>> {
     const now = clock.now();
+    // ルーム数上限（DoS 緩和）。上限到達時は作成を拒否する。
+    if (store.list().length >= maxRooms) {
+      broadcaster.sendTo(connId, {
+        type: "error",
+        code: "ROOM_LIMIT_EXCEEDED",
+        message: "サーバーのルーム数が上限に達しています。時間をおいて再試行してください。",
+      });
+      return err("ROOM_LIMIT_EXCEEDED");
+    }
     // ルーム名があれば「slug-接尾辞」、無ければランダム。衝突時は接尾辞を引き直す。
     let code = codeGen.generate(cmd.roomName);
     for (let i = 0; i < 5 && store.get(code) !== undefined; i++) {
@@ -768,7 +780,15 @@ export function makeHandlers(deps: HandlerDeps) {
     joinFailures.delete(connId);
   }
 
-  return { handleCommand, handleConnectionClose };
+  /** ルーム回収時の後始末。当該ルームのホスト/リジュームトークンを解放する。 */
+  function releaseRoom(roomCode: string): void {
+    hostTokens.delete(roomCode);
+    for (const [token, info] of resumeTokens) {
+      if (info.roomCode === roomCode) resumeTokens.delete(token);
+    }
+  }
+
+  return { handleCommand, handleConnectionClose, releaseRoom };
 }
 
 // ─── 権限チェック ─────────────────────────────────────────────────────────────

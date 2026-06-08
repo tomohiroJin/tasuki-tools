@@ -1,0 +1,23 @@
+[Unit]
+Description=Tasuki sync server (TDD Mob Pro Timer)
+After=network.target
+
+[Service]
+Type=simple
+# bun の絶対パスは VPS の `which bun` で確認して調整すること
+ExecStart=/usr/local/bin/bun /opt/tasuki/server.js
+WorkingDirectory=/opt/tasuki
+EnvironmentFile=/opt/tasuki/tasuki-sync.env
+Restart=on-failure
+RestartSec=2
+User=tasuki
+Group=tasuki
+
+# 基本ハードニング（アプリはファイルを書かない＝インメモリ）
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target
