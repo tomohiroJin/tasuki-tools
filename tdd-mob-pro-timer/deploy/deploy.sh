@@ -40,7 +40,9 @@ echo "==> [4/5] server.js を転送 → ${SSH_HOST}:${APP_DIR}"
 scp deploy/dist/server.js "${SSH_HOST}:${APP_DIR}/server.js"
 
 echo "==> [5/5] sync を再起動: ${SERVICE}"
+# restart のみ sudo（NOPASSWD 対象）。status は閲覧用なので sudo 不要にして
+# sudoers ルール（--no-pager 無しの status）との不一致による失敗を避ける。
 # shellcheck disable=SC2029  # ${SERVICE} はクライアント側での展開が意図した動作
-ssh "${SSH_HOST}" "sudo systemctl restart ${SERVICE} && sudo systemctl --no-pager status ${SERVICE} | head -5"
+ssh "${SSH_HOST}" "sudo systemctl restart ${SERVICE}; systemctl --no-pager status ${SERVICE} | head -5"
 
 echo "==> 完了: https://tasuki.niku9.click/"
