@@ -24,6 +24,8 @@ import { usePrefersReducedMotion } from "./use-reduced-motion.js";
 import { useSwitchAlert } from "./use-switch-alert.js";
 import { useIsWide } from "./use-breakpoint.js";
 import { formatRemaining, formatElapsed } from "./format-time.js";
+import { Tabs } from "./components/Tabs.js";
+import { InvitePanel } from "./components/InvitePanel.js";
 
 interface SessionProps {
   room: Room;
@@ -161,8 +163,9 @@ export function Session({
   const orbitSize = isWide ? 460 : 340;
   const ringSize = isWide ? 300 : 224;
 
-  return (
-    <div role="main" aria-label="セッション" className="space-y-6">
+  // 「セッション」タブのコンテンツ（既存 UI をそのまま移動）。
+  const sessionPanel = (
+    <div className="space-y-6">
       {/* 休憩中バナー（§9.1）。タイマー停止中であることを明示する。 */}
       {room.onBreak && (
         <div
@@ -353,6 +356,40 @@ export function Session({
           onDismiss={dismissSwitchAlert}
         />
       )}
+    </div>
+  );
+
+  return (
+    <div role="main" aria-label="セッション">
+      <Tabs
+        ariaLabel="セッション"
+        items={[
+          { id: "session", label: "セッション", content: sessionPanel },
+          {
+            id: "room",
+            label: "ルーム",
+            content: (
+              <div className="space-y-6">
+                <InvitePanel code={room.code} />
+                <Card>
+                  <RosterPanel
+                    participants={room.participants}
+                    currentDriverName={room.session.rotation[room.session.currentIndex] ?? ""}
+                    myParticipantId={participantId}
+                    canHostAction={isHost}
+                    selfHasExternalToggle={false}
+                    onRename={onRenameParticipant}
+                    onSkip={onDriverSkip}
+                    onResume={onDriverResume}
+                    onAddProxy={onAddProxy}
+                    onRemove={onRemoveParticipant}
+                  />
+                </Card>
+              </div>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }
