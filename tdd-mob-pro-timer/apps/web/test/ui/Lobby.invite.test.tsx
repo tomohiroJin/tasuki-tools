@@ -1,10 +1,12 @@
 /**
  * Lobby 招待 1 操作テスト
  * T058/T059: FR-004,005,006,008,026,033,034,060 (US2,6,8)
+ * R1-4: お題・設定タブを開かなくても既定お題のまま開始できる
  */
 
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import React from "react";
 import { Lobby } from "../../src/ui/Lobby.js";
 // Note: Lobby の onStart prop は onStartSession として定義されている
@@ -102,5 +104,33 @@ describe("Lobby 招待 1 操作（T058/T059）", () => {
       />,
     );
     expect(screen.getByRole("button", { name: /開始|start/i })).toBeTruthy();
+  });
+
+  it("お題・設定タブを開かなくても（既定お題のまま）開始できる (R1-4)", async () => {
+    // お題が確定済みの room を用意（既定お題のまま開始できるケース）
+    const roomWithProblem = makeRoom({
+      problem: {
+        title: "FizzBuzz",
+        description: "1から100までの整数を出力する",
+        requirements: ["1から100まで出力する"],
+        exampleTest: "expect(fizzBuzz(3)).toBe('Fizz')",
+        hints: [],
+        source: "fallback",
+        edited: false,
+      },
+    });
+    const user = userEvent.setup();
+    const onStart = vi.fn();
+    // host・room.problem 確定済みの room で Lobby を描画
+    render(
+      <Lobby
+        room={roomWithProblem}
+        participantId="host-p"
+        onStartSession={onStart}
+      />,
+    );
+    // 既定の「ルーム」タブのまま（お題・設定タブはクリックしない）
+    await user.click(screen.getByRole("button", { name: /セッションを開始/ }));
+    expect(onStart).toHaveBeenCalled();
   });
 });
