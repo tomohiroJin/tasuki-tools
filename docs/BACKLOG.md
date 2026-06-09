@@ -8,15 +8,26 @@
 
 ---
 
-## [高] vitest を v2 → v4 へ更新（脆弱性対応 L-4）
+## [完了] vitest 脆弱性対応 + 依存の安全な更新（2026-06-09）
 
-- **状態**: TODO（早めに対応したい）
-- **背景**: devDependency `vitest@^2.1.8` に critical 勧告 GHSA-5xrq-8626-4rwp
-  「Vitest UI サーバー待受時に任意ファイル読取/実行」。修正版は **4.1.0**。
-- **本番影響**: **無し**。デプロイ成果物は `bun build` バンドルで vitest を含まず、VPS に vitest は存在しない（`pnpm audit --prod` はゼロ）。発動条件は `vitest --ui` 起動＋悪性ページ閲覧で、本プロジェクトは `vitest run` のみ＝UI 不使用。よって実害は低いが衛生として更新する。
-- **注意**: v2→v4 は **2 メジャー上**＝破壊的変更あり。`bun update` 単発では済まず、
-  config（`vitest.config.*` / `coverage` 設定）と API 差分の解消が必要。
-- **完了条件**: 各 package の vitest を `^4`（≥4.1.0）へ、`pnpm test`（core/sync/web 計488）全緑、`pnpm build` 緑、`bun audit` で当該 critical 解消。
+- **状態**: ✅ DONE
+- **対応**: 勧告 GHSA-5xrq-8626-4rwp（vitest <3.2.6 critical）に対し **vitest を 2.1.8 → ^3.2.6** へ更新（core/sync/web）。
+  併せて dompurify 3.4.7→3.4.8、非推奨 `@types/dompurify` 除去、fast-check 3→4。
+  **`bun audit` 脆弱性ゼロ**（vitest critical + vite/esbuild moderate も transitive 更新で解消）。`pnpm test` 488 全緑・`pnpm build` 緑・typecheck 緑。
+- **vitest 4 を見送った理由**: vitest 4 はこの環境（C:\ の 9p マウントで I/O が遅い）で
+  「Timeout waiting for worker to respond」が頻発し web テストが不安定（forks/threads/singleFork いずれも再現）。
+  勧告は **<3.2.6** が対象なので **3.2.6+ で十分修正**。安全な安定版として 3 系を採用。
+  vitest 4 へ上げるなら、ワーカー応答タイムアウトの緩和 or 9p 外でのテスト実行を別途検討。
+
+## [低] メジャー依存の更新（安全のため据え置き中）
+
+- **状態**: 保留（脆弱性なし・production 稼働中・この環境が脆いため見送り）
+- **対象と理由**:
+  - **React 18.3 → 19**: 19 は stable だが破壊的変更あり。18.3 は安全・保守継続・脆弱性なし。UI 全面テストを伴う別タスクで。
+  - **Tailwind 3.4 → 4**: v4 は設定形式の破壊的書き換え（CSS-first）。UI 全崩れリスク大。3.4 維持。
+  - **TypeScript 5.9 → 6**: 新規の厳格化で型エラー誘発の恐れ。5.9 は最新 5 系で安全。
+  - **vite 6.4 → 7 / @vitejs/plugin-react 4 → 6 / jsdom 25 → 29 / @types/node 22 → 25**: いずれも脆弱性なし・現状で安定動作。ビルド/テスト挙動の回帰リスクを避け据え置き。
+- **方針**: 各々を個別タスクで、テスト488緑・build緑・実機確認を伴って慎重に上げる。
 
 ## [中] IP 単位のレート制限（L-1・可用性 DoS 緩和）
 

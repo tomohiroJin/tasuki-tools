@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@tdd-mob/core": "workspace:*",
-    "dompurify": "^3.2.2",
+    "dompurify": "^3.4.8",
     "lucide-react": "^1.17.0",
     "neverthrow": "^8.2.0",
     "partysocket": "^1.0.2",
@@ -28,7 +28,6 @@
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
     "@testing-library/user-event": "^14.5.2",
-    "@types/dompurify": "^3.0.5",
     "@types/qrcode": "^1.5.5",
     "@types/react": "^18.3.14",
     "@types/react-dom": "^18.3.5",
@@ -38,6 +37,6 @@
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
     "vite": "^6.0.6",
-    "vitest": "^2.1.8"
+    "vitest": "^3.2.6"
   }
 }
