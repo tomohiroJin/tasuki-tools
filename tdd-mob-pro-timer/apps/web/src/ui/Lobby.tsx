@@ -151,7 +151,7 @@ export function Lobby({
                                 onClick={() => onLeaveRotation?.(p.displayName)}
                                 disabled={isLastDriver}
                                 title={isLastDriver ? "最後のドライバーは外れられません" : undefined}
-                                className="text-xs px-3 py-1.5 min-h-[44px] sm:min-h-0"
+                                className="text-xs px-3 py-1.5"
                               >
                                 列から外れる
                               </GhostButton>
