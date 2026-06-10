@@ -343,19 +343,6 @@ export function Session({
       </div>{/* /右（サイド） */}
       </div>{/* /2カラムグリッド */}
 
-      {/* 交代・残り10秒・一時停止・休憩を支援技術へ通知（FR-035） */}
-      <div aria-live="assertive" role="status" className="sr-only">
-        {announcement}
-      </div>
-
-      {/* 強い交代通知の全画面オーバーレイ（§9.1） */}
-      {switchAlertName && (
-        <SwitchAlert
-          driverName={switchAlertName}
-          reducedMotion={reducedMotion}
-          onDismiss={dismissSwitchAlert}
-        />
-      )}
     </div>
   );
 
@@ -390,6 +377,17 @@ export function Session({
           },
         ]}
       />
+      {/* 交代通知・支援技術アナウンスはどのタブでも有効にする（タブに依存しない重要イベント） */}
+      <div aria-live="assertive" role="status" className="sr-only">
+        {announcement}
+      </div>
+      {switchAlertName && (
+        <SwitchAlert
+          driverName={switchAlertName}
+          reducedMotion={reducedMotion}
+          onDismiss={dismissSwitchAlert}
+        />
+      )}
     </div>
   );
 }
