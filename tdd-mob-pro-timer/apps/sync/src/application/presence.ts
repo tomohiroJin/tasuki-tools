@@ -4,6 +4,7 @@
  * 状態変化時のみ配信（生存確認では間引く）
  */
 
+import { transferHost } from "@tdd-mob/core";
 import type { Room, Participant } from "@tdd-mob/core";
 import type { RoomStore } from "../ports/room-store.js";
 import type { Broadcaster } from "../ports/broadcaster.js";
@@ -118,17 +119,8 @@ export class PresenceManager {
 
       if (!newHost) return;
 
-      const updatedRoom: Room = {
-        ...room,
-        hostParticipantId: newHost.participantId,
-        participants: room.participants.map((p) =>
-          p.participantId === newHost.participantId
-            ? { ...p, role: "host" }
-            : p.participantId === room.hostParticipantId
-              ? { ...p, role: "editor" }
-              : p,
-        ),
-      };
+      // 二重実装の乖離を防ぐため core の純粋変換に統一（R2-4）。
+      const updatedRoom = transferHost(room, newHost.participantId);
 
       this.store.put(updatedRoom);
       this.broadcaster.broadcastSnapshot(roomCode, updatedRoom);
