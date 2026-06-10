@@ -143,6 +143,19 @@ sudo ss -tlnp | grep 8787                            # 127.0.0.1:8787 のみ
 - `ROOM_IDLE_TTL_MS`（既定 30 分）全員切断が継続したルームを定期回収（60 秒間隔）。
   揮発設計のため回収されたルームは復帰不可（再作成すればよい）。
 
+## 運用可視化（管理エンドポイント）
+
+`ADMIN_TOKEN` を設定すると、VPS ホストから read-only の運用情報を参照できる（インターネット非公開・127.0.0.1 限定）。
+
+```bash
+curl -H "x-admin-token: $ADMIN_TOKEN" http://127.0.0.1:8787/status
+curl -H "x-admin-token: $ADMIN_TOKEN" http://127.0.0.1:8787/admin/rooms
+```
+
+- `/status`: アクティブルーム数・累計回収数。
+- `/admin/rooms`: 上記＋各ルーム要約（コード/参加者数/online数/ドライバー有無/作成時刻）。
+- 回収ログは `journalctl -u tasuki-sync | grep reclaimed` で追える。
+
 ## ロールバック
 
 sync を一旦止めて前バージョンの `server.js` に戻す:
