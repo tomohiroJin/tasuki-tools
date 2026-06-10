@@ -25,7 +25,8 @@ const DEFAULT_BREAK_EVERY_ROTATIONS = 4;
 
 const SELECT_CLASS =
   "w-full rounded-md bg-[var(--panel-2)] border border-[var(--hairline-strong)] px-3 py-2.5 text-[var(--bone)] " +
-  "outline-none focus:border-[var(--signal)] transition-colors";
+  "outline-none focus:border-[var(--signal)] transition-colors " +
+  "focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]";
 
 interface ConfigPanelProps {
   config: SessionConfig;
@@ -68,7 +69,7 @@ export function ConfigPanel({ config, canEdit, onChange }: ConfigPanelProps) {
         title="セッション設定"
         right={
           <GhostButton onClick={randomize} aria-label="設定をランダムに決める" className="text-sm">
-            <span className="flex items-center gap-1.5"><Dices className="w-4 h-4" /> ランダム</span>
+            <span className="flex items-center gap-1.5"><Dices className="w-4 h-4" aria-hidden="true" /> ランダム</span>
           </GhostButton>
         }
       />

@@ -66,7 +66,7 @@ export function Join({ code, onJoin }: JoinProps) {
           placeholder="例: Bob"
           autoFocus
           maxLength={MAX_DISPLAY_NAME}
-          className="w-full rounded-md bg-[var(--panel-2)] border border-[var(--hairline-strong)] px-4 py-3 text-[var(--bone)] text-lg outline-none focus:border-[var(--signal)] transition-colors"
+          className="w-full rounded-md bg-[var(--panel-2)] border border-[var(--hairline-strong)] px-4 py-3 text-[var(--bone)] text-lg outline-none focus:border-[var(--signal)] transition-colors focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]"
         />
         <label htmlFor="join-passphrase" className="flex items-center gap-2 text-sm font-semibold text-[var(--bone)] mt-4 mb-3">
           <KeyRound className="w-4 h-4 text-[var(--signal)]" aria-hidden="true" />
@@ -82,11 +82,11 @@ export function Join({ code, onJoin }: JoinProps) {
             if (e.key === "Enter") handleJoin();
           }}
           placeholder="未設定なら空のままで OK"
-          className="w-full rounded-md bg-[var(--panel-2)] border border-[var(--hairline-strong)] px-4 py-3 text-[var(--bone)] text-lg outline-none focus:border-[var(--signal)] transition-colors"
+          className="w-full rounded-md bg-[var(--panel-2)] border border-[var(--hairline-strong)] px-4 py-3 text-[var(--bone)] text-lg outline-none focus:border-[var(--signal)] transition-colors focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]"
         />
         <PrimaryButton onClick={handleJoin} disabled={!canJoin} className="w-full mt-4 text-lg py-3">
           <span className="flex items-center justify-center gap-2">
-            <LogIn className="w-5 h-5" />
+            <LogIn className="w-5 h-5" aria-hidden="true" />
             モブに参加
           </span>
         </PrimaryButton>

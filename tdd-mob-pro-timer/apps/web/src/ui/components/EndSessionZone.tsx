@@ -62,21 +62,21 @@ export function EndSessionZone({
         onClick={onComplete}
         className="px-5 py-2 rounded-md font-bold bg-[var(--ok)] hover:bg-[#4ac28c] text-[#04130c] transition-all shadow-[0_0_0_1px_rgba(63,178,127,0.5),0_4px_16px_rgba(63,178,127,0.3)] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ok)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]"
       >
-        <span className="flex items-center gap-2"><Flag className="w-4 h-4" /> 完成!</span>
+        <span className="flex items-center gap-2"><Flag className="w-4 h-4" aria-hidden="true" /> 完成!</span>
       </button>
 
       {/* 途中で終える（記録なし・確認あり）*/}
       <GhostButton onClick={() => setPending("abort")}>
-        <span className="flex items-center gap-2"><XCircle className="w-4 h-4" /> 途中で終える</span>
+        <span className="flex items-center gap-2"><XCircle className="w-4 h-4" aria-hidden="true" /> 途中で終える</span>
       </GhostButton>
 
       {/* リセット（初期化・確認あり）*/}
       <button
         type="button"
         onClick={() => setPending("reset")}
-        className="px-4 py-2 rounded-md font-medium bg-[rgba(255,53,42,0.85)] hover:bg-[var(--urgent)] text-white border border-[rgba(255,53,42,0.4)] transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--urgent)]"
+        className="px-4 py-2 rounded-md font-medium bg-[rgba(255,53,42,0.85)] hover:bg-[var(--urgent)] text-white border border-[rgba(255,53,42,0.4)] transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--urgent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]"
       >
-        <span className="flex items-center gap-2"><RotateCcw className="w-4 h-4" /> リセット</span>
+        <span className="flex items-center gap-2"><RotateCcw className="w-4 h-4" aria-hidden="true" /> リセット</span>
       </button>
 
       {/* 確認ダイアログ */}

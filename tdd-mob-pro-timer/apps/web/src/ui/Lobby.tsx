@@ -86,7 +86,7 @@ export function Lobby({
   // 開始ボタン（ルームタブ最上部に配置）
   const startButton = isHost ? (
     <PrimaryButton className="w-full" onClick={onStartSession} disabled={!room.problem}>
-      <span className="flex items-center justify-center gap-2"><Play className="w-5 h-5" /> セッションを開始</span>
+      <span className="flex items-center justify-center gap-2"><Play className="w-5 h-5" aria-hidden="true" /> セッションを開始</span>
     </PrimaryButton>
   ) : (
     <p className="text-center text-sm text-white/60">主催者のセッション開始を待っています...</p>

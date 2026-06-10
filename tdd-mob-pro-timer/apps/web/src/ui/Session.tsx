@@ -273,21 +273,21 @@ export function Session({
             <>
               {isPaused || !running ? (
                 <PrimaryButton onClick={onResume} disabled={!isPaused}>
-                  <span className="flex items-center gap-2"><Play className="w-5 h-5" /> 再開</span>
+                  <span className="flex items-center gap-2"><Play className="w-5 h-5" aria-hidden="true" /> 再開</span>
                 </PrimaryButton>
               ) : (
                 <GhostButton onClick={onPause}>
-                  <span className="flex items-center gap-2"><Pause className="w-4 h-4" /> 一時停止</span>
+                  <span className="flex items-center gap-2"><Pause className="w-4 h-4" aria-hidden="true" /> 一時停止</span>
                 </GhostButton>
               )}
               <GhostButton onClick={onSkip} disabled={!running}>
-                <span className="flex items-center gap-2"><SkipForward className="w-4 h-4" /> スキップ</span>
+                <span className="flex items-center gap-2"><SkipForward className="w-4 h-4" aria-hidden="true" /> スキップ</span>
               </GhostButton>
             </>
           )}
           {isHost && (
             <GhostButton onClick={room.onBreak ? onBreakEnd : onBreakStart}>
-              <span className="flex items-center gap-2"><Coffee className="w-4 h-4" /> {room.onBreak ? "休憩終了" : "休憩"}</span>
+              <span className="flex items-center gap-2"><Coffee className="w-4 h-4" aria-hidden="true" /> {room.onBreak ? "休憩終了" : "休憩"}</span>
             </GhostButton>
           )}
         </div>

@@ -53,7 +53,7 @@ export function Summary({ endType, record, onNewSession, onSaveRecord }: Summary
           className="w-full rounded-md border border-[rgba(255,74,46,0.4)] bg-[rgba(255,74,46,0.1)] p-5 text-[var(--signal)]"
         >
           <p className="text-2xl font-bold flex items-center justify-center gap-2">
-            <Trophy className="w-7 h-7" /> ナイスワーク！
+            <Trophy className="w-7 h-7" aria-hidden="true" /> ナイスワーク！
           </p>
           <p className="mt-1 text-sm text-[var(--bone-muted)]">
             お題をやり遂げました。お疲れさまでした。
@@ -116,7 +116,7 @@ export function Summary({ endType, record, onNewSession, onSaveRecord }: Summary
               }}
             >
               <span className="flex items-center justify-center gap-2">
-                {saved ? <Check className="w-4 h-4 text-[var(--ok)]" /> : null}
+                {saved ? <Check className="w-4 h-4 text-[var(--ok)]" aria-hidden="true" /> : null}
                 {saved ? "保存しました" : "記録を保存"}
               </span>
             </GhostButton>
@@ -137,7 +137,7 @@ export function Summary({ endType, record, onNewSession, onSaveRecord }: Summary
       {/* 次の行動導線（共通） */}
       <PrimaryButton className="w-full" onClick={onNewSession}>
         <span className="flex items-center justify-center gap-2">
-          <Sparkles className="w-5 h-5" /> 新しいセッション
+          <Sparkles className="w-5 h-5" aria-hidden="true" /> 新しいセッション
         </span>
       </PrimaryButton>
     </div>
