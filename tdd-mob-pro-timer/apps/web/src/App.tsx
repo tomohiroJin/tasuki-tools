@@ -38,6 +38,10 @@ const ERROR_MESSAGES: Record<string, string> = {
   InvalidInterval: "その交代間隔は選べません。",
   UNAUTHORIZED: "この操作の権限がありません。",
   RATE_LIMITED: "試行が多すぎます。しばらく待ってから再試行してください。",
+  // ホスト移譲（R2-3）の失敗理由を利用者向けの日本語にする。
+  PARTICIPANT_OFFLINE: "オフラインの相手にはホストを移譲できません。",
+  CANNOT_CHANGE_HOST: "自分自身にはホストを移譲できません。",
+  PARTICIPANT_NOT_FOUND: "対象の参加者が見つかりません。",
 };
 function friendlyError(code: string): string {
   return ERROR_MESSAGES[code] ?? "操作を完了できませんでした。";
@@ -253,6 +257,10 @@ export default function App() {
   /** ホストが参加者を退出させる（⑪・host 限定）。 */
   const removeParticipant = (participantId: string) => {
     client?.send({ command: "participant.remove", participantId });
+  };
+  /** ホストが任意のオンライン参加者へホストを明示移譲する（R2-3・host 限定）。 */
+  const handleTransferHost = (participantId: string) => {
+    client?.send({ command: "host.transfer", participantId });
   };
   /** ドライバー順を入れ替える（④・member.move）。host/editor が操作。 */
   const moveRotation = (fromIndex: number, toIndex: number) => {
@@ -474,6 +482,7 @@ export default function App() {
           onDriverResume={rosterResume}
           onAddProxy={rosterAddProxy}
           onRemoveParticipant={removeParticipant}
+          onTransferHost={handleTransferHost}
           onEditProblem={editProblem}
           onCopyProblem={copyProblem}
           onRegenerateProblem={regenerateProblem}
