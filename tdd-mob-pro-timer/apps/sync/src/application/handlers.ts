@@ -55,6 +55,8 @@ export function makeHandlers(deps: HandlerDeps) {
   // トークンはハンドラインスタンスごとに保持（モジュール共有を避け、テスト間汚染を防ぐ）。
   /** ホストトークンのマップ（roomCode → hostToken） */
   const hostTokens = new Map<string, string>();
+  /** ルームパスフレーズ（roomCode → 平文）。snapshot には載せない（R4-2）。 */
+  const roomPassphrases = new Map<string, string>();
   /** リジュームトークンのマップ（resumeToken → {participantId, roomCode}） */
   const resumeTokens = new Map<
     string,
@@ -164,6 +166,12 @@ export function makeHandlers(deps: HandlerDeps) {
         return handleRoleSet(
           connId,
           cmd as { command: "role.set"; participantId: string; role: "editor" | "viewer" },
+        );
+
+      case "room.passphrase.set":
+        return handleRoomPassphraseSet(
+          connId,
+          cmd as { command: "room.passphrase.set"; passphrase: string },
         );
 
       case "host.transfer":
@@ -672,6 +680,51 @@ export function makeHandlers(deps: HandlerDeps) {
     });
   }
 
+  /** ルームパスフレーズを設定/解除する（host 限定・R4-2）。空文字で解除。
+   *  平文は roomPassphrases に保持し、Room には passphraseProtected(boolean)のみ反映。 */
+  async function handleRoomPassphraseSet(
+    connId: string,
+    cmd: { command: "room.passphrase.set"; passphrase: string },
+  ): Promise<Result<CreateResult, string>> {
+    const room = findRoomByConnId(connId);
+    if (!room) {
+      broadcaster.sendTo(connId, {
+        type: "error",
+        code: "NOT_IN_ROOM",
+        message: "ルームに参加していません",
+      });
+      return err("NOT_IN_ROOM");
+    }
+    const actor = room.participants.find((p) => p.connId === connId);
+    if (!actor || actor.role !== "host") {
+      broadcaster.sendTo(connId, {
+        type: "error",
+        code: "UNAUTHORIZED",
+        message: "パスフレーズ設定はホストのみ実行できます",
+      });
+      return err("UNAUTHORIZED");
+    }
+
+    if (cmd.passphrase === "") {
+      roomPassphrases.delete(room.code);
+    } else {
+      roomPassphrases.set(room.code, cmd.passphrase);
+    }
+    const updatedRoom: Room = {
+      ...room,
+      passphraseProtected: cmd.passphrase !== "",
+    };
+    store.put(updatedRoom);
+    broadcaster.broadcastSnapshot(updatedRoom.code, updatedRoom);
+
+    return ok({
+      code: updatedRoom.code,
+      participantId: actor.participantId,
+      hostToken: "",
+      resumeToken: "",
+    });
+  }
+
   /** ホストを明示的に他のオンライン参加者へ移譲する（host 限定・R2-3）。
    *  自動委譲（presence）と同じ transferHost を用い、snapshot で全員に反映する。 */
   async function handleHostTransfer(
@@ -860,6 +913,7 @@ export function makeHandlers(deps: HandlerDeps) {
   /** ルーム回収時の後始末。当該ルームのホスト/リジュームトークンを解放する。 */
   function releaseRoom(roomCode: string): void {
     hostTokens.delete(roomCode);
+    roomPassphrases.delete(roomCode);
     for (const [token, info] of resumeTokens) {
       if (info.roomCode === roomCode) resumeTokens.delete(token);
     }
@@ -881,6 +935,7 @@ const HOST_ONLY_COMMANDS = new Set([
   "break.start",
   "break.end",
   "role.set",
+  "room.passphrase.set",
   "host.transfer",
   "participant.addProxy",
   "participant.remove",
