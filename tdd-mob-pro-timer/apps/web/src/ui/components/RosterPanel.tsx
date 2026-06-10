@@ -37,7 +37,7 @@ function MiniButton({
       onClick={handleClick}
       disabled={disabled || pending}
       aria-busy={pending || undefined}
-      className="px-3 py-2 min-h-[40px] sm:min-h-[36px] shrink-0 whitespace-nowrap rounded-md text-xs font-medium text-[var(--bone-muted)] bg-[var(--panel-2)] hover:bg-[#252934] border border-[var(--hairline)] transition-all active:scale-95 disabled:opacity-50 disabled:cursor-wait focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]"
+      className="px-3 py-2 min-h-[44px] sm:min-h-[36px] shrink-0 whitespace-nowrap rounded-md text-xs font-medium text-[var(--bone-muted)] bg-[var(--panel-2)] hover:bg-[#252934] border border-[var(--hairline)] transition-all active:scale-95 disabled:opacity-50 disabled:cursor-wait focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]"
       {...rest}
     >
       {children}

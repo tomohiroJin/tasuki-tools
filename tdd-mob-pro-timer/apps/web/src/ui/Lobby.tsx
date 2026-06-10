@@ -56,7 +56,7 @@ function RowIconButton({
       disabled={disabled}
       aria-label={label}
       title={label}
-      className="grid h-10 w-10 sm:h-8 sm:w-8 shrink-0 place-items-center rounded-md bg-[var(--panel)] hover:bg-[#252934] disabled:opacity-30 disabled:cursor-not-allowed border border-[var(--hairline)] text-[var(--bone-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]"
+      className="grid h-11 w-11 sm:h-8 sm:w-8 shrink-0 place-items-center rounded-md bg-[var(--panel)] hover:bg-[#252934] disabled:opacity-30 disabled:cursor-not-allowed border border-[var(--hairline)] text-[var(--bone-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]"
     >
       <Icon className="w-4 h-4" />
     </button>
@@ -151,12 +151,12 @@ export function Lobby({
                                 onClick={() => onLeaveRotation?.(p.displayName)}
                                 disabled={isLastDriver}
                                 title={isLastDriver ? "最後のドライバーは外れられません" : undefined}
-                                className="text-xs px-3 py-1.5"
+                                className="text-xs px-3 py-1.5 min-h-[44px] sm:min-h-0"
                               >
                                 列から外れる
                               </GhostButton>
                             ) : (
-                              <PrimaryButton onClick={() => onJoinRotation?.(p.displayName)} className="text-xs px-3 py-1.5">
+                              <PrimaryButton onClick={() => onJoinRotation?.(p.displayName)} className="text-xs px-3 py-1.5 min-h-[44px] sm:min-h-0">
                                 ドライバーに加わる
                               </PrimaryButton>
                             )

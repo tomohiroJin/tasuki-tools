@@ -64,18 +64,21 @@ export function Summary({ endType, record, onNewSession, onSaveRecord }: Summary
       {/* 完成時のみ記録詳細を表示 */}
       {isComplete && record && (
         <>
+          {/* 3 列の統計カード。360px 幅では 1 列あたり実質 ~70px しかないため、
+              所要時間（「120分00秒」等）が whitespace-nowrap ではみ出さないよう、
+              モバイルは text-lg、sm 以上で text-xl に上げる（R5-3）。 */}
           <div className="grid w-full grid-cols-3 gap-3">
-            <Card className="p-4">
+            <Card className="p-3 sm:p-4">
               <p className="instrument-label">所要時間</p>
-              <p className="whitespace-nowrap text-xl font-bold tabular text-[var(--bone)]">{formatTime(record.elapsedSeconds)}</p>
+              <p className="whitespace-nowrap text-lg sm:text-xl font-bold tabular text-[var(--bone)]">{formatTime(record.elapsedSeconds)}</p>
             </Card>
-            <Card className="p-4">
+            <Card className="p-3 sm:p-4">
               <p className="instrument-label">交代回数</p>
-              <p className="whitespace-nowrap text-xl font-bold tabular text-[var(--bone)]">{record.totalSwitches}回</p>
+              <p className="whitespace-nowrap text-lg sm:text-xl font-bold tabular text-[var(--bone)]">{record.totalSwitches}回</p>
             </Card>
-            <Card className="p-4">
+            <Card className="p-3 sm:p-4">
               <p className="instrument-label">周回数</p>
-              <p className="whitespace-nowrap text-xl font-bold tabular text-[var(--bone)]">{record.rounds ?? 0}周</p>
+              <p className="whitespace-nowrap text-lg sm:text-xl font-bold tabular text-[var(--bone)]">{record.rounds ?? 0}周</p>
             </Card>
           </div>
 

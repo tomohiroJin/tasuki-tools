@@ -22,7 +22,7 @@ import { useNowTick } from "./use-now-tick.js";
 import { useDiscreteAnnouncement } from "./use-discrete-announcement.js";
 import { usePrefersReducedMotion } from "./use-reduced-motion.js";
 import { useSwitchAlert } from "./use-switch-alert.js";
-import { useIsWide } from "./use-breakpoint.js";
+import { useIsWide, useViewportWidth } from "./use-breakpoint.js";
 import { formatRemaining, formatElapsed } from "./format-time.js";
 import { Tabs } from "./components/Tabs.js";
 import { InvitePanel } from "./components/InvitePanel.js";
@@ -167,8 +167,14 @@ export function Session({
 
   // PC ではタイマーを主役として大きく見せる（ステージ感・モバイルは収まるサイズに）。
   const isWide = useIsWide();
-  const orbitSize = isWide ? 460 : 340;
-  const ringSize = isWide ? 300 : 224;
+  // モバイルでは円形計器（固定 px）が Card 内に収まるよう、ビューポート幅から
+  // 利用可能幅（Stage px-4=32 + Card p-6=48 + 枠 2 を差し引く）でクランプする。
+  // これで 360px 幅でも TeamOrbit/CircularProgress が横にはみ出さない（R5-3）。
+  const vw = useViewportWidth();
+  const mobileMaxOrbit = Math.min(340, Math.max(248, vw - 82));
+  const orbitSize = isWide ? 460 : mobileMaxOrbit;
+  // リング（タイマー）は orbit に対して概ね 224/340 の比率を保ち、アバターと重ならない大きさに。
+  const ringSize = isWide ? 300 : Math.round(mobileMaxOrbit * (224 / 340));
 
   // 「セッション」タブのコンテンツ（既存 UI をそのまま移動）。
   const sessionPanel = (

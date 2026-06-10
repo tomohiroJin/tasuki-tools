@@ -62,7 +62,7 @@ export function PrimaryButton({ children, className = "", ...rest }: BtnProps) {
   return (
     <button
       type="button"
-      className={`px-6 py-3 rounded-md font-bold tracking-wide text-[#160603] bg-[var(--signal)] hover:bg-[#ff6147] disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-[0_0_0_1px_rgba(255,74,46,0.5),0_6px_20px_var(--signal-glow)] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)] ${className}`}
+      className={`inline-flex items-center justify-center px-6 py-3 rounded-md font-bold tracking-wide text-[#160603] bg-[var(--signal)] hover:bg-[#ff6147] disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-[0_0_0_1px_rgba(255,74,46,0.5),0_6px_20px_var(--signal-glow)] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)] ${className}`}
       {...rest}
     >
       {children}
@@ -75,7 +75,7 @@ export function GhostButton({ children, className = "", ...rest }: BtnProps) {
   return (
     <button
       type="button"
-      className={`px-4 py-2 rounded-md font-medium text-[var(--bone)] bg-[var(--panel-2)] hover:bg-[#252934] disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95 border border-[var(--hairline-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)] ${className}`}
+      className={`inline-flex items-center justify-center px-4 py-2 min-h-[44px] sm:min-h-0 rounded-md font-medium text-[var(--bone)] bg-[var(--panel-2)] hover:bg-[#252934] disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95 border border-[var(--hairline-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)] ${className}`}
       {...rest}
     >
       {children}
@@ -95,7 +95,7 @@ export function IconButton({
       type="button"
       title={title}
       aria-label={title}
-      className={`w-10 h-10 sm:w-9 sm:h-9 rounded-md bg-[var(--panel-2)] hover:bg-[#252934] flex items-center justify-center text-[var(--bone-muted)] transition-all border border-[var(--hairline)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)] ${className}`}
+      className={`w-11 h-11 sm:w-9 sm:h-9 rounded-md bg-[var(--panel-2)] hover:bg-[#252934] flex items-center justify-center text-[var(--bone-muted)] transition-all border border-[var(--hairline)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)] ${className}`}
       {...rest}
     >
       {children}
