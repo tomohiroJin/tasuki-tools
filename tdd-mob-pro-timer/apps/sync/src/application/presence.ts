@@ -12,20 +12,36 @@ import type { Clock } from "../ports/clock.js";
 /** ホスト不在の猶予時間（デフォルト30秒）*/
 export const HOST_ABSENCE_GRACE_MS = 30 * 1000;
 
+/** ドライバー不在の猶予時間（デフォルト30秒）。猶予後に次の eligible へ繰り上げる（R2-1）。*/
+export const DRIVER_ABSENCE_GRACE_MS = 30 * 1000;
+
 export class PresenceManager {
   private readonly store: RoomStore;
   private readonly broadcaster: Broadcaster;
   private readonly clock: Clock;
+  /** ドライバー不在発火時に呼ぶコールバック（任意。server.ts で handlers.advanceForAbsence に配線）。 */
+  private readonly onDriverAbsence?: (roomCode: string) => void;
   /** ホスト不在タイマー: roomCode → timerHandle */
   private readonly hostAbsenceTimers = new Map<
     string,
     ReturnType<typeof setTimeout>
   >();
+  /** ドライバー不在タイマー: roomCode → timerHandle */
+  private readonly driverAbsenceTimers = new Map<
+    string,
+    ReturnType<typeof setTimeout>
+  >();
 
-  constructor(deps: { store: RoomStore; broadcaster: Broadcaster; clock: Clock }) {
+  constructor(deps: {
+    store: RoomStore;
+    broadcaster: Broadcaster;
+    clock: Clock;
+    onDriverAbsence?: (roomCode: string) => void;
+  }) {
     this.store = deps.store;
     this.broadcaster = deps.broadcaster;
     this.clock = deps.clock;
+    this.onDriverAbsence = deps.onDriverAbsence;
   }
 
   /**
@@ -42,6 +58,12 @@ export class PresenceManager {
       const updated = this.updatePresence(room, connId, "online");
       this.store.put(updated);
       this.broadcaster.broadcastSnapshot(room.code, updated);
+
+      // 現ドライバーが復帰したら不在タイマーを解除（stale-check でも守られるが明示）。
+      const curName = updated.session.rotation[updated.session.currentIndex];
+      if (participant.displayName === curName) {
+        this.clearDriverAbsenceTimer(room.code);
+      }
     }
   }
 
@@ -62,6 +84,13 @@ export class PresenceManager {
     // ホストが切断した場合、猶予後に委譲（FR-018）
     if (participant.role === "host") {
       this.scheduleHostAbsence(room.code);
+    }
+
+    // 現ドライバーが切断し、かつセッション稼働中なら猶予後に次へ繰り上げる（R2-1）。
+    const isCurrentDriver =
+      updated.session.rotation[updated.session.currentIndex] === participant.displayName;
+    if (updated.clock.running && isCurrentDriver) {
+      this.scheduleDriverAbsence(updated.code, participant.displayName);
     }
   }
 
@@ -108,9 +137,38 @@ export class PresenceManager {
     this.hostAbsenceTimers.set(roomCode, timer);
   }
 
+  /**
+   * ドライバー不在猶予後に次の eligible ドライバーへ繰り上げる（R2-1）。
+   * 発火時に stale-check（現ドライバーが依然同一名・offline・稼働中）を行い、
+   * 既に交代/復帰済みなら何もしない（古いタイマーの誤発火を防ぐ）。
+   */
+  private scheduleDriverAbsence(roomCode: string, driverName: string): void {
+    this.clearDriverAbsenceTimer(roomCode);
+    const timer = setTimeout(() => {
+      this.driverAbsenceTimers.delete(roomCode);
+      const room = this.store.get(roomCode);
+      if (!room || !room.clock.running) return;
+      const curName = room.session.rotation[room.session.currentIndex];
+      if (curName !== driverName) return;
+      const driver = room.participants.find((p) => p.displayName === driverName);
+      if (driver?.presence !== "offline") return;
+      this.onDriverAbsence?.(roomCode);
+    }, DRIVER_ABSENCE_GRACE_MS);
+    this.driverAbsenceTimers.set(roomCode, timer);
+  }
+
+  private clearDriverAbsenceTimer(roomCode: string): void {
+    const timer = this.driverAbsenceTimers.get(roomCode);
+    if (timer !== undefined) {
+      clearTimeout(timer);
+      this.driverAbsenceTimers.delete(roomCode);
+    }
+  }
+
   /** ルーム回収時に、そのルームのプレゼンス関連タイマーを解放する。 */
   clearRoomTimers(roomCode: string): void {
     this.clearHostAbsenceTimer(roomCode);
+    this.clearDriverAbsenceTimer(roomCode);
   }
 
   private clearHostAbsenceTimer(roomCode: string): void {

@@ -54,7 +54,13 @@ const broadcaster = {
 
 const delegator = new ProblemDelegator({ store, clock, broadcaster });
 const handlers = makeHandlers({ store, clock, broadcaster, codeGen, scheduler, delegator, maxRooms: config.maxRooms });
-const presenceManager = new PresenceManager({ store, broadcaster, clock });
+const presenceManager = new PresenceManager({
+  store,
+  broadcaster,
+  clock,
+  // ドライバー不在の猶予後繰り上げ（R2-1）。handlers のスケジューラ経由で交代＋タイマー再アンカー。
+  onDriverAbsence: handlers.advanceForAbsence,
+});
 
 wsAdapter = new WsAdapter({
   port: config.port,
