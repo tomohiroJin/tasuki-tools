@@ -13,6 +13,7 @@ import { ConfigPanel } from "./components/ConfigPanel.js";
 import { Tabs } from "./components/Tabs.js";
 import { InvitePanel } from "./components/InvitePanel.js";
 import { PassphrasePanel } from "./components/PassphrasePanel.js";
+import { EmptyHint } from "./components/EmptyHint.js";
 import { presenceDotClass } from "./presence.js";
 import type { SessionConfig } from "@tdd-mob/core";
 
@@ -215,6 +216,14 @@ export function Lobby({
                     );
                   })}
                 </ul>
+                {/* まだ自分1人のとき、招待を促す控えめなヒント（R5-2）。 */}
+                {room.participants.length === 1 && (
+                  <div className="mt-3">
+                    <EmptyHint>
+                      まだあなただけです。上の招待リンクで仲間を呼び、揃ったら「開始」しましょう。
+                    </EmptyHint>
+                  </div>
+                )}
               </Card>
             </div>
           ),
@@ -248,9 +257,15 @@ export function Lobby({
                     onCopy={onCopyProblem ?? (() => {})}
                   />
                 ) : (
-                  <div className="py-8 text-center text-[var(--bone-subtle)]">
-                    <span className="inline-block h-4 w-4 animate-pulse rounded-full bg-[var(--signal)] mb-2" aria-hidden="true" />
-                    <p>お題を準備中です…</p>
+                  <div className="space-y-3">
+                    <div className="py-8 text-center text-[var(--bone-subtle)]">
+                      <span className="inline-block h-4 w-4 animate-pulse rounded-full bg-[var(--signal)] mb-2" aria-hidden="true" />
+                      <p>お題を準備中です…</p>
+                    </div>
+                    {/* お題は任意であることを伝える控えめなヒント（R5-2）。 */}
+                    <EmptyHint>
+                      お題は任意です。未設定でもすぐ開始でき、後からいつでも追加できます。
+                    </EmptyHint>
                   </div>
                 )}
               </Card>

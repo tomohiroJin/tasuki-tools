@@ -50,6 +50,10 @@ export function Setup({ onCreateRoom }: SetupProps) {
         <p className="text-[var(--bone-muted)] mt-2 text-sm md:text-base">
           モブプロ × TDD でチーム駆動開発
         </p>
+        {/* 初回の一言（R5-2）。気軽に始められることを伝える。 */}
+        <p className="mt-2 text-xs text-[var(--bone-subtle)]">
+          ルームを作って共有するだけ。アカウント登録は不要です。
+        </p>
       </header>
 
       <Card>
