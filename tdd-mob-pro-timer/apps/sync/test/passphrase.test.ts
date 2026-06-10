@@ -217,4 +217,57 @@ describe("room.join のパスフレーズ検証（R4-2 / Task 3）", () => {
     expect(res.isOk()).toBe(true);
     expect(store.get(roomCode)?.participants.length).toBe(before + 1);
   });
+
+  it("正規化: 設定側の前後空白は無視され、trim 後一致で参加できる", async () => {
+    // host が前後空白付きで設定 → サーバは trim して保持。
+    await handlers.handleCommand(hostConn, {
+      command: "room.passphrase.set",
+      passphrase: "secret ",
+    });
+    const before = store.get(roomCode)?.participants.length ?? 0;
+
+    // 参加側は空白なしの "secret" → trim 比較で一致して参加できる。
+    const res = await handlers.handleCommand(joinerConn, {
+      command: "room.join",
+      code: roomCode,
+      displayName: "Joiner",
+      hasAiKey: false,
+      passphrase: "secret",
+    });
+
+    expect(res.isOk()).toBe(true);
+    expect(store.get(roomCode)?.participants.length).toBe(before + 1);
+  });
+
+  it("resume（再接続）はパスフレーズ不要で成功する（再認証されない）", async () => {
+    await handlers.handleCommand(hostConn, {
+      command: "room.passphrase.set",
+      passphrase: "secret",
+    });
+    // 初回参加（正しいパスフレーズ）で resumeToken を得る。
+    await handlers.handleCommand(joinerConn, {
+      command: "room.join",
+      code: roomCode,
+      displayName: "Joiner",
+      hasAiKey: false,
+      passphrase: "secret",
+    });
+    const joinedMsg = broadcaster.sent.find((s) => s.msg.type === "room.joined");
+    const resumeToken =
+      joinedMsg && "resumeToken" in joinedMsg.msg
+        ? (joinedMsg.msg as { resumeToken: string }).resumeToken
+        : undefined;
+    expect(resumeToken).toBeTruthy();
+
+    // 新接続で resumeToken のみ（passphrase なし）→ 再認証されず成功する。
+    const res = await handlers.handleCommand("joiner-reconnect", {
+      command: "room.join",
+      code: roomCode,
+      displayName: "Joiner",
+      hasAiKey: false,
+      resumeToken: resumeToken!,
+    });
+
+    expect(res.isOk()).toBe(true);
+  });
 });

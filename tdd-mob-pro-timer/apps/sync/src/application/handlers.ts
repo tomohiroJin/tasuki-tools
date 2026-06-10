@@ -350,10 +350,12 @@ export function makeHandlers(deps: HandlerDeps) {
     // パスフレーズ保護ルームは新規参加時に一致を要求する（R4-2）。
     // resume（再接続）は上の resume ブロックで return 済みのためここには来ない＝再認証不要。
     const requiredPassphrase = roomPassphrases.get(cmd.code);
-    if (requiredPassphrase !== undefined && cmd.passphrase !== requiredPassphrase) {
+    // 保持側と同じく前後空白を正規化して比較する。
+    const providedPassphrase = (cmd.passphrase ?? "").trim();
+    if (requiredPassphrase !== undefined && providedPassphrase !== requiredPassphrase) {
       // 失敗をレート制限に積算（パスフレーズ総当たりの緩和・既存 join 制限と統合）。
       joinFailures.set(connId, [...(joinFailures.get(connId) ?? []), now]);
-      const code = cmd.passphrase ? "PASSPHRASE_MISMATCH" : "PASSPHRASE_REQUIRED";
+      const code = providedPassphrase ? "PASSPHRASE_MISMATCH" : "PASSPHRASE_REQUIRED";
       broadcaster.sendTo(connId, {
         type: "error",
         code,
@@ -725,14 +727,17 @@ export function makeHandlers(deps: HandlerDeps) {
       return err("UNAUTHORIZED");
     }
 
-    if (cmd.passphrase === "") {
+    // 前後空白を正規化して保持（設定側/参加側の trim 差異による「正しいのに不一致」を防ぐ）。
+    // 空白のみ・空文字は解除扱い。
+    const passphrase = cmd.passphrase.trim();
+    if (passphrase === "") {
       roomPassphrases.delete(room.code);
     } else {
-      roomPassphrases.set(room.code, cmd.passphrase);
+      roomPassphrases.set(room.code, passphrase);
     }
     const updatedRoom: Room = {
       ...room,
-      passphraseProtected: cmd.passphrase !== "",
+      passphraseProtected: passphrase !== "",
     };
     store.put(updatedRoom);
     broadcaster.broadcastSnapshot(updatedRoom.code, updatedRoom);
