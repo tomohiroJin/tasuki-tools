@@ -187,4 +187,25 @@ describe("handlers: host.transfer（明示的ホスト移譲・R2-3）", () => {
     }
     expect(store.get("HX01")?.hostParticipantId).toBe("host-p01");
   });
+
+  // Phase 2a（ドライバー不在の自動繰上）との相互作用の回帰網。
+  // 移譲は role と hostParticipantId のみを変え、rotation/currentIndex/driver 適格性は
+  // 触らない（現ドライバー＝ホストを移譲してもドライバー進行が乱れない）。
+  it("現ドライバー＝ホストを移譲しても rotation / currentIndex は不変", async () => {
+    // makeTestRoom は rotation ["Host","Editor"]・currentIndex 0（現ドライバー=Host）。
+    const result = await handlers.handleCommand("host-conn", {
+      command: "host.transfer",
+      participantId: "editor-p02",
+    });
+    expect(result.isOk()).toBe(true);
+
+    const room = store.get("HX01");
+    // 駆動の状態は一切変わらない。
+    expect(room?.session.rotation).toEqual(["Host", "Editor"]);
+    expect(room?.session.currentIndex).toBe(0);
+    // 旧ホストは editor になるが rotation には Host のまま残り、driver 適格性も不変。
+    const oldHost = room?.participants.find((p) => p.participantId === "host-p01");
+    expect(oldHost?.role).toBe("editor");
+    expect(oldHost?.driverEligible).toBe(undefined);
+  });
 });
