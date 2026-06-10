@@ -117,6 +117,8 @@ export interface Room {
   onBreak: boolean;
   /** 出題モード（v2追加。既定 "fallback"） */
   problemMode?: ProblemMode;
+  /** パスフレーズ保護中か（平文は載せない・サーバ側 Map で保持・R4-2）。 */
+  passphraseProtected?: boolean;
 }
 
 /** 完成記録 */
@@ -265,3 +267,6 @@ export const MAX_PROBLEM_TITLE = 200;
 export const MAX_PROBLEM_TEXT = 4000; // description / exampleTest
 export const MAX_PROBLEM_HINT = 500; // ヒント 1 件あたり
 export const MAX_PROBLEM_HINTS = 20; // ヒント配列の件数
+
+/** ルームパスフレーズの最大長（巨大入力 DoS 対策・R4-2）。 */
+export const MAX_PASSPHRASE = 128;

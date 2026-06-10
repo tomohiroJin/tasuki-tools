@@ -26,6 +26,7 @@ import { useIsWide } from "./use-breakpoint.js";
 import { formatRemaining, formatElapsed } from "./format-time.js";
 import { Tabs } from "./components/Tabs.js";
 import { InvitePanel } from "./components/InvitePanel.js";
+import { PassphrasePanel } from "./components/PassphrasePanel.js";
 
 interface SessionProps {
   room: Room;
@@ -63,6 +64,8 @@ interface SessionProps {
   onCopyProblem?: () => void;
   onRegenerateProblem?: () => void;
   onPasteProblem?: () => void;
+  /** ルームのパスフレーズ設定/解除（R4-2・host 限定）。空文字で解除。 */
+  onSetPassphrase?: (passphrase: string) => void;
 }
 
 /** 残り時間がこの秒数以下で緊急表示にする */
@@ -94,6 +97,7 @@ export function Session({
   onCopyProblem,
   onRegenerateProblem,
   onPasteProblem,
+  onSetPassphrase,
 }: SessionProps) {
   // 稼働中は定期的に再レンダリングしてカウントダウンを進める（FR-007・フックに分離）。
   const now = useNowTick(room.clock.running, room.clock.anchorServerTime);
@@ -362,6 +366,15 @@ export function Session({
             content: (
               <div className="space-y-6">
                 <InvitePanel code={room.code} />
+                {/* ルームのパスフレーズ設定/解除（R4-2・host 限定）。招待のすぐ下に置く。 */}
+                {isHost && onSetPassphrase && (
+                  <Card>
+                    <PassphrasePanel
+                      protectedNow={!!room.passphraseProtected}
+                      onSet={onSetPassphrase}
+                    />
+                  </Card>
+                )}
                 {/* このタブには SelfDriverToggle が無いため、自分の一時離脱/復帰は行に出す
                     （セッションタブ側は SelfDriverToggle が担うので行には出さない＝#1）。 */}
                 <Card>

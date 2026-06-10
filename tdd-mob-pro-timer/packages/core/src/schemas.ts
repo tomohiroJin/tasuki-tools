@@ -15,6 +15,7 @@ import {
   MAX_PROBLEM_TEXT,
   MAX_PROBLEM_HINT,
   MAX_PROBLEM_HINTS,
+  MAX_PASSPHRASE,
 } from "./aggregate.js";
 
 // ─── 共通 ───────────────────────────────────────────────────────────────────
@@ -28,6 +29,8 @@ const problemTitleStr = v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_PROBL
 const problemTextStr = v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_PROBLEM_TEXT));
 const requirementStr = v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_PROBLEM_TEXT));
 const hintStr = v.pipe(v.string(), v.maxLength(MAX_PROBLEM_HINT));
+// パスフレーズ（空文字=解除を許すため minLength なし。最大長のみ課す）。
+const passphraseStr = v.pipe(v.string(), v.maxLength(MAX_PASSPHRASE));
 
 // ─── SessionConfig スキーマ ─────────────────────────────────────────────────
 
@@ -77,6 +80,7 @@ const RoomJoinCommand = v.object({
   displayName: displayNameStr,
   hasAiKey: v.boolean(),
   resumeToken: v.optional(v.string()),
+  passphrase: v.optional(passphraseStr),
 });
 
 const ConfigSetCommand = v.object({
@@ -204,6 +208,11 @@ const ProblemModeSetCommand = v.object({
   mode: v.picklist(["ai", "fallback"]),
 });
 
+const RoomPassphraseSetCommand = v.object({
+  command: v.literal("room.passphrase.set"),
+  passphrase: passphraseStr,
+});
+
 const RoleSetCommand = v.object({
   command: v.literal("role.set"),
   participantId,
@@ -249,6 +258,7 @@ export const CommandSchema = v.variant("command", [
   DriverResumeCommand,
   ProblemEditCommand,
   ProblemModeSetCommand,
+  RoomPassphraseSetCommand,
   RoleSetCommand,
   HostTransferCommand,
   PresencePingCommand,
@@ -319,6 +329,7 @@ export const RoomSchema = v.object({
   onBreak: v.boolean(),
   // v2 追加フィールド（任意化で後方互換）
   problemMode: v.optional(v.picklist(["ai", "fallback"])),
+  passphraseProtected: v.optional(v.boolean()),
 });
 
 const SnapshotMsg = v.object({

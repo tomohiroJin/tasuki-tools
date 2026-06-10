@@ -12,6 +12,7 @@ import { ProblemEditor } from "./components/ProblemEditor.js";
 import { ConfigPanel } from "./components/ConfigPanel.js";
 import { Tabs } from "./components/Tabs.js";
 import { InvitePanel } from "./components/InvitePanel.js";
+import { PassphrasePanel } from "./components/PassphrasePanel.js";
 import { presenceDotClass } from "./presence.js";
 import type { SessionConfig } from "@tdd-mob/core";
 
@@ -36,6 +37,8 @@ interface LobbyProps {
   onTransferHost?: (participantId: string) => void;
   /** ドライバー順の入れ替え（④・host）。fromIndex→toIndex（rotation 内の位置）。 */
   onMoveRotation?: (fromIndex: number, toIndex: number) => void;
+  /** ルームのパスフレーズ設定/解除（R4-2・host 限定）。空文字で解除。 */
+  onSetPassphrase?: (passphrase: string) => void;
 }
 
 /** 参加者行のコンパクトなアイコンボタン（行が改行だらけにならないよう小さく揃える）。 */
@@ -73,6 +76,7 @@ export function Lobby({
   onRemoveParticipant,
   onTransferHost,
   onMoveRotation,
+  onSetPassphrase,
 }: LobbyProps) {
   const myRole = room.participants.find((p) => p.participantId === participantId)?.role;
   const isHost = myRole === "host";
@@ -98,6 +102,15 @@ export function Lobby({
             <div className="space-y-6">
               {startButton}
               <InvitePanel code={room.code} />
+              {/* ルームのパスフレーズ設定/解除（R4-2・host 限定）。招待のすぐ下に置く。 */}
+              {isHost && onSetPassphrase && (
+                <Card>
+                  <PassphrasePanel
+                    protectedNow={!!room.passphraseProtected}
+                    onSet={onSetPassphrase}
+                  />
+                </Card>
+              )}
               {/* 参加者一覧 */}
               <Card>
                 <SectionHeader icon={Users} color="text-[var(--signal)]" title={`参加者 (${room.participants.length}人)`} />
