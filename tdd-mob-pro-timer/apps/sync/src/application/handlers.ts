@@ -153,6 +153,7 @@ export function makeHandlers(deps: HandlerDeps) {
             displayName: string;
             hasAiKey: boolean;
             resumeToken?: string;
+            passphrase?: string;
           },
         );
 
@@ -286,6 +287,7 @@ export function makeHandlers(deps: HandlerDeps) {
       displayName: string;
       hasAiKey: boolean;
       resumeToken?: string;
+      passphrase?: string;
     },
   ): Promise<Result<CreateResult, string>> {
     const now = clock.now();
@@ -343,6 +345,24 @@ export function makeHandlers(deps: HandlerDeps) {
           });
         }
       }
+    }
+
+    // パスフレーズ保護ルームは新規参加時に一致を要求する（R4-2）。
+    // resume（再接続）は上の resume ブロックで return 済みのためここには来ない＝再認証不要。
+    const requiredPassphrase = roomPassphrases.get(cmd.code);
+    if (requiredPassphrase !== undefined && cmd.passphrase !== requiredPassphrase) {
+      // 失敗をレート制限に積算（パスフレーズ総当たりの緩和・既存 join 制限と統合）。
+      joinFailures.set(connId, [...(joinFailures.get(connId) ?? []), now]);
+      const code = cmd.passphrase ? "PASSPHRASE_MISMATCH" : "PASSPHRASE_REQUIRED";
+      broadcaster.sendTo(connId, {
+        type: "error",
+        code,
+        message:
+          code === "PASSPHRASE_REQUIRED"
+            ? "このルームはパスフレーズが必要です"
+            : "パスフレーズが一致しません",
+      });
+      return err(code);
     }
 
     // 新規参加者は editor として登録（UX 再設計の2層モデル: 名乗って参加した人は
