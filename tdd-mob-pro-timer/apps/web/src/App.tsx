@@ -266,6 +266,10 @@ export default function App() {
   const handleTransferHost = (participantId: string) => {
     client?.send({ command: "host.transfer", participantId });
   };
+  /** ホストがルームのパスフレーズを設定/解除する（R4-2・host 限定）。空文字で解除。 */
+  const handleSetPassphrase = (passphrase: string) => {
+    client?.send({ command: "room.passphrase.set", passphrase });
+  };
   /** ドライバー順を入れ替える（④・member.move）。host/editor が操作。 */
   const moveRotation = (fromIndex: number, toIndex: number) => {
     client?.send({ command: "member.move", fromIndex, toIndex });
@@ -459,6 +463,7 @@ export default function App() {
           onRemoveParticipant={removeParticipant}
           onTransferHost={handleTransferHost}
           onMoveRotation={moveRotation}
+          onSetPassphrase={handleSetPassphrase}
         />
       );
     }
@@ -492,6 +497,7 @@ export default function App() {
           onCopyProblem={copyProblem}
           onRegenerateProblem={regenerateProblem}
           onPasteProblem={pasteProblem}
+          onSetPassphrase={handleSetPassphrase}
         />
       );
     }
