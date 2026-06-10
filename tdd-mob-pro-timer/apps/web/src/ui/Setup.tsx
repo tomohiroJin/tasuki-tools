@@ -50,6 +50,10 @@ export function Setup({ onCreateRoom }: SetupProps) {
         <p className="text-[var(--bone-muted)] mt-2 text-sm md:text-base">
           モブプロ × TDD でチーム駆動開発
         </p>
+        {/* 初回の一言（R5-2）。気軽に始められることを伝える。 */}
+        <p className="mt-2 text-xs text-[var(--bone-subtle)]">
+          ルームを作って共有するだけ。アカウント登録は不要です。
+        </p>
       </header>
 
       <Card>
@@ -68,7 +72,7 @@ export function Setup({ onCreateRoom }: SetupProps) {
           placeholder="例: Tomohiro"
           autoFocus
           maxLength={MAX_DISPLAY_NAME}
-          className="w-full rounded-md bg-[var(--panel-2)] border border-[var(--hairline-strong)] px-4 py-3 text-[var(--bone)] text-lg outline-none focus:border-[var(--signal)] transition-colors"
+          className="w-full rounded-md bg-[var(--panel-2)] border border-[var(--hairline-strong)] px-4 py-3 text-[var(--bone)] text-lg outline-none focus:border-[var(--signal)] transition-colors focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]"
         />
         <label htmlFor="room-name" className="mt-4 block text-sm font-semibold text-[var(--bone)] mb-2">
           ルーム名（任意）
@@ -83,11 +87,11 @@ export function Setup({ onCreateRoom }: SetupProps) {
           }}
           placeholder="例: 朝会モブ（未入力ならランダムなコード）"
           maxLength={MAX_ROOM_NAME}
-          className="w-full rounded-md bg-[var(--panel-2)] border border-[var(--hairline-strong)] px-4 py-2.5 text-[var(--bone)] outline-none focus:border-[var(--signal)] transition-colors"
+          className="w-full rounded-md bg-[var(--panel-2)] border border-[var(--hairline-strong)] px-4 py-2.5 text-[var(--bone)] outline-none focus:border-[var(--signal)] transition-colors focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]"
         />
         <PrimaryButton onClick={handleCreate} disabled={!canProceed} className="w-full mt-4 text-lg py-3">
           <span className="flex items-center justify-center gap-2">
-            <Sparkles className="w-5 h-5" />
+            <Sparkles className="w-5 h-5" aria-hidden="true" />
             ルームを作る
           </span>
         </PrimaryButton>

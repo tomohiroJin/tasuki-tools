@@ -13,6 +13,7 @@ import { ConfigPanel } from "./components/ConfigPanel.js";
 import { Tabs } from "./components/Tabs.js";
 import { InvitePanel } from "./components/InvitePanel.js";
 import { PassphrasePanel } from "./components/PassphrasePanel.js";
+import { EmptyHint } from "./components/EmptyHint.js";
 import { presenceDotClass } from "./presence.js";
 import type { SessionConfig } from "@tdd-mob/core";
 
@@ -55,7 +56,7 @@ function RowIconButton({
       disabled={disabled}
       aria-label={label}
       title={label}
-      className="grid h-10 w-10 sm:h-8 sm:w-8 shrink-0 place-items-center rounded-md bg-[var(--panel)] hover:bg-[#252934] disabled:opacity-30 disabled:cursor-not-allowed border border-[var(--hairline)] text-[var(--bone-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]"
+      className="grid h-11 w-11 sm:h-8 sm:w-8 shrink-0 place-items-center rounded-md bg-[var(--panel)] hover:bg-[#252934] disabled:opacity-30 disabled:cursor-not-allowed border border-[var(--hairline)] text-[var(--bone-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]"
     >
       <Icon className="w-4 h-4" />
     </button>
@@ -85,7 +86,7 @@ export function Lobby({
   // 開始ボタン（ルームタブ最上部に配置）
   const startButton = isHost ? (
     <PrimaryButton className="w-full" onClick={onStartSession} disabled={!room.problem}>
-      <span className="flex items-center justify-center gap-2"><Play className="w-5 h-5" /> セッションを開始</span>
+      <span className="flex items-center justify-center gap-2"><Play className="w-5 h-5" aria-hidden="true" /> セッションを開始</span>
     </PrimaryButton>
   ) : (
     <p className="text-center text-sm text-white/60">主催者のセッション開始を待っています...</p>
@@ -155,7 +156,7 @@ export function Lobby({
                                 列から外れる
                               </GhostButton>
                             ) : (
-                              <PrimaryButton onClick={() => onJoinRotation?.(p.displayName)} className="text-xs px-3 py-1.5">
+                              <PrimaryButton onClick={() => onJoinRotation?.(p.displayName)} className="text-xs px-3 py-1.5 min-h-[44px] sm:min-h-0">
                                 ドライバーに加わる
                               </PrimaryButton>
                             )
@@ -215,6 +216,14 @@ export function Lobby({
                     );
                   })}
                 </ul>
+                {/* まだ自分1人のとき、招待を促す控えめなヒント（R5-2）。 */}
+                {room.participants.length === 1 && (
+                  <div className="mt-3">
+                    <EmptyHint>
+                      まだあなただけです。上の招待リンクで仲間を呼び、揃ったら「開始」しましょう。
+                    </EmptyHint>
+                  </div>
+                )}
               </Card>
             </div>
           ),
@@ -248,9 +257,17 @@ export function Lobby({
                     onCopy={onCopyProblem ?? (() => {})}
                   />
                 ) : (
-                  <div className="py-8 text-center text-[var(--bone-subtle)]">
-                    <span className="inline-block h-4 w-4 animate-pulse rounded-full bg-[var(--signal)] mb-2" aria-hidden="true" />
-                    <p>お題を準備中です…</p>
+                  <div className="space-y-3">
+                    <div className="py-8 text-center text-[var(--bone-subtle)]">
+                      <span className="inline-block h-4 w-4 animate-pulse rounded-full bg-[var(--signal)] mb-2" aria-hidden="true" />
+                      <p>お題を準備中です…</p>
+                    </div>
+                    {/* お題は自動で用意される旨を伝える控えめなヒント（R5-2）。
+                        開始ボタンはお題が用意できると有効になる（disabled={!room.problem}）ため、
+                        「未設定でも開始可」とは書かず実態に合わせる。 */}
+                    <EmptyHint>
+                      お題は自動で用意されます。手動で決める必要はなく、「お題・設定」でいつでも変更できます。
+                    </EmptyHint>
                   </div>
                 )}
               </Card>

@@ -96,7 +96,7 @@ export function SharedMemo({ note, canEdit, onCommit }: SharedMemoProps) {
           rows={10}
           maxLength={MAX_HANDOFF_NOTE}
           placeholder={"例（Markdown 可）:\n## 参加方法\nVSCode Live Share に参加してください:\nhttps://prod.liveshare.vsengsaas.visualstudio.com/...\n\n## ルール\n- 5分で交代\n- 困ったら一時停止"}
-          className="w-full min-h-[200px] resize-y rounded-md bg-[var(--panel-2)] border border-[var(--hairline-strong)] px-3 py-2 text-sm font-mono text-[var(--bone)] outline-none focus:border-[var(--signal)] transition-colors"
+          className="w-full min-h-[200px] resize-y rounded-md bg-[var(--panel-2)] border border-[var(--hairline-strong)] px-3 py-2 text-sm font-mono text-[var(--bone)] outline-none focus:border-[var(--signal)] transition-colors focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]"
         />
       ) : (
         <div className="min-h-[200px] rounded-md bg-[var(--panel-2)] border border-[var(--hairline)] px-3 py-2" aria-live="polite">

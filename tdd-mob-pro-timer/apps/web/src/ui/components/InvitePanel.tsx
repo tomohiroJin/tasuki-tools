@@ -46,7 +46,7 @@ export function InvitePanel({ code }: { code: string }) {
         </span>
         <GhostButton onClick={() => copyText(code)} aria-label="ルームコードをコピー">
           <span className="flex items-center gap-1 text-sm">
-            {copied ? <Check className="w-4 h-4 text-[var(--ok)]" /> : <Copy className="w-4 h-4" />}
+            {copied ? <Check className="w-4 h-4 text-[var(--ok)]" aria-hidden="true" /> : <Copy className="w-4 h-4" aria-hidden="true" />}
             {copied ? "コピーしました" : "コピー"}
           </span>
         </GhostButton>
@@ -60,7 +60,7 @@ export function InvitePanel({ code }: { code: string }) {
       )}
       <div className="mt-3">
         <GhostButton onClick={() => copyText(roomUrl)}>
-          <span className="flex items-center gap-1 text-sm"><Copy className="w-4 h-4" /> 参加 URL をコピー</span>
+          <span className="flex items-center gap-1 text-sm"><Copy className="w-4 h-4" aria-hidden="true" /> 参加 URL をコピー</span>
         </GhostButton>
       </div>
     </Card>

@@ -8,7 +8,8 @@ import { Join } from "./ui/Join.js";
 import { Lobby } from "./ui/Lobby.js";
 import { Session } from "./ui/Session.js";
 import { Summary, type EndType } from "./ui/Summary.js";
-import { StatusStrip, type ConnectionStatus } from "./ui/components/StatusStrip.js";
+import { StatusStrip } from "./ui/components/StatusStrip.js";
+import { deriveConnectionStatus, type ClientConnState } from "./ui/connection-status.js";
 import { SyncClient } from "./sync/client.js";
 import { NoAiProvider } from "./ai/no-ai.js";
 import type { ProblemProvider } from "./ai/provider.js";
@@ -63,6 +64,8 @@ export default function App() {
   const [endType, setEndType] = useState<EndType>("complete");
   // セッション喪失（room-not-found）。StatusStrip を lost 表示にし、再接続では消えない。
   const [sessionLost, setSessionLost] = useState(false);
+  // 接続状態は WS クライアントから明示通知される（banner には結合しない・R5-1）。
+  const [connState, setConnState] = useState<ClientConnState>("online");
   // 注: AI（BYOK/サブスク）はいったん UI から撤去。お題は定型バンクのみ（NoAiProvider）。
   // ByokProvider / AiSettingsModal / key-storage は将来の再有効化に備えて残置（休眠）。
   // onNeedProblem など closure から最新ルームの設定を参照するための ref
@@ -212,6 +215,7 @@ export default function App() {
       onConnected: () => setBanner(null),
       onDisconnected: () =>
         setBanner({ text: "接続が切れました。再接続しています...", kind: "warn" }),
+      onConnectionChange: (s) => setConnState(s),
     });
     newClient.connect();
     setClient(newClient);
@@ -430,12 +434,8 @@ export default function App() {
   const self = room?.participants.find((p) => p.participantId === participantId);
   const selfName = self?.displayName ?? room?.config.members[0] ?? "あなた";
   const selfRole = self?.role ?? "host";
-  // 接続状態: 喪失 > 再接続中(warn バナー) > オンライン。
-  const connectionStatus: ConnectionStatus = sessionLost
-    ? "lost"
-    : banner?.kind === "warn"
-      ? "reconnecting"
-      : "online";
+  // 接続状態: 喪失が最優先、それ以外は WS クライアントの通知に従う（R5-1）。
+  const connectionStatus = deriveConnectionStatus(sessionLost, connState);
 
   /** セッション/ロビーはダークステージ固定。Setup/Summary は通常テーマ。 */
   const renderBody = () => {

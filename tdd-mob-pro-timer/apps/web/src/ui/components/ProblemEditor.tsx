@@ -111,7 +111,7 @@ export function ProblemEditor({
       >
         <Badges difficulty={difficulty} edited={problem.edited} source={problem.source} />
         <span className="font-semibold text-white truncate">{problem.title}</span>
-        <span className="ml-auto flex items-center gap-1 text-white/60">詳細を開く <ChevronDown className="w-4 h-4" /></span>
+        <span className="ml-auto flex items-center gap-1 text-white/60">詳細を開く <ChevronDown className="w-4 h-4" aria-hidden="true" /></span>
       </button>
     );
   }
@@ -127,7 +127,7 @@ export function ProblemEditor({
         <div className="flex flex-wrap gap-2">
           {canEdit && (
             <GhostButton onClick={onRegenerate} aria-label="別のお題にする" className="text-sm">
-              <span className="flex items-center gap-1.5"><Dices className="w-4 h-4" /> 別のお題にする</span>
+              <span className="flex items-center gap-1.5"><Dices className="w-4 h-4" aria-hidden="true" /> 別のお題にする</span>
             </GhostButton>
           )}
           {canEdit && (
@@ -140,11 +140,11 @@ export function ProblemEditor({
           )}
           {canEdit && (
             <GhostButton onClick={onPaste} aria-label="お題を持ち込む（貼り付け）" className="text-sm">
-              <span className="flex items-center gap-1.5"><ClipboardPaste className="w-4 h-4" /> 貼り付け</span>
+              <span className="flex items-center gap-1.5"><ClipboardPaste className="w-4 h-4" aria-hidden="true" /> 貼り付け</span>
             </GhostButton>
           )}
           <GhostButton onClick={onCopy} aria-label="お題をコピー" className="text-sm">
-            <span className="flex items-center gap-1.5"><Copy className="w-4 h-4" /> コピー</span>
+            <span className="flex items-center gap-1.5"><Copy className="w-4 h-4" aria-hidden="true" /> コピー</span>
           </GhostButton>
         </div>
       </div>
@@ -223,7 +223,7 @@ export function ProblemEditor({
               aria-expanded={detailsOpen}
               className="flex items-center gap-1 self-start text-sm text-white/70 hover:text-white"
             >
-              {detailsOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              {detailsOpen ? <ChevronDown className="w-4 h-4" aria-hidden="true" /> : <ChevronRight className="w-4 h-4" aria-hidden="true" />}
               {detailsOpen ? "詳細を隠す" : "詳細を表示"}（要件 {problem.requirements.length}・テスト例・ヒント）
             </button>
           )}
@@ -271,7 +271,7 @@ export function ProblemEditor({
               onClick={() => setBarOpen(false)}
               className="flex items-center gap-1 self-start text-xs text-white/60 hover:text-white"
             >
-              <ChevronDown className="w-3 h-3 rotate-180" /> 畳む
+              <ChevronDown className="w-3 h-3 rotate-180" aria-hidden="true" /> 畳む
             </button>
           )}
         </>

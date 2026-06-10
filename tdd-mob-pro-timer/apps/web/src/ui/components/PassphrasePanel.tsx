@@ -46,7 +46,7 @@ export function PassphrasePanel({ protectedNow, onSet }: PassphrasePanelProps) {
             aria-label="パスフレーズ"
             maxLength={MAX_PASSPHRASE}
             placeholder="任意。設定すると参加に必要"
-            className="flex-1 rounded-md border border-[var(--hairline-strong)] bg-[var(--panel-2)] px-3 py-2 text-sm text-[var(--bone)] outline-none focus:border-[var(--signal)]"
+            className="flex-1 rounded-md border border-[var(--hairline-strong)] bg-[var(--panel-2)] px-3 py-2 text-sm text-[var(--bone)] outline-none focus:border-[var(--signal)] focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]"
           />
           <PrimaryButton onClick={submit} disabled={!value} className="px-4 py-2 text-sm">
             設定

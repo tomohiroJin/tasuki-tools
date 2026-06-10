@@ -54,7 +54,7 @@ export function Tabs({ items, ariaLabel, defaultTabId }: TabsProps) {
               tabIndex={selected ? 0 : -1}
               onClick={() => setActive(it.id)}
               onKeyDown={(e) => onKeyDown(e, i)}
-              className={`px-4 py-2 text-sm font-semibold rounded-t-md -mb-px border-b-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)] ${
+              className={`px-4 py-2 min-h-[44px] sm:min-h-0 text-sm font-semibold rounded-t-md -mb-px border-b-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)] ${
                 selected
                   ? "border-[var(--signal)] text-[var(--bone)]"
                   : "border-transparent text-[var(--bone-subtle)] hover:text-[var(--bone-muted)]"

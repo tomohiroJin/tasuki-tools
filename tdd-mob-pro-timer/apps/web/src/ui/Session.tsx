@@ -22,7 +22,7 @@ import { useNowTick } from "./use-now-tick.js";
 import { useDiscreteAnnouncement } from "./use-discrete-announcement.js";
 import { usePrefersReducedMotion } from "./use-reduced-motion.js";
 import { useSwitchAlert } from "./use-switch-alert.js";
-import { useIsWide } from "./use-breakpoint.js";
+import { useIsWide, useViewportWidth } from "./use-breakpoint.js";
 import { formatRemaining, formatElapsed } from "./format-time.js";
 import { Tabs } from "./components/Tabs.js";
 import { InvitePanel } from "./components/InvitePanel.js";
@@ -167,8 +167,14 @@ export function Session({
 
   // PC ではタイマーを主役として大きく見せる（ステージ感・モバイルは収まるサイズに）。
   const isWide = useIsWide();
-  const orbitSize = isWide ? 460 : 340;
-  const ringSize = isWide ? 300 : 224;
+  // モバイルでは円形計器（固定 px）が Card 内に収まるよう、ビューポート幅から
+  // 利用可能幅（Stage px-4=32 + Card p-6=48 + 枠 2 を差し引く）でクランプする。
+  // これで 360px 幅でも TeamOrbit/CircularProgress が横にはみ出さない（R5-3）。
+  const vw = useViewportWidth();
+  const mobileMaxOrbit = Math.min(340, Math.max(248, vw - 82));
+  const orbitSize = isWide ? 460 : mobileMaxOrbit;
+  // リング（タイマー）は orbit に対して概ね 224/340 の比率を保ち、アバターと重ならない大きさに。
+  const ringSize = isWide ? 300 : Math.round(mobileMaxOrbit * (224 / 340));
 
   // 「セッション」タブのコンテンツ（既存 UI をそのまま移動）。
   const sessionPanel = (
@@ -267,21 +273,21 @@ export function Session({
             <>
               {isPaused || !running ? (
                 <PrimaryButton onClick={onResume} disabled={!isPaused}>
-                  <span className="flex items-center gap-2"><Play className="w-5 h-5" /> 再開</span>
+                  <span className="flex items-center gap-2"><Play className="w-5 h-5" aria-hidden="true" /> 再開</span>
                 </PrimaryButton>
               ) : (
                 <GhostButton onClick={onPause}>
-                  <span className="flex items-center gap-2"><Pause className="w-4 h-4" /> 一時停止</span>
+                  <span className="flex items-center gap-2"><Pause className="w-4 h-4" aria-hidden="true" /> 一時停止</span>
                 </GhostButton>
               )}
               <GhostButton onClick={onSkip} disabled={!running}>
-                <span className="flex items-center gap-2"><SkipForward className="w-4 h-4" /> スキップ</span>
+                <span className="flex items-center gap-2"><SkipForward className="w-4 h-4" aria-hidden="true" /> スキップ</span>
               </GhostButton>
             </>
           )}
           {isHost && (
             <GhostButton onClick={room.onBreak ? onBreakEnd : onBreakStart}>
-              <span className="flex items-center gap-2"><Coffee className="w-4 h-4" /> {room.onBreak ? "休憩終了" : "休憩"}</span>
+              <span className="flex items-center gap-2"><Coffee className="w-4 h-4" aria-hidden="true" /> {room.onBreak ? "休憩終了" : "休憩"}</span>
             </GhostButton>
           )}
         </div>
