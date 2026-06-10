@@ -31,7 +31,7 @@ describe("RoomReclaimer", () => {
     r.sweep(500);
     expect(onReclaim).not.toHaveBeenCalled();
     r.sweep(1000);
-    expect(onReclaim).toHaveBeenCalledWith("AAA");
+    expect(onReclaim).toHaveBeenCalledWith("AAA", expect.any(Number));
   });
 
   it("オンライン参加者がいるルームは回収しない", () => {
@@ -57,7 +57,24 @@ describe("RoomReclaimer", () => {
     r.sweep(1900);
     expect(onReclaim).not.toHaveBeenCalled();
     r.sweep(1950);
-    expect(onReclaim).toHaveBeenCalledWith("CCC");
+    expect(onReclaim).toHaveBeenCalledWith("CCC", expect.any(Number));
+  });
+
+  it("回収するたびに reclaimedCount が増え、onReclaim にアイドル ms を渡す", () => {
+    const store = new InMemoryRoomStore();
+    store.put(room("EEE", ["offline", "offline"]));
+    const calls: Array<{ code: string; idleMs: number }> = [];
+    const reclaimer = new RoomReclaimer({
+      store,
+      idleTtlMs: 1000,
+      onReclaim: (code, idleMs) => calls.push({ code, idleMs }),
+    });
+    reclaimer.sweep(10_000); // 初検知（emptySince=10000・まだ回収しない）
+    expect(reclaimer.reclaimedCount).toBe(0);
+    reclaimer.sweep(11_500); // 1500ms 経過 >= 1000 → 回収
+    expect(reclaimer.reclaimedCount).toBe(1);
+    expect(calls.length).toBe(1);
+    expect(calls[0]?.idleMs).toBeGreaterThanOrEqual(1000);
   });
 
   it("回収後（store から削除）は二重に回収しない", () => {
@@ -69,6 +86,6 @@ describe("RoomReclaimer", () => {
     r.sweep(1000);   // TTL 到達 → 回収（store からも削除）
     r.sweep(2000);   // すでに無い → 何もしない
     expect(onReclaim).toHaveBeenCalledTimes(1);
-    expect(onReclaim).toHaveBeenCalledWith("DDD");
+    expect(onReclaim).toHaveBeenCalledWith("DDD", expect.any(Number));
   });
 });
