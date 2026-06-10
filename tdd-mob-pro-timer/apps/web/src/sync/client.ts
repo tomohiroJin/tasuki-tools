@@ -30,6 +30,8 @@ export interface SyncClientOptions {
   onSuggestBreak?: (rounds: number) => void;
   onConnected?: () => void;
   onDisconnected?: () => void;
+  /** 接続状態の変化通知（R5-1）。online=確立、reconnecting=切断後の再接続待ち。 */
+  onConnectionChange?: (state: "online" | "reconnecting") => void;
 }
 
 export class SyncClient {
@@ -65,6 +67,7 @@ export class SyncClient {
     this.ws.onopen = () => {
       this.backoff.reset();
       this.options.onConnected?.();
+      this.options.onConnectionChange?.("online");
       this.startPingLoop();
       // 接続確立前にキューされたメッセージをフラッシュする
       const queued = this.pendingMessages.splice(0, this.pendingMessages.length);
@@ -81,6 +84,7 @@ export class SyncClient {
       this.stopPingLoop();
       this.options.onDisconnected?.();
       if (!this.disposed) {
+        this.options.onConnectionChange?.("reconnecting");
         this.scheduleReconnect();
       }
     };
