@@ -13,6 +13,7 @@ import { SyncClient } from "./sync/client.js";
 import { NoAiProvider } from "./ai/no-ai.js";
 import type { ProblemProvider } from "./ai/provider.js";
 import { screenForPhase } from "./ui/screen.js";
+import { hostChangeMessage } from "./ui/host-change.js";
 import { Stage } from "./ui/primitives.js";
 import { saveRecord } from "./records/indexeddb.js";
 import { persistRecordIfComplete } from "./records/persist.js";
@@ -70,6 +71,8 @@ export default function App() {
   const recordSavedRef = useRef(false);
   // 一時的な操作エラーバナーの自動消去タイマー。
   const bannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // ホスト交代検知用に直前 snapshot の hostParticipantId を保持する（R2-4）。
+  const prevHostRef = useRef<string | undefined>(undefined);
 
   /** 代理参加者の一意な participantId を生成する（衝突回避のため乱数を含める） */
   const makeProxyId = () => `proxy-${Math.random().toString(36).slice(2, 10)}`;
@@ -315,6 +318,21 @@ export default function App() {
       client?.dispose();
     };
   }, [client]);
+
+  // ホスト交代（明示移譲/自動委譲の双方）を snapshot 差分で検知し、既存 banner で告知する（R2-4）。
+  useEffect(() => {
+    if (!room) {
+      prevHostRef.current = undefined;
+      return;
+    }
+    const msg = hostChangeMessage(prevHostRef.current, room, participantId);
+    prevHostRef.current = room.hostParticipantId;
+    if (msg) {
+      setBanner({ text: msg, kind: "warn" });
+      if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
+      bannerTimerRef.current = setTimeout(() => setBanner(null), 4000);
+    }
+  }, [room, participantId]);
 
 
   // 共有時の操作はすべて WS コマンド送信（サーバーが状態をミラーし全員へ反映）。
