@@ -788,7 +788,9 @@ export function makeHandlers(deps: HandlerDeps) {
     }
   }
 
-  return { handleCommand, handleConnectionClose, releaseRoom };
+  // ドライバー不在の猶予後繰り上げ（R2-1）。presence の不在タイマーから呼ばれ、
+  // 中身は通常の interval 交代(autoSwitch)と同一。
+  return { handleCommand, handleConnectionClose, releaseRoom, advanceForAbsence: autoSwitch };
 }
 
 // ─── 権限チェック ─────────────────────────────────────────────────────────────
@@ -925,7 +927,8 @@ function buildDomainCommand(cmd: { command: string; [key: string]: unknown }) {
 function computeIneligibleIndices(room: Room): Set<number> {
   const ineligibleNames = new Set(
     room.participants
-      .filter((p) => p.driverEligible === false)
+      // 切断中(offline)の人も交代対象から外す（R2-1）。
+      .filter((p) => p.driverEligible === false || p.presence === "offline")
       .map((p) => p.displayName),
   );
   const set = new Set<number>();
