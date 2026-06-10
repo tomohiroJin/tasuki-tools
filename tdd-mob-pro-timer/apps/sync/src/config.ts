@@ -11,6 +11,8 @@ export interface SyncConfig {
   maxConnections: number;
   maxRooms: number;
   roomIdleTtlMs: number;
+  /** 管理エンドポイント（/status・/admin/rooms）の認証トークン。未設定なら管理面は無効。 */
+  adminToken: string | undefined;
 }
 
 /** env 値を整数として解釈し、不正なら既定値を返す。 */
@@ -39,5 +41,6 @@ export function loadSyncConfig(env: Record<string, string | undefined>): SyncCon
     maxConnections: intEnv(env["MAX_CONNECTIONS"], 200),
     maxRooms: intEnv(env["MAX_ROOMS"], 50),
     roomIdleTtlMs: intEnv(env["ROOM_IDLE_TTL_MS"], 1_800_000),
+    adminToken: (env["ADMIN_TOKEN"] ?? "").trim() || undefined,
   };
 }
