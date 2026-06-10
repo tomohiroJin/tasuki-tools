@@ -39,6 +39,11 @@ export class WsAdapter {
     this.httpServer = createServer((req, res) => this.handleHttp(req, res));
     this.wss = new WebSocketServer({ server: this.httpServer });
     this.wss.on("connection", this.handleConnection.bind(this));
+    this.httpServer.on("error", (err) => {
+      // 起動時の bind 失敗（EADDRINUSE 等）は回復不能。未処理例外でクラッシュさせず明示終了する。
+      console.error(`❌ HTTP サーバエラー: ${(err as Error).message}`);
+      process.exit(1);
+    });
     this.httpServer.listen(options.port, options.host);
   }
 
@@ -74,6 +79,9 @@ export class WsAdapter {
 
   close(): Promise<void> {
     return new Promise((resolve) => {
+      // {server} 構成では wss.close は活線ソケットを切らず、httpServer.close は
+      // 全接続終了までコールバックを発火しない。先に能動的に切断してハングを防ぐ。
+      for (const ws of this.connections.values()) ws.terminate();
       this.wss.close(() => this.httpServer.close(() => resolve()));
     });
   }

@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
+import { WebSocket } from "ws";
 import { WsAdapter } from "../src/adapters/ws-adapter.js";
 
 let adapter: WsAdapter | undefined;
@@ -46,5 +47,28 @@ describe("WsAdapter の httpHandler フック", () => {
     adapter = new WsAdapter({ ...base, port: PORT });
     await new Promise((r) => setTimeout(r, 150));
     expect((await fetch(`http://127.0.0.1:${PORT}/`)).status).toBe(426);
+  });
+});
+
+describe("WsAdapter.close の graceful shutdown", () => {
+  it("活線 WS 接続があっても close() が一定時間内に解決する", async () => {
+    adapter = new WsAdapter({ ...base, port: PORT });
+    await new Promise((r) => setTimeout(r, 150));
+
+    // WS クライアントを 1 本繋いだ状態を作る
+    const client = new WebSocket(`ws://127.0.0.1:${PORT}/`);
+    await new Promise<void>((resolve, reject) => {
+      client.on("open", () => resolve());
+      client.on("error", reject);
+    });
+
+    // close() が活線接続を terminate して期限内に解決することを確認
+    const closed = await Promise.race([
+      adapter.close().then(() => true),
+      new Promise<boolean>((r) => setTimeout(() => r(false), 2000)),
+    ]);
+    expect(closed).toBe(true);
+
+    adapter = undefined; // afterEach の二重 close を避ける
   });
 });
