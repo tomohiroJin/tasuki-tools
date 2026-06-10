@@ -21,7 +21,17 @@ export default defineConfig({
   },
   test: {
     globals: true,
+    restoreMocks: true,
     environment: "jsdom",
     setupFiles: ["./test/setup.ts"],
+    // この実行環境（C:\ の 9p マウントで I/O が遅い）では、多数の jsdom を並列実行すると
+    // CPU/IO 競合で userEvent 操作が既定 5 秒の testTimeout を超え、全スイート実行時のみ
+    // 偶発的に失敗する（各テストは単独実行では緑）。並列 fork 数を抑え、タイムアウトを
+    // 広げて競合フレイクを安定化する（テスト内容は変えない）。
+    testTimeout: 20000,
+    hookTimeout: 20000,
+    poolOptions: {
+      forks: { maxForks: 4 },
+    },
   },
 });

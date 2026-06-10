@@ -24,6 +24,8 @@ import { usePrefersReducedMotion } from "./use-reduced-motion.js";
 import { useSwitchAlert } from "./use-switch-alert.js";
 import { useIsWide } from "./use-breakpoint.js";
 import { formatRemaining, formatElapsed } from "./format-time.js";
+import { Tabs } from "./components/Tabs.js";
+import { InvitePanel } from "./components/InvitePanel.js";
 
 interface SessionProps {
   room: Room;
@@ -161,19 +163,9 @@ export function Session({
   const orbitSize = isWide ? 460 : 340;
   const ringSize = isWide ? 300 : 224;
 
-  return (
-    <div role="main" aria-label="セッション" className="space-y-6">
-      {/* 休憩中バナー（§9.1）。タイマー停止中であることを明示する。 */}
-      {room.onBreak && (
-        <div
-          role="status"
-          className="flex items-center justify-center gap-2 rounded-md border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-amber-200 font-bold"
-        >
-          <Coffee className="w-5 h-5" aria-hidden="true" />
-          休憩中 — タイマーは停止しています
-        </div>
-      )}
-
+  // 「セッション」タブのコンテンツ（既存 UI をそのまま移動）。
+  const sessionPanel = (
+    <div className="space-y-6">
       {/* お題（確定後）。editor+ は ProblemEditor で各フィールドを編集できる
           （FR-009/013/038/040/041）。未確定で生成待ちなら生成中表示（FR-003, US3-AC5）。 */}
       {room.problem ? (
@@ -340,12 +332,57 @@ export function Session({
       </div>{/* /右（サイド） */}
       </div>{/* /2カラムグリッド */}
 
-      {/* 交代・残り10秒・一時停止・休憩を支援技術へ通知（FR-035） */}
+    </div>
+  );
+
+  return (
+    <div role="main" aria-label="セッション">
+      {/* 休憩中バナー（§9.1）。Tabs の外に置きどのタブを表示中でも常に見える
+          （SwitchAlert / aria-live アナウンスと同様の配置方針）。 */}
+      {room.onBreak && (
+        <div
+          role="status"
+          className="flex items-center justify-center gap-2 rounded-md border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-amber-200 font-bold"
+        >
+          <Coffee className="w-5 h-5" aria-hidden="true" />
+          休憩中 — タイマーは停止しています
+        </div>
+      )}
+      <Tabs
+        ariaLabel="セッション"
+        items={[
+          { id: "session", label: "セッション", content: sessionPanel },
+          {
+            id: "room",
+            label: "ルーム",
+            content: (
+              <div className="space-y-6">
+                <InvitePanel code={room.code} />
+                {/* このタブには SelfDriverToggle が無いため、自分の一時離脱/復帰は行に出す
+                    （セッションタブ側は SelfDriverToggle が担うので行には出さない＝#1）。 */}
+                <Card>
+                  <RosterPanel
+                    participants={room.participants}
+                    currentDriverName={room.session.rotation[room.session.currentIndex] ?? ""}
+                    myParticipantId={participantId}
+                    canHostAction={isHost}
+                    selfHasExternalToggle={false}
+                    onRename={onRenameParticipant}
+                    onSkip={onDriverSkip}
+                    onResume={onDriverResume}
+                    onAddProxy={onAddProxy}
+                    onRemove={onRemoveParticipant}
+                  />
+                </Card>
+              </div>
+            ),
+          },
+        ]}
+      />
+      {/* 交代通知・支援技術アナウンスはどのタブでも有効にする（タブに依存しない重要イベント） */}
       <div aria-live="assertive" role="status" className="sr-only">
         {announcement}
       </div>
-
-      {/* 強い交代通知の全画面オーバーレイ（§9.1） */}
       {switchAlertName && (
         <SwitchAlert
           driverName={switchAlertName}
