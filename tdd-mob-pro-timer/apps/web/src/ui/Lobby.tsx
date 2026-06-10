@@ -5,7 +5,7 @@
  */
 
 import React from "react";
-import { Users, Code, Play, UserPlus, UserMinus, ChevronUp, ChevronDown, X } from "lucide-react";
+import { Users, Code, Play, UserPlus, UserMinus, ChevronUp, ChevronDown, X, Crown } from "lucide-react";
 import type { Room, Problem } from "@tdd-mob/core";
 import { Card, PrimaryButton, GhostButton, SectionHeader } from "./primitives.js";
 import { ProblemEditor } from "./components/ProblemEditor.js";
@@ -32,6 +32,8 @@ interface LobbyProps {
   onLeaveRotation?: (displayName: string) => void;
   /** ホストが参加者を退出させる（⑪・host 限定）。 */
   onRemoveParticipant?: (participantId: string) => void;
+  /** ホストを当該参加者へ移譲する（host 限定・オンライン・自分以外・現ホスト以外のみ表示）。R2-3。 */
+  onTransferHost?: (participantId: string) => void;
   /** ドライバー順の入れ替え（④・host）。fromIndex→toIndex（rotation 内の位置）。 */
   onMoveRotation?: (fromIndex: number, toIndex: number) => void;
 }
@@ -69,6 +71,7 @@ export function Lobby({
   onJoinRotation,
   onLeaveRotation,
   onRemoveParticipant,
+  onTransferHost,
   onMoveRotation,
 }: LobbyProps) {
   const myRole = room.participants.find((p) => p.participantId === participantId)?.role;
@@ -177,6 +180,14 @@ export function Lobby({
                                 disabled={rotationIndex === rotationLen - 1}
                               />
                             </>
+                          )}
+                          {/* ホストを他のオンライン参加者へ譲る（R2-3）。自分・オフライン・現ホストには出さない。 */}
+                          {!isMe && isHost && p.role !== "host" && p.presence !== "offline" && onTransferHost && (
+                            <RowIconButton
+                              icon={Crown}
+                              label={`${p.displayName} にホストを譲る`}
+                              onClick={() => onTransferHost(p.participantId)}
+                            />
                           )}
                           {/* ホストは他参加者を退出させられる（⑪） */}
                           {!isMe && isHost && onRemoveParticipant && (

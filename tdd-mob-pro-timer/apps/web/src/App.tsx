@@ -453,6 +453,7 @@ export default function App() {
           onJoinRotation={joinRotation}
           onLeaveRotation={leaveRotation}
           onRemoveParticipant={removeParticipant}
+          onTransferHost={handleTransferHost}
           onMoveRotation={moveRotation}
         />
       );
