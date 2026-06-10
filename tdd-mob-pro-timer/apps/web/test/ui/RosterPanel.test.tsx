@@ -157,4 +157,77 @@ describe("RosterPanel（T056/T057）", () => {
     // 「離脱中 (skip)」バッジが少なくとも1つあること
     expect(screen.getAllByText(/離脱中/i).length).toBeGreaterThan(0);
   });
+
+  describe("ホスト移譲ボタン（v2.2 R2-3）", () => {
+    it("ホストはオンラインの他参加者に『ホストを譲る』を見られ、押すと onTransferHost が呼ばれる", () => {
+      const onTransferHost = vi.fn();
+      // baseProps: Alice=host(p1, online), Bob=editor(p2, online), 自分=p1(host)
+      render(<RosterPanel {...baseProps} onTransferHost={onTransferHost} />);
+      const transferBtn = screen.getByRole("button", { name: /ホストを譲る/ });
+      fireEvent.click(transferBtn);
+      expect(onTransferHost).toHaveBeenCalledWith("p2");
+    });
+
+    it("オフラインの参加者には『ホストを譲る』を出さない", () => {
+      const participants = [
+        makeParticipant({ participantId: "p1", displayName: "Alice", role: "host" }),
+        makeParticipant({
+          participantId: "p2",
+          displayName: "Bob",
+          role: "editor",
+          connId: "conn2",
+          presence: "offline",
+        }),
+      ];
+      render(
+        <RosterPanel {...baseProps} participants={participants} onTransferHost={vi.fn()} />,
+      );
+      expect(screen.queryByRole("button", { name: /ホストを譲る/ })).toBeNull();
+    });
+
+    it("canHostAction=false のときは『ホストを譲る』を出さない", () => {
+      render(
+        <RosterPanel
+          {...baseProps}
+          canHostAction={false}
+          myParticipantId="p2"
+          onTransferHost={vi.fn()}
+        />,
+      );
+      expect(screen.queryByRole("button", { name: /ホストを譲る/ })).toBeNull();
+    });
+
+    it("自分自身の行には『ホストを譲る』を出さない", () => {
+      // ホストの自分（p1）のみがオンライン参加者で他にオンライン参加者がいない場合
+      const participants = [
+        makeParticipant({ participantId: "p1", displayName: "Alice", role: "host" }),
+      ];
+      render(
+        <RosterPanel
+          {...baseProps}
+          participants={participants}
+          currentDriverName="Alice"
+          onTransferHost={vi.fn()}
+        />,
+      );
+      expect(screen.queryByRole("button", { name: /ホストを譲る/ })).toBeNull();
+    });
+
+    it("現ホストの行には『ホストを譲る』を出さない（他にもう一人ホストがいる異常系の保険）", () => {
+      // 通常ホストは1人だが、現ホスト行に出ない条件 p.role !== "host" を担保する
+      const participants = [
+        makeParticipant({ participantId: "p1", displayName: "Alice", role: "host" }),
+        makeParticipant({
+          participantId: "p2",
+          displayName: "Bob",
+          role: "host",
+          connId: "conn2",
+        }),
+      ];
+      render(
+        <RosterPanel {...baseProps} participants={participants} onTransferHost={vi.fn()} />,
+      );
+      expect(screen.queryByRole("button", { name: /ホストを譲る/ })).toBeNull();
+    });
+  });
 });

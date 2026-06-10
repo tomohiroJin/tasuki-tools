@@ -60,6 +60,8 @@ interface RosterPanelProps {
   onAddProxy: (displayName: string) => void;
   /** ホストが参加者を退出させる（⑪・host 限定）。 */
   onRemove?: (participantId: string) => void;
+  /** ホストを当該参加者へ移譲する（host 限定・オンライン・自分以外のみ表示）。 */
+  onTransferHost?: (participantId: string) => void;
   /** 自分のローテーション操作（一時離脱/復帰）を外部の自己トグルが担うか。
    *  true（Session）なら自分の行には一時離脱/復帰を出さず重複を避ける。
    *  false/未指定（Solo 等・自己トグル無し）なら自分の行にも出す。 */
@@ -77,6 +79,7 @@ export function RosterPanel({
   onResume,
   onAddProxy,
   onRemove,
+  onTransferHost,
 }: RosterPanelProps) {
   const [proxyName, setProxyName] = useState("");
   const [showProxyInput, setShowProxyInput] = useState(false);
@@ -217,6 +220,15 @@ export function RosterPanel({
                           ) : (
                             <MiniButton onClick={() => onSkip(p.participantId)}>一時離脱</MiniButton>
                           ))}
+                        {/* ホストを他のオンライン参加者へ譲る（R2-3）。自分・オフライン・現ホストには出さない。 */}
+                        {canHostAction && !isMine && p.role !== "host" && p.presence !== "offline" && onTransferHost && (
+                          <MiniButton
+                            onClick={() => onTransferHost(p.participantId)}
+                            aria-label={`${p.displayName} にホストを譲る`}
+                          >
+                            ホストを譲る
+                          </MiniButton>
+                        )}
                         {/* ホストは他の参加者を退出させられる（⑪） */}
                         {canHostAction && !isMine && onRemove && (
                           <MiniButton
