@@ -262,9 +262,11 @@ export function Lobby({
                       <span className="inline-block h-4 w-4 animate-pulse rounded-full bg-[var(--signal)] mb-2" aria-hidden="true" />
                       <p>お題を準備中です…</p>
                     </div>
-                    {/* お題は任意であることを伝える控えめなヒント（R5-2）。 */}
+                    {/* お題は自動で用意される旨を伝える控えめなヒント（R5-2）。
+                        開始ボタンはお題が用意できると有効になる（disabled={!room.problem}）ため、
+                        「未設定でも開始可」とは書かず実態に合わせる。 */}
                     <EmptyHint>
-                      お題は任意です。未設定でもすぐ開始でき、後からいつでも追加できます。
+                      お題は自動で用意されます。手動で決める必要はなく、「お題・設定」でいつでも変更できます。
                     </EmptyHint>
                   </div>
                 )}
