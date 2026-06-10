@@ -17,12 +17,19 @@ interface PassphrasePanelProps {
 
 export function PassphrasePanel({ protectedNow, onSet }: PassphrasePanelProps) {
   const [value, setValue] = useState("");
+  // 設定確定（空は無視）。確定後は平文を画面状態に残さない。
+  const submit = () => {
+    if (!value) return;
+    onSet(value);
+    setValue("");
+  };
   return (
     <div className="w-full">
       <SectionHeader icon={Lock} color="text-[var(--signal)]" title="パスフレーズ" />
       {protectedNow ? (
         <div className="flex items-center justify-between gap-2 text-sm">
-          <span className="text-[var(--bone-muted)]">🔒 パスフレーズ設定中</span>
+          {/* 状態は色ではなくテキストで明示（アイコンは SectionHeader の Lock に統一）。 */}
+          <span className="text-[var(--bone-muted)]">パスフレーズ設定中</span>
           <GhostButton onClick={() => onSet("")} className="text-sm">
             解除
           </GhostButton>
@@ -33,20 +40,15 @@ export function PassphrasePanel({ protectedNow, onSet }: PassphrasePanelProps) {
             type="password"
             value={value}
             onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") submit();
+            }}
             aria-label="パスフレーズ"
             maxLength={MAX_PASSPHRASE}
             placeholder="任意。設定すると参加に必要"
             className="flex-1 rounded-md border border-[var(--hairline-strong)] bg-[var(--panel-2)] px-3 py-2 text-sm text-[var(--bone)] outline-none focus:border-[var(--signal)]"
           />
-          <PrimaryButton
-            onClick={() => {
-              if (value) {
-                onSet(value);
-                setValue("");
-              }
-            }}
-            className="px-4 py-2 text-sm"
-          >
+          <PrimaryButton onClick={submit} disabled={!value} className="px-4 py-2 text-sm">
             設定
           </PrimaryButton>
         </div>
