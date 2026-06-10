@@ -13,6 +13,7 @@ import { SyncClient } from "./sync/client.js";
 import { NoAiProvider } from "./ai/no-ai.js";
 import type { ProblemProvider } from "./ai/provider.js";
 import { screenForPhase } from "./ui/screen.js";
+import { hostChangeMessage } from "./ui/host-change.js";
 import { Stage } from "./ui/primitives.js";
 import { saveRecord } from "./records/indexeddb.js";
 import { persistRecordIfComplete } from "./records/persist.js";
@@ -37,6 +38,10 @@ const ERROR_MESSAGES: Record<string, string> = {
   InvalidInterval: "その交代間隔は選べません。",
   UNAUTHORIZED: "この操作の権限がありません。",
   RATE_LIMITED: "試行が多すぎます。しばらく待ってから再試行してください。",
+  // ホスト移譲（R2-3）の失敗理由を利用者向けの日本語にする。
+  PARTICIPANT_OFFLINE: "オフラインの相手にはホストを移譲できません。",
+  CANNOT_CHANGE_HOST: "自分自身にはホストを移譲できません。",
+  PARTICIPANT_NOT_FOUND: "対象の参加者が見つかりません。",
 };
 function friendlyError(code: string): string {
   return ERROR_MESSAGES[code] ?? "操作を完了できませんでした。";
@@ -70,6 +75,8 @@ export default function App() {
   const recordSavedRef = useRef(false);
   // 一時的な操作エラーバナーの自動消去タイマー。
   const bannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // ホスト交代検知用に直前 snapshot の hostParticipantId を保持する（R2-4）。
+  const prevHostRef = useRef<string | undefined>(undefined);
 
   /** 代理参加者の一意な participantId を生成する（衝突回避のため乱数を含める） */
   const makeProxyId = () => `proxy-${Math.random().toString(36).slice(2, 10)}`;
@@ -251,6 +258,10 @@ export default function App() {
   const removeParticipant = (participantId: string) => {
     client?.send({ command: "participant.remove", participantId });
   };
+  /** ホストが任意のオンライン参加者へホストを明示移譲する（R2-3・host 限定）。 */
+  const handleTransferHost = (participantId: string) => {
+    client?.send({ command: "host.transfer", participantId });
+  };
   /** ドライバー順を入れ替える（④・member.move）。host/editor が操作。 */
   const moveRotation = (fromIndex: number, toIndex: number) => {
     client?.send({ command: "member.move", fromIndex, toIndex });
@@ -315,6 +326,21 @@ export default function App() {
       client?.dispose();
     };
   }, [client]);
+
+  // ホスト交代（明示移譲/自動委譲の双方）を snapshot 差分で検知し、既存 banner で告知する（R2-4）。
+  useEffect(() => {
+    if (!room) {
+      prevHostRef.current = undefined;
+      return;
+    }
+    const msg = hostChangeMessage(prevHostRef.current, room, participantId);
+    prevHostRef.current = room.hostParticipantId;
+    if (msg) {
+      setBanner({ text: msg, kind: "warn" });
+      if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
+      bannerTimerRef.current = setTimeout(() => setBanner(null), 4000);
+    }
+  }, [room, participantId]);
 
 
   // 共有時の操作はすべて WS コマンド送信（サーバーが状態をミラーし全員へ反映）。
@@ -427,6 +453,7 @@ export default function App() {
           onJoinRotation={joinRotation}
           onLeaveRotation={leaveRotation}
           onRemoveParticipant={removeParticipant}
+          onTransferHost={handleTransferHost}
           onMoveRotation={moveRotation}
         />
       );
@@ -456,6 +483,7 @@ export default function App() {
           onDriverResume={rosterResume}
           onAddProxy={rosterAddProxy}
           onRemoveParticipant={removeParticipant}
+          onTransferHost={handleTransferHost}
           onEditProblem={editProblem}
           onCopyProblem={copyProblem}
           onRegenerateProblem={regenerateProblem}

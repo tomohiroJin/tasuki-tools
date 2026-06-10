@@ -210,6 +210,11 @@ const RoleSetCommand = v.object({
   role: v.picklist(["editor", "viewer"]),
 });
 
+const HostTransferCommand = v.object({
+  command: v.literal("host.transfer"),
+  participantId,
+});
+
 const PresencePingCommand = v.object({
   command: v.literal("presence.ping"),
 });
@@ -245,6 +250,7 @@ export const CommandSchema = v.variant("command", [
   ProblemEditCommand,
   ProblemModeSetCommand,
   RoleSetCommand,
+  HostTransferCommand,
   PresencePingCommand,
   TimePingCommand,
 ]);

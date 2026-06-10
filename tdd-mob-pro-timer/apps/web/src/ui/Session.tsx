@@ -55,6 +55,8 @@ interface SessionProps {
   onLeaveRotation?: (displayName: string) => void;
   /** ホストが参加者を退出させる（⑪・host 限定）。 */
   onRemoveParticipant?: (participantId: string) => void;
+  /** ホストを任意のオンライン参加者へ明示移譲する（R2-3・host 限定）。 */
+  onTransferHost?: (participantId: string) => void;
   /** お題編集まわり（editor+）。お題が確定している間のみ ProblemEditor から呼ばれる（US3）。
    *  共有時は problem.edit/submit/request、ソロ時は LocalEngine 経由で App が処理する。 */
   onEditProblem?: (patch: Partial<Omit<Problem, "source" | "edited">>) => void;
@@ -87,6 +89,7 @@ export function Session({
   onJoinRotation,
   onLeaveRotation,
   onRemoveParticipant,
+  onTransferHost,
   onEditProblem,
   onCopyProblem,
   onRegenerateProblem,
@@ -324,6 +327,7 @@ export function Session({
           onResume={onDriverResume}
           onAddProxy={onAddProxy}
           onRemove={onRemoveParticipant}
+          onTransferHost={onTransferHost}
         />
       </Card>
 
@@ -372,6 +376,7 @@ export function Session({
                     onResume={onDriverResume}
                     onAddProxy={onAddProxy}
                     onRemove={onRemoveParticipant}
+                    onTransferHost={onTransferHost}
                   />
                 </Card>
               </div>
