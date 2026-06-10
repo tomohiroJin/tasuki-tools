@@ -42,6 +42,9 @@ const ERROR_MESSAGES: Record<string, string> = {
   PARTICIPANT_OFFLINE: "オフラインの相手にはホストを移譲できません。",
   CANNOT_CHANGE_HOST: "自分自身にはホストを移譲できません。",
   PARTICIPANT_NOT_FOUND: "対象の参加者が見つかりません。",
+  // 任意ルームパスフレーズ（R4-2）の join 失敗理由。
+  PASSPHRASE_REQUIRED: "このルームはパスフレーズが必要です。",
+  PASSPHRASE_MISMATCH: "パスフレーズが一致しません。",
 };
 function friendlyError(code: string): string {
   return ERROR_MESSAGES[code] ?? "操作を完了できませんでした。";
@@ -235,13 +238,14 @@ export default function App() {
   };
 
   // 共有 URL（?room=コード）からの参加。観覧者として加わり snapshot に追従する。
-  const handleJoinRoom = (code: string, displayName = "ゲスト") => {
+  const handleJoinRoom = (code: string, displayName = "ゲスト", passphrase = "") => {
     isCreatorRef.current = false;
     const c = makeClient(() => ({
       language: roomRef.current?.config.language ?? "TypeScript",
       difficulty: roomRef.current?.config.difficulty ?? "easy",
     }));
-    c.send({ command: "room.join", code, displayName, hasAiKey: false });
+    // 空のパスフレーズは送らない（未設定ルームの従来挙動を維持）。
+    c.send({ command: "room.join", code, displayName, hasAiKey: false, ...(passphrase ? { passphrase } : {}) });
   };
 
   /** 自分をドライバーに加える（名前で追加・冪等は重複名ガードに委ねる）。 */
@@ -512,7 +516,7 @@ export default function App() {
     }
 
     if (mode === "join" && joinCode && !room) {
-      return <Join code={joinCode} onJoin={(name) => handleJoinRoom(joinCode, name)} />;
+      return <Join code={joinCode} onJoin={(name, passphrase) => handleJoinRoom(joinCode, name, passphrase)} />;
     }
 
     return <Setup onCreateRoom={handleCreateRoom} />;

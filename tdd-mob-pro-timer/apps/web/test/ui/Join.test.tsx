@@ -31,7 +31,23 @@ describe("Join 画面（UX 再設計）", () => {
     render(<Join code="ABC123" onJoin={onJoin} />);
     fireEvent.change(screen.getByLabelText(/あなたの名前|名前/), { target: { value: "Bob" } });
     fireEvent.click(screen.getByRole("button", { name: /参加/ }));
-    expect(onJoin).toHaveBeenCalledWith("Bob");
+    // パスフレーズ未入力時は空文字で渡す（未設定ルームを壊さない）。
+    expect(onJoin).toHaveBeenCalledWith("Bob", "");
+  });
+
+  it("パスフレーズを入力して参加すると onJoin に passphrase が渡る", () => {
+    const onJoin = vi.fn();
+    render(<Join code="ABC123" onJoin={onJoin} />);
+    fireEvent.change(screen.getByLabelText(/あなたの名前|名前/), { target: { value: "Bob" } });
+    fireEvent.change(screen.getByLabelText(/パスフレーズ/), { target: { value: "secret" } });
+    fireEvent.click(screen.getByRole("button", { name: /参加/ }));
+    expect(onJoin).toHaveBeenCalledWith("Bob", "secret");
+  });
+
+  it("パスフレーズ入力欄を表示する（type=password・任意）", () => {
+    render(<Join code="ABC123" onJoin={vi.fn()} />);
+    const input = screen.getByLabelText(/パスフレーズ/) as HTMLInputElement;
+    expect(input.type).toBe("password");
   });
 
   it("保存済みの名前が初期値に復元される", () => {

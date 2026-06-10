@@ -5,19 +5,22 @@
  */
 
 import React, { useState } from "react";
-import { LogIn, UserRound } from "lucide-react";
+import { LogIn, UserRound, KeyRound } from "lucide-react";
 import { Card, PrimaryButton } from "./primitives.js";
 import { savePreferences, loadPreferences } from "../prefs/local-prefs.js";
 import { MAX_DISPLAY_NAME } from "@tdd-mob/core/aggregate";
 
 interface JoinProps {
   code: string;
-  onJoin: (displayName: string) => void;
+  // パスフレーズは任意（未設定ルームでは空文字のまま渡す）。
+  onJoin: (displayName: string, passphrase: string) => void;
 }
 
 export function Join({ code, onJoin }: JoinProps) {
   const saved = loadPreferences();
   const [name, setName] = useState(saved?.displayName ?? "");
+  // ルームにパスフレーズが設定されている場合のみ必要な任意入力（FR R4-2）。
+  const [passphrase, setPassphrase] = useState("");
 
   const trimmed = name.trim();
   const canJoin = trimmed.length > 0;
@@ -32,7 +35,7 @@ export function Join({ code, onJoin }: JoinProps) {
       members: saved?.members?.length ? saved.members : [trimmed],
       intervalMinutes: saved?.intervalMinutes ?? 5,
     });
-    onJoin(trimmed);
+    onJoin(trimmed, passphrase.trim());
   };
 
   return (
@@ -63,6 +66,22 @@ export function Join({ code, onJoin }: JoinProps) {
           placeholder="例: Bob"
           autoFocus
           maxLength={MAX_DISPLAY_NAME}
+          className="w-full rounded-md bg-[var(--panel-2)] border border-[var(--hairline-strong)] px-4 py-3 text-[var(--bone)] text-lg outline-none focus:border-[var(--signal)] transition-colors"
+        />
+        <label htmlFor="join-passphrase" className="flex items-center gap-2 text-sm font-semibold text-[var(--bone)] mt-4 mb-3">
+          <KeyRound className="w-4 h-4 text-[var(--signal)]" aria-hidden="true" />
+          パスフレーズ（設定されている場合）
+        </label>
+        <input
+          id="join-passphrase"
+          aria-label="パスフレーズ（設定されている場合）"
+          type="password"
+          value={passphrase}
+          onChange={(e) => setPassphrase(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleJoin();
+          }}
+          placeholder="未設定なら空のままで OK"
           className="w-full rounded-md bg-[var(--panel-2)] border border-[var(--hairline-strong)] px-4 py-3 text-[var(--bone)] text-lg outline-none focus:border-[var(--signal)] transition-colors"
         />
         <PrimaryButton onClick={handleJoin} disabled={!canJoin} className="w-full mt-4 text-lg py-3">
