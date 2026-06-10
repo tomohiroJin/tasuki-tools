@@ -9,6 +9,7 @@ import {
   decide,
   evolve,
   advanceDriver,
+  transferHost,
   initialAggregate,
   secondsLeft,
   buildCompletionRecord,
@@ -163,6 +164,12 @@ export function makeHandlers(deps: HandlerDeps) {
         return handleRoleSet(
           connId,
           cmd as { command: "role.set"; participantId: string; role: "editor" | "viewer" },
+        );
+
+      case "host.transfer":
+        return handleHostTransfer(
+          connId,
+          cmd as { command: "host.transfer"; participantId: string },
         );
 
       case "problem.request":
@@ -665,6 +672,76 @@ export function makeHandlers(deps: HandlerDeps) {
     });
   }
 
+  /** ホストを明示的に他のオンライン参加者へ移譲する（host 限定・R2-3）。
+   *  自動委譲（presence）と同じ transferHost を用い、snapshot で全員に反映する。 */
+  async function handleHostTransfer(
+    connId: string,
+    cmd: { command: "host.transfer"; participantId: string },
+  ): Promise<Result<CreateResult, string>> {
+    const room = findRoomByConnId(connId);
+    if (!room) {
+      broadcaster.sendTo(connId, {
+        type: "error",
+        code: "NOT_IN_ROOM",
+        message: "ルームに参加していません",
+      });
+      return err("NOT_IN_ROOM");
+    }
+
+    const actor = room.participants.find((p) => p.connId === connId);
+    if (!actor || actor.role !== "host") {
+      broadcaster.sendTo(connId, {
+        type: "error",
+        code: "UNAUTHORIZED",
+        message: "host.transfer はホストのみ実行できます",
+      });
+      return err("UNAUTHORIZED");
+    }
+
+    // 自分自身へは移譲できない（現ホスト＝対象は無意味）
+    if (cmd.participantId === room.hostParticipantId) {
+      broadcaster.sendTo(connId, {
+        type: "error",
+        code: "CANNOT_CHANGE_HOST",
+        message: "自分自身へは移譲できません",
+      });
+      return err("CANNOT_CHANGE_HOST");
+    }
+
+    const target = room.participants.find(
+      (p) => p.participantId === cmd.participantId,
+    );
+    if (!target) {
+      broadcaster.sendTo(connId, {
+        type: "error",
+        code: "PARTICIPANT_NOT_FOUND",
+        message: "対象の参加者が見つかりません",
+      });
+      return err("PARTICIPANT_NOT_FOUND");
+    }
+
+    // オフラインの相手をホストにすると無人運用になり得るため拒否する
+    if (target.presence === "offline") {
+      broadcaster.sendTo(connId, {
+        type: "error",
+        code: "PARTICIPANT_OFFLINE",
+        message: "オフラインの参加者へは移譲できません",
+      });
+      return err("PARTICIPANT_OFFLINE");
+    }
+
+    const updatedRoom = transferHost(room, cmd.participantId);
+    store.put(updatedRoom);
+    broadcaster.broadcastSnapshot(updatedRoom.code, updatedRoom);
+
+    return ok({
+      code: updatedRoom.code,
+      participantId: actor.participantId,
+      hostToken: "",
+      resumeToken: "",
+    });
+  }
+
   /** お題生成依頼（editor+）FR-025, FR-027 */
   async function handleProblemRequest(
     connId: string,
@@ -804,6 +881,7 @@ const HOST_ONLY_COMMANDS = new Set([
   "break.start",
   "break.end",
   "role.set",
+  "host.transfer",
   "participant.addProxy",
   "participant.remove",
   // 並べ替えはホスト専用（UI も host のみ提供）。editor による他人の順序操作を防ぐ。

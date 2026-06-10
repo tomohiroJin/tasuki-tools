@@ -1,0 +1,190 @@
+/**
+ * 明示的ホスト移譲ハンドラ（host.transfer）テスト
+ * v2.2 R2-3: 主催者が任意のオンライン参加者へホストを明示移譲できる
+ */
+
+import { describe, it, expect, beforeEach } from "vitest";
+import { makeHandlers } from "../src/application/handlers.js";
+import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
+import { FakeClock } from "../src/adapters/system-clock.js";
+import type { Room, ServerMsg } from "@tdd-mob/core";
+import type { RoomCodeGen } from "../src/ports/code-gen.js";
+import type { Broadcaster } from "../src/ports/broadcaster.js";
+
+/** テスト用の決定論的コード生成 */
+class FakeCodeGen implements RoomCodeGen {
+  private _counter = 0;
+  generate(): string {
+    return `ROOM${String(++this._counter).padStart(2, "0")}`;
+  }
+  generateParticipantId(): string {
+    return `pid-${++this._counter}`;
+  }
+  generateResumeToken(): string {
+    return `rt-${++this._counter}`;
+  }
+}
+
+/** テスト用 Broadcaster */
+class SpyBroadcaster implements Broadcaster {
+  readonly snapshots: Array<{ roomCode: string; room: unknown }> = [];
+  readonly sent: Array<{ connId: string; msg: ServerMsg }> = [];
+  readonly signals: Array<{ roomCode: string; msg: ServerMsg }> = [];
+
+  broadcastSnapshot(roomCode: string, room: unknown): void {
+    this.snapshots.push({ roomCode, room });
+  }
+  sendTo(connId: string, msg: ServerMsg): void {
+    this.sent.push({ connId, msg });
+  }
+  broadcastSignal(roomCode: string, msg: ServerMsg): void {
+    this.signals.push({ roomCode, msg });
+  }
+}
+
+/** host（host-conn）＋ editor（editor-conn）をオンラインで持つテスト用ルーム */
+function makeTestRoom(code: string): Room {
+  return {
+    code,
+    createdAt: 1000000,
+    hostParticipantId: "host-p01",
+    config: {
+      language: "TypeScript",
+      difficulty: "easy",
+      members: ["Host", "Editor"],
+      intervalMinutes: 5,
+    },
+    problem: null,
+    session: {
+      rotation: ["Host", "Editor"],
+      currentIndex: 0,
+      isPaused: false,
+      driverCounts: [0, 0],
+      totalSwitches: 0,
+    },
+    clock: {
+      running: false,
+      intervalSeconds: 300,
+      anchorServerTime: 0,
+      secondsLeftAtAnchor: 300,
+      accumulatedElapsedMs: 0,
+      runningSince: null,
+    },
+    phase: "setup",
+    participants: [
+      {
+        participantId: "host-p01",
+        connId: "host-conn",
+        displayName: "Host",
+        role: "host",
+        presence: "online",
+        hasAiKey: false,
+        joinedAt: 1000000,
+      },
+      {
+        participantId: "editor-p02",
+        connId: "editor-conn",
+        displayName: "Editor",
+        role: "editor",
+        presence: "online",
+        hasAiKey: false,
+        joinedAt: 1000100,
+      },
+    ],
+    sessionRecords: [],
+    handoffNote: "",
+    onBreak: false,
+  };
+}
+
+describe("handlers: host.transfer（明示的ホスト移譲・R2-3）", () => {
+  let store: InMemoryRoomStore;
+  let clock: FakeClock;
+  let codeGen: FakeCodeGen;
+  let broadcaster: SpyBroadcaster;
+  let handlers: ReturnType<typeof makeHandlers>;
+
+  beforeEach(() => {
+    store = new InMemoryRoomStore();
+    clock = new FakeClock(1000000);
+    codeGen = new FakeCodeGen();
+    broadcaster = new SpyBroadcaster();
+    handlers = makeHandlers({ store, clock, broadcaster, codeGen });
+    store.put(makeTestRoom("HX01"));
+  });
+
+  it("ホストはオンライン参加者へ移譲でき snapshot に反映される", async () => {
+    const result = await handlers.handleCommand("host-conn", {
+      command: "host.transfer",
+      participantId: "editor-p02",
+    });
+
+    expect(result.isOk()).toBe(true);
+
+    const room = store.get("HX01");
+    expect(room?.hostParticipantId).toBe("editor-p02");
+    const newHost = room?.participants.find((p) => p.participantId === "editor-p02");
+    const oldHost = room?.participants.find((p) => p.participantId === "host-p01");
+    expect(newHost?.role).toBe("host");
+    expect(oldHost?.role).toBe("editor");
+
+    // 全員へ snapshot 配信
+    expect(broadcaster.snapshots.some((s) => s.roomCode === "HX01")).toBe(true);
+  });
+
+  it("ホスト以外（editor）は UNAUTHORIZED で拒否され不変", async () => {
+    const result = await handlers.handleCommand("editor-conn", {
+      command: "host.transfer",
+      participantId: "editor-p02",
+    });
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error).toBe("UNAUTHORIZED");
+    }
+    expect(store.get("HX01")?.hostParticipantId).toBe("host-p01");
+  });
+
+  it("オフラインの対象へは PARTICIPANT_OFFLINE で拒否され不変", async () => {
+    const room = makeTestRoom("HX01");
+    room.participants[1] = { ...room.participants[1]!, presence: "offline" };
+    store.put(room);
+
+    const result = await handlers.handleCommand("host-conn", {
+      command: "host.transfer",
+      participantId: "editor-p02",
+    });
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error).toBe("PARTICIPANT_OFFLINE");
+    }
+    expect(store.get("HX01")?.hostParticipantId).toBe("host-p01");
+  });
+
+  it("自分自身への移譲は CANNOT_CHANGE_HOST で拒否され不変", async () => {
+    const result = await handlers.handleCommand("host-conn", {
+      command: "host.transfer",
+      participantId: "host-p01",
+    });
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error).toBe("CANNOT_CHANGE_HOST");
+    }
+    expect(store.get("HX01")?.hostParticipantId).toBe("host-p01");
+  });
+
+  it("不明な participantId は PARTICIPANT_NOT_FOUND で拒否され不変", async () => {
+    const result = await handlers.handleCommand("host-conn", {
+      command: "host.transfer",
+      participantId: "unknown-pid",
+    });
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error).toBe("PARTICIPANT_NOT_FOUND");
+    }
+    expect(store.get("HX01")?.hostParticipantId).toBe("host-p01");
+  });
+});
