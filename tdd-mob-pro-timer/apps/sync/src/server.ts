@@ -13,6 +13,7 @@ import { SystemClock } from "./adapters/system-clock.js";
 import { NanoidCodeGen } from "./adapters/nanoid-code-gen.js";
 import { loadSyncConfig } from "./config.js";
 import { RoomReclaimer } from "./application/room-reclaimer.js";
+import { buildAdminReport, handleAdminHttp } from "./application/admin.js";
 import type { Room, ServerMsg } from "@tdd-mob/core";
 
 const config = (() => {
@@ -62,6 +63,23 @@ const presenceManager = new PresenceManager({
   onDriverAbsence: handlers.advanceForAbsence,
 });
 
+const RECLAIM_SWEEP_MS = 60_000;
+// httpHandler クロージャが reclaimer.reclaimedCount を参照するため、
+// wsAdapter 生成（クロージャ定義）より前に reclaimer を宣言する（TDZ 回避）。
+const reclaimer = new RoomReclaimer({
+  store,
+  idleTtlMs: config.roomIdleTtlMs,
+  onReclaim: (code, idleMs) => {
+    scheduler.clear(code);
+    delegator.cancel(code);
+    presenceManager.clearRoomTimers(code);
+    handlers.releaseRoom(code);
+    store.remove(code);
+    // 運用ログ（journalctl -u tasuki-sync | grep reclaimed で追える・R3-1）。
+    console.log(`room ${code} reclaimed: idle ${idleMs}ms`);
+  },
+});
+
 wsAdapter = new WsAdapter({
   port: config.port,
   host: config.host,
@@ -82,25 +100,22 @@ wsAdapter = new WsAdapter({
     // レート制限用の失敗履歴を解放（マップのリーク防止）。
     handlers.handleConnectionClose(connId);
   },
+  // 管理エンドポイント（/status・/admin/rooms）を WS サーバの HTTP 層に配線（R3-2）。
+  httpHandler: (req) =>
+    handleAdminHttp(req.method, req.url, req.headers, {
+      adminToken: config.adminToken,
+      getReport: () => buildAdminReport(store.list(), reclaimer.reclaimedCount),
+    }),
 });
 
-const RECLAIM_SWEEP_MS = 60_000;
-const reclaimer = new RoomReclaimer({
-  store,
-  idleTtlMs: config.roomIdleTtlMs,
-  onReclaim: (code) => {
-    scheduler.clear(code);
-    delegator.cancel(code);
-    presenceManager.clearRoomTimers(code);
-    handlers.releaseRoom(code);
-    store.remove(code);
-  },
-});
 reclaimer.start(RECLAIM_SWEEP_MS);
 
 console.log(
   `🚀 同期サーバー起動 host=${config.host} port=${config.port} ` +
     `maxConn=${config.maxConnections} maxRooms=${config.maxRooms}`,
+);
+console.log(
+  `管理エンドポイント: ${config.adminToken ? "有効 (/status, /admin/rooms)" : "無効 (ADMIN_TOKEN 未設定)"}`,
 );
 if (config.allowedOrigins.length === 0) {
   console.warn(

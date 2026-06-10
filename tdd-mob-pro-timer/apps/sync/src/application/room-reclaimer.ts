@@ -9,17 +9,23 @@ export interface RoomReclaimerDeps {
   store: RoomStore;
   /** 全員 offline がこの ms 継続したら回収する。 */
   idleTtlMs: number;
-  /** 回収時の後始末（store.remove・timer 解放・token 解放など）。 */
-  onReclaim: (roomCode: string) => void;
+  /** 回収時の後始末（store.remove・timer 解放・token 解放など）。idleMs は全員 offline になってからの経過時間。 */
+  onReclaim: (roomCode: string, idleMs: number) => void;
 }
 
 export class RoomReclaimer {
   private readonly store: RoomStore;
   private readonly idleTtlMs: number;
-  private readonly onReclaim: (roomCode: string) => void;
+  private readonly onReclaim: (roomCode: string, idleMs: number) => void;
   /** roomCode → 全員 offline になったと初検知した時刻（epoch ms）。 */
   private readonly emptySince = new Map<string, number>();
   private interval: ReturnType<typeof setInterval> | null = null;
+  private _reclaimedCount = 0;
+
+  /** これまでに回収したルーム総数（運用可視化・R3-2）。 */
+  get reclaimedCount(): number {
+    return this._reclaimedCount;
+  }
 
   constructor(deps: RoomReclaimerDeps) {
     this.store = deps.store;
@@ -41,7 +47,8 @@ export class RoomReclaimer {
       if (since === undefined) {
         this.emptySince.set(room.code, now);
       } else if (now - since >= this.idleTtlMs) {
-        this.onReclaim(room.code);
+        this.onReclaim(room.code, now - since);
+        this._reclaimedCount++;
         this.emptySince.delete(room.code);
       }
     }
