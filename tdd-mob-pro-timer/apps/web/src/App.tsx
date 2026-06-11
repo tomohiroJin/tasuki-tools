@@ -231,7 +231,8 @@ export default function App() {
       language: "TypeScript",
       difficulty: "easy",
       members: [displayName],
-      intervalMinutes: 5,
+      // モブプロの一般的な既定は7分（v2.3 #4）。ロビーで host が config.set で調整できる。
+      intervalMinutes: 7,
     };
     // お題生成は最新のルーム設定（ロビーでの編集を反映）を参照する。
     const c = makeClient(() => ({

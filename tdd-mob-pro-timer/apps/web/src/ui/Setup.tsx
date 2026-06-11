@@ -34,7 +34,8 @@ export function Setup({ onCreateRoom }: SetupProps) {
       language: saved?.language ?? "TypeScript",
       difficulty: saved?.difficulty ?? "easy",
       members: [trimmed],
-      intervalMinutes: saved?.intervalMinutes ?? 5,
+      // モブプロの一般的な既定は7分（v2.3 #4）。保存値があればそれを優先。
+      intervalMinutes: saved?.intervalMinutes ?? 7,
     });
     onCreateRoom(trimmed, roomName.trim() || undefined);
   };
