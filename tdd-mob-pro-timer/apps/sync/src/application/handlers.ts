@@ -1107,13 +1107,11 @@ function applyRoomLevelEvent(
     case "PhaseSet":
       return { ...room, phase: event.phase };
     case "SessionReset":
-      // 初期(設定)状態へ戻す（FR-001, US4-AC4）。集約は evolve が初期化済み。
-      // お題・引き継ぎ・休憩フラグをクリアし phase を setup へ。記録履歴は保持。
+      // リセット＝最初から再スタート（v2.3 #3）。集約(session/clock)は evolve が
+      // 先頭・満タン・走行に初期化済み。お題・メンバー・設定・引き継ぎは維持し、
+      // phase は session のまま（その場で走り直す）。休憩フラグのみ解除する。
       return {
         ...room,
-        phase: "setup",
-        problem: null,
-        handoffNote: "",
         onBreak: false,
       };
     case "ProblemSet":

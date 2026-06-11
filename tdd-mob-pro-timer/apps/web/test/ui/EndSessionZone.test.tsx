@@ -24,8 +24,8 @@ describe("EndSessionZone（T045/T046）", () => {
     expect(screen.getByRole("button", { name: /完成/i })).toBeTruthy();
     // 中断ボタン
     expect(screen.getByRole("button", { name: /中断|途中/i })).toBeTruthy();
-    // リセットボタン
-    expect(screen.getByRole("button", { name: /リセット/i })).toBeTruthy();
+    // リセット（最初から再スタート）ボタン
+    expect(screen.getByRole("button", { name: /最初から|リセット|再スタート/i })).toBeTruthy();
   });
 
   it("完成を押すとコールバックが呼ばれる", () => {
@@ -56,7 +56,7 @@ describe("EndSessionZone（T045/T046）", () => {
     expect(screen.getByRole("dialog")).toBeTruthy();
   });
 
-  it("リセットボタン押下で確認ダイアログが開く（FR-019）", () => {
+  it("『最初から』ボタン押下で確認ダイアログが開く（FR-019）", () => {
     render(
       <EndSessionZone
         onComplete={noop}
@@ -65,7 +65,7 @@ describe("EndSessionZone（T045/T046）", () => {
         isShared={false}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: /リセット/i }));
+    fireEvent.click(screen.getByRole("button", { name: /最初から|リセット|再スタート/i }));
     expect(screen.getByRole("dialog")).toBeTruthy();
   });
 

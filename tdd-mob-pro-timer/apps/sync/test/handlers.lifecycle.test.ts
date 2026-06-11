@@ -103,7 +103,7 @@ describe("session.complete: 記録と phase 遷移（FR-028）", () => {
   });
 });
 
-describe("session.reset: 初期状態への復帰（FR-001, US4-AC4）", () => {
+describe("session.reset: 最初から再スタート（v2.3 #3）", () => {
   let store: InMemoryRoomStore;
   let clock: FakeClock;
   let broadcaster: SpyBroadcaster;
@@ -116,10 +116,11 @@ describe("session.reset: 初期状態への復帰（FR-001, US4-AC4）", () => {
     handlers = makeHandlers({ store, clock, broadcaster, codeGen: new FakeCodeGen() });
   });
 
-  // v2.3 #3: リセットは「最初から再スタート（走行）」になった。
-  // phase/お題/ローテーションは初期化されるが、clock は running=true で再アームされる
-  // （旧仕様は running=false でリセット後に開始できず詰んでいた）。
-  it("reset で phase が setup に戻り、お題がクリアされ、ローテーションが初期化され clock は走行で再スタートする", async () => {
+  // v2.3 #3: リセットは「最初から再スタート」になった。session 画面に留まり
+  // （phase=session 維持）、お題・メンバー・設定は保持したまま、集約だけ先頭・満タン・
+  // 走行に初期化される（旧仕様は phase=setup・お題クリアでロビーに飛ばされ、かつ
+  // running=false でリセット後に開始できず詰んでいた）。
+  it("reset で phase は session のまま・お題は保持され、ローテーションが初期化され clock は走行で再スタートする", async () => {
     const code = await setupRoom(handlers);
     const room = store.get(code)!;
     store.put({
@@ -134,8 +135,12 @@ describe("session.reset: 初期状態への復帰（FR-001, US4-AC4）", () => {
     await handlers.handleCommand("host-conn", { command: "session.reset" });
 
     const after = store.get(code)!;
-    expect(after.phase).toBe("setup");
-    expect(after.problem).toBeNull();
+    // session 画面に留まる（その場で走り直す）
+    expect(after.phase).toBe("session");
+    // お題は保持される（null クリアされない）
+    expect(after.problem).not.toBeNull();
+    expect(after.problem?.title).toBe("FizzBuzz");
+    // 集約は先頭・満タン・走行で再スタート
     expect(after.clock.running).toBe(true);
     expect(after.session.totalSwitches).toBe(0);
     expect(after.session.currentIndex).toBe(0);
