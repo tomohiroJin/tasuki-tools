@@ -67,4 +67,31 @@ describe("F2: 休憩でタイマーを停止/再開する", () => {
     const leftRunning = secondsLeft(resumed.clock, endTime + 30_000);
     expect(leftRunning).toBeCloseTo(210, 0);
   });
+
+  it("一時停止→休憩でも、停止中の壁時計時間を残量から引かない（冪等な凍結）", () => {
+    const started = startedAgg();
+    const pauseTime = NOW + 180_000; // 3分後に一時停止 → 残240で凍結
+    const paused = evolve(started, { type: "SessionPaused", now: pauseTime }, pauseTime);
+    expect(secondsLeft(paused.clock, pauseTime)).toBeCloseTo(240, 0);
+
+    // 一時停止のまま 60 秒経ってから休憩を押す → 60秒は引かれない（240 のまま）
+    const breakTime = pauseTime + 60_000;
+    const onBreak = evolve(paused, { type: "BreakStarted", now: breakTime }, breakTime);
+    expect(onBreak.clock.running).toBe(false);
+    expect(secondsLeft(onBreak.clock, breakTime)).toBeCloseTo(240, 0);
+  });
+
+  it("BreakStarted を二重に適用しても残量は変わらない（冪等）", () => {
+    const started = startedAgg();
+    const breakTime = NOW + 180_000;
+    const once = evolve(started, { type: "BreakStarted", now: breakTime }, breakTime);
+    const twice = evolve(once, { type: "BreakStarted", now: breakTime + 99_999 }, breakTime + 99_999);
+    expect(secondsLeft(twice.clock, breakTime + 99_999)).toBeCloseTo(240, 0);
+  });
+
+  it("走行中に BreakEnded を適用しても何も変えない（冪等）", () => {
+    const started = startedAgg();
+    const out = evolve(started, { type: "BreakEnded", now: NOW + 1000 }, NOW + 1000);
+    expect(out).toEqual(started);
+  });
 });

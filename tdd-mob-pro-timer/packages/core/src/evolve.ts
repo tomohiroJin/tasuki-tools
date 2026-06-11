@@ -3,9 +3,32 @@
  * T013: FR-003, FR-007, FR-008
  */
 
-import type { Aggregate, SessionConfig, IntervalMinutes } from "./aggregate.js";
+import type { Aggregate, SessionConfig, IntervalMinutes, ServerClock } from "./aggregate.js";
 import { initialAggregate, nextEligibleIndex } from "./aggregate.js";
 import type { DomainEvent } from "./events.js";
+
+/**
+ * 走行中の clock を「現在の残量で停止（凍結）」した状態にする純粋ヘルパ（F1/F2・v2.3）。
+ * secondsLeft は停止中 secondsLeftAtAnchor をそのまま返すため、停止時点の残量を焼き付ける。
+ * 既に停止中なら時間は再計算しない（一時停止→休憩 等の二重停止で、止まっていた壁時計時間を
+ * 誤って差し引かないため）。冪等。
+ */
+function freezeRunningClock(clock: ServerClock, now: number): ServerClock {
+  if (!clock.running) {
+    return { ...clock, running: false, runningSince: null };
+  }
+  const addedMs = clock.runningSince !== null ? now - clock.runningSince : 0;
+  const elapsedSinceAnchor = (now - clock.anchorServerTime) / 1000;
+  const frozen = Math.max(0, clock.secondsLeftAtAnchor - elapsedSinceAnchor);
+  return {
+    ...clock,
+    running: false,
+    secondsLeftAtAnchor: frozen,
+    anchorServerTime: now,
+    accumulatedElapsedMs: clock.accumulatedElapsedMs + addedMs,
+    runningSince: null,
+  };
+}
 
 /**
  * イベントを集約に適用し、新しい集約を返す純粋関数
@@ -166,29 +189,10 @@ function evolveDriverSwitched(
 }
 
 function evolveSessionPaused(agg: Aggregate, now: number): Aggregate {
-  const addedMs =
-    agg.clock.runningSince !== null ? now - agg.clock.runningSince : 0;
-
-  // F1(v2.3 #2a): 押下時点の残量を凍結する。
-  // secondsLeftAtAnchor は走行開始時の値のままなので、停止すると secondsLeft が
-  // それをそのまま返して「満タンに戻る」バグが起きていた。停止時点の残量を計算して
-  // secondsLeftAtAnchor に焼き付け、anchorServerTime=now にすることで凍結する。
-  const elapsedSinceAnchor = (now - agg.clock.anchorServerTime) / 1000;
-  const frozen = Math.max(0, agg.clock.secondsLeftAtAnchor - elapsedSinceAnchor);
-
+  // F1(v2.3 #2a): 押下時点の残量を凍結する（満タンに戻るバグ修正）。
   return {
-    session: {
-      ...agg.session,
-      isPaused: true,
-    },
-    clock: {
-      ...agg.clock,
-      running: false,
-      secondsLeftAtAnchor: frozen,
-      anchorServerTime: now,
-      accumulatedElapsedMs: agg.clock.accumulatedElapsedMs + addedMs,
-      runningSince: null,
-    },
+    session: { ...agg.session, isPaused: true },
+    clock: freezeRunningClock(agg.clock, now),
   };
 }
 
@@ -213,22 +217,8 @@ function evolveSessionResumed(agg: Aggregate, now: number): Aggregate {
  * 休憩は一時停止とは別概念なので isPaused は立てない（session は ...agg で維持）。
  */
 function evolveBreakStarted(agg: Aggregate, now: number): Aggregate {
-  const addedMs =
-    agg.clock.runningSince !== null ? now - agg.clock.runningSince : 0;
-  const elapsedSinceAnchor = (now - agg.clock.anchorServerTime) / 1000;
-  const frozen = Math.max(0, agg.clock.secondsLeftAtAnchor - elapsedSinceAnchor);
-
-  return {
-    ...agg,
-    clock: {
-      ...agg.clock,
-      running: false,
-      secondsLeftAtAnchor: frozen,
-      anchorServerTime: now,
-      accumulatedElapsedMs: agg.clock.accumulatedElapsedMs + addedMs,
-      runningSince: null,
-    },
-  };
+  // F2(v2.3 #2b): 休憩開始＝タイマーを残量凍結で停止（一時停止と同型・onBreak はルームレベル）。
+  return { ...agg, clock: freezeRunningClock(agg.clock, now) };
 }
 
 /**
@@ -237,6 +227,8 @@ function evolveBreakStarted(agg: Aggregate, now: number): Aggregate {
  * その値から再カウントが始まる（休憩中の経過時間は消費しない）。
  */
 function evolveBreakEnded(agg: Aggregate, now: number): Aggregate {
+  // F2(v2.3 #2b): 休憩終了＝凍結残量から再開。既に走行中なら冪等に何もしない。
+  if (agg.clock.running) return agg;
   return {
     ...agg,
     clock: {
