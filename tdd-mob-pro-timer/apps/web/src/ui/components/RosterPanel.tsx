@@ -8,7 +8,7 @@
  */
 
 import React, { useState, useEffect, useRef } from "react";
-import { Users, ChevronUp, ChevronDown } from "lucide-react";
+import { Users, ChevronUp, ChevronDown, Crown, X } from "lucide-react";
 import type { Participant } from "@tdd-mob/core";
 import { MAX_DISPLAY_NAME } from "@tdd-mob/core/aggregate";
 import { GhostButton, PrimaryButton, SectionHeader } from "../primitives.js";
@@ -199,7 +199,7 @@ export function RosterPanel({
                     </span>
                   </div>
 
-                  {/* 2段目: 在席/役割バッジ＋操作。チップは改行禁止で塊のまま折り返す（共通運命）。 */}
+                  {/* 2段目: 在席/役割バッジ。チップは改行禁止で塊のまま折り返す（共通運命）。 */}
                   <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1.5 pl-4 text-xs [&>span]:whitespace-nowrap">
                     <span className="sr-only">{presenceLabel(p.presence)}</span>
                     <span className={presenceTextClass(p.presence)}>
@@ -220,62 +220,68 @@ export function RosterPanel({
                     {isCurrentDriver && (
                       <span className="text-[var(--signal)] font-semibold">▶ 現在</span>
                     )}
-
-                    {/* アクション。改名は本人 or ホスト。一時離脱/復帰は driver.skip で、
-                        自分の分は外部の自己トグルがあるなら出さず重複を避ける（#1）。他人分はホストのみ。
-                        語は自己トグルと統一して「一時離脱」（状態バッジ「離脱中」とも整合）。右寄せ・塊で折返し。 */}
-                    {canRename && (
-                      <span className="ml-auto flex shrink-0 gap-1">
-                        <MiniButton onClick={() => startRename(p.participantId, p.displayName)}>改名</MiniButton>
-                        {/* 一時離脱/復帰の表示可否: 自分=外部トグルが無いときのみ／他人=ホストのみ。観覧者は対象外。 */}
-                        {p.role !== "viewer" &&
-                          (isMine ? !selfHasExternalToggle : canHostAction) &&
-                          (isSkipping ? (
-                            <MiniButton onClick={() => onResume(p.participantId)}>復帰</MiniButton>
-                          ) : (
-                            <MiniButton onClick={() => onSkip(p.participantId)}>一時離脱</MiniButton>
-                          ))}
-                        {/* ホストはドライバー順を入れ替えられる（v2.3 #1）。
-                            ドライバー行（rotation に含まれる）にのみ上/下を出す。先頭/末尾は無効化。 */}
-                        {canMove && (
-                          <>
-                            <MiniButton
-                              onClick={() => onMove!(rotationIndex, rotationIndex - 1)}
-                              disabled={rotationIndex === 0}
-                              aria-label={`${p.displayName} を前の順番へ`}
-                            >
-                              <ChevronUp className="w-4 h-4" aria-hidden="true" />
-                            </MiniButton>
-                            <MiniButton
-                              onClick={() => onMove!(rotationIndex, rotationIndex + 1)}
-                              disabled={rotationIndex === rotationLen - 1}
-                              aria-label={`${p.displayName} を後の順番へ`}
-                            >
-                              <ChevronDown className="w-4 h-4" aria-hidden="true" />
-                            </MiniButton>
-                          </>
-                        )}
-                        {/* ホストを他のオンライン参加者へ譲る（R2-3）。自分・オフライン・現ホストには出さない。 */}
-                        {canHostAction && !isMine && p.role !== "host" && p.presence !== "offline" && onTransferHost && (
-                          <MiniButton
-                            onClick={() => onTransferHost(p.participantId)}
-                            aria-label={`${p.displayName} にホストを譲る`}
-                          >
-                            ホストを譲る
-                          </MiniButton>
-                        )}
-                        {/* ホストは他の参加者を退出させられる（⑪） */}
-                        {canHostAction && !isMine && onRemove && (
-                          <MiniButton
-                            onClick={() => onRemove(p.participantId)}
-                            aria-label={`${p.displayName} を退出させる`}
-                          >
-                            外す
-                          </MiniButton>
-                        )}
-                      </span>
-                    )}
                   </div>
+
+                  {/* 3段目: 操作。バッジと分離し行幅いっぱいで右寄せ＋折返し（flex-wrap）にして、
+                      操作が増えても枠からはみ出さないようにする。host 管理操作（譲る/外す）は
+                      アイコン化して幅を圧縮（Lobby と同じ Crown/X）。改名は本人 or ホスト。
+                      一時離脱/復帰は driver.skip で、自分の分は外部の自己トグルがあるなら出さず重複を避ける（#1）。 */}
+                  {canRename && (
+                    <div className="mt-1.5 flex flex-wrap items-center justify-end gap-1 pl-4">
+                      <MiniButton onClick={() => startRename(p.participantId, p.displayName)}>改名</MiniButton>
+                      {/* 一時離脱/復帰の表示可否: 自分=外部トグルが無いときのみ／他人=ホストのみ。観覧者は対象外。 */}
+                      {p.role !== "viewer" &&
+                        (isMine ? !selfHasExternalToggle : canHostAction) &&
+                        (isSkipping ? (
+                          <MiniButton onClick={() => onResume(p.participantId)}>復帰</MiniButton>
+                        ) : (
+                          <MiniButton onClick={() => onSkip(p.participantId)}>一時離脱</MiniButton>
+                        ))}
+                      {/* ホストはドライバー順を入れ替えられる（v2.3 #1）。
+                          ドライバー行（rotation に含まれる）にのみ上/下を出す。先頭/末尾は無効化。 */}
+                      {canMove && (
+                        <>
+                          <MiniButton
+                            onClick={() => onMove!(rotationIndex, rotationIndex - 1)}
+                            disabled={rotationIndex === 0}
+                            aria-label={`${p.displayName} を前の順番へ`}
+                            title="前の順番へ"
+                          >
+                            <ChevronUp className="w-4 h-4" aria-hidden="true" />
+                          </MiniButton>
+                          <MiniButton
+                            onClick={() => onMove!(rotationIndex, rotationIndex + 1)}
+                            disabled={rotationIndex === rotationLen - 1}
+                            aria-label={`${p.displayName} を後の順番へ`}
+                            title="後の順番へ"
+                          >
+                            <ChevronDown className="w-4 h-4" aria-hidden="true" />
+                          </MiniButton>
+                        </>
+                      )}
+                      {/* ホストを他のオンライン参加者へ譲る（R2-3）。自分・オフライン・現ホストには出さない。
+                          アイコン（Crown）＋aria-label/title で省スペース化。 */}
+                      {canHostAction && !isMine && p.role !== "host" && p.presence !== "offline" && onTransferHost && (
+                        <MiniButton
+                          onClick={() => onTransferHost(p.participantId)}
+                          aria-label={`${p.displayName} にホストを譲る`}
+                          title="ホストを譲る"
+                        >
+                          <Crown className="w-4 h-4" aria-hidden="true" />
+                        </MiniButton>
+                      )}
+                      {/* ホストは他の参加者を退出させられる（⑪）。アイコン（X）＋aria-label/title。 */}
+                      {canHostAction && !isMine && onRemove && (
+                        <MiniButton
+                          onClick={() => onRemove(p.participantId)}
+                          aria-label={`${p.displayName} を退出させる`}
+                          title="退出させる"
+                        >
+                          <X className="w-4 h-4" aria-hidden="true" />
+                        </MiniButton>
+                      )}
+                    </div>
+                  )}
                 </>
               )}
             </li>
