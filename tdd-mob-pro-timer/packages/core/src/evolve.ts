@@ -154,6 +154,13 @@ function evolveSessionPaused(agg: Aggregate, now: number): Aggregate {
   const addedMs =
     agg.clock.runningSince !== null ? now - agg.clock.runningSince : 0;
 
+  // F1(v2.3 #2a): 押下時点の残量を凍結する。
+  // secondsLeftAtAnchor は走行開始時の値のままなので、停止すると secondsLeft が
+  // それをそのまま返して「満タンに戻る」バグが起きていた。停止時点の残量を計算して
+  // secondsLeftAtAnchor に焼き付け、anchorServerTime=now にすることで凍結する。
+  const elapsedSinceAnchor = (now - agg.clock.anchorServerTime) / 1000;
+  const frozen = Math.max(0, agg.clock.secondsLeftAtAnchor - elapsedSinceAnchor);
+
   return {
     session: {
       ...agg.session,
@@ -162,6 +169,8 @@ function evolveSessionPaused(agg: Aggregate, now: number): Aggregate {
     clock: {
       ...agg.clock,
       running: false,
+      secondsLeftAtAnchor: frozen,
+      anchorServerTime: now,
       accumulatedElapsedMs: agg.clock.accumulatedElapsedMs + addedMs,
       runningSince: null,
     },
