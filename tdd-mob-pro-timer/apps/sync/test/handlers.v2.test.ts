@@ -81,6 +81,23 @@ describe("v2 コマンドの結合テスト（T028/T029）", () => {
     expect(proxy?.connId).toBeNull();
   });
 
+  it("代理参加者の participantId はサーバー生成され、client 供給のIDを無視する（セキュリティ）", async () => {
+    // client が任意の participantId（既存IDとの衝突を狙った値）を供給しても…
+    await handlers.handleCommand(hostConn, {
+      command: "participant.addProxy",
+      displayName: "なりすまし代理",
+      participantId: "ATTACKER-SUPPLIED-ID",
+    });
+    const room = getLatestSnapshot(broadcaster);
+    const proxy = room?.participants.find((p) => p.displayName === "なりすまし代理");
+    expect(proxy).toBeTruthy();
+    // 代理の participantId はサーバー生成され、供給値を採用しない（信頼境界外を無視）
+    expect(proxy?.participantId).not.toBe("ATTACKER-SUPPLIED-ID");
+    // participantId は全参加者で一意（衝突による状態破壊なし）
+    const ids = room!.participants.map((p) => p.participantId);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
   it("participant.addProxy で代理参加者が rotation とドライバー対象に含まれる（FR-047）", async () => {
     await handlers.handleCommand(hostConn, {
       command: "participant.addProxy",

@@ -3,7 +3,16 @@
  * ルーティング・トークン認証・レポート生成を http から切り離してテスト可能にする。
  * sync は 127.0.0.1 限定バインドのため管理面は元々非公開。ADMIN_TOKEN は多層防御。
  */
+import { timingSafeEqual } from "node:crypto";
 import type { Room } from "@tdd-mob/core";
+
+/** 管理トークンを定数時間で比較する（タイミングサイドチャネル緩和）。長さ不一致は即 false。 */
+function tokenMatches(provided: string, expected: string): boolean {
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
+}
 
 export interface AdminRoomSummary {
   code: string;
@@ -63,7 +72,7 @@ export function handleAdminHttp(
 
   const raw = headers["x-admin-token"];
   const provided = Array.isArray(raw) ? raw[0] : raw;
-  if (provided !== deps.adminToken) {
+  if (provided === undefined || !tokenMatches(provided, deps.adminToken)) {
     return { status: 401, contentType: "application/json", body: JSON.stringify({ error: "unauthorized" }) };
   }
 

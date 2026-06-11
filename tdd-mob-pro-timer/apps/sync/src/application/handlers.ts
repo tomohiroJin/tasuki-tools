@@ -577,6 +577,11 @@ export function makeHandlers(deps: HandlerDeps) {
       }
       domainCmd.currentDisplayName = target.displayName;
     }
+    // 代理参加者の participantId は client 供給（信頼境界外）。既存参加者との衝突で
+    // participantId 突合（skip/rename 等）が誤動作するのを防ぐため、サーバーで一意に再生成する。
+    if (domainCmd && domainCmd.command === "participant.addProxy") {
+      domainCmd.participantId = codeGen.generateParticipantId();
+    }
     if (!domainCmd) {
       broadcaster.sendTo(connId, {
         type: "error",
