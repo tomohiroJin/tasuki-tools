@@ -87,4 +87,23 @@ describe("Lobby ドライバー加入トグル（C2）", () => {
     fireEvent.click(screen.getByRole("button", { name: "Bob を前の順番へ" }));
     expect(onMoveRotation).toHaveBeenCalledWith(1, 0);
   });
+
+  it("ホストには『ランダム』ボタンが出て、押すと onShuffle が呼ばれる（v2.3 #1）", () => {
+    const onShuffle = vi.fn();
+    const room = makeRoom();
+    room.session.rotation = ["Alice", "Bob"];
+    room.session.driverCounts = [0, 0];
+    render(
+      <Lobby room={room} participantId="host-p" onStartSession={noop} onShuffle={onShuffle} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /ランダム/ }));
+    expect(onShuffle).toHaveBeenCalledTimes(1);
+  });
+
+  it("ホストでない参加者には『ランダム』ボタンを出さない（v2.3 #1）", () => {
+    render(
+      <Lobby room={makeRoom()} participantId="bob-p" onStartSession={noop} onShuffle={vi.fn()} />,
+    );
+    expect(screen.queryByRole("button", { name: /ランダム/ })).toBeNull();
+  });
 });

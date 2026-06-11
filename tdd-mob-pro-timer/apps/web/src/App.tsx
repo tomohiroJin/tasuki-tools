@@ -278,6 +278,11 @@ export default function App() {
   const moveRotation = (fromIndex: number, toIndex: number) => {
     client?.send({ command: "member.move", fromIndex, toIndex });
   };
+  /** ドライバー順をランダムに並べ替える（v2.3 #1・member.shuffle）。host が操作。
+   *  順列はサーバーが生成するため wire は command のみ（稼働中は現ドライバーが固定される）。 */
+  const handleShuffle = () => {
+    client?.send({ command: "member.shuffle" });
+  };
 
   const handleComplete = () => {
     setEndType("complete");
@@ -463,6 +468,7 @@ export default function App() {
           onRemoveParticipant={removeParticipant}
           onTransferHost={handleTransferHost}
           onMoveRotation={moveRotation}
+          onShuffle={handleShuffle}
           onSetPassphrase={handleSetPassphrase}
         />
       );
@@ -493,6 +499,8 @@ export default function App() {
           onAddProxy={rosterAddProxy}
           onRemoveParticipant={removeParticipant}
           onTransferHost={handleTransferHost}
+          onMoveRotation={moveRotation}
+          onShuffle={handleShuffle}
           onEditProblem={editProblem}
           onCopyProblem={copyProblem}
           onRegenerateProblem={regenerateProblem}
