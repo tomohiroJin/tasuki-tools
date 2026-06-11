@@ -545,8 +545,20 @@ export function makeHandlers(deps: HandlerDeps) {
       return ok({ code: next.code, participantId: "", hostToken: "", resumeToken: "" });
     }
 
-    // ドメインコマンドを構築して decide/evolve を実行
-    const domainCmd = buildDomainCommand(cmd);
+    // ドメインコマンドを構築して decide/evolve を実行。
+    // member.shuffle は順列をサーバーが生成する（wire は order を持たない）。
+    // 稼働中は現ドライバー位置を固定し、それ以外をシャッフルする（現ドライバー現役維持）。
+    const domainCmd =
+      cmd.command === "member.shuffle"
+        ? {
+            command: "member.shuffle" as const,
+            order: buildShuffleOrder(
+              targetRoom.session.rotation.length,
+              targetRoom.clock.running,
+              targetRoom.session.currentIndex,
+            ),
+          }
+        : buildDomainCommand(cmd);
     // 改名は対象の現在名を解決して decide へ渡す。decide は「自分の現在名と同一」を
     // 重複検査から除外するために旧名を必要とする（rotation は名前配列のみで participantId を持たない）。
     if (domainCmd && domainCmd.command === "participant.rename") {
@@ -966,6 +978,8 @@ const HOST_ONLY_COMMANDS = new Set([
   "participant.remove",
   // 並べ替えはホスト専用（UI も host のみ提供）。editor による他人の順序操作を防ぐ。
   "member.move",
+  // ランダム化もホスト専用（順列はサーバー権威で生成）。
+  "member.shuffle",
 ]);
 
 /** 編集者以上が必要な操作 */
@@ -1073,6 +1087,48 @@ function buildDomainCommand(cmd: { command: string; [key: string]: unknown }) {
     default:
       return null;
   }
+}
+
+// ─── モブ順のランダム化（サーバー権威）──────────────────────────────────────
+
+/**
+ * Fisher–Yates で配列をその場シャッフルする（サーバープロセス内なので Math.random で十分）。
+ * 返り値は引数と同じ配列（破壊的）。
+ */
+function fisherYatesShuffle<T>(arr: T[]): T[] {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j]!, arr[i]!];
+  }
+  return arr;
+}
+
+/**
+ * member.shuffle の順列 order を生成する（サーバー権威）。
+ * - 非稼働中: [0..len-1] を完全シャッフルする。
+ * - 稼働中: currentIndex の位置を固定し、それ以外のインデックスのみをシャッフルして
+ *   現ドライバーが「その位置で」現役のままになるようにする。
+ *
+ * @param len rotation の長さ
+ * @param running clock が稼働中か
+ * @param currentIndex 現ドライバーの位置（稼働中のみ固定対象）
+ */
+function buildShuffleOrder(len: number, running: boolean, currentIndex: number): number[] {
+  if (len <= 1) return Array.from({ length: len }, (_, i) => i);
+
+  if (!running) {
+    return fisherYatesShuffle(Array.from({ length: len }, (_, i) => i));
+  }
+
+  // 稼働中: currentIndex 以外のインデックスだけシャッフルし、currentIndex はその位置に固定する。
+  const others = Array.from({ length: len }, (_, i) => i).filter((i) => i !== currentIndex);
+  fisherYatesShuffle(others);
+  const order: number[] = [];
+  let cursor = 0;
+  for (let pos = 0; pos < len; pos++) {
+    order.push(pos === currentIndex ? currentIndex : others[cursor++]!);
+  }
+  return order;
 }
 
 // ─── ドライバー対象外の判定 ──────────────────────────────────────────────────
