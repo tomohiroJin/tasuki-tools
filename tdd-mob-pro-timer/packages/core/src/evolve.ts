@@ -46,10 +46,14 @@ export function evolve(agg: Aggregate, event: DomainEvent, now: number): Aggrega
     case "MemberMoved":
       return evolveMemberMoved(agg, event.fromIndex, event.toIndex);
 
+    case "BreakStarted":
+      return evolveBreakStarted(agg, event.now);
+
+    case "BreakEnded":
+      return evolveBreakEnded(agg, event.now);
+
     case "ProblemSet":
     case "HandoffNoteSet":
-    case "BreakStarted":
-    case "BreakEnded":
     case "SessionCompleted":
     case "SessionAborted":
     case "ProxyMemberAdded":
@@ -183,6 +187,47 @@ function evolveSessionResumed(agg: Aggregate, now: number): Aggregate {
       ...agg.session,
       isPaused: false,
     },
+    clock: {
+      ...agg.clock,
+      running: true,
+      anchorServerTime: now,
+      runningSince: now,
+    },
+  };
+}
+
+/**
+ * F2(v2.3 #2b): 休憩開始でタイマーを停止し残量を凍結する。
+ * F1 の一時停止と同じく押下時点の残量を secondsLeftAtAnchor に焼き付ける。
+ * 休憩は一時停止とは別概念なので isPaused は立てない（session は ...agg で維持）。
+ */
+function evolveBreakStarted(agg: Aggregate, now: number): Aggregate {
+  const addedMs =
+    agg.clock.runningSince !== null ? now - agg.clock.runningSince : 0;
+  const elapsedSinceAnchor = (now - agg.clock.anchorServerTime) / 1000;
+  const frozen = Math.max(0, agg.clock.secondsLeftAtAnchor - elapsedSinceAnchor);
+
+  return {
+    ...agg,
+    clock: {
+      ...agg.clock,
+      running: false,
+      secondsLeftAtAnchor: frozen,
+      anchorServerTime: now,
+      accumulatedElapsedMs: agg.clock.accumulatedElapsedMs + addedMs,
+      runningSince: null,
+    },
+  };
+}
+
+/**
+ * F2(v2.3 #2b): 休憩終了で凍結残量から走行を再開する。
+ * secondsLeftAtAnchor は休憩開始時の凍結値のままなので、anchorServerTime=now で
+ * その値から再カウントが始まる（休憩中の経過時間は消費しない）。
+ */
+function evolveBreakEnded(agg: Aggregate, now: number): Aggregate {
+  return {
+    ...agg,
     clock: {
       ...agg.clock,
       running: true,
