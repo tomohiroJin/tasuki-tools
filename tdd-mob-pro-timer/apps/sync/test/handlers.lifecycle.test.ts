@@ -116,7 +116,10 @@ describe("session.reset: 初期状態への復帰（FR-001, US4-AC4）", () => {
     handlers = makeHandlers({ store, clock, broadcaster, codeGen: new FakeCodeGen() });
   });
 
-  it("reset で phase が setup に戻り、お題がクリアされ、clock とローテーションが初期化される", async () => {
+  // v2.3 #3: リセットは「最初から再スタート（走行）」になった。
+  // phase/お題/ローテーションは初期化されるが、clock は running=true で再アームされる
+  // （旧仕様は running=false でリセット後に開始できず詰んでいた）。
+  it("reset で phase が setup に戻り、お題がクリアされ、ローテーションが初期化され clock は走行で再スタートする", async () => {
     const code = await setupRoom(handlers);
     const room = store.get(code)!;
     store.put({
@@ -133,7 +136,7 @@ describe("session.reset: 初期状態への復帰（FR-001, US4-AC4）", () => {
     const after = store.get(code)!;
     expect(after.phase).toBe("setup");
     expect(after.problem).toBeNull();
-    expect(after.clock.running).toBe(false);
+    expect(after.clock.running).toBe(true);
     expect(after.session.totalSwitches).toBe(0);
     expect(after.session.currentIndex).toBe(0);
   });

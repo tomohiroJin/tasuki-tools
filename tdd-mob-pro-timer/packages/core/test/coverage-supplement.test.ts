@@ -71,11 +71,15 @@ describe("evolve: MemberMoved", () => {
 });
 
 describe("evolve: SessionReset", () => {
-  it("リセットで setup 相当の集約に戻り clock が停止する", () => {
+  // v2.3 #3: リセットは「最初から再スタート（走行）」になった（旧仕様は clock 停止だった）。
+  it("リセットで集約が初期化され clock が走行状態で再スタートする", () => {
     let agg = initialAggregate(baseConfig);
     agg = evolve(agg, { type: "SessionStarted", now: NOW }, NOW);
     const reset = evolve(agg, { type: "SessionReset", now: NOW + 5000 }, NOW + 5000);
-    expect(reset.clock.running).toBe(false);
+    expect(reset.clock.running).toBe(true);
+    expect(reset.clock.anchorServerTime).toBe(NOW + 5000);
+    expect(reset.clock.runningSince).toBe(NOW + 5000);
+    expect(reset.clock.secondsLeftAtAnchor).toBe(baseConfig.intervalMinutes * 60);
     expect(reset.session.rotation).toEqual(["Alice", "Bob", "Charlie"]);
     expect(reset.session.totalSwitches).toBe(0);
   });

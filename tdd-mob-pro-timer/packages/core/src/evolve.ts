@@ -26,8 +26,19 @@ export function evolve(agg: Aggregate, event: DomainEvent, now: number): Aggrega
       return evolveSessionResumed(agg, event.now);
 
     case "SessionReset": {
-      const config = buildConfigFromReset(agg);
-      return initialAggregate(config);
+      // F3(v2.3 #3): リセットは「最初から再スタート（走行）」にする。
+      // 旧仕様は initialAggregate をそのまま返し running=false だったため、
+      // リセット後に開始できず詰む不具合があった。走行状態でアンカーし直す。
+      const fresh = initialAggregate(buildConfigFromReset(agg));
+      return {
+        session: fresh.session,
+        clock: {
+          ...fresh.clock,
+          running: true,
+          anchorServerTime: event.now,
+          runningSince: event.now,
+        },
+      };
     }
 
     case "PhaseSet":
