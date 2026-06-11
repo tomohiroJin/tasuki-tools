@@ -33,7 +33,7 @@ export function Join({ code, onJoin }: JoinProps) {
       language: saved?.language ?? "TypeScript",
       difficulty: saved?.difficulty ?? "easy",
       members: saved?.members?.length ? saved.members : [trimmed],
-      intervalMinutes: saved?.intervalMinutes ?? 5,
+      intervalMinutes: saved?.intervalMinutes ?? 7,
     });
     onJoin(trimmed, passphrase.trim());
   };
