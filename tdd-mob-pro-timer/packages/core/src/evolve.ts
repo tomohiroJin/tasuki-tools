@@ -80,6 +80,9 @@ export function evolve(agg: Aggregate, event: DomainEvent, now: number): Aggrega
     case "MemberMoved":
       return evolveMemberMoved(agg, event.fromIndex, event.toIndex);
 
+    case "MembersShuffled":
+      return evolveMembersShuffled(agg, event.order);
+
     case "BreakStarted":
       return evolveBreakStarted(agg, event.now);
 
@@ -363,6 +366,29 @@ function evolveMemberMoved(
       rotation: newRotation,
       currentIndex: newIndex,
       driverCounts: newDriverCounts,
+    },
+  };
+}
+
+/**
+ * メンバー順を order（順列）で並べ替える。
+ * order[i] = 新しい i 番目に来る旧 rotation インデックス。driverCounts も同じ並びに追従させ、
+ * 現ドライバー名を新しい位置へ remap する（位置ではなく名前で人を保持する）。
+ */
+function evolveMembersShuffled(agg: Aggregate, order: number[]): Aggregate {
+  const oldRotation = agg.session.rotation;
+  const oldCounts = agg.session.driverCounts;
+  const currentName = oldRotation[agg.session.currentIndex];
+  const newRotation = order.map((i) => oldRotation[i]!);
+  const newDriverCounts = order.map((i) => oldCounts[i] ?? 0);
+  const remapped = currentName !== undefined ? newRotation.indexOf(currentName) : -1;
+  return {
+    ...agg,
+    session: {
+      ...agg.session,
+      rotation: newRotation,
+      driverCounts: newDriverCounts,
+      currentIndex: remapped >= 0 ? remapped : 0,
     },
   };
 }
