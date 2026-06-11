@@ -40,7 +40,7 @@ export function History({ onBack }: HistoryProps) {
     loadRecords()
       .then((loaded) => {
         if (!active) return;
-        // 新しい順（completedAt 降順）に並べる。loadRecords は index 昇順で返すため反転する。
+        // 新しい順（completedAt 降順）に並べる。loadRecords は completedAt 昇順で返すため反転する。
         setRecords([...loaded].sort((a, b) => b.completedAt - a.completedAt));
       })
       .catch((e) => {
