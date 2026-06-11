@@ -94,4 +94,22 @@ describe("F2: 休憩でタイマーを停止/再開する", () => {
     const out = evolve(started, { type: "BreakEnded", now: NOW + 1000 }, NOW + 1000);
     expect(out).toEqual(started);
   });
+
+  it("一時停止中に休憩→休憩終了しても走行再開せず一時停止を維持する（running×isPaused 矛盾を防ぐ）", () => {
+    const started = startedAgg();
+    const pauseTime = NOW + 180_000; // 一時停止（残240で凍結）
+    const paused = evolve(started, { type: "SessionPaused", now: pauseTime }, pauseTime);
+    // 一時停止中に休憩を挟む
+    const onBreak = evolve(paused, { type: "BreakStarted", now: pauseTime + 10_000 }, pauseTime + 10_000);
+    // 休憩終了 → 一時停止は維持（走行しない）
+    const ended = evolve(onBreak, { type: "BreakEnded", now: pauseTime + 60_000 }, pauseTime + 60_000);
+    expect(ended.clock.running).toBe(false); // 走行再開しない
+    expect(ended.session.isPaused).toBe(true); // 一時停止を維持
+    expect(secondsLeft(ended.clock, pauseTime + 99_999)).toBeCloseTo(240, 0); // 残量も凍結のまま
+    // その後 RESUME で正しく再開
+    const resumed = evolve(ended, { type: "SessionResumed", now: pauseTime + 120_000 }, pauseTime + 120_000);
+    expect(resumed.clock.running).toBe(true);
+    expect(resumed.session.isPaused).toBe(false);
+    expect(secondsLeft(resumed.clock, pauseTime + 120_000)).toBeCloseTo(240, 0);
+  });
 });

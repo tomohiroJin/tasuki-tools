@@ -232,6 +232,9 @@ function evolveBreakStarted(agg: Aggregate, now: number): Aggregate {
 function evolveBreakEnded(agg: Aggregate, now: number): Aggregate {
   // F2(v2.3 #2b): 休憩終了＝凍結残量から再開。既に走行中なら冪等に何もしない。
   if (agg.clock.running) return agg;
+  // 一時停止中に休憩していた場合、休憩終了でも一時停止は維持し走行再開しない
+  // （running=true かつ isPaused=true の矛盾＝表示は停止中なのに裏で進む、を防ぐ）。
+  if (agg.session.isPaused) return agg;
   return {
     ...agg,
     clock: {
