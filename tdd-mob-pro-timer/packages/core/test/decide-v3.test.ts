@@ -50,13 +50,30 @@ describe("decide: break.start / break.end（§9.1）", () => {
     if (result.isOk()) expect(result.value[0]?.type).toBe("BreakEnded");
   });
 
-  it("BreakStarted/BreakEnded は集約を変えない", () => {
-    for (const command of ["break.start", "break.end"] as const) {
-      const result = decide({ command }, baseAgg, NOW);
-      if (result.isOk()) {
-        const next = evolve(baseAgg, result.value[0]!, NOW);
-        expect(next).toEqual(baseAgg);
-      }
+  // v2.3 #2b: 休憩は集約のタイマーを停止/再開するようになった（旧仕様では集約不変だった）。
+  it("BreakStarted は走行中タイマーを停止し残量を凍結する", () => {
+    const started = evolve(baseAgg, { type: "SessionStarted", now: NOW }, NOW);
+    const result = decide({ command: "break.start" }, started, NOW + 60_000);
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      const next = evolve(started, result.value[0]!, NOW + 60_000);
+      expect(next.clock.running).toBe(false);
+      // 5分=300秒から1分経過 → 240秒で凍結
+      expect(next.clock.secondsLeftAtAnchor).toBeCloseTo(240, 0);
+    }
+  });
+
+  it("BreakEnded は凍結残量から走行を再開する", () => {
+    const started = evolve(baseAgg, { type: "SessionStarted", now: NOW }, NOW);
+    const onBreak = evolve(started, { type: "BreakStarted", now: NOW + 60_000 }, NOW + 60_000);
+    const result = decide({ command: "break.end" }, onBreak, NOW + 300_000);
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      const next = evolve(onBreak, result.value[0]!, NOW + 300_000);
+      expect(next.clock.running).toBe(true);
+      expect(next.clock.runningSince).toBe(NOW + 300_000);
+      // 凍結値240を維持（休憩中の経過は消費しない）
+      expect(next.clock.secondsLeftAtAnchor).toBeCloseTo(240, 0);
     }
   });
 });

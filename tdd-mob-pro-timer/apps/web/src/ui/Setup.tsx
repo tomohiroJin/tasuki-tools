@@ -6,17 +6,19 @@
  */
 
 import React, { useState } from "react";
-import { Sparkles, UserRound } from "lucide-react";
-import { Card, PrimaryButton } from "./primitives.js";
+import { Sparkles, UserRound, History as HistoryIcon } from "lucide-react";
+import { Card, PrimaryButton, GhostButton } from "./primitives.js";
 import { savePreferences, loadPreferences } from "../prefs/local-prefs.js";
 import { MAX_DISPLAY_NAME, MAX_ROOM_NAME } from "@tdd-mob/core/aggregate";
 
 interface SetupProps {
   /** 入力された自分の名前（と任意のルーム名）でルームを作成する。 */
   onCreateRoom: (displayName: string, roomName?: string) => void;
+  /** この端末に保存された完了記録の履歴ビューを開く（v2.3 #5・任意）。 */
+  onShowHistory?: () => void;
 }
 
-export function Setup({ onCreateRoom }: SetupProps) {
+export function Setup({ onCreateRoom, onShowHistory }: SetupProps) {
   // 前回の名前を既定として復元する（FR-054）。
   const saved = loadPreferences();
   const [name, setName] = useState(saved?.displayName ?? "");
@@ -34,7 +36,8 @@ export function Setup({ onCreateRoom }: SetupProps) {
       language: saved?.language ?? "TypeScript",
       difficulty: saved?.difficulty ?? "easy",
       members: [trimmed],
-      intervalMinutes: saved?.intervalMinutes ?? 5,
+      // モブプロの一般的な既定は7分（v2.3 #4）。保存値があればそれを優先。
+      intervalMinutes: saved?.intervalMinutes ?? 7,
     });
     onCreateRoom(trimmed, roomName.trim() || undefined);
   };
@@ -98,6 +101,15 @@ export function Setup({ onCreateRoom }: SetupProps) {
         <p className="mt-3 text-center text-xs text-[var(--bone-subtle)]">
           言語・難易度・お題・交代間隔は次のロビー画面で決められます。
         </p>
+        {/* この端末に残った完了記録の履歴へ（v2.3 #5・誰でも自分の端末記録を見られる）。 */}
+        {onShowHistory && (
+          <GhostButton onClick={onShowHistory} className="w-full mt-3">
+            <span className="flex items-center justify-center gap-2">
+              <HistoryIcon className="w-4 h-4" aria-hidden="true" />
+              記録を見る
+            </span>
+          </GhostButton>
+        )}
       </Card>
     </div>
   );

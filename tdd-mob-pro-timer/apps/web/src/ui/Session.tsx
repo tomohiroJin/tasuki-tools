@@ -5,7 +5,7 @@
 
 import React, { useMemo } from "react";
 import {
-  Crown, ArrowRight, Play, Pause, SkipForward, Flag, RotateCcw, Coffee,
+  Crown, ArrowRight, Play, Pause, SkipForward, Flag, RotateCcw, Coffee, Shuffle,
 } from "lucide-react";
 import { secondsLeft, elapsedMs } from "@tdd-mob/core/aggregate";
 import type { Room, Problem } from "@tdd-mob/core";
@@ -58,6 +58,10 @@ interface SessionProps {
   onRemoveParticipant?: (participantId: string) => void;
   /** ホストを任意のオンライン参加者へ明示移譲する（R2-3・host 限定）。 */
   onTransferHost?: (participantId: string) => void;
+  /** ドライバー順の入れ替え（v2.3 #1・host）。fromIndex→toIndex（rotation 内の位置・member.move）。 */
+  onMoveRotation?: (fromIndex: number, toIndex: number) => void;
+  /** ドライバー順をランダムに並べ替える（v2.3 #1・host）。member.shuffle を送る。 */
+  onShuffle?: () => void;
   /** お題編集まわり（editor+）。お題が確定している間のみ ProblemEditor から呼ばれる（US3）。
    *  共有時は problem.edit/submit/request、ソロ時は LocalEngine 経由で App が処理する。 */
   onEditProblem?: (patch: Partial<Omit<Problem, "source" | "edited">>) => void;
@@ -93,6 +97,8 @@ export function Session({
   onLeaveRotation,
   onRemoveParticipant,
   onTransferHost,
+  onMoveRotation,
+  onShuffle,
   onEditProblem,
   onCopyProblem,
   onRegenerateProblem,
@@ -325,6 +331,15 @@ export function Session({
             onResume={onDriverResume}
           />
         )}
+        {/* ホストはセッション中でもロスターからドライバー順をランダム化できる（v2.3 #1）。
+            2人以上で意味を持つ。RosterPanel 内の上/下並べ替え（onMove）と対で配置。 */}
+        {isHost && onShuffle && rotationLen > 1 && (
+          <div className="mb-3 flex justify-end">
+            <GhostButton onClick={onShuffle} aria-label="ドライバー順をランダムに並べ替える" className="text-sm">
+              <span className="flex items-center gap-1.5"><Shuffle className="w-4 h-4" aria-hidden="true" /> ランダム</span>
+            </GhostButton>
+          </div>
+        )}
         <RosterPanel
           participants={room.participants}
           currentDriverName={room.session.rotation[room.session.currentIndex] ?? ""}
@@ -332,6 +347,8 @@ export function Session({
           canHostAction={isHost}
           // 自分の一時離脱/復帰は上の SelfDriverToggle が担うため、行には出さず重複を避ける（#1）。
           selfHasExternalToggle={isEditor}
+          rotation={room.session.rotation}
+          onMove={onMoveRotation}
           onRename={onRenameParticipant}
           onSkip={onDriverSkip}
           onResume={onDriverResume}
@@ -384,12 +401,22 @@ export function Session({
                 {/* このタブには SelfDriverToggle が無いため、自分の一時離脱/復帰は行に出す
                     （セッションタブ側は SelfDriverToggle が担うので行には出さない＝#1）。 */}
                 <Card>
+                  {/* ルームタブでもホストはランダム化できる（v2.3 #1・セッションタブと同等）。 */}
+                  {isHost && onShuffle && rotationLen > 1 && (
+                    <div className="mb-3 flex justify-end">
+                      <GhostButton onClick={onShuffle} aria-label="ドライバー順をランダムに並べ替える" className="text-sm">
+                        <span className="flex items-center gap-1.5"><Shuffle className="w-4 h-4" aria-hidden="true" /> ランダム</span>
+                      </GhostButton>
+                    </div>
+                  )}
                   <RosterPanel
                     participants={room.participants}
                     currentDriverName={room.session.rotation[room.session.currentIndex] ?? ""}
                     myParticipantId={participantId}
                     canHostAction={isHost}
                     selfHasExternalToggle={false}
+                    rotation={room.session.rotation}
+                    onMove={onMoveRotation}
                     onRename={onRenameParticipant}
                     onSkip={onDriverSkip}
                     onResume={onDriverResume}

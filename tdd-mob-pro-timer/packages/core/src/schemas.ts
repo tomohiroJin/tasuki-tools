@@ -144,6 +144,9 @@ const MemberMoveCommand = v.object({
   toIndex: v.pipe(v.number(), v.integer(), v.minValue(0)),
 });
 
+// 順列はサーバーが生成するため、wire コマンドにはフィールドを持たせない。
+const MemberShuffleCommand = v.object({ command: v.literal("member.shuffle") });
+
 const HandoffNoteSetCommand = v.object({
   command: v.literal("handoff.note.set"),
   text: v.pipe(v.string(), v.maxLength(MAX_HANDOFF_NOTE)),
@@ -248,6 +251,7 @@ export const CommandSchema = v.variant("command", [
   MemberAddCommand,
   MemberRemoveCommand,
   MemberMoveCommand,
+  MemberShuffleCommand,
   HandoffNoteSetCommand,
   BreakStartCommand,
   BreakEndCommand,

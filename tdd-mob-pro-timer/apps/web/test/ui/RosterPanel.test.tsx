@@ -158,6 +158,81 @@ describe("RosterPanel（T056/T057）", () => {
     expect(screen.getAllByText(/離脱中/i).length).toBeGreaterThan(0);
   });
 
+  describe("ドライバー並べ替えボタン（v2.3 #1）", () => {
+    // rotation=["Alice","Bob"] のとき、ホストは各ドライバー行に上/下ボタンを見られる。
+    const moveProps = {
+      ...baseProps,
+      rotation: ["Alice", "Bob"],
+    };
+
+    it("ホストはドライバー行で『前の順番へ』を押すと onMove(from, from-1) が呼ばれる", () => {
+      const onMove = vi.fn();
+      render(<RosterPanel {...moveProps} onMove={onMove} />);
+      // Bob（rotation index 1）を前の順番へ → move(1, 0)
+      fireEvent.click(screen.getByRole("button", { name: /Bob を前の順番へ/ }));
+      expect(onMove).toHaveBeenCalledWith(1, 0);
+    });
+
+    it("ホストはドライバー行で『後の順番へ』を押すと onMove(from, from+1) が呼ばれる", () => {
+      const onMove = vi.fn();
+      render(<RosterPanel {...moveProps} onMove={onMove} />);
+      // Alice（rotation index 0）を後の順番へ → move(0, 1)
+      fireEvent.click(screen.getByRole("button", { name: /Alice を後の順番へ/ }));
+      expect(onMove).toHaveBeenCalledWith(0, 1);
+    });
+
+    it("先頭ドライバーの『前の順番へ』は無効化される", () => {
+      const onMove = vi.fn();
+      render(<RosterPanel {...moveProps} onMove={onMove} />);
+      const upBtn = screen.getByRole("button", { name: /Alice を前の順番へ/ }) as HTMLButtonElement;
+      expect(upBtn.disabled).toBe(true);
+      fireEvent.click(upBtn);
+      expect(onMove).not.toHaveBeenCalled();
+    });
+
+    it("末尾ドライバーの『後の順番へ』は無効化される", () => {
+      const onMove = vi.fn();
+      render(<RosterPanel {...moveProps} onMove={onMove} />);
+      const downBtn = screen.getByRole("button", { name: /Bob を後の順番へ/ }) as HTMLButtonElement;
+      expect(downBtn.disabled).toBe(true);
+      fireEvent.click(downBtn);
+      expect(onMove).not.toHaveBeenCalled();
+    });
+
+    it("見学者（rotation 外）の行には並べ替えボタンを出さない", () => {
+      // Carol は rotation に含まれない見学者。
+      const participants = [
+        makeParticipant({ participantId: "p1", displayName: "Alice", role: "host" }),
+        makeParticipant({ participantId: "p2", displayName: "Bob", role: "editor", connId: "c2" }),
+        makeParticipant({ participantId: "p3", displayName: "Carol", role: "viewer", connId: "c3" }),
+      ];
+      render(
+        <RosterPanel {...baseProps} participants={participants} rotation={["Alice", "Bob"]} onMove={vi.fn()} />,
+      );
+      expect(screen.queryByRole("button", { name: /Carol を前の順番へ/ })).toBeNull();
+      expect(screen.queryByRole("button", { name: /Carol を後の順番へ/ })).toBeNull();
+    });
+
+    it("canHostAction=false のときは並べ替えボタンを出さない", () => {
+      render(
+        <RosterPanel
+          {...moveProps}
+          canHostAction={false}
+          myParticipantId="p2"
+          onMove={vi.fn()}
+        />,
+      );
+      expect(screen.queryByRole("button", { name: /前の順番へ/ })).toBeNull();
+      expect(screen.queryByRole("button", { name: /後の順番へ/ })).toBeNull();
+    });
+
+    it("ドライバーが1人だけのときは並べ替えボタンを出さない", () => {
+      render(<RosterPanel {...baseProps} rotation={["Alice"]} onMove={vi.fn()} />);
+      expect(screen.queryByRole("button", { name: /前の順番へ/ })).toBeNull();
+      expect(screen.queryByRole("button", { name: /後の順番へ/ })).toBeNull();
+    });
+  });
+
   describe("ホスト移譲ボタン（v2.2 R2-3）", () => {
     it("ホストはオンラインの他参加者に『ホストを譲る』を見られ、押すと onTransferHost が呼ばれる", () => {
       const onTransferHost = vi.fn();

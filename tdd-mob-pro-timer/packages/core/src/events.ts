@@ -71,6 +71,14 @@ export interface MemberMoved {
   now: number;
 }
 
+/** メンバー順のシャッフル（サーバー権威で生成した順列を運ぶ） */
+export interface MembersShuffled {
+  type: "MembersShuffled";
+  /** order[i] = 新しい i 番目に来る旧 rotation インデックス（順列）。 */
+  order: number[];
+  now: number;
+}
+
 /** お題確定 */
 export interface ProblemSet {
   type: "ProblemSet";
@@ -175,6 +183,7 @@ export type DomainEvent =
   | MemberAdded
   | MemberRemoved
   | MemberMoved
+  | MembersShuffled
   | ProblemSet
   | HandoffNoteSet
   | BreakStarted

@@ -8,7 +8,7 @@
  */
 
 import React, { useState, useEffect, useRef } from "react";
-import { Users } from "lucide-react";
+import { Users, ChevronUp, ChevronDown } from "lucide-react";
 import type { Participant } from "@tdd-mob/core";
 import { MAX_DISPLAY_NAME } from "@tdd-mob/core/aggregate";
 import { GhostButton, PrimaryButton, SectionHeader } from "../primitives.js";
@@ -62,6 +62,12 @@ interface RosterPanelProps {
   onRemove?: (participantId: string) => void;
   /** ホストを当該参加者へ移譲する（host 限定・オンライン・自分以外のみ表示）。 */
   onTransferHost?: (participantId: string) => void;
+  /** ドライバーのローテーション順（session.rotation）。並べ替えの index 算出に使う（v2.3 #1）。
+   *  participants の配列位置と rotation の位置は一致しないため、rotation 内の位置を別途渡す。 */
+  rotation?: string[];
+  /** ドライバー順の入れ替え（v2.3 #1・host）。fromIndex→toIndex（rotation 内の位置）。
+   *  ドライバー行（rotation に含まれる）にのみ上/下ボタンを出す。 */
+  onMove?: (fromIndex: number, toIndex: number) => void;
   /** 自分のローテーション操作（一時離脱/復帰）を外部の自己トグルが担うか。
    *  true（Session）なら自分の行には一時離脱/復帰を出さず重複を避ける。
    *  false/未指定（Solo 等・自己トグル無し）なら自分の行にも出す。 */
@@ -80,6 +86,8 @@ export function RosterPanel({
   onAddProxy,
   onRemove,
   onTransferHost,
+  rotation,
+  onMove,
 }: RosterPanelProps) {
   const [proxyName, setProxyName] = useState("");
   const [showProxyInput, setShowProxyInput] = useState(false);
@@ -146,6 +154,13 @@ export function RosterPanel({
           // 改名は本人 or ホストが可能（観覧者でも自分自身は改名可: FR-046）
           const canRename = isMine || canHostAction;
           const isEditing = editingId === p.participantId;
+          // ドライバー順での位置。Lobby と同様に rotation.indexOf(displayName) で算出する
+          // （participants の配列位置とは一致しないため）。-1 なら見学者（rotation 外）。
+          const rotationIndex = rotation ? rotation.indexOf(p.displayName) : -1;
+          const inRotation = rotationIndex >= 0;
+          const rotationLen = rotation?.length ?? 0;
+          // 並べ替えはホストが操作でき、ドライバーが2人以上いるときだけ意味を持つ。
+          const canMove = canHostAction && !!onMove && inRotation && rotationLen > 1;
 
           return (
             <li
@@ -220,6 +235,26 @@ export function RosterPanel({
                           ) : (
                             <MiniButton onClick={() => onSkip(p.participantId)}>一時離脱</MiniButton>
                           ))}
+                        {/* ホストはドライバー順を入れ替えられる（v2.3 #1）。
+                            ドライバー行（rotation に含まれる）にのみ上/下を出す。先頭/末尾は無効化。 */}
+                        {canMove && (
+                          <>
+                            <MiniButton
+                              onClick={() => onMove!(rotationIndex, rotationIndex - 1)}
+                              disabled={rotationIndex === 0}
+                              aria-label={`${p.displayName} を前の順番へ`}
+                            >
+                              <ChevronUp className="w-4 h-4" aria-hidden="true" />
+                            </MiniButton>
+                            <MiniButton
+                              onClick={() => onMove!(rotationIndex, rotationIndex + 1)}
+                              disabled={rotationIndex === rotationLen - 1}
+                              aria-label={`${p.displayName} を後の順番へ`}
+                            >
+                              <ChevronDown className="w-4 h-4" aria-hidden="true" />
+                            </MiniButton>
+                          </>
+                        )}
                         {/* ホストを他のオンライン参加者へ譲る（R2-3）。自分・オフライン・現ホストには出さない。 */}
                         {canHostAction && !isMine && p.role !== "host" && p.presence !== "offline" && onTransferHost && (
                           <MiniButton

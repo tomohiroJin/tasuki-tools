@@ -160,4 +160,31 @@ describe("Session × RosterPanel 結合（T057）", () => {
     const nextLabel = screen.getByText(/次:/);
     expect(nextLabel.parentElement?.textContent).toContain("Alice");
   });
+
+  // ─── ランダム・並べ替え（v2.3 #1）────────────────────────────────────────
+  it("ホストには『ランダム』ボタンが表示され、押すと onShuffle が呼ばれる（v2.3 #1）", () => {
+    const handlers = baseHandlers();
+    const onShuffle = vi.fn();
+    render(<Session room={makeRoom()} participantId="host-1" {...handlers} onShuffle={onShuffle} />);
+    fireEvent.click(screen.getAllByRole("button", { name: /ランダム/ })[0] as HTMLElement);
+    expect(onShuffle).toHaveBeenCalledTimes(1);
+  });
+
+  it("ホストでない（editor）には『ランダム』ボタンを出さない（v2.3 #1）", () => {
+    const handlers = baseHandlers();
+    // 自分=Carol(editor)。host ではない。
+    render(<Session room={makeRoom()} participantId="edit-1" {...handlers} onShuffle={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: /ランダム/ })).toBeNull();
+  });
+
+  it("ホストはロスター行で並べ替えでき、onMoveRotation(from, to) が呼ばれる（v2.3 #1）", () => {
+    const handlers = baseHandlers();
+    const onMoveRotation = vi.fn();
+    render(
+      <Session room={makeRoom()} participantId="host-1" {...handlers} onMoveRotation={onMoveRotation} />,
+    );
+    // rotation=["Alice","Carol"]。Carol（index 1）を前の順番へ → move(1, 0)
+    fireEvent.click(screen.getByRole("button", { name: /Carol を前の順番へ/ }));
+    expect(onMoveRotation).toHaveBeenCalledWith(1, 0);
+  });
 });

@@ -3,9 +3,32 @@
  * T013: FR-003, FR-007, FR-008
  */
 
-import type { Aggregate, SessionConfig, IntervalMinutes } from "./aggregate.js";
+import type { Aggregate, SessionConfig, IntervalMinutes, ServerClock } from "./aggregate.js";
 import { initialAggregate, nextEligibleIndex } from "./aggregate.js";
 import type { DomainEvent } from "./events.js";
+
+/**
+ * 走行中の clock を「現在の残量で停止（凍結）」した状態にする純粋ヘルパ（F1/F2・v2.3）。
+ * secondsLeft は停止中 secondsLeftAtAnchor をそのまま返すため、停止時点の残量を焼き付ける。
+ * 既に停止中なら時間は再計算しない（一時停止→休憩 等の二重停止で、止まっていた壁時計時間を
+ * 誤って差し引かないため）。冪等。
+ */
+function freezeRunningClock(clock: ServerClock, now: number): ServerClock {
+  if (!clock.running) {
+    return { ...clock, running: false, runningSince: null };
+  }
+  const addedMs = clock.runningSince !== null ? now - clock.runningSince : 0;
+  const elapsedSinceAnchor = (now - clock.anchorServerTime) / 1000;
+  const frozen = Math.max(0, clock.secondsLeftAtAnchor - elapsedSinceAnchor);
+  return {
+    ...clock,
+    running: false,
+    secondsLeftAtAnchor: frozen,
+    anchorServerTime: now,
+    accumulatedElapsedMs: clock.accumulatedElapsedMs + addedMs,
+    runningSince: null,
+  };
+}
 
 /**
  * イベントを集約に適用し、新しい集約を返す純粋関数
@@ -26,8 +49,19 @@ export function evolve(agg: Aggregate, event: DomainEvent, now: number): Aggrega
       return evolveSessionResumed(agg, event.now);
 
     case "SessionReset": {
-      const config = buildConfigFromReset(agg);
-      return initialAggregate(config);
+      // F3(v2.3 #3): リセットは「最初から再スタート（走行）」にする。
+      // 旧仕様は initialAggregate をそのまま返し running=false だったため、
+      // リセット後に開始できず詰む不具合があった。走行状態でアンカーし直す。
+      const fresh = initialAggregate(buildConfigFromReset(agg));
+      return {
+        session: fresh.session,
+        clock: {
+          ...fresh.clock,
+          running: true,
+          anchorServerTime: event.now,
+          runningSince: event.now,
+        },
+      };
     }
 
     case "PhaseSet":
@@ -46,10 +80,17 @@ export function evolve(agg: Aggregate, event: DomainEvent, now: number): Aggrega
     case "MemberMoved":
       return evolveMemberMoved(agg, event.fromIndex, event.toIndex);
 
+    case "MembersShuffled":
+      return evolveMembersShuffled(agg, event.order);
+
+    case "BreakStarted":
+      return evolveBreakStarted(agg, event.now);
+
+    case "BreakEnded":
+      return evolveBreakEnded(agg, event.now);
+
     case "ProblemSet":
     case "HandoffNoteSet":
-    case "BreakStarted":
-    case "BreakEnded":
     case "SessionCompleted":
     case "SessionAborted":
     case "ProxyMemberAdded":
@@ -151,20 +192,10 @@ function evolveDriverSwitched(
 }
 
 function evolveSessionPaused(agg: Aggregate, now: number): Aggregate {
-  const addedMs =
-    agg.clock.runningSince !== null ? now - agg.clock.runningSince : 0;
-
+  // F1(v2.3 #2a): 押下時点の残量を凍結する（満タンに戻るバグ修正）。
   return {
-    session: {
-      ...agg.session,
-      isPaused: true,
-    },
-    clock: {
-      ...agg.clock,
-      running: false,
-      accumulatedElapsedMs: agg.clock.accumulatedElapsedMs + addedMs,
-      runningSince: null,
-    },
+    session: { ...agg.session, isPaused: true },
+    clock: freezeRunningClock(agg.clock, now),
   };
 }
 
@@ -174,6 +205,38 @@ function evolveSessionResumed(agg: Aggregate, now: number): Aggregate {
       ...agg.session,
       isPaused: false,
     },
+    clock: {
+      ...agg.clock,
+      running: true,
+      anchorServerTime: now,
+      runningSince: now,
+    },
+  };
+}
+
+/**
+ * F2(v2.3 #2b): 休憩開始でタイマーを停止し残量を凍結する。
+ * F1 の一時停止と同じく押下時点の残量を secondsLeftAtAnchor に焼き付ける。
+ * 休憩は一時停止とは別概念なので isPaused は立てない（session は ...agg で維持）。
+ */
+function evolveBreakStarted(agg: Aggregate, now: number): Aggregate {
+  // F2(v2.3 #2b): 休憩開始＝タイマーを残量凍結で停止（一時停止と同型・onBreak はルームレベル）。
+  return { ...agg, clock: freezeRunningClock(agg.clock, now) };
+}
+
+/**
+ * F2(v2.3 #2b): 休憩終了で凍結残量から走行を再開する。
+ * secondsLeftAtAnchor は休憩開始時の凍結値のままなので、anchorServerTime=now で
+ * その値から再カウントが始まる（休憩中の経過時間は消費しない）。
+ */
+function evolveBreakEnded(agg: Aggregate, now: number): Aggregate {
+  // F2(v2.3 #2b): 休憩終了＝凍結残量から再開。既に走行中なら冪等に何もしない。
+  if (agg.clock.running) return agg;
+  // 一時停止中に休憩していた場合、休憩終了でも一時停止は維持し走行再開しない
+  // （running=true かつ isPaused=true の矛盾＝表示は停止中なのに裏で進む、を防ぐ）。
+  if (agg.session.isPaused) return agg;
+  return {
+    ...agg,
     clock: {
       ...agg.clock,
       running: true,
@@ -306,6 +369,29 @@ function evolveMemberMoved(
       rotation: newRotation,
       currentIndex: newIndex,
       driverCounts: newDriverCounts,
+    },
+  };
+}
+
+/**
+ * メンバー順を order（順列）で並べ替える。
+ * order[i] = 新しい i 番目に来る旧 rotation インデックス。driverCounts も同じ並びに追従させ、
+ * 現ドライバー名を新しい位置へ remap する（位置ではなく名前で人を保持する）。
+ */
+function evolveMembersShuffled(agg: Aggregate, order: number[]): Aggregate {
+  const oldRotation = agg.session.rotation;
+  const oldCounts = agg.session.driverCounts;
+  const currentName = oldRotation[agg.session.currentIndex];
+  const newRotation = order.map((i) => oldRotation[i]!);
+  const newDriverCounts = order.map((i) => oldCounts[i] ?? 0);
+  const remapped = currentName !== undefined ? newRotation.indexOf(currentName) : -1;
+  return {
+    ...agg,
+    session: {
+      ...agg.session,
+      rotation: newRotation,
+      driverCounts: newDriverCounts,
+      currentIndex: remapped >= 0 ? remapped : 0,
     },
   };
 }

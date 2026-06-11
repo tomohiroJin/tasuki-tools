@@ -5,7 +5,7 @@
  */
 
 import React from "react";
-import { Users, Code, Play, UserPlus, UserMinus, ChevronUp, ChevronDown, X, Crown } from "lucide-react";
+import { Users, Code, Play, UserPlus, UserMinus, ChevronUp, ChevronDown, X, Crown, Shuffle } from "lucide-react";
 import type { Room, Problem } from "@tdd-mob/core";
 import { Card, PrimaryButton, GhostButton, SectionHeader } from "./primitives.js";
 import { ProblemEditor } from "./components/ProblemEditor.js";
@@ -38,6 +38,8 @@ interface LobbyProps {
   onTransferHost?: (participantId: string) => void;
   /** ドライバー順の入れ替え（④・host）。fromIndex→toIndex（rotation 内の位置）。 */
   onMoveRotation?: (fromIndex: number, toIndex: number) => void;
+  /** ドライバー順をランダムに並べ替える（v2.3 #1・host）。member.shuffle を送る。 */
+  onShuffle?: () => void;
   /** ルームのパスフレーズ設定/解除（R4-2・host 限定）。空文字で解除。 */
   onSetPassphrase?: (passphrase: string) => void;
 }
@@ -77,6 +79,7 @@ export function Lobby({
   onRemoveParticipant,
   onTransferHost,
   onMoveRotation,
+  onShuffle,
   onSetPassphrase,
 }: LobbyProps) {
   const myRole = room.participants.find((p) => p.participantId === participantId)?.role;
@@ -114,7 +117,19 @@ export function Lobby({
               )}
               {/* 参加者一覧 */}
               <Card>
-                <SectionHeader icon={Users} color="text-[var(--signal)]" title={`参加者 (${room.participants.length}人)`} />
+                <SectionHeader
+                  icon={Users}
+                  color="text-[var(--signal)]"
+                  title={`参加者 (${room.participants.length}人)`}
+                  right={
+                    /* ドライバー順をランダムに（v2.3 #1・host）。2人以上で意味を持つ。 */
+                    isHost && onShuffle && room.session.rotation.length > 1 ? (
+                      <GhostButton onClick={onShuffle} aria-label="ドライバー順をランダムに並べ替える" className="text-sm">
+                        <span className="flex items-center gap-1.5"><Shuffle className="w-4 h-4" aria-hidden="true" /> ランダム</span>
+                      </GhostButton>
+                    ) : undefined
+                  }
+                />
                 <ul className="space-y-1.5">
                   {room.participants.map((p) => {
                     const rotationIndex = room.session.rotation.indexOf(p.displayName);

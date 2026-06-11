@@ -88,7 +88,7 @@ describe("アクセシビリティ（T069）", () => {
         />,
       );
       expect(screen.getByRole("button", { name: /完成/ })).toBeTruthy();
-      expect(screen.getByRole("button", { name: /リセット/ })).toBeTruthy();
+      expect(screen.getByRole("button", { name: /最初から|リセット|再スタート/ })).toBeTruthy();
     });
 
     it("InvitePanel のコピー操作は aria-label でアクセシブル名を持つ", () => {

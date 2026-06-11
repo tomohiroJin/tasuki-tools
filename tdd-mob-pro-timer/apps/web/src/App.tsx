@@ -8,6 +8,7 @@ import { Join } from "./ui/Join.js";
 import { Lobby } from "./ui/Lobby.js";
 import { Session } from "./ui/Session.js";
 import { Summary, type EndType } from "./ui/Summary.js";
+import { History } from "./ui/History.js";
 import { StatusStrip } from "./ui/components/StatusStrip.js";
 import { deriveConnectionStatus, type ClientConnState } from "./ui/connection-status.js";
 import { SyncClient } from "./sync/client.js";
@@ -28,7 +29,7 @@ function resolveProvider(): ProblemProvider {
   return new NoAiProvider();
 }
 
-type AppMode = "setup" | "join" | "lobby" | "session" | "celebration";
+type AppMode = "setup" | "join" | "lobby" | "session" | "celebration" | "history";
 
 /** ドメインエラーコードを利用者向けの日本語文へ変換する（生のコードを画面に出さない）。 */
 const ERROR_MESSAGES: Record<string, string> = {
@@ -231,7 +232,8 @@ export default function App() {
       language: "TypeScript",
       difficulty: "easy",
       members: [displayName],
-      intervalMinutes: 5,
+      // モブプロの一般的な既定は7分（v2.3 #4）。ロビーで host が config.set で調整できる。
+      intervalMinutes: 7,
     };
     // お題生成は最新のルーム設定（ロビーでの編集を反映）を参照する。
     const c = makeClient(() => ({
@@ -277,6 +279,11 @@ export default function App() {
   /** ドライバー順を入れ替える（④・member.move）。host/editor が操作。 */
   const moveRotation = (fromIndex: number, toIndex: number) => {
     client?.send({ command: "member.move", fromIndex, toIndex });
+  };
+  /** ドライバー順をランダムに並べ替える（v2.3 #1・member.shuffle）。host が操作。
+   *  順列はサーバーが生成するため wire は command のみ（稼働中は現ドライバーが固定される）。 */
+  const handleShuffle = () => {
+    client?.send({ command: "member.shuffle" });
   };
 
   const handleComplete = () => {
@@ -463,6 +470,7 @@ export default function App() {
           onRemoveParticipant={removeParticipant}
           onTransferHost={handleTransferHost}
           onMoveRotation={moveRotation}
+          onShuffle={handleShuffle}
           onSetPassphrase={handleSetPassphrase}
         />
       );
@@ -493,6 +501,8 @@ export default function App() {
           onAddProxy={rosterAddProxy}
           onRemoveParticipant={removeParticipant}
           onTransferHost={handleTransferHost}
+          onMoveRotation={moveRotation}
+          onShuffle={handleShuffle}
           onEditProblem={editProblem}
           onCopyProblem={copyProblem}
           onRegenerateProblem={regenerateProblem}
@@ -525,13 +535,18 @@ export default function App() {
       return <Join code={joinCode} onJoin={(name, passphrase) => handleJoinRoom(joinCode, name, passphrase)} />;
     }
 
-    return <Setup onCreateRoom={handleCreateRoom} />;
+    // 端末ローカルの完了記録を可視化する履歴ビュー（v2.3 #5）。Setup から開き、戻ると Setup へ。
+    if (mode === "history") {
+      return <History onBack={() => setMode("setup")} />;
+    }
+
+    return <Setup onCreateRoom={handleCreateRoom} onShowHistory={() => setMode("history")} />;
   };
 
   return (
     <Stage>
-      {/* 永続ステータスストリップ（全画面共通・FR-036）。参加前（Setup/Join）は出さない。 */}
-      {mode !== "setup" && mode !== "join" && (
+      {/* 永続ステータスストリップ（全画面共通・FR-036）。参加前（Setup/Join）と履歴（history）は出さない。 */}
+      {mode !== "setup" && mode !== "join" && mode !== "history" && (
         <div className="mb-4">
           <StatusStrip
             phase={mode}

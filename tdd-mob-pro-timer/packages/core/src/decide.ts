@@ -23,6 +23,8 @@ export type DecideCommand =
   | { command: "member.add"; name: string }
   | { command: "member.remove"; index: number }
   | { command: "member.move"; fromIndex: number; toIndex: number }
+  // order はサーバー（handler）が生成して渡す（wire コマンドは order を持たない）。
+  | { command: "member.shuffle"; order: number[] }
   | { command: "config.set"; config: Partial<SessionConfig> }
   | { command: "phase.set"; phase: "setup" | "ready" | "session" | "celebration" }
   | { command: "handoff.note.set"; text: string }
@@ -64,6 +66,9 @@ export function decide(
 
     case "member.move":
       return decideMemberMove(cmd.fromIndex, cmd.toIndex, agg, now);
+
+    case "member.shuffle":
+      return decideMembersShuffle(cmd.order, agg, now);
 
     case "config.set":
       return decideConfigSet(cmd.config, agg, now);
@@ -279,6 +284,34 @@ function decideMemberMove(
   }
 
   return ok([{ type: "MemberMoved", fromIndex, toIndex, now }]);
+}
+
+function decideMembersShuffle(
+  order: number[],
+  agg: Aggregate,
+  now: number,
+): Result<DomainEvent[], DomainError> {
+  const len = agg.session.rotation.length;
+  const maxIndex = len - 1;
+
+  // 長さが rotation と一致しなければ不正（順列ではない）。
+  if (order.length !== len) {
+    return err({ type: "InvalidIndex", index: order.length, max: maxIndex });
+  }
+
+  // 各要素が 0..len-1 の範囲内かつ重複なし＝[0..len-1] の順列であることを検証する。
+  const seen = new Set<number>();
+  for (const i of order) {
+    if (i < 0 || i > maxIndex) {
+      return err({ type: "InvalidIndex", index: i, max: maxIndex });
+    }
+    if (seen.has(i)) {
+      return err({ type: "InvalidIndex", index: i, max: maxIndex });
+    }
+    seen.add(i);
+  }
+
+  return ok([{ type: "MembersShuffled", order, now }]);
 }
 
 // ─── 設定変更 ────────────────────────────────────────────────────────────────
