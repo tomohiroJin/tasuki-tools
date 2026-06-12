@@ -4,14 +4,13 @@ import { loadSyncConfig } from "../src/config.js";
 describe("loadSyncConfig", () => {
   it("既定値を返す（env 空）", () => {
     const c = loadSyncConfig({});
-    expect(c).toEqual({
-      port: 8787,
-      host: "127.0.0.1",
-      allowedOrigins: [],
-      maxConnections: 200,
-      maxRooms: 50,
-      roomIdleTtlMs: 1_800_000,
-    });
+    expect(c.port).toBe(8787);
+    expect(c.host).toBe("127.0.0.1");
+    expect(c.allowedOrigins).toEqual([]);
+    expect(c.maxConnections).toBe(200);
+    expect(c.maxRooms).toBe(50);
+    expect(c.roomIdleTtlMs).toBe(1_800_000);
+    expect(c.adminToken).toBeUndefined();
   });
 
   it("env を解釈する", () => {

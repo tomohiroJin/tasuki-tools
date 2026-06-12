@@ -13,6 +13,16 @@ export interface SyncConfig {
   roomIdleTtlMs: number;
   /** 管理エンドポイント（/status・/admin/rooms）の認証トークン。未設定なら管理面は無効。 */
   adminToken: string | undefined;
+  /** AI お題生成の解錠合言葉。未設定なら AI 機能は無効（解錠は常に失敗＝存在秘匿）。 */
+  aiUnlockKey: string | undefined;
+  /** Claude サブスクの OAuth トークン（claude setup-token）。子プロセスの env にのみ渡す。 */
+  claudeOauthToken: string | undefined;
+  /** claude -p --model に渡すモデル名 */
+  aiProblemModel: string;
+  /** AI 生成のタイムアウト（ms） */
+  aiGenerationTimeoutMs: number;
+  /** AI 生成の日次回数上限（グローバル・揮発カウント） */
+  aiDailyLimit: number;
 }
 
 /** env 値を整数として解釈し、不正なら既定値を返す。 */
@@ -42,5 +52,10 @@ export function loadSyncConfig(env: Record<string, string | undefined>): SyncCon
     maxRooms: intEnv(env["MAX_ROOMS"], 50),
     roomIdleTtlMs: intEnv(env["ROOM_IDLE_TTL_MS"], 1_800_000),
     adminToken: (env["ADMIN_TOKEN"] ?? "").trim() || undefined,
+    aiUnlockKey: (env["AI_UNLOCK_KEY"] ?? "").trim() || undefined,
+    claudeOauthToken: (env["CLAUDE_CODE_OAUTH_TOKEN"] ?? "").trim() || undefined,
+    aiProblemModel: (env["AI_PROBLEM_MODEL"] ?? "").trim() || "sonnet",
+    aiGenerationTimeoutMs: intEnv(env["AI_GENERATION_TIMEOUT_MS"], 60_000),
+    aiDailyLimit: intEnv(env["AI_DAILY_LIMIT"], 100),
   };
 }
