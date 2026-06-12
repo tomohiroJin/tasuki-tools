@@ -35,4 +35,14 @@ describe("AI お題生成の設定", () => {
     expect(c.aiGenerationTimeoutMs).toBe(30_000);
     expect(c.aiDailyLimit).toBe(5);
   });
+
+  it("AI_DAILY_LIMIT=0 は 0 として通る（その日の生成を全面停止）", () => {
+    const c = loadSyncConfig({ AI_DAILY_LIMIT: "0" });
+    expect(c.aiDailyLimit).toBe(0);
+  });
+
+  it("AI_DAILY_LIMIT が負数・非数値なら既定 100 にフォールバックする", () => {
+    expect(loadSyncConfig({ AI_DAILY_LIMIT: "-1" }).aiDailyLimit).toBe(100);
+    expect(loadSyncConfig({ AI_DAILY_LIMIT: "abc" }).aiDailyLimit).toBe(100);
+  });
 });

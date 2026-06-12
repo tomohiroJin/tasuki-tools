@@ -21,7 +21,7 @@ export interface SyncConfig {
   aiProblemModel: string;
   /** AI 生成のタイムアウト（ms） */
   aiGenerationTimeoutMs: number;
-  /** AI 生成の日次回数上限（グローバル・揮発カウント） */
+  /** AI 生成の日次回数上限（グローバル・揮発カウント）。0 で当日生成を全面停止できる。 */
   aiDailyLimit: number;
 }
 
@@ -29,6 +29,13 @@ export interface SyncConfig {
 function intEnv(value: string | undefined, fallback: number): number {
   const n = parseInt(value ?? "", 10);
   return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+/** env 値を 0 以上の整数として解釈し、不正（負数・非数値）なら既定値を返す。
+ *  0 を有効値として通すため、明示的な「無効化」を env から指定できる（intEnv との違い）。 */
+function nonNegIntEnv(value: string | undefined, fallback: number): number {
+  const n = parseInt(value ?? "", 10);
+  return Number.isFinite(n) && n >= 0 ? n : fallback;
 }
 
 export function loadSyncConfig(env: Record<string, string | undefined>): SyncConfig {
@@ -56,6 +63,7 @@ export function loadSyncConfig(env: Record<string, string | undefined>): SyncCon
     claudeOauthToken: (env["CLAUDE_CODE_OAUTH_TOKEN"] ?? "").trim() || undefined,
     aiProblemModel: (env["AI_PROBLEM_MODEL"] ?? "").trim() || "sonnet",
     aiGenerationTimeoutMs: intEnv(env["AI_GENERATION_TIMEOUT_MS"], 60_000),
-    aiDailyLimit: intEnv(env["AI_DAILY_LIMIT"], 100),
+    // 0 を許容（=その日の AI 生成を全面停止）。負数・非数値は既定 100。
+    aiDailyLimit: nonNegIntEnv(env["AI_DAILY_LIMIT"], 100),
   };
 }
