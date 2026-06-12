@@ -1,7 +1,7 @@
 # AI お題生成 — 設計（サーバ常駐・サブスククレジット・合言葉解錠）
 
 - 日付: 2026-06-12
-- ステータス: 承認済み（実装前）
+- ステータス: 実装完了（2026-06-13・実機 E2E 検証済み）
 - 関連: BACKLOG「[機能] AI お題生成」、`docs/plans/tdd-mob-pro-timer/spec.md` FR-021〜FR-027、
   v2.2 Phase 3b ルームパスフレーズ（`2026-06-10-v2.2-experience-improvements` 系）
 
@@ -25,7 +25,7 @@
 |------|------|
 | 誰のクレジットか | **サーバ env に運営者の `CLAUDE_CODE_OAUTH_TOKEN` 一本**（`claude setup-token` で発行）。クレジットは個人アカウント単位で共有・プール不可のため、利用者ごと課金はしない |
 | 有効化の範囲 | **合言葉（隠しキー）方式**。サーバ env の `AI_UNLOCK_KEY` を知るルームの host だけが AI 生成を解錠できる。未解錠・未設定は従来どおり定型バンクのみ |
-| 実行方式 | **案 A: `claude -p` 子プロセス**（スタンドアロンバイナリ・Node 不要・Bun.spawn）。Agent SDK 組込み（Bun 互換未検証）と API 直叩き（従量課金）は不採用 |
+| 実行方式 | **案 A: `claude -p` 子プロセス**（スタンドアロンバイナリ・Node 不要。子プロセス起動は `node:child_process`＝Bun でも動作し vitest でもテスト可能）。Agent SDK 組込み（Bun 互換未検証）と API 直叩き（従量課金）は不採用 |
 
 ## 全体アーキテクチャ
 
@@ -40,7 +40,7 @@
    │
    ├─ problemMode==="ai" && aiUnlocked && サーバ provider 有効
    │     → ClaudeCliProblemProvider.generate()
-   │        = Bun.spawn(["claude","-p",buildProblemPrompt(...),"--output-format","json",...])
+   │        = spawn(["claude","-p","--output-format","json",...], prompt は stdin)
    │          env: CLAUDE_CODE_OAUTH_TOKEN
    │     → validateProblem() OK → finalize(source:"ai")
    │     → 失敗/タイムアウト(60s)/検証NG → pickFallback()（既存の縮退レール）
@@ -82,7 +82,7 @@
 - port `ServerProblemProvider { generate(language, difficulty, signal): Promise<unknown> }`
   — テストでは Fake を注入
 - adapter `ClaudeCliProblemProvider` — `claude -p --output-format json --model <model>` を
-  `Bun.spawn` で起動し、**プロンプトは stdin で渡す**（argv 長・シェルエスケープ問題を回避）。
+  `node:child_process` の spawn で起動し（Bun でも動作・vitest でもテスト可能）、**プロンプトは stdin で渡す**（argv 長・シェルエスケープ問題を回避）。
   `--output-format json` の `result` フィールドから JSON を抽出して返す。
   タイムアウトで `proc.kill()`。spawn 関数は注入可能にしてユニットテスト可能に保つ
 
