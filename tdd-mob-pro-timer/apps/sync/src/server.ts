@@ -14,6 +14,8 @@ import { NanoidCodeGen } from "./adapters/nanoid-code-gen.js";
 import { loadSyncConfig } from "./config.js";
 import { RoomReclaimer } from "./application/room-reclaimer.js";
 import { buildAdminReport, handleAdminHttp } from "./application/admin.js";
+import { AiLimiter } from "./application/ai-limits.js";
+import { ClaudeCliProblemProvider } from "./adapters/claude-cli-problem-provider.js";
 import type { Room, ServerMsg } from "@tdd-mob/core";
 
 const config = (() => {
@@ -53,8 +55,37 @@ const broadcaster = {
   },
 };
 
-const delegator = new ProblemDelegator({ store, clock, broadcaster });
-const handlers = makeHandlers({ store, clock, broadcaster, codeGen, scheduler, delegator, maxRooms: config.maxRooms });
+// AI お題生成（トークンと合言葉が両方あるときだけ有効。spec 2026-06-12 参照）
+const aiReady = Boolean(config.claudeOauthToken && config.aiUnlockKey);
+const aiLimiter = aiReady
+  ? new AiLimiter({ clock, dailyLimit: config.aiDailyLimit })
+  : undefined;
+const serverProvider = aiReady
+  ? new ClaudeCliProblemProvider({
+      token: config.claudeOauthToken!,
+      model: config.aiProblemModel,
+    })
+  : undefined;
+
+const delegator = new ProblemDelegator({
+  store,
+  clock,
+  broadcaster,
+  serverProvider,
+  aiLimiter,
+  aiTimeoutMs: config.aiGenerationTimeoutMs,
+});
+const handlers = makeHandlers({
+  store,
+  clock,
+  broadcaster,
+  codeGen,
+  scheduler,
+  delegator,
+  maxRooms: config.maxRooms,
+  // トークン未設定なら合言葉も渡さない＝解錠は常に失敗（存在秘匿）
+  aiUnlockKey: aiReady ? config.aiUnlockKey : undefined,
+});
 const presenceManager = new PresenceManager({
   store,
   broadcaster,
@@ -104,7 +135,12 @@ wsAdapter = new WsAdapter({
   httpHandler: (req) =>
     handleAdminHttp(req.method, req.url, req.headers, {
       adminToken: config.adminToken,
-      getReport: () => buildAdminReport(store.list(), reclaimer.reclaimedCount),
+      getReport: () =>
+        buildAdminReport(
+          store.list(),
+          reclaimer.reclaimedCount,
+          aiLimiter ? { today: aiLimiter.todayCount, total: aiLimiter.totalCount } : undefined,
+        ),
     }),
 });
 
@@ -117,6 +153,7 @@ console.log(
 console.log(
   `管理エンドポイント: ${config.adminToken ? "有効 (/status, /admin/rooms)" : "無効 (ADMIN_TOKEN 未設定)"}`,
 );
+console.log(`AI お題生成: ${aiReady ? `有効 (model=${config.aiProblemModel})` : "無効 (トークン/合言葉 未設定)"}`);
 if (config.allowedOrigins.length === 0) {
   console.warn(
     "⚠ ALLOWED_ORIGINS 未設定: 全 Origin からの WebSocket 接続を許可します（dev 用）。",

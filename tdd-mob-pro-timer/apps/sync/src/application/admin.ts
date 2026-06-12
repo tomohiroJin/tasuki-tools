@@ -21,14 +21,21 @@ export interface AdminRoomSummary {
 export interface AdminReport {
   activeRooms: number;
   totalReclaimed: number;
+  /** AI お題生成の回数（有効時のみ） */
+  aiGeneration?: { today: number; total: number };
   rooms: AdminRoomSummary[];
 }
 
 /** 現在のルーム一覧と累計回収数から運用レポートを組み立てる（純粋）。 */
-export function buildAdminReport(rooms: Room[], reclaimedCount: number): AdminReport {
+export function buildAdminReport(
+  rooms: Room[],
+  reclaimedCount: number,
+  aiGeneration?: { today: number; total: number },
+): AdminReport {
   return {
     activeRooms: rooms.length,
     totalReclaimed: reclaimedCount,
+    ...(aiGeneration ? { aiGeneration } : {}),
     rooms: rooms.map((r) => ({
       code: r.code,
       participants: r.participants.length,

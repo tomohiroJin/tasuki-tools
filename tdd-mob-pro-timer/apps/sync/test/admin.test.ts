@@ -71,6 +71,15 @@ describe("buildAdminReport", () => {
   });
 });
 
+describe("AI 生成カウンタ", () => {
+  it("aiGeneration が渡されればレポートに含まれ、未指定なら省略される", () => {
+    const withAi = buildAdminReport([], 0, { today: 3, total: 42 });
+    expect(withAi.aiGeneration).toEqual({ today: 3, total: 42 });
+    const without = buildAdminReport([], 0);
+    expect(without.aiGeneration).toBeUndefined();
+  });
+});
+
 describe("handleAdminHttp", () => {
   const getReport = () => buildAdminReport([room("AA", 0, 1, false)], 3);
   const deps = { adminToken: "secret", getReport };
