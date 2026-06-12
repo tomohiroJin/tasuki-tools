@@ -36,11 +36,11 @@ export function AiUnlockPanel({ unlocked, aiMode, onUnlock, onModeSet }: AiUnloc
             {aiMode ? "AI 生成: 有効（お題を AI が作成します）" : "AI 生成: 解錠済み（定型を使用中）"}
           </span>
           {aiMode ? (
-            <GhostButton onClick={() => onModeSet("fallback")} className="text-sm">
+            <GhostButton onClick={() => onModeSet("fallback")} aria-pressed={true} className="text-sm">
               定型に戻す
             </GhostButton>
           ) : (
-            <GhostButton onClick={() => onModeSet("ai")} className="text-sm">
+            <GhostButton onClick={() => onModeSet("ai")} aria-pressed={false} className="text-sm">
               AI 生成を使う
             </GhostButton>
           )}
@@ -55,11 +55,12 @@ export function AiUnlockPanel({ unlocked, aiMode, onUnlock, onModeSet }: AiUnloc
               if (e.key === "Enter") submit();
             }}
             aria-label="AI 生成の合言葉"
+            autoComplete="off"
             maxLength={MAX_AI_UNLOCK_KEY}
             placeholder="合言葉を知っている場合のみ"
             className="flex-1 rounded-md border border-[var(--hairline-strong)] bg-[var(--panel-2)] px-3 py-2 text-sm text-[var(--bone)] outline-none focus:border-[var(--signal)] focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]"
           />
-          <PrimaryButton onClick={submit} disabled={!value} className="px-4 py-2 text-sm">
+          <PrimaryButton onClick={submit} disabled={!value} className="px-4 py-2 min-h-[44px] sm:min-h-0 text-sm">
             解錠
           </PrimaryButton>
         </div>

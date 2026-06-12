@@ -60,7 +60,7 @@ function Badges({
         <span className="rounded-sm bg-[rgba(63,178,127,0.15)] px-2 py-0.5 text-[var(--ok)] border border-[rgba(63,178,127,0.3)]">持ち込み</span>
       )}
       {source === "ai" && (
-        <span className="rounded-sm bg-[rgba(255,74,46,0.15)] px-2 py-0.5 text-[var(--signal)] border border-[rgba(255,74,46,0.3)]">AI</span>
+        <span className="rounded-sm bg-[rgba(255,74,46,0.14)] px-2 py-0.5 text-[var(--signal)] border border-[rgba(255,74,46,0.3)]">AI</span>
       )}
       {edited && (
         <span className="rounded-sm bg-[rgba(255,74,46,0.14)] px-2 py-0.5 text-[var(--signal)] border border-[rgba(255,74,46,0.3)]">編集済</span>

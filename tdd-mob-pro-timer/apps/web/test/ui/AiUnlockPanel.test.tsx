@@ -28,4 +28,13 @@ describe("AiUnlockPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "AI 生成を使う" }));
     expect(onModeSet).toHaveBeenCalledWith("ai");
   });
+
+  it("Enter キーでも送信できる", () => {
+    const onUnlock = vi.fn();
+    render(<AiUnlockPanel unlocked={false} aiMode={false} onUnlock={onUnlock} onModeSet={vi.fn()} />);
+    const input = screen.getByLabelText("AI 生成の合言葉");
+    fireEvent.change(input, { target: { value: "himitsu" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(onUnlock).toHaveBeenCalledWith("himitsu");
+  });
 });
