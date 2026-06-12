@@ -11,6 +11,8 @@ import { validateProblem, pickFallback, type Problem, type Room } from "@tdd-mob
 import type { RoomStore } from "../ports/room-store.js";
 import type { Broadcaster } from "../ports/broadcaster.js";
 import type { Clock } from "../ports/clock.js";
+import type { ServerProblemProvider } from "../ports/server-problem-provider.js";
+import type { AiLimiter } from "./ai-limits.js";
 
 /** 代表の投入を待つ既定の猶予（ms） */
 export const PROBLEM_DEADLINE_MS = 20 * 1000;
@@ -24,6 +26,12 @@ export interface ProblemDelegatorDeps {
   broadcaster: Broadcaster;
   /** 代表の deadline（テストで上書き可能） */
   deadlineMs?: number;
+  /** サーバサイド AI 生成（省略時はクライアント委譲のみ＝従来挙動） */
+  serverProvider?: ServerProblemProvider;
+  /** AI 生成の濫用抑制。serverProvider とセットで渡す */
+  aiLimiter?: AiLimiter;
+  /** AI 生成のタイムアウト ms（既定 60 秒） */
+  aiTimeoutMs?: number;
 }
 
 interface DelegationState {
@@ -35,17 +43,34 @@ interface DelegationState {
   timer: ReturnType<typeof setTimeout> | null;
 }
 
+/** 進行中のサーバ生成の状態 */
+interface ServerGenerationState {
+  requestId: string;
+  abort: AbortController;
+  timer: ReturnType<typeof setTimeout>;
+  release: () => void;
+}
+
 export class ProblemDelegator {
   private readonly store: RoomStore;
   private readonly broadcaster: Broadcaster;
   private readonly deadlineMs: number;
+  private readonly serverProvider: ServerProblemProvider | undefined;
+  private readonly aiLimiter: AiLimiter | undefined;
+  private readonly aiTimeoutMs: number;
   /** roomCode → 進行中の委譲状態 */
   private readonly active = new Map<string, DelegationState>();
+  /** roomCode → 進行中のサーバ生成（リロール/cancel で abort する）。
+   * active（クライアント委譲）と activeServer（サーバ生成）は同一ルームで同時に存在しない（request 冒頭の cancel が両方を消すため）。 */
+  private readonly activeServer = new Map<string, ServerGenerationState>();
 
   constructor(deps: ProblemDelegatorDeps) {
     this.store = deps.store;
     this.broadcaster = deps.broadcaster;
     this.deadlineMs = deps.deadlineMs ?? PROBLEM_DEADLINE_MS;
+    this.serverProvider = deps.serverProvider;
+    this.aiLimiter = deps.aiLimiter;
+    this.aiTimeoutMs = deps.aiTimeoutMs ?? 60_000;
   }
 
   /**
@@ -64,9 +89,79 @@ export class ProblemDelegator {
       return;
     }
 
+    // 合言葉解錠済み＋サーバ provider 構成済みならサーバ生成を最優先で試す。
+    // 取得できない（同時実行/クールダウン/日次上限）ときはエラーにせず従来経路＝定型へ。
+    if (room.aiUnlocked && this.serverProvider && this.aiLimiter) {
+      const acquired = this.aiLimiter.tryAcquire(roomCode);
+      if (acquired.ok) {
+        this.startServerGeneration(roomCode, requestId, room, acquired.release);
+        return;
+      }
+      console.warn(`AI 生成スキップ (${roomCode}, ${requestId}): ${acquired.reason} — 定型へ縮退`);
+    }
+
+    this.startClientDelegation(roomCode, requestId, room);
+  }
+
+  /** 従来のクライアント代表委譲（候補が空なら即・定型確定） */
+  private startClientDelegation(roomCode: string, requestId: string, room: Room): void {
     const candidates = buildCandidates(room);
     this.active.set(roomCode, { requestId, candidates, index: 0, timer: null });
     this.offerToCurrent(roomCode);
+  }
+
+  /** サーバサイド AI 生成。成功で source:"ai" 確定、失敗は従来経路へ縮退する。 */
+  private startServerGeneration(
+    roomCode: string,
+    requestId: string,
+    room: Room,
+    release: () => void,
+  ): void {
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(), this.aiTimeoutMs);
+    this.activeServer.set(roomCode, { requestId, abort, timer, release });
+
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    this.serverProvider!
+      .generate(room.config.language, room.config.difficulty, abort.signal)
+      .then((raw) => {
+        // リロール済みのリクエストは破棄（stale 防御）
+        if (!this.isCurrentServerRequest(roomCode, requestId)) return;
+        const validated = validateProblem(raw);
+        if (validated.isOk()) {
+          this.clearServer(roomCode);
+          this.finalize(roomCode, { ...validated.value, source: "ai" });
+        } else {
+          this.failoverFromServer(roomCode, requestId, "検証失敗（FR-023）");
+        }
+      })
+      .catch((e: unknown) => {
+        this.failoverFromServer(roomCode, requestId, String(e));
+      });
+  }
+
+  /** 進行中サーバ生成が requestId と一致するか（stale 防御） */
+  private isCurrentServerRequest(roomCode: string, requestId: string): boolean {
+    return this.activeServer.get(roomCode)?.requestId === requestId;
+  }
+
+  /** サーバ生成の状態を破棄する（タイマー解除・枠返却） */
+  private clearServer(roomCode: string): void {
+    const st = this.activeServer.get(roomCode);
+    if (!st) return;
+    clearTimeout(st.timer);
+    st.release();
+    this.activeServer.delete(roomCode);
+  }
+
+  /** サーバ生成失敗 → 従来のクライアント委譲（実質・定型確定）へ縮退する */
+  private failoverFromServer(roomCode: string, requestId: string, reason: string): void {
+    if (!this.isCurrentServerRequest(roomCode, requestId)) return;
+    this.clearServer(roomCode);
+    console.warn(`AI 生成失敗 (${roomCode}, ${requestId}): ${reason} — 定型へ縮退`);
+    const room = this.store.get(roomCode);
+    if (!room) return;
+    this.startClientDelegation(roomCode, requestId, room);
   }
 
   /**
@@ -108,11 +203,17 @@ export class ProblemDelegator {
     const state = this.active.get(roomCode);
     if (state?.timer) clearTimeout(state.timer);
     this.active.delete(roomCode);
+    // 進行中のサーバ生成があれば中断する（子プロセスも provider 側で kill される）
+    const server = this.activeServer.get(roomCode);
+    if (server) {
+      server.abort.abort();
+      this.clearServer(roomCode);
+    }
   }
 
   /** 全ルームの委譲をキャンセルする（シャットダウン用） */
   cancelAll(): void {
-    for (const code of [...this.active.keys()]) {
+    for (const code of new Set([...this.active.keys(), ...this.activeServer.keys()])) {
       this.cancel(code);
     }
   }

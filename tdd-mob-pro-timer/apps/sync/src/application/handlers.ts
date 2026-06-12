@@ -27,6 +27,7 @@ import type { RoomStore } from "../ports/room-store.js";
 import type { RoomCodeGen } from "../ports/code-gen.js";
 import type { Scheduler } from "./schedule.js";
 import type { ProblemDelegator } from "./problem-delegation.js";
+import { constantTimeEqual } from "./secure-compare.js";
 
 export interface HandlerDeps {
   store: RoomStore;
@@ -39,6 +40,9 @@ export interface HandlerDeps {
   delegator?: ProblemDelegator;
   /** サーバー全体のルーム数上限（省略時は 50）。DoS 緩和用。 */
   maxRooms?: number;
+  /** AI 解錠合言葉。undefined なら AI 機能は無効（解錠は常に失敗＝存在秘匿）。
+   *  server.ts はトークン未設定時にもここを undefined にする。 */
+  aiUnlockKey?: string;
 }
 
 export interface CreateResult {
@@ -51,6 +55,7 @@ export interface CreateResult {
 export function makeHandlers(deps: HandlerDeps) {
   const { store, clock, broadcaster, codeGen, scheduler, delegator } = deps;
   const maxRooms = deps.maxRooms ?? 50;
+  const aiUnlockKey = deps.aiUnlockKey;
 
   // トークンはハンドラインスタンスごとに保持（モジュール共有を避け、テスト間汚染を防ぐ）。
   /** ホストトークンのマップ（roomCode → hostToken） */
@@ -173,6 +178,12 @@ export function makeHandlers(deps: HandlerDeps) {
         return handleRoomPassphraseSet(
           connId,
           cmd as { command: "room.passphrase.set"; passphrase: string },
+        );
+
+      case "ai.unlock":
+        return handleAiUnlock(
+          connId,
+          cmd as { command: "ai.unlock"; key: string },
         );
 
       case "host.transfer":
@@ -767,6 +778,71 @@ export function makeHandlers(deps: HandlerDeps) {
     });
   }
 
+  /** AI お題生成を合言葉で解錠する（host 限定）。
+   *  合言葉はサーバ env（AI_UNLOCK_KEY）のみに存在し、Room には aiUnlocked(boolean) だけ反映。
+   *  未設定（機能無効）でも不一致と同じ AI_UNLOCK_FAILED を返し、機能の存在を秘匿する。
+   *  失敗は join と同じレート制限窓（joinFailures）に積算する（総当たり対策）。 */
+  async function handleAiUnlock(
+    connId: string,
+    cmd: { command: "ai.unlock"; key: string },
+  ): Promise<Result<CreateResult, string>> {
+    const room = findRoomByConnId(connId);
+    if (!room) {
+      broadcaster.sendTo(connId, {
+        type: "error",
+        code: "NOT_IN_ROOM",
+        message: "ルームに参加していません",
+      });
+      return err("NOT_IN_ROOM");
+    }
+    const actor = room.participants.find((p) => p.connId === connId);
+    if (!actor || actor.role !== "host") {
+      broadcaster.sendTo(connId, {
+        type: "error",
+        code: "UNAUTHORIZED",
+        message: "AI 生成の解錠はホストのみ実行できます",
+      });
+      return err("UNAUTHORIZED");
+    }
+
+    // 連続失敗のレート制限（join と同じ窓・閾値を共用）
+    const now = clock.now();
+    if (recentJoinFailures(connId, now).length >= JOIN_FAIL_MAX) {
+      broadcaster.sendTo(connId, {
+        type: "error",
+        code: "RATE_LIMITED",
+        message: "試行が多すぎます。しばらく待ってから再試行してください",
+      });
+      return err("RATE_LIMITED");
+    }
+
+    const provided = cmd.key.trim();
+    const matched =
+      aiUnlockKey !== undefined &&
+      provided !== "" &&
+      constantTimeEqual(provided, aiUnlockKey);
+    if (!matched) {
+      joinFailures.set(connId, [...(joinFailures.get(connId) ?? []), now]);
+      broadcaster.sendTo(connId, {
+        type: "error",
+        code: "AI_UNLOCK_FAILED",
+        message: "合言葉が違います",
+      });
+      return err("AI_UNLOCK_FAILED");
+    }
+
+    const updatedRoom: Room = { ...room, aiUnlocked: true, problemMode: "ai" };
+    store.put(updatedRoom);
+    broadcaster.broadcastSnapshot(updatedRoom.code, updatedRoom);
+
+    return ok({
+      code: updatedRoom.code,
+      participantId: actor.participantId,
+      hostToken: "",
+      resumeToken: "",
+    });
+  }
+
   /** ホストを明示的に他のオンライン参加者へ移譲する（host 限定・R2-3）。
    *  自動委譲（presence）と同じ transferHost を用い、snapshot で全員に反映する。 */
   async function handleHostTransfer(
@@ -978,6 +1054,7 @@ const HOST_ONLY_COMMANDS = new Set([
   "break.end",
   "role.set",
   "room.passphrase.set",
+  "ai.unlock",
   "host.transfer",
   "participant.addProxy",
   "participant.remove",

@@ -119,6 +119,8 @@ export interface Room {
   problemMode?: ProblemMode;
   /** パスフレーズ保護中か（平文は載せない・サーバ側 Map で保持・R4-2）。 */
   passphraseProtected?: boolean;
+  /** AI お題生成の解錠状態（合言葉照合済み・平文はサーバ専用 = snapshot 非混入）。 */
+  aiUnlocked?: boolean;
 }
 
 /** 完成記録 */
@@ -270,3 +272,5 @@ export const MAX_PROBLEM_HINTS = 20; // ヒント配列の件数
 
 /** ルームパスフレーズの最大長（巨大入力 DoS 対策・R4-2）。 */
 export const MAX_PASSPHRASE = 128;
+/** AI 解錠合言葉の最大長（巨大入力 DoS 対策）。 */
+export const MAX_AI_UNLOCK_KEY = 64;

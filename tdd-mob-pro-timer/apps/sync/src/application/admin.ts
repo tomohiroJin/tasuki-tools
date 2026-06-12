@@ -3,15 +3,12 @@
  * ルーティング・トークン認証・レポート生成を http から切り離してテスト可能にする。
  * sync は 127.0.0.1 限定バインドのため管理面は元々非公開。ADMIN_TOKEN は多層防御。
  */
-import { timingSafeEqual } from "node:crypto";
 import type { Room } from "@tdd-mob/core";
+import { constantTimeEqual } from "./secure-compare.js";
 
 /** 管理トークンを定数時間で比較する（タイミングサイドチャネル緩和）。長さ不一致は即 false。 */
 function tokenMatches(provided: string, expected: string): boolean {
-  const a = Buffer.from(provided);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(a, b);
+  return constantTimeEqual(provided, expected);
 }
 
 export interface AdminRoomSummary {
@@ -24,14 +21,21 @@ export interface AdminRoomSummary {
 export interface AdminReport {
   activeRooms: number;
   totalReclaimed: number;
+  /** AI お題生成の回数（有効時のみ） */
+  aiGeneration?: { today: number; total: number };
   rooms: AdminRoomSummary[];
 }
 
 /** 現在のルーム一覧と累計回収数から運用レポートを組み立てる（純粋）。 */
-export function buildAdminReport(rooms: Room[], reclaimedCount: number): AdminReport {
+export function buildAdminReport(
+  rooms: Room[],
+  reclaimedCount: number,
+  aiGeneration?: { today: number; total: number },
+): AdminReport {
   return {
     activeRooms: rooms.length,
     totalReclaimed: reclaimedCount,
+    ...(aiGeneration ? { aiGeneration } : {}),
     rooms: rooms.map((r) => ({
       code: r.code,
       participants: r.participants.length,
@@ -79,7 +83,11 @@ export function handleAdminHttp(
   const report = deps.getReport();
   const body =
     path === "/status"
-      ? { activeRooms: report.activeRooms, totalReclaimed: report.totalReclaimed }
+      ? {
+          activeRooms: report.activeRooms,
+          totalReclaimed: report.totalReclaimed,
+          ...(report.aiGeneration ? { aiGeneration: report.aiGeneration } : {}),
+        }
       : report;
   return { status: 200, contentType: "application/json", body: JSON.stringify(body) };
 }

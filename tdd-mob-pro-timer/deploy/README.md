@@ -156,6 +156,38 @@ curl -H "x-admin-token: $ADMIN_TOKEN" http://127.0.0.1:8787/admin/rooms
 - `/admin/rooms`: 上記＋各ルーム要約（コード/参加者数/online数/ドライバー有無/作成時刻）。
 - 回収ログは `journalctl -u tasuki-sync | grep reclaimed` で追える。
 
+## AI お題生成（任意機能）
+
+設計: `docs/superpowers/specs/2026-06-12-ai-problem-generation-design.md`
+
+### 初回セットアップ（VPS）
+
+1. claude スタンドアロンバイナリを導入（Node 不要・約 240MB）:
+   `curl -fsSL https://claude.ai/install.sh | bash`
+   → `~/.local/bin/claude` に入る。`claude --version` で確認。
+2. systemd unit が claude を解決できるよう、`tasuki-sync.service` の `[Service]` に
+   `Environment=PATH=/home/tomohiro/.local/bin:/usr/local/bin:/usr/bin:/bin` を追加
+   （現在 `[Service]` に `Environment=` 行はないので新規追加）。
+3. ローカルマシンで `claude setup-token` を実行しトークンを発行。
+4. `/opt/tasuki/tasuki-sync.env` に `CLAUDE_CODE_OAUTH_TOKEN` と `AI_UNLOCK_KEY` を追記
+   （パーミッション 600 を維持）。
+5. `sudo systemctl daemon-reload && sudo systemctl restart tasuki-sync`
+   → 起動ログに「AI お題生成: 有効」が出れば OK。
+
+### 運用
+
+- 消費の確認: `/status` の `aiGeneration: { today, total }`（127.0.0.1 限定・ADMIN_TOKEN 必須）。
+- トークン失効時: 生成は定型バンクへ自動縮退（サービス無停止）。`claude setup-token` で
+  再発行し env を更新 → `sudo systemctl restart tasuki-sync`。
+- 全面無効化（ロールバック）: env の `CLAUDE_CODE_OAUTH_TOKEN`・`AI_UNLOCK_KEY` を消して restart。
+- メモリ: `claude -p` は約 355MB（実測）。同時実行はアプリ側で 1 に直列化済み
+  （VPS 1GB RAM・swap 2GB 前提）。
+
+### 開発時の注意
+
+- `pnpm dev`（turbo 経由）で AI を試す場合、env は `turbo.json` の `dev.passThroughEnv` に
+  宣言済みのものだけが透過する（turbo strict env）。新しい env を足すときは turbo.json も更新する。
+
 ## ロールバック
 
 sync を一旦止めて前バージョンの `server.js` に戻す:

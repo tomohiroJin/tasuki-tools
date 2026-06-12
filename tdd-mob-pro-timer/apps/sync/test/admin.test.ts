@@ -71,6 +71,15 @@ describe("buildAdminReport", () => {
   });
 });
 
+describe("AI 生成カウンタ", () => {
+  it("aiGeneration が渡されればレポートに含まれ、未指定なら省略される", () => {
+    const withAi = buildAdminReport([], 0, { today: 3, total: 42 });
+    expect(withAi.aiGeneration).toEqual({ today: 3, total: 42 });
+    const without = buildAdminReport([], 0);
+    expect(without.aiGeneration).toBeUndefined();
+  });
+});
+
 describe("handleAdminHttp", () => {
   const getReport = () => buildAdminReport([room("AA", 0, 1, false)], 3);
   const deps = { adminToken: "secret", getReport };
@@ -105,5 +114,17 @@ describe("handleAdminHttp", () => {
   });
   it("クエリ文字列付きでも /status と認識", () => {
     expect(handleAdminHttp("GET", "/status?x=1", { "x-admin-token": "secret" }, deps)?.status).toBe(200);
+  });
+  it("/status レスポンスに aiGeneration が含まれる（report にあるとき）", () => {
+    const getReportWithAi = () =>
+      buildAdminReport([room("AA", 0, 1, false)], 3, { today: 5, total: 12 });
+    const r = handleAdminHttp("GET", "/status", { "x-admin-token": "secret" }, {
+      adminToken: "secret",
+      getReport: getReportWithAi,
+    })!;
+    expect(r.status).toBe(200);
+    const b = JSON.parse(r.body);
+    expect(b.aiGeneration).toEqual({ today: 5, total: 12 });
+    expect(b.rooms).toBeUndefined();
   });
 });
