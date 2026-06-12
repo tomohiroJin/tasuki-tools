@@ -24,6 +24,11 @@ describe("ai.unlock コマンドスキーマ", () => {
     const result = v.safeParse(CommandSchema, { command: "ai.unlock" });
     expect(result.success).toBe(false);
   });
+
+  it("key が空文字なら拒否する", () => {
+    const result = v.safeParse(CommandSchema, { command: "ai.unlock", key: "" });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe("Room.aiUnlocked", () => {

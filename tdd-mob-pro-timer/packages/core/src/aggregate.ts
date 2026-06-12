@@ -272,5 +272,5 @@ export const MAX_PROBLEM_HINTS = 20; // ヒント配列の件数
 
 /** ルームパスフレーズの最大長（巨大入力 DoS 対策・R4-2）。 */
 export const MAX_PASSPHRASE = 128;
-/** AI 解錠合言葉の最大長 */
+/** AI 解錠合言葉の最大長（巨大入力 DoS 対策）。 */
 export const MAX_AI_UNLOCK_KEY = 64;

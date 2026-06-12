@@ -219,7 +219,8 @@ const RoomPassphraseSetCommand = v.object({
 
 const AiUnlockCommand = v.object({
   command: v.literal("ai.unlock"),
-  key: v.pipe(v.string(), v.maxLength(MAX_AI_UNLOCK_KEY)),
+  // 合言葉は必ず 1 文字以上（空文字は合言葉として無効）。
+  key: v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_AI_UNLOCK_KEY)),
 });
 
 const RoleSetCommand = v.object({
