@@ -47,6 +47,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   // 任意ルームパスフレーズ（R4-2）の join 失敗理由。
   PASSPHRASE_REQUIRED: "このルームはパスフレーズが必要です。",
   PASSPHRASE_MISMATCH: "パスフレーズが一致しません。",
+  // AI お題生成の解錠（合言葉不一致・未設定サーバ共通）。
+  AI_UNLOCK_FAILED: "合言葉が違います。",
 };
 function friendlyError(code: string): string {
   return ERROR_MESSAGES[code] ?? "操作を完了できませんでした。";
@@ -276,6 +278,14 @@ export default function App() {
   const handleSetPassphrase = (passphrase: string) => {
     client?.send({ command: "room.passphrase.set", passphrase });
   };
+  /** AI お題生成の合言葉で解錠を試みる（host 限定）。 */
+  const handleAiUnlock = (key: string) => {
+    client?.send({ command: "ai.unlock", key });
+  };
+  /** AI ⇔ 定型モードを切り替える（host 限定）。 */
+  const handleProblemModeSet = (mode: "ai" | "fallback") => {
+    client?.send({ command: "problem.mode.set", mode });
+  };
   /** ドライバー順を入れ替える（④・member.move）。host/editor が操作。 */
   const moveRotation = (fromIndex: number, toIndex: number) => {
     client?.send({ command: "member.move", fromIndex, toIndex });
@@ -472,6 +482,8 @@ export default function App() {
           onMoveRotation={moveRotation}
           onShuffle={handleShuffle}
           onSetPassphrase={handleSetPassphrase}
+          onAiUnlock={handleAiUnlock}
+          onProblemModeSet={handleProblemModeSet}
         />
       );
     }

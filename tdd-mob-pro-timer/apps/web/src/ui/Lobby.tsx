@@ -13,6 +13,7 @@ import { ConfigPanel } from "./components/ConfigPanel.js";
 import { Tabs } from "./components/Tabs.js";
 import { InvitePanel } from "./components/InvitePanel.js";
 import { PassphrasePanel } from "./components/PassphrasePanel.js";
+import { AiUnlockPanel } from "./components/AiUnlockPanel.js";
 import { EmptyHint } from "./components/EmptyHint.js";
 import { presenceDotClass } from "./presence.js";
 import type { SessionConfig } from "@tdd-mob/core";
@@ -42,6 +43,10 @@ interface LobbyProps {
   onShuffle?: () => void;
   /** ルームのパスフレーズ設定/解除（R4-2・host 限定）。空文字で解除。 */
   onSetPassphrase?: (passphrase: string) => void;
+  /** AI お題生成の合言葉で解錠を試みる（host 限定）。 */
+  onAiUnlock?: (key: string) => void;
+  /** AI ⇔ 定型モードの切替（problem.mode.set）（host 限定）。 */
+  onProblemModeSet?: (mode: "ai" | "fallback") => void;
 }
 
 /** 参加者行のコンパクトなアイコンボタン（行が改行だらけにならないよう小さく揃える）。 */
@@ -81,6 +86,8 @@ export function Lobby({
   onMoveRotation,
   onShuffle,
   onSetPassphrase,
+  onAiUnlock,
+  onProblemModeSet,
 }: LobbyProps) {
   const myRole = room.participants.find((p) => p.participantId === participantId)?.role;
   const isHost = myRole === "host";
@@ -257,6 +264,18 @@ export function Lobby({
                 />
               </Card>
 
+              {/* AI お題生成の解錠（host 限定・合言葉方式）。入力欄は常時表示する。 */}
+              {isHost && onAiUnlock && onProblemModeSet && (
+                <Card>
+                  <AiUnlockPanel
+                    unlocked={!!room.aiUnlocked}
+                    aiMode={room.problemMode === "ai"}
+                    onUnlock={onAiUnlock}
+                    onModeSet={onProblemModeSet}
+                  />
+                </Card>
+              )}
+
               {/* お題（開始前にここで決める・US3）。確定済みなら editor+ は編集できる。 */}
               <Card>
                 <SectionHeader icon={Code} color="text-[var(--signal)]" title="お題" />
@@ -275,7 +294,11 @@ export function Lobby({
                   <div className="space-y-3">
                     <div className="py-8 text-center text-[var(--bone-subtle)]">
                       <span className="inline-block h-4 w-4 animate-pulse rounded-full bg-[var(--signal)] mb-2" aria-hidden="true" />
-                      <p>お題を準備中です…</p>
+                      <p>
+                        {room.aiUnlocked && room.problemMode === "ai"
+                          ? "AI がお題を作成中です…（最大 1 分）"
+                          : "お題を準備中です…"}
+                      </p>
                     </div>
                     {/* お題は自動で用意される旨を伝える控えめなヒント（R5-2）。
                         開始ボタンはお題が用意できると有効になる（disabled={!room.problem}）ため、

@@ -55,9 +55,12 @@ function Badges({
       {language && (
         <span className="rounded-sm bg-[var(--panel-2)] px-2 py-0.5 font-semibold text-[var(--bone-muted)] border border-[var(--hairline)]">{language}</span>
       )}
-      {/* 持ち込み（自前のお題）は明示する。定型/AI はバッジ化しない（出題源が一意のため）。 */}
+      {/* 持ち込み（自前のお題）は明示する。AI 生成はバッジで出題元を示す。 */}
       {source === "custom" && (
         <span className="rounded-sm bg-[rgba(63,178,127,0.15)] px-2 py-0.5 text-[var(--ok)] border border-[rgba(63,178,127,0.3)]">持ち込み</span>
+      )}
+      {source === "ai" && (
+        <span className="rounded-sm bg-[rgba(255,74,46,0.15)] px-2 py-0.5 text-[var(--signal)] border border-[rgba(255,74,46,0.3)]">AI</span>
       )}
       {edited && (
         <span className="rounded-sm bg-[rgba(255,74,46,0.14)] px-2 py-0.5 text-[var(--signal)] border border-[rgba(255,74,46,0.3)]">編集済</span>
