@@ -50,20 +50,17 @@
 - **手順**: VPS で `sudo ss -tlnp 'sport = :42179'`（または `sudo lsof -i :42179`）。
   caddy(PID 540)/bun(PID 2071) とは別の可能性。おそらく Caddy 関連だが確定させる。
 
-## [機能] AI お題生成（保留 → 再開検討）
+## [完了] AI お題生成（2026-06-13）
 
-- **状態**: 保留（v2.0.0 後に調査済・方針確定済）
-- **方針**: **ルーム作成者（ホスト）の Claude サブスクのみ**で生成（参加者各自同時は SDK 制約上非現実的）。
-- **事実（調査結果）**:
-  - Agent SDK のサブスク認証 = OAuth トークン `claude setup-token` → `CLAUDE_CODE_OAUTH_TOKEN`（`sk-ant-oat01-`）。
-  - Claude Code CLI をラップ＝**Node 実行・ブラウザ不可**。クレジットは個人アカウント単位で**共有/プール不可**。
-  - ⚠ **ToS**: 事前承認なく第三者プロダクトに claude.ai ログイン/レート枠を組み込む提供は不可
-    → **自己ホストで自分の契約の範囲**に限る。
-- **実装案（推奨）**: サーバ（Bun）に `AgentSdkProblemProvider`（`claude -p` 子プロセス推奨・**Bun 互換は要 PoC**）を追加し、
-  既存 `problemMode==="ai"` 経路 + `ProblemDelegator` の deadline/フォールバック + `buildProblemPrompt`/`validateProblem` に合流。
-  トークンは**ホストの env のみ**＝secret-zero 維持。未設定時は従来どおり定型お題（`NoAiProvider`・外部リクエスト無し）。
-- **既存資産**: 休眠 BYOK 一式（`key-storage`/`byok`/`AiSettingsModal`）はテスト保護下で残置済（復活時に App 配線を再実装）。
-- **完了条件（叩き台）**: ホスト env にトークンがあるときのみ AI 生成、無ければ定型。deadline 超過で定型へフォールバック。全テスト緑。
+- **状態**: ✅ DONE（main マージ済 `5b19113`・**本番未デプロイ**）
+- **実装**: サーバ常駐 `claude -p` 子プロセス（`node:child_process`・Bun で動作）で生成。
+  運営者サブスクの月次 Agent SDK クレジット（2026-06-15 開始の公式制度）を使用。
+  合言葉（`AI_UNLOCK_KEY`）解錠方式＝知っているルームの host だけが有効化。
+  失敗は全経路で定型バンクへ縮退・濫用抑制（同時1/クールダウン10s/日次上限）・`/status` に生成カウンタ。
+- **正本**: spec `docs/superpowers/specs/2026-06-12-ai-problem-generation-design.md` /
+  計画 `docs/superpowers/plans/2026-06-12-ai-problem-generation.md` / 手順 `deploy/README.md`「AI お題生成」
+- **検証**: 全 665 テスト緑・実 claude -p スモーク・ブラウザ E2E（解錠失敗→解錠→AI 生成 25s→定型復帰）済
+- **残（デプロイ時）**: VPS に claude バイナリ導入 + env 2 変数追記 + systemd PATH（`deploy/README.md` 参照）
 
 ---
 
