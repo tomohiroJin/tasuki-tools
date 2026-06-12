@@ -17,6 +17,8 @@ import {
   MAX_PROBLEM_HINTS,
   MAX_PASSPHRASE,
   MAX_AI_UNLOCK_KEY,
+  MAX_CONFIG_LANGUAGE,
+  MAX_CONFIG_DIFFICULTY,
 } from "./aggregate.js";
 
 // ─── 共通 ───────────────────────────────────────────────────────────────────
@@ -32,12 +34,15 @@ const requirementStr = v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_PROBLE
 const hintStr = v.pipe(v.string(), v.maxLength(MAX_PROBLEM_HINT));
 // パスフレーズ（空文字=解除を許すため minLength なし。最大長のみ課す）。
 const passphraseStr = v.pipe(v.string(), v.maxLength(MAX_PASSPHRASE));
+// 言語・難易度は AI お題生成のプロンプトへ渡るため境界で最大長を課す（A04・注入/浪費抑制）。
+const languageStr = v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_CONFIG_LANGUAGE));
+const difficultyStr = v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_CONFIG_DIFFICULTY));
 
 // ─── SessionConfig スキーマ ─────────────────────────────────────────────────
 
 export const SessionConfigSchema = v.object({
-  language: nonEmptyString,
-  difficulty: nonEmptyString,
+  language: languageStr,
+  difficulty: difficultyStr,
   // 境界では 1 人以上を許可する（ルームは作成者 1 人で始まり、join で増える＝2層モデル）。
   // 「セッション中に 2 人未満へ削除しない」という不変条件は decide の guard 側で担保する。
   members: v.pipe(
