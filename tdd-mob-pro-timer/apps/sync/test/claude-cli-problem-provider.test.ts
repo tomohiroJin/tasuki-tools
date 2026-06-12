@@ -101,4 +101,29 @@ describe("ClaudeCliProblemProvider", () => {
     await expect(p).rejects.toThrow(/abort/i);
     expect(fake.child.kill).toHaveBeenCalled();
   });
+
+  it("generate 前に abort 済みの signal は即 reject する（spawn 不要）", async () => {
+    const fake = makeFakeChild();
+    const { provider, spawnFn } = makeProvider(fake);
+    const ac = new AbortController();
+    ac.abort();
+    await expect(provider.generate("TypeScript", "easy", ac.signal)).rejects.toThrow(
+      "aborted before start",
+    );
+    // 既に abort 済みなので spawn は呼ばれない
+    expect((spawnFn as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(0);
+  });
+
+  it("AI 応答が JSON を含まない場合は reject する", async () => {
+    const fake = makeFakeChild();
+    const { provider } = makeProvider(fake);
+    const p = provider.generate("TypeScript", "easy", new AbortController().signal);
+    // result フィールドに JSON のない文字列を返す
+    fake.stdout.emit(
+      "data",
+      Buffer.from(JSON.stringify({ result: "no json here" })),
+    );
+    (fake.child as unknown as EventEmitter).emit("close", 0);
+    await expect(p).rejects.toThrow(/AI 応答の解析に失敗/);
+  });
 });

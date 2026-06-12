@@ -116,16 +116,23 @@ export class ClaudeCliProblemProvider implements ServerProblemProvider {
           );
           return;
         }
-        settle(() => {
-          try {
-            // --output-format json の外殻 { result: "...", ... } から本文を取り出す
-            const outer = JSON.parse(stdout) as { result?: unknown };
-            const body = typeof outer.result === "string" ? outer.result : stdout;
-            resolve(extractJsonObject(body));
-          } catch (e) {
-            reject(new Error(`AI 応答の解析に失敗: ${(e as Error).message}`));
+        // JSON 解析は settle の外で行い、成否を settle で一括 settle する
+        // → reject を settle のガード外で呼ばないことで二重 settle を防ぐ
+        let parsed: unknown;
+        try {
+          // --output-format json の外殻 { result: "...", ... } から本文を取り出す
+          const outer = JSON.parse(stdout) as { result?: unknown };
+          if (typeof outer.result !== "string") {
+            throw new Error(
+              `--output-format json の result フィールドが文字列ではありません: ${JSON.stringify(outer).slice(0, 200)}`,
+            );
           }
-        });
+          parsed = extractJsonObject(outer.result);
+        } catch (e) {
+          settle(() => reject(new Error(`AI 応答の解析に失敗: ${(e as Error).message}`)));
+          return;
+        }
+        settle(() => resolve(parsed));
       });
 
       // プロンプトは stdin 渡し
