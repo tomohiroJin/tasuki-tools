@@ -269,6 +269,11 @@ export const MAX_PROBLEM_TITLE = 200;
 export const MAX_PROBLEM_TEXT = 4000; // description / exampleTest
 export const MAX_PROBLEM_HINT = 500; // ヒント 1 件あたり
 export const MAX_PROBLEM_HINTS = 20; // ヒント配列の件数
+/** セッション設定の言語・難易度の最大長。AI お題生成では buildProblemPrompt 経由で
+ *  claude -p のプロンプトへ生で渡るため、境界で上限を課しプロンプト膨張による
+ *  クレジット浪費・注入の余地を抑える（UI は固定ドロップダウンだが境界は緩いと無防備）。 */
+export const MAX_CONFIG_LANGUAGE = 40;
+export const MAX_CONFIG_DIFFICULTY = 20;
 
 /** ルームパスフレーズの最大長（巨大入力 DoS 対策・R4-2）。 */
 export const MAX_PASSPHRASE = 128;
