@@ -14,7 +14,7 @@ function makeClock(start: number): Clock & { advance: (ms: number) => void } {
 }
 
 describe("AiLimiter", () => {
-  it("初回は取得でき、release 前の同一ルーム再取得は concurrent で拒否", () => {
+  it("初回は取得でき、release 前の別ルームの取得は concurrent で拒否", () => {
     const clock = makeClock(1_000_000);
     const limiter = new AiLimiter({ clock, dailyLimit: 10 });
     const a = limiter.tryAcquire("R1");
@@ -60,6 +60,14 @@ describe("AiLimiter", () => {
     // UTC 日付が変わるとリセット
     clock.advance(11 * 60 * 1000);
     expect(limiter.tryAcquire("R3").ok).toBe(true);
+  });
+
+  it("dailyLimit=0 なら常に daily で拒否する（実質無効化）", () => {
+    const clock = makeClock(1_000_000);
+    const limiter = new AiLimiter({ clock, dailyLimit: 0 });
+    const r = limiter.tryAcquire("R1");
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.reason).toBe("daily");
   });
 
   it("todayCount / totalCount が取得成功数を数える", () => {

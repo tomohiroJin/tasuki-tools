@@ -84,12 +84,15 @@ export class AiLimiter {
     return this.total;
   }
 
-  /** UTC 日付が変わっていたら日次カウントをリセットする */
+  /** UTC 日付が変わっていたら日次カウントをリセットする。
+   *  lastStartByRoom も同時に掃除する（無上限成長の防止）。日付境界をまたぐ
+   *  クールダウン（最大 10 秒）が 1 回消えるが、実害がないため許容する。 */
   private rolloverIfNeeded(now: number): void {
     const key = new Date(now).toISOString().slice(0, 10);
     if (key !== this.dayKey) {
       this.dayKey = key;
       this.dayCount = 0;
+      this.lastStartByRoom.clear();
     }
   }
 }
