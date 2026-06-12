@@ -179,6 +179,7 @@ curl -H "x-admin-token: $ADMIN_TOKEN" http://127.0.0.1:8787/admin/rooms
 - 消費の確認: `/status` の `aiGeneration: { today, total }`（127.0.0.1 限定・ADMIN_TOKEN 必須）。
 - トークン失効時: 生成は定型バンクへ自動縮退（サービス無停止）。`claude setup-token` で
   再発行し env を更新 → `sudo systemctl restart tasuki-sync`。
+- 一時停止（トークン保持のまま）: env に `AI_DAILY_LIMIT=0` を設定して restart → その日の生成を全面停止（定型へ縮退）。
 - 全面無効化（ロールバック）: env の `CLAUDE_CODE_OAUTH_TOKEN`・`AI_UNLOCK_KEY` を消して restart。
 - メモリ: `claude -p` は約 355MB（実測）。同時実行はアプリ側で 1 に直列化済み
   （VPS 1GB RAM・swap 2GB 前提）。

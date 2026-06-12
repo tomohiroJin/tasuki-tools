@@ -9,8 +9,8 @@ import type { Clock } from "../ports/clock.js";
 
 export interface AiLimiterOptions {
   clock: Clock;
-  /** 日次生成回数上限（グローバル）。
-   * `intEnv` 経由の env 設定では 0 以下は既定値 100 にフォールバックする（0 で無効化したい場合はコード上の直接指定でのみ可能）。 */
+  /** 日次生成回数上限（グローバル）。0 ならその日の生成を全面停止する。
+   * env `AI_DAILY_LIMIT` は 0 を許容する（負数・非数値のみ既定 100 にフォールバック）。 */
   dailyLimit: number;
   /** ルームごとのクールダウン ms（既定 10 秒） */
   cooldownMs?: number;
