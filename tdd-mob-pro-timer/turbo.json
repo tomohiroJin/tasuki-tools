@@ -21,7 +21,21 @@
     },
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "passThroughEnv": [
+        "PORT",
+        "HOST",
+        "ALLOWED_ORIGINS",
+        "MAX_CONNECTIONS",
+        "MAX_ROOMS",
+        "ROOM_IDLE_TTL_MS",
+        "ADMIN_TOKEN",
+        "AI_UNLOCK_KEY",
+        "CLAUDE_CODE_OAUTH_TOKEN",
+        "AI_PROBLEM_MODEL",
+        "AI_GENERATION_TIMEOUT_MS",
+        "AI_DAILY_LIMIT"
+      ]
     }
   }
 }
