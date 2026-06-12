@@ -16,6 +16,7 @@ import {
   MAX_PROBLEM_HINT,
   MAX_PROBLEM_HINTS,
   MAX_PASSPHRASE,
+  MAX_AI_UNLOCK_KEY,
 } from "./aggregate.js";
 
 // ─── 共通 ───────────────────────────────────────────────────────────────────
@@ -216,6 +217,11 @@ const RoomPassphraseSetCommand = v.object({
   passphrase: passphraseStr,
 });
 
+const AiUnlockCommand = v.object({
+  command: v.literal("ai.unlock"),
+  key: v.pipe(v.string(), v.maxLength(MAX_AI_UNLOCK_KEY)),
+});
+
 const RoleSetCommand = v.object({
   command: v.literal("role.set"),
   participantId,
@@ -263,6 +269,7 @@ export const CommandSchema = v.variant("command", [
   ProblemEditCommand,
   ProblemModeSetCommand,
   RoomPassphraseSetCommand,
+  AiUnlockCommand,
   RoleSetCommand,
   HostTransferCommand,
   PresencePingCommand,
@@ -334,6 +341,7 @@ export const RoomSchema = v.object({
   // v2 追加フィールド（任意化で後方互換）
   problemMode: v.optional(v.picklist(["ai", "fallback"])),
   passphraseProtected: v.optional(v.boolean()),
+  aiUnlocked: v.optional(v.boolean()),
 });
 
 const SnapshotMsg = v.object({
