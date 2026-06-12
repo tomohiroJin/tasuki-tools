@@ -83,7 +83,11 @@ export function handleAdminHttp(
   const report = deps.getReport();
   const body =
     path === "/status"
-      ? { activeRooms: report.activeRooms, totalReclaimed: report.totalReclaimed }
+      ? {
+          activeRooms: report.activeRooms,
+          totalReclaimed: report.totalReclaimed,
+          ...(report.aiGeneration ? { aiGeneration: report.aiGeneration } : {}),
+        }
       : report;
   return { status: 200, contentType: "application/json", body: JSON.stringify(body) };
 }

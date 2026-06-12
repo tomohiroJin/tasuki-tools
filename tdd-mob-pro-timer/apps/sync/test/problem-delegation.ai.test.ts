@@ -332,6 +332,51 @@ describe("ProblemDelegator サーバ生成", () => {
     expect(room?.problem).not.toBeNull();
   });
 
+  it("maxConcurrent=1（本番既定）でもリロールで詰まらない（cancel が同期 release する）", async () => {
+    // Arrange: 1回目は pending のまま。2回目が呼ばれ成功する
+    let resolveFirst!: (v: unknown) => void;
+    const firstGeneration = new Promise<unknown>((resolve) => {
+      resolveFirst = resolve;
+    });
+
+    const secondProblem = { ...VALID_PROBLEM, title: "Rerolled Kata" };
+
+    const generateFn = vi
+      .fn()
+      .mockReturnValueOnce(firstGeneration)
+      .mockResolvedValueOnce(secondProblem);
+
+    const provider: ServerProblemProvider = { generate: generateFn };
+
+    // maxConcurrent を省略（= 1、本番既定）。cancel が release を同期実行するため
+    // リロール時に枠が即座に戻り、2 回目の tryAcquire が成功することを検証する。
+    const limiter = new AiLimiter({ clock, dailyLimit: 100, cooldownMs: 0 });
+    const delegator = new ProblemDelegator({
+      store,
+      clock,
+      broadcaster,
+      serverProvider: provider,
+      aiLimiter: limiter,
+    });
+    store.put(makeRoom());
+
+    // Act: 1 回目 request（pending）→ リロール（cancel→ 2 回目 request）
+    delegator.request("AI01", "req-1");
+    delegator.request("AI01", "req-2");
+
+    // 2 回目の生成が完了するのを待つ
+    await vi.runAllTimersAsync();
+
+    // 旧 Promise を resolve（stale なので無視されるべき）
+    resolveFirst(VALID_PROBLEM);
+    await vi.runAllTimersAsync();
+
+    // Assert: 2 回目の結果（Rerolled Kata）が確定
+    const room = store.get("AI01");
+    expect(room?.problem?.title).toBe("Rerolled Kata");
+    expect(room?.problem?.source).toBe("ai");
+  });
+
   it("limiter が拒否したら provider を呼ばず定型確定", async () => {
     // Arrange: dailyLimit: 0 でどんな取得も拒否される
     const provider: ServerProblemProvider = {

@@ -111,8 +111,10 @@ export class ClaudeCliProblemProvider implements ServerProblemProvider {
       child.on("error", (err) => settle(() => reject(err)));
       child.on("close", (code) => {
         if (code !== 0) {
+          // stderr にトークン様文字列が混入しても外へ出さない（ログ衛生・多層防御）
+          const redacted = stderr.replace(/sk-ant-[\w-]+/g, "[redacted]");
           settle(() =>
-            reject(new Error(`claude -p exit ${code}: ${stderr.slice(0, 200)}`)),
+            reject(new Error(`claude -p exit ${code}: ${redacted.slice(0, 200)}`)),
           );
           return;
         }

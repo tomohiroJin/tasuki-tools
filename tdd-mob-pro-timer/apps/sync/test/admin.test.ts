@@ -115,4 +115,16 @@ describe("handleAdminHttp", () => {
   it("クエリ文字列付きでも /status と認識", () => {
     expect(handleAdminHttp("GET", "/status?x=1", { "x-admin-token": "secret" }, deps)?.status).toBe(200);
   });
+  it("/status レスポンスに aiGeneration が含まれる（report にあるとき）", () => {
+    const getReportWithAi = () =>
+      buildAdminReport([room("AA", 0, 1, false)], 3, { today: 5, total: 12 });
+    const r = handleAdminHttp("GET", "/status", { "x-admin-token": "secret" }, {
+      adminToken: "secret",
+      getReport: getReportWithAi,
+    })!;
+    expect(r.status).toBe(200);
+    const b = JSON.parse(r.body);
+    expect(b.aiGeneration).toEqual({ today: 5, total: 12 });
+    expect(b.rooms).toBeUndefined();
+  });
 });

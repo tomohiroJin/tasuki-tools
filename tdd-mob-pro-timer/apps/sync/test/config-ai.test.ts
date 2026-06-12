@@ -16,6 +16,11 @@ describe("AI お題生成の設定", () => {
     expect(c.aiUnlockKey).toBeUndefined();
   });
 
+  it("空白のみの CLAUDE_CODE_OAUTH_TOKEN は未設定扱い", () => {
+    const c = loadSyncConfig({ CLAUDE_CODE_OAUTH_TOKEN: "   " });
+    expect(c.claudeOauthToken).toBeUndefined();
+  });
+
   it("設定値が反映される（trim 込み）", () => {
     const c = loadSyncConfig({
       AI_UNLOCK_KEY: " himitsu ",

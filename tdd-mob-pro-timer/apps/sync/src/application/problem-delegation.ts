@@ -60,7 +60,8 @@ export class ProblemDelegator {
   private readonly aiTimeoutMs: number;
   /** roomCode → 進行中の委譲状態 */
   private readonly active = new Map<string, DelegationState>();
-  /** roomCode → 進行中のサーバ生成（リロール/cancel で abort する） */
+  /** roomCode → 進行中のサーバ生成（リロール/cancel で abort する）。
+   * active（クライアント委譲）と activeServer（サーバ生成）は同一ルームで同時に存在しない（request 冒頭の cancel が両方を消すため）。 */
   private readonly activeServer = new Map<string, ServerGenerationState>();
 
   constructor(deps: ProblemDelegatorDeps) {
@@ -96,7 +97,7 @@ export class ProblemDelegator {
         this.startServerGeneration(roomCode, requestId, room, acquired.release);
         return;
       }
-      console.warn(`AI 生成スキップ (${roomCode}): ${acquired.reason} — 定型へ縮退`);
+      console.warn(`AI 生成スキップ (${roomCode}, ${requestId}): ${acquired.reason} — 定型へ縮退`);
     }
 
     this.startClientDelegation(roomCode, requestId, room);
@@ -157,7 +158,7 @@ export class ProblemDelegator {
   private failoverFromServer(roomCode: string, requestId: string, reason: string): void {
     if (!this.isCurrentServerRequest(roomCode, requestId)) return;
     this.clearServer(roomCode);
-    console.warn(`AI 生成失敗 (${roomCode}): ${reason} — 定型へ縮退`);
+    console.warn(`AI 生成失敗 (${roomCode}, ${requestId}): ${reason} — 定型へ縮退`);
     const room = this.store.get(roomCode);
     if (!room) return;
     this.startClientDelegation(roomCode, requestId, room);

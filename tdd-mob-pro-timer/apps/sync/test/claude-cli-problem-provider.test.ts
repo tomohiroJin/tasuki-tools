@@ -102,6 +102,29 @@ describe("ClaudeCliProblemProvider", () => {
     expect(fake.child.kill).toHaveBeenCalled();
   });
 
+  it("トークンが argv に混入しない", async () => {
+    const fake = makeFakeChild();
+    const { provider, spawnFn } = makeProvider(fake);
+    const p = provider.generate("TypeScript", "easy", new AbortController().signal);
+    fake.stdout.emit("data", Buffer.from(JSON.stringify({ result: JSON.stringify(PROBLEM_JSON) })));
+    (fake.child as unknown as EventEmitter).emit("close", 0);
+    await p;
+    const args = (spawnFn as ReturnType<typeof vi.fn>).mock.calls[0]![1] as string[];
+    expect(args.join(" ")).not.toContain("sk-ant-oat01-test");
+  });
+
+  it("stderr 中のトークン様文字列はエラーメッセージで伏せられる", async () => {
+    const fake = makeFakeChild();
+    const { provider } = makeProvider(fake);
+    const p = provider.generate("TypeScript", "easy", new AbortController().signal);
+    fake.stderr.emit("data", Buffer.from("auth failed for sk-ant-oat01-secret123"));
+    (fake.child as unknown as EventEmitter).emit("close", 1);
+    await expect(p).rejects.toThrow(/\[redacted\]/);
+    await p.catch((e: unknown) => {
+      expect(String(e)).not.toContain("secret123");
+    });
+  });
+
   it("generate 前に abort 済みの signal は即 reject する（spawn 不要）", async () => {
     const fake = makeFakeChild();
     const { provider, spawnFn } = makeProvider(fake);
