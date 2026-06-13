@@ -255,26 +255,26 @@ export function Lobby({
           label: "お題・設定",
           content: (
             <div className="space-y-6">
-              {/* セッション設定（言語/難易度/間隔/詳細設定）。host(editor+) が開始前に決める。 */}
+              {/* セッション設定（言語/難易度/間隔/詳細設定）。host(editor+) が開始前に決める。
+                  AI お題生成の解錠は独立カードにせず設定カードの末尾に控えめに同居させる（隠し機能）。 */}
               <Card>
                 <ConfigPanel
                   config={room.config}
                   canEdit={isEditor}
                   onChange={(patch) => onConfigSet?.(patch)}
                 />
+                {/* AI お題生成の解錠（host 限定・合言葉方式）。解錠前はテキストリンクのみ。 */}
+                {isHost && onAiUnlock && onProblemModeSet && (
+                  <div className="mt-4 pt-4 border-t border-[var(--hairline)]">
+                    <AiUnlockPanel
+                      unlocked={!!room.aiUnlocked}
+                      aiMode={room.problemMode === "ai"}
+                      onUnlock={onAiUnlock}
+                      onModeSet={onProblemModeSet}
+                    />
+                  </div>
+                )}
               </Card>
-
-              {/* AI お題生成の解錠（host 限定・合言葉方式）。入力欄は常時表示する。 */}
-              {isHost && onAiUnlock && onProblemModeSet && (
-                <Card>
-                  <AiUnlockPanel
-                    unlocked={!!room.aiUnlocked}
-                    aiMode={room.problemMode === "ai"}
-                    onUnlock={onAiUnlock}
-                    onModeSet={onProblemModeSet}
-                  />
-                </Card>
-              )}
 
               {/* お題（開始前にここで決める・US3）。確定済みなら editor+ は編集できる。 */}
               <Card>
