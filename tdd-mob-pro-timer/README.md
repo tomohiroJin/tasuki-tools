@@ -78,20 +78,29 @@ claude setup-token      # → sk-ant-oat01-... が出力される
 >
 > ⚠ トークンは個人アカウントのクレジットを消費します（共有・プール不可）。自分のローカル検証に限って使ってください。
 
-#### 2. env を渡して起動する
+#### 2. `.env` に設定して起動する
 
-env を付けて `pnpm dev`（turbo）を起動します。AI 関連 env は `turbo.json` の `dev.passThroughEnv` に
-宣言済みのため、turbo の strict env 下でも sync プロセスへ透過します（新しい env を足すときは turbo.json も更新）。
+sync は Bun 起動で **cwd（`apps/sync`）の `.env` を自動で読み込みます**（dotenv 等は不要）。
+テンプレートをコピーして値を埋めてください。`.env` は `.gitignore` 済みなので誤コミットの心配はありません。
 
 ```bash
-CLAUDE_CODE_OAUTH_TOKEN=sk-ant-oat01-... \
-AI_UNLOCK_KEY=任意の合言葉 \
-AI_PROBLEM_MODEL=haiku \
+cp apps/sync/.env.example apps/sync/.env
+# apps/sync/.env を編集し、最低限 CLAUDE_CODE_OAUTH_TOKEN と AI_UNLOCK_KEY を設定
+```
+
+ルートから `pnpm dev` を起動すると、turbo が各ワークスペースを適切な作業ディレクトリで回し、
+sync は `apps/sync` を cwd とするため、この `apps/sync/.env` が読まれます。
+
+```bash
 pnpm dev
 ```
 
 起動ログに `AI お題生成: 有効 (model=haiku)` が出れば設定成功です（無効時は `無効 (トークン/合言葉 未設定)`）。
 モデルは未指定なら `sonnet`。検証では速くて安い `haiku` が便利です。
+
+> コマンドラインに env を直接書いて渡すこともできます（`CLAUDE_CODE_OAUTH_TOKEN=... pnpm dev`）。
+> その場合 `turbo.json` の `dev.passThroughEnv` 経由で透過します（新しい env を足すときは
+> `passThroughEnv` も更新）。ただし `.env` 方式のほうがシェル履歴にトークンが残らず安全です。
 
 AI 関連の環境変数:
 
