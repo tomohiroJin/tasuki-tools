@@ -59,16 +59,16 @@ function Badges({
       )}
       {/* 出題元を必ず明示する（AI 生成 / 定型 / 持ち込み）。無印を作らない。 */}
       {source === "ai" ? (
-        <span className="inline-flex items-center gap-1 rounded-sm bg-[rgba(255,74,46,0.14)] px-2 py-0.5 text-[var(--signal)] border border-[rgba(255,74,46,0.3)]">
+        <span className="inline-flex items-center gap-1 rounded-sm bg-[rgba(255,74,46,0.14)] px-2 py-0.5 font-semibold text-[var(--signal)] border border-[rgba(255,74,46,0.3)]">
           <Sparkles className="w-3 h-3" aria-hidden="true" /> AI 生成
         </span>
       ) : source === "custom" ? (
-        <span className="rounded-sm bg-[rgba(63,178,127,0.15)] px-2 py-0.5 text-[var(--ok)] border border-[rgba(63,178,127,0.3)]">持ち込み</span>
+        <span className="rounded-sm bg-[rgba(63,178,127,0.15)] px-2 py-0.5 font-semibold text-[var(--ok)] border border-[rgba(63,178,127,0.3)]">持ち込み</span>
       ) : (
-        <span className="rounded-sm bg-[var(--panel-2)] px-2 py-0.5 text-[var(--bone-muted)] border border-[var(--hairline)]">定型</span>
+        <span className="rounded-sm bg-[var(--panel-2)] px-2 py-0.5 font-semibold text-[var(--bone-muted)] border border-[var(--hairline)]">定型</span>
       )}
       {edited && (
-        <span className="rounded-sm bg-[rgba(255,74,46,0.14)] px-2 py-0.5 text-[var(--signal)] border border-[rgba(255,74,46,0.3)]">編集済</span>
+        <span className="rounded-sm bg-[rgba(255,74,46,0.14)] px-2 py-0.5 font-semibold text-[var(--signal)] border border-[rgba(255,74,46,0.3)]">編集済</span>
       )}
     </span>
   );
@@ -126,10 +126,11 @@ export function ProblemEditor({
   }
 
   return (
+    // 生成中は減光し、別のお題/編集/貼り付けを無効化（pointer-events + 各ボタン disabled）。コピーは害がないので許容
     <div
       role="group"
       aria-label="お題"
-      aria-busy={generating}
+      aria-busy={generating || undefined}
       className={`flex flex-col gap-3 ${generating ? "opacity-50 pointer-events-none" : ""}`}
     >
       {/* ヘッダー: バッジ＋タイトル＋アクション */}
@@ -151,13 +152,14 @@ export function ProblemEditor({
           {canEdit && (
             <GhostButton
               onClick={() => setEditing((v) => !v)}
+              disabled={generating}
               className={`text-sm ${editing ? "ring-2 ring-[var(--signal)]" : ""}`}
             >
               <span className="flex items-center gap-1.5"><Pencil className="w-4 h-4" aria-hidden="true" /> {editing ? "編集を閉じる" : "内容を編集"}</span>
             </GhostButton>
           )}
           {canEdit && (
-            <GhostButton onClick={onPaste} aria-label="お題を持ち込む（貼り付け）" className="text-sm">
+            <GhostButton onClick={onPaste} disabled={generating} aria-label="お題を持ち込む（貼り付け）" className="text-sm">
               <span className="flex items-center gap-1.5"><ClipboardPaste className="w-4 h-4" aria-hidden="true" /> 貼り付け</span>
             </GhostButton>
           )}

@@ -3,7 +3,7 @@
  * T050/T051: FR-009,012,013,038,039,040,041 (US3)
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import React from "react";
 import { ProblemEditor } from "../../src/ui/components/ProblemEditor.js";
@@ -245,6 +245,8 @@ const baseProps = {
 };
 
 describe("ProblemEditor 出題元ラベル", () => {
+  beforeEach(() => vi.clearAllMocks());
+
   it("source=ai は「AI 生成」ラベルを出す", () => {
     render(<ProblemEditor {...baseProps} problem={mkProblem({ source: "ai" })} />);
     expect(screen.getByText("AI 生成")).toBeTruthy();
@@ -264,6 +266,8 @@ describe("ProblemEditor 出題元ラベル", () => {
 });
 
 describe("ProblemEditor 生成中表示", () => {
+  beforeEach(() => vi.clearAllMocks());
+
   it("generating 時はボタンが「生成中…」で disabled・カードが aria-busy", () => {
     render(<ProblemEditor {...baseProps} problem={mkProblem({ source: "ai" })} generating />);
     const btn = screen.getByRole("button", { name: /生成中/ });
