@@ -90,6 +90,12 @@
    sudo chmod 600 /opt/tasuki/tasuki-sync.env
    ```
 
+   > ⚠ 本番の env は **必ず `tasuki-sync.env`（systemd の `EnvironmentFile`）で管理し、
+   > `WorkingDirectory`（`/opt/tasuki`）に `.env` という名前のファイルを置かないこと**。
+   > Bun は cwd の `.env` を自動読み込みするため、`/opt/tasuki/.env` を作ると意図せず読まれ、
+   > `tasuki-sync.env` に無い変数を上書き補完してしまう余地があります（ローカル開発用の
+   > `apps/sync/.env` 方式と混同しないよう注意）。
+
 5. **systemd ユニットを配置**（`ExecStart` の bun パスを `which bun` の結果に合わせてから）:
    ```bash
    sudo cp tasuki-sync.service /etc/systemd/system/
