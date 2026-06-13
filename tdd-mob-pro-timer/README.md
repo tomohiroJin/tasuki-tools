@@ -85,7 +85,8 @@ sync は Bun 起動で **cwd（`apps/sync`）の `.env` を自動で読み込み
 
 ```bash
 cp apps/sync/.env.example apps/sync/.env
-# apps/sync/.env を編集し、最低限 CLAUDE_CODE_OAUTH_TOKEN と AI_UNLOCK_KEY を設定
+# apps/sync/.env を編集（最低限 CLAUDE_CODE_OAUTH_TOKEN と AI_UNLOCK_KEY。
+# 下のログ例に合わせるなら AI_PROBLEM_MODEL=haiku も設定。未設定なら既定 sonnet）
 ```
 
 ルートから `pnpm dev` を起動すると、turbo が各ワークスペースを適切な作業ディレクトリで回し、
