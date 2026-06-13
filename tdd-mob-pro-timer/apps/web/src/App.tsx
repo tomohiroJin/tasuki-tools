@@ -16,6 +16,7 @@ import { NoAiProvider } from "./ai/no-ai.js";
 import type { ProblemProvider } from "./ai/provider.js";
 import { screenForPhase } from "./ui/screen.js";
 import { hostChangeMessage } from "./ui/host-change.js";
+import { shouldClearGenerating } from "./ui/problem-generation.js";
 import { Stage } from "./ui/primitives.js";
 import { saveRecord } from "./records/indexeddb.js";
 import { persistRecordIfComplete } from "./records/persist.js";
@@ -86,6 +87,12 @@ export default function App() {
   const bannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // ホスト交代検知用に直前 snapshot の hostParticipantId を保持する（R2-4）。
   const prevHostRef = useRef<string | undefined>(undefined);
+  // AI/定型のお題生成中（「別のお題にする」押下〜新お題確定まで）。スピナー＋減光に使う。
+  const [generatingProblem, setGeneratingProblem] = useState(false);
+  // onRoom（snapshot クロージャ）から最新値を読むための ref（roomRef 等と同じ二重管理パターン）。
+  const generatingRef = useRef(false);
+  // 生成が返らない異常で固まらないための安全弁タイマー。
+  const generatingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /** 代理参加者の一意な participantId を生成する（衝突回避のため乱数を含める） */
   const makeProxyId = () => `proxy-${Math.random().toString(36).slice(2, 10)}`;
@@ -102,6 +109,10 @@ export default function App() {
         const prevRoom = roomRef.current;
         roomRef.current = r;
         setRoom(r);
+        // 生成中で、お題の内容が前回から変化したら生成中を解除（AI 成功・定型縮退・タイムアウト確定の全経路）。
+        if (shouldClearGenerating(generatingRef.current, prevRoom?.problem ?? null, r.problem ?? null)) {
+          endGenerating();
+        }
         // サーバー権威の phase に全参加者が追従する（ホストの開始/完成が全員に反映）
         setMode(screenForPhase(r.phase));
         // ロビー（開始前）でお題が未確定なら、作成者が一度だけ代表生成を依頼する（US3）。
@@ -128,6 +139,7 @@ export default function App() {
           !!r.problem
         ) {
           newClient.send({ command: "problem.request", requestId: `req-${r.code}-cfg-${Date.now()}` });
+          beginGenerating();
         }
         // 完成フェーズかつ「完成（中断でない）」のとき、各端末でローカル記録を生成し
         // IndexedDB へ永続化する（FR-020/028/059）。中断（abort）では記録を作らない。
@@ -418,11 +430,30 @@ export default function App() {
     });
   };
 
+  // 生成中フラグを立て、65 秒の安全弁を張る（サーバ 60 秒タイムアウト＋余裕）。
+  const beginGenerating = () => {
+    setGeneratingProblem(true);
+    generatingRef.current = true;
+    if (generatingTimerRef.current) clearTimeout(generatingTimerRef.current);
+    generatingTimerRef.current = setTimeout(() => {
+      setGeneratingProblem(false);
+      generatingRef.current = false;
+    }, 65_000);
+  };
+  const endGenerating = () => {
+    setGeneratingProblem(false);
+    generatingRef.current = false;
+    if (generatingTimerRef.current) {
+      clearTimeout(generatingTimerRef.current);
+      generatingTimerRef.current = null;
+    }
+  };
+
   const regenerateProblem = () => {
     const code = roomRef.current?.code;
     if (code) {
+      beginGenerating();
       // 直近のお題と重複しにくい新規生成を代表へ依頼する（FR-012）。
-      // requestId を一意にして「別のお題にする」を毎回有効にする。
       client?.send({ command: "problem.request", requestId: `req-${code}-regen-${Date.now()}` });
     }
   };
@@ -462,6 +493,7 @@ export default function App() {
           key={room.code}
           room={room}
           participantId={participantId}
+          generatingProblem={generatingProblem}
           onStartSession={() => {
             if (!room.problem) {
               client?.send({ command: "problem.request", requestId: `req-${room.code}` });
@@ -494,6 +526,7 @@ export default function App() {
           key={room.code}
           room={room}
           participantId={participantId}
+          generatingProblem={generatingProblem}
           clockOffset={client?.clockOffset ?? 0}
           awaitingProblem={!room.problem}
           onSkip={() => act("SWITCH")}
