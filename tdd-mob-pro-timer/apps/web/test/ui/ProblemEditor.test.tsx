@@ -222,3 +222,57 @@ describe("ProblemEditor（T050/T051）", () => {
     expect(screen.getByRole("button", { name: /コピー/ })).toBeTruthy();
   });
 });
+
+// ─── 出題元ラベル ─────────────────────────────────────────────────────────────
+
+const mkProblem = (over: Partial<Problem> = {}): Problem => ({
+  title: "テストお題",
+  description: "説明",
+  requirements: ["r1", "r2", "r3"],
+  exampleTest: "test('x', () => {})",
+  hints: ["h1"],
+  ...over,
+});
+
+const baseProps = {
+  canEdit: true,
+  difficulty: "easy" as const,
+  language: "TypeScript",
+  onEdit: vi.fn(),
+  onCopy: vi.fn(),
+  onRegenerate: vi.fn(),
+  onPaste: vi.fn(),
+};
+
+describe("ProblemEditor 出題元ラベル", () => {
+  it("source=ai は「AI 生成」ラベルを出す", () => {
+    render(<ProblemEditor {...baseProps} problem={mkProblem({ source: "ai" })} />);
+    expect(screen.getByText("AI 生成")).toBeTruthy();
+  });
+  it("source=fallback は「定型」ラベルを出す", () => {
+    render(<ProblemEditor {...baseProps} problem={mkProblem({ source: "fallback" })} />);
+    expect(screen.getByText("定型")).toBeTruthy();
+  });
+  it("source 無し（undefined）も「定型」ラベルを出す", () => {
+    render(<ProblemEditor {...baseProps} problem={mkProblem()} />);
+    expect(screen.getByText("定型")).toBeTruthy();
+  });
+  it("source=custom は「持ち込み」ラベルを出す", () => {
+    render(<ProblemEditor {...baseProps} problem={mkProblem({ source: "custom" })} />);
+    expect(screen.getByText("持ち込み")).toBeTruthy();
+  });
+});
+
+describe("ProblemEditor 生成中表示", () => {
+  it("generating 時はボタンが「生成中…」で disabled・カードが aria-busy", () => {
+    render(<ProblemEditor {...baseProps} problem={mkProblem({ source: "ai" })} generating />);
+    const btn = screen.getByRole("button", { name: /生成中/ });
+    expect((btn as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByRole("group", { name: "お題" }).getAttribute("aria-busy")).toBe("true");
+  });
+  it("generating でない時は「別のお題にする」ボタン（有効）", () => {
+    render(<ProblemEditor {...baseProps} problem={mkProblem({ source: "ai" })} />);
+    const btn = screen.getByRole("button", { name: "別のお題にする" });
+    expect((btn as HTMLButtonElement).disabled).toBe(false);
+  });
+});

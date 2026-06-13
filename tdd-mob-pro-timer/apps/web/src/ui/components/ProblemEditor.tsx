@@ -9,7 +9,7 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { Dices, Pencil, ClipboardPaste, Copy, ChevronDown, ChevronRight } from "lucide-react";
+import { Dices, Loader2, Pencil, Sparkles, ClipboardPaste, Copy, ChevronDown, ChevronRight } from "lucide-react";
 import type { Problem } from "@tdd-mob/core";
 import { MAX_PROBLEM_TITLE, MAX_PROBLEM_TEXT } from "@tdd-mob/core/aggregate";
 import { GhostButton } from "../primitives.js";
@@ -25,6 +25,8 @@ interface ProblemEditorProps {
   language?: string;
   /** セッション中など、1行バーに畳んで表示する（⑫ 目立たせない）。 */
   compact?: boolean;
+  /** AI/定型のお題を生成中（「別のお題にする」押下〜確定まで）。スピナー＋減光に使う。 */
+  generating?: boolean;
   onEdit: (patch: Partial<Omit<Problem, "source" | "edited">>) => void;
   onCopy: () => void;
   onRegenerate: () => void;
@@ -55,12 +57,15 @@ function Badges({
       {language && (
         <span className="rounded-sm bg-[var(--panel-2)] px-2 py-0.5 font-semibold text-[var(--bone-muted)] border border-[var(--hairline)]">{language}</span>
       )}
-      {/* 持ち込み（自前のお題）は明示する。AI 生成はバッジで出題元を示す。 */}
-      {source === "custom" && (
+      {/* 出題元を必ず明示する（AI 生成 / 定型 / 持ち込み）。無印を作らない。 */}
+      {source === "ai" ? (
+        <span className="inline-flex items-center gap-1 rounded-sm bg-[rgba(255,74,46,0.14)] px-2 py-0.5 text-[var(--signal)] border border-[rgba(255,74,46,0.3)]">
+          <Sparkles className="w-3 h-3" aria-hidden="true" /> AI 生成
+        </span>
+      ) : source === "custom" ? (
         <span className="rounded-sm bg-[rgba(63,178,127,0.15)] px-2 py-0.5 text-[var(--ok)] border border-[rgba(63,178,127,0.3)]">持ち込み</span>
-      )}
-      {source === "ai" && (
-        <span className="rounded-sm bg-[rgba(255,74,46,0.14)] px-2 py-0.5 text-[var(--signal)] border border-[rgba(255,74,46,0.3)]">AI</span>
+      ) : (
+        <span className="rounded-sm bg-[var(--panel-2)] px-2 py-0.5 text-[var(--bone-muted)] border border-[var(--hairline)]">定型</span>
       )}
       {edited && (
         <span className="rounded-sm bg-[rgba(255,74,46,0.14)] px-2 py-0.5 text-[var(--signal)] border border-[rgba(255,74,46,0.3)]">編集済</span>
@@ -80,6 +85,7 @@ export function ProblemEditor({
   difficulty,
   language,
   compact = false,
+  generating = false,
   onEdit,
   onCopy,
   onRegenerate,
@@ -120,7 +126,12 @@ export function ProblemEditor({
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div
+      role="group"
+      aria-label="お題"
+      aria-busy={generating}
+      className={`flex flex-col gap-3 ${generating ? "opacity-50 pointer-events-none" : ""}`}
+    >
       {/* ヘッダー: バッジ＋タイトル＋アクション */}
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex flex-col gap-1.5">
@@ -129,8 +140,12 @@ export function ProblemEditor({
         </div>
         <div className="flex flex-wrap gap-2">
           {canEdit && (
-            <GhostButton onClick={onRegenerate} aria-label="別のお題にする" className="text-sm">
-              <span className="flex items-center gap-1.5"><Dices className="w-4 h-4" aria-hidden="true" /> 別のお題にする</span>
+            <GhostButton onClick={onRegenerate} disabled={generating} aria-label={generating ? "生成中" : "別のお題にする"} className="text-sm">
+              {generating ? (
+                <span className="flex items-center gap-1.5"><Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> 生成中…</span>
+              ) : (
+                <span className="flex items-center gap-1.5"><Dices className="w-4 h-4" aria-hidden="true" /> 別のお題にする</span>
+              )}
             </GhostButton>
           )}
           {canEdit && (
