@@ -123,4 +123,14 @@ describe("ConfigPanel 個別ランダム", () => {
     render(<ConfigPanel config={cfg} canEdit={false} onChange={vi.fn()} />);
     expect(screen.queryByRole("button", { name: "言語をランダムに選ぶ" })).toBeNull();
   });
+
+  it("canEdit が false→true に変わってもフックエラーで落ちない（Rules of Hooks）", () => {
+    const { rerender } = render(<ConfigPanel config={cfg} canEdit={false} onChange={vi.fn()} />);
+    // 観覧者→編集者（ホスト移譲）への遷移を再現
+    expect(() =>
+      rerender(<ConfigPanel config={cfg} canEdit onChange={vi.fn()} />),
+    ).not.toThrow();
+    // 編集 UI（言語🎲）が出ている
+    expect(screen.getByRole("button", { name: "言語をランダムに選ぶ" })).toBeTruthy();
+  });
 });

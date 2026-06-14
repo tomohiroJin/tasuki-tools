@@ -43,6 +43,10 @@ function difficultyLabel(value: string): string {
 }
 
 export function ConfigPanel({ config, canEdit, onChange }: ConfigPanelProps) {
+  // ランダム対象の言語プール（ホストローカル永続）。チップで増減する。
+  // ※ Rules of Hooks: 早期 return より前で必ず呼ぶ（canEdit 変化でフック数が変わらないように）。
+  const [pool, setPool] = useState<string[]>(() => loadRandomLanguagePool());
+
   if (!canEdit) {
     return (
       <div className="text-sm text-[var(--bone-muted)]">
@@ -57,9 +61,6 @@ export function ConfigPanel({ config, canEdit, onChange }: ConfigPanelProps) {
   const navigatorEnabled = config.navigatorEnabled === true;
   const assertiveSwitch = config.assertiveSwitch === true;
   const breakOn = (config.breakEveryRotations ?? 0) >= 1;
-
-  // ランダム対象の言語プール（ホストローカル永続）。チップで増減する。
-  const [pool, setPool] = useState<string[]>(() => loadRandomLanguagePool());
 
   const togglePoolLang = (lang: string) => {
     setPool((prev) => {
