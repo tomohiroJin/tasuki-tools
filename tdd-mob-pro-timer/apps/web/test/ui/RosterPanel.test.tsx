@@ -316,6 +316,35 @@ describe("RosterPanel（T056/T057）", () => {
     });
   });
 
+  describe("RosterPanel scrollable", () => {
+    it("scrollable=true でリストに高さ上限とスクロールを付ける", () => {
+      render(
+        <RosterPanel
+          {...baseProps}
+          participants={[mk("a", "Alice")]}
+          currentDriverName="Alice"
+          rotation={["Alice"]}
+          scrollable
+        />,
+      );
+      const list = screen.getByRole("list");
+      expect(list.className).toContain("overflow-y-auto");
+      expect(list.className).toContain("max-h-[20rem]");
+    });
+
+    it("scrollable 未指定ならスクロールを付けない", () => {
+      render(
+        <RosterPanel
+          {...baseProps}
+          participants={[mk("a", "Alice")]}
+          currentDriverName="Alice"
+          rotation={["Alice"]}
+        />,
+      );
+      expect(screen.getByRole("list").className).not.toContain("overflow-y-auto");
+    });
+  });
+
   describe("ホスト移譲ボタン（v2.2 R2-3）", () => {
     it("ホストはオンラインの他参加者に『ホストを譲る』を見られ、押すと onTransferHost が呼ばれる", () => {
       const onTransferHost = vi.fn();

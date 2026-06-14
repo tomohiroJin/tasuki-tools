@@ -68,6 +68,8 @@ interface RosterPanelProps {
   /** ドライバー順の入れ替え（v2.3 #1・host）。fromIndex→toIndex（rotation 内の位置）。
    *  ドライバー行（rotation に含まれる）にのみ上/下ボタンを出す。 */
   onMove?: (fromIndex: number, toIndex: number) => void;
+  /** 参加者リストに高さ上限＋内部スクロールを付ける（項目4・Session で有効化）。 */
+  scrollable?: boolean;
   /** 自分のローテーション操作（一時離脱/復帰）を外部の自己トグルが担うか。
    *  true（Session）なら自分の行には一時離脱/復帰を出さず重複を避ける。
    *  false/未指定（Solo 等・自己トグル無し）なら自分の行にも出す。 */
@@ -88,6 +90,7 @@ export function RosterPanel({
   onTransferHost,
   rotation,
   onMove,
+  scrollable = false,
 }: RosterPanelProps) {
   const [proxyName, setProxyName] = useState("");
   const [showProxyInput, setShowProxyInput] = useState(false);
@@ -113,6 +116,19 @@ export function RosterPanel({
     setEditingId(null);
     setEditName("");
   };
+
+  // モブ順（rotation 順）に並べ替える（項目5）。rotation 内は index 昇順、
+  // rotation 外（観覧者等）は末尾に元の相対順で。rotation 未指定/空なら配列順のまま。
+  const orderOf = (name: string): number => {
+    const i = rotation ? rotation.indexOf(name) : -1;
+    return i >= 0 ? i : Number.MAX_SAFE_INTEGER;
+  };
+  const orderedParticipants = rotation
+    ? participants
+        .map((p, i) => ({ p, i }))
+        .sort((a, b) => orderOf(a.p.displayName) - orderOf(b.p.displayName) || a.i - b.i)
+        .map((x) => x.p)
+    : participants;
 
   return (
     <div className="w-full">
@@ -145,24 +161,12 @@ export function RosterPanel({
         </div>
       )}
 
-      <ul className="flex flex-col gap-1.5">
-        {/* モブ順（rotation 順）に並べ替える（項目5）。rotation 内は index 昇順、
-            rotation 外（観覧者等）は末尾に元の相対順で。rotation 未指定/空なら配列順のまま。 */}
-        {(rotation
-          ? participants
-              .map((p, i) => ({ p, i }))
-              .sort(
-                (a, b) =>
-                  (rotation.indexOf(a.p.displayName) >= 0
-                    ? rotation.indexOf(a.p.displayName)
-                    : Number.MAX_SAFE_INTEGER) -
-                  (rotation.indexOf(b.p.displayName) >= 0
-                    ? rotation.indexOf(b.p.displayName)
-                    : Number.MAX_SAFE_INTEGER) || a.i - b.i,
-              )
-              .map((x) => x.p)
-          : participants
-        ).map((p) => {
+      <ul
+        className={`flex flex-col gap-1.5 ${
+          scrollable ? "max-h-[20rem] overflow-y-auto pr-1" : ""
+        }`}
+      >
+        {orderedParticipants.map((p) => {
           const isCurrentDriver =
             currentDriverName !== "" && p.displayName === currentDriverName;
           const isMine = p.participantId === myParticipantId;
@@ -203,52 +207,46 @@ export function RosterPanel({
                 </div>
               ) : (
                 <>
-                  {/* 1段目: 在席ドット＋名前（最優先情報）。名前は省略せず全表示し、
-                      長名は折り返してでも必ず見せる（バッジ/操作と幅を奪い合わせない）。
-                      モブ順番号（inRotation のときのみ）を在席ドットの前に配置する。
-                      Task5 でこの番号 span は1行統合の際に統合行へ移設予定。 */}
-                  <div className="flex items-start gap-2">
+                  {/* 1段目: 順番＋在席ドット＋名前＋在席/役割バッジ＋「▶ 今」を1行に圧縮（項目4）。
+                      名前は省略せず折返し可。チップは改行禁止で塊のまま折り返す。 */}
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs [&>span.chip]:whitespace-nowrap">
                     {inRotation && (
                       <span
-                        className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold tabular bg-[var(--panel)] text-[var(--bone-muted)] border border-[var(--hairline)]"
+                        className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold tabular bg-[var(--panel)] text-[var(--bone-muted)] border border-[var(--hairline)]"
                         aria-label={`順番 ${rotationIndex + 1}`}
                       >
                         {rotationIndex + 1}
                       </span>
                     )}
                     <span
-                      className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${presenceDotClass(p.presence)}`}
+                      className={`h-2 w-2 rounded-full shrink-0 ${presenceDotClass(p.presence)}`}
                       aria-hidden="true"
                     />
-                    <span className="min-w-0 flex-1 font-medium text-[var(--bone)] break-words">
+                    <span className="min-w-0 font-medium text-sm text-[var(--bone)] break-words">
                       {p.displayName}
                     </span>
-                  </div>
-
-                  {/* 2段目: 在席/役割バッジ。チップは改行禁止で塊のまま折り返す（共通運命）。 */}
-                  <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1.5 pl-4 text-xs [&>span]:whitespace-nowrap">
                     <span className="sr-only">{presenceLabel(p.presence)}</span>
-                    <span className={presenceTextClass(p.presence)}>
+                    <span className={`chip ${presenceTextClass(p.presence)}`}>
                       {presenceLabel(p.presence)}
                     </span>
                     {p.role === "host" && (
-                      <span className="text-[var(--bone-muted)] font-semibold">主催者</span>
+                      <span className="chip text-[var(--bone-muted)] font-semibold">主催者</span>
                     )}
                     {p.role === "viewer" && (
-                      <span className="text-[var(--bone-subtle)]">観覧</span>
+                      <span className="chip text-[var(--bone-subtle)]">観覧</span>
                     )}
                     {p.isPlaceholder && (
-                      <span className="text-amber-300">代理</span>
+                      <span className="chip text-amber-300">代理</span>
                     )}
                     {isSkipping && (
-                      <span className="text-[var(--bone-subtle)]">離脱中</span>
+                      <span className="chip text-[var(--bone-subtle)]">離脱中</span>
                     )}
                     {isCurrentDriver && (
-                      <span className="text-[var(--signal)] font-semibold">▶ 今</span>
+                      <span className="chip text-[var(--signal)] font-semibold">▶ 今</span>
                     )}
                   </div>
 
-                  {/* 3段目: 操作。バッジと分離し行幅いっぱいで右寄せ＋折返し（flex-wrap）にして、
+                  {/* 2段目: 操作。バッジと分離し行幅いっぱいで右寄せ＋折返し（flex-wrap）にして、
                       操作が増えても枠からはみ出さないようにする。host 管理操作（譲る/外す）は
                       アイコン化して幅を圧縮（Lobby と同じ Crown/X）。改名は本人 or ホスト。
                       一時離脱/復帰は driver.skip で、自分の分は外部の自己トグルがあるなら出さず重複を避ける（#1）。 */}
