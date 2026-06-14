@@ -174,3 +174,24 @@ describe("FALLBACK_PROBLEMS バンク（AI なしの唯一の出題源）", () =
     expect(new Set(titles).size).toBe(titles.length);
   });
 });
+
+// ─── buildProblemPrompt 日本語化テスト ────────────────────────────────────────
+
+describe("buildProblemPrompt 日本語化", () => {
+  it("説明文を日本語で書く指示を含む", () => {
+    const p = buildProblemPrompt("TypeScript", "easy");
+    expect(p).toContain("JAPANESE");
+    expect(p).toContain("日本語");
+  });
+
+  it("exampleTest は英語識別子のコードと明示する", () => {
+    const p = buildProblemPrompt("Python", "medium");
+    expect(p).toContain("ENGLISH identifiers");
+  });
+
+  it("言語と難易度を埋め込む", () => {
+    const p = buildProblemPrompt("Go", "hard");
+    expect(p).toContain("Go");
+    expect(p).toContain("hard");
+  });
+});

@@ -1282,14 +1282,16 @@ export function buildProblemPrompt(language: string, difficulty: string): string
 
 Return ONLY a valid JSON object with this exact structure (no markdown, no explanation):
 {
-  "title": "short kata name (3-10 words)",
-  "description": "clear description of what to implement (1-2 sentences)",
-  "requirements": ["requirement 1", "requirement 2", "requirement 3", "requirement 4"],
-  "exampleTest": "example test code showing expected behavior in ${language} syntax",
-  "hints": ["hint 1", "hint 2"]
+  "title": "短いお題名（日本語・3〜10語相当）",
+  "description": "実装内容の明確な説明（日本語・1〜2文）",
+  "requirements": ["要件1（日本語）", "要件2（日本語）", "要件3（日本語）", "要件4（日本語）"],
+  "exampleTest": "example test code in ${language} syntax (code only)",
+  "hints": ["ヒント1（日本語）", "ヒント2（日本語）"]
 }
 
 Rules:
+- Write title, description, requirements, and hints in NATURAL, CLEAR JAPANESE (日本語).
+- The exampleTest MUST be valid ${language} code with ENGLISH identifiers (function and variable names in English). Code comments may be in Japanese. Do NOT translate code identifiers.
 - The kata must be suitable for TDD practice (test-first approach)
 - Include 4-6 clear, testable requirements. Each requirement must be verifiable by a test (avoid vague or ambiguous phrasing).
 - The exampleTest MUST be valid ${language} syntax and show at least one concrete input/output assertion.
