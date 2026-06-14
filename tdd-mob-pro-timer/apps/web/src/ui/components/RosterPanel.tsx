@@ -146,7 +146,23 @@ export function RosterPanel({
       )}
 
       <ul className="flex flex-col gap-1.5">
-        {participants.map((p) => {
+        {/* モブ順（rotation 順）に並べ替える（項目5）。rotation 内は index 昇順、
+            rotation 外（観覧者等）は末尾に元の相対順で。rotation 未指定/空なら配列順のまま。 */}
+        {(rotation
+          ? participants
+              .map((p, i) => ({ p, i }))
+              .sort(
+                (a, b) =>
+                  (rotation.indexOf(a.p.displayName) >= 0
+                    ? rotation.indexOf(a.p.displayName)
+                    : Number.MAX_SAFE_INTEGER) -
+                  (rotation.indexOf(b.p.displayName) >= 0
+                    ? rotation.indexOf(b.p.displayName)
+                    : Number.MAX_SAFE_INTEGER) || a.i - b.i,
+              )
+              .map((x) => x.p)
+          : participants
+        ).map((p) => {
           const isCurrentDriver =
             currentDriverName !== "" && p.displayName === currentDriverName;
           const isMine = p.participantId === myParticipantId;
@@ -188,8 +204,18 @@ export function RosterPanel({
               ) : (
                 <>
                   {/* 1段目: 在席ドット＋名前（最優先情報）。名前は省略せず全表示し、
-                      長名は折り返してでも必ず見せる（バッジ/操作と幅を奪い合わせない）。 */}
+                      長名は折り返してでも必ず見せる（バッジ/操作と幅を奪い合わせない）。
+                      モブ順番号（inRotation のときのみ）を在席ドットの前に配置する。
+                      Task5 でこの番号 span は1行統合の際に統合行へ移設予定。 */}
                   <div className="flex items-start gap-2">
+                    {inRotation && (
+                      <span
+                        className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold tabular bg-[var(--panel)] text-[var(--bone-muted)] border border-[var(--hairline)]"
+                        aria-label={`順番 ${rotationIndex + 1}`}
+                      >
+                        {rotationIndex + 1}
+                      </span>
+                    )}
                     <span
                       className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${presenceDotClass(p.presence)}`}
                       aria-hidden="true"
@@ -218,7 +244,7 @@ export function RosterPanel({
                       <span className="text-[var(--bone-subtle)]">離脱中</span>
                     )}
                     {isCurrentDriver && (
-                      <span className="text-[var(--signal)] font-semibold">▶ 現在</span>
+                      <span className="text-[var(--signal)] font-semibold">▶ 今</span>
                     )}
                   </div>
 

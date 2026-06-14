@@ -22,6 +22,89 @@ function makeParticipant(overrides?: Partial<Participant>): Participant {
   };
 }
 
+// モブ順表示テスト用ヘルパ（既存 makeParticipant とシグネチャが異なるため別定義）
+const mk = (id: string, name: string, over: Partial<Participant> = {}): Participant => ({
+  participantId: id,
+  connId: id,
+  displayName: name,
+  role: "editor",
+  presence: "online",
+  driverEligible: true,
+  isPlaceholder: false,
+  hasAiKey: false,
+  joinedAt: 1000000,
+  ...over,
+});
+
+describe("RosterPanel モブ順表示", () => {
+  const noop = vi.fn();
+  const baseProps = {
+    myParticipantId: "x",
+    canHostAction: false,
+    onRename: noop, onSkip: noop, onResume: noop, onAddProxy: noop,
+  };
+
+  it("rotation 順に並べ替える（participants 配列順とは独立）", () => {
+    const participants = [mk("b", "Bob"), mk("a", "Alice"), mk("c", "Carol")];
+    render(
+      <RosterPanel
+        {...baseProps}
+        participants={participants}
+        currentDriverName="Alice"
+        rotation={["Alice", "Bob", "Carol"]}
+      />,
+    );
+    const items = screen.getAllByRole("listitem");
+    expect(within(items[0]).getByText("Alice")).toBeTruthy();
+    expect(within(items[1]).getByText("Bob")).toBeTruthy();
+    expect(within(items[2]).getByText("Carol")).toBeTruthy();
+  });
+
+  it("rotation 内の行に 1 始まりの順番番号を出す", () => {
+    render(
+      <RosterPanel
+        {...baseProps}
+        participants={[mk("a", "Alice"), mk("b", "Bob")]}
+        currentDriverName="Alice"
+        rotation={["Alice", "Bob"]}
+      />,
+    );
+    const items = screen.getAllByRole("listitem");
+    expect(within(items[0]).getByText("1")).toBeTruthy();
+    expect(within(items[1]).getByText("2")).toBeTruthy();
+  });
+
+  it("rotation 外（観覧者）は末尾にまとめる", () => {
+    const participants = [
+      mk("v", "Viewer", { role: "viewer", driverEligible: false }),
+      mk("a", "Alice"),
+    ];
+    render(
+      <RosterPanel
+        {...baseProps}
+        participants={participants}
+        currentDriverName="Alice"
+        rotation={["Alice"]}
+      />,
+    );
+    const items = screen.getAllByRole("listitem");
+    expect(within(items[0]).getByText("Alice")).toBeTruthy();
+    expect(within(items[1]).getByText("Viewer")).toBeTruthy();
+  });
+
+  it("現ドライバーは ▶ 今 で示す", () => {
+    render(
+      <RosterPanel
+        {...baseProps}
+        participants={[mk("a", "Alice")]}
+        currentDriverName="Alice"
+        rotation={["Alice"]}
+      />,
+    );
+    expect(screen.getByText("▶ 今")).toBeTruthy();
+  });
+});
+
 describe("RosterPanel（T056/T057）", () => {
   const noop = vi.fn();
   const baseProps = {
@@ -56,8 +139,8 @@ describe("RosterPanel（T056/T057）", () => {
     // Carol の li に「現在」マーカーが付く（Bob には付かない）
     const carolItem = screen.getByText("Carol").closest("li");
     const bobItem = screen.getByText("Bob").closest("li");
-    expect(carolItem?.textContent).toMatch(/現在/);
-    expect(bobItem?.textContent).not.toMatch(/現在/);
+    expect(carolItem?.textContent).toMatch(/今/);
+    expect(bobItem?.textContent).not.toMatch(/今/);
   });
 
   it("在席状態がテキストで表示される（色＋テキスト併記: FR-050/032）", () => {
