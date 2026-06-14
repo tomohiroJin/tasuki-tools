@@ -94,6 +94,14 @@ export default function App() {
   // 生成が返らない異常で固まらないための安全弁タイマー。
   const generatingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // App unmount 時にタイマーを掃除する（setState-on-unmounted を防ぐ）。
+  useEffect(() => {
+    return () => {
+      if (generatingTimerRef.current) clearTimeout(generatingTimerRef.current);
+      if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
+    };
+  }, []);
+
   /** 代理参加者の一意な participantId を生成する（衝突回避のため乱数を含める） */
   const makeProxyId = () => `proxy-${Math.random().toString(36).slice(2, 10)}`;
 
@@ -438,6 +446,7 @@ export default function App() {
     generatingTimerRef.current = setTimeout(() => {
       setGeneratingProblem(false);
       generatingRef.current = false;
+      generatingTimerRef.current = null;
     }, 65_000);
   };
   const endGenerating = () => {
