@@ -536,6 +536,8 @@ export default function App() {
           room={room}
           participantId={participantId}
           generatingProblem={generatingProblem}
+          aiUnlocked={!!room.aiUnlocked}
+          aiMode={room.problemMode === "ai"}
           clockOffset={client?.clockOffset ?? 0}
           awaitingProblem={!room.problem}
           onSkip={() => act("SWITCH")}
