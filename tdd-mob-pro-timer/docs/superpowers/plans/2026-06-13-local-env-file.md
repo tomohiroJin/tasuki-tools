@@ -65,10 +65,8 @@
 # ─── AI お題生成（任意・両方設定したときのみ有効） ───
 # 設定しなければ AI 機能は無効＝お題は定型バンクのみ（解錠も常に失敗）。
 #
-# OAuth トークン: ローカルで `claude setup-token` を実行して発行（要 Claude サブスク）。
-# Claude Code にログイン済みなら既存トークンでも可:
-#   jq -r '.claudeAiOauth.accessToken' ~/.claude/.credentials.json
-# ⚠ 個人アカウントのクレジットを消費（共有/プール不可）。自分のローカル検証に限る。
+# OAuth トークン: ローカルで `claude setup-token` を実行して発行する（要 Claude サブスク）。
+# ⚠ 個人アカウントのサブスク・クレジットを消費（共有/プール不可）。自己ホストで自分の契約に限る。
 #CLAUDE_CODE_OAUTH_TOKEN=sk-ant-oat01-...
 
 # 解錠の合言葉（これを知るルームの host だけが AI 生成を有効化できる）。
@@ -208,9 +206,10 @@ sleep 1; lsof -ti tcp:5173 tcp:8787 2>/dev/null || echo "ports clear"
 ```bash
 cd /workspaces/claym/local/Tasuki/tdd-mob-pro-timer
 cp apps/sync/.env.example apps/sync/.env
-# トークンと合言葉を .env に追記（既存ログイン認証を利用）
-TOKEN=$(jq -r '.claudeAiOauth.accessToken' ~/.claude/.credentials.json)
-printf '\nCLAUDE_CODE_OAUTH_TOKEN=%s\nAI_UNLOCK_KEY=test-himitsu\nAI_PROBLEM_MODEL=haiku\n' "$TOKEN" >> apps/sync/.env
+# claude setup-token で発行したトークンと合言葉を apps/sync/.env に設定する:
+#   CLAUDE_CODE_OAUTH_TOKEN=sk-ant-oat01-...
+#   AI_UNLOCK_KEY=test-himitsu
+#   AI_PROBLEM_MODEL=haiku
 PATH="$HOME/.local/bin:$PATH" pnpm dev > /tmp/tasuki_dev.log 2>&1 &
 sleep 8
 grep -E "AI お題生成|Local:" /tmp/tasuki_dev.log | head -2
