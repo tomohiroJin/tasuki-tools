@@ -8,6 +8,9 @@ import {
   savePreferences,
   loadPreferences,
   clearPreferences,
+  loadRandomLanguagePool,
+  saveRandomLanguagePool,
+  DEFAULT_RANDOM_LANGUAGE_POOL,
 } from "../../src/prefs/local-prefs.js";
 
 describe("設定ローカル保存（T062/T063）", () => {
@@ -45,5 +48,28 @@ describe("設定ローカル保存（T062/T063）", () => {
     savePreferences({ displayName: "Bob", language: "TypeScript", difficulty: "easy", members: ["Bob"], intervalMinutes: 5 });
     const loaded = loadPreferences();
     expect(loaded?.displayName).toBe("Bob");
+  });
+});
+
+describe("randomLanguagePool", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("未保存なら既定プール（常用5言語）を返す", () => {
+    expect(loadRandomLanguagePool()).toEqual(DEFAULT_RANDOM_LANGUAGE_POOL);
+    expect(DEFAULT_RANDOM_LANGUAGE_POOL).toEqual([
+      "TypeScript", "JavaScript", "Python", "Go", "Java",
+    ]);
+  });
+  it("保存した内容を読み戻せる", () => {
+    saveRandomLanguagePool(["Go", "Rust"]);
+    expect(loadRandomLanguagePool()).toEqual(["Go", "Rust"]);
+  });
+  it("空配列も保存・読込できる", () => {
+    saveRandomLanguagePool([]);
+    expect(loadRandomLanguagePool()).toEqual([]);
+  });
+  it("壊れた JSON は既定プールにフォールバック", () => {
+    localStorage.setItem("tdd-mob:random-language-pool:v1", "{not json");
+    expect(loadRandomLanguagePool()).toEqual(DEFAULT_RANDOM_LANGUAGE_POOL);
   });
 });
