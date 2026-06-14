@@ -526,8 +526,10 @@ Expected: すべて緑
 for p in $(lsof -ti tcp:5173 tcp:5174 tcp:8787 2>/dev/null); do kill -9 $p; done
 cd /workspaces/claym/local/Tasuki/tdd-mob-pro-timer
 cp apps/sync/.env.example apps/sync/.env
-TOKEN=$(jq -r '.claudeAiOauth.accessToken' ~/.claude/.credentials.json)
-printf '\nCLAUDE_CODE_OAUTH_TOKEN=%s\nAI_UNLOCK_KEY=test-himitsu\nAI_PROBLEM_MODEL=haiku\n' "$TOKEN" >> apps/sync/.env
+# claude setup-token で発行したトークンと合言葉を apps/sync/.env に設定する:
+#   CLAUDE_CODE_OAUTH_TOKEN=sk-ant-oat01-...
+#   AI_UNLOCK_KEY=test-himitsu
+#   AI_PROBLEM_MODEL=haiku
 PATH="$HOME/.local/bin:$PATH" pnpm dev
 ```
 
