@@ -55,9 +55,9 @@ describe("RosterPanel モブ順表示", () => {
       />,
     );
     const items = screen.getAllByRole("listitem");
-    expect(within(items[0]).getByText("Alice")).toBeTruthy();
-    expect(within(items[1]).getByText("Bob")).toBeTruthy();
-    expect(within(items[2]).getByText("Carol")).toBeTruthy();
+    expect(within(items[0]!).getByText("Alice")).toBeTruthy();
+    expect(within(items[1]!).getByText("Bob")).toBeTruthy();
+    expect(within(items[2]!).getByText("Carol")).toBeTruthy();
   });
 
   it("rotation 内の行に 1 始まりの順番番号を出す", () => {
@@ -70,8 +70,8 @@ describe("RosterPanel モブ順表示", () => {
       />,
     );
     const items = screen.getAllByRole("listitem");
-    expect(within(items[0]).getByText("1")).toBeTruthy();
-    expect(within(items[1]).getByText("2")).toBeTruthy();
+    expect(within(items[0]!).getByText("1")).toBeTruthy();
+    expect(within(items[1]!).getByText("2")).toBeTruthy();
   });
 
   it("rotation 外（観覧者）は末尾にまとめる", () => {
@@ -88,8 +88,8 @@ describe("RosterPanel モブ順表示", () => {
       />,
     );
     const items = screen.getAllByRole("listitem");
-    expect(within(items[0]).getByText("Alice")).toBeTruthy();
-    expect(within(items[1]).getByText("Viewer")).toBeTruthy();
+    expect(within(items[0]!).getByText("Alice")).toBeTruthy();
+    expect(within(items[1]!).getByText("Viewer")).toBeTruthy();
   });
 
   it("現ドライバーは ▶ 今 で示す", () => {

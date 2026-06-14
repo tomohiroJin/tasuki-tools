@@ -77,7 +77,7 @@ describe("ConfigPanel（ロビー設定・UX 再設計）", () => {
   });
 });
 
-const cfg: SessionConfig = { language: "TypeScript", difficulty: "easy", intervalMinutes: 7 };
+const cfg: SessionConfig = { language: "TypeScript", difficulty: "easy", members: ["Alice"], intervalMinutes: 7 };
 
 describe("ConfigPanel 個別ランダム", () => {
   beforeEach(() => localStorage.clear());
@@ -89,7 +89,7 @@ describe("ConfigPanel 個別ランダム", () => {
     render(<ConfigPanel config={cfg} canEdit onChange={onChange} />);
     fireEvent.click(screen.getByRole("button", { name: "言語をランダムに選ぶ" }));
     expect(onChange).toHaveBeenCalledWith({ language: "TypeScript" });
-    expect(onChange.mock.calls[0][0]).not.toHaveProperty("difficulty");
+    expect(onChange.mock.calls[0]![0]).not.toHaveProperty("difficulty");
   });
 
   it("難易度ランダムは難易度のみ変える", () => {
@@ -98,7 +98,7 @@ describe("ConfigPanel 個別ランダム", () => {
     render(<ConfigPanel config={cfg} canEdit onChange={onChange} />);
     fireEvent.click(screen.getByRole("button", { name: "難易度をランダムに選ぶ" }));
     expect(onChange).toHaveBeenCalledWith({ difficulty: "easy" });
-    expect(onChange.mock.calls[0][0]).not.toHaveProperty("language");
+    expect(onChange.mock.calls[0]![0]).not.toHaveProperty("language");
   });
 
   it("プールを全 OFF にすると言語ランダムは何もしない", () => {
