@@ -27,6 +27,8 @@ interface LobbyProps {
   onRegenerateProblem?: () => void;
   onPasteProblem?: () => void;
   onCopyProblem?: () => void;
+  /** AI/定型のお題を生成中。ProblemEditor のスピナー＋減光に使う。 */
+  generatingProblem?: boolean;
   /** セッション設定の変更（言語/難易度/間隔/オプション）。editor+ のみ。config.set を送る。 */
   onConfigSet?: (patch: Partial<SessionConfig>) => void;
   /** 自分をドライバーローテーションに加える（自名で member.add）。2層モデル。 */
@@ -76,6 +78,7 @@ export function Lobby({
   onStartSession,
   onEditProblem,
   onRegenerateProblem,
+  generatingProblem = false,
   onPasteProblem,
   onCopyProblem,
   onConfigSet,
@@ -289,6 +292,7 @@ export function Lobby({
                     onRegenerate={onRegenerateProblem ?? (() => {})}
                     onPaste={onPasteProblem ?? (() => {})}
                     onCopy={onCopyProblem ?? (() => {})}
+                    generating={generatingProblem}
                   />
                 ) : (
                   <div className="space-y-3">

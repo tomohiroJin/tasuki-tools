@@ -34,6 +34,12 @@ interface SessionProps {
   clockOffset?: number;
   /** お題の代表生成を待っている間 true（共有時のみ）。生成中表示に使う */
   awaitingProblem?: boolean;
+  /** AI/定型のお題を生成中（regenerate 中）。ProblemEditor のスピナー＋減光に使う。 */
+  generatingProblem?: boolean;
+  /** AI 解錠ルームか（生成中文言の出し分けに使う）。 */
+  aiUnlocked?: boolean;
+  /** AI モードか（problemMode === "ai"）。生成中文言の出し分けに使う。 */
+  aiMode?: boolean;
   onSkip: () => void;
   onPause: () => void;
   onResume: () => void;
@@ -80,6 +86,9 @@ export function Session({
   participantId,
   clockOffset = 0,
   awaitingProblem = false,
+  generatingProblem = false,
+  aiUnlocked = false,
+  aiMode = false,
   onSkip,
   onPause,
   onResume,
@@ -199,6 +208,7 @@ export function Session({
             onCopy={() => onCopyProblem?.()}
             onRegenerate={() => onRegenerateProblem?.()}
             onPaste={() => onPasteProblem?.()}
+            generating={generatingProblem}
           />
         </Card>
       ) : (
@@ -206,7 +216,11 @@ export function Session({
           <Card>
             <div className="py-8 text-center text-[var(--bone-subtle)]" aria-live="polite">
               <span className="inline-block h-4 w-4 animate-pulse rounded-full bg-[var(--signal)] mb-2" aria-hidden="true" />
-              <p>お題を生成中…</p>
+              <p>
+                {aiUnlocked && aiMode
+                  ? "AI がお題を作成中です…（最大 1 分）"
+                  : "お題を生成中…"}
+              </p>
             </div>
           </Card>
         )
