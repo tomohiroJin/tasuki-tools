@@ -1,0 +1,681 @@
+[
+  {
+    "model": "sonnet",
+    "language": "TypeScript",
+    "difficulty": "easy",
+    "sample": 1,
+    "result": {
+      "ok": true,
+      "ms": 15930,
+      "valid": true,
+      "validationError": null,
+      "problem": {
+        "title": "String Word Frequency Counter",
+        "description": "Implement a function that counts how many times each word appears in a given string, ignoring case and punctuation.",
+        "requirements": [
+          "Return an object where keys are lowercase words and values are their occurrence counts",
+          "Treat words case-insensitively so 'Hello' and 'hello' count as the same word",
+          "Strip common punctuation (period, comma, exclamation mark, question mark) from words before counting",
+          "Return an empty object for an empty string or whitespace-only input",
+          "Handle multiple spaces between words gracefully",
+          "Words separated only by punctuation (e.g. 'dog,cat') should be treated as separate words only if a space or punctuation boundary exists"
+        ],
+        "exampleTest": "import { countWords } from './countWords';\n\ndescribe('countWords', () => {\n  it('counts single words', () => {\n    expect(countWords('hello')).toEqual({ hello: 1 });\n  });\n\n  it('counts repeated words case-insensitively', () => {\n    expect(countWords('Hello hello HELLO')).toEqual({ hello: 3 });\n  });\n\n  it('ignores punctuation', () => {\n    expect(countWords('Hello, world!')).toEqual({ hello: 1, world: 1 });\n  });\n\n  it('returns empty object for empty string', () => {\n    expect(countWords('')).toEqual({});\n  });\n\n  it('counts multiple different words', () => {\n    const result = countWords('the cat sat on the mat');\n    expect(result).toEqual({ the: 2, cat: 1, sat: 1, on: 1, mat: 1 });\n  });\n});",
+        "hints": [
+          "Use String.prototype.toLowerCase() early in your pipeline before splitting",
+          "Consider using a regular expression like /[.,!?]/g with String.prototype.replace() to strip punctuation before splitting on spaces"
+        ]
+      },
+      "usage": {
+        "cost_usd": 0.017501999999999997,
+        "num_turns": 1
+      }
+    }
+  },
+  {
+    "model": "sonnet",
+    "language": "TypeScript",
+    "difficulty": "easy",
+    "sample": 2,
+    "result": {
+      "ok": true,
+      "ms": 21178,
+      "valid": true,
+      "validationError": null,
+      "problem": {
+        "title": "Temperature Unit Converter",
+        "description": "Implement a converter that transforms temperature values between Celsius, Fahrenheit, and Kelvin units. Results should be accurate and handle invalid inputs gracefully.",
+        "requirements": [
+          "Convert Celsius to Fahrenheit using the formula F = (C × 9/5) + 32",
+          "Convert Fahrenheit to Celsius using the formula C = (F − 32) × 5/9",
+          "Convert Celsius to Kelvin using the formula K = C + 273.15",
+          "Round all results to 2 decimal places",
+          "Throw an error when a temperature below absolute zero (−273.15°C or 0K or −459.67°F) is provided as input"
+        ],
+        "exampleTest": "import { celsiusToFahrenheit, fahrenheitToCelsius, celsiusToKelvin } from './temperatureConverter';\n\ndescribe('Temperature Converter', () => {\n  it('converts 0°C to 32°F', () => {\n    expect(celsiusToFahrenheit(0)).toBe(32);\n  });\n\n  it('converts 100°C to 212°F', () => {\n    expect(celsiusToFahrenheit(100)).toBe(212);\n  });\n\n  it('converts 98.6°F to 37°C', () => {\n    expect(fahrenheitToCelsius(98.6)).toBe(37);\n  });\n\n  it('converts 0°C to 273.15K', () => {\n    expect(celsiusToKelvin(0)).toBe(273.15);\n  });\n\n  it('throws an error for temperature below absolute zero', () => {\n    expect(() => celsiusToFahrenheit(-300)).toThrow();\n  });\n});",
+        "hints": [
+          "Start by writing a test for the simplest case (0°C = 32°F) and make it pass before adding more conversions",
+          "For rounding, use Math.round(value * 100) / 100 or toFixed(2) — consider where in the formula to apply it to avoid floating-point drift"
+        ]
+      },
+      "usage": {
+        "cost_usd": 0.025617,
+        "num_turns": 1
+      }
+    }
+  },
+  {
+    "model": "sonnet",
+    "language": "TypeScript",
+    "difficulty": "hard",
+    "sample": 1,
+    "result": {
+      "ok": true,
+      "ms": 34476,
+      "valid": true,
+      "validationError": null,
+      "problem": {
+        "title": "Mathematical Expression Parser with Variables",
+        "description": "Implement a recursive descent parser that tokenizes, parses, and evaluates arithmetic expressions. The parser must support named variables, correct operator precedence, parentheses, unary operators, and right-associative exponentiation.",
+        "requirements": [
+          "Evaluate binary expressions (+, -, *, /) with correct operator precedence: multiplication and division bind tighter than addition and subtraction",
+          "Support parenthesized sub-expressions that override default precedence (e.g., '(2 + 3) * 4' evaluates to 20)",
+          "Support named variable placeholders resolved via an environment map at evaluation time (e.g., evaluate('x * y', { x: 3, y: 4 }) returns 12)",
+          "Handle the unary minus operator applied to numbers, variables, and parenthesized groups (e.g., '-x', '-(x + 1)')",
+          "Support right-associative exponentiation via the ^ operator so that '2^3^2' evaluates as '2^(3^2)' = 512, not '(2^3)^2' = 64",
+          "Throw a descriptive Error for malformed input: unmatched parentheses, unknown variables, division by zero, or consecutive binary operators"
+        ],
+        "exampleTest": "import { evaluate } from './expression-parser';\n\ndescribe('ExpressionParser', () => {\n  it('respects operator precedence', () => {\n    expect(evaluate('2 + 3 * 4')).toBe(14);\n    expect(evaluate('10 - 6 / 2')).toBe(7);\n  });\n\n  it('handles parentheses', () => {\n    expect(evaluate('(2 + 3) * 4')).toBe(20);\n    expect(evaluate('((1 + 2)) * (3 + 4)')).toBe(21);\n  });\n\n  it('resolves variables from an environment map', () => {\n    expect(evaluate('x * 2 + y', { x: 5, y: 3 })).toBe(13);\n  });\n\n  it('applies unary minus to expressions', () => {\n    expect(evaluate('-x + 10', { x: 3 })).toBe(7);\n    expect(evaluate('-(x + 1) * 2', { x: 4 })).toBe(-10);\n  });\n\n  it('treats exponentiation as right-associative', () => {\n    expect(evaluate('2 ^ 3 ^ 2')).toBe(512);\n  });\n\n  it('throws on malformed or incomplete expressions', () => {\n    expect(() => evaluate('2 +')).toThrow();\n    expect(() => evaluate('(2 + 3')).toThrow();\n    expect(() => evaluate('x + 1')).toThrow(/unknown variable/i);\n    expect(() => evaluate('10 / 0')).toThrow(/division by zero/i);\n  });\n});",
+        "hints": [
+          "Structure the parser as a recursive descent with one function per precedence level — parseExpr (+ / -) calls parseTerm (* /) which calls parsePower (^) which calls parseUnary (negation) which calls parsePrimary (literals, variables, parenthesized groups). The call chain enforces precedence without any explicit table.",
+          "For right-associativity of ^, resist the usual while-loop pattern: instead of looping left-to-right inside parsePower, make a single recursive call back to parsePower for the right operand. This naturally produces a right-leaning parse tree."
+        ]
+      },
+      "usage": {
+        "cost_usd": 0.041067,
+        "num_turns": 1
+      }
+    }
+  },
+  {
+    "model": "sonnet",
+    "language": "TypeScript",
+    "difficulty": "hard",
+    "sample": 2,
+    "result": {
+      "ok": true,
+      "ms": 22081,
+      "valid": true,
+      "validationError": null,
+      "problem": {
+        "title": "Recursive Descent Expression Parser with Variables",
+        "description": "Implement a parser and evaluator for arithmetic expressions that supports operator precedence, parentheses, and named variables resolved from a context map.",
+        "requirements": [
+          "Parse and evaluate expressions containing integer/float literals with +, -, *, / operators respecting standard precedence (multiplication and division before addition and subtraction)",
+          "Support parentheses for explicit grouping, allowing arbitrary nesting depth",
+          "Resolve named variable identifiers (e.g. `x`, `totalCount`) from a provided context Record<string, number>; throw a ReferenceError if a variable is not found in the context",
+          "Support unary minus on both literals and parenthesised sub-expressions (e.g. `-3`, `-(x + 1)`)",
+          "Throw a SyntaxError with a descriptive message when the input contains unbalanced parentheses, unknown tokens, or is otherwise malformed",
+          "Return an exact number (IEEE 754 double) matching JavaScript's native arithmetic semantics for the same expression"
+        ],
+        "exampleTest": "import { evaluate } from './expressionParser';\n\n// Basic arithmetic with precedence\nexpect(evaluate('2 + 3 * 4')).toBe(14);\nexpect(evaluate('(2 + 3) * 4')).toBe(20);\n\n// Variables\nexpect(evaluate('x * 2 + y', { x: 5, y: 3 })).toBe(13);\n\n// Unary minus\nexpect(evaluate('-x + 10', { x: 4 })).toBe(6);\nexpect(evaluate('-(x + 1) * 2', { x: 2 })).toBe(-6);\n\n// Error cases\nexpect(() => evaluate('2 + (3 * 4')).toThrow(SyntaxError);\nexpect(() => evaluate('x + 1', {})).toThrow(ReferenceError);",
+        "hints": [
+          "Model the parser as three mutually-recursive functions — parseExpression (handles + and -), parseTerm (handles * and /), parsePrimary (handles literals, variables, unary minus, and parenthesised groups) — this directly encodes operator precedence without any precedence-climbing algorithm",
+          "Tokenise the input string first into a flat array of typed tokens (NUMBER, IDENT, PLUS, MINUS, STAR, SLASH, LPAREN, RPAREN, EOF) and advance through it with a cursor index; separating lexing from parsing makes each stage independently testable"
+        ]
+      },
+      "usage": {
+        "cost_usd": 0.025137,
+        "num_turns": 1
+      }
+    }
+  },
+  {
+    "model": "sonnet",
+    "language": "Python",
+    "difficulty": "medium",
+    "sample": 1,
+    "result": {
+      "ok": true,
+      "ms": 24402,
+      "valid": true,
+      "validationError": null,
+      "problem": {
+        "title": "Shopping Basket with Discount Rules",
+        "description": "Implement a shopping basket that tracks items and applies configurable discount rules to calculate the final total. Support both percentage-off discounts and buy-N-get-M-free promotions.",
+        "requirements": [
+          "Add items to the basket with a name, unit price, and quantity; retrieve the subtotal (sum of price × quantity for all items)",
+          "Apply a percentage discount to the entire basket (e.g., 10% off) and return the discounted total rounded to 2 decimal places",
+          "Apply a 'buy N get M free' promotion to a specific item (e.g., buy 2 get 1 free on apples reduces the charged quantity accordingly)",
+          "Multiple discount rules can be registered and all are applied when calculating the final total; percentage discount applies after buy-N-get-M savings",
+          "Raise a ValueError when adding an item with a non-positive price or quantity, or when a discount percentage is not between 0 and 100 exclusive"
+        ],
+        "exampleTest": "from basket import Basket\n\ndef test_subtotal_without_discounts():\n    b = Basket()\n    b.add_item('apple', price=0.50, quantity=6)\n    b.add_item('bread', price=1.20, quantity=2)\n    assert b.subtotal() == 5.40\n\ndef test_percentage_discount():\n    b = Basket()\n    b.add_item('apple', price=1.00, quantity=10)\n    b.add_percentage_discount(10)  # 10% off\n    assert b.total() == 9.00\n\ndef test_buy_n_get_m_free():\n    b = Basket()\n    b.add_item('apple', price=0.50, quantity=6)\n    b.add_bogo('apple', buy=2, free=1)  # buy 2 get 1 free → charged for 4\n    assert b.total() == 2.00\n\ndef test_combined_discounts():\n    b = Basket()\n    b.add_item('cola', price=1.00, quantity=3)\n    b.add_bogo('cola', buy=2, free=1)  # charged for 2 → subtotal 2.00\n    b.add_percentage_discount(50)       # then 50% off → 1.00\n    assert b.total() == 1.00\n\ndef test_invalid_price_raises():\n    b = Basket()\n    try:\n        b.add_item('ghost', price=0, quantity=1)\n        assert False, 'Expected ValueError'\n    except ValueError:\n        pass",
+        "hints": [
+          "Model each item as a dataclass or namedtuple; store promotions as a list of rule objects or callables so new discount types can be added without changing the core calculation logic",
+          "For buy-N-get-M-free, compute charged_quantity = quantity - (quantity // (buy + free)) * free before multiplying by unit price; apply this per-item before summing the basket total"
+        ]
+      },
+      "usage": {
+        "cost_usd": 0.0282861,
+        "num_turns": 1
+      }
+    }
+  },
+  {
+    "model": "sonnet",
+    "language": "Python",
+    "difficulty": "medium",
+    "sample": 2,
+    "result": {
+      "ok": true,
+      "ms": 18699,
+      "valid": true,
+      "validationError": null,
+      "problem": {
+        "title": "Bank Account Transaction Ledger",
+        "description": "Implement a bank account class that tracks deposits, withdrawals, and maintains a transaction history with balance snapshots. The account must enforce business rules such as overdraft prevention and minimum balance requirements.",
+        "requirements": [
+          "Deposit a positive amount and reflect it in the balance immediately",
+          "Withdraw an amount only if sufficient funds exist; raise an exception (e.g. InsufficientFundsError) otherwise",
+          "Return the full transaction history as a list of dicts with keys 'type', 'amount', and 'balance_after'",
+          "Support a minimum balance threshold set at account creation; withdrawals that would drop below it must be rejected",
+          "Return the net total of all deposits minus all withdrawals via a `net_flow()` method",
+          "Reset the account to its initial state (zero balance, empty history) via a `reset()` method"
+        ],
+        "exampleTest": "import pytest\n\nclass InsufficientFundsError(Exception):\n    pass\n\n# Assume BankAccount is imported from solution module\n\ndef test_deposit_increases_balance():\n    account = BankAccount(minimum_balance=0)\n    account.deposit(100)\n    assert account.balance == 100\n\ndef test_withdrawal_decreases_balance():\n    account = BankAccount(minimum_balance=0)\n    account.deposit(200)\n    account.withdraw(50)\n    assert account.balance == 150\n\ndef test_overdraft_raises_error():\n    account = BankAccount(minimum_balance=0)\n    account.deposit(30)\n    with pytest.raises(InsufficientFundsError):\n        account.withdraw(100)\n\ndef test_minimum_balance_enforced():\n    account = BankAccount(minimum_balance=50)\n    account.deposit(100)\n    with pytest.raises(InsufficientFundsError):\n        account.withdraw(60)  # would leave 40, below minimum of 50\n\ndef test_transaction_history():\n    account = BankAccount(minimum_balance=0)\n    account.deposit(100)\n    account.withdraw(40)\n    history = account.transaction_history()\n    assert history == [\n        {'type': 'deposit', 'amount': 100, 'balance_after': 100},\n        {'type': 'withdrawal', 'amount': 40, 'balance_after': 60},\n    ]\n\ndef test_net_flow():\n    account = BankAccount(minimum_balance=0)\n    account.deposit(200)\n    account.withdraw(80)\n    account.deposit(50)\n    assert account.net_flow() == 170  # 250 deposited - 80 withdrawn\n\ndef test_reset_clears_state():\n    account = BankAccount(minimum_balance=0)\n    account.deposit(500)\n    account.reset()\n    assert account.balance == 0\n    assert account.transaction_history() == []",
+        "hints": [
+          "Store transactions as a list of dicts internally and derive `balance` and `net_flow()` from it, or maintain them as separate tracked attributes — choose one strategy and stay consistent",
+          "Define `InsufficientFundsError` as a custom exception subclassing `Exception`; check both zero-balance overdraft and minimum-balance violations in the same guard clause inside `withdraw()`"
+        ]
+      },
+      "usage": {
+        "cost_usd": 0.023156100000000002,
+        "num_turns": 1
+      }
+    }
+  },
+  {
+    "model": "sonnet",
+    "language": "Go",
+    "difficulty": "easy",
+    "sample": 1,
+    "result": {
+      "ok": true,
+      "ms": 32992,
+      "valid": true,
+      "validationError": null,
+      "problem": {
+        "title": "Caesar Cipher Encoder and Decoder",
+        "description": "Implement a Caesar cipher that encodes and decodes strings by shifting each alphabetic character by a given number of positions. Non-alphabetic characters must pass through unchanged.",
+        "requirements": [
+          "Encode a string by shifting each lowercase letter forward by N positions (e.g., 'a' with shift 3 becomes 'd')",
+          "Encode a string by shifting each uppercase letter forward by N positions, preserving case (e.g., 'A' with shift 3 becomes 'D')",
+          "Letters that go past 'z' or 'Z' must wrap around to the beginning (e.g., 'z' with shift 1 becomes 'a')",
+          "Non-alphabetic characters such as digits, spaces, and punctuation must remain unchanged",
+          "Decode a string by applying the inverse shift, exactly recovering the original input",
+          "A shift of 0 or any multiple of 26 must return the original string unchanged"
+        ],
+        "exampleTest": "package cipher\n\nimport \"testing\"\n\nfunc TestEncodeShiftsLowercase(t *testing.T) {\n\tgot := Encode(\"abc\", 3)\n\twant := \"def\"\n\tif got != want {\n\t\tt.Errorf(\"got %q, want %q\", got, want)\n\t}\n}\n\nfunc TestEncodeWrapsAround(t *testing.T) {\n\tgot := Encode(\"xyz\", 3)\n\twant := \"abc\"\n\tif got != want {\n\t\tt.Errorf(\"got %q, want %q\", got, want)\n\t}\n}\n\nfunc TestEncodePreservesNonAlpha(t *testing.T) {\n\tgot := Encode(\"a1b!\", 1)\n\twant := \"b1c!\"\n\tif got != want {\n\t\tt.Errorf(\"got %q, want %q\", got, want)\n\t}\n}\n\nfunc TestDecodeReversesEncode(t *testing.T) {\n\toriginal := \"Hello, World!\"\n\tgot := Decode(Encode(original, 13), 13)\n\tif got != original {\n\t\tt.Errorf(\"got %q, want %q\", got, original)\n\t}\n}",
+        "hints": [
+          "Use Go's rune type to iterate over the string; check if a rune falls between 'a'-'z' or 'A'-'Z' before applying the shift",
+          "Wrap-around can be handled with modulo arithmetic: shifted = (char - base + shift) % 26 + base, where base is 'a' or 'A'"
+        ]
+      },
+      "usage": {
+        "cost_usd": 0.0473811,
+        "num_turns": 1
+      }
+    }
+  },
+  {
+    "model": "sonnet",
+    "language": "Go",
+    "difficulty": "easy",
+    "sample": 2,
+    "result": {
+      "ok": true,
+      "ms": 10967,
+      "valid": true,
+      "validationError": null,
+      "problem": {
+        "title": "FizzBuzz with Custom Rules",
+        "description": "Implement a FizzBuzz function that returns a string slice for a given range, replacing multiples of 3 with 'Fizz', multiples of 5 with 'Buzz', and multiples of both with 'FizzBuzz'.",
+        "requirements": [
+          "Return 'Fizz' for numbers divisible by 3",
+          "Return 'Buzz' for numbers divisible by 5",
+          "Return 'FizzBuzz' for numbers divisible by both 3 and 5",
+          "Return the number as a string for all other values",
+          "Accept a start and end integer (inclusive) and return a []string of results",
+          "Return an empty slice when start is greater than end"
+        ],
+        "exampleTest": "package kata\n\nimport (\n\t\"testing\"\n\t\"reflect\"\n)\n\nfunc TestFizzBuzz(t *testing.T) {\n\tgot := FizzBuzz(1, 15)\n\twant := []string{\"1\", \"2\", \"Fizz\", \"4\", \"Buzz\", \"Fizz\", \"7\", \"8\", \"Fizz\", \"Buzz\", \"11\", \"Fizz\", \"13\", \"14\", \"FizzBuzz\"}\n\tif !reflect.DeepEqual(got, want) {\n\t\tt.Errorf(\"FizzBuzz(1, 15) = %v, want %v\", got, want)\n\t}\n}\n\nfunc TestFizzBuzzEmptyRange(t *testing.T) {\n\tgot := FizzBuzz(5, 1)\n\tif len(got) != 0 {\n\t\tt.Errorf(\"expected empty slice, got %v\", got)\n\t}\n}",
+        "hints": [
+          "Use the modulo operator (%) to check divisibility; check for divisibility by 15 (3×5) before checking 3 or 5 individually to avoid incorrect output.",
+          "Use fmt.Sprintf(\"%d\", n) or strconv.Itoa(n) to convert integers to strings for the default case."
+        ]
+      },
+      "usage": {
+        "cost_usd": 0.0189861,
+        "num_turns": 1
+      }
+    }
+  },
+  {
+    "model": "sonnet",
+    "language": "Java",
+    "difficulty": "medium",
+    "sample": 1,
+    "result": {
+      "ok": true,
+      "ms": 20111,
+      "valid": true,
+      "validationError": null,
+      "problem": {
+        "title": "Shopping Cart with Tiered Discounts",
+        "description": "Implement a shopping cart that calculates totals and applies tiered discount rules based on item count and order value. The cart must support adding/removing items and applying promotional codes.",
+        "requirements": [
+          "Adding an item with a name and price stores it in the cart; getTotal() returns the sum of all item prices",
+          "Removing an item by name removes the first matching item; removing a non-existent item leaves the cart unchanged",
+          "Orders with 3 or more items receive a 10% discount; orders with 5 or more items receive a 20% discount (discounts do not stack)",
+          "Applying promo code 'SAVE5' subtracts a flat 5.0 from the total after quantity discounts; applying an invalid code throws IllegalArgumentException",
+          "getItemCount() returns the total number of items currently in the cart",
+          "clear() removes all items and resets any applied promo code; getTotal() then returns 0.0"
+        ],
+        "exampleTest": "import org.junit.jupiter.api.Test;\nimport static org.junit.jupiter.api.Assertions.*;\n\nclass ShoppingCartTest {\n\n    @Test\n    void addingItemsAccumulatesTotal() {\n        ShoppingCart cart = new ShoppingCart();\n        cart.addItem(\"Apple\", 1.50);\n        cart.addItem(\"Bread\", 2.00);\n        assertEquals(3.50, cart.getTotal(), 0.001);\n    }\n\n    @Test\n    void fiveOrMoreItemsApplyTwentyPercentDiscount() {\n        ShoppingCart cart = new ShoppingCart();\n        cart.addItem(\"A\", 10.0);\n        cart.addItem(\"B\", 10.0);\n        cart.addItem(\"C\", 10.0);\n        cart.addItem(\"D\", 10.0);\n        cart.addItem(\"E\", 10.0);\n        assertEquals(40.0, cart.getTotal(), 0.001); // 50.0 - 20%\n    }\n\n    @Test\n    void invalidPromoCodeThrowsException() {\n        ShoppingCart cart = new ShoppingCart();\n        cart.addItem(\"Widget\", 20.0);\n        assertThrows(IllegalArgumentException.class, () -> cart.applyPromoCode(\"FAKE99\"));\n    }\n}",
+        "hints": [
+          "Store items in a List<Item> where Item is a simple record or inner class holding name and price; apply discount tiers in getTotal() by checking list size before summing",
+          "Track the promo code as a nullable field and subtract its value after the quantity discount in getTotal(); validate the code in applyPromoCode() and throw immediately if unrecognised"
+        ]
+      },
+      "usage": {
+        "cost_usd": 0.0243711,
+        "num_turns": 1
+      }
+    }
+  },
+  {
+    "model": "sonnet",
+    "language": "Java",
+    "difficulty": "medium",
+    "sample": 2,
+    "result": {
+      "ok": true,
+      "ms": 15357,
+      "valid": true,
+      "validationError": null,
+      "problem": {
+        "title": "Bank Account with Transaction History",
+        "description": "Implement a bank account that supports deposits, withdrawals, and produces a formatted transaction history statement. The account must enforce a minimum balance and track all operations with running balance.",
+        "requirements": [
+          "Deposit a positive amount to increase the account balance; throw IllegalArgumentException for zero or negative amounts",
+          "Withdraw a positive amount that does not exceed the current balance; throw IllegalStateException if funds are insufficient, and IllegalArgumentException for non-positive amounts",
+          "Maintain an ordered list of transactions, each recording the type (DEPOSIT or WITHDRAWAL), amount, and resulting balance after the operation",
+          "Return a formatted statement string where each line follows the pattern: 'DEPOSIT 500.00 | Balance: 1500.00' or 'WITHDRAWAL 200.00 | Balance: 1300.00'",
+          "Return the current balance accurately after any sequence of deposits and withdrawals",
+          "Support querying total deposited and total withdrawn amounts as separate values"
+        ],
+        "exampleTest": "import org.junit.jupiter.api.Test;\nimport static org.junit.jupiter.api.Assertions.*;\n\nclass BankAccountTest {\n\n    @Test\n    void depositIncreasesBalance() {\n        BankAccount account = new BankAccount();\n        account.deposit(1000.00);\n        assertEquals(1000.00, account.getBalance(), 0.001);\n    }\n\n    @Test\n    void withdrawalDecreasesBalance() {\n        BankAccount account = new BankAccount();\n        account.deposit(1000.00);\n        account.withdraw(300.00);\n        assertEquals(700.00, account.getBalance(), 0.001);\n    }\n\n    @Test\n    void statementFormatsCorrectly() {\n        BankAccount account = new BankAccount();\n        account.deposit(500.00);\n        account.withdraw(200.00);\n        String statement = account.getStatement();\n        assertTrue(statement.contains(\"DEPOSIT 500.00 | Balance: 500.00\"));\n        assertTrue(statement.contains(\"WITHDRAWAL 200.00 | Balance: 300.00\"));\n    }\n\n    @Test\n    void insufficientFundsThrowsException() {\n        BankAccount account = new BankAccount();\n        account.deposit(100.00);\n        assertThrows(IllegalStateException.class, () -> account.withdraw(200.00));\n    }\n\n    @Test\n    void totalDepositedAndWithdrawnTrackedSeparately() {\n        BankAccount account = new BankAccount();\n        account.deposit(1000.00);\n        account.deposit(500.00);\n        account.withdraw(300.00);\n        assertEquals(1500.00, account.getTotalDeposited(), 0.001);\n        assertEquals(300.00, account.getTotalWithdrawn(), 0.001);\n    }\n}",
+        "hints": [
+          "Model each transaction as a simple record or inner class with fields: type (enum), amount, and balanceAfter — this makes statement formatting straightforward",
+          "Use String.format('%.2f', amount) to produce consistently formatted decimal values in the statement output"
+        ]
+      },
+      "usage": {
+        "cost_usd": 0.022916100000000002,
+        "num_turns": 1
+      }
+    }
+  },
+  {
+    "model": "haiku",
+    "language": "TypeScript",
+    "difficulty": "easy",
+    "sample": 1,
+    "result": {
+      "ok": true,
+      "ms": 22213,
+      "valid": true,
+      "validationError": null,
+      "problem": {
+        "title": "Shopping Cart Discount Calculator",
+        "description": "Build a shopping cart system that calculates totals and applies discount rules based on cart value and product categories. Implement methods to add items, compute subtotals, apply discounts, and return the final price.",
+        "requirements": [
+          "Add items to cart with quantity, price per unit, and category; store them for later retrieval",
+          "Calculate cart subtotal by summing (quantity × price) for all items",
+          "Apply percentage discount to specific product categories (e.g., electronics 5% off)",
+          "Apply percentage discount if subtotal exceeds a threshold amount (e.g., 10% off for orders over $50)",
+          "Return an object containing subtotal, total discount amount, and final price after all discounts",
+          "Handle empty carts and ensure final price never becomes negative"
+        ],
+        "exampleTest": "const cart = new ShoppingCart();\ncart.addItem({ quantity: 1, pricePerUnit: 100, category: 'electronics' });\ncart.addItem({ quantity: 2, pricePerUnit: 10, category: 'books' });\n\nconst result = cart.calculateTotal({\n  categoryDiscounts: { 'electronics': 0.05 },\n  thresholdDiscount: { minAmount: 50, discountPercent: 0.1 }\n});\n\nexpect(result.subtotal).toBe(120);\nexpect(result.finalPrice).toBeLessThan(120);\nexpect(result.discountAmount).toBeGreaterThan(0);",
+        "hints": [
+          "Start by writing a test for addItem and creating a data structure to store cart items",
+          "Implement calculateTotal first for subtotals only, then layer on category discounts, then threshold discounts",
+          "Apply discounts in a consistent order (category discounts first, then threshold) to keep tests predictable",
+          "Test edge cases early: empty cart, single item, multiple discounts stacking, and threshold boundaries"
+        ]
+      },
+      "usage": {
+        "cost_usd": 0.0140242,
+        "num_turns": 1
+      }
+    }
+  },
+  {
+    "model": "haiku",
+    "language": "TypeScript",
+    "difficulty": "easy",
+    "sample": 2,
+    "result": {
+      "ok": true,
+      "ms": 26895,
+      "valid": true,
+      "validationError": null,
+      "problem": {
+        "title": "Email Validator and Normalizer",
+        "description": "Implement an email validator that checks basic email format rules (local@domain.tld structure) and provides a normalizer to convert emails to lowercase.",
+        "requirements": [
+          "Validate that an email contains exactly one @ symbol",
+          "Validate that the local part (before @) is not empty",
+          "Validate that the domain part (after @) contains at least one dot",
+          "Validate that the TLD (part after the last dot) is 2-6 characters long",
+          "Provide a normalize method that converts the email to lowercase"
+        ],
+        "exampleTest": "describe('EmailValidator', () => {\n  const validator = new EmailValidator();\n\n  test('should validate a correct email', () => {\n    expect(validator.isValid('john.doe@example.com')).toBe(true);\n  });\n\n  test('should reject email without @ symbol', () => {\n    expect(validator.isValid('johndoe.example.com')).toBe(false);\n  });\n\n  test('should reject email with invalid domain', () => {\n    expect(validator.isValid('john@domain')).toBe(false);\n  });\n\n  test('should normalize email to lowercase', () => {\n    expect(validator.normalize('JOHN@EXAMPLE.COM')).toBe('john@example.com');\n  });\n});",
+        "hints": [
+          "Use split('@') to separate the local and domain parts",
+          "To ensure exactly one @, check that the split result has exactly 2 elements",
+          "Find the last dot in the domain using lastIndexOf('.')",
+          "The TLD is the substring after the last dot",
+          "Use toLowerCase() for normalization"
+        ]
+      },
+      "usage": {
+        "cost_usd": 0.0214292,
+        "num_turns": 1
+      }
+    }
+  },
+  {
+    "model": "haiku",
+    "language": "TypeScript",
+    "difficulty": "hard",
+    "sample": 1,
+    "result": {
+      "ok": true,
+      "ms": 16355,
+      "valid": true,
+      "validationError": null,
+      "problem": {
+        "title": "Expression Evaluator with Functions and Precedence",
+        "description": "Implement a mathematical expression evaluator supporting arithmetic operations, operator precedence, parentheses, variables, and user-defined functions. Handle edge cases including nested calls, division by zero, and undefined identifiers.",
+        "requirements": [
+          "Parse and evaluate arithmetic expressions (+, -, *, /) with correct operator precedence (* and / before + and -)",
+          "Support parentheses for grouping and enforce correct order of operations",
+          "Substitute variables from a provided context object; throw error for undefined variables",
+          "Support user-defined functions with parameters via defineFunction(name, params, body) and evaluate function calls in expressions",
+          "Throw descriptive errors for invalid expressions, division by zero, undefined variables, and undefined functions",
+          "Handle edge cases: negative numbers, whitespace, nested function calls, and multi-digit numbers"
+        ],
+        "exampleTest": "it('should evaluate expressions with precedence, variables, and functions', () => {\n  const evaluator = new ExpressionEvaluator();\n  \n  expect(evaluator.evaluate('2 + 3 * 4')).toBe(14);\n  expect(evaluator.evaluate('(2 + 3) * 4')).toBe(20);\n  \n  const ctx = { x: 5, y: 3 };\n  expect(evaluator.evaluate('x + y', ctx)).toBe(8);\n  \n  evaluator.defineFunction('square', ['n'], 'n * n');\n  expect(evaluator.evaluate('square(4)')).toBe(16);\n  \n  expect(() => evaluator.evaluate('z + 1')).toThrow('Undefined variable: z');\n  expect(() => evaluator.evaluate('10 / 0')).toThrow('Division by zero');\n});",
+        "hints": [
+          "Use the Shunting Yard algorithm or recursive descent parser to handle operator precedence and parentheses correctly",
+          "Separate concerns: tokenization (breaking input into tokens) from evaluation (parsing and computing results)",
+          "Store function definitions in a Map with parameter names and expression bodies; use string replacement or a symbol table for parameters",
+          "Implement recursive evaluation for nested expressions and function calls",
+          "Build incrementally with TDD: start with numbers and operators, add precedence, then parentheses, variables, and finally functions"
+        ]
+      },
+      "usage": {
+        "cost_usd": 0.0126242,
+        "num_turns": 1
+      }
+    }
+  },
+  {
+    "model": "haiku",
+    "language": "TypeScript",
+    "difficulty": "hard",
+    "sample": 2,
+    "result": {
+      "ok": true,
+      "ms": 29787,
+      "valid": true,
+      "validationError": null,
+      "problem": {
+        "title": "JSON Schema Validator with Custom Rules",
+        "description": "Implement a JSON Schema validator that validates data against schemas with custom predicates and reports detailed errors with JSON paths to problematic fields.",
+        "requirements": [
+          "Support type validation for primitive types (string, number, boolean, null) and container types (array, object)",
+          "Validate string constraints (minLength, maxLength, pattern with regex) and number constraints (minimum, maximum, enum)",
+          "Validate required fields in objects and enforce itemSchema validation for all array elements",
+          "Report validation errors with JSON path to the invalid field (e.g., 'user.profile.zipcode') and failure reason",
+          "Support custom validation predicates as composable functions that can be added to any field schema",
+          "Handle deeply nested and circular object structures without stack overflow or infinite loops"
+        ],
+        "exampleTest": "const userSchema = { type: 'object', required: ['name', 'email'], properties: { name: { type: 'string', minLength: 1 }, email: { type: 'string', pattern: '^[^@]+@[^@]+$' }, age: { type: 'number', minimum: 0, maximum: 150 } } }; const valid = { name: 'Alice', email: 'alice@example.com', age: 30 }; expect(validate(valid, userSchema)).toEqual([]); const invalid = { name: '', email: 'invalid' }; const errors = validate(invalid, userSchema); expect(errors.length).toBeGreaterThan(0); expect(errors.some(e => e.path === 'name')).toBe(true); expect(errors.some(e => e.path === 'email')).toBe(true);",
+        "hints": [
+          "Start with basic type validation before adding constraint checking and nested structure support",
+          "Use a recursive validator function that tracks the current JSON path as it traverses the data structure",
+          "Separate validation logic into independent functions for each constraint type to keep code modular",
+          "Design a custom error object that captures path, failure reason, and schema context for detailed reporting"
+        ]
+      },
+      "usage": {
+        "cost_usd": 0.0188192,
+        "num_turns": 1
+      }
+    }
+  },
+  {
+    "model": "haiku",
+    "language": "Python",
+    "difficulty": "medium",
+    "sample": 1,
+    "result": {
+      "ok": true,
+      "ms": 25136,
+      "valid": true,
+      "validationError": null,
+      "problem": {
+        "title": "Shopping Cart with Discounts and Tax",
+        "description": "Implement a shopping cart system that can add items, apply discounts and coupons, calculate taxes, and generate the final total.",
+        "requirements": [
+          "Add items to cart with name, price, and quantity; handle duplicate items by updating quantity",
+          "Calculate subtotal of all items in cart (sum of price × quantity for each item)",
+          "Apply member discount as a percentage (e.g., 10% off subtotal)",
+          "Apply coupon code for a fixed amount discount",
+          "Calculate sales tax based on subtotal after all discounts are applied",
+          "Calculate and return final total (subtotal - discounts + tax); support getting total with custom tax rate"
+        ],
+        "exampleTest": "def test_add_item():\n    cart = ShoppingCart()\n    cart.add_item('Apple', 1.50, 3)\n    assert cart.get_subtotal() == 4.50\n\ndef test_apply_member_discount():\n    cart = ShoppingCart()\n    cart.add_item('Milk', 3.00, 2)\n    cart.apply_member_discount(0.10)\n    assert cart.get_total(tax_rate=0.0) == 5.40\n\ndef test_apply_coupon():\n    cart = ShoppingCart()\n    cart.add_item('Bread', 2.00, 1)\n    cart.apply_coupon(0.50)\n    assert cart.get_total(tax_rate=0.0) == 1.50\n\ndef test_calculate_total_with_tax():\n    cart = ShoppingCart()\n    cart.add_item('Cheese', 5.00, 1)\n    assert cart.get_total(tax_rate=0.08) == 5.40",
+        "hints": [
+          "Use a list or dictionary to store cart items with their name, price, and quantity",
+          "Calculate in order: subtotal → apply member discount → apply coupon → add tax",
+          "When adding a duplicate item, decide whether to update quantity or store separately",
+          "Keep member discount and coupon as separate instance attributes so they accumulate",
+          "Handle edge cases: empty cart, zero discount/coupon, negative quantities, tax rate as decimal"
+        ]
+      },
+      "usage": {
+        "cost_usd": 0.0176339,
+        "num_turns": 1
+      }
+    }
+  },
+  {
+    "model": "haiku",
+    "language": "Python",
+    "difficulty": "medium",
+    "sample": 2,
+    "result": {
+      "ok": true,
+      "ms": 29090,
+      "valid": true,
+      "validationError": null,
+      "problem": {
+        "title": "Inventory Management System",
+        "description": "Implement an inventory tracking system that manages product stock levels, handles restocking, and detects when items are running low. Support querying current inventory status and calculating total inventory value.",
+        "requirements": [
+          "Create an Inventory class with add_product(sku, unit_price, reorder_level) to register a new product",
+          "Implement add_stock(sku, quantity) to increase inventory for a product",
+          "Implement remove_stock(sku, quantity) to decrease inventory; raise ValueError if insufficient stock exists",
+          "Implement is_low_stock(sku) that returns True if current quantity is at or below the reorder level",
+          "Implement get_total_value() that calculates total inventory value as the sum of (quantity × unit_price) for all products",
+          "Raise appropriate exceptions for invalid operations: duplicate SKUs, negative quantities, missing products, and non-positive unit prices"
+        ],
+        "exampleTest": "from inventory import Inventory\n\ninv = Inventory()\ninv.add_product('WIDGET-001', unit_price=9.99, reorder_level=10)\ninv.add_stock('WIDGET-001', 50)\nassert inv.get_quantity('WIDGET-001') == 50\nassert not inv.is_low_stock('WIDGET-001')\n\ninv.remove_stock('WIDGET-001', 45)\nassert inv.get_quantity('WIDGET-001') == 5\nassert inv.is_low_stock('WIDGET-001')\nassert abs(inv.get_total_value() - 49.95) < 0.01\n\ntry:\n    inv.remove_stock('WIDGET-001', 10)\n    assert False, 'Should raise ValueError'\nexcept ValueError:\n    pass",
+        "hints": [
+          "Start with add_product and get_quantity; implement and test these core methods before adding complexity",
+          "Store products in a dictionary using SKU as the key; each value should hold price, quantity, and reorder_level",
+          "For remove_stock, validate sufficient stock exists before modifying state; fail fast with a clear error message",
+          "Use floating-point comparison with a small epsilon (like 0.01) when testing get_total_value() due to currency rounding"
+        ]
+      },
+      "usage": {
+        "cost_usd": 0.020093899999999998,
+        "num_turns": 1
+      }
+    }
+  },
+  {
+    "model": "haiku",
+    "language": "Go",
+    "difficulty": "easy",
+    "sample": 1,
+    "result": {
+      "ok": true,
+      "ms": 30599,
+      "valid": true,
+      "validationError": null,
+      "problem": {
+        "title": "Reverse the Vowels in a String",
+        "description": "Implement a function that reverses only the vowels in a string while keeping consonants and spaces in their original positions.",
+        "requirements": [
+          "Identify all vowels in the input string (a, e, i, o, u, case-insensitive)",
+          "Reverse the order of only the vowels",
+          "Keep all consonants and spaces in their original positions",
+          "Handle strings with no vowels or single vowel",
+          "Return the modified string"
+        ],
+        "exampleTest": "func TestReverseVowels(t *testing.T) {\n    tests := []struct {\n        input    string\n        expected string\n    }{\n        {\"hello\", \"holle\"},\n        {\"aeiou\", \"uoiea\"},\n        {\"bcdfg\", \"bcdfg\"},\n        {\"a\", \"a\"},\n    }\n    for _, tt := range tests {\n        if got := ReverseVowels(tt.input); got != tt.expected {\n            t.Errorf(\"ReverseVowels(%q) = %q, want %q\", tt.input, got, tt.expected)\n        }\n    }\n}",
+        "hints": [
+          "Use two pointers/indices to find vowels from the start and end",
+          "Create a helper function to check if a character is a vowel (case-insensitive)",
+          "Convert the string to a rune slice for easier character manipulation"
+        ]
+      },
+      "usage": {
+        "cost_usd": 0.0231939,
+        "num_turns": 1
+      }
+    }
+  },
+  {
+    "model": "haiku",
+    "language": "Go",
+    "difficulty": "easy",
+    "sample": 2,
+    "result": {
+      "ok": true,
+      "ms": 18046,
+      "valid": true,
+      "validationError": null,
+      "problem": {
+        "title": "Word Frequency Counter",
+        "description": "Write a function that analyzes a string and returns how many times each word appears. The function should be case-insensitive and handle punctuation.",
+        "requirements": [
+          "Function returns an empty map when given an empty string",
+          "Function counts single and multiple different words",
+          "Function correctly counts repeated words with their frequency",
+          "Function is case-insensitive (treats 'Hello' and 'hello' as the same word)",
+          "Function strips common punctuation (.,!?;:) from words",
+          "Function handles multiple consecutive spaces correctly"
+        ],
+        "exampleTest": "func TestWordFrequency(t *testing.T) {\n    result := WordFrequency(\"hello world hello\")\n    if result[\"hello\"] != 2 {\n        t.Errorf(\"expected 2 'hello', got %d\", result[\"hello\"])\n    }\n    if result[\"world\"] != 1 {\n        t.Errorf(\"expected 1 'world', got %d\", result[\"world\"])\n    }\n    if len(result) != 2 {\n        t.Errorf(\"expected 2 unique words, got %d\", len(result))\n    }\n}",
+        "hints": [
+          "Use strings.Fields() to split text by whitespace",
+          "Use strings.ToLower() to normalize words to lowercase",
+          "Use strings.Trim() with strings.ContainsAny() to remove punctuation",
+          "Use a map[string]int to store and increment word frequencies"
+        ]
+      },
+      "usage": {
+        "cost_usd": 0.0128089,
+        "num_turns": 1
+      }
+    }
+  },
+  {
+    "model": "haiku",
+    "language": "Java",
+    "difficulty": "medium",
+    "sample": 1,
+    "result": {
+      "ok": true,
+      "ms": 29265,
+      "valid": true,
+      "validationError": null,
+      "problem": {
+        "title": "Shopping Cart with Bulk Discounts",
+        "description": "Implement a shopping cart system that calculates totals with support for bulk discounts, promotional codes, and tax calculation. The cart should maintain line items and apply discounts based on quantity or promotional codes.",
+        "requirements": [
+          "Add items to cart with item name, quantity, and per-unit price",
+          "Calculate subtotal as sum of (quantity × price) for all items in cart",
+          "Apply bulk discounts based on quantity thresholds (e.g., 10% off when quantity ≥ 10 for that item)",
+          "Apply promotional code discounts to the entire order (e.g., 'SUMMER20' applies 20% off)",
+          "Calculate tax as a percentage of the discounted subtotal",
+          "Generate itemized receipt showing each line item, all discounts applied, subtotal, tax, and final total"
+        ],
+        "exampleTest": "ShoppingCart cart = new ShoppingCart();\ncart.addItem(\"Apple\", 5, 1.00);\nassertEquals(5.00, cart.getSubtotal(), 0.01);\n\ncart.addItem(\"Orange\", 12, 2.00);\nassertEquals(29.00, cart.getSubtotalAfterDiscounts(), 0.01);\n\ncart.applyPromoCode(\"SAVE10\");\ndouble totalWithTax = cart.calculateTotal(0.08);\nassertEquals(25.68, totalWithTax, 0.01);",
+        "hints": [
+          "Start with a simple Item class to hold name, quantity, and price; build up from basic add and subtotal",
+          "Use a List or Map to store items; handle duplicate item names by updating quantity",
+          "Calculate bulk discount per item first, then apply promotional codes to the overall subtotal",
+          "Keep discount calculations separate from subtotal for easier testing and debugging",
+          "Consider storing promo codes with their discount percentages in a Map for validation"
+        ]
+      },
+      "usage": {
+        "cost_usd": 0.0187139,
+        "num_turns": 1
+      }
+    }
+  },
+  {
+    "model": "haiku",
+    "language": "Java",
+    "difficulty": "medium",
+    "sample": 2,
+    "result": {
+      "ok": true,
+      "ms": 22886,
+      "valid": true,
+      "validationError": null,
+      "problem": {
+        "title": "String Calculator with Custom Delimiters",
+        "description": "Implement a calculator that sums numbers in a string, supporting multiple delimiter types and custom delimiter definitions. Handle edge cases like negative numbers and numbers exceeding a threshold.",
+        "requirements": [
+          "Return 0 for empty string input",
+          "Sum comma-separated numbers (e.g., \"1,2,3\" returns 6)",
+          "Support newline as an additional delimiter alongside commas",
+          "Support custom single-character delimiters via header syntax (e.g., \"//;\n1;2;3\" returns 6 using semicolon)",
+          "Throw IllegalArgumentException if any negative number is present in the input",
+          "Ignore any numbers greater than or equal to 1000 in the sum calculation"
+        ],
+        "exampleTest": "public class StringCalculatorTest {\n    private StringCalculator calculator;\n    \n    @Before\n    public void setUp() {\n        calculator = new StringCalculator();\n    }\n    \n    @Test\n    public void testEmptyString() {\n        assertEquals(0, calculator.add(\"\"));\n    }\n    \n    @Test\n    public void testCommaSeparated() {\n        assertEquals(3, calculator.add(\"1,2\"));\n        assertEquals(10, calculator.add(\"2,3,5\"));\n    }\n    \n    @Test\n    public void testNewlineDelimiter() {\n        assertEquals(6, calculator.add(\"1\\n2,3\"));\n    }\n    \n    @Test\n    public void testCustomDelimiter() {\n        assertEquals(6, calculator.add(\"//;\\n1;2;3\"));\n    }\n    \n    @Test\n    public void testIgnoreNumbersOver1000() {\n        assertEquals(2, calculator.add(\"2,1001\"));\n    }\n    \n    @Test\n    public void testNegativeNumberThrows() {\n        assertThrows(IllegalArgumentException.class, () -> calculator.add(\"1,-2,3\"));\n    }\n}",
+        "hints": [
+          "Start with the simplest cases first (empty string, single number) before adding delimiter complexity",
+          "Use regular expressions or String.split() to handle multiple delimiter types",
+          "Parse the custom delimiter header (//X\\n format) before processing the number list",
+          "Keep the parsing logic separate from the summation logic for cleaner code and easier testing"
+        ]
+      },
+      "usage": {
+        "cost_usd": 0.015318899999999998,
+        "num_turns": 1
+      }
+    }
+  }
+]

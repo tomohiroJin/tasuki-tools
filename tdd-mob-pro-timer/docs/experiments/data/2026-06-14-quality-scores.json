@@ -1,0 +1,262 @@
+[
+  {
+    "model": "sonnet",
+    "language": "TypeScript",
+    "difficulty": "easy",
+    "sample": 1,
+    "score": {
+      "req_clarity": 3,
+      "test_correctness": 3,
+      "difficulty_fit": 4,
+      "tdd_value": 4,
+      "note": "Requirement 6 is ambiguous ('dog,cat' behavior is unclear and the example test doesn't cover it), and the example test omits coverage for multiple spaces and the punctuation-joined word edge case."
+    }
+  },
+  {
+    "model": "sonnet",
+    "language": "TypeScript",
+    "difficulty": "easy",
+    "sample": 2,
+    "score": {
+      "req_clarity": 5,
+      "test_correctness": 5,
+      "difficulty_fit": 5,
+      "tdd_value": 4,
+      "note": "Only three conversion functions are tested; adding Kelvin-to-Celsius or Fahrenheit-to-Kelvin would round out TDD practice without raising difficulty."
+    }
+  },
+  {
+    "model": "sonnet",
+    "language": "TypeScript",
+    "difficulty": "hard",
+    "sample": 1,
+    "score": {
+      "req_clarity": 5,
+      "test_correctness": 5,
+      "difficulty_fit": 5,
+      "tdd_value": 5,
+      "note": "No significant weaknesses; the hints on recursive descent structure and right-associativity make this an exceptionally well-designed hard kata."
+    }
+  },
+  {
+    "model": "sonnet",
+    "language": "TypeScript",
+    "difficulty": "hard",
+    "sample": 2,
+    "score": {
+      "req_clarity": 5,
+      "test_correctness": 5,
+      "difficulty_fit": 4,
+      "tdd_value": 5,
+      "note": "Difficulty leans toward upper-medium rather than hard since the hints fully prescribe the architecture (three-function recursive descent + token array), leaving little design exploration for the practitioner."
+    }
+  },
+  {
+    "model": "sonnet",
+    "language": "Python",
+    "difficulty": "medium",
+    "sample": 1,
+    "score": {
+      "req_clarity": 5,
+      "test_correctness": 5,
+      "difficulty_fit": 5,
+      "tdd_value": 5,
+      "note": "No significant weaknesses; the kata is well-scoped with clear requirements, correct and concrete tests, appropriate medium complexity, and natural TDD progression."
+    }
+  },
+  {
+    "model": "sonnet",
+    "language": "Python",
+    "difficulty": "medium",
+    "sample": 2,
+    "score": {
+      "req_clarity": 5,
+      "test_correctness": 5,
+      "difficulty_fit": 5,
+      "tdd_value": 5,
+      "note": "No significant weaknesses; all requirements map directly to tests and the kata cleanly exercises incremental TDD with meaningful business rules."
+    }
+  },
+  {
+    "model": "sonnet",
+    "language": "Go",
+    "difficulty": "easy",
+    "sample": 1,
+    "score": {
+      "req_clarity": 5,
+      "test_correctness": 5,
+      "difficulty_fit": 5,
+      "tdd_value": 5,
+      "note": "No significant weaknesses; requirements, tests, and difficulty are well-balanced for a beginner TDD exercise."
+    }
+  },
+  {
+    "model": "sonnet",
+    "language": "Go",
+    "difficulty": "easy",
+    "sample": 2,
+    "score": {
+      "req_clarity": 5,
+      "test_correctness": 5,
+      "difficulty_fit": 5,
+      "tdd_value": 4,
+      "note": "The kata is well-constructed but the 'custom rules' in the title implies configurability that the requirements don't deliver, creating a minor expectation mismatch."
+    }
+  },
+  {
+    "model": "sonnet",
+    "language": "Java",
+    "difficulty": "medium",
+    "sample": 1,
+    "score": {
+      "req_clarity": 5,
+      "test_correctness": 5,
+      "difficulty_fit": 4,
+      "tdd_value": 4,
+      "note": "Slightly leans easy for medium since all discount logic is straightforward conditionals with no edge cases around floating-point rounding or promo stacking order ambiguity."
+    }
+  },
+  {
+    "model": "sonnet",
+    "language": "Java",
+    "difficulty": "medium",
+    "sample": 2,
+    "score": {
+      "req_clarity": 5,
+      "test_correctness": 5,
+      "difficulty_fit": 4,
+      "tdd_value": 5,
+      "note": "Slightly leans easy for experienced developers but the statement formatting and aggregate tracking make it well-rounded for intermediate TDD practice."
+    }
+  },
+  {
+    "model": "haiku",
+    "language": "TypeScript",
+    "difficulty": "easy",
+    "sample": 1,
+    "score": {
+      "req_clarity": 4,
+      "test_correctness": 4,
+      "difficulty_fit": 3,
+      "tdd_value": 4,
+      "note": "Difficulty leans medium rather than easy — six requirements with two discount stacking rules and edge cases exceed a typical 30-minute beginner kata."
+    }
+  },
+  {
+    "model": "haiku",
+    "language": "TypeScript",
+    "difficulty": "easy",
+    "sample": 2,
+    "score": {
+      "req_clarity": 5,
+      "test_correctness": 4,
+      "difficulty_fit": 5,
+      "tdd_value": 4,
+      "note": "exampleTest covers only 3 of the 5 requirements — empty local part and TLD length (2-6 chars) have no example assertions, leaving learners without a test-first anchor for those rules."
+    }
+  },
+  {
+    "model": "haiku",
+    "language": "TypeScript",
+    "difficulty": "hard",
+    "sample": 1,
+    "score": {
+      "req_clarity": 4,
+      "test_correctness": 4,
+      "difficulty_fit": 5,
+      "tdd_value": 5,
+      "note": "The example test does not cover nested function calls or negative numbers despite both being listed as requirements, leaving those edge cases unverified."
+    }
+  },
+  {
+    "model": "haiku",
+    "language": "TypeScript",
+    "difficulty": "hard",
+    "sample": 2,
+    "score": {
+      "req_clarity": 4,
+      "test_correctness": 4,
+      "difficulty_fit": 4,
+      "tdd_value": 4,
+      "note": "Circular structure handling requirement lacks a testable example, leaving implementors guessing between cycle detection and depth limits."
+    }
+  },
+  {
+    "model": "haiku",
+    "language": "Python",
+    "difficulty": "medium",
+    "sample": 1,
+    "score": {
+      "req_clarity": 4,
+      "test_correctness": 5,
+      "difficulty_fit": 4,
+      "tdd_value": 4,
+      "note": "Requirements lack explicit handling of edge cases like coupon exceeding subtotal or discount order ambiguity when both member discount and coupon are applied simultaneously."
+    }
+  },
+  {
+    "model": "haiku",
+    "language": "Python",
+    "difficulty": "medium",
+    "sample": 2,
+    "score": {
+      "req_clarity": 5,
+      "test_correctness": 5,
+      "difficulty_fit": 5,
+      "tdd_value": 5,
+      "note": "No significant weaknesses; requirements are complete, the example test is syntactically valid and semantically consistent, complexity is well-calibrated for 60-minute TDD practice."
+    }
+  },
+  {
+    "model": "haiku",
+    "language": "Go",
+    "difficulty": "easy",
+    "sample": 1,
+    "score": {
+      "req_clarity": 4,
+      "test_correctness": 5,
+      "difficulty_fit": 4,
+      "tdd_value": 4,
+      "note": "Case-insensitive vowel handling is mentioned in requirements but not tested with mixed-case examples, leaving an ambiguity gap."
+    }
+  },
+  {
+    "model": "haiku",
+    "language": "Go",
+    "difficulty": "easy",
+    "sample": 2,
+    "score": {
+      "req_clarity": 5,
+      "test_correctness": 5,
+      "difficulty_fit": 5,
+      "tdd_value": 5,
+      "note": "No significant weaknesses; all dimensions are well-executed for a beginner kata."
+    }
+  },
+  {
+    "model": "haiku",
+    "language": "Java",
+    "difficulty": "medium",
+    "sample": 1,
+    "score": {
+      "req_clarity": 3,
+      "test_correctness": 2,
+      "difficulty_fit": 4,
+      "tdd_value": 3,
+      "note": "exampleTest is semantically broken: 5 Apples + 12 Oranges at 2.00 with 10% bulk discount = 5.00 + 21.60 = 26.60 subtotal after discounts, not 29.00; and the promo/tax math (26.60 × 0.9 × 1.08 ≠ 25.68) is also inconsistent, making the example test actively misleading for TDD."
+    }
+  },
+  {
+    "model": "haiku",
+    "language": "Java",
+    "difficulty": "medium",
+    "sample": 2,
+    "score": {
+      "req_clarity": 5,
+      "test_correctness": 5,
+      "difficulty_fit": 5,
+      "tdd_value": 5,
+      "note": "No significant weaknesses; this is a well-structured classic kata with clear incremental requirements ideal for TDD practice."
+    }
+  }
+]
