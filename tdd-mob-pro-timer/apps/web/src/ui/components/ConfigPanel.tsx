@@ -5,11 +5,15 @@
  * canEdit=false（観覧者・非ホスト）では現在値を読み取り表示する。
  */
 
-import React from "react";
+import React, { useState } from "react";
 import { Settings2, Languages, ChevronDown, Dices } from "lucide-react";
 import { VALID_INTERVAL_MINUTES, type IntervalMinutes } from "@tdd-mob/core/aggregate";
 import type { SessionConfig } from "@tdd-mob/core";
 import { GhostButton, SectionHeader } from "../primitives.js";
+import {
+  loadRandomLanguagePool,
+  saveRandomLanguagePool,
+} from "../../prefs/local-prefs.js";
 
 const LANGUAGES = [
   "TypeScript", "JavaScript", "Python", "Java",
@@ -54,11 +58,28 @@ export function ConfigPanel({ config, canEdit, onChange }: ConfigPanelProps) {
   const assertiveSwitch = config.assertiveSwitch === true;
   const breakOn = (config.breakEveryRotations ?? 0) >= 1;
 
-  // 言語・難易度をランダムに決める（③ 復活）。迷ったとき用。
-  const randomize = () => {
-    const lang = LANGUAGES[Math.floor(Math.random() * LANGUAGES.length)] ?? config.language;
-    const diff = DIFFICULTIES[Math.floor(Math.random() * DIFFICULTIES.length)]?.value ?? config.difficulty;
-    onChange({ language: lang, difficulty: diff });
+  // ランダム対象の言語プール（ホストローカル永続）。チップで増減する。
+  const [pool, setPool] = useState<string[]>(() => loadRandomLanguagePool());
+
+  const togglePoolLang = (lang: string) => {
+    setPool((prev) => {
+      const next = prev.includes(lang) ? prev.filter((l) => l !== lang) : [...prev, lang];
+      saveRandomLanguagePool(next);
+      return next;
+    });
+  };
+
+  // 言語のみをプールから一様ランダムに選ぶ（②③）。プール空なら何もしない。
+  const randomizeLanguage = () => {
+    if (pool.length === 0) return;
+    const lang = pool[Math.floor(Math.random() * pool.length)];
+    if (lang) onChange({ language: lang });
+  };
+
+  // 難易度のみを一様ランダムに選ぶ（②）。
+  const randomizeDifficulty = () => {
+    const d = DIFFICULTIES[Math.floor(Math.random() * DIFFICULTIES.length)];
+    if (d) onChange({ difficulty: d.value });
   };
 
   return (
@@ -67,16 +88,16 @@ export function ConfigPanel({ config, canEdit, onChange }: ConfigPanelProps) {
         icon={Languages}
         color="text-[var(--signal)]"
         title="セッション設定"
-        right={
-          <GhostButton onClick={randomize} aria-label="設定をランダムに決める" className="text-sm">
-            <span className="flex items-center gap-1.5"><Dices className="w-4 h-4" aria-hidden="true" /> ランダム</span>
-          </GhostButton>
-        }
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label htmlFor="cfg-language" className="instrument-label block mb-2">言語</label>
+          <div className="flex items-center justify-between mb-2">
+            <label htmlFor="cfg-language" className="instrument-label">言語</label>
+            <GhostButton onClick={randomizeLanguage} aria-label="言語をランダムに選ぶ" className="text-xs px-2 py-1">
+              <span className="flex items-center gap-1"><Dices className="w-3.5 h-3.5" aria-hidden="true" /> ランダム</span>
+            </GhostButton>
+          </div>
           <select
             id="cfg-language"
             value={config.language}
@@ -89,7 +110,12 @@ export function ConfigPanel({ config, canEdit, onChange }: ConfigPanelProps) {
           </select>
         </div>
         <div>
-          <label htmlFor="cfg-difficulty" className="instrument-label block mb-2">難易度</label>
+          <div className="flex items-center justify-between mb-2">
+            <label htmlFor="cfg-difficulty" className="instrument-label">難易度</label>
+            <GhostButton onClick={randomizeDifficulty} aria-label="難易度をランダムに選ぶ" className="text-xs px-2 py-1">
+              <span className="flex items-center gap-1"><Dices className="w-3.5 h-3.5" aria-hidden="true" /> ランダム</span>
+            </GhostButton>
+          </div>
           <select
             id="cfg-difficulty"
             value={config.difficulty}
@@ -102,6 +128,36 @@ export function ConfigPanel({ config, canEdit, onChange }: ConfigPanelProps) {
           </select>
         </div>
       </div>
+
+      {/* ランダム対象の言語プール（③）。既定は常用5言語。閉じておく。 */}
+      <details className="rounded-md bg-[var(--panel-2)] border border-[var(--hairline)]">
+        <summary className="flex items-center gap-2 cursor-pointer select-none px-4 py-3 text-sm font-medium text-[var(--bone)]">
+          <Dices className="w-4 h-4 text-[var(--signal)]" aria-hidden="true" />
+          ランダム対象の言語
+          <ChevronDown className="w-4 h-4 ml-auto text-[var(--bone-subtle)]" aria-hidden="true" />
+        </summary>
+        <div className="flex flex-wrap gap-2 px-4 pb-4">
+          {LANGUAGES.map((l) => {
+            const on = pool.includes(l);
+            return (
+              <button
+                key={l}
+                type="button"
+                aria-pressed={on}
+                aria-label={on ? `ランダム対象から ${l} を外す` : `ランダム対象に ${l} を入れる`}
+                onClick={() => togglePoolLang(l)}
+                className={`min-h-[36px] px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                  on
+                    ? "bg-[var(--signal)] text-[#160603] border-[var(--signal)]"
+                    : "bg-[var(--panel-2)] text-[var(--bone-muted)] border-[var(--hairline)] hover:bg-[#252934]"
+                }`}
+              >
+                {l}
+              </button>
+            );
+          })}
+        </div>
+      </details>
 
       <div>
         <p className="instrument-label mb-2">交代間隔</p>
