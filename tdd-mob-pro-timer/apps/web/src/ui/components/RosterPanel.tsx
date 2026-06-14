@@ -226,7 +226,7 @@ export function RosterPanel({
                       {p.displayName}
                     </span>
                     <span className="sr-only">{presenceLabel(p.presence)}</span>
-                    <span className={`chip ${presenceTextClass(p.presence)}`}>
+                    <span aria-hidden="true" className={`chip ${presenceTextClass(p.presence)}`}>
                       {presenceLabel(p.presence)}
                     </span>
                     {p.role === "host" && (
