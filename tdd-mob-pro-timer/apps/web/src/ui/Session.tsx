@@ -369,6 +369,7 @@ export function Session({
           onAddProxy={onAddProxy}
           onRemove={onRemoveParticipant}
           onTransferHost={onTransferHost}
+          scrollable
         />
       </Card>
 
@@ -437,6 +438,7 @@ export function Session({
                     onAddProxy={onAddProxy}
                     onRemove={onRemoveParticipant}
                     onTransferHost={onTransferHost}
+                    scrollable
                   />
                 </Card>
               </div>
