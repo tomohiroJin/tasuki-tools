@@ -51,8 +51,8 @@ describe("ソロ × RosterPanel（項目4）", () => {
     );
     const bobItem = screen.getByText("Bob").closest("li");
     const aliceItem = screen.getByText("Alice").closest("li");
-    expect(bobItem?.textContent).toMatch(/現在/);
-    expect(aliceItem?.textContent).not.toMatch(/現在/);
+    expect(bobItem?.textContent).toMatch(/今/);
+    expect(aliceItem?.textContent).not.toMatch(/今/);
   });
 
   it("ソロで members[1]（Bob）を skip すると onSkip がその participantId で呼ばれる", () => {

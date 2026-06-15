@@ -99,8 +99,8 @@ describe("Session × RosterPanel 結合（T057）", () => {
     const list = screen.getByRole("list");
     const carolItem = within(list).getByText("Carol").closest("li");
     const bobItem = within(list).getByText("Bob").closest("li");
-    expect(carolItem?.textContent).toMatch(/現在/);
-    expect(bobItem?.textContent).not.toMatch(/現在/);
+    expect(carolItem?.textContent).toMatch(/今/);
+    expect(bobItem?.textContent).not.toMatch(/今/);
   });
 
   it("観覧者に観覧バッジが表示される（FR-061）", () => {

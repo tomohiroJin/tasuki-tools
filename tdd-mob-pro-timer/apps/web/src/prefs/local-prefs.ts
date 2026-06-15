@@ -36,3 +36,31 @@ export function loadPreferences(): SavedPreferences | null {
 export function clearPreferences(): void {
   localStorage.removeItem(PREFS_KEY);
 }
+
+/** ランダム対象にする言語プール（ホストローカル設定）。SessionConfig には載せない。 */
+const RANDOM_LANG_POOL_KEY = "tdd-mob:random-language-pool:v1";
+
+/** 既定の言語プール（常用5言語）。未保存・破損時のフォールバックにも使う。 */
+export const DEFAULT_RANDOM_LANGUAGE_POOL: string[] = [
+  "TypeScript", "JavaScript", "Python", "Go", "Java",
+];
+
+/** 言語プールを localStorage に保存する。空配列も許容する。 */
+export function saveRandomLanguagePool(pool: string[]): void {
+  localStorage.setItem(RANDOM_LANG_POOL_KEY, JSON.stringify(pool));
+}
+
+/** 言語プールを返す。未保存・破損なら既定プールのコピーを返す。 */
+export function loadRandomLanguagePool(): string[] {
+  const raw = localStorage.getItem(RANDOM_LANG_POOL_KEY);
+  if (raw === null) return [...DEFAULT_RANDOM_LANGUAGE_POOL];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (Array.isArray(parsed) && parsed.every((x) => typeof x === "string")) {
+      return parsed as string[];
+    }
+    return [...DEFAULT_RANDOM_LANGUAGE_POOL];
+  } catch {
+    return [...DEFAULT_RANDOM_LANGUAGE_POOL];
+  }
+}
