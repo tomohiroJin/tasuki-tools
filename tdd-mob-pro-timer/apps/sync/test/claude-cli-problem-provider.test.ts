@@ -137,6 +137,22 @@ describe("ClaudeCliProblemProvider", () => {
     expect((spawnFn as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(0);
   });
 
+  it("出力が上限を超えたら子プロセスを kill して reject する（メモリ枯渇防止）", async () => {
+    const fake = makeFakeChild();
+    const spawnFn: SpawnFn = vi.fn(() => fake.child);
+    const provider = new ClaudeCliProblemProvider({
+      token: "sk-ant-oat01-test",
+      model: "sonnet",
+      spawnFn,
+      maxOutputBytes: 50,
+    });
+    const p = provider.generate("TypeScript", "easy", new AbortController().signal);
+    // 上限(50B)を超える出力を送りつける
+    fake.stdout.emit("data", Buffer.from("x".repeat(100)));
+    await expect(p).rejects.toThrow(/too large|出力.*上限/i);
+    expect(fake.child.kill).toHaveBeenCalled();
+  });
+
   it("AI 応答が JSON を含まない場合は reject する", async () => {
     const fake = makeFakeChild();
     const { provider } = makeProvider(fake);
