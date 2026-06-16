@@ -32,7 +32,13 @@ export interface ClaudeCliProblemProviderOptions {
   model: string;
   /** テスト用の spawn 差し替え */
   spawnFn?: SpawnFn;
+  /** stdout+stderr 累積の上限バイト数（既定 1MB）。
+   * 正常な応答は数 KB なので、暴走・巨大出力でのメモリ枯渇を防ぐ安全弁。 */
+  maxOutputBytes?: number;
 }
+
+/** 出力累積の既定上限（1MB）。正常な JSON は数 KB なので決して発火しない寛大な値。 */
+const DEFAULT_MAX_OUTPUT_BYTES = 1024 * 1024;
 
 /** AI 応答テキストから最初の { 〜 最後の } を JSON として取り出す。 */
 export function extractJsonObject(text: string): unknown {
@@ -48,11 +54,13 @@ export class ClaudeCliProblemProvider implements ServerProblemProvider {
   private readonly token: string;
   private readonly model: string;
   private readonly spawnFn: SpawnFn;
+  private readonly maxOutputBytes: number;
 
   constructor(opts: ClaudeCliProblemProviderOptions) {
     this.token = opts.token;
     this.model = opts.model;
     this.spawnFn = opts.spawnFn ?? (spawn as unknown as SpawnFn);
+    this.maxOutputBytes = opts.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES;
   }
 
   generate(language: string, difficulty: string, signal: AbortSignal): Promise<unknown> {
@@ -102,11 +110,26 @@ export class ClaudeCliProblemProvider implements ServerProblemProvider {
       };
       signal.addEventListener("abort", onAbort);
 
+      // stdout+stderr 累積が上限を超えたら子プロセスを kill して中断する
+      // （暴走・巨大出力でのメモリ枯渇防止。VPS 1GB RAM の安全弁）
+      let receivedBytes = 0;
+      const onData = (chunk: Buffer): boolean => {
+        receivedBytes += chunk.length;
+        if (receivedBytes > this.maxOutputBytes) {
+          child.kill("SIGKILL");
+          settle(() => reject(new Error("claude -p output too large（出力が上限を超過）")));
+          return false;
+        }
+        return true;
+      };
+
       child.stdout?.on("data", (chunk) => {
-        stdout += chunk.toString();
+        if (settled) return;
+        if (onData(chunk)) stdout += chunk.toString();
       });
       child.stderr?.on("data", (chunk) => {
-        stderr += chunk.toString();
+        if (settled) return;
+        if (onData(chunk)) stderr += chunk.toString();
       });
       child.on("error", (err) => settle(() => reject(err)));
       child.on("close", (code) => {
