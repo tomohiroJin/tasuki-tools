@@ -1,4 +1,4 @@
-# Tasuki VPS デプロイ設計（niku9.click）
+# Tasuki VPS デプロイ設計（example.com）
 
 - 日付: 2026-06-07
 - 対象: TDD Mob Pro Timer v2（`tdd-mob-pro-timer/`）を本番 VPS へ公開する
@@ -7,7 +7,7 @@
 ## 1. 目的
 
 v2.0.0（tag `v2.0.0`）として完成した Tasuki を、既存の VPS に公開サイトとしてデプロイする。
-既存の静的サイト（gallery / play）と共存させ、`tasuki.niku9.click` で提供する。
+既存の静的サイト（gallery / play）と共存させ、`tasuki.example.com` で提供する。
 
 ## 2. 前提（確定事項）
 
@@ -16,13 +16,13 @@ v2.0.0（tag `v2.0.0`）として完成した Tasuki を、既存の VPS に公�
 | Web サーバー | **Caddy**（ホスト直接稼働・自動 TLS）。gallery/play と同居 |
 | バックエンド稼働 | **systemd + Bun**（ホスト直接）。1GB RAM に最優・Docker 不採用 |
 | アクセス範囲 | **公開だが検索除外**（robots.txt + `X-Robots-Tag: noindex`） |
-| サブドメイン | **`tasuki.niku9.click`**（HTTP/WS を単一サブドメインに集約） |
+| サブドメイン | **`tasuki.example.com`**（HTTP/WS を単一サブドメインに集約） |
 | デプロイ方式 | **ローカルビルド → 成果物転送**（rsync/scp + `systemctl restart`） |
 
 ### VPS 諸元
 - お名前ドットコム VPS / 2 Core / 1024MB RAM / 100GB HDD
-- IP: `157.7.141.211` / ホスト名: `niku9.click`
-- 既存公開: `https://gallery.niku9.click/`, `https://play.niku9.click/`（いずれも完全静的）
+- IP: `203.0.113.10` / ホスト名: `example.com`
+- 既存公開: `https://gallery.example.com/`, `https://play.example.com/`（いずれも完全静的）
 
 ## 3. アーキテクチャ
 
@@ -33,9 +33,9 @@ v2.0.0（tag `v2.0.0`）として完成した Tasuki を、既存の VPS に公�
         ┌───────────────────────────────────┐
         │  Caddy (ホスト, :80/:443, 自動TLS) │
         ├───────────────────────────────────┤
-        │ gallery.niku9.click → 静的 (既存)  │
-        │ play.niku9.click    → 静的 (既存)  │
-        │ tasuki.niku9.click  ──┐            │
+        │ gallery.example.com → 静的 (既存)  │
+        │ play.example.com    → 静的 (既存)  │
+        │ tasuki.example.com  ──┐            │
         │   ├ /ws*  → reverse_proxy ─────────┼──┐
         │   └ /*    → file_server (静的dist) │  │
         └───────────────────────────────────┘  │
@@ -74,9 +74,9 @@ v2.0.0（tag `v2.0.0`）として完成した Tasuki を、既存の VPS に公�
 
 | # | 物 | パス | 役割 |
 |---|----|------|------|
-| 1 | 本番 Caddy 設定スニペット | `deploy/Caddyfile.production` | `tasuki.niku9.click` ブロック（静的 + `/ws` proxy + noindex）。既存 Caddyfile に取り込む |
+| 1 | 本番 Caddy 設定スニペット | `deploy/Caddyfile.production` | `tasuki.example.com` ブロック（静的 + `/ws` proxy + noindex）。既存 Caddyfile に取り込む |
 | 2 | systemd ユニット | `deploy/tasuki-sync.service` | Bun で sync 常駐・`Restart=on-failure`・`EnvironmentFile` で PORT/ALLOWED_ORIGINS/HOST |
-| 3 | env テンプレート | `deploy/tasuki-sync.env.example` | `ALLOWED_ORIGINS=https://tasuki.niku9.click` 等。実ファイルは VPS のみ・コミットしない |
+| 3 | env テンプレート | `deploy/tasuki-sync.env.example` | `ALLOWED_ORIGINS=https://tasuki.example.com` 等。実ファイルは VPS のみ・コミットしない |
 | 4 | デプロイスクリプト | `deploy/deploy.sh` | ローカルから build→rsync/scp→remote restart を1コマンド化 |
 | 5 | robots.txt | `apps/web/public/robots.txt` | `Disallow: /`（検索除外） |
 | 6 | デプロイ手順書 | `deploy/README.md` | 初回セットアップ + 更新手順 + ロールバック + トラブルシュート |
@@ -88,7 +88,7 @@ v2.0.0（tag `v2.0.0`）として完成した Tasuki を、既存の VPS に公�
 ## 6. デプロイフロー
 
 ### 初回セットアップ（VPS 側・手動 + README に手順化）
-1. DNS: `tasuki.niku9.click` の A レコードを `157.7.141.211` に向ける（ACME の前提）。
+1. DNS: `tasuki.example.com` の A レコードを `203.0.113.10` に向ける（ACME の前提）。
 2. Bun をホストへ導入（未導入時）。
 3. `/opt/tasuki/`（sync バンドル）, `/var/www/tasuki`（静的 dist）を作成（※既存 web root 慣例に合わせる）。
 4. `tasuki-sync.service` を `/etc/systemd/system/` に配置、`tasuki-sync.env` を作成し `daemon-reload` → `enable --now`。
@@ -105,7 +105,7 @@ v2.0.0（tag `v2.0.0`）として完成した Tasuki を、既存の VPS に公�
 
 ## 7. 実行時の挙動・エラーハンドリング
 
-- ブラウザ → Caddy が `index.html`/assets 配信 → フロントが `wss://tasuki.niku9.click/ws` を開く
+- ブラウザ → Caddy が `index.html`/assets 配信 → フロントが `wss://tasuki.example.com/ws` を開く
   → Caddy が Upgrade → `127.0.0.1:8787` sync。
 - sync は full snapshot 同期・サーバー権威タイマー（自己補正チャンクタイマー）を駆動。
 - **再起動でルームは消える（揮発設計どおり・許容）**。systemd `Restart=on-failure` で異常時のみ自動復帰。
@@ -141,5 +141,5 @@ v2.0.0（tag `v2.0.0`）として完成した Tasuki を、既存の VPS に公�
 
 - gallery/play の **web root の慣例**（`/var/www`? `/srv`?）と **Caddyfile の実体パス**
 - **Bun が既に導入済みか**、systemd を sudo 操作できるか
-- DNS A レコードの設定状況（`tasuki.niku9.click` → `157.7.141.211`）
+- DNS A レコードの設定状況（`tasuki.example.com` → `203.0.113.10`）
 - SSH 接続情報（ユーザー / 鍵 / ポート）— `deploy.sh` の変数に反映

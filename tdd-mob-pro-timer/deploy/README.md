@@ -1,6 +1,6 @@
-# Tasuki デプロイ手順（niku9.click）
+# Tasuki デプロイ手順（example.com）
 
-`tasuki.niku9.click` で公開するための手順。設計の正本は
+`tasuki.example.com` で公開するための手順。設計の正本は
 `../../docs/superpowers/specs/2026-06-07-tasuki-vps-deployment-design.md`。
 
 ## 構成
@@ -11,16 +11,16 @@
 
 ## 実際のセットアップ手順（スクリプト方式・推奨）
 
-2026-06-09 に niku9.click（Debian 12・ログインユーザー `tomohiro`・非 root）へ実デプロイ済み。
-**サービスは `tomohiro` ユーザーで実行**する（専用 `tasuki` ユーザーは作らない＝転送の所有権と env
+2026-06-09 に example.com（Debian 12・ログインユーザー `deploy`・非 root）へ実デプロイ済み。
+**サービスは `deploy` ユーザーで実行**する（専用 `tasuki` ユーザーは作らない＝転送の所有権と env
 読取りが単純になる）。実際に使った流れ:
 
-1. **SSH 準備**: ローカル（deploy 実行環境）から `ssh niku9` が通ること。`~/.ssh/config` に
-   `Host niku9 / HostName niku9.click / User tomohiro / IdentityFile <鍵>` を用意。
-2. **Bun 導入**（VPS で・非 sudo）: `ssh niku9 'curl -fsSL https://bun.sh/install | bash'`
+1. **SSH 準備**: ローカル（deploy 実行環境）から `ssh myvps` が通ること。`~/.ssh/config` に
+   `Host myvps / HostName example.com / User deploy / IdentityFile <鍵>` を用意。
+2. **Bun 導入**（VPS で・非 sudo）: `ssh myvps 'curl -fsSL https://bun.sh/install | bash'`
 3. **初回セットアップ**（VPS で・root）: `vps-setup.sh` を VPS へ転送し
    `sudo bash vps-setup.sh` を実行。bun を `/usr/local/bin` へ、`/opt/tasuki`・`/var/www/tasuki`
-   を tomohiro 所有で作成、env 配置、systemd ユニット（`User=tomohiro`）配置＋enable、
+   を deploy 所有で作成、env 配置、systemd ユニット（`User=deploy`）配置＋enable、
    `systemctl {restart,status,start,stop} tasuki-sync` だけの NOPASSWD sudoers を設置。
 4. **Caddy 設定**（VPS で・root）: `caddy-setup.sh` を転送し `sudo bash caddy-setup.sh`。
    既存 Caddyfile をバックアップ→tasuki ブロック追記→`caddy validate`→OK なら reload／NG なら自動復元。
@@ -28,7 +28,7 @@
    `sudo systemctl restart tasuki-sync`。手順3の NOPASSWD で非対話に通る）。
 
 > `vps-setup.sh` / `caddy-setup.sh` は冪等（再実行可）。手順3・4は VPS の sudo パスワードが要るため
-> 端末で対話実行（例: `ssh -t niku9 'sudo bash /tmp/xxx.sh'`）。手順2・5はローカルから自動実行可。
+> 端末で対話実行（例: `ssh -t myvps 'sudo bash /tmp/xxx.sh'`）。手順2・5はローカルから自動実行可。
 
 以下の「前提」「初回セットアップ（手動）」は上記スクリプトの内訳・参考。
 
@@ -38,7 +38,7 @@
   `Caddyfile.production` は VPS 側に置く必要がある。リポジトリを VPS に clone するか、
   ローカルから `scp deploy/tasuki-sync.service deploy/tasuki-sync.env.example deploy/Caddyfile.production <host>:/tmp/`
   で転送してから以降の手順を実行する（以下の手順は転送済み前提）。
-- **SSH**: deploy.sh の接続先は環境変数 `TASUKI_SSH_HOST`（内部変数 `SSH_HOST`・既定 `niku9`）。
+- **SSH**: deploy.sh の接続先は環境変数 `TASUKI_SSH_HOST`（内部変数 `SSH_HOST`・既定 `myvps`）。
   これを `~/.ssh/config` か known_hosts に事前登録しておく（初回接続のホスト鍵確認で止まらないように）。
 - **sudo**: `deploy.sh` は SSH 先で `sudo systemctl restart` を実行する。SSH ユーザーが
   **root**ならそのまま動く。一般ユーザーで運用する場合は `systemctl` への passwordless sudo
@@ -64,8 +64,8 @@
 
 ## 初回セットアップ（VPS 側・1回だけ）
 
-1. **DNS**: `tasuki.niku9.click` の A レコードを `157.7.141.211` に向ける（自動 TLS の前提）。
-   `dig +short tasuki.niku9.click` で反映を確認。
+1. **DNS**: `tasuki.example.com` の A レコードを `203.0.113.10` に向ける（自動 TLS の前提）。
+   `dig +short tasuki.example.com` で反映を確認。
 
 2. **Bun を導入**（未導入時）:
    ```bash
@@ -104,7 +104,7 @@
    ```
    ※ この時点では `server.js` 未配置のため enable のみで start しない。初回 `deploy.sh` 実行後に start（step 7）。
 
-6. **Caddy 設定を取り込む**: `Caddyfile.production` の `tasuki.niku9.click { ... }` ブロックを
+6. **Caddy 設定を取り込む**: `Caddyfile.production` の `tasuki.example.com { ... }` ブロックを
    既存ホストの Caddyfile（gallery/play と同じファイル）へ追記し、検証して reload:
    ```bash
    sudo caddy validate --config /etc/caddy/Caddyfile   # 実パスは環境に合わせる
@@ -120,10 +120,10 @@
 ## 更新（ローカルから・通常運用）
 
 ```bash
-# ~/.ssh/config に niku9 ホストを定義済みなら:
+# ~/.ssh/config に myvps ホストを定義済みなら:
 ./deploy/deploy.sh
 # 別名/IP を直接指定する場合:
-TASUKI_SSH_HOST=user@157.7.141.211 ./deploy/deploy.sh
+TASUKI_SSH_HOST=user@203.0.113.10 ./deploy/deploy.sh
 ```
 
 配置パスを変える場合は `TASUKI_WEB_ROOT` / `TASUKI_APP_DIR` / `TASUKI_SERVICE` を指定。
@@ -133,12 +133,12 @@ TASUKI_SSH_HOST=user@157.7.141.211 ./deploy/deploy.sh
 ## 動作確認
 
 ```bash
-curl -I https://tasuki.niku9.click/                 # 200 + X-Robots-Tag: noindex
-curl -s https://tasuki.niku9.click/robots.txt       # Disallow: /
+curl -I https://tasuki.example.com/                 # 200 + X-Robots-Tag: noindex
+curl -s https://tasuki.example.com/robots.txt       # Disallow: /
 sudo systemctl status tasuki-sync                    # active (running)
 sudo ss -tlnp | grep 8787                            # 127.0.0.1:8787 のみ
 ```
-ブラウザで `https://tasuki.niku9.click/` を開き、ルーム作成→別タブで参加し WS 同期を確認。
+ブラウザで `https://tasuki.example.com/` を開き、ルーム作成→別タブで参加し WS 同期を確認。
 
 ## リソース上限・Origin 保護（公開運用）
 
@@ -172,7 +172,7 @@ curl -H "x-admin-token: $ADMIN_TOKEN" http://127.0.0.1:8787/admin/rooms
    `curl -fsSL https://claude.ai/install.sh | bash`
    → `~/.local/bin/claude` に入る。`claude --version` で確認。
 2. systemd unit が claude を解決できるよう、`tasuki-sync.service` の `[Service]` に
-   `Environment=PATH=/home/tomohiro/.local/bin:/usr/local/bin:/usr/bin:/bin` を追加
+   `Environment=PATH=/home/deploy/.local/bin:/usr/local/bin:/usr/bin:/bin` を追加
    （現在 `[Service]` に `Environment=` 行はないので新規追加）。
 3. ローカルマシンで `claude setup-token` を実行しトークンを発行。
 4. `/opt/tasuki/tasuki-sync.env` に `CLAUDE_CODE_OAUTH_TOKEN` と `AI_UNLOCK_KEY` を追記

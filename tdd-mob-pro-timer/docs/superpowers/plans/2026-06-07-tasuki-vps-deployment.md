@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** v2.0.0 の Tasuki（TDD Mob Pro Timer）を `tasuki.niku9.click` で公開するためのデプロイ成果物一式と、sync の localhost 限定バインド対応を作る。
+**Goal:** v2.0.0 の Tasuki（TDD Mob Pro Timer）を `tasuki.example.com` で公開するためのデプロイ成果物一式と、sync の localhost 限定バインド対応を作る。
 
 **Architecture:** ホスト直接の Caddy（自動 TLS）が単一サブドメインで静的フロントを配信し `/ws` を `127.0.0.1:8787` の sync（systemd + Bun 常駐）へ reverse proxy する。デプロイはローカルでビルドした成果物（web dist + 単一バンドル `server.js`）を rsync/scp で転送し systemd を再起動する。
 
@@ -21,7 +21,7 @@
 
 **作成:**
 - `apps/web/public/robots.txt` — 検索除外
-- `deploy/Caddyfile.production` — `tasuki.niku9.click` の本番 Caddy ブロック（既存 Caddyfile に取り込む）
+- `deploy/Caddyfile.production` — `tasuki.example.com` の本番 Caddy ブロック（既存 Caddyfile に取り込む）
 - `deploy/tasuki-sync.service` — systemd ユニット
 - `deploy/tasuki-sync.env.example` — env テンプレート（実ファイルは VPS のみ）
 - `deploy/deploy.sh` — ローカルからのデプロイスクリプト
@@ -108,7 +108,7 @@ Expected: 全件 PASS（既存のハンドラ/ストア/スケジュール系テ
 
 Run:
 ```bash
-HOST=127.0.0.1 PORT=8787 ALLOWED_ORIGINS=https://tasuki.niku9.click bun run apps/sync/src/server.ts &
+HOST=127.0.0.1 PORT=8787 ALLOWED_ORIGINS=https://tasuki.example.com bun run apps/sync/src/server.ts &
 SYNC_PID=$!
 sleep 1
 ss -tlnp 2>/dev/null | grep 8787 || netstat -tlnp 2>/dev/null | grep 8787
@@ -136,7 +136,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ## Task 2: 検索除外用 robots.txt を追加
 
 vite は `apps/web/public/` 配下を `dist/` ルートへそのままコピーする。`robots.txt` を置くだけで
-`https://tasuki.niku9.click/robots.txt` として配信される。Caddy 側のヘッダ（Task 3）と二重で検索除外する。
+`https://tasuki.example.com/robots.txt` として配信される。Caddy 側のヘッダ（Task 3）と二重で検索除外する。
 
 **Files:**
 - Create: `apps/web/public/robots.txt`
@@ -174,7 +174,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ## Task 3: 本番 Caddy 設定スニペットを作成
 
-`tasuki.niku9.click` ブロック。ドメイン名を指定するので Caddy が自動で Let's Encrypt 証明書を取得する
+`tasuki.example.com` ブロック。ドメイン名を指定するので Caddy が自動で Let's Encrypt 証明書を取得する
 （`tls internal` ではない）。`/ws*` を sync へ、それ以外を静的 SPA として配信。`reverse_proxy` は
 WebSocket Upgrade を自動処理するため特別なヘッダ設定は不要（Caddy v2）。
 
@@ -189,8 +189,8 @@ WebSocket Upgrade を自動処理するため特別なヘッダ設定は不要�
 # Tasuki 本番用 Caddy 設定
 # 既存ホストの Caddyfile（gallery/play と同じファイル）へこのブロックを取り込む。
 # ドメイン名を指定しているため TLS は Caddy が自動取得する（ACME）。
-# 前提: tasuki.niku9.click の A レコードが 157.7.141.211 を指していること。
-tasuki.niku9.click {
+# 前提: tasuki.example.com の A レコードが 203.0.113.10 を指していること。
+tasuki.example.com {
 	root * /var/www/tasuki
 	encode zstd gzip
 
@@ -222,7 +222,7 @@ Expected: `Valid configuration` と表示される。caddy 未導入の環境で
 
 ```bash
 git add deploy/Caddyfile.production
-git commit -m "feat: 本番用 Caddy 設定(tasuki.niku9.click)を追加
+git commit -m "feat: 本番用 Caddy 設定(tasuki.example.com)を追加
 
 ドメイン指定で自動TLS。/ws を 127.0.0.1:8787(sync)へ proxy、それ以外を
 静的SPA配信。noindex ヘッダ付き。既存 Docker 用 Caddyfile とは別管理。
@@ -288,7 +288,7 @@ HOST=127.0.0.1
 
 # WebSocket 接続を許可する Origin（カンマ区切り）。
 # 未設定だと全 Origin 許可＝CSWSH リスクなので本番では必ず設定する。
-ALLOWED_ORIGINS=https://tasuki.niku9.click
+ALLOWED_ORIGINS=https://tasuki.example.com
 ```
 
 - [ ] **Step 3: 構文を確認（簡易）**
@@ -296,7 +296,7 @@ ALLOWED_ORIGINS=https://tasuki.niku9.click
 Run:
 ```bash
 grep -q "ExecStart=" deploy/tasuki-sync.service && grep -q "EnvironmentFile=" deploy/tasuki-sync.service && echo "unit OK"
-grep -q "ALLOWED_ORIGINS=https://tasuki.niku9.click" deploy/tasuki-sync.env.example && echo "env OK"
+grep -q "ALLOWED_ORIGINS=https://tasuki.example.com" deploy/tasuki-sync.env.example && echo "env OK"
 ```
 Expected: `unit OK` と `env OK` が出る。（`systemd-analyze verify` は VPS 側で配置後に実行する。）
 
@@ -331,7 +331,7 @@ SSH 先や配置パスは環境変数で上書き可能。
 set -euo pipefail
 
 # ===== 設定（環境変数で上書き可能）=====
-SSH_HOST="${TASUKI_SSH_HOST:-niku9}"        # ~/.ssh/config のホスト別名 か user@157.7.141.211
+SSH_HOST="${TASUKI_SSH_HOST:-myvps}"        # ~/.ssh/config のホスト別名 か user@203.0.113.10
 WEB_ROOT="${TASUKI_WEB_ROOT:-/var/www/tasuki}"
 APP_DIR="${TASUKI_APP_DIR:-/opt/tasuki}"
 SERVICE="${TASUKI_SERVICE:-tasuki-sync}"
@@ -358,7 +358,7 @@ scp deploy/dist/server.js "${SSH_HOST}:${APP_DIR}/server.js"
 echo "==> [5/5] sync を再起動: ${SERVICE}"
 ssh "${SSH_HOST}" "sudo systemctl restart ${SERVICE} && sudo systemctl --no-pager status ${SERVICE} | head -5"
 
-echo "==> 完了: https://tasuki.niku9.click/"
+echo "==> 完了: https://tasuki.example.com/"
 ```
 
 - [ ] **Step 2: 実行権限を付与**
@@ -387,7 +387,7 @@ Expected: `apps/web/dist/index.html` と `deploy/dist/server.js` の両方が存
 
 Run:
 ```bash
-HOST=127.0.0.1 PORT=8787 ALLOWED_ORIGINS=https://tasuki.niku9.click bun deploy/dist/server.js &
+HOST=127.0.0.1 PORT=8787 ALLOWED_ORIGINS=https://tasuki.example.com bun deploy/dist/server.js &
 SYNC_PID=$!
 sleep 1
 curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8787/
@@ -423,9 +423,9 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 `deploy/README.md`:
 
 ````markdown
-# Tasuki デプロイ手順（niku9.click）
+# Tasuki デプロイ手順（example.com）
 
-`tasuki.niku9.click` で公開するための手順。設計の正本は
+`tasuki.example.com` で公開するための手順。設計の正本は
 `../docs/superpowers/specs/2026-06-07-tasuki-vps-deployment-design.md`。
 
 ## 構成
@@ -446,8 +446,8 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ## 初回セットアップ（VPS 側・1回だけ）
 
-1. **DNS**: `tasuki.niku9.click` の A レコードを `157.7.141.211` に向ける（自動 TLS の前提）。
-   `dig +short tasuki.niku9.click` で反映を確認。
+1. **DNS**: `tasuki.example.com` の A レコードを `203.0.113.10` に向ける（自動 TLS の前提）。
+   `dig +short tasuki.example.com` で反映を確認。
 
 2. **Bun を導入**（未導入時）:
    ```bash
@@ -477,7 +477,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
    ```
    ※ この時点では `server.js` 未配置のため enable のみ。初回 `deploy.sh` 実行後に起動する。
 
-6. **Caddy 設定を取り込む**: `Caddyfile.production` の `tasuki.niku9.click { ... }` ブロックを
+6. **Caddy 設定を取り込む**: `Caddyfile.production` の `tasuki.example.com { ... }` ブロックを
    既存ホストの Caddyfile（gallery/play と同じファイル）へ追記し、検証して reload:
    ```bash
    sudo caddy validate --config /etc/caddy/Caddyfile   # 実パスは環境に合わせる
@@ -493,10 +493,10 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ## 更新（ローカルから・通常運用）
 
 ```bash
-# ~/.ssh/config に niku9 ホストを定義済みなら:
+# ~/.ssh/config に myvps ホストを定義済みなら:
 ./deploy/deploy.sh
 # 別名/IP を直接指定する場合:
-TASUKI_SSH_HOST=user@157.7.141.211 ./deploy/deploy.sh
+TASUKI_SSH_HOST=user@203.0.113.10 ./deploy/deploy.sh
 ```
 
 配置パスを変える場合は `TASUKI_WEB_ROOT` / `TASUKI_APP_DIR` / `TASUKI_SERVICE` を指定。
@@ -505,12 +505,12 @@ TASUKI_SSH_HOST=user@157.7.141.211 ./deploy/deploy.sh
 ## 動作確認
 
 ```bash
-curl -I https://tasuki.niku9.click/                 # 200 + X-Robots-Tag: noindex
-curl -s https://tasuki.niku9.click/robots.txt       # Disallow: /
+curl -I https://tasuki.example.com/                 # 200 + X-Robots-Tag: noindex
+curl -s https://tasuki.example.com/robots.txt       # Disallow: /
 sudo systemctl status tasuki-sync                    # active (running)
 sudo ss -tlnp | grep 8787                            # 127.0.0.1:8787 のみ
 ```
-ブラウザで `https://tasuki.niku9.click/` を開き、ルーム作成→別タブで参加し WS 同期を確認。
+ブラウザで `https://tasuki.example.com/` を開き、ルーム作成→別タブで参加し WS 同期を確認。
 
 ## ロールバック
 
@@ -574,7 +574,7 @@ Expected: `web dist OK`
 Run:
 ```bash
 bun build apps/sync/src/server.ts --target bun --outfile deploy/dist/server.js
-HOST=127.0.0.1 PORT=8787 ALLOWED_ORIGINS=https://tasuki.niku9.click bun deploy/dist/server.js &
+HOST=127.0.0.1 PORT=8787 ALLOWED_ORIGINS=https://tasuki.example.com bun deploy/dist/server.js &
 SYNC_PID=$!
 sleep 1
 curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8787/

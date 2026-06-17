@@ -12,8 +12,8 @@ Restart=on-failure
 RestartSec=2
 # 非 root の既存ログインユーザーで実行（deploy 転送の所有権・env 読取りが単純になる）。
 # 実デプロイでは vps-setup.sh がこのユニット相当を生成・配置する（このファイルは参照用）。
-User=tomohiro
-Group=tomohiro
+User=deploy
+Group=deploy
 
 # 基本ハードニング（アプリはファイルを書かない＝インメモリ）
 NoNewPrivileges=true

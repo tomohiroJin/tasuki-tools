@@ -1869,7 +1869,7 @@ git commit -m "test: AI お題生成の実機 E2E 確認（必要な修正があ
    `curl -fsSL https://claude.ai/install.sh | bash`
    → `~/.local/bin/claude` に入る。`claude --version` で確認。
 2. systemd unit が claude を解決できるよう、`tasuki-sync.service` の `[Service]` に
-   `Environment=PATH=/home/tomohiro/.local/bin:/usr/local/bin:/usr/bin:/bin` を追加
+   `Environment=PATH=/home/deploy/.local/bin:/usr/local/bin:/usr/bin:/bin` を追加
    （既に PATH 指定がある場合は claude のパスを追記）。
 3. ローカルマシンで `claude setup-token` を実行しトークンを発行。
 4. `/opt/tasuki/tasuki-sync.env` に `CLAUDE_CODE_OAUTH_TOKEN` と `AI_UNLOCK_KEY` を追記

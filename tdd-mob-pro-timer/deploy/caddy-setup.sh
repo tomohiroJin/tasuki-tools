@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Caddy の tasuki.niku9.click ブロックを「最新の望ましい内容」に揃える（root で実行: sudo bash）。
+# Caddy の tasuki.example.com ブロックを「最新の望ましい内容」に揃える（root で実行: sudo bash）。
 # 冪等: 既存の tasuki ブロックを除去してから最新ブロックを追記する（再実行で更新になる）。
 # 安全: 一時コピー上で組み立て → caddy validate 合格時のみ本物を差し替え＋reload。
 #       失敗時は本物に一切触れない（gallery/play は無傷）。
 set -euo pipefail
 
 CADDYFILE="${CADDYFILE:-/etc/caddy/Caddyfile}"
-DOMAIN="tasuki.niku9.click"
+DOMAIN="${TASUKI_DOMAIN:-tasuki.example.com}"
 
 [ "$(id -u)" -eq 0 ] || { echo "root で実行してください（sudo bash $0）"; exit 1; }
 [ -f "$CADDYFILE" ] || { echo "ERROR: $CADDYFILE が無い"; exit 1; }
@@ -30,7 +30,7 @@ awk -v dom="$DOMAIN" '
 # 末尾の余分な空行を1つに整えてから最新ブロックを追記。
 printf '\n' >> "$TMP"
 cat >> "$TMP" <<'CADDYEOF'
-tasuki.niku9.click {
+tasuki.example.com {
 	root * /var/www/tasuki
 	encode zstd gzip
 

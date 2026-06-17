@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ===== 設定（環境変数で上書き可能）=====
-SSH_HOST="${TASUKI_SSH_HOST:-niku9}"        # ~/.ssh/config のホスト別名 か user@157.7.141.211
+SSH_HOST="${TASUKI_SSH_HOST:-myvps}"        # ~/.ssh/config のホスト別名 か user@203.0.113.10
 WEB_ROOT="${TASUKI_WEB_ROOT:-/var/www/tasuki}"
 APP_DIR="${TASUKI_APP_DIR:-/opt/tasuki}"
 SERVICE="${TASUKI_SERVICE:-tasuki-sync}"
@@ -45,4 +45,4 @@ echo "==> [5/5] sync を再起動: ${SERVICE}"
 # shellcheck disable=SC2029  # ${SERVICE} はクライアント側での展開が意図した動作
 ssh "${SSH_HOST}" "sudo systemctl restart ${SERVICE}; systemctl --no-pager status ${SERVICE} | head -5"
 
-echo "==> 完了: https://tasuki.niku9.click/"
+echo "==> 完了: https://tasuki.example.com/"

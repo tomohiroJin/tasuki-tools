@@ -4,7 +4,7 @@
 # 冪等: 再実行しても安全。server.js の配置と起動はこのスクリプトの範囲外（deploy.sh で行う）。
 set -euo pipefail
 
-DEPLOY_USER="${DEPLOY_USER:-tomohiro}"
+DEPLOY_USER="${DEPLOY_USER:-deploy}"
 APP_DIR="${APP_DIR:-/opt/tasuki}"
 WEB_ROOT="${WEB_ROOT:-/var/www/tasuki}"
 BUN_SRC="/home/${DEPLOY_USER}/.bun/bin/bun"
@@ -33,7 +33,7 @@ if [ ! -f "$APP_DIR/tasuki-sync.env" ]; then
 NODE_ENV=production
 PORT=8787
 HOST=127.0.0.1
-ALLOWED_ORIGINS=https://tasuki.niku9.click
+ALLOWED_ORIGINS=https://tasuki.example.com
 MAX_CONNECTIONS=200
 MAX_ROOMS=50
 ROOM_IDLE_TTL_MS=1800000
@@ -58,8 +58,8 @@ WorkingDirectory=/opt/tasuki
 EnvironmentFile=/opt/tasuki/tasuki-sync.env
 Restart=on-failure
 RestartSec=2
-User=tomohiro
-Group=tomohiro
+User=deploy
+Group=deploy
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=full
@@ -87,6 +87,6 @@ echo "  sudoers ルール設置完了"
 
 echo ""
 echo "==> 完了。次の手順:"
-echo "    1) Caddy に tasuki.niku9.click ブロックを追記（別途・慎重に）"
+echo "    1) Caddy に tasuki.example.com ブロックを追記（別途・慎重に）"
 echo "    2) ローカルから deploy.sh を実行して server.js と web を配置"
 echo "    3) sudo systemctl start tasuki-sync"
