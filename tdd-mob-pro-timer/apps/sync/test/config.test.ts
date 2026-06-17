@@ -39,9 +39,9 @@ describe("loadSyncConfig", () => {
   it("本番でも ALLOWED_ORIGINS があれば OK", () => {
     const c = loadSyncConfig({
       NODE_ENV: "production",
-      ALLOWED_ORIGINS: "https://tasuki.niku9.click",
+      ALLOWED_ORIGINS: "https://tasuki.example.com",
     });
-    expect(c.allowedOrigins).toEqual(["https://tasuki.niku9.click"]);
+    expect(c.allowedOrigins).toEqual(["https://tasuki.example.com"]);
   });
 
   it("不正な数値は既定値にフォールバック", () => {

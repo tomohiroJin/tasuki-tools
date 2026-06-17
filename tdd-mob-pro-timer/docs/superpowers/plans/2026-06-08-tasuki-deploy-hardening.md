@@ -85,9 +85,9 @@ describe("loadSyncConfig", () => {
   it("本番でも ALLOWED_ORIGINS があれば OK", () => {
     const c = loadSyncConfig({
       NODE_ENV: "production",
-      ALLOWED_ORIGINS: "https://tasuki.niku9.click",
+      ALLOWED_ORIGINS: "https://tasuki.example.com",
     });
-    expect(c.allowedOrigins).toEqual(["https://tasuki.niku9.click"]);
+    expect(c.allowedOrigins).toEqual(["https://tasuki.example.com"]);
   });
 
   it("不正な数値は既定値にフォールバック", () => {
@@ -692,7 +692,7 @@ Expected: 全件 PASS
 
 ```bash
 for p in $(lsof -ti tcp:8787 2>/dev/null); do kill -9 $p; done; sleep 1
-HOST=127.0.0.1 PORT=8787 ALLOWED_ORIGINS=https://tasuki.niku9.click bun run apps/sync/src/server.ts >/tmp/sync_m2.log 2>&1 &
+HOST=127.0.0.1 PORT=8787 ALLOWED_ORIGINS=https://tasuki.example.com bun run apps/sync/src/server.ts >/tmp/sync_m2.log 2>&1 &
 sleep 1.5
 echo "HTTP: $(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8787/)"
 for p in $(lsof -ti tcp:8787 2>/dev/null); do kill -9 $p; done
@@ -760,7 +760,7 @@ ROOM_IDLE_TTL_MS=1800000   # 全員切断が30分継続したルームを回収
 ~/.local/bin/pnpm --filter @tdd-mob/sync test:unit
 for p in $(lsof -ti tcp:8787 2>/dev/null); do kill -9 $p; done; sleep 1
 bun build apps/sync/src/server.ts --target bun --outfile deploy/dist/server.js
-NODE_ENV=production HOST=127.0.0.1 PORT=8787 ALLOWED_ORIGINS=https://tasuki.niku9.click bun deploy/dist/server.js >/tmp/sync_final.log 2>&1 &
+NODE_ENV=production HOST=127.0.0.1 PORT=8787 ALLOWED_ORIGINS=https://tasuki.example.com bun deploy/dist/server.js >/tmp/sync_final.log 2>&1 &
 sleep 1.5; echo "HTTP: $(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8787/)"
 for p in $(lsof -ti tcp:8787 2>/dev/null); do kill -9 $p; done; cat /tmp/sync_final.log
 ```

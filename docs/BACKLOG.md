@@ -1,6 +1,6 @@
 # Tasuki バックログ（公開後のやることリスト）
 
-本番公開済み: **https://tasuki.niku9.click/**（2026-06-09〜）。
+本番公開済み: **https://tasuki.example.com/**（2026-06-09〜）。
 デプロイ設計は `docs/superpowers/specs/2026-06-07-tasuki-vps-deployment-design.md`。
 セキュリティレビュー（本番）の結果、Critical/High は無し。以下は残タスク。
 
@@ -67,12 +67,12 @@
 ## その他・既知の残件
 
 - ~~**リリースタグ**~~: ✅ **`v2.1.0` 作成済**（2026-06-09・main `25fa557`・VPS公開+M-1/M-2+依存更新を含む）。
-- **L-3（低・許容）**: コンテナのデプロイ鍵 `~/.ssh/niku9_deploy` がパスフレーズ無し。個人運用は許容範囲。
+- **L-3（低・許容）**: コンテナのデプロイ鍵 `~/.ssh/myvps_deploy` がパスフレーズ無し。個人運用は許容範囲。
   厳格化するなら VPS の `authorized_keys` で当該鍵に `from="<送信元IP>"` 制限。
 - **お名前.com ドメインプロテクション返金**: 意図せず申込→即解約済、返金請求フォーム送信済。**先方の返信待ち**。
 
 ## デプロイ運用メモ（再掲）
 
 - 更新は コンテナから `cd tdd-mob-pro-timer && PATH=$HOME/.local/bin:$PATH ./deploy/deploy.sh`（build→転送→`sudo systemctl restart`、非対話）。
-- VPS = Debian 12・ユーザー `tomohiro`（非 root）・サービスも tomohiro 実行。bun は `/usr/local/bin`。
+- VPS = Debian 12・ユーザー `deploy`（非 root）・サービスも deploy 実行。bun は `/usr/local/bin`。
 - 初回/再セットアップ用スクリプト: `deploy/vps-setup.sh`・`deploy/caddy-setup.sh`（いずれも冪等・要 VPS sudo）。
