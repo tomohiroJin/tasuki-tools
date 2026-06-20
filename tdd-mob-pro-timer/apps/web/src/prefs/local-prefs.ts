@@ -64,3 +64,42 @@ export function loadRandomLanguagePool(): string[] {
     return [...DEFAULT_RANDOM_LANGUAGE_POOL];
   }
 }
+
+/** 交代通知の個人設定（ルーム設定 assertiveSwitch とは独立した自分のデバイス設定）。 */
+const NOTIFY_KEY = "tdd-mob:notify:v1";
+
+export interface NotifyPreferences {
+  /** 通知（音・振動・OS通知）を有効にするか。既定 false。 */
+  enabled: boolean;
+  /** 選択中のチャイム ID（platform/sound.ts の CHIMES に対応）。 */
+  soundId: string;
+  /** タブが隠れている時に OS 通知も出すか。enabled 時のみ意味を持つ。 */
+  osNotify: boolean;
+}
+
+export const DEFAULT_NOTIFY_PREFERENCES: NotifyPreferences = {
+  enabled: false,
+  soundId: "chime-up",
+  osNotify: true,
+};
+
+/** 通知設定を保存する。 */
+export function saveNotifyPreferences(prefs: NotifyPreferences): void {
+  localStorage.setItem(NOTIFY_KEY, JSON.stringify(prefs));
+}
+
+/** 通知設定を返す。未保存・破損・欠損は既定で補完する。 */
+export function loadNotifyPreferences(): NotifyPreferences {
+  const raw = localStorage.getItem(NOTIFY_KEY);
+  if (raw === null) return { ...DEFAULT_NOTIFY_PREFERENCES };
+  try {
+    const parsed = JSON.parse(raw) as Partial<NotifyPreferences>;
+    return {
+      enabled: typeof parsed.enabled === "boolean" ? parsed.enabled : DEFAULT_NOTIFY_PREFERENCES.enabled,
+      soundId: typeof parsed.soundId === "string" ? parsed.soundId : DEFAULT_NOTIFY_PREFERENCES.soundId,
+      osNotify: typeof parsed.osNotify === "boolean" ? parsed.osNotify : DEFAULT_NOTIFY_PREFERENCES.osNotify,
+    };
+  } catch {
+    return { ...DEFAULT_NOTIFY_PREFERENCES };
+  }
+}
