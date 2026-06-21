@@ -17,6 +17,7 @@ import type { ProblemProvider } from "./ai/provider.js";
 import { screenForPhase } from "./ui/screen.js";
 import { hostChangeMessage } from "./ui/host-change.js";
 import { shouldClearGenerating, shouldAutoRequestProblem } from "./ui/problem-generation.js";
+import { shouldAutoJoinRotation } from "./ui/join-driver-intent.js";
 import { Stage } from "./ui/primitives.js";
 import { saveRecord } from "./records/indexeddb.js";
 import { persistRecordIfComplete } from "./records/persist.js";
@@ -76,6 +77,8 @@ export default function App() {
   const roomRef = useRef<Room | null>(null);
   // このクライアントがルーム作成者（＝当初ホスト）か。ロビーでお題生成を自動依頼する判定に使う。
   const isCreatorRef = useRef(false);
+  // 参加時に "driver" を選択した場合、snapshot で自分が参加者に現れたら member.add を一度だけ送る。
+  const pendingDriverJoinRef = useRef<string | null>(null);
   // ロビーでのお題自動生成依頼を一度だけ行うためのガード。
   const problemRequestedRef = useRef(false);
   // 終了種別を onRoom（snapshot 受信）クロージャから参照するための ref。
@@ -117,6 +120,15 @@ export default function App() {
         const prevRoom = roomRef.current;
         roomRef.current = r;
         setRoom(r);
+        // 参加時ドライバー宣言: 自分が参加者に現れたら一度だけ rotation に加入する。
+        if (
+          pendingDriverJoinRef.current &&
+          r.participants.some((p) => p.displayName === pendingDriverJoinRef.current) &&
+          shouldAutoJoinRotation({ pendingName: pendingDriverJoinRef.current, rotation: r.session.rotation })
+        ) {
+          newClient.send({ command: "member.add", name: pendingDriverJoinRef.current });
+          pendingDriverJoinRef.current = null;
+        }
         // 生成中で、お題の内容が前回から変化したら生成中を解除（AI 成功・定型縮退・タイムアウト確定の全経路）。
         if (shouldClearGenerating(generatingRef.current, prevRoom?.problem ?? null, r.problem ?? null)) {
           endGenerating();
@@ -269,9 +281,16 @@ export default function App() {
     c.send({ command: "room.create", displayName, config, ...(roomName && { roomName }) });
   };
 
-  // 共有 URL（?room=コード）からの参加。観覧者として加わり snapshot に追従する。
-  const handleJoinRoom = (code: string, displayName = "ゲスト", passphrase = "") => {
+  // 共有 URL（?room=コード）からの参加。mode="driver" なら snapshot 後に rotation 加入する。
+  const handleJoinRoom = (
+    code: string,
+    displayName = "ゲスト",
+    passphrase = "",
+    mode: "driver" | "spectator" = "spectator",
+  ) => {
     isCreatorRef.current = false;
+    // driver 宣言を ref に記録しておき、snapshot で自分が現れたら member.add を送る。
+    if (mode === "driver") pendingDriverJoinRef.current = displayName;
     const c = makeClient(() => ({
       language: roomRef.current?.config.language ?? "TypeScript",
       difficulty: roomRef.current?.config.difficulty ?? "easy",
@@ -593,7 +612,7 @@ export default function App() {
     }
 
     if (mode === "join" && joinCode && !room) {
-      return <Join code={joinCode} onJoin={(name, passphrase) => handleJoinRoom(joinCode, name, passphrase)} />;
+      return <Join code={joinCode} onJoin={(name, passphrase, mode) => handleJoinRoom(joinCode, name, passphrase, mode)} />;
     }
 
     // 端末ローカルの完了記録を可視化する履歴ビュー（v2.3 #5）。Setup から開き、戻ると Setup へ。
