@@ -7,9 +7,13 @@
  *
  * 入力確定（blur／プレビュー切替）時にだけ onCommit を呼ぶ（楽観更新は最小・§5.3）。
  * 親（Session）は room 単位で key を付けて再マウントするため、内部状態は room ごとに初期化される。
+ *
+ * §10 外部更新の可視化:
+ * - note が外部（他クライアント）から変わった場合、1.5s ハイライト＋aria-live アナウンスを出す。
+ * - 自分の commit と同値の更新では通知しない（二重通知の抑制）。
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { ArrowRight } from "lucide-react";
 import { MAX_HANDOFF_NOTE } from "@tdd-mob/core/aggregate";
 import { Card } from "../primitives.js";
@@ -27,18 +31,57 @@ interface SharedMemoProps {
 export function SharedMemo({ note, canEdit, onCommit }: SharedMemoProps) {
   // ローカル編集状態。サーバー snapshot が来たら追従し、確定時にだけ送信する。
   const [draft, setDraft] = useState(note);
-  useEffect(() => setDraft(note), [note]);
+
+  // 自分が最後に commit した値を記録。外部更新との区別に使う。
+  const lastCommittedRef = useRef<string>(note);
+
+  // note の前回値を追跡し、外部更新かどうかを判定する。
+  const prevNoteRef = useRef(note);
+
+  // 外部更新フラグ。true の間はハイライトと aria-live アナウンスを表示する。
+  const [updated, setUpdated] = useState(false);
+
+  // note 変化を検知: draft を追従し、外部更新なら 1.5s のハイライトを立てる。
+  // 既存の `useEffect(() => setDraft(note), [note])` はこの effect に統合済み（重複なし）。
+  useEffect(() => {
+    const prev = prevNoteRef.current;
+    prevNoteRef.current = note;
+    setDraft(note);
+    if (prev !== note && note !== lastCommittedRef.current) {
+      setUpdated(true);
+      const id = setTimeout(() => setUpdated(false), 1500);
+      return () => clearTimeout(id);
+    }
+    return undefined;
+  }, [note]);
+
   const commit = () => {
-    if (draft !== note) onCommit?.(draft);
+    if (draft !== note) {
+      // 送信前に lastCommittedRef を更新し、自己 commit 判定に備える。
+      lastCommittedRef.current = draft;
+      onCommit?.(draft);
+    }
   };
+
   // 編集/プレビュー切替。内容の有無に依らず常にプレビュー始まり（読み手優先）。
   const [mode, setMode] = useState<"edit" | "preview">("preview");
+
+  // 更新時のハイライトクラス
+  const highlightClass = updated ? "ring-1 ring-[var(--signal)]" : "";
+
+  // 外部更新アナウンス（aria-live）。両分岐で共通利用する sr-only スパン。
+  const updateAnnouncement = (
+    <span className="sr-only" aria-live="polite">
+      {updated ? "共有メモが更新されました" : ""}
+    </span>
+  );
 
   // 閲覧者: メモがある時だけ Markdown で表示。
   if (!canEdit) {
     if (!note) return null;
     return (
-      <Card>
+      <Card className={highlightClass}>
+        {updateAnnouncement}
         <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--bone)]">
           <ArrowRight className="w-4 h-4 text-[var(--signal)]" aria-hidden="true" />
           共有メモ
@@ -58,7 +101,8 @@ export function SharedMemo({ note, canEdit, onCommit }: SharedMemoProps) {
     }`;
 
   return (
-    <Card>
+    <Card className={highlightClass}>
+      {updateAnnouncement}
       <div className="mb-2 flex items-center justify-between gap-2">
         <span className="flex items-center gap-2 text-sm font-semibold text-[var(--bone)]">
           <ArrowRight className="w-4 h-4 text-[var(--signal)]" aria-hidden="true" />
