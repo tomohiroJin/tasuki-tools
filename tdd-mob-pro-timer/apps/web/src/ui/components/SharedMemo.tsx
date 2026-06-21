@@ -31,10 +31,8 @@ export function SharedMemo({ note, canEdit, onCommit }: SharedMemoProps) {
   const commit = () => {
     if (draft !== note) onCommit?.(draft);
   };
-  // 編集/プレビュー切替。内容があれば既定でプレビュー（読み手向け）。
-  const [mode, setMode] = useState<"edit" | "preview">(
-    note.trim() ? "preview" : "edit",
-  );
+  // 編集/プレビュー切替。内容の有無に依らず常にプレビュー始まり（読み手優先）。
+  const [mode, setMode] = useState<"edit" | "preview">("preview");
 
   // 閲覧者: メモがある時だけ Markdown で表示。
   if (!canEdit) {
@@ -67,24 +65,24 @@ export function SharedMemo({ note, canEdit, onCommit }: SharedMemoProps) {
           共有メモ
           <span className="instrument-label">Markdown</span>
         </span>
-        {/* 編集/プレビュー切替（セグメント）。プレビュー切替時に未確定分を送信する。 */}
-        <span
-          className="flex rounded-md border border-[var(--hairline)] overflow-hidden text-xs"
-          role="group"
-          aria-label="メモの表示モード切替"
-        >
-          <button type="button" aria-pressed={mode === "edit"} onClick={() => setMode("edit")} className={segClass(mode === "edit")}>
-            編集
-          </button>
+        {/* モード切替ボタン。プレビュー時→「編集」、編集時→「プレビューに戻る」（未確定分を送信してから切替）。 */}
+        {mode === "preview" ? (
           <button
             type="button"
-            aria-pressed={mode === "preview"}
-            onClick={() => { commit(); setMode("preview"); }}
-            className={segClass(mode === "preview")}
+            onClick={() => setMode("edit")}
+            className={segClass(false)}
           >
-            プレビュー
+            編集
           </button>
-        </span>
+        ) : (
+          <button
+            type="button"
+            onClick={() => { commit(); setMode("preview"); }}
+            className={segClass(false)}
+          >
+            プレビューに戻る
+          </button>
+        )}
       </div>
       {mode === "edit" ? (
         <textarea
@@ -100,11 +98,11 @@ export function SharedMemo({ note, canEdit, onCommit }: SharedMemoProps) {
         />
       ) : (
         <div className="min-h-[200px] rounded-md bg-[var(--panel-2)] border border-[var(--hairline)] px-3 py-2" aria-live="polite">
-          {draft.trim() ? (
-            <Markdown source={draft} />
+          {note.trim() ? (
+            <Markdown source={note} />
           ) : (
             <p className="text-sm text-[var(--bone-subtle)]">
-              メモはまだありません。「編集」から Markdown で記入できます（リンク・箇条書き・見出しなど）。
+              メモはまだありません。「編集」ボタンから Markdown で記入できます（リンク・箇条書き・見出しなど）。
             </p>
           )}
         </div>
