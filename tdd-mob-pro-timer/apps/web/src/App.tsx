@@ -612,7 +612,7 @@ export default function App() {
     }
 
     if (mode === "join" && joinCode && !room) {
-      return <Join code={joinCode} onJoin={(name, passphrase, mode) => handleJoinRoom(joinCode, name, passphrase, mode)} />;
+      return <Join code={joinCode} onJoin={(name, passphrase, joinMode) => handleJoinRoom(joinCode, name, passphrase, joinMode)} />;
     }
 
     // 端末ローカルの完了記録を可視化する履歴ビュー（v2.3 #5）。Setup から開き、戻ると Setup へ。

@@ -36,13 +36,15 @@ interface ConfigPanelProps {
   config: SessionConfig;
   canEdit: boolean;
   onChange: (patch: Partial<SessionConfig>) => void;
+  /** お題機能が有効かどうか（false のとき言語/難易度を非表示）。デフォルト true。 */
+  problemEnabled?: boolean;
 }
 
 function difficultyLabel(value: string): string {
   return DIFFICULTIES.find((d) => d.value === value)?.label ?? value;
 }
 
-export function ConfigPanel({ config, canEdit, onChange }: ConfigPanelProps) {
+export function ConfigPanel({ config, canEdit, onChange, problemEnabled = true }: ConfigPanelProps) {
   // ランダム対象の言語プール（ホストローカル永続）。チップで増減する。
   // ※ Rules of Hooks: 早期 return より前で必ず呼ぶ（canEdit 変化でフック数が変わらないように）。
   const [pool, setPool] = useState<string[]>(() => loadRandomLanguagePool());
@@ -52,7 +54,8 @@ export function ConfigPanel({ config, canEdit, onChange }: ConfigPanelProps) {
       <div className="text-sm text-[var(--bone-muted)]">
         <SectionHeader icon={Languages} color="text-[var(--signal)]" title="セッション設定" />
         <p>
-          {config.language}・{difficultyLabel(config.difficulty)}・{config.intervalMinutes}分
+          {/* お題なし時は言語/難易度を表示しない（problemEnabled=false の矛盾を防ぐ） */}
+          {problemEnabled && `${config.language}・${difficultyLabel(config.difficulty)}・`}{config.intervalMinutes}分
         </p>
       </div>
     );
@@ -91,74 +94,79 @@ export function ConfigPanel({ config, canEdit, onChange }: ConfigPanelProps) {
         title="セッション設定"
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label htmlFor="cfg-language" className="instrument-label">言語</label>
-            <GhostButton onClick={randomizeLanguage} aria-label="言語をランダムに選ぶ" className="text-xs px-2 py-1">
-              <span className="flex items-center gap-1"><Dices className="w-3.5 h-3.5" aria-hidden="true" /> ランダム</span>
-            </GhostButton>
-          </div>
-          <select
-            id="cfg-language"
-            value={config.language}
-            onChange={(e) => onChange({ language: e.target.value })}
-            className={SELECT_CLASS}
-          >
-            {LANGUAGES.map((l) => (
-              <option key={l} value={l} className="bg-[var(--panel)]">{l}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label htmlFor="cfg-difficulty" className="instrument-label">難易度</label>
-            <GhostButton onClick={randomizeDifficulty} aria-label="難易度をランダムに選ぶ" className="text-xs px-2 py-1">
-              <span className="flex items-center gap-1"><Dices className="w-3.5 h-3.5" aria-hidden="true" /> ランダム</span>
-            </GhostButton>
-          </div>
-          <select
-            id="cfg-difficulty"
-            value={config.difficulty}
-            onChange={(e) => onChange({ difficulty: e.target.value })}
-            className={SELECT_CLASS}
-          >
-            {DIFFICULTIES.map((d) => (
-              <option key={d.value} value={d.value} className="bg-[var(--panel)]">{d.label}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* ランダム対象の言語プール（③）。既定は常用5言語。閉じておく。 */}
-      <details className="rounded-md bg-[var(--panel-2)] border border-[var(--hairline)]">
-        <summary className="flex items-center gap-2 cursor-pointer select-none px-4 py-3 text-sm font-medium text-[var(--bone)]">
-          <Dices className="w-4 h-4 text-[var(--signal)]" aria-hidden="true" />
-          ランダム対象の言語
-          <ChevronDown className="w-4 h-4 ml-auto text-[var(--bone-subtle)]" aria-hidden="true" />
-        </summary>
-        <div className="flex flex-wrap gap-2 px-4 pb-4">
-          {LANGUAGES.map((l) => {
-            const on = pool.includes(l);
-            return (
-              <button
-                key={l}
-                type="button"
-                aria-pressed={on}
-                aria-label={on ? `ランダム対象から ${l} を外す` : `ランダム対象に ${l} を入れる`}
-                onClick={() => togglePoolLang(l)}
-                className={`min-h-[36px] px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                  on
-                    ? "bg-[var(--signal)] text-[#160603] border-[var(--signal)]"
-                    : "bg-[var(--panel-2)] text-[var(--bone-muted)] border-[var(--hairline)] hover:bg-[#252934]"
-                }`}
+      {/* お題なし（problemEnabled=false）のときは言語/難易度/言語プールを隠す */}
+      {problemEnabled && (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label htmlFor="cfg-language" className="instrument-label">言語</label>
+                <GhostButton onClick={randomizeLanguage} aria-label="言語をランダムに選ぶ" className="text-xs px-2 py-1">
+                  <span className="flex items-center gap-1"><Dices className="w-3.5 h-3.5" aria-hidden="true" /> ランダム</span>
+                </GhostButton>
+              </div>
+              <select
+                id="cfg-language"
+                value={config.language}
+                onChange={(e) => onChange({ language: e.target.value })}
+                className={SELECT_CLASS}
               >
-                {l}
-              </button>
-            );
-          })}
-        </div>
-      </details>
+                {LANGUAGES.map((l) => (
+                  <option key={l} value={l} className="bg-[var(--panel)]">{l}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label htmlFor="cfg-difficulty" className="instrument-label">難易度</label>
+                <GhostButton onClick={randomizeDifficulty} aria-label="難易度をランダムに選ぶ" className="text-xs px-2 py-1">
+                  <span className="flex items-center gap-1"><Dices className="w-3.5 h-3.5" aria-hidden="true" /> ランダム</span>
+                </GhostButton>
+              </div>
+              <select
+                id="cfg-difficulty"
+                value={config.difficulty}
+                onChange={(e) => onChange({ difficulty: e.target.value })}
+                className={SELECT_CLASS}
+              >
+                {DIFFICULTIES.map((d) => (
+                  <option key={d.value} value={d.value} className="bg-[var(--panel)]">{d.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* ランダム対象の言語プール（③）。既定は常用5言語。閉じておく。 */}
+          <details className="rounded-md bg-[var(--panel-2)] border border-[var(--hairline)]">
+            <summary className="flex items-center gap-2 cursor-pointer select-none px-4 py-3 text-sm font-medium text-[var(--bone)]">
+              <Dices className="w-4 h-4 text-[var(--signal)]" aria-hidden="true" />
+              ランダム対象の言語
+              <ChevronDown className="w-4 h-4 ml-auto text-[var(--bone-subtle)]" aria-hidden="true" />
+            </summary>
+            <div className="flex flex-wrap gap-2 px-4 pb-4">
+              {LANGUAGES.map((l) => {
+                const on = pool.includes(l);
+                return (
+                  <button
+                    key={l}
+                    type="button"
+                    aria-pressed={on}
+                    aria-label={on ? `ランダム対象から ${l} を外す` : `ランダム対象に ${l} を入れる`}
+                    onClick={() => togglePoolLang(l)}
+                    className={`min-h-[36px] px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                      on
+                        ? "bg-[var(--signal)] text-[#160603] border-[var(--signal)]"
+                        : "bg-[var(--panel-2)] text-[var(--bone-muted)] border-[var(--hairline)] hover:bg-[#252934]"
+                    }`}
+                  >
+                    {l}
+                  </button>
+                );
+              })}
+            </div>
+          </details>
+        </>
+      )}
 
       <div>
         <p className="instrument-label mb-2">交代間隔</p>

@@ -77,6 +77,18 @@ describe("ConfigPanel（ロビー設定・UX 再設計）", () => {
   });
 });
 
+describe("ConfigPanel problemEnabled", () => {
+  it("problemEnabled=false のとき言語コンボボックスが描画されない", () => {
+    render(<ConfigPanel config={config} canEdit onChange={vi.fn()} problemEnabled={false} />);
+    expect(screen.queryByRole("combobox", { name: "言語" })).toBeNull();
+  });
+
+  it("problemEnabled 省略（デフォルト）のとき言語コンボボックスが描画される", () => {
+    render(<ConfigPanel config={config} canEdit onChange={vi.fn()} />);
+    expect(screen.getByRole("combobox", { name: "言語" })).toBeTruthy();
+  });
+});
+
 const cfg: SessionConfig = { language: "TypeScript", difficulty: "easy", members: ["Alice"], intervalMinutes: 7 };
 
 describe("ConfigPanel 個別ランダム", () => {

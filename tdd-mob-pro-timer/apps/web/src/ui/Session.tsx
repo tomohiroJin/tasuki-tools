@@ -171,8 +171,8 @@ export function Session({
   // 強い交代通知（§9.1 assertiveSwitch）はカスタムフックに集約。reduced-motion は
   // SwitchAlert の描画にのみ使う（アニメ抑制）。
   const reducedMotion = usePrefersReducedMotion();
-  // 個人通知設定はマウント時に読む（設定変更は NotifySettings 側で保存→次回反映）。
-  const notifyPrefs = loadNotifyPreferences();
+  // 個人通知設定はマウント時に一度読む（変更は次回マウントで反映）。
+  const notifyPrefs = useMemo(() => loadNotifyPreferences(), []);
   const { switchAlertName, dismissSwitchAlert } = useSwitchAlert(
     room.session.currentIndex,
     currentDriverName,

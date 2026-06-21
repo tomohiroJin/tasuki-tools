@@ -267,6 +267,7 @@ export function Lobby({
                 <ConfigPanel
                   config={room.config}
                   canEdit={isEditor}
+                  problemEnabled={problemEnabled}
                   onChange={(patch) => onConfigSet?.(patch)}
                 />
                 {/* AI お題生成の解錠（host 限定・合言葉方式）。解錠前はテキストリンクのみ。 */}
