@@ -8,6 +8,7 @@
 
 import React from "react";
 import type { RoomPhase } from "@tdd-mob/core";
+import { NotifySettings } from "./NotifySettings.js";
 
 export type ConnectionStatus = "online" | "reconnecting" | "lost";
 
@@ -53,7 +54,7 @@ export function StatusStrip({
     <div
       role="status"
       aria-label="ステータス情報"
-      className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-md bg-[var(--panel)] border border-[var(--hairline)] px-4 py-2 text-xs text-[var(--bone-subtle)]"
+      className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-md bg-[var(--panel)] border border-[var(--hairline)] px-4 py-2 text-xs text-[var(--bone-subtle)]"
     >
       {/* フェーズ + ルームコード */}
       <span className="flex items-center gap-1">
@@ -74,6 +75,9 @@ export function StatusStrip({
         <span aria-hidden="true">●</span>
         <span>{conn.label}</span>
       </span>
+
+      {/* 個人通知設定（音/OS通知）。ルーム設定 assertiveSwitch とは独立。 */}
+      <NotifySettings />
     </div>
   );
 }
