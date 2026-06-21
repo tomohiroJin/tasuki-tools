@@ -16,7 +16,7 @@ import { NoAiProvider } from "./ai/no-ai.js";
 import type { ProblemProvider } from "./ai/provider.js";
 import { screenForPhase } from "./ui/screen.js";
 import { hostChangeMessage } from "./ui/host-change.js";
-import { shouldClearGenerating } from "./ui/problem-generation.js";
+import { shouldClearGenerating, shouldAutoRequestProblem } from "./ui/problem-generation.js";
 import { Stage } from "./ui/primitives.js";
 import { saveRecord } from "./records/indexeddb.js";
 import { persistRecordIfComplete } from "./records/persist.js";
@@ -123,13 +123,16 @@ export default function App() {
         }
         // サーバー権威の phase に全参加者が追従する（ホストの開始/完成が全員に反映）
         setMode(screenForPhase(r.phase));
-        // ロビー（開始前）でお題が未確定なら、作成者が一度だけ代表生成を依頼する（US3）。
+        // ロビー（開始前）でお題が未確定かつ problemEnabled=true なら、作成者が一度だけ代表生成を依頼する（US3）。
         // これがないと誰も problem.request を送らず「お題を準備中」のまま開始できない。
         if (
-          (r.phase === "setup" || r.phase === "ready") &&
-          !r.problem &&
-          isCreatorRef.current &&
-          !problemRequestedRef.current
+          shouldAutoRequestProblem({
+            phase: r.phase,
+            hasProblem: !!r.problem,
+            isCreator: isCreatorRef.current,
+            alreadyRequested: problemRequestedRef.current,
+            problemEnabled: r.config.problemEnabled !== false,
+          })
         ) {
           problemRequestedRef.current = true;
           newClient.send({ command: "problem.request", requestId: `req-${r.code}-lobby` });
@@ -144,7 +147,8 @@ export default function App() {
           cfgChanged &&
           isCreatorRef.current &&
           (r.phase === "setup" || r.phase === "ready") &&
-          !!r.problem
+          !!r.problem &&
+          r.config.problemEnabled !== false
         ) {
           newClient.send({ command: "problem.request", requestId: `req-${r.code}-cfg-${Date.now()}` });
           beginGenerating();
@@ -504,7 +508,8 @@ export default function App() {
           participantId={participantId}
           generatingProblem={generatingProblem}
           onStartSession={() => {
-            if (!room.problem) {
+            const problemEnabled = room.config.problemEnabled !== false;
+            if (problemEnabled && !room.problem) {
               client?.send({ command: "problem.request", requestId: `req-${room.code}` });
             }
             client?.send({ command: "phase.set", phase: "session" });

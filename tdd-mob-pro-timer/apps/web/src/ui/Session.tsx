@@ -198,8 +198,9 @@ export function Session({
   const sessionPanel = (
     <div className="space-y-6">
       {/* お題（確定後）。editor+ は ProblemEditor で各フィールドを編集できる
-          （FR-009/013/038/040/041）。未確定で生成待ちなら生成中表示（FR-003, US3-AC5）。 */}
-      {room.problem ? (
+          （FR-009/013/038/040/041）。未確定で生成待ちなら生成中表示（FR-003, US3-AC5）。
+          problemEnabled=false のときはお題ブロック自体を表示しない。 */}
+      {room.config.problemEnabled !== false && (room.problem ? (
         <Card>
           <ProblemEditor
             problem={room.problem}
@@ -227,7 +228,7 @@ export function Session({
             </div>
           </Card>
         )
-      )}
+      ))}
 
       {/* PC（lg+）は「左＝タイマー主役＋ホスト操作 / 右＝参加者・引き継ぎ」の2カラム。
           モバイルは素直に縦積み（space-y-6）になる。 */}

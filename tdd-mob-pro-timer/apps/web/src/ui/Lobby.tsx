@@ -96,9 +96,12 @@ export function Lobby({
   const isHost = myRole === "host";
   const isEditor = myRole === "host" || myRole === "editor";
 
+  // お題機能の有効/無効（デフォルト true・後方互換）
+  const problemEnabled = room.config.problemEnabled !== false;
+
   // 開始ボタン（ルームタブ最上部に配置）
   const startButton = isHost ? (
-    <PrimaryButton className="w-full" onClick={onStartSession} disabled={!room.problem}>
+    <PrimaryButton className="w-full" onClick={onStartSession} disabled={problemEnabled && !room.problem}>
       <span className="flex items-center justify-center gap-2"><Play className="w-5 h-5" aria-hidden="true" /> セッションを開始</span>
     </PrimaryButton>
   ) : (
@@ -277,42 +280,61 @@ export function Lobby({
                     />
                   </div>
                 )}
-              </Card>
-
-              {/* お題（開始前にここで決める・US3）。確定済みなら editor+ は編集できる。 */}
-              <Card>
-                <SectionHeader icon={Code} color="text-[var(--signal)]" title="お題" />
-                {room.problem ? (
-                  <ProblemEditor
-                    problem={room.problem}
-                    canEdit={isEditor}
-                    difficulty={room.config.difficulty}
-                    language={room.config.language}
-                    onEdit={onEditProblem ?? (() => {})}
-                    onRegenerate={onRegenerateProblem ?? (() => {})}
-                    onPaste={onPasteProblem ?? (() => {})}
-                    onCopy={onCopyProblem ?? (() => {})}
-                    generating={generatingProblem}
-                  />
-                ) : (
-                  <div className="space-y-3">
-                    <div className="py-8 text-center text-[var(--bone-subtle)]">
-                      <span className="inline-block h-4 w-4 animate-pulse rounded-full bg-[var(--signal)] mb-2" aria-hidden="true" />
-                      <p>
-                        {room.aiUnlocked && room.problemMode === "ai"
-                          ? "AI がお題を作成中です…（最大 1 分）"
-                          : "お題を準備中です…"}
-                      </p>
-                    </div>
-                    {/* お題は自動で用意される旨を伝える控えめなヒント（R5-2）。
-                        開始ボタンはお題が用意できると有効になる（disabled={!room.problem}）ため、
-                        「未設定でも開始可」とは書かず実態に合わせる。 */}
-                    <EmptyHint>
-                      お題は自動で用意されます。手動で決める必要はなく、「お題・設定」でいつでも変更できます。
-                    </EmptyHint>
+                {/* お題を使う/使わない（ルーム単位・host）。false なら言語/お題を要求せず開始できる。 */}
+                {isHost && (
+                  <div className="mt-4 pt-4 border-t border-[var(--hairline)]">
+                    <label className="flex items-center justify-between gap-2 text-sm text-[var(--bone)]">
+                      <span>お題を使う</span>
+                      <input
+                        type="checkbox"
+                        aria-label="お題を使う"
+                        checked={problemEnabled}
+                        onChange={(e) => onConfigSet?.({ problemEnabled: e.target.checked })}
+                      />
+                    </label>
+                    {!problemEnabled && (
+                      <p className="mt-1 text-xs text-[var(--bone-subtle)]">お題なしで進めます（言語・お題の選択は不要）。</p>
+                    )}
                   </div>
                 )}
               </Card>
+
+              {/* お題（開始前にここで決める・US3）。確定済みなら editor+ は編集できる。 */}
+              {problemEnabled && (
+                <Card>
+                  <SectionHeader icon={Code} color="text-[var(--signal)]" title="お題" />
+                  {room.problem ? (
+                    <ProblemEditor
+                      problem={room.problem}
+                      canEdit={isEditor}
+                      difficulty={room.config.difficulty}
+                      language={room.config.language}
+                      onEdit={onEditProblem ?? (() => {})}
+                      onRegenerate={onRegenerateProblem ?? (() => {})}
+                      onPaste={onPasteProblem ?? (() => {})}
+                      onCopy={onCopyProblem ?? (() => {})}
+                      generating={generatingProblem}
+                    />
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="py-8 text-center text-[var(--bone-subtle)]">
+                        <span className="inline-block h-4 w-4 animate-pulse rounded-full bg-[var(--signal)] mb-2" aria-hidden="true" />
+                        <p>
+                          {room.aiUnlocked && room.problemMode === "ai"
+                            ? "AI がお題を作成中です…（最大 1 分）"
+                            : "お題を準備中です…"}
+                        </p>
+                      </div>
+                      {/* お題は自動で用意される旨を伝える控えめなヒント（R5-2）。
+                          開始ボタンはお題が用意できると有効になる（disabled={!room.problem}）ため、
+                          「未設定でも開始可」とは書かず実態に合わせる。 */}
+                      <EmptyHint>
+                        お題は自動で用意されます。手動で決める必要はなく、「お題・設定」でいつでも変更できます。
+                      </EmptyHint>
+                    </div>
+                  )}
+                </Card>
+              )}
             </div>
           ),
         },
