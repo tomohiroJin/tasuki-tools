@@ -250,6 +250,18 @@ describe("config.set: Room.config への反映（FR-009）", () => {
     expect(after.config.intervalMinutes).toBe(10);
     expect(after.clock.intervalSeconds).toBe(600);
   });
+
+  it("problemEnabled=false を変更すると Room.config に反映される（お題なし開始・実機で発覚した退行の回帰）", async () => {
+    const code = await setupRoom(handlers);
+
+    await handlers.handleCommand("host-conn", {
+      command: "config.set",
+      config: { problemEnabled: false },
+    });
+
+    const after = store.get(code)!;
+    expect(after.config.problemEnabled).toBe(false);
+  });
 });
 
 describe("role.set: 役割変更（FR-016）", () => {
