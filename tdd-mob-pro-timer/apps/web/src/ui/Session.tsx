@@ -23,6 +23,7 @@ import { useDiscreteAnnouncement } from "./use-discrete-announcement.js";
 import { usePrefersReducedMotion } from "./use-reduced-motion.js";
 import { useSwitchAlert } from "./use-switch-alert.js";
 import { useIsWide, useViewportWidth } from "./use-breakpoint.js";
+import { loadNotifyPreferences } from "../prefs/local-prefs.js";
 import { formatRemaining, formatElapsed } from "./format-time.js";
 import { Tabs } from "./components/Tabs.js";
 import { InvitePanel } from "./components/InvitePanel.js";
@@ -169,10 +170,12 @@ export function Session({
   // 強い交代通知（§9.1 assertiveSwitch）はカスタムフックに集約。reduced-motion は
   // SwitchAlert の描画にのみ使う（アニメ抑制）。
   const reducedMotion = usePrefersReducedMotion();
+  // 個人通知設定はマウント時に読む（設定変更は NotifySettings 側で保存→次回反映）。
+  const notifyPrefs = loadNotifyPreferences();
   const { switchAlertName, dismissSwitchAlert } = useSwitchAlert(
     room.session.currentIndex,
-    room.config.assertiveSwitch === true,
     currentDriverName,
+    { assertiveSwitch: room.config.assertiveSwitch === true, notify: notifyPrefs },
   );
 
   const intervalSeconds = room.clock.intervalSeconds || 1;
