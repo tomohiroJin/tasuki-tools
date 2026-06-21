@@ -17,10 +17,8 @@ describe("RotationLineup", () => {
   it("自分が rotation 内なら自分基準サマリを出す", () => {
     render(<RotationLineup {...props} selfName="Carol" />);
     // Carol は 2 手先・約10分後。
-    // /あなた/ は <p>サマリ と （あなた）マーカー の両方にマッチするため getAllByText を使用
-    expect(screen.getAllByText(/あなた/).length).toBeGreaterThan(0);
-    // /あと2人/ はサマリと li の両方にマッチしうるため getAllByText を使用
-    expect(screen.getAllByText(/あと2人/).length).toBeGreaterThan(0);
+    // 自分基準サマリの固有テキストで精密検証（他の要素では出現しない全文）
+    expect(screen.getByText("あなた: あと2人・約10分後")).toBeTruthy();
   });
 
   it("自分が今ドライバーなら「あなたの番です」", () => {
