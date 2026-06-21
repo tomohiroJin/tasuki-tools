@@ -55,6 +55,8 @@ export const SessionConfigSchema = v.object({
   // 0 は「休憩提案オフ」を表す（ロビーでトグルを外したときに送る）。1 以上で N 巡ごと。
   breakEveryRotations: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
   assertiveSwitch: v.optional(v.boolean()),
+  /** お題機能を使うか（false なら言語/お題を要求せず開始できる）。既定 true 相当。 */
+  problemEnabled: v.optional(v.boolean()),
 });
 
 // ─── Problem スキーマ ────────────────────────────────────────────────────────
