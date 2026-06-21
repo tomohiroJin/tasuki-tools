@@ -97,7 +97,7 @@ describe("Session ドライバー加入/離脱（D1）", () => {
     // 自己トグルには一時離脱がある。
     expect(within(selfToggle()).getByRole("button", { name: /一時離脱/ })).toBeTruthy();
     // 自分(Alice)の参加者行には一時離脱を出さない（改名は残す）。
-    const list = screen.getByRole("list");
+    const list = screen.getByRole("list", { name: "在席一覧" });
     const aliceRow = within(list).getByText("Alice").closest("li") as HTMLElement;
     expect(within(aliceRow).queryByRole("button", { name: /一時離脱/ })).toBeNull();
     expect(within(aliceRow).getByRole("button", { name: /改名/ })).toBeTruthy();

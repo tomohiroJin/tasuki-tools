@@ -162,6 +162,7 @@ export function RosterPanel({
       )}
 
       <ul
+        aria-label="在席一覧"
         className={`flex flex-col gap-1.5 ${
           scrollable ? "max-h-[20rem] overflow-y-auto pr-1" : ""
         }`}

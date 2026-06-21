@@ -12,6 +12,7 @@ import type { Room, Problem } from "@tdd-mob/core";
 import { Card, GhostButton, PrimaryButton } from "./primitives.js";
 import { CircularProgress } from "./components/CircularProgress.js";
 import { TeamOrbit } from "./components/TeamOrbit.js";
+import { RotationLineup } from "./components/RotationLineup.js";
 import { RosterPanel } from "./components/RosterPanel.js";
 import { ProblemEditor } from "./components/ProblemEditor.js";
 import { EndSessionZone } from "./components/EndSessionZone.js";
@@ -243,7 +244,7 @@ export function Session({
           <div className="instrument-label mb-3">Current Driver</div>
           <div
             key={currentDriverName}
-            className="driver-name-fluid font-black mb-5 text-[var(--bone)] animate-fade-up"
+            className="driver-name-fluid font-black mb-5 text-[var(--bone)] animate-fade-up drop-shadow-[0_0_8px_rgba(255,74,46,0.45)]"
           >
             <Crown className="w-10 h-10 md:w-12 md:h-12 inline mr-3 text-[var(--signal)]" aria-hidden="true" />
             {currentDriverName}
@@ -282,6 +283,17 @@ export function Session({
             {room.config.navigatorEnabled && navigatorName && (
               <span className="ml-3 text-[var(--bone-subtle)]">ナビ: <span className="text-[var(--bone-muted)]">{navigatorName}</span></span>
             )}
+          </div>
+
+          {/* 交代順ストリップ（読み取り専用・「自分はいつ？」確認用） */}
+          <div className="mt-3">
+            <RotationLineup
+              rotation={room.session.rotation}
+              currentIndex={room.session.currentIndex}
+              intervalSeconds={room.clock.intervalSeconds || 1}
+              selfName={currentParticipant?.displayName ?? ""}
+              isPaused={room.session.isPaused}
+            />
           </div>
 
           {/* 統計（等幅タビュラーで計測値らしく） */}
