@@ -1,27 +1,29 @@
 /**
- * @deprecated 未配線（将来枠）。デスクトップ通知/振動は spec の必須要件ではなく
- * （状態変化は画面更新＋aria-live で伝達: FR-035）、App から未参照。導入する場合は
- * Session の交代検知から notifyDriverChange を呼び、初回に requestNotificationPermission する。
+ * デスクトップ OS 通知（背面タブ時のみ）。
  *
- * 通知・振動
+ * 交代時、タブが前面なら音＋全画面オーバーレイで足りるため OS 通知は出さない。
+ * タブが隠れている（document.hidden）ときだけ OS 通知を出して気づかせる。
+ * 個人設定（NotifyPreferences.osNotify）が ON のときに use-switch-alert から呼ばれる。
  */
 
+/** 通知許可を要求する（設定 ON 時に一度だけ呼ぶ）。granted なら true。 */
 export async function requestNotificationPermission(): Promise<boolean> {
-  if (!("Notification" in window)) return false;
+  if (typeof Notification === "undefined") return false;
   const result = await Notification.requestPermission();
   return result === "granted";
 }
 
+/** 背面タブ時のみ OS 通知を出す。許可が無い/前面/未対応では何もしない。 */
 export function notifyDriverChange(driverName: string): void {
-  if (Notification.permission === "granted") {
+  if (typeof Notification === "undefined") return;
+  if (Notification.permission !== "granted") return;
+  if (typeof document !== "undefined" && document.hidden !== true) return;
+  try {
     new Notification("あなたの番です！", {
       body: `${driverName} さん、ドライバーに交代しました`,
       icon: "/icon.png",
     });
-  }
-
-  // モバイルの振動（FR-033）
-  if ("vibrate" in navigator) {
-    navigator.vibrate([200, 100, 200]);
+  } catch {
+    /* 無視 */
   }
 }
