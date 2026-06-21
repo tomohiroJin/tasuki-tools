@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import React from "react";
 import { NotifySettings } from "../../src/ui/components/NotifySettings.js";
 
@@ -14,10 +14,12 @@ describe("NotifySettings", () => {
     expect(toggle.getAttribute("aria-checked")).toBe("false");
   });
 
-  it("ONにすると localStorage に enabled=true が保存される", () => {
+  it("ONにすると localStorage に enabled=true が保存される", async () => {
     render(<NotifySettings />);
     fireEvent.click(screen.getByRole("button", { name: "通知設定" }));
-    fireEvent.click(screen.getByRole("switch", { name: "交代を音で知らせる" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("switch", { name: "交代を音で知らせる" }));
+    });
     const saved = JSON.parse(localStorage.getItem("tdd-mob:notify:v1") ?? "{}");
     expect(saved.enabled).toBe(true);
   });
@@ -28,5 +30,15 @@ describe("NotifySettings", () => {
     fireEvent.change(screen.getByRole("combobox", { name: "通知音" }), { target: { value: "bell" } });
     const saved = JSON.parse(localStorage.getItem("tdd-mob:notify:v1") ?? "{}");
     expect(saved.soundId).toBe("bell");
+  });
+
+  it("パネル外をクリックするとパネルが閉じる", () => {
+    render(<NotifySettings />);
+    fireEvent.click(screen.getByRole("button", { name: "通知設定" }));
+    // パネルが開いていることを確認。
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    // パネル外（document.body）をマウスダウンするとパネルが閉じる。
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });

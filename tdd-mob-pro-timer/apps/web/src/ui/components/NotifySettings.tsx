@@ -4,7 +4,7 @@
  * 変更は即 localStorage へ保存する（次回フック読み込み時に反映）。
  */
 
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Settings, Volume2 } from "lucide-react";
 import {
   loadNotifyPreferences,
@@ -19,10 +19,24 @@ export function NotifySettings() {
   const [open, setOpen] = useState(false);
   const [prefs, setPrefs] = useState<NotifyPreferences>(() => loadNotifyPreferences());
   const [osDenied, setOsDenied] = useState(false);
+  // containerRef はボタン＋パネル全体を包むラッパー（外側クリック判定に使用）。
+  const containerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
   // useFocusTrap はオブジェクト引数形式（ブリーフの位置引数想定とは異なる実際の型）。
   useFocusTrap({ open, containerRef: panelRef, onClose: () => setOpen(false) });
+
+  // 外側クリックでパネルを閉じる。
+  useEffect(() => {
+    if (!open) return;
+    const handleMouseDown = (e: MouseEvent) => {
+      if (!containerRef.current?.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleMouseDown);
+    return () => document.removeEventListener("mousedown", handleMouseDown);
+  }, [open]);
 
   const update = (patch: Partial<NotifyPreferences>) => {
     const next = { ...prefs, ...patch };
@@ -40,7 +54,7 @@ export function NotifySettings() {
   };
 
   return (
-    <div className="relative">
+    <div ref={containerRef} className="relative">
       <button
         type="button"
         aria-label="通知設定"
