@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { shouldClearGenerating } from "../../src/ui/problem-generation.js";
+import { shouldClearGenerating, shouldAutoRequestProblem } from "../../src/ui/problem-generation.js";
 import type { Problem } from "@tdd-mob/core";
 
 const mk = (title: string, source?: Problem["source"]): Problem => ({
@@ -29,5 +29,27 @@ describe("shouldClearGenerating", () => {
   });
   it("生成中で problem が両方 null なら false", () => {
     expect(shouldClearGenerating(true, null, null)).toBe(false);
+  });
+});
+
+describe("shouldAutoRequestProblem", () => {
+  const base = { phase: "lobby", hasProblem: false, isCreator: true, alreadyRequested: false, problemEnabled: true };
+
+  it("ロビーでお題未確定・作成者・未要求・お題有効なら true", () => {
+    expect(shouldAutoRequestProblem({ ...base, phase: "ready" })).toBe(true);
+    expect(shouldAutoRequestProblem({ ...base, phase: "setup" })).toBe(true);
+  });
+  it("problemEnabled=false なら false（お題なし開始）", () => {
+    expect(shouldAutoRequestProblem({ ...base, phase: "ready", problemEnabled: false })).toBe(false);
+  });
+  it("既にお題があれば false", () => {
+    expect(shouldAutoRequestProblem({ ...base, phase: "ready", hasProblem: true })).toBe(false);
+  });
+  it("作成者以外/要求済みは false", () => {
+    expect(shouldAutoRequestProblem({ ...base, phase: "ready", isCreator: false })).toBe(false);
+    expect(shouldAutoRequestProblem({ ...base, phase: "ready", alreadyRequested: true })).toBe(false);
+  });
+  it("session フェーズでは false", () => {
+    expect(shouldAutoRequestProblem({ ...base, phase: "session" })).toBe(false);
   });
 });

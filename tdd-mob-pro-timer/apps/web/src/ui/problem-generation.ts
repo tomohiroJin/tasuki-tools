@@ -16,3 +16,17 @@ export function shouldClearGenerating(
   if (prevProblem === null || nextProblem === null) return true; // 片方だけ null＝確定/消失
   return prevProblem.title !== nextProblem.title || prevProblem.source !== nextProblem.source;
 }
+
+/** ロビーでの代表お題自動生成を送るべきか（App の effect から判定を分離してテスト可能化）。 */
+export function shouldAutoRequestProblem(args: {
+  phase: string;
+  hasProblem: boolean;
+  isCreator: boolean;
+  alreadyRequested: boolean;
+  problemEnabled: boolean;
+}): boolean {
+  const { phase, hasProblem, isCreator, alreadyRequested, problemEnabled } = args;
+  if (!problemEnabled) return false;
+  if (phase !== "setup" && phase !== "ready") return false;
+  return !hasProblem && isCreator && !alreadyRequested;
+}
