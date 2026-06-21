@@ -83,9 +83,16 @@ export const DEFAULT_NOTIFY_PREFERENCES: NotifyPreferences = {
   osNotify: true,
 };
 
-/** 通知設定を保存する。 */
+/** 通知設定の変更を同一タブの購読者へ知らせるイベント名。
+ *  storage イベントは別タブにしか飛ばないため、同一タブ内の即時反映にはこれを使う。 */
+export const NOTIFY_CHANGED_EVENT = "tdd-mob:notify-changed";
+
+/** 通知設定を保存する。保存後、同一タブの購読者へ変更イベントを発行する。 */
 export function saveNotifyPreferences(prefs: NotifyPreferences): void {
   localStorage.setItem(NOTIFY_KEY, JSON.stringify(prefs));
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(NOTIFY_CHANGED_EVENT));
+  }
 }
 
 /** 通知設定を返す。未保存・破損・欠損は既定で補完する。 */
