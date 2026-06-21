@@ -21,4 +21,11 @@ describe("OS 通知の発火条件", () => {
     notifyDriverChange("Alice");
     expect(ctor).toHaveBeenCalledTimes(1);
   });
+
+  it("permission が granted でないときは通知を出さない（回帰テスト）", () => {
+    Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
+    vi.stubGlobal("Notification", Object.assign(ctor, { permission: "denied" }));
+    notifyDriverChange("Bob");
+    expect(ctor).not.toHaveBeenCalled();
+  });
 });

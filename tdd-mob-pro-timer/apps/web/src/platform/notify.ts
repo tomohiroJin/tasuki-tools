@@ -17,7 +17,7 @@ export async function requestNotificationPermission(): Promise<boolean> {
 export function notifyDriverChange(driverName: string): void {
   if (typeof Notification === "undefined") return;
   if (Notification.permission !== "granted") return;
-  if (typeof document !== "undefined" && document.hidden !== true) return;
+  if (typeof document === "undefined" || document.hidden !== true) return;
   try {
     new Notification("あなたの番です！", {
       body: `${driverName} さん、ドライバーに交代しました`,
