@@ -1,29 +1,30 @@
 import { describe, it, expect } from "vitest";
-import { CHIMES, playChime } from "../../src/platform/sound.js";
+import { CHIMES, playChime, installAudioUnlock, DEFAULT_VOLUME } from "../../src/platform/sound.js";
 
 describe("チャイム registry", () => {
-  it("CHIMES は 5 種で id がユニーク", () => {
-    expect(CHIMES).toHaveLength(5);
+  it("CHIMES は合成3種を含み id がユニーク", () => {
     const ids = CHIMES.map((c) => c.id);
-    expect(new Set(ids).size).toBe(5);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids).toEqual(expect.arrayContaining(["chime-up", "chime-down", "soft"]));
   });
 
-  it("既定 chime-up を含む", () => {
-    expect(CHIMES.some((c) => c.id === "chime-up")).toBe(true);
-  });
-
-  it("音声ファイル系 voice は未配置時 isReady=false", () => {
-    const voice = CHIMES.find((c) => c.id === "voice");
-    expect(voice).toBeDefined();
-    // 既定ではアセット未配置のため false（配置後に true 化）。
-    expect(voice?.isReady).toBe(false);
+  it("CHIMES は全て isReady=true", () => {
+    expect(CHIMES.every((c) => c.isReady)).toBe(true);
   });
 
   it("playChime は未知 id でも例外を投げない", () => {
-    expect(() => playChime("does-not-exist")).not.toThrow();
+    expect(() => playChime("does-not-exist", 0.5)).not.toThrow();
   });
 
-  it("playChime は既知 id でも例外を投げない（AudioContext 無し環境）", () => {
+  it("playChime は volume 省略でも例外を投げない", () => {
     expect(() => playChime("chime-up")).not.toThrow();
+  });
+
+  it("DEFAULT_VOLUME は 0.6", () => {
+    expect(DEFAULT_VOLUME).toBe(0.6);
+  });
+
+  it("installAudioUnlock は例外を投げず冪等に呼べる", () => {
+    expect(() => { installAudioUnlock(); installAudioUnlock(); }).not.toThrow();
   });
 });
