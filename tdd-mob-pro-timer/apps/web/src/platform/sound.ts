@@ -90,7 +90,7 @@ export interface Chime {
   play(volume: number): void;
 }
 
-/** 選択可能なチャイム（合成3種。ファイル3種は別途追加）。 */
+/** 選択可能なチャイム（合成3種。ファイル3種は下の registerFileChimes で追加し計6種）。 */
 export const CHIMES: Chime[] = [
   { id: "chime-up", label: "上昇 2 音", isReady: true, play: (v) => playTones([660, 990], v) },
   { id: "chime-down", label: "下降 2 音", isReady: true, play: (v) => playTones([990, 660], v) },
