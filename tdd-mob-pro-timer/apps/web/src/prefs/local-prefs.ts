@@ -75,12 +75,15 @@ export interface NotifyPreferences {
   soundId: string;
   /** タブが隠れている時に OS 通知も出すか。enabled 時のみ意味を持つ。 */
   osNotify: boolean;
+  /** 通知音の音量（0–1）。既定 0.6。 */
+  volume: number;
 }
 
 export const DEFAULT_NOTIFY_PREFERENCES: NotifyPreferences = {
   enabled: false,
   soundId: "chime-up",
   osNotify: true,
+  volume: 0.6,
 };
 
 /** 通知設定の変更を同一タブの購読者へ知らせるイベント名。
@@ -105,6 +108,7 @@ export function loadNotifyPreferences(): NotifyPreferences {
       enabled: typeof parsed.enabled === "boolean" ? parsed.enabled : DEFAULT_NOTIFY_PREFERENCES.enabled,
       soundId: typeof parsed.soundId === "string" ? parsed.soundId : DEFAULT_NOTIFY_PREFERENCES.soundId,
       osNotify: typeof parsed.osNotify === "boolean" ? parsed.osNotify : DEFAULT_NOTIFY_PREFERENCES.osNotify,
+      volume: typeof parsed.volume === "number" ? parsed.volume : DEFAULT_NOTIFY_PREFERENCES.volume,
     };
   } catch {
     return { ...DEFAULT_NOTIFY_PREFERENCES };
