@@ -126,6 +126,12 @@ export const CHIMES: Chime[] = [
   { id: "bell", label: "ベル", isReady: true, play: (v) => playFile(soundUrl("bell"), v) },
 ];
 
+// TTS 音声アナウンス（AivisSpeech 生成・public/sounds に同梱）。
+registerFileChimes([
+  { id: "voice-male", label: "音声（男声）", isReady: true, play: (v) => playFile(soundUrl("voice-male"), v) },
+  { id: "voice-female", label: "音声（女声）", isReady: true, play: (v) => playFile(soundUrl("voice-female"), v) },
+]);
+
 /** soundId に対応するチャイムを鳴らす。未知 id は既定 department にフォールバック。 */
 export function playChime(soundId: string, volume: number = DEFAULT_VOLUME): void {
   const chime = CHIMES.find((c) => c.id === soundId && c.isReady)

@@ -44,14 +44,12 @@ describe("scheduleTones（#1 resume を待ってからスケジュール）", ()
 });
 
 describe("チャイム registry", () => {
-  it("CHIMES は department/melody/sustained/chime-up/chime-down/bell を含み soft/ping/knock を含まない", () => {
+  it("CHIMES は voice-male/voice-female を含む計8種", () => {
     const ids = CHIMES.map((c) => c.id);
-    expect(ids).toEqual(expect.arrayContaining(["department", "melody", "sustained", "chime-up", "chime-down", "bell"]));
-    expect(ids).not.toContain("soft");
-    expect(ids).not.toContain("ping");
-    expect(ids).not.toContain("knock");
+    expect(ids).toHaveLength(8);
+    expect(ids).toEqual(expect.arrayContaining(["department","melody","sustained","voice-male","voice-female","chime-up","chime-down","bell"]));
+    expect(new Set(ids).size).toBe(8);
     expect(CHIMES.every((c) => c.isReady)).toBe(true);
-    expect(new Set(ids).size).toBe(ids.length);
   });
 
   it("既定 department が registry にあり playChime の未知idフォールバックも department", () => {
