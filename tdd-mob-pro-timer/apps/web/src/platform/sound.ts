@@ -116,7 +116,7 @@ function playFile(src: string, volume: number): void {
 /** 同梱音源の URL（vite の base path に追従）。 */
 const soundUrl = (name: string): string => `${import.meta.env.BASE_URL}sounds/${name}.mp3`;
 
-/** 選択可能なチャイム（department を先頭・既定とし計6種）。 */
+/** 選択可能なチャイム。department を先頭・既定とし初期6種。ファイル系は下の registerFileChimes で追加（voice 2種で計8種）。 */
 export const CHIMES: Chime[] = [
   { id: "department", label: "呼び出しチャイム", isReady: true, play: (v) => playFile(soundUrl("department"), v) },
   { id: "melody", label: "メロディ", isReady: true, play: (v) => playFile(soundUrl("melody"), v) },
