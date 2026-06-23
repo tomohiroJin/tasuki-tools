@@ -50,18 +50,18 @@ export function installAudioUnlock(): void {
   window.addEventListener("touchstart", unlock);
 }
 
-/** 任意の音列を共有コンテキストで鳴らす（失敗は黙って無視）。 */
-function playTones(
+/** 指定 AudioContext に音列をスケジュールする。suspended なら resume を待ってから行う。 */
+export async function scheduleTones(
+  ctx: AudioContext,
   freqs: number[],
   volume: number,
   opts: { type?: OscillatorType; gap?: number; gain?: number } = {},
-): void {
-  const ctx = getSharedAudioContext();
-  if (!ctx) return;
+): Promise<void> {
   const { type = "sine", gap = 0.14, gain = 0.5 } = opts;
   const peak = Math.max(0.0001, gain * volume);
   try {
-    if (ctx.state === "suspended") void ctx.resume().catch(() => {});
+    // 交代間隔中に自動 suspend された場合、resume 完了を待ってからスケジュールしないと無音になる（#1）。
+    if (ctx.state === "suspended") await ctx.resume();
     const now = ctx.currentTime;
     freqs.forEach((freq, i) => {
       const start = now + i * gap;
@@ -78,8 +78,19 @@ function playTones(
       osc.stop(start + gap);
     });
   } catch {
-    /* 自動再生制限・未対応は無視 */
+    /* 自動再生制限・未対応・resume 失敗は無視 */
   }
+}
+
+/** 任意の音列を共有コンテキストで鳴らす（fire-and-forget）。 */
+function playTones(
+  freqs: number[],
+  volume: number,
+  opts: { type?: OscillatorType; gap?: number; gain?: number } = {},
+): void {
+  const ctx = getSharedAudioContext();
+  if (!ctx) return;
+  void scheduleTones(ctx, freqs, volume, opts);
 }
 
 /** 1 つのチャイム定義。play は音量(0–1)を受け取る。 */
