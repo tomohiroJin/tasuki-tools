@@ -47,13 +47,13 @@ export function useSwitchAlert(
     if (prev === currentIndex) return;
     // 個人設定: 音/振動/OS通知（ルーム設定に依存しない背面通知）。
     if (notify.enabled) {
-      playChime(notify.soundId);
+      playChime(notify.soundId, notify.volume);
       vibrateSwitch();
       if (notify.osNotify) notifyDriverChange(currentDriverName);
     }
     // ルーム設定: 全画面オーバーレイ（音とは独立）。
     if (assertiveSwitch) setName(currentDriverName);
-  }, [currentIndex, assertiveSwitch, notify.enabled, notify.soundId, notify.osNotify, currentDriverName]);
+  }, [currentIndex, assertiveSwitch, notify.enabled, notify.soundId, notify.osNotify, notify.volume, currentDriverName]);
 
   // 自動消滅は表示状態だけに依存させる（検知 effect と分離）。
   useEffect(() => {
