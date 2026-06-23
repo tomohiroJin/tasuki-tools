@@ -95,10 +95,11 @@ describe("Session × RosterPanel 結合（T057）", () => {
     const handlers = baseHandlers();
     render(<Session room={makeRoom()} participantId="host-1" {...handlers} />);
     // 現ドライバー Carol の li に「現在」が付き、viewer Bob には付かない。
-    // 「Carol」はドライバー見出しにも現れるため在席一覧（list）内に限定して検索する。
-    const list = screen.getByRole("list", { name: "在席一覧" });
-    const carolItem = within(list).getByText("Carol").closest("li");
-    const bobItem = within(list).getByText("Bob").closest("li");
+    // Carol は rotation 内 → ドライバー一覧、Bob は rotation 外 → 見学一覧 に分かれる。
+    const driverList = screen.getByRole("list", { name: "ドライバー一覧" });
+    const watchList = screen.getByRole("list", { name: "見学一覧" });
+    const carolItem = within(driverList).getByText("Carol").closest("li");
+    const bobItem = within(watchList).getByText("Bob").closest("li");
     expect(carolItem?.textContent).toMatch(/今/);
     expect(bobItem?.textContent).not.toMatch(/今/);
   });
@@ -112,9 +113,10 @@ describe("Session × RosterPanel 結合（T057）", () => {
   it("RosterPanel の離脱操作が driver.skip ハンドラを participantId 付きで発火する（FR-051）", () => {
     const handlers = baseHandlers();
     render(<Session room={makeRoom()} participantId="host-1" {...handlers} />);
-    // Carol（editor）の行内の「離脱」ボタンを押す（タイマー下の即時交代「スキップ」と混同しない）
-    const list = screen.getByRole("list", { name: "在席一覧" });
-    const carolItem = within(list).getByText("Carol").closest("li") as HTMLElement;
+    // Carol（editor）は rotation 内 → ドライバー一覧に表示される。
+    // 「離脱」ボタンを押す（タイマー下の即時交代「スキップ」と混同しない）
+    const driverList = screen.getByRole("list", { name: "ドライバー一覧" });
+    const carolItem = within(driverList).getByText("Carol").closest("li") as HTMLElement;
     const skipBtn = within(carolItem).getByRole("button", { name: /離脱/ });
     fireEvent.click(skipBtn);
     expect(handlers.onDriverSkip).toHaveBeenCalledWith("edit-1");
@@ -123,8 +125,9 @@ describe("Session × RosterPanel 結合（T057）", () => {
   it("RosterPanel の改名操作が rename ハンドラを発火する（FR-046/048）", () => {
     const handlers = baseHandlers();
     render(<Session room={makeRoom()} participantId="host-1" {...handlers} />);
-    const list = screen.getByRole("list", { name: "在席一覧" });
-    const carolItem = within(list).getByText("Carol").closest("li") as HTMLElement;
+    // Carol（editor）は rotation 内 → ドライバー一覧に表示される。
+    const driverList = screen.getByRole("list", { name: "ドライバー一覧" });
+    const carolItem = within(driverList).getByText("Carol").closest("li") as HTMLElement;
     fireEvent.click(within(carolItem).getByRole("button", { name: /改名/ }));
     const input = screen.getByDisplayValue("Carol");
     fireEvent.change(input, { target: { value: "Caroline" } });
