@@ -114,3 +114,12 @@ export function loadNotifyPreferences(): NotifyPreferences {
     return { ...DEFAULT_NOTIFY_PREFERENCES };
   }
 }
+
+/** 通知ヒントを表示済みか（初回案内の抑制）。 */
+const NOTIFY_HINT_KEY = "tdd-mob:notify-hint-seen:v1";
+export function loadNotifyHintSeen(): boolean {
+  return localStorage.getItem(NOTIFY_HINT_KEY) === "1";
+}
+export function saveNotifyHintSeen(): void {
+  localStorage.setItem(NOTIFY_HINT_KEY, "1");
+}

@@ -5,7 +5,7 @@
  */
 
 import React from "react";
-import { Users, Code, Play, UserPlus, UserMinus, ChevronUp, ChevronDown, X, Crown, Shuffle } from "lucide-react";
+import { Users, Code, Play, UserPlus, UserMinus, ChevronUp, ChevronDown, X, Crown, Shuffle, Bell } from "lucide-react";
 import type { Room, Problem } from "@tdd-mob/core";
 import { Card, PrimaryButton, GhostButton, SectionHeader } from "./primitives.js";
 import { ProblemEditor } from "./components/ProblemEditor.js";
@@ -16,7 +16,11 @@ import { PassphrasePanel } from "./components/PassphrasePanel.js";
 import { AiUnlockPanel } from "./components/AiUnlockPanel.js";
 import { EmptyHint } from "./components/EmptyHint.js";
 import { ProblemModeToggle } from "./components/ProblemModeToggle.js";
+import { NotifySettingsPanel } from "./components/NotifySettingsPanel.js";
 import { presenceDotClass } from "./presence.js";
+import { useNotifyPreferences } from "./use-notify-preferences.js";
+import { saveNotifyPreferences } from "../prefs/local-prefs.js";
+import { playChime } from "../platform/sound.js";
 import type { SessionConfig } from "@tdd-mob/core";
 
 interface LobbyProps {
@@ -97,6 +101,9 @@ export function Lobby({
   const isHost = myRole === "host";
   const isEditor = myRole === "host" || myRole === "editor";
 
+  // 通知設定（ロビーのカードで直接編集できるよう、ライブ購読）。
+  const notifyPrefs = useNotifyPreferences();
+
   // お題機能の有効/無効（デフォルト true・後方互換）
   const problemEnabled = room.config.problemEnabled !== false;
 
@@ -135,6 +142,19 @@ export function Lobby({
                   <PassphrasePanel
                     protectedNow={!!room.passphraseProtected}
                     onSet={onSetPassphrase}
+                  />
+                </Card>
+              )}
+              {/* 通知設定カード（host 限定）。セッション開始前に音通知を整えておける。 */}
+              {isHost && (
+                <Card>
+                  <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--bone)]">
+                    <Bell className="w-4 h-4 text-[var(--signal)]" aria-hidden="true" /> 交代通知
+                  </div>
+                  <NotifySettingsPanel
+                    prefs={notifyPrefs}
+                    onChange={(patch) => saveNotifyPreferences({ ...notifyPrefs, ...patch })}
+                    onPreview={() => playChime(notifyPrefs.soundId, notifyPrefs.volume)}
                   />
                 </Card>
               )}

@@ -3,7 +3,7 @@
  * T057: FR-007, FR-017, FR-030 ＋ デザインシステム適用
  */
 
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Crown, ArrowRight, Play, Pause, SkipForward, Flag, RotateCcw, Coffee, Shuffle,
 } from "lucide-react";
@@ -29,6 +29,8 @@ import { formatRemaining, formatElapsed } from "./format-time.js";
 import { Tabs } from "./components/Tabs.js";
 import { InvitePanel } from "./components/InvitePanel.js";
 import { PassphrasePanel } from "./components/PassphrasePanel.js";
+import { NotifyHint } from "./components/NotifyHint.js";
+import { loadNotifyHintSeen, saveNotifyHintSeen, loadNotifyPreferences } from "../prefs/local-prefs.js";
 
 interface SessionProps {
   room: Room;
@@ -116,6 +118,10 @@ export function Session({
   onPasteProblem,
   onSetPassphrase,
 }: SessionProps) {
+  // 未読かつ通知 OFF のとき、初回ヒントを表示する（一度閉じたら再表示しない）。
+  const [showHint, setShowHint] = useState(() => !loadNotifyHintSeen() && !loadNotifyPreferences().enabled);
+  const dismissHint = () => { saveNotifyHintSeen(); setShowHint(false); };
+
   // 稼働中は定期的に再レンダリングしてカウントダウンを進める（FR-007・フックに分離）。
   const now = useNowTick(room.clock.running, room.clock.anchorServerTime);
   const elapsed = useMemo(
@@ -199,6 +205,8 @@ export function Session({
   // 「セッション」タブのコンテンツ（既存 UI をそのまま移動）。
   const sessionPanel = (
     <div className="space-y-6">
+      {/* 初回ヒント（未読かつ通知 OFF のときのみ）。閉じると二度と出ない。 */}
+      {showHint && <NotifyHint onDismiss={dismissHint} />}
       {/* お題（確定後）。editor+ は ProblemEditor で各フィールドを編集できる
           （FR-009/013/038/040/041）。未確定で生成待ちなら生成中表示（FR-003, US3-AC5）。
           problemEnabled=false のときはお題ブロック自体を表示しない。 */}
