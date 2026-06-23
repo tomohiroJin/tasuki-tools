@@ -44,15 +44,20 @@ describe("scheduleTones（#1 resume を待ってからスケジュール）", ()
 });
 
 describe("チャイム registry", () => {
-  it("CHIMES は合成3＋ファイル3の計6種で id がユニーク", () => {
+  it("CHIMES は department/melody/sustained/chime-up/chime-down/bell を含み soft/ping/knock を含まない", () => {
     const ids = CHIMES.map((c) => c.id);
-    expect(ids).toHaveLength(6);
-    expect(new Set(ids).size).toBe(6);
-    expect(ids).toEqual(expect.arrayContaining(["chime-up", "chime-down", "soft", "ping", "bell", "knock"]));
+    expect(ids).toEqual(expect.arrayContaining(["department", "melody", "sustained", "chime-up", "chime-down", "bell"]));
+    expect(ids).not.toContain("soft");
+    expect(ids).not.toContain("ping");
+    expect(ids).not.toContain("knock");
+    expect(CHIMES.every((c) => c.isReady)).toBe(true);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("CHIMES は全て isReady=true", () => {
-    expect(CHIMES.every((c) => c.isReady)).toBe(true);
+  it("既定 department が registry にあり playChime の未知idフォールバックも department", () => {
+    expect(CHIMES.some((c) => c.id === "department")).toBe(true);
+    // 削除済み soundId は例外なくフォールバック再生される（department）。
+    expect(() => playChime("soft", 0.5)).not.toThrow();
   });
 
   it("playChime は未知 id でも例外を投げない", () => {

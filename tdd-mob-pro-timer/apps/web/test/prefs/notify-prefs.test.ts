@@ -45,4 +45,8 @@ describe("通知設定の永続化", () => {
     localStorage.setItem("tdd-mob:notify:v1", JSON.stringify({ enabled: true, soundId: "bell", osNotify: true }));
     expect(loadNotifyPreferences().volume).toBe(0.6);
   });
+
+  it("既定 soundId は department", () => {
+    expect(DEFAULT_NOTIFY_PREFERENCES.soundId).toBe("department");
+  });
 });

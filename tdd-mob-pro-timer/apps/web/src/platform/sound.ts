@@ -101,13 +101,6 @@ export interface Chime {
   play(volume: number): void;
 }
 
-/** 選択可能なチャイム（合成3種。ファイル3種は下の registerFileChimes で追加し計6種）。 */
-export const CHIMES: Chime[] = [
-  { id: "chime-up", label: "上昇 2 音", isReady: true, play: (v) => playTones([660, 990], v) },
-  { id: "chime-down", label: "下降 2 音", isReady: true, play: (v) => playTones([990, 660], v) },
-  { id: "soft", label: "ソフト", isReady: true, play: (v) => playTones([523], v, { gap: 0.2, gain: 0.3 }) },
-];
-
 /** 音声ファイルを音量付きで再生（失敗は黙って無視）。 */
 function playFile(src: string, volume: number): void {
   if (typeof Audio === "undefined") return;
@@ -123,23 +116,26 @@ function playFile(src: string, volume: number): void {
 /** 同梱音源の URL（vite の base path に追従）。 */
 const soundUrl = (name: string): string => `${import.meta.env.BASE_URL}sounds/${name}.mp3`;
 
-// ファイル系チャイム（public/sounds/ に同梱・ffmpeg 生成）。
-registerFileChimes([
-  { id: "ping", label: "ピンポン", isReady: true, play: (v) => playFile(soundUrl("ping"), v) },
+/** 選択可能なチャイム（department を先頭・既定とし計6種）。 */
+export const CHIMES: Chime[] = [
+  { id: "department", label: "呼び出しチャイム", isReady: true, play: (v) => playFile(soundUrl("department"), v) },
+  { id: "melody", label: "メロディ", isReady: true, play: (v) => playFile(soundUrl("melody"), v) },
+  { id: "sustained", label: "持続トーン", isReady: true, play: (v) => playFile(soundUrl("sustained"), v) },
+  { id: "chime-up", label: "上昇 2 音", isReady: true, play: (v) => playTones([660, 990], v) },
+  { id: "chime-down", label: "下降 2 音", isReady: true, play: (v) => playTones([990, 660], v) },
   { id: "bell", label: "ベル", isReady: true, play: (v) => playFile(soundUrl("bell"), v) },
-  { id: "knock", label: "ノック", isReady: true, play: (v) => playFile(soundUrl("knock"), v) },
-]);
+];
 
-/** soundId に対応するチャイムを鳴らす。未知 id は既定 chime-up にフォールバック。 */
+/** soundId に対応するチャイムを鳴らす。未知 id は既定 department にフォールバック。 */
 export function playChime(soundId: string, volume: number = DEFAULT_VOLUME): void {
   const chime = CHIMES.find((c) => c.id === soundId && c.isReady)
-    ?? CHIMES.find((c) => c.id === "chime-up");
+    ?? CHIMES.find((c) => c.id === "department");
   chime?.play(volume);
 }
 
-/** @deprecated playChime("chime-up", DEFAULT_VOLUME) を使う。既存呼び出し互換のため残置。 */
+/** @deprecated playChime("department", DEFAULT_VOLUME) を使う。既存呼び出し互換のため残置。 */
 export function playSwitchChime(): void {
-  playChime("chime-up", DEFAULT_VOLUME);
+  playChime("department", DEFAULT_VOLUME);
 }
 
 /** モバイル振動（対応端末のみ）。 */

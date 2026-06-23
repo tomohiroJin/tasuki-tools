@@ -81,7 +81,7 @@ export interface NotifyPreferences {
 
 export const DEFAULT_NOTIFY_PREFERENCES: NotifyPreferences = {
   enabled: false,
-  soundId: "chime-up",
+  soundId: "department",
   osNotify: true,
   volume: 0.6,
 };
