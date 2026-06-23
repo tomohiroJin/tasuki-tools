@@ -2,10 +2,11 @@ import { describe, it, expect } from "vitest";
 import { CHIMES, playChime, installAudioUnlock, DEFAULT_VOLUME } from "../../src/platform/sound.js";
 
 describe("チャイム registry", () => {
-  it("CHIMES は合成3種を含み id がユニーク", () => {
+  it("CHIMES は合成3＋ファイル3の計6種で id がユニーク", () => {
     const ids = CHIMES.map((c) => c.id);
-    expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toEqual(expect.arrayContaining(["chime-up", "chime-down", "soft"]));
+    expect(ids).toHaveLength(6);
+    expect(new Set(ids).size).toBe(6);
+    expect(ids).toEqual(expect.arrayContaining(["chime-up", "chime-down", "soft", "ping", "bell", "knock"]));
   });
 
   it("CHIMES は全て isReady=true", () => {

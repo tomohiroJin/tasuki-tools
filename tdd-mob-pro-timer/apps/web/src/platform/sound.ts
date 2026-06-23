@@ -97,6 +97,28 @@ export const CHIMES: Chime[] = [
   { id: "soft", label: "ソフト", isReady: true, play: (v) => playTones([523], v, { gap: 0.2, gain: 0.3 }) },
 ];
 
+/** 音声ファイルを音量付きで再生（失敗は黙って無視）。 */
+function playFile(src: string, volume: number): void {
+  if (typeof Audio === "undefined") return;
+  try {
+    const a = new Audio(src);
+    a.volume = Math.min(1, Math.max(0, volume));
+    void a.play().catch(() => {});
+  } catch {
+    /* 無視 */
+  }
+}
+
+/** 同梱音源の URL（vite の base path に追従）。 */
+const soundUrl = (name: string): string => `${import.meta.env.BASE_URL}sounds/${name}.mp3`;
+
+// ファイル系チャイム（public/sounds/ に同梱・ffmpeg 生成）。
+registerFileChimes([
+  { id: "ping", label: "ピンポン", isReady: true, play: (v) => playFile(soundUrl("ping"), v) },
+  { id: "bell", label: "ベル", isReady: true, play: (v) => playFile(soundUrl("bell"), v) },
+  { id: "knock", label: "ノック", isReady: true, play: (v) => playFile(soundUrl("knock"), v) },
+]);
+
 /** soundId に対応するチャイムを鳴らす。未知 id は既定 chime-up にフォールバック。 */
 export function playChime(soundId: string, volume: number = DEFAULT_VOLUME): void {
   const chime = CHIMES.find((c) => c.id === soundId && c.isReady)
