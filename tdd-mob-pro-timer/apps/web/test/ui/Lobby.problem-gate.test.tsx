@@ -60,14 +60,13 @@ describe("Lobby お題ゲート（Task 8）", () => {
     expect((btn as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it("host が「お題を使う」チェックボックスを外すと onConfigSet({ problemEnabled: false }) が呼ばれる", () => {
+  it("host が「お題なし」ラジオを押すと onConfigSet({ problemEnabled: false }) が呼ばれる", () => {
     const onConfigSet = vi.fn();
     const room = makeRoom(); // problemEnabled=true
     render(<Lobby room={room} participantId="host-p" onStartSession={noop} onConfigSet={onConfigSet} />);
-    const optionsTab = screen.getByRole("tab", { name: /お題・設定/ });
-    fireEvent.click(optionsTab);
-    const checkbox = screen.getByRole("checkbox", { name: /お題を使う/ });
-    fireEvent.click(checkbox);
+    // ルームタブのトグルを操作（お題・設定タブへの切替不要）
+    const radio = screen.getByRole("radio", { name: "お題なし" });
+    fireEvent.click(radio);
     expect(onConfigSet).toHaveBeenCalledWith({ problemEnabled: false });
   });
 });

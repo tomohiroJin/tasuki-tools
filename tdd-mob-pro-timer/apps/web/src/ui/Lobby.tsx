@@ -15,6 +15,7 @@ import { InvitePanel } from "./components/InvitePanel.js";
 import { PassphrasePanel } from "./components/PassphrasePanel.js";
 import { AiUnlockPanel } from "./components/AiUnlockPanel.js";
 import { EmptyHint } from "./components/EmptyHint.js";
+import { ProblemModeToggle } from "./components/ProblemModeToggle.js";
 import { presenceDotClass } from "./presence.js";
 import type { SessionConfig } from "@tdd-mob/core";
 
@@ -118,6 +119,15 @@ export function Lobby({
           content: (
             <div className="space-y-6">
               {startButton}
+              {/* お題あり/なし切替（ルームタブ・host 限定）。開始判断と同じ場所で明示的に選べる。 */}
+              {isHost && (
+                <Card>
+                  <ProblemModeToggle
+                    enabled={problemEnabled}
+                    onChange={(v) => onConfigSet?.({ problemEnabled: v })}
+                  />
+                </Card>
+              )}
               <InvitePanel code={room.code} />
               {/* ルームのパスフレーズ設定/解除（R4-2・host 限定）。招待のすぐ下に置く。 */}
               {isHost && onSetPassphrase && (
@@ -281,23 +291,7 @@ export function Lobby({
                     />
                   </div>
                 )}
-                {/* お題を使う/使わない（ルーム単位・host）。false なら言語/お題を要求せず開始できる。 */}
-                {isHost && (
-                  <div className="mt-4 pt-4 border-t border-[var(--hairline)]">
-                    <label className="flex items-center justify-between gap-2 text-sm text-[var(--bone)]">
-                      <span>お題を使う</span>
-                      <input
-                        type="checkbox"
-                        aria-label="お題を使う"
-                        checked={problemEnabled}
-                        onChange={(e) => onConfigSet?.({ problemEnabled: e.target.checked })}
-                      />
-                    </label>
-                    {!problemEnabled && (
-                      <p className="mt-1 text-xs text-[var(--bone-subtle)]">お題なしで進めます（言語・お題の選択は不要）。</p>
-                    )}
-                  </div>
-                )}
+
               </Card>
 
               {/* お題（開始前にここで決める・US3）。確定済みなら editor+ は編集できる。 */}
