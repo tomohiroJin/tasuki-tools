@@ -20,6 +20,7 @@ import { NotifySettingsPanel } from "./components/NotifySettingsPanel.js";
 import { presenceDotClass } from "./presence.js";
 import { useNotifyPreferences } from "./use-notify-preferences.js";
 import { saveNotifyPreferences } from "../prefs/local-prefs.js";
+import { requestPermissionIfEnabling } from "../platform/notify.js";
 import { playChime } from "../platform/sound.js";
 import type { SessionConfig } from "@tdd-mob/core";
 
@@ -153,7 +154,11 @@ export function Lobby({
                   </div>
                   <NotifySettingsPanel
                     prefs={notifyPrefs}
-                    onChange={(patch) => saveNotifyPreferences({ ...notifyPrefs, ...patch })}
+                    onChange={(patch) => {
+                      const next = { ...notifyPrefs, ...patch };
+                      saveNotifyPreferences(next);
+                      void requestPermissionIfEnabling(patch, next);
+                    }}
                     onPreview={() => playChime(notifyPrefs.soundId, notifyPrefs.volume)}
                   />
                 </Card>

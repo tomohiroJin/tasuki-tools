@@ -12,7 +12,7 @@ import {
   type NotifyPreferences,
 } from "../../prefs/local-prefs.js";
 import { playChime } from "../../platform/sound.js";
-import { requestNotificationPermission } from "../../platform/notify.js";
+import { requestPermissionIfEnabling } from "../../platform/notify.js";
 import { useFocusTrap } from "../useFocusTrap.js";
 import { NotifySettingsPanel } from "./NotifySettingsPanel.js";
 
@@ -48,10 +48,8 @@ export function NotifySettings() {
     setPrefs(next);
     saveNotifyPreferences(next);
     // enabled が ON になった（かつ osNotify が有効）ときに OS 通知許可を要求。
-    if (patch.enabled === true && next.osNotify) {
-      const granted = await requestNotificationPermission();
-      setOsDenied(!granted);
-    }
+    const granted = await requestPermissionIfEnabling(patch, next);
+    if (granted !== null) setOsDenied(!granted);
   };
 
   return (
