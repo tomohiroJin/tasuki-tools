@@ -19,13 +19,13 @@ export function NotifySettingsPanel({ prefs, onChange, onPreview }: NotifySettin
 
   return (
     <div className="text-sm text-[var(--bone)]">
-      {/* 現在状態の明示（ON/OFF + 選択音名）。音名は select の option にも存在するため p 内では aria-hidden にして重複検出を回避しない。
-          テスト: getByText(/呼び出しチャイム/) は選択中 option が一致する。 */}
+      {/* 現在状態（ON/OFF と選択中の音名）を見出しに表示する。 */}
       <p className="mb-3 text-base font-semibold">
         通知:{" "}
         <span className={prefs.enabled ? "text-[var(--ok)]" : "text-[var(--bone-subtle)]"}>
           {prefs.enabled ? "ON" : "OFF"}
         </span>
+        <span className="text-[var(--bone-subtle)]"> / 音: {currentLabel}</span>
       </p>
 
       {/* ON/OFF トグル（role="switch" + aria-checked で a11y 準拠） */}

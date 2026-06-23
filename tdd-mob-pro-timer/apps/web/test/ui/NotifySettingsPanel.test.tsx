@@ -8,7 +8,8 @@ const prefs = { enabled: true, soundId: "department", osNotify: true, volume: 0.
 describe("NotifySettingsPanel", () => {
   it("現在状態（ON・選択音名）を見出しに表示する", () => {
     render(<NotifySettingsPanel prefs={prefs} onChange={vi.fn()} onPreview={vi.fn()} />);
-    expect(screen.getByText(/呼び出しチャイム/)).toBeTruthy();
+    const heading = screen.getByText(/通知:/);
+    expect(heading).toHaveTextContent("呼び出しチャイム");
   });
   it("音量スライダー変更で onChange({volume}) を呼ぶ", () => {
     const onChange = vi.fn();
