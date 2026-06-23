@@ -41,4 +41,13 @@ describe("NotifySettings", () => {
     fireEvent.mouseDown(document.body);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
+
+  it("音量スライダーを動かすと volume が保存される", () => {
+    render(<NotifySettings />);
+    fireEvent.click(screen.getByRole("button", { name: "通知設定" }));
+    const slider = screen.getByRole("slider", { name: "音量" });
+    fireEvent.change(slider, { target: { value: "0.3" } });
+    const saved = JSON.parse(localStorage.getItem("tdd-mob:notify:v1") ?? "{}");
+    expect(saved.volume).toBe(0.3);
+  });
 });

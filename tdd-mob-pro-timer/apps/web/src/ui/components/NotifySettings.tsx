@@ -109,12 +109,30 @@ export function NotifySettings() {
               <button
                 type="button"
                 aria-label="試聴"
-                onClick={() => playChime(prefs.soundId)}
+                onClick={() => playChime(prefs.soundId, prefs.volume)}
                 className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[var(--hairline)] text-[var(--bone-muted)] hover:bg-[var(--panel-2)]"
               >
                 <Volume2 className="h-4 w-4" aria-hidden="true" />
               </button>
             </div>
+          </div>
+
+          {/* 音量スライダー */}
+          <div className="mt-3">
+            <label htmlFor="notify-volume" className="instrument-label">
+              音量
+            </label>
+            <input
+              id="notify-volume"
+              type="range"
+              aria-label="音量"
+              min={0}
+              max={1}
+              step={0.05}
+              value={prefs.volume}
+              onChange={(e) => update({ volume: Number(e.target.value) })}
+              className="mt-1 w-full"
+            />
           </div>
 
           {/* OS 通知トグル */}
