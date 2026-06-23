@@ -96,9 +96,9 @@ describe("Session ドライバー加入/離脱（D1）", () => {
     render(<Session room={makeRoom()} participantId="host-p" {...handlers()} onDriverSkip={vi.fn()} />);
     // 自己トグルには一時離脱がある。
     expect(within(selfToggle()).getByRole("button", { name: /一時離脱/ })).toBeTruthy();
-    // 自分(Alice)の参加者行には一時離脱を出さない（改名は残す）。
-    const list = screen.getByRole("list", { name: "在席一覧" });
-    const aliceRow = within(list).getByText("Alice").closest("li") as HTMLElement;
+    // 自分(Alice)は rotation 内 → ドライバー一覧に表示される。自分の行には一時離脱を出さない（改名は残す）。
+    const driverList = screen.getByRole("list", { name: "ドライバー一覧" });
+    const aliceRow = within(driverList).getByText("Alice").closest("li") as HTMLElement;
     expect(within(aliceRow).queryByRole("button", { name: /一時離脱/ })).toBeNull();
     expect(within(aliceRow).getByRole("button", { name: /改名/ })).toBeTruthy();
   });
