@@ -280,7 +280,7 @@ export function Session({
 
           <div className="flex flex-wrap items-center justify-center gap-2 text-lg text-[var(--bone-muted)] boot-reveal" style={{ animationDelay: "150ms" }}>
             <ArrowRight className="w-5 h-5 text-[var(--steel)]" aria-hidden="true" />
-            次: <span className="text-[var(--bone)] font-bold">{nextDriverName}</span>
+            次: <span className="text-[var(--bone)] font-bold text-lg">{nextDriverName}</span>
             {room.config.navigatorEnabled && navigatorName && (
               <span className="ml-3 text-[var(--bone-subtle)]">ナビ: <span className="text-[var(--bone-muted)]">{navigatorName}</span></span>
             )}

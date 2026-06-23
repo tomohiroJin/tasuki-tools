@@ -42,7 +42,7 @@ export function RotationLineup({ rotation, currentIndex, intervalSeconds, selfNa
     <div className="mt-3">
       {selfSummary && (
         <p
-          className="mb-2 text-center text-sm font-semibold text-[var(--signal)]"
+          className="mb-2 text-center text-lg font-bold text-[var(--signal)]"
           aria-live="polite"
         >
           {selfSummary}
@@ -52,7 +52,7 @@ export function RotationLineup({ rotation, currentIndex, intervalSeconds, selfNa
         {members.map((m) => (
           <li
             key={m.name}
-            className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-xs ${
+            className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm ${
               m.isCurrent
                 ? "bg-[rgba(255,74,46,0.16)] border border-[rgba(255,74,46,0.5)] text-[var(--bone)]"
                 : m.isSelf
@@ -61,7 +61,7 @@ export function RotationLineup({ rotation, currentIndex, intervalSeconds, selfNa
             }`}
           >
             {/* 番号バッジ */}
-            <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[var(--panel)] text-[10px] font-bold tabular">
+            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[var(--panel)] text-xs font-bold tabular">
               {m.order}
             </span>
             {/* 名前 */}
