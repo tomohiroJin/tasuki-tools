@@ -162,10 +162,12 @@ export function RosterPanel({
 
     return (
       <li
-        key={p.participantId}
+        // 現ドライバーになった瞬間だけ key を変えて再マウントし、入場アニメ(animate-pop-in)を
+        // 再生させる＝交代で先頭に入れ替わった「感」を出す（reduced-motion では index.css で抑制）。
+        key={isCurrentDriver ? `${p.participantId}-current` : p.participantId}
         className={`rounded-md px-3 py-2 text-sm transition-colors ${
           isCurrentDriver
-            ? "bg-[rgba(255,74,46,0.12)] border border-[rgba(255,74,46,0.4)]"
+            ? "bg-[rgba(255,74,46,0.12)] border border-[rgba(255,74,46,0.4)] animate-pop-in"
             : "bg-[var(--panel-2)] border border-[var(--hairline)]"
         }`}
       >
