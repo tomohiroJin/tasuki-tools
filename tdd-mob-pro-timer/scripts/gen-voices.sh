@@ -4,8 +4,8 @@ set -euo pipefail
 OUT="$(dirname "$0")/../apps/web/public/sounds"
 ENGINE="http://127.0.0.1:10101"
 TEXT="ドライバー交代です"
-MALE_ID=497929760    # morioki（実機で性別確認・不適なら変更）
-FEMALE_ID=606865152  # fumifumi（実機で性別確認・不適なら変更）
+MALE_ID=606865152    # fumifumi（男声・実機確認で確定）
+FEMALE_ID=497929760  # morioki（女声・実機確認で確定）
 mkdir -p "$OUT"
 curl -s -m 5 "$ENGINE/version" >/dev/null || { echo "AivisSpeech が $ENGINE で応答しません。起動後に再実行してください（既存 mp3 は保持）。" >&2; exit 1; }
 gen() {
