@@ -1223,8 +1223,10 @@ function buildShuffleOrder(len: number, running: boolean, currentIndex: number):
 function computeIneligibleIndices(room: Room): Set<number> {
   const ineligibleNames = new Set(
     room.participants
-      // 切断中(offline)の人も交代対象から外す（R2-1）。
-      .filter((p) => p.driverEligible === false || p.presence === "offline")
+      // 一時離脱(driverEligible=false)は対象外。実在の切断中(offline)の人も対象外（R2-1）。
+      // ただし代理(placeholder)は Web 非接続が常態で対面在席する実在の人を表すため、
+      // offline でも eligible として扱う（さもないとタイマー自動交代で永久に飛ばされ交代しない）。
+      .filter((p) => p.driverEligible === false || (p.presence === "offline" && p.isPlaceholder !== true))
       .map((p) => p.displayName),
   );
   const set = new Set<number>();
