@@ -46,11 +46,11 @@ describe("Lobby お題ゲート（Task 8）", () => {
   it("problemEnabled=false のときお題セクションを表示しない", () => {
     const room = makeRoom({ problemEnabled: false });
     render(<Lobby room={room} participantId="host-p" onStartSession={noop} />);
-    // お題・設定タブをクリックして表示を切り替える
-    const optionsTab = screen.getByRole("tab", { name: /お題・設定/ });
+    // 「お題」タブをクリックして表示を切り替える
+    const optionsTab = screen.getByRole("tab", { name: /^お題$/ });
     fireEvent.click(optionsTab);
-    // お題セクションヘッダーが存在しないことを確認
-    expect(screen.queryByText("お題")).toBeNull();
+    // お題セクションヘッダー（h2）が存在しないことを確認（タブ名「お題」とは区別）
+    expect(screen.queryByRole("heading", { name: "お題" })).toBeNull();
   });
 
   it("problemEnabled=true（デフォルト）かつ problem=null のとき開始ボタンが無効", () => {
@@ -64,7 +64,8 @@ describe("Lobby お題ゲート（Task 8）", () => {
     const onConfigSet = vi.fn();
     const room = makeRoom(); // problemEnabled=true
     render(<Lobby room={room} participantId="host-p" onStartSession={noop} onConfigSet={onConfigSet} />);
-    // ルームタブのトグルを操作（お題・設定タブへの切替不要）
+    // お題タブへ切り替えてトグルを操作（トグルはお題タブ先頭に移動）
+    fireEvent.click(screen.getByRole("tab", { name: /^お題$/ }));
     const radio = screen.getByRole("radio", { name: "お題なし" });
     fireEvent.click(radio);
     expect(onConfigSet).toHaveBeenCalledWith({ problemEnabled: false });

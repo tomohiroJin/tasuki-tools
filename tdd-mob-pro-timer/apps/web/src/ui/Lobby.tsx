@@ -1,5 +1,5 @@
 /**
- * ロビー画面（タブ構造: ルーム / お題・設定）
+ * ロビー画面（タブ構造: ルーム / お題）
  * T058, T059: FR-011 ＋ デザインシステム適用
  * v2.2 #5/#6: 開始ボタンを上部固定、招待を InvitePanel に委譲
  */
@@ -9,7 +9,8 @@ import { Users, Code, Play, UserPlus, UserMinus, ChevronUp, ChevronDown, X, Crow
 import type { Room, Problem } from "@tdd-mob/core";
 import { Card, PrimaryButton, GhostButton, SectionHeader } from "./primitives.js";
 import { ProblemEditor } from "./components/ProblemEditor.js";
-import { ConfigPanel } from "./components/ConfigPanel.js";
+import { SessionConfigPanel } from "./components/SessionConfigPanel.js";
+import { ProblemConfigPanel } from "./components/ProblemConfigPanel.js";
 import { Tabs } from "./components/Tabs.js";
 import { InvitePanel } from "./components/InvitePanel.js";
 import { PassphrasePanel } from "./components/PassphrasePanel.js";
@@ -127,15 +128,15 @@ export function Lobby({
           content: (
             <div className="space-y-6">
               {startButton}
-              {/* お題あり/なし切替（ルームタブ・host 限定）。開始判断と同じ場所で明示的に選べる。 */}
-              {isHost && (
-                <Card>
-                  <ProblemModeToggle
-                    enabled={problemEnabled}
-                    onChange={(v) => onConfigSet?.({ problemEnabled: v })}
-                  />
-                </Card>
-              )}
+              {/* セッション設定（交代間隔・詳細設定）。canEdit=false の観覧者には読み取り表示される
+                  （旧 ConfigPanel と同じく isHost ではゲートしない）。 */}
+              <Card>
+                <SessionConfigPanel
+                  config={room.config}
+                  canEdit={isEditor}
+                  onChange={(patch) => onConfigSet?.(patch)}
+                />
+              </Card>
               <InvitePanel code={room.code} />
               {/* ルームのパスフレーズ設定/解除（R4-2・host 限定）。招待のすぐ下に置く。 */}
               {isHost && onSetPassphrase && (
@@ -293,13 +294,21 @@ export function Lobby({
         },
         {
           id: "options",
-          label: "お題・設定",
+          label: "お題",
           content: (
             <div className="space-y-6">
-              {/* セッション設定（言語/難易度/間隔/詳細設定）。host(editor+) が開始前に決める。
-                  AI お題生成の解錠は独立カードにせず設定カードの末尾に控えめに同居させる（隠し機能）。 */}
+              {/* お題あり/なしトグル（お題タブ先頭・host 限定）。 */}
+              {isHost && (
+                <Card>
+                  <ProblemModeToggle
+                    enabled={problemEnabled}
+                    onChange={(v) => onConfigSet?.({ problemEnabled: v })}
+                  />
+                </Card>
+              )}
+              {/* お題の設定（言語/難易度/言語プール）。AI お題生成の解錠を末尾に控えめに同居。 */}
               <Card>
-                <ConfigPanel
+                <ProblemConfigPanel
                   config={room.config}
                   canEdit={isEditor}
                   problemEnabled={problemEnabled}
@@ -316,7 +325,6 @@ export function Lobby({
                     />
                   </div>
                 )}
-
               </Card>
 
               {/* お題（開始前にここで決める・US3）。確定済みなら editor+ は編集できる。 */}
@@ -345,11 +353,9 @@ export function Lobby({
                             : "お題を準備中です…"}
                         </p>
                       </div>
-                      {/* お題は自動で用意される旨を伝える控えめなヒント（R5-2）。
-                          開始ボタンはお題が用意できると有効になる（disabled={!room.problem}）ため、
-                          「未設定でも開始可」とは書かず実態に合わせる。 */}
+                      {/* 参照先タブ名を「お題」に更新。 */}
                       <EmptyHint>
-                        お題は自動で用意されます。手動で決める必要はなく、「お題・設定」でいつでも変更できます。
+                        お題は自動で用意されます。手動で決める必要はなく、「お題」でいつでも変更できます。
                       </EmptyHint>
                     </div>
                   )}

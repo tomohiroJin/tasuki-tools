@@ -5,7 +5,7 @@ import { Tabs } from "../../src/ui/components/Tabs.js";
 
 const items = [
   { id: "room", label: "ルーム", content: <p>room-panel</p> },
-  { id: "opts", label: "お題・設定", content: <p>opts-panel</p> },
+  { id: "opts", label: "お題", content: <p>opts-panel</p> },
 ];
 
 describe("Tabs", () => {
@@ -19,9 +19,9 @@ describe("Tabs", () => {
   it("タブをクリックすると対応パネルに切り替わる", async () => {
     const user = userEvent.setup();
     render(<Tabs items={items} ariaLabel="ロビー" />);
-    await user.click(screen.getByRole("tab", { name: "お題・設定" }));
+    await user.click(screen.getByRole("tab", { name: "お題" }));
     expect(screen.getByText("opts-panel")).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "お題・設定" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "お題" })).toHaveAttribute("aria-selected", "true");
   });
 
   it("矢印キーでタブ間を移動できる（WAI-ARIA）", async () => {
@@ -30,7 +30,7 @@ describe("Tabs", () => {
     const first = screen.getByRole("tab", { name: "ルーム" });
     first.focus();
     await user.keyboard("{ArrowRight}");
-    expect(screen.getByRole("tab", { name: "お題・設定" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "お題" })).toHaveAttribute("aria-selected", "true");
   });
 
   it("defaultTabId で初期タブを指定できる", () => {
@@ -44,6 +44,6 @@ describe("Tabs", () => {
     const first = screen.getByRole("tab", { name: "ルーム" });
     first.focus();
     await user.keyboard("{ArrowRight}");
-    expect(screen.getByRole("tab", { name: "お題・設定" })).toHaveFocus();
+    expect(screen.getByRole("tab", { name: "お題" })).toHaveFocus();
   });
 });
