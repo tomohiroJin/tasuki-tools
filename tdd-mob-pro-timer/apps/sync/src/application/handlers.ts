@@ -88,7 +88,9 @@ export function makeHandlers(deps: HandlerDeps) {
   /** ルームの clock 状態に応じて次回自動交代をスケジュール/解除する（FR-003） */
   function reconcileSchedule(room: Room): void {
     if (!scheduler) return;
-    // 稼働中かつ休憩でなく、完成フェーズに入っていない場合のみ次回交代を予約する
+    // 稼働中かつ完成フェーズに入っていない場合のみ次回交代を予約する。
+    // `!room.onBreak` は後方互換のための dormant ガード（v2.10 で休憩機能の UI/コマンドは撤去済み。
+    // break.start/end は受理されず onBreak が true になる経路は無いため常に通過する）。
     if (room.clock.running && !room.onBreak && room.phase !== "celebration") {
       const left = secondsLeft(room.clock, clock.now());
       scheduler.schedule(room.code, left, autoSwitch);
