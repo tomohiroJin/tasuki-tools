@@ -88,7 +88,9 @@ export function makeHandlers(deps: HandlerDeps) {
   /** ルームの clock 状態に応じて次回自動交代をスケジュール/解除する（FR-003） */
   function reconcileSchedule(room: Room): void {
     if (!scheduler) return;
-    // 稼働中かつ休憩でなく、完成フェーズに入っていない場合のみ次回交代を予約する
+    // 稼働中かつ完成フェーズに入っていない場合のみ次回交代を予約する。
+    // `!room.onBreak` は後方互換のための dormant ガード（v2.10 で休憩機能の UI/コマンドは撤去済み。
+    // break.start/end は受理されず onBreak が true になる経路は無いため常に通過する）。
     if (room.clock.running && !room.onBreak && room.phase !== "celebration") {
       const left = secondsLeft(room.clock, clock.now());
       scheduler.schedule(room.code, left, autoSwitch);
@@ -113,26 +115,7 @@ export function makeHandlers(deps: HandlerDeps) {
       signal: "switch",
       nextDriverName: updated.session.rotation[updated.session.currentIndex] ?? "",
     });
-    maybeSuggestBreak(updated);
     reconcileSchedule(updated);
-  }
-
-  /** breakEveryRotations 巡ごとに休憩提案シグナルを配信する（§9.1）。
-   *  巡 = rotation 一周（rotation 長ぶんの交代）。シグナルは演出専用で状態ではない（§5.2）。 */
-  function maybeSuggestBreak(room: Room): void {
-    const every = room.config.breakEveryRotations;
-    if (!every || every < 1) return;
-    const len = room.session.rotation.length;
-    if (len === 0) return;
-    // 巡の境界（一周完了）でのみ判定する
-    if (room.session.totalSwitches % len !== 0) return;
-    const rounds = room.session.totalSwitches / len;
-    if (rounds === 0 || rounds % every !== 0) return;
-    broadcaster.broadcastSignal(room.code, {
-      type: "signal",
-      signal: "suggest-break",
-      rounds,
-    });
   }
 
   /**
@@ -616,9 +599,17 @@ export function makeHandlers(deps: HandlerDeps) {
     }
 
     // まず evolve で集約（session+clock）を更新する。
+    // 手動スキップ(session.act SWITCH)は自動交代と同じく一時離脱/オフライン(非placeholder)を飛ばす。
+    // decide はバリデーション(clock.running)に使い、行き先だけ eligible-aware な advanceDriver に差し替える。
     let newAgg = agg;
-    for (const event of result.value) {
-      newAgg = evolve(newAgg, event, now);
+    const isManualSwitch =
+      domainCmd.command === "session.act" && domainCmd.action === "SWITCH";
+    if (isManualSwitch) {
+      newAgg = advanceDriver(agg, computeIneligibleIndices(targetRoom), now);
+    } else {
+      for (const event of result.value) {
+        newAgg = evolve(newAgg, event, now);
+      }
     }
 
     // evolve の結果を Room に反映してから、Room レベルイベントを適用する。
@@ -655,10 +646,6 @@ export function makeHandlers(deps: HandlerDeps) {
 
     store.put(updatedRoom);
     broadcaster.broadcastSnapshot(updatedRoom.code, updatedRoom);
-    // 手動スキップ等で交代が起きた場合も、自動交代と同様に巡境界で休憩を提案する（レビュー #3）。
-    if (updatedRoom.session.currentIndex !== agg.session.currentIndex) {
-      maybeSuggestBreak(updatedRoom);
-    }
     // clock 状態が変わった可能性があるので自動交代を調停する（FR-003）
     reconcileSchedule(updatedRoom);
 
@@ -1050,8 +1037,6 @@ const HOST_ONLY_COMMANDS = new Set([
   "session.abort",
   "session.reset",
   "phase.set",
-  "break.start",
-  "break.end",
   "role.set",
   "room.passphrase.set",
   "ai.unlock",
@@ -1140,10 +1125,6 @@ function buildDomainCommand(cmd: { command: string; [key: string]: unknown }) {
     case "handoff.note.set":
       if (typeof cmd.text !== "string") return null;
       return { command: "handoff.note.set" as const, text: cmd.text };
-    case "break.start":
-      return { command: "break.start" as const };
-    case "break.end":
-      return { command: "break.end" as const };
     // ─── v2 新コマンド ─────────────────────────────────────────────────────
     case "session.abort":
       return { command: "session.abort" as const };
@@ -1223,8 +1204,10 @@ function buildShuffleOrder(len: number, running: boolean, currentIndex: number):
 function computeIneligibleIndices(room: Room): Set<number> {
   const ineligibleNames = new Set(
     room.participants
-      // 切断中(offline)の人も交代対象から外す（R2-1）。
-      .filter((p) => p.driverEligible === false || p.presence === "offline")
+      // 一時離脱(driverEligible=false)は対象外。実在の切断中(offline)の人も対象外（R2-1）。
+      // ただし代理(placeholder)は Web 非接続が常態で対面在席する実在の人を表すため、
+      // offline でも eligible として扱う（さもないとタイマー自動交代で永久に飛ばされ交代しない）。
+      .filter((p) => p.driverEligible === false || (p.presence === "offline" && p.isPlaceholder !== true))
       .map((p) => p.displayName),
   );
   const set = new Set<number>();

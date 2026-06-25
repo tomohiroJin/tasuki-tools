@@ -1,21 +1,28 @@
 /**
- * ロビー画面（タブ構造: ルーム / お題・設定）
+ * ロビー画面（タブ構造: ルーム / お題）
  * T058, T059: FR-011 ＋ デザインシステム適用
  * v2.2 #5/#6: 開始ボタンを上部固定、招待を InvitePanel に委譲
  */
 
 import React from "react";
-import { Users, Code, Play, UserPlus, UserMinus, ChevronUp, ChevronDown, X, Crown, Shuffle } from "lucide-react";
+import { Users, Code, Play, UserPlus, UserMinus, ChevronUp, ChevronDown, X, Crown, Shuffle, Bell } from "lucide-react";
 import type { Room, Problem } from "@tdd-mob/core";
 import { Card, PrimaryButton, GhostButton, SectionHeader } from "./primitives.js";
 import { ProblemEditor } from "./components/ProblemEditor.js";
-import { ConfigPanel } from "./components/ConfigPanel.js";
+import { SessionConfigPanel } from "./components/SessionConfigPanel.js";
+import { ProblemConfigPanel } from "./components/ProblemConfigPanel.js";
 import { Tabs } from "./components/Tabs.js";
 import { InvitePanel } from "./components/InvitePanel.js";
 import { PassphrasePanel } from "./components/PassphrasePanel.js";
 import { AiUnlockPanel } from "./components/AiUnlockPanel.js";
 import { EmptyHint } from "./components/EmptyHint.js";
+import { ProblemModeToggle } from "./components/ProblemModeToggle.js";
+import { NotifySettingsPanel } from "./components/NotifySettingsPanel.js";
 import { presenceDotClass } from "./presence.js";
+import { useNotifyPreferences } from "./use-notify-preferences.js";
+import { saveNotifyPreferences } from "../prefs/local-prefs.js";
+import { requestPermissionIfEnabling } from "../platform/notify.js";
+import { playChime } from "../platform/sound.js";
 import type { SessionConfig } from "@tdd-mob/core";
 
 interface LobbyProps {
@@ -96,9 +103,15 @@ export function Lobby({
   const isHost = myRole === "host";
   const isEditor = myRole === "host" || myRole === "editor";
 
+  // 通知設定（ロビーのカードで直接編集できるよう、ライブ購読）。
+  const notifyPrefs = useNotifyPreferences();
+
+  // お題機能の有効/無効（デフォルト true・後方互換）
+  const problemEnabled = room.config.problemEnabled !== false;
+
   // 開始ボタン（ルームタブ最上部に配置）
   const startButton = isHost ? (
-    <PrimaryButton className="w-full" onClick={onStartSession} disabled={!room.problem}>
+    <PrimaryButton className="w-full" onClick={onStartSession} disabled={problemEnabled && !room.problem}>
       <span className="flex items-center justify-center gap-2"><Play className="w-5 h-5" aria-hidden="true" /> セッションを開始</span>
     </PrimaryButton>
   ) : (
@@ -115,6 +128,15 @@ export function Lobby({
           content: (
             <div className="space-y-6">
               {startButton}
+              {/* セッション設定（交代間隔・詳細設定）。canEdit=false の観覧者には読み取り表示される
+                  （旧 ConfigPanel と同じく isHost ではゲートしない）。 */}
+              <Card>
+                <SessionConfigPanel
+                  config={room.config}
+                  canEdit={isEditor}
+                  onChange={(patch) => onConfigSet?.(patch)}
+                />
+              </Card>
               <InvitePanel code={room.code} />
               {/* ルームのパスフレーズ設定/解除（R4-2・host 限定）。招待のすぐ下に置く。 */}
               {isHost && onSetPassphrase && (
@@ -122,6 +144,23 @@ export function Lobby({
                   <PassphrasePanel
                     protectedNow={!!room.passphraseProtected}
                     onSet={onSetPassphrase}
+                  />
+                </Card>
+              )}
+              {/* 通知設定カード（host 限定）。セッション開始前に音通知を整えておける。 */}
+              {isHost && (
+                <Card>
+                  <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--bone)]">
+                    <Bell className="w-4 h-4 text-[var(--signal)]" aria-hidden="true" /> 交代通知
+                  </div>
+                  <NotifySettingsPanel
+                    prefs={notifyPrefs}
+                    onChange={(patch) => {
+                      const next = { ...notifyPrefs, ...patch };
+                      saveNotifyPreferences(next);
+                      void requestPermissionIfEnabling(patch, next);
+                    }}
+                    onPreview={() => playChime(notifyPrefs.soundId, notifyPrefs.volume)}
                   />
                 </Card>
               )}
@@ -255,15 +294,24 @@ export function Lobby({
         },
         {
           id: "options",
-          label: "お題・設定",
+          label: "お題",
           content: (
             <div className="space-y-6">
-              {/* セッション設定（言語/難易度/間隔/詳細設定）。host(editor+) が開始前に決める。
-                  AI お題生成の解錠は独立カードにせず設定カードの末尾に控えめに同居させる（隠し機能）。 */}
+              {/* お題あり/なしトグル（お題タブ先頭・host 限定）。 */}
+              {isHost && (
+                <Card>
+                  <ProblemModeToggle
+                    enabled={problemEnabled}
+                    onChange={(v) => onConfigSet?.({ problemEnabled: v })}
+                  />
+                </Card>
+              )}
+              {/* お題の設定（言語/難易度/言語プール）。AI お題生成の解錠を末尾に控えめに同居。 */}
               <Card>
-                <ConfigPanel
+                <ProblemConfigPanel
                   config={room.config}
                   canEdit={isEditor}
+                  problemEnabled={problemEnabled}
                   onChange={(patch) => onConfigSet?.(patch)}
                 />
                 {/* AI お題生成の解錠（host 限定・合言葉方式）。解錠前はテキストリンクのみ。 */}
@@ -280,39 +328,39 @@ export function Lobby({
               </Card>
 
               {/* お題（開始前にここで決める・US3）。確定済みなら editor+ は編集できる。 */}
-              <Card>
-                <SectionHeader icon={Code} color="text-[var(--signal)]" title="お題" />
-                {room.problem ? (
-                  <ProblemEditor
-                    problem={room.problem}
-                    canEdit={isEditor}
-                    difficulty={room.config.difficulty}
-                    language={room.config.language}
-                    onEdit={onEditProblem ?? (() => {})}
-                    onRegenerate={onRegenerateProblem ?? (() => {})}
-                    onPaste={onPasteProblem ?? (() => {})}
-                    onCopy={onCopyProblem ?? (() => {})}
-                    generating={generatingProblem}
-                  />
-                ) : (
-                  <div className="space-y-3">
-                    <div className="py-8 text-center text-[var(--bone-subtle)]">
-                      <span className="inline-block h-4 w-4 animate-pulse rounded-full bg-[var(--signal)] mb-2" aria-hidden="true" />
-                      <p>
-                        {room.aiUnlocked && room.problemMode === "ai"
-                          ? "AI がお題を作成中です…（最大 1 分）"
-                          : "お題を準備中です…"}
-                      </p>
+              {problemEnabled && (
+                <Card>
+                  <SectionHeader icon={Code} color="text-[var(--signal)]" title="お題" />
+                  {room.problem ? (
+                    <ProblemEditor
+                      problem={room.problem}
+                      canEdit={isEditor}
+                      difficulty={room.config.difficulty}
+                      language={room.config.language}
+                      onEdit={onEditProblem ?? (() => {})}
+                      onRegenerate={onRegenerateProblem ?? (() => {})}
+                      onPaste={onPasteProblem ?? (() => {})}
+                      onCopy={onCopyProblem ?? (() => {})}
+                      generating={generatingProblem}
+                    />
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="py-8 text-center text-[var(--bone-subtle)]">
+                        <span className="inline-block h-4 w-4 animate-pulse rounded-full bg-[var(--signal)] mb-2" aria-hidden="true" />
+                        <p>
+                          {room.aiUnlocked && room.problemMode === "ai"
+                            ? "AI がお題を作成中です…（最大 1 分）"
+                            : "お題を準備中です…"}
+                        </p>
+                      </div>
+                      {/* 参照先タブ名を「お題」に更新。 */}
+                      <EmptyHint>
+                        お題は自動で用意されます。手動で決める必要はなく、「お題」でいつでも変更できます。
+                      </EmptyHint>
                     </div>
-                    {/* お題は自動で用意される旨を伝える控えめなヒント（R5-2）。
-                        開始ボタンはお題が用意できると有効になる（disabled={!room.problem}）ため、
-                        「未設定でも開始可」とは書かず実態に合わせる。 */}
-                    <EmptyHint>
-                      お題は自動で用意されます。手動で決める必要はなく、「お題・設定」でいつでも変更できます。
-                    </EmptyHint>
-                  </div>
-                )}
-              </Card>
+                  )}
+                </Card>
+              )}
             </div>
           ),
         },

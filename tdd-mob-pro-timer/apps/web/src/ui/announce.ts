@@ -6,7 +6,6 @@
 export interface AnnounceState {
   running: boolean;
   isPaused: boolean;
-  onBreak: boolean;
   currentIndex: number;
   isUrgent: boolean;
   driverName: string;
@@ -21,10 +20,6 @@ export function deriveAnnouncement(
   prev: AnnounceState,
   next: AnnounceState,
 ): string | null {
-  // 休憩開始/終了
-  if (!prev.onBreak && next.onBreak) return "休憩を開始しました";
-  if (prev.onBreak && !next.onBreak) return "休憩を終了しました";
-
   // 一時停止/再開
   if (!prev.isPaused && next.isPaused) return "一時停止しました";
   if (prev.isPaused && next.isPaused === false && !prev.running && next.running)

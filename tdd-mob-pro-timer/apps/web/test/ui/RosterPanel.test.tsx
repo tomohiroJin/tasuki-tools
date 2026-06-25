@@ -1,6 +1,7 @@
 /**
  * RosterPanel コンポーネントのテスト
  * T056/T057: FR-046,047,048,050,051,052,061 (US9)
+ * Task 6: セクション分割（ドライバー/見学）・現ドライバー最上部・情報階層化
  */
 
 import { describe, it, expect, vi } from "vitest";
@@ -416,5 +417,79 @@ describe("RosterPanel（T056/T057）", () => {
       );
       expect(screen.queryByRole("button", { name: /ホストを譲る/ })).toBeNull();
     });
+  });
+});
+
+// ─── Task 6: セクション分割テスト ────────────────────────────────────────────
+
+/** Task 6 用ヘルパ: role を受け取る mk */
+const mkRolled = (id: string, name: string, role: "host" | "editor" | "viewer"): Participant =>
+  ({ participantId: id, displayName: name, role, presence: "online" } as Participant);
+
+const sectionBase = {
+  participants: [
+    mkRolled("h", "Alice", "host"),
+    mkRolled("b", "Bob", "editor"),
+    mkRolled("v", "Zoe", "viewer"),
+  ],
+  rotation: ["Alice", "Bob"],
+  currentDriverName: "Bob",
+  myParticipantId: "h",
+  canHostAction: true,
+  onRename: vi.fn(), onSkip: vi.fn(), onResume: vi.fn(), onAddProxy: vi.fn(),
+};
+
+describe("RosterPanel セクション分割", () => {
+  it("ドライバーと見学のセクション見出しを出す", () => {
+    render(<RosterPanel {...sectionBase} />);
+    expect(screen.getByText("ドライバー")).toBeTruthy();
+    expect(screen.getByText("見学")).toBeTruthy();
+  });
+
+  it("現ドライバー(Bob)がドライバーセクションの先頭に来る", () => {
+    render(<RosterPanel {...sectionBase} />);
+    const driverList = screen.getByRole("list", { name: "ドライバー一覧" });
+    const items = within(driverList).getAllByRole("listitem");
+    expect(within(items[0]!).getByText("Bob")).toBeTruthy();
+  });
+
+  it("見学者(Zoe)は見学セクションに入る", () => {
+    render(<RosterPanel {...sectionBase} />);
+    const watchList = screen.getByRole("list", { name: "見学一覧" });
+    expect(within(watchList).getByText("Zoe")).toBeTruthy();
+  });
+
+  it("ドライバーは現ドライバー起点の巡回順で並ぶ（現→次→…環状）", () => {
+    // 巡回順テスト: rotation=[A,B,C,D,E], currentDriver=D → 表示順は D,E,A,B,C
+    const names = ["A", "B", "C", "D", "E"];
+    const participants = names.map((n, i) => ({
+      participantId: `p${i}`,
+      connId: `conn${i}`,
+      displayName: n,
+      role: "editor" as const,
+      presence: "online" as const,
+      driverEligible: true,
+      isPlaceholder: false,
+      hasAiKey: false,
+      joinedAt: 1000000,
+    }));
+    render(
+      <RosterPanel
+        participants={participants}
+        currentDriverName="D"
+        myParticipantId="p0"
+        canHostAction={false}
+        rotation={names}
+        onRename={vi.fn()}
+        onSkip={vi.fn()}
+        onResume={vi.fn()}
+        onAddProxy={vi.fn()}
+      />,
+    );
+    const driverList = screen.getByRole("list", { name: "ドライバー一覧" });
+    const order = within(driverList)
+      .getAllByRole("listitem")
+      .map((li) => (li.textContent!.match(/[A-E]/) ?? [""])[0]);
+    expect(order).toEqual(["D", "E", "A", "B", "C"]);
   });
 });

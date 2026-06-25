@@ -8,11 +8,12 @@
  * 現ドライバーが「名前ベース」で正しくハイライトされることを検証する。
  */
 
-import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, fireEvent, within, act } from "@testing-library/react";
 import React from "react";
 import { Session } from "../../src/ui/Session.js";
 import type { Room, Participant, SessionConfig } from "@tdd-mob/core";
+import { saveNotifyPreferences, loadNotifyPreferences } from "../../src/prefs/local-prefs.js";
 
 function makeParticipant(overrides: Partial<Participant>): Participant {
   return {
@@ -81,8 +82,6 @@ function baseHandlers() {
     onComplete: noop,
     onAbort: noop,
     onReset: noop,
-    onBreakStart: noop,
-    onBreakEnd: noop,
     onRenameParticipant: vi.fn(),
     onDriverSkip: vi.fn(),
     onDriverResume: vi.fn(),
@@ -95,10 +94,11 @@ describe("Session × RosterPanel 結合（T057）", () => {
     const handlers = baseHandlers();
     render(<Session room={makeRoom()} participantId="host-1" {...handlers} />);
     // 現ドライバー Carol の li に「現在」が付き、viewer Bob には付かない。
-    // 「Carol」はドライバー見出しにも現れるため在席一覧（list）内に限定して検索する。
-    const list = screen.getByRole("list");
-    const carolItem = within(list).getByText("Carol").closest("li");
-    const bobItem = within(list).getByText("Bob").closest("li");
+    // Carol は rotation 内 → ドライバー一覧、Bob は rotation 外 → 見学一覧 に分かれる。
+    const driverList = screen.getByRole("list", { name: "ドライバー一覧" });
+    const watchList = screen.getByRole("list", { name: "見学一覧" });
+    const carolItem = within(driverList).getByText("Carol").closest("li");
+    const bobItem = within(watchList).getByText("Bob").closest("li");
     expect(carolItem?.textContent).toMatch(/今/);
     expect(bobItem?.textContent).not.toMatch(/今/);
   });
@@ -112,9 +112,10 @@ describe("Session × RosterPanel 結合（T057）", () => {
   it("RosterPanel の離脱操作が driver.skip ハンドラを participantId 付きで発火する（FR-051）", () => {
     const handlers = baseHandlers();
     render(<Session room={makeRoom()} participantId="host-1" {...handlers} />);
-    // Carol（editor）の行内の「離脱」ボタンを押す（タイマー下の即時交代「スキップ」と混同しない）
-    const list = screen.getByRole("list");
-    const carolItem = within(list).getByText("Carol").closest("li") as HTMLElement;
+    // Carol（editor）は rotation 内 → ドライバー一覧に表示される。
+    // 「離脱」ボタンを押す（タイマー下の即時交代「スキップ」と混同しない）
+    const driverList = screen.getByRole("list", { name: "ドライバー一覧" });
+    const carolItem = within(driverList).getByText("Carol").closest("li") as HTMLElement;
     const skipBtn = within(carolItem).getByRole("button", { name: /離脱/ });
     fireEvent.click(skipBtn);
     expect(handlers.onDriverSkip).toHaveBeenCalledWith("edit-1");
@@ -123,8 +124,9 @@ describe("Session × RosterPanel 結合（T057）", () => {
   it("RosterPanel の改名操作が rename ハンドラを発火する（FR-046/048）", () => {
     const handlers = baseHandlers();
     render(<Session room={makeRoom()} participantId="host-1" {...handlers} />);
-    const list = screen.getByRole("list");
-    const carolItem = within(list).getByText("Carol").closest("li") as HTMLElement;
+    // Carol（editor）は rotation 内 → ドライバー一覧に表示される。
+    const driverList = screen.getByRole("list", { name: "ドライバー一覧" });
+    const carolItem = within(driverList).getByText("Carol").closest("li") as HTMLElement;
     fireEvent.click(within(carolItem).getByRole("button", { name: /改名/ }));
     const input = screen.getByDisplayValue("Carol");
     fireEvent.change(input, { target: { value: "Caroline" } });
@@ -186,5 +188,27 @@ describe("Session × RosterPanel 結合（T057）", () => {
     // rotation=["Alice","Carol"]。Carol（index 1）を前の順番へ → move(1, 0)
     fireEvent.click(screen.getByRole("button", { name: /Carol を前の順番へ/ }));
     expect(onMoveRotation).toHaveBeenCalledWith(1, 0);
+  });
+});
+
+describe("Session 初回通知ヒントの自動消滅", () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(() => localStorage.clear());
+
+  it("通知 OFF・未読のとき初回ヒントを表示する", () => {
+    const handlers = baseHandlers();
+    render(<Session room={makeRoom()} participantId="host-1" {...handlers} />);
+    expect(screen.getByText(/交代を音で知らせ/)).toBeTruthy();
+  });
+
+  it("セッション中に通知を ON にすると初回ヒントが手動 dismiss なしで消える", () => {
+    const handlers = baseHandlers();
+    render(<Session room={makeRoom()} participantId="host-1" {...handlers} />);
+    expect(screen.getByText(/交代を音で知らせ/)).toBeTruthy();
+    // ポップオーバー等から通知 ON 保存→ NOTIFY_CHANGED_EVENT で useNotifyPreferences が再読込→再描画。
+    act(() => {
+      saveNotifyPreferences({ ...loadNotifyPreferences(), enabled: true });
+    });
+    expect(screen.queryByText(/交代を音で知らせ/)).toBeNull();
   });
 });

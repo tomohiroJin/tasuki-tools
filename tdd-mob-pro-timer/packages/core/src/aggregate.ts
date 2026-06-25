@@ -62,6 +62,8 @@ export interface SessionConfig {
   breakEveryRotations?: number;
   /** 強い全画面交代通知を使うか */
   assertiveSwitch?: boolean;
+  /** お題機能を使うか（false なら言語/お題を要求せず開始できる）。既定 true 相当。 */
+  problemEnabled?: boolean;
 }
 
 /** お題の出所 */

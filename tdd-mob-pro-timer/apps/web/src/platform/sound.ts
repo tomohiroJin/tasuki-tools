@@ -1,11 +1,14 @@
 /**
- * 交代チャイムと振動（§9.1「強い交代通知」の付随フィードバック）
+ * 交代チャイムと振動。
  *
- * Web Audio で短い 2 音チャイムを鳴らす。AudioContext が無い環境では何もしない。
- * モバイルでは振動も併用（iOS Safari は vibrate を無視するため音と併用が前提）。
+ * 単一の AudioContext を遅延生成して再利用し、初回ユーザー操作で resume（unlock）する。
+ * これによりタイマー発火（ユーザー操作でない）からでも自動再生ポリシーに阻まれず鳴る。
+ * 音量は呼び出し側（個人設定）から渡す。
  */
 
 type AudioCtor = typeof AudioContext;
+
+export const DEFAULT_VOLUME = 0.6;
 
 function getAudioCtor(): AudioCtor | undefined {
   if (typeof window === "undefined") return undefined;
@@ -15,39 +18,130 @@ function getAudioCtor(): AudioCtor | undefined {
   );
 }
 
-/** 短い上昇 2 音のチャイムを鳴らす（失敗は黙って無視）。 */
-export function playSwitchChime(): void {
+/** 単一 AudioContext（遅延生成・再利用）。 */
+let sharedCtx: AudioContext | null = null;
+function getSharedAudioContext(): AudioContext | null {
   const Ctor = getAudioCtor();
-  if (!Ctor) return;
+  if (!Ctor) return null;
+  if (!sharedCtx) {
+    try {
+      sharedCtx = new Ctor();
+    } catch {
+      return null;
+    }
+  }
+  return sharedCtx;
+}
+
+/** 初回ユーザー操作で AudioContext を resume（unlock）。冪等。App 起動時に呼ぶ。 */
+let unlockInstalled = false;
+export function installAudioUnlock(): void {
+  if (unlockInstalled || typeof window === "undefined") return;
+  unlockInstalled = true;
+  const unlock = () => {
+    const ctx = getSharedAudioContext();
+    if (ctx && ctx.state === "suspended") void ctx.resume().catch(() => {});
+    window.removeEventListener("pointerdown", unlock);
+    window.removeEventListener("keydown", unlock);
+    window.removeEventListener("touchstart", unlock);
+  };
+  window.addEventListener("pointerdown", unlock);
+  window.addEventListener("keydown", unlock);
+  window.addEventListener("touchstart", unlock);
+}
+
+/** 指定 AudioContext に音列をスケジュールする。suspended なら resume を待ってから行う。 */
+export async function scheduleTones(
+  ctx: AudioContext,
+  freqs: number[],
+  volume: number,
+  opts: { type?: OscillatorType; gap?: number; gain?: number } = {},
+): Promise<void> {
+  const { type = "sine", gap = 0.14, gain = 0.5 } = opts;
+  const peak = Math.max(0.0001, gain * volume);
   try {
-    const ctx = new Ctor();
+    // 交代間隔中に自動 suspend された場合、resume 完了を待ってからスケジュールしないと無音になる（#1）。
+    if (ctx.state === "suspended") await ctx.resume();
     const now = ctx.currentTime;
-    // 音ごとに独立した gain を持たせ、各音のエンベロープが干渉しないようにする。
-    [660, 990].forEach((freq, i) => {
-      const start = now + i * 0.12;
+    freqs.forEach((freq, i) => {
+      const start = now + i * gap;
       const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "sine";
+      const g = ctx.createGain();
+      osc.type = type;
       osc.frequency.value = freq;
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.exponentialRampToValueAtTime(0.18, start + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.11);
+      osc.connect(g);
+      g.connect(ctx.destination);
+      g.gain.setValueAtTime(0.0001, start);
+      g.gain.exponentialRampToValueAtTime(peak, start + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, start + gap - 0.01);
       osc.start(start);
-      osc.stop(start + 0.12);
+      osc.stop(start + gap);
     });
-    closeContextSoon(ctx);
   } catch {
-    /* 自動再生制限・未対応は無視 */
+    /* 自動再生制限・未対応・resume 失敗は無視 */
   }
 }
 
-/** 再生後にコンテキストを閉じる（リーク防止）。失敗は無視。 */
-function closeContextSoon(ctx: AudioContext): void {
-  setTimeout(() => {
-    void ctx.close().catch(() => {});
-  }, 400);
+/** 任意の音列を共有コンテキストで鳴らす（fire-and-forget）。 */
+function playTones(
+  freqs: number[],
+  volume: number,
+  opts: { type?: OscillatorType; gap?: number; gain?: number } = {},
+): void {
+  const ctx = getSharedAudioContext();
+  if (!ctx) return;
+  void scheduleTones(ctx, freqs, volume, opts);
+}
+
+/** 1 つのチャイム定義。play は音量(0–1)を受け取る。 */
+export interface Chime {
+  id: string;
+  label: string;
+  isReady: boolean;
+  play(volume: number): void;
+}
+
+/** 音声ファイルを音量付きで再生（失敗は黙って無視）。 */
+function playFile(src: string, volume: number): void {
+  if (typeof Audio === "undefined") return;
+  try {
+    const a = new Audio(src);
+    a.volume = Math.min(1, Math.max(0, volume));
+    void a.play().catch(() => {});
+  } catch {
+    /* 無視 */
+  }
+}
+
+/** 同梱音源の URL（vite の base path に追従）。 */
+const soundUrl = (name: string): string => `${import.meta.env.BASE_URL}sounds/${name}.mp3`;
+
+/** 選択可能なチャイム。department を先頭・既定とし初期6種。ファイル系は下の registerFileChimes で追加（voice 2種で計8種）。 */
+export const CHIMES: Chime[] = [
+  { id: "department", label: "呼び出しチャイム", isReady: true, play: (v) => playFile(soundUrl("department"), v) },
+  { id: "melody", label: "メロディ", isReady: true, play: (v) => playFile(soundUrl("melody"), v) },
+  { id: "sustained", label: "持続トーン", isReady: true, play: (v) => playFile(soundUrl("sustained"), v) },
+  { id: "chime-up", label: "上昇 2 音", isReady: true, play: (v) => playTones([660, 990], v) },
+  { id: "chime-down", label: "下降 2 音", isReady: true, play: (v) => playTones([990, 660], v) },
+  { id: "bell", label: "ベル", isReady: true, play: (v) => playFile(soundUrl("bell"), v) },
+];
+
+// TTS 音声アナウンス（AivisSpeech 生成・public/sounds に同梱）。
+registerFileChimes([
+  { id: "voice-male", label: "音声（男声）", isReady: true, play: (v) => playFile(soundUrl("voice-male"), v) },
+  { id: "voice-female", label: "音声（女声）", isReady: true, play: (v) => playFile(soundUrl("voice-female"), v) },
+]);
+
+/** soundId に対応するチャイムを鳴らす。未知 id は既定 department にフォールバック。 */
+export function playChime(soundId: string, volume: number = DEFAULT_VOLUME): void {
+  const chime = CHIMES.find((c) => c.id === soundId && c.isReady)
+    ?? CHIMES.find((c) => c.id === "department");
+  chime?.play(volume);
+}
+
+/** @deprecated playChime("department", DEFAULT_VOLUME) を使う。既存呼び出し互換のため残置。 */
+export function playSwitchChime(): void {
+  playChime("department", DEFAULT_VOLUME);
 }
 
 /** モバイル振動（対応端末のみ）。 */
@@ -58,5 +152,12 @@ export function vibrateSwitch(): void {
     } catch {
       /* 無視 */
     }
+  }
+}
+
+/** ファイル系チャイムを registry に追加する（Task 3 で実体を渡す）。 */
+export function registerFileChimes(entries: Chime[]): void {
+  for (const e of entries) {
+    if (!CHIMES.some((c) => c.id === e.id)) CHIMES.push(e);
   }
 }

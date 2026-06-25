@@ -1,6 +1,6 @@
 /**
  * 支援技術向け離散アナウンスの導出テスト
- * FR-035: 交代・残り10秒・一時停止・休憩を読み上げ可能に（連続カウントは対象外）
+ * FR-035: 交代・残り10秒・一時停止を読み上げ可能に（連続カウントは対象外）
  */
 
 import { describe, it, expect } from "vitest";
@@ -10,7 +10,6 @@ describe("deriveAnnouncement", () => {
   const base = {
     running: true,
     isPaused: false,
-    onBreak: false,
     currentIndex: 0,
     isUrgent: false,
     driverName: "Alice",
@@ -38,12 +37,6 @@ describe("deriveAnnouncement", () => {
     const prev = { ...base, isPaused: false };
     const next = { ...base, isPaused: true };
     expect(deriveAnnouncement(prev, next)).toContain("一時停止");
-  });
-
-  it("休憩開始を通知する", () => {
-    const prev = { ...base, onBreak: false };
-    const next = { ...base, onBreak: true };
-    expect(deriveAnnouncement(prev, next)).toContain("休憩");
   });
 
   it("変化が無ければ通知しない（連続カウントは読み上げない）", () => {

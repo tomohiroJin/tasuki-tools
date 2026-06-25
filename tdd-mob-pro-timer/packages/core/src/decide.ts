@@ -367,6 +367,7 @@ function decideConfigSet(
     ...(partial.navigatorEnabled !== undefined && { navigatorEnabled: partial.navigatorEnabled }),
     ...(partial.breakEveryRotations !== undefined && { breakEveryRotations: partial.breakEveryRotations }),
     ...(partial.assertiveSwitch !== undefined && { assertiveSwitch: partial.assertiveSwitch }),
+    ...(partial.problemEnabled !== undefined && { problemEnabled: partial.problemEnabled }),
   };
 
   return ok([{ type: "ConfigSet", config: validatedPartial, now }]);

@@ -1,9 +1,12 @@
 /**
- * 休憩提案シグナル（§9.1 breakEveryRotations）の結合テスト
+ * 休憩提案シグナル（§9.1）の撤去確認テスト
  *
- * 自動交代が breakEveryRotations 巡（= rotation 長 × N 回の交代）に達するたび、
- * サーバーが suggest-break シグナルを配信することを検証する。
- * シグナルは演出専用（§5.2）で状態ではない。
+ * v2.10 で休憩機能（suggest-break シグナル配信・break.start/break.end コマンド受理）を撤去。
+ * 以下のテストは「巡境界でも suggest-break が配信されない」ことを確認する。
+ * break.start/break.end コマンドを送るテストは撤去対象挙動のため削除済み。
+ *
+ * dormant 残置: core の BreakStarted/BreakEnded イベント・Room.onBreak フィールド・
+ * reconcileSchedule の !onBreak 判定は後方互換のため削除しない（§backward-compat）。
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
@@ -37,13 +40,13 @@ function suggestBreakCount(spy: SpyBroadcaster): number {
   ).length;
 }
 
-describe("休憩提案シグナル（§9.1）", () => {
+describe("休憩提案シグナル撤去（v2.10・§9.1）", () => {
   let store: InMemoryRoomStore;
   let broadcaster: SpyBroadcaster;
   let clock: FakeClock;
   let scheduler: Scheduler;
   let handlers: ReturnType<typeof makeHandlers>;
-  let roomCode: string;
+
   const hostConn = "host-conn";
 
   async function setup(config: Partial<SessionConfig>) {
@@ -64,7 +67,7 @@ describe("休憩提案シグナル（§9.1）", () => {
         ...config,
       },
     });
-    if (created.isOk()) roomCode = created.value.code;
+    if (created.isOk()) { /* roomCode は使わないが setup は完結させる */ }
     await handlers.handleCommand(hostConn, { command: "session.act", action: "START" });
   }
 
@@ -82,19 +85,18 @@ describe("休憩提案シグナル（§9.1）", () => {
     vi.advanceTimersByTime(INTERVAL_MS + 100);
   }
 
-  it("breakEveryRotations=1 のとき 1 巡（2交代）ごとに suggest-break が出る", async () => {
+  it("breakEveryRotations=1 を指定しても自動交代後に suggest-break は配信されない", async () => {
     await setup({ breakEveryRotations: 1 });
+    advanceOneSwitch(); // 1 交代目
     expect(suggestBreakCount(broadcaster)).toBe(0);
-    advanceOneSwitch(); // 1 交代目（巡の途中）
+    advanceOneSwitch(); // 2 交代目（巡境界）
     expect(suggestBreakCount(broadcaster)).toBe(0);
-    advanceOneSwitch(); // 2 交代目 = 1 巡完了
-    expect(suggestBreakCount(broadcaster)).toBe(1);
     advanceOneSwitch();
-    advanceOneSwitch(); // 2 巡完了
-    expect(suggestBreakCount(broadcaster)).toBe(2);
+    advanceOneSwitch(); // 4 交代目（2巡目境界）
+    expect(suggestBreakCount(broadcaster)).toBe(0);
   });
 
-  it("breakEveryRotations 未設定なら suggest-break は出ない", async () => {
+  it("breakEveryRotations 未設定でも suggest-break は配信されない", async () => {
     await setup({});
     advanceOneSwitch();
     advanceOneSwitch();
@@ -103,12 +105,13 @@ describe("休憩提案シグナル（§9.1）", () => {
     expect(suggestBreakCount(broadcaster)).toBe(0);
   });
 
-  it("手動スキップ(SWITCH)で巡境界に達しても suggest-break が出る（レビュー #3）", async () => {
+  it("手動スキップ(SWITCH)で巡境界に達しても suggest-break は配信されない", async () => {
     await setup({ breakEveryRotations: 1 });
-    // 手動 SWITCH を 2 回 = 2 人ローテーションの 1 巡
+    // 手動 SWITCH を 2 回 = 2 人ローテーションの 1 巡境界
     await handlers.handleCommand(hostConn, { command: "session.act", action: "SWITCH" });
     expect(suggestBreakCount(broadcaster)).toBe(0);
     await handlers.handleCommand(hostConn, { command: "session.act", action: "SWITCH" });
-    expect(suggestBreakCount(broadcaster)).toBe(1);
+    // v2.10 以前は 1 が期待値だったが、撤去後は 0
+    expect(suggestBreakCount(broadcaster)).toBe(0);
   });
 });

@@ -3,15 +3,16 @@
  * T057: FR-007, FR-017, FR-030 ＋ デザインシステム適用
  */
 
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import {
-  Crown, ArrowRight, Play, Pause, SkipForward, Flag, RotateCcw, Coffee, Shuffle,
+  Crown, ArrowRight, Play, Pause, SkipForward, Flag, RotateCcw, Shuffle,
 } from "lucide-react";
 import { secondsLeft, elapsedMs } from "@tdd-mob/core/aggregate";
 import type { Room, Problem } from "@tdd-mob/core";
 import { Card, GhostButton, PrimaryButton } from "./primitives.js";
 import { CircularProgress } from "./components/CircularProgress.js";
 import { TeamOrbit } from "./components/TeamOrbit.js";
+import { RotationLineup } from "./components/RotationLineup.js";
 import { RosterPanel } from "./components/RosterPanel.js";
 import { ProblemEditor } from "./components/ProblemEditor.js";
 import { EndSessionZone } from "./components/EndSessionZone.js";
@@ -23,10 +24,13 @@ import { useDiscreteAnnouncement } from "./use-discrete-announcement.js";
 import { usePrefersReducedMotion } from "./use-reduced-motion.js";
 import { useSwitchAlert } from "./use-switch-alert.js";
 import { useIsWide, useViewportWidth } from "./use-breakpoint.js";
+import { useNotifyPreferences } from "./use-notify-preferences.js";
 import { formatRemaining, formatElapsed } from "./format-time.js";
 import { Tabs } from "./components/Tabs.js";
 import { InvitePanel } from "./components/InvitePanel.js";
 import { PassphrasePanel } from "./components/PassphrasePanel.js";
+import { NotifyHint } from "./components/NotifyHint.js";
+import { loadNotifyHintSeen, saveNotifyHintSeen } from "../prefs/local-prefs.js";
 
 interface SessionProps {
   room: Room;
@@ -46,8 +50,6 @@ interface SessionProps {
   onComplete: () => void;
   onAbort: () => void;
   onReset: () => void;
-  onBreakStart: () => void;
-  onBreakEnd: () => void;
   /** 在席一覧（RosterPanel）の操作ハンドラ（FR-046/047/048/051）。
    *  既存の onSkip（= SWITCH 交代）とは別物の driver.skip/resume を扱う。 */
   onRenameParticipant: (participantId: string, displayName: string) => void;
@@ -95,8 +97,6 @@ export function Session({
   onComplete,
   onAbort,
   onReset,
-  onBreakStart,
-  onBreakEnd,
   onRenameParticipant,
   onDriverSkip,
   onDriverResume,
@@ -114,6 +114,11 @@ export function Session({
   onPasteProblem,
   onSetPassphrase,
 }: SessionProps) {
+  // 初回ヒントを閉じたか（手動 dismiss で永続化）。実際の表示可否は下の notifyPrefs.enabled と
+  // 組み合わせて派生で判定し、セッション中に通知を ON にしたら自動的に消えるようにする。
+  const [hintDismissed, setHintDismissed] = useState(() => loadNotifyHintSeen());
+  const dismissHint = () => { saveNotifyHintSeen(); setHintDismissed(true); };
+
   // 稼働中は定期的に再レンダリングしてカウントダウンを進める（FR-007・フックに分離）。
   const now = useNowTick(room.clock.running, room.clock.anchorServerTime);
   const elapsed = useMemo(
@@ -159,7 +164,6 @@ export function Session({
   const announcement = useDiscreteAnnouncement({
     running: room.clock.running,
     isPaused: room.session.isPaused,
-    onBreak: room.onBreak,
     currentIndex: room.session.currentIndex,
     isUrgent,
     driverName: currentDriverName,
@@ -169,10 +173,13 @@ export function Session({
   // 強い交代通知（§9.1 assertiveSwitch）はカスタムフックに集約。reduced-motion は
   // SwitchAlert の描画にのみ使う（アニメ抑制）。
   const reducedMotion = usePrefersReducedMotion();
+  // 個人通知設定をライブ購読する。NotifySettings での保存（同一タブ）と別タブの
+  // storage 変更の両方で即時反映され、セッション中の ON/OFF・音変更が次の交代に効く。
+  const notifyPrefs = useNotifyPreferences();
   const { switchAlertName, dismissSwitchAlert } = useSwitchAlert(
     room.session.currentIndex,
-    room.config.assertiveSwitch === true,
     currentDriverName,
+    { assertiveSwitch: room.config.assertiveSwitch === true, notify: notifyPrefs },
   );
 
   const intervalSeconds = room.clock.intervalSeconds || 1;
@@ -194,9 +201,12 @@ export function Session({
   // 「セッション」タブのコンテンツ（既存 UI をそのまま移動）。
   const sessionPanel = (
     <div className="space-y-6">
+      {/* 初回ヒント（未読かつ通知 OFF のときのみ）。閉じる or 通知 ON で消える。 */}
+      {!hintDismissed && !notifyPrefs.enabled && <NotifyHint onDismiss={dismissHint} />}
       {/* お題（確定後）。editor+ は ProblemEditor で各フィールドを編集できる
-          （FR-009/013/038/040/041）。未確定で生成待ちなら生成中表示（FR-003, US3-AC5）。 */}
-      {room.problem ? (
+          （FR-009/013/038/040/041）。未確定で生成待ちなら生成中表示（FR-003, US3-AC5）。
+          problemEnabled=false のときはお題ブロック自体を表示しない。 */}
+      {room.config.problemEnabled !== false && (room.problem ? (
         <Card>
           <ProblemEditor
             problem={room.problem}
@@ -224,7 +234,7 @@ export function Session({
             </div>
           </Card>
         )
-      )}
+      ))}
 
       {/* PC（lg+）は「左＝タイマー主役＋ホスト操作 / 右＝参加者・引き継ぎ」の2カラム。
           モバイルは素直に縦積み（space-y-6）になる。 */}
@@ -239,7 +249,7 @@ export function Session({
           <div className="instrument-label mb-3">Current Driver</div>
           <div
             key={currentDriverName}
-            className="driver-name-fluid font-black mb-5 text-[var(--bone)] animate-fade-up"
+            className="driver-name-fluid font-black mb-5 text-[var(--bone)] animate-fade-up drop-shadow-[0_0_8px_rgba(255,74,46,0.45)]"
           >
             <Crown className="w-10 h-10 md:w-12 md:h-12 inline mr-3 text-[var(--signal)]" aria-hidden="true" />
             {currentDriverName}
@@ -250,7 +260,7 @@ export function Session({
               <CircularProgress
                 progress={progress}
                 warning={isUrgent}
-                running={running && !isPaused && !room.onBreak}
+                running={running && !isPaused}
                 size={ringSize}
                 strokeWidth={isWide ? 14 : 11}
               >
@@ -261,7 +271,7 @@ export function Session({
                   aria-label={`残り時間 ${formatRemaining(displayRemaining)}`}
                   className={`text-6xl lg:text-7xl font-black tabular tracking-tight ${
                     isUrgent ? "text-[var(--urgent)] animate-pulse" : "text-white"
-                  } ${isPaused || room.onBreak ? "opacity-50" : ""}`}
+                  } ${isPaused ? "opacity-50" : ""}`}
                 >
                   {formatRemaining(displayRemaining)}
                 </div>
@@ -274,10 +284,21 @@ export function Session({
 
           <div className="flex flex-wrap items-center justify-center gap-2 text-lg text-[var(--bone-muted)] boot-reveal" style={{ animationDelay: "150ms" }}>
             <ArrowRight className="w-5 h-5 text-[var(--steel)]" aria-hidden="true" />
-            次: <span className="text-[var(--bone)] font-bold">{nextDriverName}</span>
+            次: <span className="text-[var(--bone)] font-bold text-lg">{nextDriverName}</span>
             {room.config.navigatorEnabled && navigatorName && (
               <span className="ml-3 text-[var(--bone-subtle)]">ナビ: <span className="text-[var(--bone-muted)]">{navigatorName}</span></span>
             )}
+          </div>
+
+          {/* 交代順ストリップ（読み取り専用・「自分はいつ？」確認用） */}
+          <div className="mt-3">
+            <RotationLineup
+              rotation={room.session.rotation}
+              currentIndex={room.session.currentIndex}
+              intervalSeconds={room.clock.intervalSeconds || 1}
+              selfName={currentParticipant?.displayName ?? ""}
+              isPaused={room.session.isPaused}
+            />
           </div>
 
           {/* 統計（等幅タビュラーで計測値らしく） */}
@@ -287,7 +308,7 @@ export function Session({
           </div>
         </div>
 
-        {/* 操作（編集者：スキップ／一時停止・再開、ホスト：休憩） */}
+        {/* 操作（編集者：スキップ／一時停止・再開） */}
         <div className="relative flex flex-wrap justify-center gap-2 pt-2 boot-reveal" style={{ animationDelay: "230ms" }}>
           {isEditor && (
             <>
@@ -304,11 +325,6 @@ export function Session({
                 <span className="flex items-center gap-2"><SkipForward className="w-4 h-4" aria-hidden="true" /> スキップ</span>
               </GhostButton>
             </>
-          )}
-          {isHost && (
-            <GhostButton onClick={room.onBreak ? onBreakEnd : onBreakStart}>
-              <span className="flex items-center gap-2"><Coffee className="w-4 h-4" aria-hidden="true" /> {room.onBreak ? "休憩終了" : "休憩"}</span>
-            </GhostButton>
           )}
         </div>
       </Card>
@@ -383,17 +399,6 @@ export function Session({
 
   return (
     <div role="main" aria-label="セッション">
-      {/* 休憩中バナー（§9.1）。Tabs の外に置きどのタブを表示中でも常に見える
-          （SwitchAlert / aria-live アナウンスと同様の配置方針）。 */}
-      {room.onBreak && (
-        <div
-          role="status"
-          className="flex items-center justify-center gap-2 rounded-md border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-amber-200 font-bold"
-        >
-          <Coffee className="w-5 h-5" aria-hidden="true" />
-          休憩中 — タイマーは停止しています
-        </div>
-      )}
       <Tabs
         ariaLabel="セッション"
         items={[

@@ -16,7 +16,8 @@ import { NoAiProvider } from "./ai/no-ai.js";
 import type { ProblemProvider } from "./ai/provider.js";
 import { screenForPhase } from "./ui/screen.js";
 import { hostChangeMessage } from "./ui/host-change.js";
-import { shouldClearGenerating } from "./ui/problem-generation.js";
+import { shouldClearGenerating, shouldAutoRequestProblem } from "./ui/problem-generation.js";
+import { shouldAutoJoinRotation } from "./ui/join-driver-intent.js";
 import { Stage } from "./ui/primitives.js";
 import { saveRecord } from "./records/indexeddb.js";
 import { persistRecordIfComplete } from "./records/persist.js";
@@ -76,6 +77,8 @@ export default function App() {
   const roomRef = useRef<Room | null>(null);
   // このクライアントがルーム作成者（＝当初ホスト）か。ロビーでお題生成を自動依頼する判定に使う。
   const isCreatorRef = useRef(false);
+  // 参加時に "driver" を選択した場合、snapshot で自分が参加者に現れたら member.add を一度だけ送る。
+  const pendingDriverJoinRef = useRef<string | null>(null);
   // ロビーでのお題自動生成依頼を一度だけ行うためのガード。
   const problemRequestedRef = useRef(false);
   // 終了種別を onRoom（snapshot 受信）クロージャから参照するための ref。
@@ -117,19 +120,31 @@ export default function App() {
         const prevRoom = roomRef.current;
         roomRef.current = r;
         setRoom(r);
+        // 参加時ドライバー宣言: 自分が参加者に現れたら一度だけ rotation に加入する。
+        if (
+          pendingDriverJoinRef.current &&
+          r.participants.some((p) => p.displayName === pendingDriverJoinRef.current) &&
+          shouldAutoJoinRotation({ pendingName: pendingDriverJoinRef.current, rotation: r.session.rotation })
+        ) {
+          newClient.send({ command: "member.add", name: pendingDriverJoinRef.current });
+          pendingDriverJoinRef.current = null;
+        }
         // 生成中で、お題の内容が前回から変化したら生成中を解除（AI 成功・定型縮退・タイムアウト確定の全経路）。
         if (shouldClearGenerating(generatingRef.current, prevRoom?.problem ?? null, r.problem ?? null)) {
           endGenerating();
         }
         // サーバー権威の phase に全参加者が追従する（ホストの開始/完成が全員に反映）
         setMode(screenForPhase(r.phase));
-        // ロビー（開始前）でお題が未確定なら、作成者が一度だけ代表生成を依頼する（US3）。
+        // ロビー（開始前）でお題が未確定かつ problemEnabled=true なら、作成者が一度だけ代表生成を依頼する（US3）。
         // これがないと誰も problem.request を送らず「お題を準備中」のまま開始できない。
         if (
-          (r.phase === "setup" || r.phase === "ready") &&
-          !r.problem &&
-          isCreatorRef.current &&
-          !problemRequestedRef.current
+          shouldAutoRequestProblem({
+            phase: r.phase,
+            hasProblem: !!r.problem,
+            isCreator: isCreatorRef.current,
+            alreadyRequested: problemRequestedRef.current,
+            problemEnabled: r.config.problemEnabled !== false,
+          })
         ) {
           problemRequestedRef.current = true;
           newClient.send({ command: "problem.request", requestId: `req-${r.code}-lobby` });
@@ -144,7 +159,8 @@ export default function App() {
           cfgChanged &&
           isCreatorRef.current &&
           (r.phase === "setup" || r.phase === "ready") &&
-          !!r.problem
+          !!r.problem &&
+          r.config.problemEnabled !== false
         ) {
           newClient.send({ command: "problem.request", requestId: `req-${r.code}-cfg-${Date.now()}` });
           beginGenerating();
@@ -230,11 +246,6 @@ export default function App() {
         if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
         bannerTimerRef.current = setTimeout(() => setBanner(null), 4000);
       },
-      onSuggestBreak: (rounds) =>
-        setBanner({
-          text: `${rounds}巡しました。そろそろ休憩しませんか？（ホストは「休憩」で全員のタイマーを止められます）`,
-          kind: "warn",
-        }),
       onConnected: () => setBanner(null),
       onDisconnected: () =>
         setBanner({ text: "接続が切れました。再接続しています...", kind: "warn" }),
@@ -265,9 +276,16 @@ export default function App() {
     c.send({ command: "room.create", displayName, config, ...(roomName && { roomName }) });
   };
 
-  // 共有 URL（?room=コード）からの参加。観覧者として加わり snapshot に追従する。
-  const handleJoinRoom = (code: string, displayName = "ゲスト", passphrase = "") => {
+  // 共有 URL（?room=コード）からの参加。mode="driver" なら snapshot 後に rotation 加入する。
+  const handleJoinRoom = (
+    code: string,
+    displayName = "ゲスト",
+    passphrase = "",
+    mode: "driver" | "spectator" = "spectator",
+  ) => {
     isCreatorRef.current = false;
+    // driver 宣言を ref に記録しておき、snapshot で自分が現れたら member.add を送る。
+    if (mode === "driver") pendingDriverJoinRef.current = displayName;
     const c = makeClient(() => ({
       language: roomRef.current?.config.language ?? "TypeScript",
       difficulty: roomRef.current?.config.difficulty ?? "easy",
@@ -504,7 +522,8 @@ export default function App() {
           participantId={participantId}
           generatingProblem={generatingProblem}
           onStartSession={() => {
-            if (!room.problem) {
+            const problemEnabled = room.config.problemEnabled !== false;
+            if (problemEnabled && !room.problem) {
               client?.send({ command: "problem.request", requestId: `req-${room.code}` });
             }
             client?.send({ command: "phase.set", phase: "session" });
@@ -546,8 +565,6 @@ export default function App() {
           onComplete={handleComplete}
           onAbort={handleAbort}
           onReset={() => client?.send({ command: "session.reset" })}
-          onBreakStart={() => client?.send({ command: "break.start" })}
-          onBreakEnd={() => client?.send({ command: "break.end" })}
           onHandoffNoteSet={(text) => client?.send({ command: "handoff.note.set", text })}
           onJoinRotation={joinRotation}
           onLeaveRotation={leaveRotation}
@@ -588,7 +605,7 @@ export default function App() {
     }
 
     if (mode === "join" && joinCode && !room) {
-      return <Join code={joinCode} onJoin={(name, passphrase) => handleJoinRoom(joinCode, name, passphrase)} />;
+      return <Join code={joinCode} onJoin={(name, passphrase, joinMode) => handleJoinRoom(joinCode, name, passphrase, joinMode)} />;
     }
 
     // 端末ローカルの完了記録を可視化する履歴ビュー（v2.3 #5）。Setup から開き、戻ると Setup へ。

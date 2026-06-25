@@ -77,8 +77,6 @@ function baseHandlers() {
     onComplete: noop,
     onAbort: noop,
     onReset: noop,
-    onBreakStart: noop,
-    onBreakEnd: noop,
     onRenameParticipant: noop,
     onDriverSkip: noop,
     onDriverResume: noop,
@@ -87,7 +85,7 @@ function baseHandlers() {
 }
 
 describe("Session 引き継ぎノート入力（§9.1）", () => {
-  it("editor+ には共有メモの入力欄が表示される", () => {
+  it("editor+ には共有メモの入力欄が表示される（「編集」クリック後）", () => {
     render(
       <Session
         room={makeRoom()}
@@ -96,6 +94,8 @@ describe("Session 引き継ぎノート入力（§9.1）", () => {
         onHandoffNoteSet={vi.fn()}
       />,
     );
+    // 初期はプレビューモード。「編集」ボタンを押すと入力欄が出る（Task 9: プレビュー優先）。
+    fireEvent.click(screen.getByRole("button", { name: "編集" }));
     const field = screen.getByLabelText(/共有メモ/);
     // textarea/input であること（読み取り専用テキストではない）
     expect(["TEXTAREA", "INPUT"]).toContain((field as HTMLElement).tagName);
@@ -111,6 +111,8 @@ describe("Session 引き継ぎノート入力（§9.1）", () => {
         onHandoffNoteSet={onHandoffNoteSet}
       />,
     );
+    // 初期はプレビューモード。「編集」ボタンを押してから入力（Task 9: プレビュー優先）。
+    fireEvent.click(screen.getByRole("button", { name: "編集" }));
     const field = screen.getByLabelText(/共有メモ/);
     fireEvent.change(field, { target: { value: "API のモックまで完了" } });
     fireEvent.blur(field);

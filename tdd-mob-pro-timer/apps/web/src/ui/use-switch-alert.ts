@@ -1,14 +1,18 @@
 /**
- * 強い交代通知（§9.1 assertiveSwitch）のロジックを担うカスタムフック。
+ * 交代通知ロジックを担うカスタムフック（§9.1 assertiveSwitch + 個人設定ゲート）。
  *
- * currentIndex の変化を「交代」と見なし、assertiveSwitch が ON のときだけ
- * 全画面オーバーレイ用の名前をセットし、音＋振動で割り込む。
+ * 2つの独立した軸でゲートを分離:
+ * - 音/振動/OS通知 → 個人設定 `notify.enabled` でゲート（ルーム設定に依存しない）
+ * - 全画面オーバーレイ → ルーム設定 `assertiveSwitch` でゲート
+ *
  * オーバーレイは一定時間で自動消滅する。検知と自動消滅の effect を分離することで、
- * 表示中に driverName だけ変化しても自動消滅が妨げられない（レビュー #2）。
+ * 表示中に driverName だけ変化しても自動消滅が妨げられない。
  */
 
 import { useEffect, useRef, useState } from "react";
-import { playSwitchChime, vibrateSwitch } from "../platform/sound.js";
+import { playChime, vibrateSwitch } from "../platform/sound.js";
+import { notifyDriverChange } from "../platform/notify.js";
+import type { NotifyPreferences } from "../prefs/local-prefs.js";
 
 /** オーバーレイの自動消滅までの時間(ms)。 */
 const SWITCH_ALERT_MS = 2500;
@@ -20,26 +24,42 @@ export interface SwitchAlertState {
   dismissSwitchAlert: () => void;
 }
 
+export interface SwitchAlertOptions {
+  /** ルーム設定: 全画面オーバーレイ（視覚的割り込み）を出すか。 */
+  assertiveSwitch: boolean;
+  /** 個人設定: 音/振動/OS通知を出すか。 */
+  notify: NotifyPreferences;
+}
+
 export function useSwitchAlert(
   currentIndex: number,
-  assertiveSwitch: boolean,
   currentDriverName: string,
+  opts: SwitchAlertOptions,
 ): SwitchAlertState {
   const [name, setName] = useState<string | null>(null);
   const prevIndexRef = useRef(currentIndex);
+  const prevNameRef = useRef(currentDriverName);
+  const { assertiveSwitch, notify } = opts;
 
-  // 交代検知: currentIndex が変わり、かつ assertiveSwitch が ON のときだけ割り込む。
+  // 交代検知: 番号(currentIndex)と名前(currentDriverName)の両方が変わった「本当の交代」のときだけ各軸を処理する。
+  // 並べ替え=番号のみ変化（同じ人が位置移動）／改名=名前のみ変化 は交代ではないので鳴らさない。
   useEffect(() => {
-    const prev = prevIndexRef.current;
+    const prevIndex = prevIndexRef.current;
+    const prevName = prevNameRef.current;
     prevIndexRef.current = currentIndex;
-    if (prev === currentIndex) return;
-    if (!assertiveSwitch) return;
-    setName(currentDriverName);
-    playSwitchChime();
-    vibrateSwitch();
-  }, [currentIndex, assertiveSwitch, currentDriverName]);
+    prevNameRef.current = currentDriverName;
+    if (prevIndex === currentIndex || prevName === currentDriverName) return;
+    // 個人設定: 音/振動/OS通知（ルーム設定に依存しない背面通知）。
+    if (notify.enabled) {
+      playChime(notify.soundId, notify.volume);
+      vibrateSwitch();
+      if (notify.osNotify) notifyDriverChange(currentDriverName);
+    }
+    // ルーム設定: 全画面オーバーレイ（音とは独立）。
+    if (assertiveSwitch) setName(currentDriverName);
+  }, [currentIndex, currentDriverName, assertiveSwitch, notify.enabled, notify.soundId, notify.osNotify, notify.volume]);
 
-  // 自動消滅は表示状態だけに依存させる（検知 effect と分離・レビュー #2）。
+  // 自動消滅は表示状態だけに依存させる（検知 effect と分離）。
   useEffect(() => {
     if (!name) return;
     const id = setTimeout(() => setName(null), SWITCH_ALERT_MS);

@@ -97,6 +97,21 @@ describe("decide: config.set の v3.0 トグル（§16）", () => {
     }
   });
 
+  it("problemEnabled を検証済み config に載せる（お題なし開始・ルーム単位）", () => {
+    const result = decide(
+      { command: "config.set", config: { problemEnabled: false } },
+      baseAgg,
+      NOW,
+    );
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value[0]).toMatchObject({
+        type: "ConfigSet",
+        config: { problemEnabled: false },
+      });
+    }
+  });
+
   it("指定しないトグルは config に含めない（未指定は現状維持）", () => {
     const result = decide({ command: "config.set", config: { navigatorEnabled: true } }, baseAgg, NOW);
     if (result.isOk()) {
