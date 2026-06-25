@@ -123,19 +123,19 @@ export function RosterPanel({
   // rotation 内かどうかを判定するヘルパ
   const inRot = (p: Participant) => rotation ? rotation.includes(p.displayName) : false;
 
-  // ドライバーグループ: rotation 内の参加者を rotation 順でソートし、現ドライバーを先頭に
+  // ドライバーグループ: 現ドライバー起点の巡回順（現=0, 次=1, …）で並べる。
+  // 交代のたびにリストが1つずつ繰り上がる自然な並びにする（v2.10 #4）。
   const drivers = (() => {
     const rotParts = participants.filter(inRot);
-    return rotParts.sort((a, b) => {
-      // 現ドライバーを最優先
-      const aCurrent = a.displayName === currentDriverName ? -1 : 0;
-      const bCurrent = b.displayName === currentDriverName ? -1 : 0;
-      if (aCurrent !== bCurrent) return aCurrent - bCurrent;
-      // その後は rotation index 昇順
-      const ai = rotation ? rotation.indexOf(a.displayName) : 0;
-      const bi = rotation ? rotation.indexOf(b.displayName) : 0;
-      return ai - bi;
-    });
+    if (!rotation || rotation.length === 0) return rotParts;
+    const len = rotation.length;
+    const curIdx = rotation.indexOf(currentDriverName);
+    const turnOrder = (p: Participant): number => {
+      const i = rotation.indexOf(p.displayName);
+      if (i < 0 || curIdx < 0) return Number.MAX_SAFE_INTEGER;
+      return (i - curIdx + len) % len;
+    };
+    return [...rotParts].sort((a, b) => turnOrder(a) - turnOrder(b));
   })();
 
   // 見学グループ: rotation 外（元の相対順を保持）

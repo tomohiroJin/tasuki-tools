@@ -458,4 +458,38 @@ describe("RosterPanel セクション分割", () => {
     const watchList = screen.getByRole("list", { name: "見学一覧" });
     expect(within(watchList).getByText("Zoe")).toBeTruthy();
   });
+
+  it("ドライバーは現ドライバー起点の巡回順で並ぶ（現→次→…環状）", () => {
+    // 巡回順テスト: rotation=[A,B,C,D,E], currentDriver=D → 表示順は D,E,A,B,C
+    const names = ["A", "B", "C", "D", "E"];
+    const participants = names.map((n, i) => ({
+      participantId: `p${i}`,
+      connId: `conn${i}`,
+      displayName: n,
+      role: "editor" as const,
+      presence: "online" as const,
+      driverEligible: true,
+      isPlaceholder: false,
+      hasAiKey: false,
+      joinedAt: 1000000,
+    }));
+    render(
+      <RosterPanel
+        participants={participants}
+        currentDriverName="D"
+        myParticipantId="p0"
+        canHostAction={false}
+        rotation={names}
+        onRename={vi.fn()}
+        onSkip={vi.fn()}
+        onResume={vi.fn()}
+        onAddProxy={vi.fn()}
+      />,
+    );
+    const driverList = screen.getByRole("list", { name: "ドライバー一覧" });
+    const order = within(driverList)
+      .getAllByRole("listitem")
+      .map((li) => (li.textContent!.match(/[A-E]/) ?? [""])[0]);
+    expect(order).toEqual(["D", "E", "A", "B", "C"]);
+  });
 });
