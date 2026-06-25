@@ -29,4 +29,23 @@ describe("NotifySettingsPanel", () => {
     fireEvent.change(screen.getByRole("combobox", { name: "通知音" }), { target: { value: "melody" } });
     expect(onChange).toHaveBeenCalledWith({ soundId: "melody" });
   });
+  it("二重描画（ポップオーバー＋ロビーカード）でも id が衝突せず label が各 select に紐付く（useId）", () => {
+    const { container } = render(
+      <>
+        <NotifySettingsPanel prefs={prefs} onChange={vi.fn()} onPreview={vi.fn()} />
+        <NotifySettingsPanel prefs={prefs} onChange={vi.fn()} onPreview={vi.fn()} />
+      </>,
+    );
+    const selectIds = Array.from(
+      container.querySelectorAll<HTMLSelectElement>('select[aria-label="通知音"]'),
+    ).map((s) => s.id);
+    expect(selectIds).toHaveLength(2);
+    // 2 つの id は空でなく互いに異なる（DOM id 重複なし）。
+    expect(selectIds[0]).toBeTruthy();
+    expect(selectIds[0]).not.toBe(selectIds[1]);
+    // 各 select id に対応する <label htmlFor> が存在する（紐付け健全）。
+    for (const id of selectIds) {
+      expect(container.querySelector(`label[for="${id}"]`)).not.toBeNull();
+    }
+  });
 });

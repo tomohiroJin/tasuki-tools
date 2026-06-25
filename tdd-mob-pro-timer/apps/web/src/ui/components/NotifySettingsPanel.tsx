@@ -2,7 +2,7 @@
  * 通知設定の純粋表示パネル（ポップオーバーとロビーカードで共用）。
  * 状態は持たず prefs を受け取り onChange/onPreview を呼ぶだけ。
  */
-import React from "react";
+import React, { useId } from "react";
 import { Volume2 } from "lucide-react";
 import { CHIMES } from "../../platform/sound.js";
 import type { NotifyPreferences } from "../../prefs/local-prefs.js";
@@ -16,6 +16,10 @@ interface NotifySettingsPanelProps {
 export function NotifySettingsPanel({ prefs, onChange, onPreview }: NotifySettingsPanelProps) {
   // 選択中の音ラベルを見出しに表示するために解決する。
   const currentLabel = CHIMES.find((c) => c.id === prefs.soundId)?.label ?? prefs.soundId;
+  // ポップオーバーとロビーカードで同時に描画されても id が衝突しないよう一意化する。
+  const fieldId = useId();
+  const soundFieldId = `${fieldId}-sound`;
+  const volumeFieldId = `${fieldId}-volume`;
 
   return (
     <div className="text-sm text-[var(--bone)]">
@@ -47,12 +51,12 @@ export function NotifySettingsPanel({ prefs, onChange, onPreview }: NotifySettin
 
       {/* 通知音セレクト＋試聴ボタン */}
       <div className="mt-3">
-        <label htmlFor="notify-sound" className="instrument-label">
+        <label htmlFor={soundFieldId} className="instrument-label">
           通知音
         </label>
         <div className="mt-1 flex gap-2">
           <select
-            id="notify-sound"
+            id={soundFieldId}
             aria-label="通知音"
             value={prefs.soundId}
             onChange={(e) => onChange({ soundId: e.target.value })}
@@ -77,11 +81,11 @@ export function NotifySettingsPanel({ prefs, onChange, onPreview }: NotifySettin
 
       {/* 音量スライダー */}
       <div className="mt-3">
-        <label htmlFor="notify-volume" className="instrument-label">
+        <label htmlFor={volumeFieldId} className="instrument-label">
           音量
         </label>
         <input
-          id="notify-volume"
+          id={volumeFieldId}
           type="range"
           aria-label="音量"
           min={0}

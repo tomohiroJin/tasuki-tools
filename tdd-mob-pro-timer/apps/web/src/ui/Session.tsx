@@ -30,7 +30,7 @@ import { Tabs } from "./components/Tabs.js";
 import { InvitePanel } from "./components/InvitePanel.js";
 import { PassphrasePanel } from "./components/PassphrasePanel.js";
 import { NotifyHint } from "./components/NotifyHint.js";
-import { loadNotifyHintSeen, saveNotifyHintSeen, loadNotifyPreferences } from "../prefs/local-prefs.js";
+import { loadNotifyHintSeen, saveNotifyHintSeen } from "../prefs/local-prefs.js";
 
 interface SessionProps {
   room: Room;
@@ -118,9 +118,10 @@ export function Session({
   onPasteProblem,
   onSetPassphrase,
 }: SessionProps) {
-  // 未読かつ通知 OFF のとき、初回ヒントを表示する（一度閉じたら再表示しない）。
-  const [showHint, setShowHint] = useState(() => !loadNotifyHintSeen() && !loadNotifyPreferences().enabled);
-  const dismissHint = () => { saveNotifyHintSeen(); setShowHint(false); };
+  // 初回ヒントを閉じたか（手動 dismiss で永続化）。実際の表示可否は下の notifyPrefs.enabled と
+  // 組み合わせて派生で判定し、セッション中に通知を ON にしたら自動的に消えるようにする。
+  const [hintDismissed, setHintDismissed] = useState(() => loadNotifyHintSeen());
+  const dismissHint = () => { saveNotifyHintSeen(); setHintDismissed(true); };
 
   // 稼働中は定期的に再レンダリングしてカウントダウンを進める（FR-007・フックに分離）。
   const now = useNowTick(room.clock.running, room.clock.anchorServerTime);
@@ -205,8 +206,8 @@ export function Session({
   // 「セッション」タブのコンテンツ（既存 UI をそのまま移動）。
   const sessionPanel = (
     <div className="space-y-6">
-      {/* 初回ヒント（未読かつ通知 OFF のときのみ）。閉じると二度と出ない。 */}
-      {showHint && <NotifyHint onDismiss={dismissHint} />}
+      {/* 初回ヒント（未読かつ通知 OFF のときのみ）。閉じる or 通知 ON で消える。 */}
+      {!hintDismissed && !notifyPrefs.enabled && <NotifyHint onDismiss={dismissHint} />}
       {/* お題（確定後）。editor+ は ProblemEditor で各フィールドを編集できる
           （FR-009/013/038/040/041）。未確定で生成待ちなら生成中表示（FR-003, US3-AC5）。
           problemEnabled=false のときはお題ブロック自体を表示しない。 */}
