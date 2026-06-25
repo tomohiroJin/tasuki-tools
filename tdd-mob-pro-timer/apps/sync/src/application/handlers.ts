@@ -113,26 +113,7 @@ export function makeHandlers(deps: HandlerDeps) {
       signal: "switch",
       nextDriverName: updated.session.rotation[updated.session.currentIndex] ?? "",
     });
-    maybeSuggestBreak(updated);
     reconcileSchedule(updated);
-  }
-
-  /** breakEveryRotations 巡ごとに休憩提案シグナルを配信する（§9.1）。
-   *  巡 = rotation 一周（rotation 長ぶんの交代）。シグナルは演出専用で状態ではない（§5.2）。 */
-  function maybeSuggestBreak(room: Room): void {
-    const every = room.config.breakEveryRotations;
-    if (!every || every < 1) return;
-    const len = room.session.rotation.length;
-    if (len === 0) return;
-    // 巡の境界（一周完了）でのみ判定する
-    if (room.session.totalSwitches % len !== 0) return;
-    const rounds = room.session.totalSwitches / len;
-    if (rounds === 0 || rounds % every !== 0) return;
-    broadcaster.broadcastSignal(room.code, {
-      type: "signal",
-      signal: "suggest-break",
-      rounds,
-    });
   }
 
   /**
@@ -663,10 +644,6 @@ export function makeHandlers(deps: HandlerDeps) {
 
     store.put(updatedRoom);
     broadcaster.broadcastSnapshot(updatedRoom.code, updatedRoom);
-    // 手動スキップ等で交代が起きた場合も、自動交代と同様に巡境界で休憩を提案する（レビュー #3）。
-    if (updatedRoom.session.currentIndex !== agg.session.currentIndex) {
-      maybeSuggestBreak(updatedRoom);
-    }
     // clock 状態が変わった可能性があるので自動交代を調停する（FR-003）
     reconcileSchedule(updatedRoom);
 
@@ -1058,8 +1035,6 @@ const HOST_ONLY_COMMANDS = new Set([
   "session.abort",
   "session.reset",
   "phase.set",
-  "break.start",
-  "break.end",
   "role.set",
   "room.passphrase.set",
   "ai.unlock",
@@ -1148,10 +1123,6 @@ function buildDomainCommand(cmd: { command: string; [key: string]: unknown }) {
     case "handoff.note.set":
       if (typeof cmd.text !== "string") return null;
       return { command: "handoff.note.set" as const, text: cmd.text };
-    case "break.start":
-      return { command: "break.start" as const };
-    case "break.end":
-      return { command: "break.end" as const };
     // ─── v2 新コマンド ─────────────────────────────────────────────────────
     case "session.abort":
       return { command: "session.abort" as const };
