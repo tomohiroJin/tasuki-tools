@@ -8,9 +8,6 @@ import { VALID_INTERVAL_MINUTES, type IntervalMinutes } from "@tdd-mob/core/aggr
 import type { SessionConfig } from "@tdd-mob/core";
 import { SectionHeader } from "../primitives.js";
 
-/** 休憩リマインダ ON 時の既定の周回間隔。0 は OFF。 */
-const DEFAULT_BREAK_EVERY_ROTATIONS = 4;
-
 interface SessionConfigPanelProps {
   config: SessionConfig;
   canEdit: boolean;
@@ -29,7 +26,6 @@ export function SessionConfigPanel({ config, canEdit, onChange }: SessionConfigP
 
   const navigatorEnabled = config.navigatorEnabled === true;
   const assertiveSwitch = config.assertiveSwitch === true;
-  const breakOn = (config.breakEveryRotations ?? 0) >= 1;
 
   return (
     <div className="space-y-5">
@@ -59,7 +55,7 @@ export function SessionConfigPanel({ config, canEdit, onChange }: SessionConfigP
         <p className="mt-2 text-xs text-[var(--bone-subtle)]">推奨は 5〜10 分。短いほど集中と学習が高まります。</p>
       </div>
 
-      {/* 詳細設定（オプション3点・既定 OFF）。最初は折りたたみ。 */}
+      {/* 詳細設定（オプション2点・既定 OFF）。最初は折りたたみ。 */}
       <details className="rounded-md bg-[var(--panel-2)] border border-[var(--hairline)]">
         <summary className="flex items-center gap-2 cursor-pointer select-none px-4 py-3 text-sm font-medium text-[var(--bone)]">
           <Settings2 className="w-4 h-4 text-[var(--signal)]" aria-hidden="true" />
@@ -78,12 +74,6 @@ export function SessionConfigPanel({ config, canEdit, onChange }: SessionConfigP
             onChange={(v) => onChange({ assertiveSwitch: v })}
             label="強い交代通知"
             hint="交代の瞬間に全画面で割り込み、見落としを防ぎます。"
-          />
-          <Toggle
-            checked={breakOn}
-            onChange={(v) => onChange({ breakEveryRotations: v ? DEFAULT_BREAK_EVERY_ROTATIONS : 0 })}
-            label={`休憩リマインダ（${DEFAULT_BREAK_EVERY_ROTATIONS}巡ごと）`}
-            hint="長時間セッションで定期的に休憩を提案します。"
           />
         </div>
       </details>

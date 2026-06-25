@@ -1,8 +1,8 @@
 /**
- * Session × 休憩中の視覚強調（§9.1 onBreak）のテスト
+ * Session × 休憩 UI 撤去確認テスト（§9.1 削除後）
  *
- * onBreak=true のとき、全員のタイマーは止まる（バックエンド実装済み）が、
- * 画面に「休憩中」が分かる表示が無かった。ここでは状態の可視化を検証する。
+ * 休憩ボタン・休憩中バナーは v2.10 で撤去済み。
+ * このテストはそれらが画面に存在しないことを検証する。
  */
 
 import { describe, it, expect } from "vitest";
@@ -37,19 +37,19 @@ const noop = () => {};
 function handlers() {
   return {
     onSkip: noop, onPause: noop, onResume: noop, onComplete: noop, onAbort: noop,
-    onReset: noop, onBreakStart: noop, onBreakEnd: noop, onRenameParticipant: noop,
+    onReset: noop, onRenameParticipant: noop,
     onDriverSkip: noop, onDriverResume: noop, onAddProxy: noop, onHandoffNoteSet: noop,
   };
 }
 
-describe("Session 休憩中表示（§9.1）", () => {
-  it("onBreak=true のとき『休憩中』バナーが表示される", () => {
-    render(<Session room={makeRoom(true)} participantId="host-1" {...handlers()} />);
-    expect(screen.getByText(/休憩中/)).toBeTruthy();
+describe("Session 休憩UI撤去確認（§9.1 削除後）", () => {
+  it("休憩ボタンが存在しない", () => {
+    render(<Session room={makeRoom(false)} participantId="host-1" {...handlers()} />);
+    expect(screen.queryByRole("button", { name: /休憩/ })).toBeNull();
   });
 
-  it("onBreak=false のときは『休憩中』バナーを出さない", () => {
-    render(<Session room={makeRoom(false)} participantId="host-1" {...handlers()} />);
+  it("onBreak=true でも『休憩中』バナーが表示されない", () => {
+    render(<Session room={makeRoom(true)} participantId="host-1" {...handlers()} />);
     expect(screen.queryByText(/休憩中/)).toBeNull();
   });
 });

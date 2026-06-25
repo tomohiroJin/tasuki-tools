@@ -29,15 +29,9 @@ describe("SessionConfigPanel", () => {
     expect(onChange).toHaveBeenCalledWith({ navigatorEnabled: true });
   });
 
-  it("休憩リマインダ ON で正の整数、OFF で 0 を送る", () => {
-    const onChange = vi.fn();
-    const { rerender } = render(<SessionConfigPanel config={config} canEdit onChange={onChange} />);
-    fireEvent.click(screen.getByRole("checkbox", { name: /休憩/ }));
-    expect(onChange).toHaveBeenCalledWith({ breakEveryRotations: expect.any(Number) });
-    onChange.mockClear();
-    rerender(<SessionConfigPanel config={{ ...config, breakEveryRotations: 4 }} canEdit onChange={onChange} />);
-    fireEvent.click(screen.getByRole("checkbox", { name: /休憩/ }));
-    expect(onChange).toHaveBeenCalledWith({ breakEveryRotations: 0 });
+  it("休憩リマインダが存在しない", () => {
+    render(<SessionConfigPanel config={config} canEdit onChange={vi.fn()} />);
+    expect(screen.queryByText(/休憩リマインダ/)).toBeNull();
   });
 
   it("canEdit=false では間隔ボタンを出さず現在値を読み取り表示する", () => {

@@ -246,11 +246,6 @@ export default function App() {
         if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
         bannerTimerRef.current = setTimeout(() => setBanner(null), 4000);
       },
-      onSuggestBreak: (rounds) =>
-        setBanner({
-          text: `${rounds}巡しました。そろそろ休憩しませんか？（ホストは「休憩」で全員のタイマーを止められます）`,
-          kind: "warn",
-        }),
       onConnected: () => setBanner(null),
       onDisconnected: () =>
         setBanner({ text: "接続が切れました。再接続しています...", kind: "warn" }),
@@ -570,8 +565,6 @@ export default function App() {
           onComplete={handleComplete}
           onAbort={handleAbort}
           onReset={() => client?.send({ command: "session.reset" })}
-          onBreakStart={() => client?.send({ command: "break.start" })}
-          onBreakEnd={() => client?.send({ command: "break.end" })}
           onHandoffNoteSet={(text) => client?.send({ command: "handoff.note.set", text })}
           onJoinRotation={joinRotation}
           onLeaveRotation={leaveRotation}

@@ -74,8 +74,6 @@ function baseHandlers() {
     onComplete: noop,
     onAbort: noop,
     onReset: noop,
-    onBreakStart: noop,
-    onBreakEnd: noop,
     onRenameParticipant: vi.fn(),
     onDriverSkip: vi.fn(),
     onDriverResume: vi.fn(),

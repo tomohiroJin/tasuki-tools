@@ -77,8 +77,6 @@ function baseHandlers() {
     onComplete: noop,
     onAbort: noop,
     onReset: noop,
-    onBreakStart: noop,
-    onBreakEnd: noop,
     onRenameParticipant: noop,
     onDriverSkip: noop,
     onDriverResume: noop,

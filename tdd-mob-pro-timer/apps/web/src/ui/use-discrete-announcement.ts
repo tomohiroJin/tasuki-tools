@@ -1,7 +1,7 @@
 /**
  * 支援技術向けの離散アナウンス（FR-035）。
  *
- * 連続カウントは読み上げず、状態変化（交代・残りわずか・一時停止・休憩）だけを
+ * 連続カウントは読み上げず、状態変化（交代・残りわずか・一時停止）だけを
  * assertive リージョンへ流す文字列を生成する。同一文言が連続しても再読み上げされるよう、
  * 末尾に不可視のゼロ幅スペースを交互付与して DOM テキストを必ず変化させる
  * （aria-live はテキスト変化時のみ発火するため）。
@@ -30,7 +30,6 @@ export function useDiscreteAnnouncement(state: AnnounceState): string {
   }, [
     state.running,
     state.isPaused,
-    state.onBreak,
     state.currentIndex,
     state.isUrgent,
     state.driverName,

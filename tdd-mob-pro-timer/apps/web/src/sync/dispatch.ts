@@ -17,8 +17,6 @@ export interface ServerMessageCallbacks {
   onTimePong?: (serverTime: number) => void;
   /** 交代シグナル（演出用） */
   onSwitchSignal?: (nextDriverName: string) => void;
-  /** 休憩提案シグナル（§9.1）。rounds は何巡したかの参考値。 */
-  onSuggestBreak?: (rounds: number) => void;
 }
 
 /**
@@ -61,8 +59,6 @@ export function dispatchServerMessage(
         cb.onNeedProblem?.(msg.requestId, msg.deadlineMs);
       } else if (msg.signal === "switch") {
         cb.onSwitchSignal?.(msg.nextDriverName);
-      } else if (msg.signal === "suggest-break") {
-        cb.onSuggestBreak?.(msg.rounds);
       }
       break;
     case "time.pong":
