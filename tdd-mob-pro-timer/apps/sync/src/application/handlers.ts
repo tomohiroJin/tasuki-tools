@@ -616,9 +616,17 @@ export function makeHandlers(deps: HandlerDeps) {
     }
 
     // まず evolve で集約（session+clock）を更新する。
+    // 手動スキップ(session.act SWITCH)は自動交代と同じく一時離脱/オフライン(非placeholder)を飛ばす。
+    // decide はバリデーション(clock.running)に使い、行き先だけ eligible-aware な advanceDriver に差し替える。
     let newAgg = agg;
-    for (const event of result.value) {
-      newAgg = evolve(newAgg, event, now);
+    const isManualSwitch =
+      domainCmd.command === "session.act" && domainCmd.action === "SWITCH";
+    if (isManualSwitch) {
+      newAgg = advanceDriver(agg, computeIneligibleIndices(targetRoom), now);
+    } else {
+      for (const event of result.value) {
+        newAgg = evolve(newAgg, event, now);
+      }
     }
 
     // evolve の結果を Room に反映してから、Room レベルイベントを適用する。
