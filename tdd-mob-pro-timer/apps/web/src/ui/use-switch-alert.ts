@@ -38,13 +38,17 @@ export function useSwitchAlert(
 ): SwitchAlertState {
   const [name, setName] = useState<string | null>(null);
   const prevIndexRef = useRef(currentIndex);
+  const prevNameRef = useRef(currentDriverName);
   const { assertiveSwitch, notify } = opts;
 
-  // 交代検知: currentIndex が変わったときに各軸を独立して処理する。
+  // 交代検知: 番号(currentIndex)と名前(currentDriverName)の両方が変わった「本当の交代」のときだけ各軸を処理する。
+  // 並べ替え=番号のみ変化（同じ人が位置移動）／改名=名前のみ変化 は交代ではないので鳴らさない。
   useEffect(() => {
-    const prev = prevIndexRef.current;
+    const prevIndex = prevIndexRef.current;
+    const prevName = prevNameRef.current;
     prevIndexRef.current = currentIndex;
-    if (prev === currentIndex) return;
+    prevNameRef.current = currentDriverName;
+    if (prevIndex === currentIndex || prevName === currentDriverName) return;
     // 個人設定: 音/振動/OS通知（ルーム設定に依存しない背面通知）。
     if (notify.enabled) {
       playChime(notify.soundId, notify.volume);
@@ -53,7 +57,7 @@ export function useSwitchAlert(
     }
     // ルーム設定: 全画面オーバーレイ（音とは独立）。
     if (assertiveSwitch) setName(currentDriverName);
-  }, [currentIndex, assertiveSwitch, notify.enabled, notify.soundId, notify.osNotify, notify.volume, currentDriverName]);
+  }, [currentIndex, currentDriverName, assertiveSwitch, notify.enabled, notify.soundId, notify.osNotify, notify.volume]);
 
   // 自動消滅は表示状態だけに依存させる（検知 effect と分離）。
   useEffect(() => {

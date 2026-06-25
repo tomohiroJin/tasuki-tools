@@ -13,20 +13,20 @@ describe("useSwitchAlert（個人設定ゲート）", () => {
   it("notify.enabled=false なら交代しても音を鳴らさない", () => {
     const play = vi.spyOn(sound, "playChime").mockImplementation(() => {});
     const { rerender } = renderHook(
-      ({ idx }) => useSwitchAlert(idx, "Bob", { assertiveSwitch: false, notify: OFF }),
-      { initialProps: { idx: 0 } },
+      ({ idx, name }) => useSwitchAlert(idx, name, { assertiveSwitch: false, notify: OFF }),
+      { initialProps: { idx: 0, name: "Alice" } },
     );
-    rerender({ idx: 1 });
+    rerender({ idx: 1, name: "Bob" });
     expect(play).not.toHaveBeenCalled();
   });
 
   it("notify.enabled=true なら交代時に選択中の音を音量付きで鳴らす", () => {
     const play = vi.spyOn(sound, "playChime").mockImplementation(() => {});
     const { rerender } = renderHook(
-      ({ idx }) => useSwitchAlert(idx, "Bob", { assertiveSwitch: false, notify: ON }),
-      { initialProps: { idx: 0 } },
+      ({ idx, name }) => useSwitchAlert(idx, name, { assertiveSwitch: false, notify: ON }),
+      { initialProps: { idx: 0, name: "Alice" } },
     );
-    rerender({ idx: 1 });
+    rerender({ idx: 1, name: "Bob" });
     expect(play).toHaveBeenCalledWith("bell", 0.4);
   });
 
@@ -34,10 +34,10 @@ describe("useSwitchAlert（個人設定ゲート）", () => {
     vi.spyOn(sound, "playChime").mockImplementation(() => {});
     vi.spyOn(notify, "notifyDriverChange").mockImplementation(() => {});
     const { result, rerender } = renderHook(
-      ({ idx }) => useSwitchAlert(idx, "Carol", { assertiveSwitch: true, notify: OFF }),
-      { initialProps: { idx: 0 } },
+      ({ idx, name }) => useSwitchAlert(idx, name, { assertiveSwitch: true, notify: OFF }),
+      { initialProps: { idx: 0, name: "Alice" } },
     );
-    rerender({ idx: 1 });
+    rerender({ idx: 1, name: "Carol" });
     expect(result.current.switchAlertName).toBe("Carol");
   });
 });
