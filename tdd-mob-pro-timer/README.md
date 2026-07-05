@@ -61,7 +61,7 @@ Vite の開発サーバーは `/ws` を同期サーバー（`ws://localhost:8787
 
 AI お題生成は、サーバー env に **OAuth トークン**と**解錠の合言葉**の両方を設定したときだけ有効になります。
 どちらかが欠けると AI 機能は丸ごと無効で、お題は定型バンクのみになります（解錠も常に失敗＝機能の存在を秘匿）。
-設計の詳細は [docs/superpowers/specs/2026-06-12-ai-problem-generation-design.md](./docs/superpowers/specs/2026-06-12-ai-problem-generation-design.md)、
+設計の詳細は [../docs/superpowers/specs/2026-06-12-ai-problem-generation-design.md](../docs/superpowers/specs/2026-06-12-ai-problem-generation-design.md)、
 本番デプロイ手順は [deploy/README.md](./deploy/README.md) の「AI お題生成」節を参照してください。
 
 #### 1. OAuth トークンを用意する

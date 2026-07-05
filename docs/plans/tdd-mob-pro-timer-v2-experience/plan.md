@@ -1,5 +1,5 @@
 # 実装計画: TDD Mob Pro Timer v2 — 体験・導線の作り直し
-**入力:** spec.md ・ **ステータス:** Draft
+**入力:** spec.md ・ **ステータス:** Implemented（v2.10.0 本番デプロイ済み 2026-06-26）
 
 > 本計画の大原則: **v1 の動くコア（decide/evolve・ServerClock・full snapshot 同期・authorize・presence・problem delegation）を作り直さない。** v2 は (A) 体験を担う UI 層の再構築、(B) 既存サーバー能力を「表に出す」UI 導線、(C) 最小限の新規ドメイン能力（終了種別・代理参加・一時離脱・お題編集/持ち込み・出題モード・改名）追加、の3層で構成する。ドメイン層への追加はすべて既存 decide/evolve/Valibot/プロパティテストの枠内で行う。
 

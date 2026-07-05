@@ -1,6 +1,9 @@
 # ADR-0005: 秘密ゼロ + BYOK + 代表生成によるお題
 
-- **ステータス**: Accepted
+- **ステータス**: Superseded by [ADR-0008](./0008-server-resident-ai-generation.md)
+  （2026-06-12 にサーバー常駐 `claude -p` 方式へ転換。BYOK 一式
+  `apps/web/src/ai/{byok,key-storage}.ts` は UI から撤去し休眠残置。
+  定型バンクへの縮退・Valibot 検証・出所バッジの原則は現行も有効）
 - **関連要件**: FR-021〜FR-027, NFR セキュリティ, SC-003
 
 ## 背景

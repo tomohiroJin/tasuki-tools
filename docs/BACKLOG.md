@@ -52,21 +52,22 @@
 
 ## [完了] AI お題生成（2026-06-13）
 
-- **状態**: ✅ DONE（main マージ済 `5b19113`・**本番未デプロイ**）
+- **状態**: ✅ DONE（main マージ済 `5b19113`・本番有効化済）
 - **実装**: サーバ常駐 `claude -p` 子プロセス（`node:child_process`・Bun で動作）で生成。
   運営者サブスクの月次 Agent SDK クレジット（2026-06-15 開始の公式制度）を使用。
   合言葉（`AI_UNLOCK_KEY`）解錠方式＝知っているルームの host だけが有効化。
   失敗は全経路で定型バンクへ縮退・濫用抑制（同時1/クールダウン10s/日次上限）・`/status` に生成カウンタ。
 - **正本**: spec `docs/superpowers/specs/2026-06-12-ai-problem-generation-design.md` /
-  計画 `docs/superpowers/plans/2026-06-12-ai-problem-generation.md` / 手順 `deploy/README.md`「AI お題生成」
+  計画 `docs/superpowers/plans/2026-06-12-ai-problem-generation.md` / 手順 `tdd-mob-pro-timer/deploy/README.md`「AI お題生成」
 - **検証**: 全 665 テスト緑・実 claude -p スモーク・ブラウザ E2E（解錠失敗→解錠→AI 生成 25s→定型復帰）済
-- **残（デプロイ時）**: VPS に claude バイナリ導入 + env 2 変数追記 + systemd PATH（`deploy/README.md` 参照）
+- **デプロイ時作業**: ✅ 完了（VPS へ claude バイナリ導入 + env 2 変数追記 + systemd PATH。
+  手順の正本は `tdd-mob-pro-timer/deploy/README.md`「AI お題生成」）
 
 ---
 
 ## その他・既知の残件
 
-- ~~**リリースタグ**~~: ✅ **`v2.1.0` 作成済**（2026-06-09・main `25fa557`・VPS公開+M-1/M-2+依存更新を含む）。
+- ~~**リリースタグ**~~: ✅ 最新 **`v2.10.0`**（v2.5〜v2.10 のフィードバック対応を PR #1 でマージ・本番デプロイ済 2026-06-26。初回公開タグは `v2.1.0` 2026-06-09）。
 - **L-3（低・許容）**: コンテナのデプロイ鍵 `~/.ssh/myvps_deploy` がパスフレーズ無し。個人運用は許容範囲。
   厳格化するなら VPS の `authorized_keys` で当該鍵に `from="<送信元IP>"` 制限。
 - **お名前.com ドメインプロテクション返金**: 意図せず申込→即解約済、返金請求フォーム送信済。**先方の返信待ち**。

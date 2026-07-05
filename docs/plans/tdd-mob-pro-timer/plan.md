@@ -1,6 +1,6 @@
 # 実装計画: TDD Mob Pro Timer
 
-**入力:** spec.md ・ **ステータス:** Draft ・ **設計出典:** `tdd-mob-pro-timer-spec-v3.0-final.md`
+**入力:** spec.md ・ **ステータス:** Implemented（v1 本番公開済み 2026-06-09） ・ **設計出典:** `../archive/tdd-mob-pro-timer-spec-v3.0-final.md`（実装前の最終設計書・アーカイブ）
 
 > spec.md（何を・なぜ）に対する「どう作るか」。技術選定はすべて要件に紐づける。本計画の確定アーキテクチャは「モノレポ + Caddy 前段 + 軽量同期サーバー（サーバー権威タイマー・full snapshot・秘密ゼロ・状態揮発）」。
 

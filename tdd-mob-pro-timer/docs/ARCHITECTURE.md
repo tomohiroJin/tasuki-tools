@@ -11,9 +11,9 @@ TDD Mob Pro Timer の構造・データフロー・設計原則をまとめま�
 │  ブラウザ複数  │ ───────────────────▶ │ apps/sync（同期サーバー）   │
 │  apps/web    │ ◀─── full snapshot ── │  application → domain      │
 │              │                       │  ports ← adapters          │
-│  ソロは WS    │ ··· BYOK 直接 ······▶ │（揮発・秘密ゼロ・再起動安全）│
-│  を通らない   │   api.anthropic.com   └──────────────────────────┘
-└─────────────┘
+│  ソロは WS    │                       │（揮発・再起動安全。AI お題は │
+│  を通らない   │                       │  サーバー常駐 claude -p）    │
+└─────────────┘                       └──────────────────────────┘
         │  共有                         共有
         └────────▶ packages/core（@tdd-mob/core）◀────────┘
                     純粋ドメイン・スキーマ・お題・記録
@@ -74,9 +74,14 @@ application/
   schedule.ts        サーバー権威タイマー（1 本の setTimeout で次交代のみ待つ）
   presence.ts        プレゼンス間引き・ホスト委譲（猶予 30 秒）
   problem-delegation.ts  お題の代表生成・タイムアウト・再委譲・定型縮退
+  ai-limits.ts       AI 生成の濫用抑制（同時 1・クールダウン・日次上限）
+  room-reclaimer.ts  アイドルルームの回収
+  admin.ts           管理エンドポイント（127.0.0.1 限定）
+  secure-compare.ts  合言葉のタイミングセーフ比較
 ports/   clock / broadcaster / room-store / code-gen（インターフェース）
-adapters/ ws-adapter / in-memory-room-store / system-clock / nanoid-code-gen
-server.ts  依存注入と起動
+adapters/ ws-adapter / in-memory-room-store / system-clock / nanoid-code-gen /
+          claude-cli-problem-provider（AI お題生成・claude -p 子プロセス）
+server.ts  依存注入と起動（maxConnections / maxRooms のグローバル資源上限）
 ```
 
 ### リクエスト処理フロー（1 コマンド・full snapshot）
@@ -101,12 +106,14 @@ WS message
 クロージャ内の `Map` に保持し、モジュールグローバルを避けます（テスト間汚染防止）。
 詳細: [ADR-0007](./adr/0007-volatile-in-memory-state.md)。
 
-### お題の代表生成（秘密ゼロ）
+### お題の AI 生成（サーバー常駐・解錠式）
 
-サーバーは AI 鍵を持ちません。共有ルームでは代表クライアントが自分の鍵で生成し、`problem.submit` で
-サーバーへ届けます。候補順は「主催者 → 編集者以上かつ AI 鍵保有の online（参加時刻昇順）→ 定型担当」。
-deadline 内に投入が無ければ次候補へ再委譲し、全滅なら定型お題で確定します。
-詳細: [ADR-0005](./adr/0005-secret-zero-byok-problem.md)。
+AI 生成はサーバー常駐の `claude -p` 子プロセス（`adapters/claude-cli-problem-provider.ts`）で行い、
+`AI_UNLOCK_KEY` を知る host だけが解錠できます。OAuth トークンは子プロセスの env にのみ渡し、
+argv・ログ・snapshot に混入させません。失敗（タイムアウト・検証失敗・トークン失効）は全経路で
+定型バンクへ縮退し、濫用は `application/ai-limits.ts`（同時 1・クールダウン・日次上限）で抑制します。
+詳細: [ADR-0008](./adr/0008-server-resident-ai-generation.md)
+（旧 BYOK + 代表生成方式は [ADR-0005](./adr/0005-secret-zero-byok-problem.md) = Superseded）。
 
 ## apps/web — フロントエンド
 
@@ -115,7 +122,8 @@ deadline 内に投入が無ければ次候補へ再委譲し、全滅なら定�
   `room.create` 取りこぼしを防ぐ）。
 - `sync/dispatch.ts`: 受信メッセージの純粋な振り分け（snapshot / error / signal / time.pong）。
 - `solo/local-engine.ts`: ソロモード。ローカル `setTimeout` が schedule 層を担い、core の `evolve` を使う。
-- `ai/`: `ProblemProvider`（`NoAiProvider` / `ByokProvider`）。失敗時は `pickFallback` で定型縮退。
+- `ai/`: `ProblemProvider`。現行は `NoAiProvider`（AI 生成はサーバー側 = ADR-0008）。
+  `ByokProvider` / `key-storage` は UI 撤去済みの休眠残置（`App.tsx` 冒頭コメント参照）。
 - `records/`: IndexedDB 永続化と JSON 入出力。
 - `ui/`: 画面（Setup / Lobby / Session / Celebration）。`screenForPhase` で `room.phase` に追従。
 - `platform/`: Wake Lock・通知/振動。
@@ -130,10 +138,14 @@ deadline 内に投入が無ければ次候補へ再委譲し、全滅なら定�
 
 `packages/core/src/schemas.ts` の Valibot スキーマが front/server で共有される単一の契約です。
 
-**Command（クライアント→サーバー）**: `room.create` / `room.join` / `config.set` / `phase.set` /
-`problem.request` / `problem.submit` / `session.act`（START/SWITCH/PAUSE/RESUME）/ `session.complete` /
-`session.reset` / `member.add|remove|move` / `role.set` / `handoff.note.set` / `break.start|end` /
-`presence.ping` / `time.ping`。
+**Command（クライアント→サーバー）**: `room.create` / `room.join` / `room.passphrase.set` /
+`config.set` / `phase.set` / `problem.request` / `problem.submit` / `problem.edit` / `problem.mode.set` /
+`ai.unlock`（AI 生成の解錠 = ADR-0008）/ `session.act`（START/SWITCH/PAUSE/RESUME）/
+`session.complete` / `session.abort` / `session.reset` / `driver.skip|resume` /
+`member.add|remove|move|shuffle` / `participant.addProxy|rename|remove` / `role.set` /
+`host.transfer` / `handoff.note.set` /
+`break.start|end`（**dormant**: v2.10 で休憩機能を撤去。スキーマは後方互換のため残置、受理されない）/
+`presence.ping` / `time.ping`。正本は `packages/core/src/schemas.ts` の Command union。
 
 **Server→Client**: `snapshot`（唯一の状態同期）/ `signal`（演出専用: switch / celebration /
 need-problem）/ `error` / `time.pong` / `room.created` / `room.joined`。
@@ -151,14 +163,17 @@ need-problem）/ `error` / `time.pong` / `room.created` / `room.joined`。
 
 - **境界検証**: 全 WS メッセージを Valibot で一度だけ検証（未知 type・過大・不正を即拒否）。
 - **XSS**: React 既定エスケープ。AI/ユーザー由来テキストへ `dangerouslySetInnerHTML` 不使用。
-- **秘密ゼロ**: AI 鍵はクライアントのみ。サーバー送信・ログ出力をしない。
+- **トークン管理**: AI 用 OAuth トークンはサーバー env のみ。`claude -p` 子プロセスの env にのみ渡し、
+  argv・ログ・snapshot に混入させない（ADR-0008）。
 - **WSS / Origin**: 本番は Caddy で WSS 強制・許可 Origin 検証（`ALLOWED_ORIGINS`）。
 - **可用性**: 状態揮発・再起動安全。
 
-## 未実装・将来枠（M4 以降）
+## 未実装・将来枠
 
-実装範囲は M0〜M3 です。以下は計画済みだが本実装に含みません（[tasks.md](../../docs/plans/tdd-mob-pro-timer/tasks.md) 参照）:
+初版の実装範囲は M0〜M3（以後 v2.x で拡張。グローバル資源上限・アイドル回収・AI 生成は実装済み）。
+以下は未実装（[tasks.md](../../docs/plans/tdd-mob-pro-timer/tasks.md)・[BACKLOG](../../docs/BACKLOG.md) 参照）:
 
-- 資源上限（IP あたり同時接続・ルーム総数・アイドル回収・レート制限）
-- サーバー側セッション喪失時の「セッション終了」明示（FR-020）
-- PWA・managed/subscription Provider・チーム横断の永続記録ストア
+- IP 単位のレート制限（BACKLOG L-1。グローバルな maxConnections / maxRooms は実装済み）
+- PWA・チーム横断の永続記録ストア
+
+（FR-020「セッション喪失の明示」は実装済み: `App.tsx` の sessionLost → `StatusStrip` の lost 表示）

@@ -164,7 +164,7 @@ curl -H "x-admin-token: $ADMIN_TOKEN" http://127.0.0.1:8787/admin/rooms
 
 ## AI お題生成（任意機能）
 
-設計: `docs/superpowers/specs/2026-06-12-ai-problem-generation-design.md`
+設計: `../../docs/superpowers/specs/2026-06-12-ai-problem-generation-design.md`
 
 ### 初回セットアップ（VPS）
 
