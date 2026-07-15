@@ -48,4 +48,23 @@ describe("NotifySettingsPanel", () => {
       expect(container.querySelector(`label[for="${id}"]`)).not.toBeNull();
     }
   });
+
+  it("カウントダウン予告トグルで onChange({countdownEnabled}) を呼ぶ", () => {
+    const onChange = vi.fn();
+    render(<NotifySettingsPanel prefs={prefs} onChange={onChange} onPreview={vi.fn()} />);
+    fireEvent.click(screen.getByRole("switch", { name: "交代前にカウントダウン音を鳴らす" }));
+    expect(onChange).toHaveBeenCalledWith({ countdownEnabled: true });
+  });
+
+  it("カウントダウン予告秒数スライダーで onChange({countdownSeconds}) を呼ぶ", () => {
+    const onChange = vi.fn();
+    render(<NotifySettingsPanel prefs={prefs} onChange={onChange} onPreview={vi.fn()} />);
+    fireEvent.change(screen.getByRole("slider", { name: "カウントダウン予告秒数" }), { target: { value: "10" } });
+    expect(onChange).toHaveBeenCalledWith({ countdownSeconds: 10 });
+  });
+
+  it("カウントダウン予告秒数の現在値を見出しに表示する", () => {
+    render(<NotifySettingsPanel prefs={{ ...prefs, countdownSeconds: 8 }} onChange={vi.fn()} onPreview={vi.fn()} />);
+    expect(screen.getByText(/8秒/)).toBeTruthy();
+  });
 });

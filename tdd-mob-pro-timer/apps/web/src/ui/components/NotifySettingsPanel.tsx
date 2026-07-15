@@ -20,6 +20,7 @@ export function NotifySettingsPanel({ prefs, onChange, onPreview }: NotifySettin
   const fieldId = useId();
   const soundFieldId = `${fieldId}-sound`;
   const volumeFieldId = `${fieldId}-volume`;
+  const countdownSecondsFieldId = `${fieldId}-countdown-seconds`;
 
   return (
     <div className="text-sm text-[var(--bone)]">
@@ -93,6 +94,41 @@ export function NotifySettingsPanel({ prefs, onChange, onPreview }: NotifySettin
           step={0.05}
           value={prefs.volume}
           onChange={(e) => onChange({ volume: Number(e.target.value) })}
+          className="mt-1 w-full"
+        />
+      </div>
+
+      {/* カウントダウン予告音トグル（Issue #2） */}
+      <label className="mt-3 flex items-center justify-between gap-2">
+        <span>交代前にカウントダウン音を鳴らす</span>
+        <button
+          type="button"
+          role="switch"
+          aria-label="交代前にカウントダウン音を鳴らす"
+          aria-checked={prefs.countdownEnabled}
+          onClick={() => onChange({ countdownEnabled: !prefs.countdownEnabled })}
+          className={`h-5 w-9 rounded-full transition-colors ${prefs.countdownEnabled ? "bg-[var(--signal)]" : "bg-[var(--panel-2)]"}`}
+        >
+          <span
+            className={`block h-4 w-4 rounded-full bg-white transition-transform ${prefs.countdownEnabled ? "translate-x-4" : "translate-x-0.5"}`}
+          />
+        </button>
+      </label>
+
+      {/* カウントダウン予告秒数スライダー（5〜15秒・Issue #2） */}
+      <div className="mt-3">
+        <label htmlFor={countdownSecondsFieldId} className="instrument-label">
+          カウントダウン予告秒数: {prefs.countdownSeconds}秒
+        </label>
+        <input
+          id={countdownSecondsFieldId}
+          type="range"
+          aria-label="カウントダウン予告秒数"
+          min={5}
+          max={15}
+          step={1}
+          value={prefs.countdownSeconds}
+          onChange={(e) => onChange({ countdownSeconds: Number(e.target.value) })}
           className="mt-1 w-full"
         />
       </div>
