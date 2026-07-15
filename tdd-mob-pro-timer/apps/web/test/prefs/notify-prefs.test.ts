@@ -15,8 +15,14 @@ describe("通知設定の永続化", () => {
   });
 
   it("保存して読み戻せる", () => {
-    saveNotifyPreferences({ enabled: true, soundId: "bell", osNotify: false, volume: 0.5 });
-    expect(loadNotifyPreferences()).toEqual({ enabled: true, soundId: "bell", osNotify: false, volume: 0.5 });
+    saveNotifyPreferences({
+      enabled: true, soundId: "bell", osNotify: false, volume: 0.5,
+      countdownEnabled: false, countdownSeconds: 15,
+    });
+    expect(loadNotifyPreferences()).toEqual({
+      enabled: true, soundId: "bell", osNotify: false, volume: 0.5,
+      countdownEnabled: false, countdownSeconds: 15,
+    });
   });
 
   it("破損データは既定にフォールバックする", () => {
@@ -37,7 +43,10 @@ describe("通知設定の永続化", () => {
   });
 
   it("volume を保存して読み戻せる", () => {
-    saveNotifyPreferences({ enabled: true, soundId: "bell", osNotify: false, volume: 0.3 });
+    saveNotifyPreferences({
+      enabled: true, soundId: "bell", osNotify: false, volume: 0.3,
+      countdownEnabled: false, countdownSeconds: 15,
+    });
     expect(loadNotifyPreferences().volume).toBe(0.3);
   });
 
@@ -48,5 +57,33 @@ describe("通知設定の永続化", () => {
 
   it("既定 soundId は department", () => {
     expect(DEFAULT_NOTIFY_PREFERENCES.soundId).toBe("department");
+  });
+
+  it("countdownEnabled の既定は false", () => {
+    expect(loadNotifyPreferences().countdownEnabled).toBe(false);
+  });
+
+  it("countdownSeconds の既定は 15", () => {
+    expect(loadNotifyPreferences().countdownSeconds).toBe(15);
+  });
+
+  it("countdownEnabled/countdownSeconds を保存して読み戻せる", () => {
+    saveNotifyPreferences({
+      enabled: true, soundId: "bell", osNotify: false, volume: 0.5,
+      countdownEnabled: true, countdownSeconds: 10,
+    });
+    const p = loadNotifyPreferences();
+    expect(p.countdownEnabled).toBe(true);
+    expect(p.countdownSeconds).toBe(10);
+  });
+
+  it("欠損フィールド（countdown系）は既定で補完する", () => {
+    localStorage.setItem(
+      "tdd-mob:notify:v1",
+      JSON.stringify({ enabled: true, soundId: "bell", osNotify: true, volume: 0.5 }),
+    );
+    const p = loadNotifyPreferences();
+    expect(p.countdownEnabled).toBe(false);
+    expect(p.countdownSeconds).toBe(15);
   });
 });

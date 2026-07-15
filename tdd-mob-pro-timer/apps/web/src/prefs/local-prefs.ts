@@ -77,6 +77,10 @@ export interface NotifyPreferences {
   osNotify: boolean;
   /** 通知音の音量（0–1）。既定 0.6。 */
   volume: number;
+  /** 交代前カウントダウン予告音を鳴らすか。既定 false（Issue #2）。 */
+  countdownEnabled: boolean;
+  /** カウントダウンを開始する残り秒数のしきい値（5〜15）。既定 15（Issue #2）。 */
+  countdownSeconds: number;
 }
 
 export const DEFAULT_NOTIFY_PREFERENCES: NotifyPreferences = {
@@ -84,6 +88,8 @@ export const DEFAULT_NOTIFY_PREFERENCES: NotifyPreferences = {
   soundId: "department",
   osNotify: true,
   volume: 0.6,
+  countdownEnabled: false,
+  countdownSeconds: 15,
 };
 
 /** 通知設定の変更を同一タブの購読者へ知らせるイベント名。
@@ -109,6 +115,8 @@ export function loadNotifyPreferences(): NotifyPreferences {
       soundId: typeof parsed.soundId === "string" ? parsed.soundId : DEFAULT_NOTIFY_PREFERENCES.soundId,
       osNotify: typeof parsed.osNotify === "boolean" ? parsed.osNotify : DEFAULT_NOTIFY_PREFERENCES.osNotify,
       volume: typeof parsed.volume === "number" ? parsed.volume : DEFAULT_NOTIFY_PREFERENCES.volume,
+      countdownEnabled: typeof parsed.countdownEnabled === "boolean" ? parsed.countdownEnabled : DEFAULT_NOTIFY_PREFERENCES.countdownEnabled,
+      countdownSeconds: typeof parsed.countdownSeconds === "number" ? parsed.countdownSeconds : DEFAULT_NOTIFY_PREFERENCES.countdownSeconds,
     };
   } catch {
     return { ...DEFAULT_NOTIFY_PREFERENCES };

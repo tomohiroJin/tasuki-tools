@@ -93,6 +93,14 @@ function playTones(
   void scheduleTones(ctx, freqs, volume, opts);
 }
 
+/** カウントダウン予告音の周波数(Hz)。既存チャイムとは別系統の短いビープ（Issue #2）。 */
+const COUNTDOWN_TICK_FREQ = 880;
+
+/** 交代前カウントダウン中に毎秒鳴らす短いビープ音（fire-and-forget）。 */
+export function playCountdownTick(volume: number): void {
+  playTones([COUNTDOWN_TICK_FREQ], volume, { gap: 0.12, gain: 0.35 });
+}
+
 /** 1 つのチャイム定義。play は音量(0–1)を受け取る。 */
 export interface Chime {
   id: string;

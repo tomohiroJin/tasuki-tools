@@ -27,7 +27,10 @@ describe("useNotifyPreferences", () => {
     expect(result.current.enabled).toBe(false);
 
     act(() => {
-      saveNotifyPreferences({ enabled: true, soundId: "bell", osNotify: false, volume: 0.6 });
+      saveNotifyPreferences({
+        enabled: true, soundId: "bell", osNotify: false, volume: 0.6,
+        countdownEnabled: false, countdownSeconds: 15,
+      });
     });
 
     expect(result.current.enabled).toBe(true);
@@ -36,7 +39,10 @@ describe("useNotifyPreferences", () => {
   });
 
   it("別タブの storage イベントでも追従する", () => {
-    saveNotifyPreferences({ enabled: false, soundId: "chime-up", osNotify: true, volume: 0.6 });
+    saveNotifyPreferences({
+      enabled: false, soundId: "chime-up", osNotify: true, volume: 0.6,
+      countdownEnabled: false, countdownSeconds: 15,
+    });
     const { result } = renderHook(() => useNotifyPreferences());
 
     // 別タブが localStorage を書き換えた状況を storage イベントで再現する。
