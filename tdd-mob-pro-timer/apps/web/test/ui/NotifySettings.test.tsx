@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import React from "react";
 import { NotifySettings } from "../../src/ui/components/NotifySettings.js";
+import { saveNotifyPreferences, DEFAULT_NOTIFY_PREFERENCES } from "../../src/prefs/local-prefs.js";
 
 describe("NotifySettings", () => {
   beforeEach(() => localStorage.clear());
@@ -48,6 +49,33 @@ describe("NotifySettings", () => {
     const slider = screen.getByRole("slider", { name: "音量" });
     fireEvent.change(slider, { target: { value: "0.3" } });
     const saved = JSON.parse(localStorage.getItem("tdd-mob:notify:v1") ?? "{}");
+    expect(saved.volume).toBe(0.3);
+  });
+
+  it("マウント後に他画面（別コンポーネント）で設定が変更されたら、開いたときに最新の値を表示する（Issue #7）", () => {
+    render(<NotifySettings />);
+    // 他画面（例: ロビーの設定パネル）が保存した想定。
+    act(() => {
+      saveNotifyPreferences({ ...DEFAULT_NOTIFY_PREFERENCES, soundId: "bell", enabled: true });
+    });
+    fireEvent.click(screen.getByRole("button", { name: "通知設定" }));
+    const combobox = screen.getByRole("combobox", { name: "通知音" }) as HTMLSelectElement;
+    expect(combobox.value).toBe("bell");
+    const toggle = screen.getByRole("switch", { name: "交代を音で知らせる" });
+    expect(toggle.getAttribute("aria-checked")).toBe("true");
+  });
+
+  it("他画面での変更後にポップオーバーで別フィールドを操作しても、その変更を巻き戻さない（Issue #7）", () => {
+    render(<NotifySettings />);
+    fireEvent.click(screen.getByRole("button", { name: "通知設定" }));
+    // ポップオーバーを開いた「後」に他画面が soundId を変更した想定。
+    act(() => {
+      saveNotifyPreferences({ ...DEFAULT_NOTIFY_PREFERENCES, soundId: "melody" });
+    });
+    // ポップオーバー内で無関係なフィールド（音量）を操作。
+    fireEvent.change(screen.getByRole("slider", { name: "音量" }), { target: { value: "0.3" } });
+    const saved = JSON.parse(localStorage.getItem("tdd-mob:notify:v1") ?? "{}");
+    expect(saved.soundId).toBe("melody");
     expect(saved.volume).toBe(0.3);
   });
 });
