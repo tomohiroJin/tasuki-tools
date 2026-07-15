@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook } from "@testing-library/react";
 
-vi.mock("../../src/platform/sound.js", () => ({ playCountdownTick: vi.fn() }));
+vi.mock("../../src/platform/sound.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../src/platform/sound.js")>();
+  return { ...actual, playCountdownTick: vi.fn() };
+});
 
 import { playCountdownTick } from "../../src/platform/sound.js";
 import { useCountdownTick } from "../../src/ui/use-countdown-tick.js";
@@ -19,7 +22,7 @@ describe("useCountdownTick（交代前カウントダウン予告音・Issue #2�
     expect(playCountdownTick).not.toHaveBeenCalled();
     rerender({ s: 15 });
     expect(playCountdownTick).toHaveBeenCalledTimes(1);
-    expect(playCountdownTick).toHaveBeenCalledWith(0.6);
+    expect(playCountdownTick).toHaveBeenCalledWith(0.6, 1);
   });
 
   it("同じ整数秒内の再レンダーでは多重発火しない", () => {
@@ -59,5 +62,20 @@ describe("useCountdownTick（交代前カウントダウン予告音・Issue #2�
   it("残り0秒（交代の瞬間）では発火しない", () => {
     renderHook(() => useCountdownTick(0, true, opts));
     expect(playCountdownTick).not.toHaveBeenCalled();
+  });
+
+  it("threshold=15・残り5秒は段階3(高)で発火する（Issue #3）", () => {
+    renderHook(() => useCountdownTick(5, true, opts));
+    expect(playCountdownTick).toHaveBeenCalledWith(0.6, 3);
+  });
+
+  it("threshold=15・残り10秒は段階2(中)で発火する（Issue #3）", () => {
+    renderHook(() => useCountdownTick(10, true, opts));
+    expect(playCountdownTick).toHaveBeenCalledWith(0.6, 2);
+  });
+
+  it("threshold=15・残り11秒は段階1(低)で発火する（Issue #3）", () => {
+    renderHook(() => useCountdownTick(11, true, opts));
+    expect(playCountdownTick).toHaveBeenCalledWith(0.6, 1);
   });
 });
