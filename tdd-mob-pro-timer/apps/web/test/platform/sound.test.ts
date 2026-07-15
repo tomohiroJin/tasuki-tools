@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { CHIMES, playChime, installAudioUnlock, DEFAULT_VOLUME, scheduleTones, playCountdownTick } from "../../src/platform/sound.js";
+import {
+  CHIMES, playChime, installAudioUnlock, DEFAULT_VOLUME, scheduleTones,
+  playCountdownTick, computeCountdownStage, COUNTDOWN_STAGE_FREQS,
+} from "../../src/platform/sound.js";
 
 describe("scheduleTones（#1 resume を待ってからスケジュール）", () => {
   it("suspended のとき resume を await してから createOscillator/currentTime を読む", async () => {
@@ -82,5 +85,51 @@ describe("playCountdownTick（カウントダウン予告音・Issue #2）", () 
 
   it("音量 0 でも例外を投げない", () => {
     expect(() => playCountdownTick(0)).not.toThrow();
+  });
+
+  it("stage 1/2/3 いずれでも例外を投げない", () => {
+    expect(() => playCountdownTick(0.6, 1)).not.toThrow();
+    expect(() => playCountdownTick(0.6, 2)).not.toThrow();
+    expect(() => playCountdownTick(0.6, 3)).not.toThrow();
+  });
+});
+
+describe("COUNTDOWN_STAGE_FREQS（3段階周波数・Issue #3）", () => {
+  it("低→中→高の3値(660/880/1108)を持つ", () => {
+    expect(COUNTDOWN_STAGE_FREQS).toEqual([660, 880, 1108]);
+  });
+});
+
+describe("computeCountdownStage（区間判定・Issue #3）", () => {
+  it("threshold=15: 残り1〜5秒は段階3(高)", () => {
+    expect(computeCountdownStage(1, 15)).toBe(3);
+    expect(computeCountdownStage(5, 15)).toBe(3);
+  });
+
+  it("threshold=15: 残り6〜10秒は段階2(中)", () => {
+    expect(computeCountdownStage(6, 15)).toBe(2);
+    expect(computeCountdownStage(10, 15)).toBe(2);
+  });
+
+  it("threshold=15: 残り11〜15秒は段階1(低)", () => {
+    expect(computeCountdownStage(11, 15)).toBe(1);
+    expect(computeCountdownStage(15, 15)).toBe(1);
+  });
+
+  it("threshold=6(均等に3分割できる最小級): 2秒ずつの3区間", () => {
+    expect(computeCountdownStage(1, 6)).toBe(3);
+    expect(computeCountdownStage(2, 6)).toBe(3);
+    expect(computeCountdownStage(3, 6)).toBe(2);
+    expect(computeCountdownStage(4, 6)).toBe(2);
+    expect(computeCountdownStage(5, 6)).toBe(1);
+    expect(computeCountdownStage(6, 6)).toBe(1);
+  });
+
+  it("threshold=5(最小値・不均等区間): 段階3が1秒分だけになる", () => {
+    expect(computeCountdownStage(1, 5)).toBe(3);
+    expect(computeCountdownStage(2, 5)).toBe(2);
+    expect(computeCountdownStage(3, 5)).toBe(2);
+    expect(computeCountdownStage(4, 5)).toBe(1);
+    expect(computeCountdownStage(5, 5)).toBe(1);
   });
 });

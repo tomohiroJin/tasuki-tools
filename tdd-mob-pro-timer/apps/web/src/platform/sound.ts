@@ -93,12 +93,23 @@ function playTones(
   void scheduleTones(ctx, freqs, volume, opts);
 }
 
-/** カウントダウン予告音の周波数(Hz)。既存チャイムとは別系統の短いビープ（Issue #2）。 */
-const COUNTDOWN_TICK_FREQ = 880;
+/** カウントダウン音の周波数（3段階・低→高、Issue #3）。段階1=交代から遠い/段階3=交代直前。 */
+export const COUNTDOWN_STAGE_FREQS: readonly [number, number, number] = [660, 880, 1108];
 
-/** 交代前カウントダウン中に毎秒鳴らす短いビープ音（fire-and-forget）。 */
-export function playCountdownTick(volume: number): void {
-  playTones([COUNTDOWN_TICK_FREQ], volume, { gap: 0.12, gain: 0.35 });
+/**
+ * 残り秒数(currentSeconds)と予告秒数(thresholdSeconds)から、カウントダウン音の段階(1〜3)を判定する。
+ * thresholdSeconds を3等分し、交代に近い（残りが少ない）区間ほど高い段階を返す（Issue #3）。
+ */
+export function computeCountdownStage(currentSeconds: number, thresholdSeconds: number): 1 | 2 | 3 {
+  const segment = thresholdSeconds / 3;
+  if (currentSeconds <= segment) return 3;
+  if (currentSeconds <= segment * 2) return 2;
+  return 1;
+}
+
+/** 交代前カウントダウン中に毎秒鳴らす短いビープ音（fire-and-forget）。stage 省略時は段階1（低）。 */
+export function playCountdownTick(volume: number, stage: 1 | 2 | 3 = 1): void {
+  playTones([COUNTDOWN_STAGE_FREQS[stage - 1]], volume, { gap: 0.12, gain: 0.35 });
 }
 
 /** 1 つのチャイム定義。play は音量(0–1)を受け取る。 */
