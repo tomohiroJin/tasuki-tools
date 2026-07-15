@@ -6,19 +6,18 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { Bell } from "lucide-react";
-import {
-  loadNotifyPreferences,
-  saveNotifyPreferences,
-  type NotifyPreferences,
-} from "../../prefs/local-prefs.js";
+import { saveNotifyPreferences, type NotifyPreferences } from "../../prefs/local-prefs.js";
 import { playChime } from "../../platform/sound.js";
 import { requestPermissionIfEnabling } from "../../platform/notify.js";
 import { useFocusTrap } from "../useFocusTrap.js";
+import { useNotifyPreferences } from "../use-notify-preferences.js";
 import { NotifySettingsPanel } from "./NotifySettingsPanel.js";
 
 export function NotifySettings() {
   const [open, setOpen] = useState(false);
-  const [prefs, setPrefs] = useState<NotifyPreferences>(() => loadNotifyPreferences());
+  // マウント時の一度きりの読み込みではなく、他画面（ロビーの設定パネル等）での変更も
+  // NOTIFY_CHANGED_EVENT/storage 経由でライブ反映する（Issue #7: stale state で他画面の変更を巻き戻す不具合の修正）。
+  const prefs = useNotifyPreferences();
   const [osDenied, setOsDenied] = useState(false);
   // containerRef はボタン＋パネル全体を包むラッパー（外側クリック判定に使用）。
   const containerRef = useRef<HTMLDivElement>(null);
@@ -45,7 +44,6 @@ export function NotifySettings() {
    */
   const handleChange = async (patch: Partial<NotifyPreferences>) => {
     const next = { ...prefs, ...patch };
-    setPrefs(next);
     saveNotifyPreferences(next);
     // enabled が ON になった（かつ osNotify が有効）ときに OS 通知許可を要求。
     const granted = await requestPermissionIfEnabling(patch, next);
