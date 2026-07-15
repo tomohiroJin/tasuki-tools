@@ -8,6 +8,8 @@ const basePrefs: NotifyPreferences = {
   soundId: "chime",
   volume: 0.7,
   osNotify: true,
+  countdownEnabled: false,
+  countdownSeconds: 15,
 };
 
 describe("requestPermissionIfEnabling", () => {

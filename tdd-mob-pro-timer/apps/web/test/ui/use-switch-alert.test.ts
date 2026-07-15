@@ -7,7 +7,7 @@ vi.mock("../../src/platform/notify.js", () => ({ notifyDriverChange: vi.fn() }))
 import { playChime } from "../../src/platform/sound.js";
 import { useSwitchAlert } from "../../src/ui/use-switch-alert.js";
 
-const notify = { enabled: true, soundId: "department", osNotify: false, volume: 0.6 };
+const notify = { enabled: true, soundId: "department", osNotify: false, volume: 0.6, countdownEnabled: false, countdownSeconds: 15 };
 const opts = { assertiveSwitch: false, notify };
 
 describe("useSwitchAlert 交代検知", () => {

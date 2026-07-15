@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import React from "react";
 import { NotifySettingsPanel } from "../../src/ui/components/NotifySettingsPanel.js";
 
-const prefs = { enabled: true, soundId: "department", osNotify: true, volume: 0.6 };
+const prefs = { enabled: true, soundId: "department", osNotify: true, volume: 0.6, countdownEnabled: false, countdownSeconds: 15 };
 
 describe("NotifySettingsPanel", () => {
   it("現在状態（ON・選択音名）を見出しに表示する", () => {
