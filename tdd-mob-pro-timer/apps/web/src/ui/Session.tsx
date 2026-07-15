@@ -23,6 +23,7 @@ import { useNowTick } from "./use-now-tick.js";
 import { useDiscreteAnnouncement } from "./use-discrete-announcement.js";
 import { usePrefersReducedMotion } from "./use-reduced-motion.js";
 import { useSwitchAlert } from "./use-switch-alert.js";
+import { useCountdownTick } from "./use-countdown-tick.js";
 import { useIsWide, useViewportWidth } from "./use-breakpoint.js";
 import { useNotifyPreferences } from "./use-notify-preferences.js";
 import { formatRemaining, formatElapsed } from "./format-time.js";
@@ -186,6 +187,13 @@ export function Session({
   const progress = ((intervalSeconds - displayRemaining) / intervalSeconds) * 100;
   const isPaused = room.session.isPaused;
   const running = room.clock.running;
+
+  // 交代前カウントダウン予告音（Issue #2）。個人設定でON/OFF・予告秒数を制御。
+  useCountdownTick(displayRemaining, running, {
+    enabled: notifyPrefs.countdownEnabled,
+    thresholdSeconds: notifyPrefs.countdownSeconds,
+    volume: notifyPrefs.volume,
+  });
 
   // PC ではタイマーを主役として大きく見せる（ステージ感・モバイルは収まるサイズに）。
   const isWide = useIsWide();
