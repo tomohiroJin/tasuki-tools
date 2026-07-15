@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { CHIMES, playChime, installAudioUnlock, DEFAULT_VOLUME, scheduleTones } from "../../src/platform/sound.js";
+import { CHIMES, playChime, installAudioUnlock, DEFAULT_VOLUME, scheduleTones, playCountdownTick } from "../../src/platform/sound.js";
 
 describe("scheduleTones（#1 resume を待ってからスケジュール）", () => {
   it("suspended のとき resume を await してから createOscillator/currentTime を読む", async () => {
@@ -72,5 +72,15 @@ describe("チャイム registry", () => {
 
   it("installAudioUnlock は例外を投げず冪等に呼べる", () => {
     expect(() => { installAudioUnlock(); installAudioUnlock(); }).not.toThrow();
+  });
+});
+
+describe("playCountdownTick（カウントダウン予告音・Issue #2）", () => {
+  it("例外を投げず呼び出せる", () => {
+    expect(() => playCountdownTick(0.6)).not.toThrow();
+  });
+
+  it("音量 0 でも例外を投げない", () => {
+    expect(() => playCountdownTick(0)).not.toThrow();
   });
 });
