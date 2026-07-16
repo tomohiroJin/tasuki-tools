@@ -4,7 +4,10 @@ import {
   applyAutoReveal,
   castVote,
   createRoom,
+  findParticipantByToken,
   joinRoom,
+  markConnected,
+  markDisconnected,
   nextRound,
   parseClientMessage,
   revealBy,
@@ -57,7 +60,21 @@ function handleJoinRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'join-room' 
     sendError(ws, 'room-not-found', 'ルームが見つかりません');
     return;
   }
-  // TODO(US4/T044): token 照合による同一参加者の復帰
+
+  // token 照合による同一参加者の復帰（FR-013）。一致すれば name は無視する
+  if (msg.token !== undefined) {
+    const existing = findParticipantByToken(entry.room, msg.token);
+    if (existing) {
+      entry.room = markConnected(entry.room, existing.id);
+      entry.sockets.set(existing.id, ws);
+      ws.data.participantId = existing.id;
+      ws.data.roomId = entry.room.id;
+      sendJoined(ws, entry.room.id, existing.id, existing.token);
+      broadcast(entry);
+      return;
+    }
+  }
+
   const ids = newIds();
   const result = joinRoom(entry.room, msg.name, ids);
   if (result.isErr()) {
@@ -174,9 +191,19 @@ const server = Bun.serve<ConnectionData, never>({
       if (participantId === null || roomId === null) return;
       const entry = getRoom(roomId);
       if (!entry) return;
+      // 同一参加者が再接続済みなら（socket が入れ替わっていたら）何もしない
+      if (entry.sockets.get(participantId) !== ws) return;
       entry.sockets.delete(participantId);
-      // TODO(US4/T044): connected 更新・ホスト繰上・自動公開再評価・配信
-      dropIfEmpty(roomId);
+
+      // 接続数 0 → ルーム即時破棄（FR-014）
+      if (entry.sockets.size === 0) {
+        dropIfEmpty(roomId);
+        return;
+      }
+
+      // connected 更新 + ホスト繰上（FR-012）+ 自動公開の再評価（US4-AS1）
+      entry.room = applyAutoReveal(markDisconnected(entry.room, participantId));
+      broadcast(entry);
     },
   },
 });

@@ -1,10 +1,11 @@
-// ルーム画面: 未参加なら参加フォーム、参加後は招待リンク + 参加者一覧 + 投票（US1/US2）
-import { useState, type FormEvent } from 'react';
+// ルーム画面: 未参加なら参加フォーム、参加後は招待リンク + 参加者一覧 + 投票（US1/US2/US4）
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { RoomStateMessage } from '@planning-poker/core';
 import { CardHand } from '../components/CardHand';
 import { ParticipantList } from '../components/ParticipantList';
 import { Results } from '../components/Results';
 import type { PokerSync } from '../hooks/useSync';
+import { clearIdentity, loadIdentity } from '../storage';
 
 interface Props {
   roomId: string;
@@ -64,6 +65,26 @@ function InviteLink({ roomId }: { roomId: string }) {
 }
 
 export function RoomPage({ roomId, sync }: Props) {
+  // 保存済みトークンでの自動復帰（US4 / FR-013）。接続が開くたびに 1 回だけ試みる
+  const attemptedRef = useRef(false);
+  useEffect(() => {
+    if (sync.status !== 'open') {
+      attemptedRef.current = false;
+      return;
+    }
+    if (attemptedRef.current || sync.snapshot?.roomId === roomId || sync.error) return;
+    const stored = loadIdentity(roomId);
+    if (stored) {
+      attemptedRef.current = true;
+      sync.joinRoom(roomId, stored.name, stored.token);
+    }
+  }, [sync, roomId]);
+
+  // 消滅したルームのトークンは破棄する（再試行ループ防止）
+  useEffect(() => {
+    if (sync.error?.code === 'room-not-found') clearIdentity(roomId);
+  }, [sync.error, roomId]);
+
   // room-not-found はページ全体をエラー表示に（FR-015 / US1-AS3）
   if (sync.error?.code === 'room-not-found') {
     return (

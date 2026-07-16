@@ -139,15 +139,15 @@ plan.md の3パッケージ構成に従う: `packages/core/`（ドメイン + �
 
 ### Tests for User Story 4（先に書き、失敗を確認する）
 
-- [ ] T041 [P] [US4] core: 切断・復帰の失敗するテストを作成 `packages/core/tests/room.test.ts` に追加（disconnect で connected=false・票は保持、ホスト切断で joinOrder 最小の接続中参加者へ繰上 FR-012、token 照合で同一参加者に復帰・票と joinOrder 引き継ぎ FR-013、元ホスト復帰でホスト権限は戻らない、切断による全員投票成立の再評価 US4-AS1）
-- [ ] T042 [P] [US4] sync: 契約シナリオ #7・#8・#9 の失敗する結合テストを作成 `apps/sync/tests/reconnect.test.ts`（ホスト切断 → 繰上済み room-state 配信、token 付き join-room で票保持のまま復帰、全員切断 → 即時破棄で再 join が `room-not-found` FR-014、切断で自動公開が成立するケース）
+- [X] T041 [P] [US4] core: 切断・復帰の失敗するテストを作成 `packages/core/tests/room.test.ts` に追加（disconnect で connected=false・票は保持、ホスト切断で joinOrder 最小の接続中参加者へ繰上 FR-012、token 照合で同一参加者に復帰・票と joinOrder 引き継ぎ FR-013、元ホスト復帰でホスト権限は戻らない、切断による全員投票成立の再評価 US4-AS1）
+- [X] T042 [P] [US4] sync: 契約シナリオ #7・#8・#9 の失敗する結合テストを作成 `apps/sync/tests/reconnect.test.ts`（ホスト切断 → 繰上済み room-state 配信、token 付き join-room で票保持のまま復帰、全員切断 → 即時破棄で再 join が `room-not-found` FR-014、切断で自動公開が成立するケース）
 
 ### Implementation for User Story 4
 
-- [ ] T043 [US4] core: `packages/core/src/room.ts` に disconnect / reconnectByToken / ホスト繰上（research R6）を実装（T041 をグリーンに）
-- [ ] T044 [US4] sync: `apps/sync/src/server.ts` の WS close ハンドラ（connected 更新・繰上・自動公開再評価・配信）と `apps/sync/src/rooms.ts` の接続数 0 での即時破棄、join-room の token 照合復帰を実装（T042 をグリーンに）
-- [ ] T045 [US4] web: `apps/web/src/hooks/useSync.ts` に participantToken の localStorage 保存（キー `poker:participant:<roomId>`。research R3）・ページ読込時の token 付き自動 join・切断時の自動再接続（指数バックオフ）・参加者一覧の切断表示を実装
-- [ ] T046 [US4] 実画面検証: quickstart S4（ホスト繰上 5 秒以内 SC-005・token 復帰・全員切断で room-not-found）を目視確認（憲法原則 V）
+- [X] T043 [US4] core: `packages/core/src/room.ts` に disconnect / reconnectByToken / ホスト繰上（research R6）を実装（T041 をグリーンに）
+- [X] T044 [US4] sync: `apps/sync/src/server.ts` の WS close ハンドラ（connected 更新・繰上・自動公開再評価・配信）と `apps/sync/src/rooms.ts` の接続数 0 での即時破棄、join-room の token 照合復帰を実装（T042 をグリーンに）
+- [X] T045 [US4] web: `apps/web/src/hooks/useSync.ts` に participantToken の localStorage 保存（キー `poker:participant:<roomId>`。research R3）・ページ読込時の token 付き自動 join・切断時の自動再接続（指数バックオフ）・参加者一覧の切断表示を実装
+- [X] T046 [US4] 実画面検証: quickstart S4（ホスト繰上 5 秒以内 SC-005・token 復帰・全員切断で room-not-found）を目視確認（憲法原則 V）
 
 **Checkpoint**: 全ユーザーストーリー完成 — MVP 機能一式が揃う
 

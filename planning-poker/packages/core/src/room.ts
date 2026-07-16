@@ -76,6 +76,56 @@ export function createRoom(
   });
 }
 
+/** token から参加者を特定する（再接続時の同一性判定。FR-013 / research R3） */
+export function findParticipantByToken(room: Room, token: string): Participant | undefined {
+  return room.participants.find((p) => p.token === token);
+}
+
+function updateParticipant(
+  room: Room,
+  participantId: string,
+  update: (p: Participant) => Participant,
+): Room {
+  return {
+    ...room,
+    participants: room.participants.map((p) => (p.id === participantId ? update(p) : p)),
+  };
+}
+
+/**
+ * 切断処理（US4）。connected=false にし、票は保持する。
+ * 切断者がホストなら、接続中の参加者のうち joinOrder 最小の者へ権限を移す（FR-012 / research R6）。
+ */
+export function markDisconnected(room: Room, participantId: string): Room {
+  const leaving = room.participants.find((p) => p.id === participantId);
+  if (!leaving) return room;
+
+  let updated = updateParticipant(room, participantId, (p) => ({
+    ...p,
+    connected: false,
+    isHost: false,
+  }));
+
+  if (leaving.isHost) {
+    const successor = updated.participants
+      .filter((p) => p.connected)
+      .reduce<Participant | null>(
+        (min, p) => (min === null || p.joinOrder < min.joinOrder ? p : min),
+        null,
+      );
+    if (successor) {
+      updated = updateParticipant(updated, successor.id, (p) => ({ ...p, isHost: true }));
+    }
+  }
+
+  return updated;
+}
+
+/** 再接続による復帰（FR-013）。票・joinOrder は保持され、ホスト権限は自動では戻らない */
+export function markConnected(room: Room, participantId: string): Room {
+  return updateParticipant(room, participantId, (p) => ({ ...p, connected: true }));
+}
+
 /** ルーム参加（同名許容・joinOrder 採番。FR-003） */
 export function joinRoom(
   room: Room,

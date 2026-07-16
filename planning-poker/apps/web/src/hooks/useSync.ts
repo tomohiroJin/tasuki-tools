@@ -1,5 +1,5 @@
-// WS 接続とルーム状態の購読（T012 骨格 → T021 で拡張）
-// 接続はアプリ生存期間で 1 本。ルート遷移（トップ→ルーム）をまたいで維持する
+// WS 接続とルーム状態の購読（T012 骨格 → T021 → T045 で拡張）
+// 接続はアプリ生存期間で 1 本。切断時は指数バックオフで自動再接続する（US4）
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   parseServerMessage,
@@ -8,6 +8,7 @@ import {
   type ErrorCode,
   type RoomStateMessage,
 } from '@planning-poker/core';
+import { saveIdentity } from '../storage';
 
 export type ConnectionStatus = 'connecting' | 'open' | 'closed';
 
@@ -37,11 +38,13 @@ export interface PokerSync {
   error: SyncError | null;
   clearError: () => void;
   createRoom: (name: string) => void;
-  joinRoom: (roomId: string, name: string) => void;
+  joinRoom: (roomId: string, name: string, token?: string) => void;
   vote: (card: Card) => void;
   reveal: () => void;
   nextRound: () => void;
 }
+
+const MAX_RECONNECT_DELAY_MS = 5_000;
 
 export function usePokerSync(): PokerSync {
   const [status, setStatus] = useState<ConnectionStatus>('connecting');
@@ -49,33 +52,61 @@ export function usePokerSync(): PokerSync {
   const [snapshot, setSnapshot] = useState<RoomStateMessage | null>(null);
   const [error, setError] = useState<SyncError | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  /** joined 時に識別情報を保存するため、直近の join/create の名前を控える */
+  const pendingNameRef = useRef<string>('');
 
   useEffect(() => {
-    const ws = new WebSocket(wsUrl());
-    wsRef.current = ws;
-    // StrictMode の二重マウントで破棄済み接続のイベントが状態を汚染しないよう、
-    // 現役の接続（wsRef.current）のイベントだけを反映する
-    const isCurrent = () => wsRef.current === ws;
-    ws.addEventListener('open', () => isCurrent() && setStatus('open'));
-    ws.addEventListener('close', () => isCurrent() && setStatus('closed'));
-    ws.addEventListener('message', (event) => {
-      if (!isCurrent()) return;
-      const result = parseServerMessage(String(event.data));
-      if (result.isErr()) return; // 境界検証に失敗したフレームは無視（憲法原則 IV)
-      const msg = result.value;
-      switch (msg.type) {
-        case 'joined':
-          setSelf({ roomId: msg.roomId, participantId: msg.participantId, token: msg.token });
-          break;
-        case 'room-state':
-          setSnapshot(msg);
-          break;
-        case 'error':
-          setError({ code: msg.code, message: msg.message });
-          break;
-      }
-    });
-    return () => ws.close();
+    let disposed = false;
+    let attempt = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const connect = () => {
+      if (disposed) return;
+      setStatus('connecting');
+      const ws = new WebSocket(wsUrl());
+      wsRef.current = ws;
+      const isCurrent = () => wsRef.current === ws && !disposed;
+
+      ws.addEventListener('open', () => {
+        if (!isCurrent()) return;
+        attempt = 0;
+        setStatus('open');
+      });
+      ws.addEventListener('close', () => {
+        if (!isCurrent()) return;
+        setStatus('closed');
+        // 指数バックオフで再接続（US4。再入室は RoomPage が保存済みトークンで行う）
+        const delay = Math.min(500 * 2 ** attempt, MAX_RECONNECT_DELAY_MS);
+        attempt += 1;
+        timer = setTimeout(connect, delay);
+      });
+      ws.addEventListener('message', (event) => {
+        if (!isCurrent()) return;
+        const result = parseServerMessage(String(event.data));
+        if (result.isErr()) return; // 境界検証に失敗したフレームは無視（憲法原則 IV）
+        const msg = result.value;
+        switch (msg.type) {
+          case 'joined':
+            setSelf({ roomId: msg.roomId, participantId: msg.participantId, token: msg.token });
+            saveIdentity(msg.roomId, { token: msg.token, name: pendingNameRef.current });
+            break;
+          case 'room-state':
+            setSnapshot(msg);
+            break;
+          case 'error':
+            setError({ code: msg.code, message: msg.message });
+            break;
+        }
+      });
+    };
+
+    connect();
+    return () => {
+      disposed = true;
+      if (timer !== undefined) clearTimeout(timer);
+      wsRef.current?.close();
+      wsRef.current = null;
+    };
   }, []);
 
   return useMemo(() => {
@@ -86,8 +117,14 @@ export function usePokerSync(): PokerSync {
       snapshot,
       error,
       clearError: () => setError(null),
-      createRoom: (name) => send({ type: 'create-room', name }),
-      joinRoom: (roomId, name) => send({ type: 'join-room', roomId, name }),
+      createRoom: (name) => {
+        pendingNameRef.current = name;
+        send({ type: 'create-room', name });
+      },
+      joinRoom: (roomId, name, token) => {
+        pendingNameRef.current = name;
+        send({ type: 'join-room', roomId, name, ...(token !== undefined ? { token } : {}) });
+      },
       vote: (card) => send({ type: 'vote', card }),
       reveal: () => send({ type: 'reveal' }),
       nextRound: () => send({ type: 'next-round' }),
