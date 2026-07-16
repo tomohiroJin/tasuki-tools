@@ -63,19 +63,19 @@ plan.md の3パッケージ構成に従う: `packages/core/`（ドメイン + �
 
 ### Tests for User Story 1（先に書き、失敗を確認する）
 
-- [ ] T013 [P] [US1] core: Room 集約の失敗するテストを作成 `packages/core/tests/room.test.ts`（createRoom でホスト+voting ラウンド初期化、joinRoom で joinOrder 採番・同名許容、name バリデーション 1〜24 文字 trim、participantToken の発行。data-model「Room」「Participant」）
-- [ ] T014 [P] [US1] core: スナップショット投影の失敗するテストを作成 `packages/core/tests/snapshot.test.ts`（participants に token が含まれない、you フィールド、voting 中の hasVoted 形。research R1 / SC-004 の基盤）
-- [ ] T015 [P] [US1] sync: 契約シナリオ #1・#2・room-not-found の失敗する結合テストを作成 `apps/sync/tests/join.test.ts`（create-room → joined+room-state、2人目 join → 双方に配信、不明 roomId → `room-not-found`）
+- [X] T013 [P] [US1] core: Room 集約の失敗するテストを作成 `packages/core/tests/room.test.ts`（createRoom でホスト+voting ラウンド初期化、joinRoom で joinOrder 採番・同名許容、name バリデーション 1〜24 文字 trim、participantToken の発行。data-model「Room」「Participant」）
+- [X] T014 [P] [US1] core: スナップショット投影の失敗するテストを作成 `packages/core/tests/snapshot.test.ts`（participants に token が含まれない、you フィールド、voting 中の hasVoted 形。research R1 / SC-004 の基盤）
+- [X] T015 [P] [US1] sync: 契約シナリオ #1・#2・room-not-found の失敗する結合テストを作成 `apps/sync/tests/join.test.ts`（create-room → joined+room-state、2人目 join → 双方に配信、不明 roomId → `room-not-found`）
 
 ### Implementation for User Story 1
 
-- [ ] T016 [US1] core: `packages/core/src/room.ts` を実装（createRoom / joinRoom / バリデーション、Result 型エラー。T013 をグリーンに）
-- [ ] T017 [US1] core: `packages/core/src/snapshot.ts` を実装（Room → 受信者別 RoomSnapshot 投影。T014 をグリーンに）
-- [ ] T018 [US1] sync: `apps/sync/src/rooms.ts`（ルームレジストリ Map、8 文字 ID 生成・衝突再生成。research R4）と `apps/sync/src/server.ts` の create-room / join-room ハンドラ + 受信者別 room-state 配信を実装（T015 をグリーンに）
-- [ ] T019 [P] [US1] web: トップ画面を実装 `apps/web/src/pages/TopPage.tsx`（名前入力 → create-room 送信、作成後 `/poker/room/<id>` へ遷移）
-- [ ] T020 [P] [US1] web: 参加フォームと参加者一覧を実装 `apps/web/src/pages/RoomPage.tsx`（未参加なら名前入力 → join-room、参加後は招待リンク表示 + コピー、参加者一覧のリアルタイム表示）+ `apps/web/src/components/ParticipantList.tsx`
-- [ ] T021 [US1] web: `apps/web/src/hooks/useSync.ts` に room-state 購読・joined 処理（participantId 保持）・`room-not-found` のエラー画面（トップへの導線。FR-015）を実装
-- [ ] T022 [US1] 実画面検証: quickstart S1（作成・参加・不正リンク）を2ブラウザで目視確認（憲法原則 V）
+- [X] T016 [US1] core: `packages/core/src/room.ts` を実装（createRoom / joinRoom / バリデーション、Result 型エラー。T013 をグリーンに）
+- [X] T017 [US1] core: `packages/core/src/snapshot.ts` を実装（Room → 受信者別 RoomSnapshot 投影。T014 をグリーンに）
+- [X] T018 [US1] sync: `apps/sync/src/rooms.ts`（ルームレジストリ Map、8 文字 ID 生成・衝突再生成。research R4）と `apps/sync/src/server.ts` の create-room / join-room ハンドラ + 受信者別 room-state 配信を実装（T015 をグリーンに）
+- [X] T019 [P] [US1] web: トップ画面を実装 `apps/web/src/pages/TopPage.tsx`（名前入力 → create-room 送信、作成後 `/poker/room/<id>` へ遷移）
+- [X] T020 [P] [US1] web: 参加フォームと参加者一覧を実装 `apps/web/src/pages/RoomPage.tsx`（未参加なら名前入力 → join-room、参加後は招待リンク表示 + コピー、参加者一覧のリアルタイム表示）+ `apps/web/src/components/ParticipantList.tsx`
+- [X] T021 [US1] web: `apps/web/src/hooks/useSync.ts` に room-state 購読・joined 処理（participantId 保持）・`room-not-found` のエラー画面（トップへの導線。FR-015）を実装
+- [X] T022 [US1] 実画面検証: quickstart S1（作成・参加・不正リンク）を2ブラウザで目視確認（憲法原則 V）
 
 **Checkpoint**: ルーム作成〜参加が動く。ここまでで最小デモが可能
 

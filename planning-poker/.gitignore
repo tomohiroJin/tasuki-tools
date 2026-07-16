@@ -18,3 +18,5 @@ build/
 Thumbs.db
 *.tmp
 *.swp
+.playwright-mcp/
+*.png
