@@ -1,9 +1,10 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   CHIMES, playChime, installAudioUnlock, DEFAULT_VOLUME, scheduleTones,
   playCountdownTick, computeCountdownStage, COUNTDOWN_STAGE_FREQS,
   playCountdownVoice,
 } from "../../src/platform/sound.js";
+import * as soundModule from "../../src/platform/sound.js";
 
 describe("scheduleTones（#1 resume を待ってからスケジュール）", () => {
   it("suspended のとき resume を await してから createOscillator/currentTime を読む", async () => {
@@ -220,6 +221,34 @@ describe("playCountdownVoice（音声によるカウントダウン読み上げ�
     (globalThis as unknown as { Audio: undefined }).Audio = undefined;
 
     expect(() => playCountdownVoice(7, "voice-male", 0.6)).not.toThrow();
+
+    (globalThis as unknown as { Audio: typeof Audio }).Audio = original;
+  });
+
+  it("error イベントと play() reject が両方発火しても例外を投げない（dedupe で重複回避）", async () => {
+    let errorHandler: (() => void) | undefined;
+    class FakeAudio {
+      volume = 1;
+      constructor(_src: string) {}
+      addEventListener(event: string, handler: () => void) {
+        if (event === "error") errorHandler = handler;
+      }
+      play() {
+        return Promise.reject(new Error("blocked"));
+      }
+    }
+    const original = globalThis.Audio;
+    (globalThis as unknown as { Audio: typeof Audio }).Audio = FakeAudio as unknown as typeof Audio;
+
+    // error イベントと play() 両方が発火してもエラーが発生しない（dedupe されている）
+    expect(() => {
+      playCountdownVoice(5, "voice-male", 0.6);
+      errorHandler?.();
+    }).not.toThrow();
+
+    // play().catch() も解決するのを待つ
+    await Promise.resolve();
+    await Promise.resolve();
 
     (globalThis as unknown as { Audio: typeof Audio }).Audio = original;
   });

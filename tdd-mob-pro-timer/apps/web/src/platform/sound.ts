@@ -136,8 +136,15 @@ export function playCountdownVoice(
   try {
     const a = new Audio(countdownVoiceUrl(voiceId, n));
     a.volume = Math.min(1, Math.max(0, volume));
-    a.addEventListener("error", () => playCountdownTick(volume), { once: true });
-    void a.play().catch(() => playCountdownTick(volume));
+    // error イベントと play() 両方が発火した場合も playCountdownTick は1回だけ呼ぶ（dedupe）
+    let fellBack = false;
+    const fallback = () => {
+      if (fellBack) return;
+      fellBack = true;
+      playCountdownTick(volume);
+    };
+    a.addEventListener("error", fallback, { once: true });
+    void a.play().catch(fallback);
   } catch {
     playCountdownTick(volume);
   }
