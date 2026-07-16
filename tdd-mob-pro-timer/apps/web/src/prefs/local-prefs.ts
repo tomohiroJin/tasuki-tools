@@ -81,6 +81,10 @@ export interface NotifyPreferences {
   countdownEnabled: boolean;
   /** カウントダウンを開始する残り秒数のしきい値（5〜15）。既定 15（Issue #2）。 */
   countdownSeconds: number;
+  /** 交代前カウントダウンの方式。既定 "tone"（Issue #5）。 */
+  countdownMode: "tone" | "voice";
+  /** 音声読み上げ選択時に使う話者。既定 "voice-male"（Issue #5）。 */
+  countdownVoiceId: "voice-male" | "voice-female";
 }
 
 export const DEFAULT_NOTIFY_PREFERENCES: NotifyPreferences = {
@@ -90,6 +94,8 @@ export const DEFAULT_NOTIFY_PREFERENCES: NotifyPreferences = {
   volume: 0.6,
   countdownEnabled: false,
   countdownSeconds: 15,
+  countdownMode: "tone",
+  countdownVoiceId: "voice-male",
 };
 
 /** 通知設定の変更を同一タブの購読者へ知らせるイベント名。
@@ -117,6 +123,8 @@ export function loadNotifyPreferences(): NotifyPreferences {
       volume: typeof parsed.volume === "number" ? parsed.volume : DEFAULT_NOTIFY_PREFERENCES.volume,
       countdownEnabled: typeof parsed.countdownEnabled === "boolean" ? parsed.countdownEnabled : DEFAULT_NOTIFY_PREFERENCES.countdownEnabled,
       countdownSeconds: typeof parsed.countdownSeconds === "number" ? parsed.countdownSeconds : DEFAULT_NOTIFY_PREFERENCES.countdownSeconds,
+      countdownMode: parsed.countdownMode === "tone" || parsed.countdownMode === "voice" ? parsed.countdownMode : DEFAULT_NOTIFY_PREFERENCES.countdownMode,
+      countdownVoiceId: parsed.countdownVoiceId === "voice-male" || parsed.countdownVoiceId === "voice-female" ? parsed.countdownVoiceId : DEFAULT_NOTIFY_PREFERENCES.countdownVoiceId,
     };
   } catch {
     return { ...DEFAULT_NOTIFY_PREFERENCES };

@@ -11,6 +11,9 @@ import {
   loadRandomLanguagePool,
   saveRandomLanguagePool,
   DEFAULT_RANDOM_LANGUAGE_POOL,
+  loadNotifyPreferences,
+  saveNotifyPreferences,
+  DEFAULT_NOTIFY_PREFERENCES,
 } from "../../src/prefs/local-prefs.js";
 
 describe("設定ローカル保存（T062/T063）", () => {
@@ -71,5 +74,29 @@ describe("randomLanguagePool", () => {
   it("壊れた JSON は既定プールにフォールバック", () => {
     localStorage.setItem("tdd-mob:random-language-pool:v1", "{not json");
     expect(loadRandomLanguagePool()).toEqual(DEFAULT_RANDOM_LANGUAGE_POOL);
+  });
+});
+
+describe("NotifyPreferences の countdownMode/countdownVoiceId（Issue #5）", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("既定値は countdownMode: tone / countdownVoiceId: voice-male", () => {
+    const prefs = loadNotifyPreferences();
+    expect(prefs.countdownMode).toBe("tone");
+    expect(prefs.countdownVoiceId).toBe("voice-male");
+  });
+
+  it("保存した countdownMode/countdownVoiceId を読み戻せる", () => {
+    saveNotifyPreferences({ ...DEFAULT_NOTIFY_PREFERENCES, countdownMode: "voice", countdownVoiceId: "voice-female" });
+    const prefs = loadNotifyPreferences();
+    expect(prefs.countdownMode).toBe("voice");
+    expect(prefs.countdownVoiceId).toBe("voice-female");
+  });
+
+  it("破損した保存値は countdownMode/countdownVoiceId とも既定値にフォールバックする", () => {
+    localStorage.setItem("tdd-mob:notify:v1", JSON.stringify({ countdownMode: 123, countdownVoiceId: null }));
+    const prefs = loadNotifyPreferences();
+    expect(prefs.countdownMode).toBe("tone");
+    expect(prefs.countdownVoiceId).toBe("voice-male");
   });
 });
