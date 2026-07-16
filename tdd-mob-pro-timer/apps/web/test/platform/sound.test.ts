@@ -224,7 +224,32 @@ describe("playCountdownVoice（音声によるカウントダウン読み上げ�
     (globalThis as unknown as { Audio: typeof Audio }).Audio = original;
   });
 
-  it("error イベントと play() reject が両方発火しても例外を投げない（dedupe で重複回避）", async () => {
+  it("error イベントと play() reject が両方発火しても playCountdownTick（トーン再生）は1回しか実行されない（dedupe）", async () => {
+    // playCountdownTick は同一モジュール内の直接参照で呼ばれるため vi.spyOn では呼び出し回数を
+    // 捕捉できない（ESM のライブバインディング仕様）。そのため、playCountdownTick が最終的に
+    // 呼び出す AudioContext.createOscillator の回数を外部から観測することで dedupe を検証する。
+    // このテストは AudioContext のシングルトン(sharedCtx)を初めて生成させるため、以降このファイル内で
+    // 新たに実 AudioContext 経由のテストを追加する場合は本テストより前に置くこと。
+    let oscillatorCount = 0;
+    class FakeOsc {
+      type = "sine"; frequency = { value: 0 };
+      connect() {} start() { oscillatorCount++; } stop() {}
+    }
+    class FakeGain {
+      gain = { setValueAtTime() {}, exponentialRampToValueAtTime() {} };
+      connect() {}
+    }
+    class FakeAudioContext {
+      state: AudioContextState = "running";
+      currentTime = 0;
+      destination = {};
+      createOscillator() { return new FakeOsc(); }
+      createGain() { return new FakeGain(); }
+    }
+    const originalCtor = globalThis.AudioContext;
+    (globalThis as unknown as { AudioContext: typeof AudioContext }).AudioContext =
+      FakeAudioContext as unknown as typeof AudioContext;
+
     let errorHandler: (() => void) | undefined;
     class FakeAudio {
       volume = 1;
@@ -236,22 +261,18 @@ describe("playCountdownVoice（音声によるカウントダウン読み上げ�
         return Promise.reject(new Error("blocked"));
       }
     }
-    const original = globalThis.Audio;
+    const originalAudio = globalThis.Audio;
     (globalThis as unknown as { Audio: typeof Audio }).Audio = FakeAudio as unknown as typeof Audio;
 
-    // error イベントと play() reject が両方発火しても例外を投げない（dedupe されている）。
-    // playCountdownTick は同一モジュール内の直接参照で呼ばれるため vi.spyOn では呼び出し回数を
-    // 捕捉できない（ESM のライブバインディング仕様）。dedupe ガード自体の正しさは実装コード
-    // （fellBack フラグ）で保証し、ここでは「両方発火しても例外を投げない」契約を検証する。
-    expect(() => {
-      playCountdownVoice(5, "voice-male", 0.6);
-      errorHandler?.();
-    }).not.toThrow();
-
+    playCountdownVoice(5, "voice-male", 0.6);
+    errorHandler?.();
     // play().catch() も解決するのを待つ
     await Promise.resolve();
     await Promise.resolve();
 
-    (globalThis as unknown as { Audio: typeof Audio }).Audio = original;
+    expect(oscillatorCount).toBe(1);
+
+    (globalThis as unknown as { Audio: typeof Audio }).Audio = originalAudio;
+    (globalThis as unknown as { AudioContext: typeof AudioContext }).AudioContext = originalCtor;
   });
 });
