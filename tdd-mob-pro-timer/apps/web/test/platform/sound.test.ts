@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   CHIMES, playChime, installAudioUnlock, DEFAULT_VOLUME, scheduleTones,
   playCountdownTick, computeCountdownStage, COUNTDOWN_STAGE_FREQS,
+  playCountdownVoice,
 } from "../../src/platform/sound.js";
 
 describe("scheduleTones（#1 resume を待ってからスケジュール）", () => {
@@ -134,5 +135,92 @@ describe("computeCountdownStage（区間判定・Issue #3）", () => {
     expect(computeCountdownStage(3, 5)).toBe(2);
     expect(computeCountdownStage(4, 5)).toBe(1);
     expect(computeCountdownStage(5, 5)).toBe(1);
+  });
+});
+
+describe("playCountdownVoice（音声によるカウントダウン読み上げ・Issue #5）", () => {
+  it("正しいURL（sounds/countdown/count-{speaker}-{n}.mp3）で Audio を生成し play する", () => {
+    const created: string[] = [];
+    const playCalls: string[] = [];
+    class FakeAudio {
+      src: string;
+      volume = 1;
+      constructor(src: string) { this.src = src; created.push(src); }
+      addEventListener() {}
+      play() { playCalls.push(this.src); return Promise.resolve(); }
+    }
+    const original = globalThis.Audio;
+    (globalThis as unknown as { Audio: typeof Audio }).Audio = FakeAudio as unknown as typeof Audio;
+
+    playCountdownVoice(10, "voice-male", 0.6);
+
+    expect(created).toHaveLength(1);
+    expect(created[0]).toContain("sounds/countdown/count-male-10.mp3");
+
+    (globalThis as unknown as { Audio: typeof Audio }).Audio = original;
+  });
+
+  it("voice-female を渡すと count-female-{n}.mp3 を再生する", () => {
+    const created: string[] = [];
+    class FakeAudio {
+      src: string;
+      volume = 1;
+      constructor(src: string) { this.src = src; created.push(src); }
+      addEventListener() {}
+      play() { return Promise.resolve(); }
+    }
+    const original = globalThis.Audio;
+    (globalThis as unknown as { Audio: typeof Audio }).Audio = FakeAudio as unknown as typeof Audio;
+
+    playCountdownVoice(3, "voice-female", 0.6);
+
+    expect(created[0]).toContain("sounds/countdown/count-female-3.mp3");
+
+    (globalThis as unknown as { Audio: typeof Audio }).Audio = original;
+  });
+
+  it("Audio の error イベントで playCountdownTick にフォールバックする", () => {
+    let errorHandler: (() => void) | undefined;
+    class FakeAudio {
+      volume = 1;
+      constructor(_src: string) {}
+      addEventListener(event: string, handler: () => void) {
+        if (event === "error") errorHandler = handler;
+      }
+      play() { return Promise.resolve(); }
+    }
+    const original = globalThis.Audio;
+    (globalThis as unknown as { Audio: typeof Audio }).Audio = FakeAudio as unknown as typeof Audio;
+
+    expect(() => {
+      playCountdownVoice(5, "voice-male", 0.6);
+      errorHandler?.();
+    }).not.toThrow();
+
+    (globalThis as unknown as { Audio: typeof Audio }).Audio = original;
+  });
+
+  it("play() が reject してもフォールバックして例外を投げない", async () => {
+    class FakeAudio {
+      volume = 1;
+      constructor(_src: string) {}
+      addEventListener() {}
+      play() { return Promise.reject(new Error("blocked")); }
+    }
+    const original = globalThis.Audio;
+    (globalThis as unknown as { Audio: typeof Audio }).Audio = FakeAudio as unknown as typeof Audio;
+
+    expect(() => playCountdownVoice(1, "voice-male", 0.6)).not.toThrow();
+
+    (globalThis as unknown as { Audio: typeof Audio }).Audio = original;
+  });
+
+  it("Audio が未定義の環境でも例外を投げない（playCountdownTick 相当にフォールバック）", () => {
+    const original = globalThis.Audio;
+    (globalThis as unknown as { Audio: undefined }).Audio = undefined;
+
+    expect(() => playCountdownVoice(7, "voice-male", 0.6)).not.toThrow();
+
+    (globalThis as unknown as { Audio: typeof Audio }).Audio = original;
   });
 });
