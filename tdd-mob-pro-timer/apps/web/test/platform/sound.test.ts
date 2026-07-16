@@ -1,10 +1,9 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import {
   CHIMES, playChime, installAudioUnlock, DEFAULT_VOLUME, scheduleTones,
   playCountdownTick, computeCountdownStage, COUNTDOWN_STAGE_FREQS,
   playCountdownVoice,
 } from "../../src/platform/sound.js";
-import * as soundModule from "../../src/platform/sound.js";
 
 describe("scheduleTones（#1 resume を待ってからスケジュール）", () => {
   it("suspended のとき resume を await してから createOscillator/currentTime を読む", async () => {
@@ -240,7 +239,10 @@ describe("playCountdownVoice（音声によるカウントダウン読み上げ�
     const original = globalThis.Audio;
     (globalThis as unknown as { Audio: typeof Audio }).Audio = FakeAudio as unknown as typeof Audio;
 
-    // error イベントと play() 両方が発火してもエラーが発生しない（dedupe されている）
+    // error イベントと play() reject が両方発火しても例外を投げない（dedupe されている）。
+    // playCountdownTick は同一モジュール内の直接参照で呼ばれるため vi.spyOn では呼び出し回数を
+    // 捕捉できない（ESM のライブバインディング仕様）。dedupe ガード自体の正しさは実装コード
+    // （fellBack フラグ）で保証し、ここでは「両方発火しても例外を投げない」契約を検証する。
     expect(() => {
       playCountdownVoice(5, "voice-male", 0.6);
       errorHandler?.();
