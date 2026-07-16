@@ -29,7 +29,7 @@ describe("useNotifyPreferences", () => {
     act(() => {
       saveNotifyPreferences({
         enabled: true, soundId: "bell", osNotify: false, volume: 0.6,
-        countdownEnabled: false, countdownSeconds: 15,
+        countdownEnabled: false, countdownSeconds: 15, countdownMode: "tone", countdownVoiceId: "voice-male",
       });
     });
 
@@ -41,7 +41,7 @@ describe("useNotifyPreferences", () => {
   it("別タブの storage イベントでも追従する", () => {
     saveNotifyPreferences({
       enabled: false, soundId: "chime-up", osNotify: true, volume: 0.6,
-      countdownEnabled: false, countdownSeconds: 15,
+      countdownEnabled: false, countdownSeconds: 15, countdownMode: "tone", countdownVoiceId: "voice-male",
     });
     const { result } = renderHook(() => useNotifyPreferences());
 
