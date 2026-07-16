@@ -65,7 +65,7 @@ describe("Session × カウントダウン予告音の配線（Issue #2）", () 
     expect(useCountdownTick).toHaveBeenCalledWith(
       expect.any(Number),
       true,
-      { enabled: true, thresholdSeconds: 10, volume: 0.6 },
+      { enabled: true, thresholdSeconds: 10, volume: 0.6, mode: "tone", voiceId: "voice-male" },
     );
   });
 
