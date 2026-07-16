@@ -151,6 +151,8 @@ export const CHIMES: Chime[] = [
 registerFileChimes([
   { id: "voice-male", label: "音声（男声）", isReady: true, play: (v) => playFile(soundUrl("voice-male"), v) },
   { id: "voice-female", label: "音声（女声）", isReady: true, play: (v) => playFile(soundUrl("voice-female"), v) },
+  { id: "voice-nise", label: "音声（にせ）", isReady: true, play: (v) => playFile(soundUrl("voice-nise"), v) },
+  { id: "voice-mai", label: "音声（まい）", isReady: true, play: (v) => playFile(soundUrl("voice-mai"), v) },
 ]);
 
 /** soundId に対応するチャイムを鳴らす。未知 id は既定 department にフォールバック。 */
