@@ -5,6 +5,7 @@ import {
   castVote,
   createRoom,
   joinRoom,
+  nextRound,
   parseClientMessage,
   revealBy,
   type Card,
@@ -112,6 +113,20 @@ function handleReveal(ws: Ws): void {
   });
 }
 
+function handleNextRound(ws: Ws): void {
+  handleRoomAction(ws, (roomId, participantId) => {
+    const entry = getRoom(roomId);
+    if (!entry) return;
+    const result = nextRound(entry.room, participantId);
+    if (result.isErr()) {
+      sendError(ws, result.error.code, result.error.message);
+      return;
+    }
+    entry.room = result.value;
+    broadcast(entry);
+  });
+}
+
 function dispatch(ws: Ws, msg: ClientMessage): void {
   switch (msg.type) {
     case 'create-room':
@@ -127,8 +142,7 @@ function dispatch(ws: Ws, msg: ClientMessage): void {
       handleReveal(ws);
       return;
     case 'next-round':
-      // US3（T037）で実装
-      handleRoomAction(ws, () => {});
+      handleNextRound(ws);
       return;
   }
 }

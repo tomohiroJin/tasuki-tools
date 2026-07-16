@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createRoom, joinRoom, type Room } from '../src/room';
-import { castVote, revealBy, shouldAutoReveal, applyAutoReveal } from '../src/round';
+import { castVote, nextRound, revealBy, shouldAutoReveal, applyAutoReveal } from '../src/round';
 
 const five = { kind: 'number', value: 5 } as const;
 const eight = { kind: 'number', value: 8 } as const;
@@ -95,5 +95,32 @@ describe('revealBy（FR-009）', () => {
     const result = revealBy(room, 'p1');
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr().code).toBe('not-voting');
+  });
+});
+
+describe('nextRound（FR-011）', () => {
+  function revealedRoom(): Room {
+    let room = roomWith(2);
+    room = castVote(room, 'p1', five)._unsafeUnwrap();
+    room = castVote(room, 'p2', eight)._unsafeUnwrap();
+    return applyAutoReveal(room);
+  }
+
+  it('revealed → voting に戻り、全票がリセットされる', () => {
+    const room = nextRound(revealedRoom(), 'p1')._unsafeUnwrap();
+    expect(room.round.status).toBe('voting');
+    expect(room.round.votes.size).toBe(0);
+  });
+
+  it('voting 中の next-round は not-revealed エラー', () => {
+    const result = nextRound(roomWith(2), 'p1');
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr().code).toBe('not-revealed');
+  });
+
+  it('非ホストの next-round は not-host エラー', () => {
+    const result = nextRound(revealedRoom(), 'p2');
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr().code).toBe('not-host');
   });
 });

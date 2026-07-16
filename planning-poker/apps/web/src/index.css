@@ -173,3 +173,25 @@ button.secondary {
   border: 1px solid #e2e8f0;
   border-radius: 8px;
 }
+
+.stats {
+  display: flex;
+  gap: 2rem;
+  margin: 1rem 0;
+}
+
+.stats dt {
+  font-size: 0.8rem;
+  color: #718096;
+}
+
+.stats dd {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.round-actions {
+  display: flex;
+  gap: 0.5rem;
+}

@@ -1,8 +1,9 @@
 // ルーム画面: 未参加なら参加フォーム、参加後は招待リンク + 参加者一覧 + 投票（US1/US2）
 import { useState, type FormEvent } from 'react';
 import type { RoomStateMessage } from '@planning-poker/core';
-import { CardHand, cardLabel } from '../components/CardHand';
+import { CardHand } from '../components/CardHand';
 import { ParticipantList } from '../components/ParticipantList';
+import { Results } from '../components/Results';
 import type { PokerSync } from '../hooks/useSync';
 
 interface Props {
@@ -95,7 +96,7 @@ export function RoomPage({ roomId, sync }: Props) {
       {isVoting ? (
         <VotingSection snapshot={snapshot} sync={sync} isHost={isHost} />
       ) : (
-        <RevealedSection snapshot={snapshot} />
+        <RevealedSection snapshot={snapshot} sync={sync} isHost={isHost} />
       )}
     </main>
   );
@@ -125,27 +126,32 @@ function VotingSection({
   );
 }
 
-function RevealedSection({ snapshot }: { snapshot: RoomStateMessage }) {
+function RevealedSection({
+  snapshot,
+  sync,
+  isHost,
+}: {
+  snapshot: RoomStateMessage;
+  sync: PokerSync;
+  isHost: boolean;
+}) {
   if (snapshot.round.status !== 'revealed') return null;
-  const { votes } = snapshot.round;
-  const nameOf = (participantId: string) =>
-    snapshot.participants.find((p) => p.id === participantId)?.name ?? '不明';
+  const { votes, stats } = snapshot.round;
 
   return (
-    <section>
-      <h2>結果</h2>
-      <ul className="votes">
-        {snapshot.participants.map((p) => {
-          const vote = votes.find((v) => v.participantId === p.id);
-          return (
-            <li key={p.id}>
-              <span className="name">{nameOf(p.id)}</span>
-              <span className="card small">{vote ? cardLabel(vote.card) : '未投票'}</span>
-            </li>
-          );
-        })}
-      </ul>
-      {/* 集計（平均・最頻値）と次ラウンド操作は US3 で実装 */}
-    </section>
+    <>
+      <Results participants={snapshot.participants} votes={votes} stats={stats} />
+      {isHost && (
+        <p className="round-actions">
+          {/* 再投票と次ラウンドはドメイン上同一操作（next-round）。ラベルのみ区別（FR-011） */}
+          <button type="button" onClick={sync.nextRound}>
+            再投票
+          </button>
+          <button type="button" className="secondary" onClick={sync.nextRound}>
+            次のラウンドへ
+          </button>
+        </p>
+      )}
+    </>
   );
 }

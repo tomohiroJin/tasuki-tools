@@ -1,12 +1,8 @@
 // 受信者別スナップショット投影（research R1）
 // 秘匿はここで構造的に保証する: token は常に除外、voting 中の他者票は hasVoted のみ（SC-004）
-import type { RoomStateMessage, RoundStats, VoteView } from './protocol';
+import type { RoomStateMessage, VoteView } from './protocol';
 import type { Room } from './room';
-
-/** revealed ラウンドの集計。本実装は US3（T036）で stats.ts に置き換える */
-function computeStats(_votes: VoteView[]): RoundStats {
-  return { average: null, modes: [] };
-}
+import { computeStats } from './stats';
 
 /** Room → 受信者（viewerId）向けの room-state メッセージ */
 export function snapshotFor(room: Room, viewerId: string): RoomStateMessage {
@@ -27,7 +23,7 @@ export function snapshotFor(room: Room, viewerId: string): RoomStateMessage {
       participantId,
       card,
     }));
-    return { status: 'revealed' as const, votes, stats: computeStats(votes) };
+    return { status: 'revealed' as const, votes, stats: computeStats(votes.map((v) => v.card)) };
   })();
 
   return {

@@ -47,3 +47,18 @@ export function revealBy(room: Room, participantId: string): Result<Room, RoundE
   }
   return ok({ ...room, round: { ...room.round, status: 'revealed' } });
 }
+
+/**
+ * 再投票・次ラウンドの開始（FR-011）。ドメイン上は同一操作で、ラベルは UI の責務。
+ * 全票をリセットして voting に戻す。
+ */
+export function nextRound(room: Room, participantId: string): Result<Room, RoundError> {
+  const actor = room.participants.find((p) => p.id === participantId);
+  if (!actor?.isHost) {
+    return err({ code: 'not-host', message: 'ホストのみが次のラウンドを開始できます' });
+  }
+  if (room.round.status !== 'revealed') {
+    return err({ code: 'not-revealed', message: '票の公開後にのみ次のラウンドを開始できます' });
+  }
+  return ok({ ...room, round: { status: 'voting', votes: new Map() } });
+}

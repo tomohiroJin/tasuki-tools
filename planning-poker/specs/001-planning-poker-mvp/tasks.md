@@ -114,18 +114,18 @@ plan.md の3パッケージ構成に従う: `packages/core/`（ドメイン + �
 
 ### Tests for User Story 3（先に書き、失敗を確認する）
 
-- [ ] T032 [P] [US3] core: 集計の失敗するテストを作成 `packages/core/tests/stats.test.ts`（数値票のみの平均、?/☕ 除外 FR-010、全員 ?/☕ で average=null、最頻値の同数複数、単独票。data-model 集計ルール）
-- [ ] T033 [P] [US3] core: 次ラウンドの失敗するテストを追加 `packages/core/tests/round.test.ts`（revealed → next-round で voting に戻り票が空、voting 中の next-round 拒否 FR-011）
-- [ ] T034 [P] [US3] sync: 契約シナリオ #6 の失敗する結合テストを作成 `apps/sync/tests/next-round.test.ts`（revealed 後の next-round で全員が voting 状態の room-state を受信、非ホスト → `not-host`、revealed の stats に average/modes が載る）
+- [X] T032 [P] [US3] core: 集計の失敗するテストを作成 `packages/core/tests/stats.test.ts`（数値票のみの平均、?/☕ 除外 FR-010、全員 ?/☕ で average=null、最頻値の同数複数、単独票。data-model 集計ルール）
+- [X] T033 [P] [US3] core: 次ラウンドの失敗するテストを追加 `packages/core/tests/round.test.ts`（revealed → next-round で voting に戻り票が空、voting 中の next-round 拒否 FR-011）
+- [X] T034 [P] [US3] sync: 契約シナリオ #6 の失敗する結合テストを作成 `apps/sync/tests/next-round.test.ts`（revealed 後の next-round で全員が voting 状態の room-state を受信、非ホスト → `not-host`、revealed の stats に average/modes が載る）
 
 ### Implementation for User Story 3
 
-- [ ] T035 [US3] core: `packages/core/src/stats.ts` を実装（average / modes の純関数。T032 をグリーンに）
-- [ ] T036 [US3] core: `packages/core/src/round.ts` に next-round を実装し、`packages/core/src/snapshot.ts` の revealed 投影に stats を組み込む（T033 をグリーンに）
-- [ ] T037 [US3] sync: `apps/sync/src/server.ts` に next-round ハンドラを実装（T034 をグリーンに）
-- [ ] T038 [P] [US3] web: 結果表示を実装 `apps/web/src/components/Results.tsx`（各票・平均は小数 1 桁丸め・算出不能は「—」・最頻値複数表示）
-- [ ] T039 [US3] web: `apps/web/src/pages/RoomPage.tsx` にホストの「再投票」「次のラウンド」ボタン（どちらも next-round 送信、ラベルのみ区別）と投票前状態への画面リセットを実装
-- [ ] T040 [US3] 実画面検証: quickstart S3（集計表示・?/☕ 除外・次ラウンドリセット）を目視確認（憲法原則 V）
+- [X] T035 [US3] core: `packages/core/src/stats.ts` を実装（average / modes の純関数。T032 をグリーンに）
+- [X] T036 [US3] core: `packages/core/src/round.ts` に next-round を実装し、`packages/core/src/snapshot.ts` の revealed 投影に stats を組み込む（T033 をグリーンに）
+- [X] T037 [US3] sync: `apps/sync/src/server.ts` に next-round ハンドラを実装（T034 をグリーンに）
+- [X] T038 [P] [US3] web: 結果表示を実装 `apps/web/src/components/Results.tsx`（各票・平均は小数 1 桁丸め・算出不能は「—」・最頻値複数表示）
+- [X] T039 [US3] web: `apps/web/src/pages/RoomPage.tsx` にホストの「再投票」「次のラウンド」ボタン（どちらも next-round 送信、ラベルのみ区別）と投票前状態への画面リセットを実装
+- [X] T040 [US3] 実画面検証: quickstart S3（集計表示・?/☕ 除外・次ラウンドリセット）を目視確認（憲法原則 V）
 
 **Checkpoint**: 実セッション運用（見積もり→合意→次の議題）が一巡できる
 
