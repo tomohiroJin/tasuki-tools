@@ -109,7 +109,9 @@ export function computeCountdownStage(currentSeconds: number, thresholdSeconds: 
 
 /** 交代前カウントダウン中に毎秒鳴らす短いビープ音（fire-and-forget）。stage 省略時は段階1（低）。 */
 export function playCountdownTick(volume: number, stage: 1 | 2 | 3 = 1): void {
-  playTones([COUNTDOWN_STAGE_FREQS[stage - 1]], volume, { gap: 0.12, gain: 0.35 });
+  // noUncheckedIndexedAccess でも安全にするため、フォールバックとして段階1の周波数を用いる
+  const freq = COUNTDOWN_STAGE_FREQS[stage - 1] ?? COUNTDOWN_STAGE_FREQS[0];
+  playTones([freq], volume, { gap: 0.12, gain: 0.35 });
 }
 
 /** 1 つのチャイム定義。play は音量(0–1)を受け取る。 */
