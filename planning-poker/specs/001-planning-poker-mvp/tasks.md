@@ -43,13 +43,13 @@ plan.md の3パッケージ構成に従う: `packages/core/`（ドメイン + �
 
 **⚠️ CRITICAL**: このフェーズ完了まではユーザーストーリーに着手しない
 
-- [ ] T006 [P] core: デッキ定義の失敗するテストを作成 `packages/core/tests/deck.test.ts`（フィボナッチ 10 種の内容・順序、Card 判別ユニオン、カード同値判定。data-model「Card」）
-- [ ] T007 core: `packages/core/src/deck.ts` を実装しテストをグリーンに（`Card` 型、`FIBONACCI_DECK`、`cardKey`/`cardEquals`）。`packages/core/src/index.ts` から export
-- [ ] T008 [P] core: プロトコルスキーマの失敗するテストを作成 `packages/core/tests/protocol.test.ts`（C→S 5種・S→C 3種の正常系パース、不正メッセージが Result の err になること。contracts/ws-protocol.md 準拠）
-- [ ] T009 core: `packages/core/src/protocol.ts` を実装（メッセージ型定義 + Valibot スキーマ + `parseClientMessage(): Result<ClientMessage, ProtocolError>`。憲法原則 IV）
-- [ ] T010 sync: 結合テスト基盤と「不正メッセージ → error 応答（接続維持）」「join 前の操作 → `not-joined`」の失敗するテストを作成 `apps/sync/tests/helpers.ts`（`bun run` によるサーバーのサブプロセス起動・ポート 0 → 標準出力 1 行 JSON でポート通知・teardown で kill・WS クライアントヘルパ。research R7）+ `apps/sync/tests/protocol-errors.test.ts`（契約テスト観点 #10 の invalid-message 分 + not-joined）
-- [ ] T011 sync: `apps/sync/src/server.ts` に Bun.serve + WS upgrade + メッセージ受信→`parseClientMessage`→`invalid-message` error 応答の骨格を実装しテストをグリーンに
-- [ ] T012 [P] web: 画面骨格を実装 `apps/web/src/main.tsx`・`apps/web/src/App.tsx`・自前ルーティング `apps/web/src/router.ts`（`/poker/` 以下のパスを `top | room(roomId)` にパースする純関数 + `apps/web/tests/router.test.ts` を先に作成。research R5）・WS 接続フック `apps/web/src/hooks/useSync.ts`（接続と再接続の骨格のみ）
+- [X] T006 [P] core: デッキ定義の失敗するテストを作成 `packages/core/tests/deck.test.ts`（フィボナッチ 10 種の内容・順序、Card 判別ユニオン、カード同値判定。data-model「Card」）
+- [X] T007 core: `packages/core/src/deck.ts` を実装しテストをグリーンに（`Card` 型、`FIBONACCI_DECK`、`cardKey`/`cardEquals`）。`packages/core/src/index.ts` から export
+- [X] T008 [P] core: プロトコルスキーマの失敗するテストを作成 `packages/core/tests/protocol.test.ts`（C→S 5種・S→C 3種の正常系パース、不正メッセージが Result の err になること。contracts/ws-protocol.md 準拠）
+- [X] T009 core: `packages/core/src/protocol.ts` を実装（メッセージ型定義 + Valibot スキーマ + `parseClientMessage(): Result<ClientMessage, ProtocolError>`。憲法原則 IV）
+- [X] T010 sync: 結合テスト基盤と「不正メッセージ → error 応答（接続維持）」「join 前の操作 → `not-joined`」の失敗するテストを作成 `apps/sync/tests/helpers.ts`（`bun run` によるサーバーのサブプロセス起動・ポート 0 → 標準出力 1 行 JSON でポート通知・teardown で kill・WS クライアントヘルパ。research R7）+ `apps/sync/tests/protocol-errors.test.ts`（契約テスト観点 #10 の invalid-message 分 + not-joined）
+- [X] T011 sync: `apps/sync/src/server.ts` に Bun.serve + WS upgrade + メッセージ受信→`parseClientMessage`→`invalid-message` error 応答の骨格を実装しテストをグリーンに
+- [X] T012 [P] web: 画面骨格を実装 `apps/web/src/main.tsx`・`apps/web/src/App.tsx`・自前ルーティング `apps/web/src/router.ts`（`/poker/` 以下のパスを `top | room(roomId)` にパースする純関数 + `apps/web/tests/router.test.ts` を先に作成。research R5）・WS 接続フック `apps/web/src/hooks/useSync.ts`（接続と再接続の骨格のみ）
 
 **Checkpoint**: 契約の単一情報源（protocol.ts）と3パッケージの骨格が完成 — ストーリー実装開始可能
 
