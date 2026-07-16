@@ -2,7 +2,7 @@
  * 交代前カウントダウン予告音のフック（Issue #2）。
  *
  * 残り秒数(secondsLeft)が個人設定の予告秒数(thresholdSeconds)以下になったら、
- * 整数秒が変わるたびに 1 回だけ playCountdownTick を呼ぶ。
+ * 整数秒が変わるたびに 1 回だけ、方式(mode)に応じてトーン音または音声読み上げを鳴らす（Issue #5）。
  *
  * running=false（room.clock.running）のときは何もしない。一時停止（evolveSessionPaused）は
  * 必ず freezeRunningClock で running を false にし、休憩(onBreak)は v2.10 で UI/コマンドが
@@ -11,7 +11,7 @@
  */
 
 import { useEffect, useRef } from "react";
-import { playCountdownTick, computeCountdownStage } from "../platform/sound.js";
+import { playCountdownTick, playCountdownVoice, computeCountdownStage } from "../platform/sound.js";
 
 export interface CountdownTickOptions {
   /** 個人設定: カウントダウン予告音を鳴らすか。 */
@@ -20,6 +20,10 @@ export interface CountdownTickOptions {
   thresholdSeconds: number;
   /** 再生音量(0–1)。 */
   volume: number;
+  /** カウントダウンの方式。"tone"=トーン音（既定・Issue #3の3段階変化）、"voice"=数字読み上げ（Issue #5）。 */
+  mode: "tone" | "voice";
+  /** mode: "voice" のときに使う話者。 */
+  voiceId: "voice-male" | "voice-female";
 }
 
 export function useCountdownTick(
@@ -42,8 +46,12 @@ export function useCountdownTick(
       lastFiredRef.current !== current
     ) {
       lastFiredRef.current = current;
-      const stage = computeCountdownStage(current, opts.thresholdSeconds);
-      playCountdownTick(opts.volume, stage);
+      if (opts.mode === "voice") {
+        playCountdownVoice(current, opts.voiceId, opts.volume);
+      } else {
+        const stage = computeCountdownStage(current, opts.thresholdSeconds);
+        playCountdownTick(opts.volume, stage);
+      }
     }
-  }, [secondsLeft, running, opts.enabled, opts.thresholdSeconds, opts.volume]);
+  }, [secondsLeft, running, opts.enabled, opts.thresholdSeconds, opts.volume, opts.mode, opts.voiceId]);
 }
