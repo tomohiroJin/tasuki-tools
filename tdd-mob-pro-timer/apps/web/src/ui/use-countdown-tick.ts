@@ -11,7 +11,7 @@
  */
 
 import { useEffect, useRef } from "react";
-import { playCountdownTick } from "../platform/sound.js";
+import { playCountdownTick, computeCountdownStage } from "../platform/sound.js";
 
 export interface CountdownTickOptions {
   /** 個人設定: カウントダウン予告音を鳴らすか。 */
@@ -42,7 +42,8 @@ export function useCountdownTick(
       lastFiredRef.current !== current
     ) {
       lastFiredRef.current = current;
-      playCountdownTick(opts.volume);
+      const stage = computeCountdownStage(current, opts.thresholdSeconds);
+      playCountdownTick(opts.volume, stage);
     }
   }, [secondsLeft, running, opts.enabled, opts.thresholdSeconds, opts.volume]);
 }
