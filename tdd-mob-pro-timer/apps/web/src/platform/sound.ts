@@ -137,7 +137,7 @@ function playFile(src: string, volume: number): void {
 /** 同梱音源の URL（vite の base path に追従）。 */
 const soundUrl = (name: string): string => `${import.meta.env.BASE_URL}sounds/${name}.mp3`;
 
-/** 選択可能なチャイム。department を先頭・既定とし初期6種。ファイル系は下の registerFileChimes で追加（voice 2種で計8種）。 */
+/** 選択可能なチャイム。department を先頭・既定とし初期6種。ファイル系は下の registerFileChimes で追加（voice 4種で計10種）。 */
 export const CHIMES: Chime[] = [
   { id: "department", label: "呼び出しチャイム", isReady: true, play: (v) => playFile(soundUrl("department"), v) },
   { id: "melody", label: "メロディ", isReady: true, play: (v) => playFile(soundUrl("melody"), v) },
@@ -151,6 +151,8 @@ export const CHIMES: Chime[] = [
 registerFileChimes([
   { id: "voice-male", label: "音声（男声）", isReady: true, play: (v) => playFile(soundUrl("voice-male"), v) },
   { id: "voice-female", label: "音声（女声）", isReady: true, play: (v) => playFile(soundUrl("voice-female"), v) },
+  { id: "voice-nise", label: "音声（にせ）", isReady: true, play: (v) => playFile(soundUrl("voice-nise"), v) },
+  { id: "voice-mai", label: "音声（まい）", isReady: true, play: (v) => playFile(soundUrl("voice-mai"), v) },
 ]);
 
 /** soundId に対応するチャイムを鳴らす。未知 id は既定 department にフォールバック。 */

@@ -47,11 +47,14 @@ describe("scheduleTones（#1 resume を待ってからスケジュール）", ()
 });
 
 describe("チャイム registry", () => {
-  it("CHIMES は voice-male/voice-female を含む計8種", () => {
+  it("CHIMES は voice-male/voice-female/voice-nise/voice-mai を含む計10種", () => {
     const ids = CHIMES.map((c) => c.id);
-    expect(ids).toHaveLength(8);
-    expect(ids).toEqual(expect.arrayContaining(["department","melody","sustained","voice-male","voice-female","chime-up","chime-down","bell"]));
-    expect(new Set(ids).size).toBe(8);
+    expect(ids).toHaveLength(10);
+    expect(ids).toEqual(expect.arrayContaining([
+      "department", "melody", "sustained", "voice-male", "voice-female",
+      "voice-nise", "voice-mai", "chime-up", "chime-down", "bell",
+    ]));
+    expect(new Set(ids).size).toBe(10);
     expect(CHIMES.every((c) => c.isReady)).toBe(true);
   });
 
