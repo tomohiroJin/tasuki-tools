@@ -21,6 +21,9 @@ export function NotifySettingsPanel({ prefs, onChange, onPreview }: NotifySettin
   const soundFieldId = `${fieldId}-sound`;
   const volumeFieldId = `${fieldId}-volume`;
   const countdownSecondsFieldId = `${fieldId}-countdown-seconds`;
+  const countdownModeToneId = `${fieldId}-countdown-mode-tone`;
+  const countdownModeVoiceId = `${fieldId}-countdown-mode-voice`;
+  const countdownVoiceFieldId = `${fieldId}-countdown-voice`;
 
   return (
     <div className="text-sm text-[var(--bone)]">
@@ -132,6 +135,54 @@ export function NotifySettingsPanel({ prefs, onChange, onPreview }: NotifySettin
           className="mt-1 w-full"
         />
       </div>
+
+      {/* カウントダウン方式（トーン音/音声読み上げ）・countdownEnabled 時のみ表示（Issue #5） */}
+      {prefs.countdownEnabled && (
+        <div className="mt-3">
+          <p className="instrument-label">カウントダウン方式</p>
+          <div className="mt-1 flex gap-4">
+            <label htmlFor={countdownModeToneId} className="flex items-center gap-1.5">
+              <input
+                type="radio"
+                id={countdownModeToneId}
+                name={`${fieldId}-countdown-mode`}
+                aria-label="トーン音"
+                checked={prefs.countdownMode === "tone"}
+                onChange={() => onChange({ countdownMode: "tone" })}
+              />
+              トーン音
+            </label>
+            <label htmlFor={countdownModeVoiceId} className="flex items-center gap-1.5">
+              <input
+                type="radio"
+                id={countdownModeVoiceId}
+                name={`${fieldId}-countdown-mode`}
+                aria-label="音声読み上げ"
+                checked={prefs.countdownMode === "voice"}
+                onChange={() => onChange({ countdownMode: "voice" })}
+              />
+              音声読み上げ
+            </label>
+          </div>
+          {prefs.countdownMode === "voice" && (
+            <div className="mt-2">
+              <label htmlFor={countdownVoiceFieldId} className="instrument-label">
+                読み上げ話者
+              </label>
+              <select
+                id={countdownVoiceFieldId}
+                aria-label="読み上げ話者"
+                value={prefs.countdownVoiceId}
+                onChange={(e) => onChange({ countdownVoiceId: e.target.value as "voice-male" | "voice-female" })}
+                className="mt-1 w-full rounded-md border border-[var(--hairline-strong)] bg-[var(--panel-2)] px-2 py-1.5 text-sm text-[var(--bone)]"
+              >
+                <option value="voice-male">男声</option>
+                <option value="voice-female">女声</option>
+              </select>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* OS 通知トグル */}
       <label className="mt-3 flex items-center justify-between gap-2">

@@ -193,6 +193,8 @@ export function Session({
     enabled: notifyPrefs.countdownEnabled,
     thresholdSeconds: notifyPrefs.countdownSeconds,
     volume: notifyPrefs.volume,
+    mode: notifyPrefs.countdownMode,
+    voiceId: notifyPrefs.countdownVoiceId,
   });
 
   // PC ではタイマーを主役として大きく見せる（ステージ感・モバイルは収まるサイズに）。

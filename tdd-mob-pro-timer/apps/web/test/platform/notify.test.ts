@@ -10,6 +10,8 @@ const basePrefs: NotifyPreferences = {
   osNotify: true,
   countdownEnabled: false,
   countdownSeconds: 15,
+  countdownMode: "tone",
+  countdownVoiceId: "voice-male",
 };
 
 describe("requestPermissionIfEnabling", () => {

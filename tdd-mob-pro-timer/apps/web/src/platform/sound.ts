@@ -114,6 +114,42 @@ export function playCountdownTick(volume: number, stage: 1 | 2 | 3 = 1): void {
   playTones([freq], volume, { gap: 0.12, gain: 0.35 });
 }
 
+/** 同梱カウントダウン読み上げ音声の URL（vite の base path に追従）。 */
+const countdownVoiceUrl = (voiceId: "voice-male" | "voice-female", n: number): string => {
+  const speaker = voiceId === "voice-male" ? "male" : "female";
+  return `${import.meta.env.BASE_URL}sounds/countdown/count-${speaker}-${n}.mp3`;
+};
+
+/**
+ * カウントダウン中の数字読み上げ（fire-and-forget、Issue #5）。
+ * 再生失敗（ファイル欠損・再生エラー）時はその回のみ playCountdownTick（トーン音）にフォールバックする。
+ */
+export function playCountdownVoice(
+  n: number,
+  voiceId: "voice-male" | "voice-female",
+  volume: number,
+): void {
+  if (typeof Audio === "undefined") {
+    playCountdownTick(volume);
+    return;
+  }
+  try {
+    const a = new Audio(countdownVoiceUrl(voiceId, n));
+    a.volume = Math.min(1, Math.max(0, volume));
+    // error イベントと play() 両方が発火した場合も playCountdownTick は1回だけ呼ぶ（dedupe）
+    let fellBack = false;
+    const fallback = () => {
+      if (fellBack) return;
+      fellBack = true;
+      playCountdownTick(volume);
+    };
+    a.addEventListener("error", fallback, { once: true });
+    void a.play().catch(fallback);
+  } catch {
+    playCountdownTick(volume);
+  }
+}
+
 /** 1 つのチャイム定義。play は音量(0–1)を受け取る。 */
 export interface Chime {
   id: string;

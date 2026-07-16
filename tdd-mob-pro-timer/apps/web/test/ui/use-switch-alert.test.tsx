@@ -4,8 +4,8 @@ import { useSwitchAlert } from "../../src/ui/use-switch-alert.js";
 import * as sound from "../../src/platform/sound.js";
 import * as notify from "../../src/platform/notify.js";
 
-const OFF = { enabled: false, soundId: "chime-up", osNotify: true, volume: 0.6, countdownEnabled: false, countdownSeconds: 15 };
-const ON = { enabled: true, soundId: "bell", osNotify: true, volume: 0.4, countdownEnabled: false, countdownSeconds: 15 };
+const OFF = { enabled: false, soundId: "chime-up", osNotify: true, volume: 0.6, countdownEnabled: false, countdownSeconds: 15, countdownMode: "tone" as const, countdownVoiceId: "voice-male" as const };
+const ON = { enabled: true, soundId: "bell", osNotify: true, volume: 0.4, countdownEnabled: false, countdownSeconds: 15, countdownMode: "tone" as const, countdownVoiceId: "voice-male" as const };
 
 describe("useSwitchAlert（個人設定ゲート）", () => {
   beforeEach(() => vi.restoreAllMocks());

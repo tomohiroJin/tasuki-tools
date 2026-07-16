@@ -17,11 +17,11 @@ describe("通知設定の永続化", () => {
   it("保存して読み戻せる", () => {
     saveNotifyPreferences({
       enabled: true, soundId: "bell", osNotify: false, volume: 0.5,
-      countdownEnabled: false, countdownSeconds: 15,
+      countdownEnabled: false, countdownSeconds: 15, countdownMode: "tone", countdownVoiceId: "voice-male",
     });
     expect(loadNotifyPreferences()).toEqual({
       enabled: true, soundId: "bell", osNotify: false, volume: 0.5,
-      countdownEnabled: false, countdownSeconds: 15,
+      countdownEnabled: false, countdownSeconds: 15, countdownMode: "tone", countdownVoiceId: "voice-male",
     });
   });
 
@@ -45,7 +45,7 @@ describe("通知設定の永続化", () => {
   it("volume を保存して読み戻せる", () => {
     saveNotifyPreferences({
       enabled: true, soundId: "bell", osNotify: false, volume: 0.3,
-      countdownEnabled: false, countdownSeconds: 15,
+      countdownEnabled: false, countdownSeconds: 15, countdownMode: "tone", countdownVoiceId: "voice-male",
     });
     expect(loadNotifyPreferences().volume).toBe(0.3);
   });
@@ -70,7 +70,7 @@ describe("通知設定の永続化", () => {
   it("countdownEnabled/countdownSeconds を保存して読み戻せる", () => {
     saveNotifyPreferences({
       enabled: true, soundId: "bell", osNotify: false, volume: 0.5,
-      countdownEnabled: true, countdownSeconds: 10,
+      countdownEnabled: true, countdownSeconds: 10, countdownMode: "tone", countdownVoiceId: "voice-male",
     });
     const p = loadNotifyPreferences();
     expect(p.countdownEnabled).toBe(true);
