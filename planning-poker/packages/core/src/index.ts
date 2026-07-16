@@ -2,4 +2,5 @@
 export * from './deck';
 export * from './protocol';
 export * from './room';
+export * from './round';
 export * from './snapshot';

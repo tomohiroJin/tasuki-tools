@@ -1,9 +1,13 @@
 // Bun + WebSocket 同期サーバー
 // 境界: 受信テキスト → parseClientMessage（Valibot）→ ディスパッチ（憲法原則 IV）
 import {
+  applyAutoReveal,
+  castVote,
   createRoom,
   joinRoom,
   parseClientMessage,
+  revealBy,
+  type Card,
   type ClientMessage,
   type ErrorCode,
 } from '@planning-poker/core';
@@ -67,6 +71,47 @@ function handleJoinRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'join-room' 
   broadcast(entry);
 }
 
+/** join 済み接続のルーム内操作。ドメイン操作の Result をエラー応答/配信へ写す */
+function handleRoomAction(
+  ws: Ws,
+  action: (roomId: string, participantId: string) => void,
+): void {
+  const { participantId, roomId } = ws.data;
+  if (participantId === null || roomId === null) {
+    sendError(ws, 'not-joined', 'ルームに参加していません');
+    return;
+  }
+  action(roomId, participantId);
+}
+
+function handleVote(ws: Ws, card: Card): void {
+  handleRoomAction(ws, (roomId, participantId) => {
+    const entry = getRoom(roomId);
+    if (!entry) return;
+    const result = castVote(entry.room, participantId, card);
+    if (result.isErr()) {
+      sendError(ws, result.error.code, result.error.message);
+      return;
+    }
+    entry.room = applyAutoReveal(result.value); // 全員投票なら即 revealed（FR-008）
+    broadcast(entry);
+  });
+}
+
+function handleReveal(ws: Ws): void {
+  handleRoomAction(ws, (roomId, participantId) => {
+    const entry = getRoom(roomId);
+    if (!entry) return;
+    const result = revealBy(entry.room, participantId);
+    if (result.isErr()) {
+      sendError(ws, result.error.code, result.error.message);
+      return;
+    }
+    entry.room = result.value;
+    broadcast(entry);
+  });
+}
+
 function dispatch(ws: Ws, msg: ClientMessage): void {
   switch (msg.type) {
     case 'create-room':
@@ -76,13 +121,14 @@ function dispatch(ws: Ws, msg: ClientMessage): void {
       handleJoinRoom(ws, msg);
       return;
     case 'vote':
+      handleVote(ws, msg.card);
+      return;
     case 'reveal':
+      handleReveal(ws);
+      return;
     case 'next-round':
-      if (ws.data.participantId === null || ws.data.roomId === null) {
-        sendError(ws, 'not-joined', 'ルームに参加していません');
-        return;
-      }
-      // Phase 4 以降（US2/US3）で実装
+      // US3（T037）で実装
+      handleRoomAction(ws, () => {});
       return;
   }
 }

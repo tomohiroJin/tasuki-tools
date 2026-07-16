@@ -6,6 +6,8 @@ export default defineConfig({
   base: '/poker/',
   plugins: [react()],
   server: {
+    // WSL の Windows マウントでは FS イベントが届かないためポーリング監視にする
+    watch: { usePolling: true, interval: 300 },
     proxy: {
       // 開発時: WS を同期サーバー（別ポート）へ転送。本番は Caddy が担う
       '/poker/ws': {

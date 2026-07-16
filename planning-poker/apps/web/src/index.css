@@ -124,3 +124,52 @@ button.secondary {
   background: #c6f6d5;
   color: #22543d;
 }
+
+.card-hand {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.card {
+  width: 3.2rem;
+  height: 4.4rem;
+  font-size: 1.2rem;
+  border: 2px solid #cbd5e0;
+  border-radius: 10px;
+  background: #fff;
+  color: #1a202c;
+}
+
+.card.selected {
+  border-color: #3182ce;
+  background: #ebf8ff;
+  transform: translateY(-4px);
+}
+
+.card.small {
+  width: auto;
+  height: auto;
+  padding: 0.2rem 0.6rem;
+  font-size: 1rem;
+  border-width: 1px;
+}
+
+.votes {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.votes li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}

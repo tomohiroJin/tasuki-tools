@@ -1,5 +1,7 @@
-// ルーム画面: 未参加なら参加フォーム、参加後は招待リンク + 参加者一覧（US1）
+// ルーム画面: 未参加なら参加フォーム、参加後は招待リンク + 参加者一覧 + 投票（US1/US2）
 import { useState, type FormEvent } from 'react';
+import type { RoomStateMessage } from '@planning-poker/core';
+import { CardHand, cardLabel } from '../components/CardHand';
 import { ParticipantList } from '../components/ParticipantList';
 import type { PokerSync } from '../hooks/useSync';
 
@@ -77,6 +79,9 @@ export function RoomPage({ roomId, sync }: Props) {
     return <JoinForm roomId={roomId} sync={sync} />;
   }
 
+  const isHost = snapshot.participants.find((p) => p.id === snapshot.you)?.isHost ?? false;
+  const isVoting = snapshot.round.status === 'voting';
+
   return (
     <main className="page room">
       <header>
@@ -87,7 +92,60 @@ export function RoomPage({ roomId, sync }: Props) {
         <h2>参加者（{snapshot.participants.length}人）</h2>
         <ParticipantList participants={snapshot.participants} you={snapshot.you} />
       </section>
-      {/* 投票 UI（CardHand）は US2、結果表示は US3 で実装 */}
+      {isVoting ? (
+        <VotingSection snapshot={snapshot} sync={sync} isHost={isHost} />
+      ) : (
+        <RevealedSection snapshot={snapshot} />
+      )}
     </main>
+  );
+}
+
+function VotingSection({
+  snapshot,
+  sync,
+  isHost,
+}: {
+  snapshot: RoomStateMessage;
+  sync: PokerSync;
+  isHost: boolean;
+}) {
+  return (
+    <section>
+      <h2>あなたのカード</h2>
+      <CardHand selected={snapshot.yourVote} onSelect={sync.vote} disabled={false} />
+      {isHost && (
+        <p>
+          <button type="button" className="secondary" onClick={sync.reveal}>
+            票を公開する
+          </button>
+        </p>
+      )}
+    </section>
+  );
+}
+
+function RevealedSection({ snapshot }: { snapshot: RoomStateMessage }) {
+  if (snapshot.round.status !== 'revealed') return null;
+  const { votes } = snapshot.round;
+  const nameOf = (participantId: string) =>
+    snapshot.participants.find((p) => p.id === participantId)?.name ?? '不明';
+
+  return (
+    <section>
+      <h2>結果</h2>
+      <ul className="votes">
+        {snapshot.participants.map((p) => {
+          const vote = votes.find((v) => v.participantId === p.id);
+          return (
+            <li key={p.id}>
+              <span className="name">{nameOf(p.id)}</span>
+              <span className="card small">{vote ? cardLabel(vote.card) : '未投票'}</span>
+            </li>
+          );
+        })}
+      </ul>
+      {/* 集計（平均・最頻値）と次ラウンド操作は US3 で実装 */}
+    </section>
   );
 }

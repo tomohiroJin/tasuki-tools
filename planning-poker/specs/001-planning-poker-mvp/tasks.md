@@ -89,18 +89,18 @@ plan.md の3パッケージ構成に従う: `packages/core/`（ドメイン + �
 
 ### Tests for User Story 2（先に書き、失敗を確認する）
 
-- [ ] T023 [P] [US2] core: ラウンド状態機械の失敗するテストを作成 `packages/core/tests/round.test.ts`（vote 上書き FR-007、revealed 中の vote 拒否、接続中全員投票で自動 reveal FR-008、参加者1人（ホストのみ）でも投票即自動公開が成立、投票中の途中参加で自動公開が保留される、ホスト reveal FR-009、非ホスト reveal 拒否。data-model 状態遷移）
-- [ ] T024 [P] [US2] core: 秘匿投影の失敗するテストを追加 `packages/core/tests/snapshot.test.ts`（voting 中: 他者票は hasVoted のみ・yourVote は本人のみ、revealed 後: 全票が votes に載る・未投票者は含まれない。SC-004）
-- [ ] T025 [P] [US2] sync: 契約シナリオ #3・#4・#5 の失敗する結合テストを作成 `apps/sync/tests/voting.test.ts`（**他者宛フレームに選択値が現れないことの生 JSON 検証を含む**、全員投票で自動 revealed、ホスト reveal で未投票のまま公開、非ホスト reveal → `not-host`）
+- [X] T023 [P] [US2] core: ラウンド状態機械の失敗するテストを作成 `packages/core/tests/round.test.ts`（vote 上書き FR-007、revealed 中の vote 拒否、接続中全員投票で自動 reveal FR-008、参加者1人（ホストのみ）でも投票即自動公開が成立、投票中の途中参加で自動公開が保留される、ホスト reveal FR-009、非ホスト reveal 拒否。data-model 状態遷移）
+- [X] T024 [P] [US2] core: 秘匿投影の失敗するテストを追加 `packages/core/tests/snapshot.test.ts`（voting 中: 他者票は hasVoted のみ・yourVote は本人のみ、revealed 後: 全票が votes に載る・未投票者は含まれない。SC-004）
+- [X] T025 [P] [US2] sync: 契約シナリオ #3・#4・#5 の失敗する結合テストを作成 `apps/sync/tests/voting.test.ts`（**他者宛フレームに選択値が現れないことの生 JSON 検証を含む**、全員投票で自動 revealed、ホスト reveal で未投票のまま公開、非ホスト reveal → `not-host`）
 
 ### Implementation for User Story 2
 
-- [ ] T026 [US2] core: `packages/core/src/round.ts` を実装（vote / reveal / 自動公開判定の純関数、Result 型。T023 をグリーンに）
-- [ ] T027 [US2] core: `packages/core/src/snapshot.ts` に投票秘匿・公開の投影を実装（T024 をグリーンに）
-- [ ] T028 [US2] sync: `apps/sync/src/server.ts` に vote / reveal ハンドラと自動公開の再評価・全員への配信を実装（T025 をグリーンに）
-- [ ] T029 [P] [US2] web: カード手札 UI を実装 `apps/web/src/components/CardHand.tsx`（10 種の表示・選択ハイライト・公開前の選び直し、revealed 中は無効化）
-- [ ] T030 [US2] web: `apps/web/src/pages/RoomPage.tsx` に投票状態表示（投票済みバッジ）・ホストの「公開」ボタン・公開時の全票表示を実装
-- [ ] T031 [US2] 実画面検証: quickstart S2（秘匿・WS フレーム目視・選び直し・自動公開・手動公開）を目視確認（憲法原則 V / SC-004）
+- [X] T026 [US2] core: `packages/core/src/round.ts` を実装（vote / reveal / 自動公開判定の純関数、Result 型。T023 をグリーンに）
+- [X] T027 [US2] core: `packages/core/src/snapshot.ts` に投票秘匿・公開の投影を実装（T024 をグリーンに）
+- [X] T028 [US2] sync: `apps/sync/src/server.ts` に vote / reveal ハンドラと自動公開の再評価・全員への配信を実装（T025 をグリーンに）
+- [X] T029 [P] [US2] web: カード手札 UI を実装 `apps/web/src/components/CardHand.tsx`（10 種の表示・選択ハイライト・公開前の選び直し、revealed 中は無効化）
+- [X] T030 [US2] web: `apps/web/src/pages/RoomPage.tsx` に投票状態表示（投票済みバッジ）・ホストの「公開」ボタン・公開時の全票表示を実装
+- [X] T031 [US2] 実画面検証: quickstart S2（秘匿・WS フレーム目視・選び直し・自動公開・手動公開）を目視確認（憲法原則 V / SC-004）
 
 **Checkpoint**: プランニングポーカーの核心体験（秘匿投票→一斉公開）が完成
 
