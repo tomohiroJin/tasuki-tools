@@ -24,16 +24,18 @@ export function CardHand({ selected, onSelect, disabled }: Props) {
     <div className="card-hand" role="group" aria-label="カードを選ぶ">
       {FIBONACCI_DECK.map((card) => {
         const isSelected = selected !== null && cardEquals(card, selected);
+        const label = cardLabel(card);
         return (
           <button
             key={cardKey(card)}
             type="button"
             className={`card${isSelected ? ' selected' : ''}`}
+            data-label={label}
             aria-pressed={isSelected}
             disabled={disabled}
             onClick={() => onSelect(card)}
           >
-            {cardLabel(card)}
+            <span className="card-face">{label}</span>
           </button>
         );
       })}

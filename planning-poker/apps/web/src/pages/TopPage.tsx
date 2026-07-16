@@ -16,9 +16,16 @@ export function TopPage({ onCreate, disabled }: Props) {
   };
 
   return (
-    <main className="page">
-      <h1>Tasuki Planning Poker</h1>
-      <p>スクラムのストーリーポイント見積もりを、ルーム同期でリアルタイムに。</p>
+    <main className="page top-hero">
+      <p className="suits" aria-hidden="true">
+        ♠ ♥ ♣ ♦
+      </p>
+      <h1>
+        Tasuki
+        <br />
+        Planning Poker
+      </h1>
+      <p className="tagline">スクラムのストーリーポイント見積もりを、ルーム同期でリアルタイムに。</p>
       <form onSubmit={handleSubmit} className="stack">
         <label>
           あなたの名前

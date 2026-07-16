@@ -24,7 +24,11 @@ export function Results({ participants, votes, stats }: Props) {
           return (
             <li key={p.id}>
               <span className="name">{p.name}</span>
-              <span className="card small">{vote ? cardLabel(vote.card) : '未投票'}</span>
+              {vote ? (
+                <span className="card small">{cardLabel(vote.card)}</span>
+              ) : (
+                <span className="no-vote">未投票</span>
+              )}
             </li>
           );
         })}
