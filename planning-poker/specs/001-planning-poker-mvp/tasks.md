@@ -157,10 +157,10 @@ plan.md の3パッケージ構成に従う: `packages/core/`（ドメイン + �
 
 **Purpose**: 横断的な仕上げと本番公開（憲法の追加制約: デプロイは最終フェーズ）
 
-- [ ] T047 [P] リポジトリの README.md を作成（概要・開発コマンド・quickstart への参照。日本語）
-- [ ] T048 [P] モバイル幅（375px）の表示調整と `/poker/` サブパスのアセット読込確認: quickstart S5 を目視確認（憲法原則 V）
+- [X] T047 [P] リポジトリの README.md を作成（概要・開発コマンド・quickstart への参照。日本語）
+- [X] T048 [P] モバイル幅（375px）の表示調整と `/poker/` サブパスのアセット読込確認: quickstart S5 を目視確認（憲法原則 V）
 - [ ] T049 quickstart「4. 受け入れ判定」を一括実施: `pnpm turbo test typecheck` 全件グリーン + S1〜S5 再確認 + SC-002/SC-004 の確認結果を記録 + 初見ユーザー1名に説明なしで投票完了してもらう初回利用テスト（SC-006）
-- [ ] T050 [P] デプロイ成果物を作成: `deploy/Caddyfile.poker`（`/poker` 静的配信 + `/poker/ws` リバースプロキシ断片）、`deploy/poker-sync.service`（systemd ユニット、別ポート）、`deploy/deploy.sh`
+- [X] T050 [P] デプロイ成果物を作成: `deploy/Caddyfile.poker`（`/poker` 静的配信 + `/poker/ws` リバースプロキシ断片）、`deploy/poker-sync.service`（systemd ユニット、別ポート）、`deploy/deploy.sh`
 - [ ] T051 本番デプロイと検証: `https://tasuki.niku9.click/poker` で quickstart S1〜S2 を再実施し、既存サービス（tdd-mob-pro-timer）の継続動作を確認
 
 ---
