@@ -504,6 +504,24 @@ button.secondary:hover:not(:disabled) {
 
 /* ---------- 接続バナー ---------- */
 
+.error-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.5rem 0.8rem;
+  background: rgba(198, 95, 69, 0.14);
+  border: 1px solid rgba(198, 95, 69, 0.45);
+  border-radius: 8px;
+  color: #f0b5a4;
+  font-size: 0.85rem;
+}
+
+.error-note button {
+  font-size: 0.72rem;
+  padding: 0.25rem 0.7rem;
+}
+
 .connection-banner {
   position: sticky;
   top: 0;

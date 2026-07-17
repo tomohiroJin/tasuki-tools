@@ -34,6 +34,11 @@ export interface PokerSync {
   self: SelfIdentity | null;
   /** 最新の受信者別ルーム状態（受信スナップショットで丸ごと置換。research R1） */
   snapshot: RoomStateMessage | null;
+  /**
+   * 現在の WS 接続で joined を受信済みか。再接続するとサーバー側は未 join に戻るため、
+   * 自動再入室の判定はこのフラグで行う（古い snapshot では判定しない）
+   */
+  joinedThisConnection: boolean;
   /** 直近のエラー（room-not-found はページ側で専用表示にする。FR-015） */
   error: SyncError | null;
   clearError: () => void;
@@ -50,6 +55,7 @@ export function usePokerSync(): PokerSync {
   const [status, setStatus] = useState<ConnectionStatus>('connecting');
   const [self, setSelf] = useState<SelfIdentity | null>(null);
   const [snapshot, setSnapshot] = useState<RoomStateMessage | null>(null);
+  const [joinedThisConnection, setJoinedThisConnection] = useState(false);
   const [error, setError] = useState<SyncError | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   /** joined 時に識別情報を保存するため、直近の join/create の名前を控える */
@@ -75,6 +81,8 @@ export function usePokerSync(): PokerSync {
       ws.addEventListener('close', () => {
         if (!isCurrent()) return;
         setStatus('closed');
+        // 新しい接続はサーバー側で未 join 状態から始まる（再入室は RoomPage が行う）
+        setJoinedThisConnection(false);
         // 指数バックオフで再接続（US4。再入室は RoomPage が保存済みトークンで行う）
         const delay = Math.min(500 * 2 ** attempt, MAX_RECONNECT_DELAY_MS);
         attempt += 1;
@@ -88,10 +96,12 @@ export function usePokerSync(): PokerSync {
         switch (msg.type) {
           case 'joined':
             setSelf({ roomId: msg.roomId, participantId: msg.participantId, token: msg.token });
+            setJoinedThisConnection(true);
             saveIdentity(msg.roomId, { token: msg.token, name: pendingNameRef.current });
             break;
           case 'room-state':
             setSnapshot(msg);
+            setError(null); // 正常な状態受信で過去のエラーは解消したとみなす
             break;
           case 'error':
             setError({ code: msg.code, message: msg.message });
@@ -110,24 +120,32 @@ export function usePokerSync(): PokerSync {
   }, []);
 
   return useMemo(() => {
-    const send = (msg: ClientMessage) => wsRef.current?.send(JSON.stringify(msg));
+    const send = (msg: ClientMessage) => {
+      // CONNECTING 中の send は例外になるため、開いている時だけ送る
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify(msg));
+      }
+    };
     return {
       status,
       self,
       snapshot,
+      joinedThisConnection,
       error,
       clearError: () => setError(null),
       createRoom: (name) => {
         pendingNameRef.current = name;
+        setError(null); // 新しい試行で過去のエラーをリセット
         send({ type: 'create-room', name });
       },
       joinRoom: (roomId, name, token) => {
         pendingNameRef.current = name;
+        setError(null);
         send({ type: 'join-room', roomId, name, ...(token !== undefined ? { token } : {}) });
       },
       vote: (card) => send({ type: 'vote', card }),
       reveal: () => send({ type: 'reveal' }),
       nextRound: () => send({ type: 'next-round' }),
     };
-  }, [status, self, snapshot, error]);
+  }, [status, self, snapshot, joinedThisConnection, error]);
 }

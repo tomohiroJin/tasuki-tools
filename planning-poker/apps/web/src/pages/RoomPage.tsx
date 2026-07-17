@@ -14,7 +14,8 @@ interface Props {
 
 function JoinForm({ roomId, sync }: Props) {
   const [name, setName] = useState('');
-  const canSubmit = name.trim().length >= 1 && name.trim().length <= 24;
+  const canSubmit =
+    name.trim().length >= 1 && name.trim().length <= 24 && sync.status === 'open';
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
@@ -44,35 +45,65 @@ function JoinForm({ roomId, sync }: Props) {
   );
 }
 
+/** 非セキュアオリジン（http の LAN 利用等）向けのフォールバックコピー */
+function legacyCopy(text: string): void {
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  const ok = document.execCommand('copy');
+  textarea.remove();
+  if (!ok) throw new Error('copy failed');
+}
+
 function InviteLink({ roomId }: { roomId: string }) {
-  const [copied, setCopied] = useState(false);
+  const [copyState, setCopyState] = useState<'idle' | 'done' | 'failed'>('idle');
   const url = `${location.origin}/poker/room/${roomId}`;
 
   const copy = async () => {
-    await navigator.clipboard.writeText(url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        legacyCopy(url);
+      }
+      setCopyState('done');
+    } catch {
+      try {
+        legacyCopy(url);
+        setCopyState('done');
+      } catch {
+        setCopyState('failed'); // URL は画面に出ているので手動選択で代替できる
+      }
+    }
+    setTimeout(() => setCopyState('idle'), 2000);
   };
 
   return (
     <div className="invite">
       <span className="invite-url">{url}</span>
       <button type="button" onClick={copy}>
-        {copied ? 'コピーしました' : '招待リンクをコピー'}
+        {copyState === 'done' && 'コピーしました'}
+        {copyState === 'failed' && 'コピーできません（URL を選択してください）'}
+        {copyState === 'idle' && '招待リンクをコピー'}
       </button>
     </div>
   );
 }
 
 export function RoomPage({ roomId, sync }: Props) {
-  // 保存済みトークンでの自動復帰（US4 / FR-013）。接続が開くたびに 1 回だけ試みる
+  // 保存済みトークンでの自動復帰（US4 / FR-013）。接続が開くたびに 1 回だけ試みる。
+  // 判定は「この接続で joined 済みか」で行う（切断前の古い snapshot では判定しない）
   const attemptedRef = useRef(false);
   useEffect(() => {
     if (sync.status !== 'open') {
       attemptedRef.current = false;
       return;
     }
-    if (attemptedRef.current || sync.snapshot?.roomId === roomId || sync.error) return;
+    if (attemptedRef.current || sync.joinedThisConnection) return;
+    if (sync.error?.code === 'room-not-found') return; // 消滅したルームへの再試行はしない
     const stored = loadIdentity(roomId);
     if (stored) {
       attemptedRef.current = true;
@@ -110,6 +141,14 @@ export function RoomPage({ roomId, sync }: Props) {
         <h1>プランニングポーカー</h1>
         <InviteLink roomId={roomId} />
       </header>
+      {sync.error && (
+        <p className="error-note" role="alert">
+          {sync.error.message}
+          <button type="button" className="secondary" onClick={sync.clearError}>
+            閉じる
+          </button>
+        </p>
+      )}
       <section>
         <h2>参加者（{snapshot.participants.length}人）</h2>
         <ParticipantList participants={snapshot.participants} you={snapshot.you} />
@@ -132,13 +171,15 @@ function VotingSection({
   sync: PokerSync;
   isHost: boolean;
 }) {
+  // 切断・再接続中は操作を受け付けない（送信しても届かないため）
+  const offline = sync.status !== 'open';
   return (
     <section>
       <h2>あなたのカード</h2>
-      <CardHand selected={snapshot.yourVote} onSelect={sync.vote} disabled={false} />
+      <CardHand selected={snapshot.yourVote} onSelect={sync.vote} disabled={offline} />
       {isHost && (
         <p>
-          <button type="button" className="secondary" onClick={sync.reveal}>
+          <button type="button" className="secondary" onClick={sync.reveal} disabled={offline}>
             票を公開する
           </button>
         </p>
@@ -158,6 +199,7 @@ function RevealedSection({
 }) {
   if (snapshot.round.status !== 'revealed') return null;
   const { votes, stats } = snapshot.round;
+  const offline = sync.status !== 'open';
 
   return (
     <>
@@ -165,10 +207,10 @@ function RevealedSection({
       {isHost && (
         <p className="round-actions">
           {/* 再投票と次ラウンドはドメイン上同一操作（next-round）。ラベルのみ区別（FR-011） */}
-          <button type="button" onClick={sync.nextRound}>
+          <button type="button" onClick={sync.nextRound} disabled={offline}>
             再投票
           </button>
-          <button type="button" className="secondary" onClick={sync.nextRound}>
+          <button type="button" className="secondary" onClick={sync.nextRound} disabled={offline}>
             次のラウンドへ
           </button>
         </p>

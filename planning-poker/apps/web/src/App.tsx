@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { navigate, parseRoute, roomPath } from './router';
 import { usePokerSync } from './hooks/useSync';
 import { TopPage } from './pages/TopPage';
@@ -18,9 +18,12 @@ export function App() {
   const route = useRoute();
   const sync = usePokerSync();
 
-  // ルーム作成完了（joined）でトップからルーム画面へ遷移する
+  // ルーム作成完了（joined）でトップからルーム画面へ 1 回だけ遷移する。
+  // 同じルームへの再遷移はしない（戻るボタンでトップに戻れなくなるのを防ぐ）
+  const navigatedRoomRef = useRef<string | null>(null);
   useEffect(() => {
-    if (route.name === 'top' && sync.self) {
+    if (route.name === 'top' && sync.self && navigatedRoomRef.current !== sync.self.roomId) {
+      navigatedRoomRef.current = sync.self.roomId;
       navigate(roomPath(sync.self.roomId));
     }
   }, [route, sync.self]);

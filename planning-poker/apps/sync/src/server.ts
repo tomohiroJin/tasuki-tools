@@ -38,7 +38,34 @@ function newIds(): { participantId: string; token: string } {
   return { participantId: crypto.randomUUID(), token: crypto.randomUUID() };
 }
 
+/**
+ * 接続を現在のルームから切り離す共通処理（close と再 join/再 create で共用）。
+ * connected 更新・ホスト繰上（FR-012）・自動公開の再評価（US4-AS1）・
+ * 接続数 0 での即時破棄（FR-014）をここで一元的に行う。
+ */
+function detachFromCurrentRoom(ws: Ws): void {
+  const { participantId, roomId } = ws.data;
+  ws.data.participantId = null;
+  ws.data.roomId = null;
+  if (participantId === null || roomId === null) return;
+  const entry = getRoom(roomId);
+  if (!entry) return;
+  // 同一参加者が別ソケットで再接続済みなら（socket が入れ替わっていたら）何もしない
+  if (entry.sockets.get(participantId) !== ws) return;
+  entry.sockets.delete(participantId);
+
+  if (entry.sockets.size === 0) {
+    dropIfEmpty(roomId);
+    return;
+  }
+
+  entry.room = applyAutoReveal(markDisconnected(entry.room, participantId));
+  broadcast(entry);
+}
+
 function handleCreateRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'create-room' }>): void {
+  // すでに別ルームに参加中のソケット（二重送信・SPA 遷移）は先に切り離す
+  detachFromCurrentRoom(ws);
   const ids = newIds();
   const result = createRoom(generateRoomId(), msg.name, ids);
   if (result.isErr()) {
@@ -60,6 +87,9 @@ function handleJoinRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'join-room' 
     sendError(ws, 'room-not-found', 'ルームが見つかりません');
     return;
   }
+
+  // 参加先の存在を確認してから、参加中の別ルームを切り離す（二重送信・SPA 遷移対策）
+  detachFromCurrentRoom(ws);
 
   // token 照合による同一参加者の復帰（FR-013）。一致すれば name は無視する
   if (msg.token !== undefined) {
@@ -187,23 +217,7 @@ const server = Bun.serve<ConnectionData, never>({
       dispatch(ws, result.value);
     },
     close(ws) {
-      const { participantId, roomId } = ws.data;
-      if (participantId === null || roomId === null) return;
-      const entry = getRoom(roomId);
-      if (!entry) return;
-      // 同一参加者が再接続済みなら（socket が入れ替わっていたら）何もしない
-      if (entry.sockets.get(participantId) !== ws) return;
-      entry.sockets.delete(participantId);
-
-      // 接続数 0 → ルーム即時破棄（FR-014）
-      if (entry.sockets.size === 0) {
-        dropIfEmpty(roomId);
-        return;
-      }
-
-      // connected 更新 + ホスト繰上（FR-012）+ 自動公開の再評価（US4-AS1）
-      entry.room = applyAutoReveal(markDisconnected(entry.room, participantId));
-      broadcast(entry);
+      detachFromCurrentRoom(ws);
     },
   },
 });
