@@ -1,5 +1,5 @@
 // ルームレジストリ（揮発インメモリ。憲法原則 III / FR-014）
-import { snapshotFor, type Room } from '@planning-poker/core';
+import { createSnapshotBuilder, type Room } from '@planning-poker/core';
 
 export interface RoomSocket {
   send(data: string): void;
@@ -35,9 +35,11 @@ export function dropIfEmpty(roomId: string): void {
   if (entry && entry.sockets.size === 0) rooms.delete(roomId);
 }
 
-/** ルーム内の各接続へ受信者別スナップショットを配信する（research R1） */
+/** ルーム内の各接続へ受信者別スナップショットを配信する（research R1）。
+    共有部分（参加者一覧・集計）は 1 回だけ構築し、受信者差分のみ組み立てる */
 export function broadcast(entry: RoomEntry): void {
+  const snapshotOf = createSnapshotBuilder(entry.room);
   for (const [participantId, socket] of entry.sockets) {
-    socket.send(JSON.stringify(snapshotFor(entry.room, participantId)));
+    socket.send(JSON.stringify(snapshotOf(participantId)));
   }
 }

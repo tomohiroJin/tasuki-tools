@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseRoute, roomPath } from '../src/router';
+import { parseRoute, roomPath, topPath } from '../src/router';
 
 describe('parseRoute', () => {
   it.each([
@@ -26,8 +26,14 @@ describe('parseRoute', () => {
   });
 });
 
-describe('roomPath', () => {
+describe('roomPath / topPath', () => {
   it('roomId からルーム画面のパスを生成する', () => {
     expect(roomPath('a1b2c3d4')).toBe('/poker/room/a1b2c3d4');
+  });
+
+  it('topPath はトップ画面のパスを返し、parseRoute と往復できる', () => {
+    expect(topPath()).toBe('/poker/');
+    expect(parseRoute(topPath())).toEqual({ name: 'top' });
+    expect(parseRoute(roomPath('a1b2c3d4'))).toEqual({ name: 'room', roomId: 'a1b2c3d4' });
   });
 });

@@ -53,9 +53,8 @@ ID・トークンの生成規則は [research.md R3/R4](./research.md) を参照
 | フィールド | 型 | 説明 |
 |-----------|-----|------|
 | id | string | ルーム ID（8 文字英数字、招待リンクの構成要素） |
-| participants | Participant[] | 参加者一覧（joinOrder 順） |
+| participants | Participant[] | 参加者一覧（joinOrder 順。joinOrder は既存の最大値 +1 で採番） |
 | round | Round | 現在のラウンド（常に 1 つ。履歴は保持しない） |
-| nextJoinOrder | number | joinOrder 採番用カウンタ |
 
 - **ライフサイクル**: 作成（ホスト参加と同時）→ 稼働 → 接続数 0 で即時破棄（FR-014）
 - **不変条件**:

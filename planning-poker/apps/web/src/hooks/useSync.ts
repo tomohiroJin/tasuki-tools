@@ -119,7 +119,9 @@ export function usePokerSync(): PokerSync {
     };
   }, []);
 
-  return useMemo(() => {
+  // アクションは ref と安定な setter しか参照しないため一度だけ生成する
+  // （メッセージ受信のたびにコールバック群が新品になり、子のメモ化や effect を無駄に動かすのを防ぐ）
+  const actions = useMemo(() => {
     const send = (msg: ClientMessage) => {
       // CONNECTING 中の send は例外になるため、開いている時だけ送る
       if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -127,25 +129,25 @@ export function usePokerSync(): PokerSync {
       }
     };
     return {
-      status,
-      self,
-      snapshot,
-      joinedThisConnection,
-      error,
       clearError: () => setError(null),
-      createRoom: (name) => {
+      createRoom: (name: string) => {
         pendingNameRef.current = name;
         setError(null); // 新しい試行で過去のエラーをリセット
         send({ type: 'create-room', name });
       },
-      joinRoom: (roomId, name, token) => {
+      joinRoom: (roomId: string, name: string, token?: string) => {
         pendingNameRef.current = name;
         setError(null);
         send({ type: 'join-room', roomId, name, ...(token !== undefined ? { token } : {}) });
       },
-      vote: (card) => send({ type: 'vote', card }),
+      vote: (card: Card) => send({ type: 'vote', card }),
       reveal: () => send({ type: 'reveal' }),
       nextRound: () => send({ type: 'next-round' }),
     };
-  }, [status, self, snapshot, joinedThisConnection, error]);
+  }, []);
+
+  return useMemo(
+    () => ({ status, self, snapshot, joinedThisConnection, error, ...actions }),
+    [status, self, snapshot, joinedThisConnection, error, actions],
+  );
 }

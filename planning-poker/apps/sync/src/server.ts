@@ -1,5 +1,6 @@
 // Bun + WebSocket 同期サーバー
 // 境界: 受信テキスト → parseClientMessage（Valibot）→ ディスパッチ（憲法原則 IV）
+import type { Result } from 'neverthrow';
 import {
   applyAutoReveal,
   castVote,
@@ -11,11 +12,12 @@ import {
   nextRound,
   parseClientMessage,
   revealBy,
-  type Card,
   type ClientMessage,
   type ErrorCode,
+  type Room,
+  type RoundError,
 } from '@planning-poker/core';
-import { broadcast, dropIfEmpty, generateRoomId, getRoom, putRoom } from './rooms';
+import { broadcast, dropIfEmpty, generateRoomId, getRoom, putRoom, type RoomEntry } from './rooms';
 
 /** 接続ごとの状態。join 後に participantId / roomId が入る */
 export interface ConnectionData {
@@ -63,6 +65,18 @@ function detachFromCurrentRoom(ws: Ws): void {
   broadcast(entry);
 }
 
+/**
+ * join 成功の完了処理（create / token 復帰 / 新規 join の3経路で共用）。
+ * 順序に不変条件がある: socket 登録 → 接続状態の更新 → joined 送信 → 全員へ配信
+ */
+function completeJoin(ws: Ws, entry: RoomEntry, participantId: string, token: string): void {
+  entry.sockets.set(participantId, ws);
+  ws.data.participantId = participantId;
+  ws.data.roomId = entry.room.id;
+  sendJoined(ws, entry.room.id, participantId, token);
+  broadcast(entry);
+}
+
 function handleCreateRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'create-room' }>): void {
   // すでに別ルームに参加中のソケット（二重送信・SPA 遷移）は先に切り離す
   detachFromCurrentRoom(ws);
@@ -73,12 +87,9 @@ function handleCreateRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'create-ro
     return;
   }
   const { room, participant } = result.value;
-  const entry = { room, sockets: new Map([[participant.id, ws]]) };
+  const entry: RoomEntry = { room, sockets: new Map() };
   putRoom(entry);
-  ws.data.participantId = participant.id;
-  ws.data.roomId = room.id;
-  sendJoined(ws, room.id, participant.id, ids.token);
-  broadcast(entry);
+  completeJoin(ws, entry, participant.id, ids.token);
 }
 
 function handleJoinRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'join-room' }>): void {
@@ -92,17 +103,11 @@ function handleJoinRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'join-room' 
   detachFromCurrentRoom(ws);
 
   // token 照合による同一参加者の復帰（FR-013）。一致すれば name は無視する
-  if (msg.token !== undefined) {
-    const existing = findParticipantByToken(entry.room, msg.token);
-    if (existing) {
-      entry.room = markConnected(entry.room, existing.id);
-      entry.sockets.set(existing.id, ws);
-      ws.data.participantId = existing.id;
-      ws.data.roomId = entry.room.id;
-      sendJoined(ws, entry.room.id, existing.id, existing.token);
-      broadcast(entry);
-      return;
-    }
+  const existing = msg.token !== undefined ? findParticipantByToken(entry.room, msg.token) : undefined;
+  if (existing) {
+    entry.room = markConnected(entry.room, existing.id);
+    completeJoin(ws, entry, existing.id, existing.token);
+    return;
   }
 
   const ids = newIds();
@@ -112,66 +117,32 @@ function handleJoinRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'join-room' 
     return;
   }
   entry.room = result.value.room;
-  entry.sockets.set(result.value.participant.id, ws);
-  ws.data.participantId = result.value.participant.id;
-  ws.data.roomId = entry.room.id;
-  sendJoined(ws, entry.room.id, result.value.participant.id, ids.token);
-  broadcast(entry);
+  completeJoin(ws, entry, result.value.participant.id, ids.token);
 }
 
-/** join 済み接続のルーム内操作。ドメイン操作の Result をエラー応答/配信へ写す */
-function handleRoomAction(
+/**
+ * join 済み接続によるルーム状態変更の単一コミットポイント。
+ * not-joined 検査 → ドメイン操作 → エラー応答/状態反映 → 自動公開の再評価（FR-008）→ 配信
+ * をここで一元的に行う。新しい操作の追加はドメイン関数を渡すだけでよい
+ */
+function commitRoomAction(
   ws: Ws,
-  action: (roomId: string, participantId: string) => void,
+  action: (room: Room, participantId: string) => Result<Room, RoundError>,
 ): void {
   const { participantId, roomId } = ws.data;
   if (participantId === null || roomId === null) {
     sendError(ws, 'not-joined', 'ルームに参加していません');
     return;
   }
-  action(roomId, participantId);
-}
-
-function handleVote(ws: Ws, card: Card): void {
-  handleRoomAction(ws, (roomId, participantId) => {
-    const entry = getRoom(roomId);
-    if (!entry) return;
-    const result = castVote(entry.room, participantId, card);
-    if (result.isErr()) {
-      sendError(ws, result.error.code, result.error.message);
-      return;
-    }
-    entry.room = applyAutoReveal(result.value); // 全員投票なら即 revealed（FR-008）
-    broadcast(entry);
-  });
-}
-
-function handleReveal(ws: Ws): void {
-  handleRoomAction(ws, (roomId, participantId) => {
-    const entry = getRoom(roomId);
-    if (!entry) return;
-    const result = revealBy(entry.room, participantId);
-    if (result.isErr()) {
-      sendError(ws, result.error.code, result.error.message);
-      return;
-    }
-    entry.room = result.value;
-    broadcast(entry);
-  });
-}
-
-function handleNextRound(ws: Ws): void {
-  handleRoomAction(ws, (roomId, participantId) => {
-    const entry = getRoom(roomId);
-    if (!entry) return;
-    const result = nextRound(entry.room, participantId);
-    if (result.isErr()) {
-      sendError(ws, result.error.code, result.error.message);
-      return;
-    }
-    entry.room = result.value;
-    broadcast(entry);
-  });
+  const entry = getRoom(roomId);
+  if (!entry) return;
+  const result = action(entry.room, participantId);
+  if (result.isErr()) {
+    sendError(ws, result.error.code, result.error.message);
+    return;
+  }
+  entry.room = applyAutoReveal(result.value);
+  broadcast(entry);
 }
 
 function dispatch(ws: Ws, msg: ClientMessage): void {
@@ -183,13 +154,13 @@ function dispatch(ws: Ws, msg: ClientMessage): void {
       handleJoinRoom(ws, msg);
       return;
     case 'vote':
-      handleVote(ws, msg.card);
+      commitRoomAction(ws, (room, participantId) => castVote(room, participantId, msg.card));
       return;
     case 'reveal':
-      handleReveal(ws);
+      commitRoomAction(ws, revealBy);
       return;
     case 'next-round':
-      handleNextRound(ws);
+      commitRoomAction(ws, nextRound);
       return;
   }
 }

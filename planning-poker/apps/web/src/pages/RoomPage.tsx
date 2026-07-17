@@ -1,10 +1,12 @@
 // ルーム画面: 未参加なら参加フォーム、参加後は招待リンク + 参加者一覧 + 投票（US1/US2/US4）
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { RoomStateMessage } from '@planning-poker/core';
 import { CardHand } from '../components/CardHand';
+import { NameForm } from '../components/NameForm';
 import { ParticipantList } from '../components/ParticipantList';
 import { Results } from '../components/Results';
 import type { PokerSync } from '../hooks/useSync';
+import { roomPath, topPath } from '../router';
 import { clearIdentity, loadIdentity } from '../storage';
 
 interface Props {
@@ -13,34 +15,15 @@ interface Props {
 }
 
 function JoinForm({ roomId, sync }: Props) {
-  const [name, setName] = useState('');
-  const canSubmit =
-    name.trim().length >= 1 && name.trim().length <= 24 && sync.status === 'open';
-
-  const handleSubmit = (event: FormEvent) => {
-    event.preventDefault();
-    if (canSubmit) sync.joinRoom(roomId, name.trim());
-  };
-
   return (
     <main className="page">
       <h1>ルームに参加</h1>
-      <form onSubmit={handleSubmit} className="stack">
-        <label>
-          あなたの名前
-          <input
-            type="text"
-            value={name}
-            maxLength={24}
-            placeholder="例: はなこ"
-            onChange={(e) => setName(e.target.value)}
-            autoFocus
-          />
-        </label>
-        <button type="submit" disabled={!canSubmit}>
-          参加する
-        </button>
-      </form>
+      <NameForm
+        submitLabel="参加する"
+        placeholder="例: はなこ"
+        onSubmit={(name) => sync.joinRoom(roomId, name)}
+        disabled={sync.status !== 'open'}
+      />
     </main>
   );
 }
@@ -60,7 +43,7 @@ function legacyCopy(text: string): void {
 
 function InviteLink({ roomId }: { roomId: string }) {
   const [copyState, setCopyState] = useState<'idle' | 'done' | 'failed'>('idle');
-  const url = `${location.origin}/poker/room/${roomId}`;
+  const url = `${location.origin}${roomPath(roomId)}`;
 
   const copy = async () => {
     try {
@@ -122,7 +105,7 @@ export function RoomPage({ roomId, sync }: Props) {
       <main className="page">
         <h1>ルームが見つかりません</h1>
         <p>ルームは終了したか、リンクが正しくない可能性があります。</p>
-        <a href="/poker/">トップへ戻る</a>
+        <a href={topPath()}>トップへ戻る</a>
       </main>
     );
   }

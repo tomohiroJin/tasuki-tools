@@ -20,6 +20,9 @@ importers:
       '@planning-poker/core':
         specifier: workspace:*
         version: link:../../packages/core
+      neverthrow:
+        specifier: ^8.2.0
+        version: 8.2.0
     devDependencies:
       '@types/bun':
         specifier: ^1.2.0

@@ -105,4 +105,8 @@ planning-poker/                  # 独立 pnpm モノレポ
 
 ## Complexity Tracking
 
-憲法違反なし。記載事項なし。
+| Violation | Why Needed | Simpler Alternative Rejected Because |
+|-----------|------------|-------------------------------------|
+| Google Fonts（fonts.googleapis.com への外部ランタイム依存。原則 II の「上記以外の依存」に該当しうる） | UI 刷新で採用した書体（Fraunces / Zen Kaku Gothic New）の配信。npm 依存は増やさない | フォント同梱（self-hosting）はアセット管理・サブセット化・ライセンス確認の作業が増えるため初回リリースでは見送り。オフライン/CDN 障害時はフォールバックフォント（Hiragino 等）で機能に影響なし。将来同梱に切替可 |
+
+上記以外の憲法違反なし。

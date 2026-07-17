@@ -18,6 +18,11 @@ export function roomPath(roomId: string): string {
   return `${BASE}/room/${roomId}`;
 }
 
+/** トップ画面のパス（招待 URL・戻りリンクの単一情報源） */
+export function topPath(): string {
+  return `${BASE}/`;
+}
+
 /** History API で遷移し、popstate 相当の再描画を促す */
 export function navigate(path: string): void {
   history.pushState(null, '', path);

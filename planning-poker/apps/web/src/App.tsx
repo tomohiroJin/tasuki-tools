@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { navigate, parseRoute, roomPath } from './router';
+import { navigate, parseRoute, roomPath, topPath } from './router';
 import { usePokerSync } from './hooks/useSync';
 import { TopPage } from './pages/TopPage';
 import { RoomPage } from './pages/RoomPage';
@@ -44,7 +44,7 @@ export function App() {
           <main className="page">
             <h1>ページが見つかりません</h1>
             <p>リンクの形式が正しくない可能性があります。</p>
-            <a href="/poker/">トップへ戻る</a>
+            <a href={topPath()}>トップへ戻る</a>
           </main>
         );
     }

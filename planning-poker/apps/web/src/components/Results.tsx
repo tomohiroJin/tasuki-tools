@@ -15,17 +15,18 @@ function formatAverage(average: number | null): string {
 }
 
 export function Results({ participants, votes, stats }: Props) {
+  const voteByParticipant = new Map(votes.map((v) => [v.participantId, v.card]));
   return (
     <section>
       <h2>結果</h2>
       <ul className="votes">
         {participants.map((p) => {
-          const vote = votes.find((v) => v.participantId === p.id);
+          const vote = voteByParticipant.get(p.id);
           return (
             <li key={p.id}>
               <span className="name">{p.name}</span>
               {vote ? (
-                <span className="card small">{cardLabel(vote.card)}</span>
+                <span className="card small">{cardLabel(vote)}</span>
               ) : (
                 <span className="no-vote">未投票</span>
               )}

@@ -23,7 +23,6 @@ export interface Room {
   id: string;
   participants: Participant[];
   round: Round;
-  nextJoinOrder: number;
 }
 
 export type RoomError = { code: 'invalid-name'; message: string };
@@ -33,17 +32,22 @@ export interface ParticipantIds {
   token: string;
 }
 
-const NAME_MAX_LENGTH = 24;
+/** 名前ルールの単一情報源（プロトコルスキーマ・画面のフォームもこれを参照する） */
+export const NAME_MAX_LENGTH = 24;
+
+export function isValidName(raw: string): boolean {
+  const name = raw.trim();
+  return name.length >= 1 && name.length <= NAME_MAX_LENGTH;
+}
 
 function validateName(raw: string): Result<string, RoomError> {
-  const name = raw.trim();
-  if (name.length < 1 || name.length > NAME_MAX_LENGTH) {
+  if (!isValidName(raw)) {
     return err({
       code: 'invalid-name',
       message: `名前は 1〜${NAME_MAX_LENGTH} 文字で入力してください`,
     });
   }
-  return ok(name);
+  return ok(raw.trim());
 }
 
 export interface RoomUpdate {
@@ -70,7 +74,6 @@ export function createRoom(
       id: roomId,
       participants: [participant],
       round: { status: 'voting', votes: new Map() },
-      nextJoinOrder: 1,
     };
     return { room, participant };
   });
@@ -133,18 +136,19 @@ export function joinRoom(
   ids: ParticipantIds,
 ): Result<RoomUpdate, RoomError> {
   return validateName(rawName).map((name) => {
+    // 参加者は削除されない（切断は connected フラグのみ）ため、最大値 +1 で単調増加が保てる
+    const joinOrder = Math.max(-1, ...room.participants.map((p) => p.joinOrder)) + 1;
     const participant: Participant = {
       id: ids.participantId,
       token: ids.token,
       name,
       isHost: false,
       connected: true,
-      joinOrder: room.nextJoinOrder,
+      joinOrder,
     };
     const updated: Room = {
       ...room,
       participants: [...room.participants, participant],
-      nextJoinOrder: room.nextJoinOrder + 1,
     };
     return { room: updated, participant };
   });

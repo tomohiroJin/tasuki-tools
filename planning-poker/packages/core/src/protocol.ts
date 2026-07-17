@@ -3,6 +3,7 @@
 import * as v from 'valibot';
 import { err, ok, type Result } from 'neverthrow';
 import { NUMBER_CARD_VALUES, type Card } from './deck';
+import { NAME_MAX_LENGTH } from './room';
 
 // --- スキーマ ---
 
@@ -12,7 +13,8 @@ const CardSchema = v.variant('kind', [
   v.strictObject({ kind: v.literal('coffee') }),
 ]);
 
-const NameSchema = v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(24));
+// 名前ルールは room.ts の NAME_MAX_LENGTH が単一情報源
+const NameSchema = v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(NAME_MAX_LENGTH));
 
 export const ClientMessageSchema = v.variant('type', [
   v.strictObject({ type: v.literal('create-room'), name: NameSchema }),

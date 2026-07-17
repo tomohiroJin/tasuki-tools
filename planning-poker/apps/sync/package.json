@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@planning-poker/core": "workspace:*"
+    "@planning-poker/core": "workspace:*",
+    "neverthrow": "^8.2.0"
   },
   "devDependencies": {
     "@types/bun": "^1.2.0",
