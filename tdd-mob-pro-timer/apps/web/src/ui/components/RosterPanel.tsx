@@ -77,6 +77,9 @@ interface RosterPanelProps {
    *  true（Session）なら自分の行には一時離脱/復帰を出さず重複を避ける。
    *  false/未指定（Solo 等・自己トグル無し）なら自分の行にも出す。 */
   selfHasExternalToggle?: boolean;
+  /** ホストが任意メンバーを現ドライバーに指名する（Issue #13・host 限定）。
+   *  未指定なら指名ボタンを描画しない（ソロ等の非対応コンシューマ向け）。 */
+  onAssignDriver?: (participantId: string) => void;
 }
 
 export function RosterPanel({
@@ -93,6 +96,7 @@ export function RosterPanel({
   onTransferHost,
   rotation,
   onMove,
+  onAssignDriver,
   scrollable = false,
 }: RosterPanelProps) {
   const [proxyName, setProxyName] = useState("");
@@ -245,6 +249,16 @@ export function RosterPanel({
                   ) : (
                     <MiniButton onClick={() => onSkip(p.participantId)}>一時離脱</MiniButton>
                   ))}
+                {/* ホストは現ドライバー以外の rotation メンバーを即ドライバーに指名できる（Issue #13）。 */}
+                {canHostAction && onAssignDriver && inRotation && !isCurrentDriver && (
+                  <MiniButton
+                    onClick={() => onAssignDriver(p.participantId)}
+                    aria-label={`${p.displayName} をドライバーにする`}
+                    title="ドライバーにする"
+                  >
+                    ドライバーにする
+                  </MiniButton>
+                )}
                 {/* ホストはドライバー順を入れ替えられる（v2.3 #1）。
                     ドライバー行（rotation に含まれる）にのみ上/下を出す。先頭/末尾は無効化。 */}
                 {canMove && (

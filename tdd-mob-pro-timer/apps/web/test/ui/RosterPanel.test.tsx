@@ -4,7 +4,7 @@
  * Task 6: セクション分割（ドライバー/見学）・現ドライバー最上部・情報階層化
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import React from "react";
 import { RosterPanel } from "../../src/ui/components/RosterPanel.js";
@@ -491,5 +491,88 @@ describe("RosterPanel セクション分割", () => {
       .getAllByRole("listitem")
       .map((li) => (li.textContent!.match(/[A-E]/) ?? [""])[0]);
     expect(order).toEqual(["D", "E", "A", "B", "C"]);
+  });
+});
+
+describe("RosterPanel ドライバー指名（Issue #13）", () => {
+  const onAssignDriver = vi.fn();
+  const hostProps = {
+    myParticipantId: "x",
+    canHostAction: true,
+    onRename: vi.fn(), onSkip: vi.fn(), onResume: vi.fn(), onAddProxy: vi.fn(),
+    onAssignDriver,
+  };
+  beforeEach(() => onAssignDriver.mockClear());
+
+  it("host は現ドライバー以外の rotation 行に「ドライバーにする」を表示する", () => {
+    render(
+      <RosterPanel
+        {...hostProps}
+        participants={[mk("a", "Alice"), mk("b", "Bob")]}
+        currentDriverName="Alice"
+        rotation={["Alice", "Bob"]}
+      />,
+    );
+    const list = screen.getByRole("list", { name: "ドライバー一覧" });
+    const bobItem = within(list).getByText("Bob").closest("li") as HTMLElement;
+    expect(within(bobItem).queryByRole("button", { name: /ドライバーにする/ })).toBeTruthy();
+  });
+
+  it("現ドライバー行には「ドライバーにする」を表示しない", () => {
+    render(
+      <RosterPanel
+        {...hostProps}
+        participants={[mk("a", "Alice"), mk("b", "Bob")]}
+        currentDriverName="Alice"
+        rotation={["Alice", "Bob"]}
+      />,
+    );
+    const list = screen.getByRole("list", { name: "ドライバー一覧" });
+    const aliceItem = within(list).getByText("Alice").closest("li") as HTMLElement;
+    expect(within(aliceItem).queryByRole("button", { name: /ドライバーにする/ })).toBeNull();
+  });
+
+  it("非 host には「ドライバーにする」を表示しない", () => {
+    render(
+      <RosterPanel
+        {...hostProps}
+        canHostAction={false}
+        participants={[mk("a", "Alice"), mk("b", "Bob")]}
+        currentDriverName="Alice"
+        rotation={["Alice", "Bob"]}
+      />,
+    );
+    const list = screen.getByRole("list", { name: "ドライバー一覧" });
+    const bobItem = within(list).getByText("Bob").closest("li") as HTMLElement;
+    expect(within(bobItem).queryByRole("button", { name: /ドライバーにする/ })).toBeNull();
+  });
+
+  it("見学者（rotation 外）には「ドライバーにする」を表示しない", () => {
+    render(
+      <RosterPanel
+        {...hostProps}
+        participants={[mk("a", "Alice"), mk("w", "Watcher")]}
+        currentDriverName="Alice"
+        rotation={["Alice"]}
+      />,
+    );
+    const watchList = screen.getByRole("list", { name: "見学一覧" });
+    const wItem = within(watchList).getByText("Watcher").closest("li") as HTMLElement;
+    expect(within(wItem).queryByRole("button", { name: /ドライバーにする/ })).toBeNull();
+  });
+
+  it("押下で onAssignDriver を participantId 付きで発火する", () => {
+    render(
+      <RosterPanel
+        {...hostProps}
+        participants={[mk("a", "Alice"), mk("b", "Bob")]}
+        currentDriverName="Alice"
+        rotation={["Alice", "Bob"]}
+      />,
+    );
+    const list = screen.getByRole("list", { name: "ドライバー一覧" });
+    const bobItem = within(list).getByText("Bob").closest("li") as HTMLElement;
+    fireEvent.click(within(bobItem).getByRole("button", { name: /ドライバーにする/ }));
+    expect(onAssignDriver).toHaveBeenCalledWith("b");
   });
 });
