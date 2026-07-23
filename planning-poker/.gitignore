@@ -1,0 +1,22 @@
+# dependencies
+node_modules/
+
+# build outputs
+dist/
+build/
+.turbo/
+
+# logs
+*.log
+
+# env
+.env
+.env.*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+.playwright-mcp/
+*.png

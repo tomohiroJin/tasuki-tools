@@ -1,0 +1,50 @@
+# Tasuki Planning Poker
+
+スクラムのストーリーポイント見積もりを、ルーム同期でリアルタイムに行うプランニングポーカー。
+GitHub spec-kit（specify CLI）のフルワークフロー実践を兼ねた Tasuki ツール2号です。
+
+- 公開 URL（予定）: `https://tasuki.niku9.click/poker`
+- 仕様・設計: [`specs/001-planning-poker-mvp/`](./specs/001-planning-poker-mvp/)（spec / plan / research / data-model / contracts / quickstart / tasks）
+- プロジェクト憲法: [`.specify/memory/constitution.md`](./.specify/memory/constitution.md)
+
+## 機能（MVP）
+
+- ルーム作成と招待リンク参加（名前入力のみ、アカウント不要）
+- フィボナッチデッキ（0, 1, 2, 3, 5, 8, 13, 21, ?, ☕）による秘匿投票
+- 全員投票 or ホスト操作で一斉公開、平均・最頻値の表示（? / ☕ は平均から除外）
+- 再投票・次ラウンド、切断時のホスト権限繰上、同一ブラウザからのトークン自動復帰
+- 状態は揮発インメモリ（全員切断でルーム即時破棄。DB なし）
+
+## 構成
+
+pnpm + turbo のモノレポ（詳細は [plan.md](./specs/001-planning-poker-mvp/plan.md)）:
+
+| パッケージ | 役割 |
+|-----------|------|
+| `packages/core` | ドメイン（Room 集約・ラウンド状態機械・集計）+ WS プロトコル契約（Valibot / neverthrow） |
+| `apps/web` | React + Vite フロントエンド（base: `/poker/`） |
+| `apps/sync` | Bun + WebSocket 同期サーバー（受信者別秘匿スナップショット配信） |
+| `deploy/` | Caddyfile 断片・systemd ユニット・デプロイスクリプト |
+
+## 開発
+
+前提: Bun 1.x / Node.js 20+ / pnpm 9+
+
+```bash
+pnpm install
+
+# テスト・型検査（TDD: core 単体 + sync プロトコル結合 + web ユニット）
+pnpm turbo test typecheck
+
+# 開発サーバー（2プロセス）
+pnpm --filter @planning-poker/sync dev   # WS サーバー :3311
+pnpm --filter @planning-poker/web dev    # Vite（/poker/ 配信、WS は :3311 へ proxy）
+```
+
+ブラウザで `http://localhost:5173/poker/` を開く。動作検証シナリオは
+[quickstart.md](./specs/001-planning-poker-mvp/quickstart.md) を参照。
+
+## デプロイ
+
+`pnpm turbo build` 後、`deploy/` の Caddyfile 断片と systemd ユニットを適用する
+（implement の最終フェーズ。詳細は [deploy/README.md](./deploy/README.md)）。
