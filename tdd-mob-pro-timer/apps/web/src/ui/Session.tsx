@@ -56,6 +56,8 @@ interface SessionProps {
   onRenameParticipant: (participantId: string, displayName: string) => void;
   onDriverSkip: (participantId: string) => void;
   onDriverResume: (participantId: string) => void;
+  /** ホストが任意メンバーを現ドライバーに指名する（Issue #13）。 */
+  onDriverAssign: (participantId: string) => void;
   onAddProxy: (displayName: string) => void;
   /** 引き継ぎメモの更新（editor+ のみ・§9.1）。handoff.note.set を送る。 */
   onHandoffNoteSet?: (text: string) => void;
@@ -101,6 +103,7 @@ export function Session({
   onRenameParticipant,
   onDriverSkip,
   onDriverResume,
+  onDriverAssign,
   onAddProxy,
   onHandoffNoteSet,
   onJoinRotation,
@@ -392,6 +395,7 @@ export function Session({
           onRename={onRenameParticipant}
           onSkip={onDriverSkip}
           onResume={onDriverResume}
+          onAssignDriver={onDriverAssign}
           onAddProxy={onAddProxy}
           onRemove={onRemoveParticipant}
           onTransferHost={onTransferHost}
@@ -450,6 +454,7 @@ export function Session({
                     onRename={onRenameParticipant}
                     onSkip={onDriverSkip}
                     onResume={onDriverResume}
+                    onAssignDriver={onDriverAssign}
                     onAddProxy={onAddProxy}
                     onRemove={onRemoveParticipant}
                     onTransferHost={onTransferHost}
