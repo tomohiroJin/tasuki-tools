@@ -489,3 +489,50 @@ describe("decide: problem.mode.set（T019）", () => {
     }
   });
 });
+
+// ─── driver.assign（Issue #13 強制指名） ──────────────────────────────────────
+
+describe("decide: driver.assign（任意メンバー強制指名）", () => {
+  // baseAgg は members [Alice, Bob, Charlie]・currentIndex 0。
+  const runningAgg = {
+    ...baseAgg,
+    clock: { ...baseAgg.clock, running: true },
+  };
+
+  it("稼働中に有効 index を指名すると DriverSwitched を発行する", () => {
+    const result = decide({ command: "driver.assign", index: 2 }, runningAgg, NOW);
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value).toHaveLength(1);
+      const switched = result.value[0];
+      expect(switched?.type).toBe("DriverSwitched");
+      if (switched?.type === "DriverSwitched") {
+        expect(switched.nextIndex).toBe(2);
+      }
+    }
+  });
+
+  it("現ドライバー自身の指名は no-op（空イベント）を返す", () => {
+    const result = decide({ command: "driver.assign", index: 0 }, runningAgg, NOW);
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value).toHaveLength(0);
+    }
+  });
+
+  it("rotation 範囲外の index は InvalidIndex を返す", () => {
+    const result = decide({ command: "driver.assign", index: 5 }, runningAgg, NOW);
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.type).toBe("InvalidIndex");
+    }
+  });
+
+  it("非稼働中の指名は PhaseConflict を返す", () => {
+    const result = decide({ command: "driver.assign", index: 1 }, baseAgg, NOW);
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.type).toBe("PhaseConflict");
+    }
+  });
+});
