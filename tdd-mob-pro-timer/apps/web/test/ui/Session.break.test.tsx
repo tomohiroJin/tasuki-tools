@@ -38,7 +38,7 @@ function handlers() {
   return {
     onSkip: noop, onPause: noop, onResume: noop, onComplete: noop, onAbort: noop,
     onReset: noop, onRenameParticipant: noop,
-    onDriverSkip: noop, onDriverResume: noop, onAddProxy: noop, onHandoffNoteSet: noop,
+    onDriverSkip: noop, onDriverResume: noop, onDriverAssign: noop, onAddProxy: noop, onHandoffNoteSet: noop,
   };
 }
 

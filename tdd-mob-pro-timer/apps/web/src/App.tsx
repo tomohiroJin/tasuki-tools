@@ -426,6 +426,9 @@ export default function App() {
   const rosterResume = (pid: string) => {
     client?.send({ command: "driver.resume", participantId: pid });
   };
+  const rosterAssign = (pid: string) => {
+    client?.send({ command: "driver.assign", participantId: pid });
+  };
   const rosterAddProxy = (displayName: string) => {
     client?.send({ command: "participant.addProxy", participantId: makeProxyId(), displayName });
   };
@@ -571,6 +574,7 @@ export default function App() {
           onRenameParticipant={rosterRename}
           onDriverSkip={rosterSkip}
           onDriverResume={rosterResume}
+          onDriverAssign={rosterAssign}
           onAddProxy={rosterAddProxy}
           onRemoveParticipant={removeParticipant}
           onTransferHost={handleTransferHost}

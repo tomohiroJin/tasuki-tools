@@ -201,6 +201,11 @@ const DriverResumeCommand = v.object({
   participantId,
 });
 
+const DriverAssignCommand = v.object({
+  command: v.literal("driver.assign"),
+  participantId,
+});
+
 const ProblemPatchSchema = v.partial(v.object({
   title: problemTitleStr,
   description: problemTextStr,
@@ -274,6 +279,7 @@ export const CommandSchema = v.variant("command", [
   ParticipantRemoveCommand,
   DriverSkipCommand,
   DriverResumeCommand,
+  DriverAssignCommand,
   ProblemEditCommand,
   ProblemModeSetCommand,
   RoomPassphraseSetCommand,

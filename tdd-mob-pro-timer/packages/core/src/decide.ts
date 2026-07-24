@@ -34,6 +34,7 @@ export type DecideCommand =
   | { command: "participant.rename"; participantId: string; displayName: string; currentDisplayName?: string }
   | { command: "driver.skip"; participantId: string }
   | { command: "driver.resume"; participantId: string }
+  | { command: "driver.assign"; index: number }
   | { command: "problem.edit"; patch: { title?: string; description?: string; requirements?: string[]; exampleTest?: string; hints?: string[] } }
   | { command: "problem.mode.set"; mode: ProblemMode };
 
@@ -96,6 +97,9 @@ export function decide(
 
     case "driver.resume":
       return ok([{ type: "DriverResumed", participantId: cmd.participantId, now }]);
+
+    case "driver.assign":
+      return decideDriverAssign(cmd.index, agg, now);
 
     case "problem.edit":
       return decideProblemEdit(cmd.patch, now);
@@ -219,6 +223,37 @@ function decideSessionAct(
       }
       return ok([{ type: "SessionResumed", now }]);
   }
+}
+
+/**
+ * 任意メンバーへドライバーを強制指名する（Issue #13）。
+ * 既存 DriverSwitched を任意 index で発行し、evolve の担当回数加算・満タン再アンカーを流用する。
+ * 稼働中のみ・rotation 範囲内のみ許可し、現ドライバー自身の指名は no-op（空イベント）とする。
+ */
+function decideDriverAssign(
+  index: number,
+  agg: Aggregate,
+  now: number,
+): Result<DomainEvent[], DomainError> {
+  const { clock, session } = agg;
+
+  // 稼働中でなければ指名しない（SWITCH と同じガード）。
+  if (!clock.running) {
+    return err({
+      type: "PhaseConflict",
+      currentPhase: "stopped",
+      requiredPhase: "session",
+    });
+  }
+  // rotation 範囲外は不正。
+  if (index < 0 || index >= session.rotation.length) {
+    return err({ type: "InvalidIndex", index, max: session.rotation.length - 1 });
+  }
+  // 現ドライバー自身の指名は no-op（イベント無し）。
+  if (index === session.currentIndex) {
+    return ok([]);
+  }
+  return ok([{ type: "DriverSwitched", nextIndex: index, now }]);
 }
 
 // ─── メンバー管理 ────────────────────────────────────────────────────────────

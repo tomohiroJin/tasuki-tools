@@ -80,6 +80,7 @@ function baseHandlers() {
     onRenameParticipant: noop,
     onDriverSkip: noop,
     onDriverResume: noop,
+    onDriverAssign: noop,
     onAddProxy: noop,
   };
 }

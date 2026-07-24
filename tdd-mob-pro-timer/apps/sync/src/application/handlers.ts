@@ -571,6 +571,36 @@ export function makeHandlers(deps: HandlerDeps) {
       }
       domainCmd.currentDisplayName = target.displayName;
     }
+    // 指名は participantId → 表示名 → rotation index を解決して decide へ渡す（Issue #13）。
+    // 集約は participantId→名前の対応を持たないため、rotation 内の位置をここで確定する。
+    if (domainCmd && domainCmd.command === "driver.assign") {
+      const targetPid = typeof cmd.participantId === "string" ? cmd.participantId : "";
+      const target = targetRoom.participants.find((p) => p.participantId === targetPid);
+      const index = target
+        ? targetRoom.session.rotation.indexOf(target.displayName)
+        : -1;
+      // 対象不在 or rotation 外（見学者）は指名できない。
+      if (index < 0) {
+        broadcaster.sendTo(connId, {
+          type: "error",
+          code: "PARTICIPANT_NOT_FOUND",
+          message: "指名対象が見つからないか、ローテーション外です",
+        });
+        return err("PARTICIPANT_NOT_FOUND");
+      }
+      // 実在（非代理）オフラインのメンバーは指名できない（R2-1: 無人ドライバーを防ぐ。
+      // 自動交代・手動 SWITCH の computeIneligibleIndices と同じ判定に揃える）。
+      // 代理(placeholder)は Web 非接続が常態で対面在席する実在の人を表すため offline でも許可する。
+      if (target && target.presence === "offline" && target.isPlaceholder !== true) {
+        broadcaster.sendTo(connId, {
+          type: "error",
+          code: "PARTICIPANT_OFFLINE",
+          message: "オフラインの参加者はドライバーに指名できません",
+        });
+        return err("PARTICIPANT_OFFLINE");
+      }
+      domainCmd.index = index;
+    }
     // 代理参加者の participantId は client 供給（信頼境界外）。既存参加者との衝突で
     // participantId 突合（skip/rename 等）が誤動作するのを防ぐため、サーバーで一意に再生成する。
     if (domainCmd && domainCmd.command === "participant.addProxy") {
@@ -633,6 +663,22 @@ export function makeHandlers(deps: HandlerDeps) {
           now,
         );
         targetRoom = { ...targetRoom, session: advanced.session, clock: advanced.clock };
+      }
+    }
+
+    // 指名先が一時離脱中なら離脱フラグを解除して自動復帰させる（Issue #13）。
+    // DriverSwitched は正確な index で評価済みのため advanceDriver 差し替えはしない。
+    // 現ドライバー自身の指名は decide が no-op（空イベント）を返すため、ここは実際に交代が
+    // 起きたとき（result.value 非空）だけ走らせる。no-op で driverEligible を書き換えない。
+    if (domainCmd.command === "driver.assign" && result.value.length > 0) {
+      const targetPid = typeof cmd.participantId === "string" ? cmd.participantId : "";
+      const target = targetRoom.participants.find((p) => p.participantId === targetPid);
+      if (target?.driverEligible === false) {
+        targetRoom = applyRoomLevelEvent(
+          targetRoom,
+          { type: "DriverResumed", participantId: targetPid, now },
+          now,
+        );
       }
     }
 
@@ -1047,6 +1093,8 @@ const HOST_ONLY_COMMANDS = new Set([
   "member.move",
   // ランダム化もホスト専用（順列はサーバー権威で生成）。
   "member.shuffle",
+  // 任意メンバーへのドライバー強制指名は host 専用（Issue #13）。
+  "driver.assign",
 ]);
 
 /** 編集者以上が必要な操作 */
@@ -1141,6 +1189,10 @@ function buildDomainCommand(cmd: { command: string; [key: string]: unknown }) {
     case "driver.resume":
       if (typeof cmd.participantId !== "string") return null;
       return { command: "driver.resume" as const, participantId: cmd.participantId };
+    case "driver.assign":
+      if (typeof cmd.participantId !== "string") return null;
+      // index は handleRoomCommand が participantId から解決して埋める（-1 はプレースホルダ）。
+      return { command: "driver.assign" as const, index: -1 };
     case "problem.edit":
       if (typeof cmd.patch !== "object" || cmd.patch === null) return null;
       return { command: "problem.edit" as const, patch: cmd.patch as { title?: string; description?: string; requirements?: string[]; exampleTest?: string; hints?: string[] } };

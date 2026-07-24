@@ -86,6 +86,7 @@ function baseHandlers() {
     onDriverSkip: vi.fn(),
     onDriverResume: vi.fn(),
     onAddProxy: vi.fn(),
+    onDriverAssign: vi.fn(),
   };
 }
 
@@ -188,6 +189,17 @@ describe("Session × RosterPanel 結合（T057）", () => {
     // rotation=["Alice","Carol"]。Carol（index 1）を前の順番へ → move(1, 0)
     fireEvent.click(screen.getByRole("button", { name: /Carol を前の順番へ/ }));
     expect(onMoveRotation).toHaveBeenCalledWith(1, 0);
+  });
+
+  it("RosterPanel の指名操作が driver.assign ハンドラを participantId 付きで発火する（Issue #13）", () => {
+    const handlers = baseHandlers();
+    render(<Session room={makeRoom()} participantId="host-1" {...handlers} />);
+    // 現ドライバーは Carol（currentIndex=1）。Alice（host-1・rotation[0]）は現ドライバーでない
+    // → ドライバー一覧の Alice 行に「ドライバーにする」が出る。
+    const driverList = screen.getByRole("list", { name: "ドライバー一覧" });
+    const aliceItem = within(driverList).getByText("Alice").closest("li") as HTMLElement;
+    fireEvent.click(within(aliceItem).getByRole("button", { name: /ドライバーにする/ }));
+    expect(handlers.onDriverAssign).toHaveBeenCalledWith("host-1");
   });
 });
 

@@ -77,6 +77,7 @@ function baseHandlers() {
     onRenameParticipant: vi.fn(),
     onDriverSkip: vi.fn(),
     onDriverResume: vi.fn(),
+    onDriverAssign: vi.fn(),
     onAddProxy: vi.fn(),
   };
 }
