@@ -98,4 +98,32 @@ describe("driver.assign（Issue #13 強制指名）", () => {
     expect(result.isErr()).toBe(true);
     expect(store.get(code)!.session.currentIndex).toBe(0);
   });
+
+  it("実在（非代理）オフラインのメンバーは指名できない（R2-1: 無人ドライバー防止）", async () => {
+    const code = await setup(handlers, store, { presence: "offline" }); // B は実在オフライン
+    const result = await handlers.handleCommand("conn-a", { command: "driver.assign", participantId: "pid-b" });
+    expect(result.isErr()).toBe(true);
+    expect(store.get(code)!.session.currentIndex).toBe(0); // 変わらない
+  });
+
+  it("代理（placeholder）はオフラインでも指名できる（対面在席の実在者を表すため）", async () => {
+    const code = await setup(handlers, store, { presence: "offline", isPlaceholder: true }); // B は代理
+    await handlers.handleCommand("conn-a", { command: "driver.assign", participantId: "pid-b" });
+    expect(store.get(code)!.session.currentIndex).toBe(1); // B へ交代できる
+  });
+
+  it("現ドライバー自身の no-op 指名は driverEligible を書き換えない（副作用なし）", async () => {
+    const code = await setup(handlers, store, {});
+    // 現ドライバー A を一時離脱状態(driverEligible=false)にしておく
+    const room = store.get(code)!;
+    const host = room.participants[0]!;
+    store.put({
+      ...room,
+      participants: [{ ...host, driverEligible: false }, ...room.participants.slice(1)],
+    });
+    await handlers.handleCommand("conn-a", { command: "driver.assign", participantId: host.participantId });
+    const after = store.get(code)!;
+    expect(after.session.currentIndex).toBe(0); // no-op（現ドライバー自身）
+    expect(after.participants[0]!.driverEligible).toBe(false); // 副作用で復帰させない
+  });
 });

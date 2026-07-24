@@ -575,4 +575,32 @@ describe("RosterPanel ドライバー指名（Issue #13）", () => {
     fireEvent.click(within(bobItem).getByRole("button", { name: /ドライバーにする/ }));
     expect(onAssignDriver).toHaveBeenCalledWith("b");
   });
+
+  it("実在（非代理）オフラインのメンバーには「ドライバーにする」を表示しない", () => {
+    render(
+      <RosterPanel
+        {...hostProps}
+        participants={[mk("a", "Alice"), mk("b", "Bob", { presence: "offline" })]}
+        currentDriverName="Alice"
+        rotation={["Alice", "Bob"]}
+      />,
+    );
+    const list = screen.getByRole("list", { name: "ドライバー一覧" });
+    const bobItem = within(list).getByText("Bob").closest("li") as HTMLElement;
+    expect(within(bobItem).queryByRole("button", { name: /ドライバーにする/ })).toBeNull();
+  });
+
+  it("代理（placeholder）はオフラインでも「ドライバーにする」を表示する", () => {
+    render(
+      <RosterPanel
+        {...hostProps}
+        participants={[mk("a", "Alice"), mk("b", "Bob", { presence: "offline", isPlaceholder: true })]}
+        currentDriverName="Alice"
+        rotation={["Alice", "Bob"]}
+      />,
+    );
+    const list = screen.getByRole("list", { name: "ドライバー一覧" });
+    const bobItem = within(list).getByText("Bob").closest("li") as HTMLElement;
+    expect(within(bobItem).queryByRole("button", { name: /ドライバーにする/ })).toBeTruthy();
+  });
 });

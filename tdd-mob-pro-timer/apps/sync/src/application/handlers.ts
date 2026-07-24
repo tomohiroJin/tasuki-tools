@@ -588,6 +588,17 @@ export function makeHandlers(deps: HandlerDeps) {
         });
         return err("PARTICIPANT_NOT_FOUND");
       }
+      // 実在（非代理）オフラインのメンバーは指名できない（R2-1: 無人ドライバーを防ぐ。
+      // 自動交代・手動 SWITCH の computeIneligibleIndices と同じ判定に揃える）。
+      // 代理(placeholder)は Web 非接続が常態で対面在席する実在の人を表すため offline でも許可する。
+      if (target && target.presence === "offline" && target.isPlaceholder !== true) {
+        broadcaster.sendTo(connId, {
+          type: "error",
+          code: "PARTICIPANT_OFFLINE",
+          message: "オフラインの参加者はドライバーに指名できません",
+        });
+        return err("PARTICIPANT_OFFLINE");
+      }
       domainCmd.index = index;
     }
     // 代理参加者の participantId は client 供給（信頼境界外）。既存参加者との衝突で
@@ -657,7 +668,9 @@ export function makeHandlers(deps: HandlerDeps) {
 
     // 指名先が一時離脱中なら離脱フラグを解除して自動復帰させる（Issue #13）。
     // DriverSwitched は正確な index で評価済みのため advanceDriver 差し替えはしない。
-    if (domainCmd.command === "driver.assign") {
+    // 現ドライバー自身の指名は decide が no-op（空イベント）を返すため、ここは実際に交代が
+    // 起きたとき（result.value 非空）だけ走らせる。no-op で driverEligible を書き換えない。
+    if (domainCmd.command === "driver.assign" && result.value.length > 0) {
       const targetPid = typeof cmd.participantId === "string" ? cmd.participantId : "";
       const target = targetRoom.participants.find((p) => p.participantId === targetPid);
       if (target?.driverEligible === false) {

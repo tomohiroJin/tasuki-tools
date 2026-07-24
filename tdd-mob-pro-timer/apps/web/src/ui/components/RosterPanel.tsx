@@ -249,8 +249,11 @@ export function RosterPanel({
                   ) : (
                     <MiniButton onClick={() => onSkip(p.participantId)}>一時離脱</MiniButton>
                   ))}
-                {/* ホストは現ドライバー以外の rotation メンバーを即ドライバーに指名できる（Issue #13）。 */}
-                {canHostAction && onAssignDriver && inRotation && !isCurrentDriver && (
+                {/* ホストは現ドライバー以外の rotation メンバーを即ドライバーに指名できる（Issue #13）。
+                    実在（非代理）オフラインの相手は無人ドライバーになるため指名不可（host.transfer と同じ方針）。
+                    代理(placeholder)は Web 非接続が常態で対面在席するため offline でも指名可能。 */}
+                {canHostAction && onAssignDriver && inRotation && !isCurrentDriver &&
+                  (p.presence !== "offline" || p.isPlaceholder === true) && (
                   <MiniButton
                     onClick={() => onAssignDriver(p.participantId)}
                     aria-label={`${p.displayName} をドライバーにする`}
