@@ -16,7 +16,7 @@ import type { DomainError } from "./errors.js";
 
 /** decide が受け付けるコマンド（スキーマ依存を避けた内部型） */
 export type DecideCommand =
-  | { command: "session.act"; action: "START" | "SWITCH" | "PAUSE" | "RESUME" }
+  | { command: "session.act"; action: "START" | "SWITCH" | "PAUSE" | "RESUME" | "RESTART" }
   | { command: "session.complete" }
   | { command: "session.abort" }
   | { command: "session.reset"; config?: SessionConfig }
@@ -173,7 +173,7 @@ function decideProblemEdit(
 // ─── セッション操作 ──────────────────────────────────────────────────────────
 
 function decideSessionAct(
-  action: "START" | "SWITCH" | "PAUSE" | "RESUME",
+  action: "START" | "SWITCH" | "PAUSE" | "RESUME" | "RESTART",
   agg: Aggregate,
   now: number,
 ): Result<DomainEvent[], DomainError> {
@@ -222,6 +222,12 @@ function decideSessionAct(
         });
       }
       return ok([{ type: "SessionResumed", now }]);
+
+    case "RESTART":
+      // 現ドライバーのまま持ち時間をやり直す（Issue #14）。走行中・一時停止中・停止中の
+      // いずれでも「満タンで走り出す」は一貫して意味を持つためガードを置かない
+      // （一時停止中の実行で走行再開する＝受け入れ基準。RESUME も未開始状態を受理する）。
+      return ok([{ type: "DriverTimerReset", now }]);
   }
 }
 

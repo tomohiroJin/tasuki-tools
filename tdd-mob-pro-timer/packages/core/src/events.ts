@@ -35,6 +35,16 @@ export interface SessionReset {
   now: number;
 }
 
+/**
+ * 現ドライバーのまま持ち時間だけを満タンからやり直す（再スタート・Issue #14）。
+ * SessionReset（先頭・全カウント初期化）や DriverSwitched（人が変わる・回数加算）とは異なり、
+ * currentIndex / driverCounts / totalSwitches を変えず clock のみ満タン再アンカーする。
+ */
+export interface DriverTimerReset {
+  type: "DriverTimerReset";
+  now: number;
+}
+
 /** フェーズ遷移 */
 export interface PhaseSet {
   type: "PhaseSet";
@@ -178,6 +188,7 @@ export type DomainEvent =
   | SessionPaused
   | SessionResumed
   | SessionReset
+  | DriverTimerReset
   | PhaseSet
   | ConfigSet
   | MemberAdded

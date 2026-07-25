@@ -64,6 +64,9 @@ export function evolve(agg: Aggregate, event: DomainEvent, now: number): Aggrega
       };
     }
 
+    case "DriverTimerReset":
+      return evolveDriverTimerReset(agg, event.now);
+
     case "PhaseSet":
       // PhaseSet はルーム全体に適用。集約（session+clock）には影響しない
       return agg;
@@ -209,6 +212,29 @@ function evolveSessionResumed(agg: Aggregate, now: number): Aggregate {
       ...agg.clock,
       running: true,
       anchorServerTime: now,
+      runningSince: now,
+    },
+  };
+}
+
+/**
+ * Issue #14: 現ドライバーのまま持ち時間だけを満タンからやり直す（再スタート）。
+ * session は isPaused の解除だけを行い、currentIndex / driverCounts / totalSwitches /
+ * rotation は変えない（＝人も回数も動かさない）。clock は満タンで再アンカーして走行させる。
+ * 稼働区間は accumulatedElapsedMs に確定加算する（セッション経過は実走時間の記録なので
+ * 巻き戻さない。advanceDriver の現状維持分岐・evolveDriverSwitched と同じ扱い）。
+ */
+function evolveDriverTimerReset(agg: Aggregate, now: number): Aggregate {
+  const addedMs =
+    agg.clock.runningSince !== null ? now - agg.clock.runningSince : 0;
+  return {
+    session: { ...agg.session, isPaused: false },
+    clock: {
+      ...agg.clock,
+      running: true,
+      anchorServerTime: now,
+      secondsLeftAtAnchor: agg.clock.intervalSeconds,
+      accumulatedElapsedMs: agg.clock.accumulatedElapsedMs + addedMs,
       runningSince: now,
     },
   };
