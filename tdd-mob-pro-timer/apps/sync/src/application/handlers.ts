@@ -1139,7 +1139,9 @@ function authorize(
 
 // ─── コマンド変換 ────────────────────────────────────────────────────────────
 
-const VALID_ACTIONS = new Set(["START", "SWITCH", "PAUSE", "RESUME"]);
+// RESTART は「現ドライバーのまま持ち時間をやり直す」（Issue #14）。session.act として
+// 受理するため権限は既存の EDITOR_PLUS_COMMANDS（session.act）がそのまま効く。
+const VALID_ACTIONS = new Set(["START", "SWITCH", "PAUSE", "RESUME", "RESTART"]);
 const VALID_PHASES = new Set(["setup", "ready", "session", "celebration"]);
 
 function buildDomainCommand(cmd: { command: string; [key: string]: unknown }) {
@@ -1147,7 +1149,7 @@ function buildDomainCommand(cmd: { command: string; [key: string]: unknown }) {
     case "session.act": {
       const action = cmd.action;
       if (typeof action !== "string" || !VALID_ACTIONS.has(action)) return null;
-      return { command: "session.act" as const, action: action as "START" | "SWITCH" | "PAUSE" | "RESUME" };
+      return { command: "session.act" as const, action: action as "START" | "SWITCH" | "PAUSE" | "RESUME" | "RESTART" };
     }
     case "session.complete":
       return { command: "session.complete" as const };
