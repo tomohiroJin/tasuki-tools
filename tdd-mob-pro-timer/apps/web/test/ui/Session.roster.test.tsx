@@ -79,6 +79,7 @@ function baseHandlers() {
     onSkip: noop,
     onPause: noop,
     onResume: noop,
+    onRestartTimer: noop,
     onComplete: noop,
     onAbort: noop,
     onReset: noop,

@@ -411,7 +411,7 @@ export default function App() {
 
 
   // 共有時の操作はすべて WS コマンド送信（サーバーが状態をミラーし全員へ反映）。
-  const act = (action: "SWITCH" | "PAUSE" | "RESUME") => {
+  const act = (action: "SWITCH" | "PAUSE" | "RESUME" | "RESTART") => {
     client?.send({ command: "session.act", action });
   };
 
@@ -565,6 +565,8 @@ export default function App() {
           onSkip={() => act("SWITCH")}
           onPause={() => act("PAUSE")}
           onResume={() => act("RESUME")}
+          // 現ドライバーのまま持ち時間だけを満タンからやり直す（Issue #14）。
+          onRestartTimer={() => act("RESTART")}
           onComplete={handleComplete}
           onAbort={handleAbort}
           onReset={() => client?.send({ command: "session.reset" })}

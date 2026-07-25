@@ -5,7 +5,7 @@
 
 import React, { useMemo, useState } from "react";
 import {
-  Crown, ArrowRight, Play, Pause, SkipForward, Flag, RotateCcw, Shuffle,
+  Crown, ArrowRight, Play, Pause, SkipForward, Flag, RotateCcw, Shuffle, TimerReset,
 } from "lucide-react";
 import { secondsLeft, elapsedMs } from "@tdd-mob/core/aggregate";
 import type { Room, Problem } from "@tdd-mob/core";
@@ -48,6 +48,9 @@ interface SessionProps {
   onSkip: () => void;
   onPause: () => void;
   onResume: () => void;
+  /** 現ドライバーのまま持ち時間を満タンからやり直す（Issue #14・session.act RESTART）。
+   *  ホスト専用の全体リセット（onReset・先頭ドライバーへ戻る）とは別操作。 */
+  onRestartTimer: () => void;
   onComplete: () => void;
   onAbort: () => void;
   onReset: () => void;
@@ -97,6 +100,7 @@ export function Session({
   onSkip,
   onPause,
   onResume,
+  onRestartTimer,
   onComplete,
   onAbort,
   onReset,
@@ -336,6 +340,16 @@ export function Session({
               )}
               <GhostButton onClick={onSkip} disabled={!running}>
                 <span className="flex items-center gap-2"><SkipForward className="w-4 h-4" aria-hidden="true" /> スキップ</span>
+              </GhostButton>
+              {/* 持ち時間のやり直し（Issue #14）。人は変えず、現ドライバーの時間だけ満タンから
+                  走り直す。ホスト専用の「最初から」（先頭ドライバーへ戻す全体リセット・
+                  EndSessionZone の赤いボタン）とは文言・アイコン・置き場所で区別する。
+                  一時停止中でも押せる（押すと走行再開する）ため disabled にしない。 */}
+              <GhostButton
+                onClick={onRestartTimer}
+                title="同じドライバーのまま、持ち時間を最初からやり直します"
+              >
+                <span className="flex items-center gap-2"><TimerReset className="w-4 h-4" aria-hidden="true" /> 持ち時間をやり直す</span>
               </GhostButton>
             </>
           )}
