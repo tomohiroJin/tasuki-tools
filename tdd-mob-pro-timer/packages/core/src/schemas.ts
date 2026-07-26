@@ -358,6 +358,7 @@ export const RoomSchema = v.object({
   problemMode: v.optional(v.picklist(["ai", "fallback"])),
   passphraseProtected: v.optional(v.boolean()),
   aiUnlocked: v.optional(v.boolean()),
+  startedAt: v.optional(v.nullable(v.number())),
 });
 
 const SnapshotMsg = v.object({

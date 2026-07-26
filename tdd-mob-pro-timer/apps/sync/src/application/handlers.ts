@@ -652,6 +652,24 @@ export function makeHandlers(deps: HandlerDeps) {
       targetRoom = applyRoomLevelEvent(targetRoom, event, now);
     }
 
+    // startedAt は「一度でも開始したか」を表す単調フラグ（host-spof-relaxation D2）。
+    // かつては PhaseSet(phase==="session") と SessionStarted の2イベントに限定して
+    // 記録していたが、これはイベント名のホワイトリストであり、時計を走らせる別のイベント
+    // （例: SessionResumed）が漏れると「時計が走っているのに startedAt が未設定」という
+    // 状態が生じる（Issue #22 実測: 新規ルームへ session.act RESUME を単独送信すると
+    // clock.running=true / startedAt=undefined になる。session.act は EDITOR_PLUS_COMMANDS
+    // に属し phase によるゲートが無いため到達可能）。
+    // イベント名を列挙する設計は将来イベントが増えるたびに更新を要し、この種の見落としが
+    // 既に繰り返し起きている。そこでイベント名ではなく「イベント適用後の状態」で判定する:
+    // 時計が走っており、かつ startedAt がまだ未設定なら、この時点を開始時刻として記録する。
+    // 単調性（一度立てたら上書きしない）は startedAt == null の条件で維持される。
+    // なお phase.set(session) 単独は時計を動かさないため、この状態判定だけでは拾えない
+    // （実測確認済み）。そのため PhaseSet(phase==="session") 時の記録は
+    // applyRoomLevelEvent 側に残してある。
+    if (targetRoom.clock.running && targetRoom.startedAt == null) {
+      targetRoom = { ...targetRoom, startedAt: now };
+    }
+
     // 現ドライバーが driver.skip で ineligible になり、かつ稼働中なら即座に次の eligible へ
     // 繰り上げる（plan.md L209）。交代先が無ければ advanceDriver が現状維持する。
     if (domainCmd.command === "driver.skip" && targetRoom.clock.running) {
@@ -1279,8 +1297,17 @@ function applyRoomLevelEvent(
   _now: number,
 ): Room {
   switch (event.type) {
-    case "PhaseSet":
-      return { ...room, phase: event.phase };
+    case "PhaseSet": {
+      // startedAt は「一度でも開始したか」を表す単調フラグ（host-spof-relaxation D2）。
+      // phase は phase.set で任意方向へ遷移でき "setup" 等へ後戻りもできるため、
+      // 現在の phase で権限を判定すると主催者不在時に誰かが "setup" へ戻した瞬間
+      // ルームが再びホスト限定に締まり、Issue #22 の詰みが再発する。そのため
+      // 「session への遷移を初めて観測した」時点で一度だけ記録し、以後は
+      // どんな phase 遷移でも消さない（上書きしない）。
+      const startedAt =
+        event.phase === "session" && room.startedAt == null ? _now : room.startedAt;
+      return { ...room, phase: event.phase, startedAt };
+    }
     case "SessionReset":
       // リセット＝最初から再スタート（v2.3 #3）。集約(session/clock)は evolve が
       // 先頭・満タン・走行に初期化済み。お題・メンバー・設定・引き継ぎは維持し、

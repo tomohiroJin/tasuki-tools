@@ -123,6 +123,10 @@ export interface Room {
   passphraseProtected?: boolean;
   /** AI お題生成の解錠状態（合言葉照合済み・平文はサーバ専用 = snapshot 非混入）。 */
   aiUnlocked?: boolean;
+  /** 初めてセッションが開始された時刻（epoch ms）。一度設定したら消さない。
+   *  権限判定を「一度でも開始したか」で行うための単調フラグ（D2）。
+   *  phase の後戻り（"setup" 等）では消えない点が重要。 */
+  startedAt?: number | null;
 }
 
 /** 完成記録 */
