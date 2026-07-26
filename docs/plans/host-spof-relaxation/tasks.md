@@ -48,7 +48,17 @@
   受理されない）も対象外。`CommandSchema` は全 31 件なので `31 - 4 - 2 = 25` を検算に使う。
   _要件: FR-071_
 
-- [ ] **T004** `packages/core/src/permissions.ts` を新規作成し、T001〜T003 を通す。
+- [ ] **T003b** `packages/core/test/permissions-differential.test.ts` を新規作成し、
+  **現行 5 層のロジックを参照実装（オラクル）として一度だけ書き下し**、
+  25 コマンド × 3 役割 × 2 対象 = 150 通りの**開始前**の判定を `checkPermission` と機械的に比較する
+  失敗するテストを書く。開始後は緩和が入るため、別の独立した述語
+  （「編集者以上なら許可・見学者は自己対象の `SELF_SCOPED` 以外拒否」）で 150 通りを検証する。
+  **人手による突き合わせは禁止**（本設計では層⑤・層①・層② の見落としを 3 回起こした）。
+  オラクルの出典は `apps/sync/src/application/handlers.ts` の 443-459（層②）/ 464-481（層③）/
+  1078-1138（層①）とし、コメントに行番号を記録する。
+  _要件: FR-066, FR-071, 非機能要件「後方互換」_
+
+- [ ] **T004** `packages/core/src/permissions.ts` を新規作成し、T001〜T003b を通す。
   `PermissionInput` / `PermissionVerdict` 型、規則表（`SELF_SCOPED_COMMANDS` / `SELF_SCOPED_AFTER_START` /
   `HOST_ONLY_BEFORE_START` / `EDITOR_PLUS_COMMANDS`）、`checkPermission()`、`isAllowed()` を実装する。
   判定順序は `plan.md`「判定の順序」のステップ 0〜5 に厳密に従う。

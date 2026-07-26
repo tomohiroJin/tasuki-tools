@@ -228,13 +228,46 @@ graph TD
 ### 判定の順序（`checkPermission` の内部）
 
 ```
-0. 規則表に無いコマンドか？          → 拒否（default-deny）
-1. 自己対象かつ SELF_SCOPED か？     → 許可（役割・段階を問わない。FR-068）
-2. 自己対象かつ role.set かつ開始済み？→ 許可（D3b・FR-073b）
-3. 役割が viewer か？                → 拒否（FR-067）
-4. 開始済みか（startedAt）？          → 許可（FR-063/064/065）
-5. 未開始 → 従来の規則                → HOST_ONLY / 他人対象の制限 / EDITOR_PLUS（FR-066）
+0. 規則表に無いコマンドか？            → 拒否（default-deny）
+1. 自己対象かつ SELF_SCOPED か？       → 許可（役割・段階を問わない。FR-068）
+2. 自己対象かつ role.set かつ開始済み？  → 許可（D3b・FR-073b）
+3. 役割が viewer か？                  → 拒否（FR-067）
+   ── ここから先の role は host か editor ──
+4. 開始済みか（startedAt）？            → 許可（FR-063/064/065）
+5. 未開始 → 従来の規則:
+   5a. HOST_ONLY_BEFORE_START かつ非 host            → 拒否
+   5b. OTHER_TARGET_HOST_ONLY かつ他人対象かつ非 host → 拒否（層②③の維持）
+   5c. それ以外                                      → 許可（FR-066）
 ```
+
+**5b の集合は 5 コマンドである。** 層②（`participant.rename` / `driver.skip` / `driver.resume`）と
+層③（`member.add` / `member.remove`）の両方を含む。
+
+| 部分集合 | コマンド | 由来 | 拒否メッセージ |
+|---|---|---|---|
+| `RELATIONAL_OTHER_HOST_ONLY` | `participant.rename` / `driver.skip` / `driver.resume` | 層② | `他の参加者への操作はホストのみ実行できます` |
+| `ROTATION_OWNERSHIP_COMMANDS` | `member.add` / `member.remove` | 層③ | `他の参加者のローテーション操作はホストのみ実行できます` |
+
+**5b が 5c より前でなければならない。** `member.add` / `member.remove` は `EDITOR_PLUS_COMMANDS` にも
+属するため、順序を逆にすると開始前に editor が他人のローテーションを操作できる（層③の喪失）。
+
+**5c を「それ以外は許可」にしてよいのは、5b が上記 5 コマンドを漏れなく含む場合に限る。**
+元実装の末尾は `if (role === "host") allow; else deny` という拒否寄りの fallback であり、
+これが層②を暗黙に守っていた。5c を許可寄りに変えるなら、層②を 5b で明示的に引き受けなければならない。
+この移し替えを忘れると、開始前に editor が他人の見送り・改名を実行できてしまう。
+
+#### この設計を手で検証してはならない（差分テストで担保する）
+
+本節の規則は「現行の 5 層の判定を開始前について完全に再現する」ことを要求する。
+層が 5 つに分散しているため、**人間が突き合わせると必ず取りこぼす**（本設計では実際に
+層⑤・層①・層② の見落としを 3 回起こした）。したがって次を必須とする。
+
+> 現行実装のロジックを**参照実装（オラクル）として一度だけ書き下し**、
+> 25 コマンド × 3 役割 × 2 段階 × 2 対象＝300 通りの全組み合わせについて
+> `checkPermission` の結果と機械的に比較する差分テストを置く。
+
+開始後は緩和が入るため一致しない。**開始前（`started: false`）のみをオラクルと比較し、
+開始後は別途「編集者以上なら許可・見学者は自己対象以外拒否」という独立した述語で検証する。**
 
 **注:** ステップ 1・2 が 3 より先である。`checkPermission` は権限のみを判定し、
 不変条件（FR-072）は判定しない。呼び出し側が `canDemote()` / `canRemoveParticipant()` を別途検査する（D3）。
@@ -282,8 +315,31 @@ export function isAllowed(input: PermissionInput): boolean;
 
 | 定数 | 内容 | 由来 |
 |---|---|---|
-| `SELF_SCOPED_COMMANDS` | `participant.rename` / `driver.skip` / `driver.resume` / `member.add` / `member.remove` / `participant.remove` | 既存②③のガード対象＋自己退出（FR-079）。対象が自分なら常に許可 |
+| `SELF_SCOPED_COMMANDS` | `participant.rename` / `driver.skip` / `driver.resume` / `participant.remove` | 対象が自分なら**役割を問わず**常に許可。前3件は既存②の対象（viewer も自分の分は可）、`participant.remove` は自己退出（FR-079） |
+| `RELATIONAL_OTHER_HOST_ONLY` | `participant.rename` / `driver.skip` / `driver.resume` | 層②の他人対象側。自己対象は `SELF_SCOPED` が先に許可するため、ここは**他人対象のときだけ**効く |
+| `ROTATION_OWNERSHIP_COMMANDS` | `member.add` / `member.remove` | **`SELF_SCOPED` に入れてはならない**（下記の注意を参照）。編集者以上が必須で、かつ開始前は他人対象を host のみに限る |
 | `SELF_SCOPED_AFTER_START` | `role.set` | **開始後に限り**自己対象を許可（D3b）。開始前の自己降格は従来どおり host のみ |
+
+#### 注意: `member.add` / `member.remove` を `SELF_SCOPED` に入れると 2 つの回帰が起きる
+
+現行実装では、これら 2 コマンドは**層③と層①の両方を通る**。層③（`handlers.ts:464-481`）が
+「非 host は自分の分のみ」を課し、そのうえで層①の `authorize()`（484）が
+`EDITOR_PLUS_COMMANDS` により **viewer を拒否する**。`member.add` / `member.remove` が
+`EDITOR_PLUS_COMMANDS` に属することを見落とすと、次の 2 つを壊す。
+
+| 入力 | 現行 | `SELF_SCOPED` に入れた場合 | 是非 |
+|---|---|---|---|
+| 開始前・editor・**他人**対象 | 拒否（層③） | 許可（`EDITOR_PLUS` で素通り） | **FR-066 違反** |
+| 任意段階・viewer・**自分**対象 | 拒否（層①・viewer） | 許可（自己対象で早期 return） | **FR-067 違反** |
+
+したがって扱いを次のとおり分ける。
+
+- **自己対象**: 編集者以上なら許可（viewer は拒否）。段階を問わない
+- **他人対象**: 開始前は host のみ、開始後は編集者以上
+
+**開始後に viewer が自分をローテーションへ入れることはできない**（現行挙動を維持）。
+これは詰みにならない。D3b により viewer は自分を編集者へ戻せるので、進行に加わりたければ
+まず役割を戻せばよい。
 | `HOST_ONLY_BEFORE_START` | 現 `HOST_ONLY_COMMANDS` の **13** コマンド | 既存①。**開始前のみ**適用 |
 | `EDITOR_PLUS_COMMANDS` | 現状の **9** コマンド | 既存①。viewer 拒否のために段階を問わず参照 |
 | `VIEWER_READONLY` | 上記以外の状態変更コマンドすべて | viewer は状態変更を一切行えない |
