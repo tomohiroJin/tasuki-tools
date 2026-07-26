@@ -119,6 +119,8 @@ export const SessionActionValues = [
   "SWITCH",
   "PAUSE",
   "RESUME",
+  // 現ドライバーのまま持ち時間だけを満タンからやり直す（Issue #14）。
+  "RESTART",
   "COMPLETE",
   "RESET",
 ] as const;
