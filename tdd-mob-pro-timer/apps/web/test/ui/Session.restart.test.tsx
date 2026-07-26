@@ -1,5 +1,5 @@
 /**
- * Session「持ち時間をやり直す」（Issue #14）
+ * Session「時間リセット」（現ドライバーのまま持ち時間をやり直す・Issue #14）
  *
  * 現ドライバーのまま持ち時間だけを満タンから走り直す操作が編集者ゾーンに出て、
  * onRestartTimer を発火すること。ホスト専用の全体リセット「最初から」と UI 上で
@@ -87,12 +87,12 @@ function handlers() {
 }
 
 describe("Session 持ち時間のやり直し（Issue #14）", () => {
-  it("編集者には「持ち時間をやり直す」ボタンが出て、押すと onRestartTimer が呼ばれる", () => {
+  it("編集者には「時間リセット」ボタンが出て、押すと onRestartTimer が呼ばれる", () => {
     const onRestartTimer = vi.fn();
     render(
       <Session room={makeRoom()} participantId="edit-1" {...handlers()} onRestartTimer={onRestartTimer} />,
     );
-    fireEvent.click(screen.getByRole("button", { name: /持ち時間をやり直す/ }));
+    fireEvent.click(screen.getByRole("button", { name: /時間リセット/ }));
     expect(onRestartTimer).toHaveBeenCalledTimes(1);
   });
 
@@ -105,7 +105,7 @@ describe("Session 持ち時間のやり直し（Issue #14）", () => {
     render(
       <Session room={room} participantId="edit-1" {...handlers()} onRestartTimer={onRestartTimer} />,
     );
-    const btn = screen.getByRole("button", { name: /持ち時間をやり直す/ }) as HTMLButtonElement;
+    const btn = screen.getByRole("button", { name: /時間リセット/ }) as HTMLButtonElement;
     expect(btn.disabled).toBe(false);
     fireEvent.click(btn);
     expect(onRestartTimer).toHaveBeenCalledTimes(1);
@@ -113,7 +113,7 @@ describe("Session 持ち時間のやり直し（Issue #14）", () => {
 
   it("閲覧者（viewer）には表示しない", () => {
     render(<Session room={makeRoom()} participantId="view-1" {...handlers()} />);
-    expect(screen.queryByRole("button", { name: /持ち時間をやり直す/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /時間リセット/ })).toBeNull();
   });
 
   it("ホスト専用の「最初から」（全体リセット）とは別のボタンである", () => {
@@ -128,7 +128,7 @@ describe("Session 持ち時間のやり直し（Issue #14）", () => {
         onReset={onReset}
       />,
     );
-    const restartBtn = screen.getByRole("button", { name: /持ち時間をやり直す/ });
+    const restartBtn = screen.getByRole("button", { name: /時間リセット/ });
     // 「最初から」は終了系の隔離ゾーン（確認ダイアログつき）にあり、別ボタンとして共存する。
     const endZone = screen.getByLabelText("セッションを終える");
     const resetBtn = within(endZone).getByRole("button", { name: /最初から/ });
@@ -147,7 +147,7 @@ describe("Session 持ち時間のやり直し（Issue #14）", () => {
   it("やり直しボタンは終了系の隔離ゾーンの外（タイマー操作ゾーン）にある", () => {
     render(<Session room={makeRoom()} participantId="host-1" {...handlers()} />);
     const endZone = screen.getByLabelText("セッションを終える");
-    const restartBtn = screen.getByRole("button", { name: /持ち時間をやり直す/ });
+    const restartBtn = screen.getByRole("button", { name: /時間リセット/ });
     expect(endZone.contains(restartBtn)).toBe(false);
     // スキップ・一時停止と同じ操作行に並ぶ。
     const row = restartBtn.parentElement!;

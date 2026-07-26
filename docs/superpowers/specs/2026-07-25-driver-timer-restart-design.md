@@ -28,18 +28,18 @@ GitHub Issue: https://github.com/tomohiroJin/tasuki-tools/issues/14
 
 ## 要件（EARS）
 
-- ドライバー（`editor+`）が「持ち時間をやり直す」を実行したとき、システムは `currentIndex`・`driverCounts`・`totalSwitches` を変えずに、タイマーを満タン（`intervalSeconds`）で再アンカーして走行させる。
+- ドライバー（`editor+`）が「時間リセット」を実行したとき、システムは `currentIndex`・`driverCounts`・`totalSwitches` を変えずに、タイマーを満タン（`intervalSeconds`）で再アンカーして走行させる。
 - 再スタートのとき、システムは一時停止状態を解除して `running=true` にする。
 - 再スタートのとき、システムはお題・共有メモ・メンバー・設定を維持する。
 - 再スタートのとき、システムはセッション経過時間（`accumulatedElapsedMs`）を巻き戻さない。
 - 再スタート後、システムは新しい残り時間に合わせて自動交代を再スケジュールする。
 - 閲覧者（`viewer`）から再スタート要求を受けたとき、システムは `UNAUTHORIZED` を返して再スタートしない。
-- 閲覧者には「持ち時間をやり直す」操作 UI を表示しない。
+- 閲覧者には「時間リセット」操作 UI を表示しない。
 
 ## アーキテクチャ・データフロー
 
 ```
-Session 操作ゾーン「持ち時間をやり直す」(editor+)
+Session 操作ゾーン「時間リセット」(editor+)
   → onRestartTimer()
   → App.act("RESTART") → client.send({ command: "session.act", action: "RESTART" })
   → [server] handleRoomCommand
@@ -105,15 +105,15 @@ function evolveDriverTimerReset(agg: Aggregate, now: number): Aggregate {
 ### Layer 6 — UI（サーバ同期経路のみ）
 
 - **`apps/web/src/App.tsx`**: `act` の型に `"RESTART"` を追加し、`onRestartTimer={() => act("RESTART")}` を `<Session>` へ渡す。
-- **`apps/web/src/ui/Session.tsx`**: `onRestartTimer: () => void` を props に追加。編集者操作ゾーン（再開/一時停止・スキップの並び）に `TimerReset` アイコンの `GhostButton`「持ち時間をやり直す」を置く。`aria-label` は「同じドライバーのまま持ち時間を最初からやり直す」。
+- **`apps/web/src/ui/Session.tsx`**: `onRestartTimer: () => void` を props に追加。編集者操作ゾーン（再開/一時停止・スキップの並び）に `TimerReset` アイコンの `GhostButton`「時間リセット」を置く。ラベルを短くする代わり、`title` 属性で「同じドライバーのまま、持ち時間を最初からやり直します」と補う（同じ行の他ボタンも `aria-label` を持たないため、可視ラベル＋`title` で統一する）。
 
 **「最初から」（RESET）との差別化**
 
-| | 持ち時間をやり直す（#14） | 最初から（RESET） |
+| | 時間リセット（#14） | 最初から（RESET） |
 |---|---|---|
 | 置き場所 | タイマー直下の編集者操作ゾーン | ホスト専用の終了系隔離ゾーン |
 | 権限 | `editor+` | `host` |
-| 文言 | 「持ち時間をやり直す」 | 「最初から」 |
+| 文言 | 「時間リセット」 | 「最初から」 |
 | アイコン | `TimerReset`（時計＋巻き戻し） | `RotateCcw`（周回矢印） |
 | 見た目 | GhostButton（中性色） | 赤（危険色） |
 | 確認 | なし | 確認ダイアログあり |
