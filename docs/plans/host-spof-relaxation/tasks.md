@@ -194,38 +194,38 @@
 
 ## G4 — 実行者の通知（`signal: "notice"` と退出通知の改称）
 
-- [ ] **T023** `packages/core/test/schemas.test.ts` に `SignalNoticeMsg` の失敗するテストを追加する。
+- [x] **T023** `packages/core/test/schemas.test.ts` に `SignalNoticeMsg` の失敗するテストを追加する。
   `action` の 4 値（`participant-removed` / `session-aborted` / `session-reset` / `session-completed`）と
   `actorName` / `actorParticipantId` の必須、`targetName` / `targetParticipantId` の任意を検証する。
   _要件: FR-077_
 
-- [ ] **T024** `packages/core/src/schemas.ts` に `SignalNoticeMsg` を追加し、`ServerMsgSchema` の
+- [x] **T024** `packages/core/src/schemas.ts` に `SignalNoticeMsg` を追加し、`ServerMsgSchema` の
   variant に登録して T023 を通す。
   _要件: FR-077_
 
-- [ ] **T025** `apps/sync/test/notice-signal.test.ts` を新規作成し、失敗するテストを書く。
+- [x] **T025** `apps/sync/test/notice-signal.test.ts` を新規作成し、失敗するテストを書く。
   ①退出・中断・リセット・完成の各操作後に `signal: "notice"` が在室者へ配信される
   ②`actorName` と `actorParticipantId` が実行者を指す
   ③`participant-removed` で `targetName` / `targetParticipantId` が対象を指す
   ④退出させられた本人には notice が届かない（snapshot 配信対象外のため）。
   _要件: FR-077_
 
-- [ ] **T026** `apps/sync/src/application/handlers.ts` で `participant.remove` / `session.abort` /
+- [x] **T026** `apps/sync/src/application/handlers.ts` で `participant.remove` / `session.abort` /
   `session.reset` / `session.complete` の成功後に `broadcaster.broadcastSignal()` で notice を配信し、
   T025 を通す。
   _要件: FR-077_
 
-- [ ] **T027** `apps/sync/src/application/handlers.ts:533-537` の退出通知を、
+- [x] **T027** `apps/sync/src/application/handlers.ts:533-537` の退出通知を、
   `code: "REMOVED_FROM_ROOM"` と「`<実行者名>` さんにより退出させられました。招待から再参加できます。」に
   変更する。T019-④が通る。
   _要件: FR-075, US3_
 
-- [ ] **T028** `[P]` `apps/web/src/sync/dispatch.ts` に `signal: "notice"` の受信分岐を追加し、
+- [x] **T028** `[P]` `apps/web/src/sync/dispatch.ts` に `signal: "notice"` の受信分岐を追加し、
   `ui/announce.ts` 経由でライブリージョンへ流す。文言の組み立ては `ui/permission-hints.ts`（T030）ではなく
   この近傍に置き、同名参加者がいる場合は識別子で区別する。
   _要件: FR-077_
 
-- [ ] **T029** `[P]` `apps/web/src/App.tsx:219` の `REMOVED_BY_HOST` 分岐を `REMOVED_FROM_ROOM` に対応させる。
+- [x] **T029** `[P]` `apps/web/src/App.tsx:219` の `REMOVED_BY_HOST` 分岐を `REMOVED_FROM_ROOM` に対応させる。
   **旧コードも受理し続ける**（開いたままのタブが存在しうるため）。
   _要件: FR-075_
 
