@@ -279,20 +279,20 @@
 
 ### G6-1 退出の通知が切断の通知に上書きされる（D8・FR-086）
 
-- [ ] **T038** `apps/web/test/sync/client.dispose.test.ts` を新規作成し、失敗するテストを書く。
+- [x] **T038** `apps/web/test/sync/client.dispose.test.ts` を新規作成し、失敗するテストを書く。
   ①`dispose()` 後に WebSocket の close が発火しても `onDisconnected` が呼ばれない
   ②`dispose()` していない切断では従来どおり `onDisconnected` が呼ばれる（再接続の導線を壊さない）
   ③`dispose()` 後に `onConnectionChange("reconnecting")` も呼ばれない（既存の抑止が効いていることの固定）。
   _要件: FR-086_
 
-- [ ] **T039** `apps/web/src/sync/client.ts` の `onclose` で `onDisconnected` の呼び出しを
+- [x] **T039** `apps/web/src/sync/client.ts` の `onclose` で `onDisconnected` の呼び出しを
   `if (!this.disposed)` の内側へ移し、T038 を通す。再接続の予約は既に同じ条件で抑止されており、
   通知だけが抑止対象から漏れていた。
   _要件: FR-086_
 
 ### G6-2 同名参加者の巻き添え退出と、選択時の区別（D6 改訂・FR-084/085）
 
-- [ ] **T040** `apps/sync/test/participant-remove.test.ts` に失敗するテストを追加する。
+- [x] **T040** `apps/sync/test/participant-remove.test.ts` に失敗するテストを追加する。
   ①rotation に居ない参加者を退出させても、**同名で rotation に居る別participantの位置が変わらない**
   ②rotation に居る参加者を退出させると、その participant の位置だけが外れる
   ③rotation に居る側を退出させても、同名の別participantが残るならローテーションの枠は維持される
@@ -300,57 +300,57 @@
   「同名2名がともに rotation に居る」状態は到達できないため、代わりにこの観点で検証する）。
   _要件: FR-085, SC-024_
 
-- [ ] **T041** `apps/sync/src/application/handlers.ts` の `participant.remove` で、
+- [x] **T041** `apps/sync/src/application/handlers.ts` の `participant.remove` で、
   rotation の位置解決を表示名（`rotation.indexOf(target.displayName)`）から
   **対象の識別子による解決**へ変更し、T040 を通す。
   rotation は表示名の配列のままとし（設計は変えない・D6）、同名が複数居る場合に
   どの位置が当該participantのものかを決める方法を実装する。
   _要件: FR-085_
 
-- [ ] **T042** `[P]` `apps/web/test/ui/RosterPanel.test.tsx` に失敗するテストを追加する。
+- [x] **T042** `[P]` `apps/web/test/ui/RosterPanel.test.tsx` に失敗するテストを追加する。
   ①同名の参加者が2名居るとき、退出ボタンの `aria-label` が互いに異なる
   ②同名が居ないときは従来どおり名前だけのラベルにする（通常時に読みにくくしない）
   ③確認ダイアログの文面でも同名の2名を区別できる。
   _要件: FR-084_
 
-- [ ] **T043** `apps/web/src/ui/components/RosterPanel.tsx` を改修し T042 を通す。
+- [x] **T043** `apps/web/src/ui/components/RosterPanel.tsx` を改修し T042 を通す。
   同名判定と識別子の短縮表記は `sync/notice-message.ts` の `label()` と規則を揃える
   （同じ画面で同じ人が別の呼ばれ方をしないこと）。共通化するか、同一の規則を参照すること。
   _要件: FR-084_
 
 ### G6-3 見学者に画面から到達できない（D7・FR-083）
 
-- [ ] **T044** `apps/web/test/ui/SelfDriverToggle.leave-room.test.tsx` に失敗するテストを追加する。
+- [x] **T044** `apps/web/test/ui/SelfDriverToggle.leave-room.test.tsx` に失敗するテストを追加する。
   ①開始後は「見学に回る」が出て、押すと自分の役割を viewer に変える要求が出る
   ②開始前は出ない（開始前の役割変更は主催者の担当・FR-066）
   ③`onSelfRoleChange` が無ければ出さない。
   _要件: FR-083, FR-073b_
 
-- [ ] **T045** `apps/web/src/ui/components/SelfDriverToggle.tsx` に「見学に回る」を追加し T044 を通す。
+- [x] **T045** `apps/web/src/ui/components/SelfDriverToggle.tsx` に「見学に回る」を追加し T044 を通す。
   「列から外れる」（ローテーションの出入り）とは意味が違うので、文言と配置で区別する。
   _要件: FR-083_
 
-- [ ] **T046** `[P]` `apps/web/test/ui/Lobby.role.test.tsx` を新規作成し、失敗するテストを書く。
+- [x] **T046** `[P]` `apps/web/test/ui/Lobby.role.test.tsx` を新規作成し、失敗するテストを書く。
   ①開始前、主催者の画面には他の参加者を見学者にする操作が出る
   ②主催者でない参加者には出ない（開始前の権限範囲は変えない・FR-066）
   ③自分自身の行には出ない（ホストの自己降格は `CANNOT_CHANGE_HOST` で拒否されるため）
   ④見学者になっている参加者には、編集者に戻す操作が出る。
   _要件: FR-083, FR-066_
 
-- [ ] **T047** `apps/web/src/ui/Lobby.tsx` に役割の切り替えを追加し、`App.tsx` から
+- [x] **T047** `apps/web/src/ui/Lobby.tsx` に役割の切り替えを追加し、`App.tsx` から
   `role.set`（他人対象）を送る経路を配線して T046 を通す。
   **T036 で「Lobby を変更しない」としたのは開始前の権限範囲を変えないためであり、
   主催者限定の導線を足すことはその方針と両立する。**
   _要件: FR-083_
 
-- [ ] **T048** 「あなたは見学中です」という同じ文言が、ローテーション外（役割は編集者）と
+- [x] **T048** 「あなたは見学中です」という同じ文言が、ローテーション外（役割は編集者）と
   見学者（役割が viewer）の2つの異なる状態に使われている。
   `SelfDriverToggle` と `SpectatorSelfActions` の文言を、状態が読み分けられるように修正する。
   _要件: FR-069, FR-080_
 
 ### G6-4 実行できない操作を提示しない（FR-080）
 
-- [ ] **T049** 自己退出のボタンが、不変条件（FR-072）で拒否される状況でも押せてしまう。
+- [x] **T049** 自己退出のボタンが、不変条件（FR-072）で拒否される状況でも押せてしまう。
   `apps/web` 側でも `canRemoveParticipant()` を用いて事前に無効化し、理由を提示する。
   `permissionHint` と同様、判定は `@tdd-mob/core` の関数に問い、web 側に規則を複製しないこと。
   _要件: FR-080, FR-073_
@@ -359,7 +359,7 @@
 
 ## 検証
 
-- [ ] **T050** G6 完了後に `pnpm test && pnpm typecheck && pnpm lint && pnpm build` を再実行する。
+- [x] **T050** G6 完了後に `pnpm test && pnpm typecheck && pnpm lint && pnpm build` を再実行する。
   あわせて **plan.md「手動確認」の 7〜9（実機検証で追加した項目）を実機で確認する**。
   T037 の時点では G6 の欠陥が残っていたため、実機の確認は再度必要である。
   _要件: FR-083, FR-084, FR-085, FR-086, SC-023, SC-024, SC-025_
