@@ -1,6 +1,19 @@
 /**
- * 権限・認可のテスト
- * T044: FR-016, FR-017, US5
+ * 権限判定の結合テスト（コマンド経路）
+ * T044: FR-016, FR-017, US5 / host-spof-relaxation T018: FR-071
+ *
+ * 可否の規則そのものは `packages/core` の純粋関数 `checkPermission()` が単独で持ち、
+ * `packages/core/test/permissions.test.ts` と `permissions-differential.test.ts` が
+ * 25 コマンド × 役割 × 段階 × 対象を網羅している。したがってここでは**規則を再検証しない**。
+ *
+ * このファイルに残すのは、サーバー側にしか存在しない結合の観点だけである:
+ *   1. join の既定ロール（判定の入力になる事実）
+ *   2. コマンド経路が判定結果を実際に error として返すこと（拒否・許可それぞれ1件）
+ *   3. `resolveIsSelfTarget()` が対象の指定方法を正しく解決すること
+ *      （core は isSelfTarget を入力として受け取るだけなので、その算出は core では検証できない）
+ *
+ * 段階による差（開始前は主催者主導・開始後は全員同格）は
+ * `permissions-before-start.test.ts` / `permissions-after-start.test.ts` が担当する。
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
@@ -27,7 +40,7 @@ class SpyBroadcaster implements Broadcaster {
   broadcastSignal(code: string): void { this.signals.push(code); }
 }
 
-describe("authorize: 権限テスト（FR-016, FR-017）", () => {
+describe("コマンド経路: 既定ロールと拒否の伝播（FR-016, FR-017）", () => {
   let store: InMemoryRoomStore;
   let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
@@ -96,33 +109,11 @@ describe("authorize: 権限テスト（FR-016, FR-017）", () => {
       expect(error.msg.code).toBe("UNAUTHORIZED");
     }
   });
-
-  it("viewer は session.reset を実行できない（FR-017）", async () => {
-    await handlers.handleCommand("viewer-conn", {
-      command: "session.reset",
-    });
-
-    const error = broadcaster.sent.find((s) => s.msg.type === "error");
-    expect(error).toBeTruthy();
-    if (error?.msg.type === "error") {
-      expect(error.msg.code).toBe("UNAUTHORIZED");
-    }
-  });
-
-  it("viewer は phase.set を実行できない（FR-017）", async () => {
-    await handlers.handleCommand("viewer-conn", {
-      command: "phase.set",
-      phase: "ready",
-    });
-
-    const error = broadcaster.sent.find((s) => s.msg.type === "error");
-    expect(error).toBeTruthy();
-  });
 });
 
-// ─── T026: v2 新コマンドの権限テスト ──────────────────────────────────────────
+// ─── コマンド経路: 許可の伝播（T026） ────────────────────────────────────────
 
-describe("authorize: v2 新コマンド（T026）", () => {
+describe("コマンド経路: 許可が decide まで届く（T026）", () => {
   let store: InMemoryRoomStore;
   let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
@@ -176,31 +167,6 @@ describe("authorize: v2 新コマンド（T026）", () => {
     }
   });
 
-  it("viewer は participant.addProxy を実行できない（FR-055）", async () => {
-    await handlers.handleCommand(viewerConnId, {
-      command: "participant.addProxy",
-      displayName: "Dave",
-      participantId: "proxy-1",
-    });
-    const error = broadcaster.sent.find((s) => s.msg.type === "error");
-    expect(error).toBeTruthy();
-    if (error?.msg.type === "error") {
-      expect(error.msg.code).toBe("UNAUTHORIZED");
-    }
-  });
-
-  it("viewer は problem.edit を実行できない（FR-055）", async () => {
-    await handlers.handleCommand(viewerConnId, {
-      command: "problem.edit",
-      patch: { title: "ハック" },
-    });
-    const error = broadcaster.sent.find((s) => s.msg.type === "error");
-    expect(error).toBeTruthy();
-    if (error?.msg.type === "error") {
-      expect(error.msg.code).toBe("UNAUTHORIZED");
-    }
-  });
-
   it("host は session.abort を実行できる（FR-055）", async () => {
     await handlers.handleCommand(hostConnId, { command: "session.abort" });
     const error = broadcaster.sent.find((s) => s.msg.type === "error");
@@ -218,11 +184,11 @@ describe("authorize: v2 新コマンド（T026）", () => {
   });
 });
 
-// ─── driver.skip / driver.resume の関係的権限（本人 or host） ─────────────────
-// plan.md L209-210: driver.skip / driver.resume はいずれも「本人 / host」権限。
-// 集合方式（EDITOR_PLUS）では「対象が本人か」を判定できず、editor が他人を skip でき
-// （fail-open）、viewer が自分すら skip できない（過剰拒否）という二重の誤りになる。
-describe("authorize: driver.skip / driver.resume の関係的権限（本人 or host）", () => {
+// ─── resolveIsSelfTarget: 対象の解決（サーバー側にしかない責務） ───────────────
+// core の checkPermission は isSelfTarget を「入力」として受け取るため、その算出の
+// 正しさは core では検証できない。participantId で対象を指すコマンドについて、
+// 「本人 / 他人」の解決がコマンド経路で機能していることをここで担保する。
+describe("resolveIsSelfTarget: driver.skip / driver.resume の対象解決（本人 or host）", () => {
   let store: InMemoryRoomStore;
   let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;

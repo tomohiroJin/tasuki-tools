@@ -13,6 +13,7 @@ import {
   initialAggregate,
   secondsLeft,
   buildCompletionRecord,
+  checkPermission,
   type Room,
   type Participant,
   type SessionConfig,
@@ -435,59 +436,10 @@ export function makeHandlers(deps: HandlerDeps) {
       return err("PARTICIPANT_NOT_FOUND");
     }
 
-    // participant.rename / driver.skip / driver.resume は「本人 or host」権限
-    // （FR-046/048・plan.md L209-210）。いずれも対象 participantId に依存する関係的
-    // 権限で、集合方式の authorize（ロール集合）では「対象が本人か」を表現できない。
-    // EDITOR_PLUS に置くと editor が他人を skip/resume でき（fail-open）、かつ viewer が
-    // 自分すら skip できない（過剰拒否）ため、ここで個別に fail-closed 判定する。
-    const RELATIONAL_SELF_OR_HOST = new Set([
-      "participant.rename",
-      "driver.skip",
-      "driver.resume",
-    ]);
-    if (RELATIONAL_SELF_OR_HOST.has(cmd.command)) {
-      const isSelf = cmd.participantId === participant.participantId;
-      const isHost = participant.role === "host";
-      if (!isSelf && !isHost) {
-        broadcaster.sendTo(connId, {
-          type: "error",
-          code: "UNAUTHORIZED",
-          message: "他の参加者への操作はホストのみ実行できます",
-        });
-        return err("UNAUTHORIZED");
-      }
-    }
-
-    // member.add/remove の関係的権限（横方向の権限濫用防止）。
-    // editor は「自分の rotation 出入り」のみ許可し、他人分の追加/除外は host に限定する。
-    // （UI は自名/自 index のみ送るが、コマンド直送で他人を操作されないようサーバで強制。）
-    if (
-      participant.role !== "host" &&
-      (cmd.command === "member.add" || cmd.command === "member.remove")
-    ) {
-      const ownName = participant.displayName;
-      const ownsTarget =
-        cmd.command === "member.add"
-          ? cmd.name === ownName
-          : targetRoom.session.rotation[Number(cmd.index)] === ownName;
-      if (!ownsTarget) {
-        broadcaster.sendTo(connId, {
-          type: "error",
-          code: "UNAUTHORIZED",
-          message: "他の参加者のローテーション操作はホストのみ実行できます",
-        });
-        return err("UNAUTHORIZED");
-      }
-    }
-
-    // 権限チェック（FR-017）
-    const authError = authorize(participant.role, cmd.command as string, targetRoom.hostParticipantId, participant.participantId);
-    if (authError) {
-      broadcaster.sendTo(connId, {
-        type: "error",
-        code: "UNAUTHORIZED",
-        message: authError,
-      });
+    // 権限チェック（FR-017・FR-071）。段階（startedAt）と役割と自己対象かの3点だけを
+    // 事実として渡し、可否の規則は core の checkPermission が単独で持つ。
+    // 関係的権限（本人 or host）もローテーション所有権も、その規則表の中で表現される。
+    if (rejectIfUnauthorized(connId, targetRoom, participant, cmd)) {
       return err("UNAUTHORIZED");
     }
 
@@ -497,6 +449,11 @@ export function makeHandlers(deps: HandlerDeps) {
     if (cmd.command === "participant.remove") {
       const now = clock.now();
       const targetId = cmd.participantId;
+      // 妥当性検査であり権限検査ではない（権限は上の rejectIfUnauthorized が済ませている）。
+      // ただし checkPermission は自己対象の participant.remove を既に「許可」しており、
+      // その許可はこの行が握り潰している状態にある。自己退出（FR-079）を実効化するのは
+      // T020 の担当で、そこで自己対象の拒否だけを削除し `canRemoveParticipant()` に置き換える。
+      // それまでは自己対象の拒否コードが UNAUTHORIZED ではなく INVALID になる点に注意。
       if (typeof targetId !== "string" || targetId === participant.participantId) {
         broadcaster.sendTo(connId, { type: "error", code: "INVALID", message: "自分自身や不正な対象は外せません" });
         return err("INVALID");
@@ -732,14 +689,19 @@ export function makeHandlers(deps: HandlerDeps) {
     }
 
     const actor = room.participants.find((p) => p.connId === connId);
-    if (!actor || actor.role !== "host") {
+    if (!actor) {
+      // 在室ルームは connId で引いているため通常は到達しない防御分岐。
+      // 可否ではなくアクター解決の失敗なので、権限の文言は使わない。
       broadcaster.sendTo(connId, {
         type: "error",
         code: "UNAUTHORIZED",
-        message: "role.set はホストのみ実行できます",
+        message: "ルームの参加者として認識できません",
       });
       return err("UNAUTHORIZED");
     }
+    // 開始後は主催者であることを条件にしない（FR-063）。このハンドラは handleCommand の
+    // switch で分岐するため handleRoomCommand の判定を通らない。個別に呼ぶ必要がある。
+    if (rejectIfUnauthorized(connId, room, actor, cmd)) return err("UNAUTHORIZED");
 
     // ホスト自身の役割は変更できない（委譲は別経路）
     if (cmd.participantId === room.hostParticipantId) {
@@ -797,14 +759,19 @@ export function makeHandlers(deps: HandlerDeps) {
       return err("NOT_IN_ROOM");
     }
     const actor = room.participants.find((p) => p.connId === connId);
-    if (!actor || actor.role !== "host") {
+    if (!actor) {
+      // 在室ルームは connId で引いているため通常は到達しない防御分岐。
+      // 可否ではなくアクター解決の失敗なので、権限の文言は使わない。
       broadcaster.sendTo(connId, {
         type: "error",
         code: "UNAUTHORIZED",
-        message: "パスフレーズ設定はホストのみ実行できます",
+        message: "ルームの参加者として認識できません",
       });
       return err("UNAUTHORIZED");
     }
+    // 開始後は主催者であることを条件にしない（FR-063）。このハンドラは handleCommand の
+    // switch で分岐するため handleRoomCommand の判定を通らない。個別に呼ぶ必要がある。
+    if (rejectIfUnauthorized(connId, room, actor, cmd)) return err("UNAUTHORIZED");
 
     // 前後空白を正規化して保持（設定側/参加側の trim 差異による「正しいのに不一致」を防ぐ）。
     // 空白のみ・空文字は解除扱い。
@@ -847,14 +814,19 @@ export function makeHandlers(deps: HandlerDeps) {
       return err("NOT_IN_ROOM");
     }
     const actor = room.participants.find((p) => p.connId === connId);
-    if (!actor || actor.role !== "host") {
+    if (!actor) {
+      // 在室ルームは connId で引いているため通常は到達しない防御分岐。
+      // 可否ではなくアクター解決の失敗なので、権限の文言は使わない。
       broadcaster.sendTo(connId, {
         type: "error",
         code: "UNAUTHORIZED",
-        message: "AI 生成の解錠はホストのみ実行できます",
+        message: "ルームの参加者として認識できません",
       });
       return err("UNAUTHORIZED");
     }
+    // 開始後は主催者であることを条件にしない（FR-063）。このハンドラは handleCommand の
+    // switch で分岐するため handleRoomCommand の判定を通らない。個別に呼ぶ必要がある。
+    if (rejectIfUnauthorized(connId, room, actor, cmd)) return err("UNAUTHORIZED");
 
     // 連続失敗のレート制限（join と同じ窓・閾値を共用）
     const now = clock.now();
@@ -911,14 +883,19 @@ export function makeHandlers(deps: HandlerDeps) {
     }
 
     const actor = room.participants.find((p) => p.connId === connId);
-    if (!actor || actor.role !== "host") {
+    if (!actor) {
+      // 在室ルームは connId で引いているため通常は到達しない防御分岐。
+      // 可否ではなくアクター解決の失敗なので、権限の文言は使わない。
       broadcaster.sendTo(connId, {
         type: "error",
         code: "UNAUTHORIZED",
-        message: "host.transfer はホストのみ実行できます",
+        message: "ルームの参加者として認識できません",
       });
       return err("UNAUTHORIZED");
     }
+    // 開始後は主催者であることを条件にしない（FR-063）。このハンドラは handleCommand の
+    // switch で分岐するため handleRoomCommand の判定を通らない。個別に呼ぶ必要がある。
+    if (rejectIfUnauthorized(connId, room, actor, cmd)) return err("UNAUTHORIZED");
 
     // 自分自身へは移譲できない（現ホスト＝対象は無意味）
     if (cmd.participantId === room.hostParticipantId) {
@@ -1040,7 +1017,14 @@ export function makeHandlers(deps: HandlerDeps) {
     });
   }
 
-  /** connId から在室ルームと参加者を解決し、editor 以上であることを確認する */
+  /**
+   * connId から在室ルームと参加者を解決し、そのコマンドを実行できることを確認する。
+   *
+   * 在室確認（NOT_IN_ROOM）とアクター解決はここに残すが、可否の判定そのものは
+   * `checkPermission()` に委ねる（FR-071）。この関数も handleCommand の switch で
+   * 分岐するハンドラ（problem.request / problem.submit）から呼ばれるため、
+   * handleRoomCommand の判定を通らない。viewer 判定をここに残すと規則が2箇所に分裂する。
+   */
   function requireEditor(
     connId: string,
     command: string,
@@ -1056,15 +1040,39 @@ export function makeHandlers(deps: HandlerDeps) {
     }
     const actor = room.participants.find((p) => p.connId === connId);
     if (!actor) return err("PARTICIPANT_NOT_FOUND");
-    if (actor.role === "viewer") {
-      broadcaster.sendTo(connId, {
-        type: "error",
-        code: "UNAUTHORIZED",
-        message: `${command} は編集者以上が必要です`,
-      });
+    if (rejectIfUnauthorized(connId, room, actor, { command })) {
       return err("UNAUTHORIZED");
     }
     return ok({ room, actor });
+  }
+
+  /**
+   * 権限を判定し、拒否ならエラーを送って true を返す（呼び出し側は即 return する）。
+   *
+   * 判定そのものは `@tdd-mob/core` の `checkPermission()` が単独で担う（FR-071）。
+   * かつて5層に分散していた検査（集合ベース・関係ベース・個別ガード・requireEditor・
+   * 専用ハンドラの host 検査）は、すべてこの1関数の呼び出しに集約されている。
+   * 判定に必要な事実の算出（在室・段階・自己対象か）だけがサーバー側の責務である。
+   */
+  function rejectIfUnauthorized(
+    connId: string,
+    room: Room,
+    actor: Participant,
+    cmd: { command: string; [key: string]: unknown },
+  ): boolean {
+    const verdict = checkPermission({
+      command: cmd.command,
+      role: actor.role,
+      started: room.startedAt != null,
+      isSelfTarget: resolveIsSelfTarget(room, actor, cmd),
+    });
+    if (verdict.allowed) return false;
+    broadcaster.sendTo(connId, {
+      type: "error",
+      code: verdict.code,
+      message: verdict.message,
+    });
+    return true;
   }
 
   /** connId からルームを特定する（参加者として在室しているルーム） */
@@ -1093,66 +1101,47 @@ export function makeHandlers(deps: HandlerDeps) {
   return { handleCommand, handleConnectionClose, releaseRoom, advanceForAbsence: autoSwitch };
 }
 
-// ─── 権限チェック ─────────────────────────────────────────────────────────────
+// ─── 権限判定に必要な事実の算出 ───────────────────────────────────────────────
 
-/** ホスト限定操作 */
-const HOST_ONLY_COMMANDS = new Set([
-  "session.complete",
-  "session.abort",
-  "session.reset",
-  "phase.set",
-  "role.set",
-  "room.passphrase.set",
-  "ai.unlock",
-  "host.transfer",
-  "participant.addProxy",
-  "participant.remove",
-  // 並べ替えはホスト専用（UI も host のみ提供）。editor による他人の順序操作を防ぐ。
-  "member.move",
-  // ランダム化もホスト専用（順列はサーバー権威で生成）。
-  "member.shuffle",
-  // 任意メンバーへのドライバー強制指名は host 専用（Issue #13）。
-  "driver.assign",
-]);
+/**
+ * 対象コマンドの指定方法ごとに「操作対象が実行者自身か」を算出する（FR-068）。
+ *
+ * 対象の指定方法がコマンドごとに異なる（participantId / 表示名 / rotation の位置）ため、
+ * 算出を各所へ散らすと判定漏れが起きる。`checkPermission()` を呼ぶ前に必ずここを通す。
+ *
+ * **既知の限界:** 表示名ベースの2件（member.add / member.remove）は同名参加者を区別できない。
+ * これは従来の関係ガードと同一の挙動であり、本 Issue では再設計しない
+ * （開始後は他人対象も許可されるため実害がない）。
+ *
+ * 設計: docs/plans/host-spof-relaxation/plan.md「isSelfTarget の算出は単一の resolver に集約する」
+ */
+function resolveIsSelfTarget(
+  room: Room,
+  actor: Participant,
+  cmd: { command: string; [key: string]: unknown },
+): boolean {
+  switch (cmd.command) {
+    // participantId で対象を指す関係コマンド。
+    case "participant.rename":
+    case "driver.skip":
+    case "driver.resume":
+    case "participant.remove":
+    case "role.set":
+      return cmd.participantId === actor.participantId;
 
-/** 編集者以上が必要な操作 */
-const EDITOR_PLUS_COMMANDS = new Set([
-  "config.set",
-  // member.add/remove は EDITOR_PLUS だが、handleRoomCommand の関係ガードで
-  // 「自分の rotation 出入りのみ本人可・他人分は host」に絞る（横方向の権限濫用防止）。
-  "member.add",
-  "member.remove",
-  "session.act",
-  "problem.request",
-  "problem.submit",
-  "problem.edit",
-  "problem.mode.set",
-  "handoff.note.set",
-  // driver.skip / driver.resume は「本人 or host」の関係的権限のため EDITOR_PLUS に
-  // は含めない（handleRoomCommand の RELATIONAL_SELF_OR_HOST ガードで判定する）。
-]);
+    // 表示名で rotation への参加を指す。
+    case "member.add":
+      return cmd.name === actor.displayName;
 
-function authorize(
-  role: "host" | "editor" | "viewer",
-  command: string,
-  hostParticipantId: string,
-  participantId: string,
-): string | null {
-  if (HOST_ONLY_COMMANDS.has(command)) {
-    if (role !== "host") {
-      return `${command} はホストのみ実行できます`;
-    }
-    return null;
+    // rotation の位置で対象を指す。
+    case "member.remove":
+      return room.session.rotation[Number(cmd.index)] === actor.displayName;
+
+    // 上記以外は対象を持たない（host.transfer の participantId は「移譲先」であり
+    // 自己対象という概念が成立しないため、ここには含めない）。
+    default:
+      return false;
   }
-
-  if (EDITOR_PLUS_COMMANDS.has(command)) {
-    if (role === "viewer") {
-      return `${command} は編集者以上が必要です`;
-    }
-    return null;
-  }
-
-  return null;
 }
 
 // ─── コマンド変換 ────────────────────────────────────────────────────────────
