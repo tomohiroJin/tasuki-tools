@@ -26,20 +26,20 @@
 
 ## G0 — `packages/core` に権限判定と不変条件を新設（配線しない）
 
-- [ ] **T001** `packages/core/test/permissions.test.ts` を新規作成し、`checkPermission()` の失敗するテストを書く。
+- [x] **T001** `packages/core/test/permissions.test.ts` を新規作成し、`checkPermission()` の失敗するテストを書く。
   表駆動で「段階（未開始/開始済み）× 役割（host/editor/viewer）× 対象（自分/他人）」を網羅する。
   最低限、次を含める: ①開始後は editor が `driver.assign` を実行できる ②開始前は editor が `driver.assign` を実行できない
   ③viewer は他人対象の操作を実行できない ④viewer は自分対象の `participant.rename` を実行できる。
   _要件: FR-062, FR-063, FR-064, FR-066, FR-067, FR-068, US1, US2_
 
-- [ ] **T002** `packages/core/test/permissions.test.ts` に、**`HOST_ONLY_COMMANDS` 13 コマンド全件**について
+- [x] **T002** `packages/core/test/permissions.test.ts` に、**`HOST_ONLY_COMMANDS` 13 コマンド全件**について
   「開始前は host のみ／開始後は editor も可」を1件ずつ検証する失敗するテストを追加する。
   対象コマンドは `session.complete` / `session.abort` / `session.reset` / `phase.set` / `role.set` /
   `room.passphrase.set` / `ai.unlock` / `host.transfer` / `participant.addProxy` / `participant.remove` /
   `member.move` / `member.shuffle` / `driver.assign` の各件。網羅を目視に頼らない。
   _要件: FR-063, FR-064, FR-066, US1_
 
-- [ ] **T003** `packages/core/test/permissions.test.ts` に default-deny の失敗するテストを追加する。
+- [x] **T003** `packages/core/test/permissions.test.ts` に default-deny の失敗するテストを追加する。
   ①規則表に無いコマンド名（例 `"unknown.command"`）が拒否される
   ②**ルームスコープかつ到達可能な 25 コマンド**が規則表に登録されている（未登録＝拒否になるため
   登録漏れを検出できる）。テスト内に除外リストを定数として明示する:
@@ -48,7 +48,7 @@
   受理されない）も対象外。`CommandSchema` は全 31 件なので `31 - 4 - 2 = 25` を検算に使う。
   _要件: FR-071_
 
-- [ ] **T003b** `packages/core/test/permissions-differential.test.ts` を新規作成し、
+- [x] **T003b** `packages/core/test/permissions-differential.test.ts` を新規作成し、
   **現行 5 層のロジックを参照実装（オラクル）として一度だけ書き下し**、
   25 コマンド × 3 役割 × 2 対象 = 150 通りの**開始前**の判定を `checkPermission` と機械的に比較する
   失敗するテストを書く。開始後は緩和が入るため、別の独立した述語
@@ -58,23 +58,23 @@
   1078-1138（層①）とし、コメントに行番号を記録する。
   _要件: FR-066, FR-071, 非機能要件「後方互換」_
 
-- [ ] **T004** `packages/core/src/permissions.ts` を新規作成し、T001〜T003b を通す。
+- [x] **T004** `packages/core/src/permissions.ts` を新規作成し、T001〜T003b を通す。
   `PermissionInput` / `PermissionVerdict` 型、規則表（`SELF_SCOPED_COMMANDS` / `SELF_SCOPED_AFTER_START` /
   `HOST_ONLY_BEFORE_START` / `EDITOR_PLUS_COMMANDS`）、`checkPermission()`、`isAllowed()` を実装する。
   判定順序は `plan.md`「判定の順序」のステップ 0〜5 に厳密に従う。
   _要件: FR-062, FR-063, FR-064, FR-066, FR-067, FR-068, FR-071_
 
-- [ ] **T005** `[P]` `packages/core/test/participants.test.ts` を新規作成し、失敗するテストを書く。
+- [x] **T005** `[P]` `packages/core/test/participants.test.ts` を新規作成し、失敗するテストを書く。
   ①`countManagers` が `isPlaceholder: true` の参加者を数えない ②実在 editor が1名のとき
   `canDemote` がその1名の降格を拒否する ③`canRemoveParticipant` が同じ1名の退出を拒否する
   ④代理 editor が別に1名いても②③の判定が変わらない。
   _要件: FR-072, FR-073, US5_
 
-- [ ] **T006** `[P]` `packages/core/src/participants.ts` を新規作成し、T005 を通す。
+- [x] **T006** `[P]` `packages/core/src/participants.ts` を新規作成し、T005 を通す。
   `countManagers()` / `canDemote()` / `canRemoveParticipant()` を実装する。
   _要件: FR-072, FR-073_
 
-- [ ] **T007** `packages/core/src/index.ts` に `export * from "./permissions.js";` と
+- [x] **T007** `packages/core/src/index.ts` に `export * from "./permissions.js";` と
   `export * from "./participants.js";` を追加する（既存の全モジュールが `export *` 様式なので揃える）。
   これにより `apps/sync` と `apps/web` の両方から参照できる
   （`apps/web` は `package.json:17` で `@tdd-mob/core` に依存済み・実行時関数も既に利用している）。
@@ -84,23 +84,23 @@
 
 ## G1 — `Room.startedAt` の追加と記録（判定にはまだ使わない）
 
-- [ ] **T008** `packages/core/test/schemas.test.ts` に失敗するテストを追加する。
+- [x] **T008** `packages/core/test/schemas.test.ts` に失敗するテストを追加する。
   ①`startedAt` を省略した既存形式の room オブジェクトが `RoomSchema` でパースできる（後方互換）
   ②`startedAt: null` と数値の双方が通る。
   _要件: FR-062_
 
-- [ ] **T009** `packages/core/src/schemas.ts` の `RoomSchema` に
+- [x] **T009** `packages/core/src/schemas.ts` の `RoomSchema` に
   `startedAt: v.optional(v.nullable(v.number()))` を追加し、`Room` 型（`aggregate.ts` の interface）にも
   `startedAt?: number | null` を追加して T008 を通す。既存の任意フィールド群の直後に置く。
   _要件: FR-062_
 
-- [ ] **T010** `apps/sync/test/started-monotonic.test.ts` を新規作成し、失敗するテストを書く。
+- [x] **T010** `apps/sync/test/started-monotonic.test.ts` を新規作成し、失敗するテストを書く。
   ①`phase.set session` で `startedAt` が記録される ②**`phase.set` を送らず `session.act START` だけを
   送った場合も記録される** ③`phase.set setup` へ後戻りしても `startedAt` が消えない
   ④2 回目の開始で値が更新されない。
   _要件: FR-062, US6_
 
-- [ ] **T011** `apps/sync/src/application/handlers.ts` の `applyRoomLevelEvent()` に、
+- [x] **T011** `apps/sync/src/application/handlers.ts` の `applyRoomLevelEvent()` に、
   `PhaseSet`（`phase === "session"` のとき）と **`SessionStarted`** の case で
   `startedAt` を記録する処理を追加し、T010 を通す。`startedAt !== null` のときは上書きしない。
   `SessionStarted` は現在この関数に case が無いため新規追加になる（集約側は変更しない）。
@@ -110,13 +110,13 @@
 
 ## G2 — 権限判定を 5 層から 1 層へ置換（**ここで詰みが解消する**）
 
-- [ ] **T012** `apps/sync/test/permissions-before-start.test.ts` を新規作成し、失敗するテストを書く。
+- [x] **T012** `apps/sync/test/permissions-before-start.test.ts` を新規作成し、失敗するテストを書く。
   開始前に editor が `driver.assign` / `member.shuffle` / `member.move` / `role.set` /
   `room.passphrase.set` / `ai.unlock` / `participant.remove` を送ると `UNAUTHORIZED` になる。
   あわせて在室していない接続からの操作が `NOT_IN_ROOM` になることを確認する。
   _要件: FR-066, FR-070, US6_
 
-- [ ] **T013** `apps/sync/test/permissions-after-start.test.ts` を新規作成し、失敗するテストを書く。
+- [x] **T013** `apps/sync/test/permissions-after-start.test.ts` を新規作成し、失敗するテストを書く。
   開始後に host でない editor が T012 と同じ 7 コマンドをすべて実行できる。
   **専用ハンドラ経由の4件（`role.set` / `room.passphrase.set` / `ai.unlock` / `host.transfer`）を
   必ず含める**（集合表だけ直しても緩和されないため、ここが回帰検出点になる）。
@@ -124,38 +124,38 @@
   「viewer は拒否・editor は許可」が段階に関わらず維持されることを検証する。
   _要件: FR-063, FR-064, FR-067, US1_
 
-- [ ] **T014** `apps/sync/src/application/handlers.ts` に `isSelfTarget` を算出する単一の関数を追加する。
+- [x] **T014** `apps/sync/src/application/handlers.ts` に `isSelfTarget` を算出する単一の関数を追加する。
   `plan.md`「`isSelfTarget` の算出は単一の resolver に集約する」の表に従い、`participantId` /
   `name` / `index` の 3 形態と「対象なし」を扱う。まだ既存ガードは削除しない。
   _要件: FR-068_
 
-- [ ] **T015** `apps/sync/src/application/handlers.ts` の `handleRoomCommand` から
+- [x] **T015** `apps/sync/src/application/handlers.ts` の `handleRoomCommand` から
   ①`authorize()` 呼び出し（484 行付近）②`RELATIONAL_SELF_OR_HOST` ガード（443-459）
   ③`member.add` / `member.remove` の個別ガード（464-481）を削除し、
   `checkPermission()` の単一呼び出しに置き換える。`HOST_ONLY_COMMANDS` / `EDITOR_PLUS_COMMANDS` /
   `authorize()` の定義（1078-1138）も削除する（core へ移設済み）。T013 の該当部分が通る。
   _要件: FR-063, FR-064, FR-066, FR-071_
 
-- [ ] **T016** `apps/sync/src/application/handlers.ts` の**専用ハンドラ4箇所（層⑤）**の
+- [x] **T016** `apps/sync/src/application/handlers.ts` の**専用ハンドラ4箇所（層⑤）**の
   `actor.role !== "host"` 検査を `checkPermission()` に置き換える。
   対象は `handleRoleSet`（717 付近）/ `handleRoomPassphraseSet`（782 付近）/
   `handleAiUnlock`（832 付近）/ `handleHostTransfer`（896 付近）。T013 の該当部分が通る。
   **これらは `authorize()` に到達しないため、T015 だけでは緩和されない。**
   _要件: FR-063, FR-064, FR-071_
 
-- [ ] **T016b** `apps/sync/src/application/handlers.ts` の **`requireEditor()`（1026-1050・層④）**の
+- [x] **T016b** `apps/sync/src/application/handlers.ts` の **`requireEditor()`（1026-1050・層④）**の
   `actor.role === "viewer"` 検査を `checkPermission()` に置き換える。在室確認（`NOT_IN_ROOM`）と
   アクター解決は残す。この関数は `handleProblemRequest`（954）と `handleProblemSubmit`（988）が使い、
   こちらも `authorize()` に到達しないため個別の置換が必要。これを省くと viewer 判定が2箇所に残り
   **FR-071（判定を単一の規則として保持）を満たせない**。T013 の残りが通る。
   _要件: FR-067, FR-071_
 
-- [ ] **T017** `apps/sync/src/application/handlers.ts` の `UNAUTHORIZED` メッセージを段階込みの文言に統一する
+- [x] **T017** `apps/sync/src/application/handlers.ts` の `UNAUTHORIZED` メッセージを段階込みの文言に統一する
   （`plan.md`「変更: `UNAUTHORIZED` の message」の表に従う）。「開始前はホストのみ実行できます」
   「見学者では実行できません（進行に加わると実行できます）」の2系統にする。
   _要件: FR-069_
 
-- [ ] **T018** `apps/sync/test/authorize.test.ts` を、`authorize()` の削除と `checkPermission()` への
+- [x] **T018** `apps/sync/test/authorize.test.ts` を、`authorize()` の削除と `checkPermission()` への
   移設に追随して更新する。core 側（T001〜T004）と重複する純粋な判定ケースは削除し、
   **コマンド経路を通した結合の観点だけを残す**。
   _要件: FR-071_
