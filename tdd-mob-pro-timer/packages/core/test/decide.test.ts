@@ -4,7 +4,6 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { err, ok } from "neverthrow";
 import { decide } from "../src/decide.js";
 import { initialAggregate } from "../src/aggregate.js";
 import type { SessionConfig } from "../src/aggregate.js";

@@ -10,7 +10,8 @@
     "test": "vitest run --coverage",
     "test:unit": "vitest run",
     "test:watch": "vitest watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src test"
   },
   "dependencies": {
     "neverthrow": "^8.1.1",

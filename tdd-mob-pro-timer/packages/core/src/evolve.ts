@@ -34,7 +34,10 @@ function freezeRunningClock(clock: ServerClock, now: number): ServerClock {
  * イベントを集約に適用し、新しい集約を返す純粋関数
  * 全域関数（全イベント型を処理）
  */
-export function evolve(agg: Aggregate, event: DomainEvent, now: number): Aggregate {
+// 第3引数は呼び出し側の「この適用の時刻」を表すが、各イベントは自身に now を持つため
+// 分岐側では event.now を使う。引数はイベントを持たない将来の適用や呼び出し規約の
+// 一貫性のために残す（全呼び出し箇所が渡している）。
+export function evolve(agg: Aggregate, event: DomainEvent, _now: number): Aggregate {
   switch (event.type) {
     case "SessionStarted":
       return evolveSessionStarted(agg, event.now);

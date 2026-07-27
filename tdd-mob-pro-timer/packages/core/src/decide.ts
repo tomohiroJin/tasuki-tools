@@ -4,7 +4,7 @@
  */
 
 import { ok, err, type Result } from "neverthrow";
-import type { Aggregate, SessionConfig, IntervalMinutes, ProblemMode } from "./aggregate.js";
+import type { Aggregate, SessionConfig, ProblemMode } from "./aggregate.js";
 import {
   VALID_INTERVAL_MINUTES,
   MIN_MEMBERS,

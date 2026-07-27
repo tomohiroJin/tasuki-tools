@@ -8,7 +8,7 @@ import { describe, it, expect } from "vitest";
 import * as fc from "fast-check";
 import { decide } from "../src/decide.js";
 import { evolve } from "../src/evolve.js";
-import { initialAggregate, MIN_MEMBERS, MAX_MEMBERS } from "../src/aggregate.js";
+import { initialAggregate, MAX_MEMBERS } from "../src/aggregate.js";
 import type { Aggregate, SessionConfig } from "../src/aggregate.js";
 
 /** 不変条件を検証する */

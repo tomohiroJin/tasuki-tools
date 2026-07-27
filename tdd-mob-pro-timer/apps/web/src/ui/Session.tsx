@@ -5,7 +5,7 @@
 
 import React, { useMemo, useState } from "react";
 import {
-  Crown, ArrowRight, Play, Pause, SkipForward, Flag, RotateCcw, Shuffle, TimerReset,
+  Crown, ArrowRight, Play, Pause, SkipForward, Shuffle, TimerReset,
 } from "lucide-react";
 import { secondsLeft, elapsedMs } from "@tdd-mob/core/aggregate";
 import type { Room, Problem } from "@tdd-mob/core";

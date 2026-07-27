@@ -10,7 +10,6 @@ import {
   checkPermission,
   isAllowed,
   type PermissionInput,
-  type Role,
 } from "../src/permissions.js";
 
 /** テスト用の入力を組み立てる小ヘルパー。差分だけを書けば済むようにする。 */

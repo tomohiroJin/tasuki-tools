@@ -121,7 +121,7 @@ export class ProblemDelegator {
     const timer = setTimeout(() => abort.abort(), this.aiTimeoutMs);
     this.activeServer.set(roomCode, { requestId, abort, timer, release });
 
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    // serverProvider の存在は呼び出し側が確認済み（未設定ならこの経路に入らない）。
     this.serverProvider!
       .generate(room.config.language, room.config.difficulty, abort.signal)
       .then((raw) => {

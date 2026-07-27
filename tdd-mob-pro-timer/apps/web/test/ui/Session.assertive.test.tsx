@@ -6,7 +6,7 @@
  * prefers-reduced-motion 時は控えめ版（data 属性で区別）。
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, within, act } from "@testing-library/react";
 import React from "react";
 import { Session } from "../../src/ui/Session.js";

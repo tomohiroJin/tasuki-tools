@@ -407,7 +407,9 @@ export function makeHandlers(deps: HandlerDeps) {
   /** time.ping — 状態を変えずにサーバー時刻を返す（FR-007, SC-001） */
   async function handleTimePing(
     connId: string,
-    cmd: { command: "time.ping"; clientTime: number },
+    // 受信形を型として残すが、応答はサーバー時刻のみで clientTime は使わない
+    // （往復遅延の推定はクライアント側が送信時刻と突き合わせて行う）。
+    _cmd: { command: "time.ping"; clientTime: number },
   ): Promise<Result<CreateResult, string>> {
     broadcaster.sendTo(connId, {
       type: "time.pong",

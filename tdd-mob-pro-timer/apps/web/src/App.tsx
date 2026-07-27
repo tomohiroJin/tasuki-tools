@@ -419,7 +419,7 @@ export default function App() {
       setJoinCode(code);
       setMode("join");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // 依存は ref と setter のみで、いずれも再生成されない（exhaustive-deps も指摘しない）。
   }, []);
 
   useEffect(() => {
