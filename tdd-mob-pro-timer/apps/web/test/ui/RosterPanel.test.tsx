@@ -41,7 +41,7 @@ describe("RosterPanel モブ順表示", () => {
   const noop = vi.fn();
   const baseProps = {
     myParticipantId: "x",
-    canHostAction: false,
+    canManage: false,
     onRename: noop, onSkip: noop, onResume: noop, onAddProxy: noop,
   };
 
@@ -115,7 +115,7 @@ describe("RosterPanel（T056/T057）", () => {
     ],
     currentDriverName: "Alice",
     myParticipantId: "p1",
-    canHostAction: true,
+    canManage: true,
     onRename: noop,
     onSkip: noop,
     onResume: noop,
@@ -210,12 +210,12 @@ describe("RosterPanel（T056/T057）", () => {
       makeParticipant({ participantId: "p1", displayName: "Alice", role: "host" }),
       makeParticipant({ participantId: "v9", displayName: "Vic", role: "viewer", connId: "cv" }),
     ];
-    // viewer 視点: canHostAction=false, myParticipantId=v9
+    // viewer 視点: canManage=false, myParticipantId=v9
     render(
       <RosterPanel
         {...baseProps}
         participants={participants}
-        canHostAction={false}
+        canManage={false}
         myParticipantId="v9"
         onRename={onRename}
       />,
@@ -297,11 +297,11 @@ describe("RosterPanel（T056/T057）", () => {
       expect(screen.queryByRole("button", { name: /Carol を後の順番へ/ })).toBeNull();
     });
 
-    it("canHostAction=false のときは並べ替えボタンを出さない", () => {
+    it("canManage=false のときは並べ替えボタンを出さない", () => {
       render(
         <RosterPanel
           {...moveProps}
-          canHostAction={false}
+          canManage={false}
           myParticipantId="p2"
           onMove={vi.fn()}
         />,
@@ -373,11 +373,11 @@ describe("RosterPanel（T056/T057）", () => {
       expect(screen.queryByRole("button", { name: /ホストを譲る/ })).toBeNull();
     });
 
-    it("canHostAction=false のときは『ホストを譲る』を出さない", () => {
+    it("canManage=false のときは『ホストを譲る』を出さない", () => {
       render(
         <RosterPanel
           {...baseProps}
-          canHostAction={false}
+          canManage={false}
           myParticipantId="p2"
           onTransferHost={vi.fn()}
         />,
@@ -435,7 +435,7 @@ const sectionBase = {
   rotation: ["Alice", "Bob"],
   currentDriverName: "Bob",
   myParticipantId: "h",
-  canHostAction: true,
+  canManage: true,
   onRename: vi.fn(), onSkip: vi.fn(), onResume: vi.fn(), onAddProxy: vi.fn(),
 };
 
@@ -478,7 +478,7 @@ describe("RosterPanel セクション分割", () => {
         participants={participants}
         currentDriverName="D"
         myParticipantId="p0"
-        canHostAction={false}
+        canManage={false}
         rotation={names}
         onRename={vi.fn()}
         onSkip={vi.fn()}
@@ -498,7 +498,7 @@ describe("RosterPanel ドライバー指名（Issue #13）", () => {
   const onAssignDriver = vi.fn();
   const hostProps = {
     myParticipantId: "x",
-    canHostAction: true,
+    canManage: true,
     onRename: vi.fn(), onSkip: vi.fn(), onResume: vi.fn(), onAddProxy: vi.fn(),
     onAssignDriver,
   };
@@ -536,7 +536,7 @@ describe("RosterPanel ドライバー指名（Issue #13）", () => {
     render(
       <RosterPanel
         {...hostProps}
-        canHostAction={false}
+        canManage={false}
         participants={[mk("a", "Alice"), mk("b", "Bob")]}
         currentDriverName="Alice"
         rotation={["Alice", "Bob"]}
@@ -602,5 +602,94 @@ describe("RosterPanel ドライバー指名（Issue #13）", () => {
     const list = screen.getByRole("list", { name: "ドライバー一覧" });
     const bobItem = within(list).getByText("Bob").closest("li") as HTMLElement;
     expect(within(bobItem).queryByRole("button", { name: /ドライバーにする/ })).toBeTruthy();
+  });
+});
+
+// ─── 退出操作の確認と自己行の扱い（host-spof-relaxation G5・T032） ────────────
+// 開始後は主催者以外も他人を退出させられる（G3）。取り返しがつかない操作なので
+// 確認を挟み、誰を・何が起きるかを明示する。自分の退出は別の場所（SelfDriverToggle）に置く。
+// 要件: FR-075, FR-076, FR-078, FR-080, US3
+
+describe("RosterPanel 退出操作（T032）", () => {
+  const noop = vi.fn();
+  const removeProps = {
+    participants: [
+      makeParticipant({ participantId: "p1", displayName: "Alice", role: "host" }),
+      makeParticipant({ participantId: "p2", displayName: "Bob", role: "editor", connId: "conn2" }),
+    ],
+    currentDriverName: "Alice",
+    myParticipantId: "p1",
+    canManage: true,
+    onRename: noop,
+    onSkip: noop,
+    onResume: noop,
+    onAddProxy: noop,
+  };
+
+  it("他人の退出ボタンを押しても即座には退出させない（確認を挟む）", () => {
+    const onRemove = vi.fn();
+    render(<RosterPanel {...removeProps} onRemove={onRemove} />);
+
+    fireEvent.click(screen.getByLabelText("Bob を退出させる"));
+
+    expect(onRemove).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog")).toBeTruthy();
+  });
+
+  it("確認ダイアログに対象者の名前が出る（誰を外すのか取り違えない）", () => {
+    render(<RosterPanel {...removeProps} onRemove={vi.fn()} />);
+
+    fireEvent.click(screen.getByLabelText("Bob を退出させる"));
+
+    expect(within(screen.getByRole("dialog")).getByText(/Bob/)).toBeTruthy();
+  });
+
+  it("確認ダイアログに再参加できる旨が出る（取り返しがつくことを伝える）", () => {
+    render(<RosterPanel {...removeProps} onRemove={vi.fn()} />);
+
+    fireEvent.click(screen.getByLabelText("Bob を退出させる"));
+
+    expect(screen.getByRole("dialog").textContent).toMatch(/再参加/);
+  });
+
+  it("確認ダイアログに他の参加者への影響が出る（共有ルーム・FR-076）", () => {
+    render(<RosterPanel {...removeProps} onRemove={vi.fn()} isShared />);
+
+    fireEvent.click(screen.getByLabelText("Bob を退出させる"));
+
+    expect(screen.getByRole("dialog").textContent).toMatch(/他の参加者/);
+  });
+
+  it("確認すると onRemove が対象の participantId で発火する", () => {
+    const onRemove = vi.fn();
+    render(<RosterPanel {...removeProps} onRemove={onRemove} />);
+    fireEvent.click(screen.getByLabelText("Bob を退出させる"));
+
+    fireEvent.click(within(screen.getByRole("dialog")).getByText("退出させる"));
+
+    expect(onRemove).toHaveBeenCalledWith("p2");
+  });
+
+  it("取り消すと onRemove は発火しない", () => {
+    const onRemove = vi.fn();
+    render(<RosterPanel {...removeProps} onRemove={onRemove} />);
+    fireEvent.click(screen.getByLabelText("Bob を退出させる"));
+
+    fireEvent.click(within(screen.getByRole("dialog")).getByText("キャンセル"));
+
+    expect(onRemove).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("自分の行には退出ボタンを出さない（自己退出は別の場所に置く・FR-078）", () => {
+    render(<RosterPanel {...removeProps} onRemove={vi.fn()} />);
+
+    expect(screen.queryByLabelText("Alice を退出させる")).toBeNull();
+  });
+
+  it("canManage が false なら他人の退出ボタンを出さない", () => {
+    render(<RosterPanel {...removeProps} canManage={false} onRemove={vi.fn()} />);
+
+    expect(screen.queryByLabelText("Bob を退出させる")).toBeNull();
   });
 });

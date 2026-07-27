@@ -1,0 +1,259 @@
+/**
+ * Session の操作提示が権限判定に一致することのテスト（host-spof-relaxation G5・T031/T035）
+ *
+ * サーバーを緩めても UI がボタンを隠していれば利用者から見て何も変わらない。
+ * 画面の活性は `isHost` ではなく、サーバーと同じ `isAllowed()` で決める。
+ *
+ * 要件: FR-076, FR-080, FR-081, FR-082, US1, US7
+ */
+
+import { describe, it, expect, vi } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
+import React from "react";
+import { Session } from "../../src/ui/Session.js";
+import type { Room, Participant, SessionConfig } from "@tdd-mob/core";
+
+function makeParticipant(overrides: Partial<Participant>): Participant {
+  return {
+    participantId: "p1",
+    connId: "c1",
+    displayName: "Alice",
+    role: "editor",
+    presence: "online",
+    hasAiKey: false,
+    joinedAt: 1000,
+    ...overrides,
+  };
+}
+
+const config: SessionConfig = {
+  language: "TypeScript",
+  difficulty: "easy",
+  members: ["Alice", "Carol"],
+  intervalMinutes: 5,
+};
+
+/** Alice(host) / Bob(viewer) / Carol(editor) が在室するセッション中の部屋。 */
+function makeRoom(overrides?: Partial<Room>): Room {
+  return {
+    code: "AA0001",
+    createdAt: 0,
+    hostParticipantId: "host-1",
+    config,
+    problem: null,
+    session: {
+      rotation: ["Alice", "Carol"],
+      currentIndex: 0,
+      isPaused: false,
+      driverCounts: [0, 0],
+      totalSwitches: 0,
+    },
+    clock: {
+      running: false,
+      intervalSeconds: 300,
+      anchorServerTime: 0,
+      secondsLeftAtAnchor: 300,
+      accumulatedElapsedMs: 0,
+      runningSince: null,
+    },
+    phase: "session",
+    // 開始済み（G1 の単調フラグ）。判定はこれを見る。
+    startedAt: 5000,
+    participants: [
+      makeParticipant({ participantId: "host-1", displayName: "Alice", role: "host" }),
+      makeParticipant({ participantId: "view-1", displayName: "Bob", role: "viewer", connId: "c2" }),
+      makeParticipant({ participantId: "edit-1", displayName: "Carol", role: "editor", connId: "c3" }),
+    ],
+    sessionRecords: [],
+    handoffNote: "",
+    onBreak: false,
+    ...overrides,
+  };
+}
+
+function baseHandlers() {
+  return {
+    onSkip: vi.fn(),
+    onPause: vi.fn(),
+    onResume: vi.fn(),
+    onRestartTimer: vi.fn(),
+    onComplete: vi.fn(),
+    onAbort: vi.fn(),
+    onReset: vi.fn(),
+    onRenameParticipant: vi.fn(),
+    onDriverSkip: vi.fn(),
+    onDriverResume: vi.fn(),
+    onAddProxy: vi.fn(),
+    onDriverAssign: vi.fn(),
+    onShuffle: vi.fn(),
+    onSetPassphrase: vi.fn(),
+    onTransferHost: vi.fn(),
+    onRemoveParticipant: vi.fn(),
+    onMoveRotation: vi.fn(),
+    onSelfRoleChange: vi.fn(),
+  };
+}
+
+describe("Session: 開始後は主催者以外にも操作を提示する（FR-081）", () => {
+  it("host でない editor にも終了系ゾーン（完成・中断・最初から）が出る", () => {
+    render(<Session room={makeRoom()} participantId="edit-1" {...baseHandlers()} />);
+
+    expect(screen.getByRole("group", { name: "セッションを終える" })).toBeTruthy();
+  });
+
+  it("host でない editor にもランダム化が出る", () => {
+    render(<Session room={makeRoom()} participantId="edit-1" {...baseHandlers()} />);
+
+    expect(screen.getAllByLabelText("ドライバー順をランダムに並べ替える").length).toBeGreaterThan(0);
+  });
+
+  it("見学者には終了系ゾーンを出さない（FR-067・実行できない操作は提示しない）", () => {
+    render(<Session room={makeRoom()} participantId="view-1" {...baseHandlers()} />);
+
+    expect(screen.queryByRole("group", { name: "セッションを終える" })).toBeNull();
+  });
+});
+
+describe("Session: 開始前は従来どおり主催者主導（FR-066）", () => {
+  /** 開始前（startedAt 未設定）。phase は session だが判定は startedAt を見る。 */
+  const beforeStart = () => makeRoom({ startedAt: null });
+
+  it("開始前は host でない editor に終了系ゾーンを出さない", () => {
+    render(<Session room={beforeStart()} participantId="edit-1" {...baseHandlers()} />);
+
+    expect(screen.queryByRole("group", { name: "セッションを終える" })).toBeNull();
+  });
+
+  it("開始前でも host には終了系ゾーンを出す", () => {
+    render(<Session room={beforeStart()} participantId="host-1" {...baseHandlers()} />);
+
+    expect(screen.getByRole("group", { name: "セッションを終える" })).toBeTruthy();
+  });
+
+  it("開始前は host でない editor にランダム化を出さない", () => {
+    render(<Session room={beforeStart()} participantId="edit-1" {...baseHandlers()} />);
+
+    expect(screen.queryByLabelText("ドライバー順をランダムに並べ替える")).toBeNull();
+  });
+});
+
+describe("Session: 開始者は記録上の情報にすぎない（FR-082・T035）", () => {
+  it("開始後はホストにも「ホストを譲る」を提示しない（特権の受け渡しという概念を消す）", () => {
+    render(<Session room={makeRoom()} participantId="host-1" {...baseHandlers()} />);
+
+    expect(screen.queryByLabelText("Carol にホストを譲る")).toBeNull();
+  });
+
+  it("開始前はホストに「ホストを譲る」を提示する（準備段階の主催者主導は維持）", () => {
+    render(
+      <Session room={makeRoom({ startedAt: null })} participantId="host-1" {...baseHandlers()} />,
+    );
+
+    expect(screen.getAllByLabelText("Carol にホストを譲る").length).toBeGreaterThan(0);
+  });
+});
+
+// ─── 見学者の自己解消導線（レビュー指摘 #2/#3/#4 への対応） ───────────────────
+// 見学者には SelfDriverToggle（editor+ 限定）が出ないため、開始後に自分で
+// 進行へ戻る／部屋を抜ける手段が画面上どこにも無かった。サーバーは両方とも
+// 許可しているので、FR-079（自己退出）と FR-073b（自己昇格）が UI 上だけ未達だった。
+// 要件: FR-069, FR-073b, FR-079, FR-080
+
+describe("Session: 見学者の自己解消導線", () => {
+  it("見学者にルームから抜ける導線が出る（FR-079）", () => {
+    render(<Session room={makeRoom()} participantId="view-1" {...baseHandlers()} />);
+
+    expect(screen.getAllByRole("button", { name: "ルームから抜ける" }).length).toBeGreaterThan(0);
+  });
+
+  it("開始後の見学者に「進行に加わる」導線が出る（FR-073b・詰みの自己解消）", () => {
+    render(<Session room={makeRoom()} participantId="view-1" {...baseHandlers()} />);
+
+    expect(screen.getAllByRole("button", { name: "進行に加わる" }).length).toBeGreaterThan(0);
+  });
+
+  it("押すと自分の役割を editor へ変える要求が出る", () => {
+    const handlers = baseHandlers();
+    render(<Session room={makeRoom()} participantId="view-1" {...handlers} />);
+
+    fireEvent.click(screen.getAllByRole("button", { name: "進行に加わる" })[0]!);
+
+    expect(handlers.onSelfRoleChange).toHaveBeenCalledWith("editor");
+  });
+
+  it("開始前の見学者には「進行に加わる」を出さない（開始前はホストのみ・FR-066）", () => {
+    render(
+      <Session room={makeRoom({ startedAt: null })} participantId="view-1" {...baseHandlers()} />,
+    );
+
+    expect(screen.queryByRole("button", { name: "進行に加わる" })).toBeNull();
+  });
+
+  it("なぜ操作が出ていないかの理由を提示する（FR-069/080）", () => {
+    render(<Session room={makeRoom()} participantId="view-1" {...baseHandlers()} />);
+
+    // permissionHint が返す「見学中は実行できません…」を画面に出す。
+    expect(screen.getAllByText(/見学中は実行できません/).length).toBeGreaterThan(0);
+  });
+
+  it("編集者にはこの案内を出さない（実行できる人に不要な文言を見せない）", () => {
+    render(<Session room={makeRoom()} participantId="edit-1" {...baseHandlers()} />);
+
+    expect(screen.queryByText(/見学中は実行できません/)).toBeNull();
+  });
+});
+
+// ─── ルームタブ側のガード（Session タブとの非対称を防ぐ） ─────────────────────
+// Session.tsx は同じ判定を2箇所（セッションタブ／ルームタブ）に書いている。
+// 片方だけ壊れても気づけるよう、タブを切り替えて独立に検証する。
+
+describe("Session: ルームタブでも判定が一致する", () => {
+  /** ルームタブへ切り替える。Tabs は非アクティブなタブの中身をマウントしない。 */
+  const openRoomTab = () => fireEvent.click(screen.getByRole("tab", { name: "ルーム" }));
+
+  it("開始後はルームタブでも「ホストを譲る」を提示しない（FR-082）", () => {
+    render(<Session room={makeRoom()} participantId="host-1" {...baseHandlers()} />);
+
+    openRoomTab();
+
+    expect(screen.queryByLabelText("Carol にホストを譲る")).toBeNull();
+  });
+
+  it("開始前はルームタブで「ホストを譲る」を提示する", () => {
+    render(
+      <Session room={makeRoom({ startedAt: null })} participantId="host-1" {...baseHandlers()} />,
+    );
+
+    openRoomTab();
+
+    expect(screen.getByLabelText("Carol にホストを譲る")).toBeTruthy();
+  });
+
+  it("開始後はルームタブでも host でない editor にランダム化を出す（FR-081）", () => {
+    render(<Session room={makeRoom()} participantId="edit-1" {...baseHandlers()} />);
+
+    openRoomTab();
+
+    expect(screen.getByLabelText("ドライバー順をランダムに並べ替える")).toBeTruthy();
+  });
+
+  it("編集者はルームタブからもルームを抜けられる（タブ間で導線を非対称にしない）", () => {
+    const handlers = baseHandlers();
+    render(<Session room={makeRoom()} participantId="edit-1" {...handlers} />);
+
+    openRoomTab();
+    fireEvent.click(screen.getByRole("button", { name: "ルームから抜ける" }));
+
+    expect(handlers.onRemoveParticipant).toHaveBeenCalledWith("edit-1");
+  });
+
+  it("見学者はルームタブからも進行に加われる", () => {
+    const handlers = baseHandlers();
+    render(<Session room={makeRoom()} participantId="view-1" {...handlers} />);
+
+    openRoomTab();
+    fireEvent.click(screen.getByRole("button", { name: "進行に加わる" }));
+
+    expect(handlers.onSelfRoleChange).toHaveBeenCalledWith("editor");
+  });
+});

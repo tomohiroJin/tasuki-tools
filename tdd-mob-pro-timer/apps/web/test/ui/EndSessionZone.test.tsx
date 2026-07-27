@@ -28,7 +28,9 @@ describe("EndSessionZone（T045/T046）", () => {
     expect(screen.getByRole("button", { name: /最初から|リセット|再スタート/i })).toBeTruthy();
   });
 
-  it("完成を押すとコールバックが呼ばれる", () => {
+  // Issue #22（FR-074b）で完成にも確認を課すようになった。開始後は主催者以外も
+  // 実行でき、誤操作の影響が全員に及ぶため。直呼びではなく確認を経て発火する。
+  it("完成を押して確認するとコールバックが呼ばれる", () => {
     const onComplete = vi.fn();
     render(
       <EndSessionZone
@@ -39,6 +41,7 @@ describe("EndSessionZone（T045/T046）", () => {
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: /完成/i }));
+    fireEvent.click(screen.getByText("完成として記録する"));
     expect(onComplete).toHaveBeenCalledOnce();
   });
 

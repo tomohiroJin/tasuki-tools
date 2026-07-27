@@ -42,7 +42,7 @@ describe("ソロ × RosterPanel（項目4）", () => {
         participants={room.participants}
         currentDriverName={room.session.rotation[room.session.currentIndex] ?? ""}
         myParticipantId="solo"
-        canHostAction
+        canManage
         onRename={noop}
         onSkip={noop}
         onResume={noop}
@@ -63,7 +63,7 @@ describe("ソロ × RosterPanel（項目4）", () => {
         participants={room.participants}
         currentDriverName={room.session.rotation[0] ?? ""}
         myParticipantId="solo"
-        canHostAction
+        canManage
         onRename={noop}
         onSkip={onSkip}
         onResume={noop}
@@ -83,7 +83,7 @@ describe("ソロ × RosterPanel（項目4）", () => {
         participants={room.participants}
         currentDriverName={room.session.rotation[0] ?? ""}
         myParticipantId="solo"
-        canHostAction
+        canManage
         onRename={onRename}
         onSkip={noop}
         onResume={noop}

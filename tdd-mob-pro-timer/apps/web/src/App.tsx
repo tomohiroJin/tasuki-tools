@@ -335,6 +335,12 @@ export default function App() {
   const removeParticipant = (participantId: string) => {
     client?.send({ command: "participant.remove", participantId });
   };
+  /** 自分の役割を自分で切り替える（Issue #22・FR-073b）。開始後のみサーバーが許可する。
+   *  見学者だけが残った部屋を、本人の操作で解消できるようにするための経路。 */
+  const changeOwnRole = (role: "editor" | "viewer") => {
+    if (!participantIdRef.current) return;
+    client?.send({ command: "role.set", participantId: participantIdRef.current, role });
+  };
   /** ホストが任意のオンライン参加者へホストを明示移譲する（R2-3・host 限定）。 */
   const handleTransferHost = (participantId: string) => {
     client?.send({ command: "host.transfer", participantId });
@@ -607,6 +613,7 @@ export default function App() {
           onDriverAssign={rosterAssign}
           onAddProxy={rosterAddProxy}
           onRemoveParticipant={removeParticipant}
+          onSelfRoleChange={changeOwnRole}
           onTransferHost={handleTransferHost}
           onMoveRotation={moveRotation}
           onShuffle={handleShuffle}

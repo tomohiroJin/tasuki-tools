@@ -16,6 +16,7 @@ import type { Participant } from "@tdd-mob/core";
 import { MAX_DISPLAY_NAME } from "@tdd-mob/core/aggregate";
 import { GhostButton, PrimaryButton, SectionHeader } from "../primitives.js";
 import { presenceLabel, presenceDotClass } from "../presence.js";
+import { ConfirmDialog } from "./ConfirmDialog.js";
 
 /** 小さなダーク用ボタン。RosterPanel 内の改名/離脱/外す等のコンパクト操作用。
  * 行操作はサーバー往復で反映されるため、押下フィードバックが無いと「効いていない」ように見える。
@@ -56,13 +57,16 @@ interface RosterPanelProps {
    *  拒否されるため displayName は一意。 */
   currentDriverName: string;
   myParticipantId: string;
-  canHostAction: boolean;
+  canManage: boolean;
   onRename: (participantId: string, displayName: string) => void;
   onSkip: (participantId: string) => void;
   onResume: (participantId: string) => void;
   onAddProxy: (displayName: string) => void;
-  /** ホストが参加者を退出させる（⑪・host 限定）。 */
+  /** 参加者を退出させる（⑪）。開始後は主催者以外も実行できる（Issue #22・FR-065）。
+   *  自分自身の退出はここには出さない（SelfDriverToggle が担う・FR-078）。 */
   onRemove?: (participantId: string) => void;
+  /** 共有ルームか。確認ダイアログに他参加者への影響を出すかの判断に使う（FR-076）。 */
+  isShared?: boolean;
   /** ホストを当該参加者へ移譲する（host 限定・オンライン・自分以外のみ表示）。 */
   onTransferHost?: (participantId: string) => void;
   /** ドライバーのローテーション順（session.rotation）。並べ替えの index 算出に使う（v2.3 #1）。
@@ -86,13 +90,14 @@ export function RosterPanel({
   participants,
   currentDriverName,
   myParticipantId,
-  canHostAction,
+  canManage,
   selfHasExternalToggle = false,
   onRename,
   onSkip,
   onResume,
   onAddProxy,
   onRemove,
+  isShared = false,
   onTransferHost,
   rotation,
   onMove,
@@ -104,6 +109,8 @@ export function RosterPanel({
   // 改名中の参加者 ID と編集中の名前（同時に1人だけ編集できる）
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  // 退出の確認対象。取り返しがつかない操作なので直接は実行しない（FR-075）。
+  const [pendingRemoval, setPendingRemoval] = useState<Participant | null>(null);
 
   const handleAddProxy = () => {
     if (!proxyName.trim()) return;
@@ -154,7 +161,7 @@ export function RosterPanel({
     const isMine = p.participantId === myParticipantId;
     const isSkipping = p.driverEligible === false;
     // 改名は本人 or ホストが可能（観覧者でも自分自身は改名可: FR-046）
-    const canRename = isMine || canHostAction;
+    const canRename = isMine || canManage;
     const isEditing = editingId === p.participantId;
     // ドライバー順での位置。rotation.indexOf(displayName) で算出する
     // （participants の配列位置とは一致しないため）。-1 なら見学者（rotation 外）。
@@ -162,7 +169,7 @@ export function RosterPanel({
     const inRotation = rotationIndex >= 0;
     const rotationLen = rotation?.length ?? 0;
     // 並べ替えはホストが操作でき、ドライバーが2人以上いるときだけ意味を持つ。
-    const canMove = canHostAction && !!onMove && inRotation && rotationLen > 1;
+    const canMove = canManage && !!onMove && inRotation && rotationLen > 1;
 
     return (
       <li
@@ -243,7 +250,7 @@ export function RosterPanel({
                 <MiniButton onClick={() => startRename(p.participantId, p.displayName)}>改名</MiniButton>
                 {/* 一時離脱/復帰の表示可否: 自分=外部トグルが無いときのみ／他人=ホストのみ。観覧者は対象外。 */}
                 {p.role !== "viewer" &&
-                  (isMine ? !selfHasExternalToggle : canHostAction) &&
+                  (isMine ? !selfHasExternalToggle : canManage) &&
                   (isSkipping ? (
                     <MiniButton onClick={() => onResume(p.participantId)}>復帰</MiniButton>
                   ) : (
@@ -252,7 +259,7 @@ export function RosterPanel({
                 {/* ホストは現ドライバー以外の rotation メンバーを即ドライバーに指名できる（Issue #13）。
                     実在（非代理）オフラインの相手は無人ドライバーになるため指名不可（host.transfer と同じ方針）。
                     代理(placeholder)は Web 非接続が常態で対面在席するため offline でも指名可能。 */}
-                {canHostAction && onAssignDriver && inRotation && !isCurrentDriver &&
+                {canManage && onAssignDriver && inRotation && !isCurrentDriver &&
                   (p.presence !== "offline" || p.isPlaceholder === true) && (
                   <MiniButton
                     onClick={() => onAssignDriver(p.participantId)}
@@ -286,7 +293,7 @@ export function RosterPanel({
                 )}
                 {/* ホストを他のオンライン参加者へ譲る（R2-3）。自分・オフライン・現ホストには出さない。
                     アイコン（Crown）＋aria-label/title で省スペース化。 */}
-                {canHostAction && !isMine && p.role !== "host" && p.presence !== "offline" && onTransferHost && (
+                {canManage && !isMine && p.role !== "host" && p.presence !== "offline" && onTransferHost && (
                   <MiniButton
                     onClick={() => onTransferHost(p.participantId)}
                     aria-label={`${p.displayName} にホストを譲る`}
@@ -295,10 +302,12 @@ export function RosterPanel({
                     <Crown className="w-4 h-4" aria-hidden="true" />
                   </MiniButton>
                 )}
-                {/* ホストは他の参加者を退出させられる（⑪）。アイコン（X）＋aria-label/title。 */}
-                {canHostAction && !isMine && onRemove && (
+                {/* 他の参加者を退出させる（⑪）。開始後は主催者以外も実行できる。
+                    自分の行には出さない（自己退出は SelfDriverToggle 側・FR-078）。
+                    取り返しがつかない操作なので確認を挟む（FR-075）。 */}
+                {canManage && !isMine && onRemove && (
                   <MiniButton
-                    onClick={() => onRemove(p.participantId)}
+                    onClick={() => setPendingRemoval(p)}
                     aria-label={`${p.displayName} を退出させる`}
                     title="退出させる"
                   >
@@ -315,12 +324,30 @@ export function RosterPanel({
 
   return (
     <div className="w-full">
+      {/* 退出の確認。対象者の名前と、招待から再参加できることを明示する（FR-075）。
+          共有ルームでは他の参加者の画面にも反映されることを添える（FR-076）。 */}
+      {pendingRemoval && onRemove && (
+        <ConfirmDialog
+          open={true}
+          title={`${pendingRemoval.displayName} さんを退出させますか？`}
+          description={`一覧とドライバーの輪から外れます。招待から再参加できます。${
+            isShared ? "（他の参加者全員の画面にも反映されます）" : ""
+          }`}
+          confirmLabel="退出させる"
+          confirmIntent="danger"
+          onConfirm={() => {
+            onRemove(pendingRemoval.participantId);
+            setPendingRemoval(null);
+          }}
+          onCancel={() => setPendingRemoval(null)}
+        />
+      )}
       <SectionHeader
         icon={Users}
         color="text-[var(--signal)]"
         title="参加者"
         right={
-          canHostAction ? (
+          canManage ? (
             <GhostButton onClick={() => setShowProxyInput((v) => !v)} aria-label="代理参加者を追加" className="text-sm">
               代理追加
             </GhostButton>

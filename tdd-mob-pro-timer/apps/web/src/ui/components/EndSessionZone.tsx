@@ -19,7 +19,16 @@ interface EndSessionZoneProps {
   isShared: boolean;
 }
 
-type PendingAction = "abort" | "reset" | null;
+// 完成も確認を課す（Issue #22・FR-074b）。開始後は主催者以外も実行でき、
+// 誤操作の影響が全員に及ぶため。中断・リセットとは違い記録は残るので問いを分ける。
+type PendingAction = "complete" | "abort" | "reset" | null;
+
+/** 確認ボタンの文言。何が起きるかを動詞で示し、「OK」のような曖昧な語を使わない。 */
+const CONFIRM_LABELS: Record<"complete" | "abort" | "reset", string> = {
+  complete: "完成として記録する",
+  abort: "終える（記録なし）",
+  reset: "最初から再スタート",
+};
 
 export function EndSessionZone({
   onComplete,
@@ -30,6 +39,7 @@ export function EndSessionZone({
   const [pending, setPending] = useState<PendingAction>(null);
 
   const handleConfirm = () => {
+    if (pending === "complete") onComplete();
     if (pending === "abort") onAbort();
     if (pending === "reset") onReset();
     setPending(null);
@@ -41,6 +51,11 @@ export function EndSessionZone({
     NonNullable<PendingAction>,
     { title: string; description: string }
   > = {
+    // 「何が失われるか」ではなく「記録として締めてよいか」を問う。完成は破壊ではない。
+    complete: {
+      title: "このセッションを完成として記録しますか？",
+      description: `タイマーを止めて記録に残し、まとめ画面へ移ります。${sharedNote}`,
+    },
     abort: {
       title: "途中で終えますか？",
       description: `記録は残りません。${sharedNote}`,
@@ -53,13 +68,14 @@ export function EndSessionZone({
 
   return (
     <div
+      role="group"
       aria-label="セッションを終える"
       className="flex flex-wrap justify-center gap-2"
     >
       {/* 完成（達成として記録する）。正常完了は計器の安全色（緑）で強調し、危険操作と峻別する。 */}
       <button
         type="button"
-        onClick={onComplete}
+        onClick={() => setPending("complete")}
         className="px-5 py-2 rounded-md font-bold bg-[var(--ok)] hover:bg-[#4ac28c] text-[#04130c] transition-all shadow-[0_0_0_1px_rgba(63,178,127,0.5),0_4px_16px_rgba(63,178,127,0.3)] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ok)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]"
       >
         <span className="flex items-center gap-2"><Flag className="w-4 h-4" aria-hidden="true" /> 完成!</span>
@@ -85,8 +101,9 @@ export function EndSessionZone({
           open={true}
           title={dialogConfig[pending].title}
           description={dialogConfig[pending].description}
-          confirmLabel={pending === "abort" ? "終える（記録なし）" : "最初から再スタート"}
-          confirmIntent="danger"
+          confirmLabel={CONFIRM_LABELS[pending]}
+          // 完成は正常完了なので危険色にしない（中断・リセットと視覚的に峻別する）。
+          confirmIntent={pending === "complete" ? "primary" : "danger"}
           onConfirm={handleConfirm}
           onCancel={() => setPending(null)}
         />

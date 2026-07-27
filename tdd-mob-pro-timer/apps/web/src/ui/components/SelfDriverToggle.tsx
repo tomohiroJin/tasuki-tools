@@ -22,6 +22,8 @@ interface SelfDriverToggleProps {
   onLeave?: (displayName: string) => void;
   onSkip?: (participantId: string) => void;
   onResume?: (participantId: string) => void;
+  /** ルームそのものから抜ける（自己退出・FR-079）。未指定なら導線を出さない。 */
+  onLeaveRoom?: (participantId: string) => void;
 }
 
 export function SelfDriverToggle({
@@ -34,7 +36,22 @@ export function SelfDriverToggle({
   onLeave,
   onSkip,
   onResume,
+  onLeaveRoom,
 }: SelfDriverToggleProps) {
+  /**
+   * ルームから抜ける導線。自分の操作なので確認は課さない（FR-079）。
+   * 他人向けの「退出させる」（RosterPanel）とは配置を分ける。誤タップで他人を巻き込む
+   * 事故と、自分が抜けるだけの操作は取り返しのつき方が違う（FR-078）。
+   */
+  const leaveRoomButton = onLeaveRoom ? (
+    <GhostButton
+      onClick={() => onLeaveRoom(participantId)}
+      className="text-xs px-3 py-1.5"
+      title="この端末をルームから外します。招待から再参加できます。"
+    >
+      ルームから抜ける
+    </GhostButton>
+  ) : null;
   // rotation 外の場合は目立つ見学者バナーを表示（加入を促す）
   if (!inRotation) {
     return (
@@ -43,9 +60,13 @@ export function SelfDriverToggle({
         <p className="mt-0.5 text-xs text-[var(--bone-muted)]">
           交代の輪に入ると、ドライバーとして順番が回ってきます。
         </p>
-        <PrimaryButton onClick={() => onJoin?.(displayName)} className="mt-2 text-sm px-4 py-2">
-          ドライバーに加わる
-        </PrimaryButton>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <PrimaryButton onClick={() => onJoin?.(displayName)} className="text-sm px-4 py-2">
+            ドライバーに加わる
+          </PrimaryButton>
+          {/* 見学中でも部屋からは抜けられる。ここに導線が無いと見学者が取り残される。 */}
+          {leaveRoomButton}
+        </div>
       </div>
     );
   }
@@ -78,6 +99,7 @@ export function SelfDriverToggle({
         >
           列から外れる
         </GhostButton>
+        {leaveRoomButton}
       </span>
     </div>
   );
