@@ -6,6 +6,7 @@
 
 import type { Room, ServerMsg } from "@tdd-mob/core";
 import type { Identity } from "./client.js";
+import type { NoticeSignal } from "./notice-message.js";
 
 export interface ServerMessageCallbacks {
   onRoom?: (room: Room) => void;
@@ -17,6 +18,8 @@ export interface ServerMessageCallbacks {
   onTimePong?: (serverTime: number) => void;
   /** 交代シグナル（演出用） */
   onSwitchSignal?: (nextDriverName: string) => void;
+  /** 破壊的操作の実行者を伝えるシグナル（Issue #22・FR-077）。文言化は呼び出し側が行う */
+  onNotice?: (notice: NoticeSignal) => void;
 }
 
 /**
@@ -59,6 +62,14 @@ export function dispatchServerMessage(
         cb.onNeedProblem?.(msg.requestId, msg.deadlineMs);
       } else if (msg.signal === "switch") {
         cb.onSwitchSignal?.(msg.nextDriverName);
+      } else if (msg.signal === "notice") {
+        cb.onNotice?.({
+          action: msg.action,
+          actorName: msg.actorName,
+          actorParticipantId: msg.actorParticipantId,
+          targetName: msg.targetName,
+          targetParticipantId: msg.targetParticipantId,
+        });
       }
       break;
     case "time.pong":

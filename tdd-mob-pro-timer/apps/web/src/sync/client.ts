@@ -7,6 +7,7 @@
 import { ExponentialBackoff } from "./backoff.js";
 import { estimateClockOffset, type PingSample } from "./clock-offset.js";
 import { dispatchServerMessage } from "./dispatch.js";
+import type { NoticeSignal } from "./notice-message.js";
 import type { Room } from "@tdd-mob/core";
 
 export type RoomCallback = (room: Room) => void;
@@ -30,6 +31,8 @@ export interface SyncClientOptions {
   onDisconnected?: () => void;
   /** 接続状態の変化通知（R5-1）。online=確立、reconnecting=切断後の再接続待ち。 */
   onConnectionChange?: (state: "online" | "reconnecting") => void;
+  /** 破壊的操作の実行者の通知（Issue #22・FR-077） */
+  onNotice?: (notice: NoticeSignal) => void;
 }
 
 export class SyncClient {
@@ -121,6 +124,7 @@ export class SyncClient {
       onNeedProblem: (requestId, deadlineMs) =>
         this.options.onNeedProblem?.(requestId, deadlineMs),
       onTimePong: (serverTime) => this.recordPong(serverTime),
+      onNotice: (notice) => this.options.onNotice?.(notice),
     });
   }
 

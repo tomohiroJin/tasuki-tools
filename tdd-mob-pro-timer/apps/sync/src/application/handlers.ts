@@ -499,15 +499,29 @@ export function makeHandlers(deps: HandlerDeps) {
       store.put(next);
       broadcaster.broadcastSnapshot(next.code, next);
       reconcileSchedule(next);
+      // 誰が誰を退出させたかを在室者へ伝える（FR-077）。
+      // store.put の後に配信することが重要で、broadcastSignal は呼び出し時点のストアから
+      // 宛先を決めるため、この順序により退出させられた本人には届かない（本人向けは下の error）。
+      broadcaster.broadcastSignal(next.code, {
+        type: "signal",
+        signal: "notice",
+        action: "participant-removed",
+        actorName: participant.displayName,
+        actorParticipantId: participant.participantId,
+        targetName: target.displayName,
+        targetParticipantId: target.participantId,
+      });
       // 外された本人へ専用通知を送る（残りメンバーの snapshot には含まれず取り残されるため）。
       // クライアントはこれを受けて退出メッセージ＋参加画面へ遷移し、再参加可能にする。
       // 代理(connId=null)はクライアントが無いので送らない。
       // 自己退出は本人の操作なので通知しない（自分で押した操作を「外されました」と伝えない）。
+      // 実行者はホストに限らなくなったのでコードは REMOVED_FROM_ROOM とし、
+      // 誰の操作かと再参加できることを文言に含める（FR-075）。
       if (target.connId && targetId !== participant.participantId) {
         broadcaster.sendTo(target.connId, {
           type: "error",
-          code: "REMOVED_BY_HOST",
-          message: "ホストにより退出させられました",
+          code: "REMOVED_FROM_ROOM",
+          message: `${participant.displayName} さんにより退出させられました。招待から再参加できます。`,
         });
       }
       return ok({ code: next.code, participantId: "", hostToken: "", resumeToken: "" });
@@ -686,6 +700,19 @@ export function makeHandlers(deps: HandlerDeps) {
     broadcaster.broadcastSnapshot(updatedRoom.code, updatedRoom);
     // clock 状態が変わった可能性があるので自動交代を調停する（FR-003）
     reconcileSchedule(updatedRoom);
+
+    // セッションを畳む操作は、開始後は主催者以外も実行できる（FR-063）。
+    // 誰が実行したか分からないと画面が突然変わった理由を追えないため全員へ伝える（FR-077）。
+    const noticeAction = SESSION_NOTICE_ACTIONS[domainCmd.command];
+    if (noticeAction) {
+      broadcaster.broadcastSignal(updatedRoom.code, {
+        type: "signal",
+        signal: "notice",
+        action: noticeAction,
+        actorName: participant.displayName,
+        actorParticipantId: participant.participantId,
+      });
+    }
 
     return ok({ code: updatedRoom.code, participantId: participant.participantId, hostToken: "", resumeToken: "" });
   }
@@ -1129,6 +1156,20 @@ export function makeHandlers(deps: HandlerDeps) {
   // 中身は通常の interval 交代(autoSwitch)と同一。
   return { handleCommand, handleConnectionClose, releaseRoom, advanceForAbsence: autoSwitch };
 }
+
+// ─── 実行者の通知（FR-077） ──────────────────────────────────────────────────
+
+/**
+ * セッションを畳むコマンドと、それを表す notice の action の対応。
+ *
+ * participant.remove は decide/evolve を通らず専用の分岐で処理するため、ここには含めない
+ * （その場で対象の情報も併せて配信する）。
+ */
+const SESSION_NOTICE_ACTIONS: Readonly<Record<string, "session-aborted" | "session-reset" | "session-completed" | undefined>> = {
+  "session.abort": "session-aborted",
+  "session.reset": "session-reset",
+  "session.complete": "session-completed",
+};
 
 // ─── 権限判定に必要な事実の算出 ───────────────────────────────────────────────
 

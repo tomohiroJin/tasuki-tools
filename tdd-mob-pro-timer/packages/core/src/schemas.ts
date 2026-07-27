@@ -397,6 +397,40 @@ const SignalSuggestBreakMsg = v.object({
   rounds: v.number(),
 });
 
+/**
+ * 破壊的操作の実行者を在室者全員へ伝えるシグナル（Issue #22・FR-077）。
+ *
+ * 開始後は主催者以外も退出・中断・リセット・完成を実行できるようになるため、
+ * 「誰がやったか」が分からないと画面が突然変わった理由を追えない。
+ * サーバーは意味（action と実行者）だけを運び、日本語の文言化は UI 側が行う。
+ *
+ * `participant-removed` の場合、退出させられた本人にはこのシグナルは届かない
+ * （snapshot の配信対象から外れるため）。本人向けには専用の error を送る。
+ */
+const SignalNoticeMsg = v.object({
+  type: v.literal("signal"),
+  signal: v.literal("notice"),
+  action: v.picklist([
+    "participant-removed",
+    "session-aborted",
+    "session-reset",
+    // 完成も確認を課す操作（FR-074b）なので、実行者を全員に伝える対象に含める。
+    "session-completed",
+  ]),
+  /** 実行者の表示名 */
+  actorName: nonEmptyString,
+  /**
+   * 実行者の識別子。表示名と併せて送る。
+   * 二重参加の幽霊は本人と同じ表示名を持つため、表示名だけでは
+   * 「A さんが A さんを退出させました」となり本 Issue の主要シナリオで判別できない。
+   */
+  actorParticipantId: participantId,
+  /** 対象の表示名（participant-removed のときのみ） */
+  targetName: v.optional(v.string()),
+  /** 対象の識別子（participant-removed のときのみ） */
+  targetParticipantId: v.optional(v.string()),
+});
+
 const TimePongMsg = v.object({
   type: v.literal("time.pong"),
   serverTime: v.number(),
@@ -424,6 +458,7 @@ export const ServerMsgSchema = v.variant("type", [
   SignalCelebrationMsg,
   SignalNeedProblemMsg,
   SignalSuggestBreakMsg,
+  SignalNoticeMsg,
   TimePongMsg,
   RoomCreatedMsg,
   RoomJoinedMsg,

@@ -44,6 +44,51 @@ describe("dispatchServerMessage", () => {
     expect(onError).toHaveBeenCalledWith("E", "m");
   });
 
+  // Issue #22 G4: 破壊的操作の実行者を全員へ伝えるシグナル（FR-077）。
+  it("signal notice は onNotice を実行者・対象つきで呼ぶ", () => {
+    const onNotice = vi.fn();
+    dispatchServerMessage(
+      JSON.stringify({
+        type: "signal",
+        signal: "notice",
+        action: "participant-removed",
+        actorName: "Bob",
+        actorParticipantId: "pid-bob",
+        targetName: "Carol",
+        targetParticipantId: "pid-carol",
+      }),
+      { onNotice },
+    );
+    expect(onNotice).toHaveBeenCalledWith({
+      action: "participant-removed",
+      actorName: "Bob",
+      actorParticipantId: "pid-bob",
+      targetName: "Carol",
+      targetParticipantId: "pid-carol",
+    });
+  });
+
+  it("signal notice は target 系が無くても呼ばれる（中断・リセット・完成）", () => {
+    const onNotice = vi.fn();
+    dispatchServerMessage(
+      JSON.stringify({
+        type: "signal",
+        signal: "notice",
+        action: "session-aborted",
+        actorName: "Bob",
+        actorParticipantId: "pid-bob",
+      }),
+      { onNotice },
+    );
+    expect(onNotice).toHaveBeenCalledWith({
+      action: "session-aborted",
+      actorName: "Bob",
+      actorParticipantId: "pid-bob",
+      targetName: undefined,
+      targetParticipantId: undefined,
+    });
+  });
+
   it("signal need-problem は onNeedProblem を requestId と deadlineMs で呼ぶ", () => {
     const onNeedProblem = vi.fn();
     dispatchServerMessage(

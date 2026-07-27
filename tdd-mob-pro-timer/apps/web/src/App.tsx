@@ -12,6 +12,7 @@ import { History } from "./ui/History.js";
 import { StatusStrip } from "./ui/components/StatusStrip.js";
 import { deriveConnectionStatus, type ClientConnState } from "./ui/connection-status.js";
 import { SyncClient } from "./sync/client.js";
+import { buildNoticeMessage } from "./sync/notice-message.js";
 import { NoAiProvider } from "./ai/no-ai.js";
 import type { ProblemProvider } from "./ai/provider.js";
 import { screenForPhase } from "./ui/screen.js";
@@ -93,6 +94,10 @@ export default function App() {
   const bannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // ホスト交代検知用に直前 snapshot の hostParticipantId を保持する（R2-4）。
   const prevHostRef = useRef<string | undefined>(undefined);
+  // notice の文言組み立て（「あなた」判定）を closure から行うための ref。
+  // participantId は state だが、makeClient のコールバックは生成時の値で固定されるため
+  // state を直接読むと空文字のままになる（roomRef と同じ理由の二重管理）。
+  const participantIdRef = useRef<string>("");
   // AI/定型のお題生成中（「別のお題にする」押下〜新お題確定まで）。スピナー＋減光に使う。
   const [generatingProblem, setGeneratingProblem] = useState(false);
   // onRoom（snapshot クロージャ）から最新値を読むための ref（roomRef 等と同じ二重管理パターン）。
@@ -192,7 +197,10 @@ export default function App() {
           );
         }
       },
-      onIdentity: ({ participantId: pid }) => setParticipantId(pid),
+      onIdentity: ({ participantId: pid }) => {
+        participantIdRef.current = pid;
+        setParticipantId(pid);
+      },
       onNeedProblem: async (requestId) => {
         // 代表に選ばれたらお題を生成して投入する（FR-025）。失敗時もプロバイダが定型へ縮退。
         try {
@@ -218,13 +226,17 @@ export default function App() {
           setBanner({ text: "セッションが見つかりません。ローカルの記録は保持されています。", kind: "error" });
           return;
         }
-        // ホストに外された: 取り残さず、退出を明示して参加画面へ戻す（ルームコード保持で再参加可・#3/#4）。
-        if (code === "REMOVED_BY_HOST") {
+        // 退出させられた: 取り残さず、退出を明示して参加画面へ戻す（ルームコード保持で再参加可・#3/#4）。
+        // 実行者はホストに限らなくなったため新コードは REMOVED_FROM_ROOM（Issue #22・FR-075）。
+        // 旧コードも受理し続ける: web と sync は同時デプロイだが、デプロイ前から開いたままの
+        // タブが旧サーバーの応答を受け取りうるため、片方だけ落とすと取り残しが起きる。
+        if (code === "REMOVED_FROM_ROOM" || code === "REMOVED_BY_HOST") {
           const removedFrom = roomRef.current?.code ?? null;
           newClient.dispose();
           roomRef.current = null;
           setRoom(null);
           setClient(null);
+          participantIdRef.current = "";
           setParticipantId("");
           isCreatorRef.current = false;
           problemRequestedRef.current = false;
@@ -232,7 +244,7 @@ export default function App() {
           setSessionLost(false);
           setRecord(null);
           setBanner({
-            text: "ホストにより退出しました。再参加するには名前を入力してください。",
+            text: "ルームから退出しました。再参加するには名前を入力してください。",
             kind: "warn",
           });
           if (removedFrom) {
@@ -253,6 +265,18 @@ export default function App() {
       onDisconnected: () =>
         setBanner({ text: "接続が切れました。再接続しています...", kind: "warn" }),
       onConnectionChange: (s) => setConnState(s),
+      // 破壊的操作の実行者を全員へ伝える（Issue #22・FR-077）。
+      // banner は aria-live 付きのライブリージョンなので、そのまま読み上げにも乗る。
+      // participantId は state 更新の遅れを避けるため ref から取る（closure の固定を回避）。
+      onNotice: (notice) => {
+        const text = buildNoticeMessage(notice, {
+          selfParticipantId: participantIdRef.current,
+          participants: roomRef.current?.participants ?? [],
+        });
+        setBanner({ text, kind: "warn" });
+        if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
+        bannerTimerRef.current = setTimeout(() => setBanner(null), 4000);
+      },
     });
     newClient.connect();
     setClient(newClient);
@@ -358,6 +382,7 @@ export default function App() {
     client?.dispose();
     setClient(null);
     setRoom(null);
+    participantIdRef.current = "";
     setParticipantId("");
     setRecord(null);
     setEndType("complete");
