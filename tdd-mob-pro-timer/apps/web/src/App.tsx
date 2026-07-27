@@ -51,6 +51,9 @@ const ERROR_MESSAGES: Record<string, string> = {
   PASSPHRASE_MISMATCH: "パスフレーズが一致しません。",
   // AI お題生成の解錠（合言葉不一致・未設定サーバ共通）。
   AI_UNLOCK_FAILED: "合言葉が違います。",
+  // 「進行できる人が1名以上残る」不変条件（Issue #22・FR-072/073）。
+  // 退出と降格の両方から返るため、どちらでも通じる文言にする。
+  LAST_MANAGER: "進行できる人がいなくなるため実行できません。他の人が進行に加わってから操作してください。",
 };
 function friendlyError(code: string): string {
   return ERROR_MESSAGES[code] ?? "操作を完了できませんでした。";

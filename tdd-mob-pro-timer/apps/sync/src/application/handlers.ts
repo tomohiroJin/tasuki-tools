@@ -14,6 +14,8 @@ import {
   secondsLeft,
   buildCompletionRecord,
   checkPermission,
+  canRemoveParticipant,
+  canDemote,
   type Room,
   type Participant,
   type SessionConfig,
@@ -443,19 +445,16 @@ export function makeHandlers(deps: HandlerDeps) {
       return err("UNAUTHORIZED");
     }
 
-    // 参加者の退出（host 限定・⑪）。参加者は Room レベルのため decide ではなくここで扱う。
+    // 参加者の退出（⑪）。参加者は Room レベルのため decide ではなくここで扱う。
     // rotation に居れば rotation からも外し（現ドライバーなら evolve が繰り上げ）、
     // 最後の1人は外せない（rotation を空にしない）。
+    // 自己退出も可能（FR-079）。誰が実行できるかは既に rejectIfUnauthorized が判定済みで、
+    // ここでは「結果の状態が妥当か」だけを検査する。
     if (cmd.command === "participant.remove") {
       const now = clock.now();
       const targetId = cmd.participantId;
-      // 妥当性検査であり権限検査ではない（権限は上の rejectIfUnauthorized が済ませている）。
-      // ただし checkPermission は自己対象の participant.remove を既に「許可」しており、
-      // その許可はこの行が握り潰している状態にある。自己退出（FR-079）を実効化するのは
-      // T020 の担当で、そこで自己対象の拒否だけを削除し `canRemoveParticipant()` に置き換える。
-      // それまでは自己対象の拒否コードが UNAUTHORIZED ではなく INVALID になる点に注意。
-      if (typeof targetId !== "string" || targetId === participant.participantId) {
-        broadcaster.sendTo(connId, { type: "error", code: "INVALID", message: "自分自身や不正な対象は外せません" });
+      if (typeof targetId !== "string") {
+        broadcaster.sendTo(connId, { type: "error", code: "INVALID", message: "不正な対象は外せません" });
         return err("INVALID");
       }
       const target = targetRoom.participants.find((p) => p.participantId === targetId);
@@ -463,18 +462,35 @@ export function makeHandlers(deps: HandlerDeps) {
         broadcaster.sendTo(connId, { type: "error", code: "PARTICIPANT_NOT_FOUND", message: "対象の参加者が見つかりません" });
         return err("PARTICIPANT_NOT_FOUND");
       }
-      const idx = targetRoom.session.rotation.indexOf(target.displayName);
+      // 不変条件: 実在（非代理）の編集者以上が1名以上残ること（FR-072/073）。
+      // 権限ではなくドメインガードなので checkPermission とは別に検査する（plan.md D3）。
+      if (!canRemoveParticipant(targetRoom.participants, targetId)) {
+        broadcaster.sendTo(connId, {
+          type: "error",
+          code: "LAST_MANAGER",
+          message: "進行できる人がいなくなるため退出できません。他の人が進行に加わってから操作してください。",
+        });
+        return err("LAST_MANAGER");
+      }
+      // 対象が現ホストなら、退出させる前にホストを引き継ぐ（plan.md D2b）。
+      // 引き継がずに退出させると hostParticipantId が実在しない参加者を指し、
+      // 開始前のルームはホスト限定操作が誰にも実行できなくなって恒久的に詰む。
+      // 自動委譲は切断契機でしか発火しないため救済もない。
+      const roomBeforeRemoval = target.participantId === targetRoom.hostParticipantId
+        ? transferHostBeforeRemoval(targetRoom, targetId)
+        : targetRoom;
+      const idx = roomBeforeRemoval.session.rotation.indexOf(target.displayName);
       let next: Room = {
-        ...targetRoom,
-        participants: targetRoom.participants.filter((p) => p.participantId !== targetId),
+        ...roomBeforeRemoval,
+        participants: roomBeforeRemoval.participants.filter((p) => p.participantId !== targetId),
       };
       if (idx >= 0) {
-        if (targetRoom.session.rotation.length <= 1) {
+        if (roomBeforeRemoval.session.rotation.length <= 1) {
           broadcaster.sendTo(connId, { type: "error", code: "BelowMinMembers", message: "最後のドライバーは外せません" });
           return err("BelowMinMembers");
         }
         const agg = evolve(
-          { session: targetRoom.session, clock: targetRoom.clock },
+          { session: roomBeforeRemoval.session, clock: roomBeforeRemoval.clock },
           { type: "MemberRemoved", index: idx, now },
           now,
         );
@@ -486,7 +502,8 @@ export function makeHandlers(deps: HandlerDeps) {
       // 外された本人へ専用通知を送る（残りメンバーの snapshot には含まれず取り残されるため）。
       // クライアントはこれを受けて退出メッセージ＋参加画面へ遷移し、再参加可能にする。
       // 代理(connId=null)はクライアントが無いので送らない。
-      if (target.connId) {
+      // 自己退出は本人の操作なので通知しない（自分で押した操作を「外されました」と伝えない）。
+      if (target.connId && targetId !== participant.participantId) {
         broadcaster.sendTo(target.connId, {
           type: "error",
           code: "REMOVED_BY_HOST",
@@ -723,6 +740,18 @@ export function makeHandlers(deps: HandlerDeps) {
         message: "対象の参加者が見つかりません",
       });
       return err("PARTICIPANT_NOT_FOUND");
+    }
+
+    // 不変条件: 実在（非代理）の編集者以上が1名以上残ること（FR-072/073）。
+    // 権限（誰が実行できるか）とは独立したドメインガードなので、checkPermission が
+    // 許可した後に別途検査する（plan.md D3）。昇格は人数を減らさないので対象外。
+    if (cmd.role === "viewer" && !canDemote(room.participants, cmd.participantId)) {
+      broadcaster.sendTo(connId, {
+        type: "error",
+        code: "LAST_MANAGER",
+        message: "進行できる人がいなくなるため見学者にできません。他の人が進行に加わってから操作してください。",
+      });
+      return err("LAST_MANAGER");
     }
 
     const updatedRoom: Room = {
@@ -1142,6 +1171,42 @@ function resolveIsSelfTarget(
     default:
       return false;
   }
+}
+
+/**
+ * 退出しようとしている現ホストから、残る在室者へホストを引き継いだルームを返す（plan.md D2b）。
+ *
+ * D2b の目的は「ホストが抜けた後も誰かが実際に操作できる」ことである。したがって
+ * 単純に参加時刻が最も古い在室者を選んではならない。次の優先順で選ぶ。
+ *
+ *   1. オンラインの編集者   ← `presence.ts` の自動委譲と同じ条件
+ *   2. オンラインの見学者   ← 誰も操作できない部屋を残さないための保険
+ *   3. オフラインの編集者   ← 全員オフラインならアイドル回収に任せる
+ *   4. オフラインの見学者
+ *
+ * 同順位内は参加時刻の古い順。代理（isPlaceholder）は自分では操作できないので候補にしない。
+ *
+ * **オフラインの見学者を選んではならない理由（実際に踏んだ落とし穴）:**
+ * 参加時刻だけで選ぶと、切断済みの見学者が新ホストになり、オンラインの編集者が
+ * 開始前操作を実行できない状態が作れてしまう。D2b が防ぐはずだった詰みそのものである。
+ * しかも自動委譲は「ホストの切断」契機でしか発火しないため、既にオフラインの参加者が
+ * ホストへ昇格しても新たな委譲タイマーは張られず、自動復旧もしない。
+ *
+ * 候補がいなければ引き継がずそのまま返す。このとき残るのは代理のみで、代理は
+ * presence: "offline" で登録されるためアイドル回収の対象になる。
+ *
+ * 役割の付け替えは core の純粋関数 `transferHost` に委ねる（二重実装の乖離を防ぐ・R2-4）。
+ */
+function transferHostBeforeRemoval(room: Room, leavingParticipantId: string): Room {
+  /** 小さいほど優先。オンラインかどうかを役割より優先する（操作できることが第一）。 */
+  const priority = (p: Participant): number =>
+    (p.presence === "online" ? 0 : 2) + (p.role === "viewer" ? 1 : 0);
+
+  const successor = room.participants
+    .filter((p) => p.participantId !== leavingParticipantId && p.isPlaceholder !== true)
+    .sort((a, b) => priority(a) - priority(b) || a.joinedAt - b.joinedAt)[0];
+  if (!successor) return room;
+  return transferHost(room, successor.participantId);
 }
 
 // ─── コマンド変換 ────────────────────────────────────────────────────────────
