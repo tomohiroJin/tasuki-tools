@@ -308,3 +308,120 @@ describe("participant.remove（G3: 自己退出・不変条件・ホスト引き
     expect(lastError(HOST)?.code).toBe("LAST_MANAGER");
   });
 });
+
+// ─── 同名参加者の巻き添え退出（G6・T040・D6 改訂） ────────────────────────────
+// 実機検証で判明: rotation に居ない幽霊を退出させると、同名で rotation に居る本物が輪から外れる。
+// 退出処理が rotation の位置を表示名で引いていたため。本 Issue の主要シナリオで発火する。
+// rotation は表示名の配列のまま（設計は変えない・D6）、枠を外すかは
+// 「その名前がまだ部屋に残るか」で決める。
+// 要件: FR-085, SC-024
+
+describe("participant.remove（G6: 同名参加者の巻き添えを防ぐ）", () => {
+  let store: InMemoryRoomStore;
+  let broadcaster: SpyBroadcaster;
+  let handlers: ReturnType<typeof makeHandlers>;
+  let code: string;
+
+  const HOST = "g6-host";
+  const REAL = "g6-real";
+  const GHOST = "g6-ghost";
+
+  const room = () => store.get(code)!;
+  const pidOf = (name: string, nth = 0): string =>
+    room().participants.filter((p) => p.displayName === name)[nth]!.participantId;
+
+  beforeEach(async () => {
+    store = new InMemoryRoomStore();
+    broadcaster = new SpyBroadcaster();
+    handlers = makeHandlers({
+      store, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen(),
+    });
+    const created = await handlers.handleCommand(HOST, {
+      command: "room.create",
+      displayName: "Alice",
+      config: { language: "TypeScript", difficulty: "easy", members: ["Alice", "Bob"], intervalMinutes: 5 },
+    });
+    if (!created.isOk()) throw new Error("room.create failed");
+    code = created.value.code;
+    // 本物の Bob（rotation 内）と、二重参加の幽霊 Bob（rotation 外）。
+    await handlers.handleCommand(REAL, { command: "room.join", code, displayName: "Bob", hasAiKey: false });
+    await handlers.handleCommand(GHOST, { command: "room.join", code, displayName: "Bob", hasAiKey: false });
+    broadcaster.sent.length = 0;
+  });
+
+  it("① rotation に居ない幽霊を退出させても、同名の本物の枠が残る（実機で踏んだ欠陥）", async () => {
+    expect(room().session.rotation).toContain("Bob");
+    const ghostId = pidOf("Bob", 1);
+
+    const result = await handlers.handleCommand(HOST, {
+      command: "participant.remove", participantId: ghostId,
+    });
+
+    expect(result.isOk()).toBe(true);
+    // 幽霊だけが消え、rotation は無傷。
+    expect(room().participants.filter((p) => p.displayName === "Bob")).toHaveLength(1);
+    expect(room().session.rotation).toContain("Bob");
+  });
+
+  it("② 枠の持ち主（先に参加した同名）を退出させると、従来どおり枠が外れる", async () => {
+    const ownerId = pidOf("Bob", 0);
+
+    const result = await handlers.handleCommand(HOST, {
+      command: "participant.remove", participantId: ownerId,
+    });
+
+    expect(result.isOk()).toBe(true);
+    expect(room().session.rotation).not.toContain("Bob");
+  });
+
+  it("②' 無関係な同名者が居ても、枠の持ち主を消すときは最後のドライバー保護が働く", async () => {
+    // レビューで実測された破綻シナリオの回帰テスト。
+    // 「同名が1人でも残るなら枠を外さない」という規則にすると、無関係な同名者が
+    // 居合わせただけで rotation を空にしない保護が素通りし、
+    // 消えた本人の枠を別人が暗黙に引き継いでしまう。
+    await handlers.handleCommand(HOST, { command: "member.remove", index: room().session.rotation.indexOf("Alice") });
+    expect(room().session.rotation).toEqual(["Bob"]);
+    broadcaster.sent.length = 0;
+    const ownerId = pidOf("Bob", 0);
+
+    const result = await handlers.handleCommand(HOST, {
+      command: "participant.remove", participantId: ownerId,
+    });
+
+    expect(result.isErr()).toBe(true);
+    const err = [...broadcaster.sent].reverse().find((x) => x.msg.type === "error");
+    expect(err?.msg.type === "error" && err.msg.code).toBe("BelowMinMembers");
+    // 本人も枠も残る（別人が枠を引き継がない）。
+    expect(room().participants.some((p) => p.participantId === ownerId)).toBe(true);
+    expect(room().session.rotation).toEqual(["Bob"]);
+  });
+
+  it("③ 幽霊を消した後に本人を消すと、従来どおり rotation から外れる", async () => {
+    // 幽霊（後から参加）は枠の持ち主ではないので、消しても枠は動かない。
+    await handlers.handleCommand(HOST, { command: "participant.remove", participantId: pidOf("Bob", 1) });
+    expect(room().session.rotation).toContain("Bob");
+    const lastBob = pidOf("Bob", 0);
+
+    const result = await handlers.handleCommand(HOST, {
+      command: "participant.remove", participantId: lastBob,
+    });
+
+    expect(result.isOk()).toBe(true);
+    expect(room().session.rotation).not.toContain("Bob");
+  });
+
+  it("④ 枠を外さないケースでは最後のドライバー保護（BelowMinMembers）が誤発火しない", async () => {
+    // rotation を [Alice] だけにしてから、rotation 外の幽霊を退出させる。
+    await handlers.handleCommand(HOST, { command: "member.remove", index: room().session.rotation.indexOf("Bob") });
+    expect(room().session.rotation).toEqual(["Alice"]);
+    broadcaster.sent.length = 0;
+
+    const result = await handlers.handleCommand(HOST, {
+      command: "participant.remove", participantId: pidOf("Bob", 1),
+    });
+
+    // rotation に触れないので BelowMinMembers は関係ない。
+    expect(result.isOk()).toBe(true);
+    expect(room().session.rotation).toEqual(["Alice"]);
+  });
+});

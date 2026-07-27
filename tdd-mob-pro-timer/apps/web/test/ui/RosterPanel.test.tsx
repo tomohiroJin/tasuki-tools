@@ -693,3 +693,85 @@ describe("RosterPanel 退出操作（T032）", () => {
     expect(screen.queryByLabelText("Bob を退出させる")).toBeNull();
   });
 });
+
+// ─── 同名参加者の区別（G6・T042・FR-084） ────────────────────────────────────
+// 実機検証で判明: 同名2名の行が完全に同一（順番・presence・ボタン・aria-label すべて一致）で、
+// どちらが幽霊か選ぶ時点で区別できなかった。notice の識別子併送は実行**後**の提示であり、
+// 選択時点の取り違えを防げない。本 Issue の主要シナリオでは同名が並ぶのが常態である。
+
+describe("RosterPanel 同名参加者の区別（T042）", () => {
+  const noop = vi.fn();
+  // 識別子は末尾4文字が表示に使われる。表示名や他の語と紛れない値にしないと、
+  // ラベルに識別子が出ていなくても toContain が通ってしまう（偽陽性）。
+  const twoBobs = [
+    makeParticipant({ participantId: "pid-0001", displayName: "Alice", role: "host" }),
+    makeParticipant({ participantId: "pid-0002", displayName: "Bob", role: "editor", connId: "c2" }),
+    makeParticipant({ participantId: "pid-0003", displayName: "Bob", role: "editor", connId: "c3" }),
+  ];
+  const dupProps = {
+    participants: twoBobs,
+    currentDriverName: "Alice",
+    myParticipantId: "pid-0001",
+    canManage: true,
+    onRename: noop,
+    onSkip: noop,
+    onResume: noop,
+    onAddProxy: noop,
+  };
+
+  it("同名が2名いると退出ボタンの aria-label が互いに異なる", () => {
+    render(<RosterPanel {...dupProps} onRemove={vi.fn()} />);
+
+    const labels = screen
+      .getAllByRole("button")
+      .map((b) => b.getAttribute("aria-label"))
+      .filter((a): a is string => !!a && a.includes("退出させる"));
+
+    expect(labels).toHaveLength(2);
+    expect(new Set(labels).size).toBe(2);
+  });
+
+  it("識別子の末尾で区別できる（notice と同じ規則）", () => {
+    render(<RosterPanel {...dupProps} onRemove={vi.fn()} />);
+
+    const labels = screen
+      .getAllByRole("button")
+      .map((b) => b.getAttribute("aria-label") ?? "")
+      .filter((a) => a.includes("退出させる"));
+
+    expect(labels).toContain("Bob（ID: 0002） を退出させる");
+    expect(labels).toContain("Bob（ID: 0003） を退出させる");
+  });
+
+  it("同名がいなければ識別子を添えない（通常時に読みにくくしない）", () => {
+    const single = [
+      makeParticipant({ participantId: "pid-0001", displayName: "Alice", role: "host" }),
+      makeParticipant({ participantId: "pid-0002", displayName: "Bob", role: "editor", connId: "c2" }),
+    ];
+    render(<RosterPanel {...dupProps} participants={single} onRemove={vi.fn()} />);
+
+    expect(screen.getByLabelText("Bob を退出させる")).toBeTruthy();
+  });
+
+  it("確認ダイアログでも同名の2名を区別できる", () => {
+    render(<RosterPanel {...dupProps} onRemove={vi.fn()} />);
+    fireEvent.click(screen.getByLabelText("Bob（ID: 0003） を退出させる"));
+
+    expect(screen.getByRole("dialog").textContent).toContain("Bob（ID: 0003）");
+  });
+
+  it("同名でも自分の行には退出ボタンを出さない（自己退出は別の場所）", () => {
+    const meDuplicated = [
+      makeParticipant({ participantId: "pid-0001", displayName: "Bob", role: "host" }),
+      makeParticipant({ participantId: "pid-0002", displayName: "Bob", role: "editor", connId: "c2" }),
+    ];
+    render(<RosterPanel {...dupProps} participants={meDuplicated} onRemove={vi.fn()} />);
+
+    const labels = screen
+      .getAllByRole("button")
+      .map((b) => b.getAttribute("aria-label") ?? "")
+      .filter((a) => a.includes("退出させる"));
+
+    expect(labels).toEqual(["Bob（ID: 0002） を退出させる"]);
+  });
+});

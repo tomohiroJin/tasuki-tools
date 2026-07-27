@@ -6,6 +6,8 @@
  * 前者は「なぜ押せないか」、こちらは「誰が何をしたか」を伝える。
  */
 
+import { participantLabel } from "../ui/participant-label.js";
+
 /** サーバーから受け取る notice の内容（`SignalNoticeMsg` と対応）。 */
 export interface NoticeSignal {
   action: "participant-removed" | "session-aborted" | "session-reset" | "session-completed";
@@ -23,18 +25,10 @@ export interface NoticeContext {
   participants: readonly { participantId: string; displayName: string }[];
 }
 
-/** 識別子の末尾4文字。全体を出すと長く、読み上げでも冗長になるため短縮する。 */
-function shortId(participantId: string): string {
-  return participantId.slice(-4);
-}
-
 /**
- * 参加者の呼び名を決める。
- *
- * 同名が複数いるときだけ識別子を添える。二重参加の幽霊は本人と同じ表示名を持つため、
- * 表示名だけでは「Alice さんが Alice さんを退出させました」となり、本 Issue の
- * 主要シナリオでまさに判別できなくなる。一方、同名がいない通常時に識別子を出すと
- * 読みにくいだけなので付けない。
+ * 参加者の呼び名を決める。同名が複数いるときだけ識別子を添える規則は
+ * `ui/participant-label.ts` に集約しており、一覧の操作ラベルと同じものを使う。
+ * 別々の規則を持つと、通知で名指しされた人が一覧のどの行だったのか辿れなくなる。
  */
 function label(
   name: string,
@@ -42,15 +36,7 @@ function label(
   ctx: NoticeContext,
 ): string {
   if (participantId === ctx.selfParticipantId) return "あなた";
-
-  // 名簿に載っている同名の人数を数える。対象は退出直後で名簿から消えていることが
-  // あるため（notice は退出を永続化した後に配信される）、名簿に無くても名前は表示する。
-  const sameName = ctx.participants.filter((p) => p.displayName === name);
-  const isAmbiguous =
-    sameName.length > 1 ||
-    (sameName.length === 1 && sameName[0]!.participantId !== participantId);
-
-  return isAmbiguous ? `${name} さん（ID: ${shortId(participantId)}）` : `${name} さん`;
+  return participantLabel(name, participantId, ctx.participants, "さん");
 }
 
 /** notice を読み上げ・表示用の一文にする。 */

@@ -17,6 +17,7 @@ import { MAX_DISPLAY_NAME } from "@tdd-mob/core/aggregate";
 import { GhostButton, PrimaryButton, SectionHeader } from "../primitives.js";
 import { presenceLabel, presenceDotClass } from "../presence.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
+import { participantLabel } from "../participant-label.js";
 
 /** 小さなダーク用ボタン。RosterPanel 内の改名/離脱/外す等のコンパクト操作用。
  * 行操作はサーバー往復で反映されるため、押下フィードバックが無いと「効いていない」ように見える。
@@ -304,11 +305,13 @@ export function RosterPanel({
                 )}
                 {/* 他の参加者を退出させる（⑪）。開始後は主催者以外も実行できる。
                     自分の行には出さない（自己退出は SelfDriverToggle 側・FR-078）。
-                    取り返しがつかない操作なので確認を挟む（FR-075）。 */}
+                    取り返しがつかない操作なので確認を挟む（FR-075）。
+                    同名が並ぶときはラベルに識別子を添える。二重参加の幽霊は本人と同名なので、
+                    名前だけだと「どちらを消すのか」を選ぶ時点で区別できない（FR-084）。 */}
                 {canManage && !isMine && onRemove && (
                   <MiniButton
                     onClick={() => setPendingRemoval(p)}
-                    aria-label={`${p.displayName} を退出させる`}
+                    aria-label={`${participantLabel(p.displayName, p.participantId, participants)} を退出させる`}
                     title="退出させる"
                   >
                     <X className="w-4 h-4" aria-hidden="true" />
@@ -329,7 +332,7 @@ export function RosterPanel({
       {pendingRemoval && onRemove && (
         <ConfirmDialog
           open={true}
-          title={`${pendingRemoval.displayName} さんを退出させますか？`}
+          title={`${participantLabel(pendingRemoval.displayName, pendingRemoval.participantId, participants)} さんを退出させますか？`}
           description={`一覧とドライバーの輪から外れます。招待から再参加できます。${
             isShared ? "（他の参加者全員の画面にも反映されます）" : ""
           }`}

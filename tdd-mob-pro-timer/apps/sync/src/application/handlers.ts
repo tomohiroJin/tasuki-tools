@@ -481,7 +481,26 @@ export function makeHandlers(deps: HandlerDeps) {
       const roomBeforeRemoval = target.participantId === targetRoom.hostParticipantId
         ? transferHostBeforeRemoval(targetRoom, targetId)
         : targetRoom;
-      const idx = roomBeforeRemoval.session.rotation.indexOf(target.displayName);
+      // rotation の枠を外すかを決める（D6 改訂・FR-085）。
+      //
+      // rotation は表示名の配列なので、表示名でそのまま位置を引くと同名の別participantの
+      // 枠を巻き添えにする。実機で踏んだ欠陥がこれで、rotation に居ない幽霊を消すと
+      // 同名で rotation に居る本物が輪から外れていた（本 Issue の主要シナリオで発火する）。
+      //
+      // rotation の持ち方自体は変えない（設計は据え置き・D6）。代わりに「その枠は誰のものか」を
+      // **参加時刻が最も早い同名参加者**と定める。二重参加の幽霊は後から入るため、
+      // 元から居た本人が持ち主になる。持ち主でない人を退出させても枠は動かさない。
+      //
+      // 「同名が1人でも残るなら枠を外さない」という単純な規則は採らない。`room.join` は
+      // 表示名の重複を検査しないため、無関係な同名者が居合わせただけで枠が外れなくなり、
+      // rotation を空にしない保護（BelowMinMembers）まで素通りしてしまう。
+      // 持ち主を1人に定めれば、持ち主を消すときは従来どおり保護が働く。
+      const sameNameOwner = roomBeforeRemoval.participants
+        .filter((p) => p.displayName === target.displayName)
+        .sort((a, b) => a.joinedAt - b.joinedAt || a.participantId.localeCompare(b.participantId))[0];
+      const idx = sameNameOwner?.participantId === targetId
+        ? roomBeforeRemoval.session.rotation.indexOf(target.displayName)
+        : -1;
       let next: Room = {
         ...roomBeforeRemoval,
         participants: roomBeforeRemoval.participants.filter((p) => p.participantId !== targetId),

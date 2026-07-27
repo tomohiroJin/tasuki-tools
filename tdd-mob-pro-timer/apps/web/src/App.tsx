@@ -337,6 +337,11 @@ export default function App() {
   };
   /** 自分の役割を自分で切り替える（Issue #22・FR-073b）。開始後のみサーバーが許可する。
    *  見学者だけが残った部屋を、本人の操作で解消できるようにするための経路。 */
+  /** 主催者が他の参加者の役割を切り替える（開始前・FR-083）。
+   *  開始前は checkPermission がホスト限定にしているので、送れるのは主催者だけである。 */
+  const changeParticipantRole = (participantId: string, role: "editor" | "viewer") => {
+    client?.send({ command: "role.set", participantId, role });
+  };
   const changeOwnRole = (role: "editor" | "viewer") => {
     if (!participantIdRef.current) return;
     client?.send({ command: "role.set", participantId: participantIdRef.current, role });
@@ -575,6 +580,7 @@ export default function App() {
           onJoinRotation={joinRotation}
           onLeaveRotation={leaveRotation}
           onRemoveParticipant={removeParticipant}
+          onRoleSet={changeParticipantRole}
           onTransferHost={handleTransferHost}
           onMoveRotation={moveRotation}
           onShuffle={handleShuffle}

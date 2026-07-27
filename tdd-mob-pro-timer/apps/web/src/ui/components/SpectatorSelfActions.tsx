@@ -51,7 +51,9 @@ export function SpectatorSelfActions({
 
   return (
     <div className="mb-3 rounded-md border border-[var(--signal)] bg-[rgba(255,74,46,0.10)] px-3 py-3">
-      <p className="text-sm font-semibold text-[var(--bone)]">あなたは見学中です</p>
+      {/* こちらは役割が見学者である状態。ローテーション外（SelfDriverToggle）とは別物で、
+          進行の操作そのものができない。文言で読み分けられるようにする。 */}
+      <p className="text-sm font-semibold text-[var(--bone)]">あなたは見学者です</p>
       {hint && <p className="mt-0.5 text-xs text-[var(--bone-muted)]">{hint}</p>}
       <div className="mt-2 flex flex-wrap items-center gap-2">
         {canRejoin && (

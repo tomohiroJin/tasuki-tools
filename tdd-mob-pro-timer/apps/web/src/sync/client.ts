@@ -83,11 +83,14 @@ export class SyncClient {
 
     this.ws.onclose = () => {
       this.stopPingLoop();
+      // 破棄済みの close は「こちらから閉じた」結果であり、切断として通知しない（FR-086）。
+      // 通知すると、退出させられた側の画面で「ルームから退出しました。再参加するには…」が
+      // 「接続が切れました。再接続しています...」に上書きされ、退出した事実も再参加できる旨も
+      // 伝わらなくなる。しかも破棄済みなので再接続は行われず、その表示は事実にも反する。
+      if (this.disposed) return;
       this.options.onDisconnected?.();
-      if (!this.disposed) {
-        this.options.onConnectionChange?.("reconnecting");
-        this.scheduleReconnect();
-      }
+      this.options.onConnectionChange?.("reconnecting");
+      this.scheduleReconnect();
     };
 
     this.ws.onerror = () => {

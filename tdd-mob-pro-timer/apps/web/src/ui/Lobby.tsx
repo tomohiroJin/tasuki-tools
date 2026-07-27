@@ -5,7 +5,7 @@
  */
 
 import React from "react";
-import { Users, Code, Play, UserPlus, UserMinus, ChevronUp, ChevronDown, X, Crown, Shuffle, Bell } from "lucide-react";
+import { Users, Code, Play, UserPlus, UserMinus, ChevronUp, ChevronDown, X, Crown, Shuffle, Bell, Eye, EyeOff } from "lucide-react";
 import type { Room, Problem } from "@tdd-mob/core";
 import { Card, PrimaryButton, GhostButton, SectionHeader } from "./primitives.js";
 import { ProblemEditor } from "./components/ProblemEditor.js";
@@ -44,6 +44,9 @@ interface LobbyProps {
   onLeaveRotation?: (displayName: string) => void;
   /** ホストが参加者を退出させる（⑪・host 限定）。 */
   onRemoveParticipant?: (participantId: string) => void;
+  /** ホストが他の参加者の役割を切り替える（host 限定・開始前・FR-083）。
+   *  これが無いと見学者という状態に誰も到達できず、見学者向けの提示が一度も発動しない。 */
+  onRoleSet?: (participantId: string, role: "editor" | "viewer") => void;
   /** ホストを当該参加者へ移譲する（host 限定・オンライン・自分以外・現ホスト以外のみ表示）。R2-3。 */
   onTransferHost?: (participantId: string) => void;
   /** ドライバー順の入れ替え（④・host）。fromIndex→toIndex（rotation 内の位置）。 */
@@ -92,6 +95,7 @@ export function Lobby({
   onJoinRotation,
   onLeaveRotation,
   onRemoveParticipant,
+  onRoleSet,
   onTransferHost,
   onMoveRotation,
   onShuffle,
@@ -223,6 +227,25 @@ export function Lobby({
                               <PrimaryButton onClick={() => onJoinRotation?.(p.displayName)} className="text-xs px-3 py-1.5 min-h-[44px] sm:min-h-0">
                                 ドライバーに加わる
                               </PrimaryButton>
+                            )
+                          )}
+                          {/* ホストは他参加者の役割を切り替えられる（FR-083）。
+                              ローテーションの出入り（下）はドライバーをやるかどうか、
+                              こちらは進行の操作をするかどうかで、意味が違うので別の操作にする。
+                              自分の行には出さない（ホストの自己降格は CANNOT_CHANGE_HOST で拒否される）。 */}
+                          {!isMe && isHost && onRoleSet && (
+                            p.role === "viewer" ? (
+                              <RowIconButton
+                                icon={Eye}
+                                label={`${p.displayName} を進行に戻す`}
+                                onClick={() => onRoleSet(p.participantId, "editor")}
+                              />
+                            ) : (
+                              <RowIconButton
+                                icon={EyeOff}
+                                label={`${p.displayName} を見学者にする`}
+                                onClick={() => onRoleSet(p.participantId, "viewer")}
+                              />
                             )
                           )}
                           {/* ホストは他参加者のドライバー加入/離脱を制御できる（②） */}

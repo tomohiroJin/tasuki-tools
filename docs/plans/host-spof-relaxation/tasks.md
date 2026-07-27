@@ -295,7 +295,9 @@
 - [ ] **T040** `apps/sync/test/participant-remove.test.ts` に失敗するテストを追加する。
   ①rotation に居ない参加者を退出させても、**同名で rotation に居る別participantの位置が変わらない**
   ②rotation に居る参加者を退出させると、その participant の位置だけが外れる
-  ③同名2名がともに rotation に居るとき、指定した識別子の側だけが外れる。
+  ③rotation に居る側を退出させても、同名の別participantが残るならローテーションの枠は維持される
+  （rotation は表示名の配列で、`DuplicateName` により同名は1枠しか持てない。
+  「同名2名がともに rotation に居る」状態は到達できないため、代わりにこの観点で検証する）。
   _要件: FR-085, SC-024_
 
 - [ ] **T041** `apps/sync/src/application/handlers.ts` の `participant.remove` で、

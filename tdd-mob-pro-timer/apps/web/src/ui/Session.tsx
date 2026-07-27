@@ -14,7 +14,7 @@ import { CircularProgress } from "./components/CircularProgress.js";
 import { TeamOrbit } from "./components/TeamOrbit.js";
 import { RotationLineup } from "./components/RotationLineup.js";
 import { RosterPanel } from "./components/RosterPanel.js";
-import { isAllowed } from "@tdd-mob/core";
+import { isAllowed, canRemoveParticipant, canDemote } from "@tdd-mob/core";
 import { ProblemEditor } from "./components/ProblemEditor.js";
 import { EndSessionZone } from "./components/EndSessionZone.js";
 import { SelfDriverToggle } from "./components/SelfDriverToggle.js";
@@ -409,6 +409,13 @@ export function Session({
             onResume={onDriverResume}
             // 自己退出は participant.remove に自分の participantId を渡す（新コマンドは不要）。
             onLeaveRoom={onRemoveParticipant}
+            // 不変条件（編集者以上が1名以上残る）はサーバーと同じ関数に問う。
+            // 押せるボタンを出しておいて拒否するのは FR-080 に反する。
+            canLeaveRoom={canRemoveParticipant(room.participants, currentParticipant.participantId)}
+            started={started}
+            onSelfRoleChange={onSelfRoleChange}
+            // 自己降格も自己退出と同じく、押してから拒否されないよう事前に判定する（FR-080）。
+            canSpectate={canDemote(room.participants, currentParticipant.participantId)}
           />
         )}
         {/* 見学者には SelfDriverToggle が出ないので、自己解消の導線をここに置く。
