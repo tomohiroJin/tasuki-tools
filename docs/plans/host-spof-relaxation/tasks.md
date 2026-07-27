@@ -164,7 +164,7 @@
 
 ## G3 — 不変条件・自己退出・自己役割変更・ホスト引き継ぎ
 
-- [ ] **T019** `apps/sync/test/participant-remove.test.ts` に失敗するテストを追加する。
+- [x] **T019** `apps/sync/test/participant-remove.test.ts` に失敗するテストを追加する。
   ①host 以外の editor が他人を退出させられる ②参加者が自分自身を退出させられる
   ③実在の editor が1名しか残っていないときその1名は退出させられない
   ④退出させられた本人に `REMOVED_FROM_ROOM` が届く
@@ -172,20 +172,20 @@
   ⑥**他人がホストを退出させた場合もホストが引き継がれる**。
   _要件: FR-065, FR-072, FR-073, FR-079, US3, US5_
 
-- [ ] **T020** `apps/sync/src/application/handlers.ts` の `participant.remove` 分岐（497-539）を改修し
+- [x] **T020** `apps/sync/src/application/handlers.ts` の `participant.remove` 分岐（497-539）を改修し
   T019 を通す。①自己対象の `INVALID` 拒否（500 行）を削除する ②`canRemoveParticipant()` を検査して
   破る要求を拒否する ③対象が `room.hostParticipantId` と一致する場合、退出処理の**前に**
   `transferHost(room, 次のホスト)` を適用する（次のホスト＝代理でない在室者のうち `joinedAt` 最小。
   候補がいなければ引き継がずそのまま退出）。
   _要件: FR-065, FR-073, FR-079_
 
-- [ ] **T021** `[P]` `apps/sync/test/self-role-change.test.ts` を新規作成し、失敗するテストを書く。
+- [x] **T021** `[P]` `apps/sync/test/self-role-change.test.ts` を新規作成し、失敗するテストを書く。
   ①開始後に viewer が自分を editor に変更できる ②開始前は自分の役割を変更できない（host のみ）
   ③ホスト自身の自己降格は `CANNOT_CHANGE_HOST` で拒否される
   ④最後の実在 editor が自分を viewer に降格しようとすると拒否される。
   _要件: FR-073b, FR-072, US5_
 
-- [ ] **T022** `apps/sync/src/application/handlers.ts` の `handleRoleSet`（702-760）を改修し T021 を通す。
+- [x] **T022** `apps/sync/src/application/handlers.ts` の `handleRoleSet`（702-760）を改修し T021 を通す。
   `checkPermission()`（T016 で置換済み）に加えて `canDemote()` を検査する。
   `CANNOT_CHANGE_HOST`（727 付近）の制約は**維持する**。
   _要件: FR-073, FR-073b_
