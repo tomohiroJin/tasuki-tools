@@ -233,38 +233,38 @@
 
 ## G5 — 画面の整合（**ここまでで機能完成**）
 
-- [ ] **T030** `[P]` `apps/web/src/ui/permission-hints.ts` を新規作成し、拒否理由の表示文言を1箇所に集約する。
+- [x] **T030** `[P]` `apps/web/src/ui/permission-hints.ts` を新規作成し、拒否理由の表示文言を1箇所に集約する。
   `checkPermission()` の `PermissionVerdict` を受けて「いつ・誰が実行できるか」の日本語ヒントを返す。
   _要件: FR-069, FR-080_
 
-- [ ] **T031** `apps/web/src/ui/Session.tsx` の `isHost` による **6 箇所**のゲート
+- [x] **T031** `apps/web/src/ui/Session.tsx` の `isHost` による **6 箇所**のゲート
   （361 / 394 / 405 / 442 / 454 / 465）を `isAllowed()` の呼び出しに置き換え、150-151 の定義を
   判定入力の算出に置き換える。
   `EndSessionZone`（361）は開始後は全員に表示する。`room.startedAt` を判定入力に使う。
   _要件: FR-076, FR-080, FR-081, US1, US7_
 
-- [ ] **T032** `apps/web/src/ui/components/RosterPanel.tsx` の `canHostAction`（定義 59 / 89、
+- [x] **T032** `apps/web/src/ui/components/RosterPanel.tsx` の `canHostAction`（定義 59 / 89、
   使用 157 / 165 / 246 / 255 / 289 / 299 / 323 の 7 箇所）を `canManage` に改名し、
   他人の退出（299 付近）に `ConfirmDialog` を追加する。確認文には**対象者の名前**と
   **招待から再参加できる旨**を含め、共有ルームでは他参加者への影響も明示する。
   自分の行には退出ボタンを出さない。
   _要件: FR-075, FR-076, FR-078, FR-080, US3_
 
-- [ ] **T033** `apps/web/src/ui/components/SelfDriverToggle.tsx` に「ルームから抜ける」を追加する。
+- [x] **T033** `apps/web/src/ui/components/SelfDriverToggle.tsx` に「ルームから抜ける」を追加する。
   確認は課さないが、他人向けの退出操作とは配置を分ける（誤タップ防止）。
   _要件: FR-078, FR-079, US3_
 
-- [ ] **T034** `apps/web/src/ui/components/EndSessionZone.tsx` の `PendingAction` に `"complete"` を追加し、
+- [x] **T034** `apps/web/src/ui/components/EndSessionZone.tsx` の `PendingAction` に `"complete"` を追加し、
   完成にも確認を課す。文言は中断・リセットとは分け、「何が失われるか」ではなく
   「記録として締めてよいか」を問う（記録は残る）。
   _要件: FR-074b, US4_
 
-- [ ] **T035** `apps/web/src/ui/Session.tsx` および
+- [x] **T035** `apps/web/src/ui/Session.tsx` および
   `apps/web/src/ui/components/RosterPanel.tsx`（289 付近）で、開始後は `host.transfer` の
   操作を提示しない。開始者の表示は特権の保持者ではなく記録上の情報として扱う。
   _要件: FR-082, US7_
 
-- [ ] **T036** `apps/web/src/ui/Lobby.tsx` を**変更しない**ことを確認し、型エラーが出る場合のみ
+- [x] **T036** `apps/web/src/ui/Lobby.tsx` を**変更しない**ことを確認し、型エラーが出る場合のみ
   `RosterPanel` の prop 改名（T032）に追随する最小修正を行う。開始前の権限範囲は変えない。
   _要件: FR-066, US6_
 
