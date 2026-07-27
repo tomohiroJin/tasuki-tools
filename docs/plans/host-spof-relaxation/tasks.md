@@ -272,7 +272,7 @@
 
 ## 検証
 
-- [ ] **T037** `pnpm test && pnpm typecheck && pnpm lint && pnpm build` をリポジトリ直下で実行し、
+- [x] **T037** `pnpm test && pnpm typecheck && pnpm lint && pnpm build` をリポジトリ直下で実行し、
   すべて通ることを確認する。既存の `presence.ts` 関連テスト（開始前の自動委譲）が
   **無変更で通る**ことを確認する（後方互換の担保）。
   _要件: 非機能要件「後方互換」_
