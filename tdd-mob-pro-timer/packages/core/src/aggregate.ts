@@ -274,6 +274,13 @@ export const MAX_PROBLEM_REQUIREMENTS = 20;
  *  描画による DoS を防ぐため、信頼境界（Valibot コマンドスキーマ）で一律に上限を課す。
  *  UI 側の入力欄 maxLength とも揃えて二重防御にする。 */
 export const MAX_DISPLAY_NAME = 40;
+/**
+ * NFKC 正規化が1文字を最大何文字へ展開しうるか（実測 18: U+FDFA `ﷺ`）。
+ *
+ * 正規化前の緩い上限を `MAX_DISPLAY_NAME * MAX_NFKC_EXPANSION` に置き、正規化後に
+ * `MAX_DISPLAY_NAME` を厳密に課す（schemas.ts）。前段だけだと展開で上限を突破される。
+ */
+export const MAX_NFKC_EXPANSION = 18;
 export const MAX_ROOM_NAME = 60;
 export const MAX_HANDOFF_NOTE = 2000;
 export const MAX_PROBLEM_TITLE = 200;

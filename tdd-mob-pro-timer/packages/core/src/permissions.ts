@@ -192,6 +192,15 @@ export function checkPermission(input: PermissionInput): PermissionVerdict {
   }
 
   // ステップ4: 開始後は主催者であることを条件にしない。編集者以上なら誰でも実行できる。
+  //
+  // **この許可は登録済みコマンド全体に及ぶ。** 進行系だけでなく、入室制御に当たる
+  // `room.passphrase.set` や `ai.unlock`、`host.transfer` も含まれる。これは意図的で、
+  // FR-063 が「開始後は可否判定に主催者であることを条件として用いてはならない」と
+  // 無条件に定めているため。ここで入室制御だけ host 限定に戻すと FR-063 に違反する。
+  //
+  // 主催者が居なくなった部屋を残った人だけで畳めるようにするのが本 Issue の目的であり、
+  // 「進行だけ緩和し管理系は据え置く」と主催者不在時に管理系が誰にも実行できなくなる。
+  // 意図は `permissions-after-start.test.ts` が固定している（表を削るときはそこを見ること）。
   if (started) {
     return ALLOWED;
   }

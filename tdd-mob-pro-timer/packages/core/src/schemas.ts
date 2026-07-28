@@ -9,6 +9,7 @@ import {
   MAX_MEMBERS,
   MAX_PROBLEM_REQUIREMENTS,
   MAX_DISPLAY_NAME,
+  MAX_NFKC_EXPANSION,
   MAX_ROOM_NAME,
   MAX_HANDOFF_NOTE,
   MAX_PROBLEM_TITLE,
@@ -28,16 +29,26 @@ const nonEmptyString = v.pipe(v.string(), v.minLength(1));
 const participantId = nonEmptyString;
 
 // ユーザ入力文字列は信頼境界で最大長を課す（A04・巨大入力 DoS 対策）。
-// 表示名は正規化してから最小長を課す（display-name.ts）。
+// 表示名は正規化してから長さを課す（display-name.ts）。
 // 正規化を境界で1度だけ行うことで、以後は正規形しか流れない。入口ごとに trim の有無が
 // 違うと必ずどこかが抜ける（実機では room.join だけ素通りし、"  Bob  " が
 // 画面上 "Bob" と見分けの付かない別人として並んだ）。
-// 最大長は**正規化前の生の文字列**に課す（巨大入力の DoS を正規化より手前で弾く）。
+//
+// **最大長は正規化の前後で二重に課す。**
+// - 前（緩い）: 明らかな巨大入力を NFKC の計算より手前で弾く
+// - 後（厳密）: 実際に保存・配信される長さを保証する
+//
+// 後段が要るのは **NFKC が文字数を増やしうる**ため。互換分解を持つ文字は1文字が
+// 複数文字へ展開され、最大18倍になる（U+FDFA `ﷺ` → "صلى الله عليه وسلم"）。
+// 前段だけだと 40 文字の入力が 720 文字として保存され、全参加者へ配信・描画される。
+// 上限は巨大文字列の保存/ブロードキャスト/描画による DoS を防ぐためのものなので、
+// **保存される値に対して**効いていなければ意味がない。
 const displayNameStr = v.pipe(
   v.string(),
-  v.maxLength(MAX_DISPLAY_NAME),
+  v.maxLength(MAX_DISPLAY_NAME * MAX_NFKC_EXPANSION),
   v.transform(normalizeDisplayName),
   v.minLength(1),
+  v.maxLength(MAX_DISPLAY_NAME),
 );
 const problemTitleStr = v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_PROBLEM_TITLE));
 const problemTextStr = v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_PROBLEM_TEXT));
