@@ -200,6 +200,25 @@ SC-022 を満たせない。緩和したのに画面上は何も変わらない�
 発生源で消せるが、利用者に見える名前を勝手に変える。二重参加は本人の再接続であり、
 名前を変えられるのは不親切である。
 
+#### 実装メモ（G7-1 完了時点で確定した事項）
+
+後続の段階はこの前提の上に積む。
+
+| 決めたこと | 理由 |
+|---|---|
+| `config.members` は**表示名のまま** | 人が読む一覧・完成記録（`buildCompletionRecord`）が使う。rotation から名前へ写して同期する |
+| `initialAggregate(config, rotation)` | rotation は参加者IDなので `config.members`（表示名）からは組み立てられない。呼び出し側が渡す |
+| `SessionReset` は現在の並びを引き継ぐ | 同上の理由で config から復元できない |
+| `member.add` の wire は `{ participantId }` | 名前→IDの解決という曖昧さを発生源で消す |
+| `participant.rename` は rotation に触れない | rotation に名前が無くなったため。**表示名の一意性検査は handlers へ移す（T052・未実施）** |
+| core のテストは rotation に名前を入れたまま | core は rotation の値を不透明な文字列として扱う。索引ベースの検証は値の意味に依存しない |
+
+**sync 側で必要になる写像:** `rotation`（ID）→ 表示名 は `room.participants` を引く。
+`nextDriverName` シグナル・`config.members` の同期・`RosterPanel` へ渡す `currentDriverName` が該当する。
+代理参加者（`isPlaceholder`）も participants に居るので同じ写像で解決できる。
+
+---
+
 ---
 
 ### D6（1度目の改訂・履歴として残す）. `participant.remove` の rotation 解決だけを識別子ベースに直す

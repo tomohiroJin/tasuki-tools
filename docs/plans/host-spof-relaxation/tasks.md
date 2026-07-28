@@ -364,10 +364,23 @@
 > 枠と参加者を直接結び付ける。詳細は `plan.md` の D6b を参照。
 >
 > **段階ごとにスイートを緑に保つこと。** 一度に全部変えると原因の切り分けができなくなる。
+>
+> ### 現在地（2026-07-28 時点・セッション引き継ぎ）
+>
+> **G7-1 と G7-2 のみ完了。作業ツリーは workspace 全体では型が通らない状態にある。**
+>
+> | パッケージ | 状態 |
+> |---|---|
+> | `packages/core` | ✅ 移行済み・556 tests green・単体で型が通る（コミット済み） |
+> | `apps/sync` | ❌ 未着手。型エラー **2件**（`handlers.ts:234` の `initialAggregate` 引数、`handlers.ts:629` の `DecideCommand` 不一致） |
+> | `apps/web` | ❌ 未着手。型エラー **3件** |
+>
+> 次にやること: T054（sync）→ T055（sync テスト）→ T056〜T058（web）→ T059（検証）。
+> **T052 の移設漏れ（下記の警告）を最優先で塞ぐこと。**
 
 ### G7-1 core（判定と状態遷移）
 
-- [ ] **T051** `packages/core` の `SessionState.rotation` を参加者IDの配列として扱うよう
+- [x] **T051** `packages/core` の `SessionState.rotation` を参加者IDの配列として扱うよう
   `decide.ts` / `evolve.ts` / `aggregate.ts` を変更する。
   `initialAggregate` は rotation を引数で受け取る（表示名から組み立てない）。
   `member.add` は participantId を受け取る。`participant.rename` は rotation に触れない。
@@ -378,9 +391,14 @@
   「既存の表示名へは改名できない」という既存の挙動は維持する。
   _要件: FR-085, 非機能要件「後方互換」_
 
+  > **⚠ 現在この検査は存在しない。** core から外した（G7-1 で完了）が、
+  > handlers への移設が未実施のため、**既存の表示名へ改名できてしまう**。
+  > core 側にあった検証2件（`decide.test.ts` の DuplicateName）も削除済みなので、
+  > 移設と同時に `apps/sync/test` へ同等のテストを置くこと。
+
 ### G7-2 wire（プロトコル）
 
-- [ ] **T053** `member.add` の wire を `{ name }` から `{ participantId }` に変更する。
+- [x] **T053** `member.add` の wire を `{ name }` から `{ participantId }` に変更する。
   名前→IDの解決という曖昧さを発生源で消す。
   _要件: FR-085_
 
