@@ -365,18 +365,25 @@
 >
 > **段階ごとにスイートを緑に保つこと。** 一度に全部変えると原因の切り分けができなくなる。
 >
-> ### 現在地（2026-07-28 時点・セッション引き継ぎ）
+> ### 現在地（2026-07-28 時点）
 >
-> **G7-1 と G7-2 のみ完了。作業ツリーは workspace 全体では型が通らない状態にある。**
+> **G7 の実装は完了。`pnpm test && typecheck && lint && build` が全て通る。**
 >
 > | パッケージ | 状態 |
 > |---|---|
-> | `packages/core` | ✅ 移行済み・556 tests green・単体で型が通る（コミット済み） |
-> | `apps/sync` | ❌ 未着手。型エラー **2件**（`handlers.ts:234` の `initialAggregate` 引数、`handlers.ts:629` の `DecideCommand` 不一致） |
-> | `apps/web` | ❌ 未着手。型エラー **3件** |
+> | `packages/core` | ✅ 556 tests green（`1322270`） |
+> | `apps/sync` | ✅ 298 tests green（`fe91630`） |
+> | `apps/web` | ✅ 554 tests green（`d84687c`） |
 >
-> 次にやること: T054（sync）→ T055（sync テスト）→ T056〜T058（web）→ T059（検証）。
-> **T052 の移設漏れ（下記の警告）を最優先で塞ぐこと。**
+> **残るのは T059 の実機確認3項目のみ。**
+>
+> 移行の途中で、当初のタスクに無かった穴を2件塞いだ（いずれも `fe91630`）:
+>
+> - `config.set` の `members` を受け付けないようにした。core の `ConfigSet` は
+>   members（表示名）から rotation を組み直すため、通すと rotation が名前に戻り
+>   識別子の不変条件が壊れる。輪の出入りは member 系コマンドだけが担う
+> - `member.add` に在室者チェックを足した。実在しない ID を輪に入れると
+>   表示名を引けない枠が残る
 
 ### G7-1 core（判定と状態遷移）
 
@@ -386,15 +393,16 @@
   `member.add` は participantId を受け取る。`participant.rename` は rotation に触れない。
   _要件: FR-085_
 
-- [ ] **T052** `participant.rename` の表示名一意性検査を、rotation ではなく
+- [x] **T052** `participant.rename` の表示名一意性検査を、rotation ではなく
   **participants の表示名**に対して行うよう移す。検査の場所が変わるだけで、
   「既存の表示名へは改名できない」という既存の挙動は維持する。
   _要件: FR-085, 非機能要件「後方互換」_
 
-  > **⚠ 現在この検査は存在しない。** core から外した（G7-1 で完了）が、
-  > handlers への移設が未実施のため、**既存の表示名へ改名できてしまう**。
-  > core 側にあった検証2件（`decide.test.ts` の DuplicateName）も削除済みなので、
-  > 移設と同時に `apps/sync/test` へ同等のテストを置くこと。
+  > **移設済み（`fe91630`）。** `handlers.ts` の `handleRoomCommand` が participants に対して
+  > 検査する。rotation ではなく participants を見るようになったため、**輪の外に居る在室者の
+  > 名前とも衝突する**ようになった（旧実装は rotation しか見ておらず素通りしていた）。
+  > 回帰テストは `apps/sync/test/handlers.v2.test.ts` に2件追加した
+  > （輪の外の名前・大文字小文字違い）。
 
 ### G7-2 wire（プロトコル）
 
@@ -404,29 +412,29 @@
 
 ### G7-3 sync（サーバー）
 
-- [ ] **T054** `handlers.ts` の rotation 参照を識別子ベースに直す。
+- [x] **T054** `handlers.ts` の rotation 参照を識別子ベースに直す。
   G6 で入れた「枠の持ち主」判定（`sameNameOwner`）は不要になるので**削除する**。
   `config.members` は表示名のまま保ち、rotation から名前へ写して同期する。
   `nextDriverName` シグナルは ID から名前を引いて送る。
   _要件: FR-085_
 
-- [ ] **T055** `participant-remove.test.ts` の G6 用テストを識別子ベースの意味に書き直す。
+- [x] **T055** `participant-remove.test.ts` の G6 用テストを識別子ベースの意味に書き直す。
   **再接続の向き（幽霊が先着）を必ず含める**（G6 のテストは幽霊が後着の場合しか見ておらず、
   実際の再接続を取り逃していた）。
   _要件: FR-085, SC-024_
 
 ### G7-4 web（画面）
 
-- [ ] **T056** 表示名で rotation を照合している箇所を識別子に直す。
+- [x] **T056** 表示名で rotation を照合している箇所を識別子に直す。
   `RosterPanel` の所属判定と順番算出、`Session` / `Lobby` / `RotationLineup` の現ドライバー表示。
   _要件: FR-085, SC-026_
 
-- [ ] **T057** ローテーションの出入りを participantId で送るよう `App.tsx` を変更する。
+- [x] **T057** ローテーションの出入りを participantId で送るよう `App.tsx` を変更する。
   あわせて `pendingDriverJoinRef` が消えずに残る経路を見直す
   （枠が消えた瞬間に再追加が走り、サーバー側の誤りを隠していた）。
   _要件: FR-085_
 
-- [ ] **T058** ソロモード（`solo/roster.ts`・非推奨だがテスト維持）を追随させる。
+- [x] **T058** ソロモード（`solo/roster.ts`・非推奨だがテスト維持）を追随させる。
   _要件: 非機能要件「後方互換」_
 
 ### G7-6 検証
