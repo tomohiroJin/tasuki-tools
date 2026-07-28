@@ -69,7 +69,7 @@ async function setupRoomWithSecond(
   store.put({
     ...room,
     participants: [host, secondParticipant],
-    session: { ...room.session, rotation: ["A", "B"], driverCounts: [0, 0], currentIndex: 0 },
+    session: { ...room.session, rotation: [host.participantId, "pid-second-B"], driverCounts: [0, 0], currentIndex: 0 },
     clock: { ...room.clock, running: true },
   });
   return code;

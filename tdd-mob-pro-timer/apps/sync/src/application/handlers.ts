@@ -116,7 +116,7 @@ export function makeHandlers(deps: HandlerDeps) {
     broadcaster.broadcastSignal(updated.code, {
       type: "signal",
       signal: "switch",
-      nextDriverName: updated.session.rotation[updated.session.currentIndex] ?? "",
+      nextDriverName: rotationDisplayNames(updated)[updated.session.currentIndex] ?? "",
     });
     reconcileSchedule(updated);
   }
@@ -231,7 +231,9 @@ export function makeHandlers(deps: HandlerDeps) {
       intervalMinutes: 5 as IntervalMinutes,
     };
 
-    const agg = initialAggregate(defaultConfig);
+    // rotation は参加者IDの配列（D6b）。作成時点の在室者は作成者ただ一人なので、
+    // config.members に何が入っていても輪に並べられるのは作成者だけである。
+    const agg = initialAggregate(defaultConfig, [participantId]);
 
     const host: Participant = {
       participantId,
@@ -247,7 +249,9 @@ export function makeHandlers(deps: HandlerDeps) {
       code,
       createdAt: now,
       hostParticipantId: participantId,
-      config: defaultConfig,
+      // config.members は rotation の表示名ミラー（D6b）。作成者以外は輪に並べないので、
+      // クライアントが渡した members に他人が含まれていてもここで作成者だけに揃える。
+      config: { ...defaultConfig, members: [cmd.displayName] },
       problem: null,
       session: agg.session,
       clock: agg.clock,
@@ -481,26 +485,11 @@ export function makeHandlers(deps: HandlerDeps) {
       const roomBeforeRemoval = target.participantId === targetRoom.hostParticipantId
         ? transferHostBeforeRemoval(targetRoom, targetId)
         : targetRoom;
-      // rotation の枠を外すかを決める（D6 改訂・FR-085）。
-      //
-      // rotation は表示名の配列なので、表示名でそのまま位置を引くと同名の別participantの
-      // 枠を巻き添えにする。実機で踏んだ欠陥がこれで、rotation に居ない幽霊を消すと
-      // 同名で rotation に居る本物が輪から外れていた（本 Issue の主要シナリオで発火する）。
-      //
-      // rotation の持ち方自体は変えない（設計は据え置き・D6）。代わりに「その枠は誰のものか」を
-      // **参加時刻が最も早い同名参加者**と定める。二重参加の幽霊は後から入るため、
-      // 元から居た本人が持ち主になる。持ち主でない人を退出させても枠は動かさない。
-      //
-      // 「同名が1人でも残るなら枠を外さない」という単純な規則は採らない。`room.join` は
-      // 表示名の重複を検査しないため、無関係な同名者が居合わせただけで枠が外れなくなり、
-      // rotation を空にしない保護（BelowMinMembers）まで素通りしてしまう。
-      // 持ち主を1人に定めれば、持ち主を消すときは従来どおり保護が働く。
-      const sameNameOwner = roomBeforeRemoval.participants
-        .filter((p) => p.displayName === target.displayName)
-        .sort((a, b) => a.joinedAt - b.joinedAt || a.participantId.localeCompare(b.participantId))[0];
-      const idx = sameNameOwner?.participantId === targetId
-        ? roomBeforeRemoval.session.rotation.indexOf(target.displayName)
-        : -1;
+      // rotation の枠を外すかを決める（D6b・FR-085）。
+      // rotation は参加者IDの配列なので、退出者の枠は ID でそのまま一意に引ける。
+      // 参加順から「枠の持ち主」を推測していた G6 の規則（sameNameOwner）は、
+      // 同名の二重参加や再接続で実態とずれたため撤去した。
+      const idx = roomBeforeRemoval.session.rotation.indexOf(targetId);
       let next: Room = {
         ...roomBeforeRemoval,
         participants: roomBeforeRemoval.participants.filter((p) => p.participantId !== targetId),
@@ -515,7 +504,8 @@ export function makeHandlers(deps: HandlerDeps) {
           { type: "MemberRemoved", index: idx, now },
           now,
         );
-        next = { ...next, session: agg.session, clock: agg.clock, config: { ...next.config, members: [...agg.session.rotation] } };
+        next = { ...next, session: agg.session, clock: agg.clock };
+        next = { ...next, config: { ...next.config, members: rotationDisplayNames(next) } };
       }
       store.put(next);
       broadcaster.broadcastSnapshot(next.code, next);
@@ -562,14 +552,30 @@ export function makeHandlers(deps: HandlerDeps) {
             ),
           }
         : buildDomainCommand(cmd);
-    // 改名は対象の現在名を解決して decide へ渡す。decide は「自分の現在名と同一」を
-    // 重複検査から除外するために旧名を必要とする（rotation は名前配列のみで participantId を持たない）。
+    // 輪に並べられるのは在室者だけ（D6b）。実在しない ID を rotation に入れると
+    // 表示名を引けない枠が残り、順番表示も指名も破綻する。
+    if (domainCmd && domainCmd.command === "member.add") {
+      const exists = targetRoom.participants.some(
+        (p) => p.participantId === domainCmd.participantId,
+      );
+      if (!exists) {
+        broadcaster.sendTo(connId, {
+          type: "error",
+          code: "PARTICIPANT_NOT_FOUND",
+          message: "対象の参加者が見つかりません",
+        });
+        return err("PARTICIPANT_NOT_FOUND");
+      }
+    }
+    // 改名の表示名一意性はここで検査する（T052・D6b）。rotation が参加者IDの配列になり
+    // 名前の重複を集約から判定できなくなったため、participants を持つこの層が受け持つ。
+    // 「既存の表示名へは改名できない」という従来の挙動はそのまま維持する（後方互換）。
     if (domainCmd && domainCmd.command === "participant.rename") {
       const target = targetRoom.participants.find(
         (p) => p.participantId === domainCmd.participantId,
       );
-      // 対象が存在しなければ早期に拒否する。ここで弾かないと旧名 undefined のまま decide に渡り、
-      // 自己同一の除外が効かず DuplicateName 等の誤った理由で失敗しうる（実体は対象不在）。
+      // 対象が存在しなければ早期に拒否する（実体は対象不在なのに DuplicateName 等の
+      // 誤った理由で失敗させないため）。
       if (!target) {
         broadcaster.sendTo(connId, {
           type: "error",
@@ -578,15 +584,28 @@ export function makeHandlers(deps: HandlerDeps) {
         });
         return err("PARTICIPANT_NOT_FOUND");
       }
-      domainCmd.currentDisplayName = target.displayName;
+      // 自分自身は比較対象から外す（現在名と同じ名前への改名は no-op 相当で許可する）。
+      // 大文字小文字は無視する（表示上の識別が付かないため衝突とみなす・FR-046/048）。
+      const desired = domainCmd.displayName.trim().toLowerCase();
+      const conflicts = targetRoom.participants.some(
+        (p) => p.participantId !== target.participantId && p.displayName.trim().toLowerCase() === desired,
+      );
+      if (conflicts) {
+        broadcaster.sendTo(connId, {
+          type: "error",
+          code: "DuplicateName",
+          message: `操作エラー: DuplicateName`,
+        });
+        return err("DuplicateName");
+      }
     }
-    // 指名は participantId → 表示名 → rotation index を解決して decide へ渡す（Issue #13）。
-    // 集約は participantId→名前の対応を持たないため、rotation 内の位置をここで確定する。
+    // 指名は participantId → rotation index を解決して decide へ渡す（Issue #13）。
+    // 集約は participants を持たないため、rotation 内の位置をここで確定する。
     if (domainCmd && domainCmd.command === "driver.assign") {
       const targetPid = typeof cmd.participantId === "string" ? cmd.participantId : "";
       const target = targetRoom.participants.find((p) => p.participantId === targetPid);
       const index = target
-        ? targetRoom.session.rotation.indexOf(target.displayName)
+        ? targetRoom.session.rotation.indexOf(target.participantId)
         : -1;
       // 対象不在 or rotation 外（見学者）は指名できない。
       if (index < 0) {
@@ -714,7 +733,8 @@ export function makeHandlers(deps: HandlerDeps) {
       // config.members を session.rotation に同期する。
       // member.add/remove/move・addProxy は rotation のみ更新するため、ミラーしないと
       // 完成記録（config.members を使用）が古いメンバーになる。
-      config: { ...targetRoom.config, members: [...targetRoom.session.rotation] },
+      // rotation は参加者IDの配列なので、表示名へ写してから載せる（D6b）。
+      config: { ...targetRoom.config, members: rotationDisplayNames(targetRoom) },
     };
 
     store.put(updatedRoom);
@@ -1197,12 +1217,12 @@ const SESSION_NOTICE_ACTIONS: Readonly<Record<string, "session-aborted" | "sessi
 /**
  * 対象コマンドの指定方法ごとに「操作対象が実行者自身か」を算出する（FR-068）。
  *
- * 対象の指定方法がコマンドごとに異なる（participantId / 表示名 / rotation の位置）ため、
+ * 対象の指定方法がコマンドごとに異なる（participantId / rotation の位置）ため、
  * 算出を各所へ散らすと判定漏れが起きる。`checkPermission()` を呼ぶ前に必ずここを通す。
  *
- * **既知の限界:** 表示名ベースの2件（member.add / member.remove）は同名参加者を区別できない。
- * これは従来の関係ガードと同一の挙動であり、本 Issue では再設計しない
- * （開始後は他人対象も許可されるため実害がない）。
+ * rotation が参加者IDの配列になった（D6b）ことで全ての判定が識別子ベースになり、
+ * かつて表示名で突き合わせていた2件（member.add / member.remove）の
+ * 「同名参加者を区別できない」限界は解消した。
  *
  * 設計: docs/plans/host-spof-relaxation/plan.md「isSelfTarget の算出は単一の resolver に集約する」
  */
@@ -1220,13 +1240,13 @@ function resolveIsSelfTarget(
     case "role.set":
       return cmd.participantId === actor.participantId;
 
-    // 表示名で rotation への参加を指す。
+    // 参加者IDで rotation への参加を指す。
     case "member.add":
-      return cmd.name === actor.displayName;
+      return cmd.participantId === actor.participantId;
 
-    // rotation の位置で対象を指す。
+    // rotation の位置で対象を指す（中身は参加者ID）。
     case "member.remove":
-      return room.session.rotation[Number(cmd.index)] === actor.displayName;
+      return room.session.rotation[Number(cmd.index)] === actor.participantId;
 
     // 上記以外は対象を持たない（host.transfer の participantId は「移譲先」であり
     // 自己対象という概念が成立しないため、ここには含めない）。
@@ -1289,12 +1309,18 @@ function buildDomainCommand(cmd: { command: string; [key: string]: unknown }) {
       return { command: "session.complete" as const };
     case "session.reset":
       return { command: "session.reset" as const };
-    case "config.set":
+    case "config.set": {
       if (typeof cmd.config !== "object" || cmd.config === null) return null;
-      return { command: "config.set" as const, config: cmd.config as Partial<SessionConfig> };
+      // members は受け付けない（D6b）。core の ConfigSet は members から rotation を
+      // 組み直すため、表示名の配列を通すと rotation が名前に戻り識別子の不変条件が壊れる。
+      // 輪の出入りは member.add/remove/move・addProxy・participant.remove だけが担う。
+      const { members: _ignored, ...config } = cmd.config as Partial<SessionConfig>;
+      return { command: "config.set" as const, config };
+    }
     case "member.add":
-      if (typeof cmd.name !== "string") return null;
-      return { command: "member.add" as const, name: cmd.name };
+      // 誰を輪に並べるかは参加者IDで指す（D6b）。名前→IDの解決という曖昧さを発生源で消す。
+      if (typeof cmd.participantId !== "string") return null;
+      return { command: "member.add" as const, participantId: cmd.participantId };
     case "member.remove":
       if (typeof cmd.index !== "number") return null;
       return { command: "member.remove" as const, index: cmd.index };
@@ -1317,8 +1343,8 @@ function buildDomainCommand(cmd: { command: string; [key: string]: unknown }) {
       return { command: "participant.addProxy" as const, displayName: cmd.displayName, participantId: cmd.participantId };
     case "participant.rename":
       if (typeof cmd.participantId !== "string" || typeof cmd.displayName !== "string") return null;
-      // currentDisplayName は呼び出し側（handleRoomCommand）が対象の現在名を解決して埋める
-      return { command: "participant.rename" as const, participantId: cmd.participantId, displayName: cmd.displayName, currentDisplayName: undefined as string | undefined };
+      // 表示名の一意性は呼び出し側（handleRoomCommand）が participants に対して検査する（T052）
+      return { command: "participant.rename" as const, participantId: cmd.participantId, displayName: cmd.displayName };
     case "driver.skip":
       if (typeof cmd.participantId !== "string") return null;
       return { command: "driver.skip" as const, participantId: cmd.participantId };
@@ -1386,23 +1412,39 @@ function buildShuffleOrder(len: number, running: boolean, currentIndex: number):
 
 /**
  * driverEligible===false の参加者を rotation インデックスへ対応付けた集合を返す。
- * rotation は表示名配列で participantId を持たないため、表示名で突き合わせる
- * （改名時の一意性ガードにより rotation 内に同名は無く、一意に対応付く）。
+ * rotation は参加者IDの配列（D6b）なので、ID でそのまま突き合わせる。
  */
 function computeIneligibleIndices(room: Room): Set<number> {
-  const ineligibleNames = new Set(
+  const ineligibleIds = new Set(
     room.participants
       // 一時離脱(driverEligible=false)は対象外。実在の切断中(offline)の人も対象外（R2-1）。
       // ただし代理(placeholder)は Web 非接続が常態で対面在席する実在の人を表すため、
       // offline でも eligible として扱う（さもないとタイマー自動交代で永久に飛ばされ交代しない）。
       .filter((p) => p.driverEligible === false || (p.presence === "offline" && p.isPlaceholder !== true))
-      .map((p) => p.displayName),
+      .map((p) => p.participantId),
   );
   const set = new Set<number>();
-  room.session.rotation.forEach((name, i) => {
-    if (ineligibleNames.has(name)) set.add(i);
+  room.session.rotation.forEach((participantId, i) => {
+    if (ineligibleIds.has(participantId)) set.add(i);
   });
   return set;
+}
+
+// ─── rotation（参加者ID）→ 表示名の写像 ─────────────────────────────────────
+
+/**
+ * rotation を表示名の配列へ写す（D6b）。
+ *
+ * rotation は参加者IDの配列なので、人に見せる名前（`config.members` のミラー、
+ * `nextDriverName` シグナル）は必ずここを通す。名前解決を各所へ散らすと、
+ * 本 Issue で繰り返し踏んだ「同名の取り違え」が別の形で再発する。
+ *
+ * 対応する参加者が居ない ID は空文字になるが、退出時に rotation からも外し、
+ * 追加時は在室者だけを受け付けるため通常は発生しない。
+ */
+function rotationDisplayNames(room: Room): string[] {
+  const names = new Map(room.participants.map((p) => [p.participantId, p.displayName]));
+  return room.session.rotation.map((participantId) => names.get(participantId) ?? "");
 }
 
 // ─── ルームレベルのイベント適用 ──────────────────────────────────────────────
@@ -1484,17 +1526,14 @@ function applyRoomLevelEvent(
         participants: [...room.participants, proxyParticipant],
         session: {
           ...room.session,
-          rotation: [...room.session.rotation, event.displayName],
+          rotation: [...room.session.rotation, event.participantId],
           driverCounts: [...room.session.driverCounts, 0],
         },
       };
     }
-    case "ParticipantRenamed": {
-      // 改名対象の旧名をループ外で一度だけ解決する。rotation は名前配列であり
-      // participantId を持たないため、旧名で位置を特定して置換する。
-      // 重複名は member.add/addProxy で拒否されるため rotation 内に同名はなく、一意に特定できる。
-      const target = room.participants.find((p) => p.participantId === event.participantId);
-      const oldName = target?.displayName;
+    case "ParticipantRenamed":
+      // rotation は参加者IDの配列（D6b）で改名しても値が変わらないため、触る必要が無い。
+      // 旧名で位置を引いて置換していた処理はここで消えた（同名の取り違えの温床だった）。
       return {
         ...room,
         participants: room.participants.map((p) =>
@@ -1502,17 +1541,7 @@ function applyRoomLevelEvent(
             ? { ...p, displayName: event.displayName }
             : p,
         ),
-        session:
-          oldName === undefined
-            ? room.session
-            : {
-                ...room.session,
-                rotation: room.session.rotation.map((name) =>
-                  name === oldName ? event.displayName : name,
-                ),
-              },
       };
-    }
     case "DriverSkipped":
       return {
         ...room,

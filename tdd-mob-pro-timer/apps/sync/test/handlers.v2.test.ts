@@ -105,8 +105,9 @@ describe("v2 コマンドの結合テスト（T028/T029）", () => {
       participantId: "proxy-dave2",
     });
     const room = getLatestSnapshot(broadcaster);
-    // rotation に Dave が含まれる（ドライバーローテーション参加）
-    expect(room?.session.rotation).toContain("Dave");
+    // rotation は参加者IDの配列（D6b）。Dave の ID が含まれる（ドライバーローテーション参加）
+    const dave = room?.participants.find((p) => p.displayName === "Dave");
+    expect(room?.session.rotation).toContain(dave!.participantId);
     // 不変条件: rotation.length === driverCounts.length
     expect(room?.session.rotation.length).toBe(room?.session.driverCounts.length);
   });
@@ -130,12 +131,12 @@ describe("v2 コマンドの結合テスト（T028/T029）", () => {
     expect(renamed?.displayName).toBe("NewHostName");
   });
 
-  it("participant.rename で rotation 内の旧名も新名に更新される（FR-048）", async () => {
+  it("participant.rename しても rotation は動かない（識別子で持つため・D6b/FR-048）", async () => {
     const room = store.get(roomCode);
     const hostParticipant = room?.participants.find((p) => p.connId === hostConn);
-    const oldName = hostParticipant!.displayName;
-    // rotation に旧名が入っていることを前提確認
-    expect(room?.session.rotation).toContain(oldName);
+    const before = [...room!.session.rotation];
+    // rotation に本人の ID が入っていることを前提確認
+    expect(before).toContain(hostParticipant!.participantId);
 
     await handlers.handleCommand(hostConn, {
       command: "participant.rename",
@@ -144,9 +145,11 @@ describe("v2 コマンドの結合テスト（T028/T029）", () => {
     });
 
     const updated = getLatestSnapshot(broadcaster);
-    // rotation も新名に更新される（旧名は消える）
-    expect(updated?.session.rotation).toContain("RenamedDriver");
-    expect(updated?.session.rotation).not.toContain(oldName);
+    // 改名しても ID は変わらないので rotation は一切書き換わらない
+    // （旧名で位置を引く処理が無くなり、同名の取り違えが原理的に起きない）
+    expect(updated?.session.rotation).toEqual(before);
+    // 表示名ミラーである config.members には新名が載る
+    expect(updated?.config.members).toContain("RenamedDriver");
   });
 
   it("既存の他メンバー名への rename は DuplicateName で拒否される（FR-048）", async () => {
@@ -169,9 +172,49 @@ describe("v2 コマンドの結合テスト（T028/T029）", () => {
 
     expect(result.isErr()).toBe(true);
     if (result.isErr()) expect(result.error).toBe("DuplicateName");
-    // 名前は変わらず rotation 一意性は保たれる
+    // 名前は変わらず表示名の一意性は保たれる
     const after = store.get(roomCode);
-    expect(after?.session.rotation).toEqual(["Host", "Dave"]);
+    expect(after?.participants.map((p) => p.displayName)).toEqual(["Host", "Dave"]);
+  });
+
+  it("輪の外に居る参加者の名前へも改名できない（T052 の移設で守られる範囲）", async () => {
+    // 検査対象が rotation から participants へ移ったことで、輪に並んでいない在室者の
+    // 名前も衝突として扱えるようになった（旧実装は rotation しか見ておらず素通りしていた）。
+    const joined = await handlers.handleCommand("guest-conn", {
+      command: "room.join", code: roomCode, displayName: "Spectator", hasAiKey: false,
+    });
+    expect(joined.isOk()).toBe(true);
+    const room = store.get(roomCode);
+    const hostParticipant = room?.participants.find((p) => p.connId === hostConn);
+    const spectator = room?.participants.find((p) => p.connId === "guest-conn");
+    // 前提: 見学者は輪に居ない。
+    expect(room?.session.rotation).not.toContain(spectator!.participantId);
+
+    const result = await handlers.handleCommand(hostConn, {
+      command: "participant.rename",
+      participantId: hostParticipant!.participantId,
+      displayName: "Spectator",
+    });
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) expect(result.error).toBe("DuplicateName");
+  });
+
+  it("大文字小文字だけが違う名前への改名も拒否される（表示上は識別できないため）", async () => {
+    await handlers.handleCommand(hostConn, {
+      command: "participant.addProxy", displayName: "Dave", participantId: "proxy-case",
+    });
+    const room = store.get(roomCode);
+    const hostParticipant = room?.participants.find((p) => p.connId === hostConn);
+
+    const result = await handlers.handleCommand(hostConn, {
+      command: "participant.rename",
+      participantId: hostParticipant!.participantId,
+      displayName: "dave",
+    });
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) expect(result.error).toBe("DuplicateName");
   });
 
   it("自分の現在名と同一への rename は許可される（no-op 相当）", async () => {

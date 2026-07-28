@@ -79,9 +79,16 @@ describe("開始後の権限（FR-063/064・主催者を条件にしない）", 
       [CAROL_CONN, "Carol"],
       [VIEWER_CONN, "Viewer"],
     ] as const) {
-      await handlers.handleCommand(connId, {
+      const joinResult = await handlers.handleCommand(connId, {
         command: "room.join", code: roomCode, displayName, hasAiKey: false,
       });
+      if (!joinResult.isOk()) throw new Error(`room.join failed: ${displayName}`);
+      // rotation は参加者IDの配列（D6b）。config.members に名前を並べるだけでは輪に入らないため、
+      // 本人が自分を輪に加える（自己対象なので開始前でも許可される）。
+      const addResult = await handlers.handleCommand(connId, {
+        command: "member.add", participantId: joinResult.value.participantId,
+      });
+      if (!addResult.isOk()) throw new Error(`member.add failed: ${displayName}`);
     }
 
     const joined = store.get(roomCode)!;
@@ -142,7 +149,8 @@ describe("開始後の権限（FR-063/064・主催者を条件にしない）", 
       expect(lastError(EDITOR_CONN)?.code).not.toBe("UNAUTHORIZED");
       expect(result.isOk()).toBe(true);
       const room = store.get(roomCode)!;
-      expect(room.session.rotation[room.session.currentIndex]).toBe("Carol");
+      // rotation は参加者IDの配列（D6b）
+      expect(room.session.rotation[room.session.currentIndex]).toBe(carolPid);
     });
 
     // 層⑤の4件目。他の3件と違い participant.remove ではなく host.transfer 側の経路を通る。

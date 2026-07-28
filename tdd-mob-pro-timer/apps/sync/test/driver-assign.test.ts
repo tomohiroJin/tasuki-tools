@@ -43,7 +43,8 @@ async function setup(
   store.put({
     ...room,
     participants: [host, mk("pid-b", "B", "conn-b", bOverrides), mk("pid-c", "C", "conn-c")],
-    session: { ...room.session, rotation: ["A", "B", "C"], driverCounts: [0, 0, 0], currentIndex: 0 },
+    // rotation は参加者IDの配列（D6b）
+    session: { ...room.session, rotation: [host.participantId, "pid-b", "pid-c"], driverCounts: [0, 0, 0], currentIndex: 0 },
     clock: { ...room.clock, running: true },
   });
   return code;

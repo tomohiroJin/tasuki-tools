@@ -82,7 +82,8 @@ async function setupRunningRoom(
     config: { ...room.config, members: ["A", "B", "C"] },
     session: {
       ...room.session,
-      rotation: ["A", "B", "C"],
+      // rotation は参加者IDの配列（D6b）
+      rotation: [host.participantId, "pid-b", "pid-c"],
       driverCounts: [1, 0, 0],
       currentIndex: 1,
       totalSwitches: 1,
@@ -141,7 +142,8 @@ describe("session.act RESTART（Issue #14 持ち時間のやり直し）", () =>
     expect(room.session.currentIndex).toBe(1); // B のまま
     expect(room.session.driverCounts).toEqual([1, 0, 0]);
     expect(room.session.totalSwitches).toBe(1);
-    expect(room.session.rotation).toEqual(["A", "B", "C"]);
+    // rotation は参加者IDの配列（D6b）
+    expect(room.session.rotation).toEqual([room.participants[0]!.participantId, "pid-b", "pid-c"]);
   });
 
   it("お題・共有メモ・メンバー・設定・参加者が維持される", async () => {

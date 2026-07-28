@@ -70,12 +70,21 @@ describe("開始前の権限（FR-066・従来どおり主催者主導）", () =
     roomCode = created.value.code;
 
     // join の既定ロールは editor（UX 再設計）。降格せずそのまま使う。
-    await handlers.handleCommand(EDITOR_CONN, {
-      command: "room.join", code: roomCode, displayName: "Editor", hasAiKey: false,
-    });
-    await handlers.handleCommand(CAROL_CONN, {
-      command: "room.join", code: roomCode, displayName: "Carol", hasAiKey: false,
-    });
+    // rotation は参加者IDの配列（D6b）。config.members に名前を並べるだけでは輪に入らないため、
+    // 本人が自分を輪に加える（自己対象なので開始前でも許可される）。
+    for (const [connId, displayName] of [
+      [EDITOR_CONN, "Editor"],
+      [CAROL_CONN, "Carol"],
+    ] as const) {
+      const joinResult = await handlers.handleCommand(connId, {
+        command: "room.join", code: roomCode, displayName, hasAiKey: false,
+      });
+      if (!joinResult.isOk()) throw new Error(`room.join failed: ${displayName}`);
+      const addResult = await handlers.handleCommand(connId, {
+        command: "member.add", participantId: joinResult.value.participantId,
+      });
+      if (!addResult.isOk()) throw new Error(`member.add failed: ${displayName}`);
+    }
 
     const room = store.get(roomCode)!;
     editorPid = room.participants.find((p) => p.displayName === "Editor")!.participantId;
@@ -127,7 +136,7 @@ describe("開始前の権限（FR-066・従来どおり主催者主導）", () =
 
     it("editor は他人の名前を member.add できない（ローテーション所有権）", async () => {
       const result = await handlers.handleCommand(EDITOR_CONN, {
-        command: "member.add", name: "Carol",
+        command: "member.add", participantId: carolPid,
       });
 
       expect(result.isErr()).toBe(true);
@@ -135,7 +144,7 @@ describe("開始前の権限（FR-066・従来どおり主催者主導）", () =
     });
 
     it("editor は他人の位置を member.remove できない（ローテーション所有権）", async () => {
-      // rotation は config.members の並び。index 2 は Carol。
+      // rotation は参加者IDの並び（作成者 → Editor → Carol）。index 2 は Carol。
       const result = await handlers.handleCommand(EDITOR_CONN, {
         command: "member.remove", index: 2,
       });

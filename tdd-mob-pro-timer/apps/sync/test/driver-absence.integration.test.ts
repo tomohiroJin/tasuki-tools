@@ -87,7 +87,7 @@ describe("統合: ドライバー不在 自動繰上（presence→handlers 実�
     store.put({
       ...room,
       participants,
-      session: { ...room.session, rotation: ["A", "B"], currentIndex: 0 },
+      session: { ...room.session, rotation: participants.map((p) => p.participantId), currentIndex: 0 },
       clock: { ...room.clock, running: true },
     });
     return code;
@@ -105,6 +105,6 @@ describe("統合: ドライバー不在 自動繰上（presence→handlers 実�
 
     const after = store.get(code)!;
     expect(after.session.currentIndex).toBe(1);
-    expect(after.session.rotation[after.session.currentIndex]).toBe("B");
+    expect(after.session.rotation[after.session.currentIndex]).toBe("pid-test-1"); // B
   });
 });
