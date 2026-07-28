@@ -34,7 +34,10 @@ TDD Mob Pro Timer の構造・データフロー・設計原則をまとめま�
 | `decide.ts` | `decide(cmd, agg, now): Result<DomainEvent[], DomainError>` — コマンド→イベント |
 | `evolve.ts` | `evolve(agg, event, now): Aggregate` — イベント→次状態（全域関数） |
 | `events.ts` / `errors.ts` | `DomainEvent` 合併型 / `DomainError` 合併型 |
-| `schemas.ts` | Valibot スキーマ（Command / ServerMsg / Problem / SessionConfig） |
+| `schemas.ts` | Valibot スキーマ（Command / ServerMsg / Problem / SessionConfig）。境界で検証と**正規化**を行う |
+| `permissions.ts` | 段階×役割の可否判定（`checkPermission` / `isAllowed`）。front/server が共有する単一の規則（FR-071） |
+| `participants.ts` | 在室者の不変条件（`canRemoveParticipant` / `canDemote` / `transferHost`）。権限とは別の責務 |
+| `display-name.ts` | 表示名の正規化（`normalizeDisplayName`）と見え方の骨格（`nameSkeleton`） |
 | `problem.ts` | 定型お題バンク・`validateProblem`・`pickFallback`・プロンプト生成 |
 | `records.ts` | 完成記録の生成（所要時間は稼働区間のみ積算） |
 | `i18n/` | 日本語（主）・英語のメッセージ |
@@ -48,6 +51,45 @@ TDD Mob Pro Timer の構造・データフロー・設計原則をまとめま�
   `Unauthorized` / `PhaseConflict` / `InvalidInterval` 等）。
 - `evolve` はイベントを適用して次の集約を返す全域関数です。
 - 詳細: [ADR-0002](./adr/0002-decider-pure-domain.md)、[ADR-0006](./adr/0006-result-and-boundary-validation.md)。
+
+### 権限 — 段階 × 役割の単一規則
+
+可否判定は `permissions.ts` の `checkPermission()` **1 か所**だけが持ちます（FR-071）。
+サーバーの強制（`handlers.ts`）と UI の活性表示（`isAllowed()`）が同じ関数を呼ぶため、
+「押せるのに拒否される」「実行できるのに押せない」というズレが構造的に起きません（SC-022）。
+
+判定の軸は**役割**（host / editor / viewer）と**段階**の2つです。段階は `Room.startedAt`
+（一度でもセッションを開始したか）で表し、**単調**です。`phase` は `phase.set` で
+`setup` へ戻せてしまうため判定に使いません。戻せる値で権限を決めると、主催者不在の部屋で
+誰かが `setup` へ戻した瞬間に再びホスト限定へ締まり、詰みが再発します（FR-062）。
+
+- **開始前**: 従来どおり主催者主導（FR-066）。ホスト限定コマンドと、他人対象の関係コマンドを host に限る
+- **開始後**: 可否判定に主催者であることを**用いない**（FR-063）。編集者以上なら誰でも実行できる。
+  進行系だけでなく入室制御（`room.passphrase.set` / `ai.unlock` / `host.transfer`）も含む。
+  主催者が落ちた部屋を残った人だけで畳めるようにするのが目的なので、管理系を据え置くと
+  主催者不在時に誰も実行できなくなる
+- **見学者**: 段階に関わらず状態変更を拒否（FR-067）。ただし**自分自身が対象の操作は許可**（FR-068）
+- **不変条件は権限とは別**: 「実在の編集者以上が1名以上残る」は `participants.ts` が持ちます。
+  権限が通っても不変条件で拒否されることがあります（例: 最後の編集者は退出できない）
+
+判定の順序には依存関係があり、入れ替えると過去に起きた回帰が再発します。理由は
+`permissions.ts` の `checkPermission` の docstring に、壊れ方とあわせて書いてあります。
+
+### 参加者の同定 — 表示名ではなく識別子
+
+ローテーション（`session.rotation`）は**参加者 ID の配列**です。表示名の配列ではありません。
+同名の参加者（二重参加の幽霊・再接続）が居るとき、名前で枠を引くと別人の枠を巻き添えにします。
+参加順など間接的な手掛かりで持ち主を推測する実装は2度失敗しており、枠と参加者を直接結び付けています。
+
+表示名は**表示のためだけ**に使います。`config.members` は rotation の表示名ミラーで、
+完成記録もこちらを使います。画面で人を指す呼び名は `ui/participant-label.ts` が1か所で決め、
+同名が並ぶときだけ識別子の末尾を添えます（FR-084）。
+
+表示名は境界（`schemas.ts`）で正規化されます。画面で同じに見えるものが同じ文字列になるよう、
+空白の畳み込み・不可視文字の除去・NFKC・識別子ラベル書式の除去を行います。正規化で潰せない
+見た目の衝突（キリル文字の `Вob` など）は、比較専用の骨格（`nameSkeleton`）で「曖昧」と判定し、
+識別子を添えて区別します。**検出は寛容に、拒否は厳格に**——骨格は表示の判定にだけ使い、
+サーバーの重複拒否には使いません（正当な名前を弾かないため）。
 
 ### 時刻の扱い — サーバー権威 ServerClock
 
@@ -140,8 +182,8 @@ argv・ログ・snapshot に混入させません。失敗（タイムアウト�
 
 **Command（クライアント→サーバー）**: `room.create` / `room.join` / `room.passphrase.set` /
 `config.set` / `phase.set` / `problem.request` / `problem.submit` / `problem.edit` / `problem.mode.set` /
-`ai.unlock`（AI 生成の解錠 = ADR-0008）/ `session.act`（START/SWITCH/PAUSE/RESUME）/
-`session.complete` / `session.abort` / `session.reset` / `driver.skip|resume` /
+`ai.unlock`（AI 生成の解錠 = ADR-0008）/ `session.act`（START/SWITCH/PAUSE/RESUME/RESTART）/
+`session.complete` / `session.abort` / `session.reset` / `driver.skip|resume|assign` /
 `member.add|remove|move|shuffle` / `participant.addProxy|rename|remove` / `role.set` /
 `host.transfer` / `handoff.note.set` /
 `break.start|end`（**dormant**: v2.10 で休憩機能を撤去。スキーマは後方互換のため残置、受理されない）/
