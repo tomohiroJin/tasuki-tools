@@ -15,7 +15,7 @@ const baseConfig: SessionConfig = {
   members: ["Alice", "Bob", "Charlie"],
   intervalMinutes: 5,
 };
-const baseAgg = initialAggregate(baseConfig);
+const baseAgg = initialAggregate(baseConfig, baseConfig.members);
 const NOW = 1_000_000;
 
 describe("decide: handoff.note.set（§9.1）", () => {

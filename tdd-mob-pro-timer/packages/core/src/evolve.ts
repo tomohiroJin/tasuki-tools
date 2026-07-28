@@ -55,7 +55,9 @@ export function evolve(agg: Aggregate, event: DomainEvent, _now: number): Aggreg
       // F3(v2.3 #3): リセットは「最初から再スタート（走行）」にする。
       // 旧仕様は initialAggregate をそのまま返し running=false だったため、
       // リセット後に開始できず詰む不具合があった。走行状態でアンカーし直す。
-      const fresh = initialAggregate(buildConfigFromReset(agg));
+      // リセットは並び順を保ったまま最初から走り直す。rotation は参加者IDの配列なので
+      // config（表示名の一覧）からは復元できず、現在の並びをそのまま引き継ぐ（D6b）。
+      const fresh = initialAggregate(buildConfigFromReset(agg), agg.session.rotation);
       return {
         session: fresh.session,
         clock: {
@@ -78,7 +80,7 @@ export function evolve(agg: Aggregate, event: DomainEvent, _now: number): Aggreg
       return evolveConfigSet(agg, event.config, event.now);
 
     case "MemberAdded":
-      return evolveMemberAdded(agg, event.name);
+      return evolveMemberAdded(agg, event.participantId);
 
     case "MemberRemoved":
       return evolveMemberRemoved(agg, event.index);
@@ -329,12 +331,12 @@ function evolveConfigSet(
   return { session, clock };
 }
 
-function evolveMemberAdded(agg: Aggregate, name: string): Aggregate {
+function evolveMemberAdded(agg: Aggregate, participantId: string): Aggregate {
   return {
     ...agg,
     session: {
       ...agg.session,
-      rotation: [...agg.session.rotation, name],
+      rotation: [...agg.session.rotation, participantId],
       driverCounts: [...agg.session.driverCounts, 0],
     },
   };

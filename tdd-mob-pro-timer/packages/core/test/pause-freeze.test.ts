@@ -21,7 +21,7 @@ const NOW = 1_000_000;
 
 /** セッション開始済みの集約を作る（7分=420秒で走行中） */
 function startedAgg(): Aggregate {
-  return evolve(initialAggregate(config), { type: "SessionStarted", now: NOW }, NOW);
+  return evolve(initialAggregate(config, config.members), { type: "SessionStarted", now: NOW }, NOW);
 }
 
 describe("F1: 一時停止で残量を凍結する", () => {

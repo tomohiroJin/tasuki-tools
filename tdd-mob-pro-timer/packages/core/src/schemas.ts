@@ -140,7 +140,9 @@ const SessionResetCommand = v.object({
 
 const MemberAddCommand = v.object({
   command: v.literal("member.add"),
-  name: nonEmptyString,
+  // ローテーションは参加者IDで持つ（D6b）。名前で受けると同名の解決が曖昧になるため、
+  // 発生源であるコマンドの時点で識別子にする。
+  participantId,
 });
 
 const MemberRemoveCommand = v.object({

@@ -15,7 +15,7 @@ const baseConfig: SessionConfig = {
   intervalMinutes: 5,
 };
 
-const baseAgg = initialAggregate(baseConfig);
+const baseAgg = initialAggregate(baseConfig, baseConfig.members);
 const NOW = 1000000;
 
 describe("evolve: SessionStarted", () => {
@@ -150,7 +150,7 @@ describe("evolve: 不変条件（FR-008）", () => {
   it("rotation.length === driverCounts.length が常に成立する", () => {
     const agg1 = evolve(
       baseAgg,
-      { type: "MemberAdded", name: "Dave", now: NOW },
+      { type: "MemberAdded", participantId: "Dave", now: NOW },
       NOW,
     );
     expect(agg1.session.rotation.length).toBe(agg1.session.driverCounts.length);

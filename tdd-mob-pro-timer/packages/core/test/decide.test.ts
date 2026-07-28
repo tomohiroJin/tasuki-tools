@@ -15,7 +15,7 @@ const baseConfig: SessionConfig = {
   intervalMinutes: 5,
 };
 
-const baseAgg = initialAggregate(baseConfig);
+const baseAgg = initialAggregate(baseConfig, baseConfig.members);
 const NOW = 1000000;
 
 // ─── ABORT ──────────────────────────────────────────────────────────────────
@@ -174,7 +174,7 @@ describe("decide: PAUSE / RESUME", () => {
 
 describe("decide: メンバー管理", () => {
   it("空名はエラー（EmptyName）", () => {
-    const result = decide({ command: "member.add", name: "" }, baseAgg, NOW);
+    const result = decide({ command: "member.add", participantId: "" }, baseAgg, NOW);
     expect(result.isErr()).toBe(true);
     if (result.isErr()) {
       expect(result.error.type).toBe("EmptyName");
@@ -182,7 +182,7 @@ describe("decide: メンバー管理", () => {
   });
 
   it("重複名はエラー（DuplicateName）", () => {
-    const result = decide({ command: "member.add", name: "Alice" }, baseAgg, NOW);
+    const result = decide({ command: "member.add", participantId: "Alice" }, baseAgg, NOW);
     expect(result.isErr()).toBe(true);
     if (result.isErr()) {
       expect(result.error.type).toBe("DuplicateName");
@@ -194,8 +194,8 @@ describe("decide: メンバー管理", () => {
       ...baseConfig,
       members: ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"],
     };
-    const tenMemberAgg = initialAggregate(tenMemberConfig);
-    const result = decide({ command: "member.add", name: "K" }, tenMemberAgg, NOW);
+    const tenMemberAgg = initialAggregate(tenMemberConfig, tenMemberConfig.members);
+    const result = decide({ command: "member.add", participantId: "K" }, tenMemberAgg, NOW);
     expect(result.isErr()).toBe(true);
     if (result.isErr()) {
       expect(result.error.type).toBe("MemberLimitExceeded");
@@ -203,13 +203,13 @@ describe("decide: メンバー管理", () => {
   });
 
   it("2人のとき1人削除はできる（2層モデル: 下限は1人）", () => {
-    const twoMemberAgg = initialAggregate({ ...baseConfig, members: ["Alice", "Bob"] });
+    const twoMemberAgg = initialAggregate({ ...baseConfig, members: ["Alice", "Bob"] }, ["Alice", "Bob"]);
     const result = decide({ command: "member.remove", index: 0 }, twoMemberAgg, NOW);
     expect(result.isOk()).toBe(true);
   });
 
   it("最後の1人を削除しようとするとエラー（BelowMinMembers）", () => {
-    const oneMemberAgg = initialAggregate({ ...baseConfig, members: ["Alice"] });
+    const oneMemberAgg = initialAggregate({ ...baseConfig, members: ["Alice"] }, ["Alice"]);
     const result = decide({ command: "member.remove", index: 0 }, oneMemberAgg, NOW);
     expect(result.isErr()).toBe(true);
     if (result.isErr()) {
@@ -218,7 +218,7 @@ describe("decide: メンバー管理", () => {
   });
 
   it("正常なメンバー追加は MemberAdded を発行する", () => {
-    const result = decide({ command: "member.add", name: "Dave" }, baseAgg, NOW);
+    const result = decide({ command: "member.add", participantId: "Dave" }, baseAgg, NOW);
     expect(result.isOk()).toBe(true);
     if (result.isOk()) {
       expect(result.value[0]?.type).toBe("MemberAdded");
@@ -315,6 +315,9 @@ describe("decide: participant.addProxy（T009）", () => {
 });
 
 describe("decide: participant.rename（T011）", () => {
+  // 表示名の重複検査はここには無い。rotation が参加者IDの配列になったため（D6b）、
+  // 集約だけを見る decide からは名前の重複を判定できない。participants を持つ
+  // サーバー層（handlers）へ移した（T052）。重複拒否の検証は apps/sync 側にある。
   it("有効な表示名への変更でイベントを発行する", () => {
     const result = decide(
       { command: "participant.rename", participantId: "p1", displayName: "NewName" },
@@ -339,41 +342,7 @@ describe("decide: participant.rename（T011）", () => {
     }
   });
 
-  it("既存の他メンバー名への変更は拒否される（DuplicateName）", () => {
-    // rotation=["Alice","Bob","Charlie"]。現在名 Alice の参加者を Bob へ改名すると
-    // rotation 一意性が壊れるため DuplicateName で拒否する。
-    const result = decide(
-      {
-        command: "participant.rename",
-        participantId: "p1",
-        displayName: "Bob",
-        currentDisplayName: "Alice",
-      },
-      baseAgg,
-      NOW,
-    );
-    expect(result.isErr()).toBe(true);
-    if (result.isErr()) {
-      expect(result.error.type).toBe("DuplicateName");
-    }
-  });
 
-  it("大文字小文字違いの既存名への変更も拒否される（DuplicateName）", () => {
-    const result = decide(
-      {
-        command: "participant.rename",
-        participantId: "p1",
-        displayName: "bOb",
-        currentDisplayName: "Alice",
-      },
-      baseAgg,
-      NOW,
-    );
-    expect(result.isErr()).toBe(true);
-    if (result.isErr()) {
-      expect(result.error.type).toBe("DuplicateName");
-    }
-  });
 
   it("自分の現在名と同一への変更はエラーにしない（no-op 相当で許可）", () => {
     // Alice → Alice。rotation に同名があっても本人の現在名なので許可する。

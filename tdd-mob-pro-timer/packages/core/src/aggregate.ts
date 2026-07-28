@@ -186,14 +186,19 @@ export function elapsedMs(
   return clock.accumulatedElapsedMs + (adjustedNow - clock.runningSince);
 }
 
-/** 初期集約を生成する */
-export function initialAggregate(config: SessionConfig): Aggregate {
+/**
+ * 初期集約を生成する。
+ *
+ * rotation は**参加者IDの配列**なので、表示名の一覧である `config.members` からは組み立てられない。
+ * 呼び出し側が「誰がローテーションに並ぶか」を識別子で渡す（D6b）。
+ */
+export function initialAggregate(config: SessionConfig, rotation: readonly string[]): Aggregate {
   return {
     session: {
-      rotation: [...config.members],
+      rotation: [...rotation],
       currentIndex: 0,
       isPaused: false,
-      driverCounts: config.members.map(() => 0),
+      driverCounts: rotation.map(() => 0),
       totalSwitches: 0,
     },
     clock: {
