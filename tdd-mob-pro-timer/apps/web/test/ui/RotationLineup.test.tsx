@@ -5,7 +5,9 @@ import React from "react";
 import { RotationLineup } from "../../src/ui/components/RotationLineup.js";
 
 describe("RotationLineup", () => {
-  const mk = (id: string, name: string) => ({ participantId: id, displayName: name });
+  const mk = (id: string, name: string, label = name) => ({
+    participantId: id, displayName: name, label,
+  });
   const props = {
     rotation: [mk("p1", "Alice"), mk("p2", "Bob"), mk("p3", "Carol")],
     currentIndex: 0, intervalSeconds: 300, isPaused: false,
@@ -35,14 +37,16 @@ describe("RotationLineup", () => {
     // 別人の行に強調が付く（実機で 168 件の key 重複警告として観測された）。
     render(
       <RotationLineup
-        rotation={[mk("p1", "Bob"), mk("p2", "Bob")]}
+        rotation={[mk("p1", "Bob", "Bob（ID: p1）"), mk("p2", "Bob", "Bob（ID: p2）")]}
         currentIndex={0}
         intervalSeconds={300}
         selfIndex={1}
         isPaused={false}
       />,
     );
-    expect(screen.getAllByText("Bob")).toHaveLength(2);
+    // 呼び名で描かれるので、同名でもどちらの行か読み取れる。
+    expect(screen.getByText("Bob（ID: p1）")).toBeTruthy();
+    expect(screen.getByText("Bob（ID: p2）")).toBeTruthy();
     expect(screen.getAllByText("（あなた）")).toHaveLength(1);
   });
 });

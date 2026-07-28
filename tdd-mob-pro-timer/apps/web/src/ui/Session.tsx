@@ -175,7 +175,9 @@ export function Session({
     rotationLen > 0 ? (room.session.currentIndex + 1) % rotationLen : 0;
   // rotation は参加者IDの配列（D6b）。表示用に「識別子＋表示名」へ一度だけ写す。
   const rotation = rotationMembers(room.session.rotation, room.participants);
-  const rotationNames = rotation.map((m) => m.displayName);
+  // 現ドライバー・次・ナビは呼び名（同名が並ぶときは識別子つき）で出す。
+  // 素の表示名だと同名2名がどちらも「Bob」になり「次は誰か」が判別できない。
+  const rotationNames = rotation.map((m) => m.label);
   const currentDriverId = room.session.rotation[room.session.currentIndex] ?? "";
   const currentDriverName =
     rotationNames[room.session.currentIndex] ?? "—";

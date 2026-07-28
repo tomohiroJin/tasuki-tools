@@ -21,8 +21,8 @@ describe("rotationMembers", () => {
   it("rotation の順序どおりに識別子と表示名を対にして返す", () => {
     const participants = [p("p2", "Bob"), p("p1", "Alice")];
     expect(rotationMembers(["p1", "p2"], participants)).toEqual([
-      { participantId: "p1", displayName: "Alice" },
-      { participantId: "p2", displayName: "Bob" },
+      { participantId: "p1", displayName: "Alice", label: "Alice" },
+      { participantId: "p2", displayName: "Bob", label: "Bob" },
     ]);
   });
 
@@ -31,13 +31,15 @@ describe("rotationMembers", () => {
     const members = rotationMembers(["p1", "p2"], [p("p1", "Bob"), p("p2", "Bob")]);
     expect(members.map((m) => m.displayName)).toEqual(["Bob", "Bob"]);
     expect(members.map((m) => m.participantId)).toEqual(["p1", "p2"]);
+    // 呼び名には識別子が付き、画面上でも区別できる。
+    expect(members.map((m) => m.label)).toEqual(["Bob（ID: p1）", "Bob（ID: p2）"]);
   });
 
   it("participants に居ない ID は表示名が空になる（枠は落とさない）", () => {
     // 枠を落とすと currentIndex や driverCounts と長さがずれるため、詰めてはいけない。
     const members = rotationMembers(["p1", "ghost"], [p("p1", "Alice")]);
     expect(members).toHaveLength(2);
-    expect(members[1]).toEqual({ participantId: "ghost", displayName: "" });
+    expect(members[1]).toEqual({ participantId: "ghost", displayName: "", label: "" });
   });
 
   it("参加者の並び順には依存しない（rotation が唯一の順序の源）", () => {

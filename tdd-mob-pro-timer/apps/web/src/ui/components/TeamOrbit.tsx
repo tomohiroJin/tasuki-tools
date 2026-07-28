@@ -41,7 +41,7 @@ export function TeamOrbit({ members, currentIndex, size = 340, children }: TeamO
       <div className="absolute inset-0 flex items-center justify-center">{children}</div>
       {/* 1 人だけのときは周回アバターを出さない（文字盤 12 時上に孤立した点が乗るのを避ける）。
           現ドライバーは中央の Crown＋名前で十分に伝わる。複数人で初めて周回を可視化する。 */}
-      {len > 1 && members.map(({ participantId, displayName }, i) => {
+      {len > 1 && members.map(({ participantId, displayName, label }, i) => {
         const angle = (i / len) * 2 * Math.PI - Math.PI / 2;
         const x = center + Math.cos(angle) * orbitRadius;
         const y = center + Math.sin(angle) * orbitRadius;
@@ -63,7 +63,7 @@ export function TeamOrbit({ members, currentIndex, size = 340, children }: TeamO
               left: x - avatarSize / 2,
               top: y - avatarSize / 2,
             }}
-            title={displayName}
+            title={label}
           >
             {isCurrent && (
               <Crown className="w-3.5 h-3.5 absolute -top-2 -right-1 text-[#160603] drop-shadow rotate-12" />

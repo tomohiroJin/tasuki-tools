@@ -8,6 +8,7 @@ import type { RotationMember } from "./rotation-names.js";
 export interface MemberTurn {
   /** 行の同定に使う識別子（表示名は同名で衝突しうるので key に使わない）。 */
   participantId: string;
+  /** 画面に出す呼び名。同名が並ぶときは識別子が付く（RotationMember.label）。 */
   name: string;
   order: number;
   turnsAway: number;
@@ -41,7 +42,7 @@ export function computeRotationStatus(args: {
     const minutesAway = isPaused ? null : Math.round((turnsAway * intervalSeconds) / 60);
     return {
       participantId: member.participantId,
-      name: member.displayName,
+      name: member.label,
       order: i + 1,
       turnsAway,
       isCurrent: turnsAway === 0,

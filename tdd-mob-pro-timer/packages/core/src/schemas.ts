@@ -20,6 +20,7 @@ import {
   MAX_CONFIG_LANGUAGE,
   MAX_CONFIG_DIFFICULTY,
 } from "./aggregate.js";
+import { normalizeDisplayName } from "./display-name.js";
 
 // ─── 共通 ───────────────────────────────────────────────────────────────────
 
@@ -27,7 +28,17 @@ const nonEmptyString = v.pipe(v.string(), v.minLength(1));
 const participantId = nonEmptyString;
 
 // ユーザ入力文字列は信頼境界で最大長を課す（A04・巨大入力 DoS 対策）。
-const displayNameStr = v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_DISPLAY_NAME));
+// 表示名は正規化してから最小長を課す（display-name.ts）。
+// 正規化を境界で1度だけ行うことで、以後は正規形しか流れない。入口ごとに trim の有無が
+// 違うと必ずどこかが抜ける（実機では room.join だけ素通りし、"  Bob  " が
+// 画面上 "Bob" と見分けの付かない別人として並んだ）。
+// 最大長は**正規化前の生の文字列**に課す（巨大入力の DoS を正規化より手前で弾く）。
+const displayNameStr = v.pipe(
+  v.string(),
+  v.maxLength(MAX_DISPLAY_NAME),
+  v.transform(normalizeDisplayName),
+  v.minLength(1),
+);
 const problemTitleStr = v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_PROBLEM_TITLE));
 const problemTextStr = v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_PROBLEM_TEXT));
 const requirementStr = v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_PROBLEM_TEXT));

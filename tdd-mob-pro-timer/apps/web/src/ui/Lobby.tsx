@@ -6,7 +6,7 @@
 
 import React, { useState } from "react";
 import { Users, Code, Play, UserPlus, UserMinus, ChevronUp, ChevronDown, X, Crown, Shuffle, Bell, Eye, EyeOff } from "lucide-react";
-import type { Room, Problem, Participant } from "@tdd-mob/core";
+import type { Room, Problem } from "@tdd-mob/core";
 import { Card, PrimaryButton, GhostButton, SectionHeader } from "./primitives.js";
 import { ProblemEditor } from "./components/ProblemEditor.js";
 import { SessionConfigPanel } from "./components/SessionConfigPanel.js";
@@ -112,7 +112,14 @@ export function Lobby({
   // 退出の確認対象（FR-075）。取り返しがつかない操作なので直接は実行しない。
   // 同名が並ぶ場面では「1クリックで即退出」が誤操作に直結する（実機検証で判明）。
   // Session 画面の RosterPanel と同じ確認体験に揃える。
-  const [pendingRemoval, setPendingRemoval] = useState<Participant | null>(null);
+  //
+  // 参加者オブジェクトではなく**識別子だけ**を持ち、表示は毎回最新の participants から引く。
+  // オブジェクトを capture したままだと、確認中に対象が改名しても旧名を出し続け、
+  // 対象が退出しても居ないままのダイアログが残る。
+  const [pendingRemovalId, setPendingRemovalId] = useState<string | null>(null);
+  const pendingRemoval = pendingRemovalId
+    ? room.participants.find((p) => p.participantId === pendingRemovalId) ?? null
+    : null;
 
   // 通知設定（ロビーのカードで直接編集できるよう、ライブ購読）。
   const notifyPrefs = useNotifyPreferences();
@@ -136,15 +143,15 @@ export function Lobby({
       {pendingRemoval && onRemoveParticipant && (
         <ConfirmDialog
           open={true}
-          title={`${participantLabel(pendingRemoval.displayName, pendingRemoval.participantId, room.participants)} さんを退出させますか？`}
+          title={`${participantLabel(pendingRemoval.displayName, pendingRemoval.participantId, room.participants, "さん")}を退出させますか？`}
           description="一覧とドライバーの輪から外れます。招待から再参加できます。（他の参加者全員の画面にも反映されます）"
           confirmLabel="退出させる"
           confirmIntent="danger"
           onConfirm={() => {
             onRemoveParticipant(pendingRemoval.participantId);
-            setPendingRemoval(null);
+            setPendingRemovalId(null);
           }}
-          onCancel={() => setPendingRemoval(null)}
+          onCancel={() => setPendingRemovalId(null)}
         />
       )}
     <Tabs
@@ -324,7 +331,7 @@ export function Lobby({
                             <RowIconButton
                               icon={X}
                               label={`${label} を退出させる`}
-                              onClick={() => setPendingRemoval(p)}
+                              onClick={() => setPendingRemovalId(p.participantId)}
                             />
                           )}
                         </span>

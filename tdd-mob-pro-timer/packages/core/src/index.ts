@@ -4,6 +4,7 @@
 
 // 集約・型
 export * from "./aggregate.js";
+export * from "./display-name.js";
 // イベント
 export * from "./events.js";
 // エラー

@@ -3,7 +3,9 @@ import { computeRotationStatus } from "../../src/ui/rotation-status.js";
 
 describe("computeRotationStatus", () => {
   /** rotation の枠は識別子＋表示名の対（D6b）。 */
-  const mk = (id: string, name: string) => ({ participantId: id, displayName: name });
+  const mk = (id: string, name: string, label = name) => ({
+    participantId: id, displayName: name, label,
+  });
   const base = {
     rotation: [mk("p1", "Alice"), mk("p2", "Bob"), mk("p3", "Carol")],
     currentIndex: 0, intervalSeconds: 300, selfIndex: 2, isPaused: false,
@@ -40,12 +42,14 @@ describe("computeRotationStatus", () => {
     // 表示名を key にすると同名の行が衝突し、強調が別人に付く。
     const r = computeRotationStatus({
       ...base,
-      rotation: [mk("p1", "Bob"), mk("p2", "Bob")],
+      rotation: [mk("p1", "Bob", "Bob（ID: p1）"), mk("p2", "Bob", "Bob（ID: p2）")],
       currentIndex: 0,
       selfIndex: 1,
     });
     expect(r.members.map((m) => m.participantId)).toEqual(["p1", "p2"]);
     expect(r.members.map((m) => m.isSelf)).toEqual([false, true]);
+    // 画面に出る名前は呼び名（同名なら識別子つき）。素の表示名だと両方「Bob」になる。
+    expect(r.members.map((m) => m.name)).toEqual(["Bob（ID: p1）", "Bob（ID: p2）"]);
   });
 
   it("空 rotation でも例外なく空配列を返す", () => {

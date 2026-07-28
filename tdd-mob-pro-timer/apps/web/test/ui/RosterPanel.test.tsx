@@ -789,7 +789,36 @@ describe("RosterPanel 同名参加者の区別（T042）", () => {
     render(<RosterPanel {...dupProps} onRemove={vi.fn()} />);
     fireEvent.click(screen.getByLabelText("Bob（ID: 0003） を退出させる"));
 
-    expect(screen.getByRole("dialog").textContent).toContain("Bob（ID: 0003）");
+    // 敬称は helper に付けさせる（「Bob さん（ID: 0003）」）。末尾に足すと
+    // 「Bob（ID: 0003） さん」という不自然な語順になり、通知の文面とも食い違う。
+    expect(screen.getByRole("dialog").textContent).toContain("Bob さん（ID: 0003）");
+  });
+
+  it("確認中に対象が改名したら、ダイアログの表示も追従する", () => {
+    // 対象を participant オブジェクトごと capture していると旧名を出し続ける。
+    const { rerender } = render(<RosterPanel {...dupProps} onRemove={vi.fn()} />);
+    fireEvent.click(screen.getByLabelText("Bob（ID: 0003） を退出させる"));
+    expect(screen.getByRole("dialog").textContent).toContain("Bob さん（ID: 0003）");
+
+    const renamed = twoBobs.map((p) =>
+      p.participantId === "pid-0003" ? { ...p, displayName: "Bobby" } : p,
+    );
+    rerender(<RosterPanel {...dupProps} participants={renamed} onRemove={vi.fn()} />);
+
+    // 同名が解消されたので識別子も外れる。
+    expect(screen.getByRole("dialog").textContent).toContain("Bobby さん");
+  });
+
+  it("確認中に対象が居なくなったらダイアログを閉じる", () => {
+    const { rerender } = render(<RosterPanel {...dupProps} onRemove={vi.fn()} />);
+    fireEvent.click(screen.getByLabelText("Bob（ID: 0003） を退出させる"));
+    expect(screen.getByRole("dialog")).toBeTruthy();
+
+    const gone = twoBobs.filter((p) => p.participantId !== "pid-0003");
+    rerender(<RosterPanel {...dupProps} participants={gone} onRemove={vi.fn()} />);
+
+    // 居ない相手を消すか尋ね続けない。
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   it("同名でも自分の行には退出ボタンを出さない（自己退出は別の場所）", () => {

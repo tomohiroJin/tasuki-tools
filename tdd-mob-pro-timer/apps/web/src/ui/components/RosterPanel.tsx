@@ -111,7 +111,15 @@ export function RosterPanel({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   // 退出の確認対象。取り返しがつかない操作なので直接は実行しない（FR-075）。
-  const [pendingRemoval, setPendingRemoval] = useState<Participant | null>(null);
+  //
+  // 参加者オブジェクトではなく**識別子だけ**を持ち、表示は毎回最新の participants から引く。
+  // オブジェクトを captureしたままだと、確認中に対象が改名しても旧名を出し続け、
+  // 対象が退出しても居ないままのダイアログが残る（実機検証で判明）。
+  const [pendingRemovalId, setPendingRemovalId] = useState<string | null>(null);
+  // 対象が既に居なければ確認するものが無いので出さない（自動的に閉じる）。
+  const pendingRemoval = pendingRemovalId
+    ? participants.find((p) => p.participantId === pendingRemovalId) ?? null
+    : null;
 
   const handleAddProxy = () => {
     if (!proxyName.trim()) return;
@@ -324,7 +332,7 @@ export function RosterPanel({
                     名前だけだと「どちらを消すのか」を選ぶ時点で区別できない（FR-084）。 */}
                 {canManage && !isMine && onRemove && (
                   <MiniButton
-                    onClick={() => setPendingRemoval(p)}
+                    onClick={() => setPendingRemovalId(p.participantId)}
                     aria-label={`${label} を退出させる`}
                     title="退出させる"
                   >
@@ -346,7 +354,7 @@ export function RosterPanel({
       {pendingRemoval && onRemove && (
         <ConfirmDialog
           open={true}
-          title={`${participantLabel(pendingRemoval.displayName, pendingRemoval.participantId, participants)} さんを退出させますか？`}
+          title={`${participantLabel(pendingRemoval.displayName, pendingRemoval.participantId, participants, "さん")}を退出させますか？`}
           description={`一覧とドライバーの輪から外れます。招待から再参加できます。${
             isShared ? "（他の参加者全員の画面にも反映されます）" : ""
           }`}
@@ -354,9 +362,9 @@ export function RosterPanel({
           confirmIntent="danger"
           onConfirm={() => {
             onRemove(pendingRemoval.participantId);
-            setPendingRemoval(null);
+            setPendingRemovalId(null);
           }}
-          onCancel={() => setPendingRemoval(null)}
+          onCancel={() => setPendingRemovalId(null)}
         />
       )}
       <SectionHeader

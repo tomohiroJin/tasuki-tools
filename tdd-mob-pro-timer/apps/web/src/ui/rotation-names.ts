@@ -7,11 +7,20 @@
  */
 
 import type { Participant } from "@tdd-mob/core";
+import { participantLabel } from "./participant-label.js";
 
-/** rotation 1枠分の表示用ビュー。識別子と表示名を対にして持つ。 */
+/** rotation 1枠分の表示用ビュー。識別子・表示名・呼び名を対にして持つ。 */
 export interface RotationMember {
   participantId: string;
+  /** 素の表示名。頭文字アバターなど「名前そのもの」が要る場所で使う。 */
   displayName: string;
+  /**
+   * 画面に出す呼び名。同名が並ぶときだけ識別子が付く（`participant-label.ts`）。
+   *
+   * 現ドライバー・次・ナビ・交代順ストリップは、これを使わないと同名2名が
+   * どちらも「Bob」と出て「次は誰か」が判別できない（実機検証で判明）。
+   */
+  label: string;
 }
 
 /**
@@ -29,8 +38,12 @@ export function rotationMembers(
   participants: readonly Participant[],
 ): RotationMember[] {
   const names = new Map(participants.map((p) => [p.participantId, p.displayName]));
-  return rotation.map((participantId) => ({
-    participantId,
-    displayName: names.get(participantId) ?? "",
-  }));
+  return rotation.map((participantId) => {
+    const displayName = names.get(participantId) ?? "";
+    return {
+      participantId,
+      displayName,
+      label: participantLabel(displayName, participantId, participants),
+    };
+  });
 }

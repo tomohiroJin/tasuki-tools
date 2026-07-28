@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import React from "react";
 import { Lobby } from "../../src/ui/Lobby.js";
 import type { Room, Participant } from "@tdd-mob/core";
@@ -210,7 +210,8 @@ describe("Lobby 退出の確認", () => {
     fireEvent.click(screen.getByLabelText("Bob を退出させる"));
 
     const dialog = screen.getByRole("dialog");
-    expect(within(dialog).getByText(/Bob/)).toBeTruthy();
+    // 敬称は helper に付けさせる（通知の文面と同じ語順に揃える）。
+    expect(dialog.textContent).toContain("Bob さん");
     expect(dialog.textContent).toContain("再参加");
     // 共有ルームなので他の参加者へ影響することも明示する（FR-076）。
     expect(dialog.textContent).toContain("他の参加者");
@@ -248,6 +249,54 @@ describe("Lobby 退出の確認", () => {
     fireEvent.click(screen.getByRole("button", { name: "キャンセル" }));
 
     expect(onRemoveParticipant).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+});
+
+// ─── 確認中に世界が変わる（実機の敵対的検証で判明）────────────────────────────
+
+describe("Lobby 確認ダイアログの陳腐化", () => {
+  function roomWithBob(): Room {
+    return makeRoom();
+  }
+
+  it("確認中に対象が改名したら表示も追従する", () => {
+    const room = roomWithBob();
+    const { rerender } = render(
+      <Lobby room={room} participantId="host-p" onStartSession={noop} onRemoveParticipant={vi.fn()} />,
+    );
+    fireEvent.click(screen.getByLabelText("Bob を退出させる"));
+    expect(screen.getByRole("dialog").textContent).toContain("Bob さん");
+
+    const renamed: Room = {
+      ...room,
+      participants: room.participants.map((p) =>
+        p.participantId === "bob-p" ? { ...p, displayName: "Bobby" } : p,
+      ),
+    };
+    rerender(
+      <Lobby room={renamed} participantId="host-p" onStartSession={noop} onRemoveParticipant={vi.fn()} />,
+    );
+
+    expect(screen.getByRole("dialog").textContent).toContain("Bobby さん");
+  });
+
+  it("確認中に対象が居なくなったらダイアログを閉じる", () => {
+    const room = roomWithBob();
+    const { rerender } = render(
+      <Lobby room={room} participantId="host-p" onStartSession={noop} onRemoveParticipant={vi.fn()} />,
+    );
+    fireEvent.click(screen.getByLabelText("Bob を退出させる"));
+    expect(screen.getByRole("dialog")).toBeTruthy();
+
+    const gone: Room = {
+      ...room,
+      participants: room.participants.filter((p) => p.participantId !== "bob-p"),
+    };
+    rerender(
+      <Lobby room={gone} participantId="host-p" onStartSession={noop} onRemoveParticipant={vi.fn()} />,
+    );
+
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 });
