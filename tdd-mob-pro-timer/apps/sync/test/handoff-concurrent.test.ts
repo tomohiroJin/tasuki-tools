@@ -12,7 +12,7 @@ import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { RoomCodeGen } from "../src/ports/code-gen.js";
 import type { Broadcaster } from "../src/ports/broadcaster.js";
-import type { Room, ServerMsg } from "@tdd-mob/core";
+import type { Room } from "@tdd-mob/core";
 
 class FakeCodeGen implements RoomCodeGen {
   private _c = 0;

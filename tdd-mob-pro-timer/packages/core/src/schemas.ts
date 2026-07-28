@@ -9,6 +9,7 @@ import {
   MAX_MEMBERS,
   MAX_PROBLEM_REQUIREMENTS,
   MAX_DISPLAY_NAME,
+  MAX_NFKC_EXPANSION,
   MAX_ROOM_NAME,
   MAX_HANDOFF_NOTE,
   MAX_PROBLEM_TITLE,
@@ -20,6 +21,7 @@ import {
   MAX_CONFIG_LANGUAGE,
   MAX_CONFIG_DIFFICULTY,
 } from "./aggregate.js";
+import { normalizeDisplayName } from "./display-name.js";
 
 // ─── 共通 ───────────────────────────────────────────────────────────────────
 
@@ -27,7 +29,27 @@ const nonEmptyString = v.pipe(v.string(), v.minLength(1));
 const participantId = nonEmptyString;
 
 // ユーザ入力文字列は信頼境界で最大長を課す（A04・巨大入力 DoS 対策）。
-const displayNameStr = v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_DISPLAY_NAME));
+// 表示名は正規化してから長さを課す（display-name.ts）。
+// 正規化を境界で1度だけ行うことで、以後は正規形しか流れない。入口ごとに trim の有無が
+// 違うと必ずどこかが抜ける（実機では room.join だけ素通りし、"  Bob  " が
+// 画面上 "Bob" と見分けの付かない別人として並んだ）。
+//
+// **最大長は正規化の前後で二重に課す。**
+// - 前（緩い）: 明らかな巨大入力を NFKC の計算より手前で弾く
+// - 後（厳密）: 実際に保存・配信される長さを保証する
+//
+// 後段が要るのは **NFKC が文字数を増やしうる**ため。互換分解を持つ文字は1文字が
+// 複数文字へ展開され、最大18倍になる（U+FDFA `ﷺ` → "صلى الله عليه وسلم"）。
+// 前段だけだと 40 文字の入力が 720 文字として保存され、全参加者へ配信・描画される。
+// 上限は巨大文字列の保存/ブロードキャスト/描画による DoS を防ぐためのものなので、
+// **保存される値に対して**効いていなければ意味がない。
+const displayNameStr = v.pipe(
+  v.string(),
+  v.maxLength(MAX_DISPLAY_NAME * MAX_NFKC_EXPANSION),
+  v.transform(normalizeDisplayName),
+  v.minLength(1),
+  v.maxLength(MAX_DISPLAY_NAME),
+);
 const problemTitleStr = v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_PROBLEM_TITLE));
 const problemTextStr = v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_PROBLEM_TEXT));
 const requirementStr = v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_PROBLEM_TEXT));
@@ -140,7 +162,9 @@ const SessionResetCommand = v.object({
 
 const MemberAddCommand = v.object({
   command: v.literal("member.add"),
-  name: nonEmptyString,
+  // ローテーションは参加者IDで持つ（D6b）。名前で受けると同名の解決が曖昧になるため、
+  // 発生源であるコマンドの時点で識別子にする。
+  participantId,
 });
 
 const MemberRemoveCommand = v.object({
@@ -358,6 +382,7 @@ export const RoomSchema = v.object({
   problemMode: v.optional(v.picklist(["ai", "fallback"])),
   passphraseProtected: v.optional(v.boolean()),
   aiUnlocked: v.optional(v.boolean()),
+  startedAt: v.optional(v.nullable(v.number())),
 });
 
 const SnapshotMsg = v.object({
@@ -396,6 +421,40 @@ const SignalSuggestBreakMsg = v.object({
   rounds: v.number(),
 });
 
+/**
+ * 破壊的操作の実行者を在室者全員へ伝えるシグナル（Issue #22・FR-077）。
+ *
+ * 開始後は主催者以外も退出・中断・リセット・完成を実行できるようになるため、
+ * 「誰がやったか」が分からないと画面が突然変わった理由を追えない。
+ * サーバーは意味（action と実行者）だけを運び、日本語の文言化は UI 側が行う。
+ *
+ * `participant-removed` の場合、退出させられた本人にはこのシグナルは届かない
+ * （snapshot の配信対象から外れるため）。本人向けには専用の error を送る。
+ */
+const SignalNoticeMsg = v.object({
+  type: v.literal("signal"),
+  signal: v.literal("notice"),
+  action: v.picklist([
+    "participant-removed",
+    "session-aborted",
+    "session-reset",
+    // 完成も確認を課す操作（FR-074b）なので、実行者を全員に伝える対象に含める。
+    "session-completed",
+  ]),
+  /** 実行者の表示名 */
+  actorName: nonEmptyString,
+  /**
+   * 実行者の識別子。表示名と併せて送る。
+   * 二重参加の幽霊は本人と同じ表示名を持つため、表示名だけでは
+   * 「A さんが A さんを退出させました」となり本 Issue の主要シナリオで判別できない。
+   */
+  actorParticipantId: participantId,
+  /** 対象の表示名（participant-removed のときのみ） */
+  targetName: v.optional(v.string()),
+  /** 対象の識別子（participant-removed のときのみ） */
+  targetParticipantId: v.optional(v.string()),
+});
+
 const TimePongMsg = v.object({
   type: v.literal("time.pong"),
   serverTime: v.number(),
@@ -423,6 +482,7 @@ export const ServerMsgSchema = v.variant("type", [
   SignalCelebrationMsg,
   SignalNeedProblemMsg,
   SignalSuggestBreakMsg,
+  SignalNoticeMsg,
   TimePongMsg,
   RoomCreatedMsg,
   RoomJoinedMsg,

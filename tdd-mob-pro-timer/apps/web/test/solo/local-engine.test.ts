@@ -7,19 +7,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { LocalEngine } from "../../src/solo/local-engine.js";
 import type { SessionConfig } from "@tdd-mob/core";
 
-const baseConfig: SessionConfig = {
-  language: "TypeScript",
-  difficulty: "easy",
-  members: ["Solo"],
-  intervalMinutes: 5 as const,
-};
-
-// 1人でも動作するためメンバー1人の設定を追加
-const soloConfig: SessionConfig = {
-  ...baseConfig,
-  members: ["Solo"],
-};
-
 // 2人設定（テスト用）
 const twoPersonConfig: SessionConfig = {
   language: "TypeScript",

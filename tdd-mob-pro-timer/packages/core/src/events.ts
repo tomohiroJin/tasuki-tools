@@ -59,10 +59,10 @@ export interface ConfigSet {
   now: number;
 }
 
-/** メンバー追加 */
+/** メンバー追加（ローテーションは参加者IDで持つ・D6b） */
 export interface MemberAdded {
   type: "MemberAdded";
-  name: string;
+  participantId: string;
   now: number;
 }
 

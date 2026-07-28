@@ -4,8 +4,8 @@
  * v2.2 #5/#6: 開始ボタンを上部固定、招待を InvitePanel に委譲
  */
 
-import React from "react";
-import { Users, Code, Play, UserPlus, UserMinus, ChevronUp, ChevronDown, X, Crown, Shuffle, Bell } from "lucide-react";
+import React, { useState } from "react";
+import { Users, Code, Play, UserPlus, UserMinus, ChevronUp, ChevronDown, X, Crown, Shuffle, Bell, Eye, EyeOff } from "lucide-react";
 import type { Room, Problem } from "@tdd-mob/core";
 import { Card, PrimaryButton, GhostButton, SectionHeader } from "./primitives.js";
 import { ProblemEditor } from "./components/ProblemEditor.js";
@@ -19,6 +19,8 @@ import { EmptyHint } from "./components/EmptyHint.js";
 import { ProblemModeToggle } from "./components/ProblemModeToggle.js";
 import { NotifySettingsPanel } from "./components/NotifySettingsPanel.js";
 import { presenceDotClass } from "./presence.js";
+import { participantLabel } from "./participant-label.js";
+import { ConfirmDialog } from "./components/ConfirmDialog.js";
 import { useNotifyPreferences } from "./use-notify-preferences.js";
 import { saveNotifyPreferences } from "../prefs/local-prefs.js";
 import { requestPermissionIfEnabling } from "../platform/notify.js";
@@ -38,12 +40,15 @@ interface LobbyProps {
   generatingProblem?: boolean;
   /** セッション設定の変更（言語/難易度/間隔/オプション）。editor+ のみ。config.set を送る。 */
   onConfigSet?: (patch: Partial<SessionConfig>) => void;
-  /** 自分をドライバーローテーションに加える（自名で member.add）。2層モデル。 */
-  onJoinRotation?: (displayName: string) => void;
+  /** 自分をドライバーローテーションに加える（自分のIDで member.add）。2層モデル。 */
+  onJoinRotation?: (participantId: string) => void;
   /** 自分をローテーションから外す（自名を渡し、index は App が最新 snapshot から解決）。 */
-  onLeaveRotation?: (displayName: string) => void;
+  onLeaveRotation?: (participantId: string) => void;
   /** ホストが参加者を退出させる（⑪・host 限定）。 */
   onRemoveParticipant?: (participantId: string) => void;
+  /** ホストが他の参加者の役割を切り替える（host 限定・開始前・FR-083）。
+   *  これが無いと見学者という状態に誰も到達できず、見学者向けの提示が一度も発動しない。 */
+  onRoleSet?: (participantId: string, role: "editor" | "viewer") => void;
   /** ホストを当該参加者へ移譲する（host 限定・オンライン・自分以外・現ホスト以外のみ表示）。R2-3。 */
   onTransferHost?: (participantId: string) => void;
   /** ドライバー順の入れ替え（④・host）。fromIndex→toIndex（rotation 内の位置）。 */
@@ -92,6 +97,7 @@ export function Lobby({
   onJoinRotation,
   onLeaveRotation,
   onRemoveParticipant,
+  onRoleSet,
   onTransferHost,
   onMoveRotation,
   onShuffle,
@@ -102,6 +108,18 @@ export function Lobby({
   const myRole = room.participants.find((p) => p.participantId === participantId)?.role;
   const isHost = myRole === "host";
   const isEditor = myRole === "host" || myRole === "editor";
+
+  // 退出の確認対象（FR-075）。取り返しがつかない操作なので直接は実行しない。
+  // 同名が並ぶ場面では「1クリックで即退出」が誤操作に直結する（実機検証で判明）。
+  // Session 画面の RosterPanel と同じ確認体験に揃える。
+  //
+  // 参加者オブジェクトではなく**識別子だけ**を持ち、表示は毎回最新の participants から引く。
+  // オブジェクトを capture したままだと、確認中に対象が改名しても旧名を出し続け、
+  // 対象が退出しても居ないままのダイアログが残る。
+  const [pendingRemovalId, setPendingRemovalId] = useState<string | null>(null);
+  const pendingRemoval = pendingRemovalId
+    ? room.participants.find((p) => p.participantId === pendingRemovalId) ?? null
+    : null;
 
   // 通知設定（ロビーのカードで直接編集できるよう、ライブ購読）。
   const notifyPrefs = useNotifyPreferences();
@@ -119,6 +137,23 @@ export function Lobby({
   );
 
   return (
+    <>
+      {/* 退出の確認。対象者の名前と、招待から再参加できることを明示する（FR-075）。
+          ロビーは共有ルームなので他の参加者の画面にも反映される旨を添える（FR-076）。 */}
+      {pendingRemoval && onRemoveParticipant && (
+        <ConfirmDialog
+          open={true}
+          title={`${participantLabel(pendingRemoval.displayName, pendingRemoval.participantId, room.participants, "さん")}を退出させますか？`}
+          description="一覧とドライバーの輪から外れます。招待から再参加できます。（他の参加者全員の画面にも反映されます）"
+          confirmLabel="退出させる"
+          confirmIntent="danger"
+          onConfirm={() => {
+            onRemoveParticipant(pendingRemoval.participantId);
+            setPendingRemovalId(null);
+          }}
+          onCancel={() => setPendingRemovalId(null)}
+        />
+      )}
     <Tabs
       ariaLabel="ロビー"
       items={[
@@ -181,18 +216,23 @@ export function Lobby({
                 />
                 <ul className="space-y-1.5">
                   {room.participants.map((p) => {
-                    const rotationIndex = room.session.rotation.indexOf(p.displayName);
+                    // rotation は参加者IDの配列（D6b）
+                    const rotationIndex = room.session.rotation.indexOf(p.participantId);
                     const inRotation = rotationIndex >= 0;
                     const isMe = p.participantId === participantId;
                     const rotationLen = room.session.rotation.length;
                     const isLastDriver = inRotation && rotationLen <= 1;
+                    // 同名が並ぶときだけ識別子を添える（FR-084・規則は participant-label.ts に1つだけ）。
+                    // 二重参加の幽霊は本人と同名なので、名前だけでは操作の対象を選べない。
+                    // 表示にも使う: 同名の行はバッジもアイコンも同じで、目で見ても区別できないため。
+                    const label = participantLabel(p.displayName, p.participantId, room.participants);
                     return (
                       <li
                         key={p.participantId}
                         className="flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-md bg-[var(--panel-2)] border border-[var(--hairline)] px-3 py-2 text-sm text-[var(--bone)]"
                       >
                         <span className={`h-2 w-2 shrink-0 rounded-full ${presenceDotClass(p.presence)}`} aria-hidden="true" />
-                        <span className="min-w-0 flex-1 truncate font-medium">{p.displayName}</span>
+                        <span className="min-w-0 flex-1 truncate font-medium">{label}</span>
                         {/* ドライバー（順番つき）/ 見学 の区別（§9.2・④ 順番可視化） */}
                         <span
                           className={`shrink-0 rounded-sm px-2 py-0.5 text-xs font-semibold tabular ${
@@ -212,7 +252,7 @@ export function Lobby({
                           {isMe && (
                             inRotation ? (
                               <GhostButton
-                                onClick={() => onLeaveRotation?.(p.displayName)}
+                                onClick={() => onLeaveRotation?.(p.participantId)}
                                 disabled={isLastDriver}
                                 title={isLastDriver ? "最後のドライバーは外れられません" : undefined}
                                 className="text-xs px-3 py-1.5"
@@ -220,9 +260,28 @@ export function Lobby({
                                 列から外れる
                               </GhostButton>
                             ) : (
-                              <PrimaryButton onClick={() => onJoinRotation?.(p.displayName)} className="text-xs px-3 py-1.5 min-h-[44px] sm:min-h-0">
+                              <PrimaryButton onClick={() => onJoinRotation?.(p.participantId)} className="text-xs px-3 py-1.5 min-h-[44px] sm:min-h-0">
                                 ドライバーに加わる
                               </PrimaryButton>
+                            )
+                          )}
+                          {/* ホストは他参加者の役割を切り替えられる（FR-083）。
+                              ローテーションの出入り（下）はドライバーをやるかどうか、
+                              こちらは進行の操作をするかどうかで、意味が違うので別の操作にする。
+                              自分の行には出さない（ホストの自己降格は CANNOT_CHANGE_HOST で拒否される）。 */}
+                          {!isMe && isHost && onRoleSet && (
+                            p.role === "viewer" ? (
+                              <RowIconButton
+                                icon={Eye}
+                                label={`${label} を進行に戻す`}
+                                onClick={() => onRoleSet(p.participantId, "editor")}
+                              />
+                            ) : (
+                              <RowIconButton
+                                icon={EyeOff}
+                                label={`${label} を見学者にする`}
+                                onClick={() => onRoleSet(p.participantId, "viewer")}
+                              />
                             )
                           )}
                           {/* ホストは他参加者のドライバー加入/離脱を制御できる（②） */}
@@ -230,15 +289,15 @@ export function Lobby({
                             inRotation ? (
                               <RowIconButton
                                 icon={UserMinus}
-                                label={`${p.displayName} をドライバーから外す`}
-                                onClick={() => onLeaveRotation?.(p.displayName)}
+                                label={`${label} をドライバーから外す`}
+                                onClick={() => onLeaveRotation?.(p.participantId)}
                                 disabled={isLastDriver}
                               />
                             ) : (
                               <RowIconButton
                                 icon={UserPlus}
-                                label={`${p.displayName} をドライバーに追加`}
-                                onClick={() => onJoinRotation?.(p.displayName)}
+                                label={`${label} をドライバーに追加`}
+                                onClick={() => onJoinRotation?.(p.participantId)}
                               />
                             )
                           )}
@@ -247,13 +306,13 @@ export function Lobby({
                             <>
                               <RowIconButton
                                 icon={ChevronUp}
-                                label={`${p.displayName} を前の順番へ`}
+                                label={`${label} を前の順番へ`}
                                 onClick={() => onMoveRotation(rotationIndex, rotationIndex - 1)}
                                 disabled={rotationIndex === 0}
                               />
                               <RowIconButton
                                 icon={ChevronDown}
-                                label={`${p.displayName} を後の順番へ`}
+                                label={`${label} を後の順番へ`}
                                 onClick={() => onMoveRotation(rotationIndex, rotationIndex + 1)}
                                 disabled={rotationIndex === rotationLen - 1}
                               />
@@ -263,7 +322,7 @@ export function Lobby({
                           {!isMe && isHost && p.role !== "host" && p.presence !== "offline" && onTransferHost && (
                             <RowIconButton
                               icon={Crown}
-                              label={`${p.displayName} にホストを譲る`}
+                              label={`${label} にホストを譲る`}
                               onClick={() => onTransferHost(p.participantId)}
                             />
                           )}
@@ -271,8 +330,8 @@ export function Lobby({
                           {!isMe && isHost && onRemoveParticipant && (
                             <RowIconButton
                               icon={X}
-                              label={`${p.displayName} を退出させる`}
-                              onClick={() => onRemoveParticipant(p.participantId)}
+                              label={`${label} を退出させる`}
+                              onClick={() => setPendingRemovalId(p.participantId)}
                             />
                           )}
                         </span>
@@ -366,5 +425,6 @@ export function Lobby({
         },
       ]}
     />
+    </>
   );
 }

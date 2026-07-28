@@ -8,7 +8,7 @@ import { describe, it, expect } from "vitest";
 import * as fc from "fast-check";
 import { decide } from "../src/decide.js";
 import { evolve } from "../src/evolve.js";
-import { initialAggregate, MIN_MEMBERS, MAX_MEMBERS } from "../src/aggregate.js";
+import { initialAggregate, MAX_MEMBERS } from "../src/aggregate.js";
 import type { Aggregate, SessionConfig } from "../src/aggregate.js";
 
 /** 不変条件を検証する */
@@ -52,7 +52,7 @@ describe("不変条件プロパティテスト", () => {
         fc.array(actionArb, { minLength: 0, maxLength: 20 }),
         fc.integer({ min: 1000000, max: 2000000 }),
         (actions, startTime) => {
-          let agg = initialAggregate(config);
+          let agg = initialAggregate(config, config.members);
           let now = startTime;
 
           assertInvariants(agg);
@@ -75,8 +75,8 @@ describe("不変条件プロパティテスト", () => {
 
   it("メンバー追加/削除の操作列でも不変条件が成立する", () => {
     const memberOpsArb = fc.oneof(
-      fc.constant({ command: "member.add" as const, name: "Dave" }),
-      fc.constant({ command: "member.add" as const, name: "Eve" }),
+      fc.constant({ command: "member.add" as const, participantId: "Dave" }),
+      fc.constant({ command: "member.add" as const, participantId: "Eve" }),
       fc.constant({ command: "member.remove" as const, index: 0 }),
       fc.constant({ command: "member.remove" as const, index: 1 }),
     );
@@ -93,7 +93,7 @@ describe("不変条件プロパティテスト", () => {
         fc.array(memberOpsArb, { minLength: 0, maxLength: 10 }),
         fc.integer({ min: 1000000, max: 2000000 }),
         (ops, startTime) => {
-          let agg = initialAggregate(config);
+          let agg = initialAggregate(config, config.members);
           const now = startTime;
 
           for (const op of ops) {
@@ -125,7 +125,7 @@ describe("不変条件プロパティテスト", () => {
           fc.oneof(
             fc.string({ minLength: 1, maxLength: 5 }).map((name) => ({
               command: "member.add" as const,
-              name: `X${name}`, // 重複を避けるためにプレフィックスを付ける
+              participantId: `X${name}`, // 重複を避けるためにプレフィックスを付ける
             })),
             fc.integer({ min: 0, max: 9 }).map((index) => ({
               command: "member.remove" as const,
@@ -136,7 +136,7 @@ describe("不変条件プロパティテスト", () => {
         ),
         fc.integer({ min: 1000000, max: 2000000 }),
         (ops, startTime) => {
-          let agg = initialAggregate(config);
+          let agg = initialAggregate(config, config.members);
           const now = startTime;
 
           for (const op of ops) {
@@ -172,7 +172,7 @@ describe("v2 不変条件プロパティテスト（T024）", () => {
       fc.property(
         fc.integer({ min: 1000000, max: 2000000 }),
         (now) => {
-          const agg = initialAggregate(config);
+          const agg = initialAggregate(config, config.members);
           const result = decide({ command: "session.abort" }, agg, now);
           expect(result.isOk()).toBe(true);
           if (result.isOk()) {
@@ -206,7 +206,7 @@ describe("v2 不変条件プロパティテスト（T024）", () => {
         ),
         fc.integer({ min: 1000000, max: 2000000 }),
         (ops, now) => {
-          let agg = initialAggregate(config);
+          let agg = initialAggregate(config, config.members);
           for (const op of ops) {
             const result = decide(op, agg, now);
             if (result.isOk()) {

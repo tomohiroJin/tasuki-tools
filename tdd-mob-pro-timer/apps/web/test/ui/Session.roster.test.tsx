@@ -36,7 +36,7 @@ const config: SessionConfig = {
 };
 
 /** viewer 在席で participants 配列(3件)と rotation(2件)がずれた部屋。
- *  現ドライバーは rotation[currentIndex=1] = "Carol"。 */
+ *  rotation は参加者IDの配列（D6b）。現ドライバーは rotation[currentIndex=1] = Carol(edit-1)。 */
 function makeRoom(overrides?: Partial<Room>): Room {
   return {
     code: "AA0001",
@@ -45,7 +45,7 @@ function makeRoom(overrides?: Partial<Room>): Room {
     config,
     problem: null,
     session: {
-      rotation: ["Alice", "Carol"],
+      rotation: ["host-1", "edit-1"],
       currentIndex: 1,
       isPaused: false,
       driverCounts: [0, 0],
@@ -92,7 +92,7 @@ function baseHandlers() {
 }
 
 describe("Session × RosterPanel 結合（T057）", () => {
-  it("rotation と participants がずれても現ドライバーが名前ベースで正しくハイライトされる（FR-061 バグ修正）", () => {
+  it("rotation と participants がずれても現ドライバーが識別子ベースで正しくハイライトされる（FR-061 バグ修正）", () => {
     const handlers = baseHandlers();
     render(<Session room={makeRoom()} participantId="host-1" {...handlers} />);
     // 現ドライバー Carol の li に「現在」が付き、viewer Bob には付かない。
@@ -187,7 +187,7 @@ describe("Session × RosterPanel 結合（T057）", () => {
     render(
       <Session room={makeRoom()} participantId="host-1" {...handlers} onMoveRotation={onMoveRotation} />,
     );
-    // rotation=["Alice","Carol"]。Carol（index 1）を前の順番へ → move(1, 0)
+    // rotation=[host-1, edit-1]。Carol（index 1）を前の順番へ → move(1, 0)
     fireEvent.click(screen.getByRole("button", { name: /Carol を前の順番へ/ }));
     expect(onMoveRotation).toHaveBeenCalledWith(1, 0);
   });

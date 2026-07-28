@@ -4,7 +4,7 @@
  */
 
 import { ok, err, type Result } from "neverthrow";
-import type { Aggregate, SessionConfig, IntervalMinutes, ProblemMode } from "./aggregate.js";
+import type { Aggregate, SessionConfig, ProblemMode } from "./aggregate.js";
 import {
   VALID_INTERVAL_MINUTES,
   MIN_MEMBERS,
@@ -20,7 +20,7 @@ export type DecideCommand =
   | { command: "session.complete" }
   | { command: "session.abort" }
   | { command: "session.reset"; config?: SessionConfig }
-  | { command: "member.add"; name: string }
+  | { command: "member.add"; participantId: string }
   | { command: "member.remove"; index: number }
   | { command: "member.move"; fromIndex: number; toIndex: number }
   // order はサーバー（handler）が生成して渡す（wire コマンドは order を持たない）。
@@ -31,7 +31,7 @@ export type DecideCommand =
   | { command: "break.start" }
   | { command: "break.end" }
   | { command: "participant.addProxy"; displayName: string; participantId: string }
-  | { command: "participant.rename"; participantId: string; displayName: string; currentDisplayName?: string }
+  | { command: "participant.rename"; participantId: string; displayName: string }
   | { command: "driver.skip"; participantId: string }
   | { command: "driver.resume"; participantId: string }
   | { command: "driver.assign"; index: number }
@@ -60,7 +60,7 @@ export function decide(
       return ok([{ type: "SessionReset", now }]);
 
     case "member.add":
-      return decideMemberAdd(cmd.name, agg, now);
+      return decideMemberAdd(cmd.participantId, agg, now);
 
     case "member.remove":
       return decideMemberRemove(cmd.index, agg, now);
@@ -90,7 +90,7 @@ export function decide(
       return decideAddProxy(cmd.displayName, cmd.participantId, agg, now);
 
     case "participant.rename":
-      return decideRename(cmd.participantId, cmd.displayName, cmd.currentDisplayName, agg, now);
+      return decideRename(cmd.participantId, cmd.displayName, now);
 
     case "driver.skip":
       return ok([{ type: "DriverSkipped", participantId: cmd.participantId, now }]);
@@ -121,11 +121,10 @@ function decideAddProxy(
   if (trimmed.length === 0) {
     return err({ type: "EmptyName" });
   }
-  // 既存の表示名と重複しないか確認
-  const existingNames = agg.session.rotation.map((n) => n.toLowerCase());
-  if (existingNames.includes(trimmed.toLowerCase())) {
-    return err({ type: "DuplicateName", name: trimmed });
-  }
+  // 表示名の一意性は participants に対して検査する（サーバー側の責務・D6b/T052 と同じ）。
+  // rotation は参加者IDの配列になったので、ここから名前の重複は判定できない。
+  // かつてここで rotation と突き合わせていた検査は、rotation の中身が識別子に変わった
+  // 時点で「絶対に一致しない」死んだ検査になっていた（実機検証で発見）。
   if (agg.session.rotation.length >= MAX_MEMBERS) {
     return err({ type: "MemberLimitExceeded", limit: MAX_MEMBERS });
   }
@@ -135,26 +134,15 @@ function decideAddProxy(
 function decideRename(
   participantId: string,
   displayName: string,
-  currentDisplayName: string | undefined,
-  agg: Aggregate,
   now: number,
 ): Result<DomainEvent[], DomainError> {
   const trimmed = displayName.trim();
   if (trimmed.length === 0) {
     return err({ type: "EmptyName" });
   }
-  // rotation 一意性の保護: 既存の表示名へ改名すると applyRoomLevelEvent の rotation 置換が
-  // 同名を生み一意性が壊れる（FR-046/048）。大文字小文字を無視して重複を検査する。
-  // ただし「自分の現在名」と同一への改名は no-op 相当なので許可する（rotation は名前配列のみで
-  // participantId→名前の対応を持たないため、対象の旧名を currentDisplayName で受け取り除外する）。
-  const lower = trimmed.toLowerCase();
-  const ownNameLower = currentDisplayName?.trim().toLowerCase();
-  const conflicts = agg.session.rotation.some(
-    (name) => name.toLowerCase() === lower && name.toLowerCase() !== ownNameLower,
-  );
-  if (conflicts) {
-    return err({ type: "DuplicateName", name: trimmed });
-  }
+  // 表示名の一意性は participants に対して検査する（サーバー側の責務・D6b/T052）。
+  // rotation は参加者IDの配列になったので、ここから名前の重複は判定できない。
+  // decide は集約（session/clock）しか見ないため、participants を持つ層へ移した。
   return ok([{ type: "ParticipantRenamed", participantId, displayName: trimmed, now }]);
 }
 
@@ -265,16 +253,17 @@ function decideDriverAssign(
 // ─── メンバー管理 ────────────────────────────────────────────────────────────
 
 function decideMemberAdd(
-  name: string,
+  participantId: string,
   agg: Aggregate,
   now: number,
 ): Result<DomainEvent[], DomainError> {
-  const trimmed = name.trim();
+  const trimmed = participantId.trim();
 
   if (trimmed.length === 0) {
     return err({ type: "EmptyName" });
   }
 
+  // 既にローテーションに並んでいる人は二重に並べない（連打・再送の吸収）。
   if (agg.session.rotation.includes(trimmed)) {
     return err({ type: "DuplicateName", name: trimmed });
   }
@@ -283,7 +272,7 @@ function decideMemberAdd(
     return err({ type: "MemberLimitExceeded", limit: MAX_MEMBERS });
   }
 
-  return ok([{ type: "MemberAdded", name: trimmed, now }]);
+  return ok([{ type: "MemberAdded", participantId: trimmed, now }]);
 }
 
 function decideMemberRemove(

@@ -13,6 +13,9 @@ import {
   initialAggregate,
   secondsLeft,
   buildCompletionRecord,
+  checkPermission,
+  canRemoveParticipant,
+  canDemote,
   type Room,
   type Participant,
   type SessionConfig,
@@ -113,7 +116,7 @@ export function makeHandlers(deps: HandlerDeps) {
     broadcaster.broadcastSignal(updated.code, {
       type: "signal",
       signal: "switch",
-      nextDriverName: updated.session.rotation[updated.session.currentIndex] ?? "",
+      nextDriverName: rotationDisplayNames(updated)[updated.session.currentIndex] ?? "",
     });
     reconcileSchedule(updated);
   }
@@ -228,7 +231,9 @@ export function makeHandlers(deps: HandlerDeps) {
       intervalMinutes: 5 as IntervalMinutes,
     };
 
-    const agg = initialAggregate(defaultConfig);
+    // rotation は参加者IDの配列（D6b）。作成時点の在室者は作成者ただ一人なので、
+    // config.members に何が入っていても輪に並べられるのは作成者だけである。
+    const agg = initialAggregate(defaultConfig, [participantId]);
 
     const host: Participant = {
       participantId,
@@ -244,7 +249,9 @@ export function makeHandlers(deps: HandlerDeps) {
       code,
       createdAt: now,
       hostParticipantId: participantId,
-      config: defaultConfig,
+      // config.members は rotation の表示名ミラー（D6b）。作成者以外は輪に並べないので、
+      // クライアントが渡した members に他人が含まれていてもここで作成者だけに揃える。
+      config: { ...defaultConfig, members: [cmd.displayName] },
       problem: null,
       session: agg.session,
       clock: agg.clock,
@@ -404,7 +411,9 @@ export function makeHandlers(deps: HandlerDeps) {
   /** time.ping — 状態を変えずにサーバー時刻を返す（FR-007, SC-001） */
   async function handleTimePing(
     connId: string,
-    cmd: { command: "time.ping"; clientTime: number },
+    // 受信形を型として残すが、応答はサーバー時刻のみで clientTime は使わない
+    // （往復遅延の推定はクライアント側が送信時刻と突き合わせて行う）。
+    _cmd: { command: "time.ping"; clientTime: number },
   ): Promise<Result<CreateResult, string>> {
     broadcaster.sendTo(connId, {
       type: "time.pong",
@@ -435,70 +444,23 @@ export function makeHandlers(deps: HandlerDeps) {
       return err("PARTICIPANT_NOT_FOUND");
     }
 
-    // participant.rename / driver.skip / driver.resume は「本人 or host」権限
-    // （FR-046/048・plan.md L209-210）。いずれも対象 participantId に依存する関係的
-    // 権限で、集合方式の authorize（ロール集合）では「対象が本人か」を表現できない。
-    // EDITOR_PLUS に置くと editor が他人を skip/resume でき（fail-open）、かつ viewer が
-    // 自分すら skip できない（過剰拒否）ため、ここで個別に fail-closed 判定する。
-    const RELATIONAL_SELF_OR_HOST = new Set([
-      "participant.rename",
-      "driver.skip",
-      "driver.resume",
-    ]);
-    if (RELATIONAL_SELF_OR_HOST.has(cmd.command)) {
-      const isSelf = cmd.participantId === participant.participantId;
-      const isHost = participant.role === "host";
-      if (!isSelf && !isHost) {
-        broadcaster.sendTo(connId, {
-          type: "error",
-          code: "UNAUTHORIZED",
-          message: "他の参加者への操作はホストのみ実行できます",
-        });
-        return err("UNAUTHORIZED");
-      }
-    }
-
-    // member.add/remove の関係的権限（横方向の権限濫用防止）。
-    // editor は「自分の rotation 出入り」のみ許可し、他人分の追加/除外は host に限定する。
-    // （UI は自名/自 index のみ送るが、コマンド直送で他人を操作されないようサーバで強制。）
-    if (
-      participant.role !== "host" &&
-      (cmd.command === "member.add" || cmd.command === "member.remove")
-    ) {
-      const ownName = participant.displayName;
-      const ownsTarget =
-        cmd.command === "member.add"
-          ? cmd.name === ownName
-          : targetRoom.session.rotation[Number(cmd.index)] === ownName;
-      if (!ownsTarget) {
-        broadcaster.sendTo(connId, {
-          type: "error",
-          code: "UNAUTHORIZED",
-          message: "他の参加者のローテーション操作はホストのみ実行できます",
-        });
-        return err("UNAUTHORIZED");
-      }
-    }
-
-    // 権限チェック（FR-017）
-    const authError = authorize(participant.role, cmd.command as string, targetRoom.hostParticipantId, participant.participantId);
-    if (authError) {
-      broadcaster.sendTo(connId, {
-        type: "error",
-        code: "UNAUTHORIZED",
-        message: authError,
-      });
+    // 権限チェック（FR-017・FR-071）。段階（startedAt）と役割と自己対象かの3点だけを
+    // 事実として渡し、可否の規則は core の checkPermission が単独で持つ。
+    // 関係的権限（本人 or host）もローテーション所有権も、その規則表の中で表現される。
+    if (rejectIfUnauthorized(connId, targetRoom, participant, cmd)) {
       return err("UNAUTHORIZED");
     }
 
-    // 参加者の退出（host 限定・⑪）。参加者は Room レベルのため decide ではなくここで扱う。
+    // 参加者の退出（⑪）。参加者は Room レベルのため decide ではなくここで扱う。
     // rotation に居れば rotation からも外し（現ドライバーなら evolve が繰り上げ）、
     // 最後の1人は外せない（rotation を空にしない）。
+    // 自己退出も可能（FR-079）。誰が実行できるかは既に rejectIfUnauthorized が判定済みで、
+    // ここでは「結果の状態が妥当か」だけを検査する。
     if (cmd.command === "participant.remove") {
       const now = clock.now();
       const targetId = cmd.participantId;
-      if (typeof targetId !== "string" || targetId === participant.participantId) {
-        broadcaster.sendTo(connId, { type: "error", code: "INVALID", message: "自分自身や不正な対象は外せません" });
+      if (typeof targetId !== "string") {
+        broadcaster.sendTo(connId, { type: "error", code: "INVALID", message: "不正な対象は外せません" });
         return err("INVALID");
       }
       const target = targetRoom.participants.find((p) => p.participantId === targetId);
@@ -506,34 +468,71 @@ export function makeHandlers(deps: HandlerDeps) {
         broadcaster.sendTo(connId, { type: "error", code: "PARTICIPANT_NOT_FOUND", message: "対象の参加者が見つかりません" });
         return err("PARTICIPANT_NOT_FOUND");
       }
-      const idx = targetRoom.session.rotation.indexOf(target.displayName);
+      // 不変条件: 実在（非代理）の編集者以上が1名以上残ること（FR-072/073）。
+      // 権限ではなくドメインガードなので checkPermission とは別に検査する（plan.md D3）。
+      if (!canRemoveParticipant(targetRoom.participants, targetId)) {
+        broadcaster.sendTo(connId, {
+          type: "error",
+          code: "LAST_MANAGER",
+          message: "進行できる人がいなくなるため退出できません。他の人が進行に加わってから操作してください。",
+        });
+        return err("LAST_MANAGER");
+      }
+      // 対象が現ホストなら、退出させる前にホストを引き継ぐ（plan.md D2b）。
+      // 引き継がずに退出させると hostParticipantId が実在しない参加者を指し、
+      // 開始前のルームはホスト限定操作が誰にも実行できなくなって恒久的に詰む。
+      // 自動委譲は切断契機でしか発火しないため救済もない。
+      const roomBeforeRemoval = target.participantId === targetRoom.hostParticipantId
+        ? transferHostBeforeRemoval(targetRoom, targetId)
+        : targetRoom;
+      // rotation の枠を外すかを決める（D6b・FR-085）。
+      // rotation は参加者IDの配列なので、退出者の枠は ID でそのまま一意に引ける。
+      // 参加順から「枠の持ち主」を推測していた G6 の規則（sameNameOwner）は、
+      // 同名の二重参加や再接続で実態とずれたため撤去した。
+      const idx = roomBeforeRemoval.session.rotation.indexOf(targetId);
       let next: Room = {
-        ...targetRoom,
-        participants: targetRoom.participants.filter((p) => p.participantId !== targetId),
+        ...roomBeforeRemoval,
+        participants: roomBeforeRemoval.participants.filter((p) => p.participantId !== targetId),
       };
       if (idx >= 0) {
-        if (targetRoom.session.rotation.length <= 1) {
+        if (roomBeforeRemoval.session.rotation.length <= 1) {
           broadcaster.sendTo(connId, { type: "error", code: "BelowMinMembers", message: "最後のドライバーは外せません" });
           return err("BelowMinMembers");
         }
         const agg = evolve(
-          { session: targetRoom.session, clock: targetRoom.clock },
+          { session: roomBeforeRemoval.session, clock: roomBeforeRemoval.clock },
           { type: "MemberRemoved", index: idx, now },
           now,
         );
-        next = { ...next, session: agg.session, clock: agg.clock, config: { ...next.config, members: [...agg.session.rotation] } };
+        next = { ...next, session: agg.session, clock: agg.clock };
+        next = { ...next, config: { ...next.config, members: rotationDisplayNames(next) } };
       }
       store.put(next);
       broadcaster.broadcastSnapshot(next.code, next);
       reconcileSchedule(next);
+      // 誰が誰を退出させたかを在室者へ伝える（FR-077）。
+      // store.put の後に配信することが重要で、broadcastSignal は呼び出し時点のストアから
+      // 宛先を決めるため、この順序により退出させられた本人には届かない（本人向けは下の error）。
+      broadcaster.broadcastSignal(next.code, {
+        type: "signal",
+        signal: "notice",
+        action: "participant-removed",
+        actorName: participant.displayName,
+        actorParticipantId: participant.participantId,
+        targetName: target.displayName,
+        targetParticipantId: target.participantId,
+      });
       // 外された本人へ専用通知を送る（残りメンバーの snapshot には含まれず取り残されるため）。
       // クライアントはこれを受けて退出メッセージ＋参加画面へ遷移し、再参加可能にする。
       // 代理(connId=null)はクライアントが無いので送らない。
-      if (target.connId) {
+      // 自己退出は本人の操作なので通知しない（自分で押した操作を「外されました」と伝えない）。
+      // 実行者はホストに限らなくなったのでコードは REMOVED_FROM_ROOM とし、
+      // 誰の操作かと再参加できることを文言に含める（FR-075）。
+      if (target.connId && targetId !== participant.participantId) {
         broadcaster.sendTo(target.connId, {
           type: "error",
-          code: "REMOVED_BY_HOST",
-          message: "ホストにより退出させられました",
+          code: "REMOVED_FROM_ROOM",
+          message: `${participant.displayName} さんにより退出させられました。招待から再参加できます。`,
         });
       }
       return ok({ code: next.code, participantId: "", hostToken: "", resumeToken: "" });
@@ -553,14 +552,47 @@ export function makeHandlers(deps: HandlerDeps) {
             ),
           }
         : buildDomainCommand(cmd);
-    // 改名は対象の現在名を解決して decide へ渡す。decide は「自分の現在名と同一」を
-    // 重複検査から除外するために旧名を必要とする（rotation は名前配列のみで participantId を持たない）。
+    // 輪に並べられるのは在室者だけ（D6b）。実在しない ID を rotation に入れると
+    // 表示名を引けない枠が残り、順番表示も指名も破綻する。
+    if (domainCmd && domainCmd.command === "member.add") {
+      const exists = targetRoom.participants.some(
+        (p) => p.participantId === domainCmd.participantId,
+      );
+      if (!exists) {
+        broadcaster.sendTo(connId, {
+          type: "error",
+          code: "PARTICIPANT_NOT_FOUND",
+          message: "対象の参加者が見つかりません",
+        });
+        return err("PARTICIPANT_NOT_FOUND");
+      }
+    }
+    // 代理追加の表示名一意性もここで検査する（D6b）。改名と同じ理由で、rotation が
+    // 参加者IDの配列になったため集約からは名前の重複を判定できない。
+    // 「既存の表示名と重複する代理は追加できない」という従来の挙動を維持する。
+    if (domainCmd && domainCmd.command === "participant.addProxy") {
+      const desired = domainCmd.displayName.trim().toLowerCase();
+      const conflicts = targetRoom.participants.some(
+        (p) => p.displayName.trim().toLowerCase() === desired,
+      );
+      if (conflicts) {
+        broadcaster.sendTo(connId, {
+          type: "error",
+          code: "DuplicateName",
+          message: `操作エラー: DuplicateName`,
+        });
+        return err("DuplicateName");
+      }
+    }
+    // 改名の表示名一意性はここで検査する（T052・D6b）。rotation が参加者IDの配列になり
+    // 名前の重複を集約から判定できなくなったため、participants を持つこの層が受け持つ。
+    // 「既存の表示名へは改名できない」という従来の挙動はそのまま維持する（後方互換）。
     if (domainCmd && domainCmd.command === "participant.rename") {
       const target = targetRoom.participants.find(
         (p) => p.participantId === domainCmd.participantId,
       );
-      // 対象が存在しなければ早期に拒否する。ここで弾かないと旧名 undefined のまま decide に渡り、
-      // 自己同一の除外が効かず DuplicateName 等の誤った理由で失敗しうる（実体は対象不在）。
+      // 対象が存在しなければ早期に拒否する（実体は対象不在なのに DuplicateName 等の
+      // 誤った理由で失敗させないため）。
       if (!target) {
         broadcaster.sendTo(connId, {
           type: "error",
@@ -569,15 +601,28 @@ export function makeHandlers(deps: HandlerDeps) {
         });
         return err("PARTICIPANT_NOT_FOUND");
       }
-      domainCmd.currentDisplayName = target.displayName;
+      // 自分自身は比較対象から外す（現在名と同じ名前への改名は no-op 相当で許可する）。
+      // 大文字小文字は無視する（表示上の識別が付かないため衝突とみなす・FR-046/048）。
+      const desired = domainCmd.displayName.trim().toLowerCase();
+      const conflicts = targetRoom.participants.some(
+        (p) => p.participantId !== target.participantId && p.displayName.trim().toLowerCase() === desired,
+      );
+      if (conflicts) {
+        broadcaster.sendTo(connId, {
+          type: "error",
+          code: "DuplicateName",
+          message: `操作エラー: DuplicateName`,
+        });
+        return err("DuplicateName");
+      }
     }
-    // 指名は participantId → 表示名 → rotation index を解決して decide へ渡す（Issue #13）。
-    // 集約は participantId→名前の対応を持たないため、rotation 内の位置をここで確定する。
+    // 指名は participantId → rotation index を解決して decide へ渡す（Issue #13）。
+    // 集約は participants を持たないため、rotation 内の位置をここで確定する。
     if (domainCmd && domainCmd.command === "driver.assign") {
       const targetPid = typeof cmd.participantId === "string" ? cmd.participantId : "";
       const target = targetRoom.participants.find((p) => p.participantId === targetPid);
       const index = target
-        ? targetRoom.session.rotation.indexOf(target.displayName)
+        ? targetRoom.session.rotation.indexOf(target.participantId)
         : -1;
       // 対象不在 or rotation 外（見学者）は指名できない。
       if (index < 0) {
@@ -652,6 +697,24 @@ export function makeHandlers(deps: HandlerDeps) {
       targetRoom = applyRoomLevelEvent(targetRoom, event, now);
     }
 
+    // startedAt は「一度でも開始したか」を表す単調フラグ（host-spof-relaxation D2）。
+    // かつては PhaseSet(phase==="session") と SessionStarted の2イベントに限定して
+    // 記録していたが、これはイベント名のホワイトリストであり、時計を走らせる別のイベント
+    // （例: SessionResumed）が漏れると「時計が走っているのに startedAt が未設定」という
+    // 状態が生じる（Issue #22 実測: 新規ルームへ session.act RESUME を単独送信すると
+    // clock.running=true / startedAt=undefined になる。session.act は EDITOR_PLUS_COMMANDS
+    // に属し phase によるゲートが無いため到達可能）。
+    // イベント名を列挙する設計は将来イベントが増えるたびに更新を要し、この種の見落としが
+    // 既に繰り返し起きている。そこでイベント名ではなく「イベント適用後の状態」で判定する:
+    // 時計が走っており、かつ startedAt がまだ未設定なら、この時点を開始時刻として記録する。
+    // 単調性（一度立てたら上書きしない）は startedAt == null の条件で維持される。
+    // なお phase.set(session) 単独は時計を動かさないため、この状態判定だけでは拾えない
+    // （実測確認済み）。そのため PhaseSet(phase==="session") 時の記録は
+    // applyRoomLevelEvent 側に残してある。
+    if (targetRoom.clock.running && targetRoom.startedAt == null) {
+      targetRoom = { ...targetRoom, startedAt: now };
+    }
+
     // 現ドライバーが driver.skip で ineligible になり、かつ稼働中なら即座に次の eligible へ
     // 繰り上げる（plan.md L209）。交代先が無ければ advanceDriver が現状維持する。
     if (domainCmd.command === "driver.skip" && targetRoom.clock.running) {
@@ -687,13 +750,27 @@ export function makeHandlers(deps: HandlerDeps) {
       // config.members を session.rotation に同期する。
       // member.add/remove/move・addProxy は rotation のみ更新するため、ミラーしないと
       // 完成記録（config.members を使用）が古いメンバーになる。
-      config: { ...targetRoom.config, members: [...targetRoom.session.rotation] },
+      // rotation は参加者IDの配列なので、表示名へ写してから載せる（D6b）。
+      config: { ...targetRoom.config, members: rotationDisplayNames(targetRoom) },
     };
 
     store.put(updatedRoom);
     broadcaster.broadcastSnapshot(updatedRoom.code, updatedRoom);
     // clock 状態が変わった可能性があるので自動交代を調停する（FR-003）
     reconcileSchedule(updatedRoom);
+
+    // セッションを畳む操作は、開始後は主催者以外も実行できる（FR-063）。
+    // 誰が実行したか分からないと画面が突然変わった理由を追えないため全員へ伝える（FR-077）。
+    const noticeAction = SESSION_NOTICE_ACTIONS[domainCmd.command];
+    if (noticeAction) {
+      broadcaster.broadcastSignal(updatedRoom.code, {
+        type: "signal",
+        signal: "notice",
+        action: noticeAction,
+        actorName: participant.displayName,
+        actorParticipantId: participant.participantId,
+      });
+    }
 
     return ok({ code: updatedRoom.code, participantId: participant.participantId, hostToken: "", resumeToken: "" });
   }
@@ -714,14 +791,19 @@ export function makeHandlers(deps: HandlerDeps) {
     }
 
     const actor = room.participants.find((p) => p.connId === connId);
-    if (!actor || actor.role !== "host") {
+    if (!actor) {
+      // 在室ルームは connId で引いているため通常は到達しない防御分岐。
+      // 可否ではなくアクター解決の失敗なので、権限の文言は使わない。
       broadcaster.sendTo(connId, {
         type: "error",
         code: "UNAUTHORIZED",
-        message: "role.set はホストのみ実行できます",
+        message: "ルームの参加者として認識できません",
       });
       return err("UNAUTHORIZED");
     }
+    // 開始後は主催者であることを条件にしない（FR-063）。このハンドラは handleCommand の
+    // switch で分岐するため handleRoomCommand の判定を通らない。個別に呼ぶ必要がある。
+    if (rejectIfUnauthorized(connId, room, actor, cmd)) return err("UNAUTHORIZED");
 
     // ホスト自身の役割は変更できない（委譲は別経路）
     if (cmd.participantId === room.hostParticipantId) {
@@ -743,6 +825,18 @@ export function makeHandlers(deps: HandlerDeps) {
         message: "対象の参加者が見つかりません",
       });
       return err("PARTICIPANT_NOT_FOUND");
+    }
+
+    // 不変条件: 実在（非代理）の編集者以上が1名以上残ること（FR-072/073）。
+    // 権限（誰が実行できるか）とは独立したドメインガードなので、checkPermission が
+    // 許可した後に別途検査する（plan.md D3）。昇格は人数を減らさないので対象外。
+    if (cmd.role === "viewer" && !canDemote(room.participants, cmd.participantId)) {
+      broadcaster.sendTo(connId, {
+        type: "error",
+        code: "LAST_MANAGER",
+        message: "進行できる人がいなくなるため見学者にできません。他の人が進行に加わってから操作してください。",
+      });
+      return err("LAST_MANAGER");
     }
 
     const updatedRoom: Room = {
@@ -779,14 +873,19 @@ export function makeHandlers(deps: HandlerDeps) {
       return err("NOT_IN_ROOM");
     }
     const actor = room.participants.find((p) => p.connId === connId);
-    if (!actor || actor.role !== "host") {
+    if (!actor) {
+      // 在室ルームは connId で引いているため通常は到達しない防御分岐。
+      // 可否ではなくアクター解決の失敗なので、権限の文言は使わない。
       broadcaster.sendTo(connId, {
         type: "error",
         code: "UNAUTHORIZED",
-        message: "パスフレーズ設定はホストのみ実行できます",
+        message: "ルームの参加者として認識できません",
       });
       return err("UNAUTHORIZED");
     }
+    // 開始後は主催者であることを条件にしない（FR-063）。このハンドラは handleCommand の
+    // switch で分岐するため handleRoomCommand の判定を通らない。個別に呼ぶ必要がある。
+    if (rejectIfUnauthorized(connId, room, actor, cmd)) return err("UNAUTHORIZED");
 
     // 前後空白を正規化して保持（設定側/参加側の trim 差異による「正しいのに不一致」を防ぐ）。
     // 空白のみ・空文字は解除扱い。
@@ -829,14 +928,19 @@ export function makeHandlers(deps: HandlerDeps) {
       return err("NOT_IN_ROOM");
     }
     const actor = room.participants.find((p) => p.connId === connId);
-    if (!actor || actor.role !== "host") {
+    if (!actor) {
+      // 在室ルームは connId で引いているため通常は到達しない防御分岐。
+      // 可否ではなくアクター解決の失敗なので、権限の文言は使わない。
       broadcaster.sendTo(connId, {
         type: "error",
         code: "UNAUTHORIZED",
-        message: "AI 生成の解錠はホストのみ実行できます",
+        message: "ルームの参加者として認識できません",
       });
       return err("UNAUTHORIZED");
     }
+    // 開始後は主催者であることを条件にしない（FR-063）。このハンドラは handleCommand の
+    // switch で分岐するため handleRoomCommand の判定を通らない。個別に呼ぶ必要がある。
+    if (rejectIfUnauthorized(connId, room, actor, cmd)) return err("UNAUTHORIZED");
 
     // 連続失敗のレート制限（join と同じ窓・閾値を共用）
     const now = clock.now();
@@ -893,14 +997,19 @@ export function makeHandlers(deps: HandlerDeps) {
     }
 
     const actor = room.participants.find((p) => p.connId === connId);
-    if (!actor || actor.role !== "host") {
+    if (!actor) {
+      // 在室ルームは connId で引いているため通常は到達しない防御分岐。
+      // 可否ではなくアクター解決の失敗なので、権限の文言は使わない。
       broadcaster.sendTo(connId, {
         type: "error",
         code: "UNAUTHORIZED",
-        message: "host.transfer はホストのみ実行できます",
+        message: "ルームの参加者として認識できません",
       });
       return err("UNAUTHORIZED");
     }
+    // 開始後は主催者であることを条件にしない（FR-063）。このハンドラは handleCommand の
+    // switch で分岐するため handleRoomCommand の判定を通らない。個別に呼ぶ必要がある。
+    if (rejectIfUnauthorized(connId, room, actor, cmd)) return err("UNAUTHORIZED");
 
     // 自分自身へは移譲できない（現ホスト＝対象は無意味）
     if (cmd.participantId === room.hostParticipantId) {
@@ -1022,7 +1131,14 @@ export function makeHandlers(deps: HandlerDeps) {
     });
   }
 
-  /** connId から在室ルームと参加者を解決し、editor 以上であることを確認する */
+  /**
+   * connId から在室ルームと参加者を解決し、そのコマンドを実行できることを確認する。
+   *
+   * 在室確認（NOT_IN_ROOM）とアクター解決はここに残すが、可否の判定そのものは
+   * `checkPermission()` に委ねる（FR-071）。この関数も handleCommand の switch で
+   * 分岐するハンドラ（problem.request / problem.submit）から呼ばれるため、
+   * handleRoomCommand の判定を通らない。viewer 判定をここに残すと規則が2箇所に分裂する。
+   */
   function requireEditor(
     connId: string,
     command: string,
@@ -1038,15 +1154,39 @@ export function makeHandlers(deps: HandlerDeps) {
     }
     const actor = room.participants.find((p) => p.connId === connId);
     if (!actor) return err("PARTICIPANT_NOT_FOUND");
-    if (actor.role === "viewer") {
-      broadcaster.sendTo(connId, {
-        type: "error",
-        code: "UNAUTHORIZED",
-        message: `${command} は編集者以上が必要です`,
-      });
+    if (rejectIfUnauthorized(connId, room, actor, { command })) {
       return err("UNAUTHORIZED");
     }
     return ok({ room, actor });
+  }
+
+  /**
+   * 権限を判定し、拒否ならエラーを送って true を返す（呼び出し側は即 return する）。
+   *
+   * 判定そのものは `@tdd-mob/core` の `checkPermission()` が単独で担う（FR-071）。
+   * かつて5層に分散していた検査（集合ベース・関係ベース・個別ガード・requireEditor・
+   * 専用ハンドラの host 検査）は、すべてこの1関数の呼び出しに集約されている。
+   * 判定に必要な事実の算出（在室・段階・自己対象か）だけがサーバー側の責務である。
+   */
+  function rejectIfUnauthorized(
+    connId: string,
+    room: Room,
+    actor: Participant,
+    cmd: { command: string; [key: string]: unknown },
+  ): boolean {
+    const verdict = checkPermission({
+      command: cmd.command,
+      role: actor.role,
+      started: room.startedAt != null,
+      isSelfTarget: resolveIsSelfTarget(room, actor, cmd),
+    });
+    if (verdict.allowed) return false;
+    broadcaster.sendTo(connId, {
+      type: "error",
+      code: verdict.code,
+      message: verdict.message,
+    });
+    return true;
   }
 
   /** connId からルームを特定する（参加者として在室しているルーム） */
@@ -1075,66 +1215,97 @@ export function makeHandlers(deps: HandlerDeps) {
   return { handleCommand, handleConnectionClose, releaseRoom, advanceForAbsence: autoSwitch };
 }
 
-// ─── 権限チェック ─────────────────────────────────────────────────────────────
+// ─── 実行者の通知（FR-077） ──────────────────────────────────────────────────
 
-/** ホスト限定操作 */
-const HOST_ONLY_COMMANDS = new Set([
-  "session.complete",
-  "session.abort",
-  "session.reset",
-  "phase.set",
-  "role.set",
-  "room.passphrase.set",
-  "ai.unlock",
-  "host.transfer",
-  "participant.addProxy",
-  "participant.remove",
-  // 並べ替えはホスト専用（UI も host のみ提供）。editor による他人の順序操作を防ぐ。
-  "member.move",
-  // ランダム化もホスト専用（順列はサーバー権威で生成）。
-  "member.shuffle",
-  // 任意メンバーへのドライバー強制指名は host 専用（Issue #13）。
-  "driver.assign",
-]);
+/**
+ * セッションを畳むコマンドと、それを表す notice の action の対応。
+ *
+ * participant.remove は decide/evolve を通らず専用の分岐で処理するため、ここには含めない
+ * （その場で対象の情報も併せて配信する）。
+ */
+const SESSION_NOTICE_ACTIONS: Readonly<Record<string, "session-aborted" | "session-reset" | "session-completed" | undefined>> = {
+  "session.abort": "session-aborted",
+  "session.reset": "session-reset",
+  "session.complete": "session-completed",
+};
 
-/** 編集者以上が必要な操作 */
-const EDITOR_PLUS_COMMANDS = new Set([
-  "config.set",
-  // member.add/remove は EDITOR_PLUS だが、handleRoomCommand の関係ガードで
-  // 「自分の rotation 出入りのみ本人可・他人分は host」に絞る（横方向の権限濫用防止）。
-  "member.add",
-  "member.remove",
-  "session.act",
-  "problem.request",
-  "problem.submit",
-  "problem.edit",
-  "problem.mode.set",
-  "handoff.note.set",
-  // driver.skip / driver.resume は「本人 or host」の関係的権限のため EDITOR_PLUS に
-  // は含めない（handleRoomCommand の RELATIONAL_SELF_OR_HOST ガードで判定する）。
-]);
+// ─── 権限判定に必要な事実の算出 ───────────────────────────────────────────────
 
-function authorize(
-  role: "host" | "editor" | "viewer",
-  command: string,
-  hostParticipantId: string,
-  participantId: string,
-): string | null {
-  if (HOST_ONLY_COMMANDS.has(command)) {
-    if (role !== "host") {
-      return `${command} はホストのみ実行できます`;
-    }
-    return null;
+/**
+ * 対象コマンドの指定方法ごとに「操作対象が実行者自身か」を算出する（FR-068）。
+ *
+ * 対象の指定方法がコマンドごとに異なる（participantId / rotation の位置）ため、
+ * 算出を各所へ散らすと判定漏れが起きる。`checkPermission()` を呼ぶ前に必ずここを通す。
+ *
+ * rotation が参加者IDの配列になった（D6b）ことで全ての判定が識別子ベースになり、
+ * かつて表示名で突き合わせていた2件（member.add / member.remove）の
+ * 「同名参加者を区別できない」限界は解消した。
+ *
+ * 設計: docs/plans/host-spof-relaxation/plan.md「isSelfTarget の算出は単一の resolver に集約する」
+ */
+function resolveIsSelfTarget(
+  room: Room,
+  actor: Participant,
+  cmd: { command: string; [key: string]: unknown },
+): boolean {
+  switch (cmd.command) {
+    // participantId で対象を指す関係コマンド。
+    case "participant.rename":
+    case "driver.skip":
+    case "driver.resume":
+    case "participant.remove":
+    case "role.set":
+      return cmd.participantId === actor.participantId;
+
+    // 参加者IDで rotation への参加を指す。
+    case "member.add":
+      return cmd.participantId === actor.participantId;
+
+    // rotation の位置で対象を指す（中身は参加者ID）。
+    case "member.remove":
+      return room.session.rotation[Number(cmd.index)] === actor.participantId;
+
+    // 上記以外は対象を持たない（host.transfer の participantId は「移譲先」であり
+    // 自己対象という概念が成立しないため、ここには含めない）。
+    default:
+      return false;
   }
+}
 
-  if (EDITOR_PLUS_COMMANDS.has(command)) {
-    if (role === "viewer") {
-      return `${command} は編集者以上が必要です`;
-    }
-    return null;
-  }
+/**
+ * 退出しようとしている現ホストから、残る在室者へホストを引き継いだルームを返す（plan.md D2b）。
+ *
+ * D2b の目的は「ホストが抜けた後も誰かが実際に操作できる」ことである。したがって
+ * 単純に参加時刻が最も古い在室者を選んではならない。次の優先順で選ぶ。
+ *
+ *   1. オンラインの編集者   ← `presence.ts` の自動委譲と同じ条件
+ *   2. オンラインの見学者   ← 誰も操作できない部屋を残さないための保険
+ *   3. オフラインの編集者   ← 全員オフラインならアイドル回収に任せる
+ *   4. オフラインの見学者
+ *
+ * 同順位内は参加時刻の古い順。代理（isPlaceholder）は自分では操作できないので候補にしない。
+ *
+ * **オフラインの見学者を選んではならない理由（実際に踏んだ落とし穴）:**
+ * 参加時刻だけで選ぶと、切断済みの見学者が新ホストになり、オンラインの編集者が
+ * 開始前操作を実行できない状態が作れてしまう。D2b が防ぐはずだった詰みそのものである。
+ * しかも自動委譲は「ホストの切断」契機でしか発火しないため、既にオフラインの参加者が
+ * ホストへ昇格しても新たな委譲タイマーは張られず、自動復旧もしない。
+ *
+ * 候補がいなければ引き継がずそのまま返す。このとき残るのは代理のみで、代理は
+ * presence: "offline" で登録されるためアイドル回収の対象になる。
+ *
+ * 役割の付け替えは core の純粋関数 `transferHost` に委ねる（二重実装の乖離を防ぐ・R2-4）。
+ */
+function transferHostBeforeRemoval(room: Room, leavingParticipantId: string): Room {
+  /** 小さいほど優先。オンラインかどうかを役割より優先する（操作できることが第一）。 */
+  const priority = (p: Participant): number =>
+    (p.presence === "online" ? 0 : 2) + (p.role === "viewer" ? 1 : 0);
 
-  return null;
+  const successor = room.participants
+    .filter((p) => p.participantId !== leavingParticipantId && p.isPlaceholder !== true)
+    .sort((a, b) => priority(a) - priority(b) || a.joinedAt - b.joinedAt)[0];
+  if (!successor) return room;
+  return transferHost(room, successor.participantId);
 }
 
 // ─── コマンド変換 ────────────────────────────────────────────────────────────
@@ -1155,12 +1326,18 @@ function buildDomainCommand(cmd: { command: string; [key: string]: unknown }) {
       return { command: "session.complete" as const };
     case "session.reset":
       return { command: "session.reset" as const };
-    case "config.set":
+    case "config.set": {
       if (typeof cmd.config !== "object" || cmd.config === null) return null;
-      return { command: "config.set" as const, config: cmd.config as Partial<SessionConfig> };
+      // members は受け付けない（D6b）。core の ConfigSet は members から rotation を
+      // 組み直すため、表示名の配列を通すと rotation が名前に戻り識別子の不変条件が壊れる。
+      // 輪の出入りは member.add/remove/move・addProxy・participant.remove だけが担う。
+      const { members: _ignored, ...config } = cmd.config as Partial<SessionConfig>;
+      return { command: "config.set" as const, config };
+    }
     case "member.add":
-      if (typeof cmd.name !== "string") return null;
-      return { command: "member.add" as const, name: cmd.name };
+      // 誰を輪に並べるかは参加者IDで指す（D6b）。名前→IDの解決という曖昧さを発生源で消す。
+      if (typeof cmd.participantId !== "string") return null;
+      return { command: "member.add" as const, participantId: cmd.participantId };
     case "member.remove":
       if (typeof cmd.index !== "number") return null;
       return { command: "member.remove" as const, index: cmd.index };
@@ -1183,8 +1360,8 @@ function buildDomainCommand(cmd: { command: string; [key: string]: unknown }) {
       return { command: "participant.addProxy" as const, displayName: cmd.displayName, participantId: cmd.participantId };
     case "participant.rename":
       if (typeof cmd.participantId !== "string" || typeof cmd.displayName !== "string") return null;
-      // currentDisplayName は呼び出し側（handleRoomCommand）が対象の現在名を解決して埋める
-      return { command: "participant.rename" as const, participantId: cmd.participantId, displayName: cmd.displayName, currentDisplayName: undefined as string | undefined };
+      // 表示名の一意性は呼び出し側（handleRoomCommand）が participants に対して検査する（T052）
+      return { command: "participant.rename" as const, participantId: cmd.participantId, displayName: cmd.displayName };
     case "driver.skip":
       if (typeof cmd.participantId !== "string") return null;
       return { command: "driver.skip" as const, participantId: cmd.participantId };
@@ -1252,23 +1429,39 @@ function buildShuffleOrder(len: number, running: boolean, currentIndex: number):
 
 /**
  * driverEligible===false の参加者を rotation インデックスへ対応付けた集合を返す。
- * rotation は表示名配列で participantId を持たないため、表示名で突き合わせる
- * （改名時の一意性ガードにより rotation 内に同名は無く、一意に対応付く）。
+ * rotation は参加者IDの配列（D6b）なので、ID でそのまま突き合わせる。
  */
 function computeIneligibleIndices(room: Room): Set<number> {
-  const ineligibleNames = new Set(
+  const ineligibleIds = new Set(
     room.participants
       // 一時離脱(driverEligible=false)は対象外。実在の切断中(offline)の人も対象外（R2-1）。
       // ただし代理(placeholder)は Web 非接続が常態で対面在席する実在の人を表すため、
       // offline でも eligible として扱う（さもないとタイマー自動交代で永久に飛ばされ交代しない）。
       .filter((p) => p.driverEligible === false || (p.presence === "offline" && p.isPlaceholder !== true))
-      .map((p) => p.displayName),
+      .map((p) => p.participantId),
   );
   const set = new Set<number>();
-  room.session.rotation.forEach((name, i) => {
-    if (ineligibleNames.has(name)) set.add(i);
+  room.session.rotation.forEach((participantId, i) => {
+    if (ineligibleIds.has(participantId)) set.add(i);
   });
   return set;
+}
+
+// ─── rotation（参加者ID）→ 表示名の写像 ─────────────────────────────────────
+
+/**
+ * rotation を表示名の配列へ写す（D6b）。
+ *
+ * rotation は参加者IDの配列なので、人に見せる名前（`config.members` のミラー、
+ * `nextDriverName` シグナル）は必ずここを通す。名前解決を各所へ散らすと、
+ * 本 Issue で繰り返し踏んだ「同名の取り違え」が別の形で再発する。
+ *
+ * 対応する参加者が居ない ID は空文字になるが、退出時に rotation からも外し、
+ * 追加時は在室者だけを受け付けるため通常は発生しない。
+ */
+function rotationDisplayNames(room: Room): string[] {
+  const names = new Map(room.participants.map((p) => [p.participantId, p.displayName]));
+  return room.session.rotation.map((participantId) => names.get(participantId) ?? "");
 }
 
 // ─── ルームレベルのイベント適用 ──────────────────────────────────────────────
@@ -1279,8 +1472,17 @@ function applyRoomLevelEvent(
   _now: number,
 ): Room {
   switch (event.type) {
-    case "PhaseSet":
-      return { ...room, phase: event.phase };
+    case "PhaseSet": {
+      // startedAt は「一度でも開始したか」を表す単調フラグ（host-spof-relaxation D2）。
+      // phase は phase.set で任意方向へ遷移でき "setup" 等へ後戻りもできるため、
+      // 現在の phase で権限を判定すると主催者不在時に誰かが "setup" へ戻した瞬間
+      // ルームが再びホスト限定に締まり、Issue #22 の詰みが再発する。そのため
+      // 「session への遷移を初めて観測した」時点で一度だけ記録し、以後は
+      // どんな phase 遷移でも消さない（上書きしない）。
+      const startedAt =
+        event.phase === "session" && room.startedAt == null ? _now : room.startedAt;
+      return { ...room, phase: event.phase, startedAt };
+    }
     case "SessionReset":
       // リセット＝最初から再スタート（v2.3 #3）。集約(session/clock)は evolve が
       // 先頭・満タン・走行に初期化済み。お題・メンバー・設定・引き継ぎは維持し、
@@ -1341,17 +1543,14 @@ function applyRoomLevelEvent(
         participants: [...room.participants, proxyParticipant],
         session: {
           ...room.session,
-          rotation: [...room.session.rotation, event.displayName],
+          rotation: [...room.session.rotation, event.participantId],
           driverCounts: [...room.session.driverCounts, 0],
         },
       };
     }
-    case "ParticipantRenamed": {
-      // 改名対象の旧名をループ外で一度だけ解決する。rotation は名前配列であり
-      // participantId を持たないため、旧名で位置を特定して置換する。
-      // 重複名は member.add/addProxy で拒否されるため rotation 内に同名はなく、一意に特定できる。
-      const target = room.participants.find((p) => p.participantId === event.participantId);
-      const oldName = target?.displayName;
+    case "ParticipantRenamed":
+      // rotation は参加者IDの配列（D6b）で改名しても値が変わらないため、触る必要が無い。
+      // 旧名で位置を引いて置換していた処理はここで消えた（同名の取り違えの温床だった）。
       return {
         ...room,
         participants: room.participants.map((p) =>
@@ -1359,17 +1558,7 @@ function applyRoomLevelEvent(
             ? { ...p, displayName: event.displayName }
             : p,
         ),
-        session:
-          oldName === undefined
-            ? room.session
-            : {
-                ...room.session,
-                rotation: room.session.rotation.map((name) =>
-                  name === oldName ? event.displayName : name,
-                ),
-              },
       };
-    }
     case "DriverSkipped":
       return {
         ...room,

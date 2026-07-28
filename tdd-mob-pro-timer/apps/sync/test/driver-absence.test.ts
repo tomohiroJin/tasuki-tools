@@ -24,7 +24,7 @@ function makeRunningRoom(code: string): Room {
     },
     problem: null,
     session: {
-      rotation: ["Driver", "Other"],
+      rotation: ["driver-p01", "other-p02"],
       currentIndex: 0,
       isPaused: false,
       driverCounts: [0, 0],

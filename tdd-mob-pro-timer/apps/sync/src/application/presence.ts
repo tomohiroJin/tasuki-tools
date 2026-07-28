@@ -61,8 +61,9 @@ export class PresenceManager {
       this.broadcaster.broadcastSnapshot(room.code, updated);
 
       // 現ドライバーが復帰したら不在タイマーを解除（stale-check でも守られるが明示）。
-      const curName = updated.session.rotation[updated.session.currentIndex];
-      if (participant.displayName === curName) {
+      // rotation は参加者IDの配列（D6b）なので ID で突き合わせる。
+      const curId = updated.session.rotation[updated.session.currentIndex];
+      if (participant.participantId === curId) {
         this.clearDriverAbsenceTimer(room.code);
       }
     }
@@ -89,9 +90,9 @@ export class PresenceManager {
 
     // 現ドライバーが切断し、かつセッション稼働中なら猶予後に次へ繰り上げる（R2-1）。
     const isCurrentDriver =
-      updated.session.rotation[updated.session.currentIndex] === participant.displayName;
+      updated.session.rotation[updated.session.currentIndex] === participant.participantId;
     if (updated.clock.running && isCurrentDriver) {
-      this.scheduleDriverAbsence(updated.code, participant.displayName);
+      this.scheduleDriverAbsence(updated.code, participant.participantId);
     }
   }
 
@@ -131,18 +132,19 @@ export class PresenceManager {
 
   /**
    * ドライバー不在猶予後に次の eligible ドライバーへ繰り上げる（R2-1）。
-   * 発火時に stale-check（現ドライバーが依然同一名・offline・稼働中）を行い、
+   * 発火時に stale-check（現ドライバーが依然同一人物・offline・稼働中）を行い、
    * 既に交代/復帰済みなら何もしない（古いタイマーの誤発火を防ぐ）。
+   * 同名の別人を取り違えないよう、突き合わせは参加者IDで行う（D6b）。
    */
-  private scheduleDriverAbsence(roomCode: string, driverName: string): void {
+  private scheduleDriverAbsence(roomCode: string, driverParticipantId: string): void {
     this.clearDriverAbsenceTimer(roomCode);
     const timer = setTimeout(() => {
       this.driverAbsenceTimers.delete(roomCode);
       const room = this.store.get(roomCode);
       if (!room || !room.clock.running) return;
-      const curName = room.session.rotation[room.session.currentIndex];
-      if (curName !== driverName) return;
-      const driver = room.participants.find((p) => p.displayName === driverName);
+      const curId = room.session.rotation[room.session.currentIndex];
+      if (curId !== driverParticipantId) return;
+      const driver = room.participants.find((p) => p.participantId === driverParticipantId);
       if (driver?.presence !== "offline") return;
       this.onDriverAbsence?.(roomCode);
     }, DRIVER_ABSENCE_GRACE_MS);

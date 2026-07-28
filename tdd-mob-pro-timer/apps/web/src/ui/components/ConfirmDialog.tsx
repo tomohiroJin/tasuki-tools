@@ -4,7 +4,6 @@
  */
 
 import React, { useRef } from "react";
-import { GhostButton } from "../primitives.js";
 import { useFocusTrap } from "../useFocusTrap.js";
 
 interface ConfirmDialogProps {

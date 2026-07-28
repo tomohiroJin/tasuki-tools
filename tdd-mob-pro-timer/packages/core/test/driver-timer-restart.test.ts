@@ -25,7 +25,7 @@ const NOW = 1_000_000;
 
 /** 開始 → 2回交代（currentIndex=2・totalSwitches=2）まで進んだ集約を作る */
 function advancedAgg(): Aggregate {
-  const started = evolve(initialAggregate(config), { type: "SessionStarted", now: NOW }, NOW);
+  const started = evolve(initialAggregate(config, config.members), { type: "SessionStarted", now: NOW }, NOW);
   const sw1 = evolve(started, { type: "DriverSwitched", nextIndex: 1, now: NOW + 10_000 }, NOW + 10_000);
   return evolve(sw1, { type: "DriverSwitched", nextIndex: 2, now: NOW + 20_000 }, NOW + 20_000);
 }
@@ -45,7 +45,7 @@ describe("decide: session.act RESTART", () => {
   });
 
   it("未開始（停止中）でも受理する（RESUME と同じ寛容さ）", () => {
-    const result = decide({ command: "session.act", action: "RESTART" }, initialAggregate(config), NOW);
+    const result = decide({ command: "session.act", action: "RESTART" }, initialAggregate(config, config.members), NOW);
     expect(result.isOk()).toBe(true);
   });
 });

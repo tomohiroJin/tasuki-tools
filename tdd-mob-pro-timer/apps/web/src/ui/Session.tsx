@@ -5,7 +5,7 @@
 
 import React, { useMemo, useState } from "react";
 import {
-  Crown, ArrowRight, Play, Pause, SkipForward, Flag, RotateCcw, Shuffle, TimerReset,
+  Crown, ArrowRight, Play, Pause, SkipForward, Shuffle, TimerReset,
 } from "lucide-react";
 import { secondsLeft, elapsedMs } from "@tdd-mob/core/aggregate";
 import type { Room, Problem } from "@tdd-mob/core";
@@ -13,10 +13,13 @@ import { Card, GhostButton, PrimaryButton } from "./primitives.js";
 import { CircularProgress } from "./components/CircularProgress.js";
 import { TeamOrbit } from "./components/TeamOrbit.js";
 import { RotationLineup } from "./components/RotationLineup.js";
+import { rotationMembers } from "./rotation-names.js";
 import { RosterPanel } from "./components/RosterPanel.js";
+import { isAllowed, canRemoveParticipant, canDemote } from "@tdd-mob/core";
 import { ProblemEditor } from "./components/ProblemEditor.js";
 import { EndSessionZone } from "./components/EndSessionZone.js";
 import { SelfDriverToggle } from "./components/SelfDriverToggle.js";
+import { SpectatorSelfActions } from "./components/SpectatorSelfActions.js";
 import { SwitchAlert } from "./components/SwitchAlert.js";
 import { SharedMemo } from "./components/SharedMemo.js";
 import { useNowTick } from "./use-now-tick.js";
@@ -64,12 +67,14 @@ interface SessionProps {
   onAddProxy: (displayName: string) => void;
   /** 引き継ぎメモの更新（editor+ のみ・§9.1）。handoff.note.set を送る。 */
   onHandoffNoteSet?: (text: string) => void;
-  /** 自分をドライバーローテーションに加える（自名で member.add・2層モデル）。途中参加対応。 */
-  onJoinRotation?: (displayName: string) => void;
-  /** 自分をローテーションから外す（自名を渡し、index は App が最新 snapshot から解決）。 */
-  onLeaveRotation?: (displayName: string) => void;
+  /** 自分をドライバーローテーションに加える（自分のIDで member.add・2層モデル）。途中参加対応。 */
+  onJoinRotation?: (participantId: string) => void;
+  /** 自分をローテーションから外す（自分のIDを渡し、index は App が最新 snapshot から解決）。 */
+  onLeaveRotation?: (participantId: string) => void;
   /** ホストが参加者を退出させる（⑪・host 限定）。 */
   onRemoveParticipant?: (participantId: string) => void;
+  /** 自分の役割を自分で変える（role.set・自己対象）。開始後のみ有効（FR-073b）。 */
+  onSelfRoleChange?: (role: "editor" | "viewer") => void;
   /** ホストを任意のオンライン参加者へ明示移譲する（R2-3・host 限定）。 */
   onTransferHost?: (participantId: string) => void;
   /** ドライバー順の入れ替え（v2.3 #1・host）。fromIndex→toIndex（rotation 内の位置・member.move）。 */
@@ -113,6 +118,7 @@ export function Session({
   onJoinRotation,
   onLeaveRotation,
   onRemoveParticipant,
+  onSelfRoleChange,
   onTransferHost,
   onMoveRotation,
   onShuffle,
@@ -150,20 +156,40 @@ export function Session({
   const isHost = currentParticipant?.role === "host";
   const isEditor = currentParticipant?.role === "editor" || isHost;
 
+  // 画面の活性はサーバーと同じ判定関数で決める（FR-080/081）。
+  // isHost で隠していると、サーバーを緩めても利用者から見て何も変わらない。
+  // 段階は phase ではなく startedAt を見る（ロビーへ戻しても権限が巻き戻らない・D2）。
+  const started = room.startedAt != null;
+  /** 自分がそのコマンドを実行できるか。対象を持つ操作は isSelfTarget を渡す。 */
+  const can = (command: string, isSelfTarget = false): boolean =>
+    currentParticipant !== undefined &&
+    isAllowed({ command, role: currentParticipant.role, started, isSelfTarget });
+  // 終了系3操作は規則表で同じ扱い（開始前はホスト・開始後は編集者以上）。代表して1つで判定する。
+  const canEndSession = can("session.abort");
+  // 他の参加者への管理操作（改名・一時離脱・指名・並べ替え・退出・代理追加）をまとめた活性。
+  // これらは規則表でも同じ形（開始前は他人対象がホスト限定・開始後は編集者以上）を持つ。
+  const canManageOthers = can("participant.remove");
+
   const rotationLen = room.session.rotation.length;
   const nextIndex =
     rotationLen > 0 ? (room.session.currentIndex + 1) % rotationLen : 0;
+  // rotation は参加者IDの配列（D6b）。表示用に「識別子＋表示名」へ一度だけ写す。
+  const rotation = rotationMembers(room.session.rotation, room.participants);
+  // 現ドライバー・次・ナビは呼び名（同名が並ぶときは識別子つき）で出す。
+  // 素の表示名だと同名2名がどちらも「Bob」になり「次は誰か」が判別できない。
+  const rotationNames = rotation.map((m) => m.label);
+  const currentDriverId = room.session.rotation[room.session.currentIndex] ?? "";
   const currentDriverName =
-    room.session.rotation[room.session.currentIndex] ?? "—";
+    rotationNames[room.session.currentIndex] ?? "—";
   const nextDriverName =
-    rotationLen > 0 ? (room.session.rotation[nextIndex] ?? "—") : "—";
+    rotationLen > 0 ? (rotationNames[nextIndex] ?? "—") : "—";
   // ナビゲーター（⑦）。次ドライバーと別概念にし、既定では「現ドライバーの前の人
   //（直前に運転していた退役ドライバー）」をメインナビとする。文脈を最も持つ人。
   // rotation が1人のときは現ドライバーと一致するため表示しない。
   const prevIndex = rotationLen > 0 ? (room.session.currentIndex - 1 + rotationLen) % rotationLen : 0;
   const navigatorName =
     room.config.navigatorEnabled && rotationLen > 1
-      ? room.session.rotation[prevIndex]
+      ? rotationNames[prevIndex]
       : null;
 
   const isUrgent = room.clock.running && displayRemaining <= URGENT_THRESHOLD_SECONDS;
@@ -273,7 +299,7 @@ export function Session({
           </div>
 
           <div className="flex justify-center mb-4 boot-reveal" style={{ animationDelay: "60ms" }}>
-            <TeamOrbit members={room.session.rotation} currentIndex={room.session.currentIndex} size={orbitSize}>
+            <TeamOrbit members={rotation} currentIndex={room.session.currentIndex} size={orbitSize}>
               <CircularProgress
                 progress={progress}
                 warning={isUrgent}
@@ -310,10 +336,10 @@ export function Session({
           {/* 交代順ストリップ（読み取り専用・「自分はいつ？」確認用） */}
           <div className="mt-3">
             <RotationLineup
-              rotation={room.session.rotation}
+              rotation={rotation}
               currentIndex={room.session.currentIndex}
               intervalSeconds={room.clock.intervalSeconds || 1}
-              selfName={currentParticipant?.displayName ?? ""}
+              selfIndex={currentParticipant ? room.session.rotation.indexOf(currentParticipant.participantId) : -1}
               isPaused={room.session.isPaused}
             />
           </div>
@@ -357,8 +383,9 @@ export function Session({
         </div>
       </Card>
 
-      {/* ホスト操作: 終了系3操作の隔離ゾーン（完成/中断/リセット・確認つき・FR-018/019/044） */}
-      {isHost && (
+      {/* 終了系3操作の隔離ゾーン（完成/中断/リセット・確認つき・FR-018/019/044）。
+          開始後は主催者以外にも提示する（FR-081）。 */}
+      {canEndSession && (
         <Card>
           <EndSessionZone
             onComplete={onComplete}
@@ -373,25 +400,44 @@ export function Session({
       {/* ── 右（サイド）: 参加者一覧＋引き継ぎメモ ── */}
       <div className="space-y-6 lg:min-w-0">
       {/* 在席一覧（RosterPanel）。改名・一時離脱・代理追加・観覧表示・現ドライバー
-          ハイライト（FR-046/047/048/050/051/061）。現ドライバーは rotation の名前で判定。 */}
+          ハイライト（FR-046/047/048/050/051/061）。現ドライバーは rotation の識別子で判定。 */}
       <Card>
         {/* 自分のドライバー状態と加入/離脱（2層モデル・途中参加対応・D1）。editor+ のみ。 */}
         {isEditor && currentParticipant && (
           <SelfDriverToggle
-            inRotation={room.session.rotation.includes(currentParticipant.displayName)}
+            inRotation={room.session.rotation.includes(currentParticipant.participantId)}
             isSkipping={currentParticipant.driverEligible === false}
             canLeave={room.session.rotation.length > 1}
-            displayName={currentParticipant.displayName}
             participantId={currentParticipant.participantId}
             onJoin={onJoinRotation}
             onLeave={onLeaveRotation}
             onSkip={onDriverSkip}
             onResume={onDriverResume}
+            // 自己退出は participant.remove に自分の participantId を渡す（新コマンドは不要）。
+            onLeaveRoom={onRemoveParticipant}
+            // 不変条件（編集者以上が1名以上残る）はサーバーと同じ関数に問う。
+            // 押せるボタンを出しておいて拒否するのは FR-080 に反する。
+            canLeaveRoom={canRemoveParticipant(room.participants, currentParticipant.participantId)}
+            started={started}
+            onSelfRoleChange={onSelfRoleChange}
+            // 自己降格も自己退出と同じく、押してから拒否されないよう事前に判定する（FR-080）。
+            canSpectate={canDemote(room.participants, currentParticipant.participantId)}
+          />
+        )}
+        {/* 見学者には SelfDriverToggle が出ないので、自己解消の導線をここに置く。
+            これが無いと開始後に進行へ戻ることも部屋を抜けることもできない（FR-073b/079）。 */}
+        {!isEditor && currentParticipant && (
+          <SpectatorSelfActions
+            participantId={currentParticipant.participantId}
+            role={currentParticipant.role}
+            started={started}
+            onSelfRoleChange={onSelfRoleChange}
+            onLeaveRoom={onRemoveParticipant}
           />
         )}
         {/* ホストはセッション中でもロスターからドライバー順をランダム化できる（v2.3 #1）。
             2人以上で意味を持つ。RosterPanel 内の上/下並べ替え（onMove）と対で配置。 */}
-        {isHost && onShuffle && rotationLen > 1 && (
+        {canManageOthers && onShuffle && rotationLen > 1 && (
           <div className="mb-3 flex justify-end">
             <GhostButton onClick={onShuffle} aria-label="ドライバー順をランダムに並べ替える" className="text-sm">
               <span className="flex items-center gap-1.5"><Shuffle className="w-4 h-4" aria-hidden="true" /> ランダム</span>
@@ -400,9 +446,9 @@ export function Session({
         )}
         <RosterPanel
           participants={room.participants}
-          currentDriverName={room.session.rotation[room.session.currentIndex] ?? ""}
+          currentDriverId={currentDriverId}
           myParticipantId={participantId}
-          canHostAction={isHost}
+          canManage={canManageOthers}
           // 自分の一時離脱/復帰は上の SelfDriverToggle が担うため、行には出さず重複を避ける（#1）。
           selfHasExternalToggle={isEditor}
           rotation={room.session.rotation}
@@ -413,7 +459,9 @@ export function Session({
           onAssignDriver={onDriverAssign}
           onAddProxy={onAddProxy}
           onRemove={onRemoveParticipant}
-          onTransferHost={onTransferHost}
+          isShared={room.code !== "SOLO"}
+          // 開始後は開始者を「特権の保持者」として扱わないので移譲の概念も出さない（FR-082）。
+          onTransferHost={started ? undefined : onTransferHost}
           scrollable
         />
       </Card>
@@ -439,7 +487,7 @@ export function Session({
               <div className="space-y-6">
                 <InvitePanel code={room.code} />
                 {/* ルームのパスフレーズ設定/解除（R4-2・host 限定）。招待のすぐ下に置く。 */}
-                {isHost && onSetPassphrase && (
+                {can("room.passphrase.set") && onSetPassphrase && (
                   <Card>
                     <PassphrasePanel
                       protectedNow={!!room.passphraseProtected}
@@ -450,8 +498,31 @@ export function Session({
                 {/* このタブには SelfDriverToggle が無いため、自分の一時離脱/復帰は行に出す
                     （セッションタブ側は SelfDriverToggle が担うので行には出さない＝#1）。 */}
                 <Card>
+                  {/* Room タブだけを見ている人が取り残されないよう、同じ導線をここにも置く。 */}
+                  {!isEditor && currentParticipant && (
+                    <SpectatorSelfActions
+                      participantId={currentParticipant.participantId}
+                      role={currentParticipant.role}
+                      started={started}
+                      onSelfRoleChange={onSelfRoleChange}
+                      onLeaveRoom={onRemoveParticipant}
+                    />
+                  )}
+                  {/* 編集者以上は Session タブの SelfDriverToggle が自己退出を担うが、
+                      Room タブだけを見ている場合に導線が消えないよう、ここにも出す。 */}
+                  {isEditor && currentParticipant && onRemoveParticipant && (
+                    <div className="mb-3 flex justify-end">
+                      <GhostButton
+                        onClick={() => onRemoveParticipant(currentParticipant.participantId)}
+                        className="text-xs px-3 py-1.5"
+                        title="この端末をルームから外します。招待から再参加できます。"
+                      >
+                        ルームから抜ける
+                      </GhostButton>
+                    </div>
+                  )}
                   {/* ルームタブでもホストはランダム化できる（v2.3 #1・セッションタブと同等）。 */}
-                  {isHost && onShuffle && rotationLen > 1 && (
+                  {canManageOthers && onShuffle && rotationLen > 1 && (
                     <div className="mb-3 flex justify-end">
                       <GhostButton onClick={onShuffle} aria-label="ドライバー順をランダムに並べ替える" className="text-sm">
                         <span className="flex items-center gap-1.5"><Shuffle className="w-4 h-4" aria-hidden="true" /> ランダム</span>
@@ -460,9 +531,9 @@ export function Session({
                   )}
                   <RosterPanel
                     participants={room.participants}
-                    currentDriverName={room.session.rotation[room.session.currentIndex] ?? ""}
+                    currentDriverId={currentDriverId}
                     myParticipantId={participantId}
-                    canHostAction={isHost}
+                    canManage={canManageOthers}
                     selfHasExternalToggle={false}
                     rotation={room.session.rotation}
                     onMove={onMoveRotation}
@@ -472,7 +543,9 @@ export function Session({
                     onAssignDriver={onDriverAssign}
                     onAddProxy={onAddProxy}
                     onRemove={onRemoveParticipant}
-                    onTransferHost={onTransferHost}
+                    isShared={room.code !== "SOLO"}
+                    // 開始後は開始者を「特権の保持者」として扱わないので移譲の概念も出さない（FR-082）。
+                    onTransferHost={started ? undefined : onTransferHost}
                     scrollable
                   />
                 </Card>

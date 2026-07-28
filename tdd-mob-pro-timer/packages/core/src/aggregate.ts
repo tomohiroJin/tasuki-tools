@@ -123,6 +123,10 @@ export interface Room {
   passphraseProtected?: boolean;
   /** AI お題生成の解錠状態（合言葉照合済み・平文はサーバ専用 = snapshot 非混入）。 */
   aiUnlocked?: boolean;
+  /** 初めてセッションが開始された時刻（epoch ms）。一度設定したら消さない。
+   *  権限判定を「一度でも開始したか」で行うための単調フラグ（D2）。
+   *  phase の後戻り（"setup" 等）では消えない点が重要。 */
+  startedAt?: number | null;
 }
 
 /** 完成記録 */
@@ -182,14 +186,19 @@ export function elapsedMs(
   return clock.accumulatedElapsedMs + (adjustedNow - clock.runningSince);
 }
 
-/** 初期集約を生成する */
-export function initialAggregate(config: SessionConfig): Aggregate {
+/**
+ * 初期集約を生成する。
+ *
+ * rotation は**参加者IDの配列**なので、表示名の一覧である `config.members` からは組み立てられない。
+ * 呼び出し側が「誰がローテーションに並ぶか」を識別子で渡す（D6b）。
+ */
+export function initialAggregate(config: SessionConfig, rotation: readonly string[]): Aggregate {
   return {
     session: {
-      rotation: [...config.members],
+      rotation: [...rotation],
       currentIndex: 0,
       isPaused: false,
-      driverCounts: config.members.map(() => 0),
+      driverCounts: rotation.map(() => 0),
       totalSwitches: 0,
     },
     clock: {
@@ -265,6 +274,13 @@ export const MAX_PROBLEM_REQUIREMENTS = 20;
  *  描画による DoS を防ぐため、信頼境界（Valibot コマンドスキーマ）で一律に上限を課す。
  *  UI 側の入力欄 maxLength とも揃えて二重防御にする。 */
 export const MAX_DISPLAY_NAME = 40;
+/**
+ * NFKC 正規化が1文字を最大何文字へ展開しうるか（実測 18: U+FDFA `ﷺ`）。
+ *
+ * 正規化前の緩い上限を `MAX_DISPLAY_NAME * MAX_NFKC_EXPANSION` に置き、正規化後に
+ * `MAX_DISPLAY_NAME` を厳密に課す（schemas.ts）。前段だけだと展開で上限を突破される。
+ */
+export const MAX_NFKC_EXPANSION = 18;
 export const MAX_ROOM_NAME = 60;
 export const MAX_HANDOFF_NOTE = 2000;
 export const MAX_PROBLEM_TITLE = 200;

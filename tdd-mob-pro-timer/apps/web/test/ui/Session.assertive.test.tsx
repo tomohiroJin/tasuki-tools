@@ -6,7 +6,7 @@
  * prefers-reduced-motion 時は控えめ版（data 属性で区別）。
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, within, act } from "@testing-library/react";
 import React from "react";
 import { Session } from "../../src/ui/Session.js";
@@ -26,7 +26,8 @@ function makeRoom(assertive: boolean, currentIndex: number): Room {
   };
   return {
     code: "AA0001", createdAt: 0, hostParticipantId: "host-1", config, problem: null,
-    session: { rotation: ["Alice", "Bob"], currentIndex, isPaused: false, driverCounts: [0, 0], totalSwitches: currentIndex },
+    // rotation は参加者IDの配列（D6b）
+    session: { rotation: ["host-1", "edit-1"], currentIndex, isPaused: false, driverCounts: [0, 0], totalSwitches: currentIndex },
     clock: { running: true, intervalSeconds: 300, anchorServerTime: 0, secondsLeftAtAnchor: 300, accumulatedElapsedMs: 0, runningSince: 0 },
     phase: "session",
     participants: [

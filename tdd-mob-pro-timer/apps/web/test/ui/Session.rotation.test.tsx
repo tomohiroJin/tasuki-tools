@@ -20,11 +20,12 @@ const config: SessionConfig = {
   language: "TypeScript", difficulty: "easy", members: ["Alice"], intervalMinutes: 5,
 };
 
-/** rotation=[Alice]。Bob は editor だがローテーション未加入の途中参加者。 */
+/** rotation=[Alice(host-p)]。rotation は参加者IDの配列（D6b）。
+ *  Bob は editor だがローテーション未加入の途中参加者。 */
 function makeRoom(): Room {
   return {
     code: "AA0001", createdAt: 0, hostParticipantId: "host-p", config, problem: null,
-    session: { rotation: ["Alice"], currentIndex: 0, isPaused: false, driverCounts: [0], totalSwitches: 0 },
+    session: { rotation: ["host-p"], currentIndex: 0, isPaused: false, driverCounts: [0], totalSwitches: 0 },
     clock: { running: true, intervalSeconds: 300, anchorServerTime: 0, secondsLeftAtAnchor: 300, accumulatedElapsedMs: 0, runningSince: 0 },
     phase: "session",
     participants: [
@@ -54,19 +55,19 @@ describe("Session ドライバー加入/離脱（D1）", () => {
     const onJoinRotation = vi.fn();
     render(<Session room={makeRoom()} participantId="bob-p" {...handlers()} onJoinRotation={onJoinRotation} />);
     fireEvent.click(screen.getByRole("button", { name: /ドライバーに加わる/ }));
-    expect(onJoinRotation).toHaveBeenCalledWith("Bob");
+    expect(onJoinRotation).toHaveBeenCalledWith("bob-p");
   });
 
   it("ローテーション加入済みの自分には「列から外れる」が出て自名で離脱する", () => {
     const onLeaveRotation = vi.fn();
     // 2人ローテーションにして「外れる」を有効化（最後の1人は外れられないため）。
     const room = makeRoom();
-    room.session.rotation = ["Alice", "Bob"];
+    room.session.rotation = ["host-p", "bob-p"];
     room.session.driverCounts = [0, 0];
     render(<Session room={room} participantId="host-p" {...handlers()} onLeaveRotation={onLeaveRotation} />);
     fireEvent.click(screen.getByRole("button", { name: /列から外れる|外れる/ }));
     // index ではなく自名を渡す（レビュー #1）
-    expect(onLeaveRotation).toHaveBeenCalledWith("Alice");
+    expect(onLeaveRotation).toHaveBeenCalledWith("host-p");
   });
 
   /** 自己操作トグル（「あなた:」を含む行）に限定する。RosterPanel 行にも同名ボタンが出るため。 */
@@ -105,7 +106,7 @@ describe("Session ドライバー加入/離脱（D1）", () => {
 
   it("最後の1人のときは「列から外れる」が無効化される", () => {
     const onLeaveRotation = vi.fn();
-    // makeRoom は rotation=[Alice] の単独。Alice 視点では外れられない。
+    // makeRoom は rotation=[host-p] の単独。Alice 視点では外れられない。
     render(<Session room={makeRoom()} participantId="host-p" {...handlers()} onLeaveRotation={onLeaveRotation} />);
     const btn = screen.getByRole("button", { name: /列から外れる|外れる/ });
     expect((btn as HTMLButtonElement).disabled).toBe(true);

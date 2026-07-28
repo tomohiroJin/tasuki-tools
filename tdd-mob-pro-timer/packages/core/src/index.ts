@@ -4,6 +4,7 @@
 
 // 集約・型
 export * from "./aggregate.js";
+export * from "./display-name.js";
 // イベント
 export * from "./events.js";
 // エラー
@@ -20,3 +21,6 @@ export * from "./records.js";
 // i18n
 export { ja } from "./i18n/ja.js";
 export { en } from "./i18n/en.js";
+// 権限判定・不変条件（Issue #22）
+export * from "./permissions.js";
+export * from "./participants.js";

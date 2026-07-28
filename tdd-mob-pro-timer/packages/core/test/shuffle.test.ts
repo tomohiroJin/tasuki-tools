@@ -25,7 +25,7 @@ const NOW = 1_000_000;
 
 /** rotation=["A","B","C"]・driverCounts=[1,2,3]・currentIndex 指定の集約を作る */
 function aggWith(currentIndex: number): Aggregate {
-  const base = initialAggregate(baseConfig);
+  const base = initialAggregate(baseConfig, baseConfig.members);
   return {
     ...base,
     session: {

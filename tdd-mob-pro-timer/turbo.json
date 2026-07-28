@@ -1,5 +1,7 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "//": "globalDependencies: パッケージ外にあってタスク結果を左右するファイル。ここに書かないと eslint.config.mjs だけを変えたとき turbo が変更を検知できず、古い lint 結果を cache hit として再生する（＝ルール変更が反映されないまま成功表示になる）。",
+  "globalDependencies": ["eslint.config.mjs", "tsconfig.base.json"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

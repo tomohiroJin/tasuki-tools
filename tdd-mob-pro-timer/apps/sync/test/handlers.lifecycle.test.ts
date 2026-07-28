@@ -37,6 +37,12 @@ const config: SessionConfig = {
   intervalMinutes: 5,
 };
 
+/**
+ * Alice(host)・Bob・Charlie の3人が輪に並んだルームを作る。
+ *
+ * rotation は参加者IDの配列（D6b）なので、`config.members` に名前を並べるだけでは
+ * 輪に入らない。実際に参加させ、本人が member.add で輪に加わる（Web の実フローと同じ）。
+ */
 async function setupRoom(handlers: ReturnType<typeof makeHandlers>) {
   const create = await handlers.handleCommand("host-conn", {
     command: "room.create",
@@ -44,7 +50,18 @@ async function setupRoom(handlers: ReturnType<typeof makeHandlers>) {
     config,
   });
   if (!create.isOk()) throw new Error("create failed");
-  return create.value.code;
+  const code = create.value.code;
+  for (const [connId, displayName] of [["bob-conn", "Bob"], ["charlie-conn", "Charlie"]] as const) {
+    const join = await handlers.handleCommand(connId, {
+      command: "room.join", code, displayName, hasAiKey: false,
+    });
+    if (!join.isOk()) throw new Error(`join failed: ${displayName}`);
+    const add = await handlers.handleCommand(connId, {
+      command: "member.add", participantId: join.value.participantId,
+    });
+    if (!add.isOk()) throw new Error(`member.add failed: ${displayName}`);
+  }
+  return code;
 }
 
 describe("session.complete: 記録と phase 遷移（FR-028）", () => {
@@ -188,11 +205,16 @@ describe("メンバー編集と config.members 同期（FR-028 記録の正確�
   it("member.add 後、config.members が rotation に同期する", async () => {
     const code = await setupRoom(handlers);
 
-    await handlers.handleCommand("host-conn", { command: "member.add", name: "Dave" });
+    // 代理として Dave を輪に加える（在室者以外は輪に並べられない・D6b）。
+    await handlers.handleCommand("host-conn", {
+      command: "participant.addProxy", displayName: "Dave", participantId: "ignored-client-supplied",
+    });
 
     const after = store.get(code)!;
-    expect(after.session.rotation).toContain("Dave");
-    expect(after.config.members).toEqual(after.session.rotation);
+    const dave = after.participants.find((p) => p.displayName === "Dave")!;
+    expect(after.session.rotation).toContain(dave.participantId);
+    // config.members は rotation の表示名ミラー（D6b）。
+    expect(after.config.members).toContain("Dave");
   });
 
   it("メンバー編集後の完成記録は最新メンバーを反映する", async () => {
@@ -203,7 +225,9 @@ describe("メンバー編集と config.members 同期（FR-028 記録の正確�
       problem: { title: "FizzBuzz", description: "d", requirements: ["r"], exampleTest: "t", hints: [] },
     });
 
-    await handlers.handleCommand("host-conn", { command: "member.add", name: "Dave" });
+    await handlers.handleCommand("host-conn", {
+      command: "participant.addProxy", displayName: "Dave", participantId: "ignored-client-supplied",
+    });
     await handlers.handleCommand("host-conn", { command: "session.act", action: "START" });
     await handlers.handleCommand("host-conn", { command: "session.complete" });
 
@@ -365,13 +389,7 @@ describe("自動交代: スケジューラ配線（FR-003）", () => {
 
   it("自動交代は ineligible（skip 済み）のメンバーを飛ばして次の eligible へ進む（plan.md L194）", async () => {
     const code = await setupRoom(handlers);
-    // Bob を参加者として join させ、host が Bob を skip して ineligible にする
-    await handlers.handleCommand("bob-conn", {
-      command: "room.join",
-      code,
-      displayName: "Bob",
-      hasAiKey: false,
-    });
+    // setupRoom で参加済みの Bob を host が skip して ineligible にする
     const bob = store.get(code)!.participants.find((p) => p.connId === "bob-conn")!;
     await handlers.handleCommand("host-conn", {
       command: "driver.skip",

@@ -7,6 +7,7 @@
 import { ExponentialBackoff } from "./backoff.js";
 import { estimateClockOffset, type PingSample } from "./clock-offset.js";
 import { dispatchServerMessage } from "./dispatch.js";
+import type { NoticeSignal } from "./notice-message.js";
 import type { Room } from "@tdd-mob/core";
 
 export type RoomCallback = (room: Room) => void;
@@ -30,6 +31,8 @@ export interface SyncClientOptions {
   onDisconnected?: () => void;
   /** 接続状態の変化通知（R5-1）。online=確立、reconnecting=切断後の再接続待ち。 */
   onConnectionChange?: (state: "online" | "reconnecting") => void;
+  /** 破壊的操作の実行者の通知（Issue #22・FR-077） */
+  onNotice?: (notice: NoticeSignal) => void;
 }
 
 export class SyncClient {
@@ -80,11 +83,14 @@ export class SyncClient {
 
     this.ws.onclose = () => {
       this.stopPingLoop();
+      // 破棄済みの close は「こちらから閉じた」結果であり、切断として通知しない（FR-086）。
+      // 通知すると、退出させられた側の画面で「ルームから退出しました。再参加するには…」が
+      // 「接続が切れました。再接続しています...」に上書きされ、退出した事実も再参加できる旨も
+      // 伝わらなくなる。しかも破棄済みなので再接続は行われず、その表示は事実にも反する。
+      if (this.disposed) return;
       this.options.onDisconnected?.();
-      if (!this.disposed) {
-        this.options.onConnectionChange?.("reconnecting");
-        this.scheduleReconnect();
-      }
+      this.options.onConnectionChange?.("reconnecting");
+      this.scheduleReconnect();
     };
 
     this.ws.onerror = () => {
@@ -121,6 +127,7 @@ export class SyncClient {
       onNeedProblem: (requestId, deadlineMs) =>
         this.options.onNeedProblem?.(requestId, deadlineMs),
       onTimePong: (serverTime) => this.recordPong(serverTime),
+      onNotice: (notice) => this.options.onNotice?.(notice),
     });
   }
 

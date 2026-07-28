@@ -15,6 +15,7 @@ import {
   type SessionConfig,
 } from "@tdd-mob/core";
 import { decide } from "@tdd-mob/core";
+import { soloMemberId } from "./roster.js";
 import { evolve, advanceDriver } from "@tdd-mob/core";
 import type { DomainEvent } from "@tdd-mob/core";
 
@@ -29,7 +30,9 @@ export class LocalEngine {
 
   constructor(config: SessionConfig) {
     this._config = config;
-    this._agg = initialAggregate(config);
+    // rotation は参加者IDの配列（D6b）。ソロは config.members の index から
+    // 安定した ID を作る（改名しても ID は変わらない）。
+    this._agg = initialAggregate(config, config.members.map((_, i) => soloMemberId(i)));
   }
 
   get aggregate(): Aggregate {

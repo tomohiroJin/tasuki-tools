@@ -21,7 +21,7 @@ const NOW = 1_000_000;
 
 /** セッション開始済みの集約を作る */
 function startedAgg(): Aggregate {
-  return evolve(initialAggregate(config), { type: "SessionStarted", now: NOW }, NOW);
+  return evolve(initialAggregate(config, config.members), { type: "SessionStarted", now: NOW }, NOW);
 }
 
 describe("F3: リセットを最初から再スタートにする", () => {

@@ -21,7 +21,7 @@ const config: SessionConfig = {
 
 /** currentIndex を指定して soloRoom を組み立てる（差分なし） */
 function soloRoom(currentIndex: number) {
-  const agg = initialAggregate(config);
+  const agg = initialAggregate(config, config.members.map((_, i) => soloMemberId(i)));
   return buildSoloRoom({
     config,
     engineSession: { ...agg.session, currentIndex },
@@ -40,9 +40,9 @@ describe("ソロ × RosterPanel（項目4）", () => {
     render(
       <RosterPanel
         participants={room.participants}
-        currentDriverName={room.session.rotation[room.session.currentIndex] ?? ""}
+        currentDriverId={room.session.rotation[room.session.currentIndex] ?? ""}
         myParticipantId="solo"
-        canHostAction
+        canManage
         onRename={noop}
         onSkip={noop}
         onResume={noop}
@@ -61,9 +61,9 @@ describe("ソロ × RosterPanel（項目4）", () => {
     render(
       <RosterPanel
         participants={room.participants}
-        currentDriverName={room.session.rotation[0] ?? ""}
+        currentDriverId={room.session.rotation[0] ?? ""}
         myParticipantId="solo"
-        canHostAction
+        canManage
         onRename={noop}
         onSkip={onSkip}
         onResume={noop}
@@ -81,9 +81,9 @@ describe("ソロ × RosterPanel（項目4）", () => {
     render(
       <RosterPanel
         participants={room.participants}
-        currentDriverName={room.session.rotation[0] ?? ""}
+        currentDriverId={room.session.rotation[0] ?? ""}
         myParticipantId="solo"
-        canHostAction
+        canManage
         onRename={onRename}
         onSkip={noop}
         onResume={noop}

@@ -74,7 +74,7 @@ async function setupRunningRoom(
   store.put({
     ...room,
     participants,
-    session: { ...room.session, rotation: [...members], currentIndex },
+    session: { ...room.session, rotation: participants.map((p) => p.participantId), currentIndex },
     clock: { ...room.clock, running: true },
   });
   return code;

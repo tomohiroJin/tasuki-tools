@@ -78,13 +78,22 @@ async function setupRoom(
     participants,
     session: {
       ...room.session,
-      rotation: [...members],
+      // rotation は参加者IDの配列（D6b）
+      rotation: participants.map((p) => p.participantId),
       currentIndex,
       driverCounts: members.map((_, i) => i + 1), // [1,2,3]
     },
     clock: { ...room.clock, running },
   });
   return code;
+}
+
+/** rotation（参加者IDの配列・D6b）を表示名へ写す。検証の意図は「並び」なので名前で見る。 */
+function rotationNames(room: Room | undefined): string[] {
+  if (!room) return [];
+  return room.session.rotation.map(
+    (id) => room.participants.find((p) => p.participantId === id)?.displayName ?? "",
+  );
 }
 
 describe("member.shuffle（サーバー権威のランダム化・v2.3 #1）", () => {
@@ -118,7 +127,7 @@ describe("member.shuffle（サーバー権威のランダム化・v2.3 #1）", (
     expect(result.isOk()).toBe(true);
 
     const room = latest(broadcaster);
-    expect(room?.session.rotation).toEqual(["B", "C", "A"]);
+    expect(rotationNames(room)).toEqual(["B", "C", "A"]);
     // driverCounts も順列に追従する（元 [1,2,3] が order=[1,2,0] で並ぶ）。
     expect(room?.session.driverCounts).toEqual([2, 3, 1]);
     // config.members も rotation にミラーされる。
@@ -137,7 +146,7 @@ describe("member.shuffle（サーバー権威のランダム化・v2.3 #1）", (
     const room = latest(broadcaster);
     // currentIndex は 1 のまま、その名前は "B" のまま（現ドライバー現役）。
     expect(room?.session.currentIndex).toBe(1);
-    expect(room?.session.rotation[1]).toBe("B");
+    expect(rotationNames(room)[1]).toBe("B");
   });
 
   it("稼働中: 現ドライバー名は順列の中身に関わらず保持される", async () => {
@@ -148,7 +157,7 @@ describe("member.shuffle（サーバー権威のランダム化・v2.3 #1）", (
     await handlers.handleCommand(HOST_CONN, { command: "member.shuffle" });
     const room = latest(broadcaster);
     // 現ドライバー "C" は index 2 に固定。
-    expect(room?.session.rotation[2]).toBe("C");
+    expect(rotationNames(room)[2]).toBe("C");
     expect(room?.session.currentIndex).toBe(2);
   });
 

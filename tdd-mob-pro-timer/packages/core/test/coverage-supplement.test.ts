@@ -24,7 +24,7 @@ const NOW = 1_000_000;
 describe("evolve: ConfigSet によるメンバー再構築", () => {
   it("members 変更で rotation/driverCounts が再構築され、現ドライバー名を追従する", () => {
     // Bob を現ドライバーにしてから members を入替える
-    let agg = initialAggregate(baseConfig);
+    let agg = initialAggregate(baseConfig, baseConfig.members);
     agg = { ...agg, session: { ...agg.session, currentIndex: 1, driverCounts: [2, 3, 1] } };
     const next = evolve(agg, { type: "ConfigSet", config: { members: ["Charlie", "Bob"] }, now: NOW }, NOW);
     expect(next.session.rotation).toEqual(["Charlie", "Bob"]);
@@ -35,14 +35,14 @@ describe("evolve: ConfigSet によるメンバー再構築", () => {
   });
 
   it("intervalMinutes 変更は停止中なら新間隔で初期化する", () => {
-    const agg = initialAggregate(baseConfig);
+    const agg = initialAggregate(baseConfig, baseConfig.members);
     const next = evolve(agg, { type: "ConfigSet", config: { intervalMinutes: 10 }, now: NOW }, NOW);
     expect(next.clock.intervalSeconds).toBe(600);
     expect(next.clock.secondsLeftAtAnchor).toBe(600);
   });
 
   it("新メンバー追加は回数0、稼働中の間隔変更は残り時間を凍結する", () => {
-    let agg = initialAggregate(baseConfig);
+    let agg = initialAggregate(baseConfig, baseConfig.members);
     agg = evolve(agg, { type: "SessionStarted", now: NOW }, NOW); // running
     agg = { ...agg, clock: { ...agg.clock, secondsLeftAtAnchor: 123 } };
     const next = evolve(
@@ -60,7 +60,7 @@ describe("evolve: ConfigSet によるメンバー再構築", () => {
 
 describe("evolve: MemberMoved", () => {
   it("メンバーを移動すると rotation と driverCounts が同じ並びで動く", () => {
-    let agg = initialAggregate(baseConfig);
+    let agg = initialAggregate(baseConfig, baseConfig.members);
     agg = { ...agg, session: { ...agg.session, driverCounts: [1, 2, 3], currentIndex: 0 } };
     const next = evolve(agg, { type: "MemberMoved", fromIndex: 0, toIndex: 2, now: NOW }, NOW);
     expect(next.session.rotation).toEqual(["Bob", "Charlie", "Alice"]);
@@ -73,7 +73,7 @@ describe("evolve: MemberMoved", () => {
 describe("evolve: SessionReset", () => {
   // v2.3 #3: リセットは「最初から再スタート（走行）」になった（旧仕様は clock 停止だった）。
   it("リセットで集約が初期化され clock が走行状態で再スタートする", () => {
-    let agg = initialAggregate(baseConfig);
+    let agg = initialAggregate(baseConfig, baseConfig.members);
     agg = evolve(agg, { type: "SessionStarted", now: NOW }, NOW);
     const reset = evolve(agg, { type: "SessionReset", now: NOW + 5000 }, NOW + 5000);
     expect(reset.clock.running).toBe(true);
@@ -91,7 +91,7 @@ describe("buildCompletionRecord: 周回数とドライバー回数", () => {
   };
 
   it("rotation 長で割った周回数を記録する", () => {
-    let agg = initialAggregate(baseConfig);
+    let agg = initialAggregate(baseConfig, baseConfig.members);
     agg = { ...agg, session: { ...agg.session, totalSwitches: 6, driverCounts: [2, 2, 2] } };
     const rec = buildCompletionRecord(agg, problem, baseConfig, NOW);
     expect(rec.rounds).toBe(2); // 6 / 3
@@ -99,7 +99,7 @@ describe("buildCompletionRecord: 周回数とドライバー回数", () => {
   });
 
   it("roomId を渡すと記録に含める", () => {
-    const agg = initialAggregate(baseConfig);
+    const agg = initialAggregate(baseConfig, baseConfig.members);
     const rec = buildCompletionRecord(agg, problem, baseConfig, NOW, "ROOM-1");
     expect(rec.roomId).toBe("ROOM-1");
   });
@@ -116,13 +116,13 @@ describe("buildCompletionRecord: 周回数とドライバー回数", () => {
 
 describe("decide: config.set のメンバー検証", () => {
   it("2人未満のメンバー指定は BelowMinMembers（config.set のメンバー下限は据え置き）", () => {
-    const agg = initialAggregate(baseConfig);
+    const agg = initialAggregate(baseConfig, baseConfig.members);
     const result = decide({ command: "config.set", config: { members: ["Solo"] } }, agg, NOW);
     expect(result.isErr()).toBe(true);
   });
 
   it("重複メンバー指定は DuplicateName", () => {
-    const agg = initialAggregate(baseConfig);
+    const agg = initialAggregate(baseConfig, baseConfig.members);
     const result = decide({ command: "config.set", config: { members: ["A", "A"] } }, agg, NOW);
     expect(result.isErr()).toBe(true);
     if (result.isErr()) expect(result.error.type).toBe("DuplicateName");
@@ -131,7 +131,7 @@ describe("decide: config.set のメンバー検証", () => {
 
 describe("evolve: MemberRemoved / MemberMoved の index 調整分岐", () => {
   it("現ドライバーより前を削除すると currentIndex が 1 減る", () => {
-    let agg = initialAggregate(baseConfig); // [Alice,Bob,Charlie]
+    let agg = initialAggregate(baseConfig, baseConfig.members); // [Alice,Bob,Charlie]
     agg = { ...agg, session: { ...agg.session, currentIndex: 2 } };
     const next = evolve(agg, { type: "MemberRemoved", index: 0, now: NOW }, NOW);
     expect(next.session.rotation).toEqual(["Bob", "Charlie"]);
@@ -139,7 +139,7 @@ describe("evolve: MemberRemoved / MemberMoved の index 調整分岐", () => {
   });
 
   it("現ドライバーより後ろから前へ移動すると currentIndex が 1 増える", () => {
-    let agg = initialAggregate(baseConfig);
+    let agg = initialAggregate(baseConfig, baseConfig.members);
     agg = { ...agg, session: { ...agg.session, currentIndex: 1 } };
     // index2(Charlie) を index0 へ。fromIndex(2)>cur(1) かつ toIndex(0)<=cur(1) → cur++
     const next = evolve(agg, { type: "MemberMoved", fromIndex: 2, toIndex: 0, now: NOW }, NOW);
@@ -148,7 +148,7 @@ describe("evolve: MemberRemoved / MemberMoved の index 調整分岐", () => {
   });
 
   it("現ドライバーより前から後ろへ移動すると currentIndex が 1 減る", () => {
-    let agg = initialAggregate(baseConfig);
+    let agg = initialAggregate(baseConfig, baseConfig.members);
     agg = { ...agg, session: { ...agg.session, currentIndex: 1 } };
     // index0(Alice) を index2 へ。fromIndex(0)<cur(1) かつ toIndex(2)>=cur(1) → cur--
     const next = evolve(agg, { type: "MemberMoved", fromIndex: 0, toIndex: 2, now: NOW }, NOW);
@@ -158,7 +158,7 @@ describe("evolve: MemberRemoved / MemberMoved の index 調整分岐", () => {
 });
 
 describe("decide: config.set の各バリデーション分岐", () => {
-  const agg = initialAggregate(baseConfig);
+  const agg = initialAggregate(baseConfig, baseConfig.members);
   it("無効な交代間隔は InvalidInterval", () => {
     const r = decide({ command: "config.set", config: { intervalMinutes: 4 as never } }, agg, NOW);
     expect(r.isErr() && r.error.type).toBe("InvalidInterval");

@@ -34,7 +34,10 @@ function freezeRunningClock(clock: ServerClock, now: number): ServerClock {
  * イベントを集約に適用し、新しい集約を返す純粋関数
  * 全域関数（全イベント型を処理）
  */
-export function evolve(agg: Aggregate, event: DomainEvent, now: number): Aggregate {
+// 第3引数は呼び出し側の「この適用の時刻」を表すが、各イベントは自身に now を持つため
+// 分岐側では event.now を使う。引数はイベントを持たない将来の適用や呼び出し規約の
+// 一貫性のために残す（全呼び出し箇所が渡している）。
+export function evolve(agg: Aggregate, event: DomainEvent, _now: number): Aggregate {
   switch (event.type) {
     case "SessionStarted":
       return evolveSessionStarted(agg, event.now);
@@ -52,7 +55,9 @@ export function evolve(agg: Aggregate, event: DomainEvent, now: number): Aggrega
       // F3(v2.3 #3): リセットは「最初から再スタート（走行）」にする。
       // 旧仕様は initialAggregate をそのまま返し running=false だったため、
       // リセット後に開始できず詰む不具合があった。走行状態でアンカーし直す。
-      const fresh = initialAggregate(buildConfigFromReset(agg));
+      // リセットは並び順を保ったまま最初から走り直す。rotation は参加者IDの配列なので
+      // config（表示名の一覧）からは復元できず、現在の並びをそのまま引き継ぐ（D6b）。
+      const fresh = initialAggregate(buildConfigFromReset(agg), agg.session.rotation);
       return {
         session: fresh.session,
         clock: {
@@ -75,7 +80,7 @@ export function evolve(agg: Aggregate, event: DomainEvent, now: number): Aggrega
       return evolveConfigSet(agg, event.config, event.now);
 
     case "MemberAdded":
-      return evolveMemberAdded(agg, event.name);
+      return evolveMemberAdded(agg, event.participantId);
 
     case "MemberRemoved":
       return evolveMemberRemoved(agg, event.index);
@@ -281,7 +286,13 @@ function evolveConfigSet(
   let clock = agg.clock;
 
   // members 指定時のみ rotation/driverCounts/currentIndex を再構築する。
-  // 現ドライバー名を保持しつつ追従する（位置が見つからなければ 0 にクランプ）。
+  // 現ドライバーを保持しつつ追従する（位置が見つからなければ 0 にクランプ）。
+  //
+  // **注意（D6b）:** rotation は参加者IDの配列になったが、この分岐は `partial.members` の
+  // 中身をそのまま rotation にする。表示名の一覧を渡すと rotation が名前に戻り、
+  // 識別子の不変条件が壊れる。そのためサーバー層（handlers の buildDomainCommand）は
+  // config.set から members を落としており、共有ルームではこの分岐に到達しない。
+  // 輪の出入りは member.add/remove/move・addProxy・participant.remove だけが担う。
   if (partial.members !== undefined) {
     const currentMember = agg.session.rotation[agg.session.currentIndex];
     const newRotation = [...partial.members];
@@ -326,12 +337,12 @@ function evolveConfigSet(
   return { session, clock };
 }
 
-function evolveMemberAdded(agg: Aggregate, name: string): Aggregate {
+function evolveMemberAdded(agg: Aggregate, participantId: string): Aggregate {
   return {
     ...agg,
     session: {
       ...agg.session,
-      rotation: [...agg.session.rotation, name],
+      rotation: [...agg.session.rotation, participantId],
       driverCounts: [...agg.session.driverCounts, 0],
     },
   };
@@ -423,11 +434,18 @@ function evolveMembersShuffled(agg: Aggregate, order: number[]): Aggregate {
 }
 
 /** リセット時に SessionConfig を集約から再構成する */
+/**
+ * リセット時に `initialAggregate` へ渡す一時的な設定を組む。
+ *
+ * `initialAggregate` は rotation を第2引数で受け取り `members` を見ない（D6b）ため、
+ * ここの `members` は使われない。rotation は参加者IDの配列なので、これを表示名の一覧である
+ * `members` に流し込むと「IDが名前として扱われる」誤りになる。空にして流用を封じる。
+ */
 function buildConfigFromReset(agg: Aggregate): SessionConfig {
   return {
     language: "TypeScript",
     difficulty: "easy",
-    members: [...agg.session.rotation],
+    members: [],
     intervalMinutes:
       (agg.clock.intervalSeconds / 60) as IntervalMinutes,
   };
