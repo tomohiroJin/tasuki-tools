@@ -22,10 +22,12 @@ export function computeRotationStatus(args: {
   rotation: string[];
   currentIndex: number;
   intervalSeconds: number;
-  selfName: string;
+  /** rotation 内での自分の位置。輪の外なら -1。
+   *  同名の別人と取り違えないよう、名前ではなく位置で自分を指す（D6b）。 */
+  selfIndex: number;
   isPaused: boolean;
 }): RotationStatus {
-  const { rotation, currentIndex, intervalSeconds, selfName, isPaused } = args;
+  const { rotation, currentIndex, intervalSeconds, selfIndex, isPaused } = args;
   const len = rotation.length;
   if (len === 0) return { members: [], self: null };
 
@@ -38,7 +40,7 @@ export function computeRotationStatus(args: {
       turnsAway,
       isCurrent: turnsAway === 0,
       isNext: len > 1 && turnsAway === 1,
-      isSelf: name === selfName,
+      isSelf: i === selfIndex,
       minutesAway,
     };
   });

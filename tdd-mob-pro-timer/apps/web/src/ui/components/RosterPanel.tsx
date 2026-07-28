@@ -52,11 +52,10 @@ function MiniButton({
 
 interface RosterPanelProps {
   participants: Participant[];
-  /** 現ドライバーの表示名（session.rotation[currentIndex]）。
+  /** 現ドライバーの参加者ID（session.rotation[currentIndex]）。
    *  participants 配列のインデックスと rotation のインデックスは一致しないため、
-   *  配列位置ではなく名前で現ドライバーを判定する。重複名は member.add/addProxy で
-   *  拒否されるため displayName は一意。 */
-  currentDriverName: string;
+   *  配列位置ではなく識別子で現ドライバーを判定する（D6b。同名でも取り違えない）。 */
+  currentDriverId: string;
   myParticipantId: string;
   canManage: boolean;
   onRename: (participantId: string, displayName: string) => void;
@@ -70,8 +69,9 @@ interface RosterPanelProps {
   isShared?: boolean;
   /** ホストを当該参加者へ移譲する（host 限定・オンライン・自分以外のみ表示）。 */
   onTransferHost?: (participantId: string) => void;
-  /** ドライバーのローテーション順（session.rotation）。並べ替えの index 算出に使う（v2.3 #1）。
-   *  participants の配列位置と rotation の位置は一致しないため、rotation 内の位置を別途渡す。 */
+  /** ドライバーのローテーション順（session.rotation＝参加者IDの配列・D6b）。
+   *  並べ替えの index 算出に使う（v2.3 #1）。participants の配列位置と rotation の位置は
+   *  一致しないため、rotation 内の位置を別途渡す。 */
   rotation?: string[];
   /** ドライバー順の入れ替え（v2.3 #1・host）。fromIndex→toIndex（rotation 内の位置）。
    *  ドライバー行（rotation に含まれる）にのみ上/下ボタンを出す。 */
@@ -89,7 +89,7 @@ interface RosterPanelProps {
 
 export function RosterPanel({
   participants,
-  currentDriverName,
+  currentDriverId,
   myParticipantId,
   canManage,
   selfHasExternalToggle = false,
@@ -132,8 +132,8 @@ export function RosterPanel({
     setEditName("");
   };
 
-  // rotation 内かどうかを判定するヘルパ
-  const inRot = (p: Participant) => rotation ? rotation.includes(p.displayName) : false;
+  // rotation 内かどうかを判定するヘルパ（rotation は参加者IDの配列・D6b）
+  const inRot = (p: Participant) => rotation ? rotation.includes(p.participantId) : false;
 
   // ドライバーグループ: 現ドライバー起点の巡回順（現=0, 次=1, …）で並べる。
   // 交代のたびにリストが1つずつ繰り上がる自然な並びにする（v2.10 #4）。
@@ -141,9 +141,9 @@ export function RosterPanel({
     const rotParts = participants.filter(inRot);
     if (!rotation || rotation.length === 0) return rotParts;
     const len = rotation.length;
-    const curIdx = rotation.indexOf(currentDriverName);
+    const curIdx = rotation.indexOf(currentDriverId);
     const turnOrder = (p: Participant): number => {
-      const i = rotation.indexOf(p.displayName);
+      const i = rotation.indexOf(p.participantId);
       if (i < 0 || curIdx < 0) return Number.MAX_SAFE_INTEGER;
       return (i - curIdx + len) % len;
     };
@@ -158,15 +158,15 @@ export function RosterPanel({
 
   /** 参加者行の共通レンダリング関数。全アクション（改名/離脱/復帰/譲る/外す/並べ替え）を維持する。 */
   const renderRow = (p: Participant) => {
-    const isCurrentDriver = currentDriverName !== "" && p.displayName === currentDriverName;
+    const isCurrentDriver = currentDriverId !== "" && p.participantId === currentDriverId;
     const isMine = p.participantId === myParticipantId;
     const isSkipping = p.driverEligible === false;
     // 改名は本人 or ホストが可能（観覧者でも自分自身は改名可: FR-046）
     const canRename = isMine || canManage;
     const isEditing = editingId === p.participantId;
-    // ドライバー順での位置。rotation.indexOf(displayName) で算出する
+    // ドライバー順での位置。rotation.indexOf(participantId) で算出する
     // （participants の配列位置とは一致しないため）。-1 なら見学者（rotation 外）。
-    const rotationIndex = rotation ? rotation.indexOf(p.displayName) : -1;
+    const rotationIndex = rotation ? rotation.indexOf(p.participantId) : -1;
     const inRotation = rotationIndex >= 0;
     const rotationLen = rotation?.length ?? 0;
     // 並べ替えはホストが操作でき、ドライバーが2人以上いるときだけ意味を持つ。

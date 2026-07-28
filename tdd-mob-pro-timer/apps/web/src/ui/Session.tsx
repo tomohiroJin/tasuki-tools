@@ -13,6 +13,7 @@ import { Card, GhostButton, PrimaryButton } from "./primitives.js";
 import { CircularProgress } from "./components/CircularProgress.js";
 import { TeamOrbit } from "./components/TeamOrbit.js";
 import { RotationLineup } from "./components/RotationLineup.js";
+import { rotationDisplayNames } from "./rotation-names.js";
 import { RosterPanel } from "./components/RosterPanel.js";
 import { isAllowed, canRemoveParticipant, canDemote } from "@tdd-mob/core";
 import { ProblemEditor } from "./components/ProblemEditor.js";
@@ -66,10 +67,10 @@ interface SessionProps {
   onAddProxy: (displayName: string) => void;
   /** 引き継ぎメモの更新（editor+ のみ・§9.1）。handoff.note.set を送る。 */
   onHandoffNoteSet?: (text: string) => void;
-  /** 自分をドライバーローテーションに加える（自名で member.add・2層モデル）。途中参加対応。 */
-  onJoinRotation?: (displayName: string) => void;
-  /** 自分をローテーションから外す（自名を渡し、index は App が最新 snapshot から解決）。 */
-  onLeaveRotation?: (displayName: string) => void;
+  /** 自分をドライバーローテーションに加える（自分のIDで member.add・2層モデル）。途中参加対応。 */
+  onJoinRotation?: (participantId: string) => void;
+  /** 自分をローテーションから外す（自分のIDを渡し、index は App が最新 snapshot から解決）。 */
+  onLeaveRotation?: (participantId: string) => void;
   /** ホストが参加者を退出させる（⑪・host 限定）。 */
   onRemoveParticipant?: (participantId: string) => void;
   /** 自分の役割を自分で変える（role.set・自己対象）。開始後のみ有効（FR-073b）。 */
@@ -172,17 +173,20 @@ export function Session({
   const rotationLen = room.session.rotation.length;
   const nextIndex =
     rotationLen > 0 ? (room.session.currentIndex + 1) % rotationLen : 0;
+  // rotation は参加者IDの配列（D6b）。表示に使う名前はここで一度だけ写す。
+  const rotationNames = rotationDisplayNames(room.session.rotation, room.participants);
+  const currentDriverId = room.session.rotation[room.session.currentIndex] ?? "";
   const currentDriverName =
-    room.session.rotation[room.session.currentIndex] ?? "—";
+    rotationNames[room.session.currentIndex] ?? "—";
   const nextDriverName =
-    rotationLen > 0 ? (room.session.rotation[nextIndex] ?? "—") : "—";
+    rotationLen > 0 ? (rotationNames[nextIndex] ?? "—") : "—";
   // ナビゲーター（⑦）。次ドライバーと別概念にし、既定では「現ドライバーの前の人
   //（直前に運転していた退役ドライバー）」をメインナビとする。文脈を最も持つ人。
   // rotation が1人のときは現ドライバーと一致するため表示しない。
   const prevIndex = rotationLen > 0 ? (room.session.currentIndex - 1 + rotationLen) % rotationLen : 0;
   const navigatorName =
     room.config.navigatorEnabled && rotationLen > 1
-      ? room.session.rotation[prevIndex]
+      ? rotationNames[prevIndex]
       : null;
 
   const isUrgent = room.clock.running && displayRemaining <= URGENT_THRESHOLD_SECONDS;
@@ -292,7 +296,7 @@ export function Session({
           </div>
 
           <div className="flex justify-center mb-4 boot-reveal" style={{ animationDelay: "60ms" }}>
-            <TeamOrbit members={room.session.rotation} currentIndex={room.session.currentIndex} size={orbitSize}>
+            <TeamOrbit members={rotationNames} currentIndex={room.session.currentIndex} size={orbitSize}>
               <CircularProgress
                 progress={progress}
                 warning={isUrgent}
@@ -329,10 +333,10 @@ export function Session({
           {/* 交代順ストリップ（読み取り専用・「自分はいつ？」確認用） */}
           <div className="mt-3">
             <RotationLineup
-              rotation={room.session.rotation}
+              rotation={rotationNames}
               currentIndex={room.session.currentIndex}
               intervalSeconds={room.clock.intervalSeconds || 1}
-              selfName={currentParticipant?.displayName ?? ""}
+              selfIndex={currentParticipant ? room.session.rotation.indexOf(currentParticipant.participantId) : -1}
               isPaused={room.session.isPaused}
             />
           </div>
@@ -393,15 +397,14 @@ export function Session({
       {/* ── 右（サイド）: 参加者一覧＋引き継ぎメモ ── */}
       <div className="space-y-6 lg:min-w-0">
       {/* 在席一覧（RosterPanel）。改名・一時離脱・代理追加・観覧表示・現ドライバー
-          ハイライト（FR-046/047/048/050/051/061）。現ドライバーは rotation の名前で判定。 */}
+          ハイライト（FR-046/047/048/050/051/061）。現ドライバーは rotation の識別子で判定。 */}
       <Card>
         {/* 自分のドライバー状態と加入/離脱（2層モデル・途中参加対応・D1）。editor+ のみ。 */}
         {isEditor && currentParticipant && (
           <SelfDriverToggle
-            inRotation={room.session.rotation.includes(currentParticipant.displayName)}
+            inRotation={room.session.rotation.includes(currentParticipant.participantId)}
             isSkipping={currentParticipant.driverEligible === false}
             canLeave={room.session.rotation.length > 1}
-            displayName={currentParticipant.displayName}
             participantId={currentParticipant.participantId}
             onJoin={onJoinRotation}
             onLeave={onLeaveRotation}
@@ -440,7 +443,7 @@ export function Session({
         )}
         <RosterPanel
           participants={room.participants}
-          currentDriverName={room.session.rotation[room.session.currentIndex] ?? ""}
+          currentDriverId={currentDriverId}
           myParticipantId={participantId}
           canManage={canManageOthers}
           // 自分の一時離脱/復帰は上の SelfDriverToggle が担うため、行には出さず重複を避ける（#1）。
@@ -525,7 +528,7 @@ export function Session({
                   )}
                   <RosterPanel
                     participants={room.participants}
-                    currentDriverName={room.session.rotation[room.session.currentIndex] ?? ""}
+                    currentDriverId={currentDriverId}
                     myParticipantId={participantId}
                     canManage={canManageOthers}
                     selfHasExternalToggle={false}

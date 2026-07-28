@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { computeRotationStatus } from "../../src/ui/rotation-status.js";
 
 describe("computeRotationStatus", () => {
-  const base = { rotation: ["Alice", "Bob", "Carol"], currentIndex: 0, intervalSeconds: 300, selfName: "Carol", isPaused: false };
+  const base = { rotation: ["Alice", "Bob", "Carol"], currentIndex: 0, intervalSeconds: 300, selfIndex: 2, isPaused: false };
 
   it("turnsAway は現在を 0 として循環する", () => {
     const r = computeRotationStatus(base);
@@ -27,7 +27,7 @@ describe("computeRotationStatus", () => {
   });
 
   it("自分が rotation 外なら self=null", () => {
-    const r = computeRotationStatus({ ...base, selfName: "Zoe" });
+    const r = computeRotationStatus({ ...base, selfIndex: -1 });
     expect(r.self).toBeNull();
   });
 

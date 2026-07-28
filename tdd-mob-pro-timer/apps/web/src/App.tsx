@@ -81,8 +81,9 @@ export default function App() {
   const roomRef = useRef<Room | null>(null);
   // このクライアントがルーム作成者（＝当初ホスト）か。ロビーでお題生成を自動依頼する判定に使う。
   const isCreatorRef = useRef(false);
-  // 参加時に "driver" を選択した場合、snapshot で自分が参加者に現れたら member.add を一度だけ送る。
-  const pendingDriverJoinRef = useRef<string | null>(null);
+  // 参加時に "driver" を選択したか。snapshot で自分が参加者に現れたら member.add を一度だけ送る。
+  // 名前ではなく「宣言したか」だけを持つ（誰を加えるかは自分の participantId で決まる・D6b）。
+  const pendingDriverJoinRef = useRef(false);
   // ロビーでのお題自動生成依頼を一度だけ行うためのガード。
   const problemRequestedRef = useRef(false);
   // 終了種別を onRoom（snapshot 受信）クロージャから参照するための ref。
@@ -129,13 +130,15 @@ export default function App() {
         roomRef.current = r;
         setRoom(r);
         // 参加時ドライバー宣言: 自分が参加者に現れたら一度だけ rotation に加入する。
-        if (
-          pendingDriverJoinRef.current &&
-          r.participants.some((p) => p.displayName === pendingDriverJoinRef.current) &&
-          shouldAutoJoinRotation({ pendingName: pendingDriverJoinRef.current, rotation: r.session.rotation })
-        ) {
-          newClient.send({ command: "member.add", name: pendingDriverJoinRef.current });
-          pendingDriverJoinRef.current = null;
+        const myId = participantIdRef.current;
+        if (pendingDriverJoinRef.current && myId && r.participants.some((p) => p.participantId === myId)) {
+          // 宣言は「参加時の一度きり」。輪に入れたかに関わらずここで降ろす。
+          // 降ろさないと、後で自分が輪を抜けた瞬間に再追加が走り、意図しない再加入になる
+          // （サーバー側の枠の消え方の誤りを覆い隠してもいた）。
+          pendingDriverJoinRef.current = false;
+          if (shouldAutoJoinRotation({ participantId: myId, rotation: r.session.rotation })) {
+            newClient.send({ command: "member.add", participantId: myId });
+          }
         }
         // 生成中で、お題の内容が前回から変化したら生成中を解除（AI 成功・定型縮退・タイムアウト確定の全経路）。
         if (shouldClearGenerating(generatingRef.current, prevRoom?.problem ?? null, r.problem ?? null)) {
@@ -312,7 +315,7 @@ export default function App() {
   ) => {
     isCreatorRef.current = false;
     // driver 宣言を ref に記録しておき、snapshot で自分が現れたら member.add を送る。
-    if (mode === "driver") pendingDriverJoinRef.current = displayName;
+    if (mode === "driver") pendingDriverJoinRef.current = true;
     const c = makeClient(() => ({
       language: roomRef.current?.config.language ?? "TypeScript",
       difficulty: roomRef.current?.config.difficulty ?? "easy",
@@ -321,14 +324,15 @@ export default function App() {
     c.send({ command: "room.join", code, displayName, hasAiKey: false, ...(passphrase ? { passphrase } : {}) });
   };
 
-  /** 自分をドライバーに加える（名前で追加・冪等は重複名ガードに委ねる）。 */
-  const joinRotation = (displayName: string) => {
-    client?.send({ command: "member.add", name: displayName });
+  /** 自分をドライバーに加える（参加者IDで追加・D6b。冪等はサーバー側の重複ガードに委ねる）。 */
+  const joinRotation = (participantId: string) => {
+    client?.send({ command: "member.add", participantId });
   };
   /** 自分をローテーションから外す。index は描画時ではなく送信時の最新 snapshot
-   *  （roomRef）から解決し、同時編集による index ずれで別人を外す事故を防ぐ（レビュー #1）。 */
-  const leaveRotation = (displayName: string) => {
-    const idx = roomRef.current?.session.rotation.indexOf(displayName) ?? -1;
+   *  （roomRef）から解決し、同時編集による index ずれで別人を外す事故を防ぐ（レビュー #1）。
+   *  照合は参加者ID（D6b）なので、同名の別人の枠を外すことはない。 */
+  const leaveRotation = (participantId: string) => {
+    const idx = roomRef.current?.session.rotation.indexOf(participantId) ?? -1;
     if (idx >= 0) client?.send({ command: "member.remove", index: idx });
   };
   /** ホストが参加者を退出させる（⑪・host 限定）。 */

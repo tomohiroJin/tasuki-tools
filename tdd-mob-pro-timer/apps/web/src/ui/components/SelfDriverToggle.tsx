@@ -16,10 +16,10 @@ interface SelfDriverToggleProps {
   isSkipping: boolean;
   /** 列から外れられるか（最後の1人は外れられないため false）。 */
   canLeave: boolean;
-  displayName: string;
   participantId: string;
-  onJoin?: (displayName: string) => void;
-  onLeave?: (displayName: string) => void;
+  /** 輪への出入りは参加者IDで指す（D6b。同名でも取り違えない）。 */
+  onJoin?: (participantId: string) => void;
+  onLeave?: (participantId: string) => void;
   onSkip?: (participantId: string) => void;
   onResume?: (participantId: string) => void;
   /** ルームそのものから抜ける（自己退出・FR-079）。未指定なら導線を出さない。 */
@@ -38,7 +38,6 @@ export function SelfDriverToggle({
   inRotation,
   isSkipping,
   canLeave,
-  displayName,
   participantId,
   onJoin,
   onLeave,
@@ -104,7 +103,7 @@ export function SelfDriverToggle({
           進行の操作はできます。交代の輪に入ると、ドライバーとして順番が回ってきます。
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <PrimaryButton onClick={() => onJoin?.(displayName)} className="text-sm px-4 py-2">
+          <PrimaryButton onClick={() => onJoin?.(participantId)} className="text-sm px-4 py-2">
             ドライバーに加わる
           </PrimaryButton>
           {spectateButton}
@@ -136,7 +135,7 @@ export function SelfDriverToggle({
           </GhostButton>
         )}
         <GhostButton
-          onClick={() => onLeave?.(displayName)}
+          onClick={() => onLeave?.(participantId)}
           disabled={!canLeave}
           title={canLeave ? undefined : "最後のドライバーは外れられません"}
           className="text-xs px-3 py-1.5"

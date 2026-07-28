@@ -25,7 +25,7 @@ const emptyOverrides = () => ({
 
 /** テスト用に currentIndex と差分を指定して soloRoom を組み立てる */
 function build(currentIndex = 0, overrides = emptyOverrides()) {
-  const agg = initialAggregate(config);
+  const agg = initialAggregate(config, config.members.map((_, i) => soloMemberId(i)));
   return buildSoloRoom({
     config,
     engineSession: { ...agg.session, currentIndex },
@@ -52,21 +52,22 @@ describe("buildSoloRoom（項目4）", () => {
     });
   });
 
-  it("現ドライバーが Bob（currentIndex=1）のとき rotation[currentIndex] が Bob と一致し、同名の Participant が存在する", () => {
+  it("現ドライバーが Bob（currentIndex=1）のとき rotation[currentIndex] が Bob の participantId を指す", () => {
     const room = build(1);
-    expect(room.session.rotation[room.session.currentIndex]).toBe("Bob");
-    // RosterPanel は表示名で現ドライバーを判定するため、participant の displayName と一致が必須
-    expect(room.participants.some((p) => p.displayName === "Bob")).toBe(true);
+    // rotation は参加者IDの配列（D6b）。RosterPanel も識別子で現ドライバーを判定する。
+    expect(room.session.rotation[room.session.currentIndex]).toBe(soloMemberId(1));
+    expect(room.participants.some((p) => p.participantId === soloMemberId(1))).toBe(true);
   });
 
-  it("members[1] に安定した participantId が付き、改名差分が表示名と rotation に反映される", () => {
+  it("members[1] に安定した participantId が付き、改名しても rotation は動かない", () => {
     const id = soloMemberId(1);
     const ov = emptyOverrides();
     ov.renames[id] = "Bobby";
     const room = build(1, ov);
     const bob = room.participants.find((p) => p.participantId === id);
     expect(bob?.displayName).toBe("Bobby");
-    expect(room.session.rotation[1]).toBe("Bobby");
+    // rotation は識別子なので改名の影響を受けない（D6b）。
+    expect(room.session.rotation[1]).toBe(id);
   });
 
   it("members[1] を skip すると driverEligible=false になる", () => {
@@ -85,7 +86,7 @@ describe("buildSoloRoom（項目4）", () => {
     ov.proxies.push({ participantId: "px-1", displayName: "Carol" });
     const room = build(0, ov);
     expect(room.session.rotation.length).toBe(room.session.driverCounts.length);
-    expect(room.session.rotation).toContain("Carol");
+    expect(room.session.rotation).toContain("px-1");
     expect(room.participants).toHaveLength(3);
     expect(room.participants[2]).toMatchObject({
       participantId: "px-1",
@@ -104,8 +105,8 @@ describe("buildSoloRoom（項目4）", () => {
     expect(room.participants).toHaveLength(2);
     expect(room.participants[0]?.displayName).toBe("Alice");
     expect(room.participants[1]?.displayName).toBe("Bob");
-    expect(room.session.rotation).not.toContain("Stale");
-    expect(room.session.rotation).not.toContain("Phantom");
+    // rotation は識別子なので、そもそも改名差分の値が載ることはない。
+    expect(room.session.rotation).toEqual([soloMemberId(0), soloMemberId(1)]);
   });
 });
 

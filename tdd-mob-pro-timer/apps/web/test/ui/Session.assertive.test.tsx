@@ -26,7 +26,8 @@ function makeRoom(assertive: boolean, currentIndex: number): Room {
   };
   return {
     code: "AA0001", createdAt: 0, hostParticipantId: "host-1", config, problem: null,
-    session: { rotation: ["Alice", "Bob"], currentIndex, isPaused: false, driverCounts: [0, 0], totalSwitches: currentIndex },
+    // rotation は参加者IDの配列（D6b）
+    session: { rotation: ["host-1", "edit-1"], currentIndex, isPaused: false, driverCounts: [0, 0], totalSwitches: currentIndex },
     clock: { running: true, intervalSeconds: 300, anchorServerTime: 0, secondsLeftAtAnchor: 300, accumulatedElapsedMs: 0, runningSince: 0 },
     phase: "session",
     participants: [

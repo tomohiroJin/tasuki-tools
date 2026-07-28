@@ -11,7 +11,8 @@ interface RotationLineupProps {
   rotation: string[];
   currentIndex: number;
   intervalSeconds: number;
-  selfName: string;
+  /** rotation 内での自分の位置（輪の外なら -1）。 */
+  selfIndex: number;
   isPaused: boolean;
 }
 
@@ -31,8 +32,8 @@ function buildSelfSummary(self: MemberTurn): string {
   return `あなた: ${turns}${mins}`;
 }
 
-export function RotationLineup({ rotation, currentIndex, intervalSeconds, selfName, isPaused }: RotationLineupProps) {
-  const { members, self } = computeRotationStatus({ rotation, currentIndex, intervalSeconds, selfName, isPaused });
+export function RotationLineup({ rotation, currentIndex, intervalSeconds, selfIndex, isPaused }: RotationLineupProps) {
+  const { members, self } = computeRotationStatus({ rotation, currentIndex, intervalSeconds, selfIndex, isPaused });
   // メンバーが空の場合は何も描画しない
   if (members.length === 0) return null;
 

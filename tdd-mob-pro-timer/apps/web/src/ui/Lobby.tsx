@@ -38,10 +38,10 @@ interface LobbyProps {
   generatingProblem?: boolean;
   /** セッション設定の変更（言語/難易度/間隔/オプション）。editor+ のみ。config.set を送る。 */
   onConfigSet?: (patch: Partial<SessionConfig>) => void;
-  /** 自分をドライバーローテーションに加える（自名で member.add）。2層モデル。 */
-  onJoinRotation?: (displayName: string) => void;
+  /** 自分をドライバーローテーションに加える（自分のIDで member.add）。2層モデル。 */
+  onJoinRotation?: (participantId: string) => void;
   /** 自分をローテーションから外す（自名を渡し、index は App が最新 snapshot から解決）。 */
-  onLeaveRotation?: (displayName: string) => void;
+  onLeaveRotation?: (participantId: string) => void;
   /** ホストが参加者を退出させる（⑪・host 限定）。 */
   onRemoveParticipant?: (participantId: string) => void;
   /** ホストが他の参加者の役割を切り替える（host 限定・開始前・FR-083）。
@@ -185,7 +185,8 @@ export function Lobby({
                 />
                 <ul className="space-y-1.5">
                   {room.participants.map((p) => {
-                    const rotationIndex = room.session.rotation.indexOf(p.displayName);
+                    // rotation は参加者IDの配列（D6b）
+                    const rotationIndex = room.session.rotation.indexOf(p.participantId);
                     const inRotation = rotationIndex >= 0;
                     const isMe = p.participantId === participantId;
                     const rotationLen = room.session.rotation.length;
@@ -216,7 +217,7 @@ export function Lobby({
                           {isMe && (
                             inRotation ? (
                               <GhostButton
-                                onClick={() => onLeaveRotation?.(p.displayName)}
+                                onClick={() => onLeaveRotation?.(p.participantId)}
                                 disabled={isLastDriver}
                                 title={isLastDriver ? "最後のドライバーは外れられません" : undefined}
                                 className="text-xs px-3 py-1.5"
@@ -224,7 +225,7 @@ export function Lobby({
                                 列から外れる
                               </GhostButton>
                             ) : (
-                              <PrimaryButton onClick={() => onJoinRotation?.(p.displayName)} className="text-xs px-3 py-1.5 min-h-[44px] sm:min-h-0">
+                              <PrimaryButton onClick={() => onJoinRotation?.(p.participantId)} className="text-xs px-3 py-1.5 min-h-[44px] sm:min-h-0">
                                 ドライバーに加わる
                               </PrimaryButton>
                             )
@@ -254,14 +255,14 @@ export function Lobby({
                               <RowIconButton
                                 icon={UserMinus}
                                 label={`${p.displayName} をドライバーから外す`}
-                                onClick={() => onLeaveRotation?.(p.displayName)}
+                                onClick={() => onLeaveRotation?.(p.participantId)}
                                 disabled={isLastDriver}
                               />
                             ) : (
                               <RowIconButton
                                 icon={UserPlus}
                                 label={`${p.displayName} をドライバーに追加`}
-                                onClick={() => onJoinRotation?.(p.displayName)}
+                                onClick={() => onJoinRotation?.(p.participantId)}
                               />
                             )
                           )}

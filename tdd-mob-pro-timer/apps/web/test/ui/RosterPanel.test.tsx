@@ -51,8 +51,8 @@ describe("RosterPanel モブ順表示", () => {
       <RosterPanel
         {...baseProps}
         participants={participants}
-        currentDriverName="Alice"
-        rotation={["Alice", "Bob", "Carol"]}
+        currentDriverId="a"
+        rotation={["a", "b", "c"]}
       />,
     );
     const items = screen.getAllByRole("listitem");
@@ -66,8 +66,8 @@ describe("RosterPanel モブ順表示", () => {
       <RosterPanel
         {...baseProps}
         participants={[mk("a", "Alice"), mk("b", "Bob")]}
-        currentDriverName="Alice"
-        rotation={["Alice", "Bob"]}
+        currentDriverId="a"
+        rotation={["a", "b"]}
       />,
     );
     const items = screen.getAllByRole("listitem");
@@ -84,8 +84,8 @@ describe("RosterPanel モブ順表示", () => {
       <RosterPanel
         {...baseProps}
         participants={participants}
-        currentDriverName="Alice"
-        rotation={["Alice"]}
+        currentDriverId="a"
+        rotation={["a"]}
       />,
     );
     const items = screen.getAllByRole("listitem");
@@ -98,8 +98,8 @@ describe("RosterPanel モブ順表示", () => {
       <RosterPanel
         {...baseProps}
         participants={[mk("a", "Alice")]}
-        currentDriverName="Alice"
-        rotation={["Alice"]}
+        currentDriverId="a"
+        rotation={["a"]}
       />,
     );
     expect(screen.getByText("▶ 今")).toBeTruthy();
@@ -113,7 +113,7 @@ describe("RosterPanel（T056/T057）", () => {
       makeParticipant({ participantId: "p1", displayName: "Alice", role: "host" }),
       makeParticipant({ participantId: "p2", displayName: "Bob", role: "editor", connId: "conn2" }),
     ],
-    currentDriverName: "Alice",
+    currentDriverId: "p1",
     myParticipantId: "p1",
     canManage: true,
     onRename: noop,
@@ -130,13 +130,13 @@ describe("RosterPanel（T056/T057）", () => {
 
   it("rotation 上の現ドライバーが participants 配列と不一致でも正しい人がハイライトされる（バグ修正）", () => {
     // participants[1] が viewer のとき、rotation=["Alice","Carol"] となり
-    // currentDriverName="Carol" が指すのは participants[2]。配列インデックス比較だと誤る。
+    // currentDriverId="p3" が指すのは participants[2]。配列インデックス比較だと誤る。
     const participants = [
       makeParticipant({ participantId: "p1", displayName: "Alice", role: "host" }),
       makeParticipant({ participantId: "p2", displayName: "Bob", role: "viewer", connId: "c2" }),
       makeParticipant({ participantId: "p3", displayName: "Carol", role: "editor", connId: "c3" }),
     ];
-    render(<RosterPanel {...baseProps} participants={participants} currentDriverName="Carol" />);
+    render(<RosterPanel {...baseProps} participants={participants} currentDriverId="p3" />);
     // Carol の li に「現在」マーカーが付く（Bob には付かない）
     const carolItem = screen.getByText("Carol").closest("li");
     const bobItem = screen.getByText("Bob").closest("li");
@@ -243,10 +243,10 @@ describe("RosterPanel（T056/T057）", () => {
   });
 
   describe("ドライバー並べ替えボタン（v2.3 #1）", () => {
-    // rotation=["Alice","Bob"] のとき、ホストは各ドライバー行に上/下ボタンを見られる。
+    // rotation=[p1,p2] のとき、ホストは各ドライバー行に上/下ボタンを見られる。
     const moveProps = {
       ...baseProps,
-      rotation: ["Alice", "Bob"],
+      rotation: ["p1", "p2"],
     };
 
     it("ホストはドライバー行で『前の順番へ』を押すと onMove(from, from-1) が呼ばれる", () => {
@@ -291,7 +291,7 @@ describe("RosterPanel（T056/T057）", () => {
         makeParticipant({ participantId: "p3", displayName: "Carol", role: "viewer", connId: "c3" }),
       ];
       render(
-        <RosterPanel {...baseProps} participants={participants} rotation={["Alice", "Bob"]} onMove={vi.fn()} />,
+        <RosterPanel {...baseProps} participants={participants} rotation={["p1", "p2"]} onMove={vi.fn()} />,
       );
       expect(screen.queryByRole("button", { name: /Carol を前の順番へ/ })).toBeNull();
       expect(screen.queryByRole("button", { name: /Carol を後の順番へ/ })).toBeNull();
@@ -311,7 +311,7 @@ describe("RosterPanel（T056/T057）", () => {
     });
 
     it("ドライバーが1人だけのときは並べ替えボタンを出さない", () => {
-      render(<RosterPanel {...baseProps} rotation={["Alice"]} onMove={vi.fn()} />);
+      render(<RosterPanel {...baseProps} rotation={["p1"]} onMove={vi.fn()} />);
       expect(screen.queryByRole("button", { name: /前の順番へ/ })).toBeNull();
       expect(screen.queryByRole("button", { name: /後の順番へ/ })).toBeNull();
     });
@@ -323,8 +323,8 @@ describe("RosterPanel（T056/T057）", () => {
         <RosterPanel
           {...baseProps}
           participants={[mk("a", "Alice")]}
-          currentDriverName="Alice"
-          rotation={["Alice"]}
+          currentDriverId="a"
+          rotation={["a"]}
           scrollable
         />,
       );
@@ -338,8 +338,8 @@ describe("RosterPanel（T056/T057）", () => {
         <RosterPanel
           {...baseProps}
           participants={[mk("a", "Alice")]}
-          currentDriverName="Alice"
-          rotation={["Alice"]}
+          currentDriverId="a"
+          rotation={["a"]}
         />,
       );
       expect(screen.getByRole("list").className).not.toContain("overflow-y-auto");
@@ -394,7 +394,7 @@ describe("RosterPanel（T056/T057）", () => {
         <RosterPanel
           {...baseProps}
           participants={participants}
-          currentDriverName="Alice"
+          currentDriverId="p1"
           onTransferHost={vi.fn()}
         />,
       );
@@ -432,8 +432,8 @@ const sectionBase = {
     mkRolled("b", "Bob", "editor"),
     mkRolled("v", "Zoe", "viewer"),
   ],
-  rotation: ["Alice", "Bob"],
-  currentDriverName: "Bob",
+  rotation: ["h", "b"],
+  currentDriverId: "b",
   myParticipantId: "h",
   canManage: true,
   onRename: vi.fn(), onSkip: vi.fn(), onResume: vi.fn(), onAddProxy: vi.fn(),
@@ -476,10 +476,10 @@ describe("RosterPanel セクション分割", () => {
     render(
       <RosterPanel
         participants={participants}
-        currentDriverName="D"
+        currentDriverId="p3"
         myParticipantId="p0"
         canManage={false}
-        rotation={names}
+        rotation={participants.map((p) => p.participantId)}
         onRename={vi.fn()}
         onSkip={vi.fn()}
         onResume={vi.fn()}
@@ -509,8 +509,8 @@ describe("RosterPanel ドライバー指名（Issue #13）", () => {
       <RosterPanel
         {...hostProps}
         participants={[mk("a", "Alice"), mk("b", "Bob")]}
-        currentDriverName="Alice"
-        rotation={["Alice", "Bob"]}
+        currentDriverId="a"
+        rotation={["a", "b"]}
       />,
     );
     const list = screen.getByRole("list", { name: "ドライバー一覧" });
@@ -523,8 +523,8 @@ describe("RosterPanel ドライバー指名（Issue #13）", () => {
       <RosterPanel
         {...hostProps}
         participants={[mk("a", "Alice"), mk("b", "Bob")]}
-        currentDriverName="Alice"
-        rotation={["Alice", "Bob"]}
+        currentDriverId="a"
+        rotation={["a", "b"]}
       />,
     );
     const list = screen.getByRole("list", { name: "ドライバー一覧" });
@@ -538,8 +538,8 @@ describe("RosterPanel ドライバー指名（Issue #13）", () => {
         {...hostProps}
         canManage={false}
         participants={[mk("a", "Alice"), mk("b", "Bob")]}
-        currentDriverName="Alice"
-        rotation={["Alice", "Bob"]}
+        currentDriverId="a"
+        rotation={["a", "b"]}
       />,
     );
     const list = screen.getByRole("list", { name: "ドライバー一覧" });
@@ -552,8 +552,8 @@ describe("RosterPanel ドライバー指名（Issue #13）", () => {
       <RosterPanel
         {...hostProps}
         participants={[mk("a", "Alice"), mk("w", "Watcher")]}
-        currentDriverName="Alice"
-        rotation={["Alice"]}
+        currentDriverId="a"
+        rotation={["a"]}
       />,
     );
     const watchList = screen.getByRole("list", { name: "見学一覧" });
@@ -566,8 +566,8 @@ describe("RosterPanel ドライバー指名（Issue #13）", () => {
       <RosterPanel
         {...hostProps}
         participants={[mk("a", "Alice"), mk("b", "Bob")]}
-        currentDriverName="Alice"
-        rotation={["Alice", "Bob"]}
+        currentDriverId="a"
+        rotation={["a", "b"]}
       />,
     );
     const list = screen.getByRole("list", { name: "ドライバー一覧" });
@@ -581,8 +581,8 @@ describe("RosterPanel ドライバー指名（Issue #13）", () => {
       <RosterPanel
         {...hostProps}
         participants={[mk("a", "Alice"), mk("b", "Bob", { presence: "offline" })]}
-        currentDriverName="Alice"
-        rotation={["Alice", "Bob"]}
+        currentDriverId="a"
+        rotation={["a", "b"]}
       />,
     );
     const list = screen.getByRole("list", { name: "ドライバー一覧" });
@@ -595,8 +595,8 @@ describe("RosterPanel ドライバー指名（Issue #13）", () => {
       <RosterPanel
         {...hostProps}
         participants={[mk("a", "Alice"), mk("b", "Bob", { presence: "offline", isPlaceholder: true })]}
-        currentDriverName="Alice"
-        rotation={["Alice", "Bob"]}
+        currentDriverId="a"
+        rotation={["a", "b"]}
       />,
     );
     const list = screen.getByRole("list", { name: "ドライバー一覧" });
@@ -617,7 +617,7 @@ describe("RosterPanel 退出操作（T032）", () => {
       makeParticipant({ participantId: "p1", displayName: "Alice", role: "host" }),
       makeParticipant({ participantId: "p2", displayName: "Bob", role: "editor", connId: "conn2" }),
     ],
-    currentDriverName: "Alice",
+    currentDriverId: "p1",
     myParticipantId: "p1",
     canManage: true,
     onRename: noop,
@@ -710,7 +710,7 @@ describe("RosterPanel 同名参加者の区別（T042）", () => {
   ];
   const dupProps = {
     participants: twoBobs,
-    currentDriverName: "Alice",
+    currentDriverId: "pid-0001",
     myParticipantId: "pid-0001",
     canManage: true,
     onRename: noop,

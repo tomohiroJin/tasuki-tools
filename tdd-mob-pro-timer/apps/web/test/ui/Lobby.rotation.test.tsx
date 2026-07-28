@@ -1,7 +1,7 @@
 /**
  * Lobby「ドライバーに加わる/外れる」自己トグルのテスト（UX 再設計 C2・2層モデル）
  * 参加者は本人の行で、ローテーション加入/離脱を切り替える。
- * 加入=member.add(自名)、離脱=member.remove(自分の rotation index)。
+ * 加入=member.add(自分のID・D6b)、離脱=member.remove(自分の rotation index)。
  */
 
 import { describe, it, expect, vi } from "vitest";
@@ -17,13 +17,13 @@ function p(overrides: Partial<Participant>): Participant {
   };
 }
 
-/** host=Alice(rotation済), 自分=Bob(editor・rotation未加入) の部屋 */
+/** host=Alice(rotation済), 自分=Bob(editor・rotation未加入) の部屋。rotation は参加者IDの配列（D6b）。 */
 function makeRoom(): Room {
   return {
     code: "TEST01", createdAt: 0, hostParticipantId: "host-p",
     config: { language: "TypeScript", difficulty: "easy", members: ["Alice"], intervalMinutes: 5 },
     problem: null,
-    session: { rotation: ["Alice"], currentIndex: 0, isPaused: false, driverCounts: [0], totalSwitches: 0 },
+    session: { rotation: ["host-p"], currentIndex: 0, isPaused: false, driverCounts: [0], totalSwitches: 0 },
     clock: { running: false, intervalSeconds: 300, anchorServerTime: 0, secondsLeftAtAnchor: 300, accumulatedElapsedMs: 0, runningSince: null },
     phase: "setup",
     participants: [
@@ -42,27 +42,27 @@ describe("Lobby ドライバー加入トグル（C2）", () => {
     expect(screen.getByRole("button", { name: /ドライバーに加わる/ })).toBeTruthy();
   });
 
-  it("「ドライバーに加わる」で onJoinRotation(自名) が呼ばれる", () => {
+  it("「ドライバーに加わる」で onJoinRotation(自分のID) が呼ばれる", () => {
     const onJoinRotation = vi.fn();
     render(
       <Lobby room={makeRoom()} participantId="bob-p" onStartSession={noop} onJoinRotation={onJoinRotation} />,
     );
     fireEvent.click(screen.getByRole("button", { name: /ドライバーに加わる/ }));
-    expect(onJoinRotation).toHaveBeenCalledWith("Bob");
+    expect(onJoinRotation).toHaveBeenCalledWith("bob-p");
   });
 
-  it("ローテーション加入済みの自分には「列から外れる」が出て自名で離脱する", () => {
+  it("ローテーション加入済みの自分には「列から外れる」が出て自分のIDで離脱する", () => {
     const onLeaveRotation = vi.fn();
     // 2人ローテーションにして「外れる」を有効化（最後の1人は外れられないため）。
     const room = makeRoom();
-    room.session.rotation = ["Alice", "Bob"];
+    room.session.rotation = ["host-p", "bob-p"];
     room.session.driverCounts = [0, 0];
     // index ではなく自名を渡す（index は App が最新 snapshot から解決・レビュー #1）。
     render(
       <Lobby room={room} participantId="host-p" onStartSession={noop} onLeaveRotation={onLeaveRotation} />,
     );
     fireEvent.click(screen.getByRole("button", { name: /列から外れる|外れる/ }));
-    expect(onLeaveRotation).toHaveBeenCalledWith("Alice");
+    expect(onLeaveRotation).toHaveBeenCalledWith("host-p");
   });
 
   it("ホストは見学者を『ドライバーに追加』できる（②）", () => {
@@ -72,13 +72,13 @@ describe("Lobby ドライバー加入トグル（C2）", () => {
       <Lobby room={makeRoom()} participantId="host-p" onStartSession={noop} onJoinRotation={onJoinRotation} />,
     );
     fireEvent.click(screen.getByRole("button", { name: "Bob をドライバーに追加" }));
-    expect(onJoinRotation).toHaveBeenCalledWith("Bob");
+    expect(onJoinRotation).toHaveBeenCalledWith("bob-p");
   });
 
   it("ホストはドライバー順を入れ替えられる（④）", () => {
     const onMoveRotation = vi.fn();
     const room = makeRoom();
-    room.session.rotation = ["Alice", "Bob"];
+    room.session.rotation = ["host-p", "bob-p"];
     room.session.driverCounts = [0, 0];
     render(
       <Lobby room={room} participantId="host-p" onStartSession={noop} onMoveRotation={onMoveRotation} />,
@@ -91,7 +91,7 @@ describe("Lobby ドライバー加入トグル（C2）", () => {
   it("ホストには『ランダム』ボタンが出て、押すと onShuffle が呼ばれる（v2.3 #1）", () => {
     const onShuffle = vi.fn();
     const room = makeRoom();
-    room.session.rotation = ["Alice", "Bob"];
+    room.session.rotation = ["host-p", "bob-p"];
     room.session.driverCounts = [0, 0];
     render(
       <Lobby room={room} participantId="host-p" onStartSession={noop} onShuffle={onShuffle} />,

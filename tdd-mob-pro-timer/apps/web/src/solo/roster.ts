@@ -110,7 +110,7 @@ export function canAddSoloProxy(
 /**
  * ソロ用の合成ルームを組み立てる（共有時の Room 形と互換）。
  * - participants は config.members 全員＋代理（members[0]=host、残りは editor）。
- * - rotation は各メンバーの「表示名」（改名反映）＋代理名。engine の rotation 順と一致させる。
+ * - rotation は各メンバーの participantId ＋代理の participantId（D6b）。engine の rotation 順と一致させる。
  * - driverCounts は engine 由来（members 分）＋代理分 0。不変条件
  *   rotation.length === driverCounts.length を保つ。
  */
@@ -139,16 +139,14 @@ export function buildSoloRoom(params: {
     driverEligible: !overrides.skips.has(m.participantId),
   }));
 
-  // rotation はメンバー（改名反映）→代理名の順。engine rotation（config.members 順）と
-  // index が一致するので currentIndex はそのまま使える。
-  const memberNames = members
-    .filter((m) => !m.isProxy)
-    .map((m) => m.displayName);
-  const proxyNames = members.filter((m) => m.isProxy).map((m) => m.displayName);
-  const rotation = [...memberNames, ...proxyNames];
+  // rotation は参加者IDの配列（D6b）。メンバー→代理の順で、engine rotation
+  // （config.members 順の soloMemberId）と index が一致するので currentIndex はそのまま使える。
+  const memberIds = members.filter((m) => !m.isProxy).map((m) => m.participantId);
+  const proxyIds = members.filter((m) => m.isProxy).map((m) => m.participantId);
+  const rotation = [...memberIds, ...proxyIds];
   const driverCounts = [
     ...engineSession.driverCounts,
-    ...proxyNames.map(() => 0),
+    ...proxyIds.map(() => 0),
   ];
 
   return {
