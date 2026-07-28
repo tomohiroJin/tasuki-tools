@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import React from "react";
 import { Lobby } from "../../src/ui/Lobby.js";
 import type { Room, Participant } from "@tdd-mob/core";
@@ -105,5 +105,149 @@ describe("Lobby ドライバー加入トグル（C2）", () => {
       <Lobby room={makeRoom()} participantId="bob-p" onStartSession={noop} onShuffle={vi.fn()} />,
     );
     expect(screen.queryByRole("button", { name: /ランダム/ })).toBeNull();
+  });
+});
+
+// ─── 同名参加者の区別（実機検証で判明した欠落・FR-084）────────────────────────
+// Lobby は RosterPanel とは別のリスト実装で、同名を区別する配慮が無かった。
+// 同名が並ぶのは本 Issue の主要シナリオ（二重参加の幽霊・再接続）でロビーでも起きる。
+
+describe("Lobby 同名参加者の区別", () => {
+  /** host=Alice と、同名の Bob 2名（片方は輪の中）が居る部屋。 */
+  function makeDupRoom(): Room {
+    const room = makeRoom();
+    return {
+      ...room,
+      session: { ...room.session, rotation: ["host-p", "bob-0002"], driverCounts: [0, 0] },
+      participants: [
+        p({ participantId: "host-p", displayName: "Alice", role: "host" }),
+        p({ participantId: "pid-0002", displayName: "Bob", connId: "c2" }),
+        p({ participantId: "pid-0003", displayName: "Bob", connId: "c3" }),
+      ],
+    };
+  }
+
+  it("同名2名の操作ボタンが互いに異なるラベルになる", () => {
+    render(
+      <Lobby
+        room={makeDupRoom()}
+        participantId="host-p"
+        onStartSession={noop}
+        onRemoveParticipant={vi.fn()}
+      />,
+    );
+
+    const labels = screen
+      .getAllByRole("button")
+      .map((b) => b.getAttribute("aria-label") ?? "")
+      .filter((a) => a.includes("を退出させる"));
+
+    expect(labels).toHaveLength(2);
+    expect(new Set(labels).size).toBe(2);
+    expect(labels).toContain("Bob（ID: 0002） を退出させる");
+    expect(labels).toContain("Bob（ID: 0003） を退出させる");
+  });
+
+  it("同名がいると行の表示名にも識別子が出る（目で見ても区別できる）", () => {
+    render(<Lobby room={makeDupRoom()} participantId="host-p" onStartSession={noop} />);
+
+    expect(screen.queryByText("Bob")).toBeNull();
+    expect(screen.getByText("Bob（ID: 0002）")).toBeTruthy();
+    expect(screen.getByText("Bob（ID: 0003）")).toBeTruthy();
+  });
+
+  it("同名がいなければ識別子を添えない（通常時に読みにくくしない）", () => {
+    render(
+      <Lobby
+        room={makeRoom()}
+        participantId="host-p"
+        onStartSession={noop}
+        onRemoveParticipant={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Bob")).toBeTruthy();
+    expect(screen.getByLabelText("Bob を退出させる")).toBeTruthy();
+  });
+});
+
+// ─── 退出の確認（FR-075/076・実機検証で判明した欠落）──────────────────────────
+// Session 画面の RosterPanel は確認を挟むが、Lobby は1クリックで即退出だった。
+// 同名が並ぶ場面では取り返しのつかない誤操作に直結する。
+
+describe("Lobby 退出の確認", () => {
+  function makeRoomWithGuest(): Room {
+    return makeRoom();
+  }
+
+  it("退出ボタンを押しても即座には退出させない（確認を挟む）", () => {
+    const onRemoveParticipant = vi.fn();
+    render(
+      <Lobby
+        room={makeRoomWithGuest()}
+        participantId="host-p"
+        onStartSession={noop}
+        onRemoveParticipant={onRemoveParticipant}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText("Bob を退出させる"));
+
+    expect(onRemoveParticipant).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog")).toBeTruthy();
+  });
+
+  it("確認ダイアログに対象者の名前と再参加できる旨を出す（FR-075）", () => {
+    render(
+      <Lobby
+        room={makeRoomWithGuest()}
+        participantId="host-p"
+        onStartSession={noop}
+        onRemoveParticipant={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText("Bob を退出させる"));
+
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText(/Bob/)).toBeTruthy();
+    expect(dialog.textContent).toContain("再参加");
+    // 共有ルームなので他の参加者へ影響することも明示する（FR-076）。
+    expect(dialog.textContent).toContain("他の参加者");
+  });
+
+  it("確認して初めて onRemoveParticipant が呼ばれる", () => {
+    const onRemoveParticipant = vi.fn();
+    render(
+      <Lobby
+        room={makeRoomWithGuest()}
+        participantId="host-p"
+        onStartSession={noop}
+        onRemoveParticipant={onRemoveParticipant}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText("Bob を退出させる"));
+    fireEvent.click(screen.getByRole("button", { name: "退出させる" }));
+
+    expect(onRemoveParticipant).toHaveBeenCalledWith("bob-p");
+  });
+
+  it("キャンセルすると退出させない", () => {
+    const onRemoveParticipant = vi.fn();
+    render(
+      <Lobby
+        room={makeRoomWithGuest()}
+        participantId="host-p"
+        onStartSession={noop}
+        onRemoveParticipant={onRemoveParticipant}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText("Bob を退出させる"));
+    fireEvent.click(screen.getByRole("button", { name: "キャンセル" }));
+
+    expect(onRemoveParticipant).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 });

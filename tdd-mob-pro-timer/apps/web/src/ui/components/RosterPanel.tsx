@@ -169,6 +169,10 @@ export function RosterPanel({
     const rotationIndex = rotation ? rotation.indexOf(p.participantId) : -1;
     const inRotation = rotationIndex >= 0;
     const rotationLen = rotation?.length ?? 0;
+    // 同名が並ぶときだけ識別子を添える（FR-084・規則は participant-label.ts に1つだけ）。
+    // 退出だけでなく全ての操作に使う。同名の行は順番バッジ以外の見た目が同じで、
+    // 「どちらに効く操作なのか」を名前だけでは選べない。
+    const label = participantLabel(p.displayName, p.participantId, participants);
     // 並べ替えはホストが操作でき、ドライバーが2人以上いるときだけ意味を持つ。
     const canMove = canManage && !!onMove && inRotation && rotationLen > 1;
 
@@ -190,7 +194,7 @@ export function RosterPanel({
               type="text"
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
-              aria-label={`${p.displayName} の新しい名前`}
+              aria-label={`${label} の新しい名前`}
               maxLength={MAX_DISPLAY_NAME}
               className="min-w-0 flex-1 rounded-md border border-[var(--hairline-strong)] bg-[var(--panel-2)] px-2 py-1 text-sm text-[var(--bone)] outline-none focus:border-[var(--signal)] focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]"
             />
@@ -220,9 +224,10 @@ export function RosterPanel({
               />
               {/* 在席状態をスクリーンリーダーへ（可視チップは廃止） */}
               <span className="sr-only">{presenceLabel(p.presence)}</span>
-              {/* 名前: text-base font-medium で情報階層の最上位に */}
+              {/* 名前: text-base font-medium で情報階層の最上位に。
+                  同名が並ぶときは識別子を添える（目で見ても行を区別できるように）。 */}
               <span className="min-w-0 font-medium text-base text-[var(--bone)] break-words">
-                {p.displayName}
+                {label}
               </span>
               {/* 役割バッジ: host/viewer のみ（editor は表示しない） */}
               {p.role === "host" && (
@@ -248,14 +253,23 @@ export function RosterPanel({
                 一時離脱/復帰は driver.skip で、自分の分は外部の自己トグルがあるなら出さず重複を避ける（#1）。 */}
             {canRename && (
               <div className="mt-1.5 flex flex-wrap items-center justify-end gap-1 pl-4">
-                <MiniButton onClick={() => startRename(p.participantId, p.displayName)}>改名</MiniButton>
+                <MiniButton
+                  onClick={() => startRename(p.participantId, p.displayName)}
+                  aria-label={`${label} を改名`}
+                >
+                  改名
+                </MiniButton>
                 {/* 一時離脱/復帰の表示可否: 自分=外部トグルが無いときのみ／他人=ホストのみ。観覧者は対象外。 */}
                 {p.role !== "viewer" &&
                   (isMine ? !selfHasExternalToggle : canManage) &&
                   (isSkipping ? (
-                    <MiniButton onClick={() => onResume(p.participantId)}>復帰</MiniButton>
+                    <MiniButton onClick={() => onResume(p.participantId)} aria-label={`${label} を復帰させる`}>
+                      復帰
+                    </MiniButton>
                   ) : (
-                    <MiniButton onClick={() => onSkip(p.participantId)}>一時離脱</MiniButton>
+                    <MiniButton onClick={() => onSkip(p.participantId)} aria-label={`${label} を一時離脱させる`}>
+                      一時離脱
+                    </MiniButton>
                   ))}
                 {/* ホストは現ドライバー以外の rotation メンバーを即ドライバーに指名できる（Issue #13）。
                     実在（非代理）オフラインの相手は無人ドライバーになるため指名不可（host.transfer と同じ方針）。
@@ -264,7 +278,7 @@ export function RosterPanel({
                   (p.presence !== "offline" || p.isPlaceholder === true) && (
                   <MiniButton
                     onClick={() => onAssignDriver(p.participantId)}
-                    aria-label={`${p.displayName} をドライバーにする`}
+                    aria-label={`${label} をドライバーにする`}
                     title="ドライバーにする"
                   >
                     ドライバーにする
@@ -277,7 +291,7 @@ export function RosterPanel({
                     <MiniButton
                       onClick={() => onMove!(rotationIndex, rotationIndex - 1)}
                       disabled={rotationIndex === 0}
-                      aria-label={`${p.displayName} を前の順番へ`}
+                      aria-label={`${label} を前の順番へ`}
                       title="前の順番へ"
                     >
                       <ChevronUp className="w-4 h-4" aria-hidden="true" />
@@ -285,7 +299,7 @@ export function RosterPanel({
                     <MiniButton
                       onClick={() => onMove!(rotationIndex, rotationIndex + 1)}
                       disabled={rotationIndex === rotationLen - 1}
-                      aria-label={`${p.displayName} を後の順番へ`}
+                      aria-label={`${label} を後の順番へ`}
                       title="後の順番へ"
                     >
                       <ChevronDown className="w-4 h-4" aria-hidden="true" />
@@ -297,7 +311,7 @@ export function RosterPanel({
                 {canManage && !isMine && p.role !== "host" && p.presence !== "offline" && onTransferHost && (
                   <MiniButton
                     onClick={() => onTransferHost(p.participantId)}
-                    aria-label={`${p.displayName} にホストを譲る`}
+                    aria-label={`${label} にホストを譲る`}
                     title="ホストを譲る"
                   >
                     <Crown className="w-4 h-4" aria-hidden="true" />
@@ -311,7 +325,7 @@ export function RosterPanel({
                 {canManage && !isMine && onRemove && (
                   <MiniButton
                     onClick={() => setPendingRemoval(p)}
-                    aria-label={`${participantLabel(p.displayName, p.participantId, participants)} を退出させる`}
+                    aria-label={`${label} を退出させる`}
                     title="退出させる"
                   >
                     <X className="w-4 h-4" aria-hidden="true" />

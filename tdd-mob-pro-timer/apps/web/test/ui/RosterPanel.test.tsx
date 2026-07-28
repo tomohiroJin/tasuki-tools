@@ -743,6 +743,38 @@ describe("RosterPanel 同名参加者の区別（T042）", () => {
     expect(labels).toContain("Bob（ID: 0003） を退出させる");
   });
 
+  it("同名がいると退出以外の操作ラベルも識別子で区別できる", () => {
+    // T042 は退出だけを対象にしていた。指名・順番移動・一時離脱・改名も
+    // 同名が並ぶと「どちらに効くのか」を選べない（実機検証で判明）。
+    render(
+      <RosterPanel
+        {...dupProps}
+        rotation={["pid-0001", "pid-0002", "pid-0003"]}
+        currentDriverId="pid-0001"
+        onAssignDriver={vi.fn()}
+        onMove={vi.fn()}
+      />,
+    );
+
+    for (const suffix of ["をドライバーにする", "を前の順番へ", "を後の順番へ", "を改名", "を一時離脱させる"]) {
+      const labels = screen
+        .getAllByRole("button")
+        .map((b) => b.getAttribute("aria-label") ?? "")
+        .filter((a) => a.endsWith(suffix) && a.startsWith("Bob"));
+      expect(labels.length, suffix).toBe(2);
+      expect(new Set(labels).size, suffix).toBe(2);
+    }
+  });
+
+  it("同名がいると行の表示名にも識別子が出る（目で見ても区別できる）", () => {
+    render(<RosterPanel {...dupProps} />);
+
+    // 素の "Bob" では引けず、識別子つきの2行が引ける。
+    expect(screen.queryByText("Bob")).toBeNull();
+    expect(screen.getByText("Bob（ID: 0002）")).toBeTruthy();
+    expect(screen.getByText("Bob（ID: 0003）")).toBeTruthy();
+  });
+
   it("同名がいなければ識別子を添えない（通常時に読みにくくしない）", () => {
     const single = [
       makeParticipant({ participantId: "pid-0001", displayName: "Alice", role: "host" }),
