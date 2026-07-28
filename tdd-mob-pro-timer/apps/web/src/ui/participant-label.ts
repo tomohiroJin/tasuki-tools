@@ -10,6 +10,8 @@
  * 別々の規則を持つと、通知で名指しされた人が一覧のどの行だったのか辿れなくなる。
  */
 
+import { nameSkeleton } from "@tdd-mob/core";
+
 /** 呼び名の判定に必要な参加者の情報。Participant 全体を要求しない。 */
 export interface LabelParticipant {
   participantId: string;
@@ -25,19 +27,26 @@ export function shortId(participantId: string): string {
 }
 
 /**
- * 名簿の中に、その participant と同名の別人がいるか。
+ * 名簿の中に、その participant と**見分けの付かない**別人がいるか。
+ *
+ * 比較は文字列の一致ではなく `nameSkeleton`（見え方の骨格）で行う。
+ * キリル文字の `Вob` は Latin の `Bob` と画面上まったく同じに見えるが別の文字列なので、
+ * 完全一致で見ていると「同名ではない」と判定され、識別子が添えられないまま並ぶ。
+ * 利用者にとって見分けが付かないなら、それは曖昧である。
  *
  * 対象が名簿から消えている場合（退出直後の通知など）も曖昧とみなす。
- * 同名が1人だけ載っていて、それが対象自身でないなら、対象は「消えた同名の別人」である。
+ * 見た目が同じ人が1人だけ載っていて、それが対象自身でないなら、
+ * 対象は「消えた見分けの付かない別人」である。
  */
 export function isAmbiguousName(
   name: string,
   participantId: string,
   participants: readonly LabelParticipant[],
 ): boolean {
-  const sameName = participants.filter((p) => p.displayName === name);
-  if (sameName.length > 1) return true;
-  return sameName.length === 1 && sameName[0]!.participantId !== participantId;
+  const skeleton = nameSkeleton(name);
+  const lookAlike = participants.filter((p) => nameSkeleton(p.displayName) === skeleton);
+  if (lookAlike.length > 1) return true;
+  return lookAlike.length === 1 && lookAlike[0]!.participantId !== participantId;
 }
 
 /**
