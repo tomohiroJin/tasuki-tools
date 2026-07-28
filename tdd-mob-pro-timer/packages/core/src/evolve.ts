@@ -286,7 +286,13 @@ function evolveConfigSet(
   let clock = agg.clock;
 
   // members 指定時のみ rotation/driverCounts/currentIndex を再構築する。
-  // 現ドライバー名を保持しつつ追従する（位置が見つからなければ 0 にクランプ）。
+  // 現ドライバーを保持しつつ追従する（位置が見つからなければ 0 にクランプ）。
+  //
+  // **注意（D6b）:** rotation は参加者IDの配列になったが、この分岐は `partial.members` の
+  // 中身をそのまま rotation にする。表示名の一覧を渡すと rotation が名前に戻り、
+  // 識別子の不変条件が壊れる。そのためサーバー層（handlers の buildDomainCommand）は
+  // config.set から members を落としており、共有ルームではこの分岐に到達しない。
+  // 輪の出入りは member.add/remove/move・addProxy・participant.remove だけが担う。
   if (partial.members !== undefined) {
     const currentMember = agg.session.rotation[agg.session.currentIndex];
     const newRotation = [...partial.members];
@@ -428,11 +434,18 @@ function evolveMembersShuffled(agg: Aggregate, order: number[]): Aggregate {
 }
 
 /** リセット時に SessionConfig を集約から再構成する */
+/**
+ * リセット時に `initialAggregate` へ渡す一時的な設定を組む。
+ *
+ * `initialAggregate` は rotation を第2引数で受け取り `members` を見ない（D6b）ため、
+ * ここの `members` は使われない。rotation は参加者IDの配列なので、これを表示名の一覧である
+ * `members` に流し込むと「IDが名前として扱われる」誤りになる。空にして流用を封じる。
+ */
 function buildConfigFromReset(agg: Aggregate): SessionConfig {
   return {
     language: "TypeScript",
     difficulty: "easy",
-    members: [...agg.session.rotation],
+    members: [],
     intervalMinutes:
       (agg.clock.intervalSeconds / 60) as IntervalMinutes,
   };

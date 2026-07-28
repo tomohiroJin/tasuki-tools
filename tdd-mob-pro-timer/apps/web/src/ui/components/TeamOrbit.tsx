@@ -6,10 +6,12 @@
 
 import React from "react";
 import { Crown } from "lucide-react";
+import type { RotationMember } from "../rotation-names.js";
 
 interface TeamOrbitProps {
-  /** 表示順のメンバー名（rotation） */
-  members: string[];
+  /** 表示順のメンバー（rotation・識別子＋表示名）。
+   *  表示名は同名で衝突しうるため、React の key には識別子を使う。 */
+  members: RotationMember[];
   /** 現ドライバーの index */
   currentIndex: number;
   size?: number;
@@ -39,7 +41,7 @@ export function TeamOrbit({ members, currentIndex, size = 340, children }: TeamO
       <div className="absolute inset-0 flex items-center justify-center">{children}</div>
       {/* 1 人だけのときは周回アバターを出さない（文字盤 12 時上に孤立した点が乗るのを避ける）。
           現ドライバーは中央の Crown＋名前で十分に伝わる。複数人で初めて周回を可視化する。 */}
-      {len > 1 && members.map((name, i) => {
+      {len > 1 && members.map(({ participantId, displayName }, i) => {
         const angle = (i / len) * 2 * Math.PI - Math.PI / 2;
         const x = center + Math.cos(angle) * orbitRadius;
         const y = center + Math.sin(angle) * orbitRadius;
@@ -47,7 +49,7 @@ export function TeamOrbit({ members, currentIndex, size = 340, children }: TeamO
         const isNext = i === nextIdx;
         return (
           <div
-            key={name}
+            key={participantId}
             className={`absolute flex items-center justify-center rounded-full font-bold text-sm tabular transition-all duration-700 animate-pop-in ${
               isCurrent
                 ? "bg-[var(--signal)] text-[#160603] scale-125 shadow-[0_0_0_2px_rgba(255,74,46,0.4),0_6px_18px_var(--signal-glow)] z-20"
@@ -61,12 +63,12 @@ export function TeamOrbit({ members, currentIndex, size = 340, children }: TeamO
               left: x - avatarSize / 2,
               top: y - avatarSize / 2,
             }}
-            title={name}
+            title={displayName}
           >
             {isCurrent && (
               <Crown className="w-3.5 h-3.5 absolute -top-2 -right-1 text-[#160603] drop-shadow rotate-12" />
             )}
-            <span className="select-none">{name.charAt(0).toUpperCase()}</span>
+            <span className="select-none">{displayName.charAt(0).toUpperCase()}</span>
           </div>
         );
       })}

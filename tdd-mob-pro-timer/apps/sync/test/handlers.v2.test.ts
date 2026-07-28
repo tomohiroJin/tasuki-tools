@@ -177,6 +177,36 @@ describe("v2 コマンドの結合テスト（T028/T029）", () => {
     expect(after?.participants.map((p) => p.displayName)).toEqual(["Host", "Dave"]);
   });
 
+  it("既存の表示名と重複する代理は追加できない（D6b で移設した検査）", async () => {
+    // rotation が参加者IDの配列になった時点で、core 側の rotation ベースの重複検査は
+    // 「絶対に一致しない」死んだ検査になっていた（実機検証で発見）。サーバー層へ移設した。
+    const room = store.get(roomCode);
+    const hostName = room!.participants.find((p) => p.connId === hostConn)!.displayName;
+
+    const result = await handlers.handleCommand(hostConn, {
+      command: "participant.addProxy", displayName: hostName, participantId: "proxy-dup-name",
+    });
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) expect(result.error).toBe("DuplicateName");
+    // 輪の長さも参加者も増えない。
+    const after = store.get(roomCode);
+    expect(after?.participants.filter((p) => p.displayName === hostName)).toHaveLength(1);
+  });
+
+  it("大文字小文字だけが違う名前の代理も追加できない", async () => {
+    await handlers.handleCommand(hostConn, {
+      command: "participant.addProxy", displayName: "Dave", participantId: "proxy-case-1",
+    });
+
+    const result = await handlers.handleCommand(hostConn, {
+      command: "participant.addProxy", displayName: "dave", participantId: "proxy-case-2",
+    });
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) expect(result.error).toBe("DuplicateName");
+  });
+
   it("輪の外に居る参加者の名前へも改名できない（T052 の移設で守られる範囲）", async () => {
     // 検査対象が rotation から participants へ移ったことで、輪に並んでいない在室者の
     // 名前も衝突として扱えるようになった（旧実装は rotation しか見ておらず素通りしていた）。

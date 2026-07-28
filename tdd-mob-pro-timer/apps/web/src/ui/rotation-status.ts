@@ -3,7 +3,11 @@
  * turnsAway: 0=今, 1=次, ... の循環距離。minutesAway: 交代間隔からの概算（停止中は null）。
  */
 
+import type { RotationMember } from "./rotation-names.js";
+
 export interface MemberTurn {
+  /** 行の同定に使う識別子（表示名は同名で衝突しうるので key に使わない）。 */
+  participantId: string;
   name: string;
   order: number;
   turnsAway: number;
@@ -19,7 +23,8 @@ export interface RotationStatus {
 }
 
 export function computeRotationStatus(args: {
-  rotation: string[];
+  /** rotation の各枠（識別子＋表示名）。 */
+  rotation: RotationMember[];
   currentIndex: number;
   intervalSeconds: number;
   /** rotation 内での自分の位置。輪の外なら -1。
@@ -31,11 +36,12 @@ export function computeRotationStatus(args: {
   const len = rotation.length;
   if (len === 0) return { members: [], self: null };
 
-  const members: MemberTurn[] = rotation.map((name, i) => {
+  const members: MemberTurn[] = rotation.map((member, i) => {
     const turnsAway = (i - currentIndex + len) % len;
     const minutesAway = isPaused ? null : Math.round((turnsAway * intervalSeconds) / 60);
     return {
-      name,
+      participantId: member.participantId,
+      name: member.displayName,
       order: i + 1,
       turnsAway,
       isCurrent: turnsAway === 0,

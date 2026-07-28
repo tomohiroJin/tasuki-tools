@@ -13,7 +13,7 @@ import { Card, GhostButton, PrimaryButton } from "./primitives.js";
 import { CircularProgress } from "./components/CircularProgress.js";
 import { TeamOrbit } from "./components/TeamOrbit.js";
 import { RotationLineup } from "./components/RotationLineup.js";
-import { rotationDisplayNames } from "./rotation-names.js";
+import { rotationMembers } from "./rotation-names.js";
 import { RosterPanel } from "./components/RosterPanel.js";
 import { isAllowed, canRemoveParticipant, canDemote } from "@tdd-mob/core";
 import { ProblemEditor } from "./components/ProblemEditor.js";
@@ -173,8 +173,9 @@ export function Session({
   const rotationLen = room.session.rotation.length;
   const nextIndex =
     rotationLen > 0 ? (room.session.currentIndex + 1) % rotationLen : 0;
-  // rotation は参加者IDの配列（D6b）。表示に使う名前はここで一度だけ写す。
-  const rotationNames = rotationDisplayNames(room.session.rotation, room.participants);
+  // rotation は参加者IDの配列（D6b）。表示用に「識別子＋表示名」へ一度だけ写す。
+  const rotation = rotationMembers(room.session.rotation, room.participants);
+  const rotationNames = rotation.map((m) => m.displayName);
   const currentDriverId = room.session.rotation[room.session.currentIndex] ?? "";
   const currentDriverName =
     rotationNames[room.session.currentIndex] ?? "—";
@@ -296,7 +297,7 @@ export function Session({
           </div>
 
           <div className="flex justify-center mb-4 boot-reveal" style={{ animationDelay: "60ms" }}>
-            <TeamOrbit members={rotationNames} currentIndex={room.session.currentIndex} size={orbitSize}>
+            <TeamOrbit members={rotation} currentIndex={room.session.currentIndex} size={orbitSize}>
               <CircularProgress
                 progress={progress}
                 warning={isUrgent}
@@ -333,7 +334,7 @@ export function Session({
           {/* 交代順ストリップ（読み取り専用・「自分はいつ？」確認用） */}
           <div className="mt-3">
             <RotationLineup
-              rotation={rotationNames}
+              rotation={rotation}
               currentIndex={room.session.currentIndex}
               intervalSeconds={room.clock.intervalSeconds || 1}
               selfIndex={currentParticipant ? room.session.rotation.indexOf(currentParticipant.participantId) : -1}

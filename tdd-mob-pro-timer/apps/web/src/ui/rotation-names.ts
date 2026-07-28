@@ -8,15 +8,29 @@
 
 import type { Participant } from "@tdd-mob/core";
 
+/** rotation 1枠分の表示用ビュー。識別子と表示名を対にして持つ。 */
+export interface RotationMember {
+  participantId: string;
+  displayName: string;
+}
+
 /**
- * rotation の各要素（参加者ID）を表示名へ写す。
- * 対応する参加者が居ない ID は空文字になるが、サーバーが退出時に rotation からも
+ * rotation を「識別子＋表示名」の配列へ写す。
+ *
+ * 表示名だけの配列にしないのは、React の key や行の同定に識別子が要るためである。
+ * 表示名は同名参加者で衝突しうるので、key に使うと同名の行同士が入れ替わったときに
+ * DOM が取り違えられる（強調やアニメーションが別人の行に付く）。
+ *
+ * 対応する参加者が居ない ID は表示名が空文字になるが、サーバーが退出時に rotation からも
  * 外すため通常は発生しない。
  */
-export function rotationDisplayNames(
+export function rotationMembers(
   rotation: readonly string[],
   participants: readonly Participant[],
-): string[] {
+): RotationMember[] {
   const names = new Map(participants.map((p) => [p.participantId, p.displayName]));
-  return rotation.map((participantId) => names.get(participantId) ?? "");
+  return rotation.map((participantId) => ({
+    participantId,
+    displayName: names.get(participantId) ?? "",
+  }));
 }

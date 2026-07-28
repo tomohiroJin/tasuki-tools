@@ -567,6 +567,23 @@ export function makeHandlers(deps: HandlerDeps) {
         return err("PARTICIPANT_NOT_FOUND");
       }
     }
+    // 代理追加の表示名一意性もここで検査する（D6b）。改名と同じ理由で、rotation が
+    // 参加者IDの配列になったため集約からは名前の重複を判定できない。
+    // 「既存の表示名と重複する代理は追加できない」という従来の挙動を維持する。
+    if (domainCmd && domainCmd.command === "participant.addProxy") {
+      const desired = domainCmd.displayName.trim().toLowerCase();
+      const conflicts = targetRoom.participants.some(
+        (p) => p.displayName.trim().toLowerCase() === desired,
+      );
+      if (conflicts) {
+        broadcaster.sendTo(connId, {
+          type: "error",
+          code: "DuplicateName",
+          message: `操作エラー: DuplicateName`,
+        });
+        return err("DuplicateName");
+      }
+    }
     // 改名の表示名一意性はここで検査する（T052・D6b）。rotation が参加者IDの配列になり
     // 名前の重複を集約から判定できなくなったため、participants を持つこの層が受け持つ。
     // 「既存の表示名へは改名できない」という従来の挙動はそのまま維持する（後方互換）。

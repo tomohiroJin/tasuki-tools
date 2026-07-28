@@ -121,11 +121,10 @@ function decideAddProxy(
   if (trimmed.length === 0) {
     return err({ type: "EmptyName" });
   }
-  // 既存の表示名と重複しないか確認
-  const existingNames = agg.session.rotation.map((n) => n.toLowerCase());
-  if (existingNames.includes(trimmed.toLowerCase())) {
-    return err({ type: "DuplicateName", name: trimmed });
-  }
+  // 表示名の一意性は participants に対して検査する（サーバー側の責務・D6b/T052 と同じ）。
+  // rotation は参加者IDの配列になったので、ここから名前の重複は判定できない。
+  // かつてここで rotation と突き合わせていた検査は、rotation の中身が識別子に変わった
+  // 時点で「絶対に一致しない」死んだ検査になっていた（実機検証で発見）。
   if (agg.session.rotation.length >= MAX_MEMBERS) {
     return err({ type: "MemberLimitExceeded", limit: MAX_MEMBERS });
   }

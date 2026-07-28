@@ -301,16 +301,16 @@ describe("decide: participant.addProxy（T009）", () => {
     }
   });
 
-  it("既存の表示名と重複する名前は拒否される", () => {
+  // 表示名の重複検査はここには無い。rotation が参加者IDの配列になったため（D6b）、
+  // 集約だけを見る decide からは名前の重複を判定できない。participants を持つ
+  // サーバー層（handlers）へ移した。重複拒否の検証は apps/sync 側にある。
+  it("既存の表示名と重複しても集約は受理する（名前の一意性はサーバー層の責務）", () => {
     const result = decide(
       { command: "participant.addProxy", displayName: "Alice", participantId: "proxy-3" },
       baseAgg,
       NOW,
     );
-    expect(result.isErr()).toBe(true);
-    if (result.isErr()) {
-      expect(result.error.type).toBe("DuplicateName");
-    }
+    expect(result.isOk()).toBe(true);
   });
 });
 

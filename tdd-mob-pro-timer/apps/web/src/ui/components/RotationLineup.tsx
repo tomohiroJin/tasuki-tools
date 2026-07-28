@@ -6,9 +6,11 @@
 
 import React from "react";
 import { computeRotationStatus, type MemberTurn } from "../rotation-status.js";
+import type { RotationMember } from "../rotation-names.js";
 
 interface RotationLineupProps {
-  rotation: string[];
+  /** rotation の各枠（識別子＋表示名・D6b）。 */
+  rotation: RotationMember[];
   currentIndex: number;
   intervalSeconds: number;
   /** rotation 内での自分の位置（輪の外なら -1）。 */
@@ -52,7 +54,8 @@ export function RotationLineup({ rotation, currentIndex, intervalSeconds, selfIn
       <ol className="flex flex-wrap justify-center gap-1.5">
         {members.map((m) => (
           <li
-            key={m.name}
+            // 同名参加者が居ても行を取り違えないよう識別子を key にする（表示名は一意でない）
+            key={m.participantId}
             className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm ${
               m.isCurrent
                 ? "bg-[rgba(255,74,46,0.16)] border border-[rgba(255,74,46,0.5)] text-[var(--bone)]"
