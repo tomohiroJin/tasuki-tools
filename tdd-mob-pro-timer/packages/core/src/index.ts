@@ -1,23 +1,123 @@
 /**
  * @tdd-mob/core パッケージのエントリポイント
+ *
+ * T055: `export *` を、現在公開されている記号の明示列挙に置換したもの（FR-110）。
+ * 型定義出力（`dist/*.d.ts`）から公開記号を機械的に抽出して列挙した。
+ * 公開の必要性の見直しは T057 が行う（本ファイルは挙動不変）。
  */
 
 // 集約・型
-export * from "./aggregate.js";
-export * from "./display-name.js";
+export type {
+  ConnId,
+  ParticipantId,
+  RoomCode,
+  SessionState,
+  ServerClock,
+  Aggregate,
+  SessionConfig,
+  ProblemSource,
+  Problem,
+  Participant,
+  ProblemMode,
+  RoomPhase,
+  Room,
+  CompletionRecord,
+  IntervalMinutes,
+} from "./aggregate.js";
+export {
+  secondsLeft,
+  elapsedMs,
+  initialAggregate,
+  nextEligibleIndex,
+  transferHost,
+  VALID_INTERVAL_MINUTES,
+  MIN_MEMBERS,
+  MAX_MEMBERS,
+  MAX_PROBLEM_REQUIREMENTS,
+  MAX_DISPLAY_NAME,
+  MAX_NFKC_EXPANSION,
+  MAX_ROOM_NAME,
+  MAX_HANDOFF_NOTE,
+  MAX_PROBLEM_TITLE,
+  MAX_PROBLEM_TEXT,
+  MAX_PROBLEM_HINT,
+  MAX_PROBLEM_HINTS,
+  MAX_CONFIG_LANGUAGE,
+  MAX_CONFIG_DIFFICULTY,
+  MAX_PASSPHRASE,
+  MAX_AI_UNLOCK_KEY,
+} from "./aggregate.js";
+export { normalizeDisplayName, nameSkeleton } from "./display-name.js";
 // イベント
-export * from "./events.js";
+export type {
+  SessionStarted,
+  DriverSwitched,
+  SessionPaused,
+  SessionResumed,
+  SessionReset,
+  DriverTimerReset,
+  PhaseSet,
+  ConfigSet,
+  MemberAdded,
+  MemberRemoved,
+  MemberMoved,
+  MembersShuffled,
+  ProblemSet,
+  HandoffNoteSet,
+  BreakStarted,
+  BreakEnded,
+  SessionCompleted,
+  SessionAborted,
+  ProxyMemberAdded,
+  ParticipantRenamed,
+  DriverSkipped,
+  DriverResumed,
+  ProblemEdited,
+  ProblemModeSet,
+  DomainEvent,
+} from "./events.js";
 // エラー
-export * from "./errors.js";
+export type {
+  EmptyName,
+  DuplicateName,
+  MemberLimitExceeded,
+  BelowMinMembers,
+  Unauthorized,
+  PhaseConflict,
+  InvalidInterval,
+  InvalidIndex,
+  InputLimitExceeded,
+  DomainError,
+} from "./errors.js";
 // decide / evolve
-export * from "./decide.js";
-export * from "./evolve.js";
+export type { DecideCommand } from "./decide.js";
+export { decide } from "./decide.js";
+export { evolve, advanceDriver } from "./evolve.js";
 // スキーマ
-export * from "./schemas.js";
+export type { Command, ServerMsg } from "./schemas.js";
+export {
+  SessionConfigSchema,
+  ProblemSchema,
+  SessionActionValues,
+  CommandSchema,
+  ParticipantSchema,
+  ServerClockSchema,
+  SessionStateSchema,
+  CompletionRecordSchema,
+  RoomSchema,
+  ServerMsgSchema,
+} from "./schemas.js";
 // お題
-export * from "./problem.js";
+export type { ProblemWithSource, FallbackProblemEntry } from "./problem.js";
+export {
+  FALLBACK_PROBLEMS,
+  validateProblem,
+  pickFallback,
+  buildProblemPrompt,
+} from "./problem.js";
 // 記録
-export * from "./records.js";
+export { buildCompletionRecord } from "./records.js";
 // 権限判定・不変条件（Issue #22）
-export * from "./permissions.js";
-export * from "./participants.js";
+export type { Role, PermissionInput, PermissionVerdict } from "./permissions.js";
+export { checkPermission, isAllowed } from "./permissions.js";
+export { countManagers, canDemote, canRemoveParticipant } from "./participants.js";
