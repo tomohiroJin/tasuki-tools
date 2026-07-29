@@ -336,7 +336,7 @@
 > `test/ui/connection-status.test.tsx` = `StatusStrip`）どちらを指すか判別できなくなった**。
 > 網羅性を機械的に検査できるよう、以下はすべて `test/` からの相対パスで書く。
 
-- [ ] **T044 [P]** バッチ「直下と設定・記録」（9 ファイル）:
+- [x] **T044 [P]** バッチ「直下と設定・記録」（9 ファイル）:
   `connection-status.test.ts` / `empty-hint.test.tsx` / `host-change.test.ts` /
   `platform/notify.test.ts` / `platform/sound.test.ts` /
   `prefs/local-prefs.test.ts` / `prefs/notify-hint.test.ts` / `prefs/notify-prefs.test.ts` /

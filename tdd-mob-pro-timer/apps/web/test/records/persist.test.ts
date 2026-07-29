@@ -1,5 +1,5 @@
 /**
- * 完成記録の永続化ポリシーのテスト（FR-020）
+ * 完成記録の永続化ポリシーのテスト。
  * 完成（complete）のみ記録を保存し、中断（abort）では保存しない。
  */
 
@@ -18,23 +18,35 @@ const rec: CompletionRecord = {
   completedAt: 1000000,
 };
 
-describe("persistRecordIfComplete（FR-020）", () => {
-  it("完成（complete）かつ記録ありなら saver を記録付きで1回呼ぶ", async () => {
+/**
+ * @requirements FR-020
+ */
+describe("persistRecordIfComplete", () => {
+  it("完成（complete）かつ記録ありなら記録が1回だけ永続化される", async () => {
+    // Given
     const saver = vi.fn().mockResolvedValue(undefined);
+    // When
     await persistRecordIfComplete("complete", rec, saver);
+    // Then
     expect(saver).toHaveBeenCalledTimes(1);
     expect(saver).toHaveBeenCalledWith(rec);
   });
 
-  it("中断（abort）では saver を呼ばない（達成として記録しない）", async () => {
+  it("中断（abort）では記録を永続化しない（達成として記録しない）", async () => {
+    // Given
     const saver = vi.fn().mockResolvedValue(undefined);
+    // When
     await persistRecordIfComplete("abort", rec, saver);
+    // Then
     expect(saver).not.toHaveBeenCalled();
   });
 
-  it("完成でも記録が null なら saver を呼ばない", async () => {
+  it("完成でも記録が null なら永続化しない", async () => {
+    // Given
     const saver = vi.fn().mockResolvedValue(undefined);
+    // When
     await persistRecordIfComplete("complete", null, saver);
+    // Then
     expect(saver).not.toHaveBeenCalled();
   });
 });

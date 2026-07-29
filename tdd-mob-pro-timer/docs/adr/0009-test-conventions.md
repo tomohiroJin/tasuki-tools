@@ -227,3 +227,23 @@ describe("<対象の名詞>", () => {
   T0xx・FR-0xx を describe 名から JSDoc `@requirements` へ移した。検証内容・分割は変更していない。
 
 これで G3-c（`apps/sync` 44 ファイル）の T038〜T043 が完了した。
+
+### `apps/web/test`（T044: バッチ「直下と設定・記録」）
+
+- `connection-status.test.ts`（既に規約を満たしており無変更・FR-123）
+- `empty-hint.test.tsx`
+- `host-change.test.ts`
+- `platform/notify.test.ts`
+- `platform/sound.test.ts`
+- `prefs/local-prefs.test.ts`
+- `prefs/notify-hint.test.ts`（既に規約を満たしており無変更・FR-123）
+- `prefs/notify-prefs.test.ts`
+- `records/persist.test.ts`
+
+  `v2.2 R2-4` / `v2.2 R5-2` / `#1` / `Issue #2` / `Issue #3` / `Issue #5` / `T062/T063` /
+  `FR-053,054` / `FR-020` を describe 名から JSDoc `@requirements` へ移した。
+  `records/persist.test.ts` の「saver を呼ぶ/呼ばない」という記述は、saver がテスト対象の
+  実処理そのもの（永続化の唯一の経路）であるため「記録が永続化される/されない」という結果の
+  記述に改めた（アサーション自体は `toHaveBeenCalledTimes`/`toHaveBeenCalledWith`/
+  `not.toHaveBeenCalled` のまま変更していない）。本体 2 行以下が多く SC-032 の対象外が大半。
+  検証内容・分割は変更していない。

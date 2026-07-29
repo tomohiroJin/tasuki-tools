@@ -1,5 +1,5 @@
 /**
- * EmptyHint コンポーネントのテスト（v2.2 R5-2）
+ * EmptyHint コンポーネントのテスト。
  * 空状態/初回の控えめな案内。calm UI・role=note で SR にも伝える。
  */
 
@@ -8,9 +8,14 @@ import { render, screen } from "@testing-library/react";
 import React from "react";
 import { EmptyHint } from "../src/ui/components/EmptyHint.js";
 
-describe("EmptyHint（R5-2）", () => {
+/**
+ * @requirements v2.2 R5-2
+ */
+describe("EmptyHint", () => {
   it("メッセージを表示し role=note でSRに伝える", () => {
+    // Given
     render(<EmptyHint>まだあなただけです</EmptyHint>);
+    // Then
     expect(screen.getByText("まだあなただけです")).toBeInTheDocument();
     expect(screen.getByRole("note")).toBeInTheDocument();
   });
