@@ -44,9 +44,9 @@
 
 ## G0 — 計測基盤（`scripts/` のみ・挙動不変）
 
-> **本グループのみ、v2.12.0 のデプロイ前に着手してよい**（spec の前提 1）。
-> `deploy/deploy.sh` が転送するのは `apps/web/dist/` と `deploy/dist/server.js` だけで、
-> `scripts/` は含まれない。**G1 以降はデプロイ後に行う。**
+> ★ **`v2.12.0` は 2026-07-29 にデプロイ済み。G0〜G7 の全段階が着手可能である**（spec の前提 1）。
+> 以前あった「G0 のみデプロイ前に着手可・G1 以降はデプロイ後」という待ちの条件は、
+> デプロイ完了により解消した。
 
 - [ ] **T001** `scripts/audit-structure.mjs` を新規作成し、**spec の「操作的定義（何を数えるか）」表の
   各行に 1 対 1 対応する関数**を置く（`sc027UnreachableModules` / `sc028DuplicateTestDoubles` /
