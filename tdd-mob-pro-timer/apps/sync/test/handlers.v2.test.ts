@@ -41,6 +41,7 @@ describe("v2 コマンドの結合テスト", () => {
   // ─── session.abort ────────────────────────────────────────────────────────
 
   it("session.abort で phase が celebration になり記録は追加されない", async () => {
+    // Given（session.abort コマンドを対象にする。引数はない）
     // When
     await handlers.handleCommand(hostConn, { command: "session.abort" });
     // Then
@@ -53,12 +54,14 @@ describe("v2 コマンドの結合テスト", () => {
   // ─── participant.addProxy ─────────────────────────────────────────────────
 
   it("participant.addProxy でプレースホルダーが参加者一覧に追加される", async () => {
-    // When
-    await handlers.handleCommand(hostConn, {
+    // Given
+    const command = {
       command: "participant.addProxy",
       displayName: "Dave（代理）",
       participantId: "proxy-dave",
-    });
+    } as const;
+    // When
+    await handlers.handleCommand(hostConn, command);
     // Then
     const room = broadcaster.latestSnapshot();
     const proxy = room?.participants.find((p) => p.displayName === "Dave（代理）");
@@ -68,12 +71,14 @@ describe("v2 コマンドの結合テスト", () => {
   });
 
   it("代理参加者の participantId はサーバー生成され、client 供給のIDを無視する（セキュリティ）", async () => {
-    // When（client が任意の participantId＝既存IDとの衝突を狙った値を供給しても）
-    await handlers.handleCommand(hostConn, {
+    // Given（client が任意の participantId＝既存IDとの衝突を狙った値を供給する）
+    const command = {
       command: "participant.addProxy",
       displayName: "なりすまし代理",
       participantId: "ATTACKER-SUPPLIED-ID",
-    });
+    } as const;
+    // When
+    await handlers.handleCommand(hostConn, command);
     // Then
     const room = broadcaster.latestSnapshot();
     const proxy = room?.participants.find((p) => p.displayName === "なりすまし代理");
@@ -86,12 +91,14 @@ describe("v2 コマンドの結合テスト", () => {
   });
 
   it("participant.addProxy で代理参加者が rotation とドライバー対象に含まれる", async () => {
-    // When
-    await handlers.handleCommand(hostConn, {
+    // Given
+    const command = {
       command: "participant.addProxy",
       displayName: "Dave",
       participantId: "proxy-dave2",
-    });
+    } as const;
+    // When
+    await handlers.handleCommand(hostConn, command);
     // Then（rotation は参加者IDの配列・D6b。Dave の ID が含まれる＝ドライバーローテーション参加）
     const room = broadcaster.latestSnapshot();
     const dave = room?.participants.find((p) => p.displayName === "Dave");
@@ -348,11 +355,11 @@ describe("v2 コマンドの結合テスト", () => {
   // ─── problem.mode.set ────────────────────────────────────────────────────
 
   it("problem.mode.set で Room の problemMode が更新される", async () => {
-    await handlers.handleCommand(hostConn, {
-      command: "problem.mode.set",
-      mode: "ai",
-    });
-
+    // Given
+    const command = { command: "problem.mode.set", mode: "ai" } as const;
+    // When
+    await handlers.handleCommand(hostConn, command);
+    // Then
     const updated = broadcaster.latestSnapshot();
     expect(updated?.problemMode).toBe("ai");
   });
@@ -360,8 +367,11 @@ describe("v2 コマンドの結合テスト", () => {
   // ─── snapshot 全員反映の確認 ─────────────────────────────────────────────
 
   it("v2 コマンド実行後に新しい snapshot が全員へ配信される", async () => {
+    // Given（実行前の snapshot 配信件数を基準にする）
     const before = broadcaster.snapshots.length;
+    // When
     await handlers.handleCommand(hostConn, { command: "session.abort" });
+    // Then
     expect(broadcaster.snapshots.length).toBeGreaterThan(before);
   });
 });
@@ -414,12 +424,14 @@ describe("participant.rename の認可", () => {
   });
 
   it("viewer が他人を rename しようとすると UNAUTHORIZED で拒否される", async () => {
-    // When（他人＝host を改名しようとする）
-    const result = await handlers.handleCommand(viewerConn, {
+    // Given（他人＝host を改名しようとする）
+    const command = {
       command: "participant.rename",
       participantId: hostPid,
       displayName: "Hijacked",
-    });
+    } as const;
+    // When
+    const result = await handlers.handleCommand(viewerConn, command);
 
     // Then（snapshot は発行されず、host 名は変わらない）
     expect(result.isErr()).toBe(true);
@@ -430,12 +442,14 @@ describe("participant.rename の認可", () => {
   });
 
   it("viewer が自分自身を rename するのは許可される", async () => {
-    // When（本人を改名）
-    const result = await handlers.handleCommand(viewerConn, {
+    // Given（本人を改名する）
+    const command = {
       command: "participant.rename",
       participantId: viewerPid,
       displayName: "ViewerNew",
-    });
+    } as const;
+    // When
+    const result = await handlers.handleCommand(viewerConn, command);
 
     // Then
     result._unsafeUnwrap();
@@ -445,12 +459,14 @@ describe("participant.rename の認可", () => {
   });
 
   it("host は他人（viewer）を rename できる", async () => {
-    // When
-    const result = await handlers.handleCommand(hostConn, {
+    // Given
+    const command = {
       command: "participant.rename",
       participantId: viewerPid,
       displayName: "RenamedByHost",
-    });
+    } as const;
+    // When
+    const result = await handlers.handleCommand(hostConn, command);
 
     // Then
     result._unsafeUnwrap();
@@ -460,12 +476,14 @@ describe("participant.rename の認可", () => {
   });
 
   it("存在しない participantId への rename は PARTICIPANT_NOT_FOUND で拒否される", async () => {
-    // When
-    const result = await handlers.handleCommand(hostConn, {
+    // Given
+    const command = {
       command: "participant.rename",
       participantId: "no-such-participant",
       displayName: "Ghost",
-    });
+    } as const;
+    // When
+    const result = await handlers.handleCommand(hostConn, command);
 
     // Then
     expect(result.isErr()).toBe(true);
@@ -497,13 +515,15 @@ describe("room-not-found 応答", () => {
   });
 
   it("存在しないルームコードで join すると error{code:ROOM_NOT_FOUND} を返す", async () => {
-    // When
-    await handlers.handleCommand("guest-conn", {
+    // Given
+    const command = {
       command: "room.join",
       code: "INVALID",
       displayName: "Guest",
       hasAiKey: false,
-    });
+    } as const;
+    // When
+    await handlers.handleCommand("guest-conn", command);
 
     // Then
     const error = broadcaster.sent.find((s) => s.msg.type === "error");
