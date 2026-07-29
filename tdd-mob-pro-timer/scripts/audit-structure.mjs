@@ -516,7 +516,16 @@ export function stripStringsAndComments(source) {
  * 「他ファイルから参照されている」と誤判定される（再エクスポートは消費ではなく通過点）。
  */
 function stripNamedReexports(source) {
-  return source.replace(/export\s*\{[^}]*\}\s*from\s*["'][^"']+["'];?/g, "");
+  // `export type { … } from "…"` も対象にする。
+  // T055 で index.ts の `export *` を明示列挙に置き換えた際、型の再エクスポートが
+  // `export type { … } from "…"` の形になり、`type` を許さない旧実装ではこれを
+  // 取り除けなかった。その結果 **index.ts の再エクスポートが「本物の参照」と数えられ**、
+  // SC-039③ が 46 → 9 に落ちた（実際には 1 件も減っていないのに減ったように見えた）。
+  // 再エクスポートは消費ではなく通過点であり、参照の根拠にしてはならない。
+  return source.replace(/export\s+type\s*\{[^}]*\}\s*from\s*["'][^"']+["'];?/g, "").replace(
+    /export\s*\{[^}]*\}\s*from\s*["'][^"']+["'];?/g,
+    "",
+  );
 }
 
 function isReferencedElsewhere(name, ownFile, productSources) {
