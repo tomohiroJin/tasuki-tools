@@ -632,7 +632,7 @@
   （逆順に書き換えると TS2345 になることを実際に確認済み）。統合はしていない。
   _要件: FR-103, US3_
 
-- [ ] **T079** `pnpm test && typecheck && lint && build` 全緑。
+- [x] **T079** `pnpm test && typecheck && lint && build` 全緑。
   `mutation-check.mjs` を再実行し検出結果が変わらないことを確認する。
   **RC-001 をレビューで確認する**（呼び出し側が使わないダミー値が残っていないか）。
   **`audit-structure.mjs` を実行し、SC-029〜SC-032 が G3 完了時から悪化していないことを確認する**
