@@ -5,22 +5,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { SyncClient } from "../../src/sync/client.js";
-
-/** onopen/onclose を手動発火できる最小 WebSocket スタブ。 */
-class FakeWS {
-  static instances: FakeWS[] = [];
-  static readonly OPEN = 1;
-  readyState = 0;
-  onopen: (() => void) | null = null;
-  onclose: (() => void) | null = null;
-  onmessage: ((event: MessageEvent) => void) | null = null;
-  onerror: (() => void) | null = null;
-  constructor(public url: string) {
-    FakeWS.instances.push(this);
-  }
-  send(): void {}
-  close(): void {}
-}
+import { FakeWS } from "../support/fakes.js";
 
 beforeEach(() => {
   FakeWS.instances = [];

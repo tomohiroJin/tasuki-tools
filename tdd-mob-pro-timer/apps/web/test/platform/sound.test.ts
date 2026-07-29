@@ -4,25 +4,18 @@ import {
   playCountdownTick, computeCountdownStage, COUNTDOWN_STAGE_FREQS,
   playCountdownVoice,
 } from "../../src/platform/sound.js";
+import { FakeAudio, FakeGain, FakeOsc } from "../support/fakes.js";
 
 describe("scheduleTones（#1 resume を待ってからスケジュール）", () => {
   it("suspended のとき resume を await してから createOscillator/currentTime を読む", async () => {
     const calls: string[] = [];
-    class FakeOsc {
-      type = "sine"; frequency = { value: 0 };
-      connect() {} start() { calls.push("start"); } stop() {}
-    }
-    class FakeGain {
-      gain = { setValueAtTime() {}, exponentialRampToValueAtTime() {} };
-      connect() {}
-    }
     const ctx = {
       state: "suspended" as AudioContextState,
       _t: 0 as number,
       get currentTime() { calls.push("currentTime"); return (this as { _t: number })._t; },
       destination: {},
       async resume() { calls.push("resume"); (this as { state: string }).state = "running"; },
-      createOscillator() { calls.push("createOscillator"); return new FakeOsc(); },
+      createOscillator() { calls.push("createOscillator"); return new FakeOsc(() => calls.push("start")); },
       createGain() { return new FakeGain(); },
     } as unknown as AudioContext;
 
@@ -142,13 +135,9 @@ describe("playCountdownVoice（音声によるカウントダウン読み上げ�
   it("正しいURL（sounds/countdown/count-{speaker}-{n}.mp3）で Audio を生成し play する", () => {
     const created: string[] = [];
     const playCalls: string[] = [];
-    class FakeAudio {
-      src: string;
-      volume = 1;
-      constructor(src: string) { this.src = src; created.push(src); }
-      addEventListener() {}
-      play() { playCalls.push(this.src); return Promise.resolve(); }
-    }
+    FakeAudio.reset();
+    FakeAudio.onCreate = (src) => created.push(src);
+    FakeAudio.onPlay = (src) => playCalls.push(src);
     const original = globalThis.Audio;
     (globalThis as unknown as { Audio: typeof Audio }).Audio = FakeAudio as unknown as typeof Audio;
 
@@ -158,17 +147,13 @@ describe("playCountdownVoice（音声によるカウントダウン読み上げ�
     expect(created[0]).toContain("sounds/countdown/count-male-10.mp3");
 
     (globalThis as unknown as { Audio: typeof Audio }).Audio = original;
+    FakeAudio.reset();
   });
 
   it("voice-female を渡すと count-female-{n}.mp3 を再生する", () => {
     const created: string[] = [];
-    class FakeAudio {
-      src: string;
-      volume = 1;
-      constructor(src: string) { this.src = src; created.push(src); }
-      addEventListener() {}
-      play() { return Promise.resolve(); }
-    }
+    FakeAudio.reset();
+    FakeAudio.onCreate = (src) => created.push(src);
     const original = globalThis.Audio;
     (globalThis as unknown as { Audio: typeof Audio }).Audio = FakeAudio as unknown as typeof Audio;
 
@@ -177,42 +162,38 @@ describe("playCountdownVoice（音声によるカウントダウン読み上げ�
     expect(created[0]).toContain("sounds/countdown/count-female-3.mp3");
 
     (globalThis as unknown as { Audio: typeof Audio }).Audio = original;
+    FakeAudio.reset();
   });
 
   it("Audio の error イベントで playCountdownTick にフォールバックする", () => {
-    let errorHandler: (() => void) | undefined;
-    class FakeAudio {
-      volume = 1;
-      constructor(_src: string) {}
-      addEventListener(event: string, handler: () => void) {
-        if (event === "error") errorHandler = handler;
-      }
-      play() { return Promise.resolve(); }
-    }
+    FakeAudio.reset();
+    let instance: FakeAudio | undefined;
+    FakeAudio.onCreate = () => {};
     const original = globalThis.Audio;
-    (globalThis as unknown as { Audio: typeof Audio }).Audio = FakeAudio as unknown as typeof Audio;
+    class CapturingFakeAudio extends FakeAudio {
+      constructor(src: string) { super(src); instance = this; }
+    }
+    (globalThis as unknown as { Audio: typeof Audio }).Audio = CapturingFakeAudio as unknown as typeof Audio;
 
     expect(() => {
       playCountdownVoice(5, "voice-male", 0.6);
-      errorHandler?.();
+      instance?.fireError();
     }).not.toThrow();
 
     (globalThis as unknown as { Audio: typeof Audio }).Audio = original;
+    FakeAudio.reset();
   });
 
   it("play() が reject してもフォールバックして例外を投げない", async () => {
-    class FakeAudio {
-      volume = 1;
-      constructor(_src: string) {}
-      addEventListener() {}
-      play() { return Promise.reject(new Error("blocked")); }
-    }
+    FakeAudio.reset();
+    FakeAudio.playResult = "reject";
     const original = globalThis.Audio;
     (globalThis as unknown as { Audio: typeof Audio }).Audio = FakeAudio as unknown as typeof Audio;
 
     expect(() => playCountdownVoice(1, "voice-male", 0.6)).not.toThrow();
 
     (globalThis as unknown as { Audio: typeof Audio }).Audio = original;
+    FakeAudio.reset();
   });
 
   it("Audio が未定義の環境でも例外を投げない（playCountdownTick 相当にフォールバック）", () => {
@@ -231,41 +212,28 @@ describe("playCountdownVoice（音声によるカウントダウン読み上げ�
     // このテストは AudioContext のシングルトン(sharedCtx)を初めて生成させるため、以降このファイル内で
     // 新たに実 AudioContext 経由のテストを追加する場合は本テストより前に置くこと。
     let oscillatorCount = 0;
-    class FakeOsc {
-      type = "sine"; frequency = { value: 0 };
-      connect() {} start() { oscillatorCount++; } stop() {}
-    }
-    class FakeGain {
-      gain = { setValueAtTime() {}, exponentialRampToValueAtTime() {} };
-      connect() {}
-    }
     class FakeAudioContext {
       state: AudioContextState = "running";
       currentTime = 0;
       destination = {};
-      createOscillator() { return new FakeOsc(); }
+      createOscillator() { return new FakeOsc(() => oscillatorCount++); }
       createGain() { return new FakeGain(); }
     }
     const originalCtor = globalThis.AudioContext;
     (globalThis as unknown as { AudioContext: typeof AudioContext }).AudioContext =
       FakeAudioContext as unknown as typeof AudioContext;
 
-    let errorHandler: (() => void) | undefined;
-    class FakeAudio {
-      volume = 1;
-      constructor(_src: string) {}
-      addEventListener(event: string, handler: () => void) {
-        if (event === "error") errorHandler = handler;
-      }
-      play() {
-        return Promise.reject(new Error("blocked"));
-      }
+    FakeAudio.reset();
+    FakeAudio.playResult = "reject";
+    let instance: FakeAudio | undefined;
+    class CapturingFakeAudio extends FakeAudio {
+      constructor(src: string) { super(src); instance = this; }
     }
     const originalAudio = globalThis.Audio;
-    (globalThis as unknown as { Audio: typeof Audio }).Audio = FakeAudio as unknown as typeof Audio;
+    (globalThis as unknown as { Audio: typeof Audio }).Audio = CapturingFakeAudio as unknown as typeof Audio;
 
     playCountdownVoice(5, "voice-male", 0.6);
-    errorHandler?.();
+    instance?.fireError();
     // play().catch() も解決するのを待つ
     await Promise.resolve();
     await Promise.resolve();
@@ -274,5 +242,6 @@ describe("playCountdownVoice（音声によるカウントダウン読み上げ�
 
     (globalThis as unknown as { Audio: typeof Audio }).Audio = originalAudio;
     (globalThis as unknown as { AudioContext: typeof AudioContext }).AudioContext = originalCtor;
+    FakeAudio.reset();
   });
 });
