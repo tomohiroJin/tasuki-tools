@@ -436,7 +436,7 @@
   `pnpm typecheck` が通ることで同値性を確認する。
   _要件: FR-110, US5_
 
-- [ ] **T056** `packages/core/src/problem-bank.ts` を新規作成し、`FALLBACK_PROBLEMS`（33 件）と
+- [x] **T056** `packages/core/src/problem-bank.ts` を新規作成し、`FALLBACK_PROBLEMS`（33 件）と
   `ALL_LANGS` を `problem.ts` から**移動**する（`problem.ts:27-1229` 相当）。
   `problem.ts` は `validateProblem` / `pickFallback` / `buildProblemPrompt` と型のみ（約 70 行）にする。
   **`index.ts` の公開記号は変えない**（`problem.ts` から再エクスポート）。
