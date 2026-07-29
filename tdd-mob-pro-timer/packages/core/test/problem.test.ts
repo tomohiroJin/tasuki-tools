@@ -12,57 +12,77 @@ import {
 
 describe("validateProblem: Valibot検証", () => {
   it("正常なお題は Ok を返す", () => {
-    const result = validateProblem({
+    // Given
+    const problem = {
       title: "FizzBuzz",
       description: "実装してください",
       requirements: ["3の倍数はFizz"],
       exampleTest: "expect(fizzBuzz(3)).toBe('Fizz')",
       hints: [],
-    });
+    };
+    // When
+    const result = validateProblem(problem);
+    // Then
     expect(result.isOk()).toBe(true);
   });
 
   it("title が空の場合は Err を返す", () => {
-    const result = validateProblem({
+    // Given
+    const problem = {
       title: "",
       description: "desc",
       requirements: [],
       exampleTest: "test",
       hints: [],
-    });
+    };
+    // When
+    const result = validateProblem(problem);
+    // Then
     expect(result.isErr()).toBe(true);
   });
 
   it("description が欠けている場合は Err を返す", () => {
-    const result = validateProblem({
+    // Given
+    const problem = {
       title: "test",
       description: "",
       requirements: [],
       exampleTest: "test",
       hints: [],
-    });
+    };
+    // When
+    const result = validateProblem(problem);
+    // Then
     expect(result.isErr()).toBe(true);
   });
 
   it("exampleTest が欠けている場合は Err を返す", () => {
-    const result = validateProblem({
+    // Given
+    const problem = {
       title: "test",
       description: "desc",
       requirements: [],
       exampleTest: "",
       hints: [],
-    });
+    };
+    // When
+    const result = validateProblem(problem);
+    // Then
     expect(result.isErr()).toBe(true);
   });
 
   it("requirements が配列でない場合は Err を返す", () => {
-    const result = validateProblem({
+    // Given
+    const problem = {
       title: "test",
       description: "desc",
       requirements: "not an array" as never,
       exampleTest: "test",
       hints: [],
-    });
+    };
+    // When
+    const result = validateProblem(problem);
+    // Then
     expect(result.isErr()).toBe(true);
   });
 
@@ -92,13 +112,23 @@ describe("pickFallback: 定型お題へのフォールバック", () => {
   });
 
   it("定型お題を返し、source が 'fallback' である", () => {
-    const result = pickFallback("TypeScript", "easy");
+    // Given
+    const language = "TypeScript";
+    const difficulty = "easy";
+    // When
+    const result = pickFallback(language, difficulty);
+    // Then
     expect(result.source).toBe("fallback");
     expect(result.problem).toBeTruthy();
   });
 
   it("返された定型お題は有効なお題構造を持つ", () => {
-    const { problem } = pickFallback("TypeScript", "easy");
+    // Given
+    const language = "TypeScript";
+    const difficulty = "easy";
+    // When
+    const { problem } = pickFallback(language, difficulty);
+    // Then
     expect(problem.title).toBeTruthy();
     expect(problem.description).toBeTruthy();
     expect(Array.isArray(problem.requirements)).toBe(true);
@@ -108,8 +138,10 @@ describe("pickFallback: 定型お題へのフォールバック", () => {
 
   // coverage-supplement.test.ts より移動（T036）
   it("該当言語が無くてもフォールバックお題を返す（全フォールバックへ縮退）", () => {
+    // Given
+    const unknownLanguage = "COBOL-不明言語";
     // When
-    const result = pickFallback("COBOL-不明言語", "easy");
+    const result = pickFallback(unknownLanguage, "easy");
     // Then
     expect(result.source).toBe("fallback");
     expect(result.problem.title.length).toBeGreaterThan(0);
@@ -133,6 +165,7 @@ describe("pickFallback: 定型お題へのフォールバック", () => {
 
 describe("FALLBACK_PROBLEMS: 定型お題バンク", () => {
   it("各お題は必須フィールドを持つ", () => {
+    // Given（FALLBACK_PROBLEMS 全件を対象にする）
     // When / Then
     for (const p of FALLBACK_PROBLEMS) {
       expect(p.problem.title).toBeTruthy();
@@ -152,7 +185,12 @@ import { buildProblemPrompt } from "../src/problem.js";
  */
 describe("buildProblemPrompt", () => {
   it("言語と難易度がプロンプトに含まれる", () => {
-    const prompt = buildProblemPrompt("TypeScript", "easy");
+    // Given
+    const language = "TypeScript";
+    const difficulty = "easy";
+    // When
+    const prompt = buildProblemPrompt(language, difficulty);
+    // Then
     expect(prompt).toContain("TypeScript");
     expect(prompt).toContain("easy");
   });
@@ -169,7 +207,12 @@ describe("buildProblemPrompt", () => {
   });
 
   it("JSON フォーマットの返却を指示する文言を含む", () => {
-    const prompt = buildProblemPrompt("TypeScript", "easy");
+    // Given
+    const language = "TypeScript";
+    const difficulty = "easy";
+    // When
+    const prompt = buildProblemPrompt(language, difficulty);
+    // Then
     expect(prompt).toContain("JSON");
     // requirements フィールドがスキーマに含まれること
     expect(prompt).toContain("requirements");
@@ -182,6 +225,7 @@ describe("FALLBACK_PROBLEMS バンク（AI なしの唯一の出題源）", () =
   });
 
   it("全エントリがスキーマ検証を通る具体的なお題である", () => {
+    // Given（FALLBACK_PROBLEMS 全件を対象にする）
     // When / Then（具体性: 説明は十分な長さ、要件は2件以上、テスト例あり）
     for (const entry of FALLBACK_PROBLEMS) {
       const result = validateProblem(entry.problem);
@@ -194,7 +238,8 @@ describe("FALLBACK_PROBLEMS バンク（AI なしの唯一の出題源）", () =
   });
 
   it("難易度が easy/medium/hard に分散している", () => {
-    // Given
+    // Given（FALLBACK_PROBLEMS 全件を対象にする）
+    // When
     const diffs = new Set(FALLBACK_PROBLEMS.map((e) => e.difficulty));
     // Then
     expect(diffs.has("easy")).toBe(true);
@@ -212,7 +257,12 @@ describe("FALLBACK_PROBLEMS バンク（AI なしの唯一の出題源）", () =
 
 describe("buildProblemPrompt 日本語化", () => {
   it("説明文を日本語で書く指示を含む", () => {
-    const p = buildProblemPrompt("TypeScript", "easy");
+    // Given
+    const language = "TypeScript";
+    const difficulty = "easy";
+    // When
+    const p = buildProblemPrompt(language, difficulty);
+    // Then
     expect(p).toContain("JAPANESE");
     expect(p).toContain("日本語");
   });
@@ -223,7 +273,12 @@ describe("buildProblemPrompt 日本語化", () => {
   });
 
   it("言語と難易度を埋め込む", () => {
-    const p = buildProblemPrompt("Go", "hard");
+    // Given
+    const language = "Go";
+    const difficulty = "hard";
+    // When
+    const p = buildProblemPrompt(language, difficulty);
+    // Then
     expect(p).toContain("Go");
     expect(p).toContain("hard");
   });
