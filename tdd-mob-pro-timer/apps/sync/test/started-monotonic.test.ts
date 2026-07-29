@@ -124,6 +124,7 @@ describe("Room.startedAt（開始済みの単調フラグ・D2）", () => {
   });
 
   it("不変条件: clock.running が true ならば startedAt は null/undefined ではない（コマンド種別に依存せず成立する）", async () => {
+    // Given（対象コマンドの一覧そのものが前提。各コマンドを新規ルームへ単独で送る）
     type Cmd = { command: string; [key: string]: unknown };
     const commands: Cmd[] = [
       { command: "session.act", action: "START" },
@@ -161,6 +162,7 @@ describe("Room.startedAt（開始済みの単調フラグ・D2）", () => {
       if (!create.isOk()) throw new Error("create failed");
       const freshCode = create.value.code;
 
+      // When
       await freshHandlers.handleCommand("host-conn", cmd);
 
       const after = freshStore.get(freshCode)!;

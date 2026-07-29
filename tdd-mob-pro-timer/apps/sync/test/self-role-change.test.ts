@@ -104,10 +104,11 @@ describe("role.set: 自分の役割の変更", () => {
   });
 
   it("③ 開始前は自分の役割を変更できない（従来どおりホストのみ）", async () => {
+    // Given
+    const command = { command: "role.set", participantId: pidOf("Bob"), role: "viewer" } as const;
+
     // When
-    const result = await handlers.handleCommand(BOB, {
-      command: "role.set", participantId: pidOf("Bob"), role: "viewer",
-    });
+    const result = await handlers.handleCommand(BOB, command);
 
     // Then
     expect(result.isErr()).toBe(true);

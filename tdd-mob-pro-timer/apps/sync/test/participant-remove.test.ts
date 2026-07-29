@@ -42,8 +42,11 @@ describe("participant.remove（⑪）", () => {
   });
 
   it("ホストが参加者を退出させ、一覧と rotation から消える", async () => {
+    // Given
+    const command = { command: "participant.remove", participantId: guestId } as const;
+
     // When
-    await handlers.handleCommand(hostConn, { command: "participant.remove", participantId: guestId });
+    await handlers.handleCommand(hostConn, command);
 
     // Then
     const room = broadcaster.latestSnapshot();
@@ -54,8 +57,11 @@ describe("participant.remove（⑪）", () => {
   });
 
   it("ホストでない参加者は実行できない（UNAUTHORIZED）", async () => {
+    // Given
+    const command = { command: "participant.remove", participantId: store.get(code)!.hostParticipantId } as const;
+
     // When
-    await handlers.handleCommand(guestConn, { command: "participant.remove", participantId: store.get(code)!.hostParticipantId });
+    await handlers.handleCommand(guestConn, command);
     // Then
     const error = broadcaster.sent.find((s) => s.msg.type === "error");
     expect(error?.msg.type === "error" && error.msg.code).toBe("UNAUTHORIZED");

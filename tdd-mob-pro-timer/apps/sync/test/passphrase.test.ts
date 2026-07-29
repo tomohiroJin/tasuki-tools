@@ -41,11 +41,11 @@ describe("room.passphrase.set", () => {
   });
 
   it("ホストはパスフレーズを設定でき passphraseProtected が true（平文は snapshot 非混入）", async () => {
+    // Given
+    const command = { command: "room.passphrase.set", passphrase: "secret" } as const;
+
     // When
-    const res = await handlers.handleCommand(hostConn, {
-      command: "room.passphrase.set",
-      passphrase: "secret",
-    });
+    const res = await handlers.handleCommand(hostConn, command);
 
     // Then
     res._unsafeUnwrap();
