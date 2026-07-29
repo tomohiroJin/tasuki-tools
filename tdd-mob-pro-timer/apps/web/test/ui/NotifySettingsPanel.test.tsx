@@ -11,7 +11,10 @@ const prefs = {
 
 describe("NotifySettingsPanel", () => {
   it("現在状態（ON・選択音名）を見出しに表示する", () => {
+    // Given（prefs をそのまま使う）
+    // When
     render(<NotifySettingsPanel prefs={prefs} onChange={vi.fn()} onPreview={vi.fn()} />);
+    // Then
     const heading = screen.getByText(/通知:/);
     expect(heading).toHaveTextContent("呼び出しチャイム");
   });
@@ -43,6 +46,7 @@ describe("NotifySettingsPanel", () => {
     expect(onChange).toHaveBeenCalledWith({ soundId: "melody" });
   });
   it("二重描画（ポップオーバー＋ロビーカード）でも id が衝突せず label が各 select に紐付く（useId）", () => {
+    // Given（prefs をそのまま使い、同じパネルを2つ描画する）
     // When
     const { container } = render(
       <>
@@ -91,7 +95,10 @@ describe("NotifySettingsPanel", () => {
   });
 
   it("カウントダウン方式ラジオボタンが表示され、トーン音が既定で選択されている", () => {
+    // Given（prefs をそのまま使う）
+    // When
     render(<NotifySettingsPanel prefs={prefs} onChange={vi.fn()} onPreview={vi.fn()} />);
+    // Then
     const toneRadio = screen.getByRole("radio", { name: "トーン音" }) as HTMLInputElement;
     const voiceRadio = screen.getByRole("radio", { name: "音声読み上げ" }) as HTMLInputElement;
     expect(toneRadio.checked).toBe(true);

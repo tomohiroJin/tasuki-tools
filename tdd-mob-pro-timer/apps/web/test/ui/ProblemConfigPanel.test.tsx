@@ -14,7 +14,10 @@ describe("ProblemConfigPanel", () => {
   afterEach(() => vi.restoreAllMocks());
 
   it("problemEnabled のとき言語/難易度の選択肢が表示される", () => {
+    // Given（config をそのまま使う）
+    // When
     render(<ProblemConfigPanel config={config} canEdit onChange={vi.fn()} problemEnabled />);
+    // Then
     expect(screen.getByRole("combobox", { name: "言語" })).toBeTruthy();
     expect(screen.getByRole("combobox", { name: "難易度" })).toBeTruthy();
   });
@@ -40,7 +43,10 @@ describe("ProblemConfigPanel", () => {
   });
 
   it("言語/難易度のランダムボタンが存在する", () => {
+    // Given（config をそのまま使う）
+    // When
     render(<ProblemConfigPanel config={config} canEdit onChange={vi.fn()} problemEnabled />);
+    // Then
     expect(screen.getByRole("button", { name: "言語をランダムに選ぶ" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "難易度をランダムに選ぶ" })).toBeTruthy();
   });
@@ -74,7 +80,11 @@ describe("ProblemConfigPanel", () => {
   });
 
   it("canEdit=false では編集要素を出さず現在の言語/難易度を読み取り表示する", () => {
-    render(<ProblemConfigPanel config={config} canEdit={false} onChange={vi.fn()} problemEnabled />);
+    // Given
+    const canEdit = false;
+    // When
+    render(<ProblemConfigPanel config={config} canEdit={canEdit} onChange={vi.fn()} problemEnabled />);
+    // Then
     expect(screen.queryByRole("combobox", { name: "言語" })).toBeNull();
     expect(screen.getByText(/TypeScript/)).toBeTruthy();
   });

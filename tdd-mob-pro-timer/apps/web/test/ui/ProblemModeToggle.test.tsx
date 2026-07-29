@@ -5,7 +5,10 @@ import { ProblemModeToggle } from "../../src/ui/components/ProblemModeToggle.js"
 
 describe("ProblemModeToggle", () => {
   it("enabled=true なら「お題あり」が選択状態", () => {
+    // Given
+    // When
     render(<ProblemModeToggle enabled onChange={vi.fn()} />);
+    // Then
     expect(screen.getByRole("radio", { name: "お題あり" }).getAttribute("aria-checked")).toBe("true");
     expect(screen.getByRole("radio", { name: "お題なし" }).getAttribute("aria-checked")).toBe("false");
   });
