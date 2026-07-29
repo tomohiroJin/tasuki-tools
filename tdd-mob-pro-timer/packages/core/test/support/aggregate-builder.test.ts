@@ -13,8 +13,10 @@ import { anAggregate, NOW } from "./aggregate-builder.js";
 
 describe("anAggregate()", () => {
   it("既定値で集約を作る（rotation 3人・currentIndex=0・clock 停止）", () => {
+    // Given（前提を何も指定しない = ビルダーの既定値を使う）
+    // When
     const agg = anAggregate().build();
-
+    // Then
     expect(agg.session.rotation).toEqual(["Alice", "Bob", "Charlie"]);
     expect(agg.session.currentIndex).toBe(0);
     expect(agg.session.driverCounts).toEqual([0, 0, 0]);
@@ -23,8 +25,11 @@ describe("anAggregate()", () => {
   });
 
   it("withRotation() は参加者ID配列で rotation と driverCounts の長さを決める", () => {
-    const agg = anAggregate().withRotation("p1", "p2", "p3", "p4").build();
-
+    // Given
+    const participantIds = ["p1", "p2", "p3", "p4"];
+    // When
+    const agg = anAggregate().withRotation(...participantIds).build();
+    // Then
     expect(agg.session.rotation).toEqual(["p1", "p2", "p3", "p4"]);
     expect(agg.session.driverCounts).toEqual([0, 0, 0, 0]);
   });
@@ -40,17 +45,22 @@ describe("anAggregate()", () => {
   });
 
   it("running() は clock を稼働状態にし、anchorServerTime/runningSince が at() の時刻になる", () => {
+    // Given
     const at = 2_000_000;
+    // When
     const agg = anAggregate().withRotation("p1", "p2", "p3").running().at(at).build();
-
+    // Then
     expect(agg.clock.running).toBe(true);
     expect(agg.clock.anchorServerTime).toBe(at);
     expect(agg.clock.runningSince).toBe(at);
   });
 
   it("paused() は running() を経てから一時停止した状態を作る（running=false・isPaused=true）", () => {
-    const agg = anAggregate().withRotation("p1", "p2", "p3").paused().build();
-
+    // Given
+    const participantIds = ["p1", "p2", "p3"];
+    // When
+    const agg = anAggregate().withRotation(...participantIds).paused().build();
+    // Then
     expect(agg.clock.running).toBe(false);
     expect(agg.session.isPaused).toBe(true);
   });
@@ -62,8 +72,11 @@ describe("anAggregate()", () => {
   });
 
   it("withIntervalMinutes() は clock.intervalSeconds に反映される", () => {
-    const agg = anAggregate().withRotation("p1", "p2").withIntervalMinutes(7).build();
-
+    // Given
+    const intervalMinutes = 7;
+    // When
+    const agg = anAggregate().withRotation("p1", "p2").withIntervalMinutes(intervalMinutes).build();
+    // Then
     expect(agg.clock.intervalSeconds).toBe(420);
     expect(agg.clock.secondsLeftAtAnchor).toBe(420);
   });
