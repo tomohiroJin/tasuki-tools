@@ -23,7 +23,12 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { ERROR_MESSAGES, DEFAULT_ERROR_MESSAGE, displayMessageFor } from "@tdd-mob/core";
+import {
+  ERROR_MESSAGES,
+  DEFAULT_ERROR_MESSAGE,
+  displayMessageFor,
+  SYNC_ERROR_CODES,
+} from "@tdd-mob/core";
 
 const SRC_DIR = join(import.meta.dirname, "../src");
 
@@ -95,5 +100,28 @@ describe("サーバーが送るエラーコード", () => {
     for (const code of INTENTIONALLY_NOT_SHOWN) {
       expect(displayMessageFor(code)).toBe(DEFAULT_ERROR_MESSAGE);
     }
+  });
+});
+
+/**
+ * `SyncErrorCode`（`packages/core/src/errors.ts`）の列挙と、実際のソースの突き合わせ。
+ *
+ * 型だけでは実行時に照合できないため、列挙は値（`SYNC_ERROR_CODES`）としても持たせてある。
+ * 双方向に検査することで「ソースに足したのに列挙し忘れた」「列挙に残っているのに
+ * ソースから消えた」の両方を検出する。
+ *
+ * @requirements FR-101, FR-114
+ */
+describe("エラーコードの列挙", () => {
+  it("ソースから見つかるコードは、すべて列挙に含まれている", () => {
+    const enumerated = new Set<string>(SYNC_ERROR_CODES);
+    const missing = [...collectServerErrorCodes()].filter((code) => !enumerated.has(code)).sort();
+    expect(missing).toEqual([]);
+  });
+
+  it("列挙されたコードは、すべてソースに実在する", () => {
+    const sources = readAllTsFiles(SRC_DIR).join("\n");
+    const absent = SYNC_ERROR_CODES.filter((code) => !sources.includes(`"${code}"`));
+    expect(absent).toEqual([]);
   });
 });

@@ -90,7 +90,10 @@ export type {
   InvalidIndex,
   InputLimitExceeded,
   DomainError,
+  SyncErrorCode,
+  ErrorCode,
 } from "./errors.js";
+export { SYNC_ERROR_CODES } from "./errors.js";
 // decide / evolve
 export { decide } from "./decide.js";
 export { evolve, advanceDriver } from "./evolve.js";
