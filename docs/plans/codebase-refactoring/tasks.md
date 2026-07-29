@@ -320,7 +320,7 @@
   `handlers.ai-unlock` / `ai-limits` / `claude-cli-problem-provider` / `config-ai`。
   _要件: FR-091〜FR-096, FR-123, US2_
 
-- [ ] **T042** バッチ「接続・運用・セキュリティ」: `resume` / `join-rate-limit` / `passphrase` /
+- [x] **T042** バッチ「接続・運用・セキュリティ」: `resume` / `join-rate-limit` / `passphrase` /
   `secure-compare` / `room-reclaimer` / `admin` / `config` / `config.admin` /
   `ws-adapter.admin` / `ws-adapter.integration`。
   _要件: FR-091〜FR-096, FR-123, US2_

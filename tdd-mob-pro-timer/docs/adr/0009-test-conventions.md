@@ -198,3 +198,20 @@ describe("<対象の名詞>", () => {
   1 テストが複数の振る舞い（例:「初回は取得でき、release 前の別ルームの取得は concurrent で拒否」）
   を検証していたため、前提を共有したまま複数テストに分割した（FR-095。6 件から分割後 9 件へ
   増加。検証内容は変えていない）。T0xx・FR-0xx を describe/it 名から JSDoc `@requirements` へ移した。
+
+### `apps/sync/test`（T042: バッチ「接続・運用・セキュリティ」）
+
+- `resume.test.ts`
+- `join-rate-limit.test.ts`
+- `passphrase.test.ts`
+- `secure-compare.test.ts`（既に規約を満たしており無変更・FR-123）
+- `room-reclaimer.test.ts`
+- `admin.test.ts`
+- `config.test.ts`（既に規約を満たしており無変更・FR-123）
+- `config.admin.test.ts`（既に規約を満たしており無変更・FR-123）
+- `ws-adapter.admin.test.ts`
+- `ws-adapter.integration.test.ts`
+
+  `passphrase.test.ts` と `admin.test.ts` の describe 名に含まれていた `R4-2` / `R3-2` 等
+  （SC-029 の `R\d-\d` パターンに合致）を JSDoc `@requirements` へ移した。T0xx・FR-0xx を
+  describe/it 名から JSDoc `@requirements` へ移した。検証内容・分割は変更していない。

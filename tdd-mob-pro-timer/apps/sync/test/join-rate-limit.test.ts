@@ -38,22 +38,28 @@ describe("room.join レート制限と失敗履歴の解放", () => {
   });
 
   it("連続失敗が上限を超えると RATE_LIMITED で拒否する", async () => {
-    // 上限までは ROOM_NOT_FOUND。
+    // Given（上限までは ROOM_NOT_FOUND）
     for (let i = 0; i < JOIN_FAIL_MAX; i++) {
       const r = await badJoin(handlers, conn);
       expect(r.isErr() && r.error).toBe("ROOM_NOT_FOUND");
     }
-    // 上限超過で RATE_LIMITED。
+
+    // When
     const blocked = await badJoin(handlers, conn);
+
+    // Then
     expect(blocked.isErr() && blocked.error).toBe("RATE_LIMITED");
   });
 
   it("接続クローズで失敗履歴が解放され、再び試行できる（マップのリーク防止）", async () => {
+    // Given
     for (let i = 0; i < JOIN_FAIL_MAX; i++) await badJoin(handlers, conn);
     expect((await badJoin(handlers, conn)).isErr() && (await badJoin(handlers, conn)).error).toBe("RATE_LIMITED");
 
-    // 切断で履歴クリア → 次は通常の ROOM_NOT_FOUND（RATE_LIMITED ではない）。
+    // When（切断で履歴クリア）
     handlers.handleConnectionClose(conn);
+
+    // Then（次は通常の ROOM_NOT_FOUND。RATE_LIMITED ではない）
     const after = await badJoin(handlers, conn);
     expect(after.isErr() && after.error).toBe("ROOM_NOT_FOUND");
   });
