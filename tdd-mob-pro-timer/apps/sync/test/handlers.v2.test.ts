@@ -211,7 +211,7 @@ describe("v2 コマンドの結合テスト", () => {
     const joined = await handlers.handleCommand("guest-conn", {
       command: "room.join", code: roomCode, displayName: "Spectator", hasAiKey: false,
     });
-    expect(joined.isOk()).toBe(true);
+    joined._unsafeUnwrap();
     const room = store.get(roomCode);
     const hostParticipant = room?.participants.find((p) => p.connId === hostConn);
     const spectator = room?.participants.find((p) => p.connId === "guest-conn");
@@ -265,7 +265,7 @@ describe("v2 コマンドの結合テスト", () => {
     });
 
     // Then
-    expect(result.isOk()).toBe(true);
+    result._unsafeUnwrap();
     const updated = broadcaster.latestSnapshot();
     const self = updated?.participants.find(
       (p) => p.participantId === hostParticipant!.participantId,
@@ -438,7 +438,7 @@ describe("participant.rename の認可", () => {
     });
 
     // Then
-    expect(result.isOk()).toBe(true);
+    result._unsafeUnwrap();
     const updated = broadcaster.latestSnapshot();
     const self = updated?.participants.find((p) => p.participantId === viewerPid);
     expect(self?.displayName).toBe("ViewerNew");
@@ -453,7 +453,7 @@ describe("participant.rename の認可", () => {
     });
 
     // Then
-    expect(result.isOk()).toBe(true);
+    result._unsafeUnwrap();
     const updated = broadcaster.latestSnapshot();
     const target = updated?.participants.find((p) => p.participantId === viewerPid);
     expect(target?.displayName).toBe("RenamedByHost");

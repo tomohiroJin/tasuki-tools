@@ -33,10 +33,7 @@ describe("handlers: room.create", () => {
       displayName: "Alice",
     });
 
-    expect(result.isOk()).toBe(true);
-    if (result.isOk()) {
-      expect(result.value.code).toBeTruthy();
-    }
+    expect(result._unsafeUnwrap().code).toBeTruthy();
   });
 
   it("作成者は host ロールで登録される", async () => {
@@ -45,15 +42,13 @@ describe("handlers: room.create", () => {
       displayName: "Alice",
     });
 
-    expect(result.isOk()).toBe(true);
-    if (result.isOk()) {
-      const room = store.get(result.value.code);
-      expect(room).toBeTruthy();
-      const host = room?.participants.find(
-        (p) => p.participantId === result.value.participantId,
-      );
-      expect(host?.role).toBe("host");
-    }
+    const value = result._unsafeUnwrap();
+    const room = store.get(value.code);
+    expect(room).toBeTruthy();
+    const host = room?.participants.find(
+      (p) => p.participantId === value.participantId,
+    );
+    expect(host?.role).toBe("host");
   });
 
   it("room.created メッセージを送信者に返す", async () => {
@@ -97,7 +92,7 @@ describe("handlers: room.create — maxRooms 上限", () => {
       command: "room.create",
       displayName: "Alice",
     });
-    expect(first.isOk()).toBe(true);
+    first._unsafeUnwrap();
 
     // When
     const second = await handlers.handleCommand("conn-002", {
@@ -169,10 +164,7 @@ describe("handlers: releaseRoom", () => {
     });
 
     // Then（元の participantId とは異なる新規 participantId が発行される）
-    expect(joinResult.isOk()).toBe(true);
-    if (joinResult.isOk()) {
-      expect(joinResult.value.participantId).not.toBe(participantId);
-    }
+    expect(joinResult._unsafeUnwrap().participantId).not.toBe(participantId);
   });
 });
 
