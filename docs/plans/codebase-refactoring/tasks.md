@@ -525,7 +525,7 @@
   `conflictsWithExisting(participants, desiredName, excludeId?)` を実装し T061 を緑にする。
   _要件: FR-104, US4_
 
-- [ ] **T063** `apps/sync/src/application/handlers.ts` の 2 箇所
+- [x] **T063** `apps/sync/src/application/handlers.ts` の 2 箇所
   （`participant.addProxy` の重複検査 `573-586` 相当、`participant.rename` の重複検査 `590-618` 相当）を
   `conflictsWithExisting()` の呼び出しに置換する。
   _要件: FR-104, FR-107, US4_

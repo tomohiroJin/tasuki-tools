@@ -16,6 +16,7 @@ import {
   checkPermission,
   canRemoveParticipant,
   canDemote,
+  conflictsWithExisting,
   type Room,
   type Participant,
   type SessionConfig,
@@ -571,10 +572,7 @@ export function makeHandlers(deps: HandlerDeps) {
     // 参加者IDの配列になったため集約からは名前の重複を判定できない。
     // 「既存の表示名と重複する代理は追加できない」という従来の挙動を維持する。
     if (domainCmd && domainCmd.command === "participant.addProxy") {
-      const desired = domainCmd.displayName.trim().toLowerCase();
-      const conflicts = targetRoom.participants.some(
-        (p) => p.displayName.trim().toLowerCase() === desired,
-      );
+      const conflicts = conflictsWithExisting(targetRoom.participants, domainCmd.displayName);
       if (conflicts) {
         broadcaster.sendTo(connId, {
           type: "error",
@@ -603,9 +601,10 @@ export function makeHandlers(deps: HandlerDeps) {
       }
       // 自分自身は比較対象から外す（現在名と同じ名前への改名は no-op 相当で許可する）。
       // 大文字小文字は無視する（表示上の識別が付かないため衝突とみなす・FR-046/048）。
-      const desired = domainCmd.displayName.trim().toLowerCase();
-      const conflicts = targetRoom.participants.some(
-        (p) => p.participantId !== target.participantId && p.displayName.trim().toLowerCase() === desired,
+      const conflicts = conflictsWithExisting(
+        targetRoom.participants,
+        domainCmd.displayName,
+        target.participantId,
       );
       if (conflicts) {
         broadcaster.sendTo(connId, {
