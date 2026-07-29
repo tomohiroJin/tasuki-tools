@@ -14,8 +14,12 @@ import { aRoom } from "./room-builder.js";
 
 describe("aRoom()", () => {
   it("参加者を指定しない場合、host のみのルームができる", async () => {
-    const { store, code, ids } = await aRoom().build();
+    // Given（追加オプションを付けない aRoom() を対象にする）
+    const builder = aRoom();
+    // When
+    const { store, code, ids } = await builder.build();
 
+    // Then
     const room = store.get(code);
     expect(room?.participants).toHaveLength(1);
     expect(room?.participants[0]?.displayName).toBe("Host");
@@ -23,8 +27,12 @@ describe("aRoom()", () => {
   });
 
   it("withParticipants() で指定した名前が参加者として join する", async () => {
-    const { store, code, ids } = await aRoom().withParticipants("Bob", "Carol").build();
+    // Given
+    const builder = aRoom().withParticipants("Bob", "Carol");
+    // When
+    const { store, code, ids } = await builder.build();
 
+    // Then
     const room = store.get(code);
     const names = room?.participants.map((p) => p.displayName);
     expect(names).toEqual(["Host", "Bob", "Carol"]);
@@ -33,26 +41,35 @@ describe("aRoom()", () => {
   });
 
   it("withDriver() で指定した参加者が現ドライバーになる", async () => {
-    const { store, code, ids } = await aRoom()
-      .withParticipants("Bob", "Carol")
-      .withDriver("Bob")
-      .build();
+    // Given
+    const builder = aRoom().withParticipants("Bob", "Carol").withDriver("Bob");
+    // When
+    const { store, code, ids } = await builder.build();
 
+    // Then
     const room = store.get(code);
     const currentIndex = room?.session.currentIndex ?? -1;
     expect(room?.session.rotation[currentIndex]).toBe(ids["Bob"]);
   });
 
   it("started() でセッションが開始状態（phase: session）になる", async () => {
-    const { store, code } = await aRoom().withParticipants("Bob").started().build();
+    // Given
+    const builder = aRoom().withParticipants("Bob").started();
+    // When
+    const { store, code } = await builder.build();
 
+    // Then
     const room = store.get(code);
     expect(room?.phase).toBe("session");
   });
 
   it("build() は { handlers, store, broadcaster, code, ids } を返す", async () => {
-    const built = await aRoom().withParticipants("Bob").build();
+    // Given
+    const builder = aRoom().withParticipants("Bob");
+    // When
+    const built = await builder.build();
 
+    // Then
     expect(built.handlers).toBeTruthy();
     expect(built.store).toBeTruthy();
     expect(built.broadcaster).toBeTruthy();
