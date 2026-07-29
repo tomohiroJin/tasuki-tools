@@ -47,7 +47,7 @@
 - [ ] **T001** `scripts/audit-structure.mjs` を新規作成し、**spec の「操作的定義（何を数えるか）」表の
   各行に 1 対 1 対応する関数**を置く（`sc027UnreachableModules` / `sc028DuplicateTestDoubles` /
   `sc029SpecIdsInNames` / `sc030CallNamesInNames` / `sc031GuardExpects` / `sc032GwtMarkers` /
-  `sc035MessageDefinitions` / `sc036TestCount`）。各関数は件数を返すだけにする。
+  `sc035MessageDefinitions` / `sc036TestCount` / `sc039UnreachableElements`）。各関数は件数を返すだけにする。
   **Node で書く**（SC-027 の import グラフ探索と SC-032 の本体行数判定は grep では書けない）。
   _要件: FR-098, SC-027〜SC-036_
 
@@ -120,6 +120,7 @@
   `packages/core/src/i18n/ja.ts`（162 行）と `en.ts`（151 行）、
   `packages/core/src/index.ts` の再エクスポート 2 行、
   `apps/web/test/ui/i18n-coverage.test.ts`（72 行・10 テスト）、
+  型 `JaMessages` / `EnMessages`（他から一度も参照されていない）、
   `packages/core/test/coverage-supplement.test.ts` の i18n 節（197 行目〜と import 2 行）を削除する。
   **これらを 1 コミットで行う**（分けるとツリーが壊れる）。
 
@@ -274,7 +275,8 @@
   _要件: FR-091, FR-093（例外）, US2_
 
 - [ ] **T036** `packages/core/test/coverage-supplement.test.ts` を**解体する**。
-  `evolve` / `records` / `i18n` の無関係な検証が同居しているため、それぞれの関心のファイルへ移す。
+  `evolve` と `records` の無関係な検証が同居しているため、それぞれの関心のファイルへ移す。
+  （i18n 節は T012 で削除済み）
   **検証内容は変えない**（移動のみ）。移動後に `packages/core` のカバレッジ閾値 90% を割らないことを確認する。
   _要件: FR-095, FR-099, US2_
 
@@ -407,7 +409,8 @@
 ## G4 — 構造（挙動不変・移動と列挙が中心）
 
 - [ ] **T055** `packages/core/src/index.ts` の `export *` 11 本を、**現在公開されている記号の明示列挙**に
-  置換する。型定義出力から公開記号を機械的に抽出し、**削減はしない**。
+  置換する。型定義出力から公開記号を機械的に抽出し、**本タスクでは削減はしない**。
+  **公開の必要性の見直しは T057 が行う**（機械的な変更と判断を要する変更を分ける・FR-117）。
   `pnpm typecheck` が通ることで同値性を確認する。
   _要件: FR-110, US5_
 
@@ -417,17 +420,42 @@
   **`index.ts` の公開記号は変えない**（`problem.ts` から再エクスポート）。
   _要件: FR-109, US5_
 
-- [ ] **T057 [P]** `docs/adr/0009-test-conventions.md` を新規作成する。
+- [ ] **T057** **自ファイル内でのみ使う公開記号の `export` を外す**（FR-119 の③・SC-039）。
+  `audit-structure.mjs` の SC-039 ③で候補を出す（**現状 17 件**:
+  `aggregate.ts` の `ConnId` / `ParticipantId` / `RoomCode`、`decide.ts` の `DecideCommand`、
+  `errors.ts` の `Unauthorized`、`participants.ts` の `countManagers`、
+  `permissions.ts` の `PermissionVerdict`、`problem.ts` の `FallbackProblemEntry` /
+  `FALLBACK_PROBLEMS`、`schemas.ts` の `SessionConfigSchema` / `SessionActionValues` /
+  `Command` / `ParticipantSchema` / `ServerClockSchema` / `SessionStateSchema` /
+  `RoomSchema` / `ServerMsgSchema`）。
+
+  **走査の結果をそのまま適用しない。1 件ずつ確認してから外す。**
+  走査は名前の一致で判定するため、動的な参照や同名の別記号を取りこぼす可能性がある。
+  `pnpm typecheck` が通ることを 1 件ずつの根拠とする。
+
+  ⚠ **テストからの参照は残す理由にならない**（FR-090）。ただし
+  **テストがその記号を直接使っている場合、`export` を外すとテストが壊れる。**
+  該当する 5 件（`countManagers` / `FALLBACK_PROBLEMS` / `SessionConfigSchema` /
+  `RoomSchema` / `ServerMsgSchema`）は、**テスト側を公開 API 経由の検証に寄せるか、
+  その記号は対象外とするかを個別に判断する**。
+
+  > **T056（`export *` の明示列挙）と分ける理由（FR-117）。**
+  > T056 は「現在公開されているものを機械的に列挙する」変更、本タスクは
+  > 「公開の必要性を 1 件ずつ判断する」変更である。
+  > **機械的な変更と判断を要する変更は別の変更単位に分ける。**
+  _要件: FR-119, FR-110, FR-117, SC-039, US5_
+
+- [ ] **T058 [P]** `docs/adr/0009-test-conventions.md` を新規作成する。
   `plan.md` の「テストの書き方の規約」を ADR として記録し、**移行済みファイルの一覧**を持たせる
   （G3 の各バッチで更新済みのはず。ここで最終状態に整える）。
   _要件: FR-122, US2_
 
-- [ ] **T058 [P]** `docs/adr/0010-design-doc-source.md` を新規作成し、**設計文書の正本**を記録する。
+- [ ] **T059 [P]** `docs/adr/0010-design-doc-source.md` を新規作成し、**設計文書の正本**を記録する。
   `docs/plans/` と `docs/superpowers/` の 2 系統が併存し計 64 の md がある現状に対し、
   どちらが正本かの規則を定める。
   _要件: FR-112, US5_
 
-- [ ] **T059** `pnpm test && typecheck && lint && build` 全緑。
+- [ ] **T060** `pnpm test && typecheck && lint && build` 全緑。
   **実機確認（RC-003）**: `vite` を再起動し、お題の生成・表示が変わっていないことを目視する
   （T056 でお題データを移動しているため）。確認した画面と操作をコミットに列挙する。
   _要件: FR-114, RC-003_
@@ -436,54 +464,54 @@
 
 ## G5 — 規則の一元化（挙動不変）
 
-- [ ] **T060** `packages/core/test/display-name.test.ts` に `conflictsWithExisting()` の
+- [ ] **T061** `packages/core/test/display-name.test.ts` に `conflictsWithExisting()` の
   **失敗するテスト**を書く。判定内容は**現在の `handlers.ts` と同一**にする
   （`trim().toLowerCase()` 比較・自分自身を除外）。
   **`nameSkeleton` を使う「より正しい判定」にしてはならない**（それは振る舞いの変更）。
   _要件: FR-104, FR-114, US4_
 
-- [ ] **T061** `packages/core/src/display-name.ts` に
-  `conflictsWithExisting(participants, desiredName, excludeId?)` を実装し T060 を緑にする。
+- [ ] **T062** `packages/core/src/display-name.ts` に
+  `conflictsWithExisting(participants, desiredName, excludeId?)` を実装し T061 を緑にする。
   _要件: FR-104, US4_
 
-- [ ] **T062** `apps/sync/src/application/handlers.ts` の 2 箇所
+- [ ] **T063** `apps/sync/src/application/handlers.ts` の 2 箇所
   （`participant.addProxy` の重複検査 `573-586` 相当、`participant.rename` の重複検査 `590-618` 相当）を
   `conflictsWithExisting()` の呼び出しに置換する。
   _要件: FR-104, FR-107, US4_
 
-- [ ] **T063** `packages/core/src/error-messages.ts` を新規作成し、
+- [ ] **T064** `packages/core/src/error-messages.ts` を新規作成し、
   **現在クライアントが表示している文言**（`App.tsx:38-58` の `ERROR_MESSAGES`）をそのまま移す。
   **文言は 1 文字も変えない。**
   _要件: FR-105, FR-114, US4_
 
-- [ ] **T064** `apps/web/src/App.tsx` の `ERROR_MESSAGES` を T063 の表の参照に置き換える。
+- [ ] **T065** `apps/web/src/App.tsx` の `ERROR_MESSAGES` を T064 の表の参照に置き換える。
   _要件: FR-105, US4_
 
-- [ ] **T065** `apps/sync/src` の `message:` リテラル（ユニーク 23 種・出現 36 箇所 ＋ テンプレート 5）を
-  T063 の表からの引き当てに置換する。**wire の `message` フィールドは維持する**（FR-089）。
+- [ ] **T066** `apps/sync/src` の `message:` リテラル（ユニーク 23 種・出現 36 箇所 ＋ テンプレート 5）を
+  T064 の表からの引き当てに置換する。**wire の `message` フィールドは維持する**（FR-089）。
   ⚠ **同一コードで文言が複数あるものが 5 種ある**が、その区別は現在も画面に出ていないため
   **表の 1 文言に寄せる**。具体性の回復は [#29](https://github.com/tomohiroJin/tasuki-tools/issues/29) が扱う。
   _要件: FR-089, FR-105, FR-114, US4_
 
-- [ ] **T066** `apps/web/test/ui/participant-label.test.ts` に、
+- [ ] **T067** `apps/web/test/ui/participant-label.test.ts` に、
   **Lobby と RosterPanel が共通で使う「操作の可否判定」**の失敗するテストを書く。
   _要件: FR-107, US4_
 
-- [ ] **T067** `apps/web/src/ui/participant-label.ts`（または隣接の純粋関数モジュール）に
+- [ ] **T068** `apps/web/src/ui/participant-label.ts`（または隣接の純粋関数モジュール）に
   可否判定を実装し、`Lobby.tsx` と `RosterPanel.tsx` の**両方**がこれを経由するようにする。
   **描画（JSX）は両者に残す。統合しない**（FR-118）。
   _要件: FR-107, FR-118, US4_
 
-- [ ] **T068** `apps/web/test/ui/` に `useLatestRef` の失敗するテストを書く。
+- [ ] **T069** `apps/web/test/ui/` に `useLatestRef` の失敗するテストを書く。
   _要件: FR-120, US4_
 
-- [ ] **T069** `apps/web/src/ui/use-latest-ref.ts` に `useLatestRef(value)` を実装し、
+- [ ] **T070** `apps/web/src/ui/use-latest-ref.ts` に `useLatestRef(value)` を実装し、
   `App.tsx` の **state と ref の二重管理 5 組**の同期処理をこれに集約する。
   **reducer への作り替えは行わない。**
   **純粋なガード用 ref（`problemRequestedRef` など state を持たないもの）は触らない。**
   _要件: FR-120, FR-118, US4_
 
-- [ ] **T070** `pnpm test && typecheck && lint && build` 全緑。
+- [ ] **T071** `pnpm test && typecheck && lint && build` 全緑。
   `mutation-check.mjs` を再実行し検出結果が変わらないことを確認する。
   T001 で **SC-035** が目標を満たすことを確認する。
   **RC-002 をレビューで確認する**（同じ入力に同じ結論を出すコードが 2 箇所以上ないか）。
@@ -495,16 +523,16 @@
 
 ## G6 — 契約（挙動不変）
 
-- [ ] **T071** `packages/core/src/errors.ts` に `ErrorCode` 列挙（文字列リテラルの union）を追加する。
+- [ ] **T072** `packages/core/src/errors.ts` に `ErrorCode` 列挙（文字列リテラルの union）を追加する。
   **値は現在使われている文字列と完全に同一**にする（wire にも挙動にも影響させない）。
   _要件: FR-101, FR-114, US3_
 
-- [ ] **T072** `apps/sync/src/application/handlers.ts` の `err("...")` と
+- [ ] **T073** `apps/sync/src/application/handlers.ts` の `err("...")` と
   `broadcaster.sendTo(connId, { type: "error", code: "..." })` を `ErrorCode` 型で受けるようにする。
   **型を付けるだけで、値も分岐も変えない。**
   _要件: FR-101, US3_
 
-- [ ] **T073** ハンドラの戻り値型を見直す。**`server.ts:127` が戻り値を破棄しているため、
+- [ ] **T074** ハンドラの戻り値型を見直す。**`server.ts:127` が戻り値を破棄しているため、
   この型はテストだけが参照する契約である。** `room.create` / `room.join` のみ `CreateResult` を返し、
   他は副作用の完了を表す型に変える。ダミー値の充填（`hostToken: ""` 等 10 箇所）を無くす。
   **テストは戻り値ではなく `SpyBroadcaster` の観測に寄せる**（本番と同じ観測点にする）。
@@ -513,29 +541,29 @@
   G3 が達成した SC-029〜SC-032 を崩さないよう、本グループの完了時に再走査する。
   _要件: FR-100, US3_
 
-- [ ] **T074** `packages/core/test/` に **B-2 の特性テスト**を書く。
+- [ ] **T075** `packages/core/test/` に **B-2 の特性テスト**を書く。
   現在の交代の振る舞い（`session.act SWITCH` が `advanceDriver` の結果になること）を固定する。
   **この時点では実装を変えない。**
   _要件: FR-102, FR-114, US3_
 
-- [ ] **T075** `packages/core/test/` に **`fast-check`（v4・既存の devDependency）による
+- [ ] **T076** `packages/core/test/` に **`fast-check`（v4・既存の devDependency）による
   プロパティテスト**を書き、`decide` に ineligible 集合を渡した場合の
   `evolve(DriverSwitched)` と `advanceDriver` が**すべての入力で同じ集約を生むか**を検証する。
   生成する入力は rotation の長さ・`currentIndex`・ineligible 集合の全組み合わせとする。
   _要件: FR-102, US3_
 
-- [ ] **T076** **T075 の結果で分岐する。**
+- [ ] **T077** **T076 の結果で分岐する。**
   - **同値が示せた場合**: `decide` に ineligible を渡す形にし、
     `handlers.ts:679-688` 相当の置き換え分岐を撤去する
   - **示せなかった場合**: **実装を変えず、結果を新規 Issue に記録して撤退する**。
-    T074 / T075 は成果として残す（捨てない）
+    T075 / T076 は成果として残す（捨てない）
   _要件: FR-102, FR-115, US3_
 
-- [ ] **T077** `applyRoomLevelEvent` と `evolve` の**適用順序の契約を型または明示的な契約として表現する**
+- [ ] **T078** `applyRoomLevelEvent` と `evolve` の**適用順序の契約を型または明示的な契約として表現する**
   （現在はコメントによる注意喚起のみ）。**統合はしない**（Issue #26 の担当）。
   _要件: FR-103, US3_
 
-- [ ] **T078** `pnpm test && typecheck && lint && build` 全緑。
+- [ ] **T079** `pnpm test && typecheck && lint && build` 全緑。
   `mutation-check.mjs` を再実行し検出結果が変わらないことを確認する。
   **RC-001 をレビューで確認する**（呼び出し側が使わないダミー値が残っていないか）。
   **`audit-structure.mjs` を実行し、SC-029〜SC-032 が G3 完了時から悪化していないことを確認する**
@@ -547,13 +575,13 @@
 
 ## G7 — 唯一の挙動変更（到達不能分岐の撤去）
 
-- [ ] **T079** `apps/sync/src/application/handlers.ts:97` の `!room.onBreak`（到達不能な条件）を撤去する。
+- [ ] **T080** `apps/sync/src/application/handlers.ts:97` の `!room.onBreak`（到達不能な条件）を撤去する。
   **`break.start` / `break.end` の wire スキーマは残す**（FR-089・後方互換）。
   **`Room.onBreak` フィールドも残す**（snapshot の形を変えない）。
   **このタスクは単独のコミットにする**（FR-115）。
   _要件: FR-119, FR-115, FR-089, US1_
 
-- [ ] **T080** `pnpm test && typecheck && lint && build` 全緑。
+- [ ] **T081** `pnpm test && typecheck && lint && build` 全緑。
   **実機確認（RC-003）**: セッションの開始・交代・一時停止・再開・完成が変わっていないことを目視する。
   **この段階は挙動を変えうるため、確認した画面と操作をコミットに必ず列挙する。**
   _要件: FR-115, RC-003_
@@ -566,19 +594,20 @@
 > どちらも `handlers.ts` の構造そのものを変える要件であり、**Issue #26 が担う**（spec のスコープ外）。
 > 本仕様の完了は、これら 2 件を除いた要件で判定する。
 
-- [ ] **T081** `scripts/audit-structure.mjs` を実行し、**SC-027〜SC-036 がすべて目標を満たす**ことを確認する
-  （SC-033 / SC-034 / SC-037 は欠番。RC-001〜RC-003 は各グループのレビューで確認済み）。
-  _要件: SC-027, SC-028, SC-029, SC-030, SC-031, SC-032, SC-035, SC-036_
+- [ ] **T082** `scripts/audit-structure.mjs` を実行し、**SC-027〜SC-036 がすべて目標を満たす**ことを確認する
+  （SC-033 / SC-034 / SC-037 は欠番。SC-039 は G1 の分岐・データと G4 の公開記号の双方を含む。
+  RC-001〜RC-003 は各グループのレビューで確認済み）。
+  _要件: SC-027, SC-028, SC-029, SC-030, SC-031, SC-032, SC-035, SC-036, SC-039_
 
-- [ ] **T082** `scripts/mutation-check.mjs --full` を実行し、**ベースライン（T007）と検出結果が一致する**ことを
+- [ ] **T083** `scripts/mutation-check.mjs --full` を実行し、**ベースライン（T007）と検出結果が一致する**ことを
   確認する。一致しない場合は FR-098 / FR-099 に従って原因を切り分ける。
   _要件: FR-098, FR-099_
 
-- [ ] **T083** `docs/adr/0009-test-conventions.md` の移行済み一覧が **145 ファイル全件**になっていることを
+- [ ] **T084** `docs/adr/0009-test-conventions.md` の移行済み一覧が **145 ファイル全件**になっていることを
   確認する。**停止した場合は、その時点の一覧を残して完了とする**。
   _要件: FR-116, FR-121, FR-122_
 
-- [ ] **T084** **各グループが単独でマージ可能な状態で提出されたことを確認する**（G0〜G7 の各コミットが
+- [ ] **T085** **各グループが単独でマージ可能な状態で提出されたことを確認する**（G0〜G7 の各コミットが
   単独で `pnpm test && typecheck && lint && build` を通ること）。
   実績時間を `baseline.md` に記録し、`spec.md` / `plan.md` の見積もり（95〜168 h）との乖離を残す。
   **次回のリファクタリングの見積もりの根拠になる。**
