@@ -443,9 +443,14 @@ export function sc035MessageDefinitions(serverSources, clientSource) {
  * SC-039①: apps/ の到達不能な分岐。
  * 【限界】機械判定が難しいため、既知のパターン（`!room.onBreak`）の検出に留める。
  * 一般の「受理コマンド集合から到達しない条件」の網羅的判定は行わない（spec/plan の指示どおり）。
+ *
+ * **文字列リテラルとコメントを除去してから照合する。**
+ * これを忘れると、**撤去した分岐について説明したコメントに一致して「まだ残っている」と誤判定する。**
+ * 実際に T080 で分岐を撤去したあと、撤去の理由を述べたコメント中の記述に一致し、
+ * 件数が 1 のまま減らなかった。**コメントは分岐ではない。**
  */
 export function sc039aUnreachableBranchInApps(handlersSource) {
-  return /!room\.onBreak/.test(handlersSource) ? 1 : 0;
+  return /!room\.onBreak/.test(stripStringsAndComments(handlersSource)) ? 1 : 0;
 }
 
 /**
