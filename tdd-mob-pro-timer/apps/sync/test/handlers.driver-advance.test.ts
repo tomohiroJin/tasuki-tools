@@ -39,7 +39,8 @@ async function setupRunningRoom(
     config: { ...config, members },
   });
   if (!create.isOk()) throw new Error("create failed");
-  const code = create.value.code;
+  // 本番（server.ts）は handleCommand の戻り値を破棄する。値は本番と同じ観測点から取る（FR-100）。
+  const code = store.list().at(-1)!.code;
 
   const room = store.get(code)!;
   // 各メンバーが participant として存在するよう presence を設定する。

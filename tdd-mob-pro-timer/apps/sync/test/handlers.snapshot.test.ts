@@ -37,7 +37,7 @@ describe("handlers: full snapshot 配信フロー", () => {
 
     // Then
     const snapshots = broadcaster.snapshots.filter(
-      (s) => s.roomCode === createResult.value.code,
+      (s) => s.roomCode === broadcaster.createdFor("conn-001").code,
     );
     expect(snapshots.length).toBeGreaterThan(0);
   });
@@ -64,7 +64,7 @@ describe("handlers: full snapshot 配信フロー", () => {
       displayName: "Alice",
     });
     if (!createResult.isOk()) throw new Error("create failed");
-    const code = createResult.value.code;
+    const code = broadcaster.createdFor("conn-001").code;
     const room1 = store.get(code);
 
     // When（host のみ操作可能なので、viewer 参加の冪等確認として再度 join する）

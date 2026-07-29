@@ -31,11 +31,11 @@ describe("ai.unlock", () => {
       codeGen: new FakeCodeGen(),
       aiUnlockKey: "himitsu",
     });
-    const create = await handlers.handleCommand(hostConn, {
+    await handlers.handleCommand(hostConn, {
       command: "room.create",
       displayName: "Alice",
     });
-    const code = create._unsafeUnwrap().code;
+    const code = broadcaster.createdFor(hostConn).code;
     // snapshots をリセットして ai.unlock だけの snapshot を確認しやすくする
     broadcaster.snapshots.length = 0;
     broadcaster.sent.length = 0;
@@ -67,11 +67,11 @@ describe("ai.unlock", () => {
       codeGen: new FakeCodeGen(),
       aiUnlockKey: "himitsu",
     });
-    const create = await handlers.handleCommand(hostConn, {
+    await handlers.handleCommand(hostConn, {
       command: "room.create",
       displayName: "Alice",
     });
-    const code = create._unsafeUnwrap().code;
+    const code = broadcaster.createdFor(hostConn).code;
     broadcaster.sent.length = 0;
 
     // When
@@ -134,11 +134,11 @@ describe("ai.unlock", () => {
       codeGen: new FakeCodeGen(),
       aiUnlockKey: "himitsu",
     });
-    const create = await handlers.handleCommand(hostConn, {
+    await handlers.handleCommand(hostConn, {
       command: "room.create",
       displayName: "Alice",
     });
-    const code = create._unsafeUnwrap().code;
+    const code = broadcaster.createdFor(hostConn).code;
     const memberConn = "member-conn";
     const join = await handlers.handleCommand(memberConn, {
       command: "room.join",

@@ -42,13 +42,12 @@ describe("コマンド経路: 既定ロールと拒否の伝播", () => {
     });
 
     // ルームを作成
-    const result = await handlers.handleCommand("host-conn", {
+    await handlers.handleCommand("host-conn", {
       command: "room.create",
       displayName: "Host",
     });
-    if (result.isOk()) {
-      roomCode = result.value.code;
-    }
+    // 本番（server.ts）は handleCommand の戻り値を破棄する。値は本番と同じ観測点から取る（FR-100）。
+    roomCode = broadcaster.createdFor("host-conn").code;
 
     // 参加者が join（既定は editor）。viewer 制限の検証用に host が viewer へ降格する。
     await handlers.handleCommand("viewer-conn", {
@@ -126,11 +125,12 @@ describe("コマンド経路: 許可が decide まで届く", () => {
     hostConnId = "host-conn-v2";
     viewerConnId = "viewer-conn-v2";
 
-    const result = await handlers.handleCommand(hostConnId, {
+    await handlers.handleCommand(hostConnId, {
       command: "room.create",
       displayName: "Host",
     });
-    if (result.isOk()) roomCode = result.value.code;
+    // 本番（server.ts）は handleCommand の戻り値を破棄する。値は本番と同じ観測点から取る（FR-100）。
+    roomCode = broadcaster.createdFor(hostConnId).code;
 
     await handlers.handleCommand(viewerConnId, {
       command: "room.join",
@@ -219,11 +219,12 @@ describe("resolveIsSelfTarget: driver.skip / driver.resume の対象解決（本
     editorConnId = "editor-conn-rel";
     viewerConnId = "viewer-conn-rel";
 
-    const result = await handlers.handleCommand(hostConnId, {
+    await handlers.handleCommand(hostConnId, {
       command: "room.create",
       displayName: "Host",
     });
-    if (result.isOk()) roomCode = result.value.code;
+    // 本番（server.ts）は handleCommand の戻り値を破棄する。値は本番と同じ観測点から取る（FR-100）。
+    roomCode = broadcaster.createdFor(hostConnId).code;
 
     await handlers.handleCommand(editorConnId, {
       command: "room.join",

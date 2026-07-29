@@ -52,12 +52,35 @@ export interface HandlerDeps {
   aiUnlockKey?: string;
 }
 
+/** `room.create` が呼び出し元へ返す値。ホストトークンは作成者だけが受け取る。 */
 export interface CreateResult {
   code: string;
   participantId: string;
   hostToken: string;
   resumeToken: string;
 }
+
+/** `room.join` が呼び出し元へ返す値。参加者はホストトークンを持たない。 */
+export interface JoinResult {
+  code: string;
+  participantId: string;
+  resumeToken: string;
+}
+
+/**
+ * **コマンド処理の結果。**
+ *
+ * ⚠ **本番（`apps/sync/src/server.ts`）はこの戻り値を使っていない**
+ * （`await handlers.handleCommand(connId, cmd);` と破棄している）。
+ * 本番の観測点は `Broadcaster` への送信（snapshot / error / signal）であり、
+ * 戻り値ではない。したがってここに「返していない値」を載せてはならない（FR-100）。
+ *
+ * 値を返すのは `room.create` / `room.join` だけである。
+ * 他のコマンドは副作用（配信）の完了だけを表すので `undefined` を返す。
+ * かつては全ハンドラが `CreateResult` を返す形で、`hostToken: ""` のような
+ * **呼び出し側が決して読まないダミー値を 10 箇所で充填していた**。
+ */
+export type CommandResult = Result<CreateResult | JoinResult | undefined, ErrorCode>;
 
 export function makeHandlers(deps: HandlerDeps) {
   const { store, clock, broadcaster, codeGen, scheduler, delegator } = deps;
@@ -142,7 +165,7 @@ export function makeHandlers(deps: HandlerDeps) {
   async function handleCommand(
     connId: string,
     cmd: { command: string; [key: string]: unknown },
-  ): Promise<Result<CreateResult, ErrorCode>> {
+  ): Promise<CommandResult> {
     switch (cmd.command) {
       case "room.create":
         return handleRoomCreate(
@@ -301,7 +324,7 @@ export function makeHandlers(deps: HandlerDeps) {
       resumeToken?: string;
       passphrase?: string;
     },
-  ): Promise<Result<CreateResult, ErrorCode>> {
+  ): Promise<Result<JoinResult, ErrorCode>> {
     const now = clock.now();
 
     // 連続失敗が閾値を超えた接続は一時的に拒否（コード総当たりの緩和）。
@@ -344,7 +367,6 @@ export function makeHandlers(deps: HandlerDeps) {
           return ok({
             code: cmd.code,
             participantId: tokenData.participantId,
-            hostToken: hostTokens.get(cmd.code) ?? "",
             resumeToken: cmd.resumeToken,
           });
         }
@@ -409,7 +431,7 @@ export function makeHandlers(deps: HandlerDeps) {
 
     broadcaster.broadcastSnapshot(cmd.code, updatedRoom);
 
-    return ok({ code: cmd.code, participantId, hostToken: "", resumeToken });
+    return ok({ code: cmd.code, participantId, resumeToken });
   }
 
   /** time.ping — 状態を変えずにサーバー時刻を返す（FR-007, SC-001） */
@@ -418,19 +440,19 @@ export function makeHandlers(deps: HandlerDeps) {
     // 受信形を型として残すが、応答はサーバー時刻のみで clientTime は使わない
     // （往復遅延の推定はクライアント側が送信時刻と突き合わせて行う）。
     _cmd: { command: "time.ping"; clientTime: number },
-  ): Promise<Result<CreateResult, ErrorCode>> {
+  ): Promise<Result<undefined, ErrorCode>> {
     broadcaster.sendTo(connId, {
       type: "time.pong",
       serverTime: clock.now(),
     });
-    return ok({ code: "", participantId: "", hostToken: "", resumeToken: "" });
+    return ok(undefined);
   }
 
   /** ルームコマンド（session.act, config.set 等） */
   async function handleRoomCommand(
     connId: string,
     cmd: { command: string; [key: string]: unknown },
-  ): Promise<Result<CreateResult, ErrorCode>> {
+  ): Promise<Result<undefined, ErrorCode>> {
     // connId からルームを特定する
     let targetRoom = findRoomByConnId(connId);
 
@@ -527,7 +549,7 @@ export function makeHandlers(deps: HandlerDeps) {
       if (target.connId && targetId !== participant.participantId) {
         sendError(target.connId, "REMOVED_FROM_ROOM", `${participant.displayName} さんにより退出させられました。招待から再参加できます。`);
       }
-      return ok({ code: next.code, participantId: "", hostToken: "", resumeToken: "" });
+      return ok(undefined);
     }
 
     // ドメインコマンドを構築して decide/evolve を実行。
@@ -734,14 +756,14 @@ export function makeHandlers(deps: HandlerDeps) {
       });
     }
 
-    return ok({ code: updatedRoom.code, participantId: participant.participantId, hostToken: "", resumeToken: "" });
+    return ok(undefined);
   }
 
   /** 役割変更（host 限定）FR-016, FR-017 */
   async function handleRoleSet(
     connId: string,
     cmd: { command: "role.set"; participantId: string; role: "editor" | "viewer" },
-  ): Promise<Result<CreateResult, ErrorCode>> {
+  ): Promise<Result<undefined, ErrorCode>> {
     const room = findRoomByConnId(connId);
     if (!room) {
       sendError(connId, "NOT_IN_ROOM", errorMessageFor("NOT_IN_ROOM"));
@@ -791,12 +813,7 @@ export function makeHandlers(deps: HandlerDeps) {
     store.put(updatedRoom);
     broadcaster.broadcastSnapshot(updatedRoom.code, updatedRoom);
 
-    return ok({
-      code: updatedRoom.code,
-      participantId: actor.participantId,
-      hostToken: "",
-      resumeToken: "",
-    });
+    return ok(undefined);
   }
 
   /** ルームパスフレーズを設定/解除する（host 限定・R4-2）。空文字で解除。
@@ -804,7 +821,7 @@ export function makeHandlers(deps: HandlerDeps) {
   async function handleRoomPassphraseSet(
     connId: string,
     cmd: { command: "room.passphrase.set"; passphrase: string },
-  ): Promise<Result<CreateResult, ErrorCode>> {
+  ): Promise<Result<undefined, ErrorCode>> {
     const room = findRoomByConnId(connId);
     if (!room) {
       sendError(connId, "NOT_IN_ROOM", errorMessageFor("NOT_IN_ROOM"));
@@ -836,12 +853,7 @@ export function makeHandlers(deps: HandlerDeps) {
     store.put(updatedRoom);
     broadcaster.broadcastSnapshot(updatedRoom.code, updatedRoom);
 
-    return ok({
-      code: updatedRoom.code,
-      participantId: actor.participantId,
-      hostToken: "",
-      resumeToken: "",
-    });
+    return ok(undefined);
   }
 
   /** AI お題生成を合言葉で解錠する（host 限定）。
@@ -851,7 +863,7 @@ export function makeHandlers(deps: HandlerDeps) {
   async function handleAiUnlock(
     connId: string,
     cmd: { command: "ai.unlock"; key: string },
-  ): Promise<Result<CreateResult, ErrorCode>> {
+  ): Promise<Result<undefined, ErrorCode>> {
     const room = findRoomByConnId(connId);
     if (!room) {
       sendError(connId, "NOT_IN_ROOM", errorMessageFor("NOT_IN_ROOM"));
@@ -890,12 +902,7 @@ export function makeHandlers(deps: HandlerDeps) {
     store.put(updatedRoom);
     broadcaster.broadcastSnapshot(updatedRoom.code, updatedRoom);
 
-    return ok({
-      code: updatedRoom.code,
-      participantId: actor.participantId,
-      hostToken: "",
-      resumeToken: "",
-    });
+    return ok(undefined);
   }
 
   /** ホストを明示的に他のオンライン参加者へ移譲する（host 限定・R2-3）。
@@ -903,7 +910,7 @@ export function makeHandlers(deps: HandlerDeps) {
   async function handleHostTransfer(
     connId: string,
     cmd: { command: "host.transfer"; participantId: string },
-  ): Promise<Result<CreateResult, ErrorCode>> {
+  ): Promise<Result<undefined, ErrorCode>> {
     const room = findRoomByConnId(connId);
     if (!room) {
       sendError(connId, "NOT_IN_ROOM", errorMessageFor("NOT_IN_ROOM"));
@@ -945,22 +952,17 @@ export function makeHandlers(deps: HandlerDeps) {
     store.put(updatedRoom);
     broadcaster.broadcastSnapshot(updatedRoom.code, updatedRoom);
 
-    return ok({
-      code: updatedRoom.code,
-      participantId: actor.participantId,
-      hostToken: "",
-      resumeToken: "",
-    });
+    return ok(undefined);
   }
 
   /** お題生成依頼（editor+）FR-025, FR-027 */
   async function handleProblemRequest(
     connId: string,
     cmd: { command: "problem.request"; requestId: string },
-  ): Promise<Result<CreateResult, ErrorCode>> {
+  ): Promise<Result<undefined, ErrorCode>> {
     const guard = requireEditor(connId, "problem.request");
     if (guard.isErr()) return err(guard.error);
-    const { room, actor } = guard.value;
+    const { room } = guard.value;
 
     if (!delegator) {
       sendError(connId, "DELEGATION_UNAVAILABLE", errorMessageFor("DELEGATION_UNAVAILABLE"));
@@ -970,12 +972,7 @@ export function makeHandlers(deps: HandlerDeps) {
     // リロール時は旧依頼をキャンセルしてから再委譲する（FR-027）
     delegator.request(room.code, cmd.requestId);
 
-    return ok({
-      code: room.code,
-      participantId: actor.participantId,
-      hostToken: "",
-      resumeToken: "",
-    });
+    return ok(undefined);
   }
 
   /** お題投入（委譲代表のみ・editor+）FR-025, FR-026 */
@@ -987,7 +984,7 @@ export function makeHandlers(deps: HandlerDeps) {
       problem: Problem;
       usedFallback: boolean;
     },
-  ): Promise<Result<CreateResult, ErrorCode>> {
+  ): Promise<Result<undefined, ErrorCode>> {
     const guard = requireEditor(connId, "problem.submit");
     if (guard.isErr()) return err(guard.error);
     const { room, actor } = guard.value;
@@ -1009,12 +1006,7 @@ export function makeHandlers(deps: HandlerDeps) {
       return err("STALE_SUBMISSION");
     }
 
-    return ok({
-      code: room.code,
-      participantId: actor.participantId,
-      hostToken: "",
-      resumeToken: "",
-    });
+    return ok(undefined);
   }
 
   /**

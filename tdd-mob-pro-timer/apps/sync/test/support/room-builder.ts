@@ -87,8 +87,12 @@ class RoomBuilder {
     if (!created.isOk()) {
       throw new RoomBuildError(`room.create に失敗した（${created.error}）`);
     }
-    const code = created.value.code;
-    ids[HOST_NAME] = created.value.participantId;
+    // ルームコード・participantId は本番と同じ観測点（配信された room.created）から取る。
+    // 本番（server.ts）は handleCommand の戻り値を破棄しており、これらが利用者へ届く
+    // 経路は配信メッセージだけである（FR-100）。
+    const createdMsg = broadcaster.createdFor(HOST_CONN);
+    const code = createdMsg.code;
+    ids[HOST_NAME] = createdMsg.participantId;
 
     for (const [index, name] of this.participantNames.entries()) {
       const connId = `conn-${index + 1}`;
@@ -101,14 +105,15 @@ class RoomBuilder {
       if (!joined.isOk()) {
         throw new RoomBuildError(`room.join("${name}") に失敗した（${joined.error}）`);
       }
-      ids[name] = joined.value.participantId;
+      const joinedParticipantId = broadcaster.joinedFor(connId).participantId;
+      ids[name] = joinedParticipantId;
 
       // join しただけではドライバーローテーションに加わらない（ローテーション加入は
       // 別操作＝「ドライバーに加わる」）。withParticipants は「モブに加わった」を表すため、
       // ここで自分自身を member.add する。
       const added = await handlers.handleCommand(connId, {
         command: "member.add",
-        participantId: joined.value.participantId,
+        participantId: joinedParticipantId,
       });
       if (!added.isOk()) {
         throw new RoomBuildError(`member.add("${name}") に失敗した（${added.error}）`);

@@ -40,7 +40,8 @@ describe("Room.startedAt（開始済みの単調フラグ・D2）", () => {
       config,
     });
     if (!create.isOk()) throw new Error("create failed");
-    return create.value.code;
+    // 本番（server.ts）は handleCommand の戻り値を破棄する。値は本番と同じ観測点から取る（FR-100）。
+    return broadcaster.createdFor("host-conn").code;
   }
 
   it("phase.set で phase: 'session' にすると startedAt が記録される", async () => {
@@ -160,7 +161,7 @@ describe("Room.startedAt（開始済みの単調フラグ・D2）", () => {
         config,
       });
       if (!create.isOk()) throw new Error("create failed");
-      const freshCode = create.value.code;
+      const freshCode = freshBroadcaster.createdFor("host-conn").code;
 
       // When
       await freshHandlers.handleCommand("host-conn", cmd);

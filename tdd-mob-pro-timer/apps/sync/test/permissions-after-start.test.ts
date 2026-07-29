@@ -60,7 +60,8 @@ describe("開始後の権限（主催者を条件にしない）", () => {
       config,
     });
     if (!created.isOk()) throw new Error("room.create failed");
-    roomCode = created.value.code;
+    // 本番（server.ts）は handleCommand の戻り値を破棄する。値は本番と同じ観測点から取る（FR-100）。
+    roomCode = broadcaster.createdFor(HOST_CONN).code;
 
     for (const [connId, displayName] of [
       [EDITOR_CONN, "Editor"],
@@ -74,7 +75,7 @@ describe("開始後の権限（主催者を条件にしない）", () => {
       // rotation は参加者IDの配列（D6b）。config.members に名前を並べるだけでは輪に入らないため、
       // 本人が自分を輪に加える（自己対象なので開始前でも許可される）。
       const addResult = await handlers.handleCommand(connId, {
-        command: "member.add", participantId: joinResult.value.participantId,
+        command: "member.add", participantId: broadcaster.joinedFor(connId).participantId,
       });
       if (!addResult.isOk()) throw new Error(`member.add failed: ${displayName}`);
     }

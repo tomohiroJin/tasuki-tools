@@ -35,7 +35,8 @@ describe("resume: 再接続・復帰", () => {
       displayName: "Alice",
     });
     if (!createResult.isOk()) throw new Error("create failed");
-    const { code, resumeToken, participantId } = createResult.value;
+    // 本番（server.ts）は handleCommand の戻り値を破棄する。値は本番と同じ観測点から取る（FR-100）。
+    const { code, resumeToken, participantId } = broadcaster.createdFor("conn-001");
     broadcaster.sent.length = 0;
 
     // When（別の接続で resumeToken を使って再参加）
@@ -63,7 +64,7 @@ describe("resume: 再接続・復帰", () => {
       displayName: "Alice",
     });
     if (!createResult.isOk()) throw new Error("create failed");
-    const { code, resumeToken } = createResult.value;
+    const { code, resumeToken } = broadcaster.createdFor("conn-001");
     broadcaster.sent.length = 0;
 
     // When
@@ -90,7 +91,7 @@ describe("resume: 再接続・復帰", () => {
       displayName: "Alice",
     });
     if (!createResult.isOk()) throw new Error("create failed");
-    const { code } = createResult.value;
+    const { code } = broadcaster.createdFor("conn-001");
 
     // When
     await handlers.handleCommand("conn-003", {

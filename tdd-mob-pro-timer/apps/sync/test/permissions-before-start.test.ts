@@ -55,7 +55,8 @@ describe("開始前の権限（従来どおり主催者主導）", () => {
       config,
     });
     if (!created.isOk()) throw new Error("room.create failed");
-    roomCode = created.value.code;
+    // 本番（server.ts）は handleCommand の戻り値を破棄する。値は本番と同じ観測点から取る（FR-100）。
+    roomCode = broadcaster.createdFor(HOST_CONN).code;
 
     // join の既定ロールは editor（UX 再設計）。降格せずそのまま使う。
     // rotation は参加者IDの配列（D6b）。config.members に名前を並べるだけでは輪に入らないため、
@@ -69,7 +70,7 @@ describe("開始前の権限（従来どおり主催者主導）", () => {
       });
       if (!joinResult.isOk()) throw new Error(`room.join failed: ${displayName}`);
       const addResult = await handlers.handleCommand(connId, {
-        command: "member.add", participantId: joinResult.value.participantId,
+        command: "member.add", participantId: broadcaster.joinedFor(connId).participantId,
       });
       if (!addResult.isOk()) throw new Error(`member.add failed: ${displayName}`);
     }

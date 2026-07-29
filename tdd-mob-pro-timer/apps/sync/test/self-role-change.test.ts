@@ -62,7 +62,7 @@ describe("role.set: 自分の役割の変更", () => {
       command: "room.create", displayName: "Alice", config,
     });
     if (!created.isOk()) throw new Error("room.create failed");
-    code = created.value.code;
+    code = broadcaster.createdFor(HOST).code;
     await handlers.handleCommand(BOB, { command: "room.join", code, displayName: "Bob", hasAiKey: false });
     await handlers.handleCommand(CAROL, { command: "room.join", code, displayName: "Carol", hasAiKey: false });
     broadcaster.sent.length = 0;

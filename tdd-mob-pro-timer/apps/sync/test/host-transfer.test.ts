@@ -111,13 +111,10 @@ describe("handlers: host.transfer（明示的ホスト移譲）", () => {
     const command = { command: "host.transfer", participantId: "editor-p02" } as const;
 
     // When
-    const result = await handlers.handleCommand("editor-conn", command);
+    await handlers.handleCommand("editor-conn", command);
 
     // Then
-    expect(result.isErr()).toBe(true);
-    if (result.isErr()) {
-      expect(result.error).toBe("UNAUTHORIZED");
-    }
+    expect(broadcaster.errorsTo("editor-conn").at(-1)?.code).toBe("UNAUTHORIZED");
     expect(store.get("HX01")?.hostParticipantId).toBe("host-p01");
   });
 
@@ -128,16 +125,13 @@ describe("handlers: host.transfer（明示的ホスト移譲）", () => {
     store.put(room);
 
     // When
-    const result = await handlers.handleCommand("host-conn", {
+    await handlers.handleCommand("host-conn", {
       command: "host.transfer",
       participantId: "editor-p02",
     });
 
     // Then
-    expect(result.isErr()).toBe(true);
-    if (result.isErr()) {
-      expect(result.error).toBe("PARTICIPANT_OFFLINE");
-    }
+    expect(broadcaster.errorsTo("host-conn").at(-1)?.code).toBe("PARTICIPANT_OFFLINE");
     expect(store.get("HX01")?.hostParticipantId).toBe("host-p01");
   });
 
@@ -146,13 +140,10 @@ describe("handlers: host.transfer（明示的ホスト移譲）", () => {
     const command = { command: "host.transfer", participantId: "host-p01" } as const;
 
     // When
-    const result = await handlers.handleCommand("host-conn", command);
+    await handlers.handleCommand("host-conn", command);
 
     // Then
-    expect(result.isErr()).toBe(true);
-    if (result.isErr()) {
-      expect(result.error).toBe("CANNOT_CHANGE_HOST");
-    }
+    expect(broadcaster.errorsTo("host-conn").at(-1)?.code).toBe("CANNOT_CHANGE_HOST");
     expect(store.get("HX01")?.hostParticipantId).toBe("host-p01");
   });
 
@@ -161,13 +152,10 @@ describe("handlers: host.transfer（明示的ホスト移譲）", () => {
     const command = { command: "host.transfer", participantId: "unknown-pid" } as const;
 
     // When
-    const result = await handlers.handleCommand("host-conn", command);
+    await handlers.handleCommand("host-conn", command);
 
     // Then
-    expect(result.isErr()).toBe(true);
-    if (result.isErr()) {
-      expect(result.error).toBe("PARTICIPANT_NOT_FOUND");
-    }
+    expect(broadcaster.errorsTo("host-conn").at(-1)?.code).toBe("PARTICIPANT_NOT_FOUND");
     expect(store.get("HX01")?.hostParticipantId).toBe("host-p01");
   });
 

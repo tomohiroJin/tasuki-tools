@@ -29,11 +29,11 @@ describe("v2 コマンドの結合テスト", () => {
       codeGen: new FakeCodeGen(),
     });
 
-    const result = await handlers.handleCommand(hostConn, {
+    await handlers.handleCommand(hostConn, {
       command: "room.create",
       displayName: "Host",
     });
-    if (result.isOk()) roomCode = result.value.code;
+    roomCode = broadcaster.createdFor(hostConn).code;
     broadcaster.snapshots.length = 0;
     broadcaster.sent.length = 0;
   });
@@ -163,15 +163,14 @@ describe("v2 コマンドの結合テスト", () => {
     broadcaster.snapshots.length = 0;
 
     // When（Host を既存の Dave へ改名 → rotation 一意性が壊れるため拒否されるはず）
-    const result = await handlers.handleCommand(hostConn, {
+    await handlers.handleCommand(hostConn, {
       command: "participant.rename",
       participantId: hostParticipant!.participantId,
       displayName: "Dave",
     });
 
     // Then
-    expect(result.isErr()).toBe(true);
-    if (result.isErr()) expect(result.error).toBe("DuplicateName");
+    expect(broadcaster.errorsTo(hostConn).at(-1)?.code).toBe("DuplicateName");
     // 名前は変わらず表示名の一意性は保たれる
     const after = store.get(roomCode);
     expect(after?.participants.map((p) => p.displayName)).toEqual(["Host", "Dave"]);
@@ -184,13 +183,12 @@ describe("v2 コマンドの結合テスト", () => {
     const hostName = room!.participants.find((p) => p.connId === hostConn)!.displayName;
 
     // When
-    const result = await handlers.handleCommand(hostConn, {
+    await handlers.handleCommand(hostConn, {
       command: "participant.addProxy", displayName: hostName, participantId: "proxy-dup-name",
     });
 
     // Then
-    expect(result.isErr()).toBe(true);
-    if (result.isErr()) expect(result.error).toBe("DuplicateName");
+    expect(broadcaster.errorsTo(hostConn).at(-1)?.code).toBe("DuplicateName");
     // 輪の長さも参加者も増えない。
     const after = store.get(roomCode);
     expect(after?.participants.filter((p) => p.displayName === hostName)).toHaveLength(1);
@@ -203,13 +201,12 @@ describe("v2 コマンドの結合テスト", () => {
     });
 
     // When
-    const result = await handlers.handleCommand(hostConn, {
+    await handlers.handleCommand(hostConn, {
       command: "participant.addProxy", displayName: "dave", participantId: "proxy-case-2",
     });
 
     // Then
-    expect(result.isErr()).toBe(true);
-    if (result.isErr()) expect(result.error).toBe("DuplicateName");
+    expect(broadcaster.errorsTo(hostConn).at(-1)?.code).toBe("DuplicateName");
   });
 
   it("輪の外に居る参加者の名前へも改名できない", async () => {
@@ -226,15 +223,14 @@ describe("v2 コマンドの結合テスト", () => {
     expect(room?.session.rotation).not.toContain(spectator!.participantId);
 
     // When
-    const result = await handlers.handleCommand(hostConn, {
+    await handlers.handleCommand(hostConn, {
       command: "participant.rename",
       participantId: hostParticipant!.participantId,
       displayName: "Spectator",
     });
 
     // Then
-    expect(result.isErr()).toBe(true);
-    if (result.isErr()) expect(result.error).toBe("DuplicateName");
+    expect(broadcaster.errorsTo(hostConn).at(-1)?.code).toBe("DuplicateName");
   });
 
   it("大文字小文字だけが違う名前への改名も拒否される（表示上は識別できないため）", async () => {
@@ -246,15 +242,14 @@ describe("v2 コマンドの結合テスト", () => {
     const hostParticipant = room?.participants.find((p) => p.connId === hostConn);
 
     // When
-    const result = await handlers.handleCommand(hostConn, {
+    await handlers.handleCommand(hostConn, {
       command: "participant.rename",
       participantId: hostParticipant!.participantId,
       displayName: "dave",
     });
 
     // Then
-    expect(result.isErr()).toBe(true);
-    if (result.isErr()) expect(result.error).toBe("DuplicateName");
+    expect(broadcaster.errorsTo(hostConn).at(-1)?.code).toBe("DuplicateName");
   });
 
   it("自分の現在名と同一への rename は許可される（no-op 相当）", async () => {
@@ -401,23 +396,21 @@ describe("participant.rename の認可", () => {
       codeGen: new FakeCodeGen(),
     });
 
-    const created = await handlers.handleCommand(hostConn, {
+    await handlers.handleCommand(hostConn, {
       command: "room.create",
       displayName: "Host",
     });
-    if (created.isOk()) {
-      roomCode = created.value.code;
-      hostPid = created.value.participantId;
-    }
+    roomCode = broadcaster.createdFor(hostConn).code;
+    hostPid = broadcaster.createdFor(hostConn).participantId;
 
     // viewer として参加（新規参加者は viewer 既定）
-    const joined = await handlers.handleCommand(viewerConn, {
+    await handlers.handleCommand(viewerConn, {
       command: "room.join",
       code: roomCode,
       displayName: "Viewer",
       hasAiKey: false,
     });
-    if (joined.isOk()) viewerPid = joined.value.participantId;
+    viewerPid = broadcaster.joinedFor(viewerConn).participantId;
 
     broadcaster.snapshots.length = 0;
     broadcaster.sent.length = 0;
@@ -431,11 +424,10 @@ describe("participant.rename の認可", () => {
       displayName: "Hijacked",
     } as const;
     // When
-    const result = await handlers.handleCommand(viewerConn, command);
+    await handlers.handleCommand(viewerConn, command);
 
     // Then（snapshot は発行されず、host 名は変わらない）
-    expect(result.isErr()).toBe(true);
-    if (result.isErr()) expect(result.error).toBe("UNAUTHORIZED");
+    expect(broadcaster.errorsTo(viewerConn).at(-1)?.code).toBe("UNAUTHORIZED");
     const room = store.get(roomCode);
     const host = room?.participants.find((p) => p.participantId === hostPid);
     expect(host?.displayName).toBe("Host");
@@ -483,11 +475,10 @@ describe("participant.rename の認可", () => {
       displayName: "Ghost",
     } as const;
     // When
-    const result = await handlers.handleCommand(hostConn, command);
+    await handlers.handleCommand(hostConn, command);
 
     // Then
-    expect(result.isErr()).toBe(true);
-    if (result.isErr()) expect(result.error).toBe("PARTICIPANT_NOT_FOUND");
+    expect(broadcaster.errorsTo(hostConn).at(-1)?.code).toBe("PARTICIPANT_NOT_FOUND");
     // snapshot は発行されない（誰の名前も変わらない）
     expect(broadcaster.latestSnapshot()).toBeUndefined();
   });

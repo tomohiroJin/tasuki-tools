@@ -32,10 +32,10 @@ describe("handlers: room.create", () => {
     const command = { command: "room.create", displayName: "Alice" } as const;
 
     // When
-    const result = await handlers.handleCommand("conn-001", command);
+    await handlers.handleCommand("conn-001", command);
 
     // Then
-    expect(result._unsafeUnwrap().code).toBeTruthy();
+    expect(broadcaster.createdFor("conn-001").code).toBeTruthy();
   });
 
   it("作成者は host ロールで登録される", async () => {
@@ -43,10 +43,10 @@ describe("handlers: room.create", () => {
     const command = { command: "room.create", displayName: "Alice" } as const;
 
     // When
-    const result = await handlers.handleCommand("conn-001", command);
+    await handlers.handleCommand("conn-001", command);
 
     // Then
-    const value = result._unsafeUnwrap();
+    const value = broadcaster.createdFor("conn-001");
     const room = store.get(value.code);
     expect(room).toBeTruthy();
     const host = room?.participants.find(
@@ -101,16 +101,13 @@ describe("handlers: room.create — maxRooms 上限", () => {
     first._unsafeUnwrap();
 
     // When
-    const second = await handlers.handleCommand("conn-002", {
+    await handlers.handleCommand("conn-002", {
       command: "room.create",
       displayName: "Bob",
     });
 
     // Then
-    expect(second.isErr()).toBe(true);
-    if (second.isErr()) {
-      expect(second.error).toBe("ROOM_LIMIT_EXCEEDED");
-    }
+    expect(broadcaster.errorsTo("conn-002").at(-1)?.code).toBe("ROOM_LIMIT_EXCEEDED");
   });
 
   it("maxRooms に達したとき、拒否された接続へ error メッセージが届く", async () => {
@@ -160,11 +157,11 @@ describe("handlers: releaseRoom", () => {
       displayName: "Alice",
     });
     if (!created.isOk()) throw new Error("room.create に失敗した");
-    const { code, resumeToken, participantId } = created.value;
+    const { code, resumeToken, participantId } = broadcaster.createdFor("conn-001");
     handlers.releaseRoom(code);
 
     // When（ルームは store に残っているが resumeToken は無効化されている）
-    const joinResult = await handlers.handleCommand("conn-002", {
+    await handlers.handleCommand("conn-002", {
       command: "room.join",
       code,
       displayName: "Alice",
@@ -173,7 +170,7 @@ describe("handlers: releaseRoom", () => {
     });
 
     // Then（元の participantId とは異なる新規 participantId が発行される）
-    expect(joinResult._unsafeUnwrap().participantId).not.toBe(participantId);
+    expect(broadcaster.joinedFor("conn-002").participantId).not.toBe(participantId);
   });
 });
 

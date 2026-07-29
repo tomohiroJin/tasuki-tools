@@ -25,12 +25,12 @@ describe("共有メモの同時書き込み（⑧ last-write-wins）", () => {
     store = new InMemoryRoomStore();
     broadcaster = new SpyBroadcaster();
     handlers = makeHandlers({ store, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen() });
-    const created = await handlers.handleCommand(hostConn, {
+    await handlers.handleCommand(hostConn, {
       command: "room.create",
       displayName: "Alice",
       config: { language: "TypeScript", difficulty: "easy", members: ["Alice"], intervalMinutes: 5 },
     });
-    if (created.isOk()) code = created.value.code;
+    code = broadcaster.createdFor(hostConn).code;
     await handlers.handleCommand(guestConn, { command: "room.join", code, displayName: "Bob", hasAiKey: false });
   });
 

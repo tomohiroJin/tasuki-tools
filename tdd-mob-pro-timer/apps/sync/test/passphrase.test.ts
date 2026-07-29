@@ -31,11 +31,11 @@ describe("room.passphrase.set", () => {
       codeGen: new FakeCodeGen(),
     });
 
-    const result = await handlers.handleCommand(hostConn, {
+    await handlers.handleCommand(hostConn, {
       command: "room.create",
       displayName: "Host",
     });
-    if (result.isOk()) roomCode = result.value.code;
+    roomCode = broadcaster.createdFor(hostConn).code;
     broadcaster.snapshots.length = 0;
     broadcaster.sent.length = 0;
   });
@@ -83,14 +83,13 @@ describe("room.passphrase.set", () => {
     });
 
     // When
-    const res = await handlers.handleCommand(editorConn, {
+    await handlers.handleCommand(editorConn, {
       command: "room.passphrase.set",
       passphrase: "hack",
     });
 
     // Then
-    expect(res.isErr()).toBe(true);
-    if (res.isErr()) expect(res.error).toBe("UNAUTHORIZED");
+    expect(broadcaster.errorsTo(editorConn).at(-1)?.code).toBe("UNAUTHORIZED");
     // passphraseProtected は変化しない
     expect(store.get(roomCode)?.passphraseProtected).toBeFalsy();
   });
@@ -117,11 +116,11 @@ describe("room.join のパスフレーズ検証", () => {
       codeGen: new FakeCodeGen(),
     });
 
-    const result = await handlers.handleCommand(hostConn, {
+    await handlers.handleCommand(hostConn, {
       command: "room.create",
       displayName: "Host",
     });
-    if (result.isOk()) roomCode = result.value.code;
+    roomCode = broadcaster.createdFor(hostConn).code;
     broadcaster.snapshots.length = 0;
     broadcaster.sent.length = 0;
   });
@@ -157,7 +156,7 @@ describe("room.join のパスフレーズ検証", () => {
     const before = store.get(roomCode)?.participants.length ?? 0;
 
     // When
-    const res = await handlers.handleCommand(joinerConn, {
+    await handlers.handleCommand(joinerConn, {
       command: "room.join",
       code: roomCode,
       displayName: "Joiner",
@@ -165,8 +164,7 @@ describe("room.join のパスフレーズ検証", () => {
     });
 
     // Then
-    expect(res.isErr()).toBe(true);
-    if (res.isErr()) expect(res.error).toBe("PASSPHRASE_REQUIRED");
+    expect(broadcaster.errorsTo(joinerConn).at(-1)?.code).toBe("PASSPHRASE_REQUIRED");
     // 参加者数は変化しない
     expect(store.get(roomCode)?.participants.length).toBe(before);
   });
@@ -180,7 +178,7 @@ describe("room.join のパスフレーズ検証", () => {
     const before = store.get(roomCode)?.participants.length ?? 0;
 
     // When
-    const res = await handlers.handleCommand(joinerConn, {
+    await handlers.handleCommand(joinerConn, {
       command: "room.join",
       code: roomCode,
       displayName: "Joiner",
@@ -189,8 +187,7 @@ describe("room.join のパスフレーズ検証", () => {
     });
 
     // Then
-    expect(res.isErr()).toBe(true);
-    if (res.isErr()) expect(res.error).toBe("PASSPHRASE_MISMATCH");
+    expect(broadcaster.errorsTo(joinerConn).at(-1)?.code).toBe("PASSPHRASE_MISMATCH");
     // 参加者数は変化しない
     expect(store.get(roomCode)?.participants.length).toBe(before);
   });

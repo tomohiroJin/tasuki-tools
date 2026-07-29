@@ -35,6 +35,36 @@ export class SpyBroadcaster implements Broadcaster {
     return this.snapshots.at(-1)?.room;
   }
 
+  /**
+   * 指定した接続へ送られた `room.created` を返す（**本番と同じ観測点**）。
+   *
+   * `handleCommand` の戻り値ではなくここを見る理由は、本番（`server.ts`）が
+   * 戻り値を破棄しており、ルームコードや participantId が利用者へ届く経路は
+   * この配信メッセージだけだからである。
+   *
+   * 届いていない場合は `throw` する。前提の構築（ルーム作成）の失敗を、
+   * テスト対象の検証の失敗（`expect`）と区別するため（FR-096）。
+   */
+  createdFor(connId: string): Extract<ServerMsg, { type: "room.created" }> {
+    const msg = this.sent.find((s) => s.connId === connId && s.msg.type === "room.created")?.msg;
+    if (msg === undefined || msg.type !== "room.created") {
+      throw new Error(`SpyBroadcaster: ${connId} へ room.created が送られていない`);
+    }
+    return msg;
+  }
+
+  /**
+   * 指定した接続へ送られた `room.joined` を返す（**本番と同じ観測点**）。
+   * 届いていない場合は `throw` する（`createdFor` と同じ理由・FR-096）。
+   */
+  joinedFor(connId: string): Extract<ServerMsg, { type: "room.joined" }> {
+    const msg = this.sent.find((s) => s.connId === connId && s.msg.type === "room.joined")?.msg;
+    if (msg === undefined || msg.type !== "room.joined") {
+      throw new Error(`SpyBroadcaster: ${connId} へ room.joined が送られていない`);
+    }
+    return msg;
+  }
+
   /** 指定した接続へ送られたエラーメッセージの一覧を返す。 */
   errorsTo(connId: string): Array<Extract<ServerMsg, { type: "error" }>> {
     return this.sent

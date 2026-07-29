@@ -53,8 +53,9 @@ describe("handlers: problem.request / problem.submit", () => {
       config,
     });
     if (!create.isOk()) throw new Error("create failed");
-    code = create.value.code;
-    hostId = create.value.participantId;
+    // 本番（server.ts）は handleCommand の戻り値を破棄する。値は本番と同じ観測点から取る（FR-100）。
+    code = broadcaster.createdFor("host-conn").code;
+    hostId = broadcaster.createdFor("host-conn").participantId;
 
     // host に AI 鍵を付与
     const room = store.get(code)!;

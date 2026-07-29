@@ -56,7 +56,8 @@ async function setupRunningRoom(
     command: "room.create", displayName: "A", config,
   });
   if (!create.isOk()) throw new Error("create failed");
-  const code = create.value.code;
+  // 本番（server.ts）は handleCommand の戻り値を破棄する。値は本番と同じ観測点から取る（FR-100）。
+  const code = store.list().at(-1)!.code;
   const room = store.get(code)!;
   const host = room.participants[0]!;
   const mk = (id: string, name: string, conn: string, role: Room["participants"][number]["role"]) =>
@@ -95,16 +96,18 @@ describe("session.act RESTART（Issue #14 持ち時間のやり直し）", () =>
   let store: InMemoryRoomStore;
   let clock: FakeClock;
   let scheduler: SpyScheduler;
+  let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
 
   beforeEach(() => {
     store = new InMemoryRoomStore();
     clock = new FakeClock(START);
     scheduler = new SpyScheduler();
+    broadcaster = new SpyBroadcaster();
     handlers = makeHandlers({
       store,
       clock,
-      broadcaster: new SpyBroadcaster(),
+      broadcaster,
       codeGen: new FakeCodeGen(),
       scheduler: scheduler as unknown as Scheduler,
     });
@@ -198,11 +201,10 @@ describe("session.act RESTART（Issue #14 持ち時間のやり直し）", () =>
     const before = store.get(code)!.clock;
 
     // When
-    const result = await handlers.handleCommand("conn-c", { command: "session.act", action: "RESTART" });
+    await handlers.handleCommand("conn-c", { command: "session.act", action: "RESTART" });
 
     // Then
-    expect(result.isErr()).toBe(true);
-    expect(result._unsafeUnwrapErr()).toBe("UNAUTHORIZED");
+    expect(broadcaster.errorsTo("conn-c").at(-1)?.code).toBe("UNAUTHORIZED");
     expect(store.get(code)!.clock).toEqual(before);
   });
 

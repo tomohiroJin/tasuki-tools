@@ -81,7 +81,7 @@ describe("signal: notice（実行者の通知）", () => {
       command: "room.create", displayName: "Alice", config,
     });
     if (!created.isOk()) throw new Error("room.create failed");
-    code = created.value.code;
+    code = broadcaster.createdFor(HOST).code;
     broadcaster.bindStore(() => store.get(code)?.participants.map((p) => p.participantId) ?? []);
     await handlers.handleCommand(BOB, { command: "room.join", code, displayName: "Bob", hasAiKey: false });
     await handlers.handleCommand(CAROL, { command: "room.join", code, displayName: "Carol", hasAiKey: false });
@@ -213,10 +213,10 @@ describe("signal: notice（実行者の通知）", () => {
       broadcaster.residentsAtSignal.length = 0;
 
       // When
-      const result = await handlers.handleCommand(CAROL, { command: "session.abort" });
+      await handlers.handleCommand(CAROL, { command: "session.abort" });
 
       // Then
-      expect(result.isErr()).toBe(true);
+      expect(broadcaster.errorsTo(CAROL).at(-1)?.code).toBe("UNAUTHORIZED");
       expect(lastNotice()).toBeUndefined();
     });
   });
@@ -243,7 +243,7 @@ describe("退出させられた本人への通知", () => {
       command: "room.create", displayName: "Alice", config,
     });
     if (!created.isOk()) throw new Error("room.create failed");
-    code = created.value.code;
+    code = broadcaster.createdFor(HOST).code;
     await handlers.handleCommand(BOB, { command: "room.join", code, displayName: "Bob", hasAiKey: false });
     await handlers.handleCommand(CAROL, { command: "room.join", code, displayName: "Carol", hasAiKey: false });
     await handlers.handleCommand(HOST, { command: "phase.set", phase: "session" });

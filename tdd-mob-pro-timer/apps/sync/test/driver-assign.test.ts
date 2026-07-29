@@ -23,7 +23,8 @@ async function setup(
     command: "room.create", displayName: "A", config: { ...config, members: ["A"] },
   });
   if (!create.isOk()) throw new Error("create failed");
-  const code = create.value.code;
+  // 本番（server.ts）は handleCommand の戻り値を破棄する。値は本番と同じ観測点から取る（FR-100）。
+  const code = store.list().at(-1)!.code;
   const room = store.get(code)!;
   const host = room.participants[0]!;
   const mk = (id: string, name: string, conn: string, ov: Partial<Room["participants"][number]> = {}): Room["participants"][number] =>
@@ -40,10 +41,12 @@ async function setup(
 
 describe("driver.assign（Issue #13 強制指名）", () => {
   let store: InMemoryRoomStore;
+  let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
   beforeEach(() => {
     store = new InMemoryRoomStore();
-    handlers = makeHandlers({ store, clock: new FakeClock(1_000_000), broadcaster: new SpyBroadcaster(), codeGen: new FakeCodeGen() });
+    broadcaster = new SpyBroadcaster();
+    handlers = makeHandlers({ store, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen() });
   });
 
   it("host が任意メンバーを指名すると currentIndex がそのメンバーになる", async () => {
@@ -90,9 +93,9 @@ describe("driver.assign（Issue #13 強制指名）", () => {
     // Given
     const code = await setup(handlers, store, {});
     // When
-    const result = await handlers.handleCommand("conn-b", { command: "driver.assign", participantId: "pid-c" });
+    await handlers.handleCommand("conn-b", { command: "driver.assign", participantId: "pid-c" });
     // Then
-    expect(result.isErr()).toBe(true);
+    expect(broadcaster.errorsTo("conn-b").at(-1)?.code).toBe("UNAUTHORIZED");
     expect(store.get(code)!.session.currentIndex).toBe(0);
   });
 
@@ -100,9 +103,9 @@ describe("driver.assign（Issue #13 強制指名）", () => {
     // Given
     const code = await setup(handlers, store, {});
     // When
-    const result = await handlers.handleCommand("conn-a", { command: "driver.assign", participantId: "pid-unknown" });
+    await handlers.handleCommand("conn-a", { command: "driver.assign", participantId: "pid-unknown" });
     // Then
-    expect(result.isErr()).toBe(true);
+    expect(broadcaster.errorsTo("conn-a").at(-1)?.code).toBe("PARTICIPANT_NOT_FOUND");
     expect(store.get(code)!.session.currentIndex).toBe(0);
   });
 
@@ -114,9 +117,9 @@ describe("driver.assign（Issue #13 強制指名）", () => {
     // Given（B は実在オフライン）
     const code = await setup(handlers, store, { presence: "offline" });
     // When
-    const result = await handlers.handleCommand("conn-a", { command: "driver.assign", participantId: "pid-b" });
+    await handlers.handleCommand("conn-a", { command: "driver.assign", participantId: "pid-b" });
     // Then
-    expect(result.isErr()).toBe(true);
+    expect(broadcaster.errorsTo("conn-a").at(-1)?.code).toBe("PARTICIPANT_OFFLINE");
     expect(store.get(code)!.session.currentIndex).toBe(0); // 変わらない
   });
 

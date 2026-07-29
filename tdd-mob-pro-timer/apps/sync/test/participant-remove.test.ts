@@ -27,12 +27,12 @@ describe("participant.remove（⑪）", () => {
     store = new InMemoryRoomStore();
     broadcaster = new SpyBroadcaster();
     handlers = makeHandlers({ store, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen() });
-    const created = await handlers.handleCommand(hostConn, {
+    await handlers.handleCommand(hostConn, {
       command: "room.create",
       displayName: "Alice",
       config: { language: "TypeScript", difficulty: "easy", members: ["Alice"], intervalMinutes: 5 },
     });
-    if (created.isOk()) code = created.value.code;
+    code = broadcaster.createdFor(hostConn).code;
     await handlers.handleCommand(guestConn, { command: "room.join", code, displayName: "Bob", hasAiKey: false });
     guestId = store.get(code)!.participants.find((p) => p.displayName === "Bob")!.participantId;
     // Bob をローテーションに加える（host が member.add）→ rotation = [Alice, Bob] の各ID
@@ -125,7 +125,7 @@ describe("participant.remove（G3: 自己退出・不変条件・ホスト引き
       config: { language: "TypeScript", difficulty: "easy", members: ["Alice", "Bob", "Carol"], intervalMinutes: 5 },
     });
     if (!created.isOk()) throw new Error("room.create failed");
-    code = created.value.code;
+    code = broadcaster.createdFor(HOST).code;
     // rotation は参加者IDの配列（D6b）。config.members に名前を並べるだけでは輪に入らないので、
     // 本人が自分を輪に加える（Web の実フローと同じ）。
     for (const [connId, displayName] of [[BOB, "Bob"], [CAROL, "Carol"]] as const) {
@@ -134,7 +134,7 @@ describe("participant.remove（G3: 自己退出・不変条件・ホスト引き
       });
       if (!join.isOk()) throw new Error(`room.join failed: ${displayName}`);
       const add = await handlers.handleCommand(connId, {
-        command: "member.add", participantId: join.value.participantId,
+        command: "member.add", participantId: broadcaster.joinedFor(connId).participantId,
       });
       if (!add.isOk()) throw new Error(`member.add failed: ${displayName}`);
     }
@@ -374,7 +374,7 @@ describe("participant.remove（G7: 同名参加者を識別子で区別する）
         command: "room.join", code, displayName: "Bob", hasAiKey: false,
       });
       if (!join.isOk()) throw new Error(`room.join failed: ${kind}`);
-      ids[kind] = join.value.participantId;
+      ids[kind] = broadcaster.joinedFor(connId).participantId;
     }
     // 本物だけが輪に並ぶ（幽霊は rotation 外）。
     const add = await handlers.handleCommand(REAL, {
@@ -397,7 +397,7 @@ describe("participant.remove（G7: 同名参加者を識別子で区別する）
       config: { language: "TypeScript", difficulty: "easy", members: ["Alice"], intervalMinutes: 5 },
     });
     if (!created.isOk()) throw new Error("room.create failed");
-    code = created.value.code;
+    code = broadcaster.createdFor(HOST).code;
     hostId = room().hostParticipantId;
   });
 

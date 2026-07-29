@@ -37,7 +37,8 @@ async function setupRoom(
     config: { ...config, members },
   });
   if (!create.isOk()) throw new Error("create failed");
-  const code = create.value.code;
+  // 本番（server.ts）は handleCommand の戻り値を破棄する。値は本番と同じ観測点から取る（FR-100）。
+  const code = store.list().at(-1)!.code;
 
   const room = store.get(code)!;
   const host = room.participants[0]!; // role: host, connId: HOST_CONN
@@ -154,10 +155,9 @@ describe("member.shuffle（サーバー権威のランダム化）", () => {
     await setupRoom(handlers, store, ["A", "B", "C"], 0, false);
 
     // When（conn-1 は editor＝"B"）
-    const result = await handlers.handleCommand("conn-1", { command: "member.shuffle" });
+    await handlers.handleCommand("conn-1", { command: "member.shuffle" });
 
     // Then
-    expect(result.isErr()).toBe(true);
-    result.mapErr((e) => expect(e).toBe("UNAUTHORIZED"));
+    expect(broadcaster.errorsTo("conn-1").at(-1)?.code).toBe("UNAUTHORIZED");
   });
 });
