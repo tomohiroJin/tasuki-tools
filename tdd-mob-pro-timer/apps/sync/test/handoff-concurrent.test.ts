@@ -35,16 +35,19 @@ describe("共有メモの同時書き込み（⑧ last-write-wins）", () => {
   });
 
   it("2人が続けて書くと最後の値に収束し、全員へ同じ snapshot が配信される", async () => {
+    // When
     await handlers.handleCommand(hostConn, { command: "handoff.note.set", text: "Alice のメモ" });
     await handlers.handleCommand(guestConn, { command: "handoff.note.set", text: "Bob のメモ（最後）" });
+
+    // Then
     const room = store.get(code);
     expect(room?.handoffNote).toBe("Bob のメモ（最後）");
     // 直近 snapshot も同じ値（部分更新や破損がない）
-    const last = broadcaster.snapshots[broadcaster.snapshots.length - 1];
-    expect(last?.room.handoffNote).toBe("Bob のメモ（最後）");
+    expect(broadcaster.latestSnapshot()?.handoffNote).toBe("Bob のメモ（最後）");
   });
 
   it("交互に書いても毎回その時点の最終値で一貫する", async () => {
+    // Given / When / Then（各回の書き込み直後にその時点の値で一貫することを確認する）
     const seq = ["a", "b", "c", "d"];
     for (let i = 0; i < seq.length; i++) {
       const conn = i % 2 === 0 ? hostConn : guestConn;

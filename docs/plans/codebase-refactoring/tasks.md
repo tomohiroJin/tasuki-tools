@@ -325,7 +325,7 @@
   `ws-adapter.admin` / `ws-adapter.integration`。
   _要件: FR-091〜FR-096, FR-123, US2_
 
-- [ ] **T043** バッチ「通知と共有メモ」: `notice-signal` / `break-suggestion` / `handoff-concurrent`。
+- [x] **T043** バッチ「通知と共有メモ」: `notice-signal` / `break-suggestion` / `handoff-concurrent`。
   _要件: FR-091〜FR-096, FR-123, US2_
 
 ### G3-d `apps/web/test`（76 ファイル・重い 38）

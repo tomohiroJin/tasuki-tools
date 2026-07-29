@@ -1,12 +1,11 @@
 /**
- * signal: "notice" — 破壊的操作の実行者を全員に伝える（host-spof-relaxation G4・T025）
+ * signal: "notice" — 破壊的操作の実行者を全員に伝える（host-spof-relaxation）
  *
- * 開始後は主催者以外も退出・中断・リセット・完成を実行できる（G2/G3）。
+ * 開始後は主催者以外も退出・中断・リセット・完成を実行できる。
  * 誰が実行したか分からないと、画面が突然変わった理由を追えず「勝手に壊された」と映る。
  * サーバーは意味（action と実行者）だけを運び、文言化は UI 側が行う。
  *
  * 設計: docs/plans/host-spof-relaxation/plan.md「API / インターフェース契約」1
- * 要件: FR-077
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
@@ -49,7 +48,10 @@ const HOST = "nt-host";
 const BOB = "nt-bob";
 const CAROL = "nt-carol";
 
-describe("signal: notice（実行者の通知・FR-077）", () => {
+/**
+ * @requirements FR-077
+ */
+describe("signal: notice（実行者の通知）", () => {
   let store: InMemoryRoomStore;
   let broadcaster: NoticeSpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
@@ -99,18 +101,22 @@ describe("signal: notice（実行者の通知・FR-077）", () => {
 
     for (const [command, action, build] of cases) {
       it(`${command} の後に action: "${action}" の notice が配信される`, async () => {
+        // When
         const result = await handlers.handleCommand(BOB, build());
 
+        // Then
         expect(result.isOk()).toBe(true);
         expect(lastNotice()?.action).toBe(action);
       });
     }
 
     it('participant.remove の後に action: "participant-removed" の notice が配信される', async () => {
+      // When
       const result = await handlers.handleCommand(BOB, {
         command: "participant.remove", participantId: pidOf("Carol"),
       });
 
+      // Then
       expect(result.isOk()).toBe(true);
       expect(lastNotice()?.action).toBe("participant-removed");
     });
@@ -118,36 +124,46 @@ describe("signal: notice（実行者の通知・FR-077）", () => {
 
   describe("② 実行者を指す", () => {
     it("actorName と actorParticipantId が実行者（host ではない）を指す", async () => {
+      // Given
       const bobId = pidOf("Bob");
 
+      // When
       await handlers.handleCommand(BOB, { command: "session.abort" });
 
+      // Then
       const notice = lastNotice();
       expect(notice?.actorName).toBe("Bob");
       expect(notice?.actorParticipantId).toBe(bobId);
     });
 
     it("実行者が異なれば notice の実行者も変わる（ホスト固定になっていない）", async () => {
+      // When
       await handlers.handleCommand(CAROL, { command: "session.reset" });
 
+      // Then
       expect(lastNotice()?.actorName).toBe("Carol");
     });
   });
 
   describe("③ participant-removed は対象も伝える", () => {
     it("targetName と targetParticipantId が対象を指す", async () => {
+      // Given
       const carolId = pidOf("Carol");
 
+      // When
       await handlers.handleCommand(BOB, { command: "participant.remove", participantId: carolId });
 
+      // Then
       const notice = lastNotice();
       expect(notice?.targetName).toBe("Carol");
       expect(notice?.targetParticipantId).toBe(carolId);
     });
 
     it("participant-removed 以外では target 系を付けない", async () => {
+      // When
       await handlers.handleCommand(BOB, { command: "session.abort" });
 
+      // Then
       const notice = lastNotice();
       expect(notice?.targetName).toBeUndefined();
       expect(notice?.targetParticipantId).toBeUndefined();
@@ -156,20 +172,25 @@ describe("signal: notice（実行者の通知・FR-077）", () => {
 
   describe("④ 退出させられた本人には notice が届かない", () => {
     it("notice の配信時点で対象は既に在室者から外れている", async () => {
+      // Given
       const carolId = pidOf("Carol");
 
+      // When
       await handlers.handleCommand(BOB, { command: "participant.remove", participantId: carolId });
 
-      // broadcastSignal は呼び出し時点のストアから宛先を決める（server.ts）。
-      // 除去を永続化する前に配信すると本人にも「あなたが退出させられました」が届く。
+      // Then（broadcastSignal は呼び出し時点のストアから宛先を決める＝server.ts。
+      // 除去を永続化する前に配信すると本人にも「あなたが退出させられました」が届く）
       expect(lastNotice()?.residentsAtSend).not.toContain(carolId);
     });
 
     it("自己退出でも notice は残った人へ配信される（誰が抜けたかは全員に伝わる）", async () => {
+      // Given
       const carolId = pidOf("Carol");
 
+      // When
       await handlers.handleCommand(CAROL, { command: "participant.remove", participantId: carolId });
 
+      // Then
       const notice = lastNotice();
       expect(notice?.action).toBe("participant-removed");
       expect(notice?.actorParticipantId).toBe(carolId);
@@ -179,22 +200,27 @@ describe("signal: notice（実行者の通知・FR-077）", () => {
 
   describe("⑤ 失敗した操作では notice を配信しない", () => {
     it("権限で拒否された操作は notice を出さない", async () => {
-      // Carol を見学者に降格し、拒否される操作を送る。
+      // Given（Carol を見学者に降格し、拒否される操作を送る）
       await handlers.handleCommand(HOST, { command: "role.set", participantId: pidOf("Carol"), role: "viewer" });
       broadcaster.signals.length = 0;
       broadcaster.residentsAtSignal.length = 0;
 
+      // When
       const result = await handlers.handleCommand(CAROL, { command: "session.abort" });
 
+      // Then
       expect(result.isErr()).toBe(true);
       expect(lastNotice()).toBeUndefined();
     });
   });
 });
 
-// ─── 退出通知の改称（T027・FR-075） ──────────────────────────────────────────
+// ─── 退出通知の改称 ────────────────────────────────────────────────────────
 
-describe("退出させられた本人への通知（FR-075）", () => {
+/**
+ * @requirements FR-075
+ */
+describe("退出させられた本人への通知", () => {
   let store: InMemoryRoomStore;
   let broadcaster: NoticeSpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
@@ -218,19 +244,25 @@ describe("退出させられた本人への通知（FR-075）", () => {
   });
 
   it("コードが REMOVED_FROM_ROOM になる（実行者はホストに限らないため）", async () => {
+    // Given
     const carolId = store.get(code)!.participants.find((p) => p.displayName === "Carol")!.participantId;
 
+    // When
     await handlers.handleCommand(BOB, { command: "participant.remove", participantId: carolId });
 
+    // Then
     const notice = broadcaster.sent.find((s) => s.connId === CAROL && s.msg.type === "error");
     expect(notice?.msg.type === "error" && notice.msg.code).toBe("REMOVED_FROM_ROOM");
   });
 
   it("文言に実行者名と再参加できる旨が含まれる", async () => {
+    // Given
     const carolId = store.get(code)!.participants.find((p) => p.displayName === "Carol")!.participantId;
 
+    // When
     await handlers.handleCommand(BOB, { command: "participant.remove", participantId: carolId });
 
+    // Then
     const notice = broadcaster.sent.find((s) => s.connId === CAROL && s.msg.type === "error");
     const message = notice?.msg.type === "error" ? notice.msg.message : "";
     expect(message).toContain("Bob");

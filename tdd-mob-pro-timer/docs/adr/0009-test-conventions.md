@@ -215,3 +215,15 @@ describe("<対象の名詞>", () => {
   `passphrase.test.ts` と `admin.test.ts` の describe 名に含まれていた `R4-2` / `R3-2` 等
   （SC-029 の `R\d-\d` パターンに合致）を JSDoc `@requirements` へ移した。T0xx・FR-0xx を
   describe/it 名から JSDoc `@requirements` へ移した。検証内容・分割は変更していない。
+
+### `apps/sync/test`（T043: バッチ「通知と共有メモ」）
+
+- `notice-signal.test.ts`
+- `break-suggestion.test.ts`
+- `handoff-concurrent.test.ts`
+
+  `handoff-concurrent.test.ts` の `broadcaster.snapshots[broadcaster.snapshots.length - 1]`
+  （位置依存の直接添字アクセス）を `SpyBroadcaster.latestSnapshot()` に置き換えた。
+  T0xx・FR-0xx を describe 名から JSDoc `@requirements` へ移した。検証内容・分割は変更していない。
+
+これで G3-c（`apps/sync` 44 ファイル）の T038〜T043 が完了した。
