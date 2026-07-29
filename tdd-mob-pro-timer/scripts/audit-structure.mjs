@@ -212,21 +212,53 @@ export function sc030CallNamesInNames(testFiles) {
  * ============================================================ */
 
 /**
- * ファイル内容を「it/test の開始行から次の it/test/末尾まで」の行配列群に分割する。
- * spec の SC-032 操作的定義が定める区切り方をそのまま実装する（構文解析ではなく行単位）。
+ * ファイル内容を、テスト 1 件ずつの行配列に分割する。
+ *
+ * **終端は「その `it(` と同じ字下げで閉じる行」とする。**
+ * spec の操作的定義は「次の `it`/`test`/末尾まで」と書いているが、これをそのまま実装すると
+ * **テストの外側にある行まで本体に数えてしまう**。実例（`decide.test.ts`）:
+ *
+ * ```
+ *   it("… 変わらない", () => {
+ *     const result = decide(…);          ← 本体はここまでの 2 行
+ *     expect(result…).toBe("SessionCompleted");
+ *   });                                  ← 以降はテストの外
+ * });                                    ← describe の閉じ
+ *
+ * // ─── START ───
+ *
+ * describe("decide: START", () => {      ← 次の describe の開始
+ * ```
+ *
+ * 「次の `it(` まで」で切ると、この閉じ括弧 2 つまで本体に数え、
+ * **実質 2 行のテストが「4 行」と判定される**。その結果 SC-032 の分母が水増しされ、
+ * spec が明示的に対象外とした「本体 2 行以下のテスト」にまで区切りを要求してしまう。
+ *
+ * 字下げでの終端判定は、整形済みのコードであることに依存する（本リポジトリは prettier 整形済み）。
+ * 見つからない場合は従来どおり次の `it`/末尾までにフォールバックする。
  */
 export function splitIntoTestBodies(content) {
   const lines = content.split("\n");
-  const testStartRe = /^\s*(?:it|test)(?:\.\w+)?\s*\(/;
-  const starts = [];
-  for (let i = 0; i < lines.length; i++) {
-    if (testStartRe.test(lines[i])) starts.push(i);
-  }
+  const testStartRe = /^(\s*)(?:it|test)(?:\.\w+)?\s*\(/;
   const bodies = [];
-  for (let i = 0; i < starts.length; i++) {
-    const from = starts[i];
-    const to = i + 1 < starts.length ? starts[i + 1] : lines.length;
-    bodies.push(lines.slice(from, to));
+  for (let i = 0; i < lines.length; i++) {
+    const m = testStartRe.exec(lines[i]);
+    if (!m) continue;
+    const indent = m[1];
+    const closeRe = new RegExp(`^${indent}\\}\\)`);
+    let end = lines.length;
+    for (let j = i + 1; j < lines.length; j++) {
+      if (closeRe.test(lines[j])) {
+        end = j + 1;
+        break;
+      }
+      // 終端が見つからないまま次のテストに達したら、そこで切る（従来の挙動へのフォールバック）
+      if (testStartRe.test(lines[j])) {
+        end = j;
+        break;
+      }
+    }
+    bodies.push(lines.slice(i, end));
   }
   return bodies;
 }
