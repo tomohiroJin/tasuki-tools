@@ -350,7 +350,7 @@
   `sync/dispatch.test.ts` / `sync/notice-message.test.ts`。
   _要件: FR-091〜FR-096, FR-123, US2_
 
-- [ ] **T046** バッチ「Session」（10 ファイル）:
+- [x] **T046** バッチ「Session」（10 ファイル）:
   `ui/Session.assertive.test.tsx` / `ui/Session.break.test.tsx` / `ui/Session.countdown.test.tsx` /
   `ui/Session.handoff.test.tsx` / `ui/Session.invite.test.tsx` / `ui/Session.permissions.test.tsx` /
   `ui/Session.problem.test.tsx` / `ui/Session.restart.test.tsx` / `ui/Session.roster.test.tsx` /

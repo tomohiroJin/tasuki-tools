@@ -69,17 +69,24 @@ function handlers() {
   };
 }
 
-describe("Session 持ち時間のやり直し（Issue #14）", () => {
-  it("編集者には「時間リセット」ボタンが出て、押すと onRestartTimer が呼ばれる", () => {
+/**
+ * @requirements Issue #14
+ */
+describe("Session 持ち時間のやり直し", () => {
+  it("編集者には「時間リセット」ボタンが出て、押すと持ち時間がリセットされる", () => {
+    // Given
     const onRestartTimer = vi.fn();
     render(
       <Session room={makeRoom()} participantId="edit-1" {...handlers()} onRestartTimer={onRestartTimer} />,
     );
+    // When
     fireEvent.click(screen.getByRole("button", { name: /時間リセット/ }));
+    // Then
     expect(onRestartTimer).toHaveBeenCalledTimes(1);
   });
 
   it("一時停止中でも押せる（押すと走行再開する操作なので無効化しない）", () => {
+    // Given
     const onRestartTimer = vi.fn();
     const room = makeRoom({
       session: { ...makeRoom().session, isPaused: true },
@@ -89,8 +96,11 @@ describe("Session 持ち時間のやり直し（Issue #14）", () => {
       <Session room={room} participantId="edit-1" {...handlers()} onRestartTimer={onRestartTimer} />,
     );
     const btn = screen.getByRole("button", { name: /時間リセット/ }) as HTMLButtonElement;
+    // Then（無効化されていない）
     expect(btn.disabled).toBe(false);
+    // When
     fireEvent.click(btn);
+    // Then
     expect(onRestartTimer).toHaveBeenCalledTimes(1);
   });
 
@@ -99,7 +109,8 @@ describe("Session 持ち時間のやり直し（Issue #14）", () => {
     expect(screen.queryByRole("button", { name: /時間リセット/ })).toBeNull();
   });
 
-  it("ホスト専用の「最初から」（全体リセット）とは別のボタンである", () => {
+  it("ホスト専用の「最初から」（全体リセット）とは別のボタンであり、独立して発火する", () => {
+    // Given
     const onRestartTimer = vi.fn();
     const onReset = vi.fn();
     render(
@@ -115,15 +126,20 @@ describe("Session 持ち時間のやり直し（Issue #14）", () => {
     // 「最初から」は終了系の隔離ゾーン（確認ダイアログつき）にあり、別ボタンとして共存する。
     const endZone = screen.getByLabelText("セッションを終える");
     const resetBtn = within(endZone).getByRole("button", { name: /最初から/ });
+    // Then（別のボタンである）
     expect(restartBtn).not.toBe(resetBtn);
-    // やり直しは確認ダイアログなしで即発火し、全体リセットは呼ばれない。
+    // When（やり直しは確認ダイアログなしで即発火する）
     fireEvent.click(restartBtn);
+    // Then（全体リセットは呼ばれない）
     expect(onRestartTimer).toHaveBeenCalledTimes(1);
     expect(onReset).not.toHaveBeenCalled();
-    // 全体リセットは確認を経てから発火する（誤操作防止の導線差）。
+    // When（全体リセットは確認を経てから発火する。誤操作防止の導線差）
     fireEvent.click(resetBtn);
+    // Then（確認前は発火しない）
     expect(onReset).not.toHaveBeenCalled();
+    // When（確認する）
     fireEvent.click(screen.getByRole("button", { name: /最初から再スタート/ }));
+    // Then
     expect(onReset).toHaveBeenCalledTimes(1);
   });
 

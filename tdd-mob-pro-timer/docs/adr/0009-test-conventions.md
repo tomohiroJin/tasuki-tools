@@ -266,3 +266,25 @@ describe("<対象の名詞>", () => {
   （アサーション自体は `toHaveBeenCalledWith`/`not.toHaveBeenCalled` のまま変更していない）。
   `notice-message.test.ts`（変異検査 変異9 の検出元）は既に振る舞いベースの名前・関心の分割を
   持っていたため、GWT の区切り付与のみを行い、検証内容・組み合わせは一切変更していない。
+
+### `apps/web/test/ui`（T046: バッチ「Session」6ファイル・残り分）
+
+- `Session.break.test.tsx`（既に規約を満たしており無変更・FR-123。休憩UI撤去確認テストで
+  本体2行以下のみのため GWT 対象外）
+- `Session.permissions.test.tsx`
+- `Session.problem.test.tsx`
+- `Session.restart.test.tsx`
+- `Session.roster.test.tsx`
+- `Session.rotation.test.tsx`
+
+  describe 名・it 名に混在していた FR-0xx・T0xx・R\d-\d・Issue #N・v2.3 #N・D1 等を
+  describe 直上の JSDoc `@requirements` へ移した。`Session.restart.test.tsx` の
+  「onRestartTimer が呼ばれる」・`Session.rotation.test.tsx` の「onJoinRotation(自名) が呼ばれる」
+  「onDriverSkip(自ID) を呼ぶ」「onDriverResume(自ID) を呼ぶ」・`Session.roster.test.tsx` の
+  「onShuffle が呼ばれる」「onMoveRotation(from, to) が呼ばれる」は、いずれも SC-030 の
+  「呼ぶ/呼ばれる」規定に抵触するため、「持ち時間がリセットされる」「ローテーションに加入する」
+  「一時離脱する」「復帰する」「ランダムに並べ替わる」「指定した位置へドライバーが移動する」という
+  結果の記述に改めた（アサーション自体は `toHaveBeenCalledWith`/`toHaveBeenCalledTimes` のまま
+  変更していない）。本体が3行以上のテストに `// Given` `// When` `// Then` を付与した
+  （2行以下のテストは対象外）。検証内容・分割は変更していない。
+  `Session.break.test.tsx` は既に規約を満たしており（仕様IDなし・呼称なし・本体2行以下）無変更。

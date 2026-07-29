@@ -76,7 +76,10 @@ function baseHandlers() {
   };
 }
 
-describe("Session: 開始後は主催者以外にも操作を提示する（FR-081）", () => {
+/**
+ * @requirements FR-081, FR-067
+ */
+describe("Session: 開始後は主催者以外にも操作を提示する", () => {
   it("host でない editor にも終了系ゾーン（完成・中断・最初から）が出る", () => {
     render(<Session room={makeRoom()} participantId="edit-1" {...baseHandlers()} />);
 
@@ -89,14 +92,17 @@ describe("Session: 開始後は主催者以外にも操作を提示する（FR-0
     expect(screen.getAllByLabelText("ドライバー順をランダムに並べ替える").length).toBeGreaterThan(0);
   });
 
-  it("見学者には終了系ゾーンを出さない（FR-067・実行できない操作は提示しない）", () => {
+  it("見学者には終了系ゾーンを出さない（実行できない操作は提示しない）", () => {
     render(<Session room={makeRoom()} participantId="view-1" {...baseHandlers()} />);
 
     expect(screen.queryByRole("group", { name: "セッションを終える" })).toBeNull();
   });
 });
 
-describe("Session: 開始前は従来どおり主催者主導（FR-066）", () => {
+/**
+ * @requirements FR-066
+ */
+describe("Session: 開始前は従来どおり主催者主導", () => {
   /** 開始前（startedAt 未設定）。phase は session だが判定は startedAt を見る。 */
   const beforeStart = () => makeRoom({ startedAt: null });
 
@@ -119,7 +125,10 @@ describe("Session: 開始前は従来どおり主催者主導（FR-066）", () =
   });
 });
 
-describe("Session: 開始者は記録上の情報にすぎない（FR-082・T035）", () => {
+/**
+ * @requirements FR-082, T035
+ */
+describe("Session: 開始者は記録上の情報にすぎない", () => {
   it("開始後はホストにも「ホストを譲る」を提示しない（特権の受け渡しという概念を消す）", () => {
     render(<Session room={makeRoom()} participantId="host-1" {...baseHandlers()} />);
 
@@ -127,10 +136,11 @@ describe("Session: 開始者は記録上の情報にすぎない（FR-082・T035
   });
 
   it("開始前はホストに「ホストを譲る」を提示する（準備段階の主催者主導は維持）", () => {
+    // When（開始前の部屋を描画する）
     render(
       <Session room={makeRoom({ startedAt: null })} participantId="host-1" {...baseHandlers()} />,
     );
-
+    // Then
     expect(screen.getAllByLabelText("Carol にホストを譲る").length).toBeGreaterThan(0);
   });
 });
@@ -138,40 +148,44 @@ describe("Session: 開始者は記録上の情報にすぎない（FR-082・T035
 // ─── 見学者の自己解消導線（レビュー指摘 #2/#3/#4 への対応） ───────────────────
 // 見学者には SelfDriverToggle（editor+ 限定）が出ないため、開始後に自分で
 // 進行へ戻る／部屋を抜ける手段が画面上どこにも無かった。サーバーは両方とも
-// 許可しているので、FR-079（自己退出）と FR-073b（自己昇格）が UI 上だけ未達だった。
-// 要件: FR-069, FR-073b, FR-079, FR-080
+// 許可しているので、自己退出と自己昇格が UI 上だけ未達だった。
 
+/**
+ * @requirements FR-069, FR-073b, FR-079, FR-080, FR-066
+ */
 describe("Session: 見学者の自己解消導線", () => {
-  it("見学者にルームから抜ける導線が出る（FR-079）", () => {
+  it("見学者にルームから抜ける導線が出る", () => {
     render(<Session room={makeRoom()} participantId="view-1" {...baseHandlers()} />);
 
     expect(screen.getAllByRole("button", { name: "ルームから抜ける" }).length).toBeGreaterThan(0);
   });
 
-  it("開始後の見学者に「進行に加わる」導線が出る（FR-073b・詰みの自己解消）", () => {
+  it("開始後の見学者に「進行に加わる」導線が出る（詰みの自己解消）", () => {
     render(<Session room={makeRoom()} participantId="view-1" {...baseHandlers()} />);
 
     expect(screen.getAllByRole("button", { name: "進行に加わる" }).length).toBeGreaterThan(0);
   });
 
   it("押すと自分の役割を editor へ変える要求が出る", () => {
+    // Given
     const handlers = baseHandlers();
     render(<Session room={makeRoom()} participantId="view-1" {...handlers} />);
-
+    // When
     fireEvent.click(screen.getAllByRole("button", { name: "進行に加わる" })[0]!);
-
+    // Then
     expect(handlers.onSelfRoleChange).toHaveBeenCalledWith("editor");
   });
 
-  it("開始前の見学者には「進行に加わる」を出さない（開始前はホストのみ・FR-066）", () => {
+  it("開始前の見学者には「進行に加わる」を出さない（開始前はホストのみ）", () => {
+    // When（開始前の部屋を描画する）
     render(
       <Session room={makeRoom({ startedAt: null })} participantId="view-1" {...baseHandlers()} />,
     );
-
+    // Then
     expect(screen.queryByRole("button", { name: "進行に加わる" })).toBeNull();
   });
 
-  it("なぜ操作が出ていないかの理由を提示する（FR-069/080）", () => {
+  it("なぜ操作が出ていないかの理由を提示する", () => {
     render(<Session room={makeRoom()} participantId="view-1" {...baseHandlers()} />);
 
     // permissionHint が返す「見学中は実行できません…」を画面に出す。
@@ -189,53 +203,61 @@ describe("Session: 見学者の自己解消導線", () => {
 // Session.tsx は同じ判定を2箇所（セッションタブ／ルームタブ）に書いている。
 // 片方だけ壊れても気づけるよう、タブを切り替えて独立に検証する。
 
+/**
+ * @requirements FR-081, FR-082
+ */
 describe("Session: ルームタブでも判定が一致する", () => {
   /** ルームタブへ切り替える。Tabs は非アクティブなタブの中身をマウントしない。 */
   const openRoomTab = () => fireEvent.click(screen.getByRole("tab", { name: "ルーム" }));
 
-  it("開始後はルームタブでも「ホストを譲る」を提示しない（FR-082）", () => {
+  it("開始後はルームタブでも「ホストを譲る」を提示しない", () => {
+    // Given
     render(<Session room={makeRoom()} participantId="host-1" {...baseHandlers()} />);
-
+    // When
     openRoomTab();
-
+    // Then
     expect(screen.queryByLabelText("Carol にホストを譲る")).toBeNull();
   });
 
   it("開始前はルームタブで「ホストを譲る」を提示する", () => {
+    // Given
     render(
       <Session room={makeRoom({ startedAt: null })} participantId="host-1" {...baseHandlers()} />,
     );
-
+    // When
     openRoomTab();
-
+    // Then
     expect(screen.getByLabelText("Carol にホストを譲る")).toBeTruthy();
   });
 
-  it("開始後はルームタブでも host でない editor にランダム化を出す（FR-081）", () => {
+  it("開始後はルームタブでも host でない editor にランダム化を出す", () => {
+    // Given
     render(<Session room={makeRoom()} participantId="edit-1" {...baseHandlers()} />);
-
+    // When
     openRoomTab();
-
+    // Then
     expect(screen.getByLabelText("ドライバー順をランダムに並べ替える")).toBeTruthy();
   });
 
   it("編集者はルームタブからもルームを抜けられる（タブ間で導線を非対称にしない）", () => {
+    // Given
     const handlers = baseHandlers();
     render(<Session room={makeRoom()} participantId="edit-1" {...handlers} />);
-
+    // When
     openRoomTab();
     fireEvent.click(screen.getByRole("button", { name: "ルームから抜ける" }));
-
+    // Then
     expect(handlers.onRemoveParticipant).toHaveBeenCalledWith("edit-1");
   });
 
   it("見学者はルームタブからも進行に加われる", () => {
+    // Given
     const handlers = baseHandlers();
     render(<Session room={makeRoom()} participantId="view-1" {...handlers} />);
-
+    // When
     openRoomTab();
     fireEvent.click(screen.getByRole("button", { name: "進行に加わる" }));
-
+    // Then
     expect(handlers.onSelfRoleChange).toHaveBeenCalledWith("editor");
   });
 });
