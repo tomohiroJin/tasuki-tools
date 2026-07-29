@@ -70,13 +70,15 @@ describe("コマンド経路: 既定ロールと拒否の伝播", () => {
   });
 
   it("新規参加者はデフォルトで editor（UX 再設計: すぐ参加して回せる）", async () => {
-    // Given / When（別の参加者を join させ、既定ロールを確認する。beforeEach の Viewer は降格済み）
-    await handlers.handleCommand("fresh-conn", {
+    // Given（beforeEach の Viewer は降格済み。別の参加者を新規 join させる）
+    const command = {
       command: "room.join",
       code: roomCode,
       displayName: "Fresh",
       hasAiKey: false,
-    });
+    } as const;
+    // When
+    await handlers.handleCommand("fresh-conn", command);
 
     // Then
     const room = store.get(roomCode);
@@ -85,11 +87,10 @@ describe("コマンド経路: 既定ロールと拒否の伝播", () => {
   });
 
   it("viewer は session.act を実行できない", async () => {
+    // Given
+    const command = { command: "session.act", action: "START" } as const;
     // When
-    await handlers.handleCommand("viewer-conn", {
-      command: "session.act",
-      action: "START",
-    });
+    await handlers.handleCommand("viewer-conn", command);
 
     // Then
     const error = broadcaster.sent.find((s) => s.msg.type === "error");
@@ -151,6 +152,7 @@ describe("コマンド経路: 許可が decide まで届く", () => {
   });
 
   it("viewer は session.abort を実行できない", async () => {
+    // Given（viewer 権限で session.abort を対象にする）
     // When
     await handlers.handleCommand(viewerConnId, { command: "session.abort" });
     // Then
@@ -162,18 +164,23 @@ describe("コマンド経路: 許可が decide まで届く", () => {
   });
 
   it("host は session.abort を実行できる", async () => {
+    // Given（host 権限で session.abort を対象にする）
+    // When
     await handlers.handleCommand(hostConnId, { command: "session.abort" });
+    // Then
     const error = broadcaster.sent.find((s) => s.msg.type === "error");
     expect(error).toBeUndefined();
   });
 
   it("host は participant.addProxy を実行できる", async () => {
-    // When
-    await handlers.handleCommand(hostConnId, {
+    // Given
+    const command = {
       command: "participant.addProxy",
       displayName: "Dave",
       participantId: "proxy-99",
-    });
+    } as const;
+    // When
+    await handlers.handleCommand(hostConnId, command);
     // Then
     const error = broadcaster.sent.find((s) => s.msg.type === "error");
     expect(error).toBeUndefined();
@@ -247,11 +254,10 @@ describe("resolveIsSelfTarget: driver.skip / driver.resume の対象解決（本
   });
 
   it("editor は他人を driver.skip できない（fail-closed）", async () => {
+    // Given（editor が他人＝viewer を対象に driver.skip する）
+    const command = { command: "driver.skip", participantId: viewerPid } as const;
     // When
-    await handlers.handleCommand(editorConnId, {
-      command: "driver.skip",
-      participantId: viewerPid,
-    });
+    await handlers.handleCommand(editorConnId, command);
     // Then
     const error = broadcaster.sent.find((s) => s.msg.type === "error");
     expect(error).toBeTruthy();
@@ -261,33 +267,30 @@ describe("resolveIsSelfTarget: driver.skip / driver.resume の対象解決（本
   });
 
   it("viewer は自分を driver.skip できる（本人）", async () => {
+    // Given（viewer が自分自身を対象に driver.skip する）
+    const command = { command: "driver.skip", participantId: viewerPid } as const;
     // When
-    await handlers.handleCommand(viewerConnId, {
-      command: "driver.skip",
-      participantId: viewerPid,
-    });
+    await handlers.handleCommand(viewerConnId, command);
     // Then
     const error = broadcaster.sent.find((s) => s.msg.type === "error");
     expect(error).toBeUndefined();
   });
 
   it("host は他人を driver.skip できる（host）", async () => {
+    // Given（host が他人＝viewer を対象に driver.skip する）
+    const command = { command: "driver.skip", participantId: viewerPid } as const;
     // When
-    await handlers.handleCommand(hostConnId, {
-      command: "driver.skip",
-      participantId: viewerPid,
-    });
+    await handlers.handleCommand(hostConnId, command);
     // Then
     const error = broadcaster.sent.find((s) => s.msg.type === "error");
     expect(error).toBeUndefined();
   });
 
   it("editor は他人を driver.resume できない（fail-closed）", async () => {
+    // Given（editor が他人＝viewer を対象に driver.resume する）
+    const command = { command: "driver.resume", participantId: viewerPid } as const;
     // When
-    await handlers.handleCommand(editorConnId, {
-      command: "driver.resume",
-      participantId: viewerPid,
-    });
+    await handlers.handleCommand(editorConnId, command);
     // Then
     const error = broadcaster.sent.find((s) => s.msg.type === "error");
     expect(error).toBeTruthy();
@@ -297,10 +300,11 @@ describe("resolveIsSelfTarget: driver.skip / driver.resume の対象解決（本
   });
 
   it("viewer は自分を driver.resume できる（本人）", async () => {
-    await handlers.handleCommand(viewerConnId, {
-      command: "driver.resume",
-      participantId: viewerPid,
-    });
+    // Given（viewer が自分自身を対象に driver.resume する）
+    const command = { command: "driver.resume", participantId: viewerPid } as const;
+    // When
+    await handlers.handleCommand(viewerConnId, command);
+    // Then
     const error = broadcaster.sent.find((s) => s.msg.type === "error");
     expect(error).toBeUndefined();
   });
