@@ -28,11 +28,13 @@ describe("handlers: room.create", () => {
   });
 
   it("ルームを作成すると一意のルームコードが発行される", async () => {
-    const result = await handlers.handleCommand("conn-001", {
-      command: "room.create",
-      displayName: "Alice",
-    });
+    // Given
+    const command = { command: "room.create", displayName: "Alice" } as const;
 
+    // When
+    const result = await handlers.handleCommand("conn-001", command);
+
+    // Then
     expect(result._unsafeUnwrap().code).toBeTruthy();
   });
 
