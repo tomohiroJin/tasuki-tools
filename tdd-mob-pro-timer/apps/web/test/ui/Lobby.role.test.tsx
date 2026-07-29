@@ -11,7 +11,6 @@
  * **開始前の権限範囲は変えない。** 主催者限定の導線を足すだけで、誰が何をできるかは従来どおり。
  *
  * 設計: docs/plans/host-spof-relaxation/plan.md「D7」
- * 要件: FR-083, FR-066
  */
 
 import { describe, it, expect, vi } from "vitest";
@@ -77,7 +76,10 @@ function baseHandlers() {
   };
 }
 
-describe("Lobby: 役割の切り替え（FR-083）", () => {
+/**
+ * @requirements FR-083, FR-066, T046, G6
+ */
+describe("Lobby: 役割の切り替え", () => {
   it("主催者には他の参加者を見学者にする操作が出る", () => {
     render(<Lobby room={makeRoom()} participantId="host-1" {...baseHandlers()} />);
 
@@ -85,24 +87,26 @@ describe("Lobby: 役割の切り替え（FR-083）", () => {
   });
 
   it("押すと対象を viewer にする要求が出る", () => {
+    // Given
     const handlers = baseHandlers();
     render(<Lobby room={makeRoom()} participantId="host-1" {...handlers} />);
-
+    // When
     fireEvent.click(screen.getByLabelText("Bob を見学者にする"));
-
+    // Then
     expect(handlers.onRoleSet).toHaveBeenCalledWith("edit-1", "viewer");
   });
 
   it("見学者には進行に戻す操作が出る", () => {
+    // Given
     const handlers = baseHandlers();
     render(<Lobby room={makeRoom()} participantId="host-1" {...handlers} />);
-
+    // When
     fireEvent.click(screen.getByLabelText("Cid を進行に戻す"));
-
+    // Then
     expect(handlers.onRoleSet).toHaveBeenCalledWith("view-1", "editor");
   });
 
-  it("主催者でない参加者には出ない（開始前の権限範囲は変えない・FR-066）", () => {
+  it("主催者でない参加者には出ない（開始前の権限範囲は変えない）", () => {
     render(<Lobby room={makeRoom()} participantId="edit-1" {...baseHandlers()} />);
 
     expect(screen.queryByLabelText("Cid を進行に戻す")).toBeNull();
@@ -115,9 +119,11 @@ describe("Lobby: 役割の切り替え（FR-083）", () => {
   });
 
   it("ハンドラが無ければ出さない", () => {
+    // Given
     const { onRoleSet: _omitted, ...withoutRoleSet } = baseHandlers();
+    // When
     render(<Lobby room={makeRoom()} participantId="host-1" {...withoutRoleSet} />);
-
+    // Then
     expect(screen.queryByLabelText("Bob を見学者にする")).toBeNull();
   });
 });

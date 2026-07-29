@@ -30,7 +30,10 @@ function makeRoom(overrides?: Partial<Room>): Room {
   });
 }
 
-describe("Lobby 空状態ヒント（R5-2）", () => {
+/**
+ * @requirements R5-2
+ */
+describe("Lobby 空状態ヒント", () => {
   const noop = vi.fn();
 
   it("参加者が自分1人のとき招待を促すヒントを出す", () => {
@@ -39,6 +42,7 @@ describe("Lobby 空状態ヒント（R5-2）", () => {
   });
 
   it("参加者が2人以上ならヒントを出さない", () => {
+    // Given
     const room = makeRoom({
       participants: [
         {
@@ -61,7 +65,9 @@ describe("Lobby 空状態ヒント（R5-2）", () => {
         },
       ],
     });
+    // When
     render(<Lobby room={room} participantId="host-p" onStartSession={noop} />);
+    // Then
     expect(screen.queryByText(/まだあなただけ/)).toBeNull();
   });
 });

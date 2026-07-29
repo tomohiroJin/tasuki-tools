@@ -358,7 +358,7 @@
   **必要なら `renderSession()` をこのバッチで新設する**（先回りしない・FR-118）。
   _要件: FR-091〜FR-096, FR-118, FR-123, US2_
 
-- [ ] **T047** バッチ「Lobby と招待」（8 ファイル）:
+- [x] **T047** バッチ「Lobby と招待」（8 ファイル）:
   `ui/Lobby.empty.test.tsx` / `ui/Lobby.host-transfer.test.tsx` / `ui/Lobby.invite.test.tsx` /
   `ui/Lobby.problem-gate.test.tsx` / `ui/Lobby.role.test.tsx` / `ui/Lobby.rotation.test.tsx` /
   `ui/InvitePanel.test.tsx` / `ui/PassphrasePanel.test.tsx`。

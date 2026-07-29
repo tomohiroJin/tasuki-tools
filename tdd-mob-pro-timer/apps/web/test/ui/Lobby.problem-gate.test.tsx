@@ -31,39 +31,51 @@ function makeRoom(configOverrides?: object): Room {
 
 const noop = vi.fn();
 
-describe("Lobby お題ゲート（Task 8）", () => {
+/**
+ * @requirements Task 8
+ */
+describe("Lobby お題ゲート", () => {
   it("problemEnabled=false かつ problem=null でも開始ボタンが活性", () => {
+    // Given
     const room = makeRoom({ problemEnabled: false });
+    // When
     render(<Lobby room={room} participantId="host-p" onStartSession={noop} />);
+    // Then
     const btn = screen.getByRole("button", { name: /セッションを開始/ });
     expect((btn as HTMLButtonElement).disabled).toBe(false);
   });
 
   it("problemEnabled=false のときお題セクションを表示しない", () => {
+    // Given
     const room = makeRoom({ problemEnabled: false });
     render(<Lobby room={room} participantId="host-p" onStartSession={noop} />);
-    // 「お題」タブをクリックして表示を切り替える
+    // When（「お題」タブをクリックして表示を切り替える）
     const optionsTab = screen.getByRole("tab", { name: /^お題$/ });
     fireEvent.click(optionsTab);
-    // お題セクションヘッダー（h2）が存在しないことを確認（タブ名「お題」とは区別）
+    // Then（お題セクションヘッダー（h2）が存在しないことを確認。タブ名「お題」とは区別）
     expect(screen.queryByRole("heading", { name: "お題" })).toBeNull();
   });
 
   it("problemEnabled=true（デフォルト）かつ problem=null のとき開始ボタンが無効", () => {
+    // Given
     const room = makeRoom(); // problemEnabled undefined = default true
+    // When
     render(<Lobby room={room} participantId="host-p" onStartSession={noop} />);
+    // Then
     const btn = screen.getByRole("button", { name: /セッションを開始/ });
     expect((btn as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it("host が「お題なし」ラジオを押すと onConfigSet({ problemEnabled: false }) が呼ばれる", () => {
+  it("host が「お題なし」ラジオを押すと、お題機能を無効にする設定が保存される", () => {
+    // Given
     const onConfigSet = vi.fn();
     const room = makeRoom(); // problemEnabled=true
     render(<Lobby room={room} participantId="host-p" onStartSession={noop} onConfigSet={onConfigSet} />);
-    // お題タブへ切り替えてトグルを操作（トグルはお題タブ先頭に移動）
+    // When（お題タブへ切り替えてトグルを操作。トグルはお題タブ先頭に移動）
     fireEvent.click(screen.getByRole("tab", { name: /^お題$/ }));
     const radio = screen.getByRole("radio", { name: "お題なし" });
     fireEvent.click(radio);
+    // Then
     expect(onConfigSet).toHaveBeenCalledWith({ problemEnabled: false });
   });
 });

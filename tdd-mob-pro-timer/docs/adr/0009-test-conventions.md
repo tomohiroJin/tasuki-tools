@@ -288,3 +288,22 @@ describe("<対象の名詞>", () => {
   変更していない）。本体が3行以上のテストに `// Given` `// When` `// Then` を付与した
   （2行以下のテストは対象外）。検証内容・分割は変更していない。
   `Session.break.test.tsx` は既に規約を満たしており（仕様IDなし・呼称なし・本体2行以下）無変更。
+
+### `apps/web/test/ui`（T047: バッチ「Lobby と招待」8ファイル）
+
+- `Lobby.empty.test.tsx` / `Lobby.host-transfer.test.tsx` / `Lobby.invite.test.tsx` /
+  `Lobby.problem-gate.test.tsx` / `Lobby.role.test.tsx` / `Lobby.rotation.test.tsx` /
+  `InvitePanel.test.tsx` / `PassphrasePanel.test.tsx`
+
+  describe 名・it 名に混在していた R\d-\d・T0xx・FR-0xx・Issue #N・v2.3 #N・Task N・C2・D7・G6 等を
+  describe 直上の JSDoc `@requirements` へ移した（`Lobby.rotation.test.tsx` は同名参加者の区別・
+  退出の確認の各 describe にも分けて付与）。`Lobby.host-transfer.test.tsx` の
+  「onTransferHost が呼ばれる」・`Lobby.rotation.test.tsx` の「onJoinRotation(自分のID) が呼ばれる」
+  「onShuffle が呼ばれる」・`Lobby.rotation.test.tsx` の「onRemoveParticipant が呼ばれる」・
+  `Lobby.problem-gate.test.tsx` の「onConfigSet(...) が呼ばれる」・`PassphrasePanel.test.tsx` の
+  「onSet(...) を呼ぶ」2件は、いずれも SC-030 の「呼ぶ/呼ばれる」規定に抵触するため、
+  「ホスト移譲の要求が送られる」「ローテーションに加入する」「ランダムに並べ替わる」
+  「退出処理が実行される」「お題機能を無効にする設定が保存される」「パスフレーズが保存される/
+  保護が解かれる」という結果の記述に改めた（アサーション自体は `toHaveBeenCalledWith`/
+  `toHaveBeenCalledTimes` のまま変更していない）。本体が3行以上のテストに
+  `// Given` `// When` `// Then` を付与した（2行以下は対象外）。検証内容・分割は変更していない。

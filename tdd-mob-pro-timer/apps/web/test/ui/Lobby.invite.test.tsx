@@ -33,10 +33,15 @@ function makeRoom(overrides?: Partial<Room>): Room {
   });
 }
 
-describe("Lobby 招待 1 操作（T058/T059）", () => {
+/**
+ * @requirements T058, T059, FR-004, FR-005, FR-006, FR-008, FR-026, FR-033,
+ * FR-034, FR-052, FR-060, US2, US6, US8, R1-4
+ */
+describe("Lobby 招待 1 操作", () => {
   const noop = vi.fn();
 
-  it("ルームコードが表示される（FR-004）", () => {
+  it("ルームコードが表示される", () => {
+    // When
     render(
       <Lobby
         room={makeRoom()}
@@ -44,10 +49,12 @@ describe("Lobby 招待 1 操作（T058/T059）", () => {
         onStartSession={noop}
       />,
     );
+    // Then
     expect(screen.getByText(/TEST01/)).toBeTruthy();
   });
 
-  it("コピーボタンが存在する（FR-033: 1 操作で招待）", () => {
+  it("コピーボタンが存在する（1 操作で招待）", () => {
+    // When
     render(
       <Lobby
         room={makeRoom()}
@@ -55,11 +62,12 @@ describe("Lobby 招待 1 操作（T058/T059）", () => {
         onStartSession={noop}
       />,
     );
-    // ルームコードコピー or 参加URLコピーが少なくとも1つある
+    // Then（ルームコードコピー or 参加URLコピーが少なくとも1つある）
     expect(screen.getAllByRole("button", { name: /コピー|copy/i }).length).toBeGreaterThan(0);
   });
 
-  it("参加者一覧が表示される（FR-008/052）", () => {
+  it("参加者一覧が表示される", () => {
+    // When
     render(
       <Lobby
         room={makeRoom()}
@@ -67,10 +75,12 @@ describe("Lobby 招待 1 操作（T058/T059）", () => {
         onStartSession={noop}
       />,
     );
+    // Then
     expect(screen.getByText("Alice")).toBeTruthy();
   });
 
-  it("host にはセッション開始ボタンが表示される（FR-008）", () => {
+  it("host にはセッション開始ボタンが表示される", () => {
+    // When
     render(
       <Lobby
         room={makeRoom()}
@@ -78,11 +88,12 @@ describe("Lobby 招待 1 操作（T058/T059）", () => {
         onStartSession={noop}
       />,
     );
+    // Then
     expect(screen.getByRole("button", { name: /開始|start/i })).toBeTruthy();
   });
 
-  it("お題・設定タブを開かなくても（既定お題のまま）開始できる (R1-4)", async () => {
-    // お題が確定済みの room を用意（既定お題のまま開始できるケース）
+  it("お題・設定タブを開かなくても（既定お題のまま）開始できる", async () => {
+    // Given（お題が確定済みの room を用意。既定お題のまま開始できるケース）
     const roomWithProblem = makeRoom({
       problem: {
         title: "FizzBuzz",
@@ -96,7 +107,6 @@ describe("Lobby 招待 1 操作（T058/T059）", () => {
     });
     const user = userEvent.setup();
     const onStart = vi.fn();
-    // host・room.problem 確定済みの room で Lobby を描画
     render(
       <Lobby
         room={roomWithProblem}
@@ -104,8 +114,9 @@ describe("Lobby 招待 1 操作（T058/T059）", () => {
         onStartSession={onStart}
       />,
     );
-    // 既定の「ルーム」タブのまま（お題・設定タブはクリックしない）
+    // When（既定の「ルーム」タブのまま。お題・設定タブはクリックしない）
     await user.click(screen.getByRole("button", { name: /セッションを開始/ }));
+    // Then
     expect(onStart).toHaveBeenCalled();
   });
 });
