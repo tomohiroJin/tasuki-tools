@@ -156,7 +156,7 @@ describe("participant.remove（G3: 自己退出・不変条件・ホスト引き
     });
 
     // Then
-    expect(result.isOk()).toBe(true);
+    result._unsafeUnwrap();
     expect(store.get(code)!.participants.find((p) => p.participantId === carolId)).toBeUndefined();
   });
 
@@ -170,7 +170,7 @@ describe("participant.remove（G3: 自己退出・不変条件・ホスト引き
     });
 
     // Then
-    expect(result.isOk()).toBe(true);
+    result._unsafeUnwrap();
     expect(store.get(code)!.participants.find((p) => p.participantId === carolId)).toBeUndefined();
   });
 
@@ -241,7 +241,7 @@ describe("participant.remove（G3: 自己退出・不変条件・ホスト引き
     const removed = await handlers.handleCommand(HOST, {
       command: "participant.remove", participantId: aliceId,
     });
-    expect(removed.isOk()).toBe(true);
+    removed._unsafeUnwrap();
 
     // Then（ホストは在室者のうち joinedAt 最小＝Bob へ引き継がれている）
     const after = store.get(code)!;
@@ -252,7 +252,7 @@ describe("participant.remove（G3: 自己退出・不変条件・ホスト引き
     broadcaster.sent.length = 0;
     const phase = await handlers.handleCommand(BOB, { command: "phase.set", phase: "ready" });
 
-    expect(phase.isOk()).toBe(true);
+    phase._unsafeUnwrap();
     expect(store.get(code)!.phase).toBe("ready");
   });
 
@@ -267,7 +267,7 @@ describe("participant.remove（G3: 自己退出・不変条件・ホスト引き
     });
 
     // Then（退出した Alice ではなく、残った在室者のうち joinedAt 最小＝Bob が新ホスト）
-    expect(result.isOk()).toBe(true);
+    result._unsafeUnwrap();
     const after = store.get(code)!;
     expect(after.participants.find((p) => p.participantId === aliceId)).toBeUndefined();
     expect(after.hostParticipantId).toBe(after.participants.find((p) => p.displayName === "Bob")!.participantId);
@@ -406,7 +406,7 @@ describe("participant.remove（G7: 同名参加者を識別子で区別する）
     });
 
     // Then
-    expect(result.isOk()).toBe(true);
+    result._unsafeUnwrap();
     expect(room().participants.filter((p) => p.displayName === "Bob")).toHaveLength(1);
     expect(room().session.rotation).toContain(realId);
   });
@@ -423,7 +423,7 @@ describe("participant.remove（G7: 同名参加者を識別子で区別する）
     });
 
     // Then
-    expect(result.isOk()).toBe(true);
+    result._unsafeUnwrap();
     expect(room().session.rotation).toContain(realId);
     expect(room().session.rotation).toEqual([hostId, realId]);
   });
@@ -438,7 +438,7 @@ describe("participant.remove（G7: 同名参加者を識別子で区別する）
     });
 
     // Then
-    expect(result.isOk()).toBe(true);
+    result._unsafeUnwrap();
     expect(room().session.rotation).toEqual([hostId]);
     // 幽霊は輪の外に居ただけなので在室したまま（巻き添えにしない）。
     expect(room().participants.some((p) => p.participantId === ghostId)).toBe(true);
@@ -480,7 +480,7 @@ describe("participant.remove（G7: 同名参加者を識別子で区別する）
     });
 
     // Then（rotation に触れないので BelowMinMembers は関係ない）
-    expect(result.isOk()).toBe(true);
+    result._unsafeUnwrap();
     expect(room().session.rotation).toEqual([hostId]);
   });
 });
