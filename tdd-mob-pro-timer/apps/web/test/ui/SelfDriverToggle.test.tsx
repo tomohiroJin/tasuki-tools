@@ -16,10 +16,11 @@ const base = {
 
 describe("SelfDriverToggle 見学者バナー", () => {
   it("rotation 外のときバナーと加入 CTA を目立たせる", () => {
+    // When（ここは「ローテーション外（役割は編集者のまま）」であり、役割が見学者である状態
+    // 〈SpectatorSelfActions の「あなたは見学者です」〉とは別物。以前はどちらも
+    // 「あなたは見学中です」で、進行の操作ができるのか読み分けられなかった）
     render(<SelfDriverToggle {...base} inRotation={false} />);
-    // Issue #22（T048）で文言を分けた。ここは「ローテーション外（役割は編集者のまま）」であり、
-    // 役割が見学者である状態（SpectatorSelfActions の「あなたは見学者です」）とは別物。
-    // 以前はどちらも「あなたは見学中です」で、進行の操作ができるのか読み分けられなかった。
+    // Then
     expect(screen.getByText(/ドライバーの輪の外/)).toBeTruthy();
     // ドライバーに加わるボタンがアクセシブルな名前で存在する
     expect(screen.getByRole("button", { name: "ドライバーに加わる" })).toBeTruthy();

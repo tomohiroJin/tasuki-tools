@@ -307,3 +307,22 @@ describe("<対象の名詞>", () => {
   保護が解かれる」という結果の記述に改めた（アサーション自体は `toHaveBeenCalledWith`/
   `toHaveBeenCalledTimes` のまま変更していない）。本体が3行以上のテストに
   `// Given` `// When` `// Then` を付与した（2行以下は対象外）。検証内容・分割は変更していない。
+
+### `apps/web/test/ui`（T048: バッチ「参加者一覧」8ファイル）
+
+- `RosterPanel.test.tsx` / `SelfDriverToggle.test.tsx` / `SelfDriverToggle.leave-room.test.tsx` /
+  `RotationLineup.test.tsx` / `rotation-names.test.ts` / `rotation-status.test.ts` /
+  `participant-label.test.ts` / `presence.test.ts`
+
+  describe 名・it 名に混在していた T0xx・FR-0xx・Issue #N・v2.2/v2.3 #N・Task N・G5・G6 等を
+  describe 直上の JSDoc `@requirements` へ移した（`RosterPanel.test.tsx` は各内側 describe
+  にも分けて付与）。「onAddProxy/onRename/onMove/onTransferHost が呼ばれる」は SC-030 の
+  「呼ぶ/呼ばれる」規定に抵触するため、「代理参加者が追加される」「名前が変わる」
+  「ドライバーが前/後の順番へ移動する」「ホスト移譲の要求が送られる」という結果の記述に
+  改めた（アサーション自体は変更していない）。本体3行以上のテストに `// Given` `// When`
+  `// Then` を付与した。`rotation-names.test.ts`・`rotation-status.test.ts`・
+  `participant-label.test.ts`・`presence.test.ts` は純粋関数テストで明確な「操作」が
+  無いため、既存の T034 バッチ（`packages/core/test/display-name.test.ts`）の先例に倣い
+  `// Given` の後に `// When / Then` を1行で付与した。検証内容・分割は変更していない。
+
+これで G3-d の T046〜T048 が完了した。

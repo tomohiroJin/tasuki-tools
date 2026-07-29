@@ -28,8 +28,9 @@ describe("isAmbiguousName", () => {
   });
 
   it("キリル文字の見た目が同じ名前を曖昧とみなす", () => {
-    // В はキリル大文字 В。画面では Latin の B と区別が付かない。
+    // Given（В はキリル大文字 В。画面では Latin の B と区別が付かない）
     const list = [p("pid-0001", "Bob"), p("pid-0002", "Вob")];
+    // When / Then
     expect(isAmbiguousName("Bob", "pid-0001", list)).toBe(true);
     expect(isAmbiguousName("Вob", "pid-0002", list)).toBe(true);
   });
@@ -63,7 +64,9 @@ describe("participantLabel", () => {
   });
 
   it("見た目が同じキリル名が居ると、双方に識別子が付いて区別できる", () => {
+    // Given
     const list = [p("pid-0001", "Bob"), p("pid-0002", "Вob")];
+    // When / Then
     expect(participantLabel("Bob", "pid-0001", list)).toBe("Bob（ID: 0001）");
     // 表示名そのものは本人が名乗ったまま（キリルはラテンに書き換えない）。
     expect(participantLabel("Вob", "pid-0002", list)).toBe("Вob（ID: 0002）");

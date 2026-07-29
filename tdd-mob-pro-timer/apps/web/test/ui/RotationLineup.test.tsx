@@ -14,7 +14,9 @@ describe("RotationLineup", () => {
   };
 
   it("番号付きで全員を並べ、現在に「今」次に「次」を出す", () => {
+    // When
     render(<RotationLineup {...props} selfIndex={2} />);
+    // Then
     expect(screen.getByText("Alice")).toBeTruthy();
     expect(screen.getByText("▶ 今")).toBeTruthy();
     expect(screen.getByText("⟶ 次")).toBeTruthy();
@@ -33,8 +35,8 @@ describe("RotationLineup", () => {
   });
 
   it("同名が2人並んでも両方の行が描画され、自分の行だけが「（あなた）」になる", () => {
-    // 表示名を React の key にしていると同名で key が衝突し、行が1つに潰れるか
-    // 別人の行に強調が付く（実機で 168 件の key 重複警告として観測された）。
+    // When（表示名を React の key にしていると同名で key が衝突し、行が1つに潰れるか
+    // 別人の行に強調が付く。実機で 168 件の key 重複警告として観測された）
     render(
       <RotationLineup
         rotation={[mk("p1", "Bob", "Bob（ID: p1）"), mk("p2", "Bob", "Bob（ID: p2）")]}
@@ -44,7 +46,7 @@ describe("RotationLineup", () => {
         isPaused={false}
       />,
     );
-    // 呼び名で描かれるので、同名でもどちらの行か読み取れる。
+    // Then（呼び名で描かれるので、同名でもどちらの行か読み取れる）
     expect(screen.getByText("Bob（ID: p1）")).toBeTruthy();
     expect(screen.getByText("Bob（ID: p2）")).toBeTruthy();
     expect(screen.getAllByText("（あなた）")).toHaveLength(1);

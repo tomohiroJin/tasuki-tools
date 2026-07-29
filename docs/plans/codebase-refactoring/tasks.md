@@ -364,7 +364,7 @@
   `ui/InvitePanel.test.tsx` / `ui/PassphrasePanel.test.tsx`。
   _要件: FR-091〜FR-096, FR-123, US2_
 
-- [ ] **T048** バッチ「参加者一覧」（8 ファイル）:
+- [x] **T048** バッチ「参加者一覧」（8 ファイル）:
   `ui/RosterPanel.test.tsx` / `ui/SelfDriverToggle.test.tsx` / `ui/SelfDriverToggle.leave-room.test.tsx` /
   `ui/RotationLineup.test.tsx` / `ui/rotation-names.test.ts` / `ui/rotation-status.test.ts` /
   `ui/participant-label.test.ts` / `ui/presence.test.ts`。
