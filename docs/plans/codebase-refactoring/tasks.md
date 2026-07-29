@@ -176,26 +176,26 @@
 
 ### G2-a `apps/sync/test/support/`
 
-- [ ] **T016** `apps/sync/test/support/spy-broadcaster.test.ts` を新規作成し、
+- [x] **T016** `apps/sync/test/support/spy-broadcaster.test.ts` を新規作成し、
   `SpyBroadcaster` の**失敗するテスト**を書く。既存 29 ファイルの定義の和集合に加えて、
   問い合わせ `latestSnapshot()` / `errorsTo(connId)` / `hasErrorCode(connId, code)` /
   `signalsOf(signal)` の振る舞いを検証する。
   _要件: FR-097, FR-118, US2_
 
-- [ ] **T017** `apps/sync/test/support/spy-broadcaster.ts` を実装し T016 を緑にする。
+- [x] **T017** `apps/sync/test/support/spy-broadcaster.ts` を実装し T016 を緑にする。
   **既存定義の和集合を超える機能を足さない**（FR-118）。
   _要件: FR-097, FR-118, US2_
 
-- [ ] **T018 [P]** `apps/sync/test/support/fake-code-gen.ts` に `FakeCodeGen` を実装する
+- [x] **T018 [P]** `apps/sync/test/support/fake-code-gen.ts` に `FakeCodeGen` を実装する
   （既存 27 ファイルの定義の和集合。決定的な連番）。
   _要件: FR-097, US2_
 
-- [ ] **T019** `apps/sync/test/support/room-builder.test.ts` を新規作成し、`aRoom()` の**失敗するテスト**を書く。
+- [x] **T019** `apps/sync/test/support/room-builder.test.ts` を新規作成し、`aRoom()` の**失敗するテスト**を書く。
   `withParticipants()` / `withDriver()` / `started()` / `build()` の各段が期待どおりのルームを作ること、
   **前提の構築に失敗したら `throw` すること**（`expect` を使わないこと）を検証する。
   _要件: FR-096, FR-097, US2_
 
-- [ ] **T020** `apps/sync/test/support/room-builder.ts` に `aRoom()` と `makeTestHandlers()` を実装し
+- [x] **T020** `apps/sync/test/support/room-builder.ts` に `aRoom()` と `makeTestHandlers()` を実装し
   T019 を緑にする。
   _要件: FR-096, FR-097, US2_
 
