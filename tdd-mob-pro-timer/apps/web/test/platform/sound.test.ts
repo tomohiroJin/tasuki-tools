@@ -51,6 +51,7 @@ describe("チャイム registry", () => {
   it("CHIMES は voice-male/voice-female/voice-nise/voice-mai を含む計10種", () => {
     // Given
     const ids = CHIMES.map((c) => c.id);
+    // When（CHIMES は静的データ。操作はなく参照するだけ）
     // Then
     expect(ids).toHaveLength(10);
     expect(ids).toEqual(expect.arrayContaining([
@@ -97,6 +98,8 @@ describe("playCountdownTick（カウントダウン予告音）", () => {
   });
 
   it("stage 1/2/3 いずれでも例外を投げない", () => {
+    // Given（音量0.6固定・stage 1/2/3 それぞれを対象にする表形式のケース）
+    // When（呼び出しと例外なしの検証を一体で行う）
     expect(() => playCountdownTick(0.6, 1)).not.toThrow();
     expect(() => playCountdownTick(0.6, 2)).not.toThrow();
     expect(() => playCountdownTick(0.6, 3)).not.toThrow();
@@ -132,6 +135,8 @@ describe("computeCountdownStage（区間判定）", () => {
   });
 
   it("threshold=6(均等に3分割できる最小級): 2秒ずつの3区間", () => {
+    // Given（threshold=6・残り秒1〜6それぞれを対象にする表形式のケース）
+    // When（呼び出しと期待値の照合を一体で行う）
     expect(computeCountdownStage(1, 6)).toBe(3);
     expect(computeCountdownStage(2, 6)).toBe(3);
     expect(computeCountdownStage(3, 6)).toBe(2);
@@ -141,6 +146,8 @@ describe("computeCountdownStage（区間判定）", () => {
   });
 
   it("threshold=5(最小値・不均等区間): 段階3が1秒分だけになる", () => {
+    // Given（threshold=5・残り秒1〜5それぞれを対象にする表形式のケース）
+    // When（呼び出しと期待値の照合を一体で行う）
     expect(computeCountdownStage(1, 5)).toBe(3);
     expect(computeCountdownStage(2, 5)).toBe(2);
     expect(computeCountdownStage(3, 5)).toBe(2);

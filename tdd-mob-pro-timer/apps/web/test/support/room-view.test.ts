@@ -17,8 +17,11 @@ import { aRoomView } from "./room-view.js";
 
 describe("aRoomView()", () => {
   it("既定値の Room を返す（App.tsx の room.create 既定 config に一致）", () => {
+    // Given（上書きなし）
+    // When
     const room = aRoomView();
 
+    // Then
     expect(room.config.language).toBe("TypeScript");
     expect(room.config.difficulty).toBe("easy");
     expect(room.config.intervalMinutes).toBe(7);
@@ -41,8 +44,12 @@ describe("aRoomView()", () => {
   });
 
   it("トップレベルの上書きは指定した項目だけが変わり、他は既定のまま", () => {
-    const room = aRoomView({ phase: "session", handoffNote: "引き継ぎメモ" });
+    // Given
+    const overrides = { phase: "session" as const, handoffNote: "引き継ぎメモ" };
+    // When
+    const room = aRoomView(overrides);
 
+    // Then
     expect(room.phase).toBe("session");
     expect(room.handoffNote).toBe("引き継ぎメモ");
     // 上書きしていない項目は既定のまま
@@ -51,8 +58,12 @@ describe("aRoomView()", () => {
   });
 
   it("config の部分上書きは、渡した項目だけが変わり残りは既定のまま", () => {
-    const room = aRoomView({ config: { difficulty: "hard" } });
+    // Given
+    const overrides = { config: { difficulty: "hard" as const } };
+    // When
+    const room = aRoomView(overrides);
 
+    // Then
     expect(room.config.difficulty).toBe("hard");
     // 渡していない config の項目は既定のまま
     expect(room.config.language).toBe("TypeScript");
@@ -60,11 +71,15 @@ describe("aRoomView()", () => {
   });
 
   it("session / clock の部分上書きも、渡した項目だけが変わり残りは既定のまま", () => {
-    const room = aRoomView({
+    // Given
+    const overrides = {
       session: { isPaused: true },
       clock: { running: true },
-    });
+    };
+    // When
+    const room = aRoomView(overrides);
 
+    // Then
     expect(room.session.isPaused).toBe(true);
     expect(room.session.rotation).toEqual([room.hostParticipantId]);
     expect(room.clock.running).toBe(true);
@@ -72,6 +87,7 @@ describe("aRoomView()", () => {
   });
 
   it("participants を丸ごと上書きすると、その配列がそのまま使われる", () => {
+    // Given
     const custom = [
       {
         participantId: "p1",
@@ -83,8 +99,10 @@ describe("aRoomView()", () => {
         joinedAt: 0,
       },
     ];
+    // When
     const room = aRoomView({ participants: custom });
 
+    // Then
     expect(room.participants).toBe(custom);
   });
 });

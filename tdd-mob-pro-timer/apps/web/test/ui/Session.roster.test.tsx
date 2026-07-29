@@ -78,8 +78,9 @@ function baseHandlers() {
  */
 describe("Session × RosterPanel 結合", () => {
   it("rotation と participants がずれても現ドライバーが識別子ベースで正しくハイライトされる（バグ修正）", () => {
-    // When
+    // Given
     const handlers = baseHandlers();
+    // When
     render(<Session room={makeRoom()} participantId="host-1" {...handlers} />);
     // Then（現ドライバー Carol の li に「現在」が付き、viewer Bob には付かない。
     // Carol は rotation 内 → ドライバー一覧、Bob は rotation 外 → 見学一覧 に分かれる）
@@ -147,6 +148,7 @@ describe("Session × RosterPanel 結合", () => {
   it("現ドライバー名が CURRENT DRIVER 見出しに表示される", () => {
     // Given
     const handlers = baseHandlers();
+    // When
     render(<Session room={makeRoom()} participantId="host-1" {...handlers} />);
     // Then（「CURRENT DRIVER」ラベルの直近に現ドライバー（rotation[1]="Carol"）が表示される）
     const label = screen.getByText(/current driver/i);
@@ -157,6 +159,7 @@ describe("Session × RosterPanel 結合", () => {
   it("「次」ドライバーが現ドライバーとは別に表示される", () => {
     // Given
     const handlers = baseHandlers();
+    // When
     render(<Session room={makeRoom()} participantId="host-1" {...handlers} />);
     // Then（「次:」の近傍に次ドライバー（rotation[0]="Alice"）が出る）
     const nextLabel = screen.getByText(/次:/);
@@ -178,6 +181,7 @@ describe("Session × RosterPanel 結合", () => {
   it("ホストでない（editor）には『ランダム』ボタンを出さない", () => {
     // Given（自分=Carol(editor)。host ではない）
     const handlers = baseHandlers();
+    // When
     render(<Session room={makeRoom()} participantId="edit-1" {...handlers} onShuffle={vi.fn()} />);
     // Then
     expect(screen.queryByRole("button", { name: /ランダム/ })).toBeNull();
@@ -217,6 +221,7 @@ describe("Session 初回通知ヒントの自動消滅", () => {
   it("通知 OFF・未読のとき初回ヒントを表示する", () => {
     // Given
     const handlers = baseHandlers();
+    // When
     render(<Session room={makeRoom()} participantId="host-1" {...handlers} />);
     // Then
     expect(screen.getByText(/交代を音で知らせ/)).toBeTruthy();
