@@ -125,6 +125,7 @@ describe("Session 引き継ぎノート入力（§9.1）", () => {
 
   it("viewer には編集欄を出さず、メモがあれば読み取り表示する", () => {
     // Given
+    // When
     render(
       <Session
         room={makeRoom({ handoffNote: "残りはリファクタ" })}

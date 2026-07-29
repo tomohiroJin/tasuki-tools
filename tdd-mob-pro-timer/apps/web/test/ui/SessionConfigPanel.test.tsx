@@ -41,7 +41,11 @@ describe("SessionConfigPanel", () => {
   });
 
   it("canEdit=false では間隔ボタンを出さず現在値を読み取り表示する", () => {
-    render(<SessionConfigPanel config={config} canEdit={false} onChange={vi.fn()} />);
+    // Given
+    const canEdit = false;
+    // When
+    render(<SessionConfigPanel config={config} canEdit={canEdit} onChange={vi.fn()} />);
+    // Then
     expect(screen.queryByRole("group", { name: /交代間隔/ })).toBeNull();
     expect(screen.getByText(/7分/)).toBeTruthy();
   });

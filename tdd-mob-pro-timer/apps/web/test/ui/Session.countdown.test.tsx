@@ -80,7 +80,11 @@ describe("Session × カウントダウン予告音の配線", () => {
   });
 
   it("個人設定 OFF（既定）のとき enabled=false を渡す", () => {
-    render(<Session room={makeRoom(true, false)} participantId="host-1" {...handlers()} />);
+    // Given（running=true・isPaused=false の部屋）
+    const room = makeRoom(true, false);
+    // When
+    render(<Session room={room} participantId="host-1" {...handlers()} />);
+    // Then
     expect(useCountdownTick).toHaveBeenCalledWith(
       expect.any(Number),
       true,

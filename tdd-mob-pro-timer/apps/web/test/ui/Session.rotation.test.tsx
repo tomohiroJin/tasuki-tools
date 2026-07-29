@@ -107,6 +107,7 @@ describe("Session ドライバー加入/離脱", () => {
 
   it("Session では自分の行に「一時離脱」を出さず自己トグルに集約する（重複解消）", () => {
     // Given
+    // When
     render(<Session room={makeRoom()} participantId="host-p" {...handlers()} onDriverSkip={vi.fn()} />);
     // Then（自己トグルには一時離脱がある）
     expect(within(selfToggle()).getByRole("button", { name: /一時離脱/ })).toBeTruthy();

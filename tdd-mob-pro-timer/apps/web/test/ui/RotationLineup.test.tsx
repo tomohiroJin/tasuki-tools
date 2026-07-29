@@ -14,6 +14,7 @@ describe("RotationLineup", () => {
   };
 
   it("番号付きで全員を並べ、現在に「今」次に「次」を出す", () => {
+    // Given（props をそのまま使い、selfIndex=2）
     // When
     render(<RotationLineup {...props} selfIndex={2} />);
     // Then
@@ -35,11 +36,13 @@ describe("RotationLineup", () => {
   });
 
   it("同名が2人並んでも両方の行が描画され、自分の行だけが「（あなた）」になる", () => {
-    // When（表示名を React の key にしていると同名で key が衝突し、行が1つに潰れるか
+    // Given（表示名を React の key にしていると同名で key が衝突し、行が1つに潰れるか
     // 別人の行に強調が付く。実機で 168 件の key 重複警告として観測された）
+    const rotation = [mk("p1", "Bob", "Bob（ID: p1）"), mk("p2", "Bob", "Bob（ID: p2）")];
+    // When
     render(
       <RotationLineup
-        rotation={[mk("p1", "Bob", "Bob（ID: p1）"), mk("p2", "Bob", "Bob（ID: p2）")]}
+        rotation={rotation}
         currentIndex={0}
         intervalSeconds={300}
         selfIndex={1}

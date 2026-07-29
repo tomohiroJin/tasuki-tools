@@ -53,6 +53,7 @@ describe("SelfDriverToggle: ルームから抜ける", () => {
   });
 
   it("列から外れる（rotation の出入り）とは別のボタンである", () => {
+    // Given（base をそのまま使う）
     // When
     render(<SelfDriverToggle {...base} onLeaveRoom={vi.fn()} onLeave={vi.fn()} />);
     // Then
@@ -99,6 +100,7 @@ describe("SelfDriverToggle: 見学に回る", () => {
   });
 
   it("「列から外れる」（ローテーションの出入り）とは別のボタンである", () => {
+    // Given（base をそのまま使い、started=true）
     // When
     render(<SelfDriverToggle {...base} started onSelfRoleChange={vi.fn()} onLeave={vi.fn()} />);
     // Then

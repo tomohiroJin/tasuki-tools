@@ -136,10 +136,10 @@ describe("Session: 開始者は記録上の情報にすぎない", () => {
   });
 
   it("開始前はホストに「ホストを譲る」を提示する（準備段階の主催者主導は維持）", () => {
-    // When（開始前の部屋を描画する）
-    render(
-      <Session room={makeRoom({ startedAt: null })} participantId="host-1" {...baseHandlers()} />,
-    );
+    // Given（開始前の部屋）
+    const room = makeRoom({ startedAt: null });
+    // When
+    render(<Session room={room} participantId="host-1" {...baseHandlers()} />);
     // Then
     expect(screen.getAllByLabelText("Carol にホストを譲る").length).toBeGreaterThan(0);
   });
@@ -177,10 +177,10 @@ describe("Session: 見学者の自己解消導線", () => {
   });
 
   it("開始前の見学者には「進行に加わる」を出さない（開始前はホストのみ）", () => {
-    // When（開始前の部屋を描画する）
-    render(
-      <Session room={makeRoom({ startedAt: null })} participantId="view-1" {...baseHandlers()} />,
-    );
+    // Given（開始前の部屋）
+    const room = makeRoom({ startedAt: null });
+    // When
+    render(<Session room={room} participantId="view-1" {...baseHandlers()} />);
     // Then
     expect(screen.queryByRole("button", { name: "進行に加わる" })).toBeNull();
   });

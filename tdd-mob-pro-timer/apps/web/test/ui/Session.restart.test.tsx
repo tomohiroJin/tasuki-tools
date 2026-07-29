@@ -144,7 +144,10 @@ describe("Session 持ち時間のやり直し", () => {
   });
 
   it("やり直しボタンは終了系の隔離ゾーンの外（タイマー操作ゾーン）にある", () => {
+    // Given
+    // When
     render(<Session room={makeRoom()} participantId="host-1" {...handlers()} />);
+    // Then
     const endZone = screen.getByLabelText("セッションを終える");
     const restartBtn = screen.getByRole("button", { name: /時間リセット/ });
     expect(endZone.contains(restartBtn)).toBe(false);
