@@ -576,16 +576,16 @@
 
 ## G6 — 契約（挙動不変）
 
-- [ ] **T072** `packages/core/src/errors.ts` に `ErrorCode` 列挙（文字列リテラルの union）を追加する。
+- [x] **T072** `packages/core/src/errors.ts` に `ErrorCode` 列挙（文字列リテラルの union）を追加する。
   **値は現在使われている文字列と完全に同一**にする（wire にも挙動にも影響させない）。
   _要件: FR-101, FR-114, US3_
 
-- [ ] **T073** `apps/sync/src/application/handlers.ts` の `err("...")` と
+- [x] **T073** `apps/sync/src/application/handlers.ts` の `err("...")` と
   `broadcaster.sendTo(connId, { type: "error", code: "..." })` を `ErrorCode` 型で受けるようにする。
   **型を付けるだけで、値も分岐も変えない。**
   _要件: FR-101, US3_
 
-- [ ] **T074** ハンドラの戻り値型を見直す。**`server.ts:127` が戻り値を破棄しているため、
+- [x] **T074** ハンドラの戻り値型を見直す。**`server.ts:127` が戻り値を破棄しているため、
   この型はテストだけが参照する契約である。** `room.create` / `room.join` のみ `CreateResult` を返し、
   他は副作用の完了を表す型に変える。ダミー値の充填（`hostToken: ""` 等 10 箇所）を無くす。
   **テストは戻り値ではなく `SpyBroadcaster` の観測に寄せる**（本番と同じ観測点にする）。
@@ -594,22 +594,32 @@
   G3 が達成した SC-029〜SC-032 を崩さないよう、本グループの完了時に再走査する。
   _要件: FR-100, US3_
 
-- [ ] **T075** `packages/core/test/` に **B-2 の特性テスト**を書く。
+- [x] **T075** `packages/core/test/` に **B-2 の特性テスト**を書く。
   現在の交代の振る舞い（`session.act SWITCH` が `advanceDriver` の結果になること）を固定する。
   **この時点では実装を変えない。**
   _要件: FR-102, FR-114, US3_
 
-- [ ] **T076** `packages/core/test/` に **`fast-check`（v4・既存の devDependency）による
+- [x] **T076** `packages/core/test/` に **`fast-check`（v4・既存の devDependency）による
   プロパティテスト**を書き、`decide` に ineligible 集合を渡した場合の
   `evolve(DriverSwitched)` と `advanceDriver` が**すべての入力で同じ集約を生むか**を検証する。
   生成する入力は rotation の長さ・`currentIndex`・ineligible 集合の全組み合わせとする。
   _要件: FR-102, US3_
 
-- [ ] **T077** **T076 の結果で分岐する。**
+- [x] **T077** **T076 の結果で分岐する。**
   - **同値が示せた場合**: `decide` に ineligible を渡す形にし、
     `handlers.ts:679-688` 相当の置き換え分岐を撤去する
   - **示せなかった場合**: **実装を変えず、結果を新規 Issue に記録して撤退する**。
     T075 / T076 は成果として残す（捨てない）
+
+  **結果: 同値は示せなかった。実装を変えず撤退した。**
+  `fast-check` の最小反例は `[rotation の長さ=1, currentIndex=0, ineligible=[]]`。
+  `evolve(DriverSwitched, nextIndex=0)` は `driverCounts=[1]` / `totalSwitches=1` を生むが、
+  `advanceDriver` は `[0]` / `0` を生む（交代先が現ドライバーと同じ場合を「交代していない」と
+  みなすため）。一般形は**「交代先が現ドライバーと同じになる入力」**（輪が 1 人／
+  現ドライバー以外が全員対象外）で、いずれも実運用で起こり得る。
+  統合は利用者が見る記録を変えるため挙動不変ではなく、`handlers.ts` の置き換え分岐は撤去しない。
+  詳細は plan.md「変更 8」の「検証の結果」節。T075 / T076 の 14 件は成果として残した。
+  **未実施: この結論を独立した Issue として起票すること（Issue #26 の設計判断の材料）。**
   _要件: FR-102, FR-115, US3_
 
 - [ ] **T078** `applyRoomLevelEvent` と `evolve` の**適用順序の契約を型または明示的な契約として表現する**
