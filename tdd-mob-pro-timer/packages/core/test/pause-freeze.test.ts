@@ -6,22 +6,16 @@
  */
 
 import { describe, it, expect } from "vitest";
+import { secondsLeft } from "../src/aggregate.js";
 import { evolve } from "../src/evolve.js";
-import { initialAggregate, secondsLeft } from "../src/aggregate.js";
-import type { SessionConfig, Aggregate } from "../src/aggregate.js";
-
-const config: SessionConfig = {
-  language: "TypeScript",
-  difficulty: "easy",
-  members: ["Alice", "Bob"],
-  intervalMinutes: 7, // 420 秒
-};
+import type { Aggregate } from "../src/aggregate.js";
+import { anAggregate } from "./support/aggregate-builder.js";
 
 const NOW = 1_000_000;
 
 /** セッション開始済みの集約を作る（7分=420秒で走行中） */
 function startedAgg(): Aggregate {
-  return evolve(initialAggregate(config, config.members), { type: "SessionStarted", now: NOW }, NOW);
+  return anAggregate().withRotation("Alice", "Bob").withIntervalMinutes(7).at(NOW).running().build();
 }
 
 describe("F1: 一時停止で残量を凍結する", () => {

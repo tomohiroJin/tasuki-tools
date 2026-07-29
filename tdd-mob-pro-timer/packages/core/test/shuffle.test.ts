@@ -9,28 +9,19 @@ import {
   CommandSchema,
   decide,
   evolve,
-  initialAggregate,
-  type SessionConfig,
   type Aggregate,
 } from "../src/index.js";
-
-const baseConfig: SessionConfig = {
-  language: "TypeScript",
-  difficulty: "easy",
-  members: ["A", "B", "C"],
-  intervalMinutes: 5,
-};
+import { anAggregate } from "./support/aggregate-builder.js";
 
 const NOW = 1_000_000;
 
 /** rotation=["A","B","C"]・driverCounts=[1,2,3]・currentIndex 指定の集約を作る */
 function aggWith(currentIndex: number): Aggregate {
-  const base = initialAggregate(baseConfig, baseConfig.members);
+  const base = anAggregate().withRotation("A", "B", "C").withCurrentDriver(currentIndex).build();
   return {
     ...base,
     session: {
       ...base.session,
-      currentIndex,
       driverCounts: [1, 2, 3],
     },
   };

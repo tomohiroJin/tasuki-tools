@@ -5,17 +5,9 @@
 
 import { describe, it, expect } from "vitest";
 import { decide } from "../src/decide.js";
-import { initialAggregate } from "../src/aggregate.js";
-import type { SessionConfig } from "../src/aggregate.js";
+import { anAggregate } from "./support/aggregate-builder.js";
 
-const baseConfig: SessionConfig = {
-  language: "TypeScript",
-  difficulty: "easy",
-  members: ["Alice", "Bob", "Charlie"],
-  intervalMinutes: 5,
-};
-
-const baseAgg = initialAggregate(baseConfig, baseConfig.members);
+const baseAgg = anAggregate().build();
 const NOW = 1000000;
 
 // ─── ABORT ──────────────────────────────────────────────────────────────────
@@ -190,11 +182,9 @@ describe("decide: メンバー管理", () => {
   });
 
   it("10人超過はエラー（MemberLimitExceeded）", () => {
-    const tenMemberConfig: SessionConfig = {
-      ...baseConfig,
-      members: ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"],
-    };
-    const tenMemberAgg = initialAggregate(tenMemberConfig, tenMemberConfig.members);
+    const tenMemberAgg = anAggregate()
+      .withRotation("A", "B", "C", "D", "E", "F", "G", "H", "I", "J")
+      .build();
     const result = decide({ command: "member.add", participantId: "K" }, tenMemberAgg, NOW);
     expect(result.isErr()).toBe(true);
     if (result.isErr()) {
@@ -203,13 +193,13 @@ describe("decide: メンバー管理", () => {
   });
 
   it("2人のとき1人削除はできる（2層モデル: 下限は1人）", () => {
-    const twoMemberAgg = initialAggregate({ ...baseConfig, members: ["Alice", "Bob"] }, ["Alice", "Bob"]);
+    const twoMemberAgg = anAggregate().withRotation("Alice", "Bob").build();
     const result = decide({ command: "member.remove", index: 0 }, twoMemberAgg, NOW);
     expect(result.isOk()).toBe(true);
   });
 
   it("最後の1人を削除しようとするとエラー（BelowMinMembers）", () => {
-    const oneMemberAgg = initialAggregate({ ...baseConfig, members: ["Alice"] }, ["Alice"]);
+    const oneMemberAgg = anAggregate().withRotation("Alice").build();
     const result = decide({ command: "member.remove", index: 0 }, oneMemberAgg, NOW);
     expect(result.isErr()).toBe(true);
     if (result.isErr()) {

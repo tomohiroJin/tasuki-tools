@@ -5,17 +5,9 @@
 
 import { describe, it, expect } from "vitest";
 import { evolve, advanceDriver } from "../src/evolve.js";
-import { initialAggregate } from "../src/aggregate.js";
-import type { SessionConfig } from "../src/aggregate.js";
+import { anAggregate } from "./support/aggregate-builder.js";
 
-const baseConfig: SessionConfig = {
-  language: "TypeScript",
-  difficulty: "easy",
-  members: ["Alice", "Bob", "Charlie"],
-  intervalMinutes: 5,
-};
-
-const baseAgg = initialAggregate(baseConfig, baseConfig.members);
+const baseAgg = anAggregate().build();
 const NOW = 1000000;
 
 describe("evolve: SessionStarted", () => {

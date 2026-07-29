@@ -10,22 +10,21 @@ import { describe, it, expect } from "vitest";
 import * as v from "valibot";
 import { decide } from "../src/decide.js";
 import { evolve } from "../src/evolve.js";
-import { initialAggregate, secondsLeft, elapsedMs } from "../src/aggregate.js";
+import { secondsLeft, elapsedMs } from "../src/aggregate.js";
 import { CommandSchema } from "../src/schemas.js";
-import type { SessionConfig, Aggregate } from "../src/aggregate.js";
-
-const config: SessionConfig = {
-  language: "TypeScript",
-  difficulty: "easy",
-  members: ["Alice", "Bob", "Charlie"],
-  intervalMinutes: 7, // 420 秒
-};
+import type { Aggregate } from "../src/aggregate.js";
+import { anAggregate } from "./support/aggregate-builder.js";
 
 const NOW = 1_000_000;
 
 /** 開始 → 2回交代（currentIndex=2・totalSwitches=2）まで進んだ集約を作る */
 function advancedAgg(): Aggregate {
-  const started = evolve(initialAggregate(config, config.members), { type: "SessionStarted", now: NOW }, NOW);
+  const started = anAggregate()
+    .withRotation("Alice", "Bob", "Charlie")
+    .withIntervalMinutes(7)
+    .at(NOW)
+    .running()
+    .build();
   const sw1 = evolve(started, { type: "DriverSwitched", nextIndex: 1, now: NOW + 10_000 }, NOW + 10_000);
   return evolve(sw1, { type: "DriverSwitched", nextIndex: 2, now: NOW + 20_000 }, NOW + 20_000);
 }
@@ -45,7 +44,11 @@ describe("decide: session.act RESTART", () => {
   });
 
   it("未開始（停止中）でも受理する（RESUME と同じ寛容さ）", () => {
-    const result = decide({ command: "session.act", action: "RESTART" }, initialAggregate(config, config.members), NOW);
+    const result = decide(
+      { command: "session.act", action: "RESTART" },
+      anAggregate().withRotation("Alice", "Bob", "Charlie").withIntervalMinutes(7).build(),
+      NOW,
+    );
     expect(result.isOk()).toBe(true);
   });
 });

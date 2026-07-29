@@ -4,24 +4,14 @@
  */
 
 import { describe, it, expect } from "vitest";
-import {
-  nextEligibleIndex,
-  initialAggregate,
-} from "../src/aggregate.js";
-import type { SessionConfig } from "../src/aggregate.js";
-
-const baseConfig: SessionConfig = {
-  language: "TypeScript",
-  difficulty: "easy",
-  members: ["Alice", "Bob", "Charlie"],
-  intervalMinutes: 5,
-};
+import { nextEligibleIndex } from "../src/aggregate.js";
+import { anAggregate } from "./support/aggregate-builder.js";
 
 // ─── nextEligibleIndex ────────────────────────────────────────────────────────
 
 describe("nextEligibleIndex", () => {
   it("全員 eligible のときは (currentIndex + 1) % length を返す", () => {
-    const agg = initialAggregate(baseConfig, baseConfig.members);
+    const agg = anAggregate().build();
     // currentIndex=0 → 1
     expect(nextEligibleIndex(agg.session, 0, undefined)).toBe(1);
     expect(nextEligibleIndex(agg.session, 1, undefined)).toBe(2);
@@ -29,7 +19,7 @@ describe("nextEligibleIndex", () => {
   });
 
   it("次のメンバーが ineligible の場合はスキップしてその次を返す", () => {
-    const agg = initialAggregate(baseConfig, baseConfig.members);
+    const agg = anAggregate().build();
     // Bob (index=1) を ineligible に設定
     const ineligible = new Set([1]);
     // currentIndex=0 → Bob(1) をスキップ → Charlie(2)
@@ -37,7 +27,7 @@ describe("nextEligibleIndex", () => {
   });
 
   it("複数メンバーが ineligible の場合も正しくスキップする", () => {
-    const agg = initialAggregate(baseConfig, baseConfig.members);
+    const agg = anAggregate().build();
     // Bob(1) と Charlie(2) が ineligible
     const ineligible = new Set([1, 2]);
     // currentIndex=0 → 1スキップ → 2スキップ → 0（自分）へ戻る
@@ -45,16 +35,16 @@ describe("nextEligibleIndex", () => {
   });
 
   it("全員 ineligible の場合は currentIndex のまま返す（現状維持）", () => {
-    const agg = initialAggregate(baseConfig, baseConfig.members);
+    const agg = anAggregate().build();
     const ineligible = new Set([0, 1, 2]);
     expect(nextEligibleIndex(agg.session, 1, ineligible)).toBe(1);
   });
 
   it("空 rotation の場合は 0 を返す（安全）", () => {
     const agg = {
-      ...initialAggregate(baseConfig, baseConfig.members),
+      ...anAggregate().build(),
       session: {
-        ...initialAggregate(baseConfig, baseConfig.members).session,
+        ...anAggregate().build().session,
         rotation: [],
         driverCounts: [],
         currentIndex: 0,

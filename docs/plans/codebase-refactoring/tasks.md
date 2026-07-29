@@ -205,16 +205,16 @@
 
 ### G2-b `packages/core/test/support/`
 
-- [ ] **T022** `packages/core/test/support/aggregate-builder.test.ts` を新規作成し、
+- [x] **T022** `packages/core/test/support/aggregate-builder.test.ts` を新規作成し、
   `anAggregate()` の**失敗するテスト**を書く（`withRotation()` / `withCurrentDriver()` /
   `running()` / `paused()` / `at()` / `build()`、および失敗時の `throw`）。
   _要件: FR-096, FR-097, US2_
 
-- [ ] **T023** `packages/core/test/support/aggregate-builder.ts` を実装し T022 を緑にする。
+- [x] **T023** `packages/core/test/support/aggregate-builder.ts` を実装し T022 を緑にする。
   `initialAggregate` を内部で使い、**現在 12 ファイルが手で組んでいる形の和集合以上を作らない**。
   _要件: FR-097, FR-118, US2_
 
-- [ ] **T024** `packages/core/test/` のうち **`initialAggregate` を使う 12 ファイル**を
+- [x] **T024** `packages/core/test/` のうち **`initialAggregate` を使う 12 ファイル**を
   `anAggregate()` に差し替える。残り 12（`display-name` / `permissions` / `permissions-differential` /
   `participants` / `clock` / `schemas` / `passphrase-schema` / `driver-assign-schema` / `ai-unlock` ほか）
   は**集約を組み立てないため対象外**。

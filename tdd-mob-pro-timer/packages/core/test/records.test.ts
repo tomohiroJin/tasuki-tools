@@ -5,9 +5,10 @@
 
 import { describe, it, expect } from "vitest";
 import { buildCompletionRecord } from "../src/records.js";
-import { initialAggregate, elapsedMs } from "../src/aggregate.js";
+import { elapsedMs } from "../src/aggregate.js";
 import { evolve } from "../src/evolve.js";
 import type { SessionConfig, Problem } from "../src/aggregate.js";
+import { anAggregate } from "./support/aggregate-builder.js";
 
 const baseConfig: SessionConfig = {
   language: "TypeScript",
@@ -26,7 +27,7 @@ const problem: Problem = {
 
 describe("buildCompletionRecord", () => {
   it("必要なフィールドが全て含まれる", () => {
-    const agg = initialAggregate(baseConfig, baseConfig.members);
+    const agg = anAggregate().build();
     const completedAt = 1000000 + 300000;
     const record = buildCompletionRecord(agg, problem, baseConfig, completedAt);
 
@@ -40,7 +41,7 @@ describe("buildCompletionRecord", () => {
 
   it("elapsedSeconds は停止時間を除いた稼働時間（SC-004）", () => {
     const startTime = 1000000;
-    let agg = initialAggregate(baseConfig, baseConfig.members);
+    let agg = anAggregate().build();
 
     // セッション開始
     agg = evolve(agg, { type: "SessionStarted", now: startTime }, startTime);
@@ -65,7 +66,7 @@ describe("buildCompletionRecord", () => {
 
   it("totalSwitches が集約から転記される", () => {
     const startTime = 1000000;
-    let agg = initialAggregate(baseConfig, baseConfig.members);
+    let agg = anAggregate().build();
     agg = evolve(agg, { type: "SessionStarted", now: startTime }, startTime);
     agg = evolve(
       agg,
@@ -83,7 +84,7 @@ describe("buildCompletionRecord", () => {
   });
 
   it("id は一意（2つの記録が同じ id を持たない）", () => {
-    const agg = initialAggregate(baseConfig, baseConfig.members);
+    const agg = anAggregate().build();
     const r1 = buildCompletionRecord(agg, problem, baseConfig, 1000000);
     const r2 = buildCompletionRecord(agg, problem, baseConfig, 1000001);
     expect(r1.id).not.toBe(r2.id);
@@ -108,7 +109,7 @@ describe("中断（SessionAborted）の記録扱い", () => {
   });
 
   it("SessionCompleted イベントには now が含まれ、buildCompletionRecord で記録を作れる", () => {
-    const agg = initialAggregate(baseConfig, baseConfig.members);
+    const agg = anAggregate().build();
     // 完成時のみ記録を生成することを再確認（abort とは対照的に）
     const record = buildCompletionRecord(agg, problem, baseConfig, 1000000);
     expect(record.problemTitle).toBe(problem.title);

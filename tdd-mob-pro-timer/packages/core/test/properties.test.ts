@@ -8,8 +8,9 @@ import { describe, it, expect } from "vitest";
 import * as fc from "fast-check";
 import { decide } from "../src/decide.js";
 import { evolve } from "../src/evolve.js";
-import { initialAggregate, MAX_MEMBERS } from "../src/aggregate.js";
-import type { Aggregate, SessionConfig } from "../src/aggregate.js";
+import { MAX_MEMBERS } from "../src/aggregate.js";
+import type { Aggregate } from "../src/aggregate.js";
+import { anAggregate } from "./support/aggregate-builder.js";
 
 /** 不変条件を検証する */
 function assertInvariants(agg: Aggregate) {
@@ -40,19 +41,12 @@ const actionArb = fc.constantFrom(
 
 describe("不変条件プロパティテスト", () => {
   it("任意の操作列で rotation.length === driverCounts.length が成立する", () => {
-    const config: SessionConfig = {
-      language: "TypeScript",
-      difficulty: "easy",
-      members: ["Alice", "Bob", "Charlie"],
-      intervalMinutes: 5,
-    };
-
     fc.assert(
       fc.property(
         fc.array(actionArb, { minLength: 0, maxLength: 20 }),
         fc.integer({ min: 1000000, max: 2000000 }),
         (actions, startTime) => {
-          let agg = initialAggregate(config, config.members);
+          let agg = anAggregate().build();
           let now = startTime;
 
           assertInvariants(agg);
@@ -81,19 +75,12 @@ describe("不変条件プロパティテスト", () => {
       fc.constant({ command: "member.remove" as const, index: 1 }),
     );
 
-    const config: SessionConfig = {
-      language: "TypeScript",
-      difficulty: "easy",
-      members: ["Alice", "Bob", "Charlie", "Dave", "Eve"],
-      intervalMinutes: 5,
-    };
-
     fc.assert(
       fc.property(
         fc.array(memberOpsArb, { minLength: 0, maxLength: 10 }),
         fc.integer({ min: 1000000, max: 2000000 }),
         (ops, startTime) => {
-          let agg = initialAggregate(config, config.members);
+          let agg = anAggregate().withRotation("Alice", "Bob", "Charlie", "Dave", "Eve").build();
           const now = startTime;
 
           for (const op of ops) {
@@ -112,13 +99,6 @@ describe("不変条件プロパティテスト", () => {
   });
 
   it("メンバー数は常に 1〜MAX_MEMBERS の範囲に収まる（2層モデル: 各自が出入りするので下限は1）", () => {
-    const config: SessionConfig = {
-      language: "TypeScript",
-      difficulty: "easy",
-      members: ["Alice", "Bob", "Charlie"],
-      intervalMinutes: 5,
-    };
-
     fc.assert(
       fc.property(
         fc.array(
@@ -136,7 +116,7 @@ describe("不変条件プロパティテスト", () => {
         ),
         fc.integer({ min: 1000000, max: 2000000 }),
         (ops, startTime) => {
-          let agg = initialAggregate(config, config.members);
+          let agg = anAggregate().build();
           const now = startTime;
 
           for (const op of ops) {
@@ -161,18 +141,11 @@ describe("不変条件プロパティテスト", () => {
 
 describe("v2 不変条件プロパティテスト（T024）", () => {
   it("SessionAborted は常に成功し、集約状態に影響を与えない", () => {
-    const config: SessionConfig = {
-      language: "TypeScript",
-      difficulty: "easy",
-      members: ["Alice", "Bob", "Charlie"],
-      intervalMinutes: 5,
-    };
-
     fc.assert(
       fc.property(
         fc.integer({ min: 1000000, max: 2000000 }),
         (now) => {
-          const agg = initialAggregate(config, config.members);
+          const agg = anAggregate().build();
           const result = decide({ command: "session.abort" }, agg, now);
           expect(result.isOk()).toBe(true);
           if (result.isOk()) {
@@ -188,13 +161,6 @@ describe("v2 不変条件プロパティテスト（T024）", () => {
   });
 
   it("driver.skip/resume の操作列でも rotation の不変条件が成立する", () => {
-    const config: SessionConfig = {
-      language: "TypeScript",
-      difficulty: "easy",
-      members: ["Alice", "Bob", "Charlie"],
-      intervalMinutes: 5,
-    };
-
     fc.assert(
       fc.property(
         fc.array(
@@ -206,7 +172,7 @@ describe("v2 不変条件プロパティテスト（T024）", () => {
         ),
         fc.integer({ min: 1000000, max: 2000000 }),
         (ops, now) => {
-          let agg = initialAggregate(config, config.members);
+          let agg = anAggregate().build();
           for (const op of ops) {
             const result = decide(op, agg, now);
             if (result.isOk()) {
