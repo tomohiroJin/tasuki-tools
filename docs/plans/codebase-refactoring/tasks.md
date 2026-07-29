@@ -298,7 +298,7 @@
   **検証内容は変えない**（移動のみ）。移動後に `packages/core` のカバレッジ閾値 90% を割らないことを確認する。
   _要件: FR-095, FR-099, US2_
 
-- [ ] **T037** バッチ「権限」: `permissions.test.ts`（`permissions-differential` は T035 で完了済み）。
+- [x] **T037** バッチ「権限」: `permissions.test.ts`（`permissions-differential` は T035 で完了済み）。
   _要件: FR-091〜FR-096, FR-123, US2_
 
 ### G3-c `apps/sync/test`（44 ファイル・重い 24）

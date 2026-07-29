@@ -110,3 +110,12 @@ describe("<対象の名詞>", () => {
 （`evolve.test.ts` へ 8 件・`records.test.ts` へ 3 件・`decide.test.ts` へ 6 件・
 `problem.test.ts` へ 3 件）。検証内容は変えていない。移動先はいずれも T032〜T034 で
 新規約へ移行済みのため、移した節も同じ規約（GWT 区切り等）に従わせた（FR-121）。
+
+### `packages/core/test`（T037: バッチ「権限」）
+
+- `permissions.test.ts`
+
+  describe 名に混在していた T001/T002/T004/T003・HIGH-1/HIGH-2/MEDIUM-1 と、
+  `it` 名に混在していた FR-066/FR-067 を、describe 直上の JSDoc `@requirements` へ移した。
+  `permissions-differential.test.ts`（T035）とは異なりこのファイルは FR-093 の例外表に
+  載っていないため、名前に仕様IDや組み合わせを残していない。

@@ -22,7 +22,10 @@ function input(overrides: Partial<PermissionInput> & { command: string }): Permi
   };
 }
 
-describe("checkPermission — 判定表の基本（T001）", () => {
+/**
+ * @requirements T001
+ */
+describe("checkPermission — 判定表の基本", () => {
   it("開始後は editor が driver.assign を実行できる", () => {
     const verdict = checkPermission(
       input({ command: "driver.assign", role: "editor", started: true, isSelfTarget: false }),
@@ -62,10 +65,12 @@ describe("checkPermission — 判定表の基本（T001）", () => {
 });
 
 /**
- * T002: HOST_ONLY_BEFORE_START 13 コマンド全件のテスト。
+ * HOST_ONLY_BEFORE_START 13 コマンド全件のテスト。
  * ループで一括せず、1件ずつ明示して網羅が読み取れる形にする。
+ *
+ * @requirements T002
  */
-describe("checkPermission — HOST_ONLY_BEFORE_START 13コマンド全件（T002）", () => {
+describe("checkPermission — HOST_ONLY_BEFORE_START 13コマンド全件", () => {
   function expectHostOnlyBeforeStartThenEditorPlusAfterStart(command: string): void {
     // 開始前は host のみ実行できる
     expect(
@@ -142,19 +147,21 @@ describe("checkPermission — HOST_ONLY_BEFORE_START 13コマンド全件（T002
 });
 
 /**
- * T004: ROTATION_OWNERSHIP_COMMANDS（member.add / member.remove）の判定表全件。
+ * ROTATION_OWNERSHIP_COMMANDS（member.add / member.remove）の判定表全件。
  *
  * この2コマンドは層③（他人対象は host のみ・未開始時）と層①（EDITOR_PLUS による viewer 拒否）の
  * 両方を通る現行実装の性質を引き継ぐ。誤って SELF_SCOPED_COMMANDS に含めると
  * 「editor が他人のローテーションを未開始時に操作できる」（FR-066 違反）と
  * 「viewer が自分対象でも実行できる」（FR-067 違反）の2つの回帰が生じるため、
  * plan.md「期待される判定」の表12行を1件ずつ固定する。
+ *
+ * @requirements T004, FR-066, FR-067
  */
-describe("checkPermission — ROTATION_OWNERSHIP_COMMANDS 判定表（T004）", () => {
+describe("checkPermission — ROTATION_OWNERSHIP_COMMANDS 判定表", () => {
   const ROTATION_OWNERSHIP_COMMANDS = ["member.add", "member.remove"] as const;
 
   for (const command of ROTATION_OWNERSHIP_COMMANDS) {
-    it(`${command}: editor / 未開始 / 他人対象 → 拒否（FR-066）`, () => {
+    it(`${command}: editor / 未開始 / 他人対象 → 拒否`, () => {
       const verdict = checkPermission(
         input({ command, role: "editor", started: false, isSelfTarget: false }),
       );
@@ -182,7 +189,7 @@ describe("checkPermission — ROTATION_OWNERSHIP_COMMANDS 判定表（T004）", 
       expect(verdict.allowed).toBe(true);
     });
 
-    it(`${command}: viewer / 未開始 / 自分対象 → 拒否（FR-067）`, () => {
+    it(`${command}: viewer / 未開始 / 自分対象 → 拒否`, () => {
       const verdict = checkPermission(
         input({ command, role: "viewer", started: false, isSelfTarget: true }),
       );
@@ -199,11 +206,13 @@ describe("checkPermission — ROTATION_OWNERSHIP_COMMANDS 判定表（T004）", 
 });
 
 /**
- * HIGH-1: isAllowed() の戻り値そのものを検証する。
+ * isAllowed() の戻り値そのものを検証する。
  * checkPermission() のラッパーだが、UI が実際に呼ぶのは isAllowed() であり、
  * これ自体がテストされていないとカバレッジの Funcs が 100% にならない。
+ *
+ * @requirements HIGH-1
  */
-describe("isAllowed（HIGH-1）", () => {
+describe("isAllowed", () => {
   it("許可される入力に対して true を返す", () => {
     expect(
       isAllowed(input({ command: "driver.assign", role: "editor", started: true })),
@@ -218,10 +227,12 @@ describe("isAllowed（HIGH-1）", () => {
 });
 
 /**
- * HIGH-2: ステップ2（自己対象 role.set・開始後）の分岐テスト。
+ * ステップ2（自己対象 role.set・開始後）の分岐テスト。
  * D3b / FR-073b（見学者だけが残る詰みの解消）の要となる分岐であり、未カバーだった。
+ *
+ * @requirements HIGH-2, FR-073b
  */
-describe("checkPermission — 自己対象 role.set（HIGH-2・ステップ2）", () => {
+describe("checkPermission — 自己対象 role.set", () => {
   it("開始後・viewer・自己対象の role.set は許可される", () => {
     const verdict = checkPermission(
       input({ command: "role.set", role: "viewer", started: true, isSelfTarget: true }),
@@ -245,10 +256,12 @@ describe("checkPermission — 自己対象 role.set（HIGH-2・ステップ2）"
 });
 
 /**
- * MEDIUM-1: participant.remove の自己対象（自己退出・FR-079）が未テストだった。
+ * participant.remove の自己対象（自己退出）が未テストだった。
  * 開始前・viewer・自分対象でも自己退出は許可されることを明示する。
+ *
+ * @requirements MEDIUM-1, FR-079
  */
-describe("checkPermission — participant.remove の自己対象（MEDIUM-1・FR-079）", () => {
+describe("checkPermission — participant.remove の自己対象", () => {
   it("開始前・viewer・自己対象の participant.remove（自己退出）は許可される", () => {
     const verdict = checkPermission(
       input({
@@ -263,20 +276,23 @@ describe("checkPermission — participant.remove の自己対象（MEDIUM-1・FR
 });
 
 /**
- * T003: default-deny のテスト。
+ * default-deny のテスト。
  * ルームスコープかつ到達可能な 25 コマンドが規則表に登録されていることを固定する。
  * 在室前の4件・到達不能な2件はテスト内の除外リストとして明示する（plan.md の区分に基づく）。
  *
  * MEDIUM-2: このテストは「規則表への登録漏れの検出」のみを目的とし、
  * 役割別の可否（誰が実行できるか）は保証しない。host が開始前後いずれかで
  * 許可されることだけを確認しており、editor/viewer の可否は他の describe が担う。
+ *
+ * @requirements T003
  */
-describe("checkPermission — default-deny（T003）", () => {
+describe("checkPermission — default-deny", () => {
   it('規則表に無いコマンド名（"unknown.command"）が拒否される', () => {
+    // When
     const verdict = checkPermission(
       input({ command: "unknown.command", role: "host", started: true, isSelfTarget: false }),
     );
-
+    // Then
     expect(verdict.allowed).toBe(false);
     if (!verdict.allowed) {
       expect(verdict.code).toBe("UNAUTHORIZED");
@@ -329,18 +345,17 @@ describe("checkPermission — default-deny（T003）", () => {
   });
 
   it("ルームスコープかつ到達可能な25コマンドすべてが規則表に登録されている（default-denyされない）", () => {
+    // When / Then（役割・段階は「必ず許可され得る」組み合わせ（host・開始前後どちらでも通る道がある）を選ぶ。
+    // isSelfTarget と started を変えて、少なくとも1通りが allowed になることを確認する。
+    // 規則表に無いコマンド（default-deny）は常に拒否される。登録済みコマンドなら、
+    // host は開始前後いずれかで必ず許可される）
     for (const command of ROOM_SCOPED_REACHABLE_COMMANDS) {
-      // 役割・段階は「必ず許可され得る」組み合わせ（host・開始前後どちらでも通る道がある）を選ぶ。
-      // ここでは isSelfTarget と started を変えて、少なくとも1通りが allowed になることを確認する。
       const beforeStart = checkPermission(
         input({ command, role: "host", started: false, isSelfTarget: false }),
       );
       const afterStart = checkPermission(
         input({ command, role: "host", started: true, isSelfTarget: false }),
       );
-
-      // 規則表に無いコマンド（default-deny）は常に拒否される。
-      // 登録済みコマンドなら、host は開始前後いずれかで必ず許可される。
       expect(beforeStart.allowed || afterStart.allowed).toBe(true);
     }
   });
