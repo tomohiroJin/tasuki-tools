@@ -35,8 +35,7 @@ describe("ai.unlock", () => {
       command: "room.create",
       displayName: "Alice",
     });
-    expect(create.isOk()).toBe(true);
-    const code = create.isOk() ? create.value.code : "";
+    const code = create._unsafeUnwrap().code;
     // snapshots をリセットして ai.unlock だけの snapshot を確認しやすくする
     broadcaster.snapshots.length = 0;
     broadcaster.sent.length = 0;
@@ -48,7 +47,7 @@ describe("ai.unlock", () => {
     });
 
     // Then
-    expect(result.isOk()).toBe(true);
+    result._unsafeUnwrap();
     const room = store.get(code);
     expect(room?.aiUnlocked).toBe(true);
     expect(room?.problemMode).toBe("ai");
@@ -72,8 +71,7 @@ describe("ai.unlock", () => {
       command: "room.create",
       displayName: "Alice",
     });
-    expect(create.isOk()).toBe(true);
-    const code = create.isOk() ? create.value.code : "";
+    const code = create._unsafeUnwrap().code;
     broadcaster.sent.length = 0;
 
     // When
@@ -140,8 +138,7 @@ describe("ai.unlock", () => {
       command: "room.create",
       displayName: "Alice",
     });
-    expect(create.isOk()).toBe(true);
-    const code = create.isOk() ? create.value.code : "";
+    const code = create._unsafeUnwrap().code;
     const memberConn = "member-conn";
     const join = await handlers.handleCommand(memberConn, {
       command: "room.join",
@@ -149,7 +146,7 @@ describe("ai.unlock", () => {
       displayName: "Bob",
       hasAiKey: false,
     });
-    expect(join.isOk()).toBe(true);
+    join._unsafeUnwrap();
     broadcaster.sent.length = 0;
 
     // When（2人目＝editor が ai.unlock を試みる）

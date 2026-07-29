@@ -48,7 +48,7 @@ describe("room.passphrase.set", () => {
     });
 
     // Then
-    expect(res.isOk()).toBe(true);
+    res._unsafeUnwrap();
     expect(store.get(roomCode)?.passphraseProtected).toBe(true);
     // 平文 "secret" が Room（snapshot 対象）に混入していないこと
     expect(JSON.stringify(store.get(roomCode))).not.toContain("secret");
@@ -69,7 +69,7 @@ describe("room.passphrase.set", () => {
     });
 
     // Then
-    expect(res.isOk()).toBe(true);
+    res._unsafeUnwrap();
     expect(store.get(roomCode)?.passphraseProtected).toBe(false);
   });
 
@@ -144,7 +144,7 @@ describe("room.join のパスフレーズ検証", () => {
     });
 
     // Then（参加者が1名増えている）
-    expect(res.isOk()).toBe(true);
+    res._unsafeUnwrap();
     expect(store.get(roomCode)?.participants.length).toBe(before + 1);
   });
 
@@ -208,7 +208,7 @@ describe("room.join のパスフレーズ検証", () => {
     });
 
     // Then
-    expect(res.isOk()).toBe(true);
+    res._unsafeUnwrap();
     expect(store.get(roomCode)?.participants.length).toBe(before + 1);
   });
 
@@ -230,7 +230,7 @@ describe("room.join のパスフレーズ検証", () => {
     });
 
     // Then（trim 比較で一致して参加できる）
-    expect(res.isOk()).toBe(true);
+    res._unsafeUnwrap();
     expect(store.get(roomCode)?.participants.length).toBe(before + 1);
   });
 
