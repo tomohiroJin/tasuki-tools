@@ -375,7 +375,7 @@
   `ui/problem-generation.test.ts` / `ui/AiUnlockPanel.test.tsx` / `ui/SessionConfigPanel.test.tsx`。
   _要件: FR-091〜FR-096, FR-123, US2_
 
-- [ ] **T050** バッチ「通知と音」（7 ファイル）:
+- [x] **T050** バッチ「通知と音」（7 ファイル）:
   `ui/NotifyHint.test.tsx` / `ui/NotifySettings.test.tsx` / `ui/NotifySettingsPanel.test.tsx` /
   `ui/use-countdown-tick.test.ts` / `ui/use-notify-preferences.test.tsx` /
   `ui/use-switch-alert.test.ts` / `ui/use-switch-alert.test.tsx`。

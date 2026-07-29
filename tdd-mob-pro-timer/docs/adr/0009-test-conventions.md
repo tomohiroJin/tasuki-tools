@@ -346,3 +346,26 @@ describe("<対象の名詞>", () => {
   テストに `// Given` `// When` `// Then` を付与した（2行以下は対象外）。
   `problem-generation.test.ts` は既に仕様IDなし・呼称なし・本体2行以下中心で規約を満たしており
   無変更（FR-123）。検証内容・分割は変更していない。
+
+### `apps/web/test/ui`（T050: バッチ「通知と音」7ファイル）
+
+- `NotifyHint.test.tsx` / `NotifySettings.test.tsx` / `NotifySettingsPanel.test.tsx` /
+  `use-countdown-tick.test.ts` / `use-notify-preferences.test.tsx` /
+  `use-switch-alert.test.ts` / `use-switch-alert.test.tsx`
+
+  `NotifySettings.test.tsx` の describe 名に混在していた `Issue #7` を、対象2件をまとめた
+  内側 describe「他画面との同期」の直上の JSDoc `@requirements` へ移した。
+  `use-countdown-tick.test.ts` の describe 名に混在していた `Issue #2`・`Issue #5` と、
+  it 名に混在していた `Issue #3`（3件）を JSDoc `@requirements` へ移した
+  （`Issue #3` の3件は「残り秒数に応じた段階」という内側 describe へまとめた上で付与）。
+  `NotifyHint.test.tsx` の「閉じると onDismiss を呼ぶ」・`NotifySettingsPanel.test.tsx` の
+  「onChange({...}) を呼ぶ」（6件）・`use-countdown-tick.test.ts` の「playCountdownVoice を...
+  呼ぶ」「playCountdownTick を呼び、playCountdownVoice は呼ばない」・
+  `use-notify-preferences.test.tsx` の「saveNotifyPreferences を呼ぶと」は、いずれも
+  SC-030 の「呼ぶ/呼ばれる」規定に抵触するため、「案内が消える」「音量/通知音/カウントダウン
+  設定が更新される」「試聴が再生される」「音声読み上げが再生される」「設定が即時に反映される」
+  という結果の記述に改めた（アサーション自体は `toHaveBeenCalled`/`toHaveBeenCalledWith`の
+  まま変更していない）。本体が3行以上のテストに `// Given` `// When` `// Then` を付与した
+  （2行以下は対象外）。`use-switch-alert.test.ts`・`use-switch-alert.test.tsx` は既に
+  仕様IDなし・呼称なしの振る舞いベースの名前だったため、GWT区切りの付与のみ行った。
+  検証内容・分割は変更していない。
