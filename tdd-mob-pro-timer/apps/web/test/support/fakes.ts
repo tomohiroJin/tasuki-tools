@@ -46,7 +46,12 @@ type PlayResult = "resolve" | "reject";
  * 各テストは使い終わったら `FakeAudio.reset()` で既定へ戻すこと。
  */
 export class FakeAudio {
-  static onCreate: ((src: string) => void) | undefined;
+  /**
+   * 生成時に呼ばれるフック。**生成されたインスタンス自身も渡す。**
+   * 生成後のインスタンスへ `fireError()` を送りたいテストが 2 箇所あり、
+   * これが無いと各テストが FakeAudio を継承して `this` を掴む必要が生じるため。
+   */
+  static onCreate: ((src: string, instance: FakeAudio) => void) | undefined;
   static onPlay: ((src: string) => void) | undefined;
   static playResult: PlayResult = "resolve";
 
@@ -62,7 +67,7 @@ export class FakeAudio {
 
   constructor(src: string) {
     this.src = src;
-    FakeAudio.onCreate?.(src);
+    FakeAudio.onCreate?.(src, this);
   }
 
   addEventListener(event: string, handler: () => void): void {

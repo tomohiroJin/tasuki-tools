@@ -15,7 +15,7 @@ import {
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { Broadcaster } from "../src/ports/broadcaster.js";
-import type { Room, ServerMsg, Problem } from "@tdd-mob/core";
+import type { Room, Problem } from "@tdd-mob/core";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 
 const validProblem: Problem = {

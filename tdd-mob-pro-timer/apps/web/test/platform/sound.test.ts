@@ -168,12 +168,9 @@ describe("playCountdownVoice（音声によるカウントダウン読み上げ�
   it("Audio の error イベントで playCountdownTick にフォールバックする", () => {
     FakeAudio.reset();
     let instance: FakeAudio | undefined;
-    FakeAudio.onCreate = () => {};
+    FakeAudio.onCreate = (_src, created) => { instance = created; };
     const original = globalThis.Audio;
-    class CapturingFakeAudio extends FakeAudio {
-      constructor(src: string) { super(src); instance = this; }
-    }
-    (globalThis as unknown as { Audio: typeof Audio }).Audio = CapturingFakeAudio as unknown as typeof Audio;
+    (globalThis as unknown as { Audio: typeof Audio }).Audio = FakeAudio as unknown as typeof Audio;
 
     expect(() => {
       playCountdownVoice(5, "voice-male", 0.6);
@@ -226,11 +223,9 @@ describe("playCountdownVoice（音声によるカウントダウン読み上げ�
     FakeAudio.reset();
     FakeAudio.playResult = "reject";
     let instance: FakeAudio | undefined;
-    class CapturingFakeAudio extends FakeAudio {
-      constructor(src: string) { super(src); instance = this; }
-    }
+    FakeAudio.onCreate = (_src, created) => { instance = created; };
     const originalAudio = globalThis.Audio;
-    (globalThis as unknown as { Audio: typeof Audio }).Audio = CapturingFakeAudio as unknown as typeof Audio;
+    (globalThis as unknown as { Audio: typeof Audio }).Audio = FakeAudio as unknown as typeof Audio;
 
     playCountdownVoice(5, "voice-male", 0.6);
     instance?.fireError();

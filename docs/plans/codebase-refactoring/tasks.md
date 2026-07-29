@@ -222,12 +222,12 @@
 
 ### G2-c `apps/web/test/support/`
 
-- [ ] **T025** `apps/web/test/support/room-view.test.ts` を新規作成し、**`aRoomView()` の失敗するテスト**を書く。
+- [x] **T025** `apps/web/test/support/room-view.test.ts` を新規作成し、**`aRoomView()` の失敗するテスト**を書く。
   既定値が返ること、上書きが部分的に効くことを検証する。
   **既定値は `App.tsx` が実際に渡している値から取る**（テスト専用の都合のよい既定値を作らない）。
   _要件: FR-097, FR-118, US2_
 
-- [ ] **T026** `apps/web/test/support/room-view.ts` に `aRoomView(overrides?)` を実装し T025 を緑にする。
+- [x] **T026** `apps/web/test/support/room-view.ts` に `aRoomView(overrides?)` を実装し T025 を緑にする。
   **これが web の主役である**（48 ファイルが使う）。
   _要件: FR-097, US2_
 
@@ -235,16 +235,16 @@
   集約する（現在 5 / 2 / 2 / 2 ファイルで重複定義）。
   _要件: FR-097, SC-028, US2_
 
-- [ ] **T028** `apps/web/test/support/render.tsx` に汎用ラッパ `renderWith(Component, props?)` を実装する。
+- [x] **T028** `apps/web/test/support/render.tsx` に汎用ラッパ `renderWith(Component, props?)` を実装する。
   **コンポーネント固有のラッパ（`renderSession()` 等）は、必要になったバッチで初めて足す。
   先回りして 8 個作らない**（FR-118）。
   _要件: FR-097, FR-118, US2_
 
-- [ ] **T029** `apps/web/test/` の **render を使う 48 ファイル**を `aRoomView()` と
+- [x] **T029** `apps/web/test/` の **render を使う 48 ファイル**を `aRoomView()` と
   `support/fakes.ts` に差し替える。**この段階では名前も構造も変えない**。
   _要件: FR-097, FR-117, SC-028, US2_
 
-- [ ] **T030** 全パッケージで `pnpm test && typecheck && lint && build` 全緑を確認する。
+- [x] **T030** 全パッケージで `pnpm test && typecheck && lint && build` 全緑を確認する。
   T001 で **SC-028 が 0 種**になったことを確認する。
   **`git diff --stat -- 'tdd-mob-pro-timer/*/src/*'` が空であることを確認する**（製品コード不変）。
   _要件: FR-114, SC-028_

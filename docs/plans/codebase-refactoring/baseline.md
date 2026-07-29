@@ -287,3 +287,86 @@ sync サーバーは `bun run --watch src/server.ts`（`:8787`）、web は新�
 配色・枠線・タイポグラフィは撤去前と同一であり、これらが本当に配線されていなかったことを実画面で裏づけた。
 
 ブラウザのコンソールエラーは `favicon.ico` の 404 のみ（撤去前から存在する既知のもの・機能に影響なし）。
+
+---
+
+## 7. G2（テスト共有ヘルパ）完了時点（T030）
+
+**測定日:** 2026-07-29
+
+### SC 実測値
+
+| SC | G1 完了時 | **G2 完了時** | 目標 | 判定 |
+|---|---|---|---|---|
+| SC-027 到達不能モジュール | 0 | 0 | 0 | **PASS** |
+| **SC-028 テストダブルの重複定義** | 6 種 | **0** | 0 | **PASS（G2 の主目標）** |
+| SC-029 テスト名の仕様 ID | 135 | 136 | 0 | 未達（G3） |
+| SC-030 テスト名の呼び出し語 | 58 | 59 | 0 | 未達（G3） |
+| SC-031 前提段階のガード | 80 | 80 | 0 | 未達（G3） |
+| SC-032 GWT の区切り | 0/982 | 0/1,016 | 100% | 未達（G3） |
+| SC-035 文言の定義箇所 | 11 | 11 | 0 | 未達（G5） |
+| SC-036 テスト件数 | 1,071（基準） | **1,106** | 基準値以上 | ✅ 下回っていない |
+| SC-039① 到達不能な分岐 | 1 | 1 | 0 | 未達（G7） |
+| SC-039② 未使用の公開データ | 0 行 | 0 行 | 0 行 | **PASS** |
+| SC-039③ 自ファイル内でのみ使う公開記号 | 46 | 46 | 判断済みを除き 0 | 未達（G4/T057） |
+
+SC-029/030 が 1 件ずつ増えているのは、新設した support のテスト自身が該当語を含むためである
+（重複定義の解消による差し替えでテスト名は 1 つも変えていない。G3 で他と一緒に是正する）。
+
+### 検証ゲート
+
+```
+pnpm typecheck / lint / build / test → すべて成功（EXIT=0）
+  @tdd-mob/core: Test Files 25 passed (25) / Tests 597 passed (597)
+  @tdd-mob/sync: Test Files 47 passed (47) / Tests 321 passed (321)
+  @tdd-mob/web : Test Files 72 passed (72) / Tests 505 passed (505)
+  packages/core カバレッジ: All files | 98.68 | 93.33 | 97.91 | 98.68（閾値 90% を維持）
+```
+
+**`git diff --stat -- 'tdd-mob-pro-timer/*/src/*'` は空。製品コードを 1 行も変えていない**（FR-114 の構造的な担保）。
+実機確認（RC-003）はテストのみを触る段階のため不要（plan.md の「各段階の検証」表）。
+
+### ゲートで検出した欠陥（記録）
+
+差し替え作業中は個別のテスト実行しか行っておらず、**`pnpm lint` を回していなかったため 3 件の
+lint エラーがゲートまで残った**。turbo は最初に失敗したパッケージで停止するため、
+1 件直すたびに次が現れる形になった。
+
+| 件 | 内容 | 対処 |
+|---|---|---|
+| 1 | `apps/sync/test/problem-delegation.test.ts` の `ServerMsg` が未使用 | 差し替えで不要になった import を削除 |
+| 2,3 | `apps/web/test/platform/sound.test.ts` の `no-this-alias` 2 箇所 | 共有 `FakeAudio` を継承して `this` を掴む形になっていた。**共有ヘルパ側の `onCreate` が生成インスタンスを渡すようにして継承そのものを不要にした**（テスト側に eslint-disable を貼る対症療法は採らない） |
+
+**教訓: 個別テストの緑はゲートの緑を意味しない。** 差し替えの各区切りで lint も回すこと。
+
+### 新設した共有ヘルパ
+
+| パッケージ | ファイル | 内容 |
+|---|---|---|
+| `apps/sync` | `test/support/spy-broadcaster.ts` | `SpyBroadcaster`（29 ファイルの重複を解消）＋問い合わせ 4 種（`latestSnapshot` / `errorsTo` / `hasErrorCode` / `signalsOf`）。位置依存検証 61 箇所の置き換え先（置き換え自体は G3） |
+| `apps/sync` | `test/support/fake-code-gen.ts` | `FakeCodeGen`（27 ファイルの重複を解消） |
+| `apps/sync` | `test/support/room-builder.ts` | `aRoom()` / `makeTestHandlers()`。前提の構築失敗時は `RoomBuildError` を throw（FR-096） |
+| `packages/core` | `test/support/aggregate-builder.ts` | `anAggregate()`。12 ファイルが手で組んでいた集約を圧縮 |
+| `apps/web` | `test/support/room-view.ts` | `aRoomView(overrides?)`。**web の主役**。`Room` を手組みしているテストは 0 件になった |
+| `apps/web` | `test/support/fakes.ts` | `FakeAudio` / `FakeOsc` / `FakeGain` / `FakeWS` |
+| `apps/web` | `test/support/render.tsx` | `renderWith(Component, props?)`（汎用のみ。固有ラッパは先回りして作らない・FR-118） |
+
+**和集合を超えた拡張を入れなかった例（FR-118）**: `notice-signal.test.ts` の `bindStore()` は
+他に類例が 1 件も無いため共有版に入れず、そのファイル内で共有版を継承する
+`NoticeSpyBroadcaster` として局所化した。
+
+### G3 着手前の網羅性検査（tasks.md の要求）
+
+全バッチのファイル名を集め、実在ファイルと突き合わせた結果:
+
+| パッケージ | 実在 | 割り当て | 判定 |
+|---|---:|---:|---|
+| `packages/core/test` | 24 | 24 | ✅ 過不足・重複なし |
+| `apps/sync/test` | 44 | 44 | ✅ 過不足・重複なし |
+| `apps/web/test` | 71 | 71 | ✅ 過不足・重複なし |
+| **計** | **139** | **139** | ✅ |
+
+spec の想定 145 ファイルから 6 減っているのは G1 の撤去による
+（`solo/` 3・`ai/` 2・`Solo.roster` ・`AiSettingsModal` ・`i18n-coverage` ・`records/io` ・`theme` ・
+`stage-theme` ・`transition` などの撤去と、support の新設が相殺した結果）。
+撤去済みファイルは各バッチに「対象外」として注記済みであり、二重割り当ては発生していない。
