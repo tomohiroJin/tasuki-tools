@@ -135,8 +135,9 @@ const ProblemSubmitCommand = v.object({
   usedFallback: v.boolean(),
 });
 
+// T057: 自ファイル内でのみ使われるため export を外した（FR-119③・SC-039）。
 /** セッション操作アクション */
-export const SessionActionValues = [
+const SessionActionValues = [
   "START",
   "SWITCH",
   "PAUSE",
@@ -316,12 +317,14 @@ export const CommandSchema = v.variant("command", [
   TimePingCommand,
 ]);
 
-export type Command = v.InferOutput<typeof CommandSchema>;
+// T057: 自ファイル内でも使われていなかったため、export を外すだけでなく削除した
+// （FR-119③・SC-039。`private` にしても未使用のままでは死んだ記号が残るだけのため）。
 
 // ─── ServerMsg スキーマ ──────────────────────────────────────────────────────
 
 // Room のスキーマ（Valibot で検証用）
-export const ParticipantSchema = v.object({
+// T057: 自ファイル内でのみ使われるため export を外した（FR-119③・SC-039）。
+const ParticipantSchema = v.object({
   participantId,
   connId: v.nullable(v.string()),
   displayName: nonEmptyString,
@@ -334,7 +337,8 @@ export const ParticipantSchema = v.object({
   driverEligible: v.optional(v.boolean()),
 });
 
-export const ServerClockSchema = v.object({
+// T057: 自ファイル内でのみ使われるため export を外した（FR-119③・SC-039）。
+const ServerClockSchema = v.object({
   running: v.boolean(),
   intervalSeconds: v.number(),
   anchorServerTime: v.number(),
@@ -343,7 +347,8 @@ export const ServerClockSchema = v.object({
   runningSince: v.nullable(v.number()),
 });
 
-export const SessionStateSchema = v.object({
+// T057: 自ファイル内でのみ使われるため export を外した（FR-119③・SC-039）。
+const SessionStateSchema = v.object({
   rotation: v.array(v.string()),
   currentIndex: v.pipe(v.number(), v.integer(), v.minValue(0)),
   isPaused: v.boolean(),
@@ -351,7 +356,8 @@ export const SessionStateSchema = v.object({
   totalSwitches: v.pipe(v.number(), v.integer(), v.minValue(0)),
 });
 
-export const CompletionRecordSchema = v.object({
+// T057: 自ファイル内でのみ使われるため export を外した（FR-119③・SC-039）。
+const CompletionRecordSchema = v.object({
   id: nonEmptyString,
   roomId: v.optional(v.string()),
   problemTitle: nonEmptyString,

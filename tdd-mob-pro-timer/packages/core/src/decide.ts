@@ -14,8 +14,11 @@ import {
 import type { DomainEvent } from "./events.js";
 import type { DomainError } from "./errors.js";
 
-/** decide が受け付けるコマンド（スキーマ依存を避けた内部型） */
-export type DecideCommand =
+/**
+ * decide が受け付けるコマンド（スキーマ依存を避けた内部型）
+ * T057: 自ファイル内でのみ使われるため export を外した（FR-119③・SC-039）。
+ */
+type DecideCommand =
   | { command: "session.act"; action: "START" | "SWITCH" | "PAUSE" | "RESUME" | "RESTART" }
   | { command: "session.complete" }
   | { command: "session.abort" }

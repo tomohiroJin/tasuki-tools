@@ -3,12 +3,16 @@
  * FR-006, FR-007, FR-008
  */
 
-export type ConnId = string;
-export type ParticipantId = string;
-export type RoomCode = string;
+// T057: 自ファイル内でのみ使う公開記号のため export を外した（FR-119③・SC-039）。
+// 型そのものは他ファイルからも使う（Participant.participantId 等）が、
+// 型エイリアスとして名指しで import している箇所がなく、実体は string のため
+// 呼び出し側は string で十分だった（構造的部分型）。
+type ConnId = string;
+type ParticipantId = string;
+type RoomCode = string;
 
 /** セッション状態（時間系を含まない） */
-export interface SessionState {
+interface SessionState {
   /** ローテーション順の参加者IDリスト */
   rotation: string[];
   /** 現ドライバーのインデックス */

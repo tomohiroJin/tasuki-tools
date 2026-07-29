@@ -13,7 +13,11 @@
  * @requirements FR-096, FR-097, FR-118, US2
  */
 
-import type { Participant, Room, ServerClock, SessionConfig, SessionState } from "@tdd-mob/core";
+import type { Participant, Room, ServerClock, SessionConfig } from "@tdd-mob/core";
+
+// SessionState は T057 で自ファイル内専用の内部型として export を外した（FR-119③・SC-039）。
+// 公開されている Room 型から同じ形を導出する（インデックスアクセス型）。verification 内容は変えない。
+type SessionState = Room["session"];
 
 const HOST_ID = "host-p";
 

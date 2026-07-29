@@ -62,6 +62,10 @@ describe("<対象の名詞>", () => {
   移行完了までは新旧 2 つの規約がファイル間で混在する（FR-121: ファイル内では混在させない）。
 - **移行状況の記録（FR-122）**: 下表がこの ADR の時点で新規約に移行済みのファイルである。
   未列挙のファイルは旧規約のままであり、該当バッチが実施され次第この表に追記する。
+  **G3（T032〜T051）と T058 補完の完了時点で、`test/support/` を除く実在 138 ファイル
+  すべてがこの表に記録されている（内 1 ファイル `shuffle.test.ts` は `packages/core/test` と
+  `apps/sync/test` の同名別ファイルとして両方記録済み）。`test/support/` 配下のヘルパ自身の
+  テスト 5 ファイルも対象に含めることとし、末尾の節に記録した。**
 
 ## 移行済みファイル
 
@@ -391,3 +395,48 @@ describe("<対象の名詞>", () => {
   本体が3行以上のテストに `// Given` `// When` `// Then` を付与した（2行以下は対象外）。
   `join-driver-intent.test.ts` は既に仕様IDなし・呼称なし・本体1行中心で規約を満たしており
   無変更（FR-123）。検証内容・分割は変更していない。
+
+### `apps/web/test/ui`（T058 補完: 一覧に未記録だった移行済み 13 ファイル）
+
+T044〜T051 のバッチ表は「そのバッチで手を入れたファイル」だけを記録しており、
+それ以外の経路（SC-032 の仕上げコミットや、当初から規約を満たしていたファイル）で
+移行済みになったファイルが表に載っていなかった。**製品コードは移行済みでも記録漏れがあれば
+FR-122 上は「未移行」と区別が付かない**ため、実在ファイルを機械的に棚卸しし、この ADR の
+記録を実態に合わせた（内容の変更は伴わない・記録のみの追記）。
+
+- `a11y.test.tsx` / `SharedMemo.test.tsx` / `StatusStrip.test.tsx` / `Tabs.test.tsx` /
+  `format-time.test.ts` / `presence.test.ts` / `use-countdown-tick.test.ts` は
+  「残り 8 ファイルの Given/When 境界を明示し SC-032 を 100% にする」コミットで
+  Given/When の境界を明示済み（`Tabs.test.tsx`・`presence.test.ts`・
+  `use-countdown-tick.test.ts` は T048/T050 のバッチ表に既出のため、ここでは残る
+  `a11y.test.tsx` / `SharedMemo.test.tsx` / `StatusStrip.test.tsx` / `format-time.test.ts` の
+  4 ファイルのみを新規に記録する）
+- `announce.test.ts` / `connection-status.test.tsx` / `dev-artifacts.test.ts` /
+  `Markdown.test.tsx` / `permission-hints.test.ts` / `Session.assertive.test.tsx` /
+  `Session.countdown.test.tsx` / `Session.handoff.test.tsx` / `Session.invite.test.tsx` の
+  9 ファイルは、当初から `@requirements` JSDoc・GWT 区切り・仕様IDを含まない
+  describe/it 名を満たしており、いずれのバッチでも変更を要さなかった（FR-123 相当）。
+
+  機械的な棚卸し方法: `find packages/core/test apps/sync/test apps/web/test -name '*.test.ts' -o
+  -name '*.test.tsx' | grep -v support/` で実在ファイルを列挙し、本 ADR に列挙済みの
+  ファイル名（バックティック表記をファイル名として抽出）と突き合わせ、
+  「実在するのに未列挙」「列挙されているのに実在しない」の双方がゼロになるまで補完した。
+  上記 13 ファイルのいずれも `T0\d\d` / `FR-\d+` / `Issue #\d+` / `R\d-\d` /
+  `v2\.\d #\d` を describe/it 名に含んでおらず、`@requirements` JSDoc と GWT 区切りを
+  持つ（本体が短いテストは GWT 対象外）ことを確認済み。
+
+### `packages/core/test/support` / `apps/sync/test/support` / `apps/web/test/support`（ヘルパ自身のテスト）
+
+- `packages/core/test/support/aggregate-builder.test.ts`
+- `apps/sync/test/support/fake-code-gen.test.ts`
+- `apps/sync/test/support/room-builder.test.ts`
+- `apps/sync/test/support/spy-broadcaster.test.ts`
+- `apps/web/test/support/room-view.test.ts`
+
+  G3 のバッチ表は `test/` 直下・`test/ui` 等のテスト本体を対象にしており、
+  `test/support/` 配下のビルダー・スパイ自身の単体テストは対象外として扱ってきた。
+  この 5 ファイルは共有ヘルパの実装であり「対象システムの振る舞い」を検証する
+  テストではないが、実際には ADR-0009 の規約（`@requirements` JSDoc・GWT 区切り・
+  仕様IDを含まない名前）にすでに従っている。**FR-122 は「新規約に移行済みのファイル」の
+  記録を求めており、対象を「テスト本体」に限定していない**ため、記録漏れを避ける目的で
+  ここに含める。含めるかどうかを個別に判断した結果であり、他の意図は無い。

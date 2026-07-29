@@ -18,3 +18,4 @@ Michael Nygard 形式（背景 / 決定 / 影響 / ステータス）に従い�
 | [0007](./0007-volatile-in-memory-state.md) | 揮発インメモリ状態と再起動安全 | Accepted |
 | [0008](./0008-server-resident-ai-generation.md) | AI お題生成はサーバー常駐 `claude -p` + 合言葉解錠 | Accepted（0005 を置換） |
 | [0009](./0009-test-conventions.md) | テストの書き方の規約（G3: 名前・構造・関心の一括是正） | Accepted（移行進行中） |
+| [0010](./0010-design-doc-source.md) | 設計文書の正本は `docs/plans/`（`docs/superpowers/` は履歴アーカイブ） | Accepted |

@@ -442,7 +442,7 @@
   **`index.ts` の公開記号は変えない**（`problem.ts` から再エクスポート）。
   _要件: FR-109, US5_
 
-- [ ] **T057** **自ファイル内でのみ使う公開記号の `export` を外す**（FR-119 の③・SC-039）。
+- [x] **T057** **自ファイル内でのみ使う公開記号の `export` を外す**（FR-119 の③・SC-039）。
   `audit-structure.mjs` の SC-039 ③で候補を出す（**現状 17 件**:
   `aggregate.ts` の `ConnId` / `ParticipantId` / `RoomCode`、`decide.ts` の `DecideCommand`、
   `errors.ts` の `Unauthorized`、`participants.ts` の `countManagers`、
@@ -467,15 +467,44 @@
   > **機械的な変更と判断を要する変更は別の変更単位に分ける。**
   _要件: FR-119, FR-110, FR-117, SC-039, US5_
 
-- [ ] **T058 [P]** `docs/adr/0009-test-conventions.md` を新規作成する。
+  > **実施結果（走査値は 17 件 → 実測 44 件だった。理由は spec.md の SC-039③ ズレの記録を参照）。**
+  > 44 件のうち 12 件（`aggregate.ts` の `ConnId`/`ParticipantId`/`RoomCode`/`SessionState`、
+  > `decide.ts` の `DecideCommand`、`permissions.ts` の `PermissionVerdict`、`schemas.ts` の
+  > `SessionActionValues`/`Command`/`ParticipantSchema`/`ServerClockSchema`/`SessionStateSchema`/
+  > `CompletionRecordSchema`）は `pnpm typecheck` が通ることを確認して export を外した
+  > （`Command` は自ファイル内でも未使用と分かったため削除、他は自ファイル内で使用中のため
+  > `private` 相当の非 export 宣言として残した）。`SessionState` は
+  > `apps/web/test/support/room-view.ts` が直接 import していたため、公開型 `Room` からの
+  > 導出（`Room["session"]`）に置き換えて export を外した（検証内容は変えていない）。
+  > 残り 4 件（`countManagers` / `SessionConfigSchema` / `RoomSchema` / `ServerMsgSchema`）は
+  > テストが直接 import しており、直接値検証を間接検証に置き換えると検証内容が変わる
+  > （FR-099 に抵触する）ため対象外とした。`events.ts` の 24 件・`errors.ts` の 4 件は
+  > 当初の方針どおり対象外（判断は変えていない）。結果 SC-039③ は 44 件 → 32 件
+  > （24 + 4 + 4 の「判断済みで残す根拠を記録したもの」のみ）。
+
+- [x] **T058 [P]** `docs/adr/0009-test-conventions.md` を新規作成する。
   `plan.md` の「テストの書き方の規約」を ADR として記録し、**移行済みファイルの一覧**を持たせる
   （G3 の各バッチで更新済みのはず。ここで最終状態に整える）。
   _要件: FR-122, US2_
 
-- [ ] **T059 [P]** `docs/adr/0010-design-doc-source.md` を新規作成し、**設計文書の正本**を記録する。
+  > **実施結果**: 既存の一覧は 125 ファイル（basename ベース。うち1件 `coverage-supplement.test.ts`
+  > は削除済みファイルへの歴史的言及で実体なし）しか無く、`test/support/` を除く実在 138
+  > ファイルに対して 13 ファイル分（`apps/web/test/ui` の a11y/announce/connection-status/
+  > dev-artifacts/format-time/Markdown/permission-hints/Session.assertive/Session.countdown/
+  > Session.handoff/Session.invite/SharedMemo/StatusStrip）が未記録だった。全 13 件は
+  > 実際には規約済み（`@requirements` JSDoc・GWT区切り・仕様ID非混入）であることを確認し、
+  > 一覧に追記した。`test/support/` 配下のヘルパ自身のテスト 5 件も規約に従っていたため
+  > 含めることとし、別セクションへ記録した。機械的な突合（実在ファイル一覧 ⇔ ADR 記載一覧）で
+  > 過不足ゼロを確認済み。
+
+- [x] **T059 [P]** `docs/adr/0010-design-doc-source.md` を新規作成し、**設計文書の正本**を記録する。
   `docs/plans/` と `docs/superpowers/` の 2 系統が併存し計 64 の md がある現状に対し、
   どちらが正本かの規則を定める。
   _要件: FR-112, US5_
+
+  > **実施結果**: 実測は `docs/plans/` 24 件・`docs/superpowers/` 43 件の計 67 件（見積の 64 とは
+  > ズレがあるが、実測に基づく件数を採用した）。`docs/plans/` を正本と定め、`docs/superpowers/`
+  > は SDD 形式移行前の履歴アーカイブとした。内容の統廃合は行っていない（スコープ外）。
 
 - [ ] **T060** `pnpm test && typecheck && lint && build` 全緑。
   **実機確認（RC-003）**: `vite` を再起動し、お題の生成・表示が変わっていないことを目視する

@@ -8,10 +8,6 @@
 
 // 集約・型
 export type {
-  ConnId,
-  ParticipantId,
-  RoomCode,
-  SessionState,
   ServerClock,
   Aggregate,
   SessionConfig,
@@ -90,20 +86,14 @@ export type {
   DomainError,
 } from "./errors.js";
 // decide / evolve
-export type { DecideCommand } from "./decide.js";
 export { decide } from "./decide.js";
 export { evolve, advanceDriver } from "./evolve.js";
 // スキーマ
-export type { Command, ServerMsg } from "./schemas.js";
+export type { ServerMsg } from "./schemas.js";
 export {
   SessionConfigSchema,
   ProblemSchema,
-  SessionActionValues,
   CommandSchema,
-  ParticipantSchema,
-  ServerClockSchema,
-  SessionStateSchema,
-  CompletionRecordSchema,
   RoomSchema,
   ServerMsgSchema,
 } from "./schemas.js";
@@ -118,6 +108,6 @@ export {
 // 記録
 export { buildCompletionRecord } from "./records.js";
 // 権限判定・不変条件（Issue #22）
-export type { Role, PermissionInput, PermissionVerdict } from "./permissions.js";
+export type { Role, PermissionInput } from "./permissions.js";
 export { checkPermission, isAllowed } from "./permissions.js";
 export { countManagers, canDemote, canRemoveParticipant } from "./participants.js";
