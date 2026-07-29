@@ -41,6 +41,7 @@ describe("Lobby 招待 1 操作", () => {
   const noop = vi.fn();
 
   it("ルームコードが表示される", () => {
+    // Given
     // When
     render(
       <Lobby
@@ -54,6 +55,7 @@ describe("Lobby 招待 1 操作", () => {
   });
 
   it("コピーボタンが存在する（1 操作で招待）", () => {
+    // Given
     // When
     render(
       <Lobby
@@ -67,6 +69,7 @@ describe("Lobby 招待 1 操作", () => {
   });
 
   it("参加者一覧が表示される", () => {
+    // Given
     // When
     render(
       <Lobby
@@ -80,6 +83,7 @@ describe("Lobby 招待 1 操作", () => {
   });
 
   it("host にはセッション開始ボタンが表示される", () => {
+    // Given
     // When
     render(
       <Lobby

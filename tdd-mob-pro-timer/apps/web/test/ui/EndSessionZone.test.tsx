@@ -12,6 +12,7 @@ describe("EndSessionZone", () => {
   const noop = vi.fn();
 
   it("完成・中断・リセットの3操作が表示される", () => {
+    // Given
     // When
     render(
       <EndSessionZone
@@ -100,6 +101,7 @@ describe("EndSessionZone", () => {
 
   it("完成ボタンは全角の大げさな感嘆符『！』を使わない（参考デザインは半角 ! の祝祭表現を許容）", () => {
     // Given
+    // When
     render(
       <EndSessionZone
         onComplete={noop}

@@ -14,6 +14,7 @@ describe("Join 画面（UX 再設計）", () => {
   beforeEach(() => clearPreferences());
 
   it("ルームコードと名前入力・参加ボタンを表示する", () => {
+    // Given
     // When
     render(<Join code="ABC123" onJoin={vi.fn()} />);
     // Then
@@ -58,6 +59,7 @@ describe("Join 画面（UX 再設計）", () => {
   });
 
   it("パスフレーズ入力欄を表示する（type=password・任意）", () => {
+    // Given
     // When
     render(<Join code="ABC123" onJoin={vi.fn()} />);
     // Then

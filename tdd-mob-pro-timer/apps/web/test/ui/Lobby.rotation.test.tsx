@@ -111,6 +111,7 @@ describe("Lobby ドライバー加入トグル", () => {
   });
 
   it("ホストでない参加者には『ランダム』ボタンを出さない", () => {
+    // Given（自分=bob-p。host ではない）
     // When
     render(
       <Lobby room={makeRoom()} participantId="bob-p" onStartSession={noop} onShuffle={vi.fn()} />,
@@ -165,6 +166,7 @@ describe("Lobby 同名参加者の区別", () => {
   });
 
   it("同名がいると行の表示名にも識別子が出る（目で見ても区別できる）", () => {
+    // Given（makeDupRoom: Bob が2名いる部屋）
     // When
     render(<Lobby room={makeDupRoom()} participantId="host-p" onStartSession={noop} />);
     // Then
@@ -174,6 +176,7 @@ describe("Lobby 同名参加者の区別", () => {
   });
 
   it("同名がいなければ識別子を添えない（通常時に読みにくくしない）", () => {
+    // Given（makeRoom: 同名のいない通常の部屋）
     // When
     render(
       <Lobby
