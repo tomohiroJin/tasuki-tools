@@ -40,7 +40,7 @@ TDD Mob Pro Timer の構造・データフロー・設計原則をまとめま�
 | `display-name.ts` | 表示名の正規化（`normalizeDisplayName`）と見え方の骨格（`nameSkeleton`） |
 | `problem.ts` | 定型お題バンク・`validateProblem`・`pickFallback`・プロンプト生成 |
 | `records.ts` | 完成記録の生成（所要時間は稼働区間のみ積算） |
-| `i18n/` | 日本語（主）・英語のメッセージ |
+| `error-messages.ts` | エラーコード → 利用者向け文言の**単一の正本**（Issue #28・FR-105）。画面表示は `displayMessageFor()`、wire の `message` は `errorMessageFor()` を経由する |
 
 ### Decider パターン（decide / evolve）
 
@@ -163,12 +163,12 @@ argv・ログ・snapshot に混入させません。失敗（タイムアウト�
   **未接続時に送られたコマンドはキューに退避し、`onopen` でフラッシュ**します（接続確立前の
   `room.create` 取りこぼしを防ぐ）。
 - `sync/dispatch.ts`: 受信メッセージの純粋な振り分け（snapshot / error / signal / time.pong）。
-- `solo/local-engine.ts`: ソロモード。ローカル `setTimeout` が schedule 層を担い、core の `evolve` を使う。
 - `ai/`: `ProblemProvider`。現行は `NoAiProvider`（AI 生成はサーバー側 = ADR-0008）。
-  `ByokProvider` / `key-storage` は UI 撤去済みの休眠残置（`App.tsx` 冒頭コメント参照）。
-- `records/`: IndexedDB 永続化と JSON 入出力。
-- `ui/`: 画面（Setup / Lobby / Session / Celebration）。`screenForPhase` で `room.phase` に追従。
-- `platform/`: Wake Lock・通知/振動。
+  **BYOK 一式（`byok.ts` / `key-storage.ts` / `AiSettingsModal.tsx`）は Issue #28 で撤去した。**
+  「将来の再有効化に備えて残置」という休眠コードは持たない（US1・FR-087）。
+- `records/`: IndexedDB 永続化（`indexeddb.ts`）と完成記録の組み立て（`persist.ts`）。
+- `ui/`: 画面（Setup / Join / Lobby / Session / Summary / History）。`screenForPhase` で `room.phase` に追従。
+- `platform/`: 通知（`notify.ts`）・交代音とカウントダウン音声（`sound.ts`）。
 
 ### 画面遷移は phase 駆動
 
