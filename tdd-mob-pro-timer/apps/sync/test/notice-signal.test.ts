@@ -101,8 +101,11 @@ describe("signal: notice（実行者の通知）", () => {
 
     for (const [command, action, build] of cases) {
       it(`${command} の後に action: "${action}" の notice が配信される`, async () => {
+        // Given（表内の各コマンドを対象にする。差分は cases のエントリそのもの）
+        const cmd = build();
+
         // When
-        const result = await handlers.handleCommand(BOB, build());
+        const result = await handlers.handleCommand(BOB, cmd);
 
         // Then
         result._unsafeUnwrap();
@@ -111,10 +114,13 @@ describe("signal: notice（実行者の通知）", () => {
     }
 
     it('participant.remove の後に action: "participant-removed" の notice が配信される', async () => {
-      // When
-      const result = await handlers.handleCommand(BOB, {
+      // Given
+      const command = {
         command: "participant.remove", participantId: pidOf("Carol"),
-      });
+      } as const;
+
+      // When
+      const result = await handlers.handleCommand(BOB, command);
 
       // Then
       result._unsafeUnwrap();
@@ -160,6 +166,7 @@ describe("signal: notice（実行者の通知）", () => {
     });
 
     it("participant-removed 以外では target 系を付けない", async () => {
+      // Given（participant-removed 以外のコマンドを対象にする）
       // When
       await handlers.handleCommand(BOB, { command: "session.abort" });
 

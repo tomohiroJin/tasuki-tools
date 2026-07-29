@@ -86,11 +86,11 @@ describe("handlers: host.transfer（明示的ホスト移譲）", () => {
   });
 
   it("ホストはオンライン参加者へ移譲でき snapshot に反映される", async () => {
+    // Given
+    const command = { command: "host.transfer", participantId: "editor-p02" } as const;
+
     // When
-    const result = await handlers.handleCommand("host-conn", {
-      command: "host.transfer",
-      participantId: "editor-p02",
-    });
+    const result = await handlers.handleCommand("host-conn", command);
 
     // Then
     result._unsafeUnwrap();
@@ -107,11 +107,11 @@ describe("handlers: host.transfer（明示的ホスト移譲）", () => {
   });
 
   it("ホスト以外（editor）は UNAUTHORIZED で拒否され不変", async () => {
+    // Given
+    const command = { command: "host.transfer", participantId: "editor-p02" } as const;
+
     // When
-    const result = await handlers.handleCommand("editor-conn", {
-      command: "host.transfer",
-      participantId: "editor-p02",
-    });
+    const result = await handlers.handleCommand("editor-conn", command);
 
     // Then
     expect(result.isErr()).toBe(true);
@@ -142,11 +142,11 @@ describe("handlers: host.transfer（明示的ホスト移譲）", () => {
   });
 
   it("自分自身への移譲は CANNOT_CHANGE_HOST で拒否され不変", async () => {
+    // Given
+    const command = { command: "host.transfer", participantId: "host-p01" } as const;
+
     // When
-    const result = await handlers.handleCommand("host-conn", {
-      command: "host.transfer",
-      participantId: "host-p01",
-    });
+    const result = await handlers.handleCommand("host-conn", command);
 
     // Then
     expect(result.isErr()).toBe(true);
@@ -157,11 +157,11 @@ describe("handlers: host.transfer（明示的ホスト移譲）", () => {
   });
 
   it("不明な participantId は PARTICIPANT_NOT_FOUND で拒否され不変", async () => {
+    // Given
+    const command = { command: "host.transfer", participantId: "unknown-pid" } as const;
+
     // When
-    const result = await handlers.handleCommand("host-conn", {
-      command: "host.transfer",
-      participantId: "unknown-pid",
-    });
+    const result = await handlers.handleCommand("host-conn", command);
 
     // Then
     expect(result.isErr()).toBe(true);
