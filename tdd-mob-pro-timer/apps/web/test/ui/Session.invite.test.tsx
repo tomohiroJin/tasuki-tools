@@ -9,6 +9,7 @@ import userEvent from "@testing-library/user-event";
 import React from "react";
 import { Session } from "../../src/ui/Session.js";
 import type { Room, Participant, SessionConfig } from "@tdd-mob/core";
+import { aRoomView } from "../support/room-view.js";
 
 function makeParticipant(overrides: Partial<Participant>): Participant {
   return {
@@ -31,37 +32,18 @@ const config: SessionConfig = {
 };
 
 function makeRoom(overrides?: Partial<Room>): Room {
-  return {
+  return aRoomView({
     code: "ABC123",
-    createdAt: 0,
     hostParticipantId: "host-1",
     config,
-    problem: null,
-    session: {
-      rotation: ["Alice", "Carol"],
-      currentIndex: 0,
-      isPaused: false,
-      driverCounts: [0, 0],
-      totalSwitches: 0,
-    },
-    clock: {
-      running: false,
-      intervalSeconds: 300,
-      anchorServerTime: 0,
-      secondsLeftAtAnchor: 300,
-      accumulatedElapsedMs: 0,
-      runningSince: null,
-    },
+    session: { rotation: ["Alice", "Carol"], driverCounts: [0, 0] },
     phase: "session",
     participants: [
       makeParticipant({ participantId: "host-1", displayName: "Alice", role: "host" }),
       makeParticipant({ participantId: "edit-1", displayName: "Carol", role: "editor", connId: "c3" }),
     ],
-    sessionRecords: [],
-    handoffNote: "",
-    onBreak: false,
     ...overrides,
-  };
+  });
 }
 
 const noop = vi.fn();
