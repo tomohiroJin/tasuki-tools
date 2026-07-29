@@ -530,12 +530,12 @@
   `conflictsWithExisting()` の呼び出しに置換する。
   _要件: FR-104, FR-107, US4_
 
-- [ ] **T064** `packages/core/src/error-messages.ts` を新規作成し、
+- [x] **T064** `packages/core/src/error-messages.ts` を新規作成し、
   **現在クライアントが表示している文言**（`App.tsx:38-58` の `ERROR_MESSAGES`）をそのまま移す。
   **文言は 1 文字も変えない。**
   _要件: FR-105, FR-114, US4_
 
-- [ ] **T065** `apps/web/src/App.tsx` の `ERROR_MESSAGES` を T064 の表の参照に置き換える。
+- [x] **T065** `apps/web/src/App.tsx` の `ERROR_MESSAGES` を T064 の表の参照に置き換える。
   _要件: FR-105, US4_
 
 - [ ] **T066** `apps/sync/src` の `message:` リテラル（ユニーク 23 種・出現 36 箇所 ＋ テンプレート 5）を

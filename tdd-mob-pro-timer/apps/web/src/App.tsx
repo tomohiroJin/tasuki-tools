@@ -22,7 +22,7 @@ import { shouldAutoJoinRotation } from "./ui/join-driver-intent.js";
 import { Stage } from "./ui/primitives.js";
 import { saveRecord } from "./records/indexeddb.js";
 import { persistRecordIfComplete } from "./records/persist.js";
-import { buildCompletionRecord } from "@tdd-mob/core";
+import { buildCompletionRecord, ERROR_MESSAGES, DEFAULT_ERROR_MESSAGE } from "@tdd-mob/core";
 import type { Room, SessionConfig, CompletionRecord, Problem } from "@tdd-mob/core";
 
 /** ローカルに API 鍵があれば BYOK、無ければ定型のみのプロバイダを返す。
@@ -34,30 +34,14 @@ function resolveProvider(): ProblemProvider {
 
 type AppMode = "setup" | "join" | "lobby" | "session" | "celebration" | "history";
 
-/** ドメインエラーコードを利用者向けの日本語文へ変換する（生のコードを画面に出さない）。 */
-const ERROR_MESSAGES: Record<string, string> = {
-  BelowMinMembers: "最後のドライバーは外れられません。",
-  DuplicateName: "その名前はすでに使われています。",
-  EmptyName: "名前を入力してください。",
-  MemberLimitExceeded: "メンバーが上限に達しています。",
-  InvalidInterval: "その交代間隔は選べません。",
-  UNAUTHORIZED: "この操作の権限がありません。",
-  RATE_LIMITED: "試行が多すぎます。しばらく待ってから再試行してください。",
-  // ホスト移譲（R2-3）の失敗理由を利用者向けの日本語にする。
-  PARTICIPANT_OFFLINE: "オフラインの相手にはホストを移譲できません。",
-  CANNOT_CHANGE_HOST: "自分自身にはホストを移譲できません。",
-  PARTICIPANT_NOT_FOUND: "対象の参加者が見つかりません。",
-  // 任意ルームパスフレーズ（R4-2）の join 失敗理由。
-  PASSPHRASE_REQUIRED: "このルームはパスフレーズが必要です。",
-  PASSPHRASE_MISMATCH: "パスフレーズが一致しません。",
-  // AI お題生成の解錠（合言葉不一致・未設定サーバ共通）。
-  AI_UNLOCK_FAILED: "合言葉が違います。",
-  // 「進行できる人が1名以上残る」不変条件（Issue #22・FR-072/073）。
-  // 退出と降格の両方から返るため、どちらでも通じる文言にする。
-  LAST_MANAGER: "進行できる人がいなくなるため実行できません。他の人が進行に加わってから操作してください。",
-};
+/**
+ * ドメインエラーコードを利用者向けの日本語文へ変換する（生のコードを画面に出さない）。
+ *
+ * 文言の表（ERROR_MESSAGES）は @tdd-mob/core（error-messages.ts）を正本とする（T065・FR-105）。
+ * ここでは表を引くだけで、文言そのものはここには置かない。
+ */
 function friendlyError(code: string): string {
-  return ERROR_MESSAGES[code] ?? "操作を完了できませんでした。";
+  return ERROR_MESSAGES[code] ?? DEFAULT_ERROR_MESSAGE;
 }
 
 export default function App() {
