@@ -65,11 +65,13 @@ describe("RosterPanel モブ順表示", () => {
   });
 
   it("rotation 内の行に 1 始まりの順番番号を出す", () => {
+    // Given
+    const participants = [mk("a", "Alice"), mk("b", "Bob")];
     // When
     render(
       <RosterPanel
         {...baseProps}
-        participants={[mk("a", "Alice"), mk("b", "Bob")]}
+        participants={participants}
         currentDriverId="a"
         rotation={["a", "b"]}
       />,
@@ -102,11 +104,13 @@ describe("RosterPanel モブ順表示", () => {
   });
 
   it("現ドライバーは ▶ 今 で示す", () => {
+    // Given
+    const participants = [mk("a", "Alice")];
     // When
     render(
       <RosterPanel
         {...baseProps}
-        participants={[mk("a", "Alice")]}
+        participants={participants}
         currentDriverId="a"
         rotation={["a"]}
       />,
@@ -136,7 +140,10 @@ describe("RosterPanel", () => {
   };
 
   it("全参加者の名前が表示される", () => {
+    // Given（baseProps の2参加者 Alice/Bob をそのまま使う）
+    // When
     render(<RosterPanel {...baseProps} />);
+    // Then
     expect(screen.getByText("Alice")).toBeTruthy();
     expect(screen.getByText("Bob")).toBeTruthy();
   });
@@ -341,13 +348,15 @@ describe("RosterPanel", () => {
     });
 
     it("canManage=false のときは並べ替えボタンを出さない", () => {
+      // Given
+      const onMove = vi.fn();
       // When
       render(
         <RosterPanel
           {...moveProps}
           canManage={false}
           myParticipantId="p2"
-          onMove={vi.fn()}
+          onMove={onMove}
         />,
       );
       // Then
@@ -356,8 +365,10 @@ describe("RosterPanel", () => {
     });
 
     it("ドライバーが1人だけのときは並べ替えボタンを出さない", () => {
+      // Given（rotation を1人だけにする）
+      const onMove = vi.fn();
       // When
-      render(<RosterPanel {...baseProps} rotation={["p1"]} onMove={vi.fn()} />);
+      render(<RosterPanel {...baseProps} rotation={["p1"]} onMove={onMove} />);
       // Then
       expect(screen.queryByRole("button", { name: /前の順番へ/ })).toBeNull();
       expect(screen.queryByRole("button", { name: /後の順番へ/ })).toBeNull();
@@ -366,11 +377,13 @@ describe("RosterPanel", () => {
 
   describe("RosterPanel scrollable", () => {
     it("scrollable=true でリストに高さ上限とスクロールを付ける", () => {
+      // Given
+      const participants = [mk("a", "Alice")];
       // When
       render(
         <RosterPanel
           {...baseProps}
-          participants={[mk("a", "Alice")]}
+          participants={participants}
           currentDriverId="a"
           rotation={["a"]}
           scrollable
@@ -383,14 +396,18 @@ describe("RosterPanel", () => {
     });
 
     it("scrollable 未指定ならスクロールを付けない", () => {
+      // Given
+      const participants = [mk("a", "Alice")];
+      // When
       render(
         <RosterPanel
           {...baseProps}
-          participants={[mk("a", "Alice")]}
+          participants={participants}
           currentDriverId="a"
           rotation={["a"]}
         />,
       );
+      // Then
       expect(screen.getByRole("list").className).not.toContain("overflow-y-auto");
     });
   });
@@ -431,13 +448,15 @@ describe("RosterPanel", () => {
     });
 
     it("canManage=false のときは『ホストを譲る』を出さない", () => {
+      // Given
+      const onTransferHost = vi.fn();
       // When
       render(
         <RosterPanel
           {...baseProps}
           canManage={false}
           myParticipantId="p2"
-          onTransferHost={vi.fn()}
+          onTransferHost={onTransferHost}
         />,
       );
       // Then
@@ -507,12 +526,16 @@ const sectionBase = {
  */
 describe("RosterPanel セクション分割", () => {
   it("ドライバーと見学のセクション見出しを出す", () => {
+    // Given（sectionBase の host/editor/viewer 構成をそのまま使う）
+    // When
     render(<RosterPanel {...sectionBase} />);
+    // Then
     expect(screen.getByText("ドライバー")).toBeTruthy();
     expect(screen.getByText("見学")).toBeTruthy();
   });
 
   it("現ドライバー(Bob)がドライバーセクションの先頭に来る", () => {
+    // Given（sectionBase: currentDriverId="b"）
     // When
     render(<RosterPanel {...sectionBase} />);
     // Then
@@ -522,6 +545,7 @@ describe("RosterPanel セクション分割", () => {
   });
 
   it("見学者(Zoe)は見学セクションに入る", () => {
+    // Given（sectionBase: Zoe は viewer で rotation 外）
     // When
     render(<RosterPanel {...sectionBase} />);
     // Then
@@ -580,11 +604,13 @@ describe("RosterPanel ドライバー指名", () => {
   beforeEach(() => onAssignDriver.mockClear());
 
   it("host は現ドライバー以外の rotation 行に「ドライバーにする」を表示する", () => {
+    // Given
+    const participants = [mk("a", "Alice"), mk("b", "Bob")];
     // When
     render(
       <RosterPanel
         {...hostProps}
-        participants={[mk("a", "Alice"), mk("b", "Bob")]}
+        participants={participants}
         currentDriverId="a"
         rotation={["a", "b"]}
       />,
@@ -596,11 +622,13 @@ describe("RosterPanel ドライバー指名", () => {
   });
 
   it("現ドライバー行には「ドライバーにする」を表示しない", () => {
+    // Given
+    const participants = [mk("a", "Alice"), mk("b", "Bob")];
     // When
     render(
       <RosterPanel
         {...hostProps}
-        participants={[mk("a", "Alice"), mk("b", "Bob")]}
+        participants={participants}
         currentDriverId="a"
         rotation={["a", "b"]}
       />,
@@ -612,12 +640,14 @@ describe("RosterPanel ドライバー指名", () => {
   });
 
   it("非 host には「ドライバーにする」を表示しない", () => {
+    // Given
+    const participants = [mk("a", "Alice"), mk("b", "Bob")];
     // When
     render(
       <RosterPanel
         {...hostProps}
         canManage={false}
-        participants={[mk("a", "Alice"), mk("b", "Bob")]}
+        participants={participants}
         currentDriverId="a"
         rotation={["a", "b"]}
       />,
@@ -629,11 +659,13 @@ describe("RosterPanel ドライバー指名", () => {
   });
 
   it("見学者（rotation 外）には「ドライバーにする」を表示しない", () => {
+    // Given
+    const participants = [mk("a", "Alice"), mk("w", "Watcher")];
     // When
     render(
       <RosterPanel
         {...hostProps}
-        participants={[mk("a", "Alice"), mk("w", "Watcher")]}
+        participants={participants}
         currentDriverId="a"
         rotation={["a"]}
       />,
@@ -663,11 +695,13 @@ describe("RosterPanel ドライバー指名", () => {
   });
 
   it("実在（非代理）オフラインのメンバーには「ドライバーにする」を表示しない", () => {
+    // Given
+    const participants = [mk("a", "Alice"), mk("b", "Bob", { presence: "offline" })];
     // When
     render(
       <RosterPanel
         {...hostProps}
-        participants={[mk("a", "Alice"), mk("b", "Bob", { presence: "offline" })]}
+        participants={participants}
         currentDriverId="a"
         rotation={["a", "b"]}
       />,
@@ -679,11 +713,16 @@ describe("RosterPanel ドライバー指名", () => {
   });
 
   it("代理（placeholder）はオフラインでも「ドライバーにする」を表示する", () => {
+    // Given
+    const participants = [
+      mk("a", "Alice"),
+      mk("b", "Bob", { presence: "offline", isPlaceholder: true }),
+    ];
     // When
     render(
       <RosterPanel
         {...hostProps}
-        participants={[mk("a", "Alice"), mk("b", "Bob", { presence: "offline", isPlaceholder: true })]}
+        participants={participants}
         currentDriverId="a"
         rotation={["a", "b"]}
       />,
@@ -821,6 +860,7 @@ describe("RosterPanel 同名参加者の区別", () => {
   };
 
   it("同名が2名いると退出ボタンの aria-label が互いに異なる", () => {
+    // Given（dupProps: Bob が2名いる twoBobs をそのまま使う）
     // When
     render(<RosterPanel {...dupProps} onRemove={vi.fn()} />);
     // Then
@@ -833,6 +873,7 @@ describe("RosterPanel 同名参加者の区別", () => {
   });
 
   it("識別子の末尾で区別できる（notice と同じ規則）", () => {
+    // Given（dupProps: Bob が2名いる twoBobs をそのまま使う）
     // When
     render(<RosterPanel {...dupProps} onRemove={vi.fn()} />);
     // Then
@@ -847,10 +888,12 @@ describe("RosterPanel 同名参加者の区別", () => {
   it("同名がいると退出以外の操作ラベルも識別子で区別できる", () => {
     // Given（指名・順番移動・一時離脱・改名も、同名が並ぶと
     // 「どちらに効くのか」を選べない。実機検証で判明）
+    const rotation = ["pid-0001", "pid-0002", "pid-0003"];
+    // When
     render(
       <RosterPanel
         {...dupProps}
-        rotation={["pid-0001", "pid-0002", "pid-0003"]}
+        rotation={rotation}
         currentDriverId="pid-0001"
         onAssignDriver={vi.fn()}
         onMove={vi.fn()}
@@ -868,6 +911,7 @@ describe("RosterPanel 同名参加者の区別", () => {
   });
 
   it("同名がいると行の表示名にも識別子が出る（目で見ても区別できる）", () => {
+    // Given（dupProps: Bob が2名いる twoBobs をそのまま使う）
     // When
     render(<RosterPanel {...dupProps} />);
     // Then（素の "Bob" では引けず、識別子つきの2行が引ける）
