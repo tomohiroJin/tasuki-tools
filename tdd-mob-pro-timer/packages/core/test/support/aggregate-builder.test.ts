@@ -68,7 +68,11 @@ describe("anAggregate()", () => {
     expect(agg.clock.secondsLeftAtAnchor).toBe(420);
   });
 
-  it("withRotation() を空配列で呼ぶと throw する（前提の構築失敗は throw で表す・FR-096）", () => {
+  /**
+   * 前提の構築失敗は検証の失敗と区別できる形で報告する。
+   * @requirements FR-096
+   */
+  it("rotation を 1 件も指定せずに組み立てると throw する", () => {
     expect(() => anAggregate().withRotation().build()).toThrow();
   });
 });

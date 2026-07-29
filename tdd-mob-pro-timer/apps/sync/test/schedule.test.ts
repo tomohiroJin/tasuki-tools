@@ -75,7 +75,7 @@ describe("Scheduler: サーバー権威タイマー", () => {
     expect(onSwitch).not.toHaveBeenCalled();
   });
 
-  it("schedule を再度呼ぶと前のタイマーがキャンセルされる", () => {
+  it("再スケジュールすると前のタイマーは発火しなくなる", () => {
     // Given
     const scheduler = new Scheduler(clock);
     const onSwitch = vi.fn();

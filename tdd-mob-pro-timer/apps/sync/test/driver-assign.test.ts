@@ -106,7 +106,11 @@ describe("driver.assign（Issue #13 強制指名）", () => {
     expect(store.get(code)!.session.currentIndex).toBe(0);
   });
 
-  it("実在（非代理）オフラインのメンバーは指名できない（R2-1: 無人ドライバー防止）", async () => {
+  /**
+   * 無人ドライバーを生まないための制約。
+   * @requirements R2-1
+   */
+  it("実在（非代理）オフラインのメンバーは指名できない", async () => {
     // Given（B は実在オフライン）
     const code = await setup(handlers, store, { presence: "offline" });
     // When

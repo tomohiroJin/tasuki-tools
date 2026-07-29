@@ -83,7 +83,11 @@ describe("タイマー自動交代と代理メンバー（v2.8）", () => {
     expect(store.get(code)!.session.currentIndex).toBe(1); // 代理 B へ交代している
   });
 
-  it("実在の offline 参加者(非placeholder)は従来どおり飛ばす（R2-1 維持）", async () => {
+  /**
+   * 代理の自動交代を入れても、実在 offline の扱いは変えない。
+   * @requirements R2-1
+   */
+  it("実在の offline 参加者（非 placeholder）は従来どおり飛ばす", async () => {
     // Given
     const code = await setupRoomWithSecond(handlers, store, { presence: "offline", isPlaceholder: false });
 
