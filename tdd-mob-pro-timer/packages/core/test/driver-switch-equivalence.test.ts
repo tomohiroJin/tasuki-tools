@@ -78,7 +78,8 @@ describe("decide への ineligible 委譲と advanceDriver の同値性", () => 
    */
   describe("交代先が現ドライバーと異なる入力", () => {
     it("すべての入力で同じ集約になる", () => {
-      // Given / When / Then
+      // Given（rotation の長さ・currentIndex・ineligible 集合の全組み合わせ）
+      // When / Then（前提を満たす入力だけを対象に比較する）
       fc.assert(
         fc.property(rotationCase, ({ rotation, currentIndex, ineligible }) => {
           const agg = anAggregate().withRotation(...rotation).withCurrentDriver(currentIndex).running().build();
@@ -100,7 +101,8 @@ describe("decide への ineligible 委譲と advanceDriver の同値性", () => 
    */
   describe("交代先が現ドライバーと同じになる入力（反例）", () => {
     it("すべての入力で担当回数が食い違う", () => {
-      // Given / When / Then
+      // Given（rotation の長さ・currentIndex・ineligible 集合の全組み合わせ）
+      // When / Then（前提を満たす入力だけを対象に比較する）
       fc.assert(
         fc.property(rotationCase, ({ rotation, currentIndex, ineligible }) => {
           const agg = anAggregate().withRotation(...rotation).withCurrentDriver(currentIndex).running().build();
@@ -117,7 +119,8 @@ describe("decide への ineligible 委譲と advanceDriver の同値性", () => 
     });
 
     it("すべての入力で交代回数が食い違う", () => {
-      // Given / When / Then
+      // Given（rotation の長さ・currentIndex・ineligible 集合の全組み合わせ）
+      // When / Then（前提を満たす入力だけを対象に比較する）
       fc.assert(
         fc.property(rotationCase, ({ rotation, currentIndex, ineligible }) => {
           const agg = anAggregate().withRotation(...rotation).withCurrentDriver(currentIndex).running().build();
