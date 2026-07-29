@@ -225,10 +225,14 @@ function recoverFromCrashedRun() {
 }
 
 function restoreCurrentMutation() {
+  // マーカーは git apply の**前**に書くため、apply 自体が失敗した場合は
+  // currentlyAppliedFiles が空のままマーカーだけが残る。ここで先に消しておかないと、
+  // 次回の実行が「前回は異常終了した」と誤って報告する（実際に m05 のパッチが
+  // 適用できなくなったときにこれが起きた）。
+  clearMarker();
   if (currentlyAppliedFiles.length === 0) return;
   const files = currentlyAppliedFiles;
   currentlyAppliedFiles = [];
-  clearMarker();
   try {
     execFileSync("git", ["checkout", "--", ...files], { cwd: REPO_ROOT, stdio: "inherit" });
     // eslint-disable-next-line no-console
