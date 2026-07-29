@@ -76,7 +76,6 @@ export default function App() {
   // 接続状態は WS クライアントから明示通知される（banner には結合しない・R5-1）。
   const [connState, setConnState] = useState<ClientConnState>("online");
   // 注: AI（BYOK/サブスク）はいったん UI から撤去。お題は定型バンクのみ（NoAiProvider）。
-  // ByokProvider / AiSettingsModal / key-storage は将来の再有効化に備えて残置（休眠）。
   // onNeedProblem など closure から最新ルームの設定を参照するための ref
   const roomRef = useRef<Room | null>(null);
   // このクライアントがルーム作成者（＝当初ホスト）か。ロビーでお題生成を自動依頼する判定に使う。
