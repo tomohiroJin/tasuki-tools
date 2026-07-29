@@ -414,13 +414,13 @@
 
 ### G3-e 完了確認
 
-- [ ] **T053** `scripts/mutation-check.mjs` を実行し、**T007 のベースラインと検出結果の表が
+- [x] **T053** `scripts/mutation-check.mjs` を実行し、**T007 のベースラインと検出結果の表が
   一致することを確認する**。一致しない場合:
   検出されなくなった変異があれば**検証内容を減らしている**ので差し戻す。
   新たに検出されるようになった変異があれば**検証内容を増やしている**ので FR-099 違反として分離する。
   _要件: FR-098, FR-099_
 
-- [ ] **T054** `scripts/audit-structure.mjs` を実行し、**SC-029 / SC-030 / SC-031 / SC-032 が
+- [x] **T054** `scripts/audit-structure.mjs` を実行し、**SC-029 / SC-030 / SC-031 / SC-032 が
   目標を満たすことを確認する**。SC-036（テスト件数が T015 の基準値を下回らない）も確認する。
   全パッケージで `pnpm test && typecheck && lint && build` 全緑。
   **`git diff --stat -- 'tdd-mob-pro-timer/*/src/*'` が空であることを確認する**。

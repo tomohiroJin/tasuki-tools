@@ -4,6 +4,7 @@ import {
   saveNotifyPreferences,
   DEFAULT_NOTIFY_PREFERENCES,
 } from "../../src/prefs/local-prefs.js";
+import type { NotifyPreferences } from "../../src/prefs/local-prefs.js";
 
 describe("通知設定の永続化", () => {
   beforeEach(() => localStorage.clear());
@@ -16,7 +17,7 @@ describe("通知設定の永続化", () => {
 
   it("保存して読み戻せる", () => {
     // Given
-    const prefs = {
+    const prefs: NotifyPreferences = {
       enabled: true, soundId: "bell", osNotify: false, volume: 0.5,
       countdownEnabled: false, countdownSeconds: 15, countdownMode: "tone" as const, countdownVoiceId: "voice-male",
     };
@@ -48,7 +49,7 @@ describe("通知設定の永続化", () => {
 
   it("volume を保存して読み戻せる", () => {
     // Given
-    const prefs = {
+    const prefs: NotifyPreferences = {
       enabled: true, soundId: "bell", osNotify: false, volume: 0.3,
       countdownEnabled: false, countdownSeconds: 15, countdownMode: "tone" as const, countdownVoiceId: "voice-male",
     };

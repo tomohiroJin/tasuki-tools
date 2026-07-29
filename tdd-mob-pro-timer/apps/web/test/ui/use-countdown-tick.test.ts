@@ -8,6 +8,7 @@ vi.mock("../../src/platform/sound.js", async (importOriginal) => {
 
 import { playCountdownTick, playCountdownVoice } from "../../src/platform/sound.js";
 import { useCountdownTick } from "../../src/ui/use-countdown-tick.js";
+import type { CountdownTickOptions } from "../../src/ui/use-countdown-tick.js";
 
 const opts = { enabled: true, thresholdSeconds: 15, volume: 0.6, mode: "tone" as const, voiceId: "voice-male" as const };
 
@@ -106,7 +107,7 @@ describe("useCountdownTick の mode 分岐", () => {
 
   it("mode: voice のとき数字・voiceId・volume 付きで音声読み上げが再生される", () => {
     // Given
-    const voiceOpts = { ...opts, mode: "voice" as const, voiceId: "voice-female" };
+    const voiceOpts: CountdownTickOptions = { ...opts, mode: "voice", voiceId: "voice-female" };
     // When
     renderHook(() => useCountdownTick(10, true, voiceOpts));
     // Then
