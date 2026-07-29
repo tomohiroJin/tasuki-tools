@@ -147,7 +147,7 @@ describe("開始前の権限（従来どおり主催者主導）", () => {
         command: "member.remove", index: 1,
       });
 
-      expect(result.isOk()).toBe(true);
+      result._unsafeUnwrap();
       expect(lastError(EDITOR_CONN)).toBeUndefined();
     });
   });

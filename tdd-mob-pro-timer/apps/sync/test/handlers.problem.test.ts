@@ -110,7 +110,7 @@ describe("handlers: problem.request / problem.submit", () => {
       displayName: "Carol",
       hasAiKey: false,
     });
-    expect(join.isOk()).toBe(true);
+    join._unsafeUnwrap();
     const carolPid = store.get(code)!.participants.find((p) => p.displayName === "Carol")!.participantId;
     await handlers.handleCommand("host-conn", {
       command: "role.set",

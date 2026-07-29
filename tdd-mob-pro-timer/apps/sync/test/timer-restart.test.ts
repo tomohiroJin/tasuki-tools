@@ -119,7 +119,7 @@ describe("session.act RESTART（Issue #14 持ち時間のやり直し）", () =>
     const result = await handlers.handleCommand("conn-b", { command: "session.act", action: "RESTART" });
 
     // Then
-    expect(result.isOk()).toBe(true);
+    result._unsafeUnwrap();
     const room = store.get(code)!;
     expect(room.clock.running).toBe(true);
     expect(secondsLeft(room.clock, START)).toBeCloseTo(INTERVAL_SECONDS, 0);
@@ -214,7 +214,7 @@ describe("session.act RESTART（Issue #14 持ち時間のやり直し）", () =>
     const result = await handlers.handleCommand("conn-a", { command: "session.act", action: "RESTART" });
 
     // Then
-    expect(result.isOk()).toBe(true);
+    result._unsafeUnwrap();
     expect(secondsLeft(store.get(code)!.clock, START)).toBeCloseTo(INTERVAL_SECONDS, 0);
   });
 

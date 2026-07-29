@@ -93,7 +93,7 @@ describe("handlers: host.transfer（明示的ホスト移譲）", () => {
     });
 
     // Then
-    expect(result.isOk()).toBe(true);
+    result._unsafeUnwrap();
 
     const room = store.get("HX01");
     expect(room?.hostParticipantId).toBe("editor-p02");
@@ -182,7 +182,7 @@ describe("handlers: host.transfer（明示的ホスト移譲）", () => {
       command: "host.transfer",
       participantId: "editor-p02",
     });
-    expect(result.isOk()).toBe(true);
+    result._unsafeUnwrap();
 
     // Then（駆動の状態は一切変わらない）
     const room = store.get("HX01");

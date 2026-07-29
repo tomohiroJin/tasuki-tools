@@ -116,7 +116,7 @@ describe("Room.startedAt（開始済みの単調フラグ・D2）", () => {
     });
 
     // Then
-    expect(result.isOk()).toBe(true);
+    result._unsafeUnwrap();
     const after = store.get(code)!;
     expect(after.clock.running).toBe(true);
     expect(after.startedAt).not.toBeNull();

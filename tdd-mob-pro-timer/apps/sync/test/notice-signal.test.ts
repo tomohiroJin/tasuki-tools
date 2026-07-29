@@ -105,7 +105,7 @@ describe("signal: notice（実行者の通知）", () => {
         const result = await handlers.handleCommand(BOB, build());
 
         // Then
-        expect(result.isOk()).toBe(true);
+        result._unsafeUnwrap();
         expect(lastNotice()?.action).toBe(action);
       });
     }
@@ -117,7 +117,7 @@ describe("signal: notice（実行者の通知）", () => {
       });
 
       // Then
-      expect(result.isOk()).toBe(true);
+      result._unsafeUnwrap();
       expect(lastNotice()?.action).toBe("participant-removed");
     });
   });

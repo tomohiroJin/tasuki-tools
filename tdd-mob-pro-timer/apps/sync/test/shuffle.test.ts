@@ -110,7 +110,7 @@ describe("member.shuffle（サーバー権威のランダム化）", () => {
     const result = await handlers.handleCommand(HOST_CONN, { command: "member.shuffle" });
 
     // Then
-    expect(result.isOk()).toBe(true);
+    result._unsafeUnwrap();
     const room = broadcaster.latestSnapshot();
     expect(rotationNames(room)).toEqual(["B", "C", "A"]);
     // driverCounts も順列に追従する（元 [1,2,3] が order=[1,2,0] で並ぶ）。
@@ -129,7 +129,7 @@ describe("member.shuffle（サーバー権威のランダム化）", () => {
     const result = await handlers.handleCommand(HOST_CONN, { command: "member.shuffle" });
 
     // Then（currentIndex は 1 のまま、その名前は "B" のまま＝現ドライバー現役）
-    expect(result.isOk()).toBe(true);
+    result._unsafeUnwrap();
     const room = broadcaster.latestSnapshot();
     expect(room?.session.currentIndex).toBe(1);
     expect(rotationNames(room)[1]).toBe("B");

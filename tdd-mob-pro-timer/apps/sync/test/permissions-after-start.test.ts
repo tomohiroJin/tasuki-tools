@@ -135,7 +135,7 @@ describe("開始後の権限（主催者を条件にしない）", () => {
       });
 
       expect(lastError(EDITOR_CONN)?.code).not.toBe("UNAUTHORIZED");
-      expect(result.isOk()).toBe(true);
+      result._unsafeUnwrap();
       const room = store.get(roomCode)!;
       // rotation は参加者IDの配列（D6b）
       expect(room.session.rotation[room.session.currentIndex]).toBe(carolPid);
@@ -148,7 +148,7 @@ describe("開始後の権限（主催者を条件にしない）", () => {
       });
 
       expect(lastError(EDITOR_CONN)?.code).not.toBe("UNAUTHORIZED");
-      expect(result.isOk()).toBe(true);
+      result._unsafeUnwrap();
       expect(store.get(roomCode)!.hostParticipantId).toBe(carolPid);
     });
   });

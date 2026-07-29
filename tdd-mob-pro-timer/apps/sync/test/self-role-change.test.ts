@@ -85,7 +85,7 @@ describe("role.set: 自分の役割の変更", () => {
     });
 
     // Then
-    expect(result.isOk()).toBe(true);
+    result._unsafeUnwrap();
     expect(roleOf("Carol")).toBe("editor");
   });
 
@@ -99,7 +99,7 @@ describe("role.set: 自分の役割の変更", () => {
     });
 
     // Then
-    expect(result.isOk()).toBe(true);
+    result._unsafeUnwrap();
     expect(roleOf("Bob")).toBe("viewer");
   });
 
@@ -183,7 +183,7 @@ describe("role.set: 自分の役割の変更", () => {
     });
 
     // Then
-    expect(result.isOk()).toBe(true);
+    result._unsafeUnwrap();
     expect(store.get(code)!.participants.find((p) => p.participantId === bobId)!.role).toBe("editor");
   });
 });
