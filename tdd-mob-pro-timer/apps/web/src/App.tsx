@@ -22,7 +22,7 @@ import { shouldAutoJoinRotation } from "./ui/join-driver-intent.js";
 import { Stage } from "./ui/primitives.js";
 import { saveRecord } from "./records/indexeddb.js";
 import { persistRecordIfComplete } from "./records/persist.js";
-import { buildCompletionRecord, ERROR_MESSAGES, DEFAULT_ERROR_MESSAGE } from "@tdd-mob/core";
+import { buildCompletionRecord, displayMessageFor } from "@tdd-mob/core";
 import type { Room, SessionConfig, CompletionRecord, Problem } from "@tdd-mob/core";
 
 /** ローカルに API 鍵があれば BYOK、無ければ定型のみのプロバイダを返す。
@@ -37,12 +37,13 @@ type AppMode = "setup" | "join" | "lobby" | "session" | "celebration" | "history
 /**
  * ドメインエラーコードを利用者向けの日本語文へ変換する（生のコードを画面に出さない）。
  *
- * 文言の表（ERROR_MESSAGES）は @tdd-mob/core（error-messages.ts）を正本とする（T065・FR-105）。
- * ここでは表を引くだけで、文言そのものはここには置かない。
+ * **判定規則そのものが @tdd-mob/core の `displayMessageFor()` にある**（T065・FR-105・FR-107）。
+ * かつてはこのファイル内の private 関数で表を引いており、**テストから触れなかった**。
+ * そのため「どのコードのとき利用者に何が見えるか」を検証する手段が無く、
+ * 表にコードを 1 行足すだけで表示が変わる退行を型検査もテストも素通しさせた。
+ * ここは core へ委譲するだけにして、規則を単一の検証可能な場所に置く。
  */
-function friendlyError(code: string): string {
-  return ERROR_MESSAGES[code] ?? DEFAULT_ERROR_MESSAGE;
-}
+const friendlyError = displayMessageFor;
 
 export default function App() {
   const [mode, setMode] = useState<AppMode>("setup");

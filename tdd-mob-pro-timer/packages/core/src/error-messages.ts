@@ -37,23 +37,57 @@ export const ERROR_MESSAGES: Record<string, string> = {
   // 「進行できる人が1名以上残る」不変条件（Issue #22・FR-072/073）。
   // 退出と降格の両方から返るため、どちらでも通じる文言にする。
   LAST_MANAGER: "進行できる人がいなくなるため実行できません。他の人が進行に加わってから操作してください。",
-
-  // ここから下はサーバー（apps/sync）専用のコード（画面には表示されない・T066）。
-  // クライアントの ERROR_MESSAGES には元々存在しなかったが、apps/sync 側で同一コードに
-  // 対して同じ文言リテラルが複数箇所に独立して書かれていたため（SC-035）、
-  // 文言は一切変えずにここへ集約した。
-  NOT_IN_ROOM: "ルームに参加していません",
-  DELEGATION_UNAVAILABLE: "お題生成が利用できません",
 };
 
 /** テーブルに該当コードが無い場合の既定文言（元の `friendlyError` の既定値と同一）。 */
 export const DEFAULT_ERROR_MESSAGE = "操作を完了できませんでした。";
 
 /**
- * コードから文言を引く（無ければ既定文言）。`ERROR_MESSAGES[code]` の直接参照は
- * `Record<string, string>` の索引アクセスが `string | undefined` になる
- * （`noUncheckedIndexedAccess`）ため、必ずここを経由させて `string` を保証する。
+ * **サーバー（`apps/sync`）が wire の `message` に載せるだけで、画面には表示されないコードの文言。**
+ *
+ * ⚠ **`ERROR_MESSAGES` と統合してはならない。**
+ * `apps/web/src/App.tsx` の `friendlyError(code)` は `ERROR_MESSAGES[code] ?? DEFAULT_ERROR_MESSAGE`
+ * であり、**表に載っているかどうかで画面の文言が変わる**。
+ * これらのコードは元々クライアントの表に無く、画面には既定文言
+ * （「操作を完了できませんでした。」）が出ていた。統合すると**表示が変わる**（FR-114 違反）。
+ *
+ * 実際に一度統合してしまい、`NOT_IN_ROOM` の表示が
+ * 「操作を完了できませんでした。」→「ルームに参加していません」に変わる退行を作った。
+ * **型検査もテストも通る**（テストはコードだけを見ており、文言を見ていない）ため、
+ * 実機確認の直前まで気づけなかった。
+ *
+ * 分けたうえで `apps/sync` からの引き当てを 1 箇所にすれば、FR-105（文言は単一の箇所で定義する）は
+ * 満たされる。**要件が求めるのは「定義箇所が 1 つ」であって「テーブルが 1 つ」ではない。**
+ */
+const SERVER_ONLY_ERROR_MESSAGES: Record<string, string> = {
+  NOT_IN_ROOM: "ルームに参加していません",
+  DELEGATION_UNAVAILABLE: "お題生成が利用できません",
+};
+
+/**
+ * **画面に表示する文言を引く。** サーバー専用の文言は決して返さない。
+ *
+ * 元は `apps/web/src/App.tsx` の `friendlyError()` という**モジュール内の private 関数**だった。
+ * そのためテストから触れず、「どのコードのとき利用者に何が見えるか」を検証する手段が無かった。
+ * T066 で `NOT_IN_ROOM` の表示が変わる退行を作ったとき、
+ * **型検査もテストも通ってしまった原因はここにある**（規則がテストの届かない場所にあった）。
+ *
+ * 規則をここへ出し、`App.tsx` は必ずこれを経由する（FR-107: 全ての箇所が共通の実装を経由する）。
+ */
+export function displayMessageFor(code: string): string {
+  return ERROR_MESSAGES[code] ?? DEFAULT_ERROR_MESSAGE;
+}
+
+/**
+ * **wire の `message` フィールドに載せる文言を引く。画面表示には使わない。**
+ *
+ * 画面表示は `displayMessageFor()` を使うこと。こちらはサーバー専用の文言も返すため、
+ * 画面で使うと本来 既定文言が出ていたコードにサーバーの文言が出てしまう。
+ *
+ * `ERROR_MESSAGES[code]` の直接参照は `Record<string, string>` の索引アクセスが
+ * `string | undefined` になる（`noUncheckedIndexedAccess`）ため、必ずここを経由させて
+ * `string` を保証する。
  */
 export function errorMessageFor(code: string): string {
-  return ERROR_MESSAGES[code] ?? DEFAULT_ERROR_MESSAGE;
+  return ERROR_MESSAGES[code] ?? SERVER_ONLY_ERROR_MESSAGES[code] ?? DEFAULT_ERROR_MESSAGE;
 }
