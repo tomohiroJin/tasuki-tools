@@ -155,14 +155,11 @@ describe("v2 不変条件プロパティテスト", () => {
         (now) => {
           const agg = anAggregate().build();
           const result = decide({ command: "session.abort" }, agg, now);
-          expect(result.isOk()).toBe(true);
-          if (result.isOk()) {
-            // abort イベントを意図で取り出す（配列に1件のみ含まれる）
-            const abortedEvent = result.value.find((e) => e.type === "SessionAborted")!;
-            const newAgg = evolve(agg, abortedEvent, now);
-            expect(newAgg.session).toEqual(agg.session);
-            expect(newAgg.clock).toEqual(agg.clock);
-          }
+          // abort イベントを意図で取り出す（配列に1件のみ含まれる）
+          const abortedEvent = result._unsafeUnwrap().find((e) => e.type === "SessionAborted")!;
+          const newAgg = evolve(agg, abortedEvent, now);
+          expect(newAgg.session).toEqual(agg.session);
+          expect(newAgg.clock).toEqual(agg.clock);
         },
       ),
       { numRuns: 50 },

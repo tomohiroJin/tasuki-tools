@@ -34,7 +34,6 @@ describe("decide: session.act RESTART", () => {
     // When
     const result = decide({ command: "session.act", action: "RESTART" }, advancedAgg(), NOW + 30_000);
     // Then
-    expect(result.isOk()).toBe(true);
     expect(result._unsafeUnwrap()).toEqual([{ type: "DriverTimerReset", now: NOW + 30_000 }]);
   });
 
@@ -44,7 +43,6 @@ describe("decide: session.act RESTART", () => {
     // When
     const result = decide({ command: "session.act", action: "RESTART" }, paused, NOW + 30_000);
     // Then
-    expect(result.isOk()).toBe(true);
     expect(result._unsafeUnwrap()).toHaveLength(1);
   });
 

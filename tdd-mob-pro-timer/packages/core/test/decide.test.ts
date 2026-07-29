@@ -17,7 +17,6 @@ describe("decide: session.abort", () => {
     // When
     const result = decide({ command: "session.abort" }, baseAgg, NOW);
     // Then
-    expect(result.isOk()).toBe(true);
     const events = result._unsafeUnwrap();
     expect(events).toHaveLength(1);
     expect(events[0]?.type).toBe("SessionAborted");

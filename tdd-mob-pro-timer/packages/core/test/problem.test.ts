@@ -185,7 +185,7 @@ describe("FALLBACK_PROBLEMS バンク（AI なしの唯一の出題源）", () =
     // When / Then（具体性: 説明は十分な長さ、要件は2件以上、テスト例あり）
     for (const entry of FALLBACK_PROBLEMS) {
       const result = validateProblem(entry.problem);
-      expect(result.isOk()).toBe(true);
+      result._unsafeUnwrap();
       expect(entry.problem.description.length).toBeGreaterThanOrEqual(15);
       expect(entry.problem.requirements.length).toBeGreaterThanOrEqual(2);
       expect(entry.problem.exampleTest.length).toBeGreaterThan(0);
