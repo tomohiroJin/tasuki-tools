@@ -43,7 +43,7 @@ export {
   MAX_PASSPHRASE,
   MAX_AI_UNLOCK_KEY,
 } from "./aggregate.js";
-export { normalizeDisplayName, nameSkeleton } from "./display-name.js";
+export { normalizeDisplayName, nameSkeleton, conflictsWithExisting } from "./display-name.js";
 // イベント
 export type {
   SessionStarted,

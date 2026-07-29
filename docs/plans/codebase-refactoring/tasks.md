@@ -515,13 +515,13 @@
 
 ## G5 — 規則の一元化（挙動不変）
 
-- [ ] **T061** `packages/core/test/display-name.test.ts` に `conflictsWithExisting()` の
+- [x] **T061** `packages/core/test/display-name.test.ts` に `conflictsWithExisting()` の
   **失敗するテスト**を書く。判定内容は**現在の `handlers.ts` と同一**にする
   （`trim().toLowerCase()` 比較・自分自身を除外）。
   **`nameSkeleton` を使う「より正しい判定」にしてはならない**（それは振る舞いの変更）。
   _要件: FR-104, FR-114, US4_
 
-- [ ] **T062** `packages/core/src/display-name.ts` に
+- [x] **T062** `packages/core/src/display-name.ts` に
   `conflictsWithExisting(participants, desiredName, excludeId?)` を実装し T061 を緑にする。
   _要件: FR-104, US4_
 
