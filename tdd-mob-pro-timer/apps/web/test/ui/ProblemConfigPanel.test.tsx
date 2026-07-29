@@ -19,17 +19,23 @@ describe("ProblemConfigPanel", () => {
     expect(screen.getByRole("combobox", { name: "難易度" })).toBeTruthy();
   });
 
-  it("言語を変更すると onChange({language}) が呼ばれる", () => {
+  it("言語を変更すると言語設定が更新される", () => {
+    // Given
     const onChange = vi.fn();
     render(<ProblemConfigPanel config={config} canEdit onChange={onChange} problemEnabled />);
+    // When
     fireEvent.change(screen.getByRole("combobox", { name: "言語" }), { target: { value: "Python" } });
+    // Then
     expect(onChange).toHaveBeenCalledWith({ language: "Python" });
   });
 
-  it("難易度を変更すると onChange({difficulty}) が呼ばれる", () => {
+  it("難易度を変更すると難易度設定が更新される", () => {
+    // Given
     const onChange = vi.fn();
     render(<ProblemConfigPanel config={config} canEdit onChange={onChange} problemEnabled />);
+    // When
     fireEvent.change(screen.getByRole("combobox", { name: "難易度" }), { target: { value: "hard" } });
+    // Then
     expect(onChange).toHaveBeenCalledWith({ difficulty: "hard" });
   });
 
@@ -40,19 +46,25 @@ describe("ProblemConfigPanel", () => {
   });
 
   it("言語ランダムは言語のみ変える（プール先頭・難易度不変）", () => {
+    // Given
     vi.spyOn(Math, "random").mockReturnValue(0); // プール先頭 = TypeScript
     const onChange = vi.fn();
     render(<ProblemConfigPanel config={config} canEdit onChange={onChange} problemEnabled />);
+    // When
     fireEvent.click(screen.getByRole("button", { name: "言語をランダムに選ぶ" }));
+    // Then
     expect(onChange).toHaveBeenCalledWith({ language: "TypeScript" });
     expect(onChange.mock.calls[0]![0]).not.toHaveProperty("difficulty");
   });
 
-  it("プールを空にすると言語ランダムは何もしない", () => {
+  it("プールを空にすると言語ランダムは何も変更しない", () => {
+    // Given
     localStorage.setItem("tdd-mob:random-language-pool:v1", JSON.stringify([]));
     const onChange = vi.fn();
     render(<ProblemConfigPanel config={config} canEdit onChange={onChange} problemEnabled />);
+    // When
     fireEvent.click(screen.getByRole("button", { name: "言語をランダムに選ぶ" }));
+    // Then
     expect(onChange).not.toHaveBeenCalled();
   });
 

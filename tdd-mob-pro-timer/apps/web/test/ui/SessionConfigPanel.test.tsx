@@ -15,17 +15,23 @@ describe("SessionConfigPanel", () => {
     expect(screen.getByRole("group", { name: /交代間隔/ })).toBeTruthy();
   });
 
-  it("交代間隔ボタンで onChange({intervalMinutes}) が呼ばれる", () => {
+  it("交代間隔ボタンを押すと交代間隔が変更される", () => {
+    // Given
     const onChange = vi.fn();
     render(<SessionConfigPanel config={config} canEdit onChange={onChange} />);
+    // When
     fireEvent.click(screen.getByRole("button", { name: "10分" }));
+    // Then
     expect(onChange).toHaveBeenCalledWith({ intervalMinutes: 10 });
   });
 
-  it("詳細設定のナビゲータートグルで onChange({navigatorEnabled:true}) が呼ばれる", () => {
+  it("詳細設定のナビゲータートグルを押すとナビゲーター機能が有効になる", () => {
+    // Given
     const onChange = vi.fn();
     render(<SessionConfigPanel config={config} canEdit onChange={onChange} />);
+    // When
     fireEvent.click(screen.getByRole("checkbox", { name: /ナビゲーター/ }));
+    // Then
     expect(onChange).toHaveBeenCalledWith({ navigatorEnabled: true });
   });
 

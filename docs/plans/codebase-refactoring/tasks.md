@@ -370,7 +370,7 @@
   `ui/participant-label.test.ts` / `ui/presence.test.ts`。
   _要件: FR-091〜FR-096, FR-123, US2_
 
-- [ ] **T049** バッチ「お題」（6 ファイル）:
+- [x] **T049** バッチ「お題」（6 ファイル）:
   `ui/ProblemEditor.test.tsx` / `ui/ProblemConfigPanel.test.tsx` / `ui/ProblemModeToggle.test.tsx` /
   `ui/problem-generation.test.ts` / `ui/AiUnlockPanel.test.tsx` / `ui/SessionConfigPanel.test.tsx`。
   _要件: FR-091〜FR-096, FR-123, US2_

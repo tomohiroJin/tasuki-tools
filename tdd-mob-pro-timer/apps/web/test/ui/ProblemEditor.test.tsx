@@ -1,6 +1,6 @@
 /**
  * ProblemEditor コンポーネントのテスト
- * T050/T051: FR-009,012,013,038,039,040,041 (US3)
+ * @requirements FR-009, FR-012, FR-013, FR-038, FR-039, FR-040, FR-041, US3
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -19,10 +19,10 @@ const baseProblem: Problem = {
   edited: false,
 };
 
-describe("ProblemEditor（T050/T051）", () => {
+describe("ProblemEditor", () => {
   const noop = vi.fn();
 
-  it("お題のタイトル・説明が表示される（FR-009）", () => {
+  it("お題のタイトル・説明が表示される", () => {
     render(
       <ProblemEditor
         problem={baseProblem}
@@ -52,7 +52,8 @@ describe("ProblemEditor（T050/T051）", () => {
     expect(screen.getByText("TypeScript")).toBeTruthy();
   });
 
-  it("コピーボタンを押すと onCopy が呼ばれる（FR-013）", () => {
+  it("コピーボタンを押すとお題がコピーされる", () => {
+    // Given
     const onCopy = vi.fn();
     render(
       <ProblemEditor
@@ -63,13 +64,15 @@ describe("ProblemEditor（T050/T051）", () => {
         onPaste={noop}
       />,
     );
-    // onCopy を直接呼べるようなコピーボタンがあることを確認
+    // When（onCopy を直接呼べるようなコピーボタンがあることを確認）
     const copyBtn = screen.getByRole("button", { name: /コピー|copy/i });
     fireEvent.click(copyBtn);
+    // Then
     expect(onCopy).toHaveBeenCalled();
   });
 
-  it("やり直しボタンを押すと onRegenerate が呼ばれる（FR-012）", () => {
+  it("やり直しボタンを押すと別のお題への差し替えが要求される", () => {
+    // Given
     const onRegenerate = vi.fn();
     render(
       <ProblemEditor
@@ -80,12 +83,15 @@ describe("ProblemEditor（T050/T051）", () => {
         onPaste={noop}
       />,
     );
+    // When
     const regenBtn = screen.getByRole("button", { name: /別のお題|やり直|再生成/i });
     fireEvent.click(regenBtn);
+    // Then
     expect(onRegenerate).toHaveBeenCalledOnce();
   });
 
-  it("持ち込みボタンを押すと onPaste が呼ばれる（FR-040）", () => {
+  it("持ち込みボタンを押すと持ち込みへの切替が要求される", () => {
+    // Given
     const onPaste = vi.fn();
     render(
       <ProblemEditor
@@ -96,8 +102,10 @@ describe("ProblemEditor（T050/T051）", () => {
         onPaste={onPaste}
       />,
     );
+    // When
     const pasteBtn = screen.getByRole("button", { name: /持ち込|paste|貼り付け/i });
     fireEvent.click(pasteBtn);
+    // Then
     expect(onPaste).toHaveBeenCalledOnce();
   });
 
@@ -114,7 +122,7 @@ describe("ProblemEditor（T050/T051）", () => {
     expect(screen.getByText(/持ち込み/)).toBeTruthy();
   });
 
-  it("edited=true のとき編集済みバッジが表示される（FR-038）", () => {
+  it("edited=true のとき編集済みバッジが表示される", () => {
     render(
       <ProblemEditor
         problem={{ ...baseProblem, edited: true }}
@@ -128,7 +136,8 @@ describe("ProblemEditor（T050/T051）", () => {
   });
 
   // ─── お題編集 UI（onEdit 発火）─────────────────────────────────────────────
-  it("編集モードでタイトルを変更すると onEdit が title patch で呼ばれる（FR-038）", () => {
+  it("編集モードでタイトルを変更して確定するとタイトルの変更が伝わる", () => {
+    // Given
     const onEdit = vi.fn();
     render(
       <ProblemEditor
@@ -139,14 +148,17 @@ describe("ProblemEditor（T050/T051）", () => {
         onPaste={noop}
       />,
     );
+    // When
     fireEvent.click(screen.getByRole("button", { name: /内容を編集/ }));
     const titleInput = screen.getByLabelText("お題タイトル");
     fireEvent.change(titleInput, { target: { value: "新タイトル" } });
     fireEvent.blur(titleInput);
+    // Then
     expect(onEdit).toHaveBeenCalledWith({ title: "新タイトル" });
   });
 
-  it("編集モードで要件を変更すると onEdit が requirements 配列 patch で呼ばれる（FR-038）", () => {
+  it("編集モードで要件を変更して確定すると要件の配列が伝わる", () => {
+    // Given
     const onEdit = vi.fn();
     render(
       <ProblemEditor
@@ -157,17 +169,20 @@ describe("ProblemEditor（T050/T051）", () => {
         onPaste={noop}
       />,
     );
+    // When
     fireEvent.click(screen.getByRole("button", { name: /内容を編集/ }));
     const reqInput = screen.getByLabelText(/要件/);
     fireEvent.change(reqInput, { target: { value: "条件A\n条件B\n条件C" } });
     fireEvent.blur(reqInput);
+    // Then
     expect(onEdit).toHaveBeenCalledWith({
       requirements: ["条件A", "条件B", "条件C"],
     });
   });
 
   // ─── 詳細の折りたたみ（S2: ロビー縦長の解消）─────────────────────────────
-  it("既定では詳細（要件・例示テスト・ヒント）が折りたたまれ表示されない", () => {
+  it("既定では詳細（要件・例示テスト・ヒント）まで表示される", () => {
+    // Given（非 compact＝ロビーでは詳細を既定で表示する。お題をしっかり見せる）
     render(
       <ProblemEditor
         problem={baseProblem}
@@ -177,16 +192,16 @@ describe("ProblemEditor（T050/T051）", () => {
         onPaste={noop}
       />,
     );
-    // タイトル・説明は常時表示
+    // Then（タイトル・説明は常時表示）
     expect(screen.getByText("FizzBuzz")).toBeTruthy();
     expect(screen.getByText(/3の倍数でFizz/)).toBeTruthy();
-    // 非 compact（ロビー）では詳細（例示テスト・要件・ヒント）を既定で表示する（お題をしっかり見せる）。
     expect(screen.getByText(/expect\(fizzbuzz/)).toBeTruthy();
     expect(screen.getByText("3の倍数はFizz")).toBeTruthy();
     expect(screen.getByText(/剰余を使う/)).toBeTruthy();
   });
 
-  it("「詳細を隠す/表示」トグルで詳細を開閉できる（非 compact は既定で開）", () => {
+  it("「詳細を隠す/表示」トグルで詳細を開閉できる", () => {
+    // Given（非 compact は既定で開いている）
     render(
       <ProblemEditor
         problem={baseProblem}
@@ -196,17 +211,19 @@ describe("ProblemEditor（T050/T051）", () => {
         onPaste={noop}
       />,
     );
-    // 既定で開いている。
     expect(screen.getByText(/expect\(fizzbuzz/)).toBeTruthy();
-    // 閉じる
+    // When（閉じる）
     fireEvent.click(screen.getByRole("button", { name: /詳細を表示|詳細を隠す/ }));
+    // Then
     expect(screen.queryByText(/expect\(fizzbuzz/)).toBeNull();
-    // 再び開く
+    // When（再び開く）
     fireEvent.click(screen.getByRole("button", { name: /詳細を表示|詳細を隠す/ }));
+    // Then
     expect(screen.getByText(/expect\(fizzbuzz/)).toBeTruthy();
   });
 
-  it("canEdit=false（観覧者）では編集ボタンを表示しない（FR-055）", () => {
+  it("canEdit=false（観覧者）では編集ボタンを表示せずコピーのみ表示する", () => {
+    // Given
     render(
       <ProblemEditor
         problem={baseProblem}
@@ -217,8 +234,8 @@ describe("ProblemEditor（T050/T051）", () => {
         onPaste={noop}
       />,
     );
+    // Then（コピーは全員可）
     expect(screen.queryByRole("button", { name: /内容を編集/ })).toBeNull();
-    // コピーは全員可（FR-013）
     expect(screen.getByRole("button", { name: /コピー/ })).toBeTruthy();
   });
 });

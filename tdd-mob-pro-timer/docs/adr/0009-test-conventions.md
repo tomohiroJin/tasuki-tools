@@ -326,3 +326,23 @@ describe("<対象の名詞>", () => {
   `// Given` の後に `// When / Then` を1行で付与した。検証内容・分割は変更していない。
 
 これで G3-d の T046〜T048 が完了した。
+
+### `apps/web/test/ui`（T049: バッチ「お題」6ファイル）
+
+- `ProblemEditor.test.tsx` / `ProblemConfigPanel.test.tsx` / `ProblemModeToggle.test.tsx` /
+  `problem-generation.test.ts` / `AiUnlockPanel.test.tsx` / `SessionConfigPanel.test.tsx`
+
+  describe 名・it 名に混在していた `T050/T051`・`FR-009,012,013,038,039,040,041` を
+  describe 直上の JSDoc `@requirements` へ移した。`ProblemEditor.test.tsx` の
+  「コピーボタンを押すと onCopy が呼ばれる」「やり直しボタンを押すと onRegenerate が呼ばれる」
+  「持ち込みボタンを押すと onPaste が呼ばれる」・`ProblemConfigPanel.test.tsx` の
+  「言語/難易度を変更すると onChange(...) が呼ばれる」・`SessionConfigPanel.test.tsx` の
+  「交代間隔ボタン/ナビゲータートグルで onChange(...) が呼ばれる」・`AiUnlockPanel.test.tsx` の
+  「入力値で onUnlock を呼ぶ」は、いずれも SC-030 の「呼ぶ/呼ばれる」規定に抵触するため、
+  「お題がコピーされる」「別のお題への差し替えが要求される」「持ち込みへの切替が要求される」
+  「言語/難易度設定が更新される」「交代間隔が変更される」「ナビゲーター機能が有効になる」
+  「入力値が送られる」という結果の記述に改めた（アサーション自体は `toHaveBeenCalled`/
+  `toHaveBeenCalledWith`/`toHaveBeenCalledOnce` のまま変更していない）。本体が3行以上の
+  テストに `// Given` `// When` `// Then` を付与した（2行以下は対象外）。
+  `problem-generation.test.ts` は既に仕様IDなし・呼称なし・本体2行以下中心で規約を満たしており
+  無変更（FR-123）。検証内容・分割は変更していない。
