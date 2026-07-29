@@ -20,45 +20,43 @@ function startedAgg(): Aggregate {
 
 describe("F1: 一時停止で残量を凍結する", () => {
   it("7分開始→3分後に一時停止すると、停止中の残量が満タン420でなく240付近で凍結する", () => {
+    // Given
     const started = startedAgg();
     const pauseTime = NOW + 180_000; // 3分後
+    // When
     const paused = evolve(started, { type: "SessionPaused", now: pauseTime }, pauseTime);
-
+    // Then（停止中は secondsLeft が secondsLeftAtAnchor をそのまま返す。240付近で凍結し満タンに戻らない）
     expect(paused.clock.running).toBe(false);
-    // 停止中は secondsLeft が secondsLeftAtAnchor をそのまま返す。240付近で凍結。
     const left = secondsLeft(paused.clock, pauseTime);
     expect(left).toBeCloseTo(240, 0);
-    // 満タンに戻っていないこと
     expect(left).not.toBeCloseTo(420, 0);
   });
 
   it("停止中は時間が経っても残量が変わらない（凍結）", () => {
+    // Given
     const started = startedAgg();
     const pauseTime = NOW + 180_000; // 3分後
     const paused = evolve(started, { type: "SessionPaused", now: pauseTime }, pauseTime);
-
+    // When（停止のまま 5 分経過させる）
     const leftAtPause = secondsLeft(paused.clock, pauseTime);
-    // 停止のまま 5 分経過させても残量は同じ
     const leftLater = secondsLeft(paused.clock, pauseTime + 300_000);
+    // Then（残量は同じで 240 付近のまま）
     expect(leftLater).toBe(leftAtPause);
     expect(leftLater).toBeCloseTo(240, 0);
   });
 
   it("再開後も240付近から継続する（満タンに戻らない）", () => {
+    // Given
     const started = startedAgg();
     const pauseTime = NOW + 180_000; // 3分後
     const paused = evolve(started, { type: "SessionPaused", now: pauseTime }, pauseTime);
-
-    // 2分後に再開
+    // When（2分後に再開）
     const resumeTime = pauseTime + 120_000;
     const resumed = evolve(paused, { type: "SessionResumed", now: resumeTime }, resumeTime);
-
+    // Then（再開直後は 240 付近から継続し、30 秒走らせると 210 付近になる）
     expect(resumed.clock.running).toBe(true);
-    // 再開直後は 240 付近から継続
     const leftAtResume = secondsLeft(resumed.clock, resumeTime);
     expect(leftAtResume).toBeCloseTo(240, 0);
-
-    // 再開から 30 秒走らせると 210 付近
     const leftRunning = secondsLeft(resumed.clock, resumeTime + 30_000);
     expect(leftRunning).toBeCloseTo(210, 0);
   });

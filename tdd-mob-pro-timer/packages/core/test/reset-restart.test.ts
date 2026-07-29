@@ -20,44 +20,43 @@ function startedAgg(): Aggregate {
 
 describe("F3: リセットを最初から再スタートにする", () => {
   it("DriverSwitched で進めた後 SessionReset すると currentIndex/カウント/交代回数が初期化される", () => {
+    // Given（2回交代して進める）
     const started = startedAgg();
-    // 2回交代して進める
     const sw1 = evolve(started, { type: "DriverSwitched", nextIndex: 1, now: NOW + 10_000 }, NOW + 10_000);
     const sw2 = evolve(sw1, { type: "DriverSwitched", nextIndex: 2, now: NOW + 20_000 }, NOW + 20_000);
-
     expect(sw2.session.currentIndex).toBe(2);
     expect(sw2.session.totalSwitches).toBe(2);
-
+    // When
     const resetTime = NOW + 30_000;
     const reset = evolve(sw2, { type: "SessionReset", now: resetTime }, resetTime);
-
+    // Then
     expect(reset.session.currentIndex).toBe(0);
     expect(reset.session.driverCounts).toEqual([0, 0, 0]);
     expect(reset.session.totalSwitches).toBe(0);
   });
 
   it("SessionReset 後は clock.running=true で残量が満タン(420付近)に戻る", () => {
+    // Given
     const started = startedAgg();
     const sw1 = evolve(started, { type: "DriverSwitched", nextIndex: 1, now: NOW + 10_000 }, NOW + 10_000);
-
+    // When
     const resetTime = NOW + 30_000;
     const reset = evolve(sw1, { type: "SessionReset", now: resetTime }, resetTime);
-
+    // Then（走行中・直後は満タン420付近）
     expect(reset.clock.running).toBe(true);
     expect(reset.clock.anchorServerTime).toBe(resetTime);
     expect(reset.clock.runningSince).toBe(resetTime);
-
-    // 走行中・直後は満タン420付近
     const left = secondsLeft(reset.clock, resetTime);
     expect(left).toBeCloseTo(420, 0);
   });
 
   it("リセット直後から時間が進む（走行している）", () => {
+    // Given
     const started = startedAgg();
     const resetTime = NOW + 30_000;
+    // When
     const reset = evolve(started, { type: "SessionReset", now: resetTime }, resetTime);
-
-    // 60秒走らせると 360 付近
+    // Then（60秒走らせると 360 付近）
     const left = secondsLeft(reset.clock, resetTime + 60_000);
     expect(left).toBeCloseTo(360, 0);
   });

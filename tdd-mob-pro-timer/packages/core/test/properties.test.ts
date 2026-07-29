@@ -41,6 +41,7 @@ const actionArb = fc.constantFrom(
 
 describe("不変条件プロパティテスト", () => {
   it("任意の操作列で rotation.length === driverCounts.length が成立する", () => {
+    // When / Then（各操作の適用後に不変条件を検証する）
     fc.assert(
       fc.property(
         fc.array(actionArb, { minLength: 0, maxLength: 20 }),
@@ -68,6 +69,7 @@ describe("不変条件プロパティテスト", () => {
   });
 
   it("メンバー追加/削除の操作列でも不変条件が成立する", () => {
+    // Given
     const memberOpsArb = fc.oneof(
       fc.constant({ command: "member.add" as const, participantId: "Dave" }),
       fc.constant({ command: "member.add" as const, participantId: "Eve" }),
@@ -75,6 +77,7 @@ describe("不変条件プロパティテスト", () => {
       fc.constant({ command: "member.remove" as const, index: 1 }),
     );
 
+    // When / Then
     fc.assert(
       fc.property(
         fc.array(memberOpsArb, { minLength: 0, maxLength: 10 }),
@@ -99,21 +102,25 @@ describe("不変条件プロパティテスト", () => {
   });
 
   it("メンバー数は常に 1〜MAX_MEMBERS の範囲に収まる（2層モデル: 各自が出入りするので下限は1）", () => {
+    // Given
+    const opsArb = fc.array(
+      fc.oneof(
+        fc.string({ minLength: 1, maxLength: 5 }).map((name) => ({
+          command: "member.add" as const,
+          participantId: `X${name}`, // 重複を避けるためにプレフィックスを付ける
+        })),
+        fc.integer({ min: 0, max: 9 }).map((index) => ({
+          command: "member.remove" as const,
+          index,
+        })),
+      ),
+      { minLength: 0, maxLength: 15 },
+    );
+
+    // When / Then（メンバー数の範囲検証。最後の1人は外れられない＝下限1）
     fc.assert(
       fc.property(
-        fc.array(
-          fc.oneof(
-            fc.string({ minLength: 1, maxLength: 5 }).map((name) => ({
-              command: "member.add" as const,
-              participantId: `X${name}`, // 重複を避けるためにプレフィックスを付ける
-            })),
-            fc.integer({ min: 0, max: 9 }).map((index) => ({
-              command: "member.remove" as const,
-              index,
-            })),
-          ),
-          { minLength: 0, maxLength: 15 },
-        ),
+        opsArb,
         fc.integer({ min: 1000000, max: 2000000 }),
         (ops, startTime) => {
           let agg = anAggregate().build();
@@ -126,7 +133,6 @@ describe("不変条件プロパティテスト", () => {
                 agg = evolve(agg, event, now);
               }
             }
-            // メンバー数の範囲検証（最後の1人は外れられない＝下限1）
             expect(agg.session.rotation.length).toBeGreaterThanOrEqual(1);
             expect(agg.session.rotation.length).toBeLessThanOrEqual(MAX_MEMBERS);
           }
@@ -137,10 +143,12 @@ describe("不変条件プロパティテスト", () => {
   });
 });
 
-// ─── T024: v2 不変条件 ─────────────────────────────────────────────────────────
-
-describe("v2 不変条件プロパティテスト（T024）", () => {
+/**
+ * @requirements T024
+ */
+describe("v2 不変条件プロパティテスト", () => {
   it("SessionAborted は常に成功し、集約状態に影響を与えない", () => {
+    // When / Then
     fc.assert(
       fc.property(
         fc.integer({ min: 1000000, max: 2000000 }),
@@ -149,8 +157,9 @@ describe("v2 不変条件プロパティテスト（T024）", () => {
           const result = decide({ command: "session.abort" }, agg, now);
           expect(result.isOk()).toBe(true);
           if (result.isOk()) {
-            // abort イベントを evolve に渡しても集約が変わらない
-            const newAgg = evolve(agg, result.value[0]!, now);
+            // abort イベントを意図で取り出す（配列に1件のみ含まれる）
+            const abortedEvent = result.value.find((e) => e.type === "SessionAborted")!;
+            const newAgg = evolve(agg, abortedEvent, now);
             expect(newAgg.session).toEqual(agg.session);
             expect(newAgg.clock).toEqual(agg.clock);
           }
@@ -161,15 +170,19 @@ describe("v2 不変条件プロパティテスト（T024）", () => {
   });
 
   it("driver.skip/resume の操作列でも rotation の不変条件が成立する", () => {
+    // Given
+    const opsArb = fc.array(
+      fc.oneof(
+        fc.constant({ command: "driver.skip" as const, participantId: "p1" }),
+        fc.constant({ command: "driver.resume" as const, participantId: "p1" }),
+      ),
+      { minLength: 0, maxLength: 10 },
+    );
+
+    // When / Then
     fc.assert(
       fc.property(
-        fc.array(
-          fc.oneof(
-            fc.constant({ command: "driver.skip" as const, participantId: "p1" }),
-            fc.constant({ command: "driver.resume" as const, participantId: "p1" }),
-          ),
-          { minLength: 0, maxLength: 10 },
-        ),
+        opsArb,
         fc.integer({ min: 1000000, max: 2000000 }),
         (ops, now) => {
           let agg = anAggregate().build();

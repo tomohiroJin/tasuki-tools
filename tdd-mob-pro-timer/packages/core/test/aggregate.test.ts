@@ -11,36 +11,46 @@ import { anAggregate } from "./support/aggregate-builder.js";
 
 describe("nextEligibleIndex", () => {
   it("全員 eligible のときは (currentIndex + 1) % length を返す", () => {
+    // Given
     const agg = anAggregate().build();
-    // currentIndex=0 → 1
+    // When / Then（currentIndex=0→1→2→0 と一周する）
     expect(nextEligibleIndex(agg.session, 0, undefined)).toBe(1);
     expect(nextEligibleIndex(agg.session, 1, undefined)).toBe(2);
     expect(nextEligibleIndex(agg.session, 2, undefined)).toBe(0);
   });
 
   it("次のメンバーが ineligible の場合はスキップしてその次を返す", () => {
+    // Given（Bob(index=1) を ineligible に設定）
     const agg = anAggregate().build();
-    // Bob (index=1) を ineligible に設定
     const ineligible = new Set([1]);
-    // currentIndex=0 → Bob(1) をスキップ → Charlie(2)
-    expect(nextEligibleIndex(agg.session, 0, ineligible)).toBe(2);
+    // When
+    const next = nextEligibleIndex(agg.session, 0, ineligible);
+    // Then（currentIndex=0 → Bob(1) をスキップ → Charlie(2)）
+    expect(next).toBe(2);
   });
 
   it("複数メンバーが ineligible の場合も正しくスキップする", () => {
+    // Given（Bob(1) と Charlie(2) が ineligible）
     const agg = anAggregate().build();
-    // Bob(1) と Charlie(2) が ineligible
     const ineligible = new Set([1, 2]);
-    // currentIndex=0 → 1スキップ → 2スキップ → 0（自分）へ戻る
-    expect(nextEligibleIndex(agg.session, 0, ineligible)).toBe(0);
+    // When
+    const next = nextEligibleIndex(agg.session, 0, ineligible);
+    // Then（currentIndex=0 → 1スキップ → 2スキップ → 0（自分）へ戻る）
+    expect(next).toBe(0);
   });
 
   it("全員 ineligible の場合は currentIndex のまま返す（現状維持）", () => {
+    // Given
     const agg = anAggregate().build();
     const ineligible = new Set([0, 1, 2]);
-    expect(nextEligibleIndex(agg.session, 1, ineligible)).toBe(1);
+    // When
+    const next = nextEligibleIndex(agg.session, 1, ineligible);
+    // Then
+    expect(next).toBe(1);
   });
 
   it("空 rotation の場合は 0 を返す（安全）", () => {
+    // Given
     const agg = {
       ...anAggregate().build(),
       session: {
@@ -50,7 +60,10 @@ describe("nextEligibleIndex", () => {
         currentIndex: 0,
       },
     };
-    expect(nextEligibleIndex(agg.session, 0, undefined)).toBe(0);
+    // When
+    const next = nextEligibleIndex(agg.session, 0, undefined);
+    // Then
+    expect(next).toBe(0);
   });
 });
 
@@ -58,8 +71,7 @@ describe("nextEligibleIndex", () => {
 
 describe("Participant 型の v2 フィールド", () => {
   it("isPlaceholder フィールドが省略可能であること（型チェックのみ）", () => {
-    // 型レベルの確認。実行時は nothing を assert する
-    // v1 互換: 既存の Participant は isPlaceholder なしでも型エラーにならない
+    // Given（v1 互換: 既存の Participant は isPlaceholder なしでも型エラーにならない）
     const participant: import("../src/aggregate.js").Participant = {
       participantId: "p1",
       connId: null,
@@ -69,12 +81,13 @@ describe("Participant 型の v2 フィールド", () => {
       hasAiKey: false,
       joinedAt: 1000,
     };
+    // Then（型レベルの確認。isPlaceholder は省略 → undefined 扱いで false 相当）
     expect(participant.participantId).toBe("p1");
-    // isPlaceholder は省略 → undefined 扱いで false 相当
     expect(participant.isPlaceholder).toBeUndefined();
   });
 
   it("driverEligible フィールドが省略可能であること（型チェックのみ）", () => {
+    // Given
     const participant: import("../src/aggregate.js").Participant = {
       participantId: "p2",
       connId: "conn1",
@@ -84,6 +97,7 @@ describe("Participant 型の v2 フィールド", () => {
       hasAiKey: false,
       joinedAt: 1000,
     };
+    // Then
     expect(participant.driverEligible).toBeUndefined();
   });
 });
@@ -92,6 +106,7 @@ describe("Participant 型の v2 フィールド", () => {
 
 describe("Problem 型の v2 フィールド", () => {
   it("source フィールドが省略可能であること（型チェックのみ）", () => {
+    // Given
     const problem: import("../src/aggregate.js").Problem = {
       title: "FizzBuzz",
       description: "...",
@@ -99,6 +114,7 @@ describe("Problem 型の v2 フィールド", () => {
       exampleTest: "assert fizzbuzz(3) == 'Fizz'",
       hints: ["剰余を使う"],
     };
+    // Then
     expect(problem.source).toBeUndefined();
     expect(problem.edited).toBeUndefined();
   });
@@ -108,10 +124,11 @@ describe("Problem 型の v2 フィールド", () => {
 
 describe("Room 型の v2 フィールド", () => {
   it("problemMode フィールドが省略可能であること（型チェックのみ）", () => {
-    // Room は aggregate.ts ではなく実際の handlers.ts 側で構築されるため
-    // ここでは型が通ることだけを確認する
+    // Given（Room は aggregate.ts ではなく実際の handlers.ts 側で構築されるため、
+    // ここでは型が通ることだけを確認する）
     type ProblemMode = import("../src/aggregate.js").ProblemMode;
     const mode: ProblemMode = "ai";
+    // Then
     expect(["ai", "fallback"]).toContain(mode);
   });
 });

@@ -265,14 +265,14 @@
 
 ### G3-a 実績の測定（最初のバッチで見積もりを検証する）
 
-- [ ] **T031** **最初のバッチ（T032）に着手する前に開始時刻を記録し、完了後に実績を出す。**
+- [x] **T031** **最初のバッチ（T032）に着手する前に開始時刻を記録し、完了後に実績を出す。**
   1 ファイルあたりの所要が `plan.md` の前提（重い 25〜40 分 / 軽い 8〜15 分）と
   **1.5 倍以上乖離していたら、この時点で見積もりを引き直す**（撤退基準 1）。
   _要件: FR-116_
 
 ### G3-b `packages/core/test`（24 ファイル・重い 10）
 
-- [ ] **T032** バッチ「集約と時計」（8 ファイル）: `aggregate` / `clock` / `evolve` /
+- [x] **T032** バッチ「集約と時計」（8 ファイル）: `aggregate` / `clock` / `evolve` /
   `pause-freeze` / `break-freeze` / `driver-timer-restart` / `reset-restart` / `properties`。
   ⚠ `timer-restart` は **core に存在しない**（`apps/sync/test/timer-restart.test.ts`・T039 が扱う）。
   _要件: FR-091〜FR-096, FR-123, US2_

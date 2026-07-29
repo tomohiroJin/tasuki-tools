@@ -17,3 +17,4 @@ Michael Nygard 形式（背景 / 決定 / 影響 / ステータス）に従い�
 | [0006](./0006-result-and-boundary-validation.md) | Result 型のエラー処理と Valibot 境界検証 | Accepted |
 | [0007](./0007-volatile-in-memory-state.md) | 揮発インメモリ状態と再起動安全 | Accepted |
 | [0008](./0008-server-resident-ai-generation.md) | AI お題生成はサーバー常駐 `claude -p` + 合言葉解錠 | Accepted（0005 を置換） |
+| [0009](./0009-test-conventions.md) | テストの書き方の規約（G3: 名前・構造・関心の一括是正） | Accepted（移行進行中） |
