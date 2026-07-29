@@ -1,6 +1,6 @@
 /**
  * カバレッジ補強テスト（実ロジックの未検証パスを埋める）
- * evolve の config.set 再構築 / member.move / reset、records の周回数、i18n キー整合。
+ * evolve の config.set 再構築 / member.move / reset、records の周回数。
  */
 
 import { describe, it, expect } from "vitest";
@@ -9,8 +9,6 @@ import { decide } from "../src/decide.js";
 import { initialAggregate } from "../src/aggregate.js";
 import { buildCompletionRecord } from "../src/records.js";
 import { pickFallback, validateProblem } from "../src/problem.js";
-import { ja } from "../src/i18n/ja.js";
-import { en } from "../src/i18n/en.js";
 import type { Aggregate, Problem, SessionConfig } from "../src/aggregate.js";
 
 const baseConfig: SessionConfig = {
@@ -191,18 +189,5 @@ describe("problem: pickFallback と validateProblem", () => {
   it("正しい構造は validateProblem を通る", () => {
     const ok = validateProblem({ title: "T", description: "d", requirements: ["r"], exampleTest: "t", hints: [] });
     expect(ok.isOk()).toBe(true);
-  });
-});
-
-describe("i18n: ja と en のキー構造が一致する", () => {
-  const paths = (obj: unknown, prefix = ""): string[] => {
-    if (typeof obj !== "object" || obj === null) return [prefix];
-    return Object.entries(obj as Record<string, unknown>).flatMap(([k, v]) =>
-      paths(v, prefix ? `${prefix}.${k}` : k),
-    );
-  };
-
-  it("全キーパスが等しい", () => {
-    expect(new Set(paths(en))).toEqual(new Set(paths(ja)));
   });
 });

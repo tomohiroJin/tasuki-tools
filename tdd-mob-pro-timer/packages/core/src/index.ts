@@ -18,9 +18,6 @@ export * from "./schemas.js";
 export * from "./problem.js";
 // 記録
 export * from "./records.js";
-// i18n
-export { ja } from "./i18n/ja.js";
-export { en } from "./i18n/en.js";
 // 権限判定・不変条件（Issue #22）
 export * from "./permissions.js";
 export * from "./participants.js";
