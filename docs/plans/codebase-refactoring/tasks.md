@@ -644,13 +644,13 @@
 
 ## G7 — 唯一の挙動変更（到達不能分岐の撤去）
 
-- [ ] **T080** `apps/sync/src/application/handlers.ts:97` の `!room.onBreak`（到達不能な条件）を撤去する。
+- [x] **T080** `apps/sync/src/application/handlers.ts:97` の `!room.onBreak`（到達不能な条件）を撤去する。
   **`break.start` / `break.end` の wire スキーマは残す**（FR-089・後方互換）。
   **`Room.onBreak` フィールドも残す**（snapshot の形を変えない）。
   **このタスクは単独のコミットにする**（FR-115）。
   _要件: FR-119, FR-115, FR-089, US1_
 
-- [ ] **T081** `pnpm test && typecheck && lint && build` 全緑。
+- [x] **T081** `pnpm test && typecheck && lint && build` 全緑。
   **実機確認（RC-003）**: セッションの開始・交代・一時停止・再開・完成が変わっていないことを目視する。
   **この段階は挙動を変えうるため、確認した画面と操作をコミットに必ず列挙する。**
   _要件: FR-115, RC-003_
