@@ -40,34 +40,28 @@ describe("evolve: DriverSwitched", () => {
   };
 
   it("交代でインデックスが進む", () => {
+    // Given
+    const event = { type: "DriverSwitched", nextIndex: 1, now: NOW + 10000 } as const;
     // When
-    const agg = evolve(
-      runningAgg,
-      { type: "DriverSwitched", nextIndex: 1, now: NOW + 10000 },
-      NOW + 10000,
-    );
+    const agg = evolve(runningAgg, event, NOW + 10000);
     // Then
     expect(agg.session.currentIndex).toBe(1);
   });
 
   it("交代で現ドライバーの driverCounts が加算される", () => {
+    // Given
+    const event = { type: "DriverSwitched", nextIndex: 1, now: NOW + 10000 } as const;
     // When
-    const agg = evolve(
-      runningAgg,
-      { type: "DriverSwitched", nextIndex: 1, now: NOW + 10000 },
-      NOW + 10000,
-    );
+    const agg = evolve(runningAgg, event, NOW + 10000);
     // Then
     expect(agg.session.driverCounts[0]).toBe(1);
   });
 
   it("交代で totalSwitches が増加する", () => {
+    // Given
+    const event = { type: "DriverSwitched", nextIndex: 1, now: NOW + 10000 } as const;
     // When
-    const agg = evolve(
-      runningAgg,
-      { type: "DriverSwitched", nextIndex: 1, now: NOW + 10000 },
-      NOW + 10000,
-    );
+    const agg = evolve(runningAgg, event, NOW + 10000);
     // Then
     expect(agg.session.totalSwitches).toBe(1);
   });
@@ -160,29 +154,22 @@ describe("evolve: SessionPaused / SessionResumed", () => {
  */
 describe("evolve: 不変条件", () => {
   it("rotation.length === driverCounts.length が常に成立する", () => {
-    // When（メンバー追加 → 削除の順で操作する）
-    const agg1 = evolve(
-      baseAgg,
-      { type: "MemberAdded", participantId: "Dave", now: NOW },
-      NOW,
-    );
-    const agg2 = evolve(
-      agg1,
-      { type: "MemberRemoved", index: 0, now: NOW },
-      NOW,
-    );
+    // Given（メンバー追加 → 削除の順で操作する）
+    const addEvent = { type: "MemberAdded", participantId: "Dave", now: NOW } as const;
+    const removeEvent = { type: "MemberRemoved", index: 0, now: NOW } as const;
+    // When
+    const agg1 = evolve(baseAgg, addEvent, NOW);
+    const agg2 = evolve(agg1, removeEvent, NOW);
     // Then（各操作後に不変条件を確認する）
     expect(agg1.session.rotation.length).toBe(agg1.session.driverCounts.length);
     expect(agg2.session.rotation.length).toBe(agg2.session.driverCounts.length);
   });
 
   it("currentIndex は rotation.length 未満に収まる", () => {
+    // Given
+    const event = { type: "DriverSwitched", nextIndex: 0, now: NOW } as const;
     // When
-    const agg = evolve(
-      baseAgg,
-      { type: "DriverSwitched", nextIndex: 0, now: NOW },
-      NOW,
-    );
+    const agg = evolve(baseAgg, event, NOW);
     // Then
     expect(agg.session.currentIndex).toBeLessThan(agg.session.rotation.length);
   });
@@ -202,8 +189,10 @@ describe("advanceDriver: ineligible を飛ばす交代（plan.md L194/L209）", 
   };
 
   it("全員 eligible のときは次のインデックスへ進み交代相当になる", () => {
+    // Given（ineligible の指定なし = 全員 eligible）
+    const ineligible = undefined;
     // When
-    const agg = advanceDriver(runningAgg, undefined, NOW + 10000);
+    const agg = advanceDriver(runningAgg, ineligible, NOW + 10000);
     // Then（交代相当: タイマーが次担当でリセットされる）
     expect(agg.session.currentIndex).toBe(1);
     expect(agg.session.totalSwitches).toBe(1);
@@ -219,8 +208,10 @@ describe("advanceDriver: ineligible を飛ばす交代（plan.md L194/L209）", 
   });
 
   it("全員 ineligible のときは現状維持しつつタイマーのみ再アンカーする（無限ループ防止）", () => {
+    // Given（全員 ineligible）
+    const ineligible = new Set([0, 1, 2]);
     // When
-    const agg = advanceDriver(runningAgg, new Set([0, 1, 2]), NOW + 10000);
+    const agg = advanceDriver(runningAgg, ineligible, NOW + 10000);
     // Then（現ドライバーは維持しつつ、残り0で即再発火する無限ループを防ぐためタイマーは再アンカーされる）
     expect(agg.session.currentIndex).toBe(0);
     expect(agg.session.totalSwitches).toBe(0);
