@@ -19,7 +19,7 @@
 | グループ | 満たすストーリー | マージ時点での変化 |
 |---|---|---|
 | G0 | なし（基盤） | 計測手段が増えるだけ。挙動不変 |
-| G1 | US1 | 約 1,400 行減る。挙動不変 |
+| G1 | US1 | 約 1,400 行 + 未配線 UI 一式（8 ファイル）減る。挙動不変 |
 | G2 | US2（機械的） | テストの重複が消える。**製品コード不変** |
 | G3 | US2（判断） | テストが仕様書として読める。**製品コード不変** |
 | G4 | US5 | 構造が責務を表す。挙動不変 |
@@ -48,19 +48,19 @@
 > 以前あった「G0 のみデプロイ前に着手可・G1 以降はデプロイ後」という待ちの条件は、
 > デプロイ完了により解消した。
 
-- [ ] **T001** `scripts/audit-structure.mjs` を新規作成し、**spec の「操作的定義（何を数えるか）」表の
+- [x] **T001** `scripts/audit-structure.mjs` を新規作成し、**spec の「操作的定義（何を数えるか）」表の
   各行に 1 対 1 対応する関数**を置く（`sc027UnreachableModules` / `sc028DuplicateTestDoubles` /
   `sc029SpecIdsInNames` / `sc030CallNamesInNames` / `sc031GuardExpects` / `sc032GwtMarkers` /
   `sc035MessageDefinitions` / `sc036TestCount` / `sc039UnreachableElements`）。各関数は件数を返すだけにする。
   **Node で書く**（SC-027 の import グラフ探索と SC-032 の本体行数判定は grep では書けない）。
   _要件: FR-098, SC-027〜SC-036_
 
-- [ ] **T002** `scripts/audit-structure.test.mjs` を新規作成し、**既知の入力に対する期待値を固定する
+- [x] **T002** `scripts/audit-structure.test.mjs` を新規作成し、**既知の入力に対する期待値を固定する
   失敗するテスト**を書く。最低限、SC-031 について「そのテスト内により後ろの `expect` があるものだけを数え、
   最後の `expect` は数えない」ことを検証する（**この判定を誤って当初 95→実際 84 という過大計上をした**）。
   _要件: FR-098_
 
-- [ ] **T003** T001 を実行し、**現状値が spec の記載と一致することを確認する**。
+- [x] **T003** T001 を実行し、**現状値が spec の記載と一致することを確認する**。
   一致しない項目があれば、**spec の表と実装のどちらが正しいかを判断し、ズレを解消する**
   （spec の表が正本。実装を直すのが原則だが、表の定義が曖昧なら表を直す）。
   結果を `docs/plans/codebase-refactoring/baseline.md` に記録する。
@@ -138,13 +138,27 @@
   閾値を割った場合は**閾値を下げるのではなく、割った原因を確認する**。
   _要件: FR-119, FR-088, FR-116, US1_
 
+- [ ] **T009b** **削除とその参照除去を 1 コミットで行う（未配線 UI 一式）。**
+  G0 の走査（T003）で spec の想定外に見つかった 8 ファイルを撤去する:
+  `apps/web/src/ui/Celebration.tsx` ・ `apps/web/src/ui/components/Button.tsx` ・
+  `apps/web/src/ui/components/ThemeToggle.tsx` ・ `apps/web/src/ui/theme.ts` ・
+  `apps/web/src/ui/stage-theme.ts` ・ `apps/web/src/ui/stage-transitions.ts` ・
+  `apps/web/src/platform/wake-lock.ts` ・ `apps/web/src/records/io.ts`。
+  **対応するテストも同じコミットで撤去する**（FR-088）。
+  ⚠ `Celebration.tsx` は `records/io.ts` と `components/Button.tsx` を、
+  `ThemeToggle.tsx` は `theme.ts` を引き連れている。**頂点だけ消すと残りが宙に浮く。**
+  ⚠ 撤去後に `apps/web/test/ui/a11y.test.tsx` など、削除対象を参照しているテストが
+  残っていないことを確認する（T010 と同じ失敗の型）。
+  _要件: FR-087, FR-088, FR-116, US1_
+
 - [ ] **T013 [P]** 空ディレクトリ `apps/sync/adapters/` ・ `apps/sync/application/` ・
   `apps/sync/domain/` ・ `apps/sync/ports/` を削除する（git 未追跡・過去の cwd 誤りの産物）。
   _要件: FR-111, US5_
 
 - [ ] **T014** `pnpm test && pnpm typecheck && pnpm lint && pnpm build` を実行し全緑を確認する。
   **`packages/core` のカバレッジ閾値（90%）を割っていないことを確認する**。
-  T001 を実行し **SC-027 が 0 件になったこと**を確認する。
+  T001 を実行し **SC-027 が 0 件になったこと**を確認する
+  （対象は当初の 6 ファイルに T009b の 8 ファイルを加えた **計 14 ファイル**）。
   **実機確認（RC-003）**: `vite` を再起動し、ロビー・セッション・お題の各画面が
   撤去前と同じであることを目視する（削除した BYOK 導線は元々画面に無い）。
   _要件: FR-114, SC-027, RC-003_
