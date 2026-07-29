@@ -1,6 +1,5 @@
 /**
  * ProblemDelegator サーバサイド AI 生成テスト
- * T056: FR-023, FR-024, Task 7
  *
  * serverProvider（サーバ生成）の合流動作を検証する。
  * - 成功: source:"ai" で確定 + snapshot 配信
@@ -78,6 +77,9 @@ function makeRoom(overrides?: Partial<Room>): Room {
   };
 }
 
+/**
+ * @requirements FR-023, FR-024
+ */
 describe("ProblemDelegator サーバ生成", () => {
   let store: InMemoryRoomStore;
   let clock: FakeClock;
@@ -95,7 +97,7 @@ describe("ProblemDelegator サーバ生成", () => {
   });
 
   it("生成成功で source:'ai' のお題が確定し snapshot 配信される", async () => {
-    // Arrange
+    // Given
     const provider: ServerProblemProvider = {
       generate: vi.fn().mockResolvedValue(VALID_PROBLEM),
     };
@@ -114,11 +116,11 @@ describe("ProblemDelegator サーバ生成", () => {
     });
     store.put(makeRoom());
 
-    // Act
+    // When
     delegator.request("AI01", "req-1");
     await vi.runAllTimersAsync();
 
-    // Assert
+    // Then
     const room = store.get("AI01");
     expect(room?.problem?.title).toBe("Generated Kata");
     expect(room?.problem?.source).toBe("ai");
@@ -126,7 +128,7 @@ describe("ProblemDelegator サーバ生成", () => {
   });
 
   it("生成 reject は定型バンクへ縮退する", async () => {
-    // Arrange
+    // Given
     const provider: ServerProblemProvider = {
       generate: vi.fn().mockRejectedValue(new Error("API エラー")),
     };
@@ -145,18 +147,18 @@ describe("ProblemDelegator サーバ生成", () => {
     });
     store.put(makeRoom());
 
-    // Act
+    // When
     delegator.request("AI01", "req-1");
     await vi.runAllTimersAsync();
 
-    // Assert: お題は非 null かつ AI 生成ではない（定型）
+    // Then: お題は非 null かつ AI 生成ではない（定型）
     const room = store.get("AI01");
     expect(room?.problem).not.toBeNull();
     expect(room?.problem?.source).not.toBe("ai");
   });
 
   it("検証失敗（不正 JSON 構造）も定型へ縮退する", async () => {
-    // Arrange
+    // Given
     const provider: ServerProblemProvider = {
       generate: vi.fn().mockResolvedValue({ totally: "wrong shape" }),
     };
@@ -175,18 +177,18 @@ describe("ProblemDelegator サーバ生成", () => {
     });
     store.put(makeRoom());
 
-    // Act
+    // When
     delegator.request("AI01", "req-1");
     await vi.runAllTimersAsync();
 
-    // Assert: 定型へ縮退（source は ai でない）
+    // Then: 定型へ縮退（source は ai でない）
     const room = store.get("AI01");
     expect(room?.problem).not.toBeNull();
     expect(room?.problem?.source).not.toBe("ai");
   });
 
   it("タイムアウトで abort され定型へ縮退する", async () => {
-    // Arrange: generate は signal abort で reject する。
+    // Given: generate は signal abort で reject する。
     // 縮退後にクライアント委譲が走らないよう hasAiKey=false のルームにする
     const provider: ServerProblemProvider = {
       generate: vi.fn().mockImplementation(
@@ -225,18 +227,18 @@ describe("ProblemDelegator サーバ生成", () => {
       }],
     }));
 
-    // Act: タイムアウトが発火するまで時間を進める
+    // When: タイムアウトが発火するまで時間を進める
     delegator.request("AI01", "req-1");
     await vi.advanceTimersByTimeAsync(60_001);
 
-    // Assert: 定型へ縮退
+    // Then: 定型へ縮退
     const room = store.get("AI01");
     expect(room?.problem).not.toBeNull();
     expect(room?.problem?.source).not.toBe("ai");
   });
 
   it("リロール（新 request）で旧生成は破棄される（stale 防御）", async () => {
-    // Arrange: 1回目は pending にし、2回目の結果のみ反映される
+    // Given: 1回目は pending にし、2回目の結果のみ反映される
     let resolveFirst!: (v: unknown) => void;
     const firstGeneration = new Promise<unknown>((resolve) => {
       resolveFirst = resolve;
@@ -267,7 +269,7 @@ describe("ProblemDelegator サーバ生成", () => {
     });
     store.put(makeRoom());
 
-    // Act: 1回目 request → リロール（2回目 request）→ 旧 Promise を resolve
+    // When: 1回目 request → リロール（2回目 request）→ 旧 Promise を resolve
     delegator.request("AI01", "req-1");
     delegator.request("AI01", "req-2");
 
@@ -278,14 +280,14 @@ describe("ProblemDelegator サーバ生成", () => {
     resolveFirst(VALID_PROBLEM);
     await vi.runAllTimersAsync();
 
-    // Assert: 2回目の結果（Second Kata）が確定、1回目（Generated Kata）は無視
+    // Then: 2回目の結果（Second Kata）が確定、1回目（Generated Kata）は無視
     const room = store.get("AI01");
     expect(room?.problem?.title).toBe("Second Kata");
     expect(room?.problem?.source).toBe("ai");
   });
 
   it("aiUnlocked=false のルームでは provider を呼ばず定型確定", async () => {
-    // Arrange
+    // Given
     const provider: ServerProblemProvider = {
       generate: vi.fn(),
     };
@@ -305,18 +307,18 @@ describe("ProblemDelegator サーバ生成", () => {
     // aiUnlocked=false のルームを登録
     store.put(makeRoom({ aiUnlocked: false }));
 
-    // Act
+    // When
     delegator.request("AI01", "req-1");
     await vi.runAllTimersAsync();
 
-    // Assert: provider は呼ばれず、定型で確定
+    // Then: provider は呼ばれず、定型で確定
     expect(provider.generate).not.toHaveBeenCalled();
     const room = store.get("AI01");
     expect(room?.problem).not.toBeNull();
   });
 
   it("maxConcurrent=1（本番既定）でもリロールで詰まらない（cancel が同期 release する）", async () => {
-    // Arrange: 1回目は pending のまま。2回目が呼ばれ成功する
+    // Given: 1回目は pending のまま。2回目が呼ばれ成功する
     let resolveFirst!: (v: unknown) => void;
     const firstGeneration = new Promise<unknown>((resolve) => {
       resolveFirst = resolve;
@@ -343,7 +345,7 @@ describe("ProblemDelegator サーバ生成", () => {
     });
     store.put(makeRoom());
 
-    // Act: 1 回目 request（pending）→ リロール（cancel→ 2 回目 request）
+    // When: 1 回目 request（pending）→ リロール（cancel→ 2 回目 request）
     delegator.request("AI01", "req-1");
     delegator.request("AI01", "req-2");
 
@@ -354,14 +356,14 @@ describe("ProblemDelegator サーバ生成", () => {
     resolveFirst(VALID_PROBLEM);
     await vi.runAllTimersAsync();
 
-    // Assert: 2 回目の結果（Rerolled Kata）が確定
+    // Then: 2 回目の結果（Rerolled Kata）が確定
     const room = store.get("AI01");
     expect(room?.problem?.title).toBe("Rerolled Kata");
     expect(room?.problem?.source).toBe("ai");
   });
 
   it("limiter が拒否したら provider を呼ばず定型確定", async () => {
-    // Arrange: dailyLimit: 0 でどんな取得も拒否される
+    // Given: dailyLimit: 0 でどんな取得も拒否される
     const provider: ServerProblemProvider = {
       generate: vi.fn(),
     };
@@ -380,11 +382,11 @@ describe("ProblemDelegator サーバ生成", () => {
     });
     store.put(makeRoom());
 
-    // Act
+    // When
     delegator.request("AI01", "req-1");
     await vi.runAllTimersAsync();
 
-    // Assert: provider は呼ばれず、定型で確定
+    // Then: provider は呼ばれず、定型で確定
     expect(provider.generate).not.toHaveBeenCalled();
     const room = store.get("AI01");
     expect(room?.problem).not.toBeNull();

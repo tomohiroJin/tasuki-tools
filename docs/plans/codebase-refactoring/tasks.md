@@ -316,7 +316,7 @@
   `participant-remove` / `self-role-change` / `host-transfer` / `handoff-host` / `started-monotonic`。
   _要件: FR-091〜FR-096, FR-123, US2_
 
-- [ ] **T041** バッチ「お題と AI」: `handlers.problem` / `problem-delegation` / `problem-delegation.ai` /
+- [x] **T041** バッチ「お題と AI」: `handlers.problem` / `problem-delegation` / `problem-delegation.ai` /
   `handlers.ai-unlock` / `ai-limits` / `claude-cli-problem-provider` / `config-ai`。
   _要件: FR-091〜FR-096, FR-123, US2_
 

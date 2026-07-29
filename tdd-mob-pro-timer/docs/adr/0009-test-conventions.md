@@ -179,3 +179,22 @@ describe("<対象の名詞>", () => {
   検出元であるため、検証内容自体は一切変更していない）。`host-transfer.test.ts` の describe 名に
   含まれていた `R2-3`（SC-029 の `R\d-\d` パターンに合致）を JSDoc `@requirements` へ移した。
   T0xx・FR-0xx・G\d を describe 名から JSDoc `@requirements` へ移した。検証内容・分割は変更していない。
+
+### `apps/sync/test`（T041: バッチ「お題と AI」）
+
+- `handlers.problem.test.ts`
+- `problem-delegation.test.ts`
+- `problem-delegation.ai.test.ts`
+- `handlers.ai-unlock.test.ts`
+- `ai-limits.test.ts`
+- `claude-cli-problem-provider.test.ts`
+- `config-ai.test.ts`（既に規約を満たしており無変更・FR-123）
+
+  `problem-delegation.ai.test.ts` は既に `// Arrange` `// Act` `// Assert` で前提・操作・検証を
+  区切っていたため、ADR-0009 の表記（`// Given` `// When` `// Then`）へラベルだけを合わせた
+  （区切りの位置・検証内容は変えていない）。`handlers.ai-unlock.test.ts` のローカル
+  `getLatestSnapshot()`（`.snapshots.at(-1)?.room` の再実装）を `SpyBroadcaster.latestSnapshot()`
+  に置き換え、未使用になった `Room` 型 import を削除した。`ai-limits.test.ts` は
+  1 テストが複数の振る舞い（例:「初回は取得でき、release 前の別ルームの取得は concurrent で拒否」）
+  を検証していたため、前提を共有したまま複数テストに分割した（FR-095。6 件から分割後 9 件へ
+  増加。検証内容は変えていない）。T0xx・FR-0xx を describe/it 名から JSDoc `@requirements` へ移した。

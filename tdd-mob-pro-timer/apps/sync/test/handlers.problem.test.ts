@@ -1,6 +1,5 @@
 /**
  * problem.request / problem.submit ハンドラ統合テスト
- * T055: FR-025, FR-027 (US3)
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -27,6 +26,9 @@ const validProblem: Problem = {
   hints: [],
 };
 
+/**
+ * @requirements FR-025, FR-027, US3
+ */
 describe("handlers: problem.request / problem.submit", () => {
   let store: InMemoryRoomStore;
   let clock: FakeClock;
@@ -69,19 +71,22 @@ describe("handlers: problem.request / problem.submit", () => {
     vi.useRealTimers();
   });
 
-  it("editor+ の problem.request で先頭候補へ need-problem が送られる（FR-025）", async () => {
+  it("editor+ の problem.request で先頭候補へ need-problem が送られる", async () => {
+    // When
     await handlers.handleCommand("host-conn", {
       command: "problem.request",
       requestId: "req-1",
     });
 
+    // Then
     const needProblem = broadcaster.sent.find(
       (s) => s.msg.type === "signal" && s.msg.signal === "need-problem",
     );
     expect(needProblem?.connId).toBe("host-conn");
   });
 
-  it("代表の problem.submit で Room.problem が確定する（FR-025）", async () => {
+  it("代表の problem.submit で Room.problem が確定する", async () => {
+    // When
     await handlers.handleCommand("host-conn", {
       command: "problem.request",
       requestId: "req-1",
@@ -93,10 +98,12 @@ describe("handlers: problem.request / problem.submit", () => {
       usedFallback: false,
     });
 
+    // Then
     expect(store.get(code)?.problem?.title).toBe("FizzBuzz");
   });
 
-  it("viewer は problem.request を実行できない（FR-017）", async () => {
+  it("viewer は problem.request を実行できない", async () => {
+    // Given（既定 editor を host が viewer へ降格してから制限を検証する）
     const join = await handlers.handleCommand("viewer-conn", {
       command: "room.join",
       code,
@@ -104,7 +111,6 @@ describe("handlers: problem.request / problem.submit", () => {
       hasAiKey: false,
     });
     expect(join.isOk()).toBe(true);
-    // 既定 editor を host が viewer へ降格してから制限を検証する。
     const carolPid = store.get(code)!.participants.find((p) => p.displayName === "Carol")!.participantId;
     await handlers.handleCommand("host-conn", {
       command: "role.set",
@@ -113,11 +119,13 @@ describe("handlers: problem.request / problem.submit", () => {
     });
     broadcaster.sent.length = 0;
 
+    // When
     await handlers.handleCommand("viewer-conn", {
       command: "problem.request",
       requestId: "req-x",
     });
 
+    // Then
     const error = broadcaster.sent.find((s) => s.msg.type === "error");
     expect(error?.msg.type === "error" && error.msg.code).toBe("UNAUTHORIZED");
   });

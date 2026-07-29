@@ -14,39 +14,78 @@ function makeClock(start: number): Clock & { advance: (ms: number) => void } {
 }
 
 describe("AiLimiter", () => {
-  it("初回は取得でき、release 前の別ルームの取得は concurrent で拒否", () => {
+  it("初回の取得は成功する", () => {
+    // Given
     const clock = makeClock(1_000_000);
     const limiter = new AiLimiter({ clock, dailyLimit: 10 });
+
+    // When
     const a = limiter.tryAcquire("R1");
+
+    // Then
     expect(a.ok).toBe(true);
+  });
+
+  it("release 前は別ルームの取得が concurrent で拒否される", () => {
+    // Given
+    const clock = makeClock(1_000_000);
+    const limiter = new AiLimiter({ clock, dailyLimit: 10 });
+    limiter.tryAcquire("R1");
+
+    // When
     const b = limiter.tryAcquire("R2");
+
+    // Then
     expect(b.ok).toBe(false);
     if (!b.ok) expect(b.reason).toBe("concurrent");
   });
 
-  it("release 後でもクールダウン中は同一ルームを cooldown で拒否、別ルームは取得可", () => {
+  it("release 後でもクールダウン中は同一ルームの再取得が cooldown で拒否される", () => {
+    // Given
     const clock = makeClock(1_000_000);
     const limiter = new AiLimiter({ clock, dailyLimit: 10, cooldownMs: 10_000 });
     const a = limiter.tryAcquire("R1");
-    expect(a.ok).toBe(true);
     if (a.ok) a.release();
+
+    // When
     const again = limiter.tryAcquire("R1");
+
+    // Then
     expect(again.ok).toBe(false);
     if (!again.ok) expect(again.reason).toBe("cooldown");
+  });
+
+  it("クールダウン中でも別ルームは取得できる", () => {
+    // Given
+    const clock = makeClock(1_000_000);
+    const limiter = new AiLimiter({ clock, dailyLimit: 10, cooldownMs: 10_000 });
+    const a = limiter.tryAcquire("R1");
+    if (a.ok) a.release();
+    limiter.tryAcquire("R1");
+
+    // When
     const other = limiter.tryAcquire("R2");
+
+    // Then
     expect(other.ok).toBe(true);
   });
 
   it("クールダウン経過後は同一ルームでも再取得できる", () => {
+    // Given
     const clock = makeClock(1_000_000);
     const limiter = new AiLimiter({ clock, dailyLimit: 10, cooldownMs: 10_000 });
     const a = limiter.tryAcquire("R1");
     if (a.ok) a.release();
+
+    // When
     clock.advance(10_001);
+
+    // Then
     expect(limiter.tryAcquire("R1").ok).toBe(true);
   });
 
-  it("日次上限に達すると daily で拒否し、日付が変わるとリセットされる", () => {
+  it("日次上限に達すると daily で拒否する", () => {
+    // Given
     const clock = makeClock(Date.UTC(2026, 5, 12, 23, 50));
     const limiter = new AiLimiter({ clock, dailyLimit: 2, cooldownMs: 0 });
     for (const room of ["R1", "R2"]) {
@@ -54,29 +93,55 @@ describe("AiLimiter", () => {
       expect(r.ok).toBe(true);
       if (r.ok) r.release();
     }
+
+    // When
     const over = limiter.tryAcquire("R3");
+
+    // Then
     expect(over.ok).toBe(false);
     if (!over.ok) expect(over.reason).toBe("daily");
-    // UTC 日付が変わるとリセット
+  });
+
+  it("日次上限に達しても、UTC 日付が変わると取得できるようになる", () => {
+    // Given
+    const clock = makeClock(Date.UTC(2026, 5, 12, 23, 50));
+    const limiter = new AiLimiter({ clock, dailyLimit: 2, cooldownMs: 0 });
+    for (const room of ["R1", "R2"]) {
+      const r = limiter.tryAcquire(room);
+      if (r.ok) r.release();
+    }
+    limiter.tryAcquire("R3");
+
+    // When（UTC 日付が変わる）
     clock.advance(11 * 60 * 1000);
+
+    // Then
     expect(limiter.tryAcquire("R3").ok).toBe(true);
   });
 
   it("dailyLimit=0 なら常に daily で拒否する（実質無効化）", () => {
+    // Given
     const clock = makeClock(1_000_000);
     const limiter = new AiLimiter({ clock, dailyLimit: 0 });
+
+    // When
     const r = limiter.tryAcquire("R1");
+
+    // Then
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.reason).toBe("daily");
   });
 
   it("todayCount / totalCount が取得成功数を数える", () => {
+    // Given
     const clock = makeClock(1_000_000);
     const limiter = new AiLimiter({ clock, dailyLimit: 10, cooldownMs: 0 });
     const a = limiter.tryAcquire("R1");
     if (a.ok) a.release();
     const b = limiter.tryAcquire("R1");
     if (b.ok) b.release();
+
+    // Then
     expect(limiter.todayCount).toBe(2);
     expect(limiter.totalCount).toBe(2);
   });
