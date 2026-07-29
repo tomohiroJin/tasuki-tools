@@ -437,7 +437,7 @@ export function makeHandlers(deps: HandlerDeps) {
       broadcaster.sendTo(connId, {
         type: "error",
         code: "NOT_IN_ROOM",
-        message: "ルームに参加していません",
+        message: errorMessageFor("NOT_IN_ROOM"),
       });
       return err("NOT_IN_ROOM");
     }
@@ -790,7 +790,7 @@ export function makeHandlers(deps: HandlerDeps) {
       broadcaster.sendTo(connId, {
         type: "error",
         code: "NOT_IN_ROOM",
-        message: "ルームに参加していません",
+        message: errorMessageFor("NOT_IN_ROOM"),
       });
       return err("NOT_IN_ROOM");
     }
@@ -873,7 +873,7 @@ export function makeHandlers(deps: HandlerDeps) {
       broadcaster.sendTo(connId, {
         type: "error",
         code: "NOT_IN_ROOM",
-        message: "ルームに参加していません",
+        message: errorMessageFor("NOT_IN_ROOM"),
       });
       return err("NOT_IN_ROOM");
     }
@@ -928,7 +928,7 @@ export function makeHandlers(deps: HandlerDeps) {
       broadcaster.sendTo(connId, {
         type: "error",
         code: "NOT_IN_ROOM",
-        message: "ルームに参加していません",
+        message: errorMessageFor("NOT_IN_ROOM"),
       });
       return err("NOT_IN_ROOM");
     }
@@ -996,7 +996,7 @@ export function makeHandlers(deps: HandlerDeps) {
       broadcaster.sendTo(connId, {
         type: "error",
         code: "NOT_IN_ROOM",
-        message: "ルームに参加していません",
+        message: errorMessageFor("NOT_IN_ROOM"),
       });
       return err("NOT_IN_ROOM");
     }
@@ -1073,7 +1073,7 @@ export function makeHandlers(deps: HandlerDeps) {
       broadcaster.sendTo(connId, {
         type: "error",
         code: "DELEGATION_UNAVAILABLE",
-        message: "お題生成が利用できません",
+        message: errorMessageFor("DELEGATION_UNAVAILABLE"),
       });
       return err("DELEGATION_UNAVAILABLE");
     }
@@ -1107,7 +1107,7 @@ export function makeHandlers(deps: HandlerDeps) {
       broadcaster.sendTo(connId, {
         type: "error",
         code: "DELEGATION_UNAVAILABLE",
-        message: "お題生成が利用できません",
+        message: errorMessageFor("DELEGATION_UNAVAILABLE"),
       });
       return err("DELEGATION_UNAVAILABLE");
     }
@@ -1153,7 +1153,7 @@ export function makeHandlers(deps: HandlerDeps) {
       broadcaster.sendTo(connId, {
         type: "error",
         code: "NOT_IN_ROOM",
-        message: "ルームに参加していません",
+        message: errorMessageFor("NOT_IN_ROOM"),
       });
       return err("NOT_IN_ROOM");
     }
