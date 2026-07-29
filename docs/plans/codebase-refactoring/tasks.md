@@ -390,7 +390,7 @@
   T009b で撤去済みのため対象外）
   _要件: FR-091〜FR-096, FR-123, US2_
 
-- [ ] **T052** バッチ「表示部品と横断」（9 ファイル）:
+- [x] **T052** バッチ「表示部品と横断」（9 ファイル）:
   `ui/StatusStrip.test.tsx` / **`ui/connection-status.test.tsx`** /
   `ui/Markdown.test.tsx` / `ui/SharedMemo.test.tsx` / `ui/format-time.test.ts` /
   `ui/permission-hints.test.ts` /

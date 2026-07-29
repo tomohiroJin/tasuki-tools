@@ -1,6 +1,5 @@
 /**
  * 開発証跡の分離テスト
- * T068: FR-027 (US11)
  *
  * 本番描画経路に開発・テスト専用表示が混入していないことを確認する。
  */
@@ -24,7 +23,10 @@ function readAllTsFiles(dir: string): string[] {
   return contents;
 }
 
-describe("開発証跡の分離（T068: FR-027）", () => {
+/**
+ * @requirements FR-027, US11
+ */
+describe("開発証跡の分離", () => {
   const sourceFiles = readAllTsFiles(SRC_DIR);
   const combined = sourceFiles.join("\n");
 

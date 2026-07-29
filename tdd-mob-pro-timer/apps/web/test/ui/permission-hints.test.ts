@@ -1,10 +1,10 @@
 /**
- * 拒否理由の表示文言のテスト（host-spof-relaxation G5・T030）
+ * 拒否理由の表示文言のテスト（host-spof-relaxation G5）
  *
  * ボタンを隠すだけでは「なぜ押せないか」が伝わらず、詰みの自己解消につながらない。
  * 「いつ・誰が実行できるか」を1箇所で日本語にする。
  *
- * 要件: FR-069, FR-080
+ * @requirements FR-069, FR-080
  */
 
 import { describe, it, expect } from "vitest";

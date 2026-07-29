@@ -11,7 +11,9 @@ import { Markdown } from "../../src/ui/components/Markdown.js";
 
 describe("Markdown（安全な MD サブセット）", () => {
   it("[表示](https://…) を安全なリンクとして描画する", () => {
+    // When
     render(<Markdown source="[Google](https://google.com)" />);
+    // Then
     const a = screen.getByRole("link", { name: "Google" }) as HTMLAnchorElement;
     expect(a.getAttribute("href")).toBe("https://google.com");
     expect(a.getAttribute("rel")).toContain("noopener");
@@ -19,7 +21,9 @@ describe("Markdown（安全な MD サブセット）", () => {
   });
 
   it("javascript: スキームのリンクは <a> にせずラベルのみ表示する（XSS 防止）", () => {
+    // When
     render(<Markdown source="[クリック](javascript:steal)" />);
+    // Then
     expect(screen.queryByRole("link")).toBeNull();
     expect(screen.getByText("クリック")).toBeTruthy();
   });
@@ -31,9 +35,11 @@ describe("Markdown（安全な MD サブセット）", () => {
   });
 
   it("見出し・箇条書き・太字・インラインコードを描画する", () => {
+    // When
     render(
       <Markdown source={"## 見出し\n\n- **太字** 項目\n- `code` 項目"} />,
     );
+    // Then
     expect(screen.getByText("見出し")).toBeTruthy();
     expect(screen.getByText("太字").tagName).toBe("STRONG");
     expect(screen.getByText("code").tagName).toBe("CODE");
