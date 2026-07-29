@@ -16,6 +16,7 @@ import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { Broadcaster } from "../src/ports/broadcaster.js";
 import type { Room, ServerMsg, Problem } from "@tdd-mob/core";
+import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 
 const validProblem: Problem = {
   title: "FizzBuzz",
@@ -89,21 +90,6 @@ function makeRoom(overrides?: Partial<Room>): Room {
   };
 }
 
-class SpyBroadcaster implements Broadcaster {
-  readonly sent: Array<{ connId: string; msg: ServerMsg }> = [];
-  readonly snapshots: string[] = [];
-  readonly signals: Array<{ roomCode: string; msg: ServerMsg }> = [];
-  broadcastSnapshot(code: string): void {
-    this.snapshots.push(code);
-  }
-  sendTo(connId: string, msg: ServerMsg): void {
-    this.sent.push({ connId, msg });
-  }
-  broadcastSignal(code: string, msg: ServerMsg): void {
-    this.signals.push({ roomCode: code, msg });
-  }
-}
-
 /** need-problem シグナルの送信先 connId を取り出す */
 function needProblemTargets(b: SpyBroadcaster): string[] {
   return b.sent
@@ -155,7 +141,7 @@ describe("ProblemDelegator: 代表生成", () => {
 
     delegator.submit("PD01", "req-1", "host", validProblem, false);
 
-    expect(broadcaster.snapshots).toContain("PD01");
+    expect(broadcaster.snapshots.some((s) => s.roomCode === "PD01")).toBe(true);
   });
 
   it("deadline 超過で次候補（ed1）へ再委譲する（FR-026）", () => {

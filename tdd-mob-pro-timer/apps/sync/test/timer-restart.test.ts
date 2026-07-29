@@ -8,23 +8,11 @@ import { makeHandlers } from "../src/application/handlers.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { Scheduler } from "../src/application/schedule.js";
-import type { RoomCodeGen } from "../src/ports/code-gen.js";
-import type { Broadcaster } from "../src/ports/broadcaster.js";
-import type { ServerMsg, SessionConfig, Room, Problem } from "@tdd-mob/core";
+import type { SessionConfig, Room, Problem } from "@tdd-mob/core";
 import { secondsLeft } from "@tdd-mob/core";
+import { SpyBroadcaster } from "./support/spy-broadcaster.js";
+import { FakeCodeGen } from "./support/fake-code-gen.js";
 
-class FakeCodeGen implements RoomCodeGen {
-  private _c = 0;
-  generate(): string { return `LC${String(++this._c).padStart(2, "0")}`; }
-  generateParticipantId(): string { return `pid-${++this._c}`; }
-  generateResumeToken(): string { return `rt-${++this._c}`; }
-}
-class SpyBroadcaster implements Broadcaster {
-  readonly sent: Array<{ connId: string; msg: ServerMsg }> = [];
-  broadcastSnapshot(): void {}
-  sendTo(connId: string, msg: ServerMsg): void { this.sent.push({ connId, msg }); }
-  broadcastSignal(): void {}
-}
 /** schedule 呼び出しを記録するだけのスケジューラ（実タイマーを張らない）。 */
 class SpyScheduler {
   readonly scheduled: Array<{ code: string; secondsLeft: number }> = [];

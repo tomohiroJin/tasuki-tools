@@ -14,29 +14,15 @@ import { makeHandlers } from "../src/application/handlers.js";
 import { Scheduler } from "../src/application/schedule.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
-import type { RoomCodeGen } from "../src/ports/code-gen.js";
-import type { Broadcaster } from "../src/ports/broadcaster.js";
-import type { ServerMsg, SessionConfig } from "@tdd-mob/core";
-
-class FakeCodeGen implements RoomCodeGen {
-  private _c = 0;
-  generate(): string { return `BRK${String(++this._c).padStart(3, "0")}`; }
-  generateParticipantId(): string { return `pid-${++this._c}`; }
-  generateResumeToken(): string { return `rt-${++this._c}`; }
-}
-
-class SpyBroadcaster implements Broadcaster {
-  readonly signals: ServerMsg[] = [];
-  broadcastSnapshot(): void {}
-  sendTo(): void {}
-  broadcastSignal(_code: string, msg: ServerMsg): void { this.signals.push(msg); }
-}
+import type { SessionConfig } from "@tdd-mob/core";
+import { SpyBroadcaster } from "./support/spy-broadcaster.js";
+import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 const INTERVAL_MS = 5 * 60 * 1000;
 
 function suggestBreakCount(spy: SpyBroadcaster): number {
   return spy.signals.filter(
-    (m) => m.type === "signal" && (m as { signal: string }).signal === "suggest-break",
+    (s) => s.msg.type === "signal" && (s.msg as { signal: string }).signal === "suggest-break",
   ).length;
 }
 

@@ -16,9 +16,9 @@ import { ProblemDelegator } from "../src/application/problem-delegation.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { AiLimiter } from "../src/application/ai-limits.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
-import type { Broadcaster } from "../src/ports/broadcaster.js";
-import type { Room, ServerMsg } from "@tdd-mob/core";
+import type { Room } from "@tdd-mob/core";
 import type { ServerProblemProvider } from "../src/ports/server-problem-provider.js";
+import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 
 /** AI 生成で返す有効なお題のフィクスチャ */
 const VALID_PROBLEM = {
@@ -78,23 +78,6 @@ function makeRoom(overrides?: Partial<Room>): Room {
   };
 }
 
-/** テスト用 Broadcaster（snapshot 配信の記録のみ） */
-class SpyBroadcaster implements Broadcaster {
-  readonly sent: Array<{ connId: string; msg: ServerMsg }> = [];
-  readonly snapshots: string[] = [];
-  readonly signals: Array<{ roomCode: string; msg: ServerMsg }> = [];
-
-  broadcastSnapshot(code: string, _room: Room): void {
-    this.snapshots.push(code);
-  }
-  sendTo(connId: string, msg: ServerMsg): void {
-    this.sent.push({ connId, msg });
-  }
-  broadcastSignal(code: string, msg: ServerMsg): void {
-    this.signals.push({ roomCode: code, msg });
-  }
-}
-
 describe("ProblemDelegator サーバ生成", () => {
   let store: InMemoryRoomStore;
   let clock: FakeClock;
@@ -139,7 +122,7 @@ describe("ProblemDelegator サーバ生成", () => {
     const room = store.get("AI01");
     expect(room?.problem?.title).toBe("Generated Kata");
     expect(room?.problem?.source).toBe("ai");
-    expect(broadcaster.snapshots).toContain("AI01");
+    expect(broadcaster.snapshots.some((s) => s.roomCode === "AI01")).toBe(true);
   });
 
   it("生成 reject は定型バンクへ縮退する", async () => {

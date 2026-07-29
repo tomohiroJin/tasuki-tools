@@ -7,38 +7,8 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { makeHandlers } from "../src/application/handlers.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
-import type { RoomCodeGen } from "../src/ports/code-gen.js";
-import type { Broadcaster } from "../src/ports/broadcaster.js";
-import type { ServerMsg } from "@tdd-mob/core";
-
-class FakeCodeGen implements RoomCodeGen {
-  private _counter = 0;
-  generate(): string {
-    return `SNAP${String(++this._counter).padStart(2, "0")}`;
-  }
-  generateParticipantId(): string {
-    return `pid-${++this._counter}`;
-  }
-  generateResumeToken(): string {
-    return `rt-${++this._counter}`;
-  }
-}
-
-class SpyBroadcaster implements Broadcaster {
-  readonly snapshots: Array<{ roomCode: string }> = [];
-  readonly sent: Array<{ connId: string; msg: ServerMsg }> = [];
-  readonly signals: Array<{ roomCode: string; msg: ServerMsg }> = [];
-
-  broadcastSnapshot(roomCode: string): void {
-    this.snapshots.push({ roomCode });
-  }
-  sendTo(connId: string, msg: ServerMsg): void {
-    this.sent.push({ connId, msg });
-  }
-  broadcastSignal(roomCode: string, msg: ServerMsg): void {
-    this.signals.push({ roomCode, msg });
-  }
-}
+import { SpyBroadcaster } from "./support/spy-broadcaster.js";
+import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 describe("handlers: full snapshot 配信フロー（FR-013, FR-015）", () => {
   let store: InMemoryRoomStore;

@@ -199,7 +199,7 @@
   T019 を緑にする。
   _要件: FR-096, FR-097, US2_
 
-- [ ] **T021** `apps/sync/test/` の 44 ファイルから `SpyBroadcaster` / `FakeCodeGen` のローカル定義を削除し、
+- [x] **T021** `apps/sync/test/` の 44 ファイルから `SpyBroadcaster` / `FakeCodeGen` のローカル定義を削除し、
   `support/` からの import に差し替える。**この段階では名前も構造も変えない**（機械的変更のみ・FR-117）。
   _要件: FR-097, FR-117, SC-028, US2_
 

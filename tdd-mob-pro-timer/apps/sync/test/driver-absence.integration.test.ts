@@ -17,16 +17,9 @@ import {
 } from "../src/application/presence.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
-import type { RoomCodeGen } from "../src/ports/code-gen.js";
 import type { Broadcaster } from "../src/ports/broadcaster.js";
 import type { SessionConfig, Room } from "@tdd-mob/core";
-
-class FakeCodeGen implements RoomCodeGen {
-  private _c = 0;
-  generate(): string { return `LC${String(++this._c).padStart(2, "0")}`; }
-  generateParticipantId(): string { return `pid-${++this._c}`; }
-  generateResumeToken(): string { return `rt-${++this._c}`; }
-}
+import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 class NoopBroadcaster implements Broadcaster {
   broadcastSnapshot(): void {}

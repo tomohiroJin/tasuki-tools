@@ -7,38 +7,8 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { makeHandlers } from "../src/application/handlers.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
-import type { RoomCodeGen } from "../src/ports/code-gen.js";
-import type { Broadcaster } from "../src/ports/broadcaster.js";
-import type { ServerMsg } from "@tdd-mob/core";
-
-class FakeCodeGen implements RoomCodeGen {
-  private _counter = 0;
-  generate(): string {
-    return `TP${String(++this._counter).padStart(2, "0")}`;
-  }
-  generateParticipantId(): string {
-    return `pid-${++this._counter}`;
-  }
-  generateResumeToken(): string {
-    return `rt-${++this._counter}`;
-  }
-}
-
-class SpyBroadcaster implements Broadcaster {
-  readonly snapshots: string[] = [];
-  readonly sent: Array<{ connId: string; msg: ServerMsg }> = [];
-  readonly signals: string[] = [];
-
-  broadcastSnapshot(roomCode: string): void {
-    this.snapshots.push(roomCode);
-  }
-  sendTo(connId: string, msg: ServerMsg): void {
-    this.sent.push({ connId, msg });
-  }
-  broadcastSignal(roomCode: string): void {
-    this.signals.push(roomCode);
-  }
-}
+import { SpyBroadcaster } from "./support/spy-broadcaster.js";
+import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 describe("handlers: time.ping", () => {
   let store: InMemoryRoomStore;

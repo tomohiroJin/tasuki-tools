@@ -7,37 +7,8 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { makeHandlers } from "../src/application/handlers.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
-import type { RoomCodeGen } from "../src/ports/code-gen.js";
-import type { Broadcaster } from "../src/ports/broadcaster.js";
-import type { Room, ServerMsg } from "@tdd-mob/core";
-
-class FakeCodeGen implements RoomCodeGen {
-  private _counter = 0;
-  generate(): string {
-    return `PPROOM${String(++this._counter).padStart(2, "0")}`;
-  }
-  generateParticipantId(): string {
-    return `pid-pp-${++this._counter}`;
-  }
-  generateResumeToken(): string {
-    return `rt-pp-${++this._counter}`;
-  }
-}
-
-class SpyBroadcaster implements Broadcaster {
-  readonly sent: Array<{ connId: string; msg: ServerMsg }> = [];
-  readonly snapshotRooms: Room[] = [];
-  broadcastSnapshot(code: string, room: Room): void {
-    void code;
-    this.snapshotRooms.push(room);
-  }
-  sendTo(connId: string, msg: ServerMsg): void {
-    this.sent.push({ connId, msg });
-  }
-  broadcastSignal(code: string): void {
-    void code;
-  }
-}
+import { SpyBroadcaster } from "./support/spy-broadcaster.js";
+import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 describe("room.passphrase.set（R4-2）", () => {
   let store: InMemoryRoomStore;
@@ -62,7 +33,7 @@ describe("room.passphrase.set（R4-2）", () => {
       displayName: "Host",
     });
     if (result.isOk()) roomCode = result.value.code;
-    broadcaster.snapshotRooms.length = 0;
+    broadcaster.snapshots.length = 0;
     broadcaster.sent.length = 0;
   });
 
@@ -138,7 +109,7 @@ describe("room.join のパスフレーズ検証（R4-2 / Task 3）", () => {
       displayName: "Host",
     });
     if (result.isOk()) roomCode = result.value.code;
-    broadcaster.snapshotRooms.length = 0;
+    broadcaster.snapshots.length = 0;
     broadcaster.sent.length = 0;
   });
 

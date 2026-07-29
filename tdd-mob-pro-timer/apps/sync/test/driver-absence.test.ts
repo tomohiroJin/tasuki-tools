@@ -7,8 +7,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { PresenceManager, DRIVER_ABSENCE_GRACE_MS } from "../src/application/presence.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
-import type { Room, ServerMsg } from "@tdd-mob/core";
-import type { Broadcaster } from "../src/ports/broadcaster.js";
+import type { Room } from "@tdd-mob/core";
+import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 
 /** 稼働中のセッションを持つ room を返す（現ドライバー=Driver）。 */
 function makeRunningRoom(code: string): Room {
@@ -63,15 +63,6 @@ function makeRunningRoom(code: string): Room {
     handoffNote: "",
     onBreak: false,
   };
-}
-
-class SpyBroadcaster implements Broadcaster {
-  readonly sent: Array<{ connId: string; msg: ServerMsg }> = [];
-  readonly snapshots: string[] = [];
-  readonly signals: string[] = [];
-  broadcastSnapshot(code: string): void { this.snapshots.push(code); }
-  sendTo(connId: string, msg: ServerMsg): void { this.sent.push({ connId, msg }); }
-  broadcastSignal(code: string): void { this.signals.push(code); }
 }
 
 describe("PresenceManager: ドライバー不在の自動繰上（v2.2 R2-1）", () => {

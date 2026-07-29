@@ -7,27 +7,12 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { makeHandlers } from "../src/application/handlers.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
-import type { RoomCodeGen } from "../src/ports/code-gen.js";
-import type { Broadcaster } from "../src/ports/broadcaster.js";
-import type { Room, ServerMsg } from "@tdd-mob/core";
-
-class FakeCodeGen implements RoomCodeGen {
-  private _counter = 0;
-  generate(): string { return `V2ROOM${String(++this._counter).padStart(2, "0")}`; }
-  generateParticipantId(): string { return `pid-v2-${++this._counter}`; }
-  generateResumeToken(): string { return `rt-v2-${++this._counter}`; }
-}
-
-class SpyBroadcaster implements Broadcaster {
-  readonly sent: Array<{ connId: string; msg: ServerMsg }> = [];
-  readonly snapshotRooms: Room[] = [];
-  broadcastSnapshot(code: string, room: Room): void { this.snapshotRooms.push(room); }
-  sendTo(connId: string, msg: ServerMsg): void { this.sent.push({ connId, msg }); }
-  broadcastSignal(code: string): void { void code; }
-}
+import type { Room } from "@tdd-mob/core";
+import { SpyBroadcaster } from "./support/spy-broadcaster.js";
+import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 function getLatestSnapshot(spy: SpyBroadcaster): Room | undefined {
-  return spy.snapshotRooms[spy.snapshotRooms.length - 1];
+  return spy.snapshots.at(-1)?.room;
 }
 
 describe("v2 コマンドの結合テスト（T028/T029）", () => {
@@ -52,7 +37,7 @@ describe("v2 コマンドの結合テスト（T028/T029）", () => {
       displayName: "Host",
     });
     if (result.isOk()) roomCode = result.value.code;
-    broadcaster.snapshotRooms.length = 0;
+    broadcaster.snapshots.length = 0;
     broadcaster.sent.length = 0;
   });
 
@@ -161,7 +146,7 @@ describe("v2 コマンドの結合テスト（T028/T029）", () => {
     });
     const room = store.get(roomCode);
     const hostParticipant = room?.participants.find((p) => p.connId === hostConn);
-    broadcaster.snapshotRooms.length = 0;
+    broadcaster.snapshots.length = 0;
 
     // Host を既存の Dave へ改名 → rotation 一意性が壊れるため拒否
     const result = await handlers.handleCommand(hostConn, {
@@ -251,7 +236,7 @@ describe("v2 コマンドの結合テスト（T028/T029）", () => {
     const room = store.get(roomCode);
     const hostParticipant = room?.participants.find((p) => p.connId === hostConn);
     const sameName = hostParticipant!.displayName;
-    broadcaster.snapshotRooms.length = 0;
+    broadcaster.snapshots.length = 0;
 
     const result = await handlers.handleCommand(hostConn, {
       command: "participant.rename",
@@ -292,7 +277,7 @@ describe("v2 コマンドの結合テスト（T028/T029）", () => {
       command: "driver.skip",
       participantId: hostParticipant!.participantId,
     });
-    broadcaster.snapshotRooms.length = 0;
+    broadcaster.snapshots.length = 0;
 
     // resume
     await handlers.handleCommand(hostConn, {
@@ -320,7 +305,7 @@ describe("v2 コマンドの結合テスト（T028/T029）", () => {
         hints: [],
       },
     });
-    broadcaster.snapshotRooms.length = 0;
+    broadcaster.snapshots.length = 0;
 
     await handlers.handleCommand(hostConn, {
       command: "problem.edit",
@@ -349,9 +334,9 @@ describe("v2 コマンドの結合テスト（T028/T029）", () => {
   // ─── snapshot 全員反映の確認 ─────────────────────────────────────────────
 
   it("v2 コマンド実行後に broadcastSnapshot が呼ばれる（FR-041）", async () => {
-    const before = broadcaster.snapshotRooms.length;
+    const before = broadcaster.snapshots.length;
     await handlers.handleCommand(hostConn, { command: "session.abort" });
-    expect(broadcaster.snapshotRooms.length).toBeGreaterThan(before);
+    expect(broadcaster.snapshots.length).toBeGreaterThan(before);
   });
 });
 
@@ -395,7 +380,7 @@ describe("participant.rename の認可（FR-046/048）", () => {
     });
     if (joined.isOk()) viewerPid = joined.value.participantId;
 
-    broadcaster.snapshotRooms.length = 0;
+    broadcaster.snapshots.length = 0;
     broadcaster.sent.length = 0;
   });
 

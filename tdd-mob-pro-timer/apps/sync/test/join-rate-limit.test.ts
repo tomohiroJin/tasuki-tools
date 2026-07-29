@@ -6,15 +6,9 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { makeHandlers } from "../src/application/handlers.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
-import type { RoomCodeGen } from "../src/ports/code-gen.js";
 import type { Broadcaster } from "../src/ports/broadcaster.js";
+import { FakeCodeGen } from "./support/fake-code-gen.js";
 
-class FakeCodeGen implements RoomCodeGen {
-  private _c = 0;
-  generate(): string { return `RM${String(++this._c).padStart(4, "0")}`; }
-  generateParticipantId(): string { return `pid-${++this._c}`; }
-  generateResumeToken(): string { return `rt-${++this._c}`; }
-}
 class NullBroadcaster implements Broadcaster {
   broadcastSnapshot(): void {}
   sendTo(): void {}

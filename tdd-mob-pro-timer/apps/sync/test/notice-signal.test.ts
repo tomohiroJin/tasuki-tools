@@ -13,29 +13,28 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { makeHandlers } from "../src/application/handlers.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
-import type { RoomCodeGen } from "../src/ports/code-gen.js";
-import type { Broadcaster } from "../src/ports/broadcaster.js";
 import type { ServerMsg, SessionConfig } from "@tdd-mob/core";
+import { SpyBroadcaster as SharedSpyBroadcaster } from "./support/spy-broadcaster.js";
+import { FakeCodeGen } from "./support/fake-code-gen.js";
 
-class FakeCodeGen implements RoomCodeGen {
-  private _c = 0;
-  generate(): string { return `NT${String(++this._c).padStart(2, "0")}`; }
-  generateParticipantId(): string { return `pid-nt-${++this._c}`; }
-  generateResumeToken(): string { return `rt-nt-${++this._c}`; }
-}
-
-/** notice の内容と、配信時点での在室者を記録するスパイ。 */
-class SpyBroadcaster implements Broadcaster {
-  readonly sent: Array<{ connId: string; msg: ServerMsg }> = [];
-  readonly signals: Array<{ roomCode: string; msg: ServerMsg; residentsAtSend: string[] }> = [];
-  /** broadcastSignal は呼び出し時点のストアから宛先を決めるため、その瞬間の在室者を記録する。 */
+/**
+ * notice の内容と、配信時点での在室者を記録するスパイ。
+ *
+ * `bindStore()`（broadcastSignal 呼び出し時点のストア在室者を記録する仕組み）は
+ * このファイルにしかない拡張のため、共有版 SpyBroadcaster には持たせていない
+ * （T021: 和集合を超える機能は足さない・FR-118）。ここで共有版を継承し、
+ * ローカルにだけ `bindStore()` と `residentsAtSignal`（signals と同じ添字で
+ * 対応する在室者スナップショット）を足す。
+ */
+class NoticeSpyBroadcaster extends SharedSpyBroadcaster {
+  readonly residentsAtSignal: string[][] = [];
   private residents: () => string[] = () => [];
 
   bindStore(fn: () => string[]): void { this.residents = fn; }
-  broadcastSnapshot(): void {}
-  sendTo(connId: string, msg: ServerMsg): void { this.sent.push({ connId, msg }); }
-  broadcastSignal(roomCode: string, msg: ServerMsg): void {
-    this.signals.push({ roomCode, msg, residentsAtSend: this.residents() });
+
+  override broadcastSignal(roomCode: string, msg: ServerMsg): void {
+    super.broadcastSignal(roomCode, msg);
+    this.residentsAtSignal.push(this.residents());
   }
 }
 
@@ -52,7 +51,7 @@ const CAROL = "nt-carol";
 
 describe("signal: notice（実行者の通知・FR-077）", () => {
   let store: InMemoryRoomStore;
-  let broadcaster: SpyBroadcaster;
+  let broadcaster: NoticeSpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
   let code: string;
 
@@ -61,16 +60,18 @@ describe("signal: notice（実行者の通知・FR-077）", () => {
 
   /** 記録された notice のうち最新のものを返す。 */
   const lastNotice = () => {
-    const found = [...broadcaster.signals].reverse().find(
-      (s) => s.msg.type === "signal" && s.msg.signal === "notice",
-    );
-    if (!found || found.msg.type !== "signal" || found.msg.signal !== "notice") return undefined;
-    return { ...found.msg, residentsAtSend: found.residentsAtSend };
+    for (let i = broadcaster.signals.length - 1; i >= 0; i--) {
+      const s = broadcaster.signals[i]!;
+      if (s.msg.type === "signal" && s.msg.signal === "notice") {
+        return { ...s.msg, residentsAtSend: broadcaster.residentsAtSignal[i] ?? [] };
+      }
+    }
+    return undefined;
   };
 
   beforeEach(async () => {
     store = new InMemoryRoomStore();
-    broadcaster = new SpyBroadcaster();
+    broadcaster = new NoticeSpyBroadcaster();
     handlers = makeHandlers({
       store, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen(),
     });
@@ -86,6 +87,7 @@ describe("signal: notice（実行者の通知・FR-077）", () => {
     await handlers.handleCommand(HOST, { command: "phase.set", phase: "session" });
     broadcaster.sent.length = 0;
     broadcaster.signals.length = 0;
+    broadcaster.residentsAtSignal.length = 0;
   });
 
   describe("① 各操作で notice が配信される", () => {
@@ -180,6 +182,7 @@ describe("signal: notice（実行者の通知・FR-077）", () => {
       // Carol を見学者に降格し、拒否される操作を送る。
       await handlers.handleCommand(HOST, { command: "role.set", participantId: pidOf("Carol"), role: "viewer" });
       broadcaster.signals.length = 0;
+      broadcaster.residentsAtSignal.length = 0;
 
       const result = await handlers.handleCommand(CAROL, { command: "session.abort" });
 
@@ -193,13 +196,13 @@ describe("signal: notice（実行者の通知・FR-077）", () => {
 
 describe("退出させられた本人への通知（FR-075）", () => {
   let store: InMemoryRoomStore;
-  let broadcaster: SpyBroadcaster;
+  let broadcaster: NoticeSpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
   let code: string;
 
   beforeEach(async () => {
     store = new InMemoryRoomStore();
-    broadcaster = new SpyBroadcaster();
+    broadcaster = new NoticeSpyBroadcaster();
     handlers = makeHandlers({
       store, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen(),
     });

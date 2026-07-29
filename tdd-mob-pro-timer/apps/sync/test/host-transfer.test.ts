@@ -7,40 +7,9 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { makeHandlers } from "../src/application/handlers.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
-import type { Room, ServerMsg } from "@tdd-mob/core";
-import type { RoomCodeGen } from "../src/ports/code-gen.js";
-import type { Broadcaster } from "../src/ports/broadcaster.js";
-
-/** テスト用の決定論的コード生成 */
-class FakeCodeGen implements RoomCodeGen {
-  private _counter = 0;
-  generate(): string {
-    return `ROOM${String(++this._counter).padStart(2, "0")}`;
-  }
-  generateParticipantId(): string {
-    return `pid-${++this._counter}`;
-  }
-  generateResumeToken(): string {
-    return `rt-${++this._counter}`;
-  }
-}
-
-/** テスト用 Broadcaster */
-class SpyBroadcaster implements Broadcaster {
-  readonly snapshots: Array<{ roomCode: string; room: unknown }> = [];
-  readonly sent: Array<{ connId: string; msg: ServerMsg }> = [];
-  readonly signals: Array<{ roomCode: string; msg: ServerMsg }> = [];
-
-  broadcastSnapshot(roomCode: string, room: unknown): void {
-    this.snapshots.push({ roomCode, room });
-  }
-  sendTo(connId: string, msg: ServerMsg): void {
-    this.sent.push({ connId, msg });
-  }
-  broadcastSignal(roomCode: string, msg: ServerMsg): void {
-    this.signals.push({ roomCode, msg });
-  }
-}
+import type { Room } from "@tdd-mob/core";
+import { SpyBroadcaster } from "./support/spy-broadcaster.js";
+import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 /** host（host-conn）＋ editor（editor-conn）をオンラインで持つテスト用ルーム */
 function makeTestRoom(code: string): Room {

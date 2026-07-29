@@ -10,22 +10,8 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { makeHandlers } from "../src/application/handlers.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
-import type { RoomCodeGen } from "../src/ports/code-gen.js";
-import type { Broadcaster } from "../src/ports/broadcaster.js";
-import type { Room } from "@tdd-mob/core";
-
-class FakeCodeGen implements RoomCodeGen {
-  private _c = 0;
-  generate(): string { return `MEMO${String(++this._c).padStart(2, "0")}`; }
-  generateParticipantId(): string { return `pid-${++this._c}`; }
-  generateResumeToken(): string { return `rt-${++this._c}`; }
-}
-class SpyBroadcaster implements Broadcaster {
-  readonly snapshots: Room[] = [];
-  broadcastSnapshot(_c: string, room: Room): void { this.snapshots.push(room); }
-  sendTo(): void {}
-  broadcastSignal(): void {}
-}
+import { SpyBroadcaster } from "./support/spy-broadcaster.js";
+import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 describe("共有メモの同時書き込み（⑧ last-write-wins）", () => {
   let store: InMemoryRoomStore;
@@ -55,7 +41,7 @@ describe("共有メモの同時書き込み（⑧ last-write-wins）", () => {
     expect(room?.handoffNote).toBe("Bob のメモ（最後）");
     // 直近 snapshot も同じ値（部分更新や破損がない）
     const last = broadcaster.snapshots[broadcaster.snapshots.length - 1];
-    expect(last?.handoffNote).toBe("Bob のメモ（最後）");
+    expect(last?.room.handoffNote).toBe("Bob のメモ（最後）");
   });
 
   it("交互に書いても毎回その時点の最終値で一貫する", async () => {
