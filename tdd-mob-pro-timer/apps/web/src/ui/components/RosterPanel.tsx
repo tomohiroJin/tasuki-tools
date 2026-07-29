@@ -17,7 +17,7 @@ import { MAX_DISPLAY_NAME } from "@tdd-mob/core/aggregate";
 import { GhostButton, PrimaryButton, SectionHeader } from "../primitives.js";
 import { presenceLabel, presenceDotClass } from "../presence.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
-import { participantLabel } from "../participant-label.js";
+import { participantLabel, canTransferHostTo, canRemoveParticipant, canReorderRotation } from "../participant-label.js";
 
 /** 小さなダーク用ボタン。RosterPanel 内の改名/離脱/外す等のコンパクト操作用。
  * 行操作はサーバー往復で反映されるため、押下フィードバックが無いと「効いていない」ように見える。
@@ -182,7 +182,7 @@ export function RosterPanel({
     // 「どちらに効く操作なのか」を名前だけでは選べない。
     const label = participantLabel(p.displayName, p.participantId, participants);
     // 並べ替えはホストが操作でき、ドライバーが2人以上いるときだけ意味を持つ。
-    const canMove = canManage && !!onMove && inRotation && rotationLen > 1;
+    const canMove = canReorderRotation({ canManage, inRotation, rotationLength: rotationLen }) && !!onMove;
 
     return (
       <li
@@ -316,7 +316,7 @@ export function RosterPanel({
                 )}
                 {/* ホストを他のオンライン参加者へ譲る（R2-3）。自分・オフライン・現ホストには出さない。
                     アイコン（Crown）＋aria-label/title で省スペース化。 */}
-                {canManage && !isMine && p.role !== "host" && p.presence !== "offline" && onTransferHost && (
+                {canTransferHostTo(p, { isSelf: isMine, canManage }) && onTransferHost && (
                   <MiniButton
                     onClick={() => onTransferHost(p.participantId)}
                     aria-label={`${label} にホストを譲る`}
@@ -330,7 +330,7 @@ export function RosterPanel({
                     取り返しがつかない操作なので確認を挟む（FR-075）。
                     同名が並ぶときはラベルに識別子を添える。二重参加の幽霊は本人と同名なので、
                     名前だけだと「どちらを消すのか」を選ぶ時点で区別できない（FR-084）。 */}
-                {canManage && !isMine && onRemove && (
+                {canRemoveParticipant({ isSelf: isMine, canManage }) && onRemove && (
                   <MiniButton
                     onClick={() => setPendingRemovalId(p.participantId)}
                     aria-label={`${label} を退出させる`}

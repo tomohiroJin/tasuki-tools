@@ -19,7 +19,7 @@ import { EmptyHint } from "./components/EmptyHint.js";
 import { ProblemModeToggle } from "./components/ProblemModeToggle.js";
 import { NotifySettingsPanel } from "./components/NotifySettingsPanel.js";
 import { presenceDotClass } from "./presence.js";
-import { participantLabel } from "./participant-label.js";
+import { participantLabel, canTransferHostTo, canRemoveParticipant, canReorderRotation } from "./participant-label.js";
 import { ConfirmDialog } from "./components/ConfirmDialog.js";
 import { useNotifyPreferences } from "./use-notify-preferences.js";
 import { saveNotifyPreferences } from "../prefs/local-prefs.js";
@@ -302,7 +302,7 @@ export function Lobby({
                             )
                           )}
                           {/* ホストはドライバー順を入れ替えられる（④） */}
-                          {isHost && inRotation && rotationLen > 1 && onMoveRotation && (
+                          {canReorderRotation({ canManage: isHost, inRotation, rotationLength: rotationLen }) && onMoveRotation && (
                             <>
                               <RowIconButton
                                 icon={ChevronUp}
@@ -319,7 +319,7 @@ export function Lobby({
                             </>
                           )}
                           {/* ホストを他のオンライン参加者へ譲る（R2-3）。自分・オフライン・現ホストには出さない。 */}
-                          {!isMe && isHost && p.role !== "host" && p.presence !== "offline" && onTransferHost && (
+                          {canTransferHostTo(p, { isSelf: isMe, canManage: isHost }) && onTransferHost && (
                             <RowIconButton
                               icon={Crown}
                               label={`${label} にホストを譲る`}
@@ -327,7 +327,7 @@ export function Lobby({
                             />
                           )}
                           {/* ホストは他参加者を退出させられる（⑪） */}
-                          {!isMe && isHost && onRemoveParticipant && (
+                          {canRemoveParticipant({ isSelf: isMe, canManage: isHost }) && onRemoveParticipant && (
                             <RowIconButton
                               icon={X}
                               label={`${label} を退出させる`}

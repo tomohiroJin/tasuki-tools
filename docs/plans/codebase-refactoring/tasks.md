@@ -544,11 +544,11 @@
   **表の 1 文言に寄せる**。具体性の回復は [#29](https://github.com/tomohiroJin/tasuki-tools/issues/29) が扱う。
   _要件: FR-089, FR-105, FR-114, US4_
 
-- [ ] **T067** `apps/web/test/ui/participant-label.test.ts` に、
+- [x] **T067** `apps/web/test/ui/participant-label.test.ts` に、
   **Lobby と RosterPanel が共通で使う「操作の可否判定」**の失敗するテストを書く。
   _要件: FR-107, US4_
 
-- [ ] **T068** `apps/web/src/ui/participant-label.ts`（または隣接の純粋関数モジュール）に
+- [x] **T068** `apps/web/src/ui/participant-label.ts`（または隣接の純粋関数モジュール）に
   可否判定を実装し、`Lobby.tsx` と `RosterPanel.tsx` の**両方**がこれを経由するようにする。
   **描画（JSX）は両者に残す。統合しない**（FR-118）。
   _要件: FR-107, FR-118, US4_
