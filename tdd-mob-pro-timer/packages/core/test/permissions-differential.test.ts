@@ -170,10 +170,12 @@ describe("checkPermission 差分テスト — 開始前（150通り、オラク�
         const label = `${command} / role=${role} / isSelfTarget=${isSelfTarget}`;
 
         it(`${label} → オラクルと一致する`, () => {
+          // Given
           const input: PermissionInput = { command, role, started: false, isSelfTarget };
+          // When
           const expected = oracleAllowsBeforeStart(command, role, isSelfTarget);
           const actual = checkPermission(input).allowed;
-
+          // Then
           expect(actual, `不一致: ${label}（期待=${expected} 実際=${actual}）`).toBe(expected);
         });
       }
@@ -221,10 +223,12 @@ describe("checkPermission 差分テスト — 開始後（150通り、独立述�
         const label = `${command} / role=${role} / isSelfTarget=${isSelfTarget}`;
 
         it(`${label} → 開始後の期待述語と一致する`, () => {
+          // Given
           const input: PermissionInput = { command, role, started: true, isSelfTarget };
+          // When
           const expected = expectedAfterStart(command, role, isSelfTarget);
           const actual = checkPermission(input).allowed;
-
+          // Then
           expect(actual, `不一致: ${label}（期待=${expected} 実際=${actual}）`).toBe(expected);
         });
       }

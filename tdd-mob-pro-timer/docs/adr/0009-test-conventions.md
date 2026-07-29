@@ -94,3 +94,11 @@ describe("<対象の名詞>", () => {
 - `problem.test.ts`
 - `display-name.test.ts`
 - `participants.test.ts`
+
+### `packages/core/test`（T035: `permissions-differential.test.ts` 単独）
+
+- `permissions-differential.test.ts`
+
+  ⚠ このファイルは FR-093 の例外表に載っており、コマンド名/役割/自己対象かの組み合わせを
+  名前に含めてよい。書き換えは GWT の区切り（`// Given` `// When` `// Then`）の付与のみに
+  限定し、オラクル・検証内容・組み合わせ生成（150通り×2＝300＋検算2＝302件）は変更していない。
