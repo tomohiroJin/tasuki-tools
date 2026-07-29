@@ -1,9 +1,8 @@
 /**
  * ドライバー不在の自動繰上（advanceForAbsence）のテスト（v2.2 R2-1）
- * presence の不在タイマー（Task 2）から呼ばれる前提の交代ロジックを検証する。
+ * presence の不在タイマーから駆動される前提の交代ロジックを検証する。
  * オフライン参加者を交代対象外（ineligible）に含め、次の online ドライバーへ
  * サーバー権威で繰り上げる。交代先が無ければ現状維持する。
- * 要件: v2.2 R2-1
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
@@ -64,7 +63,10 @@ async function setupRunningRoom(
   return code;
 }
 
-describe("advanceForAbsence: ドライバー不在の自動繰上（v2.2 R2-1）", () => {
+/**
+ * @requirements v2.2 R2-1
+ */
+describe("advanceForAbsence: ドライバー不在の自動繰上", () => {
   let store: InMemoryRoomStore;
   let clock: FakeClock;
   let broadcaster: SpyBroadcaster;
@@ -78,37 +80,45 @@ describe("advanceForAbsence: ドライバー不在の自動繰上（v2.2 R2-1）
   });
 
   it("advanceForAbsence はオフラインの現ドライバーを飛ばして次の online へ繰り上げる", async () => {
+    // Given
     const code = await setupRunningRoom(handlers, store, ["A", "B", "C"], 0, {
       A: "offline",
       B: "online",
       C: "online",
     });
 
+    // When
     handlers.advanceForAbsence(code);
 
+    // Then
     expect(store.get(code)!.session.currentIndex).toBe(1);
   });
 
   it("他が全員オフライン/ineligible なら現状維持（no-op）", async () => {
+    // Given
     const code = await setupRunningRoom(handlers, store, ["A", "B"], 0, {
       A: "offline",
       B: "offline",
     });
 
+    // When
     handlers.advanceForAbsence(code);
 
+    // Then
     expect(store.get(code)!.session.currentIndex).toBe(0);
   });
 
   it("オフライン driver は交代対象から外れる（次が offline なら飛ばして現状維持）", async () => {
+    // Given
     const code = await setupRunningRoom(handlers, store, ["A", "B"], 0, {
       A: "online",
       B: "offline",
     });
 
+    // When
     handlers.advanceForAbsence(code);
 
-    // B(1) は offline で ineligible のため飛ばされ、交代先が無く現状維持
+    // Then（B(1) は offline で ineligible のため飛ばされ、交代先が無く現状維持）
     expect(store.get(code)!.session.currentIndex).toBe(0);
   });
 });

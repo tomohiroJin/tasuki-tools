@@ -307,7 +307,7 @@
   `handlers.time-ping` / `handlers.v2` / `in-memory-room-store` / `code-gen`。
   _要件: FR-091〜FR-096, FR-123, US2_
 
-- [ ] **T039** バッチ「交代とドライバー」: `handlers.driver-advance` / `driver-assign` /
+- [x] **T039** バッチ「交代とドライバー」: `handlers.driver-advance` / `driver-assign` /
   `driver-absence` / `driver-absence.integration` / `proxy-auto-switch` / `manual-skip-eligible` /
   `shuffle` / `timer-restart` / `schedule`。
   _要件: FR-091〜FR-096, FR-123, US2_

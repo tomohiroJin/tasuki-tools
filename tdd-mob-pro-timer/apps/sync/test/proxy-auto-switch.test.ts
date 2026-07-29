@@ -73,19 +73,24 @@ describe("タイマー自動交代と代理メンバー（v2.8）", () => {
   });
 
   it("代理メンバー(offline+placeholder)へ自動交代が進む", async () => {
+    // Given
     const code = await setupRoomWithSecond(handlers, store, { presence: "offline", isPlaceholder: true });
 
-    handlers.advanceForAbsence(code); // = autoSwitch（タイマー発火相当）
+    // When（= autoSwitch。タイマー発火相当）
+    handlers.advanceForAbsence(code);
 
+    // Then
     expect(store.get(code)!.session.currentIndex).toBe(1); // 代理 B へ交代している
   });
 
   it("実在の offline 参加者(非placeholder)は従来どおり飛ばす（R2-1 維持）", async () => {
+    // Given
     const code = await setupRoomWithSecond(handlers, store, { presence: "offline", isPlaceholder: false });
 
+    // When
     handlers.advanceForAbsence(code);
 
-    // B は実在の offline で ineligible → 飛ばされ交代先なし → 現状維持
+    // Then（B は実在の offline で ineligible → 飛ばされ交代先なし → 現状維持）
     expect(store.get(code)!.session.currentIndex).toBe(0);
   });
 });

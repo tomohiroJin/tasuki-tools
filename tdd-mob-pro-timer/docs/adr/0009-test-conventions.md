@@ -142,3 +142,23 @@ describe("<対象の名詞>", () => {
   ROOM_LIMIT_EXCEEDED を返す」は「失敗すること」と「拒否された接続へエラー通知が届くこと」の
   2つの振る舞いを検証していたため、前提を共有したまま2テストに分割した（FR-095）。
   検証内容は変えていない。
+
+### `apps/sync/test`（T039: バッチ「交代とドライバー」）
+
+- `handlers.driver-advance.test.ts`
+- `driver-assign.test.ts`
+- `driver-absence.test.ts`
+- `driver-absence.integration.test.ts`
+- `proxy-auto-switch.test.ts`
+- `manual-skip-eligible.test.ts`
+- `shuffle.test.ts`
+- `timer-restart.test.ts`
+- `schedule.test.ts`
+
+  `shuffle.test.ts` のローカル `latest()` ヘルパ（`spy.snapshots.at(-1)?.room` の再実装）を
+  `SpyBroadcaster.latestSnapshot()` に置き換えた。`driver-absence.test.ts` の
+  「onDriverAbsence(code) が呼ばれる」・`schedule.test.ts` の「onSwitch が呼ばれる」系の
+  名前は、コールバック呼び出しがコンポーネントの外部契約そのものであっても FR-093 の
+  「呼び出しの発生」規定の対象になるため、「発火する」という結果の記述に改めた
+  （アサーション自体は `toHaveBeenCalledWith` のまま変更していない）。
+  T0xx・FR-0xx を describe 名から JSDoc `@requirements` へ移した。検証内容・分割は変更していない。

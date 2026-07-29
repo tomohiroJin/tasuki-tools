@@ -65,7 +65,10 @@ function makeRunningRoom(code: string): Room {
   };
 }
 
-describe("PresenceManager: ドライバー不在の自動繰上（v2.2 R2-1）", () => {
+/**
+ * @requirements v2.2 R2-1
+ */
+describe("PresenceManager: ドライバー不在の自動繰上", () => {
   let store: InMemoryRoomStore;
   let broadcaster: SpyBroadcaster;
   let clock: FakeClock;
@@ -85,56 +88,60 @@ describe("PresenceManager: ドライバー不在の自動繰上（v2.2 R2-1）",
     vi.useRealTimers();
   });
 
-  it("現ドライバー切断後、猶予時間経過で onDriverAbsence(code) が呼ばれる", () => {
+  it("現ドライバー切断後、猶予時間経過で当該ルームコードの不在通知が発火する", () => {
+    // Given
     const room = makeRunningRoom("DTEST");
     store.put(room);
 
+    // When
     pm.handleDisconnect("d-conn");
-
-    // 直後はまだ呼ばれない
+    // 直後はまだ発火しない
     expect(onDriverAbsence).not.toHaveBeenCalled();
-
     vi.advanceTimersByTime(DRIVER_ABSENCE_GRACE_MS);
 
+    // Then
     expect(onDriverAbsence).toHaveBeenCalledWith(room.code);
   });
 
   it("猶予内に現ドライバーが復帰したら繰上しない", () => {
+    // Given
     const room = makeRunningRoom("DTEST2");
     store.put(room);
-
     pm.handleDisconnect("d-conn");
 
-    // 猶予の半分経過 → 現ドライバー復帰
+    // When（猶予の半分経過 → 現ドライバー復帰 → さらに猶予経過）
     vi.advanceTimersByTime(DRIVER_ABSENCE_GRACE_MS / 2);
     pm.handlePing("d-conn");
-
-    // さらに猶予経過しても呼ばれない
     vi.advanceTimersByTime(DRIVER_ABSENCE_GRACE_MS);
 
+    // Then
     expect(onDriverAbsence).not.toHaveBeenCalled();
   });
 
   it("現ドライバー以外の切断ではタイマーを張らない", () => {
+    // Given
     const room = makeRunningRoom("DTEST3");
     store.put(room);
 
+    // When
     pm.handleDisconnect("o-conn");
-
     vi.advanceTimersByTime(DRIVER_ABSENCE_GRACE_MS);
 
+    // Then
     expect(onDriverAbsence).not.toHaveBeenCalled();
   });
 
   it("セッション非稼働(clock.running=false)では張らない", () => {
+    // Given
     const room = makeRunningRoom("DTEST4");
     room.clock.running = false;
     store.put(room);
 
+    // When
     pm.handleDisconnect("d-conn");
-
     vi.advanceTimersByTime(DRIVER_ABSENCE_GRACE_MS);
 
+    // Then
     expect(onDriverAbsence).not.toHaveBeenCalled();
   });
 });

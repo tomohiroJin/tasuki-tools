@@ -47,20 +47,29 @@ describe("driver.assign（Issue #13 強制指名）", () => {
   });
 
   it("host が任意メンバーを指名すると currentIndex がそのメンバーになる", async () => {
+    // Given
     const code = await setup(handlers, store, {});
+    // When
     await handlers.handleCommand("conn-a", { command: "driver.assign", participantId: "pid-c" });
+    // Then
     expect(store.get(code)!.session.currentIndex).toBe(2); // C
   });
 
   it("指名交代で totalSwitches が加算される（通常交代と同じカウント）", async () => {
+    // Given
     const code = await setup(handlers, store, {});
+    // When
     await handlers.handleCommand("conn-a", { command: "driver.assign", participantId: "pid-c" });
+    // Then
     expect(store.get(code)!.session.totalSwitches).toBe(1);
   });
 
   it("一時離脱中のメンバーを指名すると自動復帰する", async () => {
-    const code = await setup(handlers, store, { driverEligible: false }); // B 離脱中
+    // Given（B 離脱中）
+    const code = await setup(handlers, store, { driverEligible: false });
+    // When
     await handlers.handleCommand("conn-a", { command: "driver.assign", participantId: "pid-b" });
+    // Then
     const room = store.get(code)!;
     expect(room.session.currentIndex).toBe(1); // B
     const b = room.participants.find((p) => p.participantId === "pid-b")!;
@@ -68,49 +77,68 @@ describe("driver.assign（Issue #13 強制指名）", () => {
   });
 
   it("現ドライバー自身の指名は状態を変えない（no-op）", async () => {
+    // Given（A は rotation[0]・currentIndex 0）
     const code = await setup(handlers, store, {});
-    const hostPid = store.get(code)!.participants[0]!.participantId; // A（rotation[0]・currentIndex 0）
+    const hostPid = store.get(code)!.participants[0]!.participantId;
+    // When
     await handlers.handleCommand("conn-a", { command: "driver.assign", participantId: hostPid });
+    // Then
     expect(store.get(code)!.session.currentIndex).toBe(0);
   });
 
   it("host 以外（editor）の指名は拒否され状態が変わらない", async () => {
+    // Given
     const code = await setup(handlers, store, {});
+    // When
     const result = await handlers.handleCommand("conn-b", { command: "driver.assign", participantId: "pid-c" });
+    // Then
     expect(result.isErr()).toBe(true);
     expect(store.get(code)!.session.currentIndex).toBe(0);
   });
 
   it("rotation 外（未検出 participantId）の指名は拒否される", async () => {
+    // Given
     const code = await setup(handlers, store, {});
+    // When
     const result = await handlers.handleCommand("conn-a", { command: "driver.assign", participantId: "pid-unknown" });
+    // Then
     expect(result.isErr()).toBe(true);
     expect(store.get(code)!.session.currentIndex).toBe(0);
   });
 
   it("実在（非代理）オフラインのメンバーは指名できない（R2-1: 無人ドライバー防止）", async () => {
-    const code = await setup(handlers, store, { presence: "offline" }); // B は実在オフライン
+    // Given（B は実在オフライン）
+    const code = await setup(handlers, store, { presence: "offline" });
+    // When
     const result = await handlers.handleCommand("conn-a", { command: "driver.assign", participantId: "pid-b" });
+    // Then
     expect(result.isErr()).toBe(true);
     expect(store.get(code)!.session.currentIndex).toBe(0); // 変わらない
   });
 
   it("代理（placeholder）はオフラインでも指名できる（対面在席の実在者を表すため）", async () => {
-    const code = await setup(handlers, store, { presence: "offline", isPlaceholder: true }); // B は代理
+    // Given（B は代理）
+    const code = await setup(handlers, store, { presence: "offline", isPlaceholder: true });
+    // When
     await handlers.handleCommand("conn-a", { command: "driver.assign", participantId: "pid-b" });
+    // Then
     expect(store.get(code)!.session.currentIndex).toBe(1); // B へ交代できる
   });
 
   it("現ドライバー自身の no-op 指名は driverEligible を書き換えない（副作用なし）", async () => {
+    // Given（現ドライバー A を一時離脱状態(driverEligible=false)にしておく）
     const code = await setup(handlers, store, {});
-    // 現ドライバー A を一時離脱状態(driverEligible=false)にしておく
     const room = store.get(code)!;
     const host = room.participants[0]!;
     store.put({
       ...room,
       participants: [{ ...host, driverEligible: false }, ...room.participants.slice(1)],
     });
+
+    // When
     await handlers.handleCommand("conn-a", { command: "driver.assign", participantId: host.participantId });
+
+    // Then
     const after = store.get(code)!;
     expect(after.session.currentIndex).toBe(0); // no-op（現ドライバー自身）
     expect(after.participants[0]!.driverEligible).toBe(false); // 副作用で復帰させない

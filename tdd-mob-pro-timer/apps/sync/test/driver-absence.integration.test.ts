@@ -34,7 +34,10 @@ const config: SessionConfig = {
   intervalMinutes: 5,
 };
 
-describe("統合: ドライバー不在 自動繰上（presence→handlers 実配線, v2.2 R2-1）", () => {
+/**
+ * @requirements v2.2 R2-1
+ */
+describe("統合: ドライバー不在 自動繰上（presence→handlers 実配線）", () => {
   let store: InMemoryRoomStore;
   let clock: FakeClock;
   let handlers: ReturnType<typeof makeHandlers>;
@@ -87,15 +90,16 @@ describe("統合: ドライバー不在 自動繰上（presence→handlers 実�
   }
 
   it("現ドライバー切断→猶予後に実 handlers が currentIndex を次の online へ進める", async () => {
+    // Given
     const code = await setupRunningRoom();
 
-    // 現ドライバー A が切断 → presence が offline 化し不在タイマーを張る
+    // When（現ドライバー A が切断 → presence が offline 化し不在タイマーを張る）
     presence.handleDisconnect("conn-A");
     expect(store.get(code)!.session.currentIndex).toBe(0); // 猶予中は不変
-
     // 猶予経過 → stale-check 通過 → handlers.advanceForAbsence で B(1) へ繰り上げ
     vi.advanceTimersByTime(DRIVER_ABSENCE_GRACE_MS);
 
+    // Then
     const after = store.get(code)!;
     expect(after.session.currentIndex).toBe(1);
     expect(after.session.rotation[after.session.currentIndex]).toBe("pid-test-1"); // B

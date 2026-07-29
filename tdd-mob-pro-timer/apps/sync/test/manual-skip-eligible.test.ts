@@ -46,14 +46,20 @@ describe("手動スキップの eligibility（v2.10 #3）", () => {
   });
 
   it("一時離脱(driverEligible=false)の次メンバーを飛ばして次の eligible へ進む", async () => {
-    const code = await setup(handlers, store, { driverEligible: false }); // B は一時離脱
+    // Given（B は一時離脱）
+    const code = await setup(handlers, store, { driverEligible: false });
+    // When
     await handlers.handleCommand("conn-a", { command: "session.act", action: "SWITCH" });
+    // Then
     expect(store.get(code)!.session.currentIndex).toBe(2); // B を飛ばして C へ
   });
 
   it("全員 eligible なら従来どおり次へ（+1）", async () => {
-    const code = await setup(handlers, store, {}); // B も eligible
+    // Given（B も eligible）
+    const code = await setup(handlers, store, {});
+    // When
     await handlers.handleCommand("conn-a", { command: "session.act", action: "SWITCH" });
+    // Then
     expect(store.get(code)!.session.currentIndex).toBe(1); // B へ
   });
 });
