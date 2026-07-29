@@ -130,9 +130,17 @@ export function makeHandlers(deps: HandlerDeps) {
   function reconcileSchedule(room: Room): void {
     if (!scheduler) return;
     // 稼働中かつ完成フェーズに入っていない場合のみ次回交代を予約する。
-    // `!room.onBreak` は後方互換のための dormant ガード（v2.10 で休憩機能の UI/コマンドは撤去済み。
-    // break.start/end は受理されず onBreak が true になる経路は無いため常に通過する）。
-    if (room.clock.running && !room.onBreak && room.phase !== "celebration") {
+    //
+    // かつてここには `!room.onBreak` という到達不能なガードがあった（Issue #28・T080・FR-119）。
+    // v2.10 で休憩機能の UI とコマンドを撤去した際、`buildDomainCommand` の switch から
+    // `break.start` / `break.end` の case が消え、以後この 2 コマンドは `default:` に落ちて
+    // `UNKNOWN_COMMAND` になる。つまり `BreakStarted` イベントは生成されず、
+    // **`room.onBreak` が true になる経路が存在しない**ため `!room.onBreak` は常に真だった。
+    //
+    // wire スキーマ（`schemas.ts` の `break.start` / `break.end`）と `Room.onBreak`
+    // フィールドは**残す**（FR-089: 受理側の後方互換 / snapshot の形を変えない）。
+    // 撤去したのは、この到達しない条件だけである。
+    if (room.clock.running && room.phase !== "celebration") {
       const left = secondsLeft(room.clock, clock.now());
       scheduler.schedule(room.code, left, autoSwitch);
     } else {
