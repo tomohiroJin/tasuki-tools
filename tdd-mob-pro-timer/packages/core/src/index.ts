@@ -44,7 +44,7 @@ export {
   MAX_AI_UNLOCK_KEY,
 } from "./aggregate.js";
 export { normalizeDisplayName, nameSkeleton, conflictsWithExisting } from "./display-name.js";
-export { ERROR_MESSAGES, DEFAULT_ERROR_MESSAGE } from "./error-messages.js";
+export { ERROR_MESSAGES, DEFAULT_ERROR_MESSAGE, errorMessageFor } from "./error-messages.js";
 // イベント
 export type {
   SessionStarted,

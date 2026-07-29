@@ -538,7 +538,7 @@
 - [x] **T065** `apps/web/src/App.tsx` の `ERROR_MESSAGES` を T064 の表の参照に置き換える。
   _要件: FR-105, US4_
 
-- [ ] **T066** `apps/sync/src` の `message:` リテラル（ユニーク 23 種・出現 36 箇所 ＋ テンプレート 5）を
+- [x] **T066** `apps/sync/src` の `message:` リテラル（ユニーク 23 種・出現 36 箇所 ＋ テンプレート 5）を
   T064 の表からの引き当てに置換する。**wire の `message` フィールドは維持する**（FR-089）。
   ⚠ **同一コードで文言が複数あるものが 5 種ある**が、その区別は現在も画面に出ていないため
   **表の 1 文言に寄せる**。具体性の回復は [#29](https://github.com/tomohiroJin/tasuki-tools/issues/29) が扱う。

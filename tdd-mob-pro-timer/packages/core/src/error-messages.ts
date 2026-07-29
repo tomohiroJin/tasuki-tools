@@ -41,3 +41,12 @@ export const ERROR_MESSAGES: Record<string, string> = {
 
 /** テーブルに該当コードが無い場合の既定文言（元の `friendlyError` の既定値と同一）。 */
 export const DEFAULT_ERROR_MESSAGE = "操作を完了できませんでした。";
+
+/**
+ * コードから文言を引く（無ければ既定文言）。`ERROR_MESSAGES[code]` の直接参照は
+ * `Record<string, string>` の索引アクセスが `string | undefined` になる
+ * （`noUncheckedIndexedAccess`）ため、必ずここを経由させて `string` を保証する。
+ */
+export function errorMessageFor(code: string): string {
+  return ERROR_MESSAGES[code] ?? DEFAULT_ERROR_MESSAGE;
+}

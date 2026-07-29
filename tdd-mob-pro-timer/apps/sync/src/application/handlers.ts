@@ -17,6 +17,8 @@ import {
   canRemoveParticipant,
   canDemote,
   conflictsWithExisting,
+  ERROR_MESSAGES,
+  errorMessageFor,
   type Room,
   type Participant,
   type SessionConfig,
@@ -299,7 +301,7 @@ export function makeHandlers(deps: HandlerDeps) {
       broadcaster.sendTo(connId, {
         type: "error",
         code: "RATE_LIMITED",
-        message: "参加の試行が多すぎます。しばらく待ってから再試行してください。",
+        message: errorMessageFor("RATE_LIMITED"),
       });
       return err("RATE_LIMITED");
     }
@@ -363,8 +365,8 @@ export function makeHandlers(deps: HandlerDeps) {
         code,
         message:
           code === "PASSPHRASE_REQUIRED"
-            ? "このルームはパスフレーズが必要です"
-            : "パスフレーズが一致しません",
+            ? errorMessageFor("PASSPHRASE_REQUIRED")
+            : errorMessageFor("PASSPHRASE_MISMATCH"),
       });
       return err(code);
     }
@@ -466,7 +468,7 @@ export function makeHandlers(deps: HandlerDeps) {
       }
       const target = targetRoom.participants.find((p) => p.participantId === targetId);
       if (!target) {
-        broadcaster.sendTo(connId, { type: "error", code: "PARTICIPANT_NOT_FOUND", message: "対象の参加者が見つかりません" });
+        broadcaster.sendTo(connId, { type: "error", code: "PARTICIPANT_NOT_FOUND", message: errorMessageFor("PARTICIPANT_NOT_FOUND") });
         return err("PARTICIPANT_NOT_FOUND");
       }
       // 不変条件: 実在（非代理）の編集者以上が1名以上残ること（FR-072/073）。
@@ -475,7 +477,7 @@ export function makeHandlers(deps: HandlerDeps) {
         broadcaster.sendTo(connId, {
           type: "error",
           code: "LAST_MANAGER",
-          message: "進行できる人がいなくなるため退出できません。他の人が進行に加わってから操作してください。",
+          message: errorMessageFor("LAST_MANAGER"),
         });
         return err("LAST_MANAGER");
       }
@@ -497,7 +499,7 @@ export function makeHandlers(deps: HandlerDeps) {
       };
       if (idx >= 0) {
         if (roomBeforeRemoval.session.rotation.length <= 1) {
-          broadcaster.sendTo(connId, { type: "error", code: "BelowMinMembers", message: "最後のドライバーは外せません" });
+          broadcaster.sendTo(connId, { type: "error", code: "BelowMinMembers", message: errorMessageFor("BelowMinMembers") });
           return err("BelowMinMembers");
         }
         const agg = evolve(
@@ -563,7 +565,7 @@ export function makeHandlers(deps: HandlerDeps) {
         broadcaster.sendTo(connId, {
           type: "error",
           code: "PARTICIPANT_NOT_FOUND",
-          message: "対象の参加者が見つかりません",
+          message: errorMessageFor("PARTICIPANT_NOT_FOUND"),
         });
         return err("PARTICIPANT_NOT_FOUND");
       }
@@ -577,7 +579,7 @@ export function makeHandlers(deps: HandlerDeps) {
         broadcaster.sendTo(connId, {
           type: "error",
           code: "DuplicateName",
-          message: `操作エラー: DuplicateName`,
+          message: errorMessageFor("DuplicateName"),
         });
         return err("DuplicateName");
       }
@@ -595,7 +597,7 @@ export function makeHandlers(deps: HandlerDeps) {
         broadcaster.sendTo(connId, {
           type: "error",
           code: "PARTICIPANT_NOT_FOUND",
-          message: "対象の参加者が見つかりません",
+          message: errorMessageFor("PARTICIPANT_NOT_FOUND"),
         });
         return err("PARTICIPANT_NOT_FOUND");
       }
@@ -610,7 +612,7 @@ export function makeHandlers(deps: HandlerDeps) {
         broadcaster.sendTo(connId, {
           type: "error",
           code: "DuplicateName",
-          message: `操作エラー: DuplicateName`,
+          message: errorMessageFor("DuplicateName"),
         });
         return err("DuplicateName");
       }
@@ -624,11 +626,13 @@ export function makeHandlers(deps: HandlerDeps) {
         ? targetRoom.session.rotation.indexOf(target.participantId)
         : -1;
       // 対象不在 or rotation 外（見学者）は指名できない。
+      // 元の文言（「指名対象が見つからないか、ローテーション外です」）は画面には表示されて
+      // いなかった（friendlyError は code だけで引く）ため、T066 で表の1文言に寄せる。
       if (index < 0) {
         broadcaster.sendTo(connId, {
           type: "error",
           code: "PARTICIPANT_NOT_FOUND",
-          message: "指名対象が見つからないか、ローテーション外です",
+          message: errorMessageFor("PARTICIPANT_NOT_FOUND"),
         });
         return err("PARTICIPANT_NOT_FOUND");
       }
@@ -639,7 +643,7 @@ export function makeHandlers(deps: HandlerDeps) {
         broadcaster.sendTo(connId, {
           type: "error",
           code: "PARTICIPANT_OFFLINE",
-          message: "オフラインの参加者はドライバーに指名できません",
+          message: errorMessageFor("PARTICIPANT_OFFLINE"),
         });
         return err("PARTICIPANT_OFFLINE");
       }
@@ -664,10 +668,12 @@ export function makeHandlers(deps: HandlerDeps) {
     const result = decide(domainCmd, agg, now);
 
     if (result.isErr()) {
+      // 表（ERROR_MESSAGES）に該当コードがあればそれを使う。無ければ元のままの
+      // 汎用文言にフォールバックする（表に無いコードの文言・挙動は変えない）。
       broadcaster.sendTo(connId, {
         type: "error",
         code: result.error.type,
-        message: `操作エラー: ${result.error.type}`,
+        message: ERROR_MESSAGES[result.error.type] ?? `操作エラー: ${result.error.type}`,
       });
       return err(result.error.type);
     }
@@ -796,7 +802,7 @@ export function makeHandlers(deps: HandlerDeps) {
       broadcaster.sendTo(connId, {
         type: "error",
         code: "UNAUTHORIZED",
-        message: "ルームの参加者として認識できません",
+        message: errorMessageFor("UNAUTHORIZED"),
       });
       return err("UNAUTHORIZED");
     }
@@ -809,7 +815,7 @@ export function makeHandlers(deps: HandlerDeps) {
       broadcaster.sendTo(connId, {
         type: "error",
         code: "CANNOT_CHANGE_HOST",
-        message: "ホストの役割は変更できません",
+        message: errorMessageFor("CANNOT_CHANGE_HOST"),
       });
       return err("CANNOT_CHANGE_HOST");
     }
@@ -821,7 +827,7 @@ export function makeHandlers(deps: HandlerDeps) {
       broadcaster.sendTo(connId, {
         type: "error",
         code: "PARTICIPANT_NOT_FOUND",
-        message: "対象の参加者が見つかりません",
+        message: errorMessageFor("PARTICIPANT_NOT_FOUND"),
       });
       return err("PARTICIPANT_NOT_FOUND");
     }
@@ -833,7 +839,7 @@ export function makeHandlers(deps: HandlerDeps) {
       broadcaster.sendTo(connId, {
         type: "error",
         code: "LAST_MANAGER",
-        message: "進行できる人がいなくなるため見学者にできません。他の人が進行に加わってから操作してください。",
+        message: errorMessageFor("LAST_MANAGER"),
       });
       return err("LAST_MANAGER");
     }
@@ -878,7 +884,7 @@ export function makeHandlers(deps: HandlerDeps) {
       broadcaster.sendTo(connId, {
         type: "error",
         code: "UNAUTHORIZED",
-        message: "ルームの参加者として認識できません",
+        message: errorMessageFor("UNAUTHORIZED"),
       });
       return err("UNAUTHORIZED");
     }
@@ -933,7 +939,7 @@ export function makeHandlers(deps: HandlerDeps) {
       broadcaster.sendTo(connId, {
         type: "error",
         code: "UNAUTHORIZED",
-        message: "ルームの参加者として認識できません",
+        message: errorMessageFor("UNAUTHORIZED"),
       });
       return err("UNAUTHORIZED");
     }
@@ -947,7 +953,7 @@ export function makeHandlers(deps: HandlerDeps) {
       broadcaster.sendTo(connId, {
         type: "error",
         code: "RATE_LIMITED",
-        message: "試行が多すぎます。しばらく待ってから再試行してください",
+        message: errorMessageFor("RATE_LIMITED"),
       });
       return err("RATE_LIMITED");
     }
@@ -962,7 +968,7 @@ export function makeHandlers(deps: HandlerDeps) {
       broadcaster.sendTo(connId, {
         type: "error",
         code: "AI_UNLOCK_FAILED",
-        message: "合言葉が違います",
+        message: errorMessageFor("AI_UNLOCK_FAILED"),
       });
       return err("AI_UNLOCK_FAILED");
     }
@@ -1002,7 +1008,7 @@ export function makeHandlers(deps: HandlerDeps) {
       broadcaster.sendTo(connId, {
         type: "error",
         code: "UNAUTHORIZED",
-        message: "ルームの参加者として認識できません",
+        message: errorMessageFor("UNAUTHORIZED"),
       });
       return err("UNAUTHORIZED");
     }
@@ -1015,7 +1021,7 @@ export function makeHandlers(deps: HandlerDeps) {
       broadcaster.sendTo(connId, {
         type: "error",
         code: "CANNOT_CHANGE_HOST",
-        message: "自分自身へは移譲できません",
+        message: errorMessageFor("CANNOT_CHANGE_HOST"),
       });
       return err("CANNOT_CHANGE_HOST");
     }
@@ -1027,7 +1033,7 @@ export function makeHandlers(deps: HandlerDeps) {
       broadcaster.sendTo(connId, {
         type: "error",
         code: "PARTICIPANT_NOT_FOUND",
-        message: "対象の参加者が見つかりません",
+        message: errorMessageFor("PARTICIPANT_NOT_FOUND"),
       });
       return err("PARTICIPANT_NOT_FOUND");
     }
@@ -1037,7 +1043,7 @@ export function makeHandlers(deps: HandlerDeps) {
       broadcaster.sendTo(connId, {
         type: "error",
         code: "PARTICIPANT_OFFLINE",
-        message: "オフラインの参加者へは移譲できません",
+        message: errorMessageFor("PARTICIPANT_OFFLINE"),
       });
       return err("PARTICIPANT_OFFLINE");
     }
