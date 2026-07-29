@@ -26,11 +26,13 @@ describe("handlers: time.ping", () => {
   });
 
   it("time.pong でサーバー時刻を返す", async () => {
-    await handlers.handleCommand("conn-001", {
-      command: "time.ping",
-      clientTime: 1234567880,
-    });
+    // Given
+    const command = { command: "time.ping", clientTime: 1234567880 } as const;
 
+    // When
+    await handlers.handleCommand("conn-001", command);
+
+    // Then
     const pong = broadcaster.sent.find((s) => s.msg.type === "time.pong");
     expect(pong).toBeTruthy();
     if (pong?.msg.type === "time.pong") {
@@ -39,20 +41,24 @@ describe("handlers: time.ping", () => {
   });
 
   it("time.ping は状態を変えない（snapshot を配信しない）", async () => {
-    await handlers.handleCommand("conn-001", {
-      command: "time.ping",
-      clientTime: 1234567880,
-    });
+    // Given
+    const command = { command: "time.ping", clientTime: 1234567880 } as const;
 
+    // When
+    await handlers.handleCommand("conn-001", command);
+
+    // Then
     expect(broadcaster.snapshots).toHaveLength(0);
   });
 
   it("time.ping のレスポンスには clientTime は含まれない", async () => {
-    await handlers.handleCommand("conn-001", {
-      command: "time.ping",
-      clientTime: 9999999999,
-    });
+    // Given
+    const command = { command: "time.ping", clientTime: 9999999999 } as const;
 
+    // When
+    await handlers.handleCommand("conn-001", command);
+
+    // Then
     const pong = broadcaster.sent.find((s) => s.msg.type === "time.pong");
     expect(pong?.msg).not.toHaveProperty("clientTime");
   });

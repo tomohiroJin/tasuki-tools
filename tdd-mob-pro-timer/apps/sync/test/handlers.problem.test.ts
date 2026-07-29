@@ -72,11 +72,11 @@ describe("handlers: problem.request / problem.submit", () => {
   });
 
   it("editor+ の problem.request で先頭候補へ need-problem が送られる", async () => {
+    // Given
+    const command = { command: "problem.request", requestId: "req-1" } as const;
+
     // When
-    await handlers.handleCommand("host-conn", {
-      command: "problem.request",
-      requestId: "req-1",
-    });
+    await handlers.handleCommand("host-conn", command);
 
     // Then
     const needProblem = broadcaster.sent.find(
@@ -86,17 +86,20 @@ describe("handlers: problem.request / problem.submit", () => {
   });
 
   it("代表の problem.submit で Room.problem が確定する", async () => {
-    // When
+    // Given（先に problem.request で代表を確定させる）
     await handlers.handleCommand("host-conn", {
       command: "problem.request",
       requestId: "req-1",
     });
-    await handlers.handleCommand("host-conn", {
+    const command = {
       command: "problem.submit",
       requestId: "req-1",
       problem: validProblem,
       usedFallback: false,
-    });
+    } as const;
+
+    // When
+    await handlers.handleCommand("host-conn", command);
 
     // Then
     expect(store.get(code)?.problem?.title).toBe("FizzBuzz");

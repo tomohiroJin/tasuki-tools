@@ -37,11 +37,13 @@ describe("handlers: room.create", () => {
   });
 
   it("作成者は host ロールで登録される", async () => {
-    const result = await handlers.handleCommand("conn-001", {
-      command: "room.create",
-      displayName: "Alice",
-    });
+    // Given
+    const command = { command: "room.create", displayName: "Alice" } as const;
 
+    // When
+    const result = await handlers.handleCommand("conn-001", command);
+
+    // Then
     const value = result._unsafeUnwrap();
     const room = store.get(value.code);
     expect(room).toBeTruthy();
@@ -52,11 +54,13 @@ describe("handlers: room.create", () => {
   });
 
   it("room.created メッセージを送信者に返す", async () => {
-    await handlers.handleCommand("conn-001", {
-      command: "room.create",
-      displayName: "Alice",
-    });
+    // Given
+    const command = { command: "room.create", displayName: "Alice" } as const;
 
+    // When
+    await handlers.handleCommand("conn-001", command);
+
+    // Then
     const created = broadcaster.sent.find(
       (s) => s.msg.type === "room.created",
     );
@@ -136,9 +140,12 @@ describe("handlers: releaseRoom", () => {
     // Given
     const room = await aRoom().build();
 
-    // When / Then
-    expect(() => room.handlers.releaseRoom(room.code)).not.toThrow();
-    expect(() => room.handlers.releaseRoom(room.code)).not.toThrow();
+    // When（同じコードで2回呼ぶ）
+    const call = () => room.handlers.releaseRoom(room.code);
+
+    // Then
+    expect(call).not.toThrow();
+    expect(call).not.toThrow();
   });
 
   it("releaseRoom 後はリジュームトークンが無効化され、再参加が新規参加者として扱われる", async () => {

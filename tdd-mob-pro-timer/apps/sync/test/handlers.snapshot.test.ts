@@ -28,11 +28,11 @@ describe("handlers: full snapshot 配信フロー", () => {
   });
 
   it("コマンド処理後に全参加者へ snapshot を配信する", async () => {
-    // Given / When
-    const createResult = await handlers.handleCommand("conn-001", {
-      command: "room.create",
-      displayName: "Alice",
-    });
+    // Given
+    const command = { command: "room.create", displayName: "Alice" } as const;
+
+    // When
+    const createResult = await handlers.handleCommand("conn-001", command);
     if (!createResult.isOk()) throw new Error("create failed");
 
     // Then
@@ -43,13 +43,13 @@ describe("handlers: full snapshot 配信フロー", () => {
   });
 
   it("コマンドエラー時は snapshot を配信せず error を返す", async () => {
-    // Given / When（存在しないルームへのコマンド）
-    await handlers.handleCommand("conn-999", {
-      command: "room.join",
-      code: "INVALID",
-      displayName: "Bob",
-      hasAiKey: false,
-    });
+    // Given（存在しないルームコードを対象にする）
+    const command = {
+      command: "room.join", code: "INVALID", displayName: "Bob", hasAiKey: false,
+    } as const;
+
+    // When
+    await handlers.handleCommand("conn-999", command);
 
     // Then
     const errors = broadcaster.sent.filter((s) => s.msg.type === "error");
