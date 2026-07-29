@@ -16,6 +16,7 @@ describe("normalizeDisplayName", () => {
   });
 
   it("改行・タブ・全角空白も1つの半角空白へ畳む", () => {
+    // Given（入力と期待値の組をそれぞれ1行で示す）
     // When / Then
     expect(normalizeDisplayName("Bob\nAdmin")).toBe("Bob Admin");
     expect(normalizeDisplayName("Bob\t\tSmith")).toBe("Bob Smith");
@@ -27,6 +28,7 @@ describe("normalizeDisplayName", () => {
   });
 
   it("識別子ラベルの書式を剥がす（なりすまし防止）", () => {
+    // Given（入力と期待値の組をそれぞれ1行で示す）
     // When / Then（これを名乗れると、実在の参加者と完全に同一のラベルを作れてしまう）
     expect(normalizeDisplayName("Bob（ID: 0x3P）")).toBe("Bob");
     expect(normalizeDisplayName("Bob(ID: 0x3P)")).toBe("Bob");
@@ -45,6 +47,7 @@ describe("normalizeDisplayName", () => {
   });
 
   it("通常の名前は変えない", () => {
+    // Given（入力と期待値の組をそれぞれ1行で示す）
     // When / Then
     expect(normalizeDisplayName("Bob")).toBe("Bob");
     expect(normalizeDisplayName("ともひろ")).toBe("ともひろ");
@@ -57,16 +60,20 @@ describe("CommandSchema の表示名（境界での正規化）", () => {
     v.safeParse(CommandSchema, { command: "room.join", code: "AB0001", displayName, hasAiKey: false });
 
   it("room.join の表示名が正規化されて渡る", () => {
+    // Given
+    const rawDisplayName = "  Bob  ";
     // When
-    const r = join("  Bob  ");
+    const r = join(rawDisplayName);
     // Then
     expect(r.success).toBe(true);
     if (r.success) expect((r.output as { displayName: string }).displayName).toBe("Bob");
   });
 
   it("room.join でも識別子ラベルは名乗れない", () => {
+    // Given
+    const rawDisplayName = "Bob（ID: 0x3P）";
     // When
-    const r = join("Bob（ID: 0x3P）");
+    const r = join(rawDisplayName);
     // Then
     expect(r.success).toBe(true);
     if (r.success) expect((r.output as { displayName: string }).displayName).toBe("Bob");
@@ -92,20 +99,24 @@ describe("CommandSchema の表示名（境界での正規化）", () => {
   });
 
   it("participant.rename も同じ正規化を通る", () => {
-    // When
-    const rename = v.safeParse(CommandSchema, {
+    // Given
+    const command = {
       command: "participant.rename", participantId: "p1", displayName: "  Bob（ID: zzzz）  ",
-    });
+    } as const;
+    // When
+    const rename = v.safeParse(CommandSchema, command);
     // Then
     expect(rename.success).toBe(true);
     if (rename.success) expect((rename.output as { displayName: string }).displayName).toBe("Bob");
   });
 
   it("participant.addProxy も同じ正規化を通る", () => {
-    // When
-    const proxy = v.safeParse(CommandSchema, {
+    // Given
+    const command = {
       command: "participant.addProxy", participantId: "p2", displayName: "  Pair\tProgrammer ",
-    });
+    } as const;
+    // When
+    const proxy = v.safeParse(CommandSchema, command);
     // Then
     expect(proxy.success).toBe(true);
     if (proxy.success) expect((proxy.output as { displayName: string }).displayName).toBe("Pair Programmer");
@@ -122,6 +133,7 @@ describe("normalizeDisplayName（防御の迂回に対する回帰）", () => {
   const ZWJ = "\u200d";
 
   it("ゼロ幅文字を落とす（画面では素の名前と同一に見えるため）", () => {
+    // Given（入力と期待値の組をそれぞれ1行で示す）
     // When / Then（\s に含まれないので空白の畳み込みでは落ちない）
     expect(normalizeDisplayName("Bob" + ZWSP)).toBe("Bob");
     expect(normalizeDisplayName("Bob" + ZWNJ)).toBe("Bob");
@@ -167,6 +179,7 @@ describe("normalizeDisplayName（防御の迂回に対する回帰）", () => {
   });
 
   it("正当な名前は壊さない", () => {
+    // Given（入力と期待値の組をそれぞれ1行で示す）
     // When / Then
     expect(normalizeDisplayName("O'Brien")).toBe("O'Brien");
     expect(normalizeDisplayName("Jean-Luc")).toBe("Jean-Luc");
@@ -242,16 +255,24 @@ describe("NFKC 展開と最大長（レビュー指摘・必須）", () => {
   });
 
   it("上限ちょうどの通常文字は通る", () => {
+    // Given
+    const displayName = "a".repeat(MAX_DISPLAY_NAME);
+    // When
     const ok = v.safeParse(CommandSchema, {
-      command: "room.join", code: "AB0001", displayName: "a".repeat(MAX_DISPLAY_NAME), hasAiKey: false,
+      command: "room.join", code: "AB0001", displayName, hasAiKey: false,
     });
+    // Then
     expect(ok.success).toBe(true);
   });
 
   it("上限を1文字超えると拒否される", () => {
+    // Given
+    const displayName = "a".repeat(MAX_DISPLAY_NAME + 1);
+    // When
     const ng = v.safeParse(CommandSchema, {
-      command: "room.join", code: "AB0001", displayName: "a".repeat(MAX_DISPLAY_NAME + 1), hasAiKey: false,
+      command: "room.join", code: "AB0001", displayName, hasAiKey: false,
     });
+    // Then
     expect(ng.success).toBe(false);
   });
 });
@@ -263,6 +284,7 @@ describe("双方向制御文字（レビュー指摘・推奨）", () => {
   const RLI = "\u2067";
 
   it("保存される値から落とす（表示上まったく別の名前に見せられるため）", () => {
+    // Given（入力と期待値の組をそれぞれ1行で示す）
     // When / Then（ZWJ と違い正当な用途が無い。第2層は「既存の名前と衝突したとき」しか拾わないので、
     // 単独で見た目を偽装する場合を取り逃がす）
     expect(normalizeDisplayName("Bob" + RLO + "xyz")).toBe("Bobxyz");
