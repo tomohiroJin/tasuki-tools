@@ -9,6 +9,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import React from "react";
 import { Lobby } from "../../src/ui/Lobby.js";
 import type { Room, Participant } from "@tdd-mob/core";
+import { aRoomView } from "../support/room-view.js";
 
 function p(overrides: Partial<Participant>): Participant {
   return {
@@ -19,19 +20,13 @@ function p(overrides: Partial<Participant>): Participant {
 
 /** host=Alice(rotation済), 自分=Bob(editor・rotation未加入) の部屋。rotation は参加者IDの配列（D6b）。 */
 function makeRoom(): Room {
-  return {
-    code: "TEST01", createdAt: 0, hostParticipantId: "host-p",
-    config: { language: "TypeScript", difficulty: "easy", members: ["Alice"], intervalMinutes: 5 },
-    problem: null,
-    session: { rotation: ["host-p"], currentIndex: 0, isPaused: false, driverCounts: [0], totalSwitches: 0 },
-    clock: { running: false, intervalSeconds: 300, anchorServerTime: 0, secondsLeftAtAnchor: 300, accumulatedElapsedMs: 0, runningSince: null },
-    phase: "setup",
+  return aRoomView({
+    config: { members: ["Alice"], intervalMinutes: 5 },
     participants: [
       p({ participantId: "host-p", displayName: "Alice", role: "host" }),
       p({ participantId: "bob-p", displayName: "Bob", role: "editor", connId: "c2" }),
     ],
-    sessionRecords: [], handoffNote: "", onBreak: false,
-  };
+  });
 }
 
 const noop = vi.fn();

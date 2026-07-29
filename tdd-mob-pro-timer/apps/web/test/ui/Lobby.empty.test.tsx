@@ -8,35 +8,13 @@ import { render, screen } from "@testing-library/react";
 import React from "react";
 import { Lobby } from "../../src/ui/Lobby.js";
 import type { Room } from "@tdd-mob/core";
+import { aRoomView } from "../support/room-view.js";
 
 function makeRoom(overrides?: Partial<Room>): Room {
-  return {
-    code: "TEST01",
+  return aRoomView({
     createdAt: 1000000,
-    hostParticipantId: "host-p",
-    config: {
-      language: "TypeScript",
-      difficulty: "easy",
-      members: ["Alice"],
-      intervalMinutes: 5,
-    },
-    problem: null,
-    session: {
-      rotation: ["Alice"],
-      currentIndex: 0,
-      isPaused: false,
-      driverCounts: [0],
-      totalSwitches: 0,
-    },
-    clock: {
-      running: false,
-      intervalSeconds: 300,
-      anchorServerTime: 0,
-      secondsLeftAtAnchor: 300,
-      accumulatedElapsedMs: 0,
-      runningSince: null,
-    },
-    phase: "setup",
+    config: { members: ["Alice"], intervalMinutes: 5 },
+    session: { rotation: ["Alice"] },
     participants: [
       {
         participantId: "host-p",
@@ -48,11 +26,8 @@ function makeRoom(overrides?: Partial<Room>): Room {
         joinedAt: 1000000,
       },
     ],
-    sessionRecords: [],
-    handoffNote: "",
-    onBreak: false,
     ...overrides,
-  };
+  });
 }
 
 describe("Lobby 空状態ヒント（R5-2）", () => {

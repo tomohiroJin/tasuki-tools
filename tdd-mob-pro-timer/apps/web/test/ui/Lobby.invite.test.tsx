@@ -11,35 +11,13 @@ import React from "react";
 import { Lobby } from "../../src/ui/Lobby.js";
 // Note: Lobby の onStart prop は onStartSession として定義されている
 import type { Room } from "@tdd-mob/core";
+import { aRoomView } from "../support/room-view.js";
 
 function makeRoom(overrides?: Partial<Room>): Room {
-  return {
-    code: "TEST01",
+  return aRoomView({
     createdAt: 1000000,
-    hostParticipantId: "host-p",
-    config: {
-      language: "TypeScript",
-      difficulty: "easy",
-      members: ["Alice"],
-      intervalMinutes: 5,
-    },
-    problem: null,
-    session: {
-      rotation: ["Alice"],
-      currentIndex: 0,
-      isPaused: false,
-      driverCounts: [0],
-      totalSwitches: 0,
-    },
-    clock: {
-      running: false,
-      intervalSeconds: 300,
-      anchorServerTime: 0,
-      secondsLeftAtAnchor: 300,
-      accumulatedElapsedMs: 0,
-      runningSince: null,
-    },
-    phase: "setup",
+    config: { members: ["Alice"], intervalMinutes: 5 },
+    session: { rotation: ["Alice"] },
     participants: [
       {
         participantId: "host-p",
@@ -51,11 +29,8 @@ function makeRoom(overrides?: Partial<Room>): Room {
         joinedAt: 1000000,
       },
     ],
-    sessionRecords: [],
-    handoffNote: "",
-    onBreak: false,
     ...overrides,
-  };
+  });
 }
 
 describe("Lobby 招待 1 操作（T058/T059）", () => {
