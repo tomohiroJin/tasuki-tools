@@ -327,12 +327,11 @@ describe("role.set: 役割変更", () => {
   });
 
   it("host が viewer を editor に昇格できる", async () => {
+    // Given
+    const command = { command: "role.set", participantId: viewerId, role: "editor" } as const;
+
     // When
-    await handlers.handleCommand("host-conn", {
-      command: "role.set",
-      participantId: viewerId,
-      role: "editor",
-    });
+    await handlers.handleCommand("host-conn", command);
 
     // Then
     const after = store.get(code)!;

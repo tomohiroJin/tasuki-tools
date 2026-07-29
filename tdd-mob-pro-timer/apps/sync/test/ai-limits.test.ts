@@ -136,6 +136,8 @@ describe("AiLimiter", () => {
     // Given
     const clock = makeClock(1_000_000);
     const limiter = new AiLimiter({ clock, dailyLimit: 10, cooldownMs: 0 });
+
+    // When（取得と解放を2回繰り返す）
     const a = limiter.tryAcquire("R1");
     if (a.ok) a.release();
     const b = limiter.tryAcquire("R1");
