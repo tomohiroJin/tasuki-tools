@@ -90,12 +90,12 @@
 
 ## G1 — 休眠コードの撤去（挙動不変・削除のみ）
 
-- [ ] **T008** T001 の SC-027 を実行し、**撤去対象が `apps/web/src/solo/` ・ `apps/web/src/ai/byok.ts` ・
+- [x] **T008** T001 の SC-027 を実行し、**撤去対象が `apps/web/src/solo/` ・ `apps/web/src/ai/byok.ts` ・
   `apps/web/src/ai/key-storage.ts` ・ `apps/web/src/ui/components/AiSettingsModal.tsx` の 4 系統であることを
   機械的に確認する**。製品コードの入口から辿って到達しないことを根拠とする（テストからの参照は根拠にしない）。
   _要件: FR-087, FR-090, US1_
 
-- [ ] **T009** **削除とその参照除去を 1 コミットで行う（solo 系）。**
+- [x] **T009** **削除とその参照除去を 1 コミットで行う（solo 系）。**
   `apps/web/src/solo/`（`local-engine.ts` / `roster.ts` / `eligibility.ts`）、
   `apps/web/test/solo/`（3 ファイル・32 テスト）、
   **`apps/web/test/ui/Solo.roster.test.tsx`（3 テスト）**を削除する。
@@ -103,7 +103,7 @@
   （`Solo.roster.test.tsx:13`）。`test/solo/` 配下ではなく `test/ui/` 配下にあるため見落としやすい。
   _要件: FR-087, FR-088, FR-116, US1_
 
-- [ ] **T010** **削除とその参照除去を 1 コミットで行う（BYOK 系）。**
+- [x] **T010** **削除とその参照除去を 1 コミットで行う（BYOK 系）。**
   `apps/web/src/ai/byok.ts` ・ `apps/web/src/ai/key-storage.ts` ・
   `apps/web/src/ui/components/AiSettingsModal.tsx` ・
   `apps/web/test/ai/`（2 ファイル・11 テスト）・
@@ -115,12 +115,12 @@
   `a11y.test.tsx` の他のコンポーネントの検証は残す（ファイルごと消さない）。
   _要件: FR-087, FR-088, FR-116, US1_
 
-- [ ] **T011** `apps/web/src/App.tsx:79` の休眠コードに関するコメント
+- [x] **T011** `apps/web/src/App.tsx:79` の休眠コードに関するコメント
   （「ByokProvider / AiSettingsModal / key-storage は将来の再有効化に備えて残置（休眠）。」）を削除する。
   対象が消えたため記述が嘘になる。
   _要件: FR-087, US1_
 
-- [ ] **T012** **i18n 一式を撤去する（生きたモジュール内の死んだデータ・FR-119）。**
+- [x] **T012** **i18n 一式を撤去する（生きたモジュール内の死んだデータ・FR-119）。**
   `packages/core/src/i18n/ja.ts`（162 行）と `en.ts`（151 行）、
   `packages/core/src/index.ts` の再エクスポート 2 行、
   `apps/web/test/ui/i18n-coverage.test.ts`（72 行・10 テスト）、
@@ -138,7 +138,7 @@
   閾値を割った場合は**閾値を下げるのではなく、割った原因を確認する**。
   _要件: FR-119, FR-088, FR-116, US1_
 
-- [ ] **T009b** **削除とその参照除去を 1 コミットで行う（未配線 UI 一式）。**
+- [x] **T009b** **削除とその参照除去を 1 コミットで行う（未配線 UI 一式）。**
   G0 の走査（T003）で spec の想定外に見つかった 8 ファイルを撤去する:
   `apps/web/src/ui/Celebration.tsx` ・ `apps/web/src/ui/components/Button.tsx` ・
   `apps/web/src/ui/components/ThemeToggle.tsx` ・ `apps/web/src/ui/theme.ts` ・
@@ -151,7 +151,7 @@
   残っていないことを確認する（T010 と同じ失敗の型）。
   _要件: FR-087, FR-088, FR-116, US1_
 
-- [ ] **T013 [P]** 空ディレクトリ `apps/sync/adapters/` ・ `apps/sync/application/` ・
+- [x] **T013 [P]** 空ディレクトリ `apps/sync/adapters/` ・ `apps/sync/application/` ・
   `apps/sync/domain/` ・ `apps/sync/ports/` を削除する（git 未追跡・過去の cwd 誤りの産物）。
   _要件: FR-111, US5_
 
@@ -336,11 +336,12 @@
 > `test/ui/connection-status.test.tsx` = `StatusStrip`）どちらを指すか判別できなくなった**。
 > 網羅性を機械的に検査できるよう、以下はすべて `test/` からの相対パスで書く。
 
-- [ ] **T044 [P]** バッチ「直下と設定・記録」（10 ファイル）:
+- [ ] **T044 [P]** バッチ「直下と設定・記録」（9 ファイル）:
   `connection-status.test.ts` / `empty-hint.test.tsx` / `host-change.test.ts` /
   `platform/notify.test.ts` / `platform/sound.test.ts` /
   `prefs/local-prefs.test.ts` / `prefs/notify-hint.test.ts` / `prefs/notify-prefs.test.ts` /
-  `records/io.test.ts` / `records/persist.test.ts`。
+  `records/persist.test.ts`。
+  （`records/io.test.ts` は T009b で撤去済みのため対象外）
   **本体 2 行以下が多く SC-032 の対象外が大半。**
   _要件: FR-091〜FR-096, FR-123, SC-032, US2_
 
@@ -381,18 +382,21 @@
   ⚠ `use-switch-alert` は **`.ts` と `.tsx` の 2 ファイルが同名で存在する**。両方が対象。
   _要件: FR-091〜FR-096, FR-123, US2_
 
-- [ ] **T051** バッチ「画面遷移と入口」（10 ファイル）:
+- [ ] **T051** バッチ「画面遷移と入口」（9 ファイル）:
   `ui/Setup.onboarding.test.tsx` / `ui/Join.test.tsx` / `ui/join-driver-intent.test.ts` /
-  `ui/screen.test.ts` / `ui/transition.test.ts` / `ui/History.test.tsx` / `ui/Summary.test.tsx` /
+  `ui/screen.test.ts` / `ui/History.test.tsx` / `ui/Summary.test.tsx` /
   `ui/EndSessionZone.test.tsx` / `ui/EndSessionZone.complete.test.tsx` / `ui/Tabs.test.tsx`。
+  （`ui/transition.test.ts` は stage-transitions.ts 専用テストであり、
+  T009b で撤去済みのため対象外）
   _要件: FR-091〜FR-096, FR-123, US2_
 
-- [ ] **T052** バッチ「表示部品と横断」（12 ファイル）:
+- [ ] **T052** バッチ「表示部品と横断」（9 ファイル）:
   `ui/StatusStrip.test.tsx` / **`ui/connection-status.test.tsx`** /
   `ui/Markdown.test.tsx` / `ui/SharedMemo.test.tsx` / `ui/format-time.test.ts` /
-  `ui/stage-theme.test.ts` / `ui/theme.test.ts` / `ui/permission-hints.test.ts` /
+  `ui/permission-hints.test.ts` /
   `ui/dev-artifacts.test.ts` / `ui/announce.test.ts` / `ui/a11y.test.tsx`。
-  （i18n-coverage は T012 で撤去済みのため対象外。ファイル名をバッククォートで囲むと
+  （i18n-coverage・stage-theme.test.ts・theme.test.ts は G1（T009b・T012）で
+  撤去済みのため対象外。ファイル名をバッククォートで囲むと
   網羅性の検査が割り当てと誤判定するため、ここでは囲まない）
 
   > ⚠ **dev-artifacts はメタテストであり、通常の手順が適用できない。**
