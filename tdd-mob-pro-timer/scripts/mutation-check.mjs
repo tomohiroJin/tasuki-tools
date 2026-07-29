@@ -171,10 +171,64 @@ function affectedFilesOf(patchPath) {
 /** 現在適用中（未復元）の変異のファイル一覧。異常終了時の復元に使う。 */
 let currentlyAppliedFiles = [];
 
+/**
+ * 適用中の変異をディスクに残すマーカー。
+ *
+ * **なぜメモリだけでは足りないか。** 下の signal ハンドラは SIGINT/SIGTERM/SIGHUP しか捕まえられない。
+ * **SIGKILL と、親プロセスごと殺される形の中断は捕捉できず**、`currentlyAppliedFiles` は
+ * 復元されないまま失われる。実際にこれが起き、変異を適用したままの製品コードが
+ * 作業ツリーに残った（`deriveConnectionStatus` の分岐が反転したまま）。
+ *
+ * そのときの唯一の防波堤は main() 冒頭の「未コミット変更があれば実行を拒否する」検査だが、
+ * これは**次の実行を止めるだけで、変異が残っていること自体は教えてくれない**。
+ * マーカーを残せば、次回起動時に何が適用されたままかが分かり、自動で戻せる。
+ */
+const MARKER_PATH = path.join(MUTATIONS_DIR, ".applied");
+
+function writeMarker(files) {
+  fs.writeFileSync(MARKER_PATH, files.join("\n"), "utf8");
+}
+
+function clearMarker() {
+  if (fs.existsSync(MARKER_PATH)) fs.rmSync(MARKER_PATH);
+}
+
+/**
+ * 前回の実行が変異を適用したまま異常終了していないかを調べ、していれば復元する。
+ * **未コミット変更の検査より前に呼ぶこと。** そうしないと自分が残した変異で自分が止まる。
+ */
+function recoverFromCrashedRun() {
+  if (!fs.existsSync(MARKER_PATH)) return;
+  const files = fs
+    .readFileSync(MARKER_PATH, "utf8")
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  clearMarker();
+  if (files.length === 0) return;
+  // eslint-disable-next-line no-console
+  console.error(
+    "[mutation-check] 前回の実行が変異を適用したまま異常終了していました。復元します:\n" +
+      files.map((f) => `  - ${f}`).join("\n"),
+  );
+  try {
+    execFileSync("git", ["checkout", "--", ...files], { cwd: REPO_ROOT, stdio: "inherit" });
+    // eslint-disable-next-line no-console
+    console.error("[mutation-check] 復元しました。");
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error("[mutation-check] 復元に失敗しました。手動で確認してください。");
+    // eslint-disable-next-line no-console
+    console.error(e);
+    process.exit(1);
+  }
+}
+
 function restoreCurrentMutation() {
   if (currentlyAppliedFiles.length === 0) return;
   const files = currentlyAppliedFiles;
   currentlyAppliedFiles = [];
+  clearMarker();
   try {
     execFileSync("git", ["checkout", "--", ...files], { cwd: REPO_ROOT, stdio: "inherit" });
     // eslint-disable-next-line no-console
@@ -205,6 +259,8 @@ process.on("uncaughtException", (err) => {
 function applyMutation(mutation) {
   const patchPath = path.join(MUTATIONS_DIR, mutation.patch);
   const files = affectedFilesOf(patchPath);
+  // マーカーを**先に**書く。git apply の後に書くと、その間に殺された場合に取りこぼす。
+  writeMarker(files);
   execFileSync("git", ["apply", patchPath], { cwd: REPO_ROOT, stdio: "inherit" });
   currentlyAppliedFiles = files;
 }
@@ -234,6 +290,10 @@ function runTests(mutation, full) {
 
 function main() {
   const full = process.argv.includes("--full");
+
+  // 未コミット変更の検査より前に行う。前回の異常終了で残った変異を、
+  // その検査に引っかからせるのではなく自分で片付けるため。
+  recoverFromCrashedRun();
 
   const status = gitStatusPorcelain();
   if (status.trim() !== "") {
