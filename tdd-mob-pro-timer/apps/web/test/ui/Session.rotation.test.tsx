@@ -8,6 +8,7 @@ import { render, screen, fireEvent, within } from "@testing-library/react";
 import React from "react";
 import { Session } from "../../src/ui/Session.js";
 import type { Room, Participant, SessionConfig } from "@tdd-mob/core";
+import { aRoomView } from "../support/room-view.js";
 
 function p(overrides: Partial<Participant>): Participant {
   return {
@@ -23,17 +24,17 @@ const config: SessionConfig = {
 /** rotation=[Alice(host-p)]。rotation は参加者IDの配列（D6b）。
  *  Bob は editor だがローテーション未加入の途中参加者。 */
 function makeRoom(): Room {
-  return {
-    code: "AA0001", createdAt: 0, hostParticipantId: "host-p", config, problem: null,
-    session: { rotation: ["host-p"], currentIndex: 0, isPaused: false, driverCounts: [0], totalSwitches: 0 },
-    clock: { running: true, intervalSeconds: 300, anchorServerTime: 0, secondsLeftAtAnchor: 300, accumulatedElapsedMs: 0, runningSince: 0 },
+  return aRoomView({
+    code: "AA0001",
+    hostParticipantId: "host-p",
+    config,
+    clock: { running: true, runningSince: 0 },
     phase: "session",
     participants: [
       p({ participantId: "host-p", displayName: "Alice", role: "host" }),
       p({ participantId: "bob-p", displayName: "Bob", connId: "c2" }),
     ],
-    sessionRecords: [], handoffNote: "", onBreak: false,
-  };
+  });
 }
 
 const noop = () => {};
