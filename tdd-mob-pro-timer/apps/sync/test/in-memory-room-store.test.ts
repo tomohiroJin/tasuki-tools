@@ -1,6 +1,5 @@
 /**
  * InMemoryRoomStore のテスト
- * T031: FR-013
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
@@ -42,6 +41,9 @@ function makeRoom(code: string): Room {
   };
 }
 
+/**
+ * @requirements FR-013
+ */
 describe("InMemoryRoomStore", () => {
   let store: InMemoryRoomStore;
 

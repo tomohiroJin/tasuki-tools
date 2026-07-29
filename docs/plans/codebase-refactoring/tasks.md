@@ -303,7 +303,7 @@
 
 ### G3-c `apps/sync/test`（44 ファイル・重い 24）
 
-- [ ] **T038** バッチ「ハンドラ基礎」: `handlers.room` / `handlers.snapshot` / `handlers.lifecycle` /
+- [x] **T038** バッチ「ハンドラ基礎」: `handlers.room` / `handlers.snapshot` / `handlers.lifecycle` /
   `handlers.time-ping` / `handlers.v2` / `in-memory-room-store` / `code-gen`。
   _要件: FR-091〜FR-096, FR-123, US2_
 

@@ -1,6 +1,5 @@
 /**
  * time.ping ハンドラのテスト
- * T040b: FR-007, SC-001
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
@@ -10,6 +9,9 @@ import { FakeClock } from "../src/adapters/system-clock.js";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 
+/**
+ * @requirements FR-007, SC-001
+ */
 describe("handlers: time.ping", () => {
   let store: InMemoryRoomStore;
   let clock: FakeClock;
@@ -23,7 +25,7 @@ describe("handlers: time.ping", () => {
     handlers = makeHandlers({ store, clock, broadcaster, codeGen: new FakeCodeGen() });
   });
 
-  it("time.pong でサーバー時刻を返す（FR-007）", async () => {
+  it("time.pong でサーバー時刻を返す", async () => {
     await handlers.handleCommand("conn-001", {
       command: "time.ping",
       clientTime: 1234567880,

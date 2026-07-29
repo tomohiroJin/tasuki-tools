@@ -1,6 +1,7 @@
 /**
  * ルーム作成・参加ハンドラのテスト
- * T033: FR-011, FR-012, US2
+ *
+ * @requirements FR-011, FR-012, FR-016, US2
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
@@ -9,6 +10,7 @@ import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
+import { aRoom, makeTestHandlers } from "./support/room-builder.js";
 
 describe("handlers: room.create", () => {
   let store: InMemoryRoomStore;
@@ -25,7 +27,7 @@ describe("handlers: room.create", () => {
     handlers = makeHandlers({ store, clock, broadcaster, codeGen });
   });
 
-  it("ルームを作成し一意のルームコードを発行する（FR-011）", async () => {
+  it("ルームを作成すると一意のルームコードが発行される", async () => {
     const result = await handlers.handleCommand("conn-001", {
       command: "room.create",
       displayName: "Alice",
@@ -37,7 +39,7 @@ describe("handlers: room.create", () => {
     }
   });
 
-  it("作成者は host として登録される（FR-016）", async () => {
+  it("作成者は host ロールで登録される", async () => {
     const result = await handlers.handleCommand("conn-001", {
       command: "room.create",
       displayName: "Alice",
@@ -89,25 +91,41 @@ describe("handlers: room.create — maxRooms 上限", () => {
     handlers = makeHandlers({ store, clock, broadcaster, codeGen, maxRooms: 1 });
   });
 
-  it("maxRooms に達した場合、2件目の room.create は ROOM_LIMIT_EXCEEDED を返す", async () => {
-    // 1件目は成功する
+  it("maxRooms に達すると次の room.create は ROOM_LIMIT_EXCEEDED で失敗する", async () => {
+    // Given（1件目は上限に収まるので成功する）
     const first = await handlers.handleCommand("conn-001", {
       command: "room.create",
       displayName: "Alice",
     });
     expect(first.isOk()).toBe(true);
 
-    // 2件目はルーム上限に達しているので失敗する
+    // When
     const second = await handlers.handleCommand("conn-002", {
       command: "room.create",
       displayName: "Bob",
     });
+
+    // Then
     expect(second.isErr()).toBe(true);
     if (second.isErr()) {
       expect(second.error).toBe("ROOM_LIMIT_EXCEEDED");
     }
+  });
 
-    // conn-002 に error メッセージが届いていること
+  it("maxRooms に達したとき、拒否された接続へ error メッセージが届く", async () => {
+    // Given
+    await handlers.handleCommand("conn-001", {
+      command: "room.create",
+      displayName: "Alice",
+    });
+
+    // When
+    await handlers.handleCommand("conn-002", {
+      command: "room.create",
+      displayName: "Bob",
+    });
+
+    // Then
     const errorMsg = broadcaster.sent.find(
       (s) => s.connId === "conn-002" && s.msg.type === "error",
     );
@@ -119,51 +137,29 @@ describe("handlers: room.create — maxRooms 上限", () => {
 });
 
 describe("handlers: releaseRoom", () => {
-  let store: InMemoryRoomStore;
-  let clock: FakeClock;
-  let codeGen: FakeCodeGen;
-  let broadcaster: SpyBroadcaster;
-  let handlers: ReturnType<typeof makeHandlers>;
+  it("releaseRoom は同じコードで2回呼んでもエラーにならない（冪等）", async () => {
+    // Given
+    const room = await aRoom().build();
 
-  beforeEach(() => {
-    store = new InMemoryRoomStore();
-    clock = new FakeClock(1000000);
-    codeGen = new FakeCodeGen();
-    broadcaster = new SpyBroadcaster();
-    handlers = makeHandlers({ store, clock, broadcaster, codeGen });
+    // When / Then
+    expect(() => room.handlers.releaseRoom(room.code)).not.toThrow();
+    expect(() => room.handlers.releaseRoom(room.code)).not.toThrow();
   });
 
-  it("releaseRoom はエラーなく実行でき、同じコードで2回呼んでも冪等である", async () => {
-    const result = await handlers.handleCommand("conn-001", {
+  it("releaseRoom 後はリジュームトークンが無効化され、再参加が新規参加者として扱われる", async () => {
+    // Given
+    const store = new InMemoryRoomStore();
+    const broadcaster = new SpyBroadcaster();
+    const handlers = makeTestHandlers({ store, broadcaster });
+    const created = await handlers.handleCommand("conn-001", {
       command: "room.create",
       displayName: "Alice",
     });
-    expect(result.isOk()).toBe(true);
-    if (!result.isOk()) return;
-
-    const { code } = result.value;
-
-    // 1回目: エラーなく実行できること
-    expect(() => handlers.releaseRoom(code)).not.toThrow();
-    // 2回目（冪等性）: 2回目もエラーなく実行できること
-    expect(() => handlers.releaseRoom(code)).not.toThrow();
-  });
-
-  it("releaseRoom 後はリジュームトークンが無効化される", async () => {
-    const result = await handlers.handleCommand("conn-001", {
-      command: "room.create",
-      displayName: "Alice",
-    });
-    expect(result.isOk()).toBe(true);
-    if (!result.isOk()) return;
-
-    const { code, resumeToken } = result.value;
-
-    // releaseRoom でトークンを解放する
+    if (!created.isOk()) throw new Error("room.create に失敗した");
+    const { code, resumeToken, participantId } = created.value;
     handlers.releaseRoom(code);
 
-    // リジュームトークンを使った参加が新規参加として扱われること（ルームが既に存在する場合）
-    // ルームは store に残っているが resumeToken は無効化されているため、新規 participantId が割り当てられる
+    // When（ルームは store に残っているが resumeToken は無効化されている）
     const joinResult = await handlers.handleCommand("conn-002", {
       command: "room.join",
       code,
@@ -171,76 +167,55 @@ describe("handlers: releaseRoom", () => {
       hasAiKey: false,
       resumeToken,
     });
-    // ルームは store に残っているので参加自体は成功するが
-    // resumeToken が無効化されているため、新規参加者として別の participantId が発行される
+
+    // Then（元の participantId とは異なる新規 participantId が発行される）
     expect(joinResult.isOk()).toBe(true);
     if (joinResult.isOk()) {
-      // 元の participantId とは異なる新規 participantId が発行される
-      expect(joinResult.value.participantId).not.toBe(result.value.participantId);
+      expect(joinResult.value.participantId).not.toBe(participantId);
     }
   });
 });
 
 describe("handlers: room.join", () => {
-  let store: InMemoryRoomStore;
-  let clock: FakeClock;
-  let codeGen: FakeCodeGen;
-  let broadcaster: SpyBroadcaster;
-  let handlers: ReturnType<typeof makeHandlers>;
+  it("有効なルームコードで参加できる", async () => {
+    // Given
+    const room = await aRoom().build();
 
-  beforeEach(() => {
-    store = new InMemoryRoomStore();
-    clock = new FakeClock(1000000);
-    codeGen = new FakeCodeGen();
-    broadcaster = new SpyBroadcaster();
-    handlers = makeHandlers({ store, clock, broadcaster, codeGen });
-  });
-
-  it("有効なルームコードで参加できる（US2-AC2）", async () => {
-    // まずルームを作成
-    const createResult = await handlers.handleCommand("conn-001", {
-      command: "room.create",
-      displayName: "Alice",
-    });
-    expect(createResult.isOk()).toBe(true);
-    if (!createResult.isOk()) return;
-
-    broadcaster.sent.length = 0;
-    broadcaster.snapshots.length = 0;
-
-    // ルームに参加
-    const joinResult = await handlers.handleCommand("conn-002", {
+    // When
+    const joinResult = await room.handlers.handleCommand("conn-002", {
       command: "room.join",
-      code: createResult.value.code,
+      code: room.code,
       displayName: "Bob",
       hasAiKey: false,
     });
 
+    // Then
     expect(joinResult.isOk()).toBe(true);
   });
 
-  it("参加時に最新状態を snapshot で受け取る（US2-AC2）", async () => {
-    const createResult = await handlers.handleCommand("conn-001", {
-      command: "room.create",
-      displayName: "Alice",
-    });
-    if (!createResult.isOk()) return;
+  it("参加時に最新状態を snapshot で受け取る", async () => {
+    // Given
+    const room = await aRoom().build();
 
-    broadcaster.sent.length = 0;
-    broadcaster.snapshots.length = 0;
-
-    await handlers.handleCommand("conn-002", {
+    // When
+    await room.handlers.handleCommand("conn-002", {
       command: "room.join",
-      code: createResult.value.code,
+      code: room.code,
       displayName: "Bob",
       hasAiKey: false,
     });
 
-    const snapshot = broadcaster.sent.find((s) => s.msg.type === "snapshot");
+    // Then
+    const snapshot = room.broadcaster.sent.find((s) => s.msg.type === "snapshot");
     expect(snapshot).toBeTruthy();
   });
 
-  it("無効なルームコードで参加を拒否し理由を返す（US2-AC3）", async () => {
+  it("無効なルームコードで参加を拒否し理由を返す", async () => {
+    // Given
+    const broadcaster = new SpyBroadcaster();
+    const handlers = makeTestHandlers({ broadcaster });
+
+    // When
     await handlers.handleCommand("conn-002", {
       command: "room.join",
       code: "INVALID",
@@ -248,26 +223,26 @@ describe("handlers: room.join", () => {
       hasAiKey: false,
     });
 
+    // Then
     const error = broadcaster.sent.find((s) => s.msg.type === "error");
     expect(error).toBeTruthy();
   });
 
-  it("新規参加者はデフォルトで editor になる（UX 再設計: 名乗って参加した人はすぐ回せる）", async () => {
-    const createResult = await handlers.handleCommand("conn-001", {
-      command: "room.create",
-      displayName: "Alice",
-    });
-    if (!createResult.isOk()) return;
+  it("新規参加者はデフォルトで editor になる（名乗って参加した人はすぐ回せる）", async () => {
+    // Given
+    const room = await aRoom().build();
 
-    await handlers.handleCommand("conn-002", {
+    // When
+    await room.handlers.handleCommand("conn-002", {
       command: "room.join",
-      code: createResult.value.code,
+      code: room.code,
       displayName: "Bob",
       hasAiKey: false,
     });
 
-    const room = store.get(createResult.value.code);
-    const bob = room?.participants.find((p) => p.displayName === "Bob");
+    // Then
+    const stored = room.store.get(room.code);
+    const bob = stored?.participants.find((p) => p.displayName === "Bob");
     expect(bob?.role).toBe("editor");
   });
 });

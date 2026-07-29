@@ -2,7 +2,6 @@
  * セッションライフサイクル・役割・自動交代のテスト（コードレビュー回帰）
  * session.complete の記録/phase 遷移、config.set の Room.config 反映、
  * role.set、スケジューラ配線による自動交代を検証する。
- * 要件: FR-003, FR-009, FR-016, FR-028
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -48,7 +47,10 @@ async function setupRoom(handlers: ReturnType<typeof makeHandlers>) {
   return code;
 }
 
-describe("session.complete: 記録と phase 遷移（FR-028）", () => {
+/**
+ * @requirements FR-028
+ */
+describe("session.complete: 記録と phase 遷移", () => {
   let store: InMemoryRoomStore;
   let clock: FakeClock;
   let broadcaster: SpyBroadcaster;
@@ -62,9 +64,8 @@ describe("session.complete: 記録と phase 遷移（FR-028）", () => {
   });
 
   it("お題確定後の完成で sessionRecords に記録が追加され phase=celebration になる", async () => {
+    // Given
     const code = await setupRoom(handlers);
-
-    // お題を Room に直接設定（problem.submit 経路の代替）
     const room = store.get(code)!;
     store.put({
       ...room,
@@ -77,11 +78,12 @@ describe("session.complete: 記録と phase 遷移（FR-028）", () => {
       },
     });
 
-    // セッション開始 → 完成
+    // When
     await handlers.handleCommand("host-conn", { command: "session.act", action: "START" });
     clock.advance(120000);
     await handlers.handleCommand("host-conn", { command: "session.complete" });
 
+    // Then
     const after = store.get(code)!;
     expect(after.phase).toBe("celebration");
     expect(after.sessionRecords).toHaveLength(1);
@@ -89,6 +91,7 @@ describe("session.complete: 記録と phase 遷移（FR-028）", () => {
   });
 
   it("session.complete を二度呼んでも記録は重複しない（冪等）", async () => {
+    // Given
     const code = await setupRoom(handlers);
     const room = store.get(code)!;
     store.put({
@@ -96,10 +99,12 @@ describe("session.complete: 記録と phase 遷移（FR-028）", () => {
       problem: { title: "FizzBuzz", description: "d", requirements: ["r"], exampleTest: "t", hints: [] },
     });
 
+    // When
     await handlers.handleCommand("host-conn", { command: "session.act", action: "START" });
     await handlers.handleCommand("host-conn", { command: "session.complete" });
     await handlers.handleCommand("host-conn", { command: "session.complete" });
 
+    // Then
     expect(store.get(code)!.sessionRecords).toHaveLength(1);
   });
 });
@@ -122,6 +127,7 @@ describe("session.reset: 最初から再スタート（v2.3 #3）", () => {
   // 走行に初期化される（旧仕様は phase=setup・お題クリアでロビーに飛ばされ、かつ
   // running=false でリセット後に開始できず詰んでいた）。
   it("reset で phase は session のまま・お題は保持され、ローテーションが初期化され clock は走行で再スタートする", async () => {
+    // Given
     const code = await setupRoom(handlers);
     const room = store.get(code)!;
     store.put({
@@ -129,12 +135,13 @@ describe("session.reset: 最初から再スタート（v2.3 #3）", () => {
       problem: { title: "FizzBuzz", description: "d", requirements: ["r"], exampleTest: "t", hints: [] },
     });
 
-    // 進行させてから session フェーズへ、その後リセット
+    // When（進行させてから session フェーズへ、その後リセット）
     await handlers.handleCommand("host-conn", { command: "phase.set", phase: "session" });
     await handlers.handleCommand("host-conn", { command: "session.act", action: "START" });
     await handlers.handleCommand("host-conn", { command: "session.act", action: "SWITCH" });
     await handlers.handleCommand("host-conn", { command: "session.reset" });
 
+    // Then
     const after = store.get(code)!;
     // session 画面に留まる（その場で走り直す）
     expect(after.phase).toBe("session");
@@ -148,6 +155,7 @@ describe("session.reset: 最初から再スタート（v2.3 #3）", () => {
   });
 
   it("reset しても完成記録の履歴は保持される", async () => {
+    // Given
     const code = await setupRoom(handlers);
     const room = store.get(code)!;
     store.put({
@@ -167,13 +175,18 @@ describe("session.reset: 最初から再スタート（v2.3 #3）", () => {
       ],
     });
 
+    // When
     await handlers.handleCommand("host-conn", { command: "session.reset" });
 
+    // Then
     expect(store.get(code)!.sessionRecords).toHaveLength(1);
   });
 });
 
-describe("メンバー編集と config.members 同期（FR-028 記録の正確性）", () => {
+/**
+ * @requirements FR-028
+ */
+describe("メンバー編集と config.members 同期", () => {
   let store: InMemoryRoomStore;
   let clock: FakeClock;
   let broadcaster: SpyBroadcaster;
@@ -187,13 +200,15 @@ describe("メンバー編集と config.members 同期（FR-028 記録の正確�
   });
 
   it("member.add 後、config.members が rotation に同期する", async () => {
+    // Given
     const code = await setupRoom(handlers);
 
-    // 代理として Dave を輪に加える（在室者以外は輪に並べられない・D6b）。
+    // When（代理として Dave を輪に加える。在室者以外は輪に並べられない・D6b）
     await handlers.handleCommand("host-conn", {
       command: "participant.addProxy", displayName: "Dave", participantId: "ignored-client-supplied",
     });
 
+    // Then
     const after = store.get(code)!;
     const dave = after.participants.find((p) => p.displayName === "Dave")!;
     expect(after.session.rotation).toContain(dave.participantId);
@@ -202,6 +217,7 @@ describe("メンバー編集と config.members 同期（FR-028 記録の正確�
   });
 
   it("メンバー編集後の完成記録は最新メンバーを反映する", async () => {
+    // Given
     const code = await setupRoom(handlers);
     const room = store.get(code)!;
     store.put({
@@ -209,18 +225,23 @@ describe("メンバー編集と config.members 同期（FR-028 記録の正確�
       problem: { title: "FizzBuzz", description: "d", requirements: ["r"], exampleTest: "t", hints: [] },
     });
 
+    // When
     await handlers.handleCommand("host-conn", {
       command: "participant.addProxy", displayName: "Dave", participantId: "ignored-client-supplied",
     });
     await handlers.handleCommand("host-conn", { command: "session.act", action: "START" });
     await handlers.handleCommand("host-conn", { command: "session.complete" });
 
+    // Then
     const record = store.get(code)!.sessionRecords[0];
     expect(record?.members).toContain("Dave");
   });
 });
 
-describe("config.set: Room.config への反映（FR-009）", () => {
+/**
+ * @requirements FR-009
+ */
+describe("config.set: Room.config への反映", () => {
   let store: InMemoryRoomStore;
   let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
@@ -232,13 +253,16 @@ describe("config.set: Room.config への反映（FR-009）", () => {
   });
 
   it("language/difficulty を変更すると Room.config が更新される（メンバー名に汚染されない）", async () => {
+    // Given
     const code = await setupRoom(handlers);
 
+    // When
     await handlers.handleCommand("host-conn", {
       command: "config.set",
       config: { language: "Python", difficulty: "hard" },
     });
 
+    // Then
     const after = store.get(code)!;
     expect(after.config.language).toBe("Python");
     expect(after.config.difficulty).toBe("hard");
@@ -247,32 +271,41 @@ describe("config.set: Room.config への反映（FR-009）", () => {
   });
 
   it("intervalMinutes を変更すると config と clock の両方に反映される", async () => {
+    // Given
     const code = await setupRoom(handlers);
 
+    // When
     await handlers.handleCommand("host-conn", {
       command: "config.set",
       config: { intervalMinutes: 10 },
     });
 
+    // Then
     const after = store.get(code)!;
     expect(after.config.intervalMinutes).toBe(10);
     expect(after.clock.intervalSeconds).toBe(600);
   });
 
   it("problemEnabled=false を変更すると Room.config に反映される（お題なし開始・実機で発覚した退行の回帰）", async () => {
+    // Given
     const code = await setupRoom(handlers);
 
+    // When
     await handlers.handleCommand("host-conn", {
       command: "config.set",
       config: { problemEnabled: false },
     });
 
+    // Then
     const after = store.get(code)!;
     expect(after.config.problemEnabled).toBe(false);
   });
 });
 
-describe("role.set: 役割変更（FR-016）", () => {
+/**
+ * @requirements FR-016
+ */
+describe("role.set: 役割変更", () => {
   let store: InMemoryRoomStore;
   let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
@@ -294,24 +327,31 @@ describe("role.set: 役割変更（FR-016）", () => {
   });
 
   it("host が viewer を editor に昇格できる", async () => {
+    // When
     await handlers.handleCommand("host-conn", {
       command: "role.set",
       participantId: viewerId,
       role: "editor",
     });
 
+    // Then
     const after = store.get(code)!;
     const dave = after.participants.find((p) => p.participantId === viewerId);
     expect(dave?.role).toBe("editor");
   });
 
   it("viewer は role.set を実行できない（UNAUTHORIZED）", async () => {
+    // Given
     broadcaster.sent.length = 0;
+
+    // When
     await handlers.handleCommand("viewer-conn", {
       command: "role.set",
       participantId: viewerId,
       role: "editor",
     });
+
+    // Then
     const error = broadcaster.sent.find((s) => s.msg.type === "error");
     expect(error?.msg.type).toBe("error");
     if (error?.msg.type === "error") {
@@ -320,7 +360,10 @@ describe("role.set: 役割変更（FR-016）", () => {
   });
 });
 
-describe("自動交代: スケジューラ配線（FR-003）", () => {
+/**
+ * @requirements FR-003
+ */
+describe("自動交代: スケジューラ配線", () => {
   let store: InMemoryRoomStore;
   let clock: FakeClock;
   let broadcaster: SpyBroadcaster;
@@ -342,16 +385,17 @@ describe("自動交代: スケジューラ配線（FR-003）", () => {
   });
 
   it("START 後、交代間隔の経過で自動的にドライバーが進む", async () => {
+    // Given
     const code = await setupRoom(handlers);
     await handlers.handleCommand("host-conn", { command: "session.act", action: "START" });
-
     const before = store.get(code)!;
     expect(before.session.currentIndex).toBe(0);
 
-    // FakeClock と vitest タイマーを同時に進める（残り 300 秒）
+    // When（FakeClock と vitest タイマーを同時に進める。残り 300 秒）
     clock.advance(300000);
     vi.advanceTimersByTime(300000 + 100);
 
+    // Then
     const after = store.get(code)!;
     expect(after.session.currentIndex).toBe(1);
     expect(after.session.totalSwitches).toBe(1);
@@ -360,38 +404,44 @@ describe("自動交代: スケジューラ配線（FR-003）", () => {
   });
 
   it("PAUSE で自動交代タイマーが解除される", async () => {
+    // Given
     const code = await setupRoom(handlers);
     await handlers.handleCommand("host-conn", { command: "session.act", action: "START" });
     await handlers.handleCommand("host-conn", { command: "session.act", action: "PAUSE" });
 
+    // When
     clock.advance(600000);
     vi.advanceTimersByTime(600000 + 100);
 
+    // Then
     const after = store.get(code)!;
     expect(after.session.totalSwitches).toBe(0);
   });
 
   it("自動交代は ineligible（skip 済み）のメンバーを飛ばして次の eligible へ進む（plan.md L194）", async () => {
+    // Given（setupRoom で参加済みの Bob を host が skip して ineligible にする）
     const code = await setupRoom(handlers);
-    // setupRoom で参加済みの Bob を host が skip して ineligible にする
     const bob = store.get(code)!.participants.find((p) => p.connId === "bob-conn")!;
     await handlers.handleCommand("host-conn", {
       command: "driver.skip",
       participantId: bob.participantId,
     });
-
     await handlers.handleCommand("host-conn", { command: "session.act", action: "START" });
     expect(store.get(code)!.session.currentIndex).toBe(0); // Alice
 
-    // 交代間隔の経過 → 自動交代は Bob(1) を飛ばして Charlie(2) へ
+    // When（交代間隔の経過 → 自動交代は Bob(1) を飛ばして Charlie(2) へ）
     clock.advance(300000);
     vi.advanceTimersByTime(300000 + 100);
 
+    // Then
     expect(store.get(code)!.session.currentIndex).toBe(2);
   });
 });
 
-describe("ドライバー一時離脱と現ドライバー skip の繰り上げ（FR-051, plan.md L209）", () => {
+/**
+ * @requirements FR-051
+ */
+describe("ドライバー一時離脱と現ドライバー skip の繰り上げ（plan.md L209）", () => {
   let store: InMemoryRoomStore;
   let clock: FakeClock;
   let broadcaster: SpyBroadcaster;
@@ -413,16 +463,19 @@ describe("ドライバー一時離脱と現ドライバー skip の繰り上げ�
   });
 
   it("稼働中に現ドライバーを driver.skip すると次の eligible へ繰り上がる", async () => {
+    // Given
     const code = await setupRoom(handlers);
     await handlers.handleCommand("host-conn", { command: "session.act", action: "START" });
     const host = store.get(code)!.participants.find((p) => p.connId === "host-conn")!;
     expect(store.get(code)!.session.currentIndex).toBe(0); // Alice が現ドライバー
 
+    // When
     await handlers.handleCommand("host-conn", {
       command: "driver.skip",
       participantId: host.participantId,
     });
 
+    // Then
     const after = store.get(code)!;
     expect(after.session.currentIndex).toBe(1); // Bob へ繰り上がる
     const skipped = after.participants.find((p) => p.participantId === host.participantId);
@@ -430,25 +483,26 @@ describe("ドライバー一時離脱と現ドライバー skip の繰り上げ�
   });
 
   it("現ドライバー skip でタイマーが次担当向けにリセットされる", async () => {
+    // Given（開始から 100 秒経過させてから skip する）
     const code = await setupRoom(handlers);
     await handlers.handleCommand("host-conn", { command: "session.act", action: "START" });
-    // 開始から 100 秒経過させてから skip する
     clock.advance(100000);
     const host = store.get(code)!.participants.find((p) => p.connId === "host-conn")!;
 
+    // When
     await handlers.handleCommand("host-conn", {
       command: "driver.skip",
       participantId: host.participantId,
     });
 
+    // Then（次担当でタイマーが満タンに再アンカーされる）
     const after = store.get(code)!;
-    // 次担当でタイマーが満タンに再アンカーされる
     expect(after.clock.anchorServerTime).toBe(clock.now());
     expect(after.clock.secondsLeftAtAnchor).toBe(after.clock.intervalSeconds);
   });
 
   it("全員 ineligible のときは現ドライバー skip でも現状維持（無限ループしない）", async () => {
-    // メンバー1名のルームを作り、現ドライバー（唯一の eligible）を skip する
+    // Given（メンバー1名のルームを作り、現ドライバー＝唯一の eligible にする）
     const create = await handlers.handleCommand("solo-conn", {
       command: "room.create",
       displayName: "Onlyone",
@@ -458,13 +512,14 @@ describe("ドライバー一時離脱と現ドライバー skip の繰り上げ�
     await handlers.handleCommand("solo-conn", { command: "session.act", action: "START" });
     const me = store.get(code)!.participants.find((p) => p.connId === "solo-conn")!;
 
+    // When（唯一の eligible を skip する）
     await handlers.handleCommand("solo-conn", {
       command: "driver.skip",
       participantId: me.participantId,
     });
 
+    // Then（交代先が無いので現状維持。currentIndex 据え置き・switch カウント無し）
     const after = store.get(code)!;
-    // 交代先が無いので現状維持（currentIndex 据え置き・switch カウント無し）
     expect(after.session.currentIndex).toBe(0);
     expect(after.session.totalSwitches).toBe(0);
 

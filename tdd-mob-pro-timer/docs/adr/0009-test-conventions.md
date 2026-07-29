@@ -119,3 +119,26 @@ describe("<対象の名詞>", () => {
   `it` 名に混在していた FR-066/FR-067 を、describe 直上の JSDoc `@requirements` へ移した。
   `permissions-differential.test.ts`（T035）とは異なりこのファイルは FR-093 の例外表に
   載っていないため、名前に仕様IDや組み合わせを残していない。
+
+### `apps/sync/test`（T038: バッチ「ハンドラ基礎」）
+
+- `handlers.room.test.ts`
+- `handlers.snapshot.test.ts`
+- `handlers.lifecycle.test.ts`
+- `handlers.time-ping.test.ts`
+- `handlers.v2.test.ts`
+- `in-memory-room-store.test.ts`
+- `code-gen.test.ts`
+
+  describe/it 名に混在していた T0xx・FR-0xx を JSDoc `@requirements` へ移した。
+  `handlers.v2.test.ts` ではローカル定義の `getLatestSnapshot()`（`.snapshots.at(-1)?.room` の
+  再実装）を `SpyBroadcaster.latestSnapshot()` に置き換えた（G2 の問い合わせメソッドの利用）。
+  同ファイルの「v2 コマンド実行後に broadcastSnapshot が呼ばれる」は
+  「v2 コマンド実行後に新しい snapshot が全員へ配信される」へ改名した（FR-093：呼び出しの
+  発生ではなく結果を述べる）。`handlers.room.test.ts` の「room.join」describe では、前提の
+  ルーム作成を `expect(...).toBe(true); if (!x.isOk()) return;` という前提段階の
+  expect ガードから `aRoom()`（失敗時 throw）へ置き換えた（FR-096）。
+  `handlers.room.test.ts` の「maxRooms に達した場合、2件目の room.create は
+  ROOM_LIMIT_EXCEEDED を返す」は「失敗すること」と「拒否された接続へエラー通知が届くこと」の
+  2つの振る舞いを検証していたため、前提を共有したまま2テストに分割した（FR-095）。
+  検証内容は変えていない。
