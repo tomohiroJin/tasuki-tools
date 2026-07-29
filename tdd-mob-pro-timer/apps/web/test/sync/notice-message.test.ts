@@ -35,9 +35,11 @@ describe("buildNoticeMessage", () => {
 
     for (const [action, keyword] of cases) {
       it(`${action} の文言に実行者名と「${keyword}」が含まれる`, () => {
-        // Given / When
+        // Given
+        const signal: NoticeSignal = { ...base, action };
+        // When
         const text = buildNoticeMessage(
-          { ...base, action },
+          signal,
           { selfParticipantId: "pid-alice", participants: roster },
         );
 
@@ -48,15 +50,17 @@ describe("buildNoticeMessage", () => {
     }
 
     it("participant-removed は実行者と対象の両方を含む", () => {
-      // Given / When
+      // Given
+      const signal: NoticeSignal = {
+        action: "participant-removed",
+        actorName: "Bob",
+        actorParticipantId: "pid-bob",
+        targetName: "Carol",
+        targetParticipantId: "pid-carol",
+      };
+      // When
       const text = buildNoticeMessage(
-        {
-          action: "participant-removed",
-          actorName: "Bob",
-          actorParticipantId: "pid-bob",
-          targetName: "Carol",
-          targetParticipantId: "pid-carol",
-        },
+        signal,
         { selfParticipantId: "pid-alice", participants: roster },
       );
 
@@ -66,15 +70,17 @@ describe("buildNoticeMessage", () => {
     });
 
     it("自己退出（実行者＝対象）は「退出させた」ではなく「退出した」と表現する", () => {
-      // Given / When
+      // Given
+      const signal: NoticeSignal = {
+        action: "participant-removed",
+        actorName: "Carol",
+        actorParticipantId: "pid-carol",
+        targetName: "Carol",
+        targetParticipantId: "pid-carol",
+      };
+      // When
       const text = buildNoticeMessage(
-        {
-          action: "participant-removed",
-          actorName: "Carol",
-          actorParticipantId: "pid-carol",
-          targetName: "Carol",
-          targetParticipantId: "pid-carol",
-        },
+        signal,
         { selfParticipantId: "pid-alice", participants: roster },
       );
 
@@ -86,7 +92,8 @@ describe("buildNoticeMessage", () => {
 
   describe("自分が実行者のとき", () => {
     it("自分の名前ではなく「あなた」と表示する", () => {
-      // Given / When
+      // Given（base は actorParticipantId="pid-bob"）
+      // When
       const text = buildNoticeMessage(base, {
         selfParticipantId: "pid-bob",
         participants: roster,
@@ -108,15 +115,17 @@ describe("buildNoticeMessage", () => {
     ];
 
     it("実行者と対象が同名でも識別子で区別できる", () => {
-      // Given / When
+      // Given
+      const signal: NoticeSignal = {
+        action: "participant-removed",
+        actorName: "Alice",
+        actorParticipantId: "p-0001",
+        targetName: "Alice",
+        targetParticipantId: "p-0002",
+      };
+      // When
       const text = buildNoticeMessage(
-        {
-          action: "participant-removed",
-          actorName: "Alice",
-          actorParticipantId: "p-0001",
-          targetName: "Alice",
-          targetParticipantId: "p-0002",
-        },
+        signal,
         { selfParticipantId: "p-9999", participants: withGhost },
       );
 
@@ -127,15 +136,17 @@ describe("buildNoticeMessage", () => {
     });
 
     it("同名がいなければ識別子を添えない（通常時に読みにくくしない）", () => {
-      // Given / When
+      // Given
+      const signal: NoticeSignal = {
+        action: "participant-removed",
+        actorName: "Bob",
+        actorParticipantId: "pid-bob",
+        targetName: "Alice",
+        targetParticipantId: "pid-alice",
+      };
+      // When
       const text = buildNoticeMessage(
-        {
-          action: "participant-removed",
-          actorName: "Bob",
-          actorParticipantId: "pid-bob",
-          targetName: "Alice",
-          targetParticipantId: "pid-alice",
-        },
+        signal,
         { selfParticipantId: "pid-carol", participants: roster },
       );
 
@@ -146,15 +157,17 @@ describe("buildNoticeMessage", () => {
 
   describe("名簿に載っていない参加者", () => {
     it("退出直後で名簿から消えていても対象名を表示できる", () => {
-      // Given / When（notice は退出を永続化した後に配信されるため、対象は既に participants にいない）
+      // Given（notice は退出を永続化した後に配信されるため、対象は既に participants にいない）
+      const signal: NoticeSignal = {
+        action: "participant-removed",
+        actorName: "Bob",
+        actorParticipantId: "pid-bob",
+        targetName: "Carol",
+        targetParticipantId: "pid-carol",
+      };
+      // When
       const text = buildNoticeMessage(
-        {
-          action: "participant-removed",
-          actorName: "Bob",
-          actorParticipantId: "pid-bob",
-          targetName: "Carol",
-          targetParticipantId: "pid-carol",
-        },
+        signal,
         { selfParticipantId: "pid-alice", participants: roster },
       );
 
