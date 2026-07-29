@@ -281,7 +281,7 @@
   `transfer-host` / `records`。
   _要件: FR-091〜FR-096, FR-123, US2_
 
-- [ ] **T034** バッチ「スキーマと純粋関数」: `schemas` / `schemas.problem-enabled` /
+- [x] **T034** バッチ「スキーマと純粋関数」: `schemas` / `schemas.problem-enabled` /
   `passphrase-schema` / `driver-assign-schema` / `ai-unlock` / `problem` / `display-name` / `participants`。
   **本体 2 行以下のテストが多く、SC-032 の対象外が大半**である。名前と分割のみを見る。
   _要件: FR-091〜FR-096, FR-123, SC-032, US2_

@@ -130,7 +130,10 @@ describe("RoomSchema startedAt（後方互換・単調フラグ）", () => {
 // 破壊的操作の実行者を全員に伝えるためのシグナル。サーバーは「意味」だけを運び、
 // 日本語の文言化は UI 側が行う（plan.md「API / インターフェース契約」1）。
 
-describe("ServerMsgSchema signal: notice（実行者の通知・FR-077）", () => {
+/**
+ * @requirements FR-077
+ */
+describe("ServerMsgSchema signal: notice（実行者の通知）", () => {
   /** 妥当な notice メッセージの雛形。各テストで一部だけを差し替える。 */
   const base = {
     type: "signal",
@@ -141,6 +144,7 @@ describe("ServerMsgSchema signal: notice（実行者の通知・FR-077）", () =
   };
 
   it("4つの action すべてが受理される", () => {
+    // When / Then
     for (const action of [
       "participant-removed",
       "session-aborted",
@@ -158,14 +162,20 @@ describe("ServerMsgSchema signal: notice（実行者の通知・FR-077）", () =
   });
 
   it("actorName が欠けていると failure（誰が実行したか分からない通知は無意味）", () => {
+    // Given
     const { actorName: _omitted, ...withoutActorName } = base;
+    // When
     const result = v.safeParse(ServerMsgSchema, withoutActorName);
+    // Then
     expect(result.success).toBe(false);
   });
 
   it("actorParticipantId が欠けていると failure（同名参加者を区別できない）", () => {
+    // Given
     const { actorParticipantId: _omitted, ...withoutActorId } = base;
+    // When
     const result = v.safeParse(ServerMsgSchema, withoutActorId);
+    // Then
     expect(result.success).toBe(false);
   });
 

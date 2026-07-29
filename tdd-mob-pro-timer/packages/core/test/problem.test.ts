@@ -66,7 +66,10 @@ describe("validateProblem: Valibot検証", () => {
     expect(result.isErr()).toBe(true);
   });
 
-  it("不正な JSON 文字列は Err を返す（AI 由来のテキストを信頼しない FR-023）", () => {
+  /**
+   * @requirements FR-023
+   */
+  it("不正な JSON 文字列は Err を返す（AI 由来のテキストを信頼しない）", () => {
     const result = validateProblem("invalid json" as never);
     expect(result.isErr()).toBe(true);
   });
@@ -92,20 +95,24 @@ describe("pickFallback: 定型お題へのフォールバック", () => {
     expect(Array.isArray(problem.hints)).toBe(true);
   });
 
-  it("AI生成失敗時に定型を返す（FR-024）", () => {
-    // AI生成の結果として不正な JSON が来た場合
+  /**
+   * @requirements FR-024
+   */
+  it("AI生成失敗時に定型を返す", () => {
+    // Given（AI生成の結果として不正な JSON が来た場合）
     const invalidAiResult = "{ broken json";
     const validation = validateProblem(invalidAiResult as never);
     expect(validation.isErr()).toBe(true);
-
-    // フォールバックを使う
+    // When（フォールバックを使う）
     const fallback = pickFallback("TypeScript", "easy");
+    // Then
     expect(fallback.source).toBe("fallback");
   });
 });
 
 describe("FALLBACK_PROBLEMS: 定型お題バンク", () => {
   it("各お題は必須フィールドを持つ", () => {
+    // When / Then
     for (const p of FALLBACK_PROBLEMS) {
       expect(p.problem.title).toBeTruthy();
       expect(p.problem.description).toBeTruthy();
@@ -119,7 +126,10 @@ describe("FALLBACK_PROBLEMS: 定型お題バンク", () => {
 
 import { buildProblemPrompt } from "../src/problem.js";
 
-describe("buildProblemPrompt（T021）", () => {
+/**
+ * @requirements T021
+ */
+describe("buildProblemPrompt", () => {
   it("言語と難易度がプロンプトに含まれる", () => {
     const prompt = buildProblemPrompt("TypeScript", "easy");
     expect(prompt).toContain("TypeScript");
@@ -151,10 +161,10 @@ describe("FALLBACK_PROBLEMS バンク（AI なしの唯一の出題源）", () =
   });
 
   it("全エントリがスキーマ検証を通る具体的なお題である", () => {
+    // When / Then（具体性: 説明は十分な長さ、要件は2件以上、テスト例あり）
     for (const entry of FALLBACK_PROBLEMS) {
       const result = validateProblem(entry.problem);
       expect(result.isOk()).toBe(true);
-      // 具体性: 説明は十分な長さ、要件は2件以上、テスト例あり
       expect(entry.problem.description.length).toBeGreaterThanOrEqual(15);
       expect(entry.problem.requirements.length).toBeGreaterThanOrEqual(2);
       expect(entry.problem.exampleTest.length).toBeGreaterThan(0);
@@ -163,7 +173,9 @@ describe("FALLBACK_PROBLEMS バンク（AI なしの唯一の出題源）", () =
   });
 
   it("難易度が easy/medium/hard に分散している", () => {
+    // Given
     const diffs = new Set(FALLBACK_PROBLEMS.map((e) => e.difficulty));
+    // Then
     expect(diffs.has("easy")).toBe(true);
     expect(diffs.has("medium")).toBe(true);
     expect(diffs.has("hard")).toBe(true);

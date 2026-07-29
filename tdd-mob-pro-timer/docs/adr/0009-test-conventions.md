@@ -83,3 +83,14 @@ describe("<対象の名詞>", () => {
 - `shuffle.test.ts`
 - `transfer-host.test.ts`
 - `records.test.ts`
+
+### `packages/core/test`（T034: バッチ「スキーマと純粋関数」）
+
+- `schemas.test.ts`
+- `schemas.problem-enabled.test.ts`
+- `passphrase-schema.test.ts`
+- `driver-assign-schema.test.ts`
+- `ai-unlock.test.ts`
+- `problem.test.ts`
+- `display-name.test.ts`
+- `participants.test.ts`
