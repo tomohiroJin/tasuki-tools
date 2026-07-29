@@ -46,6 +46,7 @@ describe("StatusStrip", () => {
   });
 
   it("自分の表示名と役割を表示する", () => {
+    // Given（baseProps に displayName="Alice"・role="host" を重ねる）
     // When
     render(<StatusStrip {...baseProps} displayName="Alice" role="host" />);
     // Then

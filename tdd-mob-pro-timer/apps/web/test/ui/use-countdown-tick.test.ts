@@ -105,14 +105,17 @@ describe("useCountdownTick の mode 分岐", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("mode: voice のとき数字・voiceId・volume 付きで音声読み上げが再生される", () => {
+    // Given
+    const voiceOpts = { ...opts, mode: "voice" as const, voiceId: "voice-female" };
     // When
-    renderHook(() => useCountdownTick(10, true, { ...opts, mode: "voice", voiceId: "voice-female" }));
+    renderHook(() => useCountdownTick(10, true, voiceOpts));
     // Then
     expect(playCountdownVoice).toHaveBeenCalledWith(10, "voice-female", 0.6);
     expect(playCountdownTick).not.toHaveBeenCalled();
   });
 
   it("mode: tone（既定）のときは従来どおりトーン音のみ再生される", () => {
+    // Given（opts をそのまま使う）
     // When
     renderHook(() => useCountdownTick(10, true, opts));
     // Then

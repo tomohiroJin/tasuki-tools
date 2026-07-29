@@ -16,6 +16,7 @@ describe("アクセシビリティ", () => {
   // ─── StatusStrip ───────────────────────────────────────────────────────────
   describe("StatusStrip", () => {
     it("role='status' を持つ（支援技術への状態通知）", () => {
+      // Given（connectionStatus="online" の StatusStrip）
       // When
       render(
         <StatusStrip
@@ -31,6 +32,7 @@ describe("アクセシビリティ", () => {
     });
 
     it("接続状態がテキストで（色だけでなく）表現される", () => {
+      // Given（connectionStatus="reconnecting" の StatusStrip）
       // When
       render(
         <StatusStrip
@@ -88,6 +90,7 @@ describe("アクセシビリティ", () => {
     it("EndSessionZone の終了系ボタンはアイコン同梱でもテキストで名前を持つ", () => {
       // Given（アイコン（Flag/RotateCcw 等）は装飾扱い（aria-hidden）にし、
       // ボタンの可触名は併記したテキストから取れることを保証する）
+      // When
       render(
         <EndSessionZone
           onComplete={noop}
@@ -102,6 +105,7 @@ describe("アクセシビリティ", () => {
     });
 
     it("InvitePanel のコピー操作は aria-label でアクセシブル名を持つ", () => {
+      // Given
       // When
       render(<InvitePanel code="ABC123" />);
       // Then

@@ -18,6 +18,8 @@ describe("formatRemaining（残り時間・ceil）", () => {
   });
 
   it("分と秒を mm:ss でゼロ埋めする", () => {
+    // Given（300秒/59秒/61秒それぞれを対象にする表形式のケース）
+    // When（呼び出しと期待値の照合を一体で行う）
     expect(formatRemaining(300)).toBe("05:00");
     expect(formatRemaining(59)).toBe("00:59");
     expect(formatRemaining(61)).toBe("01:01");
@@ -26,6 +28,8 @@ describe("formatRemaining（残り時間・ceil）", () => {
 
 describe("formatElapsed（経過・floor）", () => {
   it("ミリ秒を秒に切り捨てて mm:ss にする", () => {
+    // Given（0ms/1999ms/65000msそれぞれを対象にする表形式のケース）
+    // When（呼び出しと期待値の照合を一体で行う）
     expect(formatElapsed(0)).toBe("00:00");
     expect(formatElapsed(1999)).toBe("00:01");
     expect(formatElapsed(65_000)).toBe("01:05");

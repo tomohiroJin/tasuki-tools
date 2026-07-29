@@ -10,6 +10,7 @@ const items = [
 
 describe("Tabs", () => {
   it("既定で最初のタブが選択され、そのパネルだけ見える", () => {
+    // Given（items をそのまま使う）
     // When
     render(<Tabs items={items} ariaLabel="ロビー" />);
     // Then

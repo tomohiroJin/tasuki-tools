@@ -22,6 +22,7 @@ describe("Setup（名前だけのオンボーディング）", () => {
   beforeEach(() => clearPreferences());
 
   it("名前入力欄と『ルームを作る』ボタンがある", () => {
+    // Given
     // When
     render(<Setup onCreateRoom={noop} />);
     // Then
@@ -30,6 +31,7 @@ describe("Setup（名前だけのオンボーディング）", () => {
   });
 
   it("最初の画面に言語/難易度/メンバー入力を出さない（選びすぎ解消）", () => {
+    // Given
     // When
     render(<Setup onCreateRoom={noop} />);
     // Then

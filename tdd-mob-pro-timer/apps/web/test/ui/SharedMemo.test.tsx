@@ -37,16 +37,20 @@ describe("SharedMemo 更新の可視化", () => {
 
 describe("SharedMemo プレビュー優先", () => {
   it("editor でも内容ありなら初期はプレビュー（textarea は出さない）", () => {
+    // Given
+    const note = "# ルール\n- 5分で交代";
     // When
-    render(<SharedMemo note={"# ルール\n- 5分で交代"} canEdit onCommit={vi.fn()} />);
+    render(<SharedMemo note={note} canEdit onCommit={vi.fn()} />);
     // Then
     expect(screen.queryByRole("textbox", { name: "共有メモ" })).toBeNull();
     expect(screen.getByRole("button", { name: "編集" })).toBeTruthy();
   });
 
   it("内容が空でも初期はプレビュー（プレースホルダ＋編集ボタン）", () => {
+    // Given
+    const note = "";
     // When
-    render(<SharedMemo note="" canEdit onCommit={vi.fn()} />);
+    render(<SharedMemo note={note} canEdit onCommit={vi.fn()} />);
     // Then
     expect(screen.queryByRole("textbox", { name: "共有メモ" })).toBeNull();
     expect(screen.getByRole("button", { name: "編集" })).toBeTruthy();
