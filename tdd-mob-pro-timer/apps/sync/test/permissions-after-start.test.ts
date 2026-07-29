@@ -117,8 +117,11 @@ describe("開始後の権限（主催者を条件にしない）", () => {
 
     for (const [name, build] of cases) {
       it(`editor が ${name} を実行できる`, async () => {
-        const result = await handlers.handleCommand(EDITOR_CONN, build());
-
+        // Given（表内の各コマンドを対象にする。差分は cases のエントリそのもの）
+        const command = build();
+        // When
+        const result = await handlers.handleCommand(EDITOR_CONN, command);
+        // Then
         expect(lastError(EDITOR_CONN)?.code).not.toBe("UNAUTHORIZED");
         expect(result.isOk()).toBe(true);
       });
@@ -127,13 +130,15 @@ describe("開始後の権限（主催者を条件にしない）", () => {
     // driver.assign はタイマー稼働中でなければドメイン側が PhaseConflict を返すため
     // （権限とは別の妥当性検査）、この 1 件だけ稼働状態を作ってから検証する。
     it("editor が driver.assign を実行できる", async () => {
+      // Given（タイマー稼働中でなければ PhaseConflict になるため、稼働状態を作っておく）
       await handlers.handleCommand(HOST_CONN, { command: "session.act", action: "START" });
       broadcaster.sent.length = 0;
+      const command = { command: "driver.assign", participantId: carolPid } as const;
 
-      const result = await handlers.handleCommand(EDITOR_CONN, {
-        command: "driver.assign", participantId: carolPid,
-      });
+      // When
+      const result = await handlers.handleCommand(EDITOR_CONN, command);
 
+      // Then
       expect(lastError(EDITOR_CONN)?.code).not.toBe("UNAUTHORIZED");
       result._unsafeUnwrap();
       const room = store.get(roomCode)!;
@@ -143,10 +148,13 @@ describe("開始後の権限（主催者を条件にしない）", () => {
 
     // 層⑤の4件目。他の3件と違い participant.remove ではなく host.transfer 側の経路を通る。
     it("editor が host.transfer を実行できる（層⑤・専用ハンドラ）", async () => {
-      const result = await handlers.handleCommand(EDITOR_CONN, {
-        command: "host.transfer", participantId: carolPid,
-      });
+      // Given
+      const command = { command: "host.transfer", participantId: carolPid } as const;
 
+      // When
+      const result = await handlers.handleCommand(EDITOR_CONN, command);
+
+      // Then
       expect(lastError(EDITOR_CONN)?.code).not.toBe("UNAUTHORIZED");
       result._unsafeUnwrap();
       expect(store.get(roomCode)!.hostParticipantId).toBe(carolPid);
@@ -158,10 +166,13 @@ describe("開始後の権限（主催者を条件にしない）", () => {
    */
   describe("見学者の制限は段階に関わらず維持される", () => {
     it("viewer は開始後も他人対象の driver.assign を実行できない", async () => {
-      const result = await handlers.handleCommand(VIEWER_CONN, {
-        command: "driver.assign", participantId: carolPid,
-      });
+      // Given
+      const command = { command: "driver.assign", participantId: carolPid } as const;
 
+      // When
+      const result = await handlers.handleCommand(VIEWER_CONN, command);
+
+      // Then
       expect(result.isErr()).toBe(true);
       expect(lastError(VIEWER_CONN)?.code).toBe("UNAUTHORIZED");
     });
@@ -170,44 +181,60 @@ describe("開始後の権限（主催者を条件にしない）", () => {
     // editor 側は権限層を通過したことだけを見る（お題生成の委譲先は本テストの関心外で、
     // delegator 未設定のため DELEGATION_UNAVAILABLE になるのが正しい）。
     it("viewer は problem.request を実行できない", async () => {
-      const result = await handlers.handleCommand(VIEWER_CONN, {
-        command: "problem.request", requestId: "req-1",
-      });
+      // Given
+      const command = { command: "problem.request", requestId: "req-1" } as const;
 
+      // When
+      const result = await handlers.handleCommand(VIEWER_CONN, command);
+
+      // Then
       expect(result.isErr()).toBe(true);
       expect(lastError(VIEWER_CONN)?.code).toBe("UNAUTHORIZED");
     });
 
     it("editor は problem.request で権限拒否されない", async () => {
-      await handlers.handleCommand(EDITOR_CONN, {
-        command: "problem.request", requestId: "req-2",
-      });
+      // Given
+      const command = { command: "problem.request", requestId: "req-2" } as const;
 
+      // When
+      await handlers.handleCommand(EDITOR_CONN, command);
+
+      // Then
       // 権限層は通過し、その先の委譲層で止まる。コードを固定して検証することで、
       // 将来 UNAUTHORIZED 以外の誤った拒否が混入した場合も検出できるようにする。
       expect(lastError(EDITOR_CONN)?.code).toBe("DELEGATION_UNAVAILABLE");
     });
 
     it("viewer は problem.submit を実行できない", async () => {
-      const result = await handlers.handleCommand(VIEWER_CONN, {
+      // Given
+      const command = {
         command: "problem.submit",
         requestId: "req-3",
         problem: { title: "t", description: "d", requirements: [], exampleTest: "", hints: [] },
         usedFallback: false,
-      });
+      } as const;
 
+      // When
+      const result = await handlers.handleCommand(VIEWER_CONN, command);
+
+      // Then
       expect(result.isErr()).toBe(true);
       expect(lastError(VIEWER_CONN)?.code).toBe("UNAUTHORIZED");
     });
 
     it("editor は problem.submit で権限拒否されない", async () => {
-      await handlers.handleCommand(EDITOR_CONN, {
+      // Given
+      const command = {
         command: "problem.submit",
         requestId: "req-4",
         problem: { title: "t", description: "d", requirements: [], exampleTest: "", hints: [] },
         usedFallback: false,
-      });
+      } as const;
 
+      // When
+      await handlers.handleCommand(EDITOR_CONN, command);
+
+      // Then
       expect(lastError(EDITOR_CONN)?.code).toBe("DELEGATION_UNAVAILABLE");
     });
   });
