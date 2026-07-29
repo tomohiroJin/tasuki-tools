@@ -111,8 +111,60 @@ SC039 | 分岐 1 / データ 303 行 / 公開記号 50 件 | 分岐0 / データ
 
 ## 4. 変異検査（T007）のベースライン
 
-**未実施。** FR-098 が求める変異検査（十数件の代表的な変異で1,157件超のテストの検出能力を検証する）は
-本ドキュメントの記録時点ではまだ着手していない。実施後、本節に測定日・使用した変異の一覧・検出結果を追記する。
+**実施済み。** `node scripts/mutation-check.mjs`（絞り込み実行・既定モード）をリポジトリルートから実行し、
+plan.md の「変異と『検出を期待するテスト』の対応表」に基づく9変異すべてが検出されることを確認した
+（T006 のベースラインの妥当性検査を含む。スクリプトは1件でも未検出があれば非ゼロ終了する仕様）。
+
+- 実行日: 2026-07-29
+- 実行コマンド: `node scripts/mutation-check.mjs`（`tdd-mob-pro-timer/` から）
+- 変異パッチ: `scripts/mutations/m01-*.patch` 〜 `m09-*.patch`（9件）
+- 実行後、製品コード（`*/src/*`）に差分が残っていないことを `git status --porcelain` / `git diff --stat` で確認済み
+
+### 検出結果表（ベースライン・全9変異検出）
+
+| # | 検出 | 対象パッケージ | 変異 |
+|---|---|---|---|
+| 1 | 検出 | packages/core | advanceDriver の交代を (i+1)%n → (i+2)%n |
+| 2 | 検出 | packages/core | checkPermission のある規則の許可/拒否を反転（viewer 拒否 → 許可） |
+| 3 | 検出 | apps/sync | computeIneligibleIndices から placeholder の除外を削る |
+| 4 | 検出 | packages/core | normalizeDisplayName の正規化を1段無効化（制御文字の除去を外す） |
+| 5 | 検出 | apps/sync | canRemoveParticipant の呼び出しを削る（LAST_MANAGER ガードの無効化） |
+| 6 | 検出 | packages/core | freezeRunningClock の凍結を外す（一時停止で満タンに戻る） |
+| 7 | 検出 | apps/web | shouldClearGenerating の内容比較を参照比較に変える |
+| 8 | 検出 | apps/web | deriveConnectionStatus の sessionLost 分岐を反転 |
+| 9 | 検出 | apps/web | buildNoticeMessage の「あなた」判定を反転 |
+
+**未検出だった変異は0件。** 差し替え・テスト追加のいずれも不要だった。
+
+### plan.md の対応表からの読み替え（1件）
+
+**変異5**（`canRemoveParticipant` の呼び出しを削る）について、plan.md の対応表は検出元を
+`packages/core/test/participants.test.ts` としていたが、これは実装を読んで確認したところ誤りだった。
+このテストは `canRemoveParticipant` という純粋関数そのものを検証しており、変異が実際に注入されるのは
+`apps/sync/src/application/handlers.ts` の**呼び出し側**（`participant.remove` ハンドラの
+LAST_MANAGER ガード）である。純粋関数自体は変えていないため、`participants.test.ts` はこの変異を
+検出できない（実測でも0件検出のまま変化しない）。
+
+検出元を、そのガードが守る振る舞い（実在の編集者以上が1名しか居ないとき退出できない・plan.md の
+③・③′ のケース）を実際に検証している **`apps/sync/test/participant-remove.test.ts`** に読み替えた。
+実測でこのファイルは変異5を正しく検出する。これは plan.md が変異8（`deriveConnectionStatus`）で
+警告している「対応表と実装のズレ」と同種の事例であり、機械的に対応表を信用せず実装を確認する
+ことの重要性を裏付けている。
+
+### 妥当性検査（既知の落とし穴の再現確認）
+
+plan.md は変異8（`deriveConnectionStatus`）について、名前がほぼ同じ別ファイル
+`apps/web/test/ui/connection-status.test.tsx`（`StatusStrip` コンポーネントの表示を検証する別物）で
+実行すると誤って「検出されなかった」という結論になった実績を記録している。本タスクでも同じ罠を
+実際に踏んで確認した。
+
+- 誤ったファイル `apps/web/test/ui/connection-status.test.tsx` で変異8を実行 → **3/3 件とも成功
+  （検出されない）**
+- 正しいファイル `apps/web/test/connection-status.test.ts`（`deriveConnectionStatus` 純粋関数の
+  テスト）で実行 → **検出される**（`mutation-check.mjs` の既定の対応表どおり）
+
+`mutation-check.mjs` の `MUTATIONS` 定義は後者（`test/connection-status.test.ts`）を使っており、
+上記の誤ったファイルは参照していない。
 
 ---
 
