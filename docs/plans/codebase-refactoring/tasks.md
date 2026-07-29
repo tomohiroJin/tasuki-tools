@@ -292,7 +292,7 @@
   FR-093 の例外表に載っているため、**組み合わせを名前に含めてよい**。
   _要件: FR-091, FR-093（例外）, US2_
 
-- [ ] **T036** `packages/core/test/coverage-supplement.test.ts` を**解体する**。
+- [x] **T036** `packages/core/test/coverage-supplement.test.ts` を**解体する**。
   `evolve` と `records` の無関係な検証が同居しているため、それぞれの関心のファイルへ移す。
   （i18n 節は T012 で削除済み）
   **検証内容は変えない**（移動のみ）。移動後に `packages/core` のカバレッジ閾値 90% を割らないことを確認する。

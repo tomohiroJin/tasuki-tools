@@ -102,3 +102,11 @@ describe("<対象の名詞>", () => {
   ⚠ このファイルは FR-093 の例外表に載っており、コマンド名/役割/自己対象かの組み合わせを
   名前に含めてよい。書き換えは GWT の区切り（`// Given` `// When` `// Then`）の付与のみに
   限定し、オラクル・検証内容・組み合わせ生成（150通り×2＝300＋検算2＝302件）は変更していない。
+
+### `packages/core/test/coverage-supplement.test.ts` の解体（T036）
+
+`evolve` / `records` / `decide` / `problem` の無関係な検証が同居していたため、
+`coverage-supplement.test.ts` は削除し、20 件すべてを各関心のファイルへ移動した
+（`evolve.test.ts` へ 8 件・`records.test.ts` へ 3 件・`decide.test.ts` へ 6 件・
+`problem.test.ts` へ 3 件）。検証内容は変えていない。移動先はいずれも T032〜T034 で
+新規約へ移行済みのため、移した節も同じ規約（GWT 区切り等）に従わせた（FR-121）。

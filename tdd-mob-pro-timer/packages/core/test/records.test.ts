@@ -7,7 +7,7 @@ import { describe, it, expect } from "vitest";
 import { buildCompletionRecord } from "../src/records.js";
 import { elapsedMs } from "../src/aggregate.js";
 import { evolve } from "../src/evolve.js";
-import type { SessionConfig, Problem } from "../src/aggregate.js";
+import type { SessionConfig, Problem, Aggregate } from "../src/aggregate.js";
 import { anAggregate } from "./support/aggregate-builder.js";
 
 const baseConfig: SessionConfig = {
@@ -118,5 +118,42 @@ describe("中断（SessionAborted）の記録扱い", () => {
     // Then
     expect(record.problemTitle).toBe(problem.title);
     expect(record.completedAt).toBe(1000000);
+  });
+});
+
+// ─── buildCompletionRecord: 周回数とドライバー回数（coverage-supplement.test.ts より移動・T036） ──
+
+describe("buildCompletionRecord: 周回数とドライバー回数", () => {
+  const shortProblem: Problem = {
+    title: "T", description: "d", requirements: [], exampleTest: "", hints: [],
+  };
+
+  it("rotation 長で割った周回数を記録する", () => {
+    // Given
+    let agg = anAggregate().build();
+    agg = { ...agg, session: { ...agg.session, totalSwitches: 6, driverCounts: [2, 2, 2] } };
+    // When
+    const rec = buildCompletionRecord(agg, shortProblem, baseConfig, 1000000);
+    // Then（6 / 3 = 2）
+    expect(rec.rounds).toBe(2);
+    expect(rec.driverCounts).toEqual([2, 2, 2]);
+  });
+
+  it("roomId を渡すと記録に含める", () => {
+    const agg = anAggregate().build();
+    const rec = buildCompletionRecord(agg, shortProblem, baseConfig, 1000000, "ROOM-1");
+    expect(rec.roomId).toBe("ROOM-1");
+  });
+
+  it("rotation が空なら周回数は 0", () => {
+    // Given
+    const agg: Aggregate = {
+      session: { rotation: [], currentIndex: 0, isPaused: false, driverCounts: [], totalSwitches: 0 },
+      clock: { running: false, intervalSeconds: 300, anchorServerTime: 0, secondsLeftAtAnchor: 300, accumulatedElapsedMs: 0, runningSince: null },
+    };
+    // When
+    const rec = buildCompletionRecord(agg, shortProblem, baseConfig, 1000000);
+    // Then
+    expect(rec.rounds).toBe(0);
   });
 });

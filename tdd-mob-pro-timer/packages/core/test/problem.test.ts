@@ -73,6 +73,17 @@ describe("validateProblem: Valibot検証", () => {
     const result = validateProblem("invalid json" as never);
     expect(result.isErr()).toBe(true);
   });
+
+  // ─── coverage-supplement.test.ts より移動（T036） ─────────────────────────
+
+  it("title が数値など不正な型なら Err を返す", () => {
+    expect(validateProblem({ title: 123 }).isErr()).toBe(true);
+  });
+
+  it("必須フィールドを満たす構造は Ok を返す", () => {
+    const ok = validateProblem({ title: "T", description: "d", requirements: ["r"], exampleTest: "t", hints: [] });
+    expect(ok.isOk()).toBe(true);
+  });
 });
 
 describe("pickFallback: 定型お題へのフォールバック", () => {
@@ -93,6 +104,16 @@ describe("pickFallback: 定型お題へのフォールバック", () => {
     expect(Array.isArray(problem.requirements)).toBe(true);
     expect(problem.exampleTest).toBeTruthy();
     expect(Array.isArray(problem.hints)).toBe(true);
+  });
+
+  // coverage-supplement.test.ts より移動（T036）
+  it("該当言語が無くてもフォールバックお題を返す（全フォールバックへ縮退）", () => {
+    // When
+    const result = pickFallback("COBOL-不明言語", "easy");
+    // Then
+    expect(result.source).toBe("fallback");
+    expect(result.problem.title.length).toBeGreaterThan(0);
+    expect(Array.isArray(result.problem.requirements)).toBe(true);
   });
 
   /**

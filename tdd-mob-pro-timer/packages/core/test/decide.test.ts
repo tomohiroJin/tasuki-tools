@@ -232,6 +232,45 @@ describe("decide: config.set", () => {
       expect(result.isOk(), `interval ${interval} should be valid`).toBe(true);
     }
   });
+
+  // ─── coverage-supplement.test.ts より移動（T036） ─────────────────────────
+
+  it("2人未満のメンバー指定は BelowMinMembers（config.set のメンバー下限は据え置き）", () => {
+    const result = decide({ command: "config.set", config: { members: ["Solo"] } }, baseAgg, NOW);
+    expect(result.isErr()).toBe(true);
+  });
+
+  it("重複メンバー指定は DuplicateName", () => {
+    const result = decide({ command: "config.set", config: { members: ["A", "A"] } }, baseAgg, NOW);
+    expect(result._unsafeUnwrapErr().type).toBe("DuplicateName");
+  });
+
+  it("無効な交代間隔（4）も InvalidInterval", () => {
+    const result = decide({ command: "config.set", config: { intervalMinutes: 4 as never } }, baseAgg, NOW);
+    expect(result._unsafeUnwrapErr().type).toBe("InvalidInterval");
+  });
+
+  it("上限超過メンバーは MemberLimitExceeded", () => {
+    // Given
+    const many = Array.from({ length: 11 }, (_, i) => `M${i}`);
+    // When / Then
+    const result = decide({ command: "config.set", config: { members: many } }, baseAgg, NOW);
+    expect(result._unsafeUnwrapErr().type).toBe("MemberLimitExceeded");
+  });
+
+  it("空名を含むメンバーは EmptyName", () => {
+    const result = decide({ command: "config.set", config: { members: ["A", "  "] } }, baseAgg, NOW);
+    expect(result._unsafeUnwrapErr().type).toBe("EmptyName");
+  });
+
+  it("言語・難易度のみの変更は成功する", () => {
+    const result = decide(
+      { command: "config.set", config: { language: "Go", difficulty: "hard" } },
+      baseAgg,
+      NOW,
+    );
+    expect(result.isOk()).toBe(true);
+  });
 });
 
 // ─── T009/T011/T013: 在席の柔軟化（v2） ─────────────────────────────────────
