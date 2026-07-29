@@ -312,7 +312,7 @@
   `shuffle` / `timer-restart` / `schedule`。
   _要件: FR-091〜FR-096, FR-123, US2_
 
-- [ ] **T040** バッチ「参加者と権限」: `authorize` / `permissions-before-start` / `permissions-after-start` /
+- [x] **T040** バッチ「参加者と権限」: `authorize` / `permissions-before-start` / `permissions-after-start` /
   `participant-remove` / `self-role-change` / `host-transfer` / `handoff-host` / `started-monotonic`。
   _要件: FR-091〜FR-096, FR-123, US2_
 

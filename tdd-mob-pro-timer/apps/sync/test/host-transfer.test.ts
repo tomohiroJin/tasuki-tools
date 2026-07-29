@@ -66,7 +66,10 @@ function makeTestRoom(code: string): Room {
   };
 }
 
-describe("handlers: host.transfer（明示的ホスト移譲・R2-3）", () => {
+/**
+ * @requirements v2.2 R2-3
+ */
+describe("handlers: host.transfer（明示的ホスト移譲）", () => {
   let store: InMemoryRoomStore;
   let clock: FakeClock;
   let codeGen: FakeCodeGen;
@@ -83,11 +86,13 @@ describe("handlers: host.transfer（明示的ホスト移譲・R2-3）", () => {
   });
 
   it("ホストはオンライン参加者へ移譲でき snapshot に反映される", async () => {
+    // When
     const result = await handlers.handleCommand("host-conn", {
       command: "host.transfer",
       participantId: "editor-p02",
     });
 
+    // Then
     expect(result.isOk()).toBe(true);
 
     const room = store.get("HX01");
@@ -102,11 +107,13 @@ describe("handlers: host.transfer（明示的ホスト移譲・R2-3）", () => {
   });
 
   it("ホスト以外（editor）は UNAUTHORIZED で拒否され不変", async () => {
+    // When
     const result = await handlers.handleCommand("editor-conn", {
       command: "host.transfer",
       participantId: "editor-p02",
     });
 
+    // Then
     expect(result.isErr()).toBe(true);
     if (result.isErr()) {
       expect(result.error).toBe("UNAUTHORIZED");
@@ -115,15 +122,18 @@ describe("handlers: host.transfer（明示的ホスト移譲・R2-3）", () => {
   });
 
   it("オフラインの対象へは PARTICIPANT_OFFLINE で拒否され不変", async () => {
+    // Given
     const room = makeTestRoom("HX01");
     room.participants[1] = { ...room.participants[1]!, presence: "offline" };
     store.put(room);
 
+    // When
     const result = await handlers.handleCommand("host-conn", {
       command: "host.transfer",
       participantId: "editor-p02",
     });
 
+    // Then
     expect(result.isErr()).toBe(true);
     if (result.isErr()) {
       expect(result.error).toBe("PARTICIPANT_OFFLINE");
@@ -132,11 +142,13 @@ describe("handlers: host.transfer（明示的ホスト移譲・R2-3）", () => {
   });
 
   it("自分自身への移譲は CANNOT_CHANGE_HOST で拒否され不変", async () => {
+    // When
     const result = await handlers.handleCommand("host-conn", {
       command: "host.transfer",
       participantId: "host-p01",
     });
 
+    // Then
     expect(result.isErr()).toBe(true);
     if (result.isErr()) {
       expect(result.error).toBe("CANNOT_CHANGE_HOST");
@@ -145,11 +157,13 @@ describe("handlers: host.transfer（明示的ホスト移譲・R2-3）", () => {
   });
 
   it("不明な participantId は PARTICIPANT_NOT_FOUND で拒否され不変", async () => {
+    // When
     const result = await handlers.handleCommand("host-conn", {
       command: "host.transfer",
       participantId: "unknown-pid",
     });
 
+    // Then
     expect(result.isErr()).toBe(true);
     if (result.isErr()) {
       expect(result.error).toBe("PARTICIPANT_NOT_FOUND");
@@ -161,15 +175,17 @@ describe("handlers: host.transfer（明示的ホスト移譲・R2-3）", () => {
   // 移譲は role と hostParticipantId のみを変え、rotation/currentIndex/driver 適格性は
   // 触らない（現ドライバー＝ホストを移譲してもドライバー進行が乱れない）。
   it("現ドライバー＝ホストを移譲しても rotation / currentIndex は不変", async () => {
-    // makeTestRoom は rotation ["Host","Editor"]・currentIndex 0（現ドライバー=Host）。
+    // Given（makeTestRoom は rotation ["Host","Editor"]・currentIndex 0＝現ドライバー=Host）
+
+    // When
     const result = await handlers.handleCommand("host-conn", {
       command: "host.transfer",
       participantId: "editor-p02",
     });
     expect(result.isOk()).toBe(true);
 
+    // Then（駆動の状態は一切変わらない）
     const room = store.get("HX01");
-    // 駆動の状態は一切変わらない。
     expect(room?.session.rotation).toEqual(["Host", "Editor"]);
     expect(room?.session.currentIndex).toBe(0);
     // 旧ホストは editor になるが rotation には Host のまま残り、driver 適格性も不変。

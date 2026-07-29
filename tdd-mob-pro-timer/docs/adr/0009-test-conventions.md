@@ -162,3 +162,20 @@ describe("<対象の名詞>", () => {
   「呼び出しの発生」規定の対象になるため、「発火する」という結果の記述に改めた
   （アサーション自体は `toHaveBeenCalledWith` のまま変更していない）。
   T0xx・FR-0xx を describe 名から JSDoc `@requirements` へ移した。検証内容・分割は変更していない。
+
+### `apps/sync/test`（T040: バッチ「参加者と権限」）
+
+- `authorize.test.ts`
+- `permissions-before-start.test.ts`
+- `permissions-after-start.test.ts`
+- `participant-remove.test.ts`
+- `self-role-change.test.ts`
+- `host-transfer.test.ts`
+- `handoff-host.test.ts`
+- `started-monotonic.test.ts`
+
+  `participant-remove.test.ts` のローカル `latest()` ヘルパ（`snapshots[snapshots.length - 1]?.room`
+  の再実装）を `SpyBroadcaster.latestSnapshot()` に置き換えた（このファイルは変異検査 変異5 の
+  検出元であるため、検証内容自体は一切変更していない）。`host-transfer.test.ts` の describe 名に
+  含まれていた `R2-3`（SC-029 の `R\d-\d` パターンに合致）を JSDoc `@requirements` へ移した。
+  T0xx・FR-0xx・G\d を describe 名から JSDoc `@requirements` へ移した。検証内容・分割は変更していない。

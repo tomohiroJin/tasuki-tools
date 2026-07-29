@@ -6,7 +6,6 @@
  * `checkPermission()` の1層へ置換する際、この特性テストが層①②③⑤の喪失を検出する。
  *
  * 設計: docs/plans/host-spof-relaxation/plan.md「判定の順序」5a/5b
- * 要件: FR-066, FR-070, US6
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
@@ -28,7 +27,10 @@ const HOST_CONN = "before-host";
 const EDITOR_CONN = "before-editor";
 const CAROL_CONN = "before-carol";
 
-describe("開始前の権限（FR-066・従来どおり主催者主導）", () => {
+/**
+ * @requirements FR-066, US6
+ */
+describe("開始前の権限（従来どおり主催者主導）", () => {
   let store: InMemoryRoomStore;
   let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
@@ -150,8 +152,11 @@ describe("開始前の権限（FR-066・従来どおり主催者主導）", () =
     });
   });
 
+  /**
+   * @requirements FR-070
+   */
   describe("在室していない接続", () => {
-    it("在室していない接続の操作は NOT_IN_ROOM で拒否される（FR-070）", async () => {
+    it("在室していない接続の操作は NOT_IN_ROOM で拒否される", async () => {
       const result = await handlers.handleCommand("stranger-conn", {
         command: "driver.assign", participantId: editorPid,
       });
@@ -160,7 +165,7 @@ describe("開始前の権限（FR-066・従来どおり主催者主導）", () =
       expect(lastError("stranger-conn")?.code).toBe("NOT_IN_ROOM");
     });
 
-    it("在室していない接続の専用ハンドラ経由の操作も NOT_IN_ROOM で拒否される（FR-070）", async () => {
+    it("在室していない接続の専用ハンドラ経由の操作も NOT_IN_ROOM で拒否される", async () => {
       const result = await handlers.handleCommand("stranger-conn", {
         command: "room.passphrase.set", passphrase: "pw",
       });

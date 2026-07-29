@@ -10,7 +10,6 @@
  * 集合表（HOST_ONLY_COMMANDS）だけを直しても緩和されないため、必ずここで検証する。
  *
  * 設計: docs/plans/host-spof-relaxation/plan.md「④⑤ の内訳と、二重定義によるデッドコード」
- * 要件: FR-063, FR-064, FR-067, US1
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
@@ -33,7 +32,10 @@ const EDITOR_CONN = "after-editor";
 const CAROL_CONN = "after-carol";
 const VIEWER_CONN = "after-viewer";
 
-describe("開始後の権限（FR-063/064・主催者を条件にしない）", () => {
+/**
+ * @requirements FR-063, FR-064, US1
+ */
+describe("開始後の権限（主催者を条件にしない）", () => {
   let store: InMemoryRoomStore;
   let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
@@ -151,7 +153,10 @@ describe("開始後の権限（FR-063/064・主催者を条件にしない）", 
     });
   });
 
-  describe("見学者の制限は段階に関わらず維持される（FR-067）", () => {
+  /**
+   * @requirements FR-067
+   */
+  describe("見学者の制限は段階に関わらず維持される", () => {
     it("viewer は開始後も他人対象の driver.assign を実行できない", async () => {
       const result = await handlers.handleCommand(VIEWER_CONN, {
         command: "driver.assign", participantId: carolPid,

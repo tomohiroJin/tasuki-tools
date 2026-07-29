@@ -44,23 +44,28 @@ describe("Room.startedAt（開始済みの単調フラグ・D2）", () => {
   }
 
   it("phase.set で phase: 'session' にすると startedAt が記録される", async () => {
+    // Given
     const code = await setupRoom();
     expect(store.get(code)!.startedAt ?? null).toBeNull();
 
+    // When
     await handlers.handleCommand("host-conn", { command: "phase.set", phase: "session" });
 
+    // Then
     expect(store.get(code)!.startedAt).not.toBeNull();
     expect(store.get(code)!.startedAt).toBe(1000000);
   });
 
   it("phase.set を送らず session.act START だけを送っても startedAt が記録される（迂回路の封鎖）", async () => {
+    // Given
     const code = await setupRoom();
     expect(store.get(code)!.startedAt ?? null).toBeNull();
 
-    // UI 通常経路（phase.set → session.act）を経ず、session.act だけを直接送る。
-    // EDITOR_PLUS_COMMANDS に属するため、プロトコル上これだけを送ることが可能。
+    // When（UI 通常経路＝phase.set → session.act を経ず、session.act だけを直接送る。
+    // EDITOR_PLUS_COMMANDS に属するため、プロトコル上これだけを送ることが可能）
     await handlers.handleCommand("host-conn", { command: "session.act", action: "START" });
 
+    // Then
     const after = store.get(code)!;
     expect(after.phase).toBe("setup"); // phase.set を送っていないので phase 自体は変わらない
     expect(after.startedAt).not.toBeNull();
@@ -68,41 +73,49 @@ describe("Room.startedAt（開始済みの単調フラグ・D2）", () => {
   });
 
   it("phase.set で 'setup' へ後戻りしても startedAt は消えない", async () => {
+    // Given
     const code = await setupRoom();
     await handlers.handleCommand("host-conn", { command: "phase.set", phase: "session" });
     expect(store.get(code)!.startedAt).toBe(1000000);
 
+    // When
     await handlers.handleCommand("host-conn", { command: "phase.set", phase: "setup" });
 
+    // Then
     const after = store.get(code)!;
     expect(after.phase).toBe("setup");
     expect(after.startedAt).toBe(1000000);
   });
 
   it("2 回目の開始で startedAt の値は更新されない（単調性）", async () => {
+    // Given
     const code = await setupRoom();
     await handlers.handleCommand("host-conn", { command: "phase.set", phase: "session" });
     expect(store.get(code)!.startedAt).toBe(1000000);
 
+    // When
     clock.advance(60000);
     await handlers.handleCommand("host-conn", { command: "phase.set", phase: "setup" });
     await handlers.handleCommand("host-conn", { command: "phase.set", phase: "session" });
 
+    // Then
     expect(store.get(code)!.startedAt).toBe(1000000);
   });
 
   it("新規ルームに session.act RESUME を単独で送ると startedAt が記録される（欠陥修正の主目的）", async () => {
+    // Given
     const code = await setupRoom();
     expect(store.get(code)!.startedAt ?? null).toBeNull();
 
-    // phase.set も session.act START も経ず、RESUME だけを直接送る。
-    // RESUME は「走行中でなければ受理」するため新規ルーム（未開始）でも通り、
-    // SessionResumed が clock.running を true にする。
+    // When（phase.set も session.act START も経ず、RESUME だけを直接送る。
+    // RESUME は「走行中でなければ受理」するため新規ルーム＝未開始でも通り、
+    // SessionResumed が clock.running を true にする）
     const result = await handlers.handleCommand("host-conn", {
       command: "session.act",
       action: "RESUME",
     });
 
+    // Then
     expect(result.isOk()).toBe(true);
     const after = store.get(code)!;
     expect(after.clock.running).toBe(true);
