@@ -23,6 +23,8 @@ describe("ProblemEditor", () => {
   const noop = vi.fn();
 
   it("お題のタイトル・説明が表示される", () => {
+    // Given（baseProblem をそのまま使う）
+    // When
     render(
       <ProblemEditor
         problem={baseProblem}
@@ -32,22 +34,28 @@ describe("ProblemEditor", () => {
         onPaste={noop}
       />,
     );
+    // Then
     expect(screen.getByText("FizzBuzz")).toBeTruthy();
     expect(screen.getByText(/3の倍数でFizz/)).toBeTruthy();
   });
 
   it("難易度・言語バッジが表示される（課題シート型）", () => {
+    // Given
+    const difficulty = "easy";
+    const language = "TypeScript";
+    // When
     render(
       <ProblemEditor
         problem={baseProblem}
-        difficulty="easy"
-        language="TypeScript"
+        difficulty={difficulty}
+        language={language}
         onEdit={noop}
         onCopy={noop}
         onRegenerate={noop}
         onPaste={noop}
       />,
     );
+    // Then
     expect(screen.getByText("初級")).toBeTruthy();
     expect(screen.getByText("TypeScript")).toBeTruthy();
   });
@@ -110,28 +118,36 @@ describe("ProblemEditor", () => {
   });
 
   it("持ち込み（custom）のとき持ち込みバッジが表示される", () => {
+    // Given
+    const problem: Problem = { ...baseProblem, source: "custom" };
+    // When
     render(
       <ProblemEditor
-        problem={{ ...baseProblem, source: "custom" }}
+        problem={problem}
         onEdit={noop}
         onCopy={noop}
         onRegenerate={noop}
         onPaste={noop}
       />,
     );
+    // Then
     expect(screen.getByText(/持ち込み/)).toBeTruthy();
   });
 
   it("edited=true のとき編集済みバッジが表示される", () => {
+    // Given
+    const problem: Problem = { ...baseProblem, edited: true };
+    // When
     render(
       <ProblemEditor
-        problem={{ ...baseProblem, edited: true }}
+        problem={problem}
         onEdit={noop}
         onCopy={noop}
         onRegenerate={noop}
         onPaste={noop}
       />,
     );
+    // Then
     expect(screen.getByText(/編集済|edited/i)).toBeTruthy();
   });
 
@@ -183,6 +199,7 @@ describe("ProblemEditor", () => {
   // ─── 詳細の折りたたみ（S2: ロビー縦長の解消）─────────────────────────────
   it("既定では詳細（要件・例示テスト・ヒント）まで表示される", () => {
     // Given（非 compact＝ロビーでは詳細を既定で表示する。お題をしっかり見せる）
+    // When
     render(
       <ProblemEditor
         problem={baseProblem}
@@ -224,10 +241,12 @@ describe("ProblemEditor", () => {
 
   it("canEdit=false（観覧者）では編集ボタンを表示せずコピーのみ表示する", () => {
     // Given
+    const canEdit = false;
+    // When
     render(
       <ProblemEditor
         problem={baseProblem}
-        canEdit={false}
+        canEdit={canEdit}
         onEdit={noop}
         onCopy={noop}
         onRegenerate={noop}
@@ -286,13 +305,21 @@ describe("ProblemEditor 生成中表示", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("generating 時はボタンが「生成中…」で disabled・カードが aria-busy", () => {
-    render(<ProblemEditor {...baseProps} problem={mkProblem({ source: "ai" })} generating />);
+    // Given
+    const problem = mkProblem({ source: "ai" });
+    // When
+    render(<ProblemEditor {...baseProps} problem={problem} generating />);
+    // Then
     const btn = screen.getByRole("button", { name: /生成中/ });
     expect((btn as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByRole("group", { name: "お題" }).getAttribute("aria-busy")).toBe("true");
   });
   it("generating でない時は「別のお題にする」ボタン（有効）", () => {
-    render(<ProblemEditor {...baseProps} problem={mkProblem({ source: "ai" })} />);
+    // Given
+    const problem = mkProblem({ source: "ai" });
+    // When
+    render(<ProblemEditor {...baseProps} problem={problem} />);
+    // Then
     const btn = screen.getByRole("button", { name: "別のお題にする" });
     expect((btn as HTMLButtonElement).disabled).toBe(false);
   });

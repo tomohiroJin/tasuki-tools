@@ -23,10 +23,12 @@ describe("Summary", () => {
   const noop = vi.fn();
 
   it("完成（endType=complete）では達成を示すタイトルを表示する", () => {
+    // Given
+    const endType = "complete";
     // When
     render(
       <Summary
-        endType="complete"
+        endType={endType}
         record={baseRecord}
         onNewSession={noop}
         onSaveRecord={noop}
@@ -37,10 +39,12 @@ describe("Summary", () => {
   });
 
   it("中断（endType=abort）では中断を示すタイトルを表示し「完了」と区別される", () => {
+    // Given
+    const endType = "abort";
     // When
     render(
       <Summary
-        endType="abort"
+        endType={endType}
         record={null}
         onNewSession={noop}
         onSaveRecord={noop}
@@ -53,10 +57,12 @@ describe("Summary", () => {
   });
 
   it("完成のとき記録保存ボタンを表示する", () => {
+    // Given
+    const endType = "complete";
     // When
     render(
       <Summary
-        endType="complete"
+        endType={endType}
         record={baseRecord}
         onNewSession={noop}
         onSaveRecord={noop}
@@ -67,10 +73,12 @@ describe("Summary", () => {
   });
 
   it("中断のとき記録保存ボタンを表示しない（中断は記録なし）", () => {
+    // Given
+    const endType = "abort";
     // When
     render(
       <Summary
-        endType="abort"
+        endType={endType}
         record={null}
         onNewSession={noop}
         onSaveRecord={noop}
@@ -85,10 +93,12 @@ describe("Summary", () => {
    */
   describe("達成演出", () => {
     it("完成のとき達成バナー（aria-label=達成）を表示する", () => {
+      // Given
+      const endType = "complete";
       // When
       render(
         <Summary
-          endType="complete"
+          endType={endType}
           record={baseRecord}
           onNewSession={noop}
           onSaveRecord={noop}
@@ -99,10 +109,12 @@ describe("Summary", () => {
     });
 
     it("中断のとき達成バナーを表示しない（達成として扱わない）", () => {
+      // Given
+      const endType = "abort";
       // When
       render(
         <Summary
-          endType="abort"
+          endType={endType}
           record={null}
           onNewSession={noop}
           onSaveRecord={noop}
@@ -119,11 +131,13 @@ describe("Summary", () => {
    */
   describe("振り返り情報", () => {
     it("完成のとき個人別ドライバー回数と周回数を表示する", () => {
+      // Given
+      const record = { ...baseRecord, members: ["Alice", "Bob"], driverCounts: [2, 1], rounds: 1 };
       // When
       render(
         <Summary
           endType="complete"
-          record={{ ...baseRecord, members: ["Alice", "Bob"], driverCounts: [2, 1], rounds: 1 }}
+          record={record}
           onNewSession={noop}
           onSaveRecord={noop}
         />,
@@ -136,6 +150,7 @@ describe("Summary", () => {
   });
 
   it("次の行動（新規セッション）への導線を提示する", () => {
+    // Given（完成状態・baseRecord をそのまま使う）
     // When
     render(
       <Summary
