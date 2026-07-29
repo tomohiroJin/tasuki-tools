@@ -76,6 +76,12 @@ class RoomBuilder {
   async build(): Promise<BuiltRoom> {
     const store = new InMemoryRoomStore();
     const broadcaster = new SpyBroadcaster();
+    // ビルダーは配信メッセージ（room.created / room.joined）から participantId 等を取るため、
+    // broadcaster を差し替えられると前提を組み立てられない。BuiltRoom.broadcaster も
+    // 実際に配線されたものと食い違う。差し替えたい場合は makeTestHandlers を直接使うこと。
+    if (this.depsOverrides.broadcaster !== undefined) {
+      throw new RoomBuildError("withDeps({ broadcaster }) は差し替えできない");
+    }
     const handlers = makeTestHandlers({ store, broadcaster, ...this.depsOverrides });
 
     const ids: Record<string, string> = {};
