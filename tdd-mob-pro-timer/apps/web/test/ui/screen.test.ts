@@ -1,6 +1,6 @@
 /**
  * room.phase → 表示画面マッピングのテスト
- * 3回目レビュー: マルチユーザーの画面遷移整合（FR-001, SC-001）
+ * @requirements FR-001, SC-001
  */
 
 import { describe, it, expect } from "vitest";

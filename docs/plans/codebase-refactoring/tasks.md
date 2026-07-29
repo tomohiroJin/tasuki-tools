@@ -382,7 +382,7 @@
   ⚠ `use-switch-alert` は **`.ts` と `.tsx` の 2 ファイルが同名で存在する**。両方が対象。
   _要件: FR-091〜FR-096, FR-123, US2_
 
-- [ ] **T051** バッチ「画面遷移と入口」（9 ファイル）:
+- [x] **T051** バッチ「画面遷移と入口」（9 ファイル）:
   `ui/Setup.onboarding.test.tsx` / `ui/Join.test.tsx` / `ui/join-driver-intent.test.ts` /
   `ui/screen.test.ts` / `ui/History.test.tsx` / `ui/Summary.test.tsx` /
   `ui/EndSessionZone.test.tsx` / `ui/EndSessionZone.complete.test.tsx` / `ui/Tabs.test.tsx`。

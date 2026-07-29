@@ -369,3 +369,25 @@ describe("<対象の名詞>", () => {
   （2行以下は対象外）。`use-switch-alert.test.ts`・`use-switch-alert.test.tsx` は既に
   仕様IDなし・呼称なしの振る舞いベースの名前だったため、GWT区切りの付与のみ行った。
   検証内容・分割は変更していない。
+
+### `apps/web/test/ui`（T051: バッチ「画面遷移と入口」9ファイル）
+
+- `Setup.onboarding.test.tsx` / `Join.test.tsx` / `join-driver-intent.test.ts` /
+  `screen.test.ts` / `History.test.tsx` / `Summary.test.tsx` /
+  `EndSessionZone.test.tsx` / `EndSessionZone.complete.test.tsx` / `Tabs.test.tsx`
+
+  describe/it 名・ファイル先頭コメントに混在していた `FR-001`・`FR-053`・`FR-054`・`SC-001`・
+  `T047/T048`・`FR-020,021,044`・`v2.3 #5`・`T045/T046`・`FR-018,019,044,SC-005`・
+  `Issue #22`・`FR-074b`・`T034`・`FR-076`・`S1`・`C3` を describe 直上の JSDoc
+  `@requirements` へ移した（`Summary.test.tsx` の達成演出・振り返り情報、
+  `EndSessionZone.test.tsx` の完成確認は各内側 describe/it にも分けて付与）。
+  `Setup.onboarding.test.tsx` の「onCreateRoom が名前で呼ばれる」・
+  `Join.test.tsx` の「onJoin が name/passphrase/mode で呼ばれる」（3件）・
+  `History.test.tsx` の「deleteRecord(id) が呼ばれ」「onBack が呼ばれる」は、いずれも
+  SC-030 の「呼ぶ/呼ばれる」規定に抵触するため、「作成が要求される」「参加が要求される」
+  「記録が削除される」「呼び出し元へ戻る」という結果の記述に改めた（アサーション自体は
+  `toHaveBeenCalledWith`/`toHaveBeenCalledTimes` のまま変更していない）。
+  `Setup.onboarding.test.tsx` の「①」という番号飾りは仕様IDではない冗長表記のため削除した。
+  本体が3行以上のテストに `// Given` `// When` `// Then` を付与した（2行以下は対象外）。
+  `join-driver-intent.test.ts` は既に仕様IDなし・呼称なし・本体1行中心で規約を満たしており
+  無変更（FR-123）。検証内容・分割は変更していない。

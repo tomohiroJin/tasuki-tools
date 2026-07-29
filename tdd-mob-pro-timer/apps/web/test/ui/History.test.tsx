@@ -1,6 +1,6 @@
 /**
  * History（端末ローカル記録の履歴ビュー）のテスト
- * v2.3 #5: 完了記録は IndexedDB に保存されているが閲覧画面が無かった。
+ * 完了記録は IndexedDB に保存されているが閲覧画面が無かった。
  * loadRecords/deleteRecord をモックし、表示・空状態・削除・戻る導線を検証する。
  */
 
@@ -31,6 +31,9 @@ const baseRecord = {
   completedAt: new Date("2026-06-01T10:30:00").getTime(),
 };
 
+/**
+ * @requirements v2.3 #5
+ */
 describe("History（履歴ビュー）", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -38,48 +41,50 @@ describe("History（履歴ビュー）", () => {
   });
 
   it("保存済み記録のお題タイトル・言語・所要時間・交代回数・日時を表示する", async () => {
+    // Given
     mockLoadRecords.mockResolvedValue([baseRecord]);
+    // When
     render(<History onBack={vi.fn()} />);
-
-    // お題タイトル
-    expect(await screen.findByText("FizzBuzz")).toBeTruthy();
-    // 言語
-    expect(screen.getByText(/TypeScript/)).toBeTruthy();
-    // 所要時間（305 秒 = 5分05秒 / 05:05 のいずれか）
-    expect(screen.getByText(/5分05秒|05:05/)).toBeTruthy();
-    // 交代回数
-    expect(screen.getByText(/4回/)).toBeTruthy();
-    // 日時（年が含まれる）
-    expect(screen.getByText(/2026/)).toBeTruthy();
+    // Then
+    expect(await screen.findByText("FizzBuzz")).toBeTruthy(); // お題タイトル
+    expect(screen.getByText(/TypeScript/)).toBeTruthy(); // 言語
+    expect(screen.getByText(/5分05秒|05:05/)).toBeTruthy(); // 所要時間（305 秒 = 5分05秒 / 05:05 のいずれか）
+    expect(screen.getByText(/4回/)).toBeTruthy(); // 交代回数
+    expect(screen.getByText(/2026/)).toBeTruthy(); // 日時（年が含まれる）
   });
 
   it("記録が空のとき空状態の案内を表示する", async () => {
+    // Given
     mockLoadRecords.mockResolvedValue([]);
+    // When
     render(<History onBack={vi.fn()} />);
-
+    // Then
     expect(await screen.findByText(/記録がありません|まだ記録がありません/)).toBeTruthy();
   });
 
-  it("削除ボタン押下で deleteRecord(id) が呼ばれ一覧から消える", async () => {
+  it("削除ボタンを押すと該当記録が削除され一覧から消える", async () => {
+    // Given
     mockLoadRecords.mockResolvedValue([baseRecord]);
     render(<History onBack={vi.fn()} />);
-
     expect(await screen.findByText("FizzBuzz")).toBeTruthy();
+    // When
     fireEvent.click(screen.getByRole("button", { name: /削除/ }));
-
+    // Then
     expect(mockDeleteRecord).toHaveBeenCalledWith("rec-1");
     await waitFor(() => {
       expect(screen.queryByText("FizzBuzz")).toBeNull();
     });
   });
 
-  it("「戻る」で onBack が呼ばれる", async () => {
+  it("「戻る」を押すと呼び出し元へ戻る", async () => {
+    // Given
     mockLoadRecords.mockResolvedValue([baseRecord]);
     const onBack = vi.fn();
     render(<History onBack={onBack} />);
-
     expect(await screen.findByText("FizzBuzz")).toBeTruthy();
+    // When
     fireEvent.click(screen.getByRole("button", { name: /戻る/ }));
+    // Then
     expect(onBack).toHaveBeenCalledTimes(1);
   });
 });
