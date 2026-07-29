@@ -27,10 +27,12 @@ const problem: Problem = {
 
 describe("buildCompletionRecord", () => {
   it("必要なフィールドが全て含まれる", () => {
+    // Given
     const agg = anAggregate().build();
     const completedAt = 1000000 + 300000;
+    // When
     const record = buildCompletionRecord(agg, problem, baseConfig, completedAt);
-
+    // Then
     expect(record.problemTitle).toBe(problem.title);
     expect(record.language).toBe(baseConfig.language);
     expect(record.difficulty).toBe(baseConfig.difficulty);
@@ -39,32 +41,29 @@ describe("buildCompletionRecord", () => {
     expect(record.id).toBeTruthy();
   });
 
-  it("elapsedSeconds は停止時間を除いた稼働時間（SC-004）", () => {
+  /**
+   * @requirements SC-004
+   */
+  it("elapsedSeconds は停止時間を除いた稼働時間", () => {
+    // Given（開始 → 60秒稼働 → 一時停止 → 30秒の停止（計上しない）→ 再開 → 40秒稼働して完成）
     const startTime = 1000000;
     let agg = anAggregate().build();
-
-    // セッション開始
     agg = evolve(agg, { type: "SessionStarted", now: startTime }, startTime);
-
-    // 60秒稼働後、一時停止
     const pauseTime = startTime + 60000;
     agg = evolve(agg, { type: "SessionPaused", now: pauseTime }, pauseTime);
-
-    // 30秒の停止（この時間は計上しない）
     const resumeTime = pauseTime + 30000;
     agg = evolve(agg, { type: "SessionResumed", now: resumeTime }, resumeTime);
-
-    // さらに 40秒稼働して完成
     const completeTime = resumeTime + 40000;
-
+    // When
     const totalElapsed = elapsedMs(agg.clock, completeTime);
-    expect(totalElapsed).toBe(100000); // 60秒 + 40秒 = 100秒（停止30秒は含まない）
-
     const record = buildCompletionRecord(agg, problem, baseConfig, completeTime);
+    // Then（60秒 + 40秒 = 100秒。停止30秒は含まない）
+    expect(totalElapsed).toBe(100000);
     expect(record.elapsedSeconds).toBe(100); // ms → seconds
   });
 
   it("totalSwitches が集約から転記される", () => {
+    // Given（2回交代した集約を作る）
     const startTime = 1000000;
     let agg = anAggregate().build();
     agg = evolve(agg, { type: "SessionStarted", now: startTime }, startTime);
@@ -78,40 +77,45 @@ describe("buildCompletionRecord", () => {
       { type: "DriverSwitched", nextIndex: 2, now: startTime + 20000 },
       startTime + 20000,
     );
-
+    // When
     const record = buildCompletionRecord(agg, problem, baseConfig, startTime + 20000);
+    // Then
     expect(record.totalSwitches).toBe(2);
   });
 
   it("id は一意（2つの記録が同じ id を持たない）", () => {
+    // Given
     const agg = anAggregate().build();
+    // When
     const r1 = buildCompletionRecord(agg, problem, baseConfig, 1000000);
     const r2 = buildCompletionRecord(agg, problem, baseConfig, 1000001);
+    // Then
     expect(r1.id).not.toBe(r2.id);
   });
 });
 
-// ─── T008: 中断（abort）は記録を生成しない ────────────────────────────────────
-
+/**
+ * @requirements T008
+ */
 describe("中断（SessionAborted）の記録扱い", () => {
-  it("SessionAborted イベント自体は CompletionRecord を持たない", () => {
-    // SessionAborted イベントには記録生成に必要な情報が無いことを確認する。
-    // （実際の「保存を呼ばない」制御は handlers/App.tsx 層で行う。
-    //   ここではドメインイベント型の設計確認。）
+  it("SessionAborted イベント自体には CompletionRecord に必要な problemTitle / members が存在しない", () => {
+    // Given（実際の「保存を呼ばない」制御は handlers/App.tsx 層で行う。ここではドメインイベント型の設計確認）
     const abortedEvent: import("../src/events.js").SessionAborted = {
       type: "SessionAborted",
       now: 1000000,
     };
+    // Then
     expect(abortedEvent.type).toBe("SessionAborted");
-    // CompletionRecord に必要な problemTitle / members 等が存在しないことを型で確認
     expect("problemTitle" in abortedEvent).toBe(false);
     expect("members" in abortedEvent).toBe(false);
   });
 
   it("SessionCompleted イベントには now が含まれ、buildCompletionRecord で記録を作れる", () => {
+    // Given（完成時のみ記録を生成することを確認する。abort とは対照的）
     const agg = anAggregate().build();
-    // 完成時のみ記録を生成することを再確認（abort とは対照的に）
+    // When
     const record = buildCompletionRecord(agg, problem, baseConfig, 1000000);
+    // Then
     expect(record.problemTitle).toBe(problem.title);
     expect(record.completedAt).toBe(1000000);
   });

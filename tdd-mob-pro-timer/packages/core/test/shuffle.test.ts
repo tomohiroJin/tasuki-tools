@@ -65,27 +65,21 @@ describe("decide: member.shuffle", () => {
 
   it("正しい順列は MembersShuffled を返す", () => {
     const result = decide({ command: "member.shuffle", order: [2, 0, 1] }, agg, NOW);
-    expect(result.isOk()).toBe(true);
-    result.map((events) => {
-      expect(events).toEqual([{ type: "MembersShuffled", order: [2, 0, 1], now: NOW }]);
-    });
+    expect(result._unsafeUnwrap()).toEqual([{ type: "MembersShuffled", order: [2, 0, 1], now: NOW }]);
   });
 
   it("重複を含む order [0,0,1] は InvalidIndex で err", () => {
     const result = decide({ command: "member.shuffle", order: [0, 0, 1] }, agg, NOW);
-    expect(result.isErr()).toBe(true);
-    result.mapErr((e) => expect(e.type).toBe("InvalidIndex"));
+    expect(result._unsafeUnwrapErr().type).toBe("InvalidIndex");
   });
 
   it("範囲外を含む order [0,1,3] は InvalidIndex で err", () => {
     const result = decide({ command: "member.shuffle", order: [0, 1, 3] }, agg, NOW);
-    expect(result.isErr()).toBe(true);
-    result.mapErr((e) => expect(e.type).toBe("InvalidIndex"));
+    expect(result._unsafeUnwrapErr().type).toBe("InvalidIndex");
   });
 
   it("長さ不一致の order [0,1] は InvalidIndex で err", () => {
     const result = decide({ command: "member.shuffle", order: [0, 1] }, agg, NOW);
-    expect(result.isErr()).toBe(true);
-    result.mapErr((e) => expect(e.type).toBe("InvalidIndex"));
+    expect(result._unsafeUnwrapErr().type).toBe("InvalidIndex");
   });
 });

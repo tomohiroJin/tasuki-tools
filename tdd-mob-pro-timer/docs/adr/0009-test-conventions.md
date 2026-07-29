@@ -75,3 +75,11 @@ describe("<対象の名詞>", () => {
 - `driver-timer-restart.test.ts`
 - `reset-restart.test.ts`
 - `properties.test.ts`
+
+### `packages/core/test`（T033: バッチ「decide と不変条件」）
+
+- `decide.test.ts`
+- `decide-v3.test.ts`
+- `shuffle.test.ts`
+- `transfer-host.test.ts`
+- `records.test.ts`

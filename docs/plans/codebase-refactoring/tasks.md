@@ -277,7 +277,7 @@
   ⚠ `timer-restart` は **core に存在しない**（`apps/sync/test/timer-restart.test.ts`・T039 が扱う）。
   _要件: FR-091〜FR-096, FR-123, US2_
 
-- [ ] **T033** バッチ「decide と不変条件」（5 ファイル）: `decide` / `decide-v3` / `shuffle` /
+- [x] **T033** バッチ「decide と不変条件」（5 ファイル）: `decide` / `decide-v3` / `shuffle` /
   `transfer-host` / `records`。
   _要件: FR-091〜FR-096, FR-123, US2_
 
