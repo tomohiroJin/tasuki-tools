@@ -51,53 +51,70 @@ const SERVER_ONLY_CODES = ["NOT_IN_ROOM", "DELEGATION_UNAVAILABLE"] as const;
 
 describe("画面に表示される文言の表", () => {
   it("表示対象のコードの集合は固定されている", () => {
-    // Given / When
+    // Given（画面に出すと決めたコードの一覧）
+    const expected = [...CODES_SHOWN_TO_USER].sort();
+    // When
     const actual = Object.keys(ERROR_MESSAGES).sort();
     // Then
-    expect(actual).toEqual([...CODES_SHOWN_TO_USER].sort());
+    expect(actual).toEqual(expected);
   });
 
   it("表示対象のコードはすべて空でない文言を持つ", () => {
-    // Given / When / Then
-    for (const code of CODES_SHOWN_TO_USER) {
-      expect(ERROR_MESSAGES[code]).toBeTruthy();
-    }
+    // Given
+    const codes = CODES_SHOWN_TO_USER;
+    // When
+    const messages = codes.map((code) => ERROR_MESSAGES[code]);
+    // Then
+    expect(messages.every((m) => Boolean(m))).toBe(true);
   });
 
   it("サーバーの wire 専用コードは表に含まない（含めると画面の文言が変わる）", () => {
-    // Given / When / Then
-    for (const code of SERVER_ONLY_CODES) {
-      expect(ERROR_MESSAGES[code]).toBeUndefined();
-    }
+    // Given
+    const codes = SERVER_ONLY_CODES;
+    // When
+    const found = codes.filter((code) => ERROR_MESSAGES[code] !== undefined);
+    // Then
+    expect(found).toEqual([]);
   });
 });
 
 describe("displayMessageFor（画面に出す文言）", () => {
   it("表示対象のコードはその文言をそのまま返す", () => {
-    // Given / When / Then
-    for (const code of CODES_SHOWN_TO_USER) {
-      expect(displayMessageFor(code)).toBe(ERROR_MESSAGES[code]);
-    }
+    // Given
+    const codes = CODES_SHOWN_TO_USER;
+    // When
+    const shown = codes.map((code) => displayMessageFor(code));
+    // Then
+    expect(shown).toEqual(codes.map((code) => ERROR_MESSAGES[code]));
   });
 
   it("サーバー専用コードには既定文言を返す（サーバーの文言を画面に出さない）", () => {
-    // Given / When / Then
-    for (const code of SERVER_ONLY_CODES) {
-      expect(displayMessageFor(code)).toBe(DEFAULT_ERROR_MESSAGE);
-    }
+    // Given
+    const codes = SERVER_ONLY_CODES;
+    // When
+    const shown = codes.map((code) => displayMessageFor(code));
+    // Then
+    expect(shown).toEqual(codes.map(() => DEFAULT_ERROR_MESSAGE));
   });
 
   it("知らないコードには既定文言を返す", () => {
-    // Given / When / Then
-    expect(displayMessageFor("NO_SUCH_CODE")).toBe(DEFAULT_ERROR_MESSAGE);
+    // Given
+    const code = "NO_SUCH_CODE";
+    // When
+    const shown = displayMessageFor(code);
+    // Then
+    expect(shown).toBe(DEFAULT_ERROR_MESSAGE);
   });
 });
 
 describe("errorMessageFor（wire に載せる文言）", () => {
   it("表示対象のコードはその文言を返す", () => {
-    // Given / When / Then
-    expect(errorMessageFor("DuplicateName")).toBe(ERROR_MESSAGES.DuplicateName);
-    expect(errorMessageFor("LAST_MANAGER")).toBe(ERROR_MESSAGES.LAST_MANAGER);
+    // Given
+    const codes = ["DuplicateName", "LAST_MANAGER"] as const;
+    // When
+    const messages = codes.map((code) => errorMessageFor(code));
+    // Then
+    expect(messages).toEqual(codes.map((code) => ERROR_MESSAGES[code]));
   });
 
   it("サーバー専用コードはサーバー用の文言を返す（既定文言ではない）", () => {
@@ -111,7 +128,11 @@ describe("errorMessageFor（wire に載せる文言）", () => {
   });
 
   it("知らないコードには既定文言を返す", () => {
-    // Given / When / Then
-    expect(errorMessageFor("NO_SUCH_CODE")).toBe(DEFAULT_ERROR_MESSAGE);
+    // Given
+    const code = "NO_SUCH_CODE";
+    // When
+    const message = errorMessageFor(code);
+    // Then
+    expect(message).toBe(DEFAULT_ERROR_MESSAGE);
   });
 });
