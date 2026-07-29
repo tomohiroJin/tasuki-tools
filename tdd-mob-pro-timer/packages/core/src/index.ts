@@ -90,7 +90,6 @@ export type {
   InvalidIndex,
   InputLimitExceeded,
   DomainError,
-  SyncErrorCode,
   ErrorCode,
 } from "./errors.js";
 export { SYNC_ERROR_CODES } from "./errors.js";

@@ -125,7 +125,11 @@ export const SYNC_ERROR_CODES = [
   "INVALID",
 ] as const;
 
-export type SyncErrorCode = (typeof SYNC_ERROR_CODES)[number];
+/**
+ * 製品コードは `ErrorCode` だけを使うため、この別名は export しない
+ * （`export` が不要な公開記号を増やさない・SC-039③）。
+ */
+type SyncErrorCode = (typeof SYNC_ERROR_CODES)[number];
 
 /**
  * **クライアントへ送られ得る失敗の種類の列挙**（FR-101）。
