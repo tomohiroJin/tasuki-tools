@@ -671,15 +671,9 @@ export function makeHandlers(deps: HandlerDeps) {
       }
     }
 
-    // evolve の結果を Room に反映してから、Room レベルイベントを適用する。
-    // applyRoomLevelEvent は session.rotation 等をさらに更新しうる
-    // （ProxyMemberAdded の rotation 追加・ParticipantRenamed の rotation 改名）ため、
-    // evolve 結果を基底に置かないと session 変更が捨てられる。
-    targetRoom = { ...targetRoom, session: newAgg.session, clock: newAgg.clock };
-    for (const event of result.value) {
-      // PhaseSet/ProblemSet/ConfigSet/SessionCompleted 等はルームレベルで処理
-      targetRoom = applyRoomLevelEvent(targetRoom, event, now);
-    }
+    // 集約の反映 → Room レベルイベントの適用（順序は applyEvents が保証する・FR-103）。
+    // PhaseSet/ProblemSet/ConfigSet/SessionCompleted 等はルームレベルで処理される。
+    targetRoom = applyEvents(targetRoom, newAgg, result.value, now);
 
     // startedAt は「一度でも開始したか」を表す単調フラグ（host-spof-relaxation D2）。
     // かつては PhaseSet(phase==="session") と SessionStarted の2イベントに限定して
@@ -709,7 +703,7 @@ export function makeHandlers(deps: HandlerDeps) {
           ineligible,
           now,
         );
-        targetRoom = { ...targetRoom, session: advanced.session, clock: advanced.clock };
+        targetRoom = applyEvents(targetRoom, advanced, [], now);
       }
     }
 
@@ -721,9 +715,11 @@ export function makeHandlers(deps: HandlerDeps) {
       const targetPid = typeof cmd.participantId === "string" ? cmd.participantId : "";
       const target = targetRoom.participants.find((p) => p.participantId === targetPid);
       if (target?.driverEligible === false) {
-        targetRoom = applyRoomLevelEvent(
+        // 集約はこの時点で反映済みなので、そのまま基底として渡す（applyEvents の契約）。
+        targetRoom = applyEvents(
           targetRoom,
-          { type: "DriverResumed", participantId: targetPid, now },
+          { session: targetRoom.session, clock: targetRoom.clock },
+          [{ type: "DriverResumed", participantId: targetPid, now }],
           now,
         );
       }
@@ -1336,11 +1332,51 @@ function rotationDisplayNames(room: Room): string[] {
 
 // ─── ルームレベルのイベント適用 ──────────────────────────────────────────────
 
-function applyRoomLevelEvent(
+/**
+ * **集約（session + clock）を反映済みであることを表す型**（FR-103）。
+ *
+ * 実体はただの `Room` であり、この目印は**型の上にしか存在しない**（実行時のコストは無い）。
+ * `applyRoomLevelEvent` はこの型しか受け付けず、この型を作れるのは `applyEvents` だけである。
+ * したがって「Room レベルイベントを先に適用してしまう」順序違反はコンパイルが通らない。
+ */
+declare const aggregateApplied: unique symbol;
+type RoomWithAggregate = Room & { readonly [aggregateApplied]: true };
+
+/**
+ * **状態遷移の適用順序の契約**（FR-103）。
+ *
+ * 1. `evolve` / `advanceDriver` が返した集約を Room に反映する
+ * 2. その結果を基底にして Room レベルのイベントを順に適用する
+ *
+ * **この順序を逆にしてはならない。** `applyRoomLevelEvent` は `session.rotation` 等を
+ * さらに更新しうるため（`ProxyMemberAdded` の rotation 追加・`ParticipantRenamed` の改名）、
+ * 集約の反映を後に回すと、そこで加えた session の変更が丸ごと捨てられる。
+ *
+ * かつてこの順序はコメントによる注意喚起でしか表現されておらず、呼び出し側が自分で
+ * `{ ...room, session, clock }` を組み立ててからループを回していた。順序を守る責務を
+ * この関数 1 つに閉じ込め、`applyRoomLevelEvent` を型で守ることで、順序違反を起こせなくする。
+ *
+ * **統合（`applyRoomLevelEvent` と `evolve` を 1 つにすること）は行わない**（Issue #26 の担当）。
+ * ここで行うのは境界を型と契約として表現することまでである。
+ */
+function applyEvents(
   room: Room,
+  agg: { session: Room["session"]; clock: Room["clock"] },
+  events: readonly DomainEvent[],
+  now: number,
+): Room {
+  const base = { ...room, session: agg.session, clock: agg.clock } as RoomWithAggregate;
+  return events.reduce<RoomWithAggregate>(
+    (acc, event) => applyRoomLevelEvent(acc, event, now),
+    base,
+  );
+}
+
+function applyRoomLevelEvent(
+  room: RoomWithAggregate,
   event: DomainEvent,
   _now: number,
-): Room {
+): RoomWithAggregate {
   switch (event.type) {
     case "PhaseSet": {
       // startedAt は「一度でも開始したか」を表す単調フラグ（host-spof-relaxation D2）。
@@ -1376,7 +1412,7 @@ function applyRoomLevelEvent(
       // 既に完成済みなら二重計上しない（complete の冪等性）
       if (room.phase === "celebration") return room;
       // 完成フェーズへ遷移し、揮発な完成記録を Room に追加（FR-028）
-      const next: Room = { ...room, phase: "celebration" };
+      const next: RoomWithAggregate = { ...room, phase: "celebration" };
       if (room.problem) {
         const agg = { session: room.session, clock: room.clock };
         const record = buildCompletionRecord(

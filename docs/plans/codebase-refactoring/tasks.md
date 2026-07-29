@@ -622,8 +622,14 @@
   **未実施: この結論を独立した Issue として起票すること（Issue #26 の設計判断の材料）。**
   _要件: FR-102, FR-115, US3_
 
-- [ ] **T078** `applyRoomLevelEvent` と `evolve` の**適用順序の契約を型または明示的な契約として表現する**
+- [x] **T078** `applyRoomLevelEvent` と `evolve` の**適用順序の契約を型または明示的な契約として表現する**
   （現在はコメントによる注意喚起のみ）。**統合はしない**（Issue #26 の担当）。
+
+  **結果**: 適用順序を担う唯一の関数 `applyEvents(room, agg, events, now)` を新設し、
+  `applyRoomLevelEvent` は「集約を反映済みの Room」を表す型 `RoomWithAggregate`
+  （型の上だけの目印・実行時コストなし）しか受け付けないようにした。
+  この型を作れるのは `applyEvents` だけなので、**順序違反はコンパイルが通らない**
+  （逆順に書き換えると TS2345 になることを実際に確認済み）。統合はしていない。
   _要件: FR-103, US3_
 
 - [ ] **T079** `pnpm test && typecheck && lint && build` 全緑。
