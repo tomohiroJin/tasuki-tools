@@ -1,6 +1,6 @@
 /**
  * WS クライアントの接続状態通知のテスト
- * R5-1: onConnectionChange が online/reconnecting で呼ばれることを検証する。
+ * onConnectionChange が online/reconnecting で呼ばれることを検証する。
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -18,8 +18,12 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+/**
+ * @requirements R5-1
+ */
 describe("SyncClient onConnectionChange", () => {
   it("onopen で online、onclose で reconnecting を通知する", () => {
+    // Given
     const onConnectionChange = vi.fn();
     const client = new SyncClient({
       url: "ws://x",
@@ -27,16 +31,21 @@ describe("SyncClient onConnectionChange", () => {
       onConnectionChange,
     });
     client.connect();
-
     const ws = FakeWS.instances[0]!;
+
+    // When
     ws.onopen?.();
+    // Then
     expect(onConnectionChange).toHaveBeenCalledWith("online");
 
+    // When
     ws.onclose?.();
+    // Then
     expect(onConnectionChange).toHaveBeenCalledWith("reconnecting");
   });
 
   it("dispose() 後の onclose では reconnecting を通知しない", () => {
+    // Given
     const onConnectionChange = vi.fn();
     const client = new SyncClient({
       url: "ws://x",
@@ -44,13 +53,15 @@ describe("SyncClient onConnectionChange", () => {
       onConnectionChange,
     });
     client.connect();
-
     const ws = FakeWS.instances[0]!;
     ws.onopen?.();
     onConnectionChange.mockClear();
 
+    // When
     client.dispose();
     ws.onclose?.();
+
+    // Then
     expect(onConnectionChange).not.toHaveBeenCalledWith("reconnecting");
   });
 });

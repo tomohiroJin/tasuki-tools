@@ -345,7 +345,7 @@
   **本体 2 行以下が多く SC-032 の対象外が大半。**
   _要件: FR-091〜FR-096, FR-123, SC-032, US2_
 
-- [ ] **T045 [P]** バッチ「sync クライアント」（5 ファイル）:
+- [x] **T045 [P]** バッチ「sync クライアント」（5 ファイル）:
   `sync/client.connection.test.ts` / `sync/client.dispose.test.ts` / `sync/clock-offset.test.ts` /
   `sync/dispatch.test.ts` / `sync/notice-message.test.ts`。
   _要件: FR-091〜FR-096, FR-123, US2_

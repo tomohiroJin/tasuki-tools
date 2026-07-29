@@ -247,3 +247,22 @@ describe("<対象の名詞>", () => {
   記述に改めた（アサーション自体は `toHaveBeenCalledTimes`/`toHaveBeenCalledWith`/
   `not.toHaveBeenCalled` のまま変更していない）。本体 2 行以下が多く SC-032 の対象外が大半。
   検証内容・分割は変更していない。
+
+### `apps/web/test/sync`（T045: バッチ「sync クライアント」）
+
+- `client.connection.test.ts`
+- `client.dispose.test.ts`
+- `clock-offset.test.ts`
+- `dispatch.test.ts`
+- `notice-message.test.ts`
+
+  `R5-1` / `FR-086` / `T041, FR-007, SC-001` / `T055, FR-025, FR-026` / `Issue #22 G4, FR-077` を
+  describe 名・行内コメントから JSDoc `@requirements` へ移した。`client.dispose.test.ts` と
+  `dispatch.test.ts` の「onDisconnected/onConnectionChange/onRoom 等を呼ぶ・呼ばない」という
+  記述は、これらのコールバックが検証対象の関数の外部契約そのもの（`dispatchServerMessage` は
+  メッセージ種別ごとに対応するハンドラへ値を渡すことが仕様であり、
+  `SyncClient` の dispose 後は通知を上げないことが仕様）であるため、
+  「〜へ渡す/渡る」「切断を通知する/しない」という結果の記述に改めた
+  （アサーション自体は `toHaveBeenCalledWith`/`not.toHaveBeenCalled` のまま変更していない）。
+  `notice-message.test.ts`（変異検査 変異9 の検出元）は既に振る舞いベースの名前・関心の分割を
+  持っていたため、GWT の区切り付与のみを行い、検証内容・組み合わせは一切変更していない。

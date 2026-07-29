@@ -13,7 +13,6 @@
  * 再接続の予約は破棄フラグで抑止されていたが、通知だけが抑止対象から漏れていた。
  *
  * 設計: docs/plans/host-spof-relaxation/plan.md「D8」
- * 要件: FR-086
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -31,34 +30,43 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("SyncClient: 破棄後の切断通知（FR-086）", () => {
-  it("dispose() 後に close が発火しても onDisconnected を呼ばない", () => {
+/**
+ * @requirements FR-086
+ */
+describe("SyncClient: 破棄後の切断通知", () => {
+  it("dispose() 後に close が発火しても切断を通知しない", () => {
+    // Given
     const onDisconnected = vi.fn();
     const client = new SyncClient({ url: "ws://x", onRoom: () => {}, onDisconnected });
     client.connect();
     const ws = FakeWS.instances[0]!;
     ws.onopen?.();
 
-    // 退出通知を受けたときの経路。破棄してから close が後追いで発火する。
+    // When（退出通知を受けたときの経路。破棄してから close が後追いで発火する）
     client.dispose();
     ws.onclose?.();
 
+    // Then
     expect(onDisconnected).not.toHaveBeenCalled();
   });
 
-  it("dispose() していない切断では従来どおり onDisconnected を呼ぶ（再接続の導線を壊さない）", () => {
+  it("dispose() していない切断では従来どおり切断を通知する（再接続の導線を壊さない）", () => {
+    // Given
     const onDisconnected = vi.fn();
     const client = new SyncClient({ url: "ws://x", onRoom: () => {}, onDisconnected });
     client.connect();
     const ws = FakeWS.instances[0]!;
     ws.onopen?.();
 
+    // When
     ws.onclose?.();
 
+    // Then
     expect(onDisconnected).toHaveBeenCalledTimes(1);
   });
 
-  it("dispose() 後の close では onConnectionChange('reconnecting') も呼ばない（既存の抑止の固定）", () => {
+  it("dispose() 後の close では reconnecting への接続状態変化も通知しない（既存の抑止の固定）", () => {
+    // Given
     const onConnectionChange = vi.fn();
     const client = new SyncClient({ url: "ws://x", onRoom: () => {}, onConnectionChange });
     client.connect();
@@ -66,22 +74,27 @@ describe("SyncClient: 破棄後の切断通知（FR-086）", () => {
     ws.onopen?.();
     onConnectionChange.mockClear();
 
+    // When
     client.dispose();
     ws.onclose?.();
 
+    // Then
     expect(onConnectionChange).not.toHaveBeenCalled();
   });
 
   it("dispose() 後の close では再接続を予約しない（新しい接続を作らない）", () => {
+    // Given
     const client = new SyncClient({ url: "ws://x", onRoom: () => {} });
     client.connect();
     const ws = FakeWS.instances[0]!;
     ws.onopen?.();
 
+    // When
     client.dispose();
     ws.onclose?.();
     vi.advanceTimersByTime(60_000);
 
+    // Then
     expect(FakeWS.instances).toHaveLength(1);
   });
 });
