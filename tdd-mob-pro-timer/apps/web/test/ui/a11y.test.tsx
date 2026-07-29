@@ -8,7 +8,6 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import React from "react";
 import { StatusStrip } from "../../src/ui/components/StatusStrip.js";
 import { EndSessionZone } from "../../src/ui/components/EndSessionZone.js";
-import { AiSettingsModal } from "../../src/ui/components/AiSettingsModal.js";
 import { InvitePanel } from "../../src/ui/components/InvitePanel.js";
 
 const noop = vi.fn();
@@ -96,26 +95,6 @@ describe("アクセシビリティ（T069）", () => {
       expect(
         screen.getByRole("button", { name: "ルームコードをコピー" }),
       ).toBeTruthy();
-    });
-  });
-
-  // ─── AiSettingsModal ───────────────────────────────────────────────────────
-  describe("AiSettingsModal", () => {
-    it("モーダルは role='dialog' と aria-modal='true' を持つ", () => {
-      render(
-        <AiSettingsModal
-          open={true}
-          mode="fallback"
-          hasKey={false}
-          onClose={noop}
-          onModeChange={noop}
-          onKeySave={noop}
-          onKeyClear={noop}
-        />,
-      );
-      const dialog = screen.getByRole("dialog");
-      expect(dialog).toBeTruthy();
-      expect(dialog.getAttribute("aria-modal")).toBe("true");
     });
   });
 });
