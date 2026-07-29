@@ -100,10 +100,9 @@ describe("buildCompletionRecord", () => {
 describe("中断（SessionAborted）の記録扱い", () => {
   it("SessionAborted イベント自体には CompletionRecord に必要な problemTitle / members が存在しない", () => {
     // Given（実際の「保存を呼ばない」制御は handlers/App.tsx 層で行う。ここではドメインイベント型の設計確認）
-    const abortedEvent: import("../src/events.js").SessionAborted = {
-      type: "SessionAborted",
-      now: 1000000,
-    };
+    const rawEvent = { type: "SessionAborted", now: 1000000 };
+    // When（rawEvent が SessionAborted 型として受理されることを確認する）
+    const abortedEvent: import("../src/events.js").SessionAborted = rawEvent;
     // Then
     expect(abortedEvent.type).toBe("SessionAborted");
     expect("problemTitle" in abortedEvent).toBe(false);
@@ -140,8 +139,12 @@ describe("buildCompletionRecord: 周回数とドライバー回数", () => {
   });
 
   it("roomId を渡すと記録に含める", () => {
+    // Given
     const agg = anAggregate().build();
-    const rec = buildCompletionRecord(agg, shortProblem, baseConfig, 1000000, "ROOM-1");
+    const roomId = "ROOM-1";
+    // When
+    const rec = buildCompletionRecord(agg, shortProblem, baseConfig, 1000000, roomId);
+    // Then
     expect(rec.roomId).toBe("ROOM-1");
   });
 

@@ -70,14 +70,14 @@ describe("decide: break.start / break.end（§9.1）", () => {
 
 describe("decide: config.set の v3.0 トグル（§16）", () => {
   it("navigatorEnabled / assertiveSwitch / breakEveryRotations を検証済み config に載せる", () => {
-    const result = decide(
-      {
-        command: "config.set",
-        config: { navigatorEnabled: true, assertiveSwitch: true, breakEveryRotations: 4 },
-      },
-      baseAgg,
-      NOW,
-    );
+    // Given
+    const command = {
+      command: "config.set",
+      config: { navigatorEnabled: true, assertiveSwitch: true, breakEveryRotations: 4 },
+    };
+    // When
+    const result = decide(command, baseAgg, NOW);
+    // Then
     expect(result._unsafeUnwrap()[0]).toMatchObject({
       type: "ConfigSet",
       config: { navigatorEnabled: true, assertiveSwitch: true, breakEveryRotations: 4 },
@@ -85,11 +85,11 @@ describe("decide: config.set の v3.0 トグル（§16）", () => {
   });
 
   it("problemEnabled を検証済み config に載せる（お題なし開始・ルーム単位）", () => {
-    const result = decide(
-      { command: "config.set", config: { problemEnabled: false } },
-      baseAgg,
-      NOW,
-    );
+    // Given
+    const command = { command: "config.set", config: { problemEnabled: false } };
+    // When
+    const result = decide(command, baseAgg, NOW);
+    // Then
     expect(result._unsafeUnwrap()[0]).toMatchObject({
       type: "ConfigSet",
       config: { problemEnabled: false },
@@ -97,8 +97,10 @@ describe("decide: config.set の v3.0 トグル（§16）", () => {
   });
 
   it("指定しないトグルは config に含めない（未指定は現状維持）", () => {
+    // Given
+    const command = { command: "config.set", config: { navigatorEnabled: true } };
     // When
-    const result = decide({ command: "config.set", config: { navigatorEnabled: true } }, baseAgg, NOW);
+    const result = decide(command, baseAgg, NOW);
     const event = result._unsafeUnwrap()[0];
     // Then
     expect(event?.type).toBe("ConfigSet");

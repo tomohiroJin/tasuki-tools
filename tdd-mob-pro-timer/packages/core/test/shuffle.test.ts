@@ -36,24 +36,35 @@ describe("CommandSchema: member.shuffle", () => {
 
 describe("evolve: MembersShuffled", () => {
   it("order=[2,0,1] で rotation/driverCounts が並べ替わる", () => {
+    // Given
     const agg = aggWith(0);
-    const next = evolve(agg, { type: "MembersShuffled", order: [2, 0, 1], now: NOW }, NOW);
+    const event = { type: "MembersShuffled", order: [2, 0, 1], now: NOW } as const;
+    // When
+    const next = evolve(agg, event, NOW);
+    // Then
     expect(next.session.rotation).toEqual(["C", "A", "B"]);
     expect(next.session.driverCounts).toEqual([3, 1, 2]);
   });
 
   it("現ドライバー名が新しい currentIndex に remap される", () => {
-    // currentIndex=1（"B"）を order=[2,0,1] で並べ替えると "B" は新インデックス 2 へ。
+    // Given（currentIndex=1（"B"）を order=[2,0,1] で並べ替えると "B" は新インデックス 2 へ）
     const agg = aggWith(1);
-    const next = evolve(agg, { type: "MembersShuffled", order: [2, 0, 1], now: NOW }, NOW);
+    const event = { type: "MembersShuffled", order: [2, 0, 1], now: NOW } as const;
+    // When
+    const next = evolve(agg, event, NOW);
+    // Then
     expect(next.session.rotation).toEqual(["C", "A", "B"]);
     expect(next.session.rotation[next.session.currentIndex]).toBe("B");
     expect(next.session.currentIndex).toBe(2);
   });
 
   it("恒等順列 [0,1,2] は集約を変えない（現ドライバー保持）", () => {
+    // Given
     const agg = aggWith(2);
-    const next = evolve(agg, { type: "MembersShuffled", order: [0, 1, 2], now: NOW }, NOW);
+    const event = { type: "MembersShuffled", order: [0, 1, 2], now: NOW } as const;
+    // When
+    const next = evolve(agg, event, NOW);
+    // Then
     expect(next.session.rotation).toEqual(["A", "B", "C"]);
     expect(next.session.driverCounts).toEqual([1, 2, 3]);
     expect(next.session.currentIndex).toBe(2);

@@ -41,6 +41,7 @@ const actionArb = fc.constantFrom(
 
 describe("不変条件プロパティテスト", () => {
   it("任意の操作列で rotation.length === driverCounts.length が成立する", () => {
+    // Given（actionArb が生成する任意長の操作列を対象にする）
     // When / Then（各操作の適用後に不変条件を検証する）
     fc.assert(
       fc.property(
@@ -148,6 +149,7 @@ describe("不変条件プロパティテスト", () => {
  */
 describe("v2 不変条件プロパティテスト", () => {
   it("SessionAborted は常に成功し、集約状態に影響を与えない", () => {
+    // Given（fc.integer が生成する任意の時刻を対象にする）
     // When / Then
     fc.assert(
       fc.property(

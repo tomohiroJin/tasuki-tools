@@ -5,18 +5,20 @@ import { MAX_AI_UNLOCK_KEY } from "../src/aggregate.js";
 
 describe("ai.unlock コマンドスキーマ", () => {
   it("正しい ai.unlock コマンドを受理する", () => {
-    const result = v.safeParse(CommandSchema, {
-      command: "ai.unlock",
-      key: "open-sesame",
-    });
+    // Given
+    const command = { command: "ai.unlock", key: "open-sesame" };
+    // When
+    const result = v.safeParse(CommandSchema, command);
+    // Then
     expect(result.success).toBe(true);
   });
 
   it("key が上限を超えると拒否する", () => {
-    const result = v.safeParse(CommandSchema, {
-      command: "ai.unlock",
-      key: "x".repeat(MAX_AI_UNLOCK_KEY + 1),
-    });
+    // Given
+    const command = { command: "ai.unlock", key: "x".repeat(MAX_AI_UNLOCK_KEY + 1) };
+    // When
+    const result = v.safeParse(CommandSchema, command);
+    // Then
     expect(result.success).toBe(false);
   });
 

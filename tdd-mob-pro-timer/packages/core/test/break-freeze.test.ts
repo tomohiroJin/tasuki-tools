@@ -34,9 +34,12 @@ describe("F2: 休憩でタイマーを停止/再開する", () => {
   });
 
   it("BreakStarted では isPaused は立てない（休憩は一時停止と別概念）", () => {
+    // Given
     const started = startedAgg();
     const breakTime = NOW + 180_000;
+    // When
     const onBreak = evolve(started, { type: "BreakStarted", now: breakTime }, breakTime);
+    // Then
     expect(onBreak.session.isPaused).toBe(false);
   });
 
@@ -73,9 +76,10 @@ describe("F2: 休憩でタイマーを停止/再開する", () => {
   });
 
   it("BreakStarted を二重に適用しても残量は変わらない（冪等）", () => {
-    // Given / When
+    // Given
     const started = startedAgg();
     const breakTime = NOW + 180_000;
+    // When
     const once = evolve(started, { type: "BreakStarted", now: breakTime }, breakTime);
     const twice = evolve(once, { type: "BreakStarted", now: breakTime + 99_999 }, breakTime + 99_999);
     // Then
@@ -83,8 +87,11 @@ describe("F2: 休憩でタイマーを停止/再開する", () => {
   });
 
   it("走行中に BreakEnded を適用しても何も変えない（冪等）", () => {
+    // Given
     const started = startedAgg();
+    // When
     const out = evolve(started, { type: "BreakEnded", now: NOW + 1000 }, NOW + 1000);
+    // Then
     expect(out).toEqual(started);
   });
 

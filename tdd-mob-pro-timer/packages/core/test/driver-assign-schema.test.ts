@@ -7,10 +7,11 @@ import { CommandSchema } from "../src/schemas.js";
 
 describe("CommandSchema: driver.assign", () => {
   it("participantId 付きの driver.assign を受理する", () => {
-    const result = v.safeParse(CommandSchema, {
-      command: "driver.assign",
-      participantId: "pid-123",
-    });
+    // Given
+    const command = { command: "driver.assign", participantId: "pid-123" };
+    // When
+    const result = v.safeParse(CommandSchema, command);
+    // Then
     expect(result.success).toBe(true);
   });
 

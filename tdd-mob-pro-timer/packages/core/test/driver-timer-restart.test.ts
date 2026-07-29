@@ -47,12 +47,10 @@ describe("decide: session.act RESTART", () => {
   });
 
   it("未開始（停止中）でも受理する（RESUME と同じ寛容さ）", () => {
+    // Given
+    const stoppedAgg = anAggregate().withRotation("Alice", "Bob", "Charlie").withIntervalMinutes(7).build();
     // When
-    const result = decide(
-      { command: "session.act", action: "RESTART" },
-      anAggregate().withRotation("Alice", "Bob", "Charlie").withIntervalMinutes(7).build(),
-      NOW,
-    );
+    const result = decide({ command: "session.act", action: "RESTART" }, stoppedAgg, NOW);
     // Then
     expect(result.isOk()).toBe(true);
   });
@@ -116,8 +114,12 @@ describe("evolve: DriverTimerReset", () => {
   });
 
   it("交代間隔（intervalSeconds）は変えない", () => {
+    // Given
+    const before = advancedAgg();
     const at = NOW + 30_000;
-    const after = evolve(advancedAgg(), { type: "DriverTimerReset", now: at }, at);
+    // When
+    const after = evolve(before, { type: "DriverTimerReset", now: at }, at);
+    // Then
     expect(after.clock.intervalSeconds).toBe(420);
   });
 
