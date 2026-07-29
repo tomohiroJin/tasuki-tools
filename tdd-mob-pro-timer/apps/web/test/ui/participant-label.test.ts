@@ -103,57 +103,57 @@ describe("shortId", () => {
  */
 describe("canTransferHostTo（ホスト譲渡ボタンの可否）", () => {
   it("自分以外・管理権限あり・相手がホストでない・相手がオンラインなら true", () => {
-    expect(
-      canTransferHostTo(
-        { role: "editor", presence: "online" },
-        { isSelf: false, canManage: true },
-      ),
-    ).toBe(true);
+    // Given（相手=editor/online、文脈=自分以外・管理権限ありを組む）
+    const target = { role: "editor", presence: "online" } as const;
+    const ctx = { isSelf: false, canManage: true };
+    // When（可否を判定する）
+    const result = canTransferHostTo(target, ctx);
+    expect(result).toBe(true);
   });
 
   it("自分自身には出さない", () => {
-    expect(
-      canTransferHostTo(
-        { role: "editor", presence: "online" },
-        { isSelf: true, canManage: true },
-      ),
-    ).toBe(false);
+    // Given（相手=editor/online、文脈=自分自身・管理権限ありを組む）
+    const target = { role: "editor", presence: "online" } as const;
+    const ctx = { isSelf: true, canManage: true };
+    // When（可否を判定する）
+    const result = canTransferHostTo(target, ctx);
+    expect(result).toBe(false);
   });
 
   it("管理権限が無ければ出さない", () => {
-    expect(
-      canTransferHostTo(
-        { role: "editor", presence: "online" },
-        { isSelf: false, canManage: false },
-      ),
-    ).toBe(false);
+    // Given（相手=editor/online、文脈=自分以外・管理権限なしを組む）
+    const target = { role: "editor", presence: "online" } as const;
+    const ctx = { isSelf: false, canManage: false };
+    // When（可否を判定する）
+    const result = canTransferHostTo(target, ctx);
+    expect(result).toBe(false);
   });
 
   it("相手が既にホストなら出さない", () => {
-    expect(
-      canTransferHostTo(
-        { role: "host", presence: "online" },
-        { isSelf: false, canManage: true },
-      ),
-    ).toBe(false);
+    // Given（相手=host/online、文脈=自分以外・管理権限ありを組む）
+    const target = { role: "host", presence: "online" } as const;
+    const ctx = { isSelf: false, canManage: true };
+    // When（可否を判定する）
+    const result = canTransferHostTo(target, ctx);
+    expect(result).toBe(false);
   });
 
   it("相手がオフラインなら出さない（無人ドライバー防止）", () => {
-    expect(
-      canTransferHostTo(
-        { role: "editor", presence: "offline" },
-        { isSelf: false, canManage: true },
-      ),
-    ).toBe(false);
+    // Given（相手=editor/offline、文脈=自分以外・管理権限ありを組む）
+    const target = { role: "editor", presence: "offline" } as const;
+    const ctx = { isSelf: false, canManage: true };
+    // When（可否を判定する）
+    const result = canTransferHostTo(target, ctx);
+    expect(result).toBe(false);
   });
 
   it("相手が idle（在席）なら出す", () => {
-    expect(
-      canTransferHostTo(
-        { role: "viewer", presence: "idle" },
-        { isSelf: false, canManage: true },
-      ),
-    ).toBe(true);
+    // Given（相手=viewer/idle、文脈=自分以外・管理権限ありを組む）
+    const target = { role: "viewer", presence: "idle" } as const;
+    const ctx = { isSelf: false, canManage: true };
+    // When（可否を判定する）
+    const result = canTransferHostTo(target, ctx);
+    expect(result).toBe(true);
   });
 });
 
@@ -173,26 +173,34 @@ describe("canRemoveParticipant（退出させるボタンの可否）", () => {
 
 describe("canReorderRotation（ドライバー順の並べ替えボタンの可否）", () => {
   it("管理権限あり・ドライバー内・2人以上なら true", () => {
-    expect(
-      canReorderRotation({ canManage: true, inRotation: true, rotationLength: 2 }),
-    ).toBe(true);
+    // Given（管理権限あり・ドライバー内・2人のローテーションを組む）
+    const ctx = { canManage: true, inRotation: true, rotationLength: 2 };
+    // When（可否を判定する）
+    const result = canReorderRotation(ctx);
+    expect(result).toBe(true);
   });
 
   it("管理権限が無ければ出さない", () => {
-    expect(
-      canReorderRotation({ canManage: false, inRotation: true, rotationLength: 2 }),
-    ).toBe(false);
+    // Given（管理権限なし・ドライバー内・2人のローテーションを組む）
+    const ctx = { canManage: false, inRotation: true, rotationLength: 2 };
+    // When（可否を判定する）
+    const result = canReorderRotation(ctx);
+    expect(result).toBe(false);
   });
 
   it("ドライバー外（見学者）には出さない", () => {
-    expect(
-      canReorderRotation({ canManage: true, inRotation: false, rotationLength: 2 }),
-    ).toBe(false);
+    // Given（管理権限あり・ドライバー外・2人のローテーションを組む）
+    const ctx = { canManage: true, inRotation: false, rotationLength: 2 };
+    // When（可否を判定する）
+    const result = canReorderRotation(ctx);
+    expect(result).toBe(false);
   });
 
   it("ドライバーが1人だけなら並べ替える意味が無いので出さない", () => {
-    expect(
-      canReorderRotation({ canManage: true, inRotation: true, rotationLength: 1 }),
-    ).toBe(false);
+    // Given（管理権限あり・ドライバー内・1人だけのローテーションを組む）
+    const ctx = { canManage: true, inRotation: true, rotationLength: 1 };
+    // When（可否を判定する）
+    const result = canReorderRotation(ctx);
+    expect(result).toBe(false);
   });
 });

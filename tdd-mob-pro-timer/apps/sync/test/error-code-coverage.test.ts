@@ -86,6 +86,8 @@ function collectServerErrorCodes(): Set<string> {
 
 describe("サーバーが送るエラーコード", () => {
   it("すべてのコードについて、画面に出す文言が決まっている", () => {
+    // Given（apps/sync/src 配下の全ソースを走査対象にする）
+    // When（コードの出現パターンを走査して収集する）
     const codes = [...collectServerErrorCodes()].sort();
     // 走査が 1 件も拾えないなら、正規表現が実装とズレている（検査が空振りしている）
     expect(codes.length).toBeGreaterThan(0);
@@ -97,6 +99,8 @@ describe("サーバーが送るエラーコード", () => {
   });
 
   it("意図的に画面へ出さないコードは、既定文言が表示される", () => {
+    // Given（意図的に画面へ出さないコードの集合 INTENTIONALLY_NOT_SHOWN を対象にする）
+    // When（各コードについて表示文言を求める）
     for (const code of INTENTIONALLY_NOT_SHOWN) {
       expect(displayMessageFor(code)).toBe(DEFAULT_ERROR_MESSAGE);
     }
@@ -114,13 +118,17 @@ describe("サーバーが送るエラーコード", () => {
  */
 describe("エラーコードの列挙", () => {
   it("ソースから見つかるコードは、すべて列挙に含まれている", () => {
+    // Given（列挙側 SYNC_ERROR_CODES を集合として用意する）
     const enumerated = new Set<string>(SYNC_ERROR_CODES);
+    // When（ソースを走査して、列挙に無いコードを探す）
     const missing = [...collectServerErrorCodes()].filter((code) => !enumerated.has(code)).sort();
     expect(missing).toEqual([]);
   });
 
   it("列挙されたコードは、すべてソースに実在する", () => {
+    // Given（apps/sync/src 配下の全ソースを走査対象にする）
     const sources = readAllTsFiles(SRC_DIR).join("\n");
+    // When（列挙側 SYNC_ERROR_CODES の各コードがソース中に実在するか調べる）
     const absent = SYNC_ERROR_CODES.filter((code) => !sources.includes(`"${code}"`));
     expect(absent).toEqual([]);
   });
