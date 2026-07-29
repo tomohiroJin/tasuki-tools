@@ -14,8 +14,10 @@ const NOW = 1000000;
 
 describe("decide: session.abort", () => {
   it("session.abort で SessionAborted イベントを1件発行する", () => {
+    // Given
+    const command = { command: "session.abort" } as const;
     // When
-    const result = decide({ command: "session.abort" }, baseAgg, NOW);
+    const result = decide(command, baseAgg, NOW);
     // Then
     const events = result._unsafeUnwrap();
     expect(events).toHaveLength(1);
@@ -49,8 +51,10 @@ describe("decide: session.complete（回帰テスト）", () => {
 
 describe("decide: START", () => {
   it("セッション開始でドライバーインデックスが0のままSessionStartedを発行する", () => {
+    // Given
+    const command = { command: "session.act", action: "START" } as const;
     // When
-    const result = decide({ command: "session.act", action: "START" }, baseAgg, NOW);
+    const result = decide(command, baseAgg, NOW);
     // Then
     const events = result._unsafeUnwrap();
     expect(events).toHaveLength(1);
@@ -79,7 +83,11 @@ describe("decide: SWITCH（自動/手動交代）", () => {
   };
 
   it("SWITCH でドライバー交代イベントを発行する", () => {
-    const result = decide({ command: "session.act", action: "SWITCH" }, runningAgg, NOW);
+    // Given
+    const command = { command: "session.act", action: "SWITCH" } as const;
+    // When
+    const result = decide(command, runningAgg, NOW);
+    // Then
     const switched = result._unsafeUnwrap().find((e) => e.type === "DriverSwitched");
     expect(switched).toBeTruthy();
   });
@@ -175,14 +183,22 @@ describe("decide: メンバー管理", () => {
   });
 
   it("2人のとき1人削除はできる（2層モデル: 下限は1人）", () => {
+    // Given
     const twoMemberAgg = anAggregate().withRotation("Alice", "Bob").build();
-    const result = decide({ command: "member.remove", index: 0 }, twoMemberAgg, NOW);
+    const command = { command: "member.remove", index: 0 } as const;
+    // When
+    const result = decide(command, twoMemberAgg, NOW);
+    // Then
     expect(result.isOk()).toBe(true);
   });
 
   it("最後の1人を削除しようとするとエラー（BelowMinMembers）", () => {
+    // Given
     const oneMemberAgg = anAggregate().withRotation("Alice").build();
-    const result = decide({ command: "member.remove", index: 0 }, oneMemberAgg, NOW);
+    const command = { command: "member.remove", index: 0 } as const;
+    // When
+    const result = decide(command, oneMemberAgg, NOW);
+    // Then
     expect(result._unsafeUnwrapErr().type).toBe("BelowMinMembers");
   });
 
@@ -201,20 +217,20 @@ describe("decide: メンバー管理", () => {
 
 describe("decide: config.set", () => {
   it("有効な交代間隔を設定できる", () => {
-    const result = decide(
-      { command: "config.set", config: { intervalMinutes: 7 } },
-      baseAgg,
-      NOW,
-    );
+    // Given
+    const command = { command: "config.set", config: { intervalMinutes: 7 } } as const;
+    // When
+    const result = decide(command, baseAgg, NOW);
+    // Then
     expect(result._unsafeUnwrap()[0]?.type).toBe("ConfigSet");
   });
 
   it("無効な交代間隔はエラー（InvalidInterval）", () => {
-    const result = decide(
-      { command: "config.set", config: { intervalMinutes: 6 as never } },
-      baseAgg,
-      NOW,
-    );
+    // Given
+    const command = { command: "config.set", config: { intervalMinutes: 6 as never } } as const;
+    // When
+    const result = decide(command, baseAgg, NOW);
+    // Then
     expect(result._unsafeUnwrapErr().type).toBe("InvalidInterval");
   });
 
@@ -263,11 +279,14 @@ describe("decide: config.set", () => {
   });
 
   it("言語・難易度のみの変更は成功する", () => {
-    const result = decide(
-      { command: "config.set", config: { language: "Go", difficulty: "hard" } },
-      baseAgg,
-      NOW,
-    );
+    // Given
+    const command = {
+      command: "config.set",
+      config: { language: "Go", difficulty: "hard" },
+    } as const;
+    // When
+    const result = decide(command, baseAgg, NOW);
+    // Then
     expect(result.isOk()).toBe(true);
   });
 });
@@ -279,20 +298,28 @@ describe("decide: config.set", () => {
  */
 describe("decide: participant.addProxy", () => {
   it("有効な名前でプレースホルダー参加者を追加できる", () => {
-    const result = decide(
-      { command: "participant.addProxy", displayName: "Dave", participantId: "proxy-1" },
-      baseAgg,
-      NOW,
-    );
+    // Given
+    const command = {
+      command: "participant.addProxy",
+      displayName: "Dave",
+      participantId: "proxy-1",
+    } as const;
+    // When
+    const result = decide(command, baseAgg, NOW);
+    // Then
     expect(result._unsafeUnwrap()[0]?.type).toBe("ProxyMemberAdded");
   });
 
   it("空の表示名は拒否される", () => {
-    const result = decide(
-      { command: "participant.addProxy", displayName: "  ", participantId: "proxy-2" },
-      baseAgg,
-      NOW,
-    );
+    // Given
+    const command = {
+      command: "participant.addProxy",
+      displayName: "  ",
+      participantId: "proxy-2",
+    } as const;
+    // When
+    const result = decide(command, baseAgg, NOW);
+    // Then
     expect(result._unsafeUnwrapErr().type).toBe("EmptyName");
   });
 
@@ -300,11 +327,15 @@ describe("decide: participant.addProxy", () => {
   // 集約だけを見る decide からは名前の重複を判定できない。participants を持つ
   // サーバー層（handlers）へ移した。重複拒否の検証は apps/sync 側にある。
   it("既存の表示名と重複しても集約は受理する（名前の一意性はサーバー層の責務）", () => {
-    const result = decide(
-      { command: "participant.addProxy", displayName: "Alice", participantId: "proxy-3" },
-      baseAgg,
-      NOW,
-    );
+    // Given
+    const command = {
+      command: "participant.addProxy",
+      displayName: "Alice",
+      participantId: "proxy-3",
+    } as const;
+    // When
+    const result = decide(command, baseAgg, NOW);
+    // Then
     expect(result.isOk()).toBe(true);
   });
 });
@@ -317,20 +348,28 @@ describe("decide: participant.rename", () => {
   // 集約だけを見る decide からは名前の重複を判定できない。participants を持つ
   // サーバー層（handlers）へ移した（T052）。重複拒否の検証は apps/sync 側にある。
   it("有効な表示名への変更でイベントを発行する", () => {
-    const result = decide(
-      { command: "participant.rename", participantId: "p1", displayName: "NewName" },
-      baseAgg,
-      NOW,
-    );
+    // Given
+    const command = {
+      command: "participant.rename",
+      participantId: "p1",
+      displayName: "NewName",
+    } as const;
+    // When
+    const result = decide(command, baseAgg, NOW);
+    // Then
     expect(result._unsafeUnwrap()[0]?.type).toBe("ParticipantRenamed");
   });
 
   it("空の表示名への変更は拒否される", () => {
-    const result = decide(
-      { command: "participant.rename", participantId: "p1", displayName: "" },
-      baseAgg,
-      NOW,
-    );
+    // Given
+    const command = {
+      command: "participant.rename",
+      participantId: "p1",
+      displayName: "",
+    } as const;
+    // When
+    const result = decide(command, baseAgg, NOW);
+    // Then
     expect(result._unsafeUnwrapErr().type).toBe("EmptyName");
   });
 
@@ -357,20 +396,20 @@ describe("decide: participant.rename", () => {
  */
 describe("decide: driver.skip / driver.resume", () => {
   it("driver.skip で DriverSkipped イベントを発行する", () => {
-    const result = decide(
-      { command: "driver.skip", participantId: "p1" },
-      baseAgg,
-      NOW,
-    );
+    // Given
+    const command = { command: "driver.skip", participantId: "p1" } as const;
+    // When
+    const result = decide(command, baseAgg, NOW);
+    // Then
     expect(result._unsafeUnwrap()[0]?.type).toBe("DriverSkipped");
   });
 
   it("driver.resume で DriverResumed イベントを発行する", () => {
-    const result = decide(
-      { command: "driver.resume", participantId: "p1" },
-      baseAgg,
-      NOW,
-    );
+    // Given
+    const command = { command: "driver.resume", participantId: "p1" } as const;
+    // When
+    const result = decide(command, baseAgg, NOW);
+    // Then
     expect(result._unsafeUnwrap()[0]?.type).toBe("DriverResumed");
   });
 });
@@ -382,11 +421,11 @@ describe("decide: driver.skip / driver.resume", () => {
  */
 describe("decide: problem.edit", () => {
   it("フィールドパッチで ProblemEdited イベントを発行する", () => {
-    const result = decide(
-      { command: "problem.edit", patch: { title: "新タイトル" } },
-      baseAgg,
-      NOW,
-    );
+    // Given
+    const command = { command: "problem.edit", patch: { title: "新タイトル" } } as const;
+    // When
+    const result = decide(command, baseAgg, NOW);
+    // Then
     expect(result._unsafeUnwrap()[0]?.type).toBe("ProblemEdited");
   });
 
@@ -403,12 +442,12 @@ describe("decide: problem.edit", () => {
   });
 
   it("requirements が上限ちょうど（20件）なら許可される", () => {
+    // Given
     const exactly = Array.from({ length: 20 }, (_, i) => `要件${i}`);
-    const result = decide(
-      { command: "problem.edit", patch: { requirements: exactly } },
-      baseAgg,
-      NOW,
-    );
+    const command = { command: "problem.edit", patch: { requirements: exactly } } as const;
+    // When
+    const result = decide(command, baseAgg, NOW);
+    // Then
     expect(result.isOk()).toBe(true);
   });
 });
@@ -418,21 +457,19 @@ describe("decide: problem.edit", () => {
  */
 describe("decide: problem.mode.set", () => {
   it("AI モードへの切り替えで ProblemModeSet を発行する", () => {
-    const result = decide(
-      { command: "problem.mode.set", mode: "ai" },
-      baseAgg,
-      NOW,
-    );
+    // Given
+    const command = { command: "problem.mode.set", mode: "ai" } as const;
+    // When
+    const result = decide(command, baseAgg, NOW);
+    // Then
     expect(result._unsafeUnwrap()[0]?.type).toBe("ProblemModeSet");
   });
 
   it("定型モードへの切り替えで ProblemModeSet の mode が fallback になる", () => {
+    // Given
+    const command = { command: "problem.mode.set", mode: "fallback" } as const;
     // When
-    const result = decide(
-      { command: "problem.mode.set", mode: "fallback" },
-      baseAgg,
-      NOW,
-    );
+    const result = decide(command, baseAgg, NOW);
     // Then
     const evt = result._unsafeUnwrap()[0];
     if (evt?.type === "ProblemModeSet") {
@@ -451,8 +488,10 @@ describe("decide: driver.assign（任意メンバー強制指名）", () => {
   };
 
   it("稼働中に有効 index を指名すると DriverSwitched を1件発行する", () => {
+    // Given
+    const command = { command: "driver.assign", index: 2 } as const;
     // When
-    const result = decide({ command: "driver.assign", index: 2 }, runningAgg, NOW);
+    const result = decide(command, runningAgg, NOW);
     // Then
     const events = result._unsafeUnwrap();
     expect(events).toHaveLength(1);
