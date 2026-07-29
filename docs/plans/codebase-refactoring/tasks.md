@@ -553,13 +553,15 @@
   **描画（JSX）は両者に残す。統合しない**（FR-118）。
   _要件: FR-107, FR-118, US4_
 
-- [ ] **T069** `apps/web/test/ui/` に `useLatestRef` の失敗するテストを書く。
+- [x] **T069** `apps/web/test/ui/` に `useLatestRef` の失敗するテストを書く。
   _要件: FR-120, US4_
 
-- [ ] **T070** `apps/web/src/ui/use-latest-ref.ts` に `useLatestRef(value)` を実装し、
+- [x] **T070** `apps/web/src/ui/use-latest-ref.ts` に `useLatestRef(value)` を実装し、
   `App.tsx` の **state と ref の二重管理 5 組**の同期処理をこれに集約する。
   **reducer への作り替えは行わない。**
   **純粋なガード用 ref（`problemRequestedRef` など state を持たないもの）は触らない。**
+  （実測: 実際に state と対になっていた ref は room/participantId/endType/generatingProblem の
+  **4組**のみだった。5組目は見つからず、他の ref はすべて state を持たない純粋なガード用だった。）
   _要件: FR-120, FR-118, US4_
 
 - [ ] **T071** `pnpm test && typecheck && lint && build` 全緑。

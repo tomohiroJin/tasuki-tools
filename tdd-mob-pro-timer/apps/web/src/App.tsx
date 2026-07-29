@@ -19,6 +19,7 @@ import { screenForPhase } from "./ui/screen.js";
 import { hostChangeMessage } from "./ui/host-change.js";
 import { shouldClearGenerating, shouldAutoRequestProblem } from "./ui/problem-generation.js";
 import { shouldAutoJoinRotation } from "./ui/join-driver-intent.js";
+import { useLatestRef } from "./ui/use-latest-ref.js";
 import { Stage } from "./ui/primitives.js";
 import { saveRecord } from "./records/indexeddb.js";
 import { persistRecordIfComplete } from "./records/persist.js";
@@ -61,9 +62,13 @@ export default function App() {
   // 接続状態は WS クライアントから明示通知される（banner には結合しない・R5-1）。
   const [connState, setConnState] = useState<ClientConnState>("online");
   // 注: AI（BYOK/サブスク）はいったん UI から撤去。お題は定型バンクのみ（NoAiProvider）。
-  // onNeedProblem など closure から最新ルームの設定を参照するための ref
-  const roomRef = useRef<Room | null>(null);
+  // onNeedProblem など closure から最新ルームの設定を参照するための ref。
+  // makeClient のコールバックは生成時の値で固定されるため、同じ値を state と ref の
+  // 両方で持つ並行保持そのものは避けられない。ref への同期処理は useLatestRef に集約する
+  // （Issue #28・T069/T070・FR-120）。
+  const roomRef = useLatestRef<Room | null>(room);
   // このクライアントがルーム作成者（＝当初ホスト）か。ロビーでお題生成を自動依頼する判定に使う。
+  // state を持たない純粋なガード用 ref（useLatestRef の対象外）。
   const isCreatorRef = useRef(false);
   // 参加時に "driver" を選択したか。snapshot で自分が参加者に現れたら member.add を一度だけ送る。
   // 名前ではなく「宣言したか」だけを持つ（誰を加えるかは自分の participantId で決まる・D6b）。
@@ -72,7 +77,7 @@ export default function App() {
   const problemRequestedRef = useRef(false);
   // 終了種別を onRoom（snapshot 受信）クロージャから参照するための ref。
   // 中断時に完成記録を作らない判定に使う（FR-020）。
-  const endTypeRef = useRef<EndType>("complete");
+  const endTypeRef = useLatestRef<EndType>(endType);
   // 完成記録の二重保存を防ぐガード（celebration の snapshot が複数回来ても1回だけ保存）。
   const recordSavedRef = useRef(false);
   // 一時的な操作エラーバナーの自動消去タイマー。
@@ -82,11 +87,11 @@ export default function App() {
   // notice の文言組み立て（「あなた」判定）を closure から行うための ref。
   // participantId は state だが、makeClient のコールバックは生成時の値で固定されるため
   // state を直接読むと空文字のままになる（roomRef と同じ理由の二重管理）。
-  const participantIdRef = useRef<string>("");
+  const participantIdRef = useLatestRef<string>(participantId);
   // AI/定型のお題生成中（「別のお題にする」押下〜新お題確定まで）。スピナー＋減光に使う。
   const [generatingProblem, setGeneratingProblem] = useState(false);
   // onRoom（snapshot クロージャ）から最新値を読むための ref（roomRef 等と同じ二重管理パターン）。
-  const generatingRef = useRef(false);
+  const generatingRef = useLatestRef(generatingProblem);
   // 生成が返らない異常で固まらないための安全弁タイマー。
   const generatingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -110,8 +115,9 @@ export default function App() {
     const newClient = new SyncClient({
       url: wsUrl,
       onRoom: (r) => {
+        // useLatestRef は render のたびに同期するため、ここではまだ前回値のまま
+        // （このコールバック内では setRoom(r) 後も再レンダーが起きるまで前回値を保つ）。
         const prevRoom = roomRef.current;
-        roomRef.current = r;
         setRoom(r);
         // 参加時ドライバー宣言: 自分が参加者に現れたら一度だけ rotation に加入する。
         const myId = participantIdRef.current;
@@ -185,7 +191,6 @@ export default function App() {
         }
       },
       onIdentity: ({ participantId: pid }) => {
-        participantIdRef.current = pid;
         setParticipantId(pid);
       },
       onNeedProblem: async (requestId) => {
@@ -220,10 +225,8 @@ export default function App() {
         if (code === "REMOVED_FROM_ROOM" || code === "REMOVED_BY_HOST") {
           const removedFrom = roomRef.current?.code ?? null;
           newClient.dispose();
-          roomRef.current = null;
           setRoom(null);
           setClient(null);
-          participantIdRef.current = "";
           setParticipantId("");
           isCreatorRef.current = false;
           problemRequestedRef.current = false;
@@ -362,7 +365,6 @@ export default function App() {
 
   const handleComplete = () => {
     setEndType("complete");
-    endTypeRef.current = "complete";
     // サーバーへ完成を通知。画面遷移と記録生成・保存は snapshot 受信（onRoom の celebration
     // 処理）で全参加者一斉に行う。ホストだけ先行しない。
     client?.send({ command: "session.complete" });
@@ -372,7 +374,6 @@ export default function App() {
    *  画面遷移は snapshot（celebration）受信で全員一斉。 */
   const handleAbort = () => {
     setEndType("abort");
-    endTypeRef.current = "abort";
     setRecord(null);
     client?.send({ command: "session.abort" });
   };
@@ -381,14 +382,12 @@ export default function App() {
     client?.dispose();
     setClient(null);
     setRoom(null);
-    participantIdRef.current = "";
     setParticipantId("");
     setRecord(null);
     setEndType("complete");
     setSessionLost(false);
     isCreatorRef.current = false;
     problemRequestedRef.current = false;
-    endTypeRef.current = "complete";
     recordSavedRef.current = false;
     // ?room= 由来の参加状態もリセットし、次回は通常の Setup から始める（レビュー #6）。
     joinedFromUrlRef.current = false;
@@ -489,17 +488,14 @@ export default function App() {
   // 生成中フラグを立て、65 秒の安全弁を張る（サーバ 60 秒タイムアウト＋余裕）。
   const beginGenerating = () => {
     setGeneratingProblem(true);
-    generatingRef.current = true;
     if (generatingTimerRef.current) clearTimeout(generatingTimerRef.current);
     generatingTimerRef.current = setTimeout(() => {
       setGeneratingProblem(false);
-      generatingRef.current = false;
       generatingTimerRef.current = null;
     }, 65_000);
   };
   const endGenerating = () => {
     setGeneratingProblem(false);
-    generatingRef.current = false;
     if (generatingTimerRef.current) {
       clearTimeout(generatingTimerRef.current);
       generatingTimerRef.current = null;
