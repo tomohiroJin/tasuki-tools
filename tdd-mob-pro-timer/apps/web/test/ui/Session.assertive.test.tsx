@@ -54,52 +54,65 @@ describe("Session 強い交代通知（§9.1）", () => {
   });
 
   it("assertiveSwitch ON で交代するとオーバーレイに新ドライバーが出る", () => {
+    // Given
     const { rerender } = render(
       <Session room={makeRoom(true, 0)} participantId="host-1" {...handlers()} />,
     );
     // 初期表示ではオーバーレイ無し
     expect(screen.queryByRole("alertdialog")).toBeNull();
-    // 交代（currentIndex 0→1, ドライバー Bob）
+
+    // When（交代。currentIndex 0→1, ドライバー Bob）
     rerender(<Session room={makeRoom(true, 1)} participantId="host-1" {...handlers()} />);
+
+    // Then
     const overlay = screen.getByRole("alertdialog", { name: /交代/ });
     expect(within(overlay).getByText(/Bob/)).toBeTruthy();
   });
 
   it("assertiveSwitch OFF では交代してもオーバーレイを出さない", () => {
+    // Given
     const { rerender } = render(
       <Session room={makeRoom(false, 0)} participantId="host-1" {...handlers()} />,
     );
+    // When
     rerender(<Session room={makeRoom(false, 1)} participantId="host-1" {...handlers()} />);
+    // Then
     expect(screen.queryByRole("alertdialog")).toBeNull();
   });
 
   it("オーバーレイは約2.5秒で自動的に閉じる", () => {
+    // Given
     vi.useFakeTimers();
     try {
       const { rerender } = render(
         <Session room={makeRoom(true, 0)} participantId="host-1" {...handlers()} />,
       );
+      // When（交代してオーバーレイを出す）
       rerender(<Session room={makeRoom(true, 1)} participantId="host-1" {...handlers()} />);
       expect(screen.queryByRole("alertdialog")).not.toBeNull();
       act(() => { vi.advanceTimersByTime(2600); });
+      // Then
       expect(screen.queryByRole("alertdialog")).toBeNull();
     } finally {
       vi.useRealTimers();
     }
   });
 
-  it("表示中に再レンダリングされても自動消滅が妨げられない（レビュー #2）", () => {
+  // レビュー #2 で見つかった回帰。表示中の再レンダリングでタイマーが失われないことを固定する。
+  it("表示中に再レンダリングされても自動消滅が妨げられない", () => {
+    // Given
     vi.useFakeTimers();
     try {
       const { rerender } = render(
         <Session room={makeRoom(true, 0)} participantId="host-1" {...handlers()} />,
       );
+      // When（交代してオーバーレイを出し、表示中に再レンダリング。同じ index・別 props 相当）
       rerender(<Session room={makeRoom(true, 1)} participantId="host-1" {...handlers()} />);
       expect(screen.queryByRole("alertdialog")).not.toBeNull();
-      // 表示中に再レンダリング（同じ index・別 props 相当）。タイマーは消えない。
       act(() => { vi.advanceTimersByTime(1000); });
       rerender(<Session room={makeRoom(true, 1)} participantId="host-1" {...handlers()} />);
       act(() => { vi.advanceTimersByTime(1700); });
+      // Then（タイマーは消えず、自動消滅する）
       expect(screen.queryByRole("alertdialog")).toBeNull();
     } finally {
       vi.useRealTimers();
@@ -107,6 +120,7 @@ describe("Session 強い交代通知（§9.1）", () => {
   });
 
   it("prefers-reduced-motion 時は控えめ版（data-reduced-motion=true）になる", () => {
+    // Given
     vi.stubGlobal("matchMedia", (q: string) => ({
       matches: q.includes("reduce"),
       media: q, onchange: null,
@@ -116,7 +130,9 @@ describe("Session 強い交代通知（§9.1）", () => {
     const { rerender } = render(
       <Session room={makeRoom(true, 0)} participantId="host-1" {...handlers()} />,
     );
+    // When
     rerender(<Session room={makeRoom(true, 1)} participantId="host-1" {...handlers()} />);
+    // Then
     const overlay = screen.getByRole("alertdialog", { name: /交代/ });
     expect(overlay.getAttribute("data-reduced-motion")).toBe("true");
   });

@@ -70,6 +70,7 @@ function baseHandlers() {
 
 describe("Session 引き継ぎノート入力（§9.1）", () => {
   it("editor+ には共有メモの入力欄が表示される（「編集」クリック後）", () => {
+    // Given
     render(
       <Session
         room={makeRoom()}
@@ -78,14 +79,15 @@ describe("Session 引き継ぎノート入力（§9.1）", () => {
         onHandoffNoteSet={vi.fn()}
       />,
     );
-    // 初期はプレビューモード。「編集」ボタンを押すと入力欄が出る（Task 9: プレビュー優先）。
+    // When（初期はプレビューモード。「編集」ボタンを押すと入力欄が出る）
     fireEvent.click(screen.getByRole("button", { name: "編集" }));
     const field = screen.getByLabelText(/共有メモ/);
-    // textarea/input であること（読み取り専用テキストではない）
+    // Then（textarea/input であること＝読み取り専用テキストではない）
     expect(["TEXTAREA", "INPUT"]).toContain((field as HTMLElement).tagName);
   });
 
-  it("メモを編集して blur すると onHandoffNoteSet が入力値で呼ばれる", () => {
+  it("メモを編集して blur すると入力値が onHandoffNoteSet へ渡る", () => {
+    // Given
     const onHandoffNoteSet = vi.fn();
     render(
       <Session
@@ -95,15 +97,17 @@ describe("Session 引き継ぎノート入力（§9.1）", () => {
         onHandoffNoteSet={onHandoffNoteSet}
       />,
     );
-    // 初期はプレビューモード。「編集」ボタンを押してから入力（Task 9: プレビュー優先）。
+    // When（初期はプレビューモード。「編集」ボタンを押してから入力）
     fireEvent.click(screen.getByRole("button", { name: "編集" }));
     const field = screen.getByLabelText(/共有メモ/);
     fireEvent.change(field, { target: { value: "API のモックまで完了" } });
     fireEvent.blur(field);
+    // Then
     expect(onHandoffNoteSet).toHaveBeenCalledWith("API のモックまで完了");
   });
 
   it("既存のメモは入力欄の初期値として反映される", () => {
+    // Given
     render(
       <Session
         room={makeRoom({ handoffNote: "次はバリデーションから" })}
@@ -112,13 +116,15 @@ describe("Session 引き継ぎノート入力（§9.1）", () => {
         onHandoffNoteSet={vi.fn()}
       />,
     );
-    // 既存メモがある場合は既定でプレビュー表示。「編集」に切り替えると入力欄に初期値が入る。
+    // When（既存メモがある場合は既定でプレビュー表示。「編集」に切り替えると入力欄に初期値が入る）
     fireEvent.click(screen.getByRole("button", { name: "編集" }));
     const field = screen.getByLabelText(/共有メモ/) as HTMLTextAreaElement;
+    // Then
     expect(field.value).toBe("次はバリデーションから");
   });
 
   it("viewer には編集欄を出さず、メモがあれば読み取り表示する", () => {
+    // Given
     render(
       <Session
         room={makeRoom({ handoffNote: "残りはリファクタ" })}
@@ -127,9 +133,8 @@ describe("Session 引き継ぎノート入力（§9.1）", () => {
         onHandoffNoteSet={vi.fn()}
       />,
     );
-    // viewer 視点（rotation 外の閲覧者）。編集欄は無い。
+    // Then（viewer 視点＝rotation 外の閲覧者。編集欄は無いがメモ内容は読める）
     expect(screen.queryByLabelText(/共有メモ/)).toBeNull();
-    // ただしメモ内容は読める
     expect(screen.getByText(/残りはリファクタ/)).toBeTruthy();
   });
 });

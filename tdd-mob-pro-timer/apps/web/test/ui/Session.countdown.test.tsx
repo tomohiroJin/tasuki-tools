@@ -48,11 +48,15 @@ function handlers() {
   };
 }
 
-describe("Session × カウントダウン予告音の配線（Issue #2）", () => {
+/**
+ * @requirements Issue #2
+ */
+describe("Session × カウントダウン予告音の配線", () => {
   beforeEach(() => localStorage.clear());
   afterEach(() => { localStorage.clear(); vi.clearAllMocks(); });
 
   it("個人設定とタイマー走行状態をフックに渡す", () => {
+    // Given
     localStorage.setItem(
       "tdd-mob:notify:v1",
       JSON.stringify({
@@ -60,7 +64,9 @@ describe("Session × カウントダウン予告音の配線（Issue #2）", () 
         countdownEnabled: true, countdownSeconds: 10,
       }),
     );
+    // When
     render(<Session room={makeRoom(true, false)} participantId="host-1" {...handlers()} />);
+    // Then
     expect(useCountdownTick).toHaveBeenCalledWith(
       expect.any(Number),
       true,
