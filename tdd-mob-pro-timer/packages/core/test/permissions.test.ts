@@ -27,39 +27,58 @@ function input(overrides: Partial<PermissionInput> & { command: string }): Permi
  */
 describe("checkPermission — 判定表の基本", () => {
   it("開始後は editor が driver.assign を実行できる", () => {
-    const verdict = checkPermission(
-      input({ command: "driver.assign", role: "editor", started: true, isSelfTarget: false }),
-    );
-
+    // Given
+    const permInput = input({
+      command: "driver.assign",
+      role: "editor",
+      started: true,
+      isSelfTarget: false,
+    });
+    // When
+    const verdict = checkPermission(permInput);
+    // Then
     expect(verdict.allowed).toBe(true);
   });
 
   it("開始前は editor が driver.assign を実行できない", () => {
-    const verdict = checkPermission(
-      input({ command: "driver.assign", role: "editor", started: false, isSelfTarget: false }),
-    );
-
+    // Given
+    const permInput = input({
+      command: "driver.assign",
+      role: "editor",
+      started: false,
+      isSelfTarget: false,
+    });
+    // When
+    const verdict = checkPermission(permInput);
+    // Then
     expect(verdict.allowed).toBe(false);
   });
 
   it("viewer は他人対象の操作を実行できない", () => {
-    const verdict = checkPermission(
-      input({ command: "session.abort", role: "viewer", started: true, isSelfTarget: false }),
-    );
-
+    // Given
+    const permInput = input({
+      command: "session.abort",
+      role: "viewer",
+      started: true,
+      isSelfTarget: false,
+    });
+    // When
+    const verdict = checkPermission(permInput);
+    // Then
     expect(verdict.allowed).toBe(false);
   });
 
   it("viewer は自分対象の participant.rename を実行できる", () => {
-    const verdict = checkPermission(
-      input({
-        command: "participant.rename",
-        role: "viewer",
-        started: false,
-        isSelfTarget: true,
-      }),
-    );
-
+    // Given
+    const permInput = input({
+      command: "participant.rename",
+      role: "viewer",
+      started: false,
+      isSelfTarget: true,
+    });
+    // When
+    const verdict = checkPermission(permInput);
+    // Then
     expect(verdict.allowed).toBe(true);
   });
 });
@@ -162,44 +181,56 @@ describe("checkPermission — ROTATION_OWNERSHIP_COMMANDS 判定表", () => {
 
   for (const command of ROTATION_OWNERSHIP_COMMANDS) {
     it(`${command}: editor / 未開始 / 他人対象 → 拒否`, () => {
-      const verdict = checkPermission(
-        input({ command, role: "editor", started: false, isSelfTarget: false }),
-      );
+      // Given
+      const permInput = input({ command, role: "editor", started: false, isSelfTarget: false });
+      // When
+      const verdict = checkPermission(permInput);
+      // Then
       expect(verdict.allowed).toBe(false);
     });
 
     it(`${command}: editor / 未開始 / 自分対象 → 許可`, () => {
-      const verdict = checkPermission(
-        input({ command, role: "editor", started: false, isSelfTarget: true }),
-      );
+      // Given
+      const permInput = input({ command, role: "editor", started: false, isSelfTarget: true });
+      // When
+      const verdict = checkPermission(permInput);
+      // Then
       expect(verdict.allowed).toBe(true);
     });
 
     it(`${command}: host / 未開始 / 他人対象 → 許可`, () => {
-      const verdict = checkPermission(
-        input({ command, role: "host", started: false, isSelfTarget: false }),
-      );
+      // Given
+      const permInput = input({ command, role: "host", started: false, isSelfTarget: false });
+      // When
+      const verdict = checkPermission(permInput);
+      // Then
       expect(verdict.allowed).toBe(true);
     });
 
     it(`${command}: editor / 開始後 / 他人対象 → 許可`, () => {
-      const verdict = checkPermission(
-        input({ command, role: "editor", started: true, isSelfTarget: false }),
-      );
+      // Given
+      const permInput = input({ command, role: "editor", started: true, isSelfTarget: false });
+      // When
+      const verdict = checkPermission(permInput);
+      // Then
       expect(verdict.allowed).toBe(true);
     });
 
     it(`${command}: viewer / 未開始 / 自分対象 → 拒否`, () => {
-      const verdict = checkPermission(
-        input({ command, role: "viewer", started: false, isSelfTarget: true }),
-      );
+      // Given
+      const permInput = input({ command, role: "viewer", started: false, isSelfTarget: true });
+      // When
+      const verdict = checkPermission(permInput);
+      // Then
       expect(verdict.allowed).toBe(false);
     });
 
     it(`${command}: viewer / 開始後 / 自分対象 → 拒否（現行挙動の維持。D3b で自己編集者復帰できるため詰まない）`, () => {
-      const verdict = checkPermission(
-        input({ command, role: "viewer", started: true, isSelfTarget: true }),
-      );
+      // Given
+      const permInput = input({ command, role: "viewer", started: true, isSelfTarget: true });
+      // When
+      const verdict = checkPermission(permInput);
+      // Then
       expect(verdict.allowed).toBe(false);
     });
   }
@@ -214,15 +245,17 @@ describe("checkPermission — ROTATION_OWNERSHIP_COMMANDS 判定表", () => {
  */
 describe("isAllowed", () => {
   it("許可される入力に対して true を返す", () => {
-    expect(
-      isAllowed(input({ command: "driver.assign", role: "editor", started: true })),
-    ).toBe(true);
+    // Given
+    const permInput = input({ command: "driver.assign", role: "editor", started: true });
+    // When / Then
+    expect(isAllowed(permInput)).toBe(true);
   });
 
   it("拒否される入力に対して false を返す", () => {
-    expect(
-      isAllowed(input({ command: "driver.assign", role: "editor", started: false })),
-    ).toBe(false);
+    // Given
+    const permInput = input({ command: "driver.assign", role: "editor", started: false });
+    // When / Then
+    expect(isAllowed(permInput)).toBe(false);
   });
 });
 
@@ -234,23 +267,44 @@ describe("isAllowed", () => {
  */
 describe("checkPermission — 自己対象 role.set", () => {
   it("開始後・viewer・自己対象の role.set は許可される", () => {
-    const verdict = checkPermission(
-      input({ command: "role.set", role: "viewer", started: true, isSelfTarget: true }),
-    );
+    // Given
+    const permInput = input({
+      command: "role.set",
+      role: "viewer",
+      started: true,
+      isSelfTarget: true,
+    });
+    // When
+    const verdict = checkPermission(permInput);
+    // Then
     expect(verdict.allowed).toBe(true);
   });
 
   it("開始前・viewer・自己対象の role.set は拒否される", () => {
-    const verdict = checkPermission(
-      input({ command: "role.set", role: "viewer", started: false, isSelfTarget: true }),
-    );
+    // Given
+    const permInput = input({
+      command: "role.set",
+      role: "viewer",
+      started: false,
+      isSelfTarget: true,
+    });
+    // When
+    const verdict = checkPermission(permInput);
+    // Then
     expect(verdict.allowed).toBe(false);
   });
 
   it("開始後・editor・他人対象の role.set は許可される", () => {
-    const verdict = checkPermission(
-      input({ command: "role.set", role: "editor", started: true, isSelfTarget: false }),
-    );
+    // Given
+    const permInput = input({
+      command: "role.set",
+      role: "editor",
+      started: true,
+      isSelfTarget: false,
+    });
+    // When
+    const verdict = checkPermission(permInput);
+    // Then
     expect(verdict.allowed).toBe(true);
   });
 });
@@ -263,14 +317,16 @@ describe("checkPermission — 自己対象 role.set", () => {
  */
 describe("checkPermission — participant.remove の自己対象", () => {
   it("開始前・viewer・自己対象の participant.remove（自己退出）は許可される", () => {
-    const verdict = checkPermission(
-      input({
-        command: "participant.remove",
-        role: "viewer",
-        started: false,
-        isSelfTarget: true,
-      }),
-    );
+    // Given
+    const permInput = input({
+      command: "participant.remove",
+      role: "viewer",
+      started: false,
+      isSelfTarget: true,
+    });
+    // When
+    const verdict = checkPermission(permInput);
+    // Then
     expect(verdict.allowed).toBe(true);
   });
 });
@@ -288,10 +344,15 @@ describe("checkPermission — participant.remove の自己対象", () => {
  */
 describe("checkPermission — default-deny", () => {
   it('規則表に無いコマンド名（"unknown.command"）が拒否される', () => {
+    // Given
+    const permInput = input({
+      command: "unknown.command",
+      role: "host",
+      started: true,
+      isSelfTarget: false,
+    });
     // When
-    const verdict = checkPermission(
-      input({ command: "unknown.command", role: "host", started: true, isSelfTarget: false }),
-    );
+    const verdict = checkPermission(permInput);
     // Then
     expect(verdict.allowed).toBe(false);
     if (!verdict.allowed) {
@@ -345,6 +406,7 @@ describe("checkPermission — default-deny", () => {
   });
 
   it("ルームスコープかつ到達可能な25コマンドすべてが規則表に登録されている（default-denyされない）", () => {
+    // Given（対象は ROOM_SCOPED_REACHABLE_COMMANDS の全件）
     // When / Then（役割・段階は「必ず許可され得る」組み合わせ（host・開始前後どちらでも通る道がある）を選ぶ。
     // isSelfTarget と started を変えて、少なくとも1通りが allowed になることを確認する。
     // 規則表に無いコマンド（default-deny）は常に拒否される。登録済みコマンドなら、
