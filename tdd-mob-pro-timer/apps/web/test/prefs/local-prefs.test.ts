@@ -70,7 +70,11 @@ describe("randomLanguagePool", () => {
   beforeEach(() => localStorage.clear());
 
   it("未保存なら既定プール（常用5言語）を返す", () => {
-    expect(loadRandomLanguagePool()).toEqual(DEFAULT_RANDOM_LANGUAGE_POOL);
+    // Given（beforeEach で保存なしの状態）
+    // When
+    const pool = loadRandomLanguagePool();
+    // Then
+    expect(pool).toEqual(DEFAULT_RANDOM_LANGUAGE_POOL);
     expect(DEFAULT_RANDOM_LANGUAGE_POOL).toEqual([
       "TypeScript", "JavaScript", "Python", "Go", "Java",
     ]);
@@ -96,7 +100,8 @@ describe("NotifyPreferences の countdownMode/countdownVoiceId", () => {
   beforeEach(() => localStorage.clear());
 
   it("既定値は countdownMode: tone / countdownVoiceId: voice-male", () => {
-    // Given
+    // Given（beforeEach で保存なしの状態）
+    // When
     const prefs = loadNotifyPreferences();
     // Then
     expect(prefs.countdownMode).toBe("tone");

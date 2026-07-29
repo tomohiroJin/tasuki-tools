@@ -16,15 +16,14 @@ describe("通知設定の永続化", () => {
 
   it("保存して読み戻せる", () => {
     // Given
-    saveNotifyPreferences({
+    const prefs = {
       enabled: true, soundId: "bell", osNotify: false, volume: 0.5,
-      countdownEnabled: false, countdownSeconds: 15, countdownMode: "tone", countdownVoiceId: "voice-male",
-    });
+      countdownEnabled: false, countdownSeconds: 15, countdownMode: "tone" as const, countdownVoiceId: "voice-male",
+    };
+    // When
+    saveNotifyPreferences(prefs);
     // Then
-    expect(loadNotifyPreferences()).toEqual({
-      enabled: true, soundId: "bell", osNotify: false, volume: 0.5,
-      countdownEnabled: false, countdownSeconds: 15, countdownMode: "tone", countdownVoiceId: "voice-male",
-    });
+    expect(loadNotifyPreferences()).toEqual(prefs);
   });
 
   it("破損データは既定にフォールバックする", () => {
@@ -49,10 +48,12 @@ describe("通知設定の永続化", () => {
 
   it("volume を保存して読み戻せる", () => {
     // Given
-    saveNotifyPreferences({
+    const prefs = {
       enabled: true, soundId: "bell", osNotify: false, volume: 0.3,
-      countdownEnabled: false, countdownSeconds: 15, countdownMode: "tone", countdownVoiceId: "voice-male",
-    });
+      countdownEnabled: false, countdownSeconds: 15, countdownMode: "tone" as const, countdownVoiceId: "voice-male",
+    };
+    // When
+    saveNotifyPreferences(prefs);
     // Then
     expect(loadNotifyPreferences().volume).toBe(0.3);
   });

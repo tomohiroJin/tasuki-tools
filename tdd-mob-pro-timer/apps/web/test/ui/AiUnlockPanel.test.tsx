@@ -4,7 +4,10 @@ import { AiUnlockPanel } from "../../src/ui/components/AiUnlockPanel.js";
 
 describe("AiUnlockPanel", () => {
   it("未解錠時はテキストリンクのみ表示し、入力欄は隠れている", () => {
+    // Given（unlocked=false・aiMode=false）
+    // When
     render(<AiUnlockPanel unlocked={false} aiMode={false} onUnlock={vi.fn()} onModeSet={vi.fn()} />);
+    // Then
     expect(screen.getByRole("button", { name: "AI でお題を生成する（合言葉が必要）" })).toBeTruthy();
     // 展開前は入力欄を出さない（控えめ表示）
     expect(screen.queryByLabelText("AI 生成の合言葉")).toBeNull();

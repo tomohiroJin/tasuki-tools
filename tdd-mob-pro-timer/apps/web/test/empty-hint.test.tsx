@@ -13,7 +13,8 @@ import { EmptyHint } from "../src/ui/components/EmptyHint.js";
  */
 describe("EmptyHint", () => {
   it("メッセージを表示し role=note でSRに伝える", () => {
-    // Given
+    // Given（子要素として渡す文言）
+    // When
     render(<EmptyHint>まだあなただけです</EmptyHint>);
     // Then
     expect(screen.getByText("まだあなただけです")).toBeInTheDocument();
