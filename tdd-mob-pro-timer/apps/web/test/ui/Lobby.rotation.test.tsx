@@ -381,3 +381,35 @@ describe("Lobby 確認ダイアログの陳腐化", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 });
+
+// ─── Lobby に無い操作の継続確認（baseline.md [要確認-1〜3]・FR-181〜183）───
+// ドライバー指名（onAssignDriver）・改名（onRename）・代理参加者の追加（onAddProxy）は
+// RosterPanel にのみ存在する操作であり、本作業（部品共通化）でも Lobby に新設しない。
+// このテストは通常時 green のはずだが、共有部品化の実装ミスで意図せず
+// 出現してしまう事故（回帰）を継続的に検知するためのものである。
+
+/**
+ * @requirements FR-181, FR-182, FR-183, SC-065
+ */
+describe("Lobby 新設しない操作の不在", () => {
+  it("同名参加者がいてもドライバー指名・改名・代理追加のボタンは一切出現しない", () => {
+    // Given（同名 Bob 3名・rotation 未加入者ありの部屋。RosterPanel ならこれらの操作が
+    // 出現しうる構成でも、Lobby には現れないことを確認する）
+    const room = makeRoom();
+    const dupRoom: Room = {
+      ...room,
+      participants: [
+        ...room.participants,
+        p({ participantId: "pid-0002", displayName: "Bob", connId: "c9" }),
+      ],
+    };
+    // When
+    render(<Lobby room={dupRoom} participantId="host-p" onStartSession={noop} />);
+    // Then
+    const labels = screen.getAllByRole("button").map((b) => b.getAttribute("aria-label") ?? "");
+    expect(labels.some((a) => a.includes("をドライバーにする"))).toBe(false);
+    expect(labels.some((a) => a.includes("を改名"))).toBe(false);
+    expect(labels.some((a) => a.includes("代理"))).toBe(false);
+    expect(screen.queryByText("代理追加")).toBeNull();
+  });
+});
