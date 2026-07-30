@@ -110,7 +110,7 @@ describe("RemovalConfirmDialog", () => {
       ).toBeInTheDocument();
     });
 
-    it("確定操作で onConfirm に対象の participantId を渡して呼ぶ", () => {
+    it("確定操作で対象の participantId を渡して退出処理が要求される", () => {
       // Given
       const onConfirm = vi.fn();
       render(
@@ -128,7 +128,7 @@ describe("RemovalConfirmDialog", () => {
       expect(onConfirm).toHaveBeenCalledWith("p1");
     });
 
-    it("取消操作で onCancel を呼ぶ", () => {
+    it("取消操作でダイアログが閉じられる", () => {
       // Given
       const onCancel = vi.fn();
       render(
