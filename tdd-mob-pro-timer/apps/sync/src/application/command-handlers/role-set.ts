@@ -1,10 +1,10 @@
 /**
- * `role.set` の専用ハンドラ（フェーズ5・純粋な移動。ロジック変更なし）。
+ * `role.set` の専用ハンドラ（フェーズ7・パイプライン統合）。
  *
- * `handlers.ts` の `makeHandlers` クロージャ内にあった `handleRoleSet` を
- * そのまま移動した。在室確認・アクター解決・`rejectIfUnauthorized` は
- * `handlers.ts` 側の実装をそのまま `deps` 経由で呼ぶ（縮退はフェーズ7で行う。
- * tasks.md T011 の指示通り、ここではまだ独自に呼ぶ形のまま）。
+ * 在室確認・アクター解決・権限判定（`rejectIfUnauthorized`）は共通パイプライン
+ * （`handlers.ts` の `handleRoomCommand`）側で完了済みであり、その結果を
+ * `ctx: { room, actor }` として受け取る。このハンドラはドメイン処理
+ * （ホスト自身の役割変更禁止・対象解決・LAST_MANAGER_DEMOTE 検査・反映）のみを担う。
  */
 
 import { ok, err, type Result } from "neverthrow";
@@ -18,43 +18,28 @@ import {
 import type { Broadcaster } from "../../ports/broadcaster.js";
 import type { RoomStore } from "../../ports/room-store.js";
 
+/** `handleRoomCommand` が事前に解決済みの在室ルームと実行者。 */
+export interface RoleSetContext {
+  room: Room;
+  actor: Participant;
+}
+
 export interface RoleSetDeps {
   store: RoomStore;
   broadcaster: Broadcaster;
-  findRoomByConnId: (connId: string) => Room | undefined;
-  rejectIfUnauthorized: (
-    connId: string,
-    room: Room,
-    actor: Participant,
-    cmd: { command: string; [key: string]: unknown },
-  ) => boolean;
   sendError: (connId: string, code: ErrorCode, message: string) => void;
 }
 
 export function createRoleSetHandler(deps: RoleSetDeps) {
-  const { store, broadcaster, findRoomByConnId, rejectIfUnauthorized, sendError } = deps;
+  const { store, broadcaster, sendError } = deps;
 
   /** 役割変更（host 限定）FR-016, FR-017 */
   return async function handleRoleSet(
     connId: string,
+    ctx: RoleSetContext,
     cmd: { command: "role.set"; participantId: string; role: "editor" | "viewer" },
   ): Promise<Result<undefined, ErrorCode>> {
-    const room = findRoomByConnId(connId);
-    if (!room) {
-      sendError(connId, "NOT_IN_ROOM", errorMessageFor("NOT_IN_ROOM"));
-      return err("NOT_IN_ROOM");
-    }
-
-    const actor = room.participants.find((p) => p.connId === connId);
-    if (!actor) {
-      // 在室ルームは connId で引いているため通常は到達しない防御分岐。
-      // 可否ではなくアクター解決の失敗なので、権限の文言は使わない。
-      sendError(connId, "UNAUTHORIZED", errorMessageFor("UNAUTHORIZED"));
-      return err("UNAUTHORIZED");
-    }
-    // 開始後は主催者であることを条件にしない（FR-063）。このハンドラは handleCommand の
-    // switch で分岐するため handleRoomCommand の判定を通らない。個別に呼ぶ必要がある。
-    if (rejectIfUnauthorized(connId, room, actor, cmd)) return err("UNAUTHORIZED");
+    const { room } = ctx;
 
     // ホスト自身の役割は変更できない（委譲は別経路）
     if (cmd.participantId === room.hostParticipantId) {

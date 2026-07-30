@@ -233,12 +233,6 @@ export function makeHandlers(deps: HandlerDeps) {
           cmd as { command: "time.ping"; clientTime: number },
         );
 
-      case "role.set":
-        return handleRoleSet(
-          connId,
-          cmd as { command: "role.set"; participantId: string; role: "editor" | "viewer" },
-        );
-
       case "room.passphrase.set":
         return handleRoomPassphraseSet(
           connId,
@@ -352,6 +346,17 @@ export function makeHandlers(deps: HandlerDeps) {
           messageForRemoval,
           sendError,
         },
+      );
+    }
+
+    // role.set は decide/evolve を通らない Room レベルの専用処理（フェーズ7合流）。
+    // 実装本体は command-handlers/role-set.ts へ移動済み。ここでは在室確認・
+    // アクター解決・rejectIfUnauthorized（上で完了済み）の結果を ctx として渡すだけ。
+    if (cmd.command === "role.set") {
+      return handleRoleSet(
+        connId,
+        { room: targetRoom, actor: participant },
+        cmd as { command: "role.set"; participantId: string; role: "editor" | "viewer" },
       );
     }
 
@@ -570,8 +575,6 @@ export function makeHandlers(deps: HandlerDeps) {
   const handleRoleSet = createRoleSetHandler({
     store,
     broadcaster,
-    findRoomByConnId,
-    rejectIfUnauthorized,
     sendError,
   });
 
