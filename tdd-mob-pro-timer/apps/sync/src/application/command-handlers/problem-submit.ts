@@ -1,9 +1,10 @@
 /**
- * `problem.submit` の専用ハンドラ（フェーズ5・純粋な移動。ロジック変更なし）。
+ * `problem.submit` の専用ハンドラ（フェーズ7・パイプライン統合）。
  *
- * `handlers.ts` の `makeHandlers` クロージャ内にあった `handleProblemSubmit` を
- * そのまま移動した。`requireEditor` は `handlers.ts` 側に残し `deps` 経由で呼ぶ
- * （`problem-request.ts` と共有するための判断。tasks.md T015 参照）。
+ * 在室確認・アクター解決・権限判定（旧 `requireEditor`）は共通パイプライン
+ * （`handlers.ts` の `handleRoomCommand`）側で完了済みであり、その結果を
+ * `ctx: { room, actor }` として受け取る。このハンドラはドメイン処理
+ * （delegator 呼び出し）のみを担う（FR-156: 権限判定の呼び出し箇所を1箇所に集約）。
  */
 
 import { ok, err, type Result } from "neverthrow";
@@ -16,21 +17,24 @@ import {
 } from "@tdd-mob/core";
 import type { ProblemDelegator } from "../problem-delegation.js";
 
+/** `handleRoomCommand` が事前に解決済みの在室ルームと実行者。 */
+export interface ProblemSubmitContext {
+  room: Room;
+  actor: Participant;
+}
+
 export interface ProblemSubmitDeps {
   delegator?: ProblemDelegator;
-  requireEditor: (
-    connId: string,
-    command: string,
-  ) => Result<{ room: Room; actor: Participant }, ErrorCode>;
   sendError: (connId: string, code: ErrorCode, message: string) => void;
 }
 
 export function createProblemSubmitHandler(deps: ProblemSubmitDeps) {
-  const { delegator, requireEditor, sendError } = deps;
+  const { delegator, sendError } = deps;
 
   /** お題投入（委譲代表のみ・editor+）FR-025, FR-026 */
   return async function handleProblemSubmit(
     connId: string,
+    ctx: ProblemSubmitContext,
     cmd: {
       command: "problem.submit";
       requestId: string;
@@ -38,9 +42,7 @@ export function createProblemSubmitHandler(deps: ProblemSubmitDeps) {
       usedFallback: boolean;
     },
   ): Promise<Result<undefined, ErrorCode>> {
-    const guard = requireEditor(connId, "problem.submit");
-    if (guard.isErr()) return err(guard.error);
-    const { room, actor } = guard.value;
+    const { room, actor } = ctx;
 
     if (!delegator) {
       sendError(connId, "DELEGATION_UNAVAILABLE", errorMessageFor("DELEGATION_UNAVAILABLE"));

@@ -233,23 +233,6 @@ export function makeHandlers(deps: HandlerDeps) {
           cmd as { command: "time.ping"; clientTime: number },
         );
 
-      case "problem.request":
-        return handleProblemRequest(
-          connId,
-          cmd as { command: "problem.request"; requestId: string },
-        );
-
-      case "problem.submit":
-        return handleProblemSubmit(
-          connId,
-          cmd as {
-            command: "problem.submit";
-            requestId: string;
-            problem: Problem;
-            usedFallback: boolean;
-          },
-        );
-
       default:
         return handleRoomCommand(connId, cmd);
     }
@@ -366,6 +349,30 @@ export function makeHandlers(deps: HandlerDeps) {
         connId,
         { room: targetRoom, actor: participant },
         cmd as { command: "host.transfer"; participantId: string },
+      );
+    }
+
+    // problem.request/problem.submit も decide/evolve を通らない Room レベルの
+    // 専用処理（フェーズ7合流）。旧 requireEditor（在室確認・アクター解決・
+    // rejectIfUnauthorized を束ねたヘルパ）は、その3つを共通パイプラインが既に
+    // 済ませたため不要になり撤去した（FR-156: 権限判定の呼び出し箇所を1箇所に集約）。
+    if (cmd.command === "problem.request") {
+      return handleProblemRequest(
+        connId,
+        { room: targetRoom, actor: participant },
+        cmd as { command: "problem.request"; requestId: string },
+      );
+    }
+    if (cmd.command === "problem.submit") {
+      return handleProblemSubmit(
+        connId,
+        { room: targetRoom, actor: participant },
+        cmd as {
+          command: "problem.submit";
+          requestId: string;
+          problem: Problem;
+          usedFallback: boolean;
+        },
       );
     }
 
@@ -573,13 +580,14 @@ export function makeHandlers(deps: HandlerDeps) {
     return ok(undefined);
   }
 
-  // ─── 専用ハンドラの合成（フェーズ5・純粋な移動、続き）─────────────────────
+  // ─── 専用ハンドラの合成（フェーズ7・パイプライン統合済み）───────────────────
   //
   // role.set/room.passphrase.set/ai.unlock/host.transfer/problem.request/
-  // problem.submit の実装本体も `command-handlers/*.ts` へ移動した
-  // （ロジック変更なし）。`findRoomByConnId`/`rejectIfUnauthorized`/
-  // `requireEditor` は `handleRoomCommand` 側からも参照される共有ヘルパの
-  // ため、このファイルに残したまま関数として渡す（縮退はフェーズ7で行う）。
+  // problem.submit は、いずれも handleCommand の switch から専用ケースを削除し、
+  // default（handleRoomCommand・共通パイプライン）経由へ合流させた。在室確認・
+  // アクター解決・rejectIfUnauthorized（旧 requireEditor が束ねていた3つを含む）は
+  // handleRoomCommand 側で1度だけ行い、その結果（{ room, actor }）を各ハンドラへ
+  // ctx として渡す。各ハンドラはドメイン処理のみを持つ関数へ縮退済み（FR-152〜154, 156）。
 
   const handleRoleSet = createRoleSetHandler({
     store,
@@ -611,40 +619,13 @@ export function makeHandlers(deps: HandlerDeps) {
 
   const handleProblemRequest = createProblemRequestHandler({
     delegator,
-    requireEditor,
     sendError,
   });
 
   const handleProblemSubmit = createProblemSubmitHandler({
     delegator,
-    requireEditor,
     sendError,
   });
-
-  /**
-   * connId から在室ルームと参加者を解決し、そのコマンドを実行できることを確認する。
-   *
-   * 在室確認（NOT_IN_ROOM）とアクター解決はここに残すが、可否の判定そのものは
-   * `checkPermission()` に委ねる（FR-071）。この関数も handleCommand の switch で
-   * 分岐するハンドラ（problem.request / problem.submit）から呼ばれるため、
-   * handleRoomCommand の判定を通らない。viewer 判定をここに残すと規則が2箇所に分裂する。
-   */
-  function requireEditor(
-    connId: string,
-    command: string,
-  ): Result<{ room: Room; actor: Participant }, ErrorCode> {
-    const room = findRoomByConnId(connId);
-    if (!room) {
-      sendError(connId, "NOT_IN_ROOM", errorMessageFor("NOT_IN_ROOM"));
-      return err("NOT_IN_ROOM");
-    }
-    const actor = room.participants.find((p) => p.connId === connId);
-    if (!actor) return err("PARTICIPANT_NOT_FOUND");
-    if (rejectIfUnauthorized(connId, room, actor, { command })) {
-      return err("UNAUTHORIZED");
-    }
-    return ok({ room, actor });
-  }
 
   /**
    * 権限を判定し、拒否ならエラーを送って true を返す（呼び出し側は即 return する）。

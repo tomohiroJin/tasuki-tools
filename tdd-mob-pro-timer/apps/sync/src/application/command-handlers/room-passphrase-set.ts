@@ -7,7 +7,7 @@
  * （合言葉の正規化・保持・反映）のみを担う。
  */
 
-import { ok, err, type Result } from "neverthrow";
+import { ok, type Result } from "neverthrow";
 import {
   type Room,
   type Participant,
