@@ -139,3 +139,103 @@ ADR-0001 と同種の「過去の判断の記録」に該当すると判断し�
 本ファイル (`verification.md`) は `docs/plans/` 配下の新規ドキュメントであり、
 `plan.md` が定めた「新規スクリプトファイルは作らない」という制約には抵触しない
 （実行可能なコードではなく、実行済みコマンドと出力の記録）。
+
+## 追加作業3: PR #38 敵対的レビュー指摘への対応（2026-07-31 再検証）
+
+Issue #33 の PR #38 に対する敵対的レビューで3件の指摘（振り分け基準の未明文化・追記セクションの
+冗長・ADR-0009 の「148 ファイル」の根拠不明）を受け、`spec.md`・`plan.md`・
+`0001-monorepo-shared-core.md`・`0009-test-conventions.md` を修正した。以下は修正後の再検証。
+
+### T013 — ADR-0001 の既存本文（1〜28行）が引き続き無変更であること（FR-143, SC-050 再確認）
+
+実行コマンド:
+
+```bash
+python3 -c "
+import subprocess
+old = subprocess.run(['git','show','main:tdd-mob-pro-timer/docs/adr/0001-monorepo-shared-core.md'],
+                      capture_output=True, text=True).stdout.splitlines()
+new = open('tdd-mob-pro-timer/docs/adr/0001-monorepo-shared-core.md').read().splitlines()
+print('main の 1-28 行と現在の 1-28 行が一致:', old[:28] == new[:28])
+"
+git diff main --stat -- tdd-mob-pro-timer/docs/adr/0001-monorepo-shared-core.md
+```
+
+**実測出力**:
+
+```
+main の 1-28 行と現在の 1-28 行が一致: True
+ .../docs/adr/0001-monorepo-shared-core.md | 39 ++++++++++++++++++++++
+ 1 file changed, 39 insertions(+)
+```
+
+**判定**: Green。`main` 基準で **削除行数 0**（`39 insertions(+), 0 deletions(-)`）。
+追記セクションの再構成（指摘1・2への対応）は既存本文を1文字も変更せず、末尾への追記のみで
+行われている。
+
+### T014 — 追記セクション内の相対リンク（spec.md への参照）が解決可能であること（SC-051 再確認）
+
+実行コマンド:
+
+```bash
+cd tdd-mob-pro-timer/docs/adr
+grep -oE '\]\(\.\./[^)]+\)|\]\(\./[^)]+\)' *.md | sed -E 's/^[^:]+:\]\(//; s/\)$//' | sort -u | while read -r f; do
+  resolved=$(realpath -m "$f")
+  test -f "$resolved" || echo "BROKEN LINK: $f -> $resolved"
+done
+```
+
+**実測出力**: なし（0 行、`BROKEN LINK` 無し）。今回追加した
+`../../../docs/plans/adr-alignment-post-refactor/spec.md` へのリンクを含め、
+`tdd-mob-pro-timer/docs/adr/` 配下の全リンクが解決可能である。
+
+### T015 — 指摘3: ADR-0009 の「148 ファイル」の根拠調査
+
+**調査結果**:
+
+- ADR-0009 本文の「移行状況の記録（FR-122）」パラグラフ（L63〜68）は「`test/support/` を除く
+  実在 138 ファイル」＋「`test/support/` のヘルパ自身のテスト 5 ファイル」＝ **143** までしか
+  明言しておらず、この段落だけを読むと「148」との差（5件）が本文から追えなかった
+  （指摘3の内容と一致することを確認）。
+- しかし同ファイル末尾の「G5・G6 で新設したテスト」節（L442〜459）に
+  「実在 148 ファイルすべてが本 ADR に記録された。内訳: G3 のバッチ対象 138 ＋ 共有ヘルパ自身の
+  テスト 5 ＋ G5/G6 の新設 5」という明示的な内訳が既に存在しており、148 の根拠自体は
+  本文の別の箇所（末尾）に記載済みだった。
+- 独立した根拠として `docs/plans/codebase-refactoring/baseline.md` L1013・L1019・L1056 に、
+  同じ内訳（「対象テストファイル 148（G3 で 138 ファイルを全件書き換え）」「実在 148 ファイル
+  すべてが記録された」）が ADR-0009 と別の場所で記録されている。
+
+  ```bash
+  grep -n "148" docs/plans/codebase-refactoring/baseline.md
+  # 1013:テストの名前・構造・関心を 148 ファイル全件にわたって書き換え、
+  # 1019:**実在 148 ファイルすべてが記録された**（機械的に突き合わせて過不足ゼロを確認）。
+  # 1056:| 対象テストファイル | 148（G3 で 138 ファイルを全件書き換え） |
+  ```
+
+- 参考として、現在の実ファイル数を機械的に数えたところ、`test/support/` を除いて 149 件
+  （`test/support/` 込みで 154 件）だった。ADR-0009 は G3〜G6 完了時点のスナップショット
+  記録であり、その後に追加された可能性のあるテストファイルを継続的に追跡するものではない
+  ため、この差分自体は 148 が誤りであることの根拠にはならないと判断した
+  （ADR は「その時点の記録」であり、コードの現況を常に反映するライブ文書ではないため）。
+
+  ```bash
+  find packages/core/test apps/sync/test apps/web/test \
+    \( -name '*.test.ts' -o -name '*.test.tsx' \) -not -path '*/support/*' | wc -l   # 149
+  find packages/core/test apps/sync/test apps/web/test \
+    -path '*/test/support/*' \( -name '*.test.ts' -o -name '*.test.tsx' \) | wc -l   # 5
+  ```
+
+**判断**: 148 は **正しい**（本文末尾の内訳、および `baseline.md` という独立文書の双方で
+138 + 5 + 5 = 148 の内訳が確認できた）。誤りではないため README.md 側の修正は不要
+（README.md も既に「148 ファイル全件」であり、本体・インデックス間に矛盾は無い）。
+対応として、本文中の「移行状況の記録（FR-122）」パラグラフに、143 から 148 への差分
+（G5/G6 の新設 5 ファイル）を1文で補足し、末尾の内訳まで読まなくても数え方が追えるようにした
+（`0009-test-conventions.md` L69〜71）。
+
+### 再検証まとめ
+
+| # | 検証項目 | 判定 |
+|---|---|---|
+| T013 | ADR-0001 既存本文（1〜28行）の削除行数が 0 | Green（0 deletions） |
+| T014 | 追記セクション内の相対リンクが解決可能 | Green（BROKEN LINK 0件） |
+| T015 | ADR-0009「148 ファイル全件」の根拠確認 | 148 は正しいと確認。本文に内訳を補足（README.md は変更不要） |
