@@ -112,3 +112,28 @@ C-4 が問題にする「二重実装」ではない**（props が違うだけ�
 | `test/ui/Lobby.empty.test.tsx` | 73 | 空状態（本件対象外） |
 | `test/ui/RosterPanel.test.tsx` | 986 | RosterPanel 全操作 |
 | `test/ui/Session.roster.test.tsx` | 242 | Session 経由の RosterPanel 結合 |
+
+## 7. G5（T010〜T014）完了時点の実測
+
+**測定日:** 2026-07-31 ・ 対象コミット: `0b66502`（T010/T011/T012）・`65815d9`（T013/T014）
+
+- `test/ui/Lobby.rotation.test.tsx`: 16件 → **19件**（同名3名の識別子検証2件＋
+  ドライバー指名/改名/代理追加の不在確認1件を追加。既存16件は無変更）。
+  `pnpm vitest run test/ui/Lobby.rotation.test.tsx` = **19 passed**。
+- `test/ui/RosterPanel.test.tsx`: 55件 → **57件**（同名3名を drivers/watchers
+  双方のセクションに配置した検証2件を追加。既存55件は無変更）。
+  `pnpm vitest run test/ui/RosterPanel.test.tsx` = **57 passed**。
+- T010・T011 で追加したテストはいずれも**初回実行から green**だった（red にならなかった）。
+  原因: `isAmbiguousName`（`participant-label.ts`）は同名グループの人数を問わず
+  `participants` 全体を `nameSkeleton` で比較して判定するため、同名2名までしか
+  検証していなかった既存テストの穴を埋めるだけで、実装側の修正は不要だった。
+  T012 は確認のみで完了（設計どおり）。
+- T013 も**初回実行から green**だった。`Lobby.tsx` にはドライバー指名
+  （`onAssignDriver`）・改名（`onRename`）・代理追加（`onAddProxy`）に対応する
+  aria-label が一切存在しないことを確認済み（`grep` でも実装ファイルに該当コードなし）。
+  T014 は確認のみで完了。
+- `apps/web` の `pnpm typecheck` / `pnpm lint`: いずれも成功（エラー・警告なし）。
+- **リポジトリ全体のゲート（`packages/core`・`apps/sync`・`apps/web` の
+  単体テスト・typecheck・lint・build を全パッケージで実行した最終確認）は
+  親セッションが別途実測して追記する。** 本セッションはファイル単位の実行と
+  `apps/web` の typecheck/lint までに留めた。
