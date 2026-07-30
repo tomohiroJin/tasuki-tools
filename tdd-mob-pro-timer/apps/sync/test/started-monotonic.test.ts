@@ -9,24 +9,9 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { makeHandlers } from "../src/application/handlers.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
-import type { RoomCodeGen } from "../src/ports/code-gen.js";
-import type { Broadcaster } from "../src/ports/broadcaster.js";
-import type { ServerMsg, SessionConfig } from "@tdd-mob/core";
-
-class FakeCodeGen implements RoomCodeGen {
-  private _c = 0;
-  generate(): string { return `SM${String(++this._c).padStart(2, "0")}`; }
-  generateParticipantId(): string { return `pid-sm-${++this._c}`; }
-  generateResumeToken(): string { return `rt-sm-${++this._c}`; }
-}
-
-class SpyBroadcaster implements Broadcaster {
-  readonly sent: Array<{ connId: string; msg: ServerMsg }> = [];
-  readonly snapshots: string[] = [];
-  broadcastSnapshot(code: string): void { this.snapshots.push(code); }
-  sendTo(connId: string, msg: ServerMsg): void { this.sent.push({ connId, msg }); }
-  broadcastSignal(roomCode: string, msg: ServerMsg): void { void roomCode; void msg; }
-}
+import type { SessionConfig } from "@tdd-mob/core";
+import { SpyBroadcaster } from "./support/spy-broadcaster.js";
+import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 const config: SessionConfig = {
   language: "TypeScript",
@@ -55,27 +40,33 @@ describe("Room.startedAt（開始済みの単調フラグ・D2）", () => {
       config,
     });
     if (!create.isOk()) throw new Error("create failed");
-    return create.value.code;
+    // 本番（server.ts）は handleCommand の戻り値を破棄する。値は本番と同じ観測点から取る（FR-100）。
+    return broadcaster.createdFor("host-conn").code;
   }
 
   it("phase.set で phase: 'session' にすると startedAt が記録される", async () => {
+    // Given
     const code = await setupRoom();
     expect(store.get(code)!.startedAt ?? null).toBeNull();
 
+    // When
     await handlers.handleCommand("host-conn", { command: "phase.set", phase: "session" });
 
+    // Then
     expect(store.get(code)!.startedAt).not.toBeNull();
     expect(store.get(code)!.startedAt).toBe(1000000);
   });
 
   it("phase.set を送らず session.act START だけを送っても startedAt が記録される（迂回路の封鎖）", async () => {
+    // Given
     const code = await setupRoom();
     expect(store.get(code)!.startedAt ?? null).toBeNull();
 
-    // UI 通常経路（phase.set → session.act）を経ず、session.act だけを直接送る。
-    // EDITOR_PLUS_COMMANDS に属するため、プロトコル上これだけを送ることが可能。
+    // When（UI 通常経路＝phase.set → session.act を経ず、session.act だけを直接送る。
+    // EDITOR_PLUS_COMMANDS に属するため、プロトコル上これだけを送ることが可能）
     await handlers.handleCommand("host-conn", { command: "session.act", action: "START" });
 
+    // Then
     const after = store.get(code)!;
     expect(after.phase).toBe("setup"); // phase.set を送っていないので phase 自体は変わらない
     expect(after.startedAt).not.toBeNull();
@@ -83,42 +74,50 @@ describe("Room.startedAt（開始済みの単調フラグ・D2）", () => {
   });
 
   it("phase.set で 'setup' へ後戻りしても startedAt は消えない", async () => {
+    // Given
     const code = await setupRoom();
     await handlers.handleCommand("host-conn", { command: "phase.set", phase: "session" });
     expect(store.get(code)!.startedAt).toBe(1000000);
 
+    // When
     await handlers.handleCommand("host-conn", { command: "phase.set", phase: "setup" });
 
+    // Then
     const after = store.get(code)!;
     expect(after.phase).toBe("setup");
     expect(after.startedAt).toBe(1000000);
   });
 
   it("2 回目の開始で startedAt の値は更新されない（単調性）", async () => {
+    // Given
     const code = await setupRoom();
     await handlers.handleCommand("host-conn", { command: "phase.set", phase: "session" });
     expect(store.get(code)!.startedAt).toBe(1000000);
 
+    // When
     clock.advance(60000);
     await handlers.handleCommand("host-conn", { command: "phase.set", phase: "setup" });
     await handlers.handleCommand("host-conn", { command: "phase.set", phase: "session" });
 
+    // Then
     expect(store.get(code)!.startedAt).toBe(1000000);
   });
 
   it("新規ルームに session.act RESUME を単独で送ると startedAt が記録される（欠陥修正の主目的）", async () => {
+    // Given
     const code = await setupRoom();
     expect(store.get(code)!.startedAt ?? null).toBeNull();
 
-    // phase.set も session.act START も経ず、RESUME だけを直接送る。
-    // RESUME は「走行中でなければ受理」するため新規ルーム（未開始）でも通り、
-    // SessionResumed が clock.running を true にする。
+    // When（phase.set も session.act START も経ず、RESUME だけを直接送る。
+    // RESUME は「走行中でなければ受理」するため新規ルーム＝未開始でも通り、
+    // SessionResumed が clock.running を true にする）
     const result = await handlers.handleCommand("host-conn", {
       command: "session.act",
       action: "RESUME",
     });
 
-    expect(result.isOk()).toBe(true);
+    // Then
+    result._unsafeUnwrap();
     const after = store.get(code)!;
     expect(after.clock.running).toBe(true);
     expect(after.startedAt).not.toBeNull();
@@ -126,6 +125,7 @@ describe("Room.startedAt（開始済みの単調フラグ・D2）", () => {
   });
 
   it("不変条件: clock.running が true ならば startedAt は null/undefined ではない（コマンド種別に依存せず成立する）", async () => {
+    // Given（対象コマンドの一覧そのものが前提。各コマンドを新規ルームへ単独で送る）
     type Cmd = { command: string; [key: string]: unknown };
     const commands: Cmd[] = [
       { command: "session.act", action: "START" },
@@ -161,8 +161,9 @@ describe("Room.startedAt（開始済みの単調フラグ・D2）", () => {
         config,
       });
       if (!create.isOk()) throw new Error("create failed");
-      const freshCode = create.value.code;
+      const freshCode = freshBroadcaster.createdFor("host-conn").code;
 
+      // When
       await freshHandlers.handleCommand("host-conn", cmd);
 
       const after = freshStore.get(freshCode)!;

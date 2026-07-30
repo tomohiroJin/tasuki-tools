@@ -77,18 +77,22 @@ function roleOf(room: Room, id: string): string | undefined {
 
 describe("transferHost", () => {
   it("editor 対象へ移譲すると対象が host・現 host が editor になる", () => {
+    // Given
     const room = makeRoom();
+    // When
     const next = transferHost(room, "p2");
-
+    // Then
     expect(next.hostParticipantId).toBe("p2");
     expect(roleOf(next, "p2")).toBe("host");
     expect(roleOf(next, "p1")).toBe("editor");
   });
 
   it("viewer 対象へ移譲すると対象が host・現 host が editor・他は不変", () => {
+    // Given
     const room = makeRoom();
+    // When
     const next = transferHost(room, "p3");
-
+    // Then
     expect(next.hostParticipantId).toBe("p3");
     expect(roleOf(next, "p3")).toBe("host");
     expect(roleOf(next, "p1")).toBe("editor");
@@ -97,9 +101,11 @@ describe("transferHost", () => {
   });
 
   it("純粋変換であり元の room を破壊しない", () => {
+    // Given
     const room = makeRoom();
+    // When
     transferHost(room, "p2");
-
+    // Then（room 自体は書き換わっていない）
     expect(room.hostParticipantId).toBe("p1");
     expect(roleOf(room, "p1")).toBe("host");
     expect(roleOf(room, "p2")).toBe("editor");

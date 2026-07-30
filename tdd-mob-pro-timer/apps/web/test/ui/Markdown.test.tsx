@@ -11,7 +11,11 @@ import { Markdown } from "../../src/ui/components/Markdown.js";
 
 describe("Markdown（安全な MD サブセット）", () => {
   it("[表示](https://…) を安全なリンクとして描画する", () => {
-    render(<Markdown source="[Google](https://google.com)" />);
+    // Given
+    const source = "[Google](https://google.com)";
+    // When
+    render(<Markdown source={source} />);
+    // Then
     const a = screen.getByRole("link", { name: "Google" }) as HTMLAnchorElement;
     expect(a.getAttribute("href")).toBe("https://google.com");
     expect(a.getAttribute("rel")).toContain("noopener");
@@ -19,21 +23,31 @@ describe("Markdown（安全な MD サブセット）", () => {
   });
 
   it("javascript: スキームのリンクは <a> にせずラベルのみ表示する（XSS 防止）", () => {
-    render(<Markdown source="[クリック](javascript:steal)" />);
+    // Given
+    const source = "[クリック](javascript:steal)";
+    // When
+    render(<Markdown source={source} />);
+    // Then
     expect(screen.queryByRole("link")).toBeNull();
     expect(screen.getByText("クリック")).toBeTruthy();
   });
 
   it("生 URL を autolink し、末尾の約物は URL に含めない", () => {
-    render(<Markdown source="参照: https://example.com/a 。" />);
+    // Given
+    const source = "参照: https://example.com/a 。";
+    // When
+    render(<Markdown source={source} />);
+    // Then
     const a = screen.getByRole("link") as HTMLAnchorElement;
     expect(a.getAttribute("href")).toBe("https://example.com/a");
   });
 
   it("見出し・箇条書き・太字・インラインコードを描画する", () => {
-    render(
-      <Markdown source={"## 見出し\n\n- **太字** 項目\n- `code` 項目"} />,
-    );
+    // Given
+    const source = "## 見出し\n\n- **太字** 項目\n- `code` 項目";
+    // When
+    render(<Markdown source={source} />);
+    // Then
     expect(screen.getByText("見出し")).toBeTruthy();
     expect(screen.getByText("太字").tagName).toBe("STRONG");
     expect(screen.getByText("code").tagName).toBe("CODE");
@@ -41,6 +55,8 @@ describe("Markdown（安全な MD サブセット）", () => {
   });
 
   it("未終端トークンや空文字でもクラッシュしない", () => {
+    // Given（未終端トークン・空文字それぞれを対象にする表形式のケース）
+    // When（呼び出しと例外なしの検証を一体で行う）
     expect(() => render(<Markdown source="" />)).not.toThrow();
     expect(() => render(<Markdown source={"**bold\n`code\n[a]("} />)).not.toThrow();
   });

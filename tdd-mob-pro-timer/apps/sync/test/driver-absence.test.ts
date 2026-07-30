@@ -7,8 +7,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { PresenceManager, DRIVER_ABSENCE_GRACE_MS } from "../src/application/presence.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
-import type { Room, ServerMsg } from "@tdd-mob/core";
-import type { Broadcaster } from "../src/ports/broadcaster.js";
+import type { Room } from "@tdd-mob/core";
+import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 
 /** 稼働中のセッションを持つ room を返す（現ドライバー=Driver）。 */
 function makeRunningRoom(code: string): Room {
@@ -65,16 +65,10 @@ function makeRunningRoom(code: string): Room {
   };
 }
 
-class SpyBroadcaster implements Broadcaster {
-  readonly sent: Array<{ connId: string; msg: ServerMsg }> = [];
-  readonly snapshots: string[] = [];
-  readonly signals: string[] = [];
-  broadcastSnapshot(code: string): void { this.snapshots.push(code); }
-  sendTo(connId: string, msg: ServerMsg): void { this.sent.push({ connId, msg }); }
-  broadcastSignal(code: string): void { this.signals.push(code); }
-}
-
-describe("PresenceManager: ドライバー不在の自動繰上（v2.2 R2-1）", () => {
+/**
+ * @requirements v2.2 R2-1
+ */
+describe("PresenceManager: ドライバー不在の自動繰上", () => {
   let store: InMemoryRoomStore;
   let broadcaster: SpyBroadcaster;
   let clock: FakeClock;
@@ -94,56 +88,60 @@ describe("PresenceManager: ドライバー不在の自動繰上（v2.2 R2-1）",
     vi.useRealTimers();
   });
 
-  it("現ドライバー切断後、猶予時間経過で onDriverAbsence(code) が呼ばれる", () => {
+  it("現ドライバー切断後、猶予時間経過で当該ルームコードの不在通知が発火する", () => {
+    // Given
     const room = makeRunningRoom("DTEST");
     store.put(room);
 
+    // When
     pm.handleDisconnect("d-conn");
-
-    // 直後はまだ呼ばれない
+    // 直後はまだ発火しない
     expect(onDriverAbsence).not.toHaveBeenCalled();
-
     vi.advanceTimersByTime(DRIVER_ABSENCE_GRACE_MS);
 
+    // Then
     expect(onDriverAbsence).toHaveBeenCalledWith(room.code);
   });
 
   it("猶予内に現ドライバーが復帰したら繰上しない", () => {
+    // Given
     const room = makeRunningRoom("DTEST2");
     store.put(room);
-
     pm.handleDisconnect("d-conn");
 
-    // 猶予の半分経過 → 現ドライバー復帰
+    // When（猶予の半分経過 → 現ドライバー復帰 → さらに猶予経過）
     vi.advanceTimersByTime(DRIVER_ABSENCE_GRACE_MS / 2);
     pm.handlePing("d-conn");
-
-    // さらに猶予経過しても呼ばれない
     vi.advanceTimersByTime(DRIVER_ABSENCE_GRACE_MS);
 
+    // Then
     expect(onDriverAbsence).not.toHaveBeenCalled();
   });
 
   it("現ドライバー以外の切断ではタイマーを張らない", () => {
+    // Given
     const room = makeRunningRoom("DTEST3");
     store.put(room);
 
+    // When
     pm.handleDisconnect("o-conn");
-
     vi.advanceTimersByTime(DRIVER_ABSENCE_GRACE_MS);
 
+    // Then
     expect(onDriverAbsence).not.toHaveBeenCalled();
   });
 
   it("セッション非稼働(clock.running=false)では張らない", () => {
+    // Given
     const room = makeRunningRoom("DTEST4");
     room.clock.running = false;
     store.put(room);
 
+    // When
     pm.handleDisconnect("d-conn");
-
     vi.advanceTimersByTime(DRIVER_ABSENCE_GRACE_MS);
 
+    // Then
     expect(onDriverAbsence).not.toHaveBeenCalled();
   });
 });

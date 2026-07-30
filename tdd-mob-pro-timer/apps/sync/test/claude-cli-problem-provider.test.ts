@@ -58,17 +58,20 @@ describe("ClaudeCliProblemProvider", () => {
   }
 
   it("claude -p を正しい引数で起動しプロンプトを stdin で渡す", async () => {
+    // Given
     const fake = makeFakeChild();
     const { provider, spawnFn } = makeProvider(fake);
+
+    // When（claude -p の --output-format json は {"result": "..."} を返す）
     const p = provider.generate("TypeScript", "easy", new AbortController().signal);
-    // claude -p の --output-format json は {"result": "..."} を返す
     fake.stdout.emit(
       "data",
       Buffer.from(JSON.stringify({ result: JSON.stringify(PROBLEM_JSON) })),
     );
     (fake.child as unknown as EventEmitter).emit("close", 0);
-    await expect(p).resolves.toEqual(PROBLEM_JSON);
 
+    // Then
+    await expect(p).resolves.toEqual(PROBLEM_JSON);
     const call = (spawnFn as ReturnType<typeof vi.fn>).mock.calls[0]!;
     expect(call[0]).toBe("claude");
     const args = call[1] as string[];
@@ -84,41 +87,61 @@ describe("ClaudeCliProblemProvider", () => {
   });
 
   it("非ゼロ exit は reject する", async () => {
+    // Given
     const fake = makeFakeChild();
     const { provider } = makeProvider(fake);
+
+    // When
     const p = provider.generate("TypeScript", "easy", new AbortController().signal);
     fake.stderr.emit("data", Buffer.from("auth error"));
     (fake.child as unknown as EventEmitter).emit("close", 1);
+
+    // Then
     await expect(p).rejects.toThrow(/exit 1/);
   });
 
   it("abort で子プロセスを kill して reject する", async () => {
+    // Given
     const fake = makeFakeChild();
     const { provider } = makeProvider(fake);
     const ac = new AbortController();
+
+    // When
     const p = provider.generate("TypeScript", "easy", ac.signal);
     ac.abort();
+
+    // Then
     await expect(p).rejects.toThrow(/abort/i);
     expect(fake.child.kill).toHaveBeenCalled();
   });
 
   it("トークンが argv に混入しない", async () => {
+    // Given
     const fake = makeFakeChild();
     const { provider, spawnFn } = makeProvider(fake);
+
+    // When
     const p = provider.generate("TypeScript", "easy", new AbortController().signal);
     fake.stdout.emit("data", Buffer.from(JSON.stringify({ result: JSON.stringify(PROBLEM_JSON) })));
     (fake.child as unknown as EventEmitter).emit("close", 0);
     await p;
+
+    // Then
     const args = (spawnFn as ReturnType<typeof vi.fn>).mock.calls[0]![1] as string[];
     expect(args.join(" ")).not.toContain("sk-ant-oat01-test");
   });
 
   it("stderr 中のトークン様文字列はエラーメッセージで伏せられる", async () => {
+    // Given
     const fake = makeFakeChild();
     const { provider } = makeProvider(fake);
+
+    // When
     const p = provider.generate("TypeScript", "easy", new AbortController().signal);
     fake.stderr.emit("data", Buffer.from("auth failed for sk-ant-oat01-secret123"));
     (fake.child as unknown as EventEmitter).emit("close", 1);
+
+    // Then
     await expect(p).rejects.toThrow(/\[redacted\]/);
     await p.catch((e: unknown) => {
       expect(String(e)).not.toContain("secret123");
@@ -126,10 +149,13 @@ describe("ClaudeCliProblemProvider", () => {
   });
 
   it("generate 前に abort 済みの signal は即 reject する（spawn 不要）", async () => {
+    // Given
     const fake = makeFakeChild();
     const { provider, spawnFn } = makeProvider(fake);
     const ac = new AbortController();
     ac.abort();
+
+    // When / Then
     await expect(provider.generate("TypeScript", "easy", ac.signal)).rejects.toThrow(
       "aborted before start",
     );
@@ -138,6 +164,7 @@ describe("ClaudeCliProblemProvider", () => {
   });
 
   it("出力が上限を超えたら子プロセスを kill して reject する（メモリ枯渇防止）", async () => {
+    // Given
     const fake = makeFakeChild();
     const spawnFn: SpawnFn = vi.fn(() => fake.child);
     const provider = new ClaudeCliProblemProvider({
@@ -146,23 +173,30 @@ describe("ClaudeCliProblemProvider", () => {
       spawnFn,
       maxOutputBytes: 50,
     });
+
+    // When（上限(50B)を超える出力を送りつける）
     const p = provider.generate("TypeScript", "easy", new AbortController().signal);
-    // 上限(50B)を超える出力を送りつける
     fake.stdout.emit("data", Buffer.from("x".repeat(100)));
+
+    // Then
     await expect(p).rejects.toThrow(/too large|出力.*上限/i);
     expect(fake.child.kill).toHaveBeenCalled();
   });
 
   it("AI 応答が JSON を含まない場合は reject する", async () => {
+    // Given
     const fake = makeFakeChild();
     const { provider } = makeProvider(fake);
+
+    // When（result フィールドに JSON のない文字列を返す）
     const p = provider.generate("TypeScript", "easy", new AbortController().signal);
-    // result フィールドに JSON のない文字列を返す
     fake.stdout.emit(
       "data",
       Buffer.from(JSON.stringify({ result: "no json here" })),
     );
     (fake.child as unknown as EventEmitter).emit("close", 0);
+
+    // Then
     await expect(p).rejects.toThrow(/AI 応答の解析に失敗/);
   });
 });

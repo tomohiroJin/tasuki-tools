@@ -46,7 +46,9 @@ describe("RosterPanel モブ順表示", () => {
   };
 
   it("rotation 順に並べ替える（participants 配列順とは独立）", () => {
+    // Given
     const participants = [mk("b", "Bob"), mk("a", "Alice"), mk("c", "Carol")];
+    // When
     render(
       <RosterPanel
         {...baseProps}
@@ -55,6 +57,7 @@ describe("RosterPanel モブ順表示", () => {
         rotation={["a", "b", "c"]}
       />,
     );
+    // Then
     const items = screen.getAllByRole("listitem");
     expect(within(items[0]!).getByText("Alice")).toBeTruthy();
     expect(within(items[1]!).getByText("Bob")).toBeTruthy();
@@ -62,24 +65,30 @@ describe("RosterPanel モブ順表示", () => {
   });
 
   it("rotation 内の行に 1 始まりの順番番号を出す", () => {
+    // Given
+    const participants = [mk("a", "Alice"), mk("b", "Bob")];
+    // When
     render(
       <RosterPanel
         {...baseProps}
-        participants={[mk("a", "Alice"), mk("b", "Bob")]}
+        participants={participants}
         currentDriverId="a"
         rotation={["a", "b"]}
       />,
     );
+    // Then
     const items = screen.getAllByRole("listitem");
     expect(within(items[0]!).getByText("1")).toBeTruthy();
     expect(within(items[1]!).getByText("2")).toBeTruthy();
   });
 
   it("rotation 外（観覧者）は末尾にまとめる", () => {
+    // Given
     const participants = [
       mk("v", "Viewer", { role: "viewer", driverEligible: false }),
       mk("a", "Alice"),
     ];
+    // When
     render(
       <RosterPanel
         {...baseProps}
@@ -88,25 +97,33 @@ describe("RosterPanel モブ順表示", () => {
         rotation={["a"]}
       />,
     );
+    // Then
     const items = screen.getAllByRole("listitem");
     expect(within(items[0]!).getByText("Alice")).toBeTruthy();
     expect(within(items[1]!).getByText("Viewer")).toBeTruthy();
   });
 
   it("現ドライバーは ▶ 今 で示す", () => {
+    // Given
+    const participants = [mk("a", "Alice")];
+    // When
     render(
       <RosterPanel
         {...baseProps}
-        participants={[mk("a", "Alice")]}
+        participants={participants}
         currentDriverId="a"
         rotation={["a"]}
       />,
     );
+    // Then
     expect(screen.getByText("▶ 今")).toBeTruthy();
   });
 });
 
-describe("RosterPanel（T056/T057）", () => {
+/**
+ * @requirements T056, T057, FR-046, FR-047, FR-048, FR-050, FR-051, FR-052, FR-061, US9
+ */
+describe("RosterPanel", () => {
   const noop = vi.fn();
   const baseProps = {
     participants: [
@@ -122,34 +139,39 @@ describe("RosterPanel（T056/T057）", () => {
     onAddProxy: noop,
   };
 
-  it("全参加者の名前が表示される（FR-052）", () => {
+  it("全参加者の名前が表示される", () => {
+    // Given（baseProps の2参加者 Alice/Bob をそのまま使う）
+    // When
     render(<RosterPanel {...baseProps} />);
+    // Then
     expect(screen.getByText("Alice")).toBeTruthy();
     expect(screen.getByText("Bob")).toBeTruthy();
   });
 
   it("rotation 上の現ドライバーが participants 配列と不一致でも正しい人がハイライトされる（バグ修正）", () => {
-    // participants[1] が viewer のとき、rotation=["Alice","Carol"] となり
-    // currentDriverId="p3" が指すのは participants[2]。配列インデックス比較だと誤る。
+    // Given（participants[1] が viewer のとき、rotation=["Alice","Carol"] となり
+    // currentDriverId="p3" が指すのは participants[2]。配列インデックス比較だと誤る）
     const participants = [
       makeParticipant({ participantId: "p1", displayName: "Alice", role: "host" }),
       makeParticipant({ participantId: "p2", displayName: "Bob", role: "viewer", connId: "c2" }),
       makeParticipant({ participantId: "p3", displayName: "Carol", role: "editor", connId: "c3" }),
     ];
+    // When
     render(<RosterPanel {...baseProps} participants={participants} currentDriverId="p3" />);
-    // Carol の li に「現在」マーカーが付く（Bob には付かない）
+    // Then（Carol の li に「現在」マーカーが付く。Bob には付かない）
     const carolItem = screen.getByText("Carol").closest("li");
     const bobItem = screen.getByText("Bob").closest("li");
     expect(carolItem?.textContent).toMatch(/今/);
     expect(bobItem?.textContent).not.toMatch(/今/);
   });
 
-  it("在席状態がテキストで表示される（色＋テキスト併記: FR-050/032）", () => {
+  it("在席状態がテキストで表示される（色＋テキスト併記）", () => {
     render(<RosterPanel {...baseProps} />);
     expect(screen.getAllByText(/オンライン|online|Online/i).length).toBeGreaterThan(0);
   });
 
-  it("プレースホルダー参加者に代理バッジが表示される（FR-047）", () => {
+  it("プレースホルダー参加者に代理バッジが表示される", () => {
+    // Given
     const withProxy = [
       ...baseProps.participants,
       makeParticipant({
@@ -159,12 +181,14 @@ describe("RosterPanel（T056/T057）", () => {
         isPlaceholder: true,
       }),
     ];
+    // When
     render(<RosterPanel {...baseProps} participants={withProxy} />);
-    // 「代理 (Proxy)」バッジが少なくとも1つあること
+    // Then（「代理 (Proxy)」バッジが少なくとも1つあること）
     expect(screen.getAllByText(/代理/i).length).toBeGreaterThan(0);
   });
 
-  it("観覧者に観覧バッジが表示される（FR-061）", () => {
+  it("観覧者に観覧バッジが表示される", () => {
+    // Given
     const withViewer = [
       ...baseProps.participants,
       makeParticipant({
@@ -173,44 +197,49 @@ describe("RosterPanel（T056/T057）", () => {
         role: "viewer",
       }),
     ];
+    // When
     render(<RosterPanel {...baseProps} participants={withViewer} />);
+    // Then
     expect(screen.getByText(/観覧|Viewer|viewer/i)).toBeTruthy();
   });
 
-  it("代理追加ボタンが表示され、フォームに名前を入力して追加すると onAddProxy が呼ばれる（FR-047）", () => {
+  it("代理追加ボタンが表示され、フォームに名前を入力して追加すると代理参加者が追加される", () => {
+    // Given
     const onAddProxy = vi.fn();
     render(<RosterPanel {...baseProps} onAddProxy={onAddProxy} />);
-    // 「代理追加」ボタンを押してフォームを開く（aria-label で検索）
+    // When（「代理追加」ボタンを押してフォームを開き、名前を入力して追加する）
     const addBtn = screen.getByRole("button", { name: /代理参加者を追加|代理追加/i });
     fireEvent.click(addBtn);
-    // 名前を入力して追加
     const input = screen.getByPlaceholderText(/Web 非接続|offline/i);
     fireEvent.change(input, { target: { value: "Dave" } });
     const submitBtn = screen.getByRole("button", { name: /^追加$/ });
     fireEvent.click(submitBtn);
+    // Then
     expect(onAddProxy).toHaveBeenCalledWith("Dave");
   });
 
-  it("改名ボタンを押して名前を編集し保存すると onRename が呼ばれる（FR-046/048）", () => {
+  it("改名ボタンを押して名前を編集し保存すると名前が変わる", () => {
+    // Given
     const onRename = vi.fn();
     render(<RosterPanel {...baseProps} onRename={onRename} />);
-    // 自分（Alice, p1）の行の改名ボタンを押すと、現在名がプリフィルされた入力が現れる
+    // When（自分（Alice, p1）の行の改名ボタンを押すと、現在名がプリフィルされた入力が現れる）
     const aliceItem = screen.getByText("Alice").closest("li") as HTMLElement;
     fireEvent.click(within(aliceItem).getByRole("button", { name: /改名/ }));
     const input = screen.getByDisplayValue("Alice");
     fireEvent.change(input, { target: { value: "Alicia" } });
     const saveBtn = screen.getByRole("button", { name: /^保存$/ });
     fireEvent.click(saveBtn);
+    // Then
     expect(onRename).toHaveBeenCalledWith("p1", "Alicia");
   });
 
-  it("ホストでない観覧者でも自分自身は改名できる（FR-046）", () => {
+  it("ホストでない観覧者でも自分自身は改名できる", () => {
+    // Given（viewer 視点: canManage=false, myParticipantId=v9）
     const onRename = vi.fn();
     const participants = [
       makeParticipant({ participantId: "p1", displayName: "Alice", role: "host" }),
       makeParticipant({ participantId: "v9", displayName: "Vic", role: "viewer", connId: "cv" }),
     ];
-    // viewer 視点: canManage=false, myParticipantId=v9
     render(
       <RosterPanel
         {...baseProps}
@@ -220,15 +249,18 @@ describe("RosterPanel（T056/T057）", () => {
         onRename={onRename}
       />,
     );
+    // When
     const renameBtn = screen.getByRole("button", { name: /改名/ });
     fireEvent.click(renameBtn);
     const input = screen.getByDisplayValue("Vic");
     fireEvent.change(input, { target: { value: "Victor" } });
     fireEvent.click(screen.getByRole("button", { name: /^保存$/ }));
+    // Then
     expect(onRename).toHaveBeenCalledWith("v9", "Victor");
   });
 
-  it("一時離脱中の参加者に離脱バッジが表示される（FR-051）", () => {
+  it("一時離脱中の参加者に離脱バッジが表示される", () => {
+    // Given
     const withSkipped = [
       ...baseProps.participants,
       makeParticipant({
@@ -237,81 +269,107 @@ describe("RosterPanel（T056/T057）", () => {
         driverEligible: false,
       }),
     ];
+    // When
     render(<RosterPanel {...baseProps} participants={withSkipped} />);
-    // 「離脱中 (skip)」バッジが少なくとも1つあること
+    // Then（「離脱中 (skip)」バッジが少なくとも1つあること）
     expect(screen.getAllByText(/離脱中/i).length).toBeGreaterThan(0);
   });
 
-  describe("ドライバー並べ替えボタン（v2.3 #1）", () => {
+  /**
+   * @requirements v2.3 #1
+   */
+  describe("ドライバー並べ替えボタン", () => {
     // rotation=[p1,p2] のとき、ホストは各ドライバー行に上/下ボタンを見られる。
     const moveProps = {
       ...baseProps,
       rotation: ["p1", "p2"],
     };
 
-    it("ホストはドライバー行で『前の順番へ』を押すと onMove(from, from-1) が呼ばれる", () => {
+    it("ホストはドライバー行で『前の順番へ』を押すとドライバーが前の順番へ移動する", () => {
+      // Given
       const onMove = vi.fn();
       render(<RosterPanel {...moveProps} onMove={onMove} />);
-      // Bob（rotation index 1）を前の順番へ → move(1, 0)
+      // When（Bob（rotation index 1）を前の順番へ → move(1, 0)）
       fireEvent.click(screen.getByRole("button", { name: /Bob を前の順番へ/ }));
+      // Then
       expect(onMove).toHaveBeenCalledWith(1, 0);
     });
 
-    it("ホストはドライバー行で『後の順番へ』を押すと onMove(from, from+1) が呼ばれる", () => {
+    it("ホストはドライバー行で『後の順番へ』を押すとドライバーが後の順番へ移動する", () => {
+      // Given
       const onMove = vi.fn();
       render(<RosterPanel {...moveProps} onMove={onMove} />);
-      // Alice（rotation index 0）を後の順番へ → move(0, 1)
+      // When（Alice（rotation index 0）を後の順番へ → move(0, 1)）
       fireEvent.click(screen.getByRole("button", { name: /Alice を後の順番へ/ }));
+      // Then
       expect(onMove).toHaveBeenCalledWith(0, 1);
     });
 
     it("先頭ドライバーの『前の順番へ』は無効化される", () => {
+      // Given
       const onMove = vi.fn();
       render(<RosterPanel {...moveProps} onMove={onMove} />);
       const upBtn = screen.getByRole("button", { name: /Alice を前の順番へ/ }) as HTMLButtonElement;
+      // Then
       expect(upBtn.disabled).toBe(true);
+      // When
       fireEvent.click(upBtn);
+      // Then
       expect(onMove).not.toHaveBeenCalled();
     });
 
     it("末尾ドライバーの『後の順番へ』は無効化される", () => {
+      // Given
       const onMove = vi.fn();
       render(<RosterPanel {...moveProps} onMove={onMove} />);
       const downBtn = screen.getByRole("button", { name: /Bob を後の順番へ/ }) as HTMLButtonElement;
+      // Then
       expect(downBtn.disabled).toBe(true);
+      // When
       fireEvent.click(downBtn);
+      // Then
       expect(onMove).not.toHaveBeenCalled();
     });
 
     it("見学者（rotation 外）の行には並べ替えボタンを出さない", () => {
-      // Carol は rotation に含まれない見学者。
+      // Given（Carol は rotation に含まれない見学者）
       const participants = [
         makeParticipant({ participantId: "p1", displayName: "Alice", role: "host" }),
         makeParticipant({ participantId: "p2", displayName: "Bob", role: "editor", connId: "c2" }),
         makeParticipant({ participantId: "p3", displayName: "Carol", role: "viewer", connId: "c3" }),
       ];
+      // When
       render(
         <RosterPanel {...baseProps} participants={participants} rotation={["p1", "p2"]} onMove={vi.fn()} />,
       );
+      // Then
       expect(screen.queryByRole("button", { name: /Carol を前の順番へ/ })).toBeNull();
       expect(screen.queryByRole("button", { name: /Carol を後の順番へ/ })).toBeNull();
     });
 
     it("canManage=false のときは並べ替えボタンを出さない", () => {
+      // Given
+      const onMove = vi.fn();
+      // When
       render(
         <RosterPanel
           {...moveProps}
           canManage={false}
           myParticipantId="p2"
-          onMove={vi.fn()}
+          onMove={onMove}
         />,
       );
+      // Then
       expect(screen.queryByRole("button", { name: /前の順番へ/ })).toBeNull();
       expect(screen.queryByRole("button", { name: /後の順番へ/ })).toBeNull();
     });
 
     it("ドライバーが1人だけのときは並べ替えボタンを出さない", () => {
-      render(<RosterPanel {...baseProps} rotation={["p1"]} onMove={vi.fn()} />);
+      // Given（rotation を1人だけにする）
+      const onMove = vi.fn();
+      // When
+      render(<RosterPanel {...baseProps} rotation={["p1"]} onMove={onMove} />);
+      // Then
       expect(screen.queryByRole("button", { name: /前の順番へ/ })).toBeNull();
       expect(screen.queryByRole("button", { name: /後の順番へ/ })).toBeNull();
     });
@@ -319,44 +377,58 @@ describe("RosterPanel（T056/T057）", () => {
 
   describe("RosterPanel scrollable", () => {
     it("scrollable=true でリストに高さ上限とスクロールを付ける", () => {
+      // Given
+      const participants = [mk("a", "Alice")];
+      // When
       render(
         <RosterPanel
           {...baseProps}
-          participants={[mk("a", "Alice")]}
+          participants={participants}
           currentDriverId="a"
           rotation={["a"]}
           scrollable
         />,
       );
+      // Then
       const list = screen.getByRole("list");
       expect(list.className).toContain("overflow-y-auto");
       expect(list.className).toContain("max-h-[20rem]");
     });
 
     it("scrollable 未指定ならスクロールを付けない", () => {
+      // Given
+      const participants = [mk("a", "Alice")];
+      // When
       render(
         <RosterPanel
           {...baseProps}
-          participants={[mk("a", "Alice")]}
+          participants={participants}
           currentDriverId="a"
           rotation={["a"]}
         />,
       );
+      // Then
       expect(screen.getByRole("list").className).not.toContain("overflow-y-auto");
     });
   });
 
-  describe("ホスト移譲ボタン（v2.2 R2-3）", () => {
-    it("ホストはオンラインの他参加者に『ホストを譲る』を見られ、押すと onTransferHost が呼ばれる", () => {
+  /**
+   * @requirements R2-3
+   */
+  describe("ホスト移譲ボタン", () => {
+    it("ホストはオンラインの他参加者に『ホストを譲る』を見られ、押すとホスト移譲の要求が送られる", () => {
+      // Given（baseProps: Alice=host(p1, online), Bob=editor(p2, online), 自分=p1(host)）
       const onTransferHost = vi.fn();
-      // baseProps: Alice=host(p1, online), Bob=editor(p2, online), 自分=p1(host)
       render(<RosterPanel {...baseProps} onTransferHost={onTransferHost} />);
+      // When
       const transferBtn = screen.getByRole("button", { name: /ホストを譲る/ });
       fireEvent.click(transferBtn);
+      // Then
       expect(onTransferHost).toHaveBeenCalledWith("p2");
     });
 
     it("オフラインの参加者には『ホストを譲る』を出さない", () => {
+      // Given
       const participants = [
         makeParticipant({ participantId: "p1", displayName: "Alice", role: "host" }),
         makeParticipant({
@@ -367,29 +439,36 @@ describe("RosterPanel（T056/T057）", () => {
           presence: "offline",
         }),
       ];
+      // When
       render(
         <RosterPanel {...baseProps} participants={participants} onTransferHost={vi.fn()} />,
       );
+      // Then
       expect(screen.queryByRole("button", { name: /ホストを譲る/ })).toBeNull();
     });
 
     it("canManage=false のときは『ホストを譲る』を出さない", () => {
+      // Given
+      const onTransferHost = vi.fn();
+      // When
       render(
         <RosterPanel
           {...baseProps}
           canManage={false}
           myParticipantId="p2"
-          onTransferHost={vi.fn()}
+          onTransferHost={onTransferHost}
         />,
       );
+      // Then
       expect(screen.queryByRole("button", { name: /ホストを譲る/ })).toBeNull();
     });
 
     it("自分自身の行には『ホストを譲る』を出さない", () => {
-      // ホストの自分（p1）のみがオンライン参加者で他にオンライン参加者がいない場合
+      // Given（ホストの自分（p1）のみがオンライン参加者で他にオンライン参加者がいない場合）
       const participants = [
         makeParticipant({ participantId: "p1", displayName: "Alice", role: "host" }),
       ];
+      // When
       render(
         <RosterPanel
           {...baseProps}
@@ -398,11 +477,12 @@ describe("RosterPanel（T056/T057）", () => {
           onTransferHost={vi.fn()}
         />,
       );
+      // Then
       expect(screen.queryByRole("button", { name: /ホストを譲る/ })).toBeNull();
     });
 
     it("現ホストの行には『ホストを譲る』を出さない（他にもう一人ホストがいる異常系の保険）", () => {
-      // 通常ホストは1人だが、現ホスト行に出ない条件 p.role !== "host" を担保する
+      // Given（通常ホストは1人だが、現ホスト行に出ない条件 p.role !== "host" を担保する）
       const participants = [
         makeParticipant({ participantId: "p1", displayName: "Alice", role: "host" }),
         makeParticipant({
@@ -412,17 +492,19 @@ describe("RosterPanel（T056/T057）", () => {
           connId: "conn2",
         }),
       ];
+      // When
       render(
         <RosterPanel {...baseProps} participants={participants} onTransferHost={vi.fn()} />,
       );
+      // Then
       expect(screen.queryByRole("button", { name: /ホストを譲る/ })).toBeNull();
     });
   });
 });
 
-// ─── Task 6: セクション分割テスト ────────────────────────────────────────────
+// ─── セクション分割テスト ────────────────────────────────────────────
 
-/** Task 6 用ヘルパ: role を受け取る mk */
+/** セクション分割テスト用ヘルパ: role を受け取る mk */
 const mkRolled = (id: string, name: string, role: "host" | "editor" | "viewer"): Participant =>
   ({ participantId: id, displayName: name, role, presence: "online" } as Participant);
 
@@ -439,28 +521,40 @@ const sectionBase = {
   onRename: vi.fn(), onSkip: vi.fn(), onResume: vi.fn(), onAddProxy: vi.fn(),
 };
 
+/**
+ * @requirements Task 6
+ */
 describe("RosterPanel セクション分割", () => {
   it("ドライバーと見学のセクション見出しを出す", () => {
+    // Given（sectionBase の host/editor/viewer 構成をそのまま使う）
+    // When
     render(<RosterPanel {...sectionBase} />);
+    // Then
     expect(screen.getByText("ドライバー")).toBeTruthy();
     expect(screen.getByText("見学")).toBeTruthy();
   });
 
   it("現ドライバー(Bob)がドライバーセクションの先頭に来る", () => {
+    // Given（sectionBase: currentDriverId="b"）
+    // When
     render(<RosterPanel {...sectionBase} />);
+    // Then
     const driverList = screen.getByRole("list", { name: "ドライバー一覧" });
     const items = within(driverList).getAllByRole("listitem");
     expect(within(items[0]!).getByText("Bob")).toBeTruthy();
   });
 
   it("見学者(Zoe)は見学セクションに入る", () => {
+    // Given（sectionBase: Zoe は viewer で rotation 外）
+    // When
     render(<RosterPanel {...sectionBase} />);
+    // Then
     const watchList = screen.getByRole("list", { name: "見学一覧" });
     expect(within(watchList).getByText("Zoe")).toBeTruthy();
   });
 
   it("ドライバーは現ドライバー起点の巡回順で並ぶ（現→次→…環状）", () => {
-    // 巡回順テスト: rotation=[A,B,C,D,E], currentDriver=D → 表示順は D,E,A,B,C
+    // Given（rotation=[A,B,C,D,E], currentDriver=D → 表示順は D,E,A,B,C）
     const names = ["A", "B", "C", "D", "E"];
     const participants = names.map((n, i) => ({
       participantId: `p${i}`,
@@ -473,6 +567,7 @@ describe("RosterPanel セクション分割", () => {
       hasAiKey: false,
       joinedAt: 1000000,
     }));
+    // When
     render(
       <RosterPanel
         participants={participants}
@@ -486,6 +581,7 @@ describe("RosterPanel セクション分割", () => {
         onAddProxy={vi.fn()}
       />,
     );
+    // Then
     const driverList = screen.getByRole("list", { name: "ドライバー一覧" });
     const order = within(driverList)
       .getAllByRole("listitem")
@@ -494,7 +590,10 @@ describe("RosterPanel セクション分割", () => {
   });
 });
 
-describe("RosterPanel ドライバー指名（Issue #13）", () => {
+/**
+ * @requirements Issue #13
+ */
+describe("RosterPanel ドライバー指名", () => {
   const onAssignDriver = vi.fn();
   const hostProps = {
     myParticipantId: "x",
@@ -505,63 +604,80 @@ describe("RosterPanel ドライバー指名（Issue #13）", () => {
   beforeEach(() => onAssignDriver.mockClear());
 
   it("host は現ドライバー以外の rotation 行に「ドライバーにする」を表示する", () => {
+    // Given
+    const participants = [mk("a", "Alice"), mk("b", "Bob")];
+    // When
     render(
       <RosterPanel
         {...hostProps}
-        participants={[mk("a", "Alice"), mk("b", "Bob")]}
+        participants={participants}
         currentDriverId="a"
         rotation={["a", "b"]}
       />,
     );
+    // Then
     const list = screen.getByRole("list", { name: "ドライバー一覧" });
     const bobItem = within(list).getByText("Bob").closest("li") as HTMLElement;
     expect(within(bobItem).queryByRole("button", { name: /ドライバーにする/ })).toBeTruthy();
   });
 
   it("現ドライバー行には「ドライバーにする」を表示しない", () => {
+    // Given
+    const participants = [mk("a", "Alice"), mk("b", "Bob")];
+    // When
     render(
       <RosterPanel
         {...hostProps}
-        participants={[mk("a", "Alice"), mk("b", "Bob")]}
+        participants={participants}
         currentDriverId="a"
         rotation={["a", "b"]}
       />,
     );
+    // Then
     const list = screen.getByRole("list", { name: "ドライバー一覧" });
     const aliceItem = within(list).getByText("Alice").closest("li") as HTMLElement;
     expect(within(aliceItem).queryByRole("button", { name: /ドライバーにする/ })).toBeNull();
   });
 
   it("非 host には「ドライバーにする」を表示しない", () => {
+    // Given
+    const participants = [mk("a", "Alice"), mk("b", "Bob")];
+    // When
     render(
       <RosterPanel
         {...hostProps}
         canManage={false}
-        participants={[mk("a", "Alice"), mk("b", "Bob")]}
+        participants={participants}
         currentDriverId="a"
         rotation={["a", "b"]}
       />,
     );
+    // Then
     const list = screen.getByRole("list", { name: "ドライバー一覧" });
     const bobItem = within(list).getByText("Bob").closest("li") as HTMLElement;
     expect(within(bobItem).queryByRole("button", { name: /ドライバーにする/ })).toBeNull();
   });
 
   it("見学者（rotation 外）には「ドライバーにする」を表示しない", () => {
+    // Given
+    const participants = [mk("a", "Alice"), mk("w", "Watcher")];
+    // When
     render(
       <RosterPanel
         {...hostProps}
-        participants={[mk("a", "Alice"), mk("w", "Watcher")]}
+        participants={participants}
         currentDriverId="a"
         rotation={["a"]}
       />,
     );
+    // Then
     const watchList = screen.getByRole("list", { name: "見学一覧" });
     const wItem = within(watchList).getByText("Watcher").closest("li") as HTMLElement;
     expect(within(wItem).queryByRole("button", { name: /ドライバーにする/ })).toBeNull();
   });
 
   it("押下で onAssignDriver を participantId 付きで発火する", () => {
+    // Given
     render(
       <RosterPanel
         {...hostProps}
@@ -572,45 +688,60 @@ describe("RosterPanel ドライバー指名（Issue #13）", () => {
     );
     const list = screen.getByRole("list", { name: "ドライバー一覧" });
     const bobItem = within(list).getByText("Bob").closest("li") as HTMLElement;
+    // When
     fireEvent.click(within(bobItem).getByRole("button", { name: /ドライバーにする/ }));
+    // Then
     expect(onAssignDriver).toHaveBeenCalledWith("b");
   });
 
   it("実在（非代理）オフラインのメンバーには「ドライバーにする」を表示しない", () => {
+    // Given
+    const participants = [mk("a", "Alice"), mk("b", "Bob", { presence: "offline" })];
+    // When
     render(
       <RosterPanel
         {...hostProps}
-        participants={[mk("a", "Alice"), mk("b", "Bob", { presence: "offline" })]}
+        participants={participants}
         currentDriverId="a"
         rotation={["a", "b"]}
       />,
     );
+    // Then
     const list = screen.getByRole("list", { name: "ドライバー一覧" });
     const bobItem = within(list).getByText("Bob").closest("li") as HTMLElement;
     expect(within(bobItem).queryByRole("button", { name: /ドライバーにする/ })).toBeNull();
   });
 
   it("代理（placeholder）はオフラインでも「ドライバーにする」を表示する", () => {
+    // Given
+    const participants = [
+      mk("a", "Alice"),
+      mk("b", "Bob", { presence: "offline", isPlaceholder: true }),
+    ];
+    // When
     render(
       <RosterPanel
         {...hostProps}
-        participants={[mk("a", "Alice"), mk("b", "Bob", { presence: "offline", isPlaceholder: true })]}
+        participants={participants}
         currentDriverId="a"
         rotation={["a", "b"]}
       />,
     );
+    // Then
     const list = screen.getByRole("list", { name: "ドライバー一覧" });
     const bobItem = within(list).getByText("Bob").closest("li") as HTMLElement;
     expect(within(bobItem).queryByRole("button", { name: /ドライバーにする/ })).toBeTruthy();
   });
 });
 
-// ─── 退出操作の確認と自己行の扱い（host-spof-relaxation G5・T032） ────────────
-// 開始後は主催者以外も他人を退出させられる（G3）。取り返しがつかない操作なので
+// ─── 退出操作の確認と自己行の扱い（実機検証で判明した欠落） ────────────
+// 開始後は主催者以外も他人を退出させられる。取り返しがつかない操作なので
 // 確認を挟み、誰を・何が起きるかを明示する。自分の退出は別の場所（SelfDriverToggle）に置く。
-// 要件: FR-075, FR-076, FR-078, FR-080, US3
 
-describe("RosterPanel 退出操作（T032）", () => {
+/**
+ * @requirements FR-075, FR-076, FR-078, FR-080, US3, G5, T032
+ */
+describe("RosterPanel 退出操作", () => {
   const noop = vi.fn();
   const removeProps = {
     participants: [
@@ -627,61 +758,67 @@ describe("RosterPanel 退出操作（T032）", () => {
   };
 
   it("他人の退出ボタンを押しても即座には退出させない（確認を挟む）", () => {
+    // Given
     const onRemove = vi.fn();
     render(<RosterPanel {...removeProps} onRemove={onRemove} />);
-
+    // When
     fireEvent.click(screen.getByLabelText("Bob を退出させる"));
-
+    // Then
     expect(onRemove).not.toHaveBeenCalled();
     expect(screen.getByRole("dialog")).toBeTruthy();
   });
 
   it("確認ダイアログに対象者の名前が出る（誰を外すのか取り違えない）", () => {
+    // Given
     render(<RosterPanel {...removeProps} onRemove={vi.fn()} />);
-
+    // When
     fireEvent.click(screen.getByLabelText("Bob を退出させる"));
-
+    // Then
     expect(within(screen.getByRole("dialog")).getByText(/Bob/)).toBeTruthy();
   });
 
   it("確認ダイアログに再参加できる旨が出る（取り返しがつくことを伝える）", () => {
+    // Given
     render(<RosterPanel {...removeProps} onRemove={vi.fn()} />);
-
+    // When
     fireEvent.click(screen.getByLabelText("Bob を退出させる"));
-
+    // Then
     expect(screen.getByRole("dialog").textContent).toMatch(/再参加/);
   });
 
-  it("確認ダイアログに他の参加者への影響が出る（共有ルーム・FR-076）", () => {
+  it("確認ダイアログに他の参加者への影響が出る（共有ルーム）", () => {
+    // Given
     render(<RosterPanel {...removeProps} onRemove={vi.fn()} isShared />);
-
+    // When
     fireEvent.click(screen.getByLabelText("Bob を退出させる"));
-
+    // Then
     expect(screen.getByRole("dialog").textContent).toMatch(/他の参加者/);
   });
 
   it("確認すると onRemove が対象の participantId で発火する", () => {
+    // Given
     const onRemove = vi.fn();
     render(<RosterPanel {...removeProps} onRemove={onRemove} />);
     fireEvent.click(screen.getByLabelText("Bob を退出させる"));
-
+    // When
     fireEvent.click(within(screen.getByRole("dialog")).getByText("退出させる"));
-
+    // Then
     expect(onRemove).toHaveBeenCalledWith("p2");
   });
 
   it("取り消すと onRemove は発火しない", () => {
+    // Given
     const onRemove = vi.fn();
     render(<RosterPanel {...removeProps} onRemove={onRemove} />);
     fireEvent.click(screen.getByLabelText("Bob を退出させる"));
-
+    // When
     fireEvent.click(within(screen.getByRole("dialog")).getByText("キャンセル"));
-
+    // Then
     expect(onRemove).not.toHaveBeenCalled();
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("自分の行には退出ボタンを出さない（自己退出は別の場所に置く・FR-078）", () => {
+  it("自分の行には退出ボタンを出さない（自己退出は別の場所に置く）", () => {
     render(<RosterPanel {...removeProps} onRemove={vi.fn()} />);
 
     expect(screen.queryByLabelText("Alice を退出させる")).toBeNull();
@@ -694,12 +831,15 @@ describe("RosterPanel 退出操作（T032）", () => {
   });
 });
 
-// ─── 同名参加者の区別（G6・T042・FR-084） ────────────────────────────────────
+// ─── 同名参加者の区別（実機検証で判明した欠落） ────────────────────────────────────
 // 実機検証で判明: 同名2名の行が完全に同一（順番・presence・ボタン・aria-label すべて一致）で、
 // どちらが幽霊か選ぶ時点で区別できなかった。notice の識別子併送は実行**後**の提示であり、
 // 選択時点の取り違えを防げない。本 Issue の主要シナリオでは同名が並ぶのが常態である。
 
-describe("RosterPanel 同名参加者の区別（T042）", () => {
+/**
+ * @requirements FR-084, T042, G6
+ */
+describe("RosterPanel 同名参加者の区別", () => {
   const noop = vi.fn();
   // 識別子は末尾4文字が表示に使われる。表示名や他の語と紛れない値にしないと、
   // ラベルに識別子が出ていなくても toContain が通ってしまう（偽陽性）。
@@ -720,42 +860,46 @@ describe("RosterPanel 同名参加者の区別（T042）", () => {
   };
 
   it("同名が2名いると退出ボタンの aria-label が互いに異なる", () => {
+    // Given（dupProps: Bob が2名いる twoBobs をそのまま使う）
+    // When
     render(<RosterPanel {...dupProps} onRemove={vi.fn()} />);
-
+    // Then
     const labels = screen
       .getAllByRole("button")
       .map((b) => b.getAttribute("aria-label"))
       .filter((a): a is string => !!a && a.includes("退出させる"));
-
     expect(labels).toHaveLength(2);
     expect(new Set(labels).size).toBe(2);
   });
 
   it("識別子の末尾で区別できる（notice と同じ規則）", () => {
+    // Given（dupProps: Bob が2名いる twoBobs をそのまま使う）
+    // When
     render(<RosterPanel {...dupProps} onRemove={vi.fn()} />);
-
+    // Then
     const labels = screen
       .getAllByRole("button")
       .map((b) => b.getAttribute("aria-label") ?? "")
       .filter((a) => a.includes("退出させる"));
-
     expect(labels).toContain("Bob（ID: 0002） を退出させる");
     expect(labels).toContain("Bob（ID: 0003） を退出させる");
   });
 
   it("同名がいると退出以外の操作ラベルも識別子で区別できる", () => {
-    // T042 は退出だけを対象にしていた。指名・順番移動・一時離脱・改名も
-    // 同名が並ぶと「どちらに効くのか」を選べない（実機検証で判明）。
+    // Given（指名・順番移動・一時離脱・改名も、同名が並ぶと
+    // 「どちらに効くのか」を選べない。実機検証で判明）
+    const rotation = ["pid-0001", "pid-0002", "pid-0003"];
+    // When
     render(
       <RosterPanel
         {...dupProps}
-        rotation={["pid-0001", "pid-0002", "pid-0003"]}
+        rotation={rotation}
         currentDriverId="pid-0001"
         onAssignDriver={vi.fn()}
         onMove={vi.fn()}
       />,
     );
-
+    // Then
     for (const suffix of ["をドライバーにする", "を前の順番へ", "を後の順番へ", "を改名", "を一時離脱させる"]) {
       const labels = screen
         .getAllByRole("button")
@@ -767,72 +911,76 @@ describe("RosterPanel 同名参加者の区別（T042）", () => {
   });
 
   it("同名がいると行の表示名にも識別子が出る（目で見ても区別できる）", () => {
+    // Given（dupProps: Bob が2名いる twoBobs をそのまま使う）
+    // When
     render(<RosterPanel {...dupProps} />);
-
-    // 素の "Bob" では引けず、識別子つきの2行が引ける。
+    // Then（素の "Bob" では引けず、識別子つきの2行が引ける）
     expect(screen.queryByText("Bob")).toBeNull();
     expect(screen.getByText("Bob（ID: 0002）")).toBeTruthy();
     expect(screen.getByText("Bob（ID: 0003）")).toBeTruthy();
   });
 
   it("同名がいなければ識別子を添えない（通常時に読みにくくしない）", () => {
+    // Given
     const single = [
       makeParticipant({ participantId: "pid-0001", displayName: "Alice", role: "host" }),
       makeParticipant({ participantId: "pid-0002", displayName: "Bob", role: "editor", connId: "c2" }),
     ];
+    // When
     render(<RosterPanel {...dupProps} participants={single} onRemove={vi.fn()} />);
-
+    // Then
     expect(screen.getByLabelText("Bob を退出させる")).toBeTruthy();
   });
 
   it("確認ダイアログでも同名の2名を区別できる", () => {
+    // Given
     render(<RosterPanel {...dupProps} onRemove={vi.fn()} />);
+    // When
     fireEvent.click(screen.getByLabelText("Bob（ID: 0003） を退出させる"));
-
-    // 敬称は helper に付けさせる（「Bob さん（ID: 0003）」）。末尾に足すと
-    // 「Bob（ID: 0003） さん」という不自然な語順になり、通知の文面とも食い違う。
+    // Then（敬称は helper に付けさせる「Bob さん（ID: 0003）」。末尾に足すと
+    // 「Bob（ID: 0003） さん」という不自然な語順になり、通知の文面とも食い違う）
     expect(screen.getByRole("dialog").textContent).toContain("Bob さん（ID: 0003）");
   });
 
   it("確認中に対象が改名したら、ダイアログの表示も追従する", () => {
-    // 対象を participant オブジェクトごと capture していると旧名を出し続ける。
+    // Given（対象を participant オブジェクトごと capture していると旧名を出し続ける）
     const { rerender } = render(<RosterPanel {...dupProps} onRemove={vi.fn()} />);
     fireEvent.click(screen.getByLabelText("Bob（ID: 0003） を退出させる"));
     expect(screen.getByRole("dialog").textContent).toContain("Bob さん（ID: 0003）");
-
+    // When（確認中に対象が改名する）
     const renamed = twoBobs.map((p) =>
       p.participantId === "pid-0003" ? { ...p, displayName: "Bobby" } : p,
     );
     rerender(<RosterPanel {...dupProps} participants={renamed} onRemove={vi.fn()} />);
-
-    // 同名が解消されたので識別子も外れる。
+    // Then（同名が解消されたので識別子も外れる）
     expect(screen.getByRole("dialog").textContent).toContain("Bobby さん");
   });
 
   it("確認中に対象が居なくなったらダイアログを閉じる", () => {
+    // Given
     const { rerender } = render(<RosterPanel {...dupProps} onRemove={vi.fn()} />);
     fireEvent.click(screen.getByLabelText("Bob（ID: 0003） を退出させる"));
     expect(screen.getByRole("dialog")).toBeTruthy();
-
+    // When（確認中に対象が退出済みになる）
     const gone = twoBobs.filter((p) => p.participantId !== "pid-0003");
     rerender(<RosterPanel {...dupProps} participants={gone} onRemove={vi.fn()} />);
-
-    // 居ない相手を消すか尋ね続けない。
+    // Then（居ない相手を消すか尋ね続けない）
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   it("同名でも自分の行には退出ボタンを出さない（自己退出は別の場所）", () => {
+    // Given
     const meDuplicated = [
       makeParticipant({ participantId: "pid-0001", displayName: "Bob", role: "host" }),
       makeParticipant({ participantId: "pid-0002", displayName: "Bob", role: "editor", connId: "c2" }),
     ];
+    // When
     render(<RosterPanel {...dupProps} participants={meDuplicated} onRemove={vi.fn()} />);
-
+    // Then
     const labels = screen
       .getAllByRole("button")
       .map((b) => b.getAttribute("aria-label") ?? "")
       .filter((a) => a.includes("退出させる"));
-
     expect(labels).toEqual(["Bob（ID: 0002） を退出させる"]);
   });
 });

@@ -27,7 +27,8 @@ export interface PermissionInput {
   isSelfTarget: boolean;
 }
 
-export type PermissionVerdict =
+// T057: 自ファイル内でのみ使われるため export を外した（FR-119③・SC-039）。
+type PermissionVerdict =
   | { allowed: true }
   | { allowed: false; code: "UNAUTHORIZED"; message: string };
 

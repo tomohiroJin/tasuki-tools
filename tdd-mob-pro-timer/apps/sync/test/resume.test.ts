@@ -1,33 +1,18 @@
 /**
  * 再接続・復帰テスト
- * T046: FR-019, SC-005
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
 import { makeHandlers } from "../src/application/handlers.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
-import type { RoomCodeGen } from "../src/ports/code-gen.js";
-import type { Broadcaster } from "../src/ports/broadcaster.js";
-import type { ServerMsg } from "@tdd-mob/core";
+import { SpyBroadcaster } from "./support/spy-broadcaster.js";
+import { FakeCodeGen } from "./support/fake-code-gen.js";
 
-class FakeCodeGen implements RoomCodeGen {
-  private _counter = 0;
-  generate(): string { return `RS${String(++this._counter).padStart(2, "0")}`; }
-  generateParticipantId(): string { return `pid-${++this._counter}`; }
-  generateResumeToken(): string { return `rt-${++this._counter}`; }
-}
-
-class SpyBroadcaster implements Broadcaster {
-  readonly sent: Array<{ connId: string; msg: ServerMsg }> = [];
-  readonly snapshots: string[] = [];
-  readonly signals: string[] = [];
-  broadcastSnapshot(code: string): void { this.snapshots.push(code); }
-  sendTo(connId: string, msg: ServerMsg): void { this.sent.push({ connId, msg }); }
-  broadcastSignal(code: string): void { this.signals.push(code); }
-}
-
-describe("resume: 再接続・復帰（FR-019, SC-005）", () => {
+/**
+ * @requirements FR-019, SC-005
+ */
+describe("resume: 再接続・復帰", () => {
   let store: InMemoryRoomStore;
   let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
@@ -43,18 +28,18 @@ describe("resume: 再接続・復帰（FR-019, SC-005）", () => {
     });
   });
 
-  it("resumeToken で同一参加者・同一 role として復帰する（FR-019）", async () => {
-    // ルーム作成
+  it("resumeToken で同一参加者・同一 role として復帰する", async () => {
+    // Given
     const createResult = await handlers.handleCommand("conn-001", {
       command: "room.create",
       displayName: "Alice",
     });
     if (!createResult.isOk()) throw new Error("create failed");
-    const { code, resumeToken, participantId } = createResult.value;
-
+    // 本番（server.ts）は handleCommand の戻り値を破棄する。値は本番と同じ観測点から取る（FR-100）。
+    const { code, resumeToken, participantId } = broadcaster.createdFor("conn-001");
     broadcaster.sent.length = 0;
 
-    // 別の接続で resumeToken を使って再参加
+    // When（別の接続で resumeToken を使って再参加）
     await handlers.handleCommand("conn-002", {
       command: "room.join",
       code,
@@ -63,26 +48,26 @@ describe("resume: 再接続・復帰（FR-019, SC-005）", () => {
       resumeToken,
     });
 
+    // Then（同一参加者として認識され connId が更新されている）
     const room = store.get(code);
     const participant = room?.participants.find(
       (p) => p.participantId === participantId,
     );
-
-    // 同一参加者として認識され connId が更新されている
     expect(participant?.connId).toBe("conn-002");
     expect(participant?.role).toBe("host");
   });
 
-  it("再接続後に snapshot で完全同期する（SC-005）", async () => {
+  it("再接続後に snapshot で完全同期する", async () => {
+    // Given
     const createResult = await handlers.handleCommand("conn-001", {
       command: "room.create",
       displayName: "Alice",
     });
     if (!createResult.isOk()) throw new Error("create failed");
-    const { code, resumeToken } = createResult.value;
-
+    const { code, resumeToken } = broadcaster.createdFor("conn-001");
     broadcaster.sent.length = 0;
 
+    // When
     await handlers.handleCommand("conn-002", {
       command: "room.join",
       code,
@@ -91,6 +76,7 @@ describe("resume: 再接続・復帰（FR-019, SC-005）", () => {
       resumeToken,
     });
 
+    // Then
     const snapshot = broadcaster.sent.find((s) => s.msg.type === "snapshot");
     expect(snapshot).toBeTruthy();
     if (snapshot?.msg.type === "snapshot") {
@@ -99,13 +85,15 @@ describe("resume: 再接続・復帰（FR-019, SC-005）", () => {
   });
 
   it("無効な resumeToken は新規参加者として扱う", async () => {
+    // Given
     const createResult = await handlers.handleCommand("conn-001", {
       command: "room.create",
       displayName: "Alice",
     });
     if (!createResult.isOk()) throw new Error("create failed");
-    const { code } = createResult.value;
+    const { code } = broadcaster.createdFor("conn-001");
 
+    // When
     await handlers.handleCommand("conn-003", {
       command: "room.join",
       code,
@@ -114,10 +102,10 @@ describe("resume: 再接続・復帰（FR-019, SC-005）", () => {
       resumeToken: "invalid-token-xyz",
     });
 
+    // Then（既定 editor で新規参加扱い・UX 再設計）
     const room = store.get(code);
     const charlie = room?.participants.find((p) => p.displayName === "Charlie");
     expect(charlie).toBeTruthy();
-    // 既定 editor で新規参加扱い（UX 再設計）。
     expect(charlie?.role).toBe("editor");
   });
 });

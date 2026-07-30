@@ -25,7 +25,7 @@ AI 生成に失敗しても定型お題へ自動縮退します。完成時に�
 
 | パッケージ | 役割 |
 |---|---|
-| `packages/core`（`@tdd-mob/core`） | 純粋ドメイン（`decide`/`evolve`・時刻導出・お題・記録・スキーマ・i18n）。front/server で共有 |
+| `packages/core`（`@tdd-mob/core`） | 純粋ドメイン（`decide`/`evolve`・時刻導出・お題・記録・スキーマ・エラー文言）。front/server で共有 |
 | `apps/sync`（`@tdd-mob/sync`） | 軽量同期サーバー（WebSocket・full snapshot 配信・サーバー権威タイマー・揮発状態） |
 | `apps/web`（`@tdd-mob/web`） | フロントエンド（React + Vite）。WS クライアント・ソロモード・記録・UI |
 
@@ -160,11 +160,13 @@ pnpm build              # ビルド
 ```
 tdd-mob-pro-timer/
 ├─ packages/core/        # @tdd-mob/core — 純粋ドメイン
-│  └─ src/{aggregate,decide,evolve,events,errors,schemas,problem,records}.ts
+│  └─ src/{aggregate,decide,evolve,events,errors,schemas,problem,problem-bank,
+│           records,display-name,participants,permissions,error-messages}.ts
 ├─ apps/sync/            # @tdd-mob/sync — 同期サーバー
 │  └─ src/{domain なし→core 再利用, application/, ports/, adapters/, server.ts}
 ├─ apps/web/             # @tdd-mob/web — フロントエンド
-│  └─ src/{ui/, sync/, solo/, ai/, records/, platform/}
+│  └─ src/{ui/, sync/, ai/, records/, prefs/, platform/}
+├─ scripts/              # audit-structure.mjs（成功基準の走査）/ mutation-check.mjs（変異検査）
 ├─ deploy/Caddyfile      # 本番前段（WSS・/ws リバースプロキシ）
 └─ docs/                 # ARCHITECTURE.md / adr/
 ```

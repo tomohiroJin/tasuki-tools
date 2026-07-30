@@ -11,24 +11,8 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { makeHandlers } from "../src/application/handlers.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
-import type { RoomCodeGen } from "../src/ports/code-gen.js";
-import type { Broadcaster } from "../src/ports/broadcaster.js";
-import type { Room, ServerMsg } from "@tdd-mob/core";
-
-class FakeCodeGen implements RoomCodeGen {
-  private _c = 0;
-  generate(): string { return `RM${String(++this._c).padStart(4, "0")}`; }
-  generateParticipantId(): string { return `pid-${++this._c}`; }
-  generateResumeToken(): string { return `rt-${++this._c}`; }
-}
-class SpyBroadcaster implements Broadcaster {
-  readonly sent: Array<{ connId: string; msg: ServerMsg }> = [];
-  readonly snapshots: Room[] = [];
-  broadcastSnapshot(_c: string, room: Room): void { this.snapshots.push(room); }
-  sendTo(connId: string, msg: ServerMsg): void { this.sent.push({ connId, msg }); }
-  broadcastSignal(): void {}
-}
-const latest = (b: SpyBroadcaster) => b.snapshots[b.snapshots.length - 1];
+import { SpyBroadcaster } from "./support/spy-broadcaster.js";
+import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 describe("participant.remove（⑪）", () => {
   let store: InMemoryRoomStore;
@@ -43,12 +27,12 @@ describe("participant.remove（⑪）", () => {
     store = new InMemoryRoomStore();
     broadcaster = new SpyBroadcaster();
     handlers = makeHandlers({ store, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen() });
-    const created = await handlers.handleCommand(hostConn, {
+    await handlers.handleCommand(hostConn, {
       command: "room.create",
       displayName: "Alice",
       config: { language: "TypeScript", difficulty: "easy", members: ["Alice"], intervalMinutes: 5 },
     });
-    if (created.isOk()) code = created.value.code;
+    code = broadcaster.createdFor(hostConn).code;
     await handlers.handleCommand(guestConn, { command: "room.join", code, displayName: "Bob", hasAiKey: false });
     guestId = store.get(code)!.participants.find((p) => p.displayName === "Bob")!.participantId;
     // Bob をローテーションに加える（host が member.add）→ rotation = [Alice, Bob] の各ID
@@ -58,8 +42,14 @@ describe("participant.remove（⑪）", () => {
   });
 
   it("ホストが参加者を退出させ、一覧と rotation から消える", async () => {
-    await handlers.handleCommand(hostConn, { command: "participant.remove", participantId: guestId });
-    const room = latest(broadcaster);
+    // Given
+    const command = { command: "participant.remove", participantId: guestId } as const;
+
+    // When
+    await handlers.handleCommand(hostConn, command);
+
+    // Then
+    const room = broadcaster.latestSnapshot();
     expect(room?.participants.find((p) => p.participantId === guestId)).toBeUndefined();
     // rotation は参加者IDの配列（D6b）
     expect(room?.session.rotation).not.toContain(guestId);
@@ -67,28 +57,38 @@ describe("participant.remove（⑪）", () => {
   });
 
   it("ホストでない参加者は実行できない（UNAUTHORIZED）", async () => {
-    await handlers.handleCommand(guestConn, { command: "participant.remove", participantId: store.get(code)!.hostParticipantId });
+    // Given
+    const command = { command: "participant.remove", participantId: store.get(code)!.hostParticipantId } as const;
+
+    // When
+    await handlers.handleCommand(guestConn, command);
+    // Then
     const error = broadcaster.sent.find((s) => s.msg.type === "error");
     expect(error?.msg.type === "error" && error.msg.code).toBe("UNAUTHORIZED");
   });
 
   it("最後の1人（rotation 1名）は外せない", async () => {
-    // rotation=[Bob] の状態を作り、host が Bob を消そうとして拒否されることを確かめる。
-    // Alice を対象にすると自己退出の経路になるため、Alice を輪から抜いて Bob だけを残す。
+    // Given（rotation=[Bob] の状態を作る。Alice を対象にすると自己退出の経路になるため、
+    // Alice を輪から抜いて Bob だけを残す）
     await handlers.handleCommand(hostConn, { command: "member.remove", index: 0 }); // [Bob]
     broadcaster.sent.length = 0;
+
+    // When（host が Bob を消そうとする）
     await handlers.handleCommand(hostConn, { command: "participant.remove", participantId: guestId });
+
+    // Then（拒否され、Bob はまだ居る。rotation 上の最後の1人なので拒否）
     const error = broadcaster.sent.find((s) => s.msg.type === "error" && (s.msg as { code: string }).code === "BelowMinMembers");
     expect(error).toBeTruthy();
-    // Bob はまだ居る（rotation 上の最後の1人なので拒否）
     expect(store.get(code)!.participants.find((p) => p.participantId === guestId)).toBeTruthy();
   });
 });
 
 // ─── Issue #22 G3: 自己退出・不変条件・ホスト引き継ぎ ─────────────────────────
 // 設計: docs/plans/host-spof-relaxation/plan.md「D2b」「D3」
-// 要件: FR-065, FR-072, FR-073, FR-079, US3, US5
 
+/**
+ * @requirements FR-065, FR-072, FR-073, FR-079, US3, US5
+ */
 describe("participant.remove（G3: 自己退出・不変条件・ホスト引き継ぎ）", () => {
   let store: InMemoryRoomStore;
   let broadcaster: SpyBroadcaster;
@@ -125,7 +125,7 @@ describe("participant.remove（G3: 自己退出・不変条件・ホスト引き
       config: { language: "TypeScript", difficulty: "easy", members: ["Alice", "Bob", "Carol"], intervalMinutes: 5 },
     });
     if (!created.isOk()) throw new Error("room.create failed");
-    code = created.value.code;
+    code = broadcaster.createdFor(HOST).code;
     // rotation は参加者IDの配列（D6b）。config.members に名前を並べるだけでは輪に入らないので、
     // 本人が自分を輪に加える（Web の実フローと同じ）。
     for (const [connId, displayName] of [[BOB, "Bob"], [CAROL, "Carol"]] as const) {
@@ -134,7 +134,7 @@ describe("participant.remove（G3: 自己退出・不変条件・ホスト引き
       });
       if (!join.isOk()) throw new Error(`room.join failed: ${displayName}`);
       const add = await handlers.handleCommand(connId, {
-        command: "member.add", participantId: join.value.participantId,
+        command: "member.add", participantId: broadcaster.joinedFor(connId).participantId,
       });
       if (!add.isOk()) throw new Error(`member.add failed: ${displayName}`);
     }
@@ -151,119 +151,139 @@ describe("participant.remove（G3: 自己退出・不変条件・ホスト引き
 
   beforeEach(setup);
 
-  it("① 開始後は host でない editor が他人を退出させられる（FR-065）", async () => {
+  it("① 開始後は host でない editor が他人を退出させられる", async () => {
+    // Given
     await start();
     const carolId = pidOf("Carol");
 
+    // When
     const result = await handlers.handleCommand(BOB, {
       command: "participant.remove", participantId: carolId,
     });
 
-    expect(result.isOk()).toBe(true);
+    // Then
+    result._unsafeUnwrap();
     expect(store.get(code)!.participants.find((p) => p.participantId === carolId)).toBeUndefined();
   });
 
-  it("② 参加者は自分自身を退出させられる（FR-079）", async () => {
+  it("② 参加者は自分自身を退出させられる", async () => {
+    // Given
     const carolId = pidOf("Carol");
 
+    // When
     const result = await handlers.handleCommand(CAROL, {
       command: "participant.remove", participantId: carolId,
     });
 
-    expect(result.isOk()).toBe(true);
+    // Then
+    result._unsafeUnwrap();
     expect(store.get(code)!.participants.find((p) => p.participantId === carolId)).toBeUndefined();
   });
 
-  it("③ 実在の編集者以上が1名しか居ないとき、その1名は退出できない（FR-072/073）", async () => {
-    // Bob と Carol を見学者へ降格し、編集者以上を Alice(host) だけにする。
+  it("③ 実在の編集者以上が1名しか居ないとき、その1名は退出できない", async () => {
+    // Given（Bob と Carol を見学者へ降格し、編集者以上を Alice(host) だけにする）
     await handlers.handleCommand(HOST, { command: "role.set", participantId: pidOf("Bob"), role: "viewer" });
     await handlers.handleCommand(HOST, { command: "role.set", participantId: pidOf("Carol"), role: "viewer" });
     broadcaster.sent.length = 0;
     const aliceId = pidOf("Alice");
 
+    // When
     const result = await handlers.handleCommand(HOST, {
       command: "participant.remove", participantId: aliceId,
     });
 
+    // Then
     expect(result.isErr()).toBe(true);
     expect(lastError(HOST)?.code).toBe("LAST_MANAGER");
     expect(store.get(code)!.participants.find((p) => p.participantId === aliceId)).toBeTruthy();
   });
 
   it("③' 代理の編集者が別に居ても③の判定は変わらない（代理は頭数に入らない）", async () => {
+    // Given
     await handlers.handleCommand(HOST, { command: "participant.addProxy", displayName: "Proxy", participantId: "proxy-1" });
     await handlers.handleCommand(HOST, { command: "role.set", participantId: pidOf("Bob"), role: "viewer" });
     await handlers.handleCommand(HOST, { command: "role.set", participantId: pidOf("Carol"), role: "viewer" });
     broadcaster.sent.length = 0;
     const aliceId = pidOf("Alice");
 
+    // When
     const result = await handlers.handleCommand(HOST, {
       command: "participant.remove", participantId: aliceId,
     });
 
+    // Then
     expect(result.isErr()).toBe(true);
     expect(lastError(HOST)?.code).toBe("LAST_MANAGER");
   });
 
   it("④ 退出させられた本人へ通知が届く（他人に外された場合）", async () => {
+    // Given
     await start();
     const carolId = pidOf("Carol");
 
+    // When
     await handlers.handleCommand(BOB, { command: "participant.remove", participantId: carolId });
 
-    // 通知コードと文言の更新は T027（G4）の担当。ここでは「本人へ届くこと」だけを固定する。
+    // Then（通知コードと文言の更新は G4 の担当。ここでは「本人へ届くこと」だけを固定する）
     expect(lastError(CAROL)).toBeTruthy();
   });
 
   it("④' 自己退出では本人への退出通知を送らない（自分の操作なので通知は不要）", async () => {
+    // Given
     const carolId = pidOf("Carol");
 
+    // When
     await handlers.handleCommand(CAROL, { command: "participant.remove", participantId: carolId });
 
+    // Then
     expect(lastError(CAROL)).toBeUndefined();
   });
 
   it("⑤ 開始前にホストが自己退出しても、残った編集者が phase.set を実行できる（D2b）", async () => {
+    // Given
     const aliceId = pidOf("Alice");
 
+    // When
     const removed = await handlers.handleCommand(HOST, {
       command: "participant.remove", participantId: aliceId,
     });
-    expect(removed.isOk()).toBe(true);
+    removed._unsafeUnwrap();
 
-    // ホストは在室者のうち joinedAt 最小（= Bob）へ引き継がれている。
+    // Then（ホストは在室者のうち joinedAt 最小＝Bob へ引き継がれている）
     const after = store.get(code)!;
     expect(after.hostParticipantId).toBe(after.participants.find((p) => p.displayName === "Bob")!.participantId);
     expect(after.participants.find((p) => p.displayName === "Bob")!.role).toBe("host");
 
-    // 引き継ぎが効いていなければ開始前の phase.set はホスト限定なので詰む。
+    // Then（引き継ぎが効いていなければ開始前の phase.set はホスト限定なので詰む）
     broadcaster.sent.length = 0;
     const phase = await handlers.handleCommand(BOB, { command: "phase.set", phase: "ready" });
 
-    expect(phase.isOk()).toBe(true);
+    phase._unsafeUnwrap();
     expect(store.get(code)!.phase).toBe("ready");
   });
 
   it("⑥ 他人がホストを退出させた場合もホストが引き継がれる（D2b）", async () => {
+    // Given
     await start();
     const aliceId = pidOf("Alice");
 
+    // When
     const result = await handlers.handleCommand(CAROL, {
       command: "participant.remove", participantId: aliceId,
     });
 
-    expect(result.isOk()).toBe(true);
+    // Then（退出した Alice ではなく、残った在室者のうち joinedAt 最小＝Bob が新ホスト）
+    result._unsafeUnwrap();
     const after = store.get(code)!;
     expect(after.participants.find((p) => p.participantId === aliceId)).toBeUndefined();
-    // 退出した Alice ではなく、残った在室者のうち joinedAt 最小（Bob）が新ホスト。
     expect(after.hostParticipantId).toBe(after.participants.find((p) => p.displayName === "Bob")!.participantId);
   });
 
   it("⑧ 後継ホストにオフラインの見学者を選ばない（詰みの再導入を防ぐ）", async () => {
-    // D2b の目的は「ホストが抜けた後も誰かが操作できる」こと。単に joinedAt 最小を選ぶと
-    // オフラインの見学者が新ホストになり、オンラインの編集者が開始前操作を実行できない
-    // という、D2b が防ぐはずだった詰みにそのまま戻る。しかも自動委譲は切断契機でしか
-    // 発火しないため（既にオフラインの人が昇格しても新たなタイマーは張られない）救済もない。
+    // Given（D2b の目的は「ホストが抜けた後も誰かが操作できる」こと。単に joinedAt 最小を選ぶと
+    // オフラインの見学者が新ホストになり、オンラインの編集者が開始前操作を実行できないという、
+    // D2b が防ぐはずだった詰みにそのまま戻る。しかも自動委譲は切断契機でしか発火しないため
+    // ＝既にオフラインの人が昇格しても新たなタイマーは張られない、救済もない）
     await handlers.handleCommand(HOST, { command: "role.set", participantId: pidOf("Bob"), role: "viewer" });
     handlers.handleConnectionClose(BOB);
     store.put({
@@ -274,9 +294,10 @@ describe("participant.remove（G3: 自己退出・不変条件・ホスト引き
     });
     broadcaster.sent.length = 0;
 
+    // When
     await handlers.handleCommand(HOST, { command: "participant.remove", participantId: pidOf("Alice") });
 
-    // joinedAt は Bob < Carol だが、オフラインの見学者ではなくオンラインの編集者を選ぶ。
+    // Then（joinedAt は Bob < Carol だが、オフラインの見学者ではなくオンラインの編集者を選ぶ）
     const after = store.get(code)!;
     expect(after.hostParticipantId).toBe(after.participants.find((p) => p.displayName === "Carol")!.participantId);
     // 残ったオンラインの参加者が開始前操作を実行できる（詰んでいない）。
@@ -285,42 +306,47 @@ describe("participant.remove（G3: 自己退出・不変条件・ホスト引き
   });
 
   it("⑨ オンラインの編集者と見学者が居るときは編集者を選ぶ（見学の意思を尊重する）", async () => {
-    // Bob（joinedAt 最小）を見学者にするが、オンラインのまま残す。
+    // Given（Bob＝joinedAt 最小を見学者にするが、オンラインのまま残す）
     await handlers.handleCommand(HOST, { command: "role.set", participantId: pidOf("Bob"), role: "viewer" });
     broadcaster.sent.length = 0;
 
+    // When
     await handlers.handleCommand(HOST, { command: "participant.remove", participantId: pidOf("Alice") });
 
+    // Then
     const after = store.get(code)!;
     expect(after.hostParticipantId).toBe(after.participants.find((p) => p.displayName === "Carol")!.participantId);
     expect(after.participants.find((p) => p.displayName === "Bob")!.role).toBe("viewer");
   });
 
   it("⑦ 代理しか残らない場合はホストを引き継がずそのまま退出する（候補なし）", async () => {
+    // Given（Bob と Carol を退出させ、実在の在室者を Alice だけにする）
     await handlers.handleCommand(HOST, { command: "participant.addProxy", displayName: "Proxy", participantId: "proxy-1" });
-    // Bob と Carol を退出させ、実在の在室者を Alice だけにする。
     await handlers.handleCommand(HOST, { command: "participant.remove", participantId: pidOf("Bob") });
     await handlers.handleCommand(HOST, { command: "participant.remove", participantId: pidOf("Carol") });
     broadcaster.sent.length = 0;
     const aliceId = pidOf("Alice");
 
-    // Alice は唯一の実在の編集者以上なので不変条件で拒否される（代理は頭数に入らない）。
+    // When（Alice は唯一の実在の編集者以上なので不変条件で拒否されるはず。代理は頭数に入らない）
     const result = await handlers.handleCommand(HOST, {
       command: "participant.remove", participantId: aliceId,
     });
 
+    // Then
     expect(result.isErr()).toBe(true);
     expect(lastError(HOST)?.code).toBe("LAST_MANAGER");
   });
 });
 
-// ─── 同名参加者を識別子で区別する（G7・T055・D6b）────────────────────────────
+// ─── 同名参加者を識別子で区別する（G7・D6b）────────────────────────────────
 // 実機検証で判明: rotation に居ない幽霊を退出させると、同名で rotation に居る本物が輪から外れた。
 // 退出処理が rotation の位置を表示名で引いていたためである。G6 では「参加時刻が最も早い同名参加者を
 // 枠の持ち主とみなす」規則で凌いだが、再接続では幽霊のほうが先に居るため実態とずれた。
 // D6b で rotation を参加者IDの配列にし、枠と参加者を直接結び付けて推測を排した。
-// 要件: FR-085, SC-024
 
+/**
+ * @requirements FR-085, SC-024
+ */
 describe("participant.remove（G7: 同名参加者を識別子で区別する）", () => {
   let store: InMemoryRoomStore;
   let broadcaster: SpyBroadcaster;
@@ -348,7 +374,7 @@ describe("participant.remove（G7: 同名参加者を識別子で区別する）
         command: "room.join", code, displayName: "Bob", hasAiKey: false,
       });
       if (!join.isOk()) throw new Error(`room.join failed: ${kind}`);
-      ids[kind] = join.value.participantId;
+      ids[kind] = broadcaster.joinedFor(connId).participantId;
     }
     // 本物だけが輪に並ぶ（幽霊は rotation 外）。
     const add = await handlers.handleCommand(REAL, {
@@ -371,62 +397,72 @@ describe("participant.remove（G7: 同名参加者を識別子で区別する）
       config: { language: "TypeScript", difficulty: "easy", members: ["Alice"], intervalMinutes: 5 },
     });
     if (!created.isOk()) throw new Error("room.create failed");
-    code = created.value.code;
+    code = broadcaster.createdFor(HOST).code;
     hostId = room().hostParticipantId;
   });
 
   it("① 幽霊が後着でも、幽霊を退出させると本物の枠は残る", async () => {
+    // Given
     const { realId, ghostId } = await setupBobs(false);
     expect(room().session.rotation).toContain(realId);
 
+    // When
     const result = await handlers.handleCommand(HOST, {
       command: "participant.remove", participantId: ghostId,
     });
 
-    expect(result.isOk()).toBe(true);
+    // Then
+    result._unsafeUnwrap();
     expect(room().participants.filter((p) => p.displayName === "Bob")).toHaveLength(1);
     expect(room().session.rotation).toContain(realId);
   });
 
   it("①' 幽霊が先着（再接続の向き）でも、幽霊を退出させると本物の枠は残る", async () => {
-    // G6 の「参加時刻が最も早い同名を持ち主とする」規則はこの並びで破綻していた。
+    // Given（G6 の「参加時刻が最も早い同名を持ち主とする」規則はこの並びで破綻していた）
     const { realId, ghostId } = await setupBobs(true);
     expect(room().session.rotation).toContain(realId);
     expect(room().session.rotation).not.toContain(ghostId);
 
+    // When
     const result = await handlers.handleCommand(HOST, {
       command: "participant.remove", participantId: ghostId,
     });
 
-    expect(result.isOk()).toBe(true);
+    // Then
+    result._unsafeUnwrap();
     expect(room().session.rotation).toContain(realId);
     expect(room().session.rotation).toEqual([hostId, realId]);
   });
 
   it("② 枠を持つ本物を退出させると、その枠だけが外れる", async () => {
+    // Given
     const { realId, ghostId } = await setupBobs(true);
 
+    // When
     const result = await handlers.handleCommand(HOST, {
       command: "participant.remove", participantId: realId,
     });
 
-    expect(result.isOk()).toBe(true);
+    // Then
+    result._unsafeUnwrap();
     expect(room().session.rotation).toEqual([hostId]);
     // 幽霊は輪の外に居ただけなので在室したまま（巻き添えにしない）。
     expect(room().participants.some((p) => p.participantId === ghostId)).toBe(true);
   });
 
   it("③ 輪に本物1人だけのとき、その本物は最後のドライバー保護で外せない", async () => {
+    // Given（Alice を輪から抜いて rotation=[本物Bob] にする）
     const { realId } = await setupBobs(true);
-    // Alice を輪から抜いて rotation=[本物Bob] にする。
     await handlers.handleCommand(HOST, { command: "member.remove", index: 0 });
     expect(room().session.rotation).toEqual([realId]);
     broadcaster.sent.length = 0;
 
+    // When
     const result = await handlers.handleCommand(HOST, {
       command: "participant.remove", participantId: realId,
     });
 
+    // Then
     expect(result.isErr()).toBe(true);
     const err = [...broadcaster.sent].reverse().find((x) => x.msg.type === "error");
     expect(err?.msg.type === "error" && err.msg.code).toBe("BelowMinMembers");
@@ -436,20 +472,21 @@ describe("participant.remove（G7: 同名参加者を識別子で区別する）
   });
 
   it("④ 枠を外さないケースでは最後のドライバー保護（BelowMinMembers）が誤発火しない", async () => {
+    // Given（rotation を [Alice] だけにする）
     const { realId, ghostId } = await setupBobs(true);
-    // rotation を [Alice] だけにしてから、rotation 外の幽霊を退出させる。
     await handlers.handleCommand(HOST, {
       command: "member.remove", index: room().session.rotation.indexOf(realId),
     });
     expect(room().session.rotation).toEqual([hostId]);
     broadcaster.sent.length = 0;
 
+    // When（rotation 外の幽霊を退出させる）
     const result = await handlers.handleCommand(HOST, {
       command: "participant.remove", participantId: ghostId,
     });
 
-    // rotation に触れないので BelowMinMembers は関係ない。
-    expect(result.isOk()).toBe(true);
+    // Then（rotation に触れないので BelowMinMembers は関係ない）
+    result._unsafeUnwrap();
     expect(room().session.rotation).toEqual([hostId]);
   });
 });

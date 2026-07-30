@@ -7,32 +7,8 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { makeHandlers } from "../src/application/handlers.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
-import type { RoomCodeGen } from "../src/ports/code-gen.js";
-import type { Broadcaster } from "../src/ports/broadcaster.js";
-import type { Room, ServerMsg } from "@tdd-mob/core";
-
-// ─── フェイク実装 ──────────────────────────────────────────────────────────────
-
-class FakeCodeGen implements RoomCodeGen {
-  private _counter = 0;
-  generate(): string { return `AIROOM${String(++this._counter).padStart(2, "0")}`; }
-  generateParticipantId(): string { return `pid-ai-${++this._counter}`; }
-  generateResumeToken(): string { return `rt-ai-${++this._counter}`; }
-}
-
-class SpyBroadcaster implements Broadcaster {
-  readonly sent: Array<{ connId: string; msg: ServerMsg }> = [];
-  readonly snapshotRooms: Room[] = [];
-  broadcastSnapshot(code: string, room: Room): void { this.snapshotRooms.push(room); }
-  sendTo(connId: string, msg: ServerMsg): void { this.sent.push({ connId, msg }); }
-  broadcastSignal(code: string): void { void code; }
-}
-
-function getLatestSnapshot(spy: SpyBroadcaster): Room | undefined {
-  return spy.snapshotRooms[spy.snapshotRooms.length - 1];
-}
-
-// ─── テスト ────────────────────────────────────────────────────────────────────
+import { SpyBroadcaster } from "./support/spy-broadcaster.js";
+import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 describe("ai.unlock", () => {
   let store: InMemoryRoomStore;
@@ -47,6 +23,7 @@ describe("ai.unlock", () => {
   });
 
   it("合言葉一致で aiUnlocked=true・problemMode=ai になり snapshot 配信される", async () => {
+    // Given
     const handlers = makeHandlers({
       store,
       clock,
@@ -54,40 +31,35 @@ describe("ai.unlock", () => {
       codeGen: new FakeCodeGen(),
       aiUnlockKey: "himitsu",
     });
-
-    // host でルーム作成
-    const create = await handlers.handleCommand(hostConn, {
+    await handlers.handleCommand(hostConn, {
       command: "room.create",
       displayName: "Alice",
     });
-    expect(create.isOk()).toBe(true);
-    const code = create.isOk() ? create.value.code : "";
-
-    // snapshotRooms をリセットして ai.unlock だけの snapshot を確認しやすくする
-    broadcaster.snapshotRooms.length = 0;
+    const code = broadcaster.createdFor(hostConn).code;
+    // snapshots をリセットして ai.unlock だけの snapshot を確認しやすくする
+    broadcaster.snapshots.length = 0;
     broadcaster.sent.length = 0;
 
+    // When
     const result = await handlers.handleCommand(hostConn, {
       command: "ai.unlock",
       key: "himitsu",
     });
 
-    // コマンドが成功する
-    expect(result.isOk()).toBe(true);
-
-    // store の room が更新されている
+    // Then
+    result._unsafeUnwrap();
     const room = store.get(code);
     expect(room?.aiUnlocked).toBe(true);
     expect(room?.problemMode).toBe("ai");
-
-    // broadcastSnapshot が呼ばれている
-    expect(broadcaster.snapshotRooms.length).toBeGreaterThan(0);
-    const snap = getLatestSnapshot(broadcaster);
+    // 全員へ新しい snapshot が配信される
+    expect(broadcaster.snapshots.length).toBeGreaterThan(0);
+    const snap = broadcaster.latestSnapshot();
     expect(snap?.aiUnlocked).toBe(true);
     expect(snap?.problemMode).toBe("ai");
   });
 
   it("合言葉不一致は AI_UNLOCK_FAILED でルームは変化しない", async () => {
+    // Given
     const handlers = makeHandlers({
       store,
       clock,
@@ -95,25 +67,21 @@ describe("ai.unlock", () => {
       codeGen: new FakeCodeGen(),
       aiUnlockKey: "himitsu",
     });
-
-    const create = await handlers.handleCommand(hostConn, {
+    await handlers.handleCommand(hostConn, {
       command: "room.create",
       displayName: "Alice",
     });
-    expect(create.isOk()).toBe(true);
-    const code = create.isOk() ? create.value.code : "";
-
+    const code = broadcaster.createdFor(hostConn).code;
     broadcaster.sent.length = 0;
 
+    // When
     const result = await handlers.handleCommand(hostConn, {
       command: "ai.unlock",
       key: "wrong",
     });
 
-    // コマンドが失敗する
+    // Then
     expect(result.isErr()).toBe(true);
-
-    // エラーメッセージが送られる
     const errorMsg = broadcaster.sent.find(
       (s) => s.connId === hostConn && s.msg.type === "error",
     );
@@ -121,35 +89,33 @@ describe("ai.unlock", () => {
     if (errorMsg?.msg.type === "error") {
       expect(errorMsg.msg.code).toBe("AI_UNLOCK_FAILED");
     }
-
     // ルームは変化しない
     const room = store.get(code);
     expect(room?.aiUnlocked).toBeUndefined();
   });
 
   it("aiUnlockKey 未設定（機能無効）では正しい合言葉でも AI_UNLOCK_FAILED（存在秘匿）", async () => {
-    // aiUnlockKey を渡さない
+    // Given（aiUnlockKey を渡さない）
     const handlers = makeHandlers({
       store,
       clock,
       broadcaster,
       codeGen: new FakeCodeGen(),
     });
-
     await handlers.handleCommand(hostConn, {
       command: "room.create",
       displayName: "Alice",
     });
-
     broadcaster.sent.length = 0;
 
+    // When
     const result = await handlers.handleCommand(hostConn, {
       command: "ai.unlock",
       key: "himitsu",
     });
 
+    // Then
     expect(result.isErr()).toBe(true);
-
     const errorMsg = broadcaster.sent.find(
       (s) => s.connId === hostConn && s.msg.type === "error",
     );
@@ -159,7 +125,8 @@ describe("ai.unlock", () => {
     }
   });
 
-  it("host 以外は UNAUTHORIZED", async () => {
+  it("host 以外は UNAUTHORIZED で拒否される", async () => {
+    // Given
     const handlers = makeHandlers({
       store,
       clock,
@@ -167,16 +134,11 @@ describe("ai.unlock", () => {
       codeGen: new FakeCodeGen(),
       aiUnlockKey: "himitsu",
     });
-
-    // host でルーム作成
-    const create = await handlers.handleCommand(hostConn, {
+    await handlers.handleCommand(hostConn, {
       command: "room.create",
       displayName: "Alice",
     });
-    expect(create.isOk()).toBe(true);
-    const code = create.isOk() ? create.value.code : "";
-
-    // 2人目が参加
+    const code = broadcaster.createdFor(hostConn).code;
     const memberConn = "member-conn";
     const join = await handlers.handleCommand(memberConn, {
       command: "room.join",
@@ -184,18 +146,17 @@ describe("ai.unlock", () => {
       displayName: "Bob",
       hasAiKey: false,
     });
-    expect(join.isOk()).toBe(true);
-
+    join._unsafeUnwrap();
     broadcaster.sent.length = 0;
 
-    // 2人目（editor）が ai.unlock を試みる
+    // When（2人目＝editor が ai.unlock を試みる）
     const result = await handlers.handleCommand(memberConn, {
       command: "ai.unlock",
       key: "himitsu",
     });
 
+    // Then
     expect(result.isErr()).toBe(true);
-
     const errorMsg = broadcaster.sent.find(
       (s) => s.connId === memberConn && s.msg.type === "error",
     );
@@ -206,6 +167,7 @@ describe("ai.unlock", () => {
   });
 
   it("連続失敗はレート制限される（30 回/10 秒の既存窓を共用）", async () => {
+    // Given（誤ったキーで 30 回試みてレート制限を消費する）
     const handlers = makeHandlers({
       store,
       clock,
@@ -213,30 +175,26 @@ describe("ai.unlock", () => {
       codeGen: new FakeCodeGen(),
       aiUnlockKey: "himitsu",
     });
-
     await handlers.handleCommand(hostConn, {
       command: "room.create",
       displayName: "Alice",
     });
-
-    // 誤ったキーで 30 回試みてレート制限を消費する
     for (let i = 0; i < 30; i++) {
       await handlers.handleCommand(hostConn, {
         command: "ai.unlock",
         key: `wrong-${i}`,
       });
     }
-
     broadcaster.sent.length = 0;
 
-    // 31 回目（正しいキーでも）RATE_LIMITED になる
+    // When（31 回目は正しいキーでも RATE_LIMITED になるはず）
     const result = await handlers.handleCommand(hostConn, {
       command: "ai.unlock",
       key: "himitsu",
     });
 
+    // Then
     expect(result.isErr()).toBe(true);
-
     const errorMsg = broadcaster.sent.find(
       (s) => s.connId === hostConn && s.msg.type === "error",
     );

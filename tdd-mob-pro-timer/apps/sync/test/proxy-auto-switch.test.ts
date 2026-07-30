@@ -13,25 +13,9 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { makeHandlers } from "../src/application/handlers.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
-import type { RoomCodeGen } from "../src/ports/code-gen.js";
-import type { Broadcaster } from "../src/ports/broadcaster.js";
-import type { ServerMsg, SessionConfig, Room } from "@tdd-mob/core";
-
-class FakeCodeGen implements RoomCodeGen {
-  private _c = 0;
-  generate(): string { return `LC${String(++this._c).padStart(2, "0")}`; }
-  generateParticipantId(): string { return `pid-${++this._c}`; }
-  generateResumeToken(): string { return `rt-${++this._c}`; }
-}
-
-class SpyBroadcaster implements Broadcaster {
-  readonly sent: Array<{ connId: string; msg: ServerMsg }> = [];
-  readonly snapshots: string[] = [];
-  readonly signals: Array<{ roomCode: string; msg: ServerMsg }> = [];
-  broadcastSnapshot(code: string): void { this.snapshots.push(code); }
-  sendTo(connId: string, msg: ServerMsg): void { this.sent.push({ connId, msg }); }
-  broadcastSignal(roomCode: string, msg: ServerMsg): void { this.signals.push({ roomCode, msg }); }
-}
+import type { SessionConfig, Room } from "@tdd-mob/core";
+import { SpyBroadcaster } from "./support/spy-broadcaster.js";
+import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 const config: SessionConfig = {
   language: "TypeScript",
@@ -53,7 +37,8 @@ async function setupRoomWithSecond(
     config: { ...config, members: ["A"] },
   });
   if (!create.isOk()) throw new Error("create failed");
-  const code = create.value.code;
+  // 本番（server.ts）は handleCommand の戻り値を破棄する。値は本番と同じ観測点から取る（FR-100）。
+  const code = store.list().at(-1)!.code;
   const room = store.get(code)!;
   const host = room.participants[0]!;
   const secondParticipant: Room["participants"][number] = {
@@ -89,19 +74,28 @@ describe("タイマー自動交代と代理メンバー（v2.8）", () => {
   });
 
   it("代理メンバー(offline+placeholder)へ自動交代が進む", async () => {
+    // Given
     const code = await setupRoomWithSecond(handlers, store, { presence: "offline", isPlaceholder: true });
 
-    handlers.advanceForAbsence(code); // = autoSwitch（タイマー発火相当）
+    // When（= autoSwitch。タイマー発火相当）
+    handlers.advanceForAbsence(code);
 
+    // Then
     expect(store.get(code)!.session.currentIndex).toBe(1); // 代理 B へ交代している
   });
 
-  it("実在の offline 参加者(非placeholder)は従来どおり飛ばす（R2-1 維持）", async () => {
+  /**
+   * 代理の自動交代を入れても、実在 offline の扱いは変えない。
+   * @requirements R2-1
+   */
+  it("実在の offline 参加者（非 placeholder）は従来どおり飛ばす", async () => {
+    // Given
     const code = await setupRoomWithSecond(handlers, store, { presence: "offline", isPlaceholder: false });
 
+    // When
     handlers.advanceForAbsence(code);
 
-    // B は実在の offline で ineligible → 飛ばされ交代先なし → 現状維持
+    // Then（B は実在の offline で ineligible → 飛ばされ交代先なし → 現状維持）
     expect(store.get(code)!.session.currentIndex).toBe(0);
   });
 });

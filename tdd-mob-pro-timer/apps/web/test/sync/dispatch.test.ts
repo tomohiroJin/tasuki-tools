@@ -1,23 +1,30 @@
 /**
  * サーバーメッセージ振り分けのテスト
- * T055(フロント): FR-025, FR-026 — need-problem 受信の配線
  */
 
 import { describe, it, expect, vi } from "vitest";
 import { dispatchServerMessage } from "../../src/sync/dispatch.js";
 
+/**
+ * @requirements T055, FR-025, FR-026
+ */
 describe("dispatchServerMessage", () => {
-  it("snapshot は onRoom を呼ぶ", () => {
+  it("snapshot は room を onRoom へ渡す", () => {
+    // Given
     const onRoom = vi.fn();
+    // When
     dispatchServerMessage(
       JSON.stringify({ type: "snapshot", room: { code: "X" } }),
       { onRoom },
     );
+    // Then
     expect(onRoom).toHaveBeenCalledWith({ code: "X" });
   });
 
-  it("room.created は onIdentity を呼ぶ", () => {
+  it("room.created は identity 情報を onIdentity へ渡す", () => {
+    // Given
     const onIdentity = vi.fn();
+    // When
     dispatchServerMessage(
       JSON.stringify({
         type: "room.created",
@@ -28,6 +35,7 @@ describe("dispatchServerMessage", () => {
       }),
       { onIdentity },
     );
+    // Then
     expect(onIdentity).toHaveBeenCalledWith({
       participantId: "p",
       resumeToken: "r",
@@ -35,18 +43,25 @@ describe("dispatchServerMessage", () => {
     });
   });
 
-  it("error は onError を呼ぶ", () => {
+  it("error は code とメッセージを onError へ渡す", () => {
+    // Given
     const onError = vi.fn();
+    // When
     dispatchServerMessage(
       JSON.stringify({ type: "error", code: "E", message: "m" }),
       { onError },
     );
+    // Then
     expect(onError).toHaveBeenCalledWith("E", "m");
   });
 
-  // Issue #22 G4: 破壊的操作の実行者を全員へ伝えるシグナル（FR-077）。
-  it("signal notice は onNotice を実行者・対象つきで呼ぶ", () => {
+  /**
+   * @requirements Issue #22 G4, FR-077
+   */
+  it("signal notice は実行者・対象つきで onNotice へ渡る（破壊的操作の実行者を全員へ伝える）", () => {
+    // Given
     const onNotice = vi.fn();
+    // When
     dispatchServerMessage(
       JSON.stringify({
         type: "signal",
@@ -59,6 +74,7 @@ describe("dispatchServerMessage", () => {
       }),
       { onNotice },
     );
+    // Then
     expect(onNotice).toHaveBeenCalledWith({
       action: "participant-removed",
       actorName: "Bob",
@@ -68,8 +84,10 @@ describe("dispatchServerMessage", () => {
     });
   });
 
-  it("signal notice は target 系が無くても呼ばれる（中断・リセット・完成）", () => {
+  it("signal notice は target 系が無くても onNotice へ渡る（中断・リセット・完成）", () => {
+    // Given
     const onNotice = vi.fn();
+    // When
     dispatchServerMessage(
       JSON.stringify({
         type: "signal",
@@ -80,6 +98,7 @@ describe("dispatchServerMessage", () => {
       }),
       { onNotice },
     );
+    // Then
     expect(onNotice).toHaveBeenCalledWith({
       action: "session-aborted",
       actorName: "Bob",
@@ -89,8 +108,10 @@ describe("dispatchServerMessage", () => {
     });
   });
 
-  it("signal need-problem は onNeedProblem を requestId と deadlineMs で呼ぶ", () => {
+  it("signal need-problem は requestId と deadlineMs を onNeedProblem へ渡す", () => {
+    // Given
     const onNeedProblem = vi.fn();
+    // When
     dispatchServerMessage(
       JSON.stringify({
         type: "signal",
@@ -100,30 +121,39 @@ describe("dispatchServerMessage", () => {
       }),
       { onNeedProblem },
     );
+    // Then
     expect(onNeedProblem).toHaveBeenCalledWith("req-1", 20000);
   });
 
-  it("signal switch は onNeedProblem を呼ばない", () => {
+  it("signal switch では onNeedProblem を発火しない", () => {
+    // Given
     const onNeedProblem = vi.fn();
+    // When
     dispatchServerMessage(
       JSON.stringify({ type: "signal", signal: "switch", nextDriverName: "Bob" }),
       { onNeedProblem },
     );
+    // Then
     expect(onNeedProblem).not.toHaveBeenCalled();
   });
 
-  it("time.pong は onTimePong を serverTime で呼ぶ", () => {
+  it("time.pong は serverTime を onTimePong へ渡す", () => {
+    // Given
     const onTimePong = vi.fn();
+    // When
     dispatchServerMessage(
       JSON.stringify({ type: "time.pong", serverTime: 123 }),
       { onTimePong },
     );
+    // Then
     expect(onTimePong).toHaveBeenCalledWith(123);
   });
 
-  it("不正な JSON は何も呼ばずに無視する", () => {
+  it("不正な JSON はどのハンドラも実行せず無視する", () => {
+    // Given
     const onRoom = vi.fn();
     const onError = vi.fn();
+    // When / Then
     expect(() =>
       dispatchServerMessage("{ broken", { onRoom, onError }),
     ).not.toThrow();

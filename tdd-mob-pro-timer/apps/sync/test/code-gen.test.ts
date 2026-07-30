@@ -29,8 +29,11 @@ describe("NanoidCodeGen.generate（ルーム名＋接尾辞）", () => {
   });
 
   it("毎回異なる接尾辞で衝突しにくい", () => {
+    // Given（同一のルーム名を対象にする）
+    // When
     const a = gen.generate("dup");
     const b = gen.generate("dup");
+    // Then
     expect(a).not.toBe(b);
   });
 

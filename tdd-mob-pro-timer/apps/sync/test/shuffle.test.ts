@@ -1,30 +1,15 @@
 /**
  * member.shuffle（モブ順のランダム化・サーバー権威）の sync テスト
- * v2.3 #1: サーバーが順列を生成し、稼働中は現ドライバー位置を固定する。host 限定。
+ * サーバーが順列を生成し、稼働中は現ドライバー位置を固定する。host 限定。
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { makeHandlers } from "../src/application/handlers.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
-import type { RoomCodeGen } from "../src/ports/code-gen.js";
-import type { Broadcaster } from "../src/ports/broadcaster.js";
-import type { ServerMsg, SessionConfig, Room } from "@tdd-mob/core";
-
-class FakeCodeGen implements RoomCodeGen {
-  private _c = 0;
-  generate(): string { return `SH${String(++this._c).padStart(2, "0")}`; }
-  generateParticipantId(): string { return `pid-${++this._c}`; }
-  generateResumeToken(): string { return `rt-${++this._c}`; }
-}
-
-class SpyBroadcaster implements Broadcaster {
-  readonly sent: Array<{ connId: string; msg: ServerMsg }> = [];
-  readonly snapshotRooms: Room[] = [];
-  broadcastSnapshot(_code: string, room: Room): void { this.snapshotRooms.push(room); }
-  sendTo(connId: string, msg: ServerMsg): void { this.sent.push({ connId, msg }); }
-  broadcastSignal(): void {}
-}
+import type { SessionConfig, Room } from "@tdd-mob/core";
+import { SpyBroadcaster } from "./support/spy-broadcaster.js";
+import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 const config: SessionConfig = {
   language: "TypeScript",
@@ -34,10 +19,6 @@ const config: SessionConfig = {
 };
 
 const HOST_CONN = "host-conn";
-
-function latest(spy: SpyBroadcaster): Room | undefined {
-  return spy.snapshotRooms[spy.snapshotRooms.length - 1];
-}
 
 /**
  * host(=members[0]) が居る稼働/非稼働ルームを作る。
@@ -56,7 +37,8 @@ async function setupRoom(
     config: { ...config, members },
   });
   if (!create.isOk()) throw new Error("create failed");
-  const code = create.value.code;
+  // 本番（server.ts）は handleCommand の戻り値を破棄する。値は本番と同じ観測点から取る（FR-100）。
+  const code = store.list().at(-1)!.code;
 
   const room = store.get(code)!;
   const host = room.participants[0]!; // role: host, connId: HOST_CONN
@@ -96,7 +78,10 @@ function rotationNames(room: Room | undefined): string[] {
   );
 }
 
-describe("member.shuffle（サーバー権威のランダム化・v2.3 #1）", () => {
+/**
+ * @requirements v2.3 #1
+ */
+describe("member.shuffle（サーバー権威のランダム化）", () => {
   let store: InMemoryRoomStore;
   let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
@@ -117,16 +102,17 @@ describe("member.shuffle（サーバー権威のランダム化・v2.3 #1）", (
   });
 
   it("非稼働中: host の member.shuffle が ok で rotation が並べ替わる（Math.random 固定で決定的）", async () => {
+    // Given（Fisher–Yates で呼ばれる random を固定する。i=2: Math.floor(r*3)、i=1: Math.floor(r*2)。
+    // r=0 を返すと i=2 で j=0（[C,B,A]）、i=1 で j=0（[B,C,A]）になる）
     await setupRoom(handlers, store, ["A", "B", "C"], 0, false);
-    // Fisher–Yates（i=2→j, i=1→j）で呼ばれる random を固定する。
-    // i=2: Math.floor(r*3)、i=1: Math.floor(r*2)。
-    // r=0 を返すと i=2 で j=0（[C,B,A]）、i=1 で j=0（[B,C,A]）。
     vi.spyOn(Math, "random").mockReturnValue(0);
 
+    // When
     const result = await handlers.handleCommand(HOST_CONN, { command: "member.shuffle" });
-    expect(result.isOk()).toBe(true);
 
-    const room = latest(broadcaster);
+    // Then
+    result._unsafeUnwrap();
+    const room = broadcaster.latestSnapshot();
     expect(rotationNames(room)).toEqual(["B", "C", "A"]);
     // driverCounts も順列に追従する（元 [1,2,3] が order=[1,2,0] で並ぶ）。
     expect(room?.session.driverCounts).toEqual([2, 3, 1]);
@@ -135,37 +121,43 @@ describe("member.shuffle（サーバー権威のランダム化・v2.3 #1）", (
   });
 
   it("稼働中: 現ドライバーの位置が固定され、その名前が currentIndex で不変", async () => {
-    // currentIndex=1（"B"）を稼働中にシャッフル。B の位置（index 1）は固定される。
+    // Given（currentIndex=1＝"B" を稼働中にシャッフル。B の位置＝index 1 は固定される。
+    // others=[0,2] をシャッフル。i=1: Math.floor(r*2)。r=0 で j=0＝入れ替えなし→[0,2]）
     await setupRoom(handlers, store, ["A", "B", "C"], 1, true);
-    // others=[0,2] をシャッフル。i=1: Math.floor(r*2)。r=0 で j=0（入れ替えなし→[0,2]）。
     vi.spyOn(Math, "random").mockReturnValue(0);
 
+    // When
     const result = await handlers.handleCommand(HOST_CONN, { command: "member.shuffle" });
-    expect(result.isOk()).toBe(true);
 
-    const room = latest(broadcaster);
-    // currentIndex は 1 のまま、その名前は "B" のまま（現ドライバー現役）。
+    // Then（currentIndex は 1 のまま、その名前は "B" のまま＝現ドライバー現役）
+    result._unsafeUnwrap();
+    const room = broadcaster.latestSnapshot();
     expect(room?.session.currentIndex).toBe(1);
     expect(rotationNames(room)[1]).toBe("B");
   });
 
   it("稼働中: 現ドライバー名は順列の中身に関わらず保持される", async () => {
+    // Given（others=[0,1] を i=1: r=0.99→Math.floor(0.99*2)=1 で入れ替え→[1,0]）
     await setupRoom(handlers, store, ["A", "B", "C"], 2, true);
-    // others=[0,1] を i=1: r=0.99→Math.floor(0.99*2)=1 で入れ替え→[1,0]。
     vi.spyOn(Math, "random").mockReturnValue(0.99);
 
+    // When
     await handlers.handleCommand(HOST_CONN, { command: "member.shuffle" });
-    const room = latest(broadcaster);
-    // 現ドライバー "C" は index 2 に固定。
+
+    // Then（現ドライバー "C" は index 2 に固定）
+    const room = broadcaster.latestSnapshot();
     expect(rotationNames(room)[2]).toBe("C");
     expect(room?.session.currentIndex).toBe(2);
   });
 
   it("host 以外（editor）の member.shuffle は UNAUTHORIZED で拒否される", async () => {
+    // Given
     await setupRoom(handlers, store, ["A", "B", "C"], 0, false);
-    // conn-1 は editor（"B"）。
-    const result = await handlers.handleCommand("conn-1", { command: "member.shuffle" });
-    expect(result.isErr()).toBe(true);
-    result.mapErr((e) => expect(e).toBe("UNAUTHORIZED"));
+
+    // When（conn-1 は editor＝"B"）
+    await handlers.handleCommand("conn-1", { command: "member.shuffle" });
+
+    // Then
+    expect(broadcaster.errorsTo("conn-1").at(-1)?.code).toBe("UNAUTHORIZED");
   });
 });

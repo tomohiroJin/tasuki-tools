@@ -9,17 +9,20 @@ import { CommandSchema, RoomSchema, ServerMsgSchema } from "../src/index.js";
 
 describe("CommandSchema host.transfer", () => {
   it("participantId 付きの host.transfer は success", () => {
-    const result = v.safeParse(CommandSchema, {
-      command: "host.transfer",
-      participantId: "p2",
-    });
+    // Given
+    const command = { command: "host.transfer", participantId: "p2" };
+    // When
+    const result = v.safeParse(CommandSchema, command);
+    // Then
     expect(result.success).toBe(true);
   });
 
   it("participantId 欠落の host.transfer は failure", () => {
-    const result = v.safeParse(CommandSchema, {
-      command: "host.transfer",
-    });
+    // Given
+    const command = { command: "host.transfer" };
+    // When
+    const result = v.safeParse(CommandSchema, command);
+    // Then
     expect(result.success).toBe(false);
   });
 });
@@ -31,34 +34,50 @@ describe("SessionConfigSchema 言語・難易度の境界", () => {
   };
 
   it("正常な言語・難易度の config.set を受理する", () => {
-    const result = v.safeParse(CommandSchema, {
+    // Given
+    const command = {
       command: "config.set",
       config: { ...baseConfig, language: "TypeScript", difficulty: "easy" },
-    });
+    };
+    // When
+    const result = v.safeParse(CommandSchema, command);
+    // Then
     expect(result.success).toBe(true);
   });
 
   it("言語が上限超過（41 字）の config.set を拒否する", () => {
-    const result = v.safeParse(CommandSchema, {
+    // Given
+    const command = {
       command: "config.set",
       config: { ...baseConfig, language: "x".repeat(41), difficulty: "easy" },
-    });
+    };
+    // When
+    const result = v.safeParse(CommandSchema, command);
+    // Then
     expect(result.success).toBe(false);
   });
 
   it("難易度が上限超過（21 字）の config.set を拒否する", () => {
-    const result = v.safeParse(CommandSchema, {
+    // Given
+    const command = {
       command: "config.set",
       config: { ...baseConfig, language: "TypeScript", difficulty: "x".repeat(21) },
-    });
+    };
+    // When
+    const result = v.safeParse(CommandSchema, command);
+    // Then
     expect(result.success).toBe(false);
   });
 
   it("巨大な言語文字列（プロンプト膨張狙い）を拒否する", () => {
-    const result = v.safeParse(CommandSchema, {
+    // Given
+    const command = {
       command: "config.set",
       config: { ...baseConfig, language: "x".repeat(100_000), difficulty: "easy" },
-    });
+    };
+    // When
+    const result = v.safeParse(CommandSchema, command);
+    // Then
     expect(result.success).toBe(false);
   });
 });
@@ -130,7 +149,10 @@ describe("RoomSchema startedAt（後方互換・単調フラグ）", () => {
 // 破壊的操作の実行者を全員に伝えるためのシグナル。サーバーは「意味」だけを運び、
 // 日本語の文言化は UI 側が行う（plan.md「API / インターフェース契約」1）。
 
-describe("ServerMsgSchema signal: notice（実行者の通知・FR-077）", () => {
+/**
+ * @requirements FR-077
+ */
+describe("ServerMsgSchema signal: notice（実行者の通知）", () => {
   /** 妥当な notice メッセージの雛形。各テストで一部だけを差し替える。 */
   const base = {
     type: "signal",
@@ -141,6 +163,8 @@ describe("ServerMsgSchema signal: notice（実行者の通知・FR-077）", () =
   };
 
   it("4つの action すべてが受理される", () => {
+    // Given（対象は下記4種の action）
+    // When / Then
     for (const action of [
       "participant-removed",
       "session-aborted",
@@ -158,14 +182,20 @@ describe("ServerMsgSchema signal: notice（実行者の通知・FR-077）", () =
   });
 
   it("actorName が欠けていると failure（誰が実行したか分からない通知は無意味）", () => {
+    // Given
     const { actorName: _omitted, ...withoutActorName } = base;
+    // When
     const result = v.safeParse(ServerMsgSchema, withoutActorName);
+    // Then
     expect(result.success).toBe(false);
   });
 
   it("actorParticipantId が欠けていると failure（同名参加者を区別できない）", () => {
+    // Given
     const { actorParticipantId: _omitted, ...withoutActorId } = base;
+    // When
     const result = v.safeParse(ServerMsgSchema, withoutActorId);
+    // Then
     expect(result.success).toBe(false);
   });
 
@@ -175,21 +205,29 @@ describe("ServerMsgSchema signal: notice（実行者の通知・FR-077）", () =
   });
 
   it("participant-removed では target 系を伴って受理される", () => {
-    const result = v.safeParse(ServerMsgSchema, {
+    // Given
+    const message = {
       ...base,
       action: "participant-removed",
       targetName: "Bob",
       targetParticipantId: "pid-2",
-    });
+    };
+    // When
+    const result = v.safeParse(ServerMsgSchema, message);
+    // Then
     expect(result.success).toBe(true);
   });
 
   it("既存の signal（switch）は引き続き受理される（variant への追加で壊さない）", () => {
-    const result = v.safeParse(ServerMsgSchema, {
+    // Given
+    const message = {
       type: "signal",
       signal: "switch",
       nextDriverName: "Bob",
-    });
+    };
+    // When
+    const result = v.safeParse(ServerMsgSchema, message);
+    // Then
     expect(result.success).toBe(true);
   });
 });

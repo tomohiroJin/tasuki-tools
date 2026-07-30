@@ -7,7 +7,14 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { isAmbiguousName, participantLabel, shortId } from "../../src/ui/participant-label.js";
+import {
+  isAmbiguousName,
+  participantLabel,
+  shortId,
+  canTransferHostTo,
+  canRemoveParticipant,
+  canReorderRotation,
+} from "../../src/ui/participant-label.js";
 
 const p = (participantId: string, displayName: string) => ({ participantId, displayName });
 
@@ -28,8 +35,9 @@ describe("isAmbiguousName", () => {
   });
 
   it("キリル文字の見た目が同じ名前を曖昧とみなす", () => {
-    // В はキリル大文字 В。画面では Latin の B と区別が付かない。
+    // Given（В はキリル大文字 В。画面では Latin の B と区別が付かない）
     const list = [p("pid-0001", "Bob"), p("pid-0002", "Вob")];
+    // When / Then
     expect(isAmbiguousName("Bob", "pid-0001", list)).toBe(true);
     expect(isAmbiguousName("Вob", "pid-0002", list)).toBe(true);
   });
@@ -63,7 +71,9 @@ describe("participantLabel", () => {
   });
 
   it("見た目が同じキリル名が居ると、双方に識別子が付いて区別できる", () => {
+    // Given
     const list = [p("pid-0001", "Bob"), p("pid-0002", "Вob")];
+    // When / Then
     expect(participantLabel("Bob", "pid-0001", list)).toBe("Bob（ID: 0001）");
     // 表示名そのものは本人が名乗ったまま（キリルはラテンに書き換えない）。
     expect(participantLabel("Вob", "pid-0002", list)).toBe("Вob（ID: 0002）");
@@ -78,5 +88,119 @@ describe("participantLabel", () => {
 describe("shortId", () => {
   it("識別子の末尾4文字を返す", () => {
     expect(shortId("p_abcdefgh1234")).toBe("1234");
+  });
+});
+
+/**
+ * 参加者行の「操作の可否判定」（FR-107・Issue #28 T067/T068）。
+ *
+ * Lobby.tsx（開始前・isHost で判定）と RosterPanel.tsx（開始後・canManage で判定）が
+ * 同じ3つの操作（ホスト譲渡・退出・並べ替え）を別々にインライン実装していた。
+ * Issue #22 の G8 で「同名判定の規則を1箇所に作ったのに呼び出し側が2系統あり
+ * 片方へ行き渡らなかった」事故が起きたのと同じ構造（規則の不一致が2箇所に散る）を防ぐため、
+ * ここに1つだけ判定を置く。**現在の両者の判定と同一の結果**になることを固定する
+ * （より正しい判定への変更はしない）。
+ */
+describe("canTransferHostTo（ホスト譲渡ボタンの可否）", () => {
+  it("自分以外・管理権限あり・相手がホストでない・相手がオンラインなら true", () => {
+    // Given（相手=editor/online、文脈=自分以外・管理権限ありを組む）
+    const target = { role: "editor", presence: "online" } as const;
+    const ctx = { isSelf: false, canManage: true };
+    // When（可否を判定する）
+    const result = canTransferHostTo(target, ctx);
+    expect(result).toBe(true);
+  });
+
+  it("自分自身には出さない", () => {
+    // Given（相手=editor/online、文脈=自分自身・管理権限ありを組む）
+    const target = { role: "editor", presence: "online" } as const;
+    const ctx = { isSelf: true, canManage: true };
+    // When（可否を判定する）
+    const result = canTransferHostTo(target, ctx);
+    expect(result).toBe(false);
+  });
+
+  it("管理権限が無ければ出さない", () => {
+    // Given（相手=editor/online、文脈=自分以外・管理権限なしを組む）
+    const target = { role: "editor", presence: "online" } as const;
+    const ctx = { isSelf: false, canManage: false };
+    // When（可否を判定する）
+    const result = canTransferHostTo(target, ctx);
+    expect(result).toBe(false);
+  });
+
+  it("相手が既にホストなら出さない", () => {
+    // Given（相手=host/online、文脈=自分以外・管理権限ありを組む）
+    const target = { role: "host", presence: "online" } as const;
+    const ctx = { isSelf: false, canManage: true };
+    // When（可否を判定する）
+    const result = canTransferHostTo(target, ctx);
+    expect(result).toBe(false);
+  });
+
+  it("相手がオフラインなら出さない（無人ドライバー防止）", () => {
+    // Given（相手=editor/offline、文脈=自分以外・管理権限ありを組む）
+    const target = { role: "editor", presence: "offline" } as const;
+    const ctx = { isSelf: false, canManage: true };
+    // When（可否を判定する）
+    const result = canTransferHostTo(target, ctx);
+    expect(result).toBe(false);
+  });
+
+  it("相手が idle（在席）なら出す", () => {
+    // Given（相手=viewer/idle、文脈=自分以外・管理権限ありを組む）
+    const target = { role: "viewer", presence: "idle" } as const;
+    const ctx = { isSelf: false, canManage: true };
+    // When（可否を判定する）
+    const result = canTransferHostTo(target, ctx);
+    expect(result).toBe(true);
+  });
+});
+
+describe("canRemoveParticipant（退出させるボタンの可否）", () => {
+  it("自分以外・管理権限ありなら true", () => {
+    expect(canRemoveParticipant({ isSelf: false, canManage: true })).toBe(true);
+  });
+
+  it("自分自身には出さない（自己退出は別経路）", () => {
+    expect(canRemoveParticipant({ isSelf: true, canManage: true })).toBe(false);
+  });
+
+  it("管理権限が無ければ出さない", () => {
+    expect(canRemoveParticipant({ isSelf: false, canManage: false })).toBe(false);
+  });
+});
+
+describe("canReorderRotation（ドライバー順の並べ替えボタンの可否）", () => {
+  it("管理権限あり・ドライバー内・2人以上なら true", () => {
+    // Given（管理権限あり・ドライバー内・2人のローテーションを組む）
+    const ctx = { canManage: true, inRotation: true, rotationLength: 2 };
+    // When（可否を判定する）
+    const result = canReorderRotation(ctx);
+    expect(result).toBe(true);
+  });
+
+  it("管理権限が無ければ出さない", () => {
+    // Given（管理権限なし・ドライバー内・2人のローテーションを組む）
+    const ctx = { canManage: false, inRotation: true, rotationLength: 2 };
+    // When（可否を判定する）
+    const result = canReorderRotation(ctx);
+    expect(result).toBe(false);
+  });
+
+  it("ドライバー外（見学者）には出さない", () => {
+    // Given（管理権限あり・ドライバー外・2人のローテーションを組む）
+    const ctx = { canManage: true, inRotation: false, rotationLength: 2 };
+    // When（可否を判定する）
+    const result = canReorderRotation(ctx);
+    expect(result).toBe(false);
+  });
+
+  it("ドライバーが1人だけなら並べ替える意味が無いので出さない", () => {
+    // Given（管理権限あり・ドライバー内・1人だけのローテーションを組む）
+    const ctx = { canManage: true, inRotation: true, rotationLength: 1 };
+    // When（可否を判定する）
+    const result = canReorderRotation(ctx);
+    expect(result).toBe(false);
   });
 });

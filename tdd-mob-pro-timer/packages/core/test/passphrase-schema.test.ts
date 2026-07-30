@@ -9,12 +9,16 @@ describe("passphrase スキーマ", () => {
     expect(v.safeParse(CommandSchema, { command: "room.join", code: "AA", displayName: "x", hasAiKey: false, passphrase: "pw" }).success).toBe(true);
   });
   it("room.passphrase.set は passphrase 必須（空文字＝解除も可）", () => {
+    // Given（入力と期待値の組をそれぞれ1行で示す）
+    // When / Then
     expect(v.safeParse(CommandSchema, { command: "room.passphrase.set", passphrase: "pw" }).success).toBe(true);
     expect(v.safeParse(CommandSchema, { command: "room.passphrase.set", passphrase: "" }).success).toBe(true);
     expect(v.safeParse(CommandSchema, { command: "room.passphrase.set" }).success).toBe(false);
   });
   it("passphrase は MAX_PASSPHRASE 超で拒否", () => {
+    // Given
     const tooLong = "a".repeat(MAX_PASSPHRASE + 1);
+    // When / Then
     expect(v.safeParse(CommandSchema, { command: "room.passphrase.set", passphrase: tooLong }).success).toBe(false);
     expect(v.safeParse(CommandSchema, { command: "room.join", code: "AA", displayName: "x", hasAiKey: false, passphrase: tooLong }).success).toBe(false);
   });

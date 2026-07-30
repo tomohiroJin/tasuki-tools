@@ -1,5 +1,5 @@
 /**
- * hostChangeMessage（ホスト交代通知メッセージ算出）の純粋関数テスト（v2.2 R2-4）。
+ * hostChangeMessage（ホスト交代通知メッセージ算出）の純粋関数テスト。
  *
  * snapshot に常に載る hostParticipantId の「直前値→現在値」変化から、
  * 明示移譲・自動委譲の双方を 1 経路で検知できることを検証する。
@@ -63,6 +63,9 @@ function room(hostId: string): Room {
   };
 }
 
+/**
+ * @requirements v2.2 R2-4
+ */
 describe("hostChangeMessage", () => {
   it("初回（prev 未定義）は null", () => {
     expect(hostChangeMessage(undefined, room("p1"), "p2")).toBeNull();

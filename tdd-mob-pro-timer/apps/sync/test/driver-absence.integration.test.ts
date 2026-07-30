@@ -17,16 +17,9 @@ import {
 } from "../src/application/presence.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
-import type { RoomCodeGen } from "../src/ports/code-gen.js";
 import type { Broadcaster } from "../src/ports/broadcaster.js";
 import type { SessionConfig, Room } from "@tdd-mob/core";
-
-class FakeCodeGen implements RoomCodeGen {
-  private _c = 0;
-  generate(): string { return `LC${String(++this._c).padStart(2, "0")}`; }
-  generateParticipantId(): string { return `pid-${++this._c}`; }
-  generateResumeToken(): string { return `rt-${++this._c}`; }
-}
+import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 class NoopBroadcaster implements Broadcaster {
   broadcastSnapshot(): void {}
@@ -41,7 +34,10 @@ const config: SessionConfig = {
   intervalMinutes: 5,
 };
 
-describe("統合: ドライバー不在 自動繰上（presence→handlers 実配線, v2.2 R2-1）", () => {
+/**
+ * @requirements v2.2 R2-1
+ */
+describe("統合: ドライバー不在 自動繰上（presence→handlers 実配線）", () => {
   let store: InMemoryRoomStore;
   let clock: FakeClock;
   let handlers: ReturnType<typeof makeHandlers>;
@@ -74,7 +70,8 @@ describe("統合: ドライバー不在 自動繰上（presence→handlers 実�
       config,
     });
     if (!create.isOk()) throw new Error("create failed");
-    const code = create.value.code;
+    // 本番（server.ts）は handleCommand の戻り値を破棄する。値は本番と同じ観測点から取る（FR-100）。
+    const code = store.list().at(-1)!.code;
     const room = store.get(code)!;
     const host = room.participants[0]!;
     const participants: Room["participants"] = ["A", "B"].map((name, i) => ({
@@ -94,15 +91,16 @@ describe("統合: ドライバー不在 自動繰上（presence→handlers 実�
   }
 
   it("現ドライバー切断→猶予後に実 handlers が currentIndex を次の online へ進める", async () => {
+    // Given
     const code = await setupRunningRoom();
 
-    // 現ドライバー A が切断 → presence が offline 化し不在タイマーを張る
+    // When（現ドライバー A が切断 → presence が offline 化し不在タイマーを張る）
     presence.handleDisconnect("conn-A");
     expect(store.get(code)!.session.currentIndex).toBe(0); // 猶予中は不変
-
     // 猶予経過 → stale-check 通過 → handlers.advanceForAbsence で B(1) へ繰り上げ
     vi.advanceTimersByTime(DRIVER_ABSENCE_GRACE_MS);
 
+    // Then
     const after = store.get(code)!;
     expect(after.session.currentIndex).toBe(1);
     expect(after.session.rotation[after.session.currentIndex]).toBe("pid-test-1"); // B

@@ -9,7 +9,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render } from "@testing-library/react";
 import React from "react";
-import type { Room, Participant, SessionConfig } from "@tdd-mob/core";
+import type { Room, Participant } from "@tdd-mob/core";
+import { aRoomView } from "../support/room-view.js";
 
 vi.mock("../../src/ui/use-countdown-tick.js", () => ({ useCountdownTick: vi.fn() }));
 
@@ -24,20 +25,18 @@ function makeParticipant(overrides: Partial<Participant>): Participant {
 }
 
 function makeRoom(running: boolean, isPaused: boolean): Room {
-  const config: SessionConfig = {
-    language: "TypeScript", difficulty: "easy", members: ["Alice", "Bob"], intervalMinutes: 5,
-  };
-  return {
-    code: "AA0001", createdAt: 0, hostParticipantId: "host-1", config, problem: null,
-    session: { rotation: ["Alice", "Bob"], currentIndex: 0, isPaused, driverCounts: [0, 0], totalSwitches: 0 },
-    clock: { running, intervalSeconds: 300, anchorServerTime: 0, secondsLeftAtAnchor: 300, accumulatedElapsedMs: 0, runningSince: running ? 0 : null },
+  return aRoomView({
+    code: "AA0001",
+    hostParticipantId: "host-1",
+    config: { members: ["Alice", "Bob"], intervalMinutes: 5 },
+    session: { rotation: ["Alice", "Bob"], isPaused, driverCounts: [0, 0] },
+    clock: { running, runningSince: running ? 0 : null },
     phase: "session",
     participants: [
       makeParticipant({ participantId: "host-1", displayName: "Alice", role: "host" }),
       makeParticipant({ participantId: "edit-1", displayName: "Bob", role: "editor", connId: "c2" }),
     ],
-    sessionRecords: [], handoffNote: "", onBreak: false,
-  };
+  });
 }
 
 const noop = () => {};
@@ -49,11 +48,15 @@ function handlers() {
   };
 }
 
-describe("Session × カウントダウン予告音の配線（Issue #2）", () => {
+/**
+ * @requirements Issue #2
+ */
+describe("Session × カウントダウン予告音の配線", () => {
   beforeEach(() => localStorage.clear());
   afterEach(() => { localStorage.clear(); vi.clearAllMocks(); });
 
   it("個人設定とタイマー走行状態をフックに渡す", () => {
+    // Given
     localStorage.setItem(
       "tdd-mob:notify:v1",
       JSON.stringify({
@@ -61,7 +64,9 @@ describe("Session × カウントダウン予告音の配線（Issue #2）", () 
         countdownEnabled: true, countdownSeconds: 10,
       }),
     );
+    // When
     render(<Session room={makeRoom(true, false)} participantId="host-1" {...handlers()} />);
+    // Then
     expect(useCountdownTick).toHaveBeenCalledWith(
       expect.any(Number),
       true,
@@ -75,7 +80,11 @@ describe("Session × カウントダウン予告音の配線（Issue #2）", () 
   });
 
   it("個人設定 OFF（既定）のとき enabled=false を渡す", () => {
-    render(<Session room={makeRoom(true, false)} participantId="host-1" {...handlers()} />);
+    // Given（running=true・isPaused=false の部屋）
+    const room = makeRoom(true, false);
+    // When
+    render(<Session room={room} participantId="host-1" {...handlers()} />);
+    // Then
     expect(useCountdownTick).toHaveBeenCalledWith(
       expect.any(Number),
       true,

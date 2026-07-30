@@ -12,24 +12,32 @@ describe("computeRotationStatus", () => {
   };
 
   it("turnsAway は現在を 0 として循環する", () => {
+    // Given
     const r = computeRotationStatus(base);
+    // When / Then
     expect(r.members.map((m) => m.turnsAway)).toEqual([0, 1, 2]);
     expect(r.members[0]!.isCurrent).toBe(true);
     expect(r.members[1]!.isNext).toBe(true);
   });
 
   it("currentIndex が進むと turnsAway が回る", () => {
+    // Given
     const r = computeRotationStatus({ ...base, currentIndex: 1 });
+    // When / Then
     const byName = Object.fromEntries(r.members.map((m) => [m.name, m.turnsAway]));
     expect(byName).toEqual({ Bob: 0, Carol: 1, Alice: 2 });
   });
 
   it("自分の minutesAway は interval×turnsAway/60（停止中は null）", () => {
+    // Given
     const r = computeRotationStatus({ ...base, currentIndex: 0 });
+    // When / Then
     expect(r.self?.name).toBe("Carol");
     expect(r.self?.turnsAway).toBe(2);
     expect(r.self?.minutesAway).toBe(10); // 300s×2=600s=10分
+    // Given（停止中）
     const paused = computeRotationStatus({ ...base, isPaused: true });
+    // Then
     expect(paused.self?.minutesAway).toBeNull();
   });
 
@@ -39,13 +47,14 @@ describe("computeRotationStatus", () => {
   });
 
   it("同名が並んでも participantId で区別できる（React の key に使う）", () => {
-    // 表示名を key にすると同名の行が衝突し、強調が別人に付く。
+    // Given（表示名を key にすると同名の行が衝突し、強調が別人に付く）
     const r = computeRotationStatus({
       ...base,
       rotation: [mk("p1", "Bob", "Bob（ID: p1）"), mk("p2", "Bob", "Bob（ID: p2）")],
       currentIndex: 0,
       selfIndex: 1,
     });
+    // When / Then
     expect(r.members.map((m) => m.participantId)).toEqual(["p1", "p2"]);
     expect(r.members.map((m) => m.isSelf)).toEqual([false, true]);
     // 画面に出る名前は呼び名（同名なら識別子つき）。素の表示名だと両方「Bob」になる。
@@ -53,7 +62,9 @@ describe("computeRotationStatus", () => {
   });
 
   it("空 rotation でも例外なく空配列を返す", () => {
+    // Given
     const r = computeRotationStatus({ ...base, rotation: [], currentIndex: 0 });
+    // When / Then
     expect(r.members).toEqual([]);
     expect(r.self).toBeNull();
   });

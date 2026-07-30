@@ -6,22 +6,10 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { makeHandlers } from "../src/application/handlers.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
-import type { RoomCodeGen } from "../src/ports/code-gen.js";
-import type { Broadcaster } from "../src/ports/broadcaster.js";
-import type { ServerMsg, SessionConfig, Room } from "@tdd-mob/core";
+import type { SessionConfig, Room } from "@tdd-mob/core";
+import { SpyBroadcaster } from "./support/spy-broadcaster.js";
+import { FakeCodeGen } from "./support/fake-code-gen.js";
 
-class FakeCodeGen implements RoomCodeGen {
-  private _c = 0;
-  generate(): string { return `LC${String(++this._c).padStart(2, "0")}`; }
-  generateParticipantId(): string { return `pid-${++this._c}`; }
-  generateResumeToken(): string { return `rt-${++this._c}`; }
-}
-class SpyBroadcaster implements Broadcaster {
-  readonly sent: Array<{ connId: string; msg: ServerMsg }> = [];
-  broadcastSnapshot(): void {}
-  sendTo(connId: string, msg: ServerMsg): void { this.sent.push({ connId, msg }); }
-  broadcastSignal(): void {}
-}
 const config: SessionConfig = { language: "TypeScript", difficulty: "easy", members: ["A"], intervalMinutes: 5 };
 
 /** host A を作り、rotation [A,B,C] を稼働中にして B/C の eligibility を上書きした room を置く。 */
@@ -34,7 +22,8 @@ async function setup(
     command: "room.create", displayName: "A", config: { ...config, members: ["A"] },
   });
   if (!create.isOk()) throw new Error("create failed");
-  const code = create.value.code;
+  // 本番（server.ts）は handleCommand の戻り値を破棄する。値は本番と同じ観測点から取る（FR-100）。
+  const code = store.list().at(-1)!.code;
   const room = store.get(code)!;
   const host = room.participants[0]!;
   const mk = (id: string, name: string, conn: string, ov: Partial<Room["participants"][number]> = {}): Room["participants"][number] =>
@@ -58,14 +47,20 @@ describe("手動スキップの eligibility（v2.10 #3）", () => {
   });
 
   it("一時離脱(driverEligible=false)の次メンバーを飛ばして次の eligible へ進む", async () => {
-    const code = await setup(handlers, store, { driverEligible: false }); // B は一時離脱
+    // Given（B は一時離脱）
+    const code = await setup(handlers, store, { driverEligible: false });
+    // When
     await handlers.handleCommand("conn-a", { command: "session.act", action: "SWITCH" });
+    // Then
     expect(store.get(code)!.session.currentIndex).toBe(2); // B を飛ばして C へ
   });
 
   it("全員 eligible なら従来どおり次へ（+1）", async () => {
-    const code = await setup(handlers, store, {}); // B も eligible
+    // Given（B も eligible）
+    const code = await setup(handlers, store, {});
+    // When
     await handlers.handleCommand("conn-a", { command: "session.act", action: "SWITCH" });
+    // Then
     expect(store.get(code)!.session.currentIndex).toBe(1); // B へ
   });
 });

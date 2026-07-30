@@ -6,30 +6,15 @@
  * `checkPermission()` の1層へ置換する際、この特性テストが層①②③⑤の喪失を検出する。
  *
  * 設計: docs/plans/host-spof-relaxation/plan.md「判定の順序」5a/5b
- * 要件: FR-066, FR-070, US6
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
 import { makeHandlers } from "../src/application/handlers.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
-import type { RoomCodeGen } from "../src/ports/code-gen.js";
-import type { Broadcaster } from "../src/ports/broadcaster.js";
-import type { ServerMsg, SessionConfig } from "@tdd-mob/core";
-
-class FakeCodeGen implements RoomCodeGen {
-  private _c = 0;
-  generate(): string { return `PB${String(++this._c).padStart(2, "0")}`; }
-  generateParticipantId(): string { return `pid-pb-${++this._c}`; }
-  generateResumeToken(): string { return `rt-pb-${++this._c}`; }
-}
-
-class SpyBroadcaster implements Broadcaster {
-  readonly sent: Array<{ connId: string; msg: ServerMsg }> = [];
-  broadcastSnapshot(): void {}
-  sendTo(connId: string, msg: ServerMsg): void { this.sent.push({ connId, msg }); }
-  broadcastSignal(): void {}
-}
+import type { SessionConfig } from "@tdd-mob/core";
+import { SpyBroadcaster } from "./support/spy-broadcaster.js";
+import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 const config: SessionConfig = {
   language: "TypeScript",
@@ -42,7 +27,10 @@ const HOST_CONN = "before-host";
 const EDITOR_CONN = "before-editor";
 const CAROL_CONN = "before-carol";
 
-describe("開始前の権限（FR-066・従来どおり主催者主導）", () => {
+/**
+ * @requirements FR-066, US6
+ */
+describe("開始前の権限（従来どおり主催者主導）", () => {
   let store: InMemoryRoomStore;
   let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
@@ -67,7 +55,8 @@ describe("開始前の権限（FR-066・従来どおり主催者主導）", () =
       config,
     });
     if (!created.isOk()) throw new Error("room.create failed");
-    roomCode = created.value.code;
+    // 本番（server.ts）は handleCommand の戻り値を破棄する。値は本番と同じ観測点から取る（FR-100）。
+    roomCode = broadcaster.createdFor(HOST_CONN).code;
 
     // join の既定ロールは editor（UX 再設計）。降格せずそのまま使う。
     // rotation は参加者IDの配列（D6b）。config.members に名前を並べるだけでは輪に入らないため、
@@ -81,7 +70,7 @@ describe("開始前の権限（FR-066・従来どおり主催者主導）", () =
       });
       if (!joinResult.isOk()) throw new Error(`room.join failed: ${displayName}`);
       const addResult = await handlers.handleCommand(connId, {
-        command: "member.add", participantId: joinResult.value.participantId,
+        command: "member.add", participantId: broadcaster.joinedFor(connId).participantId,
       });
       if (!addResult.isOk()) throw new Error(`member.add failed: ${displayName}`);
     }
@@ -116,8 +105,11 @@ describe("開始前の権限（FR-066・従来どおり主催者主導）", () =
 
     for (const [name, build] of hostOnlyCases) {
       it(`editor は ${name} を実行できない`, async () => {
-        const result = await handlers.handleCommand(EDITOR_CONN, build());
-
+        // Given（表内の各コマンドを対象にする。差分は hostOnlyCases のエントリそのもの）
+        const command = build();
+        // When
+        const result = await handlers.handleCommand(EDITOR_CONN, command);
+        // Then
         expect(result.isErr()).toBe(true);
         expect(lastError(EDITOR_CONN)?.code).toBe("UNAUTHORIZED");
       });
@@ -126,59 +118,80 @@ describe("開始前の権限（FR-066・従来どおり主催者主導）", () =
 
   describe("他人対象の関係コマンド（層②③）は editor が実行できない", () => {
     it("editor は他人を participant.rename できない", async () => {
-      const result = await handlers.handleCommand(EDITOR_CONN, {
+      // Given
+      const command = {
         command: "participant.rename", participantId: carolPid, displayName: "Renamed",
-      });
+      } as const;
 
+      // When
+      const result = await handlers.handleCommand(EDITOR_CONN, command);
+
+      // Then
       expect(result.isErr()).toBe(true);
       expect(lastError(EDITOR_CONN)?.code).toBe("UNAUTHORIZED");
     });
 
     it("editor は他人の名前を member.add できない（ローテーション所有権）", async () => {
-      const result = await handlers.handleCommand(EDITOR_CONN, {
-        command: "member.add", participantId: carolPid,
-      });
+      // Given
+      const command = { command: "member.add", participantId: carolPid } as const;
 
+      // When
+      const result = await handlers.handleCommand(EDITOR_CONN, command);
+
+      // Then
       expect(result.isErr()).toBe(true);
       expect(lastError(EDITOR_CONN)?.code).toBe("UNAUTHORIZED");
     });
 
     it("editor は他人の位置を member.remove できない（ローテーション所有権）", async () => {
-      // rotation は参加者IDの並び（作成者 → Editor → Carol）。index 2 は Carol。
-      const result = await handlers.handleCommand(EDITOR_CONN, {
-        command: "member.remove", index: 2,
-      });
+      // Given（rotation は参加者IDの並び（作成者 → Editor → Carol）。index 2 は Carol）
+      const command = { command: "member.remove", index: 2 } as const;
 
+      // When
+      const result = await handlers.handleCommand(EDITOR_CONN, command);
+
+      // Then
       expect(result.isErr()).toBe(true);
       expect(lastError(EDITOR_CONN)?.code).toBe("UNAUTHORIZED");
     });
 
     it("editor は自分の位置なら member.remove できる（自己対象は許可）", async () => {
-      // index 1 は Editor 自身。
-      const result = await handlers.handleCommand(EDITOR_CONN, {
-        command: "member.remove", index: 1,
-      });
+      // Given（index 1 は Editor 自身）
+      const command = { command: "member.remove", index: 1 } as const;
 
-      expect(result.isOk()).toBe(true);
+      // When
+      const result = await handlers.handleCommand(EDITOR_CONN, command);
+
+      // Then
+      result._unsafeUnwrap();
       expect(lastError(EDITOR_CONN)).toBeUndefined();
     });
   });
 
+  /**
+   * @requirements FR-070
+   */
   describe("在室していない接続", () => {
-    it("在室していない接続の操作は NOT_IN_ROOM で拒否される（FR-070）", async () => {
-      const result = await handlers.handleCommand("stranger-conn", {
-        command: "driver.assign", participantId: editorPid,
-      });
+    it("在室していない接続の操作は NOT_IN_ROOM で拒否される", async () => {
+      // Given
+      const command = { command: "driver.assign", participantId: editorPid } as const;
 
+      // When
+      const result = await handlers.handleCommand("stranger-conn", command);
+
+      // Then
       expect(result.isErr()).toBe(true);
       expect(lastError("stranger-conn")?.code).toBe("NOT_IN_ROOM");
     });
 
-    it("在室していない接続の専用ハンドラ経由の操作も NOT_IN_ROOM で拒否される（FR-070）", async () => {
-      const result = await handlers.handleCommand("stranger-conn", {
-        command: "room.passphrase.set", passphrase: "pw",
-      });
+    it("在室していない接続の専用ハンドラ経由の操作も NOT_IN_ROOM で拒否される", async () => {
+      // Given
+      const command = { command: "room.passphrase.set", passphrase: "pw" } as const;
 
+      // When
+      const result = await handlers.handleCommand("stranger-conn", command);
+
+      // Then
       expect(result.isErr()).toBe(true);
       expect(lastError("stranger-conn")?.code).toBe("NOT_IN_ROOM");
     });

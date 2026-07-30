@@ -1,14 +1,13 @@
 /**
  * ホスト委譲テスト
- * T048: FR-018, FR-020, SC-006
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { PresenceManager, HOST_ABSENCE_GRACE_MS } from "../src/application/presence.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
-import type { Room, ServerMsg } from "@tdd-mob/core";
-import type { Broadcaster } from "../src/ports/broadcaster.js";
+import type { Room } from "@tdd-mob/core";
+import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 
 function makeTestRoom(code: string): Room {
   return {
@@ -64,16 +63,10 @@ function makeTestRoom(code: string): Room {
   };
 }
 
-class SpyBroadcaster implements Broadcaster {
-  readonly sent: Array<{ connId: string; msg: ServerMsg }> = [];
-  readonly snapshots: string[] = [];
-  readonly signals: string[] = [];
-  broadcastSnapshot(code: string): void { this.snapshots.push(code); }
-  sendTo(connId: string, msg: ServerMsg): void { this.sent.push({ connId, msg }); }
-  broadcastSignal(code: string): void { this.signals.push(code); }
-}
-
-describe("PresenceManager: ホスト委譲（FR-018, SC-006）", () => {
+/**
+ * @requirements FR-014, FR-018, FR-020, SC-006
+ */
+describe("PresenceManager: ホスト委譲", () => {
   let store: InMemoryRoomStore;
   let broadcaster: SpyBroadcaster;
   let clock: FakeClock;
@@ -91,32 +84,28 @@ describe("PresenceManager: ホスト委譲（FR-018, SC-006）", () => {
     vi.useRealTimers();
   });
 
-  it("ホスト切断後、猶予時間後にオンライン編集者へ委譲される（FR-018）", () => {
+  it("ホスト切断後、猶予時間後にオンライン編集者へ委譲される", () => {
+    // Given
     const room = makeTestRoom("HTEST");
     store.put(room);
-
-    // ホスト切断
-    manager.handleDisconnect("host-conn");
-
+    manager.handleDisconnect("host-conn"); // ホスト切断
     broadcaster.snapshots.length = 0;
 
-    // 猶予時間経過
+    // When
     vi.advanceTimersByTime(HOST_ABSENCE_GRACE_MS + 100);
 
-    // 委譲されて snapshot が配信される
+    // Then（委譲されて snapshot が配信される）
     expect(broadcaster.snapshots.length).toBeGreaterThan(0);
-
     const updatedRoom = store.get("HTEST");
     const newHost = updatedRoom?.participants.find((p) => p.role === "host");
     expect(newHost?.participantId).toBe("editor-p02");
   });
 
   it("ホストが猶予内に再接続すると委譲しない", () => {
+    // Given
     const room = makeTestRoom("HTEST2");
     store.put(room);
-
     manager.handleDisconnect("host-conn");
-
     // 猶予内に再接続（ping）
     const reconnected = {
       ...room,
@@ -125,22 +114,25 @@ describe("PresenceManager: ホスト委譲（FR-018, SC-006）", () => {
       ),
     };
     store.put(reconnected);
-
     broadcaster.snapshots.length = 0;
 
+    // When
     vi.advanceTimersByTime(HOST_ABSENCE_GRACE_MS + 100);
 
-    // 委譲は起きない（hostParticipantId が変わっていない）
+    // Then（委譲は起きない。hostParticipantId が変わっていない）
     const updatedRoom = store.get("HTEST2");
     expect(updatedRoom?.hostParticipantId).toBe("host-p01");
   });
 
-  it("切断で presence が offline になり snapshot が配信される（FR-014）", () => {
+  it("切断で presence が offline になり snapshot が配信される", () => {
+    // Given
     const room = makeTestRoom("HTEST3");
     store.put(room);
 
+    // When
     manager.handleDisconnect("editor-conn");
 
+    // Then
     const updatedRoom = store.get("HTEST3");
     const editor = updatedRoom?.participants.find((p) => p.participantId === "editor-p02");
     expect(editor?.presence).toBe("offline");

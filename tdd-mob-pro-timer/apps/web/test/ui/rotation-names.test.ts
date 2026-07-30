@@ -19,7 +19,9 @@ const p = (participantId: string, displayName: string): Participant => ({
 
 describe("rotationMembers", () => {
   it("rotation の順序どおりに識別子と表示名を対にして返す", () => {
+    // Given
     const participants = [p("p2", "Bob"), p("p1", "Alice")];
+    // When / Then
     expect(rotationMembers(["p1", "p2"], participants)).toEqual([
       { participantId: "p1", displayName: "Alice", label: "Alice" },
       { participantId: "p2", displayName: "Bob", label: "Bob" },
@@ -27,8 +29,9 @@ describe("rotationMembers", () => {
   });
 
   it("同名が並んでも識別子で区別できる（React の key に使えることを保証する）", () => {
-    // 表示名だけの配列にすると key が衝突し、同名の行が取り違えられる。
+    // Given（表示名だけの配列にすると key が衝突し、同名の行が取り違えられる）
     const members = rotationMembers(["p1", "p2"], [p("p1", "Bob"), p("p2", "Bob")]);
+    // When / Then
     expect(members.map((m) => m.displayName)).toEqual(["Bob", "Bob"]);
     expect(members.map((m) => m.participantId)).toEqual(["p1", "p2"]);
     // 呼び名には識別子が付き、画面上でも区別できる。
@@ -36,14 +39,17 @@ describe("rotationMembers", () => {
   });
 
   it("participants に居ない ID は表示名が空になる（枠は落とさない）", () => {
-    // 枠を落とすと currentIndex や driverCounts と長さがずれるため、詰めてはいけない。
+    // Given（枠を落とすと currentIndex や driverCounts と長さがずれるため、詰めてはいけない）
     const members = rotationMembers(["p1", "ghost"], [p("p1", "Alice")]);
+    // When / Then
     expect(members).toHaveLength(2);
     expect(members[1]).toEqual({ participantId: "ghost", displayName: "", label: "" });
   });
 
   it("参加者の並び順には依存しない（rotation が唯一の順序の源）", () => {
+    // Given
     const shuffled = [p("p3", "Carol"), p("p1", "Alice"), p("p2", "Bob")];
+    // When / Then
     expect(rotationMembers(["p2", "p3", "p1"], shuffled).map((m) => m.displayName)).toEqual([
       "Bob",
       "Carol",

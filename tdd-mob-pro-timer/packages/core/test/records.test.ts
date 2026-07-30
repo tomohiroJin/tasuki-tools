@@ -5,9 +5,10 @@
 
 import { describe, it, expect } from "vitest";
 import { buildCompletionRecord } from "../src/records.js";
-import { initialAggregate, elapsedMs } from "../src/aggregate.js";
+import { elapsedMs } from "../src/aggregate.js";
 import { evolve } from "../src/evolve.js";
-import type { SessionConfig, Problem } from "../src/aggregate.js";
+import type { SessionConfig, Problem, Aggregate } from "../src/aggregate.js";
+import { anAggregate } from "./support/aggregate-builder.js";
 
 const baseConfig: SessionConfig = {
   language: "TypeScript",
@@ -26,10 +27,12 @@ const problem: Problem = {
 
 describe("buildCompletionRecord", () => {
   it("必要なフィールドが全て含まれる", () => {
-    const agg = initialAggregate(baseConfig, baseConfig.members);
+    // Given
+    const agg = anAggregate().build();
     const completedAt = 1000000 + 300000;
+    // When
     const record = buildCompletionRecord(agg, problem, baseConfig, completedAt);
-
+    // Then
     expect(record.problemTitle).toBe(problem.title);
     expect(record.language).toBe(baseConfig.language);
     expect(record.difficulty).toBe(baseConfig.difficulty);
@@ -38,34 +41,31 @@ describe("buildCompletionRecord", () => {
     expect(record.id).toBeTruthy();
   });
 
-  it("elapsedSeconds は停止時間を除いた稼働時間（SC-004）", () => {
+  /**
+   * @requirements SC-004
+   */
+  it("elapsedSeconds は停止時間を除いた稼働時間", () => {
+    // Given（開始 → 60秒稼働 → 一時停止 → 30秒の停止（計上しない）→ 再開 → 40秒稼働して完成）
     const startTime = 1000000;
-    let agg = initialAggregate(baseConfig, baseConfig.members);
-
-    // セッション開始
+    let agg = anAggregate().build();
     agg = evolve(agg, { type: "SessionStarted", now: startTime }, startTime);
-
-    // 60秒稼働後、一時停止
     const pauseTime = startTime + 60000;
     agg = evolve(agg, { type: "SessionPaused", now: pauseTime }, pauseTime);
-
-    // 30秒の停止（この時間は計上しない）
     const resumeTime = pauseTime + 30000;
     agg = evolve(agg, { type: "SessionResumed", now: resumeTime }, resumeTime);
-
-    // さらに 40秒稼働して完成
     const completeTime = resumeTime + 40000;
-
+    // When
     const totalElapsed = elapsedMs(agg.clock, completeTime);
-    expect(totalElapsed).toBe(100000); // 60秒 + 40秒 = 100秒（停止30秒は含まない）
-
     const record = buildCompletionRecord(agg, problem, baseConfig, completeTime);
+    // Then（60秒 + 40秒 = 100秒。停止30秒は含まない）
+    expect(totalElapsed).toBe(100000);
     expect(record.elapsedSeconds).toBe(100); // ms → seconds
   });
 
   it("totalSwitches が集約から転記される", () => {
+    // Given（2回交代した集約を作る）
     const startTime = 1000000;
-    let agg = initialAggregate(baseConfig, baseConfig.members);
+    let agg = anAggregate().build();
     agg = evolve(agg, { type: "SessionStarted", now: startTime }, startTime);
     agg = evolve(
       agg,
@@ -77,41 +77,86 @@ describe("buildCompletionRecord", () => {
       { type: "DriverSwitched", nextIndex: 2, now: startTime + 20000 },
       startTime + 20000,
     );
-
+    // When
     const record = buildCompletionRecord(agg, problem, baseConfig, startTime + 20000);
+    // Then
     expect(record.totalSwitches).toBe(2);
   });
 
   it("id は一意（2つの記録が同じ id を持たない）", () => {
-    const agg = initialAggregate(baseConfig, baseConfig.members);
+    // Given
+    const agg = anAggregate().build();
+    // When
     const r1 = buildCompletionRecord(agg, problem, baseConfig, 1000000);
     const r2 = buildCompletionRecord(agg, problem, baseConfig, 1000001);
+    // Then
     expect(r1.id).not.toBe(r2.id);
   });
 });
 
-// ─── T008: 中断（abort）は記録を生成しない ────────────────────────────────────
-
+/**
+ * @requirements T008
+ */
 describe("中断（SessionAborted）の記録扱い", () => {
-  it("SessionAborted イベント自体は CompletionRecord を持たない", () => {
-    // SessionAborted イベントには記録生成に必要な情報が無いことを確認する。
-    // （実際の「保存を呼ばない」制御は handlers/App.tsx 層で行う。
-    //   ここではドメインイベント型の設計確認。）
-    const abortedEvent: import("../src/events.js").SessionAborted = {
-      type: "SessionAborted",
-      now: 1000000,
-    };
+  it("SessionAborted イベント自体には CompletionRecord に必要な problemTitle / members が存在しない", () => {
+    // Given（実際の「保存を呼ばない」制御は handlers/App.tsx 層で行う。ここではドメインイベント型の設計確認）
+    const rawEvent = { type: "SessionAborted", now: 1000000 };
+    // When（rawEvent が SessionAborted 型として受理されることを確認する）
+    const abortedEvent: import("../src/events.js").SessionAborted = rawEvent;
+    // Then
     expect(abortedEvent.type).toBe("SessionAborted");
-    // CompletionRecord に必要な problemTitle / members 等が存在しないことを型で確認
     expect("problemTitle" in abortedEvent).toBe(false);
     expect("members" in abortedEvent).toBe(false);
   });
 
   it("SessionCompleted イベントには now が含まれ、buildCompletionRecord で記録を作れる", () => {
-    const agg = initialAggregate(baseConfig, baseConfig.members);
-    // 完成時のみ記録を生成することを再確認（abort とは対照的に）
+    // Given（完成時のみ記録を生成することを確認する。abort とは対照的）
+    const agg = anAggregate().build();
+    // When
     const record = buildCompletionRecord(agg, problem, baseConfig, 1000000);
+    // Then
     expect(record.problemTitle).toBe(problem.title);
     expect(record.completedAt).toBe(1000000);
+  });
+});
+
+// ─── buildCompletionRecord: 周回数とドライバー回数（coverage-supplement.test.ts より移動・T036） ──
+
+describe("buildCompletionRecord: 周回数とドライバー回数", () => {
+  const shortProblem: Problem = {
+    title: "T", description: "d", requirements: [], exampleTest: "", hints: [],
+  };
+
+  it("rotation 長で割った周回数を記録する", () => {
+    // Given
+    let agg = anAggregate().build();
+    agg = { ...agg, session: { ...agg.session, totalSwitches: 6, driverCounts: [2, 2, 2] } };
+    // When
+    const rec = buildCompletionRecord(agg, shortProblem, baseConfig, 1000000);
+    // Then（6 / 3 = 2）
+    expect(rec.rounds).toBe(2);
+    expect(rec.driverCounts).toEqual([2, 2, 2]);
+  });
+
+  it("roomId を渡すと記録に含める", () => {
+    // Given
+    const agg = anAggregate().build();
+    const roomId = "ROOM-1";
+    // When
+    const rec = buildCompletionRecord(agg, shortProblem, baseConfig, 1000000, roomId);
+    // Then
+    expect(rec.roomId).toBe("ROOM-1");
+  });
+
+  it("rotation が空なら周回数は 0", () => {
+    // Given
+    const agg: Aggregate = {
+      session: { rotation: [], currentIndex: 0, isPaused: false, driverCounts: [], totalSwitches: 0 },
+      clock: { running: false, intervalSeconds: 300, anchorServerTime: 0, secondsLeftAtAnchor: 300, accumulatedElapsedMs: 0, runningSince: null },
+    };
+    // When
+    const rec = buildCompletionRecord(agg, shortProblem, baseConfig, 1000000);
+    // Then
+    expect(rec.rounds).toBe(0);
   });
 });

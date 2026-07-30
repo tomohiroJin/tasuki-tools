@@ -1,6 +1,5 @@
 /**
  * 権限判定の結合テスト（コマンド経路）
- * T044: FR-016, FR-017, US5 / host-spof-relaxation T018: FR-071
  *
  * 可否の規則そのものは `packages/core` の純粋関数 `checkPermission()` が単独で持ち、
  * `packages/core/test/permissions.test.ts` と `permissions-differential.test.ts` が
@@ -20,27 +19,13 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { makeHandlers } from "../src/application/handlers.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
-import type { RoomCodeGen } from "../src/ports/code-gen.js";
-import type { Broadcaster } from "../src/ports/broadcaster.js";
-import type { ServerMsg } from "@tdd-mob/core";
+import { SpyBroadcaster } from "./support/spy-broadcaster.js";
+import { FakeCodeGen } from "./support/fake-code-gen.js";
 
-class FakeCodeGen implements RoomCodeGen {
-  private _counter = 0;
-  generate(): string { return `AUTH${String(++this._counter).padStart(2, "0")}`; }
-  generateParticipantId(): string { return `pid-${++this._counter}`; }
-  generateResumeToken(): string { return `rt-${++this._counter}`; }
-}
-
-class SpyBroadcaster implements Broadcaster {
-  readonly sent: Array<{ connId: string; msg: ServerMsg }> = [];
-  readonly snapshots: string[] = [];
-  readonly signals: string[] = [];
-  broadcastSnapshot(code: string): void { this.snapshots.push(code); }
-  sendTo(connId: string, msg: ServerMsg): void { this.sent.push({ connId, msg }); }
-  broadcastSignal(code: string): void { this.signals.push(code); }
-}
-
-describe("コマンド経路: 既定ロールと拒否の伝播（FR-016, FR-017）", () => {
+/**
+ * @requirements FR-016, FR-017, US5
+ */
+describe("コマンド経路: 既定ロールと拒否の伝播", () => {
   let store: InMemoryRoomStore;
   let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
@@ -57,13 +42,12 @@ describe("コマンド経路: 既定ロールと拒否の伝播（FR-016, FR-017
     });
 
     // ルームを作成
-    const result = await handlers.handleCommand("host-conn", {
+    await handlers.handleCommand("host-conn", {
       command: "room.create",
       displayName: "Host",
     });
-    if (result.isOk()) {
-      roomCode = result.value.code;
-    }
+    // 本番（server.ts）は handleCommand の戻り値を破棄する。値は本番と同じ観測点から取る（FR-100）。
+    roomCode = broadcaster.createdFor("host-conn").code;
 
     // 参加者が join（既定は editor）。viewer 制限の検証用に host が viewer へ降格する。
     await handlers.handleCommand("viewer-conn", {
@@ -85,24 +69,29 @@ describe("コマンド経路: 既定ロールと拒否の伝播（FR-016, FR-017
   });
 
   it("新規参加者はデフォルトで editor（UX 再設計: すぐ参加して回せる）", async () => {
-    // 別の参加者を join させ、既定ロールを確認する（beforeEach の Viewer は降格済みのため）。
-    await handlers.handleCommand("fresh-conn", {
+    // Given（beforeEach の Viewer は降格済み。別の参加者を新規 join させる）
+    const command = {
       command: "room.join",
       code: roomCode,
       displayName: "Fresh",
       hasAiKey: false,
-    });
+    } as const;
+    // When
+    await handlers.handleCommand("fresh-conn", command);
+
+    // Then
     const room = store.get(roomCode);
     const fresh = room?.participants.find((p) => p.displayName === "Fresh");
     expect(fresh?.role).toBe("editor");
   });
 
-  it("viewer は session.act を実行できない（FR-017）", async () => {
-    await handlers.handleCommand("viewer-conn", {
-      command: "session.act",
-      action: "START",
-    });
+  it("viewer は session.act を実行できない", async () => {
+    // Given
+    const command = { command: "session.act", action: "START" } as const;
+    // When
+    await handlers.handleCommand("viewer-conn", command);
 
+    // Then
     const error = broadcaster.sent.find((s) => s.msg.type === "error");
     expect(error).toBeTruthy();
     if (error?.msg.type === "error") {
@@ -111,9 +100,12 @@ describe("コマンド経路: 既定ロールと拒否の伝播（FR-016, FR-017
   });
 });
 
-// ─── コマンド経路: 許可の伝播（T026） ────────────────────────────────────────
+// ─── コマンド経路: 許可の伝播 ────────────────────────────────────────────────
 
-describe("コマンド経路: 許可が decide まで届く（T026）", () => {
+/**
+ * @requirements FR-055
+ */
+describe("コマンド経路: 許可が decide まで届く", () => {
   let store: InMemoryRoomStore;
   let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
@@ -133,11 +125,12 @@ describe("コマンド経路: 許可が decide まで届く（T026）", () => {
     hostConnId = "host-conn-v2";
     viewerConnId = "viewer-conn-v2";
 
-    const result = await handlers.handleCommand(hostConnId, {
+    await handlers.handleCommand(hostConnId, {
       command: "room.create",
       displayName: "Host",
     });
-    if (result.isOk()) roomCode = result.value.code;
+    // 本番（server.ts）は handleCommand の戻り値を破棄する。値は本番と同じ観測点から取る（FR-100）。
+    roomCode = broadcaster.createdFor(hostConnId).code;
 
     await handlers.handleCommand(viewerConnId, {
       command: "room.join",
@@ -158,8 +151,11 @@ describe("コマンド経路: 許可が decide まで届く（T026）", () => {
     broadcaster.snapshots.length = 0;
   });
 
-  it("viewer は session.abort を実行できない（FR-055）", async () => {
+  it("viewer は session.abort を実行できない", async () => {
+    // Given（viewer 権限で session.abort を対象にする）
+    // When
     await handlers.handleCommand(viewerConnId, { command: "session.abort" });
+    // Then
     const error = broadcaster.sent.find((s) => s.msg.type === "error");
     expect(error).toBeTruthy();
     if (error?.msg.type === "error") {
@@ -167,18 +163,25 @@ describe("コマンド経路: 許可が decide まで届く（T026）", () => {
     }
   });
 
-  it("host は session.abort を実行できる（FR-055）", async () => {
+  it("host は session.abort を実行できる", async () => {
+    // Given（host 権限で session.abort を対象にする）
+    // When
     await handlers.handleCommand(hostConnId, { command: "session.abort" });
+    // Then
     const error = broadcaster.sent.find((s) => s.msg.type === "error");
     expect(error).toBeUndefined();
   });
 
-  it("host は participant.addProxy を実行できる（FR-055）", async () => {
-    await handlers.handleCommand(hostConnId, {
+  it("host は participant.addProxy を実行できる", async () => {
+    // Given
+    const command = {
       command: "participant.addProxy",
       displayName: "Dave",
       participantId: "proxy-99",
-    });
+    } as const;
+    // When
+    await handlers.handleCommand(hostConnId, command);
+    // Then
     const error = broadcaster.sent.find((s) => s.msg.type === "error");
     expect(error).toBeUndefined();
   });
@@ -188,6 +191,10 @@ describe("コマンド経路: 許可が decide まで届く（T026）", () => {
 // core の checkPermission は isSelfTarget を「入力」として受け取るため、その算出の
 // 正しさは core では検証できない。participantId で対象を指すコマンドについて、
 // 「本人 / 他人」の解決がコマンド経路で機能していることをここで担保する。
+
+/**
+ * @requirements FR-071
+ */
 describe("resolveIsSelfTarget: driver.skip / driver.resume の対象解決（本人 or host）", () => {
   let store: InMemoryRoomStore;
   let broadcaster: SpyBroadcaster;
@@ -212,11 +219,12 @@ describe("resolveIsSelfTarget: driver.skip / driver.resume の対象解決（本
     editorConnId = "editor-conn-rel";
     viewerConnId = "viewer-conn-rel";
 
-    const result = await handlers.handleCommand(hostConnId, {
+    await handlers.handleCommand(hostConnId, {
       command: "room.create",
       displayName: "Host",
     });
-    if (result.isOk()) roomCode = result.value.code;
+    // 本番（server.ts）は handleCommand の戻り値を破棄する。値は本番と同じ観測点から取る（FR-100）。
+    roomCode = broadcaster.createdFor(hostConnId).code;
 
     await handlers.handleCommand(editorConnId, {
       command: "room.join",
@@ -247,10 +255,11 @@ describe("resolveIsSelfTarget: driver.skip / driver.resume の対象解決（本
   });
 
   it("editor は他人を driver.skip できない（fail-closed）", async () => {
-    await handlers.handleCommand(editorConnId, {
-      command: "driver.skip",
-      participantId: viewerPid,
-    });
+    // Given（editor が他人＝viewer を対象に driver.skip する）
+    const command = { command: "driver.skip", participantId: viewerPid } as const;
+    // When
+    await handlers.handleCommand(editorConnId, command);
+    // Then
     const error = broadcaster.sent.find((s) => s.msg.type === "error");
     expect(error).toBeTruthy();
     if (error?.msg.type === "error") {
@@ -259,28 +268,31 @@ describe("resolveIsSelfTarget: driver.skip / driver.resume の対象解決（本
   });
 
   it("viewer は自分を driver.skip できる（本人）", async () => {
-    await handlers.handleCommand(viewerConnId, {
-      command: "driver.skip",
-      participantId: viewerPid,
-    });
+    // Given（viewer が自分自身を対象に driver.skip する）
+    const command = { command: "driver.skip", participantId: viewerPid } as const;
+    // When
+    await handlers.handleCommand(viewerConnId, command);
+    // Then
     const error = broadcaster.sent.find((s) => s.msg.type === "error");
     expect(error).toBeUndefined();
   });
 
   it("host は他人を driver.skip できる（host）", async () => {
-    await handlers.handleCommand(hostConnId, {
-      command: "driver.skip",
-      participantId: viewerPid,
-    });
+    // Given（host が他人＝viewer を対象に driver.skip する）
+    const command = { command: "driver.skip", participantId: viewerPid } as const;
+    // When
+    await handlers.handleCommand(hostConnId, command);
+    // Then
     const error = broadcaster.sent.find((s) => s.msg.type === "error");
     expect(error).toBeUndefined();
   });
 
   it("editor は他人を driver.resume できない（fail-closed）", async () => {
-    await handlers.handleCommand(editorConnId, {
-      command: "driver.resume",
-      participantId: viewerPid,
-    });
+    // Given（editor が他人＝viewer を対象に driver.resume する）
+    const command = { command: "driver.resume", participantId: viewerPid } as const;
+    // When
+    await handlers.handleCommand(editorConnId, command);
+    // Then
     const error = broadcaster.sent.find((s) => s.msg.type === "error");
     expect(error).toBeTruthy();
     if (error?.msg.type === "error") {
@@ -289,10 +301,11 @@ describe("resolveIsSelfTarget: driver.skip / driver.resume の対象解決（本
   });
 
   it("viewer は自分を driver.resume できる（本人）", async () => {
-    await handlers.handleCommand(viewerConnId, {
-      command: "driver.resume",
-      participantId: viewerPid,
-    });
+    // Given（viewer が自分自身を対象に driver.resume する）
+    const command = { command: "driver.resume", participantId: viewerPid } as const;
+    // When
+    await handlers.handleCommand(viewerConnId, command);
+    // Then
     const error = broadcaster.sent.find((s) => s.msg.type === "error");
     expect(error).toBeUndefined();
   });

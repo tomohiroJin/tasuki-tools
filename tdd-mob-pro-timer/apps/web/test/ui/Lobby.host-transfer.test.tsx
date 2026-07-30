@@ -10,6 +10,7 @@ import userEvent from "@testing-library/user-event";
 import React from "react";
 import { Lobby } from "../../src/ui/Lobby.js";
 import type { Room, Participant } from "@tdd-mob/core";
+import { aRoomView } from "../support/room-view.js";
 
 function p(overrides: Partial<Participant>): Participant {
   return {
@@ -20,49 +21,55 @@ function p(overrides: Partial<Participant>): Participant {
 
 /** host=Alice, 別参加者=Bob(editor・online) の部屋 */
 function makeRoom(): Room {
-  return {
-    code: "TEST01", createdAt: 0, hostParticipantId: "host-p",
-    config: { language: "TypeScript", difficulty: "easy", members: ["Alice"], intervalMinutes: 5 },
-    problem: null,
-    session: { rotation: ["Alice"], currentIndex: 0, isPaused: false, driverCounts: [0], totalSwitches: 0 },
-    clock: { running: false, intervalSeconds: 300, anchorServerTime: 0, secondsLeftAtAnchor: 300, accumulatedElapsedMs: 0, runningSince: null },
-    phase: "setup",
+  return aRoomView({
+    config: { members: ["Alice"], intervalMinutes: 5 },
+    session: { rotation: ["Alice"] },
     participants: [
       p({ participantId: "host-p", displayName: "Alice", role: "host" }),
       p({ participantId: "p2", displayName: "Bob", role: "editor", connId: "c2" }),
     ],
-    sessionRecords: [], handoffNote: "", onBreak: false,
-  };
+  });
 }
 
 const noop = vi.fn();
 
-describe("Lobby ホスト移譲（R2-3）", () => {
-  it("ホストはロビーでオンライン参加者に『ホストを譲る』を出し、押すと onTransferHost が呼ばれる", async () => {
+/**
+ * @requirements R2-3
+ */
+describe("Lobby ホスト移譲", () => {
+  it("ホストはロビーでオンライン参加者に『ホストを譲る』を出し、押すとホスト移譲の要求が送られる", async () => {
+    // Given
     const onTransferHost = vi.fn();
     render(
       <Lobby room={makeRoom()} participantId="host-p" onStartSession={noop} onTransferHost={onTransferHost} />,
     );
+    // When
     await userEvent.click(screen.getByRole("button", { name: /ホストを譲る/ }));
+    // Then
     expect(onTransferHost).toHaveBeenCalledWith("p2");
   });
 
   it("オフライン参加者には『ホストを譲る』を出さない", () => {
+    // Given
     const onTransferHost = vi.fn();
     const room = makeRoom();
     room.participants[1] = p({ participantId: "p2", displayName: "Bob", role: "editor", connId: "c2", presence: "offline" });
+    // When
     render(
       <Lobby room={room} participantId="host-p" onStartSession={noop} onTransferHost={onTransferHost} />,
     );
+    // Then
     expect(screen.queryByRole("button", { name: /ホストを譲る/ })).toBeNull();
   });
 
   it("ホストでない参加者にはボタンが出ない", () => {
+    // Given（自分=Bob(editor) 視点）
     const onTransferHost = vi.fn();
-    // 自分=Bob(editor) 視点。
+    // When
     render(
       <Lobby room={makeRoom()} participantId="p2" onStartSession={noop} onTransferHost={onTransferHost} />,
     );
+    // Then
     expect(screen.queryByRole("button", { name: /ホストを譲る/ })).toBeNull();
   });
 });

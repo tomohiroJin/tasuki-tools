@@ -1,0 +1,31 @@
+# 変異 5: can-remove-participant-guard
+#
+# 検出を期待するテスト:
+#   - apps/sync/test/participant-remove.test.ts
+#
+# 注: plan.md の対応表は検出元を packages/core/test/participants.test.ts としていたが、
+#     これは canRemoveParticipant という純粋関数そのものを検証するテストであり、
+#     handlers.ts 側の「呼び出しを削る」変異は検出できない（純粋関数は変えていないため）。
+#
+# ⚠ 本パッチは製品コードへの diff であり、handlers.ts を変更すると適用できなくなる。
+#    実際に G6（T073/T074）でエラー送信が sendError(...) ヘルパ経由に変わった際、
+#    文脈行がズレて適用に失敗した。**製品コードを変えたらパッチも作り直すこと。**
+#
+# 適用: リポジトリルート（/workspaces/claym/local/Tasuki）から
+#       git apply tdd-mob-pro-timer/scripts/mutations/m05-*.patch
+#       (diff のパスは tdd-mob-pro-timer/... 起点。mutation-check.mjs もリポジトリルートで実行する)
+# 復元: git checkout -- <対象ファイル>（同じくリポジトリルートから）
+#
+diff --git a/tdd-mob-pro-timer/apps/sync/src/application/handlers.ts b/tdd-mob-pro-timer/apps/sync/src/application/handlers.ts
+index e3d0421..ec83f73 100644
+--- a/tdd-mob-pro-timer/apps/sync/src/application/handlers.ts
++++ b/tdd-mob-pro-timer/apps/sync/src/application/handlers.ts
+@@ -492,7 +492,7 @@ export function makeHandlers(deps: HandlerDeps) {
+       }
+       // 不変条件: 実在（非代理）の編集者以上が1名以上残ること（FR-072/073）。
+       // 権限ではなくドメインガードなので checkPermission とは別に検査する（plan.md D3）。
+-      if (!canRemoveParticipant(targetRoom.participants, targetId)) {
++      if (false) {
+         sendError(connId, "LAST_MANAGER", errorMessageFor("LAST_MANAGER"));
+         return err("LAST_MANAGER");
+       }

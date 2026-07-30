@@ -1,6 +1,6 @@
 /**
  * 管理エンドポイント純粋ロジックのテスト
- * v2.2 Phase 3a R3-2/R3-3/R4-1: /status・/admin/rooms のレポート生成とルーティング
+ * /status・/admin/rooms のレポート生成とルーティング
  */
 
 import { describe, it, expect } from "vitest";
@@ -58,9 +58,19 @@ function room(code: string, online: number, total: number, hasDriver: boolean): 
   };
 }
 
+/**
+ * @requirements v2.2 Phase 3a R3-2, R3-3
+ */
 describe("buildAdminReport", () => {
   it("アクティブルーム数・累計回収数・各ルーム要約", () => {
-    const rep = buildAdminReport([room("AA", 1, 2, true), room("BB", 0, 1, false)], 5);
+    // Given
+    const rooms = [room("AA", 1, 2, true), room("BB", 0, 1, false)];
+    const totalReclaimed = 5;
+
+    // When
+    const rep = buildAdminReport(rooms, totalReclaimed);
+
+    // Then
     expect(rep.activeRooms).toBe(2);
     expect(rep.totalReclaimed).toBe(5);
     const aa = rep.rooms.find((r) => r.code === "AA")!;
@@ -73,13 +83,22 @@ describe("buildAdminReport", () => {
 
 describe("AI 生成カウンタ", () => {
   it("aiGeneration が渡されればレポートに含まれ、未指定なら省略される", () => {
+    // Given（aiGeneration 引数の有無をそれぞれ試す）
+    // When
     const withAi = buildAdminReport([], 0, { today: 3, total: 42 });
+    // Then
     expect(withAi.aiGeneration).toEqual({ today: 3, total: 42 });
+
+    // When
     const without = buildAdminReport([], 0);
+    // Then
     expect(without.aiGeneration).toBeUndefined();
   });
 });
 
+/**
+ * @requirements v2.2 Phase 3a R4-1
+ */
 describe("handleAdminHttp", () => {
   const getReport = () => buildAdminReport([room("AA", 0, 1, false)], 3);
   const deps = { adminToken: "secret", getReport };
@@ -97,7 +116,11 @@ describe("handleAdminHttp", () => {
     expect(handleAdminHttp("GET", "/admin/rooms", {}, deps)?.status).toBe(401);
   });
   it("/status は要約のみ（rooms 配列なし）", () => {
+    // Given（有効なトークンで /status を対象にする）
+    // When
     const r = handleAdminHttp("GET", "/status", { "x-admin-token": "secret" }, deps)!;
+
+    // Then
     expect(r.status).toBe(200);
     const b = JSON.parse(r.body);
     expect(b.activeRooms).toBe(1);
@@ -105,7 +128,10 @@ describe("handleAdminHttp", () => {
     expect(b.rooms).toBeUndefined();
   });
   it("/admin/rooms は rooms 配列を含む", () => {
+    // Given（有効なトークンで /admin/rooms を対象にする）
+    // When
     const r = handleAdminHttp("GET", "/admin/rooms", { "x-admin-token": "secret" }, deps)!;
+    // Then
     expect(r.status).toBe(200);
     expect(JSON.parse(r.body).rooms.length).toBe(1);
   });
@@ -116,12 +142,17 @@ describe("handleAdminHttp", () => {
     expect(handleAdminHttp("GET", "/status?x=1", { "x-admin-token": "secret" }, deps)?.status).toBe(200);
   });
   it("/status レスポンスに aiGeneration が含まれる（report にあるとき）", () => {
+    // Given
     const getReportWithAi = () =>
       buildAdminReport([room("AA", 0, 1, false)], 3, { today: 5, total: 12 });
+
+    // When
     const r = handleAdminHttp("GET", "/status", { "x-admin-token": "secret" }, {
       adminToken: "secret",
       getReport: getReportWithAi,
     })!;
+
+    // Then
     expect(r.status).toBe(200);
     const b = JSON.parse(r.body);
     expect(b.aiGeneration).toEqual({ today: 5, total: 12 });

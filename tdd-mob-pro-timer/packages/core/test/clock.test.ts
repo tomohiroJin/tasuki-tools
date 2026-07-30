@@ -22,6 +22,7 @@ describe("secondsLeft: 残り時間の導出", () => {
   });
 
   it("稼働中は経過時間を差し引いた値を返す", () => {
+    // Given
     const running: ServerClock = {
       ...baseClock,
       running: true,
@@ -29,11 +30,14 @@ describe("secondsLeft: 残り時間の導出", () => {
       secondsLeftAtAnchor: 300,
       runningSince: 1000000,
     };
-    // 60秒経過
-    expect(secondsLeft(running, 1060000)).toBe(240);
+    // When
+    const left = secondsLeft(running, 1060000); // 60秒経過
+    // Then
+    expect(left).toBe(240);
   });
 
   it("残り時間は 0 を下回らない", () => {
+    // Given
     const running: ServerClock = {
       ...baseClock,
       running: true,
@@ -41,11 +45,14 @@ describe("secondsLeft: 残り時間の導出", () => {
       secondsLeftAtAnchor: 10,
       runningSince: 1000000,
     };
-    // 60秒経過で残り-50秒 → 0
-    expect(secondsLeft(running, 1060000)).toBe(0);
+    // When
+    const left = secondsLeft(running, 1060000); // 60秒経過で残り-50秒のはずが0に
+    // Then
+    expect(left).toBe(0);
   });
 
   it("clockOffset を加算して計算する", () => {
+    // Given
     const running: ServerClock = {
       ...baseClock,
       running: true,
@@ -53,43 +60,56 @@ describe("secondsLeft: 残り時間の導出", () => {
       secondsLeftAtAnchor: 300,
       runningSince: 1000000,
     };
-    // offset = -500ms（クライアントが少し遅れている）、実経過 = 60000 - 500 = 59500ms → 59.5s
-    // Math.max(0, 300 - 59.5) = 240.5
+    // When（offset = -500ms・クライアントが少し遅れている、実経過 = 60000 - 500 = 59500ms → 59.5s）
     const result = secondsLeft(running, 1060000, -500);
+    // Then（Math.max(0, 300 - 59.5) = 240.5）
     expect(result).toBeCloseTo(240.5, 1);
   });
 });
 
-describe("elapsedMs: 経過時間の導出（停止除外）FR-006", () => {
+/**
+ * @requirements FR-006
+ */
+describe("elapsedMs: 経過時間の導出（停止除外）", () => {
   it("停止中は accumulatedElapsedMs のみ返す", () => {
+    // Given
     const stopped: ServerClock = {
       ...baseClock,
       running: false,
       accumulatedElapsedMs: 5000,
       runningSince: null,
     };
-    expect(elapsedMs(stopped, 1010000)).toBe(5000);
+    // When
+    const elapsed = elapsedMs(stopped, 1010000);
+    // Then
+    expect(elapsed).toBe(5000);
   });
 
   it("稼働中は accumulatedElapsedMs + 現稼働区間を返す", () => {
+    // Given
     const running: ServerClock = {
       ...baseClock,
       running: true,
       accumulatedElapsedMs: 5000,
       runningSince: 1000000,
     };
-    // 30秒稼働
-    expect(elapsedMs(running, 1030000)).toBe(5000 + 30000);
+    // When
+    const elapsed = elapsedMs(running, 1030000); // 30秒稼働
+    // Then
+    expect(elapsed).toBe(5000 + 30000);
   });
 
-  it("一時停止すると停止中の時間は含まれない（FR-006）", () => {
-    // simulate: 10秒稼働 → 停止 → 5秒後でも10秒のまま
+  it("一時停止すると停止中の時間は含まれない", () => {
+    // Given（10秒稼働 → 停止 → 5秒後でも10秒のまま）
     const stoppedAfter10s: ServerClock = {
       ...baseClock,
       running: false,
       accumulatedElapsedMs: 10000,
       runningSince: null,
     };
-    expect(elapsedMs(stoppedAfter10s, 1015000)).toBe(10000);
+    // When
+    const elapsed = elapsedMs(stoppedAfter10s, 1015000);
+    // Then
+    expect(elapsed).toBe(10000);
   });
 });

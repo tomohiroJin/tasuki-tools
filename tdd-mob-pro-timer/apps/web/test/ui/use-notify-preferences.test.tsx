@@ -22,30 +22,31 @@ describe("useNotifyPreferences", () => {
     expect(result.current).toEqual(DEFAULT_NOTIFY_PREFERENCES);
   });
 
-  it("同一タブで saveNotifyPreferences を呼ぶと即時に更新される", () => {
+  it("同一タブで設定を保存すると即時に反映される", () => {
+    // Given
     const { result } = renderHook(() => useNotifyPreferences());
     expect(result.current.enabled).toBe(false);
-
+    // When
     act(() => {
       saveNotifyPreferences({
         enabled: true, soundId: "bell", osNotify: false, volume: 0.6,
         countdownEnabled: false, countdownSeconds: 15, countdownMode: "tone", countdownVoiceId: "voice-male",
       });
     });
-
+    // Then
     expect(result.current.enabled).toBe(true);
     expect(result.current.soundId).toBe("bell");
     expect(result.current.osNotify).toBe(false);
   });
 
   it("別タブの storage イベントでも追従する", () => {
+    // Given
     saveNotifyPreferences({
       enabled: false, soundId: "chime-up", osNotify: true, volume: 0.6,
       countdownEnabled: false, countdownSeconds: 15, countdownMode: "tone", countdownVoiceId: "voice-male",
     });
     const { result } = renderHook(() => useNotifyPreferences());
-
-    // 別タブが localStorage を書き換えた状況を storage イベントで再現する。
+    // When（別タブが localStorage を書き換えた状況を storage イベントで再現する）
     act(() => {
       localStorage.setItem(
         "tdd-mob:notify:v1",
@@ -53,7 +54,7 @@ describe("useNotifyPreferences", () => {
       );
       window.dispatchEvent(new StorageEvent("storage", { key: "tdd-mob:notify:v1" }));
     });
-
+    // Then
     expect(result.current.enabled).toBe(true);
     expect(result.current.soundId).toBe("soft");
   });

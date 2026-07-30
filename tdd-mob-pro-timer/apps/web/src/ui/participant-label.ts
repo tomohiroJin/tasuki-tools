@@ -67,3 +67,58 @@ export function participantLabel(
     ? `${base}（ID: ${shortId(participantId)}）`
     : base;
 }
+
+/**
+ * 参加者行の「操作の可否判定」（Issue #28・T067/T068・FR-107）。
+ *
+ * `Lobby.tsx`（開始前・isHost で判定）と `RosterPanel.tsx`（開始後・canManage で判定）が、
+ * ホスト譲渡・退出・ドライバー順の並べ替えという**同じ3つの操作**を、
+ * それぞれ別のインライン条件式で判定していた（呼び出し側が2系統）。
+ * Issue #22 の G8 では「同名判定の規則を1箇所に作ったのに呼び出し側が2系統あり
+ * 片方へ行き渡らなかった」ために見分けのつかない状態のまま出荷しかけた。
+ * それと同じ構造の再発（規則が2箇所でずれる）を避けるため、判定はここに1つだけ置く。
+ *
+ * `isHost` と `canManage` は呼び出し側で意味が異なりうるため、共通化するのは
+ * 「管理権限を持つ操作主体が、対象の行に対してこの操作をしてよいか」という
+ * 純粋な述語であり、権限そのものの算出（isHost か canManage か）は呼び出し側に残す。
+ * 描画（JSX）・ハンドラの有無チェックも呼び出し側に残す（FR-118: 元に戻すことが困難な
+ * 抽象を作らない）。
+ */
+
+/** 操作主体の状態。「自分自身の行か」と「管理権限を持つか」だけを表す。 */
+export interface ParticipantActionContext {
+  /** 対象が操作主体自身の行か。 */
+  isSelf: boolean;
+  /** 操作主体が管理権限を持つか（Lobby では isHost、RosterPanel では canManage）。 */
+  canManage: boolean;
+}
+
+/**
+ * ホスト譲渡ボタンを出してよいか。
+ * 自分以外・管理権限あり・相手がまだホストでない・相手がオフラインでない
+ * （オフラインへ譲ると無人ドライバーになるため）。
+ */
+export function canTransferHostTo(
+  target: { role: "host" | "editor" | "viewer"; presence: "online" | "idle" | "offline" },
+  ctx: ParticipantActionContext,
+): boolean {
+  return !ctx.isSelf && ctx.canManage && target.role !== "host" && target.presence !== "offline";
+}
+
+/** 退出させるボタンを出してよいか。自分以外・管理権限あり（自己退出は別経路）。 */
+export function canRemoveParticipant(ctx: ParticipantActionContext): boolean {
+  return !ctx.isSelf && ctx.canManage;
+}
+
+/**
+ * ドライバー順の並べ替えボタンを出してよいか。
+ * 管理権限あり・対象がドライバー（rotation 内）・ドライバーが2人以上
+ * （1人だけでは並べ替える意味がない）。
+ */
+export function canReorderRotation(ctx: {
+  canManage: boolean;
+  inRotation: boolean;
+  rotationLength: number;
+}): boolean {
+  return ctx.canManage && ctx.inRotation && ctx.rotationLength > 1;
+}

@@ -12,6 +12,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import React from "react";
 import { Session } from "../../src/ui/Session.js";
 import type { Room, Participant, SessionConfig, Problem } from "@tdd-mob/core";
+import { aRoomView } from "../support/room-view.js";
 
 function makeParticipant(overrides: Partial<Participant>): Participant {
   return {
@@ -44,38 +45,20 @@ const problem: Problem = {
 };
 
 function makeRoom(overrides?: Partial<Room>): Room {
-  return {
+  return aRoomView({
     code: "AA0001",
-    createdAt: 0,
     hostParticipantId: "host-1",
     config,
     problem,
-    session: {
-      rotation: ["Alice", "Carol"],
-      currentIndex: 0,
-      isPaused: false,
-      driverCounts: [0, 0],
-      totalSwitches: 0,
-    },
-    clock: {
-      running: false,
-      intervalSeconds: 300,
-      anchorServerTime: 0,
-      secondsLeftAtAnchor: 300,
-      accumulatedElapsedMs: 0,
-      runningSince: null,
-    },
+    session: { rotation: ["Alice", "Carol"], driverCounts: [0, 0] },
     phase: "session",
     participants: [
       makeParticipant({ participantId: "host-1", displayName: "Alice", role: "host" }),
       makeParticipant({ participantId: "view-1", displayName: "Bob", role: "viewer", connId: "c2" }),
       makeParticipant({ participantId: "edit-1", displayName: "Carol", role: "editor", connId: "c3" }),
     ],
-    sessionRecords: [],
-    handoffNote: "",
-    onBreak: false,
     ...overrides,
-  };
+  });
 }
 
 const noop = vi.fn();
@@ -101,36 +84,47 @@ function baseHandlers() {
   };
 }
 
-describe("Session × ProblemEditor 結合（項目3）", () => {
-  it("problem があるとき ProblemEditor を描画しお題タイトル・要件を表示する（FR-009 接続）", () => {
+/**
+ * @requirements FR-009, FR-038, FR-040, FR-041, FR-055, US3
+ */
+describe("Session × ProblemEditor 結合", () => {
+  it("problem があるとき ProblemEditor を描画しお題タイトル・要件を表示する", () => {
+    // Given
     const handlers = baseHandlers();
     render(<Session room={makeRoom()} participantId="host-1" {...handlers} />);
-    // セッション中は折りたたみバー（⑫）。タイトルはバーに常時表示。
+    // Then（セッション中は折りたたみバー。タイトルはバーに常時表示）
     expect(screen.getByText("FizzBuzz")).toBeTruthy();
-    // バーを開く → フルカード。さらに「詳細を表示」で要件を確認する。
+    // When（バーを開く → フルカード）
     fireEvent.click(screen.getByRole("button", { name: /詳細を開く/ }));
+    // Then（コピー導線が出る）
     expect(screen.getByRole("button", { name: /コピー/ })).toBeTruthy();
+    // When（「詳細を表示」で要件を確認する）
     fireEvent.click(screen.getByRole("button", { name: /詳細を表示/ }));
+    // Then
     expect(screen.getByText("3の倍数はFizz")).toBeTruthy();
   });
 
-  it("editor+ がタイトルを編集すると onEditProblem が patch で発火する（FR-038/041）", () => {
+  it("editor+ がタイトルを編集すると onEditProblem が patch で発火する", () => {
+    // Given
     const handlers = baseHandlers();
     render(<Session room={makeRoom()} participantId="host-1" {...handlers} />);
-    // 折りたたみバーを開いてから編集に入る。
+    // When（折りたたみバーを開いてから編集に入る）
     fireEvent.click(screen.getByRole("button", { name: /詳細を開く/ }));
     fireEvent.click(screen.getByRole("button", { name: /内容を編集/ }));
     const titleInput = screen.getByLabelText("お題タイトル");
     fireEvent.change(titleInput, { target: { value: "改題FizzBuzz" } });
     fireEvent.blur(titleInput);
+    // Then
     expect(handlers.onEditProblem).toHaveBeenCalledWith({ title: "改題FizzBuzz" });
   });
 
-  it("観覧者には編集ボタンが出ない（編集は editor+: FR-055）", () => {
+  it("観覧者には編集ボタンが出ない（編集は editor+ 限定）", () => {
+    // Given
     const handlers = baseHandlers();
     render(<Session room={makeRoom()} participantId="view-1" {...handlers} />);
-    // バーを開いてもフルカードに編集ボタンは無い。
+    // When（バーを開いてもフルカードに編集ボタンは無い）
     fireEvent.click(screen.getByRole("button", { name: /詳細を開く/ }));
+    // Then
     expect(screen.queryByRole("button", { name: /内容を編集/ })).toBeNull();
   });
 });

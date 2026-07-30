@@ -1,26 +1,11 @@
 /**
  * WS クライアントの接続状態通知のテスト
- * R5-1: onConnectionChange が online/reconnecting で呼ばれることを検証する。
+ * onConnectionChange が online/reconnecting で呼ばれることを検証する。
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { SyncClient } from "../../src/sync/client.js";
-
-/** onopen/onclose を手動発火できる最小 WebSocket スタブ。 */
-class FakeWS {
-  static instances: FakeWS[] = [];
-  static readonly OPEN = 1;
-  readyState = 0;
-  onopen: (() => void) | null = null;
-  onclose: (() => void) | null = null;
-  onmessage: ((event: MessageEvent) => void) | null = null;
-  onerror: (() => void) | null = null;
-  constructor(public url: string) {
-    FakeWS.instances.push(this);
-  }
-  send(): void {}
-  close(): void {}
-}
+import { FakeWS } from "../support/fakes.js";
 
 beforeEach(() => {
   FakeWS.instances = [];
@@ -33,8 +18,12 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+/**
+ * @requirements R5-1
+ */
 describe("SyncClient onConnectionChange", () => {
   it("onopen で online、onclose で reconnecting を通知する", () => {
+    // Given
     const onConnectionChange = vi.fn();
     const client = new SyncClient({
       url: "ws://x",
@@ -42,16 +31,21 @@ describe("SyncClient onConnectionChange", () => {
       onConnectionChange,
     });
     client.connect();
-
     const ws = FakeWS.instances[0]!;
+
+    // When
     ws.onopen?.();
+    // Then
     expect(onConnectionChange).toHaveBeenCalledWith("online");
 
+    // When
     ws.onclose?.();
+    // Then
     expect(onConnectionChange).toHaveBeenCalledWith("reconnecting");
   });
 
   it("dispose() 後の onclose では reconnecting を通知しない", () => {
+    // Given
     const onConnectionChange = vi.fn();
     const client = new SyncClient({
       url: "ws://x",
@@ -59,13 +53,15 @@ describe("SyncClient onConnectionChange", () => {
       onConnectionChange,
     });
     client.connect();
-
     const ws = FakeWS.instances[0]!;
     ws.onopen?.();
     onConnectionChange.mockClear();
 
+    // When
     client.dispose();
     ws.onclose?.();
+
+    // Then
     expect(onConnectionChange).not.toHaveBeenCalledWith("reconnecting");
   });
 });

@@ -35,6 +35,8 @@ describe("presenceTextClass", () => {
     expect(presenceTextClass("offline")).toBe("text-presence-offline");
   });
   it("dot クラスと色トークンが対応する（bg- と text- で同じ presence-* を指す）", () => {
+    // Given（online/idle/offline それぞれを対象にする表形式のケース）
+    // When（呼び出しと期待値の照合を一体で行う）
     (["online", "idle", "offline"] as const).forEach((p) => {
       const dot = presenceDotClass(p); // 例: "bg-presence-online"
       const text = presenceTextClass(p); // 例: "text-presence-online"

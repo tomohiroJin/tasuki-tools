@@ -1,34 +1,17 @@
 /**
  * ドライバー不在の自動繰上（advanceForAbsence）のテスト（v2.2 R2-1）
- * presence の不在タイマー（Task 2）から呼ばれる前提の交代ロジックを検証する。
+ * presence の不在タイマーから駆動される前提の交代ロジックを検証する。
  * オフライン参加者を交代対象外（ineligible）に含め、次の online ドライバーへ
  * サーバー権威で繰り上げる。交代先が無ければ現状維持する。
- * 要件: v2.2 R2-1
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
 import { makeHandlers } from "../src/application/handlers.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
-import type { RoomCodeGen } from "../src/ports/code-gen.js";
-import type { Broadcaster } from "../src/ports/broadcaster.js";
-import type { ServerMsg, SessionConfig, Room } from "@tdd-mob/core";
-
-class FakeCodeGen implements RoomCodeGen {
-  private _c = 0;
-  generate(): string { return `LC${String(++this._c).padStart(2, "0")}`; }
-  generateParticipantId(): string { return `pid-${++this._c}`; }
-  generateResumeToken(): string { return `rt-${++this._c}`; }
-}
-
-class SpyBroadcaster implements Broadcaster {
-  readonly sent: Array<{ connId: string; msg: ServerMsg }> = [];
-  readonly snapshots: string[] = [];
-  readonly signals: Array<{ roomCode: string; msg: ServerMsg }> = [];
-  broadcastSnapshot(code: string): void { this.snapshots.push(code); }
-  sendTo(connId: string, msg: ServerMsg): void { this.sent.push({ connId, msg }); }
-  broadcastSignal(roomCode: string, msg: ServerMsg): void { this.signals.push({ roomCode, msg }); }
-}
+import type { SessionConfig, Room } from "@tdd-mob/core";
+import { SpyBroadcaster } from "./support/spy-broadcaster.js";
+import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 const config: SessionConfig = {
   language: "TypeScript",
@@ -56,7 +39,8 @@ async function setupRunningRoom(
     config: { ...config, members },
   });
   if (!create.isOk()) throw new Error("create failed");
-  const code = create.value.code;
+  // 本番（server.ts）は handleCommand の戻り値を破棄する。値は本番と同じ観測点から取る（FR-100）。
+  const code = store.list().at(-1)!.code;
 
   const room = store.get(code)!;
   // 各メンバーが participant として存在するよう presence を設定する。
@@ -80,7 +64,10 @@ async function setupRunningRoom(
   return code;
 }
 
-describe("advanceForAbsence: ドライバー不在の自動繰上（v2.2 R2-1）", () => {
+/**
+ * @requirements v2.2 R2-1
+ */
+describe("advanceForAbsence: ドライバー不在の自動繰上", () => {
   let store: InMemoryRoomStore;
   let clock: FakeClock;
   let broadcaster: SpyBroadcaster;
@@ -94,37 +81,45 @@ describe("advanceForAbsence: ドライバー不在の自動繰上（v2.2 R2-1）
   });
 
   it("advanceForAbsence はオフラインの現ドライバーを飛ばして次の online へ繰り上げる", async () => {
+    // Given
     const code = await setupRunningRoom(handlers, store, ["A", "B", "C"], 0, {
       A: "offline",
       B: "online",
       C: "online",
     });
 
+    // When
     handlers.advanceForAbsence(code);
 
+    // Then
     expect(store.get(code)!.session.currentIndex).toBe(1);
   });
 
   it("他が全員オフライン/ineligible なら現状維持（no-op）", async () => {
+    // Given
     const code = await setupRunningRoom(handlers, store, ["A", "B"], 0, {
       A: "offline",
       B: "offline",
     });
 
+    // When
     handlers.advanceForAbsence(code);
 
+    // Then
     expect(store.get(code)!.session.currentIndex).toBe(0);
   });
 
   it("オフライン driver は交代対象から外れる（次が offline なら飛ばして現状維持）", async () => {
+    // Given
     const code = await setupRunningRoom(handlers, store, ["A", "B"], 0, {
       A: "online",
       B: "offline",
     });
 
+    // When
     handlers.advanceForAbsence(code);
 
-    // B(1) は offline で ineligible のため飛ばされ、交代先が無く現状維持
+    // Then（B(1) は offline で ineligible のため飛ばされ、交代先が無く現状維持）
     expect(store.get(code)!.session.currentIndex).toBe(0);
   });
 });

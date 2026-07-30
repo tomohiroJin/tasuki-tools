@@ -1,13 +1,15 @@
 /**
  * サーバー権威タイマーのスケジューラテスト
- * T037: FR-003
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { Scheduler } from "../src/application/schedule.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 
-describe("Scheduler: サーバー権威タイマー（FR-003）", () => {
+/**
+ * @requirements FR-003
+ */
+describe("Scheduler: サーバー権威タイマー", () => {
   let clock: FakeClock;
 
   beforeEach(() => {
@@ -32,64 +34,80 @@ describe("Scheduler: サーバー権威タイマー（FR-003）", () => {
     }
   };
 
-  it("schedule で setTimeout が1本設定される", () => {
+  it("schedule するとタイマーが1本だけ生成される", () => {
+    // Given
     const scheduler = new Scheduler(clock);
     const onSwitch = vi.fn();
 
+    // When
     scheduler.schedule("ROOM01", 300, onSwitch);
 
+    // Then
     expect(vi.getTimerCount()).toBe(1);
     scheduler.clear("ROOM01");
   });
 
-  it("残り時間経過後に onSwitch が呼ばれる", () => {
+  it("残り時間経過後、onSwitch が対象ルームコード付きで発火する", () => {
+    // Given
     const scheduler = new Scheduler(clock);
     const onSwitch = vi.fn();
-
     scheduler.schedule("ROOM01", 300, onSwitch);
+
+    // When
     advance(300 * 1000 + 100);
 
+    // Then
     expect(onSwitch).toHaveBeenCalledOnce();
     expect(onSwitch).toHaveBeenCalledWith("ROOM01");
   });
 
-  it("clear でタイマーがキャンセルされ onSwitch が呼ばれない", () => {
+  it("clear でタイマーがキャンセルされ onSwitch は発火しない", () => {
+    // Given
     const scheduler = new Scheduler(clock);
     const onSwitch = vi.fn();
-
     scheduler.schedule("ROOM01", 300, onSwitch);
-    scheduler.clear("ROOM01");
 
+    // When
+    scheduler.clear("ROOM01");
     advance(300 * 1000 + 100);
 
+    // Then
     expect(onSwitch).not.toHaveBeenCalled();
   });
 
-  it("schedule を再度呼ぶと前のタイマーがキャンセルされる", () => {
+  it("再スケジュールすると前のタイマーは発火しなくなる", () => {
+    // Given
     const scheduler = new Scheduler(clock);
     const onSwitch = vi.fn();
 
+    // When
     scheduler.schedule("ROOM01", 300, onSwitch);
     scheduler.schedule("ROOM01", 60, onSwitch);
+    advance(60 * 1000 + 100); // 60秒後に発火
 
-    // 60秒後に発火
-    advance(60 * 1000 + 100);
+    // Then
     expect(onSwitch).toHaveBeenCalledOnce();
   });
 
   it("複数ルームを個別にスケジュールできる", () => {
+    // Given
     const scheduler = new Scheduler(clock);
     const onSwitch1 = vi.fn();
     const onSwitch2 = vi.fn();
-
     scheduler.schedule("ROOM01", 60, onSwitch1);
     scheduler.schedule("ROOM02", 120, onSwitch2);
 
+    // When
     advance(60 * 1000 + 100);
+
+    // Then
     expect(onSwitch1).toHaveBeenCalledOnce();
     expect(onSwitch2).not.toHaveBeenCalled();
 
+    // When（さらに進める）
     advance(60 * 1000);
+
+    // Then
     expect(onSwitch2).toHaveBeenCalledOnce();
   });
 });

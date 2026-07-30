@@ -5,8 +5,6 @@
  * 二重参加の幽霊は本人と同じ表示名を持つため、表示名だけでは
  * 「A さんが A さんを退出させました」となり本 Issue の主要シナリオで判別できない。
  * 同名が複数いるときに限り識別子を添える。
- *
- * 要件: FR-077
  */
 
 import { describe, it, expect } from "vitest";
@@ -24,6 +22,9 @@ const base: NoticeSignal = {
   actorParticipantId: "pid-bob",
 };
 
+/**
+ * @requirements FR-077
+ */
 describe("buildNoticeMessage", () => {
   describe("操作ごとの文言", () => {
     const cases: Array<[NoticeSignal["action"], string]> = [
@@ -34,44 +35,56 @@ describe("buildNoticeMessage", () => {
 
     for (const [action, keyword] of cases) {
       it(`${action} の文言に実行者名と「${keyword}」が含まれる`, () => {
+        // Given
+        const signal: NoticeSignal = { ...base, action };
+        // When
         const text = buildNoticeMessage(
-          { ...base, action },
+          signal,
           { selfParticipantId: "pid-alice", participants: roster },
         );
 
+        // Then
         expect(text).toContain("Bob");
         expect(text).toContain(keyword);
       });
     }
 
     it("participant-removed は実行者と対象の両方を含む", () => {
+      // Given
+      const signal: NoticeSignal = {
+        action: "participant-removed",
+        actorName: "Bob",
+        actorParticipantId: "pid-bob",
+        targetName: "Carol",
+        targetParticipantId: "pid-carol",
+      };
+      // When
       const text = buildNoticeMessage(
-        {
-          action: "participant-removed",
-          actorName: "Bob",
-          actorParticipantId: "pid-bob",
-          targetName: "Carol",
-          targetParticipantId: "pid-carol",
-        },
+        signal,
         { selfParticipantId: "pid-alice", participants: roster },
       );
 
+      // Then
       expect(text).toContain("Bob");
       expect(text).toContain("Carol");
     });
 
     it("自己退出（実行者＝対象）は「退出させた」ではなく「退出した」と表現する", () => {
+      // Given
+      const signal: NoticeSignal = {
+        action: "participant-removed",
+        actorName: "Carol",
+        actorParticipantId: "pid-carol",
+        targetName: "Carol",
+        targetParticipantId: "pid-carol",
+      };
+      // When
       const text = buildNoticeMessage(
-        {
-          action: "participant-removed",
-          actorName: "Carol",
-          actorParticipantId: "pid-carol",
-          targetName: "Carol",
-          targetParticipantId: "pid-carol",
-        },
+        signal,
         { selfParticipantId: "pid-alice", participants: roster },
       );
 
+      // Then
       expect(text).toContain("退出しました");
       expect(text).not.toContain("退出させました");
     });
@@ -79,11 +92,14 @@ describe("buildNoticeMessage", () => {
 
   describe("自分が実行者のとき", () => {
     it("自分の名前ではなく「あなた」と表示する", () => {
+      // Given（base は actorParticipantId="pid-bob"）
+      // When
       const text = buildNoticeMessage(base, {
         selfParticipantId: "pid-bob",
         participants: roster,
       });
 
+      // Then
       expect(text).toContain("あなた");
       expect(text).not.toContain("Bob");
     });
@@ -99,53 +115,63 @@ describe("buildNoticeMessage", () => {
     ];
 
     it("実行者と対象が同名でも識別子で区別できる", () => {
+      // Given
+      const signal: NoticeSignal = {
+        action: "participant-removed",
+        actorName: "Alice",
+        actorParticipantId: "p-0001",
+        targetName: "Alice",
+        targetParticipantId: "p-0002",
+      };
+      // When
       const text = buildNoticeMessage(
-        {
-          action: "participant-removed",
-          actorName: "Alice",
-          actorParticipantId: "p-0001",
-          targetName: "Alice",
-          targetParticipantId: "p-0002",
-        },
+        signal,
         { selfParticipantId: "p-9999", participants: withGhost },
       );
 
-      // 「Alice さんが Alice さんを退出させました」では、どちらが幽霊か分からない。
-      // 実行者側・対象側の両方に識別子が付くことを、注記の形ごと固定する。
+      // Then（「Alice さんが Alice さんを退出させました」では、どちらが幽霊か分からない。
+      // 実行者側・対象側の両方に識別子が付くことを、注記の形ごと固定する）
       expect(text).toContain("（ID: 0001）");
       expect(text).toContain("（ID: 0002）");
     });
 
     it("同名がいなければ識別子を添えない（通常時に読みにくくしない）", () => {
+      // Given
+      const signal: NoticeSignal = {
+        action: "participant-removed",
+        actorName: "Bob",
+        actorParticipantId: "pid-bob",
+        targetName: "Alice",
+        targetParticipantId: "pid-alice",
+      };
+      // When
       const text = buildNoticeMessage(
-        {
-          action: "participant-removed",
-          actorName: "Bob",
-          actorParticipantId: "pid-bob",
-          targetName: "Alice",
-          targetParticipantId: "pid-alice",
-        },
+        signal,
         { selfParticipantId: "pid-carol", participants: roster },
       );
 
+      // Then
       expect(text).not.toContain("ID:");
     });
   });
 
   describe("名簿に載っていない参加者", () => {
     it("退出直後で名簿から消えていても対象名を表示できる", () => {
-      // notice は退出を永続化した後に配信されるため、対象は既に participants にいない。
+      // Given（notice は退出を永続化した後に配信されるため、対象は既に participants にいない）
+      const signal: NoticeSignal = {
+        action: "participant-removed",
+        actorName: "Bob",
+        actorParticipantId: "pid-bob",
+        targetName: "Carol",
+        targetParticipantId: "pid-carol",
+      };
+      // When
       const text = buildNoticeMessage(
-        {
-          action: "participant-removed",
-          actorName: "Bob",
-          actorParticipantId: "pid-bob",
-          targetName: "Carol",
-          targetParticipantId: "pid-carol",
-        },
+        signal,
         { selfParticipantId: "pid-alice", participants: roster },
       );
 
+      // Then
       expect(text).toContain("Carol");
     });
   });

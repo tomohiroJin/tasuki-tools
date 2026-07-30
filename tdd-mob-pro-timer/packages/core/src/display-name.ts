@@ -175,3 +175,31 @@ export function nameSkeleton(name: string): string {
   skeletonCache.set(name, skeleton);
   return skeleton;
 }
+
+/**
+ * 表示名の重複検査（T061/T062・FR-104）。
+ *
+ * `apps/sync/src/application/handlers.ts` の `participant.addProxy` /
+ * `participant.rename` にそれぞれ独立実装されていた重複検査を一元化したもの。
+ * Issue #22 で「規則を1箇所に作ったのに呼び出し側が2系統あって行き渡らなかった」
+ * ことを繰り返さないため、判定ロジック自体をここへ集約する。
+ *
+ * **判定内容は元の実装と完全に同一にしてある**（`trim().toLowerCase()` の単純比較）。
+ * `nameSkeleton`（見た目の曖昧判定）は使わない。第2層は表示にのみ使うためであり、
+ * ここで使うと拒否の挙動が変わってしまう（振る舞いの変更は本関数の目的ではない）。
+ *
+ * @param participants 比較対象の参加者一覧（表示名と ID だけを見る）
+ * @param desiredName 検査したい表示名（比較前に trim/lowercase する）
+ * @param excludeId 比較から除外する参加者 ID（rename で自分自身を除外する用途。
+ *   省略時は全員と比較する＝ addProxy の重複検査と同一）
+ */
+export function conflictsWithExisting(
+  participants: readonly { participantId: string; displayName: string }[],
+  desiredName: string,
+  excludeId?: string,
+): boolean {
+  const desired = desiredName.trim().toLowerCase();
+  return participants.some(
+    (p) => p.participantId !== excludeId && p.displayName.trim().toLowerCase() === desired,
+  );
+}
