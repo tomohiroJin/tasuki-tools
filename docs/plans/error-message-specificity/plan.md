@@ -87,7 +87,7 @@ flowchart LR
 | `PARTICIPANT_OFFLINE` | `handleHostTransfer` | **`HOST_TRANSFER_OFFLINE`** | オフラインの相手にはホストを移譲できません。 |
 | `CANNOT_CHANGE_HOST` | `handleRoleSet`（対象がホスト） | **`CANNOT_CHANGE_HOST_ROLE`** | ホストの役割は変更できません。先にホストを移譲してください。 |
 | `CANNOT_CHANGE_HOST` | `handleHostTransfer`（対象がホスト） | **`ALREADY_HOST`** | その相手はすでにホストです。 |
-| `PARTICIPANT_NOT_FOUND` | `handlers.ts` 指名（輪に居ない） | **`NOT_IN_ROTATION`** | 見学者はドライバーに指名できません。先にドライバーへ加えてください。 |
+| `PARTICIPANT_NOT_FOUND` | `handlers.ts` 指名（輪に居ない） | **`NOT_IN_ROTATION`** | ドライバーの輪に加わっていない相手は指名できません。先にドライバーへ加えてください。 |
 | `LAST_MANAGER` | `handlers.ts` 退出（`canRemoveParticipant`） | **`LAST_MANAGER_LEAVE`** | 進行できる人がいなくなるため退出できません。他の人が進行に加わってから操作してください。 |
 | `LAST_MANAGER` | `handleRoleSet`（`canDemote`） | **`LAST_MANAGER_DEMOTE`** | 進行できる人がいなくなるため見学者にできません。他の人が進行に加わってから操作してください。 |
 | `RATE_LIMITED` | `handleRoomJoin` | **`JOIN_RATE_LIMITED`** | 参加の試行が多すぎます。しばらく待ってから再試行してください。 |
@@ -197,7 +197,7 @@ tdd-mob-pro-timer/
 |---|---|
 | 単体（core） | 新 8 コードの表示文言が既定文言でない。**指名の文言に「移譲」が含まれない**／**役割変更の文言に「移譲」が含まれない**／`ALREADY_HOST` の文言に「自分自身」が含まれない。旧 3 コードの文言が従来値のまま引ける |
 | 単体（core） | 語彙に旧 3 コードが**含まれない**。新 8 コードが**含まれる** |
-| 結合（sync） | 9 つの拒否箇所がそれぞれ**対応する新コードを返す**。とくに (a) オフライン相手の指名 → `DRIVER_ASSIGN_OFFLINE`、(b) 見学者の指名 → `NOT_IN_ROTATION`、(c) 存在しない相手の指名 → `PARTICIPANT_NOT_FOUND`（分割が両方向に効いているか）、(d) 編集者が現ホストへ移譲 → `ALREADY_HOST` |
+| 結合（sync） | 9 つの拒否箇所がそれぞれ**対応する新コードを返す**。とくに (a) オフライン相手の指名 → `DRIVER_ASSIGN_OFFLINE`、(b) 輪に居ない相手の指名 → `NOT_IN_ROTATION`、(c) 存在しない相手の指名 → `PARTICIPANT_NOT_FOUND`（分割が両方向に効いているか）、(d) 編集者が現ホストへ移譲 → `ALREADY_HOST` |
 | メタ（sync） | `error-code-coverage.test.ts` が**無変更で**緑（決め忘れが無い・語彙とソースが一致） |
 | 回帰（sync/web） | 既存の全テストが緑。とくに旧コード名を直接検証しているテストの追随 |
 | 実機 | Playwright で、指名・役割変更・移譲・退出の失敗を実際に起こし、**画面に出る文言が操作と一致する**ことを目視 |

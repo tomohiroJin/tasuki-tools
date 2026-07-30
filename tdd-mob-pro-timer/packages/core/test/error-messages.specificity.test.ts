@@ -34,9 +34,7 @@ const NEW_CODES = [
  */
 describe("新 8 コードの文言が定義されている", () => {
   it.each(NEW_CODES)("%s の文言は既定文言ではない", (code) => {
-    // Given / When
     const shown = displayMessageFor(code);
-    // Then
     expect(shown).not.toBe(DEFAULT_ERROR_MESSAGE);
   });
 });
@@ -46,16 +44,12 @@ describe("新 8 コードの文言が定義されている", () => {
  */
 describe("DRIVER_ASSIGN_OFFLINE の文言（指名の失敗を移譲と取り違えない）", () => {
   it("「移譲」を含まない", () => {
-    // Given / When
     const shown = displayMessageFor("DRIVER_ASSIGN_OFFLINE");
-    // Then
     expect(shown).not.toContain("移譲");
   });
 
   it("「指名」を含む", () => {
-    // Given / When
     const shown = displayMessageFor("DRIVER_ASSIGN_OFFLINE");
-    // Then
     expect(shown).toContain("指名");
   });
 });
@@ -65,16 +59,12 @@ describe("DRIVER_ASSIGN_OFFLINE の文言（指名の失敗を移譲と取り違
  */
 describe("CANNOT_CHANGE_HOST_ROLE の文言（役割の変更の失敗を移譲と取り違えない）", () => {
   it("「移譲でき」を含まない", () => {
-    // Given / When
     const shown = displayMessageFor("CANNOT_CHANGE_HOST_ROLE");
-    // Then
     expect(shown).not.toContain("移譲でき");
   });
 
   it("「役割」を含む", () => {
-    // Given / When
     const shown = displayMessageFor("CANNOT_CHANGE_HOST_ROLE");
-    // Then
     expect(shown).toContain("役割");
   });
 });
@@ -84,9 +74,7 @@ describe("CANNOT_CHANGE_HOST_ROLE の文言（役割の変更の失敗を移譲�
  */
 describe("ALREADY_HOST の文言（実行者と対象が同一とは限らない）", () => {
   it("「自分自身」を含まない", () => {
-    // Given / When
     const shown = displayMessageFor("ALREADY_HOST");
-    // Then
     expect(shown).not.toContain("自分自身");
   });
 });
@@ -96,10 +84,17 @@ describe("ALREADY_HOST の文言（実行者と対象が同一とは限らない
  */
 describe("NOT_IN_ROTATION の文言（解消の手がかりを示す）", () => {
   it("「見つかりません」を含まない", () => {
-    // Given / When
     const shown = displayMessageFor("NOT_IN_ROTATION");
-    // Then
     expect(shown).not.toContain("見つかりません");
+  });
+
+  // driver.assign の NOT_IN_ROTATION 判定は対象が session.rotation に居るかだけを見ており、
+  // 対象の役割（viewer/editor/host）は見ていない。role=editor のまま member.remove で
+  // 輪の外に出た参加者にも同じコードが返るため、「見学者」固定の文言は実態と一致しない
+  // （役割と輪の所属は独立した2層モデル。SelfDriverToggle.tsx 参照）。
+  it("「見学者」を含まない", () => {
+    const shown = displayMessageFor("NOT_IN_ROTATION");
+    expect(shown).not.toContain("見学者");
   });
 });
 
@@ -108,16 +103,12 @@ describe("NOT_IN_ROTATION の文言（解消の手がかりを示す）", () => 
  */
 describe("LAST_MANAGER_LEAVE / LAST_MANAGER_DEMOTE の文言（退出と降格を区別する）", () => {
   it("LAST_MANAGER_LEAVE は「退出」を含む", () => {
-    // Given / When
     const shown = displayMessageFor("LAST_MANAGER_LEAVE");
-    // Then
     expect(shown).toContain("退出");
   });
 
   it("LAST_MANAGER_DEMOTE は「見学者」を含む", () => {
-    // Given / When
     const shown = displayMessageFor("LAST_MANAGER_DEMOTE");
-    // Then
     expect(shown).toContain("見学者");
   });
 });
@@ -127,9 +118,7 @@ describe("LAST_MANAGER_LEAVE / LAST_MANAGER_DEMOTE の文言（退出と降格�
  */
 describe("JOIN_RATE_LIMITED の文言（参加の試行過多だと分かる）", () => {
   it("「参加」を含む", () => {
-    // Given / When
     const shown = displayMessageFor("JOIN_RATE_LIMITED");
-    // Then
     expect(shown).toContain("参加");
   });
 });
@@ -144,9 +133,7 @@ describe("旧 3 コードの文言は残置されている（後方互換）", (
   it.each(["PARTICIPANT_OFFLINE", "CANNOT_CHANGE_HOST", "LAST_MANAGER"] as const)(
     "%s の文言は既定文言ではない",
     (code) => {
-      // Given / When
       const shown = displayMessageFor(code);
-      // Then
       expect(shown).not.toBe(DEFAULT_ERROR_MESSAGE);
     },
   );

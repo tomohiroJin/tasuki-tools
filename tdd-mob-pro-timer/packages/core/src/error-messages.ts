@@ -83,8 +83,16 @@ export const ERROR_MESSAGES: Record<string, string> = {
   // ─── 指名（driver.assign） ───
   // driver.assign（指名）でオフラインの対象を拒否したとき。
   DRIVER_ASSIGN_OFFLINE: "オフラインの参加者はドライバーに指名できません。",
-  // driver.assign（指名）で対象は実在するが輪（rotation）に居ない（見学者）とき。
-  NOT_IN_ROTATION: "見学者はドライバーに指名できません。先にドライバーへ加えてください。",
+  // driver.assign（指名）で対象は実在するが輪（rotation）に居ないとき。
+  // ⚠ この判定条件（handlers.ts）は `session.rotation` に対象が居るかだけを見ており、
+  // 対象の役割（viewer/editor/host）は見ていない。role=editor のまま
+  // member.remove（輪から外れる。役割と無関係に実行できる）で輪の外に出た参加者にも
+  // 同じコードが返るため、「見学者」固定の文言は実態と一致しない。
+  // 役割（role）と輪の所属（rotation）はこのコードベースが明確に区別する独立した2層モデルであり
+  // （`apps/web/src/ui/components/SelfDriverToggle.tsx` の
+  // 「ここはローテーション外（役割は編集者のまま）を表す」コメント参照）、
+  // 役割が見学者である状態と同じ語を使うと2層の区別が読み取れなくなる。
+  NOT_IN_ROTATION: "ドライバーの輪に加わっていない相手は指名できません。先にドライバーへ加えてください。",
   // ─── ホストの移譲・役割の変更 ───
   // host.transfer（ホスト移譲）でオフラインの対象を拒否したとき。
   HOST_TRANSFER_OFFLINE: "オフラインの相手にはホストを移譲できません。",

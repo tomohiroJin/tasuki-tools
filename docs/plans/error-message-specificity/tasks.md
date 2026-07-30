@@ -181,7 +181,7 @@
   | ② | ホストを対象にした `role.set` | `CANNOT_CHANGE_HOST_ROLE` | ホストの役割は変更できません。先にホストを移譲してください。 |
   | ③ | 現ホストを対象にした `host.transfer` | `ALREADY_HOST` | その相手はすでにホストです。 |
   | ④ | オフライン相手の `host.transfer` | `HOST_TRANSFER_OFFLINE` | オフラインの相手にはホストを移譲できません。 |
-  | ⑤ | 輪に居ない相手の `driver.assign` | `NOT_IN_ROTATION` | 見学者はドライバーに指名できません。先にドライバーへ加えてください。 |
+  | ⑤ | 輪に居ない相手の `driver.assign` | `NOT_IN_ROTATION` | ドライバーの輪に加わっていない相手は指名できません。先にドライバーへ加えてください。 |
   | ⑥ | 存在しない相手の `driver.assign` | `PARTICIPANT_NOT_FOUND` | 対象の参加者が見つかりません。（⑤ と別コードであることを確認） |
   | ⑦ | 唯一の編集者以上の自己退出 | `LAST_MANAGER_LEAVE` | 進行できる人がいなくなるため退出できません。… |
   | ⑧ | 試行過多の `room.join` | `JOIN_RATE_LIMITED` | 参加の試行が多すぎます。… |
