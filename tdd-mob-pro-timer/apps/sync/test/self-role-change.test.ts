@@ -116,7 +116,7 @@ describe("role.set: 自分の役割の変更", () => {
     expect(roleOf("Bob")).toBe("editor");
   });
 
-  it("④ ホスト自身の自己降格は CANNOT_CHANGE_HOST で拒否される（移譲は別経路）", async () => {
+  it("④ ホスト自身の自己降格は CANNOT_CHANGE_HOST_ROLE で拒否される（移譲は別経路）", async () => {
     // Given
     await start();
 
@@ -127,13 +127,13 @@ describe("role.set: 自分の役割の変更", () => {
 
     // Then
     expect(result.isErr()).toBe(true);
-    expect(lastError(HOST)?.code).toBe("CANNOT_CHANGE_HOST");
+    expect(lastError(HOST)?.code).toBe("CANNOT_CHANGE_HOST_ROLE");
     expect(roleOf("Alice")).toBe("host");
   });
 
   it("⑤ 実在の編集者以上が1名だけのとき、その1名の自己降格は拒否される", async () => {
     // Given（ホストは常に「編集者以上」に数えられるため、ホストが在室する限りこの状態には
-    // コマンド経路から到達できない＝到達しようとすると④の CANNOT_CHANGE_HOST が先に効く。
+    // コマンド経路から到達できない＝到達しようとすると④の CANNOT_CHANGE_HOST_ROLE が先に効く。
     // 不変条件のガードが権限とは独立に効くことを固定するため、状態を直接組んで検証する）
     await start();
     const seeded = store.get(code)!;
@@ -156,14 +156,14 @@ describe("role.set: 自分の役割の変更", () => {
 
     // Then
     expect(result.isErr()).toBe(true);
-    expect(lastError(BOB)?.code).toBe("LAST_MANAGER");
+    expect(lastError(BOB)?.code).toBe("LAST_MANAGER_DEMOTE");
     expect(store.get(code)!.participants.find((p) => p.participantId === bobId)!.role).toBe("editor");
   });
 
   it("⑥ 最後の編集者による同値代入（editor→editor）は拒否されない（過剰拒否の防止）", async () => {
     // Given（⑤ と同じ「実在の編集者は Bob だけ」の状態を作る。
     // canDemote を cmd.role で絞らず全ての role.set に適用すると、対象が編集者以上である
-    // 限り「自分を降ろしたのと同じ」と判定され、この no-op まで LAST_MANAGER で拒否される。
+    // 限り「自分を降ろしたのと同じ」と判定され、この no-op まで LAST_MANAGER_DEMOTE で拒否される。
     // ⑤ が緑でもこの過剰拒否は起こりうるので、対の回帰テストとして固定する）
     await start();
     const seeded = store.get(code)!;

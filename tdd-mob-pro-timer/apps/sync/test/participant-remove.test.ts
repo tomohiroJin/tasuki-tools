@@ -194,7 +194,7 @@ describe("participant.remove（G3: 自己退出・不変条件・ホスト引き
 
     // Then
     expect(result.isErr()).toBe(true);
-    expect(lastError(HOST)?.code).toBe("LAST_MANAGER");
+    expect(lastError(HOST)?.code).toBe("LAST_MANAGER_LEAVE");
     expect(store.get(code)!.participants.find((p) => p.participantId === aliceId)).toBeTruthy();
   });
 
@@ -213,7 +213,7 @@ describe("participant.remove（G3: 自己退出・不変条件・ホスト引き
 
     // Then
     expect(result.isErr()).toBe(true);
-    expect(lastError(HOST)?.code).toBe("LAST_MANAGER");
+    expect(lastError(HOST)?.code).toBe("LAST_MANAGER_LEAVE");
   });
 
   it("④ 退出させられた本人へ通知が届く（他人に外された場合）", async () => {
@@ -334,7 +334,7 @@ describe("participant.remove（G3: 自己退出・不変条件・ホスト引き
 
     // Then
     expect(result.isErr()).toBe(true);
-    expect(lastError(HOST)?.code).toBe("LAST_MANAGER");
+    expect(lastError(HOST)?.code).toBe("LAST_MANAGER_LEAVE");
   });
 });
 

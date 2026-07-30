@@ -121,6 +121,22 @@ export function makeHandlers(deps: HandlerDeps) {
    * `code` を `ErrorCode` で受けることで、綴り違い・未定義のコードを型で弾く。
    * **wire に載る値と分岐は従来と同一**であり、`broadcaster.sendTo` に
    * `{ type: "error", code, message }` を渡す以上のことはしない。
+   *
+   * **`sendError(connId, "CODE", errorMessageFor("CODE"))` という、コードを
+   * 2 回書く形（30 箇所超）を 1 引数のヘルパー（例 `rejectWith(connId, code)`）へ
+   * 寄せることは検討したが、あえて寄せていない（T119）。理由は
+   * `apps/sync/test/error-code-coverage.test.ts` の `collectServerErrorCodes()` が
+   * `code:\s*"CODE"` / `err\(\s*"CODE"` という**リテラルの形**だけを正規表現で
+   * 走査して「利用者に見せる文言が決まっているか」を検出しているためである。
+   * `rejectWith(connId, "CODE")` のような 1 引数呼び出しに変えると、その `"CODE"`
+   * はどちらの正規表現にも一致せず走査から漏れる。すると新しいコードを足したときの
+   * 検出は `EMITTED_VIA_VARIABLE`（手で保守する集合）への追記だけに頼ることになり、
+   * 同ファイルの docstring が明言する「迷ったら走査に掛かる静的なリテラル形式で
+   * 書けないか先に検討すること」という方針に反する（同ファイルは過去に
+   * まさにこの追記漏れで検出力の穴を作った経緯がある）。
+   * したがって、綴り違いの構造的リスクより走査の網羅性を優先し、
+   * 各呼び出し箇所は `sendError(connId, "CODE", errorMessageFor("CODE"))` の
+   * ままにしてある。
    */
   function sendError(connId: string, code: ErrorCode, message: string): void {
     broadcaster.sendTo(connId, { type: "error", code, message });
@@ -339,8 +355,8 @@ export function makeHandlers(deps: HandlerDeps) {
 
     // 連続失敗が閾値を超えた接続は一時的に拒否（コード総当たりの緩和）。
     if (recentJoinFailures(connId, now).length >= JOIN_FAIL_MAX) {
-      sendError(connId, "RATE_LIMITED", errorMessageFor("RATE_LIMITED"));
-      return err("RATE_LIMITED");
+      sendError(connId, "JOIN_RATE_LIMITED", errorMessageFor("JOIN_RATE_LIMITED"));
+      return err("JOIN_RATE_LIMITED");
     }
 
     const room = store.get(cmd.code);
@@ -503,8 +519,8 @@ export function makeHandlers(deps: HandlerDeps) {
       // 不変条件: 実在（非代理）の編集者以上が1名以上残ること（FR-072/073）。
       // 権限ではなくドメインガードなので checkPermission とは別に検査する（plan.md D3）。
       if (!canRemoveParticipant(targetRoom.participants, targetId)) {
-        sendError(connId, "LAST_MANAGER", errorMessageFor("LAST_MANAGER"));
-        return err("LAST_MANAGER");
+        sendError(connId, "LAST_MANAGER_LEAVE", errorMessageFor("LAST_MANAGER_LEAVE"));
+        return err("LAST_MANAGER_LEAVE");
       }
       // 対象が現ホストなら、退出させる前にホストを引き継ぐ（plan.md D2b）。
       // 引き継がずに退出させると hostParticipantId が実在しない参加者を指し、
@@ -632,22 +648,24 @@ export function makeHandlers(deps: HandlerDeps) {
     if (domainCmd && domainCmd.command === "driver.assign") {
       const targetPid = typeof cmd.participantId === "string" ? cmd.participantId : "";
       const target = targetRoom.participants.find((p) => p.participantId === targetPid);
-      const index = target
-        ? targetRoom.session.rotation.indexOf(target.participantId)
-        : -1;
-      // 対象不在 or rotation 外（見学者）は指名できない。
-      // 元の文言（「指名対象が見つからないか、ローテーション外です」）は画面には表示されて
-      // いなかった（friendlyError は code だけで引く）ため、T066 で表の1文言に寄せる。
-      if (index < 0) {
+      // 対象解決を2段に分ける（Issue #29・T112）。「対象が存在しない」と
+      // 「対象は居るが rotation に居ない（見学者）」は解消手段が異なるため、
+      // 同じ index<0 の1条件で吸収せず、コードも分ける。
+      if (!target) {
         sendError(connId, "PARTICIPANT_NOT_FOUND", errorMessageFor("PARTICIPANT_NOT_FOUND"));
         return err("PARTICIPANT_NOT_FOUND");
+      }
+      const index = targetRoom.session.rotation.indexOf(target.participantId);
+      if (index < 0) {
+        sendError(connId, "NOT_IN_ROTATION", errorMessageFor("NOT_IN_ROTATION"));
+        return err("NOT_IN_ROTATION");
       }
       // 実在（非代理）オフラインのメンバーは指名できない（R2-1: 無人ドライバーを防ぐ。
       // 自動交代・手動 SWITCH の computeIneligibleIndices と同じ判定に揃える）。
       // 代理(placeholder)は Web 非接続が常態で対面在席する実在の人を表すため offline でも許可する。
-      if (target && target.presence === "offline" && target.isPlaceholder !== true) {
-        sendError(connId, "PARTICIPANT_OFFLINE", errorMessageFor("PARTICIPANT_OFFLINE"));
-        return err("PARTICIPANT_OFFLINE");
+      if (target.presence === "offline" && target.isPlaceholder !== true) {
+        sendError(connId, "DRIVER_ASSIGN_OFFLINE", errorMessageFor("DRIVER_ASSIGN_OFFLINE"));
+        return err("DRIVER_ASSIGN_OFFLINE");
       }
       domainCmd.index = index;
     }
@@ -794,8 +812,8 @@ export function makeHandlers(deps: HandlerDeps) {
 
     // ホスト自身の役割は変更できない（委譲は別経路）
     if (cmd.participantId === room.hostParticipantId) {
-      sendError(connId, "CANNOT_CHANGE_HOST", errorMessageFor("CANNOT_CHANGE_HOST"));
-      return err("CANNOT_CHANGE_HOST");
+      sendError(connId, "CANNOT_CHANGE_HOST_ROLE", errorMessageFor("CANNOT_CHANGE_HOST_ROLE"));
+      return err("CANNOT_CHANGE_HOST_ROLE");
     }
 
     const target = room.participants.find(
@@ -810,8 +828,8 @@ export function makeHandlers(deps: HandlerDeps) {
     // 権限（誰が実行できるか）とは独立したドメインガードなので、checkPermission が
     // 許可した後に別途検査する（plan.md D3）。昇格は人数を減らさないので対象外。
     if (cmd.role === "viewer" && !canDemote(room.participants, cmd.participantId)) {
-      sendError(connId, "LAST_MANAGER", errorMessageFor("LAST_MANAGER"));
-      return err("LAST_MANAGER");
+      sendError(connId, "LAST_MANAGER_DEMOTE", errorMessageFor("LAST_MANAGER_DEMOTE"));
+      return err("LAST_MANAGER_DEMOTE");
     }
 
     const updatedRoom: Room = {
@@ -939,10 +957,12 @@ export function makeHandlers(deps: HandlerDeps) {
     // switch で分岐するため handleRoomCommand の判定を通らない。個別に呼ぶ必要がある。
     if (rejectIfUnauthorized(connId, room, actor, cmd)) return err("UNAUTHORIZED");
 
-    // 自分自身へは移譲できない（現ホスト＝対象は無意味）
+    // 対象がすでにホストなら移譲は無意味（実行者と対象は同一とは限らない。
+    // Issue #22 以降 host.transfer は開始後 editor+ が実行できるため、
+    // 「自分自身には」という表現はここでは使わない・FR-138）
     if (cmd.participantId === room.hostParticipantId) {
-      sendError(connId, "CANNOT_CHANGE_HOST", errorMessageFor("CANNOT_CHANGE_HOST"));
-      return err("CANNOT_CHANGE_HOST");
+      sendError(connId, "ALREADY_HOST", errorMessageFor("ALREADY_HOST"));
+      return err("ALREADY_HOST");
     }
 
     const target = room.participants.find(
@@ -955,8 +975,8 @@ export function makeHandlers(deps: HandlerDeps) {
 
     // オフラインの相手をホストにすると無人運用になり得るため拒否する
     if (target.presence === "offline") {
-      sendError(connId, "PARTICIPANT_OFFLINE", errorMessageFor("PARTICIPANT_OFFLINE"));
-      return err("PARTICIPANT_OFFLINE");
+      sendError(connId, "HOST_TRANSFER_OFFLINE", errorMessageFor("HOST_TRANSFER_OFFLINE"));
+      return err("HOST_TRANSFER_OFFLINE");
     }
 
     const updatedRoom = transferHost(room, cmd.participantId);

@@ -118,7 +118,7 @@ describe("handlers: host.transfer（明示的ホスト移譲）", () => {
     expect(store.get("HX01")?.hostParticipantId).toBe("host-p01");
   });
 
-  it("オフラインの対象へは PARTICIPANT_OFFLINE で拒否され不変", async () => {
+  it("オフラインの対象へは HOST_TRANSFER_OFFLINE で拒否され不変", async () => {
     // Given
     const room = makeTestRoom("HX01");
     room.participants[1] = { ...room.participants[1]!, presence: "offline" };
@@ -131,11 +131,11 @@ describe("handlers: host.transfer（明示的ホスト移譲）", () => {
     });
 
     // Then
-    expect(broadcaster.errorsTo("host-conn").at(-1)?.code).toBe("PARTICIPANT_OFFLINE");
+    expect(broadcaster.errorsTo("host-conn").at(-1)?.code).toBe("HOST_TRANSFER_OFFLINE");
     expect(store.get("HX01")?.hostParticipantId).toBe("host-p01");
   });
 
-  it("自分自身への移譲は CANNOT_CHANGE_HOST で拒否され不変", async () => {
+  it("自分自身への移譲は ALREADY_HOST で拒否され不変", async () => {
     // Given
     const command = { command: "host.transfer", participantId: "host-p01" } as const;
 
@@ -143,7 +143,7 @@ describe("handlers: host.transfer（明示的ホスト移譲）", () => {
     await handlers.handleCommand("host-conn", command);
 
     // Then
-    expect(broadcaster.errorsTo("host-conn").at(-1)?.code).toBe("CANNOT_CHANGE_HOST");
+    expect(broadcaster.errorsTo("host-conn").at(-1)?.code).toBe("ALREADY_HOST");
     expect(store.get("HX01")?.hostParticipantId).toBe("host-p01");
   });
 
