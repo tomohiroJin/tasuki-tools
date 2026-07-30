@@ -36,7 +36,7 @@ TDD Mob Pro Timer の構造・データフロー・設計原則をまとめま�
 | `events.ts` / `errors.ts` | `DomainEvent` 合併型 / `DomainError` 合併型 |
 | `schemas.ts` | Valibot スキーマ（Command / ServerMsg / Problem / SessionConfig）。境界で検証と**正規化**を行う |
 | `permissions.ts` | 段階×役割の可否判定（`checkPermission` / `isAllowed`）。front/server が共有する単一の規則（FR-071） |
-| `participants.ts` | 在室者の不変条件（`canRemoveParticipant` / `canDemote` / `transferHost`）。権限とは別の責務 |
+| `participants.ts` | 在室者の不変条件（`canRemoveParticipant` / `canDemote` / `transferHost`）。権限とは別の責務。退出通知の種類を決める `removalNotificationFor`（Issue #32）も同じ関心としてここに置く |
 | `display-name.ts` | 表示名の正規化（`normalizeDisplayName`）と見え方の骨格（`nameSkeleton`） |
 | `problem.ts` | 定型お題バンク・`validateProblem`・`pickFallback`・プロンプト生成 |
 | `records.ts` | 完成記録の生成（所要時間は稼働区間のみ積算） |
@@ -168,6 +168,11 @@ argv・ログ・snapshot に混入させません。失敗（タイムアウト�
   「将来の再有効化に備えて残置」という休眠コードは持たない（US1・FR-087）。
 - `records/`: IndexedDB 永続化（`indexeddb.ts`）と完成記録の組み立て（`persist.ts`）。
 - `ui/`: 画面（Setup / Join / Lobby / Session / Summary / History）。`screenForPhase` で `room.phase` に追従。
+  **`App.tsx` から切り出した純粋な判定関数群**も同じ階層に置きます（`screen.ts` /
+  `connection-status.ts` / `host-change.ts` / `problem-generation.ts` / `join-driver-intent.ts` /
+  `error-action.ts` / `room-param.ts`）。`App.tsx` はそれらの結果を適用するだけにして、
+  規則をテストの届く場所に置くのが方針です（`App.tsx` 自体の render テストは持たないため、
+  判定を中に埋めると検証手段が無くなる）。
 - `platform/`: 通知（`notify.ts`）・交代音とカウントダウン音声（`sound.ts`）。
 
 ### 画面遷移は phase 駆動
@@ -191,6 +196,23 @@ argv・ログ・snapshot に混入させません。失敗（タイムアウト�
 
 **Server→Client**: `snapshot`（唯一の状態同期）/ `signal`（演出専用: switch / celebration /
 need-problem）/ `error` / `time.pong` / `room.created` / `room.joined`。
+
+### 退出した本人への通知（Issue #32）
+
+退出が成立すると、その本人は在室者でなくなるため **snapshot の宛先から外れます**。
+本人に何も届かないと、退出前の画面に留まったまま操作だけが拒否される「取り残し」になります。
+そこで `error` を 1 接続へ直送する経路を使い、**誰の操作による退出かで種類を分けます**。
+
+| 誰が誰を | 本人へ送るコード | 本人の画面 | URL の `?room=` |
+|---|---|---|---|
+| 自分が自分を | `LEFT_ROOM` | 入口（Setup） | **除去する**（復帰は招待からやり直す） |
+| 他者が自分を | `REMOVED_FROM_ROOM` | 参加（Join） | 保持する（再参加しやすくする） |
+| 他者が自分を（旧サーバー） | `REMOVED_BY_HOST` | 参加（Join） | 保持する |
+| 代理（クライアント無し） | 送らない | — | — |
+
+種類の判定は core の `removalNotificationFor()`、画面の行き先は web の `errorAction()` が持ちます。
+**退出が拒否された場合（`LAST_MANAGER` 等）は画面を移しません** — `errorAction()` の既定が
+`transient` で、画面を移すコードだけを明示的に列挙してあるためです。
 
 ## テスト戦略
 
