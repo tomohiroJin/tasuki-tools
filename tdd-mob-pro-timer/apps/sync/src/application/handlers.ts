@@ -233,12 +233,6 @@ export function makeHandlers(deps: HandlerDeps) {
           cmd as { command: "time.ping"; clientTime: number },
         );
 
-      case "host.transfer":
-        return handleHostTransfer(
-          connId,
-          cmd as { command: "host.transfer"; participantId: string },
-        );
-
       case "problem.request":
         return handleProblemRequest(
           connId,
@@ -363,6 +357,15 @@ export function makeHandlers(deps: HandlerDeps) {
         connId,
         { room: targetRoom, actor: participant },
         cmd as { command: "ai.unlock"; key: string },
+      );
+    }
+
+    // host.transfer も decide/evolve を通らない Room レベルの専用処理（フェーズ7合流）。
+    if (cmd.command === "host.transfer") {
+      return handleHostTransfer(
+        connId,
+        { room: targetRoom, actor: participant },
+        cmd as { command: "host.transfer"; participantId: string },
       );
     }
 
@@ -603,8 +606,6 @@ export function makeHandlers(deps: HandlerDeps) {
   const handleHostTransfer = createHostTransferHandler({
     store,
     broadcaster,
-    findRoomByConnId,
-    rejectIfUnauthorized,
     sendError,
   });
 

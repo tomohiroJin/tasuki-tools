@@ -1,9 +1,10 @@
 /**
- * `host.transfer` の専用ハンドラ（フェーズ5・純粋な移動。ロジック変更なし）。
+ * `host.transfer` の専用ハンドラ（フェーズ7・パイプライン統合）。
  *
- * `handlers.ts` の `makeHandlers` クロージャ内にあった `handleHostTransfer` を
- * そのまま移動した。在室確認・アクター解決・`rejectIfUnauthorized` は
- * `handlers.ts` 側の実装をそのまま `deps` 経由で呼ぶ（縮退はフェーズ7）。
+ * 在室確認・アクター解決・権限判定（`rejectIfUnauthorized`）は共通パイプライン
+ * （`handlers.ts` の `handleRoomCommand`）側で完了済みであり、その結果を
+ * `ctx: { room, actor }` として受け取る。このハンドラはドメイン処理
+ * （対象解決・オフライン拒否・移譲反映）のみを担う。
  */
 
 import { ok, err, type Result } from "neverthrow";
@@ -17,44 +18,29 @@ import {
 import type { Broadcaster } from "../../ports/broadcaster.js";
 import type { RoomStore } from "../../ports/room-store.js";
 
+/** `handleRoomCommand` が事前に解決済みの在室ルームと実行者。 */
+export interface HostTransferContext {
+  room: Room;
+  actor: Participant;
+}
+
 export interface HostTransferDeps {
   store: RoomStore;
   broadcaster: Broadcaster;
-  findRoomByConnId: (connId: string) => Room | undefined;
-  rejectIfUnauthorized: (
-    connId: string,
-    room: Room,
-    actor: Participant,
-    cmd: { command: string; [key: string]: unknown },
-  ) => boolean;
   sendError: (connId: string, code: ErrorCode, message: string) => void;
 }
 
 export function createHostTransferHandler(deps: HostTransferDeps) {
-  const { store, broadcaster, findRoomByConnId, rejectIfUnauthorized, sendError } = deps;
+  const { store, broadcaster, sendError } = deps;
 
   /** ホストを明示的に他のオンライン参加者へ移譲する（host 限定・R2-3）。
    *  自動委譲（presence）と同じ transferHost を用い、snapshot で全員に反映する。 */
   return async function handleHostTransfer(
     connId: string,
+    ctx: HostTransferContext,
     cmd: { command: "host.transfer"; participantId: string },
   ): Promise<Result<undefined, ErrorCode>> {
-    const room = findRoomByConnId(connId);
-    if (!room) {
-      sendError(connId, "NOT_IN_ROOM", errorMessageFor("NOT_IN_ROOM"));
-      return err("NOT_IN_ROOM");
-    }
-
-    const actor = room.participants.find((p) => p.connId === connId);
-    if (!actor) {
-      // 在室ルームは connId で引いているため通常は到達しない防御分岐。
-      // 可否ではなくアクター解決の失敗なので、権限の文言は使わない。
-      sendError(connId, "UNAUTHORIZED", errorMessageFor("UNAUTHORIZED"));
-      return err("UNAUTHORIZED");
-    }
-    // 開始後は主催者であることを条件にしない（FR-063）。このハンドラは handleCommand の
-    // switch で分岐するため handleRoomCommand の判定を通らない。個別に呼ぶ必要がある。
-    if (rejectIfUnauthorized(connId, room, actor, cmd)) return err("UNAUTHORIZED");
+    const { room } = ctx;
 
     // 対象がすでにホストなら移譲は無意味（実行者と対象は同一とは限らない。
     // Issue #22 以降 host.transfer は開始後 editor+ が実行できるため、
