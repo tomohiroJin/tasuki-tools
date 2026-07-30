@@ -3,10 +3,12 @@
  * Lobby.tsx と RosterPanel.tsx の双方が持つ、ほぼ同一の ConfirmDialog 呼び出しを
  * 単一の共有コンポーネントへ一本化する（FR-177）。差分は isShared による説明文の
  * 分岐のみ。pendingRemovalId の state 自体は呼び出し側に残す（plan.md 参照）。
- * この時点では空実装（T002）。実装は T006 で行う。
+ * 判定（participantLabel）は participant-label.ts のものをそのまま使う（FR-178）。
  */
 
 import type { Participant } from "@tdd-mob/core";
+import { participantLabel } from "../participant-label.js";
+import { ConfirmDialog } from "./ConfirmDialog.js";
 
 interface RemovalConfirmDialogProps {
   /** 確認対象（居なければ何も描画しない）。identity のみで participants から都度引く既存設計を維持する。 */
@@ -17,6 +19,26 @@ interface RemovalConfirmDialogProps {
   onCancel: () => void;
 }
 
-export function RemovalConfirmDialog(_props: RemovalConfirmDialogProps): null {
-  return null;
+export function RemovalConfirmDialog({
+  pendingRemoval,
+  participants,
+  isShared,
+  onConfirm,
+  onCancel,
+}: RemovalConfirmDialogProps) {
+  if (!pendingRemoval) return null;
+
+  return (
+    <ConfirmDialog
+      open={true}
+      title={`${participantLabel(pendingRemoval.displayName, pendingRemoval.participantId, participants, "さん")}を退出させますか？`}
+      description={`一覧とドライバーの輪から外れます。招待から再参加できます。${
+        isShared ? "（他の参加者全員の画面にも反映されます）" : ""
+      }`}
+      confirmLabel="退出させる"
+      confirmIntent="danger"
+      onConfirm={() => onConfirm(pendingRemoval.participantId)}
+      onCancel={onCancel}
+    />
+  );
 }
