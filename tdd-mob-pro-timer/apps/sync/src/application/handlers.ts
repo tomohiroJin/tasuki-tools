@@ -12,7 +12,6 @@ import {
   transferHost,
   initialAggregate,
   secondsLeft,
-  buildCompletionRecord,
   checkPermission,
   canRemoveParticipant,
   canDemote,
@@ -24,8 +23,6 @@ import {
   type Participant,
   type SessionConfig,
   type Problem,
-  type ProblemMode,
-  type DomainEvent,
   type IntervalMinutes,
   type ErrorCode,
   type RemovalNotification,
@@ -40,6 +37,8 @@ import type { ProblemDelegator } from "./problem-delegation.js";
 import { constantTimeEqual } from "./secure-compare.js";
 import { createTokenStore } from "./token-store.js";
 import { createJoinRateLimiter } from "./join-rate-limiter.js";
+import { applyEvents } from "./apply-room-level-event.js";
+import { buildDomainCommand } from "./build-domain-command.js";
 
 /**
  * 在室を前提としないコマンド（FR-151）。
@@ -1240,81 +1239,6 @@ function messageForRemoval(code: RemovalNotification, actorDisplayName: string):
     : errorMessageFor("LEFT_ROOM");
 }
 
-// ─── コマンド変換 ────────────────────────────────────────────────────────────
-
-// RESTART は「現ドライバーのまま持ち時間をやり直す」（Issue #14）。session.act として
-// 受理するため権限は既存の EDITOR_PLUS_COMMANDS（session.act）がそのまま効く。
-const VALID_ACTIONS = new Set(["START", "SWITCH", "PAUSE", "RESUME", "RESTART"]);
-const VALID_PHASES = new Set(["setup", "ready", "session", "celebration"]);
-
-function buildDomainCommand(cmd: { command: string; [key: string]: unknown }) {
-  switch (cmd.command) {
-    case "session.act": {
-      const action = cmd.action;
-      if (typeof action !== "string" || !VALID_ACTIONS.has(action)) return null;
-      return { command: "session.act" as const, action: action as "START" | "SWITCH" | "PAUSE" | "RESUME" | "RESTART" };
-    }
-    case "session.complete":
-      return { command: "session.complete" as const };
-    case "session.reset":
-      return { command: "session.reset" as const };
-    case "config.set": {
-      if (typeof cmd.config !== "object" || cmd.config === null) return null;
-      // members は受け付けない（D6b）。core の ConfigSet は members から rotation を
-      // 組み直すため、表示名の配列を通すと rotation が名前に戻り識別子の不変条件が壊れる。
-      // 輪の出入りは member.add/remove/move・addProxy・participant.remove だけが担う。
-      const { members: _ignored, ...config } = cmd.config as Partial<SessionConfig>;
-      return { command: "config.set" as const, config };
-    }
-    case "member.add":
-      // 誰を輪に並べるかは参加者IDで指す（D6b）。名前→IDの解決という曖昧さを発生源で消す。
-      if (typeof cmd.participantId !== "string") return null;
-      return { command: "member.add" as const, participantId: cmd.participantId };
-    case "member.remove":
-      if (typeof cmd.index !== "number") return null;
-      return { command: "member.remove" as const, index: cmd.index };
-    case "member.move":
-      if (typeof cmd.fromIndex !== "number" || typeof cmd.toIndex !== "number") return null;
-      return { command: "member.move" as const, fromIndex: cmd.fromIndex, toIndex: cmd.toIndex };
-    case "phase.set": {
-      const phase = cmd.phase;
-      if (typeof phase !== "string" || !VALID_PHASES.has(phase)) return null;
-      return { command: "phase.set" as const, phase: phase as "setup" | "ready" | "session" | "celebration" };
-    }
-    case "handoff.note.set":
-      if (typeof cmd.text !== "string") return null;
-      return { command: "handoff.note.set" as const, text: cmd.text };
-    // ─── v2 新コマンド ─────────────────────────────────────────────────────
-    case "session.abort":
-      return { command: "session.abort" as const };
-    case "participant.addProxy":
-      if (typeof cmd.displayName !== "string" || typeof cmd.participantId !== "string") return null;
-      return { command: "participant.addProxy" as const, displayName: cmd.displayName, participantId: cmd.participantId };
-    case "participant.rename":
-      if (typeof cmd.participantId !== "string" || typeof cmd.displayName !== "string") return null;
-      // 表示名の一意性は呼び出し側（handleRoomCommand）が participants に対して検査する（T052）
-      return { command: "participant.rename" as const, participantId: cmd.participantId, displayName: cmd.displayName };
-    case "driver.skip":
-      if (typeof cmd.participantId !== "string") return null;
-      return { command: "driver.skip" as const, participantId: cmd.participantId };
-    case "driver.resume":
-      if (typeof cmd.participantId !== "string") return null;
-      return { command: "driver.resume" as const, participantId: cmd.participantId };
-    case "driver.assign":
-      if (typeof cmd.participantId !== "string") return null;
-      // index は handleRoomCommand が participantId から解決して埋める（-1 はプレースホルダ）。
-      return { command: "driver.assign" as const, index: -1 };
-    case "problem.edit":
-      if (typeof cmd.patch !== "object" || cmd.patch === null) return null;
-      return { command: "problem.edit" as const, patch: cmd.patch as { title?: string; description?: string; requirements?: string[]; exampleTest?: string; hints?: string[] } };
-    case "problem.mode.set":
-      if (cmd.mode !== "ai" && cmd.mode !== "fallback") return null;
-      return { command: "problem.mode.set" as const, mode: cmd.mode as ProblemMode };
-    default:
-      return null;
-  }
-}
-
 // ─── モブ順のランダム化（サーバー権威）──────────────────────────────────────
 
 /**
@@ -1397,168 +1321,8 @@ function rotationDisplayNames(room: Room): string[] {
 }
 
 // ─── ルームレベルのイベント適用 ──────────────────────────────────────────────
-
-/**
- * **集約（session + clock）を反映済みであることを表す型**（FR-103）。
- *
- * 実体はただの `Room` であり、この目印は**型の上にしか存在しない**（実行時のコストは無い）。
- * `applyRoomLevelEvent` はこの型しか受け付けず、この型を作れるのは `applyEvents` だけである。
- * したがって「Room レベルイベントを先に適用してしまう」順序違反はコンパイルが通らない。
- */
-declare const aggregateApplied: unique symbol;
-type RoomWithAggregate = Room & { readonly [aggregateApplied]: true };
-
-/**
- * **状態遷移の適用順序の契約**（FR-103）。
- *
- * 1. `evolve` / `advanceDriver` が返した集約を Room に反映する
- * 2. その結果を基底にして Room レベルのイベントを順に適用する
- *
- * **この順序を逆にしてはならない。** `applyRoomLevelEvent` は `session.rotation` 等を
- * さらに更新しうるため（`ProxyMemberAdded` の rotation 追加・`ParticipantRenamed` の改名）、
- * 集約の反映を後に回すと、そこで加えた session の変更が丸ごと捨てられる。
- *
- * かつてこの順序はコメントによる注意喚起でしか表現されておらず、呼び出し側が自分で
- * `{ ...room, session, clock }` を組み立ててからループを回していた。順序を守る責務を
- * この関数 1 つに閉じ込め、`applyRoomLevelEvent` を型で守ることで、順序違反を起こせなくする。
- *
- * **統合（`applyRoomLevelEvent` と `evolve` を 1 つにすること）は行わない**（Issue #26 の担当）。
- * ここで行うのは境界を型と契約として表現することまでである。
- */
-function applyEvents(
-  room: Room,
-  agg: { session: Room["session"]; clock: Room["clock"] },
-  events: readonly DomainEvent[],
-  now: number,
-): Room {
-  const base = { ...room, session: agg.session, clock: agg.clock } as RoomWithAggregate;
-  return events.reduce<RoomWithAggregate>(
-    (acc, event) => applyRoomLevelEvent(acc, event, now),
-    base,
-  );
-}
-
-function applyRoomLevelEvent(
-  room: RoomWithAggregate,
-  event: DomainEvent,
-  _now: number,
-): RoomWithAggregate {
-  switch (event.type) {
-    case "PhaseSet": {
-      // startedAt は「一度でも開始したか」を表す単調フラグ（host-spof-relaxation D2）。
-      // phase は phase.set で任意方向へ遷移でき "setup" 等へ後戻りもできるため、
-      // 現在の phase で権限を判定すると主催者不在時に誰かが "setup" へ戻した瞬間
-      // ルームが再びホスト限定に締まり、Issue #22 の詰みが再発する。そのため
-      // 「session への遷移を初めて観測した」時点で一度だけ記録し、以後は
-      // どんな phase 遷移でも消さない（上書きしない）。
-      const startedAt =
-        event.phase === "session" && room.startedAt == null ? _now : room.startedAt;
-      return { ...room, phase: event.phase, startedAt };
-    }
-    case "SessionReset":
-      // リセット＝最初から再スタート（v2.3 #3）。集約(session/clock)は evolve が
-      // 先頭・満タン・走行に初期化済み。お題・メンバー・設定・引き継ぎは維持し、
-      // phase は session のまま（その場で走り直す）。休憩フラグのみ解除する。
-      return {
-        ...room,
-        onBreak: false,
-      };
-    case "ProblemSet":
-      return { ...room, problem: event.problem };
-    case "ConfigSet":
-      // 検証済み部分設定を Room.config にマージ（言語/難易度/メンバー/間隔を反映）
-      return { ...room, config: { ...room.config, ...event.config } };
-    case "HandoffNoteSet":
-      return { ...room, handoffNote: event.text };
-    case "BreakStarted":
-      return { ...room, onBreak: true };
-    case "BreakEnded":
-      return { ...room, onBreak: false };
-    case "SessionCompleted": {
-      // 既に完成済みなら二重計上しない（complete の冪等性）
-      if (room.phase === "celebration") return room;
-      // 完成フェーズへ遷移し、揮発な完成記録を Room に追加（FR-028）
-      const next: RoomWithAggregate = { ...room, phase: "celebration" };
-      if (room.problem) {
-        const agg = { session: room.session, clock: room.clock };
-        const record = buildCompletionRecord(
-          agg,
-          room.problem,
-          room.config,
-          event.now,
-          room.code,
-        );
-        next.sessionRecords = [...room.sessionRecords, record];
-      }
-      return next;
-    }
-    // ─── v2 イベント ──────────────────────────────────────────────────────
-    case "SessionAborted":
-      // 中断: 記録を生成せず締めくくりフェーズへ（FR-020）
-      return { ...room, phase: "celebration" };
-    case "ProxyMemberAdded": {
-      // 代理参加者をルームに追加し、rotation・driverCounts にも追加して
-      // ドライバーローテーションに含める（FR-047）。
-      const proxyParticipant: Participant = {
-        participantId: event.participantId,
-        connId: null,
-        displayName: event.displayName,
-        role: "editor",
-        presence: "offline",
-        hasAiKey: false,
-        joinedAt: _now,
-        isPlaceholder: true,
-        driverEligible: true,
-      };
-      return {
-        ...room,
-        participants: [...room.participants, proxyParticipant],
-        session: {
-          ...room.session,
-          rotation: [...room.session.rotation, event.participantId],
-          driverCounts: [...room.session.driverCounts, 0],
-        },
-      };
-    }
-    case "ParticipantRenamed":
-      // rotation は参加者IDの配列（D6b）で改名しても値が変わらないため、触る必要が無い。
-      // 旧名で位置を引いて置換していた処理はここで消えた（同名の取り違えの温床だった）。
-      return {
-        ...room,
-        participants: room.participants.map((p) =>
-          p.participantId === event.participantId
-            ? { ...p, displayName: event.displayName }
-            : p,
-        ),
-      };
-    case "DriverSkipped":
-      return {
-        ...room,
-        participants: room.participants.map((p) =>
-          p.participantId === event.participantId
-            ? { ...p, driverEligible: false }
-            : p,
-        ),
-      };
-    case "DriverResumed":
-      return {
-        ...room,
-        participants: room.participants.map((p) =>
-          p.participantId === event.participantId
-            ? { ...p, driverEligible: true }
-            : p,
-        ),
-      };
-    case "ProblemEdited": {
-      if (!room.problem) return room;
-      return {
-        ...room,
-        problem: { ...room.problem, ...event.patch, edited: true },
-      };
-    }
-    case "ProblemModeSet":
-      return { ...room, problemMode: event.mode };
-    default:
-      return room;
-  }
-}
+//
+// `applyEvents`/`applyRoomLevelEvent`（集約反映 → Room レベルイベント適用の
+// 適用順序契約を含む）は `apply-room-level-event.ts` へ移動した（フェーズ4・
+// 純粋な移動。ロジック変更なし）。本ファイルはファイル先頭で `applyEvents` を
+// import して従来通り呼び出す。適用順の依存関係の説明は移動先の docstring を参照。
