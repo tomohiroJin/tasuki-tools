@@ -19,7 +19,14 @@ export function buildDomainCommand(cmd: { command: string; [key: string]: unknow
     case "session.act": {
       const action = cmd.action;
       if (typeof action !== "string" || !VALID_ACTIONS.has(action)) return null;
-      return { command: "session.act" as const, action: action as "START" | "SWITCH" | "PAUSE" | "RESUME" | "RESTART" };
+      // ineligible は SWITCH のときだけ handlers.ts 側で後から埋める（B-2統合）。
+      // ここでは常に未設定の型付きプロパティとして持たせ、他コマンドと同様に
+      // 呼び出し側での型安全な代入を可能にする。
+      return {
+        command: "session.act" as const,
+        action: action as "START" | "SWITCH" | "PAUSE" | "RESUME" | "RESTART",
+        ineligible: undefined as ReadonlySet<number> | undefined,
+      };
     }
     case "session.complete":
       return { command: "session.complete" as const };

@@ -451,6 +451,13 @@ export function makeHandlers(deps: HandlerDeps) {
       return err("UNKNOWN_COMMAND");
     }
 
+    // 手動 SWITCH は自動交代と同じく一時離脱/オフライン(非placeholder)を飛ばす（B-2統合）。
+    // 交代先の決定は decide 自身（nextEligibleIndex 経由）に一本化されたため、ここでは
+    // ineligible を decide への入力として注入するだけで、決定結果を後から差し替えない。
+    if (domainCmd.command === "session.act" && domainCmd.action === "SWITCH") {
+      domainCmd.ineligible = computeIneligibleIndices(targetRoom);
+    }
+
     const now = clock.now();
     const agg = { session: targetRoom.session, clock: targetRoom.clock };
     const result = decide(domainCmd, agg, now);
@@ -462,18 +469,10 @@ export function makeHandlers(deps: HandlerDeps) {
       return err(result.error.type);
     }
 
-    // まず evolve で集約（session+clock）を更新する。
-    // 手動スキップ(session.act SWITCH)は自動交代と同じく一時離脱/オフライン(非placeholder)を飛ばす。
-    // decide はバリデーション(clock.running)に使い、行き先だけ eligible-aware な advanceDriver に差し替える。
+    // decide が返したイベント列を他コマンドと同じ evolve ループへ通す（isManualSwitch分岐は撤去済み）。
     let newAgg = agg;
-    const isManualSwitch =
-      domainCmd.command === "session.act" && domainCmd.action === "SWITCH";
-    if (isManualSwitch) {
-      newAgg = advanceDriver(agg, computeIneligibleIndices(targetRoom), now);
-    } else {
-      for (const event of result.value) {
-        newAgg = evolve(newAgg, event, now);
-      }
+    for (const event of result.value) {
+      newAgg = evolve(newAgg, event, now);
     }
 
     // 集約の反映 → Room レベルイベントの適用（順序は applyEvents が保証する・FR-103）。
