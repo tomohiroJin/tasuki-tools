@@ -96,6 +96,17 @@ describe("NOT_IN_ROTATION の文言（解消の手がかりを示す）", () => 
     const shown = displayMessageFor("NOT_IN_ROTATION");
     expect(shown).not.toContain("見学者");
   });
+
+  // 否定だけでは文言が空になっても通ってしまうため、何を示すべきかも固定する。
+  it("輪に加わっていないことを示す", () => {
+    const shown = displayMessageFor("NOT_IN_ROTATION");
+    expect(shown).toContain("輪");
+  });
+
+  it("指名の失敗であることを示す", () => {
+    const shown = displayMessageFor("NOT_IN_ROTATION");
+    expect(shown).toContain("指名");
+  });
 });
 
 /**
