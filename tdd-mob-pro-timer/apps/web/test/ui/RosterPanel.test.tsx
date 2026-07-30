@@ -983,4 +983,53 @@ describe("RosterPanel 同名参加者の区別", () => {
       .filter((a) => a.includes("退出させる"));
     expect(labels).toEqual(["Bob（ID: 0002） を退出させる"]);
   });
+
+  // ─── 同名3名（識別子の付与規則が2名までしか検証されていなかったための追加）───
+  // Issue #22 の G8 は「同名2名」の事故だったが、判定規則（isAmbiguousName）が
+  // 3名以上でも破綻しないことを、drivers/watchers 双方のセクションで確認する。
+
+  const threeBobs = [
+    makeParticipant({ participantId: "pid-0001", displayName: "Alice", role: "host" }),
+    makeParticipant({ participantId: "pid-0002", displayName: "Bob", role: "editor", connId: "c2" }),
+    makeParticipant({ participantId: "pid-0003", displayName: "Bob", role: "editor", connId: "c3" }),
+    makeParticipant({ participantId: "pid-0004", displayName: "Bob", role: "editor", connId: "c4" }),
+  ];
+
+  it("同名3名が全員ドライバーのとき、ドライバー一覧の全員の行に識別子付きラベルが表示される", () => {
+    // Given（3名の Bob 全員を rotation に入れ、ドライバーセクションへ回す）
+    // When
+    render(
+      <RosterPanel
+        {...dupProps}
+        participants={threeBobs}
+        rotation={["pid-0002", "pid-0003", "pid-0004"]}
+        currentDriverId="pid-0002"
+      />,
+    );
+    // Then
+    const driverList = screen.getByRole("list", { name: "ドライバー一覧" });
+    expect(within(driverList).queryByText("Bob")).toBeNull();
+    expect(within(driverList).getByText("Bob（ID: 0002）")).toBeTruthy();
+    expect(within(driverList).getByText("Bob（ID: 0003）")).toBeTruthy();
+    expect(within(driverList).getByText("Bob（ID: 0004）")).toBeTruthy();
+  });
+
+  it("同名3名が全員見学のとき、見学一覧の全員の行に識別子付きラベルが表示される", () => {
+    // Given（3名の Bob は rotation 外＝見学。ドライバーは host のみ）
+    // When
+    render(
+      <RosterPanel
+        {...dupProps}
+        participants={threeBobs}
+        rotation={["pid-0001"]}
+        currentDriverId="pid-0001"
+      />,
+    );
+    // Then
+    const watchList = screen.getByRole("list", { name: "見学一覧" });
+    expect(within(watchList).queryByText("Bob")).toBeNull();
+    expect(within(watchList).getByText("Bob（ID: 0002）")).toBeTruthy();
+    expect(within(watchList).getByText("Bob（ID: 0003）")).toBeTruthy();
+    expect(within(watchList).getByText("Bob（ID: 0004）")).toBeTruthy();
+  });
 });

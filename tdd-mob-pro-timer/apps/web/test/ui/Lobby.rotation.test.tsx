@@ -190,6 +190,58 @@ describe("Lobby 同名参加者の区別", () => {
     expect(screen.getByText("Bob")).toBeTruthy();
     expect(screen.getByLabelText("Bob を退出させる")).toBeTruthy();
   });
+
+  // ─── 同名3名（識別子の付与規則が2名までしか検証されていなかったための追加）───
+  // Issue #22 の G8 は「同名2名」の事故だったが、判定規則（isAmbiguousName）が
+  // 3名以上でも破綻しないことをここで確認する。
+
+  /** host=Alice と、同名の Bob 3名（いずれも rotation 外＝見学）が居る部屋。 */
+  function makeTripleDupRoom(): Room {
+    const room = makeRoom();
+    return {
+      ...room,
+      participants: [
+        p({ participantId: "host-p", displayName: "Alice", role: "host" }),
+        p({ participantId: "pid-0002", displayName: "Bob", connId: "c2" }),
+        p({ participantId: "pid-0003", displayName: "Bob", connId: "c3" }),
+        p({ participantId: "pid-0004", displayName: "Bob", connId: "c4" }),
+      ],
+    };
+  }
+
+  it("同名3名の操作ボタンが互いに異なるラベルになる", () => {
+    // Given
+    render(
+      <Lobby
+        room={makeTripleDupRoom()}
+        participantId="host-p"
+        onStartSession={noop}
+        onRemoveParticipant={vi.fn()}
+      />,
+    );
+    // When
+    const labels = screen
+      .getAllByRole("button")
+      .map((b) => b.getAttribute("aria-label") ?? "")
+      .filter((a) => a.includes("を退出させる"));
+    // Then
+    expect(labels).toHaveLength(3);
+    expect(new Set(labels).size).toBe(3);
+    expect(labels).toContain("Bob（ID: 0002） を退出させる");
+    expect(labels).toContain("Bob（ID: 0003） を退出させる");
+    expect(labels).toContain("Bob（ID: 0004） を退出させる");
+  });
+
+  it("同名3名がいると行の表示名にも識別子が出る（目で見ても区別できる）", () => {
+    // Given（makeTripleDupRoom: Bob が3名いる部屋）
+    // When
+    render(<Lobby room={makeTripleDupRoom()} participantId="host-p" onStartSession={noop} />);
+    // Then
+    expect(screen.queryByText("Bob")).toBeNull();
+    expect(screen.getByText("Bob（ID: 0002）")).toBeTruthy();
+    expect(screen.getByText("Bob（ID: 0003）")).toBeTruthy();
+    expect(screen.getByText("Bob（ID: 0004）")).toBeTruthy();
+  });
 });
 
 // ─── 退出の確認（実機検証で判明した欠落）──────────────────────────
