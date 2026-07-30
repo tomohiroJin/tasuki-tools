@@ -29,6 +29,7 @@ import {
   type IntervalMinutes,
   type ErrorCode,
   type RemovalNotification,
+  type Command,
 } from "@tdd-mob/core";
 import type { Clock } from "../ports/clock.js";
 import type { Broadcaster } from "../ports/broadcaster.js";
@@ -37,6 +38,33 @@ import type { RoomCodeGen } from "../ports/code-gen.js";
 import type { Scheduler } from "./schedule.js";
 import type { ProblemDelegator } from "./problem-delegation.js";
 import { constantTimeEqual } from "./secure-compare.js";
+
+/**
+ * 在室を前提としないコマンド（FR-151）。
+ *
+ * `room.create`/`room.join`/`time.ping` は `handleCommand` の switch で早期分岐する。
+ * `presence.ping` は `apps/sync/src/server.ts` が `handleCommand` を呼ぶ**手前**で
+ * 横取り済みであり（`presenceManager.handlePing(connId)`）、ここでは型としてだけ存在する
+ * （挙動は変えない。`handlers.ts` 内に処理は書かない）。
+ */
+export type PreRoomCommand = Extract<
+  Command,
+  { command: "room.create" | "room.join" | "time.ping" | "presence.ping" }
+>;
+
+/**
+ * 在室を前提とするルームスコープコマンド（FR-151/152）。
+ *
+ * `PreRoomCommand`（4個）を除いた `Command` の残り全variantを指す判別可能 union。
+ * うち `packages/core/src/permissions.ts` の `REGISTERED_COMMANDS` に登録されている
+ * 25個が「共通パイプラインが実際にドメイン処理する」コマンドであり、`break.start`/
+ * `break.end` の2個は wire スキーマ上は残っているが `REGISTERED_COMMANDS` にも
+ * `buildDomainCommand` の switch にも無い（`default` → `UNKNOWN_COMMAND` になる
+ * 到達しない枝。`reconcileSchedule` のコメント参照）。この2個も `handleCommand` の
+ * default 分岐（`handleRoomCommand`）へは届く必要があるため（現状の挙動を変えない）、
+ * 型としては `RoomScopedCommand` に含めておく。
+ */
+export type RoomScopedCommand = Exclude<Command, PreRoomCommand>;
 
 export interface HandlerDeps {
   store: RoomStore;
@@ -190,7 +218,7 @@ export function makeHandlers(deps: HandlerDeps) {
    */
   async function handleCommand(
     connId: string,
-    cmd: { command: string; [key: string]: unknown },
+    cmd: RoomScopedCommand | PreRoomCommand,
   ): Promise<CommandResult> {
     switch (cmd.command) {
       case "room.create":
