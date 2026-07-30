@@ -1,16 +1,25 @@
 /**
  * ドライバー交代の**特性テスト**（characterization test）。
  *
- * `apps/sync` の `handlers.ts` は `session.act SWITCH` を受けたとき、
+ * 統合前、`apps/sync` の `handlers.ts` は `session.act SWITCH` を受けたとき、
  * `decide()` が返した `DriverSwitched.nextIndex` を**採用せず**、
- * `advanceDriver()` の結果で置き換えている（B-2 / FR-102 違反）。
+ * `advanceDriver()` の結果で置き換えていた（B-2 / FR-102 違反）。
  *
- * このファイルは**現在そうなっている振る舞いを固定する**。ここに書かれているのは
- * 「望ましい仕様」ではなく「今の実装が実際にどう動くか」である。
- * 統合（`decide` に ineligible を渡して置き換え分岐を撤去する）が
- * 振る舞いを変えないかどうかは `driver-switch-equivalence.test.ts` が判定する。
+ * このファイルは**当時そうなっていた振る舞いを固定した**ものである。ここに書かれているのは
+ * 「望ましい仕様」ではなく「実装が実際にどう動くか」であり、B-2 統合（decide に ineligible を
+ * 渡して置き換え分岐を撤去する）の後もユーザーに見える値（担当回数・交代回数・現在ドライバー）は
+ * 変わらないことの直接証拠として、「decide が返す交代先」「advanceDriver による交代」の各節は
+ * 統合後もそのまま緑であり続ける（値は1つも変更していない）。
  *
- * @requirements FR-102, FR-114, US3
+ * 旧「2 つの実装の食い違い」節（`evolve(DriverSwitched)` を decide の生の結果に直接適用した
+ * 場合と `advanceDriver` が一致しないことを示す節）は、B-2 統合そのものによってこの食い違いが
+ * 解消されたため、事後的に成立しなくなった（`evolveDriverSwitched` を修正し `advanceDriver` は
+ * その1行ラッパへ縮退したため、両者は必然的に一致する）。この食い違いの解消は
+ * `driver-switch-equivalence.test.ts` が本来の役割として証明するため、本ファイルでは
+ * 「解消済みであることの確認」に節を書き換えた（旧節の「食い違う」という主張自体を
+ * そのまま残すと、統合が完了した実装に対して失敗し続ける矛盾したテストになるため）。
+ *
+ * @requirements FR-102, FR-114, FR-163, FR-166, US3
  */
 
 import { describe, it, expect } from "vitest";
@@ -127,12 +136,18 @@ describe("ドライバーの交代（現在の振る舞い）", () => {
   });
 
   /**
-   * B-2 の核心。**同じ「交代」という操作に 2 つの実装があり、結果が食い違う入力が存在する。**
+   * B-2 統合により解消された食い違いの確認。統合前はここで
+   * 「1人だけの輪では evolve(DriverSwitched) は担当回数/交代回数を増やすが
+   * advanceDriver は増やさない」という食い違いが起きていたが、`evolveDriverSwitched`
+   * を advanceDriver 準拠（`nextIndex === prevIndex` なら加算しない）に修正し、
+   * `advanceDriver` をその1行ラッパへ縮退させたことで、decide の生の結果を直接 evolve
+   * しても advanceDriver と一致するようになった。全入力での一致は
+   * `driver-switch-equivalence.test.ts` が fast-check で証明する。
    *
-   * @requirements FR-102
+   * @requirements FR-102, FR-163, FR-166
    */
-  describe("2 つの実装の食い違い", () => {
-    it("1人だけの輪では、evolve(DriverSwitched) は担当回数を増やすが advanceDriver は増やさない", () => {
+  describe("2 つの実装の食い違い（統合により解消）", () => {
+    it("1人だけの輪では、evolve(DriverSwitched) も advanceDriver も担当回数を増やさない", () => {
       // Given（輪が 1 人。decide の nextIndex は (0+1)%1 = 0 ＝ 自分自身になる）
       const agg = anAggregate().withRotation("p1").withCurrentDriver(0).running().build();
       const decided = decide({ command: "session.act", action: "SWITCH" }, agg, LATER)._unsafeUnwrap();
@@ -142,11 +157,11 @@ describe("ドライバーの交代（現在の振る舞い）", () => {
       const byAdvance = advanceDriver(agg, new Set(), LATER);
 
       // Then
-      expect(byEvolve.session.driverCounts).toEqual([1]);
+      expect(byEvolve.session.driverCounts).toEqual([0]);
       expect(byAdvance.session.driverCounts).toEqual([0]);
     });
 
-    it("1人だけの輪では、evolve(DriverSwitched) は交代回数を増やすが advanceDriver は増やさない", () => {
+    it("1人だけの輪では、evolve(DriverSwitched) も advanceDriver も交代回数を増やさない", () => {
       // Given
       const agg = anAggregate().withRotation("p1").withCurrentDriver(0).running().build();
       const decided = decide({ command: "session.act", action: "SWITCH" }, agg, LATER)._unsafeUnwrap();
@@ -156,7 +171,7 @@ describe("ドライバーの交代（現在の振る舞い）", () => {
       const byAdvance = advanceDriver(agg, new Set(), LATER);
 
       // Then
-      expect(byEvolve.session.totalSwitches).toBe(1);
+      expect(byEvolve.session.totalSwitches).toBe(0);
       expect(byAdvance.session.totalSwitches).toBe(0);
     });
   });

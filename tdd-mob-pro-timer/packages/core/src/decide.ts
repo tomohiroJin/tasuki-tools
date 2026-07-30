@@ -10,6 +10,7 @@ import {
   MIN_MEMBERS,
   MAX_MEMBERS,
   MAX_PROBLEM_REQUIREMENTS,
+  nextEligibleIndex,
 } from "./aggregate.js";
 import type { DomainEvent } from "./events.js";
 import type { DomainError } from "./errors.js";
@@ -19,7 +20,14 @@ import type { DomainError } from "./errors.js";
  * T057: 自ファイル内でのみ使われるため export を外した（FR-119③・SC-039）。
  */
 type DecideCommand =
-  | { command: "session.act"; action: "START" | "SWITCH" | "PAUSE" | "RESUME" | "RESTART" }
+  | {
+      command: "session.act";
+      action: "START" | "SWITCH" | "PAUSE" | "RESUME" | "RESTART";
+      // SWITCH 専用（他アクションでは無視される）。B-2統合: handleRoomCommand が
+      // advanceDriver の代わりに使っていた「対象外を飛ばす」判定を decide 自身に委譲する
+      // ための任意フィールド。省略時（既存呼び出し）は空集合扱いで従来通り隣を返す（後方互換）。
+      ineligible?: ReadonlySet<number>;
+    }
   | { command: "session.complete" }
   | { command: "session.abort" }
   | { command: "session.reset"; config?: SessionConfig }
@@ -51,7 +59,7 @@ export function decide(
 ): Result<DomainEvent[], DomainError> {
   switch (cmd.command) {
     case "session.act":
-      return decideSessionAct(cmd.action, agg, now);
+      return decideSessionAct(cmd.action, agg, now, cmd.ineligible);
 
     case "session.complete":
       return ok([{ type: "SessionCompleted", now }]);
@@ -167,6 +175,7 @@ function decideSessionAct(
   action: "START" | "SWITCH" | "PAUSE" | "RESUME" | "RESTART",
   agg: Aggregate,
   now: number,
+  ineligible?: ReadonlySet<number>,
 ): Result<DomainEvent[], DomainError> {
   const { clock, session } = agg;
 
@@ -190,7 +199,8 @@ function decideSessionAct(
         });
       }
       {
-        const nextIndex = (session.currentIndex + 1) % session.rotation.length;
+        // ineligible 省略時（undefined）は nextEligibleIndex が従来通り「隣」を返す。
+        const nextIndex = nextEligibleIndex(session, session.currentIndex, ineligible);
         return ok([{ type: "DriverSwitched", nextIndex, now }]);
       }
 
