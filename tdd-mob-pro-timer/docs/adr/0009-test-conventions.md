@@ -1,6 +1,6 @@
 # ADR-0009: テストの書き方の規約（G3: 名前・構造・関心の一括是正）
 
-- **ステータス**: Accepted（一部実施中。移行は G3 バッチ単位で進行）
+- **ステータス**: Accepted（移行完了・148 ファイル全件）
 - **関連**: 設計正本 `../../../docs/plans/codebase-refactoring/plan.md`（「テストの書き方の規約」節）,
   `../../../docs/plans/codebase-refactoring/spec.md`（FR-091〜099, FR-121〜123, SC-029〜032）,
   `../../../docs/plans/codebase-refactoring/tasks.md`（G3 節）
