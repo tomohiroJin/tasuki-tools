@@ -39,6 +39,7 @@ import type { Scheduler } from "./schedule.js";
 import type { ProblemDelegator } from "./problem-delegation.js";
 import { constantTimeEqual } from "./secure-compare.js";
 import { createTokenStore } from "./token-store.js";
+import { createJoinRateLimiter } from "./join-rate-limiter.js";
 
 /**
  * 在室を前提としないコマンド（FR-151）。
@@ -125,18 +126,13 @@ export function makeHandlers(deps: HandlerDeps) {
 
   // 単一接続あたりの room.join 連続失敗のレート制限（コード列挙の緩和）。
   // 正常利用には干渉しない緩い閾値。本来の防御はエッジ/IP 層（リバースプロキシ等）で行うべき。
-  const JOIN_FAIL_WINDOW_MS = 10_000;
   const JOIN_FAIL_MAX = 30;
-  /** connId → 直近の join 失敗時刻（epoch ms） */
-  const joinFailures = new Map<string, number[]>();
-  const recentJoinFailures = (connId: string, now: number): number[] => {
-    const arr = (joinFailures.get(connId) ?? []).filter(
-      (t) => now - t < JOIN_FAIL_WINDOW_MS,
-    );
-    if (arr.length === 0) joinFailures.delete(connId);
-    else joinFailures.set(connId, arr);
-    return arr;
-  };
+  // `join-rate-limiter.ts` の createJoinRateLimiter() へ切り出した（フェーズ3・純粋な移動）。
+  // ★ room.join と ai.unlock は「合言葉/コード総当たりの緩和」という同じ目的のため、
+  // 意図的に同一インスタンス（joinRateLimiter）の窓を共有する。この関数は
+  // makeHandlers 内で1度しか呼ばない（コマンドごとに別インスタンスを作らない）ことで、
+  // 共有が構造的に保証される（join-rate-limiter.ts のdocstring参照）。
+  const joinRateLimiter = createJoinRateLimiter({ windowMs: 10_000, max: JOIN_FAIL_MAX });
 
   /**
    * 失敗を 1 接続へ通知する（FR-101）。
@@ -377,7 +373,7 @@ export function makeHandlers(deps: HandlerDeps) {
     const now = clock.now();
 
     // 連続失敗が閾値を超えた接続は一時的に拒否（コード総当たりの緩和）。
-    if (recentJoinFailures(connId, now).length >= JOIN_FAIL_MAX) {
+    if (joinRateLimiter.recentFailures(connId, now).length >= JOIN_FAIL_MAX) {
       sendError(connId, "JOIN_RATE_LIMITED", errorMessageFor("JOIN_RATE_LIMITED"));
       return err("JOIN_RATE_LIMITED");
     }
@@ -386,7 +382,7 @@ export function makeHandlers(deps: HandlerDeps) {
 
     if (!room) {
       // 失敗を記録（次回以降のレート判定に使う）。
-      joinFailures.set(connId, [...(joinFailures.get(connId) ?? []), now]);
+      joinRateLimiter.recordFailure(connId, now);
       sendError(connId, "ROOM_NOT_FOUND", "指定されたルームコードが見つかりません");
       return err("ROOM_NOT_FOUND");
     }
@@ -429,7 +425,7 @@ export function makeHandlers(deps: HandlerDeps) {
     const providedPassphrase = (cmd.passphrase ?? "").trim();
     if (requiredPassphrase !== undefined && providedPassphrase !== requiredPassphrase) {
       // 失敗をレート制限に積算（パスフレーズ総当たりの緩和・既存 join 制限と統合）。
-      joinFailures.set(connId, [...(joinFailures.get(connId) ?? []), now]);
+      joinRateLimiter.recordFailure(connId, now);
       const code: ErrorCode = providedPassphrase
         ? "PASSPHRASE_MISMATCH"
         : "PASSPHRASE_REQUIRED";
@@ -911,7 +907,7 @@ export function makeHandlers(deps: HandlerDeps) {
   /** AI お題生成を合言葉で解錠する（host 限定）。
    *  合言葉はサーバ env（AI_UNLOCK_KEY）のみに存在し、Room には aiUnlocked(boolean) だけ反映。
    *  未設定（機能無効）でも不一致と同じ AI_UNLOCK_FAILED を返し、機能の存在を秘匿する。
-   *  失敗は join と同じレート制限窓（joinFailures）に積算する（総当たり対策）。 */
+   *  失敗は join と同じレート制限窓（joinRateLimiter・共有インスタンス）に積算する（総当たり対策）。 */
   async function handleAiUnlock(
     connId: string,
     cmd: { command: "ai.unlock"; key: string },
@@ -934,7 +930,7 @@ export function makeHandlers(deps: HandlerDeps) {
 
     // 連続失敗のレート制限（join と同じ窓・閾値を共用）
     const now = clock.now();
-    if (recentJoinFailures(connId, now).length >= JOIN_FAIL_MAX) {
+    if (joinRateLimiter.recentFailures(connId, now).length >= JOIN_FAIL_MAX) {
       sendError(connId, "RATE_LIMITED", errorMessageFor("RATE_LIMITED"));
       return err("RATE_LIMITED");
     }
@@ -945,7 +941,7 @@ export function makeHandlers(deps: HandlerDeps) {
       provided !== "" &&
       constantTimeEqual(provided, aiUnlockKey);
     if (!matched) {
-      joinFailures.set(connId, [...(joinFailures.get(connId) ?? []), now]);
+      joinRateLimiter.recordFailure(connId, now);
       sendError(connId, "AI_UNLOCK_FAILED", errorMessageFor("AI_UNLOCK_FAILED"));
       return err("AI_UNLOCK_FAILED");
     }
@@ -1122,7 +1118,7 @@ export function makeHandlers(deps: HandlerDeps) {
 
   /** 接続クローズ時の後始末。レート制限用の失敗履歴を解放しマップのリークを防ぐ。 */
   function handleConnectionClose(connId: string): void {
-    joinFailures.delete(connId);
+    joinRateLimiter.clear(connId);
   }
 
   /** ルーム回収時の後始末。当該ルームのホスト/リジュームトークンを解放する。 */

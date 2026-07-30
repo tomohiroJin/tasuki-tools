@@ -21,8 +21,8 @@
 
 ## フェーズ3 — 責務分割: レート制限（G1）
 
-- [ ] T005 [P] `apps/sync/test/join-rate-limiter.test.ts` に**失敗するテスト**を書く。窓内の失敗回数カウント・窓外の失効・`room.join` と `ai.unlock` が**同一インスタンスの窓を共有する**ことを直接検証するケースを含める（例: `room.join` で30回失敗させた状態から同じ `connId` で `ai.unlock` を呼ぶと即座に `RATE_LIMITED` になる）。 _要件: FR-158, FR-159 (US3)_
-- [ ] T006 T005 を通すため `apps/sync/src/application/join-rate-limiter.ts` に `createJoinRateLimiter({ windowMs, max })` を実装する（green）。`handlers.ts` の `joinFailures`/`recentJoinFailures`/`JOIN_FAIL_WINDOW_MS`/`JOIN_FAIL_MAX` を置き換え、`handleRoomJoin` と `handleAiUnlock` が同一インスタンスを共有するよう `makeHandlers` で1度だけ生成する。ロジックは変えない。全ゲート緑を確認。 _要件: FR-158, FR-159 (US3)_
+- [x] T005 [P] `apps/sync/test/join-rate-limiter.test.ts` に**失敗するテスト**を書く。窓内の失敗回数カウント・窓外の失効・`room.join` と `ai.unlock` が**同一インスタンスの窓を共有する**ことを直接検証するケースを含める（例: `room.join` で30回失敗させた状態から同じ `connId` で `ai.unlock` を呼ぶと即座に `RATE_LIMITED` になる）。 _要件: FR-158, FR-159 (US3)_
+- [x] T006 T005 を通すため `apps/sync/src/application/join-rate-limiter.ts` に `createJoinRateLimiter({ windowMs, max })` を実装する（green）。`handlers.ts` の `joinFailures`/`recentJoinFailures`/`JOIN_FAIL_WINDOW_MS`/`JOIN_FAIL_MAX` を置き換え、`handleRoomJoin` と `handleAiUnlock` が同一インスタンスを共有するよう `makeHandlers` で1度だけ生成する。ロジックは変えない。全ゲート緑を確認。 _要件: FR-158, FR-159 (US3)_
 
 ## フェーズ4 — 責務分割: イベント適用・コマンド組み立て（G1・純粋移動）
 
