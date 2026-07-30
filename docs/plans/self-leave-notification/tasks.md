@@ -91,7 +91,7 @@
 
 ## G3 — web: 画面の次の動作
 
-- [ ] **T013** `[P]` `apps/web/test/ui/error-action.test.ts` を新規作成し、
+- [x] **T013** `[P]` `apps/web/test/ui/error-action.test.ts` を新規作成し、
   `errorAction(code)` の**失敗するテスト**を書く。検証する写像:
   `ROOM_NOT_FOUND` → `session-lost` /
   `LEFT_ROOM` → `leave-room` かつ `destination === "setup"` /
@@ -99,12 +99,12 @@
   未知のコード（例 `"WHATEVER"`）と `LAST_MANAGER` → `transient`。
   _要件: FR-127, FR-129, US1-4, US2-1, US2-2_
 
-- [ ] **T014** `apps/web/src/ui/error-action.ts` を新規作成し `ErrorAction` 型と
+- [x] **T014** `apps/web/src/ui/error-action.ts` を新規作成し `ErrorAction` 型と
   `errorAction()` を実装して T013 を green にする。
   **既定は `transient`** とし、画面を移すコードだけを明示的に列挙する理由を docstring に書く。
   _要件: FR-127, FR-129_
 
-- [ ] **T015** `apps/web/src/App.tsx` の `onError` を `errorAction(code)` による分岐へ書き換える。
+- [x] **T015** `apps/web/src/App.tsx` の `onError` を `errorAction(code)` による分岐へ書き換える。
   `leave-room` の後始末（`dispose` / `setRoom(null)` / `setClient(null)` / `setParticipantId("")` /
   `isCreatorRef` / `problemRequestedRef` / `recordSavedRef` / `setSessionLost(false)` / `setRecord(null)`）
   を**行き先によらない 1 箇所**に集約する。
@@ -113,7 +113,7 @@
   `"setup"` のときは保持せず `setMode("setup")` とする。
   _要件: FR-127, FR-128, US2-1, US2-2, US2-3_
 
-- [ ] **T016** `pnpm --filter @tdd-mob/web test` を実行し、既存の web テストが全て緑であることを
+- [x] **T016** `pnpm --filter @tdd-mob/web test` を実行し、既存の web テストが全て緑であることを
   確認する（バックグラウンド実行）。落ちたテストがあれば本タスクで修正する。
   _要件: 非機能（後方互換）_
 
@@ -138,34 +138,62 @@
   `すべてのコードについて、画面に出す文言が決まっている` が落ちる）。
   _要件: FR-130, SC-041_
 
-- [ ] **T018** `apps/web/src/App.tsx` の `onError` を読み返し、
+- [x] **T018** `apps/web/src/App.tsx` の `onError` を読み返し、
   `errorAction` の判別可能合併に対する分岐が**網羅的**であること（`kind` の取り得る値をすべて扱う）を
   型で保証する形にする。必要なら `never` による網羅チェックを添える。
   _要件: DbC（契約の明示）_
 
-- [ ] **T019** 追加・変更した全テストのテスト名と GWT の区切りが ADR 0009
+- [x] **T019** 追加・変更した全テストのテスト名と GWT の区切りが ADR 0009
   （`docs/adr/0009-test-conventions.md`）の規約に従っているか照合する。
   仕様 ID をテスト名に含めない・呼び出し語を使わない・`// Given` `// When` `// Then` の区切りを持つ。
   _要件: ADR 0009_
 
-- [ ] **T020** `pnpm test && pnpm typecheck && pnpm lint && pnpm build` を通す（バックグラウンド実行）。
+- [x] **T020** `pnpm test && pnpm typecheck && pnpm lint && pnpm build` を通す（バックグラウンド実行）。
   core カバレッジ閾値 90% を下回らないこと。
   _要件: 全要件（統合ゲート）_
 
 ## G5 — 検証
 
-- [ ] **T021** 追加した通知経路に対して、`scripts/mutation-check.mjs` の考え方で
+- [x] **T021** 追加した通知経路に対して、`scripts/mutation-check.mjs` の考え方で
   「`removalNotificationFor` の条件を反転させたらテストが落ちるか」を手で確認する。
   落ちないなら検出力が無いのでテストを補強する。
   _要件: SC-040, SC-041_
 
-- [ ] **T022** 実機統合検証。sync と web を起動し（**起動前に `lsof -ti tcp:5173 tcp:8787` で
+- [x] **T022** 実機統合検証。sync と web を起動し（**起動前に `lsof -ti tcp:5173 tcp:8787` で
   古いプロセスを掃除し、dev ログの `Local:` URL を確認する**）、Playwright で 2 タブを開く。
   検証: (1) 参加者が「ルームから抜ける」→ **入口画面へ移りバナーが出る**、
   (2) 入口画面に直前のルームへ戻る手がかりが無い、
   (3) ホスト側の一覧から退出者が消えている、
-  (4) 単独の編集者の場合はボタンが押せない（画面が移らない）。
+  (4) **他に在室者がいるが他に編集者がいない**場合はボタンが押せない（画面が移らない）。
   _要件: SC-040, SC-041, SC-042, SC-043_
+
+  **実施結果（2026-07-30）:** 全項目 PASS。ただし (2) で欠陥を検出し T024 で修正した。
+  (4) の条件は当初「単独の編集者の場合」と書いていたが**誤り**だった。
+  `canRemoveParticipant` は**残る在室者が 0 名なら退出を許可する**設計
+  （空になる部屋は誰も困らない・`participants.ts` の docstring に根拠あり）なので、
+  単独在室者は有効が正しい。無効化されるのは「他に在室者がいるが他に編集者がいない」場合で、
+  実機でも viewer を 1 人残した状態で無効化を確認した。
+  あわせて確認した項目: 退出バナーが 5.5 秒後も消えない（T023 の副次確認）／
+  他者に外された場合は URL を保持して参加画面へ戻り、**表から引いた文言が
+  旧リテラルと 1 文字も違わない**（T008・T015 の回帰）／アプリのコンソールエラーなし。
+
+  ★**環境の罠を踏んだ:** 修正後に実機で確認しても URL が消えず、実装が誤っているように見えた。
+  真因は **Vite が古い `App.tsx` を配信していた**こと（`curl http://localhost:5173/src/App.tsx |
+  grep -c stripRoomParam` が **0** を返して判明）。vite を kill し
+  `apps/web/node_modules/.vite` を削除して再起動すると解決した。
+  **画面を見るだけでは「修正が違う」と誤診する。配信されているコードを確かめること。**
+
+- [x] **T024**（実機検証で発見した欠陥の修正）**URL に残る `?room=` を除去する。**
+  自己退出で入口画面へ遷移したあとも**アドレスバーに `?room=<コード>` が残っており**、
+  リロードすると自分で抜けたルームの参加画面へ戻ってしまう（FR-127 / US2-2 違反）。
+  画面上の `joinCode` state をクリアしても、URL 自体が「復帰の手がかり」になっていた。
+  純粋関数 `stripRoomParam(href)` を `apps/web/src/ui/room-param.ts` に新設し
+  （テスト `apps/web/test/ui/room-param.test.ts` で 5 ケース検証）、
+  `destination === "setup"` のときだけ `window.history.replaceState` で除去する。
+  `pushState` ではなく `replaceState` を使い、戻るボタンの履歴に退出前の URL を積まない。
+  **`destination === "join"` 側は変更しない**（再参加しやすくするのが意図なので URL を残す）。
+  実機で href が `http://localhost:5173/` になり、リロード後も入口画面のままであることを確認した。
+  _要件: FR-127, SC-042, US2-2_
 
 ## 依存関係
 

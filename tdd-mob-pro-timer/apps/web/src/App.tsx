@@ -16,6 +16,8 @@ import { buildNoticeMessage } from "./sync/notice-message.js";
 import { NoAiProvider } from "./ai/no-ai.js";
 import type { ProblemProvider } from "./ai/provider.js";
 import { screenForPhase } from "./ui/screen.js";
+import { errorAction } from "./ui/error-action.js";
+import { stripRoomParam } from "./ui/room-param.js";
 import { hostChangeMessage } from "./ui/host-change.js";
 import { shouldClearGenerating, shouldAutoRequestProblem } from "./ui/problem-generation.js";
 import { shouldAutoJoinRotation } from "./ui/join-driver-intent.js";
@@ -211,45 +213,83 @@ export default function App() {
       },
       onError: (code) => {
         console.error("WS error:", code);
-        // ルーム喪失（揮発サーバー再起動等）は明示的に「セッション喪失」を表示し、継続する（FR-007/059）。
-        // ローカル記録は保持され、再接続では消えないよう sessionLost を立てる。
-        if (code === "ROOM_NOT_FOUND") {
-          setSessionLost(true);
-          setBanner({ text: "セッションが見つかりません。ローカルの記録は保持されています。", kind: "error" });
-          return;
-        }
-        // 退出させられた: 取り残さず、退出を明示して参加画面へ戻す（ルームコード保持で再参加可・#3/#4）。
-        // 実行者はホストに限らなくなったため新コードは REMOVED_FROM_ROOM（Issue #22・FR-075）。
-        // 旧コードも受理し続ける: web と sync は同時デプロイだが、デプロイ前から開いたままの
-        // タブが旧サーバーの応答を受け取りうるため、片方だけ落とすと取り残しが起きる。
-        if (code === "REMOVED_FROM_ROOM" || code === "REMOVED_BY_HOST") {
-          const removedFrom = roomRef.current?.code ?? null;
-          newClient.dispose();
-          setRoom(null);
-          setClient(null);
-          setParticipantId("");
-          isCreatorRef.current = false;
-          problemRequestedRef.current = false;
-          recordSavedRef.current = false;
-          setSessionLost(false);
-          setRecord(null);
-          setBanner({
-            text: "ルームから退出しました。再参加するには名前を入力してください。",
-            kind: "warn",
-          });
-          if (removedFrom) {
-            setJoinCode(removedFrom);
-            setMode("join");
-          } else {
-            setMode("setup");
+        // 画面が次に何をするかは errorAction() の判定に委ねる（Issue #32・FR-127/129）。
+        // 分岐は kind の判別可能合併を網羅する（未処理の kind があれば型検査で気づける）。
+        const action = errorAction(code);
+        switch (action.kind) {
+          case "session-lost": {
+            // ルーム喪失（揮発サーバー再起動等）は明示的に「セッション喪失」を表示し、継続する（FR-007/059）。
+            // ローカル記録は保持され、再接続では消えないよう sessionLost を立てる。
+            setSessionLost(true);
+            setBanner({ text: "セッションが見つかりません。ローカルの記録は保持されています。", kind: "error" });
+            return;
           }
-          return;
+          case "leave-room": {
+            // 退出が成立した本人を取り残さない（自己退出＝LEFT_ROOM／他者に退出させられた＝
+            // REMOVED_FROM_ROOM・REMOVED_BY_HOST）。後始末は行き先によらず共通で、
+            // 違うのはバナー文言（friendlyError(code) から引く）と行き先だけ（Issue #32・FR-127/128）。
+            const removedFrom = roomRef.current?.code ?? null;
+            newClient.dispose();
+            setRoom(null);
+            setClient(null);
+            setParticipantId("");
+            isCreatorRef.current = false;
+            problemRequestedRef.current = false;
+            recordSavedRef.current = false;
+            setSessionLost(false);
+            setRecord(null);
+            // ルーム由来の画面状態は退出成立時に破棄する（FR-128）。
+            // お題生成中フラグ・安全弁タイマーもルーム固有の途中状態なので、
+            // 持ち越すと次に入った別ルームで「何も頼んでいないのに生成中」の
+            // 表示が最大65秒残ってしまう。beginGenerating と対になる endGenerating を
+            // ここでも再利用し、後始末を二重に書かない（DRY）。
+            endGenerating();
+            // バナー自動消去タイマーが生きていると、退出バナー表示後にそのタイマーが
+            // 発火して退出バナーを消してしまう（例: ロビーの一時エラーで4秒タイマーが
+            // 仕掛かった直後に自己退出した場合）。ここで確実に解除する。
+            if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
+            // 退出バナーは自動消去しない。入口画面へ遷移した後も「抜けたこと」を
+            // 利用者が確認できるまで残し続けるべきで、新しいタイマーは張らない
+            // （Issue #32 の狙い＝退出が分からない問題の再発防止）。
+            bannerTimerRef.current = null;
+            setBanner({ text: friendlyError(code), kind: "warn" });
+            if (action.destination === "join") {
+              // 直前のルームコードがあれば参加画面へ引き継ぐ（無ければ入口へ・現状の挙動を維持）。
+              if (removedFrom) {
+                setJoinCode(removedFrom);
+                setMode("join");
+              } else {
+                setMode("setup");
+              }
+            } else {
+              // destination === "setup": 入口画面へ戻すときは直前ルームへの手がかりを
+              // 保持しない（FR-127 / US2-2）。joinCode に値が残っている可能性があるので
+              // 明示的にクリアする。
+              setJoinCode(null);
+              // 画面上の state をクリアしただけでは不十分。アドレスバーの URL に
+              // ?room=... が残っていると、それ自体が「直前のルームへ復帰するための
+              // 手がかり」になり、リロード一発で抜けたはずのルームの参加画面へ
+              // 戻ってしまう。pushState ではなく replaceState を使い、戻るボタンの
+              // 履歴に退出前の URL を積まないようにする。
+              window.history.replaceState(null, "", stripRoomParam(window.location.href));
+              setMode("setup");
+            }
+            return;
+          }
+          case "transient": {
+            // それ以外は「一時的な操作エラー」。分かりやすい日本語にし、数秒で自動消去する
+            // （生のコードを残し続けない・画面遷移後も居座らせない）。
+            setBanner({ text: friendlyError(code), kind: "warn" });
+            if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
+            bannerTimerRef.current = setTimeout(() => setBanner(null), 4000);
+            return;
+          }
+          default: {
+            // 網羅チェック: action.kind に新しい種類が増えたらここで型検査が落ちる（T018・DbC）。
+            const exhaustive: never = action;
+            return exhaustive;
+          }
         }
-        // それ以外は「一時的な操作エラー」。分かりやすい日本語にし、数秒で自動消去する
-        // （生のコードを残し続けない・画面遷移後も居座らせない）。
-        setBanner({ text: friendlyError(code), kind: "warn" });
-        if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
-        bannerTimerRef.current = setTimeout(() => setBanner(null), 4000);
       },
       onConnected: () => setBanner(null),
       onDisconnected: () =>
