@@ -26,18 +26,18 @@
 
 ## フェーズ4 — 責務分割: イベント適用・コマンド組み立て（G1・純粋移動）
 
-- [ ] T007 `apps/sync/src/application/apply-room-level-event.ts` を新設し、`handlers.ts` の `applyEvents`（1413行目付近）と `applyRoomLevelEvent`（1426〜1549行目）をロジック変更なしで移動する。`handlers.ts` からはこの新ファイルを import する。全ゲート緑・既存 `handlers.*.test.ts` の回帰が無いことを確認する。 _要件: FR-160 (US3)_
-- [ ] T008 `apps/sync/src/application/build-domain-command.ts` を新設し、`handlers.ts` の `buildDomainCommand`（1235〜1310行目付近。`VALID_ACTIONS`/`VALID_PHASES` 等の付随定数を含む）をロジック変更なしで移動する。全ゲート緑を確認する。 _要件: FR-161 (US3)_
+- [x] T007 `apps/sync/src/application/apply-room-level-event.ts` を新設し、`handlers.ts` の `applyEvents`（1413行目付近）と `applyRoomLevelEvent`（1426〜1549行目）をロジック変更なしで移動する。`handlers.ts` からはこの新ファイルを import する。全ゲート緑・既存 `handlers.*.test.ts` の回帰が無いことを確認する。 _要件: FR-160 (US3)_
+- [x] T008 `apps/sync/src/application/build-domain-command.ts` を新設し、`handlers.ts` の `buildDomainCommand`（1235〜1310行目付近。`VALID_ACTIONS`/`VALID_PHASES` 等の付随定数を含む）をロジック変更なしで移動する。全ゲート緑を確認する。 _要件: FR-161 (US3)_
 
 ## フェーズ5 — 専用ハンドラの切り出し（G2・純粋移動）
 
-- [ ] T009 `apps/sync/src/application/command-handlers/` ディレクトリを新設し、`handleRoomCreate`・`handleRoomJoin`・`handleTimePing`（`handlers.ts:268-477`）をそれぞれ `room-create.ts`/`room-join.ts`/`time-ping.ts` に移動する。T004/T006 で導入した `token-store`/`join-rate-limiter` への依存はそのまま引き継ぐ。ロジック変更なし。全ゲート緑を確認する。 _要件: FR-162 (US3)_
-- [ ] T010 [P] `handlers.ts` 内 `handleRoomCommand` の `participant.remove` 専用分岐（507〜583行目）を `command-handlers/participant-remove.ts` に切り出す（純粋関数 `handleParticipantRemove(ctx, cmd, deps)` として、パイプライン共通処理 [store.put/broadcast 呼び出しの手前まで] が呼び出せる形にする）。ロジック変更なし。全ゲート緑を確認する。 _要件: FR-162 (US3)_
-- [ ] T011 [P] `handleRoleSet`（`handlers.ts:792-846`）を `command-handlers/role-set.ts` に移動する。この時点ではまだ独自に在室確認・アクター解決・`rejectIfUnauthorized` を呼ぶ形のまま（縮退はフェーズ7で行う）。ロジック変更なし。全ゲート緑を確認する。 _要件: FR-162 (US3)_
-- [ ] T012 [P] `handleRoomPassphraseSet`（`handlers.ts:850-886`）を `command-handlers/room-passphrase-set.ts` に移動する。ロジック変更なし。全ゲート緑を確認する。 _要件: FR-162 (US3)_
-- [ ] T013 [P] `handleAiUnlock`（`handlers.ts:892-935`）を `command-handlers/ai-unlock.ts` に移動する。T006 の `join-rate-limiter` 共有インスタンスを正しく参照することを確認する。ロジック変更なし。全ゲート緑を確認する。 _要件: FR-162 (US3)_
-- [ ] T014 [P] `handleHostTransfer`（`handlers.ts:939-987`）を `command-handlers/host-transfer.ts` に移動する。ロジック変更なし。全ゲート緑を確認する。 _要件: FR-162 (US3)_
-- [ ] T015 [P] `handleProblemRequest`/`handleProblemSubmit`（`handlers.ts:990-1041`）と、両者が使う `requireEditor`（`handlers.ts:1051-1066`）を `command-handlers/problem-request.ts`/`command-handlers/problem-submit.ts` に移動する（`requireEditor` は共有ヘルパとして `command-handlers/` 直下または `handlers.ts` に残すか判断し、コメントで理由を記す）。ロジック変更なし。全ゲート緑を確認する。 _要件: FR-162 (US3)_
+- [x] T009 `apps/sync/src/application/command-handlers/` ディレクトリを新設し、`handleRoomCreate`・`handleRoomJoin`・`handleTimePing`（`handlers.ts:268-477`）をそれぞれ `room-create.ts`/`room-join.ts`/`time-ping.ts` に移動する。T004/T006 で導入した `token-store`/`join-rate-limiter` への依存はそのまま引き継ぐ。ロジック変更なし。全ゲート緑を確認する。 _要件: FR-162 (US3)_
+- [x] T010 [P] `handlers.ts` 内 `handleRoomCommand` の `participant.remove` 専用分岐（507〜583行目）を `command-handlers/participant-remove.ts` に切り出す（純粋関数 `handleParticipantRemove(ctx, cmd, deps)` として、パイプライン共通処理 [store.put/broadcast 呼び出しの手前まで] が呼び出せる形にする）。ロジック変更なし。全ゲート緑を確認する。 _要件: FR-162 (US3)_
+- [x] T011 [P] `handleRoleSet`（`handlers.ts:792-846`）を `command-handlers/role-set.ts` に移動する。この時点ではまだ独自に在室確認・アクター解決・`rejectIfUnauthorized` を呼ぶ形のまま（縮退はフェーズ7で行う）。ロジック変更なし。全ゲート緑を確認する。 _要件: FR-162 (US3)_
+- [x] T012 [P] `handleRoomPassphraseSet`（`handlers.ts:850-886`）を `command-handlers/room-passphrase-set.ts` に移動する。ロジック変更なし。全ゲート緑を確認する。 _要件: FR-162 (US3)_
+- [x] T013 [P] `handleAiUnlock`（`handlers.ts:892-935`）を `command-handlers/ai-unlock.ts` に移動する。T006 の `join-rate-limiter` 共有インスタンスを正しく参照することを確認する。ロジック変更なし。全ゲート緑を確認する。 _要件: FR-162 (US3)_
+- [x] T014 [P] `handleHostTransfer`（`handlers.ts:939-987`）を `command-handlers/host-transfer.ts` に移動する。ロジック変更なし。全ゲート緑を確認する。 _要件: FR-162 (US3)_
+- [x] T015 [P] `handleProblemRequest`/`handleProblemSubmit`（`handlers.ts:990-1041`）と、両者が使う `requireEditor`（`handlers.ts:1051-1066`）を `command-handlers/problem-request.ts`/`command-handlers/problem-submit.ts` に移動する（`requireEditor` は共有ヘルパとして `command-handlers/` 直下または `handlers.ts` に残すか判断し、コメントで理由を記す）。ロジック変更なし。全ゲート緑を確認する。 _要件: FR-162 (US3)_
 
 ## フェーズ6 — B-2: decide/evolve の統合（G3・挙動変更を含む唯一のフェーズ）
 
