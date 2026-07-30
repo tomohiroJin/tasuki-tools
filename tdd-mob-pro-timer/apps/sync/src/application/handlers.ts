@@ -233,12 +233,6 @@ export function makeHandlers(deps: HandlerDeps) {
           cmd as { command: "time.ping"; clientTime: number },
         );
 
-      case "ai.unlock":
-        return handleAiUnlock(
-          connId,
-          cmd as { command: "ai.unlock"; key: string },
-        );
-
       case "host.transfer":
         return handleHostTransfer(
           connId,
@@ -360,6 +354,15 @@ export function makeHandlers(deps: HandlerDeps) {
         connId,
         { room: targetRoom, actor: participant },
         cmd as { command: "room.passphrase.set"; passphrase: string },
+      );
+    }
+
+    // ai.unlock も decide/evolve を通らない Room レベルの専用処理（フェーズ7合流）。
+    if (cmd.command === "ai.unlock") {
+      return handleAiUnlock(
+        connId,
+        { room: targetRoom, actor: participant },
+        cmd as { command: "ai.unlock"; key: string },
       );
     }
 
@@ -594,8 +597,6 @@ export function makeHandlers(deps: HandlerDeps) {
     joinRateLimiter,
     joinFailMax: JOIN_FAIL_MAX,
     aiUnlockKey,
-    findRoomByConnId,
-    rejectIfUnauthorized,
     sendError,
   });
 
