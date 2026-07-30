@@ -73,24 +73,24 @@
 
 ## フェーズ4 — 横断検証（相対リンク・コード非変更・全体整合）
 
-- [ ] **T009** 検証4（相対リンクの解決可能性）を `tdd-mob-pro-timer/docs/adr/*.md`
+- [x] **T009** 検証4（相対リンクの解決可能性）を `tdd-mob-pro-timer/docs/adr/*.md`
   全体に対して実行し、`BROKEN LINK` が0件であることを確認する。ADR-0001・0002・0009 の
   編集によって相互参照（例: ADR-0001 末尾の追記が ADR-0002 への相対リンクを含む場合）が
   壊れていないことを確認する。
   _要件: 非機能（保守性）, SC-051_
 
-- [ ] **T010** 検証5（`git diff --stat -- tdd-mob-pro-timer/apps tdd-mob-pro-timer/packages`）
+- [x] **T010** 検証5（`git diff --stat -- tdd-mob-pro-timer/apps tdd-mob-pro-timer/packages`）
   を実行し、出力が空であること（コード側に一切差分が無いこと）を確認する。
   _要件: FR-149_
 
-- [ ] **T011** `git diff --stat -- tdd-mob-pro-timer/docs/adr` を実行し、
+- [x] **T011** `git diff --stat -- tdd-mob-pro-timer/docs/adr` を実行し、
   変更のあったファイルが `0001-monorepo-shared-core.md`・`0002-decider-pure-domain.md`・
   `0009-test-conventions.md` の3件のみであること（`README.md` を含む他の ADR ファイルに
   変更が及んでいないこと）を確認する。これにより論点4・0005・0006・0003・0004・0007・0010
   に対して本作業が何も変更していないこと（スコープ外の遵守）を検証する。
   _要件: FR-147, FR-148, スコープ外節の遵守_
 
-- [ ] **T012** 3ファイルの最終差分（`git diff -- tdd-mob-pro-timer/docs/adr/0001-monorepo-shared-core.md tdd-mob-pro-timer/docs/adr/0002-decider-pure-domain.md tdd-mob-pro-timer/docs/adr/0009-test-conventions.md`）
+- [x] **T012** 3ファイルの最終差分（`git diff -- tdd-mob-pro-timer/docs/adr/0001-monorepo-shared-core.md tdd-mob-pro-timer/docs/adr/0002-decider-pure-domain.md tdd-mob-pro-timer/docs/adr/0009-test-conventions.md`）
   を通読し、次を1件ずつ照合する: (i) 0009 は1行のみ変更、(ii) 0002 は「利点」の1文のみ変更・
   「決定」節は無変更、(iii) 0001 は追加行のみで削除行が無く、追記セクションが
   末尾に独立して存在する。すべて満たしていればレビュー可能な状態として完了とする。
