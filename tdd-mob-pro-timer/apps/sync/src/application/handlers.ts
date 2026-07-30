@@ -233,12 +233,6 @@ export function makeHandlers(deps: HandlerDeps) {
           cmd as { command: "time.ping"; clientTime: number },
         );
 
-      case "room.passphrase.set":
-        return handleRoomPassphraseSet(
-          connId,
-          cmd as { command: "room.passphrase.set"; passphrase: string },
-        );
-
       case "ai.unlock":
         return handleAiUnlock(
           connId,
@@ -357,6 +351,15 @@ export function makeHandlers(deps: HandlerDeps) {
         connId,
         { room: targetRoom, actor: participant },
         cmd as { command: "role.set"; participantId: string; role: "editor" | "viewer" },
+      );
+    }
+
+    // room.passphrase.set も decide/evolve を通らない Room レベルの専用処理（フェーズ7合流）。
+    if (cmd.command === "room.passphrase.set") {
+      return handleRoomPassphraseSet(
+        connId,
+        { room: targetRoom, actor: participant },
+        cmd as { command: "room.passphrase.set"; passphrase: string },
       );
     }
 
@@ -582,9 +585,6 @@ export function makeHandlers(deps: HandlerDeps) {
     store,
     broadcaster,
     tokenStore,
-    findRoomByConnId,
-    rejectIfUnauthorized,
-    sendError,
   });
 
   const handleAiUnlock = createAiUnlockHandler({
