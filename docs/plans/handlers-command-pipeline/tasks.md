@@ -16,8 +16,8 @@
 
 ## フェーズ2 — 責務分割: トークン保持（G1）
 
-- [ ] T003 [P] `apps/sync/test/token-store.test.ts` に、`createTokenStore()` の**失敗するテスト**を書く（host トークン発行・照合、resume トークン発行・照合、`releaseRoom` によるルーム単位の解放、を GWT で検証）。現状の `handlers.ts` 内の `hostTokens`/`resumeTokens`/`roomPassphrases` の使われ方（`releaseRoom` 関数・`handleRoomCreate`/`handleRoomJoin` 内の発行箇所）を先に読み、既存の挙動をそのまま仕様として書き下す。 _要件: FR-157 (US3)_
-- [ ] T004 T003 を通すため `apps/sync/src/application/token-store.ts` に `createTokenStore()` を実装する（green）。`handlers.ts` の `makeHandlers` 内の `hostTokens`/`resumeTokens`/`roomPassphrases` の宣言・全参照箇所（`handleRoomCreate`/`handleRoomJoin`/`releaseRoom` 等）をこの新モジュール呼び出しに置き換える。ロジックは変えない（純粋な移動）。全ゲート＋既存 `handlers.*.test.ts` が緑であることを確認してコミット可能な状態にする。 _要件: FR-157 (US3)_
+- [x] T003 [P] `apps/sync/test/token-store.test.ts` に、`createTokenStore()` の**失敗するテスト**を書く（host トークン発行・照合、resume トークン発行・照合、`releaseRoom` によるルーム単位の解放、を GWT で検証）。現状の `handlers.ts` 内の `hostTokens`/`resumeTokens`/`roomPassphrases` の使われ方（`releaseRoom` 関数・`handleRoomCreate`/`handleRoomJoin` 内の発行箇所）を先に読み、既存の挙動をそのまま仕様として書き下す。 _要件: FR-157 (US3)_
+- [x] T004 T003 を通すため `apps/sync/src/application/token-store.ts` に `createTokenStore()` を実装する（green）。`handlers.ts` の `makeHandlers` 内の `hostTokens`/`resumeTokens`/`roomPassphrases` の宣言・全参照箇所（`handleRoomCreate`/`handleRoomJoin`/`releaseRoom` 等）をこの新モジュール呼び出しに置き換える。ロジックは変えない（純粋な移動）。全ゲート＋既存 `handlers.*.test.ts` が緑であることを確認してコミット可能な状態にする。 _要件: FR-157 (US3)_
 
 ## フェーズ3 — 責務分割: レート制限（G1）
 

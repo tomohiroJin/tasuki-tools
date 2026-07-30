@@ -38,6 +38,7 @@ import type { RoomCodeGen } from "../ports/code-gen.js";
 import type { Scheduler } from "./schedule.js";
 import type { ProblemDelegator } from "./problem-delegation.js";
 import { constantTimeEqual } from "./secure-compare.js";
+import { createTokenStore } from "./token-store.js";
 
 /**
  * 在室を前提としないコマンド（FR-151）。
@@ -117,16 +118,10 @@ export function makeHandlers(deps: HandlerDeps) {
   const maxRooms = deps.maxRooms ?? 50;
   const aiUnlockKey = deps.aiUnlockKey;
 
-  // トークンはハンドラインスタンスごとに保持（モジュール共有を避け、テスト間汚染を防ぐ）。
-  /** ホストトークンのマップ（roomCode → hostToken） */
-  const hostTokens = new Map<string, string>();
-  /** ルームパスフレーズ（roomCode → 平文）。snapshot には載せない（R4-2）。 */
-  const roomPassphrases = new Map<string, string>();
-  /** リジュームトークンのマップ（resumeToken → {participantId, roomCode}） */
-  const resumeTokens = new Map<
-    string,
-    { participantId: string; roomCode: string }
-  >();
+  // トークン保持（ホスト/リジュームトークン・ルームパスフレーズ）は
+  // `token-store.ts` の `createTokenStore()` へ切り出した（フェーズ2・純粋な移動）。
+  // ハンドラインスタンスごとに1個生成し、モジュール共有を避けてテスト間汚染を防ぐ。
+  const tokenStore = createTokenStore();
 
   // 単一接続あたりの room.join 連続失敗のレート制限（コード列挙の緩和）。
   // 正常利用には干渉しない緩い閾値。本来の防御はエッジ/IP 層（リバースプロキシ等）で行うべき。
@@ -351,8 +346,8 @@ export function makeHandlers(deps: HandlerDeps) {
     };
 
     store.put(room);
-    hostTokens.set(code, hostToken);
-    resumeTokens.set(resumeToken, { participantId, roomCode: code });
+    tokenStore.issueHost(code, hostToken);
+    tokenStore.issueResume(resumeToken, { participantId, roomCode: code });
 
     broadcaster.sendTo(connId, {
       type: "room.created",
@@ -398,7 +393,7 @@ export function makeHandlers(deps: HandlerDeps) {
 
     // リジューム処理
     if (cmd.resumeToken) {
-      const tokenData = resumeTokens.get(cmd.resumeToken);
+      const tokenData = tokenStore.getResume(cmd.resumeToken);
       if (tokenData && tokenData.roomCode === cmd.code) {
         const existingParticipant = room.participants.find(
           (p) => p.participantId === tokenData.participantId,
@@ -429,7 +424,7 @@ export function makeHandlers(deps: HandlerDeps) {
 
     // パスフレーズ保護ルームは新規参加時に一致を要求する（R4-2）。
     // resume（再接続）は上の resume ブロックで return 済みのためここには来ない＝再認証不要。
-    const requiredPassphrase = roomPassphrases.get(cmd.code);
+    const requiredPassphrase = tokenStore.getPassphrase(cmd.code);
     // 保持側と同じく前後空白を正規化して比較する。
     const providedPassphrase = (cmd.passphrase ?? "").trim();
     if (requiredPassphrase !== undefined && providedPassphrase !== requiredPassphrase) {
@@ -470,7 +465,7 @@ export function makeHandlers(deps: HandlerDeps) {
     };
 
     store.put(updatedRoom);
-    resumeTokens.set(resumeToken, { participantId, roomCode: cmd.code });
+    tokenStore.issueResume(resumeToken, { participantId, roomCode: cmd.code });
 
     broadcaster.sendTo(connId, {
       type: "room.joined",
@@ -874,7 +869,7 @@ export function makeHandlers(deps: HandlerDeps) {
   }
 
   /** ルームパスフレーズを設定/解除する（host 限定・R4-2）。空文字で解除。
-   *  平文は roomPassphrases に保持し、Room には passphraseProtected(boolean)のみ反映。 */
+   *  平文は tokenStore（旧 roomPassphrases）に保持し、Room には passphraseProtected(boolean)のみ反映。 */
   async function handleRoomPassphraseSet(
     connId: string,
     cmd: { command: "room.passphrase.set"; passphrase: string },
@@ -899,9 +894,9 @@ export function makeHandlers(deps: HandlerDeps) {
     // 空白のみ・空文字は解除扱い。
     const passphrase = cmd.passphrase.trim();
     if (passphrase === "") {
-      roomPassphrases.delete(room.code);
+      tokenStore.deletePassphrase(room.code);
     } else {
-      roomPassphrases.set(room.code, passphrase);
+      tokenStore.setPassphrase(room.code, passphrase);
     }
     const updatedRoom: Room = {
       ...room,
@@ -1132,11 +1127,7 @@ export function makeHandlers(deps: HandlerDeps) {
 
   /** ルーム回収時の後始末。当該ルームのホスト/リジュームトークンを解放する。 */
   function releaseRoom(roomCode: string): void {
-    hostTokens.delete(roomCode);
-    roomPassphrases.delete(roomCode);
-    for (const [token, info] of resumeTokens) {
-      if (info.roomCode === roomCode) resumeTokens.delete(token);
-    }
+    tokenStore.releaseRoom(roomCode);
   }
 
   // ドライバー不在の猶予後繰り上げ（R2-1）。presence の不在タイマーから呼ばれ、
