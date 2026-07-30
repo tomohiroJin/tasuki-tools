@@ -15,8 +15,9 @@ import { Users, ChevronUp, ChevronDown, Crown, X } from "lucide-react";
 import type { Participant } from "@tdd-mob/core";
 import { MAX_DISPLAY_NAME } from "@tdd-mob/core/aggregate";
 import { GhostButton, PrimaryButton, SectionHeader } from "../primitives.js";
-import { presenceLabel, presenceDotClass } from "../presence.js";
-import { ConfirmDialog } from "./ConfirmDialog.js";
+import { presenceLabel } from "../presence.js";
+import { PresenceDot } from "./PresenceDot.js";
+import { RemovalConfirmDialog } from "./RemovalConfirmDialog.js";
 import { participantLabel, canTransferHostTo, canRemoveParticipant, canReorderRotation } from "../participant-label.js";
 
 /** 小さなダーク用ボタン。RosterPanel 内の改名/離脱/外す等のコンパクト操作用。
@@ -226,10 +227,7 @@ export function RosterPanel({
                   {rotationIndex + 1}
                 </span>
               )}
-              <span
-                className={`h-2 w-2 rounded-full shrink-0 ${presenceDotClass(p.presence)}`}
-                aria-hidden="true"
-              />
+              <PresenceDot presence={p.presence} />
               {/* 在席状態をスクリーンリーダーへ（可視チップは廃止） */}
               <span className="sr-only">{presenceLabel(p.presence)}</span>
               {/* 名前: text-base font-medium で情報階層の最上位に。
@@ -352,16 +350,12 @@ export function RosterPanel({
       {/* 退出の確認。対象者の名前と、招待から再参加できることを明示する（FR-075）。
           共有ルームでは他の参加者の画面にも反映されることを添える（FR-076）。 */}
       {pendingRemoval && onRemove && (
-        <ConfirmDialog
-          open={true}
-          title={`${participantLabel(pendingRemoval.displayName, pendingRemoval.participantId, participants, "さん")}を退出させますか？`}
-          description={`一覧とドライバーの輪から外れます。招待から再参加できます。${
-            isShared ? "（他の参加者全員の画面にも反映されます）" : ""
-          }`}
-          confirmLabel="退出させる"
-          confirmIntent="danger"
-          onConfirm={() => {
-            onRemove(pendingRemoval.participantId);
+        <RemovalConfirmDialog
+          pendingRemoval={pendingRemoval}
+          participants={participants}
+          isShared={isShared}
+          onConfirm={(id) => {
+            onRemove(id);
             setPendingRemovalId(null);
           }}
           onCancel={() => setPendingRemovalId(null)}
