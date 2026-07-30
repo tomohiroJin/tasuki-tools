@@ -32,7 +32,7 @@
 
 ## フェーズ2 — ADR-0002: 利点の事実修正（決定は維持）
 
-- [ ] **T004** `tdd-mob-pro-timer/docs/adr/0002-decider-pure-domain.md` の
+- [x] **T004** `tdd-mob-pro-timer/docs/adr/0002-decider-pure-domain.md` の
   「影響」節、「利点」の一文
   `サーバーとソロが同じ decide/evolve を呼ぶため挙動が一致する。` を、
   `apps/sync` と `apps/web` が同じ `decide`/`evolve` を共有するため挙動が一致する、
@@ -41,12 +41,12 @@
   一切変更しない。
   _要件: FR-140, FR-141, FR-142_
 
-- [ ] **T005** 検証2（ソロ語 grep）を再実行し、`0002-decider-pure-domain.md` に
+- [x] **T005** 検証2（ソロ語 grep）を再実行し、`0002-decider-pure-domain.md` に
   マッチが無いこと（Green）を確認する。加えて `git diff tdd-mob-pro-timer/docs/adr/0002-decider-pure-domain.md`
   を目視し、差分が「利点」の該当1文のみであること（「決定」節に差分が無いこと）を確認する。
   _要件: FR-140, FR-142, SC-049_
 
-- [ ] **T006** `[P]` ADR-0002 に論点4（Decider パターンの適用が
+- [x] **T006** `[P]` ADR-0002 に論点4（Decider パターンの適用が
   `session.act SWITCH` 経路で破れている件）に関する追記・修正を**行っていない**ことを、
   同ファイルの `git diff` を読み直して確認する（追記対象はスコープ外であることの
   ネガティブチェック）。
