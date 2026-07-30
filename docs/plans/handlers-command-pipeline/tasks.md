@@ -8,11 +8,11 @@
 
 ## フェーズ0 — 計測（G0・ブロッキング）
 
-- [ ] T001 実装フェーズ冒頭のベースラインを実測する。`tdd-mob-pro-timer/` で `pnpm test && pnpm typecheck && pnpm lint && pnpm build` を実行し、テスト総数（core/sync/web 別）・typecheck/lint/build の成否を `docs/plans/handlers-command-pipeline/baseline.md` の「3. ゲート現状値」節に実測値として追記する（申告値1,538件との差分があれば明記する）。以後の全タスクはこの実測値を「下回らない」基準とする。 _要件: FR-173, SC-058_
+- [x] T001 実装フェーズ冒頭のベースラインを実測する。`tdd-mob-pro-timer/` で `pnpm test && pnpm typecheck && pnpm lint && pnpm build` を実行し、テスト総数（core/sync/web 別）・typecheck/lint/build の成否を `docs/plans/handlers-command-pipeline/baseline.md` の「3. ゲート現状値」節に実測値として追記する（申告値1,538件との差分があれば明記する）。以後の全タスクはこの実測値を「下回らない」基準とする。 _要件: FR-173, SC-058_
 
 ## フェーズ1 — 基盤: 型分離（ブロッキング）
 
-- [ ] T002 `apps/sync/src/application/handlers.ts`（または新設する型ファイル）に `PreRoomCommand`（`room.create`/`room.join`/`time.ping`/`presence.ping` の判別可能 union）と `RoomScopedCommand`（`permissions.ts` の `REGISTERED_COMMANDS` 25件に対応する判別可能 union）を定義する。`handleCommand` の引数型を `RoomScopedCommand | PreRoomCommand` に変更し、`PreRoomCommand` は既存の3ケース（`room.create`/`room.join`/`time.ping`）を早期分岐で処理する既存コードのまま型だけ厳密化する。`presence.ping` は型に含めるが `handlers.ts` 内では処理しない（`server.ts` 側で横取り済みのまま。コメントでその旨を明記）。既存の `pnpm typecheck` が通ることを確認する。 _要件: FR-151, FR-152_
+- [x] T002 `apps/sync/src/application/handlers.ts`（または新設する型ファイル）に `PreRoomCommand`（`room.create`/`room.join`/`time.ping`/`presence.ping` の判別可能 union）と `RoomScopedCommand`（`permissions.ts` の `REGISTERED_COMMANDS` 25件に対応する判別可能 union）を定義する。`handleCommand` の引数型を `RoomScopedCommand | PreRoomCommand` に変更し、`PreRoomCommand` は既存の3ケース（`room.create`/`room.join`/`time.ping`）を早期分岐で処理する既存コードのまま型だけ厳密化する。`presence.ping` は型に含めるが `handlers.ts` 内では処理しない（`server.ts` 側で横取り済みのまま。コメントでその旨を明記）。既存の `pnpm typecheck` が通ることを確認する。 _要件: FR-151, FR-152_
 
 ## フェーズ2 — 責務分割: トークン保持（G1）
 
