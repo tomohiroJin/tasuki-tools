@@ -228,7 +228,7 @@ describe("participant.remove（G3: 自己退出・不変条件・ホスト引き
     expect(lastError(CAROL)).toBeTruthy();
   });
 
-  it("④' 自己退出では本人への退出通知を送らない（自分の操作なので通知は不要）", async () => {
+  it("④' 自己退出では本人へ LEFT_ROOM が届く（Issue #32: 自分の操作として区別した通知）", async () => {
     // Given
     const carolId = pidOf("Carol");
 
@@ -236,7 +236,7 @@ describe("participant.remove（G3: 自己退出・不変条件・ホスト引き
     await handlers.handleCommand(CAROL, { command: "participant.remove", participantId: carolId });
 
     // Then
-    expect(lastError(CAROL)).toBeUndefined();
+    expect(lastError(CAROL)?.code).toBe("LEFT_ROOM");
   });
 
   it("⑤ 開始前にホストが自己退出しても、残った編集者が phase.set を実行できる（D2b）", async () => {

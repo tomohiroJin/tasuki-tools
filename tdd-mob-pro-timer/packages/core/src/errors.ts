@@ -83,10 +83,15 @@ export type DomainError =
  * この一覧は `apps/sync/test/error-code-coverage.test.ts` が `apps/sync/src` を
  * 走査して集める 19 件を出発点にしている。走査は
  * `code: "..."` / `err("...")` という**リテラル**だけを拾うため、
- * 次の 2 件は走査に載らないが実際にはクライアントへ送られている:
+ * 次の 4 件は走査に載らないが実際にはクライアントへ送られている
+ * （`handlers.ts` が変数を経由して送るため正規表現に掛からない）。
+ * 同テストの `EMITTED_VIA_VARIABLE` に明示的な集合として持たせ、走査結果へ合流させて
+ * 検査対象に含めている:
  *
  * - `PASSPHRASE_REQUIRED` / `PASSPHRASE_MISMATCH`
- *   （`handlers.ts` が変数 `code` を経由して送るため正規表現に掛からない）
+ *   （変数 `code` へ代入してから送るため）
+ * - `LEFT_ROOM` / `REMOVED_FROM_ROOM`
+ *   （`removalNotificationFor()` が返す変数 `removalCode` を経由して送るため）
  *
  * `decide()` が返した `DomainError` の `type` も、そのまま `code` として送られる。
  * そちらは `ErrorCode` 側で合併している。
@@ -106,6 +111,7 @@ export const SYNC_ERROR_CODES = [
   "ROOM_NOT_FOUND",
   "NOT_IN_ROOM",
   "REMOVED_FROM_ROOM",
+  "LEFT_ROOM",
   "PASSPHRASE_REQUIRED",
   "PASSPHRASE_MISMATCH",
   "RATE_LIMITED",

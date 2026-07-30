@@ -11,7 +11,7 @@
  *    テストから触れなかった → `displayMessageFor()` として core へ出した
  * 2. 「どのコードが画面に出るか」の集合を誰も固定していなかった → 本ファイルで固定する
  *
- * @requirements FR-105, FR-107, FR-114
+ * @requirements FR-105, FR-107, FR-114, FR-126
  */
 
 import { describe, it, expect } from "vitest";
@@ -44,6 +44,9 @@ const CODES_SHOWN_TO_USER = [
   "PASSPHRASE_MISMATCH",
   "AI_UNLOCK_FAILED",
   "LAST_MANAGER",
+  "LEFT_ROOM",
+  "REMOVED_FROM_ROOM",
+  "REMOVED_BY_HOST",
 ] as const;
 
 /** サーバーが wire の `message` に載せるだけで、画面には出さないコード。 */
@@ -75,6 +78,36 @@ describe("画面に表示される文言の表", () => {
     const found = codes.filter((code) => ERROR_MESSAGES[code] !== undefined);
     // Then
     expect(found).toEqual([]);
+  });
+});
+
+describe("LEFT_ROOM の文言（自己退出）", () => {
+  it("displayMessageFor が既定文言とは異なる文言を返す", () => {
+    // Given
+    const code = "LEFT_ROOM";
+    // When
+    const shown = displayMessageFor(code);
+    // Then
+    expect(shown).not.toBe(DEFAULT_ERROR_MESSAGE);
+  });
+
+  it("displayMessageFor が返す文言に、他者の操作を示す表現（「させられ」）を含まない", () => {
+    // Given
+    const code = "LEFT_ROOM";
+    // When
+    const shown = displayMessageFor(code);
+    // Then
+    expect(shown).not.toMatch(/させられ/);
+  });
+});
+
+describe("REMOVED_FROM_ROOM / REMOVED_BY_HOST の文言（他者に退出させられた本人向け）", () => {
+  it("apps/web/src/App.tsx に直書きされていた文言と1文字も変わらず一致する", () => {
+    // Given（App.tsx の直書きリテラルをそのまま移した文言）
+    const original = "ルームから退出しました。再参加するには名前を入力してください。";
+    // When / Then
+    expect(ERROR_MESSAGES.REMOVED_FROM_ROOM).toBe(original);
+    expect(ERROR_MESSAGES.REMOVED_BY_HOST).toBe(original);
   });
 });
 

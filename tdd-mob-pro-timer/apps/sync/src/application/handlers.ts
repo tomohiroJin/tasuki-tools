@@ -17,6 +17,7 @@ import {
   canRemoveParticipant,
   canDemote,
   conflictsWithExisting,
+  removalNotificationFor,
   ERROR_MESSAGES,
   errorMessageFor,
   type Room,
@@ -27,6 +28,7 @@ import {
   type DomainEvent,
   type IntervalMinutes,
   type ErrorCode,
+  type RemovalNotification,
 } from "@tdd-mob/core";
 import type { Clock } from "../ports/clock.js";
 import type { Broadcaster } from "../ports/broadcaster.js";
@@ -548,14 +550,19 @@ export function makeHandlers(deps: HandlerDeps) {
         targetName: target.displayName,
         targetParticipantId: target.participantId,
       });
-      // 外された本人へ専用通知を送る（残りメンバーの snapshot には含まれず取り残されるため）。
-      // クライアントはこれを受けて退出メッセージ＋参加画面へ遷移し、再参加可能にする。
+      // 退出した本人へ専用通知を送る（残りメンバーの snapshot には含まれず取り残されるため）。
+      // クライアントはこれを受けて退出メッセージ＋次の画面へ遷移する。
       // 代理(connId=null)はクライアントが無いので送らない。
-      // 自己退出は本人の操作なので通知しない（自分で押した操作を「外されました」と伝えない）。
-      // 実行者はホストに限らなくなったのでコードは REMOVED_FROM_ROOM とし、
-      // 誰の操作かと再参加できることを文言に含める（FR-075）。
-      if (target.connId && targetId !== participant.participantId) {
-        sendError(target.connId, "REMOVED_FROM_ROOM", `${participant.displayName} さんにより退出させられました。招待から再参加できます。`);
+      // 「通知しない」ではなく「誰の操作かで種類を分ける」（Issue #32）。自己退出（本人が
+      // 自分自身を対象に退出した）と他者による退出を同じ種類で伝えると、自分で押した操作を
+      // 「外されました」と伝えることになるため、removalNotificationFor() で種類を判定し、
+      // どちらの場合も必ず本人へ送る。
+      if (target.connId) {
+        // ホストが自分自身を退出させる経路では先に transferHostBeforeRemoval が走るが、
+        // transferHost は role と hostParticipantId だけを書き換え participantId は変えない
+        // ため、実行者と対象の同一判定（removalNotificationFor）はずれない。
+        const removalCode = removalNotificationFor(participant.participantId, targetId);
+        sendError(target.connId, removalCode, messageForRemoval(removalCode, participant.displayName));
       }
       return ok(undefined);
     }
@@ -1180,6 +1187,22 @@ function transferHostBeforeRemoval(room: Room, leavingParticipantId: string): Ro
     .sort((a, b) => priority(a) - priority(b) || a.joinedAt - b.joinedAt)[0];
   if (!successor) return room;
   return transferHost(room, successor.participantId);
+}
+
+/**
+ * 退出させられた本人へ送る文言を、通知の種類から組み立てる（Issue #32）。
+ *
+ * `REMOVED_FROM_ROOM` だけ実行者名を差し込む動的文言であり、静的な表
+ * （`ERROR_MESSAGES`）に収まらない。この差し込みが無い `LEFT_ROOM` は
+ * `errorMessageFor` を素通しするだけで、判定はここでは行わない
+ * （「誰の操作か」の判定は `removalNotificationFor` の責務のまま分離する）。
+ *
+ * 動的文言のリテラルは 1 文字も変えない（既存利用者が見る文言のため）。
+ */
+function messageForRemoval(code: RemovalNotification, actorDisplayName: string): string {
+  return code === "REMOVED_FROM_ROOM"
+    ? `${actorDisplayName} さんにより退出させられました。招待から再参加できます。`
+    : errorMessageFor("LEFT_ROOM");
 }
 
 // ─── コマンド変換 ────────────────────────────────────────────────────────────

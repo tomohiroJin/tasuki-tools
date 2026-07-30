@@ -119,3 +119,5 @@ export { buildCompletionRecord } from "./records.js";
 export type { Role, PermissionInput } from "./permissions.js";
 export { checkPermission, isAllowed } from "./permissions.js";
 export { countManagers, canDemote, canRemoveParticipant } from "./participants.js";
+export type { RemovalNotification } from "./participants.js";
+export { removalNotificationFor } from "./participants.js";
