@@ -268,7 +268,7 @@ export function Lobby({
                           {/* ホストは他参加者の役割を切り替えられる（FR-083）。
                               ローテーションの出入り（下）はドライバーをやるかどうか、
                               こちらは進行の操作をするかどうかで、意味が違うので別の操作にする。
-                              自分の行には出さない（ホストの自己降格は CANNOT_CHANGE_HOST で拒否される）。 */}
+                              自分の行には出さない（ホストの自己降格は CANNOT_CHANGE_HOST_ROLE で拒否される）。 */}
                           {!isMe && isHost && onRoleSet && (
                             p.role === "viewer" ? (
                               <RowIconButton

@@ -40,7 +40,7 @@ TDD Mob Pro Timer の構造・データフロー・設計原則をまとめま�
 | `display-name.ts` | 表示名の正規化（`normalizeDisplayName`）と見え方の骨格（`nameSkeleton`） |
 | `problem.ts` | 定型お題バンク・`validateProblem`・`pickFallback`・プロンプト生成 |
 | `records.ts` | 完成記録の生成（所要時間は稼働区間のみ積算） |
-| `error-messages.ts` | エラーコード → 利用者向け文言の**単一の正本**（Issue #28・FR-105）。画面表示は `displayMessageFor()`、wire の `message` は `errorMessageFor()` を経由する |
+| `error-messages.ts` | エラーコード → 利用者向け文言の**単一の正本**（Issue #28・FR-105）。画面表示は `displayMessageFor()`、wire の `message` は `errorMessageFor()` を経由する。**コードと文言は 1 対 1**（Issue #29）— 同じコードを説明が異なるべき複数の操作から返さない |
 
 ### Decider パターン（decide / evolve）
 
@@ -211,8 +211,36 @@ need-problem）/ `error` / `time.pong` / `room.created` / `room.joined`。
 | 代理（クライアント無し） | 送らない | — | — |
 
 種類の判定は core の `removalNotificationFor()`、画面の行き先は web の `errorAction()` が持ちます。
-**退出が拒否された場合（`LAST_MANAGER` 等）は画面を移しません** — `errorAction()` の既定が
+**退出が拒否された場合（`LAST_MANAGER_LEAVE` 等）は画面を移しません** — `errorAction()` の既定が
 `transient` で、画面を移すコードだけを明示的に列挙してあるためです。
+
+### エラーコードは操作と 1 対 1（Issue #29）
+
+**同じコードを、説明が異なるべき複数の操作から返してはいけません。**
+1 つのコードが複数の操作から返ると、そのコードに与える文言はどちらか一方に寄るしかなく、
+もう一方の操作では**やっていない操作の説明**が出ます（実際に「指名の失敗が移譲の話として
+説明される」欠陥が起きていました）。
+
+| 操作 | コード |
+|---|---|
+| ドライバー指名・対象がオフライン | `DRIVER_ASSIGN_OFFLINE` |
+| ドライバー指名・対象が輪に居ない | `NOT_IN_ROTATION` |
+| ホスト移譲・対象がオフライン | `HOST_TRANSFER_OFFLINE` |
+| ホスト移譲・対象がすでにホスト | `ALREADY_HOST` |
+| 役割変更・対象がホスト | `CANNOT_CHANGE_HOST_ROLE` |
+| 退出・進行できる人が残らない | `LAST_MANAGER_LEAVE` |
+| 降格・進行できる人が残らない | `LAST_MANAGER_DEMOTE` |
+| ルーム参加・試行過多 | `JOIN_RATE_LIMITED` |
+
+**これらの拒否はほとんどが UI 側で事前に抑止されています**（ボタンを描画しない・無効化する）。
+つまり画面から通常操作では到達せず、レース（描画後に相手がオフラインになる等）・
+旧クライアント・非 UI クライアントで発火するサーバー側の防御です。
+**他に手がかりが無い状況だからこそ**、文言が操作と一致していることが要ります。
+
+旧コード（`PARTICIPANT_OFFLINE` / `CANNOT_CHANGE_HOST` / `LAST_MANAGER`）は
+**語彙（`SYNC_ERROR_CODES`）から外しつつ文言だけ残して**あります。
+配備前から開かれた画面が旧サーバーの応答を受け取り得るため、文言を消すと表示が
+既定文言へ退化します。`REMOVED_BY_HOST` と同じ扱いです。
 
 ## テスト戦略
 

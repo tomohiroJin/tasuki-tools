@@ -118,14 +118,28 @@ export const SYNC_ERROR_CODES = [
   // ─── 参加者・権限 ───
   "UNAUTHORIZED",
   "PARTICIPANT_NOT_FOUND",
-  "PARTICIPANT_OFFLINE",
-  "CANNOT_CHANGE_HOST",
-  "LAST_MANAGER",
+  // ⚠ PARTICIPANT_OFFLINE / CANNOT_CHANGE_HOST / LAST_MANAGER は
+  // Issue #29（H2/H3）で全ての拒否箇所を操作ごとの新コードへ差し替え済みのため、
+  // ここから削除した（もうどこからも返らない）。文言は error-messages.ts の
+  // ERROR_MESSAGES に残してある（配備前から開かれた画面が旧サーバーの応答を
+  // 受け取り得るため。FR-137・SC-047・詳細は同ファイルの該当コメント参照）。
+  // ─── 指名（driver.assign） ───
+  "DRIVER_ASSIGN_OFFLINE",
+  "NOT_IN_ROTATION",
+  // ─── ホストの移譲・役割の変更 ───
+  "HOST_TRANSFER_OFFLINE",
+  "CANNOT_CHANGE_HOST_ROLE",
+  "ALREADY_HOST",
+  // ─── 退出・降格の不変条件 ───
+  "LAST_MANAGER_LEAVE",
+  "LAST_MANAGER_DEMOTE",
   // ─── お題の委譲 ───
   "DELEGATION_UNAVAILABLE",
   "STALE_SUBMISSION",
   // ─── AI 解錠 ───
   "AI_UNLOCK_FAILED",
+  // ─── ルームへの参加 ───
+  "JOIN_RATE_LIMITED",
   // ─── コマンドの解釈 ───
   "UNKNOWN_COMMAND",
   "INVALID",

@@ -33,7 +33,7 @@ describe("room.join レート制限と失敗履歴の解放", () => {
     });
   });
 
-  it("連続失敗が上限を超えると RATE_LIMITED で拒否する", async () => {
+  it("連続失敗が上限を超えると JOIN_RATE_LIMITED で拒否する", async () => {
     // Given（上限までは ROOM_NOT_FOUND）
     for (let i = 0; i < JOIN_FAIL_MAX; i++) {
       await badJoin(handlers, conn);
@@ -44,19 +44,19 @@ describe("room.join レート制限と失敗履歴の解放", () => {
     await badJoin(handlers, conn);
 
     // Then
-    expect(broadcaster.errorsTo(conn).at(-1)?.code).toBe("RATE_LIMITED");
+    expect(broadcaster.errorsTo(conn).at(-1)?.code).toBe("JOIN_RATE_LIMITED");
   });
 
   it("接続クローズで失敗履歴が解放され、再び試行できる（マップのリーク防止）", async () => {
     // Given
     for (let i = 0; i < JOIN_FAIL_MAX; i++) await badJoin(handlers, conn);
     await badJoin(handlers, conn);
-    expect(broadcaster.errorsTo(conn).at(-1)?.code).toBe("RATE_LIMITED");
+    expect(broadcaster.errorsTo(conn).at(-1)?.code).toBe("JOIN_RATE_LIMITED");
 
     // When（切断で履歴クリア）
     handlers.handleConnectionClose(conn);
 
-    // Then（次は通常の ROOM_NOT_FOUND。RATE_LIMITED ではない）
+    // Then（次は通常の ROOM_NOT_FOUND。JOIN_RATE_LIMITED ではない）
     await badJoin(handlers, conn);
     expect(broadcaster.errorsTo(conn).at(-1)?.code).toBe("ROOM_NOT_FOUND");
   });

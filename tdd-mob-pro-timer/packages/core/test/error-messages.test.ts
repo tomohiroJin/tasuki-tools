@@ -47,6 +47,15 @@ const CODES_SHOWN_TO_USER = [
   "LEFT_ROOM",
   "REMOVED_FROM_ROOM",
   "REMOVED_BY_HOST",
+  // Issue #29: 失敗の説明を、実際に行った操作と一致させるための新 8 コード。
+  "DRIVER_ASSIGN_OFFLINE",
+  "HOST_TRANSFER_OFFLINE",
+  "CANNOT_CHANGE_HOST_ROLE",
+  "ALREADY_HOST",
+  "NOT_IN_ROTATION",
+  "LAST_MANAGER_LEAVE",
+  "LAST_MANAGER_DEMOTE",
+  "JOIN_RATE_LIMITED",
 ] as const;
 
 /** サーバーが wire の `message` に載せるだけで、画面には出さないコード。 */

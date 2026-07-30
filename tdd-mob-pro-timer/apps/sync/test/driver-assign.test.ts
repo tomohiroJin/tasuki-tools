@@ -119,7 +119,7 @@ describe("driver.assign（Issue #13 強制指名）", () => {
     // When
     await handlers.handleCommand("conn-a", { command: "driver.assign", participantId: "pid-b" });
     // Then
-    expect(broadcaster.errorsTo("conn-a").at(-1)?.code).toBe("PARTICIPANT_OFFLINE");
+    expect(broadcaster.errorsTo("conn-a").at(-1)?.code).toBe("DRIVER_ASSIGN_OFFLINE");
     expect(store.get(code)!.session.currentIndex).toBe(0); // 変わらない
   });
 
