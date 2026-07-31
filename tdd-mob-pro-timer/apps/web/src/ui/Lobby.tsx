@@ -230,6 +230,9 @@ export function Lobby({
                     // 二重参加の幽霊は本人と同名なので、名前だけでは操作の対象を選べない。
                     // 表示にも使う: 同名の行はバッジもアイコンも同じで、目で見ても区別できないため。
                     const label = participantLabel(p.displayName, p.participantId, room.participants);
+                    // 自己退出の可否（編集者以上が1名以上残るか）。disabled 判定と title 文言の
+                    // 両方で使うため、行ごとに1回だけ計算する。
+                    const canLeaveRoom = canLeaveRoomInvariant(room.participants, p.participantId);
                     return (
                       <li
                         key={p.participantId}
@@ -278,9 +281,9 @@ export function Lobby({
                           {isMe && onRemoveParticipant && (
                             <GhostButton
                               onClick={() => onRemoveParticipant(p.participantId)}
-                              disabled={!canLeaveRoomInvariant(room.participants, p.participantId)}
+                              disabled={!canLeaveRoom}
                               title={
-                                canLeaveRoomInvariant(room.participants, p.participantId)
+                                canLeaveRoom
                                   ? "この端末をルームから外します。招待から再参加できます。"
                                   : "進行できる人がいなくなるため抜けられません。他の人が進行に加わってから操作してください。"
                               }
