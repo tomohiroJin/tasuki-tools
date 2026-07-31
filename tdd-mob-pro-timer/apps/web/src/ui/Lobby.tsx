@@ -19,6 +19,11 @@ import { EmptyHint } from "./components/EmptyHint.js";
 import { ProblemModeToggle } from "./components/ProblemModeToggle.js";
 import { NotifySettingsPanel } from "./components/NotifySettingsPanel.js";
 import { participantLabel, canTransferHostTo, canRemoveParticipant, canReorderRotation } from "./participant-label.js";
+// 自己退出の不変条件（編集者以上が1名以上残る）は Session.tsx の SelfDriverToggle と
+// 同じ関数（@tdd-mob/core）に問う。ローカルの canRemoveParticipant（participant-label.ts）は
+// 「自己退出は別経路」と明記された「他人を退出させてよいか」の判定であり、シグネチャも違うため
+// 別名 import して衝突を避ける（plan.md 参照）。
+import { canRemoveParticipant as canLeaveRoomInvariant } from "@tdd-mob/core";
 import { PresenceDot } from "./components/PresenceDot.js";
 import { RemovalConfirmDialog } from "./components/RemovalConfirmDialog.js";
 import { useNotifyPreferences } from "./use-notify-preferences.js";
@@ -245,7 +250,7 @@ export function Lobby({
                           <span className="instrument-label shrink-0 rounded-sm bg-[var(--panel)] px-2 py-0.5 border border-[var(--hairline-strong)] text-[var(--bone-muted)]">主催者</span>
                         )}
 
-                        {/* 操作エリア（本人＝加入/離脱、ホスト＝他人の加入/離脱・並び替え・退出） */}
+                        {/* 操作エリア（本人＝加入/離脱・退出、ホスト＝他人の加入/離脱・並び替え・退出） */}
                         <span className="ml-auto flex shrink-0 items-center gap-1">
                           {isMe && (
                             inRotation ? (
@@ -262,6 +267,23 @@ export function Lobby({
                                 ドライバーに加わる
                               </PrimaryButton>
                             )
+                          )}
+                          {/* ルームから抜ける（自己退出・Issue #37）。自分の操作なので確認は課さない（FR-079）。
+                              不変条件（編集者以上が1名以上残る）はサーバーと同じ関数に問う（FR-080 相当）。
+                              押せるボタンを出しておいて拒否するのは避ける。 */}
+                          {isMe && onRemoveParticipant && (
+                            <GhostButton
+                              onClick={() => onRemoveParticipant(p.participantId)}
+                              disabled={!canLeaveRoomInvariant(room.participants, p.participantId)}
+                              title={
+                                canLeaveRoomInvariant(room.participants, p.participantId)
+                                  ? "この端末をルームから外します。招待から再参加できます。"
+                                  : "進行できる人がいなくなるため抜けられません。他の人が進行に加わってから操作してください。"
+                              }
+                              className="text-xs px-3 py-1.5"
+                            >
+                              ルームから抜ける
+                            </GhostButton>
                           )}
                           {/* ホストは他参加者の役割を切り替えられる（FR-083）。
                               ローテーションの出入り（下）はドライバーをやるかどうか、
