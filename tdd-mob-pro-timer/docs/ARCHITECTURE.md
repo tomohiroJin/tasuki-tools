@@ -11,8 +11,8 @@ TDD Mob Pro Timer の構造・データフロー・設計原則をまとめま�
 │  ブラウザ複数  │ ───────────────────▶ │ apps/sync（同期サーバー）   │
 │  apps/web    │ ◀─── full snapshot ── │  application → domain      │
 │              │                       │  ports ← adapters          │
-│  ソロは WS    │                       │（揮発・再起動安全。AI お題は │
-│  を通らない   │                       │  サーバー常駐 claude -p）    │
+│              │                       │（揮発・再起動安全。AI お題は │
+│              │                       │  サーバー常駐 claude -p）    │
 └─────────────┘                       └──────────────────────────┘
         │  共有                         共有
         └────────▶ packages/core（@tdd-mob/core）◀────────┘
@@ -20,8 +20,8 @@ TDD Mob Pro Timer の構造・データフロー・設計原則をまとめま�
 ```
 
 - **依存方向**: 外側（adapters / application）→ ドメイン（純粋）。ドメインは外部依存ゼロ。
-- **core を front/server で共有**: 同じ `decide`/`evolve` をサーバーとソロモードの双方が使うため、
-  共有セッションとソロで挙動が一致します（[ADR-0001](./adr/0001-monorepo-shared-core.md),
+- **core を front/server で共有**: 同じ `decide`/`evolve` をサーバー（`apps/sync`）と共有フロント
+  （`apps/web`）の双方が使うため、挙動が一致します（[ADR-0001](./adr/0001-monorepo-shared-core.md),
   [ADR-0002](./adr/0002-decider-pure-domain.md)）。
 
 ## packages/core — 純粋ドメイン

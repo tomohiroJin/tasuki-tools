@@ -23,7 +23,7 @@
 
 - **利点**: `now` を引数化したことで時刻依存遷移を決定論的にテストでき、fast-check による
   プロパティテストで「任意操作列でも不変条件が保たれる」ことを検証できる（SC-010）。
-  サーバーとソロが同じ `decide`/`evolve` を呼ぶため挙動が一致する。
+  `apps/sync` と `apps/web` が同じ `decide`/`evolve` を共有するため挙動が一致する。
 - **代償**: 「コマンド→イベント→状態」の二段構えにより記述量が増える。ルームレベルの状態
   （phase・problem・participants）は集約（session+clock）の外側にあるため、`apps/sync` の
   `applyRoomLevelEvent` がイベントをルームへ反映する役割を担う（集約 evolve とルーム適用の二層）。
