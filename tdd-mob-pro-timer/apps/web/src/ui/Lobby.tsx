@@ -18,9 +18,9 @@ import { AiUnlockPanel } from "./components/AiUnlockPanel.js";
 import { EmptyHint } from "./components/EmptyHint.js";
 import { ProblemModeToggle } from "./components/ProblemModeToggle.js";
 import { NotifySettingsPanel } from "./components/NotifySettingsPanel.js";
-import { presenceDotClass } from "./presence.js";
 import { participantLabel, canTransferHostTo, canRemoveParticipant, canReorderRotation } from "./participant-label.js";
-import { ConfirmDialog } from "./components/ConfirmDialog.js";
+import { PresenceDot } from "./components/PresenceDot.js";
+import { RemovalConfirmDialog } from "./components/RemovalConfirmDialog.js";
 import { useNotifyPreferences } from "./use-notify-preferences.js";
 import { saveNotifyPreferences } from "../prefs/local-prefs.js";
 import { requestPermissionIfEnabling } from "../platform/notify.js";
@@ -141,14 +141,12 @@ export function Lobby({
       {/* 退出の確認。対象者の名前と、招待から再参加できることを明示する（FR-075）。
           ロビーは共有ルームなので他の参加者の画面にも反映される旨を添える（FR-076）。 */}
       {pendingRemoval && onRemoveParticipant && (
-        <ConfirmDialog
-          open={true}
-          title={`${participantLabel(pendingRemoval.displayName, pendingRemoval.participantId, room.participants, "さん")}を退出させますか？`}
-          description="一覧とドライバーの輪から外れます。招待から再参加できます。（他の参加者全員の画面にも反映されます）"
-          confirmLabel="退出させる"
-          confirmIntent="danger"
-          onConfirm={() => {
-            onRemoveParticipant(pendingRemoval.participantId);
+        <RemovalConfirmDialog
+          pendingRemoval={pendingRemoval}
+          participants={room.participants}
+          isShared={true}
+          onConfirm={(id) => {
+            onRemoveParticipant(id);
             setPendingRemovalId(null);
           }}
           onCancel={() => setPendingRemovalId(null)}
@@ -231,7 +229,7 @@ export function Lobby({
                         key={p.participantId}
                         className="flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-md bg-[var(--panel-2)] border border-[var(--hairline)] px-3 py-2 text-sm text-[var(--bone)]"
                       >
-                        <span className={`h-2 w-2 shrink-0 rounded-full ${presenceDotClass(p.presence)}`} aria-hidden="true" />
+                        <PresenceDot presence={p.presence} />
                         <span className="min-w-0 flex-1 truncate font-medium">{label}</span>
                         {/* ドライバー（順番つき）/ 見学 の区別（§9.2・④ 順番可視化） */}
                         <span

@@ -190,6 +190,58 @@ describe("Lobby 同名参加者の区別", () => {
     expect(screen.getByText("Bob")).toBeTruthy();
     expect(screen.getByLabelText("Bob を退出させる")).toBeTruthy();
   });
+
+  // ─── 同名3名（識別子の付与規則が2名までしか検証されていなかったための追加）───
+  // Issue #22 の G8 は「同名2名」の事故だったが、判定規則（isAmbiguousName）が
+  // 3名以上でも破綻しないことをここで確認する。
+
+  /** host=Alice と、同名の Bob 3名（いずれも rotation 外＝見学）が居る部屋。 */
+  function makeTripleDupRoom(): Room {
+    const room = makeRoom();
+    return {
+      ...room,
+      participants: [
+        p({ participantId: "host-p", displayName: "Alice", role: "host" }),
+        p({ participantId: "pid-0002", displayName: "Bob", connId: "c2" }),
+        p({ participantId: "pid-0003", displayName: "Bob", connId: "c3" }),
+        p({ participantId: "pid-0004", displayName: "Bob", connId: "c4" }),
+      ],
+    };
+  }
+
+  it("同名3名の操作ボタンが互いに異なるラベルになる", () => {
+    // Given
+    render(
+      <Lobby
+        room={makeTripleDupRoom()}
+        participantId="host-p"
+        onStartSession={noop}
+        onRemoveParticipant={vi.fn()}
+      />,
+    );
+    // When
+    const labels = screen
+      .getAllByRole("button")
+      .map((b) => b.getAttribute("aria-label") ?? "")
+      .filter((a) => a.includes("を退出させる"));
+    // Then
+    expect(labels).toHaveLength(3);
+    expect(new Set(labels).size).toBe(3);
+    expect(labels).toContain("Bob（ID: 0002） を退出させる");
+    expect(labels).toContain("Bob（ID: 0003） を退出させる");
+    expect(labels).toContain("Bob（ID: 0004） を退出させる");
+  });
+
+  it("同名3名がいると行の表示名にも識別子が出る（目で見ても区別できる）", () => {
+    // Given（makeTripleDupRoom: Bob が3名いる部屋）
+    // When
+    render(<Lobby room={makeTripleDupRoom()} participantId="host-p" onStartSession={noop} />);
+    // Then
+    expect(screen.queryByText("Bob")).toBeNull();
+    expect(screen.getByText("Bob（ID: 0002）")).toBeTruthy();
+    expect(screen.getByText("Bob（ID: 0003）")).toBeTruthy();
+    expect(screen.getByText("Bob（ID: 0004）")).toBeTruthy();
+  });
 });
 
 // ─── 退出の確認（実機検証で判明した欠落）──────────────────────────
@@ -327,5 +379,37 @@ describe("Lobby 確認ダイアログの陳腐化", () => {
     );
     // Then
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+});
+
+// ─── Lobby に無い操作の継続確認（baseline.md [要確認-1〜3]・FR-181〜183）───
+// ドライバー指名（onAssignDriver）・改名（onRename）・代理参加者の追加（onAddProxy）は
+// RosterPanel にのみ存在する操作であり、本作業（部品共通化）でも Lobby に新設しない。
+// このテストは通常時 green のはずだが、共有部品化の実装ミスで意図せず
+// 出現してしまう事故（回帰）を継続的に検知するためのものである。
+
+/**
+ * @requirements FR-181, FR-182, FR-183, SC-065
+ */
+describe("Lobby 新設しない操作の不在", () => {
+  it("同名参加者がいてもドライバー指名・改名・代理追加のボタンは一切出現しない", () => {
+    // Given（同名 Bob 3名・rotation 未加入者ありの部屋。RosterPanel ならこれらの操作が
+    // 出現しうる構成でも、Lobby には現れないことを確認する）
+    const room = makeRoom();
+    const dupRoom: Room = {
+      ...room,
+      participants: [
+        ...room.participants,
+        p({ participantId: "pid-0002", displayName: "Bob", connId: "c9" }),
+      ],
+    };
+    // When
+    render(<Lobby room={dupRoom} participantId="host-p" onStartSession={noop} />);
+    // Then
+    const labels = screen.getAllByRole("button").map((b) => b.getAttribute("aria-label") ?? "");
+    expect(labels.some((a) => a.includes("をドライバーにする"))).toBe(false);
+    expect(labels.some((a) => a.includes("を改名"))).toBe(false);
+    expect(labels.some((a) => a.includes("代理"))).toBe(false);
+    expect(screen.queryByText("代理追加")).toBeNull();
   });
 });
