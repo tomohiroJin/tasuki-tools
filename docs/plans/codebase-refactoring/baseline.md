@@ -1108,3 +1108,38 @@ Issue #26 の設計判断の材料として残る。
 | B-2 の統合（`decide` の判断を採用する） | **Issue #26**（同値でないため設計判断が必要） |
 | エラー文言の具体性の回復（13 コードが既定文言のまま） | **Issue #29** |
 | `applyRoomLevelEvent` と `evolve` の統合 | **Issue #26**（本仕様は契約を型で表現するところまで） |
+
+## 16. Issue #41（App.tsx の state/ref 二重管理解消・D-2 節）実測値
+
+**対象:** `apps/web/src/App.tsx`
+
+本 Issue #41 が「実測値の正本」として指定したため、ここに追記する。
+**以下は「実測値」であり「Issue 本文に書かれていた値」ではない。**
+Issue #41 本文および親 Issue #28 起票時（2026-07-29）の記載は
+古く実態と食い違っていた（下表「Issue記載値（誤り・参考）」列）。
+次に読む人が同じ罠を踏まないよう、両方を並記する。
+
+| 指標 | Issue記載値（誤り・参考） | **実測値**（2026-08-01・親エージェントが main `6285cc5` で測定） | リファクタ後（本 PR・2026-08-01） |
+|---|---:|---:|---:|
+| 行数 | 722 | **768** | 764 |
+| `useState` 数 | 12 | **11**（差分1件は未調査・実害なし） | 11（変更なし） |
+| `useRef`/`useLatestRef` 宣言数 | 9 | **14** | 11 |
+| うち `useLatestRef` 経由（state の写し＝二重管理） | 8 | **4**（`roomRef`/`endTypeRef`/`participantIdRef`/`generatingRef`） | **1**（`latestRef` に集約） |
+| うち素の `useRef`（純粋なガード用・対象外） | 1 | **10** | 10（変更なし） |
+
+### 採用した方針と、今回のスコープの限界
+
+`useLatestRef` 経由の4本の ref 宣言を、1本のオブジェクト ref
+（`useLatestRef({ room, endType, participantId, generatingProblem })`）に統合した。
+reducer 化は行っていない（4つの state の更新タイミングが独立しており、
+reducer化による変更差分が「二重管理の解消」という目的に対して過大なため・YAGNI）。
+`useLatestRef` は render 本体内で同期する設計を保っており（`useEffect` を挟まない）、
+1本化後も同期タイミングは変わらない。
+
+★**この PR は「二重管理を生む同期処理の一元化」に留まり、「二重管理そのもの
+（`makeClient` のコールバックが closure 固定される根本原因）」は解消していない。**
+根本解消（コールバック登録を `useEffect` ベースへ移す等）は影響範囲が大きく
+（`App.tsx` 764行・直前の Issue #24 リジューム配線と交差・本番デプロイ直前）、
+別 Issue（**#46**）として切り出した。詳細は
+`docs/plans/issue-41-app-state-ref/spec.md`（非対象節）・
+`docs/plans/issue-41-app-state-ref/plan.md` を参照。
