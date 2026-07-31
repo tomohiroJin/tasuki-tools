@@ -123,7 +123,7 @@
 
 - **SC-052**: `permissions-differential.test.ts` が実装の全段階で100%パスする（0件失敗）。
 - **SC-053**: 旧専用ハンドラが権限判定を独自に呼んでいた6コマンド（`role.set`/`room.passphrase.set`/`ai.unlock`/`host.transfer`/`problem.request`/`problem.submit`）が、統合後は共通パイプラインの権限判定呼び出しを1箇所だけ経由する（専用ハンドラ関数がドメイン処理のみに縮退し、`rejectIfUnauthorized`/`requireEditor` 相当の呼び出しを個別に持たない）。
-- **SC-054**: `handlers.ts` 本体の行数が、分割前（1,549行）から plan.md で確定する目標値以下に縮小する。
+- **SC-054**: `handlers.ts` 本体の行数が、分割前（1,549行）から **900行以下**に縮小する（実測872行・43.7%削減で達成。暫定値600行からの更新根拠は baseline.md 6.5節および前提節を参照）。
 - **SC-055**: 新設モジュール（トークン保持・レート制限・`applyRoomLevelEvent`・`buildDomainCommand` 相当）それぞれについて、単体テストが存在し緑である。
 - **SC-056**: `driver-switch-equivalence.test.ts` が「全入力で一致する」ことを検証する内容に更新され、fast-check 2000回全て通過する。
 - **SC-057**: 実機確認で、輪1人のケースと複数人ケースの両方について、交代回数・担当回数の表示値が統合前後で一致する。
@@ -143,7 +143,7 @@
 ## 前提
 
 - **Issue #26 本文の記述と実態の食い違い（解決済み・記録）**: Issue #26 本文は「`HOST_ONLY_COMMANDS`/`EDITOR_PLUS_COMMANDS` に登録されているが `authorize()`（`checkPermission()`）に到達しないデッドコードが6件ある」と主張しているが、**親セッションが `apps/sync/src/application/handlers.ts` を実測で行トレースした結果、この主張は古く、実態と食い違っている**ことを確認した。当該6コマンドはいずれも `rejectIfUnauthorized`（`role.set` 811行目・`room.passphrase.set` 868行目・`ai.unlock` 910行目・`host.transfer` 958行目）または `requireEditor`→`rejectIfUnauthorized`（`problem.request` 994行目→1062行目・`problem.submit` 1019行目→1062行目）を経由して `checkPermission()` に実際に到達している。`rejectIfUnauthorized`（1076行目付近）は `checkPermission()` を単独の判定として呼ぶ実装であり、`HOST_ONLY_COMMANDS`/`EDITOR_PLUS_COMMANDS` は `permissions.ts` 内部で生きている集合であって宙に浮いた別テーブルではない。Issue #22 で権限判定が `checkPermission()` へ統合された際に、この6コマンドの経路も追随済みだったと考えられる。**この食い違いを踏まえ、本 spec は「デッドコードの解消」を目的から外し、FR-155 を「集合表変更の到達性を回帰テストで固定する」要件に置き換えた。** 二重経路そのもの（専用ハンドラ / `handleRoomCommand`）は依然として存在し、これが将来同種の見落としを生む構造的リスクである点は変わらないため、US1（二重ルートの統合）は従来どおり主目的として残す。
-- **[要確認]** `handlers.ts` 分割後の具体的なファイル構成・目標行数（暫定 600行）は plan.md で見積もり済みだが実測値ではない。実装完了時（T031）に実測し、乖離があれば SC-054 の具体値を実測値へ更新する。
+- **（解決済み）** `handlers.ts` 分割後の具体的なファイル構成・目標行数（暫定 600行）は plan.md で見積もり済みだったが実測値ではなかった。フェーズ8（T031相当）の実測により最終行数は **872行**（1,549行から677行・43.7%削減）で確定し、暫定600行には届かなかった。要因分析（baseline.md 6.5節）の結果、これは「作業の不足」ではなく「見積もりが過大だった」ことによると判定した — 旧専用ハンドラ6コマンドの合流（FR-153/154）は、ドメイン処理を独立ファイルへ切り出す一方で、各コマンドの呼び出し・ctx受け渡しという最小限のディスパッチ配線を `handleRoomCommand` 内に残さざるを得ず（専用ハンドラのドメイン処理自体は1行も削っていない）、この配線がフェーズ0〜6で削減した重複前置き分をほぼ相殺した。600行という数値は、この配線コストを見込まずに立てられた見積もりだった。SC-054 はこの実測を根拠に「900行以下（実測872行で達成）」へ更新した（更新後の詳細な根拠は baseline.md 6.5節・7節を参照）。旧 `[要確認]` はクローズ。
 - **（解決済み）B-2 の実装方式**: plan.md の「技術コンテキストと意思決定」表で確定済み。`decide` の `session.act SWITCH` に任意の `ineligible?: ReadonlySet<number>` を追加し、`evolveDriverSwitched` を修正した上で `advanceDriver` をその1行ラッパへ縮退させる方式（plan.md 記載の(a)〜(d)）を採る。FR-163〜FR-168 の振る舞い要件はこの方式のもとで固定される。なお `driver.skip` の即時繰り上げと `autoSwitch`（タイマー発火）は本方式の対象外とし、従来どおり `advanceDriver` を直接呼ぶ設計を維持する（この点の再検討要否は plan.md の「未解決の論点」に `[要確認]` として残す）。
 - 実装フェーズ冒頭で `pnpm test && pnpm typecheck && pnpm lint && pnpm build` を実行し、baseline.md の申告値（core657/sync347/web534=1,538件、typecheck 4/4、lint 3/3、build 3/3）を実測し直して記録する。これ以後の全ゲート判定はこの実測値を基準とする。
 
@@ -154,4 +154,4 @@
 - [x] 成功基準が計測可能
 - [x] Issue #26 本文とデッドコード実態の食い違いは親セッションの実測で解決済み（前提セクション参照。旧 `[要確認]` 2番はクローズ）
 - [x] B-2 の実装方式は plan.md の意思決定表で確定済み（前提セクション参照。旧 `[要確認]` 3番はクローズ）
-- [ ] 未解決の `[要確認]` が1件残っている（`handlers.ts` 縮退後の目標行数の実測反映。実装フェーズ完了時のタスクで解消する）
+- [x] `handlers.ts` 縮退後の目標行数（SC-054）を実測値（872行）に基づき900行以下へ更新済み（前提節参照。フェーズ8完了により解消）
