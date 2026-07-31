@@ -33,6 +33,10 @@ export interface SyncClientOptions {
   onConnectionChange?: (state: "online" | "reconnecting") => void;
   /** 破壊的操作の実行者の通知（Issue #22・FR-077） */
   onNotice?: (notice: NoticeSignal) => void;
+  /** 切断後にスケジュールされた再接続が確立したときのみ呼ばれる（初回 connect() では呼ばれない）。
+   *  再接続と初回接続の区別は SyncClient 内部の状態でしか判定できないため、ここに用意する
+   *  （呼び出し元は「保存済みの resumeToken で room.join を再送する」判断にだけ使う・Issue #24）。 */
+  onReconnected?: () => void;
 }
 
 export class SyncClient {
@@ -46,6 +50,8 @@ export class SyncClient {
   private disposed = false;
   /** OPEN 前に送ろうとしたメッセージのキュー（接続確立時にフラッシュする） */
   private readonly pendingMessages: Record<string, unknown>[] = [];
+  /** 一度でも接続確立（onopen）したか。2回目以降の onopen が「再接続」の判定に使う。 */
+  private hasConnectedOnce = false;
 
   constructor(options: SyncClientOptions) {
     this.options = options;
@@ -66,6 +72,9 @@ export class SyncClient {
     this.ws = new WebSocket(this.options.url);
 
     this.ws.onopen = () => {
+      // 2回目以降の onopen だけが「切断後の再接続」。初回はここで確立を記録するだけ。
+      const isReconnect = this.hasConnectedOnce;
+      this.hasConnectedOnce = true;
       this.backoff.reset();
       this.options.onConnected?.();
       this.options.onConnectionChange?.("online");
@@ -75,6 +84,7 @@ export class SyncClient {
       for (const cmd of queued) {
         this.ws?.send(JSON.stringify(cmd));
       }
+      if (isReconnect) this.options.onReconnected?.();
     };
 
     this.ws.onmessage = (event: MessageEvent) => {
