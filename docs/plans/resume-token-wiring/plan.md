@@ -50,12 +50,16 @@
     （`onConnected`/`onConnectionChange` の発火順は変えない。`onReconnected` はそれらの後に追加で呼ぶ）
   - `dispose()` 済みインスタンスが再利用されることはない（既存仕様通り）ため `hasConnectedOnce` のリセットは不要
 - **`apps/web/src/App.tsx`（変更・最小）**
-  - `Identity`（`sync/client.ts`）に `code?: string` を追加できないため（サーバーメッセージ由来の型はそのまま）、
-    `onIdentity` 内で `resumeContextRef.current`（新規 ref、1個のみ追加）から `displayName` と
-    （room.create の場合のみサーバーが返す）`code` を組み合わせて `saveResumeIdentity` を呼ぶ
-  - `handleCreateRoom` / `handleJoinRoom` の冒頭で `resumeContextRef.current = { code, displayName }`
-    を設定する（join は呼び出し引数の `code` がそのまま使える。create は `code` 未確定なので
-    空文字を仮置きし、`room.created` 受信時にサーバー返却の `code` で確定する）
+  - **実装時の見直し**: `Identity`（`sync/client.ts`）は `room.joined` に `code` を含まない
+    （`packages/core/src/schemas.ts` の `RoomJoinedMsg`）。`dispatch.ts`/`client.ts` の
+    `Identity` 型を拡張すれば早期に `code` を得られるが、`dispatch.ts` は担当領域外の
+    既存ファイルであり変更対象に含めていないため、次の設計に変更した:
+    - 新規 ref `pendingResumeRef`（`{ participantId, resumeToken } | null`）を `onIdentity` で
+      書き込み、`resumeDisplayNameRef`（新規 ref、表示名のみ）を `handleCreateRoom`/
+      `handleJoinRoom` 冒頭で書き込む
+    - `onRoom`（snapshot、`r.code` を含む）の先頭で `pendingResumeRef.current` があれば
+      `r.code` と `resumeDisplayNameRef.current` を組み合わせて `saveResumeIdentity` を呼び、
+      `pendingResumeRef.current = null` にする（以降の snapshot では再保存しない）
   - `makeClient` の `onReconnected` で `loadResumeIdentity()` を読み、存在すれば
     `newClient.send({ command: "room.join", code, displayName, hasAiKey: false, resumeToken })` を送る
   - `leave-room` エラー経路の既存の後始末処理に `clearResumeIdentity()` を1行追加
@@ -85,14 +89,18 @@ Server -> Client（resumeToken 一致時、既存実装）:
 そのまま使い続けてよい（サーバーは既存 participantId のまま `presence` を更新するだけ）。
 
 ## プロジェクト構成
+実測の結果、本リポジトリの web パッケージはテストを `src/` に同居させず
+`apps/web/test/` 配下にミラー構成で置く慣習だった（`client.connection.test.ts` 等）。
+これに合わせる。
 ```
 apps/web/src/sync/
-  client.ts                 (変更: onReconnected 追加)
-  client.test.ts            (変更: onReconnected のテスト追加)
-  resume-identity.ts        (新規)
-  resume-identity.test.ts   (新規)
+  client.ts                        (変更: onReconnected 追加)
+  resume-identity.ts               (新規)
+apps/web/test/sync/
+  client.reconnect.test.ts         (新規)
+  resume-identity.test.ts          (新規)
 apps/web/src/
-  App.tsx                   (変更: 最小限の配線)
+  App.tsx                          (変更: 最小限の配線)
 ```
 
 ## エラー処理とセキュリティ

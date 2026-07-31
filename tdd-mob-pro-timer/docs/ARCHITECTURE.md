@@ -161,8 +161,17 @@ argv・ログ・snapshot に混入させません。失敗（タイムアウト�
 
 - `sync/client.ts`: WS クライアント。snapshot 置き換え・`clockOffset` 推定・指数バックオフ再接続。
   **未接続時に送られたコマンドはキューに退避し、`onopen` でフラッシュ**します（接続確立前の
-  `room.create` 取りこぼしを防ぐ）。
+  `room.create` 取りこぼしを防ぐ）。**初回接続と、切断後の再接続を区別**し（`hasConnectedOnce`）、
+  後者の `onopen` でのみ `onReconnected` を呼びます（Issue #24）。
 - `sync/dispatch.ts`: 受信メッセージの純粋な振り分け（snapshot / error / signal / time.pong）。
+- `sync/resume-identity.ts`: 自分の `resumeToken`/`participantId`/ルームコード/表示名を
+  `sessionStorage` に保持します（**localStorage ではない** — resumeToken はルーム限定・短命で
+  サーバー再起動により失効するため、タブ単位で完結する sessionStorage が要件に合致します）。
+  `App.tsx` は WS の `onReconnected`（上記）でこれを読み、`resumeToken` 付きの `room.join` を
+  利用者の操作なしに再送します。既存の参加者を復帰させるサーバー側処理
+  （`apps/sync/src/application/command-handlers/room-join.ts`）は本 Issue 以前から実装済みでしたが、
+  web クライアントから一度も使われていませんでした（Issue #24・詳細は
+  [docs/plans/resume-token-wiring/](../../docs/plans/resume-token-wiring/)）。
 - `ai/`: `ProblemProvider`。現行は `NoAiProvider`（AI 生成はサーバー側 = ADR-0008）。
   **BYOK 一式（`byok.ts` / `key-storage.ts` / `AiSettingsModal.tsx`）は Issue #28 で撤去した。**
   「将来の再有効化に備えて残置」という休眠コードは持たない（US1・FR-087）。
@@ -257,6 +266,9 @@ need-problem）/ `error` / `time.pong` / `room.created` / `room.joined`。
 - **XSS**: React 既定エスケープ。AI/ユーザー由来テキストへ `dangerouslySetInnerHTML` 不使用。
 - **トークン管理**: AI 用 OAuth トークンはサーバー env のみ。`claude -p` 子プロセスの env にのみ渡し、
   argv・ログ・snapshot に混入させない（ADR-0008）。
+- **resumeToken の保存先**: `sessionStorage`（`sync/resume-identity.ts`）。`localStorage` は
+  機密情報の保存禁止（セキュリティ規約）だが、`resumeToken` はルーム限定・短命でサーバー
+  再起動により失効するため、タブ単位で完結する `sessionStorage` が要件に合致する（Issue #24）。
 - **WSS / Origin**: 本番は Caddy で WSS 強制・許可 Origin 検証（`ALLOWED_ORIGINS`）。
 - **可用性**: 状態揮発・再起動安全。
 

@@ -12,6 +12,7 @@ import { History } from "./ui/History.js";
 import { StatusStrip } from "./ui/components/StatusStrip.js";
 import { deriveConnectionStatus, type ClientConnState } from "./ui/connection-status.js";
 import { SyncClient } from "./sync/client.js";
+import { saveResumeIdentity, loadResumeIdentity, clearResumeIdentity } from "./sync/resume-identity.js";
 import { buildNoticeMessage } from "./sync/notice-message.js";
 import { NoAiProvider } from "./ai/no-ai.js";
 import type { ProblemProvider } from "./ai/provider.js";
@@ -96,6 +97,15 @@ export default function App() {
   const generatingRef = useLatestRef(generatingProblem);
   // 生成が返らない異常で固まらないための安全弁タイマー。
   const generatingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // 参加/作成直後の resumeToken を、次に来る snapshot（room.code を含む）と組み合わせて
+  // sessionStorage へ保存するための一時保持（Issue #24）。onIdentity では room.code が
+  // まだ分からない（room.joined メッセージに code が含まれない）ため、onRoom まで持ち越す。
+  // useLatestRef ではなく素の ref に直接書くのは、onIdentity → onRoom の間に React の
+  // 再レンダーを待たずに値を受け渡したいため（両者は別々の WS メッセージから来る）。
+  const pendingResumeRef = useRef<{ participantId: string; resumeToken: string } | null>(null);
+  // 参加/作成時に指定した表示名。resumeToken 再送の room.join に必要
+  // （サーバー側スキーマで displayName は必須項目のため・Issue #24）。
+  const resumeDisplayNameRef = useRef<string>("");
 
   // App unmount 時にタイマーを掃除する（setState-on-unmounted を防ぐ）。
   useEffect(() => {
@@ -121,6 +131,19 @@ export default function App() {
         // （このコールバック内では setRoom(r) 後も再レンダーが起きるまで前回値を保つ）。
         const prevRoom = roomRef.current;
         setRoom(r);
+        // 直前の room.created/room.joined で受け取った resumeToken を、今来た snapshot の
+        // room.code と組み合わせて保存する（Issue #24・FR-001）。一度保存すれば
+        // このクライアントの生存期間中 code/participantId/resumeToken は変わらないため、
+        // 以降の snapshot では再保存しない（sessionStorage への書き込みを1回に抑える）。
+        if (pendingResumeRef.current) {
+          saveResumeIdentity({
+            code: r.code,
+            participantId: pendingResumeRef.current.participantId,
+            resumeToken: pendingResumeRef.current.resumeToken,
+            displayName: resumeDisplayNameRef.current,
+          });
+          pendingResumeRef.current = null;
+        }
         // 参加時ドライバー宣言: 自分が参加者に現れたら一度だけ rotation に加入する。
         const myId = participantIdRef.current;
         if (pendingDriverJoinRef.current && myId && r.participants.some((p) => p.participantId === myId)) {
@@ -192,8 +215,10 @@ export default function App() {
           );
         }
       },
-      onIdentity: ({ participantId: pid }) => {
+      onIdentity: ({ participantId: pid, resumeToken }) => {
         setParticipantId(pid);
+        // room.code はこの時点でまだ分からないため、次の snapshot（onRoom）で保存する。
+        pendingResumeRef.current = { participantId: pid, resumeToken };
       },
       onNeedProblem: async (requestId) => {
         // 代表に選ばれたらお題を生成して投入する（FR-025）。失敗時もプロバイダが定型へ縮退。
@@ -222,6 +247,8 @@ export default function App() {
             // ローカル記録は保持され、再接続では消えないよう sessionLost を立てる。
             setSessionLost(true);
             setBanner({ text: "セッションが見つかりません。ローカルの記録は保持されています。", kind: "error" });
+            // ルームごと消失した以上、保存済みの resumeToken はもう使えない（Issue #24・FR-005）。
+            clearResumeIdentity();
             return;
           }
           case "leave-room": {
@@ -238,6 +265,9 @@ export default function App() {
             recordSavedRef.current = false;
             setSessionLost(false);
             setRecord(null);
+            // 明示的に退出が成立した以上、この参加者としてのリジュームはもう意味を持たない
+            // （次に別ルームへ入ったときに誤って古いルームへ復帰しようとしないため・Issue #24・FR-004）。
+            clearResumeIdentity();
             // ルーム由来の画面状態は退出成立時に破棄する（FR-128）。
             // お題生成中フラグ・安全弁タイマーもルーム固有の途中状態なので、
             // 持ち越すと次に入った別ルームで「何も頼んでいないのに生成中」の
@@ -295,6 +325,20 @@ export default function App() {
       onDisconnected: () =>
         setBanner({ text: "接続が切れました。再接続しています...", kind: "warn" }),
       onConnectionChange: (s) => setConnState(s),
+      // WS が切断後に自動再接続したとき、保存済みの resumeToken で room.join を
+      // 利用者の操作なしに再送する（Issue #24・FR-002/FR-003）。初回 connect() では
+      // 呼ばれないため、ここでの二重送信は起きない。
+      onReconnected: () => {
+        const saved = loadResumeIdentity();
+        if (!saved) return;
+        newClient.send({
+          command: "room.join",
+          code: saved.code,
+          displayName: saved.displayName,
+          hasAiKey: false,
+          resumeToken: saved.resumeToken,
+        });
+      },
       // 破壊的操作の実行者を全員へ伝える（Issue #22・FR-077）。
       // banner は aria-live 付きのライブリージョンなので、そのまま読み上げにも乗る。
       // participantId は state 更新の遅れを避けるため ref から取る（closure の固定を回避）。
@@ -318,6 +362,7 @@ export default function App() {
     // config.set で調整する（最初の画面で選びすぎない・UX 再設計）。お題はロビーで自動生成。
     isCreatorRef.current = true;
     problemRequestedRef.current = false;
+    resumeDisplayNameRef.current = displayName;
     const config: SessionConfig = {
       language: "TypeScript",
       difficulty: "easy",
@@ -341,6 +386,7 @@ export default function App() {
     mode: "driver" | "spectator" = "spectator",
   ) => {
     isCreatorRef.current = false;
+    resumeDisplayNameRef.current = displayName;
     // driver 宣言を ref に記録しておき、snapshot で自分が現れたら member.add を送る。
     if (mode === "driver") pendingDriverJoinRef.current = true;
     const c = makeClient(() => ({

@@ -17,9 +17,12 @@
       `hasConnectedOnce` フラグを実装（green）し、リファクタする。 _要件: FR-002, FR-003_
 
 ## フェーズ3 — App.tsx の配線
-- [x] T005 `App.tsx` の `onIdentity` ハンドラで `resumeContextRef`（新規 ref）から
-      displayName / code を補い `saveResumeIdentity` を呼ぶよう実装する
-      （`handleCreateRoom`/`handleJoinRoom` 冒頭で ref をセット）。 _要件: FR-001_
+- [x] T005 `App.tsx` に `pendingResumeRef`（participantId/resumeToken の一時保持）と
+      `resumeDisplayNameRef`（新規 ref）を追加し、`onIdentity` で前者へ書き込み、
+      次に来る `onRoom`（snapshot、room.code を含む）で `saveResumeIdentity` を呼ぶよう
+      実装する。room.joined メッセージに code が含まれないため、code は onRoom まで
+      持ち越す設計に変更した（plan.md の resumeContextRef 案から実装時に見直し）。
+      （`handleCreateRoom`/`handleJoinRoom` 冒頭で `resumeDisplayNameRef` をセット）。 _要件: FR-001_
 - [x] T006 `App.tsx` の `makeClient` に `onReconnected` を配線し、
       `loadResumeIdentity()` があれば `room.join`（resumeToken 付き）を再送する。 _要件: FR-002, FR-003_
 - [x] T007 `App.tsx` の `leave-room` エラー経路の後始末に `clearResumeIdentity()` を追加する。 _要件: FR-004_
