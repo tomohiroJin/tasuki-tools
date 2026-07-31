@@ -116,6 +116,8 @@ wsAdapter = new WsAdapter({
   host: config.host,
   allowedOrigins: config.allowedOrigins,
   maxConnections: config.maxConnections,
+  heartbeatIntervalMs: config.heartbeatIntervalMs,
+  heartbeatMaxMisses: config.heartbeatMaxMisses,
   onMessage: async (connId, msg) => {
     // msg は ws-adapter 側で CommandSchema（valibot）に通した検証済みの値であり、
     // 実体は Command 型と一致する（onMessage の型は unknown のままなのでここでキャストする）。
@@ -150,7 +152,8 @@ reclaimer.start(RECLAIM_SWEEP_MS);
 
 console.log(
   `🚀 同期サーバー起動 host=${config.host} port=${config.port} ` +
-    `maxConn=${config.maxConnections} maxRooms=${config.maxRooms}`,
+    `maxConn=${config.maxConnections} maxRooms=${config.maxRooms} ` +
+    `heartbeat=${config.heartbeatIntervalMs}ms×${config.heartbeatMaxMisses}回`,
 );
 console.log(
   `管理エンドポイント: ${config.adminToken ? "有効 (/status, /admin/rooms)" : "無効 (ADMIN_TOKEN 未設定)"}`,
