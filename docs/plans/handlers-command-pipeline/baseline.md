@@ -109,3 +109,75 @@
 
 54行。「決定」「影響」の2節構成。「影響」節は「利点」と「代償」に分かれる。
 本タスクのスコープでは**「利点」節を編集しない**（Issue #33 論点2は別ブランチ）。追記は末尾に新設する `## 更新` セクションに限定する。
+
+---
+
+## 6. フェーズ7（パイプライン統合・専用ハンドラの合流）完了記録
+
+**実施日:** 2026-07-31。T023〜T029 に対応。
+
+### 6.1 合流の実施内容
+
+`role.set`/`room.passphrase.set`/`ai.unlock`/`host.transfer`/`problem.request`/`problem.submit` の6コマンドを、1コマンドずつ（各コミット単位で）以下の手順で共通パイプライン（`handleRoomCommand`）へ合流させた。
+
+1. `command-handlers/*.ts` 側: 在室確認・アクター解決・`rejectIfUnauthorized`（`problem.request`/`problem.submit` は旧 `requireEditor`）を削除し、`ctx: { room, actor }` を受け取るドメイン処理のみの関数へ縮退。
+2. `handlers.ts` 側: `handleCommand` の switch から専用 case を削除（`default` → `handleRoomCommand` へ落ちる）。`handleRoomCommand` 内に、`participant.remove` と同じ構造の専用ドメイン分岐（decide/evolve より前、`buildDomainCommand` 呼び出しの手前）を追加し、既に解決済みの `{ room: targetRoom, actor: participant }` を ctx として渡す。
+3. `makeHandlers` 内の各ファクトリ呼び出しから `findRoomByConnId`/`rejectIfUnauthorized`/`requireEditor` の受け渡しを削除。
+4. 旧 `requireEditor`（`problem.request`/`problem.submit` が個別に呼んでいた、在室確認・アクター解決・`rejectIfUnauthorized` を束ねたヘルパ）は6コマンド合流完了時点で呼び出し元が無くなったため関数ごと削除。
+
+結果、`handleCommand` の switch は最終形（`room.create`/`room.join`/`time.ping` の3ケース＋`default`）になった。
+
+### 6.2 削れた重複前置き（実測）
+
+各コマンドの専用ハンドラ本体（`git show <sha> -- command-handlers/<file>.ts` で実測）から削除した「在室確認・アクター解決・権限判定呼び出し」の行数:
+
+| コマンド | 削除した前置き（本体、実測） |
+|---|---:|
+| `role.set` | 15行（`const room = findRoomByConnId(connId)` 〜 `if (rejectIfUnauthorized(...))`） |
+| `room.passphrase.set` | 15行（同型） |
+| `ai.unlock` | 15行（同型） |
+| `host.transfer` | 15行（同型） |
+| `problem.request` | 2行（`const guard = requireEditor(...)` ＋ `if (guard.isErr())...`） |
+| `problem.submit` | 2行（同型） |
+
+上記に加え、`problem.request`/`problem.submit` が共有していた `requireEditor` 関数本体（`handlers.ts` 側、在室確認・アクター解決・`rejectIfUnauthorized` を束ねたヘルパ・16行）を、両コマンドの合流完了時点で呼び出し元が無くなったため関数ごと削除した。
+
+いずれのコマンドも、削除した前置きは「在室確認（`findRoomByConnId`＋`NOT_IN_ROOM`）」「アクター解決（`participants.find`＋防御的 `UNAUTHORIZED`）」「`rejectIfUnauthorized`/`requireEditor` 呼び出し」の3点に限られ、ドメイン処理本体（合言葉照合・LAST_MANAGER_DEMOTE 検査等）は1行も変更していない。
+
+### 6.3 FR-155 回帰テストの実装
+
+`apps/sync/test/pipeline-single-route.test.ts` を新設（15ケース）。「デッドコードの解消」ではなく、`permissions.ts` の集合表を変更したときに変更が全コマンドへ単一経路で反映され続けることの構造的回帰防止として、以下を字句検査で固定した。
+
+- `handleCommand` の switch の case ラベルが `room.create`/`room.join`/`time.ping` の3件のみであること（旧6コマンドが個別 case を持たないこと）。
+- `checkPermission({`（実呼び出し）が `handlers.ts` 内に1箇所だけであること。
+- `rejectIfUnauthorized(connId`（関数定義を除く実呼び出し）が `handlers.ts` 内に1箇所だけであること。
+- 6つの専用ハンドラファイルが `checkPermission(`/`rejectIfUnauthorized(`/`requireEditor(` を自前で呼んでいないこと。
+
+このテストが実際に退行を検出することを、一時的に `role.set` の case を switch へ再追加して確認した（2件が red になることを確認後、変更を破棄）。
+
+### 6.4 実サーバー WebSocket 直結による権限拒否の検証（T029・SC-059）
+
+`bun run src/server.ts`（`PORT=8799`、`ALLOWED_ORIGINS` 未設定＝dev 全許可）を起動し、`ws` パッケージによる直結クライアントで以下を確認した（検証用スクリプトは一時ファイルで作成し、確認後に削除。リポジトリには残していない）。
+
+手順: host が `room.create` → viewer 役の参加者が `room.join`（既定は editor のため、host が `role.set` で viewer へ降格）→ viewer から旧デッドコード6件を送信。
+
+| コマンド | viewer から送信した結果 |
+|---|---|
+| `role.set` | `UNAUTHORIZED` |
+| `room.passphrase.set` | `UNAUTHORIZED` |
+| `ai.unlock` | `UNAUTHORIZED` |
+| `host.transfer` | `UNAUTHORIZED` |
+| `problem.request` | `UNAUTHORIZED` |
+| `problem.submit` | `UNAUTHORIZED` |
+
+対照として、同じ `role.set` を host から送信すると許可され、対象参加者の役割が実際に更新される（snapshot で確認）ことも確認した。全件、統合後の共通パイプライン経由で意図通りに権限判定が機能している。
+
+### 6.5 `handlers.ts` の行数推移
+
+| 時点 | 行数 |
+|---|---:|
+| フェーズ0（作業開始前） | 1,549行 |
+| フェーズ6完了時点（本フェーズ開始時） | 886行 |
+| フェーズ7完了時点 | 872行 |
+
+目標（暫定600行）には届いていない。`handleCommand` の switch 縮小・`requireEditor` 関数本体（16行）の完全削除・6ハンドラの重複前置き削除で減った分を、`handleRoomCommand` 側へ追加した6つの専用ドメイン分岐（呼び出しとコメントを合わせて各10行前後）がほぼ相殺している。専用ハンドラのドメイン処理そのもの（合言葉照合・LAST_MANAGER_DEMOTE 検査等）は1行も削っていないため、これは想定通りの推移である。残る行数の大半は権限判定に依存しない既存のドメインロジック（`decide`/`evolve` 呼び出し・`driver.assign`/`driver.skip`/`member.*` 系の個別検査等）であり、フェーズ7のスコープ外。目標行数の乖離は T031（フェーズ8・最終検証）で改めて実測・記録する。
