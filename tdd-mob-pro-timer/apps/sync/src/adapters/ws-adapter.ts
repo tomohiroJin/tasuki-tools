@@ -50,10 +50,16 @@ export class WsAdapter {
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(private readonly options: WsAdapterOptions) {
-    this.heartbeatIntervalMs =
-      options.heartbeatIntervalMs ?? DEFAULT_HEARTBEAT_INTERVAL_MS;
-    this.heartbeatMaxMisses =
-      options.heartbeatMaxMisses ?? DEFAULT_HEARTBEAT_MAX_MISSES;
+    // 呼び出し元（テスト等）が誤って 0 以下を明示指定しても busy-loop 化しないよう、
+    // config.ts の intEnv と同じ契約（正の整数）をコンストラクタ自身でも守る（DbC）。
+    this.heartbeatIntervalMs = Math.max(
+      1,
+      options.heartbeatIntervalMs ?? DEFAULT_HEARTBEAT_INTERVAL_MS,
+    );
+    this.heartbeatMaxMisses = Math.max(
+      0,
+      options.heartbeatMaxMisses ?? DEFAULT_HEARTBEAT_MAX_MISSES,
+    );
     this.httpServer = createServer((req, res) => this.handleHttp(req, res));
     this.wss = new WebSocketServer({ server: this.httpServer });
     this.wss.on("connection", this.handleConnection.bind(this));
