@@ -65,36 +65,32 @@ export default function App() {
   // 接続状態は WS クライアントから明示通知される（banner には結合しない・R5-1）。
   const [connState, setConnState] = useState<ClientConnState>("online");
   // 注: AI（BYOK/サブスク）はいったん UI から撤去。お題は定型バンクのみ（NoAiProvider）。
-  // onNeedProblem など closure から最新ルームの設定を参照するための ref。
-  // makeClient のコールバックは生成時の値で固定されるため、同じ値を state と ref の
-  // 両方で持つ並行保持そのものは避けられない。ref への同期処理は useLatestRef に集約する
-  // （Issue #28・T069/T070・FR-120）。
-  const roomRef = useLatestRef<Room | null>(room);
   // このクライアントがルーム作成者（＝当初ホスト）か。ロビーでお題生成を自動依頼する判定に使う。
-  // state を持たない純粋なガード用 ref（useLatestRef の対象外）。
+  // state を持たない純粋なガード用 ref（集約 ref の対象外）。
   const isCreatorRef = useRef(false);
   // 参加時に "driver" を選択したか。snapshot で自分が参加者に現れたら member.add を一度だけ送る。
   // 名前ではなく「宣言したか」だけを持つ（誰を加えるかは自分の participantId で決まる・D6b）。
   const pendingDriverJoinRef = useRef(false);
   // ロビーでのお題自動生成依頼を一度だけ行うためのガード。
   const problemRequestedRef = useRef(false);
-  // 終了種別を onRoom（snapshot 受信）クロージャから参照するための ref。
-  // 中断時に完成記録を作らない判定に使う（FR-020）。
-  const endTypeRef = useLatestRef<EndType>(endType);
   // 完成記録の二重保存を防ぐガード（celebration の snapshot が複数回来ても1回だけ保存）。
   const recordSavedRef = useRef(false);
   // 一時的な操作エラーバナーの自動消去タイマー。
   const bannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // ホスト交代検知用に直前 snapshot の hostParticipantId を保持する（R2-4）。
   const prevHostRef = useRef<string | undefined>(undefined);
-  // notice の文言組み立て（「あなた」判定）を closure から行うための ref。
-  // participantId は state だが、makeClient のコールバックは生成時の値で固定されるため
-  // state を直接読むと空文字のままになる（roomRef と同じ理由の二重管理）。
-  const participantIdRef = useLatestRef<string>(participantId);
   // AI/定型のお題生成中（「別のお題にする」押下〜新お題確定まで）。スピナー＋減光に使う。
   const [generatingProblem, setGeneratingProblem] = useState(false);
-  // onRoom（snapshot クロージャ）から最新値を読むための ref（roomRef 等と同じ二重管理パターン）。
-  const generatingRef = useLatestRef(generatingProblem);
+  // makeClient のコールバック（onRoom/onIdentity/onNotice 等）は生成時の値で固定される
+  // closure である。そのためコールバック内から「最新の state」を読みたい room/endType/
+  // participantId/generatingProblem の4つは、同じ値を state（描画用）と ref（closure 用）
+  // の両方で持つ並行保持そのものは避けられない（Issue #28・T069/T070・FR-120）。
+  // 避けられるのは「render のたびに ref.current を最新値へ同期する」処理が state ごとに
+  // 手書きで散っていること。useLatestRef はこの同期を1箇所に集約し、Issue #41 では
+  // その集約先そのものを4本の ref から1本のオブジェクト ref へさらにまとめる
+  // （render 本体内で毎回新しいオブジェクトを渡すだけなので、4本のときと同期タイミングは
+  // 変わらない＝挙動は変えない）。
+  const latestRef = useLatestRef({ room, endType, participantId, generatingProblem });
   // 生成が返らない異常で固まらないための安全弁タイマー。
   const generatingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // 参加/作成直後の resumeToken を、次に来る snapshot（room.code を含む）と組み合わせて
@@ -129,7 +125,7 @@ export default function App() {
       onRoom: (r) => {
         // useLatestRef は render のたびに同期するため、ここではまだ前回値のまま
         // （このコールバック内では setRoom(r) 後も再レンダーが起きるまで前回値を保つ）。
-        const prevRoom = roomRef.current;
+        const prevRoom = latestRef.current.room;
         setRoom(r);
         // 直前の room.created/room.joined で受け取った resumeToken を、今来た snapshot の
         // room.code と組み合わせて保存する（Issue #24・FR-001）。一度保存すれば
@@ -145,7 +141,7 @@ export default function App() {
           pendingResumeRef.current = null;
         }
         // 参加時ドライバー宣言: 自分が参加者に現れたら一度だけ rotation に加入する。
-        const myId = participantIdRef.current;
+        const myId = latestRef.current.participantId;
         if (pendingDriverJoinRef.current && myId && r.participants.some((p) => p.participantId === myId)) {
           // 宣言は「参加時の一度きり」。輪に入れたかに関わらずここで降ろす。
           // 降ろさないと、後で自分が輪を抜けた瞬間に再追加が走り、意図しない再加入になる
@@ -156,7 +152,7 @@ export default function App() {
           }
         }
         // 生成中で、お題の内容が前回から変化したら生成中を解除（AI 成功・定型縮退・タイムアウト確定の全経路）。
-        if (shouldClearGenerating(generatingRef.current, prevRoom?.problem ?? null, r.problem ?? null)) {
+        if (shouldClearGenerating(latestRef.current.generatingProblem, prevRoom?.problem ?? null, r.problem ?? null)) {
           endGenerating();
         }
         // サーバー権威の phase に全参加者が追従する（ホストの開始/完成が全員に反映）
@@ -197,7 +193,7 @@ export default function App() {
         if (
           r.phase === "celebration" &&
           r.problem &&
-          endTypeRef.current !== "abort" &&
+          latestRef.current.endType !== "abort" &&
           !recordSavedRef.current
         ) {
           recordSavedRef.current = true;
@@ -255,7 +251,7 @@ export default function App() {
             // 退出が成立した本人を取り残さない（自己退出＝LEFT_ROOM／他者に退出させられた＝
             // REMOVED_FROM_ROOM・REMOVED_BY_HOST）。後始末は行き先によらず共通で、
             // 違うのはバナー文言（friendlyError(code) から引く）と行き先だけ（Issue #32・FR-127/128）。
-            const removedFrom = roomRef.current?.code ?? null;
+            const removedFrom = latestRef.current.room?.code ?? null;
             newClient.dispose();
             setRoom(null);
             setClient(null);
@@ -344,8 +340,8 @@ export default function App() {
       // participantId は state 更新の遅れを避けるため ref から取る（closure の固定を回避）。
       onNotice: (notice) => {
         const text = buildNoticeMessage(notice, {
-          selfParticipantId: participantIdRef.current,
-          participants: roomRef.current?.participants ?? [],
+          selfParticipantId: latestRef.current.participantId,
+          participants: latestRef.current.room?.participants ?? [],
         });
         setBanner({ text, kind: "warn" });
         if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
@@ -372,8 +368,8 @@ export default function App() {
     };
     // お題生成は最新のルーム設定（ロビーでの編集を反映）を参照する。
     const c = makeClient(() => ({
-      language: roomRef.current?.config.language ?? config.language,
-      difficulty: roomRef.current?.config.difficulty ?? config.difficulty,
+      language: latestRef.current.room?.config.language ?? config.language,
+      difficulty: latestRef.current.room?.config.difficulty ?? config.difficulty,
     }));
     c.send({ command: "room.create", displayName, config, ...(roomName && { roomName }) });
   };
@@ -390,8 +386,8 @@ export default function App() {
     // driver 宣言を ref に記録しておき、snapshot で自分が現れたら member.add を送る。
     if (mode === "driver") pendingDriverJoinRef.current = true;
     const c = makeClient(() => ({
-      language: roomRef.current?.config.language ?? "TypeScript",
-      difficulty: roomRef.current?.config.difficulty ?? "easy",
+      language: latestRef.current.room?.config.language ?? "TypeScript",
+      difficulty: latestRef.current.room?.config.difficulty ?? "easy",
     }));
     // 空のパスフレーズは送らない（未設定ルームの従来挙動を維持）。
     c.send({ command: "room.join", code, displayName, hasAiKey: false, ...(passphrase ? { passphrase } : {}) });
@@ -402,10 +398,10 @@ export default function App() {
     client?.send({ command: "member.add", participantId });
   };
   /** 自分をローテーションから外す。index は描画時ではなく送信時の最新 snapshot
-   *  （roomRef）から解決し、同時編集による index ずれで別人を外す事故を防ぐ（レビュー #1）。
+   *  （latestRef.current.room）から解決し、同時編集による index ずれで別人を外す事故を防ぐ（レビュー #1）。
    *  照合は参加者ID（D6b）なので、同名の別人の枠を外すことはない。 */
   const leaveRotation = (participantId: string) => {
-    const idx = roomRef.current?.session.rotation.indexOf(participantId) ?? -1;
+    const idx = latestRef.current.room?.session.rotation.indexOf(participantId) ?? -1;
     if (idx >= 0) client?.send({ command: "member.remove", index: idx });
   };
   /** ホストが参加者を退出させる（⑪・host 限定）。 */
@@ -420,8 +416,8 @@ export default function App() {
     client?.send({ command: "role.set", participantId, role });
   };
   const changeOwnRole = (role: "editor" | "viewer") => {
-    if (!participantIdRef.current) return;
-    client?.send({ command: "role.set", participantId: participantIdRef.current, role });
+    if (!latestRef.current.participantId) return;
+    client?.send({ command: "role.set", participantId: latestRef.current.participantId, role });
   };
   /** ホストが任意のオンライン参加者へホストを明示移譲する（R2-3・host 限定）。 */
   const handleTransferHost = (participantId: string) => {
@@ -564,7 +560,7 @@ export default function App() {
   };
 
   const copyProblem = () => {
-    const p = roomRef.current?.problem;
+    const p = latestRef.current.room?.problem;
     if (!p || !navigator.clipboard?.writeText) return;
     navigator.clipboard.writeText(formatProblemText(p)).catch(() => {
       /* 権限拒否等は無視 */
@@ -589,7 +585,7 @@ export default function App() {
   };
 
   const regenerateProblem = () => {
-    const code = roomRef.current?.code;
+    const code = latestRef.current.room?.code;
     if (code) {
       beginGenerating();
       // 直近のお題と重複しにくい新規生成を代表へ依頼する（FR-012）。
