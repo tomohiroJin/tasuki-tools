@@ -13,7 +13,7 @@ describe("PresenceDot", () => {
     const cases: Presence[] = ["online", "idle", "offline"];
 
     cases.forEach((presence) => {
-      it(`${presence} のとき presenceDotClass(${presence}) に対応するクラスを持つドットが描画される`, () => {
+      it(`presence が ${presence} のとき、状態に対応するクラスを持つドットが描画される`, () => {
         // Given / When
         const { container } = render(<PresenceDot presence={presence} />);
         // Then

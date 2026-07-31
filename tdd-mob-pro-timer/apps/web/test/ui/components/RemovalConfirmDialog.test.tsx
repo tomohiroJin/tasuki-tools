@@ -42,7 +42,7 @@ describe("RemovalConfirmDialog", () => {
   describe("pendingRemoval が非 null のとき", () => {
     const participant = makeParticipant({ participantId: "p1", displayName: "Alice" });
 
-    it("participantLabel で組み立てたタイトルを持つ確認ダイアログが描画される", () => {
+    it("タイトルに表示名を使う", () => {
       // Given / When
       render(
         <RemovalConfirmDialog
