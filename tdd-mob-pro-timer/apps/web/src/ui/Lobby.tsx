@@ -25,6 +25,7 @@ import { participantLabel, canTransferHostTo, canRemoveParticipant, canReorderRo
 // 別名 import して衝突を避ける（plan.md 参照）。
 import { canRemoveParticipant as canLeaveRoomInvariant } from "@tdd-mob/core";
 import { PresenceDot } from "./components/PresenceDot.js";
+import { presenceLabel } from "./presence.js";
 import { RemovalConfirmDialog } from "./components/RemovalConfirmDialog.js";
 import { useNotifyPreferences } from "./use-notify-preferences.js";
 import { saveNotifyPreferences } from "../prefs/local-prefs.js";
@@ -235,6 +236,9 @@ export function Lobby({
                         className="flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-md bg-[var(--panel-2)] border border-[var(--hairline)] px-3 py-2 text-sm text-[var(--bone)]"
                       >
                         <PresenceDot presence={p.presence} />
+                        {/* 在席状態はドットの色だけで伝えていた（WCAG 1.4.1違反・Issue #42）。
+                            RosterPanel と同じく sr-only テキストを呼び出し元に置く（PresenceDot 自体は変更しない）。 */}
+                        <span className="sr-only">{presenceLabel(p.presence)}</span>
                         <span className="min-w-0 flex-1 truncate font-medium">{label}</span>
                         {/* ドライバー（順番つき）/ 見学 の区別（§9.2・④ 順番可視化） */}
                         <span
