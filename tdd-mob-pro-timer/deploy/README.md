@@ -148,6 +148,10 @@ sudo ss -tlnp | grep 8787                            # 127.0.0.1:8787 のみ
   超過接続は WS 1013、超過 room.create は `ROOM_LIMIT_EXCEEDED` で拒否。
 - `ROOM_IDLE_TTL_MS`（既定 30 分）全員切断が継続したルームを定期回収（60 秒間隔）。
   揮発設計のため回収されたルームは復帰不可（再作成すればよい）。
+- `HEARTBEAT_INTERVAL_MS`（既定 15000）/ `HEARTBEAT_MAX_MISSES`（既定 2）でサーバー主導の
+  死活監視（ws ping/pong）を調整する（Issue #25）。回線断・端末スリープ等で半開きのまま残った
+  接続を検出し、最大 `interval × (missMax + 1)`（既定で約45秒）以内に `terminate` して
+  presence を `offline` に収束させる。一時的な通信の揺れでは切断しない（連続欠落のみ判定）。
 
 ## 運用可視化（管理エンドポイント）
 

@@ -23,6 +23,10 @@ export interface SyncConfig {
   aiGenerationTimeoutMs: number;
   /** AI 生成の日次回数上限（グローバル・揮発カウント）。0 で当日生成を全面停止できる。 */
   aiDailyLimit: number;
+  /** サーバー主導のハートビート（ws.ping）送信間隔（ms）。Issue #25: 死活監視。 */
+  heartbeatIntervalMs: number;
+  /** 連続でこの回数分 pong が確認できない接続を terminate する（Issue #25）。 */
+  heartbeatMaxMisses: number;
 }
 
 /** env 値を整数として解釈し、不正なら既定値を返す。 */
@@ -65,5 +69,7 @@ export function loadSyncConfig(env: Record<string, string | undefined>): SyncCon
     aiGenerationTimeoutMs: intEnv(env["AI_GENERATION_TIMEOUT_MS"], 60_000),
     // 0 を許容（=その日の AI 生成を全面停止）。負数・非数値は既定 100。
     aiDailyLimit: nonNegIntEnv(env["AI_DAILY_LIMIT"], 100),
+    heartbeatIntervalMs: intEnv(env["HEARTBEAT_INTERVAL_MS"], 15_000),
+    heartbeatMaxMisses: intEnv(env["HEARTBEAT_MAX_MISSES"], 2),
   };
 }

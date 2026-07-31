@@ -15,6 +15,11 @@ import { CommandSchema } from "@tdd-mob/core";
 
 const MAX_MESSAGE_BYTES = 64 * 1024; // 64KB
 
+/** ハートビート間隔の既定値（ms）。Issue #25: サーバー主導の死活監視。 */
+const DEFAULT_HEARTBEAT_INTERVAL_MS = 15_000;
+/** 許容する連続 pong 欠落回数の既定値。一時的な通信の揺れを吸収する猶予（US2）。 */
+const DEFAULT_HEARTBEAT_MAX_MISSES = 2;
+
 export interface WsAdapterOptions {
   port: number;
   host?: string;
@@ -27,6 +32,10 @@ export interface WsAdapterOptions {
   httpHandler?: (
     req: IncomingMessage,
   ) => { status: number; contentType: string; body: string } | null;
+  /** ハートビート（ws.ping）の送信間隔（ms）。既定 15000。 */
+  heartbeatIntervalMs?: number;
+  /** 連続でこの回数分 pong が確認できない接続を terminate する。既定 2。 */
+  heartbeatMaxMisses?: number;
 }
 
 export class WsAdapter {
@@ -34,8 +43,17 @@ export class WsAdapter {
   private readonly httpServer: Server;
   private readonly connections = new Map<string, WebSocket>();
   private connCounter = 0;
+  /** 接続ごとの「直近 ping 送信からの pong 未受信回数」（Issue #25: 死活監視）。 */
+  private readonly missedPongs = new Map<string, number>();
+  private readonly heartbeatIntervalMs: number;
+  private readonly heartbeatMaxMisses: number;
+  private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(private readonly options: WsAdapterOptions) {
+    this.heartbeatIntervalMs =
+      options.heartbeatIntervalMs ?? DEFAULT_HEARTBEAT_INTERVAL_MS;
+    this.heartbeatMaxMisses =
+      options.heartbeatMaxMisses ?? DEFAULT_HEARTBEAT_MAX_MISSES;
     this.httpServer = createServer((req, res) => this.handleHttp(req, res));
     this.wss = new WebSocketServer({ server: this.httpServer });
     this.wss.on("connection", this.handleConnection.bind(this));
@@ -45,6 +63,37 @@ export class WsAdapter {
       process.exit(1);
     });
     this.httpServer.listen(options.port, options.host);
+    this.startHeartbeat();
+  }
+
+  /**
+   * サーバー主導の死活監視（Issue #25）。
+   * 一定間隔で各接続に ws.ping() を送り、直前の送信から pong が来ていなければ
+   * 欠落回数を加算する。欠落回数が閾値に達した接続は terminate し、
+   * 既存の "close" イベント経路（presence の offline 化等）に処理を委ねる（DRY）。
+   * 1 接続 1 interval あたり ping 送信は高々 1 回のため、通信量は接続数に対して線形。
+   */
+  private startHeartbeat(): void {
+    this.heartbeatTimer = setInterval(() => {
+      for (const [connId, ws] of this.connections) {
+        const missed = this.missedPongs.get(connId) ?? 0;
+        if (missed >= this.heartbeatMaxMisses) {
+          ws.terminate();
+          continue;
+        }
+        this.missedPongs.set(connId, missed + 1);
+        ws.ping();
+      }
+    }, this.heartbeatIntervalMs);
+    // 定期タイマーだけでプロセスの終了を妨げないようにする（テスト・グレースフルシャットダウン考慮）。
+    this.heartbeatTimer.unref?.();
+  }
+
+  private stopHeartbeat(): void {
+    if (this.heartbeatTimer !== null) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
   }
 
   /** 非 Upgrade の HTTP リクエスト処理。管理エンドポイント等は httpHandler に委譲し、
@@ -78,6 +127,7 @@ export class WsAdapter {
   }
 
   close(): Promise<void> {
+    this.stopHeartbeat();
     return new Promise((resolve) => {
       // {server} 構成では wss.close は活線ソケットを切らず、httpServer.close は
       // 全接続終了までコールバックを発火しない。先に能動的に切断してハングを防ぐ。
@@ -108,6 +158,12 @@ export class WsAdapter {
 
     const connId = `conn-${++this.connCounter}`;
     this.connections.set(connId, ws);
+    this.missedPongs.set(connId, 0);
+
+    // pong 受信 = 生存確認。欠落カウントをリセットする（一時的な揺れからの復帰・US2）。
+    ws.on("pong", () => {
+      this.missedPongs.set(connId, 0);
+    });
 
     ws.on("message", (raw: Buffer) => {
       // サイズ制限（S3）
@@ -164,6 +220,7 @@ export class WsAdapter {
 
     ws.on("close", () => {
       this.connections.delete(connId);
+      this.missedPongs.delete(connId);
       this.options.onDisconnect(connId);
     });
   }
