@@ -16,7 +16,7 @@ import { RoomReclaimer } from "./application/room-reclaimer.js";
 import { buildAdminReport, handleAdminHttp } from "./application/admin.js";
 import { AiLimiter } from "./application/ai-limits.js";
 import { ClaudeCliProblemProvider } from "./adapters/claude-cli-problem-provider.js";
-import type { Room, ServerMsg } from "@tdd-mob/core";
+import type { Room, ServerMsg, Command } from "@tdd-mob/core";
 
 const config = (() => {
   try {
@@ -117,7 +117,9 @@ wsAdapter = new WsAdapter({
   allowedOrigins: config.allowedOrigins,
   maxConnections: config.maxConnections,
   onMessage: async (connId, msg) => {
-    const cmd = msg as { command: string; [key: string]: unknown };
+    // msg は ws-adapter 側で CommandSchema（valibot）に通した検証済みの値であり、
+    // 実体は Command 型と一致する（onMessage の型は unknown のままなのでここでキャストする）。
+    const cmd = msg as Command;
 
     if (cmd.command === "presence.ping") {
       presenceManager.handlePing(connId);

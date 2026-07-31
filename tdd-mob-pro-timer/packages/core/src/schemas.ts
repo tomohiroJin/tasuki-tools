@@ -317,6 +317,9 @@ export const CommandSchema = v.variant("command", [
   TimePingCommand,
 ]);
 
+/** クライアント→サーバー コマンドの合併型（wire スキーマから導出。ServerMsg と対の型）。 */
+export type Command = v.InferOutput<typeof CommandSchema>;
+
 // T057: 自ファイル内でも使われていなかったため、export を外すだけでなく削除した
 // （FR-119③・SC-039。`private` にしても未使用のままでは死んだ記号が残るだけのため）。
 

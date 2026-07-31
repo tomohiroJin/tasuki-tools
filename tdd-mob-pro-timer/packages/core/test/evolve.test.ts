@@ -81,6 +81,61 @@ describe("evolve: DriverSwitched", () => {
   });
 });
 
+/**
+ * B-2 統合: advanceDriver 準拠の意味論（交代先が現ドライバーと同じ＝交代とみなさない）。
+ * 反例 [len=1, currentIndex=0, ineligible=∅]（driver-switch-equivalence.test.ts 由来）を
+ * evolve(DriverSwitched) 単体の振る舞いとして固定する。
+ *
+ * @requirements FR-163, FR-164
+ */
+describe("evolve: DriverSwitched（nextIndex === prevIndex）", () => {
+  const runningAgg = {
+    ...baseAgg,
+    session: { ...baseAgg.session, rotation: ["Alice"], driverCounts: [0], currentIndex: 0 },
+    clock: {
+      ...baseAgg.clock,
+      running: true,
+      anchorServerTime: NOW,
+      secondsLeftAtAnchor: 300,
+      runningSince: NOW,
+    },
+  };
+
+  it("交代先が現ドライバーと同じなら driverCounts を加算しない", () => {
+    // Given（輪1人。nextIndex はドライバー本人を指す）
+    // When
+    const agg = evolve(runningAgg, { type: "DriverSwitched", nextIndex: 0, now: NOW + 10000 }, NOW + 10000);
+    // Then
+    expect(agg.session.driverCounts).toEqual([0]);
+  });
+
+  it("交代先が現ドライバーと同じなら totalSwitches を加算しない", () => {
+    // Given
+    // When
+    const agg = evolve(runningAgg, { type: "DriverSwitched", nextIndex: 0, now: NOW + 10000 }, NOW + 10000);
+    // Then
+    expect(agg.session.totalSwitches).toBe(runningAgg.session.totalSwitches);
+  });
+
+  it("交代先が現ドライバーと同じでも currentIndex は変わらない", () => {
+    // Given
+    // When
+    const agg = evolve(runningAgg, { type: "DriverSwitched", nextIndex: 0, now: NOW + 10000 }, NOW + 10000);
+    // Then
+    expect(agg.session.currentIndex).toBe(0);
+  });
+
+  it("交代先が現ドライバーと同じでも、タイマーは満タンから再アンカーされる", () => {
+    // Given
+    const switchTime = NOW + 10000;
+    // When
+    const agg = evolve(runningAgg, { type: "DriverSwitched", nextIndex: 0, now: switchTime }, switchTime);
+    // Then（無限ループ防止のため、加算しない場合でも再アンカーは必須）
+    expect(agg.clock.anchorServerTime).toBe(switchTime);
+    expect(agg.clock.secondsLeftAtAnchor).toBe(runningAgg.clock.intervalSeconds);
+  });
+});
+
 describe("evolve: SessionPaused / SessionResumed", () => {
   const runningAgg = {
     ...baseAgg,

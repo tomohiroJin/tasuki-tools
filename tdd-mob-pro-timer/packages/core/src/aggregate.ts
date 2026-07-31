@@ -226,7 +226,7 @@ export function initialAggregate(config: SessionConfig, rotation: readonly strin
 export function nextEligibleIndex(
   session: Pick<SessionState, "rotation">,
   currentIndex: number,
-  ineligible: Set<number> | undefined,
+  ineligible: ReadonlySet<number> | undefined,
 ): number {
   const len = session.rotation.length;
   if (len === 0) return 0;

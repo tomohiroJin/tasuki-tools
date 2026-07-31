@@ -10,25 +10,18 @@ import {
   evolve,
   advanceDriver,
   transferHost,
-  initialAggregate,
   secondsLeft,
-  buildCompletionRecord,
   checkPermission,
-  canRemoveParticipant,
-  canDemote,
   conflictsWithExisting,
-  removalNotificationFor,
   ERROR_MESSAGES,
   errorMessageFor,
   type Room,
   type Participant,
   type SessionConfig,
   type Problem,
-  type ProblemMode,
-  type DomainEvent,
-  type IntervalMinutes,
   type ErrorCode,
   type RemovalNotification,
+  type Command,
 } from "@tdd-mob/core";
 import type { Clock } from "../ports/clock.js";
 import type { Broadcaster } from "../ports/broadcaster.js";
@@ -36,7 +29,49 @@ import type { RoomStore } from "../ports/room-store.js";
 import type { RoomCodeGen } from "../ports/code-gen.js";
 import type { Scheduler } from "./schedule.js";
 import type { ProblemDelegator } from "./problem-delegation.js";
-import { constantTimeEqual } from "./secure-compare.js";
+import { createTokenStore } from "./token-store.js";
+import { createJoinRateLimiter } from "./join-rate-limiter.js";
+import { applyEvents } from "./apply-room-level-event.js";
+import { buildDomainCommand } from "./build-domain-command.js";
+import { createRoomCreateHandler, type CreateResult } from "./command-handlers/room-create.js";
+import { createRoomJoinHandler, type JoinResult } from "./command-handlers/room-join.js";
+export type { CreateResult } from "./command-handlers/room-create.js";
+export type { JoinResult } from "./command-handlers/room-join.js";
+import { createTimePingHandler } from "./command-handlers/time-ping.js";
+import { createRoleSetHandler } from "./command-handlers/role-set.js";
+import { createRoomPassphraseSetHandler } from "./command-handlers/room-passphrase-set.js";
+import { createAiUnlockHandler } from "./command-handlers/ai-unlock.js";
+import { createHostTransferHandler } from "./command-handlers/host-transfer.js";
+import { createProblemRequestHandler } from "./command-handlers/problem-request.js";
+import { createProblemSubmitHandler } from "./command-handlers/problem-submit.js";
+import { handleParticipantRemove } from "./command-handlers/participant-remove.js";
+
+/**
+ * 在室を前提としないコマンド（FR-151）。
+ *
+ * `room.create`/`room.join`/`time.ping` は `handleCommand` の switch で早期分岐する。
+ * `presence.ping` は `apps/sync/src/server.ts` が `handleCommand` を呼ぶ**手前**で
+ * 横取り済みであり（`presenceManager.handlePing(connId)`）、ここでは型としてだけ存在する
+ * （挙動は変えない。`handlers.ts` 内に処理は書かない）。
+ */
+export type PreRoomCommand = Extract<
+  Command,
+  { command: "room.create" | "room.join" | "time.ping" | "presence.ping" }
+>;
+
+/**
+ * 在室を前提とするルームスコープコマンド（FR-151/152）。
+ *
+ * `PreRoomCommand`（4個）を除いた `Command` の残り全variantを指す判別可能 union。
+ * うち `packages/core/src/permissions.ts` の `REGISTERED_COMMANDS` に登録されている
+ * 25個が「共通パイプラインが実際にドメイン処理する」コマンドであり、`break.start`/
+ * `break.end` の2個は wire スキーマ上は残っているが `REGISTERED_COMMANDS` にも
+ * `buildDomainCommand` の switch にも無い（`default` → `UNKNOWN_COMMAND` になる
+ * 到達しない枝。`reconcileSchedule` のコメント参照）。この2個も `handleCommand` の
+ * default 分岐（`handleRoomCommand`）へは届く必要があるため（現状の挙動を変えない）、
+ * 型としては `RoomScopedCommand` に含めておく。
+ */
+export type RoomScopedCommand = Exclude<Command, PreRoomCommand>;
 
 export interface HandlerDeps {
   store: RoomStore;
@@ -54,20 +89,11 @@ export interface HandlerDeps {
   aiUnlockKey?: string;
 }
 
-/** `room.create` が呼び出し元へ返す値。ホストトークンは作成者だけが受け取る。 */
-export interface CreateResult {
-  code: string;
-  participantId: string;
-  hostToken: string;
-  resumeToken: string;
-}
-
-/** `room.join` が呼び出し元へ返す値。参加者はホストトークンを持たない。 */
-export interface JoinResult {
-  code: string;
-  participantId: string;
-  resumeToken: string;
-}
+// `CreateResult`/`JoinResult`（`room.create`/`room.join` が呼び出し元へ返す値）の
+// 定義本体は `command-handlers/room-create.ts`/`room-join.ts` へ移動した
+// （フェーズ5・純粋な移動）。ここでは冒頭の import で `type CreateResult`/
+// `type JoinResult` として取り込み、外部公開 API（`export` されるこのファイルの
+// 型）としての互換性を保つ。
 
 /**
  * **コマンド処理の結果。**
@@ -89,31 +115,20 @@ export function makeHandlers(deps: HandlerDeps) {
   const maxRooms = deps.maxRooms ?? 50;
   const aiUnlockKey = deps.aiUnlockKey;
 
-  // トークンはハンドラインスタンスごとに保持（モジュール共有を避け、テスト間汚染を防ぐ）。
-  /** ホストトークンのマップ（roomCode → hostToken） */
-  const hostTokens = new Map<string, string>();
-  /** ルームパスフレーズ（roomCode → 平文）。snapshot には載せない（R4-2）。 */
-  const roomPassphrases = new Map<string, string>();
-  /** リジュームトークンのマップ（resumeToken → {participantId, roomCode}） */
-  const resumeTokens = new Map<
-    string,
-    { participantId: string; roomCode: string }
-  >();
+  // トークン保持（ホスト/リジュームトークン・ルームパスフレーズ）は
+  // `token-store.ts` の `createTokenStore()` へ切り出した（フェーズ2・純粋な移動）。
+  // ハンドラインスタンスごとに1個生成し、モジュール共有を避けてテスト間汚染を防ぐ。
+  const tokenStore = createTokenStore();
 
   // 単一接続あたりの room.join 連続失敗のレート制限（コード列挙の緩和）。
   // 正常利用には干渉しない緩い閾値。本来の防御はエッジ/IP 層（リバースプロキシ等）で行うべき。
-  const JOIN_FAIL_WINDOW_MS = 10_000;
   const JOIN_FAIL_MAX = 30;
-  /** connId → 直近の join 失敗時刻（epoch ms） */
-  const joinFailures = new Map<string, number[]>();
-  const recentJoinFailures = (connId: string, now: number): number[] => {
-    const arr = (joinFailures.get(connId) ?? []).filter(
-      (t) => now - t < JOIN_FAIL_WINDOW_MS,
-    );
-    if (arr.length === 0) joinFailures.delete(connId);
-    else joinFailures.set(connId, arr);
-    return arr;
-  };
+  // `join-rate-limiter.ts` の createJoinRateLimiter() へ切り出した（フェーズ3・純粋な移動）。
+  // ★ room.join と ai.unlock は「合言葉/コード総当たりの緩和」という同じ目的のため、
+  // 意図的に同一インスタンス（joinRateLimiter）の窓を共有する。この関数は
+  // makeHandlers 内で1度しか呼ばない（コマンドごとに別インスタンスを作らない）ことで、
+  // 共有が構造的に保証される（join-rate-limiter.ts のdocstring参照）。
+  const joinRateLimiter = createJoinRateLimiter({ windowMs: 10_000, max: JOIN_FAIL_MAX });
 
   /**
    * 失敗を 1 接続へ通知する（FR-101）。
@@ -190,7 +205,7 @@ export function makeHandlers(deps: HandlerDeps) {
    */
   async function handleCommand(
     connId: string,
-    cmd: { command: string; [key: string]: unknown },
+    cmd: RoomScopedCommand | PreRoomCommand,
   ): Promise<CommandResult> {
     switch (cmd.command) {
       case "room.create":
@@ -218,261 +233,39 @@ export function makeHandlers(deps: HandlerDeps) {
           cmd as { command: "time.ping"; clientTime: number },
         );
 
-      case "role.set":
-        return handleRoleSet(
-          connId,
-          cmd as { command: "role.set"; participantId: string; role: "editor" | "viewer" },
-        );
-
-      case "room.passphrase.set":
-        return handleRoomPassphraseSet(
-          connId,
-          cmd as { command: "room.passphrase.set"; passphrase: string },
-        );
-
-      case "ai.unlock":
-        return handleAiUnlock(
-          connId,
-          cmd as { command: "ai.unlock"; key: string },
-        );
-
-      case "host.transfer":
-        return handleHostTransfer(
-          connId,
-          cmd as { command: "host.transfer"; participantId: string },
-        );
-
-      case "problem.request":
-        return handleProblemRequest(
-          connId,
-          cmd as { command: "problem.request"; requestId: string },
-        );
-
-      case "problem.submit":
-        return handleProblemSubmit(
-          connId,
-          cmd as {
-            command: "problem.submit";
-            requestId: string;
-            problem: Problem;
-            usedFallback: boolean;
-          },
-        );
-
       default:
         return handleRoomCommand(connId, cmd);
     }
   }
 
-  /** ルーム作成 */
-  async function handleRoomCreate(
-    connId: string,
-    cmd: { command: "room.create"; displayName: string; config?: SessionConfig; roomName?: string },
-  ): Promise<Result<CreateResult, ErrorCode>> {
-    const now = clock.now();
-    // ルーム数上限（DoS 緩和）。上限到達時は作成を拒否する。
-    if (store.list().length >= maxRooms) {
-      sendError(connId, "ROOM_LIMIT_EXCEEDED", "サーバーのルーム数が上限に達しています。時間をおいて再試行してください。");
-      return err("ROOM_LIMIT_EXCEEDED");
-    }
-    // ルーム名があれば「slug-接尾辞」、無ければランダム。衝突時は接尾辞を引き直す。
-    let code = codeGen.generate(cmd.roomName);
-    for (let i = 0; i < 5 && store.get(code) !== undefined; i++) {
-      code = codeGen.generate(cmd.roomName);
-    }
-    const participantId = codeGen.generateParticipantId();
-    const resumeToken = codeGen.generateResumeToken();
-    const hostToken = codeGen.generateResumeToken();
+  // ─── 専用ハンドラの合成（フェーズ5・純粋な移動）───────────────────────────
+  //
+  // room.create/room.join/time.ping の実装本体は `command-handlers/*.ts` へ
+  // 移動した（ロジック変更なし）。ここでは各ファイルが公開するファクトリへ、
+  // このクロージャが持つ依存を渡してインスタンスを組み立てるだけになっている。
 
-    const defaultConfig: SessionConfig = cmd.config ?? {
-      language: "TypeScript",
-      difficulty: "easy",
-      members: [cmd.displayName],
-      intervalMinutes: 5 as IntervalMinutes,
-    };
+  const handleRoomCreate = createRoomCreateHandler({
+    store,
+    clock,
+    broadcaster,
+    codeGen,
+    tokenStore,
+    maxRooms,
+    sendError,
+  });
 
-    // rotation は参加者IDの配列（D6b）。作成時点の在室者は作成者ただ一人なので、
-    // config.members に何が入っていても輪に並べられるのは作成者だけである。
-    const agg = initialAggregate(defaultConfig, [participantId]);
+  const handleRoomJoin = createRoomJoinHandler({
+    store,
+    clock,
+    broadcaster,
+    codeGen,
+    tokenStore,
+    joinRateLimiter,
+    joinFailMax: JOIN_FAIL_MAX,
+    sendError,
+  });
 
-    const host: Participant = {
-      participantId,
-      connId,
-      displayName: cmd.displayName,
-      role: "host",
-      presence: "online",
-      hasAiKey: false,
-      joinedAt: now,
-    };
-
-    const room: Room = {
-      code,
-      createdAt: now,
-      hostParticipantId: participantId,
-      // config.members は rotation の表示名ミラー（D6b）。作成者以外は輪に並べないので、
-      // クライアントが渡した members に他人が含まれていてもここで作成者だけに揃える。
-      config: { ...defaultConfig, members: [cmd.displayName] },
-      problem: null,
-      session: agg.session,
-      clock: agg.clock,
-      phase: "setup",
-      participants: [host],
-      sessionRecords: [],
-      handoffNote: "",
-      onBreak: false,
-    };
-
-    store.put(room);
-    hostTokens.set(code, hostToken);
-    resumeTokens.set(resumeToken, { participantId, roomCode: code });
-
-    broadcaster.sendTo(connId, {
-      type: "room.created",
-      code,
-      hostToken,
-      resumeToken,
-      participantId,
-    });
-
-    broadcaster.broadcastSnapshot(code, room);
-
-    return ok({ code, participantId, hostToken, resumeToken });
-  }
-
-  /** ルーム参加 */
-  async function handleRoomJoin(
-    connId: string,
-    cmd: {
-      command: "room.join";
-      code: string;
-      displayName: string;
-      hasAiKey: boolean;
-      resumeToken?: string;
-      passphrase?: string;
-    },
-  ): Promise<Result<JoinResult, ErrorCode>> {
-    const now = clock.now();
-
-    // 連続失敗が閾値を超えた接続は一時的に拒否（コード総当たりの緩和）。
-    if (recentJoinFailures(connId, now).length >= JOIN_FAIL_MAX) {
-      sendError(connId, "JOIN_RATE_LIMITED", errorMessageFor("JOIN_RATE_LIMITED"));
-      return err("JOIN_RATE_LIMITED");
-    }
-
-    const room = store.get(cmd.code);
-
-    if (!room) {
-      // 失敗を記録（次回以降のレート判定に使う）。
-      joinFailures.set(connId, [...(joinFailures.get(connId) ?? []), now]);
-      sendError(connId, "ROOM_NOT_FOUND", "指定されたルームコードが見つかりません");
-      return err("ROOM_NOT_FOUND");
-    }
-
-    // リジューム処理
-    if (cmd.resumeToken) {
-      const tokenData = resumeTokens.get(cmd.resumeToken);
-      if (tokenData && tokenData.roomCode === cmd.code) {
-        const existingParticipant = room.participants.find(
-          (p) => p.participantId === tokenData.participantId,
-        );
-        if (existingParticipant) {
-          const updatedRoom: Room = {
-            ...room,
-            participants: room.participants.map((p) =>
-              p.participantId === tokenData.participantId
-                ? { ...p, connId, presence: "online" }
-                : p,
-            ),
-          };
-          store.put(updatedRoom);
-          broadcaster.sendTo(connId, {
-            type: "snapshot",
-            room: updatedRoom,
-          });
-          broadcaster.broadcastSnapshot(cmd.code, updatedRoom);
-          return ok({
-            code: cmd.code,
-            participantId: tokenData.participantId,
-            resumeToken: cmd.resumeToken,
-          });
-        }
-      }
-    }
-
-    // パスフレーズ保護ルームは新規参加時に一致を要求する（R4-2）。
-    // resume（再接続）は上の resume ブロックで return 済みのためここには来ない＝再認証不要。
-    const requiredPassphrase = roomPassphrases.get(cmd.code);
-    // 保持側と同じく前後空白を正規化して比較する。
-    const providedPassphrase = (cmd.passphrase ?? "").trim();
-    if (requiredPassphrase !== undefined && providedPassphrase !== requiredPassphrase) {
-      // 失敗をレート制限に積算（パスフレーズ総当たりの緩和・既存 join 制限と統合）。
-      joinFailures.set(connId, [...(joinFailures.get(connId) ?? []), now]);
-      const code: ErrorCode = providedPassphrase
-        ? "PASSPHRASE_MISMATCH"
-        : "PASSPHRASE_REQUIRED";
-      sendError(
-        connId,
-        code,
-        code === "PASSPHRASE_REQUIRED"
-          ? errorMessageFor("PASSPHRASE_REQUIRED")
-          : errorMessageFor("PASSPHRASE_MISMATCH"),
-      );
-      return err(code);
-    }
-
-    // 新規参加者は editor として登録（UX 再設計の2層モデル: 名乗って参加した人は
-    // すぐドライバーに加われる。ローテーション加入は別操作＝「ドライバーに加わる」）。
-    // 純粋な見学者は host が role.set で viewer へ降格できる。
-    const participantId = codeGen.generateParticipantId();
-    const resumeToken = codeGen.generateResumeToken();
-
-    const newParticipant: Participant = {
-      participantId,
-      connId,
-      displayName: cmd.displayName,
-      role: "editor",
-      presence: "online",
-      hasAiKey: cmd.hasAiKey,
-      joinedAt: now,
-    };
-
-    const updatedRoom: Room = {
-      ...room,
-      participants: [...room.participants, newParticipant],
-    };
-
-    store.put(updatedRoom);
-    resumeTokens.set(resumeToken, { participantId, roomCode: cmd.code });
-
-    broadcaster.sendTo(connId, {
-      type: "room.joined",
-      resumeToken,
-      participantId,
-    });
-
-    broadcaster.sendTo(connId, {
-      type: "snapshot",
-      room: updatedRoom,
-    });
-
-    broadcaster.broadcastSnapshot(cmd.code, updatedRoom);
-
-    return ok({ code: cmd.code, participantId, resumeToken });
-  }
-
-  /** time.ping — 状態を変えずにサーバー時刻を返す（FR-007, SC-001） */
-  async function handleTimePing(
-    connId: string,
-    // 受信形を型として残すが、応答はサーバー時刻のみで clientTime は使わない
-    // （往復遅延の推定はクライアント側が送信時刻と突き合わせて行う）。
-    _cmd: { command: "time.ping"; clientTime: number },
-  ): Promise<Result<undefined, ErrorCode>> {
-    broadcaster.sendTo(connId, {
-      type: "time.pong",
-      serverTime: clock.now(),
-    });
-    return ok(undefined);
-  }
+  const handleTimePing = createTimePingHandler({ clock, broadcaster });
 
   /** ルームコマンド（session.act, config.set 等） */
   async function handleRoomCommand(
@@ -500,87 +293,87 @@ export function makeHandlers(deps: HandlerDeps) {
     }
 
     // 参加者の退出（⑪）。参加者は Room レベルのため decide ではなくここで扱う。
-    // rotation に居れば rotation からも外し（現ドライバーなら evolve が繰り上げ）、
-    // 最後の1人は外せない（rotation を空にしない）。
-    // 自己退出も可能（FR-079）。誰が実行できるかは既に rejectIfUnauthorized が判定済みで、
-    // ここでは「結果の状態が妥当か」だけを検査する。
+    // 実装本体は command-handlers/participant-remove.ts へ移動した（フェーズ5・
+    // 純粋な移動。ロジック変更なし）。ここでは在室確認・アクター解決・
+    // rejectIfUnauthorized（上で完了済み）の結果を ctx として渡すだけ。
     if (cmd.command === "participant.remove") {
-      const now = clock.now();
-      const targetId = cmd.participantId;
-      if (typeof targetId !== "string") {
-        sendError(connId, "INVALID", "不正な対象は外せません");
-        return err("INVALID");
-      }
-      const target = targetRoom.participants.find((p) => p.participantId === targetId);
-      if (!target) {
-        sendError(connId, "PARTICIPANT_NOT_FOUND", errorMessageFor("PARTICIPANT_NOT_FOUND"));
-        return err("PARTICIPANT_NOT_FOUND");
-      }
-      // 不変条件: 実在（非代理）の編集者以上が1名以上残ること（FR-072/073）。
-      // 権限ではなくドメインガードなので checkPermission とは別に検査する（plan.md D3）。
-      if (!canRemoveParticipant(targetRoom.participants, targetId)) {
-        sendError(connId, "LAST_MANAGER_LEAVE", errorMessageFor("LAST_MANAGER_LEAVE"));
-        return err("LAST_MANAGER_LEAVE");
-      }
-      // 対象が現ホストなら、退出させる前にホストを引き継ぐ（plan.md D2b）。
-      // 引き継がずに退出させると hostParticipantId が実在しない参加者を指し、
-      // 開始前のルームはホスト限定操作が誰にも実行できなくなって恒久的に詰む。
-      // 自動委譲は切断契機でしか発火しないため救済もない。
-      const roomBeforeRemoval = target.participantId === targetRoom.hostParticipantId
-        ? transferHostBeforeRemoval(targetRoom, targetId)
-        : targetRoom;
-      // rotation の枠を外すかを決める（D6b・FR-085）。
-      // rotation は参加者IDの配列なので、退出者の枠は ID でそのまま一意に引ける。
-      // 参加順から「枠の持ち主」を推測していた G6 の規則（sameNameOwner）は、
-      // 同名の二重参加や再接続で実態とずれたため撤去した。
-      const idx = roomBeforeRemoval.session.rotation.indexOf(targetId);
-      let next: Room = {
-        ...roomBeforeRemoval,
-        participants: roomBeforeRemoval.participants.filter((p) => p.participantId !== targetId),
-      };
-      if (idx >= 0) {
-        if (roomBeforeRemoval.session.rotation.length <= 1) {
-          sendError(connId, "BelowMinMembers", errorMessageFor("BelowMinMembers"));
-          return err("BelowMinMembers");
-        }
-        const agg = evolve(
-          { session: roomBeforeRemoval.session, clock: roomBeforeRemoval.clock },
-          { type: "MemberRemoved", index: idx, now },
-          now,
-        );
-        next = { ...next, session: agg.session, clock: agg.clock };
-        next = { ...next, config: { ...next.config, members: rotationDisplayNames(next) } };
-      }
-      store.put(next);
-      broadcaster.broadcastSnapshot(next.code, next);
-      reconcileSchedule(next);
-      // 誰が誰を退出させたかを在室者へ伝える（FR-077）。
-      // store.put の後に配信することが重要で、broadcastSignal は呼び出し時点のストアから
-      // 宛先を決めるため、この順序により退出させられた本人には届かない（本人向けは下の error）。
-      broadcaster.broadcastSignal(next.code, {
-        type: "signal",
-        signal: "notice",
-        action: "participant-removed",
-        actorName: participant.displayName,
-        actorParticipantId: participant.participantId,
-        targetName: target.displayName,
-        targetParticipantId: target.participantId,
-      });
-      // 退出した本人へ専用通知を送る（残りメンバーの snapshot には含まれず取り残されるため）。
-      // クライアントはこれを受けて退出メッセージ＋次の画面へ遷移する。
-      // 代理(connId=null)はクライアントが無いので送らない。
-      // 「通知しない」ではなく「誰の操作かで種類を分ける」（Issue #32）。自己退出（本人が
-      // 自分自身を対象に退出した）と他者による退出を同じ種類で伝えると、自分で押した操作を
-      // 「外されました」と伝えることになるため、removalNotificationFor() で種類を判定し、
-      // どちらの場合も必ず本人へ送る。
-      if (target.connId) {
-        // ホストが自分自身を退出させる経路では先に transferHostBeforeRemoval が走るが、
-        // transferHost は role と hostParticipantId だけを書き換え participantId は変えない
-        // ため、実行者と対象の同一判定（removalNotificationFor）はずれない。
-        const removalCode = removalNotificationFor(participant.participantId, targetId);
-        sendError(target.connId, removalCode, messageForRemoval(removalCode, participant.displayName));
-      }
-      return ok(undefined);
+      return handleParticipantRemove(
+        connId,
+        { room: targetRoom, actor: participant },
+        cmd as { command: "participant.remove"; [key: string]: unknown },
+        {
+          store,
+          clock,
+          broadcaster,
+          reconcileSchedule,
+          rotationDisplayNames,
+          transferHostBeforeRemoval,
+          messageForRemoval,
+          sendError,
+        },
+      );
+    }
+
+    // role.set は decide/evolve を通らない Room レベルの専用処理（フェーズ7合流）。
+    // 実装本体は command-handlers/role-set.ts へ移動済み。ここでは在室確認・
+    // アクター解決・rejectIfUnauthorized（上で完了済み）の結果を ctx として渡すだけ。
+    if (cmd.command === "role.set") {
+      return handleRoleSet(
+        connId,
+        { room: targetRoom, actor: participant },
+        cmd as { command: "role.set"; participantId: string; role: "editor" | "viewer" },
+      );
+    }
+
+    // room.passphrase.set も decide/evolve を通らない Room レベルの専用処理（フェーズ7合流）。
+    if (cmd.command === "room.passphrase.set") {
+      return handleRoomPassphraseSet(
+        connId,
+        { room: targetRoom, actor: participant },
+        cmd as { command: "room.passphrase.set"; passphrase: string },
+      );
+    }
+
+    // ai.unlock も decide/evolve を通らない Room レベルの専用処理（フェーズ7合流）。
+    if (cmd.command === "ai.unlock") {
+      return handleAiUnlock(
+        connId,
+        { room: targetRoom, actor: participant },
+        cmd as { command: "ai.unlock"; key: string },
+      );
+    }
+
+    // host.transfer も decide/evolve を通らない Room レベルの専用処理（フェーズ7合流）。
+    if (cmd.command === "host.transfer") {
+      return handleHostTransfer(
+        connId,
+        { room: targetRoom, actor: participant },
+        cmd as { command: "host.transfer"; participantId: string },
+      );
+    }
+
+    // problem.request/problem.submit も decide/evolve を通らない Room レベルの
+    // 専用処理（フェーズ7合流）。旧 requireEditor（在室確認・アクター解決・
+    // rejectIfUnauthorized を束ねたヘルパ）は、その3つを共通パイプラインが既に
+    // 済ませたため不要になり撤去した（FR-156: 権限判定の呼び出し箇所を1箇所に集約）。
+    if (cmd.command === "problem.request") {
+      return handleProblemRequest(
+        connId,
+        { room: targetRoom, actor: participant },
+        cmd as { command: "problem.request"; requestId: string },
+      );
+    }
+    if (cmd.command === "problem.submit") {
+      return handleProblemSubmit(
+        connId,
+        { room: targetRoom, actor: participant },
+        cmd as {
+          command: "problem.submit";
+          requestId: string;
+          problem: Problem;
+          usedFallback: boolean;
+        },
+      );
     }
 
     // ドメインコマンドを構築して decide/evolve を実行。
@@ -679,6 +472,13 @@ export function makeHandlers(deps: HandlerDeps) {
       return err("UNKNOWN_COMMAND");
     }
 
+    // 手動 SWITCH は自動交代と同じく一時離脱/オフライン(非placeholder)を飛ばす（B-2統合）。
+    // 交代先の決定は decide 自身（nextEligibleIndex 経由）に一本化されたため、ここでは
+    // ineligible を decide への入力として注入するだけで、決定結果を後から差し替えない。
+    if (domainCmd.command === "session.act" && domainCmd.action === "SWITCH") {
+      domainCmd.ineligible = computeIneligibleIndices(targetRoom);
+    }
+
     const now = clock.now();
     const agg = { session: targetRoom.session, clock: targetRoom.clock };
     const result = decide(domainCmd, agg, now);
@@ -690,18 +490,10 @@ export function makeHandlers(deps: HandlerDeps) {
       return err(result.error.type);
     }
 
-    // まず evolve で集約（session+clock）を更新する。
-    // 手動スキップ(session.act SWITCH)は自動交代と同じく一時離脱/オフライン(非placeholder)を飛ばす。
-    // decide はバリデーション(clock.running)に使い、行き先だけ eligible-aware な advanceDriver に差し替える。
+    // decide が返したイベント列を他コマンドと同じ evolve ループへ通す（isManualSwitch分岐は撤去済み）。
     let newAgg = agg;
-    const isManualSwitch =
-      domainCmd.command === "session.act" && domainCmd.action === "SWITCH";
-    if (isManualSwitch) {
-      newAgg = advanceDriver(agg, computeIneligibleIndices(targetRoom), now);
-    } else {
-      for (const event of result.value) {
-        newAgg = evolve(newAgg, event, now);
-      }
+    for (const event of result.value) {
+      newAgg = evolve(newAgg, event, now);
     }
 
     // 集約の反映 → Room レベルイベントの適用（順序は applyEvents が保証する・FR-103）。
@@ -788,282 +580,52 @@ export function makeHandlers(deps: HandlerDeps) {
     return ok(undefined);
   }
 
-  /** 役割変更（host 限定）FR-016, FR-017 */
-  async function handleRoleSet(
-    connId: string,
-    cmd: { command: "role.set"; participantId: string; role: "editor" | "viewer" },
-  ): Promise<Result<undefined, ErrorCode>> {
-    const room = findRoomByConnId(connId);
-    if (!room) {
-      sendError(connId, "NOT_IN_ROOM", errorMessageFor("NOT_IN_ROOM"));
-      return err("NOT_IN_ROOM");
-    }
+  // ─── 専用ハンドラの合成（フェーズ7・パイプライン統合済み）───────────────────
+  //
+  // role.set/room.passphrase.set/ai.unlock/host.transfer/problem.request/
+  // problem.submit は、いずれも handleCommand の switch から専用ケースを削除し、
+  // default（handleRoomCommand・共通パイプライン）経由へ合流させた。在室確認・
+  // アクター解決・rejectIfUnauthorized（旧 requireEditor が束ねていた3つを含む）は
+  // handleRoomCommand 側で1度だけ行い、その結果（{ room, actor }）を各ハンドラへ
+  // ctx として渡す。各ハンドラはドメイン処理のみを持つ関数へ縮退済み（FR-152〜154, 156）。
 
-    const actor = room.participants.find((p) => p.connId === connId);
-    if (!actor) {
-      // 在室ルームは connId で引いているため通常は到達しない防御分岐。
-      // 可否ではなくアクター解決の失敗なので、権限の文言は使わない。
-      sendError(connId, "UNAUTHORIZED", errorMessageFor("UNAUTHORIZED"));
-      return err("UNAUTHORIZED");
-    }
-    // 開始後は主催者であることを条件にしない（FR-063）。このハンドラは handleCommand の
-    // switch で分岐するため handleRoomCommand の判定を通らない。個別に呼ぶ必要がある。
-    if (rejectIfUnauthorized(connId, room, actor, cmd)) return err("UNAUTHORIZED");
+  const handleRoleSet = createRoleSetHandler({
+    store,
+    broadcaster,
+    sendError,
+  });
 
-    // ホスト自身の役割は変更できない（委譲は別経路）
-    if (cmd.participantId === room.hostParticipantId) {
-      sendError(connId, "CANNOT_CHANGE_HOST_ROLE", errorMessageFor("CANNOT_CHANGE_HOST_ROLE"));
-      return err("CANNOT_CHANGE_HOST_ROLE");
-    }
+  const handleRoomPassphraseSet = createRoomPassphraseSetHandler({
+    store,
+    broadcaster,
+    tokenStore,
+  });
 
-    const target = room.participants.find(
-      (p) => p.participantId === cmd.participantId,
-    );
-    if (!target) {
-      sendError(connId, "PARTICIPANT_NOT_FOUND", errorMessageFor("PARTICIPANT_NOT_FOUND"));
-      return err("PARTICIPANT_NOT_FOUND");
-    }
+  const handleAiUnlock = createAiUnlockHandler({
+    store,
+    clock,
+    broadcaster,
+    joinRateLimiter,
+    joinFailMax: JOIN_FAIL_MAX,
+    aiUnlockKey,
+    sendError,
+  });
 
-    // 不変条件: 実在（非代理）の編集者以上が1名以上残ること（FR-072/073）。
-    // 権限（誰が実行できるか）とは独立したドメインガードなので、checkPermission が
-    // 許可した後に別途検査する（plan.md D3）。昇格は人数を減らさないので対象外。
-    if (cmd.role === "viewer" && !canDemote(room.participants, cmd.participantId)) {
-      sendError(connId, "LAST_MANAGER_DEMOTE", errorMessageFor("LAST_MANAGER_DEMOTE"));
-      return err("LAST_MANAGER_DEMOTE");
-    }
+  const handleHostTransfer = createHostTransferHandler({
+    store,
+    broadcaster,
+    sendError,
+  });
 
-    const updatedRoom: Room = {
-      ...room,
-      participants: room.participants.map((p) =>
-        p.participantId === cmd.participantId ? { ...p, role: cmd.role } : p,
-      ),
-    };
+  const handleProblemRequest = createProblemRequestHandler({
+    delegator,
+    sendError,
+  });
 
-    store.put(updatedRoom);
-    broadcaster.broadcastSnapshot(updatedRoom.code, updatedRoom);
-
-    return ok(undefined);
-  }
-
-  /** ルームパスフレーズを設定/解除する（host 限定・R4-2）。空文字で解除。
-   *  平文は roomPassphrases に保持し、Room には passphraseProtected(boolean)のみ反映。 */
-  async function handleRoomPassphraseSet(
-    connId: string,
-    cmd: { command: "room.passphrase.set"; passphrase: string },
-  ): Promise<Result<undefined, ErrorCode>> {
-    const room = findRoomByConnId(connId);
-    if (!room) {
-      sendError(connId, "NOT_IN_ROOM", errorMessageFor("NOT_IN_ROOM"));
-      return err("NOT_IN_ROOM");
-    }
-    const actor = room.participants.find((p) => p.connId === connId);
-    if (!actor) {
-      // 在室ルームは connId で引いているため通常は到達しない防御分岐。
-      // 可否ではなくアクター解決の失敗なので、権限の文言は使わない。
-      sendError(connId, "UNAUTHORIZED", errorMessageFor("UNAUTHORIZED"));
-      return err("UNAUTHORIZED");
-    }
-    // 開始後は主催者であることを条件にしない（FR-063）。このハンドラは handleCommand の
-    // switch で分岐するため handleRoomCommand の判定を通らない。個別に呼ぶ必要がある。
-    if (rejectIfUnauthorized(connId, room, actor, cmd)) return err("UNAUTHORIZED");
-
-    // 前後空白を正規化して保持（設定側/参加側の trim 差異による「正しいのに不一致」を防ぐ）。
-    // 空白のみ・空文字は解除扱い。
-    const passphrase = cmd.passphrase.trim();
-    if (passphrase === "") {
-      roomPassphrases.delete(room.code);
-    } else {
-      roomPassphrases.set(room.code, passphrase);
-    }
-    const updatedRoom: Room = {
-      ...room,
-      passphraseProtected: passphrase !== "",
-    };
-    store.put(updatedRoom);
-    broadcaster.broadcastSnapshot(updatedRoom.code, updatedRoom);
-
-    return ok(undefined);
-  }
-
-  /** AI お題生成を合言葉で解錠する（host 限定）。
-   *  合言葉はサーバ env（AI_UNLOCK_KEY）のみに存在し、Room には aiUnlocked(boolean) だけ反映。
-   *  未設定（機能無効）でも不一致と同じ AI_UNLOCK_FAILED を返し、機能の存在を秘匿する。
-   *  失敗は join と同じレート制限窓（joinFailures）に積算する（総当たり対策）。 */
-  async function handleAiUnlock(
-    connId: string,
-    cmd: { command: "ai.unlock"; key: string },
-  ): Promise<Result<undefined, ErrorCode>> {
-    const room = findRoomByConnId(connId);
-    if (!room) {
-      sendError(connId, "NOT_IN_ROOM", errorMessageFor("NOT_IN_ROOM"));
-      return err("NOT_IN_ROOM");
-    }
-    const actor = room.participants.find((p) => p.connId === connId);
-    if (!actor) {
-      // 在室ルームは connId で引いているため通常は到達しない防御分岐。
-      // 可否ではなくアクター解決の失敗なので、権限の文言は使わない。
-      sendError(connId, "UNAUTHORIZED", errorMessageFor("UNAUTHORIZED"));
-      return err("UNAUTHORIZED");
-    }
-    // 開始後は主催者であることを条件にしない（FR-063）。このハンドラは handleCommand の
-    // switch で分岐するため handleRoomCommand の判定を通らない。個別に呼ぶ必要がある。
-    if (rejectIfUnauthorized(connId, room, actor, cmd)) return err("UNAUTHORIZED");
-
-    // 連続失敗のレート制限（join と同じ窓・閾値を共用）
-    const now = clock.now();
-    if (recentJoinFailures(connId, now).length >= JOIN_FAIL_MAX) {
-      sendError(connId, "RATE_LIMITED", errorMessageFor("RATE_LIMITED"));
-      return err("RATE_LIMITED");
-    }
-
-    const provided = cmd.key.trim();
-    const matched =
-      aiUnlockKey !== undefined &&
-      provided !== "" &&
-      constantTimeEqual(provided, aiUnlockKey);
-    if (!matched) {
-      joinFailures.set(connId, [...(joinFailures.get(connId) ?? []), now]);
-      sendError(connId, "AI_UNLOCK_FAILED", errorMessageFor("AI_UNLOCK_FAILED"));
-      return err("AI_UNLOCK_FAILED");
-    }
-
-    const updatedRoom: Room = { ...room, aiUnlocked: true, problemMode: "ai" };
-    store.put(updatedRoom);
-    broadcaster.broadcastSnapshot(updatedRoom.code, updatedRoom);
-
-    return ok(undefined);
-  }
-
-  /** ホストを明示的に他のオンライン参加者へ移譲する（host 限定・R2-3）。
-   *  自動委譲（presence）と同じ transferHost を用い、snapshot で全員に反映する。 */
-  async function handleHostTransfer(
-    connId: string,
-    cmd: { command: "host.transfer"; participantId: string },
-  ): Promise<Result<undefined, ErrorCode>> {
-    const room = findRoomByConnId(connId);
-    if (!room) {
-      sendError(connId, "NOT_IN_ROOM", errorMessageFor("NOT_IN_ROOM"));
-      return err("NOT_IN_ROOM");
-    }
-
-    const actor = room.participants.find((p) => p.connId === connId);
-    if (!actor) {
-      // 在室ルームは connId で引いているため通常は到達しない防御分岐。
-      // 可否ではなくアクター解決の失敗なので、権限の文言は使わない。
-      sendError(connId, "UNAUTHORIZED", errorMessageFor("UNAUTHORIZED"));
-      return err("UNAUTHORIZED");
-    }
-    // 開始後は主催者であることを条件にしない（FR-063）。このハンドラは handleCommand の
-    // switch で分岐するため handleRoomCommand の判定を通らない。個別に呼ぶ必要がある。
-    if (rejectIfUnauthorized(connId, room, actor, cmd)) return err("UNAUTHORIZED");
-
-    // 対象がすでにホストなら移譲は無意味（実行者と対象は同一とは限らない。
-    // Issue #22 以降 host.transfer は開始後 editor+ が実行できるため、
-    // 「自分自身には」という表現はここでは使わない・FR-138）
-    if (cmd.participantId === room.hostParticipantId) {
-      sendError(connId, "ALREADY_HOST", errorMessageFor("ALREADY_HOST"));
-      return err("ALREADY_HOST");
-    }
-
-    const target = room.participants.find(
-      (p) => p.participantId === cmd.participantId,
-    );
-    if (!target) {
-      sendError(connId, "PARTICIPANT_NOT_FOUND", errorMessageFor("PARTICIPANT_NOT_FOUND"));
-      return err("PARTICIPANT_NOT_FOUND");
-    }
-
-    // オフラインの相手をホストにすると無人運用になり得るため拒否する
-    if (target.presence === "offline") {
-      sendError(connId, "HOST_TRANSFER_OFFLINE", errorMessageFor("HOST_TRANSFER_OFFLINE"));
-      return err("HOST_TRANSFER_OFFLINE");
-    }
-
-    const updatedRoom = transferHost(room, cmd.participantId);
-    store.put(updatedRoom);
-    broadcaster.broadcastSnapshot(updatedRoom.code, updatedRoom);
-
-    return ok(undefined);
-  }
-
-  /** お題生成依頼（editor+）FR-025, FR-027 */
-  async function handleProblemRequest(
-    connId: string,
-    cmd: { command: "problem.request"; requestId: string },
-  ): Promise<Result<undefined, ErrorCode>> {
-    const guard = requireEditor(connId, "problem.request");
-    if (guard.isErr()) return err(guard.error);
-    const { room } = guard.value;
-
-    if (!delegator) {
-      sendError(connId, "DELEGATION_UNAVAILABLE", errorMessageFor("DELEGATION_UNAVAILABLE"));
-      return err("DELEGATION_UNAVAILABLE");
-    }
-
-    // リロール時は旧依頼をキャンセルしてから再委譲する（FR-027）
-    delegator.request(room.code, cmd.requestId);
-
-    return ok(undefined);
-  }
-
-  /** お題投入（委譲代表のみ・editor+）FR-025, FR-026 */
-  async function handleProblemSubmit(
-    connId: string,
-    cmd: {
-      command: "problem.submit";
-      requestId: string;
-      problem: Problem;
-      usedFallback: boolean;
-    },
-  ): Promise<Result<undefined, ErrorCode>> {
-    const guard = requireEditor(connId, "problem.submit");
-    if (guard.isErr()) return err(guard.error);
-    const { room, actor } = guard.value;
-
-    if (!delegator) {
-      sendError(connId, "DELEGATION_UNAVAILABLE", errorMessageFor("DELEGATION_UNAVAILABLE"));
-      return err("DELEGATION_UNAVAILABLE");
-    }
-
-    const accepted = delegator.submit(
-      room.code,
-      cmd.requestId,
-      actor.participantId,
-      cmd.problem,
-      cmd.usedFallback,
-    );
-    if (!accepted) {
-      sendError(connId, "STALE_SUBMISSION", "この投入は受理されませんでした（期限切れ・権限外）");
-      return err("STALE_SUBMISSION");
-    }
-
-    return ok(undefined);
-  }
-
-  /**
-   * connId から在室ルームと参加者を解決し、そのコマンドを実行できることを確認する。
-   *
-   * 在室確認（NOT_IN_ROOM）とアクター解決はここに残すが、可否の判定そのものは
-   * `checkPermission()` に委ねる（FR-071）。この関数も handleCommand の switch で
-   * 分岐するハンドラ（problem.request / problem.submit）から呼ばれるため、
-   * handleRoomCommand の判定を通らない。viewer 判定をここに残すと規則が2箇所に分裂する。
-   */
-  function requireEditor(
-    connId: string,
-    command: string,
-  ): Result<{ room: Room; actor: Participant }, ErrorCode> {
-    const room = findRoomByConnId(connId);
-    if (!room) {
-      sendError(connId, "NOT_IN_ROOM", errorMessageFor("NOT_IN_ROOM"));
-      return err("NOT_IN_ROOM");
-    }
-    const actor = room.participants.find((p) => p.connId === connId);
-    if (!actor) return err("PARTICIPANT_NOT_FOUND");
-    if (rejectIfUnauthorized(connId, room, actor, { command })) {
-      return err("UNAUTHORIZED");
-    }
-    return ok({ room, actor });
-  }
+  const handleProblemSubmit = createProblemSubmitHandler({
+    delegator,
+    sendError,
+  });
 
   /**
    * 権限を判定し、拒否ならエラーを送って true を返す（呼び出し側は即 return する）。
@@ -1099,16 +661,12 @@ export function makeHandlers(deps: HandlerDeps) {
 
   /** 接続クローズ時の後始末。レート制限用の失敗履歴を解放しマップのリークを防ぐ。 */
   function handleConnectionClose(connId: string): void {
-    joinFailures.delete(connId);
+    joinRateLimiter.clear(connId);
   }
 
   /** ルーム回収時の後始末。当該ルームのホスト/リジュームトークンを解放する。 */
   function releaseRoom(roomCode: string): void {
-    hostTokens.delete(roomCode);
-    roomPassphrases.delete(roomCode);
-    for (const [token, info] of resumeTokens) {
-      if (info.roomCode === roomCode) resumeTokens.delete(token);
-    }
+    tokenStore.releaseRoom(roomCode);
   }
 
   // ドライバー不在の猶予後繰り上げ（R2-1）。presence の不在タイマーから呼ばれ、
@@ -1225,81 +783,6 @@ function messageForRemoval(code: RemovalNotification, actorDisplayName: string):
     : errorMessageFor("LEFT_ROOM");
 }
 
-// ─── コマンド変換 ────────────────────────────────────────────────────────────
-
-// RESTART は「現ドライバーのまま持ち時間をやり直す」（Issue #14）。session.act として
-// 受理するため権限は既存の EDITOR_PLUS_COMMANDS（session.act）がそのまま効く。
-const VALID_ACTIONS = new Set(["START", "SWITCH", "PAUSE", "RESUME", "RESTART"]);
-const VALID_PHASES = new Set(["setup", "ready", "session", "celebration"]);
-
-function buildDomainCommand(cmd: { command: string; [key: string]: unknown }) {
-  switch (cmd.command) {
-    case "session.act": {
-      const action = cmd.action;
-      if (typeof action !== "string" || !VALID_ACTIONS.has(action)) return null;
-      return { command: "session.act" as const, action: action as "START" | "SWITCH" | "PAUSE" | "RESUME" | "RESTART" };
-    }
-    case "session.complete":
-      return { command: "session.complete" as const };
-    case "session.reset":
-      return { command: "session.reset" as const };
-    case "config.set": {
-      if (typeof cmd.config !== "object" || cmd.config === null) return null;
-      // members は受け付けない（D6b）。core の ConfigSet は members から rotation を
-      // 組み直すため、表示名の配列を通すと rotation が名前に戻り識別子の不変条件が壊れる。
-      // 輪の出入りは member.add/remove/move・addProxy・participant.remove だけが担う。
-      const { members: _ignored, ...config } = cmd.config as Partial<SessionConfig>;
-      return { command: "config.set" as const, config };
-    }
-    case "member.add":
-      // 誰を輪に並べるかは参加者IDで指す（D6b）。名前→IDの解決という曖昧さを発生源で消す。
-      if (typeof cmd.participantId !== "string") return null;
-      return { command: "member.add" as const, participantId: cmd.participantId };
-    case "member.remove":
-      if (typeof cmd.index !== "number") return null;
-      return { command: "member.remove" as const, index: cmd.index };
-    case "member.move":
-      if (typeof cmd.fromIndex !== "number" || typeof cmd.toIndex !== "number") return null;
-      return { command: "member.move" as const, fromIndex: cmd.fromIndex, toIndex: cmd.toIndex };
-    case "phase.set": {
-      const phase = cmd.phase;
-      if (typeof phase !== "string" || !VALID_PHASES.has(phase)) return null;
-      return { command: "phase.set" as const, phase: phase as "setup" | "ready" | "session" | "celebration" };
-    }
-    case "handoff.note.set":
-      if (typeof cmd.text !== "string") return null;
-      return { command: "handoff.note.set" as const, text: cmd.text };
-    // ─── v2 新コマンド ─────────────────────────────────────────────────────
-    case "session.abort":
-      return { command: "session.abort" as const };
-    case "participant.addProxy":
-      if (typeof cmd.displayName !== "string" || typeof cmd.participantId !== "string") return null;
-      return { command: "participant.addProxy" as const, displayName: cmd.displayName, participantId: cmd.participantId };
-    case "participant.rename":
-      if (typeof cmd.participantId !== "string" || typeof cmd.displayName !== "string") return null;
-      // 表示名の一意性は呼び出し側（handleRoomCommand）が participants に対して検査する（T052）
-      return { command: "participant.rename" as const, participantId: cmd.participantId, displayName: cmd.displayName };
-    case "driver.skip":
-      if (typeof cmd.participantId !== "string") return null;
-      return { command: "driver.skip" as const, participantId: cmd.participantId };
-    case "driver.resume":
-      if (typeof cmd.participantId !== "string") return null;
-      return { command: "driver.resume" as const, participantId: cmd.participantId };
-    case "driver.assign":
-      if (typeof cmd.participantId !== "string") return null;
-      // index は handleRoomCommand が participantId から解決して埋める（-1 はプレースホルダ）。
-      return { command: "driver.assign" as const, index: -1 };
-    case "problem.edit":
-      if (typeof cmd.patch !== "object" || cmd.patch === null) return null;
-      return { command: "problem.edit" as const, patch: cmd.patch as { title?: string; description?: string; requirements?: string[]; exampleTest?: string; hints?: string[] } };
-    case "problem.mode.set":
-      if (cmd.mode !== "ai" && cmd.mode !== "fallback") return null;
-      return { command: "problem.mode.set" as const, mode: cmd.mode as ProblemMode };
-    default:
-      return null;
-  }
-}
-
 // ─── モブ順のランダム化（サーバー権威）──────────────────────────────────────
 
 /**
@@ -1382,168 +865,8 @@ function rotationDisplayNames(room: Room): string[] {
 }
 
 // ─── ルームレベルのイベント適用 ──────────────────────────────────────────────
-
-/**
- * **集約（session + clock）を反映済みであることを表す型**（FR-103）。
- *
- * 実体はただの `Room` であり、この目印は**型の上にしか存在しない**（実行時のコストは無い）。
- * `applyRoomLevelEvent` はこの型しか受け付けず、この型を作れるのは `applyEvents` だけである。
- * したがって「Room レベルイベントを先に適用してしまう」順序違反はコンパイルが通らない。
- */
-declare const aggregateApplied: unique symbol;
-type RoomWithAggregate = Room & { readonly [aggregateApplied]: true };
-
-/**
- * **状態遷移の適用順序の契約**（FR-103）。
- *
- * 1. `evolve` / `advanceDriver` が返した集約を Room に反映する
- * 2. その結果を基底にして Room レベルのイベントを順に適用する
- *
- * **この順序を逆にしてはならない。** `applyRoomLevelEvent` は `session.rotation` 等を
- * さらに更新しうるため（`ProxyMemberAdded` の rotation 追加・`ParticipantRenamed` の改名）、
- * 集約の反映を後に回すと、そこで加えた session の変更が丸ごと捨てられる。
- *
- * かつてこの順序はコメントによる注意喚起でしか表現されておらず、呼び出し側が自分で
- * `{ ...room, session, clock }` を組み立ててからループを回していた。順序を守る責務を
- * この関数 1 つに閉じ込め、`applyRoomLevelEvent` を型で守ることで、順序違反を起こせなくする。
- *
- * **統合（`applyRoomLevelEvent` と `evolve` を 1 つにすること）は行わない**（Issue #26 の担当）。
- * ここで行うのは境界を型と契約として表現することまでである。
- */
-function applyEvents(
-  room: Room,
-  agg: { session: Room["session"]; clock: Room["clock"] },
-  events: readonly DomainEvent[],
-  now: number,
-): Room {
-  const base = { ...room, session: agg.session, clock: agg.clock } as RoomWithAggregate;
-  return events.reduce<RoomWithAggregate>(
-    (acc, event) => applyRoomLevelEvent(acc, event, now),
-    base,
-  );
-}
-
-function applyRoomLevelEvent(
-  room: RoomWithAggregate,
-  event: DomainEvent,
-  _now: number,
-): RoomWithAggregate {
-  switch (event.type) {
-    case "PhaseSet": {
-      // startedAt は「一度でも開始したか」を表す単調フラグ（host-spof-relaxation D2）。
-      // phase は phase.set で任意方向へ遷移でき "setup" 等へ後戻りもできるため、
-      // 現在の phase で権限を判定すると主催者不在時に誰かが "setup" へ戻した瞬間
-      // ルームが再びホスト限定に締まり、Issue #22 の詰みが再発する。そのため
-      // 「session への遷移を初めて観測した」時点で一度だけ記録し、以後は
-      // どんな phase 遷移でも消さない（上書きしない）。
-      const startedAt =
-        event.phase === "session" && room.startedAt == null ? _now : room.startedAt;
-      return { ...room, phase: event.phase, startedAt };
-    }
-    case "SessionReset":
-      // リセット＝最初から再スタート（v2.3 #3）。集約(session/clock)は evolve が
-      // 先頭・満タン・走行に初期化済み。お題・メンバー・設定・引き継ぎは維持し、
-      // phase は session のまま（その場で走り直す）。休憩フラグのみ解除する。
-      return {
-        ...room,
-        onBreak: false,
-      };
-    case "ProblemSet":
-      return { ...room, problem: event.problem };
-    case "ConfigSet":
-      // 検証済み部分設定を Room.config にマージ（言語/難易度/メンバー/間隔を反映）
-      return { ...room, config: { ...room.config, ...event.config } };
-    case "HandoffNoteSet":
-      return { ...room, handoffNote: event.text };
-    case "BreakStarted":
-      return { ...room, onBreak: true };
-    case "BreakEnded":
-      return { ...room, onBreak: false };
-    case "SessionCompleted": {
-      // 既に完成済みなら二重計上しない（complete の冪等性）
-      if (room.phase === "celebration") return room;
-      // 完成フェーズへ遷移し、揮発な完成記録を Room に追加（FR-028）
-      const next: RoomWithAggregate = { ...room, phase: "celebration" };
-      if (room.problem) {
-        const agg = { session: room.session, clock: room.clock };
-        const record = buildCompletionRecord(
-          agg,
-          room.problem,
-          room.config,
-          event.now,
-          room.code,
-        );
-        next.sessionRecords = [...room.sessionRecords, record];
-      }
-      return next;
-    }
-    // ─── v2 イベント ──────────────────────────────────────────────────────
-    case "SessionAborted":
-      // 中断: 記録を生成せず締めくくりフェーズへ（FR-020）
-      return { ...room, phase: "celebration" };
-    case "ProxyMemberAdded": {
-      // 代理参加者をルームに追加し、rotation・driverCounts にも追加して
-      // ドライバーローテーションに含める（FR-047）。
-      const proxyParticipant: Participant = {
-        participantId: event.participantId,
-        connId: null,
-        displayName: event.displayName,
-        role: "editor",
-        presence: "offline",
-        hasAiKey: false,
-        joinedAt: _now,
-        isPlaceholder: true,
-        driverEligible: true,
-      };
-      return {
-        ...room,
-        participants: [...room.participants, proxyParticipant],
-        session: {
-          ...room.session,
-          rotation: [...room.session.rotation, event.participantId],
-          driverCounts: [...room.session.driverCounts, 0],
-        },
-      };
-    }
-    case "ParticipantRenamed":
-      // rotation は参加者IDの配列（D6b）で改名しても値が変わらないため、触る必要が無い。
-      // 旧名で位置を引いて置換していた処理はここで消えた（同名の取り違えの温床だった）。
-      return {
-        ...room,
-        participants: room.participants.map((p) =>
-          p.participantId === event.participantId
-            ? { ...p, displayName: event.displayName }
-            : p,
-        ),
-      };
-    case "DriverSkipped":
-      return {
-        ...room,
-        participants: room.participants.map((p) =>
-          p.participantId === event.participantId
-            ? { ...p, driverEligible: false }
-            : p,
-        ),
-      };
-    case "DriverResumed":
-      return {
-        ...room,
-        participants: room.participants.map((p) =>
-          p.participantId === event.participantId
-            ? { ...p, driverEligible: true }
-            : p,
-        ),
-      };
-    case "ProblemEdited": {
-      if (!room.problem) return room;
-      return {
-        ...room,
-        problem: { ...room.problem, ...event.patch, edited: true },
-      };
-    }
-    case "ProblemModeSet":
-      return { ...room, problemMode: event.mode };
-    default:
-      return room;
-  }
-}
+//
+// `applyEvents`/`applyRoomLevelEvent`（集約反映 → Room レベルイベント適用の
+// 適用順序契約を含む）は `apply-room-level-event.ts` へ移動した（フェーズ4・
+// 純粋な移動。ロジック変更なし）。本ファイルはファイル先頭で `applyEvents` を
+// import して従来通り呼び出す。適用順の依存関係の説明は移動先の docstring を参照。

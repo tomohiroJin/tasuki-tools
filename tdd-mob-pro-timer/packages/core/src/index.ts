@@ -97,7 +97,7 @@ export { SYNC_ERROR_CODES } from "./errors.js";
 export { decide } from "./decide.js";
 export { evolve, advanceDriver } from "./evolve.js";
 // スキーマ
-export type { ServerMsg } from "./schemas.js";
+export type { ServerMsg, Command } from "./schemas.js";
 export {
   SessionConfigSchema,
   ProblemSchema,

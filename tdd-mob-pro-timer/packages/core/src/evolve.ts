@@ -116,9 +116,9 @@ export function evolve(agg: Aggregate, event: DomainEvent, _now: number): Aggreg
 /**
  * 稼働中に次の eligible ドライバーへ交代する（plan.md L194/L209）。
  * `ineligible`（driverEligible===false のインデックス集合）を飛ばして次の対象を選ぶ。
- * 交代先が見つかれば DriverSwitched 相当（担当回数加算・タイマー再アンカー・交代回数加算）を適用する。
- * 全員 ineligible で交代先が現状と同じ場合は、ドライバーを維持しつつタイマーのみ再アンカーして
- * 自動交代が残り0で即再発火する無限ループを防ぐ。
+ * B-2統合により、交代先の決定（nextEligibleIndex）とイベント適用（担当回数加算・
+ * タイマー再アンカー・交代回数加算、あるいは全員 ineligible 時の現状維持＋再アンカーのみ）は
+ * evolveDriverSwitched に一本化された。本関数はその1行ラッパである。
  * 不変条件 rotation.length === driverCounts.length は evolve(DriverSwitched) が保つ。
  *
  * @param agg 集約
@@ -130,25 +130,11 @@ export function advanceDriver(
   ineligible: Set<number> | undefined,
   now: number,
 ): Aggregate {
-  const cur = agg.session.currentIndex;
-  const nextIndex = nextEligibleIndex(agg.session, cur, ineligible);
-  if (nextIndex !== cur) {
-    return evolve(agg, { type: "DriverSwitched", nextIndex, now }, now);
-  }
-
-  // 交代先が現状と同じ（全員 ineligible 等）→ 現状維持。タイマーのみ再アンカーする。
-  const addedMs =
-    agg.clock.runningSince !== null ? now - agg.clock.runningSince : 0;
-  return {
-    session: agg.session,
-    clock: {
-      ...agg.clock,
-      anchorServerTime: now,
-      secondsLeftAtAnchor: agg.clock.intervalSeconds,
-      accumulatedElapsedMs: agg.clock.accumulatedElapsedMs + addedMs,
-      runningSince: now,
-    },
-  };
+  return evolve(
+    agg,
+    { type: "DriverSwitched", nextIndex: nextEligibleIndex(agg.session, agg.session.currentIndex, ineligible), now },
+    now,
+  );
 }
 
 // ─── 各イベントの適用 ─────────────────────────────────────────────────────────
@@ -165,22 +151,39 @@ function evolveSessionStarted(agg: Aggregate, now: number): Aggregate {
   };
 }
 
+/**
+ * B-2統合: 交代先（nextIndex）が適用前の currentIndex と等しい場合は「交代していない」
+ * とみなし、driverCounts/totalSwitches を加算しない（advanceDriver 準拠。ユーザー確定の
+ * 設計判断）。全員 ineligible で decide が現状維持の nextIndex を返した場合や、輪1人で
+ * 隣が自分自身になる場合がこれに当たる。タイマーの再アンカーは加算の有無に関わらず必ず
+ * 行う（残り0のまま据え置くと自動交代が即再発火し無限ループになるため）。
+ */
 function evolveDriverSwitched(
   agg: Aggregate,
   nextIndex: number,
   now: number,
 ): Aggregate {
   const prevIndex = agg.session.currentIndex;
-  const newDriverCounts = [...agg.session.driverCounts];
-
-  // 現ドライバーの担当回数を加算
-  if (prevIndex >= 0 && prevIndex < newDriverCounts.length) {
-    newDriverCounts[prevIndex] = (newDriverCounts[prevIndex] ?? 0) + 1;
-  }
 
   // 稼働区間を accumulatedElapsedMs に確定加算して新しいアンカーを設定
   const addedMs =
     agg.clock.runningSince !== null ? now - agg.clock.runningSince : 0;
+  const reanchoredClock = {
+    ...agg.clock,
+    anchorServerTime: now,
+    secondsLeftAtAnchor: agg.clock.intervalSeconds,
+    accumulatedElapsedMs: agg.clock.accumulatedElapsedMs + addedMs,
+    runningSince: now,
+  };
+
+  if (nextIndex === prevIndex) {
+    return { session: agg.session, clock: reanchoredClock };
+  }
+
+  const newDriverCounts = [...agg.session.driverCounts];
+  if (prevIndex >= 0 && prevIndex < newDriverCounts.length) {
+    newDriverCounts[prevIndex] = (newDriverCounts[prevIndex] ?? 0) + 1;
+  }
 
   return {
     session: {
@@ -189,13 +192,7 @@ function evolveDriverSwitched(
       driverCounts: newDriverCounts,
       totalSwitches: agg.session.totalSwitches + 1,
     },
-    clock: {
-      ...agg.clock,
-      anchorServerTime: now,
-      secondsLeftAtAnchor: agg.clock.intervalSeconds,
-      accumulatedElapsedMs: agg.clock.accumulatedElapsedMs + addedMs,
-      runningSince: now,
-    },
+    clock: reanchoredClock,
   };
 }
 
