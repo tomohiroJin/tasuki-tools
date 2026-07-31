@@ -22,5 +22,5 @@
       state/ref 実測値（リファクタ前後・Issue記載値との対比）を追記した。
 - [x] T7: コミット＆プッシュ、PR 作成（`Closes #41` は使わず、部分対応である旨と
       残作業 Issue #46 を明記）。
-- [ ] T8: `code-review:code-review` で PR を敵対的検証する。指摘があれば
-      本ファイルに追記して再着手。
+- [x] T8: `code-review:code-review` で PR を敵対的検証した。指摘なし
+      （PR #47 コメント参照）。https://github.com/tomohiroJin/tasuki-tools/pull/47#issuecomment-5148011373
