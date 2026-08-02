@@ -137,9 +137,9 @@ export default function App() {
   // メッセージ処理時点ではまだ `null` のため、ここから読んではいけない。
 
   const handleRoom = (syncClient: SyncClient, r: Room) => {
-    // このコールバックの実行中に再レンダーは起きない（React 18 の自動バッチング）。
-    // よって `room` は直前のレンダー時点の値＝1つ前の snapshot であり、
-    // 下で `setRoom(r)` してもこのスコープ内では変わらない。
+    // `room` はこのハンドラを作ったレンダーの const なので、下で `setRoom(r)` しても
+    // このスコープ内では変わらない。値は「直前のレンダー時点の snapshot」＝1つ前の
+    // snapshot であり、これは撤去前の `latestRef.current.room` と同じ意味を持つ。
     const prevRoom = room;
     setRoom(r);
     // 直前の room.created/room.joined で受け取った resumeToken を、今来た snapshot の

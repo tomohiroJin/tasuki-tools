@@ -1,17 +1,20 @@
 /**
- * 値を ref に同期し続け、クロージャから常に最新値を読めるようにする（Issue #28・T069/T070・FR-120）。
+ * 値を ref に同期し続け、クロージャから常に最新値を読めるようにする。
  *
+ * **用途は「SyncClient のコールバックへ渡すハンドラ束の同期」である**（Issue #46）。
  * `App.tsx` の `makeClient` が生成する各種コールバック（onRoom/onIdentity/onError 等）は
- * 生成時点の値で固定される（closure）。そのため `room`/`participantId`/`endType`/
- * `generatingProblem` は state だけでは最新値を読めず、同じ値を ref にも保持している。
+ * 生成時点の値で固定される（closure）。そこで、コールバック本体を render 本体の
+ * スコープに置き、それらをまとめたオブジェクトをこのフックで ref へ同期する。
+ * `SyncClient` へ渡すのは `ref.current` の同名関数を呼ぶだけの転送関数なので、
+ * 固定されるのは転送だけで、実際に走るのは常に最新レンダーのハンドラになる。
  *
- * **並行保持そのものは避けられない**（closure の固定を避ける手段が無い）。
- * 避けられるのは、「render のたびに ref.current を最新値へ同期する」処理が
- * 状態ごとに手書きで散っていることである。ここに集約する。
+ * かつては同じ仕組みで「state の写し」（room/participantId/endType/generatingProblem）を
+ * 保持していたが、それは state と ref の並行保持そのものだった。Issue #46 で
+ * 保持する中身をハンドラ束へ入れ替え、state の写しは無くなっている。
  *
- * 同期は render 本体の中で行う（`useEffect` を挟まない）。挟むと、setState 直後・
- * 同一同期区間内で ref を読む呼び出し元（例: `setRoom(r)` の直後に別の処理が
- * `roomRef.current` を読むケース）で1レンダー分の遅れが生じ、旧い値を読んでしまう。
+ * 同期は render 本体の中で行う（`useEffect` を挟まない）。挟むと、passive effect が
+ * commit と非同期に flush される都合で、差し替え前に届いた WS メッセージを
+ * 1レンダー古いハンドラが処理してしまう。
  */
 import { useRef } from "react";
 

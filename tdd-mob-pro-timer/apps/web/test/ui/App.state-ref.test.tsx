@@ -11,6 +11,10 @@
  * このファイルはリファクタの安全網として新設した（4組それぞれが実際に
  * 使われる代表的なフローを FakeWS で駆動して検証する）。
  *
+ * なお Issue #46 で `latestRef`（state の写し）は撤廃され、コールバックは
+ * ハンドラ束の ref 経由で最新の state を読むようになった。このファイルが検証する
+ * 「4組の値が実際に使われるフロー」の期待値は、その前後で変わらない。
+ *
  * @requirements Issue #41（#28 D-2）
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
