@@ -115,10 +115,7 @@ export default function App() {
   const makeProxyId = () => `proxy-${Math.random().toString(36).slice(2, 10)}`;
 
   // SyncClient の配線を create/join で共有する。
-  // getConfig は onNeedProblem 用に「お題生成に使う言語・難易度」を返す。
-  const makeClient = (
-    getConfig: () => { language: string; difficulty: string },
-  ): SyncClient => {
+  const makeClient = (): SyncClient => {
     const wsUrl = `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/ws`;
     const newClient = new SyncClient({
       url: wsUrl,
@@ -219,9 +216,12 @@ export default function App() {
       onNeedProblem: async (requestId) => {
         // 代表に選ばれたらお題を生成して投入する（FR-025）。失敗時もプロバイダが定型へ縮退。
         try {
-          const cfg = getConfig();
+          // 言語・難易度は最新のルーム設定（ロビーでの編集を反映）から引く。
+          // ★await より前に読む: 生成待ちの間に届いた snapshot の値を使わないため（Issue #46 REQ-7）。
+          const language = latestRef.current.room?.config.language ?? "TypeScript";
+          const difficulty = latestRef.current.room?.config.difficulty ?? "easy";
           const provider = resolveProvider();
-          const { problem, source } = await provider.generate(cfg.language, cfg.difficulty);
+          const { problem, source } = await provider.generate(language, difficulty);
           newClient.send({
             command: "problem.submit",
             requestId,
@@ -366,11 +366,7 @@ export default function App() {
       // モブプロの一般的な既定は7分（v2.3 #4）。ロビーで host が config.set で調整できる。
       intervalMinutes: 7,
     };
-    // お題生成は最新のルーム設定（ロビーでの編集を反映）を参照する。
-    const c = makeClient(() => ({
-      language: latestRef.current.room?.config.language ?? config.language,
-      difficulty: latestRef.current.room?.config.difficulty ?? config.difficulty,
-    }));
+    const c = makeClient();
     c.send({ command: "room.create", displayName, config, ...(roomName && { roomName }) });
   };
 
@@ -385,10 +381,7 @@ export default function App() {
     resumeDisplayNameRef.current = displayName;
     // driver 宣言を ref に記録しておき、snapshot で自分が現れたら member.add を送る。
     if (mode === "driver") pendingDriverJoinRef.current = true;
-    const c = makeClient(() => ({
-      language: latestRef.current.room?.config.language ?? "TypeScript",
-      difficulty: latestRef.current.room?.config.difficulty ?? "easy",
-    }));
+    const c = makeClient();
     // 空のパスフレーズは送らない（未設定ルームの従来挙動を維持）。
     c.send({ command: "room.join", code, displayName, hasAiKey: false, ...(passphrase ? { passphrase } : {}) });
   };
