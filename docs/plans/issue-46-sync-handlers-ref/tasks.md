@@ -60,7 +60,7 @@
 T1 で +4件 → 完了時は **82ファイル / 575件**が期待値。
 
 完了時実績: web 83ファイル / 575件 PASS（T1 で +1ファイル / +4件）。`App.tsx` 行数
-764 → 790、`useState` 11（不変）、ref 宣言 11（不変・`latestRef` → `handlersRef`）。
+764 → 791、`useState` 11（不変）、ref 宣言 11（不変・`latestRef` → `handlersRef`）。
 
 ## 環境メモ
 
