@@ -66,7 +66,7 @@ export default function App() {
   const [connState, setConnState] = useState<ClientConnState>("online");
   // 注: AI（BYOK/サブスク）はいったん UI から撤去。お題は定型バンクのみ（NoAiProvider）。
   // このクライアントがルーム作成者（＝当初ホスト）か。ロビーでお題生成を自動依頼する判定に使う。
-  // state を持たない純粋なガード用 ref（集約 ref の対象外）。
+  // state の写しではない純粋なガード用 ref（Issue #46 でこの種の ref だけが残った）。
   const isCreatorRef = useRef(false);
   // 参加時に "driver" を選択したか。snapshot で自分が参加者に現れたら member.add を一度だけ送る。
   // 名前ではなく「宣言したか」だけを持つ（誰を加えるかは自分の participantId で決まる・D6b）。
@@ -86,8 +86,9 @@ export default function App() {
   // 参加/作成直後の resumeToken を、次に来る snapshot（room.code を含む）と組み合わせて
   // sessionStorage へ保存するための一時保持（Issue #24）。onIdentity では room.code が
   // まだ分からない（room.joined メッセージに code が含まれない）ため、onRoom まで持ち越す。
-  // useLatestRef ではなく素の ref に直接書くのは、onIdentity → onRoom の間に React の
-  // 再レンダーを待たずに値を受け渡したいため（両者は別々の WS メッセージから来る）。
+  // 素の ref に直接書くのは、onIdentity → onRoom の間に React の再レンダーを待たずに
+  // 値を受け渡したいため（両者は別々の WS メッセージから来る）。ハンドラの closure から
+  // 読む値ではないので、handlersRef 経由の仕組みには乗らない。
   const pendingResumeRef = useRef<{ participantId: string; resumeToken: string } | null>(null);
   // 参加/作成時に指定した表示名。resumeToken 再送の room.join に必要
   // （サーバー側スキーマで displayName は必須項目のため・Issue #24）。
