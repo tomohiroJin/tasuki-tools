@@ -397,11 +397,13 @@ export default function App() {
   const joinRotation = (participantId: string) => {
     client?.send({ command: "member.add", participantId });
   };
-  /** 自分をローテーションから外す。index は描画時ではなく送信時の最新 snapshot
-   *  （latestRef.current.room）から解決し、同時編集による index ずれで別人を外す事故を防ぐ（レビュー #1）。
+  /** 自分をローテーションから外す。index は描画時ではなく送信時の最新 snapshot から
+   *  解決し、同時編集による index ずれで別人を外す事故を防ぐ（レビュー #1）。
+   *  この関数は毎レンダー作り直されて子へ渡り（メモ化していない）、`room` は
+   *  直前にコミットされた snapshot なので、押した瞬間の最新から解決できる。
    *  照合は参加者ID（D6b）なので、同名の別人の枠を外すことはない。 */
   const leaveRotation = (participantId: string) => {
-    const idx = latestRef.current.room?.session.rotation.indexOf(participantId) ?? -1;
+    const idx = room?.session.rotation.indexOf(participantId) ?? -1;
     if (idx >= 0) client?.send({ command: "member.remove", index: idx });
   };
   /** ホストが参加者を退出させる（⑪・host 限定）。 */
@@ -416,8 +418,8 @@ export default function App() {
     client?.send({ command: "role.set", participantId, role });
   };
   const changeOwnRole = (role: "editor" | "viewer") => {
-    if (!latestRef.current.participantId) return;
-    client?.send({ command: "role.set", participantId: latestRef.current.participantId, role });
+    if (!participantId) return;
+    client?.send({ command: "role.set", participantId, role });
   };
   /** ホストが任意のオンライン参加者へホストを明示移譲する（R2-3・host 限定）。 */
   const handleTransferHost = (participantId: string) => {
@@ -560,7 +562,7 @@ export default function App() {
   };
 
   const copyProblem = () => {
-    const p = latestRef.current.room?.problem;
+    const p = room?.problem;
     if (!p || !navigator.clipboard?.writeText) return;
     navigator.clipboard.writeText(formatProblemText(p)).catch(() => {
       /* 権限拒否等は無視 */
@@ -585,7 +587,7 @@ export default function App() {
   };
 
   const regenerateProblem = () => {
-    const code = latestRef.current.room?.code;
+    const code = room?.code;
     if (code) {
       beginGenerating();
       // 直近のお題と重複しにくい新規生成を代表へ依頼する（FR-012）。
