@@ -29,17 +29,21 @@ vi.mock("../../src/records/indexeddb.js", () => ({
 // お題生成に渡る言語・難易度は、生成結果（pickFallback）からは観測できない
 // （時刻ベースの疑似ランダム選択で、言語が一致しなければ全件から選ぶため）。
 // プロバイダの境界だけを差し替えて「何が渡されたか」を直接観測する。
-const generateSpy = vi.fn().mockResolvedValue({
-  problem: {
-    title: "定型",
-    description: "定型のお題",
-    requirements: [],
-    exampleTest: "",
-    hints: [],
+const generateSpy = vi.fn();
+/** generateSpy の解決値。`beforeEach` で毎回張り直す（下記コメント参照）。 */
+function stubGenerateResolvedValue(): void {
+  generateSpy.mockResolvedValue({
+    problem: {
+      title: "定型",
+      description: "定型のお題",
+      requirements: [],
+      exampleTest: "",
+      hints: [],
+      source: "fallback",
+    },
     source: "fallback",
-  },
-  source: "fallback",
-});
+  });
+}
 vi.mock("../../src/ai/no-ai.js", () => ({
   NoAiProvider: class {
     generate(language: string, difficulty: string) {
@@ -83,7 +87,13 @@ beforeEach(() => {
   sessionStorage.clear();
   // Join/Setup は前回の名前を localStorage から復元する。テスト間で漏らさない。
   clearPreferences();
-  generateSpy.mockClear();
+  // vitest.config.ts の restoreMocks: true により、各テスト開始前に
+  // generateSpy の実装（mockResolvedValue）が自動で剥がされる（mockClear では戻らない）。
+  // 剥がされた状態のまま onNeedProblem を呼ぶと provider.generate() が undefined を返し、
+  // App.tsx 側の分割代入が例外になって catch に落ちる（problem.submit まで届かない）。
+  // ここで毎回張り直すことで、restoreMocks の影響を受けず解決値を保証する。
+  generateSpy.mockReset();
+  stubGenerateResolvedValue();
 });
 
 afterEach(() => {
@@ -191,9 +201,19 @@ describe("SyncClient コールバックが最新の state を読む経路（Issu
     });
 
     // When: 代表に選ばれる（need-problem）
+    const sendSpy = vi.spyOn(ws, "send");
     sendServer(ws, { type: "signal", signal: "need-problem", requestId: "req-1", deadlineMs: 60000 });
 
     // Then: 生成時の引数が room.config の最新値になっている
     await waitFor(() => expect(generateSpy).toHaveBeenCalledWith("Python", "hard"));
+
+    // Then: ハンドラが catch に落ちず最後まで走り、生成結果が problem.submit として
+    // サーバーへ送られる（requestId は need-problem のものを引き継ぐ）。
+    await waitFor(() => {
+      const submitted = sendSpy.mock.calls
+        .map(([raw]) => JSON.parse(raw as unknown as string))
+        .filter((c) => c.command === "problem.submit" && c.requestId === "req-1");
+      expect(submitted).toHaveLength(1);
+    });
   });
 });
