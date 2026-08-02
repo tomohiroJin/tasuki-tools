@@ -154,8 +154,11 @@ describe("SyncClient コールバックが最新の state を読む経路（Issu
     });
 
     // Then: 自分の participantId（onIdentity で確定した最新値）で member.add が飛ぶ
-    const added = sendSpy.mock.calls
-      .map(([raw]) => JSON.parse(raw as unknown as string))
+    // FakeWS.send() は引数なし宣言のため mock.calls の要素型は空タプル []。
+    // 実際には JSON 文字列1個で呼ばれるので、既存 App.state-ref.test.tsx と同じ
+    // キャストで実際の呼び出し形（[string][]）に合わせる。
+    const added = (sendSpy.mock.calls as unknown as [string][])
+      .map(([raw]) => JSON.parse(raw))
       .filter((c) => c.command === "member.add");
     expect(added).toEqual([{ command: "member.add", participantId: OTHER_ID }]);
   });
@@ -210,8 +213,10 @@ describe("SyncClient コールバックが最新の state を読む経路（Issu
     // Then: ハンドラが catch に落ちず最後まで走り、生成結果が problem.submit として
     // サーバーへ送られる（requestId は need-problem のものを引き継ぐ）。
     await waitFor(() => {
-      const submitted = sendSpy.mock.calls
-        .map(([raw]) => JSON.parse(raw as unknown as string))
+      // FakeWS.send() は引数なし宣言のため mock.calls の要素型は空タプル []。
+      // 上と同じキャストで実際の呼び出し形（[string][]）に合わせる。
+      const submitted = (sendSpy.mock.calls as unknown as [string][])
+        .map(([raw]) => JSON.parse(raw))
         .filter((c) => c.command === "problem.submit" && c.requestId === "req-1");
       expect(submitted).toHaveLength(1);
     });
