@@ -11,9 +11,9 @@ import { Summary, type EndType } from "./ui/Summary.js";
 import { History } from "./ui/History.js";
 import { StatusStrip } from "./ui/components/StatusStrip.js";
 import { deriveConnectionStatus, type ClientConnState } from "./ui/connection-status.js";
-import { SyncClient } from "./sync/client.js";
+import { SyncClient, type Identity } from "./sync/client.js";
 import { saveResumeIdentity, loadResumeIdentity, clearResumeIdentity } from "./sync/resume-identity.js";
-import { buildNoticeMessage } from "./sync/notice-message.js";
+import { buildNoticeMessage, type NoticeSignal } from "./sync/notice-message.js";
 import { NoAiProvider } from "./ai/no-ai.js";
 import type { ProblemProvider } from "./ai/provider.js";
 import { screenForPhase } from "./ui/screen.js";
@@ -81,16 +81,6 @@ export default function App() {
   const prevHostRef = useRef<string | undefined>(undefined);
   // AI/定型のお題生成中（「別のお題にする」押下〜新お題確定まで）。スピナー＋減光に使う。
   const [generatingProblem, setGeneratingProblem] = useState(false);
-  // makeClient のコールバック（onRoom/onIdentity/onNotice 等）は生成時の値で固定される
-  // closure である。そのためコールバック内から「最新の state」を読みたい room/endType/
-  // participantId/generatingProblem の4つは、同じ値を state（描画用）と ref（closure 用）
-  // の両方で持つ並行保持そのものは避けられない（Issue #28・T069/T070・FR-120）。
-  // 避けられるのは「render のたびに ref.current を最新値へ同期する」処理が state ごとに
-  // 手書きで散っていること。useLatestRef はこの同期を1箇所に集約し、Issue #41 では
-  // その集約先そのものを4本の ref から1本のオブジェクト ref へさらにまとめる
-  // （render 本体内で毎回新しいオブジェクトを渡すだけなので、4本のときと同期タイミングは
-  // 変わらない＝挙動は変えない）。
-  const latestRef = useLatestRef({ room, endType, participantId, generatingProblem });
   // 生成が返らない異常で固まらないための安全弁タイマー。
   const generatingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // 参加/作成直後の resumeToken を、次に来る snapshot（room.code を含む）と組み合わせて
@@ -114,239 +104,297 @@ export default function App() {
   /** 代理参加者の一意な participantId を生成する（衝突回避のため乱数を含める） */
   const makeProxyId = () => `proxy-${Math.random().toString(36).slice(2, 10)}`;
 
+  // 生成中フラグを立て、65 秒の安全弁を張る（サーバ 60 秒タイムアウト＋余裕）。
+  const beginGenerating = () => {
+    setGeneratingProblem(true);
+    if (generatingTimerRef.current) clearTimeout(generatingTimerRef.current);
+    generatingTimerRef.current = setTimeout(() => {
+      setGeneratingProblem(false);
+      generatingTimerRef.current = null;
+    }, 65_000);
+  };
+  const endGenerating = () => {
+    setGeneratingProblem(false);
+    if (generatingTimerRef.current) {
+      clearTimeout(generatingTimerRef.current);
+      generatingTimerRef.current = null;
+    }
+  };
+
+  // ─── SyncClient のコールバック本体 ─────────────────────────────────────────
+  //
+  // `SyncClient` のコールバックは生成時の値で固定される closure である（Issue #28）。
+  // かつては「最新の state を読むために、同じ値を state と ref の両方で持つ」ことで
+  // これを回避していたが、その並行保持そのものが二重管理の温床だった（Issue #41）。
+  //
+  // 代わりに、ハンドラ本体を render 本体のスコープに置き、`handlersRef` へ毎レンダー
+  // 同期する。`SyncClient` へ渡すのは `handlersRef.current` の同名関数を呼ぶだけの
+  // 転送関数なので、固定されるのは転送だけで、実際に走るのは常に最新レンダーの
+  // ハンドラになる。結果、これらのハンドラは `room` / `endType` / `participantId` /
+  // `generatingProblem` を **素の state としてそのまま読める**（Issue #46）。
+  //
+  // client インスタンスだけは第1引数で受け取る。`client` state は `makeClient` 直後の
+  // メッセージ処理時点ではまだ `null` のため、ここから読んではいけない。
+
+  const handleRoom = (syncClient: SyncClient, r: Room) => {
+    // このコールバックの実行中に再レンダーは起きない（React 18 の自動バッチング）。
+    // よって `room` は直前のレンダー時点の値＝1つ前の snapshot であり、
+    // 下で `setRoom(r)` してもこのスコープ内では変わらない。
+    const prevRoom = room;
+    setRoom(r);
+    // 直前の room.created/room.joined で受け取った resumeToken を、今来た snapshot の
+    // room.code と組み合わせて保存する（Issue #24・FR-001）。一度保存すれば
+    // このクライアントの生存期間中 code/participantId/resumeToken は変わらないため、
+    // 以降の snapshot では再保存しない（sessionStorage への書き込みを1回に抑える）。
+    if (pendingResumeRef.current) {
+      saveResumeIdentity({
+        code: r.code,
+        participantId: pendingResumeRef.current.participantId,
+        resumeToken: pendingResumeRef.current.resumeToken,
+        displayName: resumeDisplayNameRef.current,
+      });
+      pendingResumeRef.current = null;
+    }
+    // 参加時ドライバー宣言: 自分が参加者に現れたら一度だけ rotation に加入する。
+    if (
+      pendingDriverJoinRef.current &&
+      participantId &&
+      r.participants.some((p) => p.participantId === participantId)
+    ) {
+      // 宣言は「参加時の一度きり」。輪に入れたかに関わらずここで降ろす。
+      // 降ろさないと、後で自分が輪を抜けた瞬間に再追加が走り、意図しない再加入になる
+      // （サーバー側の枠の消え方の誤りを覆い隠してもいた）。
+      pendingDriverJoinRef.current = false;
+      if (shouldAutoJoinRotation({ participantId, rotation: r.session.rotation })) {
+        syncClient.send({ command: "member.add", participantId });
+      }
+    }
+    // 生成中で、お題の内容が前回から変化したら生成中を解除（AI 成功・定型縮退・タイムアウト確定の全経路）。
+    if (shouldClearGenerating(generatingProblem, prevRoom?.problem ?? null, r.problem ?? null)) {
+      endGenerating();
+    }
+    // サーバー権威の phase に全参加者が追従する（ホストの開始/完成が全員に反映）
+    setMode(screenForPhase(r.phase));
+    // ロビー（開始前）でお題が未確定かつ problemEnabled=true なら、作成者が一度だけ代表生成を依頼する（US3）。
+    // これがないと誰も problem.request を送らず「お題を準備中」のまま開始できない。
+    if (
+      shouldAutoRequestProblem({
+        phase: r.phase,
+        hasProblem: !!r.problem,
+        isCreator: isCreatorRef.current,
+        alreadyRequested: problemRequestedRef.current,
+        problemEnabled: r.config.problemEnabled !== false,
+      })
+    ) {
+      problemRequestedRef.current = true;
+      syncClient.send({ command: "problem.request", requestId: `req-${r.code}-lobby` });
+    }
+    // 難易度・言語をロビーで変えたら、お題を作り直して選択と中身を一致させる（①）。
+    // 代表（作成者）のみが依頼し、変化時だけ発火するのでループしない。
+    const cfgChanged =
+      prevRoom?.code === r.code &&
+      (prevRoom.config.difficulty !== r.config.difficulty ||
+        prevRoom.config.language !== r.config.language);
+    if (
+      cfgChanged &&
+      isCreatorRef.current &&
+      (r.phase === "setup" || r.phase === "ready") &&
+      !!r.problem &&
+      r.config.problemEnabled !== false
+    ) {
+      syncClient.send({ command: "problem.request", requestId: `req-${r.code}-cfg-${Date.now()}` });
+      beginGenerating();
+    }
+    // 完成フェーズかつ「完成（中断でない）」のとき、各端末でローカル記録を生成し
+    // IndexedDB へ永続化する（FR-020/028/059）。中断（abort）では記録を作らない。
+    // 二重保存は recordSavedRef でガードする（celebration の snapshot が複数回来ても1回）。
+    if (r.phase === "celebration" && r.problem && endType !== "abort" && !recordSavedRef.current) {
+      recordSavedRef.current = true;
+      const built = buildCompletionRecord(
+        { session: r.session, clock: r.clock },
+        r.problem,
+        r.config,
+        Date.now(),
+        r.code,
+      );
+      setRecord((prev) => prev ?? built);
+      // 完成記録を端末ローカルに自動保存（押し忘れ防止・FR-020「達成を記録」）。
+      persistRecordIfComplete("complete", built, saveRecord).catch((e) =>
+        console.error("完成記録の保存に失敗しました:", e),
+      );
+    }
+  };
+
+  const handleIdentity = ({ participantId: pid, resumeToken }: Identity) => {
+    setParticipantId(pid);
+    // room.code はこの時点でまだ分からないため、次の snapshot（handleRoom）で保存する。
+    pendingResumeRef.current = { participantId: pid, resumeToken };
+  };
+
+  const handleNeedProblem = async (syncClient: SyncClient, requestId: string) => {
+    // 代表に選ばれたらお題を生成して投入する（FR-025）。失敗時もプロバイダが定型へ縮退。
+    try {
+      // 言語・難易度は最新のルーム設定（ロビーでの編集を反映）から引く。
+      // ★await より前に読む: 生成待ちの間に届いた snapshot の値を使わないため（Issue #46 REQ-7）。
+      const language = room?.config.language ?? "TypeScript";
+      const difficulty = room?.config.difficulty ?? "easy";
+      const provider = resolveProvider();
+      const { problem, source } = await provider.generate(language, difficulty);
+      syncClient.send({
+        command: "problem.submit",
+        requestId,
+        problem,
+        usedFallback: source === "fallback",
+      });
+    } catch (e) {
+      console.error("お題生成に失敗しました（deadline で再委譲されます）:", e);
+    }
+  };
+
+  const handleError = (syncClient: SyncClient, code: string) => {
+    console.error("WS error:", code);
+    // 画面が次に何をするかは errorAction() の判定に委ねる（Issue #32・FR-127/129）。
+    // 分岐は kind の判別可能合併を網羅する（未処理の kind があれば型検査で気づける）。
+    const action = errorAction(code);
+    switch (action.kind) {
+      case "session-lost": {
+        // ルーム喪失（揮発サーバー再起動等）は明示的に「セッション喪失」を表示し、継続する（FR-007/059）。
+        // ローカル記録は保持され、再接続では消えないよう sessionLost を立てる。
+        setSessionLost(true);
+        setBanner({ text: "セッションが見つかりません。ローカルの記録は保持されています。", kind: "error" });
+        // ルームごと消失した以上、保存済みの resumeToken はもう使えない（Issue #24・FR-005）。
+        clearResumeIdentity();
+        return;
+      }
+      case "leave-room": {
+        // 退出が成立した本人を取り残さない（自己退出＝LEFT_ROOM／他者に退出させられた＝
+        // REMOVED_FROM_ROOM・REMOVED_BY_HOST）。後始末は行き先によらず共通で、
+        // 違うのはバナー文言（friendlyError(code) から引く）と行き先だけ（Issue #32・FR-127/128）。
+        const removedFrom = room?.code ?? null;
+        syncClient.dispose();
+        setRoom(null);
+        setClient(null);
+        setParticipantId("");
+        isCreatorRef.current = false;
+        problemRequestedRef.current = false;
+        recordSavedRef.current = false;
+        setSessionLost(false);
+        setRecord(null);
+        // 明示的に退出が成立した以上、この参加者としてのリジュームはもう意味を持たない
+        // （次に別ルームへ入ったときに誤って古いルームへ復帰しようとしないため・Issue #24・FR-004）。
+        clearResumeIdentity();
+        // ルーム由来の画面状態は退出成立時に破棄する（FR-128）。
+        // お題生成中フラグ・安全弁タイマーもルーム固有の途中状態なので、
+        // 持ち越すと次に入った別ルームで「何も頼んでいないのに生成中」の
+        // 表示が最大65秒残ってしまう。beginGenerating と対になる endGenerating を
+        // ここでも再利用し、後始末を二重に書かない（DRY）。
+        endGenerating();
+        // バナー自動消去タイマーが生きていると、退出バナー表示後にそのタイマーが
+        // 発火して退出バナーを消してしまう（例: ロビーの一時エラーで4秒タイマーが
+        // 仕掛かった直後に自己退出した場合）。ここで確実に解除する。
+        if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
+        // 退出バナーは自動消去しない。入口画面へ遷移した後も「抜けたこと」を
+        // 利用者が確認できるまで残し続けるべきで、新しいタイマーは張らない
+        // （Issue #32 の狙い＝退出が分からない問題の再発防止）。
+        bannerTimerRef.current = null;
+        setBanner({ text: friendlyError(code), kind: "warn" });
+        if (action.destination === "join") {
+          // 直前のルームコードがあれば参加画面へ引き継ぐ（無ければ入口へ・現状の挙動を維持）。
+          if (removedFrom) {
+            setJoinCode(removedFrom);
+            setMode("join");
+          } else {
+            setMode("setup");
+          }
+        } else {
+          // destination === "setup": 入口画面へ戻すときは直前ルームへの手がかりを
+          // 保持しない（FR-127 / US2-2）。joinCode に値が残っている可能性があるので
+          // 明示的にクリアする。
+          setJoinCode(null);
+          // 画面上の state をクリアしただけでは不十分。アドレスバーの URL に
+          // ?room=... が残っていると、それ自体が「直前のルームへ復帰するための
+          // 手がかり」になり、リロード一発で抜けたはずのルームの参加画面へ
+          // 戻ってしまう。pushState ではなく replaceState を使い、戻るボタンの
+          // 履歴に退出前の URL を積まないようにする。
+          window.history.replaceState(null, "", stripRoomParam(window.location.href));
+          setMode("setup");
+        }
+        return;
+      }
+      case "transient": {
+        // それ以外は「一時的な操作エラー」。分かりやすい日本語にし、数秒で自動消去する
+        // （生のコードを残し続けない・画面遷移後も居座らせない）。
+        setBanner({ text: friendlyError(code), kind: "warn" });
+        if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
+        bannerTimerRef.current = setTimeout(() => setBanner(null), 4000);
+        return;
+      }
+      default: {
+        // 網羅チェック: action.kind に新しい種類が増えたらここで型検査が落ちる（T018・DbC）。
+        const exhaustive: never = action;
+        return exhaustive;
+      }
+    }
+  };
+
+  // WS が切断後に自動再接続したとき、保存済みの resumeToken で room.join を
+  // 利用者の操作なしに再送する（Issue #24・FR-002/FR-003）。初回 connect() では
+  // 呼ばれないため、ここでの二重送信は起きない。
+  const handleReconnected = (syncClient: SyncClient) => {
+    const saved = loadResumeIdentity();
+    if (!saved) return;
+    syncClient.send({
+      command: "room.join",
+      code: saved.code,
+      displayName: saved.displayName,
+      hasAiKey: false,
+      resumeToken: saved.resumeToken,
+    });
+  };
+
+  // 破壊的操作の実行者を全員へ伝える（Issue #22・FR-077）。
+  // banner は aria-live 付きのライブリージョンなので、そのまま読み上げにも乗る。
+  const handleNotice = (notice: NoticeSignal) => {
+    const text = buildNoticeMessage(notice, {
+      selfParticipantId: participantId,
+      participants: room?.participants ?? [],
+    });
+    setBanner({ text, kind: "warn" });
+    if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
+    bannerTimerRef.current = setTimeout(() => setBanner(null), 4000);
+  };
+
+  // 上のハンドラ群を1本の ref へ毎レンダー同期する。同期は render 本体で行う
+  // （useEffect を挟むと差し替えが1レンダー遅れ、その隙間に届いた WS メッセージを
+  // 古いハンドラが処理してしまう・Issue #46 REQ-3）。
+  const handlersRef = useLatestRef({
+    handleRoom,
+    handleIdentity,
+    handleNeedProblem,
+    handleError,
+    handleReconnected,
+    handleNotice,
+  });
+
   // SyncClient の配線を create/join で共有する。
+  // 各コールバックは handlersRef.current の同名ハンドラへ転送するだけで、
+  // 生成時に固定されても実際に走るのは常に最新レンダーのハンドラになる。
+  // onConnected / onDisconnected / onConnectionChange は setter 呼び出し1行で、
+  // setter の同一性は React が保証しているため closure 固定の害がなく、転送を挟まない。
   const makeClient = (): SyncClient => {
     const wsUrl = `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/ws`;
     const newClient = new SyncClient({
       url: wsUrl,
-      onRoom: (r) => {
-        // useLatestRef は render のたびに同期するため、ここではまだ前回値のまま
-        // （このコールバック内では setRoom(r) 後も再レンダーが起きるまで前回値を保つ）。
-        const prevRoom = latestRef.current.room;
-        setRoom(r);
-        // 直前の room.created/room.joined で受け取った resumeToken を、今来た snapshot の
-        // room.code と組み合わせて保存する（Issue #24・FR-001）。一度保存すれば
-        // このクライアントの生存期間中 code/participantId/resumeToken は変わらないため、
-        // 以降の snapshot では再保存しない（sessionStorage への書き込みを1回に抑える）。
-        if (pendingResumeRef.current) {
-          saveResumeIdentity({
-            code: r.code,
-            participantId: pendingResumeRef.current.participantId,
-            resumeToken: pendingResumeRef.current.resumeToken,
-            displayName: resumeDisplayNameRef.current,
-          });
-          pendingResumeRef.current = null;
-        }
-        // 参加時ドライバー宣言: 自分が参加者に現れたら一度だけ rotation に加入する。
-        const myId = latestRef.current.participantId;
-        if (pendingDriverJoinRef.current && myId && r.participants.some((p) => p.participantId === myId)) {
-          // 宣言は「参加時の一度きり」。輪に入れたかに関わらずここで降ろす。
-          // 降ろさないと、後で自分が輪を抜けた瞬間に再追加が走り、意図しない再加入になる
-          // （サーバー側の枠の消え方の誤りを覆い隠してもいた）。
-          pendingDriverJoinRef.current = false;
-          if (shouldAutoJoinRotation({ participantId: myId, rotation: r.session.rotation })) {
-            newClient.send({ command: "member.add", participantId: myId });
-          }
-        }
-        // 生成中で、お題の内容が前回から変化したら生成中を解除（AI 成功・定型縮退・タイムアウト確定の全経路）。
-        if (shouldClearGenerating(latestRef.current.generatingProblem, prevRoom?.problem ?? null, r.problem ?? null)) {
-          endGenerating();
-        }
-        // サーバー権威の phase に全参加者が追従する（ホストの開始/完成が全員に反映）
-        setMode(screenForPhase(r.phase));
-        // ロビー（開始前）でお題が未確定かつ problemEnabled=true なら、作成者が一度だけ代表生成を依頼する（US3）。
-        // これがないと誰も problem.request を送らず「お題を準備中」のまま開始できない。
-        if (
-          shouldAutoRequestProblem({
-            phase: r.phase,
-            hasProblem: !!r.problem,
-            isCreator: isCreatorRef.current,
-            alreadyRequested: problemRequestedRef.current,
-            problemEnabled: r.config.problemEnabled !== false,
-          })
-        ) {
-          problemRequestedRef.current = true;
-          newClient.send({ command: "problem.request", requestId: `req-${r.code}-lobby` });
-        }
-        // 難易度・言語をロビーで変えたら、お題を作り直して選択と中身を一致させる（①）。
-        // 代表（作成者）のみが依頼し、変化時だけ発火するのでループしない。
-        const cfgChanged =
-          prevRoom?.code === r.code &&
-          (prevRoom.config.difficulty !== r.config.difficulty ||
-            prevRoom.config.language !== r.config.language);
-        if (
-          cfgChanged &&
-          isCreatorRef.current &&
-          (r.phase === "setup" || r.phase === "ready") &&
-          !!r.problem &&
-          r.config.problemEnabled !== false
-        ) {
-          newClient.send({ command: "problem.request", requestId: `req-${r.code}-cfg-${Date.now()}` });
-          beginGenerating();
-        }
-        // 完成フェーズかつ「完成（中断でない）」のとき、各端末でローカル記録を生成し
-        // IndexedDB へ永続化する（FR-020/028/059）。中断（abort）では記録を作らない。
-        // 二重保存は recordSavedRef でガードする（celebration の snapshot が複数回来ても1回）。
-        if (
-          r.phase === "celebration" &&
-          r.problem &&
-          latestRef.current.endType !== "abort" &&
-          !recordSavedRef.current
-        ) {
-          recordSavedRef.current = true;
-          const built = buildCompletionRecord(
-            { session: r.session, clock: r.clock },
-            r.problem,
-            r.config,
-            Date.now(),
-            r.code,
-          );
-          setRecord((prev) => prev ?? built);
-          // 完成記録を端末ローカルに自動保存（押し忘れ防止・FR-020「達成を記録」）。
-          persistRecordIfComplete("complete", built, saveRecord).catch((e) =>
-            console.error("完成記録の保存に失敗しました:", e),
-          );
-        }
-      },
-      onIdentity: ({ participantId: pid, resumeToken }) => {
-        setParticipantId(pid);
-        // room.code はこの時点でまだ分からないため、次の snapshot（onRoom）で保存する。
-        pendingResumeRef.current = { participantId: pid, resumeToken };
-      },
-      onNeedProblem: async (requestId) => {
-        // 代表に選ばれたらお題を生成して投入する（FR-025）。失敗時もプロバイダが定型へ縮退。
-        try {
-          // 言語・難易度は最新のルーム設定（ロビーでの編集を反映）から引く。
-          // ★await より前に読む: 生成待ちの間に届いた snapshot の値を使わないため（Issue #46 REQ-7）。
-          const language = latestRef.current.room?.config.language ?? "TypeScript";
-          const difficulty = latestRef.current.room?.config.difficulty ?? "easy";
-          const provider = resolveProvider();
-          const { problem, source } = await provider.generate(language, difficulty);
-          newClient.send({
-            command: "problem.submit",
-            requestId,
-            problem,
-            usedFallback: source === "fallback",
-          });
-        } catch (e) {
-          console.error("お題生成に失敗しました（deadline で再委譲されます）:", e);
-        }
-      },
-      onError: (code) => {
-        console.error("WS error:", code);
-        // 画面が次に何をするかは errorAction() の判定に委ねる（Issue #32・FR-127/129）。
-        // 分岐は kind の判別可能合併を網羅する（未処理の kind があれば型検査で気づける）。
-        const action = errorAction(code);
-        switch (action.kind) {
-          case "session-lost": {
-            // ルーム喪失（揮発サーバー再起動等）は明示的に「セッション喪失」を表示し、継続する（FR-007/059）。
-            // ローカル記録は保持され、再接続では消えないよう sessionLost を立てる。
-            setSessionLost(true);
-            setBanner({ text: "セッションが見つかりません。ローカルの記録は保持されています。", kind: "error" });
-            // ルームごと消失した以上、保存済みの resumeToken はもう使えない（Issue #24・FR-005）。
-            clearResumeIdentity();
-            return;
-          }
-          case "leave-room": {
-            // 退出が成立した本人を取り残さない（自己退出＝LEFT_ROOM／他者に退出させられた＝
-            // REMOVED_FROM_ROOM・REMOVED_BY_HOST）。後始末は行き先によらず共通で、
-            // 違うのはバナー文言（friendlyError(code) から引く）と行き先だけ（Issue #32・FR-127/128）。
-            const removedFrom = latestRef.current.room?.code ?? null;
-            newClient.dispose();
-            setRoom(null);
-            setClient(null);
-            setParticipantId("");
-            isCreatorRef.current = false;
-            problemRequestedRef.current = false;
-            recordSavedRef.current = false;
-            setSessionLost(false);
-            setRecord(null);
-            // 明示的に退出が成立した以上、この参加者としてのリジュームはもう意味を持たない
-            // （次に別ルームへ入ったときに誤って古いルームへ復帰しようとしないため・Issue #24・FR-004）。
-            clearResumeIdentity();
-            // ルーム由来の画面状態は退出成立時に破棄する（FR-128）。
-            // お題生成中フラグ・安全弁タイマーもルーム固有の途中状態なので、
-            // 持ち越すと次に入った別ルームで「何も頼んでいないのに生成中」の
-            // 表示が最大65秒残ってしまう。beginGenerating と対になる endGenerating を
-            // ここでも再利用し、後始末を二重に書かない（DRY）。
-            endGenerating();
-            // バナー自動消去タイマーが生きていると、退出バナー表示後にそのタイマーが
-            // 発火して退出バナーを消してしまう（例: ロビーの一時エラーで4秒タイマーが
-            // 仕掛かった直後に自己退出した場合）。ここで確実に解除する。
-            if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
-            // 退出バナーは自動消去しない。入口画面へ遷移した後も「抜けたこと」を
-            // 利用者が確認できるまで残し続けるべきで、新しいタイマーは張らない
-            // （Issue #32 の狙い＝退出が分からない問題の再発防止）。
-            bannerTimerRef.current = null;
-            setBanner({ text: friendlyError(code), kind: "warn" });
-            if (action.destination === "join") {
-              // 直前のルームコードがあれば参加画面へ引き継ぐ（無ければ入口へ・現状の挙動を維持）。
-              if (removedFrom) {
-                setJoinCode(removedFrom);
-                setMode("join");
-              } else {
-                setMode("setup");
-              }
-            } else {
-              // destination === "setup": 入口画面へ戻すときは直前ルームへの手がかりを
-              // 保持しない（FR-127 / US2-2）。joinCode に値が残っている可能性があるので
-              // 明示的にクリアする。
-              setJoinCode(null);
-              // 画面上の state をクリアしただけでは不十分。アドレスバーの URL に
-              // ?room=... が残っていると、それ自体が「直前のルームへ復帰するための
-              // 手がかり」になり、リロード一発で抜けたはずのルームの参加画面へ
-              // 戻ってしまう。pushState ではなく replaceState を使い、戻るボタンの
-              // 履歴に退出前の URL を積まないようにする。
-              window.history.replaceState(null, "", stripRoomParam(window.location.href));
-              setMode("setup");
-            }
-            return;
-          }
-          case "transient": {
-            // それ以外は「一時的な操作エラー」。分かりやすい日本語にし、数秒で自動消去する
-            // （生のコードを残し続けない・画面遷移後も居座らせない）。
-            setBanner({ text: friendlyError(code), kind: "warn" });
-            if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
-            bannerTimerRef.current = setTimeout(() => setBanner(null), 4000);
-            return;
-          }
-          default: {
-            // 網羅チェック: action.kind に新しい種類が増えたらここで型検査が落ちる（T018・DbC）。
-            const exhaustive: never = action;
-            return exhaustive;
-          }
-        }
-      },
+      onRoom: (r) => handlersRef.current.handleRoom(newClient, r),
+      onIdentity: (identity) => handlersRef.current.handleIdentity(identity),
+      onNeedProblem: (requestId) => handlersRef.current.handleNeedProblem(newClient, requestId),
+      onError: (code) => handlersRef.current.handleError(newClient, code),
       onConnected: () => setBanner(null),
       onDisconnected: () =>
         setBanner({ text: "接続が切れました。再接続しています...", kind: "warn" }),
       onConnectionChange: (s) => setConnState(s),
-      // WS が切断後に自動再接続したとき、保存済みの resumeToken で room.join を
-      // 利用者の操作なしに再送する（Issue #24・FR-002/FR-003）。初回 connect() では
-      // 呼ばれないため、ここでの二重送信は起きない。
-      onReconnected: () => {
-        const saved = loadResumeIdentity();
-        if (!saved) return;
-        newClient.send({
-          command: "room.join",
-          code: saved.code,
-          displayName: saved.displayName,
-          hasAiKey: false,
-          resumeToken: saved.resumeToken,
-        });
-      },
-      // 破壊的操作の実行者を全員へ伝える（Issue #22・FR-077）。
-      // banner は aria-live 付きのライブリージョンなので、そのまま読み上げにも乗る。
-      // participantId は state 更新の遅れを避けるため ref から取る（closure の固定を回避）。
-      onNotice: (notice) => {
-        const text = buildNoticeMessage(notice, {
-          selfParticipantId: latestRef.current.participantId,
-          participants: latestRef.current.room?.participants ?? [],
-        });
-        setBanner({ text, kind: "warn" });
-        if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
-        bannerTimerRef.current = setTimeout(() => setBanner(null), 4000);
-      },
+      onReconnected: () => handlersRef.current.handleReconnected(newClient),
+      onNotice: (notice) => handlersRef.current.handleNotice(notice),
     });
     newClient.connect();
     setClient(newClient);
@@ -560,23 +608,6 @@ export default function App() {
     navigator.clipboard.writeText(formatProblemText(p)).catch(() => {
       /* 権限拒否等は無視 */
     });
-  };
-
-  // 生成中フラグを立て、65 秒の安全弁を張る（サーバ 60 秒タイムアウト＋余裕）。
-  const beginGenerating = () => {
-    setGeneratingProblem(true);
-    if (generatingTimerRef.current) clearTimeout(generatingTimerRef.current);
-    generatingTimerRef.current = setTimeout(() => {
-      setGeneratingProblem(false);
-      generatingTimerRef.current = null;
-    }, 65_000);
-  };
-  const endGenerating = () => {
-    setGeneratingProblem(false);
-    if (generatingTimerRef.current) {
-      clearTimeout(generatingTimerRef.current);
-      generatingTimerRef.current = null;
-    }
   };
 
   const regenerateProblem = () => {
