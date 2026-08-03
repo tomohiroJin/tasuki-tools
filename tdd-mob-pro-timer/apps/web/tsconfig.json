@@ -6,7 +6,11 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "jsx": "react-jsx",
-    "outDir": "./dist",
+    // このパッケージは tsc で出力しない（build は vite、typecheck は tsc --noEmit）。
+    // outDir を持たせたままだと、paths が @tdd-mob/core を ../../packages/core/src へ
+    // 向けている都合で共通ルートが ../.. になり、TypeScript 6.0 が rootDir の明示を
+    // 要求してエラーになる（TS5011）。出力しない事実を設定に書くことで解消する。
+    "noEmit": true,
     "paths": {
       "@tdd-mob/core": ["../../packages/core/src/index.ts"],
       "@tdd-mob/core/*": ["../../packages/core/src/*.ts"]

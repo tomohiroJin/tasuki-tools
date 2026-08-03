@@ -2,6 +2,11 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "./dist",
+    // paths が @tdd-mob/core を ../../packages/core/src へ向けているため、共通ルートは
+    // このパッケージではなくワークスペース直下（../..）になる。TypeScript 5.x は黙って
+    // そう推論していたが、6.0 からは明示が必須（TS5011）。既に dist/apps/sync/src/... へ
+    // 出力されているので、この指定は現在のレイアウトを明文化するだけで挙動は変わらない。
+    "rootDir": "../..",
     "lib": ["ES2022"],
     "paths": {
       "@tdd-mob/core": ["../../packages/core/src/index.ts"],
