@@ -1143,3 +1143,38 @@ reducer化による変更差分が「二重管理の解消」という目的に�
 別 Issue（**#46**）として切り出した。詳細は
 `docs/plans/issue-41-app-state-ref/spec.md`（非対象節）・
 `docs/plans/issue-41-app-state-ref/plan.md` を参照。
+
+## 17. Issue #46（SyncClient コールバックの転送化・#41 の残作業）実測値
+
+**対象:** `apps/web/src/App.tsx`
+
+| 指標 | Issue #41 完了時（2026-08-01） | **本 PR 後**（2026-08-03） |
+|---|---:|---:|
+| 行数 | 764 | 791 |
+| `useState` 数 | 11 | 11 |
+| ref 宣言数（`useRef` + `useLatestRef`） | 11 | 11 |
+| うち state の写しを保持する ref | **1**（`latestRef`） | **0** |
+| うちハンドラ束を保持する ref | 0 | **1**（`handlersRef`） |
+| うち素の `useRef`（純粋なガード用・対象外） | 10 | 10（変更なし） |
+
+### 何が解消され、何が残ったか
+
+`SyncClient` のコールバックを「`handlersRef.current` の同名ハンドラへ転送するだけ」に
+変え、ハンドラ本体を render 本体のスコープへ移した。これにより
+`room` / `endType` / `participantId` / `generatingProblem` は **`useState` 単独保持**に
+なり、Issue #28 D-2 / #41 が問題としていた「同じ値を state と ref の両方で持つ」構造は
+消えた。
+
+★**ref 宣言数は変わらない**（`latestRef` が `handlersRef` に置き換わったため）。
+本 PR が消したのは「ref に state を複製すること」であって「ref 経由の間接呼び出し」
+ではない。`SyncClient` のコールバック登録そのものは生成時固定のままである。
+WS という React の外側のイベント源から最新のレンダー結果へ橋を架ける以上、
+可変な参照を1つ挟むことは構造上避けられない（React 自身も `useEffectEvent`
+（実験的 API）で同型の解を用意しようとしている領域）。判断の根拠は
+`docs/plans/issue-46-sync-handlers-ref/spec.md`「この設計で『解消するもの』と
+『残るもの』」節を参照。
+
+`useEffect` での再登録（Issue #46 本文が挙げていた案）は採らなかった。passive effect は
+commit と同期に flush されないため、その隙間に届いた WS メッセージを古いハンドラが
+処理する窓が実在し、#41 spec REQ-2 が禁じた「1レンダー遅れ」を値側からハンドラ側へ
+移すだけになるため。
