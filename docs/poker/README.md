@@ -9,7 +9,7 @@ GitHub spec-kit（specify CLI）のフルワークフロー実践を兼ねた Ta
     Caddy のルーティング・別ポート・別 systemd ユニットが必要で、それらは monorepo 統合の
     設計に含まれるため、先に個別対応すると二度手間になる
 - 仕様・設計: [`specs/001-planning-poker-mvp/`](./specs/001-planning-poker-mvp/)（spec / plan / research / data-model / contracts / quickstart / tasks）
-- プロジェクト憲法: [`.specify/memory/constitution.md`](./.specify/memory/constitution.md)
+- プロジェクト憲法: [`.specify/memory/constitution.md`](../../.specify/memory/constitution.md)
 
 ## 機能（MVP）
 
@@ -51,4 +51,4 @@ pnpm --filter @tasuki/poker-web dev    # Vite（/poker/ 配信、WS は :3311 �
 ## デプロイ
 
 `pnpm turbo build` 後、`deploy/` の Caddyfile 断片と systemd ユニットを適用する
-（implement の最終フェーズ。詳細は [deploy/README.md](./deploy/README.md)）。
+（implement の最終フェーズ。詳細は [deploy/README.md](../../deploy/poker/README.md)）。

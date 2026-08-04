@@ -94,7 +94,7 @@ plan 工程での技術選定の発散（暴走）を防ぐ必要があるため
 - **公開方式**: `https://tasuki.niku9.click/poker` のサブパス方式で配信する。
   Vite の `base` は `/poker/` に設定する（MUST）
 - **同居ポリシー**: `apps/sync` は既存サービスとは別ポートの別 systemd
-  サービスとして稼働させる。既存 `tdd-mob-pro-timer/` には手を入れない（MUST NOT）
+  サービスとして稼働させる。既存の timer（`packages/timer-core` / `apps/timer-*`）には手を入れない（MUST NOT）
 - **デプロイ時期**: デプロイは implement 完了後の最終フェーズとし、
   それまではローカル開発で完結させる
 - **切断・再接続**: ホスト切断時の権限繰上は既存ツール（tdd-mob-pro-timer）の

@@ -20,7 +20,7 @@ AI 生成に失敗しても定型お題へ自動縮退します。完成時に�
 
 ## アーキテクチャ概要
 
-3 つのワークスペースから成る pnpm モノレポです。詳細は [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) を参照してください。
+3 つのワークスペースから成る pnpm モノレポです。詳細は [docs/ARCHITECTURE.md](./ARCHITECTURE.md) を参照してください。
 
 | パッケージ | 役割 |
 |---|---|
@@ -28,7 +28,7 @@ AI 生成に失敗しても定型お題へ自動縮退します。完成時に�
 | `apps/sync`（`@tasuki/timer-sync`） | 軽量同期サーバー（WebSocket・full snapshot 配信・サーバー権威タイマー・揮発状態） |
 | `apps/web`（`@tasuki/timer-web`） | フロントエンド（React + Vite）。WS クライアント・記録・UI |
 
-設計判断の経緯は [docs/adr/](./docs/adr/) の ADR を参照してください。
+設計判断の経緯は [docs/adr/](./adr/) の ADR を参照してください。
 
 ## 前提条件
 
@@ -61,8 +61,8 @@ Vite の開発サーバーは `/ws` を同期サーバー（`ws://localhost:8787
 
 AI お題生成は、サーバー env に **OAuth トークン**と**解錠の合言葉**の両方を設定したときだけ有効になります。
 どちらかが欠けると AI 機能は丸ごと無効で、お題は定型バンクのみになります（解錠も常に失敗＝機能の存在を秘匿）。
-設計の詳細は [../docs/superpowers/specs/2026-06-12-ai-problem-generation-design.md](../docs/superpowers/specs/2026-06-12-ai-problem-generation-design.md)、
-本番デプロイ手順は [deploy/README.md](./deploy/README.md) の「AI お題生成」節を参照してください。
+設計の詳細は [../docs/superpowers/specs/2026-06-12-ai-problem-generation-design.md](../superpowers/specs/2026-06-12-ai-problem-generation-design.md)、
+本番デプロイ手順は [deploy/README.md](../../deploy/timer/README.md) の「AI お題生成」節を参照してください。
 
 #### 1. OAuth トークンを用意する
 
@@ -132,7 +132,7 @@ AI 関連の環境変数:
 ### 同期サーバーを Node で起動する場合
 
 `apps/sync` は既定で Bun 起動ですが、Bun が無い環境では bundler 経由で Node 実行できます。
-本番は Caddy（[deploy/Caddyfile](./deploy/Caddyfile)）を前段に置く構成を想定しています。
+本番は Caddy（[deploy/Caddyfile](../../deploy/timer/Caddyfile)）を前段に置く構成を想定しています。
 
 環境変数:
 
@@ -152,22 +152,24 @@ pnpm build              # ビルド
 
 ドメインは Vitest + fast-check（プロパティテスト）で不変条件を検証します。
 振る舞いテスト（Example Map / 受け入れ基準 / Gherkin）は
-[docs/plans/tdd-mob-pro-timer/](../docs/plans/tdd-mob-pro-timer/) にあります。
+[docs/plans/tdd-mob-pro-timer/](../plans/tdd-mob-pro-timer/) にあります。
 
 ## ディレクトリ構成
 
+timer は Tasuki の単一 workspace 上の 3 パッケージで構成されます（リポジトリのルートから見た配置）。
+
 ```
-tdd-mob-pro-timer/
-├─ packages/core/        # @tasuki/timer-core — 純粋ドメイン
+Tasuki/
+├─ packages/timer-core/  # @tasuki/timer-core — 純粋ドメイン
 │  └─ src/{aggregate,decide,evolve,events,errors,schemas,problem,problem-bank,
 │           records,display-name,participants,permissions,error-messages}.ts
-├─ apps/sync/            # @tasuki/timer-sync — 同期サーバー
+├─ apps/timer-sync/      # @tasuki/timer-sync — 同期サーバー
 │  └─ src/{domain なし→core 再利用, application/, ports/, adapters/, server.ts}
-├─ apps/web/             # @tasuki/timer-web — フロントエンド
+├─ apps/timer-web/       # @tasuki/timer-web — フロントエンド
 │  └─ src/{ui/, sync/, ai/, records/, prefs/, platform/}
 ├─ scripts/              # audit-structure.mjs（成功基準の走査）/ mutation-check.mjs（変異検査）
-├─ deploy/Caddyfile      # 本番前段（WSS・/ws リバースプロキシ）
-└─ docs/                 # ARCHITECTURE.md / adr/
+├─ deploy/timer/         # 本番資材（deploy.sh / Caddyfile / systemd ユニット）
+└─ docs/timer/           # ARCHITECTURE.md / adr/
 ```
 
 ## ライセンス

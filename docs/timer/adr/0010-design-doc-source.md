@@ -8,7 +8,7 @@
 
 ## 背景
 
-リポジトリ直下（`/workspaces/claym/local/Tasuki`、`tdd-mob-pro-timer/` の一つ上の階層）の
+リポジトリ直下の
 `docs/` に、設計文書が 2 系統で併存している。
 
 - `docs/plans/` — 24 ファイル（実測 `find docs/plans -name '*.md' | wc -l`）

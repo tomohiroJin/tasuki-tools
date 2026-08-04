@@ -197,7 +197,7 @@ curl -H "x-admin-token: $ADMIN_TOKEN" http://127.0.0.1:8787/admin/rooms
 ### 開発時の注意
 
 - ローカルで AI を試す簡単な方法は `apps/timer-sync/.env` に値を書くこと（Bun が cwd の `.env` を
-  自動読み込み・`passThroughEnv` 不要）。手順は [../README.md](../README.md) の「AI お題生成をローカルで試す」を参照。
+  自動読み込み・`passThroughEnv` 不要）。手順は [../README.md](../../docs/timer/README.md) の「AI お題生成をローカルで試す」を参照。
 - env を `pnpm dev` のコマンドラインで直接渡す場合のみ、`turbo.json` の `dev.passThroughEnv` に
   宣言済みのものだけが透過する（turbo strict env）。新しい env を足すときは turbo.json も更新する。
 

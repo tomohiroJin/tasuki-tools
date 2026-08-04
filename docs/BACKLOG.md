@@ -58,10 +58,10 @@
   合言葉（`AI_UNLOCK_KEY`）解錠方式＝知っているルームの host だけが有効化。
   失敗は全経路で定型バンクへ縮退・濫用抑制（同時1/クールダウン10s/日次上限）・`/status` に生成カウンタ。
 - **正本**: spec `docs/superpowers/specs/2026-06-12-ai-problem-generation-design.md` /
-  計画 `docs/superpowers/plans/2026-06-12-ai-problem-generation.md` / 手順 `tdd-mob-pro-timer/deploy/README.md`「AI お題生成」
+  計画 `docs/superpowers/plans/2026-06-12-ai-problem-generation.md` / 手順 `deploy/timer/README.md`「AI お題生成」
 - **検証**: 全 665 テスト緑・実 claude -p スモーク・ブラウザ E2E（解錠失敗→解錠→AI 生成 25s→定型復帰）済
 - **デプロイ時作業**: ✅ 完了（VPS へ claude バイナリ導入 + env 2 変数追記 + systemd PATH。
-  手順の正本は `tdd-mob-pro-timer/deploy/README.md`「AI お題生成」）
+  手順の正本は `deploy/timer/README.md`「AI お題生成」）
 
 ---
 
@@ -75,9 +75,9 @@
 
 ## 公開範囲の方針（重要）
 
-**本番に公開しているのは TDD Mob Pro Timer（`tdd-mob-pro-timer/`）のみである。**
+**本番に公開しているのは TDD Mob Pro Timer（`packages/timer-core` / `apps/timer-*`）のみである。**
 
-- `planning-poker/` は **同一リポジトリにあるが未公開**。`deploy/deploy.sh` は
+- Planning Poker（`packages/poker-core` / `apps/poker-*`）は **同一リポジトリにあるが未公開**。`deploy/deploy.sh` は
   `apps/web/dist/` と `apps/sync` のバンドルしか転送しないため、
   **main をデプロイしても Planning Poker は本番に出ない**（構成上そうなっている）
 - `https://tasuki.niku9.click/poker` は Caddy の SPA フォールバックにより
