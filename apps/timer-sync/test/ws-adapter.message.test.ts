@@ -9,8 +9,8 @@
  * 「そのコードに表示文言が決まっているか」は見るが、
  * 「アダプタが実際にそのコードを送るか」は検証していない。
  *
- * S5（#20）で WebSocket 実装を ws から Bun.serve へ移す際、この経路が
- * 無防備なままでは書き換えの正しさを確かめられないため先に足した。
+ * S5（#20）で境界のパースを @tasuki/protocol へ切り出すにあたり、この経路が
+ * 無防備なままでは切り出しの正しさを確かめられないため先に足した。
  *
  * @requirements FR-013, NFRセキュリティ(S3)
  */
@@ -19,7 +19,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { WebSocket } from "ws";
 import { WsAdapter } from "../src/adapters/ws-adapter.js";
 
-const PORT = 18791; // 他のテストと衝突しない専用ポート
+const PORT = 18793; // 専用ポート（integration=18790 / heartbeat=18791 / admin=8799 と重複しない）
 
 let adapter: WsAdapter | undefined;
 afterEach(async () => {

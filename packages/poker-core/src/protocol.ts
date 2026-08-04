@@ -1,7 +1,8 @@
 // WS メッセージプロトコル（contracts/ws-protocol.md の実装。契約の単一情報源）
 // 境界での検証は Valibot、結果は neverthrow の Result（憲法原則 IV）
 import * as v from 'valibot';
-import { err, ok, type Result } from 'neverthrow';
+import { type Result } from 'neverthrow';
+import { parseBoundaryMessage } from '@tasuki/protocol';
 import { NUMBER_CARD_VALUES, type Card } from './deck';
 import { NAME_MAX_LENGTH } from './room';
 
@@ -96,21 +97,19 @@ export type ProtocolError = { code: 'invalid-message'; message: string };
 
 // --- パース関数 ---
 
+/**
+ * 境界のパースは @tasuki/protocol に一本化してある（timer の sync も同じものを使う）。
+ * poker は JSON 不正とスキーマ不正を区別せず、どちらも invalid-message に畳む
+ * （利用者に見せる文言だけを段に応じて変える）。
+ */
 function parseWith<TSchema extends v.GenericSchema>(
   schema: TSchema,
   raw: string,
 ): Result<v.InferOutput<TSchema>, ProtocolError> {
-  let json: unknown;
-  try {
-    json = JSON.parse(raw);
-  } catch {
-    return err({ code: 'invalid-message', message: 'JSON として解釈できません' });
-  }
-  const parsed = v.safeParse(schema, json);
-  if (!parsed.success) {
-    return err({ code: 'invalid-message', message: 'メッセージ形式が不正です' });
-  }
-  return ok(parsed.output);
+  return parseBoundaryMessage(schema, raw).mapErr(({ stage }) => ({
+    code: 'invalid-message' as const,
+    message: stage === 'json' ? 'JSON として解釈できません' : 'メッセージ形式が不正です',
+  }));
 }
 
 /** 受信した生テキストを検証済み ClientMessage にする（sync の境界） */
