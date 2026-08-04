@@ -2,7 +2,7 @@
  * driver.assign（Issue #13 任意メンバー強制指名）のサーバ挙動。
  * host 限定・participantId→index 解決・離脱中の自動復帰・現ドライバー指名 no-op を検証する。
  */
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";

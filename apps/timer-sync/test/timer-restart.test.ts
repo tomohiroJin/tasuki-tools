@@ -3,7 +3,7 @@
  * editor+ で実行でき、現ドライバー・回数・お題・メモ・設定を保ったまま満タンで
  * 再スケジュールされること。viewer は拒否されること。
  */
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";

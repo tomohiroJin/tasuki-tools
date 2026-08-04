@@ -2,7 +2,7 @@
  * InMemoryRoomStore のテスト
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from "bun:test";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import type { Room } from "@tasuki/timer-core";
 

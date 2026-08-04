@@ -14,7 +14,7 @@
  * @requirements FR-165, FR-166, SC-057
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import { advanceDriver } from "@tasuki/timer-core";
 import { makeHandlers } from "../src/application/handlers.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";

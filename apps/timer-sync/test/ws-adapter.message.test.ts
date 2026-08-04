@@ -15,7 +15,7 @@
  * @requirements FR-013, NFRセキュリティ(S3)
  */
 
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach } from "bun:test";
 import { WebSocket } from "ws";
 import { WsAdapter } from "../src/adapters/ws-adapter.js";
 

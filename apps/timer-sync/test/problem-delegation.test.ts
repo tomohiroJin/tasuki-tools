@@ -6,7 +6,7 @@
  * 全候補失敗で pickFallback 確定。リロール（新 request）で旧依頼をキャンセル。
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, jest, beforeEach, afterEach } from "bun:test";
 import {
   ProblemDelegator,
   PROBLEM_DEADLINE_MS,
@@ -106,7 +106,7 @@ describe("ProblemDelegator: 代表生成", () => {
   let delegator: ProblemDelegator;
 
   beforeEach(() => {
-    vi.useFakeTimers();
+    jest.useFakeTimers();
     store = new InMemoryRoomStore();
     clock = new FakeClock(1000000);
     broadcaster = new SpyBroadcaster();
@@ -115,7 +115,7 @@ describe("ProblemDelegator: 代表生成", () => {
 
   afterEach(() => {
     delegator.cancelAll();
-    vi.useRealTimers();
+    jest.useRealTimers();
   });
 
   it("request で先頭候補（host）へ need-problem を送る", () => {
@@ -162,7 +162,7 @@ describe("ProblemDelegator: 代表生成", () => {
     delegator.request("PD01", "req-1");
 
     // When
-    vi.advanceTimersByTime(PROBLEM_DEADLINE_MS + 100);
+    jest.advanceTimersByTime(PROBLEM_DEADLINE_MS + 100);
 
     // Then
     const targets = needProblemTargets(broadcaster);
@@ -175,7 +175,7 @@ describe("ProblemDelegator: 代表生成", () => {
     delegator.request("PD01", "req-1");
 
     // When（host → ed1 → ed2 の 3 候補ぶん deadline を経過）
-    vi.advanceTimersByTime((PROBLEM_DEADLINE_MS + 100) * 3);
+    jest.advanceTimersByTime((PROBLEM_DEADLINE_MS + 100) * 3);
 
     // Then
     const room = store.get("PD01");
@@ -244,7 +244,7 @@ describe("ProblemDelegator: 代表生成", () => {
     broadcaster.sent.length = 0;
 
     // When（旧タイマーが万一残っていても新依頼を進めないはず）
-    vi.advanceTimersByTime(PROBLEM_DEADLINE_MS - 1);
+    jest.advanceTimersByTime(PROBLEM_DEADLINE_MS - 1);
 
     // Then（host のままで ed1 へは進まない）
     expect(needProblemTargets(broadcaster)).toHaveLength(0);
@@ -257,7 +257,7 @@ describe("ProblemDelegator: 代表生成", () => {
     delegator.submit("PD01", "req-1", "host", validProblem, false);
 
     // When（submit 後に時間を進める）
-    vi.advanceTimersByTime((PROBLEM_DEADLINE_MS + 100) * 3);
+    jest.advanceTimersByTime((PROBLEM_DEADLINE_MS + 100) * 3);
 
     // Then（再委譲は起きない）
     const targets = needProblemTargets(broadcaster);

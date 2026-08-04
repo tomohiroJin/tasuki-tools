@@ -3,7 +3,7 @@
  * v2.2 Phase 2a R2-1: ドライバー不在の自動繰上
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, jest, beforeEach, afterEach } from "bun:test";
 import { PresenceManager, DRIVER_ABSENCE_GRACE_MS } from "../src/application/presence.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
@@ -72,20 +72,20 @@ describe("PresenceManager: ドライバー不在の自動繰上", () => {
   let store: InMemoryRoomStore;
   let broadcaster: SpyBroadcaster;
   let clock: FakeClock;
-  let onDriverAbsence: ReturnType<typeof vi.fn>;
+  let onDriverAbsence: ReturnType<typeof jest.fn>;
   let pm: PresenceManager;
 
   beforeEach(() => {
-    vi.useFakeTimers();
+    jest.useFakeTimers();
     store = new InMemoryRoomStore();
     broadcaster = new SpyBroadcaster();
     clock = new FakeClock(1000000);
-    onDriverAbsence = vi.fn();
+    onDriverAbsence = jest.fn();
     pm = new PresenceManager({ store, broadcaster, clock, onDriverAbsence });
   });
 
   afterEach(() => {
-    vi.useRealTimers();
+    jest.useRealTimers();
   });
 
   it("現ドライバー切断後、猶予時間経過で当該ルームコードの不在通知が発火する", () => {
@@ -97,7 +97,7 @@ describe("PresenceManager: ドライバー不在の自動繰上", () => {
     pm.handleDisconnect("d-conn");
     // 直後はまだ発火しない
     expect(onDriverAbsence).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(DRIVER_ABSENCE_GRACE_MS);
+    jest.advanceTimersByTime(DRIVER_ABSENCE_GRACE_MS);
 
     // Then
     expect(onDriverAbsence).toHaveBeenCalledWith(room.code);
@@ -110,9 +110,9 @@ describe("PresenceManager: ドライバー不在の自動繰上", () => {
     pm.handleDisconnect("d-conn");
 
     // When（猶予の半分経過 → 現ドライバー復帰 → さらに猶予経過）
-    vi.advanceTimersByTime(DRIVER_ABSENCE_GRACE_MS / 2);
+    jest.advanceTimersByTime(DRIVER_ABSENCE_GRACE_MS / 2);
     pm.handlePing("d-conn");
-    vi.advanceTimersByTime(DRIVER_ABSENCE_GRACE_MS);
+    jest.advanceTimersByTime(DRIVER_ABSENCE_GRACE_MS);
 
     // Then
     expect(onDriverAbsence).not.toHaveBeenCalled();
@@ -125,7 +125,7 @@ describe("PresenceManager: ドライバー不在の自動繰上", () => {
 
     // When
     pm.handleDisconnect("o-conn");
-    vi.advanceTimersByTime(DRIVER_ABSENCE_GRACE_MS);
+    jest.advanceTimersByTime(DRIVER_ABSENCE_GRACE_MS);
 
     // Then
     expect(onDriverAbsence).not.toHaveBeenCalled();
@@ -139,7 +139,7 @@ describe("PresenceManager: ドライバー不在の自動繰上", () => {
 
     // When
     pm.handleDisconnect("d-conn");
-    vi.advanceTimersByTime(DRIVER_ABSENCE_GRACE_MS);
+    jest.advanceTimersByTime(DRIVER_ABSENCE_GRACE_MS);
 
     // Then
     expect(onDriverAbsence).not.toHaveBeenCalled();

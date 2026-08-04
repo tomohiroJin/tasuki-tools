@@ -2,7 +2,7 @@
  * サーバー権威タイマーのスケジューラテスト
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, jest, beforeEach, afterEach } from "bun:test";
 import { Scheduler } from "../src/application/schedule.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 
@@ -13,12 +13,12 @@ describe("Scheduler: サーバー権威タイマー", () => {
   let clock: FakeClock;
 
   beforeEach(() => {
-    vi.useFakeTimers();
+    jest.useFakeTimers();
     clock = new FakeClock(1000000);
   });
 
   afterEach(() => {
-    vi.useRealTimers();
+    jest.useRealTimers();
   });
 
   /** 自己補正スケジューラは毎刻み clock.now() を読むため、テストでも時計とタイマーを
@@ -29,7 +29,7 @@ describe("Scheduler: サーバー権威タイマー", () => {
     while (remaining > 0) {
       const step = Math.min(STEP, remaining);
       clock.advance(step);
-      vi.advanceTimersByTime(step);
+      jest.advanceTimersByTime(step);
       remaining -= step;
     }
   };
@@ -37,20 +37,20 @@ describe("Scheduler: サーバー権威タイマー", () => {
   it("schedule するとタイマーが1本だけ生成される", () => {
     // Given
     const scheduler = new Scheduler(clock);
-    const onSwitch = vi.fn();
+    const onSwitch = jest.fn();
 
     // When
     scheduler.schedule("ROOM01", 300, onSwitch);
 
     // Then
-    expect(vi.getTimerCount()).toBe(1);
+    expect(jest.getTimerCount()).toBe(1);
     scheduler.clear("ROOM01");
   });
 
   it("残り時間経過後、onSwitch が対象ルームコード付きで発火する", () => {
     // Given
     const scheduler = new Scheduler(clock);
-    const onSwitch = vi.fn();
+    const onSwitch = jest.fn();
     scheduler.schedule("ROOM01", 300, onSwitch);
 
     // When
@@ -64,7 +64,7 @@ describe("Scheduler: サーバー権威タイマー", () => {
   it("clear でタイマーがキャンセルされ onSwitch は発火しない", () => {
     // Given
     const scheduler = new Scheduler(clock);
-    const onSwitch = vi.fn();
+    const onSwitch = jest.fn();
     scheduler.schedule("ROOM01", 300, onSwitch);
 
     // When
@@ -78,7 +78,7 @@ describe("Scheduler: サーバー権威タイマー", () => {
   it("再スケジュールすると前のタイマーは発火しなくなる", () => {
     // Given
     const scheduler = new Scheduler(clock);
-    const onSwitch = vi.fn();
+    const onSwitch = jest.fn();
 
     // When
     scheduler.schedule("ROOM01", 300, onSwitch);
@@ -92,8 +92,8 @@ describe("Scheduler: サーバー権威タイマー", () => {
   it("複数ルームを個別にスケジュールできる", () => {
     // Given
     const scheduler = new Scheduler(clock);
-    const onSwitch1 = vi.fn();
-    const onSwitch2 = vi.fn();
+    const onSwitch1 = jest.fn();
+    const onSwitch2 = jest.fn();
     scheduler.schedule("ROOM01", 60, onSwitch1);
     scheduler.schedule("ROOM02", 120, onSwitch2);
 

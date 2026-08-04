@@ -150,9 +150,6 @@ importers:
       '@types/ws':
         specifier: ^8.5.13
         version: 8.18.1
-      vitest:
-        specifier: ^3.2.6
-        version: 3.2.7(@types/node@22.20.1)(jiti@1.21.7)(jsdom@25.0.1)
 
   apps/timer-web:
     dependencies:

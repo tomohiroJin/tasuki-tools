@@ -8,7 +8,7 @@
  * @requirements FR-097, FR-118, US2
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import type { ServerMsg, Room } from "@tasuki/timer-core";
 import { SpyBroadcaster } from "./spy-broadcaster.js";
 

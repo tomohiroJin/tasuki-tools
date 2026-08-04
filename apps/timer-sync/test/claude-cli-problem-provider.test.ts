@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, jest } from "bun:test";
 import { EventEmitter } from "node:events";
 import {
   ClaudeCliProblemProvider,
@@ -23,7 +23,7 @@ function makeFakeChild() {
       },
       end: () => {},
     },
-    kill: vi.fn(),
+    kill: jest.fn(),
   });
   return { child: child as unknown as SpawnedProcess, stdout, stderr, written };
 }
@@ -48,7 +48,7 @@ describe("extractJsonObject", () => {
 
 describe("ClaudeCliProblemProvider", () => {
   function makeProvider(fake: ReturnType<typeof makeFakeChild>) {
-    const spawnFn: SpawnFn = vi.fn(() => fake.child);
+    const spawnFn: SpawnFn = jest.fn(() => fake.child);
     const provider = new ClaudeCliProblemProvider({
       token: "sk-ant-oat01-test",
       model: "sonnet",
@@ -72,7 +72,7 @@ describe("ClaudeCliProblemProvider", () => {
 
     // Then
     await expect(p).resolves.toEqual(PROBLEM_JSON);
-    const call = (spawnFn as ReturnType<typeof vi.fn>).mock.calls[0]!;
+    const call = (spawnFn as ReturnType<typeof jest.fn>).mock.calls[0]!;
     expect(call[0]).toBe("claude");
     const args = call[1] as string[];
     expect(args).toContain("-p");
@@ -127,7 +127,7 @@ describe("ClaudeCliProblemProvider", () => {
     await p;
 
     // Then
-    const args = (spawnFn as ReturnType<typeof vi.fn>).mock.calls[0]![1] as string[];
+    const args = (spawnFn as ReturnType<typeof jest.fn>).mock.calls[0]![1] as string[];
     expect(args.join(" ")).not.toContain("sk-ant-oat01-test");
   });
 
@@ -160,13 +160,13 @@ describe("ClaudeCliProblemProvider", () => {
       "aborted before start",
     );
     // 既に abort 済みなので spawn は呼ばれない
-    expect((spawnFn as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(0);
+    expect((spawnFn as ReturnType<typeof jest.fn>).mock.calls).toHaveLength(0);
   });
 
   it("出力が上限を超えたら子プロセスを kill して reject する（メモリ枯渇防止）", async () => {
     // Given
     const fake = makeFakeChild();
-    const spawnFn: SpawnFn = vi.fn(() => fake.child);
+    const spawnFn: SpawnFn = jest.fn(() => fake.child);
     const provider = new ClaudeCliProblemProvider({
       token: "sk-ant-oat01-test",
       model: "sonnet",

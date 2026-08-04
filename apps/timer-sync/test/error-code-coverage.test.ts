@@ -29,7 +29,7 @@
  * @requirements FR-105, FR-107, FR-114
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import {

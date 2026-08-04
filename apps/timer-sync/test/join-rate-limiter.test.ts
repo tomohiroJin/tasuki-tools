@@ -7,7 +7,7 @@
  * `makeHandlers` を介した統合テストとして直接検証する。
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from "bun:test";
 import { createJoinRateLimiter } from "../src/application/join-rate-limiter.js";
 import { makeHandlers } from "../src/application/handlers.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";

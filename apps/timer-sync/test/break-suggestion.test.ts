@@ -9,7 +9,7 @@
  * reconcileSchedule の !onBreak 判定は後方互換のため削除しない（§backward-compat）。
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, jest } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
 import { Scheduler } from "../src/application/schedule.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
@@ -58,17 +58,17 @@ describe("休憩提案シグナル撤去（v2.10・§9.1）", () => {
   }
 
   beforeEach(() => {
-    vi.useFakeTimers();
+    jest.useFakeTimers();
   });
   afterEach(() => {
     scheduler.clearAll();
-    vi.useRealTimers();
+    jest.useRealTimers();
   });
 
   /** FakeClock を進めつつ次の自動交代を発火させる（クロックとタイマーを同期前進）。 */
   function advanceOneSwitch() {
     clock.advance(INTERVAL_MS);
-    vi.advanceTimersByTime(INTERVAL_MS + 100);
+    jest.advanceTimersByTime(INTERVAL_MS + 100);
   }
 
   it("breakEveryRotations=1 を指定しても自動交代後に suggest-break は配信されない", async () => {

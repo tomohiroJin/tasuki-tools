@@ -9,7 +9,7 @@
  * 鎖を一本で検証する。将来の配線断線（参照ミス等）を回帰検出するためのもの。
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, jest } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
 import {
   PresenceManager,
@@ -44,7 +44,7 @@ describe("統合: ドライバー不在 自動繰上（presence→handlers 実�
   let presence: PresenceManager;
 
   beforeEach(() => {
-    vi.useFakeTimers();
+    jest.useFakeTimers();
     store = new InMemoryRoomStore();
     clock = new FakeClock(1000000);
     const broadcaster = new NoopBroadcaster();
@@ -59,7 +59,7 @@ describe("統合: ドライバー不在 自動繰上（presence→handlers 実�
   });
 
   afterEach(() => {
-    vi.useRealTimers();
+    jest.useRealTimers();
   });
 
   /** 稼働中・rotation [A,B]・現ドライバー=A(online)・B(online) の room を store に置く。 */
@@ -98,7 +98,7 @@ describe("統合: ドライバー不在 自動繰上（presence→handlers 実�
     presence.handleDisconnect("conn-A");
     expect(store.get(code)!.session.currentIndex).toBe(0); // 猶予中は不変
     // 猶予経過 → stale-check 通過 → handlers.advanceForAbsence で B(1) へ繰り上げ
-    vi.advanceTimersByTime(DRIVER_ABSENCE_GRACE_MS);
+    jest.advanceTimersByTime(DRIVER_ABSENCE_GRACE_MS);
 
     // Then
     const after = store.get(code)!;
