@@ -1,9 +1,6 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    // 旧 planning-poker の tsconfig.base 由来。S1-b でルートの base へ昇格する。
-    "exactOptionalPropertyTypes": true,
-    "verbatimModuleSyntax": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
     "types": ["vite/client"]

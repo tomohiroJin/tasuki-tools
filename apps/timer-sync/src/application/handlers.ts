@@ -79,14 +79,14 @@ export interface HandlerDeps {
   broadcaster: Broadcaster;
   codeGen: RoomCodeGen;
   /** サーバー権威タイマー（省略時は自動交代をスケジュールしない＝テスト用） */
-  scheduler?: Scheduler;
+  scheduler?: Scheduler | undefined;
   /** お題代表生成（省略時は problem.request/submit を受け付けない） */
-  delegator?: ProblemDelegator;
+  delegator?: ProblemDelegator | undefined;
   /** サーバー全体のルーム数上限（省略時は 50）。DoS 緩和用。 */
-  maxRooms?: number;
+  maxRooms?: number | undefined;
   /** AI 解錠合言葉。undefined なら AI 機能は無効（解錠は常に失敗＝存在秘匿）。
    *  server.ts はトークン未設定時にもここを undefined にする。 */
-  aiUnlockKey?: string;
+  aiUnlockKey?: string | undefined;
 }
 
 // `CreateResult`/`JoinResult`（`room.create`/`room.join` が呼び出し元へ返す値）の

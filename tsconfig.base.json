@@ -10,6 +10,12 @@
     "noUncheckedIndexedAccess": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
+    // オプショナルなプロパティへ undefined を明示的に渡すことを禁じる。
+    // 「キーが無い」と「キーはあるが undefined」を型で区別する。
+    "exactOptionalPropertyTypes": true,
+    // 型だけのインポート／エクスポートは import type と書くことを強制する。
+    // トランスパイラが型と値を確実に区別でき、副作用の有無が読んで分かる。
+    "verbatimModuleSyntax": true,
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
     "esModuleInterop": true,

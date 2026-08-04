@@ -26,7 +26,7 @@ type DecideCommand =
       // SWITCH 専用（他アクションでは無視される）。B-2統合: handleRoomCommand が
       // advanceDriver の代わりに使っていた「対象外を飛ばす」判定を decide 自身に委譲する
       // ための任意フィールド。省略時（既存呼び出し）は空集合扱いで従来通り隣を返す（後方互換）。
-      ineligible?: ReadonlySet<number>;
+      ineligible?: ReadonlySet<number> | undefined;
     }
   | { command: "session.complete" }
   | { command: "session.abort" }

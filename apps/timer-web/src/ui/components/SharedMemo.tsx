@@ -25,7 +25,7 @@ interface SharedMemoProps {
   /** 編集できるか（editor+）。false の閲覧者にはメモがある時だけ読み取り表示する。 */
   canEdit: boolean;
   /** 確定時にメモを送信する（handoff.note.set）。 */
-  onCommit?: (text: string) => void;
+  onCommit?: ((text: string) => void) | undefined;
 }
 
 export function SharedMemo({ note, canEdit, onCommit }: SharedMemoProps) {

@@ -65,27 +65,27 @@ interface RosterPanelProps {
   onAddProxy: (displayName: string) => void;
   /** 参加者を退出させる（⑪）。開始後は主催者以外も実行できる（Issue #22・FR-065）。
    *  自分自身の退出はここには出さない（SelfDriverToggle が担う・FR-078）。 */
-  onRemove?: (participantId: string) => void;
+  onRemove?: ((participantId: string) => void) | undefined;
   /** 共有ルームか。確認ダイアログに他参加者への影響を出すかの判断に使う（FR-076）。 */
-  isShared?: boolean;
+  isShared?: boolean | undefined;
   /** ホストを当該参加者へ移譲する（host 限定・オンライン・自分以外のみ表示）。 */
-  onTransferHost?: (participantId: string) => void;
+  onTransferHost?: ((participantId: string) => void) | undefined;
   /** ドライバーのローテーション順（session.rotation＝参加者IDの配列・D6b）。
    *  並べ替えの index 算出に使う（v2.3 #1）。participants の配列位置と rotation の位置は
    *  一致しないため、rotation 内の位置を別途渡す。 */
-  rotation?: string[];
+  rotation?: string[] | undefined;
   /** ドライバー順の入れ替え（v2.3 #1・host）。fromIndex→toIndex（rotation 内の位置）。
    *  ドライバー行（rotation に含まれる）にのみ上/下ボタンを出す。 */
-  onMove?: (fromIndex: number, toIndex: number) => void;
+  onMove?: ((fromIndex: number, toIndex: number) => void) | undefined;
   /** 参加者リストに高さ上限＋内部スクロールを付ける（項目4・Session で有効化）。 */
-  scrollable?: boolean;
+  scrollable?: boolean | undefined;
   /** 自分のローテーション操作（一時離脱/復帰）を外部の自己トグルが担うか。
    *  true（Session）なら自分の行には一時離脱/復帰を出さず重複を避ける。
    *  false/未指定（Solo 等・自己トグル無し）なら自分の行にも出す。 */
-  selfHasExternalToggle?: boolean;
+  selfHasExternalToggle?: boolean | undefined;
   /** ホストが任意メンバーを現ドライバーに指名する（Issue #13・host 限定）。
    *  未指定なら指名ボタンを描画しない（ソロ等の非対応コンシューマ向け）。 */
-  onAssignDriver?: (participantId: string) => void;
+  onAssignDriver?: ((participantId: string) => void) | undefined;
 }
 
 export function RosterPanel({
