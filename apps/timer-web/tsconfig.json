@@ -7,14 +7,7 @@
     // build は vite、typecheck は tsc --noEmit。noEmit はルートの base が既定で true。
     "paths": {
       "@tasuki/timer-core": ["../../packages/timer-core/src/index.ts"],
-      "@tasuki/timer-core/*": ["../../packages/timer-core/src/*.ts"],
-      // 単一ワークスペースに React 18（timer）と 19（poker）が同居するため、
-      // pnpm が .pnpm/node_modules へホイストした @types/react@19 を lucide-react の
-      // 型定義が拾ってしまい、TS2786「'Crown' cannot be used as a JSX component」が出る。
-      // このパッケージの型解決を自分の @types/react@18 に固定して混線を防ぐ。
-      // **S1-b で React 19 に統一したら、この 2 行は不要になるので削除すること。**
-      "react": ["./node_modules/@types/react"],
-      "react/*": ["./node_modules/@types/react/*"]
+      "@tasuki/timer-core/*": ["../../packages/timer-core/src/*.ts"]
     }
   },
   "include": ["src/**/*", "test/**/*"],
