@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // 旧 planning-poker の tsconfig.base が持っていた厳格設定。ルートの base へ昇格させると
+    // timer 側で 19 箇所の修正が要るため、S1-b までここで維持する（poker の厳しさを落とさない）。
+    "exactOptionalPropertyTypes": true,
+    "verbatimModuleSyntax": true
+  },
+  "include": ["src", "tests"]
+}

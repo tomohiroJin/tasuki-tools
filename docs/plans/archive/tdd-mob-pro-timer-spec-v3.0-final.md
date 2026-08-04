@@ -33,7 +33,7 @@
 - **Problem**: `{ title, description, requirements[], exampleTest, hints[] }`。`buildProblemPrompt` → AI → JSON パース → 失敗時 `FALLBACK_PROBLEMS` へ縮退。
 - **CompletionRecord**: `{ id, roomId?, problemTitle, language, difficulty, elapsedSeconds, members[], totalSwitches, completedAt }`。
 - **付帯**: Web Audio 合成音、キーボードショートカット（Space/S/P/M/Esc）、起動時自己テスト。
-- **移植方針**: 純粋関数群は `@tdd-mob/core` に集約しフロント・サーバーで共有。
+- **移植方針**: 純粋関数群は `@tasuki/timer-core` に集約しフロント・サーバーで共有。
 
 > 定数: メンバー 2〜10、交代間隔 3/5/7/10/15 分（既定 5）、言語 10 種、難易度 3 種。
 > 交代間隔は**短いほど集中と学習が高まる**（実践知では 3〜10 分が定番、10 人でも 3 分が機能する）。既定 5 分・推奨 5〜10 分とし、UI にこの指針を添える（§17）。
@@ -402,7 +402,7 @@ interface CompletionRecord { id: string; roomId?: string; problemTitle: string; 
 
 ## 11. 国際化（i18n）
 
-**基盤として M0/M1 で導入**（後付けは高コスト）。文字列を外部化し JP を主・EN を追加。`@tdd-mob/core` のフォールバックお題・ドメインエラー文言もキー化。
+**基盤として M0/M1 で導入**（後付けは高コスト）。文字列を外部化し JP を主・EN を追加。`@tasuki/timer-core` のフォールバックお題・ドメインエラー文言もキー化。
 
 ---
 
@@ -460,7 +460,7 @@ type Evolve = (agg: Aggregate, event: DomainEvent, now: number) => Aggregate;
 
 ```
 tdd-mob-pro-timer/
-├─ packages/core/   # @tdd-mob/core: aggregate/decide/evolve, problem, format, records, schemas(Valibot), i18n keys, Vitest+fast-check
+├─ packages/core/   # @tasuki/timer-core: aggregate/decide/evolve, problem, format, records, schemas(Valibot), i18n keys, Vitest+fast-check
 ├─ apps/web/        # React+Vite+Tailwind / ai(NoAi,Byok) / ws client(partysocket) / IndexedDB / solo-mode
 ├─ apps/sync/       # 関数型DDD: domain/application/ports/adapters/server.ts（薄いWSアダプタ越し・Bun↔Node 退避可）
 └─ deploy/Caddyfile
@@ -480,7 +480,7 @@ tdd-mob-pro-timer/
 
 ## 15. マイルストーン（TDD で進行）
 
-1. **M0**: `@tdd-mob/core`（集約 `decide`/`evolve` 分割・時間系分離・elapsed 積算）、Valibot スキーマ、i18n キー化、Vitest + fast-check、モノレポ骨組み。
+1. **M0**: `@tasuki/timer-core`（集約 `decide`/`evolve` 分割・時間系分離・elapsed 積算）、Valibot スキーマ、i18n キー化、Vitest + fast-check、モノレポ骨組み。
 2. **M1（脱 Artifact）**: `window.storage`→IndexedDB、AI を `ProblemProvider`（NoAi + Byok ブラウザ直叩き）へ。ソロモード。「API キーあり/なし」UI。
 3. **M2（同期サーバー）**: `apps/sync`（集約 evolve・サーバー権威時計・揮発・秘密なし・full snapshot）。薄い WS アダプタ（Bun/Node 退避可）。WS クライアント（partysocket）。Caddy 前段（X-Forwarded-For）。
 4. **M3（共有仕上げ）**: ルームコード/QR・参加者 ID/トークン・既定 viewer・権限/委譲（complete/reset/break は host 限定）・再接続復帰・代表生成（editor+ 限定・タイムアウト/再委譲）・プレゼンス間引き・**ナビゲーター役/休憩/強い交代通知/引き継ぎノート**・Wake Lock・通知/バイブ・記録入出力。

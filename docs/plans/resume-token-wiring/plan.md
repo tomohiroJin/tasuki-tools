@@ -119,7 +119,7 @@ apps/web/src/
   （App.tsx に既存の統合テストが無ければ、client.ts / resume-identity.ts の単体テストで
   十分なカバレッジとし、App.tsx 内の配線はレビューで確認する。実ブラウザでの確認は
   親エージェントの統合試験に委ねる）。
-- 自分の担当ファイルの `pnpm --filter @tdd-mob/web test` はテスト対象ファイルを絞って実行する
+- 自分の担当ファイルの `pnpm --filter @tasuki/timer-web test` はテスト対象ファイルを絞って実行する
   （全件は17分かかるため）。
 
 ## 段階分け（Sequencing）

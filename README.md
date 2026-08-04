@@ -1,7 +1,7 @@
 # Tasuki
 
-モブプログラミング × TDD を支援する**ツール群（モノレポ）**。
-Tasuki は複数ツールをまとめる傘ブランドで、各ツールはこのリポジトリ内のサブディレクトリとして管理します。
+モブプログラミング × TDD を支援する**ツール群（単一 monorepo）**。
+Tasuki は複数ツールをまとめる傘ブランドで、各ツールは 1 つの pnpm workspace 上のパッケージとして管理します。
 
 ## 🔗 ライブデモ
 
@@ -9,35 +9,78 @@ Tasuki は複数ツールをまとめる傘ブランドで、各ツールはこ�
 
 ## 収録ツール
 
-### 1. TDD Mob Pro Timer — [`tdd-mob-pro-timer/`](tdd-mob-pro-timer/)
+### 1. TDD Mob Pro Timer（本番公開中）
 
 モブプログラミングのドライバー交代タイマー＋お題出題ツール。
 
-- **構成**: pnpm モノレポ
-  - `packages/core` — ドメインロジック（集約・状態遷移・お題バンク・検証）
-  - `apps/web` — フロントエンド（React + Vite）
-  - `apps/sync` — リアルタイム同期サーバー（Bun + WebSocket・揮発インメモリ）
+- **構成**
+  - [`packages/timer-core`](packages/timer-core/) — ドメインロジック（集約・状態遷移・お題バンク・検証）
+  - [`apps/timer-web`](apps/timer-web/) — フロントエンド（React + Vite）
+  - [`apps/timer-sync`](apps/timer-sync/) — リアルタイム同期サーバー（Bun + WebSocket・揮発インメモリ）
 - **特徴**
   - WebSocket による全参加者リアルタイム同期（サーバープッシュ）
   - モブ順ローテーション表示・「今は誰の番か」の明示
   - 現ドライバー不在時の次担当への自動繰上
   - 任意のルーム参加合言葉
   - AI お題生成（任意・ホストの Claude サブスクで実行・未設定時は定型お題へ安全縮退）
-- 概要・起動手順: [`tdd-mob-pro-timer/README.md`](tdd-mob-pro-timer/README.md)
-- アーキテクチャ: [`tdd-mob-pro-timer/docs/ARCHITECTURE.md`](tdd-mob-pro-timer/docs/ARCHITECTURE.md)
-- 設計判断（ADR）: [`tdd-mob-pro-timer/docs/adr/`](tdd-mob-pro-timer/docs/adr/)
+- 概要・起動手順: [`docs/timer/README.md`](docs/timer/README.md)
+- アーキテクチャ: [`docs/timer/ARCHITECTURE.md`](docs/timer/ARCHITECTURE.md)
+- 設計判断（ADR）: [`docs/timer/adr/`](docs/timer/adr/)
+
+### 2. Planning Poker（**本番未公開**）
+
+見積り合意のためのプランニングポーカー。**まだ本番へデプロイしていません**（epic #15 の S4 で LP と同時に公開予定）。
+
+- **構成**
+  - [`packages/poker-core`](packages/poker-core/) — ドメインロジック（デッキ・ラウンド・集計）
+  - [`apps/poker-web`](apps/poker-web/) — フロントエンド（React + Vite・`base=/poker/`）
+  - [`apps/poker-sync`](apps/poker-sync/) — リアルタイム同期サーバー（Bun + WebSocket）
+- 概要: [`docs/poker/README.md`](docs/poker/README.md)
+- SDD 成果物: [`docs/poker/specs/`](docs/poker/specs/)
+
+## 開発
+
+単一の pnpm workspace + turbo。ルートで全ツールをまとめて検証できます。
+
+```bash
+pnpm install
+
+pnpm test        # 全 6 パッケージのテスト（1,724 件）
+pnpm typecheck
+pnpm lint
+pnpm build
+
+# 単一アプリだけを対象にする
+pnpm turbo run build --filter=@tasuki/timer-web
+```
+
+**Node 22 以上が必要です**（pnpm 11.5.0 が `node:sqlite` を使うため）。
+`apps/poker-sync` のテストとビルドには **Bun** が要ります。
+
+### パッケージ
+
+| パッケージ | ディレクトリ |
+|---|---|
+| `@tasuki/timer-core` | `packages/timer-core` |
+| `@tasuki/timer-web` | `apps/timer-web` |
+| `@tasuki/timer-sync` | `apps/timer-sync` |
+| `@tasuki/poker-core` | `packages/poker-core` |
+| `@tasuki/poker-web` | `apps/poker-web` |
+| `@tasuki/poker-sync` | `apps/poker-sync` |
 
 ## ドキュメント
 
-- 仕様駆動開発（SDD）の成果物: [`docs/plans/tdd-mob-pro-timer/`](docs/plans/tdd-mob-pro-timer/)（spec / plan / tasks）
+- ツール別ドキュメント: [`docs/timer/`](docs/timer/) / [`docs/poker/`](docs/poker/)
+- 仕様駆動開発（SDD）の成果物: [`docs/plans/`](docs/plans/)（spec / plan / tasks）
 - バックログ: [`docs/BACKLOG.md`](docs/BACKLOG.md)
 - 開発計画・設計メモ: [`docs/superpowers/`](docs/superpowers/)
+- デプロイ資材: [`deploy/timer/`](deploy/timer/) / [`deploy/poker/`](deploy/poker/)
 
 ## 技術スタック
 
-TypeScript / React + Vite / Bun / WebSocket / Valibot / neverthrow / Vitest
+TypeScript / React + Vite / Bun / WebSocket / Valibot / neverthrow / Vitest / turbo
 
 ## ステータス
 
 TDD Mob Pro Timer を本番公開中（上記ライブデモ）。
-今後、Tasuki 傘下にモブプログラミング/開発支援の他ツールを追加していく予定です。
+Planning Poker は実装済み・本番未公開。

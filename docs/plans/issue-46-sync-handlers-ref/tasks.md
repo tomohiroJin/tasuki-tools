@@ -100,5 +100,5 @@ T1 で +4件 → 完了時は **82ファイル / 575件**が期待値。
 
 - `pnpm` は PATH に無い。`corepack pnpm` で起動する。
 - 全件テストは約660秒かかる。実装中は
-  `corepack pnpm --filter @tdd-mob/web exec vitest run test/ui/<file>` を使う
-  （`@tdd-mob/core` は vitest.config.ts でソースへ alias されておりビルド不要）。
+  `corepack pnpm --filter @tasuki/timer-web exec vitest run test/ui/<file>` を使う
+  （`@tasuki/timer-core` は vitest.config.ts でソースへ alias されておりビルド不要）。

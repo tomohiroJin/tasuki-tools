@@ -248,7 +248,7 @@ React 18 の自動バッチングにより1つ目の `setState` は再レンダ�
 - [ ] state を読む4コールバックを覆う characterization test が緑になっている。
 - [ ] `handleNeedProblem` の `room` 読み取りが `await` より前にある（REQ-7）。
 - [ ] 事実と食い違うコメントが更新されている（REQ-8 の3箇所）。
-- [ ] `pnpm --filter @tdd-mob/web test` 全件が既存件数（**82ファイル/571件**・
+- [ ] `pnpm --filter @tasuki/timer-web test` 全件が既存件数（**82ファイル/571件**・
       2026-08-03 に `refactor/issue-46-sync-handlers-ref` 起点で実測・全 pass）を
       下回らない。★全件実行に約660秒かかるため、実装中は対象を絞って実行し、
       全件は節目でのみ回す。

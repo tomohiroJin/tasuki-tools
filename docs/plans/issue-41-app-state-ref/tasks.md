@@ -14,7 +14,7 @@
       別 Issue #46 として起票。spec.md の非対象節・baseline.md に明記。
       指摘2（baseline.md の値の出所が不明瞭）→ 「Issue記載値（誤り・参考）」と
       「実測値」を並記する表に修正済み。
-- [x] T5: `pnpm --filter @tdd-mob/web test`（全件）は親エージェントが実行し
+- [x] T5: `pnpm --filter @tasuki/timer-web test`（全件）は親エージェントが実行し
       82ファイル/571件 pass（main基準81/567・characterization test 分の
       +1ファイル/+4件で退行なし）。`typecheck`（4/4 successful）・
       `lint`（3/3 successful）も親エージェントが確認済み。

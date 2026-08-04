@@ -24,10 +24,10 @@ client インスタンスは転送関数の closure から第1引数で渡す。
 - **作業ディレクトリ:** `tdd-mob-pro-timer/`（リポジトリルートは `Tasuki/`）。
 - **pnpm は PATH に無い。`corepack pnpm` で起動する。**
 - **対象テストの実行（速い・実装中はこちらを使う）:**
-  `corepack pnpm --filter @tdd-mob/web exec vitest run test/ui/<file>`
-  （`@tdd-mob/core` は vitest.config.ts でソースへ alias されているためビルド不要）
+  `corepack pnpm --filter @tasuki/timer-web exec vitest run test/ui/<file>`
+  （`@tasuki/timer-core` は vitest.config.ts でソースへ alias されているためビルド不要）
 - **全件テスト（約660秒かかる。節目でのみ回す）:**
-  `corepack pnpm --filter @tdd-mob/web test`
+  `corepack pnpm --filter @tasuki/timer-web test`
 - **ベースライン: 82ファイル / 571件 すべて pass**（2026-08-03 実測）。下回らせない。
 - **挙動を変えない（REQ-5）。** 画面遷移・文言・タイミング・表示条件のいずれも変更しない。
 - **10個のガード用 ref は触らない（REQ-4）:** `isCreatorRef` / `pendingDriverJoinRef` /
@@ -289,7 +289,7 @@ describe("SyncClient コールバックが最新の state を読む経路（Issu
 Run:
 ```bash
 cd tdd-mob-pro-timer
-corepack pnpm --filter @tdd-mob/web exec vitest run test/ui/App.sync-handlers.test.tsx
+corepack pnpm --filter @tasuki/timer-web exec vitest run test/ui/App.sync-handlers.test.tsx
 ```
 Expected: **4件すべて PASS**。
 
@@ -418,7 +418,7 @@ EOF
 Run:
 ```bash
 cd tdd-mob-pro-timer
-corepack pnpm --filter @tdd-mob/web exec vitest run test/ui/App.sync-handlers.test.tsx test/ui/App.state-ref.test.tsx test/ui/Lobby.rotation.test.tsx test/ui/SelfDriverToggle.test.tsx test/ui/Session.rotation.test.tsx
+corepack pnpm --filter @tasuki/timer-web exec vitest run test/ui/App.sync-handlers.test.tsx test/ui/App.state-ref.test.tsx test/ui/Lobby.rotation.test.tsx test/ui/SelfDriverToggle.test.tsx test/ui/Session.rotation.test.tsx
 ```
 Expected: すべて PASS。
 
@@ -532,7 +532,7 @@ EOF
 まだ使われている。未使用にはならない。`lint` で確認する:
 
 ```bash
-cd tdd-mob-pro-timer && corepack pnpm --filter @tdd-mob/web lint
+cd tdd-mob-pro-timer && corepack pnpm --filter @tasuki/timer-web lint
 ```
 Expected: エラーなし。
 
@@ -541,7 +541,7 @@ Expected: エラーなし。
 Run:
 ```bash
 cd tdd-mob-pro-timer
-corepack pnpm --filter @tdd-mob/web exec vitest run test/ui/App.sync-handlers.test.tsx test/ui/App.state-ref.test.tsx
+corepack pnpm --filter @tasuki/timer-web exec vitest run test/ui/App.sync-handlers.test.tsx test/ui/App.state-ref.test.tsx
 ```
 Expected: すべて PASS（特に `onNeedProblem` のケースが `("Python", "hard")` で緑）。
 
@@ -950,7 +950,7 @@ Expected: **何も出力されない**。出た場合はその箇所を素の st
 - [ ] **Step 6: 型検査を通す**
 
 ```bash
-cd tdd-mob-pro-timer && corepack pnpm --filter @tdd-mob/web typecheck
+cd tdd-mob-pro-timer && corepack pnpm --filter @tasuki/timer-web typecheck
 ```
 Expected: エラーなし。
 
@@ -963,7 +963,7 @@ Expected: エラーなし。
 - [ ] **Step 7: lint を通す**
 
 ```bash
-cd tdd-mob-pro-timer && corepack pnpm --filter @tdd-mob/web lint
+cd tdd-mob-pro-timer && corepack pnpm --filter @tasuki/timer-web lint
 ```
 Expected: エラーなし。
 
@@ -971,14 +971,14 @@ Expected: エラーなし。
 
 ```bash
 cd tdd-mob-pro-timer
-corepack pnpm --filter @tdd-mob/web exec vitest run test/ui/App.sync-handlers.test.tsx test/ui/App.state-ref.test.tsx test/ui/use-latest-ref.test.tsx
+corepack pnpm --filter @tasuki/timer-web exec vitest run test/ui/App.sync-handlers.test.tsx test/ui/App.state-ref.test.tsx test/ui/use-latest-ref.test.tsx
 ```
 Expected: すべて PASS。
 
 - [ ] **Step 9: web パッケージのテストを全件実行する**
 
 ```bash
-cd tdd-mob-pro-timer && corepack pnpm --filter @tdd-mob/web exec vitest run
+cd tdd-mob-pro-timer && corepack pnpm --filter @tasuki/timer-web exec vitest run
 ```
 Expected: **82ファイル / 575件（571 + Task 1 の4件）すべて PASS**。
 
@@ -1059,7 +1059,7 @@ EOF
 
 ```bash
 cd tdd-mob-pro-timer
-corepack pnpm --filter @tdd-mob/web exec vitest run test/ui/use-latest-ref.test.tsx test/ui/App.state-ref.test.tsx
+corepack pnpm --filter @tasuki/timer-web exec vitest run test/ui/use-latest-ref.test.tsx test/ui/App.state-ref.test.tsx
 ```
 Expected: すべて PASS。
 

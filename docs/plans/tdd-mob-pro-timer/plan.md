@@ -11,8 +11,8 @@
 | 意思決定 | 選択 | 根拠 | 紐づく要件 |
 |---|---|---|---|
 | 実装言語 | **TypeScript（関数型スタイル）** | 現行プロトタイプと整合。front/server で型・純粋ロジックを共有 | 全般 |
-| モノレポ | **pnpm workspaces + Turborepo**（Bun 採用時は Bun workspaces 可） | `@tdd-mob/core` を front/server で共有 | FR-031, FR-008 |
-| 共有パッケージ | **`@tdd-mob/core`**（純粋ドメイン・スキーマ・お題・記録・i18n キー） | ドメインを 1 箇所に集約、ソロ/共有で同一ロジック | FR-001〜FR-010, FR-031 |
+| モノレポ | **pnpm workspaces + Turborepo**（Bun 採用時は Bun workspaces 可） | `@tasuki/timer-core` を front/server で共有 | FR-031, FR-008 |
+| 共有パッケージ | **`@tasuki/timer-core`**（純粋ドメイン・スキーマ・お題・記録・i18n キー） | ドメインを 1 箇所に集約、ソロ/共有で同一ロジック | FR-001〜FR-010, FR-031 |
 | 同期サーバー ランタイム | **Bun（ネイティブ WS）で開発・起動。本番は Bun か Node 24 + `ws` を選択可** | WS/DX は Bun が強い。状態揮発で再起動安全のため退避が容易 | FR-013, NFR可用性 |
 | WS アダプタ | **`ws` 互換の薄い WS アダプタ越し**に実装 | Bun↔Node の退避を可能にする | FR-013 |
 | WS クライアント | **ネイティブ WebSocket + 自前バックオフ、または `partysocket`** | 自動再接続・ハートビート | FR-019, US6 |
@@ -66,7 +66,7 @@ flowchart TB
     Ports["ports\nClock・Broadcaster・RoomStore・RoomCodeGen"]
     Adapters["adapters\nWsAdapter・InMemoryRoomStore・SystemClock・NanoidCodeGen"]
   end
-  Core["packages/core (@tdd-mob/core)\n純粋ドメイン・Valibotスキーマ・お題・記録・i18nキー"]
+  Core["packages/core (@tasuki/timer-core)\n純粋ドメイン・Valibotスキーマ・お題・記録・i18nキー"]
 
   Web -->|wss| Caddy -->|ws 内部| Adapters --> App --> Dom
   App --> Ports --> Adapters
@@ -81,7 +81,7 @@ flowchart TB
 
 ## コンポーネントとインターフェース
 
-**packages/core（@tdd-mob/core）** — 共有純粋ロジック。
+**packages/core（@tasuki/timer-core）** — 共有純粋ロジック。
 - `aggregate.ts` `decide.ts` `evolve.ts` — 集約と状態遷移。`Decide = (cmd, agg, now) => Result<DomainEvent[], DomainError>`、`Evolve = (agg, event, now) => Aggregate`。
 - `schemas.ts`（Valibot）— Command/ServerMsg/Problem/Config のスキーマ。front/server 共有。
 - `problem.ts` — `buildProblemPrompt`、`FALLBACK_PROBLEMS`、`pickFallback`。
@@ -190,7 +190,7 @@ WS message
 ```
 tdd-mob-pro-timer/                 # 設置先: local/Tasuki/tdd-mob-pro-timer/（git 非追跡）
 ├─ package.json / pnpm-workspace.yaml / turbo.json
-├─ packages/core/                  # @tdd-mob/core
+├─ packages/core/                  # @tasuki/timer-core
 │  ├─ src/{aggregate,decide,evolve,events,errors}.ts
 │  ├─ src/{problem,records,format}.ts
 │  ├─ src/schemas.ts               # Valibot（Command/ServerMsg/Problem/Config）
@@ -232,11 +232,11 @@ tdd-mob-pro-timer/                 # 設置先: local/Tasuki/tdd-mob-pro-timer/�
 - **時計の決定論**: `Clock` 注入 + フェイクタイマーで交代・一時停止・再開・**elapsed の停止除外**・休憩を再現（FR-006, SC-004）。
 - **同期/整合（結合）**: full snapshot の冪等な置き換え、再接続後の整合、ホスト委譲、代表生成タイムアウト→再委譲→フォールバック収束（SC-005/006, FR-026）。
 - **契約**: Command/ServerMsg の Valibot スキーマを front/server 双方で共有・検証。
-- **カバレッジ目標**: `@tdd-mob/core` のドメインは行・分岐とも高カバレッジ（目標 90%+）。**CI 必須**。
+- **カバレッジ目標**: `@tasuki/timer-core` のドメインは行・分岐とも高カバレッジ（目標 90%+）。**CI 必須**。
 
 ## 段階分け（Sequencing）— v3.0 §15 のマイルストーンに対応
 
-1. **M0 — core 基盤**: `@tdd-mob/core`（集約 decide/evolve 分割・時間系分離・elapsed 積算）、Valibot スキーマ、i18n キー、Vitest + fast-check、モノレポ骨組み。→ US1 のドメイン部・FR-001〜010, FR-036, SC-010。
+1. **M0 — core 基盤**: `@tasuki/timer-core`（集約 decide/evolve 分割・時間系分離・elapsed 積算）、Valibot スキーマ、i18n キー、Vitest + fast-check、モノレポ骨組み。→ US1 のドメイン部・FR-001〜010, FR-036, SC-010。
 2. **M1 — 脱 Artifact / ローカル**: IndexedDB 記録、`ProblemProvider`（NoAi + Byok）、ソロモード、「API キーあり/なし」UI。→ US3/US4/US9・FR-021〜029, FR-031。
 3. **M2 — 同期サーバー**: `apps/sync`（集約 evolve・サーバー権威時計・揮発・秘密なし・full snapshot）、薄い WS アダプタ、WS クライアント、Caddy 前段。→ US1/US2・FR-007, FR-011〜015。
 4. **M3 — 共有仕上げ**: ルームコード/QR・ID/トークン・既定 viewer・権限/委譲・再接続復帰・代表生成（editor+ 限定・再委譲）・プレゼンス間引き・ナビゲーター/休憩/強い通知/引き継ぎ・Wake Lock・通知/バイブ・記録入出力。→ US5/US6/US7/US8/US10・FR-016〜020, FR-025〜027, FR-030, FR-032〜035。

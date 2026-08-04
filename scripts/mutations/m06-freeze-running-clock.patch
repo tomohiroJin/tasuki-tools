@@ -1,0 +1,25 @@
+# 変異 6: freeze-running-clock
+#
+# 検出を期待するテスト:
+#   - packages/timer-core/test/pause-freeze.test.ts
+#   - packages/timer-core/test/break-freeze.test.ts
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m06-*.patch
+#       (diff のパスはリポジトリルート起点。mutation-check.mjs もリポジトリルートで実行する)
+# 復元: git checkout -- <対象ファイル>（同じくリポジトリルートから）
+#
+diff --git a/packages/timer-core/src/evolve.ts b/packages/timer-core/src/evolve.ts
+index 8fbfac1..3f2fefe 100644
+--- a/packages/timer-core/src/evolve.ts
++++ b/packages/timer-core/src/evolve.ts
+@@ -18,8 +18,7 @@ function freezeRunningClock(clock: ServerClock, now: number): ServerClock {
+     return { ...clock, running: false, runningSince: null };
+   }
+   const addedMs = clock.runningSince !== null ? now - clock.runningSince : 0;
+-  const elapsedSinceAnchor = (now - clock.anchorServerTime) / 1000;
+-  const frozen = Math.max(0, clock.secondsLeftAtAnchor - elapsedSinceAnchor);
++  const frozen = clock.intervalSeconds;
+   return {
+     ...clock,
+     running: false,

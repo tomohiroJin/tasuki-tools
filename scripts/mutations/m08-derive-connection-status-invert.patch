@@ -1,0 +1,22 @@
+# 変異 8: derive-connection-status-invert
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/connection-status.test.ts
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m08-*.patch
+#       (diff のパスはリポジトリルート起点。mutation-check.mjs もリポジトリルートで実行する)
+# 復元: git checkout -- <対象ファイル>（同じくリポジトリルートから）
+#
+diff --git a/apps/timer-web/src/ui/connection-status.ts b/apps/timer-web/src/ui/connection-status.ts
+index 44268b2..6d0a47a 100644
+--- a/apps/timer-web/src/ui/connection-status.ts
++++ b/apps/timer-web/src/ui/connection-status.ts
+@@ -7,6 +7,6 @@ import type { ConnectionStatus } from "./components/StatusStrip.js";
+ export type ClientConnState = "online" | "reconnecting";
+ 
+ export function deriveConnectionStatus(sessionLost: boolean, connState: ClientConnState): ConnectionStatus {
+-  if (sessionLost) return "lost";
++  if (!sessionLost) return "lost";
+   return connState;
+ }

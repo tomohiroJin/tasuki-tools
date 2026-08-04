@@ -1,0 +1,23 @@
+# 変異 7: should-clear-generating-refcompare
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/ui/problem-generation.test.ts
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m07-*.patch
+#       (diff のパスはリポジトリルート起点。mutation-check.mjs もリポジトリルートで実行する)
+# 復元: git checkout -- <対象ファイル>（同じくリポジトリルートから）
+#
+diff --git a/apps/timer-web/src/ui/problem-generation.ts b/apps/timer-web/src/ui/problem-generation.ts
+index 27bfa1a..5eca6d2 100644
+--- a/apps/timer-web/src/ui/problem-generation.ts
++++ b/apps/timer-web/src/ui/problem-generation.ts
+@@ -14,7 +14,7 @@ export function shouldClearGenerating(
+   if (!generating) return false;
+   if (prevProblem === null && nextProblem === null) return false;
+   if (prevProblem === null || nextProblem === null) return true; // 片方だけ null＝確定/消失
+-  return prevProblem.title !== nextProblem.title || prevProblem.source !== nextProblem.source;
++  return prevProblem !== nextProblem;
+ }
+ 
+ /** ロビーでの代表お題自動生成を送るべきか（App の effect から判定を分離してテスト可能化）。 */

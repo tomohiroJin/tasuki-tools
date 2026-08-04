@@ -29,7 +29,7 @@
 - [x] T008 `App.tsx` の `session-lost` エラー経路の後始末に `clearResumeIdentity()` を追加する。 _要件: FR-005_
 
 ## フェーズ4 — 検証・ドキュメント
-- [x] T009 `pnpm --filter @tdd-mob/web typecheck` と `pnpm --filter @tdd-mob/web lint` を通す。 _要件: —_
+- [x] T009 `pnpm --filter @tasuki/timer-web typecheck` と `pnpm --filter @tasuki/timer-web lint` を通す。 _要件: —_
 - [x] T010 変更に伴い更新すべきドキュメント（README / ARCHITECTURE 等）を調査し、必要なら更新する。 _要件: —_
 
 ## 依存関係と並列グループ

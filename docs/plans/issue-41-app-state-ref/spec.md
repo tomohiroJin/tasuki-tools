@@ -119,6 +119,6 @@ closure 固定そのものを解消する（あるいは reducer 化を含めて
       1本の集約 ref（例: `latestRef`）に置き換わっている。
 - [ ] 10個のガード用 ref は変更されていない。
 - [ ] `App.tsx` の characterization test が新設され、緑になっている。
-- [ ] `pnpm --filter @tdd-mob/web test` 全件が既存件数（81ファイル/567件）を
+- [ ] `pnpm --filter @tasuki/timer-web test` 全件が既存件数（81ファイル/567件）を
       下回らない。
 - [ ] `typecheck` / `lint` が通過する。

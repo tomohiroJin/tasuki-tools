@@ -1,0 +1,23 @@
+# 変異 9: build-notice-message-invert
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/sync/notice-message.test.ts
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m09-*.patch
+#       (diff のパスはリポジトリルート起点。mutation-check.mjs もリポジトリルートで実行する)
+# 復元: git checkout -- <対象ファイル>（同じくリポジトリルートから）
+#
+diff --git a/apps/timer-web/src/sync/notice-message.ts b/apps/timer-web/src/sync/notice-message.ts
+index 45bf5b1..d6d9109 100644
+--- a/apps/timer-web/src/sync/notice-message.ts
++++ b/apps/timer-web/src/sync/notice-message.ts
+@@ -35,7 +35,7 @@ function label(
+   participantId: string,
+   ctx: NoticeContext,
+ ): string {
+-  if (participantId === ctx.selfParticipantId) return "あなた";
++  if (participantId !== ctx.selfParticipantId) return "あなた";
+   return participantLabel(name, participantId, ctx.participants, "さん");
+ }
+ 
