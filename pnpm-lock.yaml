@@ -128,6 +128,9 @@ importers:
 
   apps/timer-sync:
     dependencies:
+      '@tasuki/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
       '@tasuki/timer-core':
         specifier: workspace:*
         version: link:../../packages/timer-core
@@ -223,6 +226,9 @@ importers:
 
   packages/poker-core:
     dependencies:
+      '@tasuki/protocol':
+        specifier: workspace:*
+        version: link:../protocol
       neverthrow:
         specifier: ^8.2.0
         version: 8.2.0
@@ -233,6 +239,19 @@ importers:
       typescript:
         specifier: ^5.8.3
         version: 5.9.3
+      vitest:
+        specifier: ^3.2.0
+        version: 3.2.7(@types/node@22.20.1)(jiti@1.21.7)(jsdom@25.0.1)
+
+  packages/protocol:
+    dependencies:
+      neverthrow:
+        specifier: ^8.2.0
+        version: 8.2.0
+      valibot:
+        specifier: ^1.4.1
+        version: 1.4.2(typescript@5.9.3)
+    devDependencies:
       vitest:
         specifier: ^3.2.0
         version: 3.2.7(@types/node@22.20.1)(jiti@1.21.7)(jsdom@25.0.1)

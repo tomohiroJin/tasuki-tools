@@ -38,6 +38,15 @@ Tasuki は複数ツールをまとめる傘ブランドで、各ツールは 1 �
 - 概要: [`docs/poker/README.md`](docs/poker/README.md)
 - SDD 成果物: [`docs/poker/specs/`](docs/poker/specs/)
 
+### 3. 玄関（ツール選択 LP・**本番未公開**）
+
+訪問者がツールを選ぶための入口。ツール選択そのものを「手札」にしており、poker と同じ
+象牙の札が並ぶ。
+
+- **構成**: [`apps/landing`](apps/landing/) — Vite + React・静的サイト（同期サーバー無し）
+- 世界観は [`packages/ui`](packages/ui/) の「夜のカードテーブル」を共有
+- 公開パスは S3 時点で暫定の `/home/`。S4（[#19](https://github.com/tomohiroJin/tasuki-tools/issues/19)）でルート `/` へ移す
+
 ## 開発
 
 単一の pnpm workspace + turbo。ルートで全ツールをまとめて検証できます。
@@ -45,7 +54,7 @@ Tasuki は複数ツールをまとめる傘ブランドで、各ツールは 1 �
 ```bash
 pnpm install
 
-pnpm test        # 全 6 パッケージのテスト（1,724 件）
+pnpm test        # 全パッケージのテスト（1,743 件）
 pnpm typecheck
 pnpm lint
 pnpm build
@@ -59,14 +68,17 @@ pnpm turbo run build --filter=@tasuki/timer-web
 
 ### パッケージ
 
-| パッケージ | ディレクトリ |
-|---|---|
-| `@tasuki/timer-core` | `packages/timer-core` |
-| `@tasuki/timer-web` | `apps/timer-web` |
-| `@tasuki/timer-sync` | `apps/timer-sync` |
-| `@tasuki/poker-core` | `packages/poker-core` |
-| `@tasuki/poker-web` | `apps/poker-web` |
-| `@tasuki/poker-sync` | `apps/poker-sync` |
+| パッケージ | ディレクトリ | 役割 |
+|---|---|---|
+| `@tasuki/timer-core` | `packages/timer-core` | timer のドメイン |
+| `@tasuki/timer-web` | `apps/timer-web` | timer の画面 |
+| `@tasuki/timer-sync` | `apps/timer-sync` | timer の同期サーバー |
+| `@tasuki/poker-core` | `packages/poker-core` | poker のドメイン |
+| `@tasuki/poker-web` | `apps/poker-web` | poker の画面 |
+| `@tasuki/poker-sync` | `apps/poker-sync` | poker の同期サーバー |
+| `@tasuki/landing` | `apps/landing` | 玄関 LP（**本番未公開**） |
+| `@tasuki/ui` | `packages/ui` | 共通ビジュアル「夜のカードテーブル」（CSS のみ） |
+| `@tasuki/protocol` | `packages/protocol` | 信頼境界のパース（外部入力 → 検証済みの値） |
 
 ## ドキュメント
 
@@ -83,4 +95,9 @@ TypeScript / React + Vite / Bun / WebSocket / Valibot / neverthrow / Vitest / tu
 ## ステータス
 
 TDD Mob Pro Timer を本番公開中（上記ライブデモ）。
-Planning Poker は実装済み・本番未公開。
+Planning Poker と玄関 LP は実装済み・**本番未公開**。
+
+単一 monorepo への統合は [epic #15](https://github.com/tomohiroJin/tasuki-tools/issues/15) で
+段階的に進めている。設計は [`docs/superpowers/specs/2026-08-04-monorepo-unification-design.md`](docs/superpowers/specs/2026-08-04-monorepo-unification-design.md)。
+残るのは S4（timer を `/timer` へ移し、ルートを LP にする・[#19](https://github.com/tomohiroJin/tasuki-tools/issues/19)）で、
+そこで poker と LP を初めて公開する。

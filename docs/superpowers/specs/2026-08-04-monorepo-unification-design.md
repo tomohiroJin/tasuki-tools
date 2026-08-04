@@ -351,12 +351,56 @@ deploy/
 
 **確認**: `/` = LP、`/timer` = timer（WS 同期含む）、`/poker` = poker の 3 系統が並存。それぞれ実機で目視。
 
-### S5（#20）— packages/shared への抽出
+### S5（#20）— 共通コードの抽出
 
-- `packages/shared/` に以下を抽出:
-  - **sync-kit** — 両 `apps/*-sync` の「ルーム管理 + WebSocket + インメモリ状態」の骨格
-  - **protocol** — Valibot + neverthrow による型安全プロトコル層
-  - **ui** — 配色・カード表現（**S3 より先に出す**）
+> **⚠ この節は 2026-08-05 に実測して書き換えた。** 当初の抽出候補は「両 sync に
+> WS 同期基盤の重複がある」という**誰も測っていない見込み**で書かれており、
+> 実際に読むと成り立たなかった。
+
+抽出は 3 つに分かれ、進み方が違う。
+
+#### ① `packages/ui` — 配色・カード表現（**完了**）
+
+S3 のハード依存として先出しした。`apps/poker-web` と `apps/landing` が共有する。
+`apps/timer-web` は Tailwind ベースの別系統なので使わない。
+
+#### ② `packages/protocol` — 信頼境界のパース（**完了**）
+
+`timer-sync` の WS アダプタと `poker-core`（poker の sync / web の両方が使う）が
+`parseBoundaryMessage` を共有する。失敗の理由は `stage`（`json` / `schema`）だけを返し、
+**エラーコードと文言は決め打ちしない**（timer は 2 つを区別し、poker は 1 つに畳むため）。
+
+#### ③ `sync-kit` — WS 同期基盤（**実測の結果、そのままでは抽出できない**）
+
+| 層 | timer | poker | 共有可能か |
+|---|---|---|---|
+| 規模 | 3,834 行 / 34 ファイル | 242 行 / 2 ファイル | — |
+| **WebSocket 実装** | `ws` npm パッケージ | **`Bun.serve`** | **不可**（API が別物） |
+| ルーム保管 | クラス + ポート。ソケットは別の Broadcaster が持つ | モジュール関数。エントリがルームとソケットを同梱 | 形が違う |
+| ルームの寿命 | TTL 回収 + ハートビート + presence | 接続 0 で即破棄 | 方針が別 |
+| 配信 | 3 メソッド（snapshot / sendTo / signal） | 受信者別スナップショットを 1 関数で | 別 |
+| メッセージ定義 | `session.act` / `room.join` … | `vote` / `reveal` / `next-round` | ドメインが別 |
+
+**そのままでは共有できる実体が無い。** 土台を揃えるには timer を `Bun.serve` へ寄せる必要があり、
+それには**テスト基盤の移行が前提になる**（下記）。
+
+##### なぜテスト基盤の移行が要るか
+
+**vitest のワーカーは Node で起動されるため、テストプロセス内で `Bun.serve` を使えない**
+（`bun x vitest` でも「Bun is not defined」）。poker が sync テストをサブプロセスで動かして
+いるのはこの制約が理由。
+
+timer の heartbeat テスト 4 件は `vi.useFakeTimers` と `vi.spyOn(globalThis, "clearInterval")`
+を使っており、**アダプタが同一プロセスにいることが前提**。サブプロセス化すると
+Issue #25（半開き接続の検出）の中核が検証できなくなる。
+
+##### 決定: `apps/timer-sync` のテストを `bun test` へ移す
+
+実行可能であることは実測済み。詳細は
+[`docs/superpowers/plans/2026-08-05-bun-test-migration.md`](../plans/2026-08-05-bun-test-migration.md)。
+
+#### 完了確認（③ の後）
+
 - turbo の依存グラフで、shared 変更時に依存アプリのみ再ビルド・型チェックされることを確認
 - 全テストが緑（リグレッションなし）
 

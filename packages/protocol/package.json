@@ -1,5 +1,5 @@
 {
-  "name": "@tasuki/poker-core",
+  "name": "@tasuki/protocol",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -12,12 +12,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@tasuki/protocol": "workspace:*",
     "neverthrow": "^8.2.0",
-    "valibot": "^1.1.0"
+    "valibot": "^1.4.1"
   },
   "devDependencies": {
-    "typescript": "^5.8.3",
     "vitest": "^3.2.0"
   }
 }

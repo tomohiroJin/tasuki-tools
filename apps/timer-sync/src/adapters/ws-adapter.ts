@@ -10,8 +10,8 @@ import {
   type IncomingMessage,
   type ServerResponse,
 } from "http";
-import * as v from "valibot";
 import { CommandSchema } from "@tasuki/timer-core";
+import { parseBoundaryMessage } from "@tasuki/protocol";
 
 const MAX_MESSAGE_BYTES = 64 * 1024; // 64KB
 
@@ -184,35 +184,19 @@ export class WsAdapter {
         return;
       }
 
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(raw.toString());
-      } catch {
-        ws.send(
-          JSON.stringify({
-            type: "error",
-            code: "INVALID_JSON",
-            message: "JSON の形式が不正です",
-          }),
-        );
-        return;
-      }
-
-      // Valibot でコマンドを検証（S3）
-      const result = v.safeParse(CommandSchema, parsed);
-      if (!result.success) {
-        ws.send(
-          JSON.stringify({
-            type: "error",
-            code: "INVALID_COMMAND",
-            message: "コマンドの形式が不正です",
-          }),
-        );
+      // 境界のパースは @tasuki/protocol に一本化してある（poker の sync / web も同じものを使う）。
+      // 落ちた段（json / schema）で返すエラーコードを分けるのは timer 側の決めごと。
+      const parsed = parseBoundaryMessage(CommandSchema, raw.toString());
+      if (parsed.isErr()) {
+        const code = parsed.error.stage === "json" ? "INVALID_JSON" : "INVALID_COMMAND";
+        const message =
+          parsed.error.stage === "json" ? "JSON の形式が不正です" : "コマンドの形式が不正です";
+        ws.send(JSON.stringify({ type: "error", code, message }));
         return;
       }
 
       this.options
-        .onMessage(connId, result.output)
+        .onMessage(connId, parsed.value)
         .catch(() => {
           ws.send(
             JSON.stringify({

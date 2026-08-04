@@ -13,6 +13,7 @@
     "lint": "eslint src test"
   },
   "dependencies": {
+    "@tasuki/protocol": "workspace:*",
     "@tasuki/timer-core": "workspace:*",
     "nanoid": "^5.0.9",
     "neverthrow": "^8.2.0",
