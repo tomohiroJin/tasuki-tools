@@ -1,0 +1,6 @@
+# アプリの env 実体。テンプレートは <app>/env.example で、実体は VPS 上にのみ
+# 600 で置く。app.env（コミット対象の設定）とは別物なので、パターンを広げすぎない。
+*-sync.env
+
+# sync のバンドル成果物（deploy.sh が生成する）
+*/dist/

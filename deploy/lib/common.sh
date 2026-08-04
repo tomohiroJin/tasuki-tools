@@ -45,8 +45,11 @@ load_app() {
 	local env_file="$WORKSPACE_ROOT/deploy/$app/app.env"
 	[ -f "$env_file" ] || die "$env_file が見つかりません。利用可能: $(available_apps | tr '\n' ' ')"
 
-	# shellcheck disable=SC1090  # 実行時に決まるパスを読み込むのは意図した動作
-	set -a; source "$env_file"; set +a
+	# 実行時に決まるパスを読み込むのは意図した動作（アプリ名で切り替えるため）。
+	set -a
+	# shellcheck source=/dev/null
+	source "$env_file"
+	set +a
 
 	local key
 	for key in "${REQUIRED_KEYS[@]}"; do
