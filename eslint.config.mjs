@@ -61,7 +61,12 @@ export default tseslint.config(
 
   {
     // React はブラウザ側だけ。フックの依存配列の誤りは実行時バグに直結するため error。
-    files: ["apps/web/src/**/*.{ts,tsx}"],
+    //
+    // パターンを特定アプリ名（apps/web/src/**）に固定すると、ディレクトリ改名で
+    // 何にもマッチしなくなり、下の 2 ルールが**静かに無効化される**。実際 S1-a の
+    // 移設（apps/web → apps/timer-web）でそれが起きた。アプリを増やしても効き続ける
+    // よう apps/*-web/src/** で受ける。
+    files: ["apps/*-web/src/**/*.{ts,tsx}"],
     plugins: { "react-hooks": reactHooks },
     rules: {
       "react-hooks/rules-of-hooks": "error",
@@ -74,7 +79,12 @@ export default tseslint.config(
 
   {
     // テストは `!` や重複定義など、本番コードでは避ける書き方を意図的に使う。
-    files: ["**/test/**/*.{ts,tsx}", "**/*.test.{ts,tsx}"],
+    // timer は test/、poker は tests/ と単複が揃っていないため両方に効かせる。
+    files: [
+      "**/test/**/*.{ts,tsx}",
+      "**/tests/**/*.{ts,tsx}",
+      "**/*.test.{ts,tsx}",
+    ],
     rules: {
       "@typescript-eslint/no-non-null-assertion": "off",
     },
