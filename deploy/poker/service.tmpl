@@ -1,0 +1,24 @@
+# systemd ユニットのテンプレート。deploy/setup.sh が @KEY@ を置換して生成する。
+# timer とは別ポート・別ユニットで同居する（epic #15 / S2）。
+[Unit]
+Description=Tasuki sync server (Planning Poker)
+After=network.target
+
+[Service]
+Type=simple
+# bun の絶対パスは VPS の `which bun` に合わせること（不一致だと start が即失敗する）。
+ExecStart=@BUN_PATH@ @APP_DIR@/server.js
+WorkingDirectory=@APP_DIR@
+EnvironmentFile=@APP_DIR@/@ENV_FILE@
+Restart=on-failure
+RestartSec=2
+User=@DEPLOY_USER@
+Group=@DEPLOY_USER@
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

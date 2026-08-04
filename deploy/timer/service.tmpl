@@ -1,0 +1,29 @@
+# systemd ユニットのテンプレート。deploy/setup.sh が @KEY@ を置換して生成する。
+# **この形にしている理由（#51 A）**: 旧 vps-setup.sh はユニットをクォート付き
+# ヒアドキュメント（<<'UNITEOF'）で書き出していたため ${DEPLOY_USER} が展開されず、
+# 「DEPLOY_USER=tomohiro を指定しても User=deploy のまま」という状態だった。
+# 値をテンプレートの外（app.env と引数）に置き、置換で埋めることで食い違いを構造的に防ぐ。
+[Unit]
+Description=Tasuki sync server (TDD Mob Pro Timer)
+After=network.target
+
+[Service]
+Type=simple
+# bun の絶対パスは VPS の `which bun` に合わせること（不一致だと start が即失敗する）。
+ExecStart=@BUN_PATH@ @APP_DIR@/server.js
+WorkingDirectory=@APP_DIR@
+EnvironmentFile=@APP_DIR@/@ENV_FILE@
+Restart=on-failure
+RestartSec=2
+# 非 root の既存ログインユーザーで実行（deploy 転送の所有権・env 読取りが単純になる）。
+User=@DEPLOY_USER@
+Group=@DEPLOY_USER@
+
+# 基本ハードニング（アプリはファイルを書かない＝インメモリ）
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target
