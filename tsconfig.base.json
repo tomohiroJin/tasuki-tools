@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    // DOM が要るのは web 2 つだけ。core / sync は各パッケージで ES2022 のみ。
+    // timer-core が DOM API を使っていないことは実測で確認済み（--lib ES2022 で 0 件）。
+    "lib": ["ES2022"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    // 既定は出力しない。tsc で出力するパッケージ（timer-core / timer-sync）だけが
+    // 自分の tsconfig で noEmit: false と declaration / outDir を指定する。
+    "noEmit": true
+  }
+}

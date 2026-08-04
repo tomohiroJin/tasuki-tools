@@ -1,0 +1,22 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // ルートの base は noEmit: true が既定。このパッケージは tsc で dist を出すので上書きする。
+    "noEmit": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "./dist",
+    // paths が @tdd-mob/core を ../../packages/timer-core/src へ向けているため、共通ルートは
+    // このパッケージではなくワークスペース直下（../..）になる。TypeScript 5.x は黙って
+    // そう推論していたが、6.0 からは明示が必須（TS5011）。既に dist/apps/sync/src/... へ
+    // 出力されているので、この指定は現在のレイアウトを明文化するだけで挙動は変わらない。
+    "rootDir": "../..",
+    "paths": {
+      "@tdd-mob/core": ["../../packages/timer-core/src/index.ts"],
+      "@tdd-mob/core/*": ["../../packages/timer-core/src/*.ts"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

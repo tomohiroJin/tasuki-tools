@@ -28,3 +28,7 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 .superpowers/
+
+# poker 由来（planning-poker/.gitignore から統合）
+.playwright-mcp/
+*.tmp
