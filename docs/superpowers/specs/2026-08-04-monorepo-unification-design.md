@@ -151,10 +151,12 @@ Tasuki/                              # 単一 pnpm workspace + turbo（lockfile 
 | npm スコープ | `@tasuki/` | `@tasuki/timer-core` |
 | パッケージ名 | `<tool>-<layer>` | `timer-core` `poker-sync` |
 | ディレクトリ名 | パッケージ名と一致 | `packages/timer-core` `apps/poker-sync` |
-| systemd ユニット | `tasuki-<tool>-sync` | `tasuki-timer-sync` |
+| systemd ユニット | `tasuki-<tool>-sync`（**S2 で要判断**、下記） | `tasuki-timer-sync` |
 | Caddy 断片 | `Caddyfile.<app>` | `Caddyfile.timer` |
 
-> **注**: 既存の本番ユニット名は `tasuki-sync` である。S2 での改名は本番の切り替え作業を伴うため、S2 の plan で移行手順（旧ユニット停止 → 新ユニット起動 → 切り戻し手順）を明示する。
+> **systemd ユニット名の改名は決定事項ではない。** 既存の本番ユニット名は `tasuki-sync` で、稼働中である。改名は「旧停止 → 新起動」の切り替えを伴い、失敗すればサービス断になる。得られるのは命名の一貫性だけで、機能上の利得は無い。
+> **S2 の plan で次の 2 案を比較して決める**: (a) `tasuki-sync` を timer 用として据え置き、poker は `tasuki-poker-sync` で新規追加する（本番断のリスクゼロ。命名は非対称になる）/ (b) 規約どおり改名する（切り戻し手順を用意し、利用者のいない時間帯に実施）。
+> **既定は (a)** とし、改名する積極的な理由が S2 で見つかった場合のみ (b) を採る。
 
 ### tsconfig.base.json（統合後）
 
@@ -199,7 +201,7 @@ timer 版をベースにする（`globalDependencies` と `passThroughEnv` を�
 - `tdd-mob-pro-timer/.github/workflows/ci.yml` を **ルートの `.github/workflows/ci.yml` へ移す**
 - 現構成（2 monorepo）向けに、`tdd-mob-pro-timer` と `planning-poker` それぞれで `pnpm install` → `turbo run typecheck lint test build` を実行するジョブにする
 - **pnpm のバージョン解決に注意**: 現行 workflow は `pnpm/action-setup@v4` で `version: 9` を固定しているが、poker は `packageManager: pnpm@11.5.0` を宣言しており不整合になる。2 つのディレクトリで版が異なるため、**`corepack enable` で各ディレクトリの `packageManager` 宣言に従わせる**（`action-setup` の固定版は使わない）
-- poker には `lint` タスクが存在しないため、S0 の段では poker のジョブから `lint` を外す（S1-b で追加する）
+- **poker に無いタスクを叩かない**: 現行 workflow は `pnpm typecheck` / `pnpm lint` / `pnpm test:unit` / `pnpm build` を実行するが、poker には **`lint` も `test:unit` も存在しない**（実測: poker の scripts は `build` / `test` / `typecheck` のみ）。S0 の poker ジョブは `typecheck` / `test` / `build` に絞る。`lint` は S1-b で、`test:unit` は必要なら S1 で足す
 - **完了条件**: PR に checks が表示され、緑になること
 
 この workflow は S1 で単一ワークスペース向けに書き直される（使い捨て前提・ファイル 1 つ）。
@@ -232,21 +234,49 @@ timer 版をベースにする（`globalDependencies` と `passThroughEnv` を�
 
 統合（各 1 つに）: `package.json`（name `tasuki`、`packageManager: pnpm@11.5.0`、devDeps 統合）/ `pnpm-workspace.yaml`（`packages/*` `apps/*` + `allowBuilds: esbuild: true`）/ `turbo.json` / `tsconfig.base.json` / `eslint.config.mjs`。lockfile は削除して 1 つ再生成する。
 
-リネーム（**実測 459 箇所 / 183 ファイル**）:
+リネーム（**実測 470 箇所 / 183 ファイル**。行数では 459 行）:
 
-| 旧 | 新 | 箇所 |
-|---|---|---|
-| `@tdd-mob/core` `/sync` `/web` | `@tasuki/timer-core` `/timer-sync` `/timer-web` | 437 箇所 / 167 ファイル |
-| `@planning-poker/core` `/sync` `/web` | `@tasuki/poker-core` `/poker-sync` `/poker-web` | 22 箇所 / 16 ファイル |
+| 旧 | 新 | 出現 | 行 | ファイル |
+|---|---|---|---|---|
+| `@tdd-mob/core` `/sync` `/web` | `@tasuki/timer-core` `/timer-sync` `/timer-web` | 448 | 437 | 167 |
+| `@planning-poker/core` `/sync` `/web` | `@tasuki/poker-core` `/poker-sync` `/poker-web` | 22 | 22 | 16 |
 
 追随が必要な設定: `apps/timer-web/vite.config.ts` の alias 9 本、`apps/timer-sync/tsconfig.json` と `apps/timer-web/tsconfig.json` の `paths`、各 `vitest.config.ts`。
 
-**パス依存スクリプトの追随（見落とすと必ず壊れる）**:
+#### 「緑のまま静かに壊れる」もの — 最優先で潰す
 
-- `scripts/audit-structure.mjs` — `REPO_ROOT = path.resolve(__dirname, "..")` と `loadPackage("packages/core")` / `("apps/sync")` / `("apps/web")` を新パスへ。SC 判定のパス組み立ても同様
-- `scripts/mutations/*.patch`（**9 件**）— パッチ内の `packages/core/test/...` 等のパス
-- `scripts/mutation-check.mjs`
-- `deploy/timer/deploy.sh` — `ROOT_DIR` の算出（`dirname/..` → `dirname/../..`）と `--filter @tdd-mob/web` → `--filter @tasuki/timer-web`、`bun build apps/sync/src/server.ts` → `apps/timer-sync/src/server.ts`
+移動しても**エラーにならず、検査が黙って無効化される**箇所。テストも lint も緑のまま通るため、意識して確認しないと気づけない。
+
+1. **eslint の React フックルールが死ぬ**
+   `eslint.config.mjs:64` は `files: ["apps/web/src/**/*.{ts,tsx}"]` で React ブロックを限定している。`apps/timer-web/src/` へ移すと**このパターンは何にもマッチせず**、`react-hooks/rules-of-hooks` と `react-hooks/exhaustive-deps`（いずれも `error` 指定）が静かに無効化される。**lint は緑のまま通る。**
+   → `files: ["apps/*-web/src/**/*.{ts,tsx}"]` へ一般化する。
+   **確認方法**: 依存配列をわざと壊した一時変更で `lint` が落ちることを確かめる。
+
+2. **eslint のテスト緩和ブロックが poker に効かない**
+   `eslint.config.mjs:77` は `files: ["**/test/**/*.{ts,tsx}", "**/*.test.{ts,tsx}"]`。timer は `test/`（単数）、**poker は `tests/`（複数形）**。統一時に `**/test{,s}/**` 相当で両方をカバーする。
+
+3. **`scripts/audit-structure.mjs` が別物を走査する**
+   `REPO_ROOT = path.resolve(__dirname, "..")` と `loadPackage("packages/core")` / `("apps/sync")` / `("apps/web")` が新レイアウトでは存在しないパスを指す。SC 判定のパス組み立ても同様。
+   なお本スクリプトと `mutation-check.mjs` は **package.json / CI のどのタスクからも呼ばれていない手動ツール**（実測: 参照 0 ファイル）。壊れても自動では気づけない。
+
+4. **変異検査が空振りする**
+   `scripts/mutations/*.patch`（**9 件**）はパッチ内が `packages/core/test/...` 等のパス前提。`scripts/mutation-check.mjs:150` は git pathspec に `":(exclude)tdd-mob-pro-timer/scripts/mutation-check.mjs"` を**直書き**している。
+
+5. **デプロイが不能になる**
+   `deploy/timer/deploy.sh` — `ROOT_DIR` の算出（`dirname/..` → `dirname/../..`）、`--filter @tdd-mob/web` → `--filter @tasuki/timer-web`、`bun build apps/sync/src/server.ts` → `apps/timer-sync/src/server.ts`。
+
+#### ディレクトリ名を直書きしている追跡ファイル（実測 20 個）
+
+上記 4・5 に加えて、以下も追随させる（スコープ名 `@planning-poker/...` の誤検出を除いた実数）:
+
+- ドキュメント: ルート `README.md`、`docs/timer/README.md`、`docs/timer/ARCHITECTURE.md`、`docs/timer/adr/0010-design-doc-source.md`、`docs/poker/README.md`
+- poker の deploy: `Caddyfile.poker` / `README.md` / `poker-sync.service`
+- poker の SDD 成果物: `.specify/memory/constitution.md`、`docs/poker/specs/001-planning-poker-mvp/{plan,tasks}.md`
+
+#### lockfile 再生成のリスク
+
+2 つの lockfile を捨てて 1 つ作り直すため、`^` 範囲の transitive dependency が**黙って新しい版へ上がる**。バージョン統一の意図しない副作用と混ざると原因の切り分けが難しくなる。
+→ 再生成後に `pnpm list --depth=1` の差分を確認し、意図しない major 更新が無いことを見る。退行が出た場合は lockfile の差分を先に疑う。
 
 CI（`.github/workflows/ci.yml`）を単一ワークスペース向けに書き直す。
 
@@ -256,6 +286,12 @@ CI（`.github/workflows/ci.yml`）を単一ワークスペース向けに書き�
 - ルートで `turbo run typecheck` / `lint` / `build` が全緑
 - `turbo run build --filter=@tasuki/poker-web` で timer 側が対象外になる
 - ルートに `pnpm-workspace.yaml` / `turbo.json` / `package.json` / `pnpm-lock.yaml` / `tsconfig.base.json` / `eslint.config.mjs` が **1 つずつ**
+- **「静かに壊れる」もの 5 点の生存確認**:
+  - React フックルールが生きている（依存配列をわざと壊した一時変更で `lint` が落ちる）
+  - poker の `tests/` にも eslint が効いている
+  - `node scripts/audit-structure.mjs` が新レイアウトを走査して完走する
+  - `node scripts/mutation-check.mjs` が **9 変異すべてを検出**する
+  - `deploy/timer/deploy.sh` が本番へ通る
 - `deploy/timer/deploy.sh` で本番へデプロイし、`/` が従来どおり動作する（配信中の `assets/index-*.js` ハッシュがローカルビルドと一致すること、`/ws` が 426 を返すこと、`tasuki-sync` の `NRestarts=0` と PID 据え置き）
 
 > **本番デプロイの前提**: devcontainer には SSH 秘密鍵が無く、コンテナを作り直すたびに消える。デプロイ前に鍵の存在を確認し、無ければ再発行して公開鍵をホスト側で登録する必要がある。また再起動でルームは全消滅する（揮発インメモリ設計）ため、**利用者のいない時間帯に実施する**。
@@ -286,11 +322,15 @@ deploy/
 - **#51 の再発防止を引き継ぐ**: 実行ユーザー・パスは `app.env` の変数で一元化し、systemd ユニットを生成するヒアドキュメントは変数展開されるクォートにする。README の手順はそのまま実行可能な形に保つ（既定 SSH ホストを実在しない値にしない）
 - ホストの Caddyfile は `import /etc/caddy/tasuki/*.conf` するだけの構成にし、アプリ別断片を配置する
 
-**受け入れ確認の制約（重要）**: D1 により poker は S4 まで非公開のため、「timer だけ再デプロイしても poker が落ちない」を**本番実機で確認できない**。代替として:
+**受け入れ確認の制約（重要）**: D1 により poker は S4 まで非公開のため、「timer だけ再デプロイしても poker が落ちない」を**本番実機で確認できない**。
 
-1. **ローカル同居環境**で timer-sync（:8787）と poker-sync（:3311）を同時起動し、片方の再起動がもう片方の WebSocket セッションを切らないことを確認する
-2. 本番では timer の再デプロイ後に `systemctl show tasuki-timer-sync -p ActiveState -p NRestarts -p MainPID` で他ユニットへの波及が無いことを確認する
-3. **poker との無干渉の本番実証は S4 へ送る**（#17 の完了条件にその旨を明記し、#19 に申し送る）
+代替手段を置くが、**その証明力を過大に見積もらないこと**。ローカルで別プロセス・別ポートのサーバーを 2 つ立てて片方を再起動しても、落ちないのは当たり前で、ほとんど何も証明しない。本番で実際に効いてくるのは「**単一の Caddy プロセスが両アプリの設定断片を読んでおり、片方の断片を差し替えて `caddy reload` したときにもう片方の WebSocket が切れないか**」であり、これはローカルでは再現しない。
+
+したがって S2 では:
+
+1. **設定の分離を構成として担保する**（レビューで確認する事項）— 別ポート・別 systemd ユニット・別 Caddy 断片であること。共有される状態は Caddy プロセスのみであること
+2. 本番では timer の再デプロイ後に `systemctl show tasuki-timer-sync -p ActiveState -p NRestarts -p MainPID` を 2 回（20 秒間隔）見て、クラッシュループが無いことを確認する
+3. **「相互無干渉」の実証は S4 へ送る。S2 の完了条件からは外す**（#17 にその旨を明記し、#19 に申し送る）。S4 では poker の WebSocket セッションを繋いだまま timer を再デプロイし、poker 側が切れないことを実機で確認する
 
 ### S3（#18）— ツール選択 LP の新設
 
@@ -328,9 +368,11 @@ deploy/
 |---|---|---|
 | React 19 でランタイム退行 | timer の実画面が壊れる | S1-b で全 1,724 件 + 実画面確認。解消不能なら poker を 18 へ下げる方向へ切替（D4 の退路） |
 | `exactOptionalPropertyTypes` の修正が振る舞いを変える | 型を通すために `undefined` を握り潰す修正をすると挙動が変わる | 修正は「型定義側に `\| undefined` を足す」を第一選択にし、値を落とす修正はしない |
-| `audit-structure.mjs` / 変異パッチのパス追随漏れ | 構造監査と変異検査が黙って無効化される | S1-a の完了確認に `node scripts/audit-structure.mjs` と `node scripts/mutation-check.mjs`（9 変異すべて検出）を含める |
+| **eslint の React ルールが黙って無効化される** | フックの依存漏れが検出されなくなる。**lint は緑のまま** | `files` を `apps/*-web/src/**` へ一般化し、依存配列をわざと壊して lint が落ちることを確認する（S1-a の受け入れ条件） |
+| `audit-structure.mjs` / 変異パッチのパス追随漏れ | 構造監査と変異検査が黙って無効化される。**どのタスクからも呼ばれない手動ツールなので自動では気づけない** | S1-a の完了確認に `node scripts/audit-structure.mjs` と `node scripts/mutation-check.mjs`（9 変異すべて検出）を含める |
+| lockfile 再生成で transitive deps が上がる | 退行の原因がバージョン統一なのか依存更新なのか切り分けられなくなる | 再生成後に `pnpm list --depth=1` の差分を確認。退行時は lockfile 差分を先に疑う |
 | deploy スクリプトのパス追随漏れ | S1 後にデプロイ不能 | S1-a で実際に本番へデプロイして `/` の動作を確認する（受け入れ条件） |
-| 本番ユニット名の改名（`tasuki-sync` → `tasuki-timer-sync`） | 切り替え中にサービス断 | S2 の plan で旧停止 → 新起動 → 切り戻しの手順を明示。利用者のいない時間帯に実施 |
+| 本番ユニット名の改名 | 切り替え中にサービス断 | **既定は改名しない**（`tasuki-sync` 据え置き）。改名する場合のみ S2 の plan で切り戻し手順を明示 |
 | 再起動でルームが全消滅（揮発インメモリ設計） | 利用中のセッションが切れる | 仕様どおり。デプロイは利用者のいない時間帯に行う |
 | timer web テストが約 11 分 | CI が遅く、ローカル検証も待ちが長い | リポジトリは PUBLIC で Actions 時間制約なし。ローカルはバックグラウンド実行を前提にする |
 
@@ -342,16 +384,18 @@ deploy/
 [#50 先行 PR]
       │
       ▼
-   S1-a ─→ S1-b            （#16 / 2 PR）
+   S1-a ─→ S1-b                      （#16 / 2 PR・唯一の必須ゲート）
       │
-      ├──→ S2              （#17・デプロイ規約）
-      ├──→ S3 ─→ S4        （#18 → #19・臨界路。S4 で poker 初公開）
-      └──→ S5              （#20・S3 の前に ui だけ先出し）
+      ├──→ S2 ──────────────┐        （#17・デプロイ規約）
+      │                     │（推奨）
+      ├──→ S5-ui ─→ S3 ─────→ S4      （臨界路。S4 で poker 初公開）
+      │      │        （必須）  ▲
+      └──→ S5-rest ─────────────┘     （#20 の残り: sync-kit / protocol）
 ```
 
 - **S1 は唯一の必須ゲート**。S1-a → S1-b を通すまで他は着手しない
-- S1 完了後、S2 / S3 / S5 は並行着手可能
-- **S5 の `ui` 抽出だけは S3 より先**に出す（LP と poker の配色・カード表現の二重管理を避けるため）
+- **`S5-ui`（配色・カード表現の抽出）は S3 のハード依存**として前倒しする。LP と poker で世界観を二重管理しないため（epic #15 の記述を本設計で決定に格上げ）
+- `S5-rest`（`sync-kit` / `protocol` の抽出）は URL にもデプロイにも触れないため、S1 完了後いつでも着手・完了できる（スラック最大）
 - S4 は合流点。S3（ハード依存）と S2（推奨依存）の後
 
 ---
@@ -364,7 +408,7 @@ deploy/
 |---|---|---|
 | #16 | 「`/` と `/poker` にアクセスすると従来どおり timer と poker が動作する」 | **poker は未デプロイ**。守るべきは `/` の timer のみ |
 | #16 | 完了条件に CI が無い | #50 を先行 PR とし、S1 で単一ワークスペース向けに書き直す |
-| #17 | 「timer だけ再デプロイしても poker が落ちない」を実機確認 | poker は S4 まで非公開。**ローカル同居環境で確認し、本番実証は S4 へ送る** |
+| #17 | 「timer だけ再デプロイしても poker が落ちない」を実機確認 | poker は S4 まで非公開。**この完了条件を S2 から外し、S4 へ送る**。S2 では設定の分離（別ポート・別ユニット・別 Caddy 断片）をレビューで担保するに留める |
 | #18 | 「既存 URL（`/` と `/poker`）は不変」 | `/poker` は元々未公開。不変なのは `/` のみ |
 | #19 | poker への言及は「影響を受けない」 | **poker の初回本番デプロイを S4 で実施する** |
 | #20 | UI キット抽出の時期は「S3 より先出しすると手戻りが減る」（推奨） | **先出しを本設計の決定とする** |
