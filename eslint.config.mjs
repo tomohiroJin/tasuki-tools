@@ -62,11 +62,15 @@ export default tseslint.config(
   {
     // React はブラウザ側だけ。フックの依存配列の誤りは実行時バグに直結するため error。
     //
-    // パターンを特定アプリ名（apps/web/src/**）に固定すると、ディレクトリ改名で
-    // 何にもマッチしなくなり、下の 2 ルールが**静かに無効化される**。実際 S1-a の
-    // 移設（apps/web → apps/timer-web）でそれが起きた。アプリを増やしても効き続ける
-    // よう apps/*-web/src/** で受ける。
-    files: ["apps/*-web/src/**/*.{ts,tsx}"],
+    // **アプリ名に依存しないパターンにすること。** 特定名（apps/web/src/**）に固定
+    // していたせいで、S1-a の移設（apps/web → apps/timer-web）で何にもマッチしなく
+    // なり、下の 2 ルールが静かに無効化された。次に apps/*-web/src/** へ直したが、
+    // それも S3 で apps/landing を足した瞬間に同じ穴が開いた。
+    //
+    // そこで**全アプリのソース**を対象にする。この 2 ルールはフック呼び出しが
+    // 無いファイルでは何も報告しないので、React を使わない sync 側に当たっても
+    // 無害（実測: sync / packages に use* 関数は 0 件）。
+    files: ["apps/*/src/**/*.{ts,tsx}"],
     plugins: { "react-hooks": reactHooks },
     rules: {
       "react-hooks/rules-of-hooks": "error",

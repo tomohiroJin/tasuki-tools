@@ -13,9 +13,17 @@ export WORKSPACE_ROOT
 # app.env で必ず定義されていなければならないキー。
 # 欠けたまま動かすと「空文字のパスへ rsync --delete」のような事故になるため、
 # 使う直前ではなく読み込み時に落とす。
+#
+# 全アプリ共通で要るもの。
 readonly REQUIRED_KEYS=(
-	APP_NAME SERVICE PORT APP_DIR WEB_ROOT
-	BUILD_FILTER WEB_DIST SYNC_ENTRY ENV_FILE
+	APP_NAME WEB_ROOT BUILD_FILTER WEB_DIST
+)
+
+# sync サーバーを持つアプリだけに要るもの。
+# 静的サイト（STATIC_ONLY=1）は Caddy が直接配信するので、
+# systemd ユニットもポートも env ファイルも持たない。
+readonly SERVER_KEYS=(
+	SERVICE PORT APP_DIR SYNC_ENTRY ENV_FILE
 )
 
 die() {
@@ -59,6 +67,25 @@ load_app() {
 	[ "$APP_NAME" = "$app" ] \
 		|| die "$env_file の APP_NAME（$APP_NAME）がディレクトリ名（$app）と一致しません"
 
+	# 絶対パスであることを確認する（相対だとリモートで意図しない場所を触る）
+	case "$WEB_ROOT" in
+	/*) ;;
+	*) die "WEB_ROOT は絶対パスで指定してください: $WEB_ROOT" ;;
+	esac
+
+	if [ -n "${STATIC_ONLY:-}" ]; then
+		# 静的サイト。sync 用のキーが紛れていたら、どちらが本当か分からないので落とす。
+		for key in "${SERVER_KEYS[@]}"; do
+			[ -z "${!key:-}" ] \
+				|| die "$env_file は STATIC_ONLY なのに $key を持っています（どちらかに決めてください）"
+		done
+		return
+	fi
+
+	for key in "${SERVER_KEYS[@]}"; do
+		[ -n "${!key:-}" ] || die "$env_file に $key がありません（必須。静的サイトなら STATIC_ONLY=1 を指定）"
+	done
+
 	# SERVICE はリモートの sudo コマンド文字列に埋め込むため、シェルメタ文字を弾く
 	# （環境変数経由のコマンドインジェクション防止）。
 	printf '%s' "$SERVICE" | grep -Eq '^[A-Za-z0-9_.@-]+$' \
@@ -67,14 +94,10 @@ load_app() {
 	printf '%s' "$PORT" | grep -Eq '^[0-9]{2,5}$' \
 		|| die "PORT が数値ではありません: $PORT"
 
-	# 絶対パスであることを確認する（相対だとリモートで意図しない場所を触る）
-	local p
-	for p in APP_DIR WEB_ROOT; do
-		case "${!p}" in
-		/*) ;;
-		*) die "$p は絶対パスで指定してください: ${!p}" ;;
-		esac
-	done
+	case "$APP_DIR" in
+	/*) ;;
+	*) die "APP_DIR は絶対パスで指定してください: $APP_DIR" ;;
+	esac
 }
 
 # require_ssh_host

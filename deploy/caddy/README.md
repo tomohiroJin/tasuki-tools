@@ -13,6 +13,7 @@ import で切り離す**。アプリを増やしてもホストの `Caddyfile` �
     └── apps/
         ├── 10-timer-ws.conf     # deploy/timer/caddy/10-timer-ws.conf
         ├── 20-poker.conf        # deploy/poker/caddy/20-poker.conf（S4 まで置かない）
+        ├── 30-landing.conf      # deploy/landing/caddy/30-landing.conf（S3 で /home/ に置く）
         └── 90-timer-spa.conf    # deploy/timer/caddy/90-timer-spa.conf
 ```
 
