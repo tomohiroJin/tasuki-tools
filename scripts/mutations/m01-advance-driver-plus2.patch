@@ -1,17 +1,17 @@
 # 変異 1: advance-driver-plus2
 #
 # 検出を期待するテスト:
-#   - packages/core/test/evolve.test.ts
+#   - packages/timer-core/test/evolve.test.ts
 #
-# 適用: リポジトリルート（/workspaces/claym/local/Tasuki）から
-#       git apply tdd-mob-pro-timer/scripts/mutations/m01-*.patch
-#       (diff のパスは tdd-mob-pro-timer/... 起点。mutation-check.mjs もリポジトリルートで実行する)
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m01-*.patch
+#       (diff のパスはリポジトリルート起点。mutation-check.mjs もリポジトリルートで実行する)
 # 復元: git checkout -- <対象ファイル>（同じくリポジトリルートから）
 #
-diff --git a/tdd-mob-pro-timer/packages/core/src/aggregate.ts b/tdd-mob-pro-timer/packages/core/src/aggregate.ts
+diff --git a/packages/timer-core/src/aggregate.ts b/packages/timer-core/src/aggregate.ts
 index aa40caa..200942c 100644
---- a/tdd-mob-pro-timer/packages/core/src/aggregate.ts
-+++ b/tdd-mob-pro-timer/packages/core/src/aggregate.ts
+--- a/packages/timer-core/src/aggregate.ts
++++ b/packages/timer-core/src/aggregate.ts
 @@ -227,7 +227,7 @@ export function nextEligibleIndex(
    const len = session.rotation.length;
    if (len === 0) return 0;

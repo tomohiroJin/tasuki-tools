@@ -27,24 +27,23 @@ import path from "node:path";
 import fs from "node:fs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
-const TDD_ROOT = path.resolve(SCRIPT_DIR, ".."); // tdd-mob-pro-timer/
+const WORKSPACE_ROOT = path.resolve(SCRIPT_DIR, ".."); // Tasuki/（ワークスペースのルート）
 const MUTATIONS_DIR = path.join(SCRIPT_DIR, "mutations");
 
 /**
- * リポジトリのルート（`.git` を持つ場所）。tdd-mob-pro-timer は claym モノレポの
- * サブディレクトリではなく、Tasuki リポジトリそのもののルートに配置されている。
- * パッチの diff パスは "tdd-mob-pro-timer/…" 始まりなので、git 操作は常に
- * このルートを cwd にして行う。
+ * リポジトリのルート（`.git` を持つ場所）。単一ワークスペース化により
+ * WORKSPACE_ROOT と一致するが、git 操作は常に rev-parse で解決した値を使う。
+ * パッチの diff パスはリポジトリルート起点なので、git 操作の cwd はここに固定する。
  */
 const REPO_ROOT = execFileSync("git", ["rev-parse", "--show-toplevel"], {
-  cwd: TDD_ROOT,
+  cwd: WORKSPACE_ROOT,
   encoding: "utf8",
 }).trim();
 
 /**
  * 変異定義。
  *
- * pkg: パッケージのディレクトリ（TDD_ROOT からの相対パス）。--full 実行時と、
+ * pkg: パッケージのディレクトリ（WORKSPACE_ROOT からの相対パス）。--full 実行時と、
  *      絞り込み実行時に vitest を呼ぶ cwd の両方に使う。
  * tests: 検出を期待するテストファイル（pkg からの相対パス）。
  * note: plan.md の対応表からの読み替えがあれば、その内容と理由をここに記録する。
@@ -54,7 +53,7 @@ const MUTATIONS = [
     id: 1,
     label: "advanceDriver の交代を (i+1)%n → (i+2)%n",
     patch: "m01-advance-driver-plus2.patch",
-    pkg: "packages/core",
+    pkg: "packages/timer-core",
     tests: ["test/evolve.test.ts"],
     note:
       "advanceDriver は nextEligibleIndex(aggregate.ts) に委譲しているため、" +
@@ -65,58 +64,58 @@ const MUTATIONS = [
     id: 2,
     label: "checkPermission のある規則の許可/拒否を反転（viewer 拒否 → 許可）",
     patch: "m02-permissions-viewer-invert.patch",
-    pkg: "packages/core",
+    pkg: "packages/timer-core",
     tests: ["test/permissions-differential.test.ts", "test/permissions.test.ts"],
   },
   {
     id: 3,
     label: "computeIneligibleIndices から placeholder の除外を削る",
     patch: "m03-ineligible-placeholder.patch",
-    pkg: "apps/sync",
+    pkg: "apps/timer-sync",
     tests: ["test/proxy-auto-switch.test.ts", "test/manual-skip-eligible.test.ts"],
   },
   {
     id: 4,
     label: "normalizeDisplayName の正規化を1段無効化（制御文字の除去を外す）",
     patch: "m04-display-name-control-chars.patch",
-    pkg: "packages/core",
+    pkg: "packages/timer-core",
     tests: ["test/display-name.test.ts"],
   },
   {
     id: 5,
     label: "canRemoveParticipant の呼び出しを削る（LAST_MANAGER ガードの無効化）",
     patch: "m05-can-remove-participant-guard.patch",
-    pkg: "apps/sync",
+    pkg: "apps/timer-sync",
     tests: ["test/participant-remove.test.ts"],
     note:
-      "plan.md の対応表は検出元を packages/core/test/participants.test.ts としていたが、" +
+      "plan.md の対応表は検出元を packages/timer-core/test/participants.test.ts としていたが、" +
       "これは canRemoveParticipant という純粋関数そのものを検証するテストであり、" +
-      "apps/sync/src/application/handlers.ts 側の「呼び出しを削る」変異（呼び出し元の" +
+      "apps/timer-sync/src/application/handlers.ts 側の「呼び出しを削る」変異（呼び出し元の" +
       "欠陥）は検出できない（純粋関数自体は変えていないため）。実際に検出できるのは" +
       "その呼び出しが実際に守っている振る舞い（LAST_MANAGER）を検証している" +
-      "apps/sync/test/participant-remove.test.ts（③・③' のケース）であるため、" +
+      "apps/timer-sync/test/participant-remove.test.ts（③・③' のケース）であるため、" +
       "こちらに読み替えた。",
   },
   {
     id: 6,
     label: "freezeRunningClock の凍結を外す（一時停止で満タンに戻る）",
     patch: "m06-freeze-running-clock.patch",
-    pkg: "packages/core",
+    pkg: "packages/timer-core",
     tests: ["test/pause-freeze.test.ts", "test/break-freeze.test.ts"],
   },
   {
     id: 7,
     label: "shouldClearGenerating の内容比較を参照比較に変える",
     patch: "m07-should-clear-generating-refcompare.patch",
-    pkg: "apps/web",
+    pkg: "apps/timer-web",
     tests: ["test/ui/problem-generation.test.ts"],
   },
   {
     id: 8,
     label: "deriveConnectionStatus の sessionLost 分岐を反転",
     patch: "m08-derive-connection-status-invert.patch",
-    pkg: "apps/web",
-    // ⚠ apps/web/test/ui/connection-status.test.tsx ではない。同名の別ファイルで、
+    pkg: "apps/timer-web",
+    // ⚠ apps/timer-web/test/ui/connection-status.test.tsx ではない。同名の別ファイルで、
     // そちらは StatusStrip コンポーネントの表示を検証する別物（plan.md 参照）。
     tests: ["test/connection-status.test.ts"],
   },
@@ -124,7 +123,7 @@ const MUTATIONS = [
     id: 9,
     label: "buildNoticeMessage の「あなた」判定を反転",
     patch: "m09-build-notice-message-invert.patch",
-    pkg: "apps/web",
+    pkg: "apps/timer-web",
     tests: ["test/sync/notice-message.test.ts"],
   },
 ];
@@ -147,8 +146,8 @@ function gitStatusPorcelain() {
       "--porcelain",
       "--",
       ".",
-      ":(exclude)tdd-mob-pro-timer/scripts/mutation-check.mjs",
-      ":(exclude)tdd-mob-pro-timer/scripts/mutations",
+      ":(exclude)scripts/mutation-check.mjs",
+      ":(exclude)scripts/mutations",
     ],
     {
       cwd: REPO_ROOT,
@@ -280,7 +279,7 @@ function restoreMutation() {
  * @returns {boolean} テストが（1件以上）落ちたら true（＝変異を検出できた）
  */
 function runTests(mutation, full) {
-  const pkgDir = path.join(TDD_ROOT, mutation.pkg);
+  const pkgDir = path.join(WORKSPACE_ROOT, mutation.pkg);
   const args = full ? ["vitest", "run"] : ["vitest", "run", ...mutation.tests];
   const result = spawnSync("npx", args, {
     cwd: pkgDir,
