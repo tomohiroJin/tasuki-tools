@@ -13,6 +13,11 @@ Tasuki の各アプリは「自分の systemd ユニット + 固有ポート + C
 |---|---|---|---|---|---|
 | `timer` | `tasuki-sync` | 8787 | `/opt/tasuki` / `/var/www/tasuki` | `/` | **公開中** |
 | `poker` | `tasuki-poker-sync` | 3311 | `/opt/tasuki-poker` / `/var/www/tasuki-poker` | `/poker/` | **未公開**（S4 / #19 で公開） |
+| `landing` | （無し・静的） | — | `/var/www/tasuki-home` | `/home/` | **未公開**（S3 で暫定パス、S4 で `/` へ） |
+
+`landing` は **sync サーバーを持たない静的サイト**で、Caddy が直接配信する。`app.env` に
+`STATIC_ONLY=1` を置くと、`deploy.sh` はバンドルとサービス再起動の段を飛ばし、
+`setup.sh`（systemd ユニット・sudoers）も不要になる。
 
 > `timer` のサービス名が命名規約（`tasuki-<tool>-sync`）から外れているのは、
 > **稼働中のユニットを改名しない**と決めたため。改名は「旧停止 → 新起動」の切り替えを

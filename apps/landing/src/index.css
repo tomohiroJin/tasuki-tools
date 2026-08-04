@@ -1,0 +1,193 @@
+/* ============================================================
+   Tasuki — 玄関（ツール選択）
+   共通の世界観は @tasuki/ui。ここには LP 固有のものだけを置く。
+
+   狙い: ツール選択そのものを「手札」にする。並ぶのは poker と同じ象牙の札で、
+   名前の由来である襷掛け（たすきがけ）を思わせる逆向きの傾きで卓に配る。
+   ============================================================ */
+
+@import '@tasuki/ui';
+
+.landing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100dvh;
+  justify-content: center;
+  gap: clamp(2.5rem, 8vh, 4.5rem);
+}
+
+/* ---------- ヒーロー ---------- */
+
+.landing-hero {
+  text-align: center;
+}
+
+.wordmark {
+  font-size: clamp(3rem, 11vw, 5rem);
+  font-style: italic;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  margin: 0 0 1rem;
+  background: linear-gradient(160deg, var(--ivory) 52%, var(--gold-bright));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.tagline {
+  margin: 0;
+  color: var(--ivory-dim);
+  font-size: 0.95rem;
+  line-height: 1.9;
+}
+
+/* ---------- 手札 ---------- */
+
+.hand {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: clamp(1rem, 4vw, 2.5rem);
+  perspective: 900px;
+}
+
+/*
+  実物大の札。@tasuki/ui の .card から地・内枠・コーナーピップ・浮き上がりを継承し、
+  ここでは寸法と中身の並びだけを足す。5:7 はトランプの比率。
+*/
+.tool-card {
+  width: min(15rem, 40vw);
+  height: auto;
+  aspect-ratio: 5 / 7;
+  /*
+    札の面の組み方はトランプに倣う: 図案が中央、名前は下端。
+    1fr の行が図案を上半分の中心に置き、名前と一行説明が足元に落ち着く。
+    （flex の中央揃えだと全部が真ん中に固まり、下半分が空いて間が抜ける）
+  */
+  display: grid;
+  grid-template-rows: 1fr auto auto;
+  align-items: center;
+  justify-items: center;
+  row-gap: 0.35rem;
+  padding: 1.4rem 1rem 1.6rem;
+  text-decoration: none;
+  text-align: center;
+}
+
+/*
+  2 枚を逆向きに傾ける。狙いは「並べた」ではなく「配った」に見せること。
+  等間隔で真っ直ぐ置くとグリッドの体裁になり、卓の上の手札には見えない。
+  名前の由来（襷＝斜めに掛けるもの）とも響く。
+*/
+.hand li:first-child .tool-card {
+  transform: rotate(-4deg);
+}
+
+.hand li:last-child .tool-card {
+  transform: rotate(4deg);
+}
+
+/*
+  手をかざすと札が起き上がって前に出る。@tasuki/ui の .card:hover は
+  translateY(-8px) rotate(-1.5deg) だが、傾けて配った札では「起き上がる」方が
+  自然なので、傾きを 0 に戻す形で上書きする。
+*/
+.hand li .tool-card:hover,
+.hand li .tool-card:focus-visible {
+  transform: translateY(-14px) rotate(0deg);
+}
+
+.tool-card:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px var(--gold),
+    0 0 26px rgba(236, 200, 121, 0.5),
+    0 16px 28px rgba(0, 0, 0, 0.45);
+}
+
+/* ---------- 札の中身 ---------- */
+
+.tool-mark {
+  width: clamp(2.8rem, 10vw, 3.6rem);
+  height: clamp(2.8rem, 10vw, 3.6rem);
+  stroke: var(--gold-deep);
+  fill: var(--gold-deep);
+}
+
+.tool-name {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 600;
+  /* 札の幅いっぱいに伸びて窮屈にならないよう、折り返しを許して少し小さめに */
+  font-size: clamp(0.95rem, 3vw, 1.1rem);
+  line-height: 1.3;
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+.tool-summary {
+  font-size: 0.78rem;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+
+/* ---------- 配る演出 ---------- */
+
+/*
+  卓の中央上から 2 枚が順に配られる。1 度きりの短い所作に留める
+  （動きを抑えたい環境では @tasuki/ui の base.css が止める）。
+*/
+.hand li {
+  animation: deal 0.5s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+
+.hand li:first-child {
+  animation-delay: 0.06s;
+}
+
+.hand li:last-child {
+  animation-delay: 0.18s;
+}
+
+@keyframes deal {
+  from {
+    opacity: 0;
+    transform: translate(0, -34px) rotate(6deg);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---------- モバイル ---------- */
+
+/*
+  縦積みにして、傾きは外す。狭い幅で傾けると角が見切れ、
+  タップ領域も重なるため。
+*/
+@media (max-width: 720px) {
+  .hand {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .hand li:first-child .tool-card,
+  .hand li:last-child .tool-card {
+    transform: none;
+  }
+
+  .hand li .tool-card:hover,
+  .hand li .tool-card:focus-visible {
+    transform: translateY(-8px);
+  }
+
+  .tool-card {
+    width: min(15rem, 68vw);
+  }
+}

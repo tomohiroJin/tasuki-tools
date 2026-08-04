@@ -6,6 +6,9 @@
 # 対象アプリだけを turbo --filter でビルドし、そのアプリの配置先へ転送して、
 # そのアプリの systemd ユニットだけを再起動する。他アプリには一切触れない。
 #
+# 静的サイト（app.env に STATIC_ONLY=1）は Caddy が直接配信するので、
+# バンドルと再起動の段を飛ばす。
+#
 #   DRY_RUN=1 を付けると、実行せずコマンド列を表示する。
 set -euo pipefail
 
@@ -27,19 +30,35 @@ cd "$WORKSPACE_ROOT"
 
 PNPM="${PNPM:-pnpm}"   # 見つからない場合は PNPM=~/.local/bin/pnpm で実行
 BUNDLE_DIR="deploy/$APP/dist"
+STATIC="${STATIC_ONLY:-}"
 
-echo "==> [$APP] 対象: SERVICE=$SERVICE PORT=$PORT → $SSH_HOST"
-echo "    web  $WEB_DIST → $SSH_HOST:$WEB_ROOT"
-echo "    sync $SYNC_ENTRY → $SSH_HOST:$APP_DIR/server.js"
+echo "==> [$APP] → $SSH_HOST"
+if [ -n "$STATIC" ]; then
+	echo "    静的サイト（再起動するサービスは無い）"
+	echo "    web  $WEB_DIST → $SSH_HOST:$WEB_ROOT"
+else
+	echo "    SERVICE=$SERVICE  PORT=$PORT"
+	echo "    web  $WEB_DIST → $SSH_HOST:$WEB_ROOT"
+	echo "    sync $SYNC_ENTRY → $SSH_HOST:$APP_DIR/server.js"
+fi
 
-echo "==> [1/5] web をビルド (vite・${BUILD_FILTER} のみ)"
+step=0
+total=$([ -n "$STATIC" ] && echo 2 || echo 4)
+next() {
+	step=$((step + 1))
+	echo "==> [$step/$total] $*"
+}
+
+next "web をビルド (vite・${BUILD_FILTER} のみ)"
 run "$PNPM" --filter "$BUILD_FILTER" build
 
-echo "==> [2/5] sync を単一ファイルにバンドル (bun build)"
-run mkdir -p "$BUNDLE_DIR"
-run bun build "$SYNC_ENTRY" --target bun --outfile "$BUNDLE_DIR/server.js"
+if [ -z "$STATIC" ]; then
+	next "sync を単一ファイルにバンドル (bun build)"
+	run mkdir -p "$BUNDLE_DIR"
+	run bun build "$SYNC_ENTRY" --target bun --outfile "$BUNDLE_DIR/server.js"
+fi
 
-echo "==> [3/5] web dist を転送"
+next "web dist を転送"
 # --delete はリモート web root のファイルを消すため、ビルド成果物が
 # 揃っていることを確認してから実行する（空 dist による事故防止）。
 if [ -z "${DRY_RUN:-}" ] && [ ! -f "$WEB_DIST/index.html" ]; then
@@ -47,20 +66,22 @@ if [ -z "${DRY_RUN:-}" ] && [ ! -f "$WEB_DIST/index.html" ]; then
 fi
 run rsync -az --delete "$WEB_DIST/" "$SSH_HOST:$WEB_ROOT/"
 
-echo "==> [4/5] server.js を転送"
-run scp "$BUNDLE_DIR/server.js" "$SSH_HOST:$APP_DIR/server.js"
-
-echo "==> [5/5] $SERVICE を再起動"
-# restart のみ sudo（NOPASSWD 対象）。status は閲覧用なので sudo 不要にして
-# sudoers ルール（--no-pager 無しの status）との不一致による失敗を避ける。
-# SERVICE は load_app でシェルメタ文字を弾いてある。
-# shellcheck disable=SC2029  # ${SERVICE} はクライアント側での展開が意図した動作
-run ssh "$SSH_HOST" "sudo systemctl restart ${SERVICE}; systemctl --no-pager status ${SERVICE} | head -5"
+if [ -z "$STATIC" ]; then
+	next "server.js を転送して $SERVICE を再起動"
+	run scp "$BUNDLE_DIR/server.js" "$SSH_HOST:$APP_DIR/server.js"
+	# restart のみ sudo（NOPASSWD 対象）。status は閲覧用なので sudo 不要にして
+	# sudoers ルール（--no-pager 無しの status）との不一致による失敗を避ける。
+	# SERVICE は load_app でシェルメタ文字を弾いてある。
+	# shellcheck disable=SC2029  # ${SERVICE} はクライアント側での展開が意図した動作
+	run ssh "$SSH_HOST" "sudo systemctl restart ${SERVICE}; systemctl --no-pager status ${SERVICE} | head -5"
+fi
 
 echo "==> [$APP] 完了"
 echo ""
 echo "確認:"
 echo "  配信中のハッシュとローカルビルドの一致を見る（新版が出た決定的証拠）"
 echo "    grep -o 'assets/index-[A-Za-z0-9_-]*\\.js' $WEB_DIST/index.html | head -1"
-echo "  クラッシュループしていないこと（20 秒あけて 2 回・NRestarts と MainPID を見る）"
-echo "    ssh $SSH_HOST 'systemctl --no-pager show $SERVICE -p ActiveState -p NRestarts -p MainPID'"
+if [ -z "$STATIC" ]; then
+	echo "  クラッシュループしていないこと（20 秒あけて 2 回・NRestarts と MainPID を見る）"
+	echo "    ssh $SSH_HOST 'systemctl --no-pager show $SERVICE -p ActiveState -p NRestarts -p MainPID'"
+fi
