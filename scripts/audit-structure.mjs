@@ -580,7 +580,7 @@ function declarationSpanFrom(source, exportedStartIndex) {
  * 分割し、各宣言（公開・非公開の両方）の名前と本体テキストを返す。
  *
  * 【非公開の中間宣言も経由点として扱う】`export` されたシンボルの間だけで参照グラフを組むと、
- * 非公開のトップレベル宣言を経由する参照の連鎖が切れてしまう（実例: `packages/core/src/schemas.ts`
+ * 非公開のトップレベル宣言を経由する参照の連鎖が切れてしまう（実例: `packages/timer-core/src/schemas.ts`
  * の `ServerMsgSchema`（公開・生きた根から到達）は非公開の `SnapshotMsg` を配列要素に持ち、
  * `SnapshotMsg` の本体が公開の `RoomSchema` を参照する。`SnapshotMsg` を経由点として扱わないと、
  * 本来生きている `RoomSchema` を誤って死んでいると判定してしまう）。
@@ -604,7 +604,7 @@ function extractAllTopLevelSymbolSpans(source) {
  * 呼び出し側は公開シンボルの名前だけを問い合わせるため実害はない）。
  *
  * 【欠陥2の再修正: 推移的な生存性】以前の実装は「自ファイル内で参照されていれば生存」としていたが、
- * これだと「死んだ記号からの参照」まで生存の根拠にしてしまう（実例: `packages/core/src/i18n/ja.ts` の
+ * これだと「死んだ記号からの参照」まで生存の根拠にしてしまう（実例: `packages/timer-core/src/i18n/ja.ts` の
  * `ja` は同一ファイルの `export type JaMessages = typeof ja;` から参照されているが、
  * `JaMessages` 自体はどの製品コードからも使われていない死んだ型であり、
  * 死んだ記号からの参照を生存の根拠にしてはならない）。
@@ -725,14 +725,14 @@ function loadPackage(pkgRelDir) {
 }
 
 function runAudit() {
-  const core = loadPackage("packages/core");
-  const sync = loadPackage("apps/sync");
-  const web = loadPackage("apps/web");
+  const core = loadPackage("packages/timer-core");
+  const sync = loadPackage("apps/timer-sync");
+  const web = loadPackage("apps/timer-web");
 
   const allTestFiles = new Map([
-    ...[...core.test].map(([k, v]) => [`packages/core/test/${k}`, v]),
-    ...[...sync.test].map(([k, v]) => [`apps/sync/test/${k}`, v]),
-    ...[...web.test].map(([k, v]) => [`apps/web/test/${k}`, v]),
+    ...[...core.test].map(([k, v]) => [`packages/timer-core/test/${k}`, v]),
+    ...[...sync.test].map(([k, v]) => [`apps/timer-sync/test/${k}`, v]),
+    ...[...web.test].map(([k, v]) => [`apps/timer-web/test/${k}`, v]),
   ]);
 
   // SC-027: パッケージごとに独立して到達性を測り、合算する
@@ -754,7 +754,7 @@ function runAudit() {
   const sc028 = sc028DuplicateTestDoubles(allTestFiles);
 
   // FR-093 の例外表（除外ファイル）
-  const exceptFiles = ["packages/core/test/permissions-differential.test.ts"];
+  const exceptFiles = ["packages/timer-core/test/permissions-differential.test.ts"];
   const sc029 = sc029SpecIdsInNames(allTestFiles, exceptFiles);
   const sc030 = sc030CallNamesInNames(allTestFiles);
   const sc031 = sc031GuardExpects(allTestFiles);
@@ -769,17 +769,17 @@ function runAudit() {
   const productSources = new Map([
     ...[...core.src]
       .filter(([k]) => reachable.core.has(k))
-      .map(([k, v]) => [`packages/core/src/${k}`, v]),
+      .map(([k, v]) => [`packages/timer-core/src/${k}`, v]),
     ...[...sync.src]
       .filter(([k]) => reachable.sync.has(k))
-      .map(([k, v]) => [`apps/sync/src/${k}`, v]),
+      .map(([k, v]) => [`apps/timer-sync/src/${k}`, v]),
     ...[...web.src]
       .filter(([k]) => reachable.web.has(k))
-      .map(([k, v]) => [`apps/web/src/${k}`, v]),
+      .map(([k, v]) => [`apps/timer-web/src/${k}`, v]),
   ]);
   // packages/*/src のみを走査対象にする（FR-119②③は packages 限定）
   const coreOnly = new Map(
-    [...core.src].map(([k, v]) => [`packages/core/src/${k}`, v]),
+    [...core.src].map(([k, v]) => [`packages/timer-core/src/${k}`, v]),
   );
   const sc039 = sc039UnreachableElements({
     handlersSource,
