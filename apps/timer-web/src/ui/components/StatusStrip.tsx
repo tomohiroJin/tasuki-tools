@@ -17,7 +17,7 @@ interface StatusStripProps {
   displayName: string;
   role: "host" | "editor" | "viewer";
   connectionStatus: ConnectionStatus;
-  roomCode?: string;
+  roomCode?: string | undefined;
 }
 
 const PHASE_LABEL: Record<string, string> = {

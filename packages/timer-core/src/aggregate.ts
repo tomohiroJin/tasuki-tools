@@ -81,9 +81,9 @@ export interface Problem {
   exampleTest: string;
   hints: string[];
   /** 出所（v2追加・省略時は undefined = 出所不明） */
-  source?: ProblemSource;
+  source?: ProblemSource | undefined;
   /** 利用者が編集済みか（v2追加） */
-  edited?: boolean;
+  edited?: boolean | undefined;
 }
 
 /** 参加者 */
@@ -130,7 +130,7 @@ export interface Room {
   /** 初めてセッションが開始された時刻（epoch ms）。一度設定したら消さない。
    *  権限判定を「一度でも開始したか」で行うための単調フラグ（D2）。
    *  phase の後戻り（"setup" 等）では消えない点が重要。 */
-  startedAt?: number | null;
+  startedAt?: number | null | undefined;
 }
 
 /** 完成記録 */

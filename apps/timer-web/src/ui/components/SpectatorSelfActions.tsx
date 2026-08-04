@@ -22,9 +22,9 @@ interface SpectatorSelfActionsProps {
   /** 一度でもセッションを開始したか（Room.startedAt !== null）。 */
   started: boolean;
   /** 自分を編集者へ戻す（role.set・自己対象）。未指定なら導線を出さない。 */
-  onSelfRoleChange?: (role: "editor" | "viewer") => void;
+  onSelfRoleChange?: ((role: "editor" | "viewer") => void) | undefined;
   /** ルームから抜ける（participant.remove・自己対象）。未指定なら導線を出さない。 */
-  onLeaveRoom?: (participantId: string) => void;
+  onLeaveRoom?: ((participantId: string) => void) | undefined;
 }
 
 export function SpectatorSelfActions({

@@ -36,7 +36,7 @@ export interface AiUnlockDeps {
   joinRateLimiter: JoinRateLimiter;
   joinFailMax: number;
   /** AI 解錠合言葉。undefined なら AI 機能は無効（解錠は常に失敗＝存在秘匿）。 */
-  aiUnlockKey?: string;
+  aiUnlockKey?: string | undefined;
   sendError: (connId: string, code: ErrorCode, message: string) => void;
 }
 

@@ -3,8 +3,10 @@ name: CI
 on:
   push:
     branches: [main]
+  # base を限定しない。branches: [main] にすると、段階的な作業でブランチを
+  # 積み上げたとき（PR の base が main 以外）に checks が 1 つも出ず、
+  # 「CI が通っている」を前提にできなくなる（#50 と同じ穴の別の形）。
   pull_request:
-    branches: [main]
 
 # corepack が pnpm を取得するとき、非対話環境で確認プロンプトを出さない
 env:

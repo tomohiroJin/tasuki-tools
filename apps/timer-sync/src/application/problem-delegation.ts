@@ -25,13 +25,13 @@ export interface ProblemDelegatorDeps {
   clock: Clock;
   broadcaster: Broadcaster;
   /** 代表の deadline（テストで上書き可能） */
-  deadlineMs?: number;
+  deadlineMs?: number | undefined;
   /** サーバサイド AI 生成（省略時はクライアント委譲のみ＝従来挙動） */
-  serverProvider?: ServerProblemProvider;
+  serverProvider?: ServerProblemProvider | undefined;
   /** AI 生成の濫用抑制。serverProvider とセットで渡す */
-  aiLimiter?: AiLimiter;
+  aiLimiter?: AiLimiter | undefined;
   /** AI 生成のタイムアウト ms（既定 60 秒） */
-  aiTimeoutMs?: number;
+  aiTimeoutMs?: number | undefined;
 }
 
 interface DelegationState {

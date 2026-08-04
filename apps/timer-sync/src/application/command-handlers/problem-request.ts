@@ -18,7 +18,7 @@ export interface ProblemRequestContext {
 }
 
 export interface ProblemRequestDeps {
-  delegator?: ProblemDelegator;
+  delegator?: ProblemDelegator | undefined;
   sendError: (connId: string, code: ErrorCode, message: string) => void;
 }
 

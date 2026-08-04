@@ -216,7 +216,8 @@ export function Markdown({ source, className = "" }: MarkdownProps) {
         const key = `b${i}`;
         switch (b.kind) {
           case "heading": {
-            const Tag = (b.level === 1 ? "h3" : b.level === 2 ? "h4" : "h5") as keyof JSX.IntrinsicElements;
+            // React 19 の型定義でグローバルの JSX 名前空間が廃止され、React.JSX へ移った。
+            const Tag = (b.level === 1 ? "h3" : b.level === 2 ? "h4" : "h5") as keyof React.JSX.IntrinsicElements;
             return (
               <Tag key={key} className={HEADING_CLASS[b.level]}>
                 {renderInline(b.text, key)}
