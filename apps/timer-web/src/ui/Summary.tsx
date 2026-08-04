@@ -8,7 +8,7 @@
 
 import React, { useState } from "react";
 import { Trophy, Sparkles, Check } from "lucide-react";
-import type { CompletionRecord } from "@tdd-mob/core";
+import type { CompletionRecord } from "@tasuki/timer-core";
 import { Card, PrimaryButton, GhostButton } from "./primitives.js";
 
 export type EndType = "complete" | "abort";

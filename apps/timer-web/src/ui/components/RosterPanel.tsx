@@ -12,8 +12,8 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { Users, ChevronUp, ChevronDown, Crown, X } from "lucide-react";
-import type { Participant } from "@tdd-mob/core";
-import { MAX_DISPLAY_NAME } from "@tdd-mob/core/aggregate";
+import type { Participant } from "@tasuki/timer-core";
+import { MAX_DISPLAY_NAME } from "@tasuki/timer-core/aggregate";
 import { GhostButton, PrimaryButton, SectionHeader } from "../primitives.js";
 import { presenceLabel } from "../presence.js";
 import { PresenceDot } from "./PresenceDot.js";

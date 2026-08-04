@@ -18,7 +18,7 @@ import {
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { Broadcaster } from "../src/ports/broadcaster.js";
-import type { SessionConfig, Room } from "@tdd-mob/core";
+import type { SessionConfig, Room } from "@tasuki/timer-core";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 class NoopBroadcaster implements Broadcaster {

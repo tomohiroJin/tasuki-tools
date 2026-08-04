@@ -113,7 +113,7 @@
   `"setup"` のときは保持せず `setMode("setup")` とする。
   _要件: FR-127, FR-128, US2-1, US2-2, US2-3_
 
-- [x] **T016** `pnpm --filter @tdd-mob/web test` を実行し、既存の web テストが全て緑であることを
+- [x] **T016** `pnpm --filter @tasuki/timer-web test` を実行し、既存の web テストが全て緑であることを
   確認する（バックグラウンド実行）。落ちたテストがあれば本タスクで修正する。
   _要件: 非機能（後方互換）_
 

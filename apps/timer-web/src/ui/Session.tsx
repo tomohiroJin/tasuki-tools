@@ -7,15 +7,15 @@ import React, { useMemo, useState } from "react";
 import {
   Crown, ArrowRight, Play, Pause, SkipForward, Shuffle, TimerReset,
 } from "lucide-react";
-import { secondsLeft, elapsedMs } from "@tdd-mob/core/aggregate";
-import type { Room, Problem } from "@tdd-mob/core";
+import { secondsLeft, elapsedMs } from "@tasuki/timer-core/aggregate";
+import type { Room, Problem } from "@tasuki/timer-core";
 import { Card, GhostButton, PrimaryButton } from "./primitives.js";
 import { CircularProgress } from "./components/CircularProgress.js";
 import { TeamOrbit } from "./components/TeamOrbit.js";
 import { RotationLineup } from "./components/RotationLineup.js";
 import { rotationMembers } from "./rotation-names.js";
 import { RosterPanel } from "./components/RosterPanel.js";
-import { isAllowed, canRemoveParticipant, canDemote } from "@tdd-mob/core";
+import { isAllowed, canRemoveParticipant, canDemote } from "@tasuki/timer-core";
 import { ProblemEditor } from "./components/ProblemEditor.js";
 import { EndSessionZone } from "./components/EndSessionZone.js";
 import { SelfDriverToggle } from "./components/SelfDriverToggle.js";

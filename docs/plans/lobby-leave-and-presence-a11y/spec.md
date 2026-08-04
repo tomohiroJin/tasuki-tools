@@ -23,7 +23,7 @@ Issue ごとに独立させる（#37 と #42 は互いに依存しない）。
    「利用者に見える変更ゼロ」の制約により意図的にスコープ外とされ、別 Issue としての
    起票が推奨されていた事項である（同 spec.md 218行目）。
 
-いずれもサーバー側・共有ロジック側（`@tdd-mob/core` の `canRemoveParticipant`、
+いずれもサーバー側・共有ロジック側（`@tasuki/timer-core` の `canRemoveParticipant`、
 `presence.ts` の `presenceLabel()`）は既に実装済みで、ロビー画面の描画コードに
 呼び出しが無いだけである。新しいドメインロジックの追加は発生しない。
 
@@ -71,7 +71,7 @@ Issue ごとに独立させる（#37 と #42 は互いに依存しない）。
 - **FR-001**: システムはロビーの参加者一覧の自分の行に「ルームから抜ける」操作を
   提供しなければならない（#37）。
 - **FR-002**: システムは自己退出の可否を、セッション画面の自己退出（`SelfDriverToggle`）
-  と同じ不変条件判定関数（`@tdd-mob/core` の `canRemoveParticipant(participants, targetId)`：
+  と同じ不変条件判定関数（`@tasuki/timer-core` の `canRemoveParticipant(participants, targetId)`：
   在室する編集者以上が1名以上残るか、または在室者そのものが0名になるなら許可）で
   判定しなければならない（#37）。
 - **FR-003**: システムは自己退出が不変条件により拒否される場合、操作を無効化し、
@@ -98,7 +98,7 @@ Issue ごとに独立させる（#37 と #42 は互いに依存しない）。
 
 ## 主要エンティティ
 
-新規エンティティは無い。既存の `Participant`（`@tdd-mob/core`）、`Room` をそのまま使う。
+新規エンティティは無い。既存の `Participant`（`@tasuki/timer-core`）、`Room` をそのまま使う。
 
 ## 成功基準 *(必須・技術非依存)*
 

@@ -37,7 +37,7 @@ import {
   DEFAULT_ERROR_MESSAGE,
   displayMessageFor,
   SYNC_ERROR_CODES,
-} from "@tdd-mob/core";
+} from "@tasuki/timer-core";
 
 const SRC_DIR = join(import.meta.dirname, "../src");
 

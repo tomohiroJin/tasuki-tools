@@ -16,7 +16,7 @@ import { RoomReclaimer } from "./application/room-reclaimer.js";
 import { buildAdminReport, handleAdminHttp } from "./application/admin.js";
 import { AiLimiter } from "./application/ai-limits.js";
 import { ClaudeCliProblemProvider } from "./adapters/claude-cli-problem-provider.js";
-import type { Room, ServerMsg, Command } from "@tdd-mob/core";
+import type { Room, ServerMsg, Command } from "@tasuki/timer-core";
 
 const config = (() => {
   try {

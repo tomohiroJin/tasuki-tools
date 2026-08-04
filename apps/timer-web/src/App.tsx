@@ -26,8 +26,8 @@ import { useLatestRef } from "./ui/use-latest-ref.js";
 import { Stage } from "./ui/primitives.js";
 import { saveRecord } from "./records/indexeddb.js";
 import { persistRecordIfComplete } from "./records/persist.js";
-import { buildCompletionRecord, displayMessageFor } from "@tdd-mob/core";
-import type { Room, SessionConfig, CompletionRecord, Problem } from "@tdd-mob/core";
+import { buildCompletionRecord, displayMessageFor } from "@tasuki/timer-core";
+import type { Room, SessionConfig, CompletionRecord, Problem } from "@tasuki/timer-core";
 
 /** ローカルに API 鍵があれば BYOK、無ければ定型のみのプロバイダを返す。
  *  鍵の保存先（session/local）は key-storage が一元管理する（AI 設定モーダルと同じ経路）。 */
@@ -41,7 +41,7 @@ type AppMode = "setup" | "join" | "lobby" | "session" | "celebration" | "history
 /**
  * ドメインエラーコードを利用者向けの日本語文へ変換する（生のコードを画面に出さない）。
  *
- * **判定規則そのものが @tdd-mob/core の `displayMessageFor()` にある**（T065・FR-105・FR-107）。
+ * **判定規則そのものが @tasuki/timer-core の `displayMessageFor()` にある**（T065・FR-105・FR-107）。
  * かつてはこのファイル内の private 関数で表を引いており、**テストから触れなかった**。
  * そのため「どのコードのとき利用者に何が見えるか」を検証する手段が無く、
  * 表にコードを 1 行足すだけで表示が変わる退行を型検査もテストも素通しさせた。

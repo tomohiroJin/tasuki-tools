@@ -3,7 +3,7 @@
  * 3回目レビュー: 共有セッションで全参加者が phase に追従するようにする（FR-001）
  */
 
-import type { RoomPhase } from "@tdd-mob/core";
+import type { RoomPhase } from "@tasuki/timer-core";
 
 export type Screen = "setup" | "lobby" | "session" | "celebration";
 

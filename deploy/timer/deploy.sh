@@ -21,7 +21,7 @@ cd "$ROOT_DIR"
 PNPM="${PNPM:-pnpm}"   # 見つからない場合は PNPM=~/.local/bin/pnpm で実行
 
 echo "==> [1/5] web をビルド (vite)"
-"$PNPM" --filter @tdd-mob/web build
+"$PNPM" --filter @tasuki/timer-web build
 
 echo "==> [2/5] sync を単一ファイルにバンドル (bun build)"
 mkdir -p deploy/dist

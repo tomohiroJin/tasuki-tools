@@ -9,7 +9,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render } from "@testing-library/react";
 import React from "react";
-import type { Room, Participant } from "@tdd-mob/core";
+import type { Room, Participant } from "@tasuki/timer-core";
 import { aRoomView } from "../support/room-view.js";
 
 vi.mock("../../src/ui/use-countdown-tick.js", () => ({ useCountdownTick: vi.fn() }));

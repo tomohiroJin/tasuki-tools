@@ -7,7 +7,7 @@ import {
   type ClientMessage,
   type ErrorCode,
   type RoomStateMessage,
-} from '@planning-poker/core';
+} from '@tasuki/poker-core';
 import { saveIdentity } from '../storage';
 
 export type ConnectionStatus = 'connecting' | 'open' | 'closed';

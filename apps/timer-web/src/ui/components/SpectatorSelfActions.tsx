@@ -13,7 +13,7 @@
 import React from "react";
 import { GhostButton, PrimaryButton } from "../primitives.js";
 import { permissionHint } from "../permission-hints.js";
-import { isAllowed, type Role } from "@tdd-mob/core";
+import { isAllowed, type Role } from "@tasuki/timer-core";
 
 interface SpectatorSelfActionsProps {
   participantId: string;

@@ -3,7 +3,7 @@
  * T032: FR-013
  */
 
-import type { Room } from "@tdd-mob/core";
+import type { Room } from "@tasuki/timer-core";
 import type { RoomStore } from "../ports/room-store.js";
 
 export class InMemoryRoomStore implements RoomStore {

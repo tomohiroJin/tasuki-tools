@@ -10,12 +10,12 @@
 ## フェーズ1 — セットアップ（モノレポ骨組み）
 
 - [x] T001 ルートに `package.json` / `pnpm-workspace.yaml` / `turbo.json` / `tsconfig.base.json` を作成し、`packages/*` `apps/*` をワークスペース登録。 _要件: —_
-- [x] T002 [P] `packages/core/package.json` と `packages/core/tsconfig.json` を作成（`@tdd-mob/core`、Vitest + fast-check + Valibot + neverthrow を依存に）。 _要件: —_
-- [x] T003 [P] `apps/sync/package.json` / `apps/sync/tsconfig.json` を作成（`@tdd-mob/core` 参照、ws 互換 WS・nanoid 依存）。 _要件: —_
-- [x] T004 [P] `apps/web/package.json` / Vite + React + Tailwind 設定（`@tdd-mob/core` 参照、partysocket・qrcode・DOMPurify 依存）。 _要件: —_
+- [x] T002 [P] `packages/core/package.json` と `packages/core/tsconfig.json` を作成（`@tasuki/timer-core`、Vitest + fast-check + Valibot + neverthrow を依存に）。 _要件: —_
+- [x] T003 [P] `apps/sync/package.json` / `apps/sync/tsconfig.json` を作成（`@tasuki/timer-core` 参照、ws 互換 WS・nanoid 依存）。 _要件: —_
+- [x] T004 [P] `apps/web/package.json` / Vite + React + Tailwind 設定（`@tasuki/timer-core` 参照、partysocket・qrcode・DOMPurify 依存）。 _要件: —_
 - [x] T005 [P] ルート Vitest 設定と CI ワークフロー（lint + typecheck + test）を追加。 _要件: テスト戦略（CI 必須）_
 
-## フェーズ2 — 基盤: `@tdd-mob/core` 型とスキーマ（ブロッキング）
+## フェーズ2 — 基盤: `@tasuki/timer-core` 型とスキーマ（ブロッキング）
 
 - [x] T006 [P] `packages/core/src/aggregate.ts` に `Aggregate/SessionState/ServerClock` 型を定義。 _要件: FR-006, FR-008_
 - [x] T007 [P] `packages/core/src/events.ts` `errors.ts` に `DomainEvent` 合併型と `DomainError`（EmptyName/DuplicateName/MemberLimit/MinMembers/Unauthorized/PhaseConflict）を定義。 _要件: FR-010, FR-017_
@@ -119,9 +119,9 @@
 
 | パッケージ | テスト数 | 状態 |
 |---|---|---|
-| `@tdd-mob/core` | 55 | ✅ 全グリーン |
-| `@tdd-mob/sync` | 58 | ✅ 全グリーン |
-| `@tdd-mob/web` | 35 | ✅ 全グリーン |
+| `@tasuki/timer-core` | 55 | ✅ 全グリーン |
+| `@tasuki/timer-sync` | 58 | ✅ 全グリーン |
+| `@tasuki/timer-web` | 35 | ✅ 全グリーン |
 | **合計** | **150** | **✅ 全グリーン** |
 
 ### 4回目コードレビューの修正（必須1件）

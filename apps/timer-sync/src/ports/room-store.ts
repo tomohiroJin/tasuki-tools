@@ -2,7 +2,7 @@
  * RoomStore ポート — ルームの揮発ストレージ
  */
 
-import type { Room } from "@tdd-mob/core";
+import type { Room } from "@tasuki/timer-core";
 
 export interface RoomStore {
   get(code: string): Room | undefined;

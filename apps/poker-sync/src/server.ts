@@ -16,7 +16,7 @@ import {
   type ErrorCode,
   type Room,
   type RoundError,
-} from '@planning-poker/core';
+} from '@tasuki/poker-core';
 import { broadcast, dropIfEmpty, generateRoomId, getRoom, putRoom, type RoomEntry } from './rooms';
 
 /** 接続ごとの状態。join 後に participantId / roomId が入る */

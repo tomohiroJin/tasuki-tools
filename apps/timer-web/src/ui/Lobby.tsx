@@ -6,7 +6,7 @@
 
 import React, { useState } from "react";
 import { Users, Code, Play, UserPlus, UserMinus, ChevronUp, ChevronDown, X, Crown, Shuffle, Bell, Eye, EyeOff } from "lucide-react";
-import type { Room, Problem } from "@tdd-mob/core";
+import type { Room, Problem } from "@tasuki/timer-core";
 import { Card, PrimaryButton, GhostButton, SectionHeader } from "./primitives.js";
 import { ProblemEditor } from "./components/ProblemEditor.js";
 import { SessionConfigPanel } from "./components/SessionConfigPanel.js";
@@ -20,10 +20,10 @@ import { ProblemModeToggle } from "./components/ProblemModeToggle.js";
 import { NotifySettingsPanel } from "./components/NotifySettingsPanel.js";
 import { participantLabel, canTransferHostTo, canRemoveParticipant, canReorderRotation } from "./participant-label.js";
 // 自己退出の不変条件（編集者以上が1名以上残る）は Session.tsx の SelfDriverToggle と
-// 同じ関数（@tdd-mob/core）に問う。ローカルの canRemoveParticipant（participant-label.ts）は
+// 同じ関数（@tasuki/timer-core）に問う。ローカルの canRemoveParticipant（participant-label.ts）は
 // 「自己退出は別経路」と明記された「他人を退出させてよいか」の判定であり、シグネチャも違うため
 // 別名 import して衝突を避ける（plan.md 参照）。
-import { canRemoveParticipant as canLeaveRoomInvariant } from "@tdd-mob/core";
+import { canRemoveParticipant as canLeaveRoomInvariant } from "@tasuki/timer-core";
 import { PresenceDot } from "./components/PresenceDot.js";
 import { presenceLabel } from "./presence.js";
 import { RemovalConfirmDialog } from "./components/RemovalConfirmDialog.js";
@@ -31,7 +31,7 @@ import { useNotifyPreferences } from "./use-notify-preferences.js";
 import { saveNotifyPreferences } from "../prefs/local-prefs.js";
 import { requestPermissionIfEnabling } from "../platform/notify.js";
 import { playChime } from "../platform/sound.js";
-import type { SessionConfig } from "@tdd-mob/core";
+import type { SessionConfig } from "@tasuki/timer-core";
 
 interface LobbyProps {
   room: Room;

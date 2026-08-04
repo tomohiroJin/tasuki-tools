@@ -16,7 +16,7 @@
 | 検証ゲート | **CI 無し。** ローカルの `pnpm test && typecheck && lint && build` のみ |
 | テスト実行時間 | `apps/web` が 1 回 14 分前後（9p I/O 起因）。個別は `cd apps/web && npx vitest run <file>` が速い |
 | カバレッジ閾値 | **`packages/core` のみ** lines/branches 90%（`events.ts` / `errors.ts` / `index.ts` は除外）。sync / web は閾値なし |
-| モジュール解決 | `apps/sync/vitest.config.ts` が `@tdd-mob/core` のサブパスを **9 本 alias 解決**している。テスト構成を触るとき影響する |
+| モジュール解決 | `apps/sync/vitest.config.ts` が `@tasuki/timer-core` のサブパスを **9 本 alias 解決**している。テスト構成を触るとき影響する |
 | 永続化 | 無し（揮発インメモリ）。データ移行は考慮不要 |
 | 実行環境 | pnpm は `~/.local/bin/pnpm`、bun は PATH 上 |
 

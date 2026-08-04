@@ -17,7 +17,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import React from "react";
 import { Lobby } from "../../src/ui/Lobby.js";
-import type { Room, Participant, SessionConfig } from "@tdd-mob/core";
+import type { Room, Participant, SessionConfig } from "@tasuki/timer-core";
 import { aRoomView } from "../support/room-view.js";
 
 function makeParticipant(overrides: Partial<Participant>): Participant {

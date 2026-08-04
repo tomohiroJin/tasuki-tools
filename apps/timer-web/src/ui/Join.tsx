@@ -8,7 +8,7 @@ import React, { useState } from "react";
 import { LogIn, UserRound, KeyRound } from "lucide-react";
 import { Card, PrimaryButton } from "./primitives.js";
 import { savePreferences, loadPreferences } from "../prefs/local-prefs.js";
-import { MAX_DISPLAY_NAME } from "@tdd-mob/core/aggregate";
+import { MAX_DISPLAY_NAME } from "@tasuki/timer-core/aggregate";
 
 interface JoinProps {
   code: string;

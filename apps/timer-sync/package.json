@@ -1,5 +1,5 @@
 {
-  "name": "@tdd-mob/sync",
+  "name": "@tasuki/timer-sync",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -13,7 +13,7 @@
     "lint": "eslint src test"
   },
   "dependencies": {
-    "@tdd-mob/core": "workspace:*",
+    "@tasuki/timer-core": "workspace:*",
     "nanoid": "^5.0.9",
     "neverthrow": "^8.2.0",
     "valibot": "^1.4.1",

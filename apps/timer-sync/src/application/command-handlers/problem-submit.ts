@@ -14,7 +14,7 @@ import {
   type Participant,
   type Problem,
   type ErrorCode,
-} from "@tdd-mob/core";
+} from "@tasuki/timer-core";
 import type { ProblemDelegator } from "../problem-delegation.js";
 
 /** `handleRoomCommand` が事前に解決済みの在室ルームと実行者。 */

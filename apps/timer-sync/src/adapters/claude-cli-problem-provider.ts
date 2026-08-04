@@ -6,7 +6,7 @@
  * - OAuth トークンは子プロセスの env にのみ渡す（ログ・snapshot 非混入）
  */
 import { spawn } from "node:child_process";
-import { buildProblemPrompt } from "@tdd-mob/core";
+import { buildProblemPrompt } from "@tasuki/timer-core";
 import type { ServerProblemProvider } from "../ports/server-problem-provider.js";
 
 /** spawn 互換の最小インターフェース（テストで差し替える） */

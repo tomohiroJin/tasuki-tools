@@ -10,8 +10,8 @@
 
 import React, { useState, useEffect } from "react";
 import { Dices, Loader2, Pencil, Sparkles, ClipboardPaste, Copy, ChevronDown, ChevronRight } from "lucide-react";
-import type { Problem } from "@tdd-mob/core";
-import { MAX_PROBLEM_TITLE, MAX_PROBLEM_TEXT } from "@tdd-mob/core/aggregate";
+import type { Problem } from "@tasuki/timer-core";
+import { MAX_PROBLEM_TITLE, MAX_PROBLEM_TEXT } from "@tasuki/timer-core/aggregate";
 import { GhostButton } from "../primitives.js";
 import { Markdown } from "./Markdown.js";
 

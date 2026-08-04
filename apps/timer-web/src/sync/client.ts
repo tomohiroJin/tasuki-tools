@@ -8,7 +8,7 @@ import { ExponentialBackoff } from "./backoff.js";
 import { estimateClockOffset, type PingSample } from "./clock-offset.js";
 import { dispatchServerMessage } from "./dispatch.js";
 import type { NoticeSignal } from "./notice-message.js";
-import type { Room } from "@tdd-mob/core";
+import type { Room } from "@tasuki/timer-core";
 
 export type RoomCallback = (room: Room) => void;
 export type ErrorCallback = (code: string, message: string) => void;

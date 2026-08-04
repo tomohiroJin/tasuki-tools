@@ -6,7 +6,7 @@
  * 主要な欠陥が画面側で再発しないようにする。
  */
 
-import type { Participant } from "@tdd-mob/core";
+import type { Participant } from "@tasuki/timer-core";
 import { participantLabel } from "./participant-label.js";
 
 /** rotation 1枠分の表示用ビュー。識別子・表示名・呼び名を対にして持つ。 */

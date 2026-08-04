@@ -1,6 +1,6 @@
 // ルーム画面: 未参加なら参加フォーム、参加後は招待リンク + 参加者一覧 + 投票（US1/US2/US4）
 import { useEffect, useRef, useState } from 'react';
-import type { RoomStateMessage } from '@planning-poker/core';
+import type { RoomStateMessage } from '@tasuki/poker-core';
 import { CardHand } from '../components/CardHand';
 import { NameForm } from '../components/NameForm';
 import { ParticipantList } from '../components/ParticipantList';

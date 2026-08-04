@@ -41,8 +41,8 @@ pnpm install
 pnpm turbo test typecheck
 
 # 開発サーバー（2プロセス）
-pnpm --filter @planning-poker/sync dev   # WS サーバー :3311
-pnpm --filter @planning-poker/web dev    # Vite（/poker/ 配信、WS は :3311 へ proxy）
+pnpm --filter @tasuki/poker-sync dev   # WS サーバー :3311
+pnpm --filter @tasuki/poker-web dev    # Vite（/poker/ 配信、WS は :3311 へ proxy）
 ```
 
 ブラウザで `http://localhost:5173/poker/` を開く。動作検証シナリオは

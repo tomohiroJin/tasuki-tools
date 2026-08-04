@@ -28,9 +28,9 @@ plan.md の3パッケージ構成に従う: `packages/core/`（ドメイン + �
 **Purpose**: pnpm + turbo モノレポの骨格と3パッケージの初期化（research R8）
 
 - [X] T001 モノレポルートを作成: `package.json`（private, scripts）、`pnpm-workspace.yaml`（packages/*, apps/*）、`turbo.json`（build/test/typecheck パイプライン、core → web/sync 依存順。リンターは固定スタック外のため導入しない）、`tsconfig.base.json`（strict）、`.gitignore`
-- [X] T002 [P] `packages/core` を初期化: `packages/core/package.json`（name: `@planning-poker/core`、valibot・neverthrow 依存）、`packages/core/tsconfig.json`、`packages/core/vitest.config.ts`、空の `packages/core/src/index.ts`
-- [X] T003 [P] `apps/sync` を初期化: `apps/sync/package.json`（`@planning-poker/core` を workspace 参照、Bun 型定義）、`apps/sync/tsconfig.json`、`apps/sync/vitest.config.ts`、起動だけの `apps/sync/src/server.ts` スタブ
-- [X] T004 [P] `apps/web` を初期化: Vite + React + TypeScript 構成で `apps/web/`（`vite.config.ts` に `base: '/poker/'` と dev proxy `/poker/ws` → `ws://localhost:3311`、`@planning-poker/core` を workspace 参照）
+- [X] T002 [P] `packages/core` を初期化: `packages/core/package.json`（name: `@tasuki/poker-core`、valibot・neverthrow 依存）、`packages/core/tsconfig.json`、`packages/core/vitest.config.ts`、空の `packages/core/src/index.ts`
+- [X] T003 [P] `apps/sync` を初期化: `apps/sync/package.json`（`@tasuki/poker-core` を workspace 参照、Bun 型定義）、`apps/sync/tsconfig.json`、`apps/sync/vitest.config.ts`、起動だけの `apps/sync/src/server.ts` スタブ
+- [X] T004 [P] `apps/web` を初期化: Vite + React + TypeScript 構成で `apps/web/`（`vite.config.ts` に `base: '/poker/'` と dev proxy `/poker/ws` → `ws://localhost:3311`、`@tasuki/poker-core` を workspace 参照）
 - [X] T005 `pnpm install` 後に `pnpm turbo build typecheck test` が（空テストで）全パッケージ通ることを確認し、失敗があれば構成を修正
 
 **Checkpoint**: モノレポの CI パイプラインが空グリーン

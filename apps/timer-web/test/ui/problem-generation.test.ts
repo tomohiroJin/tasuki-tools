@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { shouldClearGenerating, shouldAutoRequestProblem } from "../../src/ui/problem-generation.js";
-import type { Problem } from "@tdd-mob/core";
+import type { Problem } from "@tasuki/timer-core";
 
 const mk = (title: string, source?: Problem["source"]): Problem => ({
   title,

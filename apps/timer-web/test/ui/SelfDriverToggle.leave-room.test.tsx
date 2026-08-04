@@ -118,7 +118,7 @@ describe("SelfDriverToggle: 見学に回る", () => {
 // ─── 実行できない自己退出は提示しない（実機検証で判明した欠落） ─────────────────────
 // 実機検証で判明: 唯一の実在編集者が「ルームから抜ける」を押すと LAST_MANAGER で拒否される。
 // 押せるボタンを出しておいて拒否するのは「実行できる操作のみ提示する」という原則に反する。
-// 判定は @tdd-mob/core の canRemoveParticipant に問い、web 側に規則を複製しない。
+// 判定は @tasuki/timer-core の canRemoveParticipant に問い、web 側に規則を複製しない。
 
 /**
  * @requirements FR-080, G6, T049

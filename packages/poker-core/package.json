@@ -1,5 +1,5 @@
 {
-  "name": "@planning-poker/core",
+  "name": "@tasuki/poker-core",
   "version": "0.0.1",
   "private": true,
   "type": "module",

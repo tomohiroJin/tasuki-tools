@@ -16,7 +16,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import React from "react";
 import { Lobby } from "../../src/ui/Lobby.js";
-import type { Room, Participant } from "@tdd-mob/core";
+import type { Room, Participant } from "@tasuki/timer-core";
 import { aRoomView } from "../support/room-view.js";
 
 function p(overrides: Partial<Participant>): Participant {
@@ -40,7 +40,7 @@ function makeRoomWithTwoEditors(): Room {
 /**
  * host=Alice（唯一の編集者以上）＋見学者 Carol の部屋。
  *
- * `@tdd-mob/core` の `canRemoveParticipant` は「退出後に在室者そのものが0名になる」場合は
+ * `@tasuki/timer-core` の `canRemoveParticipant` は「退出後に在室者そのものが0名になる」場合は
  * 不変条件の適用対象を失うとして許可する（＝最後の1人は抜けられる）。無効化を確認するには
  * 「自分が抜けても他の在室者（編集者以上でない人）が残る」構成が必要。
  */

@@ -4,7 +4,7 @@
  */
 import React, { useState } from "react";
 import { Languages, ChevronDown, Dices } from "lucide-react";
-import type { SessionConfig } from "@tdd-mob/core";
+import type { SessionConfig } from "@tasuki/timer-core";
 import { GhostButton, SectionHeader } from "../primitives.js";
 import {
   loadRandomLanguagePool,

@@ -11,7 +11,7 @@
 | 構成 | pnpm workspace + turbo モノレポ。`packages/core`（純粋ドメイン） / `apps/sync`（WS サーバー） / `apps/web`（React SPA） |
 | 権限判定の現在地 | `apps/sync/src/application/handlers.ts` に**5層に分散** |
 | UI 側の権限表現 | `apps/web` に `isHost` / `canHostAction` / `role === "host"` が **22 行**（`grep` 実数。定義とコメント1行を含む）。本機能で置換が必要な**使用箇所**は `Session.tsx` **6 箇所**（361 / 394 / 405 / 442 / 454 / 465）と `RosterPanel.tsx` の `canHostAction`（**7 箇所**: 157 / 165 / 246 / 255 / 289 / 299 / 323）。`Lobby.tsx` は開始前専用のため**変更しない** |
-| `apps/web` の core 依存 | あり（`package.json:17` に `"@tdd-mob/core": "workspace:*"`）。型だけでなく実行時関数も既に利用（`App.tsx:24` の `buildCompletionRecord`）＝**D1 が成立する前提を満たす** |
+| `apps/web` の core 依存 | あり（`package.json:17` に `"@tasuki/timer-core": "workspace:*"`）。型だけでなく実行時関数も既に利用（`App.tsx:24` の `buildCompletionRecord`）＝**D1 が成立する前提を満たす** |
 | 段階の表現 | `Room.phase: "setup" \| "ready" \| "session" \| "celebration"` |
 | テスト | vitest。`packages/core/test`（純粋）・`apps/sync/test`（結合）・`apps/web` は限定的 |
 | 検証コマンド | `pnpm test` / `pnpm typecheck` / `pnpm lint` / `pnpm build`（すべて turbo 経由） |

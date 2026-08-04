@@ -4,7 +4,7 @@
  * 参照比較は使わない（presence 更新などお題に無関係な snapshot で room が
  * 新規オブジェクトになっても誤解除しないため）。null→problem の初回確定も変化とみなす。
  */
-import type { Problem } from "@tdd-mob/core";
+import type { Problem } from "@tasuki/timer-core";
 
 export function shouldClearGenerating(
   generating: boolean,

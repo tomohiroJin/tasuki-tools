@@ -4,7 +4,7 @@
  * WebSocket に依存しないため単体テスト可能。client.ts から利用する。
  */
 
-import type { Room, ServerMsg } from "@tdd-mob/core";
+import type { Room, ServerMsg } from "@tasuki/timer-core";
 import type { Identity } from "./client.js";
 import type { NoticeSignal } from "./notice-message.js";
 

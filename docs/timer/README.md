@@ -24,9 +24,9 @@ AI 生成に失敗しても定型お題へ自動縮退します。完成時に�
 
 | パッケージ | 役割 |
 |---|---|
-| `packages/core`（`@tdd-mob/core`） | 純粋ドメイン（`decide`/`evolve`・時刻導出・お題・記録・スキーマ・エラー文言）。front/server で共有 |
-| `apps/sync`（`@tdd-mob/sync`） | 軽量同期サーバー（WebSocket・full snapshot 配信・サーバー権威タイマー・揮発状態） |
-| `apps/web`（`@tdd-mob/web`） | フロントエンド（React + Vite）。WS クライアント・記録・UI |
+| `packages/core`（`@tasuki/timer-core`） | 純粋ドメイン（`decide`/`evolve`・時刻導出・お題・記録・スキーマ・エラー文言）。front/server で共有 |
+| `apps/sync`（`@tasuki/timer-sync`） | 軽量同期サーバー（WebSocket・full snapshot 配信・サーバー権威タイマー・揮発状態） |
+| `apps/web`（`@tasuki/timer-web`） | フロントエンド（React + Vite）。WS クライアント・記録・UI |
 
 設計判断の経緯は [docs/adr/](./docs/adr/) の ADR を参照してください。
 
@@ -50,8 +50,8 @@ pnpm install
 pnpm dev
 
 # 個別起動
-pnpm --filter @tdd-mob/web dev     # フロント（Vite, 既定 5173）
-pnpm --filter @tdd-mob/sync dev    # 同期サーバー（Bun, 既定 8787）
+pnpm --filter @tasuki/timer-web dev     # フロント（Vite, 既定 5173）
+pnpm --filter @tasuki/timer-sync dev    # 同期サーバー（Bun, 既定 8787）
 ```
 
 Vite の開発サーバーは `/ws` を同期サーバー（`ws://localhost:8787`）へプロキシします
@@ -145,7 +145,7 @@ AI 関連の環境変数:
 
 ```bash
 pnpm test:unit          # 全ワークスペースのユニットテスト
-pnpm --filter @tdd-mob/core test:unit   # core のみ
+pnpm --filter @tasuki/timer-core test:unit   # core のみ
 pnpm typecheck          # 型チェック
 pnpm build              # ビルド
 ```
@@ -158,12 +158,12 @@ pnpm build              # ビルド
 
 ```
 tdd-mob-pro-timer/
-├─ packages/core/        # @tdd-mob/core — 純粋ドメイン
+├─ packages/core/        # @tasuki/timer-core — 純粋ドメイン
 │  └─ src/{aggregate,decide,evolve,events,errors,schemas,problem,problem-bank,
 │           records,display-name,participants,permissions,error-messages}.ts
-├─ apps/sync/            # @tdd-mob/sync — 同期サーバー
+├─ apps/sync/            # @tasuki/timer-sync — 同期サーバー
 │  └─ src/{domain なし→core 再利用, application/, ports/, adapters/, server.ts}
-├─ apps/web/             # @tdd-mob/web — フロントエンド
+├─ apps/web/             # @tasuki/timer-web — フロントエンド
 │  └─ src/{ui/, sync/, ai/, records/, prefs/, platform/}
 ├─ scripts/              # audit-structure.mjs（成功基準の走査）/ mutation-check.mjs（変異検査）
 ├─ deploy/Caddyfile      # 本番前段（WSS・/ws リバースプロキシ）

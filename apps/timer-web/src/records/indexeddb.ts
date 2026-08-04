@@ -3,7 +3,7 @@
  * T029: FR-028
  */
 
-import type { CompletionRecord } from "@tdd-mob/core";
+import type { CompletionRecord } from "@tasuki/timer-core";
 
 const DB_NAME = "tdd-mob-pro-timer";
 const DB_VERSION = 1;

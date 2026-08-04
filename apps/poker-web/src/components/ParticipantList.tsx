@@ -1,6 +1,6 @@
 // 参加者一覧（入退室・投票状態をリアルタイム表示。FR-004）
 // 投票済みは「伏せたカード」で表現する（カードテーブルのメタファー）
-import type { ParticipantView } from '@planning-poker/core';
+import type { ParticipantView } from '@tasuki/poker-core';
 
 interface Props {
   participants: ParticipantView[];

@@ -4,8 +4,8 @@
  */
 import React from "react";
 import { Settings2, ChevronDown } from "lucide-react";
-import { VALID_INTERVAL_MINUTES, type IntervalMinutes } from "@tdd-mob/core/aggregate";
-import type { SessionConfig } from "@tdd-mob/core";
+import { VALID_INTERVAL_MINUTES, type IntervalMinutes } from "@tasuki/timer-core/aggregate";
+import type { SessionConfig } from "@tasuki/timer-core";
 import { SectionHeader } from "../primitives.js";
 
 interface SessionConfigPanelProps {

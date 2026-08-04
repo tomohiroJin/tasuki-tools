@@ -18,7 +18,7 @@ import {
   type Room,
   type Participant,
   type DomainEvent,
-} from "@tdd-mob/core";
+} from "@tasuki/timer-core";
 
 /**
  * **集約（session + clock）を反映済みであることを表す型**（FR-103）。

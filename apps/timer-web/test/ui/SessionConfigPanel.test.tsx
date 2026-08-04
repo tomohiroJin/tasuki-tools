@@ -5,7 +5,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import React from "react";
 import { SessionConfigPanel } from "../../src/ui/components/SessionConfigPanel.js";
-import type { SessionConfig } from "@tdd-mob/core";
+import type { SessionConfig } from "@tasuki/timer-core";
 
 const config: SessionConfig = { language: "TypeScript", difficulty: "easy", members: ["Alice"], intervalMinutes: 7 };
 

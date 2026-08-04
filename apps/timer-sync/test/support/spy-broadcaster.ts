@@ -11,7 +11,7 @@
  */
 
 import type { Broadcaster } from "../../src/ports/broadcaster.js";
-import type { ServerMsg, Room } from "@tdd-mob/core";
+import type { ServerMsg, Room } from "@tasuki/timer-core";
 
 export class SpyBroadcaster implements Broadcaster {
   readonly sent: Array<{ connId: string; msg: ServerMsg }> = [];

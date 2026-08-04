@@ -4,7 +4,7 @@
 
 import { describe, it, expect, beforeEach } from "vitest";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
-import type { Room } from "@tdd-mob/core";
+import type { Room } from "@tasuki/timer-core";
 
 function makeRoom(code: string): Room {
   return {

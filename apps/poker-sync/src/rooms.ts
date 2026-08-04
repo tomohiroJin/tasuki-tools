@@ -1,5 +1,5 @@
 // ルームレジストリ（揮発インメモリ。憲法原則 III / FR-014）
-import { createSnapshotBuilder, type Room } from '@planning-poker/core';
+import { createSnapshotBuilder, type Room } from '@tasuki/poker-core';
 
 export interface RoomSocket {
   send(data: string): void;

@@ -103,7 +103,7 @@ Technical Context に NEEDS CLARIFICATION はない（技術スタックは憲�
 - **Decision**: `pnpm-workspace.yaml` で `packages/*` と `apps/*` を登録。`turbo.json` で
   `build` / `test` / `typecheck` を定義し、`core → web/sync` の依存順ビルドを
   turbo に任せる。リンター（ESLint/Biome 等）は固定スタック外の追加依存となるため導入しない
-  （品質は strict TypeScript + typecheck + テストで担保）。web/sync からは `@planning-poker/core` を workspace プロトコルで参照する。
+  （品質は strict TypeScript + typecheck + テストで担保）。web/sync からは `@tasuki/poker-core` を workspace プロトコルで参照する。
 - **Rationale**: 憲法で固定されたツールチェーンの標準的な使い方であり、
   tdd-mob-pro-timer の実績構成のミラーでもある。
 - **Alternatives considered**: なし（憲法で固定済み）。

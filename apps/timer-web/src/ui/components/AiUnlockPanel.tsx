@@ -6,7 +6,7 @@
  */
 import React, { useState } from "react";
 import { Sparkles } from "lucide-react";
-import { MAX_AI_UNLOCK_KEY } from "@tdd-mob/core/aggregate";
+import { MAX_AI_UNLOCK_KEY } from "@tasuki/timer-core/aggregate";
 import { PrimaryButton, GhostButton, SectionHeader } from "../primitives.js";
 
 interface AiUnlockPanelProps {

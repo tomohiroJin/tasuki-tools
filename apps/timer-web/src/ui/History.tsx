@@ -7,7 +7,7 @@
 
 import React, { useEffect, useState } from "react";
 import { History as HistoryIcon, Trash2, ArrowLeft } from "lucide-react";
-import type { CompletionRecord } from "@tdd-mob/core";
+import type { CompletionRecord } from "@tasuki/timer-core";
 import { Card, GhostButton, SectionHeader } from "./primitives.js";
 import { EmptyHint } from "./components/EmptyHint.js";
 import { loadRecords, deleteRecord } from "../records/indexeddb.js";

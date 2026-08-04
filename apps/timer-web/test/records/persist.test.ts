@@ -5,7 +5,7 @@
 
 import { describe, it, expect, vi } from "vitest";
 import { persistRecordIfComplete } from "../../src/records/persist.js";
-import type { CompletionRecord } from "@tdd-mob/core";
+import type { CompletionRecord } from "@tasuki/timer-core";
 
 const rec: CompletionRecord = {
   id: "rec-1",

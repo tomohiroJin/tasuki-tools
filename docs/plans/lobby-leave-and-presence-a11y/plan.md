@@ -5,7 +5,7 @@
 
 | 意思決定 | 選択 | 根拠 | 紐づく要件 |
 |---|---|---|---|
-| #37 不変条件判定 | `@tdd-mob/core` の `canRemoveParticipant(participants, targetParticipantId)` を Lobby.tsx から呼ぶ | Session.tsx の `SelfDriverToggle` 呼び出し箇所が既に同じ関数で `canLeaveRoom` を算出しており（420行目）、同じ不変条件を2箇所目で再実装すると「押せるのに拒否される」ズレが再発する（FR-080 相当のリスク） | FR-002 |
+| #37 不変条件判定 | `@tasuki/timer-core` の `canRemoveParticipant(participants, targetParticipantId)` を Lobby.tsx から呼ぶ | Session.tsx の `SelfDriverToggle` 呼び出し箇所が既に同じ関数で `canLeaveRoom` を算出しており（420行目）、同じ不変条件を2箇所目で再実装すると「押せるのに拒否される」ズレが再発する（FR-080 相当のリスク） | FR-002 |
 | #37 UI 実装単位 | 参加者行内に `GhostButton` を直接1つ追加（新規コンポーネント化しない） | Session.tsx の Room タブに同型のインライン実装が既にあり、1回しか使わない導線をコンポーネント化すると「実装が一致していない部品の統合」を招く（roster-row-unification の教訓） | FR-001, FR-004 |
 | #37 確認ダイアログ | 課さない | spec.md FR-004（FR-079 の既存判断を踏襲） | FR-004 |
 | #42 sr-only の置き場所 | `Lobby.tsx` の呼び出し側（`PresenceDot` の隣）に直接 `<span className="sr-only">` を置く | `RosterPanel.tsx` と同じパターンに揃える。`PresenceDot` に含めると「あえて出さない」選択肢を両画面から奪う。`PresenceDot` は変更しない（FR-007） | FR-006, FR-007 |
@@ -15,11 +15,11 @@
 
 | 原則 | ステータス | 備考 |
 |---|---|---|
-| DRY | PASS | #37 は既存の `@tdd-mob/core` 不変条件関数を再利用。#42 は既存の `presenceLabel()` を再利用。新規ロジックの追加なし |
+| DRY | PASS | #37 は既存の `@tasuki/timer-core` 不変条件関数を再利用。#42 は既存の `presenceLabel()` を再利用。新規ロジックの追加なし |
 | SOLID（単一責任） | PASS | `PresenceDot` の責務（ドット描画のみ）を変更しない。ボタンは行コンポーネント内の1操作として既存の他ボタンと同じ粒度 |
 | DbC（契約による設計） | PASS | 「ルームから抜ける」ボタンの有効/無効は `canRemoveParticipant` の戻り値と1対1で対応させる（事前条件を UI 側で先読みして disabled にする） |
 | YAGNI | PASS | ロビー用の新規コンポーネント（`LobbySelfLeaveButton` 等）は作らない。1箇所にしか出現しないため関数抽出のみで十分 |
-| SoT（信頼できる唯一の情報源） | PASS | 不変条件の正本は `@tdd-mob/core`、在席ラベルの正本は `presence.ts`。両方とも「呼ぶだけ」で新設しない |
+| SoT（信頼できる唯一の情報源） | PASS | 不変条件の正本は `@tasuki/timer-core`、在席ラベルの正本は `presence.ts`。両方とも「呼ぶだけ」で新設しない |
 | 担当領域の遵守 | PASS | `App.tsx` / `apps/sync/**` / `presence.ts` / `PresenceDot.tsx` は変更しない（spec.md スコープ外に明記） |
 
 （違反なし。全 PASS）
@@ -46,9 +46,9 @@ Lobby.tsx
 ## コンポーネントとインターフェース
 
 - `Lobby.tsx`
-  - 追加 import: `canRemoveParticipant`（`@tdd-mob/core`。ローカルの
+  - 追加 import: `canRemoveParticipant`（`@tasuki/timer-core`。ローカルの
     `participant-label.ts` の同名関数と衝突するため
-    `import { canRemoveParticipant as canLeaveRoomInvariant } from "@tdd-mob/core";` の形で
+    `import { canRemoveParticipant as canLeaveRoomInvariant } from "@tasuki/timer-core";` の形で
     別名 import する）、`presenceLabel`（`./presence.js`、既存 import 済みか確認し
     無ければ追加）。
   - 参加者行内、`isMe` ブロックの中に `GhostButton` を1つ追加。
@@ -63,7 +63,7 @@ Lobby.tsx
 
 ## データモデル
 
-変更なし。既存の `Room` / `Participant`（`@tdd-mob/core`）をそのまま使用する。
+変更なし。既存の `Room` / `Participant`（`@tasuki/timer-core`）をそのまま使用する。
 
 ## API / インターフェース契約
 
@@ -107,7 +107,7 @@ docs/plans/lobby-leave-and-presence-a11y/ 新規（本 spec/plan/tasks）
 
 1. #37: Red（失敗するテスト）→ Green（ボタン実装）→ Refactor。
 2. #42: Red（失敗するテスト）→ Green（sr-only 追加）→ Refactor。
-3. 各段階で `pnpm --filter @tdd-mob/web test -- src/ui/Lobby.test.tsx`（または対応する
+3. 各段階で `pnpm --filter @tasuki/timer-web test -- src/ui/Lobby.test.tsx`（または対応する
    テストファイルパス）を実行し、通過を確認してからコミット。
 4. #37 と #42 は依存関係が無いため、どちらを先にやってもよい。ただしコミットは
    Issue ごとに分ける（同一ファイルの diff が混ざらないよう、変更点を論理的に分離してから

@@ -2,7 +2,7 @@
  * Broadcaster ポート — 参加者へのメッセージ配信
  */
 
-import type { ServerMsg, Room } from "@tdd-mob/core";
+import type { ServerMsg, Room } from "@tasuki/timer-core";
 
 export interface Broadcaster {
   /** ルームの全参加者（接続中）へスナップショットを配信する */

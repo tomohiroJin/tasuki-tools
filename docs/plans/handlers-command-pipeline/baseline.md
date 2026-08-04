@@ -77,7 +77,7 @@
 | テスト（core） | 657 | **657 passed（29 ファイル）** | 一致 |
 | テスト（sync） | 347 | **347 passed（50 ファイル）** | 一致 |
 | テスト（web） | 534 | 未実測（本フェーズでは対象外。親セッションが実施） | — |
-| typecheck | 4/4 パッケージ成功 | **4/4 成功**（`@tdd-mob/core`/`@tdd-mob/sync`/`@tdd-mob/web` 実行＋buildも実行） | 一致 |
+| typecheck | 4/4 パッケージ成功 | **4/4 成功**（`@tasuki/timer-core`/`@tasuki/timer-sync`/`@tasuki/timer-web` 実行＋buildも実行） | 一致 |
 | lint | 3/3 パッケージ成功 | **3/3 成功** | 一致 |
 | build | 3/3 パッケージ成功 | **3/3 成功**（web の vite build 含む） | 一致 |
 
@@ -221,7 +221,7 @@
 |---|---|
 | テスト（core） | **662 passed**（30ファイル） |
 | テスト（sync） | **381 passed**（54ファイル） |
-| typecheck（core・sync） | **成功**（`@tdd-mob/core`/`@tdd-mob/sync`とも`tsc --noEmit`エラーなし） |
+| typecheck（core・sync） | **成功**（`@tasuki/timer-core`/`@tasuki/timer-sync`とも`tsc --noEmit`エラーなし） |
 | lint（core・sync） | **成功**（`eslint src test`、両パッケージともエラーなし） |
 | `handlers.ts`最終行数 | **872行**（1,549行から677行・43.7%削減） |
 | ADR-0002 diff | **68行追加・0行削除**（`git diff --stat`実測。既存の背景/決定/影響節は無傷） |

@@ -5,12 +5,12 @@
  * 「いつ・誰が実行できるか」を伝える。ボタンを黙って隠すだけでは、見学者が
  * 「進行に加われば自分で解消できる」ことに気づけず、詰みが続く。
  *
- * 可否の判定そのものは `@tdd-mob/core` の `checkPermission()` が単独で持つ（FR-071）。
+ * 可否の判定そのものは `@tasuki/timer-core` の `checkPermission()` が単独で持つ（FR-071）。
  * ここが持つのは表示の責務だけで、独自の規則は一切持たない。
  * サーバーが返す message とは別物である（あちらはコマンド名を含む開発者向けの文言）。
  */
 
-import { checkPermission, type PermissionInput } from "@tdd-mob/core";
+import { checkPermission, type PermissionInput } from "@tasuki/timer-core";
 
 /**
  * 実行できない理由を日本語のヒントで返す。実行できるなら null。

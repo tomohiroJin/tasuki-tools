@@ -15,11 +15,11 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { advanceDriver } from "@tdd-mob/core";
+import { advanceDriver } from "@tasuki/timer-core";
 import { makeHandlers } from "../src/application/handlers.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
-import type { SessionConfig, Room } from "@tdd-mob/core";
+import type { SessionConfig, Room } from "@tasuki/timer-core";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 

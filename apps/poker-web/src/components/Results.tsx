@@ -1,5 +1,5 @@
 // 公開後の結果表示（各票・平均・最頻値。FR-010）
-import type { ParticipantView, RoundStats, VoteView } from '@planning-poker/core';
+import type { ParticipantView, RoundStats, VoteView } from '@tasuki/poker-core';
 import { cardLabel } from './CardHand';
 
 interface Props {

@@ -14,7 +14,7 @@
   - 他に編集者以上がいる場合は enabled のまま
   - `onRemoveParticipant` が未指定なら「ルームから抜ける」ボタンを描画しない
   _要件: FR-001, FR-002, FR-003, FR-004_
-- [x] T002 T001 を通すため `apps/web/src/ui/Lobby.tsx` に `@tdd-mob/core` の
+- [x] T002 T001 を通すため `apps/web/src/ui/Lobby.tsx` に `@tasuki/timer-core` の
   `canRemoveParticipant`（別名 import）を使った「ルームから抜ける」`GhostButton` を
   `isMe` ブロックに追加する（green）。文言・title は plan.md 前提2の通り。
   _要件: FR-001, FR-002, FR-003, FR-004_
@@ -24,7 +24,7 @@
   `apps/web/test/ui/Lobby.host-transfer.test.tsx` を実行し、既存の
   「ホストが他参加者を退出させる」フロー（確認ダイアログ含む）に回帰が無いことを確認する。
   _要件: FR-005_
-- [x] T004 `pnpm --filter @tdd-mob/web test -- test/ui/Lobby.rotation.test.tsx
+- [x] T004 `pnpm --filter @tasuki/timer-web test -- test/ui/Lobby.rotation.test.tsx
   test/ui/Lobby.host-transfer.test.tsx test/ui/Lobby.empty.test.tsx test/ui/Lobby.role.test.tsx
   test/ui/Lobby.invite.test.tsx test/ui/Lobby.problem-gate.test.tsx` を実行し、
   既存 Lobby テスト39件が回帰なく通過することを確認した。
@@ -48,7 +48,7 @@
   `apps/web/test/ui/components/PresenceDot.test.tsx`（4件）と
   `apps/web/test/ui/RosterPanel.test.tsx`（57件）を実行し、`PresenceDot` 無改修による
   無回帰を確認した（計61件通過）。 _要件: FR-007, SC-004_
-- [x] T009 `pnpm --filter @tdd-mob/web test -- test/ui/Lobby` を実行し、フェーズ1・2の
+- [x] T009 `pnpm --filter @tasuki/timer-web test -- test/ui/Lobby` を実行し、フェーズ1・2の
   `Lobby.*.test.tsx` 一式（8ファイル・47件）が通過することを確認した。 _要件: FR-006〜FR-008_
 - [x] T010 `git add` で #42 の変更（`Lobby.tsx` の該当差分・
   `Lobby.presence-a11y.test.tsx`）のみをコミットする（Conventional Commits, `feat:`）。
@@ -57,13 +57,13 @@
 ## フェーズ3 — 仕上げ
 
 - [x] T011 `apps/web` の `typecheck` と `lint` を実行し通過を確認した
-  （`pnpm --filter @tdd-mob/web typecheck` / `pnpm --filter @tdd-mob/web lint`、いずれも
+  （`pnpm --filter @tasuki/timer-web typecheck` / `pnpm --filter @tasuki/timer-web lint`、いずれも
   エラー0件）。code-review の指摘（`canLeaveRoomInvariant` の重複呼び出し）を受けて
   リファクタも実施し、再度 typecheck/lint/test を通し直した。 _要件: —_
 - [x] T012 `docs/plans/roster-row-unification/spec.md` の「スコープ外 / 非目標」節
   （218行目）に、Issue #42 で対応済みである旨の注記を追記した。`docs/BACKLOG.md` に
   #37/#42 相当の記載は見つからず、追記不要と判断した。 _要件: —_
-- [x] T013 PR 作成前の最終確認: `pnpm --filter @tdd-mob/web test -- test/ui/Lobby` を
+- [x] T013 PR 作成前の最終確認: `pnpm --filter @tasuki/timer-web test -- test/ui/Lobby` を
   再実行し、8ファイル・47件が通過することを確認した（リファクタ後の最終実行）。 _要件: —_
 
 ## 依存関係と並列グループ

@@ -12,7 +12,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, within, act } from "@testing-library/react";
 import React from "react";
 import { Session } from "../../src/ui/Session.js";
-import type { Room, Participant, SessionConfig } from "@tdd-mob/core";
+import type { Room, Participant, SessionConfig } from "@tasuki/timer-core";
 import { saveNotifyPreferences, loadNotifyPreferences } from "../../src/prefs/local-prefs.js";
 import { aRoomView } from "../support/room-view.js";
 

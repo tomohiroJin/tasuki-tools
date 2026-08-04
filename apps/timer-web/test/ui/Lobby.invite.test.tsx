@@ -10,7 +10,7 @@ import userEvent from "@testing-library/user-event";
 import React from "react";
 import { Lobby } from "../../src/ui/Lobby.js";
 // Note: Lobby の onStart prop は onStartSession として定義されている
-import type { Room } from "@tdd-mob/core";
+import type { Room } from "@tasuki/timer-core";
 import { aRoomView } from "../support/room-view.js";
 
 function makeRoom(overrides?: Partial<Room>): Room {

@@ -95,7 +95,7 @@ SC039 | 分岐 1 / データ 303 行 / 公開記号 50 件 | 分岐0 / データ
 - **SC-028 は同一識別子名での重複のみを検出する。** 名前が異なる構造的重複（`FakeAudio` と
   `FakeAudioContext` 等）は検出できない。
 - **型情報を使わない。** import 解決・参照判定はすべて正規表現ベースであり、TypeScript の型システムは
-  見ていない。パスエイリアス（`@tdd-mob/core` 等）はパッケージ境界として意図的に追わない設計。
+  見ていない。パスエイリアス（`@tasuki/timer-core` 等）はパッケージ境界として意図的に追わない設計。
   今回確認した範囲では `apps/web/tsconfig.json` にそのようなエイリアスは無かった。
   再エクスポート文（`export { x } from "..."`）は「消費ではなく通過点」として明示的に除外している。
 - **短い識別子名の誤検出リスク。** 2〜3文字の識別子は「名前一致」方式では偽陽性・偽陰性のリスクが残る
@@ -257,9 +257,9 @@ pnpm typecheck  → 成功
 pnpm lint       → 成功
 pnpm build      → 成功
 pnpm test       → 成功
-  @tdd-mob/core: Test Files 24 passed (24) / Tests 588 passed (588)
-  @tdd-mob/sync: Test Files 44 passed (44) / Tests 300 passed (300)
-  @tdd-mob/web : Test Files 71 passed (71) / Tests 500 passed (500)
+  @tasuki/timer-core: Test Files 24 passed (24) / Tests 588 passed (588)
+  @tasuki/timer-sync: Test Files 44 passed (44) / Tests 300 passed (300)
+  @tasuki/timer-web : Test Files 71 passed (71) / Tests 500 passed (500)
 ```
 
 **`packages/core` のカバレッジ（閾値 lines/branches 90%）:**
@@ -317,9 +317,9 @@ SC-029/030 が 1 件ずつ増えているのは、新設した support のテス
 
 ```
 pnpm typecheck / lint / build / test → すべて成功（EXIT=0）
-  @tdd-mob/core: Test Files 25 passed (25) / Tests 597 passed (597)
-  @tdd-mob/sync: Test Files 47 passed (47) / Tests 321 passed (321)
-  @tdd-mob/web : Test Files 72 passed (72) / Tests 505 passed (505)
+  @tasuki/timer-core: Test Files 25 passed (25) / Tests 597 passed (597)
+  @tasuki/timer-sync: Test Files 47 passed (47) / Tests 321 passed (321)
+  @tasuki/timer-web : Test Files 72 passed (72) / Tests 505 passed (505)
   packages/core カバレッジ: All files | 98.68 | 93.33 | 97.91 | 98.68（閾値 90% を維持）
 ```
 
@@ -514,9 +514,9 @@ G3 の最初のバッチ（T032）の後、変異検査の実行が**完了前�
 
 ```
 pnpm typecheck / lint / build / test → すべて成功（EXIT=0）
-  @tdd-mob/core: Test Files 24 passed (24) / Tests 599 passed (599)
-  @tdd-mob/sync: Test Files 47 passed (47) / Tests 325 passed (325)
-  @tdd-mob/web : Test Files 72 passed (72) / Tests 505 passed (505)
+  @tasuki/timer-core: Test Files 24 passed (24) / Tests 599 passed (599)
+  @tasuki/timer-sync: Test Files 47 passed (47) / Tests 325 passed (325)
+  @tasuki/timer-web : Test Files 72 passed (72) / Tests 505 passed (505)
   packages/core カバレッジ: All files | 98.68 | 93.28 | 97.91 | 98.68（閾値 90% を維持）
 ```
 
@@ -635,9 +635,9 @@ spec は「テスト側を公開 API 経由の検証に寄せるか、その記�
 
 ```
 pnpm typecheck / lint / build / test → すべて成功（EXIT=0）
-  @tdd-mob/core: Test Files 24 passed (24) / Tests 599 passed (599)
-  @tdd-mob/sync: Test Files 47 passed (47) / Tests 325 passed (325)
-  @tdd-mob/web : Test Files 72 passed (72) / Tests 505 passed (505)
+  @tasuki/timer-core: Test Files 24 passed (24) / Tests 599 passed (599)
+  @tasuki/timer-sync: Test Files 47 passed (47) / Tests 325 passed (325)
+  @tasuki/timer-web : Test Files 72 passed (72) / Tests 505 passed (505)
   packages/core カバレッジ: All files | 98.68 | 93.28 | 97.91 | 98.68（閾値 90% を維持）
 ```
 
@@ -697,9 +697,9 @@ T055 で `index.ts` の `export *` を明示列挙に置き換えた結果、型
 
 ```
 pnpm typecheck / lint / build / test → すべて成功（EXIT=0）
-  @tdd-mob/core: Test Files 25 passed (25) / Tests 615 passed (615)
-  @tdd-mob/sync: Test Files 48 passed (48) / Tests 327 passed (327)
-  @tdd-mob/web : Test Files 73 passed (73) / Tests 523 passed (523)
+  @tasuki/timer-core: Test Files 25 passed (25) / Tests 615 passed (615)
+  @tasuki/timer-sync: Test Files 48 passed (48) / Tests 327 passed (327)
+  @tasuki/timer-web : Test Files 73 passed (73) / Tests 523 passed (523)
   packages/core カバレッジ: All files | 98.71 | 93.47 | 98.03 | 98.71（閾値 90% を維持）
 
 node scripts/mutation-check.mjs → 9 変異すべて検出（ベースラインと一致）
@@ -847,9 +847,9 @@ if (nextIndex !== cur) {
 
 ```
 pnpm typecheck / lint / build / test → すべて成功
-  @tdd-mob/core: Test Files 27 passed (27) / Tests 629 passed (629)
-  @tdd-mob/sync: Test Files 48 passed (48) / Tests 329 passed (329)
-  @tdd-mob/web : Test Files 73 passed (73) / Tests 523 passed (523)
+  @tasuki/timer-core: Test Files 27 passed (27) / Tests 629 passed (629)
+  @tasuki/timer-sync: Test Files 48 passed (48) / Tests 329 passed (329)
+  @tasuki/timer-web : Test Files 73 passed (73) / Tests 523 passed (523)
   packages/core カバレッジ: All files | 98.71 | 93.49 | 98.03 | 98.71（閾値 90% を維持）
 
 node scripts/mutation-check.mjs → 9 変異すべて検出（ベースラインと一致）
@@ -937,9 +937,9 @@ T073/T074 で `handlers.ts` のエラー送信が `sendError(...)` ヘルパ経�
 
 ```
 pnpm typecheck / lint / build / test → すべて成功（EXIT=0）
-  @tdd-mob/core: Test Files 27 passed (27) / Tests 629 passed (629)
-  @tdd-mob/sync: Test Files 48 passed (48) / Tests 329 passed (329)
-  @tdd-mob/web : Test Files 73 passed (73) / Tests 523 passed (523)
+  @tasuki/timer-core: Test Files 27 passed (27) / Tests 629 passed (629)
+  @tasuki/timer-sync: Test Files 48 passed (48) / Tests 329 passed (329)
+  @tasuki/timer-web : Test Files 73 passed (73) / Tests 523 passed (523)
   packages/core カバレッジ: All files | 98.71 | 93.49 | 98.03 | 98.71（閾値 90% を維持）
 
 node scripts/mutation-check.mjs → 9 変異すべて検出（ベースラインと一致）

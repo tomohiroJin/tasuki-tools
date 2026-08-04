@@ -7,7 +7,7 @@
  * deadline 内に投入が無ければ次候補へ再委譲し、全候補失敗なら定型で確定する。
  */
 
-import { validateProblem, pickFallback, type Problem, type Room } from "@tdd-mob/core";
+import { validateProblem, pickFallback, type Problem, type Room } from "@tasuki/timer-core";
 import type { RoomStore } from "../ports/room-store.js";
 import type { Broadcaster } from "../ports/broadcaster.js";
 import type { Clock } from "../ports/clock.js";

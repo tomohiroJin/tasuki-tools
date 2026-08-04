@@ -3,8 +3,8 @@
  * T025: FR-024
  */
 
-import { pickFallback } from "@tdd-mob/core/problem";
-import type { ProblemWithSource } from "@tdd-mob/core/problem";
+import { pickFallback } from "@tasuki/timer-core/problem";
+import type { ProblemWithSource } from "@tasuki/timer-core/problem";
 import type { ProblemProvider } from "./provider.js";
 
 export class NoAiProvider implements ProblemProvider {

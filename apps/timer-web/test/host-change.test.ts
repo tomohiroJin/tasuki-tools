@@ -7,7 +7,7 @@
 
 import { describe, it, expect } from "vitest";
 import { hostChangeMessage } from "../src/ui/host-change.js";
-import type { Room, Participant, SessionConfig } from "@tdd-mob/core";
+import type { Room, Participant, SessionConfig } from "@tasuki/timer-core";
 
 function makeParticipant(overrides: Partial<Participant>): Participant {
   return {

@@ -16,7 +16,7 @@ import {
   type SessionConfig,
   type IntervalMinutes,
   type ErrorCode,
-} from "@tdd-mob/core";
+} from "@tasuki/timer-core";
 import type { Clock } from "../../ports/clock.js";
 import type { Broadcaster } from "../../ports/broadcaster.js";
 import type { RoomStore } from "../../ports/room-store.js";

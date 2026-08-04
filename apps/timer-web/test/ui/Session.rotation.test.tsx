@@ -7,7 +7,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import React from "react";
 import { Session } from "../../src/ui/Session.js";
-import type { Room, Participant, SessionConfig } from "@tdd-mob/core";
+import type { Room, Participant, SessionConfig } from "@tasuki/timer-core";
 import { aRoomView } from "../support/room-view.js";
 
 function p(overrides: Partial<Participant>): Participant {

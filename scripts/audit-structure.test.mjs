@@ -50,8 +50,8 @@ describe("SC-027: 到達しないモジュール（グラフ探索）", () => {
   });
 
   test("非相対 import（パッケージ間参照）は解決しない", () => {
-    const files = new Map([["index.ts", 'import { x } from "@tdd-mob/core";']]);
-    assert.equal(resolveRelativeImport("index.ts", "@tdd-mob/core", files), null);
+    const files = new Map([["index.ts", 'import { x } from "@tasuki/timer-core";']]);
+    assert.equal(resolveRelativeImport("index.ts", "@tasuki/timer-core", files), null);
   });
 
   test("入口から辿って到達するファイルのみが到達可能集合に入る", () => {
@@ -351,7 +351,7 @@ describe("SC-039: 生きたモジュール内部の到達不能な要素", () =>
       ["packages/core/src/problem.ts", "export const FALLBACK_PROBLEMS = [1, 2, 3];"],
     ]);
     const productSources = new Map([
-      ["apps/web/src/App.tsx", "import { FALLBACK_PROBLEMS } from '@tdd-mob/core';"],
+      ["apps/web/src/App.tsx", "import { FALLBACK_PROBLEMS } from '@tasuki/timer-core';"],
     ]);
     assert.equal(sc039bUnusedPublicData(packageSrcFiles, productSources), 0);
   });
@@ -379,7 +379,7 @@ describe("SC-039: 生きたモジュール内部の到達不能な要素", () =>
       ],
     ]);
     const productSources = new Map([
-      ["apps/sync/src/rooms.ts", "import { RoomSchema } from '@tdd-mob/core';"],
+      ["apps/sync/src/rooms.ts", "import { RoomSchema } from '@tasuki/timer-core';"],
     ]);
     assert.equal(sc039bUnusedPublicData(packageSrcFiles, productSources), 0);
   });
@@ -441,7 +441,7 @@ describe("SC-039: 生きたモジュール内部の到達不能な要素", () =>
     const productSources = new Map([
       [
         "apps/web/src/App.tsx",
-        "import { pickFallback } from '@tdd-mob/core'; pickFallback();",
+        "import { pickFallback } from '@tasuki/timer-core'; pickFallback();",
       ],
     ]);
     assert.equal(sc039bUnusedPublicData(packageSrcFiles, productSources), 0);

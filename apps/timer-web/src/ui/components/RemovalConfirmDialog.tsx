@@ -6,7 +6,7 @@
  * 判定（participantLabel）は participant-label.ts のものをそのまま使う（FR-178）。
  */
 
-import type { Participant } from "@tdd-mob/core";
+import type { Participant } from "@tasuki/timer-core";
 import { participantLabel } from "../participant-label.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 

@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import type { ServerMsg, Room } from "@tdd-mob/core";
+import type { ServerMsg, Room } from "@tasuki/timer-core";
 import { SpyBroadcaster } from "./spy-broadcaster.js";
 
 /** テスト用の最小限の Room。broadcastSnapshot が受け取る room を模す。 */

@@ -7,7 +7,7 @@
  */
 
 import { ok, type Result } from "neverthrow";
-import type { ErrorCode } from "@tdd-mob/core";
+import type { ErrorCode } from "@tasuki/timer-core";
 import type { Clock } from "../../ports/clock.js";
 import type { Broadcaster } from "../../ports/broadcaster.js";
 

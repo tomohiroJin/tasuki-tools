@@ -35,7 +35,7 @@ importers:
 
   apps/poker-sync:
     dependencies:
-      '@planning-poker/core':
+      '@tasuki/poker-core':
         specifier: workspace:*
         version: link:../../packages/poker-core
       neverthrow:
@@ -54,7 +54,7 @@ importers:
 
   apps/poker-web:
     dependencies:
-      '@planning-poker/core':
+      '@tasuki/poker-core':
         specifier: workspace:*
         version: link:../../packages/poker-core
       react:
@@ -85,7 +85,7 @@ importers:
 
   apps/timer-sync:
     dependencies:
-      '@tdd-mob/core':
+      '@tasuki/timer-core':
         specifier: workspace:*
         version: link:../../packages/timer-core
       nanoid:
@@ -110,7 +110,7 @@ importers:
 
   apps/timer-web:
     dependencies:
-      '@tdd-mob/core':
+      '@tasuki/timer-core':
         specifier: workspace:*
         version: link:../../packages/timer-core
       dompurify:

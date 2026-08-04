@@ -12,7 +12,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { makeHandlers } from "../src/application/handlers.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
-import type { ServerMsg, SessionConfig } from "@tdd-mob/core";
+import type { ServerMsg, SessionConfig } from "@tasuki/timer-core";
 import { SpyBroadcaster as SharedSpyBroadcaster } from "./support/spy-broadcaster.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 

@@ -78,7 +78,7 @@
 - [x] **T007** `packages/core/src/index.ts` に `export * from "./permissions.js";` と
   `export * from "./participants.js";` を追加する（既存の全モジュールが `export *` 様式なので揃える）。
   これにより `apps/sync` と `apps/web` の両方から参照できる
-  （`apps/web` は `package.json:17` で `@tdd-mob/core` に依存済み・実行時関数も既に利用している）。
+  （`apps/web` は `package.json:17` で `@tasuki/timer-core` に依存済み・実行時関数も既に利用している）。
   _要件: FR-071_
 
 ---
@@ -352,7 +352,7 @@
 
 - [x] **T049** 自己退出のボタンが、不変条件（FR-072）で拒否される状況でも押せてしまう。
   `apps/web` 側でも `canRemoveParticipant()` を用いて事前に無効化し、理由を提示する。
-  `permissionHint` と同様、判定は `@tdd-mob/core` の関数に問い、web 側に規則を複製しないこと。
+  `permissionHint` と同様、判定は `@tasuki/timer-core` の関数に問い、web 側に規則を複製しないこと。
   _要件: FR-080, FR-073_
 
 ---

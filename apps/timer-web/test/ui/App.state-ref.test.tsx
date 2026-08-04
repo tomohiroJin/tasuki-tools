@@ -23,7 +23,7 @@ import React from "react";
 import App from "../../src/App.js";
 import { FakeWS } from "../support/fakes.js";
 import { aRoomView } from "../support/room-view.js";
-import type { Problem } from "@tdd-mob/core";
+import type { Problem } from "@tasuki/timer-core";
 
 vi.mock("../../src/records/indexeddb.js", () => ({
   saveRecord: vi.fn().mockResolvedValue(undefined),

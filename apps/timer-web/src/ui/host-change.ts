@@ -5,7 +5,7 @@
  * 明示移譲・自動委譲の双方を 1 経路で検知する（新 signal は使わない）。
  * 初回（prev 未定義）や変化なしは null（＝通知しない）。
  */
-import type { Room } from "@tdd-mob/core";
+import type { Room } from "@tasuki/timer-core";
 
 export function hostChangeMessage(
   prevHostId: string | undefined,

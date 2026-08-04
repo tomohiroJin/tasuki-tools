@@ -35,8 +35,8 @@
 ## フェーズ7 — 配線・非破壊確認
 
 - [x] T012 `apps/sync/src/server.ts` の `new WsAdapter({...})` 呼び出しに `heartbeatIntervalMs: config.heartbeatIntervalMs` / `heartbeatMaxMisses: config.heartbeatMaxMisses` を追加する。 _要件: FR-005_
-- [x] T013 `pnpm --filter @tdd-mob/sync test` を実行し、新規テストに加え既存の `driver-absence.test.ts` / `room-reclaimer.test.ts` / `ws-adapter.integration.test.ts` / `ws-adapter.admin.test.ts` が非破壊であることを確認する。 _要件: SC-002_
-- [x] T014 `pnpm --filter @tdd-mob/sync typecheck` と `pnpm --filter @tdd-mob/sync lint` を実行し通す。 _要件: —_
+- [x] T013 `pnpm --filter @tasuki/timer-sync test` を実行し、新規テストに加え既存の `driver-absence.test.ts` / `room-reclaimer.test.ts` / `ws-adapter.integration.test.ts` / `ws-adapter.admin.test.ts` が非破壊であることを確認する。 _要件: SC-002_
+- [x] T014 `pnpm --filter @tasuki/timer-sync typecheck` と `pnpm --filter @tasuki/timer-sync lint` を実行し通す。 _要件: —_
 
 ## フェーズ8 — ドキュメント
 

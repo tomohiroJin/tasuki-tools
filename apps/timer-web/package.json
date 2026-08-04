@@ -1,5 +1,5 @@
 {
-  "name": "@tdd-mob/web",
+  "name": "@tasuki/timer-web",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -14,7 +14,7 @@
     "lint": "eslint src test"
   },
   "dependencies": {
-    "@tdd-mob/core": "workspace:*",
+    "@tasuki/timer-core": "workspace:*",
     "dompurify": "^3.4.8",
     "lucide-react": "^1.17.0",
     "neverthrow": "^8.2.0",

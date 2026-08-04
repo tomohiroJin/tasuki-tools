@@ -7,7 +7,7 @@
  * （フェーズ4・純粋な移動）。
  */
 
-import type { SessionConfig, ProblemMode } from "@tdd-mob/core";
+import type { SessionConfig, ProblemMode } from "@tasuki/timer-core";
 
 // RESTART は「現ドライバーのまま持ち時間をやり直す」（Issue #14）。session.act として
 // 受理するため権限は既存の EDITOR_PLUS_COMMANDS（session.act）がそのまま効く。

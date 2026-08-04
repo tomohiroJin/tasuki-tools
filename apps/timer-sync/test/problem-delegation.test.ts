@@ -14,7 +14,7 @@ import {
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { Broadcaster } from "../src/ports/broadcaster.js";
-import type { Room, Problem } from "@tdd-mob/core";
+import type { Room, Problem } from "@tasuki/timer-core";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 
 const validProblem: Problem = {
@@ -267,7 +267,7 @@ describe("ProblemDelegator: 代表生成", () => {
 
 // ─── problemMode による委譲分岐テスト ────────────────────────────────────────
 
-import type { Room, Participant } from "@tdd-mob/core";
+import type { Room, Participant } from "@tasuki/timer-core";
 
 function makeRoomWithMode(mode: "ai" | "fallback", hasAiKey: boolean): Room {
   const participant: Participant = {

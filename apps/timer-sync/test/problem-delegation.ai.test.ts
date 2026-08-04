@@ -15,7 +15,7 @@ import { ProblemDelegator } from "../src/application/problem-delegation.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { AiLimiter } from "../src/application/ai-limits.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
-import type { Room } from "@tdd-mob/core";
+import type { Room } from "@tasuki/timer-core";
 import type { ServerProblemProvider } from "../src/ports/server-problem-provider.js";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 

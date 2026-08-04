@@ -1,7 +1,7 @@
 // 名前入力フォーム（トップのルーム作成とルームの参加で共用）
 // 文字数ルールは core の NAME_MAX_LENGTH / isValidName が単一情報源
 import { useState, type FormEvent } from 'react';
-import { NAME_MAX_LENGTH, isValidName } from '@planning-poker/core';
+import { NAME_MAX_LENGTH, isValidName } from '@tasuki/poker-core';
 
 interface Props {
   submitLabel: string;

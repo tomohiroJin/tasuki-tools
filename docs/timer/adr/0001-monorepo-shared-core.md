@@ -11,7 +11,7 @@
 
 ## 決定
 
-pnpm workspaces + Turborepo のモノレポとし、純粋ドメインを `@tdd-mob/core` に集約します。
+pnpm workspaces + Turborepo のモノレポとし、純粋ドメインを `@tasuki/timer-core` に集約します。
 `apps/sync`（サーバー）と `apps/web`（フロント／ソロ）の双方が core を依存に持ち、
 同一の `decide`/`evolve`/時刻導出を共有します。
 
@@ -24,7 +24,7 @@ pnpm workspaces + Turborepo のモノレポとし、純粋ドメインを `@tdd-
 - **利点**: ドメインが 1 箇所に集約され、共有/ソロの挙動一致が保証される。WS メッセージ契約
   （Valibot スキーマ）も front/server で同一物を共有でき、契約のズレが起きない。
 - **代償**: ビルド/型解決の設定（workspace 参照・Vitest/Vite の alias）が増える。本リポジトリでは
-  `@tdd-mob/core` のサブパス（`/aggregate` 等）を各 vitest/vite config の alias で解決している。
+  `@tasuki/timer-core` のサブパス（`/aggregate` 等）を各 vitest/vite config の alias で解決している。
 - ドメインは外部依存ゼロを保つ（時刻・I/O・乱数に依存しない）。これが [ADR-0002](./0002-decider-pure-domain.md) の前提となる。
 
 ## 更新 (2026-07-31)

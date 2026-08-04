@@ -6,7 +6,7 @@
  * 判断ロジックを副作用から切り離してテスト可能にする。
  */
 
-import type { CompletionRecord } from "@tdd-mob/core";
+import type { CompletionRecord } from "@tasuki/timer-core";
 import type { EndType } from "../ui/Summary.js";
 
 /**

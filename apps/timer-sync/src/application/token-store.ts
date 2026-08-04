@@ -9,7 +9,7 @@
  * `releaseRoom` でルーム単位に一括解放する（ルーム回収時の後始末）。
  */
 
-import type { Room } from "@tdd-mob/core";
+import type { Room } from "@tasuki/timer-core";
 
 /** リジュームトークンが指す再接続先（参加者ID・ルームコード） */
 export interface ResumeTokenData {

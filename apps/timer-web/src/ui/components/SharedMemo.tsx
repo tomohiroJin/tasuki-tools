@@ -15,7 +15,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { ArrowRight } from "lucide-react";
-import { MAX_HANDOFF_NOTE } from "@tdd-mob/core/aggregate";
+import { MAX_HANDOFF_NOTE } from "@tasuki/timer-core/aggregate";
 import { Card } from "../primitives.js";
 import { Markdown } from "./Markdown.js";
 

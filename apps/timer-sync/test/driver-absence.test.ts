@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { PresenceManager, DRIVER_ABSENCE_GRACE_MS } from "../src/application/presence.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
-import type { Room } from "@tdd-mob/core";
+import type { Room } from "@tasuki/timer-core";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 
 /** 稼働中のセッションを持つ room を返す（現ドライバー=Driver）。 */

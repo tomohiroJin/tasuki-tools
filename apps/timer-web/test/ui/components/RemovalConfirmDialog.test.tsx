@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import React from "react";
 import { RemovalConfirmDialog } from "../../../src/ui/components/RemovalConfirmDialog.js";
-import type { Participant } from "@tdd-mob/core";
+import type { Participant } from "@tasuki/timer-core";
 
 function makeParticipant(overrides?: Partial<Participant>): Participant {
   return {

@@ -1,5 +1,5 @@
 {
-  "name": "@planning-poker/sync",
+  "name": "@tasuki/poker-sync",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@planning-poker/core": "workspace:*",
+    "@tasuki/poker-core": "workspace:*",
     "neverthrow": "^8.2.0"
   },
   "devDependencies": {

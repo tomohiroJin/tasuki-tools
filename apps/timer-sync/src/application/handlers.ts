@@ -22,7 +22,7 @@ import {
   type ErrorCode,
   type RemovalNotification,
   type Command,
-} from "@tdd-mob/core";
+} from "@tasuki/timer-core";
 import type { Clock } from "../ports/clock.js";
 import type { Broadcaster } from "../ports/broadcaster.js";
 import type { RoomStore } from "../ports/room-store.js";
@@ -630,7 +630,7 @@ export function makeHandlers(deps: HandlerDeps) {
   /**
    * 権限を判定し、拒否ならエラーを送って true を返す（呼び出し側は即 return する）。
    *
-   * 判定そのものは `@tdd-mob/core` の `checkPermission()` が単独で担う（FR-071）。
+   * 判定そのものは `@tasuki/timer-core` の `checkPermission()` が単独で担う（FR-071）。
    * かつて5層に分散していた検査（集合ベース・関係ベース・個別ガード・requireEditor・
    * 専用ハンドラの host 検査）は、すべてこの1関数の呼び出しに集約されている。
    * 判定に必要な事実の算出（在室・段階・自己対象か）だけがサーバー側の責務である。

@@ -7,7 +7,7 @@
  */
 
 import React from "react";
-import type { RoomPhase } from "@tdd-mob/core";
+import type { RoomPhase } from "@tasuki/timer-core";
 import { NotifySettings } from "./NotifySettings.js";
 
 export type ConnectionStatus = "online" | "reconnecting" | "lost";

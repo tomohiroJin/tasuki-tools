@@ -7,7 +7,7 @@
  * 見た目に影響しない1つの並び順に統一した（T004）。
  */
 
-import type { Participant } from "@tdd-mob/core";
+import type { Participant } from "@tasuki/timer-core";
 import { presenceDotClass } from "../presence.js";
 
 interface PresenceDotProps {

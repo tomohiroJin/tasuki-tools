@@ -5,7 +5,7 @@
 
 import { describe, it, expect } from "vitest";
 import { rotationMembers } from "../../src/ui/rotation-names.js";
-import type { Participant } from "@tdd-mob/core";
+import type { Participant } from "@tasuki/timer-core";
 
 const p = (participantId: string, displayName: string): Participant => ({
   participantId,

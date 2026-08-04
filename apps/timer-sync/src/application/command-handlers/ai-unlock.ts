@@ -15,7 +15,7 @@
  */
 
 import { ok, err, type Result } from "neverthrow";
-import { errorMessageFor, type Room, type Participant, type ErrorCode } from "@tdd-mob/core";
+import { errorMessageFor, type Room, type Participant, type ErrorCode } from "@tasuki/timer-core";
 import type { Clock } from "../../ports/clock.js";
 import type { Broadcaster } from "../../ports/broadcaster.js";
 import type { RoomStore } from "../../ports/room-store.js";

@@ -8,7 +8,7 @@
  */
 
 import { ok, err, type Result } from "neverthrow";
-import { errorMessageFor, type Room, type Participant, type ErrorCode } from "@tdd-mob/core";
+import { errorMessageFor, type Room, type Participant, type ErrorCode } from "@tasuki/timer-core";
 import type { ProblemDelegator } from "../problem-delegation.js";
 
 /** `handleRoomCommand` が事前に解決済みの在室ルームと実行者。 */

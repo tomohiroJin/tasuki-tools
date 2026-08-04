@@ -5,7 +5,7 @@
 
 import { describe, it, expect } from "vitest";
 import { buildAdminReport, handleAdminHttp } from "../src/application/admin.js";
-import type { Room, Participant } from "@tdd-mob/core";
+import type { Room, Participant } from "@tasuki/timer-core";
 
 /**
  * テスト用の最小 Room を構築する。

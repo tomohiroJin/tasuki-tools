@@ -4,8 +4,8 @@
  * 状態変化時のみ配信（生存確認では間引く）
  */
 
-import { transferHost } from "@tdd-mob/core";
-import type { Room, Participant } from "@tdd-mob/core";
+import { transferHost } from "@tasuki/timer-core";
+import type { Room, Participant } from "@tasuki/timer-core";
 import type { RoomStore } from "../ports/room-store.js";
 import type { Broadcaster } from "../ports/broadcaster.js";
 import type { Clock } from "../ports/clock.js";

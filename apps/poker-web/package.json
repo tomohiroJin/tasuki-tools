@@ -1,5 +1,5 @@
 {
-  "name": "@planning-poker/web",
+  "name": "@tasuki/poker-web",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@planning-poker/core": "workspace:*",
+    "@tasuki/poker-core": "workspace:*",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },

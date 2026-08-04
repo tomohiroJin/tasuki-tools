@@ -11,7 +11,7 @@ import {
   type ServerResponse,
 } from "http";
 import * as v from "valibot";
-import { CommandSchema } from "@tdd-mob/core";
+import { CommandSchema } from "@tasuki/timer-core";
 
 const MAX_MESSAGE_BYTES = 64 * 1024; // 64KB
 

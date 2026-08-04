@@ -6,8 +6,8 @@
     "jsx": "react-jsx",
     // build は vite、typecheck は tsc --noEmit。noEmit はルートの base が既定で true。
     "paths": {
-      "@tdd-mob/core": ["../../packages/timer-core/src/index.ts"],
-      "@tdd-mob/core/*": ["../../packages/timer-core/src/*.ts"],
+      "@tasuki/timer-core": ["../../packages/timer-core/src/index.ts"],
+      "@tasuki/timer-core/*": ["../../packages/timer-core/src/*.ts"],
       // 単一ワークスペースに React 18（timer）と 19（poker）が同居するため、
       // pnpm が .pnpm/node_modules へホイストした @types/react@19 を lucide-react の
       // 型定義が拾ってしまい、TS2786「'Crown' cannot be used as a JSX component」が出る。

@@ -5,7 +5,7 @@
 // 出力: /tmp/tasuki-quality-results.json（採点は quality-judge.mjs で実施）
 import { spawn } from "node:child_process";
 import { writeFileSync } from "node:fs";
-import { buildProblemPrompt, validateProblem } from "@tdd-mob/core";
+import { buildProblemPrompt, validateProblem } from "@tasuki/timer-core";
 
 const TOKEN = process.env.CLAUDE_CODE_OAUTH_TOKEN;
 if (!TOKEN) {

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { RoomReclaimer } from "../src/application/room-reclaimer.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
-import type { Room } from "@tdd-mob/core";
+import type { Room } from "@tasuki/timer-core";
 
 function room(code: string, presences: Array<Room["participants"][number]["presence"]>): Room {
   return {

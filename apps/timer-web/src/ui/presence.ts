@@ -3,7 +3,7 @@
  * 色のみで状態を伝えないよう、テキストラベルを提供する（WCAG 1.4.1）
  */
 
-import type { Participant } from "@tdd-mob/core";
+import type { Participant } from "@tasuki/timer-core";
 
 export type Presence = Participant["presence"];
 
