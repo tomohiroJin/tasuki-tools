@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# corepack が pnpm を取得するとき、非対話環境で確認プロンプトを出さない
+env:
+  COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+
+jobs:
+  timer:
+    name: tdd-mob-pro-timer
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tdd-mob-pro-timer
+    steps:
+      - uses: actions/checkout@v4
+
+      # pnpm の版は各ディレクトリの package.json の packageManager 宣言に従わせる。
+      # pnpm/action-setup で版を固定すると、timer(9.15.0) と poker(11.5.0) の
+      # 食い違いをどちらかに寄せることになり、ローカルと CI で挙動が変わる。
+      # Node 22 必須。poker が宣言する pnpm 11.5.0 は Node.js >= 22.13 を要求し、
+      # node:sqlite（22.5 以降）を使うため Node 20 では起動できない。
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm build
+
+  poker:
+    name: planning-poker
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: planning-poker
+    steps:
+      - uses: actions/checkout@v4
+
+      # Node 22 必須。poker が宣言する pnpm 11.5.0 は Node.js >= 22.13 を要求し、
+      # node:sqlite（22.5 以降）を使うため Node 20 では起動できない。
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable
+
+      # poker の sync は Bun 必須。tests/helpers.ts が `bun run src/server.ts` を
+      # サブプロセス起動し、build も `bun build --target=bun` を使う。
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: pnpm install --frozen-lockfile
+      # poker には lint / test:unit が無い（S1-b で lint を追加する）
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
