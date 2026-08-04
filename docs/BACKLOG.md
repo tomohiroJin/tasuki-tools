@@ -67,8 +67,9 @@
 
 ## その他・既知の残件
 
-- ~~**リリースタグ**~~: ✅ 最新 **`v2.12.0`**（2026-07-29 デプロイ）。
-  履歴: `v2.1.0`(初回公開 2026-06-09) → `v2.10.0`(2026-06-26) → `v2.11.0`(2026-07-17) → `v2.12.0`。
+- ~~**リリースタグ**~~: ✅ 最新 **`v2.13.0`**（2026-08-04 デプロイ）。
+  履歴: `v2.1.0`(初回公開 2026-06-09) → `v2.10.0`(2026-06-26) → `v2.11.0`(2026-07-17)
+  → `v2.12.0`(2026-07-29) → `v2.13.0`(2026-08-04)。
 - **L-3（低・許容）**: コンテナのデプロイ鍵 `~/.ssh/myvps_deploy` がパスフレーズ無し。個人運用は許容範囲。
   厳格化するなら VPS の `authorized_keys` で当該鍵に `from="<送信元IP>"` 制限。
 - **お名前.com ドメインプロテクション返金**: 意図せず申込→即解約済、返金請求フォーム送信済。**先方の返信待ち**。
@@ -77,19 +78,23 @@
 
 **本番に公開しているのは TDD Mob Pro Timer（`packages/timer-core` / `apps/timer-*`）のみである。**
 
-- Planning Poker（`packages/poker-core` / `apps/poker-*`）は **同一リポジトリにあるが未公開**。`deploy/deploy.sh` は
-  `apps/web/dist/` と `apps/sync` のバンドルしか転送しないため、
-  **main をデプロイしても Planning Poker は本番に出ない**（構成上そうなっている）
+- Planning Poker（`packages/poker-core` / `apps/poker-*`）は **同一リポジトリにあるが未公開**。
+  デプロイはアプリ単位（`./deploy/deploy.sh <app>`）で、poker を明示的に指定しない限り
+  転送されない。さらに Caddy 断片 `20-poker.conf` を設置していないため、
+  **仮に配置しても公開されない**（S2 / #17 で二重の歯止めにしてある）
 - `https://tasuki.niku9.click/poker` は Caddy の SPA フォールバックにより
   **タイマーの index.html が 200 で返るだけ**。Planning Poker の実体ではない
 - **Planning Poker の公開は、環境整備（Issue #15〜#20 の monorepo 統合）が完了してから行う。**
   サブパス公開には Caddy のルーティング・別ポート・別 systemd ユニットが必要で、
   それらは monorepo 統合の設計に含まれる。先に個別対応すると二度手間になる
 
-したがって **`v2.12.0` はタイマーのみのリリース**である。
+したがって **`v2.13.0` を含め、これまでのリリースはすべてタイマーのみ**である。
 
 ## デプロイ運用メモ（再掲）
 
-- 更新は コンテナから `cd tdd-mob-pro-timer && PATH=$HOME/.local/bin:$PATH ./deploy/deploy.sh`（build→転送→`sudo systemctl restart`、非対話）。
-- VPS = Debian 12・ユーザー `deploy`（非 root）・サービスも deploy 実行。bun は `/usr/local/bin`。
-- 初回/再セットアップ用スクリプト: `deploy/vps-setup.sh`・`deploy/caddy-setup.sh`（いずれも冪等・要 VPS sudo）。
+- 更新は コンテナから `PATH=$HOME/.local/bin:$PATH TASUKI_SSH_HOST=<別名> ./deploy/deploy.sh timer`
+  （build→転送→`sudo systemctl restart`、非対話）。接続先は環境変数で必須指定（#51 B）。
+- VPS = Debian 12・非 root のログインユーザーで実行。bun は `/usr/local/bin`。
+  実行ユーザーは `deploy/setup.sh` の `DEPLOY_USER` で一元管理する（#51 A）。
+- 初回/再セットアップ: `sudo DEPLOY_USER=<user> bash deploy/setup.sh <app>`（冪等・要 VPS sudo）。
+  Caddy は `deploy/caddy/README.md` の手順で断片を設置する。
