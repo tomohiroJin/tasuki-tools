@@ -46,7 +46,12 @@ function Badges({
   language,
   edited,
   source,
-}: { difficulty?: string; language?: string; edited?: boolean; source?: string }) {
+}: {
+  difficulty?: string | undefined;
+  language?: string | undefined;
+  edited?: boolean | undefined;
+  source?: string | undefined;
+}) {
   return (
     <span className="flex flex-wrap items-center gap-1.5 text-xs">
       {difficulty && (

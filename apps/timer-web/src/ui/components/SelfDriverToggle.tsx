@@ -18,20 +18,20 @@ interface SelfDriverToggleProps {
   canLeave: boolean;
   participantId: string;
   /** 輪への出入りは参加者IDで指す（D6b。同名でも取り違えない）。 */
-  onJoin?: (participantId: string) => void;
-  onLeave?: (participantId: string) => void;
-  onSkip?: (participantId: string) => void;
-  onResume?: (participantId: string) => void;
+  onJoin?: ((participantId: string) => void) | undefined;
+  onLeave?: ((participantId: string) => void) | undefined;
+  onSkip?: ((participantId: string) => void) | undefined;
+  onResume?: ((participantId: string) => void) | undefined;
   /** ルームそのものから抜ける（自己退出・FR-079）。未指定なら導線を出さない。 */
-  onLeaveRoom?: (participantId: string) => void;
+  onLeaveRoom?: ((participantId: string) => void) | undefined;
   /** 退出しても不変条件（編集者以上が1名以上残る）を破らないか。false なら無効化する（FR-080）。 */
-  canLeaveRoom?: boolean;
+  canLeaveRoom?: boolean | undefined;
   /** そのルームが一度でもセッションを開始したか。役割の自己変更は開始後のみ許される（D3b）。 */
-  started?: boolean;
+  started?: boolean | undefined;
   /** 自分の役割を自分で変える（role.set・自己対象）。未指定なら導線を出さない。 */
-  onSelfRoleChange?: (role: "editor" | "viewer") => void;
+  onSelfRoleChange?: ((role: "editor" | "viewer") => void) | undefined;
   /** 見学に回っても不変条件（編集者以上が1名以上残る）を破らないか。false なら無効化する（FR-080）。 */
-  canSpectate?: boolean;
+  canSpectate?: boolean | undefined;
 }
 
 export function SelfDriverToggle({

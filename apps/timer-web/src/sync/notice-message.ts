@@ -13,8 +13,8 @@ export interface NoticeSignal {
   action: "participant-removed" | "session-aborted" | "session-reset" | "session-completed";
   actorName: string;
   actorParticipantId: string;
-  targetName?: string;
-  targetParticipantId?: string;
+  targetName?: string | undefined;
+  targetParticipantId?: string | undefined;
 }
 
 /** 文言を組み立てるのに必要な、受け手側の文脈。 */
