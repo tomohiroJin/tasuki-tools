@@ -1,7 +1,7 @@
 # デプロイ手順（Tasuki Planning Poker）
 
 サブパス `https://tasuki.niku9.click/poker` で公開する（憲法 追加制約）。
-既存サービス（tdd-mob-pro-timer）には手を入れず、別ポート・別 systemd ユニットで同居する。
+既存サービス（timer）には手を入れず、別ポート・別 systemd ユニットで同居する。
 
 ## 初回セットアップ（サーバー側・1回だけ）
 
@@ -26,12 +26,12 @@ DEPLOY_HOST=user@tasuki.niku9.click ./deploy/deploy.sh
 
 1. `pnpm turbo build` — web は `/poker/` ベースの静的ビルド、sync は `bun build --target=bun`
    の単一ファイル（サーバーに node_modules 不要）
-2. `apps/web/dist/` → `/opt/tasuki/planning-poker/web/`、`apps/sync/dist/server.js` →
+2. `apps/poker-web/dist/` → `/opt/tasuki/planning-poker/web/`、`apps/poker-sync/dist/server.js` →
    `/opt/tasuki/planning-poker/sync/server.js` を rsync
 3. `poker-sync` サービスを再起動
 
 ## デプロイ後の確認（quickstart「5. デプロイ検証」）
 
 - `https://tasuki.niku9.click/poker` で S1（ルーム作成・参加）と S2（秘匿投票・公開）を実施
-- 既存サービス（tdd-mob-pro-timer）が引き続き動作していることを確認
+- 既存サービス（timer）が引き続き動作していることを確認
 - 注意: sync は揮発インメモリのため、サービス再起動で進行中のルームは消える（FR-014 で許容）

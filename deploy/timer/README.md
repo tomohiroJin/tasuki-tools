@@ -94,7 +94,7 @@
    > `WorkingDirectory`（`/opt/tasuki`）に `.env` という名前のファイルを置かないこと**。
    > Bun は cwd の `.env` を自動読み込みするため、`/opt/tasuki/.env` を作ると意図せず読まれ、
    > `tasuki-sync.env` に無い変数を上書き補完してしまう余地があります（ローカル開発用の
-   > `apps/sync/.env` 方式と混同しないよう注意）。
+   > `apps/timer-sync/.env` 方式と混同しないよう注意）。
 
 5. **systemd ユニットを配置**（`ExecStart` の bun パスを `which bun` の結果に合わせてから）:
    ```bash
@@ -196,7 +196,7 @@ curl -H "x-admin-token: $ADMIN_TOKEN" http://127.0.0.1:8787/admin/rooms
 
 ### 開発時の注意
 
-- ローカルで AI を試す簡単な方法は `apps/sync/.env` に値を書くこと（Bun が cwd の `.env` を
+- ローカルで AI を試す簡単な方法は `apps/timer-sync/.env` に値を書くこと（Bun が cwd の `.env` を
   自動読み込み・`passThroughEnv` 不要）。手順は [../README.md](../README.md) の「AI お題生成をローカルで試す」を参照。
 - env を `pnpm dev` のコマンドラインで直接渡す場合のみ、`turbo.json` の `dev.passThroughEnv` に
   宣言済みのものだけが透過する（turbo strict env）。新しい env を足すときは turbo.json も更新する。

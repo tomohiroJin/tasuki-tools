@@ -2,7 +2,7 @@
 # 例: tasuki.niku9.click のサイトブロック内に `import /etc/caddy/Caddyfile.poker`
 #
 # 前提:
-# - web の静的ビルド（apps/web/dist、base=/poker/）を /opt/tasuki/planning-poker/web に配置
+# - web の静的ビルド（apps/poker-web/dist、base=/poker/）を /opt/tasuki/planning-poker/web に配置
 # - sync サーバー（bun）が localhost:3311 で稼働（poker-sync.service）
 
 # WebSocket リバースプロキシ（/poker/ws → sync の /ws）
