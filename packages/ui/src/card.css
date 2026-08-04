@@ -1,0 +1,106 @@
+/* ============================================================
+   Tasuki UI — カード表現
+   象牙の札。内枠とコーナーピップで「トランプらしさ」を出す。
+   ============================================================ */
+
+.card {
+  position: relative;
+  width: 3.4rem;
+  height: 4.8rem;
+  padding: 0;
+  border-radius: var(--card-radius);
+  border: 1px solid #cdc4a8;
+  background:
+    linear-gradient(165deg, #fffdf4 0%, var(--ivory) 60%, #eae1c6 100%);
+  color: var(--ink);
+  box-shadow: var(--shadow-card);
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0;
+  transition: transform 0.18s cubic-bezier(0.2, 0.9, 0.3, 1.4), box-shadow 0.18s;
+}
+
+/* カードの内枠 */
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 1px solid rgba(38, 35, 28, 0.18);
+  border-radius: calc(var(--card-radius) - 4px);
+  pointer-events: none;
+}
+
+/* 左上のコーナーピップ（data-label 属性の中身を出す） */
+.card::after {
+  content: attr(data-label);
+  position: absolute;
+  top: 5px;
+  left: 7px;
+  font-size: 0.6rem;
+  line-height: 1;
+  color: var(--ink-soft);
+}
+
+.card-face {
+  font-size: 1.5rem;
+  font-style: italic;
+}
+
+/* 手をかざすと札が浮いて少し傾く */
+.card:hover:not(:disabled) {
+  transform: translateY(-8px) rotate(-1.5deg);
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.3), 0 14px 24px rgba(0, 0, 0, 0.45);
+  filter: none;
+}
+
+.card.selected {
+  transform: translateY(-12px);
+  border-color: var(--gold);
+  box-shadow:
+    0 0 0 2.5px var(--gold),
+    0 0 22px rgba(236, 200, 121, 0.5),
+    0 14px 24px rgba(0, 0, 0, 0.45);
+}
+
+.card:disabled {
+  filter: saturate(0.7) brightness(0.85);
+}
+
+/* 一覧に並べる小カード（めくり演出付き。遅延は利用側で指定する） */
+.card.small {
+  width: auto;
+  min-width: 2.2rem;
+  height: 3rem;
+  padding: 0 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  font-style: italic;
+  cursor: default;
+  animation: flip-in 0.45s ease both;
+}
+
+.card.small::after {
+  content: none;
+}
+
+@keyframes flip-in {
+  from {
+    opacity: 0;
+    transform: rotateY(90deg);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---------- モバイル ---------- */
+
+@media (max-width: 420px) {
+  .card {
+    width: 3rem;
+    height: 4.3rem;
+  }
+}

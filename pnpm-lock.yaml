@@ -57,6 +57,9 @@ importers:
       '@tasuki/poker-core':
         specifier: workspace:*
         version: link:../../packages/poker-core
+      '@tasuki/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       react:
         specifier: ^19.1.0
         version: 19.2.8
@@ -212,6 +215,8 @@ importers:
       vitest:
         specifier: ^3.2.6
         version: 3.2.7(@types/node@22.20.1)(jiti@1.21.7)(jsdom@25.0.1)
+
+  packages/ui: {}
 
 packages:
 

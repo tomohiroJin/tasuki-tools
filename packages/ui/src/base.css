@@ -1,0 +1,85 @@
+/* ============================================================
+   Tasuki UI — 土台
+   フェルトの卓を敷き、タイポグラフィの基準を置く。
+   ============================================================ */
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-body);
+  line-height: 1.7;
+  color: var(--ivory);
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background-color: var(--felt-900);
+  /* フェルトの照明: 中央上からの灯り + 周辺減光 + 織り目 */
+  background-image:
+    radial-gradient(120% 90% at 50% -10%, var(--felt-700) 0%, var(--felt-800) 45%, transparent 75%),
+    radial-gradient(140% 120% at 50% 115%, var(--felt-950) 0%, transparent 55%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-attachment: fixed;
+}
+
+/* ---------- レイアウト ---------- */
+
+.page {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+}
+
+h1 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--ivory);
+  font-size: 1.5rem;
+  line-height: 1.25;
+  margin: 0 0 0.75rem;
+}
+
+/* セクション見出し: 小さく詰めた金の大文字 + 右へ消える罫 */
+h2 {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin: 2.2rem 0 0.9rem;
+}
+
+h2::after {
+  content: '';
+  display: block;
+  margin-top: 0.5rem;
+  height: 1px;
+  background: linear-gradient(to right, var(--line), transparent 70%);
+}
+
+a {
+  color: var(--gold-bright);
+  text-underline-offset: 3px;
+}
+
+/* ---------- モバイル ---------- */
+
+@media (max-width: 420px) {
+  .page {
+    padding: 1.4rem 1rem 3rem;
+  }
+}
+
+/* 動きを抑えたい環境では演出を止める */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "@tasuki/ui",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "//": "CSS のみのパッケージ。lint / typecheck / test / build のタスクは持たない（検査対象が無いのに緑を出すと「全パッケージが検査されている」と誤解させるため）。TS を足すときに合わせてタスクも足すこと。",
+  "exports": {
+    ".": "./src/index.css",
+    "./tokens.css": "./src/tokens.css",
+    "./base.css": "./src/base.css",
+    "./controls.css": "./src/controls.css",
+    "./card.css": "./src/card.css"
+  }
+}
