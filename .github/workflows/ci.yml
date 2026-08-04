@@ -52,6 +52,12 @@ jobs:
           node-version: 22
       - run: corepack enable
 
+      # poker の sync は Bun 必須。tests/helpers.ts が `bun run src/server.ts` を
+      # サブプロセス起動し、build も `bun build --target=bun` を使う。
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
       - run: pnpm install --frozen-lockfile
       # poker には lint / test:unit が無い（S1-b で lint を追加する）
       - run: pnpm typecheck
