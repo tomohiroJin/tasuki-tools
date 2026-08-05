@@ -3,6 +3,7 @@ import {
   parseClientMessage,
   parseServerMessage,
   type ClientMessage,
+  type ErrorCode,
   type ServerMessage,
 } from '../src/protocol';
 
@@ -83,6 +84,25 @@ describe('parseServerMessage', () => {
 
   it('異常系: 未知の type は err になる', () => {
     const result = parseServerMessage(JSON.stringify({ type: 'nope' }));
+    expect(result.isErr()).toBe(true);
+  });
+
+  // 接続・フレーム層の防御が返すコード（Issue #63）。
+  // 利用者の入力ミス（invalid-message）とサーバー側の事情を区別するために分けている。
+  it.each<[string, ErrorCode]>([
+    ['メッセージが大きすぎる', 'message-too-large'],
+    ['サーバーが混雑している', 'server-busy'],
+  ])('正常系: %s を表す error をパースできる', (message, code) => {
+    const msg = { type: 'error' as const, code, message };
+    const result = parseServerMessage(JSON.stringify(msg));
+    expect(result.isOk()).toBe(true);
+    expect(result._unsafeUnwrap()).toEqual(msg);
+  });
+
+  it('異常系: ERROR_CODES に無いコードは err になる（画面が知らないコードを受け取らない）', () => {
+    const result = parseServerMessage(
+      JSON.stringify({ type: 'error', code: 'made-up', message: 'x' }),
+    );
     expect(result.isErr()).toBe(true);
   });
 });

@@ -12,10 +12,16 @@ export interface TestServer {
   stop: () => Promise<void>;
 }
 
-export async function startServer(): Promise<TestServer> {
+/**
+ * サーバーをサブプロセス起動する。
+ *
+ * @param env 上書きする環境変数。サーバーは in-process では起動できない（Bun.serve は
+ *   Bun ランタイム専用）ため、上限値やハートビート間隔の注入経路は env しかない。
+ */
+export async function startServer(env: Record<string, string> = {}): Promise<TestServer> {
   const proc = spawn('bun', ['run', 'src/server.ts'], {
     cwd: APP_ROOT,
-    env: { ...process.env, PORT: '0' },
+    env: { ...process.env, PORT: '0', ...env },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 

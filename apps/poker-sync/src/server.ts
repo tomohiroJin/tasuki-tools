@@ -17,13 +17,37 @@ import {
   type Room,
   type RoundError,
 } from '@tasuki/poker-core';
-import { broadcast, dropIfEmpty, generateRoomId, getRoom, putRoom, type RoomEntry } from './rooms';
+import {
+  broadcast,
+  dropIfEmpty,
+  generateRoomId,
+  getRoom,
+  putRoom,
+  roomCount,
+  type RoomEntry,
+} from './rooms';
+import { loadPokerSyncConfig } from './config';
 
-/** 接続ごとの状態。join 後に participantId / roomId が入る */
+const config = loadPokerSyncConfig(process.env);
+
+/**
+ * 接続ごとの状態。join 後に participantId / roomId が入る。
+ *
+ * `connId` は Origin / 接続数の検査を通ってから採番するため、それまでは空文字。
+ * 空のまま閉じた接続は「受け入れていない接続」なので、受信もルーム離脱も行わない。
+ */
 export interface ConnectionData {
   participantId: string | null;
   roomId: string | null;
+  connId: string;
+  origin: string;
 }
+
+/** 受理済みの接続。同時接続数の上限と死活監視の対象になる（Issue #63） */
+const connections = new Map<string, Ws>();
+/** 接続ごとの「直近 ping 送信からの pong 未受信回数」 */
+const missedPongs = new Map<string, number>();
+let connCounter = 0;
 
 type Ws = Bun.ServerWebSocket<ConnectionData>;
 
@@ -78,6 +102,14 @@ function completeJoin(ws: Ws, entry: RoomEntry, participantId: string, token: st
 }
 
 function handleCreateRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'create-room' }>): void {
+  // ルーム数の上限（Issue #63）。**切り離しより先に判定する**。
+  // 先に離脱させてしまうと、拒否されたときに元のルームから追い出されたままになる。
+  // 上限が止めるのは新規作成だけで、既存ルームへの参加は妨げない。
+  if (roomCount() >= config.maxRooms) {
+    sendError(ws, 'server-busy', 'ルームの上限に達しています。しばらくしてからお試しください');
+    return;
+  }
+
   // すでに別ルームに参加中のソケット（二重送信・SPA 遷移）は先に切り離す
   detachFromCurrentRoom(ws);
   const ids = newIds();
@@ -165,13 +197,97 @@ function dispatch(ws: Ws, msg: ClientMessage): void {
   }
 }
 
+/**
+ * 接続の受理判定（Issue #63）。
+ *
+ * **Origin と接続数の検査はハンドシェイクではなくここで行う。** upgrade を拒否すると
+ * クライアントには「接続失敗」としか見えず、理由を表す close コード（1008 / 1013）が
+ * 届かない。通してから閉じることで理由を伝えられる。
+ */
+function handleOpen(ws: Ws): void {
+  if (config.allowedOrigins.length > 0 && !config.allowedOrigins.includes(ws.data.origin)) {
+    ws.close(1008, 'Origin not allowed');
+    return;
+  }
+
+  if (connections.size >= config.maxConnections) {
+    ws.close(1013, 'Server connection limit reached');
+    return;
+  }
+
+  const connId = `conn-${++connCounter}`;
+  ws.data.connId = connId;
+  connections.set(connId, ws);
+  missedPongs.set(connId, 0);
+}
+
+function handleClose(ws: Ws): void {
+  // 検査で弾いた接続は受け入れていないので、ルーム離脱の処理も行わない
+  if (ws.data.connId === '') return;
+  connections.delete(ws.data.connId);
+  missedPongs.delete(ws.data.connId);
+  detachFromCurrentRoom(ws);
+}
+
+function handleMessage(ws: Ws, raw: string | Buffer): void {
+  if (ws.data.connId === '') return; // 検査で弾いた接続からは受け取らない
+
+  // サイズ制限は**バイト数で測る**。Bun はテキストフレームを string で渡してくるため、
+  // `raw.length` だと日本語 1 文字が 1 と数えられ、制限が実質 1/3 に緩む。
+  const bytes = typeof raw === 'string' ? Buffer.byteLength(raw) : raw.length;
+  if (bytes > config.maxMessageBytes) {
+    // 接続は保つ（切断ではなくエラー応答）。再送で回復できる種類の失敗のため。
+    sendError(ws, 'message-too-large', 'メッセージが大きすぎます');
+    return;
+  }
+
+  const result = parseClientMessage(String(raw));
+  if (result.isErr()) {
+    sendError(ws, result.error.code, result.error.message);
+    return;
+  }
+  dispatch(ws, result.value);
+}
+
+/**
+ * サーバー主導の死活監視（Issue #63。timer の #25 と同じ設計）。
+ *
+ * 一定間隔で各接続へ ping を送り、前回の送信から pong が返っていなければ欠落を数える。
+ * 閾値に達した接続は terminate し、あとの処理は通常の close 経路
+ * （参加者の disconnected 化・ホスト繰上・自動公開の再評価）に委ねる。
+ *
+ * 半開き接続（TCP は生きているが相手が応答しない）は close イベントが発生しないため、
+ * これが無いと参加者は connected のまま残り続ける。
+ */
+function startHeartbeat(): void {
+  const timer = setInterval(() => {
+    for (const [connId, ws] of connections) {
+      const missed = missedPongs.get(connId) ?? 0;
+      if (missed >= config.heartbeatMaxMisses) {
+        ws.terminate();
+        continue;
+      }
+      missedPongs.set(connId, missed + 1);
+      ws.ping();
+    }
+  }, config.heartbeatIntervalMs);
+  // 定期タイマーだけでプロセスの終了を妨げないようにする
+  timer.unref?.();
+}
+
 const server = Bun.serve<ConnectionData, never>({
-  port: Number(process.env['PORT'] ?? 3311),
+  port: config.port,
+  hostname: config.host,
   fetch(req, srv) {
     const url = new URL(req.url);
     if (url.pathname === '/ws') {
       const upgraded = srv.upgrade(req, {
-        data: { participantId: null, roomId: null } satisfies ConnectionData,
+        data: {
+          participantId: null,
+          roomId: null,
+          connId: '',
+          origin: req.headers.get('origin') ?? '',
+        } satisfies ConnectionData,
       });
       if (upgraded) return undefined;
       return new Response('WebSocket upgrade failed', { status: 400 });
@@ -179,19 +295,20 @@ const server = Bun.serve<ConnectionData, never>({
     return new Response('Not Found', { status: 404 });
   },
   websocket: {
-    message(ws, raw) {
-      const result = parseClientMessage(String(raw));
-      if (result.isErr()) {
-        sendError(ws, result.error.code, result.error.message);
-        return;
-      }
-      dispatch(ws, result.value);
-    },
-    close(ws) {
-      detachFromCurrentRoom(ws);
+    // 既定の maxPayloadLength（16MB）のまま受け取り、上限超過は自前で弾く。
+    // ここで絞ると超過時に接続ごと閉じられ、エラーを返して接続を保つ振る舞いにできない。
+    open: handleOpen,
+    message: handleMessage,
+    close: handleClose,
+    /** pong 受信 = 生存確認。欠落カウントを戻す（一時的な通信の揺れからの復帰） */
+    pong(ws) {
+      if (ws.data.connId === '') return;
+      missedPongs.set(ws.data.connId, 0);
     },
   },
 });
+
+startHeartbeat();
 
 // テストヘルパがこの 1 行 JSON でポートを検出する（research R7）
 console.log(JSON.stringify({ event: 'listening', port: server.port }));
