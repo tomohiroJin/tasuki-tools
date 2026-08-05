@@ -10,7 +10,7 @@
  * - limiter 拒否: provider 呼ばず定型確定
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, jest, beforeEach, afterEach } from "bun:test";
 import { ProblemDelegator } from "../src/application/problem-delegation.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { AiLimiter } from "../src/application/ai-limits.js";
@@ -78,6 +78,33 @@ function makeRoom(overrides?: Partial<Room>): Room {
 }
 
 /**
+ * `vi.runAllTimersAsync()` 相当。bun:test には非同期版のタイマー API が無い。
+ *
+ * このテストの provider はすべてモックで実 I/O を持たないため、タイマー発火後に
+ * 残るのは Promise 連鎖（マイクロタスク）だけになる。同期版で進めたあと
+ * マイクロタスクを空になるまで回せば、非同期版と同じところまで到達できる。
+ * イベントループへ譲る必要はない（譲ると setImmediate ごとフェイク化されている
+ * Bun では止まってしまう）。
+ */
+async function runAllTimersAsync(): Promise<void> {
+  jest.runAllTimers();
+  await flushMicrotasks();
+}
+
+/** `vi.advanceTimersByTimeAsync(ms)` 相当。 */
+async function advanceTimersByTimeAsync(ms: number): Promise<void> {
+  jest.advanceTimersByTime(ms);
+  await flushMicrotasks();
+}
+
+/** Promise 連鎖が落ち着くまでマイクロタスクを回す。 */
+async function flushMicrotasks(): Promise<void> {
+  for (let i = 0; i < 20; i++) {
+    await Promise.resolve();
+  }
+}
+
+/**
  * @requirements FR-023, FR-024
  */
 describe("ProblemDelegator サーバ生成", () => {
@@ -86,20 +113,20 @@ describe("ProblemDelegator サーバ生成", () => {
   let broadcaster: SpyBroadcaster;
 
   beforeEach(() => {
-    vi.useFakeTimers();
+    jest.useFakeTimers();
     store = new InMemoryRoomStore();
     clock = new FakeClock(Date.now());
     broadcaster = new SpyBroadcaster();
   });
 
   afterEach(() => {
-    vi.useRealTimers();
+    jest.useRealTimers();
   });
 
   it("生成成功で source:'ai' のお題が確定し snapshot 配信される", async () => {
     // Given
     const provider: ServerProblemProvider = {
-      generate: vi.fn().mockResolvedValue(VALID_PROBLEM),
+      generate: jest.fn().mockResolvedValue(VALID_PROBLEM),
     };
     const limiter = new AiLimiter({
       clock,
@@ -118,7 +145,7 @@ describe("ProblemDelegator サーバ生成", () => {
 
     // When
     delegator.request("AI01", "req-1");
-    await vi.runAllTimersAsync();
+    await runAllTimersAsync();
 
     // Then
     const room = store.get("AI01");
@@ -130,7 +157,7 @@ describe("ProblemDelegator サーバ生成", () => {
   it("生成 reject は定型バンクへ縮退する", async () => {
     // Given
     const provider: ServerProblemProvider = {
-      generate: vi.fn().mockRejectedValue(new Error("API エラー")),
+      generate: jest.fn().mockRejectedValue(new Error("API エラー")),
     };
     const limiter = new AiLimiter({
       clock,
@@ -149,7 +176,7 @@ describe("ProblemDelegator サーバ生成", () => {
 
     // When
     delegator.request("AI01", "req-1");
-    await vi.runAllTimersAsync();
+    await runAllTimersAsync();
 
     // Then: お題は非 null かつ AI 生成ではない（定型）
     const room = store.get("AI01");
@@ -160,7 +187,7 @@ describe("ProblemDelegator サーバ生成", () => {
   it("検証失敗（不正 JSON 構造）も定型へ縮退する", async () => {
     // Given
     const provider: ServerProblemProvider = {
-      generate: vi.fn().mockResolvedValue({ totally: "wrong shape" }),
+      generate: jest.fn().mockResolvedValue({ totally: "wrong shape" }),
     };
     const limiter = new AiLimiter({
       clock,
@@ -179,7 +206,7 @@ describe("ProblemDelegator サーバ生成", () => {
 
     // When
     delegator.request("AI01", "req-1");
-    await vi.runAllTimersAsync();
+    await runAllTimersAsync();
 
     // Then: 定型へ縮退（source は ai でない）
     const room = store.get("AI01");
@@ -191,7 +218,7 @@ describe("ProblemDelegator サーバ生成", () => {
     // Given: generate は signal abort で reject する。
     // 縮退後にクライアント委譲が走らないよう hasAiKey=false のルームにする
     const provider: ServerProblemProvider = {
-      generate: vi.fn().mockImplementation(
+      generate: jest.fn().mockImplementation(
         (_lang: string, _diff: string, signal: AbortSignal) =>
           new Promise<unknown>((_resolve, reject) => {
             signal.addEventListener("abort", () =>
@@ -229,7 +256,7 @@ describe("ProblemDelegator サーバ生成", () => {
 
     // When: タイムアウトが発火するまで時間を進める
     delegator.request("AI01", "req-1");
-    await vi.advanceTimersByTimeAsync(60_001);
+    await advanceTimersByTimeAsync(60_001);
 
     // Then: 定型へ縮退
     const room = store.get("AI01");
@@ -246,7 +273,7 @@ describe("ProblemDelegator サーバ生成", () => {
 
     const secondProblem = { ...VALID_PROBLEM, title: "Second Kata" };
 
-    const generateFn = vi
+    const generateFn = jest
       .fn()
       .mockReturnValueOnce(firstGeneration)
       .mockResolvedValueOnce(secondProblem);
@@ -274,11 +301,11 @@ describe("ProblemDelegator サーバ生成", () => {
     delegator.request("AI01", "req-2");
 
     // 2回目の生成が完了するのを待つ
-    await vi.runAllTimersAsync();
+    await runAllTimersAsync();
 
     // 旧 Promise を resolve（stale なので無視されるべき）
     resolveFirst(VALID_PROBLEM);
-    await vi.runAllTimersAsync();
+    await runAllTimersAsync();
 
     // Then: 2回目の結果（Second Kata）が確定、1回目（Generated Kata）は無視
     const room = store.get("AI01");
@@ -289,7 +316,7 @@ describe("ProblemDelegator サーバ生成", () => {
   it("aiUnlocked=false のルームでは provider を呼ばず定型確定", async () => {
     // Given
     const provider: ServerProblemProvider = {
-      generate: vi.fn(),
+      generate: jest.fn(),
     };
     const limiter = new AiLimiter({
       clock,
@@ -309,7 +336,7 @@ describe("ProblemDelegator サーバ生成", () => {
 
     // When
     delegator.request("AI01", "req-1");
-    await vi.runAllTimersAsync();
+    await runAllTimersAsync();
 
     // Then: provider は呼ばれず、定型で確定
     expect(provider.generate).not.toHaveBeenCalled();
@@ -326,7 +353,7 @@ describe("ProblemDelegator サーバ生成", () => {
 
     const secondProblem = { ...VALID_PROBLEM, title: "Rerolled Kata" };
 
-    const generateFn = vi
+    const generateFn = jest
       .fn()
       .mockReturnValueOnce(firstGeneration)
       .mockResolvedValueOnce(secondProblem);
@@ -350,11 +377,11 @@ describe("ProblemDelegator サーバ生成", () => {
     delegator.request("AI01", "req-2");
 
     // 2 回目の生成が完了するのを待つ
-    await vi.runAllTimersAsync();
+    await runAllTimersAsync();
 
     // 旧 Promise を resolve（stale なので無視されるべき）
     resolveFirst(VALID_PROBLEM);
-    await vi.runAllTimersAsync();
+    await runAllTimersAsync();
 
     // Then: 2 回目の結果（Rerolled Kata）が確定
     const room = store.get("AI01");
@@ -365,7 +392,7 @@ describe("ProblemDelegator サーバ生成", () => {
   it("limiter が拒否したら provider を呼ばず定型確定", async () => {
     // Given: dailyLimit: 0 でどんな取得も拒否される
     const provider: ServerProblemProvider = {
-      generate: vi.fn(),
+      generate: jest.fn(),
     };
     const limiter = new AiLimiter({
       clock,
@@ -384,7 +411,7 @@ describe("ProblemDelegator サーバ生成", () => {
 
     // When
     delegator.request("AI01", "req-1");
-    await vi.runAllTimersAsync();
+    await runAllTimersAsync();
 
     // Then: provider は呼ばれず、定型で確定
     expect(provider.generate).not.toHaveBeenCalled();

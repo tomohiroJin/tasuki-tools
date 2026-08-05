@@ -3,7 +3,7 @@
  * /status・/admin/rooms のレポート生成とルーティング
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import { buildAdminReport, handleAdminHttp } from "../src/application/admin.js";
 import type { Room, Participant } from "@tasuki/timer-core";
 

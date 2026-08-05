@@ -138,7 +138,14 @@ export class WsAdapter {
       // {server} 構成では wss.close は活線ソケットを切らず、httpServer.close は
       // 全接続終了までコールバックを発火しない。先に能動的に切断してハングを防ぐ。
       for (const ws of this.connections.values()) ws.terminate();
-      this.wss.close(() => this.httpServer.close(() => resolve()));
+      this.wss.close(() => {
+        // Bun では ws の terminate が下層の TCP ソケットまでは破棄しないため、
+        // これだけでは httpServer.close のコールバックが永久に発火しない
+        // （Node は破棄するので発火する）。アップグレード済みの接続を
+        // 明示的に閉じて、どちらのランタイムでも終わるようにする。
+        this.httpServer.closeAllConnections();
+        this.httpServer.close(() => resolve());
+      });
     });
   }
 

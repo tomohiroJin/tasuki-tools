@@ -42,7 +42,20 @@ Issue #25（半開き接続の検出）の中核が検証できなくなる。�
 | フェイクタイマー | ✅ |
 | **実時間で WS 接続 → フェイク化 → `advanceTimersByTime` → `terminate` → close 観測** | ✅ |
 | フェイクタイマー下でも実 I/O（fetch・WebSocket）が動く | ✅ |
-| **tsconfig の `paths` を Bun がそのまま解決**（`@tasuki/timer-core` / `.../aggregate` とも） | ✅ |
+| ~~**tsconfig の `paths` を Bun がそのまま解決**（`@tasuki/timer-core` / `.../aggregate` とも）~~ | ❌ **誤り**（下記） |
+
+> ⚠ **訂正（2026-08-05・PR #61 の敵対的検証）**
+>
+> 「Bun が tsconfig の `paths` を解決する」は誤りだった。実際に効いているのは
+> **pnpm workspace の symlink と `packages/timer-core/package.json` の
+> `main: "./src/index.ts"`** で、`paths` は Bun の実行時解決には使われていない。
+>
+> - `paths` を存在しないファイルに書き換えても 11 件が緑のまま通る
+> - `@tasuki/timer-core/evolve` を import するテストを足すと **解決に失敗する**
+>
+> したがって `vitest.config.ts` を消すと **サブパス import が使えなくなる**。
+> timer-sync には該当する import が 1 件も無いため実害は無いが、timer-web には
+> 12 件あり（vite/vitest の alias で解決）、**timer-sync だけが使えない非対称**が残る。
 
 **順序が肝**: WebSocket の接続確立は**実タイマーのうちに済ませ**、その後でフェイク化する。
 
@@ -68,7 +81,8 @@ Bun 側に存在: `runAllTimers` / `runOnlyPendingTimers` / `advanceTimersToNext
 **Files:**
 - Modify: `apps/timer-sync/test/**/*.test.ts`（**56 ファイル**）
 - Modify: `apps/timer-sync/package.json`（`test` スクリプト）
-- Delete: `apps/timer-sync/vitest.config.ts`（alias は tsconfig の `paths` が担う）
+- Delete: `apps/timer-sync/vitest.config.ts`（bare な `@tasuki/timer-core` は
+  workspace の symlink で解決される。サブパスは解決できなくなるが利用箇所は 0 件）
 
 **Interfaces:**
 - Produces: `bun test` で 395 件が緑になる状態。Task 2 のアダプタ書き換えはこれが前提
@@ -136,7 +150,10 @@ Expected: 11 箇所。**1 つずつ、そのテストの意図を読んでから
 
 - [ ] **Step 6: `vitest.config.ts` を削除する**
 
-alias は `tsconfig.json` の `paths` が担う（Bun が解決することを確認済み）。
+timer-sync が使うのは bare な `@tasuki/timer-core` だけ（57 箇所）で、これは
+workspace の symlink と `main: "./src/index.ts"` で解決される。**`paths` は tsc の
+型解決には効くが、Bun の実行時解決には使われない**ため、サブパス import は
+できなくなる（利用箇所は 0 件）。
 
 ```bash
 git rm apps/timer-sync/vitest.config.ts

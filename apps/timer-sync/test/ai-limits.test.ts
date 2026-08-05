@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import { AiLimiter } from "../src/application/ai-limits.js";
 import type { Clock } from "../src/ports/clock.js";
 

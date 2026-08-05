@@ -21,7 +21,7 @@
  * 呼び出し箇所の構造（＝迂回する余地が無いこと）を機械的に検査することで保証する。
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";

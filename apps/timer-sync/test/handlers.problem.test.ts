@@ -2,7 +2,7 @@
  * problem.request / problem.submit ハンドラ統合テスト
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, jest, beforeEach, afterEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
 import { ProblemDelegator } from "../src/application/problem-delegation.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
@@ -39,7 +39,7 @@ describe("handlers: problem.request / problem.submit", () => {
   let hostId: string;
 
   beforeEach(async () => {
-    vi.useFakeTimers();
+    jest.useFakeTimers();
     store = new InMemoryRoomStore();
     clock = new FakeClock(1000000);
     broadcaster = new SpyBroadcaster();
@@ -69,7 +69,7 @@ describe("handlers: problem.request / problem.submit", () => {
 
   afterEach(() => {
     delegator.cancelAll();
-    vi.useRealTimers();
+    jest.useRealTimers();
   });
 
   it("editor+ の problem.request で先頭候補へ need-problem が送られる", async () => {

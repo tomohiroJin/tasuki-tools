@@ -12,6 +12,13 @@
     // そう推論していたが、6.0 からは明示が必須（TS5011）。既に dist/apps/sync/src/... へ
     // 出力されているので、この指定は現在のレイアウトを明文化するだけで挙動は変わらない。
     "rootDir": "../..",
+    // ⚠ この paths が効くのは tsc（typecheck / build）だけ。**Bun の実行時解決には使われない**
+    // （2026-08-05 実測: paths を存在しないファイルに向けてもテストは緑のまま通る）。
+    // bun test は pnpm workspace の symlink と timer-core の main: "./src/index.ts" で
+    // bare な @tasuki/timer-core を解決する。そのため **サブパス（@tasuki/timer-core/aggregate
+    // など）は bun test では解決できない**。timer-sync に該当する import は 0 件なので
+    // 現状は無害だが、追加するとテストだけが落ちる。timer-web は vite/vitest の alias で
+    // 解決できるため 12 箇所で使っており、そこだけ事情が違う。
     "paths": {
       "@tasuki/timer-core": ["../../packages/timer-core/src/index.ts"],
       "@tasuki/timer-core/*": ["../../packages/timer-core/src/*.ts"]

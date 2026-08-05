@@ -2,7 +2,7 @@
  * NanoidCodeGen のルームコード生成テスト（①ルーム名＋接尾辞）
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import { NanoidCodeGen } from "../src/adapters/nanoid-code-gen.js";
 
 describe("NanoidCodeGen.generate（ルーム名＋接尾辞）", () => {

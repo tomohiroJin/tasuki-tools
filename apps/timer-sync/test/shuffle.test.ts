@@ -3,7 +3,7 @@
  * サーバーが順列を生成し、稼働中は現ドライバー位置を固定する。host 限定。
  */
 
-import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, jest, afterEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
@@ -98,14 +98,14 @@ describe("member.shuffle（サーバー権威のランダム化）", () => {
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    jest.restoreAllMocks();
   });
 
   it("非稼働中: host の member.shuffle が ok で rotation が並べ替わる（Math.random 固定で決定的）", async () => {
     // Given（Fisher–Yates で呼ばれる random を固定する。i=2: Math.floor(r*3)、i=1: Math.floor(r*2)。
     // r=0 を返すと i=2 で j=0（[C,B,A]）、i=1 で j=0（[B,C,A]）になる）
     await setupRoom(handlers, store, ["A", "B", "C"], 0, false);
-    vi.spyOn(Math, "random").mockReturnValue(0);
+    jest.spyOn(Math, "random").mockReturnValue(0);
 
     // When
     const result = await handlers.handleCommand(HOST_CONN, { command: "member.shuffle" });
@@ -124,7 +124,7 @@ describe("member.shuffle（サーバー権威のランダム化）", () => {
     // Given（currentIndex=1＝"B" を稼働中にシャッフル。B の位置＝index 1 は固定される。
     // others=[0,2] をシャッフル。i=1: Math.floor(r*2)。r=0 で j=0＝入れ替えなし→[0,2]）
     await setupRoom(handlers, store, ["A", "B", "C"], 1, true);
-    vi.spyOn(Math, "random").mockReturnValue(0);
+    jest.spyOn(Math, "random").mockReturnValue(0);
 
     // When
     const result = await handlers.handleCommand(HOST_CONN, { command: "member.shuffle" });
@@ -139,7 +139,7 @@ describe("member.shuffle（サーバー権威のランダム化）", () => {
   it("稼働中: 現ドライバー名は順列の中身に関わらず保持される", async () => {
     // Given（others=[0,1] を i=1: r=0.99→Math.floor(0.99*2)=1 で入れ替え→[1,0]）
     await setupRoom(handlers, store, ["A", "B", "C"], 2, true);
-    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    jest.spyOn(Math, "random").mockReturnValue(0.99);
 
     // When
     await handlers.handleCommand(HOST_CONN, { command: "member.shuffle" });

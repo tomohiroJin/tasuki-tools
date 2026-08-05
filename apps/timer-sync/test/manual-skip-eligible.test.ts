@@ -2,7 +2,7 @@
  * 手動スキップ（session.act SWITCH）も一時離脱(driverEligible=false)/オフライン(非placeholder)を
  * 飛ばして次の eligible へ進む（v2.10 #3）。自動交代と同じ eligible 判定に揃える。
  */
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";

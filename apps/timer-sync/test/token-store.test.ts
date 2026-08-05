@@ -5,7 +5,7 @@
  * これまで担っていた挙動（発行・照合・ルーム単位の解放）をそのまま仕様として固定する。
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import { createTokenStore } from "../src/application/token-store.js";
 
 describe("createTokenStore", () => {

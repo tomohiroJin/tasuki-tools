@@ -2,7 +2,7 @@
  * ホスト委譲テスト
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, jest, beforeEach, afterEach } from "bun:test";
 import { PresenceManager, HOST_ABSENCE_GRACE_MS } from "../src/application/presence.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
@@ -73,7 +73,7 @@ describe("PresenceManager: ホスト委譲", () => {
   let manager: PresenceManager;
 
   beforeEach(() => {
-    vi.useFakeTimers();
+    jest.useFakeTimers();
     store = new InMemoryRoomStore();
     broadcaster = new SpyBroadcaster();
     clock = new FakeClock(1000000);
@@ -81,7 +81,7 @@ describe("PresenceManager: ホスト委譲", () => {
   });
 
   afterEach(() => {
-    vi.useRealTimers();
+    jest.useRealTimers();
   });
 
   it("ホスト切断後、猶予時間後にオンライン編集者へ委譲される", () => {
@@ -92,7 +92,7 @@ describe("PresenceManager: ホスト委譲", () => {
     broadcaster.snapshots.length = 0;
 
     // When
-    vi.advanceTimersByTime(HOST_ABSENCE_GRACE_MS + 100);
+    jest.advanceTimersByTime(HOST_ABSENCE_GRACE_MS + 100);
 
     // Then（委譲されて snapshot が配信される）
     expect(broadcaster.snapshots.length).toBeGreaterThan(0);
@@ -117,7 +117,7 @@ describe("PresenceManager: ホスト委譲", () => {
     broadcaster.snapshots.length = 0;
 
     // When
-    vi.advanceTimersByTime(HOST_ABSENCE_GRACE_MS + 100);
+    jest.advanceTimersByTime(HOST_ABSENCE_GRACE_MS + 100);
 
     // Then（委譲は起きない。hostParticipantId が変わっていない）
     const updatedRoom = store.get("HTEST2");

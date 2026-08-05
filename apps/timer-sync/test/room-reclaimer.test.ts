@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, jest } from "bun:test";
 import { RoomReclaimer } from "../src/application/room-reclaimer.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import type { Room } from "@tasuki/timer-core";
@@ -24,7 +24,7 @@ describe("RoomReclaimer", () => {
     // Given
     const store = new InMemoryRoomStore();
     store.put(room("AAA", ["offline", "offline"]));
-    const onReclaim = vi.fn();
+    const onReclaim = jest.fn();
     const r = new RoomReclaimer({ store, idleTtlMs: 1000, onReclaim });
 
     // When
@@ -42,7 +42,7 @@ describe("RoomReclaimer", () => {
     // Given
     const store = new InMemoryRoomStore();
     store.put(room("BBB", ["online", "offline"]));
-    const onReclaim = vi.fn();
+    const onReclaim = jest.fn();
     const r = new RoomReclaimer({ store, idleTtlMs: 1000, onReclaim });
 
     // When
@@ -57,7 +57,7 @@ describe("RoomReclaimer", () => {
     // Given
     const store = new InMemoryRoomStore();
     store.put(room("CCC", ["offline"]));
-    const onReclaim = vi.fn();
+    const onReclaim = jest.fn();
     const r = new RoomReclaimer({ store, idleTtlMs: 1000, onReclaim });
 
     // When
@@ -100,7 +100,7 @@ describe("RoomReclaimer", () => {
     // Given
     const store = new InMemoryRoomStore();
     store.put(room("DDD", ["offline"]));
-    const onReclaim = vi.fn((code: string) => store.remove(code));
+    const onReclaim = jest.fn((code: string) => store.remove(code));
     const r = new RoomReclaimer({ store, idleTtlMs: 1000, onReclaim });
 
     // When

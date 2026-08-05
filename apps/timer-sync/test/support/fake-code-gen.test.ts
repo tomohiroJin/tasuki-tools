@@ -7,7 +7,7 @@
  * @requirements FR-097, US2
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import { FakeCodeGen } from "./fake-code-gen.js";
 
 describe("FakeCodeGen", () => {

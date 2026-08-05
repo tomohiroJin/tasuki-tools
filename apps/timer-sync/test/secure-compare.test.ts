@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import { constantTimeEqual } from "../src/application/secure-compare.js";
 
 describe("constantTimeEqual", () => {

@@ -4,7 +4,7 @@
  * role.set、スケジューラ配線による自動交代を検証する。
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, jest, beforeEach, afterEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
 import { Scheduler } from "../src/application/schedule.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
@@ -375,7 +375,7 @@ describe("自動交代: スケジューラ配線", () => {
   let handlers: ReturnType<typeof makeHandlers>;
 
   beforeEach(() => {
-    vi.useFakeTimers();
+    jest.useFakeTimers();
     store = new InMemoryRoomStore();
     clock = new FakeClock(1000000);
     broadcaster = new SpyBroadcaster();
@@ -385,7 +385,7 @@ describe("自動交代: スケジューラ配線", () => {
 
   afterEach(() => {
     scheduler.clearAll();
-    vi.useRealTimers();
+    jest.useRealTimers();
   });
 
   it("START 後、交代間隔の経過で自動的にドライバーが進む", async () => {
@@ -397,7 +397,7 @@ describe("自動交代: スケジューラ配線", () => {
 
     // When（FakeClock と vitest タイマーを同時に進める。残り 300 秒）
     clock.advance(300000);
-    vi.advanceTimersByTime(300000 + 100);
+    jest.advanceTimersByTime(300000 + 100);
 
     // Then
     const after = store.get(code)!;
@@ -415,7 +415,7 @@ describe("自動交代: スケジューラ配線", () => {
 
     // When
     clock.advance(600000);
-    vi.advanceTimersByTime(600000 + 100);
+    jest.advanceTimersByTime(600000 + 100);
 
     // Then
     const after = store.get(code)!;
@@ -435,7 +435,7 @@ describe("自動交代: スケジューラ配線", () => {
 
     // When（交代間隔の経過 → 自動交代は Bob(1) を飛ばして Charlie(2) へ）
     clock.advance(300000);
-    vi.advanceTimersByTime(300000 + 100);
+    jest.advanceTimersByTime(300000 + 100);
 
     // Then
     expect(store.get(code)!.session.currentIndex).toBe(2);
@@ -453,7 +453,7 @@ describe("ドライバー一時離脱と現ドライバー skip の繰り上げ�
   let handlers: ReturnType<typeof makeHandlers>;
 
   beforeEach(() => {
-    vi.useFakeTimers();
+    jest.useFakeTimers();
     store = new InMemoryRoomStore();
     clock = new FakeClock(1000000);
     broadcaster = new SpyBroadcaster();
@@ -463,7 +463,7 @@ describe("ドライバー一時離脱と現ドライバー skip の繰り上げ�
 
   afterEach(() => {
     scheduler.clearAll();
-    vi.useRealTimers();
+    jest.useRealTimers();
   });
 
   it("稼働中に現ドライバーを driver.skip すると次の eligible へ繰り上がる", async () => {
@@ -529,7 +529,7 @@ describe("ドライバー一時離脱と現ドライバー skip の繰り上げ�
 
     // タイマーを進めても無限ループせず、自動交代は現状維持のまま
     clock.advance(600000);
-    vi.advanceTimersByTime(600000 + 100);
+    jest.advanceTimersByTime(600000 + 100);
     expect(store.get(code)!.session.currentIndex).toBe(0);
   });
 });
