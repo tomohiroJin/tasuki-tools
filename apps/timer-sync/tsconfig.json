@@ -1,6 +1,8 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    // WS アダプタが Bun.serve を使うため（poker-sync と同じ指定）。
+    "types": ["bun"],
     // ルートの base は noEmit: true が既定。このパッケージは tsc で dist を出すので上書きする。
     "noEmit": false,
     "declaration": true,

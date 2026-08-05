@@ -1,15 +1,11 @@
 /**
  * WS アダプタ — 薄い WebSocket 抽象層
  * T040: FR-013, NFRセキュリティ(S2/S3)
+ *
+ * 実装は `Bun.serve`（S5・#20）。本番は元から Bun 実行なので、poker-sync と土台が揃う。
+ * 外から見える振る舞い（close コード・エラーコード・426）は ws 実装のときと同じ。
  */
 
-import { WebSocketServer, WebSocket } from "ws";
-import {
-  createServer,
-  type Server,
-  type IncomingMessage,
-  type ServerResponse,
-} from "http";
 import { CommandSchema } from "@tasuki/timer-core";
 import { parseBoundaryMessage } from "@tasuki/protocol";
 
@@ -19,6 +15,18 @@ const MAX_MESSAGE_BYTES = 64 * 1024; // 64KB
 const DEFAULT_HEARTBEAT_INTERVAL_MS = 15_000;
 /** 許容する連続 pong 欠落回数の既定値。一時的な通信の揺れを吸収する猶予（US2）。 */
 const DEFAULT_HEARTBEAT_MAX_MISSES = 2;
+
+/**
+ * httpHandler に渡すリクエスト表現。
+ * Node の IncomingMessage にも Bun の Request にも依存しない形にしてある。
+ */
+export interface HttpRequestInfo {
+  method: string;
+  /** クエリを含むパス（`/status?x=1`）。handleAdminHttp が `?` で切る。 */
+  path: string;
+  /** キーは小文字。 */
+  headers: Record<string, string>;
+}
 
 export interface WsAdapterOptions {
   port: number;
@@ -30,18 +38,29 @@ export interface WsAdapterOptions {
   onDisconnect: (connId: string) => void;
   /** 非 Upgrade の HTTP リクエストのフック。結果を返せばそれを応答、null なら 426。 */
   httpHandler?: (
-    req: IncomingMessage,
+    req: HttpRequestInfo,
   ) => { status: number; contentType: string; body: string } | null;
-  /** ハートビート（ws.ping）の送信間隔（ms）。既定 15000。 */
+  /** ハートビート（ping）の送信間隔（ms）。既定 15000。 */
   heartbeatIntervalMs?: number;
   /** 連続でこの回数分 pong が確認できない接続を terminate する。既定 2。 */
   heartbeatMaxMisses?: number;
 }
 
+/**
+ * 接続ごとに持ち回る値。
+ * `connId` は Origin / 接続数の検査を通ってから採番するため、それまでは空文字。
+ * 空のまま閉じた接続は「受け入れていない接続」なので onDisconnect を呼ばない。
+ */
+interface ConnectionData {
+  connId: string;
+  origin: string;
+}
+
+type Socket = Bun.ServerWebSocket<ConnectionData>;
+
 export class WsAdapter {
-  private readonly wss: WebSocketServer;
-  private readonly httpServer: Server;
-  private readonly connections = new Map<string, WebSocket>();
+  private readonly server: Bun.Server<ConnectionData>;
+  private readonly connections = new Map<string, Socket>();
   private connCounter = 0;
   /** 接続ごとの「直近 ping 送信からの pong 未受信回数」（Issue #25: 死活監視）。 */
   private readonly missedPongs = new Map<string, number>();
@@ -60,23 +79,66 @@ export class WsAdapter {
       0,
       options.heartbeatMaxMisses ?? DEFAULT_HEARTBEAT_MAX_MISSES,
     );
-    this.httpServer = createServer((req, res) => this.handleHttp(req, res));
-    this.wss = new WebSocketServer({ server: this.httpServer });
-    this.wss.on("connection", this.handleConnection.bind(this));
-    this.httpServer.on("error", (err) => {
+
+    try {
+      this.server = Bun.serve<ConnectionData, never>({
+        port: options.port,
+        // exactOptionalPropertyTypes: true のため、未指定のときはキーごと渡さない。
+        ...(options.host !== undefined ? { hostname: options.host } : {}),
+        fetch: (req, server) => this.handleFetch(req, server),
+        websocket: {
+          // 既定の maxPayloadLength（16MB）のまま受け取り、64KB 超は自前で弾く。
+          // ここで絞ると超過時に接続ごと閉じられてしまい、MESSAGE_TOO_LARGE を返して
+          // 接続を保つ現行の振る舞いを再現できない。
+          open: (ws) => this.handleOpen(ws),
+          message: (ws, raw) => this.handleMessage(ws, raw),
+          close: (ws) => this.handleClose(ws),
+          pong: (ws) => this.handlePong(ws),
+        },
+      });
+    } catch (err) {
       // 起動時の bind 失敗（EADDRINUSE 等）は回復不能。未処理例外でクラッシュさせず明示終了する。
       console.error(`❌ HTTP サーバエラー: ${(err as Error).message}`);
       process.exit(1);
-    });
-    this.httpServer.listen(options.port, options.host);
+    }
+
     this.startHeartbeat();
   }
 
   /**
+   * Upgrade できるものは WebSocket にし、それ以外は httpHandler → 426 で応答する。
+   *
+   * **Origin と接続数の検査はここで行わない。** ハンドシェイクを拒否すると
+   * クライアントには「接続失敗」としか見えず、理由を表す close コード
+   * （1008 / 1013）が届かない。upgrade を通したうえで open で閉じる。
+   */
+  private handleFetch(req: Request, server: Bun.Server<ConnectionData>): Response | undefined {
+    const origin = req.headers.get("origin") ?? "";
+    if (server.upgrade(req, { data: { connId: "", origin } })) return undefined;
+
+    const url = new URL(req.url);
+    const handled = this.options.httpHandler?.({
+      method: req.method,
+      path: url.pathname + url.search,
+      headers: Object.fromEntries(req.headers),
+    });
+    if (handled) {
+      return new Response(handled.body, {
+        status: handled.status,
+        headers: { "content-type": handled.contentType },
+      });
+    }
+    return new Response("Upgrade Required", {
+      status: 426,
+      headers: { "content-type": "text/plain" },
+    });
+  }
+
+  /**
    * サーバー主導の死活監視（Issue #25）。
-   * 一定間隔で各接続に ws.ping() を送り、直前の送信から pong が来ていなければ
+   * 一定間隔で各接続に ping を送り、直前の送信から pong が来ていなければ
    * 欠落回数を加算する。欠落回数が閾値に達した接続は terminate し、
-   * 既存の "close" イベント経路（presence の offline 化等）に処理を委ねる（DRY）。
+   * 既存の close 経路（presence の offline 化等）に処理を委ねる（DRY）。
    * 1 接続 1 interval あたり ping 送信は高々 1 回のため、通信量は接続数に対して線形。
    */
   private startHeartbeat(): void {
@@ -102,19 +164,6 @@ export class WsAdapter {
     }
   }
 
-  /** 非 Upgrade の HTTP リクエスト処理。管理エンドポイント等は httpHandler に委譲し、
-   *  それ以外は WS 専用サーバとして 426 を返す（既存挙動の維持）。 */
-  private handleHttp(req: IncomingMessage, res: ServerResponse): void {
-    const handled = this.options.httpHandler?.(req);
-    if (handled) {
-      res.writeHead(handled.status, { "content-type": handled.contentType });
-      res.end(handled.body);
-      return;
-    }
-    res.writeHead(426, { "content-type": "text/plain" });
-    res.end("Upgrade Required");
-  }
-
   send(connId: string, data: unknown): void {
     const ws = this.connections.get(connId);
     if (ws?.readyState === WebSocket.OPEN) {
@@ -134,27 +183,20 @@ export class WsAdapter {
 
   close(): Promise<void> {
     this.stopHeartbeat();
-    return new Promise((resolve) => {
-      // {server} 構成では wss.close は活線ソケットを切らず、httpServer.close は
-      // 全接続終了までコールバックを発火しない。先に能動的に切断してハングを防ぐ。
-      for (const ws of this.connections.values()) ws.terminate();
-      this.wss.close(() => {
-        // Bun では ws の terminate が下層の TCP ソケットまでは破棄しないため、
-        // これだけでは httpServer.close のコールバックが永久に発火しない
-        // （Node は破棄するので発火する）。アップグレード済みの接続を
-        // 明示的に閉じて、どちらのランタイムでも終わるようにする。
-        this.httpServer.closeAllConnections();
-        this.httpServer.close(() => resolve());
-      });
-    });
+    // `server.stop()` が返す Promise は、**サーバー側から閉じた接続が 1 つでもあると
+    // 解決しない**（2026-08-05 に Bun 1.3.14 で実測）。Origin 拒否・接続数超過・
+    // ハートビートの terminate はいずれもサーバー側からの close なので、待つと詰まる。
+    // 一方 stop(true) の副作用（新規受付の停止・既存接続の切断・ポート解放）は同期的に
+    // 効き、直後に同じポートで listen し直せることも実測済み。そのため待たない。
+    void this.server.stop(true);
+    return Promise.resolve();
   }
 
-  private handleConnection(ws: WebSocket, req: IncomingMessage): void {
+  private handleOpen(ws: Socket): void {
     // Origin 検証（S2）
-    const origin = req.headers.origin ?? "";
     if (
       this.options.allowedOrigins.length > 0 &&
-      !this.options.allowedOrigins.includes(origin)
+      !this.options.allowedOrigins.includes(ws.data.origin)
     ) {
       ws.close(1008, "Origin not allowed");
       return;
@@ -170,55 +212,65 @@ export class WsAdapter {
     }
 
     const connId = `conn-${++this.connCounter}`;
+    ws.data.connId = connId;
     this.connections.set(connId, ws);
     this.missedPongs.set(connId, 0);
+  }
 
-    // pong 受信 = 生存確認。欠落カウントをリセットする（一時的な揺れからの復帰・US2）。
-    ws.on("pong", () => {
-      this.missedPongs.set(connId, 0);
+  /** pong 受信 = 生存確認。欠落カウントをリセットする（一時的な揺れからの復帰・US2）。 */
+  private handlePong(ws: Socket): void {
+    const { connId } = ws.data;
+    if (connId === "") return;
+    this.missedPongs.set(connId, 0);
+  }
+
+  private handleMessage(ws: Socket, raw: string | Buffer): void {
+    const { connId } = ws.data;
+    if (connId === "") return; // 検査で弾いた接続からは受け取らない
+
+    // サイズ制限（S3）。**バイト数で測る**。Bun はテキストフレームを string で
+    // 渡してくるため、`raw.length` だと日本語 1 文字が 1 と数えられ、
+    // ws 実装（Buffer.length）より制限が緩くなってしまう。
+    const bytes = typeof raw === "string" ? Buffer.byteLength(raw) : raw.length;
+    if (bytes > MAX_MESSAGE_BYTES) {
+      ws.send(
+        JSON.stringify({
+          type: "error",
+          code: "MESSAGE_TOO_LARGE",
+          message: "メッセージが大きすぎます",
+        }),
+      );
+      return;
+    }
+
+    // 境界のパースは @tasuki/protocol に一本化してある（poker の sync / web も同じものを使う）。
+    // 落ちた段（json / schema）で返すエラーコードを分けるのは timer 側の決めごと。
+    const parsed = parseBoundaryMessage(CommandSchema, raw.toString());
+    if (parsed.isErr()) {
+      const code = parsed.error.stage === "json" ? "INVALID_JSON" : "INVALID_COMMAND";
+      const message =
+        parsed.error.stage === "json" ? "JSON の形式が不正です" : "コマンドの形式が不正です";
+      ws.send(JSON.stringify({ type: "error", code, message }));
+      return;
+    }
+
+    this.options.onMessage(connId, parsed.value).catch(() => {
+      ws.send(
+        JSON.stringify({
+          type: "error",
+          code: "INTERNAL_ERROR",
+          message: "内部エラーが発生しました",
+        }),
+      );
     });
+  }
 
-    ws.on("message", (raw: Buffer) => {
-      // サイズ制限（S3）
-      if (raw.length > MAX_MESSAGE_BYTES) {
-        ws.send(
-          JSON.stringify({
-            type: "error",
-            code: "MESSAGE_TOO_LARGE",
-            message: "メッセージが大きすぎます",
-          }),
-        );
-        return;
-      }
-
-      // 境界のパースは @tasuki/protocol に一本化してある（poker の sync / web も同じものを使う）。
-      // 落ちた段（json / schema）で返すエラーコードを分けるのは timer 側の決めごと。
-      const parsed = parseBoundaryMessage(CommandSchema, raw.toString());
-      if (parsed.isErr()) {
-        const code = parsed.error.stage === "json" ? "INVALID_JSON" : "INVALID_COMMAND";
-        const message =
-          parsed.error.stage === "json" ? "JSON の形式が不正です" : "コマンドの形式が不正です";
-        ws.send(JSON.stringify({ type: "error", code, message }));
-        return;
-      }
-
-      this.options
-        .onMessage(connId, parsed.value)
-        .catch(() => {
-          ws.send(
-            JSON.stringify({
-              type: "error",
-              code: "INTERNAL_ERROR",
-              message: "内部エラーが発生しました",
-            }),
-          );
-        });
-    });
-
-    ws.on("close", () => {
-      this.connections.delete(connId);
-      this.missedPongs.delete(connId);
-      this.options.onDisconnect(connId);
-    });
+  private handleClose(ws: Socket): void {
+    const { connId } = ws.data;
+    // Origin / 接続数で弾いた接続は受け入れていないので、切断も通知しない（ws 実装と同じ）。
+    if (connId === "") return;
+    this.connections.delete(connId);
+    this.missedPongs.delete(connId);
+    this.options.onDisconnect(connId);
   }
 }

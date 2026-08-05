@@ -24,7 +24,7 @@ describe("WsAdapter の httpHandler フック", () => {
       ...base,
       port: PORT,
       httpHandler: (req) =>
-        req.url === "/status"
+        req.path === "/status"
           ? {
               status: 200,
               contentType: "application/json",
