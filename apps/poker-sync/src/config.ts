@@ -57,7 +57,9 @@ export function loadPokerSyncConfig(env: Record<string, string | undefined>): Po
     maxRooms: intEnv(env['MAX_ROOMS'], 50),
     maxMessageBytes: intEnv(env['MAX_MESSAGE_BYTES'], 64 * 1024),
     heartbeatIntervalMs: intEnv(env['HEARTBEAT_INTERVAL_MS'], 15_000),
-    // 0 は「猶予なし（1 回の欠落で切断）」という有効な設定。
-    heartbeatMaxMisses: nonNegIntEnv(env['HEARTBEAT_MAX_MISSES'], 2),
+    // **0 を通してはいけない。** ハートビートは「欠落回数 >= 上限」で切断するため、
+    // 0 だと最初の tick で ping を送る前に全接続が terminate される。
+    // 猶予回数として意味を成さないので、正の整数のみ受け付ける（timer 側と同じ）。
+    heartbeatMaxMisses: intEnv(env['HEARTBEAT_MAX_MISSES'], 2),
   };
 }

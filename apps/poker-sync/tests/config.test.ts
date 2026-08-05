@@ -85,8 +85,10 @@ describe('loadPokerSyncConfig', () => {
     expect(loadPokerSyncConfig({ PORT: '0' }).port).toBe(0);
   });
 
-  it('HEARTBEAT_MAX_MISSES=0 は「1 回の欠落で切断」として通す', () => {
-    // 0 は「猶予なし」という有効な設定。上限値と違い既定へ倒さない。
-    expect(loadPokerSyncConfig({ HEARTBEAT_MAX_MISSES: '0' }).heartbeatMaxMisses).toBe(0);
+  it('HEARTBEAT_MAX_MISSES=0 は既定へ倒す（ping を送る前に切断してしまうため）', () => {
+    // 0 を通すと、ハートビートの最初の tick で「欠落 0 回 >= 上限 0 回」が成立し、
+    // **ping を 1 度も送らないまま全接続が terminate される**（実測で確認）。
+    // 猶予回数として意味を成さない値なので、他の上限値と同じく既定へ倒す。
+    expect(loadPokerSyncConfig({ HEARTBEAT_MAX_MISSES: '0' }).heartbeatMaxMisses).toBe(2);
   });
 });
