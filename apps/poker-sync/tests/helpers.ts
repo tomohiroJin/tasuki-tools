@@ -119,6 +119,22 @@ export class WsClient {
     return this.ws.readyState === WebSocket.OPEN;
   }
 
+  /** サーバーに接続を閉じられるまで待つ */
+  waitForClose(timeoutMs = 5_000): Promise<void> {
+    if (this.ws.readyState === WebSocket.CLOSED) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('接続が閉じられなかった')), timeoutMs);
+      this.ws.addEventListener(
+        'close',
+        () => {
+          clearTimeout(timer);
+          resolve();
+        },
+        { once: true },
+      );
+    });
+  }
+
   close(): void {
     this.ws.close();
   }

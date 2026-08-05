@@ -7,7 +7,7 @@
 **すべての受信メッセージは境界で Valibot スキーマ検証し（憲法原則 IV）、検証失敗は
 `error` 応答（code: `invalid-message`）を返して接続は維持する。**
 
-スキーマの実装は `packages/core/src/protocol.ts` に置き、web / sync 双方が import する
+スキーマの実装は `packages/poker-core/src/protocol.ts` に置き、web / sync 双方が import する
 （契約の単一情報源）。本書はその仕様定義である。
 
 ## 共通事項
@@ -133,6 +133,29 @@ revealed 後の例:
 | `not-voting` | voting 中でない | vote, reveal |
 | `not-revealed` | revealed 中でない | next-round |
 | `not-joined` | join 前の操作 | vote, reveal, next-round |
+| `message-too-large` | メッセージのバイト数が上限超過 | 全 C→S（[#63](https://github.com/tomohiroJin/tasuki-tools/issues/63)） |
+| `server-busy` | ルーム数が上限に達している | create-room（#63） |
+
+`message-too-large` と `server-busy` は**利用者の入力の誤りではなくサーバー側の事情**を表す。
+`invalid-message` に畳むと画面の案内が誤りになるため分けている。いずれも接続は維持する。
+
+## 接続・フレーム層の防御（#63）
+
+スキーマ検証より手前で効く層。**設定値は環境変数が単一の入口**で、既定値と解釈は
+`apps/poker-sync/src/config.ts` にまとまっている。
+
+| 防御 | 挙動 |
+|------|------|
+| Origin 検査 | `ALLOWED_ORIGINS` 以外からの接続を **close 1008**（`Origin not allowed`）。本番で未設定なら起動しない |
+| 待ち受けアドレス | 既定 `127.0.0.1` のみ。リバースプロキシを迂回した直接接続は届かない |
+| 同時接続数 | 上限超過を **close 1013**（`Server connection limit reached`） |
+| メッセージサイズ | 上限超過は `message-too-large` を返し**接続は維持**。バイト数で測る |
+| フレームサイズ | メッセージ上限の 2 倍を超えるフレームはプロトコル層で切断（**1006**。応答の余地が無い帯域） |
+| ルーム数 | 上限超過時は `server-busy`。止めるのは**新規作成のみ**で、既存ルームへの参加は妨げない |
+| 死活監視 | 一定間隔で ping。連続で pong が確認できない接続を切断し、下記「WS 切断」の経路へ委ねる |
+
+Origin と接続数の検査は **upgrade を通してから close する**。ハンドシェイクを拒否すると
+クライアントには接続失敗としか見えず、理由を表す close コードが届かないため。
 
 ## サーバー内部イベント（メッセージ以外の契約）
 
@@ -141,6 +164,7 @@ revealed 後の例:
 | WS 切断 | participant.connected=false → 全員へ `room-state`。ホストなら繰上（joinOrder 最小の接続中参加者、FR-012）。voting 中は自動公開を再評価（US4-AS1） |
 | 接続数 0 | ルームを即時破棄。以後の join-room は `room-not-found`（FR-014） |
 | 全員投票成立 | 自動で revealed へ遷移し全員へ `room-state`（FR-008。分母は接続中の全参加者） |
+| 死活監視での切断 | 上記「WS 切断」と同じ扱い。半開き接続の参加者が connected のまま残らないようにする（#63） |
 
 ## 結合テスト観点（apps/sync, research R7）
 

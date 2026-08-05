@@ -157,6 +157,19 @@ describe('メッセージサイズ制限', () => {
     expect(await client.next()).toMatchObject({ type: 'error', code: 'message-too-large' });
   });
 
+  it('フレーム上限を超えるものはプロトコル層で切断される（返答の余地が無い帯域）', async () => {
+    // Given: メッセージ上限 200 バイト → フレーム上限は 2 倍の 400 バイト
+    server = await startServer({ MAX_MESSAGE_BYTES: '200' });
+    const client = await ws(server.port);
+
+    // When: フレーム上限そのものを超える
+    client.sendRaw('x'.repeat(500));
+
+    // Then: ここはアプリに届かないため、エラー応答ではなく切断になる。
+    // 「超過はエラー応答・接続維持」が成り立つのは上限〜フレーム上限の帯域まで
+    await expect(client.waitForClose()).resolves.toBeUndefined();
+  });
+
   it('上限以下のメッセージはそのまま処理される', async () => {
     // Given
     server = await startServer({ MAX_MESSAGE_BYTES: '200' });

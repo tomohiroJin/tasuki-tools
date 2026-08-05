@@ -295,8 +295,16 @@ const server = Bun.serve<ConnectionData, never>({
     return new Response('Not Found', { status: 404 });
   },
   websocket: {
-    // 既定の maxPayloadLength（16MB）のまま受け取り、上限超過は自前で弾く。
-    // ここで絞ると超過時に接続ごと閉じられ、エラーを返して接続を保つ振る舞いにできない。
+    // フレーム上限は**設定から導出して明示指定する**。
+    //
+    // 既定（16MB）のままにすると 2 つの問題がある。ひとつは、アプリの上限が 64KB でも
+    // 1 フレームあたり 16MB を確保させられること。もうひとつは、運用者が
+    // MAX_MESSAGE_BYTES を 16MB 以上にしたとき、超過フレームがプロトコル層で
+    // 切られてしまい「エラー応答を返して接続は保つ」が成立しなくなること。
+    //
+    // maxFrameBytes はメッセージ上限の 2 倍なので、上限〜フレーム上限の帯域は
+    // 自前で検出して message-too-large を返せる。それを超えるものは 1006 で切れる。
+    maxPayloadLength: config.maxFrameBytes,
     open: handleOpen,
     message: handleMessage,
     close: handleClose,

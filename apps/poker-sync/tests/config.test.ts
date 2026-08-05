@@ -15,6 +15,7 @@ describe('loadPokerSyncConfig', () => {
       maxConnections: 200,
       maxRooms: 50,
       maxMessageBytes: 64 * 1024,
+      maxFrameBytes: 128 * 1024,
       heartbeatIntervalMs: 15_000,
       heartbeatMaxMisses: 2,
     });
@@ -78,6 +79,28 @@ describe('loadPokerSyncConfig', () => {
       maxMessageBytes: 64 * 1024,
       heartbeatIntervalMs: 15_000,
     });
+  });
+
+  it('MAX_MESSAGE_BYTES は天井（1MB）で丸める', () => {
+    // 天井が無いと、フレーム上限（= この値から導出する）も無制限に上げられてしまい、
+    // 1 フレームあたりの確保量が青天井になる。poker の正当なメッセージは 64KB の
+    // 遥か下なので、1MB は十分な余裕がある。
+    expect(loadPokerSyncConfig({ MAX_MESSAGE_BYTES: String(64 * 1024 * 1024) }).maxMessageBytes).toBe(
+      1024 * 1024,
+    );
+  });
+
+  it('MAX_MESSAGE_BYTES が天井以下ならそのまま使う', () => {
+    expect(loadPokerSyncConfig({ MAX_MESSAGE_BYTES: String(512 * 1024) }).maxMessageBytes).toBe(
+      512 * 1024,
+    );
+  });
+
+  it('フレーム上限はメッセージ上限の 2 倍（超過を検出して返答する余地を残す）', () => {
+    // フレーム上限とメッセージ上限を同じにすると、超過フレームがプロトコル層で
+    // 切られてしまい、message-too-large を返して接続を保つ振る舞いが成立しない。
+    expect(loadPokerSyncConfig({ MAX_MESSAGE_BYTES: '1000' }).maxFrameBytes).toBe(2000);
+    expect(loadPokerSyncConfig({}).maxFrameBytes).toBe(128 * 1024);
   });
 
   it('PORT=0 は「任意の空きポート」として通す（テストのサブプロセス起動が使う）', () => {

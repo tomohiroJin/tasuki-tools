@@ -17,11 +17,32 @@ export interface PokerSyncConfig {
   maxRooms: number;
   /** 1 メッセージの最大バイト数。超過はエラー応答（接続は保つ）。 */
   maxMessageBytes: number;
+  /**
+   * WebSocket フレームの最大バイト数（`Bun.serve` の `maxPayloadLength`）。
+   * これを超えるフレームはプロトコル層で切られ、エラー応答を返す余地が無い。
+   * そのため `maxMessageBytes` より大きく取り、超過を自前で検出できる帯域を残す。
+   */
+  maxFrameBytes: number;
   /** サーバー主導のハートビート（ping）送信間隔（ms）。 */
   heartbeatIntervalMs: number;
   /** 連続でこの回数分 pong が確認できない接続を切断する。 */
   heartbeatMaxMisses: number;
 }
+
+/**
+ * メッセージ上限の天井。これが無いと、そこから導出するフレーム上限も青天井になり、
+ * 1 フレームあたりの確保量を運用者が誤って無制限にできてしまう。
+ * poker の正当なメッセージ（名前 24 文字・ルーム ID 8 文字・カードの列挙）は
+ * 既定の 64KB すら大きく下回るため、1MB あれば将来の追加にも十分な余裕がある。
+ */
+const MAX_MESSAGE_BYTES_CEILING = 1024 * 1024;
+
+/**
+ * フレーム上限をメッセージ上限の何倍に取るか。
+ * 同じ値にすると超過フレームがプロトコル層で切られ、`message-too-large` を返して
+ * 接続を保つ振る舞いが成立しない。倍率ぶんが「検出して返答できる」帯域になる。
+ */
+const FRAME_BYTES_MULTIPLIER = 2;
 
 /** env 値を正の整数として解釈し、不正なら既定値を返す（上限値は 0 に意味が無い）。 */
 function intEnv(value: string | undefined, fallback: number): number {
@@ -48,6 +69,11 @@ export function loadPokerSyncConfig(env: Record<string, string | undefined>): Po
     );
   }
 
+  const maxMessageBytes = Math.min(
+    intEnv(env['MAX_MESSAGE_BYTES'], 64 * 1024),
+    MAX_MESSAGE_BYTES_CEILING,
+  );
+
   return {
     // PORT=0 は「任意の空きポート」を意味する有効値なので 0 を通す（テストが使う）。
     port: nonNegIntEnv(env['PORT'], 3311),
@@ -55,7 +81,8 @@ export function loadPokerSyncConfig(env: Record<string, string | undefined>): Po
     allowedOrigins,
     maxConnections: intEnv(env['MAX_CONNECTIONS'], 200),
     maxRooms: intEnv(env['MAX_ROOMS'], 50),
-    maxMessageBytes: intEnv(env['MAX_MESSAGE_BYTES'], 64 * 1024),
+    maxMessageBytes,
+    maxFrameBytes: maxMessageBytes * FRAME_BYTES_MULTIPLIER,
     heartbeatIntervalMs: intEnv(env['HEARTBEAT_INTERVAL_MS'], 15_000),
     // **0 を通してはいけない。** ハートビートは「欠落回数 >= 上限」で切断するため、
     // 0 だと最初の tick で ping を送る前に全接続が terminate される。
