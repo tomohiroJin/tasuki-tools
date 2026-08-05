@@ -5,9 +5,16 @@
  * サーバーは in-process に起動できない（Bun.serve は Bun ランタイム専用）ため、
  * 上限値はサブプロセスの環境変数で注入する。
  */
+import net from 'node:net';
+import os from 'node:os';
 import { afterEach, describe, expect, it } from 'vitest';
 import { isType, startServer, WsClient, type TestServer } from './helpers';
 import { connectRaw, type RawWsClient } from './raw-ws-client';
+
+/** この環境の非ループバックな IPv4。無ければ待ち受け範囲の検証はできない */
+const EXTERNAL_IP = Object.values(os.networkInterfaces())
+  .flat()
+  .find((iface) => iface?.family === 'IPv4' && !iface.internal)?.address;
 
 let server: TestServer | undefined;
 const openRaw: RawWsClient[] = [];
@@ -69,6 +76,25 @@ describe('Origin 検査', () => {
     client.send({ type: 'create-room', name: 'たろう' });
 
     // Then
+    expect(await client.nextText()).toMatchObject({ type: 'joined' });
+  });
+});
+
+describe('本番の fail-closed', () => {
+  it('ALLOWED_ORIGINS が空のまま本番起動しようとするとサーバーは起動しない', async () => {
+    // Given / When: 設定漏れのまま本番として起動する
+    const startup = startServer({ NODE_ENV: 'production', ALLOWED_ORIGINS: '' });
+
+    // Then: 黙って全 Origin を許可するのではなく、理由を出して落ちる。
+    // 検証を config の単体テストで終わらせず、プロセスとして起動しないことまで見る
+    await expect(startup).rejects.toThrow(/ALLOWED_ORIGINS/);
+  });
+
+  it('ALLOWED_ORIGINS があれば本番でも起動する', async () => {
+    server = await startServer({ NODE_ENV: 'production', ALLOWED_ORIGINS: 'https://ok.example' });
+
+    const client = await raw(server.port, { origin: 'https://ok.example' });
+    client.send({ type: 'create-room', name: 'たろう' });
     expect(await client.nextText()).toMatchObject({ type: 'joined' });
   });
 });
@@ -147,6 +173,42 @@ describe('同時接続数の上限', () => {
 
     // Then
     expect(await replacement.nextText()).toMatchObject({ type: 'joined' });
+  });
+});
+
+describe('待ち受けアドレス', () => {
+  /** 指定アドレスの TCP ポートに到達できるか。接続できれば true */
+  function canReach(host: string, port: number, timeoutMs = 2_000): Promise<boolean> {
+    return new Promise((resolve) => {
+      const socket = net.connect({ host, port });
+      const done = (reachable: boolean): void => {
+        socket.destroy();
+        resolve(reachable);
+      };
+      socket.setTimeout(timeoutMs, () => done(false));
+      socket.once('connect', () => done(true));
+      socket.once('error', () => done(false));
+    });
+  }
+
+  it.skipIf(EXTERNAL_IP === undefined)(
+    '既定ではループバックのみで待ち受ける（Caddy を迂回した直接接続を塞ぐ）',
+    async () => {
+      // Given: HOST を指定しない既定の起動
+      server = await startServer({});
+
+      // Then: ループバックからは届くが、外向きのアドレスからは届かない
+      expect(await canReach('127.0.0.1', server.port)).toBe(true);
+      expect(await canReach(EXTERNAL_IP!, server.port)).toBe(false);
+    },
+  );
+
+  it.skipIf(EXTERNAL_IP === undefined)('HOST を指定すればその範囲で待ち受ける', async () => {
+    // Given: 全インタフェースを明示指定
+    server = await startServer({ HOST: '0.0.0.0' });
+
+    // Then: 上のテストが「そもそも到達できない環境だから緑」ではないことを示す対照
+    expect(await canReach(EXTERNAL_IP!, server.port)).toBe(true);
   });
 });
 
