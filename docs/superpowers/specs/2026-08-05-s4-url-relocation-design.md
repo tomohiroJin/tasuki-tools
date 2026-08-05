@@ -1,0 +1,125 @@
+# S4: timer を `/timer/` へ移設し、ルートを LP にする（#19）
+
+**Date**: 2026-08-05 | **Epic**: [#15](https://github.com/tomohiroJin/tasuki-tools/issues/15) | **Issue**: [#19](https://github.com/tomohiroJin/tasuki-tools/issues/19)
+
+epic #15 の最終段。玄関 LP をトップに据え、timer をサブパスへ移し、**poker を初めて本番公開する**。
+
+前提の [#63](https://github.com/tomohiroJin/tasuki-tools/issues/63)（poker-sync の防御）は
+[PR #64](https://github.com/tomohiroJin/tasuki-tools/pull/64) で解消済み。本段はその上に乗る。
+
+## S4 後の公開パス
+
+| URL | 配信元 | 備考 |
+|---|---|---|
+| `/` | `/var/www/tasuki-home`（LP） | 包括フォールバック |
+| `/?room=CODE` | → `/timer/?room=CODE` へ 301 | 旧共有リンクの救済（下記） |
+| `/timer/` | `/var/www/tasuki`（timer web） | `/timer` は `/timer/` へ 301 |
+| `/timer/ws` | `127.0.0.1:8787` | Caddy が `/ws` へ rewrite |
+| `/poker/` | `/var/www/tasuki-poker` | **今回が初公開** |
+| `/poker/ws` | `127.0.0.1:3311` | 変更なし |
+
+**`WEB_ROOT` は両アプリとも据え置く。** 変えるのは公開パスだけなので、ホスト上の
+ファイル移動は起きない。sync サーバーの実装も無変更（Caddy が rewrite するため）。
+`ALLOWED_ORIGINS` は Origin がスキーム＋ホストなのでパス変更の影響を受けない。
+
+### 旧共有リンクの救済
+
+timer のルーム共有リンクは **`?room=CODE` というクエリ形式**（`apps/timer-web/src/App.tsx`）。
+`/` が LP になると `https://<host>/?room=ABC` は LP に着地してコードが失われる。
+Issue #19 の「旧ブックマークで迷子にならない」は `/` → LP としか書いておらず、
+この経路は想定されていなかった。
+
+実害は限定的（デプロイでルームは全消滅するため、リンクが指す部屋はどのみち消えている）
+だが、Caddy のルール 1 つで救えるので入れる。**`/` かつ `room` クエリありのときだけ**
+`/timer/` へ 301 し、クエリ全体を引き継ぐ。
+
+## Caddy 断片の並び替え
+
+Caddy の `handle` は記述順に評価され、最初にマッチしたものだけが実行される。
+断片は `import /etc/caddy/tasuki/apps/*.conf` でファイル名順に展開されるため、
+番号接頭辞が評価順を決める。**包括フォールバックが timer から LP へ移るので、番号の
+入れ替えが必須になる。**
+
+| 順 | ファイル | 対象 | 変更 |
+|---|---|---|---|
+| 10 | `timer/caddy/10-timer-ws.conf` | `/timer/ws` → 8787 | 内容変更（旧 `/ws*`） |
+| 20 | `poker/caddy/20-poker.conf` | `/poker/ws`・`/poker/*` | 変更なし（コメントのみ） |
+| 30 | `timer/caddy/30-timer-spa.conf` | `/timer/*` → `/var/www/tasuki` | **旧 `90-timer-spa.conf` をリネーム** |
+| 40 | `timer/caddy/40-timer-legacy-room.conf` | `/` + `room` クエリ → `/timer/` | **新規** |
+| 90 | `landing/caddy/90-landing.conf` | 包括 → `/var/www/tasuki-home` | **旧 `30-landing.conf` をリネーム** |
+
+各断片は**自分の `root` を明示する**。サイトブロック（`deploy/caddy/tasuki.conf`）の
+`root * /var/www/tasuki` には依存しない。サイトブロックは今回変更しない（TLS・ヘッダを
+持つ最も壊してはいけない部分なので、触る範囲を `apps/*.conf` に閉じる）。
+
+### ⚠ ホスト上の旧ファイル削除が必須
+
+リネームするため、設置だけして旧ファイルを残すと壊れる。`90-landing.conf` と
+`90-timer-spa.conf` が並ぶと**辞書順で landing が先に評価され、`/timer/` が LP に吸われる**。
+
+デプロイ時にホストで削除するもの:
+
+- `/etc/caddy/tasuki/apps/30-landing.conf`
+- `/etc/caddy/tasuki/apps/90-timer-spa.conf`
+
+手順は `deploy/caddy/README.md` に置く。
+
+## コード変更
+
+| ファイル | 現在 | S4 後 |
+|---|---|---|
+| `apps/timer-web/vite.config.ts` | `base` 未指定 | `base: '/timer/'`、dev proxy を `/timer/ws` → `/ws` に rewrite |
+| `apps/timer-web/src/App.tsx` | WS URL を直書き | `buildSyncUrl` を呼ぶ（下記） |
+| `apps/landing/vite.config.ts` | `base: '/home/'` | `base: '/'` |
+| `apps/landing/src/tools.ts` | timer は `/` | `/timer/` |
+| `deploy/timer/app.env` | `PUBLIC_PATH=/` | `/timer/` |
+| `deploy/landing/app.env` | `PUBLIC_PATH=/home/` | `/` |
+
+### この作業に必要な改善: WS URL の切り出し
+
+WS URL は `App.tsx` の 600 行超のコンポーネント内に 1 行で直書きされており、
+**テストから触れない**。パスを変える当事者なので `buildSyncUrl(location)` として
+切り出し、単体テストを持たせる。移設漏れや将来のパス変更が検出できるようになる。
+
+切り出す範囲はこの 1 関数に限る。`App.tsx` の他の整理はこの Issue の範囲外。
+
+## テスト
+
+| # | 対象 | 方法 |
+|---|---|---|
+| 1 | LP の遷移先 | 既存テストが `['/', '/poker/']` を直接押さえているので必ず落ちる。期待値を更新する |
+| 2 | WS URL | `buildSyncUrl` の単体テスト。`https` なら `wss`、パスは `/timer/ws` |
+| 3 | **Caddy 断片の評価順** | 構造テスト。包括 `handle`（パス限定なし）を持つ断片が、ファイル名順で**最後**に来ることを固定する。今回の罠そのものを機械的に押さえる |
+| 4 | 3 系統の実機 | ローカルに Caddy を入れ、本物の断片・ビルド成果物・両 sync サーバーで `/`・`/timer/`・`/poker/`・`/?room=X` を Playwright で確認 |
+
+テスト 3 は「新しく検査を足したら、わざと壊して落ちることまで確かめる」に従い、
+断片の番号を入れ替えて赤くなることを確認する。
+
+## デプロイ（本段では実施しない）
+
+epic #15 の全段階が終わった時点で、**指示を得てから 1 回だけ**実施する。
+poker は初回公開なので追加の準備が要る。手順は `deploy/poker/NOTES.md` と
+`deploy/caddy/README.md` に書く。
+
+1. VPS に Bun を導入（未導入なら）
+2. `sudo DEPLOY_USER=<user> bash deploy/setup.sh poker`
+3. `/opt/tasuki-poker/tasuki-poker-sync.env` の `ALLOWED_ORIGINS` を実値へ
+   （**空のままだと #63 の fail-closed で起動しない**）
+4. `deploy.sh timer` / `deploy.sh poker` / `deploy.sh landing`
+5. Caddy 断片の設置と**旧 2 本の削除** → `caddy validate` → reload
+6. `sudo systemctl start tasuki-poker-sync`
+
+### 実機で確認すること
+
+- `/`・`/timer/`・`/poker/` の 3 系統が並存する
+- `/timer/ws` と `/poker/ws` がいずれも 426 を返す（200 なら SPA フォールバックに吸われている）
+- `/?room=X` が `/timer/?room=X` へ 301 する
+- 配信中のアセットハッシュがローカルビルドと一致する
+- **timer / poker の相互無干渉**（#17 から引き取った項目）:
+  poker の WebSocket セッションを繋いだまま timer を再デプロイし、poker 側が切れないこと
+
+## スコープ外
+
+- 共通コードの抽出（S5 で完了済み）
+- `App.tsx` の `buildSyncUrl` 以外の整理
+- サイトブロック（`deploy/caddy/tasuki.conf`）の変更
