@@ -137,7 +137,7 @@ wsAdapter = new WsAdapter({
   },
   // 管理エンドポイント（/status・/admin/rooms）を WS サーバの HTTP 層に配線（R3-2）。
   httpHandler: (req) =>
-    handleAdminHttp(req.method, req.url, req.headers, {
+    handleAdminHttp(req.method, req.path, req.headers, {
       adminToken: config.adminToken,
       getReport: () =>
         buildAdminReport(

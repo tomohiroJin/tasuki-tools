@@ -143,13 +143,16 @@ importers:
       valibot:
         specifier: ^1.4.1
         version: 1.4.2(typescript@5.9.3)
-      ws:
-        specifier: ^8.18.0
-        version: 8.21.1
     devDependencies:
+      '@types/bun':
+        specifier: ^1.2.0
+        version: 1.3.14
       '@types/ws':
         specifier: ^8.5.13
         version: 8.18.1
+      ws:
+        specifier: ^8.18.0
+        version: 8.21.1
 
   apps/timer-web:
     dependencies:

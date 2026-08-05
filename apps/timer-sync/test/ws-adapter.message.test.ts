@@ -73,6 +73,23 @@ describe("WsAdapter メッセージ経路", () => {
     ws.close();
   });
 
+  it("Given 接続済み / When 文字数は上限内だがバイト数が 64KB を超える本文を送る / Then MESSAGE_TOO_LARGE を返す", async () => {
+    // Given
+    const ws = await connect();
+
+    // When: 日本語は UTF-8 で 1 文字 3 バイト。22,000 文字＝66,000 バイトで上限を超えるが、
+    // 文字数（22,000）は上限（65,536）に満たない。**バイト数で測っていないと通ってしまう。**
+    // Bun.serve はテキストフレームを string で渡すため、`raw.length` で測ると
+    // ws 実装（Buffer.length）より制限が緩くなる。この 1 件がその退行を止める。
+    ws.send("あ".repeat(22_000));
+    const msg = await waitMessage(ws);
+
+    // Then
+    expect(msg).toMatchObject({ type: "error", code: "MESSAGE_TOO_LARGE" });
+    expect(ws.readyState).toBe(WebSocket.OPEN); // 切らずに返す
+    ws.close();
+  });
+
   it("Given 接続済み / When JSON として壊れた本文を送る / Then INVALID_JSON を返す", async () => {
     // Given
     const ws = await connect();
