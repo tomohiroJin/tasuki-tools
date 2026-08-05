@@ -90,6 +90,12 @@ export class WsAdapter {
           // 既定の maxPayloadLength（16MB）のまま受け取り、64KB 超は自前で弾く。
           // ここで絞ると超過時に接続ごと閉じられてしまい、MESSAGE_TOO_LARGE を返して
           // 接続を保つ現行の振る舞いを再現できない。
+          //
+          // ⚠ ただし **フレーム上限そのものは ws 実装から下がっている**（ws の既定は
+          // 100MB、Bun の既定は 16MB）。16MB〜100MB のフレームは、旧実装では
+          // MESSAGE_TOO_LARGE を返して接続を保っていたが、Bun ではプロトコル層で
+          // 1006 切断になる。アプリの制限 64KB の遥か上で、正当なコマンドがこの範囲に
+          // 入ることはないため許容している（#62 のレビューで判明）。
           open: (ws) => this.handleOpen(ws),
           message: (ws, raw) => this.handleMessage(ws, raw),
           close: (ws) => this.handleClose(ws),
