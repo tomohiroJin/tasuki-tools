@@ -27,6 +27,12 @@ export interface CloseInfo {
 export interface RawWsClient {
   /** これまでにサーバーから受けた ping の回数。相対的な待ちを組み立てるのに使う。 */
   readonly pingCount: number;
+  /**
+   * pong を返さなかった ping の回数。
+   * サーバーは「連続の欠落が許容回数に達したら切断」するので、この値が
+   * **切断までに何回の欠落を許したか**そのものになる（閾値の直接観測）。
+   */
+  readonly unansweredPingCount: number;
   /** サーバーから ping を受けた回数が count に達するまで待つ。 */
   waitForPings: (count: number, timeoutMs?: number) => Promise<void>;
   /** サーバーから close フレームを受け取るまで待ち、コードと理由を返す。 */
@@ -132,6 +138,7 @@ export function connectRaw(port: number, options: RawConnectOptions = {}): Promi
     // Buffer.concat の戻りは Buffer<ArrayBufferLike> なので、明示注釈で受け皿を合わせる
     let buffer: Buffer<ArrayBufferLike> = Buffer.alloc(0);
     let pingsSeen = 0;
+    let unansweredPings = 0;
     const texts = new Pending<unknown>();
     const closes = new Pending<CloseInfo>();
     let pingWaiter: { need: number; resolve: () => void; timer: NodeJS.Timeout } | undefined;
@@ -167,6 +174,7 @@ export function connectRaw(port: number, options: RawConnectOptions = {}): Promi
         } else if (frame.opcode === OPCODE_PING) {
           pingsSeen += 1;
           if (shouldPong(pingsSeen)) socket.write(maskedFrame(0xa, Buffer.alloc(0)));
+          else unansweredPings += 1;
           if (pingWaiter && pingsSeen >= pingWaiter.need) {
             clearTimeout(pingWaiter.timer);
             pingWaiter.resolve();
@@ -179,6 +187,9 @@ export function connectRaw(port: number, options: RawConnectOptions = {}): Promi
     const client: RawWsClient = {
       get pingCount() {
         return pingsSeen;
+      },
+      get unansweredPingCount() {
+        return unansweredPings;
       },
       waitForPings: (count, timeoutMs = 3_000) =>
         new Promise((res, rej) => {
