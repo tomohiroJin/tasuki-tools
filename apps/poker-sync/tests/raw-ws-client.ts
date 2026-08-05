@@ -25,6 +25,8 @@ export interface CloseInfo {
 }
 
 export interface RawWsClient {
+  /** これまでにサーバーから受けた ping の回数。相対的な待ちを組み立てるのに使う。 */
+  readonly pingCount: number;
   /** サーバーから ping を受けた回数が count に達するまで待つ。 */
   waitForPings: (count: number, timeoutMs?: number) => Promise<void>;
   /** サーバーから close フレームを受け取るまで待ち、コードと理由を返す。 */
@@ -175,6 +177,9 @@ export function connectRaw(port: number, options: RawConnectOptions = {}): Promi
     });
 
     const client: RawWsClient = {
+      get pingCount() {
+        return pingsSeen;
+      },
       waitForPings: (count, timeoutMs = 3_000) =>
         new Promise((res, rej) => {
           if (pingsSeen >= count) {
