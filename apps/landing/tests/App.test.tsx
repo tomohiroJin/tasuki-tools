@@ -32,10 +32,18 @@ describe('玄関（ツール選択 LP）', () => {
     }
   });
 
-  it('Given LP / When 遷移先を確かめる / Then timer は / 、poker は /poker/ を指す', () => {
-    // S4（#19）で timer が /timer/ へ移るまでは既存 URL のまま。
-    // ここが変わるときは #19 の作業だと分かるように、値を直接押さえておく。
+  it('Given LP / When 遷移先を確かめる / Then timer は /timer/ 、poker は /poker/ を指す', () => {
+    // LP 自身がルート（/）を占めるので、各ツールは必ずサブパスになる。
+    // 公開パスは Caddy 断片・vite の base・app.env の PUBLIC_PATH と揃っている必要があり、
+    // どれか 1 つでも取り残すと白画面か 404 になる。値を直接押さえて変え忘れに気づけるようにする。
     const hrefs = TOOLS.map((t) => t.href);
-    expect(hrefs).toEqual(['/', '/poker/']);
+    expect(hrefs).toEqual(['/timer/', '/poker/']);
+  });
+
+  it('Given LP / When 各遷移先を見る / Then どれもルート（/）ではない', () => {
+    // LP がルートを占めるため、ツールの href が / だと LP 自身に戻る無限ループになる。
+    for (const tool of TOOLS) {
+      expect(tool.href).not.toBe('/');
+    }
   });
 });

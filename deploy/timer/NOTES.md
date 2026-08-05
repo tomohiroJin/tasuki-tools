@@ -10,8 +10,33 @@
 | サービス | `tasuki-sync`（**改名しない**。稼働中のため） |
 | ポート | 8787（`127.0.0.1` のみ待受） |
 | 配置先 | `/opt/tasuki`（server.js・env）/ `/var/www/tasuki`（web） |
-| 公開パス | `/`（S4 / #19 で `/timer/` へ移設予定） |
+| 公開パス | `/timer/`（S4 / #19 で `/` から移設。ルートは玄関 LP） |
+| WebSocket | `/timer/ws`（Caddy が sync の `/ws` へ rewrite） |
 | 初回公開 | 2026-06-09 |
+
+## 公開パスの移設（S4 / #19）
+
+`/` から `/timer/` へ移した。ルートは玄関 LP が占める。揃える必要があるのは 4 箇所で、
+1 つでも取り残すと白画面か 404 になる。
+
+| 箇所 | 値 |
+|---|---|
+| `apps/timer-web/vite.config.ts` の `base` | `/timer/` |
+| `app.env` の `PUBLIC_PATH` | `/timer/` |
+| `caddy/30-timer-spa.conf` | `handle_path /timer/*` |
+| `caddy/10-timer-ws.conf` | `handle /timer/ws` → `rewrite * /ws` |
+
+`WEB_ROOT`（`/var/www/tasuki`）と sync サーバーの実装は**変えていない**。
+
+⚠ **ホスト上の旧 `90-timer-spa.conf` を消すこと。** 残すと `90-landing.conf` と並び、
+辞書順で landing が先に評価されて `/timer/` が LP に吸われる
+（手順は [`../caddy/README.md`](../caddy/README.md)）。
+
+### 旧共有リンクの救済
+
+ルーム共有リンクは `?room=CODE` のクエリ形式のため、移設で `https://<host>/?room=ABC` が
+LP に着地してしまう。`caddy/40-timer-legacy-room.conf` が **`/` かつ `room` クエリ付きの
+ときだけ** `/timer/` へ 301 する。素の `/` は LP のまま。
 
 ## リソース上限・Origin 保護（公開運用）
 

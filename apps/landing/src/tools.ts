@@ -1,8 +1,10 @@
 /**
  * LP に並べるツール。
  *
- * href は**公開パス**。S4（#19）で timer が `/` から `/timer/` へ移るとき、
- * 変えるのはここ 1 箇所で済む。
+ * href は**公開パス**で、変える場所はここ 1 箇所。
+ * ただし公開パスは web 側だけでは決まらない。ツールを足す・移すときは
+ * `vite.config.ts` の `base`・`deploy/<app>/app.env` の `PUBLIC_PATH`・
+ * Caddy 断片を必ず揃える（1 つでも取り残すと白画面か 404 になる）。
  */
 export interface Tool {
   /** 札の左上に出る一語。そのツールが扱うもの。 */
@@ -22,7 +24,7 @@ export const TOOLS: readonly Tool[] = [
     pip: "交代",
     name: "TDD Mob Pro Timer",
     summary: "ドライバーの交代を計る",
-    href: "/",
+    href: "/timer/",
     mark: "ring",
   },
   {
