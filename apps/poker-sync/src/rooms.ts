@@ -25,6 +25,11 @@ export function putRoom(entry: RoomEntry): void {
   rooms.set(entry.room.id, entry);
 }
 
+/** 保持中のルーム数。上限判定に使う（Issue #63。上限そのものは server が決める） */
+export function roomCount(): number {
+  return rooms.size;
+}
+
 export function getRoom(roomId: string): RoomEntry | undefined {
   return rooms.get(roomId);
 }

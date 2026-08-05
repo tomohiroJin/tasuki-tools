@@ -39,6 +39,10 @@ export const ERROR_CODES = [
   'not-voting',
   'not-revealed',
   'not-joined',
+  // 以下は接続・フレーム層の防御が返す（Issue #63）。利用者の入力ミスではなく
+  // サーバー側の事情なので invalid-message には畳まない（案内の文言が変わる）。
+  'message-too-large',
+  'server-busy',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];
