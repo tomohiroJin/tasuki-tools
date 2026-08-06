@@ -8,6 +8,7 @@ import { Join } from "./ui/Join.js";
 import { Lobby } from "./ui/Lobby.js";
 import { Session } from "./ui/Session.js";
 import { Summary, type EndType } from "./ui/Summary.js";
+import { SessionLost } from "./ui/SessionLost.js";
 import { History } from "./ui/History.js";
 import { StatusStrip } from "./ui/components/StatusStrip.js";
 import { deriveConnectionStatus, type ClientConnState } from "./ui/connection-status.js";
@@ -268,7 +269,9 @@ export default function App() {
         // ルーム喪失（揮発サーバー再起動等）は明示的に「セッション喪失」を表示し、継続する（FR-007/059）。
         // ローカル記録は保持され、再接続では消えないよう sessionLost を立てる。
         setSessionLost(true);
-        setBanner({ text: "セッションが見つかりません。ローカルの記録は保持されています。", kind: "error" });
+        // 説明は SessionLost 画面が担う（#76 F-4）。バナーは再接続のたびに
+        // onConnected で消えるため、喪失のような「消えては困る事実」には向かない。
+        setBanner(null);
         // ルームごと消失した以上、保存済みの resumeToken はもう使えない（Issue #24・FR-005）。
         clearResumeIdentity();
         return;
@@ -406,6 +409,10 @@ export default function App() {
     setClient(newClient);
     return newClient;
   };
+
+  // mount 時 effect（再読込での復帰）から呼ぶための ref。makeClient は毎レンダー
+  // 作り直されるため、依存配列へ入れると effect が毎レンダー走ってしまう。
+  const makeClientRef = useLatestRef(makeClient);
 
   const handleCreateRoom = (displayName: string, roomName?: string) => {
     // 作成者＝当初ホスト。言語/難易度/間隔/オプションは既定で作成し、Lobby で host が
@@ -555,12 +562,15 @@ export default function App() {
 
     isCreatorRef.current = false;
     resumeDisplayNameRef.current = saved.displayName;
+    // makeClient は毎レンダー作り直されるので、この mount 時 effect からは
+    // ref 経由で呼ぶ（このファイルの handlersRef と同じ作法・Issue #46）。
+    const makeClientNow = makeClientRef.current;
     // 「自分が誰か」を保存値から先に立てる。再接続経路と違い、ページ読み込み直後は
     // participantId が空で、snapshot だけでは自分を特定できない。空のままだと
     // StatusStrip が config.members[0]（＝作成者）へ縮退し、**復帰した本人が
     // 他人の名前と役割を見る**ことになる。サーバーが identity を再発行すれば上書きされる。
     setParticipantId(saved.participantId);
-    const c = makeClient();
+    const c = makeClientNow();
     c.send({
       command: "room.join",
       code: saved.code,
@@ -568,8 +578,9 @@ export default function App() {
       hasAiKey: false,
       resumeToken: saved.resumeToken,
     });
-    // 依存は ref と setter のみで、いずれも再生成されない（exhaustive-deps も指摘しない）。
-  }, []);
+    // 依存は ref と setter のみで、いずれも再生成されない。ref オブジェクトの同一性は
+    // レンダーを跨いで保たれるため、依存に挙げてもこの effect は mount 時の 1 回きり。
+  }, [makeClientRef]);
 
   useEffect(() => {
     return () => {
@@ -680,6 +691,19 @@ export default function App() {
 
   /** セッション/ロビーはダークステージ固定。Setup/Summary は通常テーマ。 */
   const renderBody = () => {
+    // ルームが消えた以上、ロビー・セッション・完了の操作はどれも効かない（#76 F-4）。
+    // 履歴は端末ローカルなので喪失しても見られる。ここで先に分岐して、
+    // 押しても何も起きない画面を残さない。
+    if (sessionLost && mode !== "history") {
+      return (
+        <SessionLost
+          code={room?.code}
+          onNewSession={handleNewSession}
+          onShowHistory={() => setMode("history")}
+        />
+      );
+    }
+
     if (mode === "lobby" && room) {
       return (
         <Lobby
@@ -789,8 +813,10 @@ export default function App() {
 
   return (
     <Stage>
-      {/* 永続ステータスストリップ（全画面共通・FR-036）。参加前（Setup/Join）と履歴（history）は出さない。 */}
-      {mode !== "setup" && mode !== "join" && mode !== "history" && (
+      {/* 永続ステータスストリップ（全画面共通・FR-036）。参加前（Setup/Join）と履歴（history）は出さない。
+          セッション喪失時も出さない。ルームはもう無いのに「セッション中」と言い続けることになり、
+          本文の「セッションが見つかりません」と矛盾する（#76 F-4）。 */}
+      {mode !== "setup" && mode !== "join" && mode !== "history" && !sessionLost && (
         <div className="mb-4">
           <StatusStrip
             phase={mode}

@@ -102,6 +102,8 @@ export class FakeWS {
     FakeWS.instances.push(this);
   }
 
-  send(): void {}
+  // 引数を受け取る形にしておく。送信内容を検証するテストは vi.spyOn(ws, "send") で
+  // 呼び出し引数を読むため、シグネチャが `()` だと型が空タプルになり参照できない。
+  send(_data?: string): void {}
   close(): void {}
 }
