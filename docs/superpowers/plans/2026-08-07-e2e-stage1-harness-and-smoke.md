@@ -1377,11 +1377,14 @@ git commit -m "feat: E2E の起動前検査を入れる（#73）
 ### Task 7: Caddy の取得・設置・起動・撤去
 
 **Files:**
+- Create: `e2e/harness/wait-for-port.ts`
 - Create: `e2e/harness/caddy.ts`
 
 **Interfaces:**
 - Consumes: `paths.ts` の定数、`toLocalSiteConfig`（Task 3）、`LOCAL_BASE_URL`（Task 2）
 - Produces:
+  - `waitForPort(port: number, timeoutMs: number): Promise<void>` — TCP 接続で起動待ちする。
+    Task 8 の sync サーバー起動待ちでも同じものを使うため、`caddy.ts` ではなく独立ファイルに置く
   - `ensureCaddyBinary(): Promise<string>` — バイナリの絶対パスを返す
   - `installCaddyConfig(): void` — 断片 5 本と site.conf を設置し、設置数を検証する
   - `removeCaddyConfig(): void`
@@ -1391,7 +1394,38 @@ git commit -m "feat: E2E の起動前検査を入れる（#73）
 テストは付けない。ここは `sudo` と外部プロセスの塊で、実行してみることが唯一の検証になる。
 正しさは Task 8 の `@smoke` #1 が通ることで担保する。
 
-- [ ] **Step 1: `e2e/harness/caddy.ts` を実装する**
+- [ ] **Step 1: `e2e/harness/wait-for-port.ts` を実装する**
+
+```ts
+/**
+ * 指定ポートが TCP 接続を受け付けるまで待つ。
+ *
+ * 起動待ちに固定時間の sleep を使うと、遅いマシンで揺れ、速いマシンで無駄に待つ。
+ * 「繋がること」そのものを待つ。
+ *
+ * Caddy と sync サーバー（timer-sync / poker-sync）の両方の起動待ちで使うため、
+ * ここに 1 本化する。
+ */
+import net from 'node:net';
+
+export async function waitForPort(port: number, timeoutMs: number): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const ok = await new Promise<boolean>((resolve) => {
+      const socket = net.connect({ port, host: '127.0.0.1' });
+      socket.once('connect', () => socket.end(() => resolve(true)));
+      socket.once('error', () => resolve(false));
+    });
+    if (ok) return;
+    if (Date.now() > deadline) {
+      throw new Error(`ポート ${port} が ${timeoutMs}ms 以内に応答しませんでした。`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+}
+```
+
+- [ ] **Step 2: `e2e/harness/caddy.ts` を実装する**
 
 ```ts
 /**
@@ -1428,6 +1462,7 @@ import {
 } from './paths';
 import { toLocalSiteConfig } from './site-config';
 import { LOCAL_BASE_URL } from './target';
+import { waitForPort } from './wait-for-port';
 
 const CADDY_BINARY = path.join(CADDY_CACHE_DIR, 'caddy');
 const CADDY_TARBALL_URL =
@@ -1487,22 +1522,6 @@ export function removeCaddyConfig(): void {
   execFileSync('sudo', ['rm', '-rf', CADDY_ETC_DIR]);
 }
 
-/** ポートが応答するまで待つ。 */
-async function waitForPort(port: number, timeoutMs: number): Promise<void> {
-  const deadline = Date.now() + timeoutMs;
-  const net = await import('node:net');
-  for (;;) {
-    const ok = await new Promise<boolean>((resolve) => {
-      const socket = net.connect({ port, host: '127.0.0.1' });
-      socket.once('connect', () => socket.end(() => resolve(true)));
-      socket.once('error', () => resolve(false));
-    });
-    if (ok) return;
-    if (Date.now() > deadline) throw new Error(`ポート ${port} が ${timeoutMs}ms 以内に応答しませんでした。`);
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
-}
-
 export async function startCaddy(binaryPath: string): Promise<ChildProcess> {
   mkdirSync(LOG_DIR, { recursive: true });
   const log = createWriteStream(path.join(LOG_DIR, 'caddy.log'), { flags: 'w' });
@@ -1525,23 +1544,24 @@ export async function stopCaddy(proc: ChildProcess): Promise<void> {
 }
 ```
 
-- [ ] **Step 2: Caddy が取得できることを確認する**
+- [ ] **Step 3: Caddy が取得できることを確認する**
 
 Run: `cd /home/vscode/tasuki-work && ls ~/.cache/tasuki-e2e/caddy-2.11.4/caddy 2>/dev/null || echo "未取得（Task 8 の起動で取得される）"`
 Expected: どちらでもよい（Task 8 で実際に取得・起動する）
 
-- [ ] **Step 3: コミット**
+- [ ] **Step 4: コミット**
 
 ```bash
 cd /home/vscode/tasuki-work
-git add e2e/harness/caddy.ts
+git add e2e/harness/wait-for-port.ts e2e/harness/caddy.ts
 git commit -m "feat: Caddy の取得・設置・起動・撤去を実装する（#73）
 
 - 断片は内容を変えずに /etc/caddy/tasuki/apps/ へ設置する
   （tasuki.conf の import が絶対パス固定のため、置くしかない）
 - caddy validate は import が 0 件でも成功するので起動ゲートにせず、
   設置した断片の数を数える
-- 版は 2.11.4 に固定して取得しキャッシュする"
+- 版は 2.11.4 に固定して取得しキャッシュする
+- ポート待機（waitForPort）は Task 8 の sync サーバーでも使うため wait-for-port.ts へ切り出す"
 ```
 
 ---
@@ -1553,7 +1573,7 @@ git commit -m "feat: Caddy の取得・設置・起動・撤去を実装する�
 - Create: `e2e/harness/sync.ts`
 
 **Interfaces:**
-- Consumes: `WEB_ROOTS`, `PORTS`, `LOG_DIR`, `REPO_ROOT`（Task 5）、`LOCAL_BASE_URL`（Task 2）
+- Consumes: `WEB_ROOTS`, `PORTS`, `LOG_DIR`, `REPO_ROOT`（Task 5）、`LOCAL_BASE_URL`（Task 2）、`waitForPort`（Task 7）
 - Produces:
   - `linkWebRoots(): void` / `unlinkWebRoots(): void`
   - `startSyncServers(): Promise<ChildProcess[]>` / `stopSyncServers(procs: ChildProcess[]): Promise<void>`
@@ -1606,10 +1626,10 @@ export function unlinkWebRoots(): void {
  */
 import { type ChildProcess, spawn } from 'node:child_process';
 import { createWriteStream, mkdirSync } from 'node:fs';
-import net from 'node:net';
 import path from 'node:path';
 import { LOG_DIR, PORTS, REPO_ROOT } from './paths';
 import { LOCAL_BASE_URL } from './target';
+import { waitForPort } from './wait-for-port';
 
 interface SyncSpec {
   readonly name: string;
@@ -1621,20 +1641,6 @@ const SYNC_SERVERS: readonly SyncSpec[] = [
   { name: 'timer-sync', entry: 'apps/timer-sync/src/server.ts', port: PORTS.timerSync },
   { name: 'poker-sync', entry: 'apps/poker-sync/src/server.ts', port: PORTS.pokerSync },
 ];
-
-async function waitForPort(port: number, timeoutMs: number): Promise<void> {
-  const deadline = Date.now() + timeoutMs;
-  for (;;) {
-    const ok = await new Promise<boolean>((resolve) => {
-      const socket = net.connect({ port, host: '127.0.0.1' });
-      socket.once('connect', () => socket.end(() => resolve(true)));
-      socket.once('error', () => resolve(false));
-    });
-    if (ok) return;
-    if (Date.now() > deadline) throw new Error(`ポート ${port} が ${timeoutMs}ms 以内に応答しませんでした。`);
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
-}
 
 export async function startSyncServers(): Promise<ChildProcess[]> {
   mkdirSync(LOG_DIR, { recursive: true });
