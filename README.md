@@ -81,18 +81,26 @@ Tasuki は **5 つのプロセス**（web 3 + 同期サーバー 2）で構成�
 | poker の画面 | `pnpm --filter @tasuki/poker-web dev` | <http://localhost:5174/poker/> |
 | poker の同期サーバー | `pnpm --filter @tasuki/poker-sync dev` | （:3311・画面から使う） |
 
-**URL の末尾のパスは省略できません。** 各アプリは本番と同じ `base` で配信されるため、
-`http://localhost:5173/` を開いても timer は表示されません（`/timer/` が要ります）。
+各アプリは本番と同じ `base` で配信されます。ブラウザで `http://localhost:5173/` のように
+base を省いて開いた場合は、Vite が **302 で `/timer/` へリダイレクト**するので表示できます。
+ただし `curl` など**リダイレクトを追わないクライアントでは 302 のまま**なので、
+動作確認では末尾のパスまで指定してください。
 
 同期サーバーを起動していないと、画面は開けても**ルームの作成・参加ができません**。
 timer なら timer-sync、poker なら poker-sync が対になります。
 
 > ポートが埋まっていると Vite は次の空きポートへ逃げます。起動時のログに出る URL が正です。
+>
+> `pnpm dev` は turbo でまとめて起動するため、**1 つでも失敗すると他も巻き込んで停止します**。
+> ポートが埋まっていると同期サーバーが `EADDRINUSE` で落ち、全体が止まります。
+> その場合は個別起動に切り替えてください。
 
 ### 玄関から辿れるようにするには
 
 開発時の LP（:5175）の札は本番の公開パス（`/timer/` `/poker/`）を指すため、
-**そのままクリックしても :5175 の中を探しに行って 404 になります**。
+**そのままクリックしても各ツールへは移動できません**。Vite の SPA フォールバックにより
+:5175 が 200 で LP の `index.html` を返すので、**エラーにはならず LP が再表示されます**
+（404 にならないぶん、リンクが効いていないように見えます）。
 本番と同じ経路で通しで見たいときは、リバースプロキシ（Caddy）を立てて
 `deploy/*/caddy/*.conf` の断片をそのまま使ってください。手順は
 [`deploy/caddy/README.md`](deploy/caddy/README.md)、実例は
@@ -103,10 +111,13 @@ timer なら timer-sync、poker なら poker-sync が対になります。
 単一の pnpm workspace + turbo。ルートで全ツールをまとめて検証できます。
 
 ```bash
-pnpm test        # 全パッケージのテスト（1,798 件 / 30 タスク）
+pnpm test        # 全パッケージのテスト（1,792 件 / 9 タスク）
 pnpm typecheck
 pnpm lint
 pnpm build
+
+# 4 つまとめて回すと 30 タスク
+pnpm turbo test typecheck lint build
 
 # 単一アプリだけを対象にする
 pnpm turbo run build --filter=@tasuki/timer-web
