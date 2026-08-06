@@ -17,7 +17,15 @@
  * 代わりに**設置した断片の数を数える**。
  */
 import { type ChildProcess, execFileSync, spawn } from 'node:child_process';
-import { createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  createWriteStream,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import path from 'node:path';
 import {
   CADDY_APPS_DIR,
@@ -44,10 +52,29 @@ export async function ensureCaddyBinary(): Promise<string> {
   if (existsSync(CADDY_BINARY)) return CADDY_BINARY;
 
   mkdirSync(CADDY_CACHE_DIR, { recursive: true });
-  const tarball = path.join(CADDY_CACHE_DIR, 'caddy.tar.gz');
-  execFileSync('curl', ['-fsSL', '-o', tarball, CADDY_TARBALL_URL], { stdio: 'inherit' });
-  execFileSync('tar', ['-xzf', tarball, '-C', CADDY_CACHE_DIR, 'caddy'], { stdio: 'inherit' });
-  execFileSync('chmod', ['+x', CADDY_BINARY]);
+  // 最終配置先へ直接展開しない。途中で落ちると壊れたバイナリが残り、
+  // 次回は existsSync が true を返して検証せずに使われてしまう。
+  const staging = path.join(CADDY_CACHE_DIR, 'staging');
+  const tarball = path.join(staging, 'caddy.tar.gz');
+  const stagedBinary = path.join(staging, 'caddy');
+  rmSync(staging, { recursive: true, force: true });
+  mkdirSync(staging, { recursive: true });
+
+  try {
+    execFileSync('curl', ['-fsSL', '-o', tarball, CADDY_TARBALL_URL], { stdio: 'inherit' });
+    execFileSync('tar', ['-xzf', tarball, '-C', staging, 'caddy'], { stdio: 'inherit' });
+    execFileSync('chmod', ['+x', stagedBinary]);
+
+    // 版を確かめてから所定の場所へ移す。取得先が変わって別の版が来ても気づける。
+    const version = execFileSync(stagedBinary, ['version'], { encoding: 'utf8' });
+    if (!version.startsWith(`v${CADDY_VERSION}`)) {
+      throw new Error(`取得した Caddy の版が違います（期待 v${CADDY_VERSION} / 実際 ${version.trim()}）。`);
+    }
+    renameSync(stagedBinary, CADDY_BINARY);
+  } finally {
+    rmSync(staging, { recursive: true, force: true });
+  }
+
   return CADDY_BINARY;
 }
 
@@ -100,15 +127,26 @@ export async function startCaddy(binaryPath: string): Promise<ChildProcess> {
   });
   proc.stdout.pipe(log);
   proc.stderr.pipe(log);
-  await waitForPort(PORTS.caddy, 15_000);
+  try {
+    await waitForPort(PORTS.caddy, 15_000);
+  } catch (error) {
+    // 起動待ちに失敗しても、掴んだポートは必ず離す。
+    // ここで放置すると次回の preflight が「ポート使用中」としか言えず、
+    // 本当の原因（設定が壊れて起動できなかった）が見えなくなる。
+    await stopCaddy(proc);
+    throw error;
+  }
   return proc;
 }
 
 export async function stopCaddy(proc: ChildProcess): Promise<void> {
   if (proc.exitCode !== null || proc.signalCode !== null) return;
   await new Promise<void>((resolve) => {
-    proc.once('exit', () => resolve());
+    const forceKill = setTimeout(() => proc.kill('SIGKILL'), 5_000);
+    proc.once('exit', () => {
+      clearTimeout(forceKill);
+      resolve();
+    });
     proc.kill('SIGTERM');
-    setTimeout(() => proc.kill('SIGKILL'), 5_000);
   });
 }
