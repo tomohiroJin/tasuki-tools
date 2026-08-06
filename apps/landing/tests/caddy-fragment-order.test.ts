@@ -1,20 +1,32 @@
 /**
- * Caddy 断片の評価順を固定する（S4 / #19）。
+ * Caddy 断片が互いに殺し合わないことを固定する（S4 / #19）。
  *
- * Caddy の `handle` は記述順に評価され、最初にマッチしたものだけが実行される。
- * 断片は `import /etc/caddy/tasuki/apps/*.conf` で**ファイル名順**に展開されるため、
- * 番号接頭辞が評価順そのものになる。
+ * ## Caddy の実際の評価順（2026-08-05 に 2.11.4 で実測）
  *
- * 包括フォールバック（パス指定なしの `handle`）が最後でないと、それより後ろの断片は
- * **一切効かない**。本番ではこれで実際に事故が起きている（poker の断片が無いために
- * /poker が timer の index.html を 200 で返していた）。S4 では包括フォールバックが
- * timer から LP へ移るため、番号の入れ替えを間違えると同じ形で壊れる。
+ * Caddyfile アダプタは、断片の**記述順をそのまま評価順にはしない**。
+ * ルートは**マッチャの具体性**で並べ替えられ、パス指定のない `handle`
+ * （包括フォールバック）は書いた位置に関わらず最後に回る。
+ *
+ * 実測: 包括フォールバックの断片を `90-landing.conf` → `05-landing.conf` に改名して
+ * 先頭に置いても、`caddy adapt` が生成するルートの並びは**完全に同一**で、
+ * 起動して叩いても `/`・`/timer/`・`/poker/`・`/timer/ws` すべて正常だった。
+ *
+ * **ファイル名順が効くのは、具体性が同じマッチャ同士の並び順を決めるときだけ。**
+ * その場合はファイル名が先のものが勝ち、**後のものは一度も評価されない**。
+ * （実測: 包括 `handle {}` を 2 本置くと、名前が先の方だけが応答した）
+ *
+ * ## したがって、ここで押さえるべきは「順序」ではなく「衝突の不在」
+ *
+ * 番号接頭辞は人が読むための規約であって、安全性の根拠ではない。本当に危ないのは
+ * **同じ具体性のマッチャを 2 つ書いてしまい、片方が黙って死ぬ**こと。
+ * 本番では poker の断片が**存在しなかった**ために `/poker` が timer の index.html を
+ * 200 で返す事故が起きている（順序が原因ではない）。
  *
  * ## なぜ LP のテストとして置くか
  *
- * 包括フォールバックを持つのが LP の断片であり、この不変条件の「最後に来るもの」が
- * LP だから。加えて CI が実行するのはパッケージの test タスクだけで、
- * `scripts/` 配下の検査は手動実行のため、そこに置くと**静かに効かなくなる**。
+ * 包括フォールバックを持つのが LP の断片だから。加えて CI が実行するのは
+ * パッケージの test タスクだけで、`scripts/` 配下の検査は手動実行のため、
+ * そこに置くと静かに効かなくなる。
  */
 import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
@@ -38,10 +50,11 @@ function findRepoRoot(from: string): string {
 const DEPLOY_ROOT = path.join(findRepoRoot(process.cwd()), 'deploy');
 
 interface Fragment {
-  /** 設置後のファイル名（この順で評価される） */
+  /** 設置後のファイル名 */
   readonly name: string;
   /** リポジトリ内の相対パス（失敗時に場所が分かるように） */
   readonly source: string;
+  /** コメントを除いた本文 */
   readonly body: string;
 }
 
@@ -62,30 +75,41 @@ function collectFragments(): Fragment[] {
     }
     for (const name of entries) {
       if (!name.endsWith('.conf')) continue;
+      const raw = readFileSync(path.join(dir, name), 'utf8');
       fragments.push({
         name,
         source: path.join('deploy', app, 'caddy', name),
-        body: readFileSync(path.join(dir, name), 'utf8'),
+        body: raw
+          .split('\n')
+          .filter((line) => !line.trim().startsWith('#'))
+          .join('\n'),
       });
     }
   }
   return fragments.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/** コメントを落とした本文（`#` 始まりの行を除く）。 */
-function stripComments(body: string): string {
-  return body
-    .split('\n')
-    .filter((line) => !line.trim().startsWith('#'))
-    .join('\n');
+/**
+ * 断片が宣言しているルーティングの「鍵」を取り出す。
+ * 同じ鍵が 2 つあると具体性が並び、名前が後の方が一度も評価されなくなる。
+ */
+function routeKeys(body: string): string[] {
+  const keys: string[] = [];
+  for (const line of body.split('\n')) {
+    const trimmed = line.trim();
+    // `handle {` （パス指定なし）＝ 包括フォールバック
+    if (/^handle\s*\{/.test(trimmed)) keys.push('handle:(包括)');
+    // `handle /path {` / `handle_path /path/* {`
+    const withPath = /^(handle|handle_path)\s+(\S+)\s*\{/.exec(trimmed);
+    if (withPath) keys.push(`${withPath[1]}:${withPath[2]}`);
+    // `redir /from /to permanent` / `redir @matcher /to permanent`
+    const redir = /^redir\s+(\S+)\s/.exec(trimmed);
+    if (redir) keys.push(`redir:${redir[1]}`);
+  }
+  return keys;
 }
 
-/** パス指定のない `handle {`（= 包括フォールバック）を持つか。 */
-function hasCatchAll(body: string): boolean {
-  return /^\s*handle\s*\{/m.test(stripComments(body));
-}
-
-describe('Caddy 断片の評価順', () => {
+describe('Caddy 断片', () => {
   const fragments = collectFragments();
 
   it('Given deploy 配下 / When 断片を集める / Then 1 本以上ある（走査先を間違えていない）', () => {
@@ -93,45 +117,49 @@ describe('Caddy 断片の評価順', () => {
     expect(fragments.length).toBeGreaterThan(0);
   });
 
-  it('包括フォールバックはちょうど 1 本だけ', () => {
-    const catchAlls = fragments.filter((f) => hasCatchAll(f.body)).map((f) => f.source);
+  it('包括フォールバックはちょうど 1 本だけ（2 本目は一度も評価されず黙って死ぬ）', () => {
+    // Given: 全断片
+    // When: パス指定のない handle を数える
+    // Then: 1 本。2 本あると具体性が並び、名前が後の方が到達不能になる
+    const catchAlls = fragments
+      .filter((f) => routeKeys(f.body).includes('handle:(包括)'))
+      .map((f) => f.source);
     expect(catchAlls).toHaveLength(1);
   });
 
-  it('包括フォールバックはファイル名順で最後に来る', () => {
-    // これが最後でないと、後ろの断片は一切評価されない
-    const names = fragments.map((f) => f.name);
-    const catchAll = fragments.find((f) => hasCatchAll(f.body));
-    expect(catchAll).toBeDefined();
-    expect(names.at(-1)).toBe(catchAll?.name);
-  });
-
-  it('包括フォールバックを持つのは LP の断片（ルートは玄関が占める）', () => {
-    const catchAll = fragments.find((f) => hasCatchAll(f.body));
-    expect(catchAll?.source).toBe(path.join('deploy', 'landing', 'caddy', '90-landing.conf'));
-  });
-
-  it('断片の名前は番号接頭辞で始まる（評価順が名前で決まるため）', () => {
+  it('同じルーティングの鍵を 2 つの断片が宣言していない（片方が到達不能になる）', () => {
+    // Given: 全断片のルーティング宣言
+    // When: 鍵の重複を探す
+    // Then: 無い。重複すると具体性が並び、ファイル名が後の方が死ぬ
+    const seen = new Map<string, string>();
+    const collisions: string[] = [];
     for (const fragment of fragments) {
-      expect(fragment.name).toMatch(/^\d{2}-/);
+      for (const key of routeKeys(fragment.body)) {
+        const owner = seen.get(key);
+        if (owner) collisions.push(`${key}: ${owner} と ${fragment.source}`);
+        else seen.set(key, fragment.source);
+      }
+    }
+    expect(collisions).toEqual([]);
+  });
+
+  it('ファイルを配信する断片は自分の root を宣言している（サイトブロックに依存しない）', () => {
+    // Given: file_server を持つ断片
+    // When: root 宣言を探す
+    // Then: 自分で宣言している。サイトブロックの root を継承すると、
+    //       サイトブロックを触ったときに配信元が黙って変わる
+    const serving = fragments.filter((f) => f.body.includes('file_server'));
+    expect(serving.length).toBeGreaterThan(0);
+    for (const fragment of serving) {
+      expect(fragment.body, `${fragment.source} が root を宣言していない`).toMatch(/^\s*root\s+\*/m);
     }
   });
 
-  it('WebSocket の断片は、それぞれの SPA 断片より先に評価される', () => {
-    // 後ろに回ると Upgrade されず、SPA フォールバックが index.html を 200 で返す
-    const names = fragments.map((f) => f.name);
-    const wsIndex = names.indexOf('10-timer-ws.conf');
-    const spaIndex = names.indexOf('30-timer-spa.conf');
-    expect(wsIndex).toBeGreaterThanOrEqual(0);
-    expect(spaIndex).toBeGreaterThanOrEqual(0);
-    expect(wsIndex).toBeLessThan(spaIndex);
-  });
-
-  it('旧共有リンクの救済は、包括フォールバックより先に評価される', () => {
-    // 後ろに回ると / が LP に吸われ、?room= 付きリンクの救済が効かない
-    const names = fragments.map((f) => f.name);
-    const legacyIndex = names.indexOf('40-timer-legacy-room.conf');
-    expect(legacyIndex).toBeGreaterThanOrEqual(0);
-    expect(legacyIndex).toBeLessThan(names.length - 1);
+  it('断片の名前は番号接頭辞で始まる（人が読む規約。安全性の根拠ではない）', () => {
+    // 番号は「具体性が同じマッチャ同士」のときだけ評価順に効く。
+    // 上の重複検査でその状況自体を禁じているため、番号は可読性のための規約。
+    for (const fragment of fragments) {
+      expect(fragment.name).toMatch(/^\d{2}-/);
+    }
   });
 });

@@ -16,15 +16,20 @@
 
 ## 公開パスの移設（S4 / #19）
 
-`/` から `/timer/` へ移した。ルートは玄関 LP が占める。揃える必要があるのは 4 箇所で、
-1 つでも取り残すと白画面か 404 になる。
+`/` から `/timer/` へ移した。ルートは玄関 LP が占める。揃える必要があるのは 5 箇所で、
+1 つでも取り残すと白画面・404・WS 不通のいずれかになる。
 
-| 箇所 | 値 |
-|---|---|
-| `apps/timer-web/vite.config.ts` の `base` | `/timer/` |
-| `app.env` の `PUBLIC_PATH` | `/timer/` |
-| `caddy/30-timer-spa.conf` | `handle_path /timer/*` |
-| `caddy/10-timer-ws.conf` | `handle /timer/ws` → `rewrite * /ws` |
+| 箇所 | 値 | 取り残すと |
+|---|---|---|
+| `apps/timer-web/vite.config.ts` の `base` | `/timer/` | アセットが 404（白画面） |
+| `app.env` の `PUBLIC_PATH` | `/timer/` | ドキュメントと実態が食い違う |
+| `caddy/30-timer-spa.conf` | `handle_path /timer/*` | `/timer/` が LP に吸われる |
+| `caddy/10-timer-ws.conf` | `handle /timer/ws` → `rewrite * /ws` | WS が繋がらない |
+| `apps/timer-web/src/sync/sync-url.ts` の `SYNC_PATH` | `/timer/ws` | WS が繋がらない |
+
+**最後の 2 つは同じ値を別ファイルで持つ**ため、食い違ってもどちらのファイルを見ても
+正しく見える。`apps/timer-web/test/sync/sync-url.test.ts` が両者を読み比べて機械的に
+固定している（どちらか一方だけ変えるとテストが落ちる）。
 
 `WEB_ROOT`（`/var/www/tasuki`）と sync サーバーの実装は**変えていない**。
 
