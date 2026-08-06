@@ -12,7 +12,12 @@ import { History } from "./ui/History.js";
 import { StatusStrip } from "./ui/components/StatusStrip.js";
 import { deriveConnectionStatus, type ClientConnState } from "./ui/connection-status.js";
 import { SyncClient, type Identity } from "./sync/client.js";
-import { saveResumeIdentity, loadResumeIdentity, clearResumeIdentity } from "./sync/resume-identity.js";
+import {
+  saveResumeIdentity,
+  loadResumeIdentity,
+  clearResumeIdentity,
+  shouldResumeOnLoad,
+} from "./sync/resume-identity.js";
 import { buildNoticeMessage, type NoticeSignal } from "./sync/notice-message.js";
 import { buildSyncUrl } from "./sync/sync-url.js";
 import { NoAiProvider } from "./ai/no-ai.js";
@@ -528,15 +533,41 @@ export default function App() {
 
   // 共有 URL（?room=コード）で開かれたら参加画面を表示する（ゲスト自動参加は廃止）。
   // 名前を入れて「モブに参加」したときに初めて room.join する。
+  //
+  // ただし**同じタブで再読込した本人だけは例外**で、保存済みの resumeToken で
+  // そのまま戻す（#76 F-3）。従来は復帰が WS の自動再接続経路にしかなく、
+  // 再読込・タブ復元のたびに名前と参加方法を入れ直し、ローテーションにも
+  // 入り直す必要があった。
   const joinedFromUrlRef = useRef(false);
   useEffect(() => {
     if (joinedFromUrlRef.current) return;
     const code = new URLSearchParams(window.location.search).get("room");
-    if (code) {
-      joinedFromUrlRef.current = true;
-      setJoinCode(code);
-      setMode("join");
-    }
+    if (!code) return;
+    joinedFromUrlRef.current = true;
+    // 参加画面を先に立てておく。復帰が成立すれば snapshot 受信で
+    // ロビー/セッションへ上書きされ、成立しなければここが行き先になる
+    // （失効トークン・消えたルームの経路を別に用意しなくて済む）。
+    setJoinCode(code);
+    setMode("join");
+
+    const saved = loadResumeIdentity();
+    if (!shouldResumeOnLoad(saved, code)) return;
+
+    isCreatorRef.current = false;
+    resumeDisplayNameRef.current = saved.displayName;
+    // 「自分が誰か」を保存値から先に立てる。再接続経路と違い、ページ読み込み直後は
+    // participantId が空で、snapshot だけでは自分を特定できない。空のままだと
+    // StatusStrip が config.members[0]（＝作成者）へ縮退し、**復帰した本人が
+    // 他人の名前と役割を見る**ことになる。サーバーが identity を再発行すれば上書きされる。
+    setParticipantId(saved.participantId);
+    const c = makeClient();
+    c.send({
+      command: "room.join",
+      code: saved.code,
+      displayName: saved.displayName,
+      hasAiKey: false,
+      resumeToken: saved.resumeToken,
+    });
     // 依存は ref と setter のみで、いずれも再生成されない（exhaustive-deps も指摘しない）。
   }, []);
 
