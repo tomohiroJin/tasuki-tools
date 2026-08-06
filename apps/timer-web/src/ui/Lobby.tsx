@@ -26,6 +26,7 @@ import { participantLabel, canTransferHostTo, canRemoveParticipant, canReorderRo
 import { canRemoveParticipant as canLeaveRoomInvariant } from "@tasuki/timer-core";
 import { PresenceDot } from "./components/PresenceDot.js";
 import { presenceLabel } from "./presence.js";
+import { startWaitMessage } from "./start-wait-message.js";
 import { RemovalConfirmDialog } from "./components/RemovalConfirmDialog.js";
 import { useNotifyPreferences } from "./use-notify-preferences.js";
 import { saveNotifyPreferences } from "../prefs/local-prefs.js";
@@ -139,7 +140,11 @@ export function Lobby({
       <span className="flex items-center justify-center gap-2"><Play className="w-5 h-5" aria-hidden="true" /> セッションを開始</span>
     </PrimaryButton>
   ) : (
-    <p className="text-center text-sm text-white/60">主催者のセッション開始を待っています...</p>
+    <p className="text-center text-sm text-white/60">
+      {startWaitMessage(
+        room.participants.find((p) => p.participantId === room.hostParticipantId)?.presence ?? null,
+      )}
+    </p>
   );
 
   return (

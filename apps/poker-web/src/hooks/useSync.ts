@@ -30,6 +30,10 @@ export interface SyncError {
 
 export interface PokerSync {
   status: ConnectionStatus;
+  /** この画面で一度でも接続が確立したか（繋がらない/切れたの区別に使う。#76 F-2） */
+  everConnected: boolean;
+  /** 直近の接続確立以降、連続して接続に失敗した回数 */
+  failedAttempts: number;
   /** joined 受信後の自分の識別情報 */
   self: SelfIdentity | null;
   /** 最新の受信者別ルーム状態（受信スナップショットで丸ごと置換。research R1） */
@@ -44,6 +48,8 @@ export interface PokerSync {
   clearError: () => void;
   createRoom: (name: string) => void;
   joinRoom: (roomId: string, name: string, token?: string) => void;
+  /** 参加する前にルームの生死だけを尋ねる（#76 J-1）。無ければ room-not-found が返る */
+  checkRoom: (roomId: string) => void;
   vote: (card: Card) => void;
   reveal: () => void;
   nextRound: () => void;
@@ -57,6 +63,9 @@ export function usePokerSync(): PokerSync {
   const [snapshot, setSnapshot] = useState<RoomStateMessage | null>(null);
   const [joinedThisConnection, setJoinedThisConnection] = useState(false);
   const [error, setError] = useState<SyncError | null>(null);
+  // 「一度も繋がっていない」と「使えていたのに切れた」は利用者への伝え方が違う（#76 F-2）
+  const [everConnected, setEverConnected] = useState(false);
+  const [failedAttempts, setFailedAttempts] = useState(0);
   const wsRef = useRef<WebSocket | null>(null);
   /** joined 時に識別情報を保存するため、直近の join/create の名前を控える */
   const pendingNameRef = useRef<string>('');
@@ -77,10 +86,13 @@ export function usePokerSync(): PokerSync {
         if (!isCurrent()) return;
         attempt = 0;
         setStatus('open');
+        setEverConnected(true);
+        setFailedAttempts(0);
       });
       ws.addEventListener('close', () => {
         if (!isCurrent()) return;
         setStatus('closed');
+        setFailedAttempts((n) => n + 1);
         // 新しい接続はサーバー側で未 join 状態から始まる（再入室は RoomPage が行う）
         setJoinedThisConnection(false);
         // 指数バックオフで再接続（US4。再入室は RoomPage が保存済みトークンで行う）
@@ -140,6 +152,8 @@ export function usePokerSync(): PokerSync {
         setError(null);
         send({ type: 'join-room', roomId, name, ...(token !== undefined ? { token } : {}) });
       },
+      // 照会は状態を変えないので、過去のエラーもリセットしない
+      checkRoom: (roomId: string) => send({ type: 'check-room', roomId }),
       vote: (card: Card) => send({ type: 'vote', card }),
       reveal: () => send({ type: 'reveal' }),
       nextRound: () => send({ type: 'next-round' }),
@@ -147,7 +161,16 @@ export function usePokerSync(): PokerSync {
   }, []);
 
   return useMemo(
-    () => ({ status, self, snapshot, joinedThisConnection, error, ...actions }),
-    [status, self, snapshot, joinedThisConnection, error, actions],
+    () => ({
+      status,
+      everConnected,
+      failedAttempts,
+      self,
+      snapshot,
+      joinedThisConnection,
+      error,
+      ...actions,
+    }),
+    [status, everConnected, failedAttempts, self, snapshot, joinedThisConnection, error, actions],
   );
 }

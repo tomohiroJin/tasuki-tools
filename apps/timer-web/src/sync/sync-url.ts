@@ -9,8 +9,10 @@
  * 持っているので、WebSocket にならず index.html が 200 で返る。
  */
 
+import { PUBLIC_PATH } from "../public-path.js";
+
 /** 公開パス配下の WS エンドポイント。Caddy 断片と一致していること。 */
-export const SYNC_PATH = "/timer/ws";
+export const SYNC_PATH = `${PUBLIC_PATH}ws`;
 
 /** URL の組み立てに必要な location の一部。テストから差し替えられるようにする。 */
 export interface SyncUrlLocation {

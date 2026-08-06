@@ -25,6 +25,10 @@ export const ClientMessageSchema = v.variant('type', [
     name: NameSchema,
     token: v.optional(v.string()),
   }),
+  // 参加する前にルームの生死だけを尋ねる（#76 J-1）。
+  // 死んだ招待リンクでも参加フォームが出てしまい、名前を入れて送信するまで
+  // 分からなかった。読み取りだけで、参加状態には触れない。
+  v.strictObject({ type: v.literal('check-room'), roomId: v.string() }),
   v.strictObject({ type: v.literal('vote'), card: CardSchema }),
   v.strictObject({ type: v.literal('reveal') }),
   v.strictObject({ type: v.literal('next-round') }),

@@ -50,8 +50,8 @@ describe("Lobby 招待 1 操作", () => {
         onStartSession={noop}
       />,
     );
-    // Then
-    expect(screen.getByText(/TEST01/)).toBeTruthy();
+    // Then: コード自体の表示（参加 URL にもコードは含まれるので、完全一致で絞る）
+    expect(screen.getByText("TEST01")).toBeTruthy();
   });
 
   it("コピーボタンが存在する（1 操作で招待）", () => {

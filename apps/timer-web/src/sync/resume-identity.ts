@@ -42,3 +42,23 @@ export function loadResumeIdentity(): ResumeIdentity | null {
 export function clearResumeIdentity(): void {
   sessionStorage.removeItem(RESUME_IDENTITY_KEY);
 }
+
+/**
+ * ページ読み込み時に、参加画面を出さずそのまま復帰してよいかを判定する（#76 F-3）。
+ *
+ * これまで復帰は WS の自動再接続経路にしか無く、再読込では必ず参加画面に戻された。
+ * sessionStorage は同一タブの再読込を生き延びるため、保存済みの識別情報が
+ * URL のルームと一致するなら、それは「同じ人が同じ部屋に戻ってきた」ことに他ならない。
+ *
+ * 一致を要求するのは、前のルームの情報が残った状態で別の招待リンクを開いたときに、
+ * 勝手に前のルームへ引き戻さないため。トークンか表示名が欠けた保存値で join を送ると
+ * 別人として二重に参加してしまうので、揃っているときだけ復帰する。
+ */
+export function shouldResumeOnLoad(
+  saved: ResumeIdentity | null,
+  codeFromUrl: string | null,
+): saved is ResumeIdentity {
+  if (saved === null || codeFromUrl === null) return false;
+  if (saved.code !== codeFromUrl) return false;
+  return saved.resumeToken.length > 0 && saved.displayName.length > 0;
+}

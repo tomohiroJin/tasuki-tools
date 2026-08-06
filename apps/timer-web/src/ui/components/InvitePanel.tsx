@@ -5,11 +5,12 @@
 import React, { useEffect, useState } from "react";
 import { Copy, Check } from "lucide-react";
 import { Card, GhostButton } from "../primitives.js";
+import { buildRoomUrl } from "../room-url.js";
 
 export function InvitePanel({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
-  const roomUrl = `${window.location.origin}?room=${code}`;
+  const roomUrl = buildRoomUrl(window.location.origin, code);
 
   const copyText = async (text: string) => {
     if (!navigator.clipboard?.writeText) return;
@@ -58,7 +59,13 @@ export function InvitePanel({ code }: { code: string }) {
           className="h-52 w-52 rounded-xl bg-white p-2.5 mx-auto mt-4"
         />
       )}
-      <div className="mt-3">
+      {/* 参加 URL は画面にも出す。非セキュアオリジン（LAN の IP 等）では
+          navigator.clipboard が無く、コピーボタンは黙って何もしない。
+          URL が出ていなければ、その環境では誰も招待できない（#76 F-1）。 */}
+      <p className="tabular mt-4 break-all text-xs text-[var(--bone-muted)] select-all">
+        {roomUrl}
+      </p>
+      <div className="mt-2">
         <GhostButton onClick={() => copyText(roomUrl)}>
           <span className="flex items-center gap-1 text-sm"><Copy className="w-4 h-4" aria-hidden="true" /> 参加 URL をコピー</span>
         </GhostButton>
