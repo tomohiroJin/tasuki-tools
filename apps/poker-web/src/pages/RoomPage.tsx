@@ -91,7 +91,14 @@ export function RoomPage({ roomId, sync }: Props) {
     if (stored) {
       attemptedRef.current = true;
       sync.joinRoom(roomId, stored.name, stored.token);
+      return;
     }
+    // 保存が無い＝招待リンクで初めて来た人。**参加を試みる前に**ルームの生死を尋ねる（#76 J-1）。
+    // これが無いと、終了したルームのリンクでも参加フォームが出て、名前を入れて
+    // 送信して初めて「見つかりません」に変わる。無ければ room-not-found が返り、
+    // 下のエラー表示へ切り替わる。生きていれば無音で、参加フォームがそのまま残る。
+    attemptedRef.current = true;
+    sync.checkRoom(roomId);
   }, [sync, roomId]);
 
   // 消滅したルームのトークンは破棄する（再試行ループ防止）

@@ -153,6 +153,22 @@ function handleJoinRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'join-room' 
 }
 
 /**
+ * ルームの生死だけを返す（#76 J-1）。
+ *
+ * **無いときだけ応える。** 生存を伝える新しいメッセージは足さない。
+ * 画面は「参加フォームを出しておき、無いと分かったらエラー表示へ切り替える」形で、
+ * 無音＝生きているとして扱えば足りるため。
+ *
+ * 読み取りだけなので `detachFromCurrentRoom` は呼ばない。呼ぶと、参加中の人が
+ * 別の招待リンクの生死を尋ねただけで自分のルームから外れてしまう。
+ */
+function handleCheckRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'check-room' }>): void {
+  if (!getRoom(msg.roomId)) {
+    sendError(ws, 'room-not-found', 'ルームが見つかりません');
+  }
+}
+
+/**
  * join 済み接続によるルーム状態変更の単一コミットポイント。
  * not-joined 検査 → ドメイン操作 → エラー応答/状態反映 → 自動公開の再評価（FR-008）→ 配信
  * をここで一元的に行う。新しい操作の追加はドメイン関数を渡すだけでよい
@@ -184,6 +200,9 @@ function dispatch(ws: Ws, msg: ClientMessage): void {
       return;
     case 'join-room':
       handleJoinRoom(ws, msg);
+      return;
+    case 'check-room':
+      handleCheckRoom(ws, msg);
       return;
     case 'vote':
       commitRoomAction(ws, (room, participantId) => castVote(room, participantId, msg.card));

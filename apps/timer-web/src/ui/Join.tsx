@@ -109,7 +109,10 @@ export function Join({ code, onJoin }: JoinProps) {
                 checked={mode === "driver"}
                 onChange={() => setMode("driver")}
               />
-              ドライバーとして参加
+              <span className="block">ドライバーとして参加</span>
+              {/* この選択が決めるのは役割ではなく交代の輪への出入りだけ（#76 J-2）。
+                  書いておかないと、見学を選んだ人が「編集者」と表示されて食い違って見える。 */}
+              <span className="mt-0.5 block text-xs text-[var(--bone-subtle)]">交代の輪に入る</span>
             </label>
             <label
               className={`flex-1 cursor-pointer rounded-md border px-3 py-2 text-center text-sm ${
@@ -126,7 +129,10 @@ export function Join({ code, onJoin }: JoinProps) {
                 checked={mode === "spectator"}
                 onChange={() => setMode("spectator")}
               />
-              見学で参加
+              <span className="block">見学で参加</span>
+              <span className="mt-0.5 block text-xs text-[var(--bone-subtle)]">
+                交代の輪に入らない
+              </span>
             </label>
           </div>
           {mode === null && (

@@ -48,6 +48,8 @@ export interface PokerSync {
   clearError: () => void;
   createRoom: (name: string) => void;
   joinRoom: (roomId: string, name: string, token?: string) => void;
+  /** 参加する前にルームの生死だけを尋ねる（#76 J-1）。無ければ room-not-found が返る */
+  checkRoom: (roomId: string) => void;
   vote: (card: Card) => void;
   reveal: () => void;
   nextRound: () => void;
@@ -150,6 +152,8 @@ export function usePokerSync(): PokerSync {
         setError(null);
         send({ type: 'join-room', roomId, name, ...(token !== undefined ? { token } : {}) });
       },
+      // 照会は状態を変えないので、過去のエラーもリセットしない
+      checkRoom: (roomId: string) => send({ type: 'check-room', roomId }),
       vote: (card: Card) => send({ type: 'vote', card }),
       reveal: () => send({ type: 'reveal' }),
       nextRound: () => send({ type: 'next-round' }),
