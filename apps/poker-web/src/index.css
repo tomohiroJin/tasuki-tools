@@ -277,6 +277,15 @@
   backdrop-filter: blur(4px);
 }
 
+/* 繋がらない状態は「切れて戻る途中」より強く出す（#76 F-2）。
+   色だけに頼らず文言でも区別しているので、ここは注意を引く役に徹する。 */
+.connection-banner.unreachable {
+  background: rgba(198, 69, 69, 0.22);
+  border-bottom-color: rgba(220, 80, 80, 0.6);
+  color: #f5c2c2;
+  font-weight: 700;
+}
+
 /* ---------- モバイル ---------- */
 
 @media (max-width: 420px) {

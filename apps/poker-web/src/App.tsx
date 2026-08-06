@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { navigate, parseRoute, roomPath, topPath } from './router';
 import { usePokerSync } from './hooks/useSync';
+import { connectionNotice } from './connection-notice';
 import { TopPage } from './pages/TopPage';
 import { RoomPage } from './pages/RoomPage';
 
@@ -28,9 +29,20 @@ export function App() {
     }
   }, [route, sync.self]);
 
-  // 切断中は再接続バナーを出しつつ画面は維持する（自動再接続 + トークン復帰。US4）
-  const banner = sync.status !== 'open' && (
-    <div className="connection-banner">接続中です…（切断された場合は自動で再接続します）</div>
+  // 切断中は再接続バナーを出しつつ画面は維持する（自動再接続 + トークン復帰。US4）。
+  // 繋がらないときは、待っても直らないことと操作できない理由まで伝える（#76 F-2）。
+  const notice = connectionNotice({
+    status: sync.status,
+    everConnected: sync.everConnected,
+    failedAttempts: sync.failedAttempts,
+  });
+  const banner = notice.kind !== 'none' && (
+    <div
+      className={`connection-banner${notice.kind === 'unreachable' ? ' unreachable' : ''}`}
+      role={notice.kind === 'unreachable' ? 'alert' : 'status'}
+    >
+      {notice.text}
+    </div>
   );
 
   const page = (() => {
