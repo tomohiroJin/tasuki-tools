@@ -23,8 +23,14 @@ function findRepoRoot(from: string): string {
 
 export const REPO_ROOT = findRepoRoot(path.dirname(fileURLToPath(import.meta.url)));
 
+/** 配信元の symlink と、対応するビルド成果物の組。 */
+export interface WebRoot {
+  readonly link: string;
+  readonly dist: string;
+}
+
 /** Caddy 断片が絶対値で宣言している配信元と、実際の成果物の対応。 */
-export const WEB_ROOTS: readonly { readonly link: string; readonly dist: string }[] = [
+export const WEB_ROOTS: readonly WebRoot[] = [
   { link: '/var/www/tasuki', dist: path.join(REPO_ROOT, 'apps/timer-web/dist') },
   { link: '/var/www/tasuki-poker', dist: path.join(REPO_ROOT, 'apps/poker-web/dist') },
   { link: '/var/www/tasuki-home', dist: path.join(REPO_ROOT, 'apps/landing/dist') },

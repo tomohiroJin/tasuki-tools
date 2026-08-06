@@ -8,7 +8,7 @@ import { existsSync, lstatSync } from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
 import { assertChromiumInstalled } from './browsers';
-import { CADDY_ETC_DIR, PORTS, WEB_ROOTS } from './paths';
+import { CADDY_ETC_DIR, PORTS, WEB_ROOTS, type WebRoot } from './paths';
 import { resolveTarget } from './target';
 
 /** 指定ポートのうち、bind できなかったものを返す。 */
@@ -52,13 +52,17 @@ export async function assertPortsFree(ports: readonly number[]): Promise<void> {
  * 前回の残骸、あるいはこのマシンの本物の Caddy 設定を検出する。
  *
  * **どちらか区別できないので、存在したら必ず落とす。** 他人の設定を壊さないため。
+ *
+ * `etcDir` は検査対象を差し替えるための引数（既定値は本番の定数）。
+ * クリーンな環境では常に「安全側」を通ってしまい、例外を投げる分岐が
+ * 実起動では一度も踏まれないため、テストから固定できるようにしてある。
  */
-export function assertNoCaddyLeftovers(): void {
-  if (!existsSync(CADDY_ETC_DIR)) return;
+export function assertNoCaddyLeftovers(etcDir: string = CADDY_ETC_DIR): void {
+  if (!existsSync(etcDir)) return;
   throw new Error(
-    `${CADDY_ETC_DIR} が既に存在します。\n` +
+    `${etcDir} が既に存在します。\n` +
       '前回の E2E が異常終了した残骸か、このマシンの本物の Caddy 設定です。\n' +
-      `中身を確認したうえで、残骸であれば \`sudo rm -rf ${CADDY_ETC_DIR}\` してください。`,
+      `中身を確認したうえで、残骸であれば \`sudo rm -rf ${etcDir}\` してください。`,
   );
 }
 
@@ -66,9 +70,12 @@ export function assertNoCaddyLeftovers(): void {
  * `/var/www/*` に本物のディレクトリが居ないかを確認する。
  *
  * symlink なら前回の残骸なので張り替えてよい。実ディレクトリは本物のサイトなので触らない。
+ *
+ * `roots` は検査対象を差し替えるための引数（既定値は本番の定数）。理由は
+ * {@link assertNoCaddyLeftovers} と同じ。
  */
-export function assertWebRootsSafe(): void {
-  for (const { link } of WEB_ROOTS) {
+export function assertWebRootsSafe(roots: readonly WebRoot[] = WEB_ROOTS): void {
+  for (const { link } of roots) {
     if (!existsSync(link)) continue;
     if (lstatSync(link).isSymbolicLink()) continue;
     throw new Error(
@@ -78,8 +85,11 @@ export function assertWebRootsSafe(): void {
   }
 }
 
-export function assertDistsBuilt(): void {
-  const missing = WEB_ROOTS.filter(({ dist }) => !existsSync(path.join(dist, 'index.html'))).map(
+/**
+ * `roots` は検査対象を差し替えるための引数（既定値は本番の定数）。
+ */
+export function assertDistsBuilt(roots: readonly WebRoot[] = WEB_ROOTS): void {
+  const missing = roots.filter(({ dist }) => !existsSync(path.join(dist, 'index.html'))).map(
     ({ dist }) => dist,
   );
   if (missing.length === 0) return;

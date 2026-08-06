@@ -1044,15 +1044,21 @@ git commit -m "feat: ハーネスのパス定義と Chromium revision の検査�
 - Test: `e2e/tests/preflight.test.ts`
 
 **Interfaces:**
-- Consumes: `PORTS`, `WEB_ROOTS`, `CADDY_ETC_DIR`（Task 5）、`assertChromiumInstalled`（Task 5）
+- Consumes: `PORTS`, `WEB_ROOTS`, `WebRoot`, `CADDY_ETC_DIR`（Task 5）、`assertChromiumInstalled`（Task 5）
 - Produces:
   - `findBusyPorts(ports: readonly number[]): Promise<number[]>`
   - `describePortHolders(ports: readonly number[]): string`
   - `assertPortsFree(ports: readonly number[]): Promise<void>`
-  - `assertNoCaddyLeftovers(): void`
-  - `assertWebRootsSafe(): void`
-  - `assertDistsBuilt(): void`
+  - `assertNoCaddyLeftovers(etcDir?: string): void`（既定値 `CADDY_ETC_DIR`）
+  - `assertWebRootsSafe(roots?: readonly WebRoot[]): void`（既定値 `WEB_ROOTS`）
+  - `assertDistsBuilt(roots?: readonly WebRoot[]): void`（既定値 `WEB_ROOTS`）
   - `runPreflight(env: Record<string, string | undefined>): Promise<void>`
+
+> レビュー指摘（Important）: `assertNoCaddyLeftovers` と `assertWebRootsSafe` の
+> 「例外を投げる」分岐は、クリーンな環境では一度も踏まれず、劣化しても実起動では
+> 暴かれない。検査対象を引数で差し替えられるようにし（既定値は従来の定数）、
+> 一時ディレクトリで両分岐をテストに固定した。`assertDistsBuilt` も同じ形にした。
+> `runPreflight` は引数なしで呼び続ける（既定値が効く）。
 
 - [ ] **Step 1: 失敗するテストを書く**
 
@@ -1068,9 +1074,19 @@ git commit -m "feat: ハーネスのパス定義と Chromium revision の検査�
  */
 import { describe, it, expect, afterEach } from 'vitest';
 import net from 'node:net';
-import { assertPortsFree, findBusyPorts } from '../harness/preflight';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import {
+  assertDistsBuilt,
+  assertNoCaddyLeftovers,
+  assertPortsFree,
+  assertWebRootsSafe,
+  findBusyPorts,
+} from '../harness/preflight';
 
 const servers: net.Server[] = [];
+const tmpDirs: string[] = [];
 
 /** 指定ポートを掴む。テスト後に必ず解放する。 */
 async function occupy(port: number): Promise<void> {
@@ -1082,8 +1098,16 @@ async function occupy(port: number): Promise<void> {
   });
 }
 
+/** 一時ディレクトリを作る。テスト後に必ず削除する。 */
+function makeTmpDir(): string {
+  const dir = mkdtempSync(path.join(tmpdir(), 'tasuki-e2e-preflight-'));
+  tmpDirs.push(dir);
+  return dir;
+}
+
 afterEach(async () => {
   await Promise.all(servers.splice(0).map((s) => new Promise<void>((r) => s.close(() => r()))));
+  tmpDirs.splice(0).forEach((dir) => rmSync(dir, { recursive: true, force: true }));
 });
 
 describe('findBusyPorts', () => {
@@ -1113,6 +1137,84 @@ describe('assertPortsFree', () => {
     await expect(assertPortsFree([19806])).resolves.toBeUndefined();
   });
 });
+
+describe('assertNoCaddyLeftovers', () => {
+  it('Given 指定したディレクトリが存在しない / When 検査する / Then 落ちない', () => {
+    // Given: 一時ディレクトリの中の、まだ作っていないパス
+    const base = makeTmpDir();
+    const etcDir = path.join(base, 'etc-caddy-tasuki');
+    // When / Then
+    expect(() => assertNoCaddyLeftovers(etcDir)).not.toThrow();
+  });
+
+  it('Given 指定したディレクトリが存在する / When 検査する / Then そのパスを含めて落ちる', () => {
+    // Given: 残骸あるいは本物の Caddy 設定を模した実ディレクトリ
+    const base = makeTmpDir();
+    const etcDir = path.join(base, 'etc-caddy-tasuki');
+    mkdirSync(etcDir);
+    // When / Then
+    expect(() => assertNoCaddyLeftovers(etcDir)).toThrow(etcDir);
+  });
+});
+
+describe('assertWebRootsSafe', () => {
+  it('Given link が存在しない / When 検査する / Then 落ちない', () => {
+    // Given
+    const base = makeTmpDir();
+    const link = path.join(base, 'var-www-tasuki');
+    // When / Then
+    expect(() => assertWebRootsSafe([{ link, dist: base }])).not.toThrow();
+  });
+
+  it('Given link が symlink / When 検査する / Then 落ちない（前回の残骸なので張り替えてよい）', () => {
+    // Given: symlink の先には実ディレクトリがある
+    const base = makeTmpDir();
+    const target = path.join(base, 'dist-target');
+    mkdirSync(target);
+    const link = path.join(base, 'var-www-tasuki');
+    symlinkSync(target, link);
+    // When / Then
+    expect(() => assertWebRootsSafe([{ link, dist: base }])).not.toThrow();
+  });
+
+  it('Given link が実体ディレクトリ / When 検査する / Then 落ちる（本物の配信の可能性があるため触らない）', () => {
+    // Given
+    const base = makeTmpDir();
+    const link = path.join(base, 'var-www-tasuki');
+    mkdirSync(link);
+    // When / Then
+    expect(() => assertWebRootsSafe([{ link, dist: base }])).toThrow(/symlink ではなく実体/);
+  });
+
+  it('Given link がリンク先の無い symlink（dangling） / When 検査する / Then 落ちない', () => {
+    // Given: symlink 自体はあるが、リンク先を消してある
+    const base = makeTmpDir();
+    const target = path.join(base, 'gone-target');
+    mkdirSync(target);
+    const link = path.join(base, 'var-www-tasuki');
+    symlinkSync(target, link);
+    rmSync(target, { recursive: true, force: true });
+    // When / Then: existsSync は symlink を辿るため false になり、続行が意図どおり
+    expect(() => assertWebRootsSafe([{ link, dist: base }])).not.toThrow();
+  });
+});
+
+describe('assertDistsBuilt', () => {
+  it('Given dist に index.html がある / When 検査する / Then 落ちない', () => {
+    // Given
+    const base = makeTmpDir();
+    writeFileSync(path.join(base, 'index.html'), '<html></html>');
+    // When / Then
+    expect(() => assertDistsBuilt([{ link: base, dist: base }])).not.toThrow();
+  });
+
+  it('Given dist に index.html が無い / When 検査する / Then その dist を含めて落ちる', () => {
+    // Given
+    const base = makeTmpDir();
+    // When / Then
+    expect(() => assertDistsBuilt([{ link: base, dist: base }])).toThrow(base);
+  });
+});
 ```
 
 - [ ] **Step 2: テストが失敗することを確認する**
@@ -1133,7 +1235,7 @@ import { existsSync, lstatSync } from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
 import { assertChromiumInstalled } from './browsers';
-import { CADDY_ETC_DIR, PORTS, WEB_ROOTS } from './paths';
+import { CADDY_ETC_DIR, PORTS, WEB_ROOTS, type WebRoot } from './paths';
 import { resolveTarget } from './target';
 
 /** 指定ポートのうち、bind できなかったものを返す。 */
@@ -1177,13 +1279,17 @@ export async function assertPortsFree(ports: readonly number[]): Promise<void> {
  * 前回の残骸、あるいはこのマシンの本物の Caddy 設定を検出する。
  *
  * **どちらか区別できないので、存在したら必ず落とす。** 他人の設定を壊さないため。
+ *
+ * `etcDir` は検査対象を差し替えるための引数（既定値は本番の定数）。
+ * クリーンな環境では常に「安全側」を通ってしまい、例外を投げる分岐が
+ * 実起動では一度も踏まれないため、テストから固定できるようにしてある。
  */
-export function assertNoCaddyLeftovers(): void {
-  if (!existsSync(CADDY_ETC_DIR)) return;
+export function assertNoCaddyLeftovers(etcDir: string = CADDY_ETC_DIR): void {
+  if (!existsSync(etcDir)) return;
   throw new Error(
-    `${CADDY_ETC_DIR} が既に存在します。\n` +
+    `${etcDir} が既に存在します。\n` +
       '前回の E2E が異常終了した残骸か、このマシンの本物の Caddy 設定です。\n' +
-      `中身を確認したうえで、残骸であれば \`sudo rm -rf ${CADDY_ETC_DIR}\` してください。`,
+      `中身を確認したうえで、残骸であれば \`sudo rm -rf ${etcDir}\` してください。`,
   );
 }
 
@@ -1191,9 +1297,12 @@ export function assertNoCaddyLeftovers(): void {
  * `/var/www/*` に本物のディレクトリが居ないかを確認する。
  *
  * symlink なら前回の残骸なので張り替えてよい。実ディレクトリは本物のサイトなので触らない。
+ *
+ * `roots` は検査対象を差し替えるための引数（既定値は本番の定数）。理由は
+ * {@link assertNoCaddyLeftovers} と同じ。
  */
-export function assertWebRootsSafe(): void {
-  for (const { link } of WEB_ROOTS) {
+export function assertWebRootsSafe(roots: readonly WebRoot[] = WEB_ROOTS): void {
+  for (const { link } of roots) {
     if (!existsSync(link)) continue;
     if (lstatSync(link).isSymbolicLink()) continue;
     throw new Error(
@@ -1203,8 +1312,11 @@ export function assertWebRootsSafe(): void {
   }
 }
 
-export function assertDistsBuilt(): void {
-  const missing = WEB_ROOTS.filter(({ dist }) => !existsSync(path.join(dist, 'index.html'))).map(
+/**
+ * `roots` は検査対象を差し替えるための引数（既定値は本番の定数）。
+ */
+export function assertDistsBuilt(roots: readonly WebRoot[] = WEB_ROOTS): void {
+  const missing = roots.filter(({ dist }) => !existsSync(path.join(dist, 'index.html'))).map(
     ({ dist }) => dist,
   );
   if (missing.length === 0) return;
@@ -1224,10 +1336,13 @@ export async function runPreflight(env: Record<string, string | undefined>): Pro
 }
 ```
 
+`WEB_ROOTS` の要素型は `paths.ts` に `export interface WebRoot { readonly link: string; readonly dist: string }`
+を追加し、`WEB_ROOTS: readonly WebRoot[]` とした（`preflight.ts` はこれを import して使う）。
+
 - [ ] **Step 4: テストが通ることを確認する**
 
 Run: `cd /home/vscode/tasuki-work/e2e && corepack pnpm vitest run tests/preflight.test.ts`
-Expected: PASS（4 件）
+Expected: PASS（12 件）
 
 - [ ] **Step 5: 実環境で preflight が通ることを目視する**
 
