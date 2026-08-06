@@ -137,7 +137,7 @@ Expected: e2e のタスクが**そもそも実行されない**（ワークス�
     "test": "vitest run",
     "e2e": "TASUKI_E2E_TARGET=local playwright test",
     "e2e:prod": "TASUKI_E2E_TARGET=production playwright test --grep \"@smoke|@core\"",
-    "lint": "eslint harness specs tests",
+    "lint": "eslint harness specs tests --no-error-on-unmatched-pattern",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -153,6 +153,10 @@ Expected: e2e のタスクが**そもそも実行されない**（ワークス�
   }
 }
 ```
+
+`--no-error-on-unmatched-pattern` を付けているのは、`harness/` と `specs/` を作るのが
+後続タスクだから。付けないと eslint が exit 2 で落ち、**CI がルートで `pnpm lint` を
+フィルタなしに実行するため CI ごと壊れる**。
 
 3 つの web アプリは**コードとしては使わない**。turbo の `^build` に「先にビルドせよ」と
 伝えるためだけの宣言なので、`e2e/package.json` の先頭にその旨のコメントは書けない（JSON）。

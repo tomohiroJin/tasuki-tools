@@ -7,7 +7,7 @@
     "test": "vitest run",
     "e2e": "TASUKI_E2E_TARGET=local playwright test",
     "e2e:prod": "TASUKI_E2E_TARGET=production playwright test --grep \"@smoke|@core\"",
-    "lint": "eslint harness specs tests",
+    "lint": "eslint harness specs tests --no-error-on-unmatched-pattern",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
