@@ -68,6 +68,9 @@ pnpm install
 pnpm dev     # turbo が全アプリの dev を並列起動する
 ```
 
+起動したら **<http://localhost:5175/>（玄関 LP）を開いてください。**
+ここが本番と同じ入口で、札をクリックすれば各ツールへ移動できます。
+
 ### 個別に起動
 
 Tasuki は **5 つのプロセス**（web 3 + 同期サーバー 2）で構成されます。
@@ -100,14 +103,24 @@ timer なら timer-sync、poker なら poker-sync が対になります。
 > ss -tlnp | grep -E ':(8787|3311|517[3-5])'   # 誰が掴んでいるか
 > ```
 
-### 玄関から辿れるようにするには
+### 玄関から通しで使う
 
-開発時の LP（:5175）の札は本番の公開パス（`/timer/` `/poker/`）を指すため、
-**そのままクリックしても各ツールへは移動できません**。Vite の SPA フォールバックにより
-:5175 が 200 で LP の `index.html` を返すので、**エラーにはならず LP が再表示されます**
-（404 にならないぶん、リンクが効いていないように見えます）。
-本番と同じ経路で通しで見たいときは、リバースプロキシ（Caddy）を立てて
-`deploy/*/caddy/*.conf` の断片をそのまま使ってください。手順は
+**<http://localhost:5175/> を入口にすると、本番と同じ形で 3 系統を行き来できます。**
+LP の dev サーバーが本番の Caddy と同じ役割を担い、`/timer/` と `/poker/` を
+それぞれの dev サーバーへ転送します（WebSocket も通します）。
+
+| 入口 | 到達先 |
+|---|---|
+| <http://localhost:5175/> | 玄関 LP |
+| <http://localhost:5175/timer/> | timer（札をクリックしても移動する） |
+| <http://localhost:5175/poker/> | poker（同上） |
+| `/timer/ws`・`/poker/ws` | 各同期サーバー |
+
+各ツールの dev サーバー（:5173 / :5174）を直接開いても動きます。そちらは
+そのツールだけを触るとき向けで、**玄関からの導線を確かめるなら :5175 を使ってください**。
+
+本番の Caddy 設定そのものを検証したいときは、リバースプロキシを立てて
+`deploy/*/caddy/*.conf` の断片をそのまま使えます。手順は
 [`deploy/caddy/README.md`](deploy/caddy/README.md)、実例は
 [`docs/superpowers/specs/2026-08-05-s4-url-relocation-design.md`](docs/superpowers/specs/2026-08-05-s4-url-relocation-design.md) にあります。
 
