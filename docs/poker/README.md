@@ -25,14 +25,14 @@ pnpm + turbo のモノレポ（詳細は [plan.md](./specs/001-planning-poker-mv
 
 | パッケージ | 役割 |
 |-----------|------|
-| `packages/core` | ドメイン（Room 集約・ラウンド状態機械・集計）+ WS プロトコル契約（Valibot / neverthrow） |
-| `apps/web` | React + Vite フロントエンド（base: `/poker/`） |
-| `apps/sync` | Bun + WebSocket 同期サーバー（受信者別秘匿スナップショット配信） |
+| `packages/poker-core` | ドメイン（Room 集約・ラウンド状態機械・集計）+ WS プロトコル契約（Valibot / neverthrow） |
+| `apps/poker-web` | React + Vite フロントエンド（base: `/poker/`） |
+| `apps/poker-sync` | Bun + WebSocket 同期サーバー（受信者別秘匿スナップショット配信） |
 | `deploy/` | Caddyfile 断片・systemd ユニット・デプロイスクリプト |
 
 ## 開発
 
-前提: Bun 1.x / Node.js 20+ / pnpm 9+
+前提: Bun 1.x / **Node.js 22 以上** / pnpm 11.5.0（`corepack enable` で宣言どおりに入る）
 
 ```bash
 pnpm install
@@ -42,11 +42,13 @@ pnpm turbo test typecheck
 
 # 開発サーバー（2プロセス）
 pnpm --filter @tasuki/poker-sync dev   # WS サーバー :3311
-pnpm --filter @tasuki/poker-web dev    # Vite（/poker/ 配信、WS は :3311 へ proxy）
+pnpm --filter @tasuki/poker-web dev    # Vite :5174（/poker/ 配信、WS は :3311 へ proxy）
 ```
 
-ブラウザで `http://localhost:5173/poker/` を開く。動作検証シナリオは
+ブラウザで **`http://localhost:5174/poker/`** を開く。動作検証シナリオは
 [quickstart.md](./specs/001-planning-poker-mvp/quickstart.md) を参照。
+
+> 起動手順の正本は[リポジトリ直下の README](../../README.md#起動方法) です。
 
 ## デプロイ
 
