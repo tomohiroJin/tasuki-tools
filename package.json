@@ -8,7 +8,7 @@
     "test:unit": "turbo run test:unit",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
-    "dev": "turbo run dev"
+    "dev": "turbo run dev --continue"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

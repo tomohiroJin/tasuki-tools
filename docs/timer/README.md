@@ -20,27 +20,31 @@ AI 生成に失敗しても定型お題へ自動縮退します。完成時に�
 
 ## アーキテクチャ概要
 
-3 つのワークスペースから成る pnpm モノレポです。詳細は [docs/ARCHITECTURE.md](./ARCHITECTURE.md) を参照してください。
+timer は **Tasuki monorepo の 3 パッケージ**で構成されます（リポジトリ全体は 9 パッケージ）。
+詳細は [docs/ARCHITECTURE.md](./ARCHITECTURE.md) を参照してください。
 
 | パッケージ | 役割 |
 |---|---|
-| `packages/core`（`@tasuki/timer-core`） | 純粋ドメイン（`decide`/`evolve`・時刻導出・お題・記録・スキーマ・エラー文言）。front/server で共有 |
-| `apps/sync`（`@tasuki/timer-sync`） | 軽量同期サーバー（WebSocket・full snapshot 配信・サーバー権威タイマー・揮発状態） |
-| `apps/web`（`@tasuki/timer-web`） | フロントエンド（React + Vite）。WS クライアント・記録・UI |
+| `packages/timer-core`（`@tasuki/timer-core`） | 純粋ドメイン（`decide`/`evolve`・時刻導出・お題・記録・スキーマ・エラー文言）。front/server で共有 |
+| `apps/timer-sync`（`@tasuki/timer-sync`） | 軽量同期サーバー（WebSocket・full snapshot 配信・サーバー権威タイマー・揮発状態） |
+| `apps/timer-web`（`@tasuki/timer-web`） | フロントエンド（React + Vite・`base=/timer/`）。WS クライアント・記録・UI |
 
 設計判断の経緯は [docs/adr/](./adr/) の ADR を参照してください。
 
 ## 前提条件
 
-- Node.js 20 以上
-- pnpm 9.x（`packageManager: pnpm@9.15.0`）
-- （任意）Bun — `apps/sync` の開発起動 `bun run --watch` を使う場合
+- **Node.js 22 以上**（pnpm 11.5.0 が `node:sqlite` を使うため、20 では起動しません）
+- pnpm 11.5.0（`packageManager` 宣言に従う。`corepack enable` でよい）
+- **Bun** — 同期サーバーの起動（`bun run --watch`）とテストに必要
+
+> 起動手順の正本は[リポジトリ直下の README](../../README.md#起動方法) です。
+> timer だけを動かす場合も、**画面は `http://localhost:5173/timer/`**（`/` ではありません）。
 
 ## インストール
 
 ```bash
-cd tdd-mob-pro-timer
-pnpm install
+corepack enable
+pnpm install    # リポジトリのルートで実行する
 ```
 
 ## 開発
@@ -50,19 +54,20 @@ pnpm install
 pnpm dev
 
 # 個別起動
-pnpm --filter @tasuki/timer-web dev     # フロント（Vite, 既定 5173）
+pnpm --filter @tasuki/timer-web dev     # フロント（Vite :5173 → http://localhost:5173/timer/）
 pnpm --filter @tasuki/timer-sync dev    # 同期サーバー（Bun, 既定 8787）
 ```
 
-Vite の開発サーバーは `/ws` を同期サーバー（`ws://localhost:8787`）へプロキシします
-（`apps/web/vite.config.ts`）。ブラウザは常に同一オリジンの `/ws` に接続します。
+Vite の開発サーバーは `/timer/ws` を同期サーバー（`ws://127.0.0.1:8787`）へプロキシし、
+sync が待つ `/ws` へ rewrite します（`apps/timer-web/vite.config.ts`）。
+ブラウザは常に同一オリジンの `/timer/ws` に接続します（S4 / #19 で `/ws` から移設）。
 
 ### AI お題生成をローカルで試す
 
 AI お題生成は、サーバー env に **OAuth トークン**と**解錠の合言葉**の両方を設定したときだけ有効になります。
 どちらかが欠けると AI 機能は丸ごと無効で、お題は定型バンクのみになります（解錠も常に失敗＝機能の存在を秘匿）。
 設計の詳細は [../docs/superpowers/specs/2026-06-12-ai-problem-generation-design.md](../superpowers/specs/2026-06-12-ai-problem-generation-design.md)、
-本番デプロイ手順は [deploy/README.md](../../deploy/timer/README.md) の「AI お題生成」節を参照してください。
+本番デプロイ手順は [deploy/timer/NOTES.md](../../deploy/timer/NOTES.md) と [deploy/README.md](../../deploy/README.md)を参照してください。
 
 #### 1. OAuth トークンを用意する
 
@@ -76,21 +81,21 @@ claude setup-token      # → sk-ant-oat01-... が出力される
 
 > ⚠ このトークンは個人アカウントのサブスク・クレジットを実際に消費します（共有・プール不可）。
 > 第三者から読める場所には置かず、自己ホストで自分の契約の範囲に限って使ってください。
-> ローカルでは次の手順で `apps/sync/.env`（gitignore 済み）にのみ書きます。
+> ローカルでは次の手順で `apps/timer-sync/.env`（gitignore 済み）にのみ書きます。
 
 #### 2. `.env` に設定して起動する
 
-sync は Bun 起動で **cwd（`apps/sync`）の `.env` を自動で読み込みます**（dotenv 等は不要）。
+sync は Bun 起動で **cwd（`apps/timer-sync`）の `.env` を自動で読み込みます**（dotenv 等は不要）。
 テンプレートをコピーして値を埋めてください。`.env` は `.gitignore` 済みなので誤コミットの心配はありません。
 
 ```bash
-cp apps/sync/.env.example apps/sync/.env
-# apps/sync/.env を編集（最低限 CLAUDE_CODE_OAUTH_TOKEN と AI_UNLOCK_KEY。
+cp apps/timer-sync/.env.example apps/timer-sync/.env
+# apps/timer-sync/.env を編集（最低限 CLAUDE_CODE_OAUTH_TOKEN と AI_UNLOCK_KEY。
 # 下のログ例に合わせるなら AI_PROBLEM_MODEL=haiku も設定。未設定なら既定 sonnet）
 ```
 
 ルートから `pnpm dev` を起動すると、turbo が各ワークスペースを適切な作業ディレクトリで回し、
-sync は `apps/sync` を cwd とするため、この `apps/sync/.env` が読まれます。
+sync は `apps/timer-sync` を cwd とするため、この `apps/timer-sync/.env` が読まれます。
 
 ```bash
 pnpm dev
@@ -131,15 +136,15 @@ AI 関連の環境変数:
 
 ### 同期サーバーを Node で起動する場合
 
-`apps/sync` は既定で Bun 起動ですが、Bun が無い環境では bundler 経由で Node 実行できます。
-本番は Caddy（[deploy/Caddyfile](../../deploy/timer/Caddyfile)）を前段に置く構成を想定しています。
+`apps/timer-sync` は既定で Bun 起動ですが、Bun が無い環境では bundler 経由で Node 実行できます。
+本番は Caddy（[deploy/timer/caddy/](../../deploy/timer/caddy/)）を前段に置く構成を想定しています。
 
 環境変数:
 
 | 変数 | 既定 | 説明 |
 |---|---|---|
 | `PORT` | `8787` | 待受ポート |
-| `ALLOWED_ORIGINS` | （空） | カンマ区切りの許可 Origin。**空の場合は全 Origin 許可**（本番は必ず設定する） |
+| `ALLOWED_ORIGINS` | （空） | カンマ区切りの許可 Origin。開発時は空で全許可。**`NODE_ENV=production` かつ空だと起動を拒否する**（fail-closed） |
 
 ## テスト
 
@@ -168,7 +173,7 @@ Tasuki/
 ├─ apps/timer-web/       # @tasuki/timer-web — フロントエンド
 │  └─ src/{ui/, sync/, ai/, records/, prefs/, platform/}
 ├─ scripts/              # audit-structure.mjs（成功基準の走査）/ mutation-check.mjs（変異検査）
-├─ deploy/timer/         # 本番資材（deploy.sh / Caddyfile / systemd ユニット）
+├─ deploy/               # 本番資材（共通の deploy.sh / setup.sh。アプリ別は deploy/timer/）
 └─ docs/timer/           # ARCHITECTURE.md / adr/
 ```
 
