@@ -11,6 +11,9 @@ import { connectionNotice } from '../src/connection-notice';
 
 describe('connectionNotice', () => {
   it('接続できているときは何も出さない', () => {
+    // Given: 同期サーバーに繋がっている
+    // When: 告知を決める
+    // Then: 何も出さない
     expect(connectionNotice({ status: 'open', everConnected: true, failedAttempts: 0 })).toEqual({
       kind: 'none',
     });
@@ -40,13 +43,15 @@ describe('connectionNotice', () => {
   });
 
   it('接続できないときは、操作できない理由まで伝える', () => {
-    // ボタンが無効な理由が画面から分からないのが問題の本体だった
+    // Given: 同期サーバーへ繋がらない
+    // When: 告知を決める
     const notice = connectionNotice({
       status: 'closed',
       everConnected: false,
       failedAttempts: 1,
     });
 
+    // Then: ボタンが無効な理由まで書く。それが分からないのが問題の本体だった
     expect(notice.kind === 'unreachable' && notice.text).toContain('作成');
     expect(notice.kind === 'unreachable' && notice.text).toContain('参加');
   });
@@ -74,6 +79,9 @@ describe('connectionNotice', () => {
   });
 
   it('接続が戻れば告知は消える', () => {
+    // Given: 何度も失敗した後
+    // When: 接続が確立する
+    // Then: 告知を残さない
     expect(
       connectionNotice({ status: 'open', everConnected: true, failedAttempts: 3 }),
     ).toEqual({ kind: 'none' });

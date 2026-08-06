@@ -26,9 +26,11 @@ describe("InvitePanel", () => {
 
   it("参加 URL を画面にも出す（コピーが使えない環境で手で拾えるように）", () => {
     // Given: 非セキュアオリジン（LAN の IP 等）では navigator.clipboard が無く、
-    // コピーボタンが黙って何もしない。URL が画面に出ていなければ招待できない。
+    // コピーボタンが黙って何もしない
+    // When: 招待パネルを表示する
     render(<InvitePanel code="ABC123" />);
 
+    // Then: URL が画面に出ており、手で選んで拾える
     expect(
       screen.getByText(`${window.location.origin}/timer/?room=ABC123`),
     ).toBeInTheDocument();

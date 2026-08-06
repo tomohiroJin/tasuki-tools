@@ -36,22 +36,28 @@ describe("buildRoomUrl", () => {
   });
 
   it("開発サーバーのポートを落とさない", () => {
+    // Given: ポート付きのオリジン
+    // When: 招待 URL を組み立てる
+    // Then: ポートが保たれる（落とすと別のアプリに繋がる）
     expect(buildRoomUrl("http://localhost:5175", "ABC123")).toBe(
       "http://localhost:5175/timer/?room=ABC123",
     );
   });
 
   it("ルーム名を含むコードでも参加 URL として壊れない", () => {
-    // ルーム名は日本語も許すため、コードは非 ASCII になりうる（例: 朝会モブ-a1b2）。
-    // 素の文字列連結だとクエリとして壊れるので符号化する。
+    // Given: ルーム名は日本語も許すため、コードは非 ASCII になりうる
+    // When: 招待 URL を組み立てる
     const url = buildRoomUrl("https://tasuki.example", "朝会モブ-a1b2");
 
+    // Then: 素の文字列連結と違い、クエリとして読み戻せる
     expect(new URL(url).searchParams.get("room")).toBe("朝会モブ-a1b2");
   });
 
   it("ルート直下（?room=）には向けない", () => {
-    // ここがルート直下のままだと玄関 LP の包括フォールバックに吸われ、
-    // コードを持ったまま LP が表示されて参加できない（#76 で実測した事象）。
+    // Given: ルートは玄関 LP の包括フォールバックが持っている
+    // When: 招待 URL を組み立てる
+    // Then: ルート直下ではない。ここが直下だとコードを持ったまま LP が
+    // 表示されて参加できない（#76 で実測した事象）
     expect(buildRoomUrl("https://h", "ABC123")).not.toBe("https://h?room=ABC123");
   });
 });

@@ -34,21 +34,31 @@ describe("shouldResumeOnLoad", () => {
   });
 
   it("保存が無ければ復帰しない（招待リンクで初めて来た人）", () => {
+    // Given: 保存済みの識別情報が無い
+    // When: 招待リンクのルームで判定する
+    // Then: 通常どおり参加画面から始める
     expect(shouldResumeOnLoad(null, "ROOM01")).toBe(false);
   });
 
   it("復帰に必要な項目が欠けていれば復帰しない", () => {
-    // 破損した保存値でトークン無しの join を送ると、別人として二重に参加してしまう
+    // Given: 破損した保存値
+    // When: 判定する
+    // Then: 復帰しない。トークン無しの join を送ると別人として二重に参加してしまう
     expect(shouldResumeOnLoad(identity({ resumeToken: "" }), "ROOM01")).toBe(false);
     expect(shouldResumeOnLoad(identity({ displayName: "" }), "ROOM01")).toBe(false);
   });
 
   it("ルームコードが無い URL では復帰しない", () => {
-    // 入口（?room= 無し）を開いたときに前のルームへ引き戻さない
+    // Given: 保存済みの識別情報がある
+    // When: 入口（?room= 無し）を開く
+    // Then: 前のルームへ引き戻さない
     expect(shouldResumeOnLoad(identity(), null)).toBe(false);
   });
 
   it("ルーム名を含む日本語コードでも一致を判定できる", () => {
+    // Given: 日本語のルーム名を含むコード
+    // When: 同じコードで判定する
+    // Then: 一致する
     expect(shouldResumeOnLoad(identity({ code: "朝会モブ-a1b2" }), "朝会モブ-a1b2")).toBe(true);
   });
 });

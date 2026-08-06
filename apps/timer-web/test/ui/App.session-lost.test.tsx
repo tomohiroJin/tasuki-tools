@@ -151,10 +151,13 @@ describe("セッション喪失（#76 F-4）", () => {
   });
 
   it("ローカルの記録が残っていることを伝える", () => {
-    // 完成記録は端末に保存済みで、ルームが消えても失われない（FR-059）
+    // Given: セッション中
     const ws = enterSession();
+
+    // When: ルームが消えた
     sendServer(ws, { type: "error", code: "ROOM_NOT_FOUND", message: "not found" });
 
+    // Then: 完成記録は端末に保存済みで、ルームが消えても失われない（FR-059）
     expect(screen.getByText(/記録は.*保持/)).toBeInTheDocument();
   });
 });
