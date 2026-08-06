@@ -61,6 +61,12 @@ function waitDisconnect(
 interface RawClient {
   /** サーバーから ping を受けた回数が count に達するまで待つ。 */
   waitForPings: (count: number, timeoutMs?: number) => Promise<void>;
+  /**
+   * pong を返さなかった ping の回数。
+   * サーバーは「連続の欠落が許容回数に達したら切断」するので、この値が
+   * **切断までに何回の欠落を許したか**そのものになる（閾値の直接観測）。
+   */
+  readonly unansweredPingCount: number;
   close: () => void;
 }
 
@@ -89,6 +95,7 @@ function connectRaw(
 
     let handshakeDone = false;
     let pingsSeen = 0;
+    let unansweredPings = 0;
     let waiter: { need: number; resolve: () => void; timer: NodeJS.Timeout } | undefined;
 
     socket.on("data", (chunk: Buffer) => {
@@ -110,6 +117,7 @@ function connectRaw(
         if (opcode !== OPCODE_PING) continue;
         pingsSeen += 1;
         if (shouldPong(pingsSeen)) socket.write(maskedPongFrame());
+        else unansweredPings += 1;
         if (waiter && pingsSeen >= waiter.need) {
           clearTimeout(waiter.timer);
           waiter.resolve();
@@ -119,6 +127,9 @@ function connectRaw(
     });
 
     const client: RawClient = {
+      get unansweredPingCount() {
+        return unansweredPings;
+      },
       waitForPings: (count, timeoutMs = 3_000) =>
         new Promise((res, rej) => {
           if (pingsSeen >= count) {
@@ -183,24 +194,52 @@ async function openClient(shouldPong: (nth: number) => boolean): Promise<RawClie
 }
 
 describe("WsAdapter ハートビート（死活監視・Issue #25）", () => {
-  it("pong を一切返さない接続は許容ミス回数を超えると terminate され、onDisconnect が発火する", async () => {
-    // Given: 短い間隔・許容ミス2回のハートビートを持つアダプタ
-    const { promise, onDisconnect } = waitDisconnect(2_000);
+  it.each([2, 4])(
+    "pong を一切返さない接続は許容ミス %i 回ぶんで terminate され、onDisconnect が発火する",
+    async (maxMisses) => {
+      // Given: 許容ミス回数を変えたハートビートを持つアダプタ
+      const { promise, onDisconnect } = waitDisconnect(5_000);
+      adapter = new WsAdapter({
+        port: PORT,
+        host: "127.0.0.1",
+        allowedOrigins: [],
+        heartbeatIntervalMs: 50,
+        heartbeatMaxMisses: maxMisses,
+        onMessage: async () => {},
+        onDisconnect,
+      });
+
+      // When: pong を一切返さない接続（半開きの再現）を作る。
+      const client = await openClient(() => false);
+
+      // Then: 欠落を重ねたのち検出され onDisconnect が発火する
+      expect(await promise).toBeDefined();
+
+      // And: **何回の欠落で切断されたか**を固定する。
+      // 「いつか切断される」だけを見ると、許容回数を緩める退行（>= を > にする、
+      // 上限に足す等）を検出できない。サーバーは欠落が許容回数に達した時点で切るので、
+      // pong を返さなかった ping の数が許容回数そのものになる。
+      expect(client.unansweredPingCount).toBe(maxMisses);
+    },
+  );
+
+  it("terminate された接続の connId が onDisconnect に渡る", async () => {
+    // Given
+    const { promise, onDisconnect } = waitDisconnect(5_000);
     adapter = new WsAdapter({
       port: PORT,
       host: "127.0.0.1",
       allowedOrigins: [],
-      heartbeatIntervalMs: 30,
+      heartbeatIntervalMs: 50,
       heartbeatMaxMisses: 2,
       onMessage: async () => {},
       onDisconnect,
     });
 
-    // When: pong を一切返さない接続（半開きの再現）を作る。
-    // 検証はサーバー側の onDisconnect 発火（＝既存の close 経路に処理が委譲されたこと）で行う。
+    // When
     await openClient(() => false);
 
-    // Then: missed 1,2 を重ねたのち検出され onDisconnect が発火する
+    // Then
     const disconnectedConnId = await promise;
     expect(disconnectedConnId).toBeDefined();
   });
@@ -212,7 +251,9 @@ describe("WsAdapter ハートビート（死活監視・Issue #25）", () => {
       port: PORT,
       host: "127.0.0.1",
       allowedOrigins: [],
-      heartbeatIntervalMs: 20,
+      // 間隔は pong の往復より十分に長く取る。20ms だと CI の負荷でスケジューリングが
+      // 1 間隔ぶん遅れたときに「連続の欠落」と誤判定され、terminate されて落ちる。
+      heartbeatIntervalMs: 100,
       heartbeatMaxMisses: 2,
       onMessage: async () => {},
       onDisconnect: () => {
@@ -222,7 +263,7 @@ describe("WsAdapter ハートビート（死活監視・Issue #25）", () => {
     const client = await openClient(() => true);
 
     // When: 許容ミス回数（2回）を大きく超える10 回分の ping 往復が起きるまで待つ
-    await client.waitForPings(10);
+    await client.waitForPings(10, 10_000);
 
     // Then
     expect(disconnected).toBe(false);
@@ -235,7 +276,10 @@ describe("WsAdapter ハートビート（死活監視・Issue #25）", () => {
       port: PORT,
       host: "127.0.0.1",
       allowedOrigins: [],
-      heartbeatIntervalMs: 30,
+      // 間隔は pong の往復より十分に長く取る（上のテストと同じ理由）。
+      // ここは「1 回だけ欠落しても切らない」を見るテストなので、間隔が短いと
+      // 意図しない 2 回目の欠落が混ざり、検証したい条件そのものが崩れる。
+      heartbeatIntervalMs: 100,
       heartbeatMaxMisses: 2,
       onMessage: async () => {},
       onDisconnect: () => {
@@ -245,7 +289,7 @@ describe("WsAdapter ハートビート（死活監視・Issue #25）", () => {
     const client = await openClient((nth) => nth !== 2);
 
     // When: 欠落を挟んで 8 回分の ping 往復が起きるまで待つ
-    await client.waitForPings(8);
+    await client.waitForPings(8, 10_000);
 
     // Then: 1 回の欠落では誤検出しない
     expect(disconnected).toBe(false);
