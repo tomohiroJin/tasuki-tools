@@ -9,6 +9,7 @@ out/
 # テスト・カバレッジ
 coverage/
 .vitest/
+e2e/test-results/
 
 # ログ・一時ファイル
 *.log

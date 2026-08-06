@@ -21,6 +21,16 @@
       "dependsOn": ["^build"],
       "outputs": []
     },
+    "e2e": {
+      "dependsOn": ["^build"],
+      "cache": false
+    },
+    "e2e:prod": {
+      "cache": false
+    },
+    "@tasuki/e2e#test": {
+      "dependsOn": []
+    },
     "dev": {
       "cache": false,
       "persistent": true,
