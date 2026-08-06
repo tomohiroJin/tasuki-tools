@@ -14,6 +14,7 @@ import { deriveConnectionStatus, type ClientConnState } from "./ui/connection-st
 import { SyncClient, type Identity } from "./sync/client.js";
 import { saveResumeIdentity, loadResumeIdentity, clearResumeIdentity } from "./sync/resume-identity.js";
 import { buildNoticeMessage, type NoticeSignal } from "./sync/notice-message.js";
+import { buildSyncUrl } from "./sync/sync-url.js";
 import { NoAiProvider } from "./ai/no-ai.js";
 import type { ProblemProvider } from "./ai/provider.js";
 import { screenForPhase } from "./ui/screen.js";
@@ -383,9 +384,8 @@ export default function App() {
   // onConnected / onDisconnected / onConnectionChange は setter 呼び出し1行で、
   // setter の同一性は React が保証しているため closure 固定の害がなく、転送を挟まない。
   const makeClient = (): SyncClient => {
-    const wsUrl = `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/ws`;
     const newClient = new SyncClient({
-      url: wsUrl,
+      url: buildSyncUrl(window.location),
       onRoom: (r) => handlersRef.current.handleRoom(newClient, r),
       onIdentity: (identity) => handlersRef.current.handleIdentity(identity),
       onNeedProblem: (requestId) => handlersRef.current.handleNeedProblem(newClient, requestId),

@@ -4,7 +4,10 @@ import path from "path";
 
 const coreRoot = path.resolve(__dirname, "../../packages/timer-core/src");
 
+// サブパス /timer/ 配信（S4 / #19）。ルートは玄関 LP が占める。
+// base は Caddy 断片（30-timer-spa.conf）と app.env の PUBLIC_PATH と揃っていること。
 export default defineConfig({
+  base: "/timer/",
   plugins: [react()],
   resolve: {
     alias: [
@@ -25,10 +28,12 @@ export default defineConfig({
     host: true,
     port: 5173,
     proxy: {
-      "/ws": {
+      // 開発時も本番と同じ /timer/ws で繋ぎ、sync の /ws へ rewrite する（本番は Caddy が担う）
+      "/timer/ws": {
         // sync サーバーは IPv4 で確実に解決する 127.0.0.1 を指定（localhost の IPv6 解決差を回避）
         target: "ws://127.0.0.1:8787",
         ws: true,
+        rewrite: (path) => path.replace(/^\/timer\/ws/, "/ws"),
       },
     },
   },

@@ -2,16 +2,17 @@
 
 共通の手順は [`../README.md`](../README.md) を参照。
 
-## ⚠ 本番未公開
+## ⚠ 初回公開は S4（#19）のデプロイ
 
-**Planning Poker はまだ本番へデプロイされていません。** 初回公開は
-**S4（[#19](https://github.com/tomohiroJin/tasuki-tools/issues/19)）で LP 公開と同時**に行います。
+コードとデプロイ資材は S4 で揃いましたが、**本番へはまだ出ていません**
+（epic #15 の全段階が終わってから、指示を得てまとめて 1 回デプロイする方針）。
 
-現在 `https://<公開ドメイン>/poker` が 200 を返すのは、**timer の SPA フォールバックが
-timer の `index.html` を返しているだけ**で、poker の実体ではありません（`/` と内容が同一）。
+デプロイ前の `https://<公開ドメイン>/poker` が 200 を返していたのは、**timer の SPA
+フォールバックが timer の `index.html` を返していただけ**で、poker の実体ではありません。
+`caddy/20-poker.conf` を設置した瞬間に実体が公開されます。
 
-ここにある資材（`app.env` / `service.tmpl` / `env.example` / `caddy/20-poker.conf`）は
-S2（#17）でデプロイ規約を揃えるために用意したもので、**まだ使われていません**。
+公開に耐えるための防御（Origin 検査・サイズ制限・接続数上限・ルーム数上限・死活監視）は
+[#63](https://github.com/tomohiroJin/tasuki-tools/issues/63) で入っています。
 
 ## 稼働情報（公開後の想定）
 

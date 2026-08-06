@@ -11,9 +11,13 @@ Tasuki の各アプリは「自分の systemd ユニット + 固有ポート + C
 
 | アプリ | サービス | ポート | 配置先 | 公開パス | 状態 |
 |---|---|---|---|---|---|
-| `timer` | `tasuki-sync` | 8787 | `/opt/tasuki` / `/var/www/tasuki` | `/` | **公開中** |
-| `poker` | `tasuki-poker-sync` | 3311 | `/opt/tasuki-poker` / `/var/www/tasuki-poker` | `/poker/` | **未公開**（S4 / #19 で公開） |
-| `landing` | （無し・静的） | — | `/var/www/tasuki-home` | `/home/` | **未公開**（S3 で暫定パス、S4 で `/` へ） |
+| `landing` | （無し・静的） | — | `/var/www/tasuki-home` | `/`（玄関） | S4 で未デプロイ |
+| `timer` | `tasuki-sync` | 8787 | `/opt/tasuki` / `/var/www/tasuki` | `/timer/` | 公開中（S4 で `/` から移設・未デプロイ） |
+| `poker` | `tasuki-poker-sync` | 3311 | `/opt/tasuki-poker` / `/var/www/tasuki-poker` | `/poker/` | **初回公開が S4**（未デプロイ） |
+
+> **S4（#19）の変更はまだ本番に出ていない。** epic #15 の全段階が終わってから、
+> 指示を得てまとめて 1 回デプロイする方針（再起動でルームが全消滅するため）。
+> 上表の公開パスはデプロイ後の姿を表す。
 
 `landing` は **sync サーバーを持たない静的サイト**で、Caddy が直接配信する。`app.env` に
 `STATIC_ONLY=1` を置くと、`deploy.sh` はバンドルとサービス再起動の段を飛ばし、
