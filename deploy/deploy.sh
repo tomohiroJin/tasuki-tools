@@ -85,3 +85,5 @@ if [ -z "$STATIC" ]; then
 	echo "  クラッシュループしていないこと（20 秒あけて 2 回・NRestarts と MainPID を見る）"
 	echo "    ssh $SSH_HOST 'systemctl --no-pager show $SERVICE -p ActiveState -p NRestarts -p MainPID'"
 fi
+echo "  3 アプリすべてを出し終えたら、外から通しで確認する（アプリ単位ではなくサイト全体）"
+echo "    TASUKI_E2E_BASE_URL=https://<公開ドメイン> pnpm e2e:prod"
