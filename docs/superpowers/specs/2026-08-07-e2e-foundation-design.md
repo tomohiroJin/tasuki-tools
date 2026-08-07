@@ -211,6 +211,10 @@ Caddyfile 側にこれを相対パスや CLI 引数で読み替える手段は�
 **#2 は「参照文字列を見るだけ」にしない。** HTML から `src` / `href` を抜き出し、
 実際に取得して 200 を確認する。文字列比較だけだと、資材が 404 でも緑になる。
 
+**status だけを見てはいけない。** 断片は `try_files {path} /index.html` を持つため、
+資材が消えていても SPA フォールバックが `index.html` を 200 で返す（実測）。
+`Content-Type` で「JS/CSS が返ったか、HTML へ縮退したか」を見分ける。
+
 **#3・#4 は `maxRedirects: 0` を明示したうえで `Location` の値まで固定する。**
 `maxRedirects: 0` は「301 という事実を掴む」ためのもので、行き先の正しさとは無関係。
 `redir @legacy-room /timer/ permanent`（クエリを落とす）に改変しても 301 のままなので、

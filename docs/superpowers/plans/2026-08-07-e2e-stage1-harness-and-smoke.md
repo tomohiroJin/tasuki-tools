@@ -1998,6 +1998,13 @@ const ASSET_PREFIXES: Readonly<Record<string, string>> = {
   '/poker/': '/poker/assets/',
 };
 
+/** 資材の拡張子から、期待される Content-Type の断片を返す。 */
+function expectedContentType(ref: string): string {
+  if (ref.includes('.js')) return 'javascript';
+  if (ref.includes('.css')) return 'css';
+  throw new Error(`想定していない資材の種類です: ${ref}`);
+}
+
 test.describe('@smoke 資材が正しい接頭辞を持ち、実際に取得できる', () => {
   for (const pagePath of PAGES) {
     test(`Given ${pagePath} の HTML / When 資材の参照を辿る / Then 接頭辞が正しく 200 で取得できる`, async ({
@@ -2017,11 +2024,17 @@ test.describe('@smoke 資材が正しい接頭辞を持ち、実際に取得で�
         expect(ref, `${pagePath} の資材参照`).toContain(expectedPrefix);
       }
 
-      // Then その3: **実際に取得できる。** 文字列の一致だけだと、
-      //             資材が配信されていなくても緑になる
+      // Then その3: **実際に取得でき、しかも中身がその資材であること。**
+      // status だけを見てはいけない。断片は try_files {path} /index.html を持つため、
+      // **資材が消えていても SPA フォールバックが index.html を 200 で返す**。
+      // 実測で確認済み: 資材を削除しても status は 200 のままだった。
+      // Content-Type で「返ってきたのが JS/CSS か、HTML へ縮退したか」を見分ける。
       for (const ref of refs) {
         const asset = await request.get(ref);
         expect(asset.status(), `${ref} の取得`).toBe(200);
+        expect(asset.headers()['content-type'], `${ref} の Content-Type`).toContain(
+          expectedContentType(ref),
+        );
       }
     });
   }
@@ -2035,14 +2048,24 @@ Expected: 6 件パス
 
 - [ ] **Step 3: わざと壊して落ちることを確認する（資材を消す）**
 
+**`corepack pnpm e2e` をそのまま使わないこと。** ルートの `e2e` タスクは
+`dependsOn: ["^build"]` で、`build` の `outputs` は `dist/**`。dist からファイルを
+退避すると turbo が出力の欠落を検知して `e2e` の実行前に `build` を自動的に
+再実行してしまい、vite の決定的なハッシュにより消したファイルがそのまま復元される
+（実測）。そのため **turbo を迂回して playwright を直接叩く**。
+
 ```bash
 cd /home/vscode/tasuki-work
+corepack pnpm build
 ASSET=$(ls apps/landing/dist/assets/*.js | head -1)
 mv "$ASSET" /tmp/claude-1000/-workspaces-claym-local-Tasuki/a5650bd3-2840-4aa6-b740-6ed9720fa86c/scratchpad/
-corepack pnpm e2e 2>&1 | tail -10
+cd e2e && TASUKI_E2E_TARGET=local corepack pnpm exec playwright test --grep '@smoke' 2>&1 | tail -20
+cd /home/vscode/tasuki-work
 mv "/tmp/claude-1000/-workspaces-claym-local-Tasuki/a5650bd3-2840-4aa6-b740-6ed9720fa86c/scratchpad/$(basename "$ASSET")" "$ASSET"
 ```
-Expected: `/` の資材シナリオが FAIL（404 を検出）。戻したあと再実行して緑に戻ることを確認する
+Expected: `/` の資材シナリオが FAIL（Content-Type が `text/html` になり、
+`javascript`/`css` を含まないことを検出）。戻したあと `corepack pnpm build && corepack pnpm e2e`
+を再実行して緑に戻ることを確認する
 
 - [ ] **Step 4: コミット**
 
