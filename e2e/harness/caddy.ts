@@ -125,10 +125,19 @@ export async function startCaddy(binaryPath: string): Promise<ChildProcess> {
   const proc = spawn(binaryPath, ['run', '--config', writeTopCaddyfile(), '--adapter', 'caddyfile'], {
     stdio: ['ignore', 'pipe', 'pipe'],
   });
+  // **'error' リスナが無いと、バイナリが見つからない・実行できない等で
+  // 未捕捉例外になりプロセスが即死する。** globalSetup の try/catch にも
+  // シグナルハンドラにも入らないため、/etc/caddy/tasuki と symlink が残る。
+  // waitForPort の起動待ちと競わせ、どちらか先に決着した方を採用する。
+  const failure = new Promise<never>((_, reject) => {
+    proc.once('error', (cause: Error) => {
+      reject(new Error(`caddy の起動に失敗しました: ${cause.message}`, { cause }));
+    });
+  });
   proc.stdout.pipe(log);
   proc.stderr.pipe(log);
   try {
-    await waitForPort(PORTS.caddy, 15_000);
+    await Promise.race([waitForPort(PORTS.caddy, 15_000), failure]);
   } catch (error) {
     // 起動待ちに失敗しても、掴んだポートは必ず離す。
     // ここで放置すると次回の preflight が「ポート使用中」としか言えず、

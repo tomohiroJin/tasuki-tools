@@ -28,6 +28,9 @@ const SYNC_SERVERS: readonly SyncSpec[] = [
 export async function startSyncServers(): Promise<ChildProcess[]> {
   mkdirSync(LOG_DIR, { recursive: true });
   const procs: ChildProcess[] = [];
+  // spawn の 'error'（主に ENOENT）を Promise の失敗として拾うための集合。
+  // waitForPort の起動待ちと競わせ、どちらか先に決着した方を採用する。
+  const failures: Promise<never>[] = [];
 
   for (const server of SYNC_SERVERS) {
     const log = createWriteStream(path.join(LOG_DIR, `${server.name}.log`), { flags: 'w' });
@@ -41,13 +44,26 @@ export async function startSyncServers(): Promise<ChildProcess[]> {
       },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
+    // **'error' リスナが無いと、bun が PATH に無いだけで未捕捉例外になり
+    // プロセスが即死する。** globalSetup の try/catch にもシグナルハンドラにも
+    // 入らないため、/etc/caddy/tasuki と symlink が残る。
+    failures.push(
+      new Promise<never>((_, reject) => {
+        proc.once('error', (cause: Error) => {
+          reject(new Error(`${server.name} の起動に失敗しました: ${cause.message}`, { cause }));
+        });
+      }),
+    );
     proc.stdout.pipe(log);
     proc.stderr.pipe(log);
     procs.push(proc);
   }
 
   try {
-    await Promise.all(SYNC_SERVERS.map((server) => waitForPort(server.port, 20_000)));
+    await Promise.race([
+      Promise.all(SYNC_SERVERS.map((server) => waitForPort(server.port, 20_000))),
+      ...failures,
+    ]);
   } catch (error) {
     // 起動待ちに失敗しても、掴んだポートは必ず離す。
     await stopSyncServers(procs);
