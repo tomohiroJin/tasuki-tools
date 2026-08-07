@@ -32,8 +32,24 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   let syncProcs: ChildProcess[] = [];
   let caddyProc: ChildProcess | undefined;
   let stopped = false;
+  let filesCleaned = false;
   /** 起動処理。teardown はこれの完了を待ってから片付ける。 */
   let startup: Promise<void> | undefined;
+
+  /**
+   * 同期でできる後始末。**何も待たずに完了する**ことが要点。
+   *
+   * シグナル経路では、プロセスの停止を待つ前にこれを済ませる。待ってから
+   * 片付けようとすると、起動途中（Caddy が spawn 済みで listen 前）に信号が来たとき
+   * waitForPort が最大 15 秒粘り、その間に外側の pnpm / turbo が Node ごと
+   * 落として後始末に到達しないことがありうる。
+   */
+  const cleanupFiles = (): void => {
+    if (filesCleaned) return;
+    filesCleaned = true;
+    removeCaddyConfig();
+    unlinkWebRoots();
+  };
 
   const teardown = async (): Promise<void> => {
     if (stopped) return;
@@ -45,14 +61,18 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     await startup?.catch(() => undefined);
     if (caddyProc !== undefined) await stopCaddy(caddyProc);
     await stopSyncServers(syncProcs);
-    removeCaddyConfig();
-    unlinkWebRoots();
+    cleanupFiles();
   };
 
   // Ctrl-C / kill でも解放する。SIGKILL は捕捉できないため preflight に委ねる。
-  // 起動処理より前に登録する（登録前に信号が来る窓を無くす）。
-  process.once('SIGINT', () => void teardown().then(() => process.exit(130)));
-  process.once('SIGTERM', () => void teardown().then(() => process.exit(143)));
+  // **ファイルの後始末を先に、同期で済ませる。** プロセス自体はグループへの
+  // シグナルで落ちるので、そちらは best-effort でよい。
+  const onSignal = (exitCode: number): void => {
+    cleanupFiles();
+    void teardown().finally(() => process.exit(exitCode));
+  };
+  process.once('SIGINT', () => onSignal(130));
+  process.once('SIGTERM', () => onSignal(143));
 
   startup = (async () => {
     linkWebRoots();
