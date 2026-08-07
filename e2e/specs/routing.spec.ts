@@ -68,3 +68,40 @@ test.describe('@smoke 資材が正しい接頭辞を持ち、実際に取得で�
     });
   }
 });
+
+test.describe('@smoke 末尾スラッシュの救済', () => {
+  for (const [from, to] of [
+    ['/timer', '/timer/'],
+    ['/poker', '/poker/'],
+  ] as const) {
+    test(`Given ${from} / When GET する / Then 301 で ${to} へ送られる`, async ({ request }) => {
+      // Given / When: **追跡させない。** 既定では追跡され、最終的な 200 を見て
+      //               「301 を確認したつもり」になる
+      const response = await request.get(from, { maxRedirects: 0 });
+      // Then
+      expect(response.status()).toBe(301);
+      // **行き先まで固定する。** 301 であることだけでは、行き先が壊れても緑になる
+      expect(response.headers()['location']).toBe(to);
+    });
+  }
+});
+
+test.describe('@smoke 旧共有リンクの救済', () => {
+  test('Given /?room=ABC123 / When GET する / Then 301 で /timer/ へクエリごと送られる', async ({
+    request,
+  }) => {
+    // Given / When
+    const response = await request.get('/?room=ABC123', { maxRedirects: 0 });
+    // Then: クエリを落とす改変（redir @legacy-room /timer/ permanent）でも 301 は
+    //       返り続けるため、Location の値まで固定しないと #76 J-1 と同じ壊れ方が素通りする
+    expect(response.status()).toBe(301);
+    expect(response.headers()['location']).toBe('/timer/?room=ABC123');
+  });
+
+  test('Given room の無い / / When GET する / Then 200 で玄関のまま', async ({ request }) => {
+    // Given / When: 玄関の役割が損なわれていないこと
+    const response = await request.get('/', { maxRedirects: 0 });
+    // Then
+    expect(response.status()).toBe(200);
+  });
+});
