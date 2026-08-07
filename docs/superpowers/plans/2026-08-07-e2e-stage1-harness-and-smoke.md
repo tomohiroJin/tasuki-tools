@@ -1786,10 +1786,17 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   let syncProcs: ChildProcess[] = [];
   let caddyProc: ChildProcess | undefined;
   let stopped = false;
+  /** 起動処理。teardown はこれの完了を待ってから片付ける。 */
+  let startup: Promise<void> | undefined;
 
   const teardown = async (): Promise<void> => {
     if (stopped) return;
     stopped = true;
+    // **起動が進行中なら、まず終わるのを待つ。** 待たずに片付けると、
+    // 起動途中に生まれたプロセスを変数に掴む前に teardown が走り、
+    // Caddy や sync が孤児として残ってポートを握り続ける。
+    // 起動自体が失敗していても、その中で自前の後始末は済んでいるので握り潰してよい。
+    await startup?.catch(() => undefined);
     if (caddyProc !== undefined) await stopCaddy(caddyProc);
     await stopSyncServers(syncProcs);
     removeCaddyConfig();
@@ -1797,14 +1804,19 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   };
 
   // Ctrl-C / kill でも解放する。SIGKILL は捕捉できないため preflight に委ねる。
+  // 起動処理より前に登録する（登録前に信号が来る窓を無くす）。
   process.once('SIGINT', () => void teardown().then(() => process.exit(130)));
   process.once('SIGTERM', () => void teardown().then(() => process.exit(143)));
 
-  try {
+  startup = (async () => {
     linkWebRoots();
     installCaddyConfig();
     syncProcs = await startSyncServers();
     caddyProc = await startCaddy(binary);
+  })();
+
+  try {
+    await startup;
   } catch (error) {
     await teardown();
     throw error;
@@ -1837,7 +1849,9 @@ export default defineConfig({
   outputDir: './test-results/artifacts',
   fullyParallel: true,
   // 本番は実サーバーの枠を無用に消費しないため逐次・再試行なし。
-  workers: isProduction ? 1 : undefined,
+  // exactOptionalPropertyTypes下では workers に undefined を明示できないため、
+  // ローカルはキー自体を渡さない（Playwright の既定値に委ねる。挙動は等価）。
+  ...(isProduction ? { workers: 1 } : {}),
   retries: isProduction ? 0 : isCi ? 1 : 0,
   timeout: isProduction ? 120_000 : 60_000,
   expect: { timeout: isProduction ? 10_000 : 5_000 },
