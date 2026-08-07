@@ -62,8 +62,11 @@ test.describe('@smoke 資材が正しい接頭辞を持ち、実際に取得で�
       // Then その2: 接頭辞が正しい。ここが崩れるのが #76 F-1 と同じ壊れ方であり、
       //             どのアプリが返っているかの見分けにもなる
       const expectedPrefix = ASSET_PREFIXES[pagePath];
+      if (expectedPrefix === undefined) throw new Error(`${pagePath} の期待接頭辞が未定義`);
       for (const ref of refs) {
-        expect(ref, `${pagePath} の資材参照`).toContain(expectedPrefix);
+        // **toContain では駄目。** `/timer/assets/...` も `/assets/` を含むため、
+        // `/` の判定が常に真になり、玄関が別アプリに化けても緑になる（実測）。
+        expect(ref.startsWith(expectedPrefix), `${ref} が ${expectedPrefix} で始まらない`).toBe(true);
       }
 
       // Then その3: **実際に取得でき、しかも中身がその資材であること。**
