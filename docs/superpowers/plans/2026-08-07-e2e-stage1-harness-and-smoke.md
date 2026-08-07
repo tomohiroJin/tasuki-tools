@@ -209,10 +209,12 @@ packages:
 ```json
     "e2e": {
       "dependsOn": ["^build"],
-      "cache": false
+      "cache": false,
+      "passThroughEnv": ["TASUKI_E2E_BASE_URL"]
     },
     "e2e:prod": {
-      "cache": false
+      "cache": false,
+      "passThroughEnv": ["TASUKI_E2E_BASE_URL"]
     },
     "@tasuki/e2e#test": {
       "dependsOn": []
@@ -222,6 +224,13 @@ packages:
 `e2e:prod` に `dependsOn` を付けないのは、**本番ターゲットではローカルの成果物を
 一切使わない**から。ここでビルドを走らせると、本番を見ているつもりでローカルの
 ビルドが通ったことに安心してしまう。
+
+**`passThroughEnv` は `e2e`（ローカル向け）にも必須。** turbo 2.x の既定 env
+モードは strict で、宣言しない限り `TASUKI_E2E_BASE_URL` はタスクへ届かない。
+届かないと `harness/target.ts` の「ローカル実行なのに本番向け変数が残って
+いたら落とす」検査が実経路で一度も発火せず、取り違え防止そのものが死ぬ
+（実測: 本番向け変数を残したまま `pnpm e2e` を叩いても素通りしていた。
+初版では `e2e:prod` にしか付けておらず、レビューで指摘されて `e2e` にも足した）。
 
 `@tasuki/e2e#test` で `dependsOn` を空に上書きするのが要点。共通の `test` タスクは
 `dependsOn: ["^build"]` を持つため、これが無いと **`pnpm test` を叩くたびに
@@ -885,6 +894,18 @@ export const FRAGMENT_SOURCES: readonly string[] = [
 ].map((rel) => path.join(REPO_ROOT, rel));
 
 export const SITE_CONF_SOURCE = path.join(REPO_ROOT, 'deploy/caddy/tasuki.conf');
+```
+
+**追記（レビュー対応）:** この時点の実装では `FRAGMENT_SOURCES` が手書きの配列
+のままで、ディスク上の `deploy/<app>/caddy/*.conf` と一致することを固定する
+テストが無かった。`caddy.ts`（Task 7）の「設置数を数える」検査は自分がコピー
+した結果を数える自己参照でしかなく、`FRAGMENT_SOURCES` 自体が実体と食い違って
+も（断片の追加を配列へ足し忘れる等）検出できない。実測: `deploy/poker/caddy/
+25-probe.conf` を追加しても E2E は 13 件緑のまま通った。`e2e/tests/
+fragment-sources.test.ts`（Task 5 の後に追加）で、`FRAGMENT_SOURCES` とディス
+クの一覧が集合として完全一致すること・5 本あることを固定する。
+
+```ts
 
 /** 断片の import が絶対パス固定なので、ここへ設置するしかない。 */
 export const CADDY_ETC_DIR = '/etc/caddy/tasuki';
@@ -1582,6 +1603,14 @@ export async function stopCaddy(proc: ChildProcess): Promise<void> {
 }
 ```
 
+**追記（レビュー対応）:** `spawn` に `'error'` リスナが無かった。Node では
+`'error'` リスナ無しの ENOENT は未捕捉例外でプロセスを即死させ、
+`globalSetup` の `try/catch` にもシグナルハンドラにも入らない。実際に
+バイナリが見つからない・実行できない状態を作ると、`/etc/caddy/tasuki` と
+`/var/www` の symlink が残ったまま落ちることを確認した。`startCaddy` の
+`spawn` 直後に `proc.once('error', ...)` を足し、`waitForPort` との
+`Promise.race` として扱うよう修正した。
+
 - [ ] **Step 3: Caddy が取得できることを確認する**
 
 Run: `cd /home/vscode/tasuki-work && ls ~/.cache/tasuki-e2e/caddy-2.11.4/caddy 2>/dev/null || echo "未取得（Task 8 の起動で取得される）"`
@@ -1723,6 +1752,21 @@ export async function stopSyncServers(procs: readonly ChildProcess[]): Promise<v
   );
 }
 ```
+
+**追記（レビュー対応）:** 上記の初版には 2 つ穴があった。
+
+1. `waitForPort` が失敗しても掴んだポートを離していなかった（後続タスクで
+   `try/catch` を足し、失敗時に `stopSyncServers(procs)` してから再送出する形に
+   直した）。
+2. `spawn` に `'error'` リスナが無かった。Node では `'error'` リスナ無しの
+   ENOENT は未捕捉例外でプロセスを即死させ、`globalSetup` の `try/catch` にも
+   シグナルハンドラにも入らない。起動順は `linkWebRoots()` → `installCaddyConfig()`
+   → `startSyncServers()` のため、**`bun` が PATH に無いだけで `/etc/caddy/tasuki`
+   と `/var/www` の symlink 3 本が残る**ことを実測で確認した。`spawn` 直後に
+   `proc.once('error', ...)` を足し、`waitForPort` との `Promise.race` で
+   Promise の失敗として扱うよう修正した（実測: PATH から `bun` を外して実行
+   すると、未捕捉例外ではなく終了コード 1 のエラーとして落ち、symlink・
+   `/etc/caddy/tasuki` のいずれも残らないことを確認した）。
 
 - [ ] **Step 3: コミット**
 
@@ -2020,8 +2064,11 @@ test.describe('@smoke 資材が正しい接頭辞を持ち、実際に取得で�
       // Then その2: 接頭辞が正しい。ここが崩れるのが #76 F-1 と同じ壊れ方であり、
       //             どのアプリが返っているかの見分けにもなる
       const expectedPrefix = ASSET_PREFIXES[pagePath];
+      if (expectedPrefix === undefined) throw new Error(`${pagePath} の期待接頭辞が未定義`);
       for (const ref of refs) {
-        expect(ref, `${pagePath} の資材参照`).toContain(expectedPrefix);
+        // **toContain では駄目。** `/timer/assets/...` も `/assets/` を含むため、
+        // `/` の判定が常に真になり、玄関が別アプリに化けても緑になる（実測）。
+        expect(ref.startsWith(expectedPrefix), `${ref} が ${expectedPrefix} で始まらない`).toBe(true);
       }
 
       // Then その3: **実際に取得でき、しかも中身がその資材であること。**
@@ -2040,6 +2087,15 @@ test.describe('@smoke 資材が正しい接頭辞を持ち、実際に取得で�
   }
 });
 ```
+
+**追記（レビュー対応）:** 初版は `expect(ref, ...).toContain(expectedPrefix)`
+だった。`/timer/assets/index-*.js` も `/assets/` を含むため、`/` の判定は
+**常に真**（恒真）になっていた。玄関 LP が timer の SPA に化けても資材シナリオ
+が全緑になる（本番で `/poker` が timer の index.html を返した事故と同じ形を、
+玄関側だけ取り逃す）。実測: `deploy/landing/caddy/90-landing.conf` の `root`
+を `/var/www/tasuki-home` から `/var/www/tasuki` に書き換えても 13 件緑の
+まま通った。`startsWith` による判定に直し、`ASSET_PREFIXES[pagePath]` が
+`undefined` になりうる（`noUncheckedIndexedAccess`）ため存在確認も足した。
 
 - [ ] **Step 2: シナリオが通ることを確認する**
 
