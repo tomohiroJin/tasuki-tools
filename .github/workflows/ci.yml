@@ -39,3 +39,58 @@ jobs:
       - run: pnpm lint
       - run: pnpm test
       - run: pnpm build
+
+  # E2E は既存の検査と**並列の別ジョブ**にする。同じジョブに足すと、
+  # ユニットテストの結果を見るのに E2E の所要時間を待つことになる。
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable
+
+      # sync サーバーは両方とも Bun で起動する。
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: pnpm install --frozen-lockfile
+
+      # Caddy 断片が root * /var/www/... を絶対値で宣言しているため、
+      # 環境側を断片に合わせる。**ubuntu-latest に /var/www は無い。**
+      - run: sudo mkdir -p /var/www
+
+      # 版を固定してキャッシュする。「最新」を取ると、ある日突然赤くなる。
+      - name: Cache Caddy
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/tasuki-e2e
+          key: caddy-2.11.4
+
+      # Playwright の版は package.json で完全固定している。
+      # revision は版に 1 対 1 で紐づくので、版をそのまま鍵にする。
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-1.62.1-chromium
+      - run: pnpm --filter @tasuki/e2e exec playwright install --with-deps chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+      - run: pnpm --filter @tasuki/e2e exec playwright install-deps chromium
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+
+      - run: pnpm build
+      - run: pnpm e2e
+
+      # 落ちたときに原因が追えるように、Caddy と 2 つの sync のログまで残す。
+      - name: Upload E2E artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-artifacts
+          path: e2e/test-results/
+          retention-days: 7
