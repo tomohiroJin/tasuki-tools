@@ -105,3 +105,51 @@ test.describe('@smoke 旧共有リンクの救済', () => {
     expect(response.status()).toBe(200);
   });
 });
+
+test.describe('@smoke WebSocket が SPA に吸われていない', () => {
+  /**
+   * 応答コードが違うのは実装の差。timer-sync（ws-adapter）は Upgrade が無ければ 426、
+   * poker-sync は `url.pathname === '/ws'` を検査したうえで upgrade に失敗して 400 を返す。
+   * 「200 でないこと」ではなく具体値で固定する。値が変わったら実装が変わったということ。
+   *
+   * **注意: これは timer 側の経路の正しさを保証しない。** timer-sync はパスを見ずに
+   * 無条件で upgrade を試みるため、断片から `rewrite * /ws` を削っても 426 は返り続ける。
+   * timer の経路の正しさは第 2 段の実接続（@core）に委ねる。
+   */
+  for (const [wsPath, expectedStatus] of [
+    ['/timer/ws', 426],
+    ['/poker/ws', 400],
+  ] as const) {
+    test(`Given ${wsPath} / When 素の GET を送る / Then ${expectedStatus} が返る（SPA の 200 ではない）`, async ({
+      request,
+    }) => {
+      // Given / When
+      const response = await request.get(wsPath);
+      // Then
+      expect(response.status()).toBe(expectedStatus);
+    });
+  }
+});
+
+test.describe('@smoke サイトブロックのヘッダ', () => {
+  /**
+   * Strict-Transport-Security も対象に含める。`header {}` の静的指定なので
+   * TLS の有無に関係なく付与される（http でも実測で確認済み）。
+   */
+  const EXPECTED_HEADERS: Readonly<Record<string, string>> = {
+    'strict-transport-security': 'max-age=31536000; includeSubDomains',
+    'x-robots-tag': 'noindex, nofollow',
+    'x-content-type-options': 'nosniff',
+    'x-frame-options': 'SAMEORIGIN',
+    'referrer-policy': 'same-origin',
+  };
+
+  test('Given / / When GET する / Then 5 種のヘッダがすべて付いている', async ({ request }) => {
+    // Given / When
+    const headers = (await request.get('/')).headers();
+    // Then
+    for (const [name, value] of Object.entries(EXPECTED_HEADERS)) {
+      expect(headers[name], `${name} の値`).toBe(value);
+    }
+  });
+});
