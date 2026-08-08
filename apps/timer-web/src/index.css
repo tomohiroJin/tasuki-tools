@@ -4,8 +4,12 @@
 
 /* =============================================================================
  * デザイントークン
- * 設計: chrome（背景/面/境界/文字）はテーマで切替、intent（操作色）は
- * 固定値で「文字とのコントラストがテーマ非依存で AA を満たす」ようにする。
+ * 設計: **ダーク固定**。全画面が計器ステージ（`.instrument-stage`）の上に乗るため、
+ * 地は常に `--ink`、文字は常に `--bone` 系で、配色の切替は行わない。
+ *
+ * かつては chrome（背景/面/境界/文字）をライト/ダークで切り替える機構を持っていたが、
+ * 全画面のステージ統一によって参照が絶え、切り替える UI も存在しないまま
+ * 死んだ定義だけが残っていた（#78 で撤去）。
  * ========================================================================== */
 
 :root {
@@ -24,7 +28,6 @@
   --font-size-base: clamp(0.95rem, 0.9rem + 0.3vw, 1.05rem);
   --font-size-lg: clamp(1.15rem, 1.05rem + 0.5vw, 1.4rem);
   --font-size-xl: clamp(1.4rem, 1.2rem + 0.9vw, 1.9rem);
-  --font-size-timer: clamp(3.5rem, 2.5rem + 5vw, 5.5rem);
 
   --line-tight: 1.2;
   --line-normal: 1.7; /* 日本語向けに広め */
@@ -43,34 +46,10 @@
   --radius-lg: 0.75rem;
   --radius-full: 9999px;
 
-  /* --- intent（操作色・テーマ非依存・各自で AA を満たす） ---------------- */
-  --color-primary: #4f46e5; /* indigo-600 / 白文字 ≈ 6.6:1 */
-  --color-on-primary: #ffffff;
-  --color-success: #15803d; /* green-700 / 白文字 ≈ 5.3:1 */
-  --color-on-success: #ffffff;
-  --color-warning: #f59e0b; /* amber-500 / 濃文字 ≈ 8:1 */
-  --color-on-warning: #1f2937;
-  --color-danger: #b91c1c; /* red-700 / 白文字 ≈ 6.0:1 */
-  --color-on-danger: #ffffff;
-  --color-accent: #7c3aed; /* violet-600 / 白文字 ≈ 5.9:1 */
-  --color-on-accent: #ffffff;
-
   /* --- 在室状況（色 + テキスト/アイコン併記で色のみ依存を回避） --------- */
   --color-presence-online: #16a34a;
   --color-presence-idle: #d97706;
   --color-presence-offline: #94a3b8;
-
-  /* --- chrome（ライトモード既定・7段の明度で深度表現） ------------------ */
-  --color-bg: #f1f5f9; /* slate-100 ページ背景（純白を避け目に優しく） */
-  --color-surface: #ffffff; /* カード/パネル */
-  --color-surface-2: #f1f5f9; /* サブ面 */
-  --color-line: #cbd5e1; /* 境界（slate-300） */
-  --color-fg: #0f172a; /* 主要文字（slate-900）≈ 16:1 */
-  --color-fg-muted: #475569; /* 副次文字（slate-600）白上 ≈ 7:1 */
-  --color-fg-subtle: #526078; /* 補足。淡色ページ背景(#f1f5f9)上でも ≈ 4.9:1 */
-  --color-ring: #6366f1; /* フォーカスリング */
-  --color-shadow: rgba(15, 23, 42, 0.1);
-  --color-overlay: rgba(15, 23, 42, 0.45);
 
   /* --- 計器（Mob Chronometer）パレット ----------------------------------
    * 夜のコックピット計器: ほぼ黒の地に、白＝最高輝度の文字、単一のシグナル朱を
@@ -101,50 +80,14 @@
   }
 }
 
-/* システム設定がダークで、明示的にライト指定が無い場合 */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --color-bg: #0f1117;
-    --color-surface: #1a1d29;
-    --color-surface-2: #242838;
-    --color-line: #333a4d;
-    --color-fg: #e6e8ee;
-    --color-fg-muted: #aab2c2;
-    --color-fg-subtle: #8b94a7;
-    --color-ring: #818cf8;
-    --color-shadow: rgba(0, 0, 0, 0.45);
-    --color-overlay: rgba(0, 0, 0, 0.6);
-  }
-}
-
-/* 手動ダーク指定（システム設定より優先） */
-:root[data-theme="dark"] {
-  --color-bg: #0f1117;
-  --color-surface: #1a1d29;
-  --color-surface-2: #242838;
-  --color-line: #333a4d;
-  --color-fg: #e6e8ee;
-  --color-fg-muted: #aab2c2;
-  --color-fg-subtle: #8b94a7;
-  --color-ring: #818cf8;
-  --color-shadow: rgba(0, 0, 0, 0.45);
-  --color-overlay: rgba(0, 0, 0, 0.6);
-}
-
 /* =============================================================================
  * P3 色域（対応ディスプレイで彩度を強化）
  * @supports で分岐し、非対応環境では上の sRGB 値が必ず残る（フォールバック保証）。
- * intent/presence はテーマ非依存のため一度の上書きで足りる。明度は sRGB に近く
- * 保ち、コントラスト（AA）を維持する。
+ * 明度は sRGB に近く保ち、コントラスト（AA）を維持する。
  * ========================================================================== */
 
 @supports (color: color(display-p3 1 1 1)) {
   :root {
-    --color-primary: color(display-p3 0.31 0.27 0.87);
-    --color-success: color(display-p3 0.16 0.49 0.26);
-    --color-warning: color(display-p3 0.94 0.63 0.13);
-    --color-danger: color(display-p3 0.69 0.15 0.13);
-    --color-accent: color(display-p3 0.46 0.24 0.9);
     --color-presence-online: color(display-p3 0.18 0.62 0.32);
     --color-presence-idle: color(display-p3 0.82 0.49 0.08);
   }
@@ -156,7 +99,7 @@
 
 html {
   font-family: var(--font-sans);
-  color-scheme: light dark;
+  color-scheme: dark;
 }
 
 body {
@@ -167,15 +110,13 @@ body {
   font-size: var(--font-size-base);
   line-height: var(--line-normal);
   -webkit-font-smoothing: antialiased;
-
-  /* フォーカスリング（グローバルな :focus-visible が参照）を計器の朱に統一する。
-   * これをしないと outline-none していない入力/select/textarea に旧トーンの藍色が漏れる。 */
-  --color-ring: var(--signal);
 }
 
-/* キーボードフォーカスを常に視認可能に（a11y） */
+/* キーボードフォーカスを常に視認可能に（a11y）。
+ * 計器の朱で統一する。これをしないと outline-none していない
+ * 入力/select/textarea にブラウザ既定のリングが漏れる。 */
 :focus-visible {
-  outline: 2px solid var(--color-ring);
+  outline: 2px solid var(--signal);
   outline-offset: 2px;
 }
 
@@ -192,71 +133,6 @@ body {
   border-width: 0;
 }
 
-/* =============================================================================
- * ステージ型ダークトークン（v2: 集中・ステージ型ビジュアル）
- * セッション/ロビーのキャンバスは data-theme に関わらずこれらを使い、
- * 「暗い舞台に最重要要素が最も明るく浮かぶ」構図を実現する（FR-028/029）。
- * ========================================================================== */
-
-:root {
-  /* ステージ背景（最暗）*/
-  --stage-bg: #0a0b12;
-  /* 焦点ゾーン背景（ステージより僅かに明るい凹み感）*/
-  --stage-focus-bg: #12141f;
-  /* 焦点エリアのグロウ（タイマー・現ドライバーに当てる光・骨色の弱発光）*/
-  --focus-glow: rgba(244, 241, 232, 0.14);
-  /* 現ドライバー名のサイズ（フォントトークン）*/
-  --font-size-driver: clamp(1.8rem, 1.4rem + 2vw, 2.8rem);
-  /* 焦点ゾーンの縦余白 */
-  --stage-focus-py: clamp(2rem, 3vw, 4rem);
-  /* 周辺情報の最大輝度（焦点を圧迫しない）*/
-  --stage-peripheral-opacity: 0.65;
-
-  /* 節目演出（≤300ms。交代・残りわずか） */
-  --transition-switch: 260ms ease-out;
-  --transition-urgent: 180ms ease-in;
-}
-
-/* ステージキャンバスクラス（テーマ非依存でダーク固定）。
- * 背景だけでなく chrome トークン（文字・面・境界）もステージ用のダーク値へ上書きする。
- * これをしないと、ライトテーマのまま舞台に入ったとき「暗い背景に暗い文字」で
- * タイマーや本文が読めなくなる（plan.md L33: ライト時も舞台は暗い、を正しく具現化）。 */
-.stage-canvas {
-  background-color: var(--stage-bg);
-  color-scheme: dark;
-  min-height: 100dvh;
-
-  /* chrome（面・境界・文字）をステージのダーク基調に固定 */
-  --color-bg: var(--stage-bg);
-  --color-surface: #161a27;
-  --color-surface-2: #1f2433;
-  --color-line: #2c3344;
-  --color-fg: #eef1f7; /* 主要文字（最明）。ステージ上で本文・現ドライバーに使う */
-  --color-fg-muted: #b8c0d0;
-  --color-fg-subtle: #8b94a7;
-  --color-ring: #818cf8;
-  --color-shadow: rgba(0, 0, 0, 0.5);
-  --color-overlay: rgba(0, 0, 0, 0.6);
-
-  color: var(--color-fg);
-}
-
-/* 焦点ゾーン: タイマー＋現ドライバーは舞台で最も明るく（図と地・FR-028）。
- * タイマーは緊急時(text-danger)以外は最明の白系で表示する。 */
-.stage-canvas .font-timer,
-.stage-canvas [role="timer"] {
-  color: #ffffff;
-  text-shadow: 0 0 24px var(--focus-glow);
-}
-
-/* 現ドライバーのスポットライト強調（S3）。タイマー直下で「次」より明確に格上げ。
- * --font-size-driver で大きく、白＋発光でステージ上に浮かせる（plan.md「現ドライバーを
- * スポットライト」）。reduced-motion 環境でも静的な強調は保つ。 */
-.driver-spotlight {
-  font-size: var(--font-size-driver);
-  line-height: 1.1;
-}
-
 /* 流動的タイポ（ブレイクポイント不要・clamp）。ブランド見出しと現ドライバー名を
  * 画面幅に対して滑らかにスケールさせる（段階クラスの飛びを解消）。 */
 .brand-title {
@@ -271,10 +147,6 @@ body {
 .driver-name-fluid {
   font-size: clamp(2.5rem, 1.6rem + 3.5vw, 4.5rem);
   line-height: 1.1;
-}
-.stage-canvas .driver-spotlight {
-  color: #ffffff;
-  text-shadow: 0 0 18px var(--focus-glow);
 }
 
 /* =============================================================================
