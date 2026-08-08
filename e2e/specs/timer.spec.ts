@@ -93,6 +93,11 @@ test.describe('招待パネルに表示された URL でそのまま参加でき
     //       `page.url()` を使うと、生成が壊れていても自分の居場所が返るだけで緑になる
     const shown = invitedUrlText(page);
     await expect(shown, '招待パネルの参加 URL').toHaveCount(1);
+    // **見えていることまで見る。** `toHaveCount` も `innerText()` も可視性を問わないので、
+    // URL の段落を `display: none` にしても、値は読めて参加も成立し、緑のまま通る
+    // （実測）。非セキュアオリジンでは `navigator.clipboard` が無くコピーボタンが
+    // 黙って何もしないため、**画面に出ている URL が唯一の招待手段**になる（#76 F-1）
+    await expect(shown, '招待パネルの参加 URL が見えていない').toBeVisible();
     const invited = (await shown.innerText()).trim();
 
     // Then その1: **公開パスの上を指していること。**
@@ -114,7 +119,7 @@ test.describe('招待パネルに表示された URL でそのまま参加でき
  * 再読込しても参加画面に戻らないこと（#12・#76 F-3 の回帰防止）。
  *
  * **作成者で試してはいけない。** 壊れ方は「復帰時に `participantId` が立たず、
- * `StatusStrip` が作成者へ縮退する」というもので（`App.tsx:686-687` の
+ * `StatusStrip` が作成者へ縮退する」というもので（`App.tsx:687-688` の
  * `self?.displayName ?? room?.config.members[0]` / `self?.role ?? "host"`）、
  * 作成者自身で試すと縮退先と正解が一致してしまい、壊れていても緑になる。
  * **他人の名前と役割を見せられていた**のが F-3 の実害なので、2 人目で検証する。

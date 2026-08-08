@@ -313,7 +313,7 @@ Playwright の WebSocket 監視はブラウザ標準の経路を使うので、�
 
 初版は誰で再読込するかを書いていなかったが、**作成者で試すと壊れていても緑になる。**
 縮退の実装が `self?.displayName ?? room?.config.members[0]` /
-`self?.role ?? "host"`（`App.tsx:686-687`）なので、**縮退先がまさに作成者**であり、
+`self?.role ?? "host"`（`App.tsx:687-688`）なので、**縮退先がまさに作成者**であり、
 作成者自身で試すと正解と一致してしまう。#76 F-3 の実害は「**復帰した本人が他人の
 名前と役割を見る**」ことなので、2 人目（役割 `editor`）で検証しなければ意味がない。
 実測でも、`setParticipantId` を消す変異で 2 人目の画面に `e2e-a / ホスト (host)` が出た。
@@ -599,6 +599,43 @@ Caddy もブラウザも要らないので、E2E の実行を待たずに落ち�
 | 4 | ~~Chromium revision の**値の正しさ**を見るテストは `PLAYWRIGHT_BROWSERS_PATH` が設定された環境でのみ走る。CI（未設定）では形式チェックのみ~~ | **2026-08-08 に第 2 段で解消。下記参照** |
 | 5 | IPv6 ループバック `/^\[?::1\]?$/` が `target.test.ts` の `it.each` に含まれず未検証 | 正規表現自体は正しいことを確認済み |
 | 6 | `findRepoRoot` がリポジトリ全体で 7 ファイルに重複（本作業で 2 増） | 既存パターンの延長で新たな後退ではない。3 本目の検査を足すときに共有ヘルパへの切り出しを検討する |
+| 7 | **#13 は「生きているルームなのに not-found へ倒れる」壊し方を検出できない**（第 3 段の敵対的検証で判明） | 検出するには「一定時間経っても参加フォームが出続けること」を見る必要があり、**固定時間の待機（禁じ手）になる。** 現状の Given は「リンクから実際に参加できる」ところまで固定しているので、参加経路そのものが壊れれば落ちる。残るのは「遅延して倒れる」形だけで、その壊し方は現実味が薄いと判断した |
+
+### turbo の strict env が落とす変数、3 つ目（2026-08-08・第 3 段）
+
+**`pnpm e2e` だけが落ち、`playwright test` を直接叩くと通る**、という形で現れた。
+
+```
+Error: locator.click: Test timeout of 60000ms exceeded.
+  - locator resolved to <a href="/timer/" data-label="交代" class="card tool-card">…</a>
+  - attempting click action
+    - waiting for element to be visible, enabled and stable   ← ここで止まる
+```
+
+**ブラウザを使う 7 件が軒並み落ちる。** `@smoke` 13 件と、click を持たない
+`@core` #7（LP の描画）だけが通る。**変更前の `ce7d9fc` でも同じことが起きる**ので、
+第 3 段が持ち込んだものではない。
+
+**原因は `WAYLAND_DISPLAY` が turbo の strict env で落ちていたこと。** 両方向で確認した。
+
+| 実験 | 結果 |
+|---|---|
+| `pnpm e2e`（turbo・strict） | **7 failed / 14 passed** |
+| `turbo run e2e --env-mode=loose` | **21 passed（4.0 秒）** |
+| strict の env を再現して直接 `playwright test` | **7 failed** |
+| 同上 ＋ **`WAYLAND_DISPLAY` だけ**を足す | **21 passed（4.6 秒）** |
+| loose の env から **`WAYLAND_DISPLAY` だけ**を抜く | **7 failed** |
+
+WSLg 上の devcontainer では、この変数が Chromium へ届かないと要素が
+「stable」にならず、`click` が待ち続ける。CI にはこの変数が無く、そこでは
+元から緑なので、`passThroughEnv` に足しても影響しない。
+
+**回り道した経緯も残す。** 最初は「マシンが混んでいるせい」「ワーカー数が多すぎる」と
+診断した。直接叩くと 1 / 2 / 4 / 8 ワーカーで通り、既定の 16 で落ちたためだが、
+**`workers` を 4 や 8 に固定しても turbo 経由では落ち続けた**ことで誤診と分かった。
+**同じ条件で 2 通りの経路を比べるまで、並列度と env の効果は区別できない。**
+`turbo.json` の `passThroughEnv` に `WAYLAND_DISPLAY` を足し、
+`e2e/tests/turbo-env.test.ts` に宣言を固定するテストを足した（前の 2 つと同じ形）。
 
 ### #4 の顛末（2026-08-08・第 2 段）
 
@@ -673,9 +710,12 @@ CI の正常な状態を区別できない**。preflight は通り、ブラウ�
 | timer の参加者の役割 | 招待から参加した人は `編集者 (editor)`。作成者は `ホスト (host)`。参加方法（ドライバー / 見学）が決めるのは交代の輪への出入りだけで役割ではない（#76 J-2） |
 | `deploy.sh` の案内 | **第 1 段で追記済み**（`deploy/deploy.sh:88-89`）。第 3 段での作業は不要だった |
 | シナリオ総数 | **21 件**（`@smoke` 13 + `@core` 3 + タグ無し 5。#10 が 2 つのツールで 1 件ずつ走る） |
-| **所要（`local`・16 ワーカー）** | **3.5〜3.8 秒**。目標 10 分に対して桁で余裕がある |
-| 静的テスト（`pnpm test` 側） | `@tasuki/e2e` は **67 件**（`spec-tags.test.ts` の 4 件を追加） |
-| #13 が落ちるときの所要 | `toPass` の待ちを使い切って **約 21 秒**。正常時は 1 回目の再読込で成立するので 1.6 秒 |
+| **所要（`local`・16 ワーカー）** | Playwright 自体が **約 3 秒**、`pnpm e2e`（turbo 経由・ビルド込み）で **約 4 秒**。目標 10 分に対して桁で余裕がある |
+| **`.only` の置き忘れ** | `forbidOnly` が無く、`.only` を 1 つ足すと **21 件が 1 件に縮んで終了コード 0**（実測）。CI で `forbidOnly` を有効にし、`spec-tags.test.ts` でも静的に見る |
+| **`WAYLAND_DISPLAY`** | **turbo の strict env で落ちていた。** 届かないと `click` が「stable」を待ち続け、ブラウザを使う 7 件が落ちる（下記） |
+| 静的テスト（`pnpm test` 側） | `@tasuki/e2e` は **72 件**（`spec-tags.test.ts` の 7 件と `turbo-env.test.ts` の 2 件を追加） |
+| テスト総数 | **1,911 件**（timer-core 662 / timer-web 615 / timer-sync 398 / poker-core 70 / poker-sync 56 / landing 15 / poker-web 17 / e2e 72 / protocol 6）。第 1 段時点の 1,836 件から 75 件増 |
+| #13 が落ちるときの所要 | `toPass` の待ちを使い切って **約 21 秒**。正常時は 1 回目で成立するので 2 秒弱 |
 
 ## 改訂の記録
 
@@ -722,6 +762,8 @@ CI の正常な状態を区別できない**。preflight は通り、ブラウ�
 18. 「タグ無しは `local` 専用」— **それを保証する検査が無かった。** 第 2 段までは
     タグ無しのシナリオが 0 本で、`--grep` は一度も何かを除外していなかった。
     第 3 段で初めて意味を持つので `tests/spec-tags.test.ts` を足した
+19. **`turbo.json` の `passThroughEnv` に `WAYLAND_DISPLAY` が要る**（3 例目）。
+    `pnpm e2e` だけが落ちて直接叩くと通る、という形で現れた（上記）
 
 **未決だったもの:** ポートの確保方法（→ 18080 固定）、二重起動の排他（→ ポート占有検査）、
 ターゲットの取り違え防止、2 人目の参加経路、タイムアウト値、証跡の出力先、

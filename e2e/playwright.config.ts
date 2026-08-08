@@ -17,6 +17,11 @@ export default defineConfig({
   globalSetup: './harness/global-setup.ts',
   outputDir: './test-results/artifacts',
   fullyParallel: true,
+  // **`.only` の置き忘れで検査対象が黙って縮むのを止める。**
+  // 1 つでも `.only` があると Playwright はそれだけを走らせ、終了コード 0 で緑になる
+  // （実測: 21 件が 1 件に縮んで「1 passed」）。ローカルでは絞り込みは道具として
+  // 有用なので、CI でだけ禁じる。
+  forbidOnly: isCi,
   // 本番は実サーバーの枠を無用に消費しないため逐次・再試行なし。
   // exactOptionalPropertyTypes下では workers に undefined を明示できないため、
   // ローカルはキー自体を渡さない（Playwright の既定値に委ねる）。

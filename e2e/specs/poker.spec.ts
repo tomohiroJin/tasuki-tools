@@ -120,26 +120,31 @@ test.describe('poker の消えたルームのリンクが行き止まりにな�
     page,
     openPeer,
   }) => {
-    // Given: 作成者がルームを作り、そのリンクを訪問者が開く
+    // Given: 作成者がルームを作る
     const owner = await openPeer('poker-owner');
     const roomUrl = await createRoom(owner.page, 'e2e-owner');
-    await page.goto(roomUrl);
 
-    // Given の確認: **生きている間は参加フォームが出る。**
-    // 下の「参加フォームが出ない」を空振りさせないために、
-    // 同じ選択子が実在して機能することをここで固定する
-    const joinButton = page.getByRole('button', { name: '参加する' });
-    await expect(joinButton, '生きているルームの参加フォーム').toHaveCount(1);
+    // Given の確認: **生きている間は、同じリンクから実際に参加できる。**
+    // 「参加フォームが出る」だけでなく参加の成立まで見るのは、下の判定を
+    // 空振りさせないため。**同じ選択子（`参加する`）がここで実際に働いた**ことが、
+    // あとで「参加フォームが出ない」と言える根拠になる
+    const visitor = await openPeer('poker-visitor');
+    await joinRoom(visitor.page, roomUrl, 'e2e-visitor');
+    await expect(participantRow(visitor.page, 'e2e-owner'), '生きているルームの名簿').toHaveCount(
+      1,
+    );
 
-    // When: 作成者が居なくなり、ルームが消える
+    // When: 全員が居なくなり、ルームが消える（最後の接続が切れた瞬間に破棄される）
     await owner.page.close();
+    await visitor.page.close();
 
-    // Then その1: 訪問者が開き直すと、**名前を入れる前に**消滅を知らされる。
+    // Then その1: 後から同じリンクを開いた人は、**名前を入れる前に**消滅を知らされる。
     //             サーバーが close を処理し終える時点は制御できないので、
     //             固定時間で待たずに「そうなること」を条件にして開き直す
+    const joinButton = page.getByRole('button', { name: '参加する' });
     const gone = page.getByRole('heading', { name: 'ルームが見つかりません' });
     await expect(async () => {
-      await page.reload();
+      await page.goto(roomUrl);
       await expect(gone).toBeVisible({ timeout: 2_000 });
     }, 'ルームが消えたことが画面に出る').toPass({ timeout: 20_000 });
 

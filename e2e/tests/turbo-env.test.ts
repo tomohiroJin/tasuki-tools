@@ -86,3 +86,30 @@ describe('turbo.json の PLAYWRIGHT_BROWSERS_PATH passThroughEnv', () => {
     });
   }
 });
+
+describe('turbo.json の WAYLAND_DISPLAY passThroughEnv', () => {
+  /**
+   * 同じ壊れ方の 3 例目（2026-08-08・第 3 段）。
+   *
+   * WSLg 上の devcontainer では、この変数が Chromium へ届かないと
+   * `click` が「visible, enabled and stable」を待ち続け、**ブラウザを使う
+   * 7 件が軒並み 60 秒の timeout で落ちる**。
+   *
+   * **見つけにくい形で現れる。** `playwright test` を直接叩くと通るのに
+   * `pnpm e2e`（turbo 経由）だけが落ちるため、テストの書き方や並列度の問題に
+   * 見える。実測では並列度は無関係で、**この 1 変数を足すか外すかだけで
+   * 21 件緑と 7 件失敗が反転した**（両方向で確認）。
+   *
+   * CI にはこの変数が存在せず、そこでは元から緑なので、渡しても影響しない。
+   */
+  const turbo = readTurboJson();
+
+  for (const taskName of ['e2e', 'e2e:prod'] as const) {
+    it(`Given turbo.json / When ${taskName} タスクを見る / Then WAYLAND_DISPLAY が passThroughEnv に含まれる`, () => {
+      // Given / When
+      const task = turbo.tasks[taskName];
+      // Then
+      expect(task?.passThroughEnv ?? []).toContain('WAYLAND_DISPLAY');
+    });
+  }
+});
