@@ -300,7 +300,7 @@ git commit -m "chore: e2e パッケージを新設してワークスペースに
 - Consumes: なし
 - Produces:
   - `LOCAL_BASE_URL: string`（`'http://127.0.0.1:18080'`）
-  - `type Target = { kind: 'local' | 'production'; baseURL: string }`
+  - `interface Target { readonly kind: 'local' | 'production'; readonly baseURL: string }`
   - `resolveTarget(env: Record<string, string | undefined>): Target`（違反時は `Error` を投げる）
 
 - [ ] **Step 1: 失敗するテストを書く**
@@ -481,7 +481,7 @@ export function resolveTarget(env: Record<string, string | undefined>): Target {
 - [ ] **Step 4: テストが通ることを確認する**
 
 Run: `cd /home/vscode/tasuki-work/e2e && corepack pnpm vitest run tests/target.test.ts`
-Expected: PASS（10 件）
+Expected: PASS（13 件。`it.each` が 5 件に展開されるため）
 
 - [ ] **Step 5: わざと壊して落ちることを確認する**
 
