@@ -249,7 +249,16 @@ export function RosterPanel({
                 <span className="chip text-xs text-[var(--bone-subtle)]">離脱中</span>
               )}
               {isCurrentDriver && (
-                <span className="chip text-xs text-[var(--signal)] font-semibold">▶ 今</span>
+                // 「▶ 今」だけでは読み上げても意味が伝わらないので名前を与える。
+                // role="img" にして中身を名前で置き換えるのは、投票済みの席札
+                // （poker の ParticipantList）と同じ扱い方に揃えたもの。
+                <span
+                  role="img"
+                  aria-label="現在のドライバー"
+                  className="chip text-xs text-[var(--signal)] font-semibold"
+                >
+                  ▶ 今
+                </span>
               )}
             </div>
 

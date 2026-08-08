@@ -31,6 +31,10 @@ export function CardHand({ selected, onSelect, disabled }: Props) {
             type="button"
             className={`card${isSelected ? ' selected' : ''}`}
             data-label={label}
+            // `.card::after` がコーナーピップとして `data-label` の中身を描くため、
+            // これが無いと読み上げ名が「5 5」のように二重になる（実測）。
+            // 名前を明示して、目で見える札の値と読み上げを一致させる。
+            aria-label={label}
             aria-pressed={isSelected}
             disabled={disabled}
             onClick={() => onSelect(card)}
