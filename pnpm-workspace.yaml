@@ -1,6 +1,7 @@
 packages:
   - "packages/*"
   - "apps/*"
+  - "e2e"
 
 # poker の依存に esbuild が含まれ、ビルドスクリプトの実行許可が要る（旧 planning-poker 由来）
 allowBuilds:

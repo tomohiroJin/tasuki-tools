@@ -1,6 +1,6 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "//": "globalDependencies: パッケージ外にあってタスク結果を左右するファイル。ここに書かないと eslint.config.mjs だけを変えたとき turbo が変更を検知できず、古い lint 結果を cache hit として再生する（＝ルール変更が反映されないまま成功表示になる）。",
+  "//": "globalDependencies: パッケージ外にあってタスク結果を左右するファイル。ここに書かないと eslint.config.mjs だけを変えたとき turbo が変更を検知できず、古い lint 結果を cache hit として再生する（＝ルール変更が反映されないまま成功表示になる）。 / tasks.e2e, tasks[\"e2e:prod\"].passThroughEnv: TASUKI_E2E_BASE_URL は本番向けの値だが、ローカル実行（e2e）にも渡す必要がある。turbo 2.x の既定 env モードは strict で、passThroughEnv が無いとこの変数はタスクへ届かない。届かなければ e2e/harness/target.ts の『ローカル実行なのに残っている変数を検出して落とす』検査が発火せず、取り違え防止そのものが死ぬ（本番向け変数を残したまま pnpm e2e を叩いても素通りする、という事故を実際に起こした。実測済み）。",
   "globalDependencies": ["eslint.config.mjs", "tsconfig.base.json"],
   "tasks": {
     "build": {
@@ -20,6 +20,18 @@
     "typecheck": {
       "dependsOn": ["^build"],
       "outputs": []
+    },
+    "e2e": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "passThroughEnv": ["TASUKI_E2E_BASE_URL"]
+    },
+    "e2e:prod": {
+      "cache": false,
+      "passThroughEnv": ["TASUKI_E2E_BASE_URL"]
+    },
+    "@tasuki/e2e#test": {
+      "dependsOn": []
     },
     "dev": {
       "cache": false,
