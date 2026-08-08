@@ -29,7 +29,15 @@ export function watchWebSocketFrames(page: Page): FrameLog {
   return { payloads };
 }
 
-/** JSON として解釈できたフレームだけを受信順に返す。 */
+/**
+ * JSON として解釈できたフレームだけを受信順に返す。
+ *
+ * **WS の制御フレーム（ping / pong）はここに来ない。** Playwright の
+ * `framereceived` が報告するのはテキスト／バイナリのデータフレームだけである
+ * （実測: poker-sync のハートビートを 0.3 秒間隔にして ping を 6 回送らせても、
+ * 受信フレーム数は増えなかった）。したがって呼び出し側は
+ * 「受け取ったフレームは全部 JSON である」ことを前提にしてよい。
+ */
 export function parseFrames(payloads: readonly string[]): unknown[] {
   const parsed: unknown[] = [];
   for (const payload of payloads) {

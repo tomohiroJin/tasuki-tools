@@ -38,7 +38,7 @@ export async function joinRoom(page: Page, roomUrl: string, name: string): Promi
  * 持つリスト**という中身で見分ける。位置（`first()` 等）で選ぶと、
  * 公開の前後でどちらを指しているか変わる。
  */
-export function participantList(page: Page): Locator {
+function participantList(page: Page): Locator {
   return page
     .getByRole('list')
     .filter({ has: page.getByRole('img', { name: /^(投票済み|未投票)$/ }) });
