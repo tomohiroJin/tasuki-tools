@@ -66,6 +66,18 @@ a {
   text-underline-offset: 3px;
 }
 
+/* キーボードフォーカスを常に視認可能に（a11y）。
+ * **これまで `@tasuki/ui` にはグローバルな定義が無く**、poker のボタンと札は
+ * ブラウザ既定に委ねられ、landing だけが `.tool-card` に独自のリングを補っていた。
+ * timer-web が持っていた規約をここへ引き上げる（ADR-0001）。
+ *
+ * 詳細度は (0,1,0)。landing の `.tool-card:focus-visible`(0,2,0) と
+ * `input[type='text']:focus`(0,2,1) は従来どおりこちらより優先される。 */
+:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+
 /* ---------- モバイル ---------- */
 
 @media (max-width: 420px) {

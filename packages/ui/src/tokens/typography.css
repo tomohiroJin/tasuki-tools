@@ -1,0 +1,25 @@
+/* ============================================================
+   Tasuki UI — 書体と寸法のトークン
+
+   書体の実体は `fonts.css`（自己ホスト）。外部への取得は行わない。
+   ============================================================ */
+
+:root {
+  /* 数字と見出し（Fraunces。イタリックで使うと札の数字らしくなる） */
+  --font-display: 'Fraunces', 'Zen Kaku Gothic New', serif;
+  /* 本文 */
+  --font-body: 'Zen Kaku Gothic New', 'Hiragino Sans', sans-serif;
+  /* 等幅（計測値・ルームコードなど桁を揃えたいもの）。
+   * 自己ホストしていないのでシステムのスタックに委ねる。 */
+  --font-mono: ui-monospace, 'SFMono-Regular', Menlo, Consolas, 'DejaVu Sans Mono', monospace;
+
+  /* 流動的タイポスケール（clamp でブレイクポイント不要） */
+  --font-size-xs: clamp(0.75rem, 0.72rem + 0.15vw, 0.82rem);
+  --font-size-sm: clamp(0.83rem, 0.79rem + 0.22vw, 0.95rem);
+  --font-size-base: clamp(0.95rem, 0.9rem + 0.3vw, 1.05rem);
+  --font-size-lg: clamp(1.15rem, 1.05rem + 0.5vw, 1.4rem);
+  --font-size-xl: clamp(1.4rem, 1.2rem + 0.9vw, 1.9rem);
+
+  --line-tight: 1.2;
+  --line-normal: 1.7; /* 日本語向けに広め */
+}
