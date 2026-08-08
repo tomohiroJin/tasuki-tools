@@ -1,5 +1,5 @@
 /**
- * turbo.json の `e2e` / `e2e:prod` が TASUKI_E2E_BASE_URL を passThroughEnv に
+ * turbo.json の `e2e` / `e2e:prod` が、実経路で要る環境変数を passThroughEnv に
  * 宣言していることを固定する。
  *
  * このテストが要る理由: `e2e/harness/target.ts` の resolveTarget には
@@ -62,4 +62,27 @@ describe('turbo.json の TASUKI_E2E_BASE_URL passThroughEnv', () => {
     //              が必要です」で落ちる（変数そのものが届かないため）
     expect(task?.passThroughEnv ?? []).toContain('TASUKI_E2E_BASE_URL');
   });
+});
+
+describe('turbo.json の PLAYWRIGHT_BROWSERS_PATH passThroughEnv', () => {
+  /**
+   * 同じ壊れ方の 2 例目。devcontainer は導入済みのブラウザを
+   * `/opt/playwright-browsers` から使うが、この変数が届かないと Playwright は
+   * `~/.cache/ms-playwright` を探して「実行ファイルが無い」で落ちる。
+   *
+   * **しかも起動前の検査は素通りする。** `harness/browsers.ts` の
+   * `assertChromiumInstalled` は変数が未設定なら何もしない設計（CI では Playwright が
+   * 自分でブラウザを入れるため、そちらが正しい）。第 1 段はブラウザを 1 つも
+   * 起動しなかったのでこの穴は見えず、第 2 段で `@core` を足して初めて落ちた。
+   */
+  const turbo = readTurboJson();
+
+  for (const taskName of ['e2e', 'e2e:prod'] as const) {
+    it(`Given turbo.json / When ${taskName} タスクを見る / Then PLAYWRIGHT_BROWSERS_PATH が passThroughEnv に含まれる`, () => {
+      // Given / When
+      const task = turbo.tasks[taskName];
+      // Then
+      expect(task?.passThroughEnv ?? []).toContain('PLAYWRIGHT_BROWSERS_PATH');
+    });
+  }
 });
