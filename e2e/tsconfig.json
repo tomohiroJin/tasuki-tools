@@ -4,5 +4,13 @@
     "lib": ["ES2022", "DOM"],
     "types": ["node"]
   },
-  "include": ["harness", "specs", "tests", "playwright.config.ts", "vitest.config.ts"]
+  "include": [
+    "harness",
+    "fixtures",
+    "support",
+    "specs",
+    "tests",
+    "playwright.config.ts",
+    "vitest.config.ts"
+  ]
 }

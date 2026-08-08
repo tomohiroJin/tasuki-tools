@@ -1,0 +1,104 @@
+/**
+ * poker の秘匿と自動公開（@core #8）。
+ *
+ * **DOM だけでは足りない。** サーバーが投票中に他人の票を余剰フィールドで配信しても、
+ * UI がそれを参照しないので DOM には絶対に現れない。受信した WebSocket フレームも見る。
+ */
+import { expect, test } from '../fixtures/test';
+import {
+  chooseCard,
+  createRoom,
+  joinRoom,
+  participantRow,
+  resultRow,
+  resultsSection,
+  roomStateFrames,
+  showsVoted,
+} from '../support/poker';
+import {
+  collectCards,
+  describeCards,
+  parseFrames,
+  watchWebSocketFrames,
+} from '../support/ws-frames';
+
+const HOST = 'e2e-a';
+const GUEST = 'e2e-b';
+
+test.describe('@core poker は公開まで他人の票を配らない', () => {
+  test('Given 2 人が同じルームに居る / When 片方が投票する / Then 値はどこにも届かず、全員が投票すると公開される', async ({
+    page,
+    openPeer,
+  }) => {
+    // Given: フレームの監視は最初の goto より前に始める（初回の room-state を取り逃さない）
+    const frames = watchWebSocketFrames(page);
+
+    const roomUrl = await createRoom(page, HOST);
+    const guest = await openPeer('poker-guest');
+    await joinRoom(guest.page, roomUrl, GUEST);
+
+    // Given の確認: **2 人が別人として並んでいること。**
+    // 同じ文脈で 2 枚開くと 2 人目が 1 人目として復帰し、
+    // 「2 人居るつもりで 1 人」のまま以降がすべて緑になる
+    await expect(page.getByRole('heading', { name: `参加者（2人）` })).toBeVisible();
+    await expect(participantRow(page, HOST)).toHaveCount(1);
+    await expect(participantRow(page, GUEST)).toHaveCount(1);
+
+    // When: **2 人目に先に投票させる。** 自分が先に投票すると、相手が投票した瞬間に
+    //       自動公開が走るため、「他人が投票済みで、まだ公開されていない」フレームが
+    //       一度も届かない。それでは秘匿の検査対象が存在しなくなる
+    await chooseCard(guest.page, '☕');
+
+    // Then その1（DOM・範囲を限定して）: 投票済みであることは見えるが、値は見えない
+    const guestRow = participantRow(page, GUEST);
+    await expect(guestRow.getByRole('img', { name: '投票済み' })).toBeVisible();
+    await expect(guestRow).not.toContainText('☕');
+
+    // Then その2（DOM）: 結果セクションはまだ存在しない（非表示ではなく未描画）
+    await expect(resultsSection(page)).toHaveCount(0);
+
+    // Then その3（WS）: ここまでに届いたフレームを固定して調べる
+    const received = [...frames.payloads];
+    const parsed = parseFrames(received);
+    const roomStates = roomStateFrames(received);
+
+    // 走査先を間違えていないこと。0 通だと以降がすべて素通りする
+    expect(roomStates.length, 'room-state を 1 通も受け取っていない').toBeGreaterThan(0);
+    // すべて公開前であること。ここに revealed が混ざっていたら前提が崩れている
+    expect(
+      roomStates.map((frame) => frame.round.status).filter((status) => status !== 'voting'),
+      '公開前のはずのフレームに revealed が混ざっている',
+    ).toEqual([]);
+    // **相手が投票済みのフレームを実際に受け取っていること。**
+    // これが 0 通なら「他人の票が届いていない」は何も証明していない
+    expect(
+      roomStates.filter((frame) => showsVoted(frame, GUEST)).length,
+      `${GUEST} が投票済みのフレームを 1 通も受け取っていない`,
+    ).toBeGreaterThan(0);
+
+    // **カードの走査は room-state に絞ってはいけない。**
+    // 絞ると、サーバーが別メッセージ（クライアントが境界検証で捨てる型）で票を
+    // 余分に配っても、こちらが自分でふるい落として緑になる。実際にそれで
+    // 変異が素通りした。**届いたフレームは全部見る。**
+    expect(parsed.length, 'JSON として読めないフレームがあり走査から漏れている').toBe(
+      received.length,
+    );
+    for (const frame of parsed) {
+      expect(describeCards(collectCards(frame)), '公開前のフレームにカードが含まれている').toBe('');
+    }
+
+    // When: 最後の 1 人が投票する
+    await chooseCard(page, '5');
+
+    // Then その4: **誰も公開操作をしていないのに**両方の画面に結果が出る。
+    //             公開が実際に働くことまで見ないと、「常に何も配らない」実装でも
+    //             上の秘匿の検査は緑のままになる
+    for (const [label, target] of [
+      ['作成者', page],
+      ['参加者', guest.page],
+    ] as const) {
+      await expect(resultRow(target, HOST), `${label}の画面`).toContainText('5');
+      await expect(resultRow(target, GUEST), `${label}の画面`).toContainText('☕');
+    }
+  });
+});
