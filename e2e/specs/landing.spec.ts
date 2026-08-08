@@ -1,8 +1,10 @@
 /**
- * 玄関 LP が実ブラウザで描画されること（@core #7）。
+ * 玄関 LP のシナリオ。
  *
- * `@smoke` は HTTP しか見ないので、**資材が 200 で返っていても JS が例外で
- * 止まっていれば気づけない**。ここが `production` で LP を実ブラウザで開く唯一の経路。
+ * - `@core #7` — 実ブラウザで描画されること。`@smoke` は HTTP しか見ないので、
+ *   **資材が 200 で返っていても JS が例外で止まっていれば気づけない**。
+ *   ここが `production` で LP を実ブラウザで開く唯一の経路。
+ * - タグ無し #10 — 札を選ぶと各ツールが開くこと（`local` 専用の回帰）。
  */
 import { expect, test } from '../fixtures/test';
 
@@ -32,4 +34,48 @@ test.describe('@core 玄関 LP が実ブラウザで描画される', () => {
     await page.waitForLoadState('networkidle');
     expect(consoleWatcher.errors.join('\n'), 'LP のコンソールエラー').toBe('');
   });
+});
+
+/**
+ * 玄関から各ツールへ移動できること（#10・タグ無し = `local` 専用）。
+ *
+ * **行き先の URL だけを見てはいけない。** 断片は `try_files {path} /index.html` を
+ * 持つので、配信が壊れていても包括フォールバック（LP）が 200 を返し続ける。
+ * URL は変わるのに中身は LP のまま、という形で素通りする。
+ * **そのアプリにしか無いものが見えること**まで確かめる。
+ */
+test.describe('玄関の札から各ツールへ移動できる', () => {
+  const TOOLS = [
+    // 「ルームを作る」（timer）と「ルームを作成」（poker）は 1 文字違いだが、
+    // それぞれのアプリにしか無い。取り違えたらここで落ちる。
+    { card: 'TDD Mob Pro Timer', path: '/timer/', landmark: 'ルームを作る' },
+    { card: 'Planning Poker', path: '/poker/', landmark: 'ルームを作成' },
+  ] as const;
+
+  for (const tool of TOOLS) {
+    test(`Given 玄関 / When ${tool.card} の札を選ぶ / Then ${tool.path} が開く`, async ({
+      page,
+    }) => {
+      // Given: 玄関に札が並んでいる
+      await page.goto('/');
+      const card = page
+        .getByRole('list', { name: 'ツール' })
+        .getByRole('link', { name: new RegExp(tool.card) });
+      await expect(card).toHaveCount(1);
+
+      // When: 札を選ぶ
+      await card.click();
+
+      // Then その1: そのツールの公開パスへ移動している。
+      //             `toContain` は使わない。`/timer/` は `/poker/` を含まないが、
+      //             接頭辞の判定は入れ子で恒真になりうる（実測済み・routing.spec.ts 参照）
+      await expect
+        .poll(() => new URL(page.url()).pathname, { message: `${tool.card} の行き先` })
+        .toBe(tool.path);
+
+      // Then その2: **そのアプリが実際に描画されている。**
+      //             LP へ縮退していれば、この目印は無い
+      await expect(page.getByRole('button', { name: tool.landmark })).toBeVisible();
+    });
+  }
 });

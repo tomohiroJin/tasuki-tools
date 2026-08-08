@@ -30,16 +30,29 @@ export async function createRoom(page: Page, name: string): Promise<string> {
 }
 
 /**
- * 招待リンクからドライバーとして参加する。
+ * 渡された URL を開き、ドライバーとして参加する。
+ *
+ * **URL を組み立てずに受け取るのが要点。** 招待パネルが出した URL 文字列
+ * そのものを開く回帰シナリオ（#76 F-1）は、こちらを直接使う。
  *
  * ラジオは `sr-only` で `check()` できない（クリック可能な位置に無い）。
  * **利用者と同じく、包んでいるラベルの可視テキストを押す。**
  */
-export async function joinAsDriver(page: Page, code: string, name: string): Promise<void> {
-  await page.goto(`/timer/?room=${code}`);
+export async function joinAsDriverAt(page: Page, url: string, name: string): Promise<void> {
+  await page.goto(url);
   await page.getByLabel('あなたの名前').fill(name);
   await page.getByText('ドライバーとして参加', { exact: true }).click();
   await page.getByRole('button', { name: 'モブに参加' }).click();
+}
+
+/**
+ * ルームコードからドライバーとして参加する。
+ *
+ * **招待 URL の生成規則を検証しない場面のための近道。** 参加の成立そのものが
+ * 目的で、どんな URL を配るかは問わないシナリオはこちらを使う。
+ */
+export async function joinAsDriver(page: Page, code: string, name: string): Promise<void> {
+  await joinAsDriverAt(page, `/timer/?room=${code}`, name);
 }
 
 /**
@@ -53,6 +66,25 @@ export function lobbyRotationRow(page: Page, name: string, order: number): Locat
     .getByRole('listitem')
     .filter({ hasText: name })
     .filter({ hasText: `ドライバー${String(order)}` });
+}
+
+/**
+ * 招待パネルが画面に出している参加 URL。
+ *
+ * この段落（`InvitePanel.tsx`）は素の `<p>` でアクセシブル名を持たないため、
+ * **可視テキストの形で掴む**しかない。範囲を狭めるために「`http` で始まる文字列」
+ * という形そのものを条件にしている。
+ *
+ * **`page.url()` で代用してはいけない。** 検証対象は招待パネルが *生成する*
+ * 文字列であって、いま自分が居る場所ではない（#76 F-1）。
+ */
+export function invitedUrlText(page: Page): Locator {
+  return page.getByText(/^https?:\/\/\S+$/);
+}
+
+/** 参加前（Setup / Join）では出ない、常設のステータス表示。 */
+export function statusStrip(page: Page): Locator {
+  return page.getByRole('status', { name: 'ステータス情報' });
 }
 
 /** セッション画面の名簿（ドライバーの一覧）。 */

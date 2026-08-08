@@ -1,8 +1,10 @@
 /**
- * poker の秘匿と自動公開（@core #8）。
+ * poker のシナリオ。
  *
- * **DOM だけでは足りない。** サーバーが投票中に他人の票を余剰フィールドで配信しても、
- * UI がそれを参照しないので DOM には絶対に現れない。受信した WebSocket フレームも見る。
+ * - `@core #8` — 秘匿と自動公開。**DOM だけでは足りない。** サーバーが投票中に
+ *   他人の票を余剰フィールドで配信しても、UI がそれを参照しないので DOM には
+ *   絶対に現れない。受信した WebSocket フレームも見る。
+ * - タグ無し #13 — #76 J-1 の回帰防止（`local` 専用）。
  */
 import { expect, test } from '../fixtures/test';
 import {
@@ -100,5 +102,51 @@ test.describe('@core poker は公開まで他人の票を配らない', () => {
       await expect(resultRow(target, HOST), `${label}の画面`).toContainText('5');
       await expect(resultRow(target, GUEST), `${label}の画面`).toContainText('☕');
     }
+  });
+});
+
+/**
+ * 消えたルームの招待リンクが行き止まりにならないこと（#13・#76 J-1 の回帰防止）。
+ *
+ * 壊れていた頃は、終了したルームのリンクでも参加フォームが出て、
+ * **名前を入れて送信して初めて**「見つかりません」に変わった。
+ * いまは参加を試みる前にルームの生死を尋ねる（`RoomPage.tsx:96-101` の `check-room`）。
+ *
+ * ルームは最後の参加者の接続が切れた瞬間に消える（`rooms.ts` の `dropIfEmpty`）。
+ * `check-room` を送っただけの訪問者は参加者ではないので、この数に入らない。
+ */
+test.describe('poker の消えたルームのリンクが行き止まりにならない', () => {
+  test('Given 招待リンクを受け取った人 / When ルームが消える / Then 名前を入れる前に、戻る道つきで知らされる', async ({
+    page,
+    openPeer,
+  }) => {
+    // Given: 作成者がルームを作り、そのリンクを訪問者が開く
+    const owner = await openPeer('poker-owner');
+    const roomUrl = await createRoom(owner.page, 'e2e-owner');
+    await page.goto(roomUrl);
+
+    // Given の確認: **生きている間は参加フォームが出る。**
+    // 下の「参加フォームが出ない」を空振りさせないために、
+    // 同じ選択子が実在して機能することをここで固定する
+    const joinButton = page.getByRole('button', { name: '参加する' });
+    await expect(joinButton, '生きているルームの参加フォーム').toHaveCount(1);
+
+    // When: 作成者が居なくなり、ルームが消える
+    await owner.page.close();
+
+    // Then その1: 訪問者が開き直すと、**名前を入れる前に**消滅を知らされる。
+    //             サーバーが close を処理し終える時点は制御できないので、
+    //             固定時間で待たずに「そうなること」を条件にして開き直す
+    const gone = page.getByRole('heading', { name: 'ルームが見つかりません' });
+    await expect(async () => {
+      await page.reload();
+      await expect(gone).toBeVisible({ timeout: 2_000 });
+    }, 'ルームが消えたことが画面に出る').toPass({ timeout: 20_000 });
+
+    // Then その2: **戻る道がある。** これが無いと行き止まりになる
+    await expect(page.getByRole('link', { name: 'トップへ戻る' }), '戻る導線').toBeVisible();
+
+    // Then その3: 参加フォームは出ない（名前を入れさせてから落胆させない）
+    await expect(joinButton, '消えたルームで参加フォームが出ている').toHaveCount(0);
   });
 });
