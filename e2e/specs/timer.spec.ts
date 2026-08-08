@@ -52,6 +52,10 @@ test.describe('@core timer のドライバー交代が両方の画面に届く',
       // 旧ドライバーの行から消えていること。行を名前で特定したうえで、
       // 印が無いことだけを見る（名前が見えるかどうかは判定に使わない）
       const previous = driverRoster(target).getByRole('listitem').filter({ hasText: HOST });
+      // **先に行そのものが在ることを固定する。** これが無いと、旧ドライバーの行が
+      // 名簿から丸ごと消えたときに子要素も 0 件になり、下の否定が
+      // 「印が無い」ではなく「行が無い」で素通りする（実測で確認した）
+      await expect(previous, `${label}の画面に旧ドライバーの行が無い`).toHaveCount(1);
       await expect(
         previous.getByRole('img', { name: '現在のドライバー' }),
         `${label}の画面で旧ドライバーの印が残っている`,
