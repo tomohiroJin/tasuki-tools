@@ -3,12 +3,21 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "//": "CSS のみのパッケージ。lint / typecheck / test / build のタスクは持たない（検査対象が無いのに緑を出すと「全パッケージが検査されている」と誤解させるため）。TS を足すときに合わせてタスクも足すこと。",
+  "//": "CSS と書体だけのパッケージ。build / typecheck は持たない（TS を足すまで不要）。lint（stylelint: 構文と、トークン層に要素セレクタを置かせない境界の検査）と test（node:test: トークンの契約と書体ファイルの実在の検査）は持つ。",
   "exports": {
     ".": "./src/index.css",
-    "./tokens.css": "./src/tokens.css",
-    "./base.css": "./src/base.css",
-    "./controls.css": "./src/controls.css",
-    "./card.css": "./src/card.css"
+    "./tokens.css": "./src/tokens/index.css",
+    "./elements.css": "./src/elements/index.css",
+    "./base.css": "./src/elements/reset.css",
+    "./controls.css": "./src/elements/controls.css",
+    "./card.css": "./src/elements/card.css"
+  },
+  "scripts": {
+    "lint": "stylelint \"src/**/*.css\"",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "devDependencies": {
+    "stylelint": "^16.10.0",
+    "stylelint-config-recommended": "^14.0.1"
   }
 }

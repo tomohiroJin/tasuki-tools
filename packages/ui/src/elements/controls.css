@@ -41,11 +41,16 @@ button {
   padding: 0.7rem 1.4rem;
   border-radius: 999px;
   border: 1px solid var(--gold-deep);
-  color: var(--ink);
+  color: var(--coal);
   background: linear-gradient(180deg, var(--gold-bright), var(--gold));
   box-shadow: 0 2px 0 var(--gold-deep), 0 6px 14px rgba(0, 0, 0, 0.35);
   cursor: pointer;
   transition: transform 0.12s, box-shadow 0.12s, filter 0.2s;
+}
+
+button:disabled {
+  filter: grayscale(0.6) brightness(0.75);
+  cursor: not-allowed;
 }
 
 button:hover:not(:disabled) {
@@ -56,11 +61,6 @@ button:hover:not(:disabled) {
 button:active:not(:disabled) {
   transform: translateY(2px);
   box-shadow: 0 0 0 var(--gold-deep), 0 3px 8px rgba(0, 0, 0, 0.35);
-}
-
-button:disabled {
-  filter: grayscale(0.6) brightness(0.75);
-  cursor: not-allowed;
 }
 
 button.secondary {
@@ -85,7 +85,7 @@ button.secondary:hover:not(:disabled) {
 }
 
 .badge.host {
-  color: var(--ink);
+  color: var(--coal);
   background: linear-gradient(180deg, var(--gold-bright), var(--gold));
   border-color: var(--gold-deep);
 }

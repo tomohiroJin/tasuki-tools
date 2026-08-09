@@ -12,7 +12,7 @@
   border: 1px solid #cdc4a8;
   background:
     linear-gradient(165deg, #fffdf4 0%, var(--ivory) 60%, #eae1c6 100%);
-  color: var(--ink);
+  color: var(--coal);
   box-shadow: var(--shadow-card);
   font-family: var(--font-display);
   font-weight: 600;
@@ -38,12 +38,16 @@
   left: 7px;
   font-size: 0.6rem;
   line-height: 1;
-  color: var(--ink-soft);
+  color: var(--coal-soft);
 }
 
 .card-face {
   font-size: 1.5rem;
   font-style: italic;
+}
+
+.card:disabled {
+  filter: saturate(0.7) brightness(0.85);
 }
 
 /* 手をかざすと札が浮いて少し傾く */
@@ -60,10 +64,6 @@
     0 0 0 2.5px var(--gold),
     0 0 22px rgba(236, 200, 121, 0.5),
     0 14px 24px rgba(0, 0, 0, 0.45);
-}
-
-.card:disabled {
-  filter: saturate(0.7) brightness(0.85);
 }
 
 /* 一覧に並べる小カード（めくり演出付き。遅延は利用側で指定する） */
