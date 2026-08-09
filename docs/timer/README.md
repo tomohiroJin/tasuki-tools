@@ -37,7 +37,7 @@ timer は **Tasuki monorepo の 3 パッケージ**で構成されます（リ�
 - pnpm 11.5.0（`packageManager` 宣言に従う。`corepack enable` でよい）
 - **Bun** — 同期サーバーの起動（`bun run --watch`）とテストに必要
 
-> 起動手順の正本は[リポジトリ直下の README](../../README.md#起動方法) です。
+> 起動手順の正本は [開発手順ガイド](../guides/development.md) です。
 > timer だけを動かす場合も、**画面は `http://localhost:5173/timer/`**（`/` ではありません）。
 
 ## インストール
