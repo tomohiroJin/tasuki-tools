@@ -2,10 +2,7 @@
 
 ## このガイドの位置づけ
 
-**起動・テスト・検査の手順の正本はこのガイドです。** 現時点では README にも
-同内容が残っていますが、これは README 再編（[#68](https://github.com/tomohiroJin/tasuki-tools/issues/68)
-Task 12）の受け皿として本ガイドを先行整備しているためです。Task 12 以降、
-README はここへリンクするだけになります。書き分けの規則は
+**起動・テスト・検査の手順の正本はこのガイドです。** 書き分けの規則は
 [`docs/adr/0002`](../adr/0002-document-system-three-layers.md)（文書体系の三層構造）を
 参照してください。
 

@@ -5,7 +5,7 @@ Sync Impact Report
   原則の削除・再定義を伴うため）
 - Rationale: #68（規範とアーキテクチャの確立）。本憲法は poker MVP 単体の企画時に
   書かれたものであり、Tasuki が timer・poker を含む複数ツール・複数エージェント運用の
-  実践場へ育った現状と乖離していた（ADR 0002 背景）。全面書き直しにより、
+  実践場へ育った現状と乖離していた（`docs/adr/0002` 背景）。全面書き直しにより、
   プロジェクト全体を貫く原則へ再定義する。
 - Modified principles:
   - I. テスト駆動開発（NON-NEGOTIABLE） → I. テスト駆動開発（NON-NEGOTIABLE）を継承
@@ -25,7 +25,7 @@ Sync Impact Report
   - X. 抽象は実需で（早すぎる抽象化の抑止）
 - Removed sections（旧「追加制約」節ごと解消）:
   - 「既存の timer（`packages/timer-core` / `apps/timer-*`）には手を入れない（MUST NOT）」
-    — ADR 0002 の背景で述べたとおり、#78 で timer 側のデザインを作り直した現状と
+    — `docs/adr/0002` の背景で述べたとおり、#78 で timer 側のデザインを作り直した現状と
     すでに矛盾していたため撤廃。デプロイの単純運用は新 III へ引き継ぐ。
   - 「3パッケージ構成を維持する（MUST）」（旧 III） — Tasuki が timer・poker 等の
     複数ツールを持つ現状ではパッケージ構成の固定は成立しないため撤廃。
@@ -48,7 +48,7 @@ Sync Impact Report
   - 旧「開発ワークフロー」節（3 つの MUST: spec-kit フルワークフロー
     `constitution → specify → plan → tasks → implement` の順守／仕様・計画・タスクの
     成果物を `specs/` 配下に保存／コミットメッセージ・ブランチ命名を Conventional
-    Commits に従わせる） — 節ごと撤廃。理由: ADR 0002 の三層構造では「今日どう書くか」の
+    Commits に従わせる） — 節ごと撤廃。理由: `docs/adr/0002` の三層構造では「今日どう書くか」の
     手順はガイドの領分であり、憲法（めったに変えない原則の宣言）に手順を書くのは層の
     混同にあたるため。移送先: 後続 PR で新設するガイド群（`docs/guides/`）。
     Conventional Commits の規約は開発手順ガイドへ再収載予定。spec-kit ワークフロー
@@ -59,8 +59,8 @@ Sync Impact Report
     旧憲法の条項名・原則名への静的参照は無し。変更不要（確認済み）。
   - ✅ .specify/templates/spec-template.md — 憲法への直接参照なし、変更不要。
   - ✅ .specify/templates/tasks-template.md — 憲法への直接参照なし、変更不要。
-  - ⚠ AGENTS.md — 憲法の見出しを転記した薄い複製を持つ（ADR 0002 決定 5）。
-    本改版に合わせた見出し同期が必要（#68 Task 4 で対応）。
+  - ✅ AGENTS.md — 憲法の見出しを転記した薄い複製を持つ（`docs/adr/0002` 決定 5）。
+    本改版に合わせて見出し同期済み（原則 I〜X の 10 本一致。#68 Task 4 で対応）。
 - Preserved references（コード内「憲法原則 N」参照 7 箇所。意味を変更しないことを確認）:
   - III（揮発インメモリ）: `apps/poker-sync/src/rooms.ts:1`
   - IV（境界の型安全）: `apps/poker-sync/src/server.ts:2` /
@@ -69,7 +69,6 @@ Sync Impact Report
     `packages/poker-core/src/protocol.ts:2` / `packages/poker-core/src/round.ts:2` /
     `packages/poker-core/src/room.ts:2`
 - Follow-up TODOs:
-  - AGENTS.md の見出し同期（#68 Task 4）。
   - `packages/timer-core/src/problem.ts:70` の `Date.now()` は VI（依存は内向き）の
     既知の逸脱（ドメイン内で時刻という副作用に直接依存している）。適用段階（#72）で
     アダプタへ注入する形に直す。
@@ -88,7 +87,7 @@ Tasuki は二本柱で成り立つプロジェクトである。
 
 本憲法は、この二本柱の両方に共通して適用される原則を定める。個別ツール固有の
 設計判断は ADR（`docs/adr/` および `docs/<app>/adr/`）に、日々の実装手順は
-ガイド（`docs/guides/`）に記す（三層構造。ADR 0002）。
+ガイド（`docs/guides/`）に記す（三層構造。`docs/adr/0002`）。
 
 ## Core Principles
 
@@ -107,7 +106,7 @@ TDD は必須である。Red-Green-Refactor サイクルを厳守すること:
 現行スタック（TypeScript / React / Bun / pnpm / turbo / Vite / Valibot /
 neverthrow）を基本とする。
 
-- 上記スタックの範囲内での実装は自由に行ってよい（MUST）
+- 上記スタックの範囲内での実装は自由に行ってよい（MAY）
 - 新しい技術・ライブラリの追加、既存スタックからの変更は、ADR に記録した
   上で行う（MUST）
 - ADR による記録なしに技術選定を変更してはならない（MUST NOT）
@@ -193,7 +192,7 @@ neverthrow）を基本とする。
 - **改版手続き**: 改版は ADR を伴う（原則の変更・削除・追加の理由と背景を ADR に
   記録する）。改版時は Sync Impact Report に変更内容を記録した上で、依存テンプレート
   （plan/spec/tasks）との整合、および **AGENTS.md の憲法見出しの同期**を確認する
-  （MUST）（ADR 0002 決定 5）
+  （MUST）（`docs/adr/0002` 決定 5）
 - **バージョニング**: セマンティックバージョニングに従う —
   MAJOR: 原則の削除・後方互換性のない再定義 /
   MINOR: 原則・セクションの追加または実質的な拡張 /

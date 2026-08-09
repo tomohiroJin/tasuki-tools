@@ -4,9 +4,10 @@
 - **関連**: [#68](https://github.com/tomohiroJin/tasuki-tools/issues/68)（規範とアーキテクチャの確立、
   親 epic [#67](https://github.com/tomohiroJin/tasuki-tools/issues/67)）/
   `docs/adr/0002`（書き分けの規則: 決定は ADR、手順・項目はガイド）/
-  `docs/guides/definition-of-done.md`（DoD 項目の正本、後続タスクで新設）/
-  `docs/guides/ears-writing.md`（EARS 記法の書き方、後続タスクで新設）/
-  `docs/retrospectives/`（振り返りの記録先、後続タスクで新設）
+  `docs/guides/definition-of-done.md`（DoD 項目の正本）/
+  `docs/guides/ears-writing.md`（EARS 記法の書き方）/
+  `docs/retrospectives/`（振り返りの記録先）/
+  [`docs/guides/retrospective.md`](../guides/retrospective.md)（振り返りの型と書き方の正本、決定 4）
 
 ## 背景
 
