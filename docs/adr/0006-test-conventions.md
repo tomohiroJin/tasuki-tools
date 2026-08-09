@@ -28,7 +28,7 @@
   `runAudit()` を確認）、poker 系（`packages/poker-core` / `apps/poker-sync`）
   や `packages/protocol` はまだ対象外である。
 - **新しい検査はわざと壊して赤を見る**は、timer の G5・G6 の新設テストで
-  実践されてきた（例: `apps/sync/test/error-code-coverage.test.ts` はソース走査の
+  実践されてきた（例: `apps/timer-sync/test/error-code-coverage.test.ts` はソース走査の
   メタテスト）。
 - **実装を書き換えたら変異で恒真化を確かめる**は、timer 由来の実践だが、
   実際に効果を示したのは poker 側の 2 件である。[PR #62](https://github.com/tomohiroJin/tasuki-tools/pull/62)
