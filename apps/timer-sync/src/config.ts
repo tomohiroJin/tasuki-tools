@@ -56,7 +56,12 @@ export function loadSyncConfig(env: Record<string, string | undefined>): SyncCon
   }
 
   return {
-    port: intEnv(env["PORT"], 8787),
+    // PORT=0 は「OS に空きポートを選ばせる」を意味する有効値なので 0 を通す
+    // （poker-sync の config.ts と同じ扱い）。intEnv だと 0 が不正扱いで既定 8787 に
+    // 落ちるため、実 WebSocket 越しのテストが固定ポートを手で割り当てるしかなくなり、
+    // 並行実行やポート衝突の帳簿を人が保守する羽目になる。
+    // 実際に listen したポートは `WsAdapter.port` から取る。
+    port: nonNegIntEnv(env["PORT"], 8787),
     host: env["HOST"] ?? "127.0.0.1",
     allowedOrigins,
     maxConnections: intEnv(env["MAX_CONNECTIONS"], 200),

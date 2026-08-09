@@ -34,8 +34,8 @@ import net from "node:net";
 import { randomBytes } from "node:crypto";
 import { WsAdapter } from "../src/adapters/ws-adapter.js";
 
-const PORT = 18791; // テスト専用ポート（integration/admin と重複しない値）
-
+// ポートは OS に選ばせる（`port: 0`）。実ポートは `adapter.port` から取り、
+// 生 TCP クライアントの接続先にもそれを使う。
 let adapter: WsAdapter | undefined;
 const openClients: RawClient[] = [];
 
@@ -188,7 +188,7 @@ function maskedPongFrame(): Buffer {
 
 /** テストで使う生クライアントを開き、afterEach での後始末に登録する。 */
 async function openClient(shouldPong: (nth: number) => boolean): Promise<RawClient> {
-  const client = await connectRaw(PORT, shouldPong);
+  const client = await connectRaw(adapter!.port, shouldPong);
   openClients.push(client);
   return client;
 }
@@ -200,7 +200,7 @@ describe("WsAdapter ハートビート（死活監視・Issue #25）", () => {
       // Given: 許容ミス回数を変えたハートビートを持つアダプタ
       const { promise, onDisconnect } = waitDisconnect(5_000);
       adapter = new WsAdapter({
-        port: PORT,
+        port: 0,
         host: "127.0.0.1",
         allowedOrigins: [],
         heartbeatIntervalMs: 50,
@@ -227,7 +227,7 @@ describe("WsAdapter ハートビート（死活監視・Issue #25）", () => {
     // Given
     const { promise, onDisconnect } = waitDisconnect(5_000);
     adapter = new WsAdapter({
-      port: PORT,
+      port: 0,
       host: "127.0.0.1",
       allowedOrigins: [],
       heartbeatIntervalMs: 50,
@@ -248,7 +248,7 @@ describe("WsAdapter ハートビート（死活監視・Issue #25）", () => {
     // Given
     let disconnected = false;
     adapter = new WsAdapter({
-      port: PORT,
+      port: 0,
       host: "127.0.0.1",
       allowedOrigins: [],
       // 間隔は pong の往復より十分に長く取る。20ms だと CI の負荷でスケジューリングが
@@ -273,7 +273,7 @@ describe("WsAdapter ハートビート（死活監視・Issue #25）", () => {
     // Given: 2 回目の ping にだけ pong を返さない
     let disconnected = false;
     adapter = new WsAdapter({
-      port: PORT,
+      port: 0,
       host: "127.0.0.1",
       allowedOrigins: [],
       // 間隔は pong の往復より十分に長く取る（上のテストと同じ理由）。
@@ -305,7 +305,7 @@ describe("WsAdapter ハートビート（死活監視・Issue #25）", () => {
     const clearIntervalSpy = jest.spyOn(global, "clearInterval");
 
     adapter = new WsAdapter({
-      port: PORT,
+      port: 0,
       host: "127.0.0.1",
       allowedOrigins: [],
       heartbeatIntervalMs: 10_000,

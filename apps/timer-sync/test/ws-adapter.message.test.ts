@@ -19,8 +19,7 @@ import { describe, it, expect, afterEach } from "bun:test";
 import { WebSocket } from "ws";
 import { WsAdapter } from "../src/adapters/ws-adapter.js";
 
-const PORT = 18793; // 専用ポート（integration=18790 / heartbeat=18791 / admin=8799 と重複しない）
-
+// ポートは OS に選ばせる（`port: 0`）。実ポートは `adapter.port` から取る。
 let adapter: WsAdapter | undefined;
 afterEach(async () => {
   await adapter?.close();
@@ -45,15 +44,24 @@ interface Options {
   onMessage?: (connId: string, msg: unknown) => Promise<void>;
 }
 
-async function connect(options: Options = {}): Promise<WebSocket> {
+/** アダプタを `port: 0` で起動する。接続先 URL は `adapterUrl()` から取る。 */
+function startAdapter(options: Options = {}): void {
   adapter = new WsAdapter({
-    port: PORT,
+    port: 0,
     host: "127.0.0.1",
     allowedOrigins: [],
     onMessage: options.onMessage ?? (async () => {}),
     onDisconnect: () => {},
   });
-  const ws = new WebSocket(`ws://127.0.0.1:${PORT}`);
+}
+
+function adapterUrl(): string {
+  return `ws://127.0.0.1:${adapter!.port}`;
+}
+
+async function connect(options: Options = {}): Promise<WebSocket> {
+  startAdapter(options);
+  const ws = new WebSocket(adapterUrl());
   await waitOpen(ws);
   return ws;
 }
@@ -153,17 +161,11 @@ describe("WsAdapter メッセージ経路", () => {
 
   it("Given 2 つの接続 / When 片方の connId へ send する / Then その接続にだけ届く", async () => {
     // Given
-    adapter = new WsAdapter({
-      port: PORT,
-      host: "127.0.0.1",
-      allowedOrigins: [],
-      onMessage: async () => {},
-      onDisconnect: () => {},
-    });
+    startAdapter();
     const connIds: string[] = [];
-    const a = new WebSocket(`ws://127.0.0.1:${PORT}`);
+    const a = new WebSocket(adapterUrl());
     await waitOpen(a);
-    const b = new WebSocket(`ws://127.0.0.1:${PORT}`);
+    const b = new WebSocket(adapterUrl());
     await waitOpen(b);
     // connId は接続順に振られる（conn-1, conn-2）
     connIds.push("conn-1", "conn-2");
@@ -186,16 +188,10 @@ describe("WsAdapter メッセージ経路", () => {
 
   it("Given 2 つの接続 / When broadcast する / Then 両方に届く", async () => {
     // Given
-    adapter = new WsAdapter({
-      port: PORT,
-      host: "127.0.0.1",
-      allowedOrigins: [],
-      onMessage: async () => {},
-      onDisconnect: () => {},
-    });
-    const a = new WebSocket(`ws://127.0.0.1:${PORT}`);
+    startAdapter();
+    const a = new WebSocket(adapterUrl());
     await waitOpen(a);
-    const b = new WebSocket(`ws://127.0.0.1:${PORT}`);
+    const b = new WebSocket(adapterUrl());
     await waitOpen(b);
 
     // When

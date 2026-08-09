@@ -112,6 +112,20 @@ export class WsAdapter {
   }
 
   /**
+   * 実際に listen しているポート番号。
+   *
+   * `port: 0`（OS に空きポートを選ばせる）で起動したとき、**接続先を知る唯一の経路**。
+   * これが無いと呼び出し元は自分が渡した値しか知らず、0 を渡すことができない
+   * （＝テストが固定ポートを手で割り振り続けるしかない）。
+   */
+  get port(): number {
+    // Bun の型は unix ソケット起動も含むため `number | undefined`。
+    // このアダプタは常に TCP ポートで listen する（`Bun.serve({ port })`）ので
+    // undefined にはならない。届かないポート 0 を返せば接続側で即座に失敗して気づける。
+    return this.server.port ?? 0;
+  }
+
+  /**
    * Upgrade できるものは WebSocket にし、それ以外は httpHandler → 426 で応答する。
    *
    * **Origin と接続数の検査はここで行わない。** ハンドシェイクを拒否すると

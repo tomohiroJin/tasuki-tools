@@ -20,7 +20,7 @@ export class PresenceManager {
   private readonly store: RoomStore;
   private readonly broadcaster: Broadcaster;
   private readonly clock: Clock;
-  /** ドライバー不在発火時に呼ぶコールバック（任意。server.ts で handlers.advanceForAbsence に配線）。 */
+  /** ドライバー不在発火時に呼ぶコールバック（任意。create-sync-server.ts で handlers.advanceForAbsence に配線）。 */
   private readonly onDriverAbsence?: ((roomCode: string) => void) | undefined;
   /** ホスト不在タイマー: roomCode → timerHandle */
   private readonly hostAbsenceTimers = new Map<
@@ -163,6 +163,16 @@ export class PresenceManager {
   clearRoomTimers(roomCode: string): void {
     this.clearHostAbsenceTimer(roomCode);
     this.clearDriverAbsenceTimer(roomCode);
+  }
+
+  /** シャットダウン時に全ルームのプレゼンス関連タイマーを解放する（Scheduler.clearAll と対）。 */
+  clearAllTimers(): void {
+    for (const roomCode of [...this.hostAbsenceTimers.keys()]) {
+      this.clearHostAbsenceTimer(roomCode);
+    }
+    for (const roomCode of [...this.driverAbsenceTimers.keys()]) {
+      this.clearDriverAbsenceTimer(roomCode);
+    }
   }
 
   private clearHostAbsenceTimer(roomCode: string): void {
