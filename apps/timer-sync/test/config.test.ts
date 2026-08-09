@@ -71,13 +71,23 @@ describe("loadSyncConfig", () => {
 
   it("0 や負数は既定値にフォールバック（上限を無効化させない）", () => {
     // Given
-    const env = { MAX_CONNECTIONS: "0", MAX_ROOMS: "-1", PORT: "0" };
+    const env = { MAX_CONNECTIONS: "0", MAX_ROOMS: "-1", PORT: "-1" };
     // When
     const c = loadSyncConfig(env);
     // Then
     expect(c.maxConnections).toBe(200);
     expect(c.maxRooms).toBe(50);
     expect(c.port).toBe(8787);
+  });
+
+  it("PORT=0 は「OS に空きポートを選ばせる」有効値として通す", () => {
+    // Given: 上限系（MAX_*）と違い、PORT の 0 は無効化ではなく「任意の空きポート」を意味する。
+    // 実 WebSocket 越しのテストがこれを使う（test/support/live-sync-server.ts）。
+    const env = { PORT: "0" };
+    // When
+    const c = loadSyncConfig(env);
+    // Then: 既定 8787 に落とさない
+    expect(c.port).toBe(0);
   });
 
   it("ハートビート間隔・許容ミス回数の既定値（Issue #25）", () => {
