@@ -165,6 +165,16 @@ export class PresenceManager {
     this.clearDriverAbsenceTimer(roomCode);
   }
 
+  /** シャットダウン時に全ルームのプレゼンス関連タイマーを解放する（Scheduler.clearAll と対）。 */
+  clearAllTimers(): void {
+    for (const roomCode of [...this.hostAbsenceTimers.keys()]) {
+      this.clearHostAbsenceTimer(roomCode);
+    }
+    for (const roomCode of [...this.driverAbsenceTimers.keys()]) {
+      this.clearDriverAbsenceTimer(roomCode);
+    }
+  }
+
   private clearHostAbsenceTimer(roomCode: string): void {
     const timer = this.hostAbsenceTimers.get(roomCode);
     if (timer !== undefined) {
