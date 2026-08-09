@@ -63,11 +63,9 @@
 | ホスト | ルームを開始した参加者。ルームの管理権限を持つ |
 | ドライバー（timer） | timer において、現在タイマーを操作している運転者 |
 | 交代 | ドライバーが別の参加者へ切り替わること |
-| ラウンド（poker） | poker において、1 つのお題に対する 1 回の投票 |
+| ラウンド（poker） | poker において、1 テーマに対する 1 回の投票 |
 | 公開（reveal） | poker において、伏せていた各参加者の見積り値を開示すること |
-| お題 | **timer と poker で同名別概念。** timer では「TDD の練習課題」を指し、
-  poker では「見積りの対象（ストーリー・タスク）」を指す。文書・会話で
-  「お題」を使うときは、どちらの意味かを文脈で明示すること |
+| お題 | **timer では実装済みのドメイン概念、poker では未実装の提案段階の語。** timer では「TDD の練習課題」を指し、`packages/timer-core/src/problem.ts` の `Problem` 型として実装されている。poker では「見積り対象」を指す語として [#93](https://github.com/tomohiroJin/tasuki-tools/issues/93)（お題の入力と結果の書き出し）で提案中だが、現行の poker 実装（`packages/poker-core` `apps/poker-sync` `apps/poker-web` `packages/protocol`。`grep -rn "お題"` で 0 件を確認済み）にこの概念は存在しない。poker の初回リリース範囲外であることは `docs/poker/specs/001-planning-poker-mvp/spec.md` の Assumptions（「お題（ストーリー）リストの管理…は初回リリースに含めない」）にも明記されている。#93 が実装されるまでは、**timer の「お題」だけが実装済みのドメイン概念**であり、「お題」を使うときは同名別概念になりうることを文脈で明示すること |
 
 ## 関連
 
