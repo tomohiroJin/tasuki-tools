@@ -28,3 +28,8 @@ Michael Nygard 形式（背景 / 決定 / 影響 / ステータス）に従い�
 |---|---|---|
 | [0001](./0001-design-system-scope.md) | デザインシステムの適用範囲と層構造 | Accepted |
 | [0002](./0002-document-system-three-layers.md) | 文書体系の三層構造 | Accepted |
+| [0003](./0003-agile-operations.md) | アジャイル運用の形式化 | Accepted |
+| [0004](./0004-sync-server-ports-and-adapters.md) | 同期サーバーはポート/アダプタ構成を標準とする | Accepted |
+| [0005](./0005-result-and-boundary-validation.md) | 境界の型安全と関数型中心（Result 型のエラー処理と Valibot 境界検証） | Accepted |
+| [0006](./0006-test-conventions.md) | テスト規約（検査は壊して確かめる） | Accepted |
+| [0007](./0007-abstraction-criteria.md) | 抽象の導入基準 | Accepted |

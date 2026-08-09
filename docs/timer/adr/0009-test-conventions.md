@@ -5,6 +5,8 @@
   `../../../docs/plans/codebase-refactoring/spec.md`（FR-091〜099, FR-121〜123, SC-029〜032）,
   `../../../docs/plans/codebase-refactoring/tasks.md`（G3 節）
 
+> **昇格**: 全体標準としては [docs/adr/0006](../../adr/0006-test-conventions.md) が後継。timer 固有の詳細は本文のまま有効。
+
 ## 背景
 
 Issue #28 の構造是正レビューにより、テストの `it`/`test` 名の 89% が仕様の識別番号（`T031` 等）や
