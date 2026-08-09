@@ -3,26 +3,11 @@ export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {
-      // セマンティックカラー（CSS 変数経由でテーマ切替）
+      // セマンティックカラー。**在室状況の 3 色だけ**を残している。
+      // 旧 chrome（bg/surface/fg/line/ring）と intent（primary/success/warning/
+      // danger/accent）は参照が絶えていたため #78 で撤去した。計器のパレット
+      // （--panel / --bone / --signal 等）は任意値記法 `[var(--*)]` で直接参照する。
       colors: {
-        bg: "var(--color-bg)",
-        surface: "var(--color-surface)",
-        "surface-2": "var(--color-surface-2)",
-        line: "var(--color-line)",
-        fg: "var(--color-fg)",
-        "fg-muted": "var(--color-fg-muted)",
-        "fg-subtle": "var(--color-fg-subtle)",
-        ring: "var(--color-ring)",
-        primary: "var(--color-primary)",
-        "on-primary": "var(--color-on-primary)",
-        success: "var(--color-success)",
-        "on-success": "var(--color-on-success)",
-        warning: "var(--color-warning)",
-        "on-warning": "var(--color-on-warning)",
-        danger: "var(--color-danger)",
-        "on-danger": "var(--color-on-danger)",
-        accent: "var(--color-accent)",
-        "on-accent": "var(--color-on-accent)",
         "presence-online": "var(--color-presence-online)",
         "presence-idle": "var(--color-presence-idle)",
         "presence-offline": "var(--color-presence-offline)",
@@ -31,9 +16,6 @@ export default {
         sans: ["var(--font-sans)"],
         mono: ["var(--font-mono)"],
       },
-      fontSize: {
-        timer: "var(--font-size-timer)",
-      },
       borderRadius: {
         DEFAULT: "var(--radius-md)",
         sm: "var(--radius-sm)",
@@ -41,14 +23,13 @@ export default {
         lg: "var(--radius-lg)",
       },
       boxShadow: {
-        card: "0 1px 3px var(--color-shadow), 0 1px 2px var(--color-shadow)",
-        lg: "0 10px 15px var(--color-shadow)",
+        // ダーク固定の盤面に載るため、影は黒基調で固定する。
+        // 以前は --color-shadow 経由で OS の配色設定に追従しており、
+        // ライト配色の環境ではほぼ黒のパネル上に淡い影が乗って見えなかった（#78）。
+        lg: "0 10px 15px rgba(0, 0, 0, 0.45)",
       },
       ringColor: {
-        DEFAULT: "var(--color-ring)",
-      },
-      ringOffsetColor: {
-        bg: "var(--color-bg)",
+        DEFAULT: "var(--signal)",
       },
     },
   },
