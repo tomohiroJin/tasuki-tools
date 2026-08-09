@@ -1,23 +1,71 @@
 <!--
 Sync Impact Report
 ==================
-- Version change: (template) → 1.0.0
-- Modified principles: 全プレースホルダーを初回制定として具体化
-  - [PRINCIPLE_1] → I. テスト駆動開発（NON-NEGOTIABLE）
-  - [PRINCIPLE_2] → II. 技術スタックの固定
-  - [PRINCIPLE_3] → III. 3パッケージ構成と揮発インメモリ
-  - [PRINCIPLE_4] → IV. 型安全なエラー処理とスキーマ検証
-  - [PRINCIPLE_5] → V. 実画面検証による完了定義
-- Added sections: 「追加制約」「開発ワークフロー」
-- Removed sections: なし
+- Version change: 1.0.0 → 2.0.0（MAJOR: 適用範囲を poker MVP から Tasuki 全体へ拡張し、
+  原則の削除・再定義を伴うため）
+- Rationale: #68（規範とアーキテクチャの確立）。本憲法は poker MVP 単体の企画時に
+  書かれたものであり、Tasuki が timer・poker を含む複数ツール・複数エージェント運用の
+  実践場へ育った現状と乖離していた（ADR 0002 背景）。全面書き直しにより、
+  プロジェクト全体を貫く原則へ再定義する。
+- Modified principles:
+  - I. テスト駆動開発（NON-NEGOTIABLE） → I. テスト駆動開発（NON-NEGOTIABLE）を継承
+    （`packages/core` 限定の記述を撤廃し、全パッケージへ一般化）
+  - II. 技術スタックの固定 → II. 技術選定は ADR を通す（固定から、ADR による変更容認へ緩和）
+  - III. 3パッケージ構成と揮発インメモリ → III. 揮発インメモリと単純運用
+    （3パッケージ構成の強制を撤廃し、揮発インメモリの意味を保存）
+  - IV. 型安全なエラー処理とスキーマ検証 → IV. 境界の型安全（文言を整理し意味を保存）
+  - V. 実画面検証による完了定義 → V. 実画面検証（`apps/web` 限定の記述を撤廃し一般化）
+- Added principles:
+  - VI. 依存は内向き（ドメインの純粋性とポート/アダプタ構成）
+  - VII. 検査は壊して確かめる（検査自体の健全性検証・変異検査）
+  - VIII. 記録が正本（ADR/Issue/振り返りの役割分担と SOT）
+  - IX. 小さく回す（1 PR = 1 論理変更・デプロイ回数の抑制）
+  - X. 抽象は実需で（早すぎる抽象化の抑止）
+- Removed sections（旧「追加制約」節ごと解消）:
+  - 「既存の timer（`packages/timer-core` / `apps/timer-*`）には手を入れない（MUST NOT）」
+    — ADR 0002 の背景で述べたとおり、#78 で timer 側のデザインを作り直した現状と
+    すでに矛盾していたため撤廃。デプロイの単純運用は新 III へ引き継ぐ。
+  - 「3パッケージ構成を維持する（MUST）」（旧 III） — Tasuki が timer・poker 等の
+    複数ツールを持つ現状ではパッケージ構成の固定は成立しないため撤廃。
+    揮発インメモリの原則そのものは新 III へ意味を保存する。
+  - 「技術スタックは以下に固定する（MUST NOT）」（旧 II） — plan 工程での代替技術の
+    再検討を一律禁止する運用は硬直的すぎたため、ADR による記録を条件に変更を
+    容認する新 II へ緩和。
+  - 「公開方式」「同居ポリシー」「MVP スコープ外」等、poker MVP 固有の運用細則
+    （旧「追加制約」節） — 全体憲法にはそぐわないため撤廃。個別ツールの運用細則は
+    各アプリの ADR・ガイドへ委ねる。
 - Templates requiring updates:
-  - ✅ .specify/templates/plan-template.md — Constitution Check は動的参照のため変更不要
-  - ✅ .specify/templates/spec-template.md — 憲法への直接参照なし、変更不要
-  - ✅ .specify/templates/tasks-template.md — 憲法への直接参照なし、変更不要
-- Follow-up TODOs: なし
+  - ✅ .specify/templates/plan-template.md — Constitution Check は
+    `[Gates determined based on constitution file]` の動的参照のみで、
+    旧憲法の条項名・原則名への静的参照は無し。変更不要（確認済み）。
+  - ✅ .specify/templates/spec-template.md — 憲法への直接参照なし、変更不要。
+  - ✅ .specify/templates/tasks-template.md — 憲法への直接参照なし、変更不要。
+  - ⚠ AGENTS.md — 憲法の見出しを転記した薄い複製を持つ（ADR 0002 決定 5）。
+    本改版に合わせた見出し同期が必要（#68 Task 4 で対応）。
+- Preserved references（コード内「憲法原則 N」参照 7 箇所。意味を変更しないことを確認）:
+  - III（揮発インメモリ）: `apps/poker-sync/src/rooms.ts:1`
+  - IV（境界の型安全）: `apps/poker-sync/src/server.ts:2` /
+    `apps/poker-web/src/hooks/useSync.ts:106` /
+    `apps/poker-sync/tests/protocol-errors.test.ts:15` /
+    `packages/poker-core/src/protocol.ts:2` / `packages/poker-core/src/round.ts:2` /
+    `packages/poker-core/src/room.ts:2`
+- Follow-up TODOs: AGENTS.md の見出し同期（#68 Task 4）。
 -->
 
-# Tasuki Planning Poker Constitution
+# Tasuki Constitution
+
+## 前文
+
+Tasuki は二本柱で成り立つプロジェクトである。
+
+1. **実用ツール集** — timer・poker をはじめ、チームの実務で実際に使われる
+   ツール群を提供する。
+2. **AI 駆動開発の実践場** — MCP・spec-kit・複数 AI エージェントを用いた
+   開発プロセス自体を試し、育てる場である。
+
+本憲法は、この二本柱の両方に共通して適用される原則を定める。個別ツール固有の
+設計判断は ADR（`docs/adr/` および `docs/<app>/adr/`）に、日々の実装手順は
+ガイド（`docs/guides/`）に記す（三層構造。ADR 0002）。
 
 ## Core Principles
 
@@ -25,98 +73,102 @@ Sync Impact Report
 
 TDD は必須である。Red-Green-Refactor サイクルを厳守すること:
 テストを書く → テストが失敗することを確認する → 実装する → テストが通る →
-リファクタリングする。テストより先に実装コードを書いてはならない（MUST NOT）。
+リファクタリングする。
 
-- `packages/core` は Vitest による単体テストで TDD を実施する（MUST）
-- `apps/sync` は WebSocket プロトコルの結合テストを備える（MUST）
+- すべてのパッケージ・アプリはこのサイクルに従って実装する（MUST）
+- テストより先に実装コードを書いてはならない（MUST NOT）
 - テストが失敗する状態でタスクを完了扱いにしてはならない（MUST NOT）
 
-**根拠**: ドメインロジック（ルーム集約・投票ラウンド状態機械）の正しさが本ツールの
-中核価値であり、リアルタイム同期のバグは手動検証では再現困難なため。
+### II. 技術選定は ADR を通す
 
-### II. 技術スタックの固定
+現行スタック（TypeScript / React / Bun / pnpm / turbo / Vite / Valibot /
+neverthrow）を基本とする。
 
-技術スタックは以下に固定する。plan 工程での代替技術の再検討・追加ライブラリの
-安易な導入を禁止する（MUST NOT）:
+- 上記スタックの範囲内での実装は自由に行ってよい（MUST）
+- 新しい技術・ライブラリの追加、既存スタックからの変更は、ADR に記録した
+  上で行う（MUST）
+- ADR による記録なしに技術選定を変更してはならない（MUST NOT）
 
-- 言語: TypeScript
-- フロントエンド: React + Vite
-- 同期サーバー: Bun + WebSocket
-- スキーマ検証: Valibot
-- エラー処理: neverthrow
-- テスト: Vitest
-- パッケージ管理・ビルド: pnpm + turbo
+### III. 揮発インメモリと単純運用
 
-上記以外の依存を追加する場合は、Complexity Tracking での正当化を必須とする（MUST）。
+本番環境は永続化を持たない。再起動やデプロイでルーム等の状態が消える前提で
+設計する。
 
-**根拠**: spec-kit ワークフロー実践が本プロジェクトの目的の一つであり、
-plan 工程での技術選定の発散（暴走）を防ぐ必要があるため。
+- 状態はすべて揮発インメモリで保持する（MUST）
+- データベース・永続ストレージを導入してはならない（MUST NOT）
+- デプロイは一連の変更をまとめて 1 回で行い、単純な運用を保つ（MUST）
 
-### III. 3パッケージ構成と揮発インメモリ
+### IV. 境界の型安全
 
-リポジトリは独立 pnpm モノレポとし、以下の3パッケージ構成を維持する（MUST）:
+外部入力は境界で検証し、ドメイン操作は型で失敗を表現する。
 
-- `packages/core` — ドメイン: Room 集約・投票ラウンド状態機械・デッキ定義
-- `apps/web` — React + Vite フロントエンド（Vite base: `/poker/`）
-- `apps/sync` — Bun + WebSocket 同期サーバー（別ポート・揮発インメモリ）
+- 外部からの入力（WebSocket メッセージ等）は Valibot によるスキーマ検証を
+  境界で必ず行う（MUST）
+- ドメイン操作の失敗は neverthrow の `Result` 型で表現する（MUST）
+- ドメイン層で例外を制御フローとして使用してはならない（MUST NOT）
+- 契約による設計（DbC）は「事前条件 = 境界検証・不変条件 = 型」で表す
 
-状態はすべて揮発インメモリで保持する。データベース・永続ストレージを
-導入してはならない（MUST NOT）。4つ目のパッケージ追加は Complexity Tracking
-での正当化を必須とする（MUST）。
+### V. 実画面検証
 
-**根拠**: MVP スコープ（結果の永続記録はスコープ外）に対して DB は過剰であり、
-実績のある tdd-mob-pro-timer の構成をミラーすることで運用リスクを抑えるため。
+テストが緑であること・型検査が通ることだけをもって「完了」と言わない。
 
-### IV. 型安全なエラー処理とスキーマ検証
+- 利用者が実際に通る経路（実画面・実プロトコル）で動作を確かめる（MUST）
+- ユニットテストはレイアウト崩れ・アセットパス・実配信環境の問題を検出
+  できないことを前提に、それらは実経路の確認で補う（MUST）
 
-- WebSocket メッセージは境界で Valibot によるスキーマ検証を必須とする（MUST）
-- ドメイン操作の失敗は neverthrow の `Result` 型で表現する（MUST）。
-  ドメイン層で例外を制御フローとして使用してはならない（MUST NOT）
-- 検証に失敗した入力は握りつぶさず、明示的なエラーとして処理する（MUST）
+### VI. 依存は内向き
 
-**根拠**: リアルタイム同期では不正・欠損メッセージが常態であり、境界での検証と
-型で追跡可能なエラーが無言の状態破壊を防ぐ唯一の手段であるため。
+ドメインは外界に依存しない。
 
-### V. 実画面検証による完了定義
+- ドメイン（`packages/*-core`）は純粋関数・純粋なデータ構造のみで構成する
+  （MUST）
+- I/O・時計・乱数などの副作用はアダプタとして境界に置き、ドメインへは注入
+  する（MUST）
+- 同期サーバーはポート/アダプタ構成を標準とする
 
-フロントエンド（`apps/web`）のタスクは、テスト通過だけでは「完了」としない。
-実際にブラウザで画面を表示し、目視で動作確認することを完了条件に含める（MUST）。
+### VII. 検査は壊して確かめる
 
-- 画面遷移・表示崩れ・インタラクションは実画面で確認する（MUST）
-- サブパス `/poker/` 配信を前提とした動作確認を行う（MUST）
+検査そのものの健全性を検査する。
 
-**根拠**: tdd-mob-pro-timer v2 で「テストは通るが画面が壊れている」事故が
-発生した教訓による。ユニットテストはレイアウト・アセットパス・実配信環境の
-問題を検出できない。
+- 新しい検査を追加したら、対象を意図的に壊して赤になることを確認する
+  （MUST）
+- 既存の実装を書き換えたときは、既存テストが恒真化（何を壊しても通る状態）
+  していないかを変異検査で確かめる（MUST）
 
-## 追加制約
+### VIII. 記録が正本
 
-- **公開方式**: `https://tasuki.niku9.click/poker` のサブパス方式で配信する。
-  Vite の `base` は `/poker/` に設定する（MUST）
-- **同居ポリシー**: `apps/sync` は既存サービスとは別ポートの別 systemd
-  サービスとして稼働させる。既存の timer（`packages/timer-core` / `apps/timer-*`）には手を入れない（MUST NOT）
-- **デプロイ時期**: デプロイは implement 完了後の最終フェーズとし、
-  それまではローカル開発で完結させる
-- **切断・再接続**: ホスト切断時の権限繰上は既存ツール（tdd-mob-pro-timer）の
-  パターンを流用する（SHOULD）
-- **MVP スコープ外**: お題リスト管理・結果の永続記録・観戦者ロール・デッキ切替・
-  AI 連携は初回リリースに含めない（MUST NOT）
+決定・要求・教訓はそれぞれの正本に記録する。
 
-## 開発ワークフロー
+- 設計判断は ADR に、要求は Issue（EARS 記法）に、教訓は振り返りに記録する
+  （MUST）
+- 同じ内容の正本は 1 つに保つ（SOT: Single Source of Truth）。二重正本を
+  作らない（MUST NOT）
+- 契約（プロトコル・スキーマ等）には単一の情報源を宣言する（MUST）
 
-- spec-kit のフルワークフローを順守する:
-  `constitution → specify → plan → tasks → implement`（MUST）
-- 仕様・計画・タスクの成果物は `specs/` 配下に保存する（MUST）
-- plan 工程の Constitution Check で本憲法の各原則への適合を検証し、
-  違反がある場合は Complexity Tracking に正当化を記録する（MUST）
-- コミットメッセージ・ブランチ命名は claym リポジトリの
-  git-workflow 規約（Conventional Commits）に従う（MUST）
+### IX. 小さく回す
+
+変更は小さく、確実に積む。
+
+- 1 PR は 1 つの論理的変更に留める（MUST）
+- Definition of Done（DoD）を満たしてからマージする（MUST）
+- デプロイは一連の作業がすべて完了した後に、まとめて 1 回で行う（MUST）
+
+### X. 抽象は実需で
+
+早すぎる抽象化を避ける。
+
+- 利用者（呼び出し箇所）が 1 つしか無いものを抽出しない（MUST NOT）
+- 20 行未満の重複は抽出しない
+- 抽象化・パターンの導入は、変更容易性の実需（現に変更が困難になっている
+  事実）があるときにのみ採用する
 
 ## Governance
 
 - 本憲法は本プロジェクトにおける他のすべてのプラクティス・ガイドラインに優先する
-- **改正手続き**: 改正は本ファイルの更新として提案し、Sync Impact Report に
-  変更内容を記録した上で、依存テンプレート（plan/spec/tasks）との整合を確認する
+- **改版手続き**: 改版は ADR を伴う（原則の変更・削除・追加の理由と背景を ADR に
+  記録する）。改版時は Sync Impact Report に変更内容を記録した上で、依存テンプレート
+  （plan/spec/tasks）との整合、および **AGENTS.md の憲法見出しの同期**を確認する
+  （MUST）（ADR 0002 決定 5）
 - **バージョニング**: セマンティックバージョニングに従う —
   MAJOR: 原則の削除・後方互換性のない再定義 /
   MINOR: 原則・セクションの追加または実質的な拡張 /
@@ -125,4 +177,4 @@ plan 工程での技術選定の発散（暴走）を防ぐ必要があるため
   通過しなければならない。原則からの逸脱は Complexity Tracking での
   正当化なしに認めない
 
-**Version**: 1.0.0 | **Ratified**: 2026-07-16 | **Last Amended**: 2026-07-16
+**Version**: 2.0.0 | **Ratified**: 2026-07-16 | **Last Amended**: 2026-08-10
