@@ -50,7 +50,7 @@ import { handleParticipantRemove } from "./command-handlers/participant-remove.j
  * 在室を前提としないコマンド（FR-151）。
  *
  * `room.create`/`room.join`/`time.ping` は `handleCommand` の switch で早期分岐する。
- * `presence.ping` は `apps/sync/src/server.ts` が `handleCommand` を呼ぶ**手前**で
+ * `presence.ping` は配線（`create-sync-server.ts`）が `handleCommand` を呼ぶ**手前**で
  * 横取り済みであり（`presenceManager.handlePing(connId)`）、ここでは型としてだけ存在する
  * （挙動は変えない。`handlers.ts` 内に処理は書かない）。
  */
@@ -85,7 +85,7 @@ export interface HandlerDeps {
   /** サーバー全体のルーム数上限（省略時は 50）。DoS 緩和用。 */
   maxRooms?: number | undefined;
   /** AI 解錠合言葉。undefined なら AI 機能は無効（解錠は常に失敗＝存在秘匿）。
-   *  server.ts はトークン未設定時にもここを undefined にする。 */
+   *  createSyncServer はトークン未設定時にもここを undefined にする。 */
   aiUnlockKey?: string | undefined;
 }
 
@@ -98,7 +98,7 @@ export interface HandlerDeps {
 /**
  * **コマンド処理の結果。**
  *
- * ⚠ **本番（`apps/sync/src/server.ts`）はこの戻り値を使っていない**
+ * ⚠ **本番（`create-sync-server.ts` の配線）はこの戻り値を使っていない**
  * （`await handlers.handleCommand(connId, cmd);` と破棄している）。
  * 本番の観測点は `Broadcaster` への送信（snapshot / error / signal）であり、
  * 戻り値ではない。したがってここに「返していない値」を載せてはならない（FR-100）。

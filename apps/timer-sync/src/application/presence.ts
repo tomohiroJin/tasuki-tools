@@ -20,7 +20,7 @@ export class PresenceManager {
   private readonly store: RoomStore;
   private readonly broadcaster: Broadcaster;
   private readonly clock: Clock;
-  /** ドライバー不在発火時に呼ぶコールバック（任意。server.ts で handlers.advanceForAbsence に配線）。 */
+  /** ドライバー不在発火時に呼ぶコールバック（任意。create-sync-server.ts で handlers.advanceForAbsence に配線）。 */
   private readonly onDriverAbsence?: ((roomCode: string) => void) | undefined;
   /** ホスト不在タイマー: roomCode → timerHandle */
   private readonly hostAbsenceTimers = new Map<
