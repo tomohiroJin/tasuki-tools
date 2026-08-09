@@ -33,6 +33,7 @@ import { createTokenStore } from "./token-store.js";
 import { createJoinRateLimiter } from "./join-rate-limiter.js";
 import { applyEvents } from "./apply-room-level-event.js";
 import { buildDomainCommand } from "./build-domain-command.js";
+import { createRoomDestroyer } from "./destroy-room.js";
 import { createRoomCreateHandler, type CreateResult } from "./command-handlers/room-create.js";
 import { createRoomJoinHandler, type JoinResult } from "./command-handlers/room-join.js";
 export type { CreateResult } from "./command-handlers/room-create.js";
@@ -87,6 +88,15 @@ export interface HandlerDeps {
   /** AI 解錠合言葉。undefined なら AI 機能は無効（解錠は常に失敗＝存在秘匿）。
    *  createSyncServer はトークン未設定時にもここを undefined にする。 */
   aiUnlockKey?: string | undefined;
+  /**
+   * ルームごと破棄する経路（Issue #79）。在室者が 0 人になる退出で使う。
+   *
+   * 本番（`server.ts`）は `PresenceManager` の不在タイマー解放まで含む完全な破棄経路を
+   * 注入し、**アイドル回収（TTL）と同じ関数インスタンス**を共有する。省略時は
+   * 同じファクトリ（`destroy-room.ts`）を presence 抜きで組み立てた既定値を使う
+   * （`makeHandlers` は `PresenceManager` を知らないため。後始末の実装は 1 つのまま）。
+   */
+  destroyRoom?: ((roomCode: string) => void) | undefined;
 }
 
 // `CreateResult`/`JoinResult`（`room.create`/`room.join` が呼び出し元へ返す値）の
@@ -129,6 +139,12 @@ export function makeHandlers(deps: HandlerDeps) {
   // makeHandlers 内で1度しか呼ばない（コマンドごとに別インスタンスを作らない）ことで、
   // 共有が構造的に保証される（join-rate-limiter.ts のdocstring参照）。
   const joinRateLimiter = createJoinRateLimiter({ windowMs: 10_000, max: JOIN_FAIL_MAX });
+
+  // ルーム破棄の経路（Issue #79）。既定値も本番の注入も同じ `createRoomDestroyer` を
+  // 通すため、後始末の内容と順序は 1 箇所（destroy-room.ts）にしか存在しない。
+  // `releaseRoom` は下で関数宣言しており巻き上げ済みなので、ここから参照できる。
+  const destroyRoom =
+    deps.destroyRoom ?? createRoomDestroyer({ store, scheduler, delegator, releaseRoom });
 
   /**
    * 失敗を 1 接続へ通知する（FR-101）。
@@ -310,6 +326,7 @@ export function makeHandlers(deps: HandlerDeps) {
           transferHostBeforeRemoval,
           messageForRemoval,
           sendError,
+          destroyRoom,
         },
       );
     }

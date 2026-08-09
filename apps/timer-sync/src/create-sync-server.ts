@@ -100,6 +100,15 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     aiLimiter,
     aiTimeoutMs: config.aiGenerationTimeoutMs,
   });
+  /**
+   * ルーム破棄の共通経路（`destroy-room.ts`。Issue #79）。
+   *
+   * 後始末は `presenceManager` と `handlers.releaseRoom` に依存する一方、
+   * `handlers` 自身が在室者 0 人の退出でこれを必要とするため相互依存になる。
+   * `wsAdapter` と同じく「後から代入するクロージャ」で解く（TDZ 回避）。
+   */
+  let destroyRoom: (roomCode: string) => void;
+
   const handlers = makeHandlers({
     store,
     clock,
@@ -110,6 +119,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     maxRooms: config.maxRooms,
     // トークン未設定なら合言葉も渡さない＝解錠は常に失敗（存在秘匿）
     aiUnlockKey: aiReady ? config.aiUnlockKey : undefined,
+    destroyRoom: (roomCode) => destroyRoom(roomCode),
   });
   const presenceManager = new PresenceManager({
     store,
@@ -119,13 +129,10 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     onDriverAbsence: handlers.advanceForAbsence,
   });
 
-  /**
-   * ルーム破棄の共通経路（`destroy-room.ts`）。
-   *
-   * 後始末を契機ごとに並べ直すと片方だけが更新されて必ずずれるため、内容と順序は
-   * 1 箇所にしか持たない。現在の契機はアイドル回収（TTL）だけである。
-   */
-  const destroyRoom = createRoomDestroyer({
+  // 後始末を契機ごとに並べ直すと片方だけが更新されて必ずずれるため、内容と順序は
+  // `destroy-room.ts` の 1 箇所にしか持たない。契機はアイドル回収（TTL）と
+  // 在室者 0 人の退出（Issue #79）の 2 つで、どちらもこの同じ関数を通る。
+  destroyRoom = createRoomDestroyer({
     store,
     scheduler,
     delegator,
