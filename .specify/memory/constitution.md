@@ -13,7 +13,9 @@ Sync Impact Report
   - II. 技術スタックの固定 → II. 技術選定は ADR を通す（固定から、ADR による変更容認へ緩和）
   - III. 3パッケージ構成と揮発インメモリ → III. 揮発インメモリと単純運用
     （3パッケージ構成の強制を撤廃し、揮発インメモリの意味を保存）
-  - IV. 型安全なエラー処理とスキーマ検証 → IV. 境界の型安全（文言を整理し意味を保存）
+  - IV. 型安全なエラー処理とスキーマ検証 → IV. 境界の型安全（境界検証 MUST・Result 型 MUST・
+    例外を投げない MUST NOT は意味を保存。ただし旧 IV の「検証に失敗した入力は握りつぶさず、
+    明示的なエラーとして処理する（MUST）」は独立した MUST として撤廃 — 詳細は Removed sections）
   - V. 実画面検証による完了定義 → V. 実画面検証（`apps/web` 限定の記述を撤廃し一般化）
 - Added principles:
   - VI. 依存は内向き（ドメインの純粋性とポート/アダプタ構成）
@@ -34,6 +36,23 @@ Sync Impact Report
   - 「公開方式」「同居ポリシー」「MVP スコープ外」等、poker MVP 固有の運用細則
     （旧「追加制約」節） — 全体憲法にはそぐわないため撤廃。個別ツールの運用細則は
     各アプリの ADR・ガイドへ委ねる。
+  - 旧 IV の「検証に失敗した入力は握りつぶさず、明示的なエラーとして処理する（MUST）」
+    — 新 IV では「境界で Valibot 検証を行う（MUST）」「失敗は `Result` 型で表現する
+    （MUST）」「ドメイン層で例外を制御フローに使わない（MUST NOT）」のみを残し、
+    「握りつぶさない」という独立した MUST は撤廃した。これにより、コード内参照のうち
+    IV の 3 番目（`apps/poker-sync/tests/protocol-errors.test.ts:15`。不正メッセージの
+    ハンドリングを検証するテストの説明）の根拠は、「不正入力を明示的なエラーとして扱う」
+    という強い主張から、「境界で検証を行う（MUST）」という一般的な根拠へ薄まる。
+    参照コメント自体・テストの実装は変更しないため参照は引き続き成立するが、
+    根拠の強さが変わった点を記録する。
+  - 旧「開発ワークフロー」節（3 つの MUST: spec-kit フルワークフロー
+    `constitution → specify → plan → tasks → implement` の順守／仕様・計画・タスクの
+    成果物を `specs/` 配下に保存／コミットメッセージ・ブランチ命名を Conventional
+    Commits に従わせる） — 節ごと撤廃。理由: ADR 0002 の三層構造では「今日どう書くか」の
+    手順はガイドの領分であり、憲法（めったに変えない原則の宣言）に手順を書くのは層の
+    混同にあたるため。移送先: 後続 PR で新設するガイド群（`docs/guides/`）。
+    Conventional Commits の規約は開発手順ガイドへ再収載予定。spec-kit ワークフロー
+    順守・成果物の `specs/` 配下保存も同様にガイドで扱う。
 - Templates requiring updates:
   - ✅ .specify/templates/plan-template.md — Constitution Check は
     `[Gates determined based on constitution file]` の動的参照のみで、
@@ -49,7 +68,11 @@ Sync Impact Report
     `apps/poker-sync/tests/protocol-errors.test.ts:15` /
     `packages/poker-core/src/protocol.ts:2` / `packages/poker-core/src/round.ts:2` /
     `packages/poker-core/src/room.ts:2`
-- Follow-up TODOs: AGENTS.md の見出し同期（#68 Task 4）。
+- Follow-up TODOs:
+  - AGENTS.md の見出し同期（#68 Task 4）。
+  - `packages/timer-core/src/problem.ts:70` の `Date.now()` は VI（依存は内向き）の
+    既知の逸脱（ドメイン内で時刻という副作用に直接依存している）。適用段階（#72）で
+    アダプタへ注入する形に直す。
 -->
 
 # Tasuki Constitution
@@ -91,12 +114,14 @@ neverthrow）を基本とする。
 
 ### III. 揮発インメモリと単純運用
 
-本番環境は永続化を持たない。再起動やデプロイでルーム等の状態が消える前提で
-設計する。
+同期サーバーが保持する共有状態は永続化を持たない。再起動やデプロイでルーム等の
+共有状態が消える前提で設計する。
 
-- 状態はすべて揮発インメモリで保持する（MUST）
-- データベース・永続ストレージを導入してはならない（MUST NOT）
+- 同期サーバーが保持する共有状態はすべて揮発インメモリで保持する（MUST）
+- サーバー側にデータベース・永続ストレージを導入してはならない（MUST NOT）
 - デプロイは一連の変更をまとめて 1 回で行い、単純な運用を保つ（MUST）
+- クライアント側のローカル保存（設定・完成記録などの履歴）はこの限りではない。
+  対象はあくまで同期サーバーが持つ共有状態である
 
 ### IV. 境界の型安全
 
