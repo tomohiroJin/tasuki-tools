@@ -2,8 +2,9 @@ import { describe, it, expect, afterEach } from "bun:test";
 import { WebSocket } from "ws";
 import { WsAdapter } from "../src/adapters/ws-adapter.js";
 
-const PORT = 18790; // テスト専用ポート
-
+// ポートは OS に選ばせる（`port: 0`）。実ポートは `adapter.port` から取る。
+// かつては固定値を手で割り当て、ファイル間で重複しないようコメントで帳簿を
+// 作っていたが、その帳簿は人が保守するかぎり必ず腐る（#80）。
 let adapter: WsAdapter | undefined;
 afterEach(async () => {
   await adapter?.close();
@@ -21,22 +22,28 @@ function waitOpen(ws: WebSocket): Promise<void> {
   });
 }
 
+/** アダプタを `port: 0` で起動し、接続先 URL とともに返す。 */
+function startAdapter(options: Partial<ConstructorParameters<typeof WsAdapter>[0]> = {}): string {
+  adapter = new WsAdapter({
+    port: 0,
+    host: "127.0.0.1",
+    allowedOrigins: [],
+    onMessage: async () => {},
+    onDisconnect: () => {},
+    ...options,
+  });
+  return `ws://127.0.0.1:${adapter.port}`;
+}
+
 describe("WsAdapter 接続数上限", () => {
   it("maxConnections を超える接続は 1013 で閉じる", async () => {
     // Given
-    adapter = new WsAdapter({
-      port: PORT,
-      host: "127.0.0.1",
-      allowedOrigins: [],
-      maxConnections: 1,
-      onMessage: async () => {},
-      onDisconnect: () => {},
-    });
-    const ws1 = new WebSocket(`ws://127.0.0.1:${PORT}`);
+    const url = startAdapter({ maxConnections: 1 });
+    const ws1 = new WebSocket(url);
     await waitOpen(ws1);
 
     // When
-    const ws2 = new WebSocket(`ws://127.0.0.1:${PORT}`);
+    const ws2 = new WebSocket(url);
     const code = await waitClose(ws2);
 
     // Then
@@ -46,19 +53,13 @@ describe("WsAdapter 接続数上限", () => {
 
   it("Origin 不許可は 1008 で閉じる", async () => {
     // Given
-    adapter = new WsAdapter({
-      port: PORT,
-      host: "127.0.0.1",
+    const url = startAdapter({
       allowedOrigins: ["https://allowed.example"],
       maxConnections: 100,
-      onMessage: async () => {},
-      onDisconnect: () => {},
     });
 
     // When
-    const ws = new WebSocket(`ws://127.0.0.1:${PORT}`, {
-      origin: "https://evil.example",
-    });
+    const ws = new WebSocket(url, { origin: "https://evil.example" });
     const code = await waitClose(ws);
 
     // Then
@@ -67,19 +68,25 @@ describe("WsAdapter 接続数上限", () => {
 
   it("allowedOrigins 空なら任意 Origin の接続を許可する（dev）", async () => {
     // Given
-    adapter = new WsAdapter({
-      port: PORT,
-      host: "127.0.0.1",
-      allowedOrigins: [],
-      maxConnections: 100,
-      onMessage: async () => {},
-      onDisconnect: () => {},
-    });
+    const url = startAdapter({ allowedOrigins: [], maxConnections: 100 });
 
     // When
-    const ws = new WebSocket(`ws://127.0.0.1:${PORT}`, { origin: "https://anything.example" });
+    const ws = new WebSocket(url, { origin: "https://anything.example" });
 
     // Then
+    await expect(waitOpen(ws)).resolves.toBeUndefined();
+    ws.close();
+  });
+});
+
+describe("WsAdapter.port", () => {
+  it("port: 0 で起動すると OS が選んだ実ポートを返し、そこへ接続できる", async () => {
+    // Given / When
+    const url = startAdapter();
+
+    // Then: 0 のままではなく実際に listen しているポートが返る
+    expect(adapter!.port).toBeGreaterThan(0);
+    const ws = new WebSocket(url);
     await expect(waitOpen(ws)).resolves.toBeUndefined();
     ws.close();
   });

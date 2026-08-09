@@ -8,21 +8,24 @@ afterEach(async () => {
   adapter = undefined;
 });
 
-// 既存統合テストとのポート衝突を避けるため専用ポートを使う
-const PORT = 8799;
+// ポートは OS に選ばせる（`port: 0`）。実ポートは `adapter.port` から取る。
 const base = {
+  port: 0,
   host: "127.0.0.1",
   allowedOrigins: [] as string[],
   onMessage: async () => {},
   onDisconnect: () => {},
 };
 
+function httpUrl(path: string): string {
+  return `http://127.0.0.1:${adapter!.port}${path}`;
+}
+
 describe("WsAdapter の httpHandler フック", () => {
   it("httpHandler が結果を返すパスはその応答を返す", async () => {
     // Given
     adapter = new WsAdapter({
       ...base,
-      port: PORT,
       httpHandler: (req) =>
         req.path === "/status"
           ? {
@@ -32,10 +35,9 @@ describe("WsAdapter の httpHandler フック", () => {
             }
           : null,
     });
-    await new Promise((r) => setTimeout(r, 150));
 
     // When
-    const res = await fetch(`http://127.0.0.1:${PORT}/status`);
+    const res = await fetch(httpUrl("/status"));
 
     // Then
     expect(res.status).toBe(200);
@@ -44,20 +46,18 @@ describe("WsAdapter の httpHandler フック", () => {
 
   it("httpHandler が null のパスは 426（既存挙動の維持）", async () => {
     // Given
-    adapter = new WsAdapter({ ...base, port: PORT, httpHandler: () => null });
-    await new Promise((r) => setTimeout(r, 150));
+    adapter = new WsAdapter({ ...base, httpHandler: () => null });
 
     // When / Then
-    expect((await fetch(`http://127.0.0.1:${PORT}/`)).status).toBe(426);
+    expect((await fetch(httpUrl("/"))).status).toBe(426);
   });
 
   it("httpHandler 未指定でも 426（後方互換）", async () => {
     // Given
-    adapter = new WsAdapter({ ...base, port: PORT });
-    await new Promise((r) => setTimeout(r, 150));
+    adapter = new WsAdapter({ ...base });
 
     // When / Then
-    expect((await fetch(`http://127.0.0.1:${PORT}/`)).status).toBe(426);
+    expect((await fetch(httpUrl("/"))).status).toBe(426);
   });
 });
 
@@ -69,8 +69,10 @@ describe("WsAdapter.close の graceful shutdown", () => {
   // 直接検証する」方針に合わせ、close() が実際に何をするかを 2 点で確かめる。
   it("close() は活線接続を切り、同じポートで即座に listen し直せる状態にする", async () => {
     // Given（WS クライアントを 1 本繋いだ状態を作る）
-    adapter = new WsAdapter({ ...base, port: PORT });
-    const client = new WebSocket(`ws://127.0.0.1:${PORT}/`);
+    adapter = new WsAdapter({ ...base });
+    // 「同じポートで listen し直せる」を見るテストなので、OS が選んだ実ポートを控えておく。
+    const port = adapter.port;
+    const client = new WebSocket(`ws://127.0.0.1:${port}/`);
     await new Promise<void>((resolve, reject) => {
       client.on("open", () => resolve());
       client.on("error", reject);
@@ -92,11 +94,11 @@ describe("WsAdapter.close の graceful shutdown", () => {
     // process.exit(1) する**ため、テストが「失敗」ではなくプロセス終了になるから。
     // 素の Bun.serve なら例外が上がり、テストの失敗として観測できる。
     const probe = Bun.serve({
-      port: PORT,
+      port,
       hostname: base.host,
       fetch: () => new Response("probe"),
     });
-    expect(probe.port).toBe(PORT);
+    expect(probe.port).toBe(port);
     probe.stop(true);
   });
 });
