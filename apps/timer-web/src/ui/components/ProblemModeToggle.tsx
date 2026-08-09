@@ -18,8 +18,8 @@ export function ProblemModeToggle({ enabled, onChange }: ProblemModeToggleProps)
   const segClass = (active: boolean) =>
     `flex-1 px-3 py-2 text-sm text-center transition-colors ${
       active
-        ? "bg-[var(--signal)] text-[#160603] font-semibold"
-        : "bg-[var(--panel-2)] text-[var(--bone-muted)] hover:bg-[#252934]"
+        ? "bg-[var(--signal)] text-[var(--on-signal)] font-semibold"
+        : "bg-[var(--panel-2)] text-[var(--bone-muted)] hover:bg-[var(--panel-hover)]"
     }`;
   return (
     <div>

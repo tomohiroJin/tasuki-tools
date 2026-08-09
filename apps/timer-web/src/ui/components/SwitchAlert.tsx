@@ -21,7 +21,7 @@ export function SwitchAlert({ driverName, reducedMotion, onDismiss }: SwitchAler
       aria-label="ドライバー交代通知"
       data-reduced-motion={reducedMotion ? "true" : "false"}
       onClick={onDismiss}
-      className={`fixed inset-0 z-50 flex flex-col items-center justify-center bg-[rgba(8,9,12,0.92)] backdrop-blur-sm cursor-pointer ${
+      className={`fixed inset-0 z-50 flex flex-col items-center justify-center bg-[var(--scrim)] backdrop-blur-sm cursor-pointer ${
         reducedMotion ? "" : "animate-pop-in"
       }`}
     >

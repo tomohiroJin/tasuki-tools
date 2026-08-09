@@ -96,8 +96,8 @@ export function SharedMemo({ note, canEdit, onCommit }: SharedMemoProps) {
   const segClass = (active: boolean) =>
     `px-3 py-1.5 transition-colors ${
       active
-        ? "bg-[var(--signal)] text-[#160603] font-semibold"
-        : "bg-[var(--panel-2)] text-[var(--bone-muted)] hover:bg-[#252934]"
+        ? "bg-[var(--signal)] text-[var(--on-signal)] font-semibold"
+        : "bg-[var(--panel-2)] text-[var(--bone-muted)] hover:bg-[var(--panel-hover)]"
     }`;
 
   return (

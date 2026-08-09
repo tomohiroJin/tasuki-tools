@@ -50,6 +50,35 @@
   --signal-glow: rgba(236, 200, 121, 0.35);
   --urgent: var(--rose-bright); /* 残りわずか。--ink 上で 6.58:1 */
   --ok: var(--jade); /* 正常/オンライン。--panel 上で 6.20:1 */
+
+  /* --- 派生（tint = 淡い敷き / veil = 中間の膜 / edge = 縁取り） ---------
+   * **α の数値をコンポーネントに書かせないための語彙。**
+   * 実体は `@tasuki/ui` の派生トークンで、ここでは計器の名前を張り直すだけ。
+   * こうしておくと、卓の色を変えたときに画面側を 1 行も触らずに追従できる。 */
+  --signal-hover: var(--gold-lift);
+  --signal-tint: var(--gold-tint);
+  --signal-veil: var(--gold-veil);
+  --signal-edge: var(--gold-edge);
+  --on-signal: var(--on-gold);
+
+  --ok-hover: var(--jade-lift);
+  --ok-tint: var(--jade-tint);
+  --ok-veil: var(--jade-veil);
+  --ok-edge: var(--jade-edge);
+  --on-ok: var(--on-jade);
+
+  --urgent-hover: var(--rose-lift);
+  --urgent-tint: var(--rose-tint);
+  --urgent-veil: var(--rose-veil);
+  --urgent-edge: var(--rose-edge);
+  --urgent-pale: var(--rose-pale);
+  --urgent-glow: var(--rose-glow);
+  --on-urgent: var(--on-rose);
+
+  --panel-hover: var(--felt-lift); /* --panel-2 のホバー面 */
+  --inset-highlight: var(--ivory-inset); /* 面の上端の僅かな立ち上がり */
+  --scrim: var(--felt-scrim); /* 全画面を覆う暗幕 */
+  --shade: var(--felt-shade); /* 背後を残す幕（ダイアログの下敷き） */
 }
 
 /* **P3 の上書きは置かない。** 旧パレットは朱を一段鮮やかにするために使っていたが、
@@ -76,6 +105,9 @@
 html {
   font-family: var(--font-sans);
   color-scheme: dark;
+  /* ネイティブのチェックボックス・スライダーの既定色（青）を計器の色へ寄せる。
+   * これをしないと、卓の上で操作部品だけが別世界の青で描かれる。 */
+  accent-color: var(--signal);
 }
 
 body {
@@ -148,13 +180,13 @@ body {
   z-index: -2;
   pointer-events: none;
   background-image:
-    linear-gradient(rgba(92, 100, 115, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(92, 100, 115, 0.06) 1px, transparent 1px),
+    linear-gradient(var(--inset-highlight) 1px, transparent 1px),
+    linear-gradient(90deg, var(--inset-highlight) 1px, transparent 1px),
     radial-gradient(
       circle at 50% 38%,
-      rgba(20, 22, 28, 0) 0%,
-      rgba(8, 9, 12, 0.55) 70%,
-      rgba(6, 7, 9, 0.9) 100%
+      rgba(7, 31, 24, 0) 0%,
+      rgba(7, 31, 24, 0.55) 70%,
+      rgba(4, 20, 15, 0.9) 100%
     );
   background-size: 40px 40px, 40px 40px, 100% 100%;
 }

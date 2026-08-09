@@ -146,8 +146,8 @@ export function ProblemConfigPanel({ config, canEdit, onChange, problemEnabled }
                 onClick={() => togglePoolLang(l)}
                 className={`min-h-[36px] px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
                   on
-                    ? "bg-[var(--signal)] text-[#160603] border-[var(--signal)]"
-                    : "bg-[var(--panel-2)] text-[var(--bone-muted)] border-[var(--hairline)] hover:bg-[#252934]"
+                    ? "bg-[var(--signal)] text-[var(--on-signal)] border-[var(--signal)]"
+                    : "bg-[var(--panel-2)] text-[var(--bone-muted)] border-[var(--hairline)] hover:bg-[var(--panel-hover)]"
                 }`}
               >
                 {l}

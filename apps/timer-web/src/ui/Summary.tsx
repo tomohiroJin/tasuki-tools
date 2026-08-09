@@ -50,7 +50,7 @@ export function Summary({ endType, record, onNewSession, onSaveRecord }: Summary
       {isComplete && (
         <div
           aria-label="達成"
-          className="w-full rounded-md border border-[rgba(255,74,46,0.4)] bg-[rgba(255,74,46,0.1)] p-5 text-[var(--signal)]"
+          className="w-full rounded-md border border-[var(--signal-edge)] bg-[var(--signal-tint)] p-5 text-[var(--signal)]"
         >
           <p className="text-2xl font-bold flex items-center justify-center gap-2">
             <Trophy className="w-7 h-7" aria-hidden="true" /> ナイスワーク！

@@ -94,7 +94,7 @@ export function SelfDriverToggle({
   // rotation 外の場合は目立つ見学者バナーを表示（加入を促す）
   if (!inRotation) {
     return (
-      <div className="mb-3 rounded-md border border-[var(--signal)] bg-[rgba(255,74,46,0.10)] px-3 py-3">
+      <div className="mb-3 rounded-md border border-[var(--signal)] bg-[var(--signal-tint)] px-3 py-3">
         {/* ここはローテーション外（役割は編集者のまま）を表す。役割が見学者である状態
             （SpectatorSelfActions）と同じ文言を使うと、進行の操作ができるのかどうかが
             読み分けられない。「ドライバーをやらない」と「進行の操作をしない」は別の状態である。 */}

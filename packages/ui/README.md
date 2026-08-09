@@ -84,6 +84,27 @@ CSS の `@import` は他の規則より前でないと無効になる。
 | `--radius-sm/md/lg/full` / `--card-radius` | 角丸 |
 | `--shadow-card` / `--shadow-popover` | 影 |
 
+### アクセントの派生
+
+**α の数値をコンポーネントに直書きさせないための語彙。** 同じ「薄い敷き」を
+`0.10` / `0.12` / `0.14` / `0.15` と書き分けても意味は無く、パレットを入れ替えたときに
+一斉に追従できなくなるだけだった（#78 で実際に 62 箇所が旧パレットのまま取り残された）。
+
+| 接尾辞 | 役割 | 例 |
+|---|---|---|
+| `-tint` | 下地の淡い敷き | `--gold-tint` / `--jade-tint` / `--rose-tint` |
+| `-veil` | 中間の膜 | `--gold-veil` / `--jade-veil` / `--rose-veil` |
+| `-edge` | 縁取り・リング | `--gold-edge` / `--jade-edge` / `--rose-edge` |
+| `-lift` | ホバーで一段持ち上げる実色 | `--gold-lift` / `--jade-lift` / `--rose-lift` |
+| `on-` | その実色の上に載せる文字 | `--on-gold` / `--on-jade` / `--on-rose` |
+| `-pale` | tint の上に載せる、色味を保った明るい文字 | `--rose-pale` |
+| `-glow` | 発光（`drop-shadow` 用） | `--rose-glow` |
+
+面の派生は `--felt-lift`（ホバー面）/ `--felt-scrim`（全画面の暗幕）/
+`--felt-shade`（背後を残す幕）/ `--ivory-inset`（最も淡い象牙）。
+
+**新しい α を足す前に、既存の 3 段（tint / veil / edge）で表せないかを疑うこと。**
+
 > **`--ink` という名前は使わない。** timer-web が `--ink` を「地（最暗）」の意味で
 > 260 箇所参照しており、意味が正反対で衝突する。札の上の文字色は `--coal`。
 > 復活させると `tests/tokens.test.mjs` が落ちる。

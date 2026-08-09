@@ -30,6 +30,12 @@ test('トークン層が、他のパッケージから参照される変数を�
     '--coal', '--coal-soft',
     '--gold', '--gold-bright', '--gold-deep',
     '--rose', '--rose-bright', '--jade', '--pewter',
+    // 派生（α をコンポーネントに直書きさせないための語彙）
+    '--gold-lift', '--gold-tint', '--gold-veil', '--gold-edge', '--on-gold',
+    '--jade-lift', '--jade-tint', '--jade-veil', '--jade-edge', '--on-jade',
+    '--rose-lift', '--rose-tint', '--rose-veil', '--rose-edge', '--on-rose',
+    '--rose-pale', '--rose-glow',
+    '--felt-lift', '--felt-scrim', '--felt-shade', '--ivory-inset',
     '--font-display', '--font-body', '--font-mono',
     '--card-radius', '--shadow-card', '--shadow-popover',
   ];

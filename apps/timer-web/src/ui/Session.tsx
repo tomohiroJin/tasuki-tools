@@ -287,12 +287,12 @@ export function Session({
       {/* ドライバーパネル（タイマー＝円形プログレス、人＝円周配置、現ドライバー＝Crown） */}
       <Card className={`relative overflow-hidden transition-all`}>
         {/* 現ドライバー背後の微かな朱の発光（計器の照明）。虹色グラデは廃止。 */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_22%,rgba(255,74,46,0.1),transparent_58%)] pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_22%,var(--signal-tint),transparent_58%)] pointer-events-none" />
         <div className="relative text-center py-4">
           <div className="instrument-label mb-3">Current Driver</div>
           <div
             key={currentDriverName}
-            className="driver-name-fluid font-black mb-5 text-[var(--bone)] animate-fade-up drop-shadow-[0_0_8px_rgba(255,74,46,0.45)]"
+            className="driver-name-fluid font-black mb-5 text-[var(--bone)] animate-fade-up drop-shadow-[0_0_8px_var(--signal-edge)]"
           >
             <Crown className="w-10 h-10 md:w-12 md:h-12 inline mr-3 text-[var(--signal)]" aria-hidden="true" />
             {currentDriverName}
@@ -313,7 +313,7 @@ export function Session({
                   aria-live="off"
                   aria-label={`残り時間 ${formatRemaining(displayRemaining)}`}
                   className={`text-6xl lg:text-7xl font-black tabular tracking-tight ${
-                    isUrgent ? "text-[var(--urgent)] animate-pulse" : "text-white"
+                    isUrgent ? "text-[var(--urgent)] animate-pulse" : "text-[var(--bone)]"
                   } ${isPaused ? "opacity-50" : ""}`}
                 >
                   {formatRemaining(displayRemaining)}

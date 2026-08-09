@@ -43,7 +43,7 @@ function MiniButton({
       onClick={handleClick}
       disabled={disabled || pending}
       aria-busy={pending || undefined}
-      className="px-3 py-2 min-h-[44px] sm:min-h-[36px] shrink-0 whitespace-nowrap rounded-md text-xs font-medium text-[var(--bone-muted)] bg-[var(--panel-2)] hover:bg-[#252934] border border-[var(--hairline)] transition-all active:scale-95 disabled:opacity-50 disabled:cursor-wait focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]"
+      className="px-3 py-2 min-h-[44px] sm:min-h-[36px] shrink-0 whitespace-nowrap rounded-md text-xs font-medium text-[var(--bone-muted)] bg-[var(--panel-2)] hover:bg-[var(--panel-hover)] border border-[var(--hairline)] transition-all active:scale-95 disabled:opacity-50 disabled:cursor-wait focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]"
       {...rest}
     >
       {children}
@@ -192,7 +192,7 @@ export function RosterPanel({
         key={isCurrentDriver ? `${p.participantId}-current` : p.participantId}
         className={`rounded-md px-3 py-2 text-sm transition-colors ${
           isCurrentDriver
-            ? "bg-[rgba(255,74,46,0.12)] border border-[rgba(255,74,46,0.4)] animate-pop-in"
+            ? "bg-[var(--signal-tint)] border border-[var(--signal-edge)] animate-pop-in"
             : "bg-[var(--panel-2)] border border-[var(--hairline)]"
         }`}
       >

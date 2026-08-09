@@ -97,7 +97,7 @@ export function CircularProgress({
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="rgba(236,232,220,0.06)"
+          stroke="var(--inset-highlight)"
           strokeWidth={strokeWidth}
         />
         <circle
@@ -113,7 +113,7 @@ export function CircularProgress({
           className="transition-all duration-1000 ease-linear"
           style={{
             filter: warning
-              ? "drop-shadow(0 0 10px rgba(255,53,42,0.7))"
+              ? "drop-shadow(0 0 10px var(--urgent-glow))"
               : "drop-shadow(0 0 6px var(--signal-glow))",
           }}
         />

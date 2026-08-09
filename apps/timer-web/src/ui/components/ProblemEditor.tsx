@@ -36,9 +36,9 @@ interface ProblemEditorProps {
 const DIFFICULTY_LABEL: Record<string, string> = { easy: "初級", medium: "中級", hard: "上級" };
 // 難易度は計器の「危険度」表示として段階色を残す（緑→琥珀→朱赤・色のみ依存はラベル併記で回避）。
 const DIFFICULTY_CLASS: Record<string, string> = {
-  easy: "bg-[rgba(63,178,127,0.15)] text-[var(--ok)] border border-[rgba(63,178,127,0.3)]",
+  easy: "bg-[var(--ok-tint)] text-[var(--ok)] border border-[var(--ok-veil)]",
   medium: "bg-amber-400/15 text-amber-300 border border-amber-400/30",
-  hard: "bg-[rgba(255,74,46,0.15)] text-[var(--signal)] border border-[rgba(255,74,46,0.3)]",
+  hard: "bg-[var(--signal-tint)] text-[var(--signal)] border border-[var(--signal-veil)]",
 };
 
 function Badges({
@@ -64,16 +64,16 @@ function Badges({
       )}
       {/* 出題元を必ず明示する（AI 生成 / 定型 / 持ち込み）。無印を作らない。 */}
       {source === "ai" ? (
-        <span className="inline-flex items-center gap-1 rounded-sm bg-[rgba(255,74,46,0.14)] px-2 py-0.5 font-semibold text-[var(--signal)] border border-[rgba(255,74,46,0.3)]">
+        <span className="inline-flex items-center gap-1 rounded-sm bg-[var(--signal-tint)] px-2 py-0.5 font-semibold text-[var(--signal)] border border-[var(--signal-veil)]">
           <Sparkles className="w-3 h-3" aria-hidden="true" /> AI 生成
         </span>
       ) : source === "custom" ? (
-        <span className="rounded-sm bg-[rgba(63,178,127,0.15)] px-2 py-0.5 font-semibold text-[var(--ok)] border border-[rgba(63,178,127,0.3)]">持ち込み</span>
+        <span className="rounded-sm bg-[var(--ok-tint)] px-2 py-0.5 font-semibold text-[var(--ok)] border border-[var(--ok-veil)]">持ち込み</span>
       ) : (
         <span className="rounded-sm bg-[var(--panel-2)] px-2 py-0.5 font-semibold text-[var(--bone-muted)] border border-[var(--hairline)]">定型</span>
       )}
       {edited && (
-        <span className="rounded-sm bg-[rgba(255,74,46,0.14)] px-2 py-0.5 font-semibold text-[var(--signal)] border border-[rgba(255,74,46,0.3)]">編集済</span>
+        <span className="rounded-sm bg-[var(--signal-tint)] px-2 py-0.5 font-semibold text-[var(--signal)] border border-[var(--signal-veil)]">編集済</span>
       )}
     </span>
   );
@@ -121,11 +121,11 @@ export function ProblemEditor({
         type="button"
         onClick={() => setBarOpen(true)}
         aria-expanded={false}
-        className="flex w-full items-center gap-2 text-left text-sm text-white/80 hover:text-white"
+        className="flex w-full items-center gap-2 text-left text-sm text-[var(--bone-muted)] hover:text-[var(--bone)]"
       >
         <Badges difficulty={difficulty} edited={problem.edited} source={problem.source} />
-        <span className="font-semibold text-white truncate">{problem.title}</span>
-        <span className="ml-auto flex items-center gap-1 text-white/60">詳細を開く <ChevronDown className="w-4 h-4" aria-hidden="true" /></span>
+        <span className="font-semibold text-[var(--bone)] truncate">{problem.title}</span>
+        <span className="ml-auto flex items-center gap-1 text-[var(--bone-muted)]">詳細を開く <ChevronDown className="w-4 h-4" aria-hidden="true" /></span>
       </button>
     );
   }
@@ -142,7 +142,7 @@ export function ProblemEditor({
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex flex-col gap-1.5">
           <Badges difficulty={difficulty} language={language} edited={problem.edited} source={problem.source} />
-          <h3 className="text-lg font-bold text-white">{problem.title}</h3>
+          <h3 className="text-lg font-bold text-[var(--bone)]">{problem.title}</h3>
         </div>
         <div className="flex flex-wrap gap-2">
           {canEdit && (
@@ -178,7 +178,7 @@ export function ProblemEditor({
         /* 編集フォーム（各フィールドの blur で problem.edit を送る: FR-038） */
         <div className="flex flex-col gap-3">
           <label className="flex flex-col gap-1">
-            <span className="text-xs font-semibold text-white/60">タイトル</span>
+            <span className="text-xs font-semibold text-[var(--bone-muted)]">タイトル</span>
             <input
               aria-label="お題タイトル"
               className={inputClass}
@@ -189,7 +189,7 @@ export function ProblemEditor({
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-xs font-semibold text-white/60">説明</span>
+            <span className="text-xs font-semibold text-[var(--bone-muted)]">説明</span>
             <textarea
               aria-label="お題の説明"
               className={inputClass}
@@ -201,7 +201,7 @@ export function ProblemEditor({
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-xs font-semibold text-white/60">要件（1行に1件）</span>
+            <span className="text-xs font-semibold text-[var(--bone-muted)]">要件（1行に1件）</span>
             <textarea
               aria-label="要件（1行に1件）"
               className={inputClass}
@@ -212,7 +212,7 @@ export function ProblemEditor({
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-xs font-semibold text-white/60">例示テスト</span>
+            <span className="text-xs font-semibold text-[var(--bone-muted)]">例示テスト</span>
             <textarea
               aria-label="例示テスト"
               className={`${inputClass} font-mono`}
@@ -224,7 +224,7 @@ export function ProblemEditor({
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-xs font-semibold text-white/60">ヒント（1行に1件）</span>
+            <span className="text-xs font-semibold text-[var(--bone-muted)]">ヒント（1行に1件）</span>
             <textarea
               aria-label="ヒント（1行に1件）"
               className={inputClass}
@@ -246,7 +246,7 @@ export function ProblemEditor({
               type="button"
               onClick={() => setDetailsOpen((v) => !v)}
               aria-expanded={detailsOpen}
-              className="flex items-center gap-1 self-start text-sm text-white/70 hover:text-white"
+              className="flex items-center gap-1 self-start text-sm text-[var(--bone-muted)] hover:text-[var(--bone)]"
             >
               {detailsOpen ? <ChevronDown className="w-4 h-4" aria-hidden="true" /> : <ChevronRight className="w-4 h-4" aria-hidden="true" />}
               {detailsOpen ? "詳細を隠す" : "詳細を表示"}（要件 {problem.requirements.length}・テスト例・ヒント）
@@ -257,11 +257,11 @@ export function ProblemEditor({
             <>
               {problem.requirements.length > 0 && (
                 <div>
-                  <p className="mb-1 text-xs font-semibold text-white/60">要件</p>
+                  <p className="mb-1 text-xs font-semibold text-[var(--bone-muted)]">要件</p>
                   <ul className="space-y-1">
                     {problem.requirements.map((req) => (
-                      <li key={req} className="flex items-start gap-1.5 text-sm text-white">
-                        <span className="mt-0.5 text-white/60">·</span>
+                      <li key={req} className="flex items-start gap-1.5 text-sm text-[var(--bone)]">
+                        <span className="mt-0.5 text-[var(--bone-muted)]">·</span>
                         <span>{req}</span>
                       </li>
                     ))}
@@ -270,7 +270,7 @@ export function ProblemEditor({
               )}
               {problem.exampleTest && (
                 <div>
-                  <p className="mb-1 text-xs font-semibold text-white/60">例示テスト</p>
+                  <p className="mb-1 text-xs font-semibold text-[var(--bone-muted)]">例示テスト</p>
                   <pre className="rounded-md bg-[var(--panel-2)] border border-[var(--hairline)] p-3 text-xs font-mono text-[var(--bone)] overflow-x-auto">
                     {problem.exampleTest}
                   </pre>
@@ -278,10 +278,10 @@ export function ProblemEditor({
               )}
               {problem.hints.length > 0 && (
                 <div>
-                  <p className="mb-1 text-xs font-semibold text-white/60">ヒント</p>
+                  <p className="mb-1 text-xs font-semibold text-[var(--bone-muted)]">ヒント</p>
                   <ul className="space-y-1">
                     {problem.hints.map((hint) => (
-                      <li key={hint} className="text-sm text-white/70">💡 {hint}</li>
+                      <li key={hint} className="text-sm text-[var(--bone-muted)]">💡 {hint}</li>
                     ))}
                   </ul>
                 </div>
@@ -294,7 +294,7 @@ export function ProblemEditor({
             <button
               type="button"
               onClick={() => setBarOpen(false)}
-              className="flex items-center gap-1 self-start text-xs text-white/60 hover:text-white"
+              className="flex items-center gap-1 self-start text-xs text-[var(--bone-muted)] hover:text-[var(--bone)]"
             >
               <ChevronDown className="w-3 h-3 rotate-180" aria-hidden="true" /> 畳む
             </button>
