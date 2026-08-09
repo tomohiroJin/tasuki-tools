@@ -24,8 +24,10 @@ Tasuki には判断の拠りどころが揃っていない。ADR は timer の 1
 設計文書（spec / plan）の置き場も、宣言と実態が乖離している。timer ADR 0010
 （`docs/timer/adr/0010-design-doc-source.md`）は「正本は `docs/plans/`、
 `docs/superpowers/` は移行前の履歴アーカイブ」と宣言し、`docs/superpowers/` 側は
-「以降更新されていない」と述べている。しかし #73 の E2E 設計も本 Issue #68 自身の
-スペックも `docs/superpowers/specs/` に新規作成しており、この前提はもう事実でない。
+「以降更新されていない」と述べている。しかし #73 の E2E 設計
+（`docs/superpowers/specs/2026-08-07-e2e-foundation-design.md`、main に収録済み）や、
+本 Issue #68 自身のスペック（`docs/superpowers/specs/2026-08-09-governance-and-docs-design.md`、
+PR #99）も `docs/superpowers/specs/` に新規作成しており、この前提はもう事実でない。
 `docs/superpowers/` への新規作成は現に続いている。
 
 `docs/` 全体も `plans/` `superpowers/` `adr/` `experiments/` 等が混在し、どれが

@@ -1,7 +1,6 @@
 # ADR-NNNN: <タイトル>
 
-- **ステータス**: Proposed | Accepted | Superseded by NNNN
-- **日付**: YYYY-MM-DD
+- **ステータス**: Proposed | Accepted | Superseded by NNNN（YYYY-MM-DD）
 - **関連**: <Issue / PR / 関連 ADR>
 
 ## 背景
