@@ -1,6 +1,6 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "//": "globalDependencies: パッケージ外にあってタスク結果を左右するファイル。ここに書かないと eslint.config.mjs だけを変えたとき turbo が変更を検知できず、古い lint 結果を cache hit として再生する（＝ルール変更が反映されないまま成功表示になる）。 / tasks.e2e, tasks[\"e2e:prod\"].passThroughEnv: TASUKI_E2E_BASE_URL は本番向けの値だが、ローカル実行（e2e）にも渡す必要がある。turbo 2.x の既定 env モードは strict で、passThroughEnv が無いとこの変数はタスクへ届かない。届かなければ e2e/harness/target.ts の『ローカル実行なのに残っている変数を検出して落とす』検査が発火せず、取り違え防止そのものが死ぬ（本番向け変数を残したまま pnpm e2e を叩いても素通りする、という事故を実際に起こした。実測済み）。 / PLAYWRIGHT_BROWSERS_PATH も同じ理由で要る。devcontainer は /opt/playwright-browsers に導入済みのブラウザを使うが、届かないと Playwright は ~/.cache/ms-playwright を見て『実行ファイルが無い』で落ちる。しかも e2e/harness/browsers.ts の導入検査は変数が未設定なら何もしない設計なので、preflight は素通りしてブラウザ起動の瞬間に初めて落ちる。第 1 段はブラウザを 1 つも起動しなかったため、この穴は第 2 段まで見えなかった（実測済み）。 / WAYLAND_DISPLAY も同じ理由で要る。同じ罠の 3 例目。WSLg 上の devcontainer では、この変数が Chromium へ届かないと click が『visible, enabled and stable』を 60 秒待ち続け、ブラウザを使う 7 件が軒並み落ちる（実測: この 1 変数を足すか外すかだけで 21 件緑と 7 件失敗が反転する。直接 playwright を叩くと通るのに pnpm e2e だけが落ちる、という形で現れた）。CI にはこの変数が無く、そこでは元から緑なので、渡しても影響しない。",
+  "//": "globalDependencies: パッケージ外にあってタスク結果を左右するファイル。ここに書かないと eslint.config.mjs だけを変えたとき turbo が変更を検知できず、古い lint 結果を cache hit として再生する（＝ルール変更が反映されないまま成功表示になる）。 / tasks.e2e, tasks[\"e2e:prod\"].passThroughEnv: TASUKI_E2E_BASE_URL は本番向けの値だが、ローカル実行（e2e）にも渡す必要がある。turbo 2.x の既定 env モードは strict で、passThroughEnv が無いとこの変数はタスクへ届かない。届かなければ e2e/harness/target.ts の『ローカル実行なのに残っている変数を検出して落とす』検査が発火せず、取り違え防止そのものが死ぬ（本番向け変数を残したまま pnpm e2e を叩いても素通りする、という事故を実際に起こした。実測済み）。 / PLAYWRIGHT_BROWSERS_PATH も同じ理由で要る。devcontainer は /opt/playwright-browsers に導入済みのブラウザを使うが、届かないと Playwright は ~/.cache/ms-playwright を見て『実行ファイルが無い』で落ちる。しかも e2e/harness/browsers.ts の導入検査は変数が未設定なら何もしない設計なので、preflight は素通りしてブラウザ起動の瞬間に初めて落ちる。第 1 段はブラウザを 1 つも起動しなかったため、この穴は第 2 段まで見えなかった（実測済み）。 / WAYLAND_DISPLAY も同じ理由で要る。同じ罠の 3 例目。WSLg 上の devcontainer では、この変数が Chromium へ届かないと click が『visible, enabled and stable』を 60 秒待ち続け、ブラウザを使う 7 件が軒並み落ちる（実測: この 1 変数を足すか外すかだけで 21 件緑と 7 件失敗が反転する。直接 playwright を叩くと通るのに pnpm e2e だけが落ちる、という形で現れた）。CI にはこの変数が無く、そこでは元から緑なので、渡しても影響しない。 / tasks.test.outputs, tasks[\"test:unit\"].outputs: 空配列は『ログ以外の成果物は無い』という宣言。turbo はタスクのログを常にキャッシュ対象として扱うので、ログだけのタスクは outputs を宣言しなくてよい（schema.json の outputs の記述）。coverage/** を基底に置くと、実際にカバレッジを出さない 8 タスクで『no output files found』警告が出る（#84 で実測。カバレッジを出すのは timer-core の test だけで、他は素の vitest run / bun test / node --test）。キャッシュ自体は入力ハッシュで判定されるので壊れてはいないが、純粋なノイズなので基底からは外した。 / tasks[\"@tasuki/timer-core#test\"]: 唯一 --coverage 付きで実行するパッケージ。ここにだけ coverage/** を宣言する。package#task は基底タスクの設定を継承しないため dependsOn も明記が要る（@tasuki/e2e#test で実際に踏んだ挙動）。書き忘れると timer-core の test が ^build を待たなくなる。 / test:unit は timer-core も --coverage 無しの vitest run なので、どのパッケージもカバレッジを出さない。基底の outputs: [] で足り、個別宣言は不要。",
   "globalDependencies": ["eslint.config.mjs", "tsconfig.base.json"],
   "tasks": {
     "build": {
@@ -9,9 +9,13 @@
     },
     "test": {
       "dependsOn": ["^build"],
-      "outputs": ["coverage/**"]
+      "outputs": []
     },
     "test:unit": {
+      "outputs": []
+    },
+    "@tasuki/timer-core#test": {
+      "dependsOn": ["^build"],
       "outputs": ["coverage/**"]
     },
     "lint": {

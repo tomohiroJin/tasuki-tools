@@ -129,7 +129,7 @@ LP の dev サーバーが本番の Caddy と同じ役割を担い、`/timer/` �
 単一の pnpm workspace + turbo。ルートで全ツールをまとめて検証できます。
 
 ```bash
-pnpm test        # 全パッケージのテスト（1,792 件 / 9 タスク）
+pnpm test        # 全パッケージのテスト（1,927 件 / 10 タスク）
 pnpm typecheck
 pnpm lint
 pnpm build
@@ -140,6 +140,22 @@ pnpm turbo test typecheck lint build
 # 単一アプリだけを対象にする
 pnpm turbo run build --filter=@tasuki/timer-web
 ```
+
+### 検査はコンテナのファイルシステム上で回す
+
+devcontainer を **Windows / WSL のマウント（`/workspaces` など 9p 越しのパス）** で開いている場合、
+リポジトリをコンテナ側のファイルシステム（`/home/vscode` 配下など）へクローンし、**そちらで検査を回してください。**
+テストランナーは大量のファイルを読むため、9p 越しだと I/O がすべてプロトコル越しになり桁違いに遅くなります。
+
+| 実行場所 | キャッシュ | `pnpm test` の所要 |
+|---|---|---|
+| 9p マウント上 | 10 件中 1 件ヒット | **22 分 38 秒** |
+| コンテナのファイルシステム上 | **0 件ヒット（`--force`）** | **28.3 秒** |
+
+いずれも 2026-08-09 の実測（[#84](https://github.com/tomohiroJin/tasuki-tools/issues/84)）。
+**キャッシュが冷たい側が約 48 倍速い**ので、差はキャッシュではなくファイルシステムに由来します。
+参考までに CI（GitHub Actions）の `ci` ジョブは 2 分 5 秒で、こちらも毎回コールドです
+（ワークフローは turbo のキャッシュを永続化していません）。
 
 手動で回す検査（CI からは呼ばれません。[#70](https://github.com/tomohiroJin/tasuki-tools/issues/70) で組み込み予定）:
 
