@@ -67,6 +67,23 @@
 | 公開（reveal） | poker において、伏せていた各参加者の見積り値を開示すること |
 | お題 | **timer では実装済みのドメイン概念、poker では未実装の提案段階の語。** timer では「TDD の練習課題」を指し、`packages/timer-core/src/problem.ts` の `Problem` 型として実装されている。poker では「見積り対象」を指す語として [#93](https://github.com/tomohiroJin/tasuki-tools/issues/93)（お題の入力と結果の書き出し）で提案中だが、現行の poker 実装（`packages/poker-core` `apps/poker-sync` `apps/poker-web` `packages/protocol`。`grep -rn "お題"` で 0 件を確認済み）にこの概念は存在しない。poker の初回リリース範囲外であることは `docs/poker/specs/001-planning-poker-mvp/spec.md` の Assumptions（「お題（ストーリー）リストの管理…は初回リリースに含めない」）にも明記されている。#93 が実装されるまでは、**timer の「お題」だけが実装済みのドメイン概念**であり、「お題」を使うときは同名別概念になりうることを文脈で明示すること |
 
+## 一般的な方法論との対応
+
+この体系は、方法論の名前ではなく**このプロジェクト固有の判断**として原則を立てている
+（#68 設計時の決定。SOLID のような一般論を名前ごとに原則化せず、固有の判断に織り込む）。
+名前で探す読者のための対応表:
+
+| 方法論 | この体系での置き場 |
+|---|---|
+| DDD（ドメイン駆動設計） | 憲法 VI（ドメインの純粋性・境界）+ 本ガイドの層対応表とユビキタス言語の用語集 |
+| クリーンアーキテクチャ / ヘキサゴナル | 憲法 VI「依存は内向き」+ [`docs/adr/0004`](../adr/0004-sync-server-ports-and-adapters.md)（ポート/アダプタ標準） |
+| DbC（契約による設計） | 憲法 IV「事前条件 = 境界検証・不変条件 = 型」+ [`docs/adr/0005`](../adr/0005-result-and-boundary-validation.md) |
+| SOLID | 単独の原則としては立てない。S（単一責任）と D（依存性逆転）は憲法 VI に、O・I はポート設計（[`docs/adr/0004`](../adr/0004-sync-server-ports-and-adapters.md)）に織り込み済み |
+| TDD / BDD | 憲法 I（テスト駆動開発）+ [`docs/adr/0006`](../adr/0006-test-conventions.md)（Given/When/Then は構造監査 SC032 が機械検査） |
+| DRY / YAGNI / デザインパターン抑制 | 憲法 X「抽象は実需で」+ [`docs/adr/0007`](../adr/0007-abstraction-criteria.md)（DRY は知識の重複に限る） |
+| SOT（単一の情報源） | 憲法 VIII「記録が正本」（契約の単一情報源宣言を含む） |
+| Tidy First（リファクタリング運用） | DoD 項目 6（[`docs/guides/definition-of-done.md`](definition-of-done.md)） |
+
 ## 関連
 
 - 決定の根拠: [`docs/adr/0004`](../adr/0004-sync-server-ports-and-adapters.md)（同期サーバーはポート/アダプタ構成を標準とする）

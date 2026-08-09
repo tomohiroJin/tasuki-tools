@@ -6,7 +6,8 @@
   [#72](https://github.com/tomohiroJin/tasuki-tools/issues/72)（本 ADR の適用先、poker-sync の再編）/
   [#80](https://github.com/tomohiroJin/tasuki-tools/issues/80)（実 WS 越しの業務プロトコル層の新設、
   本 ADR の根拠となった実測）/
-  `.specify/memory/constitution.md` 原則 VI（依存は内向き）
+  `.specify/memory/constitution.md` 原則 VI（依存は内向き）/
+  [`docs/guides/architecture.md`](../guides/architecture.md)（層とディレクトリの対応・判断フローの正本）
 
 ## 背景
 

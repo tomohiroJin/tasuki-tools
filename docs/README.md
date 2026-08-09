@@ -8,7 +8,7 @@ Tasuki の文書は目的ごとに置き場が分かれています。まずこ�
 
 - **憲法**（[`.specify/memory/constitution.md`](../.specify/memory/constitution.md)） — 何を守るか
 - **横断 ADR**（[`docs/adr/`](./adr/)、アプリ固有は `docs/<app>/adr/`） — なぜそう決まっているか
-- **ガイド**（`docs/guides/`） — 今日どう書くか
+- **ガイド**（[`docs/guides/`](./guides/)） — 今日どう書くか
 
 **機能ごとの設計文書**は [`docs/superpowers/`](./superpowers/) に日付つきのファイル名（例:
 `2026-08-09-<topic>.md`）で置きます（現行のスキル運用の出力先であり、現行運用です）。
