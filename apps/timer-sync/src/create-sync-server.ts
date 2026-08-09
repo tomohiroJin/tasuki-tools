@@ -25,6 +25,7 @@ import { InMemoryRoomStore } from "./adapters/in-memory-room-store.js";
 import { SystemClock } from "./adapters/system-clock.js";
 import { NanoidCodeGen } from "./adapters/nanoid-code-gen.js";
 import { RoomReclaimer } from "./application/room-reclaimer.js";
+import { createRoomDestroyer } from "./application/destroy-room.js";
 import { buildAdminReport, handleAdminHttp } from "./application/admin.js";
 import { AiLimiter } from "./application/ai-limits.js";
 import { ClaudeCliProblemProvider } from "./adapters/claude-cli-problem-provider.js";
@@ -99,6 +100,15 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     aiLimiter,
     aiTimeoutMs: config.aiGenerationTimeoutMs,
   });
+  /**
+   * ルーム破棄の共通経路（`destroy-room.ts`。Issue #79）。
+   *
+   * 後始末は `presenceManager` と `handlers.releaseRoom` に依存する一方、
+   * `handlers` 自身が在室者 0 人の退出でこれを必要とするため相互依存になる。
+   * `wsAdapter` と同じく「後から代入するクロージャ」で解く（TDZ 回避）。
+   */
+  let destroyRoom: (roomCode: string) => void;
+
   const handlers = makeHandlers({
     store,
     clock,
@@ -109,6 +119,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     maxRooms: config.maxRooms,
     // トークン未設定なら合言葉も渡さない＝解錠は常に失敗（存在秘匿）
     aiUnlockKey: aiReady ? config.aiUnlockKey : undefined,
+    destroyRoom: (roomCode) => destroyRoom(roomCode),
   });
   const presenceManager = new PresenceManager({
     store,
@@ -118,17 +129,25 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     onDriverAbsence: handlers.advanceForAbsence,
   });
 
+  // 後始末を契機ごとに並べ直すと片方だけが更新されて必ずずれるため、内容と順序は
+  // `destroy-room.ts` の 1 箇所にしか持たない。契機はアイドル回収（TTL）と
+  // 在室者 0 人の退出（Issue #79）の 2 つで、どちらもこの同じ関数を通る。
+  destroyRoom = createRoomDestroyer({
+    store,
+    scheduler,
+    delegator,
+    presence: presenceManager,
+    releaseRoom: handlers.releaseRoom,
+  });
+
   // httpHandler クロージャが reclaimer.reclaimedCount を参照するため、
   // wsAdapter 生成（クロージャ定義）より前に reclaimer を宣言する（TDZ 回避）。
   const reclaimer = new RoomReclaimer({
     store,
     idleTtlMs: config.roomIdleTtlMs,
     onReclaim: (code, idleMs) => {
-      scheduler.clear(code);
-      delegator.cancel(code);
-      presenceManager.clearRoomTimers(code);
-      handlers.releaseRoom(code);
-      store.remove(code);
+      // 後始末は共通の破棄経路へ委ねる（二重に並べるとずれる）。
+      destroyRoom(code);
       // 運用ログ（journalctl -u tasuki-sync | grep reclaimed で追える・R3-1）。
       console.log(`room ${code} reclaimed: idle ${idleMs}ms`);
     },
