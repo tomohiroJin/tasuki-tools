@@ -31,7 +31,8 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
   何を守るか（原則 I〜X）
 - ADR: [`docs/adr/`](docs/adr/)（横断）・`docs/<app>/adr/`（アプリ固有） —
   なぜそう決まっているか。参照は置き場つき（例: `docs/adr/0002`）
-- ガイド: `docs/guides/` — 今日どう書くか（新設予定）
+- ガイド: [`docs/guides/`](docs/guides/) —
+  今日どう書くか（DoD・EARS・振り返り・アーキテクチャ・開発手順）
 - 設計文書: [`docs/superpowers/`](docs/superpowers/) —
   機能ごとの設計経緯（日付つきファイル）
 - 全体像・目的別の入口は [`docs/README.md`](docs/README.md) を参照

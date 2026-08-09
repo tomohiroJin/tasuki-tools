@@ -48,7 +48,7 @@ pnpm --filter @tasuki/poker-web dev    # Vite :5174（/poker/ 配信、WS は :3
 ブラウザで **`http://localhost:5174/poker/`** を開く。動作検証シナリオは
 [quickstart.md](./specs/001-planning-poker-mvp/quickstart.md) を参照。
 
-> 起動手順の正本は[リポジトリ直下の README](../../README.md#起動方法) です。
+> 起動手順の正本は [開発手順ガイド](../guides/development.md) です。
 
 ## デプロイ
 
