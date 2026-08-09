@@ -74,7 +74,7 @@ export function NotifySettings() {
             onPreview={() => playChime(prefs.soundId, prefs.volume)}
           />
           {osDenied && (
-            <p className="mt-2 text-xs text-amber-300">
+            <p className="mt-2 text-xs text-[var(--caution)]">
               OS 通知は許可されていません（音と振動は有効）。
             </p>
           )}

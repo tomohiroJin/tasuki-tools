@@ -116,7 +116,7 @@ export function SelfDriverToggle({
 
   // rotation 内の場合は従来の状態表示＋操作ボタン
   const status = isSkipping ? (
-    <span className="font-semibold text-amber-300">離脱中</span>
+    <span className="font-semibold text-[var(--caution)]">離脱中</span>
   ) : (
     <span className="font-semibold text-[var(--signal)]">ドライバー</span>
   );

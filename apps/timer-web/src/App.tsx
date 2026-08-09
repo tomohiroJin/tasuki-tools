@@ -835,7 +835,7 @@ export default function App() {
           className={`mb-4 rounded-md px-4 py-2 text-center text-sm border ${
             banner.kind === "error"
               ? "bg-[var(--urgent-tint)] border-[var(--urgent-edge)] text-[var(--urgent-pale)]"
-              : "bg-amber-500/15 border-amber-400/40 text-amber-100"
+              : "bg-[var(--caution-tint)] border-[var(--caution-edge)] text-[var(--caution)]"
           }`}
         >
           {banner.text}
