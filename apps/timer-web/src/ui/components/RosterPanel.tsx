@@ -243,7 +243,7 @@ export function RosterPanel({
                 <span className="chip text-xs text-[var(--bone-subtle)]">観覧</span>
               )}
               {p.isPlaceholder && (
-                <span className="chip text-xs text-amber-300">代理</span>
+                <span className="chip text-xs text-[var(--caution)]">代理</span>
               )}
               {isSkipping && (
                 <span className="chip text-xs text-[var(--bone-subtle)]">離脱中</span>

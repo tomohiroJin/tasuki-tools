@@ -32,9 +32,26 @@ const ALLOW = [
   { file: "*", pattern: /rgba\(0,\s*0,\s*0,[^)]*\)/ },
 ];
 
-/** 生の色の書き方（16 進・rgb/rgba・Tailwind の白黒）。 */
-const RAW_COLOR =
-  /#[0-9a-fA-F]{3,8}\b|rgba?\([0-9][^)]*\)|\b(?:text|bg|border|ring|fill|stroke|from|to|via)-(?:white|black)\b/g;
+/** Tailwind に同梱の色（卓のパレットの外にある色相）。 */
+const TAILWIND_HUES =
+  "slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose";
+const COLOR_UTILITIES = "text|bg|border|ring|fill|stroke|from|to|via|divide|outline|shadow|accent|caret|decoration";
+
+/**
+ * 生の色の書き方。
+ *
+ * **Tailwind 同梱の色（`text-amber-300` など）も禁じる。** 16 進と rgba だけを見ていた
+ * 版では琥珀が 6 箇所生き残っており、卓に無い色相が残っていた（#78 PR-2 の取りこぼし）。
+ */
+const RAW_COLOR = new RegExp(
+  [
+    "#[0-9a-fA-F]{3,8}\\b",
+    "rgba?\\([0-9][^)]*\\)",
+    `\\b(?:${COLOR_UTILITIES})-(?:white|black)\\b`,
+    `\\b(?:${COLOR_UTILITIES})-(?:${TAILWIND_HUES})-[0-9]{2,3}(?:/[0-9]+)?\\b`,
+  ].join("|"),
+  "g",
+);
 
 function tsxFiles(dir: string, acc: string[] = []): string[] {
   for (const name of readdirSync(dir)) {

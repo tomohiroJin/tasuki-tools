@@ -44,8 +44,8 @@
   --hairline-strong: var(--line-strong);
   --steel: var(--pewter); /* 目盛り・補助。--panel 上で 5.55:1 */
   --bone: var(--ivory); /* 最明テキスト */
-  --bone-muted: var(--ivory-dim); /* 副次テキスト。--panel-2 上でも 4.85:1（AA） */
-  --bone-subtle: var(--ivory-faint); /* 補足・ラベル。--panel 上 3.27:1 なので大きめの字に限る */
+  --bone-muted: var(--ivory-dim); /* 副次テキスト。最小 6.02:1 */
+  --bone-subtle: var(--ivory-faint); /* 補足・ラベル。最小 4.52:1（12px の本文でも AA） */
   --signal: var(--gold-bright); /* 真鍮の光（針/弧・主操作）。--ink 上で 10.76:1 */
   --signal-glow: rgba(236, 200, 121, 0.35);
   --urgent: var(--rose-bright); /* 残りわずか。--ink 上で 6.58:1 */
@@ -74,6 +74,16 @@
   --urgent-pale: var(--rose-pale);
   --urgent-glow: var(--rose-glow);
   --on-urgent: var(--on-rose);
+
+  /* 注意（caution）。「正常でも危険でもない」中間の状態: 再接続中・離脱中・代理・
+   * 難易度の中位など。**当面は主操作と同じ真鍮に張る。**
+   * 卓のアクセントは真鍮 1 色で、注意のために新しい色相を足すと
+   * 「単一アクセント」の設計が崩れる。実塗り（主操作）と文字・淡い敷き（注意）で
+   * 扱いを分ける。役割で名前を付けておけば、後で分けたくなっても 1 行で済む。 */
+  --caution: var(--signal);
+  --caution-tint: var(--signal-tint);
+  --caution-veil: var(--signal-veil);
+  --caution-edge: var(--signal-edge);
 
   --panel-hover: var(--felt-lift); /* --panel-2 のホバー面 */
   --inset-highlight: var(--ivory-inset); /* 面の上端の僅かな立ち上がり */

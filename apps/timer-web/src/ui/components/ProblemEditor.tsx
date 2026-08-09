@@ -37,8 +37,8 @@ const DIFFICULTY_LABEL: Record<string, string> = { easy: "初級", medium: "中�
 // 難易度は計器の「危険度」表示として段階色を残す（緑→琥珀→朱赤・色のみ依存はラベル併記で回避）。
 const DIFFICULTY_CLASS: Record<string, string> = {
   easy: "bg-[var(--ok-tint)] text-[var(--ok)] border border-[var(--ok-veil)]",
-  medium: "bg-amber-400/15 text-amber-300 border border-amber-400/30",
-  hard: "bg-[var(--signal-tint)] text-[var(--signal)] border border-[var(--signal-veil)]",
+  medium: "bg-[var(--caution-tint)] text-[var(--caution)] border border-[var(--caution-veil)]",
+  hard: "bg-[var(--urgent-tint)] text-[var(--urgent-pale)] border border-[var(--urgent-veil)]",
 };
 
 function Badges({

@@ -37,7 +37,7 @@ const ROLE_LABEL: Record<string, string> = {
 // 接続状態の色（ダークステージ上で視認できる明るめの値・色＋テキスト併記）。
 const CONNECTION_CONFIG: Record<ConnectionStatus, { label: string; className: string }> = {
   online: { label: "接続中 (Connected)", className: "text-[var(--ok)]" },
-  reconnecting: { label: "再接続中… (Reconnecting)", className: "text-amber-300" },
+  reconnecting: { label: "再接続中… (Reconnecting)", className: "text-[var(--caution)]" },
   lost: { label: "セッション喪失 (Session Lost)", className: "text-[var(--urgent)]" },
 };
 
