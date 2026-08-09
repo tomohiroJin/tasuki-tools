@@ -16,6 +16,7 @@
 
 import { describe, it, expect, beforeEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
+import { createRoomDestroyer } from "../src/application/destroy-room.js";
 import { RoomReclaimer } from "../src/application/room-reclaimer.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
@@ -56,9 +57,16 @@ describe("ソロの部屋からの退出（Issue #79）", () => {
   beforeEach(async () => {
     store = new InMemoryRoomStore();
     broadcaster = new SpyBroadcaster();
+    // 破棄経路は本番（create-sync-server.ts）と同じ形で組む。handlers が destroyRoom を
+    // 要り、destroyRoom が handlers.releaseRoom を要る相互依存を、後から代入する
+    // クロージャで解く。既定値に頼らないのは、頼ると本番の配線漏れを取り逃がすため
+    // （HandlerDeps.destroyRoom の docstring 参照）。
+    let destroyRoom: (roomCode: string) => void;
     handlers = makeHandlers({
       store, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen(),
+      destroyRoom: (roomCode) => destroyRoom(roomCode),
     });
+    destroyRoom = createRoomDestroyer({ store, releaseRoom: handlers.releaseRoom });
     const created = await handlers.handleCommand(HOST, {
       command: "room.create", displayName: "Alice", config: soloConfig,
     });
@@ -204,9 +212,16 @@ describe("ソロ以外は挙動が変わらない（Issue #79）", () => {
   beforeEach(async () => {
     store = new InMemoryRoomStore();
     broadcaster = new SpyBroadcaster();
+    // 破棄経路は本番（create-sync-server.ts）と同じ形で組む。handlers が destroyRoom を
+    // 要り、destroyRoom が handlers.releaseRoom を要る相互依存を、後から代入する
+    // クロージャで解く。既定値に頼らないのは、頼ると本番の配線漏れを取り逃がすため
+    // （HandlerDeps.destroyRoom の docstring 参照）。
+    let destroyRoom: (roomCode: string) => void;
     handlers = makeHandlers({
       store, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen(),
+      destroyRoom: (roomCode) => destroyRoom(roomCode),
     });
+    destroyRoom = createRoomDestroyer({ store, releaseRoom: handlers.releaseRoom });
     const created = await handlers.handleCommand(HOST, {
       command: "room.create", displayName: "Alice", config: soloConfig,
     });

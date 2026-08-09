@@ -33,7 +33,6 @@ import { createTokenStore } from "./token-store.js";
 import { createJoinRateLimiter } from "./join-rate-limiter.js";
 import { applyEvents } from "./apply-room-level-event.js";
 import { buildDomainCommand } from "./build-domain-command.js";
-import { createRoomDestroyer } from "./destroy-room.js";
 import { createRoomCreateHandler, type CreateResult } from "./command-handlers/room-create.js";
 import { createRoomJoinHandler, type JoinResult } from "./command-handlers/room-join.js";
 export type { CreateResult } from "./command-handlers/room-create.js";
@@ -91,12 +90,20 @@ export interface HandlerDeps {
   /**
    * ルームごと破棄する経路（Issue #79）。在室者が 0 人になる退出で使う。
    *
-   * 本番（`server.ts`）は `PresenceManager` の不在タイマー解放まで含む完全な破棄経路を
-   * 注入し、**アイドル回収（TTL）と同じ関数インスタンス**を共有する。省略時は
-   * 同じファクトリ（`destroy-room.ts`）を presence 抜きで組み立てた既定値を使う
-   * （`makeHandlers` は `PresenceManager` を知らないため。後始末の実装は 1 つのまま）。
+   * 本番（`create-sync-server.ts`）は `PresenceManager` の不在タイマー解放まで含む
+   * 完全な破棄経路を注入し、**アイドル回収（TTL）と同じ関数インスタンス**を共有する。
+   *
+   * **必須にしてある。** 以前は「省略時は presence 抜きの既定値」にしていたが、それだと
+   * 本番の配線から注入を外しても全テストが緑のままだった（既定値が代わりに動き、
+   * 不在タイマーの解放だけが静かに失われる）。`tsconfig.json` の `include` は
+   * `["src/**\/*"]` なので、必須にすると `tsc --noEmit` が `create-sync-server.ts` の
+   * 漏れを検出する。テスト（`test/**`）は include の外なので影響を受けない。
+   *
+   * ⚠ **この対処は「テストが型検査の対象外である」ことに依存している。**
+   * `include` にテストを加えるなら、その時点でテスト側の呼び出しにも
+   * この依存を渡すか、別の形で本番配線を検査すること。
    */
-  destroyRoom?: ((roomCode: string) => void) | undefined;
+  destroyRoom: (roomCode: string) => void;
 }
 
 // `CreateResult`/`JoinResult`（`room.create`/`room.join` が呼び出し元へ返す値）の
@@ -140,11 +147,9 @@ export function makeHandlers(deps: HandlerDeps) {
   // 共有が構造的に保証される（join-rate-limiter.ts のdocstring参照）。
   const joinRateLimiter = createJoinRateLimiter({ windowMs: 10_000, max: JOIN_FAIL_MAX });
 
-  // ルーム破棄の経路（Issue #79）。既定値も本番の注入も同じ `createRoomDestroyer` を
-  // 通すため、後始末の内容と順序は 1 箇所（destroy-room.ts）にしか存在しない。
-  // `releaseRoom` は下で関数宣言しており巻き上げ済みなので、ここから参照できる。
-  const destroyRoom =
-    deps.destroyRoom ?? createRoomDestroyer({ store, scheduler, delegator, releaseRoom });
+  // ルーム破棄の経路（Issue #79）。後始末の内容と順序は destroy-room.ts の 1 箇所に
+  // しか存在せず、ここは受け取るだけ（既定値を持たない理由は HandlerDeps の docstring）。
+  const destroyRoom = deps.destroyRoom;
 
   /**
    * 失敗を 1 接続へ通知する（FR-101）。
