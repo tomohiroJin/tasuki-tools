@@ -58,7 +58,7 @@ export function RotationLineup({ rotation, currentIndex, intervalSeconds, selfIn
             key={m.participantId}
             className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm ${
               m.isCurrent
-                ? "bg-[rgba(255,74,46,0.16)] border border-[rgba(255,74,46,0.5)] text-[var(--bone)]"
+                ? "bg-[var(--signal-tint)] border border-[var(--signal-edge)] text-[var(--bone)]"
                 : m.isSelf
                 ? "bg-[var(--panel-2)] border border-[var(--signal)] text-[var(--bone)]"
                 : "bg-[var(--panel-2)] border border-[var(--hairline)] text-[var(--bone-muted)]"

@@ -33,7 +33,7 @@ export function TeamOrbit({ members, currentIndex, size = 340, children }: TeamO
           cy={center}
           r={orbitRadius}
           fill="none"
-          stroke="rgba(92,100,115,0.35)"
+          stroke="var(--hairline-strong)"
           strokeWidth="1"
           strokeDasharray="2 7"
         />
@@ -52,9 +52,9 @@ export function TeamOrbit({ members, currentIndex, size = 340, children }: TeamO
             key={participantId}
             className={`absolute flex items-center justify-center rounded-full font-bold text-sm tabular transition-all duration-700 animate-pop-in ${
               isCurrent
-                ? "bg-[var(--signal)] text-[#160603] scale-125 shadow-[0_0_0_2px_rgba(255,74,46,0.4),0_6px_18px_var(--signal-glow)] z-20"
+                ? "bg-[var(--signal)] text-[var(--on-signal)] scale-125 shadow-[0_0_0_2px_var(--signal-edge),0_6px_18px_var(--signal-glow)] z-20"
                 : isNext
-                  ? "bg-[var(--panel-2)] text-[var(--bone)] border-2 border-[rgba(255,74,46,0.55)] z-10"
+                  ? "bg-[var(--panel-2)] text-[var(--bone)] border-2 border-[var(--signal-edge)] z-10"
                   : "bg-[var(--panel-2)] text-[var(--bone-subtle)] border border-[var(--hairline-strong)]"
             }`}
             style={{
@@ -66,7 +66,7 @@ export function TeamOrbit({ members, currentIndex, size = 340, children }: TeamO
             title={label}
           >
             {isCurrent && (
-              <Crown className="w-3.5 h-3.5 absolute -top-2 -right-1 text-[#160603] drop-shadow rotate-12" />
+              <Crown className="w-3.5 h-3.5 absolute -top-2 -right-1 text-[var(--on-signal)] drop-shadow rotate-12" />
             )}
             <span className="select-none">{displayName.charAt(0).toUpperCase()}</span>
           </div>

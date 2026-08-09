@@ -97,7 +97,7 @@ export function Join({ code, onJoin }: JoinProps) {
             <label
               className={`flex-1 cursor-pointer rounded-md border px-3 py-2 text-center text-sm ${
                 mode === "driver"
-                  ? "border-[var(--signal)] bg-[rgba(255,74,46,0.12)]"
+                  ? "border-[var(--signal)] bg-[var(--signal-tint)]"
                   : "border-[var(--hairline-strong)] bg-[var(--panel-2)]"
               }`}
             >
@@ -117,7 +117,7 @@ export function Join({ code, onJoin }: JoinProps) {
             <label
               className={`flex-1 cursor-pointer rounded-md border px-3 py-2 text-center text-sm ${
                 mode === "spectator"
-                  ? "border-[var(--signal)] bg-[rgba(255,74,46,0.12)]"
+                  ? "border-[var(--signal)] bg-[var(--signal-tint)]"
                   : "border-[var(--hairline-strong)] bg-[var(--panel-2)]"
               }`}
             >

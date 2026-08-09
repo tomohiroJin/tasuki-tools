@@ -50,7 +50,7 @@ export function SpectatorSelfActions({
     isAllowed({ command: "role.set", role, started, isSelfTarget: true });
 
   return (
-    <div className="mb-3 rounded-md border border-[var(--signal)] bg-[rgba(255,74,46,0.10)] px-3 py-3">
+    <div className="mb-3 rounded-md border border-[var(--signal)] bg-[var(--signal-tint)] px-3 py-3">
       {/* こちらは役割が見学者である状態。ローテーション外（SelfDriverToggle）とは別物で、
           進行の操作そのものができない。文言で読み分けられるようにする。 */}
       <p className="text-sm font-semibold text-[var(--bone)]">あなたは見学者です</p>

@@ -43,12 +43,12 @@ export function ConfirmDialog({
 
   const confirmClass =
     confirmIntent === "primary"
-      ? "bg-[var(--signal)] hover:bg-[#ff6147] text-[#160603] shadow-[0_0_0_1px_rgba(255,74,46,0.5),0_6px_20px_var(--signal-glow)]"
-      : "bg-[rgba(255,53,42,0.9)] hover:bg-[var(--urgent)] text-white shadow-[0_4px_16px_rgba(255,53,42,0.3)] ring-1 ring-[rgba(255,53,42,0.4)]";
+      ? "bg-[var(--signal)] hover:bg-[var(--signal-hover)] text-[var(--on-signal)] shadow-[0_0_0_1px_var(--signal-edge),0_6px_20px_var(--signal-glow)]"
+      : "bg-[var(--urgent)] hover:bg-[var(--urgent-hover)] text-[var(--on-urgent)] shadow-[0_4px_16px_var(--urgent-veil)] ring-1 ring-[var(--urgent-edge)]";
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--shade)] backdrop-blur-sm"
       onClick={onCancel}
     >
       <div
@@ -56,7 +56,7 @@ export function ConfirmDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="confirm-title"
-        className="relative w-full max-w-sm rounded-lg border border-[var(--hairline-strong)] bg-[var(--panel)] p-5 shadow-[inset_0_1px_0_rgba(236,232,220,0.05),0_20px_50px_rgba(0,0,0,0.6)] text-[var(--bone)]"
+        className="relative w-full max-w-sm rounded-lg border border-[var(--hairline-strong)] bg-[var(--panel)] p-5 shadow-[inset_0_1px_0_var(--inset-highlight),0_20px_50px_rgba(0,0,0,0.6)] text-[var(--bone)]"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 id="confirm-title" className="text-lg font-bold text-[var(--bone)]">
@@ -70,7 +70,7 @@ export function ConfirmDialog({
             ref={cancelRef}
             type="button"
             onClick={onCancel}
-            className="px-4 py-2 rounded-md font-medium text-[var(--bone)] bg-[var(--panel-2)] hover:bg-[#252934] border border-[var(--hairline-strong)] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]"
+            className="px-4 py-2 rounded-md font-medium text-[var(--bone)] bg-[var(--panel-2)] hover:bg-[var(--panel-hover)] border border-[var(--hairline-strong)] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]"
           >
             {cancelLabel}
           </button>

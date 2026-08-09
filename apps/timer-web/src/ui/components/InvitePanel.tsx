@@ -56,6 +56,8 @@ export function InvitePanel({ code }: { code: string }) {
         <img
           src={qrDataUrl}
           alt={`ルーム ${code} の QR コード`}
+          /* 地は白のまま。QR は明暗のコントラストで読むため、卓の色に寄せると
+             読み取り率が落ちる（装飾ではなく機能上の要請）。 */
           className="h-52 w-52 rounded-xl bg-white p-2.5 mx-auto mt-4"
         />
       )}

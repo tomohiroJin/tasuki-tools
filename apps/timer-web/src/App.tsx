@@ -834,7 +834,7 @@ export default function App() {
           aria-live={banner.kind === "error" ? "assertive" : "polite"}
           className={`mb-4 rounded-md px-4 py-2 text-center text-sm border ${
             banner.kind === "error"
-              ? "bg-[rgba(255,53,42,0.15)] border-[rgba(255,53,42,0.45)] text-[#ffd5d1]"
+              ? "bg-[var(--urgent-tint)] border-[var(--urgent-edge)] text-[var(--urgent-pale)]"
               : "bg-amber-500/15 border-amber-400/40 text-amber-100"
           }`}
         >

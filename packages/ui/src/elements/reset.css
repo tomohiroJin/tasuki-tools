@@ -11,6 +11,9 @@ html {
   font-family: var(--font-body);
   line-height: 1.7;
   color: var(--ivory);
+  /* チェックボックス・ラジオ・スライダーはブラウザ既定の青で描かれる。
+   * 卓の上で 1 箇所だけ青が浮くので、真鍮へ寄せる。 */
+  accent-color: var(--gold);
 }
 
 body {

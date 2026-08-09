@@ -48,7 +48,7 @@ export function NotifySettingsPanel({ prefs, onChange, onPreview }: NotifySettin
           className={`h-5 w-9 rounded-full transition-colors ${prefs.enabled ? "bg-[var(--signal)]" : "bg-[var(--panel-2)]"}`}
         >
           <span
-            className={`block h-4 w-4 rounded-full bg-white transition-transform ${prefs.enabled ? "translate-x-4" : "translate-x-0.5"}`}
+            className={`block h-4 w-4 rounded-full bg-[var(--bone)] transition-transform ${prefs.enabled ? "translate-x-4" : "translate-x-0.5"}`}
           />
         </button>
       </label>
@@ -113,7 +113,7 @@ export function NotifySettingsPanel({ prefs, onChange, onPreview }: NotifySettin
           className={`h-5 w-9 rounded-full transition-colors ${prefs.countdownEnabled ? "bg-[var(--signal)]" : "bg-[var(--panel-2)]"}`}
         >
           <span
-            className={`block h-4 w-4 rounded-full bg-white transition-transform ${prefs.countdownEnabled ? "translate-x-4" : "translate-x-0.5"}`}
+            className={`block h-4 w-4 rounded-full bg-[var(--bone)] transition-transform ${prefs.countdownEnabled ? "translate-x-4" : "translate-x-0.5"}`}
           />
         </button>
       </label>

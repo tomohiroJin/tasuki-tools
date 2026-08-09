@@ -43,8 +43,8 @@ export function SessionConfigPanel({ config, canEdit, onChange }: SessionConfigP
                 onClick={() => onChange({ intervalMinutes: min })}
                 className={`px-4 py-2.5 rounded-md font-bold tabular transition-all border ${
                   selected
-                    ? "bg-[var(--signal)] text-[#160603] border-[var(--signal)] shadow-[0_0_0_1px_rgba(255,74,46,0.5),0_4px_16px_var(--signal-glow)]"
-                    : "bg-[var(--panel-2)] text-[var(--bone-muted)] border-[var(--hairline)] hover:bg-[#252934]"
+                    ? "bg-[var(--signal)] text-[var(--on-signal)] border-[var(--signal)] shadow-[0_0_0_1px_var(--signal-edge),0_4px_16px_var(--signal-glow)]"
+                    : "bg-[var(--panel-2)] text-[var(--bone-muted)] border-[var(--hairline)] hover:bg-[var(--panel-hover)]"
                 }`}
               >
                 {min}分
