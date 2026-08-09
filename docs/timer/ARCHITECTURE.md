@@ -275,9 +275,9 @@ need-problem）/ `error` / `time.pong` / `room.created` / `room.joined`。
 ## 未実装・将来枠
 
 初版の実装範囲は M0〜M3（以後 v2.x で拡張。グローバル資源上限・アイドル回収・AI 生成は実装済み）。
-以下は未実装（[tasks.md](../../docs/plans/tdd-mob-pro-timer/tasks.md)・[BACKLOG](../../docs/BACKLOG.md) 参照）:
+以下は未実装（[tasks.md](../../docs/plans/tdd-mob-pro-timer/tasks.md) 参照）:
 
-- IP 単位のレート制限（BACKLOG L-1。グローバルな maxConnections / maxRooms は実装済み）
+- IP 単位のレート制限（[#103](https://github.com/tomohiroJin/tasuki-tools/issues/103) で追跡。グローバルな maxConnections / maxRooms は実装済み）
 - PWA・チーム横断の永続記録ストア
 
 （FR-020「セッション喪失の明示」は実装済み: `App.tsx` の sessionLost → `StatusStrip` の lost 表示）

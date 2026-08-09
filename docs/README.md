@@ -25,3 +25,4 @@ Tasuki の文書は目的ごとに置き場が分かれています。まずこ�
 | 機能の設計経緯 | [`docs/superpowers/specs/`](./superpowers/specs/)・[`docs/superpowers/plans/`](./superpowers/plans/) |
 | 過去の SDD 記録 | [`docs/plans/`](./plans/) |
 | timer の実験記録 | [`docs/timer/experiments/`](./timer/experiments/) |
+| デプロイしたい | [`deploy/README.md`](../deploy/README.md) |

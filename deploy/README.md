@@ -19,6 +19,19 @@ Tasuki の各アプリは「自分の systemd ユニット + 固有ポート + C
 > 指示を得てまとめて 1 回デプロイする方針（再起動でルームが全消滅するため）。
 > 上表の公開パスはデプロイ後の姿を表す。
 
+### 公開範囲の方針（重要）
+
+**本番に公開しているのは TDD Mob Pro Timer（`packages/timer-core` / `apps/timer-*`）のみである。**
+
+- Planning Poker（`packages/poker-core` / `apps/poker-*`）は同一リポジトリにあるが未公開。
+  デプロイはアプリ単位（`./deploy/deploy.sh <app>`）で、poker を明示的に指定しない限り
+  転送されない。さらに Caddy 断片 `20-poker.conf` を設置していないため、**仮に配置しても
+  公開されない**（S2 / #17 で入れた二重の歯止め）。
+- 公開ドメインの `/poker` パスが 200 を返すことがあるのは、Caddy の SPA フォールバックにより
+  timer の `index.html` が返っているだけで、Planning Poker の実体ではない。
+- **Planning Poker の公開は #66（S4 の成果を本番へ出す）で行う。** 上記の S4 注記のとおり
+  epic #15 の全段階が終わってから 1 回にまとめて実施する方針であり、個別の前倒しは行わない。
+
 `landing` は **sync サーバーを持たない静的サイト**で、Caddy が直接配信する。`app.env` に
 `STATIC_ONLY=1` を置くと、`deploy.sh` はバンドルとサービス再起動の段を飛ばし、
 `setup.sh`（systemd ユニット・sudoers）も不要になる。
@@ -98,6 +111,9 @@ ssh "$TASUKI_SSH_HOST" 'cp -p /opt/tasuki/server.js.bak-<日付> /opt/tasuki/ser
 web 側は前コミットを checkout して `deploy.sh` を再実行する。
 
 ## 初回セットアップ（VPS 側・アプリごとに 1 回）
+
+> 前提: VPS は Debian 12・非 root のログインユーザーで運用する。実行ユーザーは
+> `deploy/setup.sh` の `DEPLOY_USER` で一元管理する（#51 A）。
 
 ```bash
 # 1) Bun を VPS に導入し /usr/local/bin/bun へ置く（未導入なら）
