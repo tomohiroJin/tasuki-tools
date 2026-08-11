@@ -126,18 +126,18 @@
 
 **Branch**: `chore/113-pr5-tailwind` ・ **Purpose**: CSS 基盤を更新する。**#78 で確立したトークンに触れるため、移行方式の実測から始める。**
 
-- [ ] T046 PR-4 のマージ後、`main` を pull して `chore/113-pr5-tailwind` を切る _要件: —（手続き）_
-- [ ] T047 **移行方式の実測（未解決の論点 2 の解決）**: 使い捨ての作業で、新版の Tailwind が既存の `apps/timer-web/tailwind.config.js` を `@config` ディレクティブ経由で読めるかを確認する。**読めない場合は最小移行が成立しない**ため、CSS-first への移行範囲を見積もり直し、規模が PR 1 本を超えるなら別 Issue へ切り出す _要件: FR-014_
-- [ ] T048 `apps/timer-web/package.json` の `tailwindcss` を更新し、PostCSS プラグインのパッケージ（`@tailwindcss/postcss`）を追加する。追加の根拠（本体からのプラグイン分離であり技術選定の変更ではない）を `apps/timer-web/postcss.config.js` にコメントで残す _要件: FR-014_
-- [ ] T049 `apps/timer-web/postcss.config.js` のプラグイン指定を新しいパッケージへ差し替える。**`autoprefixer` は残置する**（削除は仕様の非目標。要否の判断は #71 へ申し送る） _要件: FR-014_
-- [ ] T050 T047 の結果に従い、`apps/timer-web/src/index.css` に既存設定を読み込む指定を追加する _要件: FR-014_
-- [ ] T051 `corepack pnpm build` を実行し、ビルドが通ること・`autoprefixer` を残したまま警告が出ないことを確認する _要件: FR-005_
-- [ ] T052 `corepack pnpm --filter @tasuki/ui test` と `--filter @tasuki/ui lint` を実行し、**トークン層の契約テスト（`packages/ui/tests/tokens.test.mjs`）が緑**であることを確認する _要件: FR-005_
-- [ ] T053 dev サーバーを起動し、**実画面確認**: `/timer/` で在室状況の 3 色（`presence-online` / `idle` / `offline`）・角丸・影・書体（`--font-sans` / `--font-mono`）が更新前と同じに見えることを確認する _要件: FR-007, US2_
-- [ ] T054 **破壊検証**: T050 で追加した設定の読み込み指定を一時的に外してビルドし、**画面のトークン由来の見た目が実際に崩れること**を確認してから戻す。移行が「効いているつもり」で空振りしていないことを示す _要件: FR-014（憲法 原則 VII）_
-- [ ] T055 dev サーバーを停止し、`ss -tlnp` でポートの解放を確認する _要件: —（手続き）_
-- [ ] T056 `corepack pnpm typecheck` / `lint` / `test` / `build` の 4 つと、T006 との件数突合を実行する _要件: FR-005, FR-006_
-- [ ] T057 未解決の論点 1（プラグインパッケージの追加が ADR を要するか）の判断を確定する。ADR が必要と判断した場合は [`docs/adr/0001`](../../adr/0001-design-system-scope.md) へ追記する。不要と判断した場合はその根拠を PR 本文に記す _要件: FR-014_
+- [X] T046 PR-4 のマージ後、`main` を pull して `chore/113-pr5-tailwind` を切る _要件: —（手続き）_
+- [X] T047 **移行方式の実測（未解決の論点 2 の解決）**: 使い捨ての作業で、新版の Tailwind が既存の `apps/timer-web/tailwind.config.js` を `@config` ディレクティブ経由で読めるかを確認する。**読めない場合は最小移行が成立しない**ため、CSS-first への移行範囲を見積もり直し、規模が PR 1 本を超えるなら別 Issue へ切り出す _要件: FR-014_ **→ `@config` は 4.3.3 で機能した。**生成 CSS に config 由来の 11 規則が更新前と同じ形で出ることを確認。最小移行が成立したので、CSS-first への移行範囲の見積もり直しは不要。
+- [X] T048 `apps/timer-web/package.json` の `tailwindcss` を更新し、PostCSS プラグインのパッケージ（`@tailwindcss/postcss`）を追加する。追加の根拠（本体からのプラグイン分離であり技術選定の変更ではない）を `apps/timer-web/postcss.config.js` にコメントで残す _要件: FR-014_
+- [X] T049 `apps/timer-web/postcss.config.js` のプラグイン指定を新しいパッケージへ差し替える。**`autoprefixer` は残置する**（削除は仕様の非目標。要否の判断は #71 へ申し送る） _要件: FR-014_ **→ 残置してビルドが通ることを確認。あわせて外して測ったところ、「Tailwind 4 が自前で prefix を付けるので不要」は成り立たなかった**（外すと CSS が増え `-moz-column-gap` が消える）。この事実を #71 への申し送りとして `postcss.config.js` と ADR-0001 の追記に記録した。
+- [X] T050 T047 の結果に従い、`apps/timer-web/src/index.css` に既存設定を読み込む指定を追加する _要件: FR-014_
+- [X] T051 `corepack pnpm build` を実行し、ビルドが通ること・`autoprefixer` を残したまま警告が出ないことを確認する _要件: FR-005_
+- [X] T052 `corepack pnpm --filter @tasuki/ui test` と `--filter @tasuki/ui lint` を実行し、**トークン層の契約テスト（`packages/ui/tests/tokens.test.mjs`）が緑**であることを確認する _要件: FR-005_
+- [X] T053 dev サーバーを起動し、**実画面確認**: `/timer/` で在室状況の 3 色（`presence-online` / `idle` / `offline`）・角丸・影・書体（`--font-sans` / `--font-mono`）が更新前と同じに見えることを確認する _要件: FR-007, US2_
+- [X] T054 **破壊検証**: T050 で追加した設定の読み込み指定を一時的に外してビルドし、**画面のトークン由来の見た目が実際に崩れること**を確認してから戻す。移行が「効いているつもり」で空振りしていないことを示す _要件: FR-014（憲法 原則 VII）_
+- [X] T055 dev サーバーを停止し、`ss -tlnp` でポートの解放を確認する _要件: —（手続き）_
+- [X] T056 `corepack pnpm typecheck` / `lint` / `test` / `build` の 4 つと、T006 との件数突合を実行する _要件: FR-005, FR-006_
+- [X] T057 未解決の論点 1（プラグインパッケージの追加が ADR を要するか）の判断を確定する。ADR が必要と判断した場合は [`docs/adr/0001`](../../adr/0001-design-system-scope.md) へ追記する。不要と判断した場合はその根拠を PR 本文に記す _要件: FR-014_
 - [ ] T058 PR を作成する。DoD の項目 2・5・7 に T053 の実画面確認と文書への反映を記す。CI の 3 ジョブが緑であることを確認してからマージする _要件: FR-007_
 
 ---
