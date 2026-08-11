@@ -183,10 +183,22 @@ describe("findInlineCodePaths", () => {
     ]);
   });
 
-  test("フェンス内のコマンド例は拾わない", () => {
-    // Given
-    const src = ["```bash", "node scripts/nonexistent.mjs", "```"].join("\n");
+  // 次の 2 件は対照実験。フェンスの有無だけが違う。
+  // フェンス内の行にバッククォート引用を置かないと、fenceMask への委譲を丸ごと
+  // 無効化してもテストが通ってしまう（恒真になる）。
+  test("フェンス内のバッククォート引用は拾わない", () => {
+    // Given: フェンスの中に、バッククォートで囲んだリポジトリパスがある
+    const src = ["```bash", "詳細は `scripts/nonexistent.mjs` を見る", "```"].join("\n");
     // When / Then
     assert.deepEqual(findInlineCodePaths(src), []);
+  });
+
+  test("同じ内容でもフェンスの外なら拾う", () => {
+    // Given: 上のテストからフェンスだけを外したもの
+    const src = "詳細は `scripts/nonexistent.mjs` を見る";
+    // When / Then
+    assert.deepEqual(findInlineCodePaths(src), [
+      { path: "scripts/nonexistent.mjs", raw: "scripts/nonexistent.mjs", line: 1 },
+    ]);
   });
 });
