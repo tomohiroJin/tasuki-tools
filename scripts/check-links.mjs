@@ -13,6 +13,9 @@
  * 検査手順を説明する文書が `[x](no-such-file.md)` のような例示を含むため、
  * ここを読むと「意図的に壊れたリンク」を実害として報告してしまう。
  */
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 /**
  * 各行がコードフェンスの内側（フェンス行自体を含む）かどうかを返す。
@@ -203,3 +206,91 @@ export function checkStaleExceptions(usedPaths) {
     (e) => `使われていない例外が残っています: ${e.path}（${e.reason}）`,
   );
 }
+
+const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = path.resolve(SCRIPT_DIR, "..");
+// git 追跡外の生成物・作業用ディレクトリは走査しない。
+// .superpowers は SDD の作業ディレクトリ（ブリーフや報告書の .md が置かれる）で、
+// gitignore 済み。これを外すと、走査対象の件数が作業のたびに変わる。
+const SKIP_DIRS = new Set([
+  "node_modules",
+  ".git",
+  "dist",
+  "test-results",
+  "coverage",
+  ".superpowers",
+]);
+
+function collectMarkdownFiles(root) {
+  const files = [];
+  (function walk(dir) {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (SKIP_DIRS.has(entry.name)) continue;
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (entry.name.endsWith(".md")) files.push(full);
+    }
+  })(root);
+  return files.sort();
+}
+
+function main() {
+  const exists = (rel) => fs.existsSync(path.resolve(REPO_ROOT, rel));
+  const errors = checkConstants({ exists });
+
+  const files = collectMarkdownFiles(REPO_ROOT);
+  if (files.length === 0) {
+    errors.push("走査対象の .md が 1 件もありません（検査が空振りしています）");
+  }
+
+  const anchorCache = new Map();
+  const anchorsFor = (abs) => {
+    if (!anchorCache.has(abs)) {
+      anchorCache.set(abs, fs.existsSync(abs) ? collectAnchors(fs.readFileSync(abs, "utf8")) : null);
+    }
+    return anchorCache.get(abs);
+  };
+  const usedExceptions = new Set();
+  const exceptionPaths = new Set(MISSING_PATH_EXCEPTIONS.map((e) => e.path));
+
+  for (const abs of files) {
+    const rel = path.relative(REPO_ROOT, abs);
+    const src = fs.readFileSync(abs, "utf8");
+    const dir = path.dirname(abs);
+
+    for (const { target, line } of findRelativeLinks(src)) {
+      const [filePart, hash] = target.split("#");
+      const targetAbs = filePart ? path.resolve(dir, filePart) : abs;
+      if (filePart && !fs.existsSync(targetAbs)) {
+        errors.push(`${rel}:${line} 参照先がありません → ${target}`);
+        continue;
+      }
+      if (!hash || !targetAbs.endsWith(".md")) continue;
+      const anchors = anchorsFor(targetAbs);
+      if (anchors && !anchors.has(decodeURIComponent(hash).toLowerCase())) {
+        errors.push(`${rel}:${line} アンカーがありません → ${target}`);
+      }
+    }
+
+    if (!isLiveDoc(rel)) continue;
+    for (const { path: p, raw, line } of findInlineCodePaths(src)) {
+      if (exceptionPaths.has(p)) {
+        usedExceptions.add(p);
+        continue;
+      }
+      if (!exists(p)) errors.push(`${rel}:${line} 実在しないパスです → \`${raw}\``);
+    }
+  }
+
+  errors.push(...checkStaleExceptions(usedExceptions));
+
+  if (errors.length > 0) {
+    for (const e of errors) console.error(e);
+    console.error(`\n${errors.length} 件の問題があります（走査 ${files.length} ファイル）`);
+    process.exitCode = 1;
+    return;
+  }
+  console.log(`リンク検査 OK（走査 ${files.length} ファイル）`);
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) main();

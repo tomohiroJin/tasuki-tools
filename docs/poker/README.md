@@ -53,4 +53,4 @@ pnpm --filter @tasuki/poker-web dev    # Vite :5174（/poker/ 配信、WS は :3
 ## デプロイ
 
 `pnpm turbo build` 後、`deploy/` の Caddyfile 断片と systemd ユニットを適用する
-（implement の最終フェーズ。詳細は [deploy/README.md](../../deploy/poker/README.md)）。
+（implement の最終フェーズ。詳細は [deploy/README.md](../../deploy/README.md)）。
