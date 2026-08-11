@@ -1,6 +1,18 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { stripCodeRegions, toAnchor, collectAnchors, findRelativeLinks, findInlineCodePaths, isRepoPathLike } from "./check-links.mjs";
+import {
+  stripCodeRegions,
+  toAnchor,
+  collectAnchors,
+  findRelativeLinks,
+  findInlineCodePaths,
+  isRepoPathLike,
+  LIVE_DOCS,
+  MISSING_PATH_EXCEPTIONS,
+  isLiveDoc,
+  checkConstants,
+  checkStaleExceptions,
+} from "./check-links.mjs";
 
 describe("stripCodeRegions", () => {
   test("フェンス内の行を空にする", () => {
@@ -200,5 +212,67 @@ describe("findInlineCodePaths", () => {
     assert.deepEqual(findInlineCodePaths(src), [
       { path: "scripts/nonexistent.mjs", raw: "scripts/nonexistent.mjs", line: 1 },
     ]);
+  });
+});
+
+describe("isLiveDoc", () => {
+  test("現役の規範文書を受け入れる", () => {
+    assert.equal(isLiveDoc("README.md"), true);
+    assert.equal(isLiveDoc("docs/adr/0009-ci-scope-and-checks.md"), true);
+    assert.equal(isLiveDoc("deploy/README.md"), true);
+  });
+
+  test("履歴文書と vendor を弾く", () => {
+    // Given: monorepo 統合前の表記で書かれた当時の記録、および spec-kit の vendor
+    // When / Then
+    assert.equal(isLiveDoc("docs/superpowers/plans/2026-08-04-monorepo-s0-s1.md"), false);
+    assert.equal(isLiveDoc("docs/poker/specs/001-planning-poker-mvp/tasks.md"), false);
+    assert.equal(isLiveDoc("docs/timer/adr/0009-test-conventions.md"), false);
+    assert.equal(isLiveDoc(".claude/skills/speckit-plan/SKILL.md"), false);
+  });
+
+  test("docs/README.md は現役だが docs/ 全体は現役ではない", () => {
+    // Given: 完全一致のエントリと前方一致のエントリを混ぜている
+    // When / Then
+    assert.equal(isLiveDoc("docs/README.md"), true);
+    assert.equal(isLiveDoc("docs/BACKLOG.md"), false);
+  });
+});
+
+describe("checkConstants", () => {
+  test("LIVE_DOCS に実在しないパスがあれば報告する", () => {
+    // Given: 実在しないと答える exists
+    const exists = (p) => p !== "docs/guides/";
+    // When
+    const errors = checkConstants({ exists });
+    // Then
+    assert.equal(errors.length, 1);
+    assert.match(errors[0], /docs\/guides\//);
+  });
+
+  test("すべて実在すれば空", () => {
+    // Given
+    const exists = () => true;
+    // When / Then
+    assert.deepEqual(checkConstants({ exists }), []);
+  });
+});
+
+describe("checkStaleExceptions", () => {
+  test("一度も使われなかった例外を報告する", () => {
+    // Given: 例外表のどのパスにも触れなかった走査
+    const used = new Set();
+    // When
+    const errors = checkStaleExceptions(used);
+    // Then
+    assert.equal(errors.length, MISSING_PATH_EXCEPTIONS.length);
+    assert.match(errors[0], /docs\/BACKLOG\.md/);
+  });
+
+  test("使われた例外は報告しない", () => {
+    // Given
+    const used = new Set(MISSING_PATH_EXCEPTIONS.map((e) => e.path));
+    // When / Then
+    assert.deepEqual(checkStaleExceptions(used), []);
   });
 });
