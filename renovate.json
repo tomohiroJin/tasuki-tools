@@ -1,0 +1,11 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "minimumReleaseAge": "7 days",
+  "automerge": false,
+  "labels": ["dependencies"],
+  "packageRules": [
+    { "matchUpdateTypes": ["minor", "patch"], "groupName": "非破壊的な更新" },
+    { "matchUpdateTypes": ["major"], "dependencyDashboardApproval": true }
+  ]
+}
