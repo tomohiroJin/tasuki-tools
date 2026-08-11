@@ -30,8 +30,8 @@ export default defineConfig({
     // 広げて競合フレイクを安定化する（テスト内容は変えない）。
     testTimeout: 20000,
     hookTimeout: 20000,
-    poolOptions: {
-      forks: { maxForks: 4 },
-    },
+    // Vitest 4 で `test.poolOptions` は削除され、旧 poolOptions は最上位のオプションに
+    // なった（`poolOptions.forks.maxForks` → `maxWorkers`）。並列度 4 の意図は変えない。
+    maxWorkers: 4,
   },
 });

@@ -95,13 +95,13 @@
 
 **Branch**: `chore/113-pr3-vitest` ・ **Purpose**: テストランナーを更新する。**PR-4 より前に完了していること**（vite が 2 つ入るのを防ぐ）。
 
-- [ ] T029 PR-2 のマージ後、`main` を pull して `chore/113-pr3-vitest` を切る _要件: —（手続き）_
-- [ ] T030 `vitest` を宣言している 8 パッケージと `packages/timer-core/package.json` の `@vitest/coverage-v8` を、**同一コミットで**同じ版へ更新する（coverage-v8 の peer が vitest の版と完全一致を要求するため） _要件: FR-002_
-- [ ] T031 [P] 各 `vitest.config.ts`（`apps/{timer-web,landing,poker-web,poker-sync}/`・`packages/{timer-core,poker-core,protocol}/`・`e2e/`）を新版で読み込ませ、**廃止・移動した設定キーの警告が出ていないか**実行ログを確認する。警告があれば新しい記法へ書き換え、変更の理由をコメントで残す _要件: FR-014_
-- [ ] T032 `packages/timer-core/vitest.config.ts` の `coverage.thresholds`（`lines` / `branches`）が新版でも維持されることを確認する。**下回った場合にしきい値を下げて通さない**。原因（計測対象の変化か、実際の欠落か）を特定してから対処する _要件: FR-005_
-- [ ] T033 `corepack pnpm typecheck` / `lint` / `test` / `build` の 4 つを実行し、すべて緑であることを確認する _要件: FR-005_
-- [ ] T034 T006 の基準とテスト実行件数を突き合わせる。**ランナーの更新は「テストが黙って収集されなくなる」事故が起きやすい**ため、パッケージ単位で照合する _要件: FR-006_
-- [ ] T035 `git diff` で更新対象以外の直接依存が巻き込まれていないことを確認する _要件: FR-001_
+- [X] T029 PR-2 のマージ後、`main` を pull して `chore/113-pr3-vitest` を切る _要件: —（手続き）_
+- [X] T030 `vitest` を宣言している 8 パッケージと `packages/timer-core/package.json` の `@vitest/coverage-v8` を、**同一コミットで**同じ版へ更新する（coverage-v8 の peer が vitest の版と完全一致を要求するため） _要件: FR-002_
+- [X] T031 [P] 各 `vitest.config.ts`（`apps/{timer-web,landing,poker-web,poker-sync}/`・`packages/{timer-core,poker-core,protocol}/`・`e2e/`）を新版で読み込ませ、**廃止・移動した設定キーの警告が出ていないか**実行ログを確認する。警告があれば新しい記法へ書き換え、変更の理由をコメントで残す _要件: FR-014_
+- [X] T032 `packages/timer-core/vitest.config.ts` の `coverage.thresholds`（`lines` / `branches`）が新版でも維持されることを確認する。**下回った場合にしきい値を下げて通さない**。原因（計測対象の変化か、実際の欠落か）を特定してから対処する _要件: FR-005_ **→ 計測対象の変化だった**（coverage-v8 3 では `experimentalAstAwareRemapping` が既定オフの実験オプションだったのが、4 では両オプションごと消えて AST 対応の再マッピングが唯一の挙動になった）。しきい値は 90 のまま据え置き、実在の未検査分岐（`member.move` の範囲拒否）をテストで埋めて満たした。
+- [X] T033 `corepack pnpm typecheck` / `lint` / `test` / `build` の 4 つを実行し、すべて緑であることを確認する _要件: FR-005_
+- [X] T034 T006 の基準とテスト実行件数を突き合わせる。**ランナーの更新は「テストが黙って収集されなくなる」事故が起きやすい**ため、パッケージ単位で照合する _要件: FR-006_
+- [X] T035 `git diff` で更新対象以外の直接依存が巻き込まれていないことを確認する _要件: FR-001_
 - [ ] T036 PR を作成する。DoD を記入し、CI の 3 ジョブが緑であることを確認してからマージする _要件: FR-005_
 
 ---
