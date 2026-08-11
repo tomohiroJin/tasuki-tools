@@ -46,13 +46,13 @@
 
 **Purpose**: 実装計画の「実測ログ」は 2026-08-11 時点のもの。**着手日には最新版・公開日・peer 宣言のすべてが変わりうる**ため、判断の前提を測り直す。
 
-- [ ] T001 `/home/vscode/tasuki-work` で `git checkout main && git pull --ff-only` し、overlay を `origin/main` の最新へ合わせる。`corepack pnpm install --frozen-lockfile` が通ることを確認する _要件: —（手続き）_
-- [ ] T002 `corepack pnpm outdated -r` を実行し、メジャー残件を Issue #113 の表と突き合わせる。差異があれば **Issue #113 の本文を更新**する（本文が正本） _要件: FR-011_
-- [ ] T003 [P] 対象それぞれについて `corepack pnpm view <pkg> peerDependencies` を実行し、実装計画が挙げる 3 組の束縛（vite↔plugin-react / vitest↔coverage-v8 / stylelint↔config-recommended）が現在も成立するかを確認する。組が増減していたら PR の束ね方を修正する _要件: FR-002_
-- [ ] T004 [P] 対象それぞれについて `corepack pnpm view <pkg> time` で採用予定版の公開日を取得し、`minimumReleaseAge`（7 日）を満たすことを確認する。満たさないものがあれば、その PR での採用可否を判断する（例外の追加は最後の手段） _要件: FR-013_
-- [ ] T005 [P] 対象それぞれについて、依存する道具の対応範囲内で最大の版を確定する。`pnpm outdated` の「latest」を無条件に採用しない（TypeScript が該当。実装計画の判断を再確認する） _要件: FR-004_
-- [ ] T006 **基準の記録**: `corepack pnpm test` を実行し、パッケージごとのテスト実行件数と総数を scratchpad に記録する。以降の各 PR はこの値と突き合わせる _要件: FR-006_
-- [ ] T007 Issue #113 本文の「1 メジャー = 1 PR」を、実測に基づく更新単位の定義（peer 束縛の 3 組は同一 PR）へ訂正するコメントを投稿する _要件: FR-002_
+- [X] T001 `/home/vscode/tasuki-work` で `git checkout main && git pull --ff-only` し、overlay を `origin/main` の最新へ合わせる。`corepack pnpm install --frozen-lockfile` が通ることを確認する _要件: —（手続き）_
+- [X] T002 `corepack pnpm outdated -r` を実行し、メジャー残件を Issue #113 の表と突き合わせる。差異があれば **Issue #113 の本文を更新**する（本文が正本） _要件: FR-011_
+- [X] T003 [P] 対象それぞれについて `corepack pnpm view <pkg> peerDependencies` を実行し、実装計画が挙げる 3 組の束縛（vite↔plugin-react / vitest↔coverage-v8 / stylelint↔config-recommended）が現在も成立するかを確認する。組が増減していたら PR の束ね方を修正する _要件: FR-002_
+- [X] T004 [P] 対象それぞれについて `corepack pnpm view <pkg> time` で採用予定版の公開日を取得し、`minimumReleaseAge`（7 日）を満たすことを確認する。満たさないものがあれば、その PR での採用可否を判断する（例外の追加は最後の手段） _要件: FR-013_
+- [X] T005 [P] 対象それぞれについて、依存する道具の対応範囲内で最大の版を確定する。`pnpm outdated` の「latest」を無条件に採用しない（TypeScript が該当。実装計画の判断を再確認する） _要件: FR-004_
+- [X] T006 **基準の記録**: `corepack pnpm test` を実行し、パッケージごとのテスト実行件数と総数を scratchpad に記録する。以降の各 PR はこの値と突き合わせる _要件: FR-006_
+- [X] T007 Issue #113 本文の「1 メジャー = 1 PR」を、実測に基づく更新単位の定義（peer 束縛の 3 組は同一 PR）へ訂正するコメントを投稿する _要件: FR-002_
 
 ---
 
@@ -60,18 +60,18 @@
 
 **Branch**: `chore/113-pr1-outer-checks` ・ **Purpose**: 開発時にのみ使われ、失敗の現れ方が互いに区別できる 5 件をまとめて更新する。実画面・実プロトコルの確認は該当なし。
 
-- [ ] T008 `main` から `chore/113-pr1-outer-checks` を切る _要件: —（手続き）_
-- [ ] T009 [P] `package.json`（ルート）と `e2e/package.json` の `@types/node` を T005 で確定した版へ更新する _要件: FR-001, FR-002_
-- [ ] T010 [P] `packages/ui/package.json` の `stylelint` と `stylelint-config-recommended` を**同一コミットで**更新する（config の peer が stylelint の版を束縛するため分離できない） _要件: FR-002_
-- [ ] T011 [P] `apps/timer-web/package.json` と `apps/landing/package.json` の `@testing-library/jest-dom` を更新する。`apps/timer-web/test/setup.ts` は素の入口（`@testing-library/jest-dom`）、`apps/landing/tests/setup.ts` は `/vitest` 入口を使っており、**両方の入口が新版にも存在すること**を `pnpm view <pkg> exports` で確認してから更新する _要件: FR-001_
-- [ ] T012 `apps/timer-web/package.json` と `apps/landing/package.json` の `jsdom` を更新する _要件: FR-001_
-- [ ] T013 ルート `package.json` の `engines.node` を、T012 で入れた `jsdom` の `engines` が要求する下限へ引き上げる _要件: FR-012_
-- [ ] T014 `.github/workflows/ci.yml` の `node-version` 指定が T013 の新しい下限を満たすか確認する。満たさない場合のみ指定を修正する（満たす場合は変更しない） _要件: FR-012_
-- [ ] T015 **破壊検証**: 任意のテストファイル 1 本の 1 ケースを一時的に `.skip` して `corepack pnpm test` を実行し、**T006 の基準と件数が食い違うことを確認**してから元に戻す。件数突合が実際に機能する確認手段であることを示す _要件: FR-006（憲法 原則 VII）_
-- [ ] T016 `git diff package.json */package.json */*/package.json` を確認し、**更新対象以外の直接依存が巻き込まれていないこと**を確かめる（`pnpm update -r` が同名の直接依存まで書き換える罠。#69 で 2 度発生） _要件: FR-001_
-- [ ] T017 `pnpm-workspace.yaml` の `minimumReleaseAgeExclude` から、解除予定日を過ぎた `postcss-selector-parser` の期限つき例外を削除する。削除後に `rm -rf node_modules && corepack pnpm install --frozen-lockfile` が通ることを確認する（**作業日が解除予定日より前なら、このタスクを最後の PR へ移す**） _要件: FR-013_
-- [ ] T018 `corepack pnpm typecheck` / `lint` / `test` / `build` の 4 つを実行し、すべて緑であることを確認する _要件: FR-005_
-- [ ] T019 T006 の基準とテスト実行件数を突き合わせ、減っていないことを確認する _要件: FR-006_
+- [X] T008 `main` から `chore/113-pr1-outer-checks` を切る _要件: —（手続き）_
+- [X] T009 [P] `package.json`（ルート）と `e2e/package.json` の `@types/node` を T005 で確定した版へ更新する _要件: FR-001, FR-002_
+- [X] T010 [P] `packages/ui/package.json` の `stylelint` と `stylelint-config-recommended` を**同一コミットで**更新する（config の peer が stylelint の版を束縛するため分離できない） _要件: FR-002_
+- [X] T011 [P] `apps/timer-web/package.json` と `apps/landing/package.json` の `@testing-library/jest-dom` を更新する。`apps/timer-web/test/setup.ts` は素の入口（`@testing-library/jest-dom`）、`apps/landing/tests/setup.ts` は `/vitest` 入口を使っており、**両方の入口が新版にも存在すること**を `pnpm view <pkg> exports` で確認してから更新する _要件: FR-001_
+- [X] T012 `apps/timer-web/package.json` と `apps/landing/package.json` の `jsdom` を更新する _要件: FR-001_
+- [X] T013 ルート `package.json` の `engines.node` を、T012 で入れた `jsdom` の `engines` が要求する下限へ引き上げる _要件: FR-012_
+- [X] T014 `.github/workflows/ci.yml` の `node-version` 指定が T013 の新しい下限を満たすか確認する。満たさない場合のみ指定を修正する（満たす場合は変更しない） _要件: FR-012_
+- [X] T015 **破壊検証**: 任意のテストファイル 1 本の 1 ケースを一時的に `.skip` して `corepack pnpm test` を実行し、**T006 の基準と件数が食い違うことを確認**してから元に戻す。件数突合が実際に機能する確認手段であることを示す _要件: FR-006（憲法 原則 VII）_
+- [X] T016 `git diff package.json */package.json */*/package.json` を確認し、**更新対象以外の直接依存が巻き込まれていないこと**を確かめる（`pnpm update -r` が同名の直接依存まで書き換える罠。#69 で 2 度発生） _要件: FR-001_
+- [ ] T017 `pnpm-workspace.yaml` の `minimumReleaseAgeExclude` から、解除予定日を過ぎた `postcss-selector-parser` の期限つき例外を削除する。削除後に `rm -rf node_modules && corepack pnpm install --frozen-lockfile` が通ることを確認する（**作業日が解除予定日より前なら、このタスクを最後の PR へ移す**） _要件: FR-013_ **→ 実施日 2026-08-11 は解除予定日 2026-08-14 より前のため、この条件に従い PR-6 へ移動。PR-1 では実行しない。**
+- [X] T018 `corepack pnpm typecheck` / `lint` / `test` / `build` の 4 つを実行し、すべて緑であることを確認する _要件: FR-005_
+- [X] T019 T006 の基準とテスト実行件数を突き合わせ、減っていないことを確認する _要件: FR-006_
 - [ ] T020 PR を作成する。DoD の 8 項目を記入し、項目 1・2・3・4・5・6 は「該当なし」とその理由を明記する（新規実装なし・利用者の経路が変わらない・検査を足していない・既存実装を書き換えていない）。CI の `ci` / `audit` / `e2e` の 3 ジョブが緑であることを確認してからマージする _要件: FR-005, FR-014_
 
 ---
