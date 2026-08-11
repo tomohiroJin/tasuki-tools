@@ -35,3 +35,5 @@ ffmpeg -y -f lavfi -i "sine=frequency=880:duration=0.7" \
   -ar 44100 -b:a 96k "$OUT/bell.mp3"
 
 echo "generated: $OUT/{department,melody,sustained,bell}.mp3"
+
+echo $(echo hi)
