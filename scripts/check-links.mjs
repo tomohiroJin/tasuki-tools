@@ -15,33 +15,53 @@
  */
 
 /**
+ * 各行がコードフェンスの内側（フェンス行自体を含む）かどうかを返す。
+ *
+ * **閉じフェンスは「開いたフェンスと同じ文字」「同じ長さ以上」「他に内容が無い」の
+ * 3 つを満たす必要がある**（CommonMark）。長さを見ないと、```` で開いたブロックの
+ * 中にある ``` が外側を閉じてしまい、コード領域の中身が本文として漏れる。
+ * リポジトリの `docs/superpowers/plans/2026-06-07-tasuki-vps-deployment.md`（425 行で
+ * ```` で開き、495 行に ```bash がある）で実際に再現した欠陥。
+ *
+ * フェンス判定はここ 1 箇所に集約する。stripCodeRegions と findInlineCodePaths が
+ * 別々に持つと、片方だけ直したときに同じ穴が残る。
+ */
+export function fenceMask(src) {
+  const mask = [];
+  let fence = null; // { char, length }
+  for (const line of src.split("\n")) {
+    const marker = line.match(/^\s*(`{3,}|~{3,})/)?.[1];
+    if (marker && fence === null) {
+      fence = { char: marker[0], length: marker.length };
+      mask.push(true);
+      continue;
+    }
+    // ```bash のような情報文字列つきの行は開始フェンスであって閉じフェンスではない
+    if (
+      marker &&
+      fence !== null &&
+      marker[0] === fence.char &&
+      marker.length >= fence.length &&
+      line.trim() === marker
+    ) {
+      fence = null;
+      mask.push(true);
+      continue;
+    }
+    mask.push(fence !== null);
+  }
+  return mask;
+}
+
+/**
  * フェンス内の行を空文字にし、本文中のインラインコードを同じ長さの空白へ置き換える。
  * 行番号を報告できるように、行数と各行の文字数は保つ。
  */
 export function stripCodeRegions(src) {
-  const out = [];
-  let fence = null;
-  for (const line of src.split("\n")) {
-    const opener = line.match(/^\s*(`{3,}|~{3,})/);
-    if (opener) {
-      if (fence === null) {
-        fence = opener[1][0].repeat(3);
-        out.push("");
-        continue;
-      }
-      if (line.trim().startsWith(fence)) {
-        fence = null;
-        out.push("");
-        continue;
-      }
-    }
-    if (fence !== null) {
-      out.push("");
-      continue;
-    }
-    out.push(line.replace(/`[^`\n]*`/g, (s) => " ".repeat(s.length)));
-  }
-  return out;
+  const mask = fenceMask(src);
+  return src
+    .split("\n")
+    .map((line, i) => (mask[i] ? "" : line.replace(/`[^`\n]*`/g, (s) => " ".repeat(s.length))));
 }
 
 /**

@@ -34,6 +34,43 @@ describe("stripCodeRegions", () => {
     assert.equal(lines[1], "");
     assert.equal(lines[3], "[ok](./a.md)");
   });
+
+  test("4 個で開いたフェンスは 3 個の行では閉じない", () => {
+    // Given: バッククォート 4 個の中に 3 個のフェンスがネストしている
+    //        （docs/superpowers/plans/2026-06-07-tasuki-vps-deployment.md の実例）
+    const src = ["````markdown", "```bash", "# コメント", "```", "````", "[ok](./a.md)"].join("\n");
+    // When
+    const lines = stripCodeRegions(src);
+    // Then: 外側フェンスの中身はすべて空になり、閉じた後の本文だけ残る
+    assert.deepEqual(lines, ["", "", "", "", "", "[ok](./a.md)"]);
+  });
+
+  test("情報文字列つきの行は閉じフェンスにならない", () => {
+    // Given
+    const src = ["```", "text", "```bash", "まだフェンス内", "```", "[ok](./a.md)"].join("\n");
+    // When
+    const lines = stripCodeRegions(src);
+    // Then
+    assert.equal(lines[3], "");
+    assert.equal(lines[5], "[ok](./a.md)");
+  });
+
+  test("開いたフェンスより長い行でも閉じられる", () => {
+    // Given: CommonMark は「同じ長さ以上」を閉じフェンスとして認める
+    const src = ["```", "text", "`````", "[ok](./a.md)"].join("\n");
+    // When / Then
+    assert.equal(stripCodeRegions(src)[3], "[ok](./a.md)");
+  });
+
+  test("チルダで開いたフェンスはバッククォートでは閉じない", () => {
+    // Given
+    const src = ["~~~", "```", "まだフェンス内", "~~~", "[ok](./a.md)"].join("\n");
+    // When
+    const lines = stripCodeRegions(src);
+    // Then
+    assert.equal(lines[2], "");
+    assert.equal(lines[4], "[ok](./a.md)");
+  });
 });
 
 describe("toAnchor", () => {
