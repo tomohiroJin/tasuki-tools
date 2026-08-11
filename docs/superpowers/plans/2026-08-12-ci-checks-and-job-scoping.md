@@ -49,7 +49,19 @@
 | PR-5 | **決定と手順を文書化する** | Task 12〜15 |
 | PR-6 | 振り返り | Task 16 |
 
-各 PR は base を 1 つ前の PR のブランチに積む。**`--delete-branch` を付けない**（積み上げ中のブランチが消えると後続 PR の base が失われる）。
+ブランチは次の順で積む。**`--delete-branch` を付けない**（積み上げ中のブランチが消えると後続 PR の base が失われる）。
+
+```
+main
+ └ docs/70-ci-design        PR-1  設計書・実装計画
+    └ feat/70-check-links    PR-2
+       └ chore/70-checks-to-ci  PR-3
+          └ ci/70-job-scoping      PR-4
+             └ docs/70-decisions      PR-5
+                └ docs/70-retrospective  PR-6
+```
+
+**PR-2 以降は `docs/70-ci-design` の上に積みます**（当初 PR-2 の base を `main` としていたのを変更）。設計書と実装計画が作業ツリーに存在しないと、Task 11 Step 4（実測値を設計書へ追記する）が実行できないためです。
 
 ---
 
@@ -872,7 +884,7 @@ git commit -m "ci: #70 リンク検査のジョブを追加する
 - 絞り込まず常時走らせる（コード変更時にこそ壊れるため）
 - pnpm install 不要の素の node で走る"
 git push -u origin feat/70-check-links
-gh pr create --base main --title "feat: #70 リンク検査を新設して CI で回す" --body "$(cat <<'BODY'
+gh pr create --base docs/70-ci-design --title "feat: #70 リンク検査を新設して CI で回す" --body "$(cat <<'BODY'
 ## 概要
 
 手動でしか走らない検査を CI へ寄せる作業の第 1 弾。リポジトリに存在しなかったリンク検査を新設し、`docs` ジョブとして常時走らせる。#68 からの申し送り（アンカーとバッククォート内のコードパスの両方を対象に含める）に応えるもの。
@@ -1036,7 +1048,15 @@ Expected: 出力なし / `exit=0`
 
 `-x --source-path=deploy` が無いと `source "$(dirname …)/lib/common.sh"` で SC1091 が出て落ちる。`--severity=warning` が無いと `deploy/setup.sh:40` の SC2153（`ENV_FILE` の綴り誤り疑い・`app.env` から読む変数に対する偽陽性）で落ちる。
 
-- [ ] **Step 2: ジョブを足す**
+- [ ] **Step 2: 変異検査がローカルで緑であることを確認する**
+
+> ⚠ **`ci.yml` を編集する前に行う。** 変異検査は作業ツリーに未コミット変更があると
+> 実行を拒否する（変異がパッチの復元で消えると取り返しがつかないため）。
+
+Run: `cd /home/vscode/tasuki-work && git status --short && node scripts/mutation-check.mjs`
+Expected: `git status --short` が空で、9 件すべて「検出」。約 10 秒。
+
+- [ ] **Step 3: ジョブを足す**
 
 `.github/workflows/ci.yml` の `docs` ジョブの下に追記:
 
@@ -1067,13 +1087,6 @@ Expected: 出力なし / `exit=0`
       # shellcheck。.specify/scripts/** は vendor のため対象外（ADR 0009 D6）。
       - run: shellcheck -x --source-path=deploy --severity=warning deploy/*.sh deploy/lib/*.sh scripts/*.sh
 ```
-
-- [ ] **Step 3: 変異検査がローカルで緑であることを確認する**
-
-Run: `cd /home/vscode/tasuki-work && git status --short && node scripts/mutation-check.mjs`
-Expected: 作業ツリーが clean（`git status --short` が空）で、9 件すべて「検出」。約 10 秒。
-
-**作業ツリーが汚れていると変異検査は実行を拒否する。** 先にコミットしてから走らせる。
 
 - [ ] **Step 4: コミットして PR を出す**
 
