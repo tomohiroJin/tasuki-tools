@@ -72,7 +72,7 @@ main
 - Test: `scripts/check-links.test.mjs`
 
 **Interfaces:**
-- Produces: `stripCodeRegions(src) → string[]`（行数を保ったまま、フェンス内の行とインラインコードを空白で潰す）、`toAnchor(heading) → string`、`collectAnchors(src) → Set<string>`
+- Produces: `fenceMask(src) → boolean[]`（各行がフェンス内か。判定はここ 1 箇所に集約する）、`stripCodeRegions(src) → string[]`（行数を保ったまま、フェンス内の行とインラインコードを空白で潰す）、`toAnchor(heading) → string`、`collectAnchors(src) → Set<string>`
 
 **背景（実装者向け）:** この 2 つの関数が検査全体の土台です。コード領域を読まないのは検出精度の話ではなく正しさの話で、リポジトリには `[x](no-such-file.md)` のように**意図的に壊れたリンクを説明文として書いた文書**があります。これを直すと検査手順の記録が壊れます。`toAnchor` は GitHub のアンカー生成規則の再現で、**空白の連続を 1 個のハイフンに潰してはいけません**（1 空白 = 1 ハイフン）。この規則は `docs/poker/specs/001-planning-poker-mvp/contracts/ws-protocol.md` の 18 見出しを GitHub の HTML レンダリング API と突き合わせて確認済みです。
 
@@ -116,6 +116,43 @@ describe("stripCodeRegions", () => {
     // Then
     assert.equal(lines[1], "");
     assert.equal(lines[3], "[ok](./a.md)");
+  });
+
+  test("4 個で開いたフェンスは 3 個の行では閉じない", () => {
+    // Given: バッククォート 4 個の中に 3 個のフェンスがネストしている
+    //        （docs/superpowers/plans/2026-06-07-tasuki-vps-deployment.md の実例）
+    const src = ["````markdown", "```bash", "# コメント", "```", "````", "[ok](./a.md)"].join("\n");
+    // When
+    const lines = stripCodeRegions(src);
+    // Then: 外側フェンスの中身はすべて空になり、閉じた後の本文だけ残る
+    assert.deepEqual(lines, ["", "", "", "", "", "[ok](./a.md)"]);
+  });
+
+  test("情報文字列つきの行は閉じフェンスにならない", () => {
+    // Given
+    const src = ["```", "text", "```bash", "まだフェンス内", "```", "[ok](./a.md)"].join("\n");
+    // When
+    const lines = stripCodeRegions(src);
+    // Then
+    assert.equal(lines[3], "");
+    assert.equal(lines[5], "[ok](./a.md)");
+  });
+
+  test("開いたフェンスより長い行でも閉じられる", () => {
+    // Given: CommonMark は「同じ長さ以上」を閉じフェンスとして認める
+    const src = ["```", "text", "`````", "[ok](./a.md)"].join("\n");
+    // When / Then
+    assert.equal(stripCodeRegions(src)[3], "[ok](./a.md)");
+  });
+
+  test("チルダで開いたフェンスはバッククォートでは閉じない", () => {
+    // Given
+    const src = ["~~~", "```", "まだフェンス内", "~~~", "[ok](./a.md)"].join("\n");
+    // When
+    const lines = stripCodeRegions(src);
+    // Then
+    assert.equal(lines[2], "");
+    assert.equal(lines[4], "[ok](./a.md)");
   });
 });
 
@@ -192,33 +229,53 @@ Expected: FAIL（`Cannot find module './check-links.mjs'`）
  */
 
 /**
+ * 各行がコードフェンスの内側（フェンス行自体を含む）かどうかを返す。
+ *
+ * **閉じフェンスは「開いたフェンスと同じ文字」「同じ長さ以上」「他に内容が無い」の
+ * 3 つを満たす必要がある**（CommonMark）。長さを見ないと、```` で開いたブロックの
+ * 中にある ``` が外側を閉じてしまい、コード領域の中身が本文として漏れる。
+ * リポジトリの `docs/superpowers/plans/2026-06-07-tasuki-vps-deployment.md`（425 行で
+ * ```` で開き、495 行に ```bash がある）で実際に再現した欠陥。
+ *
+ * フェンス判定はここ 1 箇所に集約する。stripCodeRegions と findInlineCodePaths が
+ * 別々に持つと、片方だけ直したときに同じ穴が残る。
+ */
+export function fenceMask(src) {
+  const mask = [];
+  let fence = null; // { char, length }
+  for (const line of src.split("\n")) {
+    const marker = line.match(/^\s*(`{3,}|~{3,})/)?.[1];
+    if (marker && fence === null) {
+      fence = { char: marker[0], length: marker.length };
+      mask.push(true);
+      continue;
+    }
+    // ```bash のような情報文字列つきの行は開始フェンスであって閉じフェンスではない
+    if (
+      marker &&
+      fence !== null &&
+      marker[0] === fence.char &&
+      marker.length >= fence.length &&
+      line.trim() === marker
+    ) {
+      fence = null;
+      mask.push(true);
+      continue;
+    }
+    mask.push(fence !== null);
+  }
+  return mask;
+}
+
+/**
  * フェンス内の行を空文字にし、本文中のインラインコードを同じ長さの空白へ置き換える。
  * 行番号を報告できるように、行数と各行の文字数は保つ。
  */
 export function stripCodeRegions(src) {
-  const out = [];
-  let fence = null;
-  for (const line of src.split("\n")) {
-    const opener = line.match(/^\s*(`{3,}|~{3,})/);
-    if (opener) {
-      if (fence === null) {
-        fence = opener[1][0].repeat(3);
-        out.push("");
-        continue;
-      }
-      if (line.trim().startsWith(fence)) {
-        fence = null;
-        out.push("");
-        continue;
-      }
-    }
-    if (fence !== null) {
-      out.push("");
-      continue;
-    }
-    out.push(line.replace(/`[^`\n]*`/g, (s) => " ".repeat(s.length)));
-  }
-  return out;
+  const mask = fenceMask(src);
+  return src
+    .split("\n")
+    .map((line, i) => (mask[i] ? "" : line.replace(/`[^`\n]*`/g, (s) => " ".repeat(s.length))));
 }
 
 /**
@@ -290,7 +347,7 @@ git commit -m "feat: #70 リンク検査のコード領域除外と slug 生成�
 - Test: `scripts/check-links.test.mjs`
 
 **Interfaces:**
-- Consumes: `stripCodeRegions`, `collectAnchors`（Task 1）
+- Consumes: `fenceMask`, `stripCodeRegions`, `collectAnchors`（Task 1）
 - Produces: `findRelativeLinks(src) → {target, line}[]`、`findInlineCodePaths(src) → {text, line}[]`、`isRepoPathLike(text) → boolean`
 
 **背景（実装者向け）:** 検査そのものはファイルシステムを触りますが、**抽出は純関数に分けます**。テストがファイルの実在に依存すると、リポジトリの中身が変わるたびにテストが壊れるためです。`isRepoPathLike` は「バッククォートの中身がリポジトリ内のファイルパスに見えるか」の判定で、拡張子が無いもの（`docs/adr/0002` のような ADR 番号の接頭辞参照）を弾くのが要点です。これを入れないと、現役文書だけで 193 件の偽陽性が出ます。
@@ -412,23 +469,17 @@ export function findRelativeLinks(src) {
   return found;
 }
 
-/** コード領域のうち、フェンスの外にあるインラインコードからパスを拾う。 */
+/**
+ * フェンスの外にあるインラインコードからパスを拾う。
+ *
+ * フェンスの判定は fenceMask に委ねる（Task 1）。ここで独自に持つと、
+ * 片方だけ直したときに同じ穴が残る。
+ */
 export function findInlineCodePaths(src) {
   const found = [];
-  let fence = null;
+  const mask = fenceMask(src);
   src.split("\n").forEach((line, i) => {
-    const opener = line.match(/^\s*(`{3,}|~{3,})/);
-    if (opener) {
-      if (fence === null) {
-        fence = opener[1][0].repeat(3);
-        return;
-      }
-      if (line.trim().startsWith(fence)) {
-        fence = null;
-        return;
-      }
-    }
-    if (fence !== null) return;
+    if (mask[i]) return;
     for (const m of line.matchAll(/`([^`\n]+)`/g)) {
       const raw = m[1].trim();
       if (!isRepoPathLike(raw)) continue;
