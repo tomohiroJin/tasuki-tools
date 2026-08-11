@@ -237,6 +237,14 @@ describe("isLiveDoc", () => {
     assert.equal(isLiveDoc("docs/README.md"), true);
     assert.equal(isLiveDoc("docs/BACKLOG.md"), false);
   });
+
+  test("完全一致のエントリを前方一致で判定しない", () => {
+    // Given: 完全一致エントリの名前で始まるだけの別ファイル
+    //        （この 2 行が無いと、完全一致の条件を前方一致へ壊しても検出できない）
+    // When / Then
+    assert.equal(isLiveDoc("docs/README.md.bak"), false);
+    assert.equal(isLiveDoc("AGENTS.md.bak"), false);
+  });
 });
 
 describe("checkConstants", () => {
