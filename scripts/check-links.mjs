@@ -16,6 +16,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { execFileSync } from "node:child_process";
 
 /**
  * 各行がコードフェンスの内側（フェンス行自体を含む）かどうかを返す。
@@ -177,6 +178,10 @@ export const MISSING_PATH_EXCEPTIONS = [
     path: "docs/BACKLOG.md",
     reason: "docs/adr/0003 の決定により廃止済み。ADR 本文の言及は記録として正しい",
   },
+  {
+    path: "apps/timer-sync/.env",
+    reason: "gitignore 対象。deploy/timer/NOTES.md は、この実 env を各自で作る手順を案内している",
+  },
 ];
 
 export function isLiveDoc(relPath) {
@@ -209,36 +214,40 @@ export function checkStaleExceptions(usedPaths) {
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SCRIPT_DIR, "..");
-// git 追跡外の生成物・作業用ディレクトリは走査しない。
-// .superpowers は SDD の作業ディレクトリ（ブリーフや報告書の .md が置かれる）で、
-// gitignore 済み。これを外すと、走査対象の件数が作業のたびに変わる。
-const SKIP_DIRS = new Set([
-  "node_modules",
-  ".git",
-  "dist",
-  "test-results",
-  "coverage",
-  ".superpowers",
-]);
 
-function collectMarkdownFiles(root) {
-  const files = [];
-  (function walk(dir) {
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      if (SKIP_DIRS.has(entry.name)) continue;
-      const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) walk(full);
-      else if (entry.name.endsWith(".md")) files.push(full);
-    }
-  })(root);
-  return files.sort();
+/** git が知っているパスを NUL 区切りで取る。 */
+function gitList(args) {
+  return execFileSync("git", ["-C", REPO_ROOT, ...args, "-z"], { encoding: "utf8" })
+    .split("\0")
+    .filter(Boolean);
+}
+
+/**
+ * 走査対象と存在判定は、**ファイルシステムではなく git の追跡対象**を見る。
+ *
+ * ファイルシステムを見ると、gitignore 対象のもの（`apps/timer-sync/.env`・`dist/`・
+ * SDD の作業ディレクトリなど）が開発者の手元にはあり CI のフレッシュな checkout には
+ * 無いため、**同じコミットでもローカルと CI で結果が食い違う**。PR-2 の初回 CI で
+ * 実際に踏んだ（`deploy/timer/NOTES.md:104` の `apps/timer-sync/.env` がローカルでは
+ * 緑・CI では赤）。git 基準なら両者が構造的に一致する。
+ */
+function trackedPaths() {
+  const files = gitList(["ls-files"]);
+  const set = new Set(files);
+  // ディレクトリも「存在する」と答えられるように、各ファイルの親を末尾 "/" 付きで積む
+  for (const file of files) {
+    const parts = file.split("/");
+    for (let i = 1; i < parts.length; i++) set.add(parts.slice(0, i).join("/") + "/");
+  }
+  return set;
 }
 
 function main() {
-  const exists = (rel) => fs.existsSync(path.resolve(REPO_ROOT, rel));
+  const tracked = trackedPaths();
+  const exists = (rel) => tracked.has(rel) || tracked.has(rel.endsWith("/") ? rel : `${rel}/`);
   const errors = checkConstants({ exists });
 
-  const files = collectMarkdownFiles(REPO_ROOT);
+  const files = gitList(["ls-files", "*.md"]).sort();
   if (files.length === 0) {
     errors.push("走査対象の .md が 1 件もありません（検査が空振りしています）");
   }
@@ -253,15 +262,16 @@ function main() {
   const usedExceptions = new Set();
   const exceptionPaths = new Set(MISSING_PATH_EXCEPTIONS.map((e) => e.path));
 
-  for (const abs of files) {
-    const rel = path.relative(REPO_ROOT, abs);
+  for (const rel of files) {
+    const abs = path.resolve(REPO_ROOT, rel);
     const src = fs.readFileSync(abs, "utf8");
     const dir = path.dirname(abs);
 
     for (const { target, line } of findRelativeLinks(src)) {
       const [filePart, hash] = target.split("#");
       const targetAbs = filePart ? path.resolve(dir, filePart) : abs;
-      if (filePart && !fs.existsSync(targetAbs)) {
+      // 相対リンクの解決先も git 基準で見る（リポジトリ外を指すものは追跡集合に無い）
+      if (filePart && !exists(path.relative(REPO_ROOT, targetAbs))) {
         errors.push(`${rel}:${line} 参照先がありません → ${target}`);
         continue;
       }
