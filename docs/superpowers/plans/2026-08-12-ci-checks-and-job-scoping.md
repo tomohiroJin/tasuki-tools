@@ -750,7 +750,17 @@ import { fileURLToPath } from "node:url";
 ```js
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SCRIPT_DIR, "..");
-const SKIP_DIRS = new Set(["node_modules", ".git", "dist", "test-results", "coverage"]);
+// git 追跡外の生成物・作業用ディレクトリは走査しない。
+// .superpowers は SDD の作業ディレクトリ（ブリーフや報告書の .md が置かれる）で、
+// gitignore 済み。これを外すと、走査対象の件数が作業のたびに変わる。
+const SKIP_DIRS = new Set([
+  "node_modules",
+  ".git",
+  "dist",
+  "test-results",
+  "coverage",
+  ".superpowers",
+]);
 
 function collectMarkdownFiles(root) {
   const files = [];
@@ -864,7 +874,7 @@ sed -n '31p' docs/poker/specs/001-planning-poker-mvp/quickstart.md
 - [ ] **Step 4: 緑になることを確認する**
 
 Run: `cd /home/vscode/tasuki-work && node scripts/check-links.mjs; echo "exit=$?"`
-Expected: `リンク検査 OK（走査 187 ファイル）` / `exit=0`
+Expected: `リンク検査 OK（走査 <N> ファイル）` / `exit=0`（N は実測値。`.superpowers` を除いた .md の総数）
 
 - [ ] **Step 5: わざと壊して赤を見る（3 通り）**
 
@@ -973,7 +983,7 @@ gh pr create --base docs/70-ci-design --title "feat: #70 リンク検査を新�
 ## テスト方法
 
 - [x] `node --test scripts/check-links.test.mjs` が緑
-- [x] `node scripts/check-links.mjs` が緑（走査 187 ファイル）
+- [x] `node scripts/check-links.mjs` が緑
 - [x] 壊れたリンクを 1 本足すと赤になる
 - [x] コードフェンス内の壊れたリンクでは緑のまま
 - [x] 例外表が使われなくなると赤になる
