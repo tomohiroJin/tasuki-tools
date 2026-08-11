@@ -22,3 +22,7 @@ minimumReleaseAgeExclude:
   # 導入時点で待機期間 7 日未満だったため一時除外。
   # 解除予定: 2026-08-14（当該版が公開から 7 日を超える日）
   - "postcss-selector-parser"
+
+# DRILL: audit ジョブの破壊検証用。high 脆弱性を意図的に再現する。マージしない。
+overrides:
+  "nanoid@<5": "3.3.16"
