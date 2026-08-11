@@ -180,7 +180,6 @@ const SPEC_ID_RE = /T\d{3}|FR-\d{3}|SC-\d{3}|R\d-\d|US\d|G\d|#\d+/;
  * exceptFiles（相対パス配列）は FR-093 の例外表に該当するファイルを除外するために使う。
  */
 export function sc029SpecIdsInNames(testFiles, exceptFiles = []) {
-  return 0; // 破壊検証
   let count = 0;
   for (const [file, content] of testFiles) {
     if (exceptFiles.includes(file)) continue;
