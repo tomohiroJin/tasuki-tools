@@ -167,7 +167,7 @@
       ③ `corepack pnpm audit --audit-level high` が 0 件（SC-004）④ 全 PR の差分に、利用者から
       見える振る舞いの変更を目的とした変更が含まれていない（SC-005） _要件: SC-002, SC-003, SC-004, SC-005_
 - [X] T071 `docs/retrospectives/` に振り返りを書く（[`docs/guides/retrospective.md`](../../guides/retrospective.md) に従う）。**踏んだ罠と、宣言の読みで判断して外した箇所**を必ず含める _要件: —（DoD 項目 7）_
-- [ ] T072 Issue #113 をクローズする _要件: —（手続き）_
+- [X] T072 Issue #113 をクローズする _要件: —（手続き）_
 
 ---
 
