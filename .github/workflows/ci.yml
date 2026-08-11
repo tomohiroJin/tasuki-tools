@@ -111,3 +111,16 @@ jobs:
           name: e2e-artifacts
           path: e2e/test-results/
           retention-days: 7
+
+  # リンク検査。**絞り込まない。**
+  # リンクはコードを変えたときにこそ壊れる（ファイルの移動・削除で
+  # 現役文書のバッククォート内パスが宙に浮く）。「文書が変わったときだけ」
+  # にすると、その経路を取り逃がす。pnpm install は不要。
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/check-links.mjs
