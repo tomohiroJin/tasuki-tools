@@ -478,4 +478,14 @@ describe("formatTable", () => {
     // Then
     assert.match(table, /SC032 \| 1023\/1051（97\.3%） \| 100% \| —/);
   });
+
+  test("目標が数値でも、値が文字列なら判定を出さない", () => {
+    // Given: 目標だけ数値。上のテストは目標も文字列なので、判定条件から
+    //        「値が数値か」を落としても気づけない。この組み合わせで初めて効く
+    const results = { sc099: { value: "abc", target: 100 } };
+    // When
+    const table = formatTable(results);
+    // Then
+    assert.match(table, /SC099 \| abc \| 100 \| —/);
+  });
 });
