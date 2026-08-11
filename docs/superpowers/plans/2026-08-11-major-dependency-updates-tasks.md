@@ -80,13 +80,13 @@
 
 **Branch**: `chore/113-pr2-typescript` ・ **Purpose**: 依存する道具の対応範囲内で最大の版へ上げ、範囲外の版を取らない判断を実測とともに記録する。
 
-- [ ] T021 PR-1 のマージ後、`main` を pull して `chore/113-pr2-typescript` を切る _要件: —（手続き）_
-- [ ] T022 `typescript` を宣言している 6 箇所（ルート `package.json`・`e2e/`・`apps/landing/`・`apps/poker-sync/`・`apps/poker-web/`・`packages/poker-core/`）を T005 で確定した版へ更新する。**宣言を持たないパッケージ（`apps/timer-sync`・`apps/timer-web`・`packages/timer-core`・`packages/protocol`・`packages/ui`）には宣言を足さない**（現状の構成を変えない） _要件: FR-001_
-- [ ] T023 `corepack pnpm peers check` を実行し、**未充足の peer が 1 件も無いこと**を確認する _要件: FR-005_
-- [ ] T024 `corepack pnpm typecheck` / `lint` / `test` / `build` の 4 つを実行し、すべて緑であることを確認する。**lint のタスク数が全数成功していること**を目視で確かめる（typescript-eslint は非対応版で起動を拒否するため、タスク数の欠けが唯一の兆候になる） _要件: FR-005_
-- [ ] T025 T006 の基準とテスト実行件数を突き合わせる _要件: FR-006_
-- [ ] T026 **不採用の根拠を実測する**: 使い捨てブランチで `corepack pnpm update -r typescript@<最新版>` を実行し、`peers check` / `typecheck` / `lint` の結果を記録してからブランチを破棄する。**peer 宣言の読みではなく、実行結果を根拠にする** _要件: FR-009_
-- [ ] T027 T026 の結果（どの検査が、どう失敗したか）と、取り込めるようになる観測可能な条件を Issue #113 へコメントする。**将来の方針は書かない**（#113 完了時に改めて判断する） _要件: FR-009, FR-010_
+- [X] T021 PR-1 のマージ後、`main` を pull して `chore/113-pr2-typescript` を切る _要件: —（手続き）_
+- [X] T022 `typescript` を宣言している 6 箇所（ルート `package.json`・`e2e/`・`apps/landing/`・`apps/poker-sync/`・`apps/poker-web/`・`packages/poker-core/`）を T005 で確定した版へ更新する。**宣言を持たないパッケージ（`apps/timer-sync`・`apps/timer-web`・`packages/timer-core`・`packages/protocol`・`packages/ui`）には宣言を足さない**（現状の構成を変えない） _要件: FR-001_
+- [X] T023 `corepack pnpm peers check` を実行し、**未充足の peer が 1 件も無いこと**を確認する _要件: FR-005_
+- [X] T024 `corepack pnpm typecheck` / `lint` / `test` / `build` の 4 つを実行し、すべて緑であることを確認する。**lint のタスク数が全数成功していること**を目視で確かめる（typescript-eslint は非対応版で起動を拒否するため、タスク数の欠けが唯一の兆候になる） _要件: FR-005_
+- [X] T025 T006 の基準とテスト実行件数を突き合わせる _要件: FR-006_
+- [X] T026 **不採用の根拠を実測する**: 使い捨てブランチで `corepack pnpm update -r typescript@<最新版>` を実行し、`peers check` / `typecheck` / `lint` の結果を記録してからブランチを破棄する。**peer 宣言の読みではなく、実行結果を根拠にする** _要件: FR-009_
+- [X] T027 T026 の結果（どの検査が、どう失敗したか）と、取り込めるようになる観測可能な条件を Issue #113 へコメントする。**将来の方針は書かない**（#113 完了時に改めて判断する） _要件: FR-009, FR-010_
 - [ ] T028 PR を作成する。DoD を記入し、該当しない項目とその理由を明記する。CI の 3 ジョブが緑であることを確認してからマージする _要件: FR-005_
 
 ---
