@@ -80,6 +80,63 @@ timer なら timer-sync、poker なら poker-sync が対になります。
 > ss -tlnp | grep -E ':(8787|3311|517[3-5])'   # 誰が掴んでいるか
 > ```
 
+## 依存の更新
+
+公開直後の版（7 日未満）は `pnpm install` の段で拒否されます
+（`pnpm-workspace.yaml` の `minimumReleaseAge`。判断の根拠は
+[`docs/adr/0008`](../adr/0008-dependency-supply-chain.md)）。
+
+### 通常の更新
+
+```bash
+pnpm outdated -r   # 全プロジェクトを見る。ルートのみの pnpm outdated は実行時依存を取りこぼす
+pnpm update <pkg>  # 宣言済み semver 範囲内で更新
+```
+
+### 緊急の脆弱性修正を待機期間中に取り込む例外手順
+
+7 日未満の版をどうしても取り込む必要がある場合のみ、対象パッケージだけを
+`minimumReleaseAgeExclude` で除外します。
+
+```yaml
+# pnpm-workspace.yaml
+minimumReleaseAgeExclude:
+  # 【期限つき】GHSA-xxxx-xxxx-xxxx の修正取り込みのため一時除外。
+  # 解除予定: 2026-08-17（当該版が公開から 7 日を超える日）
+  - "dompurify"
+```
+
+- 除外は**特定パッケージのみ**に絞る。`pnpm install --trust-lockfile` で
+  検証を全体的に切ることはしない
+- **理由・対象アドバイザリ・解除予定日をコメントに残す**
+- **解除を完了条件に含める**（消し忘れると恒久設定になる）
+
+### ローカル確認時の注意
+
+`node_modules` が最新のとき、pnpm は「Already up to date」で短絡し**供給網検証を
+走らせません**。ローカルで違反件数を確認するときは、必ず先に `node_modules` を
+消してから `pnpm install --frozen-lockfile` を実行してください。
+
+```bash
+rm -rf node_modules apps/*/node_modules packages/*/node_modules e2e/node_modules
+pnpm install --frozen-lockfile
+```
+
+CI は毎回フレッシュな checkout なのでこの短絡は起きません。**この罠にかかるのは
+ローカルでの確認作業だけです。**
+
+### CI での扱い
+
+CI の `pnpm install --frozen-lockfile` は `--trust-lockfile` を付けません。
+待機期間の検証を常に効かせるためです（決定は ADR 0008）。
+
+違反が出たときに取れる手は次の 3 つに限られます。「違反したエントリだけを
+古い版へ解決し直す」手段は存在しません（検証が解決より先に走るため）。
+
+1. **待つ**: 当該版が公開から 7 日を超えるのを待つ（最も安全）
+2. **期限つき除外**: 上記の例外手順を使う
+3. **全面再解決**: `pnpm clean --lockfile && pnpm install`（lockfile 全体の diff になるため単独 PR にする）
+
 ## テスト
 
 単一の pnpm workspace + turbo。ルートで全ツールをまとめて検証できます。

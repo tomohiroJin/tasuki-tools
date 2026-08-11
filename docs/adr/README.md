@@ -33,3 +33,4 @@ Michael Nygard 形式（背景 / 決定 / 影響 / ステータス）に従い�
 | [0005](./0005-result-and-boundary-validation.md) | 境界の型安全と関数型中心（Result 型のエラー処理と Valibot 境界検証） | Accepted |
 | [0006](./0006-test-conventions.md) | テスト規約（検査は壊して確かめる） | Accepted |
 | [0007](./0007-abstraction-criteria.md) | 抽象の導入基準 | Accepted |
+| [0008](./0008-dependency-supply-chain.md) | 依存の供給網対策 | Accepted |
