@@ -211,6 +211,28 @@ describe("decide: メンバー管理", () => {
     const result = decide({ command: "member.remove", index: 2 }, baseAgg, NOW);
     expect(result._unsafeUnwrap()[0]?.type).toBe("MemberRemoved");
   });
+
+  // member.move の範囲検査。ok の経路は既存テストが通っているが、
+  // 移動元・移動先それぞれの下限側・上限側の拒否は検査されていなかった。
+  it("移動元が負の index の並べ替えは InvalidIndex を返す", () => {
+    const result = decide({ command: "member.move", fromIndex: -1, toIndex: 0 }, baseAgg, NOW);
+    expect(result._unsafeUnwrapErr().type).toBe("InvalidIndex");
+  });
+
+  it("移動元が rotation の上限を超える並べ替えは InvalidIndex を返す", () => {
+    const result = decide({ command: "member.move", fromIndex: 3, toIndex: 0 }, baseAgg, NOW);
+    expect(result._unsafeUnwrapErr().type).toBe("InvalidIndex");
+  });
+
+  it("移動先が負の index の並べ替えは InvalidIndex を返す", () => {
+    const result = decide({ command: "member.move", fromIndex: 0, toIndex: -1 }, baseAgg, NOW);
+    expect(result._unsafeUnwrapErr().type).toBe("InvalidIndex");
+  });
+
+  it("移動先が rotation の上限を超える並べ替えは InvalidIndex を返す", () => {
+    const result = decide({ command: "member.move", fromIndex: 0, toIndex: 3 }, baseAgg, NOW);
+    expect(result._unsafeUnwrapErr().type).toBe("InvalidIndex");
+  });
 });
 
 // ─── config.set ─────────────────────────────────────────────────────────────
