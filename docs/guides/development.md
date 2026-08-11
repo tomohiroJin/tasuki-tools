@@ -137,6 +137,18 @@ CI の `pnpm install --frozen-lockfile` は `--trust-lockfile` を付けませ�
 2. **期限つき除外**: 上記の例外手順を使う
 3. **全面再解決**: `pnpm clean --lockfile && pnpm install`（lockfile 全体の diff になるため単独 PR にする）
 
+### Renovate が立てた PR の扱い
+
+`renovate.json` により、Renovate が更新を提案します（minor/patch は PR を自動作成、
+major は Dependency Dashboard の Issue に提示。決定は ADR 0008）。
+
+- **自動マージはしません。** 取り込みは人が判断します。CI が緑であることを
+  確認してからマージしてください
+- Renovate 側の待機期間は pnpm 側（7 日）以上に設定してあります。下回らせると
+  bot の PR が pnpm の検証で常に赤くなります
+- **Renovate の有効化にはリポジトリ管理者による GitHub App の許可が別途必要です。**
+  `renovate.json` をコミットするだけでは動きません
+
 ## テスト
 
 単一の pnpm workspace + turbo。ルートで全ツールをまとめて検証できます。
