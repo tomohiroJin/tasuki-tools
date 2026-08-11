@@ -40,6 +40,23 @@ jobs:
       - run: pnpm test
       - run: pnpm build
 
+  # 依存の脆弱性検査。high 以上で落とす（moderate 以下は出力に残すだけ）。
+  # 判断の根拠は docs/adr/0008。既存の ci ジョブには足さない。
+  # e2e と同じく独立ジョブにする（結果を見るのにテストの所要時間を待たせないため）。
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      # moderate 以下も内容が見えるように、まず全件を出力に残す
+      - run: pnpm audit || true
+      # high 以上でだけ落とす
+      - run: pnpm audit --audit-level high
+
   # E2E は既存の検査と**並列の別ジョブ**にする。同じジョブに足すと、
   # ユニットテストの結果を見るのに E2E の所要時間を待つことになる。
   e2e:
