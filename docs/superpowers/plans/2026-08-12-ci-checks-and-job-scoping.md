@@ -1232,8 +1232,10 @@ PR のブランチに次の変更を順に積み、**それぞれ CI が赤に�
 cd /home/vscode/tasuki-work
 
 # ⑥ 変異が検出されない状態にすると quality が赤
-#    m01 が検出を期待するテストを 1 つ落とす
-git rm packages/timer-core/test/driver-switch-equivalence.test.ts
+#    m01（advanceDriver の交代を 1 つずらす）が検出を期待するテストを落とす。
+#    対応表は scripts/mutation-check.mjs の MUTATIONS[0].tests が正本で、
+#    driver-switch-equivalence.test.ts ではない（実測で確認済み）。
+git rm packages/timer-core/test/evolve.test.ts
 git commit -m "test: 破壊検証（変異検査） — このコミットは revert する"
 git push
 # → CI の quality が赤になることを確認したら
@@ -1249,7 +1251,9 @@ git push
 git revert --no-edit HEAD && git push
 
 # ⑨ shellcheck の警告を入れると quality が赤
-printf '\nfoo=$(echo hi)\necho $foo\n' >> scripts/gen-sounds.sh   # SC2086: quote to prevent globbing
+#    ⚠ SC2086（`echo $foo`）は **info** レベルで --severity=warning に弾かれる。
+#    破壊検証には warning 以上の指摘を使うこと（実測で確認済み）。
+printf '\nfoo=hi\necho $(cat $foo)\n' >> scripts/gen-sounds.sh   # SC2046 (warning): quote to prevent word splitting
 git commit -am "chore: 破壊検証（shellcheck） — このコミットは revert する"
 git push
 # → CI の quality が赤になることを確認したら
