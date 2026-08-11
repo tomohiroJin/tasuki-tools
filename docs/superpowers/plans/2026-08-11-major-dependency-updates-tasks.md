@@ -69,7 +69,7 @@
 - [X] T014 `.github/workflows/ci.yml` の `node-version` 指定が T013 の新しい下限を満たすか確認する。満たさない場合のみ指定を修正する（満たす場合は変更しない） _要件: FR-012_
 - [X] T015 **破壊検証**: 任意のテストファイル 1 本の 1 ケースを一時的に `.skip` して `corepack pnpm test` を実行し、**T006 の基準と件数が食い違うことを確認**してから元に戻す。件数突合が実際に機能する確認手段であることを示す _要件: FR-006（憲法 原則 VII）_
 - [X] T016 `git diff package.json */package.json */*/package.json` を確認し、**更新対象以外の直接依存が巻き込まれていないこと**を確かめる（`pnpm update -r` が同名の直接依存まで書き換える罠。#69 で 2 度発生） _要件: FR-001_
-- [ ] T017 `pnpm-workspace.yaml` の `minimumReleaseAgeExclude` から、解除予定日を過ぎた `postcss-selector-parser` の期限つき例外を削除する。削除後に `rm -rf node_modules && corepack pnpm install --frozen-lockfile` が通ることを確認する（**作業日が解除予定日より前なら、このタスクを最後の PR へ移す**） _要件: FR-013_ **→ 実施日 2026-08-11 は解除予定日 2026-08-14 より前のため、この条件に従い PR-6 へ移動。PR-1 では実行しない。**
+- [ ] T017 `pnpm-workspace.yaml` の `minimumReleaseAgeExclude` から、解除予定日を過ぎた `postcss-selector-parser` の期限つき例外を削除する。削除後に `rm -rf node_modules && corepack pnpm install --frozen-lockfile` が通ることを確認する（**作業日が解除予定日より前なら、このタスクを最後の PR へ移す**） _要件: FR-013_ **→ 実施日 2026-08-11 は解除予定日 2026-08-14 より前のため、この条件に従い PR-6 へ移動。PR-6 の時点でも同日だったため実行できず、#113 唯一の残件として持ち越す。** 実測（例外を外して `pnpm install --frozen-lockfile --force`）: `[ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION] postcss-selector-parser@7.1.5 was published at 2026-08-07T09:32:20.792Z, within the minimumReleaseAge cutoff (2026-08-04T10:39:10.748Z)`。**2026-08-14T09:32:20Z 以降に削除して `--frozen-lockfile` が通ることを確認すること。**
 - [X] T018 `corepack pnpm typecheck` / `lint` / `test` / `build` の 4 つを実行し、すべて緑であることを確認する _要件: FR-005_
 - [X] T019 T006 の基準とテスト実行件数を突き合わせ、減っていないことを確認する _要件: FR-006_
 - [ ] T020 PR を作成する。DoD の 8 項目を記入し、項目 1・2・3・4・5・6 は「該当なし」とその理由を明記する（新規実装なし・利用者の経路が変わらない・検査を足していない・既存実装を書き換えていない）。CI の `ci` / `audit` / `e2e` の 3 ジョブが緑であることを確認してからマージする _要件: FR-005, FR-014_
@@ -146,13 +146,13 @@
 
 **Branch**: `chore/113-pr6-nanoid` ・ **Purpose**: 唯一の実行時依存を更新する。**実プロトコル確認あり。**
 
-- [ ] T059 PR-5 のマージ後、`main` を pull して `chore/113-pr6-nanoid` を切る _要件: —（手続き）_
-- [ ] T060 `apps/timer-sync/package.json` の `nanoid` を更新する。**ワークスペース内に同名の推移依存があるため、更新後に `git diff` で他パッケージの宣言が巻き込まれていないことを必ず確認する**（#69 で 2 度発生した罠の再来しやすい箇所） _要件: FR-001_
-- [ ] T061 `apps/timer-sync/src/adapters/nanoid-code-gen.ts` の `import { nanoid, customAlphabet } from "nanoid"` が新版の公開インターフェースで有効か確認する。変わっていれば追随し、変更の理由をコメントで残す _要件: FR-014_
-- [ ] T062 `corepack pnpm --filter @tasuki/timer-sync test`（`bun test`）を実行し、ルームコード生成の既存テストが緑であることを確認する _要件: FR-005_
-- [ ] T063 **実プロトコル確認**: dev サーバーを起動し、`/timer/` でルームを作成して**ルームコードが 6 文字で発行されること**・別タブから同じコードで参加できることを確認する。参加者 ID（`p_`）と再開トークン（`rt_`）の生成経路も同じアダプタを通るため、再読み込みでの復帰まで見る _要件: FR-008, US2_
-- [ ] T064 dev サーバーを停止し、`ss -tlnp` でポートの解放を確認する _要件: —（手続き）_
-- [ ] T065 `corepack pnpm typecheck` / `lint` / `test` / `build` の 4 つと、T006 との件数突合を実行する _要件: FR-005, FR-006_
+- [X] T059 PR-5 のマージ後、`main` を pull して `chore/113-pr6-nanoid` を切る _要件: —（手続き）_
+- [X] T060 `apps/timer-sync/package.json` の `nanoid` を更新する。**ワークスペース内に同名の推移依存があるため、更新後に `git diff` で他パッケージの宣言が巻き込まれていないことを必ず確認する**（#69 で 2 度発生した罠の再来しやすい箇所） _要件: FR-001_
+- [X] T061 `apps/timer-sync/src/adapters/nanoid-code-gen.ts` の `import { nanoid, customAlphabet } from "nanoid"` が新版の公開インターフェースで有効か確認する。変わっていれば追随し、変更の理由をコメントで残す _要件: FR-014_
+- [X] T062 `corepack pnpm --filter @tasuki/timer-sync test`（`bun test`）を実行し、ルームコード生成の既存テストが緑であることを確認する _要件: FR-005_
+- [X] T063 **実プロトコル確認**: dev サーバーを起動し、`/timer/` でルームを作成して**ルームコードが 6 文字で発行されること**・別タブから同じコードで参加できることを確認する。参加者 ID（`p_`）と再開トークン（`rt_`）の生成経路も同じアダプタを通るため、再読み込みでの復帰まで見る _要件: FR-008, US2_
+- [X] T064 dev サーバーを停止し、`ss -tlnp` でポートの解放を確認する _要件: —（手続き）_
+- [X] T065 `corepack pnpm typecheck` / `lint` / `test` / `build` の 4 つと、T006 との件数突合を実行する _要件: FR-005, FR-006_
 - [ ] T066 PR を作成する。DoD の項目 5 に T063 の実プロトコル確認を記す。CI の 3 ジョブが緑であることを確認してからマージする _要件: FR-008_
 
 ---
