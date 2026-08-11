@@ -6,3 +6,19 @@ packages:
 # poker の依存に esbuild が含まれ、ビルドスクリプトの実行許可が要る（旧 planning-poker 由来）
 allowBuilds:
   esbuild: true
+
+# 公開直後の版を掴まないための待機期間（単位: 分。10080 = 7 日）。
+# npm パッケージの乗っ取り・改ざんは公開から数日以内に発覚することが多いため、
+# 公開から 7 日未満の版は pnpm install の段で拒否する。
+# pnpm はこの制約を lockfile の各エントリにも毎回再適用するので、
+# ローカルで迂回して作られた lockfile は CI で弾かれる。
+# 判断の根拠は docs/adr/0008、運用手順は docs/guides/development.md を参照。
+minimumReleaseAge: 10080
+
+# 期限つき例外。導入時点（2026-08-11）で待機期間 7 日未満だった版のみを一時的に許す。
+# 解除は #69 PR-2 の完了条件に含める。
+minimumReleaseAgeExclude:
+  # 【期限つき】postcss-selector-parser@7.1.5（2026-08-07T09:32:20Z 公開）が
+  # 導入時点で待機期間 7 日未満だったため一時除外。
+  # 解除予定: 2026-08-14（当該版が公開から 7 日を超える日）
+  - "postcss-selector-parser"
