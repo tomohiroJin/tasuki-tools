@@ -208,6 +208,11 @@ node --test scripts/audit-structure.test.mjs
 node scripts/mutation-check.mjs         # 変異検査
 ```
 
+**依存の脆弱性検査（`pnpm audit`）は上記に含まれません。** CI の独立ジョブ
+（`audit`）で自動実行され、high 以上の脆弱性で落ちます（決定は
+[`docs/adr/0008`](../adr/0008-dependency-supply-chain.md)）。手動での実行は
+確認したいときのみで構いません（`pnpm audit`）。
+
 **変異検査は作業ツリーが汚れていると実行できません。** `mutation-check.mjs` は
 対象箇所を意図的に壊して既存テストが赤くなるかを確認する仕組みのため、
 コミットされていない変更が残っていると自分の変更なのか検出漏れなのか
