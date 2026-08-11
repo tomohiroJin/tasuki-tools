@@ -3,7 +3,11 @@
   "compilerOptions": {
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
-    "types": ["vite/client"]
+    // tests/ が node:fs・node:path・process を使うため node 型が要る。
+    // vitest 3 の型グラフが @types/node をプログラムへ引き込んでいたため、
+    // これまでは宣言なしでも通っていた。vitest 4 でその漏れが止まったので、
+    // 依存（@types/node）と型の取り込みを両方とも明示にした。
+    "types": ["vite/client", "node"]
   },
   "include": ["src", "tests"]
 }
