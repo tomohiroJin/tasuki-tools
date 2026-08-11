@@ -28,6 +28,7 @@ import {
   extractPublicDeclarations,
   sc039bUnusedPublicData,
   sc039cSelfOnlyPublicSymbols,
+  formatTable,
 } from "./audit-structure.mjs";
 
 describe("SC-027: 到達しないモジュール（グラフ探索）", () => {
@@ -445,5 +446,36 @@ describe("SC-039: 生きたモジュール内部の到達不能な要素", () =>
       ],
     ]);
     assert.equal(sc039bUnusedPublicData(packageSrcFiles, productSources), 0);
+  });
+});
+
+describe("formatTable", () => {
+  test("数値目標を持つ指標は PASS / 未達 を出す", () => {
+    // Given
+    const results = { sc027: { value: 0, target: 0 }, sc029: { value: 7, target: 0 } };
+    // When
+    const table = formatTable(results);
+    // Then
+    assert.match(table, /SC027 \| 0 \| 0 \| PASS/);
+    assert.match(table, /SC029 \| 7 \| 0 \| 未達/);
+  });
+
+  test("数値目標を持たない指標は判定を出さない", () => {
+    // Given: 目標が文字列の指標（記録のためだけの数値）
+    const results = { sc036: { value: 1382, target: "P1 完了時の基準値以上" } };
+    // When
+    const table = formatTable(results);
+    // Then: 「未達」と誤って出さない
+    assert.match(table, /SC036 \| 1382 \| P1 完了時の基準値以上 \| —/);
+    assert.doesNotMatch(table, /未達/);
+  });
+
+  test("値が文字列の指標も判定を出さない", () => {
+    // Given
+    const results = { sc032: { value: "1023/1051（97.3%）", target: "100%" } };
+    // When
+    const table = formatTable(results);
+    // Then
+    assert.match(table, /SC032 \| 1023\/1051（97\.3%） \| 100% \| —/);
   });
 });

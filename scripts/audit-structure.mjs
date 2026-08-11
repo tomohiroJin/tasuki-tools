@@ -810,9 +810,18 @@ function runAudit() {
   };
 }
 
-function formatTable(results) {
+/**
+ * 監査結果を表にする。
+ *
+ * 判定は**目標値が数値の指標にだけ**出す。SC036 のように目標が文章の指標は
+ * 「記録のための数値」であり、合否を持たない（以前は値が数値・目標が文字列で
+ * `1382 === "P1 完了時の基準値以上"` が常に false になり、構造上いつまでも
+ * 「未達」と表示されていた）。
+ */
+export function formatTable(results) {
   const rows = Object.entries(results).map(([id, r]) => {
-    const judged = typeof r.value === "number" ? (r.value === r.target ? "PASS" : "未達") : "—";
+    const judgeable = typeof r.value === "number" && typeof r.target === "number";
+    const judged = judgeable ? (r.value === r.target ? "PASS" : "未達") : "—";
     return `${id.toUpperCase()} | ${r.value} | ${r.target} | ${judged}`;
   });
   const header = "SC | 現状値 | 目標値 | 判定";
