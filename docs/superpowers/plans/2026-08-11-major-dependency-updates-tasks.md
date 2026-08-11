@@ -110,14 +110,14 @@
 
 **Branch**: `chore/113-pr4-vite` ・ **Purpose**: バンドラを更新する。**利用者の通る経路（配信されるアセット）が変わりうるため実画面確認あり。**
 
-- [ ] T037 PR-3 のマージ後、`main` を pull して `chore/113-pr4-vite` を切る _要件: —（手続き）_
-- [ ] T038 `apps/{timer-web,poker-web,landing}/package.json` の `vite` と `@vitejs/plugin-react` を、**同一コミットで**更新する（plugin-react の peer が vite のメジャーを束縛するため） _要件: FR-002_
-- [ ] T039 [P] 各 `vite.config.ts` の設定が新版で有効か確認する。特に `apps/timer-web/vite.config.ts` の `base: "/timer/"`、`resolve.alias`（`@tasuki/timer-core/*` の 9 本）、`server.proxy` の `/timer/ws` → `ws://127.0.0.1:8787` rewrite。廃止された記法があれば書き換え、理由をコメントで残す _要件: FR-014_
-- [ ] T040 `corepack pnpm build` を実行し、`apps/timer-web/dist/index.html` と `apps/poker-web/dist/index.html` の**アセット参照が `/timer/` `/poker/` の接頭辞を保っていること**を確認する（`base` が効かなくなると本番でだけ 404 になり、ユニットテストでは検出できない） _要件: FR-007_
-- [ ] T041 `ss -tlnp | grep -E ':(8787|3311|517[3-5])'` で古い dev サーバーが居座っていないことを確認してから `corepack pnpm dev` を起動する _要件: FR-007_
-- [ ] T042 **実画面確認**: <http://localhost:5175/> を開き、玄関 LP → `/timer/` → `/poker/` の順に遷移して、表示崩れ・アセットの欠落・コンソールエラーが無いことを確認する。timer ではルームを作成し WebSocket が繋がることまで見る _要件: FR-007, US2_
-- [ ] T043 dev サーバーを停止し、`ss -tlnp` で 5 ポートすべてが解放されたことを確認する _要件: —（手続き）_
-- [ ] T044 `corepack pnpm typecheck` / `lint` / `test` / `build` の 4 つと、T006 との件数突合を実行する _要件: FR-005, FR-006_
+- [X] T037 PR-3 のマージ後、`main` を pull して `chore/113-pr4-vite` を切る _要件: —（手続き）_
+- [X] T038 `apps/{timer-web,poker-web,landing}/package.json` の `vite` と `@vitejs/plugin-react` を、**同一コミットで**更新する（plugin-react の peer が vite のメジャーを束縛するため） _要件: FR-002_
+- [X] T039 [P] 各 `vite.config.ts` の設定が新版で有効か確認する。特に `apps/timer-web/vite.config.ts` の `base: "/timer/"`、`resolve.alias`（`@tasuki/timer-core/*` の 9 本）、`server.proxy` の `/timer/ws` → `ws://127.0.0.1:8787` rewrite。廃止された記法があれば書き換え、理由をコメントで残す _要件: FR-014_
+- [X] T040 `corepack pnpm build` を実行し、`apps/timer-web/dist/index.html` と `apps/poker-web/dist/index.html` の**アセット参照が `/timer/` `/poker/` の接頭辞を保っていること**を確認する（`base` が効かなくなると本番でだけ 404 になり、ユニットテストでは検出できない） _要件: FR-007_
+- [X] T041 `ss -tlnp | grep -E ':(8787|3311|517[3-5])'` で古い dev サーバーが居座っていないことを確認してから `corepack pnpm dev` を起動する _要件: FR-007_
+- [X] T042 **実画面確認**: <http://localhost:5175/> を開き、玄関 LP → `/timer/` → `/poker/` の順に遷移して、表示崩れ・アセットの欠落・コンソールエラーが無いことを確認する。timer ではルームを作成し WebSocket が繋がることまで見る _要件: FR-007, US2_
+- [X] T043 dev サーバーを停止し、`ss -tlnp` で 5 ポートすべてが解放されたことを確認する _要件: —（手続き）_
+- [X] T044 `corepack pnpm typecheck` / `lint` / `test` / `build` の 4 つと、T006 との件数突合を実行する _要件: FR-005, FR-006_
 - [ ] T045 PR を作成する。DoD の項目 2（E2E）・項目 5（実経路）に **CI の `e2e` ジョブの結果と T042 の確認内容**を記す。CI の 3 ジョブが緑であることを確認してからマージする _要件: FR-007_
 
 ---

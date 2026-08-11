@@ -2,7 +2,10 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 
-const coreRoot = path.resolve(__dirname, "../../packages/timer-core/src");
+// vite 8 は `configLoader: 'native'` を将来の既定にする予定で、その下では `__dirname` が
+// 使えない（build 時に警告が出る）。`import.meta.dirname` は Node 20.11 以降で使え、
+// ルートの engines.node は >=22.22.2 なので条件を満たす。
+const coreRoot = path.resolve(import.meta.dirname, "../../packages/timer-core/src");
 
 // サブパス /timer/ 配信（S4 / #19）。ルートは玄関 LP が占める。
 // base は Caddy 断片（30-timer-spa.conf）と app.env の PUBLIC_PATH と揃っていること。
