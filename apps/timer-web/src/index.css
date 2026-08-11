@@ -4,9 +4,13 @@
  * 衝突する（ADR-0001）。 */
 @import '@tasuki/ui/tokens.css';
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Tailwind 4 は `@tailwind` の 3 行を 1 本の `@import` に置き換えた。 */
+@import 'tailwindcss';
+
+/* 既存の JS 設定（tailwind.config.js）を読み込む。**振る舞い不変を最優先し、
+ * CSS-first（@theme）への全面移行は行わない** —— #78 で確立したトークン設計に
+ * 踏み込むため、必要になったら別 Issue で扱う。 */
+@config '../tailwind.config.js';
 
 /* =============================================================================
  * デザイントークン

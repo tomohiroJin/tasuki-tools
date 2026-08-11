@@ -120,3 +120,35 @@ Zen Kaku Gothic New は base 層（常時）と ext 層（漢字の名前が出�
 
 - ADR のテンプレートと採番規約の統一（#68）
 - timer-sync と poker-sync の構造の非対称をどちらへ寄せるか（#68 → #72）
+
+## 追記（2026-08-11・#113 PR-5）
+
+### Tailwind 4 への更新にあたり `@tailwindcss/postcss` を足したことの位置づけ
+
+**憲法 原則 II が ADR を要求する「新しい技術・ライブラリの追加」には当たらないと判断した。**
+
+Tailwind 4 は、それまで `tailwindcss` 本体に同梱していた PostCSS プラグインの入口を
+`@tailwindcss/postcss` へ分離した。両者は同じ版番号（4.3.3）で同じ配布元から出ており、
+**`postcss.config.js` の 1 行が指す先が変わっただけで、技術選定は Tailwind のまま**である。
+これで新しくできるようになったことは無い。逆に、この分離を拒むと Tailwind 4 自体を採れない。
+
+同じ理由で、本追記は「デザインシステムの適用範囲」を変えない。決定 1〜5 はいずれも有効なまま。
+
+### 既存の JS 設定は `@config` で読み込み続ける（CSS-first へは移行しない）
+
+Tailwind 4 は `@theme` による CSS-first の設定を推すが、**`tailwind.config.js` を
+`@config` ディレクティブで読み込む方式を採った。** 決定 2「timer のトークンは名前を変えず、
+値の出所だけ差し替える」を守るためで、CSS-first への全面移行は本 ADR のトークン設計に
+踏み込むため別途とする。
+
+`@config` が 4.3.3 で実際に機能することは実測で確認した（生成 CSS に
+`.text-presence-*` / `.bg-presence-*` / `.rounded-*` / `.shadow-lg` / `.font-mono` の
+11 規則が更新前と同じ形で出ること、および **`@config` を外すと在室状況の 3 色が死に、
+影が Tailwind 既定へ退行すること**の両方）。
+
+### この追記で決めないこと
+
+- `autoprefixer` の要否（#71 へ申し送り）。**「Tailwind 4 が自前で prefix を付けるので
+  不要」は実測で成り立たなかった** —— 外すと CSS がかえって増え、`-moz-column-gap` が
+  消える。詳細は `apps/timer-web/postcss.config.js` のコメント
+- CSS-first（`@theme`）へ移行するかどうか
