@@ -95,3 +95,49 @@ export function collectAnchors(src) {
   }
   return anchors;
 }
+
+/** リポジトリのルート直下で、コードパスの引用があり得るディレクトリ。 */
+const REPO_TOP_LEVEL = /^(packages|apps|scripts|docs|deploy|e2e|\.github|\.specify)\//;
+
+/** バッククォートの中身がリポジトリ内のファイルパスに見えるか。 */
+export function isRepoPathLike(text) {
+  if (!REPO_TOP_LEVEL.test(text)) return false;
+  if (/\s/.test(text)) return false;
+  // グロブ・変数展開・リダイレクトを含むものはコマンド例なので対象外
+  if (/[*?<>{}$|]/.test(text)) return false;
+  // 拡張子が無いものは参照記法（`docs/adr/0002` のような ADR 番号の接頭辞）とみなす
+  return /\.[a-z0-9]+(:\d+(-\d+)?)?$/i.test(text);
+}
+
+/** コード領域の外にある相対リンクを、行番号つきで拾う。 */
+export function findRelativeLinks(src) {
+  const found = [];
+  stripCodeRegions(src).forEach((line, i) => {
+    for (const m of line.matchAll(/\[[^\]]*\]\(([^)\s]+)\)/g)) {
+      const target = m[1];
+      if (/^(https?:|mailto:)/.test(target)) continue;
+      found.push({ target, line: i + 1 });
+    }
+  });
+  return found;
+}
+
+/**
+ * フェンスの外にあるインラインコードからパスを拾う。
+ *
+ * フェンスの判定は fenceMask に委ねる（Task 1）。ここで独自に持つと、
+ * 片方だけ直したときに同じ穴が残る。
+ */
+export function findInlineCodePaths(src) {
+  const found = [];
+  const mask = fenceMask(src);
+  src.split("\n").forEach((line, i) => {
+    if (mask[i]) return;
+    for (const m of line.matchAll(/`([^`\n]+)`/g)) {
+      const raw = m[1].trim();
+      if (!isRepoPathLike(raw)) continue;
+      found.push({ path: raw.replace(/:\d+(-\d+)?$/, ""), raw, line: i + 1 });
+    }
+  });
+  return found;
+}

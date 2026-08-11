@@ -1,6 +1,6 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { stripCodeRegions, toAnchor, collectAnchors } from "./check-links.mjs";
+import { stripCodeRegions, toAnchor, collectAnchors, findRelativeLinks, findInlineCodePaths, isRepoPathLike } from "./check-links.mjs";
 
 describe("stripCodeRegions", () => {
   test("フェンス内の行を空にする", () => {
@@ -115,5 +115,78 @@ describe("collectAnchors", () => {
     const anchors = collectAnchors(src);
     // Then: GitHub と同じく 2 個目以降へ -1 / -2 が付く
     assert.deepEqual([...anchors].sort(), ["決定", "決定-1", "決定-2"]);
+  });
+});
+
+describe("findRelativeLinks", () => {
+  test("相対リンクを行番号つきで拾う", () => {
+    // Given
+    const src = ["# 見出し", "本文 [a](./a.md) と [b](../b.md#節)", "[外](https://example.com)"].join("\n");
+    // When
+    const links = findRelativeLinks(src);
+    // Then: http は対象外
+    assert.deepEqual(links, [
+      { target: "./a.md", line: 2 },
+      { target: "../b.md#節", line: 2 },
+    ]);
+  });
+
+  test("フェンス内のリンクは拾わない", () => {
+    // Given
+    const src = ["```", "[x](no-such-file.md)", "```"].join("\n");
+    // When / Then
+    assert.deepEqual(findRelativeLinks(src), []);
+  });
+
+  test("同一文書内のアンカーだけのリンクも拾う", () => {
+    // Given
+    const src = "[節へ](#見出し)";
+    // When / Then
+    assert.deepEqual(findRelativeLinks(src), [{ target: "#見出し", line: 1 }]);
+  });
+});
+
+describe("isRepoPathLike", () => {
+  test("拡張子つきのリポジトリ内パスを受け入れる", () => {
+    assert.equal(isRepoPathLike("packages/timer-core/src/evolve.ts"), true);
+    assert.equal(isRepoPathLike("docs/adr/0002-document-system-three-layers.md"), true);
+  });
+
+  test("ADR 番号の接頭辞参照を弾く", () => {
+    // Given: 拡張子が無い。実ファイルは 0002-document-system-three-layers.md
+    // When / Then
+    assert.equal(isRepoPathLike("docs/adr/0002"), false);
+  });
+
+  test("グロブ・変数展開・空白を含むものを弾く", () => {
+    assert.equal(isRepoPathLike("packages/*/src/index.ts"), false);
+    assert.equal(isRepoPathLike("apps/${APP}/dist/main.js"), false);
+    assert.equal(isRepoPathLike("docs/a b.md"), false);
+  });
+
+  test("リポジトリ外に見えるものを弾く", () => {
+    assert.equal(isRepoPathLike("node_modules/foo/index.js"), false);
+    assert.equal(isRepoPathLike("./relative.md"), false);
+  });
+});
+
+describe("findInlineCodePaths", () => {
+  test("行番号を落として拾う", () => {
+    // Given: 行番号つきの引用
+    const src = "詳細は `packages/timer-core/src/problem.ts:70` と `scripts/audit-structure.mjs:5-6` を見る";
+    // When
+    const found = findInlineCodePaths(src);
+    // Then: 突き合わせ用に行番号を落とし、原文も残す
+    assert.deepEqual(found, [
+      { path: "packages/timer-core/src/problem.ts", raw: "packages/timer-core/src/problem.ts:70", line: 1 },
+      { path: "scripts/audit-structure.mjs", raw: "scripts/audit-structure.mjs:5-6", line: 1 },
+    ]);
+  });
+
+  test("フェンス内のコマンド例は拾わない", () => {
+    // Given
+    const src = ["```bash", "node scripts/nonexistent.mjs", "```"].join("\n");
+    // When / Then
+    assert.deepEqual(findInlineCodePaths(src), []);
   });
 });
