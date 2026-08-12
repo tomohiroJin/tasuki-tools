@@ -273,6 +273,29 @@ function restoreMutation() {
 }
 
 /**
+ * 変異が検出を期待するテストファイルが実在するか確かめる。
+ *
+ * vitest は指定したテストファイルが 1 つも見つからないとき「No test files found」で
+ * exit 1 を返す。runTests は status !== 0 を「検出」とみなすので、**テストが消えると
+ * 変異検査は全件「検出」と報告して緑になる**。検査が守るはずの「検査が静かに効かなく
+ * なる」を、検査自身が起こしていた（#70 の破壊検証で発覚）。
+ */
+function assertMutationTestsExist() {
+  const missing = [];
+  for (const mutation of MUTATIONS) {
+    for (const rel of mutation.tests) {
+      const abs = path.join(WORKSPACE_ROOT, mutation.pkg, rel);
+      if (!fs.existsSync(abs)) missing.push(`変異 #${mutation.id}: ${mutation.pkg}/${rel}`);
+    }
+  }
+  if (missing.length === 0) return;
+  console.error("検出を期待するテストファイルが見つかりません:");
+  for (const m of missing) console.error(`  ${m}`);
+  console.error("\n対応表（MUTATIONS）と実ファイルがずれています。どちらかを直してください。");
+  process.exit(1);
+}
+
+/**
  * 対象パッケージで vitest を実行する。
  * full=false: 対応表のテストファイルのみ（絞り込み実行・既定）。
  * full=true : パッケージ全体（--full）。
@@ -287,6 +310,13 @@ function runTests(mutation, full) {
     encoding: "utf8",
   });
   const output = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
+  // テストが 1 件も走らなかった場合は「検出」ではない。ここを見ないと、
+  // 対応表のパスが少しずれただけで全件「検出」になる。
+  if (/No test files found/.test(output)) {
+    console.error(`変異 #${mutation.id}: テストが 1 件も実行されませんでした（${mutation.tests.join(", ")}）`);
+    console.error(output);
+    process.exit(1);
+  }
   const detected = result.status !== 0;
   return { detected, exitCode: result.status, output };
 }
@@ -297,6 +327,8 @@ function main() {
   // 未コミット変更の検査より前に行う。前回の異常終了で残った変異を、
   // その検査に引っかからせるのではなく自分で片付けるため。
   recoverFromCrashedRun();
+
+  assertMutationTestsExist();
 
   const status = gitStatusPorcelain();
   if (status.trim() !== "") {

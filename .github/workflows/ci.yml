@@ -124,3 +124,29 @@ jobs:
         with:
           node-version: 22
       - run: node scripts/check-links.mjs
+
+  # 手動でしか走らなかった検査を寄せる。ci に混ぜると臨界経路が
+  # 2 分 12 秒 → 2 分 42 秒 に伸びるので独立ジョブにする。
+  # **setup-bun は不要**: mutation-check.mjs は timer-sync の変異も
+  # npx vitest run で実行し、パッケージの test スクリプト（bun test）を通らない。
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+
+      # 構造監査は値を出すだけ。合否は自己テストと変異検査で取る（ADR 0009 D2）。
+      - run: node scripts/audit-structure.mjs
+
+      - run: node --test scripts/audit-structure.test.mjs scripts/check-links.test.mjs
+
+      # 変異検査は作業ツリーが clean であることを要求する。
+      # actions/checkout 直後は clean で、pnpm install は追跡ファイルを変更しない。
+      - run: node scripts/mutation-check.mjs
+
+      # shellcheck。.specify/scripts/** は vendor のため対象外（ADR 0009 D6）。
+      - run: shellcheck -x --source-path=deploy --severity=warning deploy/*.sh deploy/lib/*.sh scripts/*.sh

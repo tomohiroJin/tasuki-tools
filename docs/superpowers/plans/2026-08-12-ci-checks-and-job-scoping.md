@@ -1050,6 +1050,16 @@ describe("formatTable", () => {
     // Then
     assert.match(table, /SC032 \| 1023\/1051（97\.3%） \| 100% \| —/);
   });
+
+  test("目標が数値でも、値が文字列なら判定を出さない", () => {
+    // Given: 目標だけ数値。上のテストは目標も文字列なので、判定条件から
+    //        「値が数値か」を落としても気づけない。この組み合わせで初めて効く
+    const results = { sc099: { value: "abc", target: 100 } };
+    // When
+    const table = formatTable(results);
+    // Then
+    assert.match(table, /SC099 \| abc \| 100 \| —/);
+  });
 });
 ```
 
@@ -1222,8 +1232,10 @@ PR のブランチに次の変更を順に積み、**それぞれ CI が赤に�
 cd /home/vscode/tasuki-work
 
 # ⑥ 変異が検出されない状態にすると quality が赤
-#    m01 が検出を期待するテストを 1 つ落とす
-git rm packages/timer-core/test/driver-switch-equivalence.test.ts
+#    m01（advanceDriver の交代を 1 つずらす）が検出を期待するテストを落とす。
+#    対応表は scripts/mutation-check.mjs の MUTATIONS[0].tests が正本で、
+#    driver-switch-equivalence.test.ts ではない（実測で確認済み）。
+git rm packages/timer-core/test/evolve.test.ts
 git commit -m "test: 破壊検証（変異検査） — このコミットは revert する"
 git push
 # → CI の quality が赤になることを確認したら
@@ -1239,7 +1251,9 @@ git push
 git revert --no-edit HEAD && git push
 
 # ⑨ shellcheck の警告を入れると quality が赤
-printf '\nfoo=$(echo hi)\necho $foo\n' >> scripts/gen-sounds.sh   # SC2086: quote to prevent globbing
+#    ⚠ SC2086（`echo $foo`）は **info** レベルで --severity=warning に弾かれる。
+#    破壊検証には warning 以上の指摘を使うこと（実測で確認済み）。
+printf '\nfoo=hi\necho $(cat $foo)\n' >> scripts/gen-sounds.sh   # SC2046 (warning): quote to prevent word splitting
 git commit -am "chore: 破壊検証（shellcheck） — このコミットは revert する"
 git push
 # → CI の quality が赤になることを確認したら
@@ -1248,6 +1262,131 @@ git revert --no-edit HEAD && git push
 
 **3 つとも CI が赤になることを確認してから次へ進む。**「ローカルで赤を見た」で代替しない
 （この Issue が問題にしているのは、まさに CI で走っていないことなので）。
+
+---
+
+## Task 7b: 変異検査がテストの不在を検出できるようにする
+
+**Files:**
+- Modify: `scripts/mutation-check.mjs`
+
+**背景（実装者向け）:** Task 7 Step 5 の破壊検証で見つかった、**`mutation-check.mjs` 自身の構造的な穴**です。
+
+```
+npx vitest run test/no-such-file.test.ts   → exit 1（No test files found）
+scripts/mutation-check.mjs:291             → const detected = result.status !== 0;
+```
+
+vitest は指定したテストファイルが 1 つも見つからないとき exit 1 を返します。`runTests` は
+`status !== 0` を「変異を検出した」とみなすので、**変異が依存するテストファイルが消えると、
+変異検査は全件「検出」と報告して緑になります**。実際、`packages/timer-core/test/evolve.test.ts`
+を消しても `quality` ジョブは緑のままでした。
+
+**#70 が防ごうとしている「検査が静かに効かなくなる」が、それを守るはずの道具の中にあります。**
+この穴を残したまま変異検査を CI に載せると、CI は「変異検査が通った」と言い続けます。
+
+- [ ] **Step 1: 対応表と実ファイルのずれを検出する関数を足す**
+
+`scripts/mutation-check.mjs` の `runTests` の**手前**に追記:
+
+```js
+/**
+ * 変異が検出を期待するテストファイルが実在するか確かめる。
+ *
+ * vitest は指定したテストファイルが 1 つも見つからないとき「No test files found」で
+ * exit 1 を返す。runTests は status !== 0 を「検出」とみなすので、**テストが消えると
+ * 変異検査は全件「検出」と報告して緑になる**。検査が守るはずの「検査が静かに効かなく
+ * なる」を、検査自身が起こしていた（#70 の破壊検証で発覚）。
+ */
+function assertMutationTestsExist() {
+  const missing = [];
+  for (const mutation of MUTATIONS) {
+    for (const rel of mutation.tests) {
+      const abs = path.join(WORKSPACE_ROOT, mutation.pkg, rel);
+      if (!fs.existsSync(abs)) missing.push(`変異 #${mutation.id}: ${mutation.pkg}/${rel}`);
+    }
+  }
+  if (missing.length === 0) return;
+  console.error("検出を期待するテストファイルが見つかりません:");
+  for (const m of missing) console.error(`  ${m}`);
+  console.error("\n対応表（MUTATIONS）と実ファイルがずれています。どちらかを直してください。");
+  process.exit(1);
+}
+```
+
+- [ ] **Step 2: 実行が空振りしたときも落とす**
+
+`runTests` の `const detected = result.status !== 0;` の**手前**に追記:
+
+```js
+  // テストが 1 件も走らなかった場合は「検出」ではない。ここを見ないと、
+  // 対応表のパスが少しずれただけで全件「検出」になる。
+  if (/No test files found/.test(output)) {
+    console.error(`変異 #${mutation.id}: テストが 1 件も実行されませんでした（${mutation.tests.join(", ")}）`);
+    console.error(output);
+    process.exit(1);
+  }
+```
+
+- [ ] **Step 3: `main()` から呼ぶ**
+
+`main()` の中、`recoverFromCrashedRun();` の直後に追記:
+
+```js
+  assertMutationTestsExist();
+```
+
+- [ ] **Step 4: 現状で緑のままであることを確認する**
+
+Run: `cd /home/vscode/tasuki-work && git status --short && node scripts/mutation-check.mjs 2>&1 | tail -5`
+Expected: 9 件すべて「検出」・「全変異が検出されました」
+
+- [ ] **Step 5: わざと壊して赤を見る（2 通り）**
+
+```bash
+cd /home/vscode/tasuki-work
+
+# ① 対応表のパスをずらすと落ちる
+python3 - <<'EOF'
+p="scripts/mutation-check.mjs"
+s=open(p,encoding="utf-8").read()
+s=s.replace('tests: ["test/evolve.test.ts"]','tests: ["test/evolve-typo.test.ts"]',1)
+open(p,"w",encoding="utf-8").write(s)
+EOF
+node scripts/mutation-check.mjs; echo "exit=$?"
+# Expected: 「検出を期待するテストファイルが見つかりません」/ exit=1
+python3 - <<'EOF'
+p="scripts/mutation-check.mjs"
+s=open(p,encoding="utf-8").read()
+s=s.replace('tests: ["test/evolve-typo.test.ts"]','tests: ["test/evolve.test.ts"]',1)
+open(p,"w",encoding="utf-8").write(s)
+EOF
+node scripts/mutation-check.mjs 2>&1 | tail -2   # 緑に戻る
+
+# ② 実ファイルを消すと落ちる（コミットしてから。変異検査は clean を要求する）
+git rm packages/timer-core/test/evolve.test.ts
+git commit -m "chore: 破壊検証（変異検査の空振り） — このコミットは revert する"
+node scripts/mutation-check.mjs; echo "exit=$?"
+# Expected: 「検出を期待するテストファイルが見つかりません: 変異 #1: packages/timer-core/test/evolve.test.ts」/ exit=1
+git revert --no-edit HEAD
+node scripts/mutation-check.mjs 2>&1 | tail -2   # 緑に戻る
+```
+
+**2 つとも期待どおりになるまでコミットへ進まない。**
+
+- [ ] **Step 6: コミット**
+
+```bash
+cd /home/vscode/tasuki-work
+git add scripts/mutation-check.mjs
+git commit -m "fix: #70 変異検査がテストの不在を検出と誤判定する欠陥を直す
+
+- vitest はテストファイルが見つからないと exit 1 を返し、runTests がそれを
+  「変異を検出した」とみなしていた。テストが消えると全件「検出」で緑になる
+- 実行前に対応表のテストファイルの実在を確かめ、無ければ落とす
+- 実行が空振りした（No test files found）場合も落とす
+- Task 7 Step 5 の破壊検証で発覚。evolve.test.ts を消しても quality が緑だった"
+```
 
 ---
 
