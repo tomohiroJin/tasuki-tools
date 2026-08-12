@@ -210,7 +210,11 @@ CI は毎回フレッシュな checkout なのでこの短絡は起きません�
 ### CI での扱い
 
 CI の `pnpm install --frozen-lockfile` は `--trust-lockfile` を付けません。
-待機期間の検証を常に効かせるためです（決定は ADR 0008）。
+lockfile の検証を常に効かせるためです（決定は ADR 0008）。
+
+**`--trust-lockfile` は lockfile 検証を丸ごと飛ばします。** 待機期間
+（`minimumReleaseAge`）だけでなく、**降格判定（`trustPolicy`）も同時に無効になります**
+（pnpm 11.5.0 は両方を同じ検証段で回すため）。片方だけ残す手段はありません。
 
 **待機期間の違反**が出たときに取れる手は次の 3 つに限られます。「違反したエントリだけを
 古い版へ解決し直す」手段は存在しません（検証が解決より先に走るため）。降格判定
@@ -229,6 +233,9 @@ major は Dependency Dashboard の Issue に提示。決定は ADR 0008）。
   確認してからマージしてください
 - Renovate 側の待機期間は pnpm 側（7 日）以上に設定してあります。下回らせると
   bot の PR が pnpm の検証で常に赤くなります
+- **降格判定（`ERR_PNPM_TRUST_DOWNGRADE`）で赤くなった場合の扱いは別です。**
+  Renovate 側に `trustPolicy` に対応する設定は無く、bot は降格を予見できません。
+  上の「信頼証跡の降格拒否」の「Renovate の PR が赤くなったとき」を参照してください
 - **Renovate の有効化にはリポジトリ管理者による GitHub App の許可が別途必要です。**
   `renovate.json` をコミットするだけでは動きません
 

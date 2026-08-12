@@ -112,9 +112,10 @@ ADR 0008・もう片方（`trustPolicyIgnoreAfter`）は本 Issue と、導入�
 `trustPolicy` 自体は破壊検証済み（設定を消す・除外を差し替える、いずれも期待通り赤くなる
 ことを確認済み。詳細は
 [スペック](../superpowers/specs/2026-08-12-trust-policy-design.md)「検証」節）。
-一方で、今回新設した `trustPolicyExclude` という**除外リスト**には、静かに効かなくなる
-経路が 2 つあり、**どちらも現時点で機械的な検査が無い**。CI は緑のまま、除外が意図と
-違う範囲まで免除を与えてしまう。
+一方で、今回の設定そのものには静かに効かなくなる経路が **3 つ**あり、**いずれも現時点で
+機械的な検査が無い**。CI は緑のまま、検査が意図した範囲を検査しなくなる。
+**1 と 2 は今回新設した除外リスト（`trustPolicyExclude`）の経路、3 はキーと値そのものの
+経路**で、原因が別である。
 
 ### 1. 版指定の退化
 
@@ -122,12 +123,13 @@ ADR 0008・もう片方（`trustPolicyIgnoreAfter`）は本 Issue と、導入�
 （例: `"semver"`）だけになると、以後そのパッケージの**全版**が降格検査の対象外になる。
 乗っ取りが起きた新しい版が publish されても、この除外が黙って通してしまう。
 
-**なぜ緑のままか**: pnpm は `trustPolicyExclude` を「文字列（名前のみ）」と
-「配列（`名前@版` のリスト）」の両方の形式で受け付ける
-（`failIfTrustDowngraded` の `excludeResult === true` と
-`Array.isArray(excludeResult) && excludeResult.includes(version)` の 2 経路）。
-形式の退化はエラーにならず、pnpm から見れば単に「より広い除外」として正常に動作する。
-書式の逸脱を弾く検査が無い。
+**なぜ緑のままか**: `trustPolicyExclude` は常にリストで、**各エントリ**が `名前` でも
+`名前@版` でも受け付けられる。照合側は名前だけの除外なら「そのパッケージ全体」を、
+`名前@版` なら「その版だけ」を免除する（`failIfTrustDowngraded` の
+`excludeResult === true` と
+`Array.isArray(excludeResult) && excludeResult.includes(version)` の 2 分岐）。
+エントリから版が落ちてもエラーにならず、pnpm から見れば単に「より広い除外」として
+正常に動作する。書式の逸脱を弾く検査が無い。
 
 ### 2. 死んだ除外行の残留
 
@@ -144,11 +146,12 @@ pnpm はそれを無効エントリとして警告も失敗もしない。除外
 それを検証せず、検査そのものが無警告で消える。
 
 **実測**: `trustPolicy: no-downgrade` を `no-downgrad`（末尾の `e` 落ち）に書き換え、
-`trustPolicyExclude` の除外行も無効化してから検証した。結果は終了コード 0、ログは
-`✓ Lockfile passes supply-chain policies (447 entries in 2.8s)` で、
-`Verifying lockfile against supply-chain policies (447 entries)...` の行も件数もそのまま
-出る。違うのは秒数だけだった。正しい綴りのまま同じ除外を無効化した対照実験では
-`ERR_PNPM_TRUST_DOWNGRADE` で落ちることを確認済みなので、差は綴りだけである。
+`trustPolicyExclude` の除外行も無効化してから検証した。結果は**終了コード 0**で、
+`Verifying lockfile against supply-chain policies` の行も検証したエントリ数も
+そのまま出た（`✓ Lockfile passes supply-chain policies` で終わる）。違うのは所要秒数だけ
+である（数値は[スペック](../superpowers/specs/2026-08-12-trust-policy-design.md)の
+D7 の小節を参照）。正しい綴りのまま同じ除外を無効化した対照実験では
+`ERR_PNPM_TRUST_DOWNGRADE` で落ちるので、差は綴りだけである。
 
 **なぜ緑のままか**: pnpm 11.5.0 の実装は `trustCheckActive = opts.trustPolicy ===
 "no-downgrade"` という完全一致判定のみで、未知の値やキー名を検証しない。誤字は
@@ -170,13 +173,13 @@ pnpm はそれを無効エントリとして警告も失敗もしない。除外
 | `trustPolicyIgnoreAfter` を使わない決定 | [ADR 0010](../adr/0010-trust-policy.md) 決定 D2（MUST NOT） |
 | 違反時の判断手順・除外の書き方・キャッシュを含むローカル確認手順 | [`docs/guides/development.md`](../guides/development.md)「信頼証跡の降格拒否」「ローカル確認時の注意」節 |
 | 適用コスト・CI 実測値・検査の効き方の数値 | [スペック](../superpowers/specs/2026-08-12-trust-policy-design.md)（数値の正本。本振り返りには転記しない） |
-| **除外リストが静かに効かなくなる 3 経路**（版指定の退化・死んだ除外行の残留・設定キー/値の綴り誤り） | **[#135](https://github.com/tomohiroJin/tasuki-tools/issues/135) へ申し送る予定**（本振り返り作成時点ではまだコメントしていない。ADR 0010 決定 D7 がすでに割り当て済みだが、#135 本文にはまだ反映されていない） |
+| **本設定が静かに効かなくなる 3 経路**（除外リストに 2 つ = 版指定の退化・死んだ除外行の残留／キーと値に 1 つ = 綴り誤り） | **[#135](https://github.com/tomohiroJin/tasuki-tools/issues/135) へ申し送る予定**（本振り返り作成時点ではまだコメントしていない。ADR 0010 決定 D7 がすでに割り当て済みだが、#135 本文にはまだ反映されていない） |
 | Task 4 のレビュー指摘 (a): pnpm 自身の検証時間の自己申告のほうが、スペックの delta 計測法より一次情報として正確（差は数値の正本＝スペックを参照） | pnpm の自己申告のほうが一次情報として正確。スペックの数値を差し替えるかどうかの判断は未着手（本振り返り作成時点で対応保留・deferred のまま） |
 | Task 4 のレビュー指摘 (b): ローカルと CI で種類の違う指標（壁時計の総時間と検証区間）を並べて比較していた。pnpm 自己申告どうしで揃えると CI が 1 割ほど高い（数値の正本はスペックの「CI が実際に払うコスト」節） | 反映済み。I-1 でスペックの比較記述を指標の種類を揃えた形に書き直した |
 
 ## 関連
 
-- Issue: #116（親エピック #67 段階 B）・申し送り先: #135（除外リストが静かに効かなくなる
+- Issue: #116（親エピック #67 段階 B）・申し送り先: #135（本設定が静かに効かなくなる
   経路の機械的検査）
 - スペック: [`docs/superpowers/specs/2026-08-12-trust-policy-design.md`](../superpowers/specs/2026-08-12-trust-policy-design.md)（数値の正本）
 - 実装計画: `docs/superpowers/plans/2026-08-12-trust-policy.md`
