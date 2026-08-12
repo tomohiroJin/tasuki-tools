@@ -235,4 +235,3 @@ node scripts/mutation-check.mjs         # 変異検査
 - 書き分けの規則: [`docs/adr/0002`](../adr/0002-document-system-three-layers.md)（文書体系の三層構造）
 - E2E の詳細（シナリオ・タグ・復旧手順）: [`e2e/README.md`](../../e2e/README.md)
 - 本番 Caddy 設定の検証手順: [`deploy/caddy/README.md`](../../deploy/caddy/README.md)
-
