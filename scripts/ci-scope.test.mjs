@@ -1,6 +1,6 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { decideScope } from "./ci-scope.mjs";
+import { decideScope, parseDiffOutput, formatOutputs } from "./ci-scope.mjs";
 
 describe("decideScope", () => {
   test("文書だけの変更では code も deps も false", () => {
@@ -49,5 +49,28 @@ describe("decideScope", () => {
   test("配列でない入力でも全部走らせる（fail-open）", () => {
     assert.deepEqual(decideScope(null), { code: true, deps: true });
     assert.deepEqual(decideScope(undefined), { code: true, deps: true });
+  });
+});
+
+describe("parseDiffOutput", () => {
+  test("改行区切りを配列にし、空行を落とす", () => {
+    // Given: git diff --name-only の出力（末尾に改行）
+    const stdout = "docs/a.md\npackages/timer-core/src/evolve.ts\n\n";
+    // When / Then
+    assert.deepEqual(parseDiffOutput(stdout), ["docs/a.md", "packages/timer-core/src/evolve.ts"]);
+  });
+
+  test("空の出力は空配列", () => {
+    assert.deepEqual(parseDiffOutput(""), []);
+    assert.deepEqual(parseDiffOutput("\n"), []);
+  });
+});
+
+describe("formatOutputs", () => {
+  test("GITHUB_OUTPUT の形式で書き出す", () => {
+    // Given
+    const scope = { code: true, deps: false };
+    // When / Then
+    assert.equal(formatOutputs(scope), "code=true\ndeps=false\n");
   });
 });
