@@ -70,11 +70,25 @@ pnpm は `11.5.0`（`package.json` の `packageManager`）。
 再検証が走る。** CI には pnpm のキャッシュが無い（`actions/cache` の対象は Caddy と
 Playwright のみ）ため、CI では検証キャッシュが効かない。
 
-### CI が実際に払うコスト（推定。CI では未計測）
+### CI が実際に払うコスト
 
-**上の秒数はすべて overlay（`/home/vscode/tasuki-work`）での実測であり、CI では計測していない。**
-GitHub Actions のランナーは CPU も登録所までの経路も異なるため、この値がそのまま
-CI に当てはまる保証は無い。**実測は本 Issue の PR で CI が回ったときに行う。**
+**上の秒数は overlay（`/home/vscode/tasuki-work`）での実測。CI での実測は本 Issue の
+PR（#137、run [31602504474](https://github.com/tomohiroJin/tasuki-tools/actions/runs/31602504474)）
+で取得した。**`pnpm-workspace.yaml` の変更は依存を伴うコード変更として扱われ、
+`ci` / `e2e` / `quality` / `audit` の 4 ジョブすべてで `pnpm install --frozen-lockfile`
+が走った。各ジョブのログで `Verifying lockfile against supply-chain policies (447 entries)...`
+から次の `Progress: resolved 1, ...`（検証完了・依存解決の開始）までの秒数を計測すると、
+4 ジョブとも **7.8〜7.9 秒**で揃った。
+
+| ジョブ | 検証（Verifying → 最初の Progress） | install 全体（`Done in`） |
+|---|---|---|
+| `audit` | 7.775 秒 | 10.4 秒 |
+| `ci` | 7.932 秒 | 10.9 秒 |
+| `quality` | 7.886 秒 | 11.7 秒 |
+| `e2e` | 7.835 秒 | 12.1 秒 |
+
+overlay での冷たい実行（7〜9 秒）と CI（7.8〜7.9 秒）はほぼ同じ帯に収まった。CPU も
+経路も異なるランナーだが、検証コストに大きな差は出ていない。
 
 さらに、#70 で入れたジョブの絞り込みにより **`pnpm install` はすべて条件付きステップ**である
 （`.github/workflows/ci.yml`）。無条件に 4 ジョブが払うわけではない。
@@ -305,7 +319,7 @@ MUST / MUST NOT で書く（D6・D7・D9 は「どこに記録するか」「ど
 ## 影響と非対象
 
 - CI の待ち時間が伸びる。**文書のみの PR では 0**、コード変更では install が走る
-  3〜4 ジョブが検証を払う（「CI が実際に払うコスト」節）。**CI での実測は本 PR で行う**
+  3〜4 ジョブが検証を払う（「CI が実際に払うコスト」節。実測は本 Issue の PR #137 で行った）
 - 登録所からメタデータを取得できないと install が落ちる（fail-closed）
 - 今後、依存の更新で新たな偽陽性が出うる。D5 の手順で 1 件ずつ判断する
 - **Renovate の PR が降格判定で赤くなる経路が増える**（D8）。Renovate 側に対応する
