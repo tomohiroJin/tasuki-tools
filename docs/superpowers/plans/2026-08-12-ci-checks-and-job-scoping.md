@@ -72,7 +72,7 @@ main
 - Test: `scripts/check-links.test.mjs`
 
 **Interfaces:**
-- Produces: `stripCodeRegions(src) → string[]`（行数を保ったまま、フェンス内の行とインラインコードを空白で潰す）、`toAnchor(heading) → string`、`collectAnchors(src) → Set<string>`
+- Produces: `fenceMask(src) → boolean[]`（各行がフェンス内か。判定はここ 1 箇所に集約する）、`stripCodeRegions(src) → string[]`（行数を保ったまま、フェンス内の行とインラインコードを空白で潰す）、`toAnchor(heading) → string`、`collectAnchors(src) → Set<string>`
 
 **背景（実装者向け）:** この 2 つの関数が検査全体の土台です。コード領域を読まないのは検出精度の話ではなく正しさの話で、リポジトリには `[x](no-such-file.md)` のように**意図的に壊れたリンクを説明文として書いた文書**があります。これを直すと検査手順の記録が壊れます。`toAnchor` は GitHub のアンカー生成規則の再現で、**空白の連続を 1 個のハイフンに潰してはいけません**（1 空白 = 1 ハイフン）。この規則は `docs/poker/specs/001-planning-poker-mvp/contracts/ws-protocol.md` の 18 見出しを GitHub の HTML レンダリング API と突き合わせて確認済みです。
 
@@ -116,6 +116,43 @@ describe("stripCodeRegions", () => {
     // Then
     assert.equal(lines[1], "");
     assert.equal(lines[3], "[ok](./a.md)");
+  });
+
+  test("4 個で開いたフェンスは 3 個の行では閉じない", () => {
+    // Given: バッククォート 4 個の中に 3 個のフェンスがネストしている
+    //        （docs/superpowers/plans/2026-06-07-tasuki-vps-deployment.md の実例）
+    const src = ["````markdown", "```bash", "# コメント", "```", "````", "[ok](./a.md)"].join("\n");
+    // When
+    const lines = stripCodeRegions(src);
+    // Then: 外側フェンスの中身はすべて空になり、閉じた後の本文だけ残る
+    assert.deepEqual(lines, ["", "", "", "", "", "[ok](./a.md)"]);
+  });
+
+  test("情報文字列つきの行は閉じフェンスにならない", () => {
+    // Given
+    const src = ["```", "text", "```bash", "まだフェンス内", "```", "[ok](./a.md)"].join("\n");
+    // When
+    const lines = stripCodeRegions(src);
+    // Then
+    assert.equal(lines[3], "");
+    assert.equal(lines[5], "[ok](./a.md)");
+  });
+
+  test("開いたフェンスより長い行でも閉じられる", () => {
+    // Given: CommonMark は「同じ長さ以上」を閉じフェンスとして認める
+    const src = ["```", "text", "`````", "[ok](./a.md)"].join("\n");
+    // When / Then
+    assert.equal(stripCodeRegions(src)[3], "[ok](./a.md)");
+  });
+
+  test("チルダで開いたフェンスはバッククォートでは閉じない", () => {
+    // Given
+    const src = ["~~~", "```", "まだフェンス内", "~~~", "[ok](./a.md)"].join("\n");
+    // When
+    const lines = stripCodeRegions(src);
+    // Then
+    assert.equal(lines[2], "");
+    assert.equal(lines[4], "[ok](./a.md)");
   });
 });
 
@@ -192,33 +229,53 @@ Expected: FAIL（`Cannot find module './check-links.mjs'`）
  */
 
 /**
+ * 各行がコードフェンスの内側（フェンス行自体を含む）かどうかを返す。
+ *
+ * **閉じフェンスは「開いたフェンスと同じ文字」「同じ長さ以上」「他に内容が無い」の
+ * 3 つを満たす必要がある**（CommonMark）。長さを見ないと、```` で開いたブロックの
+ * 中にある ``` が外側を閉じてしまい、コード領域の中身が本文として漏れる。
+ * リポジトリの `docs/superpowers/plans/2026-06-07-tasuki-vps-deployment.md`（425 行で
+ * ```` で開き、495 行に ```bash がある）で実際に再現した欠陥。
+ *
+ * フェンス判定はここ 1 箇所に集約する。stripCodeRegions と findInlineCodePaths が
+ * 別々に持つと、片方だけ直したときに同じ穴が残る。
+ */
+export function fenceMask(src) {
+  const mask = [];
+  let fence = null; // { char, length }
+  for (const line of src.split("\n")) {
+    const marker = line.match(/^\s*(`{3,}|~{3,})/)?.[1];
+    if (marker && fence === null) {
+      fence = { char: marker[0], length: marker.length };
+      mask.push(true);
+      continue;
+    }
+    // ```bash のような情報文字列つきの行は開始フェンスであって閉じフェンスではない
+    if (
+      marker &&
+      fence !== null &&
+      marker[0] === fence.char &&
+      marker.length >= fence.length &&
+      line.trim() === marker
+    ) {
+      fence = null;
+      mask.push(true);
+      continue;
+    }
+    mask.push(fence !== null);
+  }
+  return mask;
+}
+
+/**
  * フェンス内の行を空文字にし、本文中のインラインコードを同じ長さの空白へ置き換える。
  * 行番号を報告できるように、行数と各行の文字数は保つ。
  */
 export function stripCodeRegions(src) {
-  const out = [];
-  let fence = null;
-  for (const line of src.split("\n")) {
-    const opener = line.match(/^\s*(`{3,}|~{3,})/);
-    if (opener) {
-      if (fence === null) {
-        fence = opener[1][0].repeat(3);
-        out.push("");
-        continue;
-      }
-      if (line.trim().startsWith(fence)) {
-        fence = null;
-        out.push("");
-        continue;
-      }
-    }
-    if (fence !== null) {
-      out.push("");
-      continue;
-    }
-    out.push(line.replace(/`[^`\n]*`/g, (s) => " ".repeat(s.length)));
-  }
-  return out;
+  const mask = fenceMask(src);
+  return src
+    .split("\n")
+    .map((line, i) => (mask[i] ? "" : line.replace(/`[^`\n]*`/g, (s) => " ".repeat(s.length))));
 }
 
 /**
@@ -290,7 +347,7 @@ git commit -m "feat: #70 リンク検査のコード領域除外と slug 生成�
 - Test: `scripts/check-links.test.mjs`
 
 **Interfaces:**
-- Consumes: `stripCodeRegions`, `collectAnchors`（Task 1）
+- Consumes: `fenceMask`, `stripCodeRegions`, `collectAnchors`（Task 1）
 - Produces: `findRelativeLinks(src) → {target, line}[]`、`findInlineCodePaths(src) → {text, line}[]`、`isRepoPathLike(text) → boolean`
 
 **背景（実装者向け）:** 検査そのものはファイルシステムを触りますが、**抽出は純関数に分けます**。テストがファイルの実在に依存すると、リポジトリの中身が変わるたびにテストが壊れるためです。`isRepoPathLike` は「バッククォートの中身がリポジトリ内のファイルパスに見えるか」の判定で、拡張子が無いもの（`docs/adr/0002` のような ADR 番号の接頭辞参照）を弾くのが要点です。これを入れないと、現役文書だけで 193 件の偽陽性が出ます。
@@ -367,11 +424,23 @@ describe("findInlineCodePaths", () => {
     ]);
   });
 
-  test("フェンス内のコマンド例は拾わない", () => {
-    // Given
-    const src = ["```bash", "node scripts/nonexistent.mjs", "```"].join("\n");
+  // 次の 2 件は対照実験。フェンスの有無だけが違う。
+  // フェンス内の行にバッククォート引用を置かないと、fenceMask への委譲を丸ごと
+  // 無効化してもテストが通ってしまう（恒真になる）。
+  test("フェンス内のバッククォート引用は拾わない", () => {
+    // Given: フェンスの中に、バッククォートで囲んだリポジトリパスがある
+    const src = ["```bash", "詳細は `scripts/nonexistent.mjs` を見る", "```"].join("\n");
     // When / Then
     assert.deepEqual(findInlineCodePaths(src), []);
+  });
+
+  test("同じ内容でもフェンスの外なら拾う", () => {
+    // Given: 上のテストからフェンスだけを外したもの
+    const src = "詳細は `scripts/nonexistent.mjs` を見る";
+    // When / Then
+    assert.deepEqual(findInlineCodePaths(src), [
+      { path: "scripts/nonexistent.mjs", raw: "scripts/nonexistent.mjs", line: 1 },
+    ]);
   });
 });
 ```
@@ -412,23 +481,17 @@ export function findRelativeLinks(src) {
   return found;
 }
 
-/** コード領域のうち、フェンスの外にあるインラインコードからパスを拾う。 */
+/**
+ * フェンスの外にあるインラインコードからパスを拾う。
+ *
+ * フェンスの判定は fenceMask に委ねる（Task 1）。ここで独自に持つと、
+ * 片方だけ直したときに同じ穴が残る。
+ */
 export function findInlineCodePaths(src) {
   const found = [];
-  let fence = null;
+  const mask = fenceMask(src);
   src.split("\n").forEach((line, i) => {
-    const opener = line.match(/^\s*(`{3,}|~{3,})/);
-    if (opener) {
-      if (fence === null) {
-        fence = opener[1][0].repeat(3);
-        return;
-      }
-      if (line.trim().startsWith(fence)) {
-        fence = null;
-        return;
-      }
-    }
-    if (fence !== null) return;
+    if (mask[i]) return;
     for (const m of line.matchAll(/`([^`\n]+)`/g)) {
       const raw = m[1].trim();
       if (!isRepoPathLike(raw)) continue;
@@ -516,6 +579,14 @@ describe("isLiveDoc", () => {
     assert.equal(isLiveDoc("docs/README.md"), true);
     assert.equal(isLiveDoc("docs/BACKLOG.md"), false);
   });
+
+  test("完全一致のエントリを前方一致で判定しない", () => {
+    // Given: 完全一致エントリの名前で始まるだけの別ファイル
+    //        （この 2 行が無いと、完全一致の条件を前方一致へ壊しても検出できない）
+    // When / Then
+    assert.equal(isLiveDoc("docs/README.md.bak"), false);
+    assert.equal(isLiveDoc("AGENTS.md.bak"), false);
+  });
 });
 
 describe("checkConstants", () => {
@@ -599,6 +670,10 @@ export const MISSING_PATH_EXCEPTIONS = [
     path: "docs/BACKLOG.md",
     reason: "docs/adr/0003 の決定により廃止済み。ADR 本文の言及は記録として正しい",
   },
+  {
+    path: "apps/timer-sync/.env",
+    reason: "gitignore 対象。deploy/timer/NOTES.md は、この実 env を各自で作る手順を案内している",
+  },
 ];
 
 export function isLiveDoc(relPath) {
@@ -673,32 +748,47 @@ git commit -m "chore: #70 リンク検査の対象範囲・例外表・空振り
 ```js
 import fs from "node:fs";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 ```
 
 ```js
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SCRIPT_DIR, "..");
-const SKIP_DIRS = new Set(["node_modules", ".git", "dist", "test-results", "coverage"]);
 
-function collectMarkdownFiles(root) {
-  const files = [];
-  (function walk(dir) {
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      if (SKIP_DIRS.has(entry.name)) continue;
-      const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) walk(full);
-      else if (entry.name.endsWith(".md")) files.push(full);
-    }
-  })(root);
-  return files.sort();
+/** git が知っているパスを NUL 区切りで取る。 */
+function gitList(args) {
+  return execFileSync("git", ["-C", REPO_ROOT, ...args, "-z"], { encoding: "utf8" })
+    .split("\0")
+    .filter(Boolean);
+}
+
+/**
+ * 走査対象と存在判定は、**ファイルシステムではなく git の追跡対象**を見る。
+ *
+ * ファイルシステムを見ると、gitignore 対象のもの（`apps/timer-sync/.env`・`dist/`・
+ * SDD の作業ディレクトリなど）が開発者の手元にはあり CI のフレッシュな checkout には
+ * 無いため、**同じコミットでもローカルと CI で結果が食い違う**。PR-2 の初回 CI で
+ * 実際に踏んだ（`deploy/timer/NOTES.md:104` の `apps/timer-sync/.env` がローカルでは
+ * 緑・CI では赤）。git 基準なら両者が構造的に一致する。
+ */
+function trackedPaths() {
+  const files = gitList(["ls-files"]);
+  const set = new Set(files);
+  // ディレクトリも「存在する」と答えられるように、各ファイルの親を末尾 "/" 付きで積む
+  for (const file of files) {
+    const parts = file.split("/");
+    for (let i = 1; i < parts.length; i++) set.add(parts.slice(0, i).join("/") + "/");
+  }
+  return set;
 }
 
 function main() {
-  const exists = (rel) => fs.existsSync(path.resolve(REPO_ROOT, rel));
+  const tracked = trackedPaths();
+  const exists = (rel) => tracked.has(rel) || tracked.has(rel.endsWith("/") ? rel : `${rel}/`);
   const errors = checkConstants({ exists });
 
-  const files = collectMarkdownFiles(REPO_ROOT);
+  const files = gitList(["ls-files", "*.md"]).sort();
   if (files.length === 0) {
     errors.push("走査対象の .md が 1 件もありません（検査が空振りしています）");
   }
@@ -713,15 +803,16 @@ function main() {
   const usedExceptions = new Set();
   const exceptionPaths = new Set(MISSING_PATH_EXCEPTIONS.map((e) => e.path));
 
-  for (const abs of files) {
-    const rel = path.relative(REPO_ROOT, abs);
+  for (const rel of files) {
+    const abs = path.resolve(REPO_ROOT, rel);
     const src = fs.readFileSync(abs, "utf8");
     const dir = path.dirname(abs);
 
     for (const { target, line } of findRelativeLinks(src)) {
       const [filePart, hash] = target.split("#");
       const targetAbs = filePart ? path.resolve(dir, filePart) : abs;
-      if (filePart && !fs.existsSync(targetAbs)) {
+      // 相対リンクの解決先も git 基準で見る（リポジトリ外を指すものは追跡集合に無い）
+      if (filePart && !exists(path.relative(REPO_ROOT, targetAbs))) {
         errors.push(`${rel}:${line} 参照先がありません → ${target}`);
         continue;
       }
@@ -793,7 +884,7 @@ sed -n '31p' docs/poker/specs/001-planning-poker-mvp/quickstart.md
 - [ ] **Step 4: 緑になることを確認する**
 
 Run: `cd /home/vscode/tasuki-work && node scripts/check-links.mjs; echo "exit=$?"`
-Expected: `リンク検査 OK（走査 187 ファイル）` / `exit=0`
+Expected: `リンク検査 OK（走査 <N> ファイル）` / `exit=0`（N は実測値。`.superpowers` を除いた .md の総数）
 
 - [ ] **Step 5: わざと壊して赤を見る（3 通り）**
 
@@ -902,7 +993,7 @@ gh pr create --base docs/70-ci-design --title "feat: #70 リンク検査を新�
 ## テスト方法
 
 - [x] `node --test scripts/check-links.test.mjs` が緑
-- [x] `node scripts/check-links.mjs` が緑（走査 187 ファイル）
+- [x] `node scripts/check-links.mjs` が緑
 - [x] 壊れたリンクを 1 本足すと赤になる
 - [x] コードフェンス内の壊れたリンクでは緑のまま
 - [x] 例外表が使われなくなると赤になる

@@ -28,7 +28,7 @@ pnpm turbo typecheck   # 型検査
 
 - `packages/core`: 単体テストが全件グリーン（デッキ・Room 集約・ラウンド状態機械・集計）
 - `apps/sync`: プロトコル結合テストが全件グリーン
-  （[契約の結合テスト観点 1〜10](./contracts/ws-protocol.md#結合テスト観点apps-sync-research-r7) をカバー）
+  （[契約の結合テスト観点 1〜10](./contracts/ws-protocol.md#結合テスト観点appssync-research-r7) をカバー）
 
 ## 2. 開発サーバー起動
 

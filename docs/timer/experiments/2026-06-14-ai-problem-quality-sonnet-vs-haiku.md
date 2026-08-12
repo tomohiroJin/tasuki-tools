@@ -2,7 +2,7 @@
 
 - 実施日: 2026-06-14
 - 対象: AI お題生成機能（`problemMode === "ai"`・`claude -p` 子プロセス生成）
-- 関連: [AI お題生成 設計](../superpowers/specs/2026-06-12-ai-problem-generation-design.md) / [状態可視化 設計](../superpowers/specs/2026-06-14-ai-status-visibility-design.md)
+- 関連: [AI お題生成 設計](../../superpowers/specs/2026-06-12-ai-problem-generation-design.md) / [状態可視化 設計](../../superpowers/specs/2026-06-14-ai-status-visibility-design.md)
 - 再現スクリプト: `apps/sync/scripts/quality-experiment.mjs`（生成）・`apps/sync/scripts/quality-judge.mjs`（採点）
 - 生データ: `docs/experiments/data/2026-06-14-quality-results.json`（20件の生成結果）・`.../2026-06-14-quality-scores.json`（judge スコア）
 
