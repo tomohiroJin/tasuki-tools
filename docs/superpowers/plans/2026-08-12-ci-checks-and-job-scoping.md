@@ -1903,15 +1903,25 @@ Expected: `ci` / `quality` / `e2e` のすべてが `code=true` で本体を実�
 
 - [ ] **Step 3: fail-open を確認する**
 
+> ⚠ **`main()` の先頭（`try` の外）に例外を挿してはいけない。** それは fail-open の経路ではなく、
+> 判定スクリプト自体の異常終了で、`scope` ステップごと落ちてジョブが赤くなる（設計どおりの挙動）。
+> 検証したいのは **`try` の中で判定が失敗したとき**なので、`changedFiles()` の中を壊す。
+
 ```bash
 cd /home/vscode/tasuki-work
-# 判定スクリプトの先頭で例外を投げさせる
-sed -i 's|^function main() {|function main() {\n  throw new Error("破壊検証");|' scripts/ci-scope.mjs
+# 判定の失敗（存在しない base を見る）を起こす。これは try の中なので catch される
+python3 - <<'EOF'
+p="scripts/ci-scope.mjs"
+s=open(p,encoding="utf-8").read()
+old='return parseDiffOutput(git(["diff", "--name-only", `origin/${base}...HEAD`]));'
+new='return parseDiffOutput(git(["diff", "--name-only", `origin/no-such-branch-破壊検証...HEAD`]));'
+assert s.count(old)==1, f"一致 {s.count(old)} 件"
+open(p,"w",encoding="utf-8").write(s.replace(old,new))
+EOF
 git commit -am "chore: 破壊検証（fail-open） — このコミットは revert する"
 git push
-gh run watch
 ```
-Expected: 各ジョブのログに `判定できないため全ジョブを走らせます: 破壊検証` が出て、**すべてのジョブが本体を実行する**。
+Expected: 各ジョブのログに `判定できないため全ジョブを走らせます:` が出て、**すべてのジョブが本体を実行し、CI は緑で終わる**。とくに `audit` が `deps=true` で本体を実行していること（普段は `deps=false` で早期成功する）が、fail-open が効いた証拠になる。
 
 > ⚠ この変更は `scripts/**` への変更なので `code=true` が期待値だが、それは
 > 「例外で fail-open した」結果と区別が付かない。**ログの文言で区別すること。**
