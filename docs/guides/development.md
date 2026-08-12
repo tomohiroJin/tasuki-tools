@@ -212,13 +212,21 @@ poker-sync（`3311`）を実際に起動するため、`pnpm dev` と同じポ�
 
 ## 検査系
 
-CI からは呼ばれない手動の検査です（[#70](https://github.com/tomohiroJin/tasuki-tools/issues/70) で組み込み予定）。
+**すべて CI の `quality` / `docs` ジョブで自動実行されます**（[`docs/adr/0009`](../adr/0009-ci-scope-and-checks.md) D1）。
+手元で先に確かめたいときは次を叩きます。
 
 ```bash
-node scripts/audit-structure.mjs        # 構造監査
-node --test scripts/audit-structure.test.mjs
-node scripts/mutation-check.mjs         # 変異検査
+node scripts/audit-structure.mjs                 # 構造監査（値を出すだけ。合否は取らない）
+node --test scripts/audit-structure.test.mjs     # 構造監査の自己テスト
+node scripts/mutation-check.mjs                  # 変異検査
+node scripts/check-links.mjs                     # リンク検査
+shellcheck -x --source-path=deploy --severity=warning deploy/*.sh deploy/lib/*.sh scripts/*.sh
 ```
+
+**変異検査は作業ツリーが clean でないと実行を拒否します**（変異の復元で未コミット変更が消えるため）。
+先にコミットしてから走らせてください。
+
+**リンク検査は `git ls-files` を見ます。** 新しく作った文書は `git add` するまで走査対象に入りません。
 
 **依存の脆弱性検査（`pnpm audit`）は上記に含まれません。** CI の独立ジョブ
 （`audit`）で自動実行され、high 以上の脆弱性で落ちます（決定は
