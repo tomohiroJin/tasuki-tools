@@ -111,6 +111,73 @@ minimumReleaseAgeExclude:
 - **理由・対象アドバイザリ・解除予定日をコメントに残す**
 - **解除を完了条件に含める**（消し忘れると恒久設定になる）
 
+### 信頼証跡の降格拒否
+
+`trustPolicy: no-downgrade` により、**過去により強い信頼証跡（provenance / trusted
+publisher / staged publish）を持っていたパッケージが、証跡の弱い版・無い版を出したとき**、
+`pnpm install` が拒否します（判断の根拠は
+[`docs/adr/0010`](../adr/0010-trust-policy.md)）。
+
+待機期間との違いは**公開日に関係なく効く**ことです。待機期間は「7 日以内に発覚した改ざんを
+避ける」防御で、それを過ぎた改ざんは通します。
+
+**判定は公開日だけで行われ、semver の系列を見ません。** 新しい系列が証跡を持ち始めた後に
+公開された旧系列の保守版は、必ず降格と判定されます。
+
+#### 違反が出たときの判断手順
+
+`ERR_PNPM_TRUST_DOWNGRADE` が出たら、**除外へ足す前に**偽陽性か本物かを判断します。
+
+```bash
+# 1. 当該版の証跡を見る
+curl -s https://registry.npmjs.org/<pkg>/<version> \
+  | jq '{npmUser: ._npmUser, provenance: (.dist.attestations.provenance != null)}'
+
+# 2. その版より前に公開された版の証跡を見る（公開日の昇順）
+curl -s https://registry.npmjs.org/<pkg> | jq -r --arg v "<version>" '
+  .time as $t | .versions | to_entries
+  | map(select($t[.key] != null and $t[.key] < $t[$v]))
+  | sort_by($t[.key])[]
+  | "\($t[.key])\t\(.key)\t\(
+      if .value._npmUser.approver then "stagedPublish"
+      elif (.value._npmUser.trustedPublisher and .value.dist.attestations.provenance) then "trustedPublisher"
+      elif .value.dist.attestations.provenance then "provenance"
+      else "-" end)"'
+```
+
+- **偽陽性**: 当該版が旧系列の保守版で、より新しい系列が先に証跡つきで公開されていた
+- **本物を疑う**: 当該版が最新系列の新しい版なのに証跡が消えた → 乗っ取りの可能性
+
+**待機期間の違反で使える「待つ」「全面再解決」はここでは効きません。** 公開日は動かないため、
+時間が経っても `pnpm clean --lockfile` を実行しても判定は変わりません。取れる手は
+**「除外する」か「依存の版を変える」の 2 つだけ**です。
+
+#### 偽陽性と判断したときの除外
+
+```yaml
+# pnpm-workspace.yaml
+trustPolicyExclude:
+  # semver@6.3.1（2023-07-10T22:38:41Z 公開）は 6.x 系の保守版で証跡を持たない。
+  # その公開日より前に 7.5.1〜7.5.4 が provenance 付きで出ているため降格と判定される、
+  # 設計上の偽陽性。依存元は @babel/core（eslint-plugin-react-hooks 経由の開発時依存）。
+  - "semver@6.3.1"
+```
+
+- **必ず「名前@版」で書く。** 名前だけにすると、以後そのパッケージの全版が無検査になります
+- **偽陽性と判断した根拠をコメントに残す**（どの版が先に証跡を持っていたか）
+- **解除予定日は書きません。** 公開日は動かないので時間では解消しません。ただし
+  **その版が依存木から消えたら行を削除してください**（残すと、将来その版が再び現れたときに
+  黙って免除を与えます）
+- **`trustPolicyIgnoreAfter` は使いません。** `minimumReleaseAge`（7 日）以下の値にすると、
+  install しうる版がほぼすべて検査対象から外れ、検証コストだけが残ります（ADR 0010）
+
+#### Renovate の PR が赤くなったとき
+
+Renovate 側に `trustPolicy` に対応する設定はありません。bot は降格を予見できないため、
+提案した更新が降格判定に当たれば PR が赤くなります。**これは不具合ではなく信号です。**
+上の判断手順を通し、偽陽性なら除外を足して取り込み、そうでなければ更新を見送ってください。
+**Renovate の設定でこの赤を消そうとしないでください。**
+
 ### ローカル確認時の注意
 
 `node_modules` が最新のとき、pnpm は「Already up to date」で短絡し**供給網検証を
@@ -122,16 +189,36 @@ rm -rf node_modules apps/*/node_modules packages/*/node_modules e2e/node_modules
 pnpm install --frozen-lockfile
 ```
 
+**lockfile もポリシー（`pnpm-workspace.yaml` の設定）も変えずに再検証したいときは、
+検証キャッシュも消してください。**
+
+```bash
+rm -f ~/.cache/pnpm/lockfile-verified.jsonl
+```
+
+pnpm は「lockfile のハッシュ＋ポリシー」を鍵に検証結果をキャッシュします。`node_modules` を
+消してもこのキャッシュは残るため、鍵が変わっていないと**検証を飛ばして緑になります**。
+検証が実際に走ったかどうかは `Verifying lockfile against supply-chain policies` の行が
+出ているかで判断してください。
+
+**ただしこの行は `minimumReleaseAge` だけでも出ます。`trustPolicy` が効いていることは、
+除外行を一時的に外すと `ERR_PNPM_TRUST_DOWNGRADE` で落ちることで確かめてください。**
+
 CI は毎回フレッシュな checkout なのでこの短絡は起きません。**この罠にかかるのは
 ローカルでの確認作業だけです。**
 
 ### CI での扱い
 
 CI の `pnpm install --frozen-lockfile` は `--trust-lockfile` を付けません。
-待機期間の検証を常に効かせるためです（決定は ADR 0008）。
+lockfile の検証を常に効かせるためです（決定は ADR 0008）。
 
-違反が出たときに取れる手は次の 3 つに限られます。「違反したエントリだけを
-古い版へ解決し直す」手段は存在しません（検証が解決より先に走るため）。
+**`--trust-lockfile` は lockfile 検証を丸ごと飛ばします。** 待機期間
+（`minimumReleaseAge`）だけでなく、**降格判定（`trustPolicy`）も同時に無効になります**
+（pnpm 11.5.0 は両方を同じ検証段で回すため）。片方だけ残す手段はありません。
+
+**待機期間の違反**が出たときに取れる手は次の 3 つに限られます。「違反したエントリだけを
+古い版へ解決し直す」手段は存在しません（検証が解決より先に走るため）。降格判定
+（`ERR_PNPM_TRUST_DOWNGRADE`）の場合は上の「信頼証跡の降格拒否」を参照してください。
 
 1. **待つ**: 当該版が公開から 7 日を超えるのを待つ（最も安全）
 2. **期限つき除外**: 上記の例外手順を使う
@@ -146,6 +233,9 @@ major は Dependency Dashboard の Issue に提示。決定は ADR 0008）。
   確認してからマージしてください
 - Renovate 側の待機期間は pnpm 側（7 日）以上に設定してあります。下回らせると
   bot の PR が pnpm の検証で常に赤くなります
+- **降格判定（`ERR_PNPM_TRUST_DOWNGRADE`）で赤くなった場合の扱いは別です。**
+  Renovate 側に `trustPolicy` に対応する設定は無く、bot は降格を予見できません。
+  上の「信頼証跡の降格拒否」の「Renovate の PR が赤くなったとき」を参照してください
 - **Renovate の有効化にはリポジトリ管理者による GitHub App の許可が別途必要です。**
   `renovate.json` をコミットするだけでは動きません
 

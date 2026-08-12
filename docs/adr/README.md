@@ -35,3 +35,4 @@ Michael Nygard 形式（背景 / 決定 / 影響 / ステータス）に従い�
 | [0007](./0007-abstraction-criteria.md) | 抽象の導入基準 | Accepted |
 | [0008](./0008-dependency-supply-chain.md) | 依存の供給網対策 | Accepted |
 | [0009](./0009-ci-scope-and-checks.md) | CI が守る範囲と検査の配置 | Accepted |
+| [0010](./0010-trust-policy.md) | trustPolicy による信頼証跡の降格拒否 | Accepted |

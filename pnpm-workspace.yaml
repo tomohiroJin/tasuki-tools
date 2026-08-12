@@ -22,3 +22,20 @@ minimumReleaseAgeExclude:
   # 導入時点で待機期間 7 日未満だったため一時除外。
   # 解除予定: 2026-08-14（当該版が公開から 7 日を超える日）
   - "postcss-selector-parser"
+
+# 信頼証跡（provenance / trusted publisher / staged publish）の降格を拒否する。
+# 乗っ取り（盗んだトークンで、CI を経由せず＝証跡なしに publish される）を、
+# 公開から 7 日を過ぎていても弾く。待機期間とは直交する防御。
+# 判定は公開日のみで行われ semver の系列を見ないため、旧系列の保守版は偽陽性になる。
+# 判断の根拠は docs/adr/0010、運用手順は docs/guides/development.md を参照。
+trustPolicy: no-downgrade
+
+# 降格判定の偽陽性に対する除外。公開日は動かないため待っても解消せず、
+# minimumReleaseAgeExclude の「期限つき」とは性質が異なる。解除予定日は書かない。
+# ただし当該版が依存木から消えたらこの行は不要になる（残すと将来その版を黙って免除する）。
+# 必ず「名前@版」で書く。名前だけにすると以後その名前の全版が無検査になる。
+trustPolicyExclude:
+  # semver@6.3.1（2023-07-10T22:38:41Z 公開）は 6.x 系の保守版で証跡を持たない。
+  # その公開日より前に 7.5.1〜7.5.4 が provenance 付きで出ているため降格と判定される、
+  # 設計上の偽陽性。依存元は @babel/core（eslint-plugin-react-hooks 経由の開発時依存）。
+  - "semver@6.3.1"
