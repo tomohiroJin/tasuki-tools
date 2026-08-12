@@ -134,9 +134,15 @@ curl -s https://registry.npmjs.org/<pkg>/<version> \
   | jq '{npmUser: ._npmUser, provenance: (.dist.attestations.provenance != null)}'
 
 # 2. その版より前に公開された版の証跡を見る（公開日の昇順）
-curl -s https://registry.npmjs.org/<pkg> \
-  | jq -r '.versions | to_entries[]
-           | "\(.key)\t\(if .value.dist.attestations.provenance then "provenance" else "-" end)\t\(if .value._npmUser.trustedPublisher then "trustedPublisher" else "-" end)"'
+curl -s https://registry.npmjs.org/<pkg> | jq -r --arg v "<version>" '
+  .time as $t | .versions | to_entries
+  | map(select($t[.key] != null and $t[.key] < $t[$v]))
+  | sort_by($t[.key])[]
+  | "\($t[.key])\t\(.key)\t\(
+      if .value._npmUser.approver then "stagedPublish"
+      elif (.value._npmUser.trustedPublisher and .value.dist.attestations.provenance) then "trustedPublisher"
+      elif .value.dist.attestations.provenance then "provenance"
+      else "-" end)"'
 ```
 
 - **偽陽性**: 当該版が旧系列の保守版で、より新しい系列が先に証跡つきで公開されていた
@@ -195,6 +201,9 @@ pnpm は「lockfile のハッシュ＋ポリシー」を鍵に検証結果をキ
 検証が実際に走ったかどうかは `Verifying lockfile against supply-chain policies` の行が
 出ているかで判断してください。
 
+**ただしこの行は `minimumReleaseAge` だけでも出ます。`trustPolicy` が効いていることは、
+除外行を一時的に外すと `ERR_PNPM_TRUST_DOWNGRADE` で落ちることで確かめてください。**
+
 CI は毎回フレッシュな checkout なのでこの短絡は起きません。**この罠にかかるのは
 ローカルでの確認作業だけです。**
 
@@ -205,7 +214,7 @@ CI の `pnpm install --frozen-lockfile` は `--trust-lockfile` を付けませ�
 
 **待機期間の違反**が出たときに取れる手は次の 3 つに限られます。「違反したエントリだけを
 古い版へ解決し直す」手段は存在しません（検証が解決より先に走るため）。降格判定
-（`ERR_PNPM_TRUST_DOWNGRADE`）の場合は下の「信頼証跡の降格拒否」を参照してください。
+（`ERR_PNPM_TRUST_DOWNGRADE`）の場合は上の「信頼証跡の降格拒否」を参照してください。
 
 1. **待つ**: 当該版が公開から 7 日を超えるのを待つ（最も安全）
 2. **期限つき除外**: 上記の例外手順を使う
