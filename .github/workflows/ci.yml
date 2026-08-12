@@ -12,33 +12,55 @@ on:
 env:
   COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
 
+# 連続 push で古い実行を打ち切る。**main への push は打ち切らない**
+# （マージ後の実行は「main が緑である」という記録そのもののため）。
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   ci:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # 差分の取得に必要。.git は 17MB / 713 コミットで数秒。
+          fetch-depth: 0
 
       # Node 22 必須。ルートが宣言する pnpm 11.5.0 は node:sqlite（Node 22.5 以降）を
       # 使うため、Node 20 では ERR_UNKNOWN_BUILTIN_MODULE で起動すらしない。
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+
+      # 走らせる範囲を決める。ジョブ単位の if ではなくステップ単位の if を使い、
+      # ジョブは常に起動して常に success を報告する（必須チェックにしても壊れない）。
+      - id: scope
+        run: node scripts/ci-scope.mjs
+
       # pnpm の版はルート package.json の packageManager 宣言に従わせる
       - run: corepack enable
+        if: steps.scope.outputs.code == 'true'
 
       # poker-sync は Bun 必須。tests/helpers.ts が `bun run src/server.ts` を
       # サブプロセス起動し、build も `bun build --target=bun` を使う。
       - uses: oven-sh/setup-bun@v2
+        if: steps.scope.outputs.code == 'true'
         with:
           bun-version: latest
 
       - run: pnpm install --frozen-lockfile
+        if: steps.scope.outputs.code == 'true'
 
       # 単一のタスクグラフで全 6 パッケージを検証する
       - run: pnpm typecheck
+        if: steps.scope.outputs.code == 'true'
       - run: pnpm lint
+        if: steps.scope.outputs.code == 'true'
       - run: pnpm test
+        if: steps.scope.outputs.code == 'true'
       - run: pnpm build
+        if: steps.scope.outputs.code == 'true'
 
   # 依存の脆弱性検査。high 以上で落とす（moderate 以下は出力に残すだけ）。
   # 判断の根拠は docs/adr/0008。既存の ci ジョブには足さない。
@@ -47,15 +69,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - id: scope
+        run: node scripts/ci-scope.mjs
       - run: corepack enable
+        if: steps.scope.outputs.deps == 'true'
       - run: pnpm install --frozen-lockfile
+        if: steps.scope.outputs.deps == 'true'
       # moderate 以下も内容が見えるように、まず全件を出力に残す
       - run: pnpm audit || true
+        if: steps.scope.outputs.deps == 'true'
       # high 以上でだけ落とす
       - run: pnpm audit --audit-level high
+        if: steps.scope.outputs.deps == 'true'
 
   # E2E は既存の検査と**並列の別ジョブ**にする。同じジョブに足すと、
   # ユニットテストの結果を見るのに E2E の所要時間を待つことになる。
@@ -63,26 +93,39 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+
+      # 走らせる範囲を決める。ジョブ単位の if ではなくステップ単位の if を使い、
+      # ジョブは常に起動して常に success を報告する（必須チェックにしても壊れない）。
+      - id: scope
+        run: node scripts/ci-scope.mjs
+
       - run: corepack enable
+        if: steps.scope.outputs.code == 'true'
 
       # sync サーバーは両方とも Bun で起動する。
       - uses: oven-sh/setup-bun@v2
+        if: steps.scope.outputs.code == 'true'
         with:
           bun-version: latest
 
       - run: pnpm install --frozen-lockfile
+        if: steps.scope.outputs.code == 'true'
 
       # Caddy 断片が root * /var/www/... を絶対値で宣言しているため、
       # 環境側を断片に合わせる。**ubuntu-latest に /var/www は無い。**
       - run: sudo mkdir -p /var/www
+        if: steps.scope.outputs.code == 'true'
 
       # 版を固定してキャッシュする。「最新」を取ると、ある日突然赤くなる。
       - name: Cache Caddy
         uses: actions/cache@v4
+        if: steps.scope.outputs.code == 'true'
         with:
           path: ~/.cache/tasuki-e2e
           key: caddy-2.11.4
@@ -92,16 +135,19 @@ jobs:
       - name: Cache Playwright browsers
         id: playwright-cache
         uses: actions/cache@v4
+        if: steps.scope.outputs.code == 'true'
         with:
           path: ~/.cache/ms-playwright
           key: playwright-1.62.1-chromium
       - run: pnpm --filter @tasuki/e2e exec playwright install --with-deps chromium
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        if: steps.scope.outputs.code == 'true' && steps.playwright-cache.outputs.cache-hit != 'true'
       - run: pnpm --filter @tasuki/e2e exec playwright install-deps chromium
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        if: steps.scope.outputs.code == 'true' && steps.playwright-cache.outputs.cache-hit == 'true'
 
       - run: pnpm build
+        if: steps.scope.outputs.code == 'true'
       - run: pnpm e2e
+        if: steps.scope.outputs.code == 'true'
 
       # 落ちたときに原因が追えるように、Caddy と 2 つの sync のログまで残す。
       - name: Upload E2E artifacts
@@ -133,20 +179,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - id: scope
+        run: node scripts/ci-scope.mjs
       - run: corepack enable
+        if: steps.scope.outputs.code == 'true'
       - run: pnpm install --frozen-lockfile
+        if: steps.scope.outputs.code == 'true'
 
       # 構造監査は値を出すだけ。合否は自己テストと変異検査で取る（ADR 0009 D2）。
       - run: node scripts/audit-structure.mjs
+        if: steps.scope.outputs.code == 'true'
 
-      - run: node --test scripts/audit-structure.test.mjs scripts/check-links.test.mjs
+      - run: node --test scripts/audit-structure.test.mjs scripts/check-links.test.mjs scripts/ci-scope.test.mjs
+        if: steps.scope.outputs.code == 'true'
 
       # 変異検査は作業ツリーが clean であることを要求する。
       # actions/checkout 直後は clean で、pnpm install は追跡ファイルを変更しない。
       - run: node scripts/mutation-check.mjs
+        if: steps.scope.outputs.code == 'true'
 
       # shellcheck。.specify/scripts/** は vendor のため対象外（ADR 0009 D6）。
       - run: shellcheck -x --source-path=deploy --severity=warning deploy/*.sh deploy/lib/*.sh scripts/*.sh
+        if: steps.scope.outputs.code == 'true'
