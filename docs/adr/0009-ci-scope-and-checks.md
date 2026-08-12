@@ -88,7 +88,7 @@ CI のジョブは `ci` の 1 本から `ci` / `quality`（新設）/ `docs`（�
 
 - CI のジョブが `ci` の 1 本から `ci` / `quality`（新設）/ `docs`（新設）/
   `audit` / `e2e` の 5 本へ増える。実測の所要時間は `ci` 121〜133 秒 /
-  `e2e` 51〜69 秒 / `quality` 22〜29 秒 / `audit` 7〜19 秒 / `docs` 4〜8 秒
+  `e2e` 51〜69 秒 / `quality` 22〜32 秒 / `audit` 7〜19 秒 / `docs` 4〜8 秒
   （早期成功を除く通常実行。run ID つきの実測値の正本は設計書
   `docs/superpowers/specs/2026-08-12-ci-checks-and-job-scoping-design.md` の
   「実測値の正本」表を参照）。`quality` は臨界経路の `ci` に完全に隠れるため、
