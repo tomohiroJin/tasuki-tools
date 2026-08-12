@@ -121,3 +121,5 @@ export { checkPermission, isAllowed } from "./permissions.js";
 export { countManagers, canDemote, canRemoveParticipant } from "./participants.js";
 export type { RemovalNotification } from "./participants.js";
 export { removalNotificationFor } from "./participants.js";
+
+// 破壊検証: このコミットは revert する
