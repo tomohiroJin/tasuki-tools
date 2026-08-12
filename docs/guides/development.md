@@ -217,14 +217,11 @@ poker-sync（`3311`）を実際に起動するため、`pnpm dev` と同じポ�
 
 ```bash
 node scripts/audit-structure.mjs                 # 構造監査（値を出すだけ。合否は取らない）
-node --test scripts/audit-structure.test.mjs     # 構造監査の自己テスト
+node --test scripts/audit-structure.test.mjs scripts/check-links.test.mjs scripts/ci-scope.test.mjs  # 自己テスト（構造監査・リンク検査・判定）
 node scripts/mutation-check.mjs                  # 変異検査
 node scripts/check-links.mjs                     # リンク検査
 shellcheck -x --source-path=deploy --severity=warning deploy/*.sh deploy/lib/*.sh scripts/*.sh
 ```
-
-**変異検査は作業ツリーが clean でないと実行を拒否します**（変異の復元で未コミット変更が消えるため）。
-先にコミットしてから走らせてください。
 
 **リンク検査は `git ls-files` を見ます。** 新しく作った文書は `git add` するまで走査対象に入りません。
 
@@ -236,7 +233,8 @@ shellcheck -x --source-path=deploy --severity=warning deploy/*.sh deploy/lib/*.s
 **変異検査は作業ツリーが汚れていると実行できません。** `mutation-check.mjs` は
 対象箇所を意図的に壊して既存テストが赤くなるかを確認する仕組みのため、
 コミットされていない変更が残っていると自分の変更なのか検出漏れなのか
-区別できず、実行前に working tree のクリーンさを要求します。
+区別できず、実行前に working tree のクリーンさを要求します。先にコミットしてから
+走らせてください。
 
 ## CI
 
