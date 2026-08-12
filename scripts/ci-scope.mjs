@@ -87,7 +87,6 @@ function changedFiles() {
 }
 
 function main() {
-  throw new Error("破壊検証");
   let scope;
   try {
     const files = changedFiles();
