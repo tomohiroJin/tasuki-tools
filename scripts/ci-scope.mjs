@@ -70,7 +70,7 @@ function changedFiles() {
     const base = process.env.GITHUB_BASE_REF;
     if (!base) throw new Error("GITHUB_BASE_REF が空です");
     // 三点はマージベースからの差分。積み上げ PR でも base が親ブランチになるので正しい。
-    return parseDiffOutput(git(["diff", "--name-only", `origin/no-such-branch-hakai...HEAD`]));
+    return parseDiffOutput(git(["diff", "--name-only", `origin/${base}...HEAD`]));
   }
 
   if (eventName === "push") {
