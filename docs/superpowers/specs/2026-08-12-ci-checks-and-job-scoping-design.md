@@ -174,10 +174,10 @@ concurrency:
 
 ### 見込みの効果
 
-| | 現状（実測） | 変更後 |
+| | 現状（実測） | 変更後（実測・2026-08-12） |
 |---|---|---|
-| 文書のみの PR | 128〜141 秒 | 見積り 約 25 秒（未実測・理由は下記） |
-| コードの PR | 128〜142 秒 | 2 分 11 秒（実測、2026-08-12） |
+| 文書のみの PR | 128〜141 秒 | **20 秒** |
+| コードの PR | 128〜142 秒 | 2 分 11 秒 |
 
 **コードの PR は実測しました。** 2026-08-12、PR #132 に `packages/timer-core/src/index.ts` へ
 1 行だけ追加する破壊検証コミットを push し、`run_duration_ms` で 131,000ms（2 分 11 秒）を記録
@@ -190,10 +190,19 @@ PR #132 自身の既存コミット（`scripts/ci-scope.mjs` と `.github/workfl
 `true` のまま変わりません。2026-08-12 に実測済みで、`docs/guides/development.md` に 1 行だけ
 追加した破壊検証コミットでも `変更 4 ファイル → code=true deps=false` のままでした。これは
 `ci-scope.mjs` の不具合ではなく、積み上げ PR で base 単位の差分を見る設計どおりの挙動です。
-この行は **PR-5 で実測します。** PR-5（決定と手順の文書化）は `docs/adr/0009`・
-`docs/guides/development.md`・`deploy/README.md` の変更だけで構成され、base は
-`ci-scope.mjs` を既に含む `ci/70-job-scoping` です。したがって差分が `.md` のみになり、
-`code=false` の経路をそのまま検証できます。使い捨ての PR を立てる必要はありません。
+**この行は PR-5（#133）で実測しました。** PR-5 は `docs/adr/0009`・`docs/adr/README.md`・
+`docs/guides/development.md`・`deploy/README.md` の 4 ファイルだけで構成され、base は
+`ci-scope.mjs` を既に含む `ci/70-job-scoping` です。差分が `.md` のみになるため、
+`code=false` の経路をそのまま検証できました（run 31562015113）。
+
+```
+変更 4 ファイル → code=false deps=false      ← ci / quality / e2e / audit の 4 ジョブすべて
+quality 8 秒 / e2e 8 秒 / ci 9 秒 / docs 9 秒 / audit 8 秒
+全体 20 秒
+```
+
+**128〜141 秒が 20 秒になりました。** 見積りの 25 秒より速く、ジョブが 3 つから 5 つへ増えた
+ぶんのランナー割り当て待ちも、実際には効果を打ち消しませんでした。
 
 **コードの PR は遅くなります。** 検査が 4 種増えるので当然ですが、隠しません。
 
