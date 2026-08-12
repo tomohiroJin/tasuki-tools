@@ -212,13 +212,18 @@ poker-sync（`3311`）を実際に起動するため、`pnpm dev` と同じポ�
 
 ## 検査系
 
-CI からは呼ばれない手動の検査です（[#70](https://github.com/tomohiroJin/tasuki-tools/issues/70) で組み込み予定）。
+**すべて CI の `quality` / `docs` ジョブで自動実行されます**（[`docs/adr/0009`](../adr/0009-ci-scope-and-checks.md) D1）。
+手元で先に確かめたいときは次を叩きます。
 
 ```bash
-node scripts/audit-structure.mjs        # 構造監査
-node --test scripts/audit-structure.test.mjs
-node scripts/mutation-check.mjs         # 変異検査
+node scripts/audit-structure.mjs                 # 構造監査（値を出すだけ。合否は取らない）
+node --test scripts/audit-structure.test.mjs scripts/check-links.test.mjs scripts/ci-scope.test.mjs  # 自己テスト（構造監査・リンク検査・判定）
+node scripts/mutation-check.mjs                  # 変異検査
+node scripts/check-links.mjs                     # リンク検査
+shellcheck -x --source-path=deploy --severity=warning deploy/*.sh deploy/lib/*.sh scripts/*.sh
 ```
+
+**リンク検査は `git ls-files` を見ます。** 新しく作った文書は `git add` するまで走査対象に入りません。
 
 **依存の脆弱性検査（`pnpm audit`）は上記に含まれません。** CI の独立ジョブ
 （`audit`）で自動実行され、high 以上の脆弱性で落ちます（決定は
@@ -228,7 +233,35 @@ node scripts/mutation-check.mjs         # 変異検査
 **変異検査は作業ツリーが汚れていると実行できません。** `mutation-check.mjs` は
 対象箇所を意図的に壊して既存テストが赤くなるかを確認する仕組みのため、
 コミットされていない変更が残っていると自分の変更なのか検出漏れなのか
-区別できず、実行前に working tree のクリーンさを要求します。
+区別できず、実行前に working tree のクリーンさを要求します。先にコミットしてから
+走らせてください。
+
+## CI
+
+`.github/workflows/ci.yml` は 5 つのジョブを持ちます。
+
+| ジョブ | 中身 | 走らせる条件 |
+|---|---|---|
+| `ci` | typecheck / lint / test / build | コードに関わる変更（`*.md` 以外が 1 つでもある） |
+| `quality` | 構造監査・自己テスト・変異検査・shellcheck | 同上 |
+| `docs` | リンク検査 | **常時** |
+| `audit` | `pnpm audit` | 依存の変更（`pnpm-lock.yaml` / `pnpm-workspace.yaml` / `package.json`） |
+| `e2e` | E2E | コードに関わる変更 |
+
+判定は `scripts/ci-scope.mjs` が行い、`$GITHUB_OUTPUT` へ `code` と `deps` を書きます。
+**判定できないときは全部走らせます（fail-open）。**
+
+### 必須チェックが永久待ちにならない理由
+
+絞り込みは **(a) 常にジョブを起動し、ステップ単位の `if:` で早期成功させる形**を採っています。
+`on.push.paths` でジョブ自体を起動させない (b) の形は採りません。
+
+(b) を採ると、そのチェックを必須（required status check）に指定した瞬間、対象外のパスしか
+触らない PR が「チェック待ち」で永久にマージできなくなります。GitHub がスキップされた
+ワークフローを「成功」ではなく「未報告」として扱うためです。
+
+(a) ではジョブが常に `success` を報告するので、この事故が原理的に起きません。
+決定の記録は [`docs/adr/0009`](../adr/0009-ci-scope-and-checks.md) の D4 にあります。
 
 ## 関連
 
