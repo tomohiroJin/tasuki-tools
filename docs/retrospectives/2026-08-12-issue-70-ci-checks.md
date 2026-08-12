@@ -163,7 +163,7 @@ Task 2・3・6 で、レビュアーが実際に実装を壊して「テスト�
 |---|---|
 | **破壊検証は「壊した」だけでなく「検査に引っかかったか」まで確かめる**（今回 10 件中 3 件が最初は空振り） | 本振り返り・以後の破壊検証の標準手順 |
 | **変異検査は「テストが無くなると全件検出扱いになる」欠陥を持っていた** | `scripts/mutation-check.mjs` の `assertMutationTestsExist()` で対処済み（コミット 1b9f43e） |
-| `apps/poker-sync/tests/heartbeat.test.ts` が **フレーク**（5000ms タイムアウトに対し実測 5907ms。同一コミットの再実行で緑になった） | #70 の変更とは無関係な既存の問題。**別 Issue の候補** |
+| `apps/poker-sync/tests/heartbeat.test.ts` が **フレーク**（5000ms タイムアウトに対し実測 5907ms。同一コミットの再実行で緑になった） | #70 の変更とは無関係な既存の問題。**[#135](https://github.com/tomohiroJin/tasuki-tools/issues/135) へ束ねた** |
 | 構造監査の未達指標（SC029=7 / SC030=3 / SC032 未付与 28 件 / SC039 の公開記号 34 件）の解消 | **#72** の領分（本振り返り作成時点であらためて `node scripts/audit-structure.mjs` で確認） |
 | `.claude/skills/speckit-*` と `.specify/` の壊れ 36 件 | **#71** の領分 |
 
@@ -180,7 +180,7 @@ Task 2・3・6 で、レビュアーが実際に実装を壊して「テスト�
 ## 関連
 
 - Issue: #70 ・ 申し送り先: #71（構造監査・speckit 修復）/ #72（構造監査の閾値解消）/
-  新規 Issue 候補（heartbeat フレーク）
+  #135（検査が静かに効かなくなる 4 経路・heartbeat フレーク・リンク検査の 2 件）
 - 設計書 / 実装計画: `docs/superpowers/specs/2026-08-12-ci-checks-and-job-scoping-design.md` /
   `docs/superpowers/plans/2026-08-12-ci-checks-and-job-scoping.md`
 - ADR: [`docs/adr/0009-ci-scope-and-checks.md`](../adr/0009-ci-scope-and-checks.md)
