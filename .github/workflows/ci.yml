@@ -195,7 +195,11 @@ jobs:
       - run: node scripts/audit-structure.mjs
         if: steps.scope.outputs.code == 'true'
 
-      - run: node --test scripts/audit-structure.test.mjs scripts/check-links.test.mjs scripts/ci-scope.test.mjs
+      # ログ衛生。資格情報・個人に紐づく情報がログ経路へ流れないことを見る（ADR 0012 D1）。
+      - run: node scripts/audit-log-hygiene.mjs
+        if: steps.scope.outputs.code == 'true'
+
+      - run: node --test scripts/audit-structure.test.mjs scripts/check-links.test.mjs scripts/ci-scope.test.mjs scripts/audit-log-hygiene.test.mjs
         if: steps.scope.outputs.code == 'true'
 
       # 変異検査は作業ツリーが clean であることを要求する。

@@ -126,6 +126,16 @@ const MUTATIONS = [
     pkg: "apps/timer-web",
     tests: ["test/sync/notice-message.test.ts"],
   },
+  {
+    id: 10,
+    label: "createRefEncoder.room が相関 ID ではなくルームコードをそのまま返す",
+    patch: "m10-ref-encoder-passthrough.patch",
+    pkg: "apps/timer-sync",
+    tests: ["test/log/ref-encoder.test.ts", "test/log/reclaim-log.test.ts"],
+    note:
+      "資格情報がログへ戻る欠陥の型。ADR 0012 D2 の「部分表示も生の値も出さない」" +
+      "という決定がテストで固定されていることを確かめる。",
+  },
 ];
 
 /**
