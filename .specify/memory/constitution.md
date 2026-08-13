@@ -1,6 +1,23 @@
 <!--
 Sync Impact Report
 ==================
+- Version change: 2.0.0 → 2.1.0（MINOR: 原則 XI の追加。既存原則の変更・削除は無い）
+- Rationale: #136（セキュリティの規範）。脅威モデルは
+  docs/plans/archive/tdd-mob-pro-timer-spec-v3.0-final.md の 7 節に実在したが、
+  archive の設計文書に埋もれ実装とも乖離していた。横断 ADR（0011・0012）へ
+  昇格・現行化し、その拠りどころを憲法へ据える。
+- Added principles:
+  - XI. 秘密と個人情報を持ち込まない
+- Templates requiring updates:
+  - OK .specify/templates/plan-template.md — 動的参照のみ。変更不要
+  - OK .specify/templates/spec-template.md — 憲法への直接参照なし。変更不要
+  - OK .specify/templates/tasks-template.md — 憲法への直接参照なし。変更不要
+  - OK AGENTS.md — 見出し同期済み（原則 I〜XI の 11 本一致）
+
+---
+
+Previous release: 1.0.0 → 2.0.0
+
 - Version change: 1.0.0 → 2.0.0（MAJOR: 適用範囲を poker MVP から Tasuki 全体へ拡張し、
   原則の削除・再定義を伴うため）
 - Rationale: #68（規範とアーキテクチャの確立）。本憲法は poker MVP 単体の企画時に
@@ -186,6 +203,18 @@ neverthrow）を基本とする。
 - 抽象化・パターンの導入は、変更容易性の実需（現に変更が困難になっている
   事実）があるときにのみ採用する
 
+### XI. 秘密と個人情報を持ち込まない
+
+預かる値は分類したうえで、必要な場所にだけ置く。
+
+- サーバーが保持する秘密（トークン・鍵・合言葉）は環境変数のみに置く（MUST）
+- 秘密・資格情報・個人に紐づく情報をログへ出してはならない（MUST NOT）
+- ログ出力の経路は 1 本に集約し、規範が守られていることを機械的に検査する
+  （MUST）
+- 個人を識別しうる値を、目的に必要な期間を超えて保持してはならない（MUST NOT）
+- 新しい入力・保持・出力を足すときは、`docs/adr/0011` のデータ分類のどれに
+  当たるかを決めてから実装する（MUST）
+
 ## Governance
 
 - 本憲法は本プロジェクトにおける他のすべてのプラクティス・ガイドラインに優先する
@@ -201,4 +230,4 @@ neverthrow）を基本とする。
   通過しなければならない。原則からの逸脱は Complexity Tracking での
   正当化なしに認めない
 
-**Version**: 2.0.0 | **Ratified**: 2026-07-16 | **Last Amended**: 2026-08-10
+**Version**: 2.1.0 | **Ratified**: 2026-07-16 | **Last Amended**: 2026-08-13
