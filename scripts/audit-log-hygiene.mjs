@@ -69,6 +69,20 @@ const FORBIDDEN = [
 ];
 
 /**
+ * 正規表現リテラルらしき部分を含むか（構文解析なしのヒューリスティック）。
+ *
+ * JavaScript の `/` が正規表現の開始か除算かは構文の文脈が無いと正確には
+ * 判定できない。200 行の検査スクリプトでそれを完全に解くのは割に合わないため、
+ * 「怪しければ安全側へ倒す」ヒューリスティックに留める。スラッシュ・
+ * （エスケープされた文字またはスラッシュ以外の文字）1 個以上・スラッシュ、
+ * という形に一致すれば「正規表現リテラルかもしれない」とみなす。
+ *
+ * 除算の連続（`a / b / c` 等）にも誤って一致しうるが、後述のとおり誤検出は
+ * 安全側（マスクを諦めてそのまま照合する）にしか働かないため許容する。
+ */
+const REGEX_LITERAL_LIKE = /\/(?:\\.|[^/\\\n])+\/[a-zA-Z]*/;
+
+/**
  * ソース全体をコメント除去した同じ長さの文字列へ変換する（純粋・行番号を保つ）。
  *
  * 行頭だけを見る `isCommentLine` は、**ブロックコメントが同じ行で閉じてから
@@ -76,21 +90,33 @@ const FORBIDDEN = [
  * `*\/ console.log(x)` で閉じて続くケース）を取りこぼす。1 行単位の判定では
  * 「コメントの内側にいるかどうか」という行をまたぐ状態を表現できないため、
  * `scripts/check-links.mjs` の `fenceMask`（Markdown のコードフェンスの状態を
- * 行をまたいで持つマスク）にならい、文字単位でコメント状態を追跡する。
+ * 行をまたいで持つマスク）にならい、行をまたいで状態（`state` / `quote`）を
+ * 持ち回りながら 1 行ずつ処理する。
  *
  * 文字列リテラル（`"` / `'` /` \` `）の中身は状態遷移の対象から外し、そのまま
  * 保持する。中の `//` や `/*` を誤ってコメント開始と読んでしまうと、続くコード
  * が丸ごとコメント扱いになり検出漏れという危険な向きの欠陥になるため。
  * その結果、文字列の中の `console.` などは除去されずに残り、引き続き違反として
  * 拾われる（安全側の誤検出。意図的に直さない。テストと report を参照）。
+ *
+ * **正規表現リテラルは状態として持たない。** 中のエスケープされたスラッシュ
+ * （`/http:\/\//` 等）を文字単位で追うと `//` や `/*` のペアと誤認し、
+ * その行の残りを丸ごとコメント扱いにして消してしまう（文字列と同じ問題だが、
+ * 起きた場合の被害はより深刻＝検出漏れ）。正規表現とただの除算を構文解析
+ * 無しに区別するのは割に合わないため、**行がコード状態で始まっており、かつ
+ * 正規表現リテラルらしき文字列を含む場合は、その行のマスクを一切かけず
+ * 生のテキストのまま禁止構文と照合する。** 正規表現の中に `console.` 等が
+ * 含まれていた場合は偽陽性になるが、偽陽性は「余計に赤くなる」だけで
+ * 検出漏れよりはるかにましという、この検査全体の fail-closed 方針と一致する。
  */
-function maskComments(source) {
+function maskLine(line, state, quote) {
+  if (state === "code" && REGEX_LITERAL_LIKE.test(line)) {
+    return { masked: line, state: "code", quote: null };
+  }
   let out = "";
-  let state = "code"; // code | string | line | block
-  let quote = null;
-  for (let i = 0; i < source.length; i++) {
-    const c = source[i];
-    const c2 = i + 1 < source.length ? source[i + 1] : "";
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    const c2 = i + 1 < line.length ? line[i + 1] : "";
     if (state === "code") {
       if (c === '"' || c === "'" || c === "`") {
         state = "string";
@@ -112,7 +138,7 @@ function maskComments(source) {
     if (state === "string") {
       if (c === "\\") {
         // エスケープの次の 1 文字は判定せず素通りさせる（\" を終端と誤認しない）。
-        out += c + (i + 1 < source.length ? source[i + 1] : "");
+        out += c + (i + 1 < line.length ? line[i + 1] : "");
         i++;
       } else {
         out += c;
@@ -124,12 +150,8 @@ function maskComments(source) {
       continue;
     }
     if (state === "line") {
-      if (c === "\n") {
-        state = "code";
-        out += "\n";
-      } else {
-        out += " ";
-      }
+      // line コメントは行末で終わる。1 行ずつ処理するのでここに来たら全部マスクする。
+      out += " ";
       continue;
     }
     // state === "block"
@@ -138,10 +160,25 @@ function maskComments(source) {
       out += "  ";
       i++;
     } else {
-      out += c === "\n" ? "\n" : " ";
+      out += " ";
     }
   }
-  return out;
+  // line コメントの状態は物理行末で必ず終わる（次の行へ持ち越さない）。
+  if (state === "line") state = "code";
+  return { masked: out, state, quote };
+}
+
+/** ソース全体へ `maskLine` を行ごとに適用し、状態を持ち回る。 */
+function maskComments(source) {
+  let state = "code";
+  let quote = null;
+  const maskedLines = source.split("\n").map((line) => {
+    const r = maskLine(line, state, quote);
+    state = r.state;
+    quote = r.quote;
+    return r.masked;
+  });
+  return maskedLines.join("\n");
 }
 
 /**

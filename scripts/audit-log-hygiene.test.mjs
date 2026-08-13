@@ -109,3 +109,21 @@ describe("ブロックコメントが同じ行で閉じてから実コードが�
     assert.equal(v.length, 0);
   });
 });
+
+describe("正規表現リテラル内のエスケープされたスラッシュで行の残りが消えないこと", () => {
+  test("/http:\\/\\// のような正規表現の後に続く console を検出する", () => {
+    const v = findViolations(
+      "apps/timer-sync/src/foo.ts",
+      "const re = /http:\\/\\//; console.log(secretToken)\n",
+    );
+    assert.equal(v.length, 1);
+  });
+
+  test("/a\\// のような短い正規表現の後に続く console も検出する", () => {
+    const v = findViolations(
+      "apps/timer-sync/src/foo.ts",
+      "const re = /a\\//; console.log(secretToken)\n",
+    );
+    assert.equal(v.length, 1);
+  });
+});
