@@ -31,7 +31,7 @@ function digest(salt: Buffer, kind: string, value: string): string {
 
 export function createRefEncoder(salt: Buffer): RefEncoder {
   return {
-    room: (code) => `r_${digest(salt, "room", code)}` as LogSafe,
-    request: (requestId) => `q_${digest(salt, "request", requestId)}` as LogSafe,
+    room: (code) => `r_${digest(salt, "room", code)}` as LogSafe, // log-hygiene:allow 相関 ID の生成点
+    request: (requestId) => `q_${digest(salt, "request", requestId)}` as LogSafe, // log-hygiene:allow 相関 ID の生成点
   };
 }
