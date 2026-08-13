@@ -13,6 +13,25 @@
  *   node scripts/mutation-check.mjs         絞り込み実行（対応表のテストファイルのみ）
  *   node scripts/mutation-check.mjs --full   変異の属するパッケージ全体を実行
  *
+ * テストランナー:
+ * リポジトリには 3 種類のランナーが混在する（apps/timer-sync は bun test、
+ * packages/ui は node --test、それ以外は vitest）。全パッケージへ npx vitest を
+ * 決め打ちすると、ランナーが違うパッケージでは「コマンドが見つからない」まま
+ * exit code が非 0 になり、テストを 1 件も実行せずに「検出」と誤報告する
+ * （#136 で発覚。apps/timer-sync の変異 #3・#5・#10 がこの状態だった）。
+ * これを避けるため、対象パッケージの package.json の scripts.test からランナーを
+ * 判定し（detectRunner）、そのランナーで直接テストファイルを指定して実行する。
+ *
+ * 対照実行（コントロール）:
+ * 各変異について、**変異を当てる前の素のコードで同じコマンドを実行し、まず
+ * 通ることを確認する**。対照が通らない場合は「検出」と報告せず、即座にエラー
+ * 終了する。対照が無いと、ランナー自体が起動できない・テストが存在しない
+ * といった「検査が空振りしているだけ」の状態を「全件検出」と読み違える
+ * （上と同じ #136 の欠陥）。対照はこれを一般的に塞ぐので、ランナーごとに
+ * 「テストが見つからない」旨のメッセージを文字列一致で拾う個別ガードは不要になる
+ * （かつてはここに vitest 専用の "No test files found" 一致があったが、対照実行に
+ * 一本化して削除した）。
+ *
  * 安全性:
  * - 作業ツリーに未コミット変更がある状態では実行を拒否する（変異が復元で消えると
  *   取り返しがつかないため）。
@@ -23,6 +42,7 @@
 
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import os from "node:os";
 import path from "node:path";
 import fs from "node:fs";
 
@@ -306,29 +326,90 @@ function assertMutationTestsExist() {
 }
 
 /**
- * 対象パッケージで vitest を実行する。
+ * bun の実行体を解決する。PATH 上に無ければ既定の設置場所へフォールバックする
+ * （CI では oven-sh/setup-bun@v2 が PATH へ足すが、ローカルの導入形態は環境によって
+ * ばらつくため）。
+ */
+const BUN_BIN = (() => {
+  const onPath = spawnSync("bun", ["--version"], { encoding: "utf8" });
+  if (onPath.status === 0) return "bun";
+  const fallback = path.join(os.homedir(), ".bun", "bin", "bun");
+  if (fs.existsSync(fallback)) return fallback;
+  throw new Error(
+    "bun 実行体が見つかりません（PATH にも ~/.bun/bin/bun にも無い）。" +
+      "apps/timer-sync の変異には bun test が必要です。",
+  );
+})();
+
+/**
+ * パッケージの package.json の scripts.test を見て、実際のテストランナーを判定する。
+ * 決め打ちしないのは、ランナーが違うパッケージへ間違ったコマンドを投げると
+ * 「テストを1件も実行せずに exit code が非 0 になる」形で誤検出するため
+ * （このファイル冒頭のコメント参照）。
+ */
+function detectRunner(pkgDir) {
+  const pkgJsonPath = path.join(pkgDir, "package.json");
+  let testScript;
+  try {
+    testScript = JSON.parse(fs.readFileSync(pkgJsonPath, "utf8")).scripts?.test ?? "";
+  } catch (e) {
+    throw new Error(`package.json の読み込みに失敗しました（${pkgJsonPath}）: ${e.message}`, { cause: e });
+  }
+  if (testScript.includes("bun test")) return "bun";
+  if (/^node --test\b/.test(testScript)) return "node";
+  if (testScript.includes("vitest")) return "vitest";
+  throw new Error(
+    `未知のテストランナーです。scripts.test の内容から判定できません: "${testScript}"（${pkgJsonPath}）`,
+  );
+}
+
+/** ランナーごとに、実行コマンドと引数を組み立てる。 */
+function buildCommand(runner, mutation, full) {
+  switch (runner) {
+    case "vitest":
+      return { cmd: "npx", args: full ? ["vitest", "run"] : ["vitest", "run", ...mutation.tests] };
+    case "bun":
+      return { cmd: BUN_BIN, args: full ? ["test"] : ["test", ...mutation.tests] };
+    case "node": {
+      if (full) {
+        // scripts.test（例: "node --test tests/*.test.mjs"）をそのまま使う。
+        const pkgJsonPath = path.join(WORKSPACE_ROOT, mutation.pkg, "package.json");
+        const testScript = JSON.parse(fs.readFileSync(pkgJsonPath, "utf8")).scripts.test;
+        const [cmd, ...args] = testScript.split(/\s+/);
+        return { cmd, args };
+      }
+      return { cmd: "node", args: ["--test", ...mutation.tests] };
+    }
+    default:
+      throw new Error(`未対応のランナーです: ${runner}`);
+  }
+}
+
+/**
+ * 対象パッケージのテストを、パッケージの実際のランナー（bun test / node --test / vitest）で
+ * 実行する。
  * full=false: 対応表のテストファイルのみ（絞り込み実行・既定）。
  * full=true : パッケージ全体（--full）。
- * @returns {boolean} テストが（1件以上）落ちたら true（＝変異を検出できた）
+ * @returns {{passed: boolean, exitCode: number|null, output: string, command: string}}
+ *          passed は「テストが 1 件も落ちずに完走した」= exit code 0。
+ *          「検出」かどうかの解釈は呼び出し側（対照実行か変異後の実行か）で決める。
  */
 function runTests(mutation, full) {
   const pkgDir = path.join(WORKSPACE_ROOT, mutation.pkg);
-  const args = full ? ["vitest", "run"] : ["vitest", "run", ...mutation.tests];
-  const result = spawnSync("npx", args, {
+  const runner = detectRunner(pkgDir);
+  const { cmd, args } = buildCommand(runner, mutation, full);
+  const result = spawnSync(cmd, args, {
     cwd: pkgDir,
     stdio: "pipe",
     encoding: "utf8",
   });
   const output = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
-  // テストが 1 件も走らなかった場合は「検出」ではない。ここを見ないと、
-  // 対応表のパスが少しずれただけで全件「検出」になる。
-  if (/No test files found/.test(output)) {
-    console.error(`変異 #${mutation.id}: テストが 1 件も実行されませんでした（${mutation.tests.join(", ")}）`);
-    console.error(output);
-    process.exit(1);
-  }
-  const detected = result.status !== 0;
-  return { detected, exitCode: result.status, output };
+  return {
+    passed: result.status === 0,
+    exitCode: result.status,
+    output,
+    command: `${cmd} ${args.join(" ")}（cwd: ${mutation.pkg}, runner: ${runner}）`,
+  };
 }
 
 function main() {
@@ -360,11 +441,39 @@ function main() {
 
   for (const mutation of MUTATIONS) {
     console.log(`--- 変異 #${mutation.id}: ${mutation.label} ---`);
+
+    // 対照実行: 変異を当てる前の素のコードで、同じコマンドがまず通ることを確認する。
+    // ここが通らない場合、この後の「検出」判定はランナーが起動できているかどうかすら
+    // 保証されておらず無意味なので、「検出」とは報告せず即座に止める。
+    const control = runTests(mutation, full);
+    if (!control.passed) {
+      console.error(
+        `\n[mutation-check] 変異 #${mutation.id} の対照実行が失敗しました` +
+          `（変異を当てる前の素のコードでテストが通りませんでした）。\n` +
+          `  実行コマンド: ${control.command}\n` +
+          `  exit code: ${control.exitCode}\n\n` +
+          "対応表（MUTATIONS）のパッケージ・テストパス・ランナー判定を確認してください。\n" +
+          "この状態で先へ進むと、変異が原因で落ちたのか元から落ちていたのか区別できません。\n\n" +
+          "--- 対照実行の出力（末尾） ---\n" +
+          control.output.split("\n").slice(-40).join("\n"),
+      );
+      process.exit(1);
+    }
+    console.log(`  対照: ○ 通過（${control.command}）`);
+    console.log(
+      "    " +
+        control.output
+          .trim()
+          .split("\n")
+          .slice(-3)
+          .join("\n    "),
+    );
+
     let outcome;
     try {
       applyMutation(mutation);
       const testResult = runTests(mutation, full);
-      outcome = { ...mutation, ...testResult };
+      outcome = { ...mutation, detected: !testResult.passed, exitCode: testResult.exitCode, output: testResult.output };
     } finally {
       restoreMutation();
     }

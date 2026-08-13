@@ -173,8 +173,8 @@ jobs:
 
   # 手動でしか走らなかった検査を寄せる。ci に混ぜると臨界経路が
   # 2 分 12 秒 → 2 分 42 秒 に伸びるので独立ジョブにする。
-  # **setup-bun は不要**: mutation-check.mjs は timer-sync の変異も
-  # npx vitest run で実行し、パッケージの test スクリプト（bun test）を通らない。
+  # mutation-check.mjs は変異が属するパッケージの test スクリプトに実際のランナーを
+  # 合わせる（apps/timer-sync は bun test）。そのため setup-bun が必要。
   quality:
     runs-on: ubuntu-latest
     steps:
@@ -188,6 +188,13 @@ jobs:
         run: node scripts/ci-scope.mjs
       - run: corepack enable
         if: steps.scope.outputs.code == 'true'
+
+      # mutation-check.mjs が apps/timer-sync の変異を bun test で実行するため必要。
+      - uses: oven-sh/setup-bun@v2
+        if: steps.scope.outputs.code == 'true'
+        with:
+          bun-version: latest
+
       - run: pnpm install --frozen-lockfile
         if: steps.scope.outputs.code == 'true'
 
