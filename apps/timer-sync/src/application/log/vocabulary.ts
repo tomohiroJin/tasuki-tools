@@ -1,8 +1,13 @@
 /**
- * ログに出す語彙の定義。`publicText` を呼ぶ唯一の場所（ADR 0012 D1）。
+ * ログに出す語彙の定義。**`publicText` の主たる呼び出し場所**（ADR 0012 D1）。
  *
  * 呼び出し側（handlers・delegation 等）がここの定数を引くことで、抜け道が
- * 1 ファイルに閉じる。新しい語彙を足すときはここへ足す。
+ * 事前に列挙できる語彙へ収まる。新しい語彙を足すときはここへ足す。
+ *
+ * **唯一の場所ではない。** 例外の `name`（`Error` / `TypeError` 等）は事前に
+ * 列挙できないため、`server.ts` と `ws-adapter.ts` でも許可マーカー付きで
+ * `publicText` を呼ぶ（`log-safe.ts` の docstring と
+ * `scripts/audit-log-hygiene.mjs` の ALLOWED_FILES を参照）。
  */
 import { publicText, type LogSafe } from "./log-safe.js";
 
