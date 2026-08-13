@@ -85,16 +85,16 @@ describe("ブロックコメント絡みの行単位の判定（状態を持た�
   });
 
   test(
-    "既知の見落とし: ブロックコメントの閉じ行(`*` 始まり)に実コードが続いても検出しない。" +
-      "isCommentLine は行の先頭文字だけで判定するため、`*\\/ console.log(x)` の行は" +
-      "`*` 始まりとして丸ごと読み飛ばす。状態を持たない設計を選んだことの既知のトレードオフ" +
-      "（round 3 で状態機械そのものを撤去した理由は findViolations のコメントを参照）。",
+    "複数行ブロックコメントの閉じ行に続く実コードを検出する。" +
+      "`*\\/` はブロックコメントを閉じるので、その後ろに書かれた console.log は" +
+      "実行されるコードであり、`*` 始まりだからといって読み飛ばしてはならない。",
     () => {
       const v = findViolations(
         "apps/timer-sync/src/foo.ts",
         "/*\ncomment\n*/ console.log(secretToken);\n",
       );
-      assert.equal(v.length, 0);
+      assert.equal(v.length, 1);
+      assert.equal(v[0].line, 3);
     },
   );
 
@@ -139,7 +139,13 @@ describe("回帰: 正規表現リテラル内のエスケープされたスラ�
   });
 });
 
-describe("回帰: かつての状態機械にあった第 3 のすり抜け(テンプレートリテラルの状態が巻き添えでリセットされる)", () => {
+// テンプレートリテラルの中身は文字列データであってコードではない。そこに
+// `console.log(x)` と書かれていても console は呼ばれないため、検出しないのが正しい。
+// このテストが確かめているのは検出の有無ではなく**非局所性が無いこと**である:
+// ある行に何を書いても、別の行の判定結果は変わってはならない。
+// （かつての文字単位の状態機械はこれを壊し、無関係な行の記述が離れた行の判定を
+//  変えてしまった。状態を持たない現設計ではこの種のバグは原理的に起こらない。）
+describe("回帰: ある行の記述が別の行の判定を変えないこと（非局所性が無いこと）", () => {
   test("正規表現っぽい断片が別の行にあっても、テンプレートリテラルの中の行の扱いは変わらない", () => {
     const repro = findViolations(
       "apps/timer-sync/src/foo.ts",
@@ -150,5 +156,29 @@ describe("回帰: かつての状態機械にあった第 3 のすり抜け(テ�
       "const s = `\n// console.log(secretToken)\n`;\n",
     );
     assert.deepEqual(repro, control);
+  });
+});
+
+describe("ブロックコメントの閉じ行に続く実コード（`*/` の後ろは実行されるコード）", () => {
+  test("`*/ console.log(x)` の行は、`*` 始まりでも読み飛ばさず検出する", () => {
+    const v = findViolations("apps/timer-sync/src/foo.ts", "*/ console.log(secretToken);\n");
+    assert.equal(v.length, 1);
+    assert.equal(v[0].line, 1);
+  });
+
+  test("`**/ console.log(x)` の行も同型（`**/` もブロックコメントを閉じる）", () => {
+    const v = findViolations("apps/timer-sync/src/foo.ts", "**/ console.log(secretToken);\n");
+    assert.equal(v.length, 1);
+    assert.equal(v[0].line, 1);
+  });
+
+  test("閉じるだけの行（`*/` の後ろが空白のみ）は従来どおり読み飛ばす", () => {
+    const v = findViolations("apps/timer-sync/src/foo.ts", "/**\n * console.log は禁止\n */\n");
+    assert.equal(v.length, 0);
+  });
+
+  test("`* 本文 */` のように行内で閉じても後続が無ければ読み飛ばす", () => {
+    const v = findViolations("apps/timer-sync/src/foo.ts", " * console.log は禁止 */\n");
+    assert.equal(v.length, 0);
   });
 });
