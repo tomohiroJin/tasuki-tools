@@ -10,6 +10,7 @@ import { FakeClock } from "../src/adapters/system-clock.js";
 import type { SessionConfig, Problem } from "@tasuki/timer-core";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
+import { testLogger, testRefEncoder } from "./support/test-logger.js";
 
 const config: SessionConfig = {
   language: "TypeScript",
@@ -43,7 +44,7 @@ describe("handlers: problem.request / problem.submit", () => {
     store = new InMemoryRoomStore();
     clock = new FakeClock(1000000);
     broadcaster = new SpyBroadcaster();
-    delegator = new ProblemDelegator({ store, clock, broadcaster });
+    delegator = new ProblemDelegator({ store, clock, broadcaster, logger: testLogger, refEncoder: testRefEncoder });
     handlers = makeHandlers({ store, clock, broadcaster, codeGen: new FakeCodeGen(), delegator });
 
     // host が AI 鍵ありでルーム作成（room.create は hasAiKey を持たないため後で更新）

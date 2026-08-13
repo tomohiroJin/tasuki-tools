@@ -16,6 +16,7 @@ import { FakeClock } from "../src/adapters/system-clock.js";
 import type { Broadcaster } from "../src/ports/broadcaster.js";
 import type { Room, Problem } from "@tasuki/timer-core";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
+import { testLogger, testRefEncoder } from "./support/test-logger.js";
 
 const validProblem: Problem = {
   title: "FizzBuzz",
@@ -110,7 +111,7 @@ describe("ProblemDelegator: 代表生成", () => {
     store = new InMemoryRoomStore();
     clock = new FakeClock(1000000);
     broadcaster = new SpyBroadcaster();
-    delegator = new ProblemDelegator({ store, clock, broadcaster });
+    delegator = new ProblemDelegator({ store, clock, broadcaster, logger: testLogger, refEncoder: testRefEncoder });
   });
 
   afterEach(() => {
@@ -317,7 +318,14 @@ describe("ProblemDelegator: problemMode による分岐", () => {
     };
     const room = makeRoomWithMode("fallback", true);
     store.put(room);
-    const delegator = new ProblemDelegator({ store, clock: new FakeClock(1000000), broadcaster, deadlineMs: 100 });
+    const delegator = new ProblemDelegator({
+      store,
+      clock: new FakeClock(1000000),
+      broadcaster,
+      deadlineMs: 100,
+      logger: testLogger,
+      refEncoder: testRefEncoder,
+    });
 
     // When
     delegator.request("MODERM", "req-mode-fallback");
@@ -339,7 +347,14 @@ describe("ProblemDelegator: problemMode による分岐", () => {
     };
     const room = makeRoomWithMode("ai", false);
     store.put(room);
-    const delegator = new ProblemDelegator({ store, clock: new FakeClock(1000000), broadcaster, deadlineMs: 100 });
+    const delegator = new ProblemDelegator({
+      store,
+      clock: new FakeClock(1000000),
+      broadcaster,
+      deadlineMs: 100,
+      logger: testLogger,
+      refEncoder: testRefEncoder,
+    });
 
     // When
     delegator.request("MODERM", "req-no-candidate");

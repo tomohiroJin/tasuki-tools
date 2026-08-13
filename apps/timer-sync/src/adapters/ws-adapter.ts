@@ -8,6 +8,8 @@
 
 import { CommandSchema } from "@tasuki/timer-core";
 import { parseBoundaryMessage } from "@tasuki/protocol";
+import type { Logger } from "../application/log/logger.js";
+import { publicText } from "../application/log/log-safe.js";
 
 const MAX_MESSAGE_BYTES = 64 * 1024; // 64KB
 
@@ -44,6 +46,8 @@ export interface WsAdapterOptions {
   heartbeatIntervalMs?: number;
   /** 連続でこの回数分 pong が確認できない接続を terminate する。既定 2。 */
   heartbeatMaxMisses?: number;
+  /** 運用ログの出口（ADR 0012 D1） */
+  logger: Logger;
 }
 
 /**
@@ -104,7 +108,7 @@ export class WsAdapter {
       });
     } catch (err) {
       // 起動時の bind 失敗（EADDRINUSE 等）は回復不能。未処理例外でクラッシュさせず明示終了する。
-      console.error(`❌ HTTP サーバエラー: ${(err as Error).message}`);
+      this.options.logger.error("http-server-error", { name: publicText((err as Error).name) }); // log-hygiene:allow 例外の分類のみ
       process.exit(1);
     }
 

@@ -18,6 +18,7 @@ import { FakeClock } from "../src/adapters/system-clock.js";
 import type { Room } from "@tasuki/timer-core";
 import type { ServerProblemProvider } from "../src/ports/server-problem-provider.js";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
+import { testLogger, testRefEncoder } from "./support/test-logger.js";
 
 /** AI 生成で返す有効なお題のフィクスチャ */
 const VALID_PROBLEM = {
@@ -140,6 +141,8 @@ describe("ProblemDelegator サーバ生成", () => {
       broadcaster,
       serverProvider: provider,
       aiLimiter: limiter,
+      logger: testLogger,
+      refEncoder: testRefEncoder,
     });
     store.put(makeRoom());
 
@@ -171,6 +174,8 @@ describe("ProblemDelegator サーバ生成", () => {
       broadcaster,
       serverProvider: provider,
       aiLimiter: limiter,
+      logger: testLogger,
+      refEncoder: testRefEncoder,
     });
     store.put(makeRoom());
 
@@ -201,6 +206,8 @@ describe("ProblemDelegator サーバ生成", () => {
       broadcaster,
       serverProvider: provider,
       aiLimiter: limiter,
+      logger: testLogger,
+      refEncoder: testRefEncoder,
     });
     store.put(makeRoom());
 
@@ -240,6 +247,8 @@ describe("ProblemDelegator サーバ生成", () => {
       serverProvider: provider,
       aiLimiter: limiter,
       aiTimeoutMs: 60_000,
+      logger: testLogger,
+      refEncoder: testRefEncoder,
     });
     // hasAiKey=false にして縮退後のクライアント委譲で即・定型確定されるようにする
     store.put(makeRoom({
@@ -293,6 +302,8 @@ describe("ProblemDelegator サーバ生成", () => {
       broadcaster,
       serverProvider: provider,
       aiLimiter: limiter,
+      logger: testLogger,
+      refEncoder: testRefEncoder,
     });
     store.put(makeRoom());
 
@@ -330,6 +341,8 @@ describe("ProblemDelegator サーバ生成", () => {
       broadcaster,
       serverProvider: provider,
       aiLimiter: limiter,
+      logger: testLogger,
+      refEncoder: testRefEncoder,
     });
     // aiUnlocked=false のルームを登録
     store.put(makeRoom({ aiUnlocked: false }));
@@ -369,6 +382,8 @@ describe("ProblemDelegator サーバ生成", () => {
       broadcaster,
       serverProvider: provider,
       aiLimiter: limiter,
+      logger: testLogger,
+      refEncoder: testRefEncoder,
     });
     store.put(makeRoom());
 
@@ -406,6 +421,8 @@ describe("ProblemDelegator サーバ生成", () => {
       broadcaster,
       serverProvider: provider,
       aiLimiter: limiter,
+      logger: testLogger,
+      refEncoder: testRefEncoder,
     });
     store.put(makeRoom());
 

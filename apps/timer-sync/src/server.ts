@@ -13,38 +13,49 @@
 
 import { loadSyncConfig } from "./config.js";
 import { createSyncServer } from "./create-sync-server.js";
+import { createLogger } from "./application/log/logger.js";
+import { consoleLogSink } from "./adapters/console-log-sink.js";
+import { publicText } from "./application/log/log-safe.js";
+
+const logger = createLogger(consoleLogSink);
+
+// 未捕捉の例外・未処理の rejection も 1 本の経路へ通す（ADR 0012 D1）。
+// 既定ハンドラに任せると、資格情報を含む例外メッセージがスタックごと journal へ出る。
+process.on("uncaughtException", (err) => {
+  logger.error("uncaught", { name: publicText(err.name) }); // log-hygiene:allow 例外の分類のみ
+  process.exit(1);
+});
+process.on("unhandledRejection", () => {
+  logger.error("unhandled-rejection");
+});
 
 const config = (() => {
   try {
     return loadSyncConfig(process.env);
   } catch (e) {
-    console.error(`❌ 設定エラー: ${(e as Error).message}`);
+    logger.error("config-error", { name: publicText((e as Error).name) }); // log-hygiene:allow 例外の分類のみ
     process.exit(1);
   }
 })();
 
 const server = createSyncServer(config);
 
-console.log(
-  `🚀 同期サーバー起動 host=${config.host} port=${config.port} ` +
-    `maxConn=${config.maxConnections} maxRooms=${config.maxRooms} ` +
-    `heartbeat=${config.heartbeatIntervalMs}ms×${config.heartbeatMaxMisses}回`,
-);
-console.log(
-  `管理エンドポイント: ${config.adminToken ? "有効 (/status, /admin/rooms)" : "無効 (ADMIN_TOKEN 未設定)"}`,
-);
-console.log(
-  `AI お題生成: ${server.aiReady ? `有効 (model=${config.aiProblemModel})` : "無効 (トークン/合言葉 未設定)"}`,
-);
+logger.info("listening", {
+  port: config.port,
+  maxConn: config.maxConnections,
+  maxRooms: config.maxRooms,
+});
+logger.info("admin", { enabled: config.adminToken !== undefined });
+logger.info("ai", {
+  enabled: config.claudeOauthToken !== undefined && config.aiUnlockKey !== undefined,
+});
 if (config.allowedOrigins.length === 0) {
-  console.warn(
-    "⚠ ALLOWED_ORIGINS 未設定: 全 Origin からの WebSocket 接続を許可します（dev 用）。",
-  );
+  logger.warn("origins-unset");
 }
 
 // グレースフルシャットダウン
 process.on("SIGTERM", async () => {
-  console.log("SIGTERM 受信: シャットダウン中...");
+  logger.info("sigterm");
   await server.close();
   process.exit(0);
 });

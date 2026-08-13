@@ -13,6 +13,18 @@ import type { Broadcaster } from "../ports/broadcaster.js";
 import type { Clock } from "../ports/clock.js";
 import type { ServerProblemProvider } from "../ports/server-problem-provider.js";
 import type { AiLimiter } from "./ai-limits.js";
+import type { Logger } from "./log/logger.js";
+import type { RefEncoder } from "./log/ref-encoder.js";
+import type { LogSafe } from "./log/log-safe.js";
+import { AI_SKIP_REASONS, AI_FAILURE_REASONS } from "./log/vocabulary.js";
+
+/** 失敗理由を既知の語彙へ畳む。例外メッセージをそのままログへ出さない（ADR 0012 D5・D12）。 */
+function classifyFailure(reason: string): LogSafe {
+  if (reason.includes("aborted")) return AI_FAILURE_REASONS.timeout;
+  if (reason.includes("解析に失敗") || reason.includes("JSON")) return AI_FAILURE_REASONS.invalid;
+  if (reason.includes("ENOENT") || reason.includes("spawn")) return AI_FAILURE_REASONS.spawnFailed;
+  return AI_FAILURE_REASONS.other;
+}
 
 /** 代表の投入を待つ既定の猶予（ms） */
 export const PROBLEM_DEADLINE_MS = 20 * 1000;
@@ -32,6 +44,10 @@ export interface ProblemDelegatorDeps {
   aiLimiter?: AiLimiter | undefined;
   /** AI 生成のタイムアウト ms（既定 60 秒） */
   aiTimeoutMs?: number | undefined;
+  /** 運用ログの出口（ADR 0012 D1） */
+  logger: Logger;
+  /** ルームコード・リクエスト ID を相関 ID へ変換する（ADR 0012 D2） */
+  refEncoder: RefEncoder;
 }
 
 interface DelegationState {
@@ -58,6 +74,8 @@ export class ProblemDelegator {
   private readonly serverProvider: ServerProblemProvider | undefined;
   private readonly aiLimiter: AiLimiter | undefined;
   private readonly aiTimeoutMs: number;
+  private readonly logger: Logger;
+  private readonly refEncoder: RefEncoder;
   /** roomCode → 進行中の委譲状態 */
   private readonly active = new Map<string, DelegationState>();
   /** roomCode → 進行中のサーバ生成（リロール/cancel で abort する）。
@@ -71,6 +89,8 @@ export class ProblemDelegator {
     this.serverProvider = deps.serverProvider;
     this.aiLimiter = deps.aiLimiter;
     this.aiTimeoutMs = deps.aiTimeoutMs ?? 60_000;
+    this.logger = deps.logger;
+    this.refEncoder = deps.refEncoder;
   }
 
   /**
@@ -97,7 +117,11 @@ export class ProblemDelegator {
         this.startServerGeneration(roomCode, requestId, room, acquired.release);
         return;
       }
-      console.warn(`AI 生成スキップ (${roomCode}, ${requestId}): ${acquired.reason} — 定型へ縮退`);
+      this.logger.warn("ai.skip", {
+        room: this.refEncoder.room(roomCode),
+        req: this.refEncoder.request(requestId),
+        reason: AI_SKIP_REASONS[acquired.reason],
+      });
     }
 
     this.startClientDelegation(roomCode, requestId, room);
@@ -158,7 +182,11 @@ export class ProblemDelegator {
   private failoverFromServer(roomCode: string, requestId: string, reason: string): void {
     if (!this.isCurrentServerRequest(roomCode, requestId)) return;
     this.clearServer(roomCode);
-    console.warn(`AI 生成失敗 (${roomCode}, ${requestId}): ${reason} — 定型へ縮退`);
+    this.logger.warn("ai.fail", {
+      room: this.refEncoder.room(roomCode),
+      req: this.refEncoder.request(requestId),
+      reason: classifyFailure(reason),
+    });
     const room = this.store.get(roomCode);
     if (!room) return;
     this.startClientDelegation(roomCode, requestId, room);
