@@ -7,7 +7,7 @@
  */
 import { spawn } from "node:child_process";
 import { buildProblemPrompt } from "@tasuki/timer-core";
-import type { ServerProblemProvider } from "../ports/server-problem-provider.js";
+import { ProviderFailure, type ServerProblemProvider } from "../ports/server-problem-provider.js";
 
 /** spawn 互換の最小インターフェース（テストで差し替える） */
 export interface SpawnedProcess {
@@ -66,7 +66,7 @@ export class ClaudeCliProblemProvider implements ServerProblemProvider {
   generate(language: string, difficulty: string, signal: AbortSignal): Promise<unknown> {
     return new Promise((resolve, reject) => {
       if (signal.aborted) {
-        reject(new Error("aborted before start"));
+        reject(new ProviderFailure("aborted before start", "timeout"));
         return;
       }
 
@@ -106,7 +106,7 @@ export class ClaudeCliProblemProvider implements ServerProblemProvider {
 
       const onAbort = () => {
         child.kill("SIGKILL");
-        settle(() => reject(new Error("aborted (timeout/cancel)")));
+        settle(() => reject(new ProviderFailure("aborted (timeout/cancel)", "timeout")));
       };
       signal.addEventListener("abort", onAbort);
 
@@ -117,7 +117,7 @@ export class ClaudeCliProblemProvider implements ServerProblemProvider {
         receivedBytes += chunk.length;
         if (receivedBytes > this.maxOutputBytes) {
           child.kill("SIGKILL");
-          settle(() => reject(new Error("claude -p output too large（出力が上限を超過）")));
+          settle(() => reject(new ProviderFailure("claude -p output too large（出力が上限を超過）", "outputTooLarge")));
           return false;
         }
         return true;
@@ -131,13 +131,14 @@ export class ClaudeCliProblemProvider implements ServerProblemProvider {
         if (settled) return;
         if (onData(chunk)) stderr += chunk.toString();
       });
-      child.on("error", (err) => settle(() => reject(err)));
+      // spawn 自体の失敗（ENOENT 等）。メッセージは保ったまま分類だけ確定させる。
+      child.on("error", (err) => settle(() => reject(new ProviderFailure(err.message, "spawnFailed"))));
       child.on("close", (code) => {
         if (code !== 0) {
           // stderr にトークン様文字列が混入しても外へ出さない（ログ衛生・多層防御）
           const redacted = stderr.replace(/sk-ant-[\w-]+/g, "[redacted]");
           settle(() =>
-            reject(new Error(`claude -p exit ${code}: ${redacted.slice(0, 200)}`)),
+            reject(new ProviderFailure(`claude -p exit ${code}: ${redacted.slice(0, 200)}`, "processError")),
           );
           return;
         }
@@ -154,7 +155,7 @@ export class ClaudeCliProblemProvider implements ServerProblemProvider {
           }
           parsed = extractJsonObject(outer.result);
         } catch (e) {
-          settle(() => reject(new Error(`AI 応答の解析に失敗: ${(e as Error).message}`)));
+          settle(() => reject(new ProviderFailure(`AI 応答の解析に失敗: ${(e as Error).message}`, "invalid")));
           return;
         }
         settle(() => resolve(parsed));

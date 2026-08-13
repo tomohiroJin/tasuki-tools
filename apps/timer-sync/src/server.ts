@@ -11,7 +11,7 @@
  * テストも同じ関数を通ることで、配線がずれたときにテストが本当に落ちる（Issue #80）。
  */
 
-import { loadSyncConfig } from "./config.js";
+import { loadSyncConfig, DEFAULT_AI_PROBLEM_MODEL } from "./config.js";
 import { createSyncServer } from "./create-sync-server.js";
 import { createLogger } from "./application/log/logger.js";
 import { consoleLogSink } from "./adapters/console-log-sink.js";
@@ -40,14 +40,22 @@ const config = (() => {
 
 const server = createSyncServer(config);
 
+// host / aiProblemModel は運用者が env で設定する自由文字列（利用者由来ではない）。
+// とはいえ LogField は string を受け付けないため（ADR 0012 D1）、値そのものではなく
+// 「既定値どおりか」を真偽値で出す。既定から外れていれば運用者は自分で設定した env を
+// 見に行けば実値が分かるので、journal だけでの気づき（deploy/README.md ⑤の確認）は保てる。
 logger.info("listening", {
   port: config.port,
+  loopbackOnly: config.host === "127.0.0.1",
   maxConn: config.maxConnections,
   maxRooms: config.maxRooms,
+  heartbeatMs: config.heartbeatIntervalMs,
+  heartbeatMaxMisses: config.heartbeatMaxMisses,
 });
 logger.info("admin", { enabled: config.adminToken !== undefined });
 logger.info("ai", {
   enabled: config.claudeOauthToken !== undefined && config.aiUnlockKey !== undefined,
+  defaultModel: config.aiProblemModel === DEFAULT_AI_PROBLEM_MODEL,
 });
 if (config.allowedOrigins.length === 0) {
   logger.warn("origins-unset");

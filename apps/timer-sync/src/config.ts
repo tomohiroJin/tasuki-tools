@@ -29,6 +29,9 @@ export interface SyncConfig {
   heartbeatMaxMisses: number;
 }
 
+/** `AI_PROBLEM_MODEL` 未設定時の既定モデル。起動ログが「既定どおりか」を示す際にも使う。 */
+export const DEFAULT_AI_PROBLEM_MODEL = "sonnet";
+
 /** env 値を整数として解釈し、不正なら既定値を返す。 */
 function intEnv(value: string | undefined, fallback: number): number {
   const n = parseInt(value ?? "", 10);
@@ -70,7 +73,7 @@ export function loadSyncConfig(env: Record<string, string | undefined>): SyncCon
     adminToken: (env["ADMIN_TOKEN"] ?? "").trim() || undefined,
     aiUnlockKey: (env["AI_UNLOCK_KEY"] ?? "").trim() || undefined,
     claudeOauthToken: (env["CLAUDE_CODE_OAUTH_TOKEN"] ?? "").trim() || undefined,
-    aiProblemModel: (env["AI_PROBLEM_MODEL"] ?? "").trim() || "sonnet",
+    aiProblemModel: (env["AI_PROBLEM_MODEL"] ?? "").trim() || DEFAULT_AI_PROBLEM_MODEL,
     aiGenerationTimeoutMs: intEnv(env["AI_GENERATION_TIMEOUT_MS"], 60_000),
     // 0 を許容（=その日の AI 生成を全面停止）。負数・非数値は既定 100。
     aiDailyLimit: nonNegIntEnv(env["AI_DAILY_LIMIT"], 100),

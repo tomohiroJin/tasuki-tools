@@ -13,10 +13,20 @@ export const AI_SKIP_REASONS = {
   daily: publicText("daily"), // log-hygiene:allow 語彙定義
 } as const satisfies Record<string, LogSafe>;
 
-/** AI 生成が失敗した理由の分類。自由文（例外メッセージ）は載せない。 */
+/**
+ * AI 生成が失敗した理由の分類。自由文（例外メッセージ）は載せない。
+ *
+ * `ProviderFailureReason`（`ports/server-problem-provider.ts`）と 1 対 1。
+ * `outputTooLarge` / `processError` は 2026-08-13 のレビューで追加。実際の
+ * 失敗理由を洗い出したところ「出力サイズ超過」と「claude -p の非 0 終了」が
+ * timeout/invalid/spawnFailed のどれとも異なる固有の失敗モードだったため、
+ * `other` へ潰さず区別できるようにした。
+ */
 export const AI_FAILURE_REASONS = {
   timeout: publicText("timeout"), // log-hygiene:allow 語彙定義
   invalid: publicText("invalid"), // log-hygiene:allow 語彙定義
   spawnFailed: publicText("spawn-failed"), // log-hygiene:allow 語彙定義
+  outputTooLarge: publicText("output-too-large"), // log-hygiene:allow 語彙定義
+  processError: publicText("process-error"), // log-hygiene:allow 語彙定義
   other: publicText("other"), // log-hygiene:allow 語彙定義
 } as const satisfies Record<string, LogSafe>;

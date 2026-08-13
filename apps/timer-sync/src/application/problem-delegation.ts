@@ -11,18 +11,26 @@ import { validateProblem, pickFallback, type Problem, type Room } from "@tasuki/
 import type { RoomStore } from "../ports/room-store.js";
 import type { Broadcaster } from "../ports/broadcaster.js";
 import type { Clock } from "../ports/clock.js";
-import type { ServerProblemProvider } from "../ports/server-problem-provider.js";
+import { ProviderFailure, type ServerProblemProvider } from "../ports/server-problem-provider.js";
 import type { AiLimiter } from "./ai-limits.js";
 import type { Logger } from "./log/logger.js";
 import type { RefEncoder } from "./log/ref-encoder.js";
 import type { LogSafe } from "./log/log-safe.js";
 import { AI_SKIP_REASONS, AI_FAILURE_REASONS } from "./log/vocabulary.js";
 
-/** 失敗理由を既知の語彙へ畳む。例外メッセージをそのままログへ出さない（ADR 0012 D5・D12）。 */
-function classifyFailure(reason: string): LogSafe {
-  if (reason.includes("aborted")) return AI_FAILURE_REASONS.timeout;
-  if (reason.includes("解析に失敗") || reason.includes("JSON")) return AI_FAILURE_REASONS.invalid;
-  if (reason.includes("ENOENT") || reason.includes("spawn")) return AI_FAILURE_REASONS.spawnFailed;
+/**
+ * 失敗理由を既知の語彙へ畳む。例外メッセージをそのままログへ出さない（ADR 0012 D5・D12）。
+ *
+ * **2026-08-13 のレビューで文字列部分一致から作り直した。** 旧実装は
+ * `String(e)`（例外メッセージ）を正規表現で推測していたが、実際の失敗理由を
+ * 6 パターン洗い出したところ半数が意図せず "other" に落ちていた（メッセージの
+ * 文言と正規表現がずれていたため）。分類は当てずっぽうで推測するのではなく、
+ * 分類を知っている側（adapter・`ClaudeCliProblemProvider`）に `ProviderFailure`
+ * として確定させてもらい、ここでは型で受け取るだけにする。
+ * `ProviderFailure` を投げない provider（テストのフェイク等）は "other" 扱いになる。
+ */
+function classifyFailure(e: unknown): LogSafe {
+  if (e instanceof ProviderFailure) return AI_FAILURE_REASONS[e.reason];
   return AI_FAILURE_REASONS.other;
 }
 
@@ -156,11 +164,13 @@ export class ProblemDelegator {
           this.clearServer(roomCode);
           this.finalize(roomCode, { ...validated.value, source: "ai" });
         } else {
-          this.failoverFromServer(roomCode, requestId, "検証失敗（FR-023）");
+          // ここは推測ではなく確定した事実（スキーマ検証に落ちた）なので、
+          // 分類を直接渡す（classifyFailure に推測させない・FR-023）。
+          this.failoverFromServer(roomCode, requestId, AI_FAILURE_REASONS.invalid);
         }
       })
       .catch((e: unknown) => {
-        this.failoverFromServer(roomCode, requestId, String(e));
+        this.failoverFromServer(roomCode, requestId, classifyFailure(e));
       });
   }
 
@@ -178,14 +188,17 @@ export class ProblemDelegator {
     this.activeServer.delete(roomCode);
   }
 
-  /** サーバ生成失敗 → 従来のクライアント委譲（実質・定型確定）へ縮退する */
-  private failoverFromServer(roomCode: string, requestId: string, reason: string): void {
+  /**
+   * サーバ生成失敗 → 従来のクライアント委譲（実質・定型確定）へ縮退する。
+   * `reason` は呼び出し側で分類済みの語彙（`LogSafe`）を渡す。ここでは推測しない。
+   */
+  private failoverFromServer(roomCode: string, requestId: string, reason: LogSafe): void {
     if (!this.isCurrentServerRequest(roomCode, requestId)) return;
     this.clearServer(roomCode);
     this.logger.warn("ai.fail", {
       room: this.refEncoder.room(roomCode),
       req: this.refEncoder.request(requestId),
-      reason: classifyFailure(reason),
+      reason,
     });
     const room = this.store.get(roomCode);
     if (!room) return;
