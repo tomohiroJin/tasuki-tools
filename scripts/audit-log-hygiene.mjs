@@ -68,24 +68,100 @@ const FORBIDDEN = [
   { name: "as LogSafe", re: /\bas\s+LogSafe\b/ },
 ];
 
-/** 行が行コメント・ブロックコメントの本文かどうか（インデントは無視）。 */
-function isCommentLine(line) {
-  const t = line.trimStart();
-  return t.startsWith("//") || t.startsWith("*") || t.startsWith("/*");
+/**
+ * ソース全体をコメント除去した同じ長さの文字列へ変換する（純粋・行番号を保つ）。
+ *
+ * 行頭だけを見る `isCommentLine` は、**ブロックコメントが同じ行で閉じてから
+ * 実コードが続く**ケース（`/* note *\/ console.log(x)` や、複数行コメントが
+ * `*\/ console.log(x)` で閉じて続くケース）を取りこぼす。1 行単位の判定では
+ * 「コメントの内側にいるかどうか」という行をまたぐ状態を表現できないため、
+ * `scripts/check-links.mjs` の `fenceMask`（Markdown のコードフェンスの状態を
+ * 行をまたいで持つマスク）にならい、文字単位でコメント状態を追跡する。
+ *
+ * 文字列リテラル（`"` / `'` /` \` `）の中身は状態遷移の対象から外し、そのまま
+ * 保持する。中の `//` や `/*` を誤ってコメント開始と読んでしまうと、続くコード
+ * が丸ごとコメント扱いになり検出漏れという危険な向きの欠陥になるため。
+ * その結果、文字列の中の `console.` などは除去されずに残り、引き続き違反として
+ * 拾われる（安全側の誤検出。意図的に直さない。テストと report を参照）。
+ */
+function maskComments(source) {
+  let out = "";
+  let state = "code"; // code | string | line | block
+  let quote = null;
+  for (let i = 0; i < source.length; i++) {
+    const c = source[i];
+    const c2 = i + 1 < source.length ? source[i + 1] : "";
+    if (state === "code") {
+      if (c === '"' || c === "'" || c === "`") {
+        state = "string";
+        quote = c;
+        out += c;
+      } else if (c === "/" && c2 === "/") {
+        state = "line";
+        out += "  ";
+        i++;
+      } else if (c === "/" && c2 === "*") {
+        state = "block";
+        out += "  ";
+        i++;
+      } else {
+        out += c;
+      }
+      continue;
+    }
+    if (state === "string") {
+      if (c === "\\") {
+        // エスケープの次の 1 文字は判定せず素通りさせる（\" を終端と誤認しない）。
+        out += c + (i + 1 < source.length ? source[i + 1] : "");
+        i++;
+      } else {
+        out += c;
+        if (c === quote) {
+          state = "code";
+          quote = null;
+        }
+      }
+      continue;
+    }
+    if (state === "line") {
+      if (c === "\n") {
+        state = "code";
+        out += "\n";
+      } else {
+        out += " ";
+      }
+      continue;
+    }
+    // state === "block"
+    if (c === "*" && c2 === "/") {
+      state = "code";
+      out += "  ";
+      i++;
+    } else {
+      out += c === "\n" ? "\n" : " ";
+    }
+  }
+  return out;
 }
 
 /**
  * 1 ファイル分の違反行を返す（純粋）。
  * 戻り値: `[{ file, line, kind }]`
+ *
+ * 禁止構文の照合はコメント除去後のテキストに対して行い、許可マーカーの検出は
+ * **元の行**に対して行う（マーカーは `//` コメントの中にあるため、除去後の
+ * テキストで探すと消えてしまう）。
  */
 export function findViolations(relPath, source) {
   const allowed = ALLOWED_FILES.includes(relPath);
+  const originalLines = source.split("\n");
+  const codeLines = maskComments(source).split("\n");
   const out = [];
-  source.split("\n").forEach((text, i) => {
-    if (isCommentLine(text)) return;
+  originalLines.forEach((originalText, i) => {
+    const codeText = codeLines[i] ?? "";
     for (const { name, re } of FORBIDDEN) {
-      if (!re.test(text)) continue;
-      if (allowed && text.includes(ALLOW_MARKER)) continue;
+      if (!re.test(codeText)) continue;
+      if (allowed && originalText.includes(ALLOW_MARKER)) continue;
       out.push({ file: relPath, line: i + 1, kind: name });
     }
   });

@@ -73,3 +73,39 @@ describe("fail-closed: 走査対象の消失の検出", () => {
     assert.deepEqual(findMissingRequired(scanned), []);
   });
 });
+
+describe("ブロックコメントが同じ行で閉じてから実コードが続く場合の検出", () => {
+  test("単一行のブロックコメントの後に続く console を検出する", () => {
+    const v = findViolations(
+      "apps/timer-sync/src/foo.ts",
+      "/* note */ console.log(secretToken);\n",
+    );
+    assert.equal(v.length, 1);
+    assert.equal(v[0].line, 1);
+  });
+
+  test("複数行のブロックコメントが閉じた直後の console を検出する", () => {
+    const v = findViolations(
+      "apps/timer-sync/src/foo.ts",
+      "/*\ncomment\n*/ console.log(secretToken);\n",
+    );
+    assert.equal(v.length, 1);
+    assert.equal(v[0].line, 3);
+  });
+
+  test("ブロックコメントの中身だけの行は違反にしない（* で始まらない継続行も含む）", () => {
+    const v = findViolations(
+      "apps/timer-sync/src/foo.ts",
+      "/*\nconsole.log(secretToken) という書き方は禁止\n*/\n",
+    );
+    assert.equal(v.length, 0);
+  });
+
+  test("許可ファイルでは、ブロックコメントの外側にマーカーがあれば違反にしない", () => {
+    const v = findViolations(
+      ALLOWED_FILES[0],
+      '/* note */ console.log("x"); // log-hygiene:allow 理由\n',
+    );
+    assert.equal(v.length, 0);
+  });
+});
