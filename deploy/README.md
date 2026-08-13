@@ -151,6 +151,39 @@ ssh "$TASUKI_SSH_HOST" 'sudo systemctl start tasuki-sync'
 RENDER_ONLY=1 DEPLOY_USER=<user> bash deploy/setup.sh timer
 ```
 
+## 秘密の取り扱い
+
+**秘密はリポジトリに置かない。** 実体は VPS 上の env ファイルだけに存在する。
+
+| 秘密 | 置き場 | 用途 |
+|---|---|---|
+| `CLAUDE_CODE_OAUTH_TOKEN` | `/opt/tasuki/tasuki-sync.env`（600） | AI お題生成の子プロセスへ渡す |
+| `AI_UNLOCK_KEY` | 同上 | AI 生成の解錠合言葉 |
+| `ADMIN_TOKEN` | 同上 | 管理エンドポイントの認証 |
+
+- **権限は 600 を維持する。** `setup.sh` が作成時に設定するが、手で編集した後も
+  `ls -l /opt/tasuki/tasuki-sync.env` で確認する
+- **配り方**: `ssh -t "$TASUKI_SSH_HOST" 'sudo -e /opt/tasuki/tasuki-sync.env'` で
+  VPS 上で直接編集する。ローカルに控えを作らない。scp で送らない
+- **中身をログ・Issue・PR へ貼らない。** 値が必要な話は「どの変数か」だけで書く
+- **`deploy/<app>/app.env` は追跡下にある。ここに秘密を書かない**（配備設定のみ）
+
+### 失効の手順
+
+漏洩を疑ったら、**まず失効させてから原因を調べる。**
+
+| 秘密 | 失効のしかた |
+|---|---|
+| `CLAUDE_CODE_OAUTH_TOKEN` | Anthropic のコンソールでトークンを失効させ、`claude setup-token` で再発行して env を更新 |
+| `AI_UNLOCK_KEY` | env の値を変えて `sudo systemctl restart tasuki-sync`。**利用者へ新しい合言葉を配り直す** |
+| `ADMIN_TOKEN` | 同上（配り直しは運用者のみ） |
+
+いずれも再起動を伴う。影響は前述の「[⚠ 再起動でルームは全消滅する](#-再起動でルームは全消滅する)」のとおり。緊急でなければ利用者のいない時間帯に行う。
+
+**AI 機能を丸ごと止めたいとき**は `CLAUDE_CODE_OAUTH_TOKEN` か `AI_UNLOCK_KEY` の
+どちらかを消して再起動する。どちらかが未設定なら AI は無効になり、解錠も常に失敗する
+（`docs/timer/adr/0008`）。
+
 ## SSH の準備
 
 `deploy.sh` は `rsync` / `scp` / `ssh` を非対話で叩くため、**パスフレーズ無しの鍵**を
