@@ -1,6 +1,26 @@
 <!--
 Sync Impact Report
 ==================
+- Version change: 2.1.0 → 2.1.1（PATCH: 原則 XI の文言修正。原則の追加・削除・
+  実質的な拡張は無い）
+- Rationale: #136 の最終レビュー M4。原則 XI の 1 項目目「秘密（トークン・鍵・合言葉）は
+  環境変数のみに置く（MUST）」という列挙が、docs/adr/0011 のデータ分類と噛み合って
+  いなかった。同 ADR はルームの合言葉（パスフレーズ）を分類「資格情報」に置き、実装は
+  in-memory Map に保持する。字義どおり読むと憲法の MUST に反する。意図していたのは
+  AI_UNLOCK_KEY のような分類「秘密」の値であり、それが誤読されない文言へ直した。
+- Modified principles:
+  - XI. 秘密と個人情報を持ち込まない — 1 項目目の文言のみ。規範の強さ・見出しは不変
+- Templates requiring updates:
+  - OK .specify/templates/plan-template.md — 動的参照のみ。変更不要
+  - OK .specify/templates/spec-template.md — 憲法への直接参照なし。変更不要
+  - OK .specify/templates/tasks-template.md — 憲法への直接参照なし。変更不要
+  - OK AGENTS.md — **見出しに変更が無いため同期作業は不要**（AGENTS.md が転記するのは
+    見出しのみ。「XI. 秘密と個人情報を持ち込まない」のまま。原則 I〜XI の 11 本一致を確認済み）
+
+---
+
+Previous release: 2.0.0 → 2.1.0
+
 - Version change: 2.0.0 → 2.1.0（MINOR: 原則 XI の追加。既存原則の変更・削除は無い）
 - Rationale: #136（セキュリティの規範）。脅威モデルは
   docs/plans/archive/tdd-mob-pro-timer-spec-v3.0-final.md の 7 節に実在したが、
@@ -207,7 +227,10 @@ neverthrow）を基本とする。
 
 預かる値は分類したうえで、必要な場所にだけ置く。
 
-- サーバーが保持する秘密（トークン・鍵・合言葉）は環境変数のみに置く（MUST）
+- サーバーが保持する分類「秘密」の値（漏れると運営者の資産・アカウントが侵害される
+  トークン・鍵。管理トークンや AI 解錠キーがこれにあたる）は環境変数のみに置く
+  （MUST）。**利用者が決めるルームの合言葉（パスフレーズ）は本項の対象ではない**
+  — あれは分類「資格情報」であり、扱いは `docs/adr/0011` のデータ分類に従う
 - 秘密・資格情報・個人に紐づく情報をログへ出してはならない（MUST NOT）
 - ログ出力の経路は 1 本に集約し、規範が守られていることを機械的に検査する
   （MUST）
@@ -230,4 +253,4 @@ neverthrow）を基本とする。
   通過しなければならない。原則からの逸脱は Complexity Tracking での
   正当化なしに認めない
 
-**Version**: 2.1.0 | **Ratified**: 2026-07-16 | **Last Amended**: 2026-08-13
+**Version**: 2.1.1 | **Ratified**: 2026-07-16 | **Last Amended**: 2026-08-13

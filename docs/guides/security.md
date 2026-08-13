@@ -9,8 +9,18 @@ S1〜S13）は [`docs/adr/0011`](../adr/0011-threat-model-and-data-classificatio
 決定の根拠・数値・理由はそちらを読んでください。このガイドは根拠を繰り返さず、
 手順とコード例だけを持ちます（`docs/adr/0002` の三層構造・二重正本の禁止）。
 
-対象は主に `apps/timer-sync`（ログ経路が実装済み）です。`apps/poker-sync` も
-同じ規範に従いますが、ログ経路の移行は本ガイド執筆時点で未着手です。
+**ロガ経路の対象は `apps/timer-sync` だけです**
+（[`docs/adr/0012`](../adr/0012-logging-secrets-and-disclosure.md) 決定 D1）。
+`apps/poker-sync` は明示的な繰り越しであり、ロガ経路を持ちません。poker-sync の直接出力は
+起動時の `listening` 行 1 本だけで、これは `apps/poker-sync/tests/helpers.ts` が
+`JSON.parse` して実ポートを受け取るテストハーネスとの契約だからです（形式を変えると
+poker-sync のテストが全滅します）。
+
+**ただし規律は poker-sync にも効きます。** `scripts/audit-log-hygiene.mjs` は
+`apps/poker-sync/src` も走査するので、許可マーカーの無い直接出力は増やせません。
+分類「秘密・資格情報・個人に紐づく」の値をログへ出さないという規範（憲法 原則 XI、
+[`docs/adr/0011`](../adr/0011-threat-model-and-data-classification.md) 決定1）は、
+ロガの有無にかかわらず両アプリに適用されます。
 
 ## 新しい値を足すときの手順
 
@@ -53,6 +63,14 @@ logger.warn("ai.skip", {
 `fields: Record<string, LogField>` を取ります。`event` はコード側で決め打つ短い
 識別子（`"reclaimed"` `"ai.skip"` 等）で、`journalctl -u tasuki-sync | grep <event>`
 で追える形にします。
+
+⚠ **`event` は生の `string` なので、型の壁が効きません。** `fields` は `LogField` で
+守られていますが、第 1 引数に値を埋め込む書き方
+（`` logger.info(`reclaimed ${code}`) `` や `logger.info("reclaimed " + code)`）は
+型検査もテストも素通りし、資格情報がそのまま journal へ出ます。そのため
+`scripts/audit-log-hygiene.mjs` が**第 1 引数はその場に書いた文字列リテラルだけ**という
+制限を機械的に掛けています。変数・テンプレートリテラル・文字列連結はいずれも赤になります。
+出したい値は必ず `fields` 側へ（相関 ID・語彙定数・真偽値のいずれかで）渡してください。
 
 **`LogField` は `number | boolean | LogSafe` だけを受け付け、生の `string` は
 含みません**（`apps/timer-sync/src/application/log/log-safe.ts`）。文字列を出したい
@@ -98,10 +116,12 @@ logger.error("uncaught", { name: publicText(err.name) }); // log-hygiene:allow �
 - **`publicText()` を `vocabulary.ts` の外で呼ぶ。**
   （唯一の例外は上記「例外オブジェクトの分類名」。それ以外は `vocabulary.ts` に
   定数として足す）
-- **`console` を直接呼ぶ。** 実出力口は
+- **`console` を直接呼ぶ。** timer-sync の実出力口は
   `apps/timer-sync/src/adapters/console-log-sink.ts` の 1 箇所だけです。
   それ以外から `console.log` / `console.warn` / `console.error` を呼びません
   （[`docs/adr/0012`](../adr/0012-logging-secrets-and-disclosure.md) 決定 D1）。
+  検査を通っている直接呼び出しはリポジトリ全体で 2 箇所（上記の実出力口と、
+  poker-sync の `listening` 行）だけです。
 - **`as LogSafe` で直接キャストする。** `LogSafe` は型の壁であり、抜け道は
   `publicText()` の 1 関数に集約します。`as LogSafe` を書いた時点でその壁は
   意味を失います。
@@ -117,7 +137,7 @@ logger.error("uncaught", { name: publicText(err.name) }); // log-hygiene:allow �
 
 ## 秘密を比較するとき
 
-秘密・資格情報を比較する処理（管理トークン・AI 解錠合言葉など）は、必ず
+秘密・資格情報を比較する処理（管理トークン・AI 解錠キー・ルームの合言葉など）は、必ず
 `constantTimeEqual`（`apps/timer-sync/src/application/secure-compare.ts`）を使います。
 `===` による通常の文字列比較はタイミングサイドチャネルの対象になります。
 
@@ -137,9 +157,10 @@ const matched = constantTimeEqual(provided, expected);
 1. [ ] **新しい値の分類を決めたか。** 追加された入力・保持・出力が
    [`docs/adr/0011`](../adr/0011-threat-model-and-data-classification.md) 決定1 の
    4 分類のどれかに位置づけられているか。
-2. [ ] **`LogField` に生の `string` を渡していないか。** ロガの呼び出しに、
-   `refEncoder` を通していない `string` や `publicText()` の新規呼び出しが
-   紛れ込んでいないか。
+2. [ ] **ロガへ生の `string` を渡していないか。** `fields` に `refEncoder` を
+   通していない `string` や `publicText()` の新規呼び出しが紛れ込んでいないか。
+   **第 1 引数（`event`）が、その場に書いた文字列リテラルのままか**（テンプレート
+   リテラル・文字列連結・変数になっていないか）。
 3. [ ] **`console` の直接呼び出しが増えていないか。**
    `apps/timer-sync/src/adapters/console-log-sink.ts` 以外に `console.*` が
    追加されていないか。
