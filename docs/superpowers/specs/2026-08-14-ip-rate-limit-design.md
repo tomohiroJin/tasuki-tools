@@ -363,4 +363,7 @@ createTokenBucketLimiter({ capacity, refillPerSec }): {
 - **ADR 0011 決定4 の更新**（実測値への置き換えと、分散攻撃に対する限界の明記）
 - `docs/guides/security.md` へ運用上の注意（本番で `HOST` を変えると起動しない）
 - **Issue #103 本文の書き換え**（§2）
-- **新規 Issue 2 本**: ufw の connlimit / ルームコードのエントロピー引き上げ
+- **新規 Issue**（件数ではなく中身で数える）:
+  - ufw の connlimit（Issue #103 本文から切り出し）
+  - ルームコードのエントロピー引き上げ（ADR 0011 決定4 が要求済み・未起票）
+  - 合言葉のエントロピー規範（§8 の申し送り）
