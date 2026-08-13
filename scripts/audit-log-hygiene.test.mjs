@@ -182,3 +182,83 @@ describe("ブロックコメントの閉じ行に続く実コード（`*/` の�
     assert.equal(v.length, 0);
   });
 });
+
+// C1（最終レビューの指摘）: ロガの第 1 引数（event）は型で守られていない。
+// `fields` は LogField で塞がれているが、`event` は生の `string` なので
+// `logger.info(`reclaimed ${code}`, { idleMs })` と書けば型検査もテストも素通りし、
+// ルームコードが journal へ出る。検査の側で第 1 引数の形を縛る。
+describe("ロガ呼び出しの第 1 引数（event）の形", () => {
+  test("最終レビューの反例: テンプレートリテラルでルームコードを埋め込む行を検出する", () => {
+    const v = findViolations(
+      "apps/timer-sync/src/create-sync-server.ts",
+      "      logger.info(`reclaimed ${code}`, { idleMs });\n",
+    );
+    assert.equal(v.length, 1);
+    assert.equal(v[0].line, 1);
+  });
+
+  test("this.logger 経由のテンプレートリテラルも検出する", () => {
+    const v = findViolations(
+      "apps/timer-sync/src/application/problem-delegation.ts",
+      "    this.logger.warn(`ai.fail ${roomCode}`);\n",
+    );
+    assert.equal(v.length, 1);
+  });
+
+  test("文字列連結（リテラル + 変数）を検出する", () => {
+    const v = findViolations(
+      "apps/timer-sync/src/foo.ts",
+      'logger.info("reclaimed " + code, { idleMs });\n',
+    );
+    assert.equal(v.length, 1);
+  });
+
+  test("文字列連結（変数 + リテラル）を検出する", () => {
+    const v = findViolations("apps/timer-sync/src/foo.ts", 'logger.error(code + " failed");\n');
+    assert.equal(v.length, 1);
+  });
+
+  test("変数を渡す形も検出する（別行で組み立てた文字列を渡す抜け道）", () => {
+    const v = findViolations("apps/timer-sync/src/foo.ts", "logger.info(message, { idleMs });\n");
+    assert.equal(v.length, 1);
+  });
+
+  test("現行の正しい呼び出し（リテラル + fields）は違反にしない", () => {
+    const v = findViolations(
+      "apps/timer-sync/src/create-sync-server.ts",
+      "      logger.info(\"reclaimed\", { room: refEncoder.room(code), idleMs });\n",
+    );
+    assert.equal(v.length, 0);
+  });
+
+  test("引数がリテラル 1 つだけの呼び出しも違反にしない", () => {
+    const v = findViolations("apps/timer-sync/src/server.ts", '  logger.warn("origins-unset");\n');
+    assert.equal(v.length, 0);
+  });
+
+  test("単一引用符のリテラルも違反にしない", () => {
+    const v = findViolations("apps/timer-sync/src/foo.ts", "logger.info('sigterm');\n");
+    assert.equal(v.length, 0);
+  });
+
+  test("引数なしの呼び出しは違反にしない（出力する値が無い）", () => {
+    const v = findViolations("apps/timer-sync/src/foo.ts", "logger.info();\n");
+    assert.equal(v.length, 0);
+  });
+
+  test("コメント行のテンプレートリテラルは違反にしない", () => {
+    const v = findViolations(
+      "apps/timer-sync/src/foo.ts",
+      "// logger.info(`reclaimed ${code}`) と書いてはならない\n",
+    );
+    assert.equal(v.length, 0);
+  });
+
+  test("許可ファイルでマーカーがあれば違反にしない（実出力口の sink など）", () => {
+    const v = findViolations(
+      "apps/timer-sync/src/adapters/console-log-sink.ts",
+      "    console.error(line); // log-hygiene:allow 唯一の実出力口\n",
+    );
+    assert.equal(v.length, 0);
+  });
+});

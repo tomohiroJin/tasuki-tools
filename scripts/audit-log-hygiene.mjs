@@ -57,7 +57,43 @@ export const REQUIRED_FILES = [
 /** 許可マーカー。行末コメントに付ける。 */
 const ALLOW_MARKER = "log-hygiene:allow";
 
-/** 禁止構文。`publicText` は定義ではなく呼び出しだけを拾う。 */
+/**
+ * ロガ呼び出しの第 1 引数（`event`）が、**その場に書かれた素の文字列リテラルで
+ * ないもの**を拾う。
+ *
+ * `Logger` の `fields` は `LogField`（`number | boolean | LogSafe`）で型の壁に
+ * 守られているが、**第 1 引数の `event` は生の `string`** である。そのため
+ * 次の 1 行は型検査も全テストもログ衛生の検査もすべて通ってしまい、
+ * ルームコードが journal へ出る（最終レビューが実証した反例）。
+ *
+ *   logger.info(`reclaimed ${code}`, { idleMs });
+ *
+ * 型で塞げない以上、検査の側で**書ける形そのもの**を縛る。
+ *
+ * **許可リスト方式にした理由**: 「テンプレートリテラルと `+` を禁止する」という
+ * 禁止リスト方式では、別の行で組み立てた変数を渡す形（`logger.info(msg, ...)`）が
+ * 素通りする。行をまたぐ状態を持たないこの検査では変数の中身を追えないので、
+ * **第 1 引数は素の文字列リテラルだけ**という形に限る。`event` はコード側で
+ * 決め打つ短い識別子（`"reclaimed"` 等）なので、この制限で困ることはない。
+ *
+ * 対象のメソッド名は `Logger` が持つ `info` / `warn` / `error` に、将来の追加を
+ * 見越して `debug` / `trace` を加えた 5 つ。**`log` は含めない** — `console.log`
+ * は上の `console` 規則が既に拾っており、`Math.log(` のような無関係な呼び出しを
+ * 巻き込むと ALLOWED_FILES の外では逃げ道が無いためである。
+ *
+ * 既知の偽陽性（いずれも安全側＝余計に赤くなる向き。行の書き方で回避できる）:
+ *   - 第 1 引数を次の行へ折り返した呼び出し（`logger.info(\n  "event",`）
+ *   - リテラルにエスケープされた引用符を含む呼び出し（`logger.info("say \"hi\"")`）
+ *   - `logger[level]("event", ...)` のような動的なメソッド参照は、そもそも
+ *     `.info(` 等に一致しないため拾えない（この検査の射程外）
+ */
+const LOGGER_EVENT_ARG =
+  /\.(?:info|warn|error|debug|trace)\s*\(\s*(?!(?:"[^"\\\n]*"|'[^'\\\n]*')\s*[,)]|\))/;
+
+/**
+ * 禁止構文。`publicText` は定義ではなく呼び出しだけを拾う。
+ * `hint` は違反として報告するときの説明文。
+ */
 const FORBIDDEN = [
   { name: "console", re: /\bconsole\s*\./ },
   { name: "process.stdout", re: /\bprocess\s*\.\s*stdout\s*\.\s*write\b/ },
@@ -66,6 +102,13 @@ const FORBIDDEN = [
   // `as LogSafe` は型の壁を迂回する第 2 の経路。publicText だけを見ていると
   // `foo as LogSafe` がどこにでも書けてしまい、検査が意味を失う。
   { name: "as LogSafe", re: /\bas\s+LogSafe\b/ },
+  {
+    name: "logger event",
+    re: LOGGER_EVENT_ARG,
+    hint:
+      "ロガの第 1 引数（event）は素の文字列リテラルだけです（ADR 0012 D1）。" +
+      "値を出したいときは fields 側へ相関 ID・語彙定数・真偽値で渡してください",
+  },
 ];
 
 /**
@@ -97,7 +140,7 @@ function isCommentLine(line) {
 
 /**
  * 1 ファイル分の違反行を返す（純粋）。
- * 戻り値: `[{ file, line, kind }]`
+ * 戻り値: `[{ file, line, kind, hint }]`
  *
  * **行をまたぐ状態を一切持たない。** 各行は他の行と無関係に、独立に判定する。
  * `isCommentLine` でコメント行と判定された行は丸ごと読み飛ばし、それ以外の
@@ -150,10 +193,15 @@ export function findViolations(relPath, source) {
   const out = [];
   source.split("\n").forEach((text, i) => {
     if (isCommentLine(text)) return;
-    for (const { name, re } of FORBIDDEN) {
+    for (const { name, re, hint } of FORBIDDEN) {
       if (!re.test(text)) continue;
       if (allowed && text.includes(ALLOW_MARKER)) continue;
-      out.push({ file: relPath, line: i + 1, kind: name });
+      out.push({
+        file: relPath,
+        line: i + 1,
+        kind: name,
+        hint: hint ?? `直接の ${name} は使えません（ADR 0012 D1）`,
+      });
     }
   });
   return out;
@@ -207,7 +255,7 @@ function main() {
   }
   for (const [rel, src] of scanned) {
     for (const v of findViolations(rel, src)) {
-      problems.push(`${v.file}:${v.line} 直接の ${v.kind} は使えません（ADR 0012 D1）`);
+      problems.push(`${v.file}:${v.line} ${v.hint}`);
     }
   }
 
