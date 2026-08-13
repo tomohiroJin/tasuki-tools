@@ -64,6 +64,25 @@ WebSocket upgrade 要求（`Connection: Upgrade` ＋ `Sec-WebSocket-Key`）で�
 timer 側では `X-Real-IP` が `9.9.9.9` のまま素通しされることも再確認した（**使ってはいけない証拠**）。
 これで §3.1 の実測は実断片経路でも成立していると確認できた。実装の以降のタスクはこの事実に依存してよい。
 
+**実断片での upgrade 経路再測定（2026-08-14・Caddy 2.11.4）**: 上記の実断片再測定はプレーンな GET
+だった。本番の実経路は WebSocket upgrade 要求そのものなので、同じ実断片環境に対して
+`Connection: Upgrade` ／ `Upgrade: websocket` ／ `Sec-WebSocket-Version: 13` ／
+`Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==` を付け、`X-Forwarded-For: 9.9.9.9` を偽装して測り直した。
+
+| 経路 | 送ったヘッダ | 実際に届いた応答 |
+|---|---|---|
+| `/timer/ws`（upgrade ヘッダ付き） | `X-Forwarded-For: 9.9.9.9` ＋ upgrade 4 ヘッダ | `{"url":"/ws","xff":"127.0.0.1","xrealip":null}` |
+| `/poker/ws`（upgrade ヘッダ付き） | `X-Forwarded-For: 9.9.9.9` ＋ upgrade 4 ヘッダ | `{"url":"/ws","xff":"127.0.0.1","xrealip":null}` |
+
+（バックエンドの echo サーバーはプレーンな HTTP サーバーで `101 Switching Protocols` を返さないため、
+Caddy は upgrade を確立できず通常の `200 OK` を返した。それでも `reverse_proxy` がバックエンドへ
+転送する `X-Forwarded-For` と `rewrite` 後のパスはプレーン GET のときと同じであり、ヘッダ書き換え
+自体は upgrade 要求か否かに左右されないことが確認できた。）
+
+**帰結**: upgrade ヘッダを足しても `X-Forwarded-For` の偽装値は同じく `127.0.0.1` に上書きされ、
+`url` は `/ws` になった。プレーン GET の実測と一致しており、本番の実経路（WebSocket upgrade）でも
+§3.1 の実測結果がそのまま成立すると確認できた。
+
 ### 3.2 `net.isIP` による妥当性判定（Bun で実測）
 
 | 入力 | `net.isIP` | 意味 |
