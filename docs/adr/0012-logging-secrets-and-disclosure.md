@@ -129,11 +129,29 @@ module script と外部 CSS のみで構成されている。`img-src 'self' dat
 favicon が `data:` URI で埋め込まれているため。
 
 `style-src 'unsafe-inline'` を残すのは、React の `style={{}}` によるインラインスタイルが
-パッケージ横断で 10 箇所（設計正本 2.2 節）残っているためである。これを今外すと画面が壊れる。
+パッケージ横断で 10 箇所（設計正本 2.2 節）残っているためである。これを今外すと画面が壊れる
+おそれがあるため、実測で確かめるまでは残す。
 
-**`style-src 'unsafe-inline'` を外す条件**: 該当箇所を CSS 変数（または CSS クラス）へ
-寄せ、`style={{}}` によるインラインスタイルの生成を無くしたら外す（**MUST**）。それまでは
-残す。
+**`style-src 'unsafe-inline'` を外す条件（2026-08-13 Task 17 実測により訂正）**: 当初は
+「該当箇所を CSS 変数（または CSS クラス）へ寄せる」ことを条件として記録したが、これは
+正確ではなかった。**決定を覆すのではなく、事実誤認を訂正する。** 実測の結果、React の
+`style` prop は `react-dom` の内部実装上 CSS プロパティを 1 つずつ代入する経路
+（`setValueForStyle` 関数）で適用しており、この経路は Chromium の CSP `style-src` の
+inline 判定に掛からない（`element.style.cssText = ...`・`setAttribute('style', ...)`・
+`<style>` 要素の動的挿入・`innerHTML` 経由の `style=""` 属性は判定に掛かることを実測で
+確認済み）。加えてリポジトリ全体を検索した結果、`cssText` と `setAttribute('style', ...)`
+の使用は 0 件であり、`style={{}}` の 10 箇所はすべて React の `style` prop 経由である。
+したがって「CSS 変数へ寄せる」書き換えは外す条件として必須ではない可能性が高い。
+
+**外すために実際に確かめる必要があること**: `style={{}}` を使う画面（timer-web の
+Session / Summary とその配下のコンポーネント）まで実際に到達し、`unsafe-inline` を
+外した CSP のもとで違反が 0 件であることを確認する（**MUST**）。ロビー画面は
+これらのコンポーネントを経由しないため検証にならない。到達には稼働中の timer-sync
+サーバーとルーム作成が要り、e2e の領分である。
+
+**外したあとに維持すべき条件**: 生の DOM スタイル操作（`element.style.cssText`・
+`setAttribute('style', ...)`・`<style>` 要素の動的挿入・`innerHTML` 経由の `style=""`
+属性）を持ち込まないこと（**MUST NOT**）。持ち込むと `unsafe-inline` が再び必要になる。
 
 `frame-ancestors 'none'` は既存の `X-Frame-Options` の上位互換にあたる。移行期間として
 両方を置く（**MUST**）。
