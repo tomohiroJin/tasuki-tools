@@ -1474,6 +1474,16 @@ Expected: `git status` が空・ログ衛生 OK・全テスト PASS
 - Consumes: `constantTimeEqual`（`apps/timer-sync/src/application/secure-compare.ts`）
 - Produces: なし（振る舞いは不変）
 
+> **タイミング特性は戻り値として観測できない。** `constantTimeEqual(a, b)` と `a !== b` は
+> どんな入力でも同じ真偽値を返し、違うのは所要時間だけである。経過時間の統計的な測定は
+> JIT・GC・スケジューリングの揺らぎに埋もれ、共有 CI ランナーでは不安定なテストが増えるだけ。
+> **したがって網は構造テストで張る** — ソースを読み、`!==` による照合が無く
+> `constantTimeEqual` を呼ぶことを固定する。この流儀はこのリポジトリに既にある
+> （`apps/landing/tests/caddy-fragment-order.test.ts` は Caddy 設定を読んで検証し、
+> `apps/timer-web/test/sync/sync-url.test.ts` は 2 ファイル間の一致を固定している）。
+>
+> **この構造テストは変更前に赤くなる**ので、赤先行（憲法 I）が成立する。
+
 - [ ] **Step 1: テストを書く**
 
 `apps/timer-sync/test/passphrase-compare.test.ts`:
@@ -1506,12 +1516,55 @@ describe("パスフレーズの照合", () => {
     expect(constantTimeEqual("あい", "あう")).toBe(false);
   });
 });
+
+/**
+ * 呼び出し側が実際に定数時間比較を通ることを、ソースの形で固定する（構造テスト）。
+ * タイミング特性は戻り値に現れないため、実行時のテストでは
+ * `!==` と `constantTimeEqual` を区別できない。
+ */
+const ROOM_JOIN_SRC = readFileSync(
+  path.join(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "../src/application/command-handlers/room-join.ts",
+  ),
+  "utf8",
+);
+
+describe("パスフレーズ照合の形", () => {
+  it("constantTimeEqual を通している", () => {
+    expect(ROOM_JOIN_SRC).toMatch(
+      /constantTimeEqual\(\s*providedPassphrase\s*,\s*requiredPassphrase\s*\)/,
+    );
+  });
+
+  it("素の比較演算子でパスフレーズを比べていない", () => {
+    // `requiredPassphrase !== undefined` の未設定判定は対象外（両辺の名前で限定する）。
+    expect(ROOM_JOIN_SRC).not.toMatch(
+      /providedPassphrase\s*(!==|===|!=|==)\s*requiredPassphrase/,
+    );
+    expect(ROOM_JOIN_SRC).not.toMatch(
+      /requiredPassphrase\s*(!==|===|!=|==)\s*providedPassphrase/,
+    );
+  });
+});
 ```
 
-- [ ] **Step 2: テストを実行する**
+冒頭の import に次を足す。
+
+```typescript
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+```
+
+- [ ] **Step 2: テストが失敗することを確認する（赤先行）**
 
 Run: `cd /home/vscode/tasuki-work/apps/timer-sync && bun test test/passphrase-compare.test.ts`
-Expected: PASS（5 件。`constantTimeEqual` は既存のため通る）
+Expected: **「パスフレーズ照合の形」の 2 件が FAIL**（`room-join.ts` はまだ `!==` で比較している）。
+`constantTimeEqual` 単体の 5 件は PASS
+
+> ここで 2 件とも緑になったら、**まず自分の壊し方（正規表現とパス）を疑う**。
+> 正規表現がどの行にもマッチしていない可能性がある
 
 - [ ] **Step 3: `room-join.ts` の照合を置き換える**
 
@@ -1531,12 +1584,17 @@ import { constantTimeEqual } from "../secure-compare.js";
     ) {
 ```
 
-- [ ] **Step 4: 既存の入室テストが通ることを確認する**
+- [ ] **Step 4: テストが通ることを確認する**
+
+Run: `cd /home/vscode/tasuki-work/apps/timer-sync && bun test test/passphrase-compare.test.ts`
+Expected: PASS（7 件。構造テスト 2 件が赤から緑へ変わる）
+
+- [ ] **Step 5: 既存の入室テストが壊れていないことを確認する**
 
 Run: `cd /home/vscode/tasuki-work/apps/timer-sync && bun test`
 Expected: 全 PASS（既存のパスフレーズ関連テストが振る舞いの不変を保証する）
 
-- [ ] **Step 5: コミット**
+- [ ] **Step 6: コミット**
 
 ```bash
 cd /home/vscode/tasuki-work
