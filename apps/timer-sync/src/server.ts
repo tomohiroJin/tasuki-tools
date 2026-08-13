@@ -21,12 +21,22 @@ const logger = createLogger(consoleLogSink);
 
 // 未捕捉の例外・未処理の rejection も 1 本の経路へ通す（ADR 0012 D1）。
 // 既定ハンドラに任せると、資格情報を含む例外メッセージがスタックごと journal へ出る。
+//
+// **両者とも process.exit(1) で終える。** ハンドラを置く目的は「何が起きたかを
+// 出さないこと」であって「プロセスを生かすこと」ではない。ハンドラが無いとき、
+// Bun は未捕捉例外でも未処理 rejection でも exit 1 で終える（2026-08-13 実測）。
+// ログを出すだけのハンドラを置くと、未処理 rejection でプロセスが**落ちなくなり**、
+// systemd の Restart による復旧が働かなくなる。状態の一貫性を失ったまま走り続ける
+// ほうが、落ちて再起動するより危ない（揮発インメモリ設計＝憲法 原則 III のため、
+// 再起動の代償はルームの消失だけで、永続データは壊れない）。
+// epic #67 の制約「利用者から見える振る舞いを変えない」にも、こちらが揃う。
 process.on("uncaughtException", (err) => {
   logger.error("uncaught", { name: publicText(err.name) }); // log-hygiene:allow 例外の分類のみ
   process.exit(1);
 });
 process.on("unhandledRejection", () => {
   logger.error("unhandled-rejection");
+  process.exit(1);
 });
 
 const config = (() => {
