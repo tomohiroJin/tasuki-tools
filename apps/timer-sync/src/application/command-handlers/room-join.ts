@@ -22,6 +22,7 @@ import type { RoomStore } from "../../ports/room-store.js";
 import type { RoomCodeGen } from "../../ports/code-gen.js";
 import type { TokenStore } from "../token-store.js";
 import type { JoinRateLimiter } from "../join-rate-limiter.js";
+import { constantTimeEqual } from "../secure-compare.js";
 
 /** `room.join` が呼び出し元へ返す値。参加者はホストトークンを持たない。 */
 export interface JoinResult {
@@ -111,7 +112,11 @@ export function createRoomJoinHandler(deps: RoomJoinDeps) {
     const requiredPassphrase = tokenStore.getPassphrase(cmd.code);
     // 保持側と同じく前後空白を正規化して比較する。
     const providedPassphrase = (cmd.passphrase ?? "").trim();
-    if (requiredPassphrase !== undefined && providedPassphrase !== requiredPassphrase) {
+    // 秘密の照合は定数時間で行う（ADR 0012・管理トークン／AI 解錠と同じ規律）。
+    if (
+      requiredPassphrase !== undefined &&
+      !constantTimeEqual(providedPassphrase, requiredPassphrase)
+    ) {
       // 失敗をレート制限に積算（パスフレーズ総当たりの緩和・既存 join 制限と統合）。
       joinRateLimiter.recordFailure(connId, now);
       const code: ErrorCode = providedPassphrase
