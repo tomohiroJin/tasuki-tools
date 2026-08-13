@@ -1145,6 +1145,7 @@ export const ALLOWED_FILES = [
   "apps/timer-sync/src/server.ts",
   "apps/timer-sync/src/adapters/ws-adapter.ts",
   "apps/timer-sync/src/application/log/vocabulary.ts",
+  "apps/timer-sync/src/application/log/ref-encoder.ts",
   "apps/poker-sync/src/server.ts",
 ];
 
@@ -1165,6 +1166,9 @@ const FORBIDDEN = [
   { name: "process.stdout", re: /\bprocess\s*\.\s*stdout\s*\.\s*write\b/ },
   { name: "process.stderr", re: /\bprocess\s*\.\s*stderr\s*\.\s*write\b/ },
   { name: "publicText", re: /(?<!function\s)\bpublicText\s*\(/ },
+  // `as LogSafe` は型の壁を迂回する第 2 の経路。publicText だけを見ていると
+  // `foo as LogSafe` がどこにでも書けてしまい、検査が意味を失う。
+  { name: "as LogSafe", re: /\bas\s+LogSafe\b/ },
 ];
 
 /** 行が行コメント・ブロックコメントの本文かどうか（インデントは無視）。 */
