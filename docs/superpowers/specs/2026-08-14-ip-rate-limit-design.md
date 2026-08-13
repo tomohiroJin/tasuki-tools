@@ -49,9 +49,20 @@ WebSocket upgrade 要求（`Connection: Upgrade` ＋ `Sec-WebSocket-Key`）で�
 本設計は**最後のカンマ区切り要素**を取る。Caddy が上書きでも追記でも正しく、本番の Caddy の版・
 設定に依存しないため（§7 の未確認事項を参照）。
 
-**この実測の限界**: 手書きの Caddyfile で測っており、リポジトリの実断片
-（`deploy/timer/caddy/10-timer-ws.conf` の `handle` ＋ `rewrite` ＋ `reverse_proxy`）では
-未測定である。実装の最初のタスクで e2e ハーネスの実断片を使って測り直す（§6）。
+**実断片での再測定（2026-08-14・Caddy 2.11.4）**: 上記は手書きの Caddyfile での実測だった。
+リポジトリの実断片（`deploy/timer/caddy/10-timer-ws.conf` と `deploy/poker/caddy/20-poker.conf` を
+1 バイトも変えずコピーし、`import` で読み込んだもの）を通しても同じ結果になるかを実装タスク 1 で
+測り直した。バックエンドはプレーンな Node HTTP サーバー（ポート 8787＝timer、3311＝poker）。
+
+| 経路 | 送ったヘッダ | 実際に届いた応答 |
+|---|---|---|
+| `/timer/ws`（`handle` ＋ `rewrite * /ws` ＋ `reverse_proxy 127.0.0.1:8787`） | `X-Forwarded-For: 9.9.9.9` ＋ `X-Real-IP: 9.9.9.9` | `{"url":"/ws","xff":"127.0.0.1","xrealip":"9.9.9.9"}` |
+| `/poker/ws`（`handle` ＋ `rewrite * /ws` ＋ `reverse_proxy 127.0.0.1:3311`） | `X-Forwarded-For: 9.9.9.9` | `{"url":"/ws","xff":"127.0.0.1","xrealip":null}` |
+
+`handle` と `rewrite` を挟んでも、`X-Forwarded-For` の偽装値（`9.9.9.9`）は手書き版と同じく
+`127.0.0.1` に上書きされ、`rewrite * /ws` によって sync 側が受け取るパスは想定どおり `/ws` になった。
+timer 側では `X-Real-IP` が `9.9.9.9` のまま素通しされることも再確認した（**使ってはいけない証拠**）。
+これで §3.1 の実測は実断片経路でも成立していると確認できた。実装の以降のタスクはこの事実に依存してよい。
 
 ### 3.2 `net.isIP` による妥当性判定（Bun で実測）
 
