@@ -27,6 +27,9 @@ export interface Logger {
 function stripControlChars(value: string): string {
   // 制御文字（C0 と DEL）を落とす。**リテラルの制御文字を直接書かない**
   // — 転送経路で消えると検査が黙って空振りする。
+  // no-control-regex は「正規表現に制御文字を書くのは大抵うっかりミス」という
+  // 前提のルールだが、ここは制御文字そのものが対象（ADR 0012 D12）なので意図的である。
+  // eslint-disable-next-line no-control-regex
   return value.replace(/[\u0000-\u001F\u007F]/g, "");
 }
 
