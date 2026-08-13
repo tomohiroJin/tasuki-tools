@@ -18,6 +18,7 @@
 import { describe, it, expect, afterEach } from "bun:test";
 import { WebSocket } from "ws";
 import { WsAdapter } from "../src/adapters/ws-adapter.js";
+import { testLogger } from "./support/test-logger.js";
 
 // ポートは OS に選ばせる（`port: 0`）。実ポートは `adapter.port` から取る。
 let adapter: WsAdapter | undefined;
@@ -52,6 +53,7 @@ function startAdapter(options: Options = {}): void {
     allowedOrigins: [],
     onMessage: options.onMessage ?? (async () => {}),
     onDisconnect: () => {},
+    logger: testLogger,
   });
 }
 

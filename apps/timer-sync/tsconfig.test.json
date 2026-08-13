@@ -1,0 +1,30 @@
+{
+  // typecheck 専用の設定。**テストの一部を型検査の対象に含める**ための存在である。
+  //
+  // なぜ tsconfig.json を直接いじらないか: このパッケージは tsc で dist を出す
+  // （noEmit: false / declaration / outDir）。tsconfig.json の include へ test を
+  // 足すと `pnpm build` がテストコードまで dist へ吐き出す。
+  //
+  // なぜテストを型検査したいか: `log-safe.ts` の `LogField` は「生の string を
+  // ロガへ渡せない」という**型の壁**であり、`| string` を足すだけで壁が消える。
+  // 消えたことを検出できるのは `@ts-expect-error` を使ったテストだけで、
+  // そのテストは型検査に掛からないと 1 ミリも仕事をしない
+  // （test/log/log-safe-type-wall.test.ts）。
+  //
+  // ⚠ なぜ test/**/* ではなく test/log/**/* なのか: `test/` 全体を含めると、
+  // これまで一度も型検査されてこなかった既存テストで 78 件の型エラーが出る
+  // （38 ファイル。2026-08-13 実測）。その解消は #136（セキュリティの規範）の
+  // 範囲ではなく、独立した片付けである。ここでは型の壁を守るという目的に必要な
+  // 最小範囲だけを含め、**test/ 全体の型検査は繰り越しとする**。
+  // 範囲を広げるときは include を増やすだけでよい。
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // 型検査だけを行う。dist は tsconfig.json 側の build が受け持つ。
+    "noEmit": true,
+    // noEmit と declarationMap の同時指定は TS5069 になるため両方とも落とす。
+    "declaration": false,
+    "declarationMap": false
+  },
+  "include": ["src/**/*", "test/log/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

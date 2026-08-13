@@ -36,3 +36,5 @@ Michael Nygard 形式（背景 / 決定 / 影響 / ステータス）に従い�
 | [0008](./0008-dependency-supply-chain.md) | 依存の供給網対策 | Accepted |
 | [0009](./0009-ci-scope-and-checks.md) | CI が守る範囲と検査の配置 | Accepted |
 | [0010](./0010-trust-policy.md) | trustPolicy による信頼証跡の降格拒否 | Accepted |
+| [0011](./0011-threat-model-and-data-classification.md) | 脅威モデルとデータ分類 | Accepted |
+| [0012](./0012-logging-secrets-and-disclosure.md) | ログ・秘密・開示の取り扱い | Accepted |

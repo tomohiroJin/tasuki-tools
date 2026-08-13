@@ -16,6 +16,7 @@
  * `process.exit(1)`・起動ログ・SIGTERM）だけである。
  */
 
+import { randomBytes } from "node:crypto";
 import { makeHandlers } from "./application/handlers.js";
 import { PresenceManager } from "./application/presence.js";
 import { Scheduler } from "./application/schedule.js";
@@ -29,6 +30,9 @@ import { createRoomDestroyer } from "./application/destroy-room.js";
 import { buildAdminReport, handleAdminHttp } from "./application/admin.js";
 import { AiLimiter } from "./application/ai-limits.js";
 import { ClaudeCliProblemProvider } from "./adapters/claude-cli-problem-provider.js";
+import { createLogger } from "./application/log/logger.js";
+import { createRefEncoder } from "./application/log/ref-encoder.js";
+import { consoleLogSink } from "./adapters/console-log-sink.js";
 import type { SyncConfig } from "./config.js";
 import type { Room, ServerMsg, Command } from "@tasuki/timer-core";
 
@@ -56,6 +60,11 @@ export function createSyncServer(config: SyncConfig): SyncServer {
   const clock = new SystemClock();
   const codeGen = new NanoidCodeGen();
   const scheduler = new Scheduler(clock);
+
+  // ログの出口はここで 1 本に決める（ADR 0012 D1）。
+  // ソルトはプロセス起動ごと。再起動で相関が切れるのは揮発設計と整合する（D2）。
+  const logger = createLogger(consoleLogSink);
+  const refEncoder = createRefEncoder(randomBytes(32));
 
   /** Broadcaster 実装（WS アダプタへの橋渡し） */
   let wsAdapter: WsAdapter;
@@ -99,6 +108,8 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     serverProvider,
     aiLimiter,
     aiTimeoutMs: config.aiGenerationTimeoutMs,
+    logger,
+    refEncoder,
   });
   /**
    * ルーム破棄の共通経路（`destroy-room.ts`。Issue #79）。
@@ -149,7 +160,8 @@ export function createSyncServer(config: SyncConfig): SyncServer {
       // 後始末は共通の破棄経路へ委ねる（二重に並べるとずれる）。
       destroyRoom(code);
       // 運用ログ（journalctl -u tasuki-sync | grep reclaimed で追える・R3-1）。
-      console.log(`room ${code} reclaimed: idle ${idleMs}ms`);
+      // ルームコードは資格情報なので相関 ID へ置き換える（ADR 0012 D2）。
+      logger.info("reclaimed", { room: refEncoder.room(code), idleMs });
     },
   });
 
@@ -160,6 +172,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     maxConnections: config.maxConnections,
     heartbeatIntervalMs: config.heartbeatIntervalMs,
     heartbeatMaxMisses: config.heartbeatMaxMisses,
+    logger,
     onMessage: async (connId, msg) => {
       // msg は ws-adapter 側で CommandSchema（valibot）に通した検証済みの値であり、
       // 実体は Command 型と一致する（onMessage の型は unknown のままなのでここでキャストする）。

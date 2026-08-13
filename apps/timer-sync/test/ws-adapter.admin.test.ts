@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach } from "bun:test";
 import { WebSocket } from "ws";
 import { WsAdapter } from "../src/adapters/ws-adapter.js";
+import { testLogger } from "./support/test-logger.js";
 
 let adapter: WsAdapter | undefined;
 afterEach(async () => {
@@ -15,6 +16,7 @@ const base = {
   allowedOrigins: [] as string[],
   onMessage: async () => {},
   onDisconnect: () => {},
+  logger: testLogger,
 };
 
 function httpUrl(path: string): string {

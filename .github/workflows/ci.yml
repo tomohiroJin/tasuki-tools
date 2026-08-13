@@ -8,6 +8,12 @@ on:
   # 「CI が通っている」を前提にできなくなる（#50 と同じ穴の別の形）。
   pull_request:
 
+# GITHUB_TOKEN の権限を最小にする（ADR 0012 D8 / ADR 0011 S13）。
+# ワークフロー全体の既定を read にし、必要なジョブだけが個別に足す。
+# 現状どのジョブも書き込みを必要としない。
+permissions:
+  contents: read
+
 # corepack が pnpm を取得するとき、非対話環境で確認プロンプトを出さない
 env:
   COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
@@ -22,14 +28,14 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           # 差分の取得に必要。.git は 17MB / 713 コミットで数秒。
           fetch-depth: 0
 
       # Node 22 必須。ルートが宣言する pnpm 11.5.0 は node:sqlite（Node 22.5 以降）を
       # 使うため、Node 20 では ERR_UNKNOWN_BUILTIN_MODULE で起動すらしない。
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
 
@@ -44,7 +50,7 @@ jobs:
 
       # poker-sync は Bun 必須。tests/helpers.ts が `bun run src/server.ts` を
       # サブプロセス起動し、build も `bun build --target=bun` を使う。
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         if: steps.scope.outputs.code == 'true'
         with:
           bun-version: latest
@@ -68,10 +74,10 @@ jobs:
   audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
       - id: scope
@@ -92,11 +98,11 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
 
@@ -109,7 +115,7 @@ jobs:
         if: steps.scope.outputs.code == 'true'
 
       # sync サーバーは両方とも Bun で起動する。
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         if: steps.scope.outputs.code == 'true'
         with:
           bun-version: latest
@@ -124,7 +130,7 @@ jobs:
 
       # 版を固定してキャッシュする。「最新」を取ると、ある日突然赤くなる。
       - name: Cache Caddy
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         if: steps.scope.outputs.code == 'true'
         with:
           path: ~/.cache/tasuki-e2e
@@ -134,7 +140,7 @@ jobs:
       # revision は版に 1 対 1 で紐づくので、版をそのまま鍵にする。
       - name: Cache Playwright browsers
         id: playwright-cache
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         if: steps.scope.outputs.code == 'true'
         with:
           path: ~/.cache/ms-playwright
@@ -152,7 +158,7 @@ jobs:
       # 落ちたときに原因が追えるように、Caddy と 2 つの sync のログまで残す。
       - name: Upload E2E artifacts
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: e2e-artifacts
           path: e2e/test-results/
@@ -165,29 +171,36 @@ jobs:
   docs:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
       - run: node scripts/check-links.mjs
 
   # 手動でしか走らなかった検査を寄せる。ci に混ぜると臨界経路が
   # 2 分 12 秒 → 2 分 42 秒 に伸びるので独立ジョブにする。
-  # **setup-bun は不要**: mutation-check.mjs は timer-sync の変異も
-  # npx vitest run で実行し、パッケージの test スクリプト（bun test）を通らない。
+  # mutation-check.mjs は変異が属するパッケージの test スクリプトに実際のランナーを
+  # 合わせる（apps/timer-sync は bun test）。そのため setup-bun が必要。
   quality:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
       - id: scope
         run: node scripts/ci-scope.mjs
       - run: corepack enable
         if: steps.scope.outputs.code == 'true'
+
+      # mutation-check.mjs が apps/timer-sync の変異を bun test で実行するため必要。
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        if: steps.scope.outputs.code == 'true'
+        with:
+          bun-version: latest
+
       - run: pnpm install --frozen-lockfile
         if: steps.scope.outputs.code == 'true'
 
@@ -195,7 +208,11 @@ jobs:
       - run: node scripts/audit-structure.mjs
         if: steps.scope.outputs.code == 'true'
 
-      - run: node --test scripts/audit-structure.test.mjs scripts/check-links.test.mjs scripts/ci-scope.test.mjs
+      # ログ衛生。資格情報・個人に紐づく情報がログ経路へ流れないことを見る（ADR 0012 D1）。
+      - run: node scripts/audit-log-hygiene.mjs
+        if: steps.scope.outputs.code == 'true'
+
+      - run: node --test scripts/audit-structure.test.mjs scripts/check-links.test.mjs scripts/ci-scope.test.mjs scripts/audit-log-hygiene.test.mjs
         if: steps.scope.outputs.code == 'true'
 
       # 変異検査は作業ツリーが clean であることを要求する。

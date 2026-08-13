@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach } from "bun:test";
 import { WebSocket } from "ws";
 import { WsAdapter } from "../src/adapters/ws-adapter.js";
+import { testLogger } from "./support/test-logger.js";
 
 // ポートは OS に選ばせる（`port: 0`）。実ポートは `adapter.port` から取る。
 // かつては固定値を手で割り当て、ファイル間で重複しないようコメントで帳簿を
@@ -30,6 +31,7 @@ function startAdapter(options: Partial<ConstructorParameters<typeof WsAdapter>[0
     allowedOrigins: [],
     onMessage: async () => {},
     onDisconnect: () => {},
+    logger: testLogger,
     ...options,
   });
   return `ws://127.0.0.1:${adapter.port}`;

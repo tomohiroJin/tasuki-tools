@@ -33,6 +33,7 @@ import { describe, it, expect, afterEach, jest } from "bun:test";
 import net from "node:net";
 import { randomBytes } from "node:crypto";
 import { WsAdapter } from "../src/adapters/ws-adapter.js";
+import { testLogger } from "./support/test-logger.js";
 
 // ポートは OS に選ばせる（`port: 0`）。実ポートは `adapter.port` から取り、
 // 生 TCP クライアントの接続先にもそれを使う。
@@ -203,6 +204,7 @@ describe("WsAdapter ハートビート（死活監視・Issue #25）", () => {
         port: 0,
         host: "127.0.0.1",
         allowedOrigins: [],
+        logger: testLogger,
         heartbeatIntervalMs: 50,
         heartbeatMaxMisses: maxMisses,
         onMessage: async () => {},
@@ -230,6 +232,7 @@ describe("WsAdapter ハートビート（死活監視・Issue #25）", () => {
       port: 0,
       host: "127.0.0.1",
       allowedOrigins: [],
+      logger: testLogger,
       heartbeatIntervalMs: 50,
       heartbeatMaxMisses: 2,
       onMessage: async () => {},
@@ -251,6 +254,7 @@ describe("WsAdapter ハートビート（死活監視・Issue #25）", () => {
       port: 0,
       host: "127.0.0.1",
       allowedOrigins: [],
+      logger: testLogger,
       // 間隔は pong の往復より十分に長く取る。20ms だと CI の負荷でスケジューリングが
       // 1 間隔ぶん遅れたときに「連続の欠落」と誤判定され、terminate されて落ちる。
       heartbeatIntervalMs: 100,
@@ -276,6 +280,7 @@ describe("WsAdapter ハートビート（死活監視・Issue #25）", () => {
       port: 0,
       host: "127.0.0.1",
       allowedOrigins: [],
+      logger: testLogger,
       // 間隔は pong の往復より十分に長く取る（上のテストと同じ理由）。
       // ここは「1 回だけ欠落しても切らない」を見るテストなので、間隔が短いと
       // 意図しない 2 回目の欠落が混ざり、検証したい条件そのものが崩れる。
@@ -308,6 +313,7 @@ describe("WsAdapter ハートビート（死活監視・Issue #25）", () => {
       port: 0,
       host: "127.0.0.1",
       allowedOrigins: [],
+      logger: testLogger,
       heartbeatIntervalMs: 10_000,
       onMessage: async () => {},
       onDisconnect: () => {},

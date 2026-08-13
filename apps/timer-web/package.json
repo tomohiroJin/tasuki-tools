@@ -16,7 +16,6 @@
   "dependencies": {
     "@tasuki/timer-core": "workspace:*",
     "@tasuki/ui": "workspace:*",
-    "dompurify": "^3.4.13",
     "lucide-react": "^1.28.0",
     "neverthrow": "^8.2.0",
     "partysocket": "^1.0.2",
@@ -26,6 +25,7 @@
     "valibot": "^1.4.1"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
     "@testing-library/jest-dom": "^7.0.0",
     "@testing-library/react": "^16.1.0",
     "@testing-library/user-event": "^14.6.3",
@@ -35,7 +35,6 @@
     "@vitejs/plugin-react": "^6.0.5",
     "autoprefixer": "^10.4.20",
     "jsdom": "^30.0.1",
-    "@tailwindcss/postcss": "^4.3.3",
     "postcss": "^8.5.25",
     "tailwindcss": "^4.3.3",
     "vite": "^8.2.0",

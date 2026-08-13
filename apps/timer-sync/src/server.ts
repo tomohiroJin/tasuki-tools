@@ -11,40 +11,69 @@
  * テストも同じ関数を通ることで、配線がずれたときにテストが本当に落ちる（Issue #80）。
  */
 
-import { loadSyncConfig } from "./config.js";
+import { loadSyncConfig, DEFAULT_AI_PROBLEM_MODEL } from "./config.js";
 import { createSyncServer } from "./create-sync-server.js";
+import { createLogger } from "./application/log/logger.js";
+import { consoleLogSink } from "./adapters/console-log-sink.js";
+import { publicText } from "./application/log/log-safe.js";
+
+const logger = createLogger(consoleLogSink);
+
+// 未捕捉の例外・未処理の rejection も 1 本の経路へ通す（ADR 0012 D1）。
+// 既定ハンドラに任せると、資格情報を含む例外メッセージがスタックごと journal へ出る。
+//
+// **両者とも process.exit(1) で終える。** ハンドラを置く目的は「何が起きたかを
+// 出さないこと」であって「プロセスを生かすこと」ではない。ハンドラが無いとき、
+// Bun は未捕捉例外でも未処理 rejection でも exit 1 で終える（2026-08-13 実測）。
+// ログを出すだけのハンドラを置くと、未処理 rejection でプロセスが**落ちなくなり**、
+// systemd の Restart による復旧が働かなくなる。状態の一貫性を失ったまま走り続ける
+// ほうが、落ちて再起動するより危ない（揮発インメモリ設計＝憲法 原則 III のため、
+// 再起動の代償はルームの消失だけで、永続データは壊れない）。
+// epic #67 の制約「利用者から見える振る舞いを変えない」にも、こちらが揃う。
+process.on("uncaughtException", (err) => {
+  logger.error("uncaught", { name: publicText(err.name) }); // log-hygiene:allow 例外の分類のみ
+  process.exit(1);
+});
+process.on("unhandledRejection", () => {
+  logger.error("unhandled-rejection");
+  process.exit(1);
+});
 
 const config = (() => {
   try {
     return loadSyncConfig(process.env);
   } catch (e) {
-    console.error(`❌ 設定エラー: ${(e as Error).message}`);
+    logger.error("config-error", { name: publicText((e as Error).name) }); // log-hygiene:allow 例外の分類のみ
     process.exit(1);
   }
 })();
 
 const server = createSyncServer(config);
 
-console.log(
-  `🚀 同期サーバー起動 host=${config.host} port=${config.port} ` +
-    `maxConn=${config.maxConnections} maxRooms=${config.maxRooms} ` +
-    `heartbeat=${config.heartbeatIntervalMs}ms×${config.heartbeatMaxMisses}回`,
-);
-console.log(
-  `管理エンドポイント: ${config.adminToken ? "有効 (/status, /admin/rooms)" : "無効 (ADMIN_TOKEN 未設定)"}`,
-);
-console.log(
-  `AI お題生成: ${server.aiReady ? `有効 (model=${config.aiProblemModel})` : "無効 (トークン/合言葉 未設定)"}`,
-);
+// host / aiProblemModel は運用者が env で設定する自由文字列（利用者由来ではない）。
+// とはいえ LogField は string を受け付けないため（ADR 0012 D1）、値そのものではなく
+// 「既定値どおりか」を真偽値で出す。既定から外れていれば運用者は自分で設定した env を
+// 見に行けば実値が分かるので、journal だけでの気づき（deploy/README.md ⑤の確認）は保てる。
+logger.info("listening", {
+  port: config.port,
+  loopbackOnly: config.host === "127.0.0.1",
+  maxConn: config.maxConnections,
+  maxRooms: config.maxRooms,
+  heartbeatMs: config.heartbeatIntervalMs,
+  heartbeatMaxMisses: config.heartbeatMaxMisses,
+});
+logger.info("admin", { enabled: config.adminToken !== undefined });
+logger.info("ai", {
+  enabled: config.claudeOauthToken !== undefined && config.aiUnlockKey !== undefined,
+  defaultModel: config.aiProblemModel === DEFAULT_AI_PROBLEM_MODEL,
+});
 if (config.allowedOrigins.length === 0) {
-  console.warn(
-    "⚠ ALLOWED_ORIGINS 未設定: 全 Origin からの WebSocket 接続を許可します（dev 用）。",
-  );
+  logger.warn("origins-unset");
 }
 
 // グレースフルシャットダウン
 process.on("SIGTERM", async () => {
-  console.log("SIGTERM 受信: シャットダウン中...");
+  logger.info("sigterm");
   await server.close();
   process.exit(0);
 });

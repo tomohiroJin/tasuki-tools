@@ -337,5 +337,6 @@ const server = Bun.serve<ConnectionData, never>({
 
 startHeartbeat();
 
-// テストヘルパがこの 1 行 JSON でポートを検出する（research R7）
-console.log(JSON.stringify({ event: 'listening', port: server.port }));
+// この 1 行は tests/helpers.ts が JSON.parse して実ポートを受け取る機械可読な契約である。
+// 形式を変えると poker-sync のテストが全滅する（helpers.ts が '"listening"' を含む行を探す）。
+console.log(JSON.stringify({ event: 'listening', port: server.port })); // log-hygiene:allow テストハーネスとの契約
