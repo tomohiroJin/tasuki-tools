@@ -74,8 +74,8 @@ describe("fail-closed: 走査対象の消失の検出", () => {
   });
 });
 
-describe("ブロックコメントが同じ行で閉じてから実コードが続く場合の検出", () => {
-  test("単一行のブロックコメントの後に続く console を検出する", () => {
+describe("ブロックコメント絡みの行単位の判定（状態を持たない設計）", () => {
+  test("`/* ... */` 単体で始まる行（`*` 単独始まりではない）は読み飛ばさず検出する", () => {
     const v = findViolations(
       "apps/timer-sync/src/foo.ts",
       "/* note */ console.log(secretToken);\n",
@@ -84,24 +84,35 @@ describe("ブロックコメントが同じ行で閉じてから実コードが�
     assert.equal(v[0].line, 1);
   });
 
-  test("複数行のブロックコメントが閉じた直後の console を検出する", () => {
-    const v = findViolations(
-      "apps/timer-sync/src/foo.ts",
-      "/*\ncomment\n*/ console.log(secretToken);\n",
-    );
-    assert.equal(v.length, 1);
-    assert.equal(v[0].line, 3);
-  });
+  test(
+    "既知の見落とし: ブロックコメントの閉じ行(`*` 始まり)に実コードが続いても検出しない。" +
+      "isCommentLine は行の先頭文字だけで判定するため、`*\\/ console.log(x)` の行は" +
+      "`*` 始まりとして丸ごと読み飛ばす。状態を持たない設計を選んだことの既知のトレードオフ" +
+      "（round 3 で状態機械そのものを撤去した理由は findViolations のコメントを参照）。",
+    () => {
+      const v = findViolations(
+        "apps/timer-sync/src/foo.ts",
+        "/*\ncomment\n*/ console.log(secretToken);\n",
+      );
+      assert.equal(v.length, 0);
+    },
+  );
 
-  test("ブロックコメントの中身だけの行は違反にしない（* で始まらない継続行も含む）", () => {
-    const v = findViolations(
-      "apps/timer-sync/src/foo.ts",
-      "/*\nconsole.log(secretToken) という書き方は禁止\n*/\n",
-    );
-    assert.equal(v.length, 0);
-  });
+  test(
+    "安全側の偽陽性: ブロックコメントの継続行が `*` で始まらないと、地の文でも検出する。" +
+      "状態を持たないので「コメントの中にいるかどうか」を追跡できない。安全側（余計に赤くなる）" +
+      "なので許容する。",
+    () => {
+      const v = findViolations(
+        "apps/timer-sync/src/foo.ts",
+        "/*\nconsole.log(secretToken) という書き方は禁止\n*/\n",
+      );
+      assert.equal(v.length, 1);
+      assert.equal(v[0].line, 2);
+    },
+  );
 
-  test("許可ファイルでは、ブロックコメントの外側にマーカーがあれば違反にしない", () => {
+  test("許可ファイルでは、同じ行にマーカーがあれば違反にしない", () => {
     const v = findViolations(
       ALLOWED_FILES[0],
       '/* note */ console.log("x"); // log-hygiene:allow 理由\n',
@@ -110,7 +121,7 @@ describe("ブロックコメントが同じ行で閉じてから実コードが�
   });
 });
 
-describe("正規表現リテラル内のエスケープされたスラッシュで行の残りが消えないこと", () => {
+describe("回帰: 正規表現リテラル内のエスケープされたスラッシュ(状態を持たないので元々問題にならない)", () => {
   test("/http:\\/\\// のような正規表現の後に続く console を検出する", () => {
     const v = findViolations(
       "apps/timer-sync/src/foo.ts",
@@ -125,5 +136,19 @@ describe("正規表現リテラル内のエスケープされたスラッシュ�
       "const re = /a\\//; console.log(secretToken)\n",
     );
     assert.equal(v.length, 1);
+  });
+});
+
+describe("回帰: かつての状態機械にあった第 3 のすり抜け(テンプレートリテラルの状態が巻き添えでリセットされる)", () => {
+  test("正規表現っぽい断片が別の行にあっても、テンプレートリテラルの中の行の扱いは変わらない", () => {
+    const repro = findViolations(
+      "apps/timer-sync/src/foo.ts",
+      "const re = /a\\//; const s = `\n// console.log(secretToken)\n`;\n",
+    );
+    const control = findViolations(
+      "apps/timer-sync/src/foo.ts",
+      "const s = `\n// console.log(secretToken)\n`;\n",
+    );
+    assert.deepEqual(repro, control);
   });
 });
