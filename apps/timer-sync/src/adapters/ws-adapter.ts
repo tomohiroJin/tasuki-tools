@@ -10,6 +10,7 @@ import { CommandSchema } from "@tasuki/timer-core";
 import { parseBoundaryMessage } from "@tasuki/protocol";
 import type { Logger } from "../application/log/logger.js";
 import { publicText, type LogSafe } from "../application/log/log-safe.js";
+import { CONN_REJECT_REASONS } from "../application/log/vocabulary.js";
 
 const MAX_MESSAGE_BYTES = 64 * 1024; // 64KB
 
@@ -363,6 +364,8 @@ export class WsAdapter {
     // 後ろに置くと「直結が拒否される」ことを確かめるテストが Origin 拒否を
     // 見ているだけ、という空振りになる。**
     if (this.options.requireClientAddress === true && ws.data.clientKey === null) {
+      // 列挙値だけを出す（P-2）。生の IP・相関キーは載せない（ADR 0012 D3）。
+      this.options.logger.warn("conn-rejected", { reason: CONN_REJECT_REASONS.clientAddress });
       ws.close(1008, "Client address required");
       return;
     }
@@ -372,6 +375,8 @@ export class WsAdapter {
       this.options.allowedOrigins.length > 0 &&
       !this.options.allowedOrigins.includes(ws.data.origin)
     ) {
+      // 列挙値だけを出す（P-2）。Origin の値そのものは載せない（ADR 0012 D3）。
+      this.options.logger.warn("conn-rejected", { reason: CONN_REJECT_REASONS.origin });
       ws.close(1008, "Origin not allowed");
       return;
     }

@@ -53,7 +53,17 @@ const LOOPBACK_HOSTS = new Set(["localhost", "::1", "[::1]"]);
  */
 const IPV4_LOOPBACK = /^127(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
 
-function isLoopbackHost(host: string): boolean {
+/**
+ * `HOST=localhost` はこの許可リストを通すが、**Bun の実 bind では `::1` にしか
+ * bind しない**（IPv4 の `127.0.0.1` へは listen しない。再レビューが実 bind で確認）。
+ * Caddy 側が `127.0.0.1:PORT` を直接叩く構成だと、この組み合わせはサービス全断になる。
+ *
+ * **裁定（controller）: `localhost` は許可リストから落とさない。** `localhost` は
+ * 実際にループバックであり、bind 先の不一致は「接続を丸ごと拒否する」という
+ * 大きな音で失敗するため、静かな事故（レート制限だけが無効化される、等）には
+ * ならない。表記ゆれを避けたい運用は env の `HOST` に `127.0.0.1` を明示すればよい。
+ */
+export function isLoopbackHost(host: string): boolean {
   // **比較の前に正規化する。** env の値には末尾改行・前後空白が混ざりやすく、
   // ホスト名は DNS 上そもそも大文字小文字を区別しない。正規化しないと
   // `HOST=127.0.0.1 `（末尾空白）や `HOST=Localhost` が「ループバック外」と
@@ -76,20 +86,41 @@ function nonNegIntEnv(value: string | undefined, fallback: number): number {
   return Number.isFinite(n) && n >= 0 ? n : fallback;
 }
 
+/**
+ * `NODE_ENV` が本番を意味するかどうかを判定する（P-1: 唯一の判定箇所）。
+ *
+ * env の値には前後の空白・改行・大文字小文字の揺れが混ざりやすい（デプロイ経路の
+ * env 注入・手入力・コピペで実際に起きる）。**完全一致比較だと、`"Production"` や
+ * 末尾空白付きの `"production "` が「本番でない」と誤判定され、
+ * `requireClientAddress`・HOST 検査・ALLOWED_ORIGINS 検査の三段の防御が
+ * 同時に、かつ無言で消える**（敵対的レビューが 7 通りの表記ゆれで実測）。
+ * このため `loadSyncConfig` 内の本番判定は必ずこの関数を経由させ、
+ * `env["NODE_ENV"] === "production"` を直接書かない。
+ *
+ * **判断: `"prod"` のような別綴りのエイリアスは本番として扱わない。**
+ * trim + 小文字化の正規化だけで表記ゆれの事故はほぼ消える。エイリアスを増やすと
+ * 「どの綴りを本番として許すか」という新しい列挙を保守する羽目になり、
+ * 書き漏らしがそのまま防御の穴に戻る（許可リスト方針と同じ理由）。
+ */
+function isProductionEnv(env: Record<string, string | undefined>): boolean {
+  return (env["NODE_ENV"] ?? "").trim().toLowerCase() === "production";
+}
+
 export function loadSyncConfig(env: Record<string, string | undefined>): SyncConfig {
   const allowedOrigins = (env["ALLOWED_ORIGINS"] ?? "")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
 
-  if (env["NODE_ENV"] === "production" && allowedOrigins.length === 0) {
+  const isProduction = isProductionEnv(env);
+
+  if (isProduction && allowedOrigins.length === 0) {
     throw new Error(
       "本番（NODE_ENV=production）では ALLOWED_ORIGINS の設定が必須です。" +
         "全 Origin 許可（CSWSH リスク）を防ぐため起動を中止します。",
     );
   }
 
-  const isProduction = env["NODE_ENV"] === "production";
   // trim は検査だけでなく実際の bind にも効かせる（末尾空白つきの値で listen しない）。
   const host = (env["HOST"] ?? "").trim() || "127.0.0.1";
 

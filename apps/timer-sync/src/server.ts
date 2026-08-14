@@ -16,6 +16,7 @@ import { createSyncServer } from "./create-sync-server.js";
 import { createLogger } from "./application/log/logger.js";
 import { consoleLogSink } from "./adapters/console-log-sink.js";
 import { publicText } from "./application/log/log-safe.js";
+import { buildListeningLogFields } from "./listening-log.js";
 
 const logger = createLogger(consoleLogSink);
 
@@ -50,18 +51,8 @@ const config = (() => {
 
 const server = createSyncServer(config);
 
-// host / aiProblemModel は運用者が env で設定する自由文字列（利用者由来ではない）。
-// とはいえ LogField は string を受け付けないため（ADR 0012 D1）、値そのものではなく
-// 「既定値どおりか」を真偽値で出す。既定から外れていれば運用者は自分で設定した env を
-// 見に行けば実値が分かるので、journal だけでの気づき（deploy/README.md ⑤の確認）は保てる。
-logger.info("listening", {
-  port: config.port,
-  loopbackOnly: config.host === "127.0.0.1",
-  maxConn: config.maxConnections,
-  maxRooms: config.maxRooms,
-  heartbeatMs: config.heartbeatIntervalMs,
-  heartbeatMaxMisses: config.heartbeatMaxMisses,
-});
+// フィールドの組み立ては listening-log.ts（副作用なしにテストするための切り出し）。
+logger.info("listening", buildListeningLogFields(config));
 logger.info("admin", { enabled: config.adminToken !== undefined });
 logger.info("ai", {
   enabled: config.claudeOauthToken !== undefined && config.aiUnlockKey !== undefined,

@@ -207,4 +207,42 @@ describe("loadSyncConfig", () => {
       expect(() => loadSyncConfig(env)).toThrow(/対処/);
     });
   });
+
+  // 敵対的レビュー P-1: NODE_ENV の完全一致比較だと、表記ゆれ 1 つで
+  // requireClientAddress・HOST 検査・ALLOWED_ORIGINS 検査の三段すべてが
+  // 無言で消える（再レビューが実測）。正規化（trim + 小文字化）で塞ぐ。
+  describe("NODE_ENV の正規化（P-1）", () => {
+    it.each(["production", "Production", "PRODUCTION", "production ", " production", "production\n"])(
+      "NODE_ENV=%j は正規化後に本番として扱われる（requireClientAddress=true）",
+      (nodeEnv) => {
+        const env = { NODE_ENV: nodeEnv, ALLOWED_ORIGINS: "https://tasuki.example.com" };
+        const c = loadSyncConfig(env);
+        expect(c.requireClientAddress).toBe(true);
+      },
+    );
+
+    it("NODE_ENV='Production'（大文字ゆれ）でも ALLOWED_ORIGINS 未設定なら起動を拒否する", () => {
+      const env = { NODE_ENV: "Production" };
+      expect(() => loadSyncConfig(env)).toThrow(/ALLOWED_ORIGINS/);
+    });
+
+    it("NODE_ENV=' production\\n'（前後の空白・改行）でも HOST 検査が発火する", () => {
+      const env = {
+        NODE_ENV: " production\n",
+        ALLOWED_ORIGINS: "https://tasuki.example.com",
+        HOST: "0.0.0.0",
+      };
+      expect(() => loadSyncConfig(env)).toThrow(/HOST/);
+    });
+
+    // 判断（報告に理由を記載）: "prod" のような別綴りは本番として扱わない。
+    // 正規化だけで表記ゆれの事故はほぼ消えるため、エイリアスの列挙を増やして
+    // 保守対象を広げない。
+    it("NODE_ENV='prod' は本番として扱わない（別綴りのエイリアスは追加しない判断）", () => {
+      const env = { NODE_ENV: "prod", HOST: "0.0.0.0" };
+      const c = loadSyncConfig(env);
+      expect(c.requireClientAddress).toBe(false);
+      expect(c.host).toBe("0.0.0.0");
+    });
+  });
 });
