@@ -17,7 +17,12 @@ import {
   type Room,
   type RoundError,
 } from '@tasuki/poker-core';
-import { createClientKeyDeriver } from '@tasuki/rate-limit';
+import {
+  createClientKeyDeriver,
+  createTokenBucketLimiter,
+  DEFAULT_CAPACITY,
+  DEFAULT_REFILL_PER_SEC,
+} from '@tasuki/rate-limit';
 import { randomBytes } from 'node:crypto';
 import {
   broadcast,
@@ -37,6 +42,18 @@ const config = loadPokerSyncConfig(process.env);
  * （ADR 0012 D3）。
  */
 const deriveClientKey = createClientKeyDeriver(randomBytes(32));
+
+/**
+ * 入室失敗のレート制限（#103）。**数える単位は接続ではなくクライアント（IP の HMAC）**。
+ * 接続単位だと再接続で窓がリセットされ、ルーム ID の総当たりを止められない。
+ *
+ * poker には合言葉が無く、`check-room` が存在確認そのものなので、
+ * join と check は同じバケツを共有する。
+ */
+const rateLimiter = createTokenBucketLimiter({
+  capacity: DEFAULT_CAPACITY,
+  refillPerSec: DEFAULT_REFILL_PER_SEC,
+});
 
 /**
  * 接続ごとの状態。join 後に participantId / roomId が入る。
@@ -137,8 +154,20 @@ function handleCreateRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'create-ro
 }
 
 function handleJoinRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'join-room' }>): void {
+  // レート制限に渡す now は単調時計（設計正本 D8・MUST）。Date.now() は NTP のステップ
+  // 調整で非単調になりうるため使わない。ルームの会計（joinedAt 等）に使う壁時計とは
+  // 別系統であり、混同しないこと。
+  const now = performance.now();
+  // **ルームを照会する前に判定する。** 逆順だと、残量が無いときに room-not-found が返り、
+  // 攻撃者はトークンを消費せずにルーム ID の存在確認を続けられる。
+  if (rateLimiter.shouldReject(ws.data.rateKey, now)) {
+    sendError(ws, 'rate-limited', '試行が多すぎます。しばらくしてからお試しください');
+    return;
+  }
+
   const entry = getRoom(msg.roomId);
   if (!entry) {
+    rateLimiter.consume(ws.data.rateKey, now);
     sendError(ws, 'room-not-found', 'ルームが見つかりません');
     return;
   }
@@ -173,9 +202,21 @@ function handleJoinRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'join-room' 
  *
  * 読み取りだけなので `detachFromCurrentRoom` は呼ばない。呼ぶと、参加中の人が
  * 別の招待リンクの生死を尋ねただけで自分のルームから外れてしまう。
+ *
+ * **#103 で約束が 1 つ変わった。** レート制限に掛かると `rate-limited` を返すため、
+ * 無音の意味は「生きている」から「生きている、または拒否された」になった。
+ * 画面は参加フォームを出しておく作りなので、どちらでも待たせるだけで済む。
  */
 function handleCheckRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'check-room' }>): void {
+  // 設計正本 D8: レート制限に渡す now は単調時計（performance.now()）を使う。
+  const now = performance.now();
+  if (rateLimiter.shouldReject(ws.data.rateKey, now)) {
+    sendError(ws, 'rate-limited', '試行が多すぎます。しばらくしてからお試しください');
+    return;
+  }
+
   if (!getRoom(msg.roomId)) {
+    rateLimiter.consume(ws.data.rateKey, now);
     sendError(ws, 'room-not-found', 'ルームが見つかりません');
   }
 }
