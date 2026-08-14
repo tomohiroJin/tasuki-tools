@@ -127,8 +127,20 @@ describe("WsAdapter の handleFetch 全体の隔離（I-4）", () => {
   });
 });
 
+/**
+ * **このテストが守っているのは「結果」であって「機構」ではない。**
+ *
+ * `NODE_ENV=development` でもソース断片が漏れないことは、
+ * (1) `Bun.serve({ development: false })` と (2) `handleFetch` 全体の `try/catch`（I-4）の
+ * **2 層**で担保されている。**`development` を `true` に戻すだけでは、このテストは赤くならない**
+ * （I-4 の catch が先に吸収するため。再レビューが独立に再現済み）。
+ *
+ * つまりこのテストは `development: false` を単体では守っていない。フラグの効果は、
+ * 生スクリプトで I-4 の隔離も同時に外して `67,252` バイトのソース漏えいを直接実測して確認した。
+ * **将来 `handleFetch` の `try/catch` が縮められると、フラグの失効を検出する手段が無くなる。**
+ */
 describe("WsAdapter の development フラグ（I-3）", () => {
-  it("NODE_ENV=development でも development: false が維持され、応答本体にソース断片が出ない", async () => {
+  it("NODE_ENV=development でも応答本体にソース断片が出ない（2 層で担保。フラグ単体の検査ではない）", async () => {
     // Given: NODE_ENV を明示的に development にする（Bun.serve の development の
     // 既定値は `process.env.NODE_ENV !== 'production'` なので、素朴な実装なら
     // ここでソース開示モードに落ちる）。
