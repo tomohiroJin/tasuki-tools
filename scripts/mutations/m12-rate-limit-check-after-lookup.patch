@@ -1,22 +1,32 @@
 diff --git a/apps/timer-sync/src/application/command-handlers/room-join.ts b/apps/timer-sync/src/application/command-handlers/room-join.ts
-index 0c87dac..dbde25c 100644
+index 0c87dac..6963e0c 100644
 --- a/apps/timer-sync/src/application/command-handlers/room-join.ts
 +++ b/apps/timer-sync/src/application/command-handlers/room-join.ts
-@@ -68,6 +68,8 @@ export function createRoomJoinHandler(deps: RoomJoinDeps) {
+@@ -68,13 +68,6 @@ export function createRoomJoinHandler(deps: RoomJoinDeps) {
      // 時計補正の影響を受けない（設計正本 D8）。`now` と取り違えないこと。
      const rateNow = performance.now();
  
-+    const room = store.get(cmd.code);
-+
-     // **ルームを照会する前に判定する。** 照会してから判定すると、残量が無いときに
-     // ROOM_NOT_FOUND が返り、攻撃者はトークンを消費せずに存在確認を続けられる（設計正本 D3）。
-     if (rateLimitGate.shouldReject(connId, rateNow)) {
-@@ -75,8 +77,6 @@ export function createRoomJoinHandler(deps: RoomJoinDeps) {
-       return err("JOIN_RATE_LIMITED");
+-    // **ルームを照会する前に判定する。** 照会してから判定すると、残量が無いときに
+-    // ROOM_NOT_FOUND が返り、攻撃者はトークンを消費せずに存在確認を続けられる（設計正本 D3）。
+-    if (rateLimitGate.shouldReject(connId, rateNow)) {
+-      sendError(connId, "JOIN_RATE_LIMITED", errorMessageFor("JOIN_RATE_LIMITED"));
+-      return err("JOIN_RATE_LIMITED");
+-    }
+-
+     const room = store.get(cmd.code);
+ 
+     if (!room) {
+@@ -84,6 +77,13 @@ export function createRoomJoinHandler(deps: RoomJoinDeps) {
+       return err("ROOM_NOT_FOUND");
      }
  
--    const room = store.get(cmd.code);
--
-     if (!room) {
-       // 失敗を記録（次回以降のレート判定に使う）。時刻は単調時計のほう（D8）。
-       rateLimitGate.consume(connId, rateNow);
++    // **ルームを照会する前に判定する。** 照会してから判定すると、残量が無いときに
++    // ROOM_NOT_FOUND が返り、攻撃者はトークンを消費せずに存在確認を続けられる（設計正本 D3）。
++    if (rateLimitGate.shouldReject(connId, rateNow)) {
++      sendError(connId, "JOIN_RATE_LIMITED", errorMessageFor("JOIN_RATE_LIMITED"));
++      return err("JOIN_RATE_LIMITED");
++    }
++
+     // リジューム処理
+     if (cmd.resumeToken) {
+       const tokenData = tokenStore.getResume(cmd.resumeToken);
