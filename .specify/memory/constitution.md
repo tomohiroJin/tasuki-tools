@@ -1,6 +1,31 @@
 <!--
 Sync Impact Report
 ==================
+- Version change: 2.1.1 → 2.1.2（PATCH: 原則 IX ① に粒度の判断基準の正本の指し先を
+  追記。原則の追加・削除・実質的な拡張は無い）
+- Rationale: #119。「1 つの論理的変更」の粒度が明文化されておらず、実質的にコミット
+  単位まで細かくなっていた。#116（PR 1 本・10 コミット）と #136（PR 1 本・39 コミット）が
+  意図的な先行実践として出され、説明コスト（PR 本文の文字数÷差分行数）が #113 の
+  4.0〜115.1 から 0.9〜1.0 へ落ち、レビュー・revert のいずれでも支障が出なかった。
+  判断基準は docs/guides/pr-granularity.md に置き、憲法からはその指し先だけを示す
+  （docs/adr/0002 の書き分け。DoD と同じ構造）。決定そのものは docs/adr/0013。
+  MUST の数・強さ・対象は変えず、既存の語が何を指すかの参照先を示すだけなので
+  「明確化」と判断した。参照先の新設を「実質的な拡張」と取れば MINOR と読む余地が
+  あることを記録しておく。新しい義務を課していないため PATCH とする。
+- Modified principles:
+  - IX. 小さく回す — 1 項目目に正本の指し先を追記。規範の強さ・見出しは不変。
+    2 項目目（DoD）・3 項目目（デプロイ）は変更なし
+- Templates requiring updates:
+  - OK .specify/templates/plan-template.md — Constitution Check は動的参照のみ。変更不要
+  - OK .specify/templates/spec-template.md — 憲法への直接参照なし。変更不要
+  - OK .specify/templates/tasks-template.md — 憲法への直接参照なし。変更不要
+  - OK AGENTS.md — **見出しに変更が無いため同期作業は不要**（AGENTS.md が転記するのは
+    見出しのみ。「IX. 小さく回す」のまま。原則 I〜XI の 11 本一致を確認済み）
+
+---
+
+Previous release: 2.1.0 → 2.1.1
+
 - Version change: 2.1.0 → 2.1.1（PATCH: 原則 XI の文言修正。原則の追加・削除・
   実質的な拡張は無い）
 - Rationale: #136 の最終レビュー M4。原則 XI の 1 項目目「秘密（トークン・鍵・合言葉）は
@@ -210,7 +235,8 @@ neverthrow）を基本とする。
 
 変更は小さく、確実に積む。
 
-- 1 PR は 1 つの論理的変更に留める（MUST）
+- 1 PR は 1 つの論理的変更に留める（MUST。粒度の判断基準は
+  `docs/guides/pr-granularity.md` を正本とする）
 - Definition of Done（DoD）を満たしてからマージする（MUST）
 - デプロイは一連の作業がすべて完了した後に、まとめて 1 回で行う（MUST）
 
@@ -253,4 +279,4 @@ neverthrow）を基本とする。
   通過しなければならない。原則からの逸脱は Complexity Tracking での
   正当化なしに認めない
 
-**Version**: 2.1.1 | **Ratified**: 2026-07-16 | **Last Amended**: 2026-08-13
+**Version**: 2.1.2 | **Ratified**: 2026-07-16 | **Last Amended**: 2026-08-14
