@@ -19,6 +19,24 @@ const DEFAULT_HEARTBEAT_INTERVAL_MS = 15_000;
 const DEFAULT_HEARTBEAT_MAX_MISSES = 2;
 
 /**
+ * httpHandler（`handleAdminHttp`）へ渡すヘッダの許可リスト（N-4）。
+ * 実際に読まれているのは `x-admin-token` だけ
+ * （`apps/timer-sync/src/application/admin.ts` で確認済み）。
+ * 増やすときは、そのヘッダが本当に読まれる先を確認してから足すこと。
+ */
+const ADMIN_HTTP_ALLOWED_HEADERS = ["x-admin-token"];
+
+/** `headers` のうち `allowed` に含まれるキーだけを取り出す（キーは小文字で比較）。 */
+function pickHeaders(headers: Headers, allowed: readonly string[]): Record<string, string> {
+  const picked: Record<string, string> = {};
+  for (const key of allowed) {
+    const value = headers.get(key);
+    if (value !== null) picked[key] = value;
+  }
+  return picked;
+}
+
+/**
  * httpHandler に渡すリクエスト表現。
  * Node の IncomingMessage にも Bun の Request にも依存しない形にしてある。
  */
@@ -26,7 +44,7 @@ export interface HttpRequestInfo {
   method: string;
   /** クエリを含むパス（`/status?x=1`）。handleAdminHttp が `?` で切る。 */
   path: string;
-  /** キーは小文字。 */
+  /** キーは小文字。**許可リスト（{@link ADMIN_HTTP_ALLOWED_HEADERS}）に絞ってある。** */
   headers: Record<string, string>;
 }
 
@@ -102,6 +120,10 @@ export class WsAdapter {
         port: options.port,
         // exactOptionalPropertyTypes: true のため、未指定のときはキーごと渡さない。
         ...(options.host !== undefined ? { hostname: options.host } : {}),
+        // 既定は `process.env.NODE_ENV !== 'production'`（Bun 1.3.14）。env の
+        // 設定漏れ 1 つで「未処理例外がソース断片つきの HTML として応答本体に
+        // 出る」状態に化けるため、env に依存させず常に false で固定する（N-1）。
+        development: false,
         fetch: (req, server) => this.handleFetch(req, server),
         websocket: {
           // 既定の maxPayloadLength（16MB）のまま受け取り、64KB 超は自前で弾く。
@@ -152,15 +174,18 @@ export class WsAdapter {
   private handleFetch(req: Request, server: Bun.Server<ConnectionData>): Response | undefined {
     const origin = req.headers.get("origin") ?? "";
     // **鍵はここで作る。** 生の IP をこの行より先へ持ち出さない（ADR 0012 D3）。
-    const clientKey =
-      this.options.deriveClientKey?.(req.headers.get("x-forwarded-for") ?? undefined) ?? null;
+    const clientKey = this.deriveClientKeySafely(req.headers.get("x-forwarded-for") ?? undefined);
     if (server.upgrade(req, { data: { connId: "", origin, clientKey } })) return undefined;
 
     const url = new URL(req.url);
     const handled = this.options.httpHandler?.({
       method: req.method,
       path: url.pathname + url.search,
-      headers: Object.fromEntries(req.headers),
+      // 非 Upgrade の HTTP リクエストに限っても、生のヘッダを丸ごとは渡さない。
+      // httpHandler（handleAdminHttp）が実際に読むのは `x-admin-token` だけ
+      // （apps/timer-sync/src/application/admin.ts で確認済み）なので許可リストに絞る。
+      // 「賢い検査より単純な検査・無状態＋許可リストへ倒す」の教訓に合わせる。
+      headers: pickHeaders(req.headers, ADMIN_HTTP_ALLOWED_HEADERS),
     });
     if (handled) {
       return new Response(handled.body, {
@@ -172,6 +197,26 @@ export class WsAdapter {
       status: 426,
       headers: { "content-type": "text/plain" },
     });
+  }
+
+  /**
+   * `deriveClientKey` を安全に呼ぶ。throw しても呼び出し元（handleFetch）を
+   * 巻き込まず、鍵は「特定できなかった」扱い（null）にする（N-1）。
+   *
+   * **例外メッセージをログへ出さない。** `deriveClientKey` の入力は
+   * `X-Forwarded-For`（利用者由来）であり、例外メッセージに載りうる
+   * （`docs/adr/0012` D3）。ログに出すのは例外の種類（name）だけにする。
+   */
+  private deriveClientKeySafely(forwardedFor: string | undefined): string | null {
+    if (!this.options.deriveClientKey) return null;
+    try {
+      return this.options.deriveClientKey(forwardedFor) ?? null;
+    } catch (err) {
+      this.options.logger.error("derive-client-key-error", {
+        name: publicText((err as Error).name), // log-hygiene:allow 例外の分類のみ
+      });
+      return null;
+    }
   }
 
   /**
@@ -255,7 +300,17 @@ export class WsAdapter {
     ws.data.connId = connId;
     this.connections.set(connId, ws);
     this.missedPongs.set(connId, 0);
-    this.options.onConnect?.(connId, ws.data.clientKey ?? connId);
+    // onConnect は呼び出し元（アプリ層）のコールバック。throw すると Bun の
+    // websocket ハンドラ内なので uncaughtException になり、本番の server.ts が
+    // process.exit(1) で受ける（実測）。コールバックの失敗でプロセス全体を
+    // 落とさないよう、ここで隔離する（N-3。Task 5 で `gate.open()` を挿す前提）。
+    try {
+      this.options.onConnect?.(connId, ws.data.clientKey ?? connId);
+    } catch (err) {
+      this.options.logger.error("on-connect-error", {
+        name: publicText((err as Error).name), // log-hygiene:allow 例外の分類のみ
+      });
+    }
   }
 
   /** pong 受信 = 生存確認。欠落カウントをリセットする（一時的な揺れからの復帰・US2）。 */
