@@ -6,7 +6,10 @@
  * レート制限を回避できる（設計正本 §3.2）。
  */
 import { describe, it, expect } from "vitest";
-import { normalizeClientAddress, createClientKeyDeriver } from "../src/index.js";
+import { createClientKeyDeriver } from "../src/index.js";
+// normalizeClientAddress は公開 API から外れている（生 IP を外へ出さないため）。
+// テストは client-key.js から直接 import する。
+import { normalizeClientAddress } from "../src/client-key.js";
 
 describe("normalizeClientAddress", () => {
   describe("X-Forwarded-For の刈り込み", () => {
@@ -68,12 +71,49 @@ describe("normalizeClientAddress", () => {
       );
     });
 
-    it("埋め込み IPv4 は下位 32 ビットなので /64 に影響しない", () => {
-      expect(normalizeClientAddress("::ffff:192.0.2.1")).toBe("v6:0:0:0:0");
+    it("射影ではない埋め込み IPv4（2001:db8::192.0.2.1）は /64 に影響しない", () => {
+      // ::ffff:192.0.2.1 は IPv4 射影アドレスなので、この項ではなく
+      // 下の「IPv4 射影アドレスは v4: 名前空間へ落とす」で検証する。
       expect(normalizeClientAddress("2001:db8::192.0.2.1")).toBe("v6:2001:db8:0:0");
     });
 
     it("全ゼロの短縮形も扱える", () => {
+      expect(normalizeClientAddress("::")).toBe("v6:0:0:0:0");
+    });
+  });
+
+  describe("IPv4 射影アドレス（::ffff:0:0/96）は v4: 名前空間へ落とす", () => {
+    // ::ffff:203.0.113.7 は上位 64 ビットが全ゼロなので、/64 に丸めると
+    // 世界中の IPv4 射影クライアントが同一の鍵を共有してしまう（F1・実測済み）。
+    // 数値展開した 8 グループ全体で射影レンジを判定し、下位 32 ビットを
+    // IPv4 として復元して v4: 名前空間へ落とすことで、この丸め崩壊を避ける。
+    it("::ffff:203.0.113.7 は 203.0.113.7 と同じ鍵になる", () => {
+      expect(normalizeClientAddress("::ffff:203.0.113.7")).toBe(
+        normalizeClientAddress("203.0.113.7"),
+      );
+      expect(normalizeClientAddress("::ffff:203.0.113.7")).toBe("v4:203.0.113.7");
+    });
+
+    it("大文字表記（::FFFF:）も同じ鍵になる", () => {
+      expect(normalizeClientAddress("::FFFF:203.0.113.7")).toBe("v4:203.0.113.7");
+    });
+
+    it("完全展開の射影形（0:0:0:0:0:ffff:cb00:7107）も同じ鍵になる", () => {
+      expect(normalizeClientAddress("0:0:0:0:0:ffff:cb00:7107")).toBe("v4:203.0.113.7");
+    });
+
+    it("異なる射影クライアント同士は別の鍵になる", () => {
+      expect(normalizeClientAddress("::ffff:198.51.100.9")).not.toBe(
+        normalizeClientAddress("::ffff:203.0.113.7"),
+      );
+    });
+
+    it("下位 32 ビットが 0.0.0.0 の射影は v4:0.0.0.0 になる", () => {
+      expect(normalizeClientAddress("::ffff:0.0.0.0")).toBe("v4:0.0.0.0");
+    });
+
+    it("射影レンジ以外の ::/96（::1・:: など）は v6:0:0:0:0 のまま。経路上到達しないアドレスなので、まとまることを意図して受け入れる", () => {
+      expect(normalizeClientAddress("::1")).toBe("v6:0:0:0:0");
       expect(normalizeClientAddress("::")).toBe("v6:0:0:0:0");
     });
   });
@@ -83,6 +123,18 @@ describe("normalizeClientAddress", () => {
       expect(normalizeClientAddress("0.0.0.0")).toBe("v4:0.0.0.0");
       expect(normalizeClientAddress("::")).toBe("v6:0:0:0:0");
     });
+  });
+});
+
+describe("公開 API の面（生 IP をモジュールの外へ出さない）", () => {
+  it("index.ts は normalizeClientAddress を公開しない", async () => {
+    const indexModule: Record<string, unknown> = await import("../src/index.js");
+    expect(indexModule.normalizeClientAddress).toBeUndefined();
+  });
+
+  it("index.ts は createClientKeyDeriver を公開する", async () => {
+    const indexModule: Record<string, unknown> = await import("../src/index.js");
+    expect(typeof indexModule.createClientKeyDeriver).toBe("function");
   });
 });
 
@@ -117,5 +169,33 @@ describe("createClientKeyDeriver", () => {
     const derive = createClientKeyDeriver(salt);
     expect(derive(undefined)).toBeNull();
     expect(derive("unknown")).toBeNull();
+  });
+});
+
+describe("createClientKeyDeriver のソルト検証（F5）", () => {
+  // 正規形は v4:<IP> という低エントロピーの既知文字列なので、ソルトが
+  // 退化する（短い・空）と鍵から IP を総当たりで逆算できてしまう。
+  it("32 バイト未満なら throw する", () => {
+    expect(() => createClientKeyDeriver(new Uint8Array(31))).toThrow();
+  });
+
+  it("0 バイト（空のソルト）でも throw する", () => {
+    expect(() => createClientKeyDeriver(new Uint8Array(0))).toThrow();
+  });
+
+  it("throw のメッセージにソルトの中身は含まれない（長さだけを伝える）", () => {
+    let message = "";
+    try {
+      createClientKeyDeriver(new Uint8Array(31).fill(7));
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toContain("31");
+    // 中身（0x07 を 16 進 "7" や "07" として含む等）が漏れていないことの簡易確認。
+    expect(message).not.toContain("0707");
+  });
+
+  it("32 バイトちょうどなら通る", () => {
+    expect(() => createClientKeyDeriver(new Uint8Array(32))).not.toThrow();
   });
 });
