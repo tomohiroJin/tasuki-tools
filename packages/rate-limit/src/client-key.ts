@@ -33,9 +33,12 @@
  * 点付き 10 進へ復元して `v4:` 名前空間へ落とす。`::ffff:203.0.113.7` と
  * `203.0.113.7` は同一クライアントなので、同一の鍵になるのが正しい。
  *
- * 射影レンジ以外の `::/96`（`::1`・`::`・非推奨の IPv4 互換アドレス）は
- * 意図して `v6:0:0:0:0` のままにする。これらは実 IP を名乗る経路（Caddy 越し
- * の `X-Forwarded-For`）には現れないアドレスなので、まとまることが実害にならない。
+ * 射影レンジ以外で上位 64 ビットが全ゼロのもの（`::/64`。`::1`・`::`・非推奨の
+ * IPv4 互換アドレスを含む）は意図して `v6:0:0:0:0` のままにする。これらは
+ * ループバック・未指定・非推奨レンジであり、外部クライアントの実 IP としては
+ * 到達しない。`::1` が `X-Forwarded-For` に現れることはある（§3.1 の実測を参照）
+ * が、それは自ホスト起点の接続であって、制限をかける対象の外部クライアントでは
+ * ないので、まとまることが実害にならない。
  */
 import { createHmac } from "node:crypto";
 import { isIP } from "node:net";
@@ -156,9 +159,18 @@ export function normalizeClientAddress(forwardedFor: string | undefined): string
 export function createClientKeyDeriver(
   salt: Uint8Array,
 ): (forwardedFor: string | undefined) => string | null {
-  if (salt.length < SALT_MIN_BYTES) {
-    // メッセージにソルトの中身は含めない。長さだけを伝える。
-    throw new Error(`salt must be at least ${SALT_MIN_BYTES} bytes long (got ${salt.length})`);
+  // `.length` だけを見ると ArrayBuffer / DataView は byteLength しか持たず
+  // `undefined < SALT_MIN_BYTES` が false になって素通りしてしまう（G1・実測済み）。
+  // TypeScript の型は静的には防いでくれるが、このガードの目的は「型が防げないものを
+  // 捕まえる」ことなので、型そのものを instanceof で検査する。
+  if (!(salt instanceof Uint8Array) || salt.length < SALT_MIN_BYTES) {
+    // メッセージにソルトの中身は含めない。長さだけを伝える（型が違う場合 salt.length は
+    // undefined になりうる）。
+    throw new Error(
+      `salt must be a Uint8Array of at least ${SALT_MIN_BYTES} bytes (got ${
+        salt instanceof Uint8Array ? `${salt.length} bytes` : typeof salt
+      })`,
+    );
   }
   return (forwardedFor) => {
     const normalized = normalizeClientAddress(forwardedFor);

@@ -112,9 +112,16 @@ describe("normalizeClientAddress", () => {
       expect(normalizeClientAddress("::ffff:0.0.0.0")).toBe("v4:0.0.0.0");
     });
 
-    it("射影レンジ以外の ::/96（::1・:: など）は v6:0:0:0:0 のまま。経路上到達しないアドレスなので、まとまることを意図して受け入れる", () => {
+    it("射影レンジ以外で上位 64 ビットが全ゼロのもの（::/64。::1・:: など）は v6:0:0:0:0 のまま。ループバック・未指定・非推奨レンジは外部クライアントの実 IP としては到達しないので、まとまることを意図して受け入れる", () => {
       expect(normalizeClientAddress("::1")).toBe("v6:0:0:0:0");
       expect(normalizeClientAddress("::")).toBe("v6:0:0:0:0");
+    });
+
+    // G2: この残余は ::/96 ではなく ::/64（射影レンジを除く）である。::/96 の外にある
+    // アドレスも上位 64 ビットが全ゼロなら同じ v6:0:0:0:0 になることを確かめる。
+    it("::/96 の外でも上位 64 ビットが全ゼロなら v6:0:0:0:0 になる（G2）", () => {
+      expect(normalizeClientAddress("::1:2:3:4")).toBe("v6:0:0:0:0");
+      expect(normalizeClientAddress("::c000:201")).toBe("v6:0:0:0:0");
     });
   });
 
@@ -196,6 +203,29 @@ describe("createClientKeyDeriver のソルト検証（F5）", () => {
   });
 
   it("32 バイトちょうどなら通る", () => {
+    expect(() => createClientKeyDeriver(new Uint8Array(32).fill(7))).not.toThrow();
+  });
+
+  // G4: 全ゼロ 32 バイトは HMAC の仕様上「鍵なし」と証明可能に同一の鍵を出す（実測済み）。
+  // 「長さだけを見る・中身は見ない」という設計判断自体は妥当だが、new Uint8Array(32)
+  // （＝確保して埋め忘れ）はこの API で最も起こりやすい事故なので、合格例としてではなく
+  // この決定を明示する独立したテストとして残す。
+  it("全ゼロ 32 バイトは意図して弾かない（長さだけを見る。中身は見ない、という設計判断）", () => {
     expect(() => createClientKeyDeriver(new Uint8Array(32))).not.toThrow();
+  });
+
+  // G1: .length を持たない型（ArrayBuffer・DataView）は byteLength しか持たず、
+  // `salt.length < SALT_MIN_BYTES` が undefined < 32 = false になって素通りしていた。
+  // createHmac は両方を鍵として受け付けてしまうため、型そのものを検査する必要がある。
+  it("ArrayBuffer は length を持たないため throw する（G1）", () => {
+    expect(() => createClientKeyDeriver(new ArrayBuffer(64) as never)).toThrow();
+  });
+
+  it("空の ArrayBuffer も throw する（G1）", () => {
+    expect(() => createClientKeyDeriver(new ArrayBuffer(0) as never)).toThrow();
+  });
+
+  it("DataView は length を持たないため throw する（G1）", () => {
+    expect(() => createClientKeyDeriver(new DataView(new ArrayBuffer(64)) as never)).toThrow();
   });
 });
