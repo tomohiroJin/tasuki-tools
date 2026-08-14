@@ -122,7 +122,13 @@ describe('本番の fail-closed', () => {
   it('ALLOWED_ORIGINS があれば本番でも起動する', async () => {
     server = await startServer({ NODE_ENV: 'production', ALLOWED_ORIGINS: 'https://ok.example' });
 
-    const client = await raw(server.port, { origin: 'https://ok.example' });
+    // 本番はクライアント鍵の検査（#103）も有効になるため、Origin だけでなく
+    // X-Forwarded-For も付ける（このテストの主眼は「起動する」ことであり、
+    // クライアント鍵の検査は tests/fail-closed.test.ts が別途見る）。
+    const client = await raw(server.port, {
+      origin: 'https://ok.example',
+      forwardedFor: '203.0.113.9',
+    });
     client.send({ type: 'create-room', name: 'たろう' });
     expect(await client.nextText()).toMatchObject({ type: 'joined' });
   });

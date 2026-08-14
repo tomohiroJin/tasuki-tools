@@ -81,6 +81,9 @@ importers:
       '@tasuki/poker-core':
         specifier: workspace:*
         version: link:../../packages/poker-core
+      '@tasuki/rate-limit':
+        specifier: workspace:*
+        version: link:../../packages/rate-limit
       neverthrow:
         specifier: ^8.2.0
         version: 8.2.0

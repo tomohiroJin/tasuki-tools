@@ -17,6 +17,8 @@ import {
   type Room,
   type RoundError,
 } from '@tasuki/poker-core';
+import { createClientKeyDeriver } from '@tasuki/rate-limit';
+import { randomBytes } from 'node:crypto';
 import {
   broadcast,
   dropIfEmpty,
@@ -31,6 +33,12 @@ import { loadPokerSyncConfig } from './config';
 const config = loadPokerSyncConfig(process.env);
 
 /**
+ * レート制限の相関ソルト。プロセス起動ごとに 1 度だけ生成し、env にも設定にも置かない
+ * （ADR 0012 D3）。
+ */
+const deriveClientKey = createClientKeyDeriver(randomBytes(32));
+
+/**
  * 接続ごとの状態。join 後に participantId / roomId が入る。
  *
  * `connId` は Origin / 接続数の検査を通ってから採番するため、それまでは空文字。
@@ -41,6 +49,10 @@ export interface ConnectionData {
   roomId: string | null;
   connId: string;
   origin: string;
+  /** X-Forwarded-For から導いた鍵。特定できなければ null。 */
+  clientKey: string | null;
+  /** レート制限の鍵。`connId` と同じく、受理されるまでは空文字。 */
+  rateKey: string;
 }
 
 /** 受理済みの接続。同時接続数の上限と死活監視の対象になる（Issue #63） */
@@ -224,6 +236,14 @@ function dispatch(ws: Ws, msg: ClientMessage): void {
  * 届かない。通してから閉じることで理由を伝えられる。
  */
 function handleOpen(ws: Ws): void {
+  // クライアント鍵の検査は Origin より前に置く（どちらも 1008 で、reason でしか区別できない）。
+  if (config.requireClientAddress && ws.data.clientKey === null) {
+    // 列挙値だけを出す。生の IP・Origin の値・鍵・XFF の値は載せない（ADR 0012 D3）。
+    console.log(JSON.stringify({ event: 'conn-rejected', reason: 'client-address' })); // log-hygiene:allow 列挙値のみ
+    ws.close(1008, 'Client address required');
+    return;
+  }
+
   if (config.allowedOrigins.length > 0 && !config.allowedOrigins.includes(ws.data.origin)) {
     ws.close(1008, 'Origin not allowed');
     return;
@@ -236,6 +256,7 @@ function handleOpen(ws: Ws): void {
 
   const connId = `conn-${++connCounter}`;
   ws.data.connId = connId;
+  ws.data.rateKey = ws.data.clientKey ?? connId;
   connections.set(connId, ws);
   missedPongs.set(connId, 0);
 }
@@ -306,6 +327,9 @@ const server = Bun.serve<ConnectionData, never>({
           roomId: null,
           connId: '',
           origin: req.headers.get('origin') ?? '',
+          // **鍵はここで作る。** 生の IP をこの行より先へ持ち出さない（ADR 0012 D3）。
+          clientKey: deriveClientKey(req.headers.get('x-forwarded-for') ?? undefined),
+          rateKey: '',
         } satisfies ConnectionData,
       });
       if (upgraded) return undefined;
