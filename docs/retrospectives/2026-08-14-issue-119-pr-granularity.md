@@ -157,9 +157,9 @@ Constitution Check ゲートを実際に設けた。全体の空文化そのも�
 ### `check-links` は git 追跡下のファイルしか走査しない
 
 **何が緑だったか**: `scripts/check-links.mjs` は走査対象・存在判定のいずれも
-`git ls-files`（`trackedPaths()`、238〜243 行目・`main()` 内 250 行目の
+`git ls-files`（`trackedPaths()`、234〜243 行目・`main()` 内 250 行目の
 `gitList(["ls-files", "*.md"])`）に基づく。**この設計自体は意図的**で、
-217〜223 行目のコメントに理由が明記されている（gitignore 対象のファイルが手元には
+225〜233 行目のコメントに理由が明記されている（gitignore 対象のファイルが手元には
 あって CI のフレッシュな checkout には無いため、ファイルシステムを見ると
 ローカルと CI で結果が食い違う。PR-2 の初回 CI で実際に踏んだ）。
 

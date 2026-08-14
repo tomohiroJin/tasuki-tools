@@ -654,7 +654,7 @@ git push
 
 本作業で見つかった「検査が静かに効かなくなる経路」2 件を #135 へ記録する。
 
-1. `check-links` は git 追跡下のファイルしか走査しない（`scripts/check-links.mjs:216-220`）。
+1. `check-links` は git 追跡下のファイルしか走査しない（`scripts/check-links.mjs` の `trackedPaths()` 234〜243 行目）。
    未追跡の新規文書はローカル検査で何を壊しても緑になる。CI は影響を受けない
 2. 憲法 Governance の「すべての plan は Constitution Check ゲートを通過しなければならない」が
    実運用で空文化している（`docs/superpowers/` で 4 件のみ。#136 の plan にも無い）。
