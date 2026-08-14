@@ -162,30 +162,45 @@ git add docs/guides/pr-granularity.md
 node scripts/check-links.mjs
 ```
 
-期待: `リンク検査 OK（走査 N+1 ファイル）`
-**走査数が基準値 N のままなら `git add` が効いていない。** 先に進まず原因を確かめる。
+期待: **走査 N+1 ファイル**になり、**次の 1 件だけ**が報告される。
+
+```
+docs/guides/pr-granularity.md:N 参照先がありません → ../adr/0013-pr-granularity.md
+```
+
+**これは正しい状態。** ガイドが Task 2 で作る ADR 0013 を先に参照しているため。
+Task 2 の完了で緑へ戻る。
+
+- **走査数が基準値 N のままなら `git add` が効いていない。** 先に進まず原因を確かめる
+- **緑になった場合も止まる。** ガイドから ADR 0013 へのリンクが書けていない
+- **上記以外の指摘が出た場合も止まる。** 直してから進む
 
 - [ ] **Step 4: 破壊検証（この文書が本当に検査対象に乗ったか）**
+
+Step 3 の時点で ADR 0013 待ちの 1 件が出ている。**壊すとそれが 2 件に増える**ことを見る。
 
 ```bash
 cp docs/guides/pr-granularity.md /tmp/pr-granularity.bak
 sed -i 's|(../adr/0002-document-system-three-layers.md)|(../adr/9999-nope.md)|' docs/guides/pr-granularity.md
+grep -c '9999-nope' docs/guides/pr-granularity.md
+```
+
+**まず `grep -c` が 1 以上であることを確認する。** 0 なら sed が空振りしており、
+この後の検査結果には意味がない（本計画の作成中に 2 度踏んだ空振り）。
+
+```bash
 node scripts/check-links.mjs
 ```
 
-期待: **失敗**。`docs/guides/pr-granularity.md:N 参照先がありません → ../adr/9999-nope.md`
+期待: **2 件**の問題。`../adr/0013-pr-granularity.md`（Step 3 から継続）と
+`../adr/9999-nope.md`（いま壊した分）。
 
 ```bash
 cp /tmp/pr-granularity.bak docs/guides/pr-granularity.md
 node scripts/check-links.mjs
 ```
 
-期待: 走査 N+1 ファイルに戻る（ADR 0013 待ちの 1 件を除いて緑）
-
-> ADR 0013 はまだ存在しないため、Step 3 の時点でガイドから `../adr/0013-pr-granularity.md`
-> へのリンクが切れる。**Task 2 まで一時的に赤になるのが正しい。** Step 3 で
-> `0013-pr-granularity.md` の 1 件だけが報告される場合はそのまま進み、Task 2 の完了後に
-> 緑へ戻ることを確認する。それ以外の指摘が出た場合は止まって直す。
+期待: **1 件**へ戻る（ADR 0013 待ちの分のみ）。
 
 - [ ] **Step 5: コミット**
 
@@ -395,19 +410,29 @@ node scripts/check-links.mjs
 
 憲法からガイドへの新リンクが検査に乗っていることを壊して確かめる。
 
+**この検証が成立することは着手前に実測済み。** 憲法 `.specify/memory/constitution.md` は
+`scripts/check-links.mjs` の `LIVE_DOCS` に `".specify/memory/"` として含まれ、
+**バッククォート内の拡張子つきパス**は検査される（存在しないガイド名を書いて
+`実在しないパスです` が出ることを確認した）。
+
 ```bash
 cp .specify/memory/constitution.md /tmp/constitution.bak
-sed -i 's|`docs/guides/pr-granularity.md` を正本とする|`docs/guides/nope-granularity.md` を正本とする|' .specify/memory/constitution.md
+sed -i 's|`docs/guides/pr-granularity.md`|`docs/guides/nope-granularity.md`|' .specify/memory/constitution.md
+grep -c 'nope-granularity' .specify/memory/constitution.md
+```
+
+**まず `grep -c` が 1 であることを確認する。** 0 なら sed が空振りしている。
+
+```bash
 node scripts/check-links.mjs
 ```
 
-期待: **失敗**し、`docs/guides/nope-granularity.md` が報告される。
+期待: **失敗**。`.specify/memory/constitution.md:N 実在しないパスです → \`docs/guides/nope-granularity.md\``
 
-> **緑のままだった場合**、憲法内のバッククォート表記が `check-links` の検査対象に
-> なっていない可能性がある（過去に「バッククォート内パスを見ない」不具合があった。
-> roadmap の教訓 17）。その場合は**壊し方を変えて再試行する**（Markdown リンク記法
-> `[...](...)` で書いてから壊す）。それでも緑なら、憲法からの参照が検査されていない
-> ことを **#135 への申し送りに追加**し、本 Task では Step 6 の照合をもって検証とする。
+> **注意（着手前に確認した落とし穴）**: 憲法には `docs/adr/0002` のような**拡張子なし**の
+> パス表記が 6 箇所あるが、これらは `isRepoPathLike` に合致せず**検査されない**。
+> 拡張子なしの表記を壊して緑を見ても、それは検査が効いていない証拠にはならない。
+> 必ず**拡張子つきの表記**（`docs/guides/pr-granularity.md`）を壊すこと。
 
 ```bash
 cp /tmp/constitution.bak .specify/memory/constitution.md
@@ -633,6 +658,10 @@ git push
 2. 憲法 Governance の「すべての plan は Constitution Check ゲートを通過しなければならない」が
    実運用で空文化している（`docs/superpowers/` で 4 件のみ。#136 の plan にも無い）。
    検査が存在しないため誰も気づかない
+3. `check-links` のコードパス検査は**拡張子つきのパス表記しか見ない**
+   （`scripts/check-links.mjs` の `isRepoPathLike`）。憲法には `docs/adr/0002` のような
+   拡張子なしの表記が 6 箇所あり、**これらは検査されない**。現時点では実在するので
+   無害だが、ADR がリネーム・統合されると静かに壊れる
 
 - [ ] **Step 5: Issue #119 の完了条件を確認してクローズする**
 
