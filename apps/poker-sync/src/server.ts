@@ -34,6 +34,8 @@ import {
   type RoomEntry,
 } from './rooms';
 import { loadPokerSyncConfig } from './config';
+import { deriveClientKeySafely } from './client-key-safety';
+import { buildListeningLogFields } from './listening-log';
 
 const config = loadPokerSyncConfig(process.env);
 
@@ -286,6 +288,10 @@ function handleOpen(ws: Ws): void {
   }
 
   if (config.allowedOrigins.length > 0 && !config.allowedOrigins.includes(ws.data.origin)) {
+    // 列挙値だけを出す（S-4）。Origin の値そのものは載せない（ADR 0012 D3）。
+    // これが無いと、運用者は client-address 拒否と Origin 拒否を journal だけでは
+    // 区別できず、Caddy 側の Origin ヘッダ転送が壊れても気づけない。
+    console.log(JSON.stringify({ event: 'conn-rejected', reason: 'origin' })); // log-hygiene:allow 列挙値のみ
     ws.close(1008, 'Origin not allowed');
     return;
   }
@@ -369,7 +375,15 @@ const server = Bun.serve<ConnectionData, never>({
           connId: '',
           origin: req.headers.get('origin') ?? '',
           // **鍵はここで作る。** 生の IP をこの行より先へ持ち出さない（ADR 0012 D3）。
-          clientKey: deriveClientKey(req.headers.get('x-forwarded-for') ?? undefined),
+          // deriveClientKey 自体は try/catch なしで呼ばない（S-2）。throw すると
+          // 例外メッセージ（XFF を含みうる）がそのまま stderr に出る（Bun 1.3.14 実測）。
+          clientKey: deriveClientKeySafely(
+            deriveClientKey,
+            req.headers.get('x-forwarded-for') ?? undefined,
+            (name) => {
+              console.log(JSON.stringify({ event: 'derive-client-key-error', name })); // log-hygiene:allow 例外の分類のみ
+            },
+          ),
           rateKey: '',
         } satisfies ConnectionData,
       });
@@ -404,4 +418,9 @@ startHeartbeat();
 
 // この 1 行は tests/helpers.ts が JSON.parse して実ポートを受け取る機械可読な契約である。
 // 形式を変えると poker-sync のテストが全滅する（helpers.ts が '"listening"' を含む行を探す）。
-console.log(JSON.stringify({ event: 'listening', port: server.port })); // log-hygiene:allow テストハーネスとの契約
+// port は buildListeningLogFields にも含まれるが、実際に bind したポート
+// （server.port。PORT=0 起動時は config.port ではなくこちらが正しい値。unix ソケット起動は
+// 使わないため undefined にはならない想定だが、型は number | undefined なので ?? 0 で守る）
+// を渡す（S-3）。
+const actualPort = server.port ?? 0;
+console.log(JSON.stringify({ event: 'listening', ...buildListeningLogFields(config, actualPort) })); // log-hygiene:allow テストハーネスとの契約
