@@ -6,6 +6,7 @@ export {
   createTokenBucketLimiter,
   DEFAULT_CAPACITY,
   DEFAULT_REFILL_PER_SEC,
+  DEFAULT_SWEEP_THRESHOLD,
   type RateLimiter,
   type TokenBucketOptions,
 } from "./token-bucket.js";

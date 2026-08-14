@@ -8,6 +8,7 @@ import {
   createTokenBucketLimiter,
   DEFAULT_CAPACITY,
   DEFAULT_REFILL_PER_SEC,
+  DEFAULT_SWEEP_THRESHOLD,
 } from "../src/index.js";
 
 const T0 = 1_000_000;
@@ -271,6 +272,162 @@ describe("createTokenBucketLimiter", () => {
 
     it("DEFAULT_REFILL_PER_SEC は 1 で固定（D2 の MUST）", () => {
       expect(DEFAULT_REFILL_PER_SEC).toBe(1);
+    });
+
+    it("DEFAULT_SWEEP_THRESHOLD は 1000 で固定（D4 の既定値）", () => {
+      expect(DEFAULT_SWEEP_THRESHOLD).toBe(1_000);
+    });
+  });
+
+  describe("設定の検査（I-1: sweepThreshold）", () => {
+    it("sweepThreshold が非有限（Infinity）なら throw する", () => {
+      expect(() =>
+        createTokenBucketLimiter({ capacity: 60, refillPerSec: 1, sweepThreshold: Number.POSITIVE_INFINITY }),
+      ).toThrow();
+    });
+
+    it("sweepThreshold が非有限（NaN）なら throw する", () => {
+      expect(() => createTokenBucketLimiter({ capacity: 60, refillPerSec: 1, sweepThreshold: NaN })).toThrow();
+    });
+
+    it("sweepThreshold が負なら throw する", () => {
+      expect(() => createTokenBucketLimiter({ capacity: 60, refillPerSec: 1, sweepThreshold: -1 })).toThrow();
+    });
+
+    it("sweepThreshold が数値でない（\"0\"）なら throw する", () => {
+      expect(() =>
+        createTokenBucketLimiter({
+          capacity: 60,
+          refillPerSec: 1,
+          sweepThreshold: "0" as unknown as number,
+        }),
+      ).toThrow();
+    });
+
+    it("sweepThreshold が 0 なら通る（有限かつ 0 以上なので有効な設定）", () => {
+      expect(() => createTokenBucketLimiter({ capacity: 60, refillPerSec: 1, sweepThreshold: 0 })).not.toThrow();
+    });
+  });
+
+  describe("設定の検査（I-2: 導出値 refillFullMs）", () => {
+    it("capacity=60・refillPerSec=1e-320 は refillFullMs が Infinity になるので throw する", () => {
+      expect(() => createTokenBucketLimiter({ capacity: 60, refillPerSec: 1e-320 })).toThrow();
+    });
+
+    it("capacity=1e306・refillPerSec=1 は refillFullMs が Infinity になるので throw する", () => {
+      expect(() => createTokenBucketLimiter({ capacity: 1e306, refillPerSec: 1 })).toThrow();
+    });
+
+    it("capacity=5e-324・refillPerSec=1e308 は refillFullMs が 0 になるので throw する", () => {
+      expect(() => createTokenBucketLimiter({ capacity: 5e-324, refillPerSec: 1e308 })).toThrow();
+    });
+
+    it("throw のメッセージに capacity と refillPerSec の両方の値が含まれる", () => {
+      expect(() => createTokenBucketLimiter({ capacity: 1e306, refillPerSec: 1 })).toThrow(/1e\+306/);
+    });
+  });
+
+  describe("掃除の間隔の再発検知（I-3: 時計の往復で全走査が毎回走らない）", () => {
+    it("前方への時計飛びの後、通常の now が続いても全走査は毎回は走らない", () => {
+      const limiter = createTokenBucketLimiter({ capacity: 2, refillPerSec: 1, sweepThreshold: 1 });
+      limiter.consume("seed", T0);
+      limiter.consume("seed2", T0); // size=2 > threshold(1) → 初回の掃除が走る
+      expect(limiter.sweepRunCount()).toBe(1);
+
+      // 前方へ大きく飛んだ時刻で直接 sweep（例: 手動運用）。lastSweepAt が未来へ飛ぶ
+      limiter.sweep(T0 + 1_000_000);
+      expect(limiter.sweepRunCount()).toBe(2);
+
+      // 時計が現実的な値へ戻り、その後わずかずつ前進する（refillFullMs=2000ms未満の間隔）。
+      // 締めていなければ、未来に固定された lastSweepAt との差が大きいまま残り続け、
+      // 間隔条件が常に成立して 1,000 回とも全走査が走ってしまう。
+      for (let i = 0; i < 1_000; i++) {
+        limiter.consume(`k${i}`, T0 + 2_000 + i);
+      }
+      expect(limiter.sweepRunCount()).toBeLessThan(10);
+    });
+
+    it("now が refillFullMs 超の振幅で往復し続けても、全走査が毎回は走らない", () => {
+      // capacity 2 / refill 1 なので refillFullMs は 2000ms。前方(未来)と後方(現実的な値)を
+      // 振幅 998,000ms（refillFullMs を大きく超える）で 5,000 回往復させる。
+      // Math.abs による誤った間隔判定では、往復のたびに差の絶対値が refillFullMs を
+      // 超え続けるため、5,000 回全部で全走査が走る（実測: 修正前 5,000 回）。
+      // 締めていれば、後方へ振れた回では「時計リセット」として基準点を引き戻すだけで
+      // 全走査はしないので、往復回数よりはっきり少なくなる（実測: 修正後 2,501 回）。
+      const limiter = createTokenBucketLimiter({ capacity: 2, refillPerSec: 1, sweepThreshold: 1 });
+      limiter.consume("seed", T0);
+      limiter.consume("seed2", T0);
+      limiter.sweep(T0 + 1_000_000); // lastSweepAt を未来へ飛ばす
+
+      const runsBeforeOscillation = limiter.sweepRunCount();
+      const iterations = 5_000;
+      for (let i = 0; i < iterations; i++) {
+        const now = i % 2 === 0 ? T0 + 2_000 : T0 + 1_000_000;
+        limiter.consume(`k${i}`, now);
+      }
+      const runsDuringOscillation = limiter.sweepRunCount() - runsBeforeOscillation;
+      // 締めていなければ 5,000（往復回数と同数）になる。締めていれば明確に少ない。
+      expect(runsDuringOscillation).toBeLessThan(iterations / 2 + 100);
+    });
+  });
+
+  describe("単調性ガードの再発検知（I-4: 前方への時計飛びで永久凍結しない）", () => {
+    it("100 年先の now で 1 回 consume した後、通常の now が続けば補充が再開する", () => {
+      const limiter = createTokenBucketLimiter({ capacity: 60, refillPerSec: 1 });
+      const farFuture = T0 + 100 * 365 * 24 * 60 * 60 * 1_000;
+      limiter.consume("k", farFuture); // 時計が壊れて大きく前方へ飛んだケースを模す
+
+      let passed = 0;
+      for (let s = 1; s <= 100_000; s++) {
+        const now = T0 + s * 1_000;
+        if (!limiter.shouldReject("k", now)) {
+          limiter.consume("k", now);
+          passed++;
+        }
+      }
+      // 修正前は残 59（capacity 60 から 1 消費した分）で頭打ちになり、以後 1 件も通らない。
+      // 修正後は毎秒 1 個補充されるので、ほぼ全件（10 万件）通る。
+      expect(passed).toBeGreaterThan(99_000);
+    });
+
+    it("時計リセットの検知が確定した後は、エントリも不滅にならず掃除で回収される", () => {
+      const limiter = createTokenBucketLimiter({ capacity: 2, refillPerSec: 1 });
+      const farFuture = T0 + 1_000_000_000;
+      limiter.consume("k", farFuture); // 1 回目の観測（単発なのでまだ確定しない）
+      limiter.shouldReject("k", T0 + 100); // 2 回目の近い観測 → 基準点が確定する
+      limiter.consume("k", T0 + 200); // 確定した基準点との比較で時計リセットと判定し、満タン扱いから再出発
+      // refillFullMs(2000ms) 経過後は満タンに回復しているので、掃除で消える
+      // （凍結したまま不滅にはならない）
+      limiter.sweep(T0 + 200 + 2_000);
+      expect(limiter.size()).toBe(0);
+    });
+  });
+
+  describe("key の異常値（Minor 1）", () => {
+    it("shouldReject は文字列以外の key を拒否側へ倒す", () => {
+      const limiter = createTokenBucketLimiter({ capacity: 3, refillPerSec: 1 });
+      expect(limiter.shouldReject(undefined as unknown as string, T0)).toBe(true);
+      expect(limiter.shouldReject(null as unknown as string, T0)).toBe(true);
+      expect(limiter.shouldReject(0 as unknown as string, T0)).toBe(true);
+      expect(limiter.shouldReject({} as unknown as string, T0)).toBe(true);
+      expect(limiter.shouldReject(Symbol("k") as unknown as string, T0)).toBe(true);
+      expect(limiter.shouldReject(NaN as unknown as string, T0)).toBe(true);
+    });
+
+    it("consume は文字列以外の key では状態を書き換えない", () => {
+      const limiter = createTokenBucketLimiter({ capacity: 3, refillPerSec: 1 });
+      limiter.consume(undefined as unknown as string, T0);
+      limiter.consume(null as unknown as string, T0);
+      limiter.consume(0 as unknown as string, T0);
+      limiter.consume({} as unknown as string, T0);
+      expect(limiter.size()).toBe(0);
+    });
+
+    it("空文字は正当な key として扱う（文字列型なので個別に弾かない）", () => {
+      const limiter = createTokenBucketLimiter({ capacity: 1, refillPerSec: 1 });
+      expect(limiter.shouldReject("", T0)).toBe(false);
+      limiter.consume("", T0);
+      expect(limiter.shouldReject("", T0)).toBe(true);
     });
   });
 });
