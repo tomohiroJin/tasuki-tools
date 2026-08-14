@@ -9,6 +9,7 @@ import {
   DEFAULT_CAPACITY,
   DEFAULT_REFILL_PER_SEC,
   DEFAULT_SWEEP_THRESHOLD,
+  MAX_SWEEP_THRESHOLD,
 } from "../src/index.js";
 
 const T0 = 1_000_000;
@@ -146,6 +147,30 @@ describe("createTokenBucketLimiter", () => {
       expect(limiter.shouldReject("k", T0 + 6_000)).toBe(false); // 1 秒後には回復
     });
 
+    it("shouldReject は共有状態にも副作用を持たない（別の鍵への照会を挟んでも通過件数が同じ）", () => {
+      // バケツの残量しか見ないテストでは、鍵をまたいで共有される内部状態（基準時刻）を
+      // 照会が書き換えていても検出できない。実際、前ラウンドの実装は shouldReject が
+      // 共有の基準点を進めており、そのせいで D3 の呼び出し順が壊れていた。
+      // ここでは「対象の鍵の通過件数」が、別の鍵への照会を挟んでも変わらないことを見る。
+      const passesWith = (interleaveOtherKey: boolean): number => {
+        const limiter = createTokenBucketLimiter({ capacity: 60, refillPerSec: 1 });
+        for (let i = 0; i < 60; i++) limiter.consume("k", T0); // 使い切る
+        let passed = 0;
+        // 100ms 刻みで進めるので、補充は 10 回に 1 回しか 1 トークンに届かない。
+        for (let s = 1; s <= 2_000; s++) {
+          const now = T0 + s * 100;
+          // 別の鍵に対する照会。純粋な照会なら、対象の鍵の結果に一切影響しない。
+          if (interleaveOtherKey) limiter.shouldReject("別の鍵", now + 3_600_000);
+          if (!limiter.shouldReject("k", now)) {
+            limiter.consume("k", now);
+            passed++;
+          }
+        }
+        return passed;
+      };
+      expect(passesWith(true)).toBe(passesWith(false));
+    });
+
     it("V4: 失敗 1 回だけの利用者が、時計の巻き戻りで締め出されない", () => {
       // capacity 60 / refill 1。1 回だけ失敗した無実の利用者（残 59）を想定する。
       const limiter = createTokenBucketLimiter({ capacity: 60, refillPerSec: 1 });
@@ -263,6 +288,22 @@ describe("createTokenBucketLimiter", () => {
       ).toThrow();
       expect(() => createTokenBucketLimiter({ capacity: NaN, refillPerSec: 1 })).toThrow();
     });
+
+    it("capacity が 1 未満（0 < capacity < 1）なら throw する", () => {
+      // 容量が 1 未満だと満タンでも残量が 1 に届かず、一度失敗した鍵は補充が終わっても
+      // 永久に拒否され続ける（実測: capacity 0.5 で 1 回失敗した鍵はその後 1 件も通らない）。
+      expect(() => createTokenBucketLimiter({ capacity: 0.5, refillPerSec: 1 })).toThrow();
+      expect(() => createTokenBucketLimiter({ capacity: 0.999_999, refillPerSec: 1 })).toThrow();
+      expect(() => createTokenBucketLimiter({ capacity: 5e-324, refillPerSec: 1 })).toThrow();
+    });
+
+    it("capacity が 1 ちょうどなら通る（下限は 1 を含む）", () => {
+      const limiter = createTokenBucketLimiter({ capacity: 1, refillPerSec: 1 });
+      expect(limiter.shouldReject("k", T0)).toBe(false);
+      limiter.consume("k", T0);
+      expect(limiter.shouldReject("k", T0)).toBe(true);
+      expect(limiter.shouldReject("k", T0 + 1_000)).toBe(false); // 補充されれば再び通る
+    });
   });
 
   describe("既定閾値の固定（R1・設計正本 D2）", () => {
@@ -276,6 +317,10 @@ describe("createTokenBucketLimiter", () => {
 
     it("DEFAULT_SWEEP_THRESHOLD は 1000 で固定（D4 の既定値）", () => {
       expect(DEFAULT_SWEEP_THRESHOLD).toBe(1_000);
+    });
+
+    it("MAX_SWEEP_THRESHOLD は 1,000,000 で固定（D4 の上限値）", () => {
+      expect(MAX_SWEEP_THRESHOLD).toBe(1_000_000);
     });
   });
 
@@ -307,6 +352,24 @@ describe("createTokenBucketLimiter", () => {
     it("sweepThreshold が 0 なら通る（有限かつ 0 以上なので有効な設定）", () => {
       expect(() => createTokenBucketLimiter({ capacity: 60, refillPerSec: 1, sweepThreshold: 0 })).not.toThrow();
     });
+
+    it("sweepThreshold が上限超（有限でも巨大）なら throw する", () => {
+      // 有限であっても到達不能に大きい値は、自動の掃除を完全に殺す（実測:
+      // Number.MAX_VALUE で 5 万件を保持したまま掃除が 0 回）。非有限を throw で弾いて
+      // おきながら同じ結末を別の入口から許さない。
+      expect(() =>
+        createTokenBucketLimiter({ capacity: 60, refillPerSec: 1, sweepThreshold: Number.MAX_VALUE }),
+      ).toThrow();
+      expect(() =>
+        createTokenBucketLimiter({ capacity: 60, refillPerSec: 1, sweepThreshold: MAX_SWEEP_THRESHOLD + 1 }),
+      ).toThrow();
+    });
+
+    it("sweepThreshold が上限ちょうどなら通る", () => {
+      expect(() =>
+        createTokenBucketLimiter({ capacity: 60, refillPerSec: 1, sweepThreshold: MAX_SWEEP_THRESHOLD }),
+      ).not.toThrow();
+    });
   });
 
   describe("設定の検査（I-2: 導出値 refillFullMs）", () => {
@@ -318,7 +381,10 @@ describe("createTokenBucketLimiter", () => {
       expect(() => createTokenBucketLimiter({ capacity: 1e306, refillPerSec: 1 })).toThrow();
     });
 
-    it("capacity=5e-324・refillPerSec=1e308 は refillFullMs が 0 になるので throw する", () => {
+    it("capacity=5e-324・refillPerSec=1e308 のような潰れた組み合わせも throw する", () => {
+      // この組み合わせは refillFullMs が 0 になるアンダーフロー例だが、capacity >= 1 の
+      // 要求が入った今は capacity 側で先に弾かれる。導出値側の `<= 0` 判定は、将来
+      // capacity の下限を緩めたときに静かに壊れないための保険として残してある。
       expect(() => createTokenBucketLimiter({ capacity: 5e-324, refillPerSec: 1e308 })).toThrow();
     });
 
@@ -347,35 +413,52 @@ describe("createTokenBucketLimiter", () => {
       expect(limiter.sweepRunCount()).toBeLessThan(10);
     });
 
-    it("now が refillFullMs 超の振幅で往復し続けても、全走査が毎回は走らない", () => {
-      // capacity 2 / refill 1 なので refillFullMs は 2000ms。前方(未来)と後方(現実的な値)を
+    it("now が refillFullMs 超の振幅で往復し続けても、全走査は基準時刻の前進ぶんに収まる", () => {
+      // capacity 2 / refill 1 なので refillFullMs は 2,000ms。前方(未来)と後方(現実的な値)を
       // 振幅 998,000ms（refillFullMs を大きく超える）で 5,000 回往復させる。
-      // Math.abs による誤った間隔判定では、往復のたびに差の絶対値が refillFullMs を
-      // 超え続けるため、5,000 回全部で全走査が走る（実測: 修正前 5,000 回）。
-      // 締めていれば、後方へ振れた回では「時計リセット」として基準点を引き戻すだけで
-      // 全走査はしないので、往復回数よりはっきり少なくなる（実測: 修正後 2,501 回）。
+      //
+      // 判定の根拠は D4 の MUST そのもの:「全走査は最悪でも refillFullMs に 1 回」。
+      // 基準時刻は 1 回の呼び出しで最大 refillFullMs しか進まず、かつ実時刻 now を
+      // 追い越さない。往復の上端は T0 + 1,000,000、下端は T0 + 2,000 なので、
+      // この 5,000 回で基準時刻が進みうる幅は 998,000ms = refillFullMs の 499 個ぶん。
+      // よって全走査は 499 回を超えられない。
+      //
+      // 上限（now - clock）を外すと基準時刻が実時刻を追い越して前進し続け、往復のたびに
+      // 間隔条件が成立して 2,500 回走る。この判定はそれを落とす。
       const limiter = createTokenBucketLimiter({ capacity: 2, refillPerSec: 1, sweepThreshold: 1 });
       limiter.consume("seed", T0);
       limiter.consume("seed2", T0);
-      limiter.sweep(T0 + 1_000_000); // lastSweepAt を未来へ飛ばす
+      limiter.sweep(T0 + 1_000_000); // lastSweepAt を未来（に見える now）で更新する
 
       const runsBeforeOscillation = limiter.sweepRunCount();
       const iterations = 5_000;
+      const swingMs = 998_000;
+      const refillFullMs = 2_000;
       for (let i = 0; i < iterations; i++) {
         const now = i % 2 === 0 ? T0 + 2_000 : T0 + 1_000_000;
         limiter.consume(`k${i}`, now);
       }
       const runsDuringOscillation = limiter.sweepRunCount() - runsBeforeOscillation;
-      // 締めていなければ 5,000（往復回数と同数）になる。締めていれば明確に少ない。
-      expect(runsDuringOscillation).toBeLessThan(iterations / 2 + 100);
+      expect(runsDuringOscillation).toBeLessThanOrEqual(swingMs / refillFullMs);
     });
   });
 
   describe("単調性ガードの再発検知（I-4: 前方への時計飛びで永久凍結しない）", () => {
-    it("100 年先の now で 1 回 consume した後、通常の now が続けば補充が再開する", () => {
+    it("D3 の呼び出し順（shouldReject → consume）でも、100 年先の now 1 回で凍結しない", () => {
+      // **この順序で書くことが要点。** D3 は shouldReject(k, t) → consume(k, t) を要求するので、
+      // 実運用では同じ now が 2 回観測される。consume を単発で呼ぶテストは実経路を通っておらず、
+      // 「照会でも基準点を進める」実装の穴（単発の異常値が自分自身を裏付けとして認証する）を
+      // 見逃した（実測: 単発呼びで 100,000 件・D3 の順で 59 件）。
       const limiter = createTokenBucketLimiter({ capacity: 60, refillPerSec: 1 });
+      // 稼働中の制限器を模す。コールドスタート（比較する基準が無い）とは別の残余なので、
+      // 先に正常な now を 1 往復通して基準時刻を確立しておく。
+      limiter.shouldReject("k", T0);
+      limiter.consume("k", T0);
+
+      // 時計が壊れて大きく前方へ飛んだ 1 回。D3 の順で呼ぶ。
       const farFuture = T0 + 100 * 365 * 24 * 60 * 60 * 1_000;
-      limiter.consume("k", farFuture); // 時計が壊れて大きく前方へ飛んだケースを模す
+      limiter.shouldReject("k", farFuture);
+      limiter.consume("k", farFuture);
 
       let passed = 0;
       for (let s = 1; s <= 100_000; s++) {
@@ -385,21 +468,60 @@ describe("createTokenBucketLimiter", () => {
           passed++;
         }
       }
-      // 修正前は残 59（capacity 60 から 1 消費した分）で頭打ちになり、以後 1 件も通らない。
-      // 修正後は毎秒 1 個補充されるので、ほぼ全件（10 万件）通る。
+      // 凍結していれば残量ぶん（59 件前後）で頭打ちになる。凍結していなければ毎秒 1 個
+      // 補充されるので、ほぼ全件（10 万件）通る。
       expect(passed).toBeGreaterThan(99_000);
     });
 
-    it("時計リセットの検知が確定した後は、エントリも不滅にならず掃除で回収される", () => {
+    it("前方へ飛んだ now で書かれたエントリも、通常の now が続けば掃除で回収される", () => {
       const limiter = createTokenBucketLimiter({ capacity: 2, refillPerSec: 1 });
-      const farFuture = T0 + 1_000_000_000;
-      limiter.consume("k", farFuture); // 1 回目の観測（単発なのでまだ確定しない）
-      limiter.shouldReject("k", T0 + 100); // 2 回目の近い観測 → 基準点が確定する
-      limiter.consume("k", T0 + 200); // 確定した基準点との比較で時計リセットと判定し、満タン扱いから再出発
-      // refillFullMs(2000ms) 経過後は満タンに回復しているので、掃除で消える
-      // （凍結したまま不滅にはならない）
-      limiter.sweep(T0 + 200 + 2_000);
+      limiter.consume("k", T0); // 稼働中の基準時刻を作る
+      limiter.consume("k", T0 + 1_000_000_000); // 前方へ大きく飛んだ 1 回
+
+      // 基準時刻は前方へ飛ばず、通常の now が続けば前進する。エントリは満タンへ回復し、
+      // 掃除で消える（凍結したまま不滅にはならない）。
+      for (let s = 1; s <= 10; s++) limiter.sweep(T0 + s * 1_000);
       expect(limiter.size()).toBe(0);
+    });
+
+    it("同じ未来の now を繰り返し渡してもバースト枠は還付されない（実経過で締める）", () => {
+      // refillFullMs = 60,000ms。壊れた時計が同じ未来の値を返し続けても、実時間は
+      // 1ms も経っていない。基準時刻が進んでよいのは最初の 1 回の「満タン 1 杯」ぶんだけで、
+      // 呼ぶたびに満タンへ戻ってはいけない。
+      const limiter = createTokenBucketLimiter({ capacity: 60, refillPerSec: 1 });
+      limiter.consume("k", T0); // 稼働中の基準時刻を作る
+      const farFuture = T0 + 1_000_000_000;
+      let passed = 0;
+      for (let i = 0; i < 200; i++) {
+        if (!limiter.shouldReject("k", farFuture)) {
+          limiter.consume("k", farFuture);
+          passed++;
+        }
+      }
+      // 1 回だけ満タン（60 個）へ回復し、そこから使い切って止まる。
+      // 締めていなければ呼ぶたびに満タンへ戻り、200 件すべて通ってしまう。
+      expect(passed).toBe(60);
+    });
+
+    it("残余: コールドスタート（1 回目の呼び出しが壊れた時計）では凍結する（意図した残余）", () => {
+      // 比較する基準がまだ存在しないため、この 1 回目の値がそのまま基準時刻になる。
+      // これは設計正本 D4 に明記した既知の残余であり、バグではない。
+      // （旧方式の残余の真部分集合。旧方式は稼働中でも D3 の順で凍結した。）
+      const limiter = createTokenBucketLimiter({ capacity: 60, refillPerSec: 1 });
+      const farFuture = T0 + 100 * 365 * 24 * 60 * 60 * 1_000;
+      limiter.shouldReject("k", farFuture);
+      limiter.consume("k", farFuture);
+
+      let passed = 0;
+      for (let s = 1; s <= 1_000; s++) {
+        const now = T0 + s * 1_000;
+        if (!limiter.shouldReject("k", now)) {
+          limiter.consume("k", now);
+          passed++;
+        }
+      }
+      // 残っていた 59 個を使い切ったところで止まる（補充は再開しない）。
+      expect(passed).toBe(59);
     });
   });
 

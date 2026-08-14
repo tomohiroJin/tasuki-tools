@@ -17,6 +17,11 @@
  * あるのは、この順序を呼び出し側が選べないようにするためではなく、
  * **順序を明示的に書かせるため**である（設計正本 D3）。
  *
+ * `shouldReject` は**純粋な照会**であり、状態を一切書き換えない（設計正本 D4）。
+ * D3 の順序では同じ `now` が `shouldReject` と `consume` の 2 回観測されるため、
+ * 「照会でも状態を進める」設計にすると、単発の異常な `now` が自分自身を裏付けとして
+ * 認証してしまう（実際にそれで凍結する実装を一度作った）。
+ *
  * ## 保持するもの
  *
  * 鍵ごとに残量と最終更新時刻の 2 値だけ。タイムスタンプの配列は持たない。
@@ -26,6 +31,14 @@
  * `Date.now()` を内部で直接呼ばない。憲法 原則 VI（依存は内向き）に従い、実時間への
  * 依存は呼び出し側（adapter）に閉じ込め、この関数は純粋な入出力で振る舞う。
  * テストが `setInterval` や `sleep` を必要としないのはこのため。
+ *
+ * ## 会計は `now` そのものではなく内部基準時刻で行う
+ *
+ * 渡された `now` をそのまま会計に使わず、**単調非減少で、1 回の呼び出しで進める幅に
+ * 上限のある内部基準時刻**へ丸めてから使う（`refTime`）。詳細はその docstring と
+ * 設計正本 D4 を参照。単調なので `updatedAt` が基準時刻より未来になることが原理的に
+ * 起きず、「時計リセットの検知」も「満タン扱いで再出発」も要らない。
+ * **レート制限が緩む側（許可側）へ倒れる分岐が 1 つも無い**のがこの方式の要点である。
  */
 
 /** 鍵ごとの残量。`updatedAt` からの経過時間で補充量を後から計算する（遅延評価）。 */
@@ -35,15 +48,15 @@ interface Bucket {
 }
 
 export interface RateLimiter {
-  /** 残量が 1 未満なら true。**資源を照会する前に呼ぶこと。** */
+  /** 残量が 1 未満なら true。**資源を照会する前に呼ぶこと。** 状態は書き換えない（純粋な照会）。 */
   shouldReject(key: string, now: number): boolean;
   /** 失敗が確定したときだけ呼ぶ。トークンを 1 つ消費する。 */
   consume(key: string, now: number): void;
   /** 満タンに戻ったエントリを捨てる。 */
   sweep(now: number): void;
-  /** 保持しているエントリ数（検査・テスト用）。 */
+  /** 保持しているエントリ数（検査・運用観測用）。 */
   size(): number;
-  /** `sweep` が実際に全走査した回数（検査・テスト用）。 */
+  /** `sweep` が実際に全走査した回数（検査・運用観測用）。 */
   sweepRunCount(): number;
 }
 
@@ -62,6 +75,8 @@ export const DEFAULT_CAPACITY = 60;
 export const DEFAULT_REFILL_PER_SEC = 1;
 /** 既定の掃除しきい値。値の正本は設計正本 `2026-08-14-ip-rate-limit-design.md` D4。 */
 export const DEFAULT_SWEEP_THRESHOLD = 1_000;
+/** 掃除しきい値の上限。値の正本と根拠は設計正本 `2026-08-14-ip-rate-limit-design.md` D4。 */
+export const MAX_SWEEP_THRESHOLD = 1_000_000;
 
 export function createTokenBucketLimiter(options: TokenBucketOptions): RateLimiter {
   const { capacity, refillPerSec } = options;
@@ -70,8 +85,12 @@ export function createTokenBucketLimiter(options: TokenBucketOptions): RateLimit
   // capacity・refillPerSec・sweepThreshold は起動時に決まる設定であり、実行時に利用者の
   // 入力から変わることはない。ここでの不正値は設定ミスなので、実行時の防御（拒否側へ倒す）
   // ではなく、起動時に throw して早期に気づけるようにする。
-  if (!Number.isFinite(capacity) || capacity <= 0) {
-    throw new Error(`createTokenBucketLimiter: capacity は有限の正数にすること（渡された値: ${capacity}）`);
+  //
+  // capacity は「1 以上」を要求する（0 < capacity < 1 を弾く）。容量が 1 未満だと、
+  // 満タンでも残量が 1 に届かないため、一度でも失敗した鍵は補充が終わっても
+  // `tokensAt(...) < 1` が成立し続け、その鍵の利用者が永久に拒否される（実測: capacity 0.5）。
+  if (!Number.isFinite(capacity) || capacity < 1) {
+    throw new Error(`createTokenBucketLimiter: capacity は 1 以上の有限数にすること（渡された値: ${capacity}）`);
   }
   if (!Number.isFinite(refillPerSec) || refillPerSec <= 0) {
     throw new Error(
@@ -80,17 +99,25 @@ export function createTokenBucketLimiter(options: TokenBucketOptions): RateLimit
   }
   // sweepThreshold は 0 も有効（毎回サイズ条件を満たす、という意味のある設定）なので、
   // capacity・refillPerSec と異なり下限は `<= 0` ではなく `< 0` にする。
-  if (!Number.isFinite(sweepThreshold) || sweepThreshold < 0) {
+  //
+  // 上限も要る。有限でも巨大な値（例: Number.MAX_VALUE）を渡すと `buckets.size` が
+  // 一生しきい値を超えず、自動の掃除が完全に死ぬ（実測: 5 万件保持・掃除 0 回）。
+  // 非有限を throw で弾いておきながら「有限だが到達不能な値」を素通しするのは、
+  // 同じ結末（掃除の停止）を別の入口から許すことになるので、上限も設定ミスとして弾く。
+  if (!Number.isFinite(sweepThreshold) || sweepThreshold < 0 || sweepThreshold > MAX_SWEEP_THRESHOLD) {
     throw new Error(
-      `createTokenBucketLimiter: sweepThreshold は有限かつ 0 以上の数値にすること（渡された値: ${sweepThreshold}）`,
+      `createTokenBucketLimiter: sweepThreshold は有限かつ 0 以上 ${MAX_SWEEP_THRESHOLD} 以下にすること` +
+        `（渡された値: ${sweepThreshold}）`,
     );
   }
 
-  /** 空から満タンへ戻るのに要する時間。掃除の最小間隔にも使う。 */
+  /** 空から満タンへ戻るのに要する時間。掃除の最小間隔と基準時刻の前進幅の上限にも使う。 */
   const refillFullMs = (capacity / refillPerSec) * 1_000;
   // capacity・refillPerSec は個別には正常でも、商（refillFullMs）はオーバーフローで
-  // Infinity に、アンダーフローで 0 になりうる（I-2）。Infinity だと掃除の間隔条件が
-  // 永久に成立せず掃除が死に、0 だと毎 consume が O(n) の全走査になる。
+  // Infinity になりうる（I-2）。Infinity だと掃除の間隔条件が永久に成立せず掃除が死に、
+  // 基準時刻の前進幅にも上限が無くなる。
+  // （`<= 0` 側は capacity >= 1 を要求した時点で到達しないが、将来 capacity の下限を
+  //   緩めたときに静かに壊れないよう、導出値そのものの検査として残す。）
   if (!Number.isFinite(refillFullMs) || refillFullMs <= 0) {
     throw new Error(
       `createTokenBucketLimiter: capacity(${capacity}) と refillPerSec(${refillPerSec}) の組み合わせで、` +
@@ -99,90 +126,75 @@ export function createTokenBucketLimiter(options: TokenBucketOptions): RateLimit
     );
   }
   const buckets = new Map<string, Bucket>();
-  /** 前回の掃除時刻。初回は必ず走らせたいので負の無限大から始める。 */
+  /** 前回の掃除時刻（基準時刻の目盛り）。初回は必ず走らせたいので負の無限大から始める。 */
   let lastSweepAt = Number.NEGATIVE_INFINITY;
-  /** `sweep` が実際に全走査した回数（検査・テスト用）。 */
+  /** `sweep` が実際に全走査した回数（検査・運用観測用）。 */
   let sweepRunCount = 0;
 
   /**
-   * 「信用できる現在時刻」の推定値。単発の異常な `now`（前方への巨大な跳躍・後方への
-   * 巻き戻り）には引きずられず、直近の呼び出しの `now` と近い値が 2 回連続したときだけ
-   * 前進させる（後退はしない）。まだ一度も確定していない間は `NEGATIVE_INFINITY`。
-   *
-   * **単発の異常値そのものと個々のバケツの `updatedAt` を直接比べてはいけない。**
-   * 前方へ大きく飛んだ `now` を 1 回だけ書き込んだバケツ（I-4）と、後方へ巻き戻った
-   * `now` を 1 回だけ渡された呼び出し（V3）は、どちらも「`updatedAt` が `now` より
-   * ずっと先にある」という同じ形に見える。この 2 つを見分けるには、単発の呼び出しでは
-   * 動かない「複数回の呼び出しにまたがる基準点」が要る。
+   * 会計に使う基準時刻。まだ 1 度も確定していない間は `NEGATIVE_INFINITY`。
+   * **単調非減少**であり、渡された `now` を上回ることはない。
    */
-  let stableNow = Number.NEGATIVE_INFINITY;
-  /** 直近に観測した `now`。次の呼び出しでこれと近ければ `stableNow` を前進させる。 */
-  let pendingNow: number | null = null;
+  let clock = Number.NEGATIVE_INFINITY;
+  /** 直近に観測した `now`。基準時刻を進めてよい実経過の上限を測るために持つ。 */
+  let lastNow = Number.NEGATIVE_INFINITY;
 
-  /** `now` を観測する。`stableNow`・`pendingNow` の更新のみ行い、バケツには触れない。 */
-  function observeNow(now: number): void {
-    if (pendingNow !== null && Math.abs(now - pendingNow) < refillFullMs) {
-      stableNow = Math.max(stableNow, now);
+  /**
+   * `now` を会計用の基準時刻へ丸める。`now` をそのまま使わず、基準時刻を進める幅を
+   * 次の 3 つの上限の最小で決める（負なら 0 に丸める＝進めない）。
+   *
+   * - `now - lastNow`: 直近の観測からの実経過。時計が巻き戻れば負になり 0 に丸まるので、
+   *   巻き戻り中は「時間が止まる」挙動になる（V4: 無実の利用者を締め出さない）
+   * - `now - clock`: 基準時刻を実時刻より先へは出さない。巻き戻った後の復路
+   *   （元の時刻へ戻るまでの差分）を二重に加算しない（V3: バースト枠を還付しない）
+   * - `refillFullMs`: 1 度の前方飛びで進めるのは満タン 1 杯ぶんまで。壊れた時計が
+   *   1 回だけ遠い未来を渡しても、基準時刻はそこへ飛ばない（I-4: 永久凍結しない）
+   *
+   * 結果として基準時刻は単調非減少になり、`updatedAt`（＝過去のある時点の基準時刻）が
+   * 基準時刻より未来になることが原理的に起きない。だから「時計リセットの検知」も
+   * 「満タン扱いで再出発」も要らず、**レート制限が緩む側へ倒れる分岐が 1 つも無い**。
+   *
+   * `commit` が偽のときは基準点を一切動かさない。`shouldReject` を純粋な照会に保つため
+   * であり、これが要る理由は D3 の呼び出し順にある。`shouldReject(k, t)` → `consume(k, t)`
+   * は同じ `now` を 2 回観測するので、照会でも基準点を動かすと単発の異常値が自分自身を
+   * 裏付けとして認証できてしまう。
+   *
+   * **残余**: ごく最初の 1 回目の呼び出しが壊れた時計だった場合（比較する基準がまだ
+   * 存在しないコールドスタート）は、その値が基準時刻になるので凍結する。
+   */
+  function refTime(now: number, commit: boolean): number {
+    if (clock === Number.NEGATIVE_INFINITY) {
+      if (commit) {
+        clock = now;
+        lastNow = now;
+      }
+      return now;
     }
-    pendingNow = now;
+    const step = Math.max(0, Math.min(now - lastNow, now - clock, refillFullMs));
+    const t = clock + step;
+    if (commit) {
+      clock = t;
+      lastNow = now;
+    }
+    return t;
   }
 
   /**
-   * バケツの `updatedAt` が `stableNow`（＝複数回の呼び出しで裏付けられた信用できる
-   * 現在時刻）を `refillFullMs` 以上上回っているかどうか。上回っていれば、そのバケツの
-   * `updatedAt` は単発の異常な `now`（時計リセット）を記録してしまったとみなし、
-   * 満タン扱いで再出発してよい（I-4）。`stableNow` がまだ確定していない
-   * （`NEGATIVE_INFINITY`）間は判定しない。
+   * 基準時刻 `t` における残量。`t` は単調非減少で、どのバケツの `updatedAt` も過去の
+   * 基準時刻なので、経過時間が負になることは原理的に無い（負のクランプは不要）。
    */
-  function isClockReset(bucket: Bucket): boolean {
-    return stableNow !== Number.NEGATIVE_INFINITY && bucket.updatedAt - stableNow >= refillFullMs;
-  }
-
-  function tokensAt(bucket: Bucket, now: number): number {
-    // now が過去へ巻き戻っても経過時間を負にしない（＝時間が止まったものとして扱う）。
-    // 時計は後退しうるが、レート制限の会計（残量の計算）は後退させない。負の経過時間を
-    // 許すと、巻き戻った直後だけ補充が「進みすぎ」たように見え、無実の利用者が
-    // 締め出される（V4）。
-    const elapsedMs = Math.max(0, now - bucket.updatedAt);
-    const refilled = bucket.tokens + (elapsedMs / 1_000) * refillPerSec;
+  function tokensAt(bucket: Bucket, t: number): number {
+    const refilled = bucket.tokens + ((t - bucket.updatedAt) / 1_000) * refillPerSec;
     return Math.min(capacity, refilled);
   }
 
-  function sweep(now: number): void {
-    // now が非有限だと満タン判定・掃除間隔の計算がすべて安全でない側へ倒れる
-    // （NaN はどの比較も false にする、+Infinity は誤って「満タン」を意味してしまう）。
-    // 呼び出し側の異常値でエントリを消してもレート制限が壊れるだけなので no-op にする。
-    if (!Number.isFinite(now)) return;
+  /** 実際に全走査して、満タンに戻ったエントリを捨てる。`t` は基準時刻。 */
+  function sweepAt(t: number): void {
     for (const [key, bucket] of buckets) {
-      if (tokensAt(bucket, now) >= capacity) buckets.delete(key);
+      if (tokensAt(bucket, t) >= capacity) buckets.delete(key);
     }
-    lastSweepAt = now;
+    lastSweepAt = t;
     sweepRunCount++;
-  }
-
-  /**
-   * 掃除を試みる。
-   *
-   * **件数だけを条件にしてはいけない。** エントリが全部フレッシュだと 1 件も消えず、
-   * 件数はしきい値以上のまま残る。すると次の消費でもまた全走査が走り、O(n) が毎回になる。
-   * 前回の掃除からの経過時間も条件に入れて、最悪でも `refillFullMs` に 1 回へ抑える
-   * （設計正本 D4）。
-   *
-   * `lastSweepAt` が `now` より未来にあるとき（前方へ大きく飛んだ時刻で 1 度掃除した後、
-   * now が現実的な値へ戻ったとき）は全走査せず、基準点だけを `now` へ引き戻す
-   * （時計リセットの検知）。ここで絶対値（`Math.abs`）を取ると、未来に固定された
-   * `lastSweepAt` との差が大きいまま残り続け、間隔条件が「経過した」ときだけでなく
-   * 常に成立してしまい、その後の every consume で O(n) の全走査が走る（V7 を直す過程で
-   * 実際に踏んだ）。
-   */
-  function maybeSweep(now: number): void {
-    if (buckets.size <= sweepThreshold) return;
-    if (lastSweepAt > now) {
-      lastSweepAt = now;
-      return;
-    }
-    if (now - lastSweepAt < refillFullMs) return;
-    sweep(now);
   }
 
   return {
@@ -195,44 +207,36 @@ export function createTokenBucketLimiter(options: TokenBucketOptions): RateLimit
       // レート制限は防御なので、例外で接続処理ごと落とすより、判定不能なら
       // 弾く（拒否する）ほうが安全側に倒れる。
       if (!Number.isFinite(now)) return true;
-      // stableNow（複数回の呼び出しで裏付けられた基準点）を更新する。バケツの状態には
-      // 触れないので、「shouldReject は照会だけで状態を変えない」という不変条件は保たれる。
-      observeNow(now);
+      const t = refTime(now, false); // 状態を変えない＝純粋な照会のまま
       const bucket = buckets.get(key);
-      if (bucket === undefined) return false;
-      if (isClockReset(bucket)) return false; // 満タン扱いで再出発（I-4）
-      return tokensAt(bucket, now) < 1;
+      return bucket !== undefined && tokensAt(bucket, t) < 1;
     },
     consume(key, now) {
       // shouldReject と同じ理由で、key が文字列でなければ状態を書き換えずに戻る。
       if (typeof key !== "string") return;
-      // now が非有限だと Math.max(0, NaN) が NaN を状態へ焼き付け、以後の判定が
-      // 永久に汚染される。状態を一切書き換えずに戻る（呼び出し前後で不変）。
+      // now が非有限だと NaN が基準時刻・残量へ焼き付き、以後の判定が永久に汚染される。
+      // 状態を一切書き換えずに戻る（呼び出し前後で不変）。
       if (!Number.isFinite(now)) return;
-      observeNow(now);
+      const t = refTime(now, true);
       const bucket = buckets.get(key);
-      // バケツの updatedAt が stableNow を refillFullMs 以上上回っているなら、時計が
-      // リセットされたとみなして満タン扱いで再出発する（I-4）。これが無いと、前方へ
-      // 大きく飛んだ時刻で 1 度 consume しただけのバケツが、以後どんな正常な now が
-      // 来ても「未来の updatedAt」に張り付いたまま二度と補充されず、その鍵の利用者が
-      // 永久に締め出される。
-      //
-      // **`now` 単体ではなく `stableNow` で判定する（重要）。** 単発の now と
-      // 直接比べると、後方へ巻き戻った 1 回の呼び出し（V3）も同じ形に見えてしまい、
-      // バースト枠が誤って還付される。
-      const resetToFull = bucket !== undefined && isClockReset(bucket);
-      const startTokens = bucket === undefined || resetToFull ? capacity : tokensAt(bucket, now);
-      const remaining = startTokens - 1;
-      // updatedAt は「これまでの最新時刻」を下回らないようにする（時間を巻き戻さない）。
-      // これを怠ると、巻き戻った now での consume が「過去の時刻」を書き込み、
-      // 次の正しい now での経過時間計算が過大になって残量が丸ごと戻ってしまう（V3）。
-      // ただし時計リセットを検知した場合は、その「未来の updatedAt」自体を捨てて now を
-      // 新しい基準点にする（さもないと Math.max が未来の値を選び続け、I-4 の凍結が直らない）。
-      const updatedAt = bucket === undefined || resetToFull ? now : Math.max(bucket.updatedAt, now);
-      buckets.set(key, { tokens: Math.max(0, remaining), updatedAt });
-      maybeSweep(now);
+      const remaining = (bucket === undefined ? capacity : tokensAt(bucket, t)) - 1;
+      buckets.set(key, { tokens: Math.max(0, remaining), updatedAt: t });
+      // 掃除は件数だけを条件にしてはいけない。エントリが全部フレッシュだと 1 件も消えず、
+      // 件数はしきい値以上のまま残る。すると次の消費でもまた全走査が走り、O(n) が毎回になる。
+      // 前回の掃除からの経過も条件に入れる。基準時刻は 1 回の呼び出しで最大 refillFullMs
+      // しか進まないので、全走査は最悪でも refillFullMs に 1 回に抑えられる（設計正本 D4）。
+      if (buckets.size > sweepThreshold && t - lastSweepAt >= refillFullMs) sweepAt(t);
     },
-    sweep,
+    sweep(now) {
+      // now が非有限だと満タン判定・掃除間隔の計算がすべて安全でない側へ倒れる
+      // （NaN はどの比較も false にする、+Infinity は誤って「満タン」を意味してしまう）。
+      // 呼び出し側の異常値でエントリを消してもレート制限が壊れるだけなので no-op にする。
+      if (!Number.isFinite(now)) return;
+      // sweep は状態を書き換える公開操作（エントリの削除・lastSweepAt の更新）なので、
+      // 照会側の shouldReject とは違い commit する。定期バッチ・管理コマンドから
+      // sweep だけを繰り返し呼ぶ運用でも基準時刻が実時刻に追随できるようにするため。
+      sweepAt(refTime(now, true));
+    },
     size: () => buckets.size,
     sweepRunCount: () => sweepRunCount,
   };
