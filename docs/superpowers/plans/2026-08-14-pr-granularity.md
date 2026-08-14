@@ -430,7 +430,8 @@ node scripts/check-links.mjs
 期待: **失敗**。`.specify/memory/constitution.md:N 実在しないパスです → \`docs/guides/nope-granularity.md\``
 
 > **注意（着手前に確認した落とし穴）**: 憲法には `docs/adr/0002` のような**拡張子なし**の
-> パス表記が 6 箇所あるが、これらは `isRepoPathLike` に合致せず**検査されない**。
+> パス表記が 8 箇所あるが（`docs/adr/0002` が 6・`docs/adr/0011` が 2）、これらは
+> `isRepoPathLike` に合致せず**検査されない**。
 > 拡張子なしの表記を壊して緑を見ても、それは検査が効いていない証拠にはならない。
 > 必ず**拡張子つきの表記**（`docs/guides/pr-granularity.md`）を壊すこと。
 
@@ -660,7 +661,7 @@ git push
    検査が存在しないため誰も気づかない
 3. `check-links` のコードパス検査は**拡張子つきのパス表記しか見ない**
    （`scripts/check-links.mjs` の `isRepoPathLike`）。憲法には `docs/adr/0002` のような
-   拡張子なしの表記が 6 箇所あり、**これらは検査されない**。現時点では実在するので
+   拡張子なしの表記が 8 箇所あり、**これらは検査されない**。現時点では実在するので
    無害だが、ADR がリネーム・統合されると静かに壊れる
 
 - [ ] **Step 5: Issue #119 の完了条件を確認してクローズする**
