@@ -8,52 +8,26 @@
 
 import { CommandSchema } from "@tasuki/timer-core";
 import { parseBoundaryMessage } from "@tasuki/protocol";
+import { classifyErrorKind } from "@tasuki/rate-limit";
 import type { Logger } from "../application/log/logger.js";
 import { publicText, type LogSafe } from "../application/log/log-safe.js";
 import { CONN_REJECT_REASONS } from "../application/log/vocabulary.js";
 
 const MAX_MESSAGE_BYTES = 64 * 1024; // 64KB
 
-/** {@link classifyError} が返す「例外の分類」に許す最大長（Minor 1）。 */
-const ERROR_KIND_MAX_LENGTH = 40;
-
 /**
- * `err.name`（や `typeof err`）をログへ出してよい形に丸める（Minor 1）。
+ * `catch (err)` で受けた `err` から、ログへ出してよい「例外の分類」を取り出す（I-1）。
  *
- * `name` は任意長・任意文字列にできるため、素通しすると
- * `on-connect-error name=Error xff=203.0.113.88 level=info fake` のように
- * 偽の `key=value` を 1 行内に生やせる（再レビューが実測。改行は
- * `formatLine` が制御文字として落とすため偽の「行」までは作れない）。
- * 英数字と最小限の記号だけを許可し、それ以外は `?` に丸め、長さも上限で切る。
- */
-function sanitizeErrorKind(raw: string): string {
-  const truncated = raw.slice(0, ERROR_KIND_MAX_LENGTH);
-  const sanitized = truncated.replace(/[^A-Za-z0-9_.:-]/g, "?");
-  return sanitized === "" ? "unknown" : sanitized;
-}
-
-/**
- * `catch (err)` で受けた `err` から、ログへ出してよい「例外の分類」を安全に取り出す（I-1）。
- *
- * **`err as Error` は TypeScript が受け入れるだけの嘘で、実行時には何も保証しない。**
- * `throw null` / `throw undefined` / `name` ゲッタ自体が throw するオブジェクトが
- * 実際に来ると、`(err as Error).name` は **catch 節の中で** TypeError を投げて
- * 外へ抜ける（再レビューが実測）。ここでは `instanceof Error` で実行時に型を
- * 確かめ、`name` の読み出し自体が throw するケース（`instanceof Error` が
- * true でも `name` がアクセサとして throw しうる）にも `try/catch` で備える。
+ * 分類そのものの実装（`instanceof Error` の実行時判定・`name` ゲッタが throw する
+ * 場合の入れ子 catch・長さと文字種の丸め）は `@tasuki/rate-limit` の
+ * `classifyErrorKind` へ切り出した（poker-sync にも同じガードが要るため。
+ * #103 Task 7 レビュー S-2。複製すると S-1 と同じ二重正本の問題が再発する）。
+ * ここでは `LogSafe`（ADR 0012 D1 のブランド型。timer-sync のログ基盤に閉じた
+ * 型で `scripts/audit-log-hygiene.mjs` の ALLOWED_FILES もアプリ側に限定）で
+ * 包むだけの薄い層にする。
  */
 function classifyError(err: unknown): LogSafe {
-  let raw: string;
-  if (err instanceof Error) {
-    try {
-      raw = typeof err.name === "string" ? err.name : "Error";
-    } catch {
-      raw = "Error"; // name ゲッタが throw した（再レビューが実測したケース）
-    }
-  } else {
-    raw = typeof err; // "object"（null 含む）| "undefined" | "string" | ...
-  }
-  return publicText(sanitizeErrorKind(raw)); // log-hygiene:allow 例外の分類のみ
+  return publicText(classifyErrorKind(err)); // log-hygiene:allow 例外の分類のみ
 }
 
 /** ハートビート間隔の既定値（ms）。Issue #25: サーバー主導の死活監視。 */
