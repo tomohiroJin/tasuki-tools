@@ -109,6 +109,19 @@ git commit -m "docs: 実断片経路で X-Forwarded-For が届くことを実測
 
 ## Task 2: `@tasuki/rate-limit` — クライアント鍵の導出
 
+> ⚠️ **このタスクは完了済み。以下に埋め込まれたコードはレビュー前の版であり、そのまま
+> 書き写すと修正済みの欠陥が復活する。**実装の正本は `packages/rate-limit/` の
+> コミット済みソース（`fcc8d8b..e2d4fab`）。敵対的レビューで直した点:
+>
+> 1. **IPv4 射影アドレス（`::ffff:0:0/96`）は `v4:` 名前空間へ落とす。**
+>    下記 Step 3 のテスト `expect(normalizeClientAddress("::ffff:192.0.2.1")).toBe("v6:0:0:0:0")`
+>    と Step 5 の実装は**誤り**（射影は上位 64 ビットが全ゼロなので、全 IPv4 が単一の鍵に
+>    落ちていた）。設計正本 §5.2 の推論の誤りが根因で、訂正済み
+> 2. **`index.ts` から `normalizeClientAddress` を公開しない**（生の IP が公開 API から出る。
+>    `docs/adr/0012` D3）。下記 Step 1・Step 5 の `index.ts` は**誤り**
+> 3. **`createClientKeyDeriver` は `salt` が `Uint8Array` で 32 バイト以上であることを検査する**
+>    （長さだけの検査では `ArrayBuffer` が素通りし、鍵なし HMAC と同一の鍵になる）
+
 **Files:**
 - Create: `packages/rate-limit/package.json`
 - Create: `packages/rate-limit/tsconfig.json`
@@ -472,6 +485,9 @@ git commit -m "feat: クライアント鍵の導出を @tasuki/rate-limit に新
 ---
 
 ## Task 3: `@tasuki/rate-limit` — トークンバケツ
+
+> ⚠️ **このタスクは完了済み。Step の `index.ts` は誤り** — `normalizeClientAddress` を
+> 再エクスポートしてはならない（Task 2 の注記 2 を参照）。正本はコミット済みソース。
 
 **Files:**
 - Create: `packages/rate-limit/src/token-bucket.ts`
