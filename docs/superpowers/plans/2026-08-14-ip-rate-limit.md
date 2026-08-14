@@ -1233,31 +1233,45 @@ import type { RateLimitGate } from "../rate-limit-gate.js";
   const { store, broadcaster, codeGen, tokenStore, rateLimitGate, sendError } = deps;
 ```
 
+**注意（設計正本 D8）**: `handleRoomJoin` は既に `const now = clock.now();` を持っており、
+これは壁時計（epoch ms）で `joinedAt: now` にも使われている。**この `now` を
+`rateLimitGate` にそのまま渡してはいけない（MUST NOT）。** レート制限器へ渡す `now` は
+単調時計（`performance.now()`）でなければならない（D8）。別名の変数
+（例: `const rateNow = performance.now();`）を用意し、`rateLimitGate.shouldReject` /
+`rateLimitGate.consume` にはそちらを渡す。`joinedAt: now` は既存どおり `clock.now()` の
+ままでよい（ルームの会計は壁時計のまま）。この 2 つの `now` は別系統であり、混同すると
+片方が壊れる。
+
 ```ts
     // **ルームを照会する前に判定する。** 照会してから判定すると、残量が無いときに
     // ROOM_NOT_FOUND が返り、攻撃者はトークンを消費せずに存在確認を続けられる。
-    if (rateLimitGate.shouldReject(connId, now)) {
+    // rateNow は単調時計（設計正本 D8）。joinedAt に使う clock.now()（壁時計）とは別系統。
+    const rateNow = performance.now();
+    if (rateLimitGate.shouldReject(connId, rateNow)) {
       sendError(connId, "JOIN_RATE_LIMITED", errorMessageFor("JOIN_RATE_LIMITED"));
       return err("JOIN_RATE_LIMITED");
     }
 ```
 
-`joinRateLimiter.recordFailure(connId, now);` を 2 箇所とも `rateLimitGate.consume(connId, now);` にする。
+`joinRateLimiter.recordFailure(connId, now);` を 2 箇所とも `rateLimitGate.consume(connId, rateNow);` にする。
 
 - [ ] **Step 7: `ai-unlock.ts` を差し替える**
 
 import・`AiUnlockDeps`・分解代入を `room-join.ts` と同じ要領で差し替える。
-判定は次のとおり:
+`ai-unlock.ts` も `clock.now()` の `now` を別の用途（トークン期限などの壁時計会計）に
+使っている場合は同様に、レート制限用の `rateNow = performance.now();` を別に用意すること
+（D8）。判定は次のとおり:
 
 ```ts
     // 合言葉の照合より前に判定する（join と同じバケツを共有）。
-    if (rateLimitGate.shouldReject(connId, now)) {
+    const rateNow = performance.now();
+    if (rateLimitGate.shouldReject(connId, rateNow)) {
       sendError(connId, "RATE_LIMITED", errorMessageFor("RATE_LIMITED"));
       return err("RATE_LIMITED");
     }
 ```
 
-`joinRateLimiter.recordFailure(connId, now);` を `rateLimitGate.consume(connId, now);` にする。
+`joinRateLimiter.recordFailure(connId, now);` を `rateLimitGate.consume(connId, rateNow);` にする。
 
 - [ ] **Step 8: `create-sync-server.ts` に `onConnect` を配線する**
 
@@ -2179,7 +2193,10 @@ const rateLimiter = createTokenBucketLimiter({
 
 ```ts
 function handleJoinRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'join-room' }>): void {
-  const now = Date.now();
+  // レート制限に渡す now は単調時計（設計正本 D8・MUST）。Date.now() は NTP のステップ
+  // 調整で非単調になりうるため使わない。ルームの会計（joinedAt 等）に使う壁時計とは
+  // 別系統であり、混同しないこと。
+  const now = performance.now();
   // **ルームを照会する前に判定する。** 逆順だと、残量が無いときに room-not-found が返り、
   // 攻撃者はトークンを消費せずにルーム ID の存在確認を続けられる。
   if (rateLimiter.shouldReject(ws.data.rateKey, now)) {
@@ -2199,7 +2216,8 @@ function handleJoinRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'join-room' 
 
 ```ts
 function handleCheckRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'check-room' }>): void {
-  const now = Date.now();
+  // 設計正本 D8: レート制限に渡す now は単調時計（performance.now()）を使う。
+  const now = performance.now();
   if (rateLimiter.shouldReject(ws.data.rateKey, now)) {
     sendError(ws, 'rate-limited', '試行が多すぎます。しばらくしてからお試しください');
     return;
