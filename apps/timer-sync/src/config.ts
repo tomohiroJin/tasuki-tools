@@ -87,23 +87,67 @@ function nonNegIntEnv(value: string | undefined, fallback: number): number {
 }
 
 /**
- * `NODE_ENV` が本番を意味するかどうかを判定する（P-1: 唯一の判定箇所）。
+ * `NODE_ENV` として許容する既知の値（Q-1・修正ラウンド 2）。
+ * リポジトリ内で実際に使われている値は `production` と `development` だけだが、
+ * `bun test` 等が `NODE_ENV=test` を設定する経路があるため `test` も既知に含める
+ * （controller が grep で確認済み）。
+ */
+const KNOWN_NODE_ENVS: readonly string[] = ["production", "development", "test"];
+
+/**
+ * `NODE_ENV` の生の値を正規化する。**正規化を列挙で追い続けないための下ごしらえ**
+ * （沈黙そのものを塞ぐのは `resolveNodeEnv` の未知値 throw）。
  *
- * env の値には前後の空白・改行・大文字小文字の揺れが混ざりやすい（デプロイ経路の
- * env 注入・手入力・コピペで実際に起きる）。**完全一致比較だと、`"Production"` や
- * 末尾空白付きの `"production "` が「本番でない」と誤判定され、
- * `requireClientAddress`・HOST 検査・ALLOWED_ORIGINS 検査の三段の防御が
- * 同時に、かつ無言で消える**（敵対的レビューが 7 通りの表記ゆれで実測）。
+ * 1. Unicode のフォーマット文字（`\p{Cf}`: ゼロ幅スペース・BOM 等）を除去する。
+ *    これらは `String#trim()` では落ちない（BOM は例外的に trim が落とすが、
+ *    ゼロ幅スペースは落ちない）。
+ * 2. 前後を囲む対の引用符（`"..."` / `'...'`）を 1 組だけ剥がす
+ *    （env への手入力・コピペで `NODE_ENV="production"` のように紛れ込む）。
+ * 3. 前後の空白を trim し、小文字化する。
+ */
+function normalizeNodeEnv(raw: string): string {
+  const withoutFormatChars = raw.replace(/\p{Cf}/gu, "");
+  const trimmedOnce = withoutFormatChars.trim();
+  const isQuoted =
+    trimmedOnce.length >= 2 &&
+    ((trimmedOnce.startsWith('"') && trimmedOnce.endsWith('"')) ||
+      (trimmedOnce.startsWith("'") && trimmedOnce.endsWith("'")));
+  const unquoted = isQuoted ? trimmedOnce.slice(1, -1) : trimmedOnce;
+  return unquoted.trim().toLowerCase();
+}
+
+/**
+ * `NODE_ENV` を正規化したうえで、既知の値かどうかを検査する（P-1: 唯一の判定箇所）。
+ *
+ * 表記ゆれ（前後の空白・改行・大文字小文字・ゼロ幅スペース・BOM・引用符つき）を
+ * 正規化で吸収したうえで、**正規化後になお空でなく既知の値でもない場合は起動時に
+ * throw する。** 「賢い検査ほど穴が増える。手書きの字句解析は 3 回続けて新しい
+ * 検出漏れを作った」という教訓により、表記ゆれの列挙を増やし続ける代わりに、
+ * 未知の値そのものを無言で通さないことで沈黙を不可能にする。
+ *
+ * 空文字（未設定）は許可する（本番以外の既定挙動を壊さないため）。
+ */
+function resolveNodeEnv(env: Record<string, string | undefined>): string {
+  const raw = env["NODE_ENV"] ?? "";
+  const normalized = normalizeNodeEnv(raw);
+  if (normalized !== "" && !KNOWN_NODE_ENVS.includes(normalized)) {
+    throw new Error(
+      `NODE_ENV の値が未知です（受け取った値: ${JSON.stringify(raw)}）。` +
+        `既知の値は ${KNOWN_NODE_ENVS.join(" / ")} のいずれかです。` +
+        "表記ゆれ・誤設定によって本番の防御（requireClientAddress・HOST 検査・" +
+        "ALLOWED_ORIGINS 検査）が無言ですり抜けるのを防ぐため起動を中止します。",
+    );
+  }
+  return normalized;
+}
+
+/**
+ * `NODE_ENV` が本番を意味するかどうかを判定する。
  * このため `loadSyncConfig` 内の本番判定は必ずこの関数を経由させ、
  * `env["NODE_ENV"] === "production"` を直接書かない。
- *
- * **判断: `"prod"` のような別綴りのエイリアスは本番として扱わない。**
- * trim + 小文字化の正規化だけで表記ゆれの事故はほぼ消える。エイリアスを増やすと
- * 「どの綴りを本番として許すか」という新しい列挙を保守する羽目になり、
- * 書き漏らしがそのまま防御の穴に戻る（許可リスト方針と同じ理由）。
  */
 function isProductionEnv(env: Record<string, string | undefined>): boolean {
-  return (env["NODE_ENV"] ?? "").trim().toLowerCase() === "production";
+  return resolveNodeEnv(env) === "production";
 }
 
 export function loadSyncConfig(env: Record<string, string | undefined>): SyncConfig {
