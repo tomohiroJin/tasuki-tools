@@ -62,6 +62,19 @@ export const DEFAULT_REFILL_PER_SEC = 1;
 export function createTokenBucketLimiter(options: TokenBucketOptions): RateLimiter {
   const { capacity, refillPerSec } = options;
   const sweepThreshold = options.sweepThreshold ?? 1_000;
+
+  // capacity・refillPerSec は起動時に決まる設定であり、実行時に利用者の入力から
+  // 変わることはない。ここでの不正値は設定ミスなので、実行時の防御（拒否側へ倒す）
+  // ではなく、起動時に throw して早期に気づけるようにする。
+  if (!Number.isFinite(capacity) || capacity <= 0) {
+    throw new Error(`createTokenBucketLimiter: capacity は有限の正数にすること（渡された値: ${capacity}）`);
+  }
+  if (!Number.isFinite(refillPerSec) || refillPerSec <= 0) {
+    throw new Error(
+      `createTokenBucketLimiter: refillPerSec は有限の正数にすること（渡された値: ${refillPerSec}）`,
+    );
+  }
+
   /** 空から満タンへ戻るのに要する時間。掃除の最小間隔にも使う。 */
   const refillFullMs = (capacity / refillPerSec) * 1_000;
   const buckets = new Map<string, Bucket>();
@@ -69,11 +82,20 @@ export function createTokenBucketLimiter(options: TokenBucketOptions): RateLimit
   let lastSweepAt = Number.NEGATIVE_INFINITY;
 
   function tokensAt(bucket: Bucket, now: number): number {
-    const refilled = bucket.tokens + ((now - bucket.updatedAt) / 1_000) * refillPerSec;
+    // now が過去へ巻き戻っても経過時間を負にしない（＝時間が止まったものとして扱う）。
+    // 時計は後退しうるが、レート制限の会計（残量の計算）は後退させない。負の経過時間を
+    // 許すと、巻き戻った直後だけ補充が「進みすぎ」たように見え、無実の利用者が
+    // 締め出される（V4）。
+    const elapsedMs = Math.max(0, now - bucket.updatedAt);
+    const refilled = bucket.tokens + (elapsedMs / 1_000) * refillPerSec;
     return Math.min(capacity, refilled);
   }
 
   function sweep(now: number): void {
+    // now が非有限だと満タン判定・掃除間隔の計算がすべて安全でない側へ倒れる
+    // （NaN はどの比較も false にする、+Infinity は誤って「満タン」を意味してしまう）。
+    // 呼び出し側の異常値でエントリを消してもレート制限が壊れるだけなので no-op にする。
+    if (!Number.isFinite(now)) return;
     for (const [key, bucket] of buckets) {
       if (tokensAt(bucket, now) >= capacity) buckets.delete(key);
     }
@@ -87,22 +109,37 @@ export function createTokenBucketLimiter(options: TokenBucketOptions): RateLimit
    * 件数はしきい値以上のまま残る。すると次の消費でもまた全走査が走り、O(n) が毎回になる。
    * 前回の掃除からの経過時間も条件に入れて、最悪でも `refillFullMs` に 1 回へ抑える
    * （設計正本 D4）。
+   *
+   * 間隔の判定は `Math.abs` を取る。前方へ大きく飛んだ時刻で 1 度掃除すると
+   * `lastSweepAt` が未来の値になり、その後 now が現実的な値へ戻ると差が負のまま
+   * 続いて間隔条件が常に成立してしまい、掃除が永久に止まる（V7）。
    */
   function maybeSweep(now: number): void {
     if (buckets.size <= sweepThreshold) return;
-    if (now - lastSweepAt < refillFullMs) return;
+    if (Math.abs(now - lastSweepAt) < refillFullMs) return;
     sweep(now);
   }
 
   return {
     shouldReject(key, now) {
+      // now が非有限だと `tokensAt` の比較がすべて false 側（＝通す側）へ倒れる。
+      // レート制限は防御なので、例外で接続処理ごと落とすより、判定不能なら
+      // 弾く（拒否する）ほうが安全側に倒れる。
+      if (!Number.isFinite(now)) return true;
       const bucket = buckets.get(key);
       return bucket !== undefined && tokensAt(bucket, now) < 1;
     },
     consume(key, now) {
+      // now が非有限だと Math.max(0, NaN) が NaN を状態へ焼き付け、以後の判定が
+      // 永久に汚染される。状態を一切書き換えずに戻る（呼び出し前後で不変）。
+      if (!Number.isFinite(now)) return;
       const bucket = buckets.get(key);
       const remaining = (bucket === undefined ? capacity : tokensAt(bucket, now)) - 1;
-      buckets.set(key, { tokens: Math.max(0, remaining), updatedAt: now });
+      // updatedAt は「これまでの最新時刻」を下回らないようにする（時間を巻き戻さない）。
+      // これを怠ると、巻き戻った now での consume が「過去の時刻」を書き込み、
+      // 次の正しい now での経過時間計算が過大になって残量が丸ごと戻ってしまう（V3）。
+      const updatedAt = bucket === undefined ? now : Math.max(bucket.updatedAt, now);
+      buckets.set(key, { tokens: Math.max(0, remaining), updatedAt });
       maybeSweep(now);
     },
     sweep,

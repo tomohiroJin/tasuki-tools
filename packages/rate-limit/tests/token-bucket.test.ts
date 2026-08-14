@@ -4,7 +4,11 @@
  * `now` を引数で受けるので、実時間に一切依存しない（タイマーも sleep も使わない）。
  */
 import { describe, it, expect } from "vitest";
-import { createTokenBucketLimiter } from "../src/index.js";
+import {
+  createTokenBucketLimiter,
+  DEFAULT_CAPACITY,
+  DEFAULT_REFILL_PER_SEC,
+} from "../src/index.js";
 
 const T0 = 1_000_000;
 
@@ -139,6 +143,134 @@ describe("createTokenBucketLimiter", () => {
       // 状態は変わっていないので、正しい時刻での判定は照会前と同じ
       expect(limiter.shouldReject("k", T0 + 5_000)).toBe(true);
       expect(limiter.shouldReject("k", T0 + 6_000)).toBe(false); // 1 秒後には回復
+    });
+
+    it("V4: 失敗 1 回だけの利用者が、時計の巻き戻りで締め出されない", () => {
+      // capacity 60 / refill 1。1 回だけ失敗した無実の利用者（残 59）を想定する。
+      const limiter = createTokenBucketLimiter({ capacity: 60, refillPerSec: 1 });
+      limiter.consume("k", T0 + 60_000);
+      expect(limiter.shouldReject("k", T0 + 60_000)).toBe(false); // 直後はまだ通る（残 59）
+
+      // 時計が巻き戻る（NTP のステップ調整・VM スナップショット復帰などで起きる）
+      expect(limiter.shouldReject("k", T0 + 60_000 - 1_000)).toBe(false);
+      expect(limiter.shouldReject("k", T0 + 60_000 - 300_000)).toBe(false);
+    });
+
+    it("V3: 巻き戻った now での consume はバースト枠を戻さない", () => {
+      const limiter = createTokenBucketLimiter({ capacity: 60, refillPerSec: 1 });
+      for (let i = 0; i < 60; i++) limiter.consume("k", T0); // 使い切る
+      limiter.consume("k", T0 - 600_000); // 巻き戻った now で consume が 1 回入る
+
+      // 巻き戻りを悪用してバースト枠が回復していないこと
+      let passed = 0;
+      for (let i = 0; i < 60; i++) {
+        if (!limiter.shouldReject("k", T0)) {
+          limiter.consume("k", T0);
+          passed++;
+        }
+      }
+      expect(passed).toBe(0);
+    });
+  });
+
+  describe("非有限な now（V1）", () => {
+    it("shouldReject は非有限な now を拒否側へ倒す（未使用の鍵でも true）", () => {
+      const limiter = createTokenBucketLimiter({ capacity: 3, refillPerSec: 1 });
+      expect(limiter.shouldReject("未使用", NaN)).toBe(true);
+      expect(limiter.shouldReject("未使用", Number.POSITIVE_INFINITY)).toBe(true);
+      expect(limiter.shouldReject("未使用", Number.NEGATIVE_INFINITY)).toBe(true);
+    });
+
+    it("consume は非有限な now では状態を書き換えない", () => {
+      const limiter = createTokenBucketLimiter({ capacity: 3, refillPerSec: 1 });
+      limiter.consume("k", NaN);
+      expect(limiter.size()).toBe(0); // NaN では何も作られない
+
+      limiter.consume("k", T0); // 通常の消費
+      const sizeAfterNormal = limiter.size();
+      limiter.consume("k", NaN);
+      limiter.consume("k", Number.POSITIVE_INFINITY);
+      limiter.consume("k", Number.NEGATIVE_INFINITY);
+      expect(limiter.size()).toBe(sizeAfterNormal); // 非有限な consume では増減しない
+
+      // NaN を挟んでも、後続の通常の now での判定が汚染されない
+      expect(limiter.shouldReject("k", T0)).toBe(false); // 残 2（容量3から1消費）
+      limiter.consume("k", T0);
+      limiter.consume("k", T0);
+      expect(limiter.shouldReject("k", T0)).toBe(true); // 使い切った
+      expect(limiter.shouldReject("k", T0 + 1_000)).toBe(false); // 通常どおり回復する
+    });
+
+    it("sweep は非有限な now では no-op", () => {
+      const limiter = createTokenBucketLimiter({ capacity: 2, refillPerSec: 1 });
+      limiter.consume("k", T0);
+      limiter.sweep(NaN);
+      expect(limiter.size()).toBe(1); // NaN では消えない
+      limiter.sweep(Number.POSITIVE_INFINITY);
+      expect(limiter.size()).toBe(1); // Infinity でも消えない（誤って「満タン」扱いしない）
+      limiter.sweep(T0 + 2_000); // 通常の now では消える
+      expect(limiter.size()).toBe(0);
+    });
+  });
+
+  describe("掃除の間隔（V7: 前方へ飛んだ後に時計が戻る）", () => {
+    it("前方へ大きく飛んだ掃除の後、現実的な now へ戻っても掃除が止まらない", () => {
+      const limiter = createTokenBucketLimiter({ capacity: 2, refillPerSec: 1, sweepThreshold: 1 });
+      limiter.consume("seed", T0);
+      limiter.consume("seed2", T0); // size=2 > threshold(1) → 初回の掃除が走る（フレッシュなので何も消えない）
+      expect(limiter.size()).toBe(2);
+
+      // 前方へ大きく飛んだ時刻で直接 sweep を呼ぶ（例: 手動運用）。lastSweepAt が未来へ飛ぶ
+      limiter.sweep(T0 + 1_000_000);
+      expect(limiter.size()).toBe(0); // seed/seed2 は満タンに回復済みなので消える
+
+      // 時計が現実的な値へ戻る（NTP 補正など）
+      limiter.consume("x", T0 + 2_000);
+      limiter.consume("y", T0 + 2_000); // size=2 > threshold(1) だが x,y はフレッシュなので消えない
+      expect(limiter.size()).toBe(2);
+
+      // refillFullMs（2 秒）経過後、x・y は満タンに回復している。しきい値超で次の consume が掃除を試みる
+      limiter.consume("z", T0 + 5_000);
+      expect(limiter.size()).toBe(1); // x・y は掃除で消え、z だけ残る
+    });
+  });
+
+  describe("設定の検査（V9）", () => {
+    it("refillPerSec が 0 なら throw する", () => {
+      expect(() => createTokenBucketLimiter({ capacity: 60, refillPerSec: 0 })).toThrow();
+    });
+
+    it("refillPerSec が負なら throw する", () => {
+      expect(() => createTokenBucketLimiter({ capacity: 60, refillPerSec: -1 })).toThrow();
+    });
+
+    it("refillPerSec が非有限なら throw する", () => {
+      expect(() =>
+        createTokenBucketLimiter({ capacity: 60, refillPerSec: Number.POSITIVE_INFINITY }),
+      ).toThrow();
+      expect(() => createTokenBucketLimiter({ capacity: 60, refillPerSec: NaN })).toThrow();
+    });
+
+    it("capacity が 0 なら throw する", () => {
+      expect(() => createTokenBucketLimiter({ capacity: 0, refillPerSec: 1 })).toThrow();
+    });
+
+    it("capacity が負または非有限なら throw する", () => {
+      expect(() => createTokenBucketLimiter({ capacity: -1, refillPerSec: 1 })).toThrow();
+      expect(() =>
+        createTokenBucketLimiter({ capacity: Number.POSITIVE_INFINITY, refillPerSec: 1 }),
+      ).toThrow();
+      expect(() => createTokenBucketLimiter({ capacity: NaN, refillPerSec: 1 })).toThrow();
+    });
+  });
+
+  describe("既定閾値の固定（R1・設計正本 D2）", () => {
+    it("DEFAULT_CAPACITY は 60 で固定（D2 の MUST）", () => {
+      expect(DEFAULT_CAPACITY).toBe(60);
+    });
+
+    it("DEFAULT_REFILL_PER_SEC は 1 で固定（D2 の MUST）", () => {
+      expect(DEFAULT_REFILL_PER_SEC).toBe(1);
     });
   });
 });
