@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from "bun:test";
 import { WebSocket } from "ws";
 import { WsAdapter } from "../src/adapters/ws-adapter.js";
-import { testLogger } from "./support/test-logger.js";
+import { testLogger, collectingLogger } from "./support/test-logger.js";
 
 let adapter: WsAdapter | undefined;
 afterEach(async () => {
@@ -60,6 +60,102 @@ describe("WsAdapter の httpHandler フック", () => {
 
     // When / Then
     expect((await fetch(httpUrl("/"))).status).toBe(426);
+  });
+});
+
+describe("WsAdapter が httpHandler へ渡すヘッダの許可リスト（I-2）", () => {
+  it("大文字混じりの X-Admin-Token ヘッダも小文字キーで httpHandler に届く", async () => {
+    // Given
+    let received: Record<string, string> | undefined;
+    adapter = new WsAdapter({
+      ...base,
+      httpHandler: (req) => {
+        received = req.headers;
+        return { status: 200, contentType: "text/plain", body: "ok" };
+      },
+    });
+
+    // When
+    await fetch(httpUrl("/status"), { headers: { "X-Admin-Token": "secret-token" } });
+
+    // Then
+    expect(received).toEqual({ "x-admin-token": "secret-token" });
+  });
+
+  it("許可リストに無いヘッダ（cookie・x-forwarded-for）は httpHandler に届かない", async () => {
+    // Given
+    let received: Record<string, string> | undefined;
+    adapter = new WsAdapter({
+      ...base,
+      httpHandler: (req) => {
+        received = req.headers;
+        return { status: 200, contentType: "text/plain", body: "ok" };
+      },
+    });
+
+    // When
+    await fetch(httpUrl("/status"), {
+      headers: { cookie: "session=abc", "x-forwarded-for": "203.0.113.5", "x-admin-token": "t" },
+    });
+
+    // Then: 許可リストに載っているものだけが届き、それ以外は消えている
+    expect(received).toEqual({ "x-admin-token": "t" });
+  });
+});
+
+describe("WsAdapter の handleFetch 全体の隔離（I-4）", () => {
+  it("httpHandler が throw しても、ロガに記録され、応答は安全な内容を返す", async () => {
+    // Given
+    const { logger, lines } = collectingLogger();
+    adapter = new WsAdapter({
+      ...base,
+      httpHandler: () => {
+        throw new Error("boom in httpHandler");
+      },
+      logger,
+    });
+
+    // When
+    const res = await fetch(httpUrl("/anything"));
+    const text = await res.text();
+
+    // Then: 例外メッセージが応答に漏れない・ロガ（ADR 0012 D1）に記録される
+    expect(text).not.toContain("boom in httpHandler");
+    expect(lines.some((line) => line.startsWith("http-fetch-error"))).toBe(true);
+    // 応答自体は失敗として扱えるステータス（426 ではなく 500）を返す。
+    expect(res.status).toBe(500);
+  });
+});
+
+describe("WsAdapter の development フラグ（I-3）", () => {
+  it("NODE_ENV=development でも development: false が維持され、応答本体にソース断片が出ない", async () => {
+    // Given: NODE_ENV を明示的に development にする（Bun.serve の development の
+    // 既定値は `process.env.NODE_ENV !== 'production'` なので、素朴な実装なら
+    // ここでソース開示モードに落ちる）。
+    const originalNodeEnv = process.env["NODE_ENV"];
+    process.env["NODE_ENV"] = "development";
+    try {
+      adapter = new WsAdapter({
+        ...base,
+        httpHandler: () => {
+          throw new Error("boom from httpHandler development-leak-marker");
+        },
+      });
+
+      // When
+      const res = await fetch(httpUrl("/anything"));
+      const text = await res.text();
+
+      // Then: 応答本体は小さく、例外メッセージ・ソース断片を含まない
+      // （development: true だと 67,499 バイトの base64 化されたソースが返る
+      // ことを再レビューが実測している）。
+      expect(text.length).toBeLessThan(1000);
+      expect(text).not.toContain("development-leak-marker");
+      expect(text).not.toContain("handleFetch");
+    } finally {
+      if (originalNodeEnv === undefined) delete process.env["NODE_ENV"];
+      else process.env["NODE_ENV"] = originalNodeEnv;
+    }
   });
 });
 

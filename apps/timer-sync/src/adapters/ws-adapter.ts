@@ -9,9 +9,51 @@
 import { CommandSchema } from "@tasuki/timer-core";
 import { parseBoundaryMessage } from "@tasuki/protocol";
 import type { Logger } from "../application/log/logger.js";
-import { publicText } from "../application/log/log-safe.js";
+import { publicText, type LogSafe } from "../application/log/log-safe.js";
 
 const MAX_MESSAGE_BYTES = 64 * 1024; // 64KB
+
+/** {@link classifyError} が返す「例外の分類」に許す最大長（Minor 1）。 */
+const ERROR_KIND_MAX_LENGTH = 40;
+
+/**
+ * `err.name`（や `typeof err`）をログへ出してよい形に丸める（Minor 1）。
+ *
+ * `name` は任意長・任意文字列にできるため、素通しすると
+ * `on-connect-error name=Error xff=203.0.113.88 level=info fake` のように
+ * 偽の `key=value` を 1 行内に生やせる（再レビューが実測。改行は
+ * `formatLine` が制御文字として落とすため偽の「行」までは作れない）。
+ * 英数字と最小限の記号だけを許可し、それ以外は `?` に丸め、長さも上限で切る。
+ */
+function sanitizeErrorKind(raw: string): string {
+  const truncated = raw.slice(0, ERROR_KIND_MAX_LENGTH);
+  const sanitized = truncated.replace(/[^A-Za-z0-9_.:-]/g, "?");
+  return sanitized === "" ? "unknown" : sanitized;
+}
+
+/**
+ * `catch (err)` で受けた `err` から、ログへ出してよい「例外の分類」を安全に取り出す（I-1）。
+ *
+ * **`err as Error` は TypeScript が受け入れるだけの嘘で、実行時には何も保証しない。**
+ * `throw null` / `throw undefined` / `name` ゲッタ自体が throw するオブジェクトが
+ * 実際に来ると、`(err as Error).name` は **catch 節の中で** TypeError を投げて
+ * 外へ抜ける（再レビューが実測）。ここでは `instanceof Error` で実行時に型を
+ * 確かめ、`name` の読み出し自体が throw するケース（`instanceof Error` が
+ * true でも `name` がアクセサとして throw しうる）にも `try/catch` で備える。
+ */
+function classifyError(err: unknown): LogSafe {
+  let raw: string;
+  if (err instanceof Error) {
+    try {
+      raw = typeof err.name === "string" ? err.name : "Error";
+    } catch {
+      raw = "Error"; // name ゲッタが throw した（再レビューが実測したケース）
+    }
+  } else {
+    raw = typeof err; // "object"（null 含む）| "undefined" | "string" | ...
+  }
+  return publicText(sanitizeErrorKind(raw)); // log-hygiene:allow 例外の分類のみ
+}
 
 /** ハートビート間隔の既定値（ms）。Issue #25: サーバー主導の死活監視。 */
 const DEFAULT_HEARTBEAT_INTERVAL_MS = 15_000;
@@ -23,8 +65,10 @@ const DEFAULT_HEARTBEAT_MAX_MISSES = 2;
  * 実際に読まれているのは `x-admin-token` だけ
  * （`apps/timer-sync/src/application/admin.ts` で確認済み）。
  * 増やすときは、そのヘッダが本当に読まれる先を確認してから足すこと。
+ * `as const` にしてあるのは、受け取り側 `pickHeaders` の `readonly string[]`
+ * に噛み合わせるため（Minor 4）。
  */
-const ADMIN_HTTP_ALLOWED_HEADERS = ["x-admin-token"];
+const ADMIN_HTTP_ALLOWED_HEADERS = ["x-admin-token"] as const;
 
 /** `headers` のうち `allowed` に含まれるキーだけを取り出す（キーは小文字で比較）。 */
 function pickHeaders(headers: Headers, allowed: readonly string[]): Record<string, string> {
@@ -55,6 +99,17 @@ export interface WsAdapterOptions {
   maxConnections?: number;
   allowedOrigins: string[];
   onMessage: (connId: string, msg: unknown) => Promise<void>;
+  /**
+   * 接続が閉じたときに呼ばれる（Origin / 接続数上限で弾いた接続は除く。
+   * その場合はアプリ層へ「受け入れていない接続」を通知しない）。
+   *
+   * **契約（Minor 2）: `onConnect` が呼ばれた・成功したことの保証ではない。**
+   * `connId` の登録（`connections.set`）は `onConnect` の呼び出しより前に
+   * 済んでいるため、`onConnect` が throw して失敗しても close は通知される
+   * （open/close の非対称。現在の挙動として維持すると裁定済み）。
+   * 実装は「`onConnect` を経ていない・失敗した」`connId` に対して呼ばれても
+   * 安全であること（例: `Map.delete` は無いキーに対して no-op）。
+   */
   onDisconnect: (connId: string) => void;
   /** 非 Upgrade の HTTP リクエストのフック。結果を返せばそれを応答、null なら 426。 */
   httpHandler?: (
@@ -143,7 +198,7 @@ export class WsAdapter {
       });
     } catch (err) {
       // 起動時の bind 失敗（EADDRINUSE 等）は回復不能。未処理例外でクラッシュさせず明示終了する。
-      this.options.logger.error("http-server-error", { name: publicText((err as Error).name) }); // log-hygiene:allow 例外の分類のみ
+      this.options.logger.error("http-server-error", { name: classifyError(err) });
       process.exit(1);
     }
 
@@ -167,11 +222,34 @@ export class WsAdapter {
   /**
    * Upgrade できるものは WebSocket にし、それ以外は httpHandler → 426 で応答する。
    *
-   * **Origin と接続数の検査はここで行わない。** ハンドシェイクを拒否すると
-   * クライアントには「接続失敗」としか見えず、理由を表す close コード
-   * （1008 / 1013）が届かない。upgrade を通したうえで open で閉じる。
+   * **本体全体を `try/catch` で囲む（I-4）。** `server.upgrade` / `new URL` /
+   * `httpHandler` / `new Response` のいずれかで throw すると、development:
+   * false でも Bun 自身のフォールバック応答はロガ（ADR 0012 D1）を経由せず、
+   * stderr に例外メッセージとスタックが出る（再レビュー実測: `logger lines = []`）。
+   * Task 5・6 でこの関数に処理が増える前提なので、いま全体を隔離しておく。
    */
   private handleFetch(req: Request, server: Bun.Server<ConnectionData>): Response | undefined {
+    try {
+      return this.handleFetchUnsafe(req, server);
+    } catch (err) {
+      this.options.logger.error("http-fetch-error", { name: classifyError(err) });
+      return new Response("Internal Server Error", {
+        status: 500,
+        headers: { "content-type": "text/plain" },
+      });
+    }
+  }
+
+  /**
+   * `handleFetch` の本体。**Origin と接続数の検査はここで行わない。**
+   * ハンドシェイクを拒否するとクライアントには「接続失敗」としか見えず、
+   * 理由を表す close コード（1008 / 1013）が届かない。upgrade を通したうえで
+   * open で閉じる。
+   */
+  private handleFetchUnsafe(
+    req: Request,
+    server: Bun.Server<ConnectionData>,
+  ): Response | undefined {
     const origin = req.headers.get("origin") ?? "";
     // **鍵はここで作る。** 生の IP をこの行より先へ持ち出さない（ADR 0012 D3）。
     const clientKey = this.deriveClientKeySafely(req.headers.get("x-forwarded-for") ?? undefined);
@@ -212,9 +290,7 @@ export class WsAdapter {
     try {
       return this.options.deriveClientKey(forwardedFor) ?? null;
     } catch (err) {
-      this.options.logger.error("derive-client-key-error", {
-        name: publicText((err as Error).name), // log-hygiene:allow 例外の分類のみ
-      });
+      this.options.logger.error("derive-client-key-error", { name: classifyError(err) });
       return null;
     }
   }
@@ -307,9 +383,7 @@ export class WsAdapter {
     try {
       this.options.onConnect?.(connId, ws.data.clientKey ?? connId);
     } catch (err) {
-      this.options.logger.error("on-connect-error", {
-        name: publicText((err as Error).name), // log-hygiene:allow 例外の分類のみ
-      });
+      this.options.logger.error("on-connect-error", { name: classifyError(err) });
     }
   }
 
@@ -350,15 +424,28 @@ export class WsAdapter {
       return;
     }
 
-    this.options.onMessage(connId, parsed.value).catch(() => {
-      ws.send(
-        JSON.stringify({
-          type: "error",
-          code: "INTERNAL_ERROR",
-          message: "内部エラーが発生しました",
-        }),
-      );
-    });
+    // onMessage は型上 `Promise<void>` を返す契約だが、実装が async でなければ
+    // 同期的に throw しうる（型は実行時の保証にはならない。`.catch` は reject
+    // しか拾わない）。呼び出し自体を try/catch で囲んで別途隔離する（I-5）。
+    try {
+      this.options.onMessage(connId, parsed.value).catch(() => {
+        this.sendInternalError(ws);
+      });
+    } catch (err) {
+      this.options.logger.error("on-message-error", { name: classifyError(err) });
+      this.sendInternalError(ws);
+    }
+  }
+
+  /** onMessage 側の失敗を利用者へ返す共通の応答（同期 throw / 非同期 reject の両方から使う）。 */
+  private sendInternalError(ws: Socket): void {
+    ws.send(
+      JSON.stringify({
+        type: "error",
+        code: "INTERNAL_ERROR",
+        message: "内部エラーが発生しました",
+      }),
+    );
   }
 
   private handleClose(ws: Socket): void {
@@ -367,6 +454,13 @@ export class WsAdapter {
     if (connId === "") return;
     this.connections.delete(connId);
     this.missedPongs.delete(connId);
-    this.options.onDisconnect(connId);
+    // onDisconnect は呼び出し元（アプリ層）のコールバック。onConnect を隔離した
+    // 根拠（「コールバックの失敗でプロセス全体を落とさない」）は onDisconnect にも
+    // 等しく当てはまる（I-5。Task 5 で `gate.close()` が入る場所）。
+    try {
+      this.options.onDisconnect(connId);
+    } catch (err) {
+      this.options.logger.error("on-disconnect-error", { name: classifyError(err) });
+    }
   }
 }

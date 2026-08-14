@@ -73,6 +73,12 @@ describe("WsAdapter のクライアント鍵", () => {
     const { url, seen } = startAdapter();
     const ws = new WebSocket(url, { headers: { "x-forwarded-for": "203.0.113.7" } });
     await waitOpen(ws);
+    // Minor 3: onConnect が同期呼び出しであることをここで固定する。下の
+    // 「Origin 検査で弾かれた接続では onConnect を呼ばない」テストは、
+    // クライアントが close を観測した時点で onConnect 呼び出しの可能性が
+    // 制御フロー上すでに無いという前提（待たずに判定してよい）に依拠している。
+    // onConnect が将来どこかで遅延呼び出しに変わると、この行が真っ先に赤くなる。
+    expect(seen).toHaveLength(1);
     await waitFor(() => seen.length === 1);
 
     expect(seen).toHaveLength(1);
@@ -237,6 +243,77 @@ describe("WsAdapter のクライアント鍵導出が失敗したとき", () => 
   });
 });
 
+/**
+ * `.name` へのアクセス自体が throw する例外。`instanceof Error` は true になるが、
+ * `err.name` の読み出しがそのまま TypeError を投げる（I-1 の 3 ケース目）。
+ */
+class NameGetterThrowsError extends Error {
+  override get name(): string {
+    throw new Error("name getter boom");
+  }
+}
+
+/**
+ * I-1 の 3 ケース: `throw null` / `throw undefined` / `name` ゲッタが throw する例外。
+ * `(err as Error).name` はどれでも実行時に TypeError を出す（`catch` 節そのものが
+ * throw する）。`deriveClientKey` 側・`onConnect` 側の両方の catch で検査する。
+ */
+const CATCH_THROWS_CASES: Array<[string, () => unknown]> = [
+  ["null", () => null],
+  ["undefined", () => undefined],
+  ["name ゲッタが throw する例外", () => new NameGetterThrowsError("boom")],
+];
+
+describe.each(CATCH_THROWS_CASES)(
+  "deriveClientKey が %s を throw したとき（I-1）",
+  (_label, makeErr) => {
+    it("(a) 接続は壊れず、鍵は connId にフォールバックする", async () => {
+      const seen: Array<[string, string]> = [];
+      adapter = new WsAdapter({
+        port: 0,
+        host: "127.0.0.1",
+        allowedOrigins: [],
+        onMessage: async () => {},
+        onDisconnect: () => {},
+        onConnect: (connId, rateKey) => seen.push([connId, rateKey]),
+        deriveClientKey: () => {
+          throw makeErr();
+        },
+        logger: testLogger,
+      });
+      const ws = new WebSocket(`ws://127.0.0.1:${adapter.port}`, {
+        headers: { "x-forwarded-for": "203.0.113.88" },
+      });
+
+      await waitOpen(ws);
+      await waitFor(() => seen.length === 1);
+      const [connId, rateKey] = seen[0]!;
+      expect(rateKey).toBe(connId);
+      ws.close();
+    });
+
+    it("(c) ログに分類が記録される", async () => {
+      const { logger, lines } = collectingLogger();
+      adapter = new WsAdapter({
+        port: 0,
+        host: "127.0.0.1",
+        allowedOrigins: [],
+        onMessage: async () => {},
+        onDisconnect: () => {},
+        deriveClientKey: () => {
+          throw makeErr();
+        },
+        logger,
+      });
+      const ws = new WebSocket(`ws://127.0.0.1:${adapter.port}`);
+      await waitOpen(ws);
+      await waitFor(() => lines.length > 0);
+      expect(lines.some((line) => line.startsWith("derive-client-key-error"))).toBe(true);
+      ws.close();
+    });
+  },
+);
+
 describe("WsAdapter の onConnect が例外を投げたとき", () => {
   it("接続は確立し、プロセスは落ちず、ログにエラーが記録される（Task 5 の gate.open() 配線の地雷対策）", async () => {
     const { logger, lines } = collectingLogger();
@@ -266,5 +343,108 @@ describe("WsAdapter の onConnect が例外を投げたとき", () => {
     // connections への登録（ws.data.connId の採番）は onConnect の前に済んでいるため、
     // onConnect が失敗しても close 側の後始末（onDisconnect）は従来どおり動く。
     expect(closeSeen).toBe(true);
+  });
+});
+
+describe.each(CATCH_THROWS_CASES)("onConnect が %s を throw したとき（I-1）", (_label, makeErr) => {
+  it("(a) 接続は確立し (b) プロセスは落ちず (c) ログに分類が記録される", async () => {
+    const { logger, lines } = collectingLogger();
+    adapter = new WsAdapter({
+      port: 0,
+      host: "127.0.0.1",
+      allowedOrigins: [],
+      onMessage: async () => {},
+      onDisconnect: () => {},
+      onConnect: () => {
+        throw makeErr();
+      },
+      logger,
+    });
+    const ws = new WebSocket(`ws://127.0.0.1:${adapter.port}`);
+
+    // (a) 接続は確立する
+    await waitOpen(ws);
+    await waitFor(() => lines.length > 0);
+    // (c) ログに分類が記録される
+    expect(lines.some((line) => line.startsWith("on-connect-error"))).toBe(true);
+    ws.close();
+  });
+});
+
+describe("例外の name によるログ注入（Minor 1）", () => {
+  it("name に長大・偽の key=value を含めても、丸められて偽の key=value を生やせない", async () => {
+    const { logger, lines } = collectingLogger();
+    // 偽装: 空白区切りで別の key=value を差し込もうとする長い name。
+    const evilName = "Error xff=203.0.113.88 level=info fake".repeat(3);
+    adapter = new WsAdapter({
+      port: 0,
+      host: "127.0.0.1",
+      allowedOrigins: [],
+      onMessage: async () => {},
+      onDisconnect: () => {},
+      deriveClientKey: () => {
+        const err = new Error("boom");
+        err.name = evilName;
+        throw err;
+      },
+      logger,
+    });
+    const ws = new WebSocket(`ws://127.0.0.1:${adapter.port}`);
+    await waitOpen(ws);
+    await waitFor(() => lines.length > 0);
+
+    const line = lines.find((l) => l.startsWith("derive-client-key-error"));
+    expect(line).toBeDefined();
+    // 偽の key=value を生やせない（空白と `=` が残らない）
+    expect(line).not.toContain("xff=203.0.113.88");
+    expect(line).not.toContain("level=info");
+    // 長さが丸められている（元の evilName よりずっと短い）
+    expect(line!.length).toBeLessThan(evilName.length);
+    ws.close();
+  });
+});
+
+describe("WsAdapter の onDisconnect が例外を投げたとき（I-5）", () => {
+  it("プロセスは落ちず、ログにエラーが記録される", async () => {
+    const { logger, lines } = collectingLogger();
+    adapter = new WsAdapter({
+      port: 0,
+      host: "127.0.0.1",
+      allowedOrigins: [],
+      onMessage: async () => {},
+      onDisconnect: () => {
+        throw new Error("boom on close");
+      },
+      logger,
+    });
+    const ws = new WebSocket(`ws://127.0.0.1:${adapter.port}`);
+    await waitOpen(ws);
+    ws.close();
+    await waitFor(() => lines.some((line) => line.startsWith("on-disconnect-error")));
+    expect(lines.some((line) => line.startsWith("on-disconnect-error"))).toBe(true);
+  });
+
+  it("プロセスは落ちておらず、同じアダプタで次の接続を受け付けられる", async () => {
+    const { logger, lines } = collectingLogger();
+    adapter = new WsAdapter({
+      port: 0,
+      host: "127.0.0.1",
+      allowedOrigins: [],
+      onMessage: async () => {},
+      onDisconnect: () => {
+        throw new Error("boom on close");
+      },
+      logger,
+    });
+    const first = new WebSocket(`ws://127.0.0.1:${adapter.port}`);
+    await waitOpen(first);
+    first.close();
+    await waitFor(() => lines.length > 0);
+
+    // onDisconnect の例外で uncaughtException になっていれば、本番の
+    // server.ts は process.exit(1) するためこの接続は張れない（間接証拠）。
+    const second = new WebSocket(`ws://127.0.0.1:${adapter.port}`);
+    await waitOpen(second);
+    second.close();
   });
 });
