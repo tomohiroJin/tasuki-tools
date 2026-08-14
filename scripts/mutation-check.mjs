@@ -156,6 +156,26 @@ const MUTATIONS = [
       "資格情報がログへ戻る欠陥の型。ADR 0012 D2 の「部分表示も生の値も出さない」" +
       "という決定がテストで固定されていることを確かめる。",
   },
+  {
+    id: 11,
+    label: "IPv6 の /64 丸めを無効化（アドレス全体を鍵にする）",
+    patch: "m11-ipv6-prefix-full-address.patch",
+    pkg: "packages/rate-limit",
+    tests: ["tests/client-key.test.ts"],
+    note:
+      "攻撃者が /64 内で送信元アドレスを回すだけでレート制限を回避できる欠陥。" +
+      "同義表記が同じ鍵になることを固定しているテストが検出する。",
+  },
+  {
+    id: 12,
+    label: "レート制限の判定をルーム照会の後ろへ移す",
+    patch: "m12-rate-limit-check-after-lookup.patch",
+    pkg: "apps/timer-sync",
+    tests: ["test/join-rate-limit.test.ts"],
+    note:
+      "残量が無いときに ROOM_NOT_FOUND が返り、トークンを消費せずに存在確認を" +
+      "続けられる欠陥。設計正本 D3 が API を分けている理由そのもの。",
+  },
 ];
 
 /**
