@@ -134,6 +134,9 @@ importers:
       '@tasuki/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
+      '@tasuki/rate-limit':
+        specifier: workspace:*
+        version: link:../../packages/rate-limit
       '@tasuki/timer-core':
         specifier: workspace:*
         version: link:../../packages/timer-core

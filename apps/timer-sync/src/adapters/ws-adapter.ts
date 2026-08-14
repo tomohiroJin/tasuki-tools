@@ -46,6 +46,17 @@ export interface WsAdapterOptions {
   heartbeatIntervalMs?: number;
   /** 連続でこの回数分 pong が確認できない接続を terminate する。既定 2。 */
   heartbeatMaxMisses?: number;
+  /**
+   * `X-Forwarded-For` からレート制限の鍵を導く。未指定なら鍵は作らない。
+   * **生の IP はこの関数の中だけに存在し、戻り値はハッシュ済みの不透明な文字列である**
+   * （`docs/adr/0012` D3）。
+   */
+  deriveClientKey?: (forwardedFor: string | undefined) => string | null;
+  /**
+   * 接続が受理された（Origin・接続数の検査を通った）ときに 1 度だけ呼ばれる。
+   * `rateKey` はクライアント鍵。特定できなければ `connId` が入る。
+   */
+  onConnect?: (connId: string, rateKey: string) => void;
   /** 運用ログの出口（ADR 0012 D1） */
   logger: Logger;
 }
@@ -58,6 +69,8 @@ export interface WsAdapterOptions {
 interface ConnectionData {
   connId: string;
   origin: string;
+  /** `X-Forwarded-For` から導いた鍵。特定できなければ null。 */
+  clientKey: string | null;
 }
 
 type Socket = Bun.ServerWebSocket<ConnectionData>;
@@ -138,7 +151,10 @@ export class WsAdapter {
    */
   private handleFetch(req: Request, server: Bun.Server<ConnectionData>): Response | undefined {
     const origin = req.headers.get("origin") ?? "";
-    if (server.upgrade(req, { data: { connId: "", origin } })) return undefined;
+    // **鍵はここで作る。** 生の IP をこの行より先へ持ち出さない（ADR 0012 D3）。
+    const clientKey =
+      this.options.deriveClientKey?.(req.headers.get("x-forwarded-for") ?? undefined) ?? null;
+    if (server.upgrade(req, { data: { connId: "", origin, clientKey } })) return undefined;
 
     const url = new URL(req.url);
     const handled = this.options.httpHandler?.({
@@ -239,6 +255,7 @@ export class WsAdapter {
     ws.data.connId = connId;
     this.connections.set(connId, ws);
     this.missedPongs.set(connId, 0);
+    this.options.onConnect?.(connId, ws.data.clientKey ?? connId);
   }
 
   /** pong 受信 = 生存確認。欠落カウントをリセットする（一時的な揺れからの復帰・US2）。 */

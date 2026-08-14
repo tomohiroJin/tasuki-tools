@@ -17,6 +17,7 @@
  */
 
 import { randomBytes } from "node:crypto";
+import { createClientKeyDeriver } from "@tasuki/rate-limit";
 import { makeHandlers } from "./application/handlers.js";
 import { PresenceManager } from "./application/presence.js";
 import { Scheduler } from "./application/schedule.js";
@@ -165,6 +166,10 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     },
   });
 
+  // レート制限の相関ソルト。**プロセス起動ごとに 1 度だけ生成し、env にも設定にも置かない**
+  // （ADR 0012 D3）。再起動で鍵が変わるのは揮発インメモリ設計と整合するので受け入れる。
+  const deriveClientKey = createClientKeyDeriver(randomBytes(32));
+
   wsAdapter = new WsAdapter({
     port: config.port,
     host: config.host,
@@ -173,6 +178,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     heartbeatIntervalMs: config.heartbeatIntervalMs,
     heartbeatMaxMisses: config.heartbeatMaxMisses,
     logger,
+    deriveClientKey,
     onMessage: async (connId, msg) => {
       // msg は ws-adapter 側で CommandSchema（valibot）に通した検証済みの値であり、
       // 実体は Command 型と一致する（onMessage の型は unknown のままなのでここでキャストする）。
