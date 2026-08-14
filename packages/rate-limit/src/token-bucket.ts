@@ -32,13 +32,23 @@
  * 依存は呼び出し側（adapter）に閉じ込め、この関数は純粋な入出力で振る舞う。
  * テストが `setInterval` や `sleep` を必要としないのはこのため。
  *
+ * **呼び出し側は単調時計（`performance.now()`）を渡すこと（MUST。設計正本 D8）。**
+ * 壁時計（`Date.now()`）は NTP のステップ調整・起動時の時計補正で非単調になりうる。
+ * レート制限が必要とするのは経過時間だけで絶対時刻は使わないため、単調時計への
+ * 差し替えで「壊れた値が来る」経路自体を消せる。ルームの会計（アイドル回収など）に
+ * 使う壁時計とは**別系統**であり、同じ `now` を使い回さないこと。
+ *
  * ## 会計は `now` そのものではなく内部基準時刻で行う
  *
  * 渡された `now` をそのまま会計に使わず、**単調非減少で、1 回の呼び出しで進める幅に
  * 上限のある内部基準時刻**へ丸めてから使う（`refTime`）。詳細はその docstring と
  * 設計正本 D4 を参照。単調なので `updatedAt` が基準時刻より未来になることが原理的に
  * 起きず、「時計リセットの検知」も「満タン扱いで再出発」も要らない。
- * **レート制限が緩む側（許可側）へ倒れる分岐が 1 つも無い**のがこの方式の要点である。
+ * **許可側（レート制限が緩む側）への譲歩は `refillFullMs` の上限 1 か所に集約され、
+ * その総量は観測した `now` の最大値で頭打ちになる**のがこの方式の要点である
+ * （旧方式は誤検知のたび無制限に還付した）。単調時計を渡しても、コールドスタート時の
+ * 残余（D4・D8）は消えない。呼び出し側の契約違反（壁時計を渡す等）に備え、
+ * `refTime` の 3 つの上限は多層防御として残す。
  */
 
 /** 鍵ごとの残量。`updatedAt` からの経過時間で補充量を後から計算する（遅延評価）。 */
@@ -80,7 +90,11 @@ export const MAX_SWEEP_THRESHOLD = 1_000_000;
 
 export function createTokenBucketLimiter(options: TokenBucketOptions): RateLimiter {
   const { capacity, refillPerSec } = options;
-  const sweepThreshold = options.sweepThreshold ?? DEFAULT_SWEEP_THRESHOLD;
+  // `??` だと null も既定へ落ちてしまい、"0"・true・[] のような他の不正値（下の
+  // Number.isFinite 検査で throw する）と扱いが非対称になる（M-2）。既定へ落ちるのは
+  // 「省略した」＝ undefined のときだけにする。
+  const sweepThreshold =
+    options.sweepThreshold === undefined ? DEFAULT_SWEEP_THRESHOLD : options.sweepThreshold;
 
   // capacity・refillPerSec・sweepThreshold は起動時に決まる設定であり、実行時に利用者の
   // 入力から変わることはない。ここでの不正値は設定ミスなので、実行時の防御（拒否側へ倒す）
@@ -125,6 +139,26 @@ export function createTokenBucketLimiter(options: TokenBucketOptions): RateLimit
         `有限かつ正の値になる組み合わせにすること。`,
     );
   }
+  // M-1: refillFullMs は「基準時刻を進めてよい前進幅の上限」（refTime）にも使われる。
+  // capacity が小さく refillPerSec が大きいと、refillFullMs 自体は有限の正数でも
+  // 基準時刻の規模に対して意味を持たないほど小さくなりうる（実測: capacity:1,
+  // refillPerSec:1e7 で refillFullMs≈1e-4。`clock + refillFullMs === clock` となり、
+  // 基準時刻が一切前進しなかった＝理想は膨大な通過件数のはずが通過は 1 件だけだった）。
+  //
+  // 判定は `Number.MAX_SAFE_INTEGER` 規模を基準にする。呼び出し側は単調時計
+  // （設計正本 D8）を渡す契約だが、内部ガードは多層防御として「now がどんな規模でも
+  // 壊れない」ことを目指す。安全な整数の上限という、実際にありうるどんな `now`
+  // （`performance.now()` はもちろん `Date.now()` の epoch ms も含む）よりはるかに
+  // 大きい規模で「前進幅として意味を持つか」を検査すれば、より小さい規模の `now`
+  // では確実に意味を持つ（その規模での丸め誤差の桁はより大きい規模以下になる）。
+  if (Number.MAX_SAFE_INTEGER + refillFullMs === Number.MAX_SAFE_INTEGER) {
+    throw new Error(
+      `createTokenBucketLimiter: capacity(${capacity}) と refillPerSec(${refillPerSec}) の組み合わせで、` +
+        `refillFullMs が ${refillFullMs} になった。これは基準時刻の前進幅として小さすぎ、` +
+        `丸め誤差で吸収されて基準時刻が前進しなくなる（Number.MAX_SAFE_INTEGER 規模で検査）。` +
+        `capacity を上げるか refillPerSec を下げること。`,
+    );
+  }
   const buckets = new Map<string, Bucket>();
   /** 前回の掃除時刻（基準時刻の目盛り）。初回は必ず走らせたいので負の無限大から始める。 */
   let lastSweepAt = Number.NEGATIVE_INFINITY;
@@ -152,15 +186,21 @@ export function createTokenBucketLimiter(options: TokenBucketOptions): RateLimit
    *
    * 結果として基準時刻は単調非減少になり、`updatedAt`（＝過去のある時点の基準時刻）が
    * 基準時刻より未来になることが原理的に起きない。だから「時計リセットの検知」も
-   * 「満タン扱いで再出発」も要らず、**レート制限が緩む側へ倒れる分岐が 1 つも無い**。
+   * 「満タン扱いで再出発」も要らない。**許可側（レート制限が緩む側）への譲歩は
+   * `refillFullMs` の上限 1 か所に集約され、その総量は観測した `now` の最大値で
+   * 頭打ちになる**（旧方式は誤検知のたび無制限に還付した。差はここにある）。
    *
    * `commit` が偽のときは基準点を一切動かさない。`shouldReject` を純粋な照会に保つため
    * であり、これが要る理由は D3 の呼び出し順にある。`shouldReject(k, t)` → `consume(k, t)`
    * は同じ `now` を 2 回観測するので、照会でも基準点を動かすと単発の異常値が自分自身を
    * 裏付けとして認証できてしまう。
    *
-   * **残余**: ごく最初の 1 回目の呼び出しが壊れた時計だった場合（比較する基準がまだ
-   * 存在しないコールドスタート）は、その値が基準時刻になるので凍結する。
+   * **残余**: ごく最初の 1 回目の呼び出し（`consume` または `sweep`）が壊れた時計だった
+   * 場合（比較する基準がまだ存在しないコールドスタート）は、その値が基準時刻になる。
+   * `clock` は限定器インスタンスに 1 個しか無いため、**特定の鍵だけでなく全鍵が凍結する**。
+   * 凍結中は誰も満タンに戻らないので `sweep` が回収できず、Map のエントリが増え続ける。
+   * 呼び出し側が単調時計（設計正本 D8）を渡せば、この基準点に「壊れた値」が来る経路
+   * そのものが無くなる（残余自体は消えないが、原因が消える）。
    */
   function refTime(now: number, commit: boolean): number {
     if (clock === Number.NEGATIVE_INFINITY) {

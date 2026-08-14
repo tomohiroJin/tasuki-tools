@@ -123,6 +123,29 @@ describe("createTokenBucketLimiter", () => {
       limiter.consume("k", T0 + 2_000);
       expect(limiter.shouldReject("k", T0 + 2_000)).toBe(true);
     });
+
+    it("M-3: consume を一切呼ばず sweep だけを繰り返しても、基準時刻は実時刻へ追随する", () => {
+      // sweep は shouldReject と違って状態を書き換える公開操作であり、refTime を
+      // commit:true で呼ぶ契約（D4: 「定期バッチ・管理コマンドから sweep だけを
+      // 繰り返し呼ぶ運用でも基準時刻が実時刻に追随できるように」）。
+      //
+      // 最後の consume を前方へ大きく飛んだ now で行い、`lastNow`（直近に観測した now）を
+      // 未来の値へ固定してから、以後は sweep だけを現実的な now で 120 回呼ぶ。
+      // sweep が commit:true なら、1 回目の呼び出しで（basis は進まなくても）`lastNow` が
+      // 現実的な値へ戻り、以後は通常どおり前進して全鍵が回収される。commit:false だと
+      // `lastNow` が未来へ固定されたままになり、以後どの now を渡しても
+      // `now - lastNow` が恒久的に負（＝ 0 に丸まる）になって基準時刻が二度と進まず、
+      // 前方へ飛んだ最後の鍵だけが取り残される（実測: size が 0 ではなく 1 のまま）。
+      const limiter = createTokenBucketLimiter({ capacity: 1, refillPerSec: 1 });
+      for (let i = 0; i < 99; i++) limiter.consume(`k${i}`, T0 + i);
+      limiter.consume("k99", T0 + 1_000_000_000); // 前方へ大きく飛んだ最後の consume
+      expect(limiter.size()).toBe(100);
+
+      // consume は一切呼ばず、sweep だけを 120 回、現実的な間隔で呼ぶ。
+      for (let i = 1; i <= 120; i++) limiter.sweep(T0 + 1_099 + i * 10);
+
+      expect(limiter.size()).toBe(0);
+    });
   });
 
   describe("時刻の頑健性（単調でない now）", () => {
@@ -349,6 +372,30 @@ describe("createTokenBucketLimiter", () => {
       ).toThrow();
     });
 
+    it("sweepThreshold が null なら throw する（\"0\"・true・[] と同じ扱い。undefined だけが既定へ落ちる）", () => {
+      // M-2: `options.sweepThreshold ?? DEFAULT_SWEEP_THRESHOLD` は `??` の意味論どおり
+      // null も既定へ落としてしまうが、"0"・true・[] のような他の不正値は throw する。
+      // この非対称を無くし、既定へ落ちるのは undefined のときだけにする。
+      expect(() =>
+        createTokenBucketLimiter({
+          capacity: 60,
+          refillPerSec: 1,
+          sweepThreshold: null as unknown as number,
+        }),
+      ).toThrow();
+    });
+
+    it("sweepThreshold が undefined なら既定値へ落ちる（省略時と同じ）", () => {
+      // `exactOptionalPropertyTypes` の下では型上 `sweepThreshold: undefined` を素通しで
+      // 渡せないため、意図的な実行時の境界値としてキャストする（他の異常値テストと同じ形）。
+      const limiter = createTokenBucketLimiter({
+        capacity: 60,
+        refillPerSec: 1,
+        sweepThreshold: undefined as unknown as number,
+      });
+      expect(limiter).toBeDefined();
+    });
+
     it("sweepThreshold が 0 なら通る（有限かつ 0 以上なので有効な設定）", () => {
       expect(() => createTokenBucketLimiter({ capacity: 60, refillPerSec: 1, sweepThreshold: 0 })).not.toThrow();
     });
@@ -390,6 +437,24 @@ describe("createTokenBucketLimiter", () => {
 
     it("throw のメッセージに capacity と refillPerSec の両方の値が含まれる", () => {
       expect(() => createTokenBucketLimiter({ capacity: 1e306, refillPerSec: 1 })).toThrow(/1e\+306/);
+    });
+  });
+
+  describe("設定の検査（M-1: refillFullMs が丸め誤差で吸収される下限）", () => {
+    it("capacity=1・refillPerSec=1e7（refillFullMs≈1e-4）は基準時刻の前進幅として小さすぎるので throw する", () => {
+      // 実測（controller）: この組み合わせは既存の `refillFullMs <= 0` ・非有限の検査は
+      // 通るが、`clock + refillFullMs === clock` となる規模の基準時刻では基準時刻が
+      // 一切前進しない（=refillFullMs が会計上ゼロと同じに吸収される）。理想は膨大な
+      // 通過件数になるはずが、通過は 1 件だけだった。
+      expect(() => createTokenBucketLimiter({ capacity: 1, refillPerSec: 1e7 })).toThrow();
+    });
+
+    it("既定値（capacity=60・refillPerSec=1、refillFullMs=60,000）は通る", () => {
+      expect(() => createTokenBucketLimiter({ capacity: DEFAULT_CAPACITY, refillPerSec: DEFAULT_REFILL_PER_SEC })).not.toThrow();
+    });
+
+    it("capacity=1・refillPerSec=1000（refillFullMs=1ms）のような小さいが意味のある値は通る", () => {
+      expect(() => createTokenBucketLimiter({ capacity: 1, refillPerSec: 1000 })).not.toThrow();
     });
   });
 
@@ -506,7 +571,8 @@ describe("createTokenBucketLimiter", () => {
     it("残余: コールドスタート（1 回目の呼び出しが壊れた時計）では凍結する（意図した残余）", () => {
       // 比較する基準がまだ存在しないため、この 1 回目の値がそのまま基準時刻になる。
       // これは設計正本 D4 に明記した既知の残余であり、バグではない。
-      // （旧方式の残余の真部分集合。旧方式は稼働中でも D3 の順で凍結した。）
+      // （旧方式の残余とは包含関係にない。新方式は稼働中の凍結を解消した一方、
+      //   コールドスタート時の凍結は単一の鍵から全鍵へ広がった。トレードオフである。）
       const limiter = createTokenBucketLimiter({ capacity: 60, refillPerSec: 1 });
       const farFuture = T0 + 100 * 365 * 24 * 60 * 60 * 1_000;
       limiter.shouldReject("k", farFuture);
