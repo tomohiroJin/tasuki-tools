@@ -45,8 +45,22 @@ export const DEFAULT_AI_PROBLEM_MODEL = "sonnet";
  */
 const LOOPBACK_HOSTS = new Set(["localhost", "::1", "[::1]"]);
 
+/**
+ * `127.0.0.0/8` の点付き 10 進。**各オクテットを 0〜255 に限る。**
+ * `\d+` で済ませると `127.999.999.999` のような IP ですらない値まで
+ * ループバック扱いで通ってしまい、「許可リストは正確な値だけを通す」という
+ * 上の方針と矛盾する。先行ゼロ（`127.01.0.1`）も曖昧なので通さない。
+ */
+const IPV4_LOOPBACK = /^127(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
+
 function isLoopbackHost(host: string): boolean {
-  return LOOPBACK_HOSTS.has(host) || /^127\.\d+\.\d+\.\d+$/.test(host);
+  // **比較の前に正規化する。** env の値には末尾改行・前後空白が混ざりやすく、
+  // ホスト名は DNS 上そもそも大文字小文字を区別しない。正規化しないと
+  // `HOST=127.0.0.1 `（末尾空白）や `HOST=Localhost` が「ループバック外」と
+  // 誤判定され、**正当な設定で本番が起動しなくなる**（可用性の事故）。
+  // 同じファイルの adminToken などが .trim() しているのと揃える。
+  const normalized = host.trim().toLowerCase();
+  return LOOPBACK_HOSTS.has(normalized) || IPV4_LOOPBACK.test(normalized);
 }
 
 /** env 値を整数として解釈し、不正なら既定値を返す。 */
@@ -76,13 +90,16 @@ export function loadSyncConfig(env: Record<string, string | undefined>): SyncCon
   }
 
   const isProduction = env["NODE_ENV"] === "production";
-  const host = env["HOST"] ?? "127.0.0.1";
+  // trim は検査だけでなく実際の bind にも効かせる（末尾空白つきの値で listen しない）。
+  const host = (env["HOST"] ?? "").trim() || "127.0.0.1";
 
   if (isProduction && !isLoopbackHost(host)) {
     throw new Error(
       `本番（NODE_ENV=production）では HOST をループバックに限定します（受け取った値: ${host}）。` +
         "Caddy を迂回した直接接続は X-Forwarded-For を偽装できるため、" +
-        "レート制限が無効化されます。起動を中止します。",
+        "レート制限が無効化されます。起動を中止します。" +
+        "対処: env の HOST を 127.0.0.1（または localhost / ::1）にするか、行ごと削除してください" +
+        "（未設定なら既定の 127.0.0.1 が使われます）。",
     );
   }
 

@@ -162,5 +162,49 @@ describe("loadSyncConfig", () => {
       expect(c.host).toBe("0.0.0.0");
       expect(c.requireClientAddress).toBe(false);
     });
+
+    // env の値には末尾改行・前後空白・表記ゆれが混ざりやすい。正規化していないと
+    // 正当なループバック指定が「ループバック外」と誤判定され、本番が起動しなくなる。
+    it.each([
+      ["末尾の空白", "127.0.0.1 "],
+      ["先頭の空白", " 127.0.0.1"],
+      ["末尾の改行", "127.0.0.1\n"],
+      ["CRLF", "127.0.0.1\r\n"],
+      ["大文字のホスト名", "LOCALHOST"],
+      ["大文字小文字混在", "Localhost"],
+      ["前後の空白つきホスト名", "  localhost  "],
+    ])("整形ゆれ（%s）でも本番の起動を止めない", (_label, host) => {
+      const env = {
+        NODE_ENV: "production",
+        ALLOWED_ORIGINS: "https://tasuki.example.com",
+        HOST: host,
+      };
+      const c = loadSyncConfig(env);
+      // 実際の bind にも整形済みの値を使う（末尾空白つきで listen しない）。
+      expect(c.host).toBe(host.trim());
+    });
+
+    it("HOST が空白だけなら既定の 127.0.0.1 に落ちる", () => {
+      const c = loadSyncConfig({ NODE_ENV: "production", ALLOWED_ORIGINS: "https://x.example", HOST: "   " });
+      expect(c.host).toBe("127.0.0.1");
+    });
+
+    // 許可リストは「正確な値だけを通す」方針。IP ですらない値まで通してはいけない。
+    it.each(["127.999.999.999", "127.0.0.256", "127.01.0.1", "127.0.0", "1270.0.0.1"])(
+      "127 で始まっても IP として不正な %s は通さない",
+      (host) => {
+        const env = {
+          NODE_ENV: "production",
+          ALLOWED_ORIGINS: "https://tasuki.example.com",
+          HOST: host,
+        };
+        expect(() => loadSyncConfig(env)).toThrow(/HOST/);
+      },
+    );
+
+    it("起動時のエラーは対処方法を伝える", () => {
+      const env = { NODE_ENV: "production", ALLOWED_ORIGINS: "https://x.example", HOST: "0.0.0.0" };
+      expect(() => loadSyncConfig(env)).toThrow(/対処/);
+    });
   });
 });
