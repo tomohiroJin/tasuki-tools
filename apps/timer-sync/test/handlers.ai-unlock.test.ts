@@ -4,6 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach } from "bun:test";
+import { DEFAULT_CAPACITY } from "@tasuki/rate-limit";
 import { makeHandlers } from "../src/application/handlers.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
@@ -166,8 +167,8 @@ describe("ai.unlock", () => {
     }
   });
 
-  it("連続失敗はレート制限される（30 回/10 秒の既存窓を共用）", async () => {
-    // Given（誤ったキーで 30 回試みてレート制限を消費する）
+  it("連続失敗はレート制限される（room.join と同じバケツを共用）", async () => {
+    // Given（誤ったキーで容量ぶん試みてレート制限を使い切る）
     const handlers = makeHandlers({
       store,
       clock,
@@ -179,7 +180,7 @@ describe("ai.unlock", () => {
       command: "room.create",
       displayName: "Alice",
     });
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < DEFAULT_CAPACITY; i++) {
       await handlers.handleCommand(hostConn, {
         command: "ai.unlock",
         key: `wrong-${i}`,
@@ -187,7 +188,7 @@ describe("ai.unlock", () => {
     }
     broadcaster.sent.length = 0;
 
-    // When（31 回目は正しいキーでも RATE_LIMITED になるはず）
+    // When（使い切った次は、正しいキーでも RATE_LIMITED になるはず）
     const result = await handlers.handleCommand(hostConn, {
       command: "ai.unlock",
       key: "himitsu",

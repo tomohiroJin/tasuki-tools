@@ -23,6 +23,11 @@ import {
   type RemovalNotification,
   type Command,
 } from "@tasuki/timer-core";
+import {
+  createTokenBucketLimiter,
+  DEFAULT_CAPACITY,
+  DEFAULT_REFILL_PER_SEC,
+} from "@tasuki/rate-limit";
 import type { Clock } from "../ports/clock.js";
 import type { Broadcaster } from "../ports/broadcaster.js";
 import type { RoomStore } from "../ports/room-store.js";
@@ -30,7 +35,7 @@ import type { RoomCodeGen } from "../ports/code-gen.js";
 import type { Scheduler } from "./schedule.js";
 import type { ProblemDelegator } from "./problem-delegation.js";
 import { createTokenStore } from "./token-store.js";
-import { createJoinRateLimiter } from "./join-rate-limiter.js";
+import { createRateLimitGate } from "./rate-limit-gate.js";
 import { applyEvents } from "./apply-room-level-event.js";
 import { buildDomainCommand } from "./build-domain-command.js";
 import { createRoomCreateHandler, type CreateResult } from "./command-handlers/room-create.js";
@@ -137,15 +142,22 @@ export function makeHandlers(deps: HandlerDeps) {
   // ハンドラインスタンスごとに1個生成し、モジュール共有を避けてテスト間汚染を防ぐ。
   const tokenStore = createTokenStore();
 
-  // 単一接続あたりの room.join 連続失敗のレート制限（コード列挙の緩和）。
-  // 正常利用には干渉しない緩い閾値。本来の防御はエッジ/IP 層（リバースプロキシ等）で行うべき。
-  const JOIN_FAIL_MAX = 30;
-  // `join-rate-limiter.ts` の createJoinRateLimiter() へ切り出した（フェーズ3・純粋な移動）。
-  // ★ room.join と ai.unlock は「合言葉/コード総当たりの緩和」という同じ目的のため、
-  // 意図的に同一インスタンス（joinRateLimiter）の窓を共有する。この関数は
-  // makeHandlers 内で1度しか呼ばない（コマンドごとに別インスタンスを作らない）ことで、
-  // 共有が構造的に保証される（join-rate-limiter.ts のdocstring参照）。
-  const joinRateLimiter = createJoinRateLimiter({ windowMs: 10_000, max: JOIN_FAIL_MAX });
+  // 入室失敗のレート制限（コード・合言葉の総当たりの緩和）。
+  // **数える単位は接続ではなくクライアント（IP の HMAC）である**（#103・ADR 0011 S1）。
+  // 接続単位だと再接続で窓がリセットされ、総当たりを止められなかった。
+  //
+  // ★ room.join と ai.unlock は「総当たりの緩和」という同じ目的のため、
+  // 意図的に同一インスタンスのバケツを共有する。makeHandlers 内で 1 度しか生成しない
+  // ことで共有が構造的に保証される。コマンドごとに別インスタンスを作ると、
+  // ai.unlock の総当たり対策が黙って弱まる。
+  // （共有が壊れていないことは `test/join-rate-limit.test.ts` の
+  //   「room.join と ai.unlock のレート制限バケツの共有」で直接検査している。）
+  const rateLimitGate = createRateLimitGate(
+    createTokenBucketLimiter({
+      capacity: DEFAULT_CAPACITY,
+      refillPerSec: DEFAULT_REFILL_PER_SEC,
+    }),
+  );
 
   // ルーム破棄の経路（Issue #79）。後始末の内容と順序は destroy-room.ts の 1 箇所に
   // しか存在せず、ここは受け取るだけ（既定値を持たない理由は HandlerDeps の docstring）。
@@ -281,8 +293,7 @@ export function makeHandlers(deps: HandlerDeps) {
     broadcaster,
     codeGen,
     tokenStore,
-    joinRateLimiter,
-    joinFailMax: JOIN_FAIL_MAX,
+    rateLimitGate,
     sendError,
   });
 
@@ -625,10 +636,8 @@ export function makeHandlers(deps: HandlerDeps) {
 
   const handleAiUnlock = createAiUnlockHandler({
     store,
-    clock,
     broadcaster,
-    joinRateLimiter,
-    joinFailMax: JOIN_FAIL_MAX,
+    rateLimitGate,
     aiUnlockKey,
     sendError,
   });
@@ -681,9 +690,19 @@ export function makeHandlers(deps: HandlerDeps) {
       .find((r) => r.participants.some((p) => p.connId === connId));
   }
 
-  /** 接続クローズ時の後始末。レート制限用の失敗履歴を解放しマップのリークを防ぐ。 */
+  /** 接続の受理時。この接続が属するクライアント鍵を登録する。 */
+  function handleConnectionOpen(connId: string, rateKey: string): void {
+    rateLimitGate.open(connId, rateKey);
+  }
+
+  /**
+   * 接続クローズ時の後始末。connId → 鍵の対応を捨てる（マップのリーク防止）。
+   *
+   * **レート制限の残量はここでは戻らない**（鍵はクライアントであって接続ではない）。
+   * 張り直しで窓がリセットされるのが #103 が塞いだ回避経路そのものである。
+   */
   function handleConnectionClose(connId: string): void {
-    joinRateLimiter.clear(connId);
+    rateLimitGate.close(connId);
   }
 
   /** ルーム回収時の後始末。当該ルームのホスト/リジュームトークンを解放する。 */
@@ -693,7 +712,13 @@ export function makeHandlers(deps: HandlerDeps) {
 
   // ドライバー不在の猶予後繰り上げ（R2-1）。presence の不在タイマーから呼ばれ、
   // 中身は通常の interval 交代(autoSwitch)と同一。
-  return { handleCommand, handleConnectionClose, releaseRoom, advanceForAbsence: autoSwitch };
+  return {
+    handleCommand,
+    handleConnectionOpen,
+    handleConnectionClose,
+    releaseRoom,
+    advanceForAbsence: autoSwitch,
+  };
 }
 
 // ─── 実行者の通知（FR-077） ──────────────────────────────────────────────────

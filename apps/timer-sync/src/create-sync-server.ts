@@ -191,9 +191,15 @@ export function createSyncServer(config: SyncConfig): SyncServer {
 
       await handlers.handleCommand(connId, cmd);
     },
+    // 接続の受理時に、この接続が属するクライアント鍵（IP の HMAC）を登録する。
+    // これが無いと鍵は connId へ落ち、接続単位の（＝再接続で回避できる）挙動に戻る。
+    onConnect: (connId, rateKey) => {
+      handlers.handleConnectionOpen(connId, rateKey);
+    },
     onDisconnect: (connId) => {
       presenceManager.handleDisconnect(connId);
-      // レート制限用の失敗履歴を解放（マップのリーク防止）。
+      // connId → クライアント鍵の対応を解放（マップのリーク防止）。
+      // レート制限の残量はここでは戻らない（鍵はクライアントであって接続ではない）。
       handlers.handleConnectionClose(connId);
     },
     // 管理エンドポイント（/status・/admin/rooms）を WS サーバの HTTP 層に配線（R3-2）。

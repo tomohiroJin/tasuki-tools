@@ -209,9 +209,18 @@ export class LiveSyncServer {
     return this.server.store;
   }
 
-  /** 新しい WebSocket 接続を開く。 */
-  async connect(label = `client-${this.clients.length + 1}`): Promise<LiveClient> {
-    const ws = new WebSocket(`ws://127.0.0.1:${this.port}`);
+  /**
+   * 新しい WebSocket 接続を開く。
+   *
+   * `headers` はハンドシェイク要求に足すヘッダ。`X-Forwarded-For` を渡せば、
+   * 本番で Caddy が付ける状況（＝レート制限の鍵が IP から導かれる状況）を
+   * 実ソケットで再現できる（設計正本 D5）。
+   */
+  async connect(
+    label = `client-${this.clients.length + 1}`,
+    headers: Record<string, string> = {},
+  ): Promise<LiveClient> {
+    const ws = new WebSocket(`ws://127.0.0.1:${this.port}`, { headers });
     await new Promise<void>((resolve, reject) => {
       ws.once("open", () => resolve());
       ws.once("error", (e) => reject(new LiveSetupError(`${label} の接続に失敗: ${e.message}`)));
