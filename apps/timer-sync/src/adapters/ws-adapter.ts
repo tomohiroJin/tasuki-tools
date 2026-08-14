@@ -126,6 +126,11 @@ export interface WsAdapterOptions {
    */
   deriveClientKey?: (forwardedFor: string | undefined) => string | null;
   /**
+   * true のとき、クライアント鍵を導けなかった接続を拒否する（本番の fail-closed）。
+   * Caddy を迂回した直結は X-Forwarded-For を持たないため、ここで落ちる。
+   */
+  requireClientAddress?: boolean;
+  /**
    * 接続が受理された（Origin・接続数の検査を通った）ときに 1 度だけ呼ばれる。
    * `rateKey` はクライアント鍵。特定できなければ `connId` が入る。
    */
@@ -354,6 +359,14 @@ export class WsAdapter {
   }
 
   private handleOpen(ws: Socket): void {
+    // クライアント鍵の検査は Origin より前に置く。**どちらも 1008 なので、
+    // 後ろに置くと「直結が拒否される」ことを確かめるテストが Origin 拒否を
+    // 見ているだけ、という空振りになる。**
+    if (this.options.requireClientAddress === true && ws.data.clientKey === null) {
+      ws.close(1008, "Client address required");
+      return;
+    }
+
     // Origin 検証（S2）
     if (
       this.options.allowedOrigins.length > 0 &&

@@ -179,6 +179,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     heartbeatMaxMisses: config.heartbeatMaxMisses,
     logger,
     deriveClientKey,
+    requireClientAddress: config.requireClientAddress,
     onMessage: async (connId, msg) => {
       // msg は ws-adapter 側で CommandSchema（valibot）に通した検証済みの値であり、
       // 実体は Command 型と一致する（onMessage の型は unknown のままなのでここでキャストする）。

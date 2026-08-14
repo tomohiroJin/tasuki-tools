@@ -7,6 +7,11 @@
 export interface SyncConfig {
   port: number;
   host: string;
+  /**
+   * 本番かどうか。true のとき、クライアント IP を特定できない接続を拒否する
+   * （#103・ADR 0012 D6）。
+   */
+  requireClientAddress: boolean;
   allowedOrigins: string[];
   maxConnections: number;
   maxRooms: number;
@@ -31,6 +36,18 @@ export interface SyncConfig {
 
 /** `AI_PROBLEM_MODEL` 未設定時の既定モデル。起動ログが「既定どおりか」を示す際にも使う。 */
 export const DEFAULT_AI_PROBLEM_MODEL = "sonnet";
+
+/**
+ * ループバックとみなすホスト名の許可リスト。
+ *
+ * **禁止リストではなく許可リストにする。** 「外部に開いた値」を列挙する方式は、
+ * 書き漏らした表記がそのまま防御の穴になる。
+ */
+const LOOPBACK_HOSTS = new Set(["localhost", "::1", "[::1]"]);
+
+function isLoopbackHost(host: string): boolean {
+  return LOOPBACK_HOSTS.has(host) || /^127\.\d+\.\d+\.\d+$/.test(host);
+}
 
 /** env 値を整数として解釈し、不正なら既定値を返す。 */
 function intEnv(value: string | undefined, fallback: number): number {
@@ -58,6 +75,17 @@ export function loadSyncConfig(env: Record<string, string | undefined>): SyncCon
     );
   }
 
+  const isProduction = env["NODE_ENV"] === "production";
+  const host = env["HOST"] ?? "127.0.0.1";
+
+  if (isProduction && !isLoopbackHost(host)) {
+    throw new Error(
+      `本番（NODE_ENV=production）では HOST をループバックに限定します（受け取った値: ${host}）。` +
+        "Caddy を迂回した直接接続は X-Forwarded-For を偽装できるため、" +
+        "レート制限が無効化されます。起動を中止します。",
+    );
+  }
+
   return {
     // PORT=0 は「OS に空きポートを選ばせる」を意味する有効値なので 0 を通す
     // （poker-sync の config.ts と同じ扱い）。intEnv だと 0 が不正扱いで既定 8787 に
@@ -65,7 +93,7 @@ export function loadSyncConfig(env: Record<string, string | undefined>): SyncCon
     // 並行実行やポート衝突の帳簿を人が保守する羽目になる。
     // 実際に listen したポートは `WsAdapter.port` から取る。
     port: nonNegIntEnv(env["PORT"], 8787),
-    host: env["HOST"] ?? "127.0.0.1",
+    host,
     allowedOrigins,
     maxConnections: intEnv(env["MAX_CONNECTIONS"], 200),
     maxRooms: intEnv(env["MAX_ROOMS"], 50),
@@ -79,5 +107,6 @@ export function loadSyncConfig(env: Record<string, string | undefined>): SyncCon
     aiDailyLimit: nonNegIntEnv(env["AI_DAILY_LIMIT"], 100),
     heartbeatIntervalMs: intEnv(env["HEARTBEAT_INTERVAL_MS"], 15_000),
     heartbeatMaxMisses: intEnv(env["HEARTBEAT_MAX_MISSES"], 2),
+    requireClientAddress: isProduction,
   };
 }

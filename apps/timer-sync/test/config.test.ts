@@ -15,6 +15,7 @@ describe("loadSyncConfig", () => {
     expect(c.maxRooms).toBe(50);
     expect(c.roomIdleTtlMs).toBe(1_800_000);
     expect(c.adminToken).toBeUndefined();
+    expect(c.requireClientAddress).toBe(false);
   });
 
   it("env を解釈する", () => {
@@ -57,6 +58,8 @@ describe("loadSyncConfig", () => {
     const c = loadSyncConfig(env);
     // Then
     expect(c.allowedOrigins).toEqual(["https://tasuki.example.com"]);
+    // 本番では、クライアント IP を特定できない接続を拒否する（#103・D6）。
+    expect(c.requireClientAddress).toBe(true);
   });
 
   it("不正な数値は既定値にフォールバック", () => {
@@ -118,5 +121,46 @@ describe("loadSyncConfig", () => {
     // Then
     expect(c.heartbeatIntervalMs).toBe(15_000);
     expect(c.heartbeatMaxMisses).toBe(2);
+  });
+
+  describe("本番の HOST 検査（起動時 fail-closed・#103・D6）", () => {
+    it("本番でループバック以外は起動を拒否する", () => {
+      const env = {
+        NODE_ENV: "production",
+        ALLOWED_ORIGINS: "https://tasuki.example.com",
+        HOST: "0.0.0.0",
+      };
+      expect(() => loadSyncConfig(env)).toThrow(/HOST/);
+    });
+
+    it.each(["127.0.0.1", "127.1.2.3", "::1", "[::1]", "localhost"])(
+      "本番でも %s はループバック扱いで通る",
+      (host) => {
+        const env = {
+          NODE_ENV: "production",
+          ALLOWED_ORIGINS: "https://tasuki.example.com",
+          HOST: host,
+        };
+        const c = loadSyncConfig(env);
+        expect(c.host).toBe(host);
+      },
+    );
+
+    it("HOST 未設定なら既定の 127.0.0.1 で本番でも通る", () => {
+      const env = {
+        NODE_ENV: "production",
+        ALLOWED_ORIGINS: "https://tasuki.example.com",
+      };
+      const c = loadSyncConfig(env);
+      expect(c.host).toBe("127.0.0.1");
+      expect(c.requireClientAddress).toBe(true);
+    });
+
+    it("本番以外なら 0.0.0.0 でも拒否しない", () => {
+      const env = { HOST: "0.0.0.0" };
+      const c = loadSyncConfig(env);
+      expect(c.host).toBe("0.0.0.0");
+      expect(c.requireClientAddress).toBe(false);
+    });
   });
 });
