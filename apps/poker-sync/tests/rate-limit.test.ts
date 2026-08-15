@@ -115,6 +115,33 @@ describe('入室失敗のレート制限', () => {
     second.close();
   });
 
+  it('X-Real-Ip を変えても、X-Forwarded-For が同じなら鍵は変わらない（X-Real-Ip は鍵の材料にならない）', async () => {
+    server = await startProdServer();
+    const first = await connectRaw(server.port, {
+      origin: 'https://example.com',
+      forwardedFor: '203.0.113.7',
+      xRealIp: '198.51.100.1',
+    });
+    for (let i = 0; i < DEFAULT_CAPACITY; i++) {
+      first.send({ type: 'join-room', roomId: `nope${i}`, name: '侵入者' });
+      await first.nextText();
+    }
+    first.close();
+
+    // 同じ X-Forwarded-For・別の X-Real-Ip で繋ぎ直す（従来の X-Real-Ip 経路の壊し方なら
+    // ここで鍵が変わり、残量がまっさらに戻ってしまう）
+    const second = await connectRaw(server.port, {
+      origin: 'https://example.com',
+      forwardedFor: '203.0.113.7',
+      xRealIp: '203.0.113.99',
+    });
+    second.send({ type: 'join-room', roomId: 'nope-final', name: '侵入者' });
+    const msg = (await second.nextText()) as { code: string };
+
+    expect(msg.code).toBe('rate-limited');
+    second.close();
+  });
+
   it('別の IP は独立している', async () => {
     server = await startProdServer();
     const a = await connectRaw(server.port, {

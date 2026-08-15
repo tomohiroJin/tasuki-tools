@@ -75,6 +75,30 @@ describe("実 WS 越しの入室レート制限", () => {
     expect(lastErrorCodes(second, 3)).toContain("JOIN_RATE_LIMITED");
   });
 
+  it("X-Real-IP を変えても、X-Forwarded-For が同じなら鍵は変わらない（X-Real-IP は鍵の材料にならない）", async () => {
+    // Given（同じ X-Forwarded-For・X-Real-IP を名乗る 1 本目の接続で使い切る）
+    server = startLiveSyncServer();
+    const xff = "203.0.113.7";
+    const first = await server.connect("first", {
+      "x-forwarded-for": xff,
+      "x-real-ip": "198.51.100.1",
+    });
+    await drainBadJoins(first, DEFAULT_CAPACITY + 1);
+    expect(lastErrorCodes(first, 1)).toEqual(["JOIN_RATE_LIMITED"]);
+
+    // When（同じ X-Forwarded-For・別の X-Real-IP で繋ぎ直す。X-Real-IP が鍵の材料なら
+    // ここで別の鍵になり、残量がまっさらに戻ってしまう）
+    await first.close();
+    const second = await server.connect("second", {
+      "x-forwarded-for": xff,
+      "x-real-ip": "203.0.113.99",
+    });
+    await drainBadJoins(second, 3);
+
+    // Then（X-Forwarded-For だけが鍵の材料なら、引き続き JOIN_RATE_LIMITED が混じる）
+    expect(lastErrorCodes(second, 3)).toContain("JOIN_RATE_LIMITED");
+  });
+
   it("別の IP のクライアントは巻き込まれない", async () => {
     // Given
     server = startLiveSyncServer();

@@ -176,6 +176,18 @@ const MUTATIONS = [
       "残量が無いときに ROOM_NOT_FOUND が返り、トークンを消費せずに存在確認を" +
       "続けられる欠陥。設計正本 D3 が API を分けている理由そのもの。",
   },
+  {
+    id: 13,
+    label: "WS アダプタの鍵導出が X-Real-IP を（X-Forwarded-For より優先して）読む",
+    patch: "m13-adapter-reads-x-real-ip.patch",
+    pkg: "apps/timer-sync",
+    tests: ["test/fail-closed.test.ts", "test/live-ws.rate-limit.test.ts"],
+    note:
+      "最終レビュー W-1。X-Real-IP は攻撃者が自由に付けられるヘッダ（Caddy は除去・" +
+      "上書きしない）。接続のたびに値を変えるだけで毎回まっさらな鍵になり、#103 が" +
+      "塞いだ「再接続でリセット」が復活する欠陥。poker-sync にも同型のテストを足したが、" +
+      "mutation-check の対象は timer-sync 側の 1 件のみとした（W-1 の指示どおり）。",
+  },
 ];
 
 /**

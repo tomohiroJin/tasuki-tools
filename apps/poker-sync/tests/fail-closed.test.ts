@@ -53,6 +53,23 @@ describe('接続時の fail-closed（X-Forwarded-For）', () => {
     expect(closed.reason).toBe('Client address required');
   });
 
+  it('本番で X-Real-Ip だけを付けても、X-Forwarded-For が無ければ拒否される（X-Real-Ip は鍵の材料にならない）', async () => {
+    server = await startServer({
+      NODE_ENV: 'production',
+      ALLOWED_ORIGINS: 'https://example.com',
+      HOST: '127.0.0.1',
+    });
+    const client = await connectRaw(server.port, {
+      origin: 'https://example.com',
+      xRealIp: '203.0.113.7',
+    });
+
+    const closed = await client.waitForClose();
+
+    expect(closed.code).toBe(1008);
+    expect(closed.reason).toBe('Client address required');
+  });
+
   it('本番でヘッダがあれば繋がる', async () => {
     server = await startServer({
       NODE_ENV: 'production',

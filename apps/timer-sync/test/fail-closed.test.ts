@@ -19,7 +19,14 @@ afterEach(async () => {
   server = undefined;
 });
 
-/** close の (code, reason) を待つ。 */
+/**
+ * close の (code, reason) を待つ。
+ *
+ * **`open` では判定できない。** ハンドシェイク（101 応答）はいったん通してから
+ * アプリ層が close するので（このファイル冒頭の docstring）、拒否される接続でも
+ * `ws` ライブラリの `open` イベントは一度発火する。拒否されたかどうかは、その後に
+ * 届く close フレームの code/reason でしか区別できない。
+ */
 function waitClose(ws: WebSocket): Promise<{ code: number; reason: string }> {
   return new Promise((resolve) => {
     ws.on("close", (code, reason) => resolve({ code, reason: reason.toString() }));
@@ -71,6 +78,24 @@ describe("接続時の fail-closed（X-Forwarded-For）", () => {
     });
     server = createSyncServer(config);
     const ws = new WebSocket(`ws://127.0.0.1:${server.wsAdapter.port}`);
+
+    const closed = await waitClose(ws);
+
+    expect(closed.code).toBe(1008);
+    expect(closed.reason).toBe("Client address required");
+  });
+
+  it("本番で X-Real-IP だけを付けても、X-Forwarded-For が無ければ拒否される（X-Real-IP は鍵の材料にならない）", async () => {
+    const config = loadSyncConfig({
+      NODE_ENV: "production",
+      ALLOWED_ORIGINS: "https://example.com",
+      PORT: "0",
+      HOST: "127.0.0.1",
+    });
+    server = createSyncServer(config);
+    const ws = new WebSocket(`ws://127.0.0.1:${server.wsAdapter.port}`, {
+      headers: { "x-real-ip": "203.0.113.7", origin: "https://example.com" },
+    });
 
     const closed = await waitClose(ws);
 
