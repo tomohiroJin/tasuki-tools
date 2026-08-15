@@ -12,7 +12,7 @@
 
 **Tech Stack:** Markdown のみ。検査は `node scripts/check-links.mjs`。CI は docs ジョブ。
 
-**Spec:** `docs/superpowers/specs/2026-08-14-pr-granularity-design.md`（324 行・敵対的検証済み）
+**Spec:** `docs/superpowers/specs/2026-08-14-pr-granularity-design.md`（331 行・敵対的検証済み）
 
 ## Global Constraints
 
@@ -20,7 +20,9 @@
 - **憲法 原則 IX の MUST は 3 つあるが、触るのは 1 つ目だけ。** 2 つ目（DoD）・3 つ目
   （デプロイはまとめて 1 回）は変更しない
 - **二重正本を作らない**（`docs/adr/0002` 決定 2）。**実例表の正本はガイド**。ADR には
-  数値表を載せず、決定の根拠となる事実の要約までとする
+  数値表を載せず、決定の根拠となる事実の要約までとする。
+  **ここで禁じているのは、ガイドが正本として持つ実例表（PR 番号つきの比較表）の複製である。**
+  本 PR 自身の実測表は別物で、Task 5 が ADR へ置く
 - **数値の正本は spec §2.1。** 本計画・タスクは spec から引用し、数値を転記して二重管理にしない
 - **semver は 2.1.1 → 2.1.2（PATCH）。** 判断理由と、MINOR と読む余地があることを
   Sync Impact Report に明記する
@@ -652,9 +654,9 @@ git push
 
 - [ ] **Step 4: #135 へ申し送りをコメントする**
 
-本作業で見つかった「検査が静かに効かなくなる経路」2 件を #135 へ記録する。
+本作業で見つかった「検査が静かに効かなくなる経路」3 件を #135 へ記録する。
 
-1. `check-links` は git 追跡下のファイルしか走査しない（`scripts/check-links.mjs:216-220`）。
+1. `check-links` は git 追跡下のファイルしか走査しない（`scripts/check-links.mjs` の `trackedPaths()` 234〜243 行目）。
    未追跡の新規文書はローカル検査で何を壊しても緑になる。CI は影響を受けない
 2. 憲法 Governance の「すべての plan は Constitution Check ゲートを通過しなければならない」が
    実運用で空文化している（`docs/superpowers/` で 4 件のみ。#136 の plan にも無い）。
@@ -688,5 +690,5 @@ git push
 - [ ] `AGENTS.md` の原則見出し 11 本が憲法と一致（Task 3 Step 6 の diff が空）
 - [ ] ガイド 7 本に対し `docs/README.md` と `AGENTS.md` の列挙が 7 項目で一致
 - [ ] 破壊検証を 2 回行い、いずれも赤を確認してから戻した（Task 1 Step 4・Task 3 Step 7）
-- [ ] #135 へ申し送り 2 件をコメントした
+- [ ] #135 へ申し送り 3 件をコメントした
 - [ ] Issue #119 の完了条件 4 項目に根拠つきでコメントし、クローズした
