@@ -209,6 +209,25 @@ scripts/gen-countdown-voices.sh  scripts/gen-sounds.sh  scripts/gen-voices.sh
 | SC032（GWT マーカー） | 1088/1123（96.9%） | 43/221（19.5%） |
 | SC029（テスト名の SC-ID） | 7 | 8 |
 
+### 3.10 git の pathspec は `**` を解さない。`*` は `/` を跨ぐ
+
+```
+git ls-files 'scripts/**/*.test.mjs'   → 0 件
+git ls-files 'scripts/*.test.mjs'      → 4 件（scripts/lib/ 配下も一致する）
+git ls-files '*.test.mjs'              → 5 件
+```
+
+**`**` を書くと 1 件も一致しない。** 走査対象を `**` で書いた検査は、
+まさに本 Issue が塞ごうとしている「静かに 0 件を走査する」状態になる。
+
+`scripts/*.test.mjs` は `scripts/lib/dummy.test.mjs` にも一致する（実測で確認）。
+git の `*` は `/` を跨ぐため、これだけで再帰的な列挙になる。
+
+**`*.test.mjs` を使ってはならない。** `packages/ui/tests/tokens.test.mjs` に一致する。
+これは `packages/ui` 自身のテスト（`node --test` で走る）であり、
+`ci.yml` の `quality` ジョブが列挙している 4 本とは別に存在する。
+⑬の実体は **`scripts/` に限定する**。
+
 ## 4. 決定
 
 ### D1: 走査対象は宣言し、実体と全単射で照合する
@@ -366,7 +385,7 @@ export function formatTargetDiff(name, diff, scanSummary)
 | `audit-log-hygiene.mjs` | パッケージ → `src` ディレクトリ＋理由つき除外 | `listWorkspacePackages` | 全単射が崩れる |
 | `check-links.mjs` | `LIVE_DOCS` ＋ 理由つき除外接頭辞 | `listTrackedFiles(["*.md"])` | 全分割が崩れる（無所属の `.md` がある） |
 | `ci.yml` shellcheck | 除外 `.specify/scripts/**` のみ | `listTrackedFiles(["*.sh"])` | 除外が実在しない / 対象 0 件 |
-| `ci.yml` `node --test` | なし（全件） | `listTrackedFiles(["scripts/**/*.test.mjs"])` | 対象 0 件 |
+| `ci.yml` `node --test` | なし（`scripts/` 配下の全件） | `listTrackedFiles(["scripts/*.test.mjs"])` | 対象 0 件 |
 
 `audit-structure` の宣言は §3.2 の実測に従い、パッケージごとに `test` / `tests` を明示する。
 `packages/ui` は src・test とも TS が 0 件なので**両方から**除外する。
@@ -383,6 +402,7 @@ YAML に対象を書かない。薄い CLI を共有モジュールの上に置�
 ```
 
 `list-scan-targets.mjs` は対象が 0 件なら非ゼロで終了する。
+pathspec は §3.10 に従い `scripts/*.test.mjs`（`**` を使わない）と `*.sh` を使う。
 これにより ADR 0009 D6 の「`deploy/**` と `scripts/**` を対象」という記述と実装が初めて一致する。
 
 ### 5.4 エラー表示
