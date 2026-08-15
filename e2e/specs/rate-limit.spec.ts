@@ -29,8 +29,19 @@ function waitClose(ws: WebSocket): Promise<{ code: number; reason: string }> {
   });
 }
 
+/**
+ * **このシナリオに本番タグ（`@smoke` / `@core`）を付けないこと。**
+ *
+ * ここは `ws://127.0.0.1:<PORT>` へ直結して「拒否されること」を確かめる検査で、
+ * ローカルのハーネスが起動したサーバーが手元に居ることを前提にしている。
+ * 本番向けの `pnpm e2e:prod`（`--grep "@smoke|@core"`）に拾われると、
+ * 開発機の 127.0.0.1 には何も居ないため**必ず失敗し、本番検証そのものが赤くなる**。
+ *
+ * この事故は `e2e/tests/spec-tags.test.ts` の「本番へ漏れる local 専用シナリオ」が
+ * 捕まえる（実際に 1 度踏んで捕まった）。タグを足すときはその検査を必ず走らせること。
+ */
 test.describe('Caddy を迂回した直接接続', () => {
-  test('timer-sync は直結を拒否する @core', async () => {
+  test('timer-sync は直結を拒否する', async () => {
     const ws = new WebSocket(`ws://127.0.0.1:${PORTS.timerSync}/ws`);
 
     const closed = await waitClose(ws);
@@ -39,7 +50,7 @@ test.describe('Caddy を迂回した直接接続', () => {
     expect(closed.reason).toBe('Client address required');
   });
 
-  test('poker-sync は直結を拒否する @core', async () => {
+  test('poker-sync は直結を拒否する', async () => {
     const ws = new WebSocket(`ws://127.0.0.1:${PORTS.pokerSync}/ws`);
 
     const closed = await waitClose(ws);
