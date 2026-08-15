@@ -206,7 +206,8 @@ export class WsAdapter {
    * `httpHandler` / `new Response` のいずれかで throw すると、development:
    * false でも Bun 自身のフォールバック応答はロガ（ADR 0012 D1）を経由せず、
    * stderr に例外メッセージとスタックが出る（再レビュー実測: `logger lines = []`）。
-   * Task 5・6 でこの関数に処理が増える前提なので、いま全体を隔離しておく。
+   * この関数が呼び出しうる経路（`server.upgrade` 等）は今後も増減しうるため、
+   * 個別の呼び出しを都度 try/catch するのではなく本体全体を隔離しておく。
    */
   private handleFetch(req: Request, server: Bun.Server<ConnectionData>): Response | undefined {
     try {
@@ -371,7 +372,9 @@ export class WsAdapter {
     // onConnect は呼び出し元（アプリ層）のコールバック。throw すると Bun の
     // websocket ハンドラ内なので uncaughtException になり、本番の server.ts が
     // process.exit(1) で受ける（実測）。コールバックの失敗でプロセス全体を
-    // 落とさないよう、ここで隔離する（N-3。Task 5 で `gate.open()` を挿す前提）。
+    // 落とさないよう、ここで隔離する（N-3）。onConnect の実体（アプリ層の
+    // handleConnectionOpen）が rateLimitGate.open() を呼ぶのはここではなく
+    // application/handlers.ts 側であり、この adapter 自身はゲートを知らない。
     try {
       this.options.onConnect?.(connId, ws.data.clientKey ?? connId);
     } catch (err) {
@@ -448,7 +451,9 @@ export class WsAdapter {
     this.missedPongs.delete(connId);
     // onDisconnect は呼び出し元（アプリ層）のコールバック。onConnect を隔離した
     // 根拠（「コールバックの失敗でプロセス全体を落とさない」）は onDisconnect にも
-    // 等しく当てはまる（I-5。Task 5 で `gate.close()` が入る場所）。
+    // 等しく当てはまる（I-5）。onDisconnect の実体（アプリ層の
+    // handleConnectionClose）が rateLimitGate.close() を呼ぶのはここではなく
+    // application/handlers.ts 側であり、この adapter 自身はゲートを知らない。
     try {
       this.options.onDisconnect(connId);
     } catch (err) {
