@@ -66,8 +66,12 @@ function gitLines(repoRoot, args) {
 /**
  * 追跡下のファイルを列挙する。
  *
- * **pathspec に `**` を書いてはならない。** git は解さず 0 件を返す（実測）。
- * `*` は `/` を跨ぐので `scripts/*.test.mjs` だけで再帰列挙になる。
+ * **pathspec に `**` を書いてはならない。** git の pathspec で `**` は特別扱いされず、
+ * `*` と同じく `/` を跨ぐ単なるワイルドカードとして振る舞う。したがって
+ * `scripts/**\/*.test.mjs` は `scripts/*\/*.test.mjs` と同義になり、`scripts/` 直下の
+ * ファイルを**静かに取りこぼす**。0 件になって空振りが露見するのではなく、
+ * 一部だけ一致して残りが落ちるので、「0 件なら落とす」検査では救えない。
+ * `*` が `/` を跨ぐため、再帰列挙には `scripts/*.test.mjs` だけで足りる。
  */
 export function listTrackedFiles(repoRoot, patterns) {
   return gitLines(repoRoot, ["ls-files", "-z", ...patterns]).sort();
