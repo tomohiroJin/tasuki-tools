@@ -397,9 +397,27 @@ export function formatTargetDiff(name, diff, scanSummary)
 YAML に対象を書かない。薄い CLI を共有モジュールの上に置き、`xargs` で渡す。
 
 ```yaml
-- run: node scripts/list-scan-targets.mjs shell | xargs shellcheck -x --source-path=deploy --severity=warning
-- run: node scripts/list-scan-targets.mjs script-tests | xargs node --test
+- name: shellcheck
+  shell: bash
+  run: |
+    set -euo pipefail
+    targets="$(node scripts/list-scan-targets.mjs shell)"
+    shellcheck -x --source-path=deploy --severity=warning $targets
+
+- name: scripts の自己テスト
+  shell: bash
+  run: |
+    set -euo pipefail
+    targets="$(node scripts/list-scan-targets.mjs script-tests)"
+    node --test $targets
 ```
+
+**`| xargs` で繋いではならない**（MUST NOT）。GitHub Actions の既定シェルは `bash -e` で
+`pipefail` を設定しないため、**対象生成が失敗しても後段が成功すればジョブは緑になる**。
+本 Issue が塞ごうとしている性質そのものを、対策の実装で作ることになる。
+
+コマンド置換への代入なら `set -e` が終了コードを拾う（`x="$(false)"` は 1 を返す）。
+`$targets` をクォートしないのは意図的で、対象パスに空白が無いことに依存する（§3.7・§3.10 の実測）。
 
 `list-scan-targets.mjs` は対象が 0 件なら非ゼロで終了する。
 pathspec は §3.10 に従い `scripts/*.test.mjs`（`**` を使わない）と `*.sh` を使う。
