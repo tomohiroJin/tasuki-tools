@@ -175,6 +175,19 @@ ADR 0011 決定4 の目標は「**全探索に 1 年以上**」である。**レ
 **帰結**: 同一 NAT の N 人が一斉に復帰すると、失敗は瞬間的に N 件積まれるが、その後は増えない。
 バースト容量が N を上回っていれば正規利用者は締め出されない（§4 決定 D2）。
 
+**#103 実装後の追記（このバケツ ID 単位ではなく NAT/IP 単位で共有されるようになったことによる
+帰結。§8 にも申し送る）**: バースト容量（既定 60）を N が上回る場合、61 人目以降は
+`ROOM_NOT_FOUND` ではなく `JOIN_RATE_LIMITED` を受ける（実測: N=100 で `ROOM_NOT_FOUND`
+60 件 / `JOIN_RATE_LIMITED` 40 件）。**「各クライアントは 1 回だけ失敗し、以後 join を
+再送しない」という上記の前提は `JOIN_RATE_LIMITED` には当てはまらない**
+——`apps/timer-web/src/ui/error-action.ts` の `errorAction` は `JOIN_RATE_LIMITED` を
+列挙しておらず、既定の `transient` に落ちる。`App.tsx` の `transient` 分岐はバナー表示と
+自動消去（4 秒）のみで、`clearResumeIdentity()` も再送も行わない。**結果として、
+バースト容量を超えた利用者は接続済み・未入室のまま滞留し、リロードするまで復帰しない。**
+クライアント側の扱い（再送・指数バックオフでの再挑戦等）は本 Issue のスコープ外とし、
+別 Issue へ送る。製品コード（`error-action.ts` / `App.tsx`）はこの Issue の範囲では
+変更しない。
+
 ## 4. 決定
 
 ### D1: 鍵は IP アドレスの HMAC。IPv6 は /64 に丸める
@@ -246,6 +259,16 @@ sweepRunCount(): number           // sweep が実際に全走査した回数（�
 （例: `capacity` が極端に大きい、`refillPerSec` が極端に小さい）も起動時に `throw` する
 （**MUST**）。個々の入力が有限でも、商はオーバーフロー・アンダーフローしうるため。
 
+**`refillFullMs` が有限かつ正でも、基準時刻の前進幅として意味を持たないほど小さい場合は
+起動時に `throw` する（**MUST**。実装では M-1 ガードと呼ぶ）。** 基準時刻（`refTime`）は
+1 回の呼び出しで最大 `refillFullMs` しか進めない設計だが、`refillFullMs` が
+`Number.MAX_SAFE_INTEGER` 規模の加算で吸収されてしまう大きさだと、`clock + refillFullMs`
+が丸め誤差で `clock` と等しくなり、基準時刻が実質的に一切前進しなくなる（実測:
+`capacity: 1, refillPerSec: 1e7` は `capacity` も `refillPerSec` も有限かつ正で、
+`refillFullMs`（≈0.0001ms）も有限の正数だが、`createTokenBucketLimiter` はこの組み合わせを
+`throw` で拒否する。個々の入力・商のどちらも上記の非有限・0 以下チェックをすり抜ける値の
+組であるため、別の検査として必要）。
+
 `sweepThreshold` には**上限**もある。`MAX_SWEEP_THRESHOLD`（値の正本はここ。**1,000,000 件**）を
 超える値を渡すと起動時に `throw` する（**MUST**）。有限であっても到達不能に大きい値
 （例: `Number.MAX_VALUE`）は `buckets.size` が一生しきい値を超えず、**自動の掃除が完全に死ぬ**
@@ -280,8 +303,19 @@ sync サーバーがイベントループを止めてよい実用上の限界が
 絶対値を取る間隔条件は「経過した」ときだけでなく常に成立してしまい、以後の呼び出し
 （`consume` 経由の毎回）で O(n) の全走査が走り続ける。
 
-基準時刻は 1 回の呼び出しで最大 `refillFullMs` しか進まないため、**全走査は最悪でも
-`refillFullMs` に 1 回**という不変条件が、前方への時計飛びが混じっても保たれる（**MUST**）。
+基準時刻は 1 回の呼び出しで最大 `refillFullMs` しか進まないため、**`consume` 駆動の自動掃除に
+限れば、全走査は最悪でも `refillFullMs` に 1 回**という不変条件が、前方への時計飛びが
+混じっても保たれる（**MUST**）。
+
+**この不変条件は `consume` 内部の間隔・閾値判定を経由する自動掃除にのみ適用され、公開
+`sweep(now)` を直接呼ぶ経路には及ばない。** `sweep(now)` は呼ばれた回数だけ無条件に全走査
+する（間隔・閾値の判定を一切経由しない。`sweepAt` を直接呼ぶだけの実装である）。したがって
+`sweep(now)` を高頻度に呼べば全走査も同じ頻度で起きる。**呼び出し頻度の責任は呼び出し側に
+ある。** 下記「誰が `sweep` を呼ぶか」が「定期バッチ・管理コマンドで `sweep(now)` を
+明示的に呼ぶことは妨げない」と述べているのはこの前提のうえであり、手動呼び出しの頻度に
+上限を設けないのは設計上の意図であって、本項の MUST と矛盾しない（実測:
+`createTokenBucketLimiter({capacity:60, refillPerSec:1})` に同一時刻で `sweep(now)` を
+100 回呼ぶと `sweepRunCount()` は 100 になる）。
 
 **実測（`capacity` 2・`refillPerSec` 1・`refillFullMs` 2,000ms、`now` を上端 `T0`+1,000,000ms と
 下端 `T0`+2,000ms の間で 5,000 回往復させたときの全走査回数）**:
@@ -469,9 +503,26 @@ fail-closed は Task 5 の穴（枠稼ぎ）を塞ぐ防御ではなく**、Cadd
 
 **枠稼ぎを実際に止めているのは、起動時 fail-closed（`HOST` をループバック限定）と Caddy と
 ufw の組み合わせである。** 接続時 fail-closed 単体には枠稼ぎを止める効力がない。
-**したがって `HOST` をループバック外へ変える変更は、レート制限を丸ごと無効化する。**
-期待の置き所を誤ると、次の変更でこの前提（起動時 fail-closed が本体の防御である）を
-知らずに落とすため、ここに明記する。
+
+**ここで誤解しやすい点を訂正する。** 「`HOST` をループバック外へ変える変更は、レート制限を
+丸ごと無効化する」という表現は誤りである。`HOST` を書き換えるだけでは無効化されない
+——**`server-env.ts` の起動時 fail-closed が `NODE_ENV=production` かつ `HOST` が
+ループバック以外のとき起動そのものを拒否する（D6・MUST）ため、本番でこれをやると
+サービスが起動せず、すぐに気づける失敗になる。**
+
+**実際に静かにレート制限を無効化しうるのは次の 2 つである**:
+
+1. **起動時 fail-closed の検査そのものを外す・緩める変更**（`isLoopbackHost` の判定を
+   緩める、`config.ts` の throw を削る等）。この場合だけ `HOST` をループバック外にしても
+   起動が通ってしまう
+2. **env から `NODE_ENV=production` が落ちる（未設定・書き間違いになる）変更。** これは
+   `HOST` のループバック検査と `requireClientAddress`（接続時 fail-closed）を**同時に**
+   無効化し、かつ `isProductionEnv` が false 側へ倒れるため、接続単位の鍵へ**静かに戻る**
+   （`server-env.ts` は未知の値なら throw するが、空文字列や `development` は正規の値として
+   通る）。3 箇所すべてが一度に緩む点で、`HOST` 単体の書き換えより深刻である
+
+次にこのコードへ触る人が誤った方向（`HOST` さえ守れば安全、という誤解）へ誘導されないよう、
+ここに明記する。
 
 **検討したが採らなかった代案（二重化）**: 接続元ピアが 127.0.0.1 のときだけ
 `X-Forwarded-For` を受け入れる、という二重化も可能である（レビュアー提案）。
@@ -650,7 +701,7 @@ IPv4 射影レンジ（`::ffff:0:0/96`）かどうかを数値で判定した上
 | 判定・照会・消費の順序（D3） | 実 WebSocket 越しの統合テスト。**レート制限中に正しいコードで入室要求を出し、`ROOM_NOT_FOUND` ではなく拒否が返ることを確認する** |
 | 起動時 fail-closed（D6） | 単体テスト（`loadSyncConfig` に `HOST=0.0.0.0` ＋ `NODE_ENV=production`） |
 | 接続時 fail-closed（D6） | `create-sync-server` を `NODE_ENV=production` で起こし、実 WebSocket で確認 |
-| **実 Caddy 経路での XFF** | **E2E に `NODE_ENV=production` を追加する**。副作用がないことは実測済み（`NODE_ENV` が効くのは両アプリとも `ALLOWED_ORIGINS` の fail-closed 1 箇所のみ。E2E は既に `ALLOWED_ORIGINS` を渡している）。XFF が届かなければ既存シナリオが全滅するので、リスクが即座に出る |
+| **実 Caddy 経路での XFF** | **E2E に `NODE_ENV=production` を追加する**。副作用がないことは実測済み。**`NODE_ENV` が本番判定として効くのは両アプリとも 3 箇所（`ALLOWED_ORIGINS` の fail-closed・`HOST` のループバック限定・`requireClientAddress`。加えて `server-env.ts` は未知の `NODE_ENV` 値を起動時に throw する）で、E2E は既にこの 3 箇所すべてを満たす値（`ALLOWED_ORIGINS`・`HOST=127.0.0.1`）を渡している。** XFF が届かなければ既存シナリオが全滅するので、リスクが即座に出る |
 | Caddy 迂回の拒否 | E2E に 1 シナリオ追加。close reason で Origin 拒否と区別する |
 | 変異検査 | `scripts/mutation-check.mjs` に追加（例: /64 マスクを /128 に変える・判定と消費の順序を入れ替える）。**対照実行つきで、変異なしでは緑になることを先に確認する** |
 
@@ -671,8 +722,24 @@ IPv4 射影レンジ（`::ffff:0:0/96`）かどうかを数値で判定した上
 - **接続時 fail-closed は Task 5 の穴（枠稼ぎ）を塞ぐ防御ではない**（D6・P-4 で詳述）。
   枠稼ぎを止めているのは起動時 fail-closed（`HOST` をループバック限定）と Caddy と ufw の
   組み合わせであり、接続時 fail-closed は「XFF が届かなくなったことに気づける形にする」
-  ためのものである。**`HOST` をループバック外へ変える変更はレート制限を丸ごと無効化する**
-  ことを、次にこのコードへ触る人が誤解しないよう明記しておく
+  ためのものである。**`HOST` を単体で書き換えても、本番では起動時 fail-closed が起動を
+  拒否するため、レート制限は丸ごと無効化されない**（気づける側の失敗）。実際に静かに
+  無効化しうるのは、起動時 fail-closed の検査そのものを外す・緩める変更と、env から
+  `NODE_ENV=production` が落ちる変更（`HOST` 検査と `requireClientAddress` の両方が同時に
+  緩み、接続単位へ静かに戻る）の 2 つである。次にこのコードへ触る人が「`HOST` さえ
+  守れば安全」と誤解しないよう D6 に明記した
+- **`NODE_ENV` が効く箇所は 3 つ（`ALLOWED_ORIGINS` の fail-closed・`HOST` のループバック
+  限定・`requireClientAddress`）＋ `server-env.ts` の未知値 throw であり、`e2e/harness/sync.ts`
+  のコメント（「2 箇所だけ」）は古い。** `e2e/` は本タスクの対象外のため直接は修正していない。
+  次に `e2e/harness/sync.ts` に触る人（controller）へ申し送る
+- **§3.5 の「各クライアントは 1 回だけ失敗し、以後 join を再送しない」は #103 実装後は
+  成立しない。** バケツが NAT 単位（IP 単位）で共有されるため、N > 60（バースト容量）の
+  一斉復帰では 61 人目以降が `ROOM_NOT_FOUND` ではなく `JOIN_RATE_LIMITED` を受ける
+  （実測: N=100 で `ROOM_NOT_FOUND` 60 件 / `JOIN_RATE_LIMITED` 40 件）。`error-action.ts` は
+  `JOIN_RATE_LIMITED` を既定の `transient` に振り分け、`App.tsx` の `transient` 分岐は
+  バナー表示のみで再送・自動再試行を行わないため、**61 人目以降は接続済み・未入室のまま
+  滞留し、リロードするまで復帰しない。** クライアント側の対応（再送・指数バックオフの
+  再挑戦等）は本 Issue のスコープ外とし、別 Issue へ送る
 - **本 Issue は S1 を解決しない。** 単一 IP からの総当たりは 600 倍遅くなるが、複数 IP へ分散されると
   総レートは IP 数に比例する（§3.4）。ADR 0011 決定4 自身が「複数 IP へ分散する攻撃者を防ぐもの
   ではない」と明記している。**完了条件に明記する**
