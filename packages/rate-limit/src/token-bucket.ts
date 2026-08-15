@@ -17,7 +17,8 @@
  * あるのは、この順序を呼び出し側が選べないようにするためではなく、
  * **順序を明示的に書かせるため**である（設計正本 D3）。
  *
- * `shouldReject` は**純粋な照会**であり、状態を一切書き換えない（設計正本 D4）。
+ * `shouldReject` は**純粋な照会**であり、状態を一切書き換えない（設計正本 D3。
+ * D4 の全走査の間隔判定はこの純粋性の上に成り立つ関連条件だが、一次記述は D3 にある）。
  * D3 の順序では同じ `now` が `shouldReject` と `consume` の 2 回観測されるため、
  * 「照会でも状態を進める」設計にすると、単発の異常な `now` が自分自身を裏付けとして
  * 認証してしまう（実際にそれで凍結する実装を一度作った）。
@@ -275,6 +276,13 @@ export function createTokenBucketLimiter(options: TokenBucketOptions): RateLimit
       // sweep は状態を書き換える公開操作（エントリの削除・lastSweepAt の更新）なので、
       // 照会側の shouldReject とは違い commit する。定期バッチ・管理コマンドから
       // sweep だけを繰り返し呼ぶ運用でも基準時刻が実時刻に追随できるようにするため。
+      //
+      // **ここには consume 内部にある閾値・間隔の判定（sweepThreshold・lastSweepAt との
+      // 比較）を一切通さない。** つまり「全走査は最悪でも refillFullMs に 1 回」という
+      // 不変条件（設計正本 D4）は consume 駆動の自動掃除にのみ適用され、この公開
+      // メソッドには及ばない。呼ばれた回数だけ無条件に全走査する。呼び出し頻度を
+      // 制限する責務は呼び出し側（adapter・運用のバッチ/管理コマンド）にある
+      // （実測: 同一 now で 100 回呼べば sweepRunCount() は 100 になる）。
       sweepAt(refTime(now, true));
     },
     size: () => buckets.size,

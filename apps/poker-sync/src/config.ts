@@ -13,7 +13,8 @@ export interface PokerSyncConfig {
   host: string;
   /**
    * 本番かどうか。true のとき、クライアント IP を特定できない接続を拒否する
-   * （#103・ADR 0012 D6）。
+   * （#103 設計正本 D6。ADR 0012 D6 は「クライアント保存（考え方のみ）」で本項とは無関係。
+   * 混同しないよう明示する）。
    */
   requireClientAddress: boolean;
   allowedOrigins: string[];
