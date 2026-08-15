@@ -211,24 +211,42 @@ scripts/gen-countdown-voices.sh  scripts/gen-sounds.sh  scripts/gen-voices.sh
 | SC032（GWT マーカー） | 1088/1123（96.9%） | 43/221（19.5%） |
 | SC029（テスト名の SC-ID） | 7 | 8 |
 
-### 3.10 git の pathspec は `**` を解さない。`*` は `/` を跨ぐ
+### 3.10 git の pathspec で `**` は特別扱いされない。`*` が `/` を跨ぐ
+
+`scripts/lib/scan-targets.test.mjs` が存在する状態での実測。
 
 ```
-git ls-files 'scripts/**/*.test.mjs'   → 0 件
-git ls-files 'scripts/*.test.mjs'      → 4 件（scripts/lib/ 配下も一致する）
-git ls-files '*.test.mjs'              → 5 件
+git ls-files 'scripts/**/*.test.mjs'   → 1 件
+git ls-files 'scripts/*/*.test.mjs'    → 1 件（** と完全に同じ）
+git ls-files 'scripts/*.test.mjs'      → 5 件
 ```
 
-**`**` を書くと 1 件も一致しない。** 走査対象を `**` で書いた検査は、
-まさに本 Issue が塞ごうとしている「静かに 0 件を走査する」状態になる。
+**`**` は `*` と同義で、`/` を跨ぐ単なるワイルドカードにすぎない。** したがって
+`scripts/**/*.test.mjs` は `scripts/*/*.test.mjs` と同じ意味になり、
+**`scripts/` 直下のファイルを静かに取りこぼす**（直下の 4 本が対象から落ちる）。
 
-`scripts/*.test.mjs` は `scripts/lib/dummy.test.mjs` にも一致する（実測で確認）。
-git の `*` は `/` を跨ぐため、これだけで再帰的な列挙になる。
+`*` が `/` を跨ぐので、**再帰列挙には `scripts/*.test.mjs` だけで足りる**。
 
 **`*.test.mjs` を使ってはならない。** `packages/ui/tests/tokens.test.mjs` に一致する。
 これは `packages/ui` 自身のテスト（`node --test` で走る）であり、
-`ci.yml` の `quality` ジョブが列挙している 4 本とは別に存在する。
+`ci.yml` の `quality` ジョブが列挙しているものとは別に存在する。
 ⑬の実体は **`scripts/` に限定する**。
+
+#### 訂正の記録（2026-08-16）
+
+本節は当初「`git ls-files 'scripts/**/*.test.mjs'` は **0 件**を返す」と書いていた。
+**測定自体は正しかった** — 測った時点では `scripts/lib/` が存在せず、
+`scripts/**/*.test.mjs` に一致しうるファイルが 1 つも無かったためである。
+誤っていたのは**そこから引いた一般化**（「`**` を書くと 1 件も一致しない」）の方だった。
+
+この訂正は表現の問題ではない。**危険の向きが逆**である。
+
+| 誤った理解 | 実際 |
+|---|---|
+| `**` は 0 件を返すので、書けば必ず空振りが露見する | `**` は**非 0 件を返しうる**。一部だけ一致して残りを静かに落とす |
+
+「0 件なら落とす」検査は前者なら救えるが、後者は救えない。
+**本 Issue が塞ごうとしている性質そのものを、対策の記述が持っていた。**
 
 ## 4. 決定
 

@@ -16,7 +16,7 @@
 - **判定は純粋関数、I/O と `process.exit` は呼び出し側。** `scripts/audit-log-hygiene.mjs` の設計方針に合わせる。
 - **`pnpm-workspace.yaml` を手で解析してはならない**（MUST NOT）。workspace の権威は `pnpm -r list --depth -1 --json`（ルートを除く）。
 - **`git ls-files '*package.json'` で workspace を代替してはならない**（MUST NOT）。pnpm の解決規則の自作再実装になる。
-- **git の pathspec に `**` を書いてはならない**（MUST NOT）。git は解さず 0 件を返す。`*` は `/` を跨ぐので `scripts/*.test.mjs` だけで再帰列挙になる。
+- **git の pathspec に `**` を書いてはならない**（MUST NOT）。git の pathspec で `**` は特別扱いされず `*` と同義なので、`scripts/**/*.test.mjs` は `scripts/*/*.test.mjs` と同じ意味になり **`scripts/` 直下を静かに取りこぼす**。`*` が `/` を跨ぐので `scripts/*.test.mjs` だけで再帰列挙になる。
 - **`*.test.mjs` を repo 全体に使ってはならない**（MUST NOT）。`packages/ui/tests/tokens.test.mjs` を拾う。`scripts/` に限定する。
 - **CI で `| xargs` に繋いではならない**（MUST NOT）。GitHub Actions の既定シェルは `bash -e` で `pipefail` を設定せず、対象生成の失敗が握り潰される。`targets="$(...)"` の代入形にする。
 - **`check-links` の存在判定を未追跡ファイルへ広げてはならない**（MUST NOT）。ローカル緑・CI 赤の食い違いを生む。走査対象だけを広げる。
@@ -383,8 +383,12 @@ function gitLines(repoRoot, args) {
 /**
  * 追跡下のファイルを列挙する。
  *
- * **pathspec に `**` を書いてはならない。** git は解さず 0 件を返す（実測）。
- * `*` は `/` を跨ぐので `scripts/*.test.mjs` だけで再帰列挙になる。
+ * **pathspec に `**` を書いてはならない。** git の pathspec で `**` は特別扱いされず、
+ * `*` と同じく `/` を跨ぐ単なるワイルドカードとして振る舞う。したがって
+ * `scripts/**\/*.test.mjs` は `scripts/*\/*.test.mjs` と同義になり、`scripts/` 直下の
+ * ファイルを**静かに取りこぼす**。0 件になって空振りが露見するのではなく、
+ * 一部だけ一致して残りが落ちるので、「0 件なら落とす」検査では救えない。
+ * `*` が `/` を跨ぐため、再帰列挙には `scripts/*.test.mjs` だけで足りる。
  */
 export function listTrackedFiles(repoRoot, patterns) {
   return gitLines(repoRoot, ["ls-files", "-z", ...patterns]).sort();
@@ -502,6 +506,7 @@ const REPO_ROOT = execFileSync("git", ["rev-parse", "--show-toplevel"], {
  * script-tests: `scripts/` に限定する。`*.test.mjs` にすると
  *               packages/ui/tests/tokens.test.mjs（ui 自身のテスト）まで拾う。
  *               `scripts/*.test.mjs` は git の `*` が `/` を跨ぐため再帰列挙になる。
+ *               `**` は特別扱いされず `*` と同義なので使わない（直下を取りこぼす）。
  */
 const KINDS = {
   shell: {
@@ -1730,8 +1735,10 @@ spec §7 の表のとおり。**起票時に現行 main で各前提を測り直
 
 - **設計の対策そのものが同じ穴を持っていた**（`LIVE_DOCS` を「各エントリが 1 件以上に
   一致すること」で守ろうとして、削除には無力だった）
-- **`git ls-files 'scripts/**/*.test.mjs'` は 0 件を返す。** 塞ごうとしている性質を
-  対策の実装で作りかけた
+- **git の pathspec で `**` は特別扱いされず `*` と同義。** `scripts/**/*.test.mjs` は
+  直下を静かに取りこぼす。**「0 件を返す」と書いた当初の記述は測定こそ正しかったが
+  一般化が誤りで、しかも危険の向きが逆だった**（空振りが露見するのではなく、
+  一部だけ一致して残りが落ちる）。塞ごうとしている性質を対策の記述が持っていた
 - **`| xargs` は GitHub Actions で失敗を握り潰す**（既定シェルが `pipefail` を立てない）
 - **走査を広げたら数字が動いた**（構造監査の測り直し。Task 6 Step 7 の値）
 - 経路①を塞ぎきれないと認めたこと
