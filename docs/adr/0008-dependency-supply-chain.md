@@ -57,3 +57,59 @@ Issue #69 の本文は着手前の実測で事実誤認が 5 点見つかった�
   一巡すれば違反件数は自然に減る。引き上げの判断は別 Issue とする
 - **#70（段階 C）との境界**: `pnpm audit` の CI 組み込みは #69 で完了した。#70 側の
   該当項目は重複追加しない
+
+## 追記（2026-08-15・#149）
+
+### 推移依存の脆弱性を `overrides` で塞ぐ
+
+`nanoid` の high 勧告（[GHSA-2v37-7h3g-55p8](https://github.com/advisories/GHSA-2v37-7h3g-55p8)・
+`<3.3.18` が対象）で `audit` ジョブが落ちた
+（[#149](https://github.com/tomohiroJin/tasuki-tools/issues/149)）。31 経路すべてが
+`postcss` 経由の開発時依存で、`pnpm audit --prod` は「脆弱性なし」のまま。
+上の「決定」が想定していた**親パッケージの更新では解消しない**ことが実測で分かった
+（`postcss` を 8.5.25 → 8.5.26 に上げても、要求が `^3.3.17` のため `nanoid` は 3.3.17 のまま）。
+
+これは既存の決定を覆す追記ではない。`minimumReleaseAgeExclude`（**新しすぎる版を
+例外的に取り込む**）が扱えない、**古すぎる版を選ばせない**という逆向きの操作について、
+それまで規範が無かったため足す。
+
+- **MUST**: 推移依存の脆弱性は、まず親パッケージの更新で解消するかを実際に試す。
+  解消するならそちらを採る
+- **MUST**: 親の更新で解消しない場合にのみ `pnpm-workspace.yaml` の `overrides` で
+  下限を引き上げる。置き場は `minimumReleaseAge` と同じく同ファイルの 1 箇所のみとする
+- **MUST**: `overrides` のキーは「名前@メジャー」で書き、値は `^` で下限を示す。
+  キーを名前だけにする形・値を上限のない範囲（`>=x.y.z` 等）にする形はどちらも使わない。
+  **狙っていないメジャーへ影響が漏れ、しかも `pnpm audit` は緑のままになるため**
+  （両方とも実測。下記「影響」を参照）
+- **MUST NOT**: `pnpm update -r <pkg>@<version>` で直そうとしない。同名パッケージが
+  直接依存と推移依存の両方にいると区別せず、直接依存の宣言まで書き換える
+- **MUST NOT**: `pnpm-lock.yaml` の版番号を手で書き換えない。ポリシー検査を素通りし、
+  integrity ハッシュの不整合として実インストール時にだけ露見する
+- **MUST**: 追加した `overrides` には、対象アドバイザリ・依存元・親の更新で解消しない
+  理由をコメントで残す。**解除予定日は書かない**（`trustPolicyExclude` と同じく、
+  日付では決まらないため）。削除できるかは、その行を外して
+  `pnpm install --lockfile-only` を実行し、版が下限以上に留まるかで判断する
+
+### 影響
+
+- `"nanoid@3": "^3.3.18"` を追加した。差分は lockfile 3 行と設定のみで、直接依存の
+  `nanoid@^6.0.1`（`apps/timer-sync` のルームコード生成）は変わらない
+- 実測した却下案（いずれも実行して確認）:
+  - `pnpm update -r nanoid@3.3.18` → `apps/timer-sync/package.json` の `nanoid` を
+    `^6.0.1` から `^3.3.18` へ書き換えた
+  - `pnpm update -r postcss` → `postcss` 8.5.26 が入るが `nanoid` は 3.3.17 のまま。
+    `vite` 経由の `postcss@8.5.25` も別に残る
+  - lockfile の版番号を直接置換 → `pnpm install --lockfile-only` も
+    `✓ Lockfile passes supply-chain policies` を出して素通りし、
+    `pnpm install --frozen-lockfile` で `ERR_PNPM_TARBALL_INTEGRITY` になった
+- 書き方を崩した場合の実測（`pnpm audit --audit-level high` は**どちらも exit 0**）:
+  - キーを名前だけにする（`"nanoid": "^3.3.18"`）→ 直接依存 `apps/timer-sync` の
+    `nanoid` が lockfile 上で `^6.0.1` → `^3.3.18` になった。`package.json` は
+    `^6.0.1` のまま変わらないため、差分では気づきにくい
+  - 値を上限のない範囲にする（`"nanoid@3": ">=3.3.18"`）→ `postcss` の依存が
+    `nanoid@6.0.1` に解決され、3.x が依存木から消えた
+- 運用手順は [`docs/guides/development.md`](../guides/development.md) の
+  「推移依存の脆弱性を overrides で塞ぐ」に置く
+- **`nanoid` の high 勧告はこれで 2 件目**。1 件目（`>=3.3.17` で修正）は #69 が
+  3.3.16 → 3.3.17 の更新で塞いだ。同じ依存元（`postcss`）で再発しうることを踏まえ、
+  下限は固定値ではなく `^` で書いて後続のパッチ版を拾えるようにしている
