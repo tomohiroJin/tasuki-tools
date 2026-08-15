@@ -1095,9 +1095,24 @@ function runAudit() {
   };
 ```
 
-以降の本体では、`core.src` / `sync.src` / `web.src` という参照を `core.srcFiles` /
-`sync.srcFiles` / `web.srcFiles` に読み替える（`serverSources`・`clientSource`・
-`handlersSource`・`productSources`・`coreOnly` の 5 箇所）。**式の中身は変えない。**
+上の置き換えで 733〜751 行目（`allTestFiles` の組み立て・SC-027・`reachable`）は消える。
+**残る `.src` 参照は 7 箇所**で、これを `.srcFiles` へ読み替える。**式の中身は変えない。**
+
+| 現行の行 | 式 |
+|---|---|
+| 764 | `const serverSources = [...sync.src.values()];` |
+| 765 | `const clientSource = web.src.get("App.tsx") ?? "";` |
+| 768 | `const handlersSource = sync.src.get("application/handlers.ts") ?? "";` |
+| 770 / 773 / 776 | `productSources` の `core.src` / `sync.src` / `web.src` |
+| 782 | `coreOnly` の `core.src` |
+
+読み替え漏れがないことは次で確かめる。
+
+```bash
+grep -n 'core\.src\b\|sync\.src\b\|web\.src\b' scripts/audit-structure.mjs
+```
+
+期待: 0 件。
 
 - [ ] **Step 6: 照合と走査量の出力を足す**
 
