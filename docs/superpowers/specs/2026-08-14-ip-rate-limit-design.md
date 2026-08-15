@@ -231,10 +231,22 @@ sweepRunCount(): number           // sweep が実際に全走査した回数（�
 ```
 
 `size()` と `sweepRunCount()` は防御の挙動そのものではなく、**掃除が生きているかを外から
-確かめるための観測点**である（**MUST**）。D4 の「全走査は最悪でも `refillFullMs` に 1 回」も
-「しきい値が大きすぎて掃除が死んでいないか」も、この 2 つが無ければテストからも運用からも
-確かめられない。実際 `sweepThreshold` の上限を設ける根拠になった「5 万件を保持したまま掃除が
-0 回」は `sweepRunCount()` で観測した。
+確かめるための観測点**である（**MUST**。`RateLimiter` の公開 API としてこの 2 つを持つこと）。
+D4 の「全走査は最悪でも `refillFullMs` に 1 回」（consume 駆動の自動掃除限定）も
+「しきい値が大きすぎて掃除が死んでいないか」も、この 2 つが無ければ確かめようがない。
+実際 `sweepThreshold` の上限を設ける根拠になった「5 万件を保持したまま掃除が 0 回」は
+`sweepRunCount()` で観測した。
+
+**現状の到達範囲（2026-08-15 訂正）**: 上記 MUST が保証するのは `RateLimiter` インスタンスへ
+直接アクセスできる場所（単体テスト）からの観測である。**運用から**（`/status` 等の管理面や、
+`apps/timer-sync/src/application/rate-limit-gate.ts` の `RateLimitGate` 経由）の観測は、
+本実装では配線していない。`RateLimitGate` は `open`/`close`/`shouldReject`/`consume` の
+4 メソッドのみを公開し、`size()`・`sweepRunCount()` を透過していない。poker-sync の `/status`
+にも出していない。製品コードからこれら 2 メソッドを呼んでいる箇所は無い。**「テストからも
+運用からも確かめられる」という当初の書き方は実装の到達範囲より広すぎたので、ここで実態に
+合わせて訂正する。** 運用からの可観測性が必要になった場合（インシデント対応で掃除の生死を
+外形的に確認したい等）は、`RateLimitGate` へ透過させるか `/status` に出すかを別途設計する
+（製品コードの変更を伴うため、本 Issue のスコープでは着手しない）。
 
 **`shouldReject` は純粋な照会であり、内部状態を一切書き換えない（MUST）。** これは呼び出し順
 （D3）と直結した不変条件である。D3 の順序では `shouldReject(k, t)` と `consume(k, t)` が
