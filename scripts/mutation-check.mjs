@@ -156,6 +156,41 @@ const MUTATIONS = [
       "資格情報がログへ戻る欠陥の型。ADR 0012 D2 の「部分表示も生の値も出さない」" +
       "という決定がテストで固定されていることを確かめる。",
   },
+  {
+    id: 11,
+    label: "IPv6 の /64 丸めを無効化（アドレス全体を鍵にする）",
+    patch: "m11-ipv6-prefix-full-address.patch",
+    pkg: "packages/rate-limit",
+    tests: ["tests/client-key.test.ts"],
+    note:
+      "攻撃者が /64 内で送信元アドレスを回すだけでレート制限を回避できる欠陥。" +
+      "client-key.test.ts の「下位 64 ビットが違っても同じ鍵になる」が検出する" +
+      "（実測確認済み。同義表記の丸めを固定する他のテストも複数連鎖して落ちる）。",
+  },
+  {
+    id: 12,
+    label: "レート制限の判定をルーム照会の後ろへ移す",
+    patch: "m12-rate-limit-check-after-lookup.patch",
+    pkg: "apps/timer-sync",
+    tests: ["test/join-rate-limit.test.ts", "test/live-ws.rate-limit.test.ts"],
+    note:
+      "残量が無いときに ROOM_NOT_FOUND が返り、トークンを消費せずに存在確認を" +
+      "続けられる欠陥。設計正本 D3 が API を分けている理由そのもの。" +
+      "in-process（join-rate-limit）と実 WS（live-ws.rate-limit）の両方で検出することを" +
+      "実測で確認済み（設計正本 6.2 は実 WS を指定している）。",
+  },
+  {
+    id: 13,
+    label: "WS アダプタの鍵導出が X-Real-IP を（X-Forwarded-For より優先して）読む",
+    patch: "m13-adapter-reads-x-real-ip.patch",
+    pkg: "apps/timer-sync",
+    tests: ["test/fail-closed.test.ts", "test/live-ws.rate-limit.test.ts"],
+    note:
+      "最終レビュー W-1。X-Real-IP は攻撃者が自由に付けられるヘッダ（Caddy は除去・" +
+      "上書きしない）。接続のたびに値を変えるだけで毎回まっさらな鍵になり、#103 が" +
+      "塞いだ「再接続でリセット」が復活する欠陥。poker-sync にも同型のテストを足したが、" +
+      "mutation-check の対象は timer-sync 側の 1 件のみとした（W-1 の指示どおり）。",
+  },
 ];
 
 /**

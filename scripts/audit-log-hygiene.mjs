@@ -27,7 +27,11 @@ const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SCRIPT_DIR, "..");
 
 /** 走査するディレクトリ（リポジトリルート起点）。 */
-export const SCAN_DIRS = ["apps/timer-sync/src", "apps/poker-sync/src"];
+export // packages/rate-limit/src を含める（最終レビュー W-3）。生の IP を最も直接扱う
+// モジュール（client-key.ts）が走査対象の外にあり、そこへ console.info(...) で
+// 生の IP を出しても検査が沈黙して緑のままになる欠陥が実証された。
+// Task 2 の構造監査（audit-structure.mjs）の盲点と同型（走査対象の消失）。
+const SCAN_DIRS = ["apps/timer-sync/src", "apps/poker-sync/src", "packages/rate-limit/src"];
 
 /**
  * 禁止構文を置いてよいファイル。**行に許可マーカーが必要。**
@@ -52,9 +56,33 @@ export const REQUIRED_FILES = [
   "apps/timer-sync/src/application/problem-delegation.ts",
   "apps/timer-sync/src/adapters/console-log-sink.ts",
   "apps/poker-sync/src/server.ts",
+  // 生の IP を最も直接扱うモジュール（W-3）。SCAN_DIRS からまた落ちたら赤にする。
+  "packages/rate-limit/src/client-key.ts",
 ];
 
-/** 許可マーカー。行末コメントに付ける。 */
+/**
+ * 許可マーカー。行末コメントに付ける。
+ *
+ * **既知の限界（W-4・最終レビューで実証）: マーカーの中身は検査しない。**
+ * この検査は「その行に `log-hygiene:allow` という文字列が含まれるか」だけを見る。
+ * マーカーに続く説明文（例: `// log-hygiene:allow 列挙値のみ`）は人間向けの注記に
+ * すぎず、実際に渡している値が本当に列挙値かどうかは machine-checked ではない。
+ * `console.log(JSON.stringify({ client: ws.data.clientAddress })) // log-hygiene:allow 列挙値のみ`
+ * のように、説明文が嘘でも検査は素通りする。
+ *
+ * **意図して直さない。** 「その行が渡す値の形（変数の由来）」を機械的に検証するには
+ * 本物の型情報つきパーサ（少なくとも簡易的な式解析）が要る。この検査はかつて
+ * 文字単位の状態機械でコメント判定を試み、直すたびに**別の場所に新しい検出漏れ**を
+ * 3 回連続で作った（上の `findViolations` の docstring を参照）。無状態＋許可リストへ
+ * 倒したことで解消した経緯があり、マーカーの中身まで解析する式レベルの検査を足すと
+ * 同じ轍を踏む可能性が高い。偽のマーカーより「賢い検査が新しい穴を作る」ほうが
+ * 実害が大きいと判断し、ここでは踏み込まない。
+ *
+ * 対策としては、レビューで許可マーカー付きの行を重点的に見る（人間の目が最後の砦）
+ * ことと、`ALLOWED_FILES` を必要最小限に保つことで、マーカー行そのものの数を
+ * 少なく保つ運用でカバーする。恒久対応（値の型を `LogSafe` や語彙定数に強制する等）は
+ * 別 Issue で追跡する。
+ */
 const ALLOW_MARKER = "log-hygiene:allow";
 
 /**

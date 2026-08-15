@@ -1,0 +1,13 @@
+diff --git a/apps/timer-sync/src/adapters/ws-adapter.ts b/apps/timer-sync/src/adapters/ws-adapter.ts
+index 133e6b9..b8afe84 100644
+--- a/apps/timer-sync/src/adapters/ws-adapter.ts
++++ b/apps/timer-sync/src/adapters/ws-adapter.ts
+@@ -232,7 +232,7 @@ export class WsAdapter {
+   ): Response | undefined {
+     const origin = req.headers.get("origin") ?? "";
+     // **鍵はここで作る。** 生の IP をこの行より先へ持ち出さない（ADR 0012 D3）。
+-    const clientKey = this.deriveClientKeySafely(req.headers.get("x-forwarded-for") ?? undefined);
++    const clientKey = this.deriveClientKeySafely(req.headers.get("x-real-ip") ?? req.headers.get("x-forwarded-for") ?? undefined);
+     if (server.upgrade(req, { data: { connId: "", origin, clientKey } })) return undefined;
+ 
+     const url = new URL(req.url);

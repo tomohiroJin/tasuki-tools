@@ -18,7 +18,7 @@
 import { describe, it, expect, afterEach } from "bun:test";
 import { WebSocket } from "ws";
 import { WsAdapter } from "../src/adapters/ws-adapter.js";
-import { testLogger } from "./support/test-logger.js";
+import { testLogger, collectingLogger } from "./support/test-logger.js";
 
 // ポートは OS に選ばせる（`port: 0`）。実ポートは `adapter.port` から取る。
 let adapter: WsAdapter | undefined;
@@ -39,6 +39,17 @@ function waitMessage(ws: WebSocket): Promise<Record<string, unknown>> {
   return new Promise((resolve) => {
     ws.once("message", (raw: Buffer) => resolve(JSON.parse(raw.toString())));
   });
+}
+
+/** 条件が満たされるまで短い間隔でポーリングする（固定 sleep によるフレーキー回避）。 */
+async function waitFor(predicate: () => boolean, timeoutMs = 3_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (!predicate()) {
+    if (Date.now() >= deadline) {
+      throw new Error(`waitFor: ${timeoutMs}ms 待ったが条件を満たさなかった`);
+    }
+    await Bun.sleep(5);
+  }
 }
 
 interface Options {
@@ -140,6 +151,50 @@ describe("WsAdapter メッセージ経路", () => {
 
     // Then
     expect(msg).toMatchObject({ type: "error", code: "INTERNAL_ERROR" });
+    ws.close();
+  });
+
+  it("Given onMessage が同期的に throw する / When 妥当なコマンドを送る / Then INTERNAL_ERROR を返し接続を保つ（I-5）", async () => {
+    // Given: 型は `Promise<void>` を要求するが、実装が async ではなく同期的に throw する
+    // ケース（型は実行時の保証にはならない。`.catch` は reject しか拾わない）。
+    const ws = await connect({
+      onMessage: () => {
+        throw new Error("sync boom");
+      },
+    });
+
+    // When
+    ws.send(JSON.stringify({ command: "time.ping", clientTime: 1 }));
+    const msg = await waitMessage(ws);
+
+    // Then
+    expect(msg).toMatchObject({ type: "error", code: "INTERNAL_ERROR" });
+    expect(ws.readyState).toBe(WebSocket.OPEN); // 切らずに返す
+    ws.close();
+  });
+
+  it("Given onMessage が同期的に throw する / When 妥当なコマンドを送る / Then ログに on-message-error が記録される（I-5）", async () => {
+    // Given
+    const { logger, lines } = collectingLogger();
+    adapter = new WsAdapter({
+      port: 0,
+      host: "127.0.0.1",
+      allowedOrigins: [],
+      onMessage: () => {
+        throw new Error("sync boom");
+      },
+      onDisconnect: () => {},
+      logger,
+    });
+    const ws = new WebSocket(`ws://127.0.0.1:${adapter.port}`);
+    await waitOpen(ws);
+
+    // When
+    ws.send(JSON.stringify({ command: "time.ping", clientTime: 1 }));
+    await waitFor(() => lines.some((line) => line.startsWith("on-message-error")));
+
+    // Then
+    expect(lines.some((line) => line.startsWith("on-message-error"))).toBe(true);
     ws.close();
   });
 

@@ -11,6 +11,7 @@
  */
 
 import { describe, it, expect, beforeEach } from "bun:test";
+import { DEFAULT_CAPACITY } from "@tasuki/rate-limit";
 import { makeHandlers } from "../src/application/handlers.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
@@ -266,7 +267,7 @@ describe("拒否箇所が返すコード（現状の記録）", () => {
         handlers.handleCommand(conn, {
           command: "room.join", code: "NOPE99", displayName: "Bob", hasAiKey: false,
         });
-      for (let i = 0; i < 30; i++) await badJoin();
+      for (let i = 0; i < DEFAULT_CAPACITY; i++) await badJoin();
 
       // When
       await badJoin();
@@ -287,11 +288,11 @@ describe("拒否箇所が返すコード（現状の記録）", () => {
       });
       const conn = "rl-unlock-conn";
       await handlers.handleCommand(conn, { command: "room.create", displayName: "Alice" });
-      for (let i = 0; i < 30; i++) {
+      for (let i = 0; i < DEFAULT_CAPACITY; i++) {
         await handlers.handleCommand(conn, { command: "ai.unlock", key: `wrong-${i}` });
       }
 
-      // When（31 回目は正しい合言葉でも RATE_LIMITED になるはず）
+      // When（使い切った次は、正しい合言葉でも RATE_LIMITED になるはず）
       await handlers.handleCommand(conn, { command: "ai.unlock", key: "himitsu" });
 
       // Then

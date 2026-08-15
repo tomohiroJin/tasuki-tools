@@ -18,10 +18,18 @@
 |---|---|---|
 | ドメイン | `packages/timer-core` `packages/poker-core` | なし（純粋関数と型のみ） |
 | プロトコル契約 | `packages/protocol`・各 core の `protocol.ts`（例: `packages/poker-core/src/protocol.ts`） | ドメインの型 |
-| アプリケーション | `apps/*-sync/src/application` | ドメイン・ポート |
+| 共有ユーティリティ（sync 専用） | `packages/rate-limit` | なし（node 標準ライブラリのみ。ドメインの型にも依存しない） |
+| アプリケーション | `apps/*-sync/src/application` | ドメイン・ポート・`packages/rate-limit` |
 | ポート | `apps/*-sync/src/ports` | ドメインの型 |
 | アダプタ | `apps/*-sync/src/adapters`・`apps/*-web` | 上のすべて |
 | UI 資産 | `packages/ui` | なし（CSS トークンと静的資産） |
+
+**`packages/rate-limit` について**: HMAC によるクライアント鍵導出とトークンバケツによる
+レート制限（#103）を提供する node 専用パッケージ。`node:crypto` / `node:net` に依存するため
+ブラウザバンドルへは載せられず、`packages/protocol` とは同居できない。ドメインの型も知らない
+（IP 文字列とキー文字列のみを扱う）ため「ドメイン」でもなく、`apps/timer-sync/src/application`
+`apps/poker-sync/src/application` の両方から直接 import される横断的な共有ユーティリティとして
+独立の行に置く。
 
 **注記（poker-sync）:** `apps/poker-sync/src` は現在 `config.ts` / `rooms.ts` /
 `server.ts` のモジュール関数中心の構成で、上表のポート/アダプタ標準形には

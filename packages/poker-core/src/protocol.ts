@@ -47,6 +47,8 @@ export const ERROR_CODES = [
   // サーバー側の事情なので invalid-message には畳まない（案内の文言が変わる）。
   'message-too-large',
   'server-busy',
+  // 入室失敗のレート制限（#103）。総当たりの緩和であり、利用者の入力ミスとは別物。
+  'rate-limited',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

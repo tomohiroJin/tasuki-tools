@@ -17,6 +17,7 @@
  */
 
 import { randomBytes } from "node:crypto";
+import { createClientKeyDeriver } from "@tasuki/rate-limit";
 import { makeHandlers } from "./application/handlers.js";
 import { PresenceManager } from "./application/presence.js";
 import { Scheduler } from "./application/schedule.js";
@@ -165,6 +166,10 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     },
   });
 
+  // レート制限の相関ソルト。**プロセス起動ごとに 1 度だけ生成し、env にも設定にも置かない**
+  // （ADR 0012 D3）。再起動で鍵が変わるのは揮発インメモリ設計と整合するので受け入れる。
+  const deriveClientKey = createClientKeyDeriver(randomBytes(32));
+
   wsAdapter = new WsAdapter({
     port: config.port,
     host: config.host,
@@ -173,6 +178,8 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     heartbeatIntervalMs: config.heartbeatIntervalMs,
     heartbeatMaxMisses: config.heartbeatMaxMisses,
     logger,
+    deriveClientKey,
+    requireClientAddress: config.requireClientAddress,
     onMessage: async (connId, msg) => {
       // msg は ws-adapter 側で CommandSchema（valibot）に通した検証済みの値であり、
       // 実体は Command 型と一致する（onMessage の型は unknown のままなのでここでキャストする）。
@@ -185,9 +192,15 @@ export function createSyncServer(config: SyncConfig): SyncServer {
 
       await handlers.handleCommand(connId, cmd);
     },
+    // 接続の受理時に、この接続が属するクライアント鍵（IP の HMAC）を登録する。
+    // これが無いと鍵は connId へ落ち、接続単位の（＝再接続で回避できる）挙動に戻る。
+    onConnect: (connId, rateKey) => {
+      handlers.handleConnectionOpen(connId, rateKey);
+    },
     onDisconnect: (connId) => {
       presenceManager.handleDisconnect(connId);
-      // レート制限用の失敗履歴を解放（マップのリーク防止）。
+      // connId → クライアント鍵の対応を解放（マップのリーク防止）。
+      // レート制限の残量はここでは戻らない（鍵はクライアントであって接続ではない）。
       handlers.handleConnectionClose(connId);
     },
     // 管理エンドポイント（/status・/admin/rooms）を WS サーバの HTTP 層に配線（R3-2）。

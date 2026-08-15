@@ -84,6 +84,9 @@ importers:
       '@tasuki/poker-core':
         specifier: workspace:*
         version: link:../../packages/poker-core
+      '@tasuki/rate-limit':
+        specifier: workspace:*
+        version: link:../../packages/rate-limit
       neverthrow:
         specifier: ^8.2.0
         version: 8.2.0
@@ -137,6 +140,9 @@ importers:
       '@tasuki/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
+      '@tasuki/rate-limit':
+        specifier: workspace:*
+        version: link:../../packages/rate-limit
       '@tasuki/timer-core':
         specifier: workspace:*
         version: link:../../packages/timer-core
@@ -285,6 +291,12 @@ importers:
       valibot:
         specifier: ^1.4.1
         version: 1.4.2(typescript@6.0.3)
+    devDependencies:
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.0(@types/node@26.1.2)(jiti@2.7.0))
+
+  packages/rate-limit:
     devDependencies:
       vitest:
         specifier: ^4.1.10

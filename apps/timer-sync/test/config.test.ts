@@ -15,6 +15,7 @@ describe("loadSyncConfig", () => {
     expect(c.maxRooms).toBe(50);
     expect(c.roomIdleTtlMs).toBe(1_800_000);
     expect(c.adminToken).toBeUndefined();
+    expect(c.requireClientAddress).toBe(false);
   });
 
   it("env を解釈する", () => {
@@ -57,6 +58,8 @@ describe("loadSyncConfig", () => {
     const c = loadSyncConfig(env);
     // Then
     expect(c.allowedOrigins).toEqual(["https://tasuki.example.com"]);
+    // 本番では、クライアント IP を特定できない接続を拒否する（#103・D6）。
+    expect(c.requireClientAddress).toBe(true);
   });
 
   it("不正な数値は既定値にフォールバック", () => {
@@ -118,5 +121,218 @@ describe("loadSyncConfig", () => {
     // Then
     expect(c.heartbeatIntervalMs).toBe(15_000);
     expect(c.heartbeatMaxMisses).toBe(2);
+  });
+
+  describe("本番の HOST 検査（起動時 fail-closed・#103・D6）", () => {
+    it("本番でループバック以外は起動を拒否する", () => {
+      // Given
+      const env = {
+        NODE_ENV: "production",
+        ALLOWED_ORIGINS: "https://tasuki.example.com",
+        HOST: "0.0.0.0",
+      };
+      // When / Then（読み込みが throw するので操作と検証が同じ式になる）
+      expect(() => loadSyncConfig(env)).toThrow(/HOST/);
+    });
+
+    it.each(["127.0.0.1", "127.1.2.3", "::1", "[::1]", "localhost"])(
+      "本番でも %s はループバック扱いで通る",
+      (host) => {
+        // Given
+        const env = {
+          NODE_ENV: "production",
+          ALLOWED_ORIGINS: "https://tasuki.example.com",
+          HOST: host,
+        };
+        // When
+        const c = loadSyncConfig(env);
+        // Then
+        expect(c.host).toBe(host);
+      },
+    );
+
+    it("HOST 未設定なら既定の 127.0.0.1 で本番でも通る", () => {
+      // Given
+      const env = {
+        NODE_ENV: "production",
+        ALLOWED_ORIGINS: "https://tasuki.example.com",
+      };
+      // When
+      const c = loadSyncConfig(env);
+      // Then
+      expect(c.host).toBe("127.0.0.1");
+      expect(c.requireClientAddress).toBe(true);
+    });
+
+    it("本番以外なら 0.0.0.0 でも拒否しない", () => {
+      // Given
+      const env = { HOST: "0.0.0.0" };
+      // When
+      const c = loadSyncConfig(env);
+      // Then
+      expect(c.host).toBe("0.0.0.0");
+      expect(c.requireClientAddress).toBe(false);
+    });
+
+    // env の値には末尾改行・前後空白・表記ゆれが混ざりやすい。正規化していないと
+    // 正当なループバック指定が「ループバック外」と誤判定され、本番が起動しなくなる。
+    it.each([
+      ["末尾の空白", "127.0.0.1 "],
+      ["先頭の空白", " 127.0.0.1"],
+      ["末尾の改行", "127.0.0.1\n"],
+      ["CRLF", "127.0.0.1\r\n"],
+      ["大文字のホスト名", "LOCALHOST"],
+      ["大文字小文字混在", "Localhost"],
+      ["前後の空白つきホスト名", "  localhost  "],
+    ])("整形ゆれ（%s）でも本番の起動を止めない", (_label, host) => {
+      // Given
+      const env = {
+        NODE_ENV: "production",
+        ALLOWED_ORIGINS: "https://tasuki.example.com",
+        HOST: host,
+      };
+      // When
+      const c = loadSyncConfig(env);
+      // Then
+      // 実際の bind にも整形済みの値を使う（末尾空白つきで listen しない）。
+      expect(c.host).toBe(host.trim());
+    });
+
+    it("HOST が空白だけなら既定の 127.0.0.1 に落ちる", () => {
+      // Given（env をその場で組み立てる）
+    // When（読み込む）
+      const c = loadSyncConfig({ NODE_ENV: "production", ALLOWED_ORIGINS: "https://x.example", HOST: "   " });
+      // Then
+      expect(c.host).toBe("127.0.0.1");
+    });
+
+    // 許可リストは「正確な値だけを通す」方針。IP ですらない値まで通してはいけない。
+    it.each(["127.999.999.999", "127.0.0.256", "127.01.0.1", "127.0.0", "1270.0.0.1"])(
+      "127 で始まっても IP として不正な %s は通さない",
+      (host) => {
+        // Given
+        const env = {
+          NODE_ENV: "production",
+          ALLOWED_ORIGINS: "https://tasuki.example.com",
+          HOST: host,
+        };
+        // When / Then（読み込みが throw するので操作と検証が同じ式になる）
+        expect(() => loadSyncConfig(env)).toThrow(/HOST/);
+      },
+    );
+
+    it("起動時のエラーは対処方法を伝える", () => {
+      // Given
+      const env = { NODE_ENV: "production", ALLOWED_ORIGINS: "https://x.example", HOST: "0.0.0.0" };
+      // When / Then（読み込みが throw するので操作と検証が同じ式になる）
+      expect(() => loadSyncConfig(env)).toThrow(/対処/);
+    });
+  });
+
+  // 敵対的レビュー P-1: NODE_ENV の完全一致比較だと、表記ゆれ 1 つで
+  // requireClientAddress・HOST 検査・ALLOWED_ORIGINS 検査の三段すべてが
+  // 無言で消える（再レビューが実測）。正規化（trim + 小文字化）で塞ぐ。
+  describe("NODE_ENV の正規化（P-1）", () => {
+    it.each(["production", "Production", "PRODUCTION", "production ", " production", "production\n"])(
+      "NODE_ENV=%j は正規化後に本番として扱われる（requireClientAddress=true）",
+      (nodeEnv) => {
+        // Given
+        const env = { NODE_ENV: nodeEnv, ALLOWED_ORIGINS: "https://tasuki.example.com" };
+        // When
+        const c = loadSyncConfig(env);
+        // Then
+        expect(c.requireClientAddress).toBe(true);
+      },
+    );
+
+    it("NODE_ENV='Production'（大文字ゆれ）でも ALLOWED_ORIGINS 未設定なら起動を拒否する", () => {
+      const env = { NODE_ENV: "Production" };
+      expect(() => loadSyncConfig(env)).toThrow(/ALLOWED_ORIGINS/);
+    });
+
+    it("NODE_ENV=' production\\n'（前後の空白・改行）でも HOST 検査が発火する", () => {
+      // Given
+      const env = {
+        NODE_ENV: " production\n",
+        ALLOWED_ORIGINS: "https://tasuki.example.com",
+        HOST: "0.0.0.0",
+      };
+      // When / Then（読み込みが throw するので操作と検証が同じ式になる）
+      expect(() => loadSyncConfig(env)).toThrow(/HOST/);
+    });
+
+  });
+
+  // 修正ラウンド 2（Q-1）: trim().toLowerCase() だけでは
+  // ゼロ幅スペース・BOM・引用符つきの値で正規化が抜け、三段の防御が無言で消える
+  // （controller 実測）。「正規化を少しだけ広げる」＋「未知の値は無言で通さず throw する」の
+  // 2 段構えで塞ぐ。正規化を列挙で追い続けない代わりに、既知の集合（production /
+  // development / test）以外は起動時に throw する。
+  describe("NODE_ENV の正規化の抜け穴を塞ぐ（Q-1・修正ラウンド 2）", () => {
+    it.each([
+      ["ゼロ幅スペース（末尾）", "production​"],
+      ["二重引用符つき", '"production"'],
+      ["単引用符つき", "'production'"],
+      ["BOM（先頭）", "﻿production"],
+      ["全角スペース（末尾）", "production　"],
+    ])("NODE_ENV=%s でも本番として判定される（requireClientAddress=true）", (_label, nodeEnv) => {
+      // Given
+      const env = { NODE_ENV: nodeEnv, ALLOWED_ORIGINS: "https://tasuki.example.com" };
+      // When
+      const c = loadSyncConfig(env);
+      // Then
+      expect(c.requireClientAddress).toBe(true);
+    });
+
+    it("NODE_ENV=ゼロ幅スペースつき production は ALLOWED_ORIGINS 未設定なら起動を拒否する", () => {
+      const env = { NODE_ENV: "production​" };
+      expect(() => loadSyncConfig(env)).toThrow(/ALLOWED_ORIGINS/);
+    });
+
+    it("NODE_ENV=引用符つき production は HOST 検査も発火する", () => {
+      // Given
+      const env = {
+        NODE_ENV: '"production"',
+        ALLOWED_ORIGINS: "https://tasuki.example.com",
+        HOST: "0.0.0.0",
+      };
+      // When / Then（読み込みが throw するので操作と検証が同じ式になる）
+      expect(() => loadSyncConfig(env)).toThrow(/HOST/);
+    });
+
+    // 意図した変更: これまで "prod" は「本番として扱わない」（=通す）判断だったが、
+    // 未知の値を無言で通さない方針への転換により throw になる。
+    it.each(["prod", "staging", "PRD"])(
+      "NODE_ENV='%s'（未知の値）は起動を拒否する（意図した変更: これまでは非本番として通していた）",
+      (nodeEnv) => {
+        // Given
+        const env = { NODE_ENV: nodeEnv, HOST: "0.0.0.0" };
+        // When / Then（読み込みが throw するので操作と検証が同じ式になる）
+        expect(() => loadSyncConfig(env)).toThrow(/NODE_ENV/);
+      },
+    );
+
+    it("未知の NODE_ENV のエラーメッセージには受け取った値と既知の値の一覧が載る", () => {
+      // Given
+      const env = { NODE_ENV: "staging" };
+      // When / Then（読み込みが throw するので操作と検証が同じ式になる）
+      expect(() => loadSyncConfig(env)).toThrow(/staging/);
+      expect(() => loadSyncConfig(env)).toThrow(/production/);
+      expect(() => loadSyncConfig(env)).toThrow(/development/);
+      expect(() => loadSyncConfig(env)).toThrow(/test/);
+    });
+
+    it.each(["production", "development", "test", undefined, ""])(
+      "既知の値・未設定・空文字 NODE_ENV=%j は従来どおり throw しない",
+      (nodeEnv) => {
+        // Given
+        const env: Record<string, string | undefined> =
+          nodeEnv === "production"
+            ? { NODE_ENV: nodeEnv, ALLOWED_ORIGINS: "https://tasuki.example.com" }
+            : { NODE_ENV: nodeEnv };
+        // When / Then（読み込みが throw しないことを見る）
+        expect(() => loadSyncConfig(env)).not.toThrow();
+      },
+    );
   });
 });

@@ -135,6 +135,18 @@ logger.error("uncaught", { name: publicText(err.name) }); // log-hygiene:allow �
   スタックトレース・スキーマ検証の詳細を含めません。載せてよいのはエラーコードと、
   データ分類の「公開可」に収まる情報だけです（`docs/adr/0012` 決定 D5 の表）。
 
+## sync サーバーの HOST（#103）
+
+本番（`NODE_ENV=production`）では、`HOST` をループバック（`127.0.0.1` / `::1` /
+`localhost`）以外に設定すると**起動を拒否します**。Caddy を迂回した直接接続は
+`X-Forwarded-For` を偽装でき、レート制限を無効化したうえ他人の IP に濡れ衣を
+着せられるためです。
+
+同じ理由で、本番では `X-Forwarded-For` を持たない WebSocket 接続を拒否します。
+Caddy の `reverse_proxy` はこのヘッダを常に付けるため、正常な経路では起きません。
+**全員が繋がらなくなった場合は、まず Caddy の設定（`header_up X-Forwarded-For` の
+有無）を疑ってください。**
+
 ## 秘密を比較するとき
 
 秘密・資格情報を比較する処理（管理トークン・AI 解錠キー・ルームの合言葉など）は、必ず

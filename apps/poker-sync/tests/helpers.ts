@@ -10,6 +10,28 @@ const APP_ROOT = path.resolve(fileURLToPath(new URL('.', import.meta.url)), '..'
 export interface TestServer {
   port: number;
   stop: () => Promise<void>;
+  /**
+   * サーバープロセスの標準出力を改行区切りで蓄積したもの（S-2〜S-4 のログ検証用）。
+   * 起動後に出力された行も引き続き追記される。
+   */
+  stdoutLines: string[];
+}
+
+/** 蓄積中の行配列から、条件に合う行が現れるまで待つ（無ければタイムアウトで失敗）。 */
+export async function waitForLine(
+  lines: readonly string[],
+  predicate: (line: string) => boolean,
+  timeoutMs = 3_000,
+): Promise<string> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const found = lines.find(predicate);
+    if (found !== undefined) return found;
+    if (Date.now() >= deadline) {
+      throw new Error(`waitForLine: 条件を満たす行が来なかった（既知の行: ${lines.join(' / ')}）`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
 }
 
 /**
@@ -30,19 +52,29 @@ export async function startServer(env: Record<string, string> = {}): Promise<Tes
     stderrBuf += chunk.toString();
   });
 
+  const stdoutLines: string[] = [];
+  let stdoutTail = '';
+  proc.stdout.on('data', (chunk: Buffer) => {
+    stdoutTail += chunk.toString();
+    const parts = stdoutTail.split('\n');
+    stdoutTail = parts.pop() ?? '';
+    for (const part of parts) if (part.length > 0) stdoutLines.push(part);
+  });
+
   const port = await new Promise<number>((resolve, reject) => {
-    let stdoutBuf = '';
     const timer = setTimeout(() => {
       reject(new Error(`server did not start in time. stderr: ${stderrBuf}`));
     }, 10_000);
-    proc.stdout.on('data', (chunk: Buffer) => {
-      stdoutBuf += chunk.toString();
-      const line = stdoutBuf.split('\n').find((l) => l.includes('"listening"'));
+    const checkListening = () => {
+      const line = stdoutLines.find((l) => l.includes('"listening"'));
       if (line) {
         clearTimeout(timer);
         resolve((JSON.parse(line) as { port: number }).port);
       }
-    });
+    };
+    // 上の data ハンドラ（stdoutLines への蓄積）が先に登録されているため、
+    // 同じチャンクに対してこのハンドラが呼ばれる時点で stdoutLines は反映済み。
+    proc.stdout.on('data', checkListening);
     proc.on('exit', (code) => {
       clearTimeout(timer);
       reject(new Error(`server exited early (code ${code}). stderr: ${stderrBuf}`));
@@ -51,6 +83,7 @@ export async function startServer(env: Record<string, string> = {}): Promise<Tes
 
   return {
     port,
+    stdoutLines,
     stop: () =>
       new Promise<void>((resolve) => {
         proc.once('exit', () => resolve());

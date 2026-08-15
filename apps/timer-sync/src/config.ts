@@ -3,10 +3,17 @@
  * 本番（NODE_ENV=production）で ALLOWED_ORIGINS が空なら fail-closed で起動を拒否する
  * （CSWSH 防止。Origin 検証がサイレントに全許可へ緩むのを防ぐ）。
  */
+import { isLoopbackHost, isProductionEnv } from "@tasuki/rate-limit";
 
 export interface SyncConfig {
   port: number;
   host: string;
+  /**
+   * 本番かどうか。true のとき、クライアント IP を特定できない接続を拒否する
+   * （#103 設計正本 D6。ADR 0012 D6 は「クライアント保存（考え方のみ）」で本項とは無関係。
+   * 混同しないよう明示する）。
+   */
+  requireClientAddress: boolean;
   allowedOrigins: string[];
   maxConnections: number;
   maxRooms: number;
@@ -32,6 +39,16 @@ export interface SyncConfig {
 /** `AI_PROBLEM_MODEL` 未設定時の既定モデル。起動ログが「既定どおりか」を示す際にも使う。 */
 export const DEFAULT_AI_PROBLEM_MODEL = "sonnet";
 
+/**
+ * ループバック判定・NODE_ENV 正規化は `apps/poker-sync/src/config.ts` と
+ * 同じ 6 定義＋`isProductionEnv` を複製していた（#103 Task 7 レビュー S-1）。
+ * `packages/rate-limit` の `server-env.ts` へ 1 本化し、ここでは再輸出だけを行う。
+ *
+ * `isLoopbackHost` は `./listening-log.ts` が直接 import しているため、
+ * ここでの再輸出を欠くとそちらが壊れる。
+ */
+export { isLoopbackHost } from "@tasuki/rate-limit";
+
 /** env 値を整数として解釈し、不正なら既定値を返す。 */
 function intEnv(value: string | undefined, fallback: number): number {
   const n = parseInt(value ?? "", 10);
@@ -51,10 +68,25 @@ export function loadSyncConfig(env: Record<string, string | undefined>): SyncCon
     .map((s) => s.trim())
     .filter(Boolean);
 
-  if (env["NODE_ENV"] === "production" && allowedOrigins.length === 0) {
+  const isProduction = isProductionEnv(env);
+
+  if (isProduction && allowedOrigins.length === 0) {
     throw new Error(
       "本番（NODE_ENV=production）では ALLOWED_ORIGINS の設定が必須です。" +
         "全 Origin 許可（CSWSH リスク）を防ぐため起動を中止します。",
+    );
+  }
+
+  // trim は検査だけでなく実際の bind にも効かせる（末尾空白つきの値で listen しない）。
+  const host = (env["HOST"] ?? "").trim() || "127.0.0.1";
+
+  if (isProduction && !isLoopbackHost(host)) {
+    throw new Error(
+      `本番（NODE_ENV=production）では HOST をループバックに限定します（受け取った値: ${host}）。` +
+        "Caddy を迂回した直接接続は X-Forwarded-For を偽装できるため、" +
+        "レート制限が無効化されます。起動を中止します。" +
+        "対処: env の HOST を 127.0.0.1（または localhost / ::1）にするか、行ごと削除してください" +
+        "（未設定なら既定の 127.0.0.1 が使われます）。",
     );
   }
 
@@ -65,7 +97,7 @@ export function loadSyncConfig(env: Record<string, string | undefined>): SyncCon
     // 並行実行やポート衝突の帳簿を人が保守する羽目になる。
     // 実際に listen したポートは `WsAdapter.port` から取る。
     port: nonNegIntEnv(env["PORT"], 8787),
-    host: env["HOST"] ?? "127.0.0.1",
+    host,
     allowedOrigins,
     maxConnections: intEnv(env["MAX_CONNECTIONS"], 200),
     maxRooms: intEnv(env["MAX_ROOMS"], 50),
@@ -79,5 +111,6 @@ export function loadSyncConfig(env: Record<string, string | undefined>): SyncCon
     aiDailyLimit: nonNegIntEnv(env["AI_DAILY_LIMIT"], 100),
     heartbeatIntervalMs: intEnv(env["HEARTBEAT_INTERVAL_MS"], 15_000),
     heartbeatMaxMisses: intEnv(env["HEARTBEAT_MAX_MISSES"], 2),
+    requireClientAddress: isProduction,
   };
 }

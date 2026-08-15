@@ -47,6 +47,15 @@ export interface RawWsClient {
 export interface RawConnectOptions {
   /** 送出する Origin ヘッダ。未指定ならヘッダ自体を送らない。 */
   origin?: string;
+  /** X-Forwarded-For ヘッダの値。省略すると送らない（Caddy 迂回の直結を模す）。 */
+  forwardedFor?: string;
+  /**
+   * X-Real-Ip ヘッダの値。省略すると送らない。
+   * **攻撃者が自由に付けられるヘッダ**（`packages/rate-limit/src/client-key.ts` の
+   * docstring）を模す。レート制限の鍵の材料には使われないことを固定するテスト用
+   * （最終レビュー W-1）。
+   */
+  xRealIp?: string;
   /** n 回目（1 始まり）の ping に pong を返すか。既定は常に返す。 */
   shouldPong?: (nth: number) => boolean;
 }
@@ -121,6 +130,10 @@ export function connectRaw(port: number, options: RawConnectOptions = {}): Promi
     const socket = net.connect(port, '127.0.0.1', () => {
       const key = randomBytes(16).toString('base64');
       const originLine = options.origin === undefined ? '' : `Origin: ${options.origin}\r\n`;
+      const forwardedLine =
+        options.forwardedFor === undefined ? '' : `X-Forwarded-For: ${options.forwardedFor}\r\n`;
+      const xRealIpLine =
+        options.xRealIp === undefined ? '' : `X-Real-Ip: ${options.xRealIp}\r\n`;
       socket.write(
         `GET /ws HTTP/1.1\r\n` +
           `Host: 127.0.0.1:${port}\r\n` +
@@ -129,6 +142,8 @@ export function connectRaw(port: number, options: RawConnectOptions = {}): Promi
           `Sec-WebSocket-Key: ${key}\r\n` +
           `Sec-WebSocket-Version: 13\r\n` +
           originLine +
+          forwardedLine +
+          xRealIpLine +
           `\r\n`,
       );
     });

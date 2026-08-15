@@ -18,6 +18,13 @@ import {
   type RoundError,
 } from '@tasuki/poker-core';
 import {
+  createClientKeyDeriver,
+  createTokenBucketLimiter,
+  DEFAULT_CAPACITY,
+  DEFAULT_REFILL_PER_SEC,
+} from '@tasuki/rate-limit';
+import { randomBytes } from 'node:crypto';
+import {
   broadcast,
   dropIfEmpty,
   generateRoomId,
@@ -27,8 +34,28 @@ import {
   type RoomEntry,
 } from './rooms';
 import { loadPokerSyncConfig } from './config';
+import { deriveClientKeySafely } from './client-key-safety';
+import { buildListeningLogFields } from './listening-log';
 
 const config = loadPokerSyncConfig(process.env);
+
+/**
+ * レート制限の相関ソルト。プロセス起動ごとに 1 度だけ生成し、env にも設定にも置かない
+ * （ADR 0012 D3）。
+ */
+const deriveClientKey = createClientKeyDeriver(randomBytes(32));
+
+/**
+ * 入室失敗のレート制限（#103）。**数える単位は接続ではなくクライアント（IP の HMAC）**。
+ * 接続単位だと再接続で窓がリセットされ、ルーム ID の総当たりを止められない。
+ *
+ * poker には合言葉が無く、`check-room` が存在確認そのものなので、
+ * join と check は同じバケツを共有する。
+ */
+const rateLimiter = createTokenBucketLimiter({
+  capacity: DEFAULT_CAPACITY,
+  refillPerSec: DEFAULT_REFILL_PER_SEC,
+});
 
 /**
  * 接続ごとの状態。join 後に participantId / roomId が入る。
@@ -41,6 +68,10 @@ export interface ConnectionData {
   roomId: string | null;
   connId: string;
   origin: string;
+  /** X-Forwarded-For から導いた鍵。特定できなければ null。 */
+  clientKey: string | null;
+  /** レート制限の鍵。`connId` と同じく、受理されるまでは空文字。 */
+  rateKey: string;
 }
 
 /** 受理済みの接続。同時接続数の上限と死活監視の対象になる（Issue #63） */
@@ -125,8 +156,20 @@ function handleCreateRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'create-ro
 }
 
 function handleJoinRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'join-room' }>): void {
+  // レート制限に渡す now は単調時計（設計正本 D8・MUST）。Date.now() は NTP のステップ
+  // 調整で非単調になりうるため使わない。ルームの会計（joinedAt 等）に使う壁時計とは
+  // 別系統であり、混同しないこと。
+  const now = performance.now();
+  // **ルームを照会する前に判定する。** 逆順だと、残量が無いときに room-not-found が返り、
+  // 攻撃者はトークンを消費せずにルーム ID の存在確認を続けられる。
+  if (rateLimiter.shouldReject(ws.data.rateKey, now)) {
+    sendError(ws, 'rate-limited', '試行が多すぎます。しばらくしてからお試しください');
+    return;
+  }
+
   const entry = getRoom(msg.roomId);
   if (!entry) {
+    rateLimiter.consume(ws.data.rateKey, now);
     sendError(ws, 'room-not-found', 'ルームが見つかりません');
     return;
   }
@@ -161,9 +204,21 @@ function handleJoinRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'join-room' 
  *
  * 読み取りだけなので `detachFromCurrentRoom` は呼ばない。呼ぶと、参加中の人が
  * 別の招待リンクの生死を尋ねただけで自分のルームから外れてしまう。
+ *
+ * **#103 で約束が 1 つ変わった。** レート制限に掛かると `rate-limited` を返すため、
+ * 無音の意味は「生きている」から「生きている、または拒否された」になった。
+ * 画面は参加フォームを出しておく作りなので、どちらでも待たせるだけで済む。
  */
 function handleCheckRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'check-room' }>): void {
+  // 設計正本 D8: レート制限に渡す now は単調時計（performance.now()）を使う。
+  const now = performance.now();
+  if (rateLimiter.shouldReject(ws.data.rateKey, now)) {
+    sendError(ws, 'rate-limited', '試行が多すぎます。しばらくしてからお試しください');
+    return;
+  }
+
   if (!getRoom(msg.roomId)) {
+    rateLimiter.consume(ws.data.rateKey, now);
     sendError(ws, 'room-not-found', 'ルームが見つかりません');
   }
 }
@@ -224,7 +279,19 @@ function dispatch(ws: Ws, msg: ClientMessage): void {
  * 届かない。通してから閉じることで理由を伝えられる。
  */
 function handleOpen(ws: Ws): void {
+  // クライアント鍵の検査は Origin より前に置く（どちらも 1008 で、reason でしか区別できない）。
+  if (config.requireClientAddress && ws.data.clientKey === null) {
+    // 列挙値だけを出す。生の IP・Origin の値・鍵・XFF の値は載せない（ADR 0012 D3）。
+    console.log(JSON.stringify({ event: 'conn-rejected', reason: 'client-address' })); // log-hygiene:allow 列挙値のみ
+    ws.close(1008, 'Client address required');
+    return;
+  }
+
   if (config.allowedOrigins.length > 0 && !config.allowedOrigins.includes(ws.data.origin)) {
+    // 列挙値だけを出す（S-4）。Origin の値そのものは載せない（ADR 0012 D3）。
+    // これが無いと、運用者は client-address 拒否と Origin 拒否を journal だけでは
+    // 区別できず、Caddy 側の Origin ヘッダ転送が壊れても気づけない。
+    console.log(JSON.stringify({ event: 'conn-rejected', reason: 'origin' })); // log-hygiene:allow 列挙値のみ
     ws.close(1008, 'Origin not allowed');
     return;
   }
@@ -236,6 +303,7 @@ function handleOpen(ws: Ws): void {
 
   const connId = `conn-${++connCounter}`;
   ws.data.connId = connId;
+  ws.data.rateKey = ws.data.clientKey ?? connId;
   connections.set(connId, ws);
   missedPongs.set(connId, 0);
 }
@@ -306,6 +374,17 @@ const server = Bun.serve<ConnectionData, never>({
           roomId: null,
           connId: '',
           origin: req.headers.get('origin') ?? '',
+          // **鍵はここで作る。** 生の IP をこの行より先へ持ち出さない（ADR 0012 D3）。
+          // deriveClientKey 自体は try/catch なしで呼ばない（S-2）。throw すると
+          // 例外メッセージ（XFF を含みうる）がそのまま stderr に出る（Bun 1.3.14 実測）。
+          clientKey: deriveClientKeySafely(
+            deriveClientKey,
+            req.headers.get('x-forwarded-for') ?? undefined,
+            (name) => {
+              console.log(JSON.stringify({ event: 'derive-client-key-error', name })); // log-hygiene:allow 例外の分類のみ
+            },
+          ),
+          rateKey: '',
         } satisfies ConnectionData,
       });
       if (upgraded) return undefined;
@@ -339,4 +418,9 @@ startHeartbeat();
 
 // この 1 行は tests/helpers.ts が JSON.parse して実ポートを受け取る機械可読な契約である。
 // 形式を変えると poker-sync のテストが全滅する（helpers.ts が '"listening"' を含む行を探す）。
-console.log(JSON.stringify({ event: 'listening', port: server.port })); // log-hygiene:allow テストハーネスとの契約
+// port は buildListeningLogFields にも含まれるが、実際に bind したポート
+// （server.port。PORT=0 起動時は config.port ではなくこちらが正しい値。unix ソケット起動は
+// 使わないため undefined にはならない想定だが、型は number | undefined なので ?? 0 で守る）
+// を渡す（S-3）。
+const actualPort = server.port ?? 0;
+console.log(JSON.stringify({ event: 'listening', ...buildListeningLogFields(config, actualPort) })); // log-hygiene:allow テストハーネスとの契約

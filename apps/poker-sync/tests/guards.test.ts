@@ -8,7 +8,7 @@
 import net from 'node:net';
 import os from 'node:os';
 import { afterEach, describe, expect, it } from 'vitest';
-import { isType, startServer, WsClient, type TestServer } from './helpers';
+import { isType, startServer, waitForLine, WsClient, type TestServer } from './helpers';
 import { connectRaw, type RawWsClient } from './raw-ws-client';
 
 /** この環境の非ループバックな IPv4。無ければ待ち受け範囲の検証はできない */
@@ -84,6 +84,21 @@ describe('Origin 検査', () => {
     expect(closed.code).toBe(1008);
   });
 
+  it('許可されていない Origin の拒否は journal からも見える（S-4・reason=origin）', async () => {
+    // Given: 1 つの Origin だけを許可したサーバー
+    server = await startServer({ ALLOWED_ORIGINS: 'https://ok.example' });
+
+    // When: 別の Origin から接続する
+    const client = await raw(server.port, { origin: 'https://evil.example' });
+    await client.waitForClose();
+
+    // Then: client-address 拒否と同じ形の 1 行が出る（列挙値だけ。Origin の値は載らない）。
+    // 運用者が journal から気づけないと #103・#66 でこの非対称に気づけない（S-4）。
+    const line = await waitForLine(server.stdoutLines, (l) => l.includes('"conn-rejected"'));
+    expect(line).toContain('"reason":"origin"');
+    expect(line).not.toContain('evil.example');
+  });
+
   it('許可された Origin の接続は通常どおり利用できる', async () => {
     // Given
     server = await startServer({ ALLOWED_ORIGINS: 'https://ok.example' });
@@ -122,7 +137,13 @@ describe('本番の fail-closed', () => {
   it('ALLOWED_ORIGINS があれば本番でも起動する', async () => {
     server = await startServer({ NODE_ENV: 'production', ALLOWED_ORIGINS: 'https://ok.example' });
 
-    const client = await raw(server.port, { origin: 'https://ok.example' });
+    // 本番はクライアント鍵の検査（#103）も有効になるため、Origin だけでなく
+    // X-Forwarded-For も付ける（このテストの主眼は「起動する」ことであり、
+    // クライアント鍵の検査は tests/fail-closed.test.ts が別途見る）。
+    const client = await raw(server.port, {
+      origin: 'https://ok.example',
+      forwardedFor: '203.0.113.9',
+    });
     client.send({ type: 'create-room', name: 'たろう' });
     expect(await client.nextText()).toMatchObject({ type: 'joined' });
   });
@@ -285,5 +306,29 @@ describe('ルーム数の上限', () => {
 
     // Then: 上限は新規作成だけを止める
     expect(await guest.nextMatching(isType('joined'))).toMatchObject({ type: 'joined' });
+  });
+});
+
+describe('起動ログ（listening）のフィールド（S-3）', () => {
+  it('本番では requireClientAddress=true・loopbackOnly=true が listening 行に出る', async () => {
+    server = await startServer({
+      NODE_ENV: 'production',
+      ALLOWED_ORIGINS: 'https://ok.example',
+      HOST: '127.0.0.1',
+    });
+    const line = server.stdoutLines.find((l) => l.includes('"listening"'));
+    expect(line).toBeDefined();
+    const parsed = JSON.parse(line!) as Record<string, unknown>;
+    expect(parsed['requireClientAddress']).toBe(true);
+    expect(parsed['loopbackOnly']).toBe(true);
+    expect(parsed['port']).toBe(server.port);
+  });
+
+  it('開発時は requireClientAddress=false が listening 行に出る', async () => {
+    server = await startServer({});
+    const line = server.stdoutLines.find((l) => l.includes('"listening"'));
+    expect(line).toBeDefined();
+    const parsed = JSON.parse(line!) as Record<string, unknown>;
+    expect(parsed['requireClientAddress']).toBe(false);
   });
 });

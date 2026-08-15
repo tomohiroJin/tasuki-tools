@@ -1,0 +1,13 @@
+diff --git a/packages/rate-limit/src/client-key.ts b/packages/rate-limit/src/client-key.ts
+index ef50f58..8604b59 100644
+--- a/packages/rate-limit/src/client-key.ts
++++ b/packages/rate-limit/src/client-key.ts
+@@ -72,7 +72,7 @@ import { isIP } from "node:net";
+ /** IPv6 のグループ数（16 ビット × 8 = 128 ビット）。 */
+ const IPV6_GROUPS = 8;
+ /** /64 に相当するグループ数。 */
+-const IPV6_PREFIX_GROUPS = 4;
++const IPV6_PREFIX_GROUPS = 8;
+ /** IPv4 射影アドレス（::ffff:0:0/96）の上位 6 グループ（96 ビット）の固定値。 */
+ const IPV4_MAPPED_PREFIX_GROUPS = [0, 0, 0, 0, 0, 0xffff];
+ /** 鍵に使うソルトの最小バイト数（HMAC-SHA256 の出力長と揃える。F5）。 */

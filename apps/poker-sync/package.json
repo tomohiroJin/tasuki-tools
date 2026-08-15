@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@tasuki/poker-core": "workspace:*",
+    "@tasuki/rate-limit": "workspace:*",
     "neverthrow": "^8.2.0"
   },
   "devDependencies": {
