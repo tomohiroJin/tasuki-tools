@@ -68,7 +68,7 @@ describe("入室失敗のレート制限", () => {
     expect(broadcaster.errorsTo(conn).at(-1)?.code).toBe("JOIN_RATE_LIMITED");
   });
 
-  it("接続を張り直しても、同じクライアントなら残量は戻らない（#103 の核心）", async () => {
+  it("接続を張り直しても、同じクライアントなら残量は戻らない", async () => {
     // Given（1 本目の接続で使い切る）
     handlers.handleConnectionOpen("conn-1", "client-A");
     for (let i = 0; i < DEFAULT_CAPACITY; i++) await badJoin(handlers, "conn-1");
