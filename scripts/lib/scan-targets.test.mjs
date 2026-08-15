@@ -106,3 +106,78 @@ describe("formatTargetDiff", () => {
     assert.match(text, /現在の走査対象: 10 件/);
   });
 });
+
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { execFileSync } from "node:child_process";
+import { listTrackedFiles, listRepoFiles, listWorkspacePackages } from "./scan-targets.mjs";
+
+/** 追跡ファイル 1 件・未追跡 1 件・gitignore 対象 1 件を持つ一時リポジトリを作る。 */
+function makeFixtureRepo() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "scan-targets-"));
+  const git = (...args) => execFileSync("git", ["-C", dir, ...args], { encoding: "utf8" });
+  git("init", "-q", "-b", "main");
+  git("config", "user.email", "t@example.com");
+  git("config", "user.name", "t");
+  fs.writeFileSync(path.join(dir, ".gitignore"), "ignored.md\n");
+  fs.writeFileSync(path.join(dir, "tracked.md"), "# tracked\n");
+  git("add", ".gitignore", "tracked.md");
+  git("commit", "-q", "-m", "init");
+  fs.writeFileSync(path.join(dir, "untracked.md"), "# untracked\n");
+  fs.writeFileSync(path.join(dir, "ignored.md"), "# ignored\n");
+  return dir;
+}
+
+describe("listTrackedFiles", () => {
+  test("追跡下のファイルだけを返す", () => {
+    // Given
+    const dir = makeFixtureRepo();
+    try {
+      // When
+      const files = listTrackedFiles(dir, ["*.md"]);
+      // Then
+      assert.deepEqual(files, ["tracked.md"]);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("listRepoFiles", () => {
+  test("未追跡かつ gitignore 対象外を含め、gitignore 対象は含めない", () => {
+    // Given
+    const dir = makeFixtureRepo();
+    try {
+      // When
+      const files = listRepoFiles(dir, ["*.md"]);
+      // Then
+      assert.deepEqual(files, ["tracked.md", "untracked.md"]);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("listWorkspacePackages", () => {
+  const REPO_ROOT = execFileSync("git", ["rev-parse", "--show-toplevel"], {
+    encoding: "utf8",
+  }).trim();
+
+  test("リポジトリルートを含めない", () => {
+    // Given / When
+    const packages = listWorkspacePackages(REPO_ROOT);
+    // Then: ルートは相対パスが "" になる
+    assert.equal(packages.includes(""), false);
+    assert.equal(packages.includes("."), false);
+  });
+
+  test("既知のパッケージを相対パスで返す", () => {
+    // Given / When
+    const packages = listWorkspacePackages(REPO_ROOT);
+    // Then
+    assert.ok(packages.includes("packages/timer-core"));
+    assert.ok(packages.includes("apps/timer-sync"));
+    assert.ok(packages.includes("e2e"));
+  });
+});

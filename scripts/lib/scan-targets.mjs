@@ -1,3 +1,6 @@
+import path from "node:path";
+import { execFileSync } from "node:child_process";
+
 /**
  * 走査対象の健全性（#135・ADR-0014）。
  *
@@ -48,4 +51,66 @@ export function formatTargetDiff(name, diff, scanSummary) {
   }
   lines.push(`  現在の走査対象: ${scanSummary}`);
   return lines.join("\n");
+}
+
+/** git のパス列挙。NUL 区切りで受け取り、空要素を落とす。 */
+function gitLines(repoRoot, args) {
+  return execFileSync("git", ["-C", repoRoot, ...args], {
+    encoding: "utf8",
+    maxBuffer: 32 * 1024 * 1024,
+  })
+    .split("\0")
+    .filter(Boolean);
+}
+
+/**
+ * 追跡下のファイルを列挙する。
+ *
+ * **pathspec に `**` を書いてはならない。** git は解さず 0 件を返す（実測）。
+ * `*` は `/` を跨ぐので `scripts/*.test.mjs` だけで再帰列挙になる。
+ */
+export function listTrackedFiles(repoRoot, patterns) {
+  return gitLines(repoRoot, ["ls-files", "-z", ...patterns]).sort();
+}
+
+/**
+ * 追跡下 ∪（未追跡かつ gitignore 対象外）を列挙する。
+ *
+ * **存在判定に使ってはならない。** 存在判定を未追跡へ広げると、未追跡ファイルへの
+ * リンクがローカルでは通り CI では落ちる（PR-2 で踏んだ食い違いの逆向き）。
+ * 走査対象を広げる用途に限る。gitignore 対象は従来どおり見ない。
+ */
+export function listRepoFiles(repoRoot, patterns) {
+  const tracked = gitLines(repoRoot, ["ls-files", "-z", ...patterns]);
+  const untracked = gitLines(repoRoot, [
+    "ls-files",
+    "-z",
+    "--others",
+    "--exclude-standard",
+    ...patterns,
+  ]);
+  return [...new Set([...tracked, ...untracked])].sort();
+}
+
+/**
+ * workspace のパッケージをリポジトリ相対パスで列挙する（ルートを除く）。
+ *
+ * **権威は pnpm 自身**（ADR-0014）。pnpm-workspace.yaml を手で解析してはならず、
+ * `git ls-files '*package.json'` で代替してもならない。どちらも pnpm の解決規則の
+ * 自作再実装になり、workspace の glob が変わったときに黙ってずれる。
+ *
+ * `pnpm install` 済みであることを要求する。install を走らせないジョブからは呼ばない。
+ */
+export function listWorkspacePackages(repoRoot) {
+  const stdout = execFileSync("pnpm", ["-r", "list", "--depth", "-1", "--json"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    maxBuffer: 32 * 1024 * 1024,
+  });
+  const root = path.resolve(repoRoot);
+  return JSON.parse(stdout)
+    .map((entry) => path.resolve(entry.path))
+    .filter((abs) => abs !== root)
+    .map((abs) => path.relative(root, abs).split(path.sep).join("/"))
+    .sort();
 }
