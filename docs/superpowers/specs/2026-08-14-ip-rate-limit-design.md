@@ -710,7 +710,7 @@ IPv4 射影レンジ（`::ffff:0:0/96`）かどうかを数値で判定した上
 | **実断片での XFF の到達**（§3.1 の限界） | **実装タスク 1 で実測済み（2026-08-14）**。e2e ハーネスの Caddy 設置経路（`10-timer-ws.conf` / `20-poker.conf`、プレーン GET と WebSocket upgrade ヘッダ付きの両方）を使い、§3.1 の実測結果が実断片経路でも成立することを確認した。ここが崩れると設計全体が無効になるため、先頭のタスクに置いていた |
 | 表記ゆれの正規化 | 単体テスト。**同義の IPv6 表記はすべて同じ鍵／異なる /64 はすべて違う鍵**を表で縛る |
 | バケツの持続レートとバースト | 単体テスト（`now` を注入するので実時間に依存しない） |
-| 判定・照会・消費の順序（D3） | 実 WebSocket 越しの統合テスト。**レート制限中に正しいコードで入室要求を出し、`ROOM_NOT_FOUND` ではなく拒否が返ることを確認する** |
+| 判定・照会・消費の順序（D3） | 実 WebSocket 越しの統合テスト。**レート制限中に正しいコードで入室要求を出し、`ROOM_NOT_FOUND` ではなく拒否が返ることを確認する**。timer は `apps/timer-sync/test/live-ws.rate-limit.test.ts`、poker は `apps/poker-sync/tests/rate-limit.test.ts`（どちらも実ソケット）。同じ主張を in-process でも押さえる（`apps/timer-sync/test/join-rate-limit.test.ts`）が、**実 WS の側が本項の担当**である |
 | 起動時 fail-closed（D6） | 単体テスト（`loadSyncConfig` に `HOST=0.0.0.0` ＋ `NODE_ENV=production`） |
 | 接続時 fail-closed（D6） | `create-sync-server` を `NODE_ENV=production` で起こし、実 WebSocket で確認 |
 | **実 Caddy 経路での XFF** | **E2E に `NODE_ENV=production` を追加する**。副作用がないことは実測済み。**`NODE_ENV` が本番判定として効くのは両アプリとも 3 箇所（`ALLOWED_ORIGINS` の fail-closed・`HOST` のループバック限定・`requireClientAddress`。加えて `server-env.ts` は未知の `NODE_ENV` 値を起動時に throw する）で、E2E は既にこの 3 箇所すべてを満たす値（`ALLOWED_ORIGINS`・`HOST=127.0.0.1`）を渡している。** XFF が届かなければ既存シナリオが全滅するので、リスクが即座に出る |

@@ -172,10 +172,12 @@ const MUTATIONS = [
     label: "レート制限の判定をルーム照会の後ろへ移す",
     patch: "m12-rate-limit-check-after-lookup.patch",
     pkg: "apps/timer-sync",
-    tests: ["test/join-rate-limit.test.ts"],
+    tests: ["test/join-rate-limit.test.ts", "test/live-ws.rate-limit.test.ts"],
     note:
       "残量が無いときに ROOM_NOT_FOUND が返り、トークンを消費せずに存在確認を" +
-      "続けられる欠陥。設計正本 D3 が API を分けている理由そのもの。",
+      "続けられる欠陥。設計正本 D3 が API を分けている理由そのもの。" +
+      "in-process（join-rate-limit）と実 WS（live-ws.rate-limit）の両方で検出することを" +
+      "実測で確認済み（設計正本 6.2 は実 WS を指定している）。",
   },
   {
     id: 13,

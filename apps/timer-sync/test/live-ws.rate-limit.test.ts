@@ -23,6 +23,7 @@
 import { describe, it, expect, afterEach } from "bun:test";
 import { DEFAULT_CAPACITY } from "@tasuki/rate-limit";
 import {
+  createRoom,
   startLiveSyncServer,
   type LiveClient,
   type LiveSyncServer,
@@ -116,5 +117,42 @@ describe("実 WS 越しの入室レート制限", () => {
       "ROOM_NOT_FOUND",
       "ROOM_NOT_FOUND",
     ]);
+  });
+
+  /**
+   * 設計正本 §6.2 が D3（判定・照会・消費の順序）の検査手段として指定している
+   * 「実 WebSocket 越しの統合テスト」。
+   *
+   * `join-rate-limit.test.ts` にも同じ主張の in-process テストがあるが、あちらは
+   * handlers を直接呼ぶ。**実在するコードを実ソケット越しに投げたときも
+   * `ROOM_NOT_FOUND` ではなく拒否が返る**ことを、poker 側
+   * （`apps/poker-sync/tests/rate-limit.test.ts`）と同じ粒度でここでも押さえる。
+   *
+   * ここが逆順（照会してから判定）だと、攻撃者はトークンを消費せずに
+   * 「そのコードが実在するか」を数え切れないほど試せる。
+   */
+  it("残量が無いとき、実在するコードでも JOIN_RATE_LIMITED を返す（照会より前に判定する）", async () => {
+    // Given（ホストが実 WS でルームを作り、別 IP の攻撃者が残量を使い切る）
+    server = startLiveSyncServer();
+    const host = await server.connect("host", { "x-forwarded-for": "198.51.100.1" });
+    const created = await createRoom(host, "ホスト");
+    const attacker = await server.connect("attacker", { "x-forwarded-for": "203.0.113.7" });
+    await drainBadJoins(attacker, DEFAULT_CAPACITY + 1);
+    expect(lastErrorCodes(attacker, 1)).toEqual(["JOIN_RATE_LIMITED"]);
+
+    // When（**実在する**コードで入室を試みる）
+    attacker.send({
+      command: "room.join",
+      code: created.code,
+      displayName: "侵入者",
+      hasAiKey: false,
+    });
+    await attacker.until(
+      (received) => received.filter((m) => m.type === "error").length >= DEFAULT_CAPACITY + 2,
+      "実在コードでの入室に対する応答",
+    );
+
+    // Then（存在の有無が漏れないよう、実在しないコードのときと同じ拒否になる）
+    expect(lastErrorCodes(attacker, 1)).toEqual(["JOIN_RATE_LIMITED"]);
   });
 });
