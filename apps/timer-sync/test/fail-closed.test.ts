@@ -35,6 +35,8 @@ function waitClose(ws: WebSocket): Promise<{ code: number; reason: string }> {
 
 describe("起動時の fail-closed（HOST）", () => {
   it("本番でループバック以外を指定すると起動を拒否する", () => {
+    // Given（env をその場で組み立てる）
+    // When / Then（読み込み自体が throw する）
     expect(() =>
       loadSyncConfig({
         NODE_ENV: "production",
@@ -45,15 +47,20 @@ describe("起動時の fail-closed（HOST）", () => {
   });
 
   it("本番でも 127.0.0.1 なら通る", () => {
+    // Given（env をその場で組み立てる）
+    // When（読み込む）
     const config = loadSyncConfig({
       NODE_ENV: "production",
       ALLOWED_ORIGINS: "https://example.com",
       HOST: "127.0.0.1",
     });
+    // Then
     expect(config.host).toBe("127.0.0.1");
   });
 
   it("本番でも ::1 なら通る", () => {
+    // Given（env をその場で組み立てる）
+    // When（読み込む）
     const config = loadSyncConfig({
       NODE_ENV: "production",
       ALLOWED_ORIGINS: "https://example.com",
@@ -70,6 +77,7 @@ describe("起動時の fail-closed（HOST）", () => {
 
 describe("接続時の fail-closed（X-Forwarded-For）", () => {
   it("本番でヘッダが無い接続は Origin 拒否とは違う理由で閉じられる", async () => {
+    // Given
     const config = loadSyncConfig({
       NODE_ENV: "production",
       ALLOWED_ORIGINS: "https://example.com",
@@ -77,15 +85,18 @@ describe("接続時の fail-closed（X-Forwarded-For）", () => {
       HOST: "127.0.0.1",
     });
     server = createSyncServer(config);
+    // When
     const ws = new WebSocket(`ws://127.0.0.1:${server.wsAdapter.port}`);
 
     const closed = await waitClose(ws);
 
+    // Then
     expect(closed.code).toBe(1008);
     expect(closed.reason).toBe("Client address required");
   });
 
   it("本番で X-Real-IP だけを付けても、X-Forwarded-For が無ければ拒否される（X-Real-IP は鍵の材料にならない）", async () => {
+    // Given
     const config = loadSyncConfig({
       NODE_ENV: "production",
       ALLOWED_ORIGINS: "https://example.com",
@@ -93,17 +104,20 @@ describe("接続時の fail-closed（X-Forwarded-For）", () => {
       HOST: "127.0.0.1",
     });
     server = createSyncServer(config);
+    // When
     const ws = new WebSocket(`ws://127.0.0.1:${server.wsAdapter.port}`, {
       headers: { "x-real-ip": "203.0.113.7", origin: "https://example.com" },
     });
 
     const closed = await waitClose(ws);
 
+    // Then
     expect(closed.code).toBe(1008);
     expect(closed.reason).toBe("Client address required");
   });
 
   it("本番でヘッダがあれば繋がる", async () => {
+    // Given
     const config = loadSyncConfig({
       NODE_ENV: "production",
       ALLOWED_ORIGINS: "https://example.com",
@@ -111,6 +125,7 @@ describe("接続時の fail-closed（X-Forwarded-For）", () => {
       HOST: "127.0.0.1",
     });
     server = createSyncServer(config);
+    // When
     const ws = new WebSocket(`ws://127.0.0.1:${server.wsAdapter.port}`, {
       headers: { "x-forwarded-for": "203.0.113.7", origin: "https://example.com" },
     });
@@ -120,13 +135,16 @@ describe("接続時の fail-closed（X-Forwarded-For）", () => {
       ws.on("error", reject);
     });
 
+    // Then
     expect(ws.readyState).toBe(WebSocket.OPEN);
     ws.close();
   });
 
   it("本番以外ならヘッダが無くても繋がる", async () => {
+    // Given
     const config = loadSyncConfig({ PORT: "0", HOST: "127.0.0.1" });
     server = createSyncServer(config);
+    // When
     const ws = new WebSocket(`ws://127.0.0.1:${server.wsAdapter.port}`);
 
     await new Promise<void>((resolve, reject) => {
@@ -134,6 +152,7 @@ describe("接続時の fail-closed（X-Forwarded-For）", () => {
       ws.on("error", reject);
     });
 
+    // Then
     expect(ws.readyState).toBe(WebSocket.OPEN);
     ws.close();
   });

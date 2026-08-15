@@ -125,40 +125,51 @@ describe("loadSyncConfig", () => {
 
   describe("本番の HOST 検査（起動時 fail-closed・#103・D6）", () => {
     it("本番でループバック以外は起動を拒否する", () => {
+      // Given
       const env = {
         NODE_ENV: "production",
         ALLOWED_ORIGINS: "https://tasuki.example.com",
         HOST: "0.0.0.0",
       };
+      // When / Then（読み込みが throw するので操作と検証が同じ式になる）
       expect(() => loadSyncConfig(env)).toThrow(/HOST/);
     });
 
     it.each(["127.0.0.1", "127.1.2.3", "::1", "[::1]", "localhost"])(
       "本番でも %s はループバック扱いで通る",
       (host) => {
+        // Given
         const env = {
           NODE_ENV: "production",
           ALLOWED_ORIGINS: "https://tasuki.example.com",
           HOST: host,
         };
+        // When
         const c = loadSyncConfig(env);
+        // Then
         expect(c.host).toBe(host);
       },
     );
 
     it("HOST 未設定なら既定の 127.0.0.1 で本番でも通る", () => {
+      // Given
       const env = {
         NODE_ENV: "production",
         ALLOWED_ORIGINS: "https://tasuki.example.com",
       };
+      // When
       const c = loadSyncConfig(env);
+      // Then
       expect(c.host).toBe("127.0.0.1");
       expect(c.requireClientAddress).toBe(true);
     });
 
     it("本番以外なら 0.0.0.0 でも拒否しない", () => {
+      // Given
       const env = { HOST: "0.0.0.0" };
+      // When
       const c = loadSyncConfig(env);
+      // Then
       expect(c.host).toBe("0.0.0.0");
       expect(c.requireClientAddress).toBe(false);
     });
@@ -174,18 +185,24 @@ describe("loadSyncConfig", () => {
       ["大文字小文字混在", "Localhost"],
       ["前後の空白つきホスト名", "  localhost  "],
     ])("整形ゆれ（%s）でも本番の起動を止めない", (_label, host) => {
+      // Given
       const env = {
         NODE_ENV: "production",
         ALLOWED_ORIGINS: "https://tasuki.example.com",
         HOST: host,
       };
+      // When
       const c = loadSyncConfig(env);
+      // Then
       // 実際の bind にも整形済みの値を使う（末尾空白つきで listen しない）。
       expect(c.host).toBe(host.trim());
     });
 
     it("HOST が空白だけなら既定の 127.0.0.1 に落ちる", () => {
+      // Given（env をその場で組み立てる）
+    // When（読み込む）
       const c = loadSyncConfig({ NODE_ENV: "production", ALLOWED_ORIGINS: "https://x.example", HOST: "   " });
+      // Then
       expect(c.host).toBe("127.0.0.1");
     });
 
@@ -193,17 +210,21 @@ describe("loadSyncConfig", () => {
     it.each(["127.999.999.999", "127.0.0.256", "127.01.0.1", "127.0.0", "1270.0.0.1"])(
       "127 で始まっても IP として不正な %s は通さない",
       (host) => {
+        // Given
         const env = {
           NODE_ENV: "production",
           ALLOWED_ORIGINS: "https://tasuki.example.com",
           HOST: host,
         };
+        // When / Then（読み込みが throw するので操作と検証が同じ式になる）
         expect(() => loadSyncConfig(env)).toThrow(/HOST/);
       },
     );
 
     it("起動時のエラーは対処方法を伝える", () => {
+      // Given
       const env = { NODE_ENV: "production", ALLOWED_ORIGINS: "https://x.example", HOST: "0.0.0.0" };
+      // When / Then（読み込みが throw するので操作と検証が同じ式になる）
       expect(() => loadSyncConfig(env)).toThrow(/対処/);
     });
   });
@@ -215,8 +236,11 @@ describe("loadSyncConfig", () => {
     it.each(["production", "Production", "PRODUCTION", "production ", " production", "production\n"])(
       "NODE_ENV=%j は正規化後に本番として扱われる（requireClientAddress=true）",
       (nodeEnv) => {
+        // Given
         const env = { NODE_ENV: nodeEnv, ALLOWED_ORIGINS: "https://tasuki.example.com" };
+        // When
         const c = loadSyncConfig(env);
+        // Then
         expect(c.requireClientAddress).toBe(true);
       },
     );
@@ -227,11 +251,13 @@ describe("loadSyncConfig", () => {
     });
 
     it("NODE_ENV=' production\\n'（前後の空白・改行）でも HOST 検査が発火する", () => {
+      // Given
       const env = {
         NODE_ENV: " production\n",
         ALLOWED_ORIGINS: "https://tasuki.example.com",
         HOST: "0.0.0.0",
       };
+      // When / Then（読み込みが throw するので操作と検証が同じ式になる）
       expect(() => loadSyncConfig(env)).toThrow(/HOST/);
     });
 
@@ -250,8 +276,11 @@ describe("loadSyncConfig", () => {
       ["BOM（先頭）", "﻿production"],
       ["全角スペース（末尾）", "production　"],
     ])("NODE_ENV=%s でも本番として判定される（requireClientAddress=true）", (_label, nodeEnv) => {
+      // Given
       const env = { NODE_ENV: nodeEnv, ALLOWED_ORIGINS: "https://tasuki.example.com" };
+      // When
       const c = loadSyncConfig(env);
+      // Then
       expect(c.requireClientAddress).toBe(true);
     });
 
@@ -261,11 +290,13 @@ describe("loadSyncConfig", () => {
     });
 
     it("NODE_ENV=引用符つき production は HOST 検査も発火する", () => {
+      // Given
       const env = {
         NODE_ENV: '"production"',
         ALLOWED_ORIGINS: "https://tasuki.example.com",
         HOST: "0.0.0.0",
       };
+      // When / Then（読み込みが throw するので操作と検証が同じ式になる）
       expect(() => loadSyncConfig(env)).toThrow(/HOST/);
     });
 
@@ -274,13 +305,17 @@ describe("loadSyncConfig", () => {
     it.each(["prod", "staging", "PRD"])(
       "NODE_ENV='%s'（未知の値）は起動を拒否する（意図した変更: これまでは非本番として通していた）",
       (nodeEnv) => {
+        // Given
         const env = { NODE_ENV: nodeEnv, HOST: "0.0.0.0" };
+        // When / Then（読み込みが throw するので操作と検証が同じ式になる）
         expect(() => loadSyncConfig(env)).toThrow(/NODE_ENV/);
       },
     );
 
     it("未知の NODE_ENV のエラーメッセージには受け取った値と既知の値の一覧が載る", () => {
+      // Given
       const env = { NODE_ENV: "staging" };
+      // When / Then（読み込みが throw するので操作と検証が同じ式になる）
       expect(() => loadSyncConfig(env)).toThrow(/staging/);
       expect(() => loadSyncConfig(env)).toThrow(/production/);
       expect(() => loadSyncConfig(env)).toThrow(/development/);
@@ -290,10 +325,12 @@ describe("loadSyncConfig", () => {
     it.each(["production", "development", "test", undefined, ""])(
       "既知の値・未設定・空文字 NODE_ENV=%j は従来どおり throw しない",
       (nodeEnv) => {
+        // Given
         const env: Record<string, string | undefined> =
           nodeEnv === "production"
             ? { NODE_ENV: nodeEnv, ALLOWED_ORIGINS: "https://tasuki.example.com" }
             : { NODE_ENV: nodeEnv };
+        // When / Then（読み込みが throw しないことを見る）
         expect(() => loadSyncConfig(env)).not.toThrow();
       },
     );

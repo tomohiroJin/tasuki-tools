@@ -40,6 +40,7 @@ const DISALLOWED_ORIGIN = "https://evil.example.com";
 
 describe("拒否時のログ（P-2）", () => {
   it("クライアント鍵が無い接続を拒否したとき、reason=client-address の警告ログを 1 行出す", async () => {
+    // Given
     const { logger, lines } = collectingLogger();
     adapter = new WsAdapter({
       port: 0,
@@ -51,10 +52,12 @@ describe("拒否時のログ（P-2）", () => {
       requireClientAddress: true,
       logger,
     });
+    // When
     const ws = new WebSocket(`ws://127.0.0.1:${adapter.port}`);
 
     const closed = await waitClose(ws);
 
+    // Then
     expect(closed.code).toBe(1008);
     const rejectLines = lines.filter((l) => l.startsWith("conn-rejected"));
     expect(rejectLines).toHaveLength(1);
@@ -62,6 +65,7 @@ describe("拒否時のログ（P-2）", () => {
   });
 
   it("許可されていない Origin の接続を拒否したとき、reason=origin の警告ログを 1 行出す", async () => {
+    // Given
     const { logger, lines } = collectingLogger();
     adapter = new WsAdapter({
       port: 0,
@@ -73,12 +77,14 @@ describe("拒否時のログ（P-2）", () => {
       requireClientAddress: false,
       logger,
     });
+    // When
     const ws = new WebSocket(`ws://127.0.0.1:${adapter.port}`, {
       headers: { "x-forwarded-for": RAW_IP, origin: DISALLOWED_ORIGIN },
     });
 
     const closed = await waitClose(ws);
 
+    // Then
     expect(closed.code).toBe(1008);
     const rejectLines = lines.filter((l) => l.startsWith("conn-rejected"));
     expect(rejectLines).toHaveLength(1);
@@ -86,6 +92,7 @@ describe("拒否時のログ（P-2）", () => {
   });
 
   it("受理された接続では conn-rejected を出さない", async () => {
+    // Given
     const { logger, lines } = collectingLogger();
     adapter = new WsAdapter({
       port: 0,
@@ -97,14 +104,17 @@ describe("拒否時のログ（P-2）", () => {
       requireClientAddress: false,
       logger,
     });
+    // When
     const ws = new WebSocket(`ws://127.0.0.1:${adapter.port}`);
     await waitOpen(ws);
 
+    // Then
     expect(lines.filter((l) => l.startsWith("conn-rejected"))).toHaveLength(0);
     ws.close();
   });
 
   it("拒否ログに生の IP・Origin の値・相関キーが含まれない", async () => {
+    // Given
     const { logger, lines } = collectingLogger();
     adapter = new WsAdapter({
       port: 0,
@@ -116,12 +126,14 @@ describe("拒否時のログ（P-2）", () => {
       requireClientAddress: false,
       logger,
     });
+    // When
     const ws = new WebSocket(`ws://127.0.0.1:${adapter.port}`, {
       headers: { "x-forwarded-for": RAW_IP, origin: DISALLOWED_ORIGIN },
     });
     await waitClose(ws);
 
     for (const line of lines) {
+    // Then
       expect(line).not.toContain(RAW_IP);
       expect(line).not.toContain(DISALLOWED_ORIGIN);
       expect(line).not.toContain("evil.example.com");
