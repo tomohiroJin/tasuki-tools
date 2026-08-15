@@ -135,12 +135,12 @@ describe("入室失敗のレート制限", () => {
    * 「そのコードが実在するか」を数え切れないほど試せる（設計正本 D3）。
    */
   it("残量が無いとき、実在するコードでも JOIN_RATE_LIMITED を返す", async () => {
-    // Given
-    const created = await handlers.handleCommand("host-conn", {
+    // Given（作成の成否は前提の段では検証しない。失敗していれば
+    //       store が空になり、下の `!` が落ちて前提の壊れとして露見する）
+    await handlers.handleCommand("host-conn", {
       command: "room.create",
       displayName: "ホスト",
     });
-    expect(created.isOk()).toBe(true);
     const code = store.list()[0]!.code;
 
     handlers.handleConnectionOpen(conn, "client-A");
