@@ -22,9 +22,12 @@ describe("isLoopbackHost", () => {
     },
   );
 
-  it.each(["0.0.0.0", "example.com", "10.0.0.1"])("%s はループバック外", (host) => {
-    expect(isLoopbackHost(host)).toBe(false);
-  });
+  it.each(["0.0.0.0", "[0.0.0.0]", "example.com", "10.0.0.1", "::", "[::]"])(
+    "%s はループバック外",
+    (host) => {
+      expect(isLoopbackHost(host)).toBe(false);
+    },
+  );
 
   it("IP ですらない値（127.999.999.999）は通さない", () => {
     expect(isLoopbackHost("127.999.999.999")).toBe(false);
