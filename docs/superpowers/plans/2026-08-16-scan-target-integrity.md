@@ -1175,20 +1175,7 @@ diff /tmp/audit-before.txt /tmp/audit-after.txt
 
 期待: テスト全件 PASS、`exit=0`。**diff には走査量の行の追加と、指標値の変化が出る**（走査が 3 → 10 パッケージへ広がったため）。SC031 が 0 から増え、SC032 の率が下がるはず。**変化した値を控える**（ADR とタスク 10 の振り返りに書く）。
 
-- [ ] **Step 8: 壊して赤を確認する（経路②）**
-
-```bash
-mv packages/timer-core/test packages/timer-core/test-moved
-ls packages/timer-core/ | grep -c '^test$'   # 0 になったことを先に確認
-node scripts/audit-structure.mjs; echo "exit=$?"
-mv packages/timer-core/test-moved packages/timer-core/test
-git status --porcelain   # 空であることを確認
-```
-
-期待: `宣言にあるが実在しない: packages/timer-core/test`、`exit=1`。
-**以前はここで全指標 PASS の表を出して exit=0 だった。**
-
-- [ ] **Step 9: コミット**
+- [ ] **Step 8: コミット（破壊検証の前に必ず行う）**
 
 ```bash
 git add scripts/audit-structure.mjs scripts/audit-structure.test.mjs
@@ -1200,6 +1187,22 @@ git commit -m "feat: 構造監査の走査対象を宣言と照合で決める�
 - SC-035 / SC-039 は timer 固有の指標なので結線を変えない
 - 走査量を常に出力する"
 ```
+
+**この順序を崩さないこと。** 次の Step の `git status --porcelain` は「破壊検証の後始末が
+できたか」を見るためのもので、実装が未コミットだと必ず汚れて判定にならない。
+
+- [ ] **Step 9: 壊して赤を確認する（経路②）**
+
+```bash
+mv packages/timer-core/test packages/timer-core/test-moved
+ls packages/timer-core/ | grep -c '^test$'   # 0 になったことを先に確認
+node scripts/audit-structure.mjs; echo "exit=$?"
+mv packages/timer-core/test-moved packages/timer-core/test
+git status --porcelain   # 空であることを確認
+```
+
+期待: `宣言にあるが実在しない: packages/timer-core/test`、`exit=1`。
+**以前はここで全指標 PASS の表を出して exit=0 だった。**
 
 ---
 
