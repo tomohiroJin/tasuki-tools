@@ -336,6 +336,16 @@ function main() {
     for (const [k, v] of readTsFiles(dir)) scanned.set(k, v);
   }
 
+  // 走査量と未走査 .tsx の件数は、成否によらず必ず出す（#135 D5・E7）。
+  // 違反が出ているときこそ「何を見ていないか」が要る（分岐の前にまとめる）。
+  console.log(
+    `[audit-log-hygiene] 走査対象: ${SCANNED_PACKAGES.length} パッケージ / ${scanned.size} ファイル`,
+  );
+  console.log(
+    `  走査していない .tsx: ${countSkippedTsx()} 件` +
+      "（ブラウザの console が ADR 0012 D1 の射程に入るかは別 Issue で判断する）",
+  );
+
   const problems = [];
   for (const f of findMissingRequired(scanned)) {
     problems.push(`必須ファイルが走査できていません → ${f}`);
@@ -351,16 +361,10 @@ function main() {
 
   if (problems.length > 0) {
     for (const p of problems) console.error(p);
-    console.error(`\n${problems.length} 件の問題があります（走査 ${scanned.size} ファイル）`);
+    console.error(`\n${problems.length} 件の問題があります`);
     process.exit(1);
   }
-  console.log(
-    `ログ衛生 OK（走査 ${scanned.size} ファイル / ${SCANNED_PACKAGES.length} パッケージ）`,
-  );
-  console.log(
-    `  走査していない .tsx: ${countSkippedTsx()} 件` +
-      "（ブラウザの console が ADR 0012 D1 の射程に入るかは別 Issue で判断する）",
-  );
+  console.log("ログ衛生 OK");
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) main();
