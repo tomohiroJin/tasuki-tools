@@ -242,6 +242,26 @@ describe("0 件ガードの配線: scripts/audit-log-hygiene.mjs", () => {
     },
   );
 
+  test("走査対象のパッケージが 0 件になると非ゼロで終了する（全宣言を除外へ移す経路）", () => {
+    // Given: 全宣言を理由つき除外へ移すと全単射照合は素通りする（ADR-0014 決定 8）。
+    //        その終着点である「走査ディレクトリが 1 つも無い」状態を直接作る。
+    //        実在確認は空の宣言に対して何も返さないので、ここを止めるのは 0 件ガードだけ。
+    const mutate = (s) =>
+      s.replace(
+        "const SCAN_DIRS = SCANNED_PACKAGES.map((pkg) => `${pkg}/src`);",
+        "const SCAN_DIRS = [];",
+      );
+    // When
+    const r = runScriptCopy("audit-log-hygiene.mjs", mutate);
+    // Then: まず「壊れたこと自体」を確かめる
+    assert.equal(countOf(r.source, "const SCAN_DIRS = [];"), 1, "宣言を空にできていません");
+    // Then: 実在確認では止まらず、0 件ガードが両方の内訳を名指しして落とす
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.doesNotMatch(r.stderr, /宣言にあるが実在しない/);
+    assert.match(r.stdout, /走査対象: 0 パッケージ \/ 0 ファイル/);
+    assert.match(r.stderr, /走査対象が 0 件です.*パッケージ.*ファイル/);
+  });
+
   test("走査ディレクトリは実在するがファイルが 0 件になると非ゼロで終了する", () => {
     // Given: 実在確認は通る（ディレクトリはそのまま）が、拾う拡張子を実在しない
     //        ものへ変えて走査ファイルだけを 0 件にする
