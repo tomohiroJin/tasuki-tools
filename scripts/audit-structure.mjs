@@ -16,6 +16,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  listWorkspacePackages,
+  diffTargets,
+  hasTargetDrift,
+  formatTargetDiff,
+} from "./lib/scan-targets.mjs";
 
 /* ============================================================
  * 汎用ユーティリティ（実ファイル I/O。テスト対象は Map 側の純粋関数）
@@ -724,31 +730,62 @@ function loadPackage(pkgRelDir) {
   };
 }
 
+/**
+ * 走査するパッケージ。**src と test は独立に宣言する。**
+ *
+ * テストディレクトリ名は `test` と `tests` で割れている（実測）。規則で導出すると
+ * 必ずどちらかを取りこぼすため、宣言して実体と照合する（#135 経路②⑪・ADR-0014）。
+ * `entry` は SC-027 の到達性測定の起点。持たないパッケージは null。
+ */
+export const SCANNED_PACKAGES = [
+  { pkg: "packages/timer-core", src: "src", test: "test", entry: "index.ts" },
+  { pkg: "packages/poker-core", src: "src", test: "tests", entry: "index.ts" },
+  { pkg: "packages/protocol", src: "src", test: "tests", entry: "index.ts" },
+  { pkg: "packages/rate-limit", src: "src", test: "tests", entry: "index.ts" },
+  { pkg: "apps/timer-sync", src: "src", test: "test", entry: "server.ts" },
+  { pkg: "apps/timer-web", src: "src", test: "test", entry: "main.tsx" },
+  { pkg: "apps/poker-sync", src: "src", test: "tests", entry: "server.ts" },
+  { pkg: "apps/poker-web", src: "src", test: "tests", entry: "main.tsx" },
+  { pkg: "apps/landing", src: "src", test: "tests", entry: "main.tsx" },
+  { pkg: "e2e", src: null, test: "tests", entry: null },
+];
+
+/** 走査から外すパッケージ。**理由が要る。** */
+export const EXCLUDED_PACKAGES = [
+  { pkg: "packages/ui", reason: "src・tests とも TS を 1 つも持たない（CSS トークンとフォント）" },
+];
+
 function runAudit() {
-  const core = loadPackage("packages/timer-core");
-  const sync = loadPackage("apps/timer-sync");
-  const web = loadPackage("apps/timer-web");
+  const loaded = SCANNED_PACKAGES.map((d) => ({
+    ...d,
+    srcFiles: d.src ? readFilesRecursive(path.join(REPO_ROOT, d.pkg, d.src), EXT_TS) : new Map(),
+    testFiles: d.test ? readFilesRecursive(path.join(REPO_ROOT, d.pkg, d.test), EXT_TS) : new Map(),
+  }));
+  const byPkg = new Map(loaded.map((p) => [p.pkg, p]));
 
-  const allTestFiles = new Map([
-    ...[...core.test].map(([k, v]) => [`packages/timer-core/test/${k}`, v]),
-    ...[...sync.test].map(([k, v]) => [`apps/timer-sync/test/${k}`, v]),
-    ...[...web.test].map(([k, v]) => [`apps/timer-web/test/${k}`, v]),
-  ]);
+  // SC-035 / SC-039 は timer 固有の指標。走査を広げてもここは変えない。
+  const core = byPkg.get("packages/timer-core");
+  const sync = byPkg.get("apps/timer-sync");
+  const web = byPkg.get("apps/timer-web");
 
-  // SC-027: パッケージごとに独立して到達性を測り、合算する
-  const unreachableCore = sc027UnreachableModules(core.src, ["index.ts"]);
-  const unreachableSync = sc027UnreachableModules(sync.src, ["server.ts"]);
-  const unreachableWeb = sc027UnreachableModules(web.src, ["main.tsx"]);
-  const sc027 = unreachableCore + unreachableSync + unreachableWeb;
+  const allTestFiles = new Map();
+  for (const p of loaded) {
+    for (const [k, v] of p.testFiles) allTestFiles.set(`${p.pkg}/${p.test}/${k}`, v);
+  }
+
+  // SC-027: エントリを持つパッケージごとに到達性を測り、合算する
+  const sc027 = loaded
+    .filter((p) => p.entry !== null)
+    .reduce((n, p) => n + sc027UnreachableModules(p.srcFiles, [p.entry]), 0);
 
   // SC-039②③ の「参照元」から、SC-027 が到達不能と判定したファイルを除く。
   // なぜ: 死んだファイルからの参照は生存の根拠にならない。これを除かないと、
   // 「撤去予定のファイルからしか参照されていない記号」が生きているように見え、
   // G1 で撤去した瞬間に SC-039 の値が跳ね上がる（計測器が撤去を検知できない）。
   const reachable = {
-    core: computeReachableFiles(core.src, ["index.ts"]),
-    sync: computeReachableFiles(sync.src, ["server.ts"]),
-    web: computeReachableFiles(web.src, ["main.tsx"]),
+    core: computeReachableFiles(core.srcFiles, [core.entry]),
+    sync: computeReachableFiles(sync.srcFiles, [sync.entry]),
+    web: computeReachableFiles(web.srcFiles, [web.entry]),
   };
 
   const sc028 = sc028DuplicateTestDoubles(allTestFiles);
@@ -761,25 +798,25 @@ function runAudit() {
   const sc032 = sc032GwtMarkers(allTestFiles);
   const sc036 = sc036TestCount(allTestFiles);
 
-  const serverSources = [...sync.src.values()];
-  const clientSource = web.src.get("App.tsx") ?? "";
+  const serverSources = [...sync.srcFiles.values()];
+  const clientSource = web.srcFiles.get("App.tsx") ?? "";
   const sc035 = sc035MessageDefinitions(serverSources, clientSource);
 
-  const handlersSource = sync.src.get("application/handlers.ts") ?? "";
+  const handlersSource = sync.srcFiles.get("application/handlers.ts") ?? "";
   const productSources = new Map([
-    ...[...core.src]
+    ...[...core.srcFiles]
       .filter(([k]) => reachable.core.has(k))
       .map(([k, v]) => [`packages/timer-core/src/${k}`, v]),
-    ...[...sync.src]
+    ...[...sync.srcFiles]
       .filter(([k]) => reachable.sync.has(k))
       .map(([k, v]) => [`apps/timer-sync/src/${k}`, v]),
-    ...[...web.src]
+    ...[...web.srcFiles]
       .filter(([k]) => reachable.web.has(k))
       .map(([k, v]) => [`apps/timer-web/src/${k}`, v]),
   ]);
   // packages/*/src のみを走査対象にする（FR-119②③は packages 限定）
   const coreOnly = new Map(
-    [...core.src].map(([k, v]) => [`packages/timer-core/src/${k}`, v]),
+    [...core.srcFiles].map(([k, v]) => [`packages/timer-core/src/${k}`, v]),
   );
   const sc039 = sc039UnreachableElements({
     handlersSource,
@@ -829,7 +866,41 @@ export function formatTable(results) {
 }
 
 function main() {
+  // 走査対象の宣言が実体とずれていないかを最初に見る（#135 経路②⑪）。
+  //
+  // **これは測定値の合否ではなく計測器の健全性の合否**（ADR-0014）。
+  // ADR 0009 D2 の「構造監査は値を出すだけ」は測定値についての決定であり、
+  // 走査対象を失ったまま全指標 PASS の表を出すことまで許してはいない。
+  const packages = listWorkspacePackages(REPO_ROOT);
+  const declared = [
+    ...SCANNED_PACKAGES.map((d) => d.pkg),
+    ...EXCLUDED_PACKAGES.map((e) => e.pkg),
+  ];
+  const drift = diffTargets(declared, packages);
+
+  const missingDirs = [];
+  for (const d of SCANNED_PACKAGES) {
+    for (const sub of [d.src, d.test]) {
+      if (sub === null) continue;
+      if (!fs.existsSync(path.join(REPO_ROOT, d.pkg, sub))) missingDirs.push(`${d.pkg}/${sub}`);
+    }
+  }
+
+  const srcCount = SCANNED_PACKAGES.filter((d) => d.src !== null).length;
+  const testCount = SCANNED_PACKAGES.filter((d) => d.test !== null).length;
+  const summary = `src ${srcCount} パッケージ / test ${testCount} パッケージ`;
+
+  if (hasTargetDrift(drift) || missingDirs.length > 0) {
+    const merged = {
+      missing: [...drift.missing, ...missingDirs].sort(),
+      unexpected: drift.unexpected,
+    };
+    console.error(formatTargetDiff("audit-structure", merged, summary));
+    process.exit(1);
+  }
+
   const results = runAudit();
+  console.log(`[audit-structure] 走査対象: ${summary}`);
   console.log(formatTable(results));
 }
 
