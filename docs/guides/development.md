@@ -392,6 +392,36 @@ shellcheck -x --source-path=deploy --severity=warning deploy/*.sh deploy/lib/*.s
 区別できず、実行前に working tree のクリーンさを要求します。先にコミットしてから
 走らせてください。
 
+### 新しいパッケージを足すと検査が赤くなる
+
+構造監査（`scripts/audit-structure.mjs`）とログ衛生（`scripts/audit-log-hygiene.mjs`）は、
+走査対象を `SCANNED_PACKAGES` / `EXCLUDED_PACKAGES` として**宣言**し、実行時に
+workspace の実体（`pnpm -r list --depth -1 --json`）と全単射で照合します
+（決定は [`docs/adr/0014`](../adr/0014-scan-target-integrity.md)）。したがって、
+`packages/` や `apps/` 配下に新しいパッケージを足すと、宣言に足すまで両方の検査が
+非ゼロで終了します。
+
+正しい直し方は次のどちらかです。
+
+- **走査対象に入れる**: `SCANNED_PACKAGES` に `{ pkg, src, test, entry }`（構造監査）
+  または `pkg`（ログ衛生）を追記する
+- **理由つきで除外する**: `EXCLUDED_PACKAGES` に、なぜ検査しないかの理由とともに追記する
+  （例: `packages/ui` は src・tests とも TS を 1 つも持たないため除外）
+
+**「宣言から消す」で赤を消してはいけません。** 落ちているのは検査対象が見つからない
+ことそのものであり、対象を宣言から外せば検査は通りますが、そのパッケージは
+以後どちらの検査にも一切引っかからなくなります。これは #135 が塞いだ「新設パッケージが
+黙って対象外になる」経路を、宣言を削ることで自ら再現する行為です。除外する場合も
+必ず理由を書き、`EXCLUDED_PACKAGES` から漏らさないでください。
+
+shellcheck・自己テスト（`node --test`）の対象は宣言ではなく `git ls-files` からの
+導出（`scripts/list-scan-targets.mjs`）です。`scripts/` 配下に `*.sh` や `*.test.mjs` を
+置けば自動で対象に入るため、こちらは追記の必要がありません。
+
+リンク検査（`scripts/check-links.mjs`）は追跡下の `*.md` を `LIVE_DOCS` と
+`DORMANT_DOCS` の宣言へ全分割します。新しいディレクトリに文書を置いたときの扱いは
+同スクリプト内のコメントを参照してください。
+
 ## CI
 
 `.github/workflows/ci.yml` は 5 つのジョブを持ちます。
