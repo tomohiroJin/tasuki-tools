@@ -22,7 +22,7 @@ Tasuki の文書は目的ごとに置き場が分かれています。まずこ�
 | 知りたいこと | 行き先 |
 |---|---|
 | 守るべき原則 | [憲法](./constitution.md) |
-| なぜそう決まっているか | [`docs/adr/`](./adr/)（横断）・`docs/<app>/adr/`（例: [`docs/timer/adr/`](./timer/adr/)、アプリ固有） |
+| なぜそう決まっているか | [`docs/adr/`](./adr/)（横断）・`docs/<app>/adr/`（例: [`docs/timer/adr/`](./timer/adr/)・[`docs/poker/adr/`](./poker/adr/)、アプリ固有） |
 | 今日どう書くか（DoD・EARS・振り返り・アーキテクチャ・開発手順・セキュリティ・PR の粒度） | [`docs/guides/`](./guides/) |
 | 機能の設計経緯 | [`docs/superpowers/specs/`](./superpowers/specs/)・[`docs/superpowers/plans/`](./superpowers/plans/) |
 | 過去の SDD 記録 | [`docs/plans/`](./plans/) |

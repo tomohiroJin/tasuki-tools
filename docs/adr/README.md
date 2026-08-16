@@ -11,6 +11,7 @@ Michael Nygard 形式（背景 / 決定 / 影響 / ステータス）に従い�
 |---|---|
 | `docs/adr/`（ここ） | `packages/` と複数の `apps/` にまたがる判断 |
 | `docs/timer/adr/` | `apps/timer-web` / `apps/timer-sync` に閉じた判断（0001〜0010） |
+| `docs/poker/adr/` | `apps/poker-web` / `apps/poker-sync` / `packages/poker-core` に閉じた判断（0001〜） |
 
 `docs/timer/adr/README.md` は「TDD Mob Pro Timer の重要な設計判断」を対象と宣言しているため、
 横断的な判断はそちらに入れません。
