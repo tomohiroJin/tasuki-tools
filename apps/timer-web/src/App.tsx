@@ -36,8 +36,8 @@ import { persistRecordIfComplete } from "./records/persist.js";
 import { buildCompletionRecord, displayMessageFor } from "@tasuki/timer-core";
 import type { Room, SessionConfig, CompletionRecord, Problem } from "@tasuki/timer-core";
 
-/** ローカルに API 鍵があれば BYOK、無ければ定型のみのプロバイダを返す。
- *  鍵の保存先（session/local）は key-storage が一元管理する（AI 設定モーダルと同じ経路）。 */
+/** 常に定型バンク（NoAiProvider）を返す。BYOK は #28 T010 で撤去済み。
+ *  お題の AI 生成はサーバー常駐（docs/timer/adr/0008）で、web 側は経路を持たない。 */
 function resolveProvider(): ProblemProvider {
   // AI はいったん撤去。常に定型バンク（NoAiProvider）を使う。
   return new NoAiProvider();
