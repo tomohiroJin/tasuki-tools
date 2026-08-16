@@ -7,7 +7,7 @@
 
 ## 概要
 
-#72「ADR に沿ったリファクタリング（振る舞い不変）」を、6 つの部分系へ分解し、
+#72「ADR に沿ったリファクタリング（振る舞い不変）」を、5 つの部分系（E5 は欠番）へ分解し、
 その第 1 部分系 **E1（規範の空白を埋める）** を設計する。
 
 E1 は**規範を決め、現行 ADR と実態のずれを解消する段階**である。振る舞いを変える
@@ -229,6 +229,13 @@ FR-110 で明示列挙へ置換済み。
 `LIVE_DOCS` のみを見るため、`DORMANT_DOCS` に重複して一致しても問題ない。
 `checkConstants()` が実在を要求するので、ディレクトリ作成と同じ PR で足す。
 
+**ただし `LIVE_DOCS` へ足すだけでは不十分である。** `DORMANT_DOCS` に `docs/poker/` と
+いう広い前方一致が残っていると、`LIVE_DOCS` から `docs/poker/adr/` を消したときに配下が
+その休眠エントリへ吸収され、無所属にならず緑のままになる（#135 経路③）。したがって
+`docs/poker/` を `docs/poker/specs/` と `docs/poker/README.md` へ分割し、
+**`DORMANT_DOCS` のどのエントリも `LIVE_DOCS` のエントリを包含しない**状態にする。
+この性質は `scripts/check-links.test.mjs` が直接主張するテストで押さえる。
+
 ### `docs/timer/adr/` は休眠のままにする（実測に基づく判断）
 
 同じ穴が timer の ADR 10 本にもある。片側だけ直すのを避けるため
@@ -257,7 +264,7 @@ ADR は追記のみのため書き換えない」に書き直す**（記録の�
 | 5 | `scripts/check-links.mjs` の `LIVE_DOCS` に `docs/poker/adr/` を追加、`DORMANT_DOCS` の timer の理由を修正 |
 | 6 | `docs/adr/README.md` に 0015・0016 を追加 |
 | 7 | `docs/guides/architecture.md` の層対応表・判断フローを更新 |
-| 8 | `docs/timer/adr/0007` へ追記（トークン保持は `application/token-store.ts` へ切り出し済み。決定の意図＝モジュールグローバル回避は維持） |
+| 8 | `docs/timer/adr/0007` へ追記（保持が `application/token-store.ts` へ移った経緯。`createTokenStore()` は `handlers.ts:143` で `makeHandlers` 内から呼ばれるので決定との不一致ではない） |
 | 9 | `docs/timer/adr/0008` へ追記（BYOK 休眠残置は #28 T010・コミット `7d7a73c` で撤去済み。サーバー常駐生成の決定本体は有効） |
 | 10 | `apps/timer-web/src/App.tsx:39-40` の docstring を実装に合わせる（削除済み `key-storage` への言及を消す） |
 | 11 | #72 本文の完了条件を再定義し、E2・E3・E4・E6 を sub-Issue として起票（EARS 記法） |
@@ -319,16 +326,17 @@ E1 はコードを直さないので CI が赤になるためである。
 |---|---|---|
 | `docs/timer/adr/0002` | Decider（`decide`/`evolve`）。時刻は `now` で注入し `Date.now()` を呼ばない | **不一致 1 件**（`problem.ts:70`。= E3） |
 | `docs/timer/adr/0003` | 時刻系を `ServerClock` に一本化し、残り時間・経過時間は状態から導出。クライアントはローカル時計で進めない | 未検証（E4 が触る領域） |
-| `docs/timer/adr/0007` | ホストトークン・復帰トークンは `makeHandlers` のクロージャ内 `Map` に保持する | **不一致**（下記） |
+| `docs/timer/adr/0007` | ホストトークン・復帰トークンは `makeHandlers` のクロージャ内 `Map` に保持する | **一致**（保持の形のみ変化。下記） |
 
-### 欠陥 2（重大）— timer ADR の 2 本が実態と食い違っている
+### 欠陥 2（重大）— timer ADR 0008 が実態と食い違い、0007 は記録の追補が要る
 
-- **`docs/timer/adr/0007`**: 決定は「`makeHandlers` のクロージャ内 `Map` に保持」だが、
-  実装は `apps/timer-sync/src/application/token-store.ts` へ切り出し済み。
-  同ファイルの冒頭コメントが「`handlers.ts` の `makeHandlers` が抱えていた 3 個の
-  可変 `Map`（`hostTokens` / `resumeTokens` / `roomPassphrases`）を…切り出したもの」と
-  過去形で書いている。**意図（モジュールグローバルを避ける）は満たしているが、
-  決定が指定した手段とは違う。**
+- **`docs/timer/adr/0007`**: 3 個の可変 `Map` は
+  `apps/timer-sync/src/application/token-store.ts` へ切り出されている。ただし
+  `createTokenStore()` は `apps/timer-sync/src/application/handlers.ts:143` で
+  `makeHandlers` の中から呼ばれ、**ハンドラインスタンスごとに 1 個生成される**
+  （呼び出しはこの 1 箇所のみ）。**決定が名指しした性質（クロージャ内・モジュール
+  グローバル回避）は字義どおりにも満たされている。**変わったのは保持の形だけなので、
+  不一致ではなく経緯として追記する。
 - **`docs/timer/adr/0008`**: 決定は「BYOK は休眠残置。`apps/web/src/ai/{byok,key-storage}.ts`
   は UI から撤去し将来の再有効化に備えて残す」だが、**両ファイルとも既に削除済み**
   （コミット `7d7a73c`「refactor: BYOK 系の休眠コードを撤去する（#28 T010）」で削除）。
@@ -398,7 +406,9 @@ E2 の必須作業になる。** E2 の Issue に「ログ出力を増やさな�
 ## 敵対的検証 2 回目（2026-08-17）
 
 1 回目の修正後の設計に対して、**「24 本すべて測った・不一致は 5 件」という数え上げ
-そのものを壊しにいった。** 結果、数え上げは持ちこたえたが**分解に 2 件の重大な誤り**が出た。
+そのものを壊しにいった。** 結果、分解に 2 件の重大な誤りが出た。**なお数え上げ自体も
+この時点では持ちこたえたと判断したが、最終レビューで timer 0007 の 1 件が過大計上と
+判明した**（不一致は 5 件ではなく 4 件）。
 
 ### 欠陥 5（重大）— E5 に固有のコード作業が無い。6 部分系は 5 本に減る
 
@@ -434,6 +444,8 @@ E2 の安全網は実質 **`apps/poker-sync/tests` の 84 件 / 14 ファイル*
 実測では `sync/client` を import しているのは **`apps/timer-web/src/App.tsx` の 1 ファイルのみ**。
 検査は**無状態の許可リスト方式**（この import を許すのは同期フック 1 本だけ）で書く。
 手書きの字句解析は 3 度続けて検出漏れを作った実績があるので採らない。
+**対象は `apps/*-web/src` 配下のみとし、テストは対象外とする** — `apps/timer-web/test/sync/client.dispose.test.ts`
+ほか 3 本が `apps/timer-web/src/sync/client.ts` を直接 import しているため。
 
 ### 欠陥 9（小）— 破壊検証の手順に抜けがある
 
@@ -462,7 +474,7 @@ E1 は `scripts/check-links.mjs` を変更する。ここが壊れると全文�
 全決定を網羅的に照合したものではない。** 例えば ADR-0001 は決定が 5 つあるが、
 検証したのは決定 1（トークン層と要素層の分離）と ui のディレクトリ実在のみである。
 **「24 本すべて一致を確認した」ではなく「24 本すべてについて代表的な決定を測り、
-5 件の不一致を見つけた」が正確な主張である。**
+4 件の不一致を見つけた」が正確な主張である。**
 
 ## ADR 24 本の実態一致（2026-08-17 実測・main `4449f20`）
 
@@ -498,13 +510,14 @@ E1 は `scripts/check-links.mjs` を変更する。ここが壊れると全文�
 | 0004 full snapshot 同期 | **一致**。`schemas.ts` に `snapshot` 型 1 件のみ、差分・revision の型は無い | — |
 | 0005 秘密ゼロ + BYOK | `Superseded by ADR-0008` を宣言済み。対象外 | — |
 | 0006 Result と境界検証 | `docs/adr/0005` へ昇格済み | — |
-| 0007 揮発インメモリ | **不一致**。トークン保持は `application/token-store.ts` へ切り出し済みで、決定が指定した「`makeHandlers` のクロージャ内 `Map`」ではない | **E1 ⑦** |
+| 0007 揮発インメモリ | **一致**。トークン保持は `application/token-store.ts` へ切り出されたが、`createTokenStore()` は `handlers.ts:143`（`makeHandlers` 内）で呼ばれ、決定が名指しした性質は満たされている | **E1 ⑦（経緯の追記のみ）** |
 | 0008 サーバー常駐 AI 生成 | **不一致 1 節**。決定本体（サーバー常駐生成）は実在するが、「BYOK 休眠残置」の 2 ファイルは `7d7a73c` で撤去済み | **E1 ⑦⑧** |
 | 0009 テスト規約 | `docs/adr/0006` へ昇格済み | — |
 | 0010 設計文書の正本 | `Superseded by docs/adr/0002` を宣言済み。対象外 | — |
 
-**まとめ: 24 本のうち不一致は 5 件**（横断 0004・0006、timer 0002・0007・0008）。
-うち **2 件は E1 が追記で解消**し、残る 3 件は E2・E3・E6 がコードで解消する。
+**まとめ: 24 本のうち不一致は 4 件**（横断 0004・0006、timer 0002・0008）。
+うち **1 件（timer 0008）は E1 が追記で解消**し、残る 3 件は E2・E3・E6 がコードで解消する。
+timer 0007 は不一致ではないが、保持が別モジュールへ移った経緯を E1 が追記する。
 
 ## スコープ外
 

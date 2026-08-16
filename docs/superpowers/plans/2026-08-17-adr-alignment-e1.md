@@ -4,7 +4,7 @@
 
 **Goal:** #72 が「ADR に沿って直す」ための形を決め切り、現行 ADR と実態のずれを解消する。コードの構造は変えない。
 
-**Architecture:** 文書 3 層（憲法 / ADR / ガイド）のうち **ADR 層に 2 本を新設**（`docs/adr/0015` web 層・`docs/adr/0016` core 表現）、**1 本へ追記**（`docs/adr/0007` 抽象の基準）、**アプリ固有 ADR を新設**（`docs/poker/adr/0001`）する。あわせて実態とずれた timer ADR 2 本へ追記し、走査対象（`scripts/check-links.mjs` の `LIVE_DOCS`）が新しい規範文書を拾うようにする。最後に #72 本文の完了条件を再定義し、後続 4 本を sub-Issue として起票する。
+**Architecture:** 文書 3 層（憲法 / ADR / ガイド）のうち **ADR 層に 2 本を新設**（`docs/adr/0015` web 層・`docs/adr/0016` core 表現）、**1 本へ追記**（`docs/adr/0007` 抽象の基準）、**アプリ固有 ADR を新設**（`docs/poker/adr/0001`）する。あわせて timer ADR 2 本（0008 は実態とのずれ、0007 は保持が移った経緯）へ追記し、走査対象（`scripts/check-links.mjs` の `LIVE_DOCS`）が新しい規範文書を拾うようにする。最後に #72 本文の完了条件を再定義し、後続 4 本を sub-Issue として起票する。
 
 **Tech Stack:** Markdown / Node.js 22（`node:test` + `node:assert/strict`）/ pnpm 11.5.0 / GitHub CLI (`gh`)
 
@@ -36,7 +36,7 @@
 | `docs/poker/adr/README.md` | poker の ADR 索引 | Create |
 | `docs/adr/README.md` | 横断 ADR の索引と置き場表 | Modify |
 | `docs/README.md` | 文書地図。アプリ固有 ADR の例に poker を足す | Modify |
-| `docs/timer/adr/0007-volatile-in-memory-state.md` | 実態（`token-store.ts` への切り出し）を追記 | Modify（末尾に追記節） |
+| `docs/timer/adr/0007-volatile-in-memory-state.md` | 保持が `token-store.ts` へ移った経緯を追記（決定との不一致ではない） | Modify（末尾に追記節） |
 | `docs/timer/adr/0008-server-resident-ai-generation.md` | 実態（BYOK 撤去済み）を追記 | Modify（末尾に追記節） |
 | `apps/timer-web/src/App.tsx` | `resolveProvider` の docstring を実装に合わせる | Modify（39-40 行） |
 | `scripts/check-links.mjs` | `LIVE_DOCS` に `docs/poker/adr/` を追加。`DORMANT_DOCS` の timer の理由を修正 | Modify |
@@ -523,6 +523,8 @@ git commit -m "docs: poker の ADR 置き場を新設し直接遷移の採用を
 
 **この Task が塞ぐ穴:** `DORMANT_DOCS` に `{ prefix: "docs/poker/", reason: "poker の作業記録。記録として保持する" }` があるため、**新設した現役の規範文書が「作業記録」として静かにコードパス検査から外れる**。#135 が塞いだ経路と同型の事故。
 
+**`LIVE_DOCS` へ足すだけでは不十分:** `DORMANT_DOCS` に `docs/poker/` という広い前方一致が残っていると、`LIVE_DOCS` から `docs/poker/adr/` を消したときに配下がその休眠エントリへ吸収され、無所属にならず緑のままになる（#135 経路③）。**`docs/poker/` を `docs/poker/specs/` と `docs/poker/README.md` へ分割し、`DORMANT_DOCS` のどのエントリも `LIVE_DOCS` のエントリを包含しない状態にする。**
+
 - [ ] **Step 1: 失敗するテストを書く**
 
 `scripts/check-links.test.mjs` の `describe("isLiveDoc", ...)` ブロック内、
@@ -704,7 +706,7 @@ git commit -m "fix: poker の ADR をリンク検査の走査対象に入れる�
 
 ---
 
-### Task 6: timer ADR 2 本へ実態を追記し、`App.tsx` の docstring を直す
+### Task 6: timer ADR 2 本へ経緯を追記し、`App.tsx` の docstring を直す
 
 **Files:**
 - Modify: `docs/timer/adr/0007-volatile-in-memory-state.md`（末尾に追記節）
@@ -734,19 +736,24 @@ wc -l /tmp/t0007-before.txt /tmp/t0008-before.txt
 
 ## 追記（2026-08-17・#72 E1）
 
-**決定の最後の項目「ホストトークン・復帰トークンは `makeHandlers` のクロージャ内
-`Map` に保持し、モジュールグローバルを避ける」は、現在の実装と手段が異なる。**
+**決定の最後の項目「ホストトークン・復帰トークンは `makeHandlers` のクロージャ内 `Map` に
+保持し、モジュールグローバルを避ける」について、保持の実装が移動している。**
 
-トークンの保持は `apps/timer-sync/src/application/token-store.ts` へ切り出されている。
-同ファイルの冒頭コメントは「`handlers.ts` の `makeHandlers` が抱えていた 3 個の可変
-`Map`（`hostTokens` / `resumeTokens` / `roomPassphrases`）を、ロジックを変えずに
-1 モジュールへ切り出したもの（フェーズ 2・純粋な移動）」と記している。
+3 個の可変 `Map`（`hostTokens` / `resumeTokens` / `roomPassphrases`）は
+`apps/timer-sync/src/application/token-store.ts` の `createTokenStore()` へ切り出された。
+同ファイル冒頭は「`handlers.ts` の `makeHandlers` が抱えていた 3 個の可変 `Map` …を、
+ロジックを変えずに 1 モジュールへ切り出したもの（フェーズ 2・純粋な移動）」と記している。
 
-**決定の意図（モジュールグローバルを避け、テスト間の状態汚染を防ぐ）は満たされている。**
-`TokenStore` は `create-sync-server.ts` の組み立てを通じて生成され、モジュール
-グローバルではない。変わったのは保持場所であって、避けるべきものではない。
+**ただし決定が名指しした性質は、字義どおりの意味でも今なお満たされている。**
+`createTokenStore()` は `apps/timer-sync/src/application/handlers.ts:143` で、
+つまり `makeHandlers` の中で呼ばれ、**ハンドラインスタンスごとに 1 個生成される**。
+同ファイル 140〜142 行のコメントも「ハンドラインスタンスごとに1個生成し、
+モジュール共有を避けてテスト間汚染を防ぐ」と明記している。モジュールグローバルは無い。
 
-本追記は経緯の記録であり、決定を覆すものではない（`docs/adr/0002` の「ADR は追記のみ」）。
+変わったのは、`Map` を直接 3 個持つか `TokenStore` オブジェクト経由で持つかという
+保持の形だけである。**本追記は、決定の文面が名指しする `Map` が別モジュールの
+ファクトリへ移ったことを記録するものであり、決定を覆すものではない**
+（`docs/adr/0002` の「ADR は追記のみ」）。
 ```
 
 - [ ] **Step 3: `docs/timer/adr/0008` の末尾へ追記する**
@@ -892,8 +899,8 @@ git commit -m "docs: 実態とずれた timer ADR 2 本へ経緯を追記する�
 [`docs/adr/0015`](../adr/0015-web-layer-structure.md) です。本ガイドはその置き場を
 示します。`apps/poker-web` は既にこの形（`hooks/useSync.ts` へ集約）に従っており、
 `apps/timer-web` の再編は [#72](https://github.com/tomohiroJin/tasuki-tools/issues/72) の
-E4 で行います（`App.tsx` が 848 行あり、105〜377 行の `useEffect` に WS 配線が
-同居しているため）。
+E4 で行います（`apps/timer-web/src/App.tsx` に WS 配線が直書きされているため。
+実測値は [`docs/adr/0015`](../adr/0015-web-layer-structure.md) の背景を参照）。
 ```
 
 - [ ] **Step 2: 判断フローに core の表現選択を足す**
@@ -1021,15 +1028,20 @@ wc -l /tmp/issue72-before.md
 
 ## 実測（2026-08-17・main `4449f20`）
 
-ADR 24 本（横断 14 ＋ timer 10）について代表的な決定を測り、**不一致 5 件**を確認しました。
+ADR 24 本（横断 14 ＋ timer 10）について代表的な決定を測り、**不一致 4 件**を確認しました。
 
 | ADR | 不一致 | 宛先 |
 |---|---|---|
 | `docs/adr/0004` | poker-sync が `ports/` `adapters/` `application/` を持たない | E2 |
 | `docs/adr/0006` | SC029 15 / SC030 3 / SC031 3 / SC032 84.2% | E6 |
 | `docs/timer/adr/0002` | `packages/timer-core/src/problem.ts:70` の `Date.now()` | E3 |
-| `docs/timer/adr/0007` | トークン保持が `application/token-store.ts` へ切り出し済み | **E1** |
 | `docs/timer/adr/0008` | BYOK 休眠残置の 2 ファイルが `7d7a73c` で撤去済み | **E1** |
+
+`docs/timer/adr/0007` は**不一致ではありません**。トークン保持は
+`apps/timer-sync/src/application/token-store.ts` へ切り出されましたが、
+`createTokenStore()` は `handlers.ts:143`（`makeHandlers` 内）で呼ばれ、決定が名指しした
+性質（クロージャ内・モジュールグローバル回避）は満たされています。保持が別モジュールへ
+移った経緯だけを E1 が追記します。
 
 ## 段階
 
