@@ -996,19 +996,23 @@ function main() {
   // `""` は「パッケージ直下」を指す形になり、走査対象を 1 つ静かに失わせる。
   // 件数のガードは「1 件だけ失った」状態を検知できないため、ここで落とす。
   const invalidDeclarations = findInvalidDeclarations(SCANNED_PACKAGES);
-  if (invalidDeclarations.length > 0) {
-    console.error("[audit-structure] 走査対象の宣言が不正です（null か非空の文字列のみ）");
-    for (const d of invalidDeclarations) console.error(`  ${d}`);
-    process.exit(1);
-  }
 
   // **走査対象の読み込みはここ 1 回だけ。** 走査量のガードも指標の測定も、
   // この `loaded` から導出する（別々に導出すると条件式が割れて食い違う）。
+  // `hasScanTarget` が `""` を 0 件として扱うため、不正な宣言があっても
+  // この読み込みは安全に行える（落ちる前に走査量を出すために先に計算する）。
   const loaded = loadScanTargets(SCANNED_PACKAGES, (pkg, sub) =>
     readFilesRecursive(path.join(REPO_ROOT, pkg, sub), EXT_TS),
   );
   const volume = measureScanVolume(loaded);
   const summary = formatScanVolume(volume);
+
+  if (invalidDeclarations.length > 0) {
+    console.error("[audit-structure] 走査対象の宣言が不正です（null か非空の文字列のみ）");
+    for (const d of invalidDeclarations) console.error(`  ${d}`);
+    console.error(`  現在の走査対象: ${summary}`);
+    process.exit(1);
+  }
 
   // 走査量のどの内訳も 0 件でないことを見る（ADR-0014 決定 8）。
   //

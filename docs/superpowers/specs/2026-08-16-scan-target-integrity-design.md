@@ -23,7 +23,7 @@ Issue #135 は起票時点で 4 経路だったが、その後 #116・#119・#10
 | ⑬ | `node --test` の対象列挙がハードコードで、新しいテストが走らない | **本設計で発見** | **本 Issue** |
 | ⑤⑥⑦ | `trustPolicyExclude` の版指定退化・死んだ除外行・キーと値の綴り誤り | #116 | 別 Issue（B群） |
 | ⑫ | pnpm の供給網ポリシー検証がキャッシュで飛ぶ | #126 | 別 Issue（B群） |
-| ⑨ | Constitution Check ゲートが plan 36 件中 4 件でしか実施されていない | #119 | 別 Issue（D-1） |
+| ⑨ | Constitution Check ゲートが plan 36 件中 4 件でしか実施されていない（#119 起票時点の値。件数は増え続けるため現行値は [#155](https://github.com/tomohiroJin/tasuki-tools/issues/155) を参照） | #119 | 別 Issue（D-1） |
 | ⑩ | `check-links` が拡張子なしパス・`path:line` の行番号を検証しない | #119 | 別 Issue（D-2） |
 
 **選び方の根拠**: ①②③④⑧⑪⑬ は**すべて「宣言と実体がずれても誰も言わない」という同一の機序**で、
@@ -551,7 +551,7 @@ pathspec は §3.10 に従い `scripts/*.test.mjs`（`**` を使わない）と 
 | Issue | 中身 | 由来 |
 |---|---|---|
 | **B群** | pnpm 供給網設定の退化を検出する（⑤版指定の退化・⑥死んだ除外行・⑦綴り誤り・⑫検証キャッシュ） | #116 / #126 |
-| **D-1** | Constitution Check ゲートの空文化（plan 36 件中 4 件） | #119 |
+| **D-1** | Constitution Check ゲートの空文化（plan 36 件中 4 件、#119 起票時点。現行値は [#155](https://github.com/tomohiroJin/tasuki-tools/issues/155) を参照） | #119 |
 | **D-2** | `check-links` が見ていない表記（⑩拡張子なしパス・`path:line` の行番号・ネストした角括弧・タイトル付きリンク） | #119 / #70 deferred |
 | **D-3** | ログ衛生の射程に `.tsx` を含めるか（ADR 0012 D1 の解釈・既存 6 件の扱い） | 本設計 D7 |
 
