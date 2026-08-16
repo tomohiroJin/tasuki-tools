@@ -27,6 +27,7 @@ import {
   diffTargets,
   hasTargetDrift,
   formatTargetDiff,
+  hasZeroScanTargets,
 } from "./lib/scan-targets.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -320,6 +321,17 @@ function countSkippedTsx() {
 }
 
 function main() {
+  // 走査対象が 0 件でないことを見る（ADR-0014 決定 8）。
+  //
+  // 全パッケージを理由つき除外へ移せば、下の全単射照合は素通りしてしまう。
+  // `findMissingRequired` は REQUIRED_FILES が走査結果に無ければ結果的に
+  // 検知するが、それは副次効果であり明示的な保証ではない。ここで先に
+  // 明示的に塞ぐ（audit-structure.mjs と同じ形）。
+  if (hasZeroScanTargets(SCANNED_PACKAGES.length)) {
+    console.error("[audit-log-hygiene] 走査対象が 0 件です（検査が空振りします）");
+    process.exit(1);
+  }
+
   // 走査対象の宣言が workspace の実体とずれていないかを最初に見る（#135 経路⑪）。
   const packages = listWorkspacePackages(REPO_ROOT);
   const declared = [...SCANNED_PACKAGES, ...EXCLUDED_PACKAGES.map((e) => e.pkg)];

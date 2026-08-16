@@ -54,9 +54,9 @@
    テストより先に実装コードを書かない。
 2. **Given/When/Then 構造**: テスト本体を `// Given` `// When` `// Then` で
    区切る。本体が 2 行以下の自明なテストは対象外とする。この規約の遵守は
-   `scripts/audit-structure.mjs`（SC032）で機械的に検査する。**現状 SC032 が
-   走査するのは timer 3 パッケージのみであり、poker 系・`packages/protocol` へ
-   走査対象を広げるかどうかは本 ADR では決めない**（別タスクの領分とする）。
+   `scripts/audit-structure.mjs`（SC032）で機械的に検査する。**本 ADR 採択時点で
+   SC032 が走査するのは timer 3 パッケージのみであり、poker 系・`packages/protocol` へ
+   走査対象を広げるかどうかは本 ADR では決めないとした**（別タスクの領分とする）。
    **追記（2026-08-16）**: この保留は #135 / [ADR-0014](./0014-scan-target-integrity.md)
    で決着した。現在の SC032 の走査対象は 10 パッケージ（src 9 / test 10）。
 3. **新しい検査はわざと壊して赤を見る（MUST）**: 検査を追加したら、検査対象を

@@ -1,6 +1,6 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { diffTargets, hasTargetDrift, formatTargetDiff } from "./scan-targets.mjs";
+import { diffTargets, hasTargetDrift, formatTargetDiff, hasZeroScanTargets } from "./scan-targets.mjs";
 
 describe("diffTargets", () => {
   test("宣言と実体が一致するとき差分は空", () => {
@@ -82,6 +82,19 @@ describe("hasTargetDrift", () => {
   test("unexpected だけでも true", () => {
     // Given / When / Then
     assert.equal(hasTargetDrift({ missing: [], unexpected: ["a"] }), true);
+  });
+});
+
+describe("hasZeroScanTargets", () => {
+  test("0 件なら true（0 件ガードの対象）", () => {
+    // Given / When / Then
+    assert.equal(hasZeroScanTargets(0), true);
+  });
+
+  test("1 件以上なら false（決定 8 の下限直書き禁止の対象。ガードしない）", () => {
+    // Given / When / Then
+    assert.equal(hasZeroScanTargets(1), false);
+    assert.equal(hasZeroScanTargets(11), false);
   });
 });
 

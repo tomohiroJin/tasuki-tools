@@ -372,14 +372,26 @@ poker-sync（`3311`）を実際に起動するため、`pnpm dev` と同じポ�
 手元で先に確かめたいときは次を叩きます。
 
 ```bash
-node scripts/audit-structure.mjs                 # 構造監査（値を出すだけ。合否は取らない）
-node --test scripts/audit-structure.test.mjs scripts/check-links.test.mjs scripts/ci-scope.test.mjs  # 自己テスト（構造監査・リンク検査・判定）
+node scripts/audit-structure.mjs                 # 構造監査（走査対象のずれは合否を持つ。ADR-0009 D2 の例外・ADR-0014 決定7）
+targets="$(node scripts/list-scan-targets.mjs script-tests)"; node --test $targets  # 自己テスト（対象は git から導出。scripts/*.test.mjs 全件）
 node scripts/mutation-check.mjs                  # 変異検査
 node scripts/check-links.mjs                     # リンク検査
-shellcheck -x --source-path=deploy --severity=warning deploy/*.sh deploy/lib/*.sh scripts/*.sh
+targets="$(node scripts/list-scan-targets.mjs shell)"; shellcheck -x --source-path=deploy --severity=warning $targets  # 対象は git から導出（グロブ直書きではない）
 ```
 
-**リンク検査は `git ls-files` を見ます。** 新しく作った文書は `git add` するまで走査対象に入りません。
+**自己テスト・shellcheck の対象はハードコードではなく `scripts/list-scan-targets.mjs`
+（`git ls-files` からの導出）です。** CI（`.github/workflows/ci.yml`）もこの形で
+呼び出しています。個別のテストファイル名やグロブを直書きすると、新設したテストや
+サブディレクトリに置いたスクリプトが対象から漏れます（#135 経路④・⑬。
+決定は [`docs/adr/0014`](../adr/0014-scan-target-integrity.md)）。
+
+**リンク検査の走査対象は「追跡下 ∪（未追跡かつ gitignore 対象外）」です。**
+新しく作った文書は `git add` する前でも走査対象に入り、その文書自身が持つ
+リンク切れは検出されます。**ただし存在判定（あるパスがリンク先として実在するか
+の確認）は追跡下のみのままです。** そのため、新しく作った文書「へ向けた」リンクは、
+`git add` するまでは他のファイルからも自分自身からも解決できず、「参照先が
+ありません」と出ます（`git add` すれば解消します）。決定は
+[`docs/adr/0014`](../adr/0014-scan-target-integrity.md) D4。
 
 **依存の脆弱性検査（`pnpm audit`）は上記に含まれません。** CI の独立ジョブ
 （`audit`）で自動実行され、high 以上の脆弱性で落ちます（決定は

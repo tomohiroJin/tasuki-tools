@@ -21,6 +21,7 @@ import {
   diffTargets,
   hasTargetDrift,
   formatTargetDiff,
+  hasZeroScanTargets,
 } from "./lib/scan-targets.mjs";
 
 /* ============================================================
@@ -883,6 +884,17 @@ function main() {
   // **これは測定値の合否ではなく計測器の健全性の合否**（ADR-0014）。
   // ADR 0009 D2 の「構造監査は値を出すだけ」は測定値についての決定であり、
   // 走査対象を失ったまま全指標 PASS の表を出すことまで許してはいない。
+  // 走査対象が 0 件でないことを見る（ADR-0014 決定 8）。
+  //
+  // 全パッケージを理由つき除外へ移せば、下の全単射照合は素通りしてしまう
+  // （除外側が workspace の全件を覆うため）。走査 0 件のまま合否表を出す
+  // 経路を、ここで先に塞ぐ。METRIC_FILE_PINS のファイル実在チェックは
+  // 走査集合への所属を見ないため、この経路の歯止めにならない。
+  if (hasZeroScanTargets(SCANNED_PACKAGES.length)) {
+    console.error("[audit-structure] 走査対象が 0 件です（検査が空振りします）");
+    process.exit(1);
+  }
+
   const packages = listWorkspacePackages(REPO_ROOT);
   const declared = [
     ...SCANNED_PACKAGES.map((d) => d.pkg),
