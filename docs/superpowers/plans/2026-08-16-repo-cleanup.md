@@ -56,7 +56,7 @@ Bash ／GitHub Actions ／`gh` CLI
 
 **Files:**
 - Move: `.specify/memory/constitution.md` → `docs/constitution.md`
-- Modify: `scripts/check-links.mjs:105`（`REPO_TOP_LEVEL`）・`scripts/check-links.mjs:168`（`LIVE_DOCS`）
+- Modify: `scripts/check-links.mjs:168`（`LIVE_DOCS` のみ。`REPO_TOP_LEVEL` は Task 2 で触る）
 - Modify: `AGENTS.md:8,31` / `docs/README.md:9,22` / `docs/adr/0002,0004,0005,0006,0007,0011,0012`
 - Modify: `docs/guides/architecture.md` / `docs/guides/security.md`
 - Modify: `docs/poker/README.md:12` / `docs/superpowers/plans/` 3 本 / `docs/superpowers/specs/` 2 本
@@ -65,7 +65,8 @@ Bash ／GitHub Actions ／`gh` CLI
 **Interfaces:**
 - Consumes: なし（最初のタスク）
 - Produces: `docs/constitution.md` が憲法の正本。`scripts/check-links.mjs` の
-  `LIVE_DOCS` に `"docs/constitution.md"` が含まれ、`".specify/memory/"` は含まれない
+  `LIVE_DOCS` に `"docs/constitution.md"` が含まれ、`".specify/memory/"` は含まれない。
+  `REPO_TOP_LEVEL` はまだ `\.specify` を含んだまま（Task 2 で外す）
 
 - [ ] **Step 1: 対照実行 — 壊す前に緑であることを見る**
 
@@ -93,18 +94,12 @@ test -f docs/constitution.md && echo "移動できた"
 
 Expected: `移動できた`
 
-- [ ] **Step 3: `check-links.mjs` の定数を更新する**
+- [ ] **Step 3: `check-links.mjs` の `LIVE_DOCS` を更新する**
 
-`scripts/check-links.mjs:105` の `REPO_TOP_LEVEL` から `\.specify` を外す。
-
-変更前:
-```js
-const REPO_TOP_LEVEL = /^(packages|apps|scripts|docs|deploy|e2e|\.github|\.specify)\//;
-```
-変更後:
-```js
-const REPO_TOP_LEVEL = /^(packages|apps|scripts|docs|deploy|e2e|\.github)\//;
-```
+**`REPO_TOP_LEVEL` はこのタスクでは触らない。** `\.specify` を外すと、Step 4〜7 で行う
+置換の**取りこぼしを検出する網を、置換の前に自分で外す**ことになる。網を残しておけば、
+憲法を移した時点で置換漏れのバッククォート表記は「実在しないパスです」で全部落ちる。
+`REPO_TOP_LEVEL` の変更は Task 2（`.specify/` を実際に削除するコミット）で行う。
 
 `scripts/check-links.mjs:168` の `LIVE_DOCS` の `".specify/memory/",` を
 `"docs/constitution.md",` に置き換える。
@@ -373,7 +368,23 @@ git status --short | wc -l
 
 Expected: `28`（削除されたファイル数）
 
-- [ ] **Step 2: `DORMANT_DOCS` から 2 件を消す**
+- [ ] **Step 2: `REPO_TOP_LEVEL` から `\.specify` を外す**
+
+`scripts/check-links.mjs:105`。**`.specify/` が実際に消えるこのコミットで外す。**
+
+変更前:
+```js
+const REPO_TOP_LEVEL = /^(packages|apps|scripts|docs|deploy|e2e|\.github|\.specify)\//;
+```
+変更後:
+```js
+const REPO_TOP_LEVEL = /^(packages|apps|scripts|docs|deploy|e2e|\.github)\//;
+```
+
+これを外さないと、Task 3 で足す ADR 0009 の追記が `` `.specify/` `` をバッククォートで
+書いた時点で「実在しないパスです」で落ちる。
+
+- [ ] **Step 3: `DORMANT_DOCS` から 2 件を消す**
 
 `scripts/check-links.mjs` の `DORMANT_DOCS` から次の 2 行を削除する。
 
@@ -385,7 +396,7 @@ Expected: `28`（削除されたファイル数）
 **残す 7 行**は `docs/superpowers/` `docs/plans/` `docs/timer/` `docs/poker/`
 `docs/retrospectives/` `packages/protocol/README.md` `packages/ui/README.md`。
 
-- [ ] **Step 3: `list-scan-targets.mjs` の除外を空にする**
+- [ ] **Step 4: `list-scan-targets.mjs` の除外を空にする**
 
 `scripts/list-scan-targets.mjs:23` のコメントから `.specify` の行を削り、
 `:33` の除外エントリを消す。
@@ -419,7 +430,7 @@ Expected: `28`（削除されたファイル数）
   },
 ```
 
-- [ ] **Step 4: 単体テストの題材を差し替える**
+- [ ] **Step 5: 単体テストの題材を差し替える**
 
 `scripts/list-scan-targets.test.mjs` の 2 つのテストが `.specify/scripts/` を題材にしている。
 **これらはインメモリの配列を使う純粋な単体テストで、実ディレクトリに依存していないため
@@ -434,7 +445,7 @@ grep -c '\.specify' scripts/list-scan-targets.test.mjs || echo "0 件（.specify
 
 Expected: `vendor/scripts/` が 4 件、`.specify` は 0 件
 
-- [ ] **Step 5: `.gitignore` は変更しない（D4 の確認）**
+- [ ] **Step 6: `.gitignore` は変更しない（D4 の確認）**
 
 ```bash
 grep -n '\.claude' .gitignore || echo ".claude は .gitignore に無い（正しい状態）"
@@ -446,7 +457,7 @@ Expected: `.claude は .gitignore に無い（正しい状態）`
 speckit スキル 10 本の削除で追跡ファイルは 0 件になり、git は空ディレクトリを追跡しないため、
 クローン直後に `.claude/` は存在しなくなる。これは想定どおりで、対処は不要。
 
-- [ ] **Step 6: `ci.yml` のコメントを直す**
+- [ ] **Step 7: `ci.yml` のコメントを直す**
 
 `.github/workflows/ci.yml:233`。
 
@@ -459,7 +470,7 @@ speckit スキル 10 本の削除で追跡ファイルは 0 件になり、git �
       # .sh が無検査だった。#135 経路④）。除外は無い（#71 で .specify/ を廃止。ADR 0009 追記）。
 ```
 
-- [ ] **Step 7: 3 つの検査が緑であることを確認する**
+- [ ] **Step 8: 3 つの検査が緑であることを確認する**
 
 ```bash
 node scripts/check-links.mjs
@@ -473,7 +484,7 @@ Expected:
   `scripts/gen-countdown-voices.sh` `scripts/gen-sounds.sh` `scripts/gen-voices.sh`）
 - `# pass 6` / `# fail 0`
 
-- [ ] **Step 8: コミット**
+- [ ] **Step 9: コミット**
 
 ```bash
 git add -A
@@ -493,7 +504,7 @@ git status --short && echo "(空なら clean)"
 
 Expected: コミットが作られ、作業ツリーが clean
 
-- [ ] **Step 9: 破壊検証 — 死んだ除外の検出が空振りしていないか**
+- [ ] **Step 10: 破壊検証 — 死んだ除外の検出が空振りしていないか**
 
 **コミットの後に行う。** 復元に `git checkout --` を使っても巻き添えが出ない。
 
