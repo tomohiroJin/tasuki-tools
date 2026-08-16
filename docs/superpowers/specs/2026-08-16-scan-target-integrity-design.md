@@ -223,7 +223,8 @@ scripts/gen-countdown-voices.sh  scripts/gen-sounds.sh  scripts/gen-voices.sh
 
 **この結果は #103 が `1f2fc66` 時点で別の方法（本物の `readFilesRecursive` と
 `splitIntoTestBodies` を import して測る）で予測した値と一致した**（走査外に SC031 が 3 件・
-SC029 が 8 件で合計 15・SC032 は全体で 84.2%）。3 か月前の実測が現行 main でもそのまま成立した。
+SC029 が 8 件で合計 15・SC032 は全体で 84.2%）。`1f2fc66` は #103 の作業ブランチ上の
+2026-08-16 01:48 のコミットで、走査を広げる実装より前の実測である。
 
 SC027・SC028・SC030 が動かなかったのは、**新しい走査対象に該当がなかったため**であり、
 計測器の断線ではない。レビューで指標の定義（`sc027UnreachableModules` /
