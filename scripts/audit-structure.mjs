@@ -22,6 +22,7 @@ import {
   hasTargetDrift,
   formatTargetDiff,
   findEmptyScanDimensions,
+  findMissingPaths,
 } from "./lib/scan-targets.mjs";
 
 /* ============================================================
@@ -1041,22 +1042,23 @@ function main() {
   // ディレクトリ（src/test）とエントリ（SC-027 の到達性測定の起点）の実在を見る。
   // エントリが改名されても ADR 0009 D2 により測定値では落ちないため、ここで
   // 計測器の健全性として先に検知する（指摘4）。
-  const missingTargets = [];
+  //
+  // SC-035 / SC-039① が名指しで参照するファイルピンも同じ扱いにする（指摘1）。
+  //
+  // **実在確認そのものは共有モジュールの `findMissingPaths` に任せる**
+  // （ADR-0014 決定 10）。ここで `fs.existsSync` を直に書くと、同型の実装が
+  // ログ衛生側にもう 1 つできて「片側だけ直す」の再発源になる（#158）。
+  const existenceTargets = [];
   for (const d of SCANNED_PACKAGES) {
     for (const sub of [d.src, d.test]) {
-      if (!hasScanTarget(sub)) continue;
-      if (!fs.existsSync(path.join(REPO_ROOT, d.pkg, sub))) missingTargets.push(`${d.pkg}/${sub}`);
+      if (hasScanTarget(sub)) existenceTargets.push(`${d.pkg}/${sub}`);
     }
     if (hasScanTarget(d.entry) && hasScanTarget(d.src)) {
-      const entryPath = path.join(REPO_ROOT, d.pkg, d.src, d.entry);
-      if (!fs.existsSync(entryPath)) missingTargets.push(`${d.pkg}/${d.src}/${d.entry}`);
+      existenceTargets.push(`${d.pkg}/${d.src}/${d.entry}`);
     }
   }
-
-  // SC-035 / SC-039① が名指しで参照するファイルピンの実在を見る（指摘1）。
-  for (const pin of METRIC_FILE_PINS) {
-    if (!fs.existsSync(path.join(REPO_ROOT, pin.path))) missingTargets.push(pin.path);
-  }
+  for (const pin of METRIC_FILE_PINS) existenceTargets.push(pin.path);
+  const missingTargets = findMissingPaths(REPO_ROOT, existenceTargets);
 
   if (hasTargetDrift(drift) || missingTargets.length > 0) {
     const merged = {

@@ -175,7 +175,12 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { listTrackedFiles, listRepoFiles, listWorkspacePackages } from "./scan-targets.mjs";
+import {
+  listTrackedFiles,
+  listRepoFiles,
+  listWorkspacePackages,
+  findMissingPaths,
+} from "./scan-targets.mjs";
 
 /** 追跡ファイル 1 件・未追跡 1 件・gitignore 対象 1 件を持つ一時リポジトリを作る。 */
 function makeFixtureRepo() {
@@ -243,5 +248,59 @@ describe("listWorkspacePackages", () => {
     assert.ok(packages.includes("packages/timer-core"));
     assert.ok(packages.includes("apps/timer-sync"));
     assert.ok(packages.includes("e2e"));
+  });
+});
+
+describe("findMissingPaths", () => {
+  /** ディレクトリ 1 つとファイル 1 つを持つ一時ツリーを作る。 */
+  function makeFixtureTree() {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "missing-paths-"));
+    fs.mkdirSync(path.join(dir, "pkg", "src"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "pkg", "src", "index.ts"), "export {};\n");
+    return dir;
+  }
+
+  test("すべて実在するなら空配列", () => {
+    // Given
+    const root = makeFixtureTree();
+    try {
+      // When
+      const missing = findMissingPaths(root, ["pkg", "pkg/src", "pkg/src/index.ts"]);
+      // Then
+      assert.deepEqual(missing, []);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("実在しないものだけを返す（#158: 宣言から導出した src が消えた経路）", () => {
+    // Given: 宣言したパッケージ名は正しいが、派生先の src が改名された
+    const root = makeFixtureTree();
+    try {
+      // When
+      const missing = findMissingPaths(root, ["pkg/src", "pkg/source", "gone/src"]);
+      // Then: 名指しできる形で返る（E1 の「実在しない宣言を名指しする」）
+      assert.deepEqual(missing, ["gone/src", "pkg/source"]);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("重複した宣言は 1 回だけ報告する", () => {
+    // Given
+    const root = makeFixtureTree();
+    try {
+      // When
+      const missing = findMissingPaths(root, ["gone/src", "gone/src"]);
+      // Then
+      assert.deepEqual(missing, ["gone/src"]);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("空の宣言なら空配列（呼び出し側の 0 件ガードに委ねる）", () => {
+    // Given / When / Then
+    assert.deepEqual(findMissingPaths("/nonexistent-root", []), []);
   });
 });
