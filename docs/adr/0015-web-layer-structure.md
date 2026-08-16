@@ -17,10 +17,10 @@
 |---|---|---|
 | 分け方 | 関心事別（`ui/` `sync/` `ai/` `records/` `prefs/` `platform/`） | 役割別（`components/` `hooks/` `pages/`） |
 | 純粋ロジックの切り出し | **徹底している。** `apps/timer-web/src/ui/screen.ts` `apps/timer-web/src/ui/error-action.ts` `apps/timer-web/src/ui/host-change.ts` `apps/timer-web/src/ui/problem-generation.ts` `apps/timer-web/src/ui/join-driver-intent.ts` `apps/timer-web/src/ui/connection-status.ts` `apps/timer-web/src/ui/room-param.ts` `apps/timer-web/src/sync/notice-message.ts` `apps/timer-web/src/sync/sync-url.ts` の 9 本は、いずれも 12〜63 行で副作用 0 件・React フック 0 件 | `apps/poker-web/src/connection-notice.ts` のみ |
-| WS の配線 | **`App.tsx` に直書き。** `useState` 12 個・`useRef` 9 個・105〜377 行の 272 行 `useEffect` 1 本が同居し、同ファイルは 848 行 | **`apps/poker-web/src/hooks/useSync.ts`（176 行）に集約。** `wsRef` と `open` / `close` / `message` の 3 リスナを 1 つの `useEffect` に閉じ込め、接続まわりの状態 7 個を保持 |
+| WS の配線 | **`apps/timer-web/src/App.tsx` に直書き。** `useState` 12 個・`useRef` 9 個・105〜377 行の 272 行 `useEffect` 1 本が同居し、同ファイルは 848 行 | **`apps/poker-web/src/hooks/useSync.ts`（176 行）に集約。** `wsRef` と `open` / `close` / `message` の 3 リスナを 1 つの `useEffect` に閉じ込め、接続まわりの状態 7 個を保持 |
 
 **この非対称は「片方が正しく片方が誤り」ではない。** timer-web は純粋関数の切り出しを、
-poker-web は WS 配線の集約を、それぞれ現に実現している。`App.tsx` が 848 行あるのは、
+poker-web は WS 配線の集約を、それぞれ現に実現している。`apps/timer-web/src/App.tsx` が 848 行あるのは、
 timer-web が後者を持たないためである。
 
 ## 決定
@@ -31,7 +31,7 @@ timer-web が後者を持たないためである。
    画面遷移の決定・エラー種別からの行動決定・表示文言の組み立てなどを、
    コンポーネントやフックの中に埋め込まない。
 2. **WebSocket の接続状態とメッセージ配線は、同期フック 1 本に集約する（MUST）。**
-   画面コンポーネント（`apps/poker-web/src/App.tsx` を含む）が、同期クライアントのイベントハンドラを
+   画面コンポーネント（`apps/timer-web/src/App.tsx` を含む）が、同期クライアントのイベントハンドラを
    直接持たない（**MUST NOT**）。
 3. **画面コンポーネントは表示に徹する。** 状態は同期フックまたは純粋関数から受け取る。
 
@@ -53,6 +53,6 @@ timer-web が後者を持たないためである。
   `usePokerSync` を経由し、`.tsx` に `WebSocket` の直接使用が無い。2026-08-17 実測）。
   E4 で再編するのは `apps/timer-web` 側である。
 - MUST 2 の機械検査は **E4 が置く**。E1 で先に置くと、E1 はコードを直さないため
-  CI が赤になるからである。検査は**無状態の許可リスト方式**（`sync/client` を
+  CI が赤になるからである。検査は**無状態の許可リスト方式**（`apps/timer-web/src/sync/client.ts` を
   import してよいのは同期フック 1 本だけ）で書く。手書きの字句解析は採らない。
 - 利用者から見える振る舞い（公開 URL・プロトコル・画面の挙動）は変えない。
