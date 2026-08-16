@@ -40,3 +40,4 @@ Michael Nygard 形式（背景 / 決定 / 影響 / ステータス）に従い�
 | [0012](./0012-logging-secrets-and-disclosure.md) | ログ・秘密・開示の取り扱い | Accepted |
 | [0013](./0013-pr-granularity.md) | PR の粒度 | Accepted |
 | [0014](./0014-scan-target-integrity.md) | 検査の走査対象は宣言と実体の照合で決める | Accepted |
+| [0015](./0015-web-layer-structure.md) | web 層は「純粋関数・同期フック・画面」に責務を分ける | Accepted |
