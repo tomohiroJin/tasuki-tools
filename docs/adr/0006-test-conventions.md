@@ -28,7 +28,7 @@
   （同スクリプトの `runAudit()` を確認）、poker 系（`packages/poker-core` /
   `apps/poker-sync`）や `packages/protocol` はまだ対象外だった。
   **追記（2026-08-16）**: この状態は #135 / [ADR-0014](./0014-scan-target-integrity.md)
-  で解消済み。現在の SC032 は宣言と理由つき除外で全パッケージを覆う。
+  で解消済み。SC032 の走査対象は、宣言と理由つき除外で全パッケージの test を覆う形へ広がった。
 - **新しい検査はわざと壊して赤を見る**は、timer の G5・G6 の新設テストで
   実践されてきた（例: `apps/timer-sync/test/error-code-coverage.test.ts` はソース走査の
   メタテスト）。
