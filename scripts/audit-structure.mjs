@@ -21,7 +21,7 @@ import {
   diffTargets,
   hasTargetDrift,
   formatTargetDiff,
-  hasZeroScanTargets,
+  findEmptyScanDimensions,
 } from "./lib/scan-targets.mjs";
 
 /* ============================================================
@@ -768,6 +768,60 @@ export const METRIC_FILE_PINS = [
   },
 ];
 
+/**
+ * 走査量を数える（ADR-0014 決定 6）。
+ *
+ * **宣言の行数ではなく、実際に走査するディレクトリとファイルを数える。**
+ * `SCANNED_PACKAGES.length` を数えてはならない — 各要素の `src` / `test` を null に
+ * すれば走査は 0 件になるのに、配列長は 10 のまま変わらないため、行数を見る限り
+ * 「走査 0 件・全指標 PASS」の表が素通りする。
+ *
+ * `countFiles(pkg, sub)` は当該ディレクトリの走査対象ファイル数を返す関数。
+ * 実ファイル I/O は呼び出し側に置き、本関数は純粋関数に保つ。
+ */
+export function measureScanVolume(declarations, countFiles) {
+  const volume = { srcPackages: 0, srcFiles: 0, testPackages: 0, testFiles: 0 };
+  for (const d of declarations) {
+    if (d.src !== null) {
+      volume.srcPackages += 1;
+      volume.srcFiles += countFiles(d.pkg, d.src);
+    }
+    if (d.test !== null) {
+      volume.testPackages += 1;
+      volume.testFiles += countFiles(d.pkg, d.test);
+    }
+  }
+  return volume;
+}
+
+/**
+ * 走査量を人が読む 1 行にする。
+ *
+ * 書式は設計正本 §5.4 に合わせ、**パッケージ数だけでなくファイル件数も出す**
+ * （決定 6 の「何を何件見たか」）。ガードが見る数と出力する数を同じ 1 か所から作る。
+ */
+export function formatScanVolume(volume) {
+  return (
+    `src ${volume.srcPackages} パッケージ / ${volume.srcFiles} 件、` +
+    `test ${volume.testPackages} パッケージ / ${volume.testFiles} 件`
+  );
+}
+
+/**
+ * 0 件ガードが見る内訳（ADR-0014 決定 8）。
+ *
+ * **出力する走査量とまったく同じ 4 つ**を見る。どれか 1 つでも 0 件なら、
+ * その分だけ検査は空振りしている。
+ */
+export function scanVolumeDimensions(volume) {
+  return [
+    { label: "src パッケージ", count: volume.srcPackages },
+    { label: "src ファイル", count: volume.srcFiles },
+    { label: "test パッケージ", count: volume.testPackages },
+    { label: "test ファイル", count: volume.testFiles },
+  ];
+}
+
 function runAudit() {
   const loaded = SCANNED_PACKAGES.map((d) => ({
     ...d,
@@ -884,14 +938,28 @@ function main() {
   // **これは測定値の合否ではなく計測器の健全性の合否**（ADR-0014）。
   // ADR 0009 D2 の「構造監査は値を出すだけ」は測定値についての決定であり、
   // 走査対象を失ったまま全指標 PASS の表を出すことまで許してはいない。
-  // 走査対象が 0 件でないことを見る（ADR-0014 決定 8）。
+
+  // 走査量は**実際に走査するディレクトリとファイル**から数える（決定 6）。
+  // 下のガード・ずれの報告・成功時の出力は、すべてこの 1 つの値を使う。
+  const volume = measureScanVolume(SCANNED_PACKAGES, (pkg, sub) =>
+    readFilesRecursive(path.join(REPO_ROOT, pkg, sub), EXT_TS).size,
+  );
+  const summary = formatScanVolume(volume);
+
+  // 走査量のどの内訳も 0 件でないことを見る（ADR-0014 決定 8）。
   //
-  // 全パッケージを理由つき除外へ移せば、下の全単射照合は素通りしてしまう
-  // （除外側が workspace の全件を覆うため）。走査 0 件のまま合否表を出す
-  // 経路を、ここで先に塞ぐ。METRIC_FILE_PINS のファイル実在チェックは
-  // 走査集合への所属を見ないため、この経路の歯止めにならない。
-  if (hasZeroScanTargets(SCANNED_PACKAGES.length)) {
-    console.error("[audit-structure] 走査対象が 0 件です（検査が空振りします）");
+  // 走査 0 件のまま合否表を出す経路は 2 つある。全パッケージを理由つき除外へ移せば
+  // 下の全単射照合は素通りし（除外側が workspace の全件を覆うため）、宣言を残したまま
+  // 各要素の `src` / `test` を null にすれば全単射も実在確認も素通りする（null は
+  // 実在確認の対象外）。**どちらも宣言の行数では検知できない**ため、出力している
+  // 走査量そのものを見る。METRIC_FILE_PINS のファイル実在チェックは走査集合への
+  // 所属を見ないため、この経路の歯止めにならない。
+  const emptyDimensions = findEmptyScanDimensions(scanVolumeDimensions(volume));
+  if (emptyDimensions.length > 0) {
+    console.error(
+      `[audit-structure] 走査対象が 0 件です（検査が空振りします）: ${emptyDimensions.join(" / ")}`,
+    );
+    console.error(`  現在の走査対象: ${summary}`);
     process.exit(1);
   }
 
@@ -921,10 +989,6 @@ function main() {
   for (const pin of METRIC_FILE_PINS) {
     if (!fs.existsSync(path.join(REPO_ROOT, pin.path))) missingTargets.push(pin.path);
   }
-
-  const srcCount = SCANNED_PACKAGES.filter((d) => d.src !== null).length;
-  const testCount = SCANNED_PACKAGES.filter((d) => d.test !== null).length;
-  const summary = `src ${srcCount} パッケージ / test ${testCount} パッケージ`;
 
   if (hasTargetDrift(drift) || missingTargets.length > 0) {
     const merged = {

@@ -29,6 +29,9 @@ import {
   sc039bUnusedPublicData,
   sc039cSelfOnlyPublicSymbols,
   formatTable,
+  measureScanVolume,
+  formatScanVolume,
+  scanVolumeDimensions,
 } from "./audit-structure.mjs";
 
 describe("SC-027: 到達しないモジュール（グラフ探索）", () => {
@@ -554,5 +557,71 @@ describe("走査対象の宣言", () => {
       0,
       `packages/ui に .ts/.tsx が見つかりました。除外理由が陳腐化しています: ${[...files.keys()]}`,
     );
+  });
+});
+
+describe("走査量の算出（ADR-0014 決定 6・決定 8）", () => {
+  /** ディレクトリごとのファイル数を固定した数え役（実 I/O はしない）。 */
+  const counter = (table) => (pkg, sub) => table[`${pkg}/${sub}`] ?? 0;
+
+  test("src / test を持つパッケージ数とファイル件数を別々に数える", () => {
+    // Given: src を持たない宣言が 1 件混ざっている（e2e と同じ形）
+    const declarations = [
+      { pkg: "packages/a", src: "src", test: "test" },
+      { pkg: "e2e", src: null, test: "tests" },
+    ];
+    // When
+    const volume = measureScanVolume(
+      declarations,
+      counter({ "packages/a/src": 5, "packages/a/test": 7, "e2e/tests": 3 }),
+    );
+    // Then
+    assert.deepEqual(volume, { srcPackages: 1, srcFiles: 5, testPackages: 2, testFiles: 10 });
+  });
+
+  test("宣言の行数が残っていても src / test が null なら走査量は 0 になる", () => {
+    // Given: 宣言は 2 行あるが、走査するディレクトリはどちらも消えている
+    const declarations = [
+      { pkg: "packages/a", src: null, test: null },
+      { pkg: "packages/b", src: null, test: null },
+    ];
+    // When
+    const volume = measureScanVolume(declarations, counter({}));
+    // Then: 行数（2）ではなく走査量（0）が出る
+    assert.deepEqual(volume, { srcPackages: 0, srcFiles: 0, testPackages: 0, testFiles: 0 });
+  });
+
+  test("ディレクトリが実在してもファイルが 0 件ならファイル側だけが 0 になる", () => {
+    // Given: 宣言も走査先も生きているが、対象拡張子のファイルが 1 つも無い
+    const declarations = [{ pkg: "packages/a", src: "src", test: "test" }];
+    // When
+    const volume = measureScanVolume(declarations, counter({}));
+    // Then
+    assert.deepEqual(scanVolumeDimensions(volume).filter((d) => d.count === 0).map((d) => d.label), [
+      "src ファイル",
+      "test ファイル",
+    ]);
+  });
+
+  test("走査量の 1 行はパッケージ数とファイル件数の両方を出す（設計正本 §5.4 の書式）", () => {
+    // Given
+    const volume = { srcPackages: 9, srcFiles: 167, testPackages: 10, testFiles: 249 };
+    // When
+    const text = formatScanVolume(volume);
+    // Then
+    assert.equal(text, "src 9 パッケージ / 167 件、test 10 パッケージ / 249 件");
+  });
+
+  test("0 件ガードが見る内訳は、出力する走査量と同じ 4 つ", () => {
+    // Given
+    const volume = { srcPackages: 9, srcFiles: 167, testPackages: 10, testFiles: 249 };
+    // When
+    const dimensions = scanVolumeDimensions(volume);
+    // Then
+    assert.deepEqual(
+      dimensions.map((d) => d.count),
+      [9, 167, 10, 249],
+    );
+    for (const d of dimensions) assert.ok(formatScanVolume(volume).includes(String(d.count)));
   });
 });

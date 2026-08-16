@@ -17,7 +17,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
-import { listRepoFiles } from "./lib/scan-targets.mjs";
+import { listRepoFiles, hasZeroScanTargets } from "./lib/scan-targets.mjs";
 
 /**
  * 各行がコードフェンスの内側（フェンス行自体を含む）かどうかを返す。
@@ -301,7 +301,8 @@ function main() {
   // 走査対象は**未追跡かつ gitignore 対象外**も含める（#135 経路⑧）。
   // 存在判定（trackedPaths）は広げない。広げるとローカル緑・CI 赤になる。
   const files = listRepoFiles(REPO_ROOT, ["*.md"]);
-  if (files.length === 0) {
+  // 0 件（空振り）の判定は共有モジュールへ寄せる（ADR-0014 決定 8・決定 10）。
+  if (hasZeroScanTargets(files.length)) {
     errors.push("走査対象の .md が 1 件もありません（検査が空振りしています）");
   }
 

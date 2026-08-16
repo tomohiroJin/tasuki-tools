@@ -372,12 +372,23 @@ poker-sync（`3311`）を実際に起動するため、`pnpm dev` と同じポ�
 手元で先に確かめたいときは次を叩きます。
 
 ```bash
-node scripts/audit-structure.mjs                 # 構造監査（走査対象のずれは合否を持つ。ADR-0009 D2 の例外・ADR-0014 決定7）
-targets="$(node scripts/list-scan-targets.mjs script-tests)"; node --test $targets  # 自己テスト（対象は git から導出。scripts/*.test.mjs 全件）
+node scripts/audit-structure.mjs                 # 構造監査（走査対象のずれ・走査 0 件は合否を持つ。ADR-0009 D2 の例外・ADR-0014 決定 7・決定 8）
+node scripts/audit-log-hygiene.mjs               # ログ衛生（走査対象のずれ・走査 0 件は合否を持つ。ADR-0012 D1）
 node scripts/mutation-check.mjs                  # 変異検査
 node scripts/check-links.mjs                     # リンク検査
-targets="$(node scripts/list-scan-targets.mjs shell)"; shellcheck -x --source-path=deploy --severity=warning $targets  # 対象は git から導出（グロブ直書きではない）
+
+# 自己テスト（対象は git から導出。scripts/*.test.mjs 全件）
+bash -c 'set -euo pipefail; targets="$(node scripts/list-scan-targets.mjs script-tests)"; node --test $targets'
+
+# shellcheck（対象は git から導出。グロブ直書きではない）
+bash -c 'set -euo pipefail; targets="$(node scripts/list-scan-targets.mjs shell)"; shellcheck -x --source-path=deploy --severity=warning $targets'
 ```
+
+**下 2 つを `bash -c` で包んでいるのは意図的です。** 対象を変数へ受けて未クォートで
+渡す形は bash の単語分割に依存しており、この環境の既定シェル（zsh）では変数が
+分割されずファイル名 1 つとして扱われて失敗します。CI は `shell: bash` で
+同じ形を走らせています（`set -euo pipefail` により、対象の列挙が非ゼロで
+終わればそこで止まります）。
 
 **自己テスト・shellcheck の対象はハードコードではなく `scripts/list-scan-targets.mjs`
 （`git ls-files` からの導出）です。** CI（`.github/workflows/ci.yml`）もこの形で
@@ -441,7 +452,7 @@ shellcheck・自己テスト（`node --test`）の対象は宣言ではなく `g
 | ジョブ | 中身 | 走らせる条件 |
 |---|---|---|
 | `ci` | typecheck / lint / test / build | コードに関わる変更（`*.md` 以外が 1 つでもある） |
-| `quality` | 構造監査・自己テスト・変異検査・shellcheck | 同上 |
+| `quality` | 構造監査・ログ衛生・自己テスト・変異検査・shellcheck | 同上 |
 | `docs` | リンク検査 | **常時** |
 | `audit` | `pnpm audit` | 依存の変更（`pnpm-lock.yaml` / `pnpm-workspace.yaml` / `package.json`） |
 | `e2e` | E2E | コードに関わる変更 |

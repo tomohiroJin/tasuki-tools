@@ -45,7 +45,12 @@ import { fileURLToPath } from "node:url";
 import os from "node:os";
 import path from "node:path";
 import fs from "node:fs";
-import { diffTargets, hasTargetDrift, formatTargetDiff } from "./lib/scan-targets.mjs";
+import {
+  diffTargets,
+  hasTargetDrift,
+  formatTargetDiff,
+  hasZeroScanTargets,
+} from "./lib/scan-targets.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const WORKSPACE_ROOT = path.resolve(SCRIPT_DIR, ".."); // Tasuki/（ワークスペースのルート）
@@ -374,7 +379,8 @@ function assertMutationTestsExist() {
  * 要る閾値ではないため、下限を直書きしない MUST NOT の対象に含めない。
  */
 function assertMutationPatchesBijective() {
-  if (MUTATIONS.length === 0) {
+  // 0 件（空振り）の判定は共有モジュールへ寄せる（ADR-0014 決定 8・決定 10）。
+  if (hasZeroScanTargets(MUTATIONS.length)) {
     console.error("[mutation-check] 変異が 0 件です（検査が空振りします）");
     process.exit(1);
   }

@@ -204,7 +204,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
         if: steps.scope.outputs.code == 'true'
 
-      # 構造監査は値を出すだけ。合否は自己テストと変異検査で取る（ADR 0009 D2）。
+      # 構造監査の測定値（SC027〜SC039）は合否を持たない。値の合否は自己テストと変異検査で取る（ADR 0009 D2）。
+      # 例外: 走査対象の健全性（宣言と実体のずれ・走査 0 件）は合否を持つ。
+      # このステップは走査対象がずれれば実際に赤くなる（ADR 0009 D2 の例外・ADR 0014 決定 7・決定 8）。
       - run: node scripts/audit-structure.mjs
         if: steps.scope.outputs.code == 'true'
 

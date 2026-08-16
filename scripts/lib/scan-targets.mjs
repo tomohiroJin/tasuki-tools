@@ -49,6 +49,23 @@ export function hasZeroScanTargets(count) {
 }
 
 /**
+ * 走査量の内訳のうち 0 件のものを返す（ADR-0014 決定 8）。
+ *
+ * `volume` には **その検査が実際に出力する走査量と同じ内訳**を
+ * `[{ label, count }]` の形で渡す。
+ *
+ * **宣言の行数を渡してはならない。** 宣言の各要素の中身（走査するディレクトリ名）を
+ * null にすれば走査は 0 件になるが、宣言の配列長は変わらない。行数を見るガードは
+ * 「走査 0 件・全指標 PASS」の表をそのまま素通しにする（実際にその穴が残っていた）。
+ *
+ * 返り値が空配列なら空振りしていない。1 つでも 0 件の内訳があれば、その検査は
+ * その内訳の分だけ何も検証していない。
+ */
+export function findEmptyScanDimensions(volume) {
+  return volume.filter((v) => hasZeroScanTargets(v.count)).map((v) => v.label);
+}
+
+/**
  * ずれを人が読める形にする。
  *
  * **必ず 3 点を出す**: ずれの向き・向きごとの直し方・現在の走査量。

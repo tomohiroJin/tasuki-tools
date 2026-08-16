@@ -1,6 +1,12 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { diffTargets, hasTargetDrift, formatTargetDiff, hasZeroScanTargets } from "./scan-targets.mjs";
+import {
+  diffTargets,
+  hasTargetDrift,
+  formatTargetDiff,
+  hasZeroScanTargets,
+  findEmptyScanDimensions,
+} from "./scan-targets.mjs";
 
 describe("diffTargets", () => {
   test("宣言と実体が一致するとき差分は空", () => {
@@ -95,6 +101,51 @@ describe("hasZeroScanTargets", () => {
     // Given / When / Then
     assert.equal(hasZeroScanTargets(1), false);
     assert.equal(hasZeroScanTargets(11), false);
+  });
+});
+
+describe("findEmptyScanDimensions", () => {
+  test("どの内訳も 1 件以上なら空配列（空振りしていない）", () => {
+    // Given: 出力する走査量と同じ内訳
+    const volume = [
+      { label: "src パッケージ", count: 9 },
+      { label: "src ファイル", count: 167 },
+    ];
+    // When
+    const empty = findEmptyScanDimensions(volume);
+    // Then
+    assert.deepEqual(empty, []);
+  });
+
+  test("0 件の内訳だけをラベルで返す", () => {
+    // Given: パッケージは宣言されているのにファイルが 1 件も無い状態
+    const volume = [
+      { label: "パッケージ", count: 9 },
+      { label: "ファイル", count: 0 },
+    ];
+    // When
+    const empty = findEmptyScanDimensions(volume);
+    // Then
+    assert.deepEqual(empty, ["ファイル"]);
+  });
+
+  test("すべて 0 件なら全ラベルを返す（宣言だけが残った状態）", () => {
+    // Given: 宣言の行数は残っているが走査量はすべて 0
+    const volume = [
+      { label: "src パッケージ", count: 0 },
+      { label: "src ファイル", count: 0 },
+      { label: "test パッケージ", count: 0 },
+      { label: "test ファイル", count: 0 },
+    ];
+    // When
+    const empty = findEmptyScanDimensions(volume);
+    // Then
+    assert.equal(empty.length, 4);
+  });
+
+  test("1 件でも 0 件とは扱わない（決定 8 の下限直書き禁止を侵さない）", () => {
+    // Given / When / Then
+    assert.deepEqual(findEmptyScanDimensions([{ label: "a", count: 1 }]), []);
   });
 });
 
