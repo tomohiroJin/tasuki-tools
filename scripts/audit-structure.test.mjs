@@ -29,6 +29,12 @@ import {
   sc039bUnusedPublicData,
   sc039cSelfOnlyPublicSymbols,
   formatTable,
+  hasScanTarget,
+  findInvalidDeclarations,
+  loadScanTargets,
+  measureScanVolume,
+  formatScanVolume,
+  scanVolumeDimensions,
 } from "./audit-structure.mjs";
 
 describe("SC-027: 到達しないモジュール（グラフ探索）", () => {
@@ -487,5 +493,205 @@ describe("formatTable", () => {
     const table = formatTable(results);
     // Then
     assert.match(table, /SC099 \| abc \| 100 \| —/);
+  });
+});
+
+import {
+  SCANNED_PACKAGES,
+  EXCLUDED_PACKAGES,
+  readFilesRecursive,
+  hasScanTarget as hasScanTargetForFixture,
+} from "./audit-structure.mjs";
+import { listWorkspacePackages, diffTargets } from "./lib/scan-targets.mjs";
+import { execFileSync as execFileSyncForRoot } from "node:child_process";
+import fsForFixture from "node:fs";
+import pathForFixture from "node:path";
+
+describe("走査対象の宣言", () => {
+  const REPO_ROOT = execFileSyncForRoot("git", ["rev-parse", "--show-toplevel"], {
+    encoding: "utf8",
+  }).trim();
+
+  test("宣言と除外を合わせると workspace の全パッケージを覆う", () => {
+    // Given
+    const declared = [
+      ...SCANNED_PACKAGES.map((d) => d.pkg),
+      ...EXCLUDED_PACKAGES.map((e) => e.pkg),
+    ];
+    // When
+    const diff = diffTargets(declared, listWorkspacePackages(REPO_ROOT));
+    // Then
+    assert.deepEqual(diff, { missing: [], unexpected: [] });
+  });
+
+  test("宣言した src / test ディレクトリはすべて実在する", () => {
+    // Given / When / Then
+    for (const d of SCANNED_PACKAGES) {
+      for (const sub of [d.src, d.test]) {
+        // 走査対象かどうかの判定は本体と同じ述語を使う（null / "" を分けて書かない）
+        if (!hasScanTargetForFixture(sub)) continue;
+        const abs = pathForFixture.join(REPO_ROOT, d.pkg, sub);
+        assert.ok(fsForFixture.existsSync(abs), `実在しません: ${d.pkg}/${sub}`);
+      }
+    }
+  });
+
+  test("宣言したエントリポイントはすべて実在する", () => {
+    // Given / When / Then
+    for (const d of SCANNED_PACKAGES) {
+      if (!hasScanTargetForFixture(d.entry) || !hasScanTargetForFixture(d.src)) continue;
+      const abs = pathForFixture.join(REPO_ROOT, d.pkg, d.src, d.entry);
+      assert.ok(fsForFixture.existsSync(abs), `実在しません: ${d.pkg}/${d.src}/${d.entry}`);
+    }
+  });
+
+  test("除外には理由が書かれている", () => {
+    // Given / When / Then
+    for (const e of EXCLUDED_PACKAGES) {
+      assert.ok(e.reason && e.reason.length > 0, `${e.pkg} に理由がありません`);
+    }
+  });
+
+  test("除外理由が主張する状態（TS を持たない）は今も成立している", () => {
+    // Given: packages/ui は「src・tests とも TS を 1 つも持たない」という状態を
+    //        理由に除外されている。理由は方針ではなく状態の主張なので、
+    //        .ts / .tsx が足された瞬間に陳腐化しうる。その陳腐化を検知する。
+    const uiEntry = EXCLUDED_PACKAGES.find((e) => e.pkg === "packages/ui");
+    assert.ok(uiEntry, "packages/ui が EXCLUDED_PACKAGES から消えています");
+    // When
+    const files = readFilesRecursive(pathForFixture.join(REPO_ROOT, uiEntry.pkg), [".ts", ".tsx"]);
+    // Then
+    assert.equal(
+      files.size,
+      0,
+      `packages/ui に .ts/.tsx が見つかりました。除外理由が陳腐化しています: ${[...files.keys()]}`,
+    );
+  });
+});
+
+describe("走査対象の宣言の妥当性（ADR-0014 決定 1・決定 9）", () => {
+  test("非空の文字列だけが走査対象を指す", () => {
+    // Given / When / Then
+    assert.equal(hasScanTarget("src"), true);
+    assert.equal(hasScanTarget(null), false);
+    assert.equal(hasScanTarget(""), false);
+    assert.equal(hasScanTarget(undefined), false);
+  });
+
+  test("null と非空の文字列だけなら不正な宣言は無い", () => {
+    // Given: e2e と同じ「src を持たない」形を含む
+    const declarations = [
+      { pkg: "packages/a", src: "src", test: "test", entry: "index.ts" },
+      { pkg: "e2e", src: null, test: "tests", entry: null },
+    ];
+    // When / Then
+    assert.deepEqual(findInvalidDeclarations(declarations), []);
+  });
+
+  test("空文字列は不正な宣言として名指しされる（走査対象を静かに 1 つ失う経路）", () => {
+    // Given: test だけを空文字列にした宣言（件数のガードでは 1 件の欠落を検知できない）
+    const declarations = [
+      { pkg: "packages/a", src: "src", test: "", entry: "index.ts" },
+      { pkg: "packages/b", src: "src", test: "test", entry: "index.ts" },
+    ];
+    // When
+    const invalid = findInvalidDeclarations(declarations);
+    // Then
+    assert.deepEqual(invalid, ['packages/a.test = ""']);
+  });
+
+  test("キーの書き忘れ（undefined）も不正な宣言として出る", () => {
+    // Given: test を書き忘れた宣言
+    const declarations = [{ pkg: "packages/a", src: "src", entry: "index.ts" }];
+    // When
+    const invalid = findInvalidDeclarations(declarations);
+    // Then
+    assert.deepEqual(invalid, ["packages/a.test = undefined"]);
+  });
+
+  test("実リポジトリの宣言に不正なものは無い", () => {
+    // Given / When / Then
+    assert.deepEqual(findInvalidDeclarations(SCANNED_PACKAGES), []);
+  });
+});
+
+describe("走査量の算出（ADR-0014 決定 6・決定 8・決定 9）", () => {
+  /** ディレクトリごとの中身を固定した読み役（実 I/O はしない）。 */
+  const reader = (table) => (pkg, sub) => {
+    const n = table[`${pkg}/${sub}`] ?? 0;
+    return new Map(Array.from({ length: n }, (_, i) => [`f${i}.ts`, ""]));
+  };
+
+  test("src / test を持つパッケージ数とファイル件数を別々に数える", () => {
+    // Given: src を持たない宣言が 1 件混ざっている（e2e と同じ形）
+    const declarations = [
+      { pkg: "packages/a", src: "src", test: "test" },
+      { pkg: "e2e", src: null, test: "tests" },
+    ];
+    // When
+    const loaded = loadScanTargets(
+      declarations,
+      reader({ "packages/a/src": 5, "packages/a/test": 7, "e2e/tests": 3 }),
+    );
+    const volume = measureScanVolume(loaded);
+    // Then
+    assert.deepEqual(volume, { srcPackages: 1, srcFiles: 5, testPackages: 2, testFiles: 10 });
+  });
+
+  test("宣言の行数が残っていても src / test が null なら走査量は 0 になる", () => {
+    // Given: 宣言は 2 行あるが、走査するディレクトリはどちらも消えている
+    const declarations = [
+      { pkg: "packages/a", src: null, test: null },
+      { pkg: "packages/b", src: null, test: null },
+    ];
+    // When
+    const volume = measureScanVolume(loadScanTargets(declarations, reader({})));
+    // Then: 行数（2）ではなく走査量（0）が出る
+    assert.deepEqual(volume, { srcPackages: 0, srcFiles: 0, testPackages: 0, testFiles: 0 });
+  });
+
+  test("空文字列の宣言は走査もされず、走査量にも数えられない（数え方と走査を割らない）", () => {
+    // Given: test を空文字列にした宣言。読み役はパッケージ直下に 99 件あるつもりで返す
+    const declarations = [{ pkg: "packages/a", src: "src", test: "" }];
+    // When
+    const loaded = loadScanTargets(declarations, reader({ "packages/a/src": 5, "packages/a/": 99 }));
+    const volume = measureScanVolume(loaded);
+    // Then: 数えた件数と読み込んだ Map が同じ（99 を「走査した」と数えない）
+    assert.equal(loaded[0].testFiles.size, 0);
+    assert.deepEqual(volume, { srcPackages: 1, srcFiles: 5, testPackages: 0, testFiles: 0 });
+  });
+
+  test("ディレクトリが実在してもファイルが 0 件ならファイル側だけが 0 になる", () => {
+    // Given: 宣言も走査先も生きているが、対象拡張子のファイルが 1 つも無い
+    const declarations = [{ pkg: "packages/a", src: "src", test: "test" }];
+    // When
+    const volume = measureScanVolume(loadScanTargets(declarations, reader({})));
+    // Then
+    assert.deepEqual(scanVolumeDimensions(volume).filter((d) => d.count === 0).map((d) => d.label), [
+      "src ファイル",
+      "test ファイル",
+    ]);
+  });
+
+  test("走査量の 1 行はパッケージ数とファイル件数の両方を出す（設計正本 §5.4 の書式）", () => {
+    // Given
+    const volume = { srcPackages: 9, srcFiles: 167, testPackages: 10, testFiles: 249 };
+    // When
+    const text = formatScanVolume(volume);
+    // Then
+    assert.equal(text, "src 9 パッケージ / 167 件、test 10 パッケージ / 249 件");
+  });
+
+  test("0 件ガードが見る内訳は、出力する走査量と同じ 4 つ", () => {
+    // Given
+    const volume = { srcPackages: 9, srcFiles: 167, testPackages: 10, testFiles: 249 };
+    // When
+    const dimensions = scanVolumeDimensions(volume);
+    // Then
+    assert.deepEqual(
+      dimensions.map((d) => d.count),
+      [9, 167, 10, 249],
+    );
+    for (const d of dimensions) assert.ok(formatScanVolume(volume).includes(String(d.count)));
   });
 });

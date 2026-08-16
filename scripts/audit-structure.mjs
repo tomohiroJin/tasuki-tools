@@ -16,6 +16,13 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  listWorkspacePackages,
+  diffTargets,
+  hasTargetDrift,
+  formatTargetDiff,
+  findEmptyScanDimensions,
+} from "./lib/scan-targets.mjs";
 
 /* ============================================================
  * 汎用ユーティリティ（実ファイル I/O。テスト対象は Map 側の純粋関数）
@@ -715,40 +722,190 @@ const REPO_ROOT = path.resolve(__dirname, "..");
 
 const EXT_TS = [".ts", ".tsx"];
 
-function loadPackage(pkgRelDir) {
-  const srcDir = path.join(REPO_ROOT, pkgRelDir, "src");
-  const testDir = path.join(REPO_ROOT, pkgRelDir, "test");
-  return {
-    src: readFilesRecursive(srcDir, EXT_TS),
-    test: readFilesRecursive(testDir, EXT_TS),
-  };
+/**
+ * 走査するパッケージ。**src と test は独立に宣言する。**
+ *
+ * テストディレクトリ名は `test` と `tests` で割れている（実測）。規則で導出すると
+ * 必ずどちらかを取りこぼすため、宣言して実体と照合する（#135 経路②⑪・ADR-0014）。
+ * `entry` は SC-027 の到達性測定の起点。持たないパッケージは null。
+ */
+export const SCANNED_PACKAGES = [
+  { pkg: "packages/timer-core", src: "src", test: "test", entry: "index.ts" },
+  { pkg: "packages/poker-core", src: "src", test: "tests", entry: "index.ts" },
+  { pkg: "packages/protocol", src: "src", test: "tests", entry: "index.ts" },
+  { pkg: "packages/rate-limit", src: "src", test: "tests", entry: "index.ts" },
+  { pkg: "apps/timer-sync", src: "src", test: "test", entry: "server.ts" },
+  { pkg: "apps/timer-web", src: "src", test: "test", entry: "main.tsx" },
+  { pkg: "apps/poker-sync", src: "src", test: "tests", entry: "server.ts" },
+  { pkg: "apps/poker-web", src: "src", test: "tests", entry: "main.tsx" },
+  { pkg: "apps/landing", src: "src", test: "tests", entry: "main.tsx" },
+  { pkg: "e2e", src: null, test: "tests", entry: null },
+];
+
+/** 走査から外すパッケージ。**理由が要る。** */
+export const EXCLUDED_PACKAGES = [
+  { pkg: "packages/ui", reason: "src・tests とも TS を 1 つも持たない（CSS トークンとフォント）" },
+];
+
+/**
+ * SC-035 / SC-039① が名指しで参照するファイルピン。
+ *
+ * `web.srcFiles.get("App.tsx") ?? ""` / `sync.srcFiles.get("application/handlers.ts") ?? ""`
+ * は、ファイルが無ければ空文字列へフォールバックする式になっている。空文字列を
+ * 渡された `sc035MessageDefinitions` / `sc039aUnreachableBranchInApps` はカウント
+ * しようがなく 0（＝目標達成）を返すため、このファイルが改名・移設されても
+ * 指標は静かに PASS のまま動かない（#135 経路②⑪）。式自体（`?? ""`）は変えず、
+ * 実在だけを独立に確認する。
+ */
+export const METRIC_FILE_PINS = [
+  {
+    path: "apps/timer-web/src/App.tsx",
+    reason: "SC-035 の clientSource（メッセージ定義の突合対象）",
+  },
+  {
+    path: "apps/timer-sync/src/application/handlers.ts",
+    reason: "SC-039① の handlersSource（到達不能分岐の検査対象）",
+  },
+];
+
+/**
+ * 宣言の値が走査対象を指しているか。
+ *
+ * **走査対象かどうかの判定は、この 1 つの述語だけを使う**（ADR-0014 決定 9）。
+ * 以前は数え上げが `d.src !== null`、読み込みが `d.src ? … : new Map()` と
+ * **別々の条件**で書かれていた。両者は `""` で意味が割れ、
+ * 「ガードは数えたのに実際には走査していない」状態を作れた（レビューで実測）。
+ * 判定を分けて書くこと自体が穴の作り方なので、述語を 1 本に固定する。
+ *
+ * null（そのディレクトリを持たない）と非空の文字列（ディレクトリ名）だけが正当。
+ * `""` や undefined は宣言の不備として `findInvalidDeclarations` が落とす。
+ */
+export function hasScanTarget(sub) {
+  return typeof sub === "string" && sub.length > 0;
 }
 
-function runAudit() {
-  const core = loadPackage("packages/timer-core");
-  const sync = loadPackage("apps/timer-sync");
-  const web = loadPackage("apps/timer-web");
+/**
+ * 宣言の値として不正なものを列挙する（ADR-0014 決定 1・決定 9）。
+ *
+ * 正当なのは null か非空の文字列だけ。`""` は「パッケージ直下」を指す形になり、
+ * 走査対象を 1 つ静かに失わせる。**件数のガードは 1 件だけ失った状態を検知
+ * できない**ため、宣言そのものの妥当性をここで見る。
+ */
+export function findInvalidDeclarations(declarations) {
+  const invalid = [];
+  for (const d of declarations) {
+    for (const key of ["src", "test", "entry"]) {
+      const value = d[key];
+      if (value === null || hasScanTarget(value)) continue;
+      invalid.push(`${d.pkg}.${key} = ${JSON.stringify(value)}`);
+    }
+  }
+  return invalid;
+}
 
-  const allTestFiles = new Map([
-    ...[...core.test].map(([k, v]) => [`packages/timer-core/test/${k}`, v]),
-    ...[...sync.test].map(([k, v]) => [`apps/timer-sync/test/${k}`, v]),
-    ...[...web.test].map(([k, v]) => [`apps/timer-web/test/${k}`, v]),
-  ]);
+/**
+ * 走査対象を読み込む。**走査量の算出も実走査もこの結果だけを使う**（ADR-0014 決定 9）。
+ *
+ * 以前は `main()` のガード用の計数と `runAudit()` の読み込みが別々に
+ * ファイルを見ており、条件式が割れて食い違いを作った（上の `hasScanTarget` 参照）。
+ * 読み込みを 1 か所に寄せることで、ガードが「走査した」と数えた集合と
+ * 実際に指標を測る集合が**構造的に同一**になる。二重読み込みも同時に消える。
+ *
+ * `readDir(pkg, sub)` は Map<相対パス, 内容> を返す関数。
+ * 実ファイル I/O は呼び出し側に置き、本関数は配線だけを持つ。
+ */
+export function loadScanTargets(declarations, readDir) {
+  return declarations.map((d) => ({
+    ...d,
+    srcFiles: hasScanTarget(d.src) ? readDir(d.pkg, d.src) : new Map(),
+    testFiles: hasScanTarget(d.test) ? readDir(d.pkg, d.test) : new Map(),
+  }));
+}
 
-  // SC-027: パッケージごとに独立して到達性を測り、合算する
-  const unreachableCore = sc027UnreachableModules(core.src, ["index.ts"]);
-  const unreachableSync = sc027UnreachableModules(sync.src, ["server.ts"]);
-  const unreachableWeb = sc027UnreachableModules(web.src, ["main.tsx"]);
-  const sc027 = unreachableCore + unreachableSync + unreachableWeb;
+/**
+ * 走査量を数える（ADR-0014 決定 6）。
+ *
+ * **宣言の行数ではなく、`loadScanTargets` が実際に読み込んだものを数える。**
+ * `SCANNED_PACKAGES.length` を数えてはならない — 各要素の `src` / `test` を空に
+ * すれば走査は 0 件になるのに、配列長は 10 のまま変わらないため、行数を見る限り
+ * 「走査 0 件・全指標 PASS」の表が素通りする。
+ *
+ * ファイル件数は読み込んだ Map の大きさそのもの。**別経路で数え直さない。**
+ */
+export function measureScanVolume(loaded) {
+  const volume = { srcPackages: 0, srcFiles: 0, testPackages: 0, testFiles: 0 };
+  for (const p of loaded) {
+    if (hasScanTarget(p.src)) {
+      volume.srcPackages += 1;
+      volume.srcFiles += p.srcFiles.size;
+    }
+    if (hasScanTarget(p.test)) {
+      volume.testPackages += 1;
+      volume.testFiles += p.testFiles.size;
+    }
+  }
+  return volume;
+}
+
+/**
+ * 走査量を人が読む 1 行にする。
+ *
+ * 書式は設計正本 §5.4 に合わせ、**パッケージ数だけでなくファイル件数も出す**
+ * （決定 6 の「何を何件見たか」）。ガードが見る数と出力する数を同じ 1 か所から作る。
+ */
+export function formatScanVolume(volume) {
+  return (
+    `src ${volume.srcPackages} パッケージ / ${volume.srcFiles} 件、` +
+    `test ${volume.testPackages} パッケージ / ${volume.testFiles} 件`
+  );
+}
+
+/**
+ * 0 件ガードが見る内訳（ADR-0014 決定 8）。
+ *
+ * **出力する走査量とまったく同じ 4 つ**を見る。どれか 1 つでも 0 件なら、
+ * その分だけ検査は空振りしている。
+ */
+export function scanVolumeDimensions(volume) {
+  return [
+    { label: "src パッケージ", count: volume.srcPackages },
+    { label: "src ファイル", count: volume.srcFiles },
+    { label: "test パッケージ", count: volume.testPackages },
+    { label: "test ファイル", count: volume.testFiles },
+  ];
+}
+
+/**
+ * 指標を測る。**読み込み済みの走査対象（`loadScanTargets` の結果）を受け取る。**
+ * 自分で読み直さないこと — 読み込み条件が二重化した瞬間に、ガードが数えた集合と
+ * ここで測る集合が食い違う（ADR-0014 決定 9）。
+ */
+function runAudit(loaded) {
+  const byPkg = new Map(loaded.map((p) => [p.pkg, p]));
+
+  // SC-035 / SC-039 は timer 固有の指標。走査を広げてもここは変えない。
+  const core = byPkg.get("packages/timer-core");
+  const sync = byPkg.get("apps/timer-sync");
+  const web = byPkg.get("apps/timer-web");
+
+  const allTestFiles = new Map();
+  for (const p of loaded) {
+    for (const [k, v] of p.testFiles) allTestFiles.set(`${p.pkg}/${p.test}/${k}`, v);
+  }
+
+  // SC-027: エントリを持つパッケージごとに到達性を測り、合算する
+  const sc027 = loaded
+    .filter((p) => hasScanTarget(p.entry))
+    .reduce((n, p) => n + sc027UnreachableModules(p.srcFiles, [p.entry]), 0);
 
   // SC-039②③ の「参照元」から、SC-027 が到達不能と判定したファイルを除く。
   // なぜ: 死んだファイルからの参照は生存の根拠にならない。これを除かないと、
   // 「撤去予定のファイルからしか参照されていない記号」が生きているように見え、
   // G1 で撤去した瞬間に SC-039 の値が跳ね上がる（計測器が撤去を検知できない）。
   const reachable = {
-    core: computeReachableFiles(core.src, ["index.ts"]),
-    sync: computeReachableFiles(sync.src, ["server.ts"]),
-    web: computeReachableFiles(web.src, ["main.tsx"]),
+    core: computeReachableFiles(core.srcFiles, [core.entry]),
+    sync: computeReachableFiles(sync.srcFiles, [sync.entry]),
+    web: computeReachableFiles(web.srcFiles, [web.entry]),
   };
 
   const sc028 = sc028DuplicateTestDoubles(allTestFiles);
@@ -761,25 +918,25 @@ function runAudit() {
   const sc032 = sc032GwtMarkers(allTestFiles);
   const sc036 = sc036TestCount(allTestFiles);
 
-  const serverSources = [...sync.src.values()];
-  const clientSource = web.src.get("App.tsx") ?? "";
+  const serverSources = [...sync.srcFiles.values()];
+  const clientSource = web.srcFiles.get("App.tsx") ?? "";
   const sc035 = sc035MessageDefinitions(serverSources, clientSource);
 
-  const handlersSource = sync.src.get("application/handlers.ts") ?? "";
+  const handlersSource = sync.srcFiles.get("application/handlers.ts") ?? "";
   const productSources = new Map([
-    ...[...core.src]
+    ...[...core.srcFiles]
       .filter(([k]) => reachable.core.has(k))
       .map(([k, v]) => [`packages/timer-core/src/${k}`, v]),
-    ...[...sync.src]
+    ...[...sync.srcFiles]
       .filter(([k]) => reachable.sync.has(k))
       .map(([k, v]) => [`apps/timer-sync/src/${k}`, v]),
-    ...[...web.src]
+    ...[...web.srcFiles]
       .filter(([k]) => reachable.web.has(k))
       .map(([k, v]) => [`apps/timer-web/src/${k}`, v]),
   ]);
   // packages/*/src のみを走査対象にする（FR-119②③は packages 限定）
   const coreOnly = new Map(
-    [...core.src].map(([k, v]) => [`packages/timer-core/src/${k}`, v]),
+    [...core.srcFiles].map(([k, v]) => [`packages/timer-core/src/${k}`, v]),
   );
   const sc039 = sc039UnreachableElements({
     handlersSource,
@@ -829,7 +986,89 @@ export function formatTable(results) {
 }
 
 function main() {
-  const results = runAudit();
+  // 走査対象の宣言が実体とずれていないかを最初に見る（#135 経路②⑪）。
+  //
+  // **これは測定値の合否ではなく計測器の健全性の合否**（ADR-0014）。
+  // ADR 0009 D2 の「構造監査は値を出すだけ」は測定値についての決定であり、
+  // 走査対象を失ったまま全指標 PASS の表を出すことまで許してはいない。
+
+  // 宣言の値そのものが正当か（null か非空の文字列か）を先に見る。
+  // `""` は「パッケージ直下」を指す形になり、走査対象を 1 つ静かに失わせる。
+  // 件数のガードは「1 件だけ失った」状態を検知できないため、ここで落とす。
+  const invalidDeclarations = findInvalidDeclarations(SCANNED_PACKAGES);
+
+  // **走査対象の読み込みはここ 1 回だけ。** 走査量のガードも指標の測定も、
+  // この `loaded` から導出する（別々に導出すると条件式が割れて食い違う）。
+  // `hasScanTarget` が `""` を 0 件として扱うため、不正な宣言があっても
+  // この読み込みは安全に行える（落ちる前に走査量を出すために先に計算する）。
+  const loaded = loadScanTargets(SCANNED_PACKAGES, (pkg, sub) =>
+    readFilesRecursive(path.join(REPO_ROOT, pkg, sub), EXT_TS),
+  );
+  const volume = measureScanVolume(loaded);
+  const summary = formatScanVolume(volume);
+
+  if (invalidDeclarations.length > 0) {
+    console.error("[audit-structure] 走査対象の宣言が不正です（null か非空の文字列のみ）");
+    for (const d of invalidDeclarations) console.error(`  ${d}`);
+    console.error(`  現在の走査対象: ${summary}`);
+    process.exit(1);
+  }
+
+  // 走査量のどの内訳も 0 件でないことを見る（ADR-0014 決定 8）。
+  //
+  // 走査 0 件のまま合否表を出す経路は 2 つある。全パッケージを理由つき除外へ移せば
+  // 下の全単射照合は素通りし（除外側が workspace の全件を覆うため）、宣言を残したまま
+  // 各要素の `src` / `test` を null にすれば全単射も実在確認も素通りする（null は
+  // 実在確認の対象外）。**どちらも宣言の行数では検知できない**ため、出力している
+  // 走査量そのものを見る。METRIC_FILE_PINS のファイル実在チェックは走査集合への
+  // 所属を見ないため、この経路の歯止めにならない。
+  const emptyDimensions = findEmptyScanDimensions(scanVolumeDimensions(volume));
+  if (emptyDimensions.length > 0) {
+    console.error(
+      `[audit-structure] 走査対象が 0 件です（検査が空振りします）: ${emptyDimensions.join(" / ")}`,
+    );
+    console.error(`  現在の走査対象: ${summary}`);
+    process.exit(1);
+  }
+
+  const packages = listWorkspacePackages(REPO_ROOT);
+  const declared = [
+    ...SCANNED_PACKAGES.map((d) => d.pkg),
+    ...EXCLUDED_PACKAGES.map((e) => e.pkg),
+  ];
+  const drift = diffTargets(declared, packages);
+
+  // ディレクトリ（src/test）とエントリ（SC-027 の到達性測定の起点）の実在を見る。
+  // エントリが改名されても ADR 0009 D2 により測定値では落ちないため、ここで
+  // 計測器の健全性として先に検知する（指摘4）。
+  const missingTargets = [];
+  for (const d of SCANNED_PACKAGES) {
+    for (const sub of [d.src, d.test]) {
+      if (!hasScanTarget(sub)) continue;
+      if (!fs.existsSync(path.join(REPO_ROOT, d.pkg, sub))) missingTargets.push(`${d.pkg}/${sub}`);
+    }
+    if (hasScanTarget(d.entry) && hasScanTarget(d.src)) {
+      const entryPath = path.join(REPO_ROOT, d.pkg, d.src, d.entry);
+      if (!fs.existsSync(entryPath)) missingTargets.push(`${d.pkg}/${d.src}/${d.entry}`);
+    }
+  }
+
+  // SC-035 / SC-039① が名指しで参照するファイルピンの実在を見る（指摘1）。
+  for (const pin of METRIC_FILE_PINS) {
+    if (!fs.existsSync(path.join(REPO_ROOT, pin.path))) missingTargets.push(pin.path);
+  }
+
+  if (hasTargetDrift(drift) || missingTargets.length > 0) {
+    const merged = {
+      missing: [...drift.missing, ...missingTargets].sort(),
+      unexpected: drift.unexpected,
+    };
+    console.error(formatTargetDiff("audit-structure", merged, summary));
+    process.exit(1);
+  }
+
+  const results = runAudit(loaded);
+  console.log(`[audit-structure] 走査対象: ${summary}`);
   console.log(formatTable(results));
 }
 

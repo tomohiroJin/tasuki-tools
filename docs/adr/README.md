@@ -38,3 +38,5 @@ Michael Nygard 形式（背景 / 決定 / 影響 / ステータス）に従い�
 | [0010](./0010-trust-policy.md) | trustPolicy による信頼証跡の降格拒否 | Accepted |
 | [0011](./0011-threat-model-and-data-classification.md) | 脅威モデルとデータ分類 | Accepted |
 | [0012](./0012-logging-secrets-and-disclosure.md) | ログ・秘密・開示の取り扱い | Accepted |
+| [0013](./0013-pr-granularity.md) | PR の粒度 | Accepted |
+| [0014](./0014-scan-target-integrity.md) | 検査の走査対象は宣言と実体の照合で決める | Accepted |

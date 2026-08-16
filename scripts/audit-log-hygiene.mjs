@@ -22,16 +22,44 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  listWorkspacePackages,
+  diffTargets,
+  hasTargetDrift,
+  formatTargetDiff,
+  findEmptyScanDimensions,
+} from "./lib/scan-targets.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SCRIPT_DIR, "..");
 
-/** 走査するディレクトリ（リポジトリルート起点）。 */
-export // packages/rate-limit/src を含める（最終レビュー W-3）。生の IP を最も直接扱う
-// モジュール（client-key.ts）が走査対象の外にあり、そこへ console.info(...) で
-// 生の IP を出しても検査が沈黙して緑のままになる欠陥が実証された。
-// Task 2 の構造監査（audit-structure.mjs）の盲点と同型（走査対象の消失）。
-const SCAN_DIRS = ["apps/timer-sync/src", "apps/poker-sync/src", "packages/rate-limit/src"];
+/**
+ * 走査するパッケージ（リポジトリルート起点）。各パッケージの `src/` 配下の `.ts` を見る。
+ *
+ * **ハードコードの配列をやめ、workspace の実体と全単射で照合する**（#135 経路⑪）。
+ * 以前は timer-sync・poker-sync・rate-limit の 3 つだけを見ており、新設パッケージは
+ * 黙って対象外になった。packages/rate-limit（生の IP を最も直接扱う）が実際に
+ * 素通りし、最終レビューで人が気づくまで緑のままだった。
+ */
+export const SCANNED_PACKAGES = [
+  "apps/landing",
+  "apps/poker-sync",
+  "apps/poker-web",
+  "apps/timer-sync",
+  "apps/timer-web",
+  "packages/poker-core",
+  "packages/protocol",
+  "packages/rate-limit",
+  "packages/timer-core",
+];
+
+/** 走査から外すパッケージ。**理由が要る。** 実在しなくなったら落ちる。 */
+export const EXCLUDED_PACKAGES = [
+  { pkg: "packages/ui", reason: "TS を 1 つも持たない（CSS トークンとフォントのみ）" },
+  { pkg: "e2e", reason: "src/ を持たない。テストコードのログ経路は本検査の対象外" },
+];
+
+const SCAN_DIRS = SCANNED_PACKAGES.map((pkg) => `${pkg}/src`);
 
 /**
  * 禁止構文を置いてよいファイル。**行に許可マーカーが必要。**
@@ -268,10 +296,82 @@ function readTsFiles(rootDir) {
   return result;
 }
 
+/**
+ * 走査対象ディレクトリにある `.tsx` の件数を数える（走査はしない）。
+ *
+ * **見ていないものを黙っていない**ための出力（#135 D7）。射程を `.ts` に
+ * 据え置く判断そのものは別 Issue で行う。
+ */
+function countSkippedTsx() {
+  let n = 0;
+  for (const dir of SCAN_DIRS) {
+    const abs = path.join(REPO_ROOT, dir);
+    if (!fs.existsSync(abs)) continue;
+    const walk = (d) => {
+      for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+        if (e.name === "node_modules" || e.name === "dist") continue;
+        const full = path.join(d, e.name);
+        if (e.isDirectory()) walk(full);
+        else if (e.name.endsWith(".tsx")) n++;
+      }
+    };
+    walk(abs);
+  }
+  return n;
+}
+
 function main() {
+  // 走査対象の宣言が workspace の実体とずれていないかを最初に見る（#135 経路⑪）。
+  const packages = listWorkspacePackages(REPO_ROOT);
+  const declared = [...SCANNED_PACKAGES, ...EXCLUDED_PACKAGES.map((e) => e.pkg)];
+  const drift = diffTargets(declared, packages);
+  if (hasTargetDrift(drift)) {
+    console.error(
+      formatTargetDiff("audit-log-hygiene", drift, `${SCAN_DIRS.length} パッケージ`),
+    );
+    process.exit(1);
+  }
+
   const scanned = new Map();
   for (const dir of SCAN_DIRS) {
     for (const [k, v] of readTsFiles(dir)) scanned.set(k, v);
+  }
+
+  // 走査量と未走査 .tsx の件数は、成否によらず必ず出す（#135 D5・E7）。
+  // 違反が出ているときこそ「何を見ていないか」が要る（分岐の前にまとめる）。
+  console.log(
+    `[audit-log-hygiene] 走査対象: ${SCAN_DIRS.length} パッケージ / ${scanned.size} ファイル`,
+  );
+  console.log(
+    `  走査していない .tsx: ${countSkippedTsx()} 件` +
+      "（ブラウザの console が ADR 0012 D1 の射程に入るかは別 Issue で判断する）",
+  );
+
+  // 走査量のどの内訳も 0 件でないことを見る（ADR-0014 決定 8）。
+  //
+  // 全パッケージを理由つき除外へ移す経路では、パッケージ側の内訳が 0 件になる。
+  // `findMissingRequired` は REQUIRED_FILES が走査結果に無ければ結果的に検知するが、
+  // それは副次効果であり明示的な保証ではない。ここで明示的に塞ぐ。
+  //
+  // **ガードの形は audit-structure.mjs と同じだが、置き場所は意図的に違う。**
+  // あちらは全単射照合より前に置かれているが、実走査（`loadScanTargets`）より後で
+  // ある（「走査前に判る」のは半分だけ正しい）。こちらは走査と走査量の出力より後。
+  // どちらも「赤の直前に根拠の行が出ている」ことを優先した結果。
+  //
+  // ここで数えている「パッケージ」は `SCAN_DIRS.length` であり、`SCAN_DIRS` は
+  // `SCANNED_PACKAGES`（本ファイル冒頭）の各要素を「パッケージ名 + /src」へ機械的に
+  // 変換して作るため、構成上つねに `SCANNED_PACKAGES.length`（宣言の行数）と同数になる。
+  // これは決定 9 が言う「実際に走査した対象」そのものではない。変換後のディレクトリの
+  // 実在確認が無いことは既知の欠落で、Issue #158 で扱う。
+  const emptyDimensions = findEmptyScanDimensions([
+    { label: "パッケージ", count: SCAN_DIRS.length },
+    { label: "ファイル", count: scanned.size },
+  ]);
+  if (emptyDimensions.length > 0) {
+    console.error(
+      `[audit-log-hygiene] 走査対象が 0 件です（検査が空振りします）: ${emptyDimensions.join(" / ")}`,
+    );
+    process.exit(1);
   }
 
   const problems = [];
@@ -289,10 +389,10 @@ function main() {
 
   if (problems.length > 0) {
     for (const p of problems) console.error(p);
-    console.error(`\n${problems.length} 件の問題があります（走査 ${scanned.size} ファイル）`);
+    console.error(`\n${problems.length} 件の問題があります`);
     process.exit(1);
   }
-  console.log(`ログ衛生 OK（走査 ${scanned.size} ファイル）`);
+  console.log("ログ衛生 OK");
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) main();

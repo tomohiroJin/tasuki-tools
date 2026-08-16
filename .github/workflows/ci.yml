@@ -204,7 +204,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
         if: steps.scope.outputs.code == 'true'
 
-      # 構造監査は値を出すだけ。合否は自己テストと変異検査で取る（ADR 0009 D2）。
+      # 構造監査の測定値（SC027〜SC039）は合否を持たない。値の合否は自己テストと変異検査で取る（ADR 0009 D2）。
+      # 例外: 走査対象の健全性（宣言と実体のずれ・走査 0 件）は合否を持つ。
+      # このステップは走査対象がずれれば実際に赤くなる（ADR 0009 D2 の例外・ADR 0014 決定 7・決定 8）。
       - run: node scripts/audit-structure.mjs
         if: steps.scope.outputs.code == 'true'
 
@@ -212,14 +214,27 @@ jobs:
       - run: node scripts/audit-log-hygiene.mjs
         if: steps.scope.outputs.code == 'true'
 
-      - run: node --test scripts/audit-structure.test.mjs scripts/check-links.test.mjs scripts/ci-scope.test.mjs scripts/audit-log-hygiene.test.mjs
+      # 対象は列挙しない。scripts/ 配下の *.test.mjs を git から導出する。
+      # 列挙をハードコードすると、新しいテストが黙って走らない（#135 経路⑬）。
+      - name: scripts の自己テスト
         if: steps.scope.outputs.code == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          targets="$(node scripts/list-scan-targets.mjs script-tests)"
+          node --test $targets
 
       # 変異検査は作業ツリーが clean であることを要求する。
       # actions/checkout 直後は clean で、pnpm install は追跡ファイルを変更しない。
       - run: node scripts/mutation-check.mjs
         if: steps.scope.outputs.code == 'true'
 
-      # shellcheck。.specify/scripts/** は vendor のため対象外（ADR 0009 D6）。
-      - run: shellcheck -x --source-path=deploy --severity=warning deploy/*.sh deploy/lib/*.sh scripts/*.sh
+      # shellcheck。対象は git から導出する（グロブが非再帰でサブディレクトリの
+      # .sh が無検査だった。#135 経路④）。.specify/scripts/** は vendor（ADR 0009 D6）。
+      - name: shellcheck
         if: steps.scope.outputs.code == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          targets="$(node scripts/list-scan-targets.mjs shell)"
+          shellcheck -x --source-path=deploy --severity=warning $targets

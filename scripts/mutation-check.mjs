@@ -45,6 +45,12 @@ import { fileURLToPath } from "node:url";
 import os from "node:os";
 import path from "node:path";
 import fs from "node:fs";
+import {
+  diffTargets,
+  hasTargetDrift,
+  formatTargetDiff,
+  hasZeroScanTargets,
+} from "./lib/scan-targets.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const WORKSPACE_ROOT = path.resolve(SCRIPT_DIR, ".."); // Tasuki/（ワークスペースのルート）
@@ -361,6 +367,33 @@ function assertMutationTestsExist() {
 }
 
 /**
+ * 対応表と patch ファイルが全単射であることを確かめる（#135 経路①）。
+ *
+ * **限界**: 対応表の項目と patch ファイルを**両方**消せば全単射は保たれ、
+ * この検査は通る。件数の下限を直書きする対策は採らない — 下限を下げるのが
+ * 赤を消す最短経路になり、対応表から項目を消すのと同じ穴になるため
+ * （ADR-0014 決定 8）。patch の削除が diff に現れることをレビューの拠り所とする。
+ *
+ * 下の 0 件ガードは「下限の直書き」の例外（ADR-0014 決定 8 の但し書き）。
+ * 0 件（空振り）は「何も検証していない」状態そのものであり、維持コストが
+ * 要る閾値ではないため、下限を直書きしない MUST NOT の対象に含めない。
+ */
+function assertMutationPatchesBijective() {
+  // 0 件（空振り）の判定は共有モジュールへ寄せる（ADR-0014 決定 8。集約は #135 設計正本 D10）。
+  if (hasZeroScanTargets(MUTATIONS.length)) {
+    console.error("[mutation-check] 変異が 0 件です（検査が空振りします）");
+    process.exit(1);
+  }
+  const declared = MUTATIONS.map((m) => m.patch);
+  const actual = fs.readdirSync(MUTATIONS_DIR).filter((f) => f.endsWith(".patch"));
+  const diff = diffTargets(declared, actual);
+  if (hasTargetDrift(diff)) {
+    console.error(formatTargetDiff("mutation-check", diff, `変異 ${declared.length} 件`));
+    process.exit(1);
+  }
+}
+
+/**
  * bun の実行体を解決する。PATH 上に無ければ既定の設置場所へフォールバックする
  * （CI では oven-sh/setup-bun@v2 が PATH へ足すが、ローカルの導入形態は環境によって
  * ばらつくため）。
@@ -455,6 +488,7 @@ function main() {
   recoverFromCrashedRun();
 
   assertMutationTestsExist();
+  assertMutationPatchesBijective();
 
   const status = gitStatusPorcelain();
   if (status.trim() !== "") {

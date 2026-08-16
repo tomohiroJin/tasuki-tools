@@ -28,8 +28,9 @@
 レート制限（#103）を提供する node 専用パッケージ。`node:crypto` / `node:net` に依存するため
 ブラウザバンドルへは載せられず、`packages/protocol` とは同居できない。ドメインの型も知らない
 （IP 文字列とキー文字列のみを扱う）ため「ドメイン」でもなく、`apps/timer-sync/src/application`
-`apps/poker-sync/src/application` の両方から直接 import される横断的な共有ユーティリティとして
-独立の行に置く。
+と `apps/poker-sync/src`（poker-sync はまだ `application/` を持たず、下の注記のとおり
+`config.ts` 等の直下から直接 import している）の両方から直接 import される横断的な
+共有ユーティリティとして独立の行に置く。
 
 **注記（poker-sync）:** `apps/poker-sync/src` は現在 `config.ts` / `rooms.ts` /
 `server.ts` のモジュール関数中心の構成で、上表のポート/アダプタ標準形には

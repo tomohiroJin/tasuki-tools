@@ -23,10 +23,12 @@
 - **Given/When/Then 構造**は timer で `// Given` `// When` `// Then` の区切りを
   付ける規約として運用され、`scripts/audit-structure.mjs`（SC032）が機械的に
   検査している。2026-08-10 時点で実行すると **1023/1051（97.3%）**。
-  ただし現在の SC032 は `packages/timer-core` / `apps/timer-sync` /
-  `apps/timer-web` の 3 パッケージのみを走査対象としており（同スクリプトの
-  `runAudit()` を確認）、poker 系（`packages/poker-core` / `apps/poker-sync`）
-  や `packages/protocol` はまだ対象外である。
+  ただし**本 ADR 採択時点（2026-08-10）**の SC032 は `packages/timer-core` /
+  `apps/timer-sync` / `apps/timer-web` の 3 パッケージのみを走査対象としており
+  （同スクリプトの `runAudit()` を確認）、poker 系（`packages/poker-core` /
+  `apps/poker-sync`）や `packages/protocol` はまだ対象外だった。
+  **追記（2026-08-16）**: この状態は #135 / [ADR-0014](./0014-scan-target-integrity.md)
+  で解消済み。SC032 の走査対象は、宣言と理由つき除外で全パッケージの test を覆う形へ広がった。
 - **新しい検査はわざと壊して赤を見る**は、timer の G5・G6 の新設テストで
   実践されてきた（例: `apps/timer-sync/test/error-code-coverage.test.ts` はソース走査の
   メタテスト）。
@@ -52,9 +54,13 @@
    テストより先に実装コードを書かない。
 2. **Given/When/Then 構造**: テスト本体を `// Given` `// When` `// Then` で
    区切る。本体が 2 行以下の自明なテストは対象外とする。この規約の遵守は
-   `scripts/audit-structure.mjs`（SC032）で機械的に検査する。**現状 SC032 が
-   走査するのは timer 3 パッケージのみであり、poker 系・`packages/protocol` へ
-   走査対象を広げるかどうかは本 ADR では決めない**（別タスクの領分とする）。
+   `scripts/audit-structure.mjs`（SC032）で機械的に検査する。**本 ADR 採択時点で
+   SC032 が走査するのは timer 3 パッケージのみであり、poker 系・`packages/protocol` へ
+   走査対象を広げるかどうかは本 ADR では決めないとした**（別タスクの領分とする）。
+   **追記（2026-08-16）**: この保留は #135 / [ADR-0014](./0014-scan-target-integrity.md)
+   で決着した。SC032 の走査対象は、宣言と理由つき除外で全パッケージの test を覆う形へ
+   広がった。**件数はここへ転記しない**（ADR-0014 の方針。数値の正本は同 ADR が指す
+   設計正本）。
 3. **新しい検査はわざと壊して赤を見る（MUST）**: 検査を追加したら、検査対象を
    意図的に壊し、その検査が赤くなることを確認してからコミットする。
 4. **実装を書き換えたら変異で恒真化を確かめる（MUST）**: 既存の実装を書き換えた
@@ -72,9 +78,11 @@ FR-091〜099・FR-121〜123・SC-029〜032 という要求 ID との対応、
 - 本決定は `.specify/memory/constitution.md` 原則 VII「検査は壊して確かめる」の
   根拠を記録するものである（TDD 自体の根拠は原則 I が既に持つ）。
 - 4 実践のうち 1・3・4 は既にプロジェクト全体で運用されている実践の追認であり、
-  新たな作業は発生しない。2（GWT 構造）は timer 側では SC032 で機械検査済みだが、
-  poker 側・`packages/protocol` には同種の機械検査がまだ無い。これを追加するかは
-  本 ADR の対象外とし、必要になった時点で別 Issue として扱う。
+  新たな作業は発生しない。2（GWT 構造）は本 ADR 採択時点では timer 側でのみ SC032 で
+  機械検査済みで、poker 側・`packages/protocol` には同種の機械検査がまだ無かった。
+  追加は本 ADR の対象外とし、必要になった時点で別 Issue として扱うとした
+  **（追記・2026-08-16: #135 / [ADR-0014](./0014-scan-target-integrity.md) が対象を
+  宣言と理由つき除外で全パッケージへ広げ、この保留を解消した）**。
 - **本 ADR の時点ではコード（`apps/` `packages/` `e2e/` `scripts/`）を
   変更しない。** `scripts/audit-structure.mjs` は読み取り実行のみで確認しており、
   改変していない。

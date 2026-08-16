@@ -262,3 +262,29 @@ describe("ロガ呼び出しの第 1 引数（event）の形", () => {
     assert.equal(v.length, 0);
   });
 });
+
+import { SCANNED_PACKAGES, EXCLUDED_PACKAGES } from "./audit-log-hygiene.mjs";
+import { listWorkspacePackages, diffTargets } from "./lib/scan-targets.mjs";
+import { execFileSync as execFileSyncForRoot } from "node:child_process";
+
+describe("走査対象の宣言", () => {
+  const REPO_ROOT = execFileSyncForRoot("git", ["rev-parse", "--show-toplevel"], {
+    encoding: "utf8",
+  }).trim();
+
+  test("宣言と除外を合わせると workspace の全パッケージを覆う", () => {
+    // Given
+    const declared = [...SCANNED_PACKAGES, ...EXCLUDED_PACKAGES.map((e) => e.pkg)];
+    // When
+    const diff = diffTargets(declared, listWorkspacePackages(REPO_ROOT));
+    // Then
+    assert.deepEqual(diff, { missing: [], unexpected: [] });
+  });
+
+  test("除外には理由が書かれている", () => {
+    // Given / When / Then
+    for (const e of EXCLUDED_PACKAGES) {
+      assert.ok(e.reason && e.reason.length > 0, `${e.pkg} に理由がありません`);
+    }
+  });
+});

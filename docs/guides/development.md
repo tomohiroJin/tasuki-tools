@@ -372,14 +372,37 @@ poker-sync（`3311`）を実際に起動するため、`pnpm dev` と同じポ�
 手元で先に確かめたいときは次を叩きます。
 
 ```bash
-node scripts/audit-structure.mjs                 # 構造監査（値を出すだけ。合否は取らない）
-node --test scripts/audit-structure.test.mjs scripts/check-links.test.mjs scripts/ci-scope.test.mjs  # 自己テスト（構造監査・リンク検査・判定）
+node scripts/audit-structure.mjs                 # 構造監査（走査対象のずれ・走査 0 件は合否を持つ。ADR-0009 D2 の例外・ADR-0014 決定 7・決定 8）
+node scripts/audit-log-hygiene.mjs               # ログ衛生（検査の中身は ADR-0012 D1。走査対象のずれ・走査 0 件が合否を持つ根拠は ADR-0014 決定 7・決定 8）
 node scripts/mutation-check.mjs                  # 変異検査
 node scripts/check-links.mjs                     # リンク検査
-shellcheck -x --source-path=deploy --severity=warning deploy/*.sh deploy/lib/*.sh scripts/*.sh
+
+# 自己テスト（対象は git から導出。scripts/*.test.mjs 全件）
+bash -c 'set -euo pipefail; targets="$(node scripts/list-scan-targets.mjs script-tests)"; node --test $targets'
+
+# shellcheck（対象は git から導出。グロブ直書きではない）
+bash -c 'set -euo pipefail; targets="$(node scripts/list-scan-targets.mjs shell)"; shellcheck -x --source-path=deploy --severity=warning $targets'
 ```
 
-**リンク検査は `git ls-files` を見ます。** 新しく作った文書は `git add` するまで走査対象に入りません。
+**下 2 つを `bash -c` で包んでいるのは意図的です。** 対象を変数へ受けて未クォートで
+渡す形は bash の単語分割に依存しており、この環境の既定シェル（zsh）では変数が
+分割されずファイル名 1 つとして扱われて失敗します。CI は `shell: bash` で
+同じ形を走らせています（`set -euo pipefail` により、対象の列挙が非ゼロで
+終わればそこで止まります）。
+
+**自己テスト・shellcheck の対象はハードコードではなく `scripts/list-scan-targets.mjs`
+（`git ls-files` からの導出）です。** CI（`.github/workflows/ci.yml`）もこの形で
+呼び出しています。個別のテストファイル名やグロブを直書きすると、新設したテストや
+サブディレクトリに置いたスクリプトが対象から漏れます（#135 経路④・⑬。
+決定は [`docs/adr/0014`](../adr/0014-scan-target-integrity.md)）。
+
+**リンク検査の走査対象は「追跡下 ∪（未追跡かつ gitignore 対象外）」です。**
+新しく作った文書は `git add` する前でも走査対象に入り、その文書自身が持つ
+リンク切れは検出されます。**ただし存在判定（あるパスがリンク先として実在するか
+の確認）は追跡下のみのままです。** そのため、新しく作った文書「へ向けた」リンクは、
+`git add` するまでは他のファイルからも自分自身からも解決できず、「参照先が
+ありません」と出ます（`git add` すれば解消します）。決定は
+[`docs/adr/0014`](../adr/0014-scan-target-integrity.md) D4。
 
 **依存の脆弱性検査（`pnpm audit`）は上記に含まれません。** CI の独立ジョブ
 （`audit`）で自動実行され、high 以上の脆弱性で落ちます（決定は
@@ -392,6 +415,39 @@ shellcheck -x --source-path=deploy --severity=warning deploy/*.sh deploy/lib/*.s
 区別できず、実行前に working tree のクリーンさを要求します。先にコミットしてから
 走らせてください。
 
+### 新しいパッケージを足すと検査が赤くなる
+
+構造監査（`scripts/audit-structure.mjs`）とログ衛生（`scripts/audit-log-hygiene.mjs`）は、
+走査対象を `SCANNED_PACKAGES` / `EXCLUDED_PACKAGES` として**宣言**し、実行時に
+workspace の実体（`pnpm -r list --depth -1 --json`）と全単射で照合します
+（決定は [`docs/adr/0014`](../adr/0014-scan-target-integrity.md)）。したがって、
+`packages/` や `apps/` 配下に新しいパッケージを足すと、宣言に足すまで両方の検査が
+非ゼロで終了します。
+
+正しい直し方は次のどちらかです。
+
+- **走査対象に入れる**: `SCANNED_PACKAGES` に `{ pkg, src, test, entry }`（構造監査）
+  または `pkg`（ログ衛生）を追記する。**`src` / `test` / `entry` に書けるのは
+  ディレクトリ名・ファイル名か `null`（そのディレクトリを持たない）だけです。**
+  空文字列を書くと「パッケージ直下」を指す形になり、走査対象を静かに 1 つ失うため、
+  構造監査が「走査対象の宣言が不正です」で落とします（ADR-0014 決定 9）
+- **理由つきで除外する**: `EXCLUDED_PACKAGES` に、なぜ検査しないかの理由とともに追記する
+  （例: `packages/ui` は src・tests とも TS を 1 つも持たないため除外）
+
+**「宣言から消す」で赤を消してはいけません。** 落ちているのは検査対象が見つからない
+ことそのものであり、対象を宣言から外せば検査は通りますが、そのパッケージは
+以後どちらの検査にも一切引っかからなくなります。これは #135 が塞いだ「新設パッケージが
+黙って対象外になる」経路を、宣言を削ることで自ら再現する行為です。除外する場合も
+必ず理由を書き、`EXCLUDED_PACKAGES` から漏らさないでください。
+
+shellcheck・自己テスト（`node --test`）の対象は宣言ではなく `git ls-files` からの
+導出（`scripts/list-scan-targets.mjs`）です。`scripts/` 配下に `*.sh` や `*.test.mjs` を
+置けば自動で対象に入るため、こちらは追記の必要がありません。
+
+リンク検査（`scripts/check-links.mjs`）は追跡下の `*.md` を `LIVE_DOCS` と
+`DORMANT_DOCS` の宣言へ全分割します。新しいディレクトリに文書を置いたときの扱いは
+同スクリプト内のコメントを参照してください。
+
 ## CI
 
 `.github/workflows/ci.yml` は 5 つのジョブを持ちます。
@@ -399,7 +455,7 @@ shellcheck -x --source-path=deploy --severity=warning deploy/*.sh deploy/lib/*.s
 | ジョブ | 中身 | 走らせる条件 |
 |---|---|---|
 | `ci` | typecheck / lint / test / build | コードに関わる変更（`*.md` 以外が 1 つでもある） |
-| `quality` | 構造監査・自己テスト・変異検査・shellcheck | 同上 |
+| `quality` | 構造監査・ログ衛生・自己テスト・変異検査・shellcheck | 同上 |
 | `docs` | リンク検査 | **常時** |
 | `audit` | `pnpm audit` | 依存の変更（`pnpm-lock.yaml` / `pnpm-workspace.yaml` / `package.json`） |
 | `e2e` | E2E | コードに関わる変更 |
