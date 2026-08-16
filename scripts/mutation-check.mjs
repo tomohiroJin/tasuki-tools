@@ -379,7 +379,7 @@ function assertMutationTestsExist() {
  * 要る閾値ではないため、下限を直書きしない MUST NOT の対象に含めない。
  */
 function assertMutationPatchesBijective() {
-  // 0 件（空振り）の判定は共有モジュールへ寄せる（ADR-0014 決定 8・決定 10）。
+  // 0 件（空振り）の判定は共有モジュールへ寄せる（ADR-0014 決定 8。集約は #135 設計正本 D10）。
   if (hasZeroScanTargets(MUTATIONS.length)) {
     console.error("[mutation-check] 変異が 0 件です（検査が空振りします）");
     process.exit(1);

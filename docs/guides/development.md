@@ -373,7 +373,7 @@ poker-sync（`3311`）を実際に起動するため、`pnpm dev` と同じポ�
 
 ```bash
 node scripts/audit-structure.mjs                 # 構造監査（走査対象のずれ・走査 0 件は合否を持つ。ADR-0009 D2 の例外・ADR-0014 決定 7・決定 8）
-node scripts/audit-log-hygiene.mjs               # ログ衛生（走査対象のずれ・走査 0 件は合否を持つ。ADR-0012 D1）
+node scripts/audit-log-hygiene.mjs               # ログ衛生（検査の中身は ADR-0012 D1。走査対象のずれ・走査 0 件が合否を持つ根拠は ADR-0014 決定 7・決定 8）
 node scripts/mutation-check.mjs                  # 変異検査
 node scripts/check-links.mjs                     # リンク検査
 
@@ -427,7 +427,10 @@ workspace の実体（`pnpm -r list --depth -1 --json`）と全単射で照合�
 正しい直し方は次のどちらかです。
 
 - **走査対象に入れる**: `SCANNED_PACKAGES` に `{ pkg, src, test, entry }`（構造監査）
-  または `pkg`（ログ衛生）を追記する
+  または `pkg`（ログ衛生）を追記する。**`src` / `test` / `entry` に書けるのは
+  ディレクトリ名・ファイル名か `null`（そのディレクトリを持たない）だけです。**
+  空文字列を書くと「パッケージ直下」を指す形になり、走査対象を静かに 1 つ失うため、
+  構造監査が「走査対象の宣言が不正です」で落とします（ADR-0014 決定 9）
 - **理由つきで除外する**: `EXCLUDED_PACKAGES` に、なぜ検査しないかの理由とともに追記する
   （例: `packages/ui` は src・tests とも TS を 1 つも持たないため除外）
 

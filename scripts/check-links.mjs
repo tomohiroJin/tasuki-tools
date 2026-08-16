@@ -17,7 +17,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
-import { listRepoFiles, hasZeroScanTargets } from "./lib/scan-targets.mjs";
+import { listRepoFiles, findEmptyScanDimensions } from "./lib/scan-targets.mjs";
 
 /**
  * 各行がコードフェンスの内側（フェンス行自体を含む）かどうかを返す。
@@ -301,9 +301,18 @@ function main() {
   // 走査対象は**未追跡かつ gitignore 対象外**も含める（#135 経路⑧）。
   // 存在判定（trackedPaths）は広げない。広げるとローカル緑・CI 赤になる。
   const files = listRepoFiles(REPO_ROOT, ["*.md"]);
-  // 0 件（空振り）の判定は共有モジュールへ寄せる（ADR-0014 決定 8・決定 10）。
-  if (hasZeroScanTargets(files.length)) {
-    errors.push("走査対象の .md が 1 件もありません（検査が空振りしています）");
+
+  // 0 件（空振り）の判定は共有モジュールへ寄せる（ADR-0014 決定 8。集約は #135 設計正本 D10）。
+  //
+  // **出力する走査量に内訳があるなら、内訳ごとに見る**（決定 8）。この検査は
+  // 「走査対象 N 件（うち追跡下 M 件）」と 2 つ出しており、M が 0 になると
+  // 上の全分割照合（決定 4・E3）が黙って空振りする — `classifyDocs([])` の
+  // 無所属は空配列なので、LIVE_DOCS / DORMANT_DOCS を空にしても赤にならない。
+  for (const label of findEmptyScanDimensions([
+    { label: "走査対象の .md", count: files.length },
+    { label: "追跡下の .md（全分割照合の対象）", count: trackedDocs.length },
+  ])) {
+    errors.push(`${label} が 1 件もありません（検査が空振りしています）`);
   }
 
   const anchorCache = new Map();

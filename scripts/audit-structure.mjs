@@ -769,26 +769,79 @@ export const METRIC_FILE_PINS = [
 ];
 
 /**
+ * 宣言の値が走査対象を指しているか。
+ *
+ * **走査対象かどうかの判定は、この 1 つの述語だけを使う**（ADR-0014 決定 9）。
+ * 以前は数え上げが `d.src !== null`、読み込みが `d.src ? … : new Map()` と
+ * **別々の条件**で書かれていた。両者は `""` で意味が割れ、
+ * 「ガードは数えたのに実際には走査していない」状態を作れた（レビューで実測）。
+ * 判定を分けて書くこと自体が穴の作り方なので、述語を 1 本に固定する。
+ *
+ * null（そのディレクトリを持たない）と非空の文字列（ディレクトリ名）だけが正当。
+ * `""` や undefined は宣言の不備として `findInvalidDeclarations` が落とす。
+ */
+export function hasScanTarget(sub) {
+  return typeof sub === "string" && sub.length > 0;
+}
+
+/**
+ * 宣言の値として不正なものを列挙する（ADR-0014 決定 1・決定 9）。
+ *
+ * 正当なのは null か非空の文字列だけ。`""` は「パッケージ直下」を指す形になり、
+ * 走査対象を 1 つ静かに失わせる。**件数のガードは 1 件だけ失った状態を検知
+ * できない**ため、宣言そのものの妥当性をここで見る。
+ */
+export function findInvalidDeclarations(declarations) {
+  const invalid = [];
+  for (const d of declarations) {
+    for (const key of ["src", "test", "entry"]) {
+      const value = d[key];
+      if (value === null || hasScanTarget(value)) continue;
+      invalid.push(`${d.pkg}.${key} = ${JSON.stringify(value)}`);
+    }
+  }
+  return invalid;
+}
+
+/**
+ * 走査対象を読み込む。**走査量の算出も実走査もこの結果だけを使う**（ADR-0014 決定 9）。
+ *
+ * 以前は `main()` のガード用の計数と `runAudit()` の読み込みが別々に
+ * ファイルを見ており、条件式が割れて食い違いを作った（上の `hasScanTarget` 参照）。
+ * 読み込みを 1 か所に寄せることで、ガードが「走査した」と数えた集合と
+ * 実際に指標を測る集合が**構造的に同一**になる。二重読み込みも同時に消える。
+ *
+ * `readDir(pkg, sub)` は Map<相対パス, 内容> を返す関数。
+ * 実ファイル I/O は呼び出し側に置き、本関数は配線だけを持つ。
+ */
+export function loadScanTargets(declarations, readDir) {
+  return declarations.map((d) => ({
+    ...d,
+    srcFiles: hasScanTarget(d.src) ? readDir(d.pkg, d.src) : new Map(),
+    testFiles: hasScanTarget(d.test) ? readDir(d.pkg, d.test) : new Map(),
+  }));
+}
+
+/**
  * 走査量を数える（ADR-0014 決定 6）。
  *
- * **宣言の行数ではなく、実際に走査するディレクトリとファイルを数える。**
- * `SCANNED_PACKAGES.length` を数えてはならない — 各要素の `src` / `test` を null に
+ * **宣言の行数ではなく、`loadScanTargets` が実際に読み込んだものを数える。**
+ * `SCANNED_PACKAGES.length` を数えてはならない — 各要素の `src` / `test` を空に
  * すれば走査は 0 件になるのに、配列長は 10 のまま変わらないため、行数を見る限り
  * 「走査 0 件・全指標 PASS」の表が素通りする。
  *
- * `countFiles(pkg, sub)` は当該ディレクトリの走査対象ファイル数を返す関数。
- * 実ファイル I/O は呼び出し側に置き、本関数は純粋関数に保つ。
+ * ファイル件数は読み込んだ Map の大きさそのもの。**別経路で数え直さない。**
  */
-export function measureScanVolume(declarations, countFiles) {
+export function measureScanVolume(loaded) {
   const volume = { srcPackages: 0, srcFiles: 0, testPackages: 0, testFiles: 0 };
-  for (const d of declarations) {
-    if (d.src !== null) {
+  for (const p of loaded) {
+    if (hasScanTarget(p.src)) {
       volume.srcPackages += 1;
-      volume.srcFiles += countFiles(d.pkg, d.src);
+      volume.srcFiles += p.srcFiles.size;
     }
-    if (d.test !== null) {
+    if (hasScanTarget(p.test)) {
       volume.testPackages += 1;
-      volume.testFiles += countFiles(d.pkg, d.test);
+      volume.testFiles += p.testFiles.size;
     }
   }
   return volume;
@@ -822,12 +875,12 @@ export function scanVolumeDimensions(volume) {
   ];
 }
 
-function runAudit() {
-  const loaded = SCANNED_PACKAGES.map((d) => ({
-    ...d,
-    srcFiles: d.src ? readFilesRecursive(path.join(REPO_ROOT, d.pkg, d.src), EXT_TS) : new Map(),
-    testFiles: d.test ? readFilesRecursive(path.join(REPO_ROOT, d.pkg, d.test), EXT_TS) : new Map(),
-  }));
+/**
+ * 指標を測る。**読み込み済みの走査対象（`loadScanTargets` の結果）を受け取る。**
+ * 自分で読み直さないこと — 読み込み条件が二重化した瞬間に、ガードが数えた集合と
+ * ここで測る集合が食い違う（ADR-0014 決定 9）。
+ */
+function runAudit(loaded) {
   const byPkg = new Map(loaded.map((p) => [p.pkg, p]));
 
   // SC-035 / SC-039 は timer 固有の指標。走査を広げてもここは変えない。
@@ -842,7 +895,7 @@ function runAudit() {
 
   // SC-027: エントリを持つパッケージごとに到達性を測り、合算する
   const sc027 = loaded
-    .filter((p) => p.entry !== null)
+    .filter((p) => hasScanTarget(p.entry))
     .reduce((n, p) => n + sc027UnreachableModules(p.srcFiles, [p.entry]), 0);
 
   // SC-039②③ の「参照元」から、SC-027 が到達不能と判定したファイルを除く。
@@ -939,11 +992,22 @@ function main() {
   // ADR 0009 D2 の「構造監査は値を出すだけ」は測定値についての決定であり、
   // 走査対象を失ったまま全指標 PASS の表を出すことまで許してはいない。
 
-  // 走査量は**実際に走査するディレクトリとファイル**から数える（決定 6）。
-  // 下のガード・ずれの報告・成功時の出力は、すべてこの 1 つの値を使う。
-  const volume = measureScanVolume(SCANNED_PACKAGES, (pkg, sub) =>
-    readFilesRecursive(path.join(REPO_ROOT, pkg, sub), EXT_TS).size,
+  // 宣言の値そのものが正当か（null か非空の文字列か）を先に見る。
+  // `""` は「パッケージ直下」を指す形になり、走査対象を 1 つ静かに失わせる。
+  // 件数のガードは「1 件だけ失った」状態を検知できないため、ここで落とす。
+  const invalidDeclarations = findInvalidDeclarations(SCANNED_PACKAGES);
+  if (invalidDeclarations.length > 0) {
+    console.error("[audit-structure] 走査対象の宣言が不正です（null か非空の文字列のみ）");
+    for (const d of invalidDeclarations) console.error(`  ${d}`);
+    process.exit(1);
+  }
+
+  // **走査対象の読み込みはここ 1 回だけ。** 走査量のガードも指標の測定も、
+  // この `loaded` から導出する（別々に導出すると条件式が割れて食い違う）。
+  const loaded = loadScanTargets(SCANNED_PACKAGES, (pkg, sub) =>
+    readFilesRecursive(path.join(REPO_ROOT, pkg, sub), EXT_TS),
   );
+  const volume = measureScanVolume(loaded);
   const summary = formatScanVolume(volume);
 
   // 走査量のどの内訳も 0 件でないことを見る（ADR-0014 決定 8）。
@@ -976,10 +1040,10 @@ function main() {
   const missingTargets = [];
   for (const d of SCANNED_PACKAGES) {
     for (const sub of [d.src, d.test]) {
-      if (sub === null) continue;
+      if (!hasScanTarget(sub)) continue;
       if (!fs.existsSync(path.join(REPO_ROOT, d.pkg, sub))) missingTargets.push(`${d.pkg}/${sub}`);
     }
-    if (d.entry !== null && d.src !== null) {
+    if (hasScanTarget(d.entry) && hasScanTarget(d.src)) {
       const entryPath = path.join(REPO_ROOT, d.pkg, d.src, d.entry);
       if (!fs.existsSync(entryPath)) missingTargets.push(`${d.pkg}/${d.src}/${d.entry}`);
     }
@@ -999,7 +1063,7 @@ function main() {
     process.exit(1);
   }
 
-  const results = runAudit();
+  const results = runAudit(loaded);
   console.log(`[audit-structure] 走査対象: ${summary}`);
   console.log(formatTable(results));
 }

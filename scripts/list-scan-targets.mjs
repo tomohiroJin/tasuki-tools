@@ -65,7 +65,7 @@ function main() {
     for (const p of problems) console.error(`[list-scan-targets] ${p}`);
     process.exit(1);
   }
-  // 0 件（空振り）の判定は共有モジュールへ寄せる（ADR-0014 決定 8・決定 10）。
+  // 0 件（空振り）の判定は共有モジュールへ寄せる（ADR-0014 決定 8。集約は #135 設計正本 D10）。
   // 同型の条件式を各スクリプトへ手書きすると「片側だけ直す」の再発源になる。
   if (hasZeroScanTargets(targets.length)) {
     console.error(`[list-scan-targets] ${kind} の対象が 0 件です（検査が空振りします）`);

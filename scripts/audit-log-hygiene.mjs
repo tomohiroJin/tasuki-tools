@@ -327,7 +327,7 @@ function main() {
   const drift = diffTargets(declared, packages);
   if (hasTargetDrift(drift)) {
     console.error(
-      formatTargetDiff("audit-log-hygiene", drift, `${SCANNED_PACKAGES.length} パッケージ`),
+      formatTargetDiff("audit-log-hygiene", drift, `${SCAN_DIRS.length} パッケージ`),
     );
     process.exit(1);
   }
@@ -340,7 +340,7 @@ function main() {
   // 走査量と未走査 .tsx の件数は、成否によらず必ず出す（#135 D5・E7）。
   // 違反が出ているときこそ「何を見ていないか」が要る（分岐の前にまとめる）。
   console.log(
-    `[audit-log-hygiene] 走査対象: ${SCANNED_PACKAGES.length} パッケージ / ${scanned.size} ファイル`,
+    `[audit-log-hygiene] 走査対象: ${SCAN_DIRS.length} パッケージ / ${scanned.size} ファイル`,
   );
   console.log(
     `  走査していない .tsx: ${countSkippedTsx()} 件` +
@@ -354,10 +354,14 @@ function main() {
   // だけを見る）は素通りし、ファイル 0 件のまま「違反 0 件」で緑になる。
   // 全パッケージを理由つき除外へ移す経路では、パッケージ側の内訳が 0 件になる。
   // `findMissingRequired` は REQUIRED_FILES が走査結果に無ければ結果的に検知するが、
-  // それは副次効果であり明示的な保証ではない。ここで明示的に塞ぐ
-  // （audit-structure.mjs と同じ形）。
+  // それは副次効果であり明示的な保証ではない。ここで明示的に塞ぐ。
+  //
+  // **ガードの形は audit-structure.mjs と同じだが、置き場所は意図的に違う。**
+  // あちらは全単射照合より前（走査前に判る）、こちらは走査と走査量の出力より後。
+  // どちらも「赤の直前に根拠の行が出ている」ことを優先した結果。
+  // 数えるのは宣言の行数ではなく、実際に走査した対象（決定 9）。
   const emptyDimensions = findEmptyScanDimensions([
-    { label: "パッケージ", count: SCANNED_PACKAGES.length },
+    { label: "パッケージ", count: SCAN_DIRS.length },
     { label: "ファイル", count: scanned.size },
   ]);
   if (emptyDimensions.length > 0) {
