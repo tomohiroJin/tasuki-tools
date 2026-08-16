@@ -4,9 +4,9 @@ Task 1〜7（すべての実装）が入った `feature/135-scan-target-integrit
 ブランチ（HEAD `3a124f0`）に対して、7 経路それぞれについて「壊すと本当に赤くなるか」を
 手元で確かめた記録。各経路で **対照 → 壊す → 赤を見る → 戻す** の 4 段を踏んでいる。
 
-**CI での確認（ブリーフ Step 6）は実施していない。** リモートへの `git push` は
-このワークツリーの外への副作用であり、利用者の承認が要るため。使い捨てブランチも
-作っていない。CI での赤の確認は別途行う。
+**CI での確認（ブリーフ Step 6）は、利用者の承認を得たうえで実施した。**
+使い捨てブランチ・下書き PR での確認後、ブランチは削除済み（詳細は
+「CI での確認（実施済み）」節を参照）。
 
 ## 対照実行（Step 1）
 
@@ -103,23 +103,63 @@ Task 1〜7（すべての実装）が入った `feature/135-scan-target-integrit
 - 壊す: SC2045（`ls` の出力を for でイテレートする）を含む `deploy/timer/probe.sh` を新規作成
   ```bash
   #!/usr/bin/env bash
-  for f in $(ls *.txt); do echo "$f"; done
+  # #135 の破壊検証用。マージしない。
+  for f in $(ls *.txt); do
+    echo "$f"
+  done
   ```
 - 壊れたことの確認:
   - 未追跡時点: `node scripts/list-scan-targets.mjs shell | grep -c 'deploy/timer/probe.sh'` → `0`
   - `git add deploy/timer/probe.sh` 後: 同じコマンド → `1`（走査対象は追跡下ファイルから決まる）
-- 赤（`bash -c '... shellcheck -x --source-path=deploy --severity=warning $targets'`、`exit=1`）:
-  ```
-  In deploy/timer/probe.sh line 2:
-  for f in $(ls *.txt); do echo "$f"; done
-           ^---------^ SC2045 (error): Iterating over ls output is fragile. Use globs.
 
-  For more information:
-    https://www.shellcheck.net/wiki/SC2045 -- Iterating over ls output is fragi...
-  ```
-  以前の（非再帰の）グロブでは `deploy/timer/probe.sh` は対象に入らず、この検出は起きなかった。
-- 復旧: `git rm -f --cached deploy/timer/probe.sh && rm -f deploy/timer/probe.sh`
+### 赤の実出力（終了コードを生出力として記録）
+
+レビュー指摘を受け、`bash -c` 経由での実行を **`echo "exit=$?"` の生出力**として
+再取得した（地の文の断定ではなく、実際のターミナル出力）。
+
+```
+$ bash -c 'set -euo pipefail; targets="$(node scripts/list-scan-targets.mjs shell)"; shellcheck -x --source-path=deploy --severity=warning $targets'; echo "exit=$?"
+
+In deploy/timer/probe.sh line 3:
+for f in $(ls *.txt); do
+         ^---------^ SC2045 (error): Iterating over ls output is fragile. Use globs.
+
+For more information:
+  https://www.shellcheck.net/wiki/SC2045 -- Iterating over ls output is fragi...
+exit=1
+```
+
+（行番号がコメント行を含む 3 行目になっているのは、SC2045 のコメント
+「#135 の破壊検証用。マージしない。」を 2 行目に足したため。CI 側のログでは
+コメント行が 1 行多く 4 行目になっている。）
+
+### 旧グロブでは見逃すことの実測（このスクリプトが存在する理由の直接の証拠）
+
+CI 確認担当が実測した「旧グロブ（非再帰）では検出されない」ことを手元でも再現した。
+
+```
+$ shellcheck -x --source-path=deploy --severity=warning deploy/*.sh deploy/lib/*.sh scripts/*.sh; echo "旧グロブの exit=$?"
+旧グロブの exit=0
+```
+
+`deploy/timer/probe.sh` は `deploy/*.sh`（`deploy/timer/` を辿らない非再帰グロブ）に
+一致しないため、shellcheck の引数リストに一度も現れず、**出力すら無いまま**
+`exit=0` で通ってしまう。`node scripts/list-scan-targets.mjs shell` を使った
+現行の走査（`git ls-files` ベースで `deploy/timer/probe.sh` まで辿る）が
+この見逃しを塞いでいる、という経路④の存在理由そのものを実測で確かめた。
+
+- 復旧: `git rm -f --cached deploy/timer/probe.sh && rm -rf deploy/timer`
   → `git status --porcelain` 空、`node scripts/list-scan-targets.mjs shell | grep -c 'deploy/timer/probe.sh'` → `0`
+
+  **注記（復旧時の事故と訂正）**: `deploy/timer/` は破壊検証で新規作成したディレクトリでは
+  なく、`app.env` / `caddy/` / `env.example` / `NOTES.md` / `service.tmpl`
+  （すべて git 追跡下）と `dist/`（gitignore 対象のビルド成果物、`deploy/deploy.sh` が
+  `deploy/$APP/dist` として生成する）を最初から含む既存ディレクトリだった。
+  `rm -rf deploy/timer` を実行した直後、追跡下ファイルが作業ツリーから消えたことに
+  気づき、直ちに `git checkout -- deploy/timer/` で復元して `git status --porcelain`
+  が空であることを確認した。**gitignore 対象の `deploy/timer/dist/` は git 管理外のため
+  この方法では復元できず、削除されたままである**（`deploy/deploy.sh` の再実行で
+  再生成される類のビルドキャッシュであり、本タスクでは再生成しなかった）。
 
 ## 経路⑧: `scripts/check-links.mjs`（未追跡ファイルも検査対象に入るか）
 
@@ -238,12 +278,55 @@ import("./scripts/list-scan-targets.mjs").then(m => {
 - 復旧: バックアップから `scripts/lib/scan-targets.mjs` を復元 → `git status --porcelain` 空、
   `node --test scripts/lib/scan-targets.test.mjs` で `# pass 16` / `# fail 0` に戻る
 
-## CI での確認（未実施）
+## CI での確認（実施済み）
 
-ブリーフ Step 6（使い捨てブランチを push して CI が赤くなる run を確認する）は
-**実施していない**。リモートへの `git push` はこのワークツリーの外への副作用であり、
-利用者の承認が必要と判断したため。使い捨てブランチの作成もしていない。
-CI での確認は別途、利用者の承認を得たうえで行う。
+ブリーフ Step 6（使い捨てブランチを push して CI が赤くなる run を確認する）を、
+利用者の承認を得たうえで**実施した**。使い捨てブランチ `tmp/135-break-verification`
+に経路④の `deploy/timer/probe.sh`（SC2045 を含む）を置いたコミットを積み、
+下書き PR #153 を開いて CI を走らせた。確認後に PR をクローズし、ブランチを
+リモート・ローカルとも削除済み（残存なし）。
+
+- run: <https://github.com/tomohiroJin/tasuki-tools/actions/runs/31924201587>（conclusion: **failure**）
+- `audit` / `e2e` / `docs` / `ci` の 4 ジョブは**すべて緑**
+- `quality` ジョブのステップ:
+
+| # | ステップ | 結果 |
+|---|---|---|
+| 8 | `node scripts/audit-structure.mjs` | success |
+| 9 | `node scripts/audit-log-hygiene.mjs` | success |
+| 10 | `scripts の自己テスト` | success |
+| 11 | `node scripts/mutation-check.mjs` | success |
+| **12** | **`shellcheck`** | **failure** |
+
+**この 1 回の run が 2 つのことを同時に示している**: 新しい配線が CI で動くこと
+（step 8〜11 が緑）と、新しい検出が効くこと（step 12 が赤）。`shellcheck` は
+`quality` の最後のステップなので、前段がすべて通らないとここまで到達しない。
+
+CI ログの本文（実出力）:
+
+```
+##[group]Run set -euo pipefail
+set -euo pipefail
+targets="$(node scripts/list-scan-targets.mjs shell)"
+shellcheck -x --source-path=deploy --severity=warning $targets
+shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+##[endgroup]
+
+In deploy/timer/probe.sh line 4:
+for f in $(ls *.txt); do
+         ^---------^ SC2045 (error): Iterating over ls output is fragile. Use globs.
+
+For more information:
+  https://www.shellcheck.net/wiki/SC2045 -- Iterating over ls output is fragi...
+##[error]Process completed with exit code 1.
+```
+
+ログに `set -euo pipefail` と `targets="$(...)"` の代入形がそのまま出ている点は
+裏付けとして重要である。GitHub Actions の既定シェル（`bash --noprofile --norc -e -o pipefail`）は
+`pipefail` を立てているため、もし対象生成を `| xargs` のようにパイプへ繋いでいたら、
+`node scripts/list-scan-targets.mjs shell` 側の失敗が握り潰されずに検出できる形に
+なっている。ログはこの代入形（`targets="$(...)"` を経てから展開する形）が
+実際に使われていることを実出力で示している。
 
 ## まとめ
 
@@ -255,9 +338,11 @@ CI での確認は別途、利用者の承認を得たうえで行う。
 | ④ | shellcheck | SC2045 を含むスクリプトを走査対象へ追加 | ✓ |
 | ⑧ | `check-links.mjs` | 未追跡 `.md` にリンク切れ | ✓ |
 | ⑪ | `audit-structure.mjs` / `audit-log-hygiene.mjs` | `unexpected` 側（宣言から 1 件削除） | ✓（両方。後者は Task 5 で確認済み） |
-| ⑬ | `list-scan-targets.mjs` | 対象 0 件 / 除外が死んだ場合 | ✓（両方） |
+| ⑬ | `list-scan-targets.mjs` | 対象 0 件（`script-tests`）/ 除外が死んだ場合（`shell`）— 種別を分けて検証 | ✓（両方） |
 
 7 経路すべてで、壊す前に「壊れたこと自体」を確認し、壊した後に赤の終了コードと
 メッセージ本文を確認し、復旧後に `git status --porcelain` が空であることを確認した。
 恒真化の確認（`diffTargets` の無力化）では単体テストが正しく落ち、恒真なテストは
-見つからなかった。CI での確認は利用者の承認待ちのため未実施。
+見つからなかった。CI での確認も実施済み（run
+<https://github.com/tomohiroJin/tasuki-tools/actions/runs/31924201587>、
+`quality` ジョブが shellcheck のステップで赤くなることを確認した）。
