@@ -184,7 +184,8 @@ export const DORMANT_DOCS = [
     prefix: "docs/timer/",
     reason:
       "epic #15 の改名前パス（packages/core・apps/sync・apps/web）を含む当時の記録。" +
-      "ADR は追記のみで書き換えられないため LIVE にできない（#72 E1 で 15 件を実測）",
+      "ADR は追記のみで書き換えられないため LIVE にできない" +
+      "（docs/timer/adr/ を LIVE にすると 15 件。docs/timer/ 全体なら 22 件。#72 E1 で実測）",
   },
   { prefix: "docs/poker/specs/", reason: "spec-kit 期の仕様・設計。当時の記述を保つのが正しい" },
   {

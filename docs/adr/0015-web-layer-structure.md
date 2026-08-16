@@ -43,9 +43,7 @@ timer-web が後者を持たないためである。
 
 **根拠**: 1 は timer-web の 9 本が、2 は poker-web の `apps/poker-web/src/hooks/useSync.ts` が、それぞれ
 **現に動いている実装として存在する**。どちらも「将来こうなるかもしれない」という
-予測ではない。MUST 2 が求める同期フックへの集約は、フック単体テストが 2 つ目の
-利用者になるため [`docs/adr/0007`](./0007-abstraction-criteria.md) の基準 1
-（2026-08-17 の追記を含む）を満たす。
+予測ではない。
 
 ## 影響
 
@@ -57,4 +55,9 @@ timer-web が後者を持たないためである。
 - MUST 2 の機械検査は **E4 が置く**。E1 で先に置くと、E1 はコードを直さないため
   CI が赤になるからである。検査は**無状態の許可リスト方式**（`apps/timer-web/src/sync/client.ts` を
   import してよいのは同期フック 1 本だけ）で書く。手書きの字句解析は採らない。
+  **対象は `apps/*-web/src` 配下のみとし、テストは対象外とする** — `apps/timer-web/test/sync/client.dispose.test.ts` ほか 3 本が
+  `apps/timer-web/src/sync/client.ts` を直接 import しているため（2026-08-17 実測）。
+- MUST 2 を適用する E4 は、同期フックの単体テストを同じ PR で追加する
+  （[`docs/adr/0007`](./0007-abstraction-criteria.md) 追記の条件）。現状 `apps/poker-web/tests/` に
+  `usePokerSync` の単体テストは無い。
 - 利用者から見える振る舞い（公開 URL・プロトコル・画面の挙動）は変えない。

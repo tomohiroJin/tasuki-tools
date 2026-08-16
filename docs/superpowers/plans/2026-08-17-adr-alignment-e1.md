@@ -186,9 +186,7 @@ timer-web が後者を持たないためである。
 
 **根拠**: 1 は timer-web の 9 本が、2 は poker-web の `hooks/useSync.ts` が、それぞれ
 **現に動いている実装として存在する**。どちらも「将来こうなるかもしれない」という
-予測ではない。MUST 2 が求める同期フックへの集約は、フック単体テストが 2 つ目の
-利用者になるため [`docs/adr/0007`](./0007-abstraction-criteria.md) の基準 1
-（2026-08-17 の追記を含む）を満たす。
+予測ではない。
 
 ## 影響
 
@@ -200,6 +198,11 @@ timer-web が後者を持たないためである。
 - MUST 2 の機械検査は **E4 が置く**。E1 で先に置くと、E1 はコードを直さないため
   CI が赤になるからである。検査は**無状態の許可リスト方式**（`sync/client` を
   import してよいのは同期フック 1 本だけ）で書く。手書きの字句解析は採らない。
+  **対象は `apps/*-web/src` 配下のみとし、テストは対象外とする** — `test/sync/client.dispose.test.ts` ほか 3 本が
+  `sync/client.ts` を直接 import しているため（2026-08-17 実測）。
+- MUST 2 を適用する E4 は、同期フックの単体テストを同じ PR で追加する
+  （[`docs/adr/0007`](./0007-abstraction-criteria.md) 追記の条件）。現状 `apps/poker-web/tests/` に
+  `usePokerSync` の単体テストは無い。
 - 利用者から見える振る舞い（公開 URL・プロトコル・画面の挙動）は変えない。
 ```
 
@@ -592,7 +595,8 @@ node --test scripts/check-links.test.mjs 2>&1 | tail -20
     prefix: "docs/timer/",
     reason:
       "epic #15 の改名前パス（packages/core・apps/sync・apps/web）を含む当時の記録。" +
-      "ADR は追記のみで書き換えられないため LIVE にできない（#72 E1 で 15 件を実測）",
+      "ADR は追記のみで書き換えられないため LIVE にできない" +
+      "（docs/timer/adr/ を LIVE にすると 15 件。docs/timer/ 全体なら 22 件。#72 E1 で実測）",
   },
 ```
 
@@ -752,7 +756,7 @@ wc -l /tmp/t0007-before.txt /tmp/t0008-before.txt
 ## 追記（2026-08-17・#72 E1）
 
 **決定の 4 項目目「BYOK は休眠残置: `apps/web/src/ai/{byok,key-storage}.ts` は UI から
-撤去し将来の再有効化に備えて残す」は、その後に覆されている。**
+撤去し将来の再有効化に備えて残す」は、その後に実装によって失効している。**
 
 両ファイルは #28 の T010（コミット `7d7a73c`「refactor: BYOK 系の休眠コードを撤去する」）
 で削除された。現在 `apps/timer-web/src/ai/` にあるのは `no-ai.ts` と `provider.ts` の

@@ -2,9 +2,9 @@
 
 - **ステータス**: Accepted（2026-08-17）
 - **関連**: [#72](https://github.com/tomohiroJin/tasuki-tools/issues/72)（ADR に沿ったリファクタリング）/
-  `docs/adr/0016`（ドメインの表現は選択制とし、揃える点を定める。本 ADR はその決定 1 に基づく記録）/
-  `docs/adr/0005`（Result と境界検証）/
-  `docs/adr/0007`（抽象の導入基準）
+  [`docs/adr/0016`](../../adr/0016-core-domain-representation.md)（ドメインの表現は選択制とし、揃える点を定める。本 ADR はその決定 1 に基づく記録）/
+  [`docs/adr/0005`](../../adr/0005-result-and-boundary-validation.md)（Result と境界検証）/
+  [`docs/adr/0007`](../../adr/0007-abstraction-criteria.md)（抽象の導入基準）
 
 ## 背景
 

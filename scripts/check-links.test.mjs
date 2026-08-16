@@ -348,6 +348,15 @@ describe("classifyDocs", () => {
     assert.deepEqual(unclassified, ["docs/poker/adr/0001-poker-domain-direct-transition.md"]);
   });
 
+  test("DORMANT_DOCS のどのエントリも LIVE_DOCS のエントリを包含しない", () => {
+    // Given: 包含があると、LIVE の行を消したとき配下が休眠へ吸収され無所属にならない（#135 経路③）
+    // When / Then
+    for (const d of DORMANT_DOCS) {
+      const swallowed = LIVE_DOCS.filter((e) => e.startsWith(d.prefix));
+      assert.deepEqual(swallowed, [], `${d.prefix} が LIVE_DOCS の ${swallowed.join(", ")} を包含しています`);
+    }
+  });
+
   test("除外には理由が書かれている", () => {
     // Given / When / Then
     for (const d of DORMANT_DOCS) {
