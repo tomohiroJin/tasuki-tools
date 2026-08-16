@@ -22,16 +22,43 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  listWorkspacePackages,
+  diffTargets,
+  hasTargetDrift,
+  formatTargetDiff,
+} from "./lib/scan-targets.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SCRIPT_DIR, "..");
 
-/** 走査するディレクトリ（リポジトリルート起点）。 */
-export // packages/rate-limit/src を含める（最終レビュー W-3）。生の IP を最も直接扱う
-// モジュール（client-key.ts）が走査対象の外にあり、そこへ console.info(...) で
-// 生の IP を出しても検査が沈黙して緑のままになる欠陥が実証された。
-// Task 2 の構造監査（audit-structure.mjs）の盲点と同型（走査対象の消失）。
-const SCAN_DIRS = ["apps/timer-sync/src", "apps/poker-sync/src", "packages/rate-limit/src"];
+/**
+ * 走査するパッケージ（リポジトリルート起点）。各パッケージの `src/` 配下の `.ts` を見る。
+ *
+ * **ハードコードの配列をやめ、workspace の実体と全単射で照合する**（#135 経路⑪）。
+ * 以前は timer-sync・poker-sync・rate-limit の 3 つだけを見ており、新設パッケージは
+ * 黙って対象外になった。packages/rate-limit（生の IP を最も直接扱う）が実際に
+ * 素通りし、最終レビューで人が気づくまで緑のままだった。
+ */
+export const SCANNED_PACKAGES = [
+  "apps/landing",
+  "apps/poker-sync",
+  "apps/poker-web",
+  "apps/timer-sync",
+  "apps/timer-web",
+  "packages/poker-core",
+  "packages/protocol",
+  "packages/rate-limit",
+  "packages/timer-core",
+];
+
+/** 走査から外すパッケージ。**理由が要る。** 実在しなくなったら落ちる。 */
+export const EXCLUDED_PACKAGES = [
+  { pkg: "packages/ui", reason: "TS を 1 つも持たない（CSS トークンとフォントのみ）" },
+  { pkg: "e2e", reason: "src/ を持たない。テストコードのログ経路は本検査の対象外" },
+];
+
+const SCAN_DIRS = SCANNED_PACKAGES.map((pkg) => `${pkg}/src`);
 
 /**
  * 禁止構文を置いてよいファイル。**行に許可マーカーが必要。**
@@ -268,7 +295,42 @@ function readTsFiles(rootDir) {
   return result;
 }
 
+/**
+ * 走査対象ディレクトリにある `.tsx` の件数を数える（走査はしない）。
+ *
+ * **見ていないものを黙っていない**ための出力（#135 D7）。射程を `.ts` に
+ * 据え置く判断そのものは別 Issue で行う。
+ */
+function countSkippedTsx() {
+  let n = 0;
+  for (const dir of SCAN_DIRS) {
+    const abs = path.join(REPO_ROOT, dir);
+    if (!fs.existsSync(abs)) continue;
+    const walk = (d) => {
+      for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+        if (e.name === "node_modules" || e.name === "dist") continue;
+        const full = path.join(d, e.name);
+        if (e.isDirectory()) walk(full);
+        else if (e.name.endsWith(".tsx")) n++;
+      }
+    };
+    walk(abs);
+  }
+  return n;
+}
+
 function main() {
+  // 走査対象の宣言が workspace の実体とずれていないかを最初に見る（#135 経路⑪）。
+  const packages = listWorkspacePackages(REPO_ROOT);
+  const declared = [...SCANNED_PACKAGES, ...EXCLUDED_PACKAGES.map((e) => e.pkg)];
+  const drift = diffTargets(declared, packages);
+  if (hasTargetDrift(drift)) {
+    console.error(
+      formatTargetDiff("audit-log-hygiene", drift, `${SCANNED_PACKAGES.length} パッケージ`),
+    );
+    process.exit(1);
+  }
+
   const scanned = new Map();
   for (const dir of SCAN_DIRS) {
     for (const [k, v] of readTsFiles(dir)) scanned.set(k, v);
@@ -292,7 +354,13 @@ function main() {
     console.error(`\n${problems.length} 件の問題があります（走査 ${scanned.size} ファイル）`);
     process.exit(1);
   }
-  console.log(`ログ衛生 OK（走査 ${scanned.size} ファイル）`);
+  console.log(
+    `ログ衛生 OK（走査 ${scanned.size} ファイル / ${SCANNED_PACKAGES.length} パッケージ）`,
+  );
+  console.log(
+    `  走査していない .tsx: ${countSkippedTsx()} 件` +
+      "（ブラウザの console が ADR 0012 D1 の射程に入るかは別 Issue で判断する）",
+  );
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) main();
