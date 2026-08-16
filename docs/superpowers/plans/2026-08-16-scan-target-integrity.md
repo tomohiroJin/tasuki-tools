@@ -22,6 +22,7 @@
 - **`check-links` の存在判定を未追跡ファイルへ広げてはならない**（MUST NOT）。ローカル緑・CI 赤の食い違いを生む。走査対象だけを広げる。
 - **件数の下限を直書きしてはならない**（MUST NOT）。下限を下げるのが赤を消す最短経路になり、対応表から項目を消すのと同じ穴になる。
 - **除外には理由を必須とする。** 除外に書いた対象が実在しなくなったら落とす。
+- **破壊検証は必ずコミットしてから行う**（MUST）。復元に使う `git checkout -- <file>` は、演習の一時変更だけでなく**未コミットの実装ごと消す**（既知の罠 24。Task 5 で実際に踏んだ）。
 - コメント・docstring・テスト名は日本語。テストは Given / When / Then のコメントを置く（SC032）。
 - コミットは Conventional Commits ＋日本語本文。`main` へ直接コミットしない。作業ブランチは `feature/135-scan-target-integrity`。
 
@@ -1412,7 +1413,22 @@ git ls-files '*.md' | wc -l
 
 **件数を計画へ直書きしない。** この計画自身のコミットで増えるため、実行時に数える。
 
-- [ ] **Step 6: 壊して赤を確認する（経路③）**
+- [ ] **Step 6: コミット（破壊検証の前に必ず行う）**
+
+```bash
+git add scripts/check-links.mjs scripts/check-links.test.mjs
+git commit -m "feat: リンク検査を全分割にし、走査対象へ未追跡文書を含める（#135 経路③⑧）
+
+- 追跡下の全 *.md を LIVE_DOCS か DORMANT_DOCS のどちらかへ必ず分類する
+- エントリを削っても緑になっていた経路を塞ぐ（各エントリの一致件数では塞げない）
+- 走査対象に未追跡かつ gitignore 対象外を含める。存在判定は追跡下のまま
+- SECURITY.md をリンク検査の対象へ入れる"
+```
+
+**この順序を崩さないこと。** 次の Step が復元に使う `git checkout -- scripts/check-links.mjs` は、
+コミット前だと**実装ごと消す**（罠 24。Task 5 で実際に踏んだ）。
+
+- [ ] **Step 7: 壊して赤を確認する（経路③）**
 
 ```bash
 sed -i 's#^  "docs/guides/",$##' scripts/check-links.mjs
@@ -1424,7 +1440,7 @@ git checkout -- scripts/check-links.mjs
 期待: `LIVE_DOCS にも DORMANT_DOCS にも属さない文書があります: docs/guides/...` が 7 件、`exit=1`。
 **以前は同じ操作で「リンク検査 OK」・exit=0 になっていた。**
 
-- [ ] **Step 7: 壊して赤を確認する（経路⑧）**
+- [ ] **Step 8: 壊して赤を確認する（経路⑧）**
 
 ```bash
 mkdir -p docs/guides && cat > docs/guides/tmp-broken.md <<'EOF'
@@ -1438,17 +1454,13 @@ rm docs/guides/tmp-broken.md
 期待: 未追跡のまま `packages/no-such-package/src/index.ts` が検出されて `exit=1`。
 **以前は未追跡なので走査されず exit=0 だった。**
 
-- [ ] **Step 8: コミット**
+- [ ] **Step 9: 後始末を確認する**
 
 ```bash
-git add scripts/check-links.mjs scripts/check-links.test.mjs
-git commit -m "feat: リンク検査を全分割にし、走査対象へ未追跡文書を含める（#135 経路③⑧）
-
-- 追跡下の全 *.md を LIVE_DOCS か DORMANT_DOCS のどちらかへ必ず分類する
-- エントリを削っても緑になっていた経路を塞ぐ（各エントリの一致件数では塞げない）
-- 走査対象に未追跡かつ gitignore 対象外を含める。存在判定は追跡下のまま
-- SECURITY.md をリンク検査の対象へ入れる"
+git status --porcelain
 ```
+
+期待: 空。破壊検証で作った一時ファイルが残っていないこと。
 
 ---
 
