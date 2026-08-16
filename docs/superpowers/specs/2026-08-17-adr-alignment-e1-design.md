@@ -10,8 +10,14 @@
 #72「ADR に沿ったリファクタリング（振る舞い不変）」を、6 つの部分系へ分解し、
 その第 1 部分系 **E1（規範の空白を埋める）** を設計する。
 
-E1 は **`apps/` と `packages/` を 1 行も変えない**。決めるだけの段階であり、
-適用は E2〜E6 が行う。
+E1 は**規範を決め、現行 ADR と実態のずれを解消する段階**である。振る舞いを変える
+コード変更（ポート/アダプタ再編・画面の分割など）は行わず、それらは E2〜E6 が担う。
+E1 が触るコードは `scripts/check-links.mjs` と `apps/timer-web/src/App.tsx` の
+docstring 2 行のみで、`packages/` は 1 行も変えない。
+
+**当初は「`apps/` `packages/` を 1 行も変えない」としていたが、利用者判断
+（2026-08-17）により、現行 ADR と実態のずれを後続 Issue へ切り出さず #72 の中で
+解消する方針となったため、その範囲でコードに触れる。**
 
 ## 背景
 
@@ -51,7 +57,7 @@ ADR-0004 と憲法 VI のみ」と書いたが、これは横断 ADR しか見�
 
 | | 部分系 | 中身 | 依存 | 危険度 |
 |---|---|---|---|---|
-| **E1** | 規範の空白を埋める | ADR-0007 追記 / ADR-0015・0016 新設 / `docs/poker/adr/0001` 新設 / ガイド更新 / sub-Issue 起票。**`apps/` `packages/` は不変** | — | 低 |
+| **E1** | 規範の空白を埋める＋**現行 ADR の実態整合** | ADR-0007 追記 / ADR-0015・0016 新設 / `docs/poker/adr/0001` 新設 / **timer ADR 0007・0008 へ追記** / ガイド更新 / #72 本文の再定義 / sub-Issue 起票。コード変更は `scripts/check-links.mjs` と `App.tsx` の docstring 2 行のみ | — | 低 |
 | **E2** | poker-sync のポート/アダプタ再編 | `server.ts` 426 行を `ports/` `adapters/` `application/` へ分解し、組み立てを 1 関数へ集約（ADR-0004 の MUST）。**ログ出力を増やさない**（増やすと ADR-0012 の繰り越し条件が発火してロガ導入が必須になる） | — | 高 |
 | **E3** | ドメインの副作用除去 | `packages/timer-core/src/problem.ts:70` の `Date.now()` をポート注入へ。根拠は憲法 VI と `docs/timer/adr/0002`（どちらも既存）であり、**E1 の新 ADR には依存しない** | — | 中 |
 | **E4** | web 層の再編 | timer-web / poker-web を ADR-0015 へ寄せる | E1 | 高 |
@@ -95,7 +101,9 @@ ADR-0004 のポート/アダプタは、本番アダプタが 1 つしか無く�
 | ③ | core のドメイン表現規約 | `docs/adr/0016`（新規・横断） | 決定 |
 | ④ | poker が直接遷移を採る根拠 | `docs/poker/adr/0001`（新規。ディレクトリごと新設） | 決定 |
 | ⑤ | 層対応表・判断フローへの反映 | `docs/guides/architecture.md` | 手順 |
-| ⑥ | #72 の再定義と E2〜E6 の起票 | GitHub Issues（EARS） | 要求 |
+| ⑥ | #72 の完了条件の再定義と E2〜E6 の起票 | GitHub Issues（EARS） | 要求 |
+| ⑦ | **`docs/timer/adr/0007`・`0008` へ実態の追記** | 各 ADR の末尾へ**追記** | 記録の整合 |
+| ⑧ | **`apps/timer-web/src/App.tsx:39-40` の docstring 修正** | コード | ⑦のコード側 |
 
 **①をガイドへ移設しない理由:** ADR-0007 の 3 基準は ADR の「決定」節そのものであり、
 ADR-0002 は ADR を「追記のみ。覆すときは Superseded」と定めている。ガイドへ移すと
@@ -238,7 +246,10 @@ ADR は追記のみのため書き換えない」に書き直す**（記録の�
 | 5 | `scripts/check-links.mjs` の `LIVE_DOCS` に `docs/poker/adr/` を追加、`DORMANT_DOCS` の timer の理由を修正 |
 | 6 | `docs/adr/README.md` に 0015・0016 を追加 |
 | 7 | `docs/guides/architecture.md` の層対応表・判断フローを更新 |
-| 8 | #72 本文を再定義し、E2〜E6 を sub-Issue として起票（EARS 記法） |
+| 8 | `docs/timer/adr/0007` へ追記（トークン保持は `application/token-store.ts` へ切り出し済み。決定の意図＝モジュールグローバル回避は維持） |
+| 9 | `docs/timer/adr/0008` へ追記（BYOK 休眠残置は #28 T010・コミット `7d7a73c` で撤去済み。サーバー常駐生成の決定本体は有効） |
+| 10 | `apps/timer-web/src/App.tsx:39-40` の docstring を実装に合わせる（削除済み `key-storage` への言及を消す） |
+| 11 | #72 本文の完了条件を再定義し、E2〜E6 を sub-Issue として起票（EARS 記法） |
 
 ## DoD 8 項目の当てはめ
 
@@ -262,8 +273,12 @@ ADR は追記のみのため書き換えない」に書き直す**（記録の�
 1. `docs/adr/0007` に追記があり、**既存 3 基準の差分が 0 行**である（`git diff` で示す）
 2. `docs/adr/0015` `0016` `docs/poker/adr/0001` が存在し、`docs/adr/README.md` から到達できる
 3. `docs/poker/adr/` 配下に壊れたパス参照を一時的に置くと **check-links が終了コード 1 になる**ことを実測した（破壊検証。壊れたこと自体を `grep` で先に確認し、確認後に元へ戻す）
-4. **`git diff --stat` で `apps/` と `packages/` の差分が 0 行**である
-5. E2〜E6 が Issue として起票され、#72 本文が再定義されている
+4. **`git diff --stat` で `packages/` の差分が 0 行**であり、`apps/` の差分は
+   `App.tsx` の docstring 2 行のみである
+5. `docs/timer/adr/0007` と `0008` に実態の追記があり、**既存の「決定」節の差分が 0 行**である
+6. `apps/timer-web/src/App.tsx` から、削除済み `key-storage` への言及が消えている
+   （`grep -rn "key-storage" apps/ packages/` が 0 件）
+7. **#72 本文の完了条件が再定義され**、E2〜E6 が Issue として起票されている
 
 ## E2〜E6 の起票に書くこと
 
@@ -313,20 +328,25 @@ E1 はコードを直さないので CI が赤になるためである。
 **#33（`docs/plans/adr-alignment-post-refactor/`）が #28 後の ADR 整合を扱ったが、
 論点 1〜3（ADR-0009・0002・0001）に限定しており、0007 と 0008 は取り残された。**
 
-### 欠陥 3（重大）— 完了条件が字義どおりには満たせない
+### 欠陥 3（重大）— 完了条件が字義どおりには満たせない → **#72 の定義を変えて対処する**
 
 #72 の完了条件「ADR に書いた構造と、実際のコードが一致している」を字義どおり適用すると、
 **timer ADR は epic #15 の改名前パス（`packages/core` `apps/sync` `apps/web`）で
 書かれているため永久に一致しない。** ADR は追記のみで書き換えられない。
 
-**対処:** 完了条件の射程を次のとおり限定して #72 本文へ明記する。
+**対処（利用者判断・2026-08-17）: 後続 Issue へ切り出さず、#72 の中でけりを付ける。**
+先送りすると新しい振る舞いの実装がその分だけ遅れるため。**#72 の完了条件を次のとおり
+再定義し、Issue 本文を書き換える。**
 
-- **一致を求める対象**: 横断 ADR（`docs/adr/`）と、現行パスで書かれたアプリ固有 ADR
-- **一致を求めない対象**: 改名前のパス・撤去済みの構成を記述している箇所
-  （当時の記録として正しい）
-- **決定の意図と実装の手段が食い違っている箇所**（`docs/timer/adr/0007`・`0008`）は
-  **#72 では直さず、別 Issue（#33 と同型の「ADR を実態に合わせる」作業）へ切り出す。**
-  ADR の追記は #72 の「振る舞い不変のリファクタリング」とは性質が違うため
+> **現在も有効な ADR の決定が、実際のコードと一致している。一致しない箇所は、
+> コードを直すか、ADR へ追記して経緯を残すかのどちらかで解消されている。**
+>
+> - 改名前のパス表記など「当時の記録として正しい」記述は一致の対象外とする
+>   （ADR は追記のみであり、書き換えは規則違反）
+> - `Superseded` が宣言済みの ADR（`docs/timer/adr/0005` `0010`）は対象外
+> - **決定の手段と実装が食い違う箇所は、#72 の中で ADR へ追記して解消する**
+
+この再定義により、**欠陥 2 の 2 件は E1 の作業範囲に入る**（下記 ⑦）。
 
 ### 欠陥 4（中）— E2 が ADR-0012 の繰り越しを踏みうる
 
@@ -338,20 +358,81 @@ E2 の必須作業になる。** E2 の Issue に「ログ出力を増やさな�
 なお `scripts/audit-log-hygiene.mjs` は `apps/poker-sync/src` を走査対象に含むため、
 許可マーカーの無い直接出力は増やせない（ADR-0012・**MUST NOT**）。検査は既に効いている。
 
-### 検証しきれていないもの（正直な申し送り）
+### 申し送りは残さない — 未検証だった 3 点をすべて実測した（2026-08-17）
 
-- `docs/timer/adr/0003`（`ServerClock` 一本化）と実装の一致は未検証。**E4 の着手前に測る**
-- ADR-0015 の根拠にした「timer-web の `ui/*.ts` が純粋関数である」「poker-web の
-  `hooks/useSync.ts` が WS 配線を集約している」は、**ファイル名と配置から推定したもので、
-  中身を読んで確かめていない。E4 の設計時に実測する**
-- `docs/timer/adr/0005`（秘密ゼロ BYOK）は 0008 に置き換わっているように読めるが、
-  Superseded の宣言があるかを確認していない
+| 対象 | 結果 |
+|---|---|
+| `docs/timer/adr/0003`（`ServerClock` 一本化） | **一致。** `ServerClock` の 6 フィールドは `packages/timer-core/src/aggregate.ts:32-` に実在。`apps/timer-web/src/ui/use-now-tick.ts` の `setInterval` は 200ms ごとに `now` を更新して**再描画するだけ**で、残り時間は状態から導出している。クライアントがローカル時計でカウントを進めてはいない |
+| `docs/timer/adr/0005`（秘密ゼロ BYOK） | **問題なし。** 本文・README とも `Superseded by ADR-0008` を宣言済み |
+| ADR-0015 の根拠（推定だった 2 点） | **実測で確認。** 下記 |
+
+**ADR-0015 の根拠の実測:**
+
+- timer-web の切り出し済み 9 関数（`ui/screen.ts` `error-action.ts` `host-change.ts`
+  `problem-generation.ts` `join-driver-intent.ts` `connection-status.ts` `room-param.ts`
+  `sync/notice-message.ts` `sync/sync-url.ts`）は、**すべて副作用 0 件・React フック 0 件**
+  （`Date.now` `Math.random` `fetch` `localStorage` `window.` `document.` と
+  `useState` `useEffect` `useRef` を grep）。12〜63 行の小さな純粋関数である
+- poker-web の `hooks/useSync.ts` は **176 行**で、`wsRef` と `open` / `close` / `message`
+  の 3 リスナを 1 つの `useEffect` に閉じ込め、接続まわりの状態 7 個を保持している。
+  **WS 配線の集約は実在する**
+
+### ついでに測った 2 点
+
+- **`docs/timer/adr/0004`（full snapshot 同期）は一致。** `packages/timer-core/src/schemas.ts`
+  に `type: v.literal("snapshot")` が 1 件のみで、差分・revision の型は無い
+- **`docs/timer/adr/0008` の不一致は「BYOK 休眠残置」の 1 節だけ。** 決定の本体である
+  サーバー常駐生成は実在する（`apps/timer-sync/src/adapters/claude-cli-problem-provider.ts` /
+  `application/ai-limits.ts`）
+
+## ADR 24 本の実態一致（2026-08-17 実測・main `4449f20`）
+
+「けじめを付ける」ため、**横断 14 本とアプリ固有 10 本のすべて**について実態との一致を
+測った。宛先が空欄のものは対処不要である。
+
+### 横断 ADR（`docs/adr/`）
+
+| ADR | 一致の状況 | 宛先 |
+|---|---|---|
+| 0001 デザインシステムの範囲 | **一致**。`packages/ui/src/{tokens,elements,fonts}` が実在（#78 で適用済み） | — |
+| 0002 文書体系の三層 | 文書規範。コードは対象外 | — |
+| 0003 アジャイル運用 | プロセス規範。コードは対象外 | — |
+| 0004 ポート/アダプタ標準 | **不一致**。poker-sync が `ports/` `adapters/` `application/` を持たない | **E2** |
+| 0005 Result と境界検証 | **一致**。`neverthrow` 6 / `valibot` 5 パッケージを `package.json` で実測 | — |
+| 0006 テスト規約 | **不一致**。SC029 15 / SC030 3 / SC031 3 / SC032 84.2% | **E6** |
+| 0007 抽象化の基準 | 判断基準。コードは対象外。「利用者」の数え方を追記する | **E1 ①** |
+| 0008 依存と供給網 | **一致**。`pnpm-workspace.yaml` に `minimumReleaseAge: 10080` / `allowBuilds` / `overrides` が実在 | — |
+| 0009 CI の範囲と検査 | **一致**。`.github/workflows/ci.yml` のジョブは `ci` `audit` `e2e` `docs` `quality` の 5 本 | — |
+| 0010 trustPolicy | **一致**。`trustPolicy: no-downgrade` と `trustPolicyExclude` が実在 | — |
+| 0011 脅威モデルとデータ分類 | 設計規範。コードは対象外 | — |
+| 0012 ログ・秘密・露出 | **一致**。`audit-log-hygiene` が終了コード 0（走査 9 パッケージ / 120 ファイル）。ただし `.tsx` 47 件は射程外（既知の限界・#157） | — |
+| 0013 PR 粒度 | プロセス規範。**#72 本文の「1 PR で 1 つの構造変更」が既定「1 Issue = 1 PR」と食い違う** | **E1 ⑪** |
+| 0014 走査対象の健全性 | **一致**。#135・#158 で適用済み | — |
+
+### アプリ固有 ADR（`docs/timer/adr/`）
+
+| ADR | 一致の状況 | 宛先 |
+|---|---|---|
+| 0001 モノレポ + 共有 core | 決定は有効。本文は改名前パスで書かれた当時の記録（#33 が追記済み） | — |
+| 0002 Decider と純粋ドメイン | **不一致 1 件**。「`Date.now()` をドメイン内で呼ばない」に `problem.ts:70` が違反 | **E3** |
+| 0003 サーバー権威 `ServerClock` | **一致**。6 フィールドが `aggregate.ts:32-` に実在。`use-now-tick.ts` は再描画のみでローカル計数をしていない | — |
+| 0004 full snapshot 同期 | **一致**。`schemas.ts` に `snapshot` 型 1 件のみ、差分・revision の型は無い | — |
+| 0005 秘密ゼロ + BYOK | `Superseded by ADR-0008` を宣言済み。対象外 | — |
+| 0006 Result と境界検証 | `docs/adr/0005` へ昇格済み | — |
+| 0007 揮発インメモリ | **不一致**。トークン保持は `application/token-store.ts` へ切り出し済みで、決定が指定した「`makeHandlers` のクロージャ内 `Map`」ではない | **E1 ⑦** |
+| 0008 サーバー常駐 AI 生成 | **不一致 1 節**。決定本体（サーバー常駐生成）は実在するが、「BYOK 休眠残置」の 2 ファイルは `7d7a73c` で撤去済み | **E1 ⑦⑧** |
+| 0009 テスト規約 | `docs/adr/0006` へ昇格済み | — |
+| 0010 設計文書の正本 | `Superseded by docs/adr/0002` を宣言済み。対象外 | — |
+
+**まとめ: 24 本のうち不一致は 5 件**（横断 0004・0006、timer 0002・0007・0008）。
+うち **2 件は E1 が追記で解消**し、残る 3 件は E2・E3・E6 がコードで解消する。
 
 ## スコープ外
 
-- `apps/` `packages/` の変更 → E2〜E6
+- `apps/` `packages/` の**構造**変更 → E2〜E6（E1 が触るのは docstring 2 行のみ）
 - 憲法の改版 → 不要と判断（上記）
-- `docs/timer/adr/` の LIVE 化 → 実測により見送り（上記）
+- `docs/timer/adr/` の LIVE 化 → 実測により見送り（上記。理由の記述のみ直す）
+- ADR 整合の**別 Issue 切り出し** → **撤回した。**#72 の中で行う（利用者判断・2026-08-17）
 - 構造監査の未達指標の解消 → E6
 - 振る舞いを変える改善 → #72 の外（epic #67 の制約）
 
