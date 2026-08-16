@@ -102,7 +102,7 @@ export function collectAnchors(src) {
 }
 
 /** リポジトリのルート直下で、コードパスの引用があり得るディレクトリ。 */
-const REPO_TOP_LEVEL = /^(packages|apps|scripts|docs|deploy|e2e|\.github|\.specify)\//;
+const REPO_TOP_LEVEL = /^(packages|apps|scripts|docs|deploy|e2e|\.github)\//;
 
 /** バッククォートの中身がリポジトリ内のファイルパスに見えるか。 */
 export function isRepoPathLike(text) {
@@ -182,8 +182,6 @@ export const DORMANT_DOCS = [
   { prefix: "docs/timer/", reason: "timer の作業記録。記録として保持する" },
   { prefix: "docs/poker/", reason: "poker の作業記録。記録として保持する" },
   { prefix: "docs/retrospectives/", reason: "振り返り。当時の記述を保つのが正しい" },
-  { prefix: ".claude/skills/", reason: "AI CLI のスキル定義。リポジトリの文書ではない" },
-  { prefix: ".specify/templates/", reason: "spec-kit の vendor テンプレート" },
   { prefix: "packages/protocol/README.md", reason: "パッケージ README。LIVE_DOCS の粒度に合わない" },
   { prefix: "packages/ui/README.md", reason: "パッケージ README。LIVE_DOCS の粒度に合わない" },
 ];

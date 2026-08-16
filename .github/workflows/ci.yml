@@ -230,7 +230,7 @@ jobs:
         if: steps.scope.outputs.code == 'true'
 
       # shellcheck。対象は git から導出する（グロブが非再帰でサブディレクトリの
-      # .sh が無検査だった。#135 経路④）。.specify/scripts/** は vendor（ADR 0009 D6）。
+      # .sh が無検査だった。#135 経路④）。除外は無い（#71 で .specify/ を廃止。ADR 0009 追記）。
       - name: shellcheck
         if: steps.scope.outputs.code == 'true'
         shell: bash
