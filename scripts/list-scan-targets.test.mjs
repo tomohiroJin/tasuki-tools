@@ -22,8 +22,8 @@ describe("selectTargets", () => {
 
   test("除外接頭辞に一致する対象は targets から除かれる", () => {
     // Given: 一部が除外接頭辞に一致する一覧
-    const all = [".specify/scripts/bash/common.sh", "scripts/gen-sounds.sh"];
-    const exclusions = [{ prefix: ".specify/scripts/", reason: "spec-kit の vendor" }];
+    const all = ["vendor/scripts/common.sh", "scripts/gen-sounds.sh"];
+    const exclusions = [{ prefix: "vendor/scripts/", reason: "テスト用の vendor 除外" }];
     // When
     const { targets } = selectTargets(all, exclusions);
     // Then
@@ -42,9 +42,9 @@ describe("selectTargets", () => {
 
   test("除外が複数あり、そのうち 1 つだけが死んでいるとき、その 1 件だけが problems に出る", () => {
     // Given: 生きている除外と死んでいる除外が混在
-    const all = [".specify/scripts/bash/common.sh", "scripts/gen-sounds.sh"];
+    const all = ["vendor/scripts/common.sh", "scripts/gen-sounds.sh"];
     const exclusions = [
-      { prefix: ".specify/scripts/", reason: "spec-kit の vendor" },
+      { prefix: "vendor/scripts/", reason: "テスト用の vendor 除外" },
       { prefix: "does-not-exist/", reason: "テスト用のダミー除外" },
     ];
     // When

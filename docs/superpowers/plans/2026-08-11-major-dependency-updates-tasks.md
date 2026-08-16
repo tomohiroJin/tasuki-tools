@@ -2,7 +2,7 @@
 
 **Input**: [`docs/superpowers/specs/2026-08-11-major-dependency-updates-design.md`](../specs/2026-08-11-major-dependency-updates-design.md)（スペック）/ [`docs/superpowers/plans/2026-08-11-major-dependency-updates.md`](./2026-08-11-major-dependency-updates.md)（実装計画）
 
-**Prerequisites**: 実装計画（必須）・スペックの受け入れ条件（EARS）・[`.specify/memory/constitution.md`](../../../.specify/memory/constitution.md) v2.0.0・[`docs/guides/definition-of-done.md`](../../guides/definition-of-done.md)
+**Prerequisites**: 実装計画（必須）・スペックの受け入れ条件（EARS）・[`docs/constitution.md`](../../constitution.md) v2.0.0・[`docs/guides/definition-of-done.md`](../../guides/definition-of-done.md)
 
 **Tests**: **ユニットテストの新規作成は無し。** 本件はプロダクションコードを書かず、依存の版と設定のみを変更する（憲法 原則 I は各 PR で「該当なし」と明記する）。既存の `pnpm test` が回帰検出を担う。ただし**新しく持ち込む確認手段が 2 つある**ため、それぞれに破壊検証タスクを置く（憲法 原則 VII）。
 

@@ -20,7 +20,8 @@ const REPO_ROOT = execFileSync("git", ["rev-parse", "--show-toplevel"], {
 /**
  * 種別ごとの実体と除外。
  *
- * shell:        `.specify/scripts/**` は spec-kit の vendor（ADR 0009 D6）。
+ * shell:        除外は無い。追跡下の `*.sh` を全件対象にする（#71 で
+ *               `.specify/scripts/**` の vendor 除外が宛先を失ったため。ADR 0009 追記）。
  * script-tests: `scripts/` に限定する。`*.test.mjs` にすると
  *               packages/ui/tests/tokens.test.mjs（ui 自身のテスト）まで拾う。
  *               `scripts/*.test.mjs` は git の `*` が `/` を跨ぐため再帰列挙になる。
@@ -29,9 +30,7 @@ const REPO_ROOT = execFileSync("git", ["rev-parse", "--show-toplevel"], {
 const KINDS = {
   shell: {
     patterns: ["*.sh"],
-    exclusions: [
-      { prefix: ".specify/scripts/", reason: "spec-kit の vendor（ADR 0009 D6）" },
-    ],
+    exclusions: [],
   },
   "script-tests": {
     patterns: ["scripts/*.test.mjs"],

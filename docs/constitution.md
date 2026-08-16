@@ -1,6 +1,28 @@
 <!--
 Sync Impact Report
 ==================
+- Version change: 2.1.3 → 2.1.4（PATCH: 正本のパスを docs/constitution.md へ移し、
+  Governance の改版手続きから「依存テンプレート（plan/spec/tasks）との整合」を削除。
+  原則 I〜XI は 1 文字も変えていない）
+- Rationale: #71。spec-kit 経路（.specify/ の道具部分と .claude/skills/speckit-* 10 本）を
+  廃止した。setup-plan.sh が exit 0 でリポジトリ直下に幽霊 specs/ を作る一方、実運用の
+  設計文書は docs/superpowers/ で回っており、10 本のスキルは AGENTS.md から 1 つも
+  案内されていなかった。憲法の正本が .specify/memory/ に同居していたため、docs/ 直下へ
+  移して三層（憲法・ADR・ガイド）を揃えた。Governance の「依存テンプレートとの整合」は
+  .specify/templates/ の消滅で宛先を失うため削除した。「すべての plan は Constitution
+  Check ゲートを通過しなければならない」は残す — テンプレートを名指ししておらず、
+  docs/superpowers/plans/ の 4 本が ## Constitution Check 節として体現しているため。
+  ゲートの空文化を検出する話は #155 の領分。
+- Modified principles: なし（原則 I〜XI は不変）
+- Templates requiring updates:
+  - 削除 .specify/templates/ — spec-kit 経路ごと廃止（#71）。以後、依存テンプレートは無い
+  - OK AGENTS.md — **見出しに変更が無いため同期作業は不要**（原則 I〜XI の 11 本一致を
+    確認済み）
+
+---
+
+Previous release: 2.1.2 → 2.1.3
+
 - Version change: 2.1.2 → 2.1.3（PATCH: 原則 VII に走査対象の健全性という適用範囲を
   追記。原則の追加・削除・実質的な拡張は無い）
 - Rationale: #135。検査が静かに効かなくなる経路のうち、申し送りにあった 6 経路と
@@ -297,9 +319,8 @@ neverthrow）を基本とする。
 
 - 本憲法は本プロジェクトにおける他のすべてのプラクティス・ガイドラインに優先する
 - **改版手続き**: 改版は ADR を伴う（原則の変更・削除・追加の理由と背景を ADR に
-  記録する）。改版時は Sync Impact Report に変更内容を記録した上で、依存テンプレート
-  （plan/spec/tasks）との整合、および **AGENTS.md の憲法見出しの同期**を確認する
-  （MUST）（`docs/adr/0002` 決定 5）
+  記録する）。改版時は Sync Impact Report に変更内容を記録した上で、
+  **AGENTS.md の憲法見出しの同期**を確認する（MUST）（`docs/adr/0002` 決定 5）
 - **バージョニング**: セマンティックバージョニングに従う —
   MAJOR: 原則の削除・後方互換性のない再定義 /
   MINOR: 原則・セクションの追加または実質的な拡張 /
@@ -308,4 +329,4 @@ neverthrow）を基本とする。
   通過しなければならない。原則からの逸脱は Complexity Tracking での
   正当化なしに認めない
 
-**Version**: 2.1.3 | **Ratified**: 2026-07-16 | **Last Amended**: 2026-08-16
+**Version**: 2.1.4 | **Ratified**: 2026-07-16 | **Last Amended**: 2026-08-16

@@ -5,7 +5,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 
 ## 絶対規則
 
-正本は [`.specify/memory/constitution.md`](.specify/memory/constitution.md)。以下は
+正本は [`docs/constitution.md`](docs/constitution.md)。以下は
 その見出し（原則 I〜XI）を転記したものに過ぎない。内容・詳細は必ず正本を参照すること。
 
 - I. テスト駆動開発（NON-NEGOTIABLE）
@@ -28,7 +28,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 
 ## 文書地図
 
-- 憲法: [`.specify/memory/constitution.md`](.specify/memory/constitution.md) —
+- 憲法: [`docs/constitution.md`](docs/constitution.md) —
   何を守るか（原則 I〜XI）
 - ADR: [`docs/adr/`](docs/adr/)（横断）・`docs/<app>/adr/`（アプリ固有） —
   なぜそう決まっているか。参照は置き場つき（例: `docs/adr/0002`）

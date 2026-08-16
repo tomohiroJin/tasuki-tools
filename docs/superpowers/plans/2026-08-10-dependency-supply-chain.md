@@ -10,7 +10,7 @@
 
 ## Constitution Check
 
-憲法（[`.specify/memory/constitution.md`](../../../.specify/memory/constitution.md) v2.0.0）の
+憲法（[`docs/constitution.md`](../../constitution.md) v2.0.0）の
 コンプライアンスゲート。**Phase 0 前と設計後の両方で通過を確認した。**
 
 | 原則 | 判定 | 根拠 |

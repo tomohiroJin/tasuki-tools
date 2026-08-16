@@ -408,5 +408,5 @@ Issue #69 の完了条件を EARS 記法（[`docs/guides/ears-writing.md`](../..
 - 親 epic: [#67](https://github.com/tomohiroJin/tasuki-tools/issues/67)（基盤整備）
 - 前段階: [#68](https://github.com/tomohiroJin/tasuki-tools/issues/68)（規範とアーキテクチャの確立・完了）
 - 次段階との境界: [#70](https://github.com/tomohiroJin/tasuki-tools/issues/70)（CI/CD 整備）
-- 憲法: [`.specify/memory/constitution.md`](../../../.specify/memory/constitution.md)（原則 VII「検査は壊して確かめる」・原則 IX「小さく回す」）
+- 憲法: [`docs/constitution.md`](../../constitution.md)（原則 VII「検査は壊して確かめる」・原則 IX「小さく回す」）
 - DoD: [`docs/guides/definition-of-done.md`](../../guides/definition-of-done.md)

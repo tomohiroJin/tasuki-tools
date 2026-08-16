@@ -5,7 +5,7 @@
   親 epic [#67](https://github.com/tomohiroJin/tasuki-tools/issues/67)）/
   設計正本 [`docs/superpowers/specs/2026-08-13-security-norms-design.md`](../superpowers/specs/2026-08-13-security-norms-design.md) /
   [`docs/adr/0011`](./0011-threat-model-and-data-classification.md)（脅威モデルとデータ分類） /
-  憲法 原則 XI（`.specify/memory/constitution.md`） /
+  憲法 原則 XI（`docs/constitution.md`） /
   [`docs/adr/0008`](./0008-dependency-supply-chain.md)（依存の供給網対策） /
   [`docs/adr/0009`](./0009-ci-scope-and-checks.md)（CI が守る範囲と検査の配置） /
   [`docs/adr/0010`](./0010-trust-policy.md)（trustPolicy による信頼証跡の降格拒否） /

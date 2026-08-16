@@ -2,7 +2,7 @@
 
 **Input**: [`docs/superpowers/specs/2026-08-10-dependency-supply-chain-design.md`](../specs/2026-08-10-dependency-supply-chain-design.md)（スペック）/ [`docs/superpowers/plans/2026-08-10-dependency-supply-chain.md`](./2026-08-10-dependency-supply-chain.md)（実装計画）
 
-**Prerequisites**: 実装計画（必須）・スペックの受け入れ条件（EARS）・[`.specify/memory/constitution.md`](../../../.specify/memory/constitution.md) v2.0.0
+**Prerequisites**: 実装計画（必須）・スペックの受け入れ条件（EARS）・[`docs/constitution.md`](../../constitution.md) v2.0.0
 
 **Tests**: **ユニットテストの新規作成は無し。**この Issue は設定・依存の版・文書のみを変更し、プロダクションコードを書かないため（憲法 原則 I は「該当なし」）。代わりに **DoD 項目 3「新しく足した検査は、わざと壊して赤くなることを確認した」に対応する破壊検証タスク**を各ストーリーに置く（T020・T021・T049・T050）。既存の `pnpm test`（全 1,970 件）は各 PR で回帰確認として回す。
 

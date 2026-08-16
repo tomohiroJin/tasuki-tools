@@ -6,7 +6,7 @@
   [#72](https://github.com/tomohiroJin/tasuki-tools/issues/72)（本 ADR の適用先、poker-sync の再編）/
   [#80](https://github.com/tomohiroJin/tasuki-tools/issues/80)（実 WS 越しの業務プロトコル層の新設、
   本 ADR の根拠となった実測）/
-  `.specify/memory/constitution.md` 原則 VI（依存は内向き）/
+  `docs/constitution.md` 原則 VI（依存は内向き）/
   [`docs/guides/architecture.md`](../guides/architecture.md)（層とディレクトリの対応・判断フローの正本）
 
 ## 背景
@@ -54,7 +54,7 @@ timer-sync 側はテスト用アダプタ（インメモリの store・固定 cl
 （#80）で実際に効いた。ポート/アダプタと配線の一元化が無ければ、同水準の試験を
 poker-sync で組むにはより大きな作業が要る。
 
-本決定は `.specify/memory/constitution.md` 原則 VI「同期サーバーはポート/アダプタ
+本決定は `docs/constitution.md` 原則 VI「同期サーバーはポート/アダプタ
 構成を標準とする」の根拠を記録するものである。
 
 ## 影響
