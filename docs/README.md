@@ -13,7 +13,9 @@ Tasuki の文書は目的ごとに置き場が分かれています。まずこ�
 **機能ごとの設計文書**は [`docs/superpowers/`](./superpowers/) に日付つきのファイル名（例:
 `2026-08-09-<topic>.md`）で置きます（現行のスキル運用の出力先であり、現行運用です）。
 [`docs/plans/`](./plans/) は SDD（Specification-Driven Development）期の記録であり、
-新規の設計文書の追加先ではありません（詳細は [`docs/adr/0002`](./adr/0002-document-system-three-layers.md) を参照）。
+新規の設計文書の追加先ではありません。**`docs/plans/` も `docs/superpowers/` も追記のみで、
+完了しても移動・改名しません**（規約の正本は
+[`docs/adr/0002`](./adr/0002-document-system-three-layers.md) の追記節）。
 
 ## 目的別の入口
 
