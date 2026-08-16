@@ -4,7 +4,7 @@
 - **関連**: [#68](https://github.com/tomohiroJin/tasuki-tools/issues/68)（規範とアーキテクチャの確立、
   親 epic [#67](https://github.com/tomohiroJin/tasuki-tools/issues/67)）/
   `docs/timer/adr/0006`（本 ADR の昇格元）/
-  `.specify/memory/constitution.md` 原則 IV（境界の型安全）/
+  `docs/constitution.md` 原則 IV（境界の型安全）/
   `packages/poker-core/src/protocol.ts:1`（契約の単一情報源の実例）
 
 ## 背景
@@ -33,7 +33,7 @@ Tasuki には現在 timer と poker の 2 系統のドメイン（`packages/time
   コメントをすでに持ち、poker 側もこの決定を前提に実装されている
 
 つまりこの決定は「timer だけの選択」ではなく、すでに事実上プロジェクト全体の
-規約として運用されている。憲法（`.specify/memory/constitution.md`）原則 IV
+規約として運用されている。憲法（`docs/constitution.md`）原則 IV
 「境界の型安全」はこれを条文化したが、条文だけでは根拠が残らない。本 ADR は
 その根拠を記録し、timer 固有の決定を全体標準へ正式に昇格する。
 
@@ -60,7 +60,7 @@ AI 出力の `validateProblem` 検証など）は、本 ADR では扱わない�
 
 ## 影響
 
-- 本決定は `.specify/memory/constitution.md` 原則 IV「境界の型安全」の根拠を
+- 本決定は `docs/constitution.md` 原則 IV「境界の型安全」の根拠を
   記録するものである。
 - 既存の 6/5 パッケージはすでにこの標準に従っており、本 ADR による変更は無い。
   今後新設するパッケージ・アプリ（poker-sync の再編を扱う #72 など）もこの

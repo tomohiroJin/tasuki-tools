@@ -4,7 +4,7 @@
 - **関連**: [#68](https://github.com/tomohiroJin/tasuki-tools/issues/68)（規範とアーキテクチャの確立、
   親 epic [#67](https://github.com/tomohiroJin/tasuki-tools/issues/67)）/
   `docs/timer/adr/0009`（本 ADR の昇格元）/
-  `.specify/memory/constitution.md` 原則 I（テスト駆動開発）・原則 VII（検査は壊して確かめる）/
+  `docs/constitution.md` 原則 I（テスト駆動開発）・原則 VII（検査は壊して確かめる）/
   `scripts/audit-structure.mjs`（SC032 の機械検査）/
   [PR #62](https://github.com/tomohiroJin/tasuki-tools/pull/62)・
   [PR #64](https://github.com/tomohiroJin/tasuki-tools/pull/64)（恒真化を実際に踏んだ実績）
@@ -75,7 +75,7 @@ FR-091〜099・FR-121〜123・SC-029〜032 という要求 ID との対応、
 
 ## 影響
 
-- 本決定は `.specify/memory/constitution.md` 原則 VII「検査は壊して確かめる」の
+- 本決定は `docs/constitution.md` 原則 VII「検査は壊して確かめる」の
   根拠を記録するものである（TDD 自体の根拠は原則 I が既に持つ）。
 - 4 実践のうち 1・3・4 は既にプロジェクト全体で運用されている実践の追認であり、
   新たな作業は発生しない。2（GWT 構造）は本 ADR 採択時点では timer 側でのみ SC032 で

@@ -188,4 +188,4 @@ const matched = constantTimeEqual(provided, expected);
 - 何を守るか: [`docs/adr/0011`](../adr/0011-threat-model-and-data-classification.md)（脅威モデルとデータ分類）
 - どう守るか: [`docs/adr/0012`](../adr/0012-logging-secrets-and-disclosure.md)（ログ・秘密・開示の取り扱い）
 - 書き分けの規則: [`docs/adr/0002`](../adr/0002-document-system-three-layers.md)（文書体系の三層構造）
-- 憲法 原則 XI（秘密と個人情報を持ち込まない）: `.specify/memory/constitution.md`
+- 憲法 原則 XI（秘密と個人情報を持ち込まない）: `docs/constitution.md`

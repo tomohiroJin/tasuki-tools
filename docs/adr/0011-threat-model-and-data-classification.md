@@ -9,7 +9,7 @@
   **#103 設計正本**（2026-08-14 改訂分の出所） [`docs/superpowers/specs/2026-08-14-ip-rate-limit-design.md`](../superpowers/specs/2026-08-14-ip-rate-limit-design.md) /
   [`docs/timer/adr/0005`](../timer/adr/0005-secret-zero-byok-problem.md)（Superseded） /
   [`docs/timer/adr/0008`](../timer/adr/0008-server-resident-ai-generation.md)（秘密ゼロの放棄） /
-  憲法 原則 XI（`.specify/memory/constitution.md`） /
+  憲法 原則 XI（`docs/constitution.md`） /
   昇格元 [`docs/plans/archive/tdd-mob-pro-timer-spec-v3.0-final.md`](../plans/archive/tdd-mob-pro-timer-spec-v3.0-final.md) §7
 
 ## 背景

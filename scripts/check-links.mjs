@@ -165,7 +165,7 @@ export const LIVE_DOCS = [
   "deploy/",
   ".github/",
   "e2e/",
-  ".specify/memory/",
+  "docs/constitution.md",
 ];
 
 /**

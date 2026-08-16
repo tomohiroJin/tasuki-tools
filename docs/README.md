@@ -6,7 +6,7 @@ Tasuki の文書は目的ごとに置き場が分かれています。まずこ�
 
 **規範**の正本は次の 3 つです。
 
-- **憲法**（[`.specify/memory/constitution.md`](../.specify/memory/constitution.md)） — 何を守るか
+- **憲法**（[`docs/constitution.md`](./constitution.md)） — 何を守るか
 - **横断 ADR**（[`docs/adr/`](./adr/)、アプリ固有は `docs/<app>/adr/`） — なぜそう決まっているか
 - **ガイド**（[`docs/guides/`](./guides/)） — 今日どう書くか
 
@@ -19,7 +19,7 @@ Tasuki の文書は目的ごとに置き場が分かれています。まずこ�
 
 | 知りたいこと | 行き先 |
 |---|---|
-| 守るべき原則 | [憲法](../.specify/memory/constitution.md) |
+| 守るべき原則 | [憲法](./constitution.md) |
 | なぜそう決まっているか | [`docs/adr/`](./adr/)（横断）・`docs/<app>/adr/`（例: [`docs/timer/adr/`](./timer/adr/)、アプリ固有） |
 | 今日どう書くか（DoD・EARS・振り返り・アーキテクチャ・開発手順・セキュリティ・PR の粒度） | [`docs/guides/`](./guides/) |
 | 機能の設計経緯 | [`docs/superpowers/specs/`](./superpowers/specs/)・[`docs/superpowers/plans/`](./superpowers/plans/) |

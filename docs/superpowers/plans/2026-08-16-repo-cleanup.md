@@ -145,10 +145,13 @@ Expected: 0002 が 3、0004 が 2、0005 が 3、0006 が 2、0007 が 2、0011 
 
 ```bash
 sed -i 's|\[`\.specify/memory/constitution\.md`\](\.specify/memory/constitution\.md)|[`docs/constitution.md`](docs/constitution.md)|g' AGENTS.md
-grep -c 'docs/constitution\.md' AGENTS.md
+grep -n 'docs/constitution\.md' AGENTS.md
+grep -o 'docs/constitution\.md' AGENTS.md | wc -l
 ```
 
-Expected: `4`（1 行につきラベルとリンク先の 2 箇所 × 2 行）
+Expected: 8 行目と 31 行目の 2 行が出て、出現回数は `4`
+（1 行にラベルとリンク先の 2 箇所 × 2 行）。**`grep -c` は行数を数えるので `2` になる。**
+出現回数を見るなら `grep -o ... | wc -l` を使う。
 
 - [ ] **Step 6: `docs/README.md` の 2 箇所を置換する**
 

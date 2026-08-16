@@ -5,7 +5,7 @@
 **層とディレクトリの対応・判断フロー・ユビキタス言語の正本はこのガイドです。**
 「同期サーバーはポート/アダプタ構成を標準とする」という決定そのものは
 [`docs/adr/0004`](../adr/0004-sync-server-ports-and-adapters.md) と
-`.specify/memory/constitution.md` 原則 VI「依存は内向き」が定めており、層の
+`docs/constitution.md` 原則 VI「依存は内向き」が定めており、層の
 呼び方・対応表・判断フローの追加や更新は ADR の改版を経ずにこのガイドの更新のみで
 行います（`docs/adr/0002` の三層構造・書き分け規則）。
 
@@ -98,4 +98,4 @@
 - 決定の根拠: [`docs/adr/0004`](../adr/0004-sync-server-ports-and-adapters.md)（同期サーバーはポート/アダプタ構成を標準とする）
 - 抽象化の基準: [`docs/adr/0007`](../adr/0007-abstraction-criteria.md)
 - 書き分けの規則: [`docs/adr/0002`](../adr/0002-document-system-three-layers.md)（文書体系の三層構造）
-- 憲法: `.specify/memory/constitution.md` 原則 VI「依存は内向き」・原則 VIII「記録が正本」・原則 X「抽象は実需で」
+- 憲法: `docs/constitution.md` 原則 VI「依存は内向き」・原則 VIII「記録が正本」・原則 X「抽象は実需で」

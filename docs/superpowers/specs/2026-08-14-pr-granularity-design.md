@@ -325,7 +325,7 @@ Issue には強制しない」と定める。#119 は規範と文書の変更で
 ## 7. 関連
 
 - Issue [#119](https://github.com/tomohiroJin/tasuki-tools/issues/119)
-- 憲法 原則 IX（[`.specify/memory/constitution.md`](../../../.specify/memory/constitution.md)）
+- 憲法 原則 IX（[`docs/constitution.md`](../../constitution.md)）
 - [`docs/adr/0002`](../../adr/0002-document-system-three-layers.md) — 三層の書き分け規則
 - [`docs/adr/0003`](../../adr/0003-agile-operations.md) — DoD の正本をガイドに置く前例
 - [`docs/guides/definition-of-done.md`](../../guides/definition-of-done.md)

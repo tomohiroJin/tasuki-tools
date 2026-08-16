@@ -5,7 +5,7 @@
   親 epic [#67](https://github.com/tomohiroJin/tasuki-tools/issues/67)）/
   [#20](https://github.com/tomohiroJin/tasuki-tools/issues/20)（本 ADR が昇格する判断の由来）/
   `docs/superpowers/plans/2026-08-05-bun-test-migration.md`（Task 3、20 行基準の実例）/
-  `.specify/memory/constitution.md` 原則 X（抽象は実需で）
+  `docs/constitution.md` 原則 X（抽象は実需で）
 
 ## 背景
 
@@ -46,7 +46,7 @@ Issue #20（timer-sync のテスト移行と、両 sync サーバーで共有で
   **「知識の重複」**に限って適用する。同じ知識を 2 箇所が独立に持っていて、
   一方を直したときにもう一方が古いままになり得る場合にのみ DRY を適用し、
   たまたま似た形になっただけのコードは対象としない。
-- 本決定は `.specify/memory/constitution.md` 原則 X「抽象は実需で」の根拠を
+- 本決定は `docs/constitution.md` 原則 X「抽象は実需で」の根拠を
   記録するものである。
 - **本 ADR の時点ではコード（`apps/` `packages/` `e2e/` `scripts/`）を
   変更しない。** #20 の `sync-kit` 見送り自体はすでに確定した過去の判断であり、

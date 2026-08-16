@@ -16,7 +16,7 @@ Tasuki には判断の拠りどころが揃っていない。ADR は timer の 1
 
 > ADR のテンプレートと採番規約の統一は #68 の宿題です。
 
-規範文書 `.specify/memory/constitution.md` にも、現状と矛盾する条項が残っている。
+規範文書 `docs/constitution.md` にも、現状と矛盾する条項が残っている。
 `constitution.md:97` には「既存の timer（`packages/timer-core` / `apps/timer-*`）には
 手を入れない（MUST NOT）」という条項が実在するが、これは #78 で timer 側のデザインを
 作り直した現状と矛盾する。
@@ -41,7 +41,7 @@ PR #99）も `docs/superpowers/specs/` に新規作成しており、この前�
 
 | 層 | 役割 | 変更の重さ |
 |---|---|---|
-| **憲法**（`.specify/memory/constitution.md`） | 「何を守るか」の宣言。原則は各数行 | めったに変えない。改版は ADR を伴う |
+| **憲法**（`docs/constitution.md`） | 「何を守るか」の宣言。原則は各数行 | めったに変えない。改版は ADR を伴う |
 | **ADR**（`docs/adr/` ほか） | 「なぜそう決めたか」の不変の記録 | 追記のみ。覆すときは Superseded |
 | **ガイド**（`docs/guides/`） | 「今日どう書くか」の手引き | 育ち続ける。ADR の改版なしに更新してよい |
 
@@ -84,7 +84,7 @@ PR #99）も `docs/superpowers/specs/` に新規作成しており、この前�
 
 ### 5. 憲法改版時のチェック項目
 
-憲法（`.specify/memory/constitution.md`）を改版する際のチェック項目に、
+憲法（`docs/constitution.md`）を改版する際のチェック項目に、
 **AGENTS.md の憲法見出しの同期確認**を含めることを MUST とする。AGENTS.md は
 憲法の見出しのみを転記した薄い複製を持つ設計であるため、憲法側の見出しが変わった
 ときにドリフトしないよう、改版のたびに両者を突き合わせる。

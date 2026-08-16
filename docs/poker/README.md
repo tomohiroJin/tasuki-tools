@@ -9,7 +9,7 @@ GitHub spec-kit（specify CLI）のフルワークフロー実践を兼ねた Ta
     Caddy のルーティング・別ポート・別 systemd ユニットが必要で、それらは monorepo 統合の
     設計に含まれるため、先に個別対応すると二度手間になる
 - 仕様・設計: [`specs/001-planning-poker-mvp/`](./specs/001-planning-poker-mvp/)（spec / plan / research / data-model / contracts / quickstart / tasks）
-- プロジェクト憲法: [`.specify/memory/constitution.md`](../../.specify/memory/constitution.md)
+- プロジェクト憲法: [`docs/constitution.md`](../constitution.md)
 
 ## 機能（MVP）
 
