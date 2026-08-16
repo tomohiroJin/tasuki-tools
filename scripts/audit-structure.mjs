@@ -721,15 +721,6 @@ const REPO_ROOT = path.resolve(__dirname, "..");
 
 const EXT_TS = [".ts", ".tsx"];
 
-function loadPackage(pkgRelDir) {
-  const srcDir = path.join(REPO_ROOT, pkgRelDir, "src");
-  const testDir = path.join(REPO_ROOT, pkgRelDir, "test");
-  return {
-    src: readFilesRecursive(srcDir, EXT_TS),
-    test: readFilesRecursive(testDir, EXT_TS),
-  };
-}
-
 /**
  * 走査するパッケージ。**src と test は独立に宣言する。**
  *
@@ -753,6 +744,27 @@ export const SCANNED_PACKAGES = [
 /** 走査から外すパッケージ。**理由が要る。** */
 export const EXCLUDED_PACKAGES = [
   { pkg: "packages/ui", reason: "src・tests とも TS を 1 つも持たない（CSS トークンとフォント）" },
+];
+
+/**
+ * SC-035 / SC-039① が名指しで参照するファイルピン。
+ *
+ * `web.srcFiles.get("App.tsx") ?? ""` / `sync.srcFiles.get("application/handlers.ts") ?? ""`
+ * は、ファイルが無ければ空文字列へフォールバックする式になっている。空文字列を
+ * 渡された `sc035MessageDefinitions` / `sc039aUnreachableBranchInApps` はカウント
+ * しようがなく 0（＝目標達成）を返すため、このファイルが改名・移設されても
+ * 指標は静かに PASS のまま動かない（#135 経路②⑪）。式自体（`?? ""`）は変えず、
+ * 実在だけを独立に確認する。
+ */
+export const METRIC_FILE_PINS = [
+  {
+    path: "apps/timer-web/src/App.tsx",
+    reason: "SC-035 の clientSource（メッセージ定義の突合対象）",
+  },
+  {
+    path: "apps/timer-sync/src/application/handlers.ts",
+    reason: "SC-039① の handlersSource（到達不能分岐の検査対象）",
+  },
 ];
 
 function runAudit() {
@@ -878,21 +890,33 @@ function main() {
   ];
   const drift = diffTargets(declared, packages);
 
-  const missingDirs = [];
+  // ディレクトリ（src/test）とエントリ（SC-027 の到達性測定の起点）の実在を見る。
+  // エントリが改名されても ADR 0009 D2 により測定値では落ちないため、ここで
+  // 計測器の健全性として先に検知する（指摘4）。
+  const missingTargets = [];
   for (const d of SCANNED_PACKAGES) {
     for (const sub of [d.src, d.test]) {
       if (sub === null) continue;
-      if (!fs.existsSync(path.join(REPO_ROOT, d.pkg, sub))) missingDirs.push(`${d.pkg}/${sub}`);
+      if (!fs.existsSync(path.join(REPO_ROOT, d.pkg, sub))) missingTargets.push(`${d.pkg}/${sub}`);
     }
+    if (d.entry !== null && d.src !== null) {
+      const entryPath = path.join(REPO_ROOT, d.pkg, d.src, d.entry);
+      if (!fs.existsSync(entryPath)) missingTargets.push(`${d.pkg}/${d.src}/${d.entry}`);
+    }
+  }
+
+  // SC-035 / SC-039① が名指しで参照するファイルピンの実在を見る（指摘1）。
+  for (const pin of METRIC_FILE_PINS) {
+    if (!fs.existsSync(path.join(REPO_ROOT, pin.path))) missingTargets.push(pin.path);
   }
 
   const srcCount = SCANNED_PACKAGES.filter((d) => d.src !== null).length;
   const testCount = SCANNED_PACKAGES.filter((d) => d.test !== null).length;
   const summary = `src ${srcCount} パッケージ / test ${testCount} パッケージ`;
 
-  if (hasTargetDrift(drift) || missingDirs.length > 0) {
+  if (hasTargetDrift(drift) || missingTargets.length > 0) {
     const merged = {
-      missing: [...drift.missing, ...missingDirs].sort(),
+      missing: [...drift.missing, ...missingTargets].sort(),
       unexpected: drift.unexpected,
     };
     console.error(formatTargetDiff("audit-structure", merged, summary));

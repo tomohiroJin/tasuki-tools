@@ -490,7 +490,7 @@ describe("formatTable", () => {
   });
 });
 
-import { SCANNED_PACKAGES, EXCLUDED_PACKAGES } from "./audit-structure.mjs";
+import { SCANNED_PACKAGES, EXCLUDED_PACKAGES, readFilesRecursive } from "./audit-structure.mjs";
 import { listWorkspacePackages, diffTargets } from "./lib/scan-targets.mjs";
 import { execFileSync as execFileSyncForRoot } from "node:child_process";
 import fsForFixture from "node:fs";
@@ -527,7 +527,7 @@ describe("走査対象の宣言", () => {
   test("宣言したエントリポイントはすべて実在する", () => {
     // Given / When / Then
     for (const d of SCANNED_PACKAGES) {
-      if (d.entry === null) continue;
+      if (d.entry === null || d.src === null) continue;
       const abs = pathForFixture.join(REPO_ROOT, d.pkg, d.src, d.entry);
       assert.ok(fsForFixture.existsSync(abs), `実在しません: ${d.pkg}/${d.src}/${d.entry}`);
     }
@@ -538,5 +538,21 @@ describe("走査対象の宣言", () => {
     for (const e of EXCLUDED_PACKAGES) {
       assert.ok(e.reason && e.reason.length > 0, `${e.pkg} に理由がありません`);
     }
+  });
+
+  test("除外理由が主張する状態（TS を持たない）は今も成立している", () => {
+    // Given: packages/ui は「src・tests とも TS を 1 つも持たない」という状態を
+    //        理由に除外されている。理由は方針ではなく状態の主張なので、
+    //        .ts / .tsx が足された瞬間に陳腐化しうる。その陳腐化を検知する。
+    const uiEntry = EXCLUDED_PACKAGES.find((e) => e.pkg === "packages/ui");
+    assert.ok(uiEntry, "packages/ui が EXCLUDED_PACKAGES から消えています");
+    // When
+    const files = readFilesRecursive(pathForFixture.join(REPO_ROOT, uiEntry.pkg), [".ts", ".tsx"]);
+    // Then
+    assert.equal(
+      files.size,
+      0,
+      `packages/ui に .ts/.tsx が見つかりました。除外理由が陳腐化しています: ${[...files.keys()]}`,
+    );
   });
 });
