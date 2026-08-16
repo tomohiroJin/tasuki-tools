@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 
@@ -27,6 +28,27 @@ export function diffTargets(declared, actual) {
     missing: [...declaredSet].filter((x) => !actualSet.has(x)).sort(),
     unexpected: [...actualSet].filter((x) => !declaredSet.has(x)).sort(),
   };
+}
+
+/**
+ * 宣言から導出したパスのうち、実在しないものをリポジトリ相対で返す（#158・決定 1）。
+ *
+ * **全単射照合（`diffTargets`）では塞げない。** あちらが照合するのは宣言の
+ * 「キー」（パッケージ名など）であり、そのキーから機械的に導出した先
+ * （`${pkg}/src` のようなディレクトリ）が実在するかは見ない。宣言したパッケージの
+ * `src/` が改名・消失しても、パッケージ名は workspace に残っているので照合は通る。
+ *
+ * **件数のガード（`findEmptyScanDimensions`）でも塞げない。** 導出先を 1 つ失っても
+ * 他のパッケージ分で走査量は非ゼロのままであり、空振りとして検知できない。実測では
+ * 9 パッケージのうち 1 つの `src` を失っても「120 → 118 ファイル」と減るだけで緑だった。
+ *
+ * 落とすのは呼び出し側（`process.exit` は呼ばない）。返り値は名指しできる形で、
+ * 重複を除いて整列する（E1「実在しない宣言を名指しする」）。
+ */
+export function findMissingPaths(repoRoot, relPaths) {
+  return [...new Set(relPaths)]
+    .filter((rel) => !fs.existsSync(path.join(repoRoot, rel)))
+    .sort();
 }
 
 /** どちらかの向きにずれがあるか。 */

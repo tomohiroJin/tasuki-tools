@@ -112,6 +112,58 @@ describe("0 件ガードの配線: scripts/audit-structure.mjs", () => {
   });
 });
 
+describe("実在確認の配線: scripts/audit-structure.mjs", () => {
+  // 宣言と実体の一致は `audit-structure.test.mjs` も見ているが、あちらは検査と同じ
+  // 判定をテスト側で書き直しているため、**スクリプトから実在確認が消えても緑のまま**に
+  // なる。ここでは検査そのものを走らせて、落ちることと名指しの内容を見る（#158）。
+
+  test("宣言したテストディレクトリが実在しないと非ゼロで終了し、名指しする", () => {
+    // Given: 1 パッケージの test だけを実在しない名前へ変える（全単射照合は
+    //        パッケージ名しか見ないので素通りする）
+    const mutate = (s) =>
+      s.replace(
+        '{ pkg: "packages/protocol", src: "src", test: "tests", entry: "index.ts" }',
+        '{ pkg: "packages/protocol", src: "src", test: "tests-moved", entry: "index.ts" }',
+      );
+    // When
+    const r = runScriptCopy("audit-structure.mjs", mutate);
+    // Then: まず「壊れたこと自体」を確かめる
+    assert.equal(countOf(r.source, "tests-moved"), 1, "宣言を壊せていません");
+    // Then
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.match(r.stderr, /宣言にあるが実在しない: packages\/protocol\/tests-moved/);
+  });
+
+  test("宣言したエントリポイントが実在しないと非ゼロで終了し、名指しする", () => {
+    // Given: SC-027 の到達性測定の起点だけを実在しないファイル名へ変える
+    const mutate = (s) =>
+      s.replace(
+        '{ pkg: "apps/timer-sync", src: "src", test: "test", entry: "server.ts" }',
+        '{ pkg: "apps/timer-sync", src: "src", test: "test", entry: "server-gone.ts" }',
+      );
+    // When
+    const r = runScriptCopy("audit-structure.mjs", mutate);
+    // Then: まず「壊れたこと自体」を確かめる
+    assert.equal(countOf(r.source, "server-gone.ts"), 1, "宣言を壊せていません");
+    // Then
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.match(r.stderr, /宣言にあるが実在しない: apps\/timer-sync\/src\/server-gone\.ts/);
+  });
+
+  test("名指しで参照するファイルピンが実在しないと非ゼロで終了し、名指しする", () => {
+    // Given: SC-035 が突合対象として名指しするファイルのパスを実在しないものへ変える
+    const mutate = (s) =>
+      s.replace('path: "apps/timer-web/src/App.tsx"', 'path: "apps/timer-web/src/App-gone.tsx"');
+    // When
+    const r = runScriptCopy("audit-structure.mjs", mutate);
+    // Then: まず「壊れたこと自体」を確かめる
+    assert.equal(countOf(r.source, "App-gone.tsx"), 1, "宣言を壊せていません");
+    // Then
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.match(r.stderr, /宣言にあるが実在しない: apps\/timer-web\/src\/App-gone\.tsx/);
+  });
+});
+
 describe("0 件ガードの配線: scripts/check-links.mjs", () => {
   test("対照実行: 書き換えない複製は exit 0 で走査量と内訳を出す", () => {
     // Given: 複製するだけで中身は変えない
@@ -148,7 +200,7 @@ describe("0 件ガードの配線: scripts/audit-log-hygiene.mjs", () => {
     assert.match(r.stdout, /\[audit-log-hygiene\] 走査対象: \d+ パッケージ \/ \d+ ファイル/);
   });
 
-  test("走査ディレクトリの導出先を実在しない名前にすると非ゼロで終了する", () => {
+  test("走査ディレクトリの導出先をすべて実在しない名前にすると非ゼロで終了する", () => {
     // Given: パッケージ名の宣言はそのまま（全単射照合は素通りする）、
     //        走査する src ディレクトリだけを実在しない名前へ変える
     const mutate = (s) => s.replace("`${pkg}/src`", "`${pkg}/src-does-not-exist`");
@@ -157,8 +209,71 @@ describe("0 件ガードの配線: scripts/audit-log-hygiene.mjs", () => {
     // Then: まず「壊れたこと自体」を確かめる
     assert.equal(countOf(r.source, "`${pkg}/src`"), 0, "SCAN_DIRS の導出を壊せていません");
     assert.equal(countOf(r.source, "src-does-not-exist"), 1, "書き換えが 1 か所に入っていません");
-    // Then: 走査ファイルが 0 件になり、検査は落ちる
+    // Then: 実在確認（E1）が先に落とし、実在しない宣言を名指しする
     assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.match(r.stderr, /宣言にあるが実在しない: apps\/landing\/src-does-not-exist/);
+  });
+
+  test(
+    "宣言した 1 パッケージの src だけが実在しなくても非ゼロで終了し、名指しする（#158）",
+    () => {
+      // Given: 9 パッケージのうち 1 つだけ src の導出先を実在しない名前へ変える。
+      //        パッケージ名の宣言は変えないので全単射照合は素通りし、走査ファイル数も
+      //        他パッケージ分が残るため 0 件ガードにも掛からない（#158 が塞ぐ穴）。
+      const mutate = (s) =>
+        s.replace(
+          "const SCAN_DIRS = SCANNED_PACKAGES.map((pkg) => `${pkg}/src`);",
+          'const SCAN_DIRS = SCANNED_PACKAGES.map((pkg) =>\n  pkg === "packages/protocol" ? `${pkg}/src-moved` : `${pkg}/src`);',
+        );
+      // When
+      const r = runScriptCopy("audit-log-hygiene.mjs", mutate);
+      // Then: まず「壊れたこと自体」を確かめる
+      assert.equal(countOf(r.source, "src-moved"), 1, "1 パッケージ分の導出を壊せていません");
+      assert.equal(
+        countOf(r.source, "const SCAN_DIRS = SCANNED_PACKAGES.map((pkg) => `${pkg}/src`);"),
+        0,
+        "元の導出行が残っています",
+      );
+      // Then: 走査は 0 件になっていない（旧実装が緑だった条件そのもの）
+      assert.doesNotMatch(r.stderr, /走査対象が 0 件です/);
+      // Then: それでも落ち、実在しない宣言を名指しする（E1）
+      assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+      assert.match(r.stderr, /宣言にあるが実在しない: packages\/protocol\/src-moved/);
+    },
+  );
+
+  test("走査対象のパッケージが 0 件になると非ゼロで終了する（全宣言を除外へ移す経路）", () => {
+    // Given: 全宣言を理由つき除外へ移すと全単射照合は素通りする（ADR-0014 決定 8）。
+    //        その終着点である「走査ディレクトリが 1 つも無い」状態を直接作る。
+    //        実在確認は空の宣言に対して何も返さないので、ここを止めるのは 0 件ガードだけ。
+    const mutate = (s) =>
+      s.replace(
+        "const SCAN_DIRS = SCANNED_PACKAGES.map((pkg) => `${pkg}/src`);",
+        "const SCAN_DIRS = [];",
+      );
+    // When
+    const r = runScriptCopy("audit-log-hygiene.mjs", mutate);
+    // Then: まず「壊れたこと自体」を確かめる
+    assert.equal(countOf(r.source, "const SCAN_DIRS = [];"), 1, "宣言を空にできていません");
+    // Then: 実在確認では止まらず、0 件ガードが両方の内訳を名指しして落とす
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.doesNotMatch(r.stderr, /宣言にあるが実在しない/);
+    assert.match(r.stdout, /走査対象: 0 パッケージ \/ 0 ファイル/);
+    assert.match(r.stderr, /走査対象が 0 件です.*パッケージ.*ファイル/);
+  });
+
+  test("走査ディレクトリは実在するがファイルが 0 件になると非ゼロで終了する", () => {
+    // Given: 実在確認は通る（ディレクトリはそのまま）が、拾う拡張子を実在しない
+    //        ものへ変えて走査ファイルだけを 0 件にする
+    const mutate = (s) =>
+      s.replace('e.name.endsWith(".ts") &&', 'e.name.endsWith(".ts-none") &&');
+    // When
+    const r = runScriptCopy("audit-log-hygiene.mjs", mutate);
+    // Then: まず「壊れたこと自体」を確かめる
+    assert.equal(countOf(r.source, '.ts-none'), 1, "拡張子の判定を壊せていません");
+    // Then: 実在確認は素通りし、0 件ガードが落とす
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.doesNotMatch(r.stderr, /宣言にあるが実在しない/);
     assert.match(r.stdout, /走査対象: \d+ パッケージ \/ 0 ファイル/);
     assert.match(r.stderr, /走査対象が 0 件です/);
   });

@@ -15,6 +15,9 @@
  *   2. 必須ファイルが走査結果に無い → 赤。走査対象を失うと全件 PASS になる型の
  *      欠陥を最初から塞ぐ。**件数の下限は直書きしない。** ファイルが減るたびに
  *      下限を下げるのが赤を消す最短経路になり、対応表から項目を消すのと同じ穴になる。
+ *   3. 宣言から導出した走査ディレクトリが実在しない → 赤（#158・ADR-0014 決定 1）。
+ *      1 と 2 のどちらも「1 パッケージ分だけ走査対象を失った」状態を検知できない。
+ *      走査量は他パッケージ分で非ゼロのまま、必須ファイルも他パッケージに残るからである。
  *
  * 設計方針: 判定は純粋関数にし、実ファイル I/O は main() の薄い配線だけにする。
  * 追加依存は禁止のため Node 標準の fs / path のみを使う。
@@ -28,6 +31,7 @@ import {
   hasTargetDrift,
   formatTargetDiff,
   findEmptyScanDimensions,
+  findMissingPaths,
 } from "./lib/scan-targets.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -59,6 +63,13 @@ export const EXCLUDED_PACKAGES = [
   { pkg: "e2e", reason: "src/ を持たない。テストコードのログ経路は本検査の対象外" },
 ];
 
+/**
+ * 実際に走査するディレクトリ。**宣言（パッケージ名）から機械的に導出する。**
+ *
+ * 導出先の実在は `main()` で `findMissingPaths` により検査する（#158・E1）。
+ * 全単射照合はパッケージ名しか見ないため、ここで導出した `src/` が改名・消失しても
+ * 照合は通ってしまう。
+ */
 const SCAN_DIRS = SCANNED_PACKAGES.map((pkg) => `${pkg}/src`);
 
 /**
@@ -276,11 +287,18 @@ export function findMissingRequired(scanned) {
   return REQUIRED_FILES.filter((f) => !scanned.has(f));
 }
 
-/** ディレクトリ配下の .ts を読む（`dist` と `node_modules` は除外）。 */
+/**
+ * ディレクトリ配下の .ts を読む（`dist` と `node_modules` は除外）。
+ *
+ * **実在しないディレクトリを渡してはならない。** かつてここには
+ * `if (!fs.existsSync(abs)) return result;` があり、走査対象を失った状態を
+ * 静かに「0 件読めた」に変換していた（#158 が塞いだ穴の実行部）。実在確認は
+ * `main()` が走査の前に済ませるため、ここで実在しないディレクトリを受け取ったら
+ * 例外で落ちるのが正しい（黙って空を返すより、うるさく落ちるほうが安全）。
+ */
 function readTsFiles(rootDir) {
   const result = new Map();
   const abs = path.join(REPO_ROOT, rootDir);
-  if (!fs.existsSync(abs)) return result;
   const walk = (dir) => {
     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
       if (e.name === "node_modules" || e.name === "dist") continue;
@@ -302,11 +320,10 @@ function readTsFiles(rootDir) {
  * **見ていないものを黙っていない**ための出力（#135 D7）。射程を `.ts` に
  * 据え置く判断そのものは別 Issue で行う。
  */
-function countSkippedTsx() {
+function countSkippedTsx(scanDirs) {
   let n = 0;
-  for (const dir of SCAN_DIRS) {
+  for (const dir of scanDirs) {
     const abs = path.join(REPO_ROOT, dir);
-    if (!fs.existsSync(abs)) continue;
     const walk = (d) => {
       for (const e of fs.readdirSync(d, { withFileTypes: true })) {
         if (e.name === "node_modules" || e.name === "dist") continue;
@@ -325,25 +342,40 @@ function main() {
   const packages = listWorkspacePackages(REPO_ROOT);
   const declared = [...SCANNED_PACKAGES, ...EXCLUDED_PACKAGES.map((e) => e.pkg)];
   const drift = diffTargets(declared, packages);
-  if (hasTargetDrift(drift)) {
-    console.error(
-      formatTargetDiff("audit-log-hygiene", drift, `${SCAN_DIRS.length} パッケージ`),
-    );
-    process.exit(1);
-  }
 
+  // 宣言から導出した走査ディレクトリ（上の SCAN_DIRS）が実在するかを見る（#158・E1）。
+  // **この行に導出のテンプレート文字列を書いてはならない。** 破壊検証は導出の行を
+  // 文字列置換で壊し、置換後に残存数が 0 であることを確かめる。コメントに同じ
+  // リテラルがあると「壊せていません」で落ちる（#135 で 1 度踏んでいる）。
+  // **全単射照合はパッケージ名しか見ない。** 宣言したパッケージの src/ が改名・消失
+  // しても照合は通り、走査だけが静かに空になる。#72 のパッケージ移設で踏む経路。
+  const missingDirs = findMissingPaths(REPO_ROOT, SCAN_DIRS);
+
+  // **走査対象はここで 1 回だけ確定させる**（ADR-0014 決定 9）。走査量の算出も
+  // 実走査もこの `scanDirs` から導出する。実在しないものを除いた集合なので、
+  // 出力する走査量は「宣言の行数」ではなく**実際に走査した対象**の件数になる。
+  const scanDirs = SCAN_DIRS.filter((dir) => !missingDirs.includes(dir));
   const scanned = new Map();
-  for (const dir of SCAN_DIRS) {
+  for (const dir of scanDirs) {
     for (const [k, v] of readTsFiles(dir)) scanned.set(k, v);
+  }
+  const summary = `${scanDirs.length} パッケージ / ${scanned.size} ファイル`;
+
+  // 宣言のずれ（両方向）と導出先の不在は、どちらも計測器の故障なので同じ形で出す。
+  if (hasTargetDrift(drift) || missingDirs.length > 0) {
+    const merged = {
+      missing: [...drift.missing, ...missingDirs].sort(),
+      unexpected: drift.unexpected,
+    };
+    console.error(formatTargetDiff("audit-log-hygiene", merged, summary));
+    process.exit(1);
   }
 
   // 走査量と未走査 .tsx の件数は、成否によらず必ず出す（#135 D5・E7）。
   // 違反が出ているときこそ「何を見ていないか」が要る（分岐の前にまとめる）。
+  console.log(`[audit-log-hygiene] 走査対象: ${summary}`);
   console.log(
-    `[audit-log-hygiene] 走査対象: ${SCAN_DIRS.length} パッケージ / ${scanned.size} ファイル`,
-  );
-  console.log(
-    `  走査していない .tsx: ${countSkippedTsx()} 件` +
+    `  走査していない .tsx: ${countSkippedTsx(scanDirs)} 件` +
       "（ブラウザの console が ADR 0012 D1 の射程に入るかは別 Issue で判断する）",
   );
 
@@ -358,13 +390,12 @@ function main() {
   // ある（「走査前に判る」のは半分だけ正しい）。こちらは走査と走査量の出力より後。
   // どちらも「赤の直前に根拠の行が出ている」ことを優先した結果。
   //
-  // ここで数えている「パッケージ」は `SCAN_DIRS.length` であり、`SCAN_DIRS` は
-  // `SCANNED_PACKAGES`（本ファイル冒頭）の各要素を「パッケージ名 + /src」へ機械的に
-  // 変換して作るため、構成上つねに `SCANNED_PACKAGES.length`（宣言の行数）と同数になる。
-  // これは決定 9 が言う「実際に走査した対象」そのものではない。変換後のディレクトリの
-  // 実在確認が無いことは既知の欠落で、Issue #158 で扱う。
+  // ここで数えている「パッケージ」は実在確認を通った `scanDirs` の件数であり、
+  // 宣言の行数（`SCANNED_PACKAGES.length`）ではない（ADR-0014 決定 8・決定 9）。
+  // 以前は `SCAN_DIRS.length` を数えていたため、導出先が実在しなくても件数が
+  // 減らず「9 パッケージ走査した」と出したまま緑になった（#158 で塞いだ）。
   const emptyDimensions = findEmptyScanDimensions([
-    { label: "パッケージ", count: SCAN_DIRS.length },
+    { label: "パッケージ", count: scanDirs.length },
     { label: "ファイル", count: scanned.size },
   ]);
   if (emptyDimensions.length > 0) {
