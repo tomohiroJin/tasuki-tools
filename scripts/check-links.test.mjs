@@ -12,6 +12,8 @@ import {
   isLiveDoc,
   checkConstants,
   checkStaleExceptions,
+  DORMANT_DOCS,
+  classifyDocs,
 } from "./check-links.mjs";
 
 describe("stripCodeRegions", () => {
@@ -282,5 +284,51 @@ describe("checkStaleExceptions", () => {
     const used = new Set(MISSING_PATH_EXCEPTIONS.map((e) => e.path));
     // When / Then
     assert.deepEqual(checkStaleExceptions(used), []);
+  });
+});
+
+describe("classifyDocs", () => {
+  test("LIVE_DOCS に属する文書は無所属にならない", () => {
+    // Given
+    const tracked = ["docs/guides/development.md", "README.md"];
+    // When
+    const { unclassified } = classifyDocs(tracked);
+    // Then
+    assert.deepEqual(unclassified, []);
+  });
+
+  test("除外接頭辞に属する文書は無所属にならない", () => {
+    // Given
+    const tracked = ["docs/plans/2026-01-01-x.md"];
+    // When
+    const { unclassified } = classifyDocs(tracked);
+    // Then
+    assert.deepEqual(unclassified, []);
+  });
+
+  test("どちらにも属さない文書を無所属として出す", () => {
+    // Given: 新設ディレクトリの文書
+    const tracked = ["docs/newarea/notes.md"];
+    // When
+    const { unclassified } = classifyDocs(tracked);
+    // Then
+    assert.deepEqual(unclassified, ["docs/newarea/notes.md"]);
+  });
+
+  test("LIVE_DOCS からエントリを消すと、その配下が無所属になる", () => {
+    // Given: docs/guides/ を失った状態を模す
+    const live = LIVE_DOCS.filter((e) => e !== "docs/guides/");
+    const tracked = ["docs/guides/development.md"];
+    // When
+    const { unclassified } = classifyDocs(tracked, { live });
+    // Then: 経路③ — 以前はエントリごと消えて緑になっていた
+    assert.deepEqual(unclassified, ["docs/guides/development.md"]);
+  });
+
+  test("除外には理由が書かれている", () => {
+    // Given / When / Then
+    for (const d of DORMANT_DOCS) {
+      assert.ok(d.reason && d.reason.length > 0, `${d.prefix} に理由がありません`);
+    }
   });
 });

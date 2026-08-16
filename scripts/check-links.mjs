@@ -17,6 +17,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
+import { listRepoFiles } from "./lib/scan-targets.mjs";
 
 /**
  * 各行がコードフェンスの内側（フェンス行自体を含む）かどうかを返す。
@@ -157,6 +158,7 @@ export const LIVE_DOCS = [
   "README.md",
   "AGENTS.md",
   "CLAUDE.md",
+  "SECURITY.md",
   "docs/README.md",
   "docs/adr/",
   "docs/guides/",
@@ -165,6 +167,41 @@ export const LIVE_DOCS = [
   "e2e/",
   ".specify/memory/",
 ];
+
+/**
+ * コードパス検査の対象にしない文書。**理由が要る。**
+ *
+ * LIVE_DOCS と合わせて**追跡下の全 `*.md` を分割する**（#135 経路③・ADR-0014）。
+ * 「各エントリが 1 件以上に一致すること」では経路③を塞げない — 経路③の攻撃は
+ * エントリの**削除**であり、削除すれば照合対象ごと消えて緑のままになるため。
+ * 実体側を全分割すれば、エントリを消した瞬間にその配下が無所属になって落ちる。
+ */
+export const DORMANT_DOCS = [
+  { prefix: "docs/superpowers/", reason: "設計正本・実装計画。作業中に頻繁に増減する" },
+  { prefix: "docs/plans/", reason: "旧世代の実装計画。記録として保持する" },
+  { prefix: "docs/timer/", reason: "timer の作業記録。記録として保持する" },
+  { prefix: "docs/poker/", reason: "poker の作業記録。記録として保持する" },
+  { prefix: "docs/retrospectives/", reason: "振り返り。当時の記述を保つのが正しい" },
+  { prefix: ".claude/skills/", reason: "AI CLI のスキル定義。リポジトリの文書ではない" },
+  { prefix: ".specify/templates/", reason: "spec-kit の vendor テンプレート" },
+  { prefix: "packages/protocol/README.md", reason: "パッケージ README。LIVE_DOCS の粒度に合わない" },
+  { prefix: "packages/ui/README.md", reason: "パッケージ README。LIVE_DOCS の粒度に合わない" },
+];
+
+/**
+ * 追跡下の `*.md` を LIVE / 休眠 / 無所属に分ける。
+ *
+ * 無所属が 1 件でもあれば検査は落ちる。新しい文書ディレクトリを作ったとき、
+ * 「リンク検査の対象にするか、理由つきで外すか」を人が必ず決めることになる。
+ */
+export function classifyDocs(tracked, { live = LIVE_DOCS, dormant = DORMANT_DOCS } = {}) {
+  const matches = (rel, entry) => (entry.endsWith("/") ? rel.startsWith(entry) : rel === entry);
+  const unclassified = tracked.filter(
+    (rel) =>
+      !live.some((e) => matches(rel, e)) && !dormant.some((d) => matches(rel, d.prefix)),
+  );
+  return { unclassified };
+}
 
 /**
  * 「実在しないことが正しい」パス。
@@ -201,6 +238,11 @@ export function checkConstants({ exists }) {
   const errors = [];
   for (const entry of LIVE_DOCS) {
     if (!exists(entry)) errors.push(`LIVE_DOCS が実在しないパスを指しています: ${entry}`);
+  }
+  for (const d of DORMANT_DOCS) {
+    if (!exists(d.prefix)) {
+      errors.push(`DORMANT_DOCS が実在しないパスを指しています: ${d.prefix}（${d.reason}）`);
+    }
   }
   return errors;
 }
@@ -247,7 +289,18 @@ function main() {
   const exists = (rel) => tracked.has(rel) || tracked.has(rel.endsWith("/") ? rel : `${rel}/`);
   const errors = checkConstants({ exists });
 
-  const files = gitList(["ls-files", "*.md"]).sort();
+  // 全分割の検査は**追跡下**の .md に対して行う（#135 経路③）。
+  const trackedDocs = gitList(["ls-files", "*.md"]).sort();
+  for (const rel of classifyDocs(trackedDocs).unclassified) {
+    errors.push(
+      `LIVE_DOCS にも DORMANT_DOCS にも属さない文書があります: ${rel}` +
+        "（検査対象に入れるか、理由つきで DORMANT_DOCS へ足してください）",
+    );
+  }
+
+  // 走査対象は**未追跡かつ gitignore 対象外**も含める（#135 経路⑧）。
+  // 存在判定（trackedPaths）は広げない。広げるとローカル緑・CI 赤になる。
+  const files = listRepoFiles(REPO_ROOT, ["*.md"]);
   if (files.length === 0) {
     errors.push("走査対象の .md が 1 件もありません（検査が空振りしています）");
   }
@@ -301,6 +354,7 @@ function main() {
     return;
   }
   console.log(`リンク検査 OK（走査 ${files.length} ファイル）`);
+  console.log(`  走査対象: ${files.length} 件（うち追跡下 ${trackedDocs.length} 件）`);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) main();
