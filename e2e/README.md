@@ -19,6 +19,48 @@ pnpm e2e --grep @smoke   # @smoke タグのシナリオだけ実行
 TASUKI_E2E_BASE_URL=https://<公開ドメイン> pnpm e2e:prod
 ```
 
+## VSCode の Playwright 拡張を入れている場合
+
+拡張（`ms-playwright.playwright`）は `playwright.config.ts` を**自分で検出して
+直接読み込みます**。`TASUKI_E2E_TARGET` を渡しているのは `e2e/package.json` の
+`e2e` / `e2e:prod` スクリプトだけなので、拡張はそれを受け取れません。config は
+読み込みの時点で `resolveTarget(process.env)` を呼ぶため、**テストを 1 件も
+走らせる前に** `e2e/harness/target.ts` で落ち、テストエクスプローラが
+赤くなり続けます。
+
+**これは不具合ではありません。** ターゲットに既定値を持たせない設計
+（本番向けの変数が残ったシェルで、ローカルを本番と取り違える事故を防ぐ）が
+意図どおり発火しています。
+
+赤を消すには、各自の `.vscode/settings.json` に次を置きます。`.vscode/*` は
+`.gitignore` の対象なので、リポジトリには入りません。
+
+```json
+{ "playwright.env": { "TASUKI_E2E_TARGET": "local" } }
+```
+
+拡張が提供する設定に、config の検出そのものを止めるものはありません。
+設定を置かずに済ませたい場合は、テストエクスプローラの「Playwright」パネルで
+この config のチェックを外すか（Toggle Playwright configs）、拡張を
+ワークスペースで無効化してください。
+
+### テストエクスプローラの ▶ は押さないでください
+
+赤が消えても、拡張から実行できる状態にはなっていません。穴が 2 つ残ります。
+
+- **古いビルド成果物に対して走ります。** ビルドを与えているのは `turbo.json` の
+  `dependsOn: ["^build"]` だけで、拡張は turbo を経由しません。そのとき置いてある
+  dist に対して走るので、何に対する結果なのかがわからなくなります
+- **ハーネスが起動したまま残ります。** `globalSetup` は初回だけ走り、teardown は
+  `Run global teardown` を明示的に叩くまで走りません。Caddy と sync がポートを
+  掴んだままになり、次の `pnpm e2e` が preflight で止まります
+
+押してしまった場合は「終了後の確認コマンド」で状態を確かめ、残骸があれば
+「異常終了で残骸が出たときの復旧」の手順で撤去してください。
+
+**実行は必ずルートからの `pnpm e2e` を使ってください。** 拡張からも正しく走る
+ようにする作業は Issue #162 で扱います。
+
 ## シナリオとタグ
 
 | タグ | 内容 | `local` | `production` |
