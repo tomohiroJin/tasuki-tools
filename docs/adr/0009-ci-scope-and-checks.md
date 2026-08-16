@@ -82,9 +82,8 @@ CI のジョブは `ci` の 1 本から `ci` / `quality`（新設）/ `docs`（�
   理由: 再起動で稼働中のルームが全消滅するため、タイミングの判断は利用状況を
   知っている人にしかできない。
 
-- **D6**: shellcheck を導入し、`deploy/**` と `scripts/**` の対象 6 本
-  （`deploy/*.sh` / `deploy/lib/*.sh` / `scripts/*.sh`）を CI で走らせる
-  （**MUST**）。`.specify/scripts/**` は vendor のため対象外（**MUST NOT**）。
+- **D6**: shellcheck を導入し、`deploy/**` と `scripts/**` の `.sh` を CI で
+  走らせる（**MUST**）。`.specify/scripts/**` は vendor のため対象外（**MUST NOT**）。
   info は合否の対象にしない（`--severity=warning`）。
   **対象を持つことの MUST は現行のまま有効だが、対象の決め方（手段）は
   グロブの直書きから、`git ls-files '*.sh'` の結果から `.specify/scripts/**` を
