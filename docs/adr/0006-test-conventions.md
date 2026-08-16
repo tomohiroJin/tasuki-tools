@@ -23,10 +23,12 @@
 - **Given/When/Then 構造**は timer で `// Given` `// When` `// Then` の区切りを
   付ける規約として運用され、`scripts/audit-structure.mjs`（SC032）が機械的に
   検査している。2026-08-10 時点で実行すると **1023/1051（97.3%）**。
-  ただし現在の SC032 は `packages/timer-core` / `apps/timer-sync` /
-  `apps/timer-web` の 3 パッケージのみを走査対象としており（同スクリプトの
-  `runAudit()` を確認）、poker 系（`packages/poker-core` / `apps/poker-sync`）
-  や `packages/protocol` はまだ対象外である。
+  ただし**本 ADR 採択時点（2026-08-10）**の SC032 は `packages/timer-core` /
+  `apps/timer-sync` / `apps/timer-web` の 3 パッケージのみを走査対象としており
+  （同スクリプトの `runAudit()` を確認）、poker 系（`packages/poker-core` /
+  `apps/poker-sync`）や `packages/protocol` はまだ対象外だった。
+  **追記（2026-08-16）**: この状態は #135 / [ADR-0014](./0014-scan-target-integrity.md)
+  で解消済み。現在の SC032 は宣言と理由つき除外で全パッケージを覆う。
 - **新しい検査はわざと壊して赤を見る**は、timer の G5・G6 の新設テストで
   実践されてきた（例: `apps/timer-sync/test/error-code-coverage.test.ts` はソース走査の
   メタテスト）。
