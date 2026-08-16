@@ -161,8 +161,8 @@ git commit -m "docs: ADR-0007 にテストの差し替えも利用者に数え�
 | | `apps/timer-web`（77 ファイル / 7,692 行） | `apps/poker-web`（12 ファイル / 784 行） |
 |---|---|---|
 | 分け方 | 関心事別（`ui/` `sync/` `ai/` `records/` `prefs/` `platform/`） | 役割別（`components/` `hooks/` `pages/`） |
-| 純粋ロジックの切り出し | **徹底している。** `ui/screen.ts` `ui/error-action.ts` `ui/host-change.ts` `ui/problem-generation.ts` `ui/join-driver-intent.ts` `ui/connection-status.ts` `ui/room-param.ts` `sync/notice-message.ts` `sync/sync-url.ts` の 9 本は、いずれも 12〜63 行で副作用 0 件・React フック 0 件 | `connection-notice.ts` のみ |
-| WS の配線 | **`App.tsx` に直書き。** `useState` 12 個・`useRef` 9 個・105〜377 行の 272 行 `useEffect` 1 本が同居し、同ファイルは 848 行 | **`hooks/useSync.ts`（176 行）に集約。** `wsRef` と `open` / `close` / `message` の 3 リスナを 1 つの `useEffect` に閉じ込め、接続まわりの状態 7 個を保持 |
+| 純粋ロジックの切り出し | **徹底している。** `ui/screen.ts` `ui/error-action.ts` `ui/host-change.ts` `ui/problem-generation.ts` `ui/join-driver-intent.ts` `ui/connection-status.ts` `ui/room-param.ts` `sync/notice-message.ts` `sync/sync-url.ts` の 9 本は、いずれも 12〜63 行で副作用 0 件・React フック 0 件 | `connection-notice.ts` と `router.ts` の `parseRoute` / `roomPath` / `topPath`（同ファイルで副作用を持つのは `navigate` のみ） |
+| WS の配線 | **`App.tsx` に直書き。** `useState` 11 個・`useRef` 10 個に加え、`SyncClient` のコールバック本体が render 本体の 132〜377 行（132 行のコメント「─── SyncClient のコールバック本体 ───」以降）に置かれ、377 行の `handlersRef` へ毎レンダー同期される。同ファイルは 848 行 | **`hooks/useSync.ts`（176 行）に集約。** `wsRef` と `open` / `close` / `message` の 3 リスナを 1 つの `useEffect` に閉じ込め、接続まわりの状態 7 個を保持 |
 
 **この非対称は「片方が正しく片方が誤り」ではない。** timer-web は純粋関数の切り出しを、
 poker-web は WS 配線の集約を、それぞれ現に実現している。`App.tsx` が 848 行あるのは、
@@ -277,7 +277,7 @@ git commit -m "docs: web 層の構造標準を ADR-0015 として定める（#72
 
 | | `packages/timer-core`（4,234 行 / 14 ファイル） | `packages/poker-core`（462 行 / 7 ファイル） |
 |---|---|---|
-| 状態遷移 | `decide(cmd, agg, now): Result<DomainEvent[], DomainError>` ＋ `evolve(agg, event, now): Aggregate` | `castVote(room, participantId, card): Result<Room, RoundError>` など 5 関数 |
+| 状態遷移 | `decide(cmd, agg, now): Result<DomainEvent[], DomainError>` ＋ `evolve(agg, event, now): Aggregate` | `castVote(room, participantId, card): Result<Room, RoundError>` ほか 8 関数 |
 | 中間表現 | `DomainEvent` を挟む | 挟まない |
 | エラー型 | `{ type: "DuplicateName"; name: string }` 等。文言を持たず `displayMessageFor()` が生成 | `{ code: 'not-voting'; message: '現在は投票を受け付けていません' }` 等。文言を同梱 |
 | `index.ts` | 公開記号を明示列挙 | `export * from './deck'` ほか 6 行 |
@@ -286,7 +286,7 @@ git commit -m "docs: web 層の構造標準を ADR-0015 として定める（#72
 **共通しているのは `Result` を返すこと（[`docs/adr/0005`](./0005-result-and-boundary-validation.md)）だけである。**
 
 一方へ寄せる案は 2 つとも採らなかった。poker を Decider へ寄せる案は、poker の
-ドメインが 462 行 / 5 遷移関数で、イベント履歴・再生の要求が現に無いため
+ドメインが 462 行 / 8 遷移関数で、イベント履歴・再生の要求が現に無いため
 [`docs/adr/0007`](./0007-abstraction-criteria.md) の基準 3（パターンは変更が現に困難な
 ときに限る）を満たさない。timer を直接遷移へ寄せる案は、4,234 行の全面書き換えと
 [`docs/timer/adr/0002`](../timer/adr/0002-decider-pure-domain.md) の `Superseded` を要し、
@@ -323,7 +323,7 @@ poker-core 内の別モジュールへ置き、同期サーバーは `code` か�
   |---|---|---|---|
   | 1. `Result` | 両方準拠 | なし | — |
   | 2. `index.ts` の明示列挙 | timer 準拠 / poker 未 | `packages/poker-core/src/index.ts` 1 ファイル | #72 E6 |
-  | 3. エラー型 | timer 準拠 / poker 未 | poker-core の `RoundError` `RoomError` と文言 5 箇所、`apps/poker-sync/src/server.ts:244` `:333`、`apps/poker-web` | #72 E2 |
+  | 3. エラー型 | timer 準拠 / poker 未 | poker-core の `RoundError` `RoomError` と文言 6 箇所（`RoundError` 由来 5 ＋ `RoomError` 由来 1）、`apps/poker-sync/src/server.ts:244` `:333`、`apps/poker-web` | #72 E2 |
   | 4. `Date.now()` | poker 準拠 / timer 未 | `packages/timer-core/src/problem.ts:70` 1 箇所 | #72 E3 |
 
 - **項目 3 を E2（poker-sync のポート/アダプタ再編）と同じ PR で行うのは、
@@ -416,7 +416,10 @@ MUST としている。poker はこれまで ADR を 1 本も持っていなか�
 
 **根拠**（2026-08-17 実測）:
 
-- ドメインは 462 行 / 7 ファイルで、状態遷移関数は 5 つである。
+- ドメインは 462 行 / 7 ファイルで、状態遷移関数は 8 つである（`round.ts` の `castVote`
+  `applyAutoReveal` `revealBy` `nextRound`、`room.ts` の `createRoom` `joinRoom`
+  `markDisconnected` `markConnected`。`shouldAutoReveal` `isValidName` は判定述語、
+  `findParticipantByToken` は問い合わせで、いずれも状態を返さない）。
 - **イベントの履歴・再生・段階適用の要求が現に無い。** 状態同期は
   スナップショット方式で、サーバーはルーム全体を配信して受信側が丸ごと置き換える。
 - したがって Decider の導入は `docs/adr/0007` の基準 3（デザインパターンは、
@@ -499,7 +502,7 @@ git commit -m "docs: poker の ADR 置き場を新設し直接遷移の採用を
 
 - docs/poker/adr/ を採番規約に沿って新設し 0001 と README を置く
 - ADR-0016 決定 1 が MUST とする「どちらを採ったかの記録」を満たす
-- 根拠は 462 行 / 5 遷移関数でイベント履歴の要求が現に無いこと
+- 根拠は 462 行 / 8 遷移関数でイベント履歴の要求が現に無いこと
 - 置き場表と文書地図から辿れるようにした"
 ```
 
@@ -1171,8 +1174,9 @@ gh issue create --title "E2: poker-sync をポート/アダプタ構成へ再編
 ## 背景
 
 `docs/adr/0015` は web 層を「純粋関数・同期フック・画面」の 3 責務に分けることを
-MUST と定めました。`apps/timer-web/src/App.tsx` は **848 行**で、`useState` 12 個・
-`useRef` 9 個・**105〜377 行の 272 行 `useEffect` 1 本**に WS 配線が同居しています。
+MUST と定めました。`apps/timer-web/src/App.tsx` は **848 行**で、`useState` 11 個・
+`useRef` 10 個に加え、**`SyncClient` のコールバック本体が render 本体の 132〜377 行**に
+直書きされ、377 行の `handlersRef` へ毎レンダー同期されています。
 
 **`apps/poker-web` は既に準拠しています**（`App.tsx:3` が `usePokerSync` を経由し、
 `.tsx` に `WebSocket` の直接使用が無い）。本 Issue の対象は timer-web 側です。

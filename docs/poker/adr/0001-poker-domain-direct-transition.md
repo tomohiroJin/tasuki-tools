@@ -21,7 +21,10 @@ MUST としている。poker はこれまで ADR を 1 本も持っていなか�
 
 **根拠**（2026-08-17 実測）:
 
-- ドメインは 462 行 / 7 ファイルで、状態遷移関数は 5 つである。
+- ドメインは 462 行 / 7 ファイルで、状態遷移関数は 8 つである（`round.ts` の `castVote`
+  `applyAutoReveal` `revealBy` `nextRound`、`room.ts` の `createRoom` `joinRoom`
+  `markDisconnected` `markConnected`。`shouldAutoReveal` `isValidName` は判定述語、
+  `findParticipantByToken` は問い合わせで、いずれも状態を返さない）。
 - **イベントの履歴・再生・段階適用の要求が現に無い。** 状態同期は
   スナップショット方式で、サーバーはルーム全体を配信して受信側が丸ごと置き換える。
 - したがって Decider の導入は `docs/adr/0007` の基準 3（デザインパターンは、

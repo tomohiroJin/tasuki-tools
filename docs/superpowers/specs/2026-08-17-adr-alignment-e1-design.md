@@ -149,8 +149,9 @@ ADR-0002 は ADR を「追記のみ。覆すときは Superseded」と定めて�
 `host-change.ts` `problem-generation.ts` `join-driver-intent.ts`
 `connection-status.ts` `notice-message.ts` `room-param.ts`）。2 は poker-web が
 実証している（`hooks/useSync.ts`）。**どちらも予測ではなく、現に片方で動いている。**
-timer-web の `App.tsx` が 848 行あるのは 2 を持たないためで、`useState` 12 個・
-`useRef` 9 個・105〜377 行の 272 行 `useEffect` 1 本が同居している。
+timer-web の `App.tsx` が 848 行あるのは 2 を持たないためで、`useState` 11 個・
+`useRef` 10 個に加え、`SyncClient` のコールバック本体が render 本体の 132〜377 行に
+直書きされ、377 行の `handlersRef` へ毎レンダー同期されている。
 
 ### ③ `docs/adr/0016` — core のドメイン表現規約
 
@@ -166,7 +167,7 @@ timer-web の `App.tsx` が 848 行あるのは 2 を持たないためで、`us
 |---|---|---|---|
 | ドメイン操作の失敗は `Result` で表す | 両方準拠（ADR-0005） | なし | — |
 | `index.ts` は公開記号を明示列挙する。`export *` を使わない（MUST NOT） | timer 準拠 / poker 未 | `packages/poker-core/src/index.ts` 1 ファイル | **E6** |
-| ドメインエラーは判別子と機械可読な詳細のみを持つ。表示文言は文言生成関数が担う | timer 準拠 / poker 未 | poker-core の `RoundError` `RoomError` と文言 5 箇所、`poker-sync/server.ts:244,:333`、poker-web | **E2** |
+| ドメインエラーは判別子と機械可読な詳細のみを持つ。表示文言は文言生成関数が担う | timer 準拠 / poker 未 | poker-core の `RoundError` `RoomError` と文言 6 箇所（`RoundError` 由来 5 ＋ `RoomError` 由来 1）、`poker-sync/server.ts:244,:333`、poker-web | **E2** |
 | ドメイン内で `Date.now()` / `Math.random()` を呼ばない（MUST NOT） | poker 準拠 / timer 未 | `timer-core/src/problem.ts:70` 1 箇所 | **E3** |
 
 **文言生成関数の置き場:** timer の `displayMessageFor()` は `@tasuki/timer-core` から
@@ -192,7 +193,7 @@ FR-110 で明示列挙へ置換済み。
 
 | | `packages/timer-core`（4,234 行 / 14 ファイル） | `packages/poker-core`（462 行 / 7 ファイル） |
 |---|---|---|
-| 状態遷移 | `decide(cmd, agg, now): Result<DomainEvent[], DomainError>` ＋ `evolve(agg, event, now): Aggregate` | `castVote(room, participantId, card): Result<Room, RoundError>` など 5 関数 |
+| 状態遷移 | `decide(cmd, agg, now): Result<DomainEvent[], DomainError>` ＋ `evolve(agg, event, now): Aggregate` | `castVote(room, participantId, card): Result<Room, RoundError>` ほか 8 関数 |
 | 中間表現 | `DomainEvent` を挟む | 挟まない |
 | エラー型 | `{ type: "DuplicateName"; name: string }` 等。文言を持たず `displayMessageFor()` が生成 | `{ code: 'not-voting'; message: '現在は投票を受け付けていません' }` 等。文言を同梱 |
 | `index.ts` | 公開記号を明示列挙 | `export * from './deck'` ほか 6 行 |
@@ -204,7 +205,7 @@ FR-110 で明示列挙へ置換済み。
 `README.md` も作る（`docs/timer/adr/README.md` に揃える）。
 
 - **決定:** poker のドメインは直接遷移関数 ＋ `Result` を採る
-- **根拠:** ドメインが 462 行 / 5 遷移関数であり、イベント履歴・再生の要求が現に無い
+- **根拠:** ドメインが 462 行 / 8 遷移関数であり、イベント履歴・再生の要求が現に無い
   （同期はスナップショット方式）。ADR-0007 基準 3（パターンは変更が現に困難な
   ときに限る）に照らして Decider の実需が無い
 - **影響:** 将来イベント履歴が要るようになったら Superseded にする

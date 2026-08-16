@@ -11,13 +11,15 @@
 
 `docs/guides/architecture.md` の層対応表は `apps/*-web` を「アダプタ」に置き、
 「上のすべてに依存してよい」と定めるだけで、**内部構造を規定していない**。
-その結果、2 つの web アプリが別々の形に育った（2026-08-17 実測）。
+その結果、2 つの web アプリが別々の形に育った（2026-08-17 実測。
+**ファイル数・行数は各 `src` 配下の `.ts`/`.tsx` のみを数えたもので、`index.css` などの
+非 TypeScript ファイルは含まない**）。
 
 | | `apps/timer-web`（77 ファイル / 7,692 行） | `apps/poker-web`（12 ファイル / 784 行） |
 |---|---|---|
 | 分け方 | 関心事別（`ui/` `sync/` `ai/` `records/` `prefs/` `platform/`） | 役割別（`components/` `hooks/` `pages/`） |
-| 純粋ロジックの切り出し | **徹底している。** `apps/timer-web/src/ui/screen.ts` `apps/timer-web/src/ui/error-action.ts` `apps/timer-web/src/ui/host-change.ts` `apps/timer-web/src/ui/problem-generation.ts` `apps/timer-web/src/ui/join-driver-intent.ts` `apps/timer-web/src/ui/connection-status.ts` `apps/timer-web/src/ui/room-param.ts` `apps/timer-web/src/sync/notice-message.ts` `apps/timer-web/src/sync/sync-url.ts` の 9 本は、いずれも 12〜63 行で副作用 0 件・React フック 0 件 | `apps/poker-web/src/connection-notice.ts` のみ |
-| WS の配線 | **`apps/timer-web/src/App.tsx` に直書き。** `useState` 12 個・`useRef` 9 個・105〜377 行の 272 行 `useEffect` 1 本が同居し、同ファイルは 848 行 | **`apps/poker-web/src/hooks/useSync.ts`（176 行）に集約。** `wsRef` と `open` / `close` / `message` の 3 リスナを 1 つの `useEffect` に閉じ込め、接続まわりの状態 7 個を保持 |
+| 純粋ロジックの切り出し | **徹底している。** `apps/timer-web/src/ui/screen.ts` `apps/timer-web/src/ui/error-action.ts` `apps/timer-web/src/ui/host-change.ts` `apps/timer-web/src/ui/problem-generation.ts` `apps/timer-web/src/ui/join-driver-intent.ts` `apps/timer-web/src/ui/connection-status.ts` `apps/timer-web/src/ui/room-param.ts` `apps/timer-web/src/sync/notice-message.ts` `apps/timer-web/src/sync/sync-url.ts` の 9 本は、いずれも 12〜63 行で副作用 0 件・React フック 0 件 | `apps/poker-web/src/connection-notice.ts` と `apps/poker-web/src/router.ts` の `parseRoute` / `roomPath` / `topPath`（同ファイルで副作用を持つのは `navigate` のみ） |
+| WS の配線 | **`apps/timer-web/src/App.tsx` に直書き。** `useState` 11 個・`useRef` 10 個に加え、`SyncClient` のコールバック本体が render 本体の 132〜377 行（132 行のコメント「─── SyncClient のコールバック本体 ───」以降）に置かれ、377 行の `handlersRef` へ毎レンダー同期される。同ファイルは 848 行 | **`apps/poker-web/src/hooks/useSync.ts`（176 行）に集約。** `wsRef` と `open` / `close` / `message` の 3 リスナを 1 つの `useEffect` に閉じ込め、接続まわりの状態 7 個を保持 |
 
 **この非対称は「片方が正しく片方が誤り」ではない。** timer-web は純粋関数の切り出しを、
 poker-web は WS 配線の集約を、それぞれ現に実現している。`apps/timer-web/src/App.tsx` が 848 行あるのは、

@@ -22,7 +22,7 @@
 | アプリケーション | `apps/*-sync/src/application` | ドメイン・ポート・`packages/rate-limit` |
 | ポート | `apps/*-sync/src/ports` | ドメインの型 |
 | アダプタ | `apps/*-sync/src/adapters`・`apps/*-web` | 上のすべて |
-| web の純粋判断 | `apps/*-web` 配下の `.ts`（例: `apps/timer-web/src/ui/screen.ts`） | ドメインの型のみ（React・I/O に依存しない） |
+| web の純粋判断 | `apps/*-web` 配下で React・I/O に依存しない `.ts`（例: `apps/timer-web/src/ui/screen.ts`・`apps/poker-web/src/connection-notice.ts`） | ドメインの型のみ（React・I/O に依存しない） |
 | web の同期フック | `apps/*-web` の同期フック 1 本（例: `apps/poker-web/src/hooks/useSync.ts`） | 上のすべて ＋ WebSocket |
 | web の画面 | `apps/*-web` の `.tsx` | 同期フックと純粋判断のみ（同期クライアントを直接 import しない） |
 | UI 資産 | `packages/ui` | なし（CSS トークンと静的資産） |
@@ -31,8 +31,8 @@
 [`docs/adr/0015`](../adr/0015-web-layer-structure.md) です。本ガイドはその置き場を
 示します。`apps/poker-web` は既にこの形（`hooks/useSync.ts` へ集約）に従っており、
 `apps/timer-web` の再編は [#72](https://github.com/tomohiroJin/tasuki-tools/issues/72) の
-E4 で行います（`App.tsx` が 848 行あり、105〜377 行の `useEffect` に WS 配線が
-同居しているため）。
+E4 で行います（`apps/timer-web/src/App.tsx` に WS 配線が直書きされているため。
+実測値は [`docs/adr/0015`](../adr/0015-web-layer-structure.md) の背景を参照）。
 
 **`packages/rate-limit` について**: HMAC によるクライアント鍵導出とトークンバケツによる
 レート制限（#103）を提供する node 専用パッケージ。`node:crypto` / `node:net` に依存するため

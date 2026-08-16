@@ -15,7 +15,7 @@
 
 | | `packages/timer-core`（4,234 行 / 14 ファイル） | `packages/poker-core`（462 行 / 7 ファイル） |
 |---|---|---|
-| 状態遷移 | `decide(cmd, agg, now): Result<DomainEvent[], DomainError>` ＋ `evolve(agg, event, now): Aggregate` | `castVote(room, participantId, card): Result<Room, RoundError>` など 5 関数 |
+| 状態遷移 | `decide(cmd, agg, now): Result<DomainEvent[], DomainError>` ＋ `evolve(agg, event, now): Aggregate` | `castVote(room, participantId, card): Result<Room, RoundError>` ほか 8 関数 |
 | 中間表現 | `DomainEvent` を挟む | 挟まない |
 | エラー型 | `{ type: "DuplicateName"; name: string }` 等。文言を持たず `displayMessageFor()` が生成 | `{ code: 'not-voting'; message: '現在は投票を受け付けていません' }` 等。文言を同梱 |
 | `index.ts` | 公開記号を明示列挙 | `export * from './deck'` ほか 6 行 |
@@ -24,7 +24,7 @@
 **共通しているのは `Result` を返すこと（[`docs/adr/0005`](./0005-result-and-boundary-validation.md)）だけである。**
 
 一方へ寄せる案は 2 つとも採らなかった。poker を Decider へ寄せる案は、poker の
-ドメインが 462 行 / 5 遷移関数で、イベント履歴・再生の要求が現に無いため
+ドメインが 462 行 / 8 遷移関数で、イベント履歴・再生の要求が現に無いため
 [`docs/adr/0007`](./0007-abstraction-criteria.md) の基準 3（パターンは変更が現に困難な
 ときに限る）を満たさない。timer を直接遷移へ寄せる案は、4,234 行の全面書き換えと
 [`docs/timer/adr/0002`](../timer/adr/0002-decider-pure-domain.md) の `Superseded` を要し、
@@ -61,7 +61,7 @@ poker-core 内の別モジュールへ置き、同期サーバーは `code` か�
   |---|---|---|---|
   | 1. `Result` | 両方準拠 | なし | — |
   | 2. `index.ts` の明示列挙 | timer 準拠 / poker 未 | `packages/poker-core/src/index.ts` 1 ファイル | #72 E6 |
-  | 3. エラー型 | timer 準拠 / poker 未 | poker-core の `RoundError` `RoomError` と文言 5 箇所、`apps/poker-sync/src/server.ts:244` `:333`、`apps/poker-web` | #72 E2 |
+  | 3. エラー型 | timer 準拠 / poker 未 | poker-core の `RoundError` `RoomError` と文言 6 箇所（`RoundError` 由来 5 ＋ `RoomError` 由来 1）、`apps/poker-sync/src/server.ts:244` `:333`、`apps/poker-web` | #72 E2 |
   | 4. `Date.now()` | poker 準拠 / timer 未 | `packages/timer-core/src/problem.ts:70` 1 箇所 | #72 E3 |
 
 - **項目 3 を E2（poker-sync のポート/アダプタ再編）と同じ PR で行うのは、
