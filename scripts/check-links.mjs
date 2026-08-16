@@ -166,6 +166,7 @@ export const LIVE_DOCS = [
   ".github/",
   "e2e/",
   "docs/constitution.md",
+  "docs/poker/adr/",
 ];
 
 /**
@@ -179,7 +180,12 @@ export const LIVE_DOCS = [
 export const DORMANT_DOCS = [
   { prefix: "docs/superpowers/", reason: "設計正本・実装計画。作業中に頻繁に増減する" },
   { prefix: "docs/plans/", reason: "旧世代の実装計画。記録として保持する" },
-  { prefix: "docs/timer/", reason: "timer の作業記録。記録として保持する" },
+  {
+    prefix: "docs/timer/",
+    reason:
+      "epic #15 の改名前パス（packages/core・apps/sync・apps/web）を含む当時の記録。" +
+      "ADR は追記のみで書き換えられないため LIVE にできない（#72 E1 で 15 件を実測）",
+  },
   { prefix: "docs/poker/", reason: "poker の作業記録。記録として保持する" },
   { prefix: "docs/retrospectives/", reason: "振り返り。当時の記述を保つのが正しい" },
   { prefix: "packages/protocol/README.md", reason: "パッケージ README。LIVE_DOCS の粒度に合わない" },

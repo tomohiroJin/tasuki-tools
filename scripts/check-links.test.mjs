@@ -233,6 +233,18 @@ describe("isLiveDoc", () => {
     assert.equal(isLiveDoc(".claude/skills/speckit-plan/SKILL.md"), false);
   });
 
+  test("poker の ADR は現役の規範文書なので LIVE に含む", () => {
+    // Given: poker の ADR は docs/poker/ 配下だが、休眠の作業記録ではなく現役の規範
+    // When / Then
+    assert.equal(isLiveDoc("docs/poker/adr/0001-poker-domain-direct-transition.md"), true);
+  });
+
+  test("poker の specs は休眠のまま（ADR だけを LIVE にする）", () => {
+    // Given: 同じ docs/poker/ 配下でも specs は当時の作業記録
+    // When / Then
+    assert.equal(isLiveDoc("docs/poker/specs/001-planning-poker-mvp/spec.md"), false);
+  });
+
   test("docs/README.md は現役だが docs/ 全体は現役ではない", () => {
     // Given: 完全一致のエントリと前方一致のエントリを混ぜている
     // When / Then
