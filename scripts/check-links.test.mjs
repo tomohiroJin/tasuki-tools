@@ -337,6 +337,17 @@ describe("classifyDocs", () => {
     assert.deepEqual(unclassified, ["docs/guides/development.md"]);
   });
 
+  test("docs/poker/adr/ を LIVE_DOCS から消すと、poker の ADR が無所属になる", () => {
+    // Given: docs/poker/adr/ を失った状態を模す。docs/poker/ を覆う DORMANT エントリは
+    //        specs/ と README.md のみなので、adr/ 配下は他のどのエントリにも属さなくなる
+    const live = LIVE_DOCS.filter((e) => e !== "docs/poker/adr/");
+    const tracked = ["docs/poker/adr/0001-poker-domain-direct-transition.md"];
+    // When
+    const { unclassified } = classifyDocs(tracked, { live });
+    // Then: 経路③ — 以前は docs/poker/ という広い DORMANT エントリに吸収されて緑のままだった
+    assert.deepEqual(unclassified, ["docs/poker/adr/0001-poker-domain-direct-transition.md"]);
+  });
+
   test("除外には理由が書かれている", () => {
     // Given / When / Then
     for (const d of DORMANT_DOCS) {

@@ -186,7 +186,13 @@ export const DORMANT_DOCS = [
       "epic #15 の改名前パス（packages/core・apps/sync・apps/web）を含む当時の記録。" +
       "ADR は追記のみで書き換えられないため LIVE にできない（#72 E1 で 15 件を実測）",
   },
-  { prefix: "docs/poker/", reason: "poker の作業記録。記録として保持する" },
+  { prefix: "docs/poker/specs/", reason: "spec-kit 期の仕様・設計。当時の記述を保つのが正しい" },
+  {
+    prefix: "docs/poker/README.md",
+    reason:
+      "公開前の予定（公開 URL・未公開の注記）を書いた当時の記録。" +
+      "poker の現役の規範は docs/poker/adr/ にあり、そちらは LIVE_DOCS に入れている",
+  },
   { prefix: "docs/retrospectives/", reason: "振り返り。当時の記述を保つのが正しい" },
   { prefix: "packages/protocol/README.md", reason: "パッケージ README。LIVE_DOCS の粒度に合わない" },
   { prefix: "packages/ui/README.md", reason: "パッケージ README。LIVE_DOCS の粒度に合わない" },
