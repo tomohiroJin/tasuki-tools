@@ -150,8 +150,9 @@ ADR-0002 は ADR を「追記のみ。覆すときは Superseded」と定めて�
 `connection-status.ts` `notice-message.ts` `room-param.ts`）。2 は poker-web が
 実証している（`hooks/useSync.ts`）。**どちらも予測ではなく、現に片方で動いている。**
 timer-web の `App.tsx` が 848 行あるのは 2 を持たないためで、`useState` 11 個・
-`useRef` 10 個に加え、`SyncClient` のコールバック本体が render 本体の 132〜377 行に
-直書きされ、377 行の `handlersRef` へ毎レンダー同期されている。
+`useRef` 10 個に加え、`SyncClient` のコールバック本体（`// ─── SyncClient のコールバック本体 ───`
+のコメント以降）が render 本体に直書きされ、`useLatestRef` で `handlersRef` へ毎レンダー
+同期されている。`SyncClient` へ渡すのは `handlersRef.current` の同名関数を呼ぶ転送関数のみ。
 
 ### ③ `docs/adr/0016` — core のドメイン表現規約
 

@@ -162,7 +162,7 @@ git commit -m "docs: ADR-0007 にテストの差し替えも利用者に数え�
 |---|---|---|
 | 分け方 | 関心事別（`ui/` `sync/` `ai/` `records/` `prefs/` `platform/`） | 役割別（`components/` `hooks/` `pages/`） |
 | 純粋ロジックの切り出し | **徹底している。** `ui/screen.ts` `ui/error-action.ts` `ui/host-change.ts` `ui/problem-generation.ts` `ui/join-driver-intent.ts` `ui/connection-status.ts` `ui/room-param.ts` `sync/notice-message.ts` `sync/sync-url.ts` の 9 本は、いずれも 12〜63 行で副作用 0 件・React フック 0 件 | `connection-notice.ts` と `router.ts` の `parseRoute` / `roomPath` / `topPath`（同ファイルで副作用を持つのは `navigate` のみ） |
-| WS の配線 | **`App.tsx` に直書き。** `useState` 11 個・`useRef` 10 個に加え、`SyncClient` のコールバック本体が render 本体の 132〜377 行（132 行のコメント「─── SyncClient のコールバック本体 ───」以降）に置かれ、377 行の `handlersRef` へ毎レンダー同期される。同ファイルは 848 行 | **`hooks/useSync.ts`（176 行）に集約。** `wsRef` と `open` / `close` / `message` の 3 リスナを 1 つの `useEffect` に閉じ込め、接続まわりの状態 7 個を保持 |
+| WS の配線 | **`App.tsx` に直書き。** `useState` 11 個・`useRef` 10 個に加え、`SyncClient` のコールバック本体（`// ─── SyncClient のコールバック本体 ───` のコメント以降）が render 本体に置かれ、`useLatestRef` で `handlersRef` へ毎レンダー同期される。`SyncClient` へ渡すのは `handlersRef.current` の同名関数を呼ぶ転送関数のみ。同ファイルは 848 行 | **`hooks/useSync.ts`（176 行）に集約。** `wsRef` と `open` / `close` / `message` の 3 リスナを 1 つの `useEffect` に閉じ込め、接続まわりの状態 7 個を保持 |
 
 **この非対称は「片方が正しく片方が誤り」ではない。** timer-web は純粋関数の切り出しを、
 poker-web は WS 配線の集約を、それぞれ現に実現している。`App.tsx` が 848 行あるのは、
@@ -192,7 +192,7 @@ timer-web が後者を持たないためである。
 
 - **本 ADR の時点ではコード（`apps/` `packages/` `e2e/` `scripts/`）を変更しない。**
   適用は [#72](https://github.com/tomohiroJin/tasuki-tools/issues/72) の E4 で行う。
-- **`apps/poker-web` は本 ADR の MUST 2 に既に準拠している**（`App.tsx:3` が
+- **`apps/poker-web` は本 ADR の MUST 2 に既に準拠している**（`App.tsx` が
   `usePokerSync` を経由し、`.tsx` に `WebSocket` の直接使用が無い。2026-08-17 実測）。
   E4 で再編するのは `apps/timer-web` 側である。
 - MUST 2 の機械検査は **E4 が置く**。E1 で先に置くと、E1 はコードを直さないため
@@ -1191,10 +1191,11 @@ gh issue create --title "E2: poker-sync をポート/アダプタ構成へ再編
 
 `docs/adr/0015` は web 層を「純粋関数・同期フック・画面」の 3 責務に分けることを
 MUST と定めました。`apps/timer-web/src/App.tsx` は **848 行**で、`useState` 11 個・
-`useRef` 10 個に加え、**`SyncClient` のコールバック本体が render 本体の 132〜377 行**に
-直書きされ、377 行の `handlersRef` へ毎レンダー同期されています。
+`useRef` 10 個に加え、**`SyncClient` のコールバック本体**（`// ─── SyncClient のコールバック本体 ───`
+のコメント以降）が render 本体に直書きされ、`useLatestRef` で `handlersRef` へ毎レンダー
+同期されています。`SyncClient` へ渡すのは `handlersRef.current` の同名関数を呼ぶ転送関数のみです。
 
-**`apps/poker-web` は既に準拠しています**（`App.tsx:3` が `usePokerSync` を経由し、
+**`apps/poker-web` は既に準拠しています**（`App.tsx` が `usePokerSync` を経由し、
 `.tsx` に `WebSocket` の直接使用が無い）。本 Issue の対象は timer-web 側です。
 
 ## 振る舞い（EARS）
