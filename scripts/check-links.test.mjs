@@ -233,6 +233,18 @@ describe("isLiveDoc", () => {
     assert.equal(isLiveDoc(".claude/skills/speckit-plan/SKILL.md"), false);
   });
 
+  test("poker の ADR は現役の規範文書なので LIVE に含む", () => {
+    // Given: poker の ADR は docs/poker/ 配下だが、休眠の作業記録ではなく現役の規範
+    // When / Then
+    assert.equal(isLiveDoc("docs/poker/adr/0001-poker-domain-direct-transition.md"), true);
+  });
+
+  test("poker の specs は休眠のまま（ADR だけを LIVE にする）", () => {
+    // Given: 同じ docs/poker/ 配下でも specs は当時の作業記録
+    // When / Then
+    assert.equal(isLiveDoc("docs/poker/specs/001-planning-poker-mvp/spec.md"), false);
+  });
+
   test("docs/README.md は現役だが docs/ 全体は現役ではない", () => {
     // Given: 完全一致のエントリと前方一致のエントリを混ぜている
     // When / Then
@@ -323,6 +335,26 @@ describe("classifyDocs", () => {
     const { unclassified } = classifyDocs(tracked, { live });
     // Then: 経路③ — 以前はエントリごと消えて緑になっていた
     assert.deepEqual(unclassified, ["docs/guides/development.md"]);
+  });
+
+  test("docs/poker/adr/ を LIVE_DOCS から消すと、poker の ADR が無所属になる", () => {
+    // Given: docs/poker/adr/ を失った状態を模す。docs/poker/ を覆う DORMANT エントリは
+    //        specs/ と README.md のみなので、adr/ 配下は他のどのエントリにも属さなくなる
+    const live = LIVE_DOCS.filter((e) => e !== "docs/poker/adr/");
+    const tracked = ["docs/poker/adr/0001-poker-domain-direct-transition.md"];
+    // When
+    const { unclassified } = classifyDocs(tracked, { live });
+    // Then: 経路③ — 以前は docs/poker/ という広い DORMANT エントリに吸収されて緑のままだった
+    assert.deepEqual(unclassified, ["docs/poker/adr/0001-poker-domain-direct-transition.md"]);
+  });
+
+  test("DORMANT_DOCS のどのエントリも LIVE_DOCS のエントリを包含しない", () => {
+    // Given: 包含があると、LIVE の行を消したとき配下が休眠へ吸収され無所属にならない（#135 経路③）
+    // When / Then
+    for (const d of DORMANT_DOCS) {
+      const swallowed = LIVE_DOCS.filter((e) => e.startsWith(d.prefix));
+      assert.deepEqual(swallowed, [], `${d.prefix} が LIVE_DOCS の ${swallowed.join(", ")} を包含しています`);
+    }
   });
 
   test("除外には理由が書かれている", () => {

@@ -11,6 +11,7 @@ Michael Nygard 形式（背景 / 決定 / 影響 / ステータス）に従い�
 |---|---|
 | `docs/adr/`（ここ） | `packages/` と複数の `apps/` にまたがる判断 |
 | `docs/timer/adr/` | `apps/timer-web` / `apps/timer-sync` に閉じた判断（0001〜0010） |
+| `docs/poker/adr/` | `apps/poker-web` / `apps/poker-sync` / `packages/poker-core` に閉じた判断（0001〜） |
 
 `docs/timer/adr/README.md` は「TDD Mob Pro Timer の重要な設計判断」を対象と宣言しているため、
 横断的な判断はそちらに入れません。
@@ -40,3 +41,5 @@ Michael Nygard 形式（背景 / 決定 / 影響 / ステータス）に従い�
 | [0012](./0012-logging-secrets-and-disclosure.md) | ログ・秘密・開示の取り扱い | Accepted |
 | [0013](./0013-pr-granularity.md) | PR の粒度 | Accepted |
 | [0014](./0014-scan-target-integrity.md) | 検査の走査対象は宣言と実体の照合で決める | Accepted |
+| [0015](./0015-web-layer-structure.md) | web 層は「純粋関数・同期フック・画面」に責務を分ける | Accepted |
+| [0016](./0016-core-domain-representation.md) | ドメインの表現は選択制とし、揃える点を定める | Accepted |

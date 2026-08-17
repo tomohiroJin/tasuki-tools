@@ -29,3 +29,25 @@ Claude サブスク月次 Agent SDK クレジットにより、運営者負担�
   トークン衛生（env 限定・非ログ）と濫用抑制がサーバーの責務になる。
   運営者のサブスク・クレジットを消費するため日次上限が必須。
 - ADR-0005 のうち **Valibot 検証・定型縮退・出所バッジ**の原則はそのまま引き継ぐ。
+
+## 追記（2026-08-17・#72 E1）
+
+**決定の 4 項目目「BYOK は休眠残置: `apps/web/src/ai/{byok,key-storage}.ts` は UI から
+撤去し将来の再有効化に備えて残す」は、その後に実装によって失効している。**
+
+両ファイルは #28 の T010（コミット `7d7a73c`「refactor: BYOK 系の休眠コードを撤去する」）
+で削除された。現在 `apps/timer-web/src/ai/` にあるのは `no-ai.ts` と `provider.ts` の
+2 本のみである（2026-08-17 実測）。
+
+**決定の本体（サーバー常駐生成・合言葉解錠・縮退と濫用抑制）は現在も有効で、
+実装も存在する** — `apps/timer-sync/src/adapters/claude-cli-problem-provider.ts` と
+`apps/timer-sync/src/application/ai-limits.ts`。
+
+**この不整合は #33（`docs/plans/adr-alignment-post-refactor/`）が取りこぼしたものである。**
+#33 は #28 後の ADR 整合を扱ったが、対象を論点 1〜3（`docs/timer/adr/` の 0009・0002・0001）に
+限定していた。
+
+あわせて、`apps/timer-web/src/App.tsx` の `resolveProvider()` の docstring が削除済みの
+`key-storage` に言及していたので、実装に合わせて直した（#72 E1）。
+
+本追記は経緯の記録であり、決定を覆すものではない（`docs/adr/0002` の「ADR は追記のみ」）。

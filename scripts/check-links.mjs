@@ -166,6 +166,7 @@ export const LIVE_DOCS = [
   ".github/",
   "e2e/",
   "docs/constitution.md",
+  "docs/poker/adr/",
 ];
 
 /**
@@ -179,8 +180,20 @@ export const LIVE_DOCS = [
 export const DORMANT_DOCS = [
   { prefix: "docs/superpowers/", reason: "設計正本・実装計画。作業中に頻繁に増減する" },
   { prefix: "docs/plans/", reason: "旧世代の実装計画。記録として保持する" },
-  { prefix: "docs/timer/", reason: "timer の作業記録。記録として保持する" },
-  { prefix: "docs/poker/", reason: "poker の作業記録。記録として保持する" },
+  {
+    prefix: "docs/timer/",
+    reason:
+      "epic #15 の改名前パス（packages/core・apps/sync・apps/web）を含む当時の記録。" +
+      "ADR は追記のみで書き換えられないため LIVE にできない" +
+      "（docs/timer/adr/ を LIVE にすると 15 件。docs/timer/ 全体なら 22 件。#72 E1 で実測）",
+  },
+  { prefix: "docs/poker/specs/", reason: "spec-kit 期の仕様・設計。当時の記述を保つのが正しい" },
+  {
+    prefix: "docs/poker/README.md",
+    reason:
+      "公開前の予定（公開 URL・未公開の注記）を書いた当時の記録。" +
+      "poker の現役の規範は docs/poker/adr/ にあり、そちらは LIVE_DOCS に入れている",
+  },
   { prefix: "docs/retrospectives/", reason: "振り返り。当時の記述を保つのが正しい" },
   { prefix: "packages/protocol/README.md", reason: "パッケージ README。LIVE_DOCS の粒度に合わない" },
   { prefix: "packages/ui/README.md", reason: "パッケージ README。LIVE_DOCS の粒度に合わない" },
