@@ -4,16 +4,20 @@ import { err, ok, type Result } from 'neverthrow';
 import type { Card } from './deck';
 import type { Room } from './room';
 
-export type RoundError = {
-  code: 'not-voting' | 'not-revealed' | 'not-host';
-  message: string;
-};
+export type RoundError =
+  | { code: 'not-host'; op: 'reveal' | 'next-round' }
+  | { code: 'not-voting'; op: 'vote' | 'reveal' }
+  | { code: 'not-revealed'; op: 'next-round' };
 
 /** ホスト専用操作の認可ガード（reveal / next-round / 将来のホスト操作で共用） */
-function requireHost(room: Room, participantId: string, message: string): Result<void, RoundError> {
+function requireHost(
+  room: Room,
+  participantId: string,
+  op: 'reveal' | 'next-round',
+): Result<void, RoundError> {
   const actor = room.participants.find((p) => p.id === participantId);
   if (!actor?.isHost) {
-    return err({ code: 'not-host', message });
+    return err({ code: 'not-host', op });
   }
   return ok(undefined);
 }
@@ -25,7 +29,7 @@ function withVotes(room: Room, votes: Map<string, Card>): Room {
 /** 投票（公開前は上書き可。FR-005〜007） */
 export function castVote(room: Room, participantId: string, card: Card): Result<Room, RoundError> {
   if (room.round.status !== 'voting') {
-    return err({ code: 'not-voting', message: '現在は投票を受け付けていません' });
+    return err({ code: 'not-voting', op: 'vote' });
   }
   const votes = new Map(room.round.votes);
   votes.set(participantId, card);
@@ -47,9 +51,9 @@ export function applyAutoReveal(room: Room): Room {
 
 /** ホストによる手動公開（FR-009） */
 export function revealBy(room: Room, participantId: string): Result<Room, RoundError> {
-  return requireHost(room, participantId, 'ホストのみが公開できます').andThen(() => {
+  return requireHost(room, participantId, 'reveal').andThen(() => {
     if (room.round.status !== 'voting') {
-      return err<Room, RoundError>({ code: 'not-voting', message: 'すでに公開されています' });
+      return err<Room, RoundError>({ code: 'not-voting', op: 'reveal' });
     }
     return ok({ ...room, round: { ...room.round, status: 'revealed' as const } });
   });
@@ -60,11 +64,11 @@ export function revealBy(room: Room, participantId: string): Result<Room, RoundE
  * 全票をリセットして voting に戻す。
  */
 export function nextRound(room: Room, participantId: string): Result<Room, RoundError> {
-  return requireHost(room, participantId, 'ホストのみが次のラウンドを開始できます').andThen(() => {
+  return requireHost(room, participantId, 'next-round').andThen(() => {
     if (room.round.status !== 'revealed') {
       return err<Room, RoundError>({
         code: 'not-revealed',
-        message: '票の公開後にのみ次のラウンドを開始できます',
+        op: 'next-round',
       });
     }
     return ok({ ...room, round: { status: 'voting' as const, votes: new Map() } });

@@ -7,6 +7,7 @@
 // それでもこの分岐は残す（docs/adr/0005 が境界検証とドメイン検証の両方を MUST としている）。
 // 残す以上、文言も固定しておく。
 import { describe, expect, it } from 'vitest';
+import { messageForRoomError } from '../src/error-messages';
 import { createRoom, joinRoom, NAME_MAX_LENGTH } from '../src/room';
 
 const ids = { participantId: 'p1', token: 't1' };
@@ -18,10 +19,10 @@ describe('RoomError の文言（特性テスト）', () => {
 
     // Then
     expect(result.isErr()).toBe(true);
-    expect(result._unsafeUnwrapErr()).toEqual({
-      code: 'invalid-name',
-      message: `名前は 1〜${NAME_MAX_LENGTH} 文字で入力してください`,
-    });
+    expect(result._unsafeUnwrapErr()).toEqual({ code: 'invalid-name' });
+    expect(messageForRoomError(result._unsafeUnwrapErr())).toBe(
+      `名前は 1〜${NAME_MAX_LENGTH} 文字で入力してください`,
+    );
   });
 
   it('joinRoom の名前が長すぎるなら invalid-name と定型文を返す', () => {
@@ -36,9 +37,9 @@ describe('RoomError の文言（特性テスト）', () => {
 
     // Then
     expect(result.isErr()).toBe(true);
-    expect(result._unsafeUnwrapErr()).toEqual({
-      code: 'invalid-name',
-      message: `名前は 1〜${NAME_MAX_LENGTH} 文字で入力してください`,
-    });
+    expect(result._unsafeUnwrapErr()).toEqual({ code: 'invalid-name' });
+    expect(messageForRoomError(result._unsafeUnwrapErr())).toBe(
+      `名前は 1〜${NAME_MAX_LENGTH} 文字で入力してください`,
+    );
   });
 });

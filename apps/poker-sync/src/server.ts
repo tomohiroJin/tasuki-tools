@@ -9,6 +9,8 @@ import {
   joinRoom,
   markConnected,
   markDisconnected,
+  messageForRoomError,
+  messageForRoundError,
   nextRound,
   parseClientMessage,
   revealBy,
@@ -146,7 +148,7 @@ function handleCreateRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'create-ro
   const ids = newIds();
   const result = createRoom(generateRoomId(), msg.name, ids);
   if (result.isErr()) {
-    sendError(ws, 'invalid-message', result.error.message);
+    sendError(ws, 'invalid-message', messageForRoomError(result.error));
     return;
   }
   const { room, participant } = result.value;
@@ -188,7 +190,7 @@ function handleJoinRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'join-room' 
   const ids = newIds();
   const result = joinRoom(entry.room, msg.name, ids);
   if (result.isErr()) {
-    sendError(ws, 'invalid-message', result.error.message);
+    sendError(ws, 'invalid-message', messageForRoomError(result.error));
     return;
   }
   entry.room = result.value.room;
@@ -241,7 +243,7 @@ function commitRoomAction(
   if (!entry) return;
   const result = action(entry.room, participantId);
   if (result.isErr()) {
-    sendError(ws, result.error.code, result.error.message);
+    sendError(ws, result.error.code, messageForRoundError(result.error));
     return;
   }
   entry.room = applyAutoReveal(result.value);
