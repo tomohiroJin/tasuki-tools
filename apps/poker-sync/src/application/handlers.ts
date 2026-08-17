@@ -2,7 +2,8 @@
  * ユースケース（アプリケーション層）。`create-room` / `join-room` / `check-room` と、
  * それらが共用する切り離し・join 完了処理を持つ。
  *
- * **依存はすべて引数で受け取る**（`docs/adr/0004` 決定 4）。以前は `server.ts` の
+ * **依存はすべて引数で受け取る**（`docs/adr/0004` 決定 2・3。アダプタはポートの型で
+ * 注入し、ユースケースはポートにのみ依存する）。以前は `server.ts` の
  * module 直下でアダプタを生成しており、in-process のテストが 1 件も書けなかった。
  * 偽のポートを渡してハンドラを直接呼べることが、この形にした理由である
  * （差し替えテストは `tests/create-sync-server.substitution.test.ts`）。
@@ -37,7 +38,7 @@ import { createRateLimitGate } from './rate-limit-gate';
  * `data` は接続ごとの状態のうちハンドラが読み書きする 3 つだけを見る
  * （`connId` / `origin` / `clientKey` は WS アダプタの関心事なので出てこない）。
  * **Bun の型に依存させないのは、偽の接続を渡してハンドラを直接呼べるようにするため**
- * （`docs/adr/0004` 決定 4 の差し替え可能性）。
+ * （`docs/adr/0004` の根拠が挙げた「テスト時にアダプタを差し替えられる構成」）。
  */
 export interface HandlerConnection extends RoomSocket {
   data: {
@@ -67,7 +68,7 @@ export interface Handlers {
   handleCheckRoom(ws: HandlerConnection, msg: Extract<ClientMessage, { type: 'check-room' }>): void;
   detachFromCurrentRoom(ws: HandlerConnection): void;
   dispatch(ws: HandlerConnection, msg: ClientMessage): void;
-  /** 衝突しないルーム ID を採る。衝突再試行を検証するため公開する（`docs/adr/0004` 決定 6）。 */
+  /** 衝突しないルーム ID を採る。**衝突再試行を差し替えテストで検証するため公開する。** */
   generateRoomId(): string;
   /** エラー応答。WS アダプタもサイズ超過・パース失敗の応答に使う。 */
   sendError(ws: HandlerConnection, code: ErrorCode, message: string): void;
