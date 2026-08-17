@@ -131,6 +131,60 @@ describe("findAssemblyProblems", () => {
     assert.match(problems[0], /Bun\.serve が現れています/);
   });
 
+  test("行末コメントの createSyncServer() は呼び出しの証拠として通ってしまう（現状の固定）", () => {
+    // Given: 呼び出し行を消し、代わりに行末コメントへ関数名を書く。
+    // **これは仕様ではなく既知の限界である**（ファイル冒頭「既知の限界」の緑になる向き）。
+    // 現状を記録しておき、機構を変えたときにここが落ちて気づけるようにする。
+    const entry = [
+      "import { createSyncServer } from './create-sync-server';",
+      "const x = 1; // かつては createSyncServer(config) を呼んでいた",
+    ].join("\n");
+    // When
+    const problems = findAssemblyProblems(TARGET, sourcesOf(entry));
+    // Then: 呼び出しは実在しないのに、問題なしと判定される
+    assert.deepEqual(problems, []);
+  });
+
+  test("* で始まらないブロックコメント本文も証拠として通ってしまう（現状の固定）", () => {
+    // Given: 同上。ブロックコメントの本文行が `*` で始まらない形
+    const entry = [
+      "import { createSyncServer } from './create-sync-server';",
+      "/*",
+      "依存の組み立ては createSyncServer(config) が持つ",
+      "*/",
+    ].join("\n");
+    // When
+    const problems = findAssemblyProblems(TARGET, sourcesOf(entry));
+    // Then
+    assert.deepEqual(problems, []);
+  });
+
+  test("import 行の行末コメントも import の証拠として通ってしまう（現状の固定）", () => {
+    // Given: 本物の import は別モジュール。関数名とモジュール名は行末コメントにだけある
+    const entry = [
+      "import { a } from './b'; // createSyncServer は create-sync-server から",
+      "const server = createSyncServer(config);",
+    ].join("\n");
+    // When
+    const problems = findAssemblyProblems(TARGET, sourcesOf(entry));
+    // Then: import は実在しないのに、問題なしと判定される
+    assert.deepEqual(problems, []);
+  });
+
+  test("ブロックコメントを閉じたあとの実コードは落としてしまう（赤になる向き・現状の固定）", () => {
+    // Given: `*/ 実コード` は `*` 始まりなのでコメントとして落ちる。
+    // audit-log-hygiene.mjs の isCommentLine はこの形を扱う（挙動が違う 2 本目）
+    const entry = [
+      "import { createSyncServer } from './create-sync-server';",
+      "*/ const server = createSyncServer(config);",
+    ].join("\n");
+    // When
+    const problems = findAssemblyProblems(TARGET, sourcesOf(entry));
+    // Then: 呼び出しは実在するのに「呼んでいません」が出る（安全側）
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /呼んでいません/);
+  });
+
   test("問題が複数あればすべて返す", () => {
     // Given: import も呼び出しも無く、Bun.serve が居座っている
     const problems = findAssemblyProblems(TARGET, sourcesOf("Bun.serve({ port: 0 });"));
@@ -165,13 +219,22 @@ describe("宣言（ASSEMBLY_TARGETS / FORBIDDEN_IN_ENTRY）", () => {
     assert.deepEqual(declared, actual);
   });
 
-  test("isEvidenceLine はコメント行だけを落とす", () => {
-    // Given / When / Then
+  test("isEvidenceLine は行頭にマーカーが来る行だけを落とす", () => {
+    // Given / When / Then: 行頭の非空白文字が `//` `*` `/*` なら落とす
     assert.equal(isEvidenceLine("const a = 1;"), true);
     assert.equal(isEvidenceLine("  const a = 1;"), true);
     assert.equal(isEvidenceLine("// コメント"), false);
     assert.equal(isEvidenceLine("  * JSDoc の継続行"), false);
     assert.equal(isEvidenceLine("/* ブロックの開始"), false);
+  });
+
+  test("isEvidenceLine は行頭にマーカーが来ないコメントを落とせない（現状の固定）", () => {
+    // Given / When / Then: **直すためではなく、落とせないという事実を記録するための検査。**
+    // 行頭しか見ない機構の帰結であり、精緻化は「賢い検査ほど穴が増える」を踏む。
+    // 直す場合は、この 3 行が false になることを確認してから消すこと。
+    assert.equal(isEvidenceLine("const x = 1; // 行末コメント"), true);
+    assert.equal(isEvidenceLine("素のブロック本文（* で始まらない）"), true);
+    assert.equal(isEvidenceLine("{/* 別の文字で始まる行に埋め込んだコメント */}"), true);
   });
 
   test("禁止構文の正規表現は空白入りの表記も拾う", () => {

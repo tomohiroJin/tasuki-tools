@@ -1,5 +1,5 @@
 /**
- * Broadcaster アダプタ（接続レジストリ）の単体テスト（#165 T4 レビュー C-2）。
+ * Broadcaster アダプタ（接続レジストリ）の単体テスト（#165 PR-2 のレビュー指摘）。
  *
  * `createWsBroadcaster()` は in-process で動くので WS サーバーは立てない。
  * `RoomSocket` は `send(data: string): void` だけのインタフェースなので、
@@ -75,8 +75,8 @@ describe('createWsBroadcaster', () => {
 
   it('最後の 1 人を detach したあと countIn は 0 を返す', () => {
     // detach は空になった集合を byRoom から消すため、countIn が undefined を返す実装だと
-    // server.ts の `countIn(roomId) === 0` が偽になり、store.remove が呼ばれずルームが残る
-    // （T3 で見つかった「到達不能なルームが maxRooms の枠を食う」と同型の欠陥）
+    // `application/handlers.ts` の `countIn(roomId) === 0` が偽になり、store.remove が呼ばれずルームが残る
+    // （#165 PR-2 で見つかった「到達不能なルームが maxRooms の枠を食う」と同型の欠陥）
     const broadcaster = createWsBroadcaster();
     const socket = recordingSocket();
 

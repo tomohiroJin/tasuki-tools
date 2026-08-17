@@ -1,13 +1,15 @@
 // 特性テスト（#165 PR-2）。**振る舞いを固定するためだけに存在する。**
 //
-// server.ts の detachFromCurrentRoom() にある次の判定を守る。
+// `detachFromCurrentRoom()` にある次の判定を守る（#165 PR-2 の再編で `server.ts` から
+// `application/handlers.ts` へ移り、ソケットの同一性判定は `Broadcaster.detach` が持つ）。
+// 下は再編前の形（このテストが固定しようとした振る舞いの出どころ）。
 //
 //   // 同一参加者が別ソケットで再接続済みなら（socket が入れ替わっていたら）何もしない
 //   if (entry.sockets.get(participantId) !== ws) return;
 //
 // これを落とすと、**再接続直後に古いソケットの close が新しい接続を蹴り出す。**
 // reconnect.test.ts は逐次の切断→再接続しか突いておらず、この競合を守るテストは
-// 2026-08-17 時点で 0 件だった。T4（Broadcaster への分離）で最も壊れやすい不変条件なので、
+// 2026-08-17 時点で 0 件だった。#165 PR-2 の Broadcaster への分離で最も壊れやすい不変条件なので、
 // 先に固定する。
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { startServer, WsClient, isType, type TestServer } from './helpers';

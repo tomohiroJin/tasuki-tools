@@ -374,6 +374,7 @@ poker-sync（`3311`）を実際に起動するため、`pnpm dev` と同じポ�
 ```bash
 node scripts/audit-structure.mjs                 # 構造監査（走査対象のずれ・走査 0 件は合否を持つ。ADR-0009 D2 の例外・ADR-0014 決定 7・決定 8）
 node scripts/audit-log-hygiene.mjs               # ログ衛生（検査の中身は ADR-0012 D1。走査対象のずれ・走査 0 件が合否を持つ根拠は ADR-0014 決定 7・決定 8）
+node scripts/audit-assembly-wiring.mjs           # 組み立ての集約（同期サーバーのエントリが create-sync-server.ts を経由するか。ADR-0004 決定 4）
 node scripts/mutation-check.mjs                  # 変異検査
 node scripts/check-links.mjs                     # リンク検査
 

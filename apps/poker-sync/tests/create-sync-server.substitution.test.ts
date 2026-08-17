@@ -5,7 +5,7 @@
 // 「テストを書けば 2 つ目になる」では足りず、**差し替えを行うテストが現に存在する**
 // ことが条件である。このファイルがその条件を満たす。
 //
-// 4 本とも「差し替えなしでは書けなかったこと」を検証する。加えて、T5 のレビューで
+// 4 本とも「差し替えなしでは書けなかったこと」を検証する。加えて、#165 PR-2 のレビューで
 // 見つかった 2 つの配線の穴（`handleCreateRoom` の `broadcaster.resetRoom` 呼び出しと、
 // `detachFromCurrentRoom` の早期 return にある `broadcaster.detach` 呼び出し）も守る。
 // どちらも呼び出しを削っても既存の全テストは緑のままだった経路である（変異検査で確認済み）。
@@ -23,7 +23,7 @@
 // それでも「配線の穴 1」のテストに価値があるのは、`resetRoom` の呼び出し（配線）を
 // 守る唯一のテストだからである（`Broadcaster` を差し替えているかどうかとは別の理由）。
 // 「Broadcaster」や「配線の穴」を名乗る describe だからといって、自動的に Broadcaster
-// ポートの差し替えだと早合点しないこと（T6 再レビューでの指摘そのもの）。
+// ポートの差し替えだと早合点しないこと（#165 PR-2 の再レビューでの指摘そのもの）。
 //
 // ファイル名は `create-sync-server.substitution.test.ts` だが、実体は
 // `createSyncServer` ではなく `makeHandlers`（アプリケーション層）の差し替えテストである
@@ -175,7 +175,7 @@ describe('RoomStore の差し替え（上限判定を実ルームなしで再現
     const store: RoomStore = {
       // get() は常に undefined（＝存在するはずの部屋が無い）を返す契約非整合な偽物だが、
       // このテストの経路では読まれない。上限判定が count() しか読まないことをこの
-      // テスト自身が確認しているので無害（T6 レビュー小さい直し）
+      // テスト自身が確認しているので無害（#165 PR-2 のレビュー指摘）
       get: () => undefined,
       put: () => {
         throw new Error('put は呼ばれないはず（上限判定は count() だけで完結するはず）');
@@ -368,7 +368,7 @@ describe('RoomSocket の差し替え（配信の宛先と回数）', () => {
     // 配信される」が WS 越しに既に検証済み。** ここで新しいのは
     // 「無関係な room02 には 0 件（不達）」と「ちょうど 1 回（多重配信していない）」の 2 点。
     // 不達は WS 越しでは待ち受けをタイムアウトさせて確認するしかなく、回数は受信側の
-    // 1 本のソケットからは「他人に何回届いたか」を直接数えられない（T6 レビュー I-1）
+    // 1 本のソケットからは「他人に何回届いたか」を直接数えられない（#165 PR-2 のレビュー指摘）
     expect(hostSocket.sent).toHaveLength(1); // room-state のみ
     expect(guestSocket.sent).toHaveLength(2); // joined + room-state
     expect(otherRoomSocket.sent).toHaveLength(0); // room02 には一切届かない
@@ -477,7 +477,7 @@ describe('配線の穴 2: detachFromCurrentRoom の早期 return での detach �
     expect(detachCalls[0]?.[0]).toBe('gone-room');
     expect(detachCalls[0]?.[1]).toBe('p1');
     // ソケットは構造比較ではなく同一性（toBe）で見る。意図は「まさにこの接続」であり、
-    // 構造的に等価な別ソケットを渡す変異を取り逃さないため（T6 レビュー小さい直し）
+    // 構造的に等価な別ソケットを渡す変異を取り逃さないため（#165 PR-2 のレビュー指摘）
     expect(detachCalls[0]?.[2]).toBe(ws);
     // 接続側の 2 フィールドはこの関数の先頭で必ずクリアされる（早期 return の手前）
     expect(ws.data.participantId).toBeNull();
