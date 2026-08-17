@@ -245,6 +245,18 @@ export type RoundError =
 `e2e` / `apps/poker-web` を grep して、ヒットしたのは実装ファイル 2 本だけ）。
 つまり文言を書き換えても全テストが緑のまま通る。
 
+**poker-core のテストは `code` しか検証していない**（`expect(result._unsafeUnwrapErr().code).toBe(...)`。
+2026-08-17 実測）。したがって **D8 でエラー型から `message` を外しても poker-core の 70 件は
+緑のまま通る。** 特性テストが無ければ、この変更が振る舞いを壊しても誰も気づけない。
+
+**`apps/poker-web` は `RoundError` / `RoomError` を使っていない**（`ParticipantView` `RoundStats`
+`NAME_MAX_LENGTH` `Card` `RoomStateMessage` などの型のみを import。2026-08-17 実測）。
+**エラー型の変更は web へ波及しない。**
+
+D8 が触る `sendError` の呼び出しは 3 箇所である。`handleCreateRoom()` と `handleJoinRoom()` が
+流す `RoomError.message`、`commitRoomAction()` が流す `RoundError.message`。
+`handleMessage()` が流す `ProtocolError.message` は**対象外**（上記のとおり）。
+
 実装を 1 行も変えずに特性テストを足し、**書いた直後に文言を 1 文字変えて赤くなることを確認する**
 （緑のまま足すテストは恒真の疑いがあるため）。
 
