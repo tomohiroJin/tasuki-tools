@@ -7,16 +7,23 @@
 //
 // 4 本とも「差し替えなしでは書けなかったこと」を検証する。加えて、T5 のレビューで
 // 見つかった 2 つの配線の穴（`handleCreateRoom` の `broadcaster.resetRoom` 呼び出しと、
-// `detachFromCurrentRoom` の早期 return にある `broadcaster.detach` 呼び出し）も、
-// 同じ差し替えの手（スパイ Broadcaster）で守る。どちらも呼び出しを削っても
-// 既存の全テストは緑のままだった経路である。
+// `detachFromCurrentRoom` の早期 return にある `broadcaster.detach` 呼び出し）も守る。
+// どちらも呼び出しを削っても既存の全テストは緑のままだった経路である（変異検査で確認済み）。
 //
-// **`Broadcaster` ポートそのものの正当化を担っているのは「配線の穴」の 2 テスト
-// （下の describe 2 本）である。** どちらも `Broadcaster` を丸ごと偽物・スパイに
-// 差し替えている。一方、`RoomSocket の差し替え（配信の宛先と回数）` という名前の
-// describe は `createWsBroadcaster()`（本番アダプタ）をそのまま使っており、
-// 差し替えているのは `RoomSocket` 側であって `Broadcaster` ポートではない。
-// 「Broadcaster」を名乗るテストが正当化の本体だと早合点しないこと（T6 レビュー I-1）。
+// **`Broadcaster` ポートの振る舞い（接続レジストリの attach/detach）を観測する目的で
+// 独自実装を注入しているのは、「配線の穴 2」（`detachFromCurrentRoom` の detach
+// 呼び出しを守るテスト）の 1 本だけである。**（`MonotonicClock`/`RoomStore` の各テストにも
+// `Broadcaster` の偽物は登場するが、それらは「登録系メソッドは呼ばれないはず」という
+// 非呼び出しの証明のためで、`sendTo` 以外は素通りしない。接続レジストリの振る舞いそのもの
+// を差し替えて観測してはいないので、ここには数えない。）
+// 「配線の穴 1」（`resetRoom` 呼び出しを守るテスト）と
+// `RoomSocket の差し替え（配信の宛先と回数）` は、どちらも `createWsBroadcaster()`
+// （本番アダプタ）をそのまま使っており、差し替えているのは `RoomSocket`
+// （`oldSocket`/`newSocket`/`hostSocket` 等）であって `Broadcaster` ポートではない。
+// それでも「配線の穴 1」のテストに価値があるのは、`resetRoom` の呼び出し（配線）を
+// 守る唯一のテストだからである（`Broadcaster` を差し替えているかどうかとは別の理由）。
+// 「Broadcaster」や「配線の穴」を名乗る describe だからといって、自動的に Broadcaster
+// ポートの差し替えだと早合点しないこと（T6 再レビューでの指摘そのもの）。
 //
 // ファイル名は `create-sync-server.substitution.test.ts` だが、実体は
 // `createSyncServer` ではなく `makeHandlers`（アプリケーション層）の差し替えテストである
