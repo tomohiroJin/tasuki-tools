@@ -162,7 +162,7 @@ git commit -m "docs: ADR-0007 にテストの差し替えも利用者に数え�
 |---|---|---|
 | 分け方 | 関心事別（`ui/` `sync/` `ai/` `records/` `prefs/` `platform/`） | 役割別（`components/` `hooks/` `pages/`） |
 | 純粋ロジックの切り出し | **徹底している。** `ui/screen.ts` `ui/error-action.ts` `ui/host-change.ts` `ui/problem-generation.ts` `ui/join-driver-intent.ts` `ui/connection-status.ts` `ui/room-param.ts` `sync/notice-message.ts` `sync/sync-url.ts` の 9 本は、いずれも 12〜63 行で副作用 0 件・React フック 0 件 | `connection-notice.ts` と `router.ts` の `parseRoute` / `roomPath` / `topPath`（同ファイルで副作用を持つのは `navigate` のみ） |
-| WS の配線 | **`App.tsx` に直書き。** `useState` 11 個・`useRef` 10 個に加え、`SyncClient` のコールバック本体（`// ─── SyncClient のコールバック本体 ───` のコメント以降）が render 本体に置かれ、`useLatestRef` で `handlersRef` へ毎レンダー同期される。`SyncClient` へ渡すのは `handlersRef.current` の同名関数を呼ぶ転送関数のみ。同ファイルは 848 行 | **`hooks/useSync.ts`（176 行）に集約。** `wsRef` と `open` / `close` / `message` の 3 リスナを 1 つの `useEffect` に閉じ込め、接続まわりの状態 7 個を保持 |
+| WS の配線 | **`App.tsx` に直書き。** `useState` 11 個・`useRef` 10 個に加え、`SyncClient` のコールバック本体（`// ─── SyncClient のコールバック本体 ───` のコメント以降）が render 本体に置かれ、`useLatestRef` で `handlersRef` へ毎レンダー同期される。`SyncClient` へ渡すコールバックは、`handlersRef.current` の同名関数への転送と、setter を直接呼ぶものが混在する。同ファイルは 848 行 | **`hooks/useSync.ts`（176 行）に集約。** `wsRef` と `open` / `close` / `message` の 3 リスナを 1 つの `useEffect` に閉じ込め、接続まわりの状態 7 個を保持 |
 
 **この非対称は「片方が正しく片方が誤り」ではない。** timer-web は純粋関数の切り出しを、
 poker-web は WS 配線の集約を、それぞれ現に実現している。`App.tsx` が 848 行あるのは、
@@ -198,7 +198,7 @@ timer-web が後者を持たないためである。
 - MUST 2 の機械検査は **E4 が置く**。E1 で先に置くと、E1 はコードを直さないため
   CI が赤になるからである。検査は**無状態の許可リスト方式**（`sync/client` を
   import してよいのは同期フック 1 本だけ）で書く。手書きの字句解析は採らない。
-  **対象は `apps/*-web/src` 配下のみとし、テストは対象外とする** — `test/sync/client.dispose.test.ts` ほか 3 本が
+  **対象は `apps/*-web/src` 配下のみとし、テストは対象外とする** — `test/sync/client.dispose.test.ts` を含む 3 本が
   `sync/client.ts` を直接 import しているため（2026-08-17 実測）。
 - MUST 2 を適用する E4 は、同期フックの単体テストを同じ PR で追加する
   （[`docs/adr/0007`](./0007-abstraction-criteria.md) 追記の条件）。現状 `apps/poker-web/tests/` に
@@ -280,7 +280,7 @@ git commit -m "docs: web 層の構造標準を ADR-0015 として定める（#72
 
 | | `packages/timer-core`（4,234 行 / 14 ファイル） | `packages/poker-core`（462 行 / 7 ファイル） |
 |---|---|---|
-| 状態遷移 | `decide(cmd, agg, now): Result<DomainEvent[], DomainError>` ＋ `evolve(agg, event, now): Aggregate` | `castVote(room, participantId, card): Result<Room, RoundError>` ほか 8 関数 |
+| 状態遷移 | `decide(cmd, agg, now): Result<DomainEvent[], DomainError>` ＋ `evolve(agg, event, now): Aggregate` | `castVote(room, participantId, card): Result<Room, RoundError>` を含む 8 関数 |
 | 中間表現 | `DomainEvent` を挟む | 挟まない |
 | エラー型 | `{ type: "DuplicateName"; name: string }` 等。文言を持たず `displayMessageFor()` が生成 | `{ code: 'not-voting'; message: '現在は投票を受け付けていません' }` 等。文言を同梱 |
 | `index.ts` | 公開記号を明示列挙 | `export * from './deck'` ほか 6 行 |
@@ -1193,7 +1193,7 @@ gh issue create --title "E2: poker-sync をポート/アダプタ構成へ再編
 MUST と定めました。`apps/timer-web/src/App.tsx` は **848 行**で、`useState` 11 個・
 `useRef` 10 個に加え、**`SyncClient` のコールバック本体**（`// ─── SyncClient のコールバック本体 ───`
 のコメント以降）が render 本体に直書きされ、`useLatestRef` で `handlersRef` へ毎レンダー
-同期されています。`SyncClient` へ渡すのは `handlersRef.current` の同名関数を呼ぶ転送関数のみです。
+同期されています。`SyncClient` へ渡すコールバックは、`handlersRef.current` の同名関数への転送と、setter を直接呼ぶものが混在します。
 
 **`apps/poker-web` は既に準拠しています**（`App.tsx` が `usePokerSync` を経由し、
 `.tsx` に `WebSocket` の直接使用が無い）。本 Issue の対象は timer-web 側です。

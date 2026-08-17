@@ -15,7 +15,7 @@
 
 | | `packages/timer-core`（4,234 行 / 14 ファイル） | `packages/poker-core`（462 行 / 7 ファイル） |
 |---|---|---|
-| 状態遷移 | `decide(cmd, agg, now): Result<DomainEvent[], DomainError>` ＋ `evolve(agg, event, now): Aggregate` | `castVote(room, participantId, card): Result<Room, RoundError>` ほか 8 関数 |
+| 状態遷移 | `decide(cmd, agg, now): Result<DomainEvent[], DomainError>` ＋ `evolve(agg, event, now): Aggregate` | `castVote(room, participantId, card): Result<Room, RoundError>` を含む 8 関数 |
 | 中間表現 | `DomainEvent` を挟む | 挟まない |
 | エラー型 | `{ type: "DuplicateName"; name: string }` 等。文言を持たず `displayMessageFor()` が生成 | `{ code: 'not-voting'; message: '現在は投票を受け付けていません' }` 等。文言を同梱 |
 | `index.ts` | 公開記号を明示列挙 | `export * from './deck'` ほか 6 行 |
@@ -70,4 +70,5 @@ poker-core 内の別モジュールへ置き、同期サーバーは `code` か�
   理由にならない」）。
 - 項目 3 の適用時、**WS で送る文字列は 1 文字も変えない**（振る舞い不変）。
 - 決定 2 の項目 2・4 の機械検査は、それを消す Issue（E6・E3）が同じ PR で置く。
-  **項目 3 の検査は E2 が置く**（`packages/poker-core` のエラー型に `message` フィールドが 0 件）。
+  **項目 3 の検査は E2 が置く**（`packages/poker-core` の**ドメインエラー型**（`RoundError` `RoomError`）に
+  `message` フィールドが 0 件。WS プロトコルの `ProtocolError` や `ServerMessage` の `message` は対象外）。

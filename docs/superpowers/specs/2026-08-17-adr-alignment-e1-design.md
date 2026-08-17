@@ -152,7 +152,7 @@ ADR-0002 は ADR を「追記のみ。覆すときは Superseded」と定めて�
 timer-web の `App.tsx` が 848 行あるのは 2 を持たないためで、`useState` 11 個・
 `useRef` 10 個に加え、`SyncClient` のコールバック本体（`// ─── SyncClient のコールバック本体 ───`
 のコメント以降）が render 本体に直書きされ、`useLatestRef` で `handlersRef` へ毎レンダー
-同期されている。`SyncClient` へ渡すのは `handlersRef.current` の同名関数を呼ぶ転送関数のみ。
+同期されている。`SyncClient` へ渡すコールバックは、`handlersRef.current` の同名関数への転送と、setter を直接呼ぶものが混在する。
 
 ### ③ `docs/adr/0016` — core のドメイン表現規約
 
@@ -194,7 +194,7 @@ FR-110 で明示列挙へ置換済み。
 
 | | `packages/timer-core`（4,234 行 / 14 ファイル） | `packages/poker-core`（462 行 / 7 ファイル） |
 |---|---|---|
-| 状態遷移 | `decide(cmd, agg, now): Result<DomainEvent[], DomainError>` ＋ `evolve(agg, event, now): Aggregate` | `castVote(room, participantId, card): Result<Room, RoundError>` ほか 8 関数 |
+| 状態遷移 | `decide(cmd, agg, now): Result<DomainEvent[], DomainError>` ＋ `evolve(agg, event, now): Aggregate` | `castVote(room, participantId, card): Result<Room, RoundError>` を含む 8 関数 |
 | 中間表現 | `DomainEvent` を挟む | 挟まない |
 | エラー型 | `{ type: "DuplicateName"; name: string }` 等。文言を持たず `displayMessageFor()` が生成 | `{ code: 'not-voting'; message: '現在は投票を受け付けていません' }` 等。文言を同梱 |
 | `index.ts` | 公開記号を明示列挙 | `export * from './deck'` ほか 6 行 |
@@ -446,7 +446,7 @@ E2 の安全網は実質 **`apps/poker-sync/tests` の 84 件 / 14 ファイル*
 検査は**無状態の許可リスト方式**（この import を許すのは同期フック 1 本だけ）で書く。
 手書きの字句解析は 3 度続けて検出漏れを作った実績があるので採らない。
 **対象は `apps/*-web/src` 配下のみとし、テストは対象外とする** — `apps/timer-web/test/sync/client.dispose.test.ts`
-ほか 3 本が `apps/timer-web/src/sync/client.ts` を直接 import しているため。
+を含む 3 本が `apps/timer-web/src/sync/client.ts` を直接 import しているため。
 
 ### 欠陥 9（小）— 破壊検証の手順に抜けがある
 

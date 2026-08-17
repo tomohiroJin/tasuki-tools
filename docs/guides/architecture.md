@@ -22,7 +22,7 @@
 | アプリケーション | `apps/*-sync/src/application` | ドメイン・ポート・`packages/rate-limit` |
 | ポート | `apps/*-sync/src/ports` | ドメインの型 |
 | アダプタ | `apps/*-sync/src/adapters`・`apps/*-web` | 上のすべて |
-| web の純粋判断 | `apps/*-web` 配下で React・I/O に依存しない `.ts`（例: `apps/timer-web/src/ui/screen.ts`・`apps/poker-web/src/connection-notice.ts`） | ドメインの型のみ（React・I/O に依存しない） |
+| web の純粋判断 | `apps/*-web` 配下で React・I/O に依存しない `.ts`（例: `apps/timer-web/src/ui/screen.ts`・`apps/poker-web/src/router.ts` の `parseRoute` / `roomPath` / `topPath`） | ドメインの型のみ（React・I/O に依存しない） |
 | web の同期フック | `apps/*-web` の同期フック 1 本（例: `apps/poker-web/src/hooks/useSync.ts`） | 上のすべて ＋ WebSocket |
 | web の画面 | `apps/*-web` の `.tsx` | 同期フックと純粋判断のみ（同期クライアントを直接 import しない） |
 | UI 資産 | `packages/ui` | なし（CSS トークンと静的資産） |
