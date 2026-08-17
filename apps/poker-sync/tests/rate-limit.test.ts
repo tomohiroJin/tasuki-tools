@@ -4,7 +4,7 @@
  * poker には合言葉が無く、`check-room` が「無いときだけ応える」形の存在確認である。
  * ルーム ID の総当たりに対する防御はここしか無い。
  */
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach } from 'bun:test';
 import { DEFAULT_CAPACITY } from '@tasuki/rate-limit';
 import { startServer, type TestServer } from './helpers';
 import { connectRaw } from './raw-ws-client';

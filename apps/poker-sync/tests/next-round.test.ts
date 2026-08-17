@@ -1,5 +1,5 @@
 // 契約シナリオ #6（US3: 集計と次ラウンド）
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { startServer, WsClient, isType, type TestServer } from './helpers';
 
 let server: TestServer;

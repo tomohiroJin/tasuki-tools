@@ -22,7 +22,7 @@
  * 実行環境の速度でテストが揺れる（CI で実際に落ちた）。セットアップ中は必ず
  * pong を返し、観測したい条件はその後に作る。
  */
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'bun:test';
 import { isType, startServer, WsClient, type TestServer } from './helpers';
 import { connectRaw, type RawWsClient } from './raw-ws-client';
 

@@ -7,7 +7,7 @@
  */
 import net from 'node:net';
 import os from 'node:os';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'bun:test';
 import { isType, startServer, waitForLine, WsClient, type TestServer } from './helpers';
 import { connectRaw, type RawWsClient } from './raw-ws-client';
 

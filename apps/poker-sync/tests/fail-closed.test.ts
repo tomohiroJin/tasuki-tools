@@ -2,7 +2,7 @@
  * poker-sync の本番 fail-closed（#103・設計正本 D6）。
  * timer-sync と同じ規律を poker にも入れる。
  */
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach } from 'bun:test';
 import { loadPokerSyncConfig } from '../src/config';
 import { startServer, type TestServer } from './helpers';
 import { connectRaw } from './raw-ws-client';

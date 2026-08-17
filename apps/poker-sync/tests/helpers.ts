@@ -75,7 +75,12 @@ export async function startServer(env: Record<string, string> = {}): Promise<Tes
     // 上の data ハンドラ（stdoutLines への蓄積）が先に登録されているため、
     // 同じチャンクに対してこのハンドラが呼ばれる時点で stdoutLines は反映済み。
     proc.stdout.on('data', checkListening);
-    proc.on('exit', (code) => {
+    // `exit` は stdio が閉じる前に発火しうるため、stderrBuf が空のまま reject されることがある。
+    // このテストハーネスの reject は **stderr の内容を含むこと**に依存している
+    // （guards.test.ts の「ALLOWED_ORIGINS が空のまま本番起動しようとするとサーバーは
+    // 起動しない」が `rejects.toThrow(/ALLOWED_ORIGINS/)` で中身を見る）。
+    // `close` は stdio が閉じた後に発火するので、stderr を読み切ってから拒否できる。
+    proc.on('close', (code) => {
       clearTimeout(timer);
       reject(new Error(`server exited early (code ${code}). stderr: ${stderrBuf}`));
     });

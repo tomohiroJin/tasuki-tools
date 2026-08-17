@@ -1,5 +1,5 @@
 // 契約シナリオ #3 #4 #5（US2: 秘匿投票と一斉公開）
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { startServer, WsClient, isType, type TestServer } from './helpers';
 
 let server: TestServer;
