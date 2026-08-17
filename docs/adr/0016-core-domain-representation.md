@@ -72,3 +72,17 @@ poker-core 内の別モジュールへ置き、同期サーバーは `code` か�
 - 決定 2 の項目 2・4 の機械検査は、それを消す Issue（E6・E3）が同じ PR で置く。
   **項目 3 の検査は E2 が置く**（`packages/poker-core` の**ドメインエラー型**（`RoundError` `RoomError`）に
   `message` フィールドが 0 件。WS プロトコルの `ProtocolError` や `ServerMessage` の `message` は対象外）。
+
+## 追記（2026-08-18・#165 / #72 E2）
+
+決定 2 の項目 3 について、上で E2 に割り当てた機械検査を
+`scripts/audit-domain-error-shape.mjs` として置いた。CI の `quality` ジョブで走る。
+
+**走査対象は `packages/poker-core` だけに留めず、`packages/timer-core` の
+`DomainError` メンバーも含めた。** 上の未達表が項目 3 を「timer 準拠 / poker 未」と
+採点している以上、timer も規範の適用範囲内であり、poker だけを見る検査にすると
+**準拠と記録した側が崩れても緑になる**（`docs/adr/0014` が扱った「走査対象が片側だけ」と同じ形）。
+
+検査が見ないものは同スクリプトの docstring に書いた。特に、対象の型は手書きで宣言しており、
+**新しいドメインエラー型を足しても宣言に追記しない限り無検査**である。
+宣言した型の改名・削除は検査が赤にする（静かな空振りは塞いである）。
