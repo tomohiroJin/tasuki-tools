@@ -26,20 +26,34 @@ import {
   DEFAULT_REFILL_PER_SEC,
 } from '@tasuki/rate-limit';
 import { randomBytes } from 'node:crypto';
-import {
-  broadcast,
-  dropIfEmpty,
-  generateRoomId,
-  getRoom,
-  putRoom,
-  roomCount,
-  type RoomEntry,
-} from './rooms';
+import { broadcast, type RoomEntry, type RoomSocket } from './rooms';
 import { loadPokerSyncConfig } from './config';
 import { deriveClientKeySafely } from './client-key-safety';
 import { buildListeningLogFields } from './listening-log';
+import { createInMemoryRoomStore } from './adapters/in-memory-room-store';
+import { createPerformanceClock } from './adapters/performance-clock';
+import { createCryptoIdGen } from './adapters/crypto-id-gen';
 
 const config = loadPokerSyncConfig(process.env);
+
+const store = createInMemoryRoomStore();
+const clock = createPerformanceClock();
+const idGen = createCryptoIdGen();
+/** roomId → 接続中ソケット（T4 で Broadcaster へ移す） */
+const socketsByRoom = new Map<string, Map<string, RoomSocket>>();
+
+/**
+ * 衝突しないルーム ID を採る（research R4）。
+ *
+ * **再試行は方針であって I/O ではない**ので、ポートではなくここが持つ
+ * （IdGen は候補を 1 つ返すだけ）。
+ */
+function generateRoomId(): string {
+  for (;;) {
+    const id = idGen.roomIdCandidate();
+    if (!store.has(id)) return id;
+  }
+}
 
 /**
  * レート制限の相関ソルト。プロセス起動ごとに 1 度だけ生成し、env にも設定にも置かない
@@ -93,10 +107,6 @@ function sendJoined(ws: Ws, roomId: string, participantId: string, token: string
   ws.send(JSON.stringify({ type: 'joined', roomId, participantId, token }));
 }
 
-function newIds(): { participantId: string; token: string } {
-  return { participantId: crypto.randomUUID(), token: crypto.randomUUID() };
-}
-
 /**
  * 接続を現在のルームから切り離す共通処理（close と再 join/再 create で共用）。
  * connected 更新・ホスト繰上（FR-012）・自動公開の再評価（US4-AS1）・
@@ -107,19 +117,22 @@ function detachFromCurrentRoom(ws: Ws): void {
   ws.data.participantId = null;
   ws.data.roomId = null;
   if (participantId === null || roomId === null) return;
-  const entry = getRoom(roomId);
-  if (!entry) return;
+  const room = store.get(roomId);
+  const sockets = socketsByRoom.get(roomId);
+  if (!room || !sockets) return;
   // 同一参加者が別ソケットで再接続済みなら（socket が入れ替わっていたら）何もしない
-  if (entry.sockets.get(participantId) !== ws) return;
-  entry.sockets.delete(participantId);
+  if (sockets.get(participantId) !== ws) return;
+  sockets.delete(participantId);
 
-  if (entry.sockets.size === 0) {
-    dropIfEmpty(roomId);
+  if (sockets.size === 0) {
+    store.remove(roomId);
+    socketsByRoom.delete(roomId);
     return;
   }
 
-  entry.room = applyAutoReveal(markDisconnected(entry.room, participantId));
-  broadcast(entry);
+  const updatedRoom = applyAutoReveal(markDisconnected(room, participantId));
+  store.put(updatedRoom);
+  broadcast({ room: updatedRoom, sockets });
 }
 
 /**
@@ -138,30 +151,31 @@ function handleCreateRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'create-ro
   // ルーム数の上限（Issue #63）。**切り離しより先に判定する**。
   // 先に離脱させてしまうと、拒否されたときに元のルームから追い出されたままになる。
   // 上限が止めるのは新規作成だけで、既存ルームへの参加は妨げない。
-  if (roomCount() >= config.maxRooms) {
+  if (store.count() >= config.maxRooms) {
     sendError(ws, 'server-busy', 'ルームの上限に達しています。しばらくしてからお試しください');
     return;
   }
 
   // すでに別ルームに参加中のソケット（二重送信・SPA 遷移）は先に切り離す
   detachFromCurrentRoom(ws);
-  const ids = newIds();
+  const ids = { participantId: idGen.participantId(), token: idGen.token() };
   const result = createRoom(generateRoomId(), msg.name, ids);
   if (result.isErr()) {
     sendError(ws, 'invalid-message', messageForRoomError(result.error));
     return;
   }
   const { room, participant } = result.value;
-  const entry: RoomEntry = { room, sockets: new Map() };
-  putRoom(entry);
-  completeJoin(ws, entry, participant.id, ids.token);
+  store.put(room);
+  const sockets: RoomEntry['sockets'] = new Map();
+  socketsByRoom.set(room.id, sockets);
+  completeJoin(ws, { room, sockets }, participant.id, ids.token);
 }
 
 function handleJoinRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'join-room' }>): void {
   // レート制限に渡す now は単調時計（設計正本 D8・MUST）。Date.now() は NTP のステップ
   // 調整で非単調になりうるため使わない。ルームの会計（joinedAt 等）に使う壁時計とは
   // 別系統であり、混同しないこと。
-  const now = performance.now();
+  const now = clock.now();
   // **ルームを照会する前に判定する。** 逆順だと、残量が無いときに room-not-found が返り、
   // 攻撃者はトークンを消費せずにルーム ID の存在確認を続けられる。
   if (rateLimiter.shouldReject(ws.data.rateKey, now)) {
@@ -169,8 +183,9 @@ function handleJoinRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'join-room' 
     return;
   }
 
-  const entry = getRoom(msg.roomId);
-  if (!entry) {
+  const room = store.get(msg.roomId);
+  const sockets = socketsByRoom.get(msg.roomId);
+  if (!room || !sockets) {
     rateLimiter.consume(ws.data.rateKey, now);
     sendError(ws, 'room-not-found', 'ルームが見つかりません');
     return;
@@ -180,21 +195,22 @@ function handleJoinRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'join-room' 
   detachFromCurrentRoom(ws);
 
   // token 照合による同一参加者の復帰（FR-013）。一致すれば name は無視する
-  const existing = msg.token !== undefined ? findParticipantByToken(entry.room, msg.token) : undefined;
+  const existing = msg.token !== undefined ? findParticipantByToken(room, msg.token) : undefined;
   if (existing) {
-    entry.room = markConnected(entry.room, existing.id);
-    completeJoin(ws, entry, existing.id, existing.token);
+    const updatedRoom = markConnected(room, existing.id);
+    store.put(updatedRoom);
+    completeJoin(ws, { room: updatedRoom, sockets }, existing.id, existing.token);
     return;
   }
 
-  const ids = newIds();
-  const result = joinRoom(entry.room, msg.name, ids);
+  const ids = { participantId: idGen.participantId(), token: idGen.token() };
+  const result = joinRoom(room, msg.name, ids);
   if (result.isErr()) {
     sendError(ws, 'invalid-message', messageForRoomError(result.error));
     return;
   }
-  entry.room = result.value.room;
-  completeJoin(ws, entry, result.value.participant.id, ids.token);
+  store.put(result.value.room);
+  completeJoin(ws, { room: result.value.room, sockets }, result.value.participant.id, ids.token);
 }
 
 /**
@@ -212,14 +228,14 @@ function handleJoinRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'join-room' 
  * 画面は参加フォームを出しておく作りなので、どちらでも待たせるだけで済む。
  */
 function handleCheckRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'check-room' }>): void {
-  // 設計正本 D8: レート制限に渡す now は単調時計（performance.now()）を使う。
-  const now = performance.now();
+  // 設計正本 D8: レート制限に渡す now は単調時計（clock.now()）を使う。
+  const now = clock.now();
   if (rateLimiter.shouldReject(ws.data.rateKey, now)) {
     sendError(ws, 'rate-limited', '試行が多すぎます。しばらくしてからお試しください');
     return;
   }
 
-  if (!getRoom(msg.roomId)) {
+  if (!store.has(msg.roomId)) {
     rateLimiter.consume(ws.data.rateKey, now);
     sendError(ws, 'room-not-found', 'ルームが見つかりません');
   }
@@ -239,15 +255,17 @@ function commitRoomAction(
     sendError(ws, 'not-joined', 'ルームに参加していません');
     return;
   }
-  const entry = getRoom(roomId);
-  if (!entry) return;
-  const result = action(entry.room, participantId);
+  const room = store.get(roomId);
+  const sockets = socketsByRoom.get(roomId);
+  if (!room || !sockets) return;
+  const result = action(room, participantId);
   if (result.isErr()) {
     sendError(ws, result.error.code, messageForRoundError(result.error));
     return;
   }
-  entry.room = applyAutoReveal(result.value);
-  broadcast(entry);
+  const updatedRoom = applyAutoReveal(result.value);
+  store.put(updatedRoom);
+  broadcast({ room: updatedRoom, sockets });
 }
 
 function dispatch(ws: Ws, msg: ClientMessage): void {
