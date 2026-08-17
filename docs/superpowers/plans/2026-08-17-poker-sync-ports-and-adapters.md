@@ -1110,7 +1110,17 @@ export interface HandlerDeps {
 }
 
 export function makeHandlers(deps: HandlerDeps) {
-  // ここに移した関数群を閉じ込め、{ handleCreateRoom, handleJoinRoom, ... } を返す
+  // ここに移した関数群を閉じ込めて返す。
+  // **返り値に generateRoomId を必ず含めること。** T6 の差し替えテストが
+  // makeHandlers({...}).generateRoomId() を呼び、衝突再試行を検証する。
+  return {
+    handleCreateRoom,
+    handleJoinRoom,
+    handleCheckRoom,
+    detachFromCurrentRoom,
+    dispatch,
+    generateRoomId,
+  };
 }
 ```
 
