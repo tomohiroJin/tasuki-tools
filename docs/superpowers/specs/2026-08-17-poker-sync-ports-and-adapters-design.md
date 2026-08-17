@@ -257,6 +257,32 @@ D8 が触る `sendError` の呼び出しは 3 箇所である。`handleCreateRoo
 流す `RoomError.message`、`commitRoomAction()` が流す `RoundError.message`。
 `handleMessage()` が流す `ProtocolError.message` は**対象外**（上記のとおり）。
 
+### `RoomError` の文言は WS に届かない（2026-08-17 実測）
+
+`packages/poker-core/src/protocol.ts` の `NameSchema` は
+`v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(NAME_MAX_LENGTH))` で、
+**`room.ts` の `validateName()` と同じ規則**である（`NAME_MAX_LENGTH` を共有している）。
+
+したがって不正な名前は `parseClientMessage()` が先に弾き、`handleCreateRoom()` /
+`handleJoinRoom()` の `isErr()` 分岐へは到達しない。実測:
+
+```
+create-room name="あ"×30  → {"code":"invalid-message","message":"メッセージ形式が不正です"}
+create-room name="   "     → {"code":"invalid-message","message":"メッセージ形式が不正です"}
+```
+
+**この分岐は残す。** `docs/adr/0005` は「外部からの入力は境界で Valibot 検証（MUST）」と
+「ドメイン操作の失敗は `Result` で表現（MUST）」の両方を定めており、二重に持つのが規約である
+（timer も `docs/timer/adr/0006` で「`config.set` も必ず `decide` のドメイン検証を通す」と
+同じ形を採っている）。撤去は振る舞い不変の範囲を超える。
+
+**特性テスト（D9）への影響:**
+
+- **WS 経由で固定できるのは `RoundError` の 5 文言だけ**（`not-host` ×2・`not-voting` ×2・`not-revealed`）
+- **`RoomError` の 1 文言は `packages/poker-core` の単体テストで固定する**（WS からは到達しないため）
+- 当初「文言 6 箇所を WS の特性テストで固定する」と書いていたが、**6 件のうち 1 件は
+  WS の振る舞いではない。** 固定する場所を分ける
+
 実装を 1 行も変えずに特性テストを足し、**書いた直後に文言を 1 文字変えて赤くなることを確認する**
 （緑のまま足すテストは恒真の疑いがあるため）。
 
