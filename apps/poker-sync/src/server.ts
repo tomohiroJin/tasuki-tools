@@ -214,17 +214,32 @@ function handleJoinRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'join-room' 
   // （振る舞い不変が最上位制約のため）。別途 Issue 化して直す。
   const stillRegistered = store.has(msg.roomId);
 
+  // **detach はこのルームを更新していることがある**（切断者への markDisconnected、
+  // およびそれによる shouldAutoReveal 成立時の自動公開。detachFromCurrentRoom の
+  // sockets.size !== 0 分岐）。分割前（旧実装）は room が単一の可変オブジェクトの
+  // フィールドだったため、detach の更新はこの関数から自動的に見えていた。
+  // 値として持ち回す今の形では、detach 前に取得した `room` を読み直さずに使うと、
+  // 古いスナップショットを書き戻して自動公開を消してしまう（#165 レビューで発見。
+  // 回帰テストは tests/voting.test.ts の「自動公開は join-room の再送で消えない」）。
+  //
+  // よって detach の後にレジストリから読み直す。**`?? room` のフォールバックは、
+  // 上の「唯一の接続だった」場合と挙動を合わせるためのもの**である。その場合
+  // レジストリには何も残っていないが、旧実装の detach も sockets.size === 0 の
+  // 分岐では entry.room を一切更新せずに return していたため、detach 前の
+  // スナップショット（＝ここでの `room`）を使うのが正しい。
+  const current = store.get(msg.roomId) ?? room;
+
   // token 照合による同一参加者の復帰（FR-013）。一致すれば name は無視する
-  const existing = msg.token !== undefined ? findParticipantByToken(room, msg.token) : undefined;
+  const existing = msg.token !== undefined ? findParticipantByToken(current, msg.token) : undefined;
   if (existing) {
-    const updatedRoom = markConnected(room, existing.id);
+    const updatedRoom = markConnected(current, existing.id);
     if (stillRegistered) store.put(updatedRoom);
     completeJoin(ws, { room: updatedRoom, sockets }, existing.id, existing.token);
     return;
   }
 
   const ids = { participantId: idGen.participantId(), token: idGen.token() };
-  const result = joinRoom(room, msg.name, ids);
+  const result = joinRoom(current, msg.name, ids);
   if (result.isErr()) {
     sendError(ws, 'invalid-message', messageForRoomError(result.error));
     return;

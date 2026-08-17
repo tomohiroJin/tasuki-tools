@@ -45,7 +45,13 @@ async function setupRoom() {
   await guest.nextMatching(isType('room-state'));
   await host.nextMatching(isType('room-state'));
 
-  return { host, guest, hostId: hostJoined.participantId, guestId: guestJoined.participantId };
+  return {
+    host,
+    guest,
+    roomId: hostJoined.roomId,
+    hostId: hostJoined.participantId,
+    guestId: guestJoined.participantId,
+  };
 }
 
 describe('投票の秘匿（契約 #3 / SC-004）', () => {
@@ -129,4 +135,40 @@ describe('ホストの手動公開（契約 #5 / FR-009）', () => {
     host.close();
     guest.close();
   });
+});
+
+describe('自動公開は join-room の再送で消えない（#165 レビュー）', () => {
+  it(
+    '片方だけが投票した状態で、もう片方が同じ socket・同じ roomId へ join-room を再送しても公開状態は維持される',
+    async () => {
+      const { host, guest, roomId, guestId } = await setupRoom();
+
+      // guest だけが投票する（host は投票しない）。shouldAutoReveal（packages/poker-core/
+      // src/round.ts）は「接続中の全員が投票済み」を要求するため、この時点ではまだ voting
+      guest.send({ type: 'vote', card: { kind: 'number', value: 5 } });
+      await host.nextMatching(isType('room-state'));
+      await guest.nextMatching(isType('room-state'));
+
+      // host が同じ socket・同じ roomId へ join-room を再送する（二重送信・SPA 遷移）。
+      // detachFromCurrentRoom は host を切断扱いにする。残る接続者は guest だけになり、
+      // guest は投票済みなので shouldAutoReveal が成立し、detach の中で自動公開が起きる
+      host.send({ type: 'join-room', roomId, name: 'たろう' });
+      await host.nextMatching(isType('joined'));
+
+      // guest はこの一連の処理で room-state を 2 件受け取る:
+      // 1 件目は detach による自動公開のブロードキャスト（ここで既に revealed）、
+      // 2 件目は host の再 join が完了したあとの最終ブロードキャストである。
+      // 本題は 2 件目（最終状態）で公開が消えていないかどうか
+      const afterDetach = (await guest.nextMatching(isType('room-state'))) as RoomState;
+      expect(afterDetach.round.status).toBe('revealed');
+
+      const finalState = (await guest.nextMatching(isType('room-state'))) as RoomState;
+      expect(finalState.round.status).toBe('revealed');
+      if (finalState.round.status !== 'revealed') throw new Error('unreachable');
+      expect(finalState.round.votes.some((v) => v.participantId === guestId)).toBe(true);
+
+      host.close();
+      guest.close();
+    },
+  );
 });
