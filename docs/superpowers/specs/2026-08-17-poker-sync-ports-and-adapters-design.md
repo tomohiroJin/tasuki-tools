@@ -202,7 +202,7 @@ if (entry.sockets.get(participantId) !== ws) return;
 |---|---|---|
 | `MonotonicClock` | 固定時計 | レート制限の窓の**境界**。現在は実時間依存 |
 | `IdGen` | 衝突する候補を返すスタブ | **`generateRoomId` の衝突再試行**。`grep` で確認して**テストは 0 件** |
-| `RoomStore` | 事前にルームを仕込んだストア | `maxRooms` の境界。現在は `config.test.ts` の**パースしか見ておらず**、上限到達時の `server-busy` は未検査 |
+| `RoomStore` | 事前にルームを仕込んだストア | `maxRooms` の境界を**WS を張らずに**検証できる。現在は `guards.test.ts` が `MAX_ROOMS=1` で実 WS 越しに見ており（未検査ではない）、境界を増やすたびに接続を積む必要がある |
 | `Broadcaster` | 送信を記録するスパイ | 配信の**宛先と回数**。現在は受信側で間接的にしか見ていない |
 
 ### D8: エラー値に操作を持たせる
