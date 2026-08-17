@@ -173,7 +173,7 @@ Previous release: 1.0.0 → 2.0.0
   - ✅ AGENTS.md — 憲法の見出しを転記した薄い複製を持つ（`docs/adr/0002` 決定 5）。
     本改版に合わせて見出し同期済み（原則 I〜X の 10 本一致。#68 Task 4 で対応）。
 - Preserved references（コード内「憲法原則 N」参照 7 箇所。意味を変更しないことを確認）:
-  - III（揮発インメモリ）: `apps/poker-sync/src/rooms.ts:1`
+  - III（揮発インメモリ）: `apps/poker-sync/src/adapters/in-memory-room-store.ts:1`
   - IV（境界の型安全）: `apps/poker-sync/src/server.ts:2` /
     `apps/poker-web/src/hooks/useSync.ts:106` /
     `apps/poker-sync/tests/protocol-errors.test.ts:15` /

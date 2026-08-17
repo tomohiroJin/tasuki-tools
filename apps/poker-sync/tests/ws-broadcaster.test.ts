@@ -49,4 +49,41 @@ describe('createWsBroadcaster', () => {
     expect(newSocket.received).toHaveLength(1);
     expect(oldSocket.received).toHaveLength(0);
   });
+
+  it('同一参加者が別ソケットで再接続済みなら、古いソケットの detach は false を返し外さない', () => {
+    // これを落とすと、再接続直後に古いソケットの close が新しい接続を蹴り出す。
+    // WS 越しの特性テスト（tests/socket-identity.characterization.test.ts）と同じ不変条件を、
+    // アダプタ単体でも固定する
+    const broadcaster = createWsBroadcaster();
+    const oldSocket = recordingSocket();
+    const newSocket = recordingSocket();
+
+    // Given: 同じ roomId / participantId に別のソケットで attach し直した
+    broadcaster.attach('x', 'A', oldSocket);
+    broadcaster.attach('x', 'A', newSocket);
+
+    // When: 古いソケットで detach を呼ぶ
+    const detached = broadcaster.detach('x', 'A', oldSocket);
+
+    // Then: 何もせず false を返し、新しいソケットは外れていない
+    expect(detached).toBe(false);
+    expect(broadcaster.countIn('x')).toBe(1);
+    broadcaster.broadcastSnapshot('x', roomOf('x', 'A'));
+    expect(newSocket.received).toHaveLength(1);
+    expect(oldSocket.received).toHaveLength(0);
+  });
+
+  it('最後の 1 人を detach したあと countIn は 0 を返す', () => {
+    // detach は空になった集合を byRoom から消すため、countIn が undefined を返す実装だと
+    // server.ts の `countIn(roomId) === 0` が偽になり、store.remove が呼ばれずルームが残る
+    // （T3 で見つかった「到達不能なルームが maxRooms の枠を食う」と同型の欠陥）
+    const broadcaster = createWsBroadcaster();
+    const socket = recordingSocket();
+
+    broadcaster.attach('x', 'A', socket);
+    expect(broadcaster.countIn('x')).toBe(1);
+
+    expect(broadcaster.detach('x', 'A', socket)).toBe(true);
+    expect(broadcaster.countIn('x')).toBe(0);
+  });
 });
