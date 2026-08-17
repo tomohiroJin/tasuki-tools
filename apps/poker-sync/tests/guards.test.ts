@@ -307,6 +307,30 @@ describe('ルーム数の上限', () => {
     // Then: 上限は新規作成だけを止める
     expect(await guest.nextMatching(isType('joined'))).toMatchObject({ type: 'joined' });
   });
+
+  it(
+    '自分自身への join-room 再送でルームが消えても、レジストリの枠は空いたままになる（#165 レビュー）',
+    async () => {
+      // Given: ルームは 1 つまで。host はこのルーム唯一の接続
+      server = await startServer({ MAX_ROOMS: '1' });
+      const host = await ws(server.port);
+      host.send({ type: 'create-room', name: 'たろう' });
+      const joined = (await host.nextMatching(isType('joined'))) as { roomId: string };
+
+      // When: host が同じ socket・同じ roomId へ join-room を再送する（二重送信・SPA 遷移）。
+      // detachFromCurrentRoom はこのルームの接続者が host だけなので即時破棄する経路を通る。
+      // このルーム自体が消える（当人には joined が返るのにルームが無くなる）のは
+      // 元からある経路の欠陥であり、振る舞い変更になるため本テストでは直さない。
+      // ここで確かめるのは「レジストリの枠が空いたままになるか」だけ。
+      host.send({ type: 'join-room', roomId: joined.roomId, name: 'たろう' });
+      await host.nextMatching(isType('joined'));
+
+      // Then: 枠は空いているので、別の接続が新しいルームを作れる
+      const other = await ws(server.port);
+      other.send({ type: 'create-room', name: 'はなこ' });
+      expect(await other.nextMatching(isType('joined'))).toMatchObject({ type: 'joined' });
+    },
+  );
 });
 
 describe('起動ログ（listening）のフィールド（S-3）', () => {

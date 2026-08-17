@@ -194,11 +194,31 @@ function handleJoinRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'join-room' 
   // 参加先の存在を確認してから、参加中の別ルームを切り離す（二重送信・SPA 遷移対策）
   detachFromCurrentRoom(ws);
 
+  // **上の detach で自分自身がこのルーム唯一の接続だった場合、ルームは既にレジストリから
+  // 消えている**（`detachFromCurrentRoom` の sockets.size === 0 分岐。store と
+  // socketsByRoom の両方から削除済み）。
+  //
+  // 分割前（旧実装）は room ＋ sockets が単一の可変 RoomEntry オブジェクトで、
+  // detach 後もこの関数はその同じオブジェクトを参照し続けるだけで、
+  // レジストリへの書き戻しは一度も行っていなかった。
+  //
+  // ここで安易に `store.put` すると、**store にだけルームが復活し、
+  // socketsByRoom には対応するソケット集合が無い「到達不能なルーム」が残る。**
+  // `handleCreateRoom` の上限判定は `store.count()` を見るため、この到達不能な
+  // ルームが maxRooms の枠を永久に食い潰す（#165 レビューで発見。回帰テストは
+  // tests/guards.test.ts の「自分自身への join-room 再送で〜」）。
+  //
+  // よって、detach でレジストリから消えていたら **書き戻さない**。当人には
+  // 通常どおり joined が返るがルームはレジストリから見えなくなる、という
+  // この経路自体が元から持つ欠陥（振る舞い）は、本 PR ではあえて直さない
+  // （振る舞い不変が最上位制約のため）。別途 Issue 化して直す。
+  const stillRegistered = store.has(msg.roomId);
+
   // token 照合による同一参加者の復帰（FR-013）。一致すれば name は無視する
   const existing = msg.token !== undefined ? findParticipantByToken(room, msg.token) : undefined;
   if (existing) {
     const updatedRoom = markConnected(room, existing.id);
-    store.put(updatedRoom);
+    if (stillRegistered) store.put(updatedRoom);
     completeJoin(ws, { room: updatedRoom, sockets }, existing.id, existing.token);
     return;
   }
@@ -209,7 +229,7 @@ function handleJoinRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'join-room' 
     sendError(ws, 'invalid-message', messageForRoomError(result.error));
     return;
   }
-  store.put(result.value.room);
+  if (stillRegistered) store.put(result.value.room);
   completeJoin(ws, { room: result.value.room, sockets }, result.value.participant.id, ids.token);
 }
 
