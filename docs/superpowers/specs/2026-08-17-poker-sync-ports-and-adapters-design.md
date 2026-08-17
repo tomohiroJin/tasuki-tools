@@ -60,7 +60,7 @@ const server = Bun.serve<ConnectionData, never>({ ... });  // import しただ�
 
 | 移行に必要なもの | 規模 |
 |---|---|
-| `from 'vitest'` → `from 'bun:test'` | 28 箇所 |
+| `from 'vitest'` → `from 'bun:test'` | **14 箇所**（14 ファイル × 1 import） |
 | `package.json` の `test` スクリプト | 1 行 |
 | `vitest.config.ts` の timeout（15 秒 × 2）の移し替え | `bun test --timeout 15000`（実測。下記） |
 | CI の変更 | **不要**（`ci` ジョブに `setup-bun` が既にある） |
@@ -327,7 +327,7 @@ apps/poker-sync/src/
 
 **PR-1（`bun test` への移行・`src/` は 0 行）**
 
-1. `tests/*.ts` の `from 'vitest'` → `from 'bun:test'`（28 箇所）
+1. `tests/*.ts` の `from 'vitest'` → `from 'bun:test'`（14 ファイル × 1 import）
 2. `package.json` の `test` を **`bun test --timeout 15000`** へ。`vitest.config.ts` を削除する
 3. **134 件が同じテスト名で通ることを示す**（件数だけでなく名前の集合を突き合わせる）
 

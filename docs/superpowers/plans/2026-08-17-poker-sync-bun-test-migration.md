@@ -433,14 +433,18 @@ gh pr create --title "test: poker-sync のテストを bun test へ移行する�
 
 | 設計正本の記述 | 実装するタスク |
 |---|---|
-| `from 'vitest'` → `from 'bun:test'`（28 箇所） | Task 1 Step 3 |
+| `from 'vitest'` → `from 'bun:test'`（14 ファイル） | Task 1 Step 3 |
 | `package.json` の `test` を `bun test --timeout 15000` へ | Task 1 Step 4 |
 | `vitest.config.ts` を削除 | Task 2 Step 2 |
 | 134 件が同じテスト名で通ることを示す | Task 1 Step 2・6・7 |
 | `src/` は 0 行 | Task 1 Step 8・Task 3 Step 4 |
 
-**漏れなし。** なお設計正本は「28 箇所」と書いているが、これは `from 'vitest'` の出現数であり、
-ファイル数は 14 である。Task 1 Step 3 はファイル単位で置換するため、どちらの数でも同じ結果になる。
+**漏れなし。**
+
+**訂正（実行前スキャン・2026-08-17）:** 設計正本と本計画は当初「28 箇所」と書いていたが、
+実測は **14 箇所（14 ファイル × 1 import）** である。28 は、最初の grep に
+`tests/*.test.ts` と `tests/*.ts` の**両方を渡して同じファイルを 2 回数えた**もの。
+両方の文書を訂正した。
 
 **2. Placeholder scan:** 「TBD」「後で」「同様に」「適切に」の類は無い。比較スクリプトは全文を書いた。
 PR 本文も全文を書いた。`<scratchpad>` は Global Constraints で実パスを与えている。
