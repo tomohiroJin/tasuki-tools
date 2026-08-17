@@ -375,6 +375,7 @@ poker-sync（`3311`）を実際に起動するため、`pnpm dev` と同じポ�
 node scripts/audit-structure.mjs                 # 構造監査（走査対象のずれ・走査 0 件は合否を持つ。ADR-0009 D2 の例外・ADR-0014 決定 7・決定 8）
 node scripts/audit-log-hygiene.mjs               # ログ衛生（検査の中身は ADR-0012 D1。走査対象のずれ・走査 0 件が合否を持つ根拠は ADR-0014 決定 7・決定 8）
 node scripts/audit-assembly-wiring.mjs           # 組み立ての集約（同期サーバーのエントリが create-sync-server.ts を経由するか。ADR-0004 決定 4）
+node scripts/audit-domain-error-shape.mjs        # ドメインエラー型の形（core のエラー型が message フィールドを持たないか。ADR-0016 決定 2 項目 3）
 node scripts/mutation-check.mjs                  # 変異検査
 node scripts/check-links.mjs                     # リンク検査
 
@@ -462,6 +463,15 @@ workspace の実体（`pnpm -r list --depth -1 --json`）と全単射で照合�
 （他パッケージ分でファイル数が非ゼロなので 0 件ガードにも掛からず）緑になりました
 （Issue #158。決定の根拠は [`docs/adr/0014`](../adr/0014-scan-target-integrity.md) 決定 1・
 決定 9）。
+
+**ドメインエラー型を改名・削除しても検査が赤くなります。**
+`scripts/audit-domain-error-shape.mjs` は core のドメインエラー型を
+`DOMAIN_ERROR_TARGETS` として**ファイル名と型名で宣言**し、宣言した型宣言が実在するか
+までを見ます（[`docs/adr/0016`](../adr/0016-core-domain-representation.md) 決定 2 項目 3）。
+型を改名したら宣言も直してください。**赤を消すために宣言から消さないこと** — 消した型は
+以後どれだけ文言を持たせても検出されません。新しいドメインエラー型を足したときも宣言へ
+追記します（WS プロトコルの `ProtocolError` や `ServerMessage` は**対象外**です。
+これらは `message` を持つのが正しく、宣言へ入れると誤検出になります）。
 
 shellcheck・自己テスト（`node --test`）の対象は宣言ではなく `git ls-files` からの
 導出（`scripts/list-scan-targets.mjs`）です。`scripts/` 配下に `*.sh` や `*.test.mjs` を

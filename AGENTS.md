@@ -45,6 +45,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 - `node scripts/audit-structure.mjs` — 構造監査
 - `node scripts/audit-log-hygiene.mjs` — ログ衛生
 - `node scripts/audit-assembly-wiring.mjs` — 組み立ての集約（同期サーバー）
+- `node scripts/audit-domain-error-shape.mjs` — ドメインエラー型の形（core のエラー型が文言を持たない）
 - `node scripts/check-links.mjs` — リンク検査
 - `node scripts/mutation-check.mjs` — 変異検査
 - `bash -c 'set -euo pipefail; targets="$(node scripts/list-scan-targets.mjs script-tests)"; node --test $targets'` — scripts の自己テスト
