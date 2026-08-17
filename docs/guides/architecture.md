@@ -38,10 +38,11 @@ E4 で行います（`apps/timer-web/src/App.tsx` に WS 配線が直書きさ�
 **`packages/rate-limit` について**: HMAC によるクライアント鍵導出とトークンバケツによる
 レート制限（#103）を提供する node 専用パッケージ。`node:crypto` / `node:net` に依存するため
 ブラウザバンドルへは載せられず、`packages/protocol` とは同居できない。ドメインの型も知らない
-（IP 文字列とキー文字列のみを扱う）ため「ドメイン」でもなく、両 sync アプリから
-層を問わず直接 import される横断的な共有ユーティリティとして独立の行に置く
-（`src/` 直下の設定・組み立て・`application/`・`adapters/` のいずれからも
-import 実績がある。`grep -rn "@tasuki/rate-limit" apps/*-sync/src` で引ける）。
+（IP 文字列とキー文字列のみを扱う）ため「ドメイン」でもなく、両 sync アプリが使い、
+置き場も `src/` 直下（設定・組み立て）・`application/`・`adapters/` にまたがる
+横断的な共有ユーティリティとして独立の行に置く。**どの層から import するかは
+アプリごとに一様ではありません**（例: `apps/poker-sync/src/adapters` からの import は
+0 件）。現況は `grep -rn "@tasuki/rate-limit" apps/*-sync/src` で引けます。
 
 ## 判断フロー
 

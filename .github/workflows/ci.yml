@@ -214,6 +214,11 @@ jobs:
       - run: node scripts/audit-log-hygiene.mjs
         if: steps.scope.outputs.code == 'true'
 
+      # 組み立ての集約。同期サーバーのエントリが create-sync-server.ts を経由し、
+      # Bun.serve をエントリに持たないことを見る（ADR 0004 決定 4 の MUST・#165）。
+      - run: node scripts/audit-assembly-wiring.mjs
+        if: steps.scope.outputs.code == 'true'
+
       # 対象は列挙しない。scripts/ 配下の *.test.mjs を git から導出する。
       # 列挙をハードコードすると、新しいテストが黙って走らない（#135 経路⑬）。
       - name: scripts の自己テスト
