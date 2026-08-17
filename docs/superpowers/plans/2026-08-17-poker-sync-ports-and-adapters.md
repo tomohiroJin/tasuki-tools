@@ -1024,7 +1024,27 @@ corepack pnpm --filter @tasuki/poker-sync test 2>&1 | grep -E "^ [0-9]+ (pass|fa
 
 **ソケット同一性が落ちたら、`detach` の同一性判定が効いていない。** 止めて報告すること。
 
-- [ ] **Step 5: 変異検査 — `detach` の同一性判定が効いているか**
+- [ ] **Step 5: コミット**
+
+```bash
+cd /home/vscode/tasuki-work
+git add -A
+git commit -m "refactor: Broadcaster を切りソケットをルーム保管から分離する（#165）
+
+- docs/adr/0004 の背景が挙げた「エントリがルームとソケットを同梱」を解消した
+- timer の形は写せない。poker の Participant に connId が無く、足すと
+  スナップショットの形が変わって振る舞い不変を壊すため、接続レジストリは
+  アダプタの内側に置きポートは roomId と participantId だけで話す
+- detach は同一性が一致したときだけ外して true を返す。落とすと再接続直後に
+  古いソケットの close が新しい接続を蹴り出す
+- rooms.ts は役目を終えたので削除した
+- 同一性判定は Step 6 の変異検査で効いていることを確かめる"
+```
+
+- [ ] **Step 6: 変異検査 — `detach` の同一性判定が効いているか**
+
+**Step 5 のコミットより後に実施すること。** `ws-broadcaster.ts` は本タスクで新規作成した
+ファイルなので、コミット前は git の未追跡であり `git checkout --` で復元できない。
 
 ```bash
 cd /home/vscode/tasuki-work
@@ -1039,23 +1059,6 @@ grep -c "変異検査中" apps/poker-sync/src/adapters/ws-broadcaster.ts
 ```
 
 期待: `1` → `1 fail` → `0`。
-
-- [ ] **Step 6: コミット**
-
-```bash
-cd /home/vscode/tasuki-work
-git add -A
-git commit -m "refactor: Broadcaster を切りソケットをルーム保管から分離する（#165）
-
-- docs/adr/0004 の背景が挙げた「エントリがルームとソケットを同梱」を解消した
-- timer の形は写せない。poker の Participant に connId が無く、足すと
-  スナップショットの形が変わって振る舞い不変を壊すため、接続レジストリは
-  アダプタの内側に置きポートは roomId と participantId だけで話す
-- detach は同一性が一致したときだけ外して true を返す。落とすと再接続直後に
-  古いソケットの close が新しい接続を蹴り出す
-- rooms.ts は役目を終えたので削除した
-- 変異検査で同一性判定を潰すと特性テストが赤になることを確認した"
-```
 
 ---
 
