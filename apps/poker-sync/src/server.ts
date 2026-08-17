@@ -26,21 +26,20 @@ import {
   DEFAULT_REFILL_PER_SEC,
 } from '@tasuki/rate-limit';
 import { randomBytes } from 'node:crypto';
-import { broadcast, type RoomEntry, type RoomSocket } from './rooms';
 import { loadPokerSyncConfig } from './config';
 import { deriveClientKeySafely } from './client-key-safety';
 import { buildListeningLogFields } from './listening-log';
 import { createInMemoryRoomStore } from './adapters/in-memory-room-store';
 import { createPerformanceClock } from './adapters/performance-clock';
 import { createCryptoIdGen } from './adapters/crypto-id-gen';
+import { createWsBroadcaster } from './adapters/ws-broadcaster';
 
 const config = loadPokerSyncConfig(process.env);
 
 const store = createInMemoryRoomStore();
 const clock = createPerformanceClock();
 const idGen = createCryptoIdGen();
-/** roomId → 接続中ソケット（T4 で Broadcaster へ移す） */
-const socketsByRoom = new Map<string, Map<string, RoomSocket>>();
+const broadcaster = createWsBroadcaster();
 
 /**
  * 衝突しないルーム ID を採る（research R4）。
@@ -99,12 +98,12 @@ let connCounter = 0;
 type Ws = Bun.ServerWebSocket<ConnectionData>;
 
 function sendError(ws: Ws, code: ErrorCode, message: string): void {
-  ws.send(JSON.stringify({ type: 'error', code, message }));
+  broadcaster.sendTo(ws, { type: 'error', code, message });
 }
 
 function sendJoined(ws: Ws, roomId: string, participantId: string, token: string): void {
   // token は本人宛の joined でのみ配信する（契約）
-  ws.send(JSON.stringify({ type: 'joined', roomId, participantId, token }));
+  broadcaster.sendTo(ws, { type: 'joined', roomId, participantId, token });
 }
 
 /**
@@ -118,33 +117,39 @@ function detachFromCurrentRoom(ws: Ws): void {
   ws.data.roomId = null;
   if (participantId === null || roomId === null) return;
   const room = store.get(roomId);
-  const sockets = socketsByRoom.get(roomId);
-  if (!room || !sockets) return;
+  if (!room) {
+    // **ルーム保管には無いのに接続レジストリには残っている経路がある。**
+    // `handleJoinRoom` が「唯一の接続だった自分自身へ join-room を再送した」場合、
+    // ルームは store から消えたまま joined だけが返り、以後この接続は
+    // 到達不能なルームに attach されたままになる（下の handleJoinRoom のコメント参照）。
+    // 分割前は socketsByRoom からも消えていて何も残らなかったので、
+    // ここで接続レジストリ側も掃除して同じ状態に揃える。配信は行わない。
+    broadcaster.detach(roomId, participantId, ws);
+    return;
+  }
   // 同一参加者が別ソケットで再接続済みなら（socket が入れ替わっていたら）何もしない
-  if (sockets.get(participantId) !== ws) return;
-  sockets.delete(participantId);
+  if (!broadcaster.detach(roomId, participantId, ws)) return;
 
-  if (sockets.size === 0) {
+  if (broadcaster.countIn(roomId) === 0) {
     store.remove(roomId);
-    socketsByRoom.delete(roomId);
     return;
   }
 
   const updatedRoom = applyAutoReveal(markDisconnected(room, participantId));
   store.put(updatedRoom);
-  broadcast({ room: updatedRoom, sockets });
+  broadcaster.broadcastSnapshot(roomId, updatedRoom);
 }
 
 /**
  * join 成功の完了処理（create / token 復帰 / 新規 join の3経路で共用）。
  * 順序に不変条件がある: socket 登録 → 接続状態の更新 → joined 送信 → 全員へ配信
  */
-function completeJoin(ws: Ws, entry: RoomEntry, participantId: string, token: string): void {
-  entry.sockets.set(participantId, ws);
+function completeJoin(ws: Ws, room: Room, participantId: string, token: string): void {
+  broadcaster.attach(room.id, participantId, ws);
   ws.data.participantId = participantId;
-  ws.data.roomId = entry.room.id;
-  sendJoined(ws, entry.room.id, participantId, token);
-  broadcast(entry);
+  ws.data.roomId = room.id;
+  sendJoined(ws, room.id, participantId, token);
+  broadcaster.broadcastSnapshot(room.id, room);
 }
 
 function handleCreateRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'create-room' }>): void {
@@ -166,9 +171,7 @@ function handleCreateRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'create-ro
   }
   const { room, participant } = result.value;
   store.put(room);
-  const sockets: RoomEntry['sockets'] = new Map();
-  socketsByRoom.set(room.id, sockets);
-  completeJoin(ws, { room, sockets }, participant.id, ids.token);
+  completeJoin(ws, room, participant.id, ids.token);
 }
 
 function handleJoinRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'join-room' }>): void {
@@ -184,8 +187,7 @@ function handleJoinRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'join-room' 
   }
 
   const room = store.get(msg.roomId);
-  const sockets = socketsByRoom.get(msg.roomId);
-  if (!room || !sockets) {
+  if (!room) {
     rateLimiter.consume(ws.data.rateKey, now);
     sendError(ws, 'room-not-found', 'ルームが見つかりません');
     return;
@@ -195,15 +197,15 @@ function handleJoinRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'join-room' 
   detachFromCurrentRoom(ws);
 
   // **上の detach で自分自身がこのルーム唯一の接続だった場合、ルームは既にレジストリから
-  // 消えている**（`detachFromCurrentRoom` の sockets.size === 0 分岐。store と
-  // socketsByRoom の両方から削除済み）。
+  // 消えている**（`detachFromCurrentRoom` の countIn(roomId) === 0 分岐。store と
+  // Broadcaster の接続レジストリの両方から削除済み）。
   //
   // 分割前（旧実装）は room ＋ sockets が単一の可変 RoomEntry オブジェクトで、
   // detach 後もこの関数はその同じオブジェクトを参照し続けるだけで、
   // レジストリへの書き戻しは一度も行っていなかった。
   //
   // ここで安易に `store.put` すると、**store にだけルームが復活し、
-  // socketsByRoom には対応するソケット集合が無い「到達不能なルーム」が残る。**
+  // Broadcaster 側には対応する接続が無い「到達不能なルーム」が残る。**
   // `handleCreateRoom` の上限判定は `store.count()` を見るため、この到達不能な
   // ルームが maxRooms の枠を永久に食い潰す（#165 レビューで発見。回帰テストは
   // tests/guards.test.ts の「自分自身への join-room 再送で〜」）。
@@ -216,7 +218,7 @@ function handleJoinRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'join-room' 
 
   // **detach はこのルームを更新していることがある**（切断者への markDisconnected、
   // およびそれによる shouldAutoReveal 成立時の自動公開。detachFromCurrentRoom の
-  // sockets.size !== 0 分岐）。分割前（旧実装）は room が単一の可変オブジェクトの
+  // countIn(roomId) !== 0 分岐）。分割前（旧実装）は room が単一の可変オブジェクトの
   // フィールドだったため、detach の更新はこの関数から自動的に見えていた。
   // 値として持ち回す今の形では、detach 前に取得した `room` を読み直さずに使うと、
   // 古いスナップショットを書き戻して自動公開を消してしまう（#165 レビューで発見。
@@ -224,7 +226,7 @@ function handleJoinRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'join-room' 
   //
   // よって detach の後にレジストリから読み直す。**`?? room` のフォールバックは、
   // 上の「唯一の接続だった」場合と挙動を合わせるためのもの**である。その場合
-  // レジストリには何も残っていないが、旧実装の detach も sockets.size === 0 の
+  // レジストリには何も残っていないが、旧実装の detach も接続が 0 になる
   // 分岐では entry.room を一切更新せずに return していたため、detach 前の
   // スナップショット（＝ここでの `room`）を使うのが正しい。
   const current = store.get(msg.roomId) ?? room;
@@ -234,7 +236,7 @@ function handleJoinRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'join-room' 
   if (existing) {
     const updatedRoom = markConnected(current, existing.id);
     if (stillRegistered) store.put(updatedRoom);
-    completeJoin(ws, { room: updatedRoom, sockets }, existing.id, existing.token);
+    completeJoin(ws, updatedRoom, existing.id, existing.token);
     return;
   }
 
@@ -245,7 +247,7 @@ function handleJoinRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'join-room' 
     return;
   }
   if (stillRegistered) store.put(result.value.room);
-  completeJoin(ws, { room: result.value.room, sockets }, result.value.participant.id, ids.token);
+  completeJoin(ws, result.value.room, result.value.participant.id, ids.token);
 }
 
 /**
@@ -291,8 +293,7 @@ function commitRoomAction(
     return;
   }
   const room = store.get(roomId);
-  const sockets = socketsByRoom.get(roomId);
-  if (!room || !sockets) return;
+  if (!room) return;
   const result = action(room, participantId);
   if (result.isErr()) {
     sendError(ws, result.error.code, messageForRoundError(result.error));
@@ -300,7 +301,7 @@ function commitRoomAction(
   }
   const updatedRoom = applyAutoReveal(result.value);
   store.put(updatedRoom);
-  broadcast({ room: updatedRoom, sockets });
+  broadcaster.broadcastSnapshot(roomId, updatedRoom);
 }
 
 function dispatch(ws: Ws, msg: ClientMessage): void {
