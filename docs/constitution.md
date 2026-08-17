@@ -172,13 +172,21 @@ Previous release: 1.0.0 → 2.0.0
   - ✅ .specify/templates/tasks-template.md — 憲法への直接参照なし、変更不要。
   - ✅ AGENTS.md — 憲法の見出しを転記した薄い複製を持つ（`docs/adr/0002` 決定 5）。
     本改版に合わせて見出し同期済み（原則 I〜X の 10 本一致。#68 Task 4 で対応）。
-- Preserved references（コード内「憲法原則 N」参照 7 箇所。意味を変更しないことを確認）:
-  - III（揮発インメモリ）: `apps/poker-sync/src/adapters/in-memory-room-store.ts:1`
-  - IV（境界の型安全）: `apps/poker-sync/src/adapters/ws-adapter.ts:4` /
-    `apps/poker-web/src/hooks/useSync.ts:106` /
-    `apps/poker-sync/tests/protocol-errors.test.ts:15` /
-    `packages/poker-core/src/protocol.ts:2` / `packages/poker-core/src/round.ts:2` /
-    `packages/poker-core/src/room.ts:2`
+- Preserved references（コード内から憲法の原則を名指しするコメント。本改版で意味を
+  変更しないことを確認した。**件数は書かない。** 参照が増減するたびに数だけが腐るためで、
+  現に #165 でポート（`apps/poker-sync/src/ports/room-store.ts`）に原則 III の参照を
+  足したとき、本文の数だけが取り残されて食い違った。**現在の所在は
+  `grep -rn '憲法' --include='*.ts' --include='*.tsx' .` で引く。**
+  名指しの書き方は `憲法原則 IV` `憲法 原則 III` `憲法 VI` など揺れているので、
+  「憲法」だけを鍵に引くこと。原則を指さない参照（`憲法 追加制約` 等）も混ざるため、
+  引いた結果は上位集合であり、原則への参照かどうかは目で選り分ける。以下は本改版の
+  時点で意味の保存を確認した参照であり、その後に足されたものまで含む網羅一覧ではない）:
+  - III（揮発インメモリ）: `apps/poker-sync/src/adapters/in-memory-room-store.ts`
+  - IV（境界の型安全）: `apps/poker-sync/src/adapters/ws-adapter.ts` /
+    `apps/poker-web/src/hooks/useSync.ts` /
+    `apps/poker-sync/tests/protocol-errors.test.ts` /
+    `packages/poker-core/src/protocol.ts` / `packages/poker-core/src/round.ts` /
+    `packages/poker-core/src/room.ts`
 - Follow-up TODOs:
   - `packages/timer-core/src/problem.ts:70` の `Date.now()` は VI（依存は内向き）の
     既知の逸脱（ドメイン内で時刻という副作用に直接依存している）。適用段階（#72）で

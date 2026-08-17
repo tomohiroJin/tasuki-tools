@@ -2,8 +2,9 @@
  * 接続・フレーム層の防御（Issue #63）。
  *
  * 内容の検証（Valibot）より手前で効く層を対象にする。
- * `src/server.ts` はモジュール読み込み時に config を読むため設定の注入点が無く、
- * 上限値はサブプロセスの環境変数で注入する（詳しくは tests/helpers.ts の冒頭）。
+ * `src/server.ts` はモジュール読み込み時に `process.env` から config を読むので、
+ * サブプロセス起動のこのテストでは上限値を環境変数で注入する
+ * （詳しくは tests/helpers.ts の冒頭）。
  */
 import net from 'node:net';
 import os from 'node:os';

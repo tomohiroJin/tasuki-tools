@@ -11,8 +11,9 @@
 
 ## 層とディレクトリの対応表
 
-2026-08-10 時点で `apps/timer-sync/src`（`ls` で実在確認済み: `adapters/`
-`application/` `ports/`）と `packages/` の構成に基づく対応表です。
+2026-08-17 時点の構成に基づく対応表です。`apps/timer-sync/src` と
+`apps/poker-sync/src` はどちらも `ls` で `adapters/` `application/` `ports/` の
+実在を確認済みで、表の `apps/*-sync/...` の行は両方に当てはまります。
 
 | 層 | 置き場 | 依存してよいもの |
 |---|---|---|
@@ -37,17 +38,10 @@ E4 で行います（`apps/timer-web/src/App.tsx` に WS 配線が直書きさ�
 **`packages/rate-limit` について**: HMAC によるクライアント鍵導出とトークンバケツによる
 レート制限（#103）を提供する node 専用パッケージ。`node:crypto` / `node:net` に依存するため
 ブラウザバンドルへは載せられず、`packages/protocol` とは同居できない。ドメインの型も知らない
-（IP 文字列とキー文字列のみを扱う）ため「ドメイン」でもなく、`apps/timer-sync/src/application`
-と `apps/poker-sync/src`（poker-sync はまだ `application/` を持たず、下の注記のとおり
-`config.ts` 等の直下から直接 import している）の両方から直接 import される横断的な
-共有ユーティリティとして独立の行に置く。
-
-**注記（poker-sync）:** `apps/poker-sync/src` は現在 `config.ts` / `rooms.ts` /
-`server.ts` のモジュール関数中心の構成で、上表のポート/アダプタ標準形には
-まだ従っていません。標準形への再編は [#72](https://github.com/tomohiroJin/tasuki-tools/issues/72)
-（[`docs/adr/0004`](../adr/0004-sync-server-ports-and-adapters.md)）で行います。
-新しくコードを書く際は timer-sync 側（`apps/timer-sync/src`）を標準の参照実装と
-してください。
+（IP 文字列とキー文字列のみを扱う）ため「ドメイン」でもなく、両 sync アプリから
+層を問わず直接 import される横断的な共有ユーティリティとして独立の行に置く
+（`src/` 直下の設定・組み立て・`application/`・`adapters/` のいずれからも
+import 実績がある。`grep -rn "@tasuki/rate-limit" apps/*-sync/src` で引ける）。
 
 ## 判断フロー
 

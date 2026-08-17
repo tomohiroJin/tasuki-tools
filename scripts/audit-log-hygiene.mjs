@@ -75,9 +75,14 @@ const SCAN_DIRS = SCANNED_PACKAGES.map((pkg) => `${pkg}/src`);
 /**
  * 禁止構文を置いてよいファイル。**行に許可マーカーが必要。**
  *
- * 実測（2026-08-13）で確認した許可マーカー付き 5 ファイルに加え、`as LogSafe`
- * を型注釈を経由せず直接キャストしている 2 ファイル（相関 ID の生成点
- * ref-encoder.ts と、publicText の本体 log-safe.ts）を含む。
+ * 載せてよいのは次の性質を持つファイルだけである（**件数は書かない。**
+ * 項目を足すたびに本文の数を直す運用は必ず腐る）。
+ *   - ログの出口そのもの（`console` を実際に呼ぶ場所）
+ *   - `LogSafe` を型注釈を経由せず直接キャストする場所（相関 ID の生成点と
+ *     `publicText` の本体）
+ *
+ * 実在と陳腐化は機械が見る: 走査結果に無いファイルや、許可マーカーを 1 つも
+ * 持たないファイルは `findStaleAllowances` が赤にする。
  */
 export const ALLOWED_FILES = [
   "apps/timer-sync/src/adapters/console-log-sink.ts",
@@ -87,6 +92,8 @@ export const ALLOWED_FILES = [
   "apps/timer-sync/src/application/log/ref-encoder.ts",
   "apps/timer-sync/src/application/log/log-safe.ts",
   "apps/poker-sync/src/server.ts",
+  // #165 PR-2 で conn-rejected / derive-client-key-error が server.ts から移った先。
+  "apps/poker-sync/src/adapters/ws-adapter.ts",
 ];
 
 /** 走査結果に必ず存在しなければならないファイル（走査対象の消失を検出する）。 */
@@ -95,6 +102,8 @@ export const REQUIRED_FILES = [
   "apps/timer-sync/src/application/problem-delegation.ts",
   "apps/timer-sync/src/adapters/console-log-sink.ts",
   "apps/poker-sync/src/server.ts",
+  // #165 PR-2 の組み立て関数。E1 が E2 へ割り当てた機械検査はこの 1 行で足りる。
+  "apps/poker-sync/src/create-sync-server.ts",
   // 生の IP を最も直接扱うモジュール（W-3）。SCAN_DIRS からまた落ちたら赤にする。
   "packages/rate-limit/src/client-key.ts",
 ];

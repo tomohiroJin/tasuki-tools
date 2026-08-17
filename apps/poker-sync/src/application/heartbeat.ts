@@ -10,6 +10,30 @@
  *
  * **接続レジストリは WS アダプタが持つ。** ここはそれを読み書きするだけで、
  * Bun の型も `Bun.serve` も知らない（{@link HeartbeatRegistry}）。
+ *
+ * ## 標準（timer-sync）との差異 — 意図して残している（#165 PR-2）
+ *
+ * timer-sync は死活監視を `WsAdapter` の private に閉じ込めており（`missedPongs` も
+ * private フィールド）、インタフェースを切り出していない。poker-sync は監視ループを
+ * この application 層に置き、境界を {@link HeartbeatRegistry} で表している。その結果
+ * **書き込み可能な `Map`（{@link HeartbeatRegistry.missedPongs}）を境界の外へ公開する**
+ * 形になっており、カプセル化は timer-sync より弱い。
+ *
+ * 差異を承知で本 PR では動かさない。理由は 3 つある。
+ *
+ * 1. timer-sync の形へ寄せるのは構造変更で、**振る舞い不変**（本 PR の最上位制約）を
+ *    壊しうる。
+ * 2. インタフェースを `ports/` へ移すだけの案も採らない。`docs/adr/0004` 決定 1 が
+ *    `ports/` に置けと定めているのは**ドメインへの依存**であり（同 ADR の決定 1 の
+ *    文言を確認済み）、接続レジストリはそれに当たらない。標準とされる timer-sync も
+ *    heartbeat のポートを持っていない。
+ * 3. 設計正本（`docs/superpowers/specs/2026-08-17-poker-sync-ports-and-adapters-design.md`）の
+ *    D2 は `ports/` を 4 本（RoomStore / MonotonicClock / IdGen / Broadcaster）と
+ *    列挙し、D7 は**各ポートに差し替えテストを同じ PR で足す（MUST）**と定めている。
+ *    ここを 5 本目のポートにすると、正本の変更と差し替えテストの追加が同時に要る。
+ *
+ * 恒久対応（監視をアダプタの内側へ畳む、または `missedPongs` の書き込みを
+ * 関数で包む）は別 Issue の領分である。
  */
 
 /** 死活監視が 1 接続に求める操作。`Bun.ServerWebSocket` は構造的にこれを満たす。 */

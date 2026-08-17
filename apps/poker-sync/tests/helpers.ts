@@ -2,11 +2,11 @@
 // `bun run` でサーバーをサブプロセス起動し、ポート 0 → 標準出力 1 行 JSON
 // （{"event":"listening","port":N}）で実ポートを受け取る。
 //
-// **サブプロセスにする理由は #165 で変わった。** 移行前は vitest（Node）上で走っており
-// Bun.serve をそもそも呼べなかったが、bun test へ移った現在は in-process でも呼べる（実測）。
-// それでもサブプロセスなのは、`src/server.ts` がモジュール読み込み時に config を読んで
-// Bun.serve を呼ぶ設計で、**設定を差し替える注入点が無い**ためである。
-// in-process 化は #165 の PR-2（create-sync-server.ts の導入）で行う。
+// **この helpers を使う既存テストは、いずれもサブプロセス起動のままである。**
+// #165 PR-2 で `create-sync-server.ts` ができ、`createSyncServer(config)` を呼べば
+// in-process でも起動できるようになった（`tests/create-sync-server.substitution.test.ts`
+// がその経路を使う）。既存テストの in-process への移行は、振る舞い不変の証拠を
+// 保つため本 PR では行わない。
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -43,8 +43,10 @@ export async function waitForLine(
 /**
  * サーバーをサブプロセス起動する。
  *
- * @param env 上書きする環境変数。`src/server.ts` に設定の注入点が無い（モジュール読み込み時に
- *   process.env から読む）ため、上限値やハートビート間隔の注入経路は env しかない。
+ * @param env 上書きする環境変数。`src/server.ts` はモジュール読み込み時に `process.env` から
+ *   config を読むので、**サブプロセス起動では**上限値やハートビート間隔の注入経路は env しかない。
+ *   設定オブジェクトを直に渡したいときは `createSyncServer(config)` を in-process で呼ぶ
+ *   （`tests/create-sync-server.substitution.test.ts` を参照）。
  */
 export async function startServer(env: Record<string, string> = {}): Promise<TestServer> {
   const proc = spawn('bun', ['run', 'src/server.ts'], {
