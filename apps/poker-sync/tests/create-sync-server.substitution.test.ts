@@ -10,6 +10,18 @@
 // `detachFromCurrentRoom` の早期 return にある `broadcaster.detach` 呼び出し）も、
 // 同じ差し替えの手（スパイ Broadcaster）で守る。どちらも呼び出しを削っても
 // 既存の全テストは緑のままだった経路である。
+//
+// **`Broadcaster` ポートそのものの正当化を担っているのは「配線の穴」の 2 テスト
+// （下の describe 2 本）である。** どちらも `Broadcaster` を丸ごと偽物・スパイに
+// 差し替えている。一方、`RoomSocket の差し替え（配信の宛先と回数）` という名前の
+// describe は `createWsBroadcaster()`（本番アダプタ）をそのまま使っており、
+// 差し替えているのは `RoomSocket` 側であって `Broadcaster` ポートではない。
+// 「Broadcaster」を名乗るテストが正当化の本体だと早合点しないこと（T6 レビュー I-1）。
+//
+// ファイル名は `create-sync-server.substitution.test.ts` だが、実体は
+// `createSyncServer` ではなく `makeHandlers`（アプリケーション層）の差し替えテストである
+// （`createSyncServer` は 1 度も import していない）。`src/application/handlers.ts` の
+// コメントがこのファイル名で参照しているため、ファイル名自体は変えていない。
 import { describe, expect, it } from 'bun:test';
 import { createRoom, type ServerMessage } from '@tasuki/poker-core';
 import { createTokenBucketLimiter, type RateLimiter } from '@tasuki/rate-limit';
@@ -154,6 +166,9 @@ describe('RoomStore の差し替え（上限判定を実ルームなしで再現
     // RoomStore を差し替える価値。put/remove/has が実際に呼ばれたら
     // 上限判定がこの前提から外れているので、その場で失敗させる
     const store: RoomStore = {
+      // get() は常に undefined（＝存在するはずの部屋が無い）を返す契約非整合な偽物だが、
+      // このテストの経路では読まれない。上限判定が count() しか読まないことをこの
+      // テスト自身が確認しているので無害（T6 レビュー小さい直し）
       get: () => undefined,
       put: () => {
         throw new Error('put は呼ばれないはず（上限判定は count() だけで完結するはず）');
@@ -218,7 +233,89 @@ describe('RoomStore の差し替え（上限判定を実ルームなしで再現
   });
 });
 
-describe('Broadcaster の差し替え（配信の宛先と回数）', () => {
+describe('RoomStore の差し替え（判定順序: 上限判定は切り離しより先）', () => {
+  it('上限に達していれば、別ルームに参加中の接続でも detachFromCurrentRoom の store.get までは進まない', () => {
+    // Given: handleCreateRoom のコメントが明記する不変条件——
+    // 「ルーム数の上限（Issue #63）。切り離しより先に判定する。先に離脱させてしまうと、
+    //  拒否されたときに元のルームから追い出されたままになる。」
+    // （src/application/handlers.ts の handleCreateRoom 冒頭のコメント、逐語）
+    //
+    // 判定が detachFromCurrentRoom の後ろへ動くと、そちらの store.get が呼ばれる。
+    // それを検出するため、store.get は「上限判定より先には呼ばれないはず」の例外を投げる。
+    // これは RoomStore の不変条件そのもの（get が呼ばれる/呼ばれない）を守るテストであり、
+    // 1 本目の RoomStore テストが守っていた IdGen/Broadcaster 側の非依存とは別の性質
+    const store: RoomStore = {
+      get: () => {
+        throw new Error('get は呼ばれないはず（上限判定は detachFromCurrentRoom より先のはず）');
+      },
+      put: () => {
+        throw new Error('put は呼ばれないはず');
+      },
+      remove: () => {
+        throw new Error('remove は呼ばれないはず');
+      },
+      has: () => {
+        throw new Error('has は呼ばれないはず');
+      },
+      count: () => 1,
+    };
+    const idGen: IdGen = {
+      roomIdCandidate: () => {
+        throw new Error('roomIdCandidate は呼ばれないはず');
+      },
+      participantId: () => {
+        throw new Error('participantId は呼ばれないはず');
+      },
+      token: () => {
+        throw new Error('token は呼ばれないはず');
+      },
+    };
+    const sent: ServerMessage[] = [];
+    const broadcaster: Broadcaster = {
+      attach: () => {
+        throw new Error('attach は呼ばれないはず');
+      },
+      detach: () => {
+        throw new Error('detach は呼ばれないはず（切り離し処理へ進んでしまっている）');
+      },
+      resetRoom: () => {
+        throw new Error('resetRoom は呼ばれないはず');
+      },
+      countIn: () => {
+        throw new Error('countIn は呼ばれないはず');
+      },
+      broadcastSnapshot: () => {
+        throw new Error('broadcastSnapshot は呼ばれないはず');
+      },
+      sendTo: (_socket, msg) => void sent.push(msg),
+    };
+    const handlers = makeHandlers({
+      store,
+      broadcaster,
+      idGen,
+      clock: fixedClock(0),
+      rateLimiter: alwaysAllowLimiter(),
+      maxRooms: 1,
+    });
+    // 既に別ルーム 'r1' に参加中の接続（二重送信・SPA 遷移で create-room を送ってきた想定）
+    const ws = connectionOf(spySocket(), { participantId: 'p1', roomId: 'r1' });
+
+    // When
+    handlers.handleCreateRoom(ws, { type: 'create-room', name: 'たろう' });
+
+    // Then: server-busy が返り、detachFromCurrentRoom（store.get を経由する）にも
+    // idGen にも broadcaster の登録系にも一切触れない。
+    //
+    // **これは RoomStore を差し替えないと観測できない。** WS 越しでは「元のルームから
+    // 追い出されていないこと」を、別クライアントから元のルームへ check-room や
+    // join-room を送って生存を確認する間接的な方法でしか見られない
+    // （かつ、その間接確認自体が detachFromCurrentRoom を経由しない別経路なので、
+    // 「上限判定が detach より先か後か」という順序そのものは証明できない）
+    expect(sent).toEqual([{ type: 'error', code: 'server-busy', message: expect.any(String) }]);
+  });
+});
+
+describe('RoomSocket の差し替え（配信の宛先と回数）', () => {
   it('broadcastSnapshot はそのルームに attach された全員へちょうど 1 回ずつ届き、他室へは届かない', () => {
     // Given: 2 部屋。room01 にはホストが attach 済み、room02 は無関係な部屋
     const store = createInMemoryRoomStore();
@@ -260,8 +357,11 @@ describe('Broadcaster の差し替え（配信の宛先と回数）', () => {
     });
 
     // Then: room01 の 2 人（host / guest）だけが room-state を受け取る。
-    // 受信側の 1 本の WS からは「自分に何回届いたか」しか見えず、他人（host）に
-    // 届いたか・無関係な room02 に漏れていないかは、受信側のテストからは検証できない
+    // **両者に届くこと自体は tests/join.test.ts:49「2人目の参加が両者の room-state に
+    // 配信される」が WS 越しに既に検証済み。** ここで新しいのは
+    // 「無関係な room02 には 0 件（不達）」と「ちょうど 1 回（多重配信していない）」の 2 点。
+    // 不達は WS 越しでは待ち受けをタイムアウトさせて確認するしかなく、回数は受信側の
+    // 1 本のソケットからは「他人に何回届いたか」を直接数えられない（T6 レビュー I-1）
     expect(hostSocket.sent).toHaveLength(1); // room-state のみ
     expect(guestSocket.sent).toHaveLength(2); // joined + room-state
     expect(otherRoomSocket.sent).toHaveLength(0); // room02 には一切届かない
@@ -366,7 +466,12 @@ describe('配線の穴 2: detachFromCurrentRoom の早期 return での detach �
     // `broadcaster.detach(roomId, participantId, ws)` の呼び出しを削ると、この配列は
     // 空のままになる（変異検査で確認済み）。落とすと、到達不能ルームへの接続が
     // Broadcaster の接続レジストリに恒久的に蓄積する
-    expect(detachCalls).toEqual([['gone-room', 'p1', ws]]);
+    expect(detachCalls).toHaveLength(1);
+    expect(detachCalls[0]?.[0]).toBe('gone-room');
+    expect(detachCalls[0]?.[1]).toBe('p1');
+    // ソケットは構造比較ではなく同一性（toBe）で見る。意図は「まさにこの接続」であり、
+    // 構造的に等価な別ソケットを渡す変異を取り逃さないため（T6 レビュー小さい直し）
+    expect(detachCalls[0]?.[2]).toBe(ws);
     // 接続側の 2 フィールドはこの関数の先頭で必ずクリアされる（早期 return の手前）
     expect(ws.data.participantId).toBeNull();
     expect(ws.data.roomId).toBeNull();
