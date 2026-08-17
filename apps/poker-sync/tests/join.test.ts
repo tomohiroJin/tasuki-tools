@@ -1,5 +1,5 @@
 // 契約シナリオ #1 #2 + room-not-found（US1）
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { startServer, WsClient, isType, type TestServer } from './helpers';
 
 let server: TestServer;

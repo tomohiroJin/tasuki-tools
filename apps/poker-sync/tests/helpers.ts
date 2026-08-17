@@ -1,6 +1,12 @@
 // 結合テスト基盤（research R7）:
-// Bun.serve は Bun ランタイム専用のため、`bun run` でサーバーをサブプロセス起動し、
-// ポート 0 → 標準出力 1 行 JSON（{"event":"listening","port":N}）で実ポートを受け取る。
+// `bun run` でサーバーをサブプロセス起動し、ポート 0 → 標準出力 1 行 JSON
+// （{"event":"listening","port":N}）で実ポートを受け取る。
+//
+// **サブプロセスにする理由は #165 で変わった。** 移行前は vitest（Node）上で走っており
+// Bun.serve をそもそも呼べなかったが、bun test へ移った現在は in-process でも呼べる（実測）。
+// それでもサブプロセスなのは、`src/server.ts` がモジュール読み込み時に config を読んで
+// Bun.serve を呼ぶ設計で、**設定を差し替える注入点が無い**ためである。
+// in-process 化は #165 の PR-2（create-sync-server.ts の導入）で行う。
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -37,8 +43,8 @@ export async function waitForLine(
 /**
  * サーバーをサブプロセス起動する。
  *
- * @param env 上書きする環境変数。サーバーは in-process では起動できない（Bun.serve は
- *   Bun ランタイム専用）ため、上限値やハートビート間隔の注入経路は env しかない。
+ * @param env 上書きする環境変数。`src/server.ts` に設定の注入点が無い（モジュール読み込み時に
+ *   process.env から読む）ため、上限値やハートビート間隔の注入経路は env しかない。
  */
 export async function startServer(env: Record<string, string> = {}): Promise<TestServer> {
   const proc = spawn('bun', ['run', 'src/server.ts'], {
@@ -75,7 +81,12 @@ export async function startServer(env: Record<string, string> = {}): Promise<Tes
     // 上の data ハンドラ（stdoutLines への蓄積）が先に登録されているため、
     // 同じチャンクに対してこのハンドラが呼ばれる時点で stdoutLines は反映済み。
     proc.stdout.on('data', checkListening);
-    proc.on('exit', (code) => {
+    // `exit` は stdio が閉じる前に発火しうるため、stderrBuf が空のまま reject されることがある。
+    // このテストハーネスの reject は **stderr の内容を含むこと**に依存している
+    // （guards.test.ts の「ALLOWED_ORIGINS が空のまま本番起動しようとするとサーバーは
+    // 起動しない」が `rejects.toThrow(/ALLOWED_ORIGINS/)` で中身を見る）。
+    // `close` は stdio が閉じた後に発火するので、stderr を読み切ってから拒否できる。
+    proc.on('close', (code) => {
       clearTimeout(timer);
       reject(new Error(`server exited early (code ${code}). stderr: ${stderrBuf}`));
     });

@@ -8,7 +8,7 @@
  * 同じ理由（`server.ts` は import 時に副作用が走るエントリポイント）で、
  * フィールドの組み立てだけを純粋関数として切り出す。
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'bun:test';
 import { loadPokerSyncConfig } from '../src/config';
 import { buildListeningLogFields } from '../src/listening-log';
 

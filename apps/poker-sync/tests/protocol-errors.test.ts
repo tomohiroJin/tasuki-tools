@@ -1,5 +1,5 @@
 // 契約テスト観点 #10: 不正メッセージ / join 前の操作はエラー応答（接続維持）
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { startServer, WsClient, type TestServer } from './helpers';
 
 let server: TestServer;

@@ -14,7 +14,7 @@
  * そこで `deriveClientKeySafely` を純粋関数として切り出し、`deriveClientKey`
  * 自体を引数として受け取れるようにする（timer-sync の DI と同じ狙い）。
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'bun:test';
 import { deriveClientKeySafely } from '../src/client-key-safety';
 
 /** `.name` へのアクセス自体が throw する例外（timer-sync の I-1 の 3 ケース目と同じ）。 */

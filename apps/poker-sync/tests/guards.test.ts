@@ -2,12 +2,12 @@
  * 接続・フレーム層の防御（Issue #63）。
  *
  * 内容の検証（Valibot）より手前で効く層を対象にする。
- * サーバーは in-process に起動できない（Bun.serve は Bun ランタイム専用）ため、
- * 上限値はサブプロセスの環境変数で注入する。
+ * `src/server.ts` はモジュール読み込み時に config を読むため設定の注入点が無く、
+ * 上限値はサブプロセスの環境変数で注入する（詳しくは tests/helpers.ts の冒頭）。
  */
 import net from 'node:net';
 import os from 'node:os';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'bun:test';
 import { isType, startServer, waitForLine, WsClient, type TestServer } from './helpers';
 import { connectRaw, type RawWsClient } from './raw-ws-client';
 

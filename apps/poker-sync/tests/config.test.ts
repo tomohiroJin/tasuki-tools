@@ -1,7 +1,7 @@
 // 環境変数の解釈（Issue #63）。
 // 防御の設定値がサイレントに緩むことを防ぐのがこのモジュールの役目なので、
 // 「既定値」「不正値の扱い」「本番の fail-closed」を明示的に固定する。
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'bun:test';
 import { loadPokerSyncConfig } from '../src/config';
 
 describe('loadPokerSyncConfig', () => {
@@ -284,9 +284,18 @@ describe('loadPokerSyncConfig', () => {
       expect(() => loadPokerSyncConfig(env)).toThrow(/test/);
     });
 
-    it.each(['production', 'development', 'test', undefined, ''])(
-      '既知の値・未設定・空文字 NODE_ENV=%j は throw しない',
-      (nodeEnv) => {
+    // %j は undefined の書式化が vitest と bun:test で異なる
+    // （vitest は "undefined"、bun は空文字を出力）ため、明示ラベル + %s にして
+    // テストランナー間でテスト名を一致させる。
+    it.each([
+      ['"production"', 'production'],
+      ['"development"', 'development'],
+      ['"test"', 'test'],
+      ['undefined', undefined],
+      ['""', ''],
+    ])(
+      '既知の値・未設定・空文字 NODE_ENV=%s は throw しない',
+      (_label, nodeEnv) => {
         const env: Record<string, string | undefined> =
           nodeEnv === 'production'
             ? { NODE_ENV: nodeEnv, ALLOWED_ORIGINS: 'https://tasuki.example.com' }

@@ -1,6 +1,6 @@
 // レビュー指摘の修正テスト: join 済みソケットの再 join / 再 create で
 // 元のルームから正しくデタッチされること（ゴースト参加者・ルームリーク防止）
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { startServer, WsClient, isType, type TestServer } from './helpers';
 
 let server: TestServer;

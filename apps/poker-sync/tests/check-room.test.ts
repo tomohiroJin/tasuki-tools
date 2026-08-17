@@ -3,7 +3,7 @@
 // これまで、終了したルームの招待リンクを開いても参加フォームが出て、名前を入れて
 // 「参加する」を押して初めて「ルームが見つかりません」になった。参加を試みるまで
 // サーバーへ問い合わせないためで、死んだリンクと生きたリンクが見分けられなかった。
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { startServer, WsClient, isType, type TestServer } from './helpers';
 
 let server: TestServer;

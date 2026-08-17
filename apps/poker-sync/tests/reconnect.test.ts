@@ -1,5 +1,5 @@
 // 契約シナリオ #7 #8 #9 + 切断による自動公開（US4）
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { startServer, WsClient, isType, type TestServer } from './helpers';
 
 let server: TestServer;
