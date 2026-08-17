@@ -21,6 +21,19 @@ export interface Broadcaster {
    * これを落とすと、再接続直後に古いソケットの close が新しい接続を蹴り出す。
    */
   detach(roomId: string, participantId: string, socket: RoomSocket): boolean;
+  /**
+   * そのルーム ID の接続レジストリを空にする。
+   *
+   * **新しいルームを作る直前に呼ぶ。** ポート化の前は `handleCreateRoom` が
+   * `socketsByRoom.set(room.id, new Map())` で毎回**空の集合を作り直して**いた。
+   * その復元である（`attach` は既存の集合があれば再利用するため、これが無いと
+   * 作り直しにならない）。
+   *
+   * 落とすと、到達不能になったルームに残った接続が、**同じルーム ID が再採番された
+   * ときに別ルームのスナップショットを受け取る**（`store` から消えたルーム ID は
+   * `generateRoomId` の衝突回避を素通りするため、再採番自体は起こりうる）。
+   */
+  resetRoom(roomId: string): void;
   countIn(roomId: string): number;
   broadcastSnapshot(roomId: string, room: Room): void;
   sendTo(socket: RoomSocket, msg: ServerMessage): void;

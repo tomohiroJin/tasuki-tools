@@ -171,6 +171,10 @@ function handleCreateRoom(ws: Ws, msg: Extract<ClientMessage, { type: 'create-ro
   }
   const { room, participant } = result.value;
   store.put(room);
+  // 新しいルームの接続レジストリは**作り直す**（旧 socketsByRoom.set(room.id, new Map())
+  // の復元）。attach は既存の集合を再利用するため、これが無いと到達不能なルームに
+  // 残った接続が同一 ID 再採番で別ルームの配信を受ける
+  broadcaster.resetRoom(room.id);
   completeJoin(ws, room, participant.id, ids.token);
 }
 
