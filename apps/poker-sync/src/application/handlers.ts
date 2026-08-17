@@ -241,7 +241,7 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
     // よって、detach でレジストリから消えていたら **書き戻さない**。当人には
     // 通常どおり joined が返るがルームはレジストリから見えなくなる、という
     // この経路自体が元から持つ欠陥（振る舞い）は、本 PR ではあえて直さない
-    // （振る舞い不変が最上位制約のため）。別途 Issue 化して直す。
+    // （振る舞い不変が最上位制約のため）。#171 で直す。
     const stillRegistered = store.has(msg.roomId);
 
     // **detach はこのルームを更新していることがある**（切断者への markDisconnected、

@@ -321,7 +321,7 @@ describe('ルーム数の上限', () => {
       // When: host が同じ socket・同じ roomId へ join-room を再送する（二重送信・SPA 遷移）。
       // detachFromCurrentRoom はこのルームの接続者が host だけなので即時破棄する経路を通る。
       // このルーム自体が消える（当人には joined が返るのにルームが無くなる）のは
-      // 元からある経路の欠陥であり、振る舞い変更になるため本テストでは直さない。
+      // 元からある経路の欠陥（#171）であり、振る舞い変更になるため本テストでは直さない。
       // ここで確かめるのは「レジストリの枠が空いたままになるか」だけ。
       host.send({ type: 'join-room', roomId: joined.roomId, name: 'たろう' });
       await host.nextMatching(isType('joined'));
