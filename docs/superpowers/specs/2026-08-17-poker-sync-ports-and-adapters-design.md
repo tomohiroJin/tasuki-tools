@@ -62,13 +62,27 @@ const server = Bun.serve<ConnectionData, never>({ ... });  // import しただ�
 |---|---|
 | `from 'vitest'` → `from 'bun:test'` | 28 箇所 |
 | `package.json` の `test` スクリプト | 1 行 |
-| `vitest.config.ts` の timeout（15 秒 × 2）の移し替え | 1 ファイル削除 |
+| `vitest.config.ts` の timeout（15 秒 × 2）の移し替え | `bun test --timeout 15000`（実測。下記） |
 | CI の変更 | **不要**（`ci` ジョブに `setup-bun` が既にある） |
 | `vi.*` の書き換え | **0 件** |
 
 `vi.useFakeTimers` を 1 件も使っていないため、timer-sync の移行（#61・#62）で実測された
 Bun の最大の制約（fake timer の全フェイク化・`useRealTimers` 往復で `setInterval` が失われる）は
 当たらない。
+
+**vitest から import している名前は 6 種類だけ**（`it` `expect` `describe` `beforeAll`
+`afterAll` `afterEach`）で、`expect.extend` やスナップショットは 0 件。すべて `bun:test` にある。
+
+**`it.each` / `describe.each` は `bun:test` で動く**（2026-08-17 に実測。単一引数・タプルとも 7/7 pass）。
+poker-sync のテストはテーブル駆動を多用しており、ここが動かなければ移行は成立しなかった。
+
+**timeout は `bun test --timeout 15000` で移す。** `bunfig.toml` はリポジトリのどこにも無く、
+timer-sync は既定（5 秒）で動いている。poker-sync はサブプロセス起動を待つため 15 秒が要る。
+実測: 既定 5 秒では 6.5 秒の `beforeAll` がタイムアウトして落ち、`--timeout 15000` を付けると通る
+（**`--timeout` はフックにも効く**ため、`testTimeout` と `hookTimeout` の両方をこれ 1 つで置き換えられる）。
+
+**vitest 環境に `Bun` は無い**（`typeof Bun === 'undefined'` を poker-sync の vitest 上で実測）。
+PR-1 が要るのはこのためである。
 
 ## 決定
 
@@ -187,8 +201,8 @@ if (entry.sockets.get(participantId) !== ws) return;
 | ポート | 差し替えテスト | それで初めて書けること |
 |---|---|---|
 | `MonotonicClock` | 固定時計 | レート制限の窓の**境界**。現在は実時間依存 |
-| `IdGen` | 衝突する候補を返すスタブ | **`generateRoomId` の衝突再試行**。現在どのテストも通っていない |
-| `RoomStore` | 事前にルームを仕込んだストア | `maxRooms` の境界を、WS で上限個作らずに検証 |
+| `IdGen` | 衝突する候補を返すスタブ | **`generateRoomId` の衝突再試行**。`grep` で確認して**テストは 0 件** |
+| `RoomStore` | 事前にルームを仕込んだストア | `maxRooms` の境界。現在は `config.test.ts` の**パースしか見ておらず**、上限到達時の `server-busy` は未検査 |
 | `Broadcaster` | 送信を記録するスパイ | 配信の**宛先と回数**。現在は受信側で間接的にしか見ていない |
 
 ### D8: エラー値に操作を持たせる
@@ -225,7 +239,7 @@ export type RoundError =
 **対象外**: `ProtocolError`（`parseClientMessage` の境界エラー）と `ServerMessage` の
 `message` フィールド。E1 の最終レビューで範囲を確定済み。
 
-### D9: 文言の特性テストを PR-2 の最初のコミットで足す
+### D9: 特性テストを PR-2 の最初のコミットで足す（文言と不変条件）
 
 **現在、6 文言を守るテストが 1 件も無い**（`apps/poker-sync/tests` / `packages/poker-core` /
 `e2e` / `apps/poker-web` を grep して、ヒットしたのは実装ファイル 2 本だけ）。
@@ -237,6 +251,14 @@ export type RoundError =
 **`invalid-name` の畳み込みも固定する。** `handleCreateRoom()` / `handleJoinRoom()` が
 `sendError(ws, 'invalid-message', result.error.message)` としており、`RoomError` の `code` は
 WS へ出ない（`ERROR_CODES` の 9 個に `invalid-name` は無い）。
+
+**あわせて D5 のソケット同一性の不変条件も固定する。** 2026-08-17 の実測で、
+`reconnect.test.ts` は逐次の切断→再接続しか突いておらず、**「同一参加者が別ソケットで
+再接続済みのとき、古いソケットの close が新しい接続を蹴り出さない」を直接守るテストは
+1 件も無い**ことが分かった。再編でこの判定を落としても、現状のテストは全緑のまま通る。
+
+先に特性テストを足す。`grep -rn "再接続\|reconnect\|入れ替わ" apps/poker-sync/tests/*.test.ts`
+は 0 件だった。
 
 ### D10: 機械検査は新設せず、既存の宣言へ足す
 
@@ -306,8 +328,8 @@ apps/poker-sync/src/
 **PR-1（`bun test` への移行・`src/` は 0 行）**
 
 1. `tests/*.ts` の `from 'vitest'` → `from 'bun:test'`（28 箇所）
-2. `package.json` の `test` を `bun test` へ。`vitest.config.ts` を削除し timeout を移す
-3. **84 件が同じテスト名で通ることを示す**（件数だけでなく名前の集合を突き合わせる）
+2. `package.json` の `test` を **`bun test --timeout 15000`** へ。`vitest.config.ts` を削除する
+3. **134 件が同じテスト名で通ることを示す**（件数だけでなく名前の集合を突き合わせる）
 
 **PR-2（再編＋エラー型）**
 
@@ -326,7 +348,7 @@ apps/poker-sync/src/
 | 段 | 手段 |
 |---|---|
 | 1 | **文言の特性テスト**（D9）。破壊検証つき |
-| 2 | 既存 84 件が全緑 |
+| 2 | 既存 134 件が全緑 |
 | 3 | **変異検査**（#72 の進め方の MUST） |
 | 4 | `e2e/specs/poker.spec.ts` の 2 件 |
 
@@ -339,7 +361,7 @@ apps/poker-sync/src/
 2. `server.ts` とテストの**両方**が `createSyncServer()` を経由する（テスト側は import で示す）
 3. **WS で送る文字列が 1 文字も変わっていない**（特性テストで固定）
 4. 4 ポートすべてに差し替えテストがあり、それぞれ「今は書けないこと」を検証している
-5. `apps/poker-sync/tests` の 84 件が全緑
+5. `apps/poker-sync/tests` の 134 件が全緑
 6. 変異検査で恒真化していないことを確認した
 7. `audit-log-hygiene` と `audit-structure` が終了コード 0
 8. ログの出力箇所が `listening` 以外に増えていない
