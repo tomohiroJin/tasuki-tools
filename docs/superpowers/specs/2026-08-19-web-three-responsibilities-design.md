@@ -120,12 +120,15 @@ D9 で「書き換えない」ことを決定として固定する。
 // apps/timer-web/src/sync/snapshot-intents.ts（純粋・React 非依存）
 export type SnapshotIntent =
   | { kind: "save-resume"; code: string; participantId: string; resumeToken: string; displayName: string }
+  | { kind: "consume-driver-join" }
   | { kind: "join-rotation"; participantId: string }
   | { kind: "clear-generating" }
-  | { kind: "set-mode"; mode: AppMode }
+  | { kind: "set-screen"; screen: Screen }
   | { kind: "request-problem"; requestId: string }
-  | { kind: "regenerate-on-config-change"; requestId: string }
+  | { kind: "regenerate-problem"; requestId: string }
   | { kind: "persist-completion"; record: CompletionRecord };
+// consume-driver-join が独立した8種目として要るのは、輪に入れたか（join-rotation が
+// 立つか）に関わらず「参加時ドライバー宣言を降ろす」こと自体が別の副作用だからである。
 
 export function decideSnapshotIntents(
   prev: Room | null,
@@ -343,7 +346,7 @@ E1 の設計正本が `docs/timer/adr/0003` を「未検証（E4 が触る領域
 
 | # | Issue の EARS | これを守る検査 |
 |---|---|---|
-| 1 | ルームへ参加したとき、再編前と同一の画面へ遷移する | `snapshot-intents.test.ts` の `set-mode` 意図（純粋）＋ 既存 `App.sync-handlers.test.tsx`（無改造）＋ `e2e/specs/timer.spec.ts` |
+| 1 | ルームへ参加したとき、再編前と同一の画面へ遷移する | `snapshot-intents.test.ts` の `set-screen` 意図（純粋）＋ 既存 `App.sync-handlers.test.tsx`（無改造）＋ `e2e/specs/timer.spec.ts` |
 | 2 | 接続が切れている間、同一の接続状態表示を出す | **`App.connection.test.tsx`（D9b で再編前に新設）**＋ `use-timer-sync.test.tsx`。**既存の `connection-status` / `StatusStrip` のテストは部品だけを見ており、配線の証拠にはならない**（敵対的検証で判明） |
 | 3 | 交代が起きたとき、同一の通知を表示する | 既存 `sync/notice-message.test.ts`（**文言のみ**）＋ `use-timer-sync.test.tsx`（配線）＋ `ui/use-banner.test.tsx`（自動消去） |
 | 4 | セッションを失った場合、同一の復帰導線を示す | 既存 `App.session-lost.test.tsx`（**無改造**） |
