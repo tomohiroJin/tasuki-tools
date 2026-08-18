@@ -23,19 +23,17 @@ import { buildNoticeMessage, type NoticeSignal } from "./sync/notice-message.js"
 import { buildSyncUrl } from "./sync/sync-url.js";
 import { NoAiProvider } from "./ai/no-ai.js";
 import type { ProblemProvider } from "./ai/provider.js";
-import { screenForPhase } from "./ui/screen.js";
 import { errorAction } from "./ui/error-action.js";
 import { stripRoomParam } from "./ui/room-param.js";
 import { hostChangeMessage } from "./ui/host-change.js";
-import { shouldClearGenerating, shouldAutoRequestProblem } from "./ui/problem-generation.js";
-import { shouldAutoJoinRotation } from "./ui/join-driver-intent.js";
 import { useLatestRef } from "./ui/use-latest-ref.js";
 import { Stage } from "./ui/primitives.js";
 import { createCommands } from "./sync/commands.js";
 import { useBanner } from "./ui/use-banner.js";
 import { saveRecord } from "./records/indexeddb.js";
 import { persistRecordIfComplete } from "./records/persist.js";
-import { buildCompletionRecord, displayMessageFor } from "@tasuki/timer-core";
+import { decideSnapshotIntents } from "./sync/snapshot-intents.js";
+import { displayMessageFor } from "@tasuki/timer-core";
 import type { Room, SessionConfig, CompletionRecord, Problem } from "@tasuki/timer-core";
 
 /** 常に定型バンク（NoAiProvider）を返す。client 側で AI を直接呼ぶ経路（BYOK）は
@@ -146,90 +144,63 @@ export default function App() {
 
   const handleRoom = (syncClient: SyncClient, r: Room) => {
     // `room` はこのハンドラを作ったレンダーの const なので、下で `setRoom(r)` しても
-    // このスコープ内では変わらない。値は「直前のレンダー時点の snapshot」＝1つ前の
-    // snapshot であり、これは撤去前の `latestRef.current.room` と同じ意味を持つ。
+    // このスコープ内では変わらない。値は「直前のレンダー時点の snapshot」である。
     const prevRoom = room;
     setRoom(r);
-    // 直前の room.created/room.joined で受け取った resumeToken を、今来た snapshot の
-    // room.code と組み合わせて保存する（Issue #24・FR-001）。一度保存すれば
-    // このクライアントの生存期間中 code/participantId/resumeToken は変わらないため、
-    // 以降の snapshot では再保存しない（sessionStorage への書き込みを1回に抑える）。
-    if (pendingResumeRef.current) {
-      saveResumeIdentity({
-        code: r.code,
-        participantId: pendingResumeRef.current.participantId,
-        resumeToken: pendingResumeRef.current.resumeToken,
-        displayName: resumeDisplayNameRef.current,
-      });
-      pendingResumeRef.current = null;
-    }
-    // 参加時ドライバー宣言: 自分が参加者に現れたら一度だけ rotation に加入する。
-    if (
-      pendingDriverJoinRef.current &&
-      participantId &&
-      r.participants.some((p) => p.participantId === participantId)
-    ) {
-      // 宣言は「参加時の一度きり」。輪に入れたかに関わらずここで降ろす。
-      // 降ろさないと、後で自分が輪を抜けた瞬間に再追加が走り、意図しない再加入になる
-      // （サーバー側の枠の消え方の誤りを覆い隠してもいた）。
-      pendingDriverJoinRef.current = false;
-      if (shouldAutoJoinRotation({ participantId, rotation: r.session.rotation })) {
-        syncClient.send({ command: "member.add", participantId });
+
+    const intents = decideSnapshotIntents(prevRoom, r, {
+      participantId,
+      pendingResume: pendingResumeRef.current,
+      resumeDisplayName: resumeDisplayNameRef.current,
+      pendingDriverJoin: pendingDriverJoinRef.current,
+      isCreator: isCreatorRef.current,
+      problemRequested: problemRequestedRef.current,
+      recordSaved: recordSavedRef.current,
+      generatingProblem,
+      endType,
+      now: Date.now(),
+    });
+
+    for (const intent of intents) {
+      switch (intent.kind) {
+        case "save-resume":
+          saveResumeIdentity(intent.identity);
+          pendingResumeRef.current = null;
+          break;
+        case "consume-driver-join":
+          pendingDriverJoinRef.current = false;
+          break;
+        case "join-rotation":
+          syncClient.send({ command: "member.add", participantId: intent.participantId });
+          break;
+        case "clear-generating":
+          endGenerating();
+          break;
+        case "set-screen":
+          setMode(intent.screen);
+          break;
+        case "request-problem":
+          problemRequestedRef.current = true;
+          syncClient.send({ command: "problem.request", requestId: intent.requestId });
+          break;
+        case "regenerate-problem":
+          syncClient.send({ command: "problem.request", requestId: intent.requestId });
+          beginGenerating();
+          break;
+        case "persist-completion":
+          recordSavedRef.current = true;
+          setRecord((prev) => prev ?? intent.record);
+          // 完成記録を端末ローカルに自動保存（押し忘れ防止・FR-020「達成を記録」）。
+          persistRecordIfComplete("complete", intent.record, saveRecord).catch((e) =>
+            console.error("完成記録の保存に失敗しました:", e),
+          );
+          break;
+        default: {
+          // 網羅チェック: 新しい意図が増えたらここで型検査が落ちる（DbC）。
+          const exhaustive: never = intent;
+          return exhaustive;
+        }
       }
-    }
-    // 生成中で、お題の内容が前回から変化したら生成中を解除（AI 成功・定型縮退・タイムアウト確定の全経路）。
-    if (shouldClearGenerating(generatingProblem, prevRoom?.problem ?? null, r.problem ?? null)) {
-      endGenerating();
-    }
-    // サーバー権威の phase に全参加者が追従する（ホストの開始/完成が全員に反映）
-    setMode(screenForPhase(r.phase));
-    // ロビー（開始前）でお題が未確定かつ problemEnabled=true なら、作成者が一度だけ代表生成を依頼する（US3）。
-    // これがないと誰も problem.request を送らず「お題を準備中」のまま開始できない。
-    if (
-      shouldAutoRequestProblem({
-        phase: r.phase,
-        hasProblem: !!r.problem,
-        isCreator: isCreatorRef.current,
-        alreadyRequested: problemRequestedRef.current,
-        problemEnabled: r.config.problemEnabled !== false,
-      })
-    ) {
-      problemRequestedRef.current = true;
-      syncClient.send({ command: "problem.request", requestId: `req-${r.code}-lobby` });
-    }
-    // 難易度・言語をロビーで変えたら、お題を作り直して選択と中身を一致させる（①）。
-    // 代表（作成者）のみが依頼し、変化時だけ発火するのでループしない。
-    const cfgChanged =
-      prevRoom?.code === r.code &&
-      (prevRoom.config.difficulty !== r.config.difficulty ||
-        prevRoom.config.language !== r.config.language);
-    if (
-      cfgChanged &&
-      isCreatorRef.current &&
-      (r.phase === "setup" || r.phase === "ready") &&
-      !!r.problem &&
-      r.config.problemEnabled !== false
-    ) {
-      syncClient.send({ command: "problem.request", requestId: `req-${r.code}-cfg-${Date.now()}` });
-      beginGenerating();
-    }
-    // 完成フェーズかつ「完成（中断でない）」のとき、各端末でローカル記録を生成し
-    // IndexedDB へ永続化する（FR-020/028/059）。中断（abort）では記録を作らない。
-    // 二重保存は recordSavedRef でガードする（celebration の snapshot が複数回来ても1回）。
-    if (r.phase === "celebration" && r.problem && endType !== "abort" && !recordSavedRef.current) {
-      recordSavedRef.current = true;
-      const built = buildCompletionRecord(
-        { session: r.session, clock: r.clock },
-        r.problem,
-        r.config,
-        Date.now(),
-        r.code,
-      );
-      setRecord((prev) => prev ?? built);
-      // 完成記録を端末ローカルに自動保存（押し忘れ防止・FR-020「達成を記録」）。
-      persistRecordIfComplete("complete", built, saveRecord).catch((e) =>
-        console.error("完成記録の保存に失敗しました:", e),
-      );
     }
   };
 
