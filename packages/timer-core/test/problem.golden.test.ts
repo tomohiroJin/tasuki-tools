@@ -10,7 +10,7 @@
  * （`audit-log-hygiene` のテストが検査と同じ判定を再実装していたために、配線が消えても
  * 緑だった #158 と同型の罠）。
  */
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { pickFallback, FALLBACK_PROBLEMS } from "../src/problem.js";
 
 /** `[言語, 難易度, now, 期待する title]`。main `e905b38` で採取した実測値。 */
@@ -38,10 +38,6 @@ const GOLDEN: Array<[string, string, number, string]> = [
   ["COBOL-不明言語", "easy", 1755500000000, "電卓（式の評価）"],
 ];
 
-afterEach(() => {
-  vi.useRealTimers();
-});
-
 describe("pickFallback: 変更前の選択結果（ゴールデン値）", () => {
   /**
    * 母数のカナリア。**この 33 は意図的な直書きである。**
@@ -59,11 +55,8 @@ describe("pickFallback: 変更前の選択結果（ゴールデン値）", () =>
   it.each(GOLDEN)(
     "%s / %s / now=%d は「%s」を選ぶ",
     (language, difficulty, now, expectedTitle) => {
-      // Given: 変更前の実装は内部で Date.now() を読むので、システム時刻を固定する
-      vi.useFakeTimers();
-      vi.setSystemTime(now);
-      // When
-      const result = pickFallback(language, difficulty);
+      // When（変更後は now を引数で渡す。偽タイマーは不要）
+      const result = pickFallback(language, difficulty, now);
       // Then
       expect(result.problem.title).toBe(expectedTitle);
       expect(result.source).toBe("fallback");

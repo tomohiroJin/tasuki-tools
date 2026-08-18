@@ -77,6 +77,8 @@ interface ServerGenerationState {
 
 export class ProblemDelegator {
   private readonly store: RoomStore;
+  /** 定型お題の選択に使う時刻源（#166 / #72 E3 で初めて実際に使われるようになった） */
+  private readonly clock: Clock;
   private readonly broadcaster: Broadcaster;
   private readonly deadlineMs: number;
   private readonly serverProvider: ServerProblemProvider | undefined;
@@ -92,6 +94,7 @@ export class ProblemDelegator {
 
   constructor(deps: ProblemDelegatorDeps) {
     this.store = deps.store;
+    this.clock = deps.clock;
     this.broadcaster = deps.broadcaster;
     this.deadlineMs = deps.deadlineMs ?? PROBLEM_DEADLINE_MS;
     this.serverProvider = deps.serverProvider;
@@ -112,7 +115,7 @@ export class ProblemDelegator {
 
     // problemMode=fallback の場合は AI 候補へ委譲せず即座に定型で確定する（FR-037/043）
     if (room.problemMode === "fallback") {
-      const fb = pickFallback(room.config.language, room.config.difficulty);
+      const fb = pickFallback(room.config.language, room.config.difficulty, this.clock.now());
       this.finalize(roomCode, { ...fb.problem, source: "fallback" });
       return;
     }
@@ -231,7 +234,7 @@ export class ProblemDelegator {
     const validated = validateProblem(problem);
     const finalProblem: Problem = validated.isOk()
       ? validated.value
-      : pickFallback(room.config.language, room.config.difficulty).problem;
+      : pickFallback(room.config.language, room.config.difficulty, this.clock.now()).problem;
 
     void usedFallback; // 出所バッジはクライアント側で表示するためここでは保持しない
 
@@ -276,7 +279,7 @@ export class ProblemDelegator {
 
     // 候補を使い切った、または FALLBACK センチネルに到達したら定型で確定
     if (candidateId === undefined || candidateId === FALLBACK) {
-      const fb = pickFallback(room.config.language, room.config.difficulty);
+      const fb = pickFallback(room.config.language, room.config.difficulty, this.clock.now());
       this.finalize(roomCode, fb.problem);
       return;
     }
