@@ -284,6 +284,12 @@ MUST NOT に違反する**（「件数の下限を直書きしない。書いて
 変更前の `e905b38` で、代表的な `(language, difficulty, now)` の組に対して**実際に選ばれるお題の title**を
 採取し、固定値表としてテストへ埋める。
 
+**採取の手段は `vi.useFakeTimers()` ＋ `vi.setSystemTime(now)`。** 変更前の `pickFallback` は
+内部で `Date.now()` を呼ぶので、システム時刻を固定して**実際に関数を走らせて**結果を記録する。
+これは計算ではなく測定なので、実装の写経にならない。2026-08-18 に実行して機能することを確認済み
+（`FALLBACK_PROBLEMS` は **33 件**。`TypeScript`/`easy` の `now = 0` は `FizzBuzz`、
+未知言語 `easy` の `now = 0,1,2` は `FizzBuzz` / `回文チェッカー` / `ローマ数字変換`）。
+
 **テスト内で `Math.abs(now) % candidates.length` を再計算しない。** それは実装の写経であり、
 配線が消えても緑になる。`audit-log-hygiene` のテストが検査と同じ判定を再実装していたために、
 配線が消えても緑だった事例（#158）と同型の罠である。採取した実測値だけを置く。
@@ -368,14 +374,17 @@ MUST NOT に違反する**（「件数の下限を直書きしない。書いて
 
 ## 作業手順
 
+**検査は「コードを直したあと」に置く。** 先に置いて赤を見る順は「検査が働く証拠」として
+魅力的に見えるが、**赤いコミットを履歴に残して bisect を濁す**。#165 では
+`audit-log-hygiene` を赤にしたまま 5 コミットが通過し、実際に濁った。
+検査が働く証拠は、履歴を汚さない破壊検証（D10）で取る。
+
 1. ゴールデン値を `e905b38` で採取する（D8）
-2. `scripts/audit-domain-side-effects.mjs` とその自己テストを置き、**この時点では赤**であることを見る
-   （`problem.ts:70` がまだ違反しているため。検査が実際に働く証拠になる）
-3. `pickFallback` のシグネチャを変え、`??` を消し、timer-core のテストを通す（D1・D1b・D9）
-4. `problem-delegation.ts` を配線し、配線テストを足す（D2・D9）
-5. `no-ai.ts` を配線する（D3）
-6. 検査が緑になることを確認する
-7. `scan-target-wiring.test.mjs` へ導出ガードを足す（D7）
+2. `pickFallback` のシグネチャを変え、`??` を消し、timer-core のテストを通す（D1・D1b・D9）
+3. `problem-delegation.ts` を配線し、配線テストを足す（D2・D9）
+4. `no-ai.ts` を配線する（D3）
+5. `scripts/audit-domain-side-effects.mjs` とその自己テストを置く。**この時点で緑になる**
+6. `scan-target-wiring.test.mjs` へ導出ガードを足す（D7）
 8. 外部配線 5 箇所を更新する（`ci.yml` / `AGENTS.md` / `development.md` / `docs/adr/0016` / 済）
 9. 破壊検証を D10 の順序で全項目実施する
 10. `pnpm test` / `pnpm e2e` / `node scripts/mutation-check.mjs` / `node scripts/check-links.mjs`
