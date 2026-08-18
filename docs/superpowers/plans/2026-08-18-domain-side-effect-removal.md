@@ -20,7 +20,7 @@
 - **件数の下限を直書きしない。** 書いてよいのは「非空（1 件以上）」の判定のみ（ADR-0014 決定 8 の MUST NOT）
 - **走査対象の権威は `listWorkspacePackages`（= `pnpm -r list --depth -1 --json`）と `listTrackedFiles`（= `git ls-files`）。** `fs.readdirSync` によるパッケージ導出は禁止（ADR-0014 決定 3 の MUST NOT）
 - **テストを走らせるときは turbo のキャッシュに注意。** `pnpm test` は既定でキャッシュに当たり 1.5 秒で「緑」を出す。実際に走らせるなら `--force` を付けて `0 cached` を確認する
-- **`FALLBACK_PROBLEMS` は 33 件**（2026-08-18 実測）。テストにこの数値を直書きせず `FALLBACK_PROBLEMS.length` を使う
+- **`FALLBACK_PROBLEMS` は 33 件**（2026-08-18 実測）。テストの期待値に `33` を直書きせず `FALLBACK_PROBLEMS.length` を使う。**例外は Task 1 の母数カナリア 1 件だけ** — ゴールデン表 21 組は定型バンクの中身に依存しており、バンクが変わったら表を採り直す必要がある。`length` 同士を比べる書き方ではその変化を検知できない。カナリアには「33 を書き換えて赤を消すのではなく表を採り直す」ことをコメントで明示する
 - コメント・docstring は日本語。コミットメッセージは Conventional Commits（日本語本文）
 
 ---
@@ -103,7 +103,16 @@ afterEach(() => {
 });
 
 describe("pickFallback: 変更前の選択結果（ゴールデン値）", () => {
-  it("定型バンクは 33 件である（母数が変わったら表を採り直す）", () => {
+  /**
+   * 母数のカナリア。**この 33 は意図的な直書きである。**
+   *
+   * 下の GOLDEN 表は定型バンクの中身に依存しているので、バンクが増減したら
+   * 表は無効になる。`length` 同士を比べる書き方ではその変化を検知できない。
+   *
+   * **ここが赤くなったら、33 を書き換えて赤を消してはならない。**
+   * `vi.setSystemTime` で採り直した値で GOLDEN 表を作り直すこと。
+   */
+  it("定型バンクは 33 件である（母数が変わったら GOLDEN 表を採り直す）", () => {
     expect(FALLBACK_PROBLEMS.length).toBe(33);
   });
 
