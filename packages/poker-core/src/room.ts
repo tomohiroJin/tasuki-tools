@@ -25,7 +25,7 @@ export interface Room {
   round: Round;
 }
 
-export type RoomError = { code: 'invalid-name'; message: string };
+export type RoomError = { code: 'invalid-name' };
 
 export interface ParticipantIds {
   participantId: string;
@@ -42,10 +42,7 @@ export function isValidName(raw: string): boolean {
 
 function validateName(raw: string): Result<string, RoomError> {
   if (!isValidName(raw)) {
-    return err({
-      code: 'invalid-name',
-      message: `名前は 1〜${NAME_MAX_LENGTH} 文字で入力してください`,
-    });
+    return err({ code: 'invalid-name' });
   }
   return ok(raw.trim());
 }

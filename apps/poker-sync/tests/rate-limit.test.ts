@@ -25,7 +25,13 @@ async function startProdServer(): Promise<TestServer> {
 }
 
 describe('入室失敗のレート制限', () => {
-  it('容量を超えた join-room は rate-limited になる', async () => {
+  // **順序（照会より前に判定する）を実際に固定しているテストの 1 つ。**
+  // 最後の 1 通が指すのは存在しないルーム（`nope-final`）で、しかも `rate-limited` を
+  // 期待する。判定を照会の後ろへ動かすと `room-not-found` が返って落ちる。
+  // 同じ形（存在しないルーム宛＋`rate-limited` を期待）のテストはこのファイルに
+  // 他にもあり、`handleJoinRoom` の順序を入れ替えると join 側のそれらが揃って落ちる
+  // （#165 PR-2 の変異検査で確認済み）。
+  it('容量を超えた join-room は rate-limited になる（存在しないルーム宛なので照会順も固定する）', async () => {
     server = await startProdServer();
     const client = await connectRaw(server.port, {
       origin: 'https://example.com',
@@ -165,7 +171,14 @@ describe('入室失敗のレート制限', () => {
     b.close();
   });
 
-  it('残量が無いとき、実在するルームでも rate-limited を返す（照会より前に判定する）', async () => {
+  // **このテストは判定順序を固定しない。** 宛先が実在するルームなので、判定を照会の
+  // 後ろへ動かしても「照会は当たる → 残量が無い → rate-limited」となり同じ結果になる
+  // （#165 PR-2 の変異検査で実証。`handleJoinRoom` の順序を入れ替えても、このテストは
+  // 緑のままだった）。
+  // ここで守っているのは別の不変条件、すなわち
+  // **実在するルーム宛でもゲートを迂回できない**ことである。順序そのものは
+  // 上の `nope-final` 宛（存在しないルーム宛）のテストが固定している。
+  it('残量が無いとき、実在するルーム宛の join-room も rate-limited を返す', async () => {
     server = await startProdServer();
     const host = await connectRaw(server.port, {
       origin: 'https://example.com',

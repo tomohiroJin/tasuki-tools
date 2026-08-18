@@ -1,16 +1,15 @@
 /**
  * `deriveClientKeySafely` のテスト（#103 Task 7 レビュー S-2）。
  *
- * `server.ts` は `fetch` の中で `deriveClientKey(...)` を try/catch なしで
- * 呼んでおり、例外が発生すると（Bun 1.3.14 実測）例外メッセージがそのまま
+ * `adapters/ws-adapter.ts`（#165 PR-2 より前は `server.ts`）は `fetch` の中で
+ * `deriveClientKey(...)` を呼んでおり、try/catch が無いと（Bun 1.3.14 実測）例外メッセージがそのまま
  * stderr に出る。`deriveClientKey` の入力は利用者由来の X-Forwarded-For なので、
  * 将来この値を含む例外が起きれば journal に生の IP が載る（ADR 0012 D3 違反）。
  *
  * timer-sync の `ws-adapter.ts` は `deriveClientKey` を DI できるため、
- * 実際に throw させて確かめるテストが書ける。poker-sync の `server.ts` は
- * エントリポイントで、実際の `deriveClientKey` は
- * `createClientKeyDeriver(randomBytes(32))` によってプロセス起動時に
- * 一度だけ作られるモジュールスコープの値であり、そのままでは throw させられない。
+ * 実際に throw させて確かめるテストが書ける。poker-sync でも、実際の `deriveClientKey` は
+ * `createClientKeyDeriver(randomBytes(32))` によってプロセス起動時に一度だけ作られる
+ * （#165 PR-2 以降は `create-sync-server.ts` の中）ため、そのままでは throw させられない。
  * そこで `deriveClientKeySafely` を純粋関数として切り出し、`deriveClientKey`
  * 自体を引数として受け取れるようにする（timer-sync の DI と同じ狙い）。
  */

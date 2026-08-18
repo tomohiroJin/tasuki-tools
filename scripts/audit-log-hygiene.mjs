@@ -3,12 +3,15 @@
  * ログ衛生の検査（Issue #136・ADR 0012 D1）。
  *
  * 規則は 1 つだけ:
- *   禁止された構文（console.* / process.stdout.write / process.stderr.write /
- *   publicText の呼び出し / as LogSafe）は、**許可ファイルの、許可マーカーが
+ *   禁止された構文（正本は下の `FORBIDDEN` 配列。console.* / process.stdout.write /
+ *   process.stderr.write / publicText の呼び出し / as LogSafe / ロガの第 1 引数が
+ *   素の文字列リテラルでない呼び出し）は、**許可ファイルの、許可マーカーが
  *   付いた行**にしか置けない。
  *
  * **最初から fail-closed に作る。** 検査が「何も見つけられない状態」を成功と
- * report しないよう、次の 2 つを同時に見る。
+ * report しないよう、下に挙げる観点を**すべて同時に**見る（**件数は書かない。**
+ * 観点を足すたびに前置きの数を直す運用は腐る。実際、#158 で 3 を足したとき
+ * 「次の 2 つ」が取り残された）。
  *   1. 許可ファイルにマーカーが 1 つも無い → 陳腐化した許可として赤。
  *      console を消して許可だけ残す／許可を消して console を残す、
  *      どちらの向きにも穴を作らない。
@@ -75,9 +78,21 @@ const SCAN_DIRS = SCANNED_PACKAGES.map((pkg) => `${pkg}/src`);
 /**
  * 禁止構文を置いてよいファイル。**行に許可マーカーが必要。**
  *
- * 実測（2026-08-13）で確認した許可マーカー付き 5 ファイルに加え、`as LogSafe`
- * を型注釈を経由せず直接キャストしている 2 ファイル（相関 ID の生成点
- * ref-encoder.ts と、publicText の本体 log-safe.ts）を含む。
+ * 載せてよいのは、**禁止構文を仕事として実際に含むファイル**である
+ * （**件数は書かない。** 項目を足すたびに本文の数を直す運用は必ず腐る）。
+ * 現在の全件は、次のいずれかに当たる（2026-08-18 に 1 件ずつ実測）。
+ *   - ログの出口そのもの（`console` を実際に呼ぶ場所）
+ *   - `publicText()` を呼んで `LogSafe` の値を作る場所（語彙定数の定義と、
+ *     例外の分類名をログへ渡す箇所）
+ *   - `LogSafe` を型注釈を経由せず直接キャストする場所（相関 ID の生成点と
+ *     `publicText` の本体）
+ *
+ * **この分類は観測であって規則ではない。** 禁止構文の正本は `FORBIDDEN` 配列であり、
+ * 上の類型で尽きる保証はない。当てはまらない件が出たらこの箇条書きを増やす。
+ * 「この類型**だけ**」と読まないこと。
+ *
+ * 実在と陳腐化は機械が見る: 走査結果に無いファイルや、許可マーカーを 1 つも
+ * 持たないファイルは `findStaleAllowances` が赤にする。
  */
 export const ALLOWED_FILES = [
   "apps/timer-sync/src/adapters/console-log-sink.ts",
@@ -87,6 +102,8 @@ export const ALLOWED_FILES = [
   "apps/timer-sync/src/application/log/ref-encoder.ts",
   "apps/timer-sync/src/application/log/log-safe.ts",
   "apps/poker-sync/src/server.ts",
+  // #165 PR-2 で conn-rejected / derive-client-key-error が server.ts から移った先。
+  "apps/poker-sync/src/adapters/ws-adapter.ts",
 ];
 
 /** 走査結果に必ず存在しなければならないファイル（走査対象の消失を検出する）。 */
@@ -95,6 +112,10 @@ export const REQUIRED_FILES = [
   "apps/timer-sync/src/application/problem-delegation.ts",
   "apps/timer-sync/src/adapters/console-log-sink.ts",
   "apps/poker-sync/src/server.ts",
+  // #165 PR-2 の組み立て関数。**ここで見ているのは実在だけである。**
+  // E1 が E2 へ割り当てた機械検査は「実在し、server.ts とテストの両方が経由すること」
+  // で、経由の側は scripts/audit-assembly-wiring.mjs が見る。
+  "apps/poker-sync/src/create-sync-server.ts",
   // 生の IP を最も直接扱うモジュール（W-3）。SCAN_DIRS からまた落ちたら赤にする。
   "packages/rate-limit/src/client-key.ts",
 ];

@@ -2,8 +2,9 @@
  * 接続・フレーム層の防御（Issue #63）。
  *
  * 内容の検証（Valibot）より手前で効く層を対象にする。
- * `src/server.ts` はモジュール読み込み時に config を読むため設定の注入点が無く、
- * 上限値はサブプロセスの環境変数で注入する（詳しくは tests/helpers.ts の冒頭）。
+ * `src/server.ts` はモジュール読み込み時に `process.env` から config を読むので、
+ * サブプロセス起動のこのテストでは上限値を環境変数で注入する
+ * （詳しくは tests/helpers.ts の冒頭）。
  */
 import net from 'node:net';
 import os from 'node:os';
@@ -307,6 +308,30 @@ describe('ルーム数の上限', () => {
     // Then: 上限は新規作成だけを止める
     expect(await guest.nextMatching(isType('joined'))).toMatchObject({ type: 'joined' });
   });
+
+  it(
+    '自分自身への join-room 再送でルームが消えても、レジストリの枠は空いたままになる',
+    async () => {
+      // Given: ルームは 1 つまで。host はこのルーム唯一の接続
+      server = await startServer({ MAX_ROOMS: '1' });
+      const host = await ws(server.port);
+      host.send({ type: 'create-room', name: 'たろう' });
+      const joined = (await host.nextMatching(isType('joined'))) as { roomId: string };
+
+      // When: host が同じ socket・同じ roomId へ join-room を再送する（二重送信・SPA 遷移）。
+      // detachFromCurrentRoom はこのルームの接続者が host だけなので即時破棄する経路を通る。
+      // このルーム自体が消える（当人には joined が返るのにルームが無くなる）のは
+      // 元からある経路の欠陥（#171）であり、振る舞い変更になるため本テストでは直さない。
+      // ここで確かめるのは「レジストリの枠が空いたままになるか」だけ。
+      host.send({ type: 'join-room', roomId: joined.roomId, name: 'たろう' });
+      await host.nextMatching(isType('joined'));
+
+      // Then: 枠は空いているので、別の接続が新しいルームを作れる
+      const other = await ws(server.port);
+      other.send({ type: 'create-room', name: 'はなこ' });
+      expect(await other.nextMatching(isType('joined'))).toMatchObject({ type: 'joined' });
+    },
+  );
 });
 
 describe('起動ログ（listening）のフィールド（S-3）', () => {

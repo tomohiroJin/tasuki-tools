@@ -278,3 +278,112 @@ describe("0 件ガードの配線: scripts/audit-log-hygiene.mjs", () => {
     assert.match(r.stderr, /走査対象が 0 件です/);
   });
 });
+
+describe("0 件ガードの配線: scripts/audit-assembly-wiring.mjs", () => {
+  test("対照実行: 書き換えない複製は exit 0 で走査量を出す", () => {
+    // Given: 複製するだけで中身は変えない
+    // When
+    const r = runScriptCopy("audit-assembly-wiring.mjs", (s) => s);
+    // Then
+    assert.equal(r.status, 0, `対照実行が緑になりません:\n${r.stderr}`);
+    assert.match(r.stdout, /\[audit-assembly-wiring\] 走査対象: \d+ 組 \/ \d+ ファイル/);
+  });
+
+  test("宣言を空にすると非ゼロで終了する（検査が丸ごと空振りする経路）", () => {
+    // Given: ASSEMBLY_TARGETS の中身を消す。宣言が空なら「問題 0 件」で緑になってしまう
+    const mutate = (s) =>
+      s.replace(/export const ASSEMBLY_TARGETS = \[[\s\S]*?\n\];/, "export const ASSEMBLY_TARGETS = [];");
+    // When
+    const r = runScriptCopy("audit-assembly-wiring.mjs", mutate);
+    // Then: まず「壊れたこと自体」を確かめる
+    assert.equal(countOf(r.source, "export const ASSEMBLY_TARGETS = [];"), 1, "宣言を空にできていません");
+    assert.equal(countOf(r.source, 'entry: "apps/'), 0, "宣言の中身が残っています");
+    // Then: 0 件ガードが落とす
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.match(r.stderr, /検査する組が 0 件です/);
+  });
+
+  test("エントリの経由が切れると非ゼロで終了する（判定が main へ配線されている）", () => {
+    // Given: 判定の呼び出しを消す。純粋関数の単体テストだけでは、main から
+    //        findAssemblyProblems を呼ばなくなった状態を検知できない
+    const mutate = (s) =>
+      s.replace(
+        "const problems = ASSEMBLY_TARGETS.flatMap((t) => findAssemblyProblems(t, sources));",
+        "const problems = ASSEMBLY_TARGETS.flatMap((t) => [`配線が消えた: ${t.entry}`]);",
+      );
+    // When
+    const r = runScriptCopy("audit-assembly-wiring.mjs", mutate);
+    // Then: まず「壊れたこと自体」を確かめる
+    assert.equal(countOf(r.source, "findAssemblyProblems(t, sources)"), 0, "判定の呼び出しを壊せていません");
+    // Then: 差し込んだ問題がそのまま赤として出る（＝main が problems を見て終了コードを決めている）
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.match(r.stderr, /配線が消えた: apps\/poker-sync\/src\/server\.ts/);
+  });
+});
+
+describe("0 件ガードの配線: scripts/audit-domain-error-shape.mjs", () => {
+  test("対照実行: 書き換えない複製は exit 0 で走査量を出す", () => {
+    // Given: 複製するだけで中身は変えない
+    // When
+    const r = runScriptCopy("audit-domain-error-shape.mjs", (s) => s);
+    // Then
+    assert.equal(r.status, 0, `対照実行が緑になりません:\n${r.stderr}`);
+    assert.match(r.stdout, /\[audit-domain-error-shape\] 走査対象: \d+ 型 \/ \d+ ファイル/);
+  });
+
+  test("宣言を空にすると非ゼロで終了する（検査が丸ごと空振りする経路）", () => {
+    // Given: DOMAIN_ERROR_TARGETS の中身を消す。宣言が空なら「問題 0 件」で緑になってしまう
+    const mutate = (s) =>
+      s.replace(
+        /export const DOMAIN_ERROR_TARGETS = \[[\s\S]*?\n\];/,
+        "export const DOMAIN_ERROR_TARGETS = [];",
+      );
+    // When
+    const r = runScriptCopy("audit-domain-error-shape.mjs", mutate);
+    // Then: まず「壊れたこと自体」を確かめる
+    assert.equal(
+      countOf(r.source, "export const DOMAIN_ERROR_TARGETS = [];"),
+      1,
+      "宣言を空にできていません",
+    );
+    assert.equal(countOf(r.source, 'type: "RoundError"'), 0, "宣言の中身が残っています");
+    // Then: 0 件ガードが落とす
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.match(r.stderr, /検査する型が 0 件です/);
+  });
+
+  test("判定の呼び出しが切れると非ゼロで終了する（判定が main へ配線されている）", () => {
+    // Given: 判定の呼び出しを消す。純粋関数の単体テストだけでは、main から
+    //        findDomainErrorProblems を呼ばなくなった状態を検知できない（#158）
+    const mutate = (s) =>
+      s.replace(
+        "const problems = DOMAIN_ERROR_TARGETS.flatMap((t) => findDomainErrorProblems(t, sources));",
+        "const problems = DOMAIN_ERROR_TARGETS.flatMap((t) => [`配線が消えた: ${t.type}`]);",
+      );
+    // When
+    const r = runScriptCopy("audit-domain-error-shape.mjs", mutate);
+    // Then: まず「壊れたこと自体」を確かめる
+    assert.equal(
+      countOf(r.source, "findDomainErrorProblems(t, sources)"),
+      0,
+      "判定の呼び出しを壊せていません",
+    );
+    // Then: 差し込んだ問題がそのまま赤として出る（＝main が problems を見て終了コードを決めている）
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.match(r.stderr, /配線が消えた: RoundError/);
+  });
+
+  test("宣言した型が実在しなくなると非ゼロで終了し、名指しする（改名で空振りする経路）", () => {
+    // Given: 実装は変えず、宣言の型名だけを実在しないものへ変える。
+    //        件数は 12 のまま・ファイルも実在するので、0 件ガードにも実在確認にも掛からない
+    const mutate = (s) => s.replace('type: "RoundError"', 'type: "RoundFailure"');
+    // When
+    const r = runScriptCopy("audit-domain-error-shape.mjs", mutate);
+    // Then: まず「壊れたこと自体」を確かめる
+    assert.equal(countOf(r.source, "RoundFailure"), 1, "宣言を壊せていません");
+    // Then
+    assert.match(r.stdout, /走査対象: 12 型 \/ 3 ファイル/);
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.match(r.stderr, /RoundFailure の型宣言が見つかりません/);
+  });
+});
