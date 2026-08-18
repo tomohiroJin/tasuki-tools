@@ -551,7 +551,7 @@ export default function App() {
     if (msg) {
       showBanner(msg, "warn");
     }
-  }, [room, participantId]);
+  }, [room, participantId, showBanner]);
 
 
   // 共有時の操作はすべて WS コマンド送信（サーバーが状態をミラーし全員へ反映）。

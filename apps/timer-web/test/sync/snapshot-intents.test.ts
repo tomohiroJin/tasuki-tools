@@ -197,4 +197,13 @@ describe("decideSnapshotIntents: 順序（振る舞いそのもの）", () => {
     // 注: celebration では request-problem / regenerate-problem は立たない
     // （どちらも phase が setup/ready のときだけ）。
   });
+
+  it("phase=ready でお題が無い作成者の snapshot では、set-screen が request-problem より前に来る", () => {
+    // 上のケースは celebration シナリオのため、set-screen とお題系 2 意図
+    // （request-problem・regenerate-problem）の相対順を誰も見ていなかった。
+    // set-screen（4番目）は request-problem（5番目）より先に配列へ積まれるはず。
+    const room = aRoomView({ code: "ROOM01", phase: "ready", problem: null });
+    const intents = decideSnapshotIntents(null, room, baseCtx({ isCreator: true }));
+    expect(intents.map((i) => i.kind)).toEqual(["set-screen", "request-problem"]);
+  });
 });
