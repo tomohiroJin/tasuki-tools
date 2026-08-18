@@ -376,6 +376,7 @@ node scripts/audit-structure.mjs                 # 構造監査（走査対象�
 node scripts/audit-log-hygiene.mjs               # ログ衛生（検査の中身は ADR-0012 D1。走査対象のずれ・走査 0 件が合否を持つ根拠は ADR-0014 決定 7・決定 8）
 node scripts/audit-assembly-wiring.mjs           # 組み立ての集約（同期サーバーのエントリが create-sync-server.ts を経由するか。ADR-0004 決定 4）
 node scripts/audit-domain-error-shape.mjs        # ドメインエラー型の形（core のエラー型が message フィールドを持たないか。ADR-0016 決定 2 項目 3）
+node scripts/audit-domain-side-effects.mjs       # ドメインの副作用（core が Date.now() 等を直接呼ばないか。ADR-0016 決定 2 項目 4）
 node scripts/mutation-check.mjs                  # 変異検査
 node scripts/check-links.mjs                     # リンク検査
 
@@ -472,6 +473,19 @@ workspace の実体（`pnpm -r list --depth -1 --json`）と全単射で照合�
 以後どれだけ文言を持たせても検出されません。新しいドメインエラー型を足したときも宣言へ
 追記します（WS プロトコルの `ProtocolError` や `ServerMessage` は**対象外**です。
 これらは `message` を持つのが正しく、宣言へ入れると誤検出になります）。
+
+**ドメインが環境から値を直読みしたら検査が赤くなります。**
+`scripts/audit-domain-side-effects.mjs` は `DOMAIN_PACKAGES` として宣言した core の
+`src/` に、`Date.now(` / `Math.random(` / `new Date(` / `performance.now(` / `crypto.` /
+`process.env` が字面として現れないことを見ます
+（[`docs/adr/0016`](../adr/0016-core-domain-representation.md) 決定 2 項目 4）。
+**コメント行も読みます** — 「無いこと」を求める検査は読み飛ばすと緑に倒れるためで、
+core の docstring にこれらの語を書くこともできません（「現在時刻」等と書いてください）。
+時刻・乱数・環境変数は引数で注入し、読み取りはアダプタ（境界）へ置きます。
+
+**この検査は「足りる」とは言いません。** `globalThis["Date"].now()` のような
+計算プロパティや `const D = Date; D.now()` のような別名束縛はすり抜けます。
+純粋性を見ているのではなく、字面を見ているだけです。
 
 shellcheck・自己テスト（`node --test`）の対象は宣言ではなく `git ls-files` からの
 導出（`scripts/list-scan-targets.mjs`）です。`scripts/` 配下に `*.sh` や `*.test.mjs` を

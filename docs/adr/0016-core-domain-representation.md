@@ -86,3 +86,19 @@ poker-core 内の別モジュールへ置き、同期サーバーは `code` か�
 検査が見ないものは同スクリプトの docstring に書いた。特に、対象の型は手書きで宣言しており、
 **新しいドメインエラー型を足しても宣言に追記しない限り無検査**である。
 宣言した型の改名・削除は検査が赤にする（静かな空振りは塞いである）。
+
+## 追記（2026-08-18・#166 / #72 E3）
+
+決定 2 の項目 4 について、E3 に割り当てた機械検査を
+`scripts/audit-domain-side-effects.mjs` として置いた。CI の `quality` ジョブで走る。
+`packages/timer-core/src/problem.ts:70` の `Date.now()` は引数注入へ替えて解消した。
+
+**検査が見る語彙は、項目 4 の逐語（`Date.now()` / `Math.random()`）より広い。**
+`new Date(` / `performance.now(` / `crypto.` / `process.env` を加えた 6 語である。
+逐語の 2 語だけにすると `new Date().getTime()` や `crypto.randomUUID()` が
+すり抜け、**対策が自分の塞ぐ欠陥と同じ欠陥を持つ**ことになる。
+
+**項目 4 の趣旨は「ドメインが環境から直接値を読まない」ことであり、
+検査の射程はこの趣旨に合わせてある。** 決定の文面（MUST NOT の対象）を
+2 語から 6 語へ読み替えること。宣言した 2 パッケージ
+（`packages/poker-core` `packages/timer-core`）は 2026-08-18 時点で 6 語すべて 0 件である。
