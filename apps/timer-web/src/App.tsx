@@ -32,6 +32,7 @@ import { shouldAutoJoinRotation } from "./ui/join-driver-intent.js";
 import { useLatestRef } from "./ui/use-latest-ref.js";
 import { Stage } from "./ui/primitives.js";
 import { createCommands } from "./sync/commands.js";
+import { useBanner } from "./ui/use-banner.js";
 import { saveRecord } from "./records/indexeddb.js";
 import { persistRecordIfComplete } from "./records/persist.js";
 import { buildCompletionRecord, displayMessageFor } from "@tasuki/timer-core";
@@ -66,7 +67,7 @@ export default function App() {
   const [participantId, setParticipantId] = useState<string>("");
   const [record, setRecord] = useState<CompletionRecord | null>(null);
   const [client, setClient] = useState<SyncClient | null>(null);
-  const [banner, setBanner] = useState<{ text: string; kind: "warn" | "error" } | null>(null);
+  const { banner, show: showBanner, clear: clearBanner } = useBanner();
   // 終了種別（完成/中断）。Summary の見出し・記録の出し分けに使う（FR-020）。
   const [endType, setEndType] = useState<EndType>("complete");
   // セッション喪失（room-not-found）。StatusStrip を lost 表示にし、再接続では消えない。
@@ -84,8 +85,6 @@ export default function App() {
   const problemRequestedRef = useRef(false);
   // 完成記録の二重保存を防ぐガード（celebration の snapshot が複数回来ても1回だけ保存）。
   const recordSavedRef = useRef(false);
-  // 一時的な操作エラーバナーの自動消去タイマー。
-  const bannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // ホスト交代検知用に直前 snapshot の hostParticipantId を保持する（R2-4）。
   const prevHostRef = useRef<string | undefined>(undefined);
   // AI/定型のお題生成中（「別のお題にする」押下〜新お題確定まで）。スピナー＋減光に使う。
@@ -107,7 +106,6 @@ export default function App() {
   useEffect(() => {
     return () => {
       if (generatingTimerRef.current) clearTimeout(generatingTimerRef.current);
-      if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
     };
   }, []);
 
@@ -273,7 +271,7 @@ export default function App() {
         setSessionLost(true);
         // 説明は SessionLost 画面が担う（#76 F-4）。バナーは再接続のたびに
         // onConnected で消えるため、喪失のような「消えては困る事実」には向かない。
-        setBanner(null);
+        clearBanner();
         // ルームごと消失した以上、保存済みの resumeToken はもう使えない（Issue #24・FR-005）。
         clearResumeIdentity();
         return;
@@ -301,15 +299,11 @@ export default function App() {
         // 表示が最大65秒残ってしまう。beginGenerating と対になる endGenerating を
         // ここでも再利用し、後始末を二重に書かない（DRY）。
         endGenerating();
-        // バナー自動消去タイマーが生きていると、退出バナー表示後にそのタイマーが
-        // 発火して退出バナーを消してしまう（例: ロビーの一時エラーで4秒タイマーが
-        // 仕掛かった直後に自己退出した場合）。ここで確実に解除する。
-        if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
         // 退出バナーは自動消去しない。入口画面へ遷移した後も「抜けたこと」を
         // 利用者が確認できるまで残し続けるべきで、新しいタイマーは張らない
-        // （Issue #32 の狙い＝退出が分からない問題の再発防止）。
-        bannerTimerRef.current = null;
-        setBanner({ text: friendlyError(code), kind: "warn" });
+        // （Issue #32 の狙い＝退出が分からない問題の再発防止）。show 側が
+        // 直前の自動消去タイマー（例: ロビーの一時エラーの4秒タイマー）を解除する。
+        showBanner(friendlyError(code), "warn", { autoDismiss: false });
         if (action.destination === "join") {
           // 直前のルームコードがあれば参加画面へ引き継ぐ（無ければ入口へ・現状の挙動を維持）。
           if (removedFrom) {
@@ -336,9 +330,7 @@ export default function App() {
       case "transient": {
         // それ以外は「一時的な操作エラー」。分かりやすい日本語にし、数秒で自動消去する
         // （生のコードを残し続けない・画面遷移後も居座らせない）。
-        setBanner({ text: friendlyError(code), kind: "warn" });
-        if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
-        bannerTimerRef.current = setTimeout(() => setBanner(null), 4000);
+        showBanner(friendlyError(code), "warn");
         return;
       }
       default: {
@@ -371,9 +363,7 @@ export default function App() {
       selfParticipantId: participantId,
       participants: room?.participants ?? [],
     });
-    setBanner({ text, kind: "warn" });
-    if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
-    bannerTimerRef.current = setTimeout(() => setBanner(null), 4000);
+    showBanner(text, "warn");
   };
 
   // 上のハンドラ群を1本の ref へ毎レンダー同期する。同期は render 本体で行う
@@ -400,9 +390,9 @@ export default function App() {
       onIdentity: (identity) => handlersRef.current.handleIdentity(identity),
       onNeedProblem: (requestId) => handlersRef.current.handleNeedProblem(newClient, requestId),
       onError: (code) => handlersRef.current.handleError(newClient, code),
-      onConnected: () => setBanner(null),
+      onConnected: () => clearBanner(),
       onDisconnected: () =>
-        setBanner({ text: "接続が切れました。再接続しています...", kind: "warn" }),
+        showBanner("接続が切れました。再接続しています...", "warn", { autoDismiss: false }),
       onConnectionChange: (s) => setConnState(s),
       onReconnected: () => handlersRef.current.handleReconnected(newClient),
       onNotice: (notice) => handlersRef.current.handleNotice(notice),
@@ -588,9 +578,7 @@ export default function App() {
     const msg = hostChangeMessage(prevHostRef.current, room, participantId);
     prevHostRef.current = room.hostParticipantId;
     if (msg) {
-      setBanner({ text: msg, kind: "warn" });
-      if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
-      bannerTimerRef.current = setTimeout(() => setBanner(null), 4000);
+      showBanner(msg, "warn");
     }
   }, [room, participantId]);
 
@@ -770,7 +758,7 @@ export default function App() {
             // ボタン側で「保存しました」を表示するため、ここでは永続化と失敗時通知のみ行う。
             saveRecord(rec).catch((e) => {
               console.error("記録の保存に失敗しました:", e);
-              setBanner({ text: "記録の保存に失敗しました。", kind: "error" });
+              showBanner("記録の保存に失敗しました。", "error", { autoDismiss: false });
             });
           }}
         />
