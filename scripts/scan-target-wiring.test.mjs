@@ -15,8 +15,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { listTrackedFiles } from "./lib/scan-targets.mjs";
 
 const SCRIPTS_DIR = path.dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = path.resolve(SCRIPTS_DIR, "..");
 const COPY_PREFIX = ".wiring-";
 
 let copyCounter = 0;
@@ -386,4 +388,41 @@ describe("0 件ガードの配線: scripts/audit-domain-error-shape.mjs", () => 
     assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
     assert.match(r.stderr, /RoundFailure の型宣言が見つかりません/);
   });
+});
+
+/**
+ * **列挙ではなく導出で見るガード**（#166 / #72 E3）。
+ *
+ * 上の describe は検査スクリプトごとに手書きで列挙している。列挙は腐るので、
+ * 「すべての検査が走査量を名乗る」ことだけは導出で押さえる。新しい検査を足した人が
+ * 登録を漏らしても、ここが赤くなる。
+ *
+ * 権威は `git ls-files`。`fs.readdirSync` は未追跡ファイルを拾い、ローカルと CI で
+ * 見えるものが食い違う（`docs/adr/0014` 決定 5）。
+ *
+ * **`scripts/list-scan-targets.mjs` の KINDS には足していない。** 同モジュールの除外は
+ * `rel.startsWith(prefix)` の前方一致しか持たず、`.test.mjs` の後方一致を表現できない。
+ * `git ls-files 'scripts/audit-*.mjs'` は自己テストを含む 10 件に一致する（2026-08-18 実測）。
+ *
+ * `runScriptCopy` が作る複製は `.wiring-` 接頭辞なので、追跡下にも `audit-*` の一致にも
+ * 入らない。複製が自分自身を走査対象として拾う経路は無い。
+ */
+describe("走査量の出力: すべての audit-*.mjs が名乗る（導出で見る）", () => {
+  const AUDITS = listTrackedFiles(REPO_ROOT, ["scripts/audit-*.mjs"])
+    .map((rel) => path.basename(rel))
+    .filter((name) => !name.endsWith(".test.mjs"));
+
+  test("走査対象の検査スクリプトが 0 件でない（このガード自身の空振り検出）", () => {
+    // 下限は「非空」だけにする。`>= 5` のような固定値は ADR-0014 決定 8 の MUST NOT。
+    assert.ok(AUDITS.length > 0, "audit-*.mjs が 0 件（このガードが空振りしている）");
+  });
+
+  for (const name of AUDITS) {
+    test(`${name} は走査量を出力する（ADR-0014 決定 6）`, () => {
+      // Given / When（恒等関数なので対照実行）
+      const r = runScriptCopy(name, (s) => s);
+      // Then
+      assert.match(r.stdout, /走査対象: /, `${name} が走査量を名乗っていない`);
+    });
+  }
 });
