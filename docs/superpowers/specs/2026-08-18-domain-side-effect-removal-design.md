@@ -116,7 +116,7 @@ truthy チェックだけなので**全部緑のまま通る**（2026-08-18 に�
 `FALLBACK_PROBLEMS` が空だったとすると右辺 `FALLBACK_PROBLEMS[0]` 自身も `undefined` を返す（実測済み）。
 
 **根本原因（timer-core・timer-sync のテストが型検査の射程外）は本 PR では直さない。**
-`rootDir: ./src` を外す構成変更に加え、E3 と無関係な既存の型エラーが **10 件 / 6 ファイル**出る
+`rootDir: ./src` を外す構成変更に加え、E3 と無関係な既存の型エラーが **10 件 / 5 ファイル**出る
 （2026-08-18 に `tsc --noEmit` で実測）。独立した Issue として起票する。
 
 ### D2: timer-sync は `Clock` ポートを経由する
@@ -418,7 +418,7 @@ MUST NOT に違反する**（「件数の下限を直書きしない。書いて
 - **`packages/rate-limit` のコメント 3 行** — 射程外（`packages/*-core/src` に限る）
 - **公開面（`index.ts` の明示列挙）の整理** — E6（#168）が担う
 - **timer-core / timer-sync のテストを型検査の射程へ入れること** — `rootDir: ./src` を外す構成変更に加え、
-  E3 と無関係な既存の型エラーが 10 件 / 6 ファイル出る（`aggregate` `decide-v3` `decide` `records` `shuffle`
+  E3 と無関係な既存の型エラーが 10 件 / 5 ファイル出る（`aggregate` `decide-v3` `decide` `records` `shuffle`
   の各テスト。2026-08-18 実測）。**本 PR で独立した Issue として起票する。** D1b はこの根本原因を
   直すのではなく、症状（黙って飲み込むこと）だけを塞ぐ
 - **EARS 要件 2 の文言の訂正** — 実装ではなく Issue #166 のコメントで訂正する

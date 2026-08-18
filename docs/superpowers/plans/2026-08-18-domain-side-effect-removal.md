@@ -1233,7 +1233,7 @@ corepack pnpm dev
 
 1. **timer-core / timer-sync のテストが型検査の射程外**
    - `packages/timer-core/tsconfig.json` は `"exclude": [..., "test"]`、`apps/timer-sync/tsconfig.json` は `"include": ["src/**/*"]`
-   - 射程へ入れるには `rootDir: ./src` を外す構成変更が要り、**E3 と無関係な既存の型エラーが 10 件 / 6 ファイル**出る（`aggregate` `decide-v3` `decide` `records` `shuffle` の各テスト。2026-08-18 に `tsc --noEmit` で実測）
+   - 射程へ入れるには `rootDir: ./src` を外す構成変更が要り、**E3 と無関係な既存の型エラーが 10 件 / 5 ファイル**出る（`aggregate` `decide-v3` `decide` `records` `shuffle` の各テスト。2026-08-18 に `tsc --noEmit` で実測）
    - 本 PR の D1b はこの根本原因ではなく、症状（黙って飲み込むこと）だけを塞いだ
 
 2. **`scripts/mutation-check.mjs` が `scripts/` を変異対象にできない**
