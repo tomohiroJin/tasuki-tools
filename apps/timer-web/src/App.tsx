@@ -31,6 +31,7 @@ import { shouldClearGenerating, shouldAutoRequestProblem } from "./ui/problem-ge
 import { shouldAutoJoinRotation } from "./ui/join-driver-intent.js";
 import { useLatestRef } from "./ui/use-latest-ref.js";
 import { Stage } from "./ui/primitives.js";
+import { createCommands } from "./sync/commands.js";
 import { saveRecord } from "./records/indexeddb.js";
 import { persistRecordIfComplete } from "./records/persist.js";
 import { buildCompletionRecord, displayMessageFor } from "@tasuki/timer-core";
@@ -448,65 +449,52 @@ export default function App() {
     c.send({ command: "room.join", code, displayName, hasAiKey: false, ...(passphrase ? { passphrase } : {}) });
   };
 
+  // client は state なので毎レンダー作り直されるが、送信は都度呼ぶだけなのでメモ化しない
+  // （現行の 1 行ラッパーも毎レンダー作り直されており、同じ性質を保つ）。
+  const roomRef = useLatestRef(room);
+  const commands = createCommands(
+    (cmd) => client?.send(cmd),
+    () => roomRef.current,
+  );
+
   /** 自分をドライバーに加える（参加者IDで追加・D6b。冪等はサーバー側の重複ガードに委ねる）。 */
-  const joinRotation = (participantId: string) => {
-    client?.send({ command: "member.add", participantId });
-  };
+  const joinRotation = commands.addMember;
   /** 自分をローテーションから外す。index は描画時ではなく送信時の最新 snapshot から
    *  解決し、同時編集による index ずれで別人を外す事故を防ぐ（レビュー #1）。
    *  この関数は毎レンダー作り直されて子へ渡り（メモ化していない）、`room` は
    *  直前にコミットされた snapshot なので、押した瞬間の最新から解決できる。
    *  照合は参加者ID（D6b）なので、同名の別人の枠を外すことはない。 */
-  const leaveRotation = (participantId: string) => {
-    const idx = room?.session.rotation.indexOf(participantId) ?? -1;
-    if (idx >= 0) client?.send({ command: "member.remove", index: idx });
-  };
+  const leaveRotation = commands.removeMember;
   /** ホストが参加者を退出させる（⑪・host 限定）。 */
-  const removeParticipant = (participantId: string) => {
-    client?.send({ command: "participant.remove", participantId });
-  };
+  const removeParticipant = commands.removeParticipant;
   /** 自分の役割を自分で切り替える（Issue #22・FR-073b）。開始後のみサーバーが許可する。
    *  見学者だけが残った部屋を、本人の操作で解消できるようにするための経路。 */
   /** 主催者が他の参加者の役割を切り替える（開始前・FR-083）。
    *  開始前は checkPermission がホスト限定にしているので、送れるのは主催者だけである。 */
-  const changeParticipantRole = (participantId: string, role: "editor" | "viewer") => {
-    client?.send({ command: "role.set", participantId, role });
-  };
+  const changeParticipantRole = commands.setRole;
   const changeOwnRole = (role: "editor" | "viewer") => {
     if (!participantId) return;
-    client?.send({ command: "role.set", participantId, role });
+    commands.setRole(participantId, role);
   };
   /** ホストが任意のオンライン参加者へホストを明示移譲する（R2-3・host 限定）。 */
-  const handleTransferHost = (participantId: string) => {
-    client?.send({ command: "host.transfer", participantId });
-  };
+  const handleTransferHost = commands.transferHost;
   /** ホストがルームのパスフレーズを設定/解除する（R4-2・host 限定）。空文字で解除。 */
-  const handleSetPassphrase = (passphrase: string) => {
-    client?.send({ command: "room.passphrase.set", passphrase });
-  };
+  const handleSetPassphrase = commands.setPassphrase;
   /** AI お題生成の合言葉で解錠を試みる（host 限定）。 */
-  const handleAiUnlock = (key: string) => {
-    client?.send({ command: "ai.unlock", key });
-  };
+  const handleAiUnlock = commands.aiUnlock;
   /** AI ⇔ 定型モードを切り替える（host 限定）。 */
-  const handleProblemModeSet = (mode: "ai" | "fallback") => {
-    client?.send({ command: "problem.mode.set", mode });
-  };
+  const handleProblemModeSet = commands.setProblemMode;
   /** ドライバー順を入れ替える（④・member.move）。host/editor が操作。 */
-  const moveRotation = (fromIndex: number, toIndex: number) => {
-    client?.send({ command: "member.move", fromIndex, toIndex });
-  };
+  const moveRotation = commands.moveMember;
   /** ドライバー順をランダムに並べ替える（v2.3 #1・member.shuffle）。host が操作。
    *  順列はサーバーが生成するため wire は command のみ（稼働中は現ドライバーが固定される）。 */
-  const handleShuffle = () => {
-    client?.send({ command: "member.shuffle" });
-  };
+  const handleShuffle = commands.shuffleMembers;
 
   const handleComplete = () => {
     setEndType("complete");
     // サーバーへ完成を通知。画面遷移と記録生成・保存は snapshot 受信（onRoom の celebration
     // 処理）で全参加者一斉に行う。ホストだけ先行しない。
-    client?.send({ command: "session.complete" });
+    commands.completeSession();
   };
 
   /** 途中で終える（中断）。完成と異なり記録は残さない（FR-020）。
@@ -514,7 +502,7 @@ export default function App() {
   const handleAbort = () => {
     setEndType("abort");
     setRecord(null);
-    client?.send({ command: "session.abort" });
+    commands.abortSession();
   };
 
   const handleNewSession = () => {
@@ -606,27 +594,15 @@ export default function App() {
 
 
   // 共有時の操作はすべて WS コマンド送信（サーバーが状態をミラーし全員へ反映）。
-  const act = (action: "SWITCH" | "PAUSE" | "RESUME" | "RESTART") => {
-    client?.send({ command: "session.act", action });
-  };
+  const act = commands.actSession;
 
   // ─── 在席一覧（RosterPanel）操作 ───────────────────────────────────────────
   // WS コマンドを送信し、サーバーが rotation/participants をミラーして全員へ反映する。
-  const rosterRename = (pid: string, displayName: string) => {
-    client?.send({ command: "participant.rename", participantId: pid, displayName });
-  };
-  const rosterSkip = (pid: string) => {
-    client?.send({ command: "driver.skip", participantId: pid });
-  };
-  const rosterResume = (pid: string) => {
-    client?.send({ command: "driver.resume", participantId: pid });
-  };
-  const rosterAssign = (pid: string) => {
-    client?.send({ command: "driver.assign", participantId: pid });
-  };
-  const rosterAddProxy = (displayName: string) => {
-    client?.send({ command: "participant.addProxy", participantId: makeProxyId(), displayName });
-  };
+  const rosterRename = commands.renameParticipant;
+  const rosterSkip = commands.driverSkip;
+  const rosterResume = commands.driverResume;
+  const rosterAssign = commands.driverAssign;
+  const rosterAddProxy = (displayName: string) => commands.addProxy(makeProxyId(), displayName);
 
   // ─── お題編集（ProblemEditor）操作 ─────────────────────────────────────────
   // WS コマンドでサーバーが problem を全員へ反映する（FR-041）。編集は editor+（UI 側で制御）。
@@ -642,9 +618,7 @@ export default function App() {
     return lines.join("\n").trim();
   };
 
-  const editProblem = (patch: Partial<Omit<Problem, "source" | "edited">>) => {
-    client?.send({ command: "problem.edit", patch });
-  };
+  const editProblem = commands.editProblem;
 
   const copyProblem = () => {
     const p = room?.problem;
@@ -659,7 +633,7 @@ export default function App() {
     if (code) {
       beginGenerating();
       // 直近のお題と重複しにくい新規生成を代表へ依頼する（FR-012）。
-      client?.send({ command: "problem.request", requestId: `req-${code}-regen-${Date.now()}` });
+      commands.requestProblem(`req-${code}-regen-${Date.now()}`);
     }
   };
 
@@ -715,17 +689,17 @@ export default function App() {
           onStartSession={() => {
             const problemEnabled = room.config.problemEnabled !== false;
             if (problemEnabled && !room.problem) {
-              client?.send({ command: "problem.request", requestId: `req-${room.code}` });
+              commands.requestProblem(`req-${room.code}`);
             }
-            client?.send({ command: "phase.set", phase: "session" });
-            client?.send({ command: "session.act", action: "START" });
+            commands.setPhase("session");
+            commands.actSession("START");
             setMode("session");
           }}
           onEditProblem={editProblem}
           onRegenerateProblem={regenerateProblem}
           onPasteProblem={pasteProblem}
           onCopyProblem={copyProblem}
-          onConfigSet={(patch) => client?.send({ command: "config.set", config: patch })}
+          onConfigSet={commands.setConfig}
           onJoinRotation={joinRotation}
           onLeaveRotation={leaveRotation}
           onRemoveParticipant={removeParticipant}
@@ -758,8 +732,8 @@ export default function App() {
           onRestartTimer={() => act("RESTART")}
           onComplete={handleComplete}
           onAbort={handleAbort}
-          onReset={() => client?.send({ command: "session.reset" })}
-          onHandoffNoteSet={(text) => client?.send({ command: "handoff.note.set", text })}
+          onReset={commands.resetSession}
+          onHandoffNoteSet={commands.setHandoffNote}
           onJoinRotation={joinRotation}
           onLeaveRotation={leaveRotation}
           onRenameParticipant={rosterRename}
