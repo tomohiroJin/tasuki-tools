@@ -327,7 +327,7 @@ corepack pnpm exec vitest run
 第 3 引数を落とすと大声で落ちることを確認する。`test/problem.test.ts:119` を一時的に `pickFallback(language, difficulty, undefined as unknown as number)` へ書き換える。
 
 ```bash
-grep -c "undefined as unknown as number" test/problem.test.ts   # 1 であることを先に確認
+grep -cF 'undefined as unknown as number' test/problem.test.ts   # 1 であることを先に確認
 corepack pnpm exec vitest run test/problem.test.ts
 ```
 
@@ -478,9 +478,9 @@ bun test
 `this.clock.now()` を 3 箇所とも定数 `0` へ書き換える。
 
 ```bash
-grep -c "this.clock.now()" src/application/problem-delegation.ts   # 書き換え前に 3 であることを確認
+grep -cF 'this.clock.now()' src/application/problem-delegation.ts   # 書き換え前に 3 であることを確認
 # 3 箇所を 0 に書き換える
-grep -c "this.clock.now()" src/application/problem-delegation.ts   # 書き換え後に 0 であることを確認
+grep -cF 'this.clock.now()' src/application/problem-delegation.ts   # 書き換え後に 0 であることを確認
 bun test test/problem-delegation.clock.test.ts
 ```
 
@@ -1005,8 +1005,12 @@ git ls-files 'scripts/audit-*.mjs' | grep -v '\.test\.mjs' | wc -l
 `scripts/audit-domain-side-effects.mjs` の走査量出力行を一時的に潰す。
 
 ```bash
+# **必ず `-F` を使う。** `grep -c "走査対象: \${summary}"`（BRE）は行が実在しても 0 を返す
+# （2026-08-18 実測）。壊す前も壊した後も 0 なので、「0 だから壊れた」と読めてしまう。
+# 壊れたことを確認する手順そのものが壊れている、という事故になる。
+grep -cF '走査対象: ${summary}' scripts/audit-domain-side-effects.mjs   # ← 1 であることを先に確認
 sed -i 's|console.log(`\[audit-domain-side-effects\] 走査対象: ${summary}`);|// 潰した|' scripts/audit-domain-side-effects.mjs
-grep -c "走査対象: \${summary}" scripts/audit-domain-side-effects.mjs   # 0 であることを先に確認
+grep -cF '走査対象: ${summary}' scripts/audit-domain-side-effects.mjs   # ← 0 になったことを確認
 node --test scripts/scan-target-wiring.test.mjs
 ```
 
@@ -1178,8 +1182,11 @@ node --test $(node scripts/list-scan-targets.mjs script-tests)
 項目 1 の手順例:
 
 ```bash
+# **`-F` を使う。** BRE だと `.` が任意文字に化けるうえ、記号を含む文字列は
+# 意図せず 0 件を返すことがある（Task 6 で実際に踏んだ）。
+grep -cF 'Math.abs(now) % candidates.length' packages/timer-core/src/problem.ts   # ← 1 であることを先に確認
 sed -i 's|Math.abs(now) % candidates.length|Math.abs(Date.now()) % candidates.length|' packages/timer-core/src/problem.ts
-grep -c "Math.abs(Date.now())" packages/timer-core/src/problem.ts   # 1 であることを先に確認
+grep -cF 'Math.abs(Date.now())' packages/timer-core/src/problem.ts   # ← 1 になったことを確認
 node scripts/audit-domain-side-effects.mjs; echo "終了コード: $?"    # 1 であること
 git checkout packages/timer-core/src/problem.ts
 node scripts/audit-domain-side-effects.mjs; echo "終了コード: $?"    # 0 に戻ること
