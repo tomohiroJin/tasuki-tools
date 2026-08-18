@@ -1943,8 +1943,9 @@ import { deriveConnectionStatus } from "./ui/connection-status.js";
 import { useBanner } from "./ui/use-banner.js";
 import { useTimerSync } from "./sync/use-timer-sync.js";
 import { formatProblemText } from "./ui/problem-text.js";
-import { saveRecord } from "./records/indexeddb.js";
 import { Stage } from "./ui/primitives.js";
+// 注: `records/indexeddb.js` は import しない。永続化は同期フックの
+// `saveRecordManually` を通す（画面は表示に徹する・ADR-0015 MUST 3）。
 
 export default function App() {
   const banner = useBanner();
@@ -1986,6 +1987,10 @@ export default function App() {
 
 **`renderBody()` の中身は現行の JSX をそのまま使い、参照先だけを差し替える。**
 props の名前・並び・値を変えない。
+
+**`Summary` の `onSaveRecord` は `sync.saveRecordManually(rec)` を呼ぶ。**
+現行は App が `saveRecord(rec).catch(...)` を直接呼んでバナーを出しているが、
+永続化と失敗時のバナーはフック側の 1 箇所に集める（実行時の振る舞いは同じ）。
 
 - [ ] **Step 6: 全テストと型検査**
 
@@ -2227,14 +2232,22 @@ cd /home/vscode/tasuki-work/apps/timer-web && corepack pnpm exec vitest run test
 
 - [ ] **Step 3: 対照実行（フックの検査が本当に効いているか）**
 
+**確認と置換は同じ完全な字面で行う。** 部分一致で存在を確かめてから長い行を置換すると、
+置換が当たらないまま「壊したつもり」で赤を期待する手順になる。
+
 ```bash
 cd /home/vscode/tasuki-work
-grep -cF 'onConnectionChange' apps/timer-web/src/sync/use-timer-sync.ts   # 1 以上を確認
-sed -i 's/onConnectionChange: (s) => setConnState(s),/onConnectionChange: () => {},/' apps/timer-web/src/sync/use-timer-sync.ts
+TARGET='onConnectionChange: (s) => setConnState(s),'
+grep -cF "$TARGET" apps/timer-web/src/sync/use-timer-sync.ts   # 1 であることを確認
+sed -i "s/${TARGET}/onConnectionChange: () => {},/" apps/timer-web/src/sync/use-timer-sync.ts
+grep -cF "$TARGET" apps/timer-web/src/sync/use-timer-sync.ts   # 0 になったことを確認
 cd apps/timer-web && corepack pnpm exec vitest run test/sync/use-timer-sync.test.tsx
 ```
 
 期待: **FAIL**（「接続が切れると connState が reconnecting になる」）。
+
+**`grep -cF` が 1 → 0 に変わらなければ、壊せていない。** その場合は Task 6 で
+この行の書き方が変わっているので、実物を見て字面を取り直す。
 
 ```bash
 cd /home/vscode/tasuki-work && git checkout apps/timer-web/src/sync/use-timer-sync.ts
