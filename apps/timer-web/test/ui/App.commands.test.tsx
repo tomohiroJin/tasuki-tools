@@ -10,6 +10,13 @@
  * このファイルは E4 の再編に着手する**前**に、現行の App.tsx に対して書いて緑を確認する。
  * 再編後に書くと「新しい実装に合わせて書いたテスト」になり、退行を検出できない。
  *
+ * レビュー（#167 Task 3 の I-1）で表駆動ケースを command 名だけの一致から
+ * フレーム全体の一致へ強めた。role.set の role、member.move の fromIndex/toIndex、
+ * config.set の config、handoff.note.set の text 等が壊れても command 名さえ合っていれば
+ * 緑になっていたため、Task 6 の大移動がこの網をすり抜けないようにする。
+ * requestId・participantId に乱数/現在時刻を含む2件（onRegenerateProblem・onAddProxy）は
+ * 完全一致にできないため、command と接頭辞だけを見る個別テストに分けている。
+ *
  * @requirements #167（#72 E4）
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -144,59 +151,77 @@ function enterRoom(phase: "ready" | "session"): FakeWS {
   return ws;
 }
 
-/** 直近の send 呼び出しから command 名だけを取り出す。 */
-function sentCommands(sendSpy: ReturnType<typeof vi.spyOn>): string[] {
-  return sendSpy.mock.calls.map((c) => JSON.parse(String(c[0])).command as string);
+/** send スパイの型。`ReturnType<typeof vi.spyOn>` を型引数なしで書くと、オーバーロードの
+ *  型変数が解決されず mock.calls の要素が絞れないため、map のコールバック引数が
+ *  暗黙 any になっていた（TS7006）。読み取りにしか使わないので、構造的に
+ *  `mock.calls` の形だけを指定する（`Mock<(data?: string) => void>` の calls は
+ *  `[data?: string][]` で、これは `unknown[][]` に代入可能）。 */
+type SendSpy = { mock: { calls: unknown[][] } };
+
+/** send 呼び出しを JSON にパースした配列で取り出す。 */
+function sentFrames(sendSpy: SendSpy): Array<Record<string, unknown>> {
+  return sendSpy.mock.calls.map((c) => JSON.parse(String(c[0])) as Record<string, unknown>);
 }
 
-const LOBBY_CASES: Array<[string, string]> = [
-  ["onEditProblem", "problem.edit"],
-  ["onRegenerateProblem", "problem.request"],
-  ["onConfigSet", "config.set"],
-  ["onJoinRotation", "member.add"],
-  ["onLeaveRotation", "member.remove"],
-  ["onRemoveParticipant", "participant.remove"],
-  ["onRoleSet", "role.set"],
-  ["onTransferHost", "host.transfer"],
-  ["onMoveRotation", "member.move"],
-  ["onShuffle", "member.shuffle"],
-  ["onSetPassphrase", "room.passphrase.set"],
-  ["onAiUnlock", "ai.unlock"],
-  ["onProblemModeSet", "problem.mode.set"],
+// prop 名 → 押したときにちょうど 1 通送られるべきフレーム全体。
+// requestId/participantId に乱数・現在時刻を含む onRegenerateProblem・onAddProxy は
+// 完全一致にできないため、この表には含めず個別テストで command と接頭辞だけを見る。
+const LOBBY_CASES: Array<[string, Record<string, unknown>]> = [
+  ["onEditProblem", { command: "problem.edit", patch: { title: "新タイトル" } }],
+  ["onConfigSet", { command: "config.set", config: { difficulty: "hard" } }],
+  ["onJoinRotation", { command: "member.add", participantId: "p-2" }],
+  ["onLeaveRotation", { command: "member.remove", index: 1 }],
+  ["onRemoveParticipant", { command: "participant.remove", participantId: "p-2" }],
+  ["onRoleSet", { command: "role.set", participantId: "p-2", role: "editor" }],
+  ["onTransferHost", { command: "host.transfer", participantId: "p-2" }],
+  ["onMoveRotation", { command: "member.move", fromIndex: 0, toIndex: 1 }],
+  ["onShuffle", { command: "member.shuffle" }],
+  ["onSetPassphrase", { command: "room.passphrase.set", passphrase: "ひみつ" }],
+  ["onAiUnlock", { command: "ai.unlock", key: "あいことば" }],
+  ["onProblemModeSet", { command: "problem.mode.set", mode: "ai" }],
 ];
 
-const SESSION_CASES: Array<[string, string]> = [
-  ["onSkip", "session.act"],
-  ["onPause", "session.act"],
-  ["onResume", "session.act"],
-  ["onRestartTimer", "session.act"],
-  ["onComplete", "session.complete"],
-  ["onAbort", "session.abort"],
-  ["onReset", "session.reset"],
-  ["onHandoffNoteSet", "handoff.note.set"],
-  ["onJoinRotation", "member.add"],
-  ["onLeaveRotation", "member.remove"],
-  ["onRenameParticipant", "participant.rename"],
-  ["onDriverSkip", "driver.skip"],
-  ["onDriverResume", "driver.resume"],
-  ["onDriverAssign", "driver.assign"],
-  ["onAddProxy", "participant.addProxy"],
-  ["onRemoveParticipant", "participant.remove"],
-  ["onSelfRoleChange", "role.set"],
-  ["onTransferHost", "host.transfer"],
-  ["onMoveRotation", "member.move"],
-  ["onShuffle", "member.shuffle"],
-  ["onEditProblem", "problem.edit"],
-  ["onRegenerateProblem", "problem.request"],
-  ["onSetPassphrase", "room.passphrase.set"],
+const SESSION_CASES: Array<[string, Record<string, unknown>]> = [
+  ["onSkip", { command: "session.act", action: "SWITCH" }],
+  ["onPause", { command: "session.act", action: "PAUSE" }],
+  ["onResume", { command: "session.act", action: "RESUME" }],
+  ["onRestartTimer", { command: "session.act", action: "RESTART" }],
+  ["onComplete", { command: "session.complete" }],
+  ["onAbort", { command: "session.abort" }],
+  ["onReset", { command: "session.reset" }],
+  ["onHandoffNoteSet", { command: "handoff.note.set", text: "引き継ぎメモ" }],
+  ["onJoinRotation", { command: "member.add", participantId: "p-2" }],
+  ["onLeaveRotation", { command: "member.remove", index: 1 }],
+  ["onRenameParticipant", { command: "participant.rename", participantId: "p-2", displayName: "新しい名前" }],
+  ["onDriverSkip", { command: "driver.skip", participantId: "p-2" }],
+  ["onDriverResume", { command: "driver.resume", participantId: "p-2" }],
+  ["onDriverAssign", { command: "driver.assign", participantId: "p-2" }],
+  ["onRemoveParticipant", { command: "participant.remove", participantId: "p-2" }],
+  ["onSelfRoleChange", { command: "role.set", participantId: HOST_ID, role: "editor" }],
+  ["onTransferHost", { command: "host.transfer", participantId: "p-2" }],
+  ["onMoveRotation", { command: "member.move", fromIndex: 0, toIndex: 1 }],
+  ["onShuffle", { command: "member.shuffle" }],
+  ["onEditProblem", { command: "problem.edit", patch: { title: "新タイトル" } }],
+  ["onSetPassphrase", { command: "room.passphrase.set", passphrase: "ひみつ" }],
 ];
 
 describe("App が子画面へ渡すコールバックと WS コマンドの対応（ロビー）", () => {
-  it.each(LOBBY_CASES)("%s は %s を送る", (prop, command) => {
+  it.each(LOBBY_CASES)("%s は期待するフレームをちょうど1通送る", (prop, expected) => {
     const ws = enterRoom("ready");
     const sendSpy = vi.spyOn(ws, "send");
     fireEvent.click(screen.getByTestId(`lobby:${prop}`));
-    expect(sentCommands(sendSpy)).toContain(command);
+    expect(sendSpy).toHaveBeenCalledTimes(1);
+    expect(sentFrames(sendSpy)[0]).toEqual(expected);
+  });
+
+  it("onRegenerateProblem は problem.request を requestId の接頭辞 req-ROOM01-regen- で送る", () => {
+    const ws = enterRoom("ready");
+    const sendSpy = vi.spyOn(ws, "send");
+    fireEvent.click(screen.getByTestId("lobby:onRegenerateProblem"));
+    expect(sendSpy).toHaveBeenCalledTimes(1);
+    const sent = sentFrames(sendSpy)[0]!;
+    expect(sent.command).toBe("problem.request");
+    expect(sent.requestId).toMatch(/^req-ROOM01-regen-/);
   });
 
   it("onStartSession は problem.request を送らず phase.set と session.act START を送る（お題あり）", () => {
@@ -211,11 +236,33 @@ describe("App が子画面へ渡すコールバックと WS コマンドの対�
 });
 
 describe("App が子画面へ渡すコールバックと WS コマンドの対応（セッション）", () => {
-  it.each(SESSION_CASES)("%s は %s を送る", (prop, command) => {
+  it.each(SESSION_CASES)("%s は期待するフレームをちょうど1通送る", (prop, expected) => {
     const ws = enterRoom("session");
     const sendSpy = vi.spyOn(ws, "send");
     fireEvent.click(screen.getByTestId(`session:${prop}`));
-    expect(sentCommands(sendSpy)).toContain(command);
+    expect(sendSpy).toHaveBeenCalledTimes(1);
+    expect(sentFrames(sendSpy)[0]).toEqual(expected);
+  });
+
+  it("onRegenerateProblem は problem.request を requestId の接頭辞 req-ROOM01-regen- で送る", () => {
+    const ws = enterRoom("session");
+    const sendSpy = vi.spyOn(ws, "send");
+    fireEvent.click(screen.getByTestId("session:onRegenerateProblem"));
+    expect(sendSpy).toHaveBeenCalledTimes(1);
+    const sent = sentFrames(sendSpy)[0]!;
+    expect(sent.command).toBe("problem.request");
+    expect(sent.requestId).toMatch(/^req-ROOM01-regen-/);
+  });
+
+  it("onAddProxy は participant.addProxy を proxy- で始まる participantId で送る", () => {
+    const ws = enterRoom("session");
+    const sendSpy = vi.spyOn(ws, "send");
+    fireEvent.click(screen.getByTestId("session:onAddProxy"));
+    expect(sendSpy).toHaveBeenCalledTimes(1);
+    const sent = sentFrames(sendSpy)[0]!;
+    expect(sent.command).toBe("participant.addProxy");
+    expect(sent.participantId).toMatch(/^proxy-/);
+    expect(sent.displayName).toBe("代理さん");
   });
 
   it("session.act の action は押した操作ごとに違う", () => {

@@ -449,12 +449,14 @@ export default function App() {
     c.send({ command: "room.join", code, displayName, hasAiKey: false, ...(passphrase ? { passphrase } : {}) });
   };
 
-  // client は state なので毎レンダー作り直されるが、送信は都度呼ぶだけなのでメモ化しない
-  // （現行の 1 行ラッパーも毎レンダー作り直されており、同じ性質を保つ）。
-  const roomRef = useLatestRef(room);
+  // client / room は state なので毎レンダー作り直されるが、送信は都度呼ぶだけなのでメモ化
+  // しない（現行の 1 行ラッパーも毎レンダー作り直されており、同じ性質を保つ）。
+  // room はこのレンダーのクロージャが持つ値をそのまま渡す（useLatestRef にしない）。
+  // 旧 leaveRotation もそのレンダーの room を読んでおり、commands 自体が毎レンダー
+  // 作り直されるので「送信時点の room」を引くという性質は変わらない。
   const commands = createCommands(
     (cmd) => client?.send(cmd),
-    () => roomRef.current,
+    () => room,
   );
 
   /** 自分をドライバーに加える（参加者IDで追加・D6b。冪等はサーバー側の重複ガードに委ねる）。 */
@@ -594,7 +596,8 @@ export default function App() {
 
 
   // 共有時の操作はすべて WS コマンド送信（サーバーが状態をミラーし全員へ反映）。
-  const act = commands.actSession;
+  // セッション画面が使ってよいのは 4 値だけ。開始（START）はロビーの開始処理が送る。
+  const act = (action: "SWITCH" | "PAUSE" | "RESUME" | "RESTART") => commands.actSession(action);
 
   // ─── 在席一覧（RosterPanel）操作 ───────────────────────────────────────────
   // WS コマンドを送信し、サーバーが rotation/participants をミラーして全員へ反映する。

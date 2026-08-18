@@ -37,6 +37,7 @@ describe("createCommands: 引数をそのまま載せる操作", () => {
     ["completeSession", (c) => c.completeSession(), { command: "session.complete" }],
     ["abortSession", (c) => c.abortSession(), { command: "session.abort" }],
     ["actSession", (c) => c.actSession("SWITCH"), { command: "session.act", action: "SWITCH" }],
+    ["actSession(START)", (c) => c.actSession("START"), { command: "session.act", action: "START" }],
     ["renameParticipant", (c) => c.renameParticipant("p-2", "新名"), { command: "participant.rename", participantId: "p-2", displayName: "新名" }],
     ["driverSkip", (c) => c.driverSkip("p-2"), { command: "driver.skip", participantId: "p-2" }],
     ["driverResume", (c) => c.driverResume("p-2"), { command: "driver.resume", participantId: "p-2" }],
