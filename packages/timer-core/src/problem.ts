@@ -44,10 +44,21 @@ export function validateProblem(
 /**
  * 言語・難易度に合った定型お題を返す
  * AI 生成失敗時のフォールバック（FR-024）
+ *
+ * @param now 選択の元になる値。**実体は擬似乱数の種であり、時刻としての意味は持たない。**
+ *   引数名を `now` にしているのは `docs/timer/adr/0002`（時刻は引数 `now` として注入し、
+ *   現在時刻をドメイン内で直接読まない）と timer-core の他所（`records.ts` `evolve.ts`
+ *   `aggregate.ts`）の語彙に揃えるため。**既定値は置かない** — 既定値があると呼び出し側が
+ *   無変更で通り、「配線されている」ことが検査されないまま緑になる（#166 / #72 E3）。
+ *
+ *   **ADR を逐語引用していないのは意図的である。** `scripts/audit-domain-side-effects.mjs` は
+ *   コメント行も読む（「無いこと」を求める検査は読み飛ばすと緑に倒れる）。
+ *   このファイルは検査の走査対象なので、規範の文言を引用するときも字面を避ける。
  */
 export function pickFallback(
   language: string,
   difficulty: string,
+  now: number,
 ): ProblemWithSource {
   // 言語・難易度でフィルタ
   let candidates = FALLBACK_PROBLEMS.filter(
@@ -66,9 +77,12 @@ export function pickFallback(
     candidates = FALLBACK_PROBLEMS;
   }
 
-  // 疑似ランダムに選択（時刻ベース）
-  const index = Math.abs(Date.now()) % candidates.length;
-  const entry = candidates[index] ?? FALLBACK_PROBLEMS[0]!;
+  // 疑似ランダムに選択（呼び出し側が渡した値ベース）
+  const index = Math.abs(now) % candidates.length;
+  // `?? FALLBACK_PROBLEMS[0]!` は置かない。有効な now では candidates[index] が必ず
+  // 定義済みなので死んだ枝であり、置くと now の渡し忘れ（NaN）を黙って飲み込んで
+  // 先頭のお題を返してしまう。テストは型検査の射程外なので、これが唯一の防波堤になる。
+  const entry = candidates[index]!;
 
   return { problem: entry.problem, source: "fallback" };
 }

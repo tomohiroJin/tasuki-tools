@@ -116,7 +116,7 @@ describe("pickFallback: 定型お題へのフォールバック", () => {
     const language = "TypeScript";
     const difficulty = "easy";
     // When
-    const result = pickFallback(language, difficulty);
+    const result = pickFallback(language, difficulty, 0);
     // Then
     expect(result.source).toBe("fallback");
     expect(result.problem).toBeTruthy();
@@ -127,7 +127,7 @@ describe("pickFallback: 定型お題へのフォールバック", () => {
     const language = "TypeScript";
     const difficulty = "easy";
     // When
-    const { problem } = pickFallback(language, difficulty);
+    const { problem } = pickFallback(language, difficulty, 0);
     // Then
     expect(problem.title).toBeTruthy();
     expect(problem.description).toBeTruthy();
@@ -141,7 +141,7 @@ describe("pickFallback: 定型お題へのフォールバック", () => {
     // Given
     const unknownLanguage = "COBOL-不明言語";
     // When
-    const result = pickFallback(unknownLanguage, "easy");
+    const result = pickFallback(unknownLanguage, "easy", 0);
     // Then
     expect(result.source).toBe("fallback");
     expect(result.problem.title.length).toBeGreaterThan(0);
@@ -157,9 +157,46 @@ describe("pickFallback: 定型お題へのフォールバック", () => {
     const validation = validateProblem(invalidAiResult as never);
     expect(validation.isErr()).toBe(true);
     // When（フォールバックを使う）
-    const fallback = pickFallback("TypeScript", "easy");
+    const fallback = pickFallback("TypeScript", "easy", 0);
     // Then
     expect(fallback.source).toBe("fallback");
+  });
+
+  /**
+   * 第 3 引数が実際に選択を決めていることを固定する（#166 / #72 E3）。
+   *
+   * **この 3 件が無いと、第 3 引数を完全に無視する実装でも全件緑になる。**
+   * 既存のテストは source と必須フィールドしか見ておらず、どのお題が選ばれたかを
+   * 観測していないため。
+   */
+  it("同じ now を渡せば同じお題を返す", () => {
+    // Given
+    const now = 12345;
+    // When
+    const a = pickFallback("TypeScript", "easy", now);
+    const b = pickFallback("TypeScript", "easy", now);
+    // Then
+    expect(a.problem.title).toBe(b.problem.title);
+  });
+
+  it("now を 0 から順に動かすと定型バンクを一巡する（引数が index を決めている証拠）", () => {
+    // Given（未知言語を渡して全件縮退させ、母数を FALLBACK_PROBLEMS.length に確定させる）
+    const unknownLanguage = "COBOL-不明言語";
+    // When
+    const titles = Array.from({ length: FALLBACK_PROBLEMS.length }, (_, now) =>
+      pickFallback(unknownLanguage, "easy", now).problem.title,
+    );
+    // Then（重複が無い＝全件を 1 度ずつ選んでいる）
+    expect(new Set(titles).size).toBe(FALLBACK_PROBLEMS.length);
+  });
+
+  it("負の now でも範囲内のお題を返す（Math.abs の既存挙動）", () => {
+    // Given
+    const negativeNow = -7;
+    // When
+    const result = pickFallback("COBOL-不明言語", "easy", negativeNow);
+    // Then
+    expect(FALLBACK_PROBLEMS.some((e) => e.problem.title === result.problem.title)).toBe(true);
   });
 });
 

@@ -224,6 +224,11 @@ jobs:
       - run: node scripts/audit-domain-error-shape.mjs
         if: steps.scope.outputs.code == 'true'
 
+      # ドメインの副作用。core が環境から直接値を読んでいないことを見る
+      # （ADR 0016 決定 2 項目 4 が #72 E3 へ割り当てた機械検査・#166）。
+      - run: node scripts/audit-domain-side-effects.mjs
+        if: steps.scope.outputs.code == 'true'
+
       # 対象は列挙しない。scripts/ 配下の *.test.mjs を git から導出する。
       # 列挙をハードコードすると、新しいテストが黙って走らない（#135 経路⑬）。
       - name: scripts の自己テスト

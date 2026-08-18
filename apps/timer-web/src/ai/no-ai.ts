@@ -9,6 +9,9 @@ import type { ProblemProvider } from "./provider.js";
 
 export class NoAiProvider implements ProblemProvider {
   async generate(language: string, difficulty: string): Promise<ProblemWithSource> {
-    return pickFallback(language, difficulty);
+    // ここが時刻の境界である。`ProblemProvider` はポートで、この class はそのアダプタなので
+    // 実時刻の読み取りはここに置く（憲法 原則 VI・#166 / #72 E3）。
+    // ドメイン（`pickFallback`）は値だけを受け取り、`Date.now()` を呼ばない。
+    return pickFallback(language, difficulty, Date.now());
   }
 }
