@@ -140,8 +140,14 @@ timer-web は既に `App.tsx:214` `:226`、`sync/client.ts:62` `:146` `:159`、`
 名前は `audit-domain-purity.mjs` にしない。この検査は純粋性を見ておらず、**禁止語彙が字面として現れないこと**
 しか見ないので、名乗りを実態に合わせる。
 
-**走査対象の作りは自作しない。** 既存 5 本のうち 4 本が共有モジュール `scripts/lib/scan-targets.mjs` を
-使っており、パッケージ単位で走る 2 本（`audit-structure.mjs` / `audit-log-hygiene.mjs`）は
+**走査対象の作りは自作しない。** `e905b38` 時点で共有モジュール `scripts/lib/scan-targets.mjs` を
+import しているのは `scripts/*.mjs` の **9 本**である（本体 7 本＋自己テスト 2 本。
+`git grep -l 'lib/scan-targets.mjs' e905b38 -- 'scripts/*.mjs'` で実測）。
+**この 9 本は下の D7 でいう「`audit-*.mjs` の実体は 4 本」とは母数が違う** —
+こちらは `scripts/` 直下の `.mjs` 全体（`check-links.mjs` `list-scan-targets.mjs`
+`mutation-check.mjs` や `.test.mjs` を含む）を母数にしており、`audit-*.mjs` の本体 4 本は
+その部分集合で、4 本とも共有モジュールを使っている。
+そのうちパッケージ単位で走る 2 本（`audit-structure.mjs` / `audit-log-hygiene.mjs`）は
 `listWorkspacePackages` ＋ `diffTargets` の全単射照合という同じ形をしている。本検査もパッケージ単位なので
 その形に揃える。
 
@@ -207,7 +213,13 @@ Issue #166 のコメントは「コメント行を除外するか、`import`/呼
    手書きの字句解析が続けて検出漏れを作った先例がある。
 
 **代償**: core の docstring に `Date.now()` と書けなくなる（「現在時刻」「実時刻」と書く）。
-現在 core にそのような記述は 0 件なので、今日の書き換えは発生しない。
+
+**訂正（実装中に反証）**: ここには当初「現在 core にそのような記述は 0 件なので、今日の書き換えは
+発生しない」と書いていたが、**書き換えは実際に発生した。** 0 件でなかった原因は既存コードではなく、
+**同じ計画の Task 2 が自分で持ち込んだ 1 行**である——`pickFallback` の新しい docstring が
+`docs/timer/adr/0002` を逐語引用し、その引用の中に禁止語彙の字面が入っていた。
+引用側を言い換えて解消した（規範の側は弱めていない）。
+**「今は 0 件」は「今日 0 件のままである」を意味しない。** 同じ PR が対象を増やす。
 
 ### D7: `scan-target-wiring.test.mjs` へ導出ガードを 1 本足す
 

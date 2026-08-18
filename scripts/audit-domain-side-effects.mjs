@@ -14,14 +14,18 @@
  *   `const D = Date; D.now()`、`const { now } = Date; now()` はいずれも
  *   禁止語彙の字面を持たない。この検査は純粋性を見ていないので
  *   `audit-domain-purity` とは名乗らない。
- * - **宣言したパッケージの外は一切見ない。** `apps/` と `packages/rate-limit` ・
- *   `packages/ui` ・ `packages/protocol` は対象外（下の除外理由を参照）。
- * - **`test/` は見ない。** ドメインのテストが実時刻を読むのは禁じられていない。
- * - **ビルド生成物は見ない。** ただし現状これは**走査根の効果**であって、除外行の効果ではない。
- *   走査根は各パッケージの `src` であり、`dist` と `node_modules` はその**兄弟**なので
- *   最初から到達しない。`readTsFiles` にある両者の除外行は、走査根を `src` の外へ広げた
- *   ときのための防御であって、現状の走査量には影響しない（除外行の有無で走査量は同一。
- *   レビュアーが除外行を削ったコピーとの対照実行で実測）。
+ * - **走査根は宣言したパッケージの `src` だけである。** 見ない範囲は列挙ではなく、この
+ *   走査根の作りから決まる。したがって次のいずれも見ない:
+ *   1. **`src` の外**（`apps/` 一式・`e2e`・除外したパッケージ・パッケージ直下の `test/`）。
+ *   2. **`.ts` 以外の拡張子**（`.tsx` `.mts` `.cts`）。収集は `endsWith(".ts")` である。
+ *   3. **`src` 配下で `dist` / `node_modules` という名を持つディレクトリ**
+ *      （`readTsFiles` が basename で読み飛ばす）。
+ * - **2 と 3 は実在する穴である。「まだ見ていないだけ」ではない。**
+ *   `packages/timer-core/src/evil.tsx` も `packages/timer-core/src/dist/evil.ts` も、
+ *   tsc に食われ、import でき、実行される普通のコードでありながらこの検査をすり抜ける
+ *   （`tsconfig.json` の `exclude: ["node_modules","dist","test"]` が外すのはパッケージ直下の
+ *   `./dist` だけで、`src/dist` は外れない）。レビュアーが陽性対照 `src/evil.ts` と並べて
+ *   `.tsx` / `.mts` / `src/dist/*.ts` / `src/node_modules/*.ts` の 4 通りで実測した。
  *
  * ## コメント行の扱い — **読み飛ばさない**
  *
@@ -143,11 +147,14 @@ export function findForbiddenCalls(text, filePath) {
 /**
  * ディレクトリ配下の `.ts` を再帰的に集める。戻り値はリポジトリ相対パス → 本文の Map。
  *
- * `dist` と `node_modules` を読み飛ばすが、**現状この行は一度も効かない。**
- * 呼び出し元が渡す走査根は各パッケージの `src` で、どちらもその兄弟だからである。
- * 将来 `src` の外へ走査根を広げたときのための防御として置いてあり、今の走査量は
- * この行の有無で変わらない。**「効いている」と書かないこと** — 除外が無い仮説でも
- * 同じ観測になるので、走査量が安定していることは除外行の証拠にならない。
+ * `dist` と `node_modules` を読み飛ばす。**この除外は再帰の全階層で basename 照合される。**
+ * 「走査根が `src` なので兄弟にあたる両者へは到達しない」という理由づけは**誤りである** —
+ * `src/dist/` を作れば除外はそこで効く（そして `src/dist/*.ts` は実行される普通のコードなので、
+ * 効くこと自体が検出漏れの穴になる。ファイル冒頭の「何を見ていないか」を参照）。
+ * 今日この行が走査量を変えないのは、到達しないからではなく **`src` 配下にその名の
+ * ディレクトリが今は無いから**である（除外行を削ったコピーとの対照実行で走査量が同一と実測）。
+ * **「効いている」と書かないこと** — 除外が無い仮説でも今日の観測は同じなので、
+ * 走査量が安定していることは除外行の証拠にならない。
  *
  * **実在しないディレクトリを渡してはならない。** ここに `fs.existsSync` の
  * 早期 return を置くと、走査対象を失った状態を静かに「0 件読めた」に変換してしまう
@@ -162,7 +169,7 @@ function readTsFiles(relDir) {
   const collected = new Map();
   const walk = (abs) => {
     for (const entry of fs.readdirSync(abs, { withFileTypes: true })) {
-      // 走査根が src の間は到達しない防御（上の docstring を参照）。
+      // 全階層で basename 照合される。src 配下に同名があれば効く（上の docstring を参照）。
       if (entry.name === "node_modules" || entry.name === "dist") continue;
       const child = path.join(abs, entry.name);
       if (entry.isDirectory()) {
