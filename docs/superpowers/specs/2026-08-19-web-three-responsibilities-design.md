@@ -15,16 +15,36 @@
 
 **利用者から見える振る舞い・公開 URL・WS プロトコルは 1 文字も変えない。**
 
+### ファイルの割り付け
+
+```
+apps/timer-web/src/
+  App.tsx                     849 行 → 表示のみ（D1・D9）
+  sync/
+    use-timer-sync.ts   新設  唯一の同期フック。SyncClient の生成・接続状態・
+                              メッセージ配線・ルーム由来 state（D1・D2）
+    snapshot-intents.ts 新設  純粋。(prev, next, ctx) → 意図[]（D3）
+    commands.ts         新設  純粋。createCommands(send) → 送信 27 箇所（D4）
+    client.ts                 変更なし
+  ui/
+    use-banner.ts       新設  バナー文言と自動消去（D5。WS 配線ではない）
+apps/timer-web/test/ui/
+  App.commands.test.tsx   新設  **再編前**に足す特性テスト（D9b）
+  App.connection.test.tsx 新設  **再編前**に足す特性テスト（D9b）
+scripts/
+  audit-web-sync-boundary.mjs 新設  許可リスト方式の機械検査（D6・D7）
+```
+
 ## 背景
 
 ### 現状（2026-08-19 実測）
 
 | 項目 | 実測値 | 測り方 |
 |---|---|---|
-| `apps/timer-web/src/App.tsx` の行数 | **849** | `wc -l` |
+| `apps/timer-web/src/App.tsx` の行数 | **849** | `wc -l`。`docs/adr/0015` は 848 と書くが、これは 2026-08-17 の測定値で、その後 E1 の `49fdac7`（docstring 修正）が 1 行増やした |
 | `useState` | **11** | `grep -c "useState<\|useState("` |
 | `useRef` | **10** | `grep -c "useRef<\|useRef("` |
-| 送信ラッパー（`client?.send` / `syncClient.send`） | **32 箇所** | `grep -c` |
+| WS 送信の呼び出し | **35 箇所** | `grep -c "\.send({"`。内訳は `client?.send` 27・`syncClient.send` 5・`c.send` 3 |
 | 名前付き `SyncClient` コールバック | **6 本** | `handleRoom` `handleIdentity` `handleNeedProblem` `handleError` `handleReconnected` `handleNotice` |
 | setter 直呼びのコールバック | **3 本** | `onConnected` `onDisconnected` `onConnectionChange` |
 | `src` 配下で `sync/client` を import するファイル | **`App.tsx` の 1 本のみ** | `grep -rln` |
@@ -70,10 +90,12 @@ D9 で「書き換えない」ことを決定として固定する。
 | 現在の state | 行き先 | 理由 |
 |---|---|---|
 | `room` `participantId` `client` `connState` `sessionLost` | 同期フック | WS メッセージ由来 |
-| `mode` `joinCode` `record` `endType` `generatingProblem` | **同期フック** | 下記 |
+| `mode` `joinCode` `record` `generatingProblem` | **同期フック** | WS ハンドラが**読み書きする** |
+| `endType` | **同期フック** | `handleRoom` が**読むだけ**（`setEndType` は `handleComplete` / `handleAbort` / `handleNewSession` の 3 箇所で、いずれも WS ハンドラではない）。読み手と書き手を離すと `useLatestRef` をもう 1 本足すことになるので同居させる |
 | `banner` | `ui/use-banner.ts`（D5） | WS 配線ではない |
 
-`mode` 以下の 5 つは「画面の状態」に見えるが、**いずれも WS ハンドラが読み書きしている**。
+`mode` 以下の 5 つは「画面の状態」に見えるが、**いずれも WS ハンドラの closure に入っている**
+（4 つは読み書き、`endType` は読みのみ）。
 これを `App.tsx` に残して `useEffect` で `room` の変化に反応させる形は採らない。
 **差し替えが 1 レンダー遅れ、その隙間に届いたメッセージを古いハンドラが処理する**からである
 （Issue #46 REQ-3 が明示的に避けた形。`App.tsx` の `useLatestRef` 呼び出し箇所のコメントが
@@ -91,8 +113,8 @@ D9 で「書き換えない」ことを決定として固定する。
 
 ### D3: `handleRoom` の判断を意図リストへ切り出す（純粋・`now` 注入）
 
-`handleRoom` は 80 行あり、判断 6 個と副作用 3 種（sessionStorage・WS 送信・IndexedDB）が
-混ざっている。判断だけを純粋関数へ出す。
+`handleRoom` は **88 行**（`App.tsx:148〜235`）あり、**分岐 7 個**と副作用 3 種
+（sessionStorage・WS 送信・IndexedDB）が混ざっている。判断だけを純粋関数へ出す。
 
 ```ts
 // apps/timer-web/src/sync/snapshot-intents.ts（純粋・React 非依存）
@@ -117,26 +139,42 @@ export function decideSnapshotIntents(
   順序を変えると、同じ snapshot に対する送信の並びが変わる（＝振る舞いの変化）。
 - **`requestId` に混ざる現在時刻は `ctx.now: number` で注入する。** `Date.now()` を純粋関数の中で
   呼ばない。これは #166（E3）が `pickFallback` に対して採った作法と同じで、`docs/adr/0016` に沿う。
-- 既存の純粋関数（`screenForPhase` `shouldClearGenerating` `shouldAutoRequestProblem`
-  `shouldAutoJoinRotation`）は**そのまま呼ぶ。** 新しく純粋化するのは、現在 `handleRoom` に
-  インラインで書かれている 2 つの判断だけである。
-  1. 難易度・言語の変更でお題を作り直すか（現行の `cfgChanged` の条件式）
-  2. 完成記録を作って永続化するか（`phase === "celebration" && problem && endType !== "abort" && !recordSaved`）
+- **意図リストは 7 つの分岐すべてを含む。** 内訳は次のとおり。
+  - **既存の純粋関数をそのまま呼ぶのが 4 つ** — `shouldAutoJoinRotation` / `shouldClearGenerating` /
+    `screenForPhase` / `shouldAutoRequestProblem`
+  - **新たに述語として名前を与えるのが 2 つ** — 難易度・言語の変更でお題を作り直すか
+    （現行の `cfgChanged` の条件式）、完成記録を作って永続化するか
+    （`phase === "celebration" && problem && endType !== "abort" && !recordSaved`）
+  - **残り 1 つは `ctx.pendingResume` の有無**（判断ではなく null 判定）
 
 **`handleError` は意図リスト化しない。** 既存の `errorAction()` が既に判断を担っており、
 その戻り値の `kind` で分岐する形は変えない。ただし `leave-room` ケースの 15 行の setter 列は、
 ルーム由来の状態を 1 つのオブジェクトにまとめることで**初期値への差し替え 1 行**にする
 （後始末の抜けを構造で防ぐ。現行は setter を 1 つ足し忘れても型検査が通る）。
 
-### D4: 32 本の送信ラッパーを `createCommands(send)` へ出す
+### D4: 送信ラッパー 27 箇所を `createCommands(send)` へ出す
 
 ```ts
 // apps/timer-web/src/sync/commands.ts（純粋・React 非依存）
 export function createCommands(send: (cmd: ClientCommand) => void): TimerCommands;
 ```
 
-`App.tsx` から 32 本の 1 行関数が消え、同期フックにも入らない。
-**現在この 32 本には単体テストが 1 件もない。** `send` のスパイで全数を固定する（D10）。
+**35 箇所すべてを `commands.ts` へ出すのではない。**
+
+| 内訳 | 箇所 | 行き先 |
+|---|---|---|
+| 名前付きラッパー（`client?.send` 1 行関数） | 21 | `commands.ts` |
+| JSX インラインの送信（`onStartSession` の 3 つ・`onConfigSet` `onReset` `onHandoffNoteSet`） | 6 | `commands.ts`（名前を与える） |
+| WS ハンドラ・接続経路の中（`syncClient.send` 5・`c.send` 3） | 8 | **同期フックに残す**（`room.create` / `room.join` / `problem.submit` / `member.add` / `problem.request`） |
+
+前 2 つの **27 箇所**が `App.tsx` から消える。
+
+**この 27 箇所に単体テストは 1 件も無い。** 既存の App テスト 5 本が観測している送信コマンドは
+**`problem.request` の 1 種だけ**である（`App.state-ref.test.tsx:112`）。
+子コンポーネントのテスト（`Session.roster.test.tsx` 等）は **props のスパイ**を見ているので、
+**App がどのラッパーをどの prop へ渡すかは守っていない。**
+したがって `driver.skip` と `driver.resume` を取り違えても、現在のテストは 1 件も落ちない。
+`send` のスパイで全数を固定する（D10）。
 
 `leaveRotation` のように「送信時の最新 snapshot から index を解決する」ものは、
 `send` に加えて `getRoom: () => Room | null` を受け取る形にする。
@@ -210,8 +248,10 @@ E1 の設計正本が `docs/timer/adr/0003` を「未検証（E4 が触る領域
 - `apps/timer-web/src/ui/Session.tsx:137` が `useNowTick` で再描画のみを起こす
 - 残り時間は `secondsLeft(room.clock, now, clockOffset)`、経過時間は `elapsedMs(room.clock, now, clockOffset)`
   で、どちらも `@tasuki/timer-core/aggregate` の導出関数
-- ローカル時計で状態を進めている箇所は無い（`setInterval` は `sync/client.ts` の ping と
-  `ui/use-now-tick.ts` の再描画の 2 箇所のみ）
+- **`apps/timer-web/src` の `Date.now()` を全量で見ても、残り時間・経過時間を進めるものは無い** —
+  `use-now-tick.ts`（再描画のトリガ）・`App.tsx` の `requestId` 2 箇所と完成記録の生成時刻・
+  `ai/no-ai.ts` のお題選択がすべてである。`setTimeout` は一時表示の消去のみ
+  （`InvitePanel` `RosterPanel` `SharedMemo` `use-switch-alert` `App.tsx` のバナーと安全弁）
 
 **影響節に食い違いが 1 件ある。** ADR-0003 は「本実装では 250ms ごとの再レンダリング」と書くが、
 実装は `apps/timer-web/src/ui/use-now-tick.ts:10` の **`TICK_MS = 200`** である。
@@ -235,16 +275,41 @@ E1 の設計正本が `docs/timer/adr/0003` を「未検証（E4 が触る領域
 
 **書き換えたら証拠が消える。** 「実装が正しいから緑」なのか「テストを直したから緑」なのかが
 切り分けられなくなる（`App.sync-handlers.test.tsx` の冒頭がこの理屈を Issue #46 の文脈で
-既に記録している）。5 本が無改造で緑になることを、E4 の主たる証拠とする。
+既に記録している）。
+
+**5 本は内部実装名に一切触れていない**ことを確認した（`useLatestRef` / `handlersRef` /
+`makeClient` を参照するテストは `use-latest-ref.test.tsx` だけで、これは `App` を mount しない）。
+**成立条件は、`src/records/indexeddb.js` と `src/ai/no-ai.js` のパスを動かさないこと**である
+（5 本がこの 2 つを `vi.mock` でパス指定している）。本設計はどちらも動かさない。
+
+**ただし 5 本だけでは足りない。** 下記 D9b の穴があるので、証拠は「5 本の無改造」ではなく
+「5 本の無改造 ＋ 再編前に足す特性テスト」の組にする。
+
+### D9b: 既存テストが守っていない 2 つの面を、再編**前**に埋める
+
+敵対的検証で、既存テストが振る舞いの証拠として**空いている面**が 2 つ見つかった。
+
+| 空いている面 | 実態 | 埋め方 |
+|---|---|---|
+| **送信の配線** | 既存 App テストが観測する送信コマンドは `problem.request` の**1 種のみ**。子コンポーネントのテストは props スパイなので、App がどのラッパーをどの prop へ渡すかを守っていない | `test/ui/App.commands.test.tsx` を新設し、**27 箇所の操作が期待する `command` を送ることを FakeWS 越しに全数固定する** |
+| **接続状態の表示** | `StatusStrip` 単体・`deriveConnectionStatus` 単体・`connection-status` の表示テストはあるが、**App を通した「WS が切れたら再接続中が出る」経路のテストが無い**。EARS 2 は部品だけが緑で配線は死んでいる | `test/ui/App.connection.test.tsx` を新設し、FakeWS を close して `StatusStrip` の表示が変わることを固定する |
+
+**この 2 本は再編に着手する前に、現行の `App.tsx` に対して書いて緑を確認する。**
+再編後に書くと「新しい実装に合わせて書いたテスト」になり、退行を検出できない。
+**緑を見たらコミットし、そこから再編を始める。**
 
 **import の形だけは変わりうる**（`App` の default export は変えないので、変わらない見込み）。
 もし書き換えが必要になったら、それは振る舞いか公開面が変わった兆候なので、**先に立ち止まる。**
 
 ### D10: 追加するテスト
 
+**再編前**（D9b）: `test/ui/App.commands.test.tsx` / `test/ui/App.connection.test.tsx`
+
+**再編後**:
+
 | 対象 | 何を固定するか |
 |---|---|
-| `sync/commands.test.ts` | 32 本すべてが、期待する `command` を 1 回だけ送ること。`leaveRotation` が送信時の snapshot から index を解決すること |
+| `sync/commands.test.ts` | 27 本すべてが、期待する `command` を 1 回だけ送ること。`leaveRotation` が送信時の snapshot から index を解決すること |
 | `sync/snapshot-intents.test.ts` | 意図の**内容と順序**。EARS 1・3 に対応 |
 | `sync/use-timer-sync.test.tsx` | `FakeWS` 越しの接続・切断・再接続・`dispose`。`docs/adr/0007` の追記が**同じ PR で要求する**同期フックの単体テスト |
 | `ui/use-banner.test.tsx` | 自動消去する経路と、しない経路（退出バナー）の区別 |
@@ -279,8 +344,8 @@ E1 の設計正本が `docs/timer/adr/0003` を「未検証（E4 が触る領域
 | # | Issue の EARS | これを守る検査 |
 |---|---|---|
 | 1 | ルームへ参加したとき、再編前と同一の画面へ遷移する | `snapshot-intents.test.ts` の `set-mode` 意図（純粋）＋ 既存 `App.sync-handlers.test.tsx`（無改造）＋ `e2e/specs/timer.spec.ts` |
-| 2 | 接続が切れている間、同一の接続状態表示を出す | `use-timer-sync.test.tsx`（`FakeWS` を close → `connState` が `reconnecting`）＋ 既存 `ui/connection-status` のテスト |
-| 3 | 交代が起きたとき、同一の通知を表示する | 既存 `sync/notice-message.test.ts`（文言）＋ `use-timer-sync.test.tsx`（配線）＋ `ui/use-banner.test.tsx`（自動消去） |
+| 2 | 接続が切れている間、同一の接続状態表示を出す | **`App.connection.test.tsx`（D9b で再編前に新設）**＋ `use-timer-sync.test.tsx`。**既存の `connection-status` / `StatusStrip` のテストは部品だけを見ており、配線の証拠にはならない**（敵対的検証で判明） |
+| 3 | 交代が起きたとき、同一の通知を表示する | 既存 `sync/notice-message.test.ts`（**文言のみ**）＋ `use-timer-sync.test.tsx`（配線）＋ `ui/use-banner.test.tsx`（自動消去） |
 | 4 | セッションを失った場合、同一の復帰導線を示す | 既存 `App.session-lost.test.tsx`（**無改造**） |
 
 | # | Issue の完了条件 | 満たし方 |
@@ -288,7 +353,7 @@ E1 の設計正本が `docs/timer/adr/0003` を「未検証（E4 が触る領域
 | 1 | `App.tsx` が `sync/client` を直接 import していない | `audit-web-sync-boundary.mjs` の検査 1（CI） |
 | 2 | WS の接続状態とメッセージ配線が同期フック 1 本に集約 | 同 検査 1・2（CI）＋ D1 の状態配置 |
 | 3 | `e2e/specs/timer.spec.ts` と `timer-a11y.spec.ts` が全緑 | `pnpm e2e` |
-| 4 | 変異検査で既存テストが恒真化していない | `node scripts/mutation-check.mjs`（作業ツリーが clean でないと動かない） |
+| 4 | 変異検査で既存テストが恒真化していない | `node scripts/mutation-check.mjs`（作業ツリーが clean でないと動かない）。**`scripts/` は射程外**（#174）なので、新検査の恒真化は D11 の破壊検証だけが守る |
 
 DoD は [`docs/guides/definition-of-done.md`](../../guides/definition-of-done.md) の 8 項目に従う
 （本書に転記しない。転記すると版が食い違う）。
@@ -305,24 +370,44 @@ DoD は [`docs/guides/definition-of-done.md`](../../guides/definition-of-done.md
 - **状態の配置は機械で見ていない。** 「`mode` が同期フックにある」ことを縛る検査は置かない。
   MUST 3 の遵守はレビューに依存する
 - **`handlersRef` の作法が保たれていることも機械で見ていない**（D2 は設計の決定であって検査ではない）
+- **無力化の最短経路は `allowedImporters` に 1 行足すこと。** 全単射照合も 0 件ガードも自己テストも
+  素通りする。#166 の `EXCLUDED_PACKAGES` と同型で、`docs/adr/0014` の構えが**人手のレビューに
+  依存している**部分である。新しいファイルを許可リストへ足す差分は、レビューで必ず理由を問う
+- **新検査そのものは変異検査の射程外である。** `scripts/mutation-check.mjs` は `scripts/` を
+  変異対象にできない（#174）。完了条件 4 が守るのは `apps/` `packages/` 側だけで、
+  `audit-web-sync-boundary.mjs` の恒真化は D11 の破壊検証**だけ**が守る
 
 ## 作業手順
 
 1. **基準を取る** — overlay（`/home/vscode/tasuki-work`）で `corepack pnpm test --force` を流し
    `Cached: 0` を確認する。**件数は本書へ転記しない**（腐る。数えるなら実行する）
-2. `sync/commands.ts` を切り出し、テストを足す（`App.tsx` からは呼び出しを差し替えるだけ）
-3. `ui/use-banner.ts` を切り出し、テストを足す
-4. `sync/snapshot-intents.ts` を切り出し、テストを足す（`handleRoom` はまだ `App.tsx` にあり、
+2. **再編前の特性テストを 2 本足す**（D9b）。`App.commands.test.tsx` と
+   `App.connection.test.tsx` を**現行の `App.tsx` に対して**書き、緑を確認してコミットする。
+   **ここで赤が出たら、それは再編前から壊れている箇所なので先に切り分ける**
+3. `sync/commands.ts` を切り出し、テストを足す（`App.tsx` からは呼び出しを差し替えるだけ）
+4. `ui/use-banner.ts` を切り出し、テストを足す
+5. `sync/snapshot-intents.ts` を切り出し、テストを足す（`handleRoom` はまだ `App.tsx` にあり、
    意図リストを適用する形へ書き換える）
-5. `sync/use-timer-sync.ts` を新設し、配線と状態を移す。`App.tsx` は表示のみになる
-6. `use-timer-sync` の単体テストを足す
-7. `scripts/audit-web-sync-boundary.mjs` を新設し、CI へ登録する
-8. **破壊検証**（D11）
-9. `docs/timer/adr/0003` と `docs/adr/0015` へ追記（D8）
-10. `pnpm test --force` / `pnpm e2e` / `mutation-check` / `check-links` / `audit-*` を通す
-11. 振り返り（[`docs/guides/retrospective.md`](../../guides/retrospective.md)）
+6. `sync/use-timer-sync.ts` を新設し、配線と状態を移す。`App.tsx` は表示のみになる
+7. `use-timer-sync` の単体テストを足す
+8. `scripts/audit-web-sync-boundary.mjs` を新設し、CI へ登録する
+9. **破壊検証**（D11）
+10. `docs/timer/adr/0003` と `docs/adr/0015` へ追記（D8）
+11. `pnpm test --force` / `pnpm e2e` / `mutation-check` / `check-links` / `audit-*` を通す
+12. 振り返り（[`docs/guides/retrospective.md`](../../guides/retrospective.md)）
 
-各段でコミットする（PR は 1 本。`docs/guides/pr-granularity.md` の分割理由 1〜4 に当たらない）。
+各段でコミットする。**PR は 1 本。**
+
+`docs/guides/pr-granularity.md` の分割理由のうち、**3「危険度の異なる変更が混ざっている」に
+当たるように見える**（高リスクの `App.tsx` 再編・低リスクの文書追記・新設の検査）。
+当たらないと判断する理由は次のとおり。
+
+- **検査は同じ PR でなければ置けない。** 先に置けば CI が赤のままになり、後に置けば
+  「検査の無い期間」ができる。`docs/adr/0015` 影響節が「MUST 2 の機械検査は E4 が置く」と
+  この理由を明記している
+- **文書の追記も同じ PR でなければ嘘になる。** `architecture.md` は「再編は E4 で行います」と
+  書いており、コードが変わった瞬間にこの記述が誤りになる
+- 危険度が違うのは**工程**であって revert 単位ではない。分けても片方だけを revert できない
 
 ## スコープ外
 
@@ -336,6 +421,72 @@ DoD は [`docs/guides/definition-of-done.md`](../../guides/definition-of-done.md
 - **#171**（poker-sync の join-room 再送）・**#174**（`mutation-check` が `scripts/` を見られない）・
   **#175**（CI ジョブ表の腐り）は別の宛先を持つ
 - **本番デプロイはしない**（#66。#72 の全段が終わってから）
+
+## 敵対的検証で見つけた欠陥（2026-08-19）
+
+設計をコミットしたあと、自分で潰しにいって見つけたもの。**11 件のうち 2 件は重大で、
+作業手順そのものを変えた。** 本文は訂正済みで、この節は経緯の記録である。
+
+### 重大 1 — 既存テストは送信の配線をほとんど守っていない
+
+初版は「既存 App テスト 5 本が振る舞い不変の**主たる**証拠になる」と書いた。実測すると、
+**5 本が観測している送信コマンドは `problem.request` の 1 種だけ**である
+（`App.state-ref.test.tsx:112`）。子コンポーネントのテストは props のスパイなので、
+**App がどのラッパーをどの prop へ渡すかは誰も守っていない。**
+`driver.skip` と `driver.resume` を取り違えても 1 件も落ちない。
+
+**「テストがあること」を「その面が守られていること」の証拠に数えていた。** D9b を新設し、
+再編**前**に `App.commands.test.tsx` を足す段を作業手順へ入れた。
+
+### 重大 2 — EARS 2 は部品だけが緑で、配線が死んでいる
+
+初版の EARS 対応表は、要件 2（接続が切れている間の表示）を「既存 `ui/connection-status` の
+テスト」で守るとした。実測すると、`deriveConnectionStatus` の単体テストと `StatusStrip` の
+表示テストはあるが、**App を通して「WS が切れたら再接続中が出る」経路のテストは無い。**
+純粋関数と表示部品が緑でも、その間の配線が切れていれば誰も気づかない。
+
+D9b で `App.connection.test.tsx` を再編前に足す。
+
+### 中 3 — 送信箇所の数え違い（32 → 35）
+
+初版は `grep -c "client?.send\|client.send\|syncClient.send"` で 32 と数えた。
+**`c.send(` の 3 箇所を拾えていない**（`client\.send` は `c.send` にマッチしない）。
+実測は `.send({` で **35**。さらに「32 **本**の送信関数」と本数のように書いていたが、
+32 は**行数**だった。正しい内訳は名前付きラッパー 21・JSX インライン 6・ハンドラ内 8。
+
+**数える鍵が壊れていたのであって、数が違っただけではない。**
+
+### 中 4 — `endType` は WS ハンドラが書かない
+
+初版は `mode` 以下の 5 つを「**いずれも** WS ハンドラが読み書きしている」と書いた。
+`setEndType` は `handleComplete` / `handleAbort` / `handleNewSession` の 3 箇所にあり、
+**WS ハンドラは 1 つも無い**（`handleRoom` は読むだけ）。量化の言葉を書いたときに
+列を壊して確かめていなかった。
+
+### 中 5 — `handleRoom` の規模（80 行・判断 6 → 88 行・分岐 7）
+
+`App.tsx:148〜235` を数え直した。意図リストが覆う範囲の記述も、
+「新しく純粋化するのは 2 つ」から「7 つの分岐すべてを含み、うち既存関数 4・新規述語 2・null 判定 1」へ改めた。
+
+### 小 6〜11
+
+| # | 欠陥 | 対応 |
+|---|---|---|
+| 6 | D9 の成立条件（`records/indexeddb.js` と `ai/no-ai.js` のパスを動かさない）が未記載 | D9 へ明記。5 本が内部実装名に触れていないことも実測で確認 |
+| 7 | ADR-0003 の根拠が「`setInterval` は 2 箇所」と狭かった | `Date.now()` の全量で言い直した。主張は生き残った |
+| 8 | 検査の無力化最短経路（`allowedImporters` に 1 行足す）が未記載 | 「何を見ていないか」へ追加 |
+| 9 | 行数が ADR-0015 の 848 と食い違う | 由来（E1 の `49fdac7`）を脚注に |
+| 10 | 「PR 1 本」が分割理由 3 への反論を持っていなかった | 3 つの理由を明示 |
+| 11 | 新検査が変異検査の射程外（#174）である旨が未記載 | 完了条件 4 と「何を見ていないか」へ追加 |
+
+### 壊せなかった主張（生き残ったもの）
+
+- **`src` 配下で `sync/client` を import しているのは `App.tsx` の 1 本だけ**（`grep -rln` で再確認）
+- **`docs/timer/adr/0003` の決定は実装と一致している。** `Date.now()` の全量を見ても、
+  残り時間・経過時間を進めるものは無い
+- **既存 App テスト 5 本は内部実装名に触れていない**ので、無改造で通る見込みは高い
+- **`test/support/fakes.ts` が `sync/client` の `grep` に掛かるのはコメント行だけ**で、
+  import はしていない（D7 の代償が実物で起きている例）
 
 ## 関連
 
