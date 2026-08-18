@@ -8,7 +8,13 @@
 ## 概要
 
 `packages/timer-core/src/problem.ts:70` の `Math.abs(Date.now()) % candidates.length` を
-引数注入へ替える。**新しい振る舞いは 1 つも足さない。** 選ばれるお題は変更前と 1 件も変わらない。
+引数注入へ替える。**新しい振る舞いは 1 つも足さない。**
+呼び出し側が実時刻を渡す限り、選ばれるお題は変更前と 1 件も変わらない。
+
+厳密に言うと、変更後に 1 点だけ差が出る。**`now` に有限数以外が渡った場合の挙動**である。
+変更前はその入力が存在しえなかった（内部で `Date.now()` を呼んでいた）。
+変更後は呼び出し側の配線漏れで起こりうるので、黙って先頭のお題を返さず `TypeError` で落とす（D1b）。
+有効な入力での結果は完全に同一である。
 
 あわせて、規範（憲法 原則 VI / `docs/timer/adr/0002` / `docs/adr/0016` 決定 2 項目 4）が
 機械検査を持っていなかった空白を `scripts/audit-domain-side-effects.mjs` で埋める。
@@ -82,6 +88,37 @@ export function pickFallback(
   すべて `now: number` なのと語彙を揃える。**実体は擬似乱数の種であり時刻としての意味を持たない**ことは
   docstring に明記する。
 
+### D1b: `?? FALLBACK_PROBLEMS[0]!` を消す
+
+```ts
+// 変更前
+const entry = candidates[index] ?? FALLBACK_PROBLEMS[0]!;
+// 変更後
+const entry = candidates[index]!;
+```
+
+**理由: この `??` は D1 と組み合わさると「配線漏れを飲み込む穴」になる。**
+
+`now` を渡し忘れると `Math.abs(undefined)` が `NaN`、`candidates[NaN]` が `undefined` となり、
+`??` の右辺が受け止めて**先頭のお題が返る**。既存 4 テストの主張は `source === "fallback"` と
+truthy チェックだけなので**全部緑のまま通る**（2026-08-18 に実測）。
+
+型検査も捕まえない。`packages/timer-core/tsconfig.json` は `"exclude": [..., "test"]`、
+`apps/timer-sync/tsconfig.json` は `"include": ["src/**/*"]` で、**どちらもテストを型検査していない**
+（`apps/timer-web` だけが `test/**/*` を含む）。したがって「必須引数にすれば typecheck が落とす」は
+**本番の呼び出し 4 箇所には効くが、テストの呼び出しには効かない**。
+
+**観測できる振る舞いは変わらない。** 有効な `now` に対しては `index` が `[0, len-1]` に収まるので
+`candidates[index]` は必ず定義済みであり、`??` の右辺は今日も死んでいる。消しても有効入力での結果は同一である。
+渡し忘れた場合だけ `entry.problem` が `TypeError` を投げ、**テストが大声で赤くなる**。
+
+なお **この枝は「変更前と同じお題を返す」役目を元から果たしていない。**
+`FALLBACK_PROBLEMS` が空だったとすると右辺 `FALLBACK_PROBLEMS[0]` 自身も `undefined` を返す（実測済み）。
+
+**根本原因（timer-core・timer-sync のテストが型検査の射程外）は本 PR では直さない。**
+`rootDir: ./src` を外す構成変更に加え、E3 と無関係な既存の型エラーが **10 件 / 6 ファイル**出る
+（2026-08-18 に `tsc --noEmit` で実測）。独立した Issue として起票する。
+
 ### D2: timer-sync は `Clock` ポートを経由する
 
 `this.clock = deps.clock;` をコンストラクタへ足し、3 箇所へ `this.clock.now()` を渡す。
@@ -98,19 +135,36 @@ timer-web は既に `App.tsx:214` `:226`、`sync/client.ts:62` `:146` `:159`、`
 
 **代償**: `NoAiProvider` は決定論的にテストできない。D9 で明示する。
 
-### D4: 機械検査を `scripts/audit-domain-side-effects.mjs` として新設する
+### D4: 機械検査を `scripts/audit-domain-side-effects.mjs` として新設し、`scripts/lib/scan-targets.mjs` に乗せる
 
 名前は `audit-domain-purity.mjs` にしない。この検査は純粋性を見ておらず、**禁止語彙が字面として現れないこと**
 しか見ないので、名乗りを実態に合わせる。
 
-- **走査対象は導出する。** `packages/` を読んで名前が `-core` で終わるものを拾い、
-  `src/` の**実在を確認**してから走査する（ADR-0014 の作法・#135）。宣言をハードコードしない。
-- **0 件ガード。** 対象 core が 0 個、または走査ファイルが 0 件なら**赤**にする（#158 の経路⑪と同型の事故を作らない）。
+**走査対象の作りは自作しない。** 既存 5 本のうち 4 本が共有モジュール `scripts/lib/scan-targets.mjs` を
+使っており、パッケージ単位で走る 2 本（`audit-structure.mjs` / `audit-log-hygiene.mjs`）は
+`listWorkspacePackages` ＋ `diffTargets` の全単射照合という同じ形をしている。本検査もパッケージ単位なので
+その形に揃える。
+
+- **走査対象は宣言する**（ADR-0014 決定 1 の MUST）。
+  `DOMAIN_PACKAGES = ["packages/poker-core", "packages/timer-core"]` を宣言し、
+  **残るすべての workspace パッケージを理由つき `EXCLUDED_PACKAGES` に書く**（決定 2 の MUST）。
+- **実体の権威は `listWorkspacePackages(REPO_ROOT)`**（= `pnpm -r list --depth -1 --json`）。
+  `fs.readdirSync("packages/")` も「名前が `-core` で終わるものを拾う」導出も**使わない**
+  （ADR-0014 決定 3 の MUST NOT。pnpm の解決規則の自作再実装にあたる）。
+  サフィックス導出は `packages/timer-domain` のような名前のコアを黙って取りこぼすが、
+  全単射照合はパッケージが増えた時点で赤くなり、書いた人に判断を強制する。
+- 宣言と実体のずれは `diffTargets` / `hasTargetDrift` / `formatTargetDiff` で見る。
+- 導出した `src/` の実在は `findMissingPaths` で確認する（#158 が塞いだ経路⑪の残余）。
+- **0 件ガードは `hasZeroScanTargets`、内訳の 0 件は `findEmptyScanDimensions`**（決定 8 の MUST）。
+  **件数の下限は直書きしない。書いてよいのは「非空」の判定のみ**（決定 8 の MUST NOT）。
+- **走査量を常に出力する**（決定 6 の MUST）。
+  `[audit-domain-side-effects] 走査対象: N パッケージ / M ファイル`。
+- **走査量の算出と実走査を同じ述語 1 本から導出する**（決定 9 の MUST）。
+  数えるときと読むときで条件を書き分けない。書き分けると「N 件走査した」と出しながら
+  実走査が 0 件になる状態が作れる（#135 で実際に起きた）。
 - **判定は純粋関数 1 つ** `findForbiddenCalls(text, path)` に切り出し、単体テストを持たせる
   （`audit-assembly-wiring.mjs` / `audit-domain-error-shape.mjs` と同じ作り）。
   行を `includes` で見るだけで、状態を持たない。
-- 実行時に `[audit-domain-side-effects] 走査対象: N パッケージ / M ファイル` を出す
-  （既存 4 本と同じ形。D10 の導出ガードがこれを見る）。
 
 ### D5: 禁止語彙は 6 つとし、ADR-0016 へ追記する
 
@@ -164,24 +218,43 @@ Issue #166 のコメントは「コメント行を除外するか、`import`/呼
 
 列挙された `describe` はそのまま残し（個別の壊し方を書いているため）、別に導出ガードを 1 本足す。
 
+**一覧の権威は `fs.readdirSync` ではなく `git ls-files` に置く。**
+`readdirSync` は未追跡ファイルを拾うため、ローカルと CI で見えるものが食い違う
+（ADR-0014 決定 5）。共有モジュールの `listTrackedFiles` を使う。
+
+**`scripts/list-scan-targets.mjs` の `KINDS` には足さない。** 同モジュールの除外は
+`rel.startsWith(prefix)` の**前方一致**しか持たず、後方一致（`.test.mjs`）を表現できない。
+`git ls-files 'scripts/audit-*.mjs'` は自己テストを含む **8 件**に一致することを実測した
+（本体 4 ＋ `.test.mjs` 4）。除外の仕組みを共有モジュールへ足すのは本 PR の射程外なので、
+このテストの中で後方一致を落とす。
+
 ```js
-const AUDITS = fs.readdirSync(SCRIPTS_DIR)
-  .filter((n) => /^audit-.*\.mjs$/.test(n) && !n.endsWith(".test.mjs"));
+// scripts/scan-target-wiring.test.mjs
+// `git ls-files 'scripts/audit-*.mjs'` は自己テストも拾う（実測 8 件）。
+// selectTargets の除外は前方一致しか持たないため、ここで後方一致を落とす。
+const AUDITS = listTrackedFiles(REPO_ROOT, ["scripts/audit-*.mjs"])
+  .map((rel) => path.basename(rel))
+  .filter((name) => !name.endsWith(".test.mjs"));
 
 assert.ok(AUDITS.length > 0, "audit-*.mjs が 0 件（テストが空振りしている）");
 
 for (const name of AUDITS) {
-  it(`${name} は走査対象を名乗る`, () => {
+  test(`${name} は走査対象を名乗る`, () => {
     assert.match(runScriptCopy(name, (s) => s).stdout, /走査対象: /);
   });
 }
 ```
 
-下限を `> 0` にとどめ、`>= 5` のような固定値を置かない。固定値は本数が変わるたびに腐り、
-**この検査が守ろうとしている「列挙は腐る」性質を検査自身が持ち込む**ことになる。
-検査の削除を検出したいという要求は現時点で無い。
+`runScriptCopy` は複製を `scripts/` 直下へ `.wiring-<pid>-<n>-<名前>` として置くが、
+接頭辞が `.wiring-` なので `git ls-files` の追跡下にも `audit-*` の一致にも入らない。
+複製が自分自身を走査対象として拾う経路は無い。
 
-既存 4 本すべてが「走査対象:」行を出すことは 2026-08-18 に実行して確認した。
+**下限は「非空」だけにする。** 当初 `>= 5` を置く案だったが、これは **ADR-0014 決定 8 の
+MUST NOT に違反する**（「件数の下限を直書きしない。書いてよい下限は非空（1 件以上）の判定のみ」）。
+固定値は本数が変わるたびに腐り、**この検査が守ろうとしている「列挙は腐る」性質を検査自身が持ち込む**。
+
+既存 4 本すべてが「走査対象:」行を出すことは 2026-08-18 に実行して確認した
+（`audit-structure` / `audit-log-hygiene` / `audit-assembly-wiring` / `audit-domain-error-shape`）。
 
 ## 触れる外部配線
 
@@ -192,6 +265,10 @@ for (const name of AUDITS) {
 | 3 | `docs/guides/development.md` の一覧と説明節 | 1 行＋1 節 |
 | 4 | `docs/adr/0016` | 決定 2 項目 4 の割り当て先と禁止語彙 6 つ（D5） |
 | 5 | `scripts/scan-target-wiring.test.mjs` | 導出ガード（D7） |
+`scripts/lib/scan-targets.mjs` と `scripts/list-scan-targets.mjs` は**どちらも変更しない**。
+既存の輸出（`listWorkspacePackages` / `diffTargets` / `hasTargetDrift` / `findMissingPaths` /
+`hasZeroScanTargets` / `findEmptyScanDimensions` / `formatTargetDiff` / `listTrackedFiles`）を
+そのまま使う。
 
 `scripts/audit-domain-side-effects.test.mjs` は登録不要である。CI は
 `node scripts/list-scan-targets.mjs script-tests` で `scripts/**/*.test.mjs` を**導出**しているため、
@@ -259,6 +336,9 @@ for (const name of AUDITS) {
 | `pickFallback` が第 3 引数を無視する | D9 の一巡テストが赤 |
 | `this.clock.now()` を定数へ差し替える | D9 の 3 経路が赤 |
 | `audit-*.mjs` の 1 本から「走査対象:」行を消す | D7 の導出ガードが赤 |
+| テストの呼び出し 1 箇所から第 3 引数を消す | `TypeError` で赤（D1b が効いている証拠） |
+| 宣言 `DOMAIN_PACKAGES` から 1 つ消す | 全単射照合が赤（ADR-0014 決定 1） |
+| 宣言に実在しないパッケージを足す | 全単射照合が赤（同上） |
 
 `node scripts/mutation-check.mjs` も流す。ただし **E1 で判明した「`scripts/` を変異対象にできない」制約
 （`detectRunner()` が `<pkg>/package.json` を要求する）は本 PR でも残る**。検査スクリプト自身は
@@ -277,18 +357,21 @@ for (const name of AUDITS) {
 - **`apps/timer-web/src/ai/no-ai.ts` は決定論的なテストを持たない。** D3 で `Date.now()` の直呼びを
   境界と決めた以上、選ばれるお題をテストで固定できない。ここを守るのは**型だけ**である
   （第 3 引数が必須なので、渡さなければ `typecheck` が落ちる）。
-- **EARS 要件 2（候補 0 件のフォールバック）が指す枝は到達不能である。**
+- **EARS 要件 2（候補 0 件のフォールバック）は到達不能であるうえ、記述している状況では満たしようがない。**
   `candidates` は言語フィルタ → 全件縮退の順に落ちるので、`FALLBACK_PROBLEMS` が非空である限り
   `candidates.length === 0` にならない。したがって `entry = candidates[index] ?? FALLBACK_PROBLEMS[0]!` の
-  `??` の右辺は死んでいる。**振る舞い不変が本 PR の約束なので、この枝は消さずに残す。**
-  削除は別 Issue の判断とする。
+  `??` の右辺は死んでいる。
+  **さらに、仮に `FALLBACK_PROBLEMS` が空だったとすると、`??` の右辺 `FALLBACK_PROBLEMS[0]` 自身も
+  `undefined` を返す**（`[][NaN] ?? [][0]` が `undefined` になることを 2026-08-18 に実測）。
+  要件 2 が言う「変更前と同じフォールバックお題を返す」は、その状況では変更前も返せていない。
+  **要件 2 は実装ではなく Issue のコメントで訂正する。**
 
 ## 作業手順
 
 1. ゴールデン値を `e905b38` で採取する（D8）
 2. `scripts/audit-domain-side-effects.mjs` とその自己テストを置き、**この時点では赤**であることを見る
    （`problem.ts:70` がまだ違反しているため。検査が実際に働く証拠になる）
-3. `pickFallback` のシグネチャを変え、timer-core のテストを通す（D1・D9）
+3. `pickFallback` のシグネチャを変え、`??` を消し、timer-core のテストを通す（D1・D1b・D9）
 4. `problem-delegation.ts` を配線し、配線テストを足す（D2・D9）
 5. `no-ai.ts` を配線する（D3）
 6. 検査が緑になることを確認する
@@ -304,7 +387,12 @@ for (const name of AUDITS) {
 - [ ] `packages/timer-core/src/problem.ts` が `Date.now()` を呼ばず、`now: number` を必須引数で受け取る
 - [ ] 呼び出し 4 箇所すべて（timer-sync 3・timer-web 1）が配線されている
 - [ ] `scripts/audit-domain-side-effects.mjs` が緑で、CI の `quality` ジョブで走る
-- [ ] 同検査を D10 の 6 項目で壊し、6 回とも赤になることを確認した
+- [ ] 同検査が ADR-0014 の決定 1・2・3・6・8・9 を満たす
+      （宣言＋全単射／理由つき除外／`listWorkspacePackages` の権威／走査量の出力／
+      非空のみの下限／述語 1 本）
+- [ ] D10 の全項目で壊し、すべて赤になることを確認した
+- [ ] `?? FALLBACK_PROBLEMS[0]!` を消し、第 3 引数を落とすと `TypeError` で赤になることを確認した（D1b）
+- [ ] timer-core / timer-sync のテストが型検査の射程外である件を Issue として起票した
 - [ ] `docs/adr/0016` へ禁止語彙 6 つを追記し、規範と検査の射程が一致している
 - [ ] `pnpm test` 全緑・`pnpm e2e` 全緑
 - [ ] 選ばれるお題が変更前と一致することを、D8 のゴールデン値で示した
@@ -320,6 +408,11 @@ for (const name of AUDITS) {
 - **到達不能な `??` の枝の削除** — 振る舞い不変の約束に反する
 - **`packages/rate-limit` のコメント 3 行** — 射程外（`packages/*-core/src` に限る）
 - **公開面（`index.ts` の明示列挙）の整理** — E6（#168）が担う
+- **timer-core / timer-sync のテストを型検査の射程へ入れること** — `rootDir: ./src` を外す構成変更に加え、
+  E3 と無関係な既存の型エラーが 10 件 / 6 ファイル出る（`aggregate` `decide-v3` `decide` `records` `shuffle`
+  の各テスト。2026-08-18 実測）。**本 PR で独立した Issue として起票する。** D1b はこの根本原因を
+  直すのではなく、症状（黙って飲み込むこと）だけを塞ぐ
+- **EARS 要件 2 の文言の訂正** — 実装ではなく Issue #166 のコメントで訂正する
 
 ## 関連
 
