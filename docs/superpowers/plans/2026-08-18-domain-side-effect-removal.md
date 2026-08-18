@@ -19,7 +19,7 @@
 - **検査は「コードを直したあと」に置く。** 赤いコミットを履歴に残さない（#165 で bisect が濁った）
 - **件数の下限を直書きしない。** 書いてよいのは「非空（1 件以上）」の判定のみ（ADR-0014 決定 8 の MUST NOT）
 - **走査対象の権威は `listWorkspacePackages`（= `pnpm -r list --depth -1 --json`）と `listTrackedFiles`（= `git ls-files`）。** `fs.readdirSync` によるパッケージ導出は禁止（ADR-0014 決定 3 の MUST NOT）
-- **テストを走らせるときは turbo のキャッシュに注意。** `pnpm test` は既定でキャッシュに当たり 1.5 秒で「緑」を出す。実際に走らせるなら `--force` を付けて `0 cached` を確認する
+- **テストを走らせるときは turbo のキャッシュに注意。** `pnpm test` は既定でキャッシュに当たり 1.5 秒で「緑」を出す。実際に走らせるなら `corepack pnpm test --force` と書き、出力の `0 cached` を確認する。**`--` を挟んではいけない** — `pnpm test -- --force` は turbo ではなく各パッケージの vitest へ `--force` を転送し、`Unknown option --force` で即死する（2026-08-18 実測。ルートの `test` スクリプトは `turbo run test`）
 - **`FALLBACK_PROBLEMS` は 33 件**（2026-08-18 実測）。テストの期待値に `33` を直書きせず `FALLBACK_PROBLEMS.length` を使う。**例外は Task 1 の母数カナリア 1 件だけ** — ゴールデン表 21 組は定型バンクの中身に依存しており、バンクが変わったら表を採り直す必要がある。`length` 同士を比べる書き方ではその変化を検知できない。カナリアには「33 を書き換えて赤を消すのではなく表を採り直す」ことをコメントで明示する
 - コメント・docstring は日本語。コミットメッセージは Conventional Commits（日本語本文）
 
@@ -378,7 +378,16 @@ git commit -m "refactor: pickFallback へ now を引数注入する（#166）
 
 `apps/timer-sync/test/problem-delegation.clock.test.ts` を新規作成。
 
-**先に既存テストの組み立てを読むこと**（`apps/timer-sync/test/problem-delegation.test.ts:100-120` 付近）。`store` / `clock` / `broadcaster` / `testLogger` / `testRefEncoder` の作り方をそのまま踏襲し、**模写せず既存のヘルパがあればそれを使う**。
+**`apps/timer-sync` のテストランナーは `bun test` である**（`vitest` ではない。2026-08-18 実測）。テストは `bun:test` から import する。
+
+**既存のヘルパをそのまま使うこと**（模写しない）。`apps/timer-sync/test/problem-delegation.test.ts:9-19` の import を読めば全部そろっている:
+
+| ヘルパ | 場所 | 使い方 |
+|---|---|---|
+| `FakeClock` | `../src/adapters/system-clock.js` | `new FakeClock(7)` で `now()` が `7` を返す。`set(ms)` / `advance(ms)` もある |
+| `SpyBroadcaster` | `./support/spy-broadcaster.js` | `latestSnapshot()` で最後に配信された `Room`、`signals` / `sent` も記録される |
+| `InMemoryRoomStore` | `../src/adapters/in-memory-room-store.js` | — |
+| `testLogger` / `testRefEncoder` | `./support/test-logger.js` | — |
 
 ```typescript
 /**
@@ -387,7 +396,7 @@ git commit -m "refactor: pickFallback へ now を引数注入する（#166）
  * **`this.clock` を消したら赤くなること**がこのファイルの要件である。
  * 3 つの経路それぞれで `pickFallback` が呼ばれるので、3 つとも押さえる。
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "bun:test";
 import { pickFallback } from "@tasuki/timer-core";
 
 // 固定時刻。0 を使うと「渡し忘れて undefined→NaN」との区別が付きにくいので避ける。
@@ -420,7 +429,7 @@ describe("ProblemDelegator: 定型お題の選択が Clock ポートを通る", 
 
 ```bash
 cd /home/vscode/tasuki-work/apps/timer-sync
-corepack pnpm exec vitest run test/problem-delegation.clock.test.ts
+bun test test/problem-delegation.clock.test.ts
 ```
 
 期待: 型エラーまたは実行時エラーで FAIL（`pickFallback` の呼び出しが第 3 引数を欠いているため）。
@@ -459,7 +468,7 @@ const fb = pickFallback(room.config.language, room.config.difficulty, this.clock
 
 ```bash
 cd /home/vscode/tasuki-work/apps/timer-sync
-corepack pnpm exec vitest run
+bun test
 ```
 
 期待: 新しい 3 件を含め全件 PASS。
@@ -472,7 +481,7 @@ corepack pnpm exec vitest run
 grep -c "this.clock.now()" src/application/problem-delegation.ts   # 書き換え前に 3 であることを確認
 # 3 箇所を 0 に書き換える
 grep -c "this.clock.now()" src/application/problem-delegation.ts   # 書き換え後に 0 であることを確認
-corepack pnpm exec vitest run test/problem-delegation.clock.test.ts
+bun test test/problem-delegation.clock.test.ts
 ```
 
 期待: 3 件とも FAIL。確認したら書き戻し、再度緑を確認する。
@@ -550,7 +559,7 @@ corepack pnpm --filter @tasuki/timer-web typecheck
 
 ```bash
 cd /home/vscode/tasuki-work
-corepack pnpm test -- --force
+corepack pnpm test --force
 ```
 
 期待: 全タスク PASS。**`--force` を付けて出力に `0 cached` が出ていることを確認する**（turbo は既定でキャッシュに当たり 1.5 秒で「緑」を出す）。
@@ -1141,7 +1150,7 @@ git commit -m "docs: ドメイン副作用検査を CI と規範へ登録する�
 
 ```bash
 cd /home/vscode/tasuki-work
-corepack pnpm test -- --force              # 出力に "0 cached" が出ることを確認
+corepack pnpm test --force              # 出力に "0 cached" が出ることを確認
 node scripts/audit-structure.mjs
 node scripts/audit-log-hygiene.mjs
 node scripts/audit-assembly-wiring.mjs
