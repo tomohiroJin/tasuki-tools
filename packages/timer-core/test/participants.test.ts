@@ -61,6 +61,18 @@ describe("編集者以上の数え方（canDemote の可否として観測する
     expect(allowed).toBe(false);
   });
 
+  it("編集者が 1 名いればホストを降格できる", () => {
+    // Given（対象を host にすると早期 return を通らず、数えた結果そのものが可否を決める）
+    const participants: Participant[] = [
+      participant({ participantId: "p1", role: "host" }),
+      participant({ participantId: "p2", role: "editor" }),
+    ];
+    // When
+    const allowed = canDemote(participants, "p1");
+    // Then
+    expect(allowed).toBe(true);
+  });
+
   it("代理参加者は編集者であっても頭数に入らない", () => {
     // Given
     const participants: Participant[] = [
