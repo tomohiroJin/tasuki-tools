@@ -19,7 +19,6 @@ function makeRoom(): Room {
 describe('createRoom', () => {
   it('ホスト参加者と voting 状態のラウンドで初期化される', () => {
     const result = createRoom('room0001', 'たろう', hostIds);
-    expect(result.isOk()).toBe(true);
     const { room, participant } = result._unsafeUnwrap();
 
     expect(room.id).toBe('room0001');
@@ -55,7 +54,6 @@ describe('joinRoom', () => {
   it('参加者が joinOrder 採番付きで追加される（非ホスト）', () => {
     const room = makeRoom();
     const result = joinRoom(room, 'はなこ', guestIds);
-    expect(result.isOk()).toBe(true);
     const { room: updated, participant } = result._unsafeUnwrap();
 
     expect(updated.participants).toHaveLength(2);

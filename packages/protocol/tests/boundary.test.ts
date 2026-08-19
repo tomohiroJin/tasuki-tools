@@ -10,7 +10,6 @@ const Schema = v.object({
 describe("parseBoundaryMessage", () => {
   it("Given スキーマに合う JSON / When パースする / Then 検証済みの値が返る", () => {
     const result = parseBoundaryMessage(Schema, '{"kind":"greet","name":"たろう"}');
-    expect(result.isOk()).toBe(true);
     expect(result._unsafeUnwrap()).toEqual({ kind: "greet", name: "たろう" });
   });
 
