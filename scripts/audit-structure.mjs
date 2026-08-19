@@ -318,6 +318,34 @@ function countMeaningfulBodyLines(bodyLines) {
 }
 
 /**
+ * テスト本体が前提・操作の区切りを持つか。
+ *
+ * SC-032 の分子と、例外表の腐り判定（{@link findStaleTestExceptions} の「もう要らない」）が
+ * **同じ 1 つの述語**を使う。片方だけ書き換えると、区切りが付いたのに例外が残る状態を
+ * 検知できなくなる。
+ */
+function hasGwtMarkers(body) {
+  return GIVEN_RE.test(body) && WHEN_RE.test(body);
+}
+
+/**
+ * テスト本体の**先頭行**から、そのテストの名前（`it(...)` の第 1 引数の文字列）を取る。
+ * 取れなければ null。
+ *
+ * ## 何を見ていないか — **「足りる」とは言わない**
+ *
+ * - **先頭行しか見ていない。** `it.each([…])("… %s", …)` のように名前が先頭行に
+ *   現れない書き方では null になる。その場合そのテストは例外表で名指しできず、
+ *   **従来どおり分母に入る**（例外に載せられないだけで、指標は静かに緩まない）。
+ * - **同名のテストを区別していない。** 同じファイルに同じ名前が 2 件あれば、
+ *   例外はその両方に掛かる。
+ */
+function testNameOfBody(bodyLines) {
+  const names = extractTestNames(bodyLines[0] ?? "");
+  return names.length > 0 ? names[0] : null;
+}
+
+/**
  * SC-032: 本体が 3 行以上（空行・コメント行を除く）のテストにおいて、
  * `// Given` と `// When`（または準備/操作）の両方を含むものの割合を求める。
  *
@@ -328,17 +356,25 @@ function countMeaningfulBodyLines(bodyLines) {
  *
  * 戻り値は { denominator, numerator, ratio }。他の SC 関数と異なり件数が 1 つに定まらない
  * （分子・分母の 2 値が要る）ため、他関数と違う形の戻り値になっている。
+ *
+ * `exceptions`（{@link SC032_EXCEPTIONS} と同じ形）に載る `file::testName` の組は
+ * **分母に数える前に**外す。分子に足して「満たしたことにする」のではない
+ * （ADR-0006 決定 2 の「本体が 2 行以下の自明なテストは対象外」と同じ扱い）。
+ * 例外表が腐っていないかは {@link findStaleTestExceptions} が別に見る。
+ * **ここは腐りを見ない** — 実在しないテストを例外に書けば、ここは黙って何も外さないだけである。
  */
-export function sc032GwtMarkers(testFiles) {
+export function sc032GwtMarkers(testFiles, exceptions = []) {
+  const excepted = new Set(exceptions.map((e) => `${e.file}::${e.testName}`));
   let denominator = 0;
   let numerator = 0;
-  for (const [, content] of testFiles) {
+  for (const [file, content] of testFiles) {
     for (const bodyLines of splitIntoTestBodies(content)) {
+      const name = testNameOfBody(bodyLines);
+      if (name !== null && excepted.has(`${file}::${name}`)) continue;
       const meaningfulCount = countMeaningfulBodyLines(bodyLines);
       if (meaningfulCount < 3) continue;
       denominator++;
-      const body = bodyLines.join("\n");
-      if (GIVEN_RE.test(body) && WHEN_RE.test(body)) numerator++;
+      if (hasGwtMarkers(bodyLines.join("\n"))) numerator++;
     }
   }
   const ratio = denominator === 0 ? 1 : numerator / denominator;
@@ -856,6 +892,100 @@ export function findStaleSymbolExceptions(exceptions, packageSrcFiles, productSo
 }
 
 /**
+ * SC-032 の例外。**前提・操作・検証の区切りが概念的に当てはまらないテストだけ**を、理由つきで載せる。
+ *
+ * ADR-0006 決定 2 は「本体が 2 行以下の自明なテストは対象外」と定めている。その意図は
+ * 「区切っても読み手の役に立たないテストには求めない」ことである。ところが分母の判定は
+ * **物理行**を数えるため、**1 つの式が複数行にまたがるだけ**で 3 行以上と見なされる。
+ * その結果、操作が一つも無いテストが対象に入りうる。
+ *
+ * 判定を「文数え」へ変える案は #168 の敵対的検証で却下した（`it.each` の 41 件中 35 件が
+ * 対象外に落ち、区切り済みの 34 行のテストまで分母から消えるため）。**尺度は変えず、
+ * 当てはまらないものを名指しで挙げる。**
+ *
+ * 散文での前例もある（`apps/timer-sync/test/error-code-coverage.test.ts` が
+ * 「メタテストであり、前提・操作・検証という区切りが通常の意味では当てはまらない」と明記）。
+ *
+ * **除外は分母から行う。**「この規約の対象ではない」という意味であり、
+ * 分子に足して「満たしたことにする」のではない。
+ *
+ * **例外表は両方向に腐る。**{@link findStaleTestExceptions} が落とす。
+ */
+export const SC032_EXCEPTIONS = [
+  {
+    file: "packages/poker-core/tests/deck.test.ts",
+    testName: "フィボナッチ10種を順序どおりに含む（0,1,2,3,5,8,13,21,?,☕）",
+    reason:
+      "import 済みのモジュール定数の形を expect で直接見るだけで、テスト本体の中に操作と呼べる処理が無い。// When を足すと操作を指すふりの飾りになる（#168 で実装者とレビュアが独立に同じ結論）",
+  },
+];
+
+/**
+ * SC-032 の例外表が腐っていないかを見る（純粋）。問題が無ければ空配列。
+ *
+ * ## 何を見るか
+ *
+ * 例外 1 件ごとに、次の 4 つの向きで落とす。**それぞれ違う文言で報告する**
+ * （赤を見たときに、どの向きで腐ったのかが取り違えなく分かるように）。
+ *
+ *   1. 例外が指すファイルが走査対象に無い（改名・移設・削除）
+ *   2. 例外が指すテスト名がそのファイルに無い（改名・削除）
+ *   3. そのテストが区切りを持つようになった（例外がもう要らない）
+ *   4. 理由が空（{@link EXCLUDED_PACKAGES} と同じ作法。理由の書けない例外は置かない）
+ *
+ * **「分母に入らなくなった」は落とさない。** 本体が短くなって対象外になった場合、
+ * 例外は無害に空回りするだけであり、落とすとテストの整理を妨げる。
+ *
+ * ## 何を見ていないか — **「足りる」とは言わない**
+ *
+ * - **理由の内容が本当かは見ていない。** 空文字列でないことしか見ないので、
+ *   でたらめな理由を書けば通る。理由はレビューが読むためのものである。
+ * - **例外に挙げるべきテストが挙がっているかは見ていない。** これは
+ *   「挙げた例外が腐っていないか」だけを見る片方向の検査であり、
+ *   もう片方向は指標そのもの（{@link sc032GwtMarkers} の割合）が受け持つ。
+ * - **テストの同定は先頭行の名前だけで行う。** {@link testNameOfBody} の限界を
+ *   そのまま引き継ぐ。名前が先頭行に無い書き方（`it.each`）は 2. で落ちる＝安全側。
+ * - **区切りの有無は {@link hasGwtMarkers} と同じ精度しか持たない。**
+ *   `// Given` / `// When` の文字列が本体のどこかにあれば「持っている」に倒れるので、
+ *   飾りとして足したコメントも区切りと見なされる。その向きは例外が余計に消される側＝安全側である。
+ *
+ * @param exceptions 例外表（`{ file, testName, reason }` の配列）
+ * @param testFiles `Map<リポジトリ相対パス, ソース>`。SC-032 が測る走査対象そのもの
+ */
+export function findStaleTestExceptions(exceptions, testFiles) {
+  const problems = [];
+  for (const e of exceptions) {
+    if (typeof e.reason !== "string" || e.reason.trim() === "") {
+      problems.push(`SC-032 の例外に理由がありません: ${e.file} の「${e.testName}」`);
+    }
+    const content = testFiles.get(e.file);
+    if (content === undefined) {
+      problems.push(
+        `SC-032 の例外が指すファイルが走査対象にありません: ${e.file}（例外を消すか、走査対象を直してください）`,
+      );
+      continue;
+    }
+    const bodies = splitIntoTestBodies(content).filter(
+      (bodyLines) => testNameOfBody(bodyLines) === e.testName,
+    );
+    if (bodies.length === 0) {
+      problems.push(
+        `SC-032 の例外が指すテストがありません: ${e.file} の「${e.testName}」（改名・削除したなら例外も消してください）`,
+      );
+      continue;
+    }
+    // 同名が複数あるときは、**すべてが区切りを持って初めて**不要と見なす。
+    // 1 件でも区切りを持たないものが残っているなら、例外はまだ仕事をしている。
+    if (bodies.every((bodyLines) => hasGwtMarkers(bodyLines.join("\n")))) {
+      problems.push(
+        `SC-032 の例外が不要になりました: ${e.file} の「${e.testName}」は前提・操作の区切りを持っています`,
+      );
+    }
+  }
+  return problems;
+}
+
+/**
  * SC-035 / SC-039① が名指しで参照するファイルピン。
  *
  * `web.srcFiles.get("App.tsx") ?? ""` / `sync.srcFiles.get("application/handlers.ts") ?? ""`
@@ -1036,6 +1166,26 @@ export function buildSc039Sources(loaded) {
 }
 
 /**
+ * テスト系の指標（SC-028/029/030/031/032/036）が見る 1 つの集合を組み立てる（純粋）。
+ *
+ * 鍵は**リポジトリ相対パス**（`packages/poker-core/tests/deck.test.ts` の形）。
+ *
+ * **`main()` のガードと `runAudit()` の指標は、どちらもこの関数の結果だけを使う**
+ * （ADR-0014 決定 9）。SC-032 の例外表はこの鍵でファイルを名指しするため、
+ * 2 か所で組み立てると鍵の作り方が割れた瞬間に、例外表のガードは「実在する」と言い、
+ * 指標側は 1 件も外さない、という食い違いが静かに成立する。
+ *
+ * @param loaded {@link loadScanTargets} の結果
+ */
+export function buildAllTestFiles(loaded) {
+  const allTestFiles = new Map();
+  for (const p of loaded) {
+    for (const [k, v] of p.testFiles) allTestFiles.set(`${p.pkg}/${p.test}/${k}`, v);
+  }
+  return allTestFiles;
+}
+
+/**
  * 指標を測る。**読み込み済みの走査対象（`loadScanTargets` の結果）を受け取る。**
  * 自分で読み直さないこと — 読み込み条件が二重化した瞬間に、ガードが数えた集合と
  * ここで測る集合が食い違う（ADR-0014 決定 9）。
@@ -1048,10 +1198,9 @@ function runAudit(loaded) {
   const sync = byPkg.get("apps/timer-sync");
   const web = byPkg.get("apps/timer-web");
 
-  const allTestFiles = new Map();
-  for (const p of loaded) {
-    for (const [k, v] of p.testFiles) allTestFiles.set(`${p.pkg}/${p.test}/${k}`, v);
-  }
+  // **テスト集合の組み立ては `buildAllTestFiles` の 1 か所だけ**（ADR-0014 決定 9）。
+  // ここで組み直すと、`main()` の SC-032 例外表ガードが見る集合と指標が測る集合が食い違う。
+  const allTestFiles = buildAllTestFiles(loaded);
 
   // SC-027: エントリを持つパッケージごとに到達性を測り、合算する
   const sc027 = loaded
@@ -1065,7 +1214,7 @@ function runAudit(loaded) {
   const sc029 = sc029SpecIdsInNames(allTestFiles, exceptFiles);
   const sc030 = sc030CallNamesInNames(allTestFiles);
   const sc031 = sc031GuardExpects(allTestFiles);
-  const sc032 = sc032GwtMarkers(allTestFiles);
+  const sc032 = sc032GwtMarkers(allTestFiles, SC032_EXCEPTIONS);
   const sc036 = sc036TestCount(allTestFiles);
 
   const serverSources = [...sync.srcFiles.values()];
@@ -1228,6 +1377,23 @@ function main() {
   );
   if (staleExceptions.length > 0) {
     for (const p of staleExceptions) console.error(`[audit-structure] ${p}`);
+    process.exit(1);
+  }
+
+  // SC-032 の例外表も同じ扱いで見る。**指標を出す前に**見る。
+  // 腐った例外を抱えたまま「100.0%」と報告させない。
+  //
+  // **見る集合は `runAudit()` が測る集合と同一**（ADR-0014 決定 9）。
+  // 同じ `loaded` を `buildAllTestFiles` に渡しているので、ここで組み直してはいない。
+  const allTestFiles = buildAllTestFiles(loaded);
+  const staleTestExceptions = findStaleTestExceptions(SC032_EXCEPTIONS, allTestFiles);
+  // 走査量は成否によらず必ず出す（#135 D5）。何件の例外を何件のファイルに照らしたかが赤の根拠になる。
+  console.log(
+    `[audit-structure] SC-032 の例外表: ${SC032_EXCEPTIONS.length} 件 / ` +
+      `照合先 ${allTestFiles.size} ファイル`,
+  );
+  if (staleTestExceptions.length > 0) {
+    for (const p of staleTestExceptions) console.error(`[audit-structure] ${p}`);
     process.exit(1);
   }
 
