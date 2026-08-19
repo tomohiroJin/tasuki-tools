@@ -121,6 +121,21 @@ SC029/030/031 にも同じ扱いを与える（D5）。
 0 になるのは例外を除外した表示値である。完了条件は
 「**例外表に載る 4 件を除いて 0**」と読む。この読み替えを PR 本文にも書く。
 
+**D2・D3 は過去の判断を反転させたものである。**
+`docs/plans/codebase-refactoring/tasks.md:479` は、ここで扱う 4 件
+（`countManagers` / `SessionConfigSchema` / `RoomSchema` / `ServerMsgSchema`）について
+「テストが直接 import しており、直接値検証を間接検証に置き換えると検証内容が変わる
+（FR-099 に抵触する）ため対象外とした」と記録している。本作業は、前 2 件を非公開化して
+テストを公開 API 経由へ書き換え（D2）、後 2 件は「検証内容が変わる」ではなく
+「検査の土台である」という別の理由で例外表へ載せる（D3）。
+**判断を改めた根拠は、置き換え後のテストが変異で赤くなることを実証したこと**である
+（`canDemote` は降格対象を host にすれば `wouldKeepAtLeastOneManager` の早期 return を
+通らず `countManagers` に到達する。`CommandSchema` 経由のテストは
+`v.partial(SessionConfigSchema)` → `v.strictObject({})` の変異で 2 件とも赤くなる）。
+FR-099 が守らせたいのは検証の力であり、力が保たれることを変異で示せるなら、
+間接検証への置き換えはこれに抵触しない。前の判断は、置き換え後のテストを**当てずに**
+「検証内容が変わる」と結論していた。
+
 ### D4: 例外表は両方向に腐り止めを入れる
 
 `{ file, name, reason }` の 3 つ組で持ち、次の 2 つで落とす。
@@ -221,10 +236,13 @@ docs/guides/development.md                 検査の一覧へ 1 本追加
 
 ## 何を見ていないか
 
-- **型検査は `index.ts` の列挙漏れを捕まえない。** `computeStats` を明示列挙から落としても
-  全パッケージが緑になることを実測した（内部の `snapshot.ts` が直接 import しており、
-  index 経由の利用者がいないため）。明示列挙の網羅性は 43 記号を機械生成して担保し、
-  型検査を根拠にしない
+- **`index.ts` の列挙漏れは、型検査も新設した公開面検査も構造監査も捕まえない。**
+  `computeStats` を明示列挙から落として実測したところ、`pnpm typecheck --force` は 14/14 成功、
+  `node scripts/audit-public-surface.mjs` は exit 0、`node scripts/audit-structure.mjs` も
+  exit 0 で、**3 つとも落ちなかった**（内部の `snapshot.ts` が相対パスで直接 import しており、
+  index 経由の利用者がいないため）。明示列挙の網羅性は 43 記号を機械生成して突合することで
+  担保し、これらの検査を根拠にしない。**この突合は一度きりであり、以後この網羅性を
+  継続的に見る検査は存在しない**
 - **SC039 の走査は `packages/timer-core` 1 パッケージ限定**。poker-core の公開面は測っていない
 - **`poker-core` の 43 記号のうち 14 記号は index 経由の利用者がゼロ**。明示列挙化はこれを
   そのまま写すので、死んだ公開面は残る（切り出し ①）
