@@ -33,8 +33,9 @@ import { useBanner } from "./ui/use-banner.js";
 import { saveRecord } from "./records/indexeddb.js";
 import { persistRecordIfComplete } from "./records/persist.js";
 import { decideSnapshotIntents } from "./sync/snapshot-intents.js";
+import { formatProblemText } from "./ui/problem-text.js";
 import { displayMessageFor } from "@tasuki/timer-core";
-import type { Room, SessionConfig, CompletionRecord, Problem } from "@tasuki/timer-core";
+import type { Room, SessionConfig, CompletionRecord } from "@tasuki/timer-core";
 
 /** 常に定型バンク（NoAiProvider）を返す。client 側で AI を直接呼ぶ経路（BYOK）は
  *  #28 T010 で撤去済み。サーバー常駐の AI 生成（docs/timer/adr/0008）は残っており、
@@ -568,17 +569,6 @@ export default function App() {
 
   // ─── お題編集（ProblemEditor）操作 ─────────────────────────────────────────
   // WS コマンドでサーバーが problem を全員へ反映する（FR-041）。編集は editor+（UI 側で制御）。
-
-  /** お題を可搬なプレーンテキストへ整形する（FR-013 コピー用） */
-  const formatProblemText = (p: Problem): string => {
-    const lines: string[] = [p.title, "", p.description, ""];
-    if (p.requirements.length > 0) {
-      lines.push("要件:", ...p.requirements.map((r) => `- ${r}`), "");
-    }
-    if (p.exampleTest) lines.push("例示テスト:", p.exampleTest, "");
-    if (p.hints.length > 0) lines.push("ヒント:", ...p.hints.map((h) => `- ${h}`));
-    return lines.join("\n").trim();
-  };
 
   const editProblem = commands.editProblem;
 
