@@ -86,9 +86,11 @@ const SCAN_DIRS = SCANNED_PACKAGES.map((pkg) => `${pkg}/src`);
  *     例外の分類名をログへ渡す箇所）
  *   - `LogSafe` を型注釈を経由せず直接キャストする場所（相関 ID の生成点と
  *     `publicText` の本体）
- *   - **ブラウザ側の `console`**（#167 E4）。ADR 0012 D1 の射程は `apps/timer-sync` で、
- *     ブラウザの `console` が射程に入るかは未決である（本検査が `.tsx` を走査しないのと
- *     同じ理由）。`.ts` か `.tsx` かは「サーバか画面か」の代理にならない —
+ *   - **ブラウザ側の `console`**（#167 E4）。ADR 0012 D1 は「ブラウザの `console` は
+ *     本決定の対象外とする」と明示的に決めている（journal は運用者と侵入者の双方が
+ *     読みうるがブラウザの `console` は利用者本人しか見ないため、脅威が異なり規律を
+ *     分ける、という理由つき）。未決ではなく決定済みであり、この許可はその決定の帰結。
+ *     `.ts` か `.tsx` かは「サーバか画面か」の代理にならない —
  *     ADR 0015 MUST 2 が求める同期フックは JSX を持たない `.ts` なので、
  *     画面から配線を移すだけで拡張子が変わり、走査対象に入る。
  *
@@ -405,7 +407,8 @@ function main() {
   console.log(`[audit-log-hygiene] 走査対象: ${summary}`);
   console.log(
     `  走査していない .tsx: ${countSkippedTsx(scanDirs)} 件` +
-      "（ブラウザの console が ADR 0012 D1 の射程に入るかは別 Issue で判断する）",
+      "（ブラウザの console は ADR 0012 D1 が対象外と決定済み。本検査が .tsx を" +
+      "走査しないこと自体の妥当性は別 Issue で判断する）",
   );
 
   // 走査量のどの内訳も 0 件でないことを見る（ADR-0014 決定 8）。

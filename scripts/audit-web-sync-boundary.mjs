@@ -75,9 +75,14 @@
  *   new WS(url)` や改行を挟んだ `new\nWebSocket(` は{@link WS_CONSTRUCTION}の正規表現に
  *   当たらない。塞ぐには字句解析が要り、このプロジェクトは採らない（無状態・行単位という
  *   設計方針を優先する）
- * - **無力化の最短経路は `allowedImporters` に 1 行足すこと。** 実在検査も 0 件ガードも
- *   自己テストも素通りする（`audit-domain-side-effects` の `EXCLUDED_PACKAGES` と同型）。
- *   この構えは人手のレビューに依存している
+ * - **無力化の最短経路は `allowedImporters` に 1 行足すこと。** 本体の検査
+ *   （`node scripts/audit-web-sync-boundary.mjs`）は素通りする。実在確認・0 件ガード・
+ *   全単射照合も引っかからない（`audit-domain-side-effects` の `EXCLUDED_PACKAGES` と
+ *   同型）。**ただし自己テストは素通りしない** — `audit-web-sync-boundary.test.mjs` の
+ *   「timer-web の allowedImporters は同期フックと dispatch.ts の 2 本である」が
+ *   `deepEqual` で要素数 2 に固定しているため、1 行足すとこのテストが落ちる
+ *   （2026-08-19 実測）。無力化するには自己テストの書き換えも要る。この構えは、
+ *   本体検査と自己テストを合わせても、最終的には人手のレビューに依存している
  *
  * ## コメント行の扱い — **読み飛ばさない**
  *
