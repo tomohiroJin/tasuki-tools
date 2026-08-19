@@ -19,15 +19,15 @@ function roomWith(memberCount: 1 | 2 | 3): Room {
   return room;
 }
 
-/**
- * @requirements FR-007
- */
 describe('castVote', () => {
   it('voting 中は投票でき、票が記録される', () => {
     const room = castVote(roomWith(2), 'p2', five)._unsafeUnwrap();
     expect(room.round.votes.get('p2')).toEqual(five);
   });
 
+  /**
+   * @requirements FR-007
+   */
   it('公開前の選び直しは上書きになる', () => {
     let room = castVote(roomWith(2), 'p2', five)._unsafeUnwrap();
     room = castVote(room, 'p2', eight)._unsafeUnwrap();

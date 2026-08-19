@@ -194,9 +194,6 @@ async function openClient(shouldPong: (nth: number) => boolean): Promise<RawClie
   return client;
 }
 
-/**
- * @requirements US2
- */
 describe("WsAdapter ハートビート（死活監視・Issue #25）", () => {
   it.each([2, 4])(
     "pong を一切返さない接続は許容ミス %i 回ぶんで terminate され、onDisconnect が発火する",
@@ -276,6 +273,9 @@ describe("WsAdapter ハートビート（死活監視・Issue #25）", () => {
     expect(disconnected).toBe(false);
   });
 
+  /**
+   * @requirements US2
+   */
   it("1回だけ pong が欠落し、その後 pong が復帰した接続は terminate されない（誤検出しない）", async () => {
     // Given: 2 回目の ping にだけ pong を返さない
     let disconnected = false;
