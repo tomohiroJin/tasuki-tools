@@ -135,4 +135,35 @@ describe("バナーの自動消去の区別（EARS 2 補強）", () => {
     });
     expect(screen.queryByText(expected)).toBeNull();
   });
+
+  it("(c) 一時エラー表示中に切断すると、一時エラーの4秒タイマーで切断バナーが消えない（最終レビューで判明した回帰の再発防止）", () => {
+    const ws = enterLobby();
+    vi.useFakeTimers();
+
+    // RATE_LIMITED は (b) と同じく errorAction() の既定分類で "transient" になり、
+    // 4 秒の自動消去タイマーを持つバナーとして表示される。
+    sendServer(ws, { type: "error", code: "RATE_LIMITED", message: "too many" });
+    const transientMessage = displayMessageFor("RATE_LIMITED");
+    expect(screen.getByText(transientMessage)).toBeInTheDocument();
+
+    act(() => {
+      // 一時エラーの4秒タイマーが発火する前（1秒後）に切断する。
+      vi.advanceTimersByTime(1000);
+    });
+
+    act(() => {
+      ws.onclose?.();
+    });
+    expect(screen.getByText("接続が切れました。再接続しています...")).toBeInTheDocument();
+
+    act(() => {
+      // 一時エラーを表示してから合計5秒（>4秒）経過させる。旧 App.tsx では
+      // 一時エラーの4秒タイマーがバナーの種類を見ずに消去していたため、
+      // 切断中にもかかわらず切断バナーが消えていた（Issue #32 の意図に反する）。
+      // useBanner.show() は新しいバナーを出すたびに直前のタイマーを解除するので、
+      // ここでは切断バナーが残り続けるのが正しい。
+      vi.advanceTimersByTime(4000);
+    });
+    expect(screen.getByText("接続が切れました。再接続しています...")).toBeInTheDocument();
+  });
 });
