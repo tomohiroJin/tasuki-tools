@@ -490,6 +490,34 @@ describe("実在確認の配線: scripts/audit-web-sync-boundary.mjs", () => {
     assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
     assert.match(r.stderr, /宣言したパスが見つかりません: 配線が消えた\/実在確認/);
   });
+
+  test("全単射照合（diffTargets）を main が読んでいない状態にすると非ゼロで終了しない（判定が main へ配線されている）", () => {
+    // Given: diffTargets の呼び出しを、常に固定の偽の「宣言に無い web アプリ」を
+    // 返す版へすり替える。現在は宣言と実体が一致しているため、呼び出しを単に
+    // 削除しただけでは対照実行と結果が変わらず検知できない
+    // （2026-08-19 再レビュー。I1 で足した検査 0 だけが C1・C2 の規範の外に
+    // 置かれていた）。
+    const mutate = (s) =>
+      s.replace(
+        "const appDrift = diffTargets(WEB_APPS.map((a) => a.app), listWebAppDirs());",
+        'const appDrift = { missing: [], unexpected: ["配線が消えた/apps-web"] };',
+      );
+    const r = runScriptCopy("audit-web-sync-boundary.mjs", mutate);
+    // Then: まず「壊れたこと自体」を確かめる
+    assert.equal(
+      countOf(r.source, 'const appDrift = { missing: [], unexpected: ["配線が消えた/apps-web"] };'),
+      1,
+      "判定の呼び出しを壊せていません",
+    );
+    assert.equal(
+      countOf(r.source, "diffTargets(WEB_APPS.map((a) => a.app), listWebAppDirs())"),
+      0,
+      "元の呼び出しが残っています",
+    );
+    // Then: 差し込んだ偽のずれがそのまま名指しで赤に出る（＝main が appDrift を見て終了コードを決めている）
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.match(r.stderr, /実在する web アプリが WEB_APPS に宣言されていません: 配線が消えた\/apps-web/);
+  });
 });
 
 /**
