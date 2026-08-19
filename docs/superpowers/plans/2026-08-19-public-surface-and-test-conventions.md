@@ -198,8 +198,8 @@ git push -u origin refactor/168-public-surface-and-test-conventions
 ### Task 2: `countManagers` を非公開にし、テストを `canDemote` 経由へ寄せる
 
 **Files:**
-- Modify: `packages/timer-core/src/participants.ts:32`（`export function countManagers` → `function countManagers`）
-- Modify: `packages/timer-core/src/index.ts:121`（`export { countManagers, canDemote, canRemoveParticipant }` から `countManagers` を落とす）
+- Modify: `packages/timer-core/src/participants.ts`（`export function countManagers` → `function countManagers`。Task 1 は触っていないので 32 行目のまま）
+- Modify: `packages/timer-core/src/index.ts`（`export { countManagers, canDemote, canRemoveParticipant } from "./participants.js";` の行から `countManagers` を落とす。**Task 1 が 28 行消したので行番号は 121 → 93 へずれている。行番号ではなく行の文字列で当てること**）
 - Test: `packages/timer-core/test/participants.test.ts`
 
 **Interfaces:**
@@ -351,8 +351,8 @@ git push
 ### Task 3: `SessionConfigSchema` を非公開にし、テストを `CommandSchema` 経由へ寄せる
 
 **Files:**
-- Modify: `packages/timer-core/src/schemas.ts:65`（`export const SessionConfigSchema` → `const SessionConfigSchema`）
-- Modify: `packages/timer-core/src/index.ts:102`（`export { … }` から `SessionConfigSchema` を落とす）
+- Modify: `packages/timer-core/src/schemas.ts`（`export const SessionConfigSchema` → `const SessionConfigSchema`。Task 1 は触っていないので 65 行目のまま）
+- Modify: `packages/timer-core/src/index.ts`（`  SessionConfigSchema,` の行を消す。**Task 1 が 28 行消したので行番号は 102 → 74 へずれている。行番号ではなく行の文字列で当てること**）
 - Test: `packages/timer-core/test/schemas.problem-enabled.test.ts`
 
 **Interfaces:**
@@ -1353,8 +1353,8 @@ git push
 ### Task 9: 前提段階の冗長な検証を外す（SC031: 3 件 → 0）
 
 **Files:**
-- Modify: `packages/poker-core/tests/room.test.ts:22, 58`
-- Modify: `packages/protocol/tests/boundary.test.ts:13`
+- Modify: `packages/poker-core/tests/room.test.ts`（`expect(result.isOk()).toBe(true);` の 2 行。行番号は先行タスクでずれうるので文字列で当てること）
+- Modify: `packages/protocol/tests/boundary.test.ts`（同じ形の 1 行）
 
 **Interfaces:**
 - Consumes: なし
