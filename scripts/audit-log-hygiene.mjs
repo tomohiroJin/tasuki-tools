@@ -86,6 +86,13 @@ const SCAN_DIRS = SCANNED_PACKAGES.map((pkg) => `${pkg}/src`);
  *     例外の分類名をログへ渡す箇所）
  *   - `LogSafe` を型注釈を経由せず直接キャストする場所（相関 ID の生成点と
  *     `publicText` の本体）
+ *   - **ブラウザ側の `console`**（#167 E4）。ADR 0012 D1 は「ブラウザの `console` は
+ *     本決定の対象外とする」と明示的に決めている（journal は運用者と侵入者の双方が
+ *     読みうるがブラウザの `console` は利用者本人しか見ないため、脅威が異なり規律を
+ *     分ける、という理由つき）。未決ではなく決定済みであり、この許可はその決定の帰結。
+ *     `.ts` か `.tsx` かは「サーバか画面か」の代理にならない —
+ *     ADR 0015 MUST 2 が求める同期フックは JSX を持たない `.ts` なので、
+ *     画面から配線を移すだけで拡張子が変わり、走査対象に入る。
  *
  * **この分類は観測であって規則ではない。** 禁止構文の正本は `FORBIDDEN` 配列であり、
  * 上の類型で尽きる保証はない。当てはまらない件が出たらこの箇条書きを増やす。
@@ -104,6 +111,9 @@ export const ALLOWED_FILES = [
   "apps/poker-sync/src/server.ts",
   // #165 PR-2 で conn-rejected / derive-client-key-error が server.ts から移った先。
   "apps/poker-sync/src/adapters/ws-adapter.ts",
+  // #167 E4 で App.tsx（本検査の走査対象外）から移った、ブラウザ側の開発者コンソール出力。
+  // 出力先は利用者の devtools であってサーバーのログ経路ではない。文言・引数は移設前のまま。
+  "apps/timer-web/src/sync/use-timer-sync.ts",
 ];
 
 /** 走査結果に必ず存在しなければならないファイル（走査対象の消失を検出する）。 */
@@ -397,7 +407,8 @@ function main() {
   console.log(`[audit-log-hygiene] 走査対象: ${summary}`);
   console.log(
     `  走査していない .tsx: ${countSkippedTsx(scanDirs)} 件` +
-      "（ブラウザの console が ADR 0012 D1 の射程に入るかは別 Issue で判断する）",
+      "（ブラウザの console は ADR 0012 D1 が対象外と決定済み。本検査が .tsx を" +
+      "走査しないこと自体の妥当性は別 Issue で判断する）",
   );
 
   // 走査量のどの内訳も 0 件でないことを見る（ADR-0014 決定 8）。

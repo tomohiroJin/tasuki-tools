@@ -30,10 +30,10 @@
 
 **web 層の 3 行について**: 責務の分離そのものを定めているのは
 [`docs/adr/0015`](../adr/0015-web-layer-structure.md) です。本ガイドはその置き場を
-示します。`apps/poker-web` は既にこの形（`hooks/useSync.ts` へ集約）に従っており、
-`apps/timer-web` の再編は [#72](https://github.com/tomohiroJin/tasuki-tools/issues/72) の
-E4 で行います（`apps/timer-web/src/App.tsx` に WS 配線が直書きされているため。
-実測値は [`docs/adr/0015`](../adr/0015-web-layer-structure.md) の背景を参照）。
+示します。`apps/poker-web` は `hooks/useSync.ts` へ、`apps/timer-web` は `sync/use-timer-sync.ts` へ、
+それぞれ WS の配線を集約しています（timer-web の再編は
+[#167](https://github.com/tomohiroJin/tasuki-tools/issues/167) で完了）。
+この境界は `scripts/audit-web-sync-boundary.mjs` が機械で見ています。
 
 **`packages/rate-limit` について**: HMAC によるクライアント鍵導出とトークンバケツによる
 レート制限（#103）を提供する node 専用パッケージ。`node:crypto` / `node:net` に依存するため
