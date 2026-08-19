@@ -100,9 +100,12 @@ describe('parseServerMessage', () => {
   });
 
   it('異常系: ERROR_CODES に無いコードは err になる（画面が知らないコードを受け取らない）', () => {
+    // Given: 未知の code を含むメッセージを渡す呼び出し自体が前提の指定を兼ねる
+    // When
     const result = parseServerMessage(
       JSON.stringify({ type: 'error', code: 'made-up', message: 'x' }),
     );
+    // Then
     expect(result.isErr()).toBe(true);
   });
 });

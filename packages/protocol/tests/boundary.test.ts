@@ -14,13 +14,19 @@ describe("parseBoundaryMessage", () => {
   });
 
   it("Given JSON として壊れたテキスト / When パースする / Then stage が json で失敗する", () => {
+    // Given: 壊れた JSON テキストを渡す呼び出し自体が前提の指定を兼ねる
+    // When
     const result = parseBoundaryMessage(Schema, "{ 壊れている");
+    // Then
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr()).toEqual({ stage: "json" });
   });
 
   it("Given JSON だが形が違う / When パースする / Then stage が schema で失敗する", () => {
+    // Given: kind が一致しない JSON を渡す呼び出し自体が前提の指定を兼ねる
+    // When
     const result = parseBoundaryMessage(Schema, '{"kind":"farewell"}');
+    // Then
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr()).toEqual({ stage: "schema" });
   });
@@ -36,7 +42,9 @@ describe("parseBoundaryMessage", () => {
   });
 
   it("Given 制約に反する値 / When パースする / Then stage が schema で失敗する", () => {
+    // Given: 制約に反する値（空の name）を渡す呼び出し自体が前提の指定を兼ねる
     // 形は合うが minLength(1) に反する。パイプの検証まで効いていることの確認。
+    // When / Then（parseBoundaryMessage の呼び出しと検証が同じ式になる）
     expect(
       parseBoundaryMessage(Schema, '{"kind":"greet","name":""}')._unsafeUnwrapErr(),
     ).toEqual({ stage: "schema" });

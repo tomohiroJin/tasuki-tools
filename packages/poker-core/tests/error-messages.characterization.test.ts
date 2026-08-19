@@ -14,7 +14,8 @@ const ids = { participantId: 'p1', token: 't1' };
 
 describe('RoomError の文言（特性テスト）', () => {
   it('createRoom の名前が空なら invalid-name と定型文を返す', () => {
-    // Given / When
+    // Given: 空の名前を渡す呼び出し自体が前提の指定を兼ねる
+    // When
     const result = createRoom('room1', '   ', ids);
 
     // Then

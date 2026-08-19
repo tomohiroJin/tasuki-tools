@@ -29,17 +29,23 @@ describe('castVote', () => {
    * @requirements FR-007
    */
   it('公開前の選び直しは上書きになる', () => {
+    // Given
     let room = castVote(roomWith(2), 'p2', five)._unsafeUnwrap();
+    // When
     room = castVote(room, 'p2', eight)._unsafeUnwrap();
+    // Then
     expect(room.round.votes.get('p2')).toEqual(eight);
     expect(room.round.votes.size).toBe(1);
   });
 
   it('revealed 中の投票は not-voting エラー', () => {
+    // Given
     let room = roomWith(2);
     room = castVote(room, 'p1', five)._unsafeUnwrap();
     room = revealBy(room, 'p1')._unsafeUnwrap();
+    // When
     const result = castVote(room, 'p2', eight);
+    // Then
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr().code).toBe('not-voting');
   });
@@ -47,10 +53,15 @@ describe('castVote', () => {
 
 describe('shouldAutoReveal / applyAutoReveal（FR-008）', () => {
   it('接続中の全参加者が投票したら自動公開の条件が成立する', () => {
+    // Given
     let room = roomWith(2);
+    // When
     room = castVote(room, 'p1', five)._unsafeUnwrap();
+    // Then
     expect(shouldAutoReveal(room)).toBe(false);
+    // When
     room = castVote(room, 'p2', eight)._unsafeUnwrap();
+    // Then
     expect(shouldAutoReveal(room)).toBe(true);
     expect(applyAutoReveal(room).round.status).toBe('revealed');
   });
@@ -61,41 +72,57 @@ describe('shouldAutoReveal / applyAutoReveal（FR-008）', () => {
   });
 
   it('投票中の途中参加で自動公開が保留される（Clarification Q3）', () => {
+    // Given
     let room = roomWith(2);
     room = castVote(room, 'p1', five)._unsafeUnwrap();
     room = castVote(room, 'p2', eight)._unsafeUnwrap();
+    // Then
     expect(shouldAutoReveal(room)).toBe(true);
+    // When
     room = joinRoom(room, 'じろう', { participantId: 'p3', token: 't3' })._unsafeUnwrap().room;
+    // Then
     expect(shouldAutoReveal(room)).toBe(false);
     expect(applyAutoReveal(room).round.status).toBe('voting');
   });
 
   it('revealed のルームでは成立しない（再公開しない）', () => {
+    // Given
     let room = castVote(roomWith(1), 'p1', five)._unsafeUnwrap();
+    // When
     room = applyAutoReveal(room);
+    // Then
     expect(shouldAutoReveal(room)).toBe(false);
   });
 });
 
 describe('revealBy（FR-009）', () => {
   it('ホストは全員の投票を待たずに公開できる', () => {
+    // Given
     let room = roomWith(2);
     room = castVote(room, 'p1', five)._unsafeUnwrap();
+    // When
     const revealed = revealBy(room, 'p1')._unsafeUnwrap();
+    // Then
     expect(revealed.round.status).toBe('revealed');
     expect(revealed.round.votes.size).toBe(1);
   });
 
   it('非ホストの公開は not-host エラー', () => {
+    // Given: roomWith(2) の呼び出し自体が前提の部屋を用意する
+    // When
     const result = revealBy(roomWith(2), 'p2');
+    // Then
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr().code).toBe('not-host');
   });
 
   it('revealed 中の再公開は not-voting エラー', () => {
+    // Given
     let room = roomWith(2);
     room = revealBy(room, 'p1')._unsafeUnwrap();
+    // When
     const result = revealBy(room, 'p1');
+    // Then
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr().code).toBe('not-voting');
   });
@@ -110,19 +137,28 @@ describe('nextRound（FR-011）', () => {
   }
 
   it('revealed → voting に戻り、全票がリセットされる', () => {
+    // Given: revealedRoom() の呼び出し自体が前提の部屋を用意する
+    // When
     const room = nextRound(revealedRoom(), 'p1')._unsafeUnwrap();
+    // Then
     expect(room.round.status).toBe('voting');
     expect(room.round.votes.size).toBe(0);
   });
 
   it('voting 中の next-round は not-revealed エラー', () => {
+    // Given: roomWith(2) の呼び出し自体が前提の部屋を用意する
+    // When
     const result = nextRound(roomWith(2), 'p1');
+    // Then
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr().code).toBe('not-revealed');
   });
 
   it('非ホストの next-round は not-host エラー', () => {
+    // Given: revealedRoom() の呼び出し自体が前提の部屋を用意する
+    // When
     const result = nextRound(revealedRoom(), 'p2');
+    // Then
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr().code).toBe('not-host');
   });

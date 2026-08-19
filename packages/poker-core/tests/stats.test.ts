@@ -34,7 +34,10 @@ describe('computeStats: modes（FR-010 / Edge Case: 同数最頻）', () => {
   });
 
   it('同数の最頻値はすべて返す', () => {
+    // Given: 渡す票の配列自体が前提の指定を兼ねる
+    // When
     const { modes } = computeStats([n(5), n(5), n(8), n(8), n(13)]);
+    // Then
     expect(modes).toHaveLength(2);
     expect(modes).toEqual(expect.arrayContaining([n(5), n(8)]));
   });

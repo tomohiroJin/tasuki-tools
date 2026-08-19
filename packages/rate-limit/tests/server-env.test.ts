@@ -18,6 +18,8 @@ describe("isLoopbackHost", () => {
   it.each(["localhost", "::1", "[::1]", "127.0.0.1", "127.1.2.3"])(
     "%s はループバック扱い",
     (host) => {
+      // Given: host の各表記を渡す呼び出し自体が前提の指定を兼ねる
+      // When / Then（isLoopbackHost は純粋関数なので呼び出しと検証が同じ式になる）
       expect(isLoopbackHost(host)).toBe(true);
     },
   );
@@ -25,6 +27,8 @@ describe("isLoopbackHost", () => {
   it.each(["0.0.0.0", "[0.0.0.0]", "example.com", "10.0.0.1", "::", "[::]"])(
     "%s はループバック外",
     (host) => {
+      // Given: host の各表記を渡す呼び出し自体が前提の指定を兼ねる
+      // When / Then（isLoopbackHost は純粋関数なので呼び出しと検証が同じ式になる）
       expect(isLoopbackHost(host)).toBe(false);
     },
   );
@@ -47,6 +51,8 @@ describe("isProductionEnv", () => {
   it.each(["Production", "PRODUCTION", " production", "production\n"])(
     "表記ゆれ（%s）でも本番として判定される",
     (nodeEnv) => {
+      // Given: nodeEnv の各表記を渡す呼び出し自体が前提の指定を兼ねる
+      // When / Then（isProductionEnv は純粋関数なので呼び出しと検証が同じ式になる）
       expect(isProductionEnv({ NODE_ENV: nodeEnv })).toBe(true);
     },
   );
