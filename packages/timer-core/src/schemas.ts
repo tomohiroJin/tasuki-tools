@@ -62,7 +62,7 @@ const difficultyStr = v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_CONFIG_
 
 // ─── SessionConfig スキーマ ─────────────────────────────────────────────────
 
-export const SessionConfigSchema = v.object({
+const SessionConfigSchema = v.object({
   language: languageStr,
   difficulty: difficultyStr,
   // 境界では 1 人以上を許可する（ルームは作成者 1 人で始まり、join で増える＝2層モデル）。

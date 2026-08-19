@@ -71,7 +71,6 @@ export { evolve, advanceDriver } from "./evolve.js";
 // スキーマ
 export type { ServerMsg, Command } from "./schemas.js";
 export {
-  SessionConfigSchema,
   ProblemSchema,
   CommandSchema,
   RoomSchema,
