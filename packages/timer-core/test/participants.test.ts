@@ -8,7 +8,7 @@
 
 import { describe, it, expect } from "vitest";
 import type { Participant } from "../src/aggregate.js";
-import { countManagers, canDemote, canRemoveParticipant } from "../src/participants.js";
+import { canDemote, canRemoveParticipant } from "../src/participants.js";
 
 /** テスト用の参加者を組み立てる小ヘルパー。差分だけを書けば済むようにする。 */
 function participant(overrides: Partial<Participant> & { participantId: string }): Participant {
@@ -23,33 +23,54 @@ function participant(overrides: Partial<Participant> & { participantId: string }
   };
 }
 
-describe("countManagers", () => {
-  it("host / editor を数え、viewer は数えない", () => {
+describe("編集者以上の数え方（canDemote の可否として観測する）", () => {
+  it("編集者以上が 2 名いれば片方を降格できる", () => {
     // Given
     const participants: Participant[] = [
       participant({ participantId: "p1", role: "host" }),
       participant({ participantId: "p2", role: "editor" }),
-      participant({ participantId: "p3", role: "viewer" }),
     ];
-    // When / Then
-    expect(countManagers(participants)).toBe(2);
+    // When
+    const allowed = canDemote(participants, "p2");
+    // Then
+    expect(allowed).toBe(true);
   });
 
-  it("isPlaceholder: true の代理参加者は role が editor でも数えない", () => {
-    // Given（代理参加者は connId: null / isPlaceholder: true / role: "editor" で登録されるが
-    // Web 非接続で自分では操作できないため、不変条件の頭数に入れると意味を失う（plan.md D3 注意1））
+  it("編集者以上が 1 名だけなら降格できない", () => {
+    // Given
     const participants: Participant[] = [
-      participant({ participantId: "p1", role: "editor" }),
-      participant({
-        participantId: "proxy-1",
-        connId: null,
-        role: "editor",
-        presence: "offline",
-        isPlaceholder: true,
-      }),
+      participant({ participantId: "p1", role: "host" }),
+      participant({ participantId: "p2", role: "viewer" }),
     ];
-    // When / Then
-    expect(countManagers(participants)).toBe(1);
+    // When
+    const allowed = canDemote(participants, "p1");
+    // Then
+    expect(allowed).toBe(false);
+  });
+
+  it("見学者を何人足しても編集者以上の頭数には入らない", () => {
+    // Given
+    const participants: Participant[] = [
+      participant({ participantId: "p1", role: "host" }),
+      participant({ participantId: "p2", role: "viewer" }),
+      participant({ participantId: "p3", role: "viewer" }),
+    ];
+    // When
+    const allowed = canDemote(participants, "p1");
+    // Then
+    expect(allowed).toBe(false);
+  });
+
+  it("代理参加者は編集者であっても頭数に入らない", () => {
+    // Given
+    const participants: Participant[] = [
+      participant({ participantId: "p1", role: "host" }),
+      participant({ participantId: "proxy", role: "editor", isPlaceholder: true }),
+    ];
+    // When
+    const allowed = canDemote(participants, "p1");
+    // Then
+    expect(allowed).toBe(false);
   });
 });
 

@@ -90,6 +90,6 @@ export { buildCompletionRecord } from "./records.js";
 // 権限判定・不変条件（Issue #22）
 export type { Role, PermissionInput } from "./permissions.js";
 export { checkPermission, isAllowed } from "./permissions.js";
-export { countManagers, canDemote, canRemoveParticipant } from "./participants.js";
+export { canDemote, canRemoveParticipant } from "./participants.js";
 export type { RemovalNotification } from "./participants.js";
 export { removalNotificationFor } from "./participants.js";
