@@ -785,6 +785,171 @@ git push
 
 ---
 
+### Task 4b: ドメインエラー型の検査が非公開の宣言も見られるようにする
+
+**このタスクは計画の初版に無い。** Task 1 が `packages/timer-core/src/errors.ts` の 4 インターフェースから
+`export` を外した結果、`scripts/audit-domain-error-shape.mjs` が「宣言が見つかりません」で
+**exit 1 になった**（Task 4 の実装中に発見。controller が実測で再現）。
+
+**Files:**
+- Modify: `scripts/audit-domain-error-shape.mjs`（`findDeclarationSpan` の `startRe`）
+- Test: `scripts/audit-domain-error-shape.test.mjs`
+
+**Interfaces:**
+- Consumes: Task 1 の結果（4 インターフェースが非公開になっている）
+- Produces: なし
+
+**なぜ検査側を直すのか（裁定 R7）**: [`docs/adr/0016`](../../adr/0016-core-domain-representation.md) 決定 2 項目 3 は
+「ドメインエラーは**判別子（`type` または `code`）と機械可読な詳細のみ**を持つ」と定めており、
+**公開されているかどうかを条件にしていない**。合併メンバーに `message?:` を足す危険は
+`export` の有無で変わらない。`DOMAIN_ERROR_TARGETS` から 4 型を落とす案は、
+自分たちの改修に合わせて検査を弱めることになるので採らない。
+
+- [ ] **Step 1: 現状の赤を再現する**
+
+```bash
+cd /home/vscode/tasuki-work
+node scripts/audit-domain-error-shape.mjs
+echo "exit=$?"
+```
+
+期待: 4 件の「型宣言が見つかりません」で exit 1。
+
+- [ ] **Step 2: 失敗するテストを書く**
+
+`scripts/audit-domain-error-shape.test.mjs` の `describe("findDeclarationSpan: …")` へ足す。
+
+```javascript
+  test("export の付かない interface も切り出せる（非公開でもドメインエラー型は検査対象）", () => {
+    // Given（#168 Task 1 で timer-core の合併メンバーが非公開になった形）
+    const src = [
+      "interface Unauthorized {",
+      "  code: 'unauthorized';",
+      "  op: string;",
+      "}",
+      "",
+    ].join("\n");
+    // When
+    const span = findDeclarationSpan(src, "Unauthorized");
+    // Then
+    assert.equal(span.startLine, 1);
+    assert.equal(span.endLine, 4);
+  });
+
+  test("export の付かない type も切り出せる", () => {
+    // Given
+    const src = "type RoomError = { code: 'x' };\n";
+    // When
+    const span = findDeclarationSpan(src, "RoomError");
+    // Then
+    assert.deepEqual(span, {
+      startLine: 1,
+      endLine: 1,
+      lines: ["type RoomError = { code: 'x' };"],
+    });
+  });
+
+  test("非公開の宣言でも禁止フィールドを見つける", () => {
+    // Given
+    const sources = new Map([
+      ["packages/x-core/src/round.ts", "interface RoundError {\n  code: 'x';\n  message: string;\n}\n"],
+    ]);
+    // When
+    const problems = findDomainErrorProblems(
+      { file: "packages/x-core/src/round.ts", type: "RoundError" },
+      sources,
+    );
+    // Then
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /message/);
+  });
+```
+
+- [ ] **Step 3: テストが落ちることを確かめる**
+
+```bash
+cd /home/vscode/tasuki-work
+node --test scripts/audit-domain-error-shape.test.mjs
+```
+
+期待: 足した 3 件が FAIL（`span` が `null` になる）。
+
+- [ ] **Step 4: `startRe` を直す**
+
+`scripts/audit-domain-error-shape.mjs` の `findDeclarationSpan` の中。
+
+```javascript
+  // `export` は任意にする。ADR-0016 決定 2 項目 3 は「ドメインエラーは判別子と機械可読な
+  // 詳細のみを持つ」と定めており、**公開されているかどうかを条件にしていない**。
+  // #168 Task 1 で timer-core の合併メンバーが非公開になったとき、`export` 必須の
+  // 正規表現では「宣言が見つかりません」に落ちて検査が空振りした（実測）。
+  const startRe = new RegExp(`^\\s*(?:export\\s+)?(type|interface)\\s+${typeName}\\b`);
+```
+
+docstring の「何を見ていないか」へ次を足す。
+
+```
+ * - **`export` の有無は見ていない。** 非公開の宣言も同じ規範に服する（ADR-0016 決定 2 項目 3 は
+ *   公開かどうかを条件にしていない）。その代わり、**同名の宣言がファイル内に複数ある場合は
+ *   最初に現れたものだけ**を読む。走査対象はファイルと型名で明示宣言しているため、
+ *   同名の別宣言を作らない限り問題にならない。
+```
+
+- [ ] **Step 5: テストが通り、検査が緑になることを確かめる**
+
+```bash
+cd /home/vscode/tasuki-work
+node --test scripts/audit-domain-error-shape.test.mjs
+node scripts/audit-domain-error-shape.mjs
+echo "exit=$?"
+```
+
+期待: 自己テスト全件 PASS。検査は「ドメインエラー型の形 OK」で exit 0。
+
+- [ ] **Step 6: 検査が死んでいないことを、わざと壊して確かめる**
+
+`export` を任意にしたことで**何も見つけられなくなっていない**ことを見る。
+
+```bash
+cd /home/vscode/tasuki-work
+grep -cF "  op: SessionOp;" packages/timer-core/src/errors.ts
+```
+
+`packages/timer-core/src/errors.ts` の非公開になった `Unauthorized` の宣言の中へ
+`  message: string;` を 1 行足し、`grep -cF "  message: string;"` で足したことを数えてから
+`node scripts/audit-domain-error-shape.mjs` を走らせ、**その行番号を名指しして赤になる**ことを確認する。
+確認後 `git checkout -- packages/timer-core/src/errors.ts` で戻し、`grep -cF` で戻ったことを数える。
+
+**赤にならなかったら、そこで止めて報告する。**「見つけられるようにした」つもりで
+実際には見つけていない、という状態がいちばん危ない。
+
+- [ ] **Step 7: scripts の自己テストが全件通ることを確かめる**
+
+```bash
+cd /home/vscode/tasuki-work
+bash -c 'set -uo pipefail; targets="$(node scripts/list-scan-targets.mjs script-tests)"; node --test $targets 2>&1 | tail -8'
+```
+
+期待: `# fail 0`。この赤には `scan-target-wiring.test.mjs` の 2 件も含まれていたので、
+それらも緑に戻ることを確認する。
+
+- [ ] **Step 8: コミットして push**
+
+```bash
+cd /home/vscode/tasuki-work
+git add scripts/audit-domain-error-shape.mjs scripts/audit-domain-error-shape.test.mjs
+git commit -m "fix(scripts): ドメインエラー型の検査が非公開の宣言も見られるようにする
+
+- ADR-0016 決定 2 項目 3 は公開かどうかを条件にしていない。export を任意にする
+- #168 Task 1 で合併メンバーが非公開になり、検査が「宣言が見つかりません」で落ちていた
+- 非公開の宣言へ message を足して赤になることを確認した
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+git push
+```
+
+---
+
 ### Task 5: `export *` を禁じる機械検査を新設し、4 箇所へ配線する
 
 **Files:**
