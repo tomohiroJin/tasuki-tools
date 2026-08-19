@@ -38,6 +38,10 @@
  *   見ないので、たとえばハンドラが `code` を無視して即席の文字列を組み立てても緑になる。
  *   そちらは文言の特性テスト（`apps/poker-sync/tests/error-messages.characterization.test.ts`）の領分である。
  * - **型の外に置いた文言**（`error-messages.ts` の `switch`）は規範どおりなので、当然見ない。
+ * - **`export` の有無は見ていない。** 非公開の宣言も同じ規範に服する（ADR-0016 決定 2 項目 3 は
+ *   公開かどうかを条件にしていない）。その代わり、**同名の宣言がファイル内に複数ある場合は
+ *   最初に現れたものだけ**を読む。走査対象はファイルと型名で明示宣言しているため、
+ *   同名の別宣言を作らない限り問題にならない。
  *
  * ## 範囲の決め方 — **宣言の 1 個ぶんだけを読む**
  *
@@ -153,7 +157,11 @@ function fieldRegExp(name) {
  */
 export function findDeclarationSpan(source, typeName) {
   const lines = source.split("\n");
-  const startRe = new RegExp(`^\\s*export\\s+(type|interface)\\s+${typeName}\\b`);
+  // `export` は任意にする。ADR-0016 決定 2 項目 3 は「ドメインエラーは判別子と機械可読な
+  // 詳細のみを持つ」と定めており、**公開されているかどうかを条件にしていない**。
+  // #168 Task 1 で timer-core の合併メンバーが非公開になったとき、`export` 必須の
+  // 正規表現では「宣言が見つかりません」に落ちて検査が空振りした（実測）。
+  const startRe = new RegExp(`^\\s*(?:export\\s+)?(type|interface)\\s+${typeName}\\b`);
 
   let start = -1;
   let kind = null;

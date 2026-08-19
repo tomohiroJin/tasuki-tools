@@ -79,6 +79,50 @@ describe("findDeclarationSpan: 実物にある 4 つの書き方を切り出せ�
     assert.equal(span.startLine, 1);
     assert.equal(span.endLine, null);
   });
+
+  test("export の付かない interface も切り出せる（非公開でもドメインエラー型は検査対象）", () => {
+    // Given（#168 Task 1 で timer-core の合併メンバーが非公開になった形）
+    const src = [
+      "interface Unauthorized {",
+      "  code: 'unauthorized';",
+      "  op: string;",
+      "}",
+      "",
+    ].join("\n");
+    // When
+    const span = findDeclarationSpan(src, "Unauthorized");
+    // Then
+    assert.equal(span.startLine, 1);
+    assert.equal(span.endLine, 4);
+  });
+
+  test("export の付かない type も切り出せる", () => {
+    // Given
+    const src = "type RoomError = { code: 'x' };\n";
+    // When
+    const span = findDeclarationSpan(src, "RoomError");
+    // Then
+    assert.deepEqual(span, {
+      startLine: 1,
+      endLine: 1,
+      lines: ["type RoomError = { code: 'x' };"],
+    });
+  });
+
+  test("非公開の宣言でも禁止フィールドを見つける", () => {
+    // Given
+    const sources = new Map([
+      ["packages/x-core/src/round.ts", "interface RoundError {\n  code: 'x';\n  message: string;\n}\n"],
+    ]);
+    // When
+    const problems = findDomainErrorProblems(
+      { file: "packages/x-core/src/round.ts", type: "RoundError" },
+      sources,
+    );
+    // Then
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /message/);
+  });
 });
 
 describe("findDomainErrorProblems", () => {
