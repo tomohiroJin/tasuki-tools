@@ -390,6 +390,33 @@ describe("0 件ガードの配線: scripts/audit-domain-error-shape.mjs", () => 
   });
 });
 
+describe("0 件ガードの配線: scripts/audit-web-sync-boundary.mjs", () => {
+  test("素のままなら成功し、走査量を名乗る", () => {
+    const r = runScriptCopy("audit-web-sync-boundary.mjs", (s) => s);
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, /\[audit-web-sync-boundary\] 走査対象: /);
+  });
+
+  test("宣言を空にすると 0 件ガードで落ちる", () => {
+    const mutate = (s) => s.replace(/export const WEB_APPS = \[/, "export const WEB_APPS = []; const UNUSED = [");
+    const r = runScriptCopy("audit-web-sync-boundary.mjs", mutate);
+    // まず「壊れたこと自体」を確かめる（verify-the-break-itself）。
+    assert.equal(countOf(r.source, "export const WEB_APPS = []; const UNUSED = ["), 1, "宣言を壊せていません");
+    assert.notEqual(r.status, 0, "宣言が空でも通ってしまう");
+    assert.match(r.stderr, /走査対象が 0 件/);
+  });
+
+  test("走査するディレクトリ名を潰すと 0 件ガードで落ちる（行数ではなく中身を見ている）", () => {
+    // 宣言の配列長は変わらないので、行数を見るガードではこの変異を検出できない。
+    const mutate = (s) => s.replace(/\/src\/\*\.ts/g, "/does-not-exist/*.ts");
+    const r = runScriptCopy("audit-web-sync-boundary.mjs", mutate);
+    // まず「壊れたこと自体」を確かめる（verify-the-break-itself）。
+    assert.equal(countOf(r.source, "/src/*.ts"), 0, "走査先を壊せていません（/src/*.ts が残っています）");
+    assert.equal(countOf(r.source, "/does-not-exist/*.ts"), 2, "置換が想定件数と違います");
+    assert.notEqual(r.status, 0, "走査先を失っても通ってしまう");
+  });
+});
+
 /**
  * **列挙ではなく導出で見るガード**（#166 / #72 E3）。
  *
