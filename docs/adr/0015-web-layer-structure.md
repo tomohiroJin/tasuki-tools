@@ -61,3 +61,11 @@ timer-web が後者を持たないためである。
   （[`docs/adr/0007`](./0007-abstraction-criteria.md) 追記の条件）。現状 `apps/poker-web/tests/` に
   `usePokerSync` の単体テストは無い。
 - 利用者から見える振る舞い（公開 URL・プロトコル・画面の挙動）は変えない。
+
+> **追記（2026-08-19・#167 / #72 E4）**: MUST 2 の機械検査を
+> `scripts/audit-web-sync-boundary.mjs` として置いた（CI の `quality` ジョブ）。
+> 許可リスト方式で、`apps/timer-web` は同期クライアントの import 元を
+> `src/sync/use-timer-sync.ts` の 1 本に、`apps/poker-web` は `new WebSocket(` の
+> 保持先を `src/hooks/useSync.ts` の 1 本に縛る。**検査が見ていないもの**
+> （re-export・動的 import・`.mts`・`src/dist`・`allowedImporters` への追記による無力化）は
+> 検査の docstring に列挙してある。
