@@ -225,10 +225,13 @@ sed -n '26,60p' packages/timer-core/test/participants.test.ts
 
 - [ ] **Step 2: `canDemote` 経由の同値なテストを先に書く（Red にはならない。既存の主張の言い換え）**
 
-`describe("countManagers", …)` を次の形へ置き換える。`participant()` ヘルパーは既存のものをそのまま使う。
+`describe("countManagers", …)`（26 行目）を次の形へ置き換える。`participant()` ヘルパーは既存のものをそのまま使う。
+
+**56 行目に既存の `describe("canDemote")` がある。**同名にせず、下記の名前を使う
+（同じ関数を別の観点から見る describe が 2 つ並ぶので、観点を名前で区別する）。
 
 ```typescript
-describe("canDemote: 編集者以上の数え方", () => {
+describe("編集者以上の数え方（canDemote の可否として観測する）", () => {
   it("編集者以上が 2 名いれば片方を降格できる", () => {
     // Given
     const participants: Participant[] = [
@@ -1455,6 +1458,11 @@ cd /home/vscode/tasuki-work
 node scripts/audit-structure.mjs | grep SC032
 ```
 
+**絶対値では見ない。増分で見る。** Task 2・Task 3・Task 9 はテストの本体行を書き換えるため、
+**SC032 の分母は 1432 から動く**（Task 9 の 3 行削除だけで 1432 → 1431 になることを実測済み）。
+Task 10 の Step 1 でそのときの分子・分母を控え、以降は
+「**分子が +N、分母は不変**」で判定する。分母が動いたら、コメント以外のものを足している。
+
 ---
 
 ### Task 10: `packages/` の区切りを入れる（93 件 / 14 ファイル）
@@ -1480,12 +1488,16 @@ node scripts/audit-structure.mjs | grep SC032
 
 **Interfaces:** Consumes: Task 9 の結果（`room.test.ts` / `boundary.test.ts` は Task 9 でも触る）。Produces: なし
 
-- [ ] **Step 1: 変更前の値を記録する**
+- [ ] **Step 1: 変更前の値を記録する（以降の基準になる）**
 
 ```bash
 cd /home/vscode/tasuki-work
-node scripts/audit-structure.mjs | grep SC032   # 期待: 1157/1432（80.8%）
+node scripts/audit-structure.mjs | grep SC032
 ```
+
+**この分子・分母を控える。** Task 1〜9 がテスト本体を書き換えているため、
+着手前の 1157/1432 とは違う値になっている（Task 9 の 3 行削除だけで分母が 1 減ることを実測済み）。
+Task 10〜13 はこの値からの**増分**で判定する。
 
 - [ ] **Step 2: 書き方の見本に従って 14 ファイルへ区切りを入れる**
 
@@ -1505,14 +1517,15 @@ node scripts/audit-structure.mjs | grep SC032   # 期待: 1157/1432（80.8%）
     });
 ```
 
-- [ ] **Step 3: 分子が 93 増えたことを確かめる**
+- [ ] **Step 3: 分子が 93 増え、分母が動いていないことを確かめる**
 
 ```bash
 cd /home/vscode/tasuki-work
-node scripts/audit-structure.mjs | grep SC032   # 期待: 1250/1432（87.3%）
+node scripts/audit-structure.mjs | grep SC032
 ```
 
-**分母が 1432 から動いていたら止まる。** 区切りコメントは `isMeaningfulLine` が除外するため、
+Step 1 で控えた値と比べ、**分子が +93・分母が同じ**であることを確かめる。
+**分母が動いていたら止まる。** 区切りコメントは `isMeaningfulLine` が除外するため、
 分母は動かないはずである。動いたなら、コメント以外のものを足している。
 
 - [ ] **Step 4: テストが緑のままであることを確かめる**
@@ -1575,12 +1588,14 @@ git push
 
 - [ ] **Step 1: 24 ファイルへ区切りを入れる**（Task 10 Step 2 と同じ作法）
 
-- [ ] **Step 2: 分子が 91 増えたことを確かめる**
+- [ ] **Step 2: 分子が 91 増え、分母が動いていないことを確かめる**
 
 ```bash
 cd /home/vscode/tasuki-work
-node scripts/audit-structure.mjs | grep SC032   # 期待: 1341/1432（93.6%）
+node scripts/audit-structure.mjs | grep SC032
 ```
+
+Task 10 Step 3 の値と比べ、**分子が +91・分母が同じ**であること。動いたら止まる。
 
 - [ ] **Step 3: テストが緑のままであることを確かめる**
 
@@ -1640,12 +1655,14 @@ git push
 
 - [ ] **Step 1: 17 ファイルへ区切りを入れる**
 
-- [ ] **Step 2: 分子が 80 増えたことを確かめる**
+- [ ] **Step 2: 分子が 80 増え、分母が動いていないことを確かめる**
 
 ```bash
 cd /home/vscode/tasuki-work
-node scripts/audit-structure.mjs | grep SC032   # 期待: 1421/1432（99.2%）
+node scripts/audit-structure.mjs | grep SC032
 ```
+
+Task 11 Step 2 の値と比べ、**分子が +80・分母が同じ**であること。動いたら止まる。
 
 - [ ] **Step 3: テストが緑のままであることを確かめる**
 
@@ -1696,8 +1713,12 @@ git push
 
 ```bash
 cd /home/vscode/tasuki-work
-node scripts/audit-structure.mjs | grep SC032   # 期待: 1432/1432（100.0%）
+node scripts/audit-structure.mjs | grep SC032
 ```
+
+**期待: 分子 = 分母（100.0%）。** 残り 11 件を入れて分子が分母に追いつく。
+追いつかない場合、Task 10〜12 のいずれかで取りこぼしがある。差分の出ているファイルを
+`scripts/audit-structure.mjs` の `sc032GwtMarkers` を 1 ファイルずつ当てて特定する。
 
 - [ ] **Step 3: テストが緑のままであることを確かめる**
 
