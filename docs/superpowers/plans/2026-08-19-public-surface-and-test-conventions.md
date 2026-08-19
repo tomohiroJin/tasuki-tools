@@ -1353,11 +1353,35 @@ grep -c "^export \*" packages/poker-core/src/index.ts   # 期待: 0（戻った�
 node scripts/audit-public-surface.mjs; echo "exit=$?"   # 期待: exit=0
 ```
 
+- [ ] **Step 6b: 新設した検査の配線テストを足す（裁定 R10）**
+
+`scripts/scan-target-wiring.test.mjs` の配線テストは**検査ごとに手で列挙する**形になっている
+（`git ls-files` から導出されるのは「走査量を名乗る」テストだけ）。Task 4 のレビューで
+「新しいガードに配線テストが無い」を Important として払ったばかりなので、新設した
+`audit-public-surface.mjs` にも同じものを置く。**Task 5 ではなくここに置くのは、
+既存の作法が「素のままなら成功し、走査量を名乗る」という緑の対照を含んでおり、
+Task 5 の時点では `export *` が残っていて exit 1 だからである。**
+
+既存の `describe("0 件ガードの配線: scripts/audit-domain-error-shape.mjs", …)` を手本に、
+次の 3 件を持つ `describe("0 件ガードの配線: scripts/audit-public-surface.mjs", …)` を足す。
+
+1. **緑の対照**: 恒等関数で複製を走らせ、exit 0 かつ `走査対象: ` を名乗る
+2. **0 件ガード**: 走査対象が 0 件になるよう壊し、非ゼロ終了かつ「走査するエントリが 0 件です」が出る
+3. **判定の配線**: `findWildcardReexports(...)` の呼び出しを、**認識できる偽の問題を差し込む式**へ
+   置き換え、非ゼロ終了かつ差し込んだ文言が stderr に出る（消すのではなく差し込む。
+   `main()` が結果を読んで終了コードを決めていることまで見るため）
+
+各テストで **`countOf` により「壊れたこと自体」を先に確かめる**こと（この作法は既存テストが全部持っている）。
+
+**確認**: 足したテストが本当に効くことを、`scripts/audit-public-surface.mjs` の
+`main()` から `findWildcardReexports` の呼び出しを一時的に断ち切って赤くなるかで見る。
+壊す前と後を `grep -cF` で数え、戻したあとも数える。
+
 - [ ] **Step 7: コミットして push**
 
 ```bash
 cd /home/vscode/tasuki-work
-git add packages/poker-core/src/index.ts
+git add packages/poker-core/src/index.ts scripts/scan-target-wiring.test.mjs
 git commit -m "refactor(poker-core): index.ts の export * を明示列挙へ置き換える
 
 - 7 行の export * を 43 記号（値 26 / 型 17）の明示列挙にする（ADR-0016 決定 2 項目 2）
