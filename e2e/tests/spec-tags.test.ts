@@ -143,18 +143,20 @@ describe('specs のタグの書き方', () => {
   const specs = readSpecs();
 
   it('Given specs / When 走査する / Then シナリオが 1 件以上見つかる', () => {
-    // Given / When: 走査先そのものが空だと、以下の検査は何も検証しない
+    // Given: describe 内で読み込んだ specs
+    // When: 走査する
     const titles = specs.flatMap((spec) => [
       ...titlesOf(spec.source, DESCRIBE_CALL),
       ...titlesOf(spec.source, TEST_CALL),
     ]);
-    // Then
+    // Then: 走査先そのものが空だと、以下の検査は何も検証しない
     expect(specs.length, 'spec ファイル').toBeGreaterThan(0);
     expect(titles.length, '抜き出したタイトル').toBeGreaterThan(0);
   });
 
   it('Given specs / When タイトルのタグを見る / Then 未知のタグが無い', () => {
-    // Given / When: タイトルに現れる `@…` を集める
+    // Given: describe 内で読み込んだ specs
+    // When: タイトルに現れる `@…` を集める
     const unknown: string[] = [];
     for (const spec of specs) {
       const titles = [
@@ -175,7 +177,8 @@ describe('specs のタグの書き方', () => {
   });
 
   it('Given specs / When 書き方を見る / Then ネイティブの tag 指定を使っていない', () => {
-    // Given / When: タイトルの外でタグを指定している箇所
+    // Given: describe 内で読み込んだ specs
+    // When: タイトルの外でタグを指定している箇所を探す
     const used = specs
       .filter((spec) => NATIVE_TAG_OPTION.test(spec.source))
       .map((spec) => spec.file);

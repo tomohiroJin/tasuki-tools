@@ -69,7 +69,8 @@ describe('FRAGMENT_SOURCES とディスク上の断片の一致', () => {
   });
 
   it('Given FRAGMENT_SOURCES の各エントリ / When 実在を確認する / Then すべて読める', () => {
-    // Given / When: 各パスが実在し、内容を持つこと
+    // Given: 手書きの配列 declared の各エントリ
+    // When: 実在し、内容を持つことを確認する
     for (const source of declared) {
       // Then
       expect(existsSync(source), `${source} が存在しない`).toBe(true);

@@ -58,7 +58,8 @@ describe('toLocalSiteConfig', () => {
   });
 
   it('Given 変換結果 / When 差分の行を見る / Then アドレス行だけが置き換わっている', () => {
-    // Given / When
+    // Given: describe 内で作った変換結果
+    // When: 差分の行を見る
     const [index] = changedLineIndices(PRODUCTION_CONF, local);
     expect(index).toBeGreaterThanOrEqual(0);
     // Then
@@ -78,7 +79,8 @@ describe('toLocalSiteConfig', () => {
     'X-Frame-Options',
     'Referrer-Policy',
   ])('Given 変換結果 / When ヘッダ %s を探す / Then 残っている', (header) => {
-    // ヘッダは @smoke #6 の検証対象。ローカルで落ちると本番の設定を見ていないことになる
+    // Given: describe 内で作った変換結果
+    // When / Then: ヘッダは @smoke #6 の検証対象。ローカルで落ちると本番の設定を見ていないことになる
     expect(local).toContain(header);
   });
 
