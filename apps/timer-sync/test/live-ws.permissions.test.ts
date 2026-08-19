@@ -102,7 +102,7 @@ describe("実 WS 越しの権限", () => {
     expect(renamed.room.participants.find((p) => p.participantId === guestId)?.role).toBe("viewer");
   });
 
-  it("開始後は編集者もセッションを畳める（FR-063 が実経路に効いている）", async () => {
+  it("開始後は編集者もセッションを畳める（実経路で効いている）", async () => {
     // Given: 開始済みのルーム
     server = startLiveSyncServer();
     const { host, guest, guestId } = await aLiveRoom(server);

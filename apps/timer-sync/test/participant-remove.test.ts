@@ -87,7 +87,7 @@ describe("participant.remove（⑪）", () => {
 // 設計: docs/plans/host-spof-relaxation/plan.md「D2b」「D3」
 
 /**
- * @requirements FR-065, FR-072, FR-073, FR-079, US3, US5
+ * @requirements FR-065, FR-072, FR-073, FR-079, US3, US5, Issue #32
  */
 describe("participant.remove（G3: 自己退出・不変条件・ホスト引き継ぎ）", () => {
   let store: InMemoryRoomStore;
@@ -228,7 +228,7 @@ describe("participant.remove（G3: 自己退出・不変条件・ホスト引き
     expect(lastError(CAROL)).toBeTruthy();
   });
 
-  it("④' 自己退出では本人へ LEFT_ROOM が届く（Issue #32: 自分の操作として区別した通知）", async () => {
+  it("④' 自己退出では本人へ LEFT_ROOM が届く（自分の操作として区別した通知）", async () => {
     // Given
     const carolId = pidOf("Carol");
 

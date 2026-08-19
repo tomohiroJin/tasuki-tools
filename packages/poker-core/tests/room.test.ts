@@ -86,6 +86,9 @@ describe('joinRoom', () => {
   });
 });
 
+/**
+ * @requirements US4-AS1
+ */
 describe('markDisconnected（US4 / FR-012）', () => {
   function threePersonRoom(): Room {
     let room = makeRoom(); // p-host (joinOrder 0)
@@ -115,7 +118,7 @@ describe('markDisconnected（US4 / FR-012）', () => {
     expect(room.participants.find((p) => p.isHost)?.id).toBe('p-host');
   });
 
-  it('未投票者の切断で全員投票が成立しうる（US4-AS1）', () => {
+  it('未投票者の切断で全員投票が成立しうる', () => {
     let room = threePersonRoom();
     room = castVote(room, 'p-host', { kind: 'number', value: 5 })._unsafeUnwrap();
     room = castVote(room, 'p-guest', { kind: 'number', value: 8 })._unsafeUnwrap();

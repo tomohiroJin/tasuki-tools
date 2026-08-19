@@ -82,6 +82,9 @@ describe("normalizeClientAddress", () => {
     });
   });
 
+  /**
+   * @requirements G2
+   */
   describe("IPv4 射影アドレス（::ffff:0:0/96）は v4: 名前空間へ落とす", () => {
     // ::ffff:203.0.113.7 は上位 64 ビットが全ゼロなので、/64 に丸めると
     // 世界中の IPv4 射影クライアントが同一の鍵を共有してしまう（F1・実測済み）。
@@ -119,7 +122,7 @@ describe("normalizeClientAddress", () => {
 
     // G2: この残余は ::/96 ではなく ::/64（射影レンジを除く）である。::/96 の外にある
     // アドレスも上位 64 ビットが全ゼロなら同じ v6:0:0:0:0 になることを確かめる。
-    it("::/96 の外でも上位 64 ビットが全ゼロなら v6:0:0:0:0 になる（G2）", () => {
+    it("::/96 の外でも上位 64 ビットが全ゼロなら v6:0:0:0:0 になる", () => {
       expect(normalizeClientAddress("::1:2:3:4")).toBe("v6:0:0:0:0");
       expect(normalizeClientAddress("::c000:201")).toBe("v6:0:0:0:0");
     });
@@ -179,6 +182,9 @@ describe("createClientKeyDeriver", () => {
   });
 });
 
+/**
+ * @requirements G1
+ */
 describe("createClientKeyDeriver のソルト検証（F5）", () => {
   // 正規形は v4:<IP> という低エントロピーの既知文字列なので、ソルトが
   // 退化する（短い・空）と鍵から IP を総当たりで逆算できてしまう。
@@ -217,15 +223,15 @@ describe("createClientKeyDeriver のソルト検証（F5）", () => {
   // G1: .length を持たない型（ArrayBuffer・DataView）は byteLength しか持たず、
   // `salt.length < SALT_MIN_BYTES` が undefined < 32 = false になって素通りしていた。
   // createHmac は両方を鍵として受け付けてしまうため、型そのものを検査する必要がある。
-  it("ArrayBuffer は length を持たないため throw する（G1）", () => {
+  it("ArrayBuffer は length を持たないため throw する", () => {
     expect(() => createClientKeyDeriver(new ArrayBuffer(64) as never)).toThrow();
   });
 
-  it("空の ArrayBuffer も throw する（G1）", () => {
+  it("空の ArrayBuffer も throw する", () => {
     expect(() => createClientKeyDeriver(new ArrayBuffer(0) as never)).toThrow();
   });
 
-  it("DataView は length を持たないため throw する（G1）", () => {
+  it("DataView は length を持たないため throw する", () => {
     expect(() => createClientKeyDeriver(new DataView(new ArrayBuffer(64)) as never)).toThrow();
   });
 });

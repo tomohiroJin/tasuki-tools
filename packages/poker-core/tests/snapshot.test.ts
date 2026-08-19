@@ -14,8 +14,11 @@ function twoPersonRoom() {
   })._unsafeUnwrap().room;
 }
 
+/**
+ * @requirements SC-004
+ */
 describe('snapshotFor（受信者別投影, research R1）', () => {
-  it('participants に token がいかなる形でも含まれない（SC-004 の基盤）', () => {
+  it('participants に token がいかなる形でも含まれない', () => {
     const snapshot = snapshotFor(twoPersonRoom(), 'p-host');
     const json = JSON.stringify(snapshot);
     expect(json).not.toContain('SECRET');

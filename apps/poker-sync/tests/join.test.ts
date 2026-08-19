@@ -73,7 +73,10 @@ describe('join-room（契約 #2）', () => {
     guest.close();
   });
 
-  it('存在しない roomId は room-not-found（FR-015 / US1-AS3）', async () => {
+  /**
+   * @requirements FR-015, US1-AS3
+   */
+  it('存在しない roomId は room-not-found', async () => {
     const client = await WsClient.connect(server.port);
     client.send({ type: 'join-room', roomId: 'zzzzzzzz', name: 'はなこ' });
     expect(await client.next()).toMatchObject({ type: 'error', code: 'room-not-found' });

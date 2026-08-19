@@ -93,34 +93,39 @@ describe("loadSyncConfig", () => {
     expect(c.port).toBe(0);
   });
 
-  it("ハートビート間隔・許容ミス回数の既定値（Issue #25）", () => {
-    // Given
-    const env = {};
-    // When
-    const c = loadSyncConfig(env);
-    // Then
-    expect(c.heartbeatIntervalMs).toBe(15_000);
-    expect(c.heartbeatMaxMisses).toBe(2);
-  });
+  /**
+   * @requirements Issue #25
+   */
+  describe("ハートビート設定", () => {
+    it("ハートビート間隔・許容ミス回数の既定値", () => {
+      // Given
+      const env = {};
+      // When
+      const c = loadSyncConfig(env);
+      // Then
+      expect(c.heartbeatIntervalMs).toBe(15_000);
+      expect(c.heartbeatMaxMisses).toBe(2);
+    });
 
-  it("ハートビート間隔・許容ミス回数を env から読み込む（Issue #25）", () => {
-    // Given
-    const env = { HEARTBEAT_INTERVAL_MS: "5000", HEARTBEAT_MAX_MISSES: "3" };
-    // When
-    const c = loadSyncConfig(env);
-    // Then
-    expect(c.heartbeatIntervalMs).toBe(5000);
-    expect(c.heartbeatMaxMisses).toBe(3);
-  });
+    it("ハートビート間隔・許容ミス回数を env から読み込む", () => {
+      // Given
+      const env = { HEARTBEAT_INTERVAL_MS: "5000", HEARTBEAT_MAX_MISSES: "3" };
+      // When
+      const c = loadSyncConfig(env);
+      // Then
+      expect(c.heartbeatIntervalMs).toBe(5000);
+      expect(c.heartbeatMaxMisses).toBe(3);
+    });
 
-  it("ハートビート設定の不正値は既定値にフォールバック（Issue #25）", () => {
-    // Given
-    const env = { HEARTBEAT_INTERVAL_MS: "abc", HEARTBEAT_MAX_MISSES: "-1" };
-    // When
-    const c = loadSyncConfig(env);
-    // Then
-    expect(c.heartbeatIntervalMs).toBe(15_000);
-    expect(c.heartbeatMaxMisses).toBe(2);
+    it("ハートビート設定の不正値は既定値にフォールバック", () => {
+      // Given
+      const env = { HEARTBEAT_INTERVAL_MS: "abc", HEARTBEAT_MAX_MISSES: "-1" };
+      // When
+      const c = loadSyncConfig(env);
+      // Then
+      expect(c.heartbeatIntervalMs).toBe(15_000);
+      expect(c.heartbeatMaxMisses).toBe(2);
+    });
   });
 
   describe("本番の HOST 検査（起動時 fail-closed・#103・D6）", () => {
