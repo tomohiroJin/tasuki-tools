@@ -5,32 +5,32 @@
 import type { SessionConfig, Problem, RoomPhase, ProblemMode } from "./aggregate.js";
 
 /** セッション開始 */
-export interface SessionStarted {
+interface SessionStarted {
   type: "SessionStarted";
   now: number;
 }
 
 /** ドライバー交代 */
-export interface DriverSwitched {
+interface DriverSwitched {
   type: "DriverSwitched";
   nextIndex: number;
   now: number;
 }
 
 /** 一時停止 */
-export interface SessionPaused {
+interface SessionPaused {
   type: "SessionPaused";
   now: number;
 }
 
 /** 再開 */
-export interface SessionResumed {
+interface SessionResumed {
   type: "SessionResumed";
   now: number;
 }
 
 /** リセット（集約は rotation/interval から再構成するため追加情報を持たない） */
-export interface SessionReset {
+interface SessionReset {
   type: "SessionReset";
   now: number;
 }
@@ -40,41 +40,41 @@ export interface SessionReset {
  * SessionReset（先頭・全カウント初期化）や DriverSwitched（人が変わる・回数加算）とは異なり、
  * currentIndex / driverCounts / totalSwitches を変えず clock のみ満タン再アンカーする。
  */
-export interface DriverTimerReset {
+interface DriverTimerReset {
   type: "DriverTimerReset";
   now: number;
 }
 
 /** フェーズ遷移 */
-export interface PhaseSet {
+interface PhaseSet {
   type: "PhaseSet";
   phase: RoomPhase;
   now: number;
 }
 
 /** 設定変更（検証済みの部分設定のみを運ぶ。未指定フィールドは現状維持） */
-export interface ConfigSet {
+interface ConfigSet {
   type: "ConfigSet";
   config: Partial<SessionConfig>;
   now: number;
 }
 
 /** メンバー追加（ローテーションは参加者IDで持つ・D6b） */
-export interface MemberAdded {
+interface MemberAdded {
   type: "MemberAdded";
   participantId: string;
   now: number;
 }
 
 /** メンバー削除 */
-export interface MemberRemoved {
+interface MemberRemoved {
   type: "MemberRemoved";
   index: number;
   now: number;
 }
 
 /** メンバー並べ替え */
-export interface MemberMoved {
+interface MemberMoved {
   type: "MemberMoved";
   fromIndex: number;
   toIndex: number;
@@ -82,7 +82,7 @@ export interface MemberMoved {
 }
 
 /** メンバー順のシャッフル（サーバー権威で生成した順列を運ぶ） */
-export interface MembersShuffled {
+interface MembersShuffled {
   type: "MembersShuffled";
   /** order[i] = 新しい i 番目に来る旧 rotation インデックス（順列）。 */
   order: number[];
@@ -90,7 +90,7 @@ export interface MembersShuffled {
 }
 
 /** お題確定 */
-export interface ProblemSet {
+interface ProblemSet {
   type: "ProblemSet";
   problem: Problem;
   usedFallback: boolean;
@@ -98,26 +98,26 @@ export interface ProblemSet {
 }
 
 /** 引き継ぎメモ更新 */
-export interface HandoffNoteSet {
+interface HandoffNoteSet {
   type: "HandoffNoteSet";
   text: string;
   now: number;
 }
 
 /** 休憩開始 */
-export interface BreakStarted {
+interface BreakStarted {
   type: "BreakStarted";
   now: number;
 }
 
 /** 休憩終了 */
-export interface BreakEnded {
+interface BreakEnded {
   type: "BreakEnded";
   now: number;
 }
 
 /** 完成 */
-export interface SessionCompleted {
+interface SessionCompleted {
   type: "SessionCompleted";
   now: number;
 }
@@ -126,13 +126,13 @@ export interface SessionCompleted {
  * 中断（途中でやめる）
  * 記録を生成しない。締めくくり画面の表示のみを目的とする。
  */
-export interface SessionAborted {
+interface SessionAborted {
   type: "SessionAborted";
   now: number;
 }
 
 /** 代理参加者追加（Web 非接続の人をプレースホルダーとして追加） */
-export interface ProxyMemberAdded {
+interface ProxyMemberAdded {
   type: "ProxyMemberAdded";
   participantId: string;
   displayName: string;
@@ -140,7 +140,7 @@ export interface ProxyMemberAdded {
 }
 
 /** 表示名変更 */
-export interface ParticipantRenamed {
+interface ParticipantRenamed {
   type: "ParticipantRenamed";
   participantId: string;
   displayName: string;
@@ -148,21 +148,21 @@ export interface ParticipantRenamed {
 }
 
 /** ドライバー対象から一時離脱 */
-export interface DriverSkipped {
+interface DriverSkipped {
   type: "DriverSkipped";
   participantId: string;
   now: number;
 }
 
 /** ドライバー対象に復帰 */
-export interface DriverResumed {
+interface DriverResumed {
   type: "DriverResumed";
   participantId: string;
   now: number;
 }
 
 /** お題の内容を編集（フィールド単位のパッチ） */
-export interface ProblemEdited {
+interface ProblemEdited {
   type: "ProblemEdited";
   patch: {
     title?: string;
@@ -175,7 +175,7 @@ export interface ProblemEdited {
 }
 
 /** 出題モード変更（AI/定型） */
-export interface ProblemModeSet {
+interface ProblemModeSet {
   type: "ProblemModeSet";
   mode: ProblemMode;
   now: number;

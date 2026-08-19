@@ -27,14 +27,14 @@ export interface BelowMinMembers {
 }
 
 /** 権限不足 */
-export interface Unauthorized {
+interface Unauthorized {
   type: "Unauthorized";
   command: string;
   requiredRole: string;
 }
 
 /** フェーズ競合 */
-export interface PhaseConflict {
+interface PhaseConflict {
   type: "PhaseConflict";
   currentPhase: string;
   requiredPhase: string;
@@ -48,14 +48,14 @@ export interface InvalidInterval {
 }
 
 /** 無効なインデックス */
-export interface InvalidIndex {
+interface InvalidIndex {
   type: "InvalidIndex";
   index: number;
   max: number;
 }
 
 /** 入力サイズが上限超過（メンバー数とは別。お題の要件数などの配列長制限に使う） */
-export interface InputLimitExceeded {
+interface InputLimitExceeded {
   type: "InputLimitExceeded";
   /** どの入力か（例: "requirements"） */
   field: string;

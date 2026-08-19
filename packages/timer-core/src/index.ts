@@ -52,30 +52,6 @@ export {
 } from "./error-messages.js";
 // イベント
 export type {
-  SessionStarted,
-  DriverSwitched,
-  SessionPaused,
-  SessionResumed,
-  SessionReset,
-  DriverTimerReset,
-  PhaseSet,
-  ConfigSet,
-  MemberAdded,
-  MemberRemoved,
-  MemberMoved,
-  MembersShuffled,
-  ProblemSet,
-  HandoffNoteSet,
-  BreakStarted,
-  BreakEnded,
-  SessionCompleted,
-  SessionAborted,
-  ProxyMemberAdded,
-  ParticipantRenamed,
-  DriverSkipped,
-  DriverResumed,
-  ProblemEdited,
-  ProblemModeSet,
   DomainEvent,
 } from "./events.js";
 // エラー
@@ -84,11 +60,7 @@ export type {
   DuplicateName,
   MemberLimitExceeded,
   BelowMinMembers,
-  Unauthorized,
-  PhaseConflict,
   InvalidInterval,
-  InvalidIndex,
-  InputLimitExceeded,
   DomainError,
   ErrorCode,
 } from "./errors.js";
