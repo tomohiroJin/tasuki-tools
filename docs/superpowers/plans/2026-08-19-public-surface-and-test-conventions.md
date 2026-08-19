@@ -1968,7 +1968,7 @@ git add e2e/
 git commit -m "test(e2e): 前提・操作・検証の区切りを入れる
 
 - ADR-0006 決定 2（Given/When/Then 構造）の未達を e2e のメタテストで解消する
-- 構造監査の測定値つき指標がすべて目標へ到達した
+- e2e 分は完了。deck.test.ts の 1 件は「操作が無い」という判断で対象外（SC032 は 99.9%）
 - コメントのみの変更。主張は 1 件も変えていない
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
