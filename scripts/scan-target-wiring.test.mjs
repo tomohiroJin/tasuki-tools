@@ -112,6 +112,44 @@ describe("0 件ガードの配線: scripts/audit-structure.mjs", () => {
     assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
     assert.match(r.stderr, /走査対象の宣言が不正です/);
   });
+
+  test("例外表の健全性の判定が切れると非ゼロで終了する（判定が main へ配線されている）", () => {
+    // Given: findStaleSymbolExceptions の呼び出しを、認識できる偽の問題を返す式へすり替える。
+    //        audit-structure.test.mjs の単体テストは純粋関数だけを見ているので、
+    //        main がこの判定を呼ばなくなった状態を 1 件も検知できない（#158 と同型。
+    //        2026-08-19 Task 4 レビュー Important 1）。
+    //
+    //        **「消す」のではなく「差し込む」**のは、main が結果を読んで終了コードを
+    //        決めていることまで見るためである。`const staleExceptions = []` へ置き換えて
+    //        赤を確認するだけだと、main が結果を無視していても気づけない。
+    const mutate = (s) =>
+      s.replace(
+        /const staleExceptions = findStaleSymbolExceptions\([\s\S]*?\);/,
+        "const staleExceptions = SC039C_EXCEPTIONS.map((e) => `配線が消えた: ${e.name}`);",
+      );
+    // When
+    const r = runScriptCopy("audit-structure.mjs", mutate);
+    // Then: まず「壊れたこと自体」を確かめる。
+    //       **`findStaleSymbolExceptions(` そのものは数えない** — 同名の関数定義が
+    //       同じファイルにあるため、呼び出しを消しても 1 件残る（素の状態で 2 件）。
+    //       呼び出し側にしか現れない綴りで数える。
+    assert.equal(
+      countOf(r.source, "const staleExceptions = findStaleSymbolExceptions("),
+      0,
+      "判定の呼び出しを壊せていません",
+    );
+    assert.equal(
+      countOf(r.source, "const staleExceptions = SC039C_EXCEPTIONS.map((e) => `配線が消えた: ${e.name}`);"),
+      1,
+      "偽の問題を差し込めていません",
+    );
+    assert.equal(countOf(r.source, "findStaleSymbolExceptions("), 1, "残るのは関数定義の 1 件だけ");
+    // Then: 差し込んだ問題がそのまま赤として出る（＝main が staleExceptions を見て終了コードを決めている）
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.match(r.stderr, /配線が消えた: SYNC_ERROR_CODES/);
+    // Then: 指標の表は 1 行も出ていない（ガードが指標より前にある）
+    assert.equal(countOf(r.stdout, "SC039 |"), 0, "指標の表が出てしまっています");
+  });
 });
 
 describe("実在確認の配線: scripts/audit-structure.mjs", () => {
