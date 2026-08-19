@@ -377,6 +377,7 @@ node scripts/audit-log-hygiene.mjs               # ログ衛生（検査の中�
 node scripts/audit-assembly-wiring.mjs           # 組み立ての集約（同期サーバーのエントリが create-sync-server.ts を経由するか。ADR-0004 決定 4）
 node scripts/audit-domain-error-shape.mjs        # ドメインエラー型の形（core のエラー型が message フィールドを持たないか。ADR-0016 決定 2 項目 3）
 node scripts/audit-domain-side-effects.mjs       # ドメインの副作用（core が Date.now() 等を直接呼ばないか。ADR-0016 決定 2 項目 4）
+node scripts/audit-web-sync-boundary.mjs         # web 層の同期境界（画面が同期クライアントを直接 import しないか。ADR-0015 MUST 2）
 node scripts/mutation-check.mjs                  # 変異検査
 node scripts/check-links.mjs                     # リンク検査
 
@@ -504,15 +505,20 @@ shellcheck・自己テスト（`node --test`）の対象は宣言ではなく `g
 
 ## CI
 
-`.github/workflows/ci.yml` は 5 つのジョブを持ちます。
+`.github/workflows/ci.yml` は次のジョブを持ちます。
 
 | ジョブ | 中身 | 走らせる条件 |
 |---|---|---|
 | `ci` | typecheck / lint / test / build | コードに関わる変更（`*.md` 以外が 1 つでもある） |
-| `quality` | 構造監査・ログ衛生・自己テスト・変異検査・shellcheck | 同上 |
+| `quality` | [検査系](#検査系)の全項目 | 同上 |
 | `docs` | リンク検査 | **常時** |
 | `audit` | `pnpm audit` | 依存の変更（`pnpm-lock.yaml` / `pnpm-workspace.yaml` / `package.json`） |
 | `e2e` | E2E | コードに関わる変更 |
+
+**`docs` 行は列挙のままにしています。** `docs` ジョブが走らせるのはリンク検査 1 本だけで、
+「検査系」節には `quality` が走らせないもの（リンク検査自身を含む）も並んでいます。
+`docs` 行を `quality` と同じ形へ倒すと実態より広い範囲を指してしまい、かえって誤りに
+なるためです（#175）。
 
 判定は `scripts/ci-scope.mjs` が行い、`$GITHUB_OUTPUT` へ `code` と `deps` を書きます。
 **判定できないときは全部走らせます（fail-open）。**
