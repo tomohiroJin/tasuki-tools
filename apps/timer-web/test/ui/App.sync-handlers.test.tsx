@@ -1,6 +1,6 @@
 /**
- * App.tsx の SyncClient コールバックが「最新の state」を読む経路の characterization test
- * （Issue #46）。
+ * `sync/use-timer-sync.ts` の SyncClient コールバックが「最新の state」を読む経路の
+ * characterization test（Issue #46）。
  *
  * `makeClient` のコールバックは生成時の値で固定される（closure）ため、最新の state を
  * 読むには特別な作法が要る。Issue #46 はその作法を「state の写し ref（latestRef）」から
@@ -10,6 +10,10 @@
  * リファクタ着手前にここで固定する。`App.state-ref.test.tsx` は #41 の成果物として
  * 内容を変えず、本ファイルを足す形にしている（テストを書き換えると「実装が正しいから
  * 緑」なのか「テストを直したから緑」なのかが切り分けられなくなるため）。
+ *
+ * 本ファイルは `<App />` を描画するブラックボックステストであり、対象のコールバックが
+ * `App.tsx` から `sync/use-timer-sync.ts` の `makeClient` へ移設された後も、
+ * 内部実装の在り処によらず経路を外側から検証し続けている。
  *
  * @requirements Issue #46 REQ-6
  */

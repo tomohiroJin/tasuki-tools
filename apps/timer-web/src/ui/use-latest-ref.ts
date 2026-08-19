@@ -2,7 +2,7 @@
  * 値を ref に同期し続け、クロージャから常に最新値を読めるようにする。
  *
  * **用途は「SyncClient のコールバックへ渡すハンドラ束の同期」である**（Issue #46）。
- * `App.tsx` の `makeClient` が生成する各種コールバック（onRoom/onIdentity/onError 等）は
+ * `sync/use-timer-sync.ts` の `makeClient` が生成する各種コールバック（onRoom/onIdentity/onError 等）は
  * 生成時点の値で固定される（closure）。そこで、コールバック本体を render 本体の
  * スコープに置き、それらをまとめたオブジェクトをこのフックで ref へ同期する。
  * `SyncClient` へ渡すのは `ref.current` の同名関数を呼ぶだけの転送関数なので、
