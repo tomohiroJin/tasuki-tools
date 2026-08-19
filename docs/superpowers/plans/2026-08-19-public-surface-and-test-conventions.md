@@ -2301,7 +2301,10 @@ git push
 ### Task 15: 仕上げ（CI・Issue の訂正・切り出し・振り返り）
 
 **Files:**
-- Create: `docs/superpowers/plans/2026-08-19-public-surface-and-test-conventions-retrospective.md`（振り返り。既存の振り返りの書式に合わせる）
+- Create: `docs/retrospectives/2026-08-20-issue-168-public-surface-and-test-conventions.md`（振り返り）
+  （**計画は当初 `docs/superpowers/plans/...-retrospective.md` を指定していたが誤り。**
+  置き場所の正本は `docs/guides/retrospective.md` の「どこへ書くか」＝`docs/retrospectives/YYYY-MM-DD-<topic>.md` であり、
+  既存 11 本もすべてそこにある。実施時に正本へ合わせた）
 
 **Interfaces:** Consumes: Task 14 の結果。Produces: なし
 
