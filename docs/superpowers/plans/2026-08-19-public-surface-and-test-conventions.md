@@ -1977,6 +1977,242 @@ git push
 
 ---
 
+### Task 13b: SC-032 に理由つき例外を 1 件だけ持たせる
+
+**このタスクは計画の初版に無い。** Task 13 で、`packages/poker-core/tests/deck.test.ts` の
+`it('フィボナッチ10種を順序どおりに含む（0,1,2,3,5,8,13,21,?,☕）')` に
+**GWT の区切りを入れられない**ことが確定した（実装者とレビュアが独立に同じ結論）。
+理由は「import 済みのモジュール定数の形を `expect` で直接見るだけで、**テスト本体の中に
+操作と呼べる処理が一つも無い**」こと。`// When` を足すと操作を指すふりの飾りになる。
+
+**Files:**
+- Modify: `scripts/audit-structure.mjs`（例外表・`findStaleTestExceptions`・`sc032GwtMarkers` の除外）
+- Test: `scripts/audit-structure.test.mjs`
+
+**Interfaces:**
+- Consumes: Task 13 の結果（SC032 = 1433/1434）
+- Produces:
+  - `export const SC032_EXCEPTIONS: { file: string; testName: string; reason: string }[]`
+  - `export function findStaleTestExceptions(exceptions, testFiles): string[]`
+  - `sc032GwtMarkers(testFiles, exceptions = [])` — 第 2 引数が増える
+
+**なぜ例外表にするのか（裁定 R14）**: 選択肢は (a) 99.9% を受け入れる (b) 理由つき例外
+(c) テスト本体の組み替え だった。(a) は**恒常的に赤い指標**を残し、読み手を
+「その数字を無視する」ように訓練する。(c) は主張を書き換える危険がある。
+(b) は Task 4 で SC-039③ に対して既に採った形と同じで、**宣言と実在確認だけ**であり
+新しい種類の複雑さを持ち込まない。散文での前例もある
+（`apps/timer-sync/test/error-code-coverage.test.ts:27` が「メタテストであり、前提・操作・検証という
+区切りが通常の意味では当てはまらない」と明記）。
+
+**除外は分母から行う。** 「この規約の対象ではない」という意味であり、
+ADR-0006 決定 2 の「本体が 2 行以下の自明なテストは対象外」と同じ扱いにする。
+分子に足す（満たしたことにする）のではない。
+
+- [ ] **Step 1: 失敗するテストを書く**
+
+`scripts/audit-structure.test.mjs` へ足す。
+
+```javascript
+describe("findStaleTestExceptions: SC-032 の例外は両方向に腐らせない", () => {
+  const marked = [
+    'it("区切りのあるテスト", () => {',
+    "  // Given",
+    "  const a = build();",
+    "  // When",
+    "  const r = act(a);",
+    "  // Then",
+    "  expect(r).toBe(1);",
+    "});",
+  ].join("\n");
+  const unmarked = [
+    'it("区切りの無いテスト", () => {',
+    "  const a = build();",
+    "  const r = act(a);",
+    "  expect(r).toBe(1);",
+    "});",
+  ].join("\n");
+  const files = new Map([["pkg/test/a.test.ts", `${marked}\n${unmarked}\n`]]);
+
+  test("実在し、区切りが無く、分母に入るテストの例外は問題にならない", () => {
+    // Given
+    const ex = [{ file: "pkg/test/a.test.ts", testName: "区切りの無いテスト", reason: "操作が無い" }];
+    // When
+    const problems = findStaleTestExceptions(ex, files);
+    // Then
+    assert.deepEqual(problems, []);
+  });
+
+  test("実在しないテスト名の例外は問題として報告する", () => {
+    // Given
+    const ex = [{ file: "pkg/test/a.test.ts", testName: "消えたテスト", reason: "操作が無い" }];
+    // When
+    const problems = findStaleTestExceptions(ex, files);
+    // Then
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /消えたテスト/);
+  });
+
+  test("実在しないファイルの例外は問題として報告する", () => {
+    // Given
+    const ex = [{ file: "pkg/test/none.test.ts", testName: "区切りの無いテスト", reason: "操作が無い" }];
+    // When
+    const problems = findStaleTestExceptions(ex, files);
+    // Then
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /none\.test\.ts/);
+  });
+
+  test("区切りが付いたテストの例外は不要になったと報告する", () => {
+    // Given
+    const ex = [{ file: "pkg/test/a.test.ts", testName: "区切りのあるテスト", reason: "操作が無い" }];
+    // When
+    const problems = findStaleTestExceptions(ex, files);
+    // Then
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /不要/);
+  });
+
+  test("理由が空の例外は問題として報告する", () => {
+    // Given
+    const ex = [{ file: "pkg/test/a.test.ts", testName: "区切りの無いテスト", reason: "" }];
+    // When
+    const problems = findStaleTestExceptions(ex, files);
+    // Then
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /理由/);
+  });
+});
+
+describe("sc032GwtMarkers: 例外に載るテストは分母から外す", () => {
+  const unmarkedLong = [
+    'it("区切りの無いテスト", () => {',
+    "  const a = build();",
+    "  const r = act(a);",
+    "  expect(r).toBe(1);",
+    "});",
+  ].join("\n");
+  const files = new Map([["pkg/test/a.test.ts", `${unmarkedLong}\n`]]);
+
+  test("例外なしなら分母に入る", () => {
+    // Given / When
+    const r = sc032GwtMarkers(files);
+    // Then
+    assert.equal(r.denominator, 1);
+    assert.equal(r.numerator, 0);
+  });
+
+  test("例外にすると分母から外れ、割合は 1 になる", () => {
+    // Given
+    const ex = [{ file: "pkg/test/a.test.ts", testName: "区切りの無いテスト", reason: "操作が無い" }];
+    // When
+    const r = sc032GwtMarkers(files, ex);
+    // Then
+    assert.equal(r.denominator, 0);
+    assert.equal(r.ratio, 1);
+  });
+});
+```
+
+- [ ] **Step 2: テストが落ちることを確かめる**
+
+```bash
+cd /home/vscode/tasuki-work
+node --test scripts/audit-structure.test.mjs
+```
+
+期待: `findStaleTestExceptions is not a function` などで FAIL。
+
+- [ ] **Step 3: `audit-structure.mjs` へ例外表と判定を足す**
+
+`SC039C_EXCEPTIONS` の隣へ置く。**テスト名は `extractTestNames` が返す形（第 1 引数の文字列）と
+同じ綴りで書く**こと。
+
+```javascript
+/**
+ * SC-032 の例外。**前提・操作・検証の区切りが概念的に当てはまらないテストだけ**を、理由つきで載せる。
+ *
+ * ADR-0006 決定 2 は「本体が 2 行以下の自明なテストは対象外」と定めている。その意図は
+ * 「区切っても読み手の役に立たないテストには求めない」ことである。ところが分母の判定は
+ * **物理行**を数えるため、**1 つの式が複数行にまたがるだけ**で 3 行以上と見なされる。
+ * その結果、操作が一つも無いテストが対象に入りうる。
+ *
+ * 判定を「文数え」へ変える案は #168 の敵対的検証で却下した（`it.each` の 41 件中 35 件が
+ * 対象外に落ち、区切り済みの 34 行のテストまで分母から消えるため）。**尺度は変えず、
+ * 当てはまらないものを名指しで挙げる。**
+ *
+ * **例外表は両方向に腐る。**`findStaleTestExceptions` が落とす。
+ */
+export const SC032_EXCEPTIONS = [
+  {
+    file: "packages/poker-core/tests/deck.test.ts",
+    testName: "フィボナッチ10種を順序どおりに含む（0,1,2,3,5,8,13,21,?,☕）",
+    reason:
+      "import 済みのモジュール定数の形を expect で直接見るだけで、テスト本体の中に操作と呼べる処理が無い。// When を足すと操作を指すふりの飾りになる（#168 で実装者とレビュアが独立に同じ結論）",
+  },
+];
+
+/**
+ * SC-032 の例外表が腐っていないかを見る（純粋）。問題が無ければ空配列。
+ *
+ * 4 つの向きで落とす。
+ *   1. 例外が指すファイルが走査対象に無い
+ *   2. 例外が指すテスト名がそのファイルに無い（改名・削除）
+ *   3. そのテストが区切りを持つようになった（例外がもう要らない）
+ *   4. 理由が空
+ *
+ * **「分母に入らなくなった」は落とさない。** 本体が短くなって対象外になった場合、
+ * 例外は無害に空回りするだけであり、落とすとテストの整理を妨げる。
+ */
+export function findStaleTestExceptions(exceptions, testFiles) { /* 実装 */ }
+```
+
+`sc032GwtMarkers` は第 2 引数 `exceptions = []` を取り、**分母に数える前に**除外する。
+テストの同定は「そのテスト本体の先頭行から `extractTestNames` で得た名前」で行う。
+
+`runAudit()` の呼び出しへ `SC032_EXCEPTIONS` を渡し、`main()` では**指標を出す前に**
+`findStaleTestExceptions` を見る（SC-039③ の例外表と同じ位置・同じ作法）。
+
+- [ ] **Step 4: テストが通り、SC032 が 100% になることを確かめる**
+
+```bash
+cd /home/vscode/tasuki-work
+node --test scripts/audit-structure.test.mjs
+node scripts/audit-structure.mjs | grep SC032
+```
+
+期待: 自己テスト全件 PASS。SC032 = **1433/1433（100.0%）**。
+
+- [ ] **Step 5: 4 経路すべてをわざと壊して赤を見る**
+
+例外表の `testName` を実在しないものへ／`file` を実在しないものへ／既に区切りのあるテスト名へ／
+`reason` を空へ、の 4 通りで壊し、**それぞれ違うメッセージで非ゼロ終了する**ことを確認する。
+壊す前と後を `grep -cF`（固定文字列）で数え、戻したあと `git diff --stat` で元に戻ったことを確認する。
+**メッセージの文言まで見て、別の経路の赤と取り違えていないことを確かめる。**
+
+- [ ] **Step 6: 配線テストを足す**
+
+`scripts/scan-target-wiring.test.mjs` に、`findStaleTestExceptions` の呼び出しが `main()` へ
+配線されていることを見るテストを足す（既存の作法どおり、**認識できる偽の問題を差し込む**形）。
+足したテストが、呼び出しを断ち切ると赤くなることを確認する。
+
+- [ ] **Step 7: コミットして push**
+
+```bash
+cd /home/vscode/tasuki-work
+git add scripts/
+git commit -m "feat(scripts): SC-032 に理由つき例外を持たせ、腐った例外で落ちるようにする
+
+- 区切りが概念的に当てはまらないテスト 1 件を分母から外す（理由つき）
+- 実在しない・不要になった・理由が空、の 4 経路で赤にする
+- 直前のコミット b695492 のメッセージは「指標がすべて目標へ到達した」と書いていたが誤りで、
+  その時点の SC032 は 99.9% だった。本コミットで 100% に到達する
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+git push
+```
+
+---
+
 ### Task 14: 規範を ADR へ反映する
 
 **Files:**
