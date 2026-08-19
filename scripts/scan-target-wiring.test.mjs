@@ -414,6 +414,81 @@ describe("0 件ガードの配線: scripts/audit-web-sync-boundary.mjs", () => {
     assert.equal(countOf(r.source, "/src/*.ts"), 0, "走査先を壊せていません（/src/*.ts が残っています）");
     assert.equal(countOf(r.source, "/does-not-exist/*.ts"), 2, "置換が想定件数と違います");
     assert.notEqual(r.status, 0, "走査先を失っても通ってしまう");
+    // status が非ゼロなだけでは、変異が構文エラーを起こしただけでも緑（誤って赤）になる
+    // （2026-08-19 レビュー M6）。0 件ガード自身の文言まで見て、意図した経路で
+    // 落ちていることを確かめる。
+    assert.match(r.stderr, /走査対象が 0 件/);
+  });
+
+  test("許可リストの判定を main が読んでいない状態にすると非ゼロで終了しない（判定が main へ配線されている）", () => {
+    // Given: findDisallowedImporters の呼び出しを、常に固定の偽問題を返す版へすり替える。
+    // 純粋関数の単体テストだけでは、main が importerProblems を problems へ積まなくなった
+    // 状態を検知できない（#158 と同型。2026-08-19 レビュー C1）。
+    const mutate = (s) =>
+      s.replace(
+        /const importerProblems = WEB_APPS\.flatMap\(\(app\) =>\n {4}findDisallowedImporters\(filesByApp\.get\(app\.app\), app\)\.map\(\n {6}\(hit\) =>[\s\S]*?\n {4}\),\n {2}\);/,
+        "const importerProblems = WEB_APPS.flatMap((app) => [`配線が消えた: importer ${app.app}`]);",
+      );
+    const r = runScriptCopy("audit-web-sync-boundary.mjs", mutate);
+    // Then: まず「壊れたこと自体」を確かめる
+    assert.equal(
+      countOf(r.source, "const importerProblems = WEB_APPS.flatMap((app) => [`配線が消えた: importer ${app.app}`]);"),
+      1,
+      "判定の呼び出しを壊せていません",
+    );
+    assert.equal(countOf(r.source, "findDisallowedImporters(filesByApp.get(app.app), app)"), 0, "元の呼び出しが残っています");
+    // Then: 差し込んだ問題がそのまま赤として出る（＝main が importerProblems を見て終了コードを決めている）
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.match(r.stderr, /配線が消えた: importer apps\/timer-web/);
+  });
+
+  test("WS 保持先の判定を main が読んでいない状態にすると非ゼロで終了しない（判定が main へ配線されている）", () => {
+    // 同上（#167 レビュー C1）。findDisallowedWsHolders 側。
+    const mutate = (s) =>
+      s.replace(
+        /const wsHolderProblems = WEB_APPS\.flatMap\(\(app\) =>\n {4}findDisallowedWsHolders\(filesByApp\.get\(app\.app\), app\)\.map\(\n {6}\(hit\) =>[\s\S]*?\n {4}\),\n {2}\);/,
+        "const wsHolderProblems = WEB_APPS.flatMap((app) => [`配線が消えた: wsHolder ${app.app}`]);",
+      );
+    const r = runScriptCopy("audit-web-sync-boundary.mjs", mutate);
+    // Then: まず「壊れたこと自体」を確かめる
+    assert.equal(
+      countOf(r.source, "const wsHolderProblems = WEB_APPS.flatMap((app) => [`配線が消えた: wsHolder ${app.app}`]);"),
+      1,
+      "判定の呼び出しを壊せていません",
+    );
+    assert.equal(countOf(r.source, "findDisallowedWsHolders(filesByApp.get(app.app), app)"), 0, "元の呼び出しが残っています");
+    // Then
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.match(r.stderr, /配線が消えた: wsHolder apps\/timer-web/);
+  });
+});
+
+describe("実在確認の配線: scripts/audit-web-sync-boundary.mjs", () => {
+  // 宣言と実体の一致は audit-web-sync-boundary.test.mjs も見ているが、あちらは
+  // declaredPathsOf の出力（findMissingPaths への入力の形）しか見ておらず、
+  // findMissingPaths を実際に main が呼び、その結果を報告しているかは見ていない
+  // （2026-08-19 レビュー C2）。ここでは検査そのものを走らせて、落ちることを見る。
+
+  test("宣言の実在確認を main が読んでいない状態にすると非ゼロで終了しない（判定が main へ配線されている）", () => {
+    // Given: findMissingPaths の呼び出しを、常に固定の偽の「見つからないパス」を
+    // 返す版へすり替える。現在の宣言は実在するものしか無いため、呼び出しを
+    // 単に削除しただけでは対照実行と結果が変わらず検知できない。
+    const mutate = (s) =>
+      s.replace(
+        "const missingDeclared = findMissingPaths(REPO_ROOT, WEB_APPS.flatMap(declaredPathsOf));",
+        'const missingDeclared = ["配線が消えた/実在確認"];',
+      );
+    const r = runScriptCopy("audit-web-sync-boundary.mjs", mutate);
+    // Then: まず「壊れたこと自体」を確かめる
+    assert.equal(countOf(r.source, 'const missingDeclared = ["配線が消えた/実在確認"];'), 1, "判定の呼び出しを壊せていません");
+    assert.equal(
+      countOf(r.source, "findMissingPaths(REPO_ROOT, WEB_APPS.flatMap(declaredPathsOf))"),
+      0,
+      "元の呼び出しが残っています",
+    );
+    // Then: 差し込んだ偽のパスがそのまま名指しで赤に出る（＝main が missingDeclared を見て終了コードを決めている）
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.match(r.stderr, /宣言したパスが見つかりません: 配線が消えた\/実在確認/);
   });
 });
 

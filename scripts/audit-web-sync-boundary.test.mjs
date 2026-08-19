@@ -70,10 +70,15 @@ test("宣言から導出するパスは、アプリ本体と 3 種の宣言を r
   ]);
 });
 
-test("実在確認は共有関数 findMissingPaths に渡す形になっている", () => {
-  // 実在確認そのものは scripts/lib/scan-targets.mjs の責務なので、ここでは
-  // 「渡す入力が正しいか」だけを見る。自前で existsSync を書くと、
-  // scan-target-wiring.test.mjs が見ている配線から外れる（#158 と同型）。
+test("declaredPathsOf の出力に timer/poker 双方の宣言パスが含まれている（findMissingPaths への入力の形を見る）", () => {
+  // ここで見ているのは「渡す入力の形」だけであり、findMissingPaths を実際に
+  // 呼んでいるかどうか（main() への配線）はこのテストの範囲外である。
+  // 自前で existsSync を書くと scan-target-wiring.test.mjs が見ている配線から
+  // 外れる（#158 と同型）という注意はここでも成り立つが、**main() が
+  // findMissingPaths を実際に呼び、その結果を報告しているかは
+  // scripts/scan-target-wiring.test.mjs の「実在確認の配線」describe が見る**
+  // （2026-08-19 レビュー C2。このテストの名前がかつて配線の検証を約束していたが
+  // 実際には検証していなかったため改名した）。
   const paths = WEB_APPS.flatMap(declaredPathsOf);
   assert.ok(paths.includes("apps/poker-web/src/hooks/useSync.ts"));
   assert.ok(paths.includes("apps/timer-web/src/sync/use-timer-sync.ts"));
@@ -99,4 +104,16 @@ test("timer-web の allowedImporters は同期フックと dispatch.ts の 2 本
     [...timer.allowedImporters].sort(),
     ["src/sync/dispatch.ts", "src/sync/use-timer-sync.ts"].sort(),
   );
+});
+
+test("末尾だけが一致する無関係な bare specifier は違反にならない（react-dom/client の回帰）", () => {
+  // apps/timer-web/src/main.tsx の import { createRoot } from "react-dom/client"; を
+  // 「sync/client.ts の import」と誤検出していたバグの回帰ケース（2026-08-19 レビュー M5）。
+  // 単一セグメントの needle "client" は "./" の直後だけを見るため、bare specifier の
+  // 末尾セグメントには一致しない。この回帰を守っているのが main.tsx の現物の import
+  // だけだと、main.tsx が変わった日に守りが消えるため、ここで直接固定する。
+  const files = [
+    { path: "src/main.tsx", lines: ['import { createRoot } from "react-dom/client";'] },
+  ];
+  assert.deepEqual(findDisallowedImporters(files, timerApp), []);
 });
