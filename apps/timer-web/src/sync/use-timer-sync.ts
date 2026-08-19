@@ -247,7 +247,7 @@ export function useTimerSync(banner: BannerController): TimerSync {
           setRecord((prev) => prev ?? intent.record);
           // 完成記録を端末ローカルに自動保存（押し忘れ防止・FR-020「達成を記録」）。
           persistRecordIfComplete("complete", intent.record, saveRecord).catch((e) =>
-            console.error("完成記録の保存に失敗しました:", e),
+            console.error("完成記録の保存に失敗しました:", e), // log-hygiene:allow ブラウザの devtools 向け
           );
           break;
         default: {
@@ -281,12 +281,12 @@ export function useTimerSync(banner: BannerController): TimerSync {
         usedFallback: source === "fallback",
       });
     } catch (e) {
-      console.error("お題生成に失敗しました（deadline で再委譲されます）:", e);
+      console.error("お題生成に失敗しました（deadline で再委譲されます）:", e); // log-hygiene:allow ブラウザの devtools 向け
     }
   };
 
   const handleError = (syncClient: SyncClient, code: string) => {
-    console.error("WS error:", code);
+    console.error("WS error:", code); // log-hygiene:allow ブラウザの devtools 向け
     // 画面が次に何をするかは errorAction() の判定に委ねる（Issue #32・FR-127/129）。
     // 分岐は kind の判別可能合併を網羅する（未処理の kind があれば型検査で気づける）。
     const action = errorAction(code);
@@ -545,7 +545,7 @@ export function useTimerSync(banner: BannerController): TimerSync {
    *  ボタン側で「保存しました」を表示するため、ここでは永続化と失敗時通知のみ行う。 */
   const saveRecordManually = (rec: CompletionRecord) => {
     saveRecord(rec).catch((e) => {
-      console.error("記録の保存に失敗しました:", e);
+      console.error("記録の保存に失敗しました:", e); // log-hygiene:allow ブラウザの devtools 向け
       showBanner("記録の保存に失敗しました。", "error", { autoDismiss: false });
     });
   };
