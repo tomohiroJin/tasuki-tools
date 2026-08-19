@@ -206,6 +206,11 @@ git push -u origin refactor/168-public-surface-and-test-conventions
 - Consumes: Task 1 の結果（`index.ts` の形）
 - Produces: `countManagers` は `packages/timer-core` の外から見えなくなる
 
+**対象の選び方に落とし穴がある。** `wouldKeepAtLeastOneManager` は
+`if (!isManager(target)) return true;` で早期 return するため、**降格対象自身が唯一の editor だと
+`countManagers` に到達しない**。その形だけで組むと、`isManager` から `editor` を落とす変異を
+1 件も検出できない（レビューで実証済み）。**編集者が数えられていることを見るテストは、対象を host にする。**
+
 **なぜ `canDemote` で足りるか**: `canDemote(participants, id)` は `wouldKeepAtLeastOneManager` 経由で
 `countManagers(participants) - 1 >= 1` を評価する。したがって
 「編集者以上が 2 名なら降格できる／1 名なら降格できない」を見れば、数え方を観測できる。
@@ -267,6 +272,18 @@ describe("編集者以上の数え方（canDemote の可否として観測する
     const allowed = canDemote(participants, "p1");
     // Then
     expect(allowed).toBe(false);
+  });
+
+  it("編集者が 1 名いればホストを降格できる", () => {
+    // Given（対象を host にすると早期 return を通らず、数えた結果そのものが可否を決める）
+    const participants: Participant[] = [
+      participant({ participantId: "p1", role: "host" }),
+      participant({ participantId: "p2", role: "editor" }),
+    ];
+    // When
+    const allowed = canDemote(participants, "p1");
+    // Then
+    expect(allowed).toBe(true);
   });
 
   it("代理参加者は編集者であっても頭数に入らない", () => {
