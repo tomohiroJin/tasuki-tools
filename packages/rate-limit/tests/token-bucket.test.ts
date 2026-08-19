@@ -249,9 +249,8 @@ describe("createTokenBucketLimiter", () => {
       // Then
       expect(limiter.shouldReject("k", T0 + 60_000)).toBe(false); // 直後はまだ通る（残 59）
 
-      // When
       // 時計が巻き戻る（NTP のステップ調整・VM スナップショット復帰などで起きる）
-      // Then
+      // When / Then（shouldReject は照会のみで副作用が無いため、呼び出しと検証が同じ式になる）
       expect(limiter.shouldReject("k", T0 + 60_000 - 1_000)).toBe(false);
       expect(limiter.shouldReject("k", T0 + 60_000 - 300_000)).toBe(false);
     });
