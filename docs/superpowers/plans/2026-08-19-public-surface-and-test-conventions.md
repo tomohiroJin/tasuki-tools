@@ -410,21 +410,25 @@ describe("config.set の problemEnabled", () => {
     expect(r.success).toBe(true);
   });
 
-  it("既定値の言語に無い値を含む config.set は拒否する", () => {
+  // 注: language は列挙ではなく自由文字列（schemas.ts:60 の
+  // languageStr = v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_CONFIG_LANGUAGE))）。
+  // 置き換え前のテストも「language 単独でも v.partial で valid」を主張していた。
+  it("既定の候補に無い言語文字列を含む config.set も受理する（language は自由文字列）", () => {
     // Given
     const command = { command: "config.set", config: { language: "Go" } };
     // When
     const r = v.safeParse(CommandSchema, command);
     // Then
-    expect(r.success).toBe(false);
+    expect(r.success).toBe(true);
   });
 });
 ```
 
-**注意**: 2 件目の期待（`language: "Go"` が拒否される）は既存テストの主張をそのまま移したもの。
-`CommandSchema` 経由でも同じ結果になることを Step 3 で確認する。もし通ってしまう場合は、
-`SessionConfigSchema` の `language` の定義を読み、既存テストが何を主張していたかを
-確認したうえでテスト名と期待を実態へ合わせる（**実装は変えない**）。
+**訂正（2026-08-19・Task 3 の実装で判明）**: 計画の初版はこの 2 件目を
+「`language: "Go"` は拒否される（`toBe(false)`）」と書いていたが、**誤りだった**。
+`language` は列挙ではなく自由文字列なので受理される。**置き換え前のテストも `toBe(true)` を
+主張していた**（`git show ab8e8dc:packages/timer-core/test/schemas.problem-enabled.test.ts` で確認）。
+計画が原本に無い期待値を作っていた。上のコードは訂正後のもの。
 
 - [ ] **Step 3: テストが緑であることを確かめる**
 
@@ -438,10 +442,14 @@ npx vitest run test/schemas.problem-enabled.test.ts
 ```bash
 cd /home/vscode/tasuki-work
 grep -cF 'config: v.partial(SessionConfigSchema)' packages/timer-core/src/schemas.ts   # 期待: 1
-sed -i 's/config: v.partial(SessionConfigSchema)/config: v.object({})/' packages/timer-core/src/schemas.ts
+sed -i 's/config: v.partial(SessionConfigSchema)/config: v.strictObject({})/' packages/timer-core/src/schemas.ts
 grep -cF 'config: v.partial(SessionConfigSchema)' packages/timer-core/src/schemas.ts   # 期待: 0
 (cd packages/timer-core && npx vitest run test/schemas.problem-enabled.test.ts)
-# 期待: 1 件目が FAIL（problemEnabled を受理しなくなる）
+# 期待: 2 件とも FAIL（config の中身を受け付けなくなる）
+#
+# **`v.object({})` では赤くならない。** valibot の `v.object` は非 strict で、未知のキーを
+# 黙って剥がして通す。`config: { problemEnabled: false }` を渡しても success のままになる。
+# 「無いこと」ではなく「拒否すること」を見たいので `v.strictObject({})` を使う（Task 3 で実測）。
 git checkout -- packages/timer-core/src/schemas.ts
 grep -cF 'config: v.partial(SessionConfigSchema)' packages/timer-core/src/schemas.ts   # 期待: 1
 ```
