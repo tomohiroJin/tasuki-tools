@@ -55,6 +55,7 @@ describe('createSyncServer を in-process で起動する', () => {
   });
 
   it('返り値の port は実際に bind されたポートで、そこへ WS 接続して部屋を作れる', async () => {
+    // Given: beforeAll で作成済みの server（PORT=0 で起動した createSyncServer の返り値）
     // Then: PORT=0 を渡したのに 0 ではない（config の値をそのまま返していない）
     expect(server.port).toBeGreaterThan(0);
 

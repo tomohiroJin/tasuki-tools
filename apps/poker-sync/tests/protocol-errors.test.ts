@@ -14,9 +14,12 @@ afterAll(async () => {
 
 describe('不正メッセージ（FR-015 / 憲法原則 IV）', () => {
   it('JSON でないテキストは invalid-message エラーになり、接続は維持される', async () => {
+    // Given
     const client = await WsClient.connect(server.port);
+    // When
     client.sendRaw('not-json{{');
     const first = await client.next();
+    // Then
     expect(first).toMatchObject({ type: 'error', code: 'invalid-message' });
 
     // 接続維持の確認: 続けて送ってもまた応答が返る
@@ -28,8 +31,11 @@ describe('不正メッセージ（FR-015 / 憲法原則 IV）', () => {
   });
 
   it('スキーマ違反（デッキ外のカード値）は invalid-message になる', async () => {
+    // Given
     const client = await WsClient.connect(server.port);
+    // When
     client.send({ type: 'vote', card: { kind: 'number', value: 4 } });
+    // Then
     expect(await client.next()).toMatchObject({ type: 'error', code: 'invalid-message' });
     client.close();
   });
@@ -37,8 +43,11 @@ describe('不正メッセージ（FR-015 / 憲法原則 IV）', () => {
 
 describe('join 前の操作は not-joined', () => {
   it.each(['vote', 'reveal', 'next-round'] as const)('%s → not-joined', async (op) => {
+    // Given
     const client = await WsClient.connect(server.port);
+    // When
     client.send(op === 'vote' ? { type: 'vote', card: { kind: 'coffee' } } : { type: op });
+    // Then
     expect(await client.next()).toMatchObject({ type: 'error', code: 'not-joined' });
     client.close();
   });

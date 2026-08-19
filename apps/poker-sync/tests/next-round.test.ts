@@ -46,7 +46,10 @@ async function setupRevealedRoom() {
 
 describe('revealed の stats（FR-010）', () => {
   it('average と modes が配信される（5 と 8 → 平均 6.5・最頻値は両方）', async () => {
+    // Given: setupRevealedRoom がルーム作成から公開までの操作を行うため、この呼び出し自体が前提の指定を兼ねる
+    // When
     const { host, guest, hostRevealed } = await setupRevealedRoom();
+    // Then
     if (hostRevealed.round.status !== 'revealed') throw new Error('unreachable');
     expect(hostRevealed.round.stats.average).toBe(6.5);
     expect(hostRevealed.round.stats.modes).toEqual(
@@ -62,9 +65,12 @@ describe('revealed の stats（FR-010）', () => {
 
 describe('next-round（契約 #6 / FR-011）', () => {
   it('ホストの next-round で全員が票リセット済みの voting 状態を受信する', async () => {
+    // Given
     const { host, guest } = await setupRevealedRoom();
+    // When
     host.send({ type: 'next-round' });
 
+    // Then
     for (const client of [host, guest]) {
       const state = (await client.nextMatching(
         (msg) => (msg as RoomState).round?.status === 'voting',
@@ -76,8 +82,11 @@ describe('next-round（契約 #6 / FR-011）', () => {
   });
 
   it('非ホストの next-round は not-host エラー', async () => {
+    // Given
     const { host, guest } = await setupRevealedRoom();
+    // When
     guest.send({ type: 'next-round' });
+    // Then
     expect(await guest.nextMatching(isType('error'))).toMatchObject({
       type: 'error',
       code: 'not-host',

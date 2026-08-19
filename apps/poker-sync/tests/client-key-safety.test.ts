@@ -25,11 +25,14 @@ class NameGetterThrowsError extends Error {
 
 describe('deriveClientKeySafely', () => {
   it('通常時は deriveClientKey の戻り値をそのまま返す', () => {
+    // Given: 渡す deriveClientKey・xff・ログ関数自体が前提の指定を兼ねる
+    // When
     const result = deriveClientKeySafely(
       (xff) => `key:${xff ?? 'none'}`,
       '203.0.113.7',
       () => {},
     );
+    // Then
     expect(result).toBe('key:203.0.113.7');
   });
 
@@ -41,7 +44,9 @@ describe('deriveClientKeySafely', () => {
 
   describe.each(THROW_CASES)('deriveClientKey が %s を throw したとき', (_label, makeErr) => {
     it('(a) 呼び出し元を巻き込まず null を返す', () => {
+      // Given
       const errors: string[] = [];
+      // When
       const result = deriveClientKeySafely(
         () => {
           throw makeErr();
@@ -49,13 +54,16 @@ describe('deriveClientKeySafely', () => {
         '203.0.113.7',
         (name) => errors.push(name),
       );
+      // Then
       expect(result).toBeNull();
       expect(errors).toHaveLength(1);
     });
   });
 
   it('(b) ログに渡るのは例外の分類だけ（Error の name）', () => {
+    // Given
     const errors: string[] = [];
+    // When
     deriveClientKeySafely(
       () => {
         throw new Error('derive failed for 203.0.113.88');
@@ -63,11 +71,14 @@ describe('deriveClientKeySafely', () => {
       '203.0.113.88',
       (name) => errors.push(name),
     );
+    // Then
     expect(errors).toEqual(['Error']);
   });
 
   it('(c) XFF の値・例外メッセージが1バイトも渡らない', () => {
+    // Given
     const errors: string[] = [];
+    // When
     deriveClientKeySafely(
       () => {
         throw new Error('leak SECRET-XFF-VALUE-203.0.113.7');
@@ -75,14 +86,17 @@ describe('deriveClientKeySafely', () => {
       '203.0.113.7',
       (name) => errors.push(name),
     );
+    // Then
     expect(errors[0]).not.toContain('203.0.113.7');
     expect(errors[0]).not.toContain('SECRET');
   });
 
   it('name に偽の key=value を仕込んでも丸められる（ログ注入対策）', () => {
+    // Given
     const errors: string[] = [];
     const err = new Error('boom');
     err.name = 'Error xff=203.0.113.88 level=info fake'.repeat(3);
+    // When
     deriveClientKeySafely(
       () => {
         throw err;
@@ -90,6 +104,7 @@ describe('deriveClientKeySafely', () => {
       undefined,
       (name) => errors.push(name),
     );
+    // Then
     expect(errors[0]).not.toContain('xff=203.0.113.88');
     expect(errors[0]).not.toContain('level=info');
     expect(errors[0]!.length).toBeLessThanOrEqual(40);
