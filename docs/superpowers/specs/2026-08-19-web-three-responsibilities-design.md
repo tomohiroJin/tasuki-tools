@@ -205,7 +205,13 @@ const WEB_APPS = [
   {
     app: "apps/timer-web",
     syncModules:      ["src/sync/client.ts"],           // これを import してよいのは
-    allowedImporters: ["src/sync/use-timer-sync.ts"],   // この 1 本だけ
+    allowedImporters: [                                 // 同期フックと dispatch.ts の 2 本
+      "src/sync/use-timer-sync.ts",
+      "src/sync/dispatch.ts",   // client.ts が import する側（依存の向きは client → dispatch）。
+                                 // dispatch.ts は同期クライアント自身の実装の一部であり
+                                 // その消費者ではない。しかも import type のみで実行時依存が無い
+                                 // （2026-08-19 実測）
+    ],
     wsHolders:        ["src/sync/client.ts"],           // new WebSocket( を持てるのは
   },
   {
@@ -216,6 +222,11 @@ const WEB_APPS = [
   },
 ];
 ```
+
+**この正本は初版で `allowedImporters` を `use-timer-sync.ts` の 1 本だけと書いていたが、
+実装は `dispatch.ts` を加えた 2 本である。** ADR-0015 の追記・`architecture.md`・検査本体の
+docstring はすでに 2 本へ直っており、**正本だけが 1 本のまま追随できていなかった**
+（「直したつもりが片側だけ」と同型）。この節はその追随として書き直したものである。
 
 見るのは 3 つ。
 
@@ -373,9 +384,14 @@ DoD は [`docs/guides/definition-of-done.md`](../../guides/definition-of-done.md
 - **状態の配置は機械で見ていない。** 「`mode` が同期フックにある」ことを縛る検査は置かない。
   MUST 3 の遵守はレビューに依存する
 - **`handlersRef` の作法が保たれていることも機械で見ていない**（D2 は設計の決定であって検査ではない）
-- **無力化の最短経路は `allowedImporters` に 1 行足すこと。** 全単射照合も 0 件ガードも自己テストも
-  素通りする。#166 の `EXCLUDED_PACKAGES` と同型で、`docs/adr/0014` の構えが**人手のレビューに
-  依存している**部分である。新しいファイルを許可リストへ足す差分は、レビューで必ず理由を問う
+- **無力化の最短経路は `allowedImporters` に 1 行足すこと。** 検査本体（本体の判定）は
+  全単射照合も 0 件ガードも素通りする。**ただし自己テストは素通りしない**——
+  `audit-web-sync-boundary.test.mjs` の「timer-web の `allowedImporters` は同期フックと
+  `dispatch.ts` の 2 本である」が `deepEqual` で要素数 2 に固定しているため、1 行足すと
+  このテストが落ちる（2026-08-19 実測）。無力化するには自己テストの書き換えも要る。
+  #166 の `EXCLUDED_PACKAGES` と同型で、`docs/adr/0014` の構えが最終的には**人手の
+  レビューに依存している**部分である。新しいファイルを許可リストへ足す差分は、レビューで
+  必ず理由を問う
 - **新検査そのものは変異検査の射程外である。** `scripts/mutation-check.mjs` は `scripts/` を
   変異対象にできない（#174）。完了条件 4 が守るのは `apps/` `packages/` 側だけで、
   `audit-web-sync-boundary.mjs` の恒真化は D11 の破壊検証**だけ**が守る
@@ -482,9 +498,16 @@ D9b で `App.connection.test.tsx` を再編前に足す。
 | 10 | 「PR 1 本」が分割理由 3 への反論を持っていなかった | 3 つの理由を明示 |
 | 11 | 新検査が変異検査の射程外（#174）である旨が未記載 | 完了条件 4 と「何を見ていないか」へ追加 |
 
+### 壊れた主張（後日判明）
+
+- **「`src` 配下で `sync/client` を import しているのは `App.tsx` の 1 本だけ」は壊れた。**
+  当時の `grep -rln` 再確認では生き残ったが、その後の実装で
+  `apps/timer-web/src/sync/dispatch.ts` が `import type { Identity } from "./client.js";`
+  を持つようになった（2026-08-19 実測）。設計が実装を追い越された後、正本側が追随
+  していなかった例（詳細は「`allowedImporters` を timer-web で 2 本にしている理由」節）。
+
 ### 壊せなかった主張（生き残ったもの）
 
-- **`src` 配下で `sync/client` を import しているのは `App.tsx` の 1 本だけ**（`grep -rln` で再確認）
 - **`docs/timer/adr/0003` の決定は実装と一致している。** `Date.now()` の全量を見ても、
   残り時間・経過時間を進めるものは無い
 - **既存 App テスト 5 本は内部実装名に触れていない**ので、無改造で通る見込みは高い
