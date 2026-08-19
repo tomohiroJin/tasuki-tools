@@ -680,8 +680,12 @@ export function sc039bUnusedPublicData(packageSrcFiles, productSources) {
  * SC-039③: 各 packages 配下 src の公開記号（const/interface/type 全種）のうち、
  * 製品コードから一度も参照されない（＝自ファイル内でのみ使われる。export が不要）ものの件数。
  * **テストからの参照は根拠に含めない**（FR-090）。
+ *
+ * `exceptions`（{@link SC039C_EXCEPTIONS} と同じ形）に載る `file::name` の組は数えない。
+ * 例外表が腐っていないかは {@link findStaleSymbolExceptions} が別に見る。
+ * **ここは腐りを見ない** — 実在しない記号を例外に書けば、ここは黙って数えないだけである。
  */
-export function sc039cSelfOnlyPublicSymbols(packageSrcFiles, productSources) {
+export function sc039cSelfOnlyPublicSymbols(packageSrcFiles, productSources, exceptions = []) {
   // 【②との違い】ここでは間接利用（同一ファイル内の他の公開関数経由での参照）を
   // 「生きている」根拠にしない。③ が数えるのは「export が不要かどうか」であり、
   // 他ファイルが export された名前そのものを直接使っているかだけが判定材料になる。
@@ -689,9 +693,11 @@ export function sc039cSelfOnlyPublicSymbols(packageSrcFiles, productSources) {
   // その関数経由で内部的に使われていても export は不要である
   // （実例: problem.ts の FALLBACK_PROBLEMS は pickFallback から内部参照されるが、
   // 他ファイルは FALLBACK_PROBLEMS を直接 import していないため export 不要＝③対象）。
+  const excepted = new Set(exceptions.map((e) => `${e.file}::${e.name}`));
   let count = 0;
   for (const [file, content] of packageSrcFiles) {
     for (const decl of extractPublicDeclarations(content)) {
+      if (excepted.has(`${file}::${decl.name}`)) continue;
       if (!isReferencedElsewhere(decl.name, file, productSources)) count++;
     }
   }
@@ -705,11 +711,16 @@ export function sc039UnreachableElements({
   handlersSource,
   packageSrcFiles,
   productSources,
+  exceptions = [],
 }) {
   return {
     unreachableBranches: sc039aUnreachableBranchInApps(handlersSource),
     unusedPublicDataLines: sc039bUnusedPublicData(packageSrcFiles, productSources),
-    selfOnlyPublicSymbols: sc039cSelfOnlyPublicSymbols(packageSrcFiles, productSources),
+    selfOnlyPublicSymbols: sc039cSelfOnlyPublicSymbols(
+      packageSrcFiles,
+      productSources,
+      exceptions,
+    ),
   };
 }
 
@@ -747,6 +758,102 @@ export const SCANNED_PACKAGES = [
 export const EXCLUDED_PACKAGES = [
   { pkg: "packages/ui", reason: "src・tests とも TS を 1 つも持たない（CSS トークンとフォント）" },
 ];
+
+/**
+ * SC-039③ の例外。**検査の土台になっている公開記号だけ**を、理由つきで載せる。
+ *
+ * FR-090 は「テストからの参照は生存の根拠に含めない」と定めており、原則はそのとおりでよい。
+ * ただし、その記号を失うと**検査そのものが弱くなる**ものが実在する。それらは公開を残し、
+ * ここへ理由つきで挙げる。理由を書けないものは例外にしない。
+ *
+ * **例外表は両方向に腐る。** 記号が消えたのに例外が残れば同名の別記号を静かに覆い、
+ * 記号が製品から使われ始めれば例外そのものが不要になる。
+ * どちらも {@link findStaleSymbolExceptions} が落とす。
+ */
+export const SC039C_EXCEPTIONS = [
+  {
+    file: "packages/timer-core/src/errors.ts",
+    name: "SYNC_ERROR_CODES",
+    reason:
+      "apps/timer-sync/test/error-code-coverage.test.ts がソースと双方向に照合済みの権威列挙として起点にしている（PR #34 のレビューで塞いだ穴の土台）",
+  },
+  {
+    file: "packages/timer-core/src/schemas.ts",
+    name: "ServerMsgSchema",
+    reason: "apps/timer-sync/test/live-ws.protocol.test.ts が実 WS の全フレームを突き合わせる契約",
+  },
+  {
+    file: "packages/timer-core/src/schemas.ts",
+    name: "RoomSchema",
+    reason:
+      "packages/timer-core/test/ai-unlock.test.ts がスキーマの entries を直接検査している（公開 API 経由では書けない）",
+  },
+  {
+    file: "packages/timer-core/src/error-messages.ts",
+    name: "DEFAULT_ERROR_MESSAGE",
+    reason: "既定文言の正本。落とすと 3 ファイルへ文言リテラルが複製される",
+  },
+];
+
+/**
+ * 例外表が腐っていないかを見る（純粋）。問題が無ければ空配列。
+ *
+ * ## 何を見るか
+ *
+ * 例外 1 件ごとに、次の 3 つの向きで落とす。
+ *
+ *   1. 例外が指すファイルに その記号の公開宣言が無い（記号が消えた／改名された）。
+ *      ファイルごと走査対象に無い場合も同じ向きの腐りとして落とす。
+ *   2. 例外の記号が製品コードから参照されている（例外がもう要らない）
+ *   3. 理由が空（{@link EXCLUDED_PACKAGES} と同じ作法。理由の書けない例外は置かない）
+ *
+ * ## 何を見ていないか — **「足りる」とは言わない**
+ *
+ * - **理由の内容が本当かは見ていない。** 空文字列でないことしか見ないので、
+ *   でたらめな理由を書けば通る。理由はレビューが読むためのものである。
+ * - **例外に挙げるべき記号が挙がっているかは見ていない。** これは
+ *   「挙げた例外が腐っていないか」だけを見る片方向の検査であり、
+ *   指標そのもの（{@link sc039cSelfOnlyPublicSymbols} が数える件数）が
+ *   もう片方向を受け持つ。
+ * - **参照の判定は `isReferencedElsewhere` と同じ精度しか持たない。**
+ *   文字列リテラルとコメントを除いた素の `\bNAME\b` 照合なので、
+ *   同名の別記号（別ファイルのローカル変数など）に当たれば「参照されている」に倒れる。
+ *   その向きは例外が余計に消される側＝安全側である。
+ * - **記号の宣言は `extractPublicDeclarations` が拾える書き方に限られる。**
+ *   `export { X }` のような後置きの公開は拾えない（拾えなければ 1. で落ちる＝安全側）。
+ *
+ * @param exceptions 例外表（`{ file, name, reason }` の配列）
+ * @param packageSrcFiles `Map<リポジトリ相対パス, ソース>`。SC-039③ が数える走査対象そのもの
+ * @param productSources `Map<リポジトリ相対パス, ソース>`。参照元となる製品コード（テストを含めない）
+ */
+export function findStaleSymbolExceptions(exceptions, packageSrcFiles, productSources) {
+  const problems = [];
+  for (const e of exceptions) {
+    if (typeof e.reason !== "string" || e.reason.trim() === "") {
+      problems.push(`SC-039③ の例外に理由がありません: ${e.file} ${e.name}`);
+    }
+    const content = packageSrcFiles.get(e.file);
+    if (content === undefined) {
+      problems.push(
+        `SC-039③ の例外が指すファイルが走査対象にありません: ${e.file}（例外を消すか、走査対象を直してください）`,
+      );
+      continue;
+    }
+    const declared = extractPublicDeclarations(content).some((d) => d.name === e.name);
+    if (!declared) {
+      problems.push(
+        `SC-039③ の例外が指す公開宣言がありません: ${e.file} の ${e.name}（記号が消えたなら例外も消してください）`,
+      );
+      continue;
+    }
+    if (isReferencedElsewhere(e.name, e.file, productSources)) {
+      problems.push(
+        `SC-039③ の例外が不要になりました: ${e.file} の ${e.name} は製品コードから参照されています`,
+      );
+    }
+  }
+  return problems;
+}
 
 /**
  * SC-035 / SC-039① が名指しで参照するファイルピン。
@@ -877,6 +984,58 @@ export function scanVolumeDimensions(volume) {
 }
 
 /**
+ * SC-039②③ が使う 2 つの集合（純粋）を、読み込み済みの走査対象から組み立てる。
+ *
+ * **`main()` のガードと `runAudit()` の指標は、どちらもこの関数の結果だけを使う**
+ * （ADR-0014 決定 9）。同じ `loaded` を渡す限り同じ結果が出るので、
+ * 「ガードが見る集合」と「指標が測る集合」は構造的に同一になる。
+ * 2 か所で別々に組み立てると、条件式が割れた瞬間にガードが静かに空振りする
+ * （このリポジトリが実際に踏んだ形。`loadScanTargets` の docstring を参照）。
+ *
+ * - `packageSrcFiles`: SC-039②③ が数える対象。各 packages 配下の src のみ
+ *   （FR-119②③は packages 限定）。到達性では絞らない。
+ * - `productSources`: 参照元となる製品コード。**SC-027 が到達不能と判定したファイルを除く。**
+ *   死んだファイルからの参照は生存の根拠にならない。これを除かないと、
+ *   「撤去予定のファイルからしか参照されていない記号」が生きているように見え、
+ *   G1 で撤去した瞬間に SC-039 の値が跳ね上がる（計測器が撤去を検知できない）。
+ *   **テストは含めない**（FR-090）。
+ *
+ * SC-035 / SC-039 は timer 固有の指標なので、走査を広げてもここは timer の 3 つだけを見る。
+ *
+ * @param loaded {@link loadScanTargets} の結果
+ */
+export function buildSc039Sources(loaded) {
+  const byPkg = new Map(loaded.map((p) => [p.pkg, p]));
+  const core = byPkg.get("packages/timer-core");
+  const sync = byPkg.get("apps/timer-sync");
+  const web = byPkg.get("apps/timer-web");
+
+  const reachable = {
+    core: computeReachableFiles(core.srcFiles, [core.entry]),
+    sync: computeReachableFiles(sync.srcFiles, [sync.entry]),
+    web: computeReachableFiles(web.srcFiles, [web.entry]),
+  };
+
+  const productSources = new Map([
+    ...[...core.srcFiles]
+      .filter(([k]) => reachable.core.has(k))
+      .map(([k, v]) => [`packages/timer-core/src/${k}`, v]),
+    ...[...sync.srcFiles]
+      .filter(([k]) => reachable.sync.has(k))
+      .map(([k, v]) => [`apps/timer-sync/src/${k}`, v]),
+    ...[...web.srcFiles]
+      .filter(([k]) => reachable.web.has(k))
+      .map(([k, v]) => [`apps/timer-web/src/${k}`, v]),
+  ]);
+
+  const packageSrcFiles = new Map(
+    [...core.srcFiles].map(([k, v]) => [`packages/timer-core/src/${k}`, v]),
+  );
+
+  return { packageSrcFiles, productSources };
+}
+
+/**
  * 指標を測る。**読み込み済みの走査対象（`loadScanTargets` の結果）を受け取る。**
  * 自分で読み直さないこと — 読み込み条件が二重化した瞬間に、ガードが数えた集合と
  * ここで測る集合が食い違う（ADR-0014 決定 9）。
@@ -884,8 +1043,8 @@ export function scanVolumeDimensions(volume) {
 function runAudit(loaded) {
   const byPkg = new Map(loaded.map((p) => [p.pkg, p]));
 
-  // SC-035 / SC-039 は timer 固有の指標。走査を広げてもここは変えない。
-  const core = byPkg.get("packages/timer-core");
+  // SC-035 / SC-039① は timer 固有の指標。走査を広げてもここは変えない。
+  // （SC-039②③ の集合は `buildSc039Sources` が持つ。ここでは組み立てない。）
   const sync = byPkg.get("apps/timer-sync");
   const web = byPkg.get("apps/timer-web");
 
@@ -898,16 +1057,6 @@ function runAudit(loaded) {
   const sc027 = loaded
     .filter((p) => hasScanTarget(p.entry))
     .reduce((n, p) => n + sc027UnreachableModules(p.srcFiles, [p.entry]), 0);
-
-  // SC-039②③ の「参照元」から、SC-027 が到達不能と判定したファイルを除く。
-  // なぜ: 死んだファイルからの参照は生存の根拠にならない。これを除かないと、
-  // 「撤去予定のファイルからしか参照されていない記号」が生きているように見え、
-  // G1 で撤去した瞬間に SC-039 の値が跳ね上がる（計測器が撤去を検知できない）。
-  const reachable = {
-    core: computeReachableFiles(core.srcFiles, [core.entry]),
-    sync: computeReachableFiles(sync.srcFiles, [sync.entry]),
-    web: computeReachableFiles(web.srcFiles, [web.entry]),
-  };
 
   const sc028 = sc028DuplicateTestDoubles(allTestFiles);
 
@@ -924,25 +1073,15 @@ function runAudit(loaded) {
   const sc035 = sc035MessageDefinitions(serverSources, clientSource);
 
   const handlersSource = sync.srcFiles.get("application/handlers.ts") ?? "";
-  const productSources = new Map([
-    ...[...core.srcFiles]
-      .filter(([k]) => reachable.core.has(k))
-      .map(([k, v]) => [`packages/timer-core/src/${k}`, v]),
-    ...[...sync.srcFiles]
-      .filter(([k]) => reachable.sync.has(k))
-      .map(([k, v]) => [`apps/timer-sync/src/${k}`, v]),
-    ...[...web.srcFiles]
-      .filter(([k]) => reachable.web.has(k))
-      .map(([k, v]) => [`apps/timer-web/src/${k}`, v]),
-  ]);
-  // packages/*/src のみを走査対象にする（FR-119②③は packages 限定）
-  const coreOnly = new Map(
-    [...core.srcFiles].map(([k, v]) => [`packages/timer-core/src/${k}`, v]),
-  );
+  // **走査対象の組み立ては `buildSc039Sources` の 1 か所だけ**（ADR-0014 決定 9）。
+  // ここで組み直すと、`main()` の例外表ガードが見る集合と指標が測る集合が食い違い、
+  // 腐った例外を抱えたまま静かに「0 件」を報告できてしまう。
+  const { packageSrcFiles, productSources } = buildSc039Sources(loaded);
   const sc039 = sc039UnreachableElements({
     handlersSource,
-    packageSrcFiles: coreOnly,
+    packageSrcFiles,
     productSources,
+    exceptions: SC039C_EXCEPTIONS,
   });
 
   return {
@@ -1066,6 +1205,29 @@ function main() {
       unexpected: drift.unexpected,
     };
     console.error(formatTargetDiff("audit-structure", merged, summary));
+    process.exit(1);
+  }
+
+  // 例外表の健全性（走査対象のずれと同じ扱いで合否を持つ）。
+  // 指標を出す前に見る。腐った例外を抱えたまま「0 件」と報告させない。
+  //
+  // **見る集合は `runAudit()` が測る集合と同一**（ADR-0014 決定 9）。
+  // 同じ `loaded` を `buildSc039Sources` に渡しているので、ここで組み直してはいない。
+  // 走査対象の実在確認より後に置くのは、この関数が timer の 3 パッケージの存在を前提に
+  // するためである（宣言が欠けていれば上のガードが先に落とす）。
+  const sc039Sources = buildSc039Sources(loaded);
+  const staleExceptions = findStaleSymbolExceptions(
+    SC039C_EXCEPTIONS,
+    sc039Sources.packageSrcFiles,
+    sc039Sources.productSources,
+  );
+  // 走査量は成否によらず必ず出す（#135 D5）。何件の例外を何件のファイルに照らしたかが赤の根拠になる。
+  console.log(
+    `[audit-structure] SC-039③ の例外表: ${SC039C_EXCEPTIONS.length} 件 / ` +
+      `照合先 ${sc039Sources.packageSrcFiles.size} ファイル・参照元 ${sc039Sources.productSources.size} ファイル`,
+  );
+  if (staleExceptions.length > 0) {
+    for (const p of staleExceptions) console.error(`[audit-structure] ${p}`);
     process.exit(1);
   }
 

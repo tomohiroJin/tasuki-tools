@@ -28,6 +28,7 @@ import {
   extractPublicDeclarations,
   sc039bUnusedPublicData,
   sc039cSelfOnlyPublicSymbols,
+  findStaleSymbolExceptions,
   formatTable,
   hasScanTarget,
   findInvalidDeclarations,
@@ -693,5 +694,86 @@ describe("走査量の算出（ADR-0014 決定 6・決定 8・決定 9）", () =
       [9, 167, 10, 249],
     );
     for (const d of dimensions) assert.ok(formatScanVolume(volume).includes(String(d.count)));
+  });
+});
+
+describe("findStaleSymbolExceptions: 例外表は両方向に腐らせない", () => {
+  const productSources = new Map([
+    ["packages/x/src/user.ts", "import { USED } from './decl.js';\nconst a = USED;\n"],
+  ]);
+  const packageSrcFiles = new Map([
+    ["packages/x/src/decl.ts", "export const ALIVE = 1;\nexport const USED = 2;\n"],
+  ]);
+
+  test("実在する未参照の記号を挙げた例外は問題にならない", () => {
+    // Given
+    const exceptions = [{ file: "packages/x/src/decl.ts", name: "ALIVE", reason: "検査の土台" }];
+    // When
+    const problems = findStaleSymbolExceptions(exceptions, packageSrcFiles, productSources);
+    // Then
+    assert.deepEqual(problems, []);
+  });
+
+  test("宣言が実在しない例外は問題として報告する", () => {
+    // Given（記号が消えたのに例外だけ残った状態）
+    const exceptions = [{ file: "packages/x/src/decl.ts", name: "GONE", reason: "検査の土台" }];
+    // When
+    const problems = findStaleSymbolExceptions(exceptions, packageSrcFiles, productSources);
+    // Then
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /GONE/);
+  });
+
+  test("ファイルごと実在しない例外は問題として報告する", () => {
+    // Given
+    const exceptions = [{ file: "packages/x/src/none.ts", name: "ALIVE", reason: "検査の土台" }];
+    // When
+    const problems = findStaleSymbolExceptions(exceptions, packageSrcFiles, productSources);
+    // Then
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /none\.ts/);
+  });
+
+  test("製品から参照されるようになった記号の例外は不要になったと報告する", () => {
+    // Given
+    const exceptions = [{ file: "packages/x/src/decl.ts", name: "USED", reason: "検査の土台" }];
+    // When
+    const problems = findStaleSymbolExceptions(exceptions, packageSrcFiles, productSources);
+    // Then
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /不要/);
+  });
+
+  test("理由が空の例外は問題として報告する", () => {
+    // Given
+    const exceptions = [{ file: "packages/x/src/decl.ts", name: "ALIVE", reason: "" }];
+    // When
+    const problems = findStaleSymbolExceptions(exceptions, packageSrcFiles, productSources);
+    // Then
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /理由/);
+  });
+});
+
+describe("sc039cSelfOnlyPublicSymbols: 例外表に載る記号は数えない", () => {
+  const productSources = new Map([["packages/x/src/user.ts", "const a = 1;\n"]]);
+  const packageSrcFiles = new Map([
+    ["packages/x/src/decl.ts", "export const A = 1;\nexport const B = 2;\n"],
+  ]);
+
+  test("例外なしなら 2 件", () => {
+    // Given / When
+    const n = sc039cSelfOnlyPublicSymbols(packageSrcFiles, productSources);
+    // Then
+    assert.equal(n, 2);
+  });
+
+  test("1 件を例外にすると 1 件になる", () => {
+    // Given
+    const exceptions = [{ file: "packages/x/src/decl.ts", name: "A", reason: "検査の土台" }];
+    // When
+    const n = sc039cSelfOnlyPublicSymbols(packageSrcFiles, productSources, exceptions);
+    // Then
+    assert.equal(n, 1);
   });
 });
