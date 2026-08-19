@@ -207,17 +207,23 @@ const SESSION_CASES: Array<[string, Record<string, unknown>]> = [
 
 describe("App が子画面へ渡すコールバックと WS コマンドの対応（ロビー）", () => {
   it.each(LOBBY_CASES)("%s は期待するフレームをちょうど1通送る", (prop, expected) => {
+    // Given
     const ws = enterRoom("ready");
     const sendSpy = vi.spyOn(ws, "send");
+    // When
     fireEvent.click(screen.getByTestId(`lobby:${prop}`));
+    // Then
     expect(sendSpy).toHaveBeenCalledTimes(1);
     expect(sentFrames(sendSpy)[0]).toEqual(expected);
   });
 
   it("onRegenerateProblem は problem.request を requestId の接頭辞 req-ROOM01-regen- で送る", () => {
+    // Given
     const ws = enterRoom("ready");
     const sendSpy = vi.spyOn(ws, "send");
+    // When
     fireEvent.click(screen.getByTestId("lobby:onRegenerateProblem"));
+    // Then
     expect(sendSpy).toHaveBeenCalledTimes(1);
     const sent = sentFrames(sendSpy)[0]!;
     expect(sent.command).toBe("problem.request");
@@ -225,9 +231,12 @@ describe("App が子画面へ渡すコールバックと WS コマンドの対�
   });
 
   it("onStartSession は problem.request を送らず phase.set と session.act START を送る（お題あり）", () => {
+    // Given
     const ws = enterRoom("ready");
     const sendSpy = vi.spyOn(ws, "send");
+    // When
     fireEvent.click(screen.getByTestId("lobby:onStartSession"));
+    // Then
     const sent = sendSpy.mock.calls.map((c) => JSON.parse(String(c[0])));
     expect(sent.map((m) => m.command)).toEqual(["phase.set", "session.act"]);
     expect(sent[0].phase).toBe("session");
@@ -237,17 +246,23 @@ describe("App が子画面へ渡すコールバックと WS コマンドの対�
 
 describe("App が子画面へ渡すコールバックと WS コマンドの対応（セッション）", () => {
   it.each(SESSION_CASES)("%s は期待するフレームをちょうど1通送る", (prop, expected) => {
+    // Given
     const ws = enterRoom("session");
     const sendSpy = vi.spyOn(ws, "send");
+    // When
     fireEvent.click(screen.getByTestId(`session:${prop}`));
+    // Then
     expect(sendSpy).toHaveBeenCalledTimes(1);
     expect(sentFrames(sendSpy)[0]).toEqual(expected);
   });
 
   it("onRegenerateProblem は problem.request を requestId の接頭辞 req-ROOM01-regen- で送る", () => {
+    // Given
     const ws = enterRoom("session");
     const sendSpy = vi.spyOn(ws, "send");
+    // When
     fireEvent.click(screen.getByTestId("session:onRegenerateProblem"));
+    // Then
     expect(sendSpy).toHaveBeenCalledTimes(1);
     const sent = sentFrames(sendSpy)[0]!;
     expect(sent.command).toBe("problem.request");
@@ -255,9 +270,12 @@ describe("App が子画面へ渡すコールバックと WS コマンドの対�
   });
 
   it("onAddProxy は participant.addProxy を proxy- で始まる participantId で送る", () => {
+    // Given
     const ws = enterRoom("session");
     const sendSpy = vi.spyOn(ws, "send");
+    // When
     fireEvent.click(screen.getByTestId("session:onAddProxy"));
+    // Then
     expect(sendSpy).toHaveBeenCalledTimes(1);
     const sent = sentFrames(sendSpy)[0]!;
     expect(sent.command).toBe("participant.addProxy");
@@ -266,11 +284,14 @@ describe("App が子画面へ渡すコールバックと WS コマンドの対�
   });
 
   it("session.act の action は押した操作ごとに違う", () => {
+    // Given
     const ws = enterRoom("session");
     const sendSpy = vi.spyOn(ws, "send");
+    // When
     for (const prop of ["onSkip", "onPause", "onResume", "onRestartTimer"]) {
       fireEvent.click(screen.getByTestId(`session:${prop}`));
     }
+    // Then
     const actions = sendSpy.mock.calls
       .map((c) => JSON.parse(String(c[0])))
       .filter((m) => m.command === "session.act")
@@ -279,10 +300,13 @@ describe("App が子画面へ渡すコールバックと WS コマンドの対�
   });
 
   it("driver.skip と driver.resume は取り違えていない", () => {
+    // Given
     const ws = enterRoom("session");
     const sendSpy = vi.spyOn(ws, "send");
+    // When
     fireEvent.click(screen.getByTestId("session:onDriverSkip"));
     fireEvent.click(screen.getByTestId("session:onDriverResume"));
+    // Then
     const sent = sendSpy.mock.calls.map((c) => JSON.parse(String(c[0])));
     expect(sent.map((m) => m.command)).toEqual(["driver.skip", "driver.resume"]);
     expect(sent.every((m) => m.participantId === OTHER_ID)).toBe(true);

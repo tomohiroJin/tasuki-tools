@@ -44,6 +44,8 @@ const ROOM_JOIN_SRC = readFileSync(
 
 describe("パスフレーズ照合の形", () => {
   it("constantTimeEqual を通している", () => {
+    // Given（ROOM_JOIN_SRC はモジュール冒頭で読み込んだソースファイルの内容を直接使う）
+    // When / Then（ソースの正規表現照合をそのまま検証するため操作と検証が同じ式になる）
     expect(ROOM_JOIN_SRC).toMatch(
       /constantTimeEqual\(\s*providedPassphrase\s*,\s*requiredPassphrase\s*\)/,
     );
@@ -51,6 +53,8 @@ describe("パスフレーズ照合の形", () => {
 
   it("素の比較演算子でパスフレーズを比べていない", () => {
     // `requiredPassphrase !== undefined` の未設定判定は対象外（両辺の名前で限定する）。
+    // Given（ROOM_JOIN_SRC はモジュール冒頭で読み込んだソースファイルの内容を直接使う）
+    // When / Then（ソースの正規表現照合をそのまま検証するため操作と検証が同じ式になる）
     expect(ROOM_JOIN_SRC).not.toMatch(
       /providedPassphrase\s*(!==|===|!=|==)\s*requiredPassphrase/,
     );

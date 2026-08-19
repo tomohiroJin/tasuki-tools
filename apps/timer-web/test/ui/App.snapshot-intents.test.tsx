@@ -110,8 +110,11 @@ afterEach(() => {
 
 describe("persist-completion: 完成フェーズの snapshot でローカル記録が実際に保存される", () => {
   it("完成（中断でない）なら記録が保存される", () => {
+    // Given
     const ws = createRoomAndConnect();
     sendServer(ws, { type: "room.created", code: "ROOM01", hostToken: "ht", resumeToken: "rt", participantId: HOST_ID });
+
+    // When
     sendServer(ws, {
       type: "snapshot",
       room: aRoomView({
@@ -123,10 +126,12 @@ describe("persist-completion: 完成フェーズの snapshot でローカル記�
       }),
     });
 
+    // Then
     expect(saveRecordMock).toHaveBeenCalledTimes(1);
   });
 
   it("中断（abort）後の celebration では saveRecord が呼ばれない（既存の否定側を壊さない）", () => {
+    // Given
     const ws = createRoomAndConnect();
     sendServer(ws, { type: "room.created", code: "ROOM01", hostToken: "ht", resumeToken: "rt", participantId: HOST_ID });
     sendServer(ws, {
@@ -141,6 +146,7 @@ describe("persist-completion: 完成フェーズの snapshot でローカル記�
       }),
     });
 
+    // When
     fireEvent.click(screen.getByRole("button", { name: /途中で終える/ }));
     fireEvent.click(screen.getByRole("button", { name: "終える（記録なし）" }));
 
@@ -155,16 +161,19 @@ describe("persist-completion: 完成フェーズの snapshot でローカル記�
       }),
     });
 
+    // Then
     expect(saveRecordMock).not.toHaveBeenCalled();
   });
 });
 
 describe("request-problem: 作成者がロビーで一度だけ代表生成を依頼する", () => {
   it("お題の無いロビーの snapshot を受けたら requestId: req-<CODE>-lobby で送る", () => {
+    // Given
     const ws = createRoomAndConnect();
     sendServer(ws, { type: "room.created", code: "ROOM01", hostToken: "ht", resumeToken: "rt", participantId: HOST_ID });
-
     const sendSpy = vi.spyOn(ws, "send");
+
+    // When
     sendServer(ws, {
       type: "snapshot",
       room: aRoomView({
@@ -176,6 +185,7 @@ describe("request-problem: 作成者がロビーで一度だけ代表生成を�
       }),
     });
 
+    // Then
     const requests = sentFrames(sendSpy).filter((f) => f.command === "problem.request");
     expect(requests).toEqual([{ command: "problem.request", requestId: "req-ROOM01-lobby" }]);
   });
@@ -183,6 +193,7 @@ describe("request-problem: 作成者がロビーで一度だけ代表生成を�
 
 describe("regenerate-problem: 作成者がロビーでの難易度変更を受けて作り直しを依頼する", () => {
   it("難易度が変わった snapshot を受けたら requestId が req-<CODE>-cfg- で始まる依頼を送る", () => {
+    // Given
     const ws = createRoomAndConnect();
     sendServer(ws, { type: "room.created", code: "ROOM01", hostToken: "ht", resumeToken: "rt", participantId: HOST_ID });
     sendServer(ws, {
@@ -196,8 +207,9 @@ describe("regenerate-problem: 作成者がロビーでの難易度変更を受�
         participants: [participant(HOST_ID, "Host")],
       }),
     });
-
     const sendSpy = vi.spyOn(ws, "send");
+
+    // When
     sendServer(ws, {
       type: "snapshot",
       room: aRoomView({
@@ -210,6 +222,7 @@ describe("regenerate-problem: 作成者がロビーでの難易度変更を受�
       }),
     });
 
+    // Then
     const requests = sentFrames(sendSpy).filter((f) => f.command === "problem.request");
     expect(requests).toHaveLength(1);
     expect(requests[0]!.requestId).toMatch(/^req-ROOM01-cfg-/);

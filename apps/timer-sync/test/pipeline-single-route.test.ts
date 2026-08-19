@@ -62,7 +62,8 @@ describe("パイプライン単一経路（FR-155/FR-156）", () => {
   it.each(FORMERLY_DEDICATED_COMMANDS)(
     "%s は handleCommand の switch に個別 case を持たない（default 経由で共通パイプラインへ合流する）",
     (command) => {
-      // Given/When: handleCommand の switch 本体
+      // Given（handlersSource はモジュール冒頭で読み込んだソースファイルの内容を直接使う）
+      // When: handleCommand の switch 本体を取り出す
       const start = handlersSource.indexOf("async function handleCommand(");
       const switchStart = handlersSource.indexOf("switch (cmd.command) {", start);
       const switchEnd = handlersSource.indexOf("\n  }\n", switchStart);

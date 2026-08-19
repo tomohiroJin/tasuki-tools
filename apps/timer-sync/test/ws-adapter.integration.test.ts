@@ -83,7 +83,8 @@ describe("WsAdapter 接続数上限", () => {
 
 describe("WsAdapter.port", () => {
   it("port: 0 で起動すると OS が選んだ実ポートを返し、そこへ接続できる", async () => {
-    // Given / When
+    // Given（既定のオプションで起動する）
+    // When
     const url = startAdapter();
 
     // Then: 0 のままではなく実際に listen しているポートが返る

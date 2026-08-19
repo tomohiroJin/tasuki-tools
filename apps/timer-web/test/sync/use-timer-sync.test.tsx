@@ -75,19 +75,25 @@ afterEach(() => {
 
 describe("useTimerSync: 接続の状態", () => {
   it("初期状態は online で、ルームは無い", () => {
+    // Given
     const { result } = renderHook(() => useTimerSync(fakeBanner()));
+    // When / Then（result.current への問い合わせが検証と同じ式になる）
     expect(result.current.connState).toBe("online");
     expect(result.current.room).toBeNull();
     expect(result.current.mode).toBe("setup");
   });
 
   it("ルームを作ると WebSocket を 1 本だけ開く", () => {
+    // Given
     const { result } = renderHook(() => useTimerSync(fakeBanner()));
+    // When
     act(() => result.current.createRoom("Host"));
+    // Then
     expect(FakeWS.instances).toHaveLength(1);
   });
 
   it("接続が切れると connState が reconnecting になる（EARS 2）", () => {
+    // Given
     const { result } = renderHook(() => useTimerSync(fakeBanner()));
     act(() => result.current.createRoom("Host"));
     const ws = latestSocket();
@@ -97,11 +103,14 @@ describe("useTimerSync: 接続の状態", () => {
     });
     expect(result.current.connState).toBe("online");
 
+    // When
     act(() => void ws.onclose?.());
+    // Then
     expect(result.current.connState).toBe("reconnecting");
   });
 
   it("切断でバナーを出し、再確立で消す", () => {
+    // Given
     const banner = fakeBanner();
     const { result } = renderHook(() => useTimerSync(banner));
     act(() => result.current.createRoom("Host"));
@@ -110,11 +119,13 @@ describe("useTimerSync: 接続の状態", () => {
       ws.readyState = FakeWS.OPEN;
       ws.onopen?.();
     });
+    // When
     act(() => void ws.onclose?.());
     act(() => {
       ws.readyState = FakeWS.OPEN;
       ws.onopen?.();
     });
+    // Then
     expect(banner.calls).toContain("show:接続が切れました。再接続しています...");
     expect(banner.calls[banner.calls.length - 1]).toBe("clear");
   });
@@ -136,35 +147,47 @@ describe("useTimerSync: メッセージの配線", () => {
   }
 
   it("snapshot を受け取ると room と画面が更新される（EARS 1）", () => {
+    // Given
     const { result, deliver } = connected();
+    // When
     deliver({ type: "snapshot", room: aRoomView({ code: "ROOM01", phase: "session" }) });
+    // Then
     expect(result.current.room?.code).toBe("ROOM01");
     expect(result.current.mode).toBe("session");
   });
 
   it("identity を受け取ると participantId が入る", () => {
+    // Given
     const { result, deliver } = connected();
+    // When
     deliver({ type: "room.created", code: "ROOM01", hostToken: "ht", resumeToken: "rt", participantId: "me" });
+    // Then
     expect(result.current.participantId).toBe("me");
   });
 
   it("room-not-found でセッション喪失になり、再接続しても戻らない（EARS 4）", () => {
+    // Given
     const { result, ws, deliver } = connected();
     deliver({ type: "error", code: "ROOM_NOT_FOUND", message: "no room" });
     expect(result.current.sessionLost).toBe(true);
+
+    // When
     act(() => void ws.onclose?.());
     act(() => {
       ws.readyState = FakeWS.OPEN;
       ws.onopen?.();
     });
+    // Then
     expect(result.current.sessionLost).toBe(true);
   });
 
   it("notice を受け取るとバナーを出す（EARS 3）", () => {
+    // Given
     const { banner, deliver } = connected();
     // action は SignalNoticeMsg（packages/timer-core/src/schemas.ts）の picklist に
     // 実在する値でなければならない。ブリーフ原文の "driver.skip" はコマンド名であって
     // notice の action ではなく、実物とは食い違っていたため実在する値に差し替えている。
+    // When
     deliver({
       type: "signal",
       signal: "notice",
@@ -172,23 +195,27 @@ describe("useTimerSync: メッセージの配線", () => {
       actorName: "Host",
       actorParticipantId: "host-p",
     });
+    // Then
     expect(banner.calls.some((c) => c.startsWith("show:"))).toBe(true);
   });
 });
 
 describe("useTimerSync: 明示保存の失敗経路", () => {
   it("saveRecordManually が失敗すると、文言・種別・自動消去なしでバナーを出す", async () => {
+    // Given
     vi.mocked(saveRecord).mockRejectedValueOnce(new Error("boom"));
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const banner = fakeBannerRecordingArgs();
     const { result } = renderHook(() => useTimerSync(banner));
 
+    // When
     await act(async () => {
       result.current.saveRecordManually(A_RECORD);
       await Promise.resolve();
       await Promise.resolve();
     });
 
+    // Then
     expect(consoleErrorSpy).toHaveBeenCalled();
     expect(banner.showCalls).toHaveLength(1);
     const [text, kind, options] = banner.showCalls[0]!;
@@ -200,21 +227,25 @@ describe("useTimerSync: 明示保存の失敗経路", () => {
   });
 
   it("saveRecordManually が成功すればバナーは出ない", async () => {
+    // Given
     const banner = fakeBannerRecordingArgs();
     const { result } = renderHook(() => useTimerSync(banner));
 
+    // When
     await act(async () => {
       result.current.saveRecordManually(A_RECORD);
       await Promise.resolve();
       await Promise.resolve();
     });
 
+    // Then
     expect(banner.showCalls).toHaveLength(0);
   });
 });
 
 describe("useTimerSync: 開始（お題なし）", () => {
   it("お題が無い状態でロビーから開始すると problem.request → phase.set → session.act の順で送る", () => {
+    // Given
     const { result } = renderHook(() => useTimerSync(fakeBanner()));
     // 作成者（isCreator）だと、ロビーの snapshot だけで代表お題の自動依頼が別途走り、
     // startSession() 自身が送る problem.request と混ざって順序を確かめにくくなる。
@@ -232,9 +263,11 @@ describe("useTimerSync: 開始（お題なし）", () => {
     expect(result.current.mode).toBe("lobby");
     expect(result.current.room?.problem).toBeNull();
 
+    // When
     const sendSpy = vi.spyOn(ws, "send");
     act(() => result.current.startSession());
 
+    // Then
     const sent = sendSpy.mock.calls.map((c) => JSON.parse(String(c[0])) as Record<string, unknown>);
     expect(sent.map((m) => m.command)).toEqual(["problem.request", "phase.set", "session.act"]);
     expect(sent[0]!.requestId).toBe("req-ROOM01");
@@ -245,11 +278,14 @@ describe("useTimerSync: 開始（お題なし）", () => {
 
 describe("useTimerSync: 後始末", () => {
   it("unmount で WebSocket を閉じる", () => {
+    // Given
     const { result, unmount } = renderHook(() => useTimerSync(fakeBanner()));
     act(() => result.current.createRoom("Host"));
     const ws = latestSocket();
     const closeSpy = vi.spyOn(ws, "close");
+    // When
     unmount();
+    // Then
     expect(closeSpy).toHaveBeenCalled();
   });
 });

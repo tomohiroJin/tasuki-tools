@@ -58,6 +58,7 @@ const noop = vi.fn();
 
 describe("ロビー: 自分の行の「ルームから抜ける」", () => {
   it("自分の行に「ルームから抜ける」ボタンが表示される", () => {
+    // Given
     render(
       <Lobby
         room={makeRoomWithTwoEditors()}
@@ -66,10 +67,12 @@ describe("ロビー: 自分の行の「ルームから抜ける」", () => {
         onRemoveParticipant={vi.fn()}
       />,
     );
+    // When / Then（screen.getByRole への問い合わせが検証と同じ式になる）
     expect(screen.getByRole("button", { name: "ルームから抜ける" })).toBeTruthy();
   });
 
   it("押すと確認ダイアログを経由せず自分が退出する", () => {
+    // Given
     const onRemoveParticipant = vi.fn();
     render(
       <Lobby
@@ -79,12 +82,15 @@ describe("ロビー: 自分の行の「ルームから抜ける」", () => {
         onRemoveParticipant={onRemoveParticipant}
       />,
     );
+    // When
     screen.getByRole("button", { name: "ルームから抜ける" }).click();
+    // Then
     expect(onRemoveParticipant).toHaveBeenCalledWith("bob-p");
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   it("在室する編集者以上が自分1名のみで、自分以外の在室者(見学者)が残るとき disabled になり理由が title に出る", () => {
+    // Given
     render(
       <Lobby
         room={makeRoomWithOnlyHostAndViewer()}
@@ -93,12 +99,15 @@ describe("ロビー: 自分の行の「ルームから抜ける」", () => {
         onRemoveParticipant={vi.fn()}
       />,
     );
+    // When
     const button = screen.getByRole("button", { name: "ルームから抜ける" }) as HTMLButtonElement;
+    // Then
     expect(button.disabled).toBe(true);
     expect(button.title).toContain("進行できる人がいなくなるため抜けられません");
   });
 
   it("他に編集者以上がいる場合は enabled のまま", () => {
+    // Given
     render(
       <Lobby
         room={makeRoomWithTwoEditors()}
@@ -107,11 +116,14 @@ describe("ロビー: 自分の行の「ルームから抜ける」", () => {
         onRemoveParticipant={vi.fn()}
       />,
     );
+    // When
     const button = screen.getByRole("button", { name: "ルームから抜ける" }) as HTMLButtonElement;
+    // Then
     expect(button.disabled).toBe(false);
   });
 
   it("最後の1人（自分だけ）は enabled のまま抜けられる（退出後に在室者が0名になるため不変条件は適用外）", () => {
+    // Given
     const room = aRoomView({
       config: { members: ["Alice"], intervalMinutes: 5 },
       participants: [p({ participantId: "host-p", displayName: "Alice", role: "host" })],
@@ -119,7 +131,9 @@ describe("ロビー: 自分の行の「ルームから抜ける」", () => {
     render(
       <Lobby room={room} participantId="host-p" onStartSession={noop} onRemoveParticipant={vi.fn()} />,
     );
+    // When
     const button = screen.getByRole("button", { name: "ルームから抜ける" }) as HTMLButtonElement;
+    // Then
     expect(button.disabled).toBe(false);
   });
 

@@ -50,6 +50,7 @@ describe("resume-identity", () => {
   });
 
   it("clearResumeIdentity 後は null を返す", () => {
+    // Given
     saveResumeIdentity({
       code: "ABC123",
       participantId: "p-1",
@@ -57,12 +58,16 @@ describe("resume-identity", () => {
       displayName: "Alice",
     });
 
+    // When
     clearResumeIdentity();
 
+    // Then
     expect(loadResumeIdentity()).toBeNull();
   });
 
   it("sessionStorage に保存する（localStorage には残さない）", () => {
+    // Given（保存する識別情報はここで直接指定する）
+    // When
     saveResumeIdentity({
       code: "ABC123",
       participantId: "p-1",
@@ -70,6 +75,7 @@ describe("resume-identity", () => {
       displayName: "Alice",
     });
 
+    // Then
     expect(sessionStorage.getItem("tdd-mob:resume-identity")).not.toBeNull();
     expect(localStorage.getItem("tdd-mob:resume-identity")).toBeNull();
   });

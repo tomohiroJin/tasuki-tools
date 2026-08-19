@@ -57,29 +57,32 @@ describe("色だけで状態を伝えない（FR-032）", () => {
     it.each(CONNECTION_CASES)(
       "$status は「$label」というテキストを色と併記する",
       ({ status, label }) => {
-        // Given / When
+        // Given
         render(<StatusStrip {...baseStrip} connectionStatus={status} />);
 
-        // Then（領域を aria-label で特定してから、その中の文字を見る）
+        // When（領域を aria-label で特定してから、その中の文字を見る）
         const region = screen.getByLabelText("接続状態");
+        // Then
         expect(region).toBeVisible();
         expect(within(region).getByText(new RegExp(label))).toBeVisible();
       },
     );
 
     it("状態を表す丸は装飾として読み上げから外す（テキストが本体）", () => {
-      // Given / When
+      // Given
       render(<StatusStrip {...baseStrip} connectionStatus="online" />);
-      // Then
+      // When
       const region = screen.getByLabelText("接続状態");
       const dot = region.querySelector('[aria-hidden="true"]');
+      // Then
       expect(dot).not.toBeNull();
       // 丸そのものが読み上げ名を持ってしまうと「色＋テキスト」ではなく二重読みになる
       expect(dot?.textContent?.trim()).toBe("●");
     });
 
     it("色を外しても状態が伝わる（実際に描画された文言が 3 状態で互いに違う）", () => {
-      // Given / When（**期待値ではなく、実際に描画された文字を集める。**
+      // Given（CONNECTION_CASES の各状態を入力に使う）
+      // When（**期待値ではなく、実際に描画された文字を集める。**
       //   テスト側の定数を突き合わせるだけでは、実装の文言を同じにしても気づけない）
       const rendered = CONNECTION_CASES.map(({ status }) => {
         const { unmount } = render(<StatusStrip {...baseStrip} connectionStatus={status} />);
@@ -98,7 +101,7 @@ describe("色だけで状態を伝えない（FR-032）", () => {
     it.each(DIFFICULTY_CASES)(
       "$difficulty は「$label」というテキストを段階色と併記する",
       ({ difficulty, label }) => {
-        // Given / When
+        // Given
         render(
           <ProblemEditor
             problem={baseProblem}
@@ -109,14 +112,16 @@ describe("色だけで状態を伝えない（FR-032）", () => {
             onPaste={vi.fn()}
           />,
         );
-        // Then
+        // When
         const group = screen.getByRole("group", { name: "お題" });
+        // Then
         expect(within(group).getByText(label)).toBeVisible();
       },
     );
 
     it("色を外しても難易度が伝わる（実際に描画されたバッジの文言が 3 段階で互いに違う）", () => {
-      // Given / When（実際に描画された文字を集める）
+      // Given（DIFFICULTY_CASES の各難易度を入力に使う）
+      // When（実際に描画された文字を集める）
       const rendered = DIFFICULTY_CASES.map(({ difficulty }) => {
         const { unmount } = render(
           <ProblemEditor

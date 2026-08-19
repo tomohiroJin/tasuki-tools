@@ -101,12 +101,15 @@ afterEach(() => {
 
 describe("バナーの自動消去の区別（EARS 2 補強）", () => {
   it("(a) 切断バナーは時間が経っても消えない", () => {
+    // Given
     const ws = enterLobby();
     vi.useFakeTimers();
 
+    // When
     act(() => {
       ws.onclose?.();
     });
+    // Then
     expect(screen.getByText("接続が切れました。再接続しています...")).toBeInTheDocument();
 
     act(() => {
@@ -116,13 +119,16 @@ describe("バナーの自動消去の区別（EARS 2 補強）", () => {
   });
 
   it("(b) 一時的な操作エラーのバナーは4秒で消える", () => {
+    // Given
     const ws = enterLobby();
     vi.useFakeTimers();
 
+    // When
     // RATE_LIMITED は errorAction() の switch に列挙が無く、既定の "transient" になる
     // （session-lost や leave-room には分類されないコード）。
     sendServer(ws, { type: "error", code: "RATE_LIMITED", message: "too many" });
     const expected = displayMessageFor("RATE_LIMITED");
+    // Then
     expect(screen.getByText(expected)).toBeInTheDocument();
 
     act(() => {
@@ -137,6 +143,7 @@ describe("バナーの自動消去の区別（EARS 2 補強）", () => {
   });
 
   it("(c) 一時エラー表示中に切断すると、一時エラーの4秒タイマーで切断バナーが消えない（最終レビューで判明した回帰の再発防止）", () => {
+    // Given
     const ws = enterLobby();
     vi.useFakeTimers();
 
@@ -146,6 +153,7 @@ describe("バナーの自動消去の区別（EARS 2 補強）", () => {
     const transientMessage = displayMessageFor("RATE_LIMITED");
     expect(screen.getByText(transientMessage)).toBeInTheDocument();
 
+    // When
     act(() => {
       // 一時エラーの4秒タイマーが発火する前（1秒後）に切断する。
       vi.advanceTimersByTime(1000);
@@ -154,6 +162,7 @@ describe("バナーの自動消去の区別（EARS 2 補強）", () => {
     act(() => {
       ws.onclose?.();
     });
+    // Then
     expect(screen.getByText("接続が切れました。再接続しています...")).toBeInTheDocument();
 
     act(() => {

@@ -24,7 +24,7 @@ describe("RemovalConfirmDialog", () => {
    */
   describe("pendingRemoval が null のとき", () => {
     it("何も描画しない", () => {
-      // Given / When
+      // Given
       const { container } = render(
         <RemovalConfirmDialog
           pendingRemoval={null}
@@ -34,7 +34,7 @@ describe("RemovalConfirmDialog", () => {
           onCancel={vi.fn()}
         />,
       );
-      // Then
+      // When / Then（container.firstChild への問い合わせが検証と同じ式になる）
       expect(container.firstChild).toBeNull();
     });
   });
@@ -43,7 +43,7 @@ describe("RemovalConfirmDialog", () => {
     const participant = makeParticipant({ participantId: "p1", displayName: "Alice" });
 
     it("タイトルに表示名を使う", () => {
-      // Given / When
+      // Given
       render(
         <RemovalConfirmDialog
           pendingRemoval={participant}
@@ -53,12 +53,12 @@ describe("RemovalConfirmDialog", () => {
           onCancel={vi.fn()}
         />,
       );
-      // Then
+      // When / Then（screen.getByText への問い合わせが検証と同じ式になる）
       expect(screen.getByText("Alice さんを退出させますか？")).toBeInTheDocument();
     });
 
     it("確定ボタンのラベルは「退出させる」になっている", () => {
-      // Given / When
+      // Given
       render(
         <RemovalConfirmDialog
           pendingRemoval={participant}
@@ -68,12 +68,12 @@ describe("RemovalConfirmDialog", () => {
           onCancel={vi.fn()}
         />,
       );
-      // Then
+      // When / Then（screen.getByRole への問い合わせが検証と同じ式になる）
       expect(screen.getByRole("button", { name: "退出させる" })).toBeInTheDocument();
     });
 
     it("isShared=true のとき説明文に他の参加者への反映を明示する一文を含む", () => {
-      // Given / When
+      // Given
       render(
         <RemovalConfirmDialog
           pendingRemoval={participant}
@@ -83,7 +83,7 @@ describe("RemovalConfirmDialog", () => {
           onCancel={vi.fn()}
         />,
       );
-      // Then
+      // When / Then（screen.getByText への問い合わせが検証と同じ式になる）
       expect(
         screen.getByText((_, node) =>
           node?.textContent === "一覧とドライバーの輪から外れます。招待から再参加できます。（他の参加者全員の画面にも反映されます）",
@@ -92,7 +92,7 @@ describe("RemovalConfirmDialog", () => {
     });
 
     it("isShared=false のとき説明文に他の参加者への反映を明示する一文を含まない", () => {
-      // Given / When
+      // Given
       render(
         <RemovalConfirmDialog
           pendingRemoval={participant}
@@ -102,7 +102,7 @@ describe("RemovalConfirmDialog", () => {
           onCancel={vi.fn()}
         />,
       );
-      // Then
+      // When / Then（screen.getByText への問い合わせが検証と同じ式になる）
       expect(
         screen.getByText((_, node) =>
           node?.textContent === "一覧とドライバーの輪から外れます。招待から再参加できます。",

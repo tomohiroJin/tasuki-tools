@@ -78,7 +78,8 @@ describe("ソロの部屋からの退出（Issue #79）", () => {
   });
 
   it("前提: 作成直後は在室者も rotation も本人ひとりである", () => {
-    // Given / When: room.create しただけ
+    // Given（beforeEach で room.create 済み）
+    // When: room.create しただけの状態を取り出す
     const room = store.get(code)!;
 
     // Then: この 1 人が rotation の最後の 1 人でもあるため、従来は退出が拒否されていた

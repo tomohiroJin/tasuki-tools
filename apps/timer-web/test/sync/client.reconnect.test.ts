@@ -55,8 +55,11 @@ describe("SyncClient onReconnected", () => {
   });
 
   it("onReconnected 未指定でもエラーにならない（optional）", () => {
+    // Given
     const client = new SyncClient({ url: "ws://x", onRoom: () => {} });
+    // When
     client.connect();
+    // Then
     expect(() => FakeWS.instances[0]!.onopen?.()).not.toThrow();
   });
 });
