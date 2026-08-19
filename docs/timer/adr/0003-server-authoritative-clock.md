@@ -35,6 +35,10 @@
 > 実測と食い違っていた。実装は `apps/timer-web/src/ui/use-now-tick.ts` の `TICK_MS = 200` で、
 > `git log -S` で追うとこのファイルは初出から 200 であり、250 だった時期は無い。
 > **決定そのもの（時刻系を `ServerClock` に一本化し、残り時間・経過時間は状態から導出する。
-> クライアントはローカル時計で進めない）は実装と一致している** — `apps/timer-web/src` の
-> `Date.now()` を全量で見ても、残り時間・経過時間を進めるものは無い
-> （再描画のトリガ・`requestId`・完成記録の生成時刻・お題選択の 4 用途のみ）。
+> クライアントはローカル時計で進めない）は実装と一致している** — 残り時間・経過時間は
+> `@tasuki/timer-core` の導出関数（`secondsLeft` / `elapsedMs`）からのみ得ており、
+> `apps/timer-web/src` に現れる `Date.now()` はどれも残り時間・経過時間を進めない
+> （再描画のトリガ・`requestId`・完成記録の生成時刻・お題選択など。**`clockOffset` の
+> 推定** — 決定文自身が要求する `time.ping`/`time.pong` 往復の中央値算出 —
+> **も含む**。`apps/timer-web/src/sync/client.ts` の `get now()` は現状どこからも
+> 呼ばれていない未使用のゲッターである）。

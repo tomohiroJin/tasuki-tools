@@ -65,7 +65,10 @@ timer-web が後者を持たないためである。
 > **追記（2026-08-19・#167 / #72 E4）**: MUST 2 の機械検査を
 > `scripts/audit-web-sync-boundary.mjs` として置いた（CI の `quality` ジョブ）。
 > 許可リスト方式で、`apps/timer-web` は同期クライアントの import 元を
-> `src/sync/use-timer-sync.ts` の 1 本に、`apps/poker-web` は `new WebSocket(` の
-> 保持先を `src/hooks/useSync.ts` の 1 本に縛る。**検査が見ていないもの**
-> （re-export・動的 import・`.mts`・`src/dist`・`allowedImporters` への追記による無力化）は
-> 検査の docstring に列挙してある。
+> `src/sync/use-timer-sync.ts` と `src/sync/dispatch.ts` の 2 本に、`apps/poker-web` は
+> `new WebSocket(` の保持先を `src/hooks/useSync.ts` の 1 本に縛る。timer-web が 2 本
+> なのは、`dispatch.ts` が同期クライアント自身の実装の一部（`client.ts` が `dispatch.ts`
+> を import する側であり消費者ではない）で、しかも import しているのは型のみ
+> （`import type`）だからである。**検査が見ていないもの**（re-export・動的 import・
+> `.mts`・`src/dist`・`allowedImporters` への追記による無力化）は検査の docstring に
+> 書いてある。
