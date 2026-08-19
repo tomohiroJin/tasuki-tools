@@ -109,7 +109,7 @@ afterEach(() => {
 });
 
 describe("persist-completion: 完成フェーズの snapshot でローカル記録が実際に保存される", () => {
-  it("完成（中断でない）なら saveRecord が呼ばれる", () => {
+  it("完成（中断でない）なら記録が保存される", () => {
     const ws = createRoomAndConnect();
     sendServer(ws, { type: "room.created", code: "ROOM01", hostToken: "ht", resumeToken: "rt", participantId: HOST_ID });
     sendServer(ws, {

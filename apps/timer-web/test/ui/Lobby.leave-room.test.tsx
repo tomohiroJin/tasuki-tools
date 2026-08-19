@@ -69,7 +69,7 @@ describe("ロビー: 自分の行の「ルームから抜ける」", () => {
     expect(screen.getByRole("button", { name: "ルームから抜ける" })).toBeTruthy();
   });
 
-  it("押すと確認ダイアログを経由せず直接 onRemoveParticipant(自分のID) が呼ばれる", () => {
+  it("押すと確認ダイアログを経由せず自分が退出する", () => {
     const onRemoveParticipant = vi.fn();
     render(
       <Lobby
