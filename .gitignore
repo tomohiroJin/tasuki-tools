@@ -1,5 +1,6 @@
 # 依存・ビルド成果物
 node_modules/
+.pnpm-virtual/
 dist/
 build/
 out/
