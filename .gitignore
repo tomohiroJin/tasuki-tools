@@ -1,6 +1,8 @@
 # 依存・ビルド成果物
 node_modules/
-.pnpm-virtual/
+# 仮想ストアの逃がし先。実体のディレクトリにも、別のファイルシステムへ向けた
+# symlink にも当たるよう、末尾スラッシュを付けない（付けるとディレクトリ限定になる）。
+.pnpm-virtual
 dist/
 build/
 out/
