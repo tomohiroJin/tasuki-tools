@@ -972,3 +972,164 @@ describe("findStaleSc029Exceptions: SC-029 の例外表も両方向に腐らせ�
     assert.match(problems[0], /理由/);
   });
 });
+
+import { buildSc039Sources } from "./audit-structure.mjs";
+
+describe("SC-039②③ の走査範囲は宣言から導く（#180）", () => {
+  /**
+   * 合成の走査対象。**timer のパッケージを 1 つも含まない。**
+   *
+   * `buildSc039Sources` が `packages/timer-core` を名指しで取り出している限り、
+   * この入力では照合先が組み立てられない。名指しをやめて宣言から導けば通る。
+   */
+  const declarations = [
+    { pkg: "packages/alpha", src: "src", test: "tests", entry: "index.ts" },
+    { pkg: "packages/beta", src: "source", test: "tests", entry: "index.ts" },
+    { pkg: "apps/gamma", src: "src", test: "tests", entry: "main.tsx" },
+    { pkg: "e2e", src: null, test: "tests", entry: null },
+  ];
+  const contents = {
+    "packages/alpha/src": new Map([["index.ts", "export const Alpha = 1;\n"]]),
+    "packages/beta/source": new Map([["index.ts", "export const Beta = 2;\n"]]),
+    "apps/gamma/src": new Map([["main.tsx", "export const Gamma = Alpha;\n"]]),
+  };
+  const loaded = loadScanTargets(
+    declarations,
+    (pkg, sub) => contents[`${pkg}/${sub}`] ?? new Map(),
+  );
+
+  test("照合先は宣言された packages/ 配下のすべてを覆う（1 つを名指ししない）", () => {
+    // When
+    const { packageSrcFiles } = buildSc039Sources(loaded);
+    // Then: 宣言に `packages/` が 2 つあるなら 2 つとも照合先に入る
+    assert.deepEqual(
+      [...packageSrcFiles.keys()].sort(),
+      ["packages/alpha/src/index.ts", "packages/beta/source/index.ts"],
+    );
+  });
+
+  test("照合先の鍵は宣言した src ディレクトリ名から作る（`src` 決め打ちにしない）", () => {
+    // Given: packages/beta の src ディレクトリ名は `source`
+    // When
+    const { packageSrcFiles } = buildSc039Sources(loaded);
+    // Then
+    assert.ok(packageSrcFiles.has("packages/beta/source/index.ts"));
+  });
+
+  test("参照元は apps も packages も含み、e2e（src を持たない宣言）は含まない", () => {
+    // When
+    const { productSources } = buildSc039Sources(loaded);
+    // Then
+    assert.deepEqual(
+      [...productSources.keys()].sort(),
+      [
+        "apps/gamma/src/main.tsx",
+        "packages/alpha/src/index.ts",
+        "packages/beta/source/index.ts",
+      ],
+    );
+  });
+});
+
+import {
+  isPackageLayer,
+  sc039DeclaredComparedPackages,
+  sc039DeclaredReferencePackages,
+  findSrcWithoutEntry,
+  sc039ScanVolumeDimensions,
+  formatSc039ScanVolume,
+} from "./audit-structure.mjs";
+
+describe("SC-039②③ の走査対象の宣言（#180）", () => {
+  const declarations = [
+    { pkg: "packages/alpha", src: "src", test: "tests", entry: "index.ts" },
+    { pkg: "packages/beta", src: "source", test: "tests", entry: "index.ts" },
+    { pkg: "packages/gamma", src: null, test: "tests", entry: null },
+    { pkg: "apps/delta", src: "src", test: "tests", entry: "main.tsx" },
+    { pkg: "e2e", src: null, test: "tests", entry: null },
+  ];
+
+  test("照合先は `packages/` 層のうち src を持つ宣言（層の境界は FR-119②③ の文言どおり）", () => {
+    // When / Then
+    assert.deepEqual(sc039DeclaredComparedPackages(declarations), [
+      "packages/alpha",
+      "packages/beta",
+    ]);
+  });
+
+  test("参照元は層を問わず src とエントリを持つ宣言すべて", () => {
+    // When / Then
+    assert.deepEqual(sc039DeclaredReferencePackages(declarations), [
+      "apps/delta",
+      "packages/alpha",
+      "packages/beta",
+    ]);
+  });
+
+  test("層の判定は接頭辞 1 か所だけで行う", () => {
+    // When / Then
+    assert.equal(isPackageLayer("packages/alpha"), true);
+    assert.equal(isPackageLayer("apps/delta"), false);
+    assert.equal(isPackageLayer("e2e"), false);
+  });
+
+  test("組み立て結果は、実際に寄与したパッケージを名乗る（宣言と突き合わせるため）", () => {
+    // Given
+    const contents = {
+      "packages/alpha/src": new Map([["index.ts", "export const Alpha = 1;\n"]]),
+      "packages/beta/source": new Map([["index.ts", "export const Beta = 2;\n"]]),
+      "apps/delta/src": new Map([["main.tsx", "export const Delta = 3;\n"]]),
+    };
+    // When
+    const sources = buildSc039Sources(
+      loadScanTargets(declarations, (pkg, sub) => contents[`${pkg}/${sub}`] ?? new Map()),
+    );
+    // Then: 宣言から導いた一覧と、実際に組み立てた一覧が一致する
+    assert.deepEqual(sources.comparedPackages, sc039DeclaredComparedPackages(declarations));
+    assert.deepEqual(sources.referencePackages, sc039DeclaredReferencePackages(declarations));
+  });
+
+  test("src が空のパッケージは名乗りに現れない（宣言との照合で落ちる側へ倒す）", () => {
+    // Given: packages/beta の src だけが 1 件も読めない
+    const contents = {
+      "packages/alpha/src": new Map([["index.ts", "export const Alpha = 1;\n"]]),
+      "apps/delta/src": new Map([["main.tsx", "export const Delta = 3;\n"]]),
+    };
+    // When
+    const sources = buildSc039Sources(
+      loadScanTargets(declarations, (pkg, sub) => contents[`${pkg}/${sub}`] ?? new Map()),
+    );
+    // Then
+    assert.deepEqual(sources.comparedPackages, ["packages/alpha"]);
+  });
+
+  test("src はあるがエントリを持たない宣言は名指しで落とす（参照元を静かに失う形）", () => {
+    // Given: エントリの無い src 宣言。SC-027 も測れず、SC-039 の参照元にも入らない
+    const broken = [
+      { pkg: "packages/alpha", src: "src", test: "tests", entry: "index.ts" },
+      { pkg: "packages/beta", src: "src", test: "tests", entry: null },
+    ];
+    // When / Then
+    assert.deepEqual(findSrcWithoutEntry(broken), ["packages/beta"]);
+    assert.deepEqual(findSrcWithoutEntry(declarations), []);
+  });
+
+  test("走査量は照合先・参照元をパッケージ数とファイル件数の両方で名乗る", () => {
+    // Given
+    const sources = {
+      packageSrcFiles: new Map([["a", ""], ["b", ""]]),
+      productSources: new Map([["a", ""], ["b", ""], ["c", ""]]),
+      comparedPackages: ["packages/alpha"],
+      referencePackages: ["packages/alpha", "apps/delta"],
+    };
+    // When / Then
+    assert.equal(
+      formatSc039ScanVolume(sources),
+      "照合先 1 パッケージ / 2 ファイル、参照元 2 パッケージ / 3 ファイル",
+    );
+    assert.deepEqual(
+      sc039ScanVolumeDimensions(sources).map((d) => d.count),
+      [1, 2, 2, 3],
+    );
+  });
+});
