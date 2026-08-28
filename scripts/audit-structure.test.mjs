@@ -25,6 +25,7 @@ import {
   extractClientErrorTable,
   sc035MessageDefinitions,
   sc039aUnreachableBranchInApps,
+  stripStringsAndComments,
   extractPublicDeclarations,
   sc039bUnusedPublicData,
   sc039cSelfOnlyPublicSymbols,
@@ -875,5 +876,52 @@ describe("sc032GwtMarkers: 例外に載るテストは分母から外す", () =>
     // Then
     assert.equal(r.denominator, 0);
     assert.equal(r.ratio, 1);
+  });
+});
+
+describe("stripStringsAndComments: 剥がしすぎず、行番号も崩さない（#184）", () => {
+  test("ブロックコメントを落としても行数が変わらない", () => {
+    // Given（5 行のブロックコメントを挟んだソース）
+    const source = "const a = 1;\n/*\n * x\n * y\n */\nconst b = 2;\n";
+    // When
+    const stripped = stripStringsAndComments(source);
+    // Then
+    assert.equal(stripped.split("\n").length, source.split("\n").length);
+  });
+
+  test("複数行のテンプレートリテラルを落としても行数が変わらない", () => {
+    // Given
+    const source = "const a = `x\ny\nz`;\nconst b = 2;\n";
+    // When
+    const stripped = stripStringsAndComments(source);
+    // Then
+    assert.equal(stripped.split("\n").length, source.split("\n").length);
+  });
+
+  test("閉じないアポストロフィは行末で打ち切り、次の行のコードを食べない", () => {
+    // Given（`/it's/` の正規表現リテラル。ヘルパは正規表現を知らない）
+    const source = "const re = /it's/;\nexport * from './a';\n";
+    // When
+    const stripped = stripStringsAndComments(source);
+    // Then（剥がしすぎの被害は 1 行に閉じ込められ、次の行のコードは残る）
+    assert.match(stripped, /export \*/);
+  });
+
+  test("行コメントは改行を残す", () => {
+    // Given
+    const source = "const a = 1; // x\nconst b = 2;\n";
+    // When
+    const stripped = stripStringsAndComments(source);
+    // Then
+    assert.equal(stripped.split("\n").length, source.split("\n").length);
+  });
+
+  test("通常の文字列・コメントはこれまでどおり落とす", () => {
+    // Given
+    const source = 'const a = "STRINGBODY"; /* BLOCKBODY */ // LINEBODY\n';
+    // When
+    const stripped = stripStringsAndComments(source);
+    // Then
+    assert.doesNotMatch(stripped, /STRINGBODY|BLOCKBODY|LINEBODY/);
   });
 });
