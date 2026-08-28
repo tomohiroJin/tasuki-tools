@@ -3,7 +3,6 @@
   "private": true,
   "version": "0.0.1",
   "scripts": {
-    "install:9p": "pnpm install --virtual-store-dir=.pnpm-virtual",
     "build": "turbo run build",
     "test": "turbo run test",
     "test:unit": "turbo run test:unit",

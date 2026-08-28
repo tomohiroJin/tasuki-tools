@@ -347,12 +347,11 @@ CI は以下を一切気にする必要がありません。
 mkdir -p ~/.pnpm-virtual/tasuki
 ln -s ~/.pnpm-virtual/tasuki .pnpm-virtual
 
-# 既存の node_modules を消してから、専用スクリプトで入れ直す
+# 既存の node_modules を消してから、フラグ付きで入れ直す
 rm -rf node_modules
-pnpm install:9p
+pnpm install --virtual-store-dir=.pnpm-virtual
 ```
 
-`install:9p` は `pnpm install --virtual-store-dir=.pnpm-virtual` を実行します。
 `.pnpm-virtual` は相対パスなので、symlink を張った人だけ実体がリンク先へ置かれます。
 
 効いたかどうかは、**所要時間ではなく実体の位置で確認してください。**
@@ -362,7 +361,7 @@ readlink .pnpm-virtual                  # 逃がし先が出る
 find node_modules -type f | wc -l       # 桁違いに減っていれば実体が移っている
 ```
 
-#### 落とし穴 3 つ
+#### 落とし穴 4 つ
 
 いずれも実測で確かめたものです。
 
@@ -370,10 +369,15 @@ find node_modules -type f | wc -l       # 桁違いに減っていれば実体�
    フラグを足しても何も起きません。**必ず `rm -rf node_modules` してから**入れ直します。
 2. **掃除した後に素の `pnpm install` を打つと既定へ戻ります。**
    しかも古い `.pnpm-virtual` がそのまま取り残されます（実体が二重に残る）。
-   `rm -rf node_modules` の後は `pnpm install:9p` を使ってください。
+   `rm -rf node_modules` の後は必ずフラグを付けてください。
    戻してよい場合は `.pnpm-virtual` も一緒に消します。
 3. **`.gitignore` の `.pnpm-virtual` に末尾スラッシュを付けてはいけません。**
    付けるとディレクトリ限定になり、ここで張る **symlink には当たりません**。
+4. **このコマンドを `package.json` のスクリプトに包んではいけません。**
+   `pnpm run` の中で `pnpm install` を呼ぶと `--virtual-store-dir` が無視され、
+   **黙って既定の配置になります**（実測。`"install:9p": "pnpm install --virtual-store-dir=.pnpm-virtual"`
+   を作って試したところ、逃がし先 0 ファイル・`node_modules` に全量が入った）。
+   シェルから直接打つか、`pnpm run` を挟まないシェルスクリプトから呼んでください。
 
 #### 効果
 
