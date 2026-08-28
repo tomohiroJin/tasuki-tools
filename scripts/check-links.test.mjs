@@ -16,6 +16,7 @@ import {
   STALE_LINE_REF_EXCEPTIONS,
   findMissingPathException,
   findLineRefException,
+  checkCodePathRef,
   isLiveDoc,
   checkConstants,
   checkStaleExceptions,
@@ -346,6 +347,89 @@ describe("findInlineCodePaths", () => {
     assert.deepEqual(findInlineCodePaths(src), [
       { path: "scripts/nonexistent.mjs", lineRef: null, raw: "scripts/nonexistent.mjs", line: 1 },
     ]);
+  });
+});
+
+describe("checkCodePathRef", () => {
+  const ref = (raw, extra = {}) => ({
+    ...parseLineRef(raw),
+    raw,
+    line: 12,
+    ...extra,
+  });
+  const deps = (over = {}) => ({
+    exists: () => true,
+    adrPaths: ["docs/adr/0002-document-system-three-layers.md"],
+    lineCount: () => 100,
+    ...over,
+  });
+
+  test("実在しないディレクトリ参照を名指しする", () => {
+    // Given: #156 ① — 拡張子が無いので以前は素通りしていた
+    // When
+    const r = checkCodePathRef("README.md", ref("apps/poker-sync/src/application"), deps({ exists: () => false }));
+    // Then
+    assert.match(r.error, /README\.md:12 実在しないパスです → `apps\/poker-sync\/src\/application`/);
+  });
+
+  test("実在するディレクトリ参照は通す", () => {
+    // Given / When / Then
+    assert.deepEqual(checkCodePathRef("README.md", ref("packages/ui"), deps()), {});
+  });
+
+  test("番号の飛んだ ADR 参照は ADR として名指しする", () => {
+    // Given: exists は真を返すので、ADR の解決規則を通っていないと緑になる
+    // When
+    const r = checkCodePathRef("README.md", ref("docs/adr/0099"), deps());
+    // Then
+    assert.match(r.error, /対応する ADR がありません → `docs\/adr\/0099`/);
+  });
+
+  test("実在する ADR 番号は通す", () => {
+    // Given: exists は偽を返すので、ディレクトリ実在で通っていないことを主張する
+    // When / Then
+    assert.deepEqual(
+      checkCodePathRef("README.md", ref("docs/adr/0002"), deps({ exists: () => false })),
+      {},
+    );
+  });
+
+  test("行数を超える行番号を名指しする", () => {
+    // Given: #156 ② — 以前は行番号を捨ててから存在確認していた
+    // When
+    const r = checkCodePathRef("README.md", ref("scripts/a.mjs:120"), deps({ lineCount: () => 100 }));
+    // Then
+    assert.match(r.error, /行番号が実在しません（対象は 100 行） → `scripts\/a\.mjs:120`/);
+  });
+
+  test("行数の内側の行番号は通す", () => {
+    // Given / When / Then
+    assert.deepEqual(checkCodePathRef("README.md", ref("scripts/a.mjs:100"), deps()), {});
+  });
+
+  test("範囲の終端で判定する", () => {
+    // Given / When
+    const r = checkCodePathRef("README.md", ref("scripts/a.mjs:99-120"), deps());
+    // Then
+    assert.match(r.error, /`scripts\/a\.mjs:99-120`/);
+  });
+
+  test("ファイルとして読めないものの行番号は見ない", () => {
+    // Given: ディレクトリ・gitignore 対象など
+    // When / Then
+    assert.deepEqual(
+      checkCodePathRef("README.md", ref("scripts/a.mjs:120"), deps({ lineCount: () => null })),
+      {},
+    );
+  });
+
+  test("例外に当たったらエラーではなく例外を返す", () => {
+    // Given: 例外表が抑えた事実を呼び出し側へ返す（腐った例外を落とすため）
+    // When
+    const r = checkCodePathRef("docs/constitution.md", ref("packages/core"), deps({ exists: () => false }));
+    // Then
+    assert.equal(r.error, undefined);
+    assert.equal(r.exception.path, "packages/core");
   });
 });
 

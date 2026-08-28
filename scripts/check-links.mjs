@@ -347,6 +347,38 @@ export function findLineRefException(doc, raw, entries = STALE_LINE_REF_EXCEPTIO
   return entries.find((e) => e.doc === doc && e.raw === raw) ?? null;
 }
 
+/**
+ * インラインコードのパス参照 1 件を判定し、`{ error }` か `{ exception }` か `{}` を返す。
+ *
+ * **main() の中に置かない。** 置いていたときは、ADR 番号の解決（`adrRef` を常に false へ）も
+ * 行番号の比較（`lineRef <= total` を恒真へ）も潰したまま単体テスト 65 件が全緑だった。
+ * 判定を関数へ出し、main は「呼んで結果を積む」だけにする。
+ *
+ * @param lineCount 対象パスの行数を返す。ファイルとして読めないときは null。
+ */
+export function checkCodePathRef(doc, ref, { exists, adrPaths, lineCount }) {
+  const { path: target, raw, line, lineRef } = ref;
+  // ① ADR 番号の接頭辞参照だけは、実在ではなく「その番号の ADR が在るか」で解決する
+  const adrRef = isAdrNumberRef(target);
+  if (!(adrRef ? resolveAdrNumberRef(target, adrPaths) : exists(target))) {
+    const exception = findMissingPathException(doc, target);
+    if (exception) return { exception };
+    return {
+      error: adrRef
+        ? `${doc}:${line} 対応する ADR がありません → \`${raw}\``
+        : `${doc}:${line} 実在しないパスです → \`${raw}\``,
+    };
+  }
+
+  // ② 行番号は、対象がファイルとして読めるときだけ「その行まで在るか」を見る
+  if (lineRef === null) return {};
+  const total = lineCount(target);
+  if (total === null || lineRef <= total) return {};
+  const exception = findLineRefException(doc, raw);
+  if (exception) return { exception };
+  return { error: `${doc}:${line} 行番号が実在しません（対象は ${total} 行） → \`${raw}\`` };
+}
+
 export function isLiveDoc(relPath) {
   return LIVE_DOCS.some((entry) =>
     entry.endsWith("/") ? relPath.startsWith(entry) : relPath === entry,
@@ -459,8 +491,13 @@ function main() {
     }
     return anchorCache.get(abs);
   };
+  // 例外の使用記録は 1 つの Set に集める（エントリそのものを鍵にするので混ざらない）。
   const usedExceptions = new Set();
-  const usedLineRefExceptions = new Set();
+  const lineCount = (rel) => {
+    const abs = path.resolve(REPO_ROOT, rel);
+    if (!fs.existsSync(abs) || !fs.statSync(abs).isFile()) return null;
+    return countLines(fs.readFileSync(abs, "utf8"));
+  };
 
   for (const rel of files) {
     const abs = path.resolve(REPO_ROOT, rel);
@@ -483,41 +520,19 @@ function main() {
     }
 
     if (!isLiveDoc(rel)) continue;
-    for (const { path: p, raw, line, lineRef } of findInlineCodePaths(src)) {
-      // ① ADR 番号の接頭辞参照だけは、ディレクトリ実在ではなく
-      //    「その番号の ADR が実在するか」で解決する
-      const adrRef = isAdrNumberRef(p);
-      if (!(adrRef ? resolveAdrNumberRef(p, trackedFiles) : exists(p))) {
-        const exception = findMissingPathException(rel, p);
-        if (exception) {
-          usedExceptions.add(exception);
-          continue;
-        }
-        errors.push(
-          adrRef
-            ? `${rel}:${line} 対応する ADR がありません → \`${raw}\``
-            : `${rel}:${line} 実在しないパスです → \`${raw}\``,
-        );
-        continue;
-      }
-
-      // ② 行番号は、ファイルが実在するときだけ「その行まで在るか」を見る
-      if (lineRef === null) continue;
-      const targetAbs = path.resolve(REPO_ROOT, p);
-      if (!fs.existsSync(targetAbs) || !fs.statSync(targetAbs).isFile()) continue;
-      const total = countLines(fs.readFileSync(targetAbs, "utf8"));
-      if (lineRef <= total) continue;
-      const lineException = findLineRefException(rel, raw);
-      if (lineException) {
-        usedLineRefExceptions.add(lineException);
-        continue;
-      }
-      errors.push(`${rel}:${line} 行番号が実在しません（対象は ${total} 行） → \`${raw}\``);
+    for (const ref of findInlineCodePaths(src)) {
+      const { error, exception } = checkCodePathRef(rel, ref, {
+        exists,
+        adrPaths: trackedFiles,
+        lineCount,
+      });
+      if (exception) usedExceptions.add(exception);
+      if (error) errors.push(error);
     }
   }
 
   errors.push(...checkStaleExceptions(usedExceptions));
-  errors.push(...checkStaleExceptions(usedLineRefExceptions, STALE_LINE_REF_EXCEPTIONS));
+  errors.push(...checkStaleExceptions(usedExceptions, STALE_LINE_REF_EXCEPTIONS));
 
   if (errors.length > 0) {
     for (const e of errors) console.error(e);
