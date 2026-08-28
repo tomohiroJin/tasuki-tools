@@ -26,7 +26,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 
 ### 2. Planning Poker
 
-見積り合意のためのプランニングポーカー。**実装完了・本番未公開**（初回公開は [#66](https://github.com/tomohiroJin/tasuki-tools/issues/66)）。
+見積り合意のためのプランニングポーカー。**本番公開中**（初回公開は 2026-08-28・[#66](https://github.com/tomohiroJin/tasuki-tools/issues/66)）。
 
 - **構成**
   - [`packages/poker-core`](packages/poker-core/) — ドメインロジック（デッキ・ラウンド・集計）
@@ -38,7 +38,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 ### 3. 玄関（ツール選択 LP）
 
 訪問者がツールを選ぶための入口。ツール選択そのものを「手札」にしており、poker と同じ
-象牙の札が並ぶ。**実装完了・本番未公開**（初回公開は [#66](https://github.com/tomohiroJin/tasuki-tools/issues/66)）。
+象牙の札が並ぶ。**本番公開中**（初回公開は 2026-08-28・[#66](https://github.com/tomohiroJin/tasuki-tools/issues/66)）。
 
 - **構成**: [`apps/landing`](apps/landing/) — Vite + React・静的サイト（同期サーバー無し・`base=/`）
 - 世界観は [`packages/ui`](packages/ui/) の「夜のカードテーブル」を共有
@@ -84,9 +84,9 @@ TypeScript / React 19 + Vite / Bun / WebSocket / Valibot / neverthrow / Vitest /
 
 | ツール | 公開パス | 状態 |
 |---|---|---|
-| TDD Mob Pro Timer | `/timer/` | 本番公開中（現在は `/`。[#66](https://github.com/tomohiroJin/tasuki-tools/issues/66) で移設） |
-| Planning Poker | `/poker/` | 実装完了・**本番未公開** |
-| 玄関 LP | `/` | 実装完了・**本番未公開** |
+| TDD Mob Pro Timer | `/timer/` | 本番公開中 |
+| Planning Poker | `/poker/` | 本番公開中 |
+| 玄関 LP | `/` | 本番公開中 |
 
 単一 monorepo への統合は [epic #15](https://github.com/tomohiroJin/tasuki-tools/issues/15) で**実装完了**しました
 （設計: [`docs/superpowers/specs/2026-08-04-monorepo-unification-design.md`](docs/superpowers/specs/2026-08-04-monorepo-unification-design.md)）。
