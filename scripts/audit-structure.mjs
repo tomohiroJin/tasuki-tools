@@ -1323,6 +1323,77 @@ export function sc039DeclaredReferencePackages(declarations) {
 }
 
 /**
+ * SC-039②③ の**照合先ファイル**として宣言されているファイル（純粋）。
+ *
+ * **パッケージ単位の名乗り（{@link sc039DeclaredComparedPackages}）では足りない。**
+ * 「そのパッケージは 1 件以上寄与し続けるが、特定のファイルだけが集合から抜ける」
+ * 狭め方は、パッケージ名の全単射照合にも 0 件ガードにも例外表の健全性にも掛からず
+ * exit 0 で素通りする（#180 の敵対的レビューが実測。`stats.ts` 1 件を間引くと
+ * 「照合先 4 パッケージ / 28 ファイル」で緑になった）。照合の粒度をファイルへ上げる。
+ *
+ * 導出は宣言（`packages/` 層で src を持つ）と、その src ディレクトリを実際に読んだ
+ * 結果だけから行う。**パッケージ名もファイル名も名指ししない**（「列挙は腐る。機構で指す」）。
+ * 照合先には絞り込みが一切無い（到達性でも絞らない）ので、読めたファイルがそのまま宣言になる。
+ *
+ * @param loaded {@link loadScanTargets} の結果
+ */
+export function sc039DeclaredComparedFiles(loaded) {
+  const files = [];
+  for (const p of loaded) {
+    if (!isPackageLayer(p.pkg) || !hasScanTarget(p.src)) continue;
+    for (const k of p.srcFiles.keys()) files.push(`${p.pkg}/${p.src}/${k}`);
+  }
+  return files.sort();
+}
+
+/**
+ * SC-039②③ の**参照元ファイル**として宣言されているファイル（純粋）。
+ *
+ * 参照元には**意図した絞り込みが 1 つだけ**ある — 到達性
+ * （{@link computeReachableFiles}）。死んだファイルからの参照は生存の根拠にならない
+ * ため、これは宣言の一部である。したがって宣言側でも同じ絞り込みを適用する。
+ *
+ * **ここに書いてよい絞り込みは到達性だけ。** 追加の条件を書くと、その条件で
+ * 組み立て側を狭めたときに宣言側も揃って狭まり、照合が素通りする。
+ *
+ * @param loaded {@link loadScanTargets} の結果
+ */
+export function sc039DeclaredReferenceFiles(loaded) {
+  const files = [];
+  for (const p of loaded) {
+    if (!hasScanTarget(p.src) || !hasScanTarget(p.entry)) continue;
+    const reachable = computeReachableFiles(p.srcFiles, [p.entry]);
+    for (const k of p.srcFiles.keys()) {
+      if (!reachable.has(k)) continue;
+      files.push(`${p.pkg}/${p.src}/${k}`);
+    }
+  }
+  return files.sort();
+}
+
+/**
+ * ファイル単位のずれを人が読める形にする（純粋）。
+ *
+ * **`formatTargetDiff` を流用しない。** あちらの文言は「宣言にあるが実在しない ←
+ * 移設したなら宣言を直す」であり、ここで落ちるファイルは**実在している**。
+ * 実在するのに集合へ入っていない、という別の失敗なので、直し方の案内も別になる。
+ * 誤った案内を出す赤は、赤が出ないのと同じくらい人を遠回りさせる。
+ *
+ * 走査量を必ず添えるのは `formatTargetDiff` と同じ理由（#135 D5・ADR-0014 決定 6）。
+ */
+export function formatSc039FileDrift(diff, scanSummary) {
+  const lines = ["[audit-structure/SC-039] 走査対象のファイルが宣言とずれています"];
+  for (const m of diff.missing) {
+    lines.push(`  宣言では走査するのに集合へ入っていない: ${m}    ← 組み立て側の絞り込みを外す`);
+  }
+  for (const u of diff.unexpected) {
+    lines.push(`  集合に入っているが宣言では走査しない:  ${u}    ← 宣言へ足すか、集合へ入れない`);
+  }
+  lines.push(`  現在の走査対象: ${scanSummary}`);
+  return lines.join("\n");
+}
+
+/**
  * src を持つのにエントリを持たない宣言を列挙する（純粋）。
  *
  * この形の宣言は**2 つの検査を同時に静かに失わせる**。SC-027 は
@@ -1364,16 +1435,42 @@ export function findSrcWithoutEntry(declarations) {
  * 指標は「公開記号 0 件」と報告していたが、それは timer-core についてのみ 0 で、
  * 他の 3 パッケージは一度も測られていなかった。
  *
- * ## 塞げていないこと — **層の述語そのものの書き換え**
+ * ## 照合の粒度は**ファイル**
  *
- * 宣言側（{@link sc039DeclaredComparedPackages}）と実体側（この関数）は
- * どちらも {@link isPackageLayer} を通る。走査対象かどうかの判定は 1 本に固定する
- * という決まり（ADR-0014 決定 9）に従った結果であり、**述語そのものを狭めると
- * 宣言と実体が揃って狭まるため、全単射の照合では落ちない。**
- * 落ちるのはその後段の絞り込み（この関数の中や `main()` での再フィルタ）である。
- * 述語を狭めた場合の歯止めは、出力する走査量の「照合先 N パッケージ」が減ることと、
- * それが 1 行の差分として diff に出ることの 2 つに限られる。**緑は
- * 「走査範囲が正しい」ことを証明しない。**
+ * 返す 2 つの Map のキーそのものが、宣言（{@link sc039DeclaredComparedFiles} /
+ * {@link sc039DeclaredReferenceFiles}）と全単射で照合される。**パッケージ単位の
+ * 名乗りだけでは足りない** — この関数の中に
+ * `if (p.pkg === "packages/poker-core" && k === "stats.ts") continue;` の 1 行を
+ * 差し込むと、そのパッケージは他の 7 ファイルで寄与し続けるためパッケージ名の照合を
+ * 通り、走査量も 0 件にならず、例外表も腐らない。実測ではこの状態が
+ * 「照合先 4 パッケージ / 28 ファイル」（正規は 29）で **exit 0** だった（#180 の
+ * 敵対的レビュー）。ファイル単位へ上げるとこれは赤になり、抜けたファイルが名指しされる。
+ *
+ * ## 塞げていないこと（すべて実測。**緑は「走査範囲が正しい」ことを証明しない**）
+ *
+ * 落ちるのは**この関数の中の絞り込み**と、`main()` の照合より**手前**での間引きだけ。
+ * 次の 4 つは落ちない。共通する形は「宣言側と実体側が同じ上流を通るので揃って狭まる」
+ * か「照合より後段にある」かのどちらかである。
+ *
+ * 1. **層の述語（{@link isPackageLayer}）そのものの書き換え。** 宣言側も実体側も
+ *    同じ述語を通る（判定を 1 本に固定する決まり・ADR-0014 決定 9 の裏返しであり、
+ *    両立しない）。実測: `packages/` を timer-core と rate-limit の 2 つへ狭めると
+ *    「照合先 2 パッケージ / 19 ファイル」で exit 0。**例外表（{@link SC039C_EXCEPTIONS}）が
+ *    名指しするパッケージを外すと偶然落ちるが、それは例外表の中身に依存した
+ *    偶然であって構造的な歯止めではない。**
+ * 2. **読み込みそのものの書き換え**（`main()` が {@link loadScanTargets} へ渡す
+ *    `readFilesRecursive` / 拡張子の集合）。宣言側も実体側も同じ `loaded` から導くので
+ *    揃って狭まる。実測: 読み込み時に 1 ファイルを落とすと「照合先 28 / 参照元 185」で exit 0。
+ * 3. **照合より後段での間引き**（`runAudit()` の中や指標関数の中）。照合は既に終わっている。
+ *    実測: `runAudit()` で組み立て直した Map から 1 件 delete すると、走査量の表示すら
+ *    「照合先 29 / 参照元 186」のまま変わらず exit 0。**この 3 つの中で唯一、数字に痕跡が残らない。**
+ *    ここを守るのは走査範囲の検査ではなく、指標関数自身のテストと `scripts/mutation-check.mjs` である。
+ * 4. **宣言の `entry` を別ファイルへ差し替えて到達性を痩せさせる。** 参照元の絞り込みは
+ *    到達性であり、宣言側（{@link sc039DeclaredReferenceFiles}）も同じ到達性を通る。
+ *    実測: poker-core の entry を `index.ts` → `deck.ts` にすると参照元 186 → 179 で exit 0。
+ *
+ * 1・2・4 の歯止めは、出力する走査量の数字が変わることと、それが 1 行の差分として
+ * diff に現れることの 2 つに限られる。3 にはその歯止めも無い。
  *
  * @param loaded {@link loadScanTargets} の結果
  */
@@ -1680,6 +1777,30 @@ function main() {
     console.error(
       formatTargetDiff("audit-structure/SC-039", merged, formatSc039ScanVolume(sc039Sources)),
     );
+    process.exit(1);
+  }
+
+  // **照合はファイル単位でも行う**（#180 の敵対的レビュー）。上のパッケージ単位の
+  // 名乗りは「そのパッケージが 1 件以上寄与したか」しか見ないため、
+  // 「パッケージは残るが特定のファイルだけが集合から抜ける」狭め方を素通りさせる。
+  // 実測では `packages/poker-core/src/stats.ts` 1 件を間引いた状態が
+  // 「照合先 4 パッケージ / 28 ファイル」（正規は 29）で exit 0 だった。
+  //
+  // 機構は上とまったく同じ（`diffTargets` の両方向）。粒度だけをファイルへ上げる。
+  const sc039FileDrift = diffTargets(
+    sc039DeclaredComparedFiles(loaded),
+    [...sc039Sources.packageSrcFiles.keys()],
+  );
+  const sc039RefFileDrift = diffTargets(
+    sc039DeclaredReferenceFiles(loaded),
+    [...sc039Sources.productSources.keys()],
+  );
+  if (hasTargetDrift(sc039FileDrift) || hasTargetDrift(sc039RefFileDrift)) {
+    const merged = {
+      missing: [...sc039FileDrift.missing, ...sc039RefFileDrift.missing].sort(),
+      unexpected: [...sc039FileDrift.unexpected, ...sc039RefFileDrift.unexpected].sort(),
+    };
+    console.error(formatSc039FileDrift(merged, formatSc039ScanVolume(sc039Sources)));
     process.exit(1);
   }
 
