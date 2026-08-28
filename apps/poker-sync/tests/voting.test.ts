@@ -21,7 +21,7 @@ interface Joined {
 interface RoomState {
   type: 'room-state';
   you: string;
-  participants: Array<{ id: string; hasVoted: boolean }>;
+  participants: Array<{ id: string; connected: boolean; hasVoted: boolean }>;
   round:
     | { status: 'voting' }
     | {
@@ -149,12 +149,12 @@ describe('ホストの手動公開（契約 #5 / FR-009）', () => {
   });
 });
 
-describe('自動公開は join-room の再送で消えない（#165 レビュー）', () => {
+describe('join-room の再送は他の参加者に影響しない（#171）', () => {
   it(
-    '片方だけが投票した状態で、もう片方が同じ socket・同じ roomId へ join-room を再送しても公開状態は維持される',
+    '片方だけが投票した状態で、もう片方が同じ socket・同じ roomId へ join-room を再送しても、切断扱いにならず自動公開も走らない',
     async () => {
       // Given
-      const { host, guest, roomId, guestId } = await setupRoom();
+      const { host, guest, roomId, hostId, guestId } = await setupRoom();
 
       // guest だけが投票する（host は投票しない）。shouldAutoReveal（packages/poker-core/
       // src/round.ts）は「接続中の全員が投票済み」を要求するため、この時点ではまだ voting
@@ -163,24 +163,32 @@ describe('自動公開は join-room の再送で消えない（#165 レビュー
       await guest.nextMatching(isType('room-state'));
 
       // When
-      // host が同じ socket・同じ roomId へ join-room を再送する（二重送信・SPA 遷移）。
-      // detachFromCurrentRoom は host を切断扱いにする。残る接続者は guest だけになり、
-      // guest は投票済みなので shouldAutoReveal が成立し、detach の中で自動公開が起きる
+      // host が同じ socket・同じ roomId へ join-room を再送する（二重送信・SPA 遷移）
       host.send({ type: 'join-room', roomId, name: 'たろう' });
       await host.nextMatching(isType('joined'));
 
-      // Then
-      // guest はこの一連の処理で room-state を 2 件受け取る:
-      // 1 件目は detach による自動公開のブロードキャスト（ここで既に revealed）、
-      // 2 件目は host の再 join が完了したあとの最終ブロードキャストである。
-      // 本題は 2 件目（最終状態）で公開が消えていないかどうか
-      const afterDetach = (await guest.nextMatching(isType('room-state'))) as RoomState;
-      expect(afterDetach.round.status).toBe('revealed');
+      // Then: guest が受け取るのは再 join 完了後のスナップショット 1 件だけで、
+      // host は接続中のまま・ラウンドは voting のままである。
+      //
+      // **#171 の前はここが違った。** 再送はまず host を切り離していたので、
+      // 残る接続者（guest）が投票済みという理由で自動公開が成立し、
+      // guest には revealed のスナップショットが届いていた。**再送しただけで
+      // 他人の票が公開される**のは、この経路が持っていたもう 1 つの副作用である。
+      // 当時のテスト（#165 レビュー）はその自動公開が後続の書き戻しで消えないことを
+      // 固定していたが、冪等化で自動公開自体が起きなくなったため、
+      // 「再送は他の参加者から見て何も起こさない」を固定する形へ変えた
+      const state = (await guest.nextMatching(isType('room-state'))) as RoomState;
+      expect(state.round.status).toBe('voting');
+      expect(state.participants.find((p) => p.id === hostId)?.connected).toBe(true);
+      expect(state.participants.find((p) => p.id === guestId)?.hasVoted).toBe(true);
 
-      const finalState = (await guest.nextMatching(isType('room-state'))) as RoomState;
-      expect(finalState.round.status).toBe('revealed');
-      if (finalState.round.status !== 'revealed') throw new Error('unreachable');
-      expect(finalState.round.votes.some((v) => v.participantId === guestId)).toBe(true);
+      // And: 自動公開の仕組み自体は生きている（host が投票すれば全員投票で公開される）
+      host.send({ type: 'vote', card: { kind: 'number', value: 8 } });
+      const revealed = (await guest.nextMatching(
+        (msg) => (msg as RoomState).round?.status === 'revealed',
+      )) as RoomState;
+      if (revealed.round.status !== 'revealed') throw new Error('unreachable');
+      expect(revealed.round.votes.some((v) => v.participantId === guestId)).toBe(true);
 
       host.close();
       guest.close();
