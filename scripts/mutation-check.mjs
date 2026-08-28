@@ -670,5 +670,5 @@ export function isDirectRun(invokedPath) {
 }
 
 // 直接実行されたときだけ走らせる。自己テスト（mutation-check.test.mjs）は
-// detectRunner / buildCommand / MUTATIONS を import するだけで、変異は当てない。
+// このファイルから import するだけで、変異は当てない。
 if (isDirectRun(process.argv[1])) main();
