@@ -514,8 +514,8 @@ workspace の実体（`pnpm -r list --depth -1 --json`）と全単射で照合�
 ### ディレクトリを移設・改名すると検査が赤くなる
 
 パッケージ名だけでなく、**宣言から導出される走査ディレクトリの実在**も検査します
-（`packages/x/src` や、構造監査が見る `test` ディレクトリ・エントリポイント）。
-`packages/x/src` を `packages/x/source` へ改名すると、パッケージ名は workspace に
+（`packages/<pkg>/src` や、構造監査が見る `test` ディレクトリ・エントリポイント）。
+`packages/<pkg>/src` を `packages/<pkg>/source` へ改名すると、パッケージ名は workspace に
 残っているため全単射照合は通りますが、実在確認が次の形で落とします。
 
 ```
