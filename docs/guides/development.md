@@ -133,11 +133,30 @@ overrides:
 **まず親を更新して解消するかを実際に試します。** 解消するならそちらが本筋で、
 `overrides` は要りません。
 
+**この確認は `package.json` を書き換えます。手元の変更を先にコミットしてください。**
+手順の最後で書き換わったファイルを HEAD へ戻すためです。
+
 ```bash
 pnpm update -r <親パッケージ> --lockfile-only
-grep -n "<対象パッケージ>" pnpm-lock.yaml   # 版が上がったか
-git checkout -- .                            # 確認だけなら戻す
+git status --short                              # 何が書き換わったかを先に見る
+grep -nE "^  <対象パッケージ>@" pnpm-lock.yaml   # 版が上がったか
+
+# 確認だけなら、書き換わったファイルだけを指定して戻す
+git checkout -- pnpm-lock.yaml <書き換わった package.json>
 ```
+
+**`pnpm update -r <親パッケージ> --lockfile-only` は `package.json` も書き換えます。**
+`--latest` もバージョン指定も付けていなくても起きます。実測（2026-08-28）では
+`pnpm update -r postcss --lockfile-only` が `apps/timer-web/package.json` の
+`"postcss": "^8.5.25"` を `"^8.5.26"` へ書き換えました。`apps/timer-web` は `postcss` を
+直接依存として宣言しているため、**推移依存を確かめるつもりでも直接依存の宣言が動きます**。
+だから `grep` より先に `git status --short` を見ます。
+
+**`git checkout -- .` で戻さないでください。** 作業ツリー全体を HEAD へ戻す操作で、
+確認のための一時変更だけでなく**進行中の未コミットの変更まで消えます**
+（[振り返り](../retrospectives/2026-08-11-issue-69-supply-chain.md)の「罠 3」「罠 4」に
+記録された事故そのものです）。ファイルを指定しても HEAD へ戻る点は変わらないので、
+**確認を始める前にコミットしておくこと**が前提になります。
 
 **`pnpm update -r <pkg>@<version>` で直そうとしないでください。** 同名パッケージが
 直接依存と推移依存の両方にいると区別せず、**直接依存の宣言まで書き換えます**
