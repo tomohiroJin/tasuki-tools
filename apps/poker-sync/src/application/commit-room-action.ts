@@ -46,7 +46,19 @@ export function createCommitRoomAction({
       return;
     }
     const room = store.get(roomId);
-    if (!room) return;
+    if (!room) {
+      // **黙って落とさない（#171）。** 参加中のつもりの接続が、保管には無いルームを
+      // 指していることがありうる。ここで何も返さないと、利用者の画面には
+      // 「押しても反応しない」としか見えず、原因に辿り着けない。
+      // 破棄済みのルームを指しているという意味では join-room の空振りと同じなので、
+      // 同じ `room-not-found` を返す（画面はこのコードでページ全体をエラー表示に
+      // 切り替え、保存した identity を捨てる。apps/poker-web の RoomPage）。
+      //
+      // #171 の根治側（`handleJoinRoom` の冪等化）を入れたあと、この分岐へ至る
+      // 経路は分かっている限り無い。無応答という最悪の症状を残さないための備えである。
+      sendError(ws, 'room-not-found', 'ルームが見つかりません');
+      return;
+    }
     const result = action(room, participantId);
     if (result.isErr()) {
       sendError(ws, result.error.code, messageForRoundError(result.error));
