@@ -125,3 +125,124 @@ describe("findWildcardReexports: 剥がしすぎで緑に倒れない（#184）"
     assert.equal(problems.length, 1);
   });
 });
+
+describe("findWildcardReexports: 行の途中でコメントが閉じても緑に倒れない（#193）", () => {
+  test("行頭のブロックコメントが同じ行で閉じ、その後ろの export * を報告する", () => {
+    // Given
+    const sources = new Map([
+      ["packages/x/src/index.ts", "/* c8 ignore next */ export * from './legacy';\n"],
+    ]);
+    // When
+    const problems = findWildcardReexports(sources);
+    // Then
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /packages\/x\/src\/index\.ts:1/);
+  });
+
+  test("ツール向けのブロックコメントの後ろでも報告する", () => {
+    // Given
+    const sources = new Map([
+      ["packages/x/src/index.ts", "/* eslint-disable */ export * from './pkg';\n"],
+    ]);
+    // When
+    const problems = findWildcardReexports(sources);
+    // Then
+    assert.equal(problems.length, 1);
+  });
+
+  test("閉じた直後に空白が無くても報告する", () => {
+    // Given
+    const sources = new Map([
+      ["packages/x/src/index.ts", "/** @deprecated */export * from './legacy';\n"],
+    ]);
+    // When
+    const problems = findWildcardReexports(sources);
+    // Then
+    assert.equal(problems.length, 1);
+  });
+
+  test("複数行のブロックコメントの終端行の後ろでも報告し、行番号が一致する", () => {
+    // Given（3 行目が ` */ export * …`）
+    const sources = new Map([
+      ["packages/x/src/index.ts", "/*\n * doc\n */ export * from './a';\n"],
+    ]);
+    // When
+    const problems = findWildcardReexports(sources);
+    // Then
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /packages\/x\/src\/index\.ts:3/);
+  });
+
+  test("行頭が // でもブロックコメントがそこで閉じていれば報告する", () => {
+    // Given（2 行目は `//` で始まるが、実体はブロックコメントの終端＋コード）
+    const sources = new Map([
+      ["packages/x/src/index.ts", "/*\n// */ export * from './a';\n"],
+    ]);
+    // When
+    const problems = findWildcardReexports(sources);
+    // Then
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /packages\/x\/src\/index\.ts:2/);
+  });
+
+  test("行頭の * が式の継続でも、完全な export * … from の形なら報告する", () => {
+    // Given（2 行目の先頭 `*` は乗算であってコメントではない）
+    const sources = new Map([
+      ["packages/x/src/index.ts", "const n = 2\n  * 3; export * from './a';\n"],
+    ]);
+    // When
+    const problems = findWildcardReexports(sources);
+    // Then
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /packages\/x\/src\/index\.ts:2/);
+  });
+
+  test("対照: 終端行に何も続かなければ飛ばす", () => {
+    // Given（docstring の終端行。`export *` は散文の中だけにある）
+    const sources = new Map([
+      ["packages/x/src/index.ts", "/**\n * `export *` は使わない。\n */\nexport { a } from './a';\n"],
+    ]);
+    // When
+    const problems = findWildcardReexports(sources);
+    // Then
+    assert.deepEqual(problems, []);
+  });
+
+  test("export と * の間に空白が無くても報告する", () => {
+    // Given（`export*from"./a";` は妥当な JS。`node --check` で実測）
+    const sources = new Map([["packages/x/src/index.ts", 'export*from"./a";\n']]);
+    // When
+    const problems = findWildcardReexports(sources);
+    // Then
+    assert.equal(problems.length, 1);
+  });
+
+  test("**/ で閉じる形でも報告する", () => {
+    // Given
+    const sources = new Map([
+      ["packages/x/src/index.ts", "/** doc **/ export * from './a';\n"],
+    ]);
+    // When
+    const problems = findWildcardReexports(sources);
+    // Then
+    assert.equal(problems.length, 1);
+  });
+
+  test("対照: コメントアウトされた export * は報告しない", () => {
+    // Given（`//` は行末までを確実にコメントにするので、飛ばして安全）
+    const sources = new Map([["packages/x/src/index.ts", "// export * from './a';\n"]]);
+    // When
+    const problems = findWildcardReexports(sources);
+    // Then
+    assert.deepEqual(problems, []);
+  });
+
+  test("対照: 同じ行で閉じるだけで後ろに何も無い散文は飛ばす", () => {
+    // Given
+    const sources = new Map([["packages/x/src/index.ts", "/* `export *` は使わない */\n"]]);
+    // When
+    const problems = findWildcardReexports(sources);
+    // Then
+    assert.deepEqual(problems, []);
+  });
+});
