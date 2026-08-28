@@ -221,7 +221,7 @@ integrity ハッシュが古いままなので実インストールで `ERR_PNPM
 
 ```bash
 # 0. 前提: 判定に使う 2 ファイルに未コミットの変更が無いこと（出力が空であること）
-#    手順 5 でこの 2 ファイルを HEAD へ戻すため、先に手元の変更をコミットしておく
+#    手順 6 でこの 2 ファイルを HEAD へ戻すため、先に手元の変更をコミットしておく
 git status --porcelain -- pnpm-workspace.yaml pnpm-lock.yaml
 
 # 1. overrides の当該行を 1 行だけ消す（エディタで編集）
