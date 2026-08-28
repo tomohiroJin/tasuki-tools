@@ -3,8 +3,9 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { detectRunner, buildCommand, MUTATIONS } from "./mutation-check.mjs";
+import { detectRunner, buildCommand, MUTATIONS, isDirectRun } from "./mutation-check.mjs";
 
 /**
  * `scripts/mutation-check.mjs` の自己テスト（#174）。
@@ -22,6 +23,9 @@ import { detectRunner, buildCommand, MUTATIONS } from "./mutation-check.mjs";
  * 2. **宣言から実行コマンドまでの配線** — 宣言（`MUTATIONS`）に並ぶすべての対象で
  *    ランナーが決まり、絞り込み・全体の両モードでコマンドが組めること。対象を
  *    足したときに落ちるのはここである。**件数は書かない**（宣言そのものを回す）。
+ * 3. **エントリポイントの判定** — 直接実行のときだけ `main()` を呼ぶ判定が、
+ *    symlink 経由の起動でも成立すること。ここが壊れると検査は何も実行せず
+ *    exit 0 で終わる（憲法 VII が最も嫌う失敗の型）。
  */
 
 const SCRIPTS_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -134,5 +138,87 @@ describe("宣言から実行コマンドまでの配線", () => {
     // Then: node 自身の探索に任せる（対象の列挙をここへ持ち込まない）
     assert.equal(cmd, "node");
     assert.deepEqual(args, ["--test"]);
+  });
+});
+
+
+/**
+ * mutation-check.mjs の複製だけを置いた使い捨てのリポジトリを作る。
+ *
+ * **なぜ本物の `scripts/mutation-check.mjs` を直接起動しないか。** `main()` の先頭は
+ * `recoverFromCrashedRun()` であり、適用中マーカー（`scripts/mutations/.applied`）が
+ * あれば `git checkout --` で作業ツリーを復元する。`mutation-check --full` は
+ * `scripts/` 全体のテストを走らせるので、その中からここが本物を起動すると、
+ * 実行中の変異を横から戻して検査そのものを壊す。複製を置いた別リポジトリなら、
+ * マーカーも変異も存在しないのでその経路に触れない。
+ *
+ * 複製した `main()` は `assertMutationTestsExist()` で必ず落ちる（対応表のテストが
+ * 1 件も無いため）。**「main() が走ったこと」の観測点はこの出力である。**
+ */
+function makeMutationCheckSandbox() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "mutation-check-entry-"));
+  fs.mkdirSync(path.join(root, "scripts", "lib"), { recursive: true });
+  for (const rel of ["mutation-check.mjs", path.join("lib", "scan-targets.mjs")]) {
+    fs.copyFileSync(path.join(SCRIPTS_DIR, rel), path.join(root, "scripts", rel));
+  }
+  // 複製先でも `git rev-parse --show-toplevel` が解決できるようにする。
+  execFileSync("git", ["init", "-q", root]);
+  return root;
+}
+
+/** main() が走ったことを示す出力（assertMutationTestsExist の第一声）。 */
+const MAIN_RAN = /検出を期待するテストファイルが見つかりません/;
+
+describe("エントリポイントの判定", () => {
+  test("isDirectRun: symlink 経由のパスでも自分自身と認める", () => {
+    // Given: 自分自身を指す symlink（実体パスとは異なる文字列になる）
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mutation-check-link-"));
+    const link = path.join(dir, "linked-mutation-check.mjs");
+    const self = path.join(SCRIPTS_DIR, "mutation-check.mjs");
+    fs.symlinkSync(self, link);
+    try {
+      assert.notEqual(link, self, "symlink と実体が同じパスでは、この前提が崩れます");
+      // When / Then
+      assert.equal(isDirectRun(link), true, "symlink 経由の起動が自分自身と認められていません");
+      assert.equal(isDirectRun(self), true, "実体パスの起動が自分自身と認められていません");
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("isDirectRun: 自分以外・未指定・実在しないパスは偽", () => {
+    // Given / When / Then
+    assert.equal(isDirectRun(undefined), false, "node -e のように argv[1] が無い起動");
+    assert.equal(isDirectRun(path.join(SCRIPTS_DIR, "mutation-check.test.mjs")), false, "別ファイルからの import");
+    assert.equal(isDirectRun(path.join(SCRIPTS_DIR, "does-not-exist.mjs")), false, "実在しないパス");
+  });
+
+  test("symlink 経由で起動しても main() が走る（#191 の回帰）", () => {
+    // Given: 複製リポジトリと、その複製を指す symlink
+    const root = makeMutationCheckSandbox();
+    const linkDir = fs.mkdtempSync(path.join(os.tmpdir(), "mutation-check-link-"));
+    const real = path.join(root, "scripts", "mutation-check.mjs");
+    const link = path.join(linkDir, "linked-mutation-check.mjs");
+    fs.symlinkSync(real, link);
+    try {
+      // 対照: 実体パスで起動したとき、この足場から本当に出力が出ることを先に見る。
+      const control = spawnSync(process.execPath, [real], { encoding: "utf8" });
+      assert.match(control.stderr, MAIN_RAN, "対照（実体パス起動）で main() が走っていません。足場が壊れています");
+      assert.equal(control.status, 1, "対照の exit code");
+
+      // When: symlink 経由で起動する
+      const viaLink = spawnSync(process.execPath, [link], { encoding: "utf8" });
+
+      // Then: 無出力・exit 0 で素通りしてはならない
+      assert.match(
+        viaLink.stderr,
+        MAIN_RAN,
+        `symlink 経由で main() が走っていません（exit ${viaLink.status} / stdout ${JSON.stringify(viaLink.stdout)} / stderr ${JSON.stringify(viaLink.stderr)}）`,
+      );
+      assert.equal(viaLink.status, 1, "symlink 経由の exit code");
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+      fs.rmSync(linkDir, { recursive: true, force: true });
+    }
   });
 });

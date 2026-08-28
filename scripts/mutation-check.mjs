@@ -646,6 +646,29 @@ function main() {
   process.exit(0);
 }
 
+/**
+ * 起動時に指定されたパス（`process.argv[1]`）がこのファイル自身かどうか。
+ *
+ * **なぜ単純な文字列比較では足りないか。** ESM ローダーは `import.meta.url` を
+ * 実体パス（symlink 解決後）へ正規化するが、`process.argv[1]` は起動時に
+ * 指定されたパスのままである。そのため `node <symlink>` で起動すると両者は
+ * 一致せず、`main()` が一度も呼ばれないまま**無出力・exit 0** で終わる。
+ * 「検査が何も実行せずに緑になる」は最も避けたい失敗の型である（憲法 VII）。
+ *
+ * そこで**両側を実体パスへ正規化してから比べる**。判定はこれだけに留める
+ * （起動形態を場合分けするほど、静かに素通りする経路が増える）。
+ * `argv[1]` が無い起動（`node -e` 等）と、実在しないパスを指す起動は偽とする。
+ */
+export function isDirectRun(invokedPath) {
+  if (!invokedPath) return false;
+  const self = fs.realpathSync(fileURLToPath(import.meta.url));
+  try {
+    return fs.realpathSync(invokedPath) === self;
+  } catch {
+    return false;
+  }
+}
+
 // 直接実行されたときだけ走らせる。自己テスト（mutation-check.test.mjs）は
 // detectRunner / buildCommand / MUTATIONS を import するだけで、変異は当てない。
-if (process.argv[1] === fileURLToPath(import.meta.url)) main();
+if (isDirectRun(process.argv[1])) main();
