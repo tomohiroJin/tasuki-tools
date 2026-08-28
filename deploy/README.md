@@ -11,13 +11,12 @@ Tasuki の各アプリは「自分の systemd ユニット + 固有ポート + C
 
 | アプリ | サービス | ポート | 配置先 | 公開パス | 状態 |
 |---|---|---|---|---|---|
-| `landing` | （無し・静的） | — | `/var/www/tasuki-home` | `/`（玄関） | S4 で未デプロイ |
-| `timer` | `tasuki-sync` | 8787 | `/opt/tasuki` / `/var/www/tasuki` | `/timer/` | 公開中（S4 で `/` から移設・未デプロイ） |
-| `poker` | `tasuki-poker-sync` | 3311 | `/opt/tasuki-poker` / `/var/www/tasuki-poker` | `/poker/` | **初回公開が S4**（未デプロイ） |
+| `landing` | （無し・静的） | — | `/var/www/tasuki-home` | `/`（玄関） | 公開中 |
+| `timer` | `tasuki-sync` | 8787 | `/opt/tasuki` / `/var/www/tasuki` | `/timer/` | 公開中 |
+| `poker` | `tasuki-poker-sync` | 3311 | `/opt/tasuki-poker` / `/var/www/tasuki-poker` | `/poker/` | 公開中 |
 
-> **S4（#19）の変更はまだ本番に出ていない。** epic #15 の全段階が終わってから、
-> 指示を得てまとめて 1 回デプロイする方針（再起動でルームが全消滅するため）。
-> 上表の公開パスはデプロイ後の姿を表す。
+> **3 系統は 2026-08-28 に本番へ出た（#66）。** Planning Poker と玄関 LP はこのときが初回公開。
+> 再起動でルームが全消滅するため、デプロイは指示を得てまとめて 1 回行う方針は変わらない。
 
 ### 公開範囲の方針（重要）
 
