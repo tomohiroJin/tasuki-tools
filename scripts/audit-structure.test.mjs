@@ -29,6 +29,7 @@ import {
   extractPublicDeclarations,
   sc039bUnusedPublicData,
   sc039cSelfOnlyPublicSymbols,
+  findStaleSc029Exceptions,
   findStaleSymbolExceptions,
   findStaleTestExceptions,
   formatTable,
@@ -151,7 +152,7 @@ describe("SC-029: テスト名に含まれる仕様の識別番号", () => {
       ],
     ]);
     const count = sc029SpecIdsInNames(testFiles, [
-      "packages/core/test/permissions-differential.test.ts",
+      { file: "packages/core/test/permissions-differential.test.ts", reason: "差分テスト" },
     ]);
     assert.equal(count, 0);
   });
@@ -923,5 +924,51 @@ describe("stripStringsAndComments: 剥がしすぎず、行番号も崩さない
     const stripped = stripStringsAndComments(source);
     // Then
     assert.doesNotMatch(stripped, /STRINGBODY|BLOCKBODY|LINEBODY/);
+  });
+});
+
+describe("findStaleSc029Exceptions: SC-029 の例外表も両方向に腐らせない（#184）", () => {
+  const testFiles = new Map([
+    ["packages/x/test/a.test.ts", 'it("FR-072 のケース", () => {});'],
+    ["packages/x/test/b.test.ts", 'it("交代する", () => {});'],
+  ]);
+
+  test("仕様の識別番号を実際に含むファイルの例外は問題にならない", () => {
+    // Given
+    const ex = [{ file: "packages/x/test/a.test.ts", reason: "差分テストの組み合わせ" }];
+    // When
+    const problems = findStaleSc029Exceptions(ex, testFiles);
+    // Then
+    assert.deepEqual(problems, []);
+  });
+
+  test("走査対象に無いファイルの例外は問題として報告する", () => {
+    // Given（実在しないパスを置いても静かに素通りしていた）
+    const ex = [{ file: "packages/nonexistent/tests/ghost.test.ts", reason: "差分テスト" }];
+    // When
+    const problems = findStaleSc029Exceptions(ex, testFiles);
+    // Then
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /ghost\.test\.ts/);
+  });
+
+  test("識別番号がもう無いファイルの例外は不要になったと報告する", () => {
+    // Given（例外が何も外していない＝空回りの状態）
+    const ex = [{ file: "packages/x/test/b.test.ts", reason: "差分テスト" }];
+    // When
+    const problems = findStaleSc029Exceptions(ex, testFiles);
+    // Then
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /不要/);
+  });
+
+  test("理由が空の例外は問題として報告する", () => {
+    // Given
+    const ex = [{ file: "packages/x/test/a.test.ts", reason: "" }];
+    // When
+    const problems = findStaleSc029Exceptions(ex, testFiles);
+    // Then
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /理由/);
   });
 });
