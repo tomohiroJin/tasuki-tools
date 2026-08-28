@@ -38,9 +38,11 @@ trustPolicyExclude:
 # メジャーの版へ影響が漏れる（いずれも実測済み。docs/adr/0008 の追記を参照）。
 #   - キーを名前だけにする → 直接依存の宣言まで書き換わる
 #   - 値を `>=x.y.z` にする → その範囲に入る別メジャーの版が選ばれる
-# 削除の条件は日付では決まらない。この行を外して
-# `pnpm install --lockfile-only` を実行し、lockfile の当該版が下限以上に
-# 留まる（＝親の要求だけで足りる）ようになったら削除する。
+# 削除の条件は日付では決まらない。この行を外したうえで pnpm-lock.yaml と
+# node_modules/.pnpm-workspace-state-v1.json を消して `pnpm install --lockfile-only`
+# を実行し、作り直した lockfile で選ばれた版が下限以上なら削除する。
+# lockfile を残したまま判定してはならない。pnpm は既存の解決版を再解決しないため、
+# その判定は恒真で常に「削除できる」を返す（実測。docs/adr/0008 の #152 の訂正を参照）。
 # 判断の根拠は docs/adr/0008、運用手順は docs/guides/development.md を参照。
 overrides:
   # nanoid@3 は GHSA-2v37-7h3g-55p8（high・<3.3.18 が対象）を踏む。

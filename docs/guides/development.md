@@ -168,14 +168,54 @@ integrity ハッシュが古いままなので実インストールで `ERR_PNPM
 **解除予定日は書きません。** 親パッケージの要求が上がる日は決まっていないためです。
 `trustPolicyExclude` と同じく、条件で判断します。
 
+**判定は lockfile を作り直して行います。** 「当該行を外して `pnpm install --lockfile-only`
+を実行し、版が下がるか見る」という素朴な手順は**恒真で、常に「削除できる」を返します**。
+pnpm は lockfile に既にある解決版が範囲を満たす限り再解決しないため、`overrides` を
+外しても版はその場に据え置かれるからです（`pnpm dedupe --lockfile-only` も同じ）。
+知りたいのは「今の lockfile に載っている版」ではなく「**この行が無いときに解決器が
+選ぶ版**」なので、lockfile を捨てて解き直します。
+
 ```bash
-# overrides の当該行を外してから
+# 0. 前提: 判定に使う 2 ファイルに未コミットの変更が無いこと（出力が空であること）
+#    手順 4 でこの 2 ファイルを HEAD へ戻すため、先に手元の変更をコミットしておく
+git status --porcelain -- pnpm-workspace.yaml pnpm-lock.yaml
+
+# 1. overrides の当該行を 1 行だけ消す（エディタで編集）
+
+# 2. lockfile と pnpm の「最新である」判定キャッシュを捨てて、全体を解決し直す
+rm -f pnpm-lock.yaml node_modules/.pnpm-workspace-state-v1.json
 pnpm install --lockfile-only
-grep -n "<対象パッケージ>" pnpm-lock.yaml
+test -f pnpm-lock.yaml || echo "作り直されていない。手順 2 をやり直すこと"
+
+# 3. 作り直した lockfile で、当該パッケージに選ばれた版を見る
+grep -nE "^  <対象パッケージ>@" pnpm-lock.yaml
+
+# 4. 作業ツリー全体ではなく、この 2 ファイルだけを戻す
+git checkout -- pnpm-workspace.yaml pnpm-lock.yaml
 ```
 
-lockfile の版が下限以上に留まる（＝親の要求だけで足りる）なら、その行は削除できます。
-版が下がるなら、まだ必要です。**残したまま放置すると、将来その範囲を黙って固定し続けます。**
+- 選ばれた版が**下限以上**なら、その行は削除できます（親の要求だけで足ります）
+- 選ばれた版が**下限未満**なら、まだ必要です
+
+**`node_modules/.pnpm-workspace-state-v1.json` を消し忘れると、手順ごと空振りします。**
+`pnpm-lock.yaml` だけを消して `pnpm install --lockfile-only` を実行すると、pnpm が
+`Already up to date` を出して**lockfile を作らないまま正常終了する**ことがあります
+（`--force` を付けても同じでした）。手順 2 の `test -f` はこの空振りを見つけるためのものです。
+
+**この手順が両側に分岐することは実測で確認しています**（2026-08-28・pnpm 11.5.0）。
+検証用に `"postcss@8": "^8.5.26"` を足して lockfile を作り直した状態
+（`postcss@8.5.26` ＝ override が仕事をしている状態）から、その行を外して:
+
+| 判定に使った手順 | 得られた版 | 出る答え |
+| --- | --- | --- |
+| 素朴な手順（lockfile を残す） | `postcss@8.5.26` | 「削除できる」（**誤り**） |
+| 上の手順（lockfile を作り直す） | `postcss@8.5.25` | 下限 8.5.26 未満 → 「まだ必要」（正しい） |
+
+同じ手順を実在の `"nanoid@3": "^3.3.18"` に対して行うと `nanoid@3.3.18` が選ばれ、
+下限以上なので「削除できる」側に倒れました。判定の答えは依存木の更新で変わるため、
+**削除を実施する前にその時点で測り直し、併せて `pnpm audit` が緑であることを確認します。**
+
+**残したまま放置すると、将来その範囲を黙って固定し続けます。**
 
 ### 信頼証跡の降格拒否
 
