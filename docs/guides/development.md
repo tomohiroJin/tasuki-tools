@@ -187,52 +187,77 @@ integrity ハッシュが古いままなので実インストールで `ERR_PNPM
 **解除予定日は書きません。** 親パッケージの要求が上がる日は決まっていないためです。
 `trustPolicyExclude` と同じく、条件で判断します。
 
-**判定は lockfile を作り直して行います。** 「当該行を外して `pnpm install --lockfile-only`
-を実行し、版が下がるか見る」という素朴な手順は**恒真で、常に「削除できる」を返します**。
-pnpm は lockfile に既にある解決版が範囲を満たす限り再解決しないため、`overrides` を
-外しても版はその場に据え置かれるからです（`pnpm dedupe --lockfile-only` も同じ）。
-知りたいのは「今の lockfile に載っている版」ではなく「**この行が無いときに解決器が
-選ぶ版**」なので、lockfile を捨てて解き直します。
+**判定は `node_modules` ごと捨てて解き直して行います。** 「当該行を外して
+`pnpm install --lockfile-only` を実行し、版が下がるか見る」という素朴な手順は
+**恒真で、常に「削除できる」を返します**。知りたいのは「今の lockfile に載っている版」では
+なく「**この行が無いときに解決器が選ぶ版**」なので、pnpm が前回の結果を引き継げる材料を
+すべて捨てる必要があります。
+
+**pnpm は前回の結果を 2 段構えで引き継ぎます。**
+
+1. **`pnpm-lock.yaml` を残すと**、そこに既にある解決版が範囲を満たす限り再解決しません。
+   `overrides` を外しても版はその場に据え置かれます（`pnpm dedupe --lockfile-only` も同じ）
+2. **`pnpm-lock.yaml` だけ消して `node_modules` を残すと**、pnpm は
+   `node_modules/.pnpm/lock.yaml`（前回のインストールが何を展開したかの記録）を引き継ぎます。
+   実測では、消したはずの `pnpm-lock.yaml` が**そこからバイト単位で復元され、解決が 1 件も
+   走りませんでした**。編集の内容によっては解決自体は走りますが、**選ばれる版はそちらへ
+   引きずられます**
+
+`node_modules` を消す理由は、後述の[ローカル確認時の注意](#ローカル確認時の注意)と同じ
+「**残っていると pnpm が前回の結果を引き継ぐ**」です。あちらは供給網検証の短絡、
+こちらは解決の引きずりで、現れ方だけが違います。
 
 ```bash
 # 0. 前提: 判定に使う 2 ファイルに未コミットの変更が無いこと（出力が空であること）
-#    手順 4 でこの 2 ファイルを HEAD へ戻すため、先に手元の変更をコミットしておく
+#    手順 5 でこの 2 ファイルを HEAD へ戻すため、先に手元の変更をコミットしておく
 git status --porcelain -- pnpm-workspace.yaml pnpm-lock.yaml
 
 # 1. overrides の当該行を 1 行だけ消す（エディタで編集）
 
-# 2. lockfile と pnpm の「最新である」判定キャッシュを捨てて、全体を解決し直す
-rm -f pnpm-lock.yaml node_modules/.pnpm-workspace-state-v1.json
+# 2. lockfile と node_modules を捨てる。node_modules を残すと手順ごと空振りする
+rm -rf pnpm-lock.yaml node_modules apps/*/node_modules packages/*/node_modules e2e/node_modules
+test -e node_modules && echo "node_modules が残っている。この先へ進まないこと"
+
+# 3. 全体を解決し直す
 pnpm install --lockfile-only
-test -f pnpm-lock.yaml || echo "作り直されていない。手順 2 をやり直すこと"
 
-# 3. 作り直した lockfile で、当該パッケージに選ばれた版を見る
-grep -nE "^  <対象パッケージ>@" pnpm-lock.yaml
+# 4. 空振り検知: 外した行が lockfile 冒頭の overrides に残っていたら、lockfile は
+#    復元されただけで解決していない。手順 2 からやり直す
+grep -n "^  <外した overrides のキー>:" pnpm-lock.yaml   # 何も出ないこと（例: nanoid@3:）
 
-# 4. 作業ツリー全体ではなく、この 2 ファイルだけを戻す
+# 5. 作り直した lockfile で、当該パッケージに選ばれた版を見る
+grep -nE "^  <対象パッケージ>@[0-9]" pnpm-lock.yaml
+
+# 6. 作業ツリーを戻し、node_modules を入れ直す
 git checkout -- pnpm-workspace.yaml pnpm-lock.yaml
+pnpm install --frozen-lockfile
 ```
 
 - 選ばれた版が**下限以上**なら、その行は削除できます（親の要求だけで足ります）
-- 選ばれた版が**下限未満**なら、まだ必要です
+- 選ばれた版が**下限未満**なら、まだ必要です。これは**親の要求範囲が下限より上の版を
+  選べない**とき、つまり `overrides` を置いた理由がまだ生きているときに起きます
 
-**`node_modules/.pnpm-workspace-state-v1.json` を消し忘れると、手順ごと空振りします。**
-`pnpm-lock.yaml` だけを消して `pnpm install --lockfile-only` を実行すると、pnpm が
-`Already up to date` を出して**lockfile を作らないまま正常終了する**ことがあります
-（`--force` を付けても同じでした）。手順 2 の `test -f` はこの空振りを見つけるためのものです。
+**`pnpm-lock.yaml` が出来ていることは、解き直した証拠になりません。** `node_modules` を
+残したまま実行すると、消した lockfile がそこから復元されます（実測ではコミット済みの
+ものとバイト単位で同一でした）。ファイルの有無ではなく、手順 4 の中身で確かめてください。
 
-**この手順が両側に分岐することは実測で確認しています**（2026-08-28・pnpm 11.5.0）。
-検証用に `"postcss@8": "^8.5.26"` を足して lockfile を作り直した状態
-（`postcss@8.5.26` ＝ override が仕事をしている状態）から、その行を外して:
+**手順のどこまで捨てたかで答えが変わることは実測で確認しています**（2026-08-29・
+pnpm 11.5.0 / Node v22.23.2。リポジトリの複製と pnpm のキャッシュを隔離した環境で、
+捨てる範囲だけを変えて実行）。`postcss` は `overrides` を置いていないパッケージですが、
+**lockfile が指す版（`8.5.25`）と解決器が今選ぶ版がずれている**ため、素朴な手順が
+lockfile を読み返しているだけであることがそのまま出ます。
 
-| 判定に使った手順 | 得られた版 | 出る答え |
+| 捨てたもの | 解決し直したか | `postcss` に選ばれた版 |
 | --- | --- | --- |
-| 素朴な手順（lockfile を残す） | `postcss@8.5.26` | 「削除できる」（**誤り**） |
-| 上の手順（lockfile を作り直す） | `postcss@8.5.25` | 下限 8.5.26 未満 → 「まだ必要」（正しい） |
+| 何も捨てない（素朴な手順） | 当該箇所は据え置き | `8.5.25`（lockfile の版そのまま） |
+| `pnpm-lock.yaml` だけ | **しない**（`node_modules` から復元） | `8.5.25` |
+| `pnpm-lock.yaml` と `node_modules` | する | **`8.5.26`** |
 
-同じ手順を実在の `"nanoid@3": "^3.3.18"` に対して行うと `nanoid@3.3.18` が選ばれ、
-下限以上なので「削除できる」側に倒れました。判定の答えは依存木の更新で変わるため、
-**削除を実施する前にその時点で測り直し、併せて `pnpm audit` が緑であることを確認します。**
+**この節の版番号は測った日の値で、依存木が動けば変わります。** 実在の
+`"nanoid@3": "^3.3.18"` を外して上の手順を通すと、同じ日の実測では `nanoid@3.3.18` が
+選ばれ、下限以上なので「削除できる」側に倒れました（`node_modules` の有無によらず
+同じ版でした）。**転記した数字を信じず、削除する時点で自分で測り直してください。**
+併せて `pnpm audit` が緑であることを確認します。
 
 **残したまま放置すると、将来その範囲を黙って固定し続けます。**
 
