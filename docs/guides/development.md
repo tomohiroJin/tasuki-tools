@@ -322,11 +322,28 @@ pnpm turbo test typecheck lint build
 pnpm turbo run build --filter=@tasuki/timer-web
 ```
 
-`pnpm test` は turbo 経由で 10 パッケージ（`@tasuki/timer-core` `@tasuki/timer-web`
-`@tasuki/timer-sync` `@tasuki/poker-core` `@tasuki/poker-web` `@tasuki/poker-sync`
-`@tasuki/landing` `@tasuki/protocol` `@tasuki/ui` `@tasuki/e2e`）のテストを実行し、
-2026-08-10 時点で**全 1,970 件**が緑になります（コンテナのファイルシステム上・
-コールド実行で約 30 秒）。
+**対象パッケージはここに並べません。** `pnpm test` の実体は `turbo run test` で、
+turbo は `pnpm-workspace.yaml` の `packages` からパッケージを導出し、
+`test` スクリプトを持つものをすべて走らせます。
+**パッケージを足せば宣言なしで対象に入るため、この節に追記は要りません。**
+
+**テストの件数も書きません。数えるなら実行してください。**
+
+```bash
+pnpm turbo test --dry=text   # 実行せずに対象と走るタスクを一覧する
+pnpm turbo test --force      # キャッシュを無効にして実際に走らせる
+```
+
+**`--force` を付けない実行で件数を数えてはいけません。** 変更が無いと turbo は
+キャッシュから出力を再生し（`>>> FULL TURBO`）、テストを 1 件も走らせないまま
+前回の件数をそのまま表示します。
+
+**turbo が最後に出す `Tasks: N successful` の N はパッケージ数ではありません。**
+`test` は `dependsOn: ["^build"]` を持つため（`turbo.json`）、依存パッケージの
+`build` タスクが同じ数に混ざります。パッケージ数を見たいときは `--dry=text` の
+`Running test in N packages` の行を読んでください。
+
+所要時間は実行環境で桁が変わります。実測値は下の[効果](#効果)を参照してください。
 
 ### 9p 越しで実行するときは依存の実体を逃がす（任意）
 
