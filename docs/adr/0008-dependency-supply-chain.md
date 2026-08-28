@@ -90,13 +90,14 @@ Issue #69 の本文は着手前の実測で事実誤認が 5 点見つかった�
   integrity ハッシュの不整合として実インストール時にだけ露見する
 - **MUST**: 追加した `overrides` には、対象アドバイザリ・依存元・親の更新で解消しない
   理由をコメントで残す。**解除予定日は書かない**（`trustPolicyExclude` と同じく、
-  日付では決まらないため）。削除できるかは、その行を外したうえで **lockfile を捨てて
-  解き直し**（`pnpm-lock.yaml` と `node_modules/.pnpm-workspace-state-v1.json` を消してから
-  `pnpm install --lockfile-only`）、そこで選ばれた版が下限以上かで判断する
-- **MUST NOT**: lockfile を残したまま `pnpm install --lockfile-only` や
-  `pnpm dedupe --lockfile-only` を実行して削除の可否を判定しない。**その判定は恒真で、
-  常に「削除できる」を返す**。pnpm は lockfile に既にある解決版が範囲を満たす限り
-  再解決しないため、`overrides` を外しても版が据え置かれるだけである
+  日付では決まらないため）。削除できるかは、その行を外したうえで
+  **`pnpm-lock.yaml` と `node_modules` を捨てて解き直し**（`pnpm install --lockfile-only`）、
+  そこで選ばれた版が下限以上かで判断する。手順は
+  [`docs/guides/development.md`](../guides/development.md) の「削除の条件」を正本とする
+- **MUST NOT**: `pnpm-lock.yaml` または `node_modules` を残したまま
+  `pnpm install --lockfile-only` / `pnpm dedupe --lockfile-only` を実行して削除の可否を
+  判定しない。**その判定は恒真で、常に「削除できる」を返す**。pnpm は前回の解決結果を
+  この 2 つから引き継ぐため、`overrides` を外しても版が据え置かれるだけである
   （実測。下記「削除判定の訂正」を参照）
 
 ### 影響
@@ -123,29 +124,14 @@ Issue #69 の本文は着手前の実測で事実誤認が 5 点見つかった�
   3.3.16 → 3.3.17 の更新で塞いだ。同じ依存元（`postcss`）で再発しうることを踏まえ、
   下限は固定値ではなく `^` で書いて後続のパッチ版を拾えるようにしている
 
-### 削除判定の訂正（2026-08-28・#152）
+### 削除判定の訂正（2026-08-29・#152）
 
 上の「#149」の追記が置いた削除判定（当該行を外して `pnpm install --lockfile-only` を
-実行し、版が下がるか見る）は**恒真だった**。pnpm は lockfile に既にある解決版が範囲を
-満たす限り再解決しないため、`overrides` を外しても版は据え置かれ、「版が下がる」側には
-決して分岐しない。上の MUST / MUST NOT はこの実測を受けて書き換えたもので、決定の
-方針（日付ではなく条件で判断する）は変えていない。
+実行し、版が下がるか見る）は**恒真だった**。pnpm は前回の解決結果を `pnpm-lock.yaml` と
+`node_modules` の両方から引き継ぐため、`overrides` を外しても版は据え置かれ、
+「版が下がる」側には決して分岐しない。上の MUST / MUST NOT はこの実測を受けて
+書き換えたもので、決定の方針（日付ではなく条件で判断する）は変えていない。
 
-`postcss` を使った実測（2026-08-28・pnpm 11.5.0）。検証用に
-`"postcss@8": "^8.5.26"` を足して lockfile を作り直すと `postcss@8.5.26` になり、
-override が仕事をしている状態が作れる。そこから当該行を外して:
-
-- lockfile を残したまま `pnpm install --lockfile-only` → `postcss@8.5.26` のまま
-  （`Already up to date` を出して何もしない）。`pnpm dedupe --lockfile-only` も
-  `postcss@8.5.26` のまま。どちらも「削除できる」と答えてしまう
-- `pnpm-lock.yaml` と `node_modules/.pnpm-workspace-state-v1.json` を消してから
-  `pnpm install --lockfile-only` → `postcss@8.5.25`。下限 8.5.26 未満なので
-  「まだ必要」と正しく答える
-
-同じ手順を `"nanoid@3": "^3.3.18"` に対して行うと `nanoid@3.3.18` が選ばれ、
-「削除できる」側に分岐した。**判定が両側に分岐することを確認済み**である。
-
-**`pnpm-lock.yaml` だけを消しても足りない。** その状態で `pnpm install --lockfile-only`
-を実行すると、pnpm が `Already up to date` を出して lockfile を作らないまま正常終了する
-ことがある（`--force` を付けても同じ）。`node_modules/.pnpm-workspace-state-v1.json` を
-併せて消す必要がある。
+**手順・実測値・実例の正本は [`docs/guides/development.md`](../guides/development.md) の
+「削除の条件」とし、本 ADR では転記しない**（`docs/adr/0002` 決定 2「二重正本を作らない」）。
+選ばれる版は依存木が動けば変わるため、判定するたびに測り直す。
