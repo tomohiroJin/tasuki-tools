@@ -23,7 +23,9 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 ### AI 運用規則
 
 - 本番デプロイ（deploy.sh / systemctl / Caddy reload）は明示指示を待つ
-- テスト・検査はコンテナ native の FS で回す（9p マウント上で回さない）
+- 9p マウント（`/workspaces` など）上で検査が遅いときは、ソースを移さず
+  **依存の実体だけ**をコンテナ側へ逃がす（手順は
+  [`docs/guides/development.md`](docs/guides/development.md) の「9p 越しで実行するとき」）
 - 起動した dev サーバーは使い終わったら止める（`ss -tlnp` で確認）
 
 ## 文書地図

@@ -344,6 +344,7 @@ CI は以下を一切気にする必要がありません。
 
 ```bash
 # 一度だけ: 逃がし先を作り、ワークスペース直下から symlink を張る
+# 逃がし先は「チェックアウトごとに別のディレクトリ」にすること（下記 5 を参照）
 mkdir -p ~/.pnpm-virtual/tasuki
 ln -s ~/.pnpm-virtual/tasuki .pnpm-virtual
 
@@ -361,7 +362,7 @@ readlink .pnpm-virtual                  # 逃がし先が出る
 find node_modules -type f | wc -l       # 桁違いに減っていれば実体が移っている
 ```
 
-#### 落とし穴 4 つ
+#### 落とし穴 5 つ
 
 いずれも実測で確かめたものです。
 
@@ -377,7 +378,12 @@ find node_modules -type f | wc -l       # 桁違いに減っていれば実体�
    `pnpm run` の中で `pnpm install` を呼ぶと `--virtual-store-dir` が無視され、
    **黙って既定の配置になります**（実測。`"install:9p": "pnpm install --virtual-store-dir=.pnpm-virtual"`
    を作って試したところ、逃がし先 0 ファイル・`node_modules` に全量が入った）。
-   シェルから直接打つか、`pnpm run` を挟まないシェルスクリプトから呼んでください。
+   シェルから直接打つか、`pnpm run` を挟まないシェルスクリプトから呼んでください
+   （`.sh` ファイルから呼ぶ形は実測で動くことを確認済み）。
+5. **チェックアウトを複数持つなら、逃がし先もチェックアウトごとに分けてください。**
+   同じ逃がし先を 2 つのチェックアウトで共有すると、後から `pnpm install` した側の
+   内容で上書きされます。依存が同一のうちは動きますが（実測）、
+   ブランチ間で依存が食い違うと壊れます。
 
 #### 効果
 
