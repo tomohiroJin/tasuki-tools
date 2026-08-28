@@ -7,8 +7,15 @@ import {
   findRelativeLinks,
   findInlineCodePaths,
   isRepoPathLike,
+  isAdrNumberRef,
+  resolveAdrNumberRef,
+  countLines,
+  parseLineRef,
   LIVE_DOCS,
   MISSING_PATH_EXCEPTIONS,
+  STALE_LINE_REF_EXCEPTIONS,
+  findMissingPathException,
+  findLineRefException,
   isLiveDoc,
   checkConstants,
   checkStaleExceptions,
@@ -152,6 +159,37 @@ describe("findRelativeLinks", () => {
     assert.deepEqual(findRelativeLinks(src), []);
   });
 
+  test("ネストした角括弧の外側の参照先も拾う", () => {
+    // Given: #156 ③ — ラベルを噛ませた正規表現は内側の画像だけを見ていた
+    const src = "[![alt](img.png)](link.md)";
+    // When / Then: 内側・外側の両方が対象になる
+    assert.deepEqual(findRelativeLinks(src), [
+      { target: "img.png", line: 1 },
+      { target: "link.md", line: 1 },
+    ]);
+  });
+
+  test("タイトル付きリンクの参照先を拾う", () => {
+    // Given: #156 ④ — 空白を許さない正規表現は一致すらしなかった
+    const src = '[a](./a.md "title")';
+    // When / Then: 題名を落とし、参照先だけを返す
+    assert.deepEqual(findRelativeLinks(src), [{ target: "./a.md", line: 1 }]);
+  });
+
+  test("参照先が空のリンクは拾わない", () => {
+    // Given
+    const src = "[a]()";
+    // When / Then
+    assert.deepEqual(findRelativeLinks(src), []);
+  });
+
+  test("タイトル付きの外部リンクは対象外のまま", () => {
+    // Given: 題名を落とした後に http 判定を行うこと
+    const src = '[a](https://example.com "title")';
+    // When / Then
+    assert.deepEqual(findRelativeLinks(src), []);
+  });
+
   test("同一文書内のアンカーだけのリンクも拾う", () => {
     // Given
     const src = "[節へ](#見出し)";
@@ -166,21 +204,105 @@ describe("isRepoPathLike", () => {
     assert.equal(isRepoPathLike("docs/adr/0002-document-system-three-layers.md"), true);
   });
 
-  test("ADR 番号の接頭辞参照を弾く", () => {
-    // Given: 拡張子が無い。実ファイルは 0002-document-system-three-layers.md
+  test("拡張子の無いディレクトリ参照も受け入れる", () => {
+    // Given: #156 ① — 拡張子を要求していたころは丸ごと網から落ちていた
     // When / Then
-    assert.equal(isRepoPathLike("docs/adr/0002"), false);
+    assert.equal(isRepoPathLike("apps/poker-sync/src/application"), true);
+    assert.equal(isRepoPathLike("packages/ui"), true);
+  });
+
+  test("ADR 番号の接頭辞も形としては受け入れる（解決規則で分ける）", () => {
+    // Given: 拡張子が無い。実ファイルは 0002-document-system-three-layers.md
+    // When / Then: 記法では弾かず、isAdrNumberRef が別の解決規則へ回す
+    assert.equal(isRepoPathLike("docs/adr/0002"), true);
   });
 
   test("グロブ・変数展開・空白を含むものを弾く", () => {
     assert.equal(isRepoPathLike("packages/*/src/index.ts"), false);
     assert.equal(isRepoPathLike("apps/${APP}/dist/main.js"), false);
     assert.equal(isRepoPathLike("docs/a b.md"), false);
+    assert.equal(isRepoPathLike("packages/<pkg>/src"), false);
   });
 
   test("リポジトリ外に見えるものを弾く", () => {
     assert.equal(isRepoPathLike("node_modules/foo/index.js"), false);
     assert.equal(isRepoPathLike("./relative.md"), false);
+  });
+});
+
+describe("isAdrNumberRef", () => {
+  test("adr/ 直下の 4 桁数字だけを接頭辞参照とみなす", () => {
+    // Given / When / Then
+    assert.equal(isAdrNumberRef("docs/adr/0002"), true);
+    assert.equal(isAdrNumberRef("docs/timer/adr/0008"), true);
+    assert.equal(isAdrNumberRef("docs/poker/adr/0001"), true);
+  });
+
+  test("ディレクトリ参照・実ファイル参照を接頭辞参照と混同しない", () => {
+    // Given: #156 ① の「区別する方法を実装で明示する」を主張するテスト
+    // When / Then
+    assert.equal(isAdrNumberRef("apps/poker-sync/src/application"), false);
+    assert.equal(isAdrNumberRef("docs/adr/README.md"), false);
+    assert.equal(isAdrNumberRef("docs/adr/0002-document-system-three-layers.md"), false);
+    assert.equal(isAdrNumberRef("docs/guides/0002"), false);
+    assert.equal(isAdrNumberRef("docs/adr/002"), false);
+  });
+});
+
+describe("resolveAdrNumberRef", () => {
+  test("接頭辞で始まる実ファイルがあれば解決する", () => {
+    // Given
+    const paths = ["docs/adr/0002-document-system-three-layers.md"];
+    // When / Then
+    assert.equal(resolveAdrNumberRef("docs/adr/0002", paths), true);
+  });
+
+  test("番号が飛んでいれば解決しない", () => {
+    // Given: 0002 は在るが 0099 は無い
+    const paths = ["docs/adr/0002-document-system-three-layers.md"];
+    // When / Then
+    assert.equal(resolveAdrNumberRef("docs/adr/0099", paths), false);
+  });
+
+  test("接頭辞の続きがハイフンでないものは解決しない", () => {
+    // Given: 0002 と 00021 を取り違えないこと
+    const paths = ["docs/adr/00021-other.md"];
+    // When / Then
+    assert.equal(resolveAdrNumberRef("docs/adr/0002", paths), false);
+  });
+});
+
+describe("countLines", () => {
+  test("末尾の改行 1 個は行を増やさない", () => {
+    assert.equal(countLines("a\nb\nc\n"), 3);
+    assert.equal(countLines("a\nb\nc"), 3);
+  });
+
+  test("空ファイルは 0 行", () => {
+    assert.equal(countLines(""), 0);
+  });
+});
+
+describe("parseLineRef", () => {
+  test("行番号を分けて返す", () => {
+    assert.deepEqual(parseLineRef("scripts/a.mjs:70"), {
+      path: "scripts/a.mjs",
+      lineRef: 70,
+    });
+  });
+
+  test("範囲は終端を返す", () => {
+    assert.deepEqual(parseLineRef("scripts/a.mjs:5-6"), {
+      path: "scripts/a.mjs",
+      lineRef: 6,
+    });
+  });
+
+  test("行番号が無ければ null", () => {
+    assert.deepEqual(parseLineRef("scripts/a.mjs"), {
+      path: "scripts/a.mjs",
+      lineRef: null,
+    });
   });
 });
 
@@ -192,8 +314,18 @@ describe("findInlineCodePaths", () => {
     const found = findInlineCodePaths(src);
     // Then: 突き合わせ用に行番号を落とし、原文も残す
     assert.deepEqual(found, [
-      { path: "packages/timer-core/src/problem.ts", raw: "packages/timer-core/src/problem.ts:70", line: 1 },
-      { path: "scripts/audit-structure.mjs", raw: "scripts/audit-structure.mjs:5-6", line: 1 },
+      {
+        path: "packages/timer-core/src/problem.ts",
+        lineRef: 70,
+        raw: "packages/timer-core/src/problem.ts:70",
+        line: 1,
+      },
+      {
+        path: "scripts/audit-structure.mjs",
+        lineRef: 6,
+        raw: "scripts/audit-structure.mjs:5-6",
+        line: 1,
+      },
     ]);
   });
 
@@ -212,7 +344,7 @@ describe("findInlineCodePaths", () => {
     const src = "詳細は `scripts/nonexistent.mjs` を見る";
     // When / Then
     assert.deepEqual(findInlineCodePaths(src), [
-      { path: "scripts/nonexistent.mjs", raw: "scripts/nonexistent.mjs", line: 1 },
+      { path: "scripts/nonexistent.mjs", lineRef: null, raw: "scripts/nonexistent.mjs", line: 1 },
     ]);
   });
 });
@@ -281,8 +413,8 @@ describe("checkConstants", () => {
 });
 
 describe("checkStaleExceptions", () => {
-  test("一度も使われなかった例外を報告する", () => {
-    // Given: 例外表のどのパスにも触れなかった走査
+  test("一度も赤を抑えなかった例外を報告する", () => {
+    // Given: 例外表のどのエントリも赤を抑えなかった走査
     const used = new Set();
     // When
     const errors = checkStaleExceptions(used);
@@ -292,10 +424,53 @@ describe("checkStaleExceptions", () => {
   });
 
   test("使われた例外は報告しない", () => {
-    // Given
-    const used = new Set(MISSING_PATH_EXCEPTIONS.map((e) => e.path));
+    // Given: エントリそのものを鍵にする（パス文字列ではない）
+    const used = new Set(MISSING_PATH_EXCEPTIONS);
     // When / Then
     assert.deepEqual(checkStaleExceptions(used), []);
+  });
+
+  test("行番号の例外表にも同じ検査が効く", () => {
+    // Given
+    const used = new Set();
+    // When
+    const errors = checkStaleExceptions(used, STALE_LINE_REF_EXCEPTIONS);
+    // Then
+    assert.equal(errors.length, STALE_LINE_REF_EXCEPTIONS.length);
+  });
+
+  test("例外には理由が書かれている", () => {
+    for (const e of [...MISSING_PATH_EXCEPTIONS, ...STALE_LINE_REF_EXCEPTIONS]) {
+      assert.ok(e.reason && e.reason.length > 0);
+    }
+  });
+});
+
+describe("findMissingPathException", () => {
+  test("文書を指定しない例外はどの文書でも効く", () => {
+    // Given
+    const entries = [{ path: "docs/BACKLOG.md", reason: "r" }];
+    // When / Then
+    assert.equal(findMissingPathException("README.md", "docs/BACKLOG.md", entries), entries[0]);
+  });
+
+  test("文書を指定した例外はその文書でだけ効く", () => {
+    // Given: 旧名の引用は憲法の Sync Impact Report でのみ正しい
+    const entries = [{ doc: "docs/constitution.md", path: "packages/core", reason: "r" }];
+    // When / Then
+    assert.equal(findMissingPathException("docs/constitution.md", "packages/core", entries), entries[0]);
+    assert.equal(findMissingPathException("README.md", "packages/core", entries), null);
+  });
+});
+
+describe("findLineRefException", () => {
+  test("文書と原文が両方一致したときだけ効く", () => {
+    // Given
+    const entries = [{ doc: "docs/adr/0016.md", raw: "apps/x/src/server.ts:244", reason: "r" }];
+    // When / Then
+    assert.equal(findLineRefException("docs/adr/0016.md", "apps/x/src/server.ts:244", entries), entries[0]);
+    assert.equal(findLineRefException("README.md", "apps/x/src/server.ts:244", entries), null);
+    assert.equal(findLineRefException("docs/adr/0016.md", "apps/x/src/server.ts:9", entries), null);
   });
 });
 
