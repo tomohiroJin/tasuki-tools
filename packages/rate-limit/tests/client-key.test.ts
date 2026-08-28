@@ -44,7 +44,9 @@ describe("normalizeClientAddress", () => {
 
   describe("IPv6 は /64 へ丸める", () => {
     it("同義の表記はすべて同じ鍵になる", () => {
+      // Given
       const expected = "v6:2001:db8:0:0";
+      // When / Then（normalizeClientAddress は純粋関数なので呼び出しと検証が同じ式になる）
       for (const notation of [
         "2001:db8::1",
         "2001:DB8::1",
@@ -60,12 +62,16 @@ describe("normalizeClientAddress", () => {
     });
 
     it("下位 64 ビットが違っても同じ鍵になる", () => {
+      // Given: 比較する 2 つの表記を渡す呼び出し自体が前提の指定を兼ねる
+      // When / Then（normalizeClientAddress は純粋関数なので呼び出しと検証が同じ式になる）
       expect(normalizeClientAddress("2001:db8::dead:beef")).toBe(
         normalizeClientAddress("2001:db8::1"),
       );
     });
 
     it("上位 64 ビットが違えば別の鍵になる", () => {
+      // Given: 比較する 2 つの表記を渡す呼び出し自体が前提の指定を兼ねる
+      // When / Then（normalizeClientAddress は純粋関数なので呼び出しと検証が同じ式になる）
       expect(normalizeClientAddress("2001:db8:0:1::1")).not.toBe(
         normalizeClientAddress("2001:db8:0:2::1"),
       );
@@ -88,6 +94,8 @@ describe("normalizeClientAddress", () => {
     // 数値展開した 8 グループ全体で射影レンジを判定し、下位 32 ビットを
     // IPv4 として復元して v4: 名前空間へ落とすことで、この丸め崩壊を避ける。
     it("::ffff:203.0.113.7 は 203.0.113.7 と同じ鍵になる", () => {
+      // Given: 比較する表記を渡す呼び出し自体が前提の指定を兼ねる
+      // When / Then（normalizeClientAddress は純粋関数なので呼び出しと検証が同じ式になる）
       expect(normalizeClientAddress("::ffff:203.0.113.7")).toBe(
         normalizeClientAddress("203.0.113.7"),
       );
@@ -103,6 +111,8 @@ describe("normalizeClientAddress", () => {
     });
 
     it("異なる射影クライアント同士は別の鍵になる", () => {
+      // Given: 比較する 2 つの表記を渡す呼び出し自体が前提の指定を兼ねる
+      // When / Then（normalizeClientAddress は純粋関数なので呼び出しと検証が同じ式になる）
       expect(normalizeClientAddress("::ffff:198.51.100.9")).not.toBe(
         normalizeClientAddress("::ffff:203.0.113.7"),
       );
@@ -119,7 +129,10 @@ describe("normalizeClientAddress", () => {
 
     // G2: この残余は ::/96 ではなく ::/64（射影レンジを除く）である。::/96 の外にある
     // アドレスも上位 64 ビットが全ゼロなら同じ v6:0:0:0:0 になることを確かめる。
-    it("::/96 の外でも上位 64 ビットが全ゼロなら v6:0:0:0:0 になる（G2）", () => {
+    /**
+     * @requirements G2
+     */
+    it("::/96 の外でも上位 64 ビットが全ゼロなら v6:0:0:0:0 になる", () => {
       expect(normalizeClientAddress("::1:2:3:4")).toBe("v6:0:0:0:0");
       expect(normalizeClientAddress("::c000:201")).toBe("v6:0:0:0:0");
     });
@@ -159,21 +172,28 @@ describe("createClientKeyDeriver", () => {
   });
 
   it("ソルトが違えば同じアドレスでも鍵が変わる", () => {
+    // Given
     const a = createClientKeyDeriver(new Uint8Array(32).fill(1));
     const b = createClientKeyDeriver(new Uint8Array(32).fill(2));
+    // When / Then（derive の呼び出し自体が操作であり、結果同士の比較が検証を兼ねる）
     expect(a("203.0.113.7")).not.toBe(b("203.0.113.7"));
   });
 
   it("鍵に生の IP が現れない", () => {
+    // Given
     const derive = createClientKeyDeriver(salt);
+    // When
     const key = derive("203.0.113.7");
+    // Then
     expect(key).not.toBeNull();
     expect(key).not.toContain("203.0.113.7");
     expect(key).not.toContain("203");
   });
 
   it("アドレスを特定できなければ null を返す", () => {
+    // Given
     const derive = createClientKeyDeriver(salt);
+    // When / Then（derive は純粋関数なので呼び出しと検証が同じ式になる）
     expect(derive(undefined)).toBeNull();
     expect(derive("unknown")).toBeNull();
   });
@@ -191,12 +211,15 @@ describe("createClientKeyDeriver のソルト検証（F5）", () => {
   });
 
   it("throw のメッセージにソルトの中身は含まれない（長さだけを伝える）", () => {
+    // Given
     let message = "";
+    // When
     try {
       createClientKeyDeriver(new Uint8Array(31).fill(7));
     } catch (error) {
       message = (error as Error).message;
     }
+    // Then
     expect(message).toContain("31");
     // 中身（0x07 を 16 進 "7" や "07" として含む等）が漏れていないことの簡易確認。
     expect(message).not.toContain("0707");
@@ -214,18 +237,23 @@ describe("createClientKeyDeriver のソルト検証（F5）", () => {
     expect(() => createClientKeyDeriver(new Uint8Array(32))).not.toThrow();
   });
 
-  // G1: .length を持たない型（ArrayBuffer・DataView）は byteLength しか持たず、
-  // `salt.length < SALT_MIN_BYTES` が undefined < 32 = false になって素通りしていた。
-  // createHmac は両方を鍵として受け付けてしまうため、型そのものを検査する必要がある。
-  it("ArrayBuffer は length を持たないため throw する（G1）", () => {
-    expect(() => createClientKeyDeriver(new ArrayBuffer(64) as never)).toThrow();
-  });
+  /**
+   * @requirements G1
+   */
+  describe("length を持たない型は throw する", () => {
+    // G1: .length を持たない型（ArrayBuffer・DataView）は byteLength しか持たず、
+    // `salt.length < SALT_MIN_BYTES` が undefined < 32 = false になって素通りしていた。
+    // createHmac は両方を鍵として受け付けてしまうため、型そのものを検査する必要がある。
+    it("ArrayBuffer は length を持たないため throw する", () => {
+      expect(() => createClientKeyDeriver(new ArrayBuffer(64) as never)).toThrow();
+    });
 
-  it("空の ArrayBuffer も throw する（G1）", () => {
-    expect(() => createClientKeyDeriver(new ArrayBuffer(0) as never)).toThrow();
-  });
+    it("空の ArrayBuffer も throw する", () => {
+      expect(() => createClientKeyDeriver(new ArrayBuffer(0) as never)).toThrow();
+    });
 
-  it("DataView は length を持たないため throw する（G1）", () => {
-    expect(() => createClientKeyDeriver(new DataView(new ArrayBuffer(64)) as never)).toThrow();
+    it("DataView は length を持たないため throw する", () => {
+      expect(() => createClientKeyDeriver(new DataView(new ArrayBuffer(64)) as never)).toThrow();
+    });
   });
 });

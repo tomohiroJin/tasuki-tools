@@ -144,7 +144,10 @@ describe("旧 3 コードの文言は残置されている（後方互換）", (
   it.each(["PARTICIPANT_OFFLINE", "CANNOT_CHANGE_HOST", "LAST_MANAGER"] as const)(
     "%s の文言は既定文言ではない",
     (code) => {
+      // Given: code の各値を渡す呼び出し自体が前提の指定を兼ねる
+      // When
       const shown = displayMessageFor(code);
+      // Then
       expect(shown).not.toBe(DEFAULT_ERROR_MESSAGE);
     },
   );

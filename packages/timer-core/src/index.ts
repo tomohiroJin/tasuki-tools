@@ -52,30 +52,6 @@ export {
 } from "./error-messages.js";
 // イベント
 export type {
-  SessionStarted,
-  DriverSwitched,
-  SessionPaused,
-  SessionResumed,
-  SessionReset,
-  DriverTimerReset,
-  PhaseSet,
-  ConfigSet,
-  MemberAdded,
-  MemberRemoved,
-  MemberMoved,
-  MembersShuffled,
-  ProblemSet,
-  HandoffNoteSet,
-  BreakStarted,
-  BreakEnded,
-  SessionCompleted,
-  SessionAborted,
-  ProxyMemberAdded,
-  ParticipantRenamed,
-  DriverSkipped,
-  DriverResumed,
-  ProblemEdited,
-  ProblemModeSet,
   DomainEvent,
 } from "./events.js";
 // エラー
@@ -84,11 +60,7 @@ export type {
   DuplicateName,
   MemberLimitExceeded,
   BelowMinMembers,
-  Unauthorized,
-  PhaseConflict,
   InvalidInterval,
-  InvalidIndex,
-  InputLimitExceeded,
   DomainError,
   ErrorCode,
 } from "./errors.js";
@@ -99,7 +71,6 @@ export { evolve, advanceDriver } from "./evolve.js";
 // スキーマ
 export type { ServerMsg, Command } from "./schemas.js";
 export {
-  SessionConfigSchema,
   ProblemSchema,
   CommandSchema,
   RoomSchema,
@@ -118,6 +89,6 @@ export { buildCompletionRecord } from "./records.js";
 // 権限判定・不変条件（Issue #22）
 export type { Role, PermissionInput } from "./permissions.js";
 export { checkPermission, isAllowed } from "./permissions.js";
-export { countManagers, canDemote, canRemoveParticipant } from "./participants.js";
+export { canDemote, canRemoveParticipant } from "./participants.js";
 export type { RemovalNotification } from "./participants.js";
 export { removalNotificationFor } from "./participants.js";

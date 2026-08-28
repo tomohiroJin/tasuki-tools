@@ -42,6 +42,12 @@ timer では Decider が現に効いている以上、後退である。
 
 1. ドメイン操作の失敗は `Result<T, E>` で表す（**MUST**。[`docs/adr/0005`](./0005-result-and-boundary-validation.md) の再掲ではなく参照）。
 2. `index.ts` は**公開記号を明示列挙**する。`export *` を使わない（**MUST NOT**）。
+
+   **追記（2026-08-19・#168）**: 項目 2 の機械検査は `scripts/audit-public-surface.mjs` が持つ。
+   **走査対象は `SCANNED_PACKAGES` の `entry` から導くため、`index.ts` に限らない**
+   （アプリの `main.tsx` / `server.ts` も含む）。「エントリが `index.ts` のものだけ」という
+   絞り込みを書くほうが腐りやすく、アプリのエントリに `export *` を置きたい理由も無いため、
+   本決定より広い範囲を検査する。
 3. ドメインエラーは**判別子（`type` または `code`）と機械可読な詳細のみ**を持つ。
    表示文言は文言生成関数が担う（**MUST**）。
 4. ドメイン内で `Date.now()` / `Math.random()` を呼ばない（**MUST NOT**）。

@@ -14,18 +14,22 @@ describe("PresenceDot", () => {
 
     cases.forEach((presence) => {
       it(`presence が ${presence} のとき、状態に対応するクラスを持つドットが描画される`, () => {
-        // Given / When
+        // Given
         const { container } = render(<PresenceDot presence={presence} />);
-        // Then
+        // When
         const dot = container.querySelector("span");
+        // Then
         expect(dot).not.toBeNull();
         expect(dot?.className).toContain(presenceDotClass(presence));
       });
     });
 
     it("在席ドットは装飾要素として aria-hidden になっている", () => {
+      // Given
       const { container } = render(<PresenceDot presence="online" />);
+      // When
       const dot = container.querySelector("span");
+      // Then
       expect(dot?.getAttribute("aria-hidden")).toBe("true");
     });
   });

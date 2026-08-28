@@ -56,11 +56,14 @@ async function setupRoom() {
 
 describe('投票の秘匿（契約 #3 / SC-004）', () => {
   it('他者宛の room-state フレームに選択値が現れない', async () => {
+    // Given
     const { host, guest, guestId } = await setupRoom();
 
+    // When
     guest.send({ type: 'vote', card: { kind: 'number', value: 5 } });
 
     const hostState = (await host.nextMatching(isType('room-state'))) as RoomState;
+    // Then
     // ホスト宛フレームにカード表現が一切含まれない（hasVoted のみ）
     expect(JSON.stringify(hostState)).not.toContain('"kind"');
     expect(hostState.participants.find((p) => p.id === guestId)?.hasVoted).toBe(true);
@@ -77,14 +80,17 @@ describe('投票の秘匿（契約 #3 / SC-004）', () => {
 
 describe('全員投票で自動公開（契約 #4 / FR-008）', () => {
   it('最後の1人が投票すると両者に revealed が配信される', async () => {
+    // Given
     const { host, guest, hostId, guestId } = await setupRoom();
 
     guest.send({ type: 'vote', card: { kind: 'number', value: 5 } });
     await host.nextMatching(isType('room-state'));
     await guest.nextMatching(isType('room-state'));
 
+    // When
     host.send({ type: 'vote', card: { kind: 'number', value: 8 } });
 
+    // Then
     for (const client of [host, guest]) {
       const state = (await client.nextMatching(
         (msg) => (msg as RoomState).round?.status === 'revealed',
@@ -106,17 +112,20 @@ describe('全員投票で自動公開（契約 #4 / FR-008）', () => {
 
 describe('ホストの手動公開（契約 #5 / FR-009）', () => {
   it('投票途中でも公開でき、未投票者は votes に含まれない', async () => {
+    // Given
     const { host, guest, hostId, guestId } = await setupRoom();
 
     host.send({ type: 'vote', card: { kind: 'coffee' } });
     await host.nextMatching(isType('room-state'));
     await guest.nextMatching(isType('room-state'));
 
+    // When
     host.send({ type: 'reveal' });
 
     const state = (await guest.nextMatching(
       (msg) => (msg as RoomState).round?.status === 'revealed',
     )) as RoomState;
+    // Then
     if (state.round.status !== 'revealed') throw new Error('unreachable');
     expect(state.round.votes).toEqual([{ participantId: hostId, card: { kind: 'coffee' } }]);
     expect(state.round.votes.some((v) => v.participantId === guestId)).toBe(false);
@@ -126,8 +135,11 @@ describe('ホストの手動公開（契約 #5 / FR-009）', () => {
   });
 
   it('非ホストの reveal は not-host エラー', async () => {
+    // Given
     const { host, guest } = await setupRoom();
+    // When
     guest.send({ type: 'reveal' });
+    // Then
     expect(await guest.nextMatching(isType('error'))).toMatchObject({
       type: 'error',
       code: 'not-host',
@@ -141,6 +153,7 @@ describe('自動公開は join-room の再送で消えない（#165 レビュー
   it(
     '片方だけが投票した状態で、もう片方が同じ socket・同じ roomId へ join-room を再送しても公開状態は維持される',
     async () => {
+      // Given
       const { host, guest, roomId, guestId } = await setupRoom();
 
       // guest だけが投票する（host は投票しない）。shouldAutoReveal（packages/poker-core/
@@ -149,12 +162,14 @@ describe('自動公開は join-room の再送で消えない（#165 レビュー
       await host.nextMatching(isType('room-state'));
       await guest.nextMatching(isType('room-state'));
 
+      // When
       // host が同じ socket・同じ roomId へ join-room を再送する（二重送信・SPA 遷移）。
       // detachFromCurrentRoom は host を切断扱いにする。残る接続者は guest だけになり、
       // guest は投票済みなので shouldAutoReveal が成立し、detach の中で自動公開が起きる
       host.send({ type: 'join-room', roomId, name: 'たろう' });
       await host.nextMatching(isType('joined'));
 
+      // Then
       // guest はこの一連の処理で room-state を 2 件受け取る:
       // 1 件目は detach による自動公開のブロードキャスト（ここで既に revealed）、
       // 2 件目は host の再 join が完了したあとの最終ブロードキャストである。

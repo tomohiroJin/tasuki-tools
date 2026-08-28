@@ -378,6 +378,7 @@ node scripts/audit-assembly-wiring.mjs           # 組み立ての集約（同�
 node scripts/audit-domain-error-shape.mjs        # ドメインエラー型の形（core のエラー型が message フィールドを持たないか。ADR-0016 決定 2 項目 3）
 node scripts/audit-domain-side-effects.mjs       # ドメインの副作用（core が Date.now() 等を直接呼ばないか。ADR-0016 決定 2 項目 4）
 node scripts/audit-web-sync-boundary.mjs         # web 層の同期境界（画面が同期クライアントを直接 import しないか。ADR-0015 MUST 2）
+node scripts/audit-public-surface.mjs            # 公開面（エントリが export * を使っていないか。ADR-0016 決定 2 項目 2）
 node scripts/mutation-check.mjs                  # 変異検査
 node scripts/check-links.mjs                     # リンク検査
 

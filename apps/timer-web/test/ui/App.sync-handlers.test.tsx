@@ -168,8 +168,9 @@ describe("SyncClient コールバックが最新の state を読む経路（Issu
   });
 
   it("onRoom: room.created の resumeToken が snapshot の room.code と組で保存される", () => {
-    // Given/When: ルームを作り、識別情報と snapshot を受け取る
+    // Given
     const ws = createRoomAndConnect();
+    // When: 識別情報と snapshot を受け取る
     sendServer(ws, { type: "room.created", code: "ROOM01", hostToken: "ht", resumeToken: "rt-1", participantId: HOST_ID });
     sendServer(ws, {
       type: "snapshot",

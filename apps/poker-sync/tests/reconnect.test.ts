@@ -45,10 +45,12 @@ async function join(roomId: string, name: string, token?: string) {
 
 describe('ホスト切断と権限繰上（契約 #7 / FR-012 / SC-005）', () => {
   it('ホスト切断で最先着の参加者へ繰上した room-state が配信される', async () => {
+    // Given
     const { host, joined } = await createHost();
     const guest = await join(joined.roomId, 'はなこ');
     await host.nextMatching(isType('room-state'));
 
+    // When
     host.close();
 
     const state = (await guest.client.nextMatching(
@@ -57,6 +59,7 @@ describe('ホスト切断と権限繰上（契約 #7 / FR-012 / SC-005）', () =
         ((msg as RoomState).participants.find((p) => p.id === guest.joined.participantId)
           ?.isHost ?? false),
     )) as RoomState;
+    // Then
     expect(state.participants.find((p) => p.id === guest.joined.participantId)?.isHost).toBe(true);
     expect(state.participants.find((p) => p.id === joined.participantId)?.connected).toBe(false);
     guest.client.close();
@@ -65,6 +68,7 @@ describe('ホスト切断と権限繰上（契約 #7 / FR-012 / SC-005）', () =
 
 describe('token による復帰（契約 #8 / FR-013）', () => {
   it('切断後に token 付き join-room で票を保持したまま同一参加者に復帰する', async () => {
+    // Given
     const { host, joined } = await createHost();
     const guest = await join(joined.roomId, 'はなこ');
     await host.nextMatching(isType('room-state'));
@@ -80,7 +84,9 @@ describe('token による復帰（契約 #8 / FR-013）', () => {
         (msg as RoomState).participants.some((p) => !p.connected),
     );
 
+    // When
     const rejoined = await join(joined.roomId, '無視される名前', guest.joined.token);
+    // Then
     expect(rejoined.joined.participantId).toBe(guest.joined.participantId);
     expect(rejoined.state.yourVote).toEqual({ kind: 'number', value: 13 });
     const self = rejoined.state.participants.find((p) => p.id === guest.joined.participantId);
@@ -93,13 +99,16 @@ describe('token による復帰（契約 #8 / FR-013）', () => {
 
 describe('全員切断でルーム即時破棄（契約 #9 / FR-014）', () => {
   it('全員切断後の join-room は room-not-found になる', async () => {
+    // Given
     const { host, joined } = await createHost();
     host.close();
     // 破棄処理の完了を少し待つ
     await new Promise((r) => setTimeout(r, 200));
 
+    // When
     const client = await WsClient.connect(server.port);
     client.send({ type: 'join-room', roomId: joined.roomId, name: 'はなこ' });
+    // Then
     expect(await client.next()).toMatchObject({ type: 'error', code: 'room-not-found' });
     client.close();
   });
@@ -107,6 +116,7 @@ describe('全員切断でルーム即時破棄（契約 #9 / FR-014）', () => {
 
 describe('切断による自動公開の再評価（US4-AS1）', () => {
   it('未投票者の切断で残り全員投票が成立し revealed が配信される', async () => {
+    // Given
     const { host, joined } = await createHost();
     const guest1 = await join(joined.roomId, 'はなこ');
     await host.nextMatching(isType('room-state'));
@@ -122,11 +132,13 @@ describe('切断による自動公開の再評価（US4-AS1）', () => {
         (msg as RoomState).participants.filter((p) => p.hasVoted).length === 2,
     );
 
+    // When
     guest2.client.close(); // 未投票の じろう が切断
 
     const state = (await guest1.client.nextMatching(
       (msg) => (msg as RoomState).round?.status === 'revealed',
     )) as RoomState;
+    // Then
     expect(state.round.status).toBe('revealed');
 
     host.close();

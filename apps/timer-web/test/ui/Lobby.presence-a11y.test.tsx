@@ -42,18 +42,23 @@ const noop = vi.fn();
 
 describe("ロビー: 在席状態の sr-only テキスト", () => {
   it("オンライン/離席/オフラインそれぞれの在席テキストが sr-only として存在する", () => {
+    // Given
     render(<Lobby room={makeRoomWithPresences()} participantId="host-p" onStartSession={noop} />);
-    // presenceLabel() のテキストは3状態それぞれ1件ずつ、参加者行内に存在する。
+    // When / Then（presenceLabel() のテキストは3状態それぞれ1件ずつ、参加者行内に存在する。
+    //   screen.getByText への問い合わせが検証と同じ式になる）
     expect(screen.getByText("オンライン", { selector: ".sr-only" })).toBeTruthy();
     expect(screen.getByText("離席", { selector: ".sr-only" })).toBeTruthy();
     expect(screen.getByText("オフライン", { selector: ".sr-only" })).toBeTruthy();
   });
 
   it("参加者一覧の <ul> に新規の aria-live は付与されない（読み上げの割り込みを避ける）", () => {
+    // Given
     const { container } = render(
       <Lobby room={makeRoomWithPresences()} participantId="host-p" onStartSession={noop} />,
     );
+    // When
     const lists = container.querySelectorAll("ul");
+    // Then
     for (const ul of Array.from(lists)) {
       expect(ul.getAttribute("aria-live")).toBeNull();
     }

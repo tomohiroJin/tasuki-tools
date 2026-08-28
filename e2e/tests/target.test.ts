@@ -11,7 +11,8 @@ import { LOCAL_BASE_URL, resolveTarget } from '../harness/target';
 
 describe('resolveTarget', () => {
   it('Given TASUKI_E2E_TARGET=local かつ BASE_URL 未設定 / When 解決する / Then ローカルの固定 URL になる', () => {
-    // Given / When
+    // Given: ローカル向けの最小構成
+    // When: 解決する
     const target = resolveTarget({ TASUKI_E2E_TARGET: 'local' });
     // Then
     expect(target).toEqual({ kind: 'local', baseURL: LOCAL_BASE_URL });
@@ -26,7 +27,8 @@ describe('resolveTarget', () => {
   });
 
   it('Given production かつ https の公開 URL / When 解決する / Then その URL になる', () => {
-    // Given / When
+    // Given: 本番向けの公開 URL
+    // When: 解決する
     const target = resolveTarget({
       TASUKI_E2E_TARGET: 'production',
       TASUKI_E2E_BASE_URL: 'https://tasuki.example.com',
@@ -37,6 +39,7 @@ describe('resolveTarget', () => {
 
   it('Given production かつ末尾スラッシュ付き / When 解決する / Then 末尾スラッシュを取り除く', () => {
     // Given: baseURL に末尾スラッシュがあると Playwright の相対パス解決がずれる
+    // When: 解決する
     const target = resolveTarget({
       TASUKI_E2E_TARGET: 'production',
       TASUKI_E2E_BASE_URL: 'https://tasuki.example.com/',
@@ -64,6 +67,7 @@ describe('resolveTarget', () => {
   ])('Given production なのにローカル宛の %s / When 解決する / Then 落ちる', (url) => {
     // Given: 本番のつもりでローカルを見る事故を塞ぐ
     const env = { TASUKI_E2E_TARGET: 'production', TASUKI_E2E_BASE_URL: url };
+    // When / Then
     expect(() => resolveTarget(env)).toThrow(/ローカル/);
   });
 

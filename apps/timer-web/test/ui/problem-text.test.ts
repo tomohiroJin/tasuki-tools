@@ -24,18 +24,24 @@ describe("formatProblemText", () => {
   });
 
   it("要件があれば見出しつきの箇条書きにする", () => {
+    // Given（{ ...base, requirements: [...] } を直接引数に渡す）
+    // When / Then（純粋関数の戻り値をそのまま検証するため操作と検証が同じ式になる）
     expect(formatProblemText({ ...base, requirements: ["A", "B"] })).toBe(
       "FizzBuzz\n\n3 の倍数で Fizz\n\n要件:\n- A\n- B",
     );
   });
 
   it("例示テストがあれば見出しつきで載せる", () => {
+    // Given（{ ...base, exampleTest: ... } を直接引数に渡す）
+    // When / Then（純粋関数の戻り値をそのまま検証するため操作と検証が同じ式になる）
     expect(formatProblemText({ ...base, exampleTest: "expect(f(3)).toBe('Fizz')" })).toBe(
       "FizzBuzz\n\n3 の倍数で Fizz\n\n例示テスト:\nexpect(f(3)).toBe('Fizz')",
     );
   });
 
   it("ヒントがあれば見出しつきの箇条書きにする", () => {
+    // Given（{ ...base, hints: [...] } を直接引数に渡す）
+    // When / Then（純粋関数の戻り値をそのまま検証するため操作と検証が同じ式になる）
     expect(formatProblemText({ ...base, hints: ["剰余"] })).toBe(
       "FizzBuzz\n\n3 の倍数で Fizz\n\nヒント:\n- 剰余",
     );

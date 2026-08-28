@@ -273,7 +273,10 @@ describe("WsAdapter ハートビート（死活監視・Issue #25）", () => {
     expect(disconnected).toBe(false);
   });
 
-  it("1回だけ pong が欠落し、その後 pong が復帰した接続は terminate されない（US2: 誤検出しない）", async () => {
+  /**
+   * @requirements US2
+   */
+  it("1回だけ pong が欠落し、その後 pong が復帰した接続は terminate されない（誤検出しない）", async () => {
     // Given: 2 回目の ping にだけ pong を返さない
     let disconnected = false;
     adapter = new WsAdapter({
@@ -300,7 +303,7 @@ describe("WsAdapter ハートビート（死活監視・Issue #25）", () => {
     expect(disconnected).toBe(false);
   });
 
-  it("close() は heartbeat の setInterval を停止する（clearInterval を呼ぶ）", async () => {
+  it("close() は heartbeat のタイマーを解除する", async () => {
     // Given: setInterval/clearInterval は素の実装（フェイク化しない）のまま、
     // close() が実際に clearInterval を呼ぶことを spy で直接検証する。
     // 「close 後に ping が増えない」という間接的な観測は、close() が接続を

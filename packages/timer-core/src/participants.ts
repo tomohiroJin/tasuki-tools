@@ -29,7 +29,7 @@ function isManager(participant: Participant): boolean {
 }
 
 /** 在室者のうち編集者以上（host または editor）の人数を数える。 */
-export function countManagers(participants: readonly Participant[]): number {
+function countManagers(participants: readonly Participant[]): number {
   return participants.filter(isManager).length;
 }
 

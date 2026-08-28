@@ -32,18 +32,23 @@ describe("classifyErrorKind", () => {
   });
 
   it("name ゲッタ自体が throw する例外でも落ちずに Error にフォールバックする", () => {
+    // Given
     class NameGetterThrows extends Error {
       override get name(): string {
         throw new Error("name getter boom");
       }
     }
+    // When / Then（classifyErrorKind は純粋関数なので呼び出しと検証が同じ式になる）
     expect(classifyErrorKind(new NameGetterThrows("boom"))).toBe("Error");
   });
 
   it("name に偽の key=value を仕込んでも、空白・= が残らない", () => {
+    // Given
     const err = new Error("boom");
     err.name = "Error xff=203.0.113.88 level=info fake".repeat(3);
+    // When
     const kind = classifyErrorKind(err);
+    // Then
     expect(kind).not.toContain("xff=203.0.113.88");
     expect(kind).not.toContain("level=info");
     expect(kind).not.toContain(" ");
@@ -51,14 +56,18 @@ describe("classifyErrorKind", () => {
   });
 
   it("長さが上限で丸められる", () => {
+    // Given
     const err = new Error("boom");
     err.name = "A".repeat(200);
+    // When / Then（classifyErrorKind は純粋関数なので呼び出しと検証が同じ式になる）
     expect(classifyErrorKind(err).length).toBeLessThanOrEqual(40);
   });
 
   it("英数字と最小限の記号以外は ? に丸める", () => {
+    // Given
     const err = new Error("boom");
     err.name = "エラー!!!";
+    // When / Then（classifyErrorKind は純粋関数なので呼び出しと検証が同じ式になる）
     expect(classifyErrorKind(err)).toBe("??????");
   });
 });

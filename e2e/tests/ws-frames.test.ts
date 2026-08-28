@@ -107,6 +107,7 @@ describe('collectCards', () => {
     'Given カードでない値 %s / When 走査する / Then 何も見つけない',
     (value) => {
       // Given: 文字列 'coffee' のような紛らわしい値で誤検知しないこと
+      // When / Then: 走査した結果、何も見つからないこと
       expect(collectCards(value)).toEqual([]);
     },
   );

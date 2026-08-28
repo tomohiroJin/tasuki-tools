@@ -36,7 +36,7 @@ describe("SyncClient onReconnected", () => {
     expect(onReconnected).not.toHaveBeenCalled();
   });
 
-  it("切断→バックオフ後の再接続の onopen では呼ばれる", () => {
+  it("切断→バックオフ後の再接続でも接続確立が通知される", () => {
     // Given
     const onReconnected = vi.fn();
     const client = new SyncClient({ url: "ws://x", onRoom: () => {}, onReconnected });
@@ -55,8 +55,11 @@ describe("SyncClient onReconnected", () => {
   });
 
   it("onReconnected 未指定でもエラーにならない（optional）", () => {
+    // Given
     const client = new SyncClient({ url: "ws://x", onRoom: () => {} });
+    // When
     client.connect();
+    // Then
     expect(() => FakeWS.instances[0]!.onopen?.()).not.toThrow();
   });
 });

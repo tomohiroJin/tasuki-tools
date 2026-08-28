@@ -112,6 +112,82 @@ describe("0 件ガードの配線: scripts/audit-structure.mjs", () => {
     assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
     assert.match(r.stderr, /走査対象の宣言が不正です/);
   });
+
+  test("例外表の健全性の判定が切れると非ゼロで終了する（判定が main へ配線されている）", () => {
+    // Given: findStaleSymbolExceptions の呼び出しを、認識できる偽の問題を返す式へすり替える。
+    //        audit-structure.test.mjs の単体テストは純粋関数だけを見ているので、
+    //        main がこの判定を呼ばなくなった状態を 1 件も検知できない（#158 と同型。
+    //        2026-08-19 Task 4 レビュー Important 1）。
+    //
+    //        **「消す」のではなく「差し込む」**のは、main が結果を読んで終了コードを
+    //        決めていることまで見るためである。`const staleExceptions = []` へ置き換えて
+    //        赤を確認するだけだと、main が結果を無視していても気づけない。
+    const mutate = (s) =>
+      s.replace(
+        /const staleExceptions = findStaleSymbolExceptions\([\s\S]*?\);/,
+        "const staleExceptions = SC039C_EXCEPTIONS.map((e) => `配線が消えた: ${e.name}`);",
+      );
+    // When
+    const r = runScriptCopy("audit-structure.mjs", mutate);
+    // Then: まず「壊れたこと自体」を確かめる。
+    //       **`findStaleSymbolExceptions(` そのものは数えない** — 同名の関数定義が
+    //       同じファイルにあるため、呼び出しを消しても 1 件残る（素の状態で 2 件）。
+    //       呼び出し側にしか現れない綴りで数える。
+    assert.equal(
+      countOf(r.source, "const staleExceptions = findStaleSymbolExceptions("),
+      0,
+      "判定の呼び出しを壊せていません",
+    );
+    assert.equal(
+      countOf(r.source, "const staleExceptions = SC039C_EXCEPTIONS.map((e) => `配線が消えた: ${e.name}`);"),
+      1,
+      "偽の問題を差し込めていません",
+    );
+    assert.equal(countOf(r.source, "findStaleSymbolExceptions("), 1, "残るのは関数定義の 1 件だけ");
+    // Then: 差し込んだ問題がそのまま赤として出る（＝main が staleExceptions を見て終了コードを決めている）
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.match(r.stderr, /配線が消えた: SYNC_ERROR_CODES/);
+    // Then: 指標の表は 1 行も出ていない（ガードが指標より前にある）
+    assert.equal(countOf(r.stdout, "SC039 |"), 0, "指標の表が出てしまっています");
+  });
+
+  test("SC-032 の例外表の判定が切れると非ゼロで終了する（判定が main へ配線されている）", () => {
+    // Given: findStaleTestExceptions の呼び出しを、認識できる偽の問題を返す式へすり替える。
+    //        audit-structure.test.mjs の単体テストは純粋関数だけを見ているので、
+    //        main がこの判定を呼ばなくなった状態を 1 件も検知できない（#158 と同型）。
+    //
+    //        **「消す」のではなく「差し込む」**のは、main が結果を読んで終了コードを
+    //        決めていることまで見るためである。`const staleTestExceptions = []` へ置き換えて
+    //        赤を確認するだけだと、main が結果を無視していても気づけない。
+    const mutate = (s) =>
+      s.replace(
+        /const staleTestExceptions = findStaleTestExceptions\([\s\S]*?\);/,
+        "const staleTestExceptions = SC032_EXCEPTIONS.map((e) => `配線が消えた: ${e.testName}`);",
+      );
+    // When
+    const r = runScriptCopy("audit-structure.mjs", mutate);
+    // Then: まず「壊れたこと自体」を確かめる。
+    //       **`findStaleTestExceptions(` そのものは数えない** — 同名の関数定義が
+    //       同じファイルにあるため、呼び出しを消しても 1 件残る（素の状態で 2 件）。
+    //       呼び出し側にしか現れない綴りで数える。
+    assert.equal(
+      countOf(r.source, "const staleTestExceptions = findStaleTestExceptions("),
+      0,
+      "判定の呼び出しを壊せていません",
+    );
+    assert.equal(
+      countOf(r.source, "const staleTestExceptions = SC032_EXCEPTIONS.map((e) => `配線が消えた: ${e.testName}`);"),
+      1,
+      "偽の問題を差し込めていません",
+    );
+    assert.equal(countOf(r.source, "findStaleTestExceptions("), 1, "残るのは関数定義の 1 件だけ");
+    // Then: 差し込んだ問題がそのまま赤として出る
+    //       （＝main が staleTestExceptions を見て終了コードを決めている）
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.match(r.stderr, /配線が消えた: フィボナッチ10種を順序どおりに含む/);
+    // Then: 指標の表は 1 行も出ていない（ガードが指標より前にある）
+    assert.equal(countOf(r.stdout, "SC032 |"), 0, "指標の表が出てしまっています");
+  });
 });
 
 describe("実在確認の配線: scripts/audit-structure.mjs", () => {
@@ -517,6 +593,54 @@ describe("実在確認の配線: scripts/audit-web-sync-boundary.mjs", () => {
     // Then: 差し込んだ偽のずれがそのまま名指しで赤に出る（＝main が appDrift を見て終了コードを決めている）
     assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
     assert.match(r.stderr, /実在する web アプリが WEB_APPS に宣言されていません: 配線が消えた\/apps-web/);
+  });
+});
+
+describe("0 件ガードの配線: scripts/audit-public-surface.mjs", () => {
+  test("対照実行: 書き換えない複製は exit 0 で走査量を出す", () => {
+    // Given: 複製するだけで中身は変えない
+    // When
+    const r = runScriptCopy("audit-public-surface.mjs", (s) => s);
+    // Then
+    assert.equal(r.status, 0, `対照実行が緑になりません:\n${r.stderr}`);
+    assert.match(r.stdout, /\[audit-public-surface\] 走査対象: エントリ \d+ 件/);
+  });
+
+  test("走査対象のエントリが 0 件になると非ゼロで終了する（検査が丸ごと空振りする経路）", () => {
+    // Given: SCANNED_PACKAGES の走査ループそのものを空にする。中身が空なら
+    //        「問題 0 件」で緑になってしまう
+    const mutate = (s) => s.replace("for (const d of SCANNED_PACKAGES) {", "for (const d of []) {");
+    // When
+    const r = runScriptCopy("audit-public-surface.mjs", mutate);
+    // Then: まず「壊れたこと自体」を確かめる
+    assert.equal(countOf(r.source, "for (const d of SCANNED_PACKAGES) {"), 0, "走査ループを壊せていません");
+    assert.equal(countOf(r.source, "for (const d of []) {"), 1, "書き換えが 1 か所に入っていません");
+    // Then: 0 件ガードが落とす
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.match(r.stderr, /走査するエントリが 0 件です/);
+  });
+
+  test("判定の呼び出しが切れると非ゼロで終了する（判定が main へ配線されている）", () => {
+    // Given: findWildcardReexports の呼び出しを消し、認識できる偽の問題を差し込む。
+    //        `findWildcardReexports(` は関数定義（引数名は entrySources）にも現れるため、
+    //        呼び出し行にしか現れない綴り `findWildcardReexports(sources)` で数える
+    const mutate = (s) =>
+      s.replace(
+        "const problems = findWildcardReexports(sources);",
+        'const problems = ["配線が消えた: 偽の問題"];',
+      );
+    // When
+    const r = runScriptCopy("audit-public-surface.mjs", mutate);
+    // Then: まず「壊れたこと自体」を確かめる
+    assert.equal(countOf(r.source, "findWildcardReexports(sources)"), 0, "判定の呼び出しを壊せていません");
+    assert.equal(
+      countOf(r.source, 'const problems = ["配線が消えた: 偽の問題"];'),
+      1,
+      "書き換えが 1 か所に入っていません",
+    );
+    // Then: 差し込んだ問題がそのまま赤として出る（＝main が problems を見て終了コードを決めている）
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.match(r.stderr, /配線が消えた: 偽の問題/);
   });
 });
 

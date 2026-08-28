@@ -27,10 +27,12 @@ import { publicText, type LogField } from "../../src/application/log/log-safe.js
  */
 describe("LogField の型の壁", () => {
   it("生の string を LogField へ代入できない", () => {
+    // Given
     const roomCode: string = "MORNING-MOB-7F3K";
+    // When
     // @ts-expect-error 生の string は LogField に代入できない（壁が消えるとこの行が緑になり tsc が落ちる）
     const field: LogField = roomCode;
-    // 実行時の値は素通りする。壁は型だけのものなので、ここは形式的な確認に留める。
+    // Then（実行時の値は素通りする。壁は型だけのものなので、ここは形式的な確認に留める）
     expect(typeof field).toBe("string");
   });
 
@@ -41,18 +43,24 @@ describe("LogField の型の壁", () => {
   });
 
   it("ロガのフィールドへ生の string を渡せない", () => {
+    // Given
     const lines: string[] = [];
     const logger = createLogger((_level: LogLevel, line: string) => lines.push(line));
     const roomCode: string = "MORNING-MOB-7F3K";
+    // When
     // @ts-expect-error fields の値は LogField のみ。生の string は通らない
     logger.info("reclaimed", { room: roomCode });
+    // Then
     expect(lines).toHaveLength(1);
   });
 
   it("publicText を通した値は LogField として受け付ける（壁が過剰でないことの対照）", () => {
+    // Given（型検査の対象となる値そのものが前提であり操作でもある）
+    // When
     const field: LogField = publicText("r_1a2b3c4d");
     const numeric: LogField = 1800207;
     const flag: LogField = true;
+    // Then
     expect(String(field)).toBe("r_1a2b3c4d");
     expect(numeric).toBe(1800207);
     expect(flag).toBe(true);

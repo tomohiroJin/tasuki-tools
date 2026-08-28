@@ -94,6 +94,7 @@ describe("接続状態の表示（EARS 2）", () => {
   });
 
   it("WS が切れたら StatusStrip が再接続中になる", () => {
+    // Given
     const ws = enterLobby();
 
     // When: サーバー側の都合で接続が切れた（dispose 経由ではない）
@@ -106,14 +107,18 @@ describe("接続状態の表示（EARS 2）", () => {
   });
 
   it("WS が切れたらバナーで再接続中を知らせる", () => {
+    // Given
     const ws = enterLobby();
+    // When
     act(() => {
       ws.onclose?.();
     });
+    // Then
     expect(screen.getByText("接続が切れました。再接続しています...")).toBeInTheDocument();
   });
 
   it("再接続が確立するとバナーが消え、再接続中の表示も消える", () => {
+    // Given
     const ws = enterLobby();
     act(() => {
       ws.onclose?.();

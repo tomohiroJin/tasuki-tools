@@ -32,13 +32,17 @@ describe("相関 ID", () => {
 
   // 再起動をまたぐと相関が切れるのは、揮発設計（憲法 III）と整合する意図的な性質。
   it("ソルトが変わると値が変わる", () => {
+    // Given（SALT_A・SALT_B の異なるソルトを直接使う）
+    // When / Then（両方の暗号化結果をそのまま比較するため操作と検証が同じ式になる）
     expect(createRefEncoder(SALT_A).room("ABCDEF")).not.toBe(
       createRefEncoder(SALT_B).room("ABCDEF"),
     );
   });
 
   it("room と request は接頭辞で見分けられる", () => {
+    // Given
     const enc = createRefEncoder(SALT_A);
+    // When / Then（enc.room・enc.request の戻り値をそのまま検証するため操作と検証が同じ式になる）
     expect(enc.room("ABCDEF").startsWith("r_")).toBe(true);
     expect(enc.request("req-1").startsWith("q_")).toBe(true);
   });

@@ -10,14 +10,20 @@ describe('玄関（ツール選択 LP）', () => {
   });
 
   it('Given LP を開いた / When ツール一覧を見る / Then 収録ツールが漏れなく並ぶ', () => {
+    // Given
     render(<App />);
+    // When
     const items = screen.getByRole('list', { name: 'ツール' });
+    // Then
     expect(items.querySelectorAll('li')).toHaveLength(TOOLS.length);
   });
 
   it.each(TOOLS)('Given LP / When $name のカードを見る / Then 名前・説明・遷移先が揃う', (tool) => {
+    // Given
     render(<App />);
+    // When
     const link = screen.getByRole('link', { name: new RegExp(tool.name) });
+    // Then
     expect(link).toHaveAttribute('href', tool.href);
     expect(link).toHaveTextContent(tool.summary);
   });
@@ -25,7 +31,9 @@ describe('玄関（ツール選択 LP）', () => {
   it('Given LP / When 各カードを見る / Then コーナーの一語が data-label で渡っている', () => {
     // 左上のピップは @tasuki/ui の .card::after が attr(data-label) で描く。
     // 属性が無いと視覚的にだけ欠ける（テストで気づけない）ので明示的に検証する。
+    // Given
     render(<App />);
+    // When / Then（各カードの取得と検証をループ内で 1 組ずつ行うため、操作と検証が同じ繰り返しになる）
     for (const tool of TOOLS) {
       const link = screen.getByRole('link', { name: new RegExp(tool.name) });
       expect(link).toHaveAttribute('data-label', tool.pip);
@@ -42,6 +50,8 @@ describe('玄関（ツール選択 LP）', () => {
 
   it('Given LP / When 各遷移先を見る / Then どれもルート（/）ではない', () => {
     // LP がルートを占めるため、ツールの href が / だと LP 自身に戻る無限ループになる。
+    // Given: TOOLS 自体が前提の指定を兼ねる
+    // When / Then（各ツールの href の検証をループ内で行うため、操作と検証が同じ繰り返しになる）
     for (const tool of TOOLS) {
       expect(tool.href).not.toBe('/');
     }

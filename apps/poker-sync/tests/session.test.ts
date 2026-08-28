@@ -37,6 +37,7 @@ async function createRoomOn(client: WsClient, name: string) {
 
 describe('同一ソケットでの再 join（デタッチ）', () => {
   it('別ルームへ join すると元のルームでは切断扱いになり、ホストは繰上する', async () => {
+    // Given
     // ルーム1: A(ホスト) + B / ルーム2: C(ホスト)
     const a = await WsClient.connect(server.port);
     const room1 = await createRoomOn(a, 'えー');
@@ -50,12 +51,14 @@ describe('同一ソケットでの再 join（デタッチ）', () => {
     const c = await WsClient.connect(server.port);
     const room2 = await createRoomOn(c, 'しー');
 
+    // When
     // A（ルーム1のホスト）が同じソケットのままルーム2へ join
     a.send({ type: 'join-room', roomId: room2.roomId, name: 'えー' });
     await a.nextMatching(
       (msg) => (msg as RoomState).type === 'room-state' && (msg as RoomState).roomId === room2.roomId,
     );
 
+    // Then
     // B にはルーム1の room-state が配信され、A は切断扱い・B がホストに繰上している
     const state = (await b.nextMatching(
       (msg) =>
@@ -72,13 +75,16 @@ describe('同一ソケットでの再 join（デタッチ）', () => {
   });
 
   it('二重 create-room で元のルーム（1人）は破棄され、以後 join できない', async () => {
+    // Given
     const a = await WsClient.connect(server.port);
     const room1 = await createRoomOn(a, 'えー');
 
+    // When
     // 同じソケットで2つ目のルームを作成（ダブルクリック相当）
     const room2 = await createRoomOn(a, 'えー');
     expect(room2.roomId).not.toBe(room1.roomId);
 
+    // Then
     // ルーム1 は接続数 0 で即時破棄されている（FR-014）
     const probe = await WsClient.connect(server.port);
     probe.send({ type: 'join-room', roomId: room1.roomId, name: 'てすと' });
@@ -89,6 +95,7 @@ describe('同一ソケットでの再 join（デタッチ）', () => {
   });
 
   it('未投票の参加者が別ルームへ去ると、残りの全員投票で自動公開が成立する', async () => {
+    // Given
     // ルーム1: A(ホスト・投票済み) + B(投票済み) + C(未投票)
     const a = await WsClient.connect(server.port);
     const room1 = await createRoomOn(a, 'えー');
@@ -107,11 +114,13 @@ describe('同一ソケットでの再 join（デタッチ）', () => {
         (msg as RoomState).participants.filter((p) => p.hasVoted).length === 2,
     );
 
+    // When
     // C（未投票）が別ルームへ移動 → ルーム1 は残り全員投票済みになり自動公開
     const room2host = await WsClient.connect(server.port);
     const room2 = await createRoomOn(room2host, 'でぃー');
     c.send({ type: 'join-room', roomId: room2.roomId, name: 'しー' });
 
+    // Then
     const revealed = (await b.nextMatching(
       (msg) => (msg as RoomState).round?.status === 'revealed',
     )) as RoomState;

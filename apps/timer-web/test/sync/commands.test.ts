@@ -52,41 +52,56 @@ describe("createCommands: 引数をそのまま載せる操作", () => {
   ];
 
   it.each(cases)("%s", (_name, call, expected) => {
+    // Given
     const { send, commands } = setup();
+    // When
     call(commands);
+    // Then
     expect(firstFrame(send as ReturnType<typeof vi.fn>)).toEqual(expected);
   });
 });
 
 describe("createCommands: removeMember は送信時の snapshot から index を解決する", () => {
   it("輪に居るなら現在の index で member.remove を送る", () => {
+    // Given
     const room = aRoomView({ session: { rotation: ["a", "b", "c"], currentIndex: 0 } });
     const { send, commands } = setup(room);
+    // When
     commands.removeMember("c");
+    // Then
     expect(firstFrame(send as ReturnType<typeof vi.fn>)).toEqual({ command: "member.remove", index: 2 });
   });
 
   it("輪に居ないなら何も送らない", () => {
+    // Given
     const room = aRoomView({ session: { rotation: ["a", "b"], currentIndex: 0 } });
     const { send, commands } = setup(room);
+    // When
     commands.removeMember("z");
+    // Then
     expect(send).not.toHaveBeenCalled();
   });
 
   it("room が無いなら何も送らない", () => {
+    // Given
     const { send, commands } = setup(null);
+    // When
     commands.removeMember("a");
+    // Then
     expect(send).not.toHaveBeenCalled();
   });
 
   it("index は生成時ではなく呼び出し時の snapshot から引く", () => {
     // 生成時は ["a"]、呼び出し時は ["x","a"] という順に変わる。
     // 生成時に固定していれば 0 が送られ、呼び出し時に引けば 1 が送られる。
+    // Given
     let room = aRoomView({ session: { rotation: ["a"], currentIndex: 0 } });
     const send = vi.fn();
     const commands = createCommands(send, () => room);
     room = aRoomView({ session: { rotation: ["x", "a"], currentIndex: 0 } });
+    // When
     commands.removeMember("a");
+    // Then
     expect(firstFrame(send)).toEqual({ command: "member.remove", index: 1 });
   });
 });

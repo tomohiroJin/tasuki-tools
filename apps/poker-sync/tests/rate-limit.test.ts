@@ -32,6 +32,7 @@ describe('入室失敗のレート制限', () => {
   // 他にもあり、`handleJoinRoom` の順序を入れ替えると join 側のそれらが揃って落ちる
   // （#165 PR-2 の変異検査で確認済み）。
   it('容量を超えた join-room は rate-limited になる（存在しないルーム宛なので照会順も固定する）', async () => {
+    // Given
     server = await startProdServer();
     const client = await connectRaw(server.port, {
       origin: 'https://example.com',
@@ -44,14 +45,17 @@ describe('入室失敗のレート制限', () => {
       expect(msg.code, `${i} 回目`).toBe('room-not-found');
     }
 
+    // When
     client.send({ type: 'join-room', roomId: 'nope-final', name: '侵入者' });
     const msg = (await client.nextText()) as { code: string };
 
+    // Then
     expect(msg.code).toBe('rate-limited');
     client.close();
   });
 
   it('check-room も同じバケツを消費する', async () => {
+    // Given
     server = await startProdServer();
     const client = await connectRaw(server.port, {
       origin: 'https://example.com',
@@ -63,14 +67,17 @@ describe('入室失敗のレート制限', () => {
       await client.nextText();
     }
 
+    // When
     client.send({ type: 'check-room', roomId: 'nope-final' });
     const msg = (await client.nextText()) as { code: string };
 
+    // Then
     expect(msg.code).toBe('rate-limited');
     client.close();
   });
 
   it('join-room と check-room を交互に送っても、合算で同じバケツが尽きる', async () => {
+    // Given
     server = await startProdServer();
     const client = await connectRaw(server.port, {
       origin: 'https://example.com',
@@ -90,14 +97,17 @@ describe('入室失敗のレート制限', () => {
       expect(msg.code, `${i} 回目`).toBe('room-not-found');
     }
 
+    // When
     client.send({ type: 'check-room', roomId: 'nope-final' });
     const msg = (await client.nextText()) as { code: string };
 
+    // Then
     expect(msg.code).toBe('rate-limited');
     client.close();
   });
 
   it('接続を張り直しても、同じ IP なら残量は引き継がれる', async () => {
+    // Given
     server = await startProdServer();
     const first = await connectRaw(server.port, {
       origin: 'https://example.com',
@@ -114,14 +124,17 @@ describe('入室失敗のレート制限', () => {
       origin: 'https://example.com',
       forwardedFor: '203.0.113.7',
     });
+    // When
     second.send({ type: 'join-room', roomId: 'nope-final', name: '侵入者' });
     const msg = (await second.nextText()) as { code: string };
 
+    // Then
     expect(msg.code).toBe('rate-limited');
     second.close();
   });
 
   it('X-Real-Ip を変えても、X-Forwarded-For が同じなら鍵は変わらない（X-Real-Ip は鍵の材料にならない）', async () => {
+    // Given
     server = await startProdServer();
     const first = await connectRaw(server.port, {
       origin: 'https://example.com',
@@ -141,14 +154,17 @@ describe('入室失敗のレート制限', () => {
       forwardedFor: '203.0.113.7',
       xRealIp: '203.0.113.99',
     });
+    // When
     second.send({ type: 'join-room', roomId: 'nope-final', name: '侵入者' });
     const msg = (await second.nextText()) as { code: string };
 
+    // Then
     expect(msg.code).toBe('rate-limited');
     second.close();
   });
 
   it('別の IP は独立している', async () => {
+    // Given
     server = await startProdServer();
     const a = await connectRaw(server.port, {
       origin: 'https://example.com',
@@ -163,9 +179,11 @@ describe('入室失敗のレート制限', () => {
       origin: 'https://example.com',
       forwardedFor: '198.51.100.9',
     });
+    // When
     b.send({ type: 'join-room', roomId: 'nope-final', name: '通行人' });
     const msg = (await b.nextText()) as { code: string };
 
+    // Then
     expect(msg.code).toBe('room-not-found');
     a.close();
     b.close();
@@ -179,6 +197,7 @@ describe('入室失敗のレート制限', () => {
   // **実在するルーム宛でもゲートを迂回できない**ことである。順序そのものは
   // 上の `nope-final` 宛（存在しないルーム宛）のテストが固定している。
   it('残量が無いとき、実在するルーム宛の join-room も rate-limited を返す', async () => {
+    // Given
     server = await startProdServer();
     const host = await connectRaw(server.port, {
       origin: 'https://example.com',
@@ -197,9 +216,11 @@ describe('入室失敗のレート制限', () => {
       await attacker.nextText();
     }
 
+    // When
     attacker.send({ type: 'join-room', roomId: joined.roomId, name: '侵入者' });
     const msg = (await attacker.nextText()) as { code: string };
 
+    // Then
     expect(msg.code).toBe('rate-limited');
     host.close();
     attacker.close();

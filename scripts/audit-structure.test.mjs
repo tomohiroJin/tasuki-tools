@@ -28,6 +28,8 @@ import {
   extractPublicDeclarations,
   sc039bUnusedPublicData,
   sc039cSelfOnlyPublicSymbols,
+  findStaleSymbolExceptions,
+  findStaleTestExceptions,
   formatTable,
   hasScanTarget,
   findInvalidDeclarations,
@@ -693,5 +695,185 @@ describe("走査量の算出（ADR-0014 決定 6・決定 8・決定 9）", () =
       [9, 167, 10, 249],
     );
     for (const d of dimensions) assert.ok(formatScanVolume(volume).includes(String(d.count)));
+  });
+});
+
+describe("findStaleSymbolExceptions: 例外表は両方向に腐らせない", () => {
+  const productSources = new Map([
+    ["packages/x/src/user.ts", "import { USED } from './decl.js';\nconst a = USED;\n"],
+  ]);
+  const packageSrcFiles = new Map([
+    ["packages/x/src/decl.ts", "export const ALIVE = 1;\nexport const USED = 2;\n"],
+  ]);
+
+  test("実在する未参照の記号を挙げた例外は問題にならない", () => {
+    // Given
+    const exceptions = [{ file: "packages/x/src/decl.ts", name: "ALIVE", reason: "検査の土台" }];
+    // When
+    const problems = findStaleSymbolExceptions(exceptions, packageSrcFiles, productSources);
+    // Then
+    assert.deepEqual(problems, []);
+  });
+
+  test("宣言が実在しない例外は問題として報告する", () => {
+    // Given（記号が消えたのに例外だけ残った状態）
+    const exceptions = [{ file: "packages/x/src/decl.ts", name: "GONE", reason: "検査の土台" }];
+    // When
+    const problems = findStaleSymbolExceptions(exceptions, packageSrcFiles, productSources);
+    // Then
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /GONE/);
+  });
+
+  test("ファイルごと実在しない例外は問題として報告する", () => {
+    // Given
+    const exceptions = [{ file: "packages/x/src/none.ts", name: "ALIVE", reason: "検査の土台" }];
+    // When
+    const problems = findStaleSymbolExceptions(exceptions, packageSrcFiles, productSources);
+    // Then
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /none\.ts/);
+  });
+
+  test("製品から参照されるようになった記号の例外は不要になったと報告する", () => {
+    // Given
+    const exceptions = [{ file: "packages/x/src/decl.ts", name: "USED", reason: "検査の土台" }];
+    // When
+    const problems = findStaleSymbolExceptions(exceptions, packageSrcFiles, productSources);
+    // Then
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /不要/);
+  });
+
+  test("理由が空の例外は問題として報告する", () => {
+    // Given
+    const exceptions = [{ file: "packages/x/src/decl.ts", name: "ALIVE", reason: "" }];
+    // When
+    const problems = findStaleSymbolExceptions(exceptions, packageSrcFiles, productSources);
+    // Then
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /理由/);
+  });
+});
+
+describe("sc039cSelfOnlyPublicSymbols: 例外表に載る記号は数えない", () => {
+  const productSources = new Map([["packages/x/src/user.ts", "const a = 1;\n"]]);
+  const packageSrcFiles = new Map([
+    ["packages/x/src/decl.ts", "export const A = 1;\nexport const B = 2;\n"],
+  ]);
+
+  test("例外なしなら 2 件", () => {
+    // Given / When
+    const n = sc039cSelfOnlyPublicSymbols(packageSrcFiles, productSources);
+    // Then
+    assert.equal(n, 2);
+  });
+
+  test("1 件を例外にすると 1 件になる", () => {
+    // Given
+    const exceptions = [{ file: "packages/x/src/decl.ts", name: "A", reason: "検査の土台" }];
+    // When
+    const n = sc039cSelfOnlyPublicSymbols(packageSrcFiles, productSources, exceptions);
+    // Then
+    assert.equal(n, 1);
+  });
+});
+
+describe("findStaleTestExceptions: SC-032 の例外は両方向に腐らせない", () => {
+  const marked = [
+    'it("区切りのあるテスト", () => {',
+    "  // Given",
+    "  const a = build();",
+    "  // When",
+    "  const r = act(a);",
+    "  // Then",
+    "  expect(r).toBe(1);",
+    "});",
+  ].join("\n");
+  const unmarked = [
+    'it("区切りの無いテスト", () => {',
+    "  const a = build();",
+    "  const r = act(a);",
+    "  expect(r).toBe(1);",
+    "});",
+  ].join("\n");
+  const files = new Map([["pkg/test/a.test.ts", `${marked}\n${unmarked}\n`]]);
+
+  test("実在し、区切りが無く、分母に入るテストの例外は問題にならない", () => {
+    // Given
+    const ex = [{ file: "pkg/test/a.test.ts", testName: "区切りの無いテスト", reason: "操作が無い" }];
+    // When
+    const problems = findStaleTestExceptions(ex, files);
+    // Then
+    assert.deepEqual(problems, []);
+  });
+
+  test("実在しないテスト名の例外は問題として報告する", () => {
+    // Given
+    const ex = [{ file: "pkg/test/a.test.ts", testName: "消えたテスト", reason: "操作が無い" }];
+    // When
+    const problems = findStaleTestExceptions(ex, files);
+    // Then
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /消えたテスト/);
+  });
+
+  test("実在しないファイルの例外は問題として報告する", () => {
+    // Given
+    const ex = [{ file: "pkg/test/none.test.ts", testName: "区切りの無いテスト", reason: "操作が無い" }];
+    // When
+    const problems = findStaleTestExceptions(ex, files);
+    // Then
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /none\.test\.ts/);
+  });
+
+  test("区切りが付いたテストの例外は不要になったと報告する", () => {
+    // Given
+    const ex = [{ file: "pkg/test/a.test.ts", testName: "区切りのあるテスト", reason: "操作が無い" }];
+    // When
+    const problems = findStaleTestExceptions(ex, files);
+    // Then
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /不要/);
+  });
+
+  test("理由が空の例外は問題として報告する", () => {
+    // Given
+    const ex = [{ file: "pkg/test/a.test.ts", testName: "区切りの無いテスト", reason: "" }];
+    // When
+    const problems = findStaleTestExceptions(ex, files);
+    // Then
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /理由/);
+  });
+});
+
+describe("sc032GwtMarkers: 例外に載るテストは分母から外す", () => {
+  const unmarkedLong = [
+    'it("区切りの無いテスト", () => {',
+    "  const a = build();",
+    "  const r = act(a);",
+    "  expect(r).toBe(1);",
+    "});",
+  ].join("\n");
+  const files = new Map([["pkg/test/a.test.ts", `${unmarkedLong}\n`]]);
+
+  test("例外なしなら分母に入る", () => {
+    // Given / When
+    const r = sc032GwtMarkers(files);
+    // Then
+    assert.equal(r.denominator, 1);
+    assert.equal(r.numerator, 0);
+  });
+
+  test("例外にすると分母から外れ、割合は 1 になる", () => {
+    // Given
+    const ex = [{ file: "pkg/test/a.test.ts", testName: "区切りの無いテスト", reason: "操作が無い" }];
+    // When
+    const r = sc032GwtMarkers(files, ex);
+    // Then
+    assert.equal(r.denominator, 0);
+    assert.equal(r.ratio, 1);
   });
 });

@@ -77,13 +77,16 @@ describe('createWsBroadcaster', () => {
     // detach は空になった集合を byRoom から消すため、countIn が undefined を返す実装だと
     // `application/handlers.ts` の `countIn(roomId) === 0` が偽になり、store.remove が呼ばれずルームが残る
     // （#165 PR-2 で見つかった「到達不能なルームが maxRooms の枠を食う」と同型の欠陥）
+    // Given
     const broadcaster = createWsBroadcaster();
     const socket = recordingSocket();
 
     broadcaster.attach('x', 'A', socket);
     expect(broadcaster.countIn('x')).toBe(1);
 
+    // When
     expect(broadcaster.detach('x', 'A', socket)).toBe(true);
+    // Then
     expect(broadcaster.countIn('x')).toBe(0);
   });
 });

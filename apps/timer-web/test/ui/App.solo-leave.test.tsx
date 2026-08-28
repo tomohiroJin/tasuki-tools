@@ -117,7 +117,8 @@ afterEach(() => {
 
 describe("ソロ退出後の復帰（Issue #79）", () => {
   it("退出が成立したら入口画面へ戻り、URL とセッション保存の両方から手がかりが消える", () => {
-    // Given / When
+    // Given（leaveSoloRoom がソロ退出の一連の流れ全体を行う）
+    // When
     leaveSoloRoom();
 
     // Then: 入口画面（作成画面）に戻っている

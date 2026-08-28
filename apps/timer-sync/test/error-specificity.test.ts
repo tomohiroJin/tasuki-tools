@@ -140,7 +140,10 @@ describe("拒否箇所が返すコード（現状の記録）", () => {
       expect(lastError(HOST)?.code).toBe("ALREADY_HOST");
     });
 
-    it("④' 編集者（非ホスト）が開始後に現ホストへ host.transfer を送っても ALREADY_HOST を返す（実行者と対象が同一とは限らないことの担保・FR-138）", async () => {
+    /**
+     * @requirements FR-138
+     */
+    it("④' 編集者（非ホスト）が開始後に現ホストへ host.transfer を送っても ALREADY_HOST を返す（実行者と対象が同一とは限らないことの担保）", async () => {
       // Given（Bob は編集者。開始後は editor+ が host.transfer を実行できる・Issue #22）
       const aliceId = pidOf("Alice");
 

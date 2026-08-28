@@ -136,16 +136,19 @@ describe('本番の fail-closed', () => {
   });
 
   it('ALLOWED_ORIGINS があれば本番でも起動する', async () => {
+    // Given
     server = await startServer({ NODE_ENV: 'production', ALLOWED_ORIGINS: 'https://ok.example' });
 
     // 本番はクライアント鍵の検査（#103）も有効になるため、Origin だけでなく
     // X-Forwarded-For も付ける（このテストの主眼は「起動する」ことであり、
     // クライアント鍵の検査は tests/fail-closed.test.ts が別途見る）。
+    // When
     const client = await raw(server.port, {
       origin: 'https://ok.example',
       forwardedFor: '203.0.113.9',
     });
     client.send({ type: 'create-room', name: 'たろう' });
+    // Then
     expect(await client.nextText()).toMatchObject({ type: 'joined' });
   });
 });
@@ -263,7 +266,8 @@ describe('待ち受けアドレス', () => {
       // Given: HOST を指定しない既定の起動
       server = await startServer({});
 
-      // Then: ループバックからは届くが、外向きのアドレスからは届かない
+      // When / Then（到達可否を確かめる呼び出し自体が検証なので、操作と検証が同じ式になる）
+      // ループバックからは届くが、外向きのアドレスからは届かない
       expect(await canReach('127.0.0.1', server.port)).toBe(true);
       expect(await canReach(EXTERNAL_IP!, server.port)).toBe(false);
     },
@@ -336,24 +340,30 @@ describe('ルーム数の上限', () => {
 
 describe('起動ログ（listening）のフィールド（S-3）', () => {
   it('本番では requireClientAddress=true・loopbackOnly=true が listening 行に出る', async () => {
+    // Given
     server = await startServer({
       NODE_ENV: 'production',
       ALLOWED_ORIGINS: 'https://ok.example',
       HOST: '127.0.0.1',
     });
+    // When
     const line = server.stdoutLines.find((l) => l.includes('"listening"'));
     expect(line).toBeDefined();
     const parsed = JSON.parse(line!) as Record<string, unknown>;
+    // Then
     expect(parsed['requireClientAddress']).toBe(true);
     expect(parsed['loopbackOnly']).toBe(true);
     expect(parsed['port']).toBe(server.port);
   });
 
   it('開発時は requireClientAddress=false が listening 行に出る', async () => {
+    // Given
     server = await startServer({});
+    // When
     const line = server.stdoutLines.find((l) => l.includes('"listening"'));
     expect(line).toBeDefined();
     const parsed = JSON.parse(line!) as Record<string, unknown>;
+    // Then
     expect(parsed['requireClientAddress']).toBe(false);
   });
 });

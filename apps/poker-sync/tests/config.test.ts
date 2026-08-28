@@ -6,8 +6,11 @@ import { loadPokerSyncConfig } from '../src/config';
 
 describe('loadPokerSyncConfig', () => {
   it('env が空なら安全側の既定値を返す', () => {
+    // Given: 渡す env が空であること自体が前提の指定を兼ねる
+    // When
     const config = loadPokerSyncConfig({});
 
+    // Then
     expect(config).toEqual({
       port: 3311,
       host: '127.0.0.1',
@@ -23,10 +26,13 @@ describe('loadPokerSyncConfig', () => {
   });
 
   it('ALLOWED_ORIGINS をカンマ区切りで解釈し、空要素と前後の空白を捨てる', () => {
+    // Given: 渡す ALLOWED_ORIGINS の値自体が前提の指定を兼ねる
+    // When
     const config = loadPokerSyncConfig({
       ALLOWED_ORIGINS: ' https://a.example , ,https://b.example ',
     });
 
+    // Then
     expect(config.allowedOrigins).toEqual(['https://a.example', 'https://b.example']);
   });
 
@@ -36,15 +42,20 @@ describe('loadPokerSyncConfig', () => {
   });
 
   it('本番でも ALLOWED_ORIGINS があれば起動できる', () => {
+    // Given: 渡す NODE_ENV・ALLOWED_ORIGINS 自体が前提の指定を兼ねる
+    // When
     const config = loadPokerSyncConfig({
       NODE_ENV: 'production',
       ALLOWED_ORIGINS: 'https://a.example',
     });
 
+    // Then
     expect(config.allowedOrigins).toEqual(['https://a.example']);
   });
 
   it('数値 env を解釈する', () => {
+    // Given: 渡す各数値 env 自体が前提の指定を兼ねる
+    // When
     const config = loadPokerSyncConfig({
       PORT: '4000',
       HOST: '0.0.0.0',
@@ -55,6 +66,7 @@ describe('loadPokerSyncConfig', () => {
       HEARTBEAT_MAX_MISSES: '1',
     });
 
+    // Then
     expect(config).toMatchObject({
       port: 4000,
       host: '0.0.0.0',
@@ -67,6 +79,8 @@ describe('loadPokerSyncConfig', () => {
   });
 
   it('数値 env が不正なら既定値へ倒す（0・負数・非数値は上限として無意味なため）', () => {
+    // Given: 渡す不正な数値 env 自体が前提の指定を兼ねる
+    // When
     const config = loadPokerSyncConfig({
       MAX_CONNECTIONS: '0',
       MAX_ROOMS: '-1',
@@ -74,6 +88,7 @@ describe('loadPokerSyncConfig', () => {
       HEARTBEAT_INTERVAL_MS: '0',
     });
 
+    // Then
     expect(config).toMatchObject({
       maxConnections: 200,
       maxRooms: 50,
@@ -83,6 +98,8 @@ describe('loadPokerSyncConfig', () => {
   });
 
   it('MAX_MESSAGE_BYTES は天井（1MB）で丸める', () => {
+    // Given: 渡す MAX_MESSAGE_BYTES の値自体が前提の指定を兼ねる
+    // When / Then（読み込みと同じ式で丸め結果を検証するため、操作と検証が同じ式になる）
     // 天井が無いと、フレーム上限（= この値から導出する）も無制限に上げられてしまい、
     // 1 フレームあたりの確保量が青天井になる。poker の正当なメッセージは 64KB の
     // 遥か下なので、1MB は十分な余裕がある。
@@ -92,6 +109,8 @@ describe('loadPokerSyncConfig', () => {
   });
 
   it('MAX_MESSAGE_BYTES が天井以下ならそのまま使う', () => {
+    // Given: 渡す MAX_MESSAGE_BYTES の値自体が前提の指定を兼ねる
+    // When / Then（読み込みと同じ式で値をそのまま使うことを検証するため、操作と検証が同じ式になる）
     expect(loadPokerSyncConfig({ MAX_MESSAGE_BYTES: String(512 * 1024) }).maxMessageBytes).toBe(
       512 * 1024,
     );
@@ -119,40 +138,51 @@ describe('loadPokerSyncConfig', () => {
   // timer-sync の config.ts と同じ規律を poker にも入れる（#103 Task 7）。
   describe('本番の HOST 検査（起動時 fail-closed・#103・D6）', () => {
     it('本番でループバック以外は起動を拒否する', () => {
+      // Given
       const env = {
         NODE_ENV: 'production',
         ALLOWED_ORIGINS: 'https://tasuki.example.com',
         HOST: '0.0.0.0',
       };
+      // When / Then（読み込みが throw するので操作と検証が同じ式になる）
       expect(() => loadPokerSyncConfig(env)).toThrow(/HOST/);
     });
 
     it.each(['127.0.0.1', '127.1.2.3', '::1', '[::1]', 'localhost'])(
       '本番でも %s はループバック扱いで通る',
       (host) => {
+        // Given
         const env = {
           NODE_ENV: 'production',
           ALLOWED_ORIGINS: 'https://tasuki.example.com',
           HOST: host,
         };
+        // When
         const c = loadPokerSyncConfig(env);
+        // Then
         expect(c.host).toBe(host);
       },
     );
 
     it('HOST 未設定なら既定の 127.0.0.1 で本番でも通る', () => {
+      // Given
       const env = {
         NODE_ENV: 'production',
         ALLOWED_ORIGINS: 'https://tasuki.example.com',
       };
+      // When
       const c = loadPokerSyncConfig(env);
+      // Then
       expect(c.host).toBe('127.0.0.1');
       expect(c.requireClientAddress).toBe(true);
     });
 
     it('本番以外なら 0.0.0.0 でも拒否しない', () => {
+      // Given
       const env = { HOST: '0.0.0.0' };
+      // When
       const c = loadPokerSyncConfig(env);
+      // Then
       expect(c.host).toBe('0.0.0.0');
       expect(c.requireClientAddress).toBe(false);
     });
@@ -168,22 +198,28 @@ describe('loadPokerSyncConfig', () => {
       ['大文字小文字混在', 'Localhost'],
       ['前後の空白つきホスト名', '  localhost  '],
     ])('整形ゆれ（%s）でも本番の起動を止めない', (_label, host) => {
+      // Given
       const env = {
         NODE_ENV: 'production',
         ALLOWED_ORIGINS: 'https://tasuki.example.com',
         HOST: host,
       };
+      // When
       const c = loadPokerSyncConfig(env);
+      // Then
       // 実際の bind にも整形済みの値を使う（末尾空白つきで listen しない）。
       expect(c.host).toBe(host.trim());
     });
 
     it('HOST が空白だけなら既定の 127.0.0.1 に落ちる', () => {
+      // Given: 渡す HOST が空白だけであること自体が前提の指定を兼ねる
+      // When
       const c = loadPokerSyncConfig({
         NODE_ENV: 'production',
         ALLOWED_ORIGINS: 'https://x.example',
         HOST: '   ',
       });
+      // Then
       expect(c.host).toBe('127.0.0.1');
     });
 
@@ -191,21 +227,25 @@ describe('loadPokerSyncConfig', () => {
     it.each(['127.999.999.999', '127.0.0.256', '127.01.0.1', '127.0.0', '1270.0.0.1'])(
       '127 で始まっても IP として不正な %s は通さない',
       (host) => {
+        // Given
         const env = {
           NODE_ENV: 'production',
           ALLOWED_ORIGINS: 'https://tasuki.example.com',
           HOST: host,
         };
+        // When / Then（読み込みが throw するので操作と検証が同じ式になる）
         expect(() => loadPokerSyncConfig(env)).toThrow(/HOST/);
       },
     );
 
     it('起動時のエラーは対処方法を伝える', () => {
+      // Given
       const env = {
         NODE_ENV: 'production',
         ALLOWED_ORIGINS: 'https://x.example',
         HOST: '0.0.0.0',
       };
+      // When / Then（読み込みが throw するので操作と検証が同じ式になる）
       expect(() => loadPokerSyncConfig(env)).toThrow(/対処/);
     });
   });
@@ -216,8 +256,11 @@ describe('loadPokerSyncConfig', () => {
     it.each(['production', 'Production', 'PRODUCTION', 'production ', ' production', 'production\n'])(
       'NODE_ENV=%j は正規化後に本番として扱われる（requireClientAddress=true）',
       (nodeEnv) => {
+        // Given
         const env = { NODE_ENV: nodeEnv, ALLOWED_ORIGINS: 'https://tasuki.example.com' };
+        // When
         const c = loadPokerSyncConfig(env);
+        // Then
         expect(c.requireClientAddress).toBe(true);
       },
     );
@@ -228,11 +271,13 @@ describe('loadPokerSyncConfig', () => {
     });
 
     it("NODE_ENV=' production\\n'（前後の空白・改行）でも HOST 検査が発火する", () => {
+      // Given
       const env = {
         NODE_ENV: ' production\n',
         ALLOWED_ORIGINS: 'https://tasuki.example.com',
         HOST: '0.0.0.0',
       };
+      // When / Then（読み込みが throw するので操作と検証が同じ式になる）
       expect(() => loadPokerSyncConfig(env)).toThrow(/HOST/);
     });
   });
@@ -248,8 +293,11 @@ describe('loadPokerSyncConfig', () => {
       ['BOM（先頭）', '﻿production'],
       ['全角スペース（末尾）', 'production　'],
     ])('NODE_ENV=%s でも本番として判定される（requireClientAddress=true）', (_label, nodeEnv) => {
+      // Given
       const env = { NODE_ENV: nodeEnv, ALLOWED_ORIGINS: 'https://tasuki.example.com' };
+      // When
       const c = loadPokerSyncConfig(env);
+      // Then
       expect(c.requireClientAddress).toBe(true);
     });
 
@@ -259,11 +307,13 @@ describe('loadPokerSyncConfig', () => {
     });
 
     it('NODE_ENV=引用符つき production は HOST 検査も発火する', () => {
+      // Given
       const env = {
         NODE_ENV: '"production"',
         ALLOWED_ORIGINS: 'https://tasuki.example.com',
         HOST: '0.0.0.0',
       };
+      // When / Then（読み込みが throw するので操作と検証が同じ式になる）
       expect(() => loadPokerSyncConfig(env)).toThrow(/HOST/);
     });
 
@@ -271,13 +321,17 @@ describe('loadPokerSyncConfig', () => {
     // 未知の値を無言で通さない方針への転換により throw になる。
     it.each(['prod', 'staging', 'PRD'])(
       "NODE_ENV='%s'（未知の値）は起動を拒否する", (nodeEnv) => {
+        // Given
         const env = { NODE_ENV: nodeEnv, HOST: '0.0.0.0' };
+        // When / Then（読み込みが throw するので操作と検証が同じ式になる）
         expect(() => loadPokerSyncConfig(env)).toThrow(/NODE_ENV/);
       },
     );
 
     it('未知の NODE_ENV のエラーメッセージには受け取った値と既知の値の一覧が載る', () => {
+      // Given
       const env = { NODE_ENV: 'staging' };
+      // When / Then（読み込みが throw するので操作と検証が同じ式になる）
       expect(() => loadPokerSyncConfig(env)).toThrow(/staging/);
       expect(() => loadPokerSyncConfig(env)).toThrow(/production/);
       expect(() => loadPokerSyncConfig(env)).toThrow(/development/);
@@ -296,10 +350,12 @@ describe('loadPokerSyncConfig', () => {
     ])(
       '既知の値・未設定・空文字 NODE_ENV=%s は throw しない',
       (_label, nodeEnv) => {
+        // Given
         const env: Record<string, string | undefined> =
           nodeEnv === 'production'
             ? { NODE_ENV: nodeEnv, ALLOWED_ORIGINS: 'https://tasuki.example.com' }
             : { NODE_ENV: nodeEnv };
+        // When / Then（throw しないことを見る）
         expect(() => loadPokerSyncConfig(env)).not.toThrow();
       },
     );

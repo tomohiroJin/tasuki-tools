@@ -26,49 +26,67 @@ describe("useBanner", () => {
   });
 
   it("show した文言と種別を保持する", () => {
+    // Given
     const { result } = renderHook(() => useBanner());
+    // When
     act(() => result.current.show("こんにちは", "warn"));
+    // Then
     expect(result.current.banner).toEqual({ text: "こんにちは", kind: "warn" });
   });
 
   it("既定では 4 秒で自動消去する", () => {
+    // Given
     const { result } = renderHook(() => useBanner());
+    // When
     act(() => result.current.show("一時エラー", "warn"));
     act(() => void vi.advanceTimersByTime(3999));
+    // Then
     expect(result.current.banner).not.toBeNull();
     act(() => void vi.advanceTimersByTime(1));
     expect(result.current.banner).toBeNull();
   });
 
   it("autoDismiss: false なら時間が経っても消えない", () => {
+    // Given
     const { result } = renderHook(() => useBanner());
+    // When
     act(() => result.current.show("ルームから退出しました", "warn", { autoDismiss: false }));
     act(() => void vi.advanceTimersByTime(60_000));
+    // Then
     expect(result.current.banner).toEqual({ text: "ルームから退出しました", kind: "warn" });
   });
 
   it("消えないバナーを出したら、直前の自動消去タイマーは解除される", () => {
     // 現行 App.tsx の handleError（leave-room）が明示的に解除している性質。
     // これが無いと、直前の一時エラーの 4 秒タイマーが退出バナーを消してしまう。
+    // Given
     const { result } = renderHook(() => useBanner());
+    // When
     act(() => result.current.show("一時エラー", "warn"));
     act(() => void vi.advanceTimersByTime(2000));
     act(() => result.current.show("ルームから退出しました", "warn", { autoDismiss: false }));
     act(() => void vi.advanceTimersByTime(10_000));
+    // Then
     expect(result.current.banner?.text).toBe("ルームから退出しました");
   });
 
   it("clear で即座に消える", () => {
+    // Given
     const { result } = renderHook(() => useBanner());
     act(() => result.current.show("接続が切れました", "warn"));
+    // When
     act(() => result.current.clear());
+    // Then
     expect(result.current.banner).toBeNull();
   });
 
   it("unmount でタイマーを掃除する（setState-on-unmounted を出さない）", () => {
+    // Given
     const { result, unmount } = renderHook(() => useBanner());
     act(() => result.current.show("一時エラー", "warn"));
+    // When
     unmount();
+    // Then
     expect(() => vi.advanceTimersByTime(10_000)).not.toThrow();
   });
 });
