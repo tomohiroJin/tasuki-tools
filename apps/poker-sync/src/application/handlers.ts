@@ -122,12 +122,13 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
     if (participantId === null || roomId === null) return;
     const room = store.get(roomId);
     if (!room) {
-      // **ルーム保管には無いのに接続レジストリには残っている経路がある。**
-      // `handleJoinRoom` が「唯一の接続だった自分自身へ join-room を再送した」場合、
-      // ルームは store から消えたまま joined だけが返り、以後この接続は
-      // 到達不能なルームに attach されたままになる（下の handleJoinRoom のコメント参照）。
-      // 分割前は socketsByRoom からも消えていて何も残らなかったので、
-      // ここで接続レジストリ側も掃除して同じ状態に揃える。配信は行わない。
+      // **ルーム保管には無いのに接続レジストリには残っている接続**への備え。
+      // #171 を直すまでは `handleJoinRoom` がこの状態を作っていた（唯一の接続が
+      // 同じルームへ join-room を再送すると、ルームが破棄されたまま joined だけが
+      // 返り、その接続は到達不能なルームに attach されたままになっていた）。
+      // 今この状態を作る経路は無いが、残ると接続レジストリに恒久的に溜まるので、
+      // ここで掃除して分割前（socketsByRoom からも消えていた）と同じ状態に揃える。
+      // 配信は行わない。
       broadcaster.detach(roomId, participantId, ws);
       return;
     }
@@ -221,42 +222,39 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
       return;
     }
 
+    // **既にこのルームに居る接続からの再送は冪等に扱う（#171）。切り離してはならない。**
+    // 自分がこのルーム唯一の接続だと、下の detachFromCurrentRoom は接続数 0 の分岐に入って
+    // ルームを破棄し（FR-014）、それでも joined を返す。以後この接続は存在しないルームに
+    // attach されたままになり、vote / reveal / next-round は commitRoomAction の
+    // store.get で落ちる（#171 の前は無応答。今は room-not-found を返す）。
+    //
+    // **token は見ない。** 既にこのルームに居る接続の identity はソケット側が正である
+    // （画面が添えてくるのは自分自身の token なので、照合しても結果は変わらない）。
+    // 別ソケットからの token 復帰（FR-013）はこの分岐に入らないので影響を受けない。
+    if (ws.data.roomId === msg.roomId) {
+      const self = room.participants.find((p) => p.id === ws.data.participantId);
+      if (self !== undefined) {
+        completeJoin(ws, room, self.id, self.token);
+        return;
+      }
+    }
+
     // 参加先の存在を確認してから、参加中の別ルームを切り離す（二重送信・SPA 遷移対策）
     detachFromCurrentRoom(ws);
 
-    // **上の detach で自分自身がこのルーム唯一の接続だった場合、ルームは既にレジストリから
-    // 消えている**（`detachFromCurrentRoom` の countIn(roomId) === 0 分岐。store と
-    // Broadcaster の接続レジストリの両方から削除済み）。
+    // 以下の 2 つは、**detach が参加先のルームそのものを触った場合**への備えである。
+    // #171 の修正で「参加先＝現在地」は上の冪等分岐が先に返すようになったため、
+    // ここでそうなりうるのは「roomId は一致するのに参加者一覧に自分が居ない」という、
+    // ドメインが作らない状態（participants は増えるか更新されるだけで減らない）に限られる。
+    // 到達経路は無いが、落とすと戻ってくる欠陥がどちらも重いので残してある。
     //
-    // 分割前（旧実装）は room ＋ sockets が単一の可変 RoomEntry オブジェクトで、
-    // detach 後もこの関数はその同じオブジェクトを参照し続けるだけで、
-    // レジストリへの書き戻しは一度も行っていなかった。
-    //
-    // ここで安易に `store.put` すると、**store にだけルームが復活し、
-    // Broadcaster 側には対応する接続が無い「到達不能なルーム」が残る。**
-    // `handleCreateRoom` の上限判定は `store.count()` を見るため、この到達不能な
-    // ルームが maxRooms の枠を永久に食い潰す（#165 レビューで発見。回帰テストは
-    // tests/guards.test.ts の「自分自身への join-room 再送で〜」）。
-    //
-    // よって、detach でレジストリから消えていたら **書き戻さない**。当人には
-    // 通常どおり joined が返るがルームはレジストリから見えなくなる、という
-    // この経路自体が元から持つ欠陥（振る舞い）は、本 PR ではあえて直さない
-    // （振る舞い不変が最上位制約のため）。#171 で直す。
+    // - stillRegistered: detach でレジストリから消えていたら **書き戻さない**。
+    //   書き戻すと store にだけルームが復活し、Broadcaster 側に接続が無い
+    //   「到達不能なルーム」が maxRooms の枠を永久に食い潰す（#165 レビューで発見）。
+    // - `?? room` の読み直し: detach は切断者の markDisconnected と、それによる自動公開で
+    //   このルームを更新していることがある。読み直さずに detach 前のスナップショットを
+    //   書き戻すと自動公開が消える（#165 レビューで発見）。
     const stillRegistered = store.has(msg.roomId);
-
-    // **detach はこのルームを更新していることがある**（切断者への markDisconnected、
-    // およびそれによる shouldAutoReveal 成立時の自動公開。detachFromCurrentRoom の
-    // countIn(roomId) !== 0 分岐）。分割前（旧実装）は room が単一の可変オブジェクトの
-    // フィールドだったため、detach の更新はこの関数から自動的に見えていた。
-    // 値として持ち回す今の形では、detach 前に取得した `room` を読み直さずに使うと、
-    // 古いスナップショットを書き戻して自動公開を消してしまう（#165 レビューで発見。
-    // 回帰テストは tests/voting.test.ts の「自動公開は join-room の再送で消えない」）。
-    //
-    // よって detach の後にレジストリから読み直す。**`?? room` のフォールバックは、
-    // 上の「唯一の接続だった」場合と挙動を合わせるためのもの**である。その場合
-    // レジストリには何も残っていないが、旧実装の detach も接続が 0 になる
-    // 分岐では entry.room を一切更新せずに return していたため、detach 前の
-    // スナップショット（＝ここでの `room`）を使うのが正しい。
     const current = store.get(msg.roomId) ?? room;
 
     // token 照合による同一参加者の復帰（FR-013）。一致すれば name は無視する

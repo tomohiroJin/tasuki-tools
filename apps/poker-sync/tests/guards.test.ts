@@ -314,7 +314,7 @@ describe('ルーム数の上限', () => {
   });
 
   it(
-    '自分自身への join-room 再送でルームが消えても、レジストリの枠は空いたままになる',
+    '自分自身への join-room 再送ではルームは消えず、レジストリの枠も埋まったままになる',
     async () => {
       // Given: ルームは 1 つまで。host はこのルーム唯一の接続
       server = await startServer({ MAX_ROOMS: '1' });
@@ -323,17 +323,20 @@ describe('ルーム数の上限', () => {
       const joined = (await host.nextMatching(isType('joined'))) as { roomId: string };
 
       // When: host が同じ socket・同じ roomId へ join-room を再送する（二重送信・SPA 遷移）。
-      // detachFromCurrentRoom はこのルームの接続者が host だけなので即時破棄する経路を通る。
-      // このルーム自体が消える（当人には joined が返るのにルームが無くなる）のは
-      // 元からある経路の欠陥（#171）であり、振る舞い変更になるため本テストでは直さない。
-      // ここで確かめるのは「レジストリの枠が空いたままになるか」だけ。
+      // この再送は冪等で、切り離しも破棄も起きない（#171）
       host.send({ type: 'join-room', roomId: joined.roomId, name: 'たろう' });
       await host.nextMatching(isType('joined'));
 
-      // Then: 枠は空いているので、別の接続が新しいルームを作れる
+      // Then: ルームは生きているので枠は埋まったままで、別の接続はルームを作れない。
+      //
+      // **#171 の前はここが逆だった。** 再送でルームが破棄され（当人には joined が
+      // 返るのにルームが無くなる）、枠が空いて他人が作れてしまう。当時のテストは
+      // その副次的な性質（枠は空いたままになる＝到達不能なルームが枠を食い潰さない）
+      // だけを固定していた。破棄そのものが直った今、確かめるべきは
+      // 「破棄されない・枠は正しく埋まったまま」に変わる
       const other = await ws(server.port);
       other.send({ type: 'create-room', name: 'はなこ' });
-      expect(await other.nextMatching(isType('joined'))).toMatchObject({ type: 'joined' });
+      expect(await other.next()).toMatchObject({ type: 'error', code: 'server-busy' });
     },
   );
 });
