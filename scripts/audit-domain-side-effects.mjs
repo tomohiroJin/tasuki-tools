@@ -58,6 +58,7 @@ import {
   findEmptyScanDimensions,
   formatTargetDiff,
 } from "./lib/scan-targets.mjs";
+import { isDirectRun } from "./lib/direct-run.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SCRIPT_DIR, "..");
@@ -258,4 +259,4 @@ function main() {
   console.log("[audit-domain-side-effects] OK（禁止語彙 0 件）");
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) main();
+if (isDirectRun(import.meta.url, process.argv[1])) main();

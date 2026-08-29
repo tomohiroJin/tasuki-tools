@@ -9,9 +9,9 @@
  * 対象が 0 件なら非ゼロで終了する。除外は理由つきで宣言し、除外が
  * 1 件も一致しなくなったら落とす（死んだ除外行を残さない）。
  */
-import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 import { listTrackedFiles, hasZeroScanTargets } from "./lib/scan-targets.mjs";
+import { isDirectRun } from "./lib/direct-run.mjs";
 
 const REPO_ROOT = execFileSync("git", ["rev-parse", "--show-toplevel"], {
   encoding: "utf8",
@@ -73,4 +73,4 @@ function main() {
   console.log(targets.join("\n"));
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) main();
+if (isDirectRun(import.meta.url, process.argv[1])) main();

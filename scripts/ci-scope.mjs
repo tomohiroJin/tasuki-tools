@@ -12,7 +12,7 @@
 
 import fs from "node:fs";
 import { execFileSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { isDirectRun } from "./lib/direct-run.mjs";
 
 /** 依存を変えるファイルか。 */
 function isDependencyFile(file) {
@@ -102,4 +102,4 @@ function main() {
   if (out) fs.appendFileSync(out, formatOutputs(scope));
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) main();
+if (isDirectRun(import.meta.url, process.argv[1])) main();
