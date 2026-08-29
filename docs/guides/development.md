@@ -662,6 +662,35 @@ bash -c 'set -euo pipefail; targets="$(node scripts/list-scan-targets.mjs shell)
 ありません（判定は `scripts/mutation-check.mjs` の `detectRunner`、その自己テストは
 `scripts/mutation-check.test.mjs`）。
 
+### 検査スクリプトを新しく足すとき
+
+**末尾の起動判定は共有ヘルパを使ってください**（#197）。
+
+```js
+import { isDirectRun } from "./lib/direct-run.mjs";
+
+// …
+
+if (isDirectRun(import.meta.url, process.argv[1])) main();
+```
+
+`process.argv[1] === fileURLToPath(import.meta.url)` のような**文字列比較で書いては
+いけません**。ESM ローダーは `import.meta.url` を実体パス（symlink 解決後）へ
+正規化する一方、`process.argv[1]` は起動時に指定されたパスのまま残ります。
+そのため symlink 経由（`node <symlink>`）で起動すると両者が一致せず、`main()` が
+一度も呼ばれないまま**標準出力・標準エラーとも空で exit 0** になります。
+「検査が何も実行せずに緑で終わる」という、憲法 原則 VII が最も嫌う形です。
+
+このリポジトリは親プロジェクト側から `scripts/` を symlink で参照しうるため、
+踏んだ瞬間に**全検査が無警告で空振り**します（#197 の時点では 10 本が該当）。
+
+判定は `scripts/lib/direct-run.mjs` の 1 か所だけに置きます。各スクリプトへ
+同じ式を写すと、直すときに片側だけが直ります（実際、#174 で
+`scripts/mutation-check.mjs` だけを直したときに残り 10 本が取り残されました）。
+`scripts/entry-point-wiring.test.mjs` が、`scripts/` 直下の検査スクリプトを
+**git から導出して**、実際に symlink 経由で起動し直接起動と同じ結果になることを
+確かめます。新しく足したスクリプトが古い書き方を持ち込めば、そこで落ちます。
+
 ### 新しいパッケージを足すと検査が赤くなる
 
 構造監査（`scripts/audit-structure.mjs`）とログ衛生（`scripts/audit-log-hygiene.mjs`）は、
