@@ -1216,3 +1216,80 @@ describe("SC-039②③ の走査対象の宣言をファイル単位で見る（
     assert.match(text, /現在の走査対象: 照合先 2 パッケージ \/ 3 ファイル/);
   });
 });
+
+import { scanVolumeOf, findScanVolumeDrift } from "./audit-structure.mjs";
+
+describe("走査対象の同一性: 照合した集合と指標が測った集合の突き合わせ（#198）", () => {
+  const mapOf = (n) => new Map([...Array(n).keys()].map((i) => [`k${i}`, ""]));
+  /** loadScanTargets の結果を模した最小の形（規模だけが問題になる）。 */
+  const loadedOf = (pkgs) => pkgs.map(([src, test]) => ({ srcFiles: mapOf(src), testFiles: mapOf(test) }));
+
+  test("scanVolumeOf: 渡された集合そのものの件数を名乗る", () => {
+    // Given: 2 パッケージ（src 100+86・test 200+68）と 3 つの派生集合
+    // When
+    const volume = scanVolumeOf(loadedOf([[100, 200], [86, 68]]), mapOf(29), mapOf(186), mapOf(268));
+    // Then
+    assert.deepEqual(volume, {
+      走査パッケージ: 2,
+      "src ファイル": 186,
+      "test ファイル": 268,
+      "SC-039 照合先": 29,
+      "SC-039 参照元": 186,
+      テスト集合: 268,
+    });
+  });
+
+  test("scanVolumeOf: 派生集合を経ない走査対象も名乗る（loaded 側の痩せを見る）", () => {
+    // Given: SC-027 は loaded を、SC-035 / SC-039① は個々の srcFiles を直接読む
+    const loaded = loadedOf([[100, 200], [86, 68]]);
+    // When: パッケージを 1 つ落とす
+    loaded.pop();
+    // Then: 派生集合が同じままでも、走査パッケージと src/test の件数で分かる
+    const volume = scanVolumeOf(loaded, mapOf(29), mapOf(186), mapOf(268));
+    assert.equal(volume["走査パッケージ"], 1);
+    assert.equal(volume["src ファイル"], 100);
+    assert.equal(volume["test ファイル"], 200);
+  });
+
+  test("scanVolumeOf: 間引かれた後に呼ぶと減った件数を名乗る（入れ物ではなく実体を見る）", () => {
+    // Given: 一度渡した集合から 1 件消す
+    const packageSrcFiles = mapOf(29);
+    // When
+    packageSrcFiles.delete("k0");
+    // Then: 控えた件数ではなく、いまの件数が出る
+    const volume = scanVolumeOf(loadedOf([[1, 1]]), packageSrcFiles, mapOf(186), mapOf(268));
+    assert.equal(volume["SC-039 照合先"], 28);
+  });
+
+  test("findScanVolumeDrift: 一致していればずれは無い", () => {
+    // Given / When / Then
+    const v = { a: 1, b: 2 };
+    assert.deepEqual(findScanVolumeDrift(v, { ...v }), []);
+  });
+
+  test("findScanVolumeDrift: 減った次元を名指しする（照合より後段での間引き）", () => {
+    // Given: 照合時 29 件、指標が測ったのは 28 件
+    // When
+    const drift = findScanVolumeDrift(
+      { "SC-039 照合先": 29, テスト集合: 268 },
+      { "SC-039 照合先": 28, テスト集合: 268 },
+    );
+    // Then: どの次元がどう変わったかまで出す（赤の根拠になる）
+    assert.deepEqual(drift, ["SC-039 照合先: 29 → 28"]);
+  });
+
+  test("findScanVolumeDrift: 増えた場合もずれとして出す（片方向では塞げない）", () => {
+    // Given / When: 指標側で足す変更も、照合した対象と違うことに変わりはない
+    const drift = findScanVolumeDrift({ テスト集合: 268 }, { テスト集合: 269 });
+    // Then
+    assert.deepEqual(drift, ["テスト集合: 268 → 269"]);
+  });
+
+  test("findScanVolumeDrift: 申告そのものが欠けていればずれとして出す（不足側へ倒す）", () => {
+    // Given: 指標側が次元ごと名乗らなくなった状態
+    // When
+    const drift = findScanVolumeDrift({ "SC-039 参照元": 186 }, {});
+    // Then: 黙って通さない
+    assert.deepEqual(drift, ["SC-039 参照元: 186 → undefined"]);
+  });
+});
