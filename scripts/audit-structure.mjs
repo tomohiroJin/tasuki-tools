@@ -1463,23 +1463,24 @@ export function findSrcWithoutEntry(declarations) {
  * 2. **読み込みそのものの書き換え**（`main()` が {@link loadScanTargets} へ渡す
  *    `readFilesRecursive` / 拡張子の集合）。宣言側も実体側も同じ `loaded` から導くので
  *    揃って狭まる。実測: 読み込み時に 1 ファイルを落とすと「照合先 28 / 参照元 185」で exit 0。
- * 3. ~~**照合より後段での間引き**~~ — **#198 で塞いだ。** `runAudit()` は集合を
- *    組み立て直さず引数で受け取り、**自分が指標を測るのに使った集合の規模を名乗る**
- *    （{@link scanVolumeOf}）。`main()` が照合したときの規模と突き合わせ、
+ * 3. **照合より後段での間引き**（指標を測る側の中）。照合は既に終わっている。
+ *    **#198 で「走査対象そのものを間引く形」だけを塞いだ。** `runAudit()` は集合を
+ *    組み立て直さず引数で受け取り、**自分が指標を測るのに使った走査対象の規模を名乗る**
+ *    （{@link scanVolumeOf}）。`main()` が組み立て直後に控えた規模と突き合わせ、
  *    食い違えば指標の表を出す前に落とす（{@link findScanVolumeDrift}）。
- *    塞ぐ前の実測: 組み立て直した Map から 1 件 delete すると、走査量の表示すら
- *    「照合先 29 / 参照元 186」のまま変わらず exit 0（出力がバイト単位で同一）。
- *    テスト集合（SC-029 / SC-032）にも同型の経路が成立していた（実測: exit 0 のまま
- *    SC-032 の分母 1440 → 1431・SC-036 1890 → 1881 だけが静かに動く）。
- *    **残余**: 名乗り自体を書き換える変更は検知できない（申告の誠実さに依存する）。
- *    そこを守るのは指標関数自身のテストと `scripts/mutation-check.mjs` である。
+ *    塞ぐ前の実測: 組み立て直した Map から 1 件 delete しても、`loaded` から 1 件
+ *    落としても、走査量の表示すら変わらず exit 0（いずれも出力がバイト単位で同一）。
+ *    **残るのは「別の集合を渡す形」**。`sc032GwtMarkers(new Map([...allTestFiles].slice(1)))`
+ *    のように**絞り込んだ別の集合を指標関数へ渡す**と、名乗りは元の集合を読んだままなので
+ *    差が出ない（実測で exit 0）。突き合わせが見るのは件数だけなので、**同数の入れ替え**も
+ *    検知しない。そこを守るのは指標関数自身のテストと `scripts/mutation-check.mjs` である。
  * 4. **宣言の `entry` を別ファイルへ差し替えて到達性を痩せさせる。** 参照元の絞り込みは
  *    到達性であり、宣言側（{@link sc039DeclaredReferenceFiles}）も同じ到達性を通る。
  *    実測: poker-core の entry を `index.ts` → `deck.ts` にすると参照元 186 → 179 で exit 0。
  *
  * 1・2・4 の歯止めは、出力する走査量の数字が変わることと、それが 1 行の差分として
  * diff に現れることの 2 つに限られる（この 3 つは宣言側と実体側が同じ上流を通るため
- * 構造的に不可避。#196 で文書化した）。
+ * 構造的に不可避。#196 で文書化した）。3 に残った形にはその歯止めすら無い。
  *
  * @param loaded {@link loadScanTargets} の結果
  */
@@ -1576,9 +1577,17 @@ export function buildAllTestFiles(loaded) {
  *
  * **渡すのは実際に指標関数へ手渡した集合であること。** `sc039Sources` のような
  * 入れ物から読み直すと、中で別の集合へ差し替えられたときに気づけない。
+ *
+ * **`loaded` そのものも走査対象である。** SC-027 は `loaded` を直接たどり、
+ * SC-035 / SC-039① は個々のパッケージの `srcFiles` を直接読む。3 つの派生集合だけを
+ * 名乗ると、`loaded` を痩せさせる変更が丸ごと素通りする（実測: `loaded` から 1 件
+ * 落としても出力がバイト単位で同一のまま exit 0 だった）。
  */
-export function scanVolumeOf(packageSrcFiles, productSources, allTestFiles) {
+export function scanVolumeOf(loaded, packageSrcFiles, productSources, allTestFiles) {
   return {
+    走査パッケージ: loaded.length,
+    "src ファイル": loaded.reduce((n, p) => n + p.srcFiles.size, 0),
+    "test ファイル": loaded.reduce((n, p) => n + p.testFiles.size, 0),
     "SC-039 照合先": packageSrcFiles.size,
     "SC-039 参照元": productSources.size,
     テスト集合: allTestFiles.size,
@@ -1654,7 +1663,7 @@ function runAudit(loaded, sc039Sources, allTestFiles) {
   // **測った集合そのものから規模を名乗る**（#198）。`main()` が照合したときの値と
   // 突き合わせるための申告であり、ここで数え直しているのは「件数」ではなく
   // 「いま指標を測るのに使った集合の `size`」である。
-  const measured = scanVolumeOf(packageSrcFiles, productSources, allTestFiles);
+  const measured = scanVolumeOf(loaded, packageSrcFiles, productSources, allTestFiles);
 
   const results = {
     sc027: { value: sc027, target: 0 },
@@ -1796,11 +1805,24 @@ function main() {
     process.exit(1);
   }
 
-  // SC-039②③ の走査範囲そのものの健全性（#180）。**指標を出す前に見る。**
-  //
-  // **見る集合は `runAudit()` が測る集合と同一**（ADR-0014 決定 9）。
-  // 同じ `loaded` を `buildSc039Sources` に渡しているので、ここで組み直してはいない。
+  // 派生集合の組み立てはここ 1 か所だけ（ADR-0014 決定 9）。`runAudit()` へは
+  // **この同じオブジェクトを渡す**。以前は指標側でも組み立て直しており、
+  // 呼び出し箇所の数では決定 9 を満たしても同一性では満たしていなかった（#198）。
   const sc039Sources = buildSc039Sources(loaded);
+  const allTestFiles = buildAllTestFiles(loaded);
+
+  // **規模を控えるのは組み立てた直後**（#198）。以降の照合・例外表・走査量の表示は
+  // すべてこの控えと同じ集合を見る。**控えを後ろへ置くと、照合や表示のあとで
+  // 間引かれた状態がそのまま基準値になり、突き合わせが素通りする**
+  // （実測: 控えの直前で 1 件消すと、表示は 268 のまま SC-032 の分母だけが動いて exit 0）。
+  const scannedVolume = scanVolumeOf(
+    loaded,
+    sc039Sources.packageSrcFiles,
+    sc039Sources.productSources,
+    allTestFiles,
+  );
+
+  // SC-039②③ の走査範囲そのものの健全性（#180）。**指標を出す前に見る。**
 
   // 走査量は成否によらず必ず出す（#135 D5・ADR-0014 決定 6）。
   // **パッケージ数まで出す。** #180 まではファイル件数だけを出していたため、
@@ -1882,10 +1904,7 @@ function main() {
 
   // SC-032 の例外表も同じ扱いで見る。**指標を出す前に**見る。
   // 腐った例外を抱えたまま「100.0%」と報告させない。
-  //
-  // **見る集合は `runAudit()` が測る集合と同一**（ADR-0014 決定 9）。
-  // 同じ `loaded` を `buildAllTestFiles` に渡しているので、ここで組み直してはいない。
-  const allTestFiles = buildAllTestFiles(loaded);
+  // 見る集合は上で組み立てて控えた `allTestFiles` そのもの（ADR-0014 決定 9）。
 
   // SC-029 の例外表も同じ扱いで見る。**指標を出す前に**見る。
   // 腐った例外（実在しないパス・何も外していないエントリ）を抱えたまま「0 件」と報告させない。
@@ -1911,14 +1930,6 @@ function main() {
     process.exit(1);
   }
 
-  // 照合したときの規模を控える（#198）。**ここから `runAudit()` までの間に
-  // 集合を変えるものは無い**（間に挟まる判定はすべて純粋関数）。
-  const scannedVolume = scanVolumeOf(
-    sc039Sources.packageSrcFiles,
-    sc039Sources.productSources,
-    allTestFiles,
-  );
-
   const { results, measured } = runAudit(loaded, sc039Sources, allTestFiles);
 
   // **指標が測った対象が、照合した対象と同じかを見る**（#198・ADR-0014 決定 9）。
@@ -1931,7 +1942,12 @@ function main() {
     for (const d of measuredDrift) {
       console.error(`  ${d}    ← 照合より後段で間引いています`);
     }
-    console.error(`  照合したときの走査対象: ${summary}`);
+    // **控えた規模そのものを出す。** 全体走査の要約（`summary`）を出していたが、
+    // 差分行が名指しする次元の数がそこに現れず、読み手が数字の出どころを追えなかった。
+    const scanned = Object.entries(scannedVolume)
+      .map(([label, n]) => `${label} ${n}`)
+      .join("、");
+    console.error(`  照合したときの走査対象: ${scanned}`);
     process.exit(1);
   }
 

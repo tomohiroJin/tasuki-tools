@@ -1221,17 +1221,34 @@ import { scanVolumeOf, findScanVolumeDrift } from "./audit-structure.mjs";
 
 describe("走査対象の同一性: 照合した集合と指標が測った集合の突き合わせ（#198）", () => {
   const mapOf = (n) => new Map([...Array(n).keys()].map((i) => [`k${i}`, ""]));
+  /** loadScanTargets の結果を模した最小の形（規模だけが問題になる）。 */
+  const loadedOf = (pkgs) => pkgs.map(([src, test]) => ({ srcFiles: mapOf(src), testFiles: mapOf(test) }));
 
   test("scanVolumeOf: 渡された集合そのものの件数を名乗る", () => {
-    // Given: 件数の違う 3 つの集合
+    // Given: 2 パッケージ（src 100+86・test 200+68）と 3 つの派生集合
     // When
-    const volume = scanVolumeOf(mapOf(29), mapOf(186), mapOf(268));
+    const volume = scanVolumeOf(loadedOf([[100, 200], [86, 68]]), mapOf(29), mapOf(186), mapOf(268));
     // Then
     assert.deepEqual(volume, {
+      走査パッケージ: 2,
+      "src ファイル": 186,
+      "test ファイル": 268,
       "SC-039 照合先": 29,
       "SC-039 参照元": 186,
       テスト集合: 268,
     });
+  });
+
+  test("scanVolumeOf: 派生集合を経ない走査対象も名乗る（loaded 側の痩せを見る）", () => {
+    // Given: SC-027 は loaded を、SC-035 / SC-039① は個々の srcFiles を直接読む
+    const loaded = loadedOf([[100, 200], [86, 68]]);
+    // When: パッケージを 1 つ落とす
+    loaded.pop();
+    // Then: 派生集合が同じままでも、走査パッケージと src/test の件数で分かる
+    const volume = scanVolumeOf(loaded, mapOf(29), mapOf(186), mapOf(268));
+    assert.equal(volume["走査パッケージ"], 1);
+    assert.equal(volume["src ファイル"], 100);
+    assert.equal(volume["test ファイル"], 200);
   });
 
   test("scanVolumeOf: 間引かれた後に呼ぶと減った件数を名乗る（入れ物ではなく実体を見る）", () => {
@@ -1240,7 +1257,8 @@ describe("走査対象の同一性: 照合した集合と指標が測った集�
     // When
     packageSrcFiles.delete("k0");
     // Then: 控えた件数ではなく、いまの件数が出る
-    assert.equal(scanVolumeOf(packageSrcFiles, mapOf(186), mapOf(268))["SC-039 照合先"], 28);
+    const volume = scanVolumeOf(loadedOf([[1, 1]]), packageSrcFiles, mapOf(186), mapOf(268));
+    assert.equal(volume["SC-039 照合先"], 28);
   });
 
   test("findScanVolumeDrift: 一致していればずれは無い", () => {

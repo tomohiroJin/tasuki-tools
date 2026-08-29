@@ -888,13 +888,87 @@ describe("照合より後段での間引き: scripts/audit-structure.mjs", () =>
   // （#198。ADR-0014 決定 9 を「呼び出し箇所の数」では満たすが「同一性」では
   // 満たしていなかったのが原因）。ここでは間引きが赤になることを見る。
 
-  test("対照実行: 書き換えない複製は exit 0 で走査量を出す", () => {
-    // Given: 複製するだけで中身は変えない
-    // When
+  /**
+   * 出力から走査量を読む。**件数はテストに直書きしない。**
+   * 直書きすると、無関係なテストファイルを 1 本足しただけで
+   * 「間引きを検知しない」ように見える形でこの配線テストが落ちる。
+   */
+  function readScanVolume(stdout) {
+    const sc039 = stdout.match(/SC-039②③ の走査対象: 照合先 \d+ パッケージ \/ (\d+) ファイル/);
+    const tests = stdout.match(/SC-032 の例外表: \d+ 件 \/ 照合先 (\d+) ファイル/);
+    assert.ok(sc039, `SC-039 の走査量を読めません:\n${stdout}`);
+    assert.ok(tests, `テスト集合の走査量を読めません:\n${stdout}`);
+    return { sc039Compared: Number(sc039[1]), testFiles: Number(tests[1]) };
+  }
+
+  /** 対照実行の結果。以降のテストはここから実測値を取る。 */
+  const control = (() => {
     const r = runScriptCopy("audit-structure.mjs", (s) => s);
-    // Then: 以下の赤が「複製の失敗」ではないことを先に固定する
     assert.equal(r.status, 0, `対照実行が緑になりません:\n${r.stderr}`);
-    assert.match(r.stdout, /SC-039②③ の走査対象: 照合先 \d+ パッケージ \/ \d+ ファイル/);
+    return { ...readScanVolume(r.stdout), status: r.status };
+  })();
+
+  test("対照実行: 書き換えない複製は exit 0 で走査量を出す", () => {
+    // Given / When / Then: 以下の赤が「複製の失敗」ではないことを先に固定する
+    assert.equal(control.status, 0);
+    assert.ok(control.sc039Compared > 0 && control.testFiles > 0, "走査量が 0 件です");
+  });
+
+  test("読み込んだ走査対象そのものを痩せさせると非ゼロで終了する（派生集合を経ない経路）", () => {
+    // Given: SC-027 は `loaded` を、SC-035 / SC-039① は個々の srcFiles を直接読む。
+    //        派生集合 3 つだけを名乗ると、この経路が丸ごと素通りする（#198 の敵対的検証）
+    const mutate = (s) => s.replace("  const sc027 = loaded", "  loaded.pop();\n  const sc027 = loaded");
+    // When
+    const r = runScriptCopy("audit-structure.mjs", mutate);
+    // Then: まず「壊れたこと自体」を確かめる
+    assert.equal(countOf(r.source, "  loaded.pop();"), 1, "間引きを差し込めていません");
+    // Then
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.match(r.stderr, /走査パッケージ: \d+ → \d+/);
+  });
+
+  test("パッケージの srcFiles を痩せさせると非ゼロで終了する（同上）", () => {
+    // Given
+    const mutate = (s) =>
+      s.replace(
+        "  const serverSources = [...sync.srcFiles.values()];",
+        "  sync.srcFiles.delete([...sync.srcFiles.keys()][0]);\n  const serverSources = [...sync.srcFiles.values()];",
+      );
+    // When
+    const r = runScriptCopy("audit-structure.mjs", mutate);
+    // Then: まず「壊れたこと自体」を確かめる
+    assert.equal(
+      countOf(r.source, "sync.srcFiles.delete([...sync.srcFiles.keys()][0]);"),
+      1,
+      "間引きを差し込めていません",
+    );
+    // Then
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.match(r.stderr, /src ファイル: \d+ → \d+/);
+  });
+
+  test("例外表のガードのあとで間引いても非ゼロで終了する（控えの位置を固定する）", () => {
+    // Given: 走査量の表示も例外表のガードも終わった位置で間引く。
+    //        **控えを組み立て直後ではなくここより後ろへ置くと、間引いた後の値が
+    //        そのまま基準値になり突き合わせが素通りする**（#198 の敵対的検証で実測）
+    const mutate = (s) =>
+      s.replace(
+        "  const { results, measured } = runAudit",
+        "  allTestFiles.delete([...allTestFiles.keys()][0]);\n  const { results, measured } = runAudit",
+      );
+    // When
+    const r = runScriptCopy("audit-structure.mjs", mutate);
+    // Then: まず「壊れたこと自体」を確かめる
+    assert.equal(
+      countOf(r.source, "allTestFiles.delete([...allTestFiles.keys()][0]);"),
+      1,
+      "間引きを差し込めていません",
+    );
+    // Then: 表示は間引きの前なので変わらないが、控えは組み立て直後なので落ちる
+    const scanned = readScanVolume(r.stdout);
+    assert.equal(scanned.testFiles, control.testFiles, "表示が変わっています");
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.match(r.stderr, new RegExp(`テスト集合: ${control.testFiles} → ${control.testFiles - 1}`));
   });
 
   test("SC-039 の集合を指標の直前で間引くと非ゼロで終了する", () => {
@@ -913,11 +987,15 @@ describe("照合より後段での間引き: scripts/audit-structure.mjs", () =>
       "間引きを差し込めていません",
     );
     // Then: 走査量の表示は間引きの前なので変わらない（数字では気づけない）
-    assert.match(r.stdout, /SC-039②③ の走査対象: 照合先 4 パッケージ \/ 29 ファイル/);
+    const scanned = readScanVolume(r.stdout);
+    assert.equal(scanned.sc039Compared, control.sc039Compared, "走査量の表示が変わっています");
     // Then: それでも落ちる
     assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
     assert.match(r.stderr, /指標が測った走査対象が、照合した走査対象と食い違っています/);
-    assert.match(r.stderr, /SC-039 照合先: 29 → 28/);
+    assert.match(
+      r.stderr,
+      new RegExp(`SC-039 照合先: ${control.sc039Compared} → ${control.sc039Compared - 1}`),
+    );
   });
 
   test("テスト集合を指標の直前で間引くと非ゼロで終了する（SC-029 / SC-032 の同型経路）", () => {
@@ -937,11 +1015,12 @@ describe("照合より後段での間引き: scripts/audit-structure.mjs", () =>
       "間引きを差し込めていません",
     );
     // Then: 例外表の照合先の表示は間引きの前なので変わらない
-    assert.match(r.stdout, /SC-032 の例外表: \d+ 件 \/ 照合先 268 ファイル/);
+    const scanned = readScanVolume(r.stdout);
+    assert.equal(scanned.testFiles, control.testFiles, "例外表の照合先の表示が変わっています");
     // Then: それでも落ちる
     assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
     assert.match(r.stderr, /指標が測った走査対象が、照合した走査対象と食い違っています/);
-    assert.match(r.stderr, /テスト集合: 268 → 267/);
+    assert.match(r.stderr, new RegExp(`テスト集合: ${control.testFiles} → ${control.testFiles - 1}`));
   });
 
   test("突き合わせそのものを消すと、同じ間引きが素通りするようになる（配線の破壊検証）", () => {
