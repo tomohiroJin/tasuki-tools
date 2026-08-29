@@ -59,6 +59,14 @@ describe("NanoidCodeGen.generate（ルーム名＋接尾辞）", () => {
    */
   const ONE_YEAR_SECONDS = 31_536_000;
   const SUSTAINED_ATTEMPTS_PER_SECOND = 1;
+  /**
+   * 分散攻撃のレート（#103 設計正本 §3.4）。
+   * **これは ADR-0011 決定4 の目標そのものではない。** 決定4 の目標値は単一 IP の
+   * 持続レートで定義されている。#144 が 8 文字を選んだ理由はこちらの余裕にあり、
+   * 実装の docstring と ADR-0011 決定4 の改訂もその充足を主張しているので、
+   * **主張しているなら検査する**（決定4 の前提レートだけで判定すると 5 文字でも通る）。
+   */
+  const DISTRIBUTED_ATTEMPTS_PER_SECOND = 1000;
 
   /** 接尾辞を多数引いて、実際に使われている文字と長さを観測する。 */
   function observeSuffixes(samples: number) {
@@ -85,8 +93,18 @@ describe("NanoidCodeGen.generate（ルーム名＋接尾辞）", () => {
     expect(lengths.size, "接尾辞の長さが揺れています").toBe(1);
     // When: 観測した値だけで探索空間を組み立てる（テスト側の定数は使わない）
     const searchSpace = Math.pow(characters.size, [...lengths][0]!);
-    const secondsToExhaust = searchSpace / SUSTAINED_ATTEMPTS_PER_SECOND;
     // Then: 32 種 4 文字では 12.1 日で、目標に届かなかった（#144）
-    expect(secondsToExhaust).toBeGreaterThanOrEqual(ONE_YEAR_SECONDS);
+    expect(searchSpace / SUSTAINED_ATTEMPTS_PER_SECOND).toBeGreaterThanOrEqual(ONE_YEAR_SECONDS);
+  });
+
+  it("接尾辞の探索空間は分散攻撃のレートでも全探索 1 年以上になる（#144 が選んだ余裕）", () => {
+    // Given: 実際に生成された接尾辞から、文字の種類数と長さを観測する
+    const { characters, lengths } = observeSuffixes(500);
+    expect(lengths.size, "接尾辞の長さが揺れています").toBe(1);
+    // When
+    const searchSpace = Math.pow(characters.size, [...lengths][0]!);
+    // Then: 決定4 の前提レートだけを見ると 5 文字でも通ってしまい、
+    //       桁数を守っているのが正規表現だけになる（敵対的検証の指摘）
+    expect(searchSpace / DISTRIBUTED_ATTEMPTS_PER_SECOND).toBeGreaterThanOrEqual(ONE_YEAR_SECONDS);
   });
 });
