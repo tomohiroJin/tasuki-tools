@@ -4,10 +4,13 @@
  *
  *   node scripts/check-links.mjs
  *
- * 3 種を検査する。
+ * 4 種を検査する。
  *   1. 相対リンク  [text](path)         全 *.md
+ *                 （ネストした角括弧の外側・題名つきも含む。#156 ③④）
  *   2. アンカー    [text](path#anchor)  全 *.md
  *   3. コードパス  `packages/foo.ts`    LIVE_DOCS に属する文書のみ
+ *                 （拡張子の無いディレクトリ参照・ADR 番号の接頭辞も含む。#156 ①）
+ *   4. 行番号      `packages/foo.ts:70` LIVE_DOCS に属する文書のみ（#156 ②）
  *
  * **Markdown のコード領域（フェンス・インラインコード）はリンク検査の対象外。**
  * 検査手順を説明する文書が `[x](no-such-file.md)` のような例示を含むため、
@@ -104,22 +107,89 @@ export function collectAnchors(src) {
 /** リポジトリのルート直下で、コードパスの引用があり得るディレクトリ。 */
 const REPO_TOP_LEVEL = /^(packages|apps|scripts|docs|deploy|e2e|\.github)\//;
 
-/** バッククォートの中身がリポジトリ内のファイルパスに見えるか。 */
+/**
+ * バッククォートの中身がリポジトリ内のパス（ファイルまたはディレクトリ）に見えるか。
+ *
+ * **拡張子は要求しない**（#156 ①）。要求していたころは
+ * `apps/poker-sync/src/application` のようなディレクトリ参照が丸ごと網から落ち、
+ * 書いてあるのに一度も検査されなかった。拡張子で切るのをやめた代わりに、
+ * ADR 番号の接頭辞参照（`docs/adr/0002`）だけを isAdrNumberRef で名指しし、
+ * 別の解決規則（resolveAdrNumberRef）へ回す。
+ */
 export function isRepoPathLike(text) {
   if (!REPO_TOP_LEVEL.test(text)) return false;
   if (/\s/.test(text)) return false;
-  // グロブ・変数展開・リダイレクトを含むものはコマンド例なので対象外
+  // グロブ・変数展開・リダイレクト・メタ変数（`packages/<pkg>/src`）は
+  // コマンド例・記法例なので対象外
   if (/[*?<>{}$|]/.test(text)) return false;
-  // 拡張子が無いものは参照記法（`docs/adr/0002` のような ADR 番号の接頭辞）とみなす
-  return /\.[a-z0-9]+(:\d+(-\d+)?)?$/i.test(text);
+  return true;
 }
 
-/** コード領域の外にある相対リンクを、行番号つきで拾う。 */
+/**
+ * `docs/adr/0002` のような **ADR 番号の接頭辞参照**か。
+ *
+ * 拡張子を要求しなくなった以上、ディレクトリ参照とこの参照記法は記法だけでは
+ * 区別できない。**「`adr/` の直下にある 4 桁数字で終わる」ものだけ**を接頭辞参照と定め、
+ * それ以外はすべてファイルまたはディレクトリとしての実在を要求する。
+ * 判定は無状態で、許可する形をこの 1 行が全部書いている。
+ */
+export function isAdrNumberRef(text) {
+  return /(^|\/)adr\/\d{4}$/.test(text);
+}
+
+/**
+ * ADR 番号の接頭辞が実在の ADR（`docs/adr/0002-….md`）へ解決できるか。
+ *
+ * **存在確認をしない割り切りではない。** 番号が飛べば赤になる。
+ * ハイフンまで含めて前方一致させるのは、`0002` が `00021-…` に当たらないようにするため。
+ */
+export function resolveAdrNumberRef(text, paths) {
+  const prefix = `${text}-`;
+  for (const rel of paths) {
+    if (rel.startsWith(prefix)) return true;
+  }
+  return false;
+}
+
+/** ファイル内容の行数（末尾の改行 1 個は行を増やさない）。 */
+export function countLines(src) {
+  if (src === "") return 0;
+  return src.replace(/\n$/, "").split("\n").length;
+}
+
+/**
+ * `path/to/file.ts:70` / `:5-6` を本体と行番号へ分ける。
+ *
+ * 従来は行番号を捨てるだけで、**その行が実在するかは一切見ていなかった**（#156 ②）。
+ * 範囲のときは終端を返す（そこまで実在することを要求する）。
+ */
+export function parseLineRef(raw) {
+  const m = raw.match(/:(\d+)(?:-(\d+))?$/);
+  if (!m) return { path: raw, lineRef: null };
+  return {
+    path: raw.slice(0, m.index),
+    lineRef: Math.max(Number(m[1]), Number(m[2] ?? m[1])),
+  };
+}
+
+/**
+ * コード領域の外にある相対リンクを、行番号つきで拾う。
+ *
+ * **ラベル側を一切見ない**（#156 ③④）。`\[[^\]]*\]` でラベルを噛ませていたころは
+ * `[![alt](img.png)](link.md)` の内側の画像だけが一致し、外側の `link.md` を見逃した。
+ * `](` を起点に括弧の中身だけを取れば、内側・外側の両方が別々に一致する
+ * （ネストを数える状態を持たずに済む）。
+ *
+ * 括弧の中身は「最初の空白まで」が参照先で、その先は題名
+ * （`[a](./a.md "title")`。空白を許さない文字クラスは一致すらしなかった）。
+ * **賢い正規表現 1 本より、単純な規則 2 つの重ね掛けを選ぶ。**
+ */
 export function findRelativeLinks(src) {
   const found = [];
   stripCodeRegions(src).forEach((line, i) => {
-    for (const m of line.matchAll(/\[[^\]]*\]\(([^)\s]+)\)/g)) {
-      const target = m[1];
+    for (const m of line.matchAll(/\]\(([^)]*)\)/g)) {
+      const target = m[1].trim().split(/\s+/)[0];
+      if (!target) continue;
       if (/^(https?:|mailto:)/.test(target)) continue;
       found.push({ target, line: i + 1 });
     }
@@ -141,7 +211,7 @@ export function findInlineCodePaths(src) {
     for (const m of line.matchAll(/`([^`\n]+)`/g)) {
       const raw = m[1].trim();
       if (!isRepoPathLike(raw)) continue;
-      found.push({ path: raw.replace(/:\d+(-\d+)?$/, ""), raw, line: i + 1 });
+      found.push({ ...parseLineRef(raw), raw, line: i + 1 });
     }
   });
   return found;
@@ -220,6 +290,9 @@ export function classifyDocs(tracked, { live = LIVE_DOCS, dormant = DORMANT_DOCS
  * 削除されたファイルへの言及が、決定の記録として正しい場合がある。
  * コードフェンスの除外では救えない（記法で区別できない）ため例外表を持つ。
  * **使われなくなったエントリは checkStaleExceptions が落とす。**
+ *
+ * `doc` を書くと**その文書の中でだけ**効く（書かなければ全文書に効く）。
+ * `packages/core` のような「ありふれた誤りにもなり得る旧名」を全文書で免罪しないため。
  */
 export const MISSING_PATH_EXCEPTIONS = [
   {
@@ -230,7 +303,81 @@ export const MISSING_PATH_EXCEPTIONS = [
     path: "apps/timer-sync/.env",
     reason: "gitignore 対象。deploy/timer/NOTES.md は、この実 env を各自で作る手順を案内している",
   },
+  {
+    doc: "docs/constitution.md",
+    path: "packages/core",
+    reason:
+      "憲法 2.0.0 の Sync Impact Report が「原則 I の `packages/core` 限定を撤廃した」と" +
+      "書くための旧名の引用。撤廃された名前なので実在しないことが正しい",
+  },
+  {
+    doc: "docs/constitution.md",
+    path: "apps/web",
+    reason:
+      "憲法 2.0.0 の Sync Impact Report が「原則 V の `apps/web` 限定を撤廃した」と" +
+      "書くための旧名の引用。撤廃された名前なので実在しないことが正しい",
+  },
 ];
+
+/**
+ * 「行番号が実在しないことが正しい」`path:line` 参照。
+ *
+ * ADR は追記のみで書き換えない（`docs/adr/0002`）。当時の実測として書かれた行番号は、
+ * その後のリファクタリングで実ファイルが縮んでも**そのままが正しい**。
+ * **対象の記述が消えても、実ファイルが伸びて行番号が再び実在するようになっても、
+ * この例外は「一度も赤を抑えなかった」ものとして checkStaleExceptions が落とす。**
+ */
+export const STALE_LINE_REF_EXCEPTIONS = [
+  {
+    doc: "docs/adr/0016-core-domain-representation.md",
+    raw: "apps/poker-sync/src/server.ts:244",
+    reason:
+      "2026-08-17 実測時点の行番号。#165 のポート/アダプタ再編で server.ts が縮んだが、" +
+      "ADR は追記のみで書き換えない",
+  },
+];
+
+/** 文書とパスに一致する例外を返す（`doc` の無いものは全文書に効く）。 */
+export function findMissingPathException(doc, target, entries = MISSING_PATH_EXCEPTIONS) {
+  return entries.find((e) => e.path === target && (e.doc === undefined || e.doc === doc)) ?? null;
+}
+
+/** 文書と原文（行番号込み）が両方一致する例外を返す。 */
+export function findLineRefException(doc, raw, entries = STALE_LINE_REF_EXCEPTIONS) {
+  return entries.find((e) => e.doc === doc && e.raw === raw) ?? null;
+}
+
+/**
+ * インラインコードのパス参照 1 件を判定し、`{ error }` か `{ exception }` か `{}` を返す。
+ *
+ * **main() の中に置かない。** 置いていたときは、ADR 番号の解決（`adrRef` を常に false へ）も
+ * 行番号の比較（`lineRef <= total` を恒真へ）も潰したまま単体テスト 65 件が全緑だった。
+ * 判定を関数へ出し、main は「呼んで結果を積む」だけにする。
+ *
+ * @param lineCount 対象パスの行数を返す。ファイルとして読めないときは null。
+ */
+export function checkCodePathRef(doc, ref, { exists, adrPaths, lineCount }) {
+  const { path: target, raw, line, lineRef } = ref;
+  // ① ADR 番号の接頭辞参照だけは、実在ではなく「その番号の ADR が在るか」で解決する
+  const adrRef = isAdrNumberRef(target);
+  if (!(adrRef ? resolveAdrNumberRef(target, adrPaths) : exists(target))) {
+    const exception = findMissingPathException(doc, target);
+    if (exception) return { exception };
+    return {
+      error: adrRef
+        ? `${doc}:${line} 対応する ADR がありません → \`${raw}\``
+        : `${doc}:${line} 実在しないパスです → \`${raw}\``,
+    };
+  }
+
+  // ② 行番号は、対象がファイルとして読めるときだけ「その行まで在るか」を見る
+  if (lineRef === null) return {};
+  const total = lineCount(target);
+  if (total === null || lineRef <= total) return {};
+  const exception = findLineRefException(doc, raw);
+  if (exception) return { exception };
+  return { error: `${doc}:${line} 行番号が実在しません（対象は ${total} 行） → \`${raw}\`` };
+}
 
 export function isLiveDoc(relPath) {
   return LIVE_DOCS.some((entry) =>
@@ -258,11 +405,22 @@ export function checkConstants({ exists }) {
   return errors;
 }
 
-/** 一度も検出を抑えなかった例外を報告する（腐った例外表を残さない）。 */
-export function checkStaleExceptions(usedPaths) {
-  return MISSING_PATH_EXCEPTIONS.filter((e) => !usedPaths.has(e.path)).map(
-    (e) => `使われていない例外が残っています: ${e.path}（${e.reason}）`,
-  );
+/**
+ * 一度も検出を抑えなかった例外を報告する（腐った例外表を残さない）。
+ *
+ * **鍵はパス文字列ではなくエントリそのもの**で、**「参照が現れたか」ではなく
+ * 「実際に赤を 1 回でも抑えたか」で数える**。現れたかで数えると、対象が復活して
+ * 例外が不要になったときに気づけない（この関数の説明文だけが正しく、
+ * 実装が現れた回数を数えていた）。
+ */
+export function checkStaleExceptions(used, entries = MISSING_PATH_EXCEPTIONS) {
+  return entries
+    .filter((e) => !used.has(e))
+    .map(
+      (e) =>
+        `使われていない例外が残っています: ${e.doc ? `${e.doc} の ` : ""}${e.raw ?? e.path}` +
+        `（${e.reason}）`,
+    );
 }
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -292,11 +450,11 @@ function trackedPaths() {
     const parts = file.split("/");
     for (let i = 1; i < parts.length; i++) set.add(parts.slice(0, i).join("/") + "/");
   }
-  return set;
+  return { files, set };
 }
 
 function main() {
-  const tracked = trackedPaths();
+  const { files: trackedFiles, set: tracked } = trackedPaths();
   const exists = (rel) => tracked.has(rel) || tracked.has(rel.endsWith("/") ? rel : `${rel}/`);
   const errors = checkConstants({ exists });
 
@@ -333,8 +491,13 @@ function main() {
     }
     return anchorCache.get(abs);
   };
+  // 例外の使用記録は 1 つの Set に集める（エントリそのものを鍵にするので混ざらない）。
   const usedExceptions = new Set();
-  const exceptionPaths = new Set(MISSING_PATH_EXCEPTIONS.map((e) => e.path));
+  const lineCount = (rel) => {
+    const abs = path.resolve(REPO_ROOT, rel);
+    if (!fs.existsSync(abs) || !fs.statSync(abs).isFile()) return null;
+    return countLines(fs.readFileSync(abs, "utf8"));
+  };
 
   for (const rel of files) {
     const abs = path.resolve(REPO_ROOT, rel);
@@ -357,16 +520,19 @@ function main() {
     }
 
     if (!isLiveDoc(rel)) continue;
-    for (const { path: p, raw, line } of findInlineCodePaths(src)) {
-      if (exceptionPaths.has(p)) {
-        usedExceptions.add(p);
-        continue;
-      }
-      if (!exists(p)) errors.push(`${rel}:${line} 実在しないパスです → \`${raw}\``);
+    for (const ref of findInlineCodePaths(src)) {
+      const { error, exception } = checkCodePathRef(rel, ref, {
+        exists,
+        adrPaths: trackedFiles,
+        lineCount,
+      });
+      if (exception) usedExceptions.add(exception);
+      if (error) errors.push(error);
     }
   }
 
   errors.push(...checkStaleExceptions(usedExceptions));
+  errors.push(...checkStaleExceptions(usedExceptions, STALE_LINE_REF_EXCEPTIONS));
 
   if (errors.length > 0) {
     for (const e of errors) console.error(e);

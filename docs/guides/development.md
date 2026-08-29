@@ -531,8 +531,8 @@ workspace の実体（`pnpm -r list --depth -1 --json`）と全単射で照合�
 ### ディレクトリを移設・改名すると検査が赤くなる
 
 パッケージ名だけでなく、**宣言から導出される走査ディレクトリの実在**も検査します
-（`packages/x/src` や、構造監査が見る `test` ディレクトリ・エントリポイント）。
-`packages/x/src` を `packages/x/source` へ改名すると、パッケージ名は workspace に
+（`packages/<pkg>/src` や、構造監査が見る `test` ディレクトリ・エントリポイント）。
+`packages/<pkg>/src` を `packages/<pkg>/source` へ改名すると、パッケージ名は workspace に
 残っているため全単射照合は通りますが、実在確認が次の形で落とします。
 
 ```
@@ -611,6 +611,21 @@ shellcheck・自己テスト（`node --test`）の対象は宣言ではなく `g
 リンク検査（`scripts/check-links.mjs`）は追跡下の `*.md` を `LIVE_DOCS` と
 `DORMANT_DOCS` の宣言へ全分割します。新しいディレクトリに文書を置いたときの扱いは
 同スクリプト内のコメントを参照してください。
+
+**現役の規範文書（`LIVE_DOCS`）では、インラインコードに書いたリポジトリ内のパスも
+検査します。拡張子の有無は問いません**（#156）。ディレクトリ参照
+（`apps/poker-sync/src/adapters`）も、`path:line` 表記の**行番号が対象ファイルの
+行数を超えていないか**も見ます。次の 3 つは対象外です。
+
+- グロブ・変数展開・メタ変数を含むもの（`packages/*/src`・`apps/${APP}/dist`・
+  `packages/<pkg>/src`）。**任意の名前を表したいときは `<…>` で書いてください**
+- `docs/adr/0002` のような **ADR 番号の接頭辞**。ディレクトリではなく
+  「その番号で始まる ADR が実在するか」で解決します（番号が飛べば赤になります）
+- 例外表（`MISSING_PATH_EXCEPTIONS` / `STALE_LINE_REF_EXCEPTIONS`）に理由つきで
+  登録したもの。**一度も赤を抑えなかったエントリは検査が落とします**
+
+相対リンクの側では、ネストした角括弧（`[![alt](img.png)](link.md)`）の外側と、
+題名つきリンク（`[a](./a.md "title")`）も検査対象です。
 
 ## CI
 
