@@ -289,3 +289,100 @@ describe("useTimerSync: 後始末", () => {
     expect(closeSpy).toHaveBeenCalled();
   });
 });
+
+describe("混雑で入室を拒まれたとき", () => {
+  /** バナーを差し替えて接続済みにする（上の describe のものとは別に持つ）。 */
+  function connectedWith(banner: BannerController) {
+    const hook = renderHook(() => useTimerSync(banner));
+    act(() => hook.result.current.createRoom("Host"));
+    const ws = latestSocket();
+    act(() => {
+      ws.readyState = FakeWS.OPEN;
+      ws.onopen?.();
+    });
+    const deliver = (msg: Record<string, unknown>) =>
+      act(() => void ws.onmessage?.({ data: JSON.stringify(msg) } as MessageEvent));
+    return { ...hook, ws, deliver };
+  }
+
+  /** 保存済みの識別情報を置く（再接続時の再送と同じ材料）。 */
+  function seedResumeIdentity() {
+    sessionStorage.setItem(
+      "tdd-mob:resume-identity",
+      JSON.stringify({ code: "ROOM01", participantId: "me", resumeToken: "rt", displayName: "私" }),
+    );
+  }
+
+  /** 送信された command 名の一覧。 */
+  function sentCommands(send: { mock: { calls: unknown[][] } }): string[] {
+    return send.mock.calls
+      .map((c: unknown[]) => {
+        try {
+          return (JSON.parse(String(c[0])) as { command?: string }).command ?? "";
+        } catch {
+          return "";
+        }
+      })
+      .filter(Boolean);
+  }
+
+  it("すぐには送り直さず、待ってから room.join を自動で送り直す", () => {
+    // Given: 保存済みの識別情報があり、入室が混雑で拒まれた
+    vi.useFakeTimers();
+    try {
+      seedResumeIdentity();
+      const { ws, deliver } = connectedWith(fakeBanner());
+      const send = vi.spyOn(ws, "send");
+      deliver({ type: "error", code: "JOIN_RATE_LIMITED", message: "混み合っています" });
+      // Then: 即時の再送はしない（素朴な再試行はバケツを消費し続ける）
+      expect(sentCommands(send)).not.toContain("room.join");
+      // When: 1 回目の待ち時間の上限ぶん進める
+      act(() => void vi.advanceTimersByTime(3_100));
+      // Then
+      expect(sentCommands(send)).toContain("room.join");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("待っていることが分かるバナーを出し、自動では消さない", () => {
+    // Given
+    vi.useFakeTimers();
+    try {
+      seedResumeIdentity();
+      const banner = fakeBannerRecordingArgs();
+      const { deliver } = connectedWith(banner);
+      // When
+      deliver({ type: "error", code: "JOIN_RATE_LIMITED", message: "混み合っています" });
+      // Then: 4 秒で消える一時バナーだと「待てば入れる」ことが伝わらない
+      const last = banner.showCalls[banner.showCalls.length - 1];
+      expect(last?.[2]?.autoDismiss).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("試行を使い切ったら、何をすれば入れるかを伝えて再送をやめる", () => {
+    // Given
+    vi.useFakeTimers();
+    try {
+      seedResumeIdentity();
+      const banner = fakeBannerRecordingArgs();
+      const { ws, deliver } = connectedWith(banner);
+      const send = vi.spyOn(ws, "send");
+      // When: 拒まれるたびに待ち、上限回数を超えるまで繰り返す
+      for (let i = 0; i < 8; i++) {
+        deliver({ type: "error", code: "JOIN_RATE_LIMITED", message: "混み合っています" });
+        act(() => void vi.advanceTimersByTime(46_000));
+      }
+      const attempts = sentCommands(send).filter((c) => c === "room.join").length;
+      // Then: 際限なく送らない
+      expect(attempts).toBeLessThanOrEqual(6);
+      // Then: 利用者が次に取れる手立てが画面に出る
+      const lastCall = banner.showCalls[banner.showCalls.length - 1];
+      expect(lastCall?.[0]).toMatch(/再読込|読み込み直/);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

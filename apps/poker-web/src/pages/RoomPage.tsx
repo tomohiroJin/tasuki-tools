@@ -8,16 +8,23 @@ import { Results } from '../components/Results';
 import type { PokerSync } from '../hooks/useSync';
 import { roomPath, topPath } from '../router';
 import { clearIdentity, loadIdentity } from '../storage';
+import { joinRetryDelayMs } from '../join-retry';
 
 interface Props {
   roomId: string;
   sync: PokerSync;
 }
 
-function JoinForm({ roomId, sync }: Props) {
+function JoinForm({ roomId, sync, notice }: Props & { notice: string | null }) {
   return (
     <main className="page">
       <h1>ルームに参加</h1>
+      {/* 混雑で弾かれている間、この画面には何の手がかりも出ていなかった（#147）。 */}
+      {notice && (
+        <p className="error-note" role="status">
+          {notice}
+        </p>
+      )}
       <NameForm
         submitLabel="参加する"
         placeholder="例: はなこ"
@@ -101,6 +108,39 @@ export function RoomPage({ roomId, sync }: Props) {
     sync.checkRoom(roomId);
   }, [sync, roomId]);
 
+  // 混雑で弾かれたら、待ってから入り直す（#147）。
+  //
+  // #103 でレート制限が IP 単位になり、同一 NAT の利用者はバケツを共有する。
+  // バースト容量を超えた人は `rate-limited` を受けるが、上の `attemptedRef` は
+  // 接続ごとに 1 回しか試みないため、**接続済み・未入室のまま滞留**していた。
+  // **即時に送り直してはならない** — 待ち時間とばらつきは join-retry.ts が決める。
+  const rateLimitAttemptRef = useRef(0);
+  const [retryNotice, setRetryNotice] = useState<string | null>(null);
+  useEffect(() => {
+    if (sync.joinedThisConnection) {
+      // 入れたので数え直す。案内も消す。
+      rateLimitAttemptRef.current = 0;
+      setRetryNotice(null);
+      return;
+    }
+    if (sync.error?.code !== 'rate-limited') return;
+    const attempt = rateLimitAttemptRef.current + 1;
+    const delay = joinRetryDelayMs(attempt);
+    if (delay === null) {
+      // 使い切った。**数え直さない**（数え直すと諦めたはずが送り続ける形になる）。
+      setRetryNotice('混雑が続いています。時間をおいてから再読込してください');
+      return;
+    }
+    rateLimitAttemptRef.current = attempt;
+    setRetryNotice('混み合っています。自動で入り直しています…');
+    const timer = setTimeout(() => {
+      const stored = loadIdentity(roomId);
+      if (stored) sync.joinRoom(roomId, stored.name, stored.token);
+      else sync.checkRoom(roomId);
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [sync, roomId]);
+
   // 消滅したルームのトークンは破棄する（再試行ループ防止）
   useEffect(() => {
     if (sync.error?.code === 'room-not-found') clearIdentity(roomId);
@@ -119,7 +159,7 @@ export function RoomPage({ roomId, sync }: Props) {
 
   const { snapshot } = sync;
   if (!snapshot || snapshot.roomId !== roomId) {
-    return <JoinForm roomId={roomId} sync={sync} />;
+    return <JoinForm roomId={roomId} sync={sync} notice={retryNotice} />;
   }
 
   const isHost = snapshot.participants.find((p) => p.id === snapshot.you)?.isHost ?? false;

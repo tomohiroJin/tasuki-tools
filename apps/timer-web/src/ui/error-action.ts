@@ -6,6 +6,8 @@
 export type ErrorAction =
   | { kind: "session-lost" }
   | { kind: "leave-room"; destination: "join" | "setup" }
+  /** 混雑で入室を拒まれた。待ってから入り直せば入れる（#147）。 */
+  | { kind: "retry-later" }
   | { kind: "transient" };
 
 /**
@@ -19,6 +21,10 @@ export function errorAction(code: string): ErrorAction {
   switch (code) {
     case "ROOM_NOT_FOUND":
       return { kind: "session-lost" };
+    // 混雑で入室を拒まれただけで、待てば入れる（#147）。既定の transient に落とすと
+    // バナーを出すだけで再送も破棄も起きず、接続済み・未入室のまま滞留する。
+    case "JOIN_RATE_LIMITED":
+      return { kind: "retry-later" };
     case "LEFT_ROOM":
       return { kind: "leave-room", destination: "setup" };
     case "REMOVED_FROM_ROOM":

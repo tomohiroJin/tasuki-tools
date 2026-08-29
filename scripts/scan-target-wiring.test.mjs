@@ -829,8 +829,19 @@ describe("SC-039 の走査範囲の配線: scripts/audit-structure.mjs（#180）
       1,
       "間引きを差し込めていません",
     );
-    // Then: パッケージ単位の名乗りは変わらない
-    assert.match(r.stdout, /参照元 9 パッケージ \/ 185 ファイル/);
+    // Then: パッケージ単位の名乗りは変わらない（**件数は直書きしない** —
+    //       製品コードのファイルを 1 つ足すたびに、無関係にここが赤くなる）。
+    //       対照実行の走査量から、参照元が「ちょうど 1 件だけ」減ったことを見る。
+    const control = runScriptCopy("audit-structure.mjs", (x) => x);
+    const readReference = (stdout) => {
+      const m = stdout.match(/参照元 (\d+) パッケージ \/ (\d+) ファイル/);
+      assert.ok(m, `参照元の走査量を読めません:\n${stdout}`);
+      return { packages: Number(m[1]), files: Number(m[2]) };
+    };
+    const before = readReference(control.stdout);
+    const after = readReference(r.stdout);
+    assert.equal(after.packages, before.packages, "パッケージ単位の名乗りが変わっています");
+    assert.equal(after.files, before.files - 1, "参照元がちょうど 1 件だけ減っていません");
     // Then: それでもファイル単位の照合が落とし、抜けたファイルを名指しする
     assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
     assert.match(r.stderr, /宣言では走査するのに集合へ入っていない:\s+packages\/poker-core\/src\/deck\.ts/);

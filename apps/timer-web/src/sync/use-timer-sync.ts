@@ -40,6 +40,7 @@ import {
 import { NoAiProvider } from "../ai/no-ai.js";
 import type { ProblemProvider } from "../ai/provider.js";
 import { errorAction } from "../ui/error-action.js";
+import { joinRetryDelayMs } from "./join-retry.js";
 import { stripRoomParam } from "../ui/room-param.js";
 import { hostChangeMessage } from "../ui/host-change.js";
 import { useLatestRef } from "../ui/use-latest-ref.js";
@@ -50,6 +51,11 @@ import { saveRecord } from "../records/indexeddb.js";
 import { persistRecordIfComplete } from "../records/persist.js";
 import { displayMessageFor } from "@tasuki/timer-core";
 import type { CompletionRecord, Room, SessionConfig } from "@tasuki/timer-core";
+
+/** 混雑で入室を拒まれ、自動で入り直している間の案内（#147）。 */
+const JOIN_RETRY_WAITING_TEXT = "混み合っています。自動で入り直しています…";
+/** 自動で入り直しても入れなかったときの案内（#147）。 */
+const JOIN_RETRY_EXHAUSTED_TEXT = "混雑が続いています。時間をおいてから再読込してください";
 
 export type AppMode = "setup" | "join" | "lobby" | "session" | "celebration" | "history";
 
@@ -156,6 +162,17 @@ export function useTimerSync(banner: BannerController): TimerSync {
   // 値を受け渡したいため（両者は別々の WS メッセージから来る）。ハンドラの closure から
   // 読む値ではないので、handlersRef 経由の仕組みには乗らない。
   const pendingResumeRef = useRef<{ participantId: string; resumeToken: string } | null>(null);
+  // 混雑で入室を拒まれたときの自動再試行（#147）。**即時に送り直してはならない** —
+  // 同一 NAT の利用者はレート制限のバケツを共有するため、素朴な再試行は
+  // 自分たちで自分たちを締め出す。待ち時間とばらつきは join-retry.ts が決める。
+  const joinRetryAttemptRef = useRef(0);
+  const joinRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelJoinRetry = () => {
+    if (joinRetryTimerRef.current !== null) {
+      clearTimeout(joinRetryTimerRef.current);
+      joinRetryTimerRef.current = null;
+    }
+  };
   // 参加/作成時に指定した表示名。resumeToken 再送の room.join に必要
   // （サーバー側スキーマで displayName は必須項目のため・Issue #24）。
   const resumeDisplayNameRef = useRef<string>("");
@@ -198,6 +215,9 @@ export function useTimerSync(banner: BannerController): TimerSync {
   // メッセージ処理時点ではまだ `null` のため、ここから読んではいけない。
 
   const handleRoom = (syncClient: SyncClient, r: Room) => {
+    // 入室できたら再試行の数え直し（#147）。次に混雑へ当たったときは 1 回目から始める。
+    cancelJoinRetry();
+    joinRetryAttemptRef.current = 0;
     // `room` はこのハンドラを作ったレンダーの const なので、下で `setRoom(r)` しても
     // このスコープ内では変わらない。値は「直前のレンダー時点の snapshot」である。
     const prevRoom = room;
@@ -353,6 +373,34 @@ export function useTimerSync(banner: BannerController): TimerSync {
         }
         return;
       }
+      case "retry-later": {
+        // 混雑で弾かれただけで、待てば入れる（#147）。利用者の操作なしに入り直す。
+        // バナーは自動消去しない — 4 秒で消えると「待てば入れる」ことが伝わらない。
+        cancelJoinRetry();
+        const attempt = joinRetryAttemptRef.current + 1;
+        const delay = joinRetryDelayMs(attempt);
+        if (delay === null) {
+          // 試行を使い切った。**際限なく送り続けない**（混雑が解消しない状況で
+          // バケツを消費し続けると、自分たちで自分たちを締め出す）。
+          // **数え直さない。** 0 に戻すと、次に届いた拒否で最初から数え直してしまい、
+          // 「諦めた」はずが送り続ける形になる。数え直すのは入室できたときと、
+          // 接続し直したときだけ。
+          joinRetryAttemptRef.current = attempt;
+          showBanner(JOIN_RETRY_EXHAUSTED_TEXT, "warn", { autoDismiss: false });
+          return;
+        }
+        joinRetryAttemptRef.current = attempt;
+        showBanner(JOIN_RETRY_WAITING_TEXT, "warn", { autoDismiss: false });
+        joinRetryTimerRef.current = setTimeout(() => {
+          joinRetryTimerRef.current = null;
+          // 保存が無い（招待リンクで来た初回など）と自動では入り直せないので、
+          // 手立てを示して終わる。
+          if (!sendResumeJoin(syncClient)) {
+            showBanner(JOIN_RETRY_EXHAUSTED_TEXT, "warn", { autoDismiss: false });
+          }
+        }, delay);
+        return;
+      }
       case "transient": {
         // それ以外は「一時的な操作エラー」。分かりやすい日本語にし、数秒で自動消去する
         // （生のコードを残し続けない・画面遷移後も居座らせない）。
@@ -370,9 +418,9 @@ export function useTimerSync(banner: BannerController): TimerSync {
   // WS が切断後に自動再接続したとき、保存済みの resumeToken で room.join を
   // 利用者の操作なしに再送する（Issue #24・FR-002/FR-003）。初回 connect() では
   // 呼ばれないため、ここでの二重送信は起きない。
-  const handleReconnected = (syncClient: SyncClient) => {
+  const sendResumeJoin = (syncClient: SyncClient): boolean => {
     const saved = loadResumeIdentity();
-    if (!saved) return;
+    if (!saved) return false;
     syncClient.send({
       command: "room.join",
       code: saved.code,
@@ -380,6 +428,15 @@ export function useTimerSync(banner: BannerController): TimerSync {
       hasAiKey: false,
       resumeToken: saved.resumeToken,
     });
+    return true;
+  };
+
+  const handleReconnected = (syncClient: SyncClient) => {
+    // 接続し直したところなので、混雑の数え直しをする（#147）。前の接続で諦めていても、
+    // 新しい接続では改めて入り直しを試みてよい。
+    cancelJoinRetry();
+    joinRetryAttemptRef.current = 0;
+    sendResumeJoin(syncClient);
   };
 
   // 破壊的操作の実行者を全員へ伝える（Issue #22・FR-077）。
