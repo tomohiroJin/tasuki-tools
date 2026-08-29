@@ -221,26 +221,34 @@ integrity ハッシュが古いままなので実インストールで `ERR_PNPM
 
 ```bash
 # 0. 前提: 判定に使う 2 ファイルに未コミットの変更が無いこと（出力が空であること）
-#    手順 6 でこの 2 ファイルを HEAD へ戻すため、先に手元の変更をコミットしておく
+#    手順 7 でこの 2 ファイルを HEAD へ戻すため、先に手元の変更をコミットしておく
 git status --porcelain -- pnpm-workspace.yaml pnpm-lock.yaml
 
 # 1. overrides の当該行を 1 行だけ消す（エディタで編集）
 
-# 2. lockfile と node_modules を捨てる。node_modules を残すと手順ごと空振りする
-rm -rf pnpm-lock.yaml node_modules apps/*/node_modules packages/*/node_modules e2e/node_modules
-test -e node_modules && echo "node_modules が残っている。この先へ進まないこと"
+# 2. lockfile と node_modules を捨てる。bash -c で包むのは意図的（下の注記を参照）
+bash -c 'set -euo pipefail
+rm -rf pnpm-lock.yaml node_modules apps/*/node_modules packages/*/node_modules e2e/node_modules'
 
-# 3. 全体を解決し直す
+# 3. 捨て残しの検査。1 つでも残っていると pnpm は前回の結果を引き継ぎ、以降が
+#    測定にならない。非 0 で止まったら先へ進まず、手順 2 をやり直す
+bash -c 'set -euo pipefail
+for p in pnpm-lock.yaml node_modules apps/*/node_modules packages/*/node_modules e2e/node_modules; do
+  if [ -e "$p" ]; then echo "捨て残し: $p"; exit 1; fi
+done
+echo "捨て残しなし"'
+
+# 4. 全体を解決し直す
 pnpm install --lockfile-only
 
-# 4. 空振り検知: 外した行が lockfile 冒頭の overrides に残っていたら、lockfile は
-#    復元されただけで解決していない。手順 2 からやり直す
+# 5. 消し忘れ検知: 外した行が lockfile 冒頭の overrides に残っていたら、手順 1 が
+#    効いていない（外し損ねか、別の行を消した）。手順 1 へ戻る
 grep -n "^  <外した overrides のキー>:" pnpm-lock.yaml   # 何も出ないこと（例: nanoid@3:）
 
-# 5. 作り直した lockfile で、当該パッケージに選ばれた版を見る
+# 6. 作り直した lockfile で、当該パッケージに選ばれた版を見る
 grep -nE "^  <対象パッケージ>@[0-9]" pnpm-lock.yaml
 
-# 6. 作業ツリーを戻し、node_modules を入れ直す
+# 7. 作業ツリーを戻し、node_modules を入れ直す
 git checkout -- pnpm-workspace.yaml pnpm-lock.yaml
 pnpm install --frozen-lockfile
 ```
@@ -250,8 +258,25 @@ pnpm install --frozen-lockfile
   選べない**とき、つまり `overrides` を置いた理由がまだ生きているときに起きます
 
 **`pnpm-lock.yaml` が出来ていることは、解き直した証拠になりません。** `node_modules` を
-残したまま実行すると、消した lockfile がそこから復元されます（実測ではコミット済みの
-ものとバイト単位で同一でした）。ファイルの有無ではなく、手順 4 の中身で確かめてください。
+残したまま実行すると、消した lockfile は `node_modules/.pnpm/lock.yaml` から作り直されます。
+ファイルの有無ではなく、手順 3 で確かめてください。
+
+**手順 3 がこの節の検査の本体です。** 手順 2 が効いていない実行（飛ばした・zsh でグロブが
+不一致になって不発だった）は、ここで非 0 になって止まります。**それ以外の見分け方は
+どれも当てになりません。**
+
+- **「解決が走ったか」では見分けられません。** `pnpm-lock.yaml` だけ消した実行は、解決を
+  走らせたうえで凍結された木をそのまま返します（上記 2）
+- **`✓ Lockfile passes supply-chain policies` の行の有無でも見分けられません。** 同じ
+  lockfile を 2 回目に通すと検証キャッシュに当たり、**この行が出なくなります**（実測。
+  [ローカル確認時の注意](#ローカル確認時の注意)と同じキャッシュです）
+
+**手順 2・3 を `bash -c` で包んでいるのは意図的です。** この環境の既定シェル（zsh）は
+`apps/*/node_modules` が 1 つも無いとき `no matches found` で止まり、**`rm` を 1 つも
+実行しません**（`pnpm-lock.yaml` も残ります）。`--lockfile-only` は `node_modules` を
+作らないので、**手順 4 を一度通した直後や新規クローン直後は必ずこの状態です**。実測では
+zsh が exit 1 で何も消さず、bash では同じ行が全部消しました。同じ理由で
+[検査系](#検査系)のコマンドも `bash -c` で包んでいます。
 
 **捨てる範囲で答えが変わることは実測で確認しています**（2026-08-29・
 pnpm 11.5.0 / Node v22.23.2。リポジトリの複製と pnpm のキャッシュを隔離した環境で、
@@ -265,11 +290,11 @@ pnpm 11.5.0 / Node v22.23.2。リポジトリの複製と pnpm のキャッシ�
 | `pnpm-lock.yaml` だけ | **しない**（`node_modules` から復元） | `8.5.25` |
 | `pnpm-lock.yaml` と `node_modules` | する | **`8.5.26`** |
 
-**上の手順が両側へ分岐することは実測で確認しています。** 実在の
+**上の手順が両側へ分岐することは実測で確認しています**（手順 0〜7 を通しで 2 回）。実在の
 `"nanoid@3": "^3.3.18"` を外して通すと `nanoid@3.3.18` が選ばれ、下限以上なので
-「削除できる」側（`node_modules` の有無によらず同じ版でした）。検証用に足した
-`"is-arrayish@0": "^0.3.4"` を外して通すと `0.2.1` が選ばれ、下限未満なので
-「まだ必要」側です。
+「削除できる」側。検証用に足した `"is-arrayish@0": "^0.3.4"` を外して通すと `0.2.1` が
+選ばれ、下限未満なので「まだ必要」側です。**手順 3 は、手順 2 を飛ばした実行と zsh で
+手順 2 を実行した実行のどちらでも非 0 で止まり、正しく通した実行では通りました。**
 
 **ただしこの節の版番号は測った日の値で、依存木が動けば変わります。**
 **転記した数字を信じず、削除する時点で自分で測り直してください。**
@@ -351,9 +376,15 @@ Renovate 側に `trustPolicy` に対応する設定はありません。bot は�
 消してから `pnpm install --frozen-lockfile` を実行してください。
 
 ```bash
-rm -rf node_modules apps/*/node_modules packages/*/node_modules e2e/node_modules
+bash -c 'set -euo pipefail
+rm -rf node_modules apps/*/node_modules packages/*/node_modules e2e/node_modules'
 pnpm install --frozen-lockfile
 ```
+
+**ここも `bash -c` で包みます。** 理由は[削除の条件](#削除の条件)と同じで、既定シェル
+（zsh）では `apps/*/node_modules` が 1 つも無いときに `rm` が 1 つも実行されません。
+消したつもりで `node_modules` が残ると、`pnpm install --frozen-lockfile` は
+「Already up to date」で短絡し、**確認したかった検証を走らせないまま緑になります**。
 
 **lockfile もポリシー（`pnpm-workspace.yaml` の設定）も変えずに再検証したいときは、
 検証キャッシュも消してください。**
