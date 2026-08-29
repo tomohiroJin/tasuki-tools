@@ -185,12 +185,18 @@ const SPEC_ID_RE = /T\d{3}|FR-\d{3}|SC-\d{3}|R\d-\d|US\d|G\d|#\d+/;
 
 /**
  * SC-029: it/test の第 1 引数に仕様の識別番号を含むものの件数。
- * exceptFiles（相対パス配列）は FR-093 の例外表に該当するファイルを除外するために使う。
+ *
+ * `exceptions` は {@link SC029_EXCEPTIONS} と同じ形（`{ file, reason }` の配列）を受ける。
+ * **除外は分母から行う**（SC-032 の例外表と同じ作法。{@link sc032GwtMarkers} を参照）。
+ *
+ * @param testFiles `Map<リポジトリ相対パス, ソース>`
+ * @param exceptions 例外表（`{ file, reason }` の配列）
  */
-export function sc029SpecIdsInNames(testFiles, exceptFiles = []) {
+export function sc029SpecIdsInNames(testFiles, exceptions = []) {
+  const excepted = new Set(exceptions.map((e) => e.file));
   let count = 0;
   for (const [file, content] of testFiles) {
-    if (exceptFiles.includes(file)) continue;
+    if (excepted.has(file)) continue;
     for (const name of extractTestNames(content)) {
       if (SPEC_ID_RE.test(name)) count++;
     }
@@ -513,12 +519,42 @@ export function extractPublicDeclarations(source) {
 }
 
 /**
- * ソースから文字列リテラル（"..." / '...' / `...`）とコメント（// と /* *\/）を取り除く。
+ * ソースから文字列リテラルとコメントを取り除く。**改行は落とさない。**
+ *
  * 完全な字句解析ではない簡易スキャンだが、エスケープ（`\"` 等）は考慮する。
  *
  * 【欠陥4の対応】`isReferencedElsewhere` が文字列リテラルの中身にまで `\bNAME\b` で一致してしまい
  * 誤判定する問題（実例: `ja` が他ファイルの言語コード文字列 `"ja"` に一致してしまう）を避けるため、
  * 参照判定の対象を「識別子としての使用」に近づける前処理として使う。
+ *
+ * ## 剥がしすぎの向き（#184）
+ *
+ * このヘルパは**正規表現リテラルを知らない**。`const re = /it's/;` の `/…/` をコードとして
+ * 読み進めるため、中のアポストロフィを文字列の開始と誤読する。正しく扱う字句解析を書く道は
+ * 採らない（このリポジトリでは手書きの字句解析が 3 回続けて新しい検出漏れを作っている）。
+ * 代わりに、**誤読したときの被害をその行の中に閉じ込める**:
+ *
+ * - `'` と `"` の文字列は**改行をまたげない**（言語仕様）。閉じ引用符が見つからないまま
+ *   改行に達したらそこで打ち切る。以前は次の `'` を求めてファイル末尾まで走ったため、
+ *   `/it's/` の 1 行だけで**それ以降のソース全体が消えていた**。
+ * - 行継続（`\` の直後の改行）とテンプレートリテラル（`` ` ``）は改行をまたぐので、
+ *   またいだ改行は結果へ残す。
+ *
+ * ## 行番号を保つ（#184）
+ *
+ * ブロックコメント・テンプレートリテラルの中の改行を**そのまま結果へ書き出す**ので、
+ * 剥がした後の行番号は元ソースの行番号と一致する。以前は改行ごと落としていたため、
+ * 剥がした結果の添字を行番号として報告すると元ファイルとずれた
+ * （5 行のブロックコメントで 4 行ずれるのを実測）。
+ *
+ * **「無いこと」を求める検査はこのヘルパに依存しないこと。** 剥がしすぎは
+ * その種の検査を緑（＝見逃し）へ倒す。公開面の検査（`audit-public-surface.mjs`）は
+ * この理由で #184 に依存を外し、素の行走査＋コメント行の許可リストへ移した。
+ * 残る利用箇所のうち、参照判定（{@link findStaleSymbolExceptions} が使う
+ * `isReferencedElsewhere` と推移的な生存性の伝播）は剥がしすぎると
+ * 「参照されていない」＝赤へ倒れるので安全側だが、
+ * {@link sc039aUnreachableBranchInApps} は「分岐が無いこと」を求めるため緑へ倒れる
+ * （被害は上の改行打ち切りで 1 行に閉じ込めたが、同じ行の中では依然として起こりうる）。
  */
 export function stripStringsAndComments(source) {
   let result = "";
@@ -528,26 +564,39 @@ export function stripStringsAndComments(source) {
     const ch = source[i];
     const next = source[i + 1];
     if (ch === "/" && next === "/") {
+      // 改行そのものは消費しない（次の周回で結果へ入る）。
       while (i < n && source[i] !== "\n") i++;
       continue;
     }
     if (ch === "/" && next === "*") {
       i += 2;
-      while (i < n && !(source[i] === "*" && source[i + 1] === "/")) i++;
+      while (i < n && !(source[i] === "*" && source[i + 1] === "/")) {
+        if (source[i] === "\n") result += "\n";
+        i++;
+      }
       i += 2;
       continue;
     }
     if (ch === '"' || ch === "'" || ch === "`") {
       const quote = ch;
+      const spansLines = quote === "`";
       i++;
       while (i < n) {
         if (source[i] === "\\") {
+          // 行継続。またいだ改行は残す。
+          if (source[i + 1] === "\n") result += "\n";
           i += 2;
           continue;
         }
         if (source[i] === quote) {
           i++;
           break;
+        }
+        if (source[i] === "\n") {
+          // `'` / `"` は改行をまたげない。閉じずに改行へ達したらそこで打ち切る
+          // （改行は消費せず、次の周回で結果へ入る）。
+          if (!spansLines) break;
+          result += "\n";
         }
         i++;
       }
@@ -892,6 +941,77 @@ export function findStaleSymbolExceptions(exceptions, packageSrcFiles, productSo
 }
 
 /**
+ * SC-029（FR-093）の例外。**テスト名に仕様の識別番号を含めてよいファイルだけ**を、理由つきで載せる。
+ *
+ * ADR-0006 決定 5（#168 で timer 限定の規約から全体規範へ昇格）は、仕様の識別番号を
+ * テスト名ではなく `describe` 直上の JSDoc `@requirements` へ置くと定めている。
+ * 名前へ書かざるを得ないファイル（組み合わせを名前で網羅する差分テスト等）は、
+ * ここへ理由つきで挙げる。理由を書けないものは例外にしない。
+ *
+ * **除外は分母から行う。**「この規約の対象ではない」という意味であり、
+ * 「満たしたことにする」のではない（SC-032 の例外表と同じ作法）。
+ *
+ * **例外表は両方向に腐る。** ファイルが消えたのに例外が残れば静かに空回りし、
+ * 名前から識別番号が消えても例外だけが残る。どちらも
+ * {@link findStaleSc029Exceptions} が落とす。
+ *
+ * **現在は 0 件。** timer 時代の唯一のエントリ
+ * `packages/timer-core/test/permissions-differential.test.ts` は、そのテスト名から
+ * 識別番号が既に消えており（`` `${label} → オラクルと一致する` `` /
+ * `"対象コマンドは25件である"` など）、例外表から外しても SC-029 は 0 のままだった
+ * （#184 で実測）。何も外していない例外だったので外した。
+ */
+export const SC029_EXCEPTIONS = [];
+
+/**
+ * SC-029 の例外表が腐っていないかを見る（純粋）。問題が無ければ空配列。
+ *
+ * ## 何を見るか
+ *
+ * 例外 1 件ごとに、次の 3 つの向きで落とす。**それぞれ違う文言で報告する。**
+ *
+ *   1. 例外が指すファイルが走査対象に無い（改名・移設・削除）
+ *   2. そのファイルのテスト名に仕様の識別番号が 1 つも無い（例外がもう要らない）
+ *   3. 理由が空（{@link EXCLUDED_PACKAGES} と同じ作法。理由の書けない例外は置かない）
+ *
+ * **2 は SC-032 の「分母に入らなくなった」とは違う。** {@link findStaleTestExceptions} が
+ * その向きで落とさないのは、生死が理由と無関係な行数のしきい値に連動してしまうためである。
+ * SC-029 の例外が外す条件（そのファイルの名前に識別番号があるか）は、例外の理由
+ * そのものなので、条件が消えた例外は端的に空回りである。
+ *
+ * ## 何を見ていないか — **「足りる」とは言わない**
+ *
+ * - **理由の内容が本当かは見ていない。** 空文字列でないことしか見ない。
+ * - **例外に挙げるべきファイルが挙がっているかは見ていない。** もう片方向は
+ *   指標そのもの（{@link sc029SpecIdsInNames} の件数）が受け持つ。
+ * - **識別番号の判定は {@link SPEC_ID_RE} と同じ精度しか持たない。**
+ *
+ * @param exceptions 例外表（`{ file, reason }` の配列）
+ * @param testFiles `Map<リポジトリ相対パス, ソース>`。SC-029 が測る走査対象そのもの
+ */
+export function findStaleSc029Exceptions(exceptions, testFiles) {
+  const problems = [];
+  for (const e of exceptions) {
+    if (typeof e.reason !== "string" || e.reason.trim() === "") {
+      problems.push(`SC-029 の例外に理由がありません: ${e.file}`);
+    }
+    const content = testFiles.get(e.file);
+    if (content === undefined) {
+      problems.push(
+        `SC-029 の例外が指すファイルが走査対象にありません: ${e.file}（例外を消すか、走査対象を直してください）`,
+      );
+      continue;
+    }
+    if (!extractTestNames(content).some((name) => SPEC_ID_RE.test(name))) {
+      problems.push(
+        `SC-029 の例外が不要になりました: ${e.file} のテスト名に仕様の識別番号はもうありません（例外を消してください）`,
+      );
+    }
+  }
+  return problems;
+}
+
+/**
  * SC-032 の例外。**前提・操作・検証の区切りが概念的に当てはまらないテストだけ**を、理由つきで載せる。
  *
  * ADR-0006 決定 2 は「本体が 2 行以下の自明なテストは対象外」と定めている。その意図は
@@ -1216,9 +1336,9 @@ function runAudit(loaded) {
 
   const sc028 = sc028DuplicateTestDoubles(allTestFiles);
 
-  // FR-093 の例外表（除外ファイル）
-  const exceptFiles = ["packages/timer-core/test/permissions-differential.test.ts"];
-  const sc029 = sc029SpecIdsInNames(allTestFiles, exceptFiles);
+  // FR-093 の例外表。**組み立ては SC029_EXCEPTIONS の 1 か所だけ**（ADR-0014 決定 9）。
+  // ここで別の配列を書くと、`main()` の例外表ガードが見る表と指標が使う表が食い違う。
+  const sc029 = sc029SpecIdsInNames(allTestFiles, SC029_EXCEPTIONS);
   const sc030 = sc030CallNamesInNames(allTestFiles);
   const sc031 = sc031GuardExpects(allTestFiles);
   const sc032 = sc032GwtMarkers(allTestFiles, SC032_EXCEPTIONS);
@@ -1393,6 +1513,20 @@ function main() {
   // **見る集合は `runAudit()` が測る集合と同一**（ADR-0014 決定 9）。
   // 同じ `loaded` を `buildAllTestFiles` に渡しているので、ここで組み直してはいない。
   const allTestFiles = buildAllTestFiles(loaded);
+
+  // SC-029 の例外表も同じ扱いで見る。**指標を出す前に**見る。
+  // 腐った例外（実在しないパス・何も外していないエントリ）を抱えたまま「0 件」と報告させない。
+  const staleSc029Exceptions = findStaleSc029Exceptions(SC029_EXCEPTIONS, allTestFiles);
+  // 走査量は成否によらず必ず出す（#135 D5）。何件の例外を何件のファイルに照らしたかが赤の根拠になる。
+  console.log(
+    `[audit-structure] SC-029 の例外表: ${SC029_EXCEPTIONS.length} 件 / ` +
+      `照合先 ${allTestFiles.size} ファイル`,
+  );
+  if (staleSc029Exceptions.length > 0) {
+    for (const p of staleSc029Exceptions) console.error(`[audit-structure] ${p}`);
+    process.exit(1);
+  }
+
   const staleTestExceptions = findStaleTestExceptions(SC032_EXCEPTIONS, allTestFiles);
   // 走査量は成否によらず必ず出す（#135 D5）。何件の例外を何件のファイルに照らしたかが赤の根拠になる。
   console.log(

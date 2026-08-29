@@ -25,9 +25,11 @@ import {
   extractClientErrorTable,
   sc035MessageDefinitions,
   sc039aUnreachableBranchInApps,
+  stripStringsAndComments,
   extractPublicDeclarations,
   sc039bUnusedPublicData,
   sc039cSelfOnlyPublicSymbols,
+  findStaleSc029Exceptions,
   findStaleSymbolExceptions,
   findStaleTestExceptions,
   formatTable,
@@ -150,7 +152,7 @@ describe("SC-029: テスト名に含まれる仕様の識別番号", () => {
       ],
     ]);
     const count = sc029SpecIdsInNames(testFiles, [
-      "packages/core/test/permissions-differential.test.ts",
+      { file: "packages/core/test/permissions-differential.test.ts", reason: "差分テスト" },
     ]);
     assert.equal(count, 0);
   });
@@ -875,5 +877,98 @@ describe("sc032GwtMarkers: 例外に載るテストは分母から外す", () =>
     // Then
     assert.equal(r.denominator, 0);
     assert.equal(r.ratio, 1);
+  });
+});
+
+describe("stripStringsAndComments: 剥がしすぎず、行番号も崩さない（#184）", () => {
+  test("ブロックコメントを落としても行数が変わらない", () => {
+    // Given（5 行のブロックコメントを挟んだソース）
+    const source = "const a = 1;\n/*\n * x\n * y\n */\nconst b = 2;\n";
+    // When
+    const stripped = stripStringsAndComments(source);
+    // Then
+    assert.equal(stripped.split("\n").length, source.split("\n").length);
+  });
+
+  test("複数行のテンプレートリテラルを落としても行数が変わらない", () => {
+    // Given
+    const source = "const a = `x\ny\nz`;\nconst b = 2;\n";
+    // When
+    const stripped = stripStringsAndComments(source);
+    // Then
+    assert.equal(stripped.split("\n").length, source.split("\n").length);
+  });
+
+  test("閉じないアポストロフィは行末で打ち切り、次の行のコードを食べない", () => {
+    // Given（`/it's/` の正規表現リテラル。ヘルパは正規表現を知らない）
+    const source = "const re = /it's/;\nexport * from './a';\n";
+    // When
+    const stripped = stripStringsAndComments(source);
+    // Then（剥がしすぎの被害は 1 行に閉じ込められ、次の行のコードは残る）
+    assert.match(stripped, /export \*/);
+  });
+
+  test("行コメントは改行を残す", () => {
+    // Given
+    const source = "const a = 1; // x\nconst b = 2;\n";
+    // When
+    const stripped = stripStringsAndComments(source);
+    // Then
+    assert.equal(stripped.split("\n").length, source.split("\n").length);
+  });
+
+  test("通常の文字列・コメントはこれまでどおり落とす", () => {
+    // Given
+    const source = 'const a = "STRINGBODY"; /* BLOCKBODY */ // LINEBODY\n';
+    // When
+    const stripped = stripStringsAndComments(source);
+    // Then
+    assert.doesNotMatch(stripped, /STRINGBODY|BLOCKBODY|LINEBODY/);
+  });
+});
+
+describe("findStaleSc029Exceptions: SC-029 の例外表も両方向に腐らせない（#184）", () => {
+  const testFiles = new Map([
+    ["packages/x/test/a.test.ts", 'it("FR-072 のケース", () => {});'],
+    ["packages/x/test/b.test.ts", 'it("交代する", () => {});'],
+  ]);
+
+  test("仕様の識別番号を実際に含むファイルの例外は問題にならない", () => {
+    // Given
+    const ex = [{ file: "packages/x/test/a.test.ts", reason: "差分テストの組み合わせ" }];
+    // When
+    const problems = findStaleSc029Exceptions(ex, testFiles);
+    // Then
+    assert.deepEqual(problems, []);
+  });
+
+  test("走査対象に無いファイルの例外は問題として報告する", () => {
+    // Given（実在しないパスを置いても静かに素通りしていた）
+    const ex = [{ file: "packages/nonexistent/tests/ghost.test.ts", reason: "差分テスト" }];
+    // When
+    const problems = findStaleSc029Exceptions(ex, testFiles);
+    // Then
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /ghost\.test\.ts/);
+  });
+
+  test("識別番号がもう無いファイルの例外は不要になったと報告する", () => {
+    // Given（例外が何も外していない＝空回りの状態）
+    const ex = [{ file: "packages/x/test/b.test.ts", reason: "差分テスト" }];
+    // When
+    const problems = findStaleSc029Exceptions(ex, testFiles);
+    // Then
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /不要/);
+  });
+
+  test("理由が空の例外は問題として報告する", () => {
+    // Given
+    const ex = [{ file: "packages/x/test/a.test.ts", reason: "" }];
+    // When
+    const problems = findStaleSc029Exceptions(ex, testFiles);
+    // Then
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /理由/);
   });
 });
