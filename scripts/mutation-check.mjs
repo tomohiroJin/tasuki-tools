@@ -19,8 +19,13 @@
  * 決め打ちすると、ランナーが違うパッケージでは「コマンドが見つからない」まま
  * exit code が非 0 になり、テストを 1 件も実行せずに「検出」と誤報告する
  * （#136 で発覚。apps/timer-sync の変異 #3・#5・#10 がこの状態だった）。
- * これを避けるため、対象パッケージの package.json の scripts.test からランナーを
+ * これを避けるため、対象ディレクトリの package.json の scripts.test からランナーを
  * 判定し（detectRunner）、そのランナーで直接テストファイルを指定して実行する。
+ *
+ * 変異の対象は「パッケージ」に限らない。`scripts/` は package.json を持たないが
+ * 検査本体とその自己テストが同居しており、ここも変異対象にする（#174）。
+ * package.json を持たないディレクトリのランナーは node（`node --test`）を既定にする
+ * （detectRunner の docstring を参照）。
  *
  * 対照実行（コントロール）:
  * 各変異について、**変異を当てる前の素のコードで同じコマンドを実行し、まず
@@ -69,12 +74,13 @@ const REPO_ROOT = execFileSync("git", ["rev-parse", "--show-toplevel"], {
 /**
  * 変異定義。
  *
- * pkg: パッケージのディレクトリ（WORKSPACE_ROOT からの相対パス）。--full 実行時と、
- *      絞り込み実行時に vitest を呼ぶ cwd の両方に使う。
+ * pkg: 対象ディレクトリ（WORKSPACE_ROOT からの相対パス）。--full 実行時と、
+ *      絞り込み実行時にランナーを呼ぶ cwd の両方に使う。パッケージとは限らない
+ *      （`scripts/` のように package.json を持たないディレクトリも取れる。#174）。
  * tests: 検出を期待するテストファイル（pkg からの相対パス）。
  * note: plan.md の対応表からの読み替えがあれば、その内容と理由をここに記録する。
  */
-const MUTATIONS = [
+export const MUTATIONS = [
   {
     id: 1,
     label: "advanceDriver の交代を (i+1)%n → (i+2)%n",
@@ -196,6 +202,30 @@ const MUTATIONS = [
       "上書きしない）。接続のたびに値を変えるだけで毎回まっさらな鍵になり、#103 が" +
       "塞いだ「再接続でリセット」が復活する欠陥。poker-sync にも同型のテストを足したが、" +
       "mutation-check の対象は timer-sync 側の 1 件のみとした（W-1 の指示どおり）。",
+  },
+  {
+    id: 14,
+    label: "audit-domain-side-effects の FORBIDDEN から Math.random( を落とす",
+    patch: "m14-forbidden-drop-math-random.patch",
+    pkg: "scripts",
+    tests: ["audit-domain-side-effects.test.mjs"],
+    note:
+      "検査の射程を「赤を消す最短経路」で狭める欠陥の型（#174）。検査本体だけを狭めても " +
+      "audit-domain-side-effects.test.mjs の REQUIRED_FORBIDDEN が落ちる、という " +
+      "同ファイルの docstring の主張を実際に確かめる。scripts/ は package.json を " +
+      "持たないため、以前は detectRunner が例外で落ちてこの型を検査できなかった。",
+  },
+  {
+    id: 15,
+    label: "list-scan-targets から死んだ除外の検知を削る",
+    patch: "m15-dead-exclusion-detection-removed.patch",
+    pkg: "scripts",
+    tests: ["list-scan-targets.test.mjs"],
+    note:
+      "「除外が 1 件も一致しなくなったら落とす」（#135・ADR-0014 決定 2）が静かに " +
+      "消える欠陥の型。除外は本番の宣言では空なので、この検知が消えても走査結果は " +
+      "1 バイトも変わらない。落ちるのは単体テストだけであり、そのテストが本当に " +
+      "恒真化していないことをここで見る。",
   },
 ];
 
@@ -398,25 +428,49 @@ function assertMutationPatchesBijective() {
  * （CI では oven-sh/setup-bun@v2 が PATH へ足すが、ローカルの導入形態は環境によって
  * ばらつくため）。
  */
-const BUN_BIN = (() => {
+let bunBinCache = null;
+function resolveBunBin() {
+  if (bunBinCache !== null) return bunBinCache;
   const onPath = spawnSync("bun", ["--version"], { encoding: "utf8" });
-  if (onPath.status === 0) return "bun";
+  if (onPath.status === 0) {
+    bunBinCache = "bun";
+    return bunBinCache;
+  }
   const fallback = path.join(os.homedir(), ".bun", "bin", "bun");
-  if (fs.existsSync(fallback)) return fallback;
+  if (fs.existsSync(fallback)) {
+    bunBinCache = fallback;
+    return bunBinCache;
+  }
   throw new Error(
     "bun 実行体が見つかりません（PATH にも ~/.bun/bin/bun にも無い）。" +
       "apps/timer-sync の変異には bun test が必要です。",
   );
-})();
+}
 
 /**
- * パッケージの package.json の scripts.test を見て、実際のテストランナーを判定する。
+ * 対象ディレクトリの package.json の scripts.test を見て、実際のテストランナーを判定する。
  * 決め打ちしないのは、ランナーが違うパッケージへ間違ったコマンドを投げると
  * 「テストを1件も実行せずに exit code が非 0 になる」形で誤検出するため
  * （このファイル冒頭のコメント参照）。
+ *
+ * **package.json を持たないディレクトリは node（`node --test`）を既定にする**（#174）。
+ * `scripts/` がそれで、検査本体とその自己テストが同居しているのに package.json が無いため、
+ * 以前はここが例外で落ちて変異対象にできなかった。既定を node にするのは、
+ * 「設定を持たないディレクトリで、設定なしに動く唯一のランナー」だからである。
+ * **`pkgDir` の名前を見て `scripts` なら node、という特別扱いはしない** — 対象が
+ * 増えるたびに腐る（列挙ではなく機構で指す）。
+ *
+ * この既定が誤った対象へ当たっても、誤検出には育たない。宣言の `pkg` が実在しない
+ * ディレクトリなら {@link assertMutationTestsExist} が先に落とし、ランナーが違えば
+ * 変異を当てる前の対照実行が落ちる。既定は「静かに間違える」経路を新しく作らない。
+ *
+ * **「無い」と「読めない」は混ぜない。** package.json が実在するのに壊れている・
+ * 未知のランナーを指しているときは、既定へ倒さず例外にする。倒すと、設定を
+ * 黙って無視して別のランナーで走らせることになる。
  */
-function detectRunner(pkgDir) {
+export function detectRunner(pkgDir) {
   const pkgJsonPath = path.join(pkgDir, "package.json");
+  if (!fs.existsSync(pkgJsonPath)) return "node";
   let testScript;
   try {
     testScript = JSON.parse(fs.readFileSync(pkgJsonPath, "utf8")).scripts?.test ?? "";
@@ -432,19 +486,28 @@ function detectRunner(pkgDir) {
 }
 
 /** ランナーごとに、実行コマンドと引数を組み立てる。 */
-function buildCommand(runner, mutation, full) {
+export function buildCommand(runner, mutation, full) {
   switch (runner) {
     case "vitest":
       return { cmd: "npx", args: full ? ["vitest", "run"] : ["vitest", "run", ...mutation.tests] };
     case "bun":
-      return { cmd: BUN_BIN, args: full ? ["test"] : ["test", ...mutation.tests] };
+      return { cmd: resolveBunBin(), args: full ? ["test"] : ["test", ...mutation.tests] };
     case "node": {
       if (full) {
-        // scripts.test（例: "node --test tests/*.test.mjs"）をそのまま使う。
+        // package.json があれば scripts.test（例: "node --test tests/*.test.mjs"）を
+        // そのまま使う。パッケージが自分で決めた「全体実行」がそれだからである。
         const pkgJsonPath = path.join(WORKSPACE_ROOT, mutation.pkg, "package.json");
-        const testScript = JSON.parse(fs.readFileSync(pkgJsonPath, "utf8")).scripts.test;
-        const [cmd, ...args] = testScript.split(/\s+/);
-        return { cmd, args };
+        if (fs.existsSync(pkgJsonPath)) {
+          const testScript = JSON.parse(fs.readFileSync(pkgJsonPath, "utf8")).scripts.test;
+          const [cmd, ...args] = testScript.split(/\s+/);
+          return { cmd, args };
+        }
+        // package.json が無い対象（scripts/ 等）は、ファイルを 1 つも指定せずに
+        // `node --test` を対象ディレクトリで走らせ、**探索は node 自身に任せる**。
+        // ここへテストファイルの列挙やグロブを書くと、CI が使っている導出
+        // （`node scripts/list-scan-targets.mjs script-tests`）と二重管理になり、
+        // 片側だけ直したときに黙ってずれる（#135・ADR-0014）。
+        return { cmd: "node", args: ["--test"] };
       }
       return { cmd: "node", args: ["--test", ...mutation.tests] };
     }
@@ -583,4 +646,29 @@ function main() {
   process.exit(0);
 }
 
-main();
+/**
+ * 起動時に指定されたパス（`process.argv[1]`）がこのファイル自身かどうか。
+ *
+ * **なぜ単純な文字列比較では足りないか。** ESM ローダーは `import.meta.url` を
+ * 実体パス（symlink 解決後）へ正規化するが、`process.argv[1]` は起動時に
+ * 指定されたパスのままである。そのため `node <symlink>` で起動すると両者は
+ * 一致せず、`main()` が一度も呼ばれないまま**無出力・exit 0** で終わる。
+ * 「検査が何も実行せずに緑になる」は最も避けたい失敗の型である（憲法 VII）。
+ *
+ * そこで**両側を実体パスへ正規化してから比べる**。判定はこれだけに留める
+ * （起動形態を場合分けするほど、静かに素通りする経路が増える）。
+ * `argv[1]` が無い起動（`node -e` 等）と、実在しないパスを指す起動は偽とする。
+ */
+export function isDirectRun(invokedPath) {
+  if (!invokedPath) return false;
+  const self = fs.realpathSync(fileURLToPath(import.meta.url));
+  try {
+    return fs.realpathSync(invokedPath) === self;
+  } catch {
+    return false;
+  }
+}
+
+// 直接実行されたときだけ走らせる。自己テスト（mutation-check.test.mjs）は
+// このファイルから import するだけで、変異は当てない。
+if (isDirectRun(process.argv[1])) main();

@@ -1,0 +1,16 @@
+diff --git a/scripts/list-scan-targets.mjs b/scripts/list-scan-targets.mjs
+index 9e787cf..db851b6 100644
+--- a/scripts/list-scan-targets.mjs
++++ b/scripts/list-scan-targets.mjs
+@@ -40,11 +40,6 @@ const KINDS = {
+ 
+ export function selectTargets(all, exclusions) {
+   const problems = [];
+-  for (const e of exclusions) {
+-    if (!all.some((rel) => rel.startsWith(e.prefix))) {
+-      problems.push(`除外が 1 件も一致しません: ${e.prefix}（${e.reason}）`);
+-    }
+-  }
+   const targets = all.filter((rel) => !exclusions.some((e) => rel.startsWith(e.prefix)));
+   return { targets, problems };
+ }

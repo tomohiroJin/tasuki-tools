@@ -654,6 +654,14 @@ bash -c 'set -euo pipefail; targets="$(node scripts/list-scan-targets.mjs shell)
 区別できず、実行前に working tree のクリーンさを要求します。先にコミットしてから
 走らせてください。
 
+**変異検査の対象はパッケージに限りません。`scripts/` 配下の検査本体も対象です**
+（#174）。変異ごとのランナーは対象ディレクトリの `package.json` の `scripts.test` から
+判定しますが、**`package.json` を持たないディレクトリは `node --test` を既定にします**。
+`scripts/` がそれにあたり、以前はここで例外になって検査本体の自己テストだけが
+変異検査の外にありました。対象を足すときにディレクトリ名で分岐を増やす必要は
+ありません（判定は `scripts/mutation-check.mjs` の `detectRunner`、その自己テストは
+`scripts/mutation-check.test.mjs`）。
+
 ### 新しいパッケージを足すと検査が赤くなる
 
 構造監査（`scripts/audit-structure.mjs`）とログ衛生（`scripts/audit-log-hygiene.mjs`）は、

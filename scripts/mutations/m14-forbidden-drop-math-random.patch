@@ -1,0 +1,12 @@
+diff --git a/scripts/audit-domain-side-effects.mjs b/scripts/audit-domain-side-effects.mjs
+index db85e0c..f0654e4 100644
+--- a/scripts/audit-domain-side-effects.mjs
++++ b/scripts/audit-domain-side-effects.mjs
+@@ -114,7 +114,6 @@ const SCAN_DIRS = DOMAIN_PACKAGES.map((pkg) => `${pkg}/src`);
+  */
+ export const FORBIDDEN = [
+   "Date.now(",
+-  "Math.random(",
+   "new Date(",
+   "performance.now(",
+   "crypto.",
