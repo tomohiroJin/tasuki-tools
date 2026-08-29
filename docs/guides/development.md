@@ -133,11 +133,32 @@ overrides:
 **まず親を更新して解消するかを実際に試します。** 解消するならそちらが本筋で、
 `overrides` は要りません。
 
+**この確認は `package.json` を書き換えます。手元の変更を先にコミットしてください。**
+手順の最後で書き換わったファイルを HEAD へ戻すためです。
+
 ```bash
 pnpm update -r <親パッケージ> --lockfile-only
-grep -n "<対象パッケージ>" pnpm-lock.yaml   # 版が上がったか
-git checkout -- .                            # 確認だけなら戻す
+git status --short                              # 何が書き換わったかを先に見る
+grep -nE "^  <対象パッケージ>@" pnpm-lock.yaml   # 版が上がったか
+
+# 確認だけなら、書き換わったファイルだけを指定して戻す
+git checkout -- pnpm-lock.yaml <書き換わった package.json>
 ```
+
+**`pnpm update -r <親パッケージ> --lockfile-only` は `package.json` も書き換えます。**
+`--latest` もバージョン指定も付けていなくても起きます。実測（2026-08-28）では
+`pnpm update -r postcss --lockfile-only` が `apps/timer-web/package.json` の
+`"postcss": "^8.5.25"` を `"^8.5.26"` へ書き換えました。`apps/timer-web` は `postcss` を
+直接依存として宣言しているため、**推移依存を確かめるつもりでも直接依存の宣言が動きます**。
+だから `grep` より先に `git status --short` を見ます。
+
+**`git checkout -- .` で戻さないでください。** 作業ツリー全体を HEAD へ戻す操作で、
+確認のための一時変更だけでなく**進行中の未コミットの変更まで消えます**
+（[振り返り](../retrospectives/2026-08-11-issue-69-supply-chain.md)の「罠 3」に
+記録された事故そのものです。同じ振り返りの「罠 4」は `git checkout main -- .` で
+**コミット済み**の差分が巻き戻った別の事故で、ここでの話ではありません）。
+ファイルを指定しても HEAD へ戻る点は変わらないので、
+**確認を始める前にコミットしておくこと**が前提になります。
 
 **`pnpm update -r <pkg>@<version>` で直そうとしないでください。** 同名パッケージが
 直接依存と推移依存の両方にいると区別せず、**直接依存の宣言まで書き換えます**
@@ -168,14 +189,138 @@ integrity ハッシュが古いままなので実インストールで `ERR_PNPM
 **解除予定日は書きません。** 親パッケージの要求が上がる日は決まっていないためです。
 `trustPolicyExclude` と同じく、条件で判断します。
 
+**判定は `pnpm-lock.yaml` と `node_modules` を捨てて解き直して行います。** 「当該行を外して
+`pnpm install --lockfile-only` を実行し、版が下がるか見る」という素朴な手順では判定できません。
+知りたいのは「今の lockfile に載っている版」ではなく「**この行が無いときに解決器が選ぶ版**」
+なのに、pnpm は前回の結果を引き継げる材料が残っている限り引き継ぐからです。
+
+**pnpm は前回の結果を 2 段構えで引き継ぎます。**
+
+1. **`pnpm-lock.yaml` を残すと**、そこに載っている版が要求範囲を満たす限り、その版を
+   選び直しません（`Progress: resolved …` は出ますが、載っている版がそのまま残ります）。
+   当該パッケージだけでなく**依存木全体が凍結されます**。実測では、`"nanoid@3": "^3.3.18"`
+   を外して実行しても `nanoid@3.3.18` のまま据え置かれ、同時に `postcss` も `8.5.25` の
+   ままでした（捨てて解き直すと `8.5.26` が選ばれます）。`pnpm dedupe --lockfile-only` も
+   同じです。**親の版が動けば親が要求する範囲も動く**ので、木を凍結したままでは
+   「この行が無いときに選ばれる版」は分かりません
+2. **`pnpm-lock.yaml` だけ消して `node_modules` を残すと**、pnpm は
+   `node_modules/.pnpm/lock.yaml`（前回のインストールが何を展開したかの記録）を
+   代わりに読みます。**`pnpm-workspace.yaml` を編集していなければ**、消したはずの
+   `pnpm-lock.yaml` はそこから**バイト単位で復元され、解決が 1 件も走りません**。
+   **編集していれば解決自体は走りますが、その記録を土台にするので木は凍結されたまま
+   です。** 実測では、`"nanoid@3": "^3.3.18"` を外して `pnpm-lock.yaml` だけ消すと
+   `Progress: resolved …` は出るのに `postcss` は `8.5.25` のままで、生成された
+   lockfile は**何も捨てずに実行したときと md5 が一致**しました。
+   `node_modules/.pnpm/lock.yaml` まで消すと解決が走り `8.5.26` になります。
+   **この段は「解決が走ったかどうか」では見分けられません**
+
+**据え置きが起きるかどうかは `overrides` の書き方で決まり、手順の側からは見分けられません。**
+下限が親の要求範囲の**内側**にあるとき（このリポジトリの `"nanoid@3": "^3.3.18"` がそう。
+`postcss` の要求は `^3.3.17`）は、行を外しても lockfile の版がそのまま有効なので据え置かれ、
+判定は必ず「削除できる」側に倒れます。**外側**へ引き上げているときは据え置きが成立せず
+再解決が走ります（検証用に `"is-arrayish@0": "^0.3.4"` を足して実測。依存元 `error-ex` の
+要求は `^0.2.1` なので、行を外すと `0.3.4` が無効になり `0.2.1` へ落ちました）。
+**同じ手順が、対象によって測ったり測らなかったりします。**
+
+`node_modules` を消す理由は、後述の[ローカル確認時の注意](#ローカル確認時の注意)と同じ
+「**残っていると pnpm が前回の結果を引き継ぐ**」です。あちらは供給網検証の短絡、
+こちらは解決の引きずりで、現れ方だけが違います。
+
 ```bash
-# overrides の当該行を外してから
+# 0. 前提: 判定に使う 2 ファイルに未コミットの変更が無いこと（出力が空であること）
+#    手順 7 でこの 2 ファイルを HEAD へ戻すため、先に手元の変更をコミットしておく
+git status --porcelain -- pnpm-workspace.yaml pnpm-lock.yaml
+
+# 1. overrides の当該行を 1 行だけ消す（エディタで編集）
+
+# 2. lockfile と node_modules を捨てる。bash -c で包むのは意図的（下の注記を参照）
+bash -c 'set -euo pipefail
+rm -rf pnpm-lock.yaml node_modules apps/*/node_modules packages/*/node_modules e2e/node_modules'
+
+# 3. 捨て残しの検査。1 つでも残っていると pnpm は前回の結果を引き継ぎ、以降が
+#    測定にならない。非 0 で止まったら先へ進まず、手順 2 をやり直す
+bash -c 'set -euo pipefail
+for p in pnpm-lock.yaml node_modules apps/*/node_modules packages/*/node_modules e2e/node_modules; do
+  if [ -e "$p" ]; then echo "捨て残し: $p"; exit 1; fi
+done
+echo "捨て残しなし"'
+
+# 4. 全体を解決し直す
 pnpm install --lockfile-only
-grep -n "<対象パッケージ>" pnpm-lock.yaml
+
+# 5. 消し忘れ検知: 外した行が lockfile 冒頭の overrides に残っていたら、手順 1 が
+#    効いていない（外し損ねか、別の行を消した）。手順 1 へ戻る
+grep -n "^  <外した overrides のキー>:" pnpm-lock.yaml   # 何も出ないこと（例: nanoid@3:）
+
+# 6. 作り直した lockfile で、対象メジャーに選ばれた版を見る。メジャーの直後に `\.`
+#    を置くのは、別メジャーの行と冒頭の overrides の転記行を除くため
+grep -nE "^  <対象パッケージ>@<対象メジャー>\." pnpm-lock.yaml   # 例: nanoid@3\.
+
+# 7. 作業ツリーを戻し、node_modules を入れ直す
+git checkout -- pnpm-workspace.yaml pnpm-lock.yaml
+pnpm install --frozen-lockfile
 ```
 
-lockfile の版が下限以上に留まる（＝親の要求だけで足りる）なら、その行は削除できます。
-版が下がるなら、まだ必要です。**残したまま放置すると、将来その範囲を黙って固定し続けます。**
+- 選ばれた版が**下限以上**なら、その行は削除できます（親の要求だけで足ります）
+- 選ばれた版が**下限未満**なら、まだ必要です。これは**親の要求範囲が下限より上の版を
+  選べない**とき、つまり `overrides` を置いた理由がまだ生きているときに起きます
+- **1 件も出ないときは判定できません。** 対象メジャーが依存木にいないということなので、
+  行を戻して何が起きたかを確かめてください
+
+**手順 6 のパターンでメジャーまで指定するのは、同名で別メジャーが同居するからです。**
+`nanoid` は直接依存の 6.x（`apps/timer-sync`）と推移依存の 3.x が同居しており、実測では
+`^  nanoid@[0-9]` が **5 行**（`nanoid@3.3.18` 2 行・`nanoid@6.0.1` 2 行・lockfile 冒頭の
+`nanoid@3: ^3.3.18`）を返しました。**`6.0.1 >= 3.3.18` と読んで誤って削除する経路**が
+開きます。`^  nanoid@3\.` なら 2 行だけになります。
+
+**`pnpm-lock.yaml` が出来ていることは、解き直した証拠になりません。** `node_modules` を
+残したまま実行すると、消した lockfile は `node_modules/.pnpm/lock.yaml` から作り直されます
+（`pnpm-workspace.yaml` を編集していなければ、実測でコミット済みのものとバイト単位で
+同一でした）。ファイルの有無ではなく、手順 3 で確かめてください。
+
+**手順 3 がこの節の検査の本体です。** 手順 2 が効いていない実行（飛ばした・zsh でグロブが
+不一致になって不発だった）は、ここで非 0 になって止まります。**それ以外の見分け方は
+どれも当てになりません。**
+
+- **「解決が走ったか」では見分けられません。** `pnpm-lock.yaml` だけ消した実行は、解決を
+  走らせたうえで凍結された木をそのまま返します（上記 2）
+- **`✓ Lockfile passes supply-chain policies` の行の有無でも見分けられません。** 同じ
+  lockfile を 2 回目に通すと検証キャッシュに当たり、**この行が出なくなります**（実測。
+  [ローカル確認時の注意](#ローカル確認時の注意)と同じキャッシュです）
+
+**手順 2・3 を `bash -c` で包んでいるのは意図的です。** この環境の既定シェル（zsh）は
+`apps/*/node_modules` が 1 つも無いとき `no matches found` で止まり、**`rm` を 1 つも
+実行しません**（`pnpm-lock.yaml` も残ります）。`--lockfile-only` は `node_modules` を
+作らないので、**手順 4 を一度通した直後や新規クローン直後は必ずこの状態です**。実測では
+zsh が exit 1 で何も消さず、bash では同じ行が全部消しました。同じ理由で
+[検査系](#検査系)のコマンドも `bash -c` で包んでいます。
+
+**捨てる範囲で答えが変わることは実測で確認しています**（2026-08-29・
+pnpm 11.5.0 / Node v22.23.2。リポジトリの複製と pnpm のキャッシュを隔離した環境で、
+捨てる範囲だけを変えて実行）。`postcss` は `overrides` を置いていないパッケージですが、
+**lockfile が指す版（`8.5.25`）と解決器が今選ぶ版がずれている**ため、凍結された木が
+どこまで凍結されたままかがそのまま出ます。
+
+| 捨てたもの | 前回の結果 | `postcss` に選ばれた版 |
+| --- | --- | --- |
+| 何も捨てない（素朴な手順） | **引き継ぐ**（木ごと据え置き） | `8.5.25`（lockfile の版そのまま） |
+| `pnpm-lock.yaml` だけ | **引き継ぐ**（`node_modules/.pnpm/lock.yaml` から） | `8.5.25` |
+| `pnpm-lock.yaml` と `node_modules` | 引き継がない | **`8.5.26`** |
+
+上 2 行は、生成された `pnpm-lock.yaml` の md5 まで一致しました（`"nanoid@3"` を外した
+実行で計測）。**この 2 つは結果で区別できません。**
+
+**上の手順が両側へ分岐することは実測で確認しています**（手順 0〜7 を通しで 2 回）。実在の
+`"nanoid@3": "^3.3.18"` を外して通すと `nanoid@3.3.18` が選ばれ、下限以上なので
+「削除できる」側。検証用に足した `"is-arrayish@0": "^0.3.4"` を外して通すと `0.2.1` が
+選ばれ、下限未満なので「まだ必要」側です。**手順 3 は、手順 2 を飛ばした実行と zsh で
+手順 2 を実行した実行のどちらでも非 0 で止まり、正しく通した実行では通りました。**
+
+**ただしこの節の版番号は測った日の値で、依存木が動けば変わります。**
+**転記した数字を信じず、削除する時点で自分で測り直してください。**
+併せて `pnpm audit` が緑であることを確認します。
+
+**残したまま放置すると、将来その範囲を黙って固定し続けます。**
 
 ### 信頼証跡の降格拒否
 
@@ -251,9 +396,15 @@ Renovate 側に `trustPolicy` に対応する設定はありません。bot は�
 消してから `pnpm install --frozen-lockfile` を実行してください。
 
 ```bash
-rm -rf node_modules apps/*/node_modules packages/*/node_modules e2e/node_modules
+bash -c 'set -euo pipefail
+rm -rf node_modules apps/*/node_modules packages/*/node_modules e2e/node_modules'
 pnpm install --frozen-lockfile
 ```
+
+**ここも `bash -c` で包みます。** 理由は[削除の条件](#削除の条件)と同じで、既定シェル
+（zsh）では `apps/*/node_modules` が 1 つも無いときに `rm` が 1 つも実行されません。
+消したつもりで `node_modules` が残ると、`pnpm install --frozen-lockfile` は
+「Already up to date」で短絡し、**確認したかった検証を走らせないまま緑になります**。
 
 **lockfile もポリシー（`pnpm-workspace.yaml` の設定）も変えずに再検証したいときは、
 検証キャッシュも消してください。**
@@ -322,11 +473,28 @@ pnpm turbo test typecheck lint build
 pnpm turbo run build --filter=@tasuki/timer-web
 ```
 
-`pnpm test` は turbo 経由で 10 パッケージ（`@tasuki/timer-core` `@tasuki/timer-web`
-`@tasuki/timer-sync` `@tasuki/poker-core` `@tasuki/poker-web` `@tasuki/poker-sync`
-`@tasuki/landing` `@tasuki/protocol` `@tasuki/ui` `@tasuki/e2e`）のテストを実行し、
-2026-08-10 時点で**全 1,970 件**が緑になります（コンテナのファイルシステム上・
-コールド実行で約 30 秒）。
+**対象パッケージはここに並べません。** `pnpm test` の実体は `turbo run test` で、
+turbo は `pnpm-workspace.yaml` の `packages` からパッケージを導出し、
+`test` スクリプトを持つものをすべて走らせます。
+**パッケージを足せば宣言なしで対象に入るため、この節に追記は要りません。**
+
+**テストの件数も書きません。数えるなら実行してください。**
+
+```bash
+pnpm turbo test --dry=text   # 実行せずに対象と走るタスクを一覧する
+pnpm turbo test --force      # キャッシュを無効にして実際に走らせる
+```
+
+**`--force` を付けない実行で件数を数えてはいけません。** 変更が無いと turbo は
+キャッシュから出力を再生し（`>>> FULL TURBO`）、テストを 1 件も走らせないまま
+前回の件数をそのまま表示します。
+
+**turbo が最後に出す `Tasks: N successful` の N はパッケージ数ではありません。**
+`test` は `dependsOn: ["^build"]` を持つため（`turbo.json`）、依存パッケージの
+`build` タスクが同じ数に混ざります。パッケージ数を見たいときは `--dry=text` の
+`Running test in N packages` の行を読んでください。
+
+所要時間は実行環境で桁が変わります。実測値は下の[効果](#効果)を参照してください。
 
 ### 9p 越しで実行するときは依存の実体を逃がす（任意）
 
@@ -522,8 +690,8 @@ workspace の実体（`pnpm -r list --depth -1 --json`）と全単射で照合�
 ### ディレクトリを移設・改名すると検査が赤くなる
 
 パッケージ名だけでなく、**宣言から導出される走査ディレクトリの実在**も検査します
-（`packages/x/src` や、構造監査が見る `test` ディレクトリ・エントリポイント）。
-`packages/x/src` を `packages/x/source` へ改名すると、パッケージ名は workspace に
+（`packages/<pkg>/src` や、構造監査が見る `test` ディレクトリ・エントリポイント）。
+`packages/<pkg>/src` を `packages/<pkg>/source` へ改名すると、パッケージ名は workspace に
 残っているため全単射照合は通りますが、実在確認が次の形で落とします。
 
 ```
@@ -549,6 +717,31 @@ workspace の実体（`pnpm -r list --depth -1 --json`）と全単射で照合�
 以後どれだけ文言を持たせても検出されません。新しいドメインエラー型を足したときも宣言へ
 追記します（WS プロトコルの `ProtocolError` や `ServerMessage` は**対象外**です。
 これらは `message` を持つのが正しく、宣言へ入れると誤検出になります）。
+
+**`packages/` 配下へパッケージを足すと、SC-039②③ の照合先にも入ります。**
+構造監査の SC-039②③（生きたモジュールの中の死んだ公開データ・公開記号）は、
+照合先を `SCANNED_PACKAGES` のうち `packages/` 層で `src` を持つ宣言から導きます
+（[`docs/adr/0014`](../adr/0014-scan-target-integrity.md) 追記・#180）。参照元は層を問わず、
+`src` と `entry` を持つ宣言すべての到達可能なファイルです（テストは含めません。FR-090）。
+走査量は次の 1 行で名乗ります。
+
+```
+[audit-structure] SC-039②③ の走査対象: 照合先 4 パッケージ / 29 ファイル、参照元 9 パッケージ / 186 ファイル
+```
+
+宣言から導いた一覧と、実際に組み立てた一覧が食い違うと落ちます。**照合はパッケージ単位と
+ファイル単位の両方で行います。** パッケージ単位だけだと、「そのパッケージは残るが特定の
+ファイルだけが集合から抜ける」狭め方が素通りするためです（実測で exit 0 でした）。
+**`src` を宣言したのに `entry` を書かないと落ちます** — その形は SC-027 の測定対象からも
+SC-039 の参照元からも静かに外れるためです（外れても走査量は他パッケージ分で非ゼロのまま
+なので、0 件ガードでは捕まりません）。
+
+**SC-039③ が新しく記号を検出しても、構造監査は緑（exit 0）のままです。**
+測定値は合否を持ちません（[`docs/adr/0009`](../adr/0009-ci-scope-and-checks.md) D2）。
+落ちるのは計測器のほう（走査範囲のずれ・0 件・例外表の腐り）だけです。検出された記号を
+`SC039C_EXCEPTIONS` へ逃がすのは、**その公開を失うと検査そのものが弱くなるときだけ**に
+してください。「まだ決めていない」は理由になりません（例外へ入れた瞬間に指標が 0 へ戻り、
+判断すべき対象が見えなくなります）。
 
 **ドメインが環境から値を直読みしたら検査が赤くなります。**
 `scripts/audit-domain-side-effects.mjs` は `DOMAIN_PACKAGES` として宣言した core の
@@ -577,6 +770,21 @@ shellcheck・自己テスト（`node --test`）の対象は宣言ではなく `g
 リンク検査（`scripts/check-links.mjs`）は追跡下の `*.md` を `LIVE_DOCS` と
 `DORMANT_DOCS` の宣言へ全分割します。新しいディレクトリに文書を置いたときの扱いは
 同スクリプト内のコメントを参照してください。
+
+**現役の規範文書（`LIVE_DOCS`）では、インラインコードに書いたリポジトリ内のパスも
+検査します。拡張子の有無は問いません**（#156）。ディレクトリ参照
+（`apps/poker-sync/src/adapters`）も、`path:line` 表記の**行番号が対象ファイルの
+行数を超えていないか**も見ます。次の 3 つは対象外です。
+
+- グロブ・変数展開・メタ変数を含むもの（`packages/*/src`・`apps/${APP}/dist`・
+  `packages/<pkg>/src`）。**任意の名前を表したいときは `<…>` で書いてください**
+- `docs/adr/0002` のような **ADR 番号の接頭辞**。ディレクトリではなく
+  「その番号で始まる ADR が実在するか」で解決します（番号が飛べば赤になります）
+- 例外表（`MISSING_PATH_EXCEPTIONS` / `STALE_LINE_REF_EXCEPTIONS`）に理由つきで
+  登録したもの。**一度も赤を抑えなかったエントリは検査が落とします**
+
+相対リンクの側では、ネストした角括弧（`[![alt](img.png)](link.md)`）の外側と、
+題名つきリンク（`[a](./a.md "title")`）も検査対象です。
 
 ## CI
 

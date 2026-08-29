@@ -37,6 +37,10 @@
 
 - `token` あり・照合一致 → 同一参加者として復帰（票・joinOrder 引き継ぎ。`name` は無視）
 - `token` なし・不一致 → 新規参加者として追加（voting 中なら未投票扱い、自動公開の分母に入る）
+- **既にその `roomId` に居る接続からの再送は冪等**（[#171](https://github.com/tomohiroJin/tasuki-tools/issues/171)）。
+  切り離しも新規参加者の追加も行わず、同じ `participantId` / `token` で `joined` を返して
+  最新の `room-state` を配信する。`name` と `token` はこの場合いずれも無視する
+  （既に居る接続の identity はソケット側が正）。他の参加者から見て切断は起きない
 - 失敗: `error`（`room-not-found`）
 
 ### vote — 投票・票の変更（FR-005〜007）
@@ -128,7 +132,7 @@ revealed 後の例:
 | code | 意味 | 対応する要求 |
 |------|------|-------------|
 | `invalid-message` | スキーマ検証失敗 | 全 C→S（FR-015） |
-| `room-not-found` | ルーム不存在・破棄済み | join-room（FR-015, US1-AS3） |
+| `room-not-found` | ルーム不存在・破棄済み | join-room（FR-015, US1-AS3）、vote / reveal / next-round（破棄済みルームを指したままの接続。[#171](https://github.com/tomohiroJin/tasuki-tools/issues/171)） |
 | `not-host` | ホスト専用操作 | reveal, next-round |
 | `not-voting` | voting 中でない | vote, reveal |
 | `not-revealed` | revealed 中でない | next-round |
