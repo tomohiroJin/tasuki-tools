@@ -43,9 +43,12 @@ describe("NanoidCodeGen.generate（ルーム名＋接尾辞）", () => {
   });
 
   /**
-   * 接尾辞の文字集合（実装と同じもの）。**ここだけを見て桁数を決めない** —
-   * 下の判定は「この集合の大きさ」と「実際に生成された接尾辞の長さ」から
-   * 探索空間を組み立てる。実装側で集合が縮んでも桁数が縮んでも赤になる。
+   * 接尾辞の文字集合（実装と同じもの）。
+   *
+   * **これを探索空間の計算に使ってはならない。** テスト側の定数から組み立てると、
+   * 実装の文字集合が縮んでも気づけない（実際に「集合を 4 種へ縮める」変異が
+   * 素通りした・#144）。下の判定は**生成された接尾辞から実際に使われている文字を
+   * 観測して**組み立て、この定数とは突き合わせるだけにする。
    */
   const SUFFIX_ALPHABET = "abcdefghijkmnpqrstuvwxyz23456789";
 
@@ -57,24 +60,33 @@ describe("NanoidCodeGen.generate（ルーム名＋接尾辞）", () => {
   const ONE_YEAR_SECONDS = 31_536_000;
   const SUSTAINED_ATTEMPTS_PER_SECOND = 1;
 
-  it("接尾辞は決められた文字集合だけを使う（集合が縮めば探索空間も縮む）", () => {
-    // Given（多めに引いて、たまたま通ることを避ける）
-    const allowed = new Set(SUFFIX_ALPHABET);
-    // When
-    const suffixes = Array.from({ length: 200 }, () => gen.generate("alphabet").split("-").pop()!);
-    // Then
-    for (const suffix of suffixes) {
-      for (const ch of suffix) expect(allowed.has(ch), `想定外の文字: ${ch}`).toBe(true);
+  /** 接尾辞を多数引いて、実際に使われている文字と長さを観測する。 */
+  function observeSuffixes(samples: number) {
+    const characters = new Set<string>();
+    const lengths = new Set<number>();
+    for (let i = 0; i < samples; i++) {
+      const suffix = gen.generate("observe").split("-").pop()!;
+      lengths.add(suffix.length);
+      for (const ch of suffix) characters.add(ch);
     }
+    return { characters, lengths };
+  }
+
+  it("接尾辞に使われる文字は実装と規約で過不足なく一致する", () => {
+    // Given: 1 文字が 500 標本（4,000 文字）に一度も出ない確率は無視できる
+    const { characters } = observeSuffixes(500);
+    // When / Then: **両方向**で見る。部分集合の判定だけだと集合が縮んでも通る
+    expect([...characters].sort().join("")).toBe([...SUFFIX_ALPHABET].sort().join(""));
   });
 
   it("接尾辞の探索空間が全探索 1 年以上になる（ADR-0011 決定4 の下限）", () => {
-    // Given: 決定4 の前提レート（#103 実装後の持続レート・単一 IP）
-    const suffix = gen.generate("entropy").split("-").pop()!;
-    // When: 実際に生成された接尾辞から探索空間を組み立てる
-    const searchSpace = Math.pow(SUFFIX_ALPHABET.length, suffix.length);
+    // Given: 実際に生成された接尾辞から、文字の種類数と長さを観測する
+    const { characters, lengths } = observeSuffixes(500);
+    expect(lengths.size, "接尾辞の長さが揺れています").toBe(1);
+    // When: 観測した値だけで探索空間を組み立てる（テスト側の定数は使わない）
+    const searchSpace = Math.pow(characters.size, [...lengths][0]!);
     const secondsToExhaust = searchSpace / SUSTAINED_ATTEMPTS_PER_SECOND;
-    // Then: 4 文字だと 12.1 日で、目標に届かなかった（#144）
+    // Then: 32 種 4 文字では 12.1 日で、目標に届かなかった（#144）
     expect(secondsToExhaust).toBeGreaterThanOrEqual(ONE_YEAR_SECONDS);
   });
 });
