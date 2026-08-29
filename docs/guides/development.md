@@ -245,8 +245,9 @@ pnpm install --lockfile-only
 #    効いていない（外し損ねか、別の行を消した）。手順 1 へ戻る
 grep -n "^  <外した overrides のキー>:" pnpm-lock.yaml   # 何も出ないこと（例: nanoid@3:）
 
-# 6. 作り直した lockfile で、当該パッケージに選ばれた版を見る
-grep -nE "^  <対象パッケージ>@[0-9]" pnpm-lock.yaml
+# 6. 作り直した lockfile で、対象メジャーに選ばれた版を見る。メジャーの直後に `\.`
+#    を置くのは、別メジャーの行と冒頭の overrides の転記行を除くため
+grep -nE "^  <対象パッケージ>@<対象メジャー>\." pnpm-lock.yaml   # 例: nanoid@3\.
 
 # 7. 作業ツリーを戻し、node_modules を入れ直す
 git checkout -- pnpm-workspace.yaml pnpm-lock.yaml
@@ -256,6 +257,14 @@ pnpm install --frozen-lockfile
 - 選ばれた版が**下限以上**なら、その行は削除できます（親の要求だけで足ります）
 - 選ばれた版が**下限未満**なら、まだ必要です。これは**親の要求範囲が下限より上の版を
   選べない**とき、つまり `overrides` を置いた理由がまだ生きているときに起きます
+- **1 件も出ないときは判定できません。** 対象メジャーが依存木にいないということなので、
+  行を戻して何が起きたかを確かめてください
+
+**手順 6 のパターンでメジャーまで指定するのは、同名で別メジャーが同居するからです。**
+`nanoid` は直接依存の 6.x（`apps/timer-sync`）と推移依存の 3.x が同居しており、実測では
+`^  nanoid@[0-9]` が **5 行**（`nanoid@3.3.18` 2 行・`nanoid@6.0.1` 2 行・lockfile 冒頭の
+`nanoid@3: ^3.3.18`）を返しました。**`6.0.1 >= 3.3.18` と読んで誤って削除する経路**が
+開きます。`^  nanoid@3\.` なら 2 行だけになります。
 
 **`pnpm-lock.yaml` が出来ていることは、解き直した証拠になりません。** `node_modules` を
 残したまま実行すると、消した lockfile は `node_modules/.pnpm/lock.yaml` から作り直されます。
