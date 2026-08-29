@@ -490,6 +490,18 @@ export function sc035MessageDefinitions(serverSources, clientSource) {
  * ============================================================ */
 
 /**
+ * SC-039① が測った範囲を指標の値に添える名札（#180）。
+ *
+ * ①の走査は**広げていない**。{@link sc039aUnreachableBranchInApps} が見るのは
+ * `!room.onBreak` という既知のパターン 1 つだけで、対象は
+ * {@link METRIC_FILE_PINS} が名指しする 1 ファイルに限られる。それを書かずに
+ * 「分岐 0」とだけ出すと、`apps/` 全体に到達不能な分岐が無いと読める。
+ * ②③が「timer-core についてのみ 0」を「0」と report していたのが #180 の現象そのもので、
+ * ①は同じ形の誤読をまだ残している。**広げないなら、どこを測った 0 なのかを出す。**
+ */
+const SC039A_SCOPE = "apps/timer-sync の既知パターンのみ";
+
+/**
  * SC-039①: apps/ の到達不能な分岐。
  * 【限界】機械判定が難しいため、既知のパターン（`!room.onBreak`）の検出に留める。
  * 一般の「受理コマンド集合から到達しない条件」の網羅的判定は行わない（spec/plan の指示どおり）。
@@ -851,6 +863,14 @@ export const EXCLUDED_PACKAGES = [
  * ただし、その記号を失うと**検査そのものが弱くなる**ものが実在する。それらは公開を残し、
  * ここへ理由つきで挙げる。理由を書けないものは例外にしない。
  *
+ * **「まだ決めていない」は理由ではない**（#180）。走査を `packages/` 全体へ広げたとき、
+ * 新たに 16 件が検出された。うちここへ載せたのは上の条件に当てはまる 3 件だけである。
+ * 残り 13 件は「パッケージの公開契約（`index.ts` の明示列挙）から外してよいか」という
+ * 未決の判断であり、それは #182 が扱う問いそのものである。判断を待つあいだ例外表へ
+ * 入れると指標が 0 に戻り、**#182 が読むべき信号を消してしまう**。測定値は落ちない
+ * （ADR-0009 D2。実測で `audit-structure.mjs` は exit 0）ので、見えたまま残す。
+ * #135 が走査を広げた結果 SC-031 が未達へ変わったときと同じ扱いである（ADR-0014「影響」）。
+ *
  * **例外表は両方向に腐る。** 記号が消えたのに例外が残れば同名の別記号を静かに覆い、
  * 記号が製品から使われ始めれば例外そのものが不要になる。
  * どちらも {@link findStaleSymbolExceptions} が落とす。
@@ -877,6 +897,24 @@ export const SC039C_EXCEPTIONS = [
     file: "packages/timer-core/src/error-messages.ts",
     name: "DEFAULT_ERROR_MESSAGE",
     reason: "既定文言の正本。落とすと 3 ファイルへ文言リテラルが複製される",
+  },
+  {
+    file: "packages/rate-limit/src/client-key.ts",
+    name: "normalizeClientAddress",
+    reason:
+      "packages/rate-limit/tests/client-key.test.ts が IP 正規化そのものを直接検証している唯一の土台。index.ts は ADR-0012 D3 により意図的にこの記号を公開しておらず（生の IP を外へ出さない）、公開 API 経由では HMAC 済みの不透明な文字列しか観測できないため、/64 丸め・IPv4-mapped の畳み込みという安全上の不変条件を書けなくなる",
+  },
+  {
+    file: "packages/rate-limit/src/token-bucket.ts",
+    name: "DEFAULT_SWEEP_THRESHOLD",
+    reason:
+      "掃除の既定しきい値の正本（#103 設計正本 D4）。落とすと packages/rate-limit/tests/token-bucket.test.ts へ 1_000 という数値リテラルが複製され、値の変更を検知する検査が値の写しを検査するだけになる（DEFAULT_ERROR_MESSAGE と同型）",
+  },
+  {
+    file: "packages/rate-limit/src/token-bucket.ts",
+    name: "MAX_SWEEP_THRESHOLD",
+    reason:
+      "掃除しきい値の上限の正本（#103 設計正本 D4）。createTokenBucketLimiter の入力検証と例外文言が参照しており、テストは境界値（上限ちょうど・上限＋1）をこの記号から作る。落とすと 1_000_000 が検査側へ複製される",
   },
 ];
 
@@ -1241,6 +1279,138 @@ export function scanVolumeDimensions(volume) {
 }
 
 /**
+ * FR-119②③ が層で切っている境界。
+ *
+ * FR-119 は対象を層の言葉で定めている（設計正本
+ * `docs/plans/codebase-refactoring/spec.md` の FR-119）:
+ * 「**`packages/` の公開データ（定数・テーブル）は対象である**」。
+ * `packages/timer-core` のような**特定のパッケージ名は 1 つも出てこない**。
+ * したがって走査対象はこの接頭辞から導き、パッケージ名を名指ししない
+ * （名指しは #180 が実際に踏んだ形。「列挙は腐る。機構で指す」）。
+ */
+const PACKAGE_LAYER_PREFIX = "packages/";
+
+/** 宣言されたパッケージが `packages/` 層かどうか。**判定はこの 1 か所だけ**（ADR-0014 決定 9）。 */
+export function isPackageLayer(pkg) {
+  return pkg.startsWith(PACKAGE_LAYER_PREFIX);
+}
+
+/**
+ * SC-039②③ の**照合先**として宣言されているパッケージ（純粋）。
+ *
+ * `packages/` 層のうち src を持つもの。`loaded` ではなく**宣言**から導くので、
+ * {@link buildSc039Sources} が実際に組み立てた一覧と全単射で照合できる（#135 の機構）。
+ */
+export function sc039DeclaredComparedPackages(declarations) {
+  return declarations
+    .filter((d) => isPackageLayer(d.pkg) && hasScanTarget(d.src))
+    .map((d) => d.pkg)
+    .sort();
+}
+
+/**
+ * SC-039②③ の**参照元**として宣言されているパッケージ（純粋）。
+ *
+ * 層は問わない（`apps/` も `packages/` も製品コードである）。到達性で絞るために
+ * エントリが要るので、src とエントリの両方を持つ宣言だけが参照元になる。
+ * エントリを持たない src 宣言は {@link findSrcWithoutEntry} が別に落とす。
+ */
+export function sc039DeclaredReferencePackages(declarations) {
+  return declarations
+    .filter((d) => hasScanTarget(d.src) && hasScanTarget(d.entry))
+    .map((d) => d.pkg)
+    .sort();
+}
+
+/**
+ * SC-039②③ の**照合先ファイル**として宣言されているファイル（純粋）。
+ *
+ * **パッケージ単位の名乗り（{@link sc039DeclaredComparedPackages}）では足りない。**
+ * 「そのパッケージは 1 件以上寄与し続けるが、特定のファイルだけが集合から抜ける」
+ * 狭め方は、パッケージ名の全単射照合にも 0 件ガードにも例外表の健全性にも掛からず
+ * exit 0 で素通りする（#180 の敵対的レビューが実測。`stats.ts` 1 件を間引くと
+ * 「照合先 4 パッケージ / 28 ファイル」で緑になった）。照合の粒度をファイルへ上げる。
+ *
+ * 導出は宣言（`packages/` 層で src を持つ）と、その src ディレクトリを実際に読んだ
+ * 結果だけから行う。**パッケージ名もファイル名も名指ししない**（「列挙は腐る。機構で指す」）。
+ * 照合先には絞り込みが一切無い（到達性でも絞らない）ので、読めたファイルがそのまま宣言になる。
+ *
+ * @param loaded {@link loadScanTargets} の結果
+ */
+export function sc039DeclaredComparedFiles(loaded) {
+  const files = [];
+  for (const p of loaded) {
+    if (!isPackageLayer(p.pkg) || !hasScanTarget(p.src)) continue;
+    for (const k of p.srcFiles.keys()) files.push(`${p.pkg}/${p.src}/${k}`);
+  }
+  return files.sort();
+}
+
+/**
+ * SC-039②③ の**参照元ファイル**として宣言されているファイル（純粋）。
+ *
+ * 参照元には**意図した絞り込みが 1 つだけ**ある — 到達性
+ * （{@link computeReachableFiles}）。死んだファイルからの参照は生存の根拠にならない
+ * ため、これは宣言の一部である。したがって宣言側でも同じ絞り込みを適用する。
+ *
+ * **ここに書いてよい絞り込みは到達性だけ。** 追加の条件を書くと、その条件で
+ * 組み立て側を狭めたときに宣言側も揃って狭まり、照合が素通りする。
+ *
+ * @param loaded {@link loadScanTargets} の結果
+ */
+export function sc039DeclaredReferenceFiles(loaded) {
+  const files = [];
+  for (const p of loaded) {
+    if (!hasScanTarget(p.src) || !hasScanTarget(p.entry)) continue;
+    const reachable = computeReachableFiles(p.srcFiles, [p.entry]);
+    for (const k of p.srcFiles.keys()) {
+      if (!reachable.has(k)) continue;
+      files.push(`${p.pkg}/${p.src}/${k}`);
+    }
+  }
+  return files.sort();
+}
+
+/**
+ * ファイル単位のずれを人が読める形にする（純粋）。
+ *
+ * **`formatTargetDiff` を流用しない。** あちらの文言は「宣言にあるが実在しない ←
+ * 移設したなら宣言を直す」であり、ここで落ちるファイルは**実在している**。
+ * 実在するのに集合へ入っていない、という別の失敗なので、直し方の案内も別になる。
+ * 誤った案内を出す赤は、赤が出ないのと同じくらい人を遠回りさせる。
+ *
+ * 走査量を必ず添えるのは `formatTargetDiff` と同じ理由（#135 D5・ADR-0014 決定 6）。
+ */
+export function formatSc039FileDrift(diff, scanSummary) {
+  const lines = ["[audit-structure/SC-039] 走査対象のファイルが宣言とずれています"];
+  for (const m of diff.missing) {
+    lines.push(`  宣言では走査するのに集合へ入っていない: ${m}    ← 組み立て側の絞り込みを外す`);
+  }
+  for (const u of diff.unexpected) {
+    lines.push(`  集合に入っているが宣言では走査しない:  ${u}    ← 宣言へ足すか、集合へ入れない`);
+  }
+  lines.push(`  現在の走査対象: ${scanSummary}`);
+  return lines.join("\n");
+}
+
+/**
+ * src を持つのにエントリを持たない宣言を列挙する（純粋）。
+ *
+ * この形の宣言は**2 つの検査を同時に静かに失わせる**。SC-027 は
+ * `hasScanTarget(p.entry)` で絞るので測定対象から外れ、SC-039 の参照元も
+ * 到達性を計算できないため外れる。外れた分の走査量は他パッケージ分で
+ * 非ゼロのままなので、0 件ガードにも全単射照合にも掛からない（#158 と同型）。
+ *
+ * 落とすのは呼び出し側（`process.exit` は呼ばない）。
+ */
+export function findSrcWithoutEntry(declarations) {
+  return declarations
+    .filter((d) => hasScanTarget(d.src) && !hasScanTarget(d.entry))
+    .map((d) => d.pkg)
+    .sort();
+}
+
+/**
  * SC-039②③ が使う 2 つの集合（純粋）を、読み込み済みの走査対象から組み立てる。
  *
  * **`main()` のガードと `runAudit()` の指標は、どちらもこの関数の結果だけを使う**
@@ -1249,47 +1419,123 @@ export function scanVolumeDimensions(volume) {
  * 2 か所で別々に組み立てると、条件式が割れた瞬間にガードが静かに空振りする
  * （このリポジトリが実際に踏んだ形。`loadScanTargets` の docstring を参照）。
  *
- * - `packageSrcFiles`: SC-039②③ が数える対象。各 packages 配下の src のみ
- *   （FR-119②③は packages 限定）。到達性では絞らない。
+ * - `packageSrcFiles`: SC-039②③ が数える対象。**`packages/` 層で src を持つ宣言すべて**
+ *   （FR-119②③は層で切っている。{@link isPackageLayer}）。到達性では絞らない。
  * - `productSources`: 参照元となる製品コード。**SC-027 が到達不能と判定したファイルを除く。**
  *   死んだファイルからの参照は生存の根拠にならない。これを除かないと、
  *   「撤去予定のファイルからしか参照されていない記号」が生きているように見え、
  *   G1 で撤去した瞬間に SC-039 の値が跳ね上がる（計測器が撤去を検知できない）。
  *   **テストは含めない**（FR-090）。
+ * - `comparedPackages` / `referencePackages`: **実際に 1 件以上寄与したパッケージ**の一覧。
+ *   宣言（{@link sc039DeclaredComparedPackages} / {@link sc039DeclaredReferencePackages}）と
+ *   全単射で照合するために返す。ここを「宣言をそのまま写す」実装にしてはならない —
+ *   写すと、組み立て側にパッケージ名の名指しが戻っても照合が素通りする。
  *
- * SC-035 / SC-039 は timer 固有の指標なので、走査を広げてもここは timer の 3 つだけを見る。
+ * **#180 まで、ここは `packages/timer-core` を名指しで取り出していた。**
+ * 指標は「公開記号 0 件」と報告していたが、それは timer-core についてのみ 0 で、
+ * 他の 3 パッケージは一度も測られていなかった。
+ *
+ * ## 照合の粒度は**ファイル**
+ *
+ * 返す 2 つの Map のキーそのものが、宣言（{@link sc039DeclaredComparedFiles} /
+ * {@link sc039DeclaredReferenceFiles}）と全単射で照合される。**パッケージ単位の
+ * 名乗りだけでは足りない** — この関数の中に
+ * `if (p.pkg === "packages/poker-core" && k === "stats.ts") continue;` の 1 行を
+ * 差し込むと、そのパッケージは他の 7 ファイルで寄与し続けるためパッケージ名の照合を
+ * 通り、走査量も 0 件にならず、例外表も腐らない。実測ではこの状態が
+ * 「照合先 4 パッケージ / 28 ファイル」（正規は 29）で **exit 0** だった（#180 の
+ * 敵対的レビュー）。ファイル単位へ上げるとこれは赤になり、抜けたファイルが名指しされる。
+ *
+ * ## 塞げていないこと（すべて実測。**緑は「走査範囲が正しい」ことを証明しない**）
+ *
+ * 落ちるのは**この関数の中の絞り込み**と、`main()` の照合より**手前**での間引きだけ。
+ * 次の 4 つは落ちない。共通する形は「宣言側と実体側が同じ上流を通るので揃って狭まる」
+ * か「照合より後段にある」かのどちらかである。
+ *
+ * 1. **層の述語（{@link isPackageLayer}）そのものの書き換え。** 宣言側も実体側も
+ *    同じ述語を通る（判定を 1 本に固定する決まり・ADR-0014 決定 9 の裏返しであり、
+ *    両立しない）。実測: `packages/` を timer-core と rate-limit の 2 つへ狭めると
+ *    「照合先 2 パッケージ / 19 ファイル」で exit 0。**例外表（{@link SC039C_EXCEPTIONS}）が
+ *    名指しするパッケージを外すと偶然落ちるが、それは例外表の中身に依存した
+ *    偶然であって構造的な歯止めではない。**
+ * 2. **読み込みそのものの書き換え**（`main()` が {@link loadScanTargets} へ渡す
+ *    `readFilesRecursive` / 拡張子の集合）。宣言側も実体側も同じ `loaded` から導くので
+ *    揃って狭まる。実測: 読み込み時に 1 ファイルを落とすと「照合先 28 / 参照元 185」で exit 0。
+ * 3. **照合より後段での間引き**（`runAudit()` の中や指標関数の中）。照合は既に終わっている。
+ *    実測: `runAudit()` で組み立て直した Map から 1 件 delete すると、走査量の表示すら
+ *    「照合先 29 / 参照元 186」のまま変わらず exit 0。**この 3 つの中で唯一、数字に痕跡が残らない。**
+ *    ここを守るのは走査範囲の検査ではなく、指標関数自身のテストと `scripts/mutation-check.mjs` である。
+ * 4. **宣言の `entry` を別ファイルへ差し替えて到達性を痩せさせる。** 参照元の絞り込みは
+ *    到達性であり、宣言側（{@link sc039DeclaredReferenceFiles}）も同じ到達性を通る。
+ *    実測: poker-core の entry を `index.ts` → `deck.ts` にすると参照元 186 → 179 で exit 0。
+ *
+ * 1・2・4 の歯止めは、出力する走査量の数字が変わることと、それが 1 行の差分として
+ * diff に現れることの 2 つに限られる。3 にはその歯止めも無い。
  *
  * @param loaded {@link loadScanTargets} の結果
  */
 export function buildSc039Sources(loaded) {
-  const byPkg = new Map(loaded.map((p) => [p.pkg, p]));
-  const core = byPkg.get("packages/timer-core");
-  const sync = byPkg.get("apps/timer-sync");
-  const web = byPkg.get("apps/timer-web");
+  const packageSrcFiles = new Map();
+  const productSources = new Map();
+  const comparedPackages = [];
+  const referencePackages = [];
 
-  const reachable = {
-    core: computeReachableFiles(core.srcFiles, [core.entry]),
-    sync: computeReachableFiles(sync.srcFiles, [sync.entry]),
-    web: computeReachableFiles(web.srcFiles, [web.entry]),
+  for (const p of loaded) {
+    if (!hasScanTarget(p.src)) continue;
+    const prefix = `${p.pkg}/${p.src}/`;
+
+    if (isPackageLayer(p.pkg)) {
+      // **名乗りは「実際に集合へ入ったか」で決める。** `p.srcFiles.size > 0` で
+      // 判断すると、ここへ名指しの絞り込みが差し込まれても名乗りだけが残り、
+      // 宣言との照合が素通りする（この検査自身が塞ぐはずの穴を自分で開ける）。
+      const before = packageSrcFiles.size;
+      for (const [k, v] of p.srcFiles) packageSrcFiles.set(prefix + k, v);
+      if (packageSrcFiles.size > before) comparedPackages.push(p.pkg);
+    }
+
+    if (!hasScanTarget(p.entry)) continue;
+    const reachable = computeReachableFiles(p.srcFiles, [p.entry]);
+    const before = productSources.size;
+    for (const [k, v] of p.srcFiles) {
+      if (!reachable.has(k)) continue;
+      productSources.set(prefix + k, v);
+    }
+    if (productSources.size > before) referencePackages.push(p.pkg);
+  }
+
+  return {
+    packageSrcFiles,
+    productSources,
+    comparedPackages: comparedPackages.sort(),
+    referencePackages: referencePackages.sort(),
   };
+}
 
-  const productSources = new Map([
-    ...[...core.srcFiles]
-      .filter(([k]) => reachable.core.has(k))
-      .map(([k, v]) => [`packages/timer-core/src/${k}`, v]),
-    ...[...sync.srcFiles]
-      .filter(([k]) => reachable.sync.has(k))
-      .map(([k, v]) => [`apps/timer-sync/src/${k}`, v]),
-    ...[...web.srcFiles]
-      .filter(([k]) => reachable.web.has(k))
-      .map(([k, v]) => [`apps/timer-web/src/${k}`, v]),
-  ]);
-
-  const packageSrcFiles = new Map(
-    [...core.srcFiles].map(([k, v]) => [`packages/timer-core/src/${k}`, v]),
+/**
+ * SC-039②③ の走査量を人が読む 1 行にする（ADR-0014 決定 6）。
+ *
+ * **パッケージ数とファイル件数の両方を出す。** ファイル件数だけでは、
+ * 「どこを測った 0 件なのか」が読み手に伝わらない（#180 の現象そのもの）。
+ */
+export function formatSc039ScanVolume(sources) {
+  return (
+    `照合先 ${sources.comparedPackages.length} パッケージ / ${sources.packageSrcFiles.size} ファイル、` +
+    `参照元 ${sources.referencePackages.length} パッケージ / ${sources.productSources.size} ファイル`
   );
+}
 
-  return { packageSrcFiles, productSources };
+/**
+ * SC-039②③ の 0 件ガードが見る内訳（ADR-0014 決定 8）。
+ *
+ * **{@link formatSc039ScanVolume} が出力するのとまったく同じ 4 つ**を見る。
+ */
+export function sc039ScanVolumeDimensions(sources) {
+  return [
+    { label: "SC-039 の照合先パッケージ", count: sources.comparedPackages.length },
+    { label: "SC-039 の照合先ファイル", count: sources.packageSrcFiles.size },
+    { label: "SC-039 の参照元パッケージ", count: sources.referencePackages.length },
+    { label: "SC-039 の参照元ファイル", count: sources.productSources.size },
+  ];
 }
 
 /**
@@ -1320,8 +1566,11 @@ export function buildAllTestFiles(loaded) {
 function runAudit(loaded) {
   const byPkg = new Map(loaded.map((p) => [p.pkg, p]));
 
-  // SC-035 / SC-039① は timer 固有の指標。走査を広げてもここは変えない。
-  // （SC-039②③ の集合は `buildSc039Sources` が持つ。ここでは組み立てない。）
+  // SC-035 / SC-039① は timer 固有の指標。走査を広げてもここは変えない
+  // （SC-035 は timer の文言テーブル、SC-039① は timer の既知パターン 1 つが対象。
+  //   測った範囲は SC039A_SCOPE として指標の値に添える）。
+  // **SC-039②③ は #180 で `packages/` 全体へ広げた。** 集合は `buildSc039Sources` が
+  // 宣言から導く。ここでは組み立てない。
   const sync = byPkg.get("apps/timer-sync");
   const web = byPkg.get("apps/timer-web");
 
@@ -1375,7 +1624,8 @@ function runAudit(loaded) {
     sc036: { value: sc036, target: "P1 完了時の基準値以上" },
     sc039: {
       value:
-        `分岐 ${sc039.unreachableBranches} / データ ${sc039.unusedPublicDataLines} 行 / ` +
+        `分岐 ${sc039.unreachableBranches}（${SC039A_SCOPE}）/ ` +
+        `データ ${sc039.unusedPublicDataLines} 行 / ` +
         `公開記号 ${sc039.selfOnlyPublicSymbols} 件`,
       target: "分岐0 / データ0行 / 公開記号0件",
       raw: sc039,
@@ -1426,6 +1676,19 @@ function main() {
   if (invalidDeclarations.length > 0) {
     console.error("[audit-structure] 走査対象の宣言が不正です（null か非空の文字列のみ）");
     for (const d of invalidDeclarations) console.error(`  ${d}`);
+    console.error(`  現在の走査対象: ${summary}`);
+    process.exit(1);
+  }
+
+  // src を持つのにエントリを持たない宣言を落とす（#180）。
+  // その形の宣言は SC-027 の測定対象からも SC-039 の参照元からも静かに外れる。
+  // 外れても走査量は他パッケージ分で非ゼロのままなので、0 件ガードでは捕まらない。
+  const srcWithoutEntry = findSrcWithoutEntry(SCANNED_PACKAGES);
+  if (srcWithoutEntry.length > 0) {
+    console.error(
+      "[audit-structure] src を宣言したのにエントリ（entry）がありません（SC-027 と SC-039 の参照元を静かに失います）",
+    );
+    for (const pkg of srcWithoutEntry) console.error(`  ${pkg}`);
     console.error(`  現在の走査対象: ${summary}`);
     process.exit(1);
   }
@@ -1484,14 +1747,75 @@ function main() {
     process.exit(1);
   }
 
-  // 例外表の健全性（走査対象のずれと同じ扱いで合否を持つ）。
-  // 指標を出す前に見る。腐った例外を抱えたまま「0 件」と報告させない。
+  // SC-039②③ の走査範囲そのものの健全性（#180）。**指標を出す前に見る。**
   //
   // **見る集合は `runAudit()` が測る集合と同一**（ADR-0014 決定 9）。
   // 同じ `loaded` を `buildSc039Sources` に渡しているので、ここで組み直してはいない。
-  // 走査対象の実在確認より後に置くのは、この関数が timer の 3 パッケージの存在を前提に
-  // するためである（宣言が欠けていれば上のガードが先に落とす）。
   const sc039Sources = buildSc039Sources(loaded);
+
+  // 走査量は成否によらず必ず出す（#135 D5・ADR-0014 決定 6）。
+  // **パッケージ数まで出す。** #180 まではファイル件数だけを出していたため、
+  // 「照合先 14 ファイル」が 1 パッケージ分しか無いことが誰にも見えなかった。
+  console.log(`[audit-structure] SC-039②③ の走査対象: ${formatSc039ScanVolume(sc039Sources)}`);
+
+  // 宣言（SCANNED_PACKAGES から導いた一覧）と、実際に組み立てた一覧を全単射で照合する
+  // （#135 の機構・ADR-0014 決定 1）。`buildSc039Sources` にパッケージ名の名指しが
+  // 戻れば、照合先の一覧が宣言より短くなってここで落ちる。
+  const sc039Drift = diffTargets(
+    sc039DeclaredComparedPackages(SCANNED_PACKAGES),
+    sc039Sources.comparedPackages,
+  );
+  const sc039RefDrift = diffTargets(
+    sc039DeclaredReferencePackages(SCANNED_PACKAGES),
+    sc039Sources.referencePackages,
+  );
+  if (hasTargetDrift(sc039Drift) || hasTargetDrift(sc039RefDrift)) {
+    const merged = {
+      missing: [...sc039Drift.missing, ...sc039RefDrift.missing].sort(),
+      unexpected: [...sc039Drift.unexpected, ...sc039RefDrift.unexpected].sort(),
+    };
+    console.error(
+      formatTargetDiff("audit-structure/SC-039", merged, formatSc039ScanVolume(sc039Sources)),
+    );
+    process.exit(1);
+  }
+
+  // **照合はファイル単位でも行う**（#180 の敵対的レビュー）。上のパッケージ単位の
+  // 名乗りは「そのパッケージが 1 件以上寄与したか」しか見ないため、
+  // 「パッケージは残るが特定のファイルだけが集合から抜ける」狭め方を素通りさせる。
+  // 実測では `packages/poker-core/src/stats.ts` 1 件を間引いた状態が
+  // 「照合先 4 パッケージ / 28 ファイル」（正規は 29）で exit 0 だった。
+  //
+  // 機構は上とまったく同じ（`diffTargets` の両方向）。粒度だけをファイルへ上げる。
+  const sc039FileDrift = diffTargets(
+    sc039DeclaredComparedFiles(loaded),
+    [...sc039Sources.packageSrcFiles.keys()],
+  );
+  const sc039RefFileDrift = diffTargets(
+    sc039DeclaredReferenceFiles(loaded),
+    [...sc039Sources.productSources.keys()],
+  );
+  if (hasTargetDrift(sc039FileDrift) || hasTargetDrift(sc039RefFileDrift)) {
+    const merged = {
+      missing: [...sc039FileDrift.missing, ...sc039RefFileDrift.missing].sort(),
+      unexpected: [...sc039FileDrift.unexpected, ...sc039RefFileDrift.unexpected].sort(),
+    };
+    console.error(formatSc039FileDrift(merged, formatSc039ScanVolume(sc039Sources)));
+    process.exit(1);
+  }
+
+  // 走査量のどの内訳も 0 件でないことを見る（ADR-0014 決定 8）。
+  // 全体の走査量が非ゼロでも、SC-039 の照合先だけが空になる経路は独立に存在する。
+  const emptySc039Dimensions = findEmptyScanDimensions(sc039ScanVolumeDimensions(sc039Sources));
+  if (emptySc039Dimensions.length > 0) {
+    console.error(
+      `[audit-structure] SC-039 の走査対象が 0 件です（検査が空振りします）: ${emptySc039Dimensions.join(" / ")}`,
+    );
+    process.exit(1);
+  }
+
+  // 例外表の健全性（走査対象のずれと同じ扱いで合否を持つ）。
+  // 指標を出す前に見る。腐った例外を抱えたまま「0 件」と報告させない。
   const staleExceptions = findStaleSymbolExceptions(
     SC039C_EXCEPTIONS,
     sc039Sources.packageSrcFiles,
