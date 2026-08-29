@@ -138,3 +138,75 @@ run() {
 		"$@"
 	fi
 }
+
+# remote_restart_script <service> <settle>
+#   リモートで走らせるスクリプトを組み立てる。
+#
+#   **値はテンプレートの外に置いて置換で埋める**（service.tmpl と同じ形・#51 A）。
+#   スクリプト中の `$` をローカルで展開させないため、クォート付きヒアドキュメントで
+#   書いてから @KEY@ を置き換える。
+#
+#   検知したいのは 3 つ。
+#     1. 再起動コマンドそのものの失敗
+#     2. 起動しない（#103 が足した fail-closed は「起動しないことで守る」設計）
+#     3. 起動はするが落ちて再起動を繰り返す（Restart=on-failure があるため、
+#        一瞬だけ active に見える瞬間がある）
+#
+#   3 を見るために **間を空けて 2 回**確かめ、NRestarts が増えていないことまで見る。
+#   これは deploy.sh が「確認」として人手に案内していた手順そのものである。
+remote_restart_script() {
+	local service="$1" settle="$2" tmpl
+	tmpl=$(
+		cat <<'REMOTE'
+set -eu
+
+if ! sudo systemctl restart @SERVICE@; then
+	echo "ERROR: @SERVICE@ の再起動コマンドが失敗しました" >&2
+	exit 1
+fi
+
+sleep @SETTLE@
+if ! systemctl is-active --quiet @SERVICE@; then
+	echo "ERROR: @SERVICE@ が起動していません" >&2
+	systemctl --no-pager status @SERVICE@ || true
+	exit 1
+fi
+before=$(systemctl show @SERVICE@ --property=NRestarts --value)
+
+sleep @SETTLE@
+if ! systemctl is-active --quiet @SERVICE@; then
+	echo "ERROR: @SERVICE@ が起動後に落ちました" >&2
+	systemctl --no-pager status @SERVICE@ || true
+	exit 1
+fi
+after=$(systemctl show @SERVICE@ --property=NRestarts --value)
+
+if [ "$before" != "$after" ]; then
+	echo "ERROR: @SERVICE@ が再起動を繰り返しています（NRestarts $before → $after）" >&2
+	systemctl --no-pager status @SERVICE@ || true
+	exit 1
+fi
+
+systemctl --no-pager status @SERVICE@ || true
+echo "OK: @SERVICE@ は active のままで、NRestarts は $after から増えていません"
+REMOTE
+	)
+	tmpl="${tmpl//@SETTLE@/$settle}"
+	tmpl="${tmpl//@SERVICE@/$service}"
+	printf '%s\n' "$tmpl"
+}
+
+# restart_and_verify
+#   リモートのサービスを再起動し、**起動し続けていること**まで確かめる。
+#
+#   以前は `ssh host "sudo systemctl restart X; systemctl status X | head -5"` の 1 行だった。
+#   `;` 区切りなので restart の失敗で止まらず、`| head -5` によりリモートシェルの
+#   終了コードは head のもの（ほぼ常に 0）になるため、**再起動に失敗しても
+#   「完了」と出して正常終了**していた（#146）。
+#
+#   SETTLE_SECS で待ち時間を変えられる（テストは 0 で走らせる）。
+restart_and_verify() {
+	local settle="${SETTLE_SECS:-5}"
+	# shellcheck disable=SC2029  # リモート側で走らせるスクリプトなので、展開はクライアント側で行う
+	run ssh "$SSH_HOST" "$(remote_restart_script "$SERVICE" "$settle")"
+}
