@@ -102,6 +102,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { hasZeroScanTargets } from "./lib/scan-targets.mjs";
+import { isDirectRun } from "./lib/direct-run.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SCRIPT_DIR, "..");
@@ -273,4 +274,4 @@ function main() {
   console.log("ドメインエラー型の形 OK");
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) main();
+if (isDirectRun(import.meta.url, process.argv[1])) main();

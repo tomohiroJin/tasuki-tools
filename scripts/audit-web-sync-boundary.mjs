@@ -102,6 +102,7 @@ import {
   listRepoFiles,
   diffTargets,
 } from "./lib/scan-targets.mjs";
+import { isDirectRun } from "./lib/direct-run.mjs";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -357,4 +358,4 @@ function main() {
 }
 
 // 自己テストから import されたときは main() を走らせない。
-if (import.meta.url === `file://${process.argv[1]}`) main();
+if (isDirectRun(import.meta.url, process.argv[1])) main();

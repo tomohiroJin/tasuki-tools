@@ -24,6 +24,7 @@ import {
   findEmptyScanDimensions,
   findMissingPaths,
 } from "./lib/scan-targets.mjs";
+import { isDirectRun } from "./lib/direct-run.mjs";
 
 /* ============================================================
  * 汎用ユーティリティ（実ファイル I/O。テスト対象は Map 側の純粋関数）
@@ -1868,6 +1869,4 @@ function main() {
 }
 
 // このファイルが直接実行された場合のみ走査する（テストからの import 時は実行しない）。
-if (process.argv[1] === __filename) {
-  main();
-}
+if (isDirectRun(import.meta.url, process.argv[1])) main();

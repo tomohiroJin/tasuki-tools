@@ -21,6 +21,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 import { listRepoFiles, findEmptyScanDimensions } from "./lib/scan-targets.mjs";
+import { isDirectRun } from "./lib/direct-run.mjs";
 
 /**
  * 各行がコードフェンスの内側（フェンス行自体を含む）かどうかを返す。
@@ -544,4 +545,4 @@ function main() {
   console.log(`  走査対象: ${files.length} 件（うち追跡下 ${trackedDocs.length} 件）`);
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) main();
+if (isDirectRun(import.meta.url, process.argv[1])) main();

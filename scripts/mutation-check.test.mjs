@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { detectRunner, buildCommand, MUTATIONS, isDirectRun } from "./mutation-check.mjs";
+import { detectRunner, buildCommand, MUTATIONS } from "./mutation-check.mjs";
 
 /**
  * `scripts/mutation-check.mjs` の自己テスト（#174）。
@@ -23,9 +23,12 @@ import { detectRunner, buildCommand, MUTATIONS, isDirectRun } from "./mutation-c
  * 2. **宣言から実行コマンドまでの配線** — 宣言（`MUTATIONS`）に並ぶすべての対象で
  *    ランナーが決まり、絞り込み・全体の両モードでコマンドが組めること。対象を
  *    足したときに落ちるのはここである。**件数は書かない**（宣言そのものを回す）。
- * 3. **エントリポイントの判定** — 直接実行のときだけ `main()` を呼ぶ判定が、
+ * 3. **エントリポイントの判定の配線** — 直接実行のときだけ `main()` を呼ぶ判定が、
  *    symlink 経由の起動でも成立すること。ここが壊れると検査は何も実行せず
- *    exit 0 で終わる（憲法 VII が最も嫌う失敗の型）。
+ *    exit 0 で終わる（憲法 VII が最も嫌う失敗の型）。判定そのものの単体テストは
+ *    共有ヘルパ側（`scripts/lib/direct-run.test.mjs`）にある。このスクリプトは
+ *    起動に数分かかるため `entry-point-wiring.test.mjs` の実起動から外してあり、
+ *    **symlink 経由で走ることを見るのはここだけ**である（#197）。
  */
 
 const SCRIPTS_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -158,7 +161,13 @@ describe("宣言から実行コマンドまでの配線", () => {
 function makeMutationCheckSandbox() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "mutation-check-entry-"));
   fs.mkdirSync(path.join(root, "scripts", "lib"), { recursive: true });
-  for (const rel of ["mutation-check.mjs", path.join("lib", "scan-targets.mjs")]) {
+  // lib は**列挙せずディレクトリごと**写す。名前を並べると、取り込みを 1 本足した
+  // だけで足場が壊れ、原因が「解決できないモジュール」として遠くに出る（#197）。
+  const libFiles = fs
+    .readdirSync(path.join(SCRIPTS_DIR, "lib"))
+    .filter((n) => n.endsWith(".mjs") && !n.endsWith(".test.mjs"))
+    .map((n) => path.join("lib", n));
+  for (const rel of ["mutation-check.mjs", ...libFiles]) {
     fs.copyFileSync(path.join(SCRIPTS_DIR, rel), path.join(root, "scripts", rel));
   }
   // 複製先でも `git rev-parse --show-toplevel` が解決できるようにする。
@@ -170,29 +179,6 @@ function makeMutationCheckSandbox() {
 const MAIN_RAN = /検出を期待するテストファイルが見つかりません/;
 
 describe("エントリポイントの判定", () => {
-  test("isDirectRun: symlink 経由のパスでも自分自身と認める", () => {
-    // Given: 自分自身を指す symlink（実体パスとは異なる文字列になる）
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mutation-check-link-"));
-    const link = path.join(dir, "linked-mutation-check.mjs");
-    const self = path.join(SCRIPTS_DIR, "mutation-check.mjs");
-    fs.symlinkSync(self, link);
-    try {
-      assert.notEqual(link, self, "symlink と実体が同じパスでは、この前提が崩れます");
-      // When / Then
-      assert.equal(isDirectRun(link), true, "symlink 経由の起動が自分自身と認められていません");
-      assert.equal(isDirectRun(self), true, "実体パスの起動が自分自身と認められていません");
-    } finally {
-      fs.rmSync(dir, { recursive: true, force: true });
-    }
-  });
-
-  test("isDirectRun: 自分以外・未指定・実在しないパスは偽", () => {
-    // Given / When / Then
-    assert.equal(isDirectRun(undefined), false, "node -e のように argv[1] が無い起動");
-    assert.equal(isDirectRun(path.join(SCRIPTS_DIR, "mutation-check.test.mjs")), false, "別ファイルからの import");
-    assert.equal(isDirectRun(path.join(SCRIPTS_DIR, "does-not-exist.mjs")), false, "実在しないパス");
-  });
-
   test("symlink 経由で起動しても main() が走る（#191 の回帰）", () => {
     // Given: 複製リポジトリと、その複製を指す symlink
     const root = makeMutationCheckSandbox();
