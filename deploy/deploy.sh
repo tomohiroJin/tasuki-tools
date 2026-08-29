@@ -68,12 +68,35 @@ run rsync -az --delete "$WEB_DIST/" "$SSH_HOST:$WEB_ROOT/"
 
 if [ -z "$STATIC" ]; then
 	next "server.js を転送して $SERVICE を再起動"
+	# 前版を退避してから上書きする。切り戻しは README の手順を手でたどる形だが、
+	# **戻す先が無ければ手順があっても戻せない**（#146）。退避に失敗しても
+	# デプロイ自体は続ける（初回は前版が存在しない）。
+	BACKUP="$APP_DIR/server.js.bak-$(date +%Y%m%d-%H%M%S)"
+	# shellcheck disable=SC2029  # パスはクライアント側での展開が意図した動作
+	run ssh "$SSH_HOST" "cp -p '$APP_DIR/server.js' '$BACKUP' 2>/dev/null || echo '前版が無いため退避しません'"
 	run scp "$BUNDLE_DIR/server.js" "$SSH_HOST:$APP_DIR/server.js"
+
 	# restart のみ sudo（NOPASSWD 対象）。status は閲覧用なので sudo 不要にして
 	# sudoers ルール（--no-pager 無しの status）との不一致による失敗を避ける。
 	# SERVICE は load_app でシェルメタ文字を弾いてある。
-	# shellcheck disable=SC2029  # ${SERVICE} はクライアント側での展開が意図した動作
-	run ssh "$SSH_HOST" "sudo systemctl restart ${SERVICE}; systemctl --no-pager status ${SERVICE} | head -5"
+	if ! restart_and_verify; then
+		cat >&2 <<MSG
+
+ERROR: [$APP] $SERVICE が起動していません。**新しい server.js は転送済みです。**
+
+  切り戻し（前版に戻して再起動する）:
+    ssh $SSH_HOST "cp -p '$BACKUP' '$APP_DIR/server.js'"
+    ssh $SSH_HOST "sudo systemctl restart $SERVICE"
+
+  原因を見る:
+    ssh $SSH_HOST "journalctl -u $SERVICE -n 50 --no-pager"
+
+  #103 以降、次の 3 つは**起動しないことで守る**設計です。まずここを疑ってください。
+    ALLOWED_ORIGINS が未設定 / HOST がループバック外 / NODE_ENV が未知の値
+    ssh $SSH_HOST "cat '$APP_DIR/$ENV_FILE'"
+MSG
+		exit 1
+	fi
 fi
 
 echo "==> [$APP] 完了"
@@ -82,7 +105,9 @@ echo "確認:"
 echo "  配信中のハッシュとローカルビルドの一致を見る（新版が出た決定的証拠）"
 echo "    grep -o 'assets/index-[A-Za-z0-9_-]*\\.js' $WEB_DIST/index.html | head -1"
 if [ -z "$STATIC" ]; then
-	echo "  クラッシュループしていないこと（20 秒あけて 2 回・NRestarts と MainPID を見る）"
+	# 起動の確認（間を空けて 2 回・NRestarts）は再起動の段で済ませている（#146）。
+	# ここに残すのは、時間をおいてから見直したいときの手順。
+	echo "  時間をおいてから改めて見るとき（ActiveState と NRestarts）"
 	echo "    ssh $SSH_HOST 'systemctl --no-pager show $SERVICE -p ActiveState -p NRestarts -p MainPID'"
 fi
 echo "  3 アプリすべてを出し終えたら、外から通しで確認する（アプリ単位ではなくサイト全体）"

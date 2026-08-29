@@ -54,14 +54,34 @@ TASUKI_SSH_HOST=<ホスト別名> ./deploy/deploy.sh timer
 1. `turbo --filter` で**対象アプリの web だけ**をビルド
 2. `bun build` で sync を単一ファイルにバンドル
 3. `rsync -az --delete` で web dist を配置（`index.html` の存在を確認してから）
-4. `scp` で `server.js` を配置
+4. 前版の `server.js` を `server.js.bak-<日時>` へ退避してから、`scp` で新しい `server.js` を配置
 5. `sudo systemctl restart <そのアプリの service>` （他アプリには触れない）
+6. **起動し続けていることを確かめる**（#146）。失敗すれば `deploy.sh` は**非 0 で終了**し、
+   切り戻しのコマンドをそのまま出す
 
 何が実行されるかを先に見たいときは `DRY_RUN=1` を付ける。
 
 ```bash
 DRY_RUN=1 TASUKI_SSH_HOST=<ホスト別名> ./deploy/deploy.sh timer
 ```
+
+### 起動の確認は deploy.sh が行う（#146）
+
+再起動のあと、`deploy.sh` は次の 3 つを確かめてから「完了」と言う。どれかに引っかかれば
+**非 0 で終了**し、切り戻しのコマンドと `journalctl` の見方を出力する。
+
+1. `systemctl restart` そのものが成功したか
+2. **間を空けて 2 回**、`systemctl is-active --quiet` が通るか
+3. その 2 回の間に `NRestarts` が増えていないか（クラッシュループの検知）
+
+2 と 3 を分けているのは、ユニットが `Restart=on-failure` を持つため
+**落ちて再起動している最中でも一瞬 active に見える**から。待ち時間は既定 5 秒 × 2 回で、
+`SETTLE_SECS` で変えられる。
+
+**以前は再起動の失敗を検知できなかった**（`;` 区切りと `| head -5` により、リモートの
+終了コードが握り潰されていた）。#103 が足した 3 つの fail-closed（`ALLOWED_ORIGINS` 未設定・
+`HOST` がループバック外・`NODE_ENV` が未知の値）は「起動しないことで守る」設計なので、
+起動失敗を検知できることが前提になっている。
 
 ### ⚠ 再起動でルームは全消滅する
 
@@ -95,13 +115,13 @@ ssh "$TASUKI_SSH_HOST" 'journalctl -u tasuki-sync -n 12 -o cat'
 
 ## 切り戻し
 
-デプロイ前に必ず退避しておく。
+**退避は `deploy.sh` が毎回行う**（#146。`server.js.bak-<日時>`）。手で退避したいときは次のとおり。
 
 ```bash
 ssh "$TASUKI_SSH_HOST" "cp -p /opt/tasuki/server.js /opt/tasuki/server.js.bak-$(date +%Y%m%d-%H%M)"
 ```
 
-戻すとき:
+戻すとき（起動に失敗した場合は `deploy.sh` がこの形のコマンドを退避先つきで出力する）:
 
 ```bash
 ssh "$TASUKI_SSH_HOST" 'cp -p /opt/tasuki/server.js.bak-<日付> /opt/tasuki/server.js && sudo systemctl restart tasuki-sync'
@@ -231,10 +251,10 @@ CI から自動デプロイもしません。
 | Caddy 断片の設置 | `deploy/caddy/tasuki.conf` をサーバーへ置き、旧ファイルを消す |
 | 反映前の検証 | `caddy validate` を通してから reload する |
 | 全アプリの一括切替 | 一括の手段は無い。`deploy.sh` をアプリごとに叩く |
-| 切り戻し | スクリプト化していない。本 README の手順を手でたどる |
-| デプロイ後の検証 | 配信ハッシュの一致・`/timer/ws` と `/poker/ws` の応答・`NRestarts` の据え置き・3 系統の応答を手で確認する（`deploy.sh` は確認コマンドを案内するだけで実行しない） |
+| 切り戻し | スクリプト化していない。本 README の手順を手でたどる（**退避だけは `deploy.sh` が行う**・#146） |
+| デプロイ後の検証 | 配信ハッシュの一致・`/timer/ws` と `/poker/ws` の応答・3 系統の応答を手で確認する（`deploy.sh` は確認コマンドを案内するだけで実行しない）。**起動の確認（`is-active` 2 回と `NRestarts`）だけは `deploy.sh` が実行する**（#146） |
 
-（`/poker/ws` と landing は #66 で公開したあとの話。現状の公開は timer のみ）
+（3 系統とも #66 で公開済み）
 
 最後に、サイト全体を外から通しで確認します。
 
