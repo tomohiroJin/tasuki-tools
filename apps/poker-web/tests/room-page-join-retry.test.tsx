@@ -5,10 +5,13 @@
  * それぞれ単体テストがある。**ここが見るのは効果の配線**で、純粋関数へ切り出せない
  * 3 点に絞る（#147 の敵対的検証が挙げたもの）。
  *
- *   1. 効果の依存が `sync.error` だけであること。接続の他の値が変わっただけで効果が
- *      畳まれて張り直されると、**一度も送り直さないまま試行回数だけを使い切る**
- *   2. 接続し直したら数え直すこと。前の接続で諦めていても、新しい接続では改めて試みる
- *   3. 送り直す名前を持っていないときに「自動で入り直しています」と言わないこと
+ *   1. 効果の依存が `sync.error` だけであること。接続の他の値（`status` を含む）が
+ *      変わっただけで効果が畳まれて張り直されると、**一度も送り直さないまま
+ *      試行回数だけを使い切る**
+ *   2. 待っている途中で画面を離れたら、待機中の入り直しが取り消されること
+ *   3. 接続し直したら数え直すこと。前の接続で諦めていても、新しい接続では改めて試みる
+ *   4. 送り直す名前を持っていないときに「自動で入り直しています」と言わず、
+ *      それでもルームの生死は尋ね直すこと
  *
  * この 3 点はどれも「画面に何が出るか」と「いつ送り直すか」の組み合わせで決まるため、
  * 描画しないと確かめられない。そのために jsdom を入れている（`vitest.config.ts`）。
@@ -16,7 +19,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { RoomPage } from '../src/pages/RoomPage';
-import type { PokerSync, SyncError } from '../src/hooks/useSync';
+import type { ConnectionStatus, PokerSync, SyncError } from '../src/hooks/useSync';
 import {
   RETRY_EXHAUSTED_TEXT,
   RETRY_WAITING_TEXT,
@@ -81,6 +84,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  // `globals: true` なので Testing Library の自動 cleanup も登録されるが、
+  // 明示的にも呼ぶ。設定が変わってもこのファイル単体で正しくあるようにするため。
   cleanup();
   vi.useRealTimers();
 });
@@ -92,17 +97,35 @@ describe('混雑で入室を拒まれたときの自動再試行', () => {
     const error = rateLimited();
     const { rerender } = render(<RoomPage roomId={ROOM_ID} sync={makeSync({ error })} />);
     joinRoom.mockClear(); // 画面を開いた時点の自動復帰は数えない
-    // When: 拒否はそのままに、接続の失敗回数だけが動く。
+    // When: 拒否はそのままに、接続まわりの値だけが動く（瞬断で繋ぎ直しに入った状態）。
     //       同期の状態は値が 1 つ変わるだけで別の入れ物になるので、効果の依存に
-    //       それ自体を置くと、ここで畳まれて張り直される。
+    //       それ自体や `status` を置くと、ここで畳まれて張り直される。
+    //
+    //       **`open` へは戻さない。** 戻すと「繋がり直したら数え直す」が走って
+    //       試行が 0 に戻り、依存の誤りが打ち消されて見えなくなる。
     for (let i = 1; i <= JOIN_RETRY_MAX_ATTEMPTS; i++) {
-      rerender(<RoomPage roomId={ROOM_ID} sync={makeSync({ error, failedAttempts: i })} />);
+      const status: ConnectionStatus = i % 2 === 0 ? 'closed' : 'connecting';
+      rerender(<RoomPage roomId={ROOM_ID} sync={makeSync({ error, failedAttempts: i, status })} />);
     }
     await advanceTimers(LONGER_THAN_ANY_DELAY_MS);
     // Then: 待っていた 1 回がそのまま実行され、試行を使い切ってもいない
     expect(joinRoom).toHaveBeenCalledTimes(1);
     expect(joinRoom).toHaveBeenCalledWith(ROOM_ID, PARTICIPANT_NAME, STORED_TOKEN);
     expect(screen.queryByText(RETRY_EXHAUSTED_TEXT)).toBeNull();
+  });
+
+  it('待っている途中で画面を離れたら、離れた後に入り直さない', async () => {
+    // Given: 保存済みの名前を持つ人が、混雑で拒まれて待っている
+    saveIdentity(ROOM_ID, { token: STORED_TOKEN, name: PARTICIPANT_NAME });
+    const { unmount } = render(
+      <RoomPage roomId={ROOM_ID} sync={makeSync({ error: rateLimited() })} />,
+    );
+    joinRoom.mockClear(); // 画面を開いた時点の自動復帰は数えない
+    // When: 待ち時間が来る前に画面を離れる
+    unmount();
+    await advanceTimers(LONGER_THAN_ANY_DELAY_MS);
+    // Then: 離れたはずのルームへ入り直さない
+    expect(joinRoom).not.toHaveBeenCalled();
   });
 
   it('繋がり直したら、前の接続で使い切った試行を数え直す', async () => {
@@ -133,6 +156,7 @@ describe('入り直せるかどうかで案内を変える', () => {
     // Given: 保存も入力も無い（招待リンクで初めて来て、まだ名前を入れていない人）
     const { rerender } = render(<RoomPage roomId={ROOM_ID} sync={makeSync()} />);
     joinRoom.mockClear();
+    checkRoom.mockClear(); // 画面を開いた時点の生死確認は数えない
     // When: 混雑で入室を拒まれ、待ち時間が過ぎる
     rerender(<RoomPage roomId={ROOM_ID} sync={makeSync({ error: rateLimited() })} />);
     await advanceTimers(LONGER_THAN_ANY_DELAY_MS);
@@ -140,6 +164,9 @@ describe('入り直せるかどうかで案内を変える', () => {
     expect(screen.getByText(RETRY_WAITING_WITHOUT_NAME_TEXT)).not.toBeNull();
     expect(screen.queryByText(RETRY_WAITING_TEXT)).toBeNull();
     expect(joinRoom).not.toHaveBeenCalled();
+    // それでもルームの生死は尋ね直す。ここが落ちると、待っている間にルームが
+    // 終了しても知らされず、参加フォームの前で待ち続ける（#76 J-1 の再発）。
+    expect(checkRoom).toHaveBeenCalledWith(ROOM_ID);
   });
 
   it('名前を入れてから弾かれた人には、入り直していると伝える', async () => {
