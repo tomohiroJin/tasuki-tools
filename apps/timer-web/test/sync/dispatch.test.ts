@@ -189,6 +189,29 @@ describe("dispatchServerMessage: 契約を満たさないフレーム", () => {
     expect(onError).not.toHaveBeenCalled();
   });
 
+  it("捨てたことは、落ちた項目の経路つきで知らされる", () => {
+    // Given: `snapshot` を捨てる状況は継続するので、知らせないと原因が分からない。
+    //        参加者の居ない ID が rotation に残ると members に空文字が載る形を再現する
+    const onInvalidFrame = vi.fn();
+    const base = aRoomView();
+    const room = { ...base, config: { ...base.config, members: [""] } };
+    // When
+    dispatchServerMessage(JSON.stringify({ type: "snapshot", room }), { onInvalidFrame });
+    // Then: どの項目で落ちたかは知らせるが、落ちた値そのものは渡さない
+    expect(onInvalidFrame).toHaveBeenCalledWith(["room.config.members.0"]);
+  });
+
+  it("契約を満たすフレームでは何も知らせない", () => {
+    // Given
+    const onInvalidFrame = vi.fn();
+    // When
+    dispatchServerMessage(JSON.stringify({ type: "time.pong", serverTime: 1 }), {
+      onInvalidFrame,
+    });
+    // Then
+    expect(onInvalidFrame).not.toHaveBeenCalled();
+  });
+
   it("知らない種別のフレームは画面へ届かない", () => {
     // Given
     const onRoom = vi.fn();

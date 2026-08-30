@@ -37,6 +37,8 @@ export interface SyncClientOptions {
    *  再接続と初回接続の区別は SyncClient 内部の状態でしか判定できないため、ここに用意する
    *  （呼び出し元は「保存済みの resumeToken で room.join を再送する」判断にだけ使う・Issue #24）。 */
   onReconnected?: () => void;
+  /** 契約に合わないフレームを捨てたときに、落ちた項目の経路だけを知らせる（#181） */
+  onInvalidFrame?: (paths: string[]) => void;
 }
 
 export class SyncClient {
@@ -138,6 +140,7 @@ export class SyncClient {
         this.options.onNeedProblem?.(requestId, deadlineMs),
       onTimePong: (serverTime) => this.recordPong(serverTime),
       onNotice: (notice) => this.options.onNotice?.(notice),
+      onInvalidFrame: (paths) => this.options.onInvalidFrame?.(paths),
     });
   }
 
