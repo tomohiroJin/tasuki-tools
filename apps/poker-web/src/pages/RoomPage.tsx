@@ -8,14 +8,19 @@ import { Results } from '../components/Results';
 import type { PokerSync } from '../hooks/useSync';
 import { roomPath, topPath } from '../router';
 import { clearIdentity, loadIdentity } from '../storage';
-import { joinRetryDelayMs } from '../join-retry';
+import { planJoinRetry } from '../join-retry-plan';
 
 interface Props {
   roomId: string;
   sync: PokerSync;
 }
 
-function JoinForm({ roomId, sync, notice }: Props & { notice: string | null }) {
+function JoinForm({
+  roomId,
+  sync,
+  notice,
+  onNameSubmitted,
+}: Props & { notice: string | null; onNameSubmitted: (name: string) => void }) {
   return (
     <main className="page">
       <h1>ルームに参加</h1>
@@ -28,7 +33,13 @@ function JoinForm({ roomId, sync, notice }: Props & { notice: string | null }) {
       <NameForm
         submitLabel="参加する"
         placeholder="例: はなこ"
-        onSubmit={(name) => sync.joinRoom(roomId, name)}
+        onSubmit={(name) => {
+          // 混雑で弾かれたときに**この名前で**入り直せるよう控える（#147）。
+          // 保存（saveIdentity）は joined を受け取ってからなので、初めて来た人が
+          // 弾かれた時点では保存が無く、控えておかないと入り直せない。
+          onNameSubmitted(name);
+          sync.joinRoom(roomId, name);
+        }}
         disabled={sync.status !== 'open'}
       />
     </main>
@@ -116,30 +127,54 @@ export function RoomPage({ roomId, sync }: Props) {
   // **即時に送り直してはならない** — 待ち時間とばらつきは join-retry.ts が決める。
   const rateLimitAttemptRef = useRef(0);
   const [retryNotice, setRetryNotice] = useState<string | null>(null);
+  // 入力された名前。保存（saveIdentity）は joined を受け取ってからなので、
+  // 初めて来た人が弾かれた時点では保存が無い。控えておかないと入り直せない。
+  const typedNameRef = useRef<string | null>(null);
+  // 効果の依存に `sync` そのものを入れないための持ち手（下記）。
+  const syncRef = useRef(sync);
+  syncRef.current = sync;
+
+  // 入室できたら数え直す。
   useEffect(() => {
-    if (sync.joinedThisConnection) {
-      // 入れたので数え直す。案内も消す。
+    if (!sync.joinedThisConnection) return;
+    rateLimitAttemptRef.current = 0;
+    setRetryNotice(null);
+  }, [sync.joinedThisConnection]);
+
+  // **接続し直したら数え直す。** 前の接続で諦めていても、新しい接続では改めて
+  // 入り直しを試みてよい（timer 側の handleReconnected と揃える）。これが無いと、
+  // 回線が切れて戻ってきた新しい接続で、一度も再試行しないまま諦め表示に戻る。
+  const wasOpenRef = useRef(sync.status === 'open');
+  useEffect(() => {
+    const isOpen = sync.status === 'open';
+    if (isOpen && !wasOpenRef.current) {
       rateLimitAttemptRef.current = 0;
       setRetryNotice(null);
-      return;
     }
+    wasOpenRef.current = isOpen;
+  }, [sync.status]);
+
+  useEffect(() => {
+    // **依存は `sync.error` だけにする。** `sync` そのものを依存に置くと、
+    // 再接続で `status` などが変わるたびに効果が畳まれて張り直され、
+    // **一度も送り直さないまま試行回数だけを使い切る**（#147 の敵対的検証で判明）。
+    // `sync.error` はエラーごとに新しいオブジェクトなので、1 回の拒否につき 1 回走る。
     if (sync.error?.code !== 'rate-limited') return;
-    const attempt = rateLimitAttemptRef.current + 1;
-    const delay = joinRetryDelayMs(attempt);
-    if (delay === null) {
-      // 使い切った。**数え直さない**（数え直すと諦めたはずが送り続ける形になる）。
-      setRetryNotice('混雑が続いています。時間をおいてから再読込してください');
-      return;
-    }
-    rateLimitAttemptRef.current = attempt;
-    setRetryNotice('混み合っています。自動で入り直しています…');
+    const stored = loadIdentity(roomId);
+    const name = stored?.name ?? typedNameRef.current;
+    const plan = planJoinRetry(rateLimitAttemptRef.current, name !== null);
+    setRetryNotice(plan.notice);
+    // 使い切った。**数え直さない**（数え直すと諦めたはずが送り続ける形になる）。
+    if (plan.kind === 'give-up') return;
+    rateLimitAttemptRef.current = plan.attempt;
     const timer = setTimeout(() => {
-      const stored = loadIdentity(roomId);
-      if (stored) sync.joinRoom(roomId, stored.name, stored.token);
-      else sync.checkRoom(roomId);
-    }, delay);
+      const s = syncRef.current;
+      // 名前があれば入り直す。無ければルームの生死だけを尋ね直す（#76 J-1 と同じ扱い）。
+      if (name !== null) s.joinRoom(roomId, name, stored?.token);
+      else s.checkRoom(roomId);
+    }, plan.delayMs);
     return () => clearTimeout(timer);
-  }, [sync, roomId]);
+  }, [sync.error, roomId]);
 
   // 消滅したルームのトークンは破棄する（再試行ループ防止）
   useEffect(() => {
@@ -159,7 +194,14 @@ export function RoomPage({ roomId, sync }: Props) {
 
   const { snapshot } = sync;
   if (!snapshot || snapshot.roomId !== roomId) {
-    return <JoinForm roomId={roomId} sync={sync} notice={retryNotice} />;
+    return (
+      <JoinForm
+        roomId={roomId}
+        sync={sync}
+        notice={retryNotice}
+        onNameSubmitted={(name) => (typedNameRef.current = name)}
+      />
+    );
   }
 
   const isHost = snapshot.participants.find((p) => p.id === snapshot.you)?.isHost ?? false;

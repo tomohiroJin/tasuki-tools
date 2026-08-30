@@ -183,6 +183,8 @@ export function useTimerSync(banner: BannerController): TimerSync {
   useEffect(() => {
     return () => {
       if (generatingTimerRef.current) clearTimeout(generatingTimerRef.current);
+      // 再試行の待機タイマーも畳む（#147）。アンマウント後に走らせる意味は無い。
+      if (joinRetryTimerRef.current !== null) clearTimeout(joinRetryTimerRef.current);
     };
   }, []);
 
@@ -314,6 +316,9 @@ export function useTimerSync(banner: BannerController): TimerSync {
       case "session-lost": {
         // ルーム喪失（揮発サーバー再起動等）は明示的に「セッション喪失」を表示し、継続する（FR-007/059）。
         // ローカル記録は保持され、再接続では消えないよう sessionLost を立てる。
+        // 再試行の待機中でも、ルームが消えた以上は入り直せない（#147）。
+        // 止めないと、待ち時間の経過後に無関係な諦めのバナーが後から出る。
+        cancelJoinRetry();
         setSessionLost(true);
         // 説明は SessionLost 画面が担う（#76 F-4）。バナーは再接続のたびに
         // onConnected で消えるため、喪失のような「消えては困る事実」には向かない。
@@ -326,6 +331,9 @@ export function useTimerSync(banner: BannerController): TimerSync {
         // 退出が成立した本人を取り残さない（自己退出＝LEFT_ROOM／他者に退出させられた＝
         // REMOVED_FROM_ROOM・REMOVED_BY_HOST）。後始末は行き先によらず共通で、
         // 違うのはバナー文言（friendlyError(code) から引く）と行き先だけ（Issue #32・FR-127/128）。
+        // 退室が成立した以上、再試行の待機も畳む（#147）。止めないと、入口へ戻った
+        // 画面へ「混雑が続いています」の固定バナーが後から出る。
+        cancelJoinRetry();
         const removedFrom = room?.code ?? null;
         syncClient.dispose();
         setRoom(null);

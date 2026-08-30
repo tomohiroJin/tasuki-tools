@@ -14,6 +14,7 @@ import type { Banner, BannerController } from "../../src/ui/use-banner.js";
 import { saveRecord } from "../../src/records/indexeddb.js";
 import { FakeWS } from "../support/fakes.js";
 import { aRoomView } from "../support/room-view.js";
+import { joinRetryDelayMs, JOIN_RETRY_MAX_ATTEMPTS } from "../../src/sync/join-retry.js";
 import type { CompletionRecord } from "@tasuki/timer-core";
 
 vi.mock("../../src/records/indexeddb.js", () => ({
@@ -313,6 +314,15 @@ describe("混雑で入室を拒まれたとき", () => {
     );
   }
 
+  /**
+   * その回に起こりうる最大の待ち時間（ms）。ばらつきの上端を取る。
+   * **待ち時間や上限回数をテストへ直書きしない** — 方針を変えたときに、
+   * 実装と無関係な理由でここが赤くなる（または見逃す）。
+   */
+  function maxDelayOf(attempt: number): number {
+    return joinRetryDelayMs(attempt, () => 0.999999) ?? 0;
+  }
+
   /** 送信された command 名の一覧。 */
   function sentCommands(send: { mock: { calls: unknown[][] } }): string[] {
     return send.mock.calls
@@ -336,8 +346,8 @@ describe("混雑で入室を拒まれたとき", () => {
       deliver({ type: "error", code: "JOIN_RATE_LIMITED", message: "混み合っています" });
       // Then: 即時の再送はしない（素朴な再試行はバケツを消費し続ける）
       expect(sentCommands(send)).not.toContain("room.join");
-      // When: 1 回目の待ち時間の上限ぶん進める
-      act(() => void vi.advanceTimersByTime(3_100));
+      // When: 1 回目の待ち時間の上限ぶん進める（**方針から導く。直書きしない**）
+      act(() => void vi.advanceTimersByTime(maxDelayOf(1) + 100));
       // Then
       expect(sentCommands(send)).toContain("room.join");
     } finally {
@@ -362,6 +372,44 @@ describe("混雑で入室を拒まれたとき", () => {
     }
   });
 
+  it("待機中に退室したら、その後に諦めのバナーを出さない", () => {
+    // Given: 混雑で弾かれて再試行を待っている最中に、退室が成立する
+    vi.useFakeTimers();
+    try {
+      seedResumeIdentity();
+      const banner = fakeBannerRecordingArgs();
+      const { deliver } = connectedWith(banner);
+      deliver({ type: "error", code: "JOIN_RATE_LIMITED", message: "混み合っています" });
+      // When: 退室（保存済みの識別情報はここで破棄される）
+      deliver({ type: "error", code: "LEFT_ROOM", message: "退出しました" });
+      act(() => void vi.advanceTimersByTime(maxDelayOf(1) + 100));
+      // Then: すでに入口へ戻っている画面へ、無関係な固定バナーを後から出さない
+      const texts = banner.showCalls.map((c) => c[0]);
+      expect(texts[texts.length - 1]).not.toMatch(/混雑が続いています/);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("待機中にセッションを失ったら、その後に諦めのバナーを出さない", () => {
+    // Given: 混雑で弾かれて再試行を待っている最中に、ルームが消える
+    vi.useFakeTimers();
+    try {
+      seedResumeIdentity();
+      const banner = fakeBannerRecordingArgs();
+      const { deliver } = connectedWith(banner);
+      deliver({ type: "error", code: "JOIN_RATE_LIMITED", message: "混み合っています" });
+      // When
+      deliver({ type: "error", code: "ROOM_NOT_FOUND", message: "no room" });
+      act(() => void vi.advanceTimersByTime(maxDelayOf(1) + 100));
+      // Then: 喪失の表示は SessionLost 画面が担う。バナーで上書きしない
+      const texts = banner.showCalls.map((c) => c[0]);
+      expect(texts[texts.length - 1]).not.toMatch(/混雑が続いています/);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("試行を使い切ったら、何をすれば入れるかを伝えて再送をやめる", () => {
     // Given
     vi.useFakeTimers();
@@ -371,13 +419,14 @@ describe("混雑で入室を拒まれたとき", () => {
       const { ws, deliver } = connectedWith(banner);
       const send = vi.spyOn(ws, "send");
       // When: 拒まれるたびに待ち、上限回数を超えるまで繰り返す
-      for (let i = 0; i < 8; i++) {
+      const rounds = JOIN_RETRY_MAX_ATTEMPTS + 2;
+      for (let i = 0; i < rounds; i++) {
         deliver({ type: "error", code: "JOIN_RATE_LIMITED", message: "混み合っています" });
-        act(() => void vi.advanceTimersByTime(46_000));
+        act(() => void vi.advanceTimersByTime(maxDelayOf(JOIN_RETRY_MAX_ATTEMPTS) + 100));
       }
       const attempts = sentCommands(send).filter((c) => c === "room.join").length;
-      // Then: 際限なく送らない
-      expect(attempts).toBeLessThanOrEqual(6);
+      // Then: 際限なく送らない（上限も方針から導く）
+      expect(attempts).toBeLessThanOrEqual(JOIN_RETRY_MAX_ATTEMPTS);
       // Then: 利用者が次に取れる手立てが画面に出る
       const lastCall = banner.showCalls[banner.showCalls.length - 1];
       expect(lastCall?.[0]).toMatch(/再読込|読み込み直/);
