@@ -4,21 +4,20 @@
 
 import { describe, it, expect, vi } from "vitest";
 import { dispatchServerMessage } from "../../src/sync/dispatch.js";
+import { aRoomView } from "../support/room-view.js";
 
 /**
  * @requirements T055, FR-025, FR-026
  */
 describe("dispatchServerMessage", () => {
   it("snapshot は room を onRoom へ渡す", () => {
-    // Given
+    // Given: 契約（RoomSchema）を満たすルーム。**部分的な偽物では通らない**（#181）
     const onRoom = vi.fn();
+    const room = aRoomView({ code: "X" });
     // When
-    dispatchServerMessage(
-      JSON.stringify({ type: "snapshot", room: { code: "X" } }),
-      { onRoom },
-    );
+    dispatchServerMessage(JSON.stringify({ type: "snapshot", room }), { onRoom });
     // Then
-    expect(onRoom).toHaveBeenCalledWith({ code: "X" });
+    expect(onRoom).toHaveBeenCalledWith(room);
   });
 
   it("room.created は identity 情報を onIdentity へ渡す", () => {
@@ -157,6 +156,46 @@ describe("dispatchServerMessage", () => {
     expect(() =>
       dispatchServerMessage("{ broken", { onRoom, onError }),
     ).not.toThrow();
+    expect(onRoom).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * 契約（`ServerMsgSchema`）を満たさないフレームは画面へ届けない（#181）。
+ *
+ * **JSON として読めることと、契約を満たすことは別である。** ここまでの防御は
+ * `JSON.parse` の例外だけで、形の違う JSON は素通りしていた。素通りすると
+ * 壊れた値がそのまま画面の状態になる（`snapshot` の `room` が典型）。
+ */
+describe("dispatchServerMessage: 契約を満たさないフレーム", () => {
+  it("room の形が契約から外れた snapshot は画面へ届かない", () => {
+    // Given: JSON としては読めるが、RoomSchema の必須項目を欠く
+    const onRoom = vi.fn();
+    // When
+    dispatchServerMessage(JSON.stringify({ type: "snapshot", room: { code: "X" } }), {
+      onRoom,
+    });
+    // Then
+    expect(onRoom).not.toHaveBeenCalled();
+  });
+
+  it("必須項目を欠く error フレームは画面へ届かない", () => {
+    // Given: message が無い（ErrorMsg の必須項目）
+    const onError = vi.fn();
+    // When
+    dispatchServerMessage(JSON.stringify({ type: "error", code: "E" }), { onError });
+    // Then
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("知らない種別のフレームは画面へ届かない", () => {
+    // Given
+    const onRoom = vi.fn();
+    const onError = vi.fn();
+    // When
+    dispatchServerMessage(JSON.stringify({ type: "unknown-kind" }), { onRoom, onError });
+    // Then
     expect(onRoom).not.toHaveBeenCalled();
     expect(onError).not.toHaveBeenCalled();
   });

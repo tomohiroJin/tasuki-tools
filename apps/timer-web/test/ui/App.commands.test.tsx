@@ -142,7 +142,7 @@ function enterRoom(phase: "ready" | "session"): FakeWS {
         title: "お題",
         description: "説明",
         requirements: [],
-        exampleTest: "",
+        exampleTest: "expect(add(1, 2)).toBe(3)",
         hints: [],
         source: "fallback",
       },
