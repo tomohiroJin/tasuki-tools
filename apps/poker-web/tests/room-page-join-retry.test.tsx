@@ -26,7 +26,7 @@ import { JOIN_RETRY_MAX_ATTEMPTS } from '../src/join-retry';
 import { saveIdentity } from '../src/storage';
 
 const ROOM_ID = 'ABCD1234';
-const STORED_NAME = 'はなこ';
+const PARTICIPANT_NAME = 'はなこ';
 const STORED_TOKEN = 'tok-1';
 
 /**
@@ -88,7 +88,7 @@ afterEach(() => {
 describe('混雑で入室を拒まれたときの自動再試行', () => {
   it('待っている間に接続の他の値が変わっても、入り直しを取り消さない', async () => {
     // Given: 保存済みの名前を持つ人が、混雑で入室を拒まれて待っている
-    saveIdentity(ROOM_ID, { token: STORED_TOKEN, name: STORED_NAME });
+    saveIdentity(ROOM_ID, { token: STORED_TOKEN, name: PARTICIPANT_NAME });
     const error = rateLimited();
     const { rerender } = render(<RoomPage roomId={ROOM_ID} sync={makeSync({ error })} />);
     joinRoom.mockClear(); // 画面を開いた時点の自動復帰は数えない
@@ -101,13 +101,13 @@ describe('混雑で入室を拒まれたときの自動再試行', () => {
     await advanceTimers(LONGER_THAN_ANY_DELAY_MS);
     // Then: 待っていた 1 回がそのまま実行され、試行を使い切ってもいない
     expect(joinRoom).toHaveBeenCalledTimes(1);
-    expect(joinRoom).toHaveBeenCalledWith(ROOM_ID, STORED_NAME, STORED_TOKEN);
+    expect(joinRoom).toHaveBeenCalledWith(ROOM_ID, PARTICIPANT_NAME, STORED_TOKEN);
     expect(screen.queryByText(RETRY_EXHAUSTED_TEXT)).toBeNull();
   });
 
   it('繋がり直したら、前の接続で使い切った試行を数え直す', async () => {
     // Given: 保存済みの名前を持つ人が、この接続で試行を使い切っている
-    saveIdentity(ROOM_ID, { token: STORED_TOKEN, name: STORED_NAME });
+    saveIdentity(ROOM_ID, { token: STORED_TOKEN, name: PARTICIPANT_NAME });
     const { rerender } = render(<RoomPage roomId={ROOM_ID} sync={makeSync()} />);
     for (let i = 0; i <= JOIN_RETRY_MAX_ATTEMPTS; i++) {
       rerender(<RoomPage roomId={ROOM_ID} sync={makeSync({ error: rateLimited() })} />);
@@ -124,7 +124,7 @@ describe('混雑で入室を拒まれたときの自動再試行', () => {
     await advanceTimers(LONGER_THAN_ANY_DELAY_MS);
     // Then: 諦めた案内のままにせず、改めて入り直す
     expect(screen.queryByText(RETRY_EXHAUSTED_TEXT)).toBeNull();
-    expect(joinRoom).toHaveBeenCalledWith(ROOM_ID, STORED_NAME, STORED_TOKEN);
+    expect(joinRoom).toHaveBeenCalledWith(ROOM_ID, PARTICIPANT_NAME, STORED_TOKEN);
   });
 });
 
@@ -145,7 +145,7 @@ describe('入り直せるかどうかで案内を変える', () => {
   it('名前を入れてから弾かれた人には、入り直していると伝える', async () => {
     // Given: 招待リンクで来た人が名前を入れて送った（保存はまだ無い）
     const { rerender } = render(<RoomPage roomId={ROOM_ID} sync={makeSync()} />);
-    fireEvent.change(screen.getByLabelText('あなたの名前'), { target: { value: STORED_NAME } });
+    fireEvent.change(screen.getByLabelText('あなたの名前'), { target: { value: PARTICIPANT_NAME } });
     fireEvent.click(screen.getByRole('button', { name: '参加する' }));
     joinRoom.mockClear();
     // When: 混雑で入室を拒まれ、待ち時間が過ぎる
@@ -154,6 +154,6 @@ describe('入り直せるかどうかで案内を変える', () => {
     // Then: 入り直していると伝え、実際にその名前で入り直す
     expect(screen.getByText(RETRY_WAITING_TEXT)).not.toBeNull();
     expect(screen.queryByText(RETRY_WAITING_WITHOUT_NAME_TEXT)).toBeNull();
-    expect(joinRoom).toHaveBeenCalledWith(ROOM_ID, STORED_NAME, undefined);
+    expect(joinRoom).toHaveBeenCalledWith(ROOM_ID, PARTICIPANT_NAME, undefined);
   });
 });

@@ -13,6 +13,7 @@ export default defineConfig({
   test: {
     include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
     environment: 'jsdom',
-    passWithNoTests: true,
+    // `passWithNoTests` は外した。テストが 1 件も無い時期の名残で、
+    // 残すと **include が壊れてテストが 1 件も拾われなくなっても緑**になる。
   },
 });
