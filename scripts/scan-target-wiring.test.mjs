@@ -689,6 +689,21 @@ describe("走査量の出力: すべての audit-*.mjs が名乗る（導出で�
  * 実リポジトリでの狭まりは検知できない**。#180 が実際に起きた形がこれである
  * （「照合先 14 ファイル」は 1 パッケージ分でしかなかったが、誰も落ちなかった）。
  */
+/**
+ * 出力から SC-039 の走査量を読む。**件数は直書きしない** — 製品コードに .ts を
+ * 1 つ足すだけで、無関係にここが赤くなる（#147 で実際に踏んだ）。
+ */
+function readSc039ScanVolume(stdout) {
+  const m = stdout.match(/SC-039②③ の走査対象: 照合先 (\d+) パッケージ \/ (\d+) ファイル、参照元 (\d+) パッケージ \/ (\d+) ファイル/);
+  assert.ok(m, `SC-039 の走査量を読めません:\n${stdout}`);
+  return {
+    comparedPackages: Number(m[1]),
+    comparedFiles: Number(m[2]),
+    referencePackages: Number(m[3]),
+    referenceFiles: Number(m[4]),
+  };
+}
+
 describe("SC-039 の走査範囲の配線: scripts/audit-structure.mjs（#180）", () => {
   test("対照実行: 書き換えない複製は exit 0 で SC-039 の走査量を名乗る", () => {
     // Given / When（恒等関数なので対照実行）
@@ -794,8 +809,12 @@ describe("SC-039 の走査範囲の配線: scripts/audit-structure.mjs（#180）
       1,
       "間引きを差し込めていません",
     );
-    // Then: パッケージ単位の名乗りは変わらない（旧実装が緑だった条件そのもの）
-    assert.match(r.stdout, /照合先 4 パッケージ \/ 28 ファイル/);
+    // Then: パッケージ単位の名乗りは変わらない（旧実装が緑だった条件そのもの）。
+    //       対照実行と比べ、照合先が**ちょうど 1 件だけ**減ったことを見る。
+    const control1 = readSc039ScanVolume(runScriptCopy("audit-structure.mjs", (x) => x).stdout);
+    const mutated1 = readSc039ScanVolume(r.stdout);
+    assert.equal(mutated1.comparedPackages, control1.comparedPackages, "パッケージ単位の名乗りが変わっています");
+    assert.equal(mutated1.comparedFiles, control1.comparedFiles - 1, "照合先がちょうど 1 件だけ減っていません");
     assert.doesNotMatch(r.stderr, /SC-039 の走査対象が 0 件です/);
     // Then: それでもファイル単位の照合が落とし、抜けたファイルを名指しする
     assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
@@ -829,8 +848,19 @@ describe("SC-039 の走査範囲の配線: scripts/audit-structure.mjs（#180）
       1,
       "間引きを差し込めていません",
     );
-    // Then: パッケージ単位の名乗りは変わらない
-    assert.match(r.stdout, /参照元 9 パッケージ \/ 185 ファイル/);
+    // Then: パッケージ単位の名乗りは変わらない（**件数は直書きしない** —
+    //       製品コードのファイルを 1 つ足すたびに、無関係にここが赤くなる）。
+    //       対照実行の走査量から、参照元が「ちょうど 1 件だけ」減ったことを見る。
+    const control = runScriptCopy("audit-structure.mjs", (x) => x);
+    const readReference = (stdout) => {
+      const m = stdout.match(/参照元 (\d+) パッケージ \/ (\d+) ファイル/);
+      assert.ok(m, `参照元の走査量を読めません:\n${stdout}`);
+      return { packages: Number(m[1]), files: Number(m[2]) };
+    };
+    const before = readReference(control.stdout);
+    const after = readReference(r.stdout);
+    assert.equal(after.packages, before.packages, "パッケージ単位の名乗りが変わっています");
+    assert.equal(after.files, before.files - 1, "参照元がちょうど 1 件だけ減っていません");
     // Then: それでもファイル単位の照合が落とし、抜けたファイルを名指しする
     assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
     assert.match(r.stderr, /宣言では走査するのに集合へ入っていない:\s+packages\/poker-core\/src\/deck\.ts/);
@@ -877,7 +907,10 @@ describe("SC-039 の走査範囲の配線: scripts/audit-structure.mjs（#180）
     assert.equal(countOf(r.source, "if (false) {"), 1, "判定の分岐を外せていません");
     // Then: 照合を外すと同じ間引きが素通りする（＝赤の理由はこの照合だった）
     assert.equal(r.status, 0, `素通りしません。stderr:\n${r.stderr}`);
-    assert.match(r.stdout, /照合先 4 パッケージ \/ 28 ファイル/);
+    // Then: 素通りした結果として、照合先が 1 件だけ痩せた表示のまま緑になる
+    const control2 = readSc039ScanVolume(runScriptCopy("audit-structure.mjs", (x) => x).stdout);
+    const mutated2 = readSc039ScanVolume(r.stdout);
+    assert.equal(mutated2.comparedFiles, control2.comparedFiles - 1, "照合先がちょうど 1 件だけ減っていません");
   });
 });
 

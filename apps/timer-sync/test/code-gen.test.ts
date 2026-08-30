@@ -97,7 +97,7 @@ describe("NanoidCodeGen.generate（ルーム名＋接尾辞）", () => {
     expect(searchSpace / SUSTAINED_ATTEMPTS_PER_SECOND).toBeGreaterThanOrEqual(ONE_YEAR_SECONDS);
   });
 
-  it("接尾辞の探索空間は分散攻撃のレートでも全探索 1 年以上になる（#144 が選んだ余裕）", () => {
+  it("接尾辞の探索空間は分散攻撃のレートでも全探索 1 年以上になる", () => {
     // Given: 実際に生成された接尾辞から、文字の種類数と長さを観測する
     const { characters, lengths } = observeSuffixes(500);
     expect(lengths.size, "接尾辞の長さが揺れています").toBe(1);

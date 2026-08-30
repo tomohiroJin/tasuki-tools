@@ -23,6 +23,12 @@ describe("errorAction", () => {
     expect(errorAction("REMOVED_BY_HOST")).toEqual({ kind: "leave-room", destination: "join" });
   });
 
+  it("JOIN_RATE_LIMITED は待ってから入り直す動作を示す", () => {
+    // 既定の transient に落ちると、バナーを出すだけで再送も破棄も起きず、
+    // 接続済み・未入室のまま滞留する（自分でリロードするまで復帰しない）
+    expect(errorAction("JOIN_RATE_LIMITED")).toEqual({ kind: "retry-later" });
+  });
+
   it("LAST_MANAGER は画面を移さない一時的な動作を示す", () => {
     expect(errorAction("LAST_MANAGER")).toEqual({ kind: "transient" });
   });
