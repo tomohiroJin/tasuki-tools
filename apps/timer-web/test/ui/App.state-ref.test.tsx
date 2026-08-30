@@ -36,7 +36,7 @@ function problemA(): Problem {
     title: "FizzBuzz",
     description: "3の倍数でFizz",
     requirements: ["3の倍数はFizz"],
-    exampleTest: "",
+    exampleTest: "expect(add(1, 2)).toBe(3)",
     hints: [],
     source: "fallback",
   };
@@ -47,7 +47,7 @@ function problemB(): Problem {
     title: "回文判定",
     description: "文字列が回文か判定する",
     requirements: ["大文字小文字を無視"],
-    exampleTest: "",
+    exampleTest: "expect(add(1, 2)).toBe(3)",
     hints: [],
     source: "fallback",
   };

@@ -885,11 +885,6 @@ export const SC039C_EXCEPTIONS = [
   },
   {
     file: "packages/timer-core/src/schemas.ts",
-    name: "ServerMsgSchema",
-    reason: "apps/timer-sync/test/live-ws.protocol.test.ts が実 WS の全フレームを突き合わせる契約",
-  },
-  {
-    file: "packages/timer-core/src/schemas.ts",
     name: "RoomSchema",
     reason:
       "packages/timer-core/test/ai-unlock.test.ts がスキーマの entries を直接検査している（公開 API 経由では書けない）",

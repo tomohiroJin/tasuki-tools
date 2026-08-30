@@ -7,6 +7,7 @@
  */
 
 import { CommandSchema } from "@tasuki/timer-core";
+import type { ServerMsg } from "@tasuki/timer-core";
 import { parseBoundaryMessage } from "@tasuki/protocol";
 import { classifyErrorKind } from "@tasuki/rate-limit";
 import type { Logger } from "../application/log/logger.js";
@@ -306,14 +307,20 @@ export class WsAdapter {
     }
   }
 
-  send(connId: string, data: unknown): void {
+  /**
+   * **`data` は `ServerMsg` に限る（#181）。** 以前は `unknown` で、
+   * `ServerMsgSchema` が定める契約を製品コードの誰も参照していなかった。
+   * 実行時の検証は受信側（`apps/timer-web/src/sync/dispatch.ts`）が持ち、
+   * ここは**新しい送信箇所が黙って契約から外れること**を型で止める。
+   */
+  send(connId: string, data: ServerMsg): void {
     const ws = this.connections.get(connId);
     if (ws?.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(data));
     }
   }
 
-  broadcast(connIds: string[], data: unknown): void {
+  broadcast(connIds: string[], data: ServerMsg): void {
     const json = JSON.stringify(data);
     for (const connId of connIds) {
       const ws = this.connections.get(connId);
@@ -398,13 +405,11 @@ export class WsAdapter {
     // ws 実装（Buffer.length）より制限が緩くなってしまう。
     const bytes = typeof raw === "string" ? Buffer.byteLength(raw) : raw.length;
     if (bytes > MAX_MESSAGE_BYTES) {
-      ws.send(
-        JSON.stringify({
-          type: "error",
-          code: "MESSAGE_TOO_LARGE",
-          message: "メッセージが大きすぎます",
-        }),
-      );
+      this.sendFrame(ws, {
+        type: "error",
+        code: "MESSAGE_TOO_LARGE",
+        message: "メッセージが大きすぎます",
+      });
       return;
     }
 
@@ -415,7 +420,7 @@ export class WsAdapter {
       const code = parsed.error.stage === "json" ? "INVALID_JSON" : "INVALID_COMMAND";
       const message =
         parsed.error.stage === "json" ? "JSON の形式が不正です" : "コマンドの形式が不正です";
-      ws.send(JSON.stringify({ type: "error", code, message }));
+      this.sendFrame(ws, { type: "error", code, message });
       return;
     }
 
@@ -434,13 +439,23 @@ export class WsAdapter {
 
   /** onMessage 側の失敗を利用者へ返す共通の応答（同期 throw / 非同期 reject の両方から使う）。 */
   private sendInternalError(ws: Socket): void {
-    ws.send(
-      JSON.stringify({
-        type: "error",
-        code: "INTERNAL_ERROR",
-        message: "内部エラーが発生しました",
-      }),
-    );
+    this.sendFrame(ws, {
+      type: "error",
+      code: "INTERNAL_ERROR",
+      message: "内部エラーが発生しました",
+    });
+  }
+
+  /**
+   * 接続を特定できている socket へ直接フレームを送る（#181）。
+   *
+   * **`broadcaster` を経由できない経路のための口である。** サイズ超過・不正 JSON・
+   * 内部エラーの 3 つは、まだ `connId` が確定していない／`broadcaster` の関知しない
+   * 段で返す必要がある。ここを `ServerMsg` で受けることで、**その 3 経路も契約の
+   * 型検査を通る**（以前はオブジェクトリテラルを直接 `JSON.stringify` していた）。
+   */
+  private sendFrame(ws: Socket, msg: ServerMsg): void {
+    ws.send(JSON.stringify(msg));
   }
 
   private handleClose(ws: Socket): void {

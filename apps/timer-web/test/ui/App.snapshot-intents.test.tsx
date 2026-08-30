@@ -39,7 +39,7 @@ function problemA(): Problem {
     title: "FizzBuzz",
     description: "3の倍数でFizz",
     requirements: ["3の倍数はFizz"],
-    exampleTest: "",
+    exampleTest: "expect(add(1, 2)).toBe(3)",
     hints: [],
     source: "fallback",
   };

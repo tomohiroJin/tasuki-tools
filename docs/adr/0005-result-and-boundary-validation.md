@@ -67,3 +67,53 @@ AI 出力の `validateProblem` 検証など）は、本 ADR では扱わない�
   標準に従う。
 - **本 ADR の時点ではコード（`apps/` `packages/` `e2e/` `scripts/`）を
   変更しない。** 実測は grep による確認のみで、実装・テストへの変更は伴わない。
+
+## 追記（2026-08-30・#181）— 検証は両方向に要る
+
+**上の MUST（「外部からの入力（WebSocket メッセージ等）は、境界で Valibot スキーマに
+よる検証を必ず通す」）は、timer では片方向しか守られていなかった。**
+
+実測（2026-08-30・main `d5ffe58`）:
+
+- `packages/timer-core/src/schemas.ts` の `ServerMsgSchema` を参照する**製品コードは 0 件**
+  だった。参照していたのはテストと構造監査の例外表だけである
+- 受信側 `apps/timer-web/src/sync/dispatch.ts` は `JSON.parse(raw) as ServerMsg` の
+  **型アサーションのみ**で、防いでいたのは `JSON.parse` の例外だけだった。
+  **JSON として読めることと、契約を満たすことは別である**
+- 送信側 `apps/timer-sync/src/adapters/ws-adapter.ts` の `send` / `broadcast` は
+  `data: unknown` で、`broadcastSnapshot` とエラーフレーム 3 経路は型注釈を通らなかった
+- 逆方向（クライアント → サーバー）は `parseBoundaryMessage(CommandSchema, ...)` を
+  通しており、**成立していたのは片方向だけ**だった
+
+**決定は変えない。実装を規範へ合わせた。**
+
+- **受信側に実行時の門番を置く**（MUST）。`dispatchServerMessage` は
+  `v.safeParse(ServerMsgSchema, ...)` を通し、落ちたフレームは黙って捨てる
+- **送信側は型で塞ぐ**（MUST）。`WsAdapter.send` / `broadcast` は `ServerMsg` を受ける。
+  `broadcaster` を経由できない 3 経路（`MESSAGE_TOO_LARGE` / `INVALID_JSON`・
+  `INVALID_COMMAND` / `INTERNAL_ERROR`）は `sendFrame(ws, msg: ServerMsg)` を通す
+- **送信側は実行時検証にしない**（MUST NOT）。「契約から外れたので送らない」経路を
+  本番に新設すると、**形が少し違うフレームが届くより、何も届かないほうが利用者には悪い**。
+  送信側は型で止め、実行時の門番は受信側に一本化する
+
+この形は `apps/poker-web` が既に採っているもの（`parseServerMessage` →
+`parseWith(ServerMessageSchema, raw)`）と同じで、2 つのアプリの方針が揃う。
+
+**検査**（いずれも壊して赤を確認済み）:
+
+| 守るもの | 検査 | 壊し方と結果 |
+|---|---|---|
+| 受信側の実行時検証 | `apps/timer-web/test/sync/dispatch.test.ts` | `safeParse` を型アサーションへ戻す → 2 件が赤 |
+| 送信側の型 | `tsc --noEmit` | `broadcastSnapshot` のキーを `roomData` にする → TS2353 |
+| 同上 | `tsc --noEmit` | エラーフレームのキーを `errorCode` にする → TS2353 |
+
+**対照**: `send` / `broadcast` / `sendFrame` を `unknown` へ戻すと、同じ契約違反が
+`tsc` を **exit 0 で素通り**する。型注釈が仕事をしていることの裏づけである。
+
+**副次的に分かったこと**:
+
+- 構造監査の SC-039③ 例外表から `ServerMsgSchema` を外した。製品コードが参照するように
+  なったため、**監査自身が「例外が不要になりました」と落とした**
+- timer-web のフィクスチャ 6 箇所が `exampleTest: ""` を送っており、`ProblemSchema` の
+  最小長 1 を満たしていなかった。**実サーバーが作れない形をテストが流していた**ことになる。
+  検証を入れて初めて露見した（47 件が赤になった）
