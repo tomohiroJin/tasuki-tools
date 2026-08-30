@@ -106,6 +106,7 @@ Issue #69 の本文は着手前の実測で事実誤認が 5 点見つかった�
 
 - `"nanoid@3": "^3.3.18"` を追加した。差分は lockfile 3 行と設定のみで、直接依存の
   `nanoid@^6.0.1`（`apps/timer-sync` のルームコード生成）は変わらない
+  （**この行は #199 で削除済み。下記「overrides の削除と原因の訂正」を参照**）
 - 実測した却下案（いずれも実行して確認）:
   - `pnpm update -r nanoid@3.3.18` → `apps/timer-sync/package.json` の `nanoid` を
     `^6.0.1` から `^3.3.18` へ書き換えた
