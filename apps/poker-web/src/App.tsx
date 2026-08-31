@@ -50,7 +50,14 @@ export function App() {
   const page = (() => {
     switch (route.name) {
       case 'top':
-        return <TopPage onCreate={sync.createRoom} disabled={sync.status !== 'open'} />;
+        return (
+          <TopPage
+            onCreate={sync.createRoom}
+            disabled={sync.status !== 'open'}
+            error={sync.error}
+            onClearError={sync.clearError}
+          />
+        );
       case 'room':
         return <RoomPage roomId={route.roomId} sync={sync} />;
       case 'not-found':

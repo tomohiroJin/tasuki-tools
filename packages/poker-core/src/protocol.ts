@@ -120,6 +120,21 @@ export const ServerMessageSchema = v.variant('type', [
 ]);
 
 export type ServerMessage = v.InferOutput<typeof ServerMessageSchema>;
+
+/**
+ * **サーバーが送ってよいメッセージ**（#214・docs/poker/adr/0003 決定 4）。
+ *
+ * 受信の契約（`ServerMessage`）は前方互換のため `code` を任意の非空文字列まで広げたが、
+ * **送信側は `ERROR_CODES` に縛ったままにする。** 広く受けるのは古いバンドルを守るための
+ * ものであって、サーバーが好き勝手に送ってよいという意味ではない。
+ *
+ * これが `ServerMessage` のままだと、`Broadcaster.sendTo` に渡す `code` の**綴り誤りが
+ * 型検査を通る**（#214 の敵対的検証が実測した）。`handlers.ts` の
+ * `sendError(code: ErrorCode, …)` だけが担保していて、ポートの型では担保されていなかった。
+ */
+export type OutboundServerMessage =
+  | Exclude<ServerMessage, { type: 'error' }>
+  | { type: 'error'; code: ErrorCode; message: string };
 export type RoomStateMessage = Extract<ServerMessage, { type: 'room-state' }>;
 export type ParticipantView = v.InferOutput<typeof ParticipantViewSchema>;
 export type RoundStats = v.InferOutput<typeof StatsSchema>;

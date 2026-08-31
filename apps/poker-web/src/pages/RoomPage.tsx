@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { RoomStateMessage } from '@tasuki/poker-core';
 import { CardHand } from '../components/CardHand';
+import { ErrorNote } from '../components/ErrorNote';
 import { NameForm } from '../components/NameForm';
 import { ParticipantList } from '../components/ParticipantList';
 import { Results } from '../components/Results';
@@ -30,6 +31,10 @@ function JoinForm({
           {notice}
         </p>
       )}
+      {/* 入室前にもサーバーのエラーを伝える（#217）。ここが無いと、未知の code も
+          server-busy も画面から消える。rate-limited は上の notice が受け持つので
+          ErrorNote 側で出さない（二重表示の回避） */}
+      <ErrorNote error={sync.error} onClose={sync.clearError} />
       <NameForm
         submitLabel="参加する"
         placeholder="例: はなこ"
@@ -213,14 +218,7 @@ export function RoomPage({ roomId, sync }: Props) {
         <h1>プランニングポーカー</h1>
         <InviteLink roomId={roomId} />
       </header>
-      {sync.error && (
-        <p className="error-note" role="alert">
-          {sync.error.message}
-          <button type="button" className="secondary" onClick={sync.clearError}>
-            閉じる
-          </button>
-        </p>
-      )}
+      <ErrorNote error={sync.error} onClose={sync.clearError} />
       <section>
         <h2>参加者（{snapshot.participants.length}人）</h2>
         <ParticipantList participants={snapshot.participants} you={snapshot.you} />
