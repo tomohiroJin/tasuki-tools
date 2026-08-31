@@ -116,6 +116,43 @@ export function addUnknownKeyToErrorFrame(payload: string): string {
 }
 
 /**
+ * `room-state` フレームの**すべての層に、契約が宣言していないキーを足す**（#216）。
+ * 他の種類のフレームはそのまま返す。
+ *
+ * サーバーが `room-state` にフィールドを足した状況を、実プロトコル越しに作る。
+ * `v.strictObject` だった頃は**どの層に 1 つ足してもフレームごと捨てられ**、
+ * 画面は生きて見えたまま古い状態で固まった（`docs/poker/adr/0002` 背景）。
+ * `docs/poker/adr/0004` で `card` を除くサーバー→クライアントの層を前方互換にしてある。
+ *
+ * **`card` には足さない。** あちらは値の集合そのものが契約で、緩めていない（決定 2）。
+ */
+export function addUnknownKeysToRoomStateFrame(payload: string): string {
+  let frame: unknown;
+  try {
+    frame = JSON.parse(payload);
+  } catch {
+    return payload;
+  }
+  if (!isRoomStateFrame(frame)) return payload;
+  const round = frame.round as Record<string, unknown>;
+  const votes = Array.isArray(round.votes) ? round.votes : undefined;
+  const stats = typeof round.stats === 'object' && round.stats !== null ? round.stats : undefined;
+  return JSON.stringify({
+    ...frame,
+    serverTime: 1,
+    participants: frame.participants.map((p) => ({ ...p, avatar: 'x' })),
+    round: {
+      ...round,
+      elapsedMs: 1,
+      ...(votes !== undefined
+        ? { votes: votes.map((vote) => ({ ...(vote as object), at: 1 })) }
+        : {}),
+      ...(stats !== undefined ? { stats: { ...stats, median: 5 } } : {}),
+    },
+  });
+}
+
+/**
  * `room-state` フレームを、**サーバー→クライアントの契約（`ServerMessageSchema`）に
  * 合わない形**へ書き換える（#212）。他の種類のフレームはそのまま返す。
  *

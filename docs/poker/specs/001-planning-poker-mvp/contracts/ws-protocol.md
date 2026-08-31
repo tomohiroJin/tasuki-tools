@@ -158,8 +158,19 @@ revealed 後の例:
 **専用の扱いをせず** `message` をそのまま示す（意味を知らないコードから案内を推測すると、
 無関係な対処へ誘導することになる）。
 
-なお `joined` / `room-state` は前方互換ではなく、宣言していないキーがあると捨てる。
-これを変えるかは [#216](https://github.com/tomohiroJin/tasuki-tools/issues/216) で扱う。
+#### `joined` / `room-state` も前方互換である（[#216](https://github.com/tomohiroJin/tasuki-tools/issues/216)）
+
+`docs/poker/adr/0004` で、**`card` を除くサーバー→クライアントのすべての層**
+（`joined` 直下・`room-state` 直下・`participants[]` の要素・`round`・`round.stats`・
+`round.votes[]` の要素）が宣言していないキーを受け取れるようにした。捨てると
+**画面は生きて見えたまま古い状態で固まる**ためである。
+
+**`card` だけは前方互換ではない。** 値の集合そのものが契約で、新しい `kind` を足しても
+`v.variant` が枝を知らないので落とす。カードの種類を増やすときは、**古いバンドルが
+何を見るか**を設計の一部として決めること。
+
+**クライアント→サーバー（`ClientMessageSchema`）は厳格なままである。** あちらは外部入力で、
+広く受ける理由が無い。
 
 ## 公開に耐えるための防御（#63）
 

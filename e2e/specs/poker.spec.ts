@@ -12,6 +12,7 @@ import { expect, test } from '../fixtures/test';
 import type { Page } from '@playwright/test';
 import {
   addUnknownKeyToErrorFrame,
+  addUnknownKeysToRoomStateFrame,
   chooseCard,
   corruptRoomStateFrame,
   createRoom,
@@ -286,6 +287,53 @@ test.describe('poker の error に契約が知らないキーが乗っても案�
 
     // Then その2: **書き換え屋が実際に働いた。** 0 なら上の判定は前方互換を見ていない
     expect(augmented, '余剰キーを足した error の数').toBeGreaterThan(0);
+
+    // Then その3: 捨てていないので、捨てた告知は出ない
+    await expect(page.getByText(/同期できていません/)).toHaveCount(0);
+  });
+});
+
+/**
+ * **サーバーが `room-state` に足したものを、古いバンドルが捨てない**（#216）。
+ *
+ * `v.strictObject` だった頃は**どの層に 1 つ足してもフレームごと捨てられ**、
+ * 画面は生きて見えたまま古い状態で固まった。上の「契約に合わない room-state を捨てたことが
+ * 画面から分かる」が**固まる側**を見ているので、ここは**固まらない側**を同じ筋書きで見る。
+ */
+test.describe('poker の room-state に契約が知らないキーが乗っても固まらない', () => {
+  test('Given ルームに居る / When 余剰キーが乗った room-state が届き続ける / Then 名簿は更新され、告知も出ない', async ({
+    page,
+    openPeer,
+  }) => {
+    // Given: この接続に届く room-state のすべての層へ、契約が知らないキーを足す。
+    // **足した回数を数える。** 0 なら以降の判定は前方互換を見ていない
+    let augmented = 0;
+    await page.routeWebSocket(/\/poker\/ws$/, (ws) => {
+      const server = ws.connectToServer();
+      ws.onMessage((message) => server.send(message));
+      server.onMessage((message) => {
+        const payload = typeof message === 'string' ? message : message.toString();
+        const next = addUnknownKeysToRoomStateFrame(payload);
+        if (next !== payload) augmented += 1;
+        ws.send(next);
+      });
+    });
+
+    // Given: 作成者としてルームを作る（最初の room-state から余剰キーが乗っている）
+    const roomUrl = await createRoom(page, HOST);
+    await expect(page.getByRole('heading', { name: '参加者（1人）' })).toBeVisible();
+
+    // When: 2 人目が入る。**この更新は room-state でしか届かない**ので、
+    //       捨てていれば名簿は 1 人のまま固まる
+    const guest = await openPeer('poker-fc-guest');
+    await joinRoom(guest.page, roomUrl, GUEST);
+
+    // Then その1: 名簿が更新される（固まっていない）
+    await expect(page.getByRole('heading', { name: '参加者（2人）' })).toBeVisible();
+    await expect(participantRow(page, GUEST), '2 人目の行').toHaveCount(1);
+
+    // Then その2: **書き換え屋が実際に働いた**
+    expect(augmented, '余剰キーを足した room-state の数').toBeGreaterThan(0);
 
     // Then その3: 捨てていないので、捨てた告知は出ない
     await expect(page.getByText(/同期できていません/)).toHaveCount(0);

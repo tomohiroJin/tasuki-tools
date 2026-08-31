@@ -64,6 +64,10 @@ v.object({                                  // strictObject → object
 足すと、古いバンドルは全部捨てて画面が固まる）が、`error` とは別に計るべきものとして
 [#216](https://github.com/tomohiroJin/tasuki-tools/issues/216) へ申し送る。
 
+> **この据え置きは [`0004`](./0004-server-frame-forward-compatibility.md) で解いた。**
+> 懸念していた「型が緩む」は起きない —— **`v.object` は未知キーを出力から落とす**ので、
+> `RoomStateMessage` の型も画面へ渡る値も変わらない（#216 で実測）。
+
 **空の `code` は引き続き捨てる。** 意味を持たない値まで通す理由がなく、timer も同じ判定である。
 
 > **これは `0002` の「影響」節の「共有パッケージは変更しない」を覆す。**
@@ -171,5 +175,8 @@ poker はもともとサーバーが送った `message` をそのまま描いて
 
 - **`joined` / `room-state` は前方互換ではない。** 決定 1 のとおり
   [#216](https://github.com/tomohiroJin/tasuki-tools/issues/216) で扱う。
+  → **解消済み。** [`0004`](./0004-server-frame-forward-compatibility.md) が
+  `card` を除くサーバー→クライアントの層を前方互換にした。**`card` だけは残る** ——
+  値の集合そのものが契約で、緩めても `v.variant` が新しい枝を落とすためである。
 - （**#217 は決定 5 で解いた。** 当初は本決定の範囲外として申し送っていたが、
   「届くようにしたのに届いた先が無い」のは片側の修正なので同じ作業に含めた。）
