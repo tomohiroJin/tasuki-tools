@@ -1,0 +1,21 @@
+# 変異 18: poker-stale-never-raised
+#
+# 検出を期待するテスト:
+#   - apps/poker-web/tests/sync-stale-notice.test.tsx
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m18-*.patch
+# 復元: git checkout -- <対象ファイル>
+#
+diff --git a/apps/poker-web/src/hooks/useSync.ts b/apps/poker-web/src/hooks/useSync.ts
+index 06142da..2512d7f 100644
+--- a/apps/poker-web/src/hooks/useSync.ts
++++ b/apps/poker-web/src/hooks/useSync.ts
+@@ -125,7 +125,6 @@ export function usePokerSync(): PokerSync {
+           // `room-state` を捨てれば画面が固まり、`joined` を捨てれば入室が成立せず、
+           // `error` を捨てれば消えたルームの案内（#76 J-1）も入室の再試行（#147）も起きない。
+           console.warn('契約に合わないサーバーメッセージを捨てました'); // log-hygiene:allow 固定の文言のみ（経路も値も出さない）
+-          setSyncStale(true);
+           return;
+         }
+         // 契約を満たすフレームが届いた＝サーバーとの間で話が通じている。

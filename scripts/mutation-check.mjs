@@ -242,6 +242,29 @@ export const MUTATIONS = [
       "**立てる側だけを変異させても、この欠陥は捕まらない。**",
   },
   {
+    id: 18,
+    label: "捨てたときに syncStale を立てるのをやめる",
+    patch: "m18-poker-stale-never-raised.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/sync-stale-notice.test.tsx"],
+    note:
+      "#212 で新設した表出の起点。plan.md の対応表より後に書いたので、そちらには載っていない。" +
+      "落とすと #212 以前へ戻る（捨てるが黙る）。**devtools の記録だけが残るので、" +
+      "console を見ている開発者には気づけて利用者には気づけない**という、" +
+      "本 Issue が塞いだ状態そのものになる。",
+  },
+  {
+    id: 19,
+    label: "有効なフレームを受け取ったときの syncStale の解除を落とす",
+    patch: "m19-poker-stale-never-cleared.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/sync-stale-notice.test.tsx"],
+    note:
+      "#212 で新設した解除点。plan.md の対応表より後に書いたので、そちらには載っていない。" +
+      "落とすと「同期できていません」が一度立ったきり二度と下りない。" +
+      "**立てる側だけを変異させても、この欠陥は捕まらない。**",
+  },
+  {
     id: 15,
     label: "list-scan-targets から死んだ除外の検知を削る",
     patch: "m15-dead-exclusion-detection-removed.patch",

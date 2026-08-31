@@ -58,6 +58,7 @@ function makeSync(over: Partial<PokerSync> = {}): PokerSync {
     self: null,
     snapshot: null,
     joinedThisConnection: false,
+    syncStale: false,
     error: null,
     clearError: vi.fn(),
     createRoom: vi.fn(),

@@ -15,3 +15,4 @@
 | # | タイトル | ステータス |
 |---|---|---|
 | [0001](./0001-poker-domain-direct-transition.md) | poker のドメインは直接遷移関数 ＋ Result を採る | Accepted |
+| [0002](./0002-discarded-frame-disclosure.md) | 契約に合わないサーバーメッセージを捨てたことを利用者へ伝える | Accepted |

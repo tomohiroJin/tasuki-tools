@@ -5,10 +5,14 @@
  *   他人の票を余剰フィールドで配信しても、UI がそれを参照しないので DOM には
  *   絶対に現れない。受信した WebSocket フレームも見る。
  * - タグ無し #13 — #76 J-1 の回帰防止（`local` 専用）。
+ * - タグ無し #212 — 契約に合わない `room-state` を捨てたことの表出（`local` 専用。
+ *   実ルームの枠を使ううえ、壊れたフレームは本番では作れない）。
  */
 import { expect, test } from '../fixtures/test';
+import type { Page } from '@playwright/test';
 import {
   chooseCard,
+  corruptRoomStateFrame,
   createRoom,
   joinRoom,
   participantRow,
@@ -153,5 +157,84 @@ test.describe('poker の消えたルームのリンクが行き止まりにな�
 
     // Then その3: 参加フォームは出ない（名前を入れさせてから落胆させない）
     await expect(joinButton, '消えたルームで参加フォームが出ている').toHaveCount(0);
+  });
+});
+
+
+test.describe('契約に合わない room-state を捨てたことが画面から分かる', () => {
+  /**
+   * その接続に届く `room-state` を、指定の間だけ壊れた形へ差し替える。
+   *
+   * **実際に書き換えた回数を数えて返す。** `corruptRoomStateFrame` が素通しへ退化すると、
+   * 症状は「告知が出ない」という原因の読めない失敗になる。**書き換えていないことを、
+   * 書き換えていないと言えるようにする。**
+   *
+   * **数えているのは「書き換えた」ことであって「契約に反した」ことではない。**
+   * 契約側が緩んで `name: 1` を受け入れるようになれば、この数は増えたまま
+   * 告知は出なくなる。そこまで見るには e2e から `parseServerMessage` を呼ぶ必要があり、
+   * `@tasuki/poker-core` は e2e の依存に無い。**その場合に落ちるのは下の告知の判定**で、
+   * ここは失敗の理由を読めるようにするための補助である。
+   */
+  async function corruptFrom(
+    page: Page,
+    corrupting: () => boolean,
+  ): Promise<{ count: () => number }> {
+    let corrupted = 0;
+    await page.routeWebSocket(/\/poker\/ws$/, (ws) => {
+      const server = ws.connectToServer();
+      ws.onMessage((message) => server.send(message));
+      server.onMessage((message) => {
+        const payload = typeof message === 'string' ? message : message.toString();
+        const next = corrupting() ? corruptRoomStateFrame(payload) : payload;
+        if (next !== payload) corrupted += 1;
+        ws.send(next);
+      });
+    });
+    return { count: () => corrupted };
+  }
+
+  /**
+   * **`room-state` を捨てると画面は生きて見えたまま古い状態で固まる。**
+   * 再接続もエラー表示も起きないので、利用者には「なぜか更新されない」としか分からない。
+   *
+   * **固まっていることを、実際に固まらせて確かめる。** 2 人目の参加は `room-state`
+   * でしか届かないので、捨てている側の名簿には現れない。2 人目自身の画面で
+   * 「参加は成立した」ことを確かめ、**参加が失敗しただけ**という別の説明を排除する。
+   */
+  test('Given ルームに居る / When 契約に合わない room-state が届く / Then 同期できていないと出て、名簿は古いまま固まる', async ({
+    page,
+    openPeer,
+  }) => {
+    // Given: 途中から room-state だけを壊せるようにしてから開く。
+    // **最初から壊すとルームが一度も表示されない。** それは別の壊れ方である
+    let corrupting = false;
+    const corrupter = await corruptFrom(page, () => corrupting);
+
+    const roomUrl = await createRoom(page, HOST);
+    await expect(page.getByRole('heading', { name: '参加者（1人）' })).toBeVisible();
+    await expect(page.getByText(/同期できていません/)).toHaveCount(0);
+
+    // When: 以後の room-state が契約に合わなくなり、その状態で 2 人目が参加する
+    corrupting = true;
+    const guest = await openPeer('poker-stale-guest');
+    await joinRoom(guest.page, roomUrl, GUEST);
+
+    // Then その1: 参加そのものは成立している（2 人目の画面には 2 人が並ぶ）
+    await expect(
+      guest.page.getByRole('heading', { name: '参加者（2人）' }),
+      '2 人目の画面の名簿',
+    ).toBeVisible();
+
+    // Then その2: **壊し屋が実際に働いた。** これを後ろに置くと、壊せていないときに
+    // 先の判定がタイムアウトで落ち、原因の読めない失敗になる
+    expect(corrupter.count(), '壊した room-state の数').toBeGreaterThan(0);
+
+    // Then その3: 捨てている側は、それが画面から分かる
+    await expect(page.getByText(/同期できていません/)).toBeVisible();
+
+    // Then その4: **名簿は古いまま固まっている。** 描かれてはいるのに 1 人のままで、
+    // 2 人目の行はどこにも無い
+    await expect(page.getByRole('heading', { name: '参加者（1人）' })).toBeVisible();
+    await expect(participantRow(page, GUEST), '作成者の画面の 2 人目の行').toHaveCount(0);
   });
 });

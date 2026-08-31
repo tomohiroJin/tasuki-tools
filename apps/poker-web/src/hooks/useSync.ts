@@ -45,6 +45,11 @@ export interface PokerSync {
   joinedThisConnection: boolean;
   /** 直近のエラー（room-not-found はページ側で専用表示にする。FR-015） */
   error: SyncError | null;
+  /**
+   * 契約に合わないフレームを捨てて以降、契約を満たすフレームを 1 通も受け取っていない（#212）。
+   * 接続は生きているので `status` では表せない。告知の `stale` に使う。
+   */
+  syncStale: boolean;
   clearError: () => void;
   createRoom: (name: string) => void;
   joinRoom: (roomId: string, name: string, token?: string) => void;
@@ -63,6 +68,8 @@ export function usePokerSync(): PokerSync {
   const [snapshot, setSnapshot] = useState<RoomStateMessage | null>(null);
   const [joinedThisConnection, setJoinedThisConnection] = useState(false);
   const [error, setError] = useState<SyncError | null>(null);
+  // 契約に合わないフレームを捨てて以降、契約を満たすフレームを受け取っていない（#212）。
+  const [syncStale, setSyncStale] = useState(false);
   // 「一度も繋がっていない」と「使えていたのに切れた」は利用者への伝え方が違う（#76 F-2）
   const [everConnected, setEverConnected] = useState(false);
   const [failedAttempts, setFailedAttempts] = useState(0);
@@ -95,6 +102,9 @@ export function usePokerSync(): PokerSync {
         setFailedAttempts((n) => n + 1);
         // 新しい接続はサーバー側で未 join 状態から始まる（再入室は RoomPage が行う）
         setJoinedThisConnection(false);
+        // 捨てたフレームの告知も前の接続のものなので畳む（#212）。
+        // 残すと、**1 通も受け取っていない新しい接続に対して**警告が出続ける。
+        setSyncStale(false);
         // 指数バックオフで再接続（US4。再入室は RoomPage が保存済みトークンで行う）
         const delay = Math.min(500 * 2 ** attempt, MAX_RECONNECT_DELAY_MS);
         attempt += 1;
@@ -103,7 +113,25 @@ export function usePokerSync(): PokerSync {
       ws.addEventListener('message', (event) => {
         if (!isCurrent()) return;
         const result = parseServerMessage(String(event.data));
-        if (result.isErr()) return; // 境界検証に失敗したフレームは無視（憲法原則 IV）
+        if (result.isErr()) {
+          // 境界検証に失敗したフレームは画面へ渡さない（憲法原則 IV）。
+          //
+          // **捨てたことは必ず利用者へ伝える（#212）。** 黙って捨てると、画面は生きて
+          // 見えたまま古い状態で固まり、利用者には原因が分からない。
+          //
+          // **どのフレームを捨てたかで態度を変えない。** 落ちた項目の経路から
+          // 「一過性の棄却」を選り分ける案は採らなかった（`docs/poker/adr/0002` 決定 2 に
+          // 実測を記録）。そもそも**捨てて無害なフレームは 1 つも無い** ——
+          // `room-state` を捨てれば画面が固まり、`joined` を捨てれば入室が成立せず、
+          // `error` を捨てれば消えたルームの案内（#76 J-1）も入室の再試行（#147）も起きない。
+          console.warn('契約に合わないサーバーメッセージを捨てました'); // log-hygiene:allow 固定の文言のみ（経路も値も出さない）
+          setSyncStale(true);
+          return;
+        }
+        // 契約を満たすフレームが届いた＝サーバーとの間で話が通じている。
+        // **poker に定期的なデータフレームは無い**ので、ここで解除しても点滅しない
+        // （死活監視は WS の制御フレーム ping で、`onmessage` には来ない）。
+        setSyncStale(false);
         const msg = result.value;
         switch (msg.type) {
           case 'joined':
@@ -169,8 +197,19 @@ export function usePokerSync(): PokerSync {
       snapshot,
       joinedThisConnection,
       error,
+      syncStale,
       ...actions,
     }),
-    [status, everConnected, failedAttempts, self, snapshot, joinedThisConnection, error, actions],
+    [
+      status,
+      everConnected,
+      failedAttempts,
+      self,
+      snapshot,
+      joinedThisConnection,
+      error,
+      syncStale,
+      actions,
+    ],
   );
 }
