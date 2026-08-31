@@ -16,9 +16,13 @@ export type ClientConnState = "online" | "reconnecting";
  * **利用者にとって「同期できているか」は接続の一部だから**である。
  *
  * 強い事実から順に返す。`lost` は復帰できないことが確定した状態、
- * `reconnecting` は接続そのものが切れている状態で、どちらも
- * 「古い」より先に伝えるべきことがある。再接続が成功すれば新しい `snapshot` が
- * 届くので、そこで `syncStale` は解消しうる。
+ * 接続が切れていること（`connState`）も「古い」より先に伝えるべきことがある。
+ * 再接続が成功すれば新しい `snapshot` が届くので、そこで `syncStale` は解消しうる。
+ *
+ * **最後は `connState` をそのまま返す。** こうしておくと
+ * `ClientConnState ⊆ ConnectionStatus` を型検査が守る。リテラルへ展開して
+ * `return "online"` と書くと、接続状態が増えたときに**どの分岐にも当たらず黙って
+ * 「接続中」へ落ちる**（実測: そのまま返す形なら、増やした値が代入できず TS2322）。
  */
 export function deriveConnectionStatus(
   sessionLost: boolean,
@@ -26,7 +30,7 @@ export function deriveConnectionStatus(
   syncStale: boolean,
 ): ConnectionStatus {
   if (sessionLost) return "lost";
-  if (connState === "reconnecting") return "reconnecting";
-  if (syncStale) return "stale";
-  return "online";
+  // 「古い」を出すのは接続が生きているときだけ。切れているならそちらが先。
+  if (syncStale && connState === "online") return "stale";
+  return connState;
 }

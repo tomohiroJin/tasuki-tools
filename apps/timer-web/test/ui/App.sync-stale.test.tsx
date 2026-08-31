@@ -54,7 +54,7 @@ function aValidSnapshot(): Record<string, unknown> {
 /**
  * ADR 0005 の追記が挙げた実際の経路と同じ壊し方をする。
  * `rotationDisplayNames()` が在室しない ID に返す空文字が `config.members` に載ると、
- * `SessionConfigSchema.members`（最小長 1）に落ちる。
+ * `SessionConfigSchema.members` の要素（`displayNameStr`・最小長 1）に落ちる。
  */
 function aFrameThatViolatesTheContract(): Record<string, unknown> {
   const room = aRoomView({

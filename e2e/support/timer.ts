@@ -110,7 +110,7 @@ export function currentDriverRow(page: Page): Locator {
  * 合わない形**へ書き換える（#209）。他の種類のフレームはそのまま返す。
  *
  * 壊し方は ADR 0005 の追記が挙げた実際の経路に合わせる。`config.members` の
- * 要素は最小長 1 なので、空文字が載ると `SessionConfigSchema` に落ちる。
+ * 要素の `displayNameStr` が最小長 1 なので、空文字が載ると `SessionConfigSchema` に落ちる。
  * **製品コードにテスト用の穴は開けない。** ブラウザと同期サーバーの間で
  * 差し替えるだけなので、画面から見れば「サーバーが壊れた値を送ってきた」に等しい。
  */
