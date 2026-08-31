@@ -14,7 +14,7 @@ describe('connectionNotice', () => {
     // Given: 同期サーバーに繋がっている
     // When: 告知を決める
     // Then: 何も出さない
-    expect(connectionNotice({ status: 'open', everConnected: true, failedAttempts: 0 })).toEqual({
+    expect(connectionNotice({ status: 'open', everConnected: true, failedAttempts: 0, syncStale: false })).toEqual({
       kind: 'none',
     });
   });
@@ -24,7 +24,7 @@ describe('connectionNotice', () => {
     // When: 告知を決める
     // Then: 出さない。正常時に一瞬だけ警告が出るのは害でしかない
     expect(
-      connectionNotice({ status: 'connecting', everConnected: false, failedAttempts: 0 }),
+      connectionNotice({ status: 'connecting', everConnected: false, failedAttempts: 0, syncStale: false }),
     ).toEqual({ kind: 'none' });
   });
 
@@ -37,6 +37,7 @@ describe('connectionNotice', () => {
       status: 'closed',
       everConnected: false,
       failedAttempts: 1,
+      syncStale: false,
     });
 
     expect(notice.kind).toBe('unreachable');
@@ -49,6 +50,7 @@ describe('connectionNotice', () => {
       status: 'closed',
       everConnected: false,
       failedAttempts: 1,
+      syncStale: false,
     });
 
     // Then: ボタンが無効な理由まで書く。それが分からないのが問題の本体だった
@@ -61,7 +63,7 @@ describe('connectionNotice', () => {
     // When: 1 回目の再接続を待っている
     // Then: 自動で戻る見込みがあるので、驚かせない
     expect(
-      connectionNotice({ status: 'closed', everConnected: true, failedAttempts: 1 }),
+      connectionNotice({ status: 'closed', everConnected: true, failedAttempts: 1, syncStale: false }),
     ).toEqual({ kind: 'reconnecting', text: expect.stringContaining('再接続') });
   });
 
@@ -73,6 +75,7 @@ describe('connectionNotice', () => {
       status: 'closed',
       everConnected: true,
       failedAttempts: 3,
+      syncStale: false,
     });
 
     expect(notice.kind).toBe('unreachable');
@@ -83,7 +86,72 @@ describe('connectionNotice', () => {
     // When: 接続が確立する
     // Then: 告知を残さない
     expect(
-      connectionNotice({ status: 'open', everConnected: true, failedAttempts: 3 }),
+      connectionNotice({ status: 'open', everConnected: true, failedAttempts: 3, syncStale: false }),
     ).toEqual({ kind: 'none' });
+  });
+});
+
+
+/**
+ * 契約に合わないサーバーメッセージを捨てて、画面が古いままになっていることを伝える（#212）。
+ *
+ * `parseServerMessage` に落ちたフレームは画面へ渡さない（憲法 原則 IV）。
+ * **捨てたことが伝わらないと、画面は生きて見えたまま古い状態で固まる。**
+ *
+ * @requirements #212
+ */
+describe('connectionNotice: 同期できていないことの告知', () => {
+  it('接続できていて同期も古くないなら何も出さない', () => {
+    // Given: 接続できていて、捨てたフレームも無い
+    const input = { status: 'open' as const, everConnected: true, failedAttempts: 0, syncStale: false };
+    // When
+    const notice = connectionNotice(input);
+    // Then
+    expect(notice).toEqual({ kind: 'none' });
+  });
+
+  it('接続できているのに同期が古いなら、そのことを伝える', () => {
+    // Given: 接続は生きているが、契約に合わないフレームを捨てている
+    // When: 告知を決める
+    const notice = connectionNotice({
+      status: 'open',
+      everConnected: true,
+      failedAttempts: 0,
+      syncStale: true,
+    });
+    // Then
+    expect(notice.kind).toBe('stale');
+    expect(notice.kind === 'stale' && notice.text).toContain('同期できていません');
+  });
+
+  /**
+   * **接続が切れているなら、そちらが先。** 同期が古いのは接続が切れている結果でもあり、
+   * 再接続すれば新しい `room-state` が届いて解消しうる。原因の取り違えは
+   * 利用者を無関係な対処へ誘導する。
+   */
+  it('接続が切れているときは、接続の告知を優先する', () => {
+    // Given: 接続が切れていて、同期も古い
+    // When: 告知を決める
+    const notice = connectionNotice({
+      status: 'closed',
+      everConnected: true,
+      failedAttempts: 1,
+      syncStale: true,
+    });
+    // Then
+    expect(notice.kind).toBe('reconnecting');
+  });
+
+  it('一度も繋がっていないときも、接続の告知を優先する', () => {
+    // Given: 一度も繋がっていなくて、同期も古い
+    // When: 告知を決める
+    const notice = connectionNotice({
+      status: 'closed',
+      everConnected: false,
+      failedAttempts: 1,
+      syncStale: true,
+    });
+    // Then
+    expect(notice.kind).toBe('unreachable');
   });
 });

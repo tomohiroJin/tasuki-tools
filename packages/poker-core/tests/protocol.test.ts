@@ -109,3 +109,50 @@ describe('parseServerMessage', () => {
     expect(result.isErr()).toBe(true);
   });
 });
+
+
+/**
+ * 落ちた項目の**経路**を利用側へ運ぶ（#212）。
+ *
+ * poker-web は、捨てたフレームが画面を古くするもの（`room-state` / `joined`）
+ * だったのか、一過性のもの（`error`）だったのかを、この経路で判別する。
+ * `code` と `message` だけでは区別できない。
+ *
+ * **サーバーの応答には載らない。** `apps/poker-sync` の WS アダプタは
+ * `code` と `message` だけを取り出して返す。
+ *
+ * @requirements #212
+ */
+describe('ProtocolError が運ぶ経路', () => {
+  it('Given room-state の項目が壊れたフレーム / When 解析する / Then その項目の経路を返す', () => {
+    // Given
+    const raw = JSON.stringify({
+      type: 'room-state',
+      roomId: 'r1',
+      you: 'p1',
+      participants: [{ id: 'p1', name: 1, isHost: true, connected: true, hasVoted: false }],
+      round: { status: 'voting' },
+      yourVote: null,
+    });
+    // When
+    const result = parseServerMessage(raw);
+    // Then
+    expect(result._unsafeUnwrapErr().paths).toContain('participants.0.name');
+  });
+
+  it('Given error の項目が壊れたフレーム / When 解析する / Then error 固有の項目だけを返す', () => {
+    // Given: code が未知のエラーフレーム
+    // When: 解析する
+    const result = parseServerMessage(JSON.stringify({ type: 'error', code: 'nope', message: 'm' }));
+    // Then
+    expect(result._unsafeUnwrapErr().paths).toEqual(['code']);
+  });
+
+  it('Given JSON として読めないテキスト / When 解析する / Then 根で落ちたことを返す', () => {
+    // Given: JSON として読めないテキスト
+    // When: 解析する
+    const result = parseServerMessage('{ 壊れている');
+    // Then
+    expect(result._unsafeUnwrapErr().paths).toEqual(['<root>']);
+  });
+});

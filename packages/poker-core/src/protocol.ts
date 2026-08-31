@@ -103,7 +103,24 @@ export type ParticipantView = v.InferOutput<typeof ParticipantViewSchema>;
 export type RoundStats = v.InferOutput<typeof StatsSchema>;
 export type VoteView = { participantId: string; card: Card };
 
-export type ProtocolError = { code: 'invalid-message'; message: string };
+export type ProtocolError = {
+  code: 'invalid-message';
+  message: string;
+  /**
+   * 落ちた項目の経路（例: `participants.0.name`）。**値は含まない**（#212）。
+   *
+   * poker-web が「捨てたフレームは画面を古くするものだったか」を判別するために使う。
+   * `code` と `message` はどの落ち方でも同じなので、それだけでは区別できない。
+   *
+   * **サーバーの応答へは載せないこと。** `apps/poker-sync` の WS アダプタは
+   * `code` と `message` だけを取り出して返している。
+   *
+   * **そのままログや画面へ出さないこと。** 本プロトコルのスキーマは
+   * `v.strictObject` なので、送り手が付けた**未知のキー名がそのまま経路になる**
+   * （実測: 余剰キー `evilKey` が経路に現れる）。判定に使うだけにする。
+   */
+  paths: readonly string[];
+};
 
 // --- パース関数 ---
 
@@ -116,9 +133,10 @@ function parseWith<TSchema extends v.GenericSchema>(
   schema: TSchema,
   raw: string,
 ): Result<v.InferOutput<TSchema>, ProtocolError> {
-  return parseBoundaryMessage(schema, raw).mapErr(({ stage }) => ({
+  return parseBoundaryMessage(schema, raw).mapErr(({ stage, paths }) => ({
     code: 'invalid-message' as const,
     message: stage === 'json' ? 'JSON として解釈できません' : 'メッセージ形式が不正です',
+    paths,
   }));
 }
 

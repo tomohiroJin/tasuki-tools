@@ -242,6 +242,28 @@ export const MUTATIONS = [
       "**立てる側だけを変異させても、この欠陥は捕まらない。**",
   },
   {
+    id: 18,
+    label: "indicatesStaleState の「経路が空なら古い」を反転する",
+    patch: "m18-sync-staleness-empty-paths.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/sync-staleness.test.ts"],
+    note:
+      "#212 で新設した判定。plan.md の対応表より後に書いたので、そちらには載っていない。" +
+      "落とすと「何が落ちたか説明できない」棄却が一過性の側へ回り、" +
+      "最も壊れた場面でだけ利用者への表出が消える。",
+  },
+  {
+    id: 19,
+    label: "room-state 受信時の syncStale の解除を落とす",
+    patch: "m19-poker-sync-stale-never-cleared.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/sync-stale-notice.test.tsx"],
+    note:
+      "#212 で新設した解除点。plan.md の対応表より後に書いたので、そちらには載っていない。" +
+      "落とすと「同期できていません」が一度立ったきり二度と下りない。" +
+      "**立てる側だけを変異させても、この欠陥は捕まらない。**",
+  },
+  {
     id: 15,
     label: "list-scan-targets から死んだ除外の検知を削る",
     patch: "m15-dead-exclusion-detection-removed.patch",

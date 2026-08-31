@@ -91,3 +91,28 @@ export function roomStateFrames(payloads: readonly string[]): RoomStateFrame[] {
 export function showsVoted(frame: RoomStateFrame, name: string): boolean {
   return frame.participants.some((p) => p.name === name && p.hasVoted === true);
 }
+
+/**
+ * `room-state` フレームを、**サーバー→クライアントの契約（`ServerMessageSchema`）に
+ * 合わない形**へ書き換える（#212）。他の種類のフレームはそのまま返す。
+ *
+ * 壊し方は「参加者名を数値にする」。`ParticipantViewSchema.name` は文字列なので、
+ * これだけでフレーム全体が落ちる。**製品コードにテスト用の穴は開けない。**
+ * ブラウザと同期サーバーの間で差し替えるだけなので、画面から見れば
+ * 「サーバーが壊れた値を送ってきた」に等しい。
+ */
+export function corruptRoomStateFrame(payload: string): string {
+  let frame: unknown;
+  try {
+    frame = JSON.parse(payload);
+  } catch {
+    return payload;
+  }
+  if (!isRoomStateFrame(frame)) return payload;
+  const participants = frame.participants;
+  if (participants.length === 0) return payload;
+  return JSON.stringify({
+    ...frame,
+    participants: [{ ...participants[0], name: 1 }, ...participants.slice(1)],
+  });
+}
