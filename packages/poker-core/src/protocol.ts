@@ -8,6 +8,12 @@ import { NAME_MAX_LENGTH } from './room';
 
 // --- スキーマ ---
 
+// **カードだけは strictObject のまま**（#216・docs/poker/adr/0004 決定 2）。
+//
+// カードは**値の集合そのものが契約**である。新しい `kind`（T シャツサイズ・#92）を
+// 足しても `v.variant` が枝を知らないので落とす —— **緩めても前方互換にならない。**
+// 得るものが無いのに、`vote`（クライアント→サーバー）と共有している以上、
+// 緩めれば**外部入力の検証まで緩む。**
 const CardSchema = v.variant('kind', [
   v.strictObject({ kind: v.literal('number'), value: v.picklist(NUMBER_CARD_VALUES) }),
   v.strictObject({ kind: v.literal('question') }),
@@ -64,7 +70,12 @@ export function isKnownErrorCode(code: string): code is ErrorCode {
   return (ERROR_CODES as readonly string[]).includes(code);
 }
 
-const ParticipantViewSchema = v.strictObject({
+// --- ここから下はサーバー→クライアント専用（#216・docs/poker/adr/0004 決定 1）---
+//
+// **`v.object` は宣言していないキーを出力から落とす。** 通しても画面へは運ばないので、
+// 憲法 原則 IV（境界で検証する）は保たれる。`ClientMessageSchema` が使う入れ子は
+// `NameSchema` と `CardSchema` だけなので、外部入力の厳格さには触れない。
+const ParticipantViewSchema = v.object({
   id: v.string(),
   name: v.string(),
   isHost: v.boolean(),
@@ -72,28 +83,28 @@ const ParticipantViewSchema = v.strictObject({
   hasVoted: v.boolean(),
 });
 
-const StatsSchema = v.strictObject({
+const StatsSchema = v.object({
   average: v.nullable(v.number()),
   modes: v.array(CardSchema),
 });
 
 const RoundViewSchema = v.variant('status', [
-  v.strictObject({ status: v.literal('voting') }),
-  v.strictObject({
+  v.object({ status: v.literal('voting') }),
+  v.object({
     status: v.literal('revealed'),
-    votes: v.array(v.strictObject({ participantId: v.string(), card: CardSchema })),
+    votes: v.array(v.object({ participantId: v.string(), card: CardSchema })),
     stats: StatsSchema,
   }),
 ]);
 
 export const ServerMessageSchema = v.variant('type', [
-  v.strictObject({
+  v.object({
     type: v.literal('joined'),
     roomId: v.string(),
     participantId: v.string(),
     token: v.string(),
   }),
-  v.strictObject({
+  v.object({
     type: v.literal('room-state'),
     roomId: v.string(),
     you: v.string(),
@@ -111,7 +122,7 @@ export const ServerMessageSchema = v.variant('type', [
   // - 非空文字列: 未知の `code` も通す。意味を持たない空文字だけは通さない
   //
   // 未知の `code` を既知と取り違えないための畳み込みは `isKnownErrorCode()` が担う。
-  // **joined / room-state は strictObject のまま**（前方互換にするかは #216 で決める）。
+  // **joined / room-state も #216（adr/0004）で前方互換にした。**
   v.object({
     type: v.literal('error'),
     code: v.pipe(v.string(), v.minLength(1)),

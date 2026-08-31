@@ -138,6 +138,78 @@ describe('サーバーが error に足したものを、古いバンドルが捨
 });
 
 /**
+ * `room-state` の前方互換（#216・`docs/poker/adr/0004`）。
+ *
+ * **捨てると画面は生きて見えたまま古い状態で固まる**（`adr/0002` 背景）。
+ * `0002` の `stale` 告知は黙って壊れるのを防ぐが、**復旧はしない。**
+ * サーバーが `room-state` にフィールドを足しても、古いバンドルが固まらないことを見る。
+ */
+describe('サーバーが room-state に足したものを、古いバンドルが捨てない（#216）', () => {
+  /**
+   * `room-state` が持つ**5 つの層すべて**に余剰キーを乗せたフレーム。
+   *
+   * `card` には乗せない（あちらは緩めていない）。`joined` は別のフレームである。
+   */
+  function roomStateWithUnknownKeys(participantName: string) {
+    return {
+      type: 'room-state',
+      roomId: ROOM_ID,
+      you: 'p1',
+      serverTime: 1,
+      participants: [
+        {
+          id: 'p1',
+          name: participantName,
+          isHost: true,
+          connected: true,
+          hasVoted: true,
+          avatar: 'x',
+        },
+      ],
+      round: {
+        status: 'revealed',
+        elapsedMs: 1,
+        votes: [{ participantId: 'p1', card: { kind: 'number', value: 5 }, at: 1 }],
+        stats: { average: 5, modes: [{ kind: 'number', value: 5 }], median: 5 },
+      },
+      yourVote: { kind: 'number', value: 5 },
+    };
+  }
+
+  it('余剰キーが乗っていても名簿が更新され、告知も出ない', () => {
+    // Given: ルーム画面を開いている
+    window.history.replaceState(null, '', `/poker/room/${ROOM_ID}`);
+    render(<App />);
+    open();
+    // When: サーバーが 6 層すべてにフィールドを足したフレームを送る
+    deliver(roomStateWithUnknownKeys('はなこ'));
+    // Then: 画面が描かれる（捨てていれば参加フォームのままになる）
+    expect(screen.getByRole('heading', { name: '参加者（1人）' })).toBeTruthy();
+    // 名前は名簿と結果の両方に出るので、あることだけを見る
+    expect(screen.getAllByText(/はなこ/).length).toBeGreaterThan(0);
+    // そして捨てていないので、捨てた告知も出ない
+    expect(screen.queryByText(/同期できていません/)).toBeNull();
+  });
+
+  /**
+   * **固まらないことを、実際に動かして確かめる。** 1 通目が描けただけでは、
+   * 2 通目以降を捨てて固まる形と区別が付かない（`adr/0002` が実測した症状そのもの）。
+   */
+  it('余剰キーが乗り続けても、名簿は更新され続ける', () => {
+    // Given
+    window.history.replaceState(null, '', `/poker/room/${ROOM_ID}`);
+    render(<App />);
+    open();
+    deliver(roomStateWithUnknownKeys('はなこ'));
+    // When: 2 通目が届く
+    deliver(roomStateWithUnknownKeys('たろう'));
+    // Then: 古いままで固まっていない
+    expect(screen.getAllByText(/たろう/).length).toBeGreaterThan(0);
+    expect(screen.queryAllByText(/はなこ/)).toHaveLength(0);
+  });
+});
+
+/**
  * 受信の契約が `string` を通すようになった以上、**画面が知っているコードとの区別は
  * 境界が付ける**（`docs/poker/adr/0003` 決定 2）。
  *
