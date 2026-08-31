@@ -288,7 +288,7 @@ test.describe('poker の error に契約が知らないキーが乗っても案�
     // Then その2: **書き換え屋が実際に働いた。** 0 なら上の判定は前方互換を見ていない
     expect(augmented, '余剰キーを足した error の数').toBeGreaterThan(0);
 
-    // Then その3: 捨てていないので、捨てた告知は出ない
+    // Then その4: 捨てていないので、捨てた告知は出ない
     await expect(page.getByText(/同期できていません/)).toHaveCount(0);
   });
 });
@@ -332,10 +332,20 @@ test.describe('poker の room-state に契約が知らないキーが乗って�
     await expect(page.getByRole('heading', { name: '参加者（2人）' })).toBeVisible();
     await expect(participantRow(page, GUEST), '2 人目の行').toHaveCount(1);
 
-    // Then その2: **書き換え屋が実際に働いた**
+    // When その2: **公開まで進める。** ここまで来ないと `round` は voting のままで、
+    // `votes` / `stats` の層が frame に存在せず、**その 2 層には余剰キーが 1 つも乗らない**
+    // （敵対的検証の指摘。ここを省くと ①②③ しか通っていない）
+    await chooseCard(page, '5');
+    await chooseCard(guest.page, '5');
+
+    // Then その2: 公開後の表示も届く（votes / stats に余剰キーが乗った状態で通っている）
+    await expect(resultsSection(page)).toBeVisible();
+    await expect(resultRow(page, HOST), '公開後の結果の行').toHaveCount(1);
+
+    // Then その3: **書き換え屋が実際に働いた**
     expect(augmented, '余剰キーを足した room-state の数').toBeGreaterThan(0);
 
-    // Then その3: 捨てていないので、捨てた告知は出ない
+    // Then その4: 捨てていないので、捨てた告知は出ない
     await expect(page.getByText(/同期できていません/)).toHaveCount(0);
   });
 });

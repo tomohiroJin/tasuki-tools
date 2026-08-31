@@ -209,6 +209,21 @@ describe('parseServerMessage', () => {
       '⑦ joined 直下',
       { type: 'joined', roomId: 'a1b2c3d4', participantId: 'p1', token: 'tok-1', serverTime: 1 },
     ],
+    // **`round` は枝が 2 つある。** 上の ③ は revealed 枝しか通らないので、
+    // voting 枝を strict に戻しても全件緑のままだった（2026-08-31 に実測）。
+    // **ルームは公開前のほとんどの時間を voting で過ごす**ので、そちらが落ちると
+    // 本番では常時「画面が固まる」側になる。
+    [
+      '⑧ round（voting 枝）',
+      {
+        type: 'room-state',
+        roomId: 'a1b2c3d4',
+        you: 'p1',
+        participants: [{ id: 'p1', name: 'たろう', isHost: true, connected: true, hasVoted: false }],
+        round: { status: 'voting', elapsedMs: 1 },
+        yourVote: null,
+      },
+    ],
   ])('正常系: %s に余剰キーがあっても通す（前方互換）', (_label, msg) => {
     const result = parseServerMessage(JSON.stringify(msg));
     expect(result.isOk()).toBe(true);
@@ -220,7 +235,8 @@ describe('parseServerMessage', () => {
    * 気づけない。検証していない値を画面へ渡さないのは憲法 原則 IV の要求である。
    */
   it('正常系: 通した余剰キーは画面へ運ばない（どの層に足しても落ちる）', () => {
-    // Given: 6 つの層すべてに余剰キーを足す
+    // Given: room-state が持つ 5 つの層すべてに余剰キーを足す
+    //        （card には足さない —— あちらは緩めていない。joined は別のフレーム）
     const raw = JSON.stringify({
       ...A_REVEALED_ROOM_STATE,
       serverTime: 1,
@@ -235,7 +251,7 @@ describe('parseServerMessage', () => {
     // When
     const result = parseServerMessage(raw);
     // Then: 宣言したフィールドだけが残る
-    expect(result.isOk()).toBe(true);
+    //       （前提のガードは置かない。落ちていれば _unsafeUnwrap が throw する。ADR-0006 決定 6）
     expect(result._unsafeUnwrap()).toEqual(A_REVEALED_ROOM_STATE);
   });
 
@@ -247,16 +263,32 @@ describe('parseServerMessage', () => {
    * 緩めれば外部入力の検証まで緩む。
    */
   it('対照: card は余剰キーがあると err のまま（緩めていない）', () => {
-    const result = parseServerMessage(
-      JSON.stringify({ ...A_REVEALED_ROOM_STATE, yourVote: { kind: 'number', value: 5, label: '5' } }),
-    );
+    // Given: カードに、契約が宣言していないキーを足す
+    const raw = JSON.stringify({
+      ...A_REVEALED_ROOM_STATE,
+      yourVote: { kind: 'number', value: 5, label: '5' },
+    });
+    // When
+    const result = parseServerMessage(raw);
+    // Then
     expect(result.isErr()).toBe(true);
   });
 
-  it('対照: 未知の kind を持つカードは通らない（値を知らなければ描けない）', () => {
-    const result = parseServerMessage(
-      JSON.stringify({ ...A_REVEALED_ROOM_STATE, yourVote: { kind: 'tshirt', size: 'M' } }),
-    );
+  /**
+   * **判別子の枝は前方互換にできない。** これは `card` に限らない ——
+   * `ServerMessageSchema` の `type` も `RoundViewSchema` の `status` も同じ
+   * `v.variant` で、知らない値が来れば捨てる（`docs/poker/adr/0004` 決定 2）。
+   */
+  it.each<[string, Record<string, unknown>]>([
+    ['card の kind', { yourVote: { kind: 'tshirt', size: 'M' } }],
+    ['round の status', { round: { status: 'countdown' } }],
+    ['フレームの type', { type: 'presence' }],
+  ])('対照: 未知の %s は通らない（値を知らなければ描けない）', (_label, override) => {
+    // Given: 判別子に、こちらが知らない値を載せる
+    const raw = JSON.stringify({ ...A_REVEALED_ROOM_STATE, ...override });
+    // When
+    const result = parseServerMessage(raw);
+    // Then
     expect(result.isErr()).toBe(true);
   });
 });

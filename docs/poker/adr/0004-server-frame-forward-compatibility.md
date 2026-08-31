@@ -47,10 +47,14 @@
 
 **`card` を除くサーバー→クライアントのスキーマを `v.object` にする。**
 
-### 1. 緩める 6 箇所
+### 1. 緩める 7 箇所
 
 `joined` / `room-state`（`ServerMessageSchema` の枝）、`ParticipantViewSchema`、
-`StatsSchema`、`RoundViewSchema` の 2 枝、`votes[]` の要素。
+`StatsSchema`、`RoundViewSchema` の 2 枝（`voting` と `revealed`）、`votes[]` の要素。
+
+**`RoundViewSchema` は枝が 2 つある。** 片方だけを緩めても、もう片方が捨てる。
+**ルームは公開前のほとんどの時間を `voting` で過ごす**ので、そちらを落とすと
+本番では常時「画面が固まる」側になる。
 
 **共有スキーマを分ける必要はない。** `ClientMessageSchema` が使っている入れ子は
 `NameSchema` と `CardSchema` だけで、上の 4 つは**サーバー→クライアント専用**である。
@@ -64,6 +68,12 @@
 
 これは `0003` 決定 1 が `code` を非空文字列にしたのとは事情が違う。あちらは
 「未知の値でも `message` を出せば用が足りる」が、**カードは値を知らなければ描けない。**
+
+> **判別子の枝は、どれも前方互換にできない。** これは `card` に限った話ではない ——
+> `ServerMessageSchema` の `type`、`RoundViewSchema` の `status`、`CardSchema` の `kind` の
+> **3 つとも `v.variant`** で、知らない値が来ればフレームごと捨てる（2026-08-31 に実測）。
+> `v.strictObject` を緩めても、この 3 つは変わらない。**「新しい値」を足す変更は、
+> 「新しいフィールド」を足す変更とは別物として設計すること。**
 
 ### 3. `ClientMessageSchema` とその枝は `v.strictObject` のまま
 
@@ -82,15 +92,26 @@
 
 ## 影響
 
-- `packages/poker-core/src/protocol.ts` の 6 箇所が `v.strictObject` → `v.object`。
+- `packages/poker-core/src/protocol.ts` の 7 箇所が `v.strictObject` → `v.object`。
   **型は変わらない**ので、`apps/poker-web` と `apps/poker-sync` の製品コードは変わらない。
 - `0003` の「残っている問題」の 1 つ目（`joined` / `room-state` は前方互換ではない）が解消する。
 - `docs/poker/specs/001-planning-poker-mvp/contracts/ws-protocol.md` の
   「受信は広く、送信は狭く」を `joined` / `room-state` を含む形に直す。
+- **`0002` 決定 2 の実測表は、サーバー→クライアントについては全行が再現しなくなる。**
+  表の 3 行はいずれも「正しい `room-state` ＋ 余剰キー」で、本決定の後は棄却されない。
+  `0002` に注記を入れる（**表と結論はそのまま残す** —— 当時それが判断を誤らせた事実は
+  記録として要る）。
+- **[`docs/adr/0005`](../../adr/0005-result-and-boundary-validation.md) の
+  「poker の契約が `v.strictObject` で」という理由づけが、サーバー→クライアントについて
+  成り立たなくなる。** 同 ADR に注記を入れる。**結論（poker は経路で選り分けない）は
+  変わらない** —— 経路の名前空間が宣言済みの項目に閉じていないことは `v.object` でも同じで、
+  そもそも捨てる場面自体が狭まったためである。
+- `docs/poker/adr/README.md` の一覧に `0003`（#214 で漏れていた）と `0004` を足す。
 - 公開 URL・プロトコル・正常時の画面の挙動は変えない。
 
 ## 残っている問題（本決定の範囲外）
 
-- **カードの種類が増えると、古いバンドルは `room-state` を捨てる。** 決定 2 のとおり
-  `v.variant` の枝は前方互換にできない。T シャツサイズ（#92）を入れるときは、
+- **判別子に新しい値が増えると、古いバンドルはフレームを捨てる。** 決定 2 のとおり
+  `v.variant` の枝は前方互換にできず、対象は `card.kind` だけでなく `round.status` と
+  フレームの `type` も含む。T シャツサイズ（#92）や新しいラウンド状態を入れるときは、
   **古いバンドルが何を見るか**を設計の一部として決めること（`0002` の `stale` 告知は出る）。

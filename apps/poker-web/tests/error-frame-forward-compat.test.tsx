@@ -145,7 +145,11 @@ describe('サーバーが error に足したものを、古いバンドルが捨
  * サーバーが `room-state` にフィールドを足しても、古いバンドルが固まらないことを見る。
  */
 describe('サーバーが room-state に足したものを、古いバンドルが捨てない（#216）', () => {
-  /** 6 つの層すべてに余剰キーを乗せた `room-state`。 */
+  /**
+   * `room-state` が持つ**5 つの層すべて**に余剰キーを乗せたフレーム。
+   *
+   * `card` には乗せない（あちらは緩めていない）。`joined` は別のフレームである。
+   */
   function roomStateWithUnknownKeys(participantName: string) {
     return {
       type: 'room-state',
