@@ -201,6 +201,19 @@ describe("dispatchServerMessage: 契約を満たさないフレーム", () => {
     expect(onInvalidFrame).toHaveBeenCalledWith(["room.config.members.0"]);
   });
 
+  /**
+   * **JSON として読めない入力は「最も壊れている」場面である。** そこだけ無言だと、
+   * 利用者への表出（#209）からその場面だけが丸ごと外れる。
+   */
+  it("JSON として読めないフレームでも、捨てたことは知らされる", () => {
+    // Given
+    const onInvalidFrame = vi.fn();
+    // When
+    dispatchServerMessage("{ broken", { onInvalidFrame });
+    // Then
+    expect(onInvalidFrame).toHaveBeenCalledWith(["<root>"]);
+  });
+
   it.each([
     ["数値", "5"],
     ["null", "null"],

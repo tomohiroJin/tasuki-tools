@@ -18,16 +18,28 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import React from "react";
 import type { Problem } from "@tasuki/timer-core";
-import { StatusStrip, CONNECTION_STATUSES } from "../../src/ui/components/StatusStrip.js";
+import { StatusStrip } from "../../src/ui/components/StatusStrip.js";
+import type { ConnectionStatus } from "../../src/ui/components/StatusStrip.js";
 import { ProblemEditor } from "../../src/ui/components/ProblemEditor.js";
 
-/** 接続状態。色だけでなく、この文言が必ず並ぶこと。 */
-const CONNECTION_CASES = [
-  { status: "online", label: "接続中" },
-  { status: "reconnecting", label: "再接続中" },
-  { status: "lost", label: "セッション喪失" },
-  { status: "stale", label: "同期不整合" },
-] as const;
+/**
+ * 接続状態。色だけでなく、この文言が必ず並ぶこと。
+ *
+ * **`Record<ConnectionStatus, string>` で受けているのが肝。** 状態を足してここへ
+ * 書き忘れると**型検査が落ちる**ので、新しい状態だけ「色のみ」で伝えていても
+ * 素通りしない。件数は書かない（足すたびに腐るため）。
+ */
+const CONNECTION_LABELS: Record<ConnectionStatus, string> = {
+  online: "接続中",
+  reconnecting: "再接続中",
+  lost: "セッション喪失",
+  stale: "同期できていません",
+};
+
+const CONNECTION_CASES = Object.entries(CONNECTION_LABELS).map(([status, label]) => ({
+  status: status as ConnectionStatus,
+  label,
+}));
 
 /** 難易度。段階色に加えて、この文言が必ず並ぶこと。 */
 const DIFFICULTY_CASES = [
@@ -81,19 +93,8 @@ describe("色だけで状態を伝えない（FR-032）", () => {
       expect(dot?.textContent?.trim()).toBe("●");
     });
 
-    // **この表は放っておくと腐る。** 状態が増えたときにここへ足し忘れると、
-    // 新しい状態だけ「色のみ」で伝えていても検査が素通りする（#209 で実際に増えた）。
-    // 件数は書かない。実装が持つ一覧との差そのものを見る。
-    it("接続状態を 1 つも取りこぼさずに検査している", () => {
-      // Given（実装が持つ状態の一覧）
-      const covered = new Set<string>(CONNECTION_CASES.map(({ status }) => status));
-      // Then
-      const missing = CONNECTION_STATUSES.filter((status) => !covered.has(status));
-      expect(missing).toEqual([]);
-    });
-
     it("色を外しても状態が伝わる（実際に描画された文言が互いに違う）", () => {
-      // Given（CONNECTION_CASES の各状態を入力に使う）
+      // Given（CONNECTION_LABELS の各状態を入力に使う）
       // When（**期待値ではなく、実際に描画された文字を集める。**
       //   テスト側の定数を突き合わせるだけでは、実装の文言を同じにしても気づけない）
       const rendered = CONNECTION_CASES.map(({ status }) => {

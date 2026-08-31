@@ -176,6 +176,29 @@ function screens(host: Page, guest: Page): readonly (readonly [string, Page])[] 
 
 test.describe('契約に合わない同期フレームを捨てたことが画面から分かる', () => {
   /**
+   * その接続に届く `snapshot` を、指定の間だけ壊れた形へ差し替える。
+   * **壊すのはブラウザと同期サーバーの間だけ**で、製品コードにテスト用の経路は作らない。
+   *
+   * **実際に壊せた回数を数えて返す。** 契約やフレームの形が変わって
+   * `corruptSnapshotFrame` が素通しへ退化すると、症状は「表示が出ない」という
+   * 原因の読めない失敗になる。**壊せていないことを、壊せていないと言えるようにする。**
+   */
+  async function corruptFrom(page: Page, corrupting: () => boolean): Promise<{ count: () => number }> {
+    let corrupted = 0;
+    await page.routeWebSocket(/\/timer\/ws$/, (ws) => {
+      const server = ws.connectToServer();
+      ws.onMessage((message) => server.send(message));
+      server.onMessage((message) => {
+        const payload = typeof message === 'string' ? message : message.toString();
+        const next = corrupting() ? corruptSnapshotFrame(payload) : payload;
+        if (next !== payload) corrupted += 1;
+        ws.send(next);
+      });
+    });
+    return { count: () => corrupted };
+  }
+
+  /**
    * **`snapshot` を捨てる状況はほぼ必ず継続する**（契約に合わない値はサーバー側の
    * ルームに残り続ける）。その間、画面は生きて見えたまま古い状態で固まり、
    * 再接続もエラー表示も起きない。**利用者には「なぜか更新されない」としか分からない**
@@ -184,28 +207,21 @@ test.describe('契約に合わない同期フレームを捨てたことが画�
    * **固まっていることを、実際に固まらせて確かめる。** 2 人目の参加は snapshot でしか
    * 届かないので、捨てている側の画面には現れない。2 人目自身の画面で「参加は成立した」
    * ことを確かめておくことで、**参加が失敗しただけ**という別の説明を排除する。
-   *
-   * 壊すのはブラウザと同期サーバーの間だけ（`routeWebSocket`）で、
-   * 壊すのは作成者の接続のみ。製品コードにテスト用の経路は作らない。
    */
-  test('Given ルームに居る / When 契約に合わない snapshot が届く / Then 同期不整合が出て、画面は古いまま固まる', async ({
+  test('Given ルームに居る / When 契約に合わない snapshot が届く / Then 同期できていないと出て、画面は古いまま固まる', async ({
     page,
     openPeer,
   }) => {
     // Given: 途中から snapshot だけを壊せるようにしてから開く。
-    // **最初から壊すとルームが一度も表示されない。** それは「固まる」の再現ではない。
+    // **最初から壊すとルームが一度も表示されない。** それは別の壊れ方で、次のテストが見る
     let corrupting = false;
-    await page.routeWebSocket(/\/timer\/ws$/, (ws) => {
-      const server = ws.connectToServer();
-      ws.onMessage((message) => server.send(message));
-      server.onMessage((message) => {
-        const payload = typeof message === 'string' ? message : message.toString();
-        ws.send(corrupting ? corruptSnapshotFrame(payload) : payload);
-      });
-    });
+    const corrupter = await corruptFrom(page, () => corrupting);
 
     const code = await createRoom(page, HOST);
     await expect(statusStrip(page)).toContainText('接続中 (Connected)');
+    // Given の確認: **作成者自身が輪に並んでいる。** この錨が無いと、後の
+    // 「2 人目が居ない」が「名簿がそもそも描かれていない」と区別できない
+    await expect(lobbyRotationRow(page, HOST, 1), '作成者の画面の 1 番目').toHaveCount(1);
 
     // When: 以後の snapshot が契約に合わなくなり、その状態で 2 人目が参加する
     corrupting = true;
@@ -217,14 +233,45 @@ test.describe('契約に合わない同期フレームを捨てたことが画�
     await expect(lobbyRotationRow(guest.page, GUEST, 2), '2 人目の画面の 2 番目').toHaveCount(1);
 
     // Then その2: 捨てている側は、それが接続表示から分かる
-    await expect(statusStrip(page)).toContainText('同期不整合 (Out of Sync)');
+    await expect(statusStrip(page)).toContainText('同期できていません (Out of Sync)');
 
     // Then その3: 接続は生きているので、無関係な対処へ誘導しない
-    await expect(statusStrip(page)).not.toContainText('再接続中');
-    await expect(statusStrip(page)).not.toContainText('セッション喪失');
+    await expect(statusStrip(page)).not.toContainText('Connected');
+    await expect(statusStrip(page)).not.toContainText('Reconnecting');
+    await expect(statusStrip(page)).not.toContainText('Session Lost');
 
-    // Then その4: **画面は古いまま固まっている。** 2 人目は作成者の画面に現れない。
-    // これが起きている異常そのもので、表示だけ出て画面が追随していては意味が違う
+    // Then その4: **画面は古いまま固まっている。** 名簿は描かれ、作成者は居るのに、
+    // 2 人目だけが現れない。これが起きている異常そのものである
+    await expect(lobbyRotationRow(page, HOST, 1), '作成者の画面の 1 番目').toHaveCount(1);
     await expect(lobbyRotationRow(page, GUEST, 2), '作成者の画面の 2 番目').toHaveCount(0);
+
+    // Then その5: **壊し屋が実際に働いた。** 0 件なら、ここまでの「2 人目が居ない」は
+    // 「まだ届いていない」と区別がつかない
+    expect(corrupter.count(), '壊した snapshot の数').toBeGreaterThan(0);
+  });
+
+  /**
+   * **こちらが #209 の本命の場面である。** 壊れた値がサーバー側のルームに残っていると、
+   * 入ろうとした人は最初の `snapshot` から捨てる。`StatusStrip` はルームに入るまで
+   * 描画されないので、**補わないと画面には何も出ない**（実測で「参加ボタンを押しても
+   * 名前入力の画面のまま」だった）。
+   */
+  test('Given 最初から契約に合わない snapshot しか来ない / When ルームへ入ろうとする / Then 進めない理由が画面に出る', async ({
+    page,
+    openPeer,
+  }) => {
+    // Given: 壊していない接続でルームを 1 つ作る（招待先を用意するだけ）
+    const code = await createRoom(page, HOST);
+
+    // Given: 2 人目の接続は最初から snapshot が壊れている
+    const guest = await openPeer('timer-stale-newcomer');
+    const corrupter = await corruptFrom(guest.page, () => true);
+
+    // When
+    await joinAsDriver(guest.page, code, GUEST);
+
+    // Then: 画面に出す場所が無いので、バナーで伝える
+    await expect(guest.page.getByText(/同期できていません/)).toBeVisible();
+    expect(corrupter.count(), '壊した snapshot の数').toBeGreaterThan(0);
   });
 });

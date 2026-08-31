@@ -80,6 +80,9 @@ const REPO_ROOT = execFileSync("git", ["rev-parse", "--show-toplevel"], {
  *      （`scripts/` のように package.json を持たないディレクトリも取れる。#174）。
  * tests: 検出を期待するテストファイル（pkg からの相対パス）。
  * note: plan.md の対応表からの読み替えがあれば、その内容と理由をここに記録する。
+ *       **plan.md より後に足した変異もここに理由を書く。** 対応表は
+ *       `docs/plans/codebase-refactoring/plan.md` の作業記録であり、以後に
+ *       書き換えた実装（ADR-0006 決定 4 が変異を要求する）はそこに追記されない。
  */
 export const MUTATIONS = [
   {
@@ -215,6 +218,28 @@ export const MUTATIONS = [
       "audit-domain-side-effects.test.mjs の REQUIRED_FORBIDDEN が落ちる、という " +
       "同ファイルの docstring の主張を実際に確かめる。scripts/ は package.json を " +
       "持たないため、以前は detectRunner が例外で落ちてこの型を検査できなかった。",
+  },
+  {
+    id: 16,
+    label: "indicatesStaleRoom から room 配下の経路の判定を落とす",
+    patch: "m16-stale-frame-room-prefix.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/sync/stale-frame.test.ts"],
+    note:
+      "#209 で新設した判定。plan.md の対応表より後に書いたので、そちらには載っていない。" +
+      "落とすと壊れた snapshot（room.config.members.0）が「画面を古くしない」側へ回り、" +
+      "利用者への表出そのものが消える。",
+  },
+  {
+    id: 17,
+    label: "handleRoom から syncStale の解除を落とす",
+    patch: "m17-sync-stale-never-cleared.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/sync/use-timer-sync.test.tsx"],
+    note:
+      "#209 で新設した解除点。plan.md の対応表より後に書いたので、そちらには載っていない。" +
+      "落とすと「同期できていません」が一度立ったきり二度と下りない。" +
+      "**立てる側だけを変異させても、この欠陥は捕まらない。**",
   },
   {
     id: 15,
