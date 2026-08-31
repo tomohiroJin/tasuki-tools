@@ -42,20 +42,10 @@ export interface ServerMessageCallbacks {
  * 契約を満たすことは別である。** 形の違う JSON は素通りし、`msg.room` の
  * キャストを通って壊れた値がそのまま画面の状態になっていた。
  *
- * 落ちたフレームは黙って捨てる。逆方向（クライアント → サーバー）が
- * `ws-adapter.ts` で `parseBoundaryMessage(CommandSchema, ...)` を通すのと対になる。
+ * 落ちたフレームは画面へ渡さず、`onInvalidFrame` で捨てたことだけを知らせる。
+ * 逆方向（クライアント → サーバー）が `ws-adapter.ts` で
+ * `parseBoundaryMessage(CommandSchema, ...)` を通すのと対になる。
  */
-/**
- * 検証に落ちた項目の**経路だけ**を取り出す（例: `room.config.members.0`）。
- *
- * **値は含めない。** 落ちた値そのものは利用者の入力（表示名など）でありうるので、
- * devtools のコンソールへ出してよいものではない（ADR 0012）。経路はスキーマ由来の
- * 名前なので、出しても情報が漏れない。
- */
-function invalidPaths(issues: [v.BaseIssue<unknown>, ...v.BaseIssue<unknown>[]]): string[] {
-  return Object.keys(v.flatten(issues).nested ?? {});
-}
-
 export function dispatchServerMessage(
   raw: unknown,
   cb: ServerMessageCallbacks,
@@ -131,4 +121,24 @@ export function dispatchServerMessage(
       cb.onTimePong?.(msg.serverTime);
       break;
   }
+}
+
+/**
+ * 検証に落ちた項目の**経路だけ**を取り出す（例: `room.config.members.0`）。
+ *
+ * **値は含めない。** 落ちた値そのものは利用者の入力（表示名など）でありうるので、
+ * devtools へ出してよいものではない（ADR 0012）。
+ * **経路が漏れないのは、いまの `ServerMsgSchema` に動的キーのスキーマ
+ * （`v.record` など）が 1 つも無いからである**（`packages/timer-core/src/schemas.ts`
+ * を全走査して確認）。参加者 ID をキーにするような形を足すと、その識別子が
+ * そのまま経路に載る。足すときはここを見直すこと。
+ *
+ * **根（root）で落ちた場合、valibot の `flatten` は `nested` を持たない。**
+ * 素の数値・`null`・文字列など「そもそもオブジェクトですらない」フレームがこれで、
+ * 何もしないと空配列を返す。**最も形が壊れている場面で診断が無言になる**ので、
+ * その場合は `<root>` を返して「形そのものが違う」と伝える。
+ */
+function invalidPaths(issues: [v.BaseIssue<unknown>, ...v.BaseIssue<unknown>[]]): string[] {
+  const nested = Object.keys(v.flatten(issues).nested ?? {});
+  return nested.length > 0 ? nested : ["<root>"];
 }
