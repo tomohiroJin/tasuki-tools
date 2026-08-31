@@ -141,3 +141,9 @@ poker はもともとサーバーが送った `message` をそのまま描いて
 
 - **`joined` / `room-state` は前方互換ではない。** 決定 1 のとおり
   [#216](https://github.com/tomohiroJin/tasuki-tools/issues/216) で扱う。
+- **入室前は `error` の文言が画面に出ない。** 決定 3 で「表示はサーバーの `message`」と
+  決めたが、`sync.error` を描いているのは入室後の `error-note` だけである。
+  トップ画面と参加フォームには表出が無く、**未知の `code` に限らず既知の `server-busy`
+  でも出ない**（2026-08-31 に実測）。本決定はフレームを `setError` まで**届ける**ところ
+  までを解いており、**届いた先の表示場所**は
+  [#217](https://github.com/tomohiroJin/tasuki-tools/issues/217) で扱う。

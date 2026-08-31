@@ -101,6 +101,29 @@ export function showsVoted(frame: RoomStateFrame, name: string): boolean {
  * ブラウザと同期サーバーの間で差し替えるだけなので、画面から見れば
  * 「サーバーが壊れた値を送ってきた」に等しい。
  */
+/**
+ * `error` フレームに、**契約が宣言していないキーを 1 つ足す**（#214）。
+ * 他の種類のフレームはそのまま返す。
+ *
+ * サーバーが `error` に任意フィールドを足した状況を、実プロトコル越しに作る。
+ * `v.strictObject` だった頃はこれだけでフレーム全体が捨てられ、
+ * **消えたルームの案内（#76 J-1）も入室の自動再試行（#147）も起きなくなった。**
+ * `docs/poker/adr/0003` で `error` だけを前方互換にしてある。
+ *
+ * `corruptRoomStateFrame` と同じく、**製品コードにテスト用の穴は開けない。**
+ */
+export function addUnknownKeyToErrorFrame(payload: string): string {
+  let frame: unknown;
+  try {
+    frame = JSON.parse(payload);
+  } catch {
+    return payload;
+  }
+  if (typeof frame !== 'object' || frame === null) return payload;
+  if ((frame as { type?: unknown }).type !== 'error') return payload;
+  return JSON.stringify({ ...frame, retryAfterMs: 1_000 });
+}
+
 export function corruptRoomStateFrame(payload: string): string {
   let frame: unknown;
   try {
