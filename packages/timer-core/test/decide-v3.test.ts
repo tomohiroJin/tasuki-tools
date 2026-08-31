@@ -74,7 +74,7 @@ describe("decide: config.set の v3.0 トグル（§16）", () => {
     const command = {
       command: "config.set",
       config: { navigatorEnabled: true, assertiveSwitch: true, breakEveryRotations: 4 },
-    };
+    } as const;
     // When
     const result = decide(command, baseAgg, NOW);
     // Then
@@ -86,7 +86,7 @@ describe("decide: config.set の v3.0 トグル（§16）", () => {
 
   it("problemEnabled を検証済み config に載せる（お題なし開始・ルーム単位）", () => {
     // Given
-    const command = { command: "config.set", config: { problemEnabled: false } };
+    const command = { command: "config.set", config: { problemEnabled: false } } as const;
     // When
     const result = decide(command, baseAgg, NOW);
     // Then
@@ -98,7 +98,7 @@ describe("decide: config.set の v3.0 トグル（§16）", () => {
 
   it("指定しないトグルは config に含めない（未指定は現状維持）", () => {
     // Given
-    const command = { command: "config.set", config: { navigatorEnabled: true } };
+    const command = { command: "config.set", config: { navigatorEnabled: true } } as const;
     // When
     const result = decide(command, baseAgg, NOW);
     const event = result._unsafeUnwrap()[0];

@@ -8,6 +8,7 @@ import { buildCompletionRecord } from "../src/records.js";
 import { elapsedMs } from "../src/aggregate.js";
 import { evolve } from "../src/evolve.js";
 import type { SessionConfig, Problem, Aggregate } from "../src/aggregate.js";
+import type { DomainEvent } from "../src/events.js";
 import { anAggregate } from "./support/aggregate-builder.js";
 
 const baseConfig: SessionConfig = {
@@ -100,9 +101,11 @@ describe("buildCompletionRecord", () => {
 describe("中断（SessionAborted）の記録扱い", () => {
   it("SessionAborted イベント自体には CompletionRecord に必要な problemTitle / members が存在しない", () => {
     // Given（実際の「保存を呼ばない」制御は handlers/App.tsx 層で行う。ここではドメインイベント型の設計確認）
-    const rawEvent = { type: "SessionAborted", now: 1000000 };
+    const rawEvent = { type: "SessionAborted", now: 1000000 } as const;
     // When（rawEvent が SessionAborted 型として受理されることを確認する）
-    const abortedEvent: import("../src/events.js").SessionAborted = rawEvent;
+    // SessionAborted は events.ts が export していない（公開記号を増やさないため、
+    // 公開されている DomainEvent の union から取り出す）
+    const abortedEvent: Extract<DomainEvent, { type: "SessionAborted" }> = rawEvent;
     // Then
     expect(abortedEvent.type).toBe("SessionAborted");
     expect("problemTitle" in abortedEvent).toBe(false);

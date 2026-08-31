@@ -1,14 +1,10 @@
 {
+  // **emit しない。** 以前は tsc で dist を出していたが、その出力を読む側が 1 つも無かった
+  // （#173 で実測: package.json の main / types は ./src/index.ts、timer-web と timer-sync の
+  // paths も src を向き、本番は bun build が src/server.ts を直接束ねる）。
+  // 出力をやめたことで rootDir が不要になり、テストを射程へ入れられるようになった
+  // （rootDir: "./src" のままテストを含めると TS6059 になる）。
+  // 形は poker-core / protocol / rate-limit と同じ（build スクリプトを持たない）。
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    // ルートの base は noEmit: true が既定。このパッケージは tsc で dist を出すので上書きする。
-    "noEmit": false,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "outDir": "./dist",
-    "rootDir": "./src"
-  },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "test"]
+  "include": ["src", "test"]
 }

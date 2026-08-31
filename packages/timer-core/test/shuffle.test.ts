@@ -11,6 +11,7 @@ import {
   evolve,
   type Aggregate,
 } from "../src/index.js";
+import type { DomainEvent } from "../src/events.js";
 import { anAggregate } from "./support/aggregate-builder.js";
 
 const NOW = 1_000_000;
@@ -38,7 +39,7 @@ describe("evolve: MembersShuffled", () => {
   it("order=[2,0,1] で rotation/driverCounts が並べ替わる", () => {
     // Given
     const agg = aggWith(0);
-    const event = { type: "MembersShuffled", order: [2, 0, 1], now: NOW } as const;
+    const event: DomainEvent = { type: "MembersShuffled", order: [2, 0, 1], now: NOW };
     // When
     const next = evolve(agg, event, NOW);
     // Then
@@ -49,7 +50,7 @@ describe("evolve: MembersShuffled", () => {
   it("現ドライバー名が新しい currentIndex に remap される", () => {
     // Given（currentIndex=1（"B"）を order=[2,0,1] で並べ替えると "B" は新インデックス 2 へ）
     const agg = aggWith(1);
-    const event = { type: "MembersShuffled", order: [2, 0, 1], now: NOW } as const;
+    const event: DomainEvent = { type: "MembersShuffled", order: [2, 0, 1], now: NOW };
     // When
     const next = evolve(agg, event, NOW);
     // Then
@@ -61,7 +62,7 @@ describe("evolve: MembersShuffled", () => {
   it("恒等順列 [0,1,2] は集約を変えない（現ドライバー保持）", () => {
     // Given
     const agg = aggWith(2);
-    const event = { type: "MembersShuffled", order: [0, 1, 2], now: NOW } as const;
+    const event: DomainEvent = { type: "MembersShuffled", order: [0, 1, 2], now: NOW };
     // When
     const next = evolve(agg, event, NOW);
     // Then
