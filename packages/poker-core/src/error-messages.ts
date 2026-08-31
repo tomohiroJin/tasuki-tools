@@ -9,6 +9,19 @@
 import { NAME_MAX_LENGTH, type RoomError } from './room';
 import type { RoundError } from './round';
 
+/**
+ * `error` フレームの文言が空だったときの既定（#214・docs/poker/adr/0003 決定 3）。
+ *
+ * 表示はサーバーが送った `message` をそのまま使うのが原則で、これは**空文字のときだけ**の
+ * 逃げ道である。`message` は `v.string()` なので空文字も契約を満たしてしまい、
+ * そのまま描くと**エラー表示が空の箱になる**。
+ *
+ * 使う文字はすべて書体の base 層（`packages/ui/src/tokens/fonts.css` の
+ * `unicode-range`）に収まっている。**新しい文言を足すときは実測してから決めること** ——
+ * 収まらない漢字が 1 字あるだけで ext 層を丸ごと引く。
+ */
+export const DEFAULT_ERROR_MESSAGE = '操作を完了できませんでした';
+
 /** RoundError の表示文言。**#165 PR-2 以前の文字列をそのまま保つ。** */
 export function messageForRoundError(error: RoundError): string {
   switch (error.code) {

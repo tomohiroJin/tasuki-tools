@@ -8,13 +8,18 @@ export { NUMBER_CARD_VALUES, FIBONACCI_DECK, cardKey, cardEquals } from './deck'
 export type { NumberCardValue, Card } from './deck';
 
 // ./error-messages
-export { messageForRoundError, messageForRoomError } from './error-messages';
+export {
+  DEFAULT_ERROR_MESSAGE,
+  messageForRoundError,
+  messageForRoomError,
+} from './error-messages';
 
 // ./protocol
 export {
   ClientMessageSchema,
   ERROR_CODES,
   ServerMessageSchema,
+  isKnownErrorCode,
   parseClientMessage,
   parseServerMessage,
 } from './protocol';

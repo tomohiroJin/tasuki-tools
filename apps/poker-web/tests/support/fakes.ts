@@ -28,7 +28,8 @@ export class FakeListenerSocket {
     for (const handler of this.handlers[type] ?? []) handler(event);
   }
 
-  send(): void {}
+  /** 実物と同じく引数を取る（テストから「何を送ったか」を見るため）。 */
+  send(_data: string): void {}
   close(): void {}
 
   /** 直近に作られた接続。作られていなければ落とす（黙って空振りさせない）。 */
