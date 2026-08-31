@@ -124,11 +124,41 @@ poker はもともとサーバーが送った `message` をそのまま描いて
 `ERROR_CODES` に加える手順を保つ（そうしないと `error-messages.ts` や
 `contracts/ws-protocol.md` との対応が切れる）。
 
+**型でも縛る。** `ServerMessage` をそのまま送信側に使うと、決定 1 で `code` を広げた
+分だけ**綴り誤りが型検査を通る**（`sendTo(ws, { type: 'error', code: 'rom-not-found', … })`
+が通ってしまう。敵対的検証の実測）。送信側の型 `OutboundServerMessage` を別に置き、
+`Broadcaster.sendTo` はそちらを受け取る。**`sendError` 1 本の規律に頼らない。**
+
+### 5. どの画面でもエラーを伝える（[#217](https://github.com/tomohiroJin/tasuki-tools/issues/217)）
+
+決定 1〜3 はフレームを `setError` まで**届ける**ところまでしか解いていない。
+`sync.error` を描いていたのは**入室後**の `error-note` だけで、トップ画面と参加フォームには
+表出が無かった。**そのままでは、捨てるのをやめたことが利用者から見ると後退になる。**
+
+実測（2026-08-31・`App` を通した実経路）:
+
+| 未知の `code` を持つ `error` を受けたとき | 参加フォーム | トップ画面 |
+|---|---|---|
+| 本 ADR 以前（捨てていた頃） | 「同期できていません」＋ `console.warn` | 同左 |
+| 決定 1〜3 だけを入れた状態 | **何も出ない・`console.warn` も出ない** | 同左 |
+
+**共通の `ErrorNote` を置き、トップ画面・参加フォーム・入室後の 3 画面で使う。**
+
+**専用の表出を持つ `code` は汎用表示に出さない。** 二重に出ると、同じ 1 つの出来事が
+2 つの別々の問題に見える。対象は `room-not-found`（ページ全体が専用画面に替わる。#76 J-1）と
+`rate-limited`（参加フォームに「自動で入り直しています」が出る。#147）の 2 つだけである。
+**未知の `code` はここに載りようがない**（決定 2 で `null` に畳まれる）ので、
+必ず汎用表示が受け持つ。
+
 ## 影響
 
-- `packages/poker-core/src/protocol.ts`（契約）と `error-messages.ts`（既定文言）、
+- `packages/poker-core/src/protocol.ts`（契約・送信側の型）と `error-messages.ts`（既定文言）、
   `apps/poker-web/src/hooks/useSync.ts`（畳み込み）が変わる。
-  **`RoomPage.tsx` と `apps/poker-sync` は変わらない。**
+- **`apps/poker-web/src/components/ErrorNote.tsx` を新設**し、`TopPage` / `RoomPage`
+  （参加フォームと入室後）から使う（決定 5）。`RoomPage` の既存のエラー表示も
+  そちらへ寄せた。
+- `apps/poker-sync` は `Broadcaster.sendTo` の引数型が
+  `ServerMessage` → `OutboundServerMessage` に変わる（決定 4）。**送る値は変わらない。**
 - **未知の `code` を持つ `error` では、`0002` の `stale` 告知が出なくなる**
   （捨てなくなるため）。`0002` 決定 2 の実測表にある「未知の `code` を持つ `error`」の
   行は、本決定の後は再現しない。**表の結論（経路では選り分けられない）は残る 3 行で
@@ -141,9 +171,5 @@ poker はもともとサーバーが送った `message` をそのまま描いて
 
 - **`joined` / `room-state` は前方互換ではない。** 決定 1 のとおり
   [#216](https://github.com/tomohiroJin/tasuki-tools/issues/216) で扱う。
-- **入室前は `error` の文言が画面に出ない。** 決定 3 で「表示はサーバーの `message`」と
-  決めたが、`sync.error` を描いているのは入室後の `error-note` だけである。
-  トップ画面と参加フォームには表出が無く、**未知の `code` に限らず既知の `server-busy`
-  でも出ない**（2026-08-31 に実測）。本決定はフレームを `setError` まで**届ける**ところ
-  までを解いており、**届いた先の表示場所**は
-  [#217](https://github.com/tomohiroJin/tasuki-tools/issues/217) で扱う。
+- （**#217 は決定 5 で解いた。** 当初は本決定の範囲外として申し送っていたが、
+  「届くようにしたのに届いた先が無い」のは片側の修正なので同じ作業に含めた。）
