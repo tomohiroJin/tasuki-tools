@@ -7,6 +7,7 @@
 
 import { describe, it, expect, beforeEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
+import { makeTestHandlers } from "./support/room-builder.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { SessionConfig } from "@tasuki/timer-core";
@@ -30,7 +31,7 @@ describe("Room.startedAt（開始済みの単調フラグ・D2）", () => {
     store = new InMemoryRoomStore();
     clock = new FakeClock(1000000);
     broadcaster = new SpyBroadcaster();
-    handlers = makeHandlers({ store, clock, broadcaster, codeGen: new FakeCodeGen() });
+    handlers = makeTestHandlers({ store, clock, broadcaster, codeGen: new FakeCodeGen() });
   });
 
   async function setupRoom(): Promise<string> {
@@ -149,7 +150,7 @@ describe("Room.startedAt（開始済みの単調フラグ・D2）", () => {
       const freshStore = new InMemoryRoomStore();
       const freshClock = new FakeClock(1000000);
       const freshBroadcaster = new SpyBroadcaster();
-      const freshHandlers = makeHandlers({
+      const freshHandlers = makeTestHandlers({
         store: freshStore,
         clock: freshClock,
         broadcaster: freshBroadcaster,

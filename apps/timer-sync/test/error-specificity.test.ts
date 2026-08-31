@@ -13,6 +13,7 @@
 import { describe, it, expect, beforeEach } from "bun:test";
 import { DEFAULT_CAPACITY } from "@tasuki/rate-limit";
 import { makeHandlers } from "../src/application/handlers.js";
+import { makeTestHandlers } from "./support/room-builder.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { Room, SessionConfig } from "@tasuki/timer-core";
@@ -54,7 +55,7 @@ describe("拒否箇所が返すコード（現状の記録）", () => {
     beforeEach(async () => {
       store = new InMemoryRoomStore();
       broadcaster = new SpyBroadcaster();
-      handlers = makeHandlers({
+      handlers = makeTestHandlers({
         store, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen(),
       });
       const created = await handlers.handleCommand(HOST, {
@@ -220,7 +221,7 @@ describe("拒否箇所が返すコード（現状の記録）", () => {
     beforeEach(async () => {
       store = new InMemoryRoomStore();
       broadcaster = new SpyBroadcaster();
-      handlers = makeHandlers({
+      handlers = makeTestHandlers({
         store, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen(),
       });
       const created = await handlers.handleCommand(HOST, {
@@ -259,7 +260,7 @@ describe("拒否箇所が返すコード（現状の記録）", () => {
     it("⑧ 試行過多の room.join は JOIN_RATE_LIMITED を返す", async () => {
       // Given
       const broadcaster = new SpyBroadcaster();
-      const handlers = makeHandlers({
+      const handlers = makeTestHandlers({
         store: new InMemoryRoomStore(),
         clock: new FakeClock(1_000_000),
         broadcaster,
@@ -282,7 +283,7 @@ describe("拒否箇所が返すコード（現状の記録）", () => {
     it("⑨ 試行過多の ai.unlock は RATE_LIMITED を返す（room.join とは異なり維持する）", async () => {
       // Given
       const broadcaster = new SpyBroadcaster();
-      const handlers = makeHandlers({
+      const handlers = makeTestHandlers({
         store: new InMemoryRoomStore(),
         clock: new FakeClock(1_000_000),
         broadcaster,

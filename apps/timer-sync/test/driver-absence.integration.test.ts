@@ -11,6 +11,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, jest } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
+import { makeTestHandlers } from "./support/room-builder.js";
 import {
   PresenceManager,
   DRIVER_ABSENCE_GRACE_MS,
@@ -48,7 +49,7 @@ describe("統合: ドライバー不在 自動繰上（presence→handlers 実�
     store = new InMemoryRoomStore();
     clock = new FakeClock(1000000);
     const broadcaster = new NoopBroadcaster();
-    handlers = makeHandlers({ store, clock, broadcaster, codeGen: new FakeCodeGen() });
+    handlers = makeTestHandlers({ store, clock, broadcaster, codeGen: new FakeCodeGen() });
     // server.ts と同じ配線。これが本テストの主眼。
     presence = new PresenceManager({
       store,

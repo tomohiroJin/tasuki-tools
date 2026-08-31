@@ -11,6 +11,7 @@
 
 import { describe, it, expect, beforeEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
+import { makeTestHandlers } from "./support/room-builder.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { SessionConfig, Room } from "@tasuki/timer-core";
@@ -70,7 +71,7 @@ describe("タイマー自動交代と代理メンバー（v2.8）", () => {
     store = new InMemoryRoomStore();
     clock = new FakeClock(1000000);
     broadcaster = new SpyBroadcaster();
-    handlers = makeHandlers({ store, clock, broadcaster, codeGen: new FakeCodeGen() });
+    handlers = makeTestHandlers({ store, clock, broadcaster, codeGen: new FakeCodeGen() });
   });
 
   it("代理メンバー(offline+placeholder)へ自動交代が進む", async () => {

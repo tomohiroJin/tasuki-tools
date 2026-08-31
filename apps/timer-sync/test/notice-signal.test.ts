@@ -10,6 +10,7 @@
 
 import { describe, it, expect, beforeEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
+import { makeTestHandlers } from "./support/room-builder.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { ServerMsg, SessionConfig } from "@tasuki/timer-core";
@@ -74,7 +75,7 @@ describe("signal: notice（実行者の通知）", () => {
   beforeEach(async () => {
     store = new InMemoryRoomStore();
     broadcaster = new NoticeSpyBroadcaster();
-    handlers = makeHandlers({
+    handlers = makeTestHandlers({
       store, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen(),
     });
     const created = await handlers.handleCommand(HOST, {
@@ -236,7 +237,7 @@ describe("退出させられた本人への通知", () => {
   beforeEach(async () => {
     store = new InMemoryRoomStore();
     broadcaster = new NoticeSpyBroadcaster();
-    handlers = makeHandlers({
+    handlers = makeTestHandlers({
       store, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen(),
     });
     const created = await handlers.handleCommand(HOST, {

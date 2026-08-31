@@ -9,6 +9,7 @@
 
 import { describe, it, expect, beforeEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
+import { makeTestHandlers } from "./support/room-builder.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
@@ -26,7 +27,7 @@ describe("participant.remove（⑪）", () => {
   beforeEach(async () => {
     store = new InMemoryRoomStore();
     broadcaster = new SpyBroadcaster();
-    handlers = makeHandlers({ store, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen() });
+    handlers = makeTestHandlers({ store, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen() });
     await handlers.handleCommand(hostConn, {
       command: "room.create",
       displayName: "Alice",
@@ -116,7 +117,7 @@ describe("participant.remove（G3: 自己退出・不変条件・ホスト引き
   async function setup(): Promise<void> {
     store = new InMemoryRoomStore();
     broadcaster = new SpyBroadcaster();
-    handlers = makeHandlers({
+    handlers = makeTestHandlers({
       store, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen(),
     });
     const created = await handlers.handleCommand(HOST, {
@@ -388,7 +389,7 @@ describe("participant.remove（G7: 同名参加者を識別子で区別する）
   beforeEach(async () => {
     store = new InMemoryRoomStore();
     broadcaster = new SpyBroadcaster();
-    handlers = makeHandlers({
+    handlers = makeTestHandlers({
       store, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen(),
     });
     const created = await handlers.handleCommand(HOST, {

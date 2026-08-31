@@ -168,17 +168,47 @@ class RoomBuilder {
 }
 
 /**
+ * 配線されていない `destroyRoom`（#173）。
+ *
+ * `HandlerDeps.destroyRoom` は**必須**である（理由はそちらの docstring）。この必須指定は
+ * 長らく「テストが型検査の射程外にある」ことに依存しており、テストは渡さずに済んでいた。
+ * #173 でテストを射程へ入れたので、既定をここ 1 箇所に置く。
+ *
+ * **`destroyRoom` を optional へ戻して型エラーを消すことはしない。** 戻すと、本番の配線
+ * （`create-sync-server.ts`）から注入を外しても既定値が代わりに動き、不在タイマーの解放
+ * だけが静かに失われる状態へ後退する。
+ *
+ * **既定を no-op にしないのは、振る舞いを静かに変えないため。** これまでテストは
+ * `destroyRoom` を渡しておらず、破棄経路に入れば `undefined` が呼ばれて `TypeError` で
+ * 落ちていた。no-op にするとその場面が黙って成功へ変わる。throw なら現状のままである。
+ *
+ * 破棄そのものを観測したいテストは {@link ../spy-destroyer.js spyDestroyer} を
+ * `destroyRoom` へ渡すこと（`destroy-room.test.ts` / `solo-leave.test.ts` がそうしている）。
+ */
+function unwiredDestroyRoom(roomCode: string): never {
+  throw new Error(
+    `destroyRoom がこのテストへ配線されていません（roomCode=${roomCode}）。` +
+      "破棄経路を通るなら spyDestroyer を destroyRoom へ渡してください。",
+  );
+}
+
+/**
  * makeHandlers を既定の依存（InMemoryRoomStore / FakeClock / SpyBroadcaster / FakeCodeGen）で
  * 組み立てる。`aRoom()` の内部でも使うが、ビルダーの段組みを必要としない単発のテストからも使える。
+ *
+ * **`...overrides` は先頭に置く。** 必須キーを後ろで明示的に埋めることで、
+ * `Partial<HandlerDeps>` を展開しても必須キーが欠けないことが型で保証される
+ * （既定値の選び方は変わっていない —— どのキーも `overrides?.x ?? 既定` である）。
  */
 export function makeTestHandlers(
   overrides?: Partial<HandlerDeps>,
 ): ReturnType<typeof makeHandlers> {
   return makeHandlers({
+    ...overrides,
     store: overrides?.store ?? new InMemoryRoomStore(),
     clock: overrides?.clock ?? new FakeClock(1_000_000),
     broadcaster: overrides?.broadcaster ?? new SpyBroadcaster(),
     codeGen: overrides?.codeGen ?? new FakeCodeGen(),
-    ...overrides,
+    destroyRoom: overrides?.destroyRoom ?? unwiredDestroyRoom,
   });
 }
