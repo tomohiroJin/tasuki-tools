@@ -1458,6 +1458,25 @@ describe("SC-039④: 公開契約に載っているだけの値（#182）", () =
       assert.deepEqual([...names], []);
     });
 
+    test("相対 import は拾わない（末尾一致が同名の隣接モジュールに当たる）", () => {
+      // Given: `packages/poker-core/src/index.ts` は自分の `./protocol` を再エクスポートしている。
+      //        末尾一致だけを見ると、これが `@tasuki/protocol` からの取り込みに化ける
+      // When
+      const names = extractNamedImportsFromPackage(
+        "export { isKnownErrorCode } from './protocol';",
+        "protocol",
+      );
+      // Then: 記号を黙って「生きている」側へ倒さない
+      assert.deepEqual([...names], []);
+    });
+
+    test("絶対パスの import も拾わない", () => {
+      // Given / When
+      const names = extractNamedImportsFromPackage("import { a } from '/src/protocol';", "protocol");
+      // Then
+      assert.deepEqual([...names], []);
+    });
+
     test("前方一致の別パッケージは拾わない", () => {
       // Given / When
       const names = extractNamedImportsFromPackage("import { a } from '@tasuki/poker-core-extra';", "poker-core");

@@ -888,8 +888,21 @@ export function extractContractNames(indexSource) {
  * 名前空間の綴りには依存させない（`@tasuki/` を書き写すと、名前空間を変えたときに
  * ここが黙って何も拾わなくなる）。末尾のパッケージ名までで終わっていることだけを見る。
  *
+ * **末尾一致だけでは足りない。** 相対 import は同名の隣接モジュールに当たる —
+ * `packages/poker-core/src/index.ts` の `export { … } from './protocol'` は
+ * `/protocol$` に一致し、`@tasuki/protocol` からの取り込みに化ける（#182 の実測）。
+ * 化けると記号が黙って「生きている」側へ倒れるので、**素の（相対でも絶対でもない）
+ * 指定子だけを見る**。
+ *
  * **取り込み側の `as` は左側が公開名。** `import { a as localName }` が使っているのは `a` である
  * （{@link extractContractNames} が右側を採るのと逆向きになる）。
+ *
+ * ## 何を見ていないか — 赤（＝過剰報告）に倒れる
+ *
+ * **名前空間ごとの取り込み**（`import * as core from '@tasuki/poker-core'` から
+ * `core.computeStats` を使う形）は拾わない。中括弧を持たないためである。
+ * この形の利用者がいる記号は「取り込まれていない」と数えられる。
+ * 2026-09-01 の実測ではリポジトリ全体で 0 件だった。
  */
 export function extractNamedImportsFromPackage(source, packageName) {
   const names = new Set();
@@ -897,7 +910,9 @@ export function extractNamedImportsFromPackage(source, packageName) {
   for (const m of source.matchAll(
     /(?:import|export)\s+(?:type\s+)?(?:[A-Za-z0-9_$]+\s*,\s*)?\{([^}]*)\}\s*from\s*["']([^"']+)["']/g,
   )) {
-    if (!isOwnPackage.test(m[2])) continue;
+    const specifier = m[2];
+    if (specifier.startsWith(".") || specifier.startsWith("/")) continue;
+    if (!isOwnPackage.test(specifier)) continue;
     for (const raw of m[1].replace(/\/\/.*$/gm, "").split(",")) {
       const entry = raw.trim().replace(/^type\s+/, "");
       if (entry === "") continue;
