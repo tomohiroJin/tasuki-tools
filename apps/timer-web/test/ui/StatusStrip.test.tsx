@@ -45,6 +45,11 @@ describe("StatusStrip", () => {
     expect(screen.getByText(/喪失|Lost|lost/i)).toBeTruthy();
   });
 
+  it("接続状態が stale のとき同期不整合を表示する（#209）", () => {
+    render(<StatusStrip {...baseProps} connectionStatus="stale" />);
+    expect(screen.getByText(/同期不整合|Out of Sync/i)).toBeTruthy();
+  });
+
   it("自分の表示名と役割を表示する", () => {
     // Given（baseProps に displayName="Alice"・role="host" を重ねる）
     // When

@@ -71,6 +71,11 @@ export interface TimerSync {
   /** セッション喪失（room-not-found）。再接続では消えない。 */
   sessionLost: boolean;
   connState: ClientConnState;
+  /**
+   * 契約に合わない同期フレームを捨てて以降、新しい状態を受け取れていない（#209）。
+   * 接続は生きているので `connState` では表せない。StatusStrip の「同期不整合」に使う。
+   */
+  syncStale: boolean;
   generatingProblem: boolean;
   /** サーバー時刻との差。Session の残り時間導出に渡す。 */
   clockOffset: number;
@@ -137,6 +142,9 @@ export function useTimerSync(banner: BannerController): TimerSync {
   const [sessionLost, setSessionLost] = useState(false);
   // 接続状態は WS クライアントから明示通知される（banner には結合しない・R5-1）。
   const [connState, setConnState] = useState<ClientConnState>("online");
+  // 契約に合わない同期フレームを捨てて以降、新しい状態を受け取れていない（#209）。
+  // 立てるのは棄却時、下ろすのは**有効な snapshot を受け取ったとき**だけ（下の注記）。
+  const [syncStale, setSyncStale] = useState(false);
   // 注: AI（BYOK/サブスク）はいったん UI から撤去。お題は定型バンクのみ（NoAiProvider）。
   // AI/定型のお題生成中（「別のお題にする」押下〜新お題確定まで）。スピナー＋減光に使う。
   const [generatingProblem, setGeneratingProblem] = useState(false);
@@ -217,6 +225,8 @@ export function useTimerSync(banner: BannerController): TimerSync {
   // メッセージ処理時点ではまだ `null` のため、ここから読んではいけない。
 
   const handleRoom = (syncClient: SyncClient, r: Room) => {
+    // **画面が実際に新しい状態を得た。** ここだけが「古い」の解除点である（#209）。
+    setSyncStale(false);
     // 入室できたら再試行の数え直し（#147）。次に混雑へ当たったときは 1 回目から始める。
     cancelJoinRetry();
     joinRetryAttemptRef.current = 0;
@@ -487,11 +497,20 @@ export function useTimerSync(banner: BannerController): TimerSync {
       onConnectionChange: (s) => setConnState(s),
       onReconnected: () => handlersRef.current.handleReconnected(newClient),
       onNotice: (notice) => handlersRef.current.handleNotice(notice),
-      // 契約に合わないフレームを捨てたことを devtools へ残す（#181）。
-      // **`snapshot` を捨てる状況はほぼ必ず継続し、画面は古いまま固まる。**
-      // 出すのは落ちた項目の経路だけで、値は出さない。利用者への表出は #209。
-      onInvalidFrame: (paths) =>
-        console.warn("契約に合わない同期フレームを捨てました:", paths), // log-hygiene:allow 項目の経路のみ（値は出さない）
+      // 契約に合わないフレームを捨てたことを知らせる（#181・#209）。
+      //
+      // **利用者へは StatusStrip の「同期不整合」として出す（#209）。**
+      // `snapshot` を捨てる状況はほぼ必ず継続し、画面は生きて見えたまま古い状態で
+      // 固まる。**解除は `handleRoom`（有効な snapshot）でしか行わない** ——
+      // クライアントは 10 秒ごとに `time.ping` を送り `time.pong` が返るので、
+      // 「有効なフレームが来たら解除」にすると pong のたびに表示が消えて
+      // 次の棄却で戻る、つまり**必ず点滅する**。
+      //
+      // devtools へは落ちた項目の経路だけを残す（値は出さない・ADR 0012）。
+      onInvalidFrame: (paths) => {
+        setSyncStale(true);
+        console.warn("契約に合わない同期フレームを捨てました:", paths); // log-hygiene:allow 項目の経路のみ（値は出さない）
+      },
     });
     newClient.connect();
     setClient(newClient);
@@ -691,6 +710,7 @@ export function useTimerSync(banner: BannerController): TimerSync {
     endType,
     sessionLost,
     connState,
+    syncStale,
     generatingProblem,
     clockOffset: client?.clockOffset ?? 0,
     commands,

@@ -6,10 +6,13 @@
  *   起きていなくても最初から真になる。見るのは印そのものの位置と、それが両方の画面で
  *   同じに見えること。
  * - タグ無し #11 / #12 — #76 F-1 / F-3 の回帰防止（`local` 専用）。
+ * - タグ無し #209 — 契約に合わない同期フレームを捨てたことの表出（`local` 専用。
+ *   実サーバーの枠を使ううえ、壊れたフレームは本番では作れない）。
  */
 import type { Page } from '@playwright/test';
 import { expect, test } from '../fixtures/test';
 import {
+  corruptSnapshotFrame,
   createRoom,
   currentDriverRow,
   driverRoster,
@@ -169,3 +172,59 @@ function screens(host: Page, guest: Page): readonly (readonly [string, Page])[] 
     ['参加者', guest],
   ] as const;
 }
+
+
+test.describe('契約に合わない同期フレームを捨てたことが画面から分かる', () => {
+  /**
+   * **`snapshot` を捨てる状況はほぼ必ず継続する**（契約に合わない値はサーバー側の
+   * ルームに残り続ける）。その間、画面は生きて見えたまま古い状態で固まり、
+   * 再接続もエラー表示も起きない。**利用者には「なぜか更新されない」としか分からない**
+   * ——それを塞いだのが #209 で、ここはその実経路を通す。
+   *
+   * **固まっていることを、実際に固まらせて確かめる。** 2 人目の参加は snapshot でしか
+   * 届かないので、捨てている側の画面には現れない。2 人目自身の画面で「参加は成立した」
+   * ことを確かめておくことで、**参加が失敗しただけ**という別の説明を排除する。
+   *
+   * 壊すのはブラウザと同期サーバーの間だけ（`routeWebSocket`）で、
+   * 壊すのは作成者の接続のみ。製品コードにテスト用の経路は作らない。
+   */
+  test('Given ルームに居る / When 契約に合わない snapshot が届く / Then 同期不整合が出て、画面は古いまま固まる', async ({
+    page,
+    openPeer,
+  }) => {
+    // Given: 途中から snapshot だけを壊せるようにしてから開く。
+    // **最初から壊すとルームが一度も表示されない。** それは「固まる」の再現ではない。
+    let corrupting = false;
+    await page.routeWebSocket(/\/timer\/ws$/, (ws) => {
+      const server = ws.connectToServer();
+      ws.onMessage((message) => server.send(message));
+      server.onMessage((message) => {
+        const payload = typeof message === 'string' ? message : message.toString();
+        ws.send(corrupting ? corruptSnapshotFrame(payload) : payload);
+      });
+    });
+
+    const code = await createRoom(page, HOST);
+    await expect(statusStrip(page)).toContainText('接続中 (Connected)');
+
+    // When: 以後の snapshot が契約に合わなくなり、その状態で 2 人目が参加する
+    corrupting = true;
+    const guest = await openPeer('timer-stale-guest');
+    await joinAsDriver(guest.page, code, GUEST);
+
+    // Then その1: 参加そのものは成立している（2 人目の画面には 2 人が並ぶ）
+    await expect(lobbyRotationRow(guest.page, HOST, 1), '2 人目の画面の 1 番目').toHaveCount(1);
+    await expect(lobbyRotationRow(guest.page, GUEST, 2), '2 人目の画面の 2 番目').toHaveCount(1);
+
+    // Then その2: 捨てている側は、それが接続表示から分かる
+    await expect(statusStrip(page)).toContainText('同期不整合 (Out of Sync)');
+
+    // Then その3: 接続は生きているので、無関係な対処へ誘導しない
+    await expect(statusStrip(page)).not.toContainText('再接続中');
+    await expect(statusStrip(page)).not.toContainText('セッション喪失');
+
+    // Then その4: **画面は古いまま固まっている。** 2 人目は作成者の画面に現れない。
+    // これが起きている異常そのもので、表示だけ出て画面が追随していては意味が違う
+    await expect(lobbyRotationRow(page, GUEST, 2), '作成者の画面の 2 番目').toHaveCount(0);
+  });
+});

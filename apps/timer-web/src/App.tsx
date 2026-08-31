@@ -40,6 +40,7 @@ export default function App() {
     endType,
     sessionLost,
     connState,
+    syncStale,
     generatingProblem,
     commands,
   } = sync;
@@ -90,7 +91,9 @@ export default function App() {
   const selfName = self?.displayName ?? room?.config.members[0] ?? "あなた";
   const selfRole = self?.role ?? "host";
   // 接続状態: 喪失が最優先、それ以外は WS クライアントの通知に従う（R5-1）。
-  const connectionStatus = deriveConnectionStatus(sessionLost, connState);
+  // 接続が生きていても、契約に合わないフレームを捨てて画面が古いままなら
+  // 「同期不整合」を出す（#209）。
+  const connectionStatus = deriveConnectionStatus(sessionLost, connState, syncStale);
 
   /** セッション/ロビーはダークステージ固定。Setup/Summary は通常テーマ。 */
   const renderBody = () => {

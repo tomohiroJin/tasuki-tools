@@ -435,3 +435,90 @@ describe("混雑で入室を拒まれたとき", () => {
     }
   });
 });
+
+/**
+ * 契約に合わない同期フレームを捨てたことを、利用者へ表出できる形で持つ（#209）。
+ *
+ * **`snapshot` の棄却はほぼ必ず継続する。** 契約に合わない値はサーバー側のルームに
+ * 残り続けるため、以後すべての `snapshot` が捨てられ、画面は生きて見えたまま
+ * 古い状態で固まる。ここで見るのは「固まっていることが状態として出ているか」である。
+ */
+describe("useTimerSync: 捨てた同期フレームの表出（#209）", () => {
+  function connected() {
+    const banner = fakeBanner();
+    const hook = renderHook(() => useTimerSync(banner));
+    act(() => hook.result.current.createRoom("Host"));
+    const ws = latestSocket();
+    act(() => {
+      ws.readyState = FakeWS.OPEN;
+      ws.onopen?.();
+    });
+    const deliver = (msg: Record<string, unknown>) =>
+      act(() => void ws.onmessage?.({ data: JSON.stringify(msg) } as MessageEvent));
+    return { ...hook, ws, banner, deliver };
+  }
+
+  /**
+   * ADR 0005 の追記が挙げた実際の経路と同じ壊し方をする。
+   * `SessionConfigSchema.members` の要素は最小長 1 なので、空文字が載ると落ちる。
+   */
+  function aFrameThatViolatesTheContract(): Record<string, unknown> {
+    const room = aRoomView({ code: "ROOM01" });
+    return { type: "snapshot", room: { ...room, config: { ...room.config, members: [""] } } };
+  }
+
+  it("初期状態では同期は古くない", () => {
+    // Given
+    const { result } = connected();
+    // Then
+    expect(result.current.syncStale).toBe(false);
+  });
+
+  it("契約に合わないフレームを捨てると同期が古い状態になる", () => {
+    // Given
+    const { result, deliver } = connected();
+    deliver({ type: "snapshot", room: aRoomView({ code: "ROOM01" }) });
+    // When
+    deliver(aFrameThatViolatesTheContract());
+    // Then
+    expect(result.current.syncStale).toBe(true);
+  });
+
+  it("捨てたフレームの中身は画面に入らない（前の状態のまま固まる）", () => {
+    // Given
+    const { result, deliver } = connected();
+    deliver({ type: "snapshot", room: aRoomView({ code: "ROOM01" }) });
+    // When
+    deliver(aFrameThatViolatesTheContract());
+    // Then（捨てられたので room は前のまま）
+    expect(result.current.room?.config.members).toEqual(["Host"]);
+  });
+
+  it("有効な snapshot を受け取ると同期が古い状態から戻る", () => {
+    // Given
+    const { result, deliver } = connected();
+    deliver(aFrameThatViolatesTheContract());
+    expect(result.current.syncStale).toBe(true);
+    // When
+    deliver({ type: "snapshot", room: aRoomView({ code: "ROOM01" }) });
+    // Then
+    expect(result.current.syncStale).toBe(false);
+  });
+
+  /**
+   * **点滅の回帰テスト。** クライアントは 10 秒ごとに `time.ping` を送り、
+   * `time.pong` が返る。`snapshot` だけが落ち続ける状況で「有効なフレームが来たら
+   * 解除」にすると、pong のたびに表示が消えて次の snapshot で戻る —— つまり
+   * **必ず点滅する**。解除条件は「画面が実際に新しい状態を得たとき」に限る。
+   */
+  it("time.pong を受け取っても同期が古い状態は戻らない", () => {
+    // Given
+    const { result, deliver } = connected();
+    deliver(aFrameThatViolatesTheContract());
+    expect(result.current.syncStale).toBe(true);
+    // When
+    deliver({ type: "time.pong", serverTime: 1_000 });
+    // Then
+    expect(result.current.syncStale).toBe(true);
+  });
+});

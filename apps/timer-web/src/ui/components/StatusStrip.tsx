@@ -10,7 +10,7 @@ import React from "react";
 import type { RoomPhase } from "@tasuki/timer-core";
 import { NotifySettings } from "./NotifySettings.js";
 
-export type ConnectionStatus = "online" | "reconnecting" | "lost";
+export type ConnectionStatus = "online" | "reconnecting" | "lost" | "stale";
 
 interface StatusStripProps {
   phase: RoomPhase | "lobby";
@@ -35,11 +35,24 @@ const ROLE_LABEL: Record<string, string> = {
 };
 
 // 接続状態の色（ダークステージ上で視認できる明るめの値・色＋テキスト併記）。
+//
+// `stale` は「接続は生きているのに、契約に合わない同期フレームを捨てていて
+// 画面が古いままになっている」状態（#209）。**再読込を促す文言は置かない** ——
+// 継続する棄却の原因はサーバー側のルームに残った値なので、再読込しても直らず
+// 嘘の導線になる。ここは「起きていること」だけを述べる。
 const CONNECTION_CONFIG: Record<ConnectionStatus, { label: string; className: string }> = {
   online: { label: "接続中 (Connected)", className: "text-[var(--ok)]" },
   reconnecting: { label: "再接続中… (Reconnecting)", className: "text-[var(--caution)]" },
   lost: { label: "セッション喪失 (Session Lost)", className: "text-[var(--urgent)]" },
+  stale: { label: "同期不整合 (Out of Sync)", className: "text-[var(--caution)]" },
 };
+
+/**
+ * 接続状態の一覧。**検査が状態を取りこぼしていないことを機械的に確かめるために公開する。**
+ * 表示の設定そのもの（`CONNECTION_CONFIG`）から導くので、状態を足して設定を書けば
+ * ここも自動で増える。テスト側の表に足し忘れると `color-only-invariants` が落ちる。
+ */
+export const CONNECTION_STATUSES = Object.keys(CONNECTION_CONFIG) as readonly ConnectionStatus[];
 
 export function StatusStrip({
   phase,

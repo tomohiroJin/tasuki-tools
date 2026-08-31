@@ -104,3 +104,28 @@ export function currentDriverRow(page: Page): Locator {
     .getByRole('listitem')
     .filter({ has: page.getByRole('img', { name: '現在のドライバー' }) });
 }
+
+/**
+ * `snapshot` フレームを、**サーバー→クライアントの契約（`ServerMsgSchema`）に
+ * 合わない形**へ書き換える（#209）。他の種類のフレームはそのまま返す。
+ *
+ * 壊し方は ADR 0005 の追記が挙げた実際の経路に合わせる。`config.members` の
+ * 要素は最小長 1 なので、空文字が載ると `SessionConfigSchema` に落ちる。
+ * **製品コードにテスト用の穴は開けない。** ブラウザと同期サーバーの間で
+ * 差し替えるだけなので、画面から見れば「サーバーが壊れた値を送ってきた」に等しい。
+ */
+export function corruptSnapshotFrame(payload: string): string {
+  let frame: unknown;
+  try {
+    frame = JSON.parse(payload);
+  } catch {
+    return payload;
+  }
+  if (typeof frame !== 'object' || frame === null) return payload;
+  const message = frame as { type?: unknown; room?: { config?: Record<string, unknown> } };
+  if (message.type !== 'snapshot' || message.room?.config === undefined) return payload;
+  return JSON.stringify({
+    ...message,
+    room: { ...message.room, config: { ...message.room.config, members: [''] } },
+  });
+}
