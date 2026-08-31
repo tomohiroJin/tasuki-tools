@@ -641,12 +641,47 @@ function stripNamedReexports(source) {
 
 function isReferencedElsewhere(name, ownFile, productSources) {
   const re = new RegExp(`\\b${name}\\b`);
+  // 記号を公開しているパッケージのディレクトリ（"packages/timer-core/"）。
+  const ownPackageDir = /^(packages\/[^/]+\/)/.exec(ownFile)?.[1] ?? null;
   for (const [file, src] of productSources) {
     if (file === ownFile) continue;
     // 欠陥4の修正: 文字列リテラル・コメントを除去してから照合し、識別子としての使用のみを見る。
-    if (re.test(stripStringsAndComments(stripNamedReexports(src)))) return true;
+    if (!re.test(stripStringsAndComments(stripNamedReexports(src)))) continue;
+    // 同じパッケージの中なら、識別子が一致すればその記号の参照である（相対 import で届く）。
+    if (ownPackageDir === null || file.startsWith(ownPackageDir)) return true;
+    // **別のパッケージからの参照は、公開元を取り込んでいるファイルに限る（#214）。**
+    // 名前だけで製品コード全体を探すと、**同名の別記号**を根拠に「使われている」と
+    // 誤判定する。#214 では poker-core と timer-core が両方 DEFAULT_ERROR_MESSAGE を
+    // 公開した時点で、poker 側の 2 行が timer 側の例外を不要と言わせた。
+    //
+    // 取り込みの判定は**名前空間の綴りに依存させない**（`@tasuki/` を書き写すと、
+    // 名前空間を変えたときにここが黙って何も拾わなくなる）。末尾のディレクトリ名だけを見る。
+    if (isImportedBy(src, ownPackageDir)) return true;
   }
   return false;
+}
+
+/**
+ * `source` が `packageDir`（"packages/timer-core/"）のパッケージを取り込んでいるか。
+ *
+ * import 指定子の**末尾のディレクトリ名**だけを見る（`@tasuki/timer-core` でも
+ * 名前空間が変わっても拾えるように）。
+ *
+ * **サブパスの取り込みも数える**（`@tasuki/timer-core/aggregate` など）。
+ * `apps/timer-web` にはサブパスからしか取り込まないファイルが多数あり、
+ * クォートだけを見ていると**それらからの参照を生存の根拠として数え落とす**
+ * （#214 の敵対的検証が SC-039③ の件数 15→14 の差として実測した）。
+ * 直後がクォートか `/` であることまで見るので、`timer-core-extra` のような
+ * 前方一致では当たらない。
+ */
+function isImportedBy(source, packageDir) {
+  const name = packageDir.slice("packages/".length).replace(/\/$/, "");
+  return new RegExp(`/${escapeForRegExp(name)}['"/]`).test(source);
+}
+
+/** 正規表現に埋め込む文字列を安全にする。 */
+function escapeForRegExp(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /**

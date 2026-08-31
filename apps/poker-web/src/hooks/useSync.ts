@@ -2,6 +2,8 @@
 // 接続はアプリ生存期間で 1 本。切断時は指数バックオフで自動再接続する（US4）
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  DEFAULT_ERROR_MESSAGE,
+  isKnownErrorCode,
   parseServerMessage,
   type Card,
   type ClientMessage,
@@ -24,7 +26,14 @@ export interface SelfIdentity {
 }
 
 export interface SyncError {
-  code: ErrorCode;
+  /**
+   * サーバーが増やした未知のコードは `null`（#214・docs/poker/adr/0003 決定 2）。
+   *
+   * 受信の契約は前方互換のため任意の非空文字列を通すが、**画面が意味を知っているのは
+   * `ERROR_CODES` に載っているものだけ**である。`as ErrorCode` で通すと、
+   * `ErrorCode` を名乗る嘘の値が画面の分岐へ流れる。
+   */
+  code: ErrorCode | null;
   message: string;
 }
 
@@ -144,7 +153,15 @@ export function usePokerSync(): PokerSync {
             setError(null); // 正常な状態受信で過去のエラーは解消したとみなす
             break;
           case 'error':
-            setError({ code: msg.code, message: msg.message });
+            // 未知のコードは畳む。意味を知らないコードから専用画面や再試行を起こすと、
+            // 無関係な対処へ利用者を誘導することになる（docs/poker/adr/0003 決定 2）。
+            // 文言はサーバーのものを使う —— 未知のコードの意味を知るのは向こうだけである。
+            setError({
+              code: isKnownErrorCode(msg.code) ? msg.code : null,
+              // **空白だけの message も空の箱になる。** `v.string()` は空文字も
+              // 空白のみの文字列も通すので、見た目で空になるものをまとめて逃がす。
+              message: msg.message.trim() === '' ? DEFAULT_ERROR_MESSAGE : msg.message,
+            });
             break;
         }
       });

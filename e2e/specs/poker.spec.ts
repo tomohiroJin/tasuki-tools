@@ -11,6 +11,7 @@
 import { expect, test } from '../fixtures/test';
 import type { Page } from '@playwright/test';
 import {
+  addUnknownKeyToErrorFrame,
   chooseCard,
   corruptRoomStateFrame,
   createRoom,
@@ -236,5 +237,57 @@ test.describe('契約に合わない room-state を捨てたことが画面か�
     // 2 人目の行はどこにも無い
     await expect(page.getByRole('heading', { name: '参加者（1人）' })).toBeVisible();
     await expect(participantRow(page, GUEST), '作成者の画面の 2 人目の行').toHaveCount(0);
+  });
+});
+
+/**
+ * **サーバーが `error` に足したものを、古いバンドルが捨てない**（#214）。
+ *
+ * `error` は消えたルームの案内（#76 J-1）と入室の自動再試行（#147）の**唯一の引き金**で、
+ * `v.strictObject` だった頃は**任意フィールドが 1 つ乗っただけで**フレームごと捨てられ、
+ * どちらも起きなくなった。`docs/poker/adr/0003` で `error` だけを前方互換にしてある。
+ *
+ * ここは上の「消えたルームのリンク」と同じ筋書きを、**`error` に余剰キーを乗せた状態**で
+ * 通す。ユニットテスト（`apps/poker-web/tests/error-frame-forward-compat.test.tsx`）は
+ * フェイクの WebSocket で同じことを見ているが、**実プロトコルの `error` に本当に効くか**は
+ * ここでしか分からない。
+ */
+test.describe('poker の error に契約が知らないキーが乗っても案内が出る', () => {
+  test('Given 消えたルームの招待リンク / When error に余剰キーが乗って届く / Then それでも消滅が知らされる', async ({
+    page,
+    openPeer,
+  }) => {
+    // Given: この接続に届く error にだけ、契約が宣言していないキーを足す。
+    // **実際に足した回数を数える。** 足せていないと「案内が出た」という結果が
+    // 前方互換とは無関係になり、検査が空振りする
+    let augmented = 0;
+    await page.routeWebSocket(/\/poker\/ws$/, (ws) => {
+      const server = ws.connectToServer();
+      ws.onMessage((message) => server.send(message));
+      server.onMessage((message) => {
+        const payload = typeof message === 'string' ? message : message.toString();
+        const next = addUnknownKeyToErrorFrame(payload);
+        if (next !== payload) augmented += 1;
+        ws.send(next);
+      });
+    });
+
+    // Given: 作成者がルームを作り、いなくなる
+    const owner = await openPeer('poker-fc-owner');
+    const roomUrl = await createRoom(owner.page, 'e2e-fc-owner');
+    await owner.page.close();
+
+    // When / Then: 後から開いた人に、名前を入れる前に消滅が知らされる
+    const gone = page.getByRole('heading', { name: 'ルームが見つかりません' });
+    await expect(async () => {
+      await page.goto(roomUrl);
+      await expect(gone).toBeVisible({ timeout: 2_000 });
+    }, '余剰キーが乗った error でも、消えたルームの案内が出る').toPass({ timeout: 20_000 });
+
+    // Then その2: **書き換え屋が実際に働いた。** 0 なら上の判定は前方互換を見ていない
+    expect(augmented, '余剰キーを足した error の数').toBeGreaterThan(0);
+
+    // Then その3: 捨てていないので、捨てた告知は出ない
+    await expect(page.getByText(/同期できていません/)).toHaveCount(0);
   });
 });

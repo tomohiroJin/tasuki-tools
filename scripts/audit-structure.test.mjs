@@ -347,7 +347,7 @@ describe("SC-039: 生きたモジュール内部の到達不能な要素", () =>
 
   test("②: 製品コードから一度も参照されない公開データは行数として計上する", () => {
     const packageSrcFiles = new Map([
-      ["packages/core/src/i18n/ja.ts", "export const ja = {\n  ok: 1,\n};\n"],
+      ["packages/timer-core/src/i18n/ja.ts", "export const ja = {\n  ok: 1,\n};\n"],
     ]);
     // productSources には参照が一切ない（テストからの参照はそもそも与えない=FR-090）
     const productSources = new Map([
@@ -359,7 +359,7 @@ describe("SC-039: 生きたモジュール内部の到達不能な要素", () =>
 
   test("②: 製品コードから参照されている公開データは計上しない", () => {
     const packageSrcFiles = new Map([
-      ["packages/core/src/problem.ts", "export const FALLBACK_PROBLEMS = [1, 2, 3];"],
+      ["packages/timer-core/src/problem.ts", "export const FALLBACK_PROBLEMS = [1, 2, 3];"],
     ]);
     const productSources = new Map([
       ["apps/web/src/App.tsx", "import { FALLBACK_PROBLEMS } from '@tasuki/timer-core';"],
@@ -369,7 +369,7 @@ describe("SC-039: 生きたモジュール内部の到達不能な要素", () =>
 
   test("③: 自ファイル内でのみ使う公開記号を件数として計上する", () => {
     const packageSrcFiles = new Map([
-      ["packages/core/src/schemas.ts", "export interface SessionConfigSchema { x: number }"],
+      ["packages/timer-core/src/schemas.ts", "export interface SessionConfigSchema { x: number }"],
     ]);
     const productSources = new Map([["apps/web/src/App.tsx", "no reference here"]]);
     assert.equal(sc039cSelfOnlyPublicSymbols(packageSrcFiles, productSources), 1);
@@ -382,7 +382,7 @@ describe("SC-039: 生きたモジュール内部の到達不能な要素", () =>
     // 定義で使われているため、真に死んだデータ（②）としては数えてはならない。
     const packageSrcFiles = new Map([
       [
-        "packages/core/src/schemas.ts",
+        "packages/timer-core/src/schemas.ts",
         [
           "export const ParticipantSchema = v.object({});",
           "export const RoomSchema = v.object({ participants: ParticipantSchema });",
@@ -398,7 +398,7 @@ describe("SC-039: 生きたモジュール内部の到達不能な要素", () =>
   test("欠陥3回帰: export function / export class も③の対象に含める（countManagers 相当）", () => {
     const packageSrcFiles = new Map([
       [
-        "packages/core/src/participants.ts",
+        "packages/timer-core/src/participants.ts",
         "export function countManagers(participants) { return participants.length; }",
       ],
     ]);
@@ -408,7 +408,7 @@ describe("SC-039: 生きたモジュール内部の到達不能な要素", () =>
 
   test("欠陥4回帰: 文字列リテラル内の一致は識別子としての参照とみなさない（ja が \"ja-JP\" に出現しても無視）", () => {
     const packageSrcFiles = new Map([
-      ["packages/core/src/i18n/ja.ts", "export const ja = {\n  ok: 1,\n};\n"],
+      ["packages/timer-core/src/i18n/ja.ts", "export const ja = {\n  ok: 1,\n};\n"],
     ]);
     const productSources = new Map([
       ["apps/web/src/App.tsx", 'const locale = "ja-JP"; console.log(locale);'],
@@ -424,7 +424,7 @@ describe("SC-039: 生きたモジュール内部の到達不能な要素", () =>
     // ja は②（未使用データ）として数えなければならない。
     const packageSrcFiles = new Map([
       [
-        "packages/core/src/i18n/ja.ts",
+        "packages/timer-core/src/i18n/ja.ts",
         ["export const ja = {", "  ok: 1,", "};", "export type JaMessages = typeof ja;"].join(
           "\n",
         ),
@@ -442,7 +442,7 @@ describe("SC-039: 生きたモジュール内部の到達不能な要素", () =>
     // 参照されないが、生きた根 pickFallback の本体内で参照されているため生きている。
     const packageSrcFiles = new Map([
       [
-        "packages/core/src/problem.ts",
+        "packages/timer-core/src/problem.ts",
         [
           "export const FALLBACK_PROBLEMS = [1, 2, 3];",
           "export function pickFallback() { return FALLBACK_PROBLEMS[0]; }",
@@ -745,6 +745,78 @@ describe("findStaleSymbolExceptions: 例外表は両方向に腐らせない", (
     // Then
     assert.equal(problems.length, 1);
     assert.match(problems[0], /不要/);
+  });
+
+  /**
+   * **同名の記号は別パッケージにも立つ。**（#214 で実際に踏んだ）
+   *
+   * `packages/timer-core` と `packages/poker-core` が両方 `DEFAULT_ERROR_MESSAGE` を
+   * 公開したとき、名前だけで製品コード全体を探す実装は、**poker 側を参照している 2 行**を
+   * 根拠に timer 側の例外を「不要になった」と報告した。timer 側を参照している製品コードは
+   * 1 つも無かった。
+   */
+  test("別パッケージの同名の記号を参照しているだけでは、不要とは言わない", () => {
+    // Given: x が SHARED を公開し、y も同名の SHARED を持つ。参照しているのは y のほうだけ
+    const pkgSrc = new Map([["packages/x/src/decl.ts", "export const SHARED = 1;\n"]]);
+    const product = new Map([
+      ["packages/y/src/user.ts", "import { SHARED } from '@tasuki/y';\nconst a = SHARED;\n"],
+    ]);
+    const exceptions = [{ file: "packages/x/src/decl.ts", name: "SHARED", reason: "検査の土台" }];
+    // When
+    const problems = findStaleSymbolExceptions(exceptions, pkgSrc, product);
+    // Then
+    assert.deepEqual(problems, []);
+  });
+
+  test("公開元のパッケージを取り込んでいるファイルからの参照なら、不要になったと報告する", () => {
+    // Given: 上と同じ形で、import 先だけが x になっている
+    const pkgSrc = new Map([["packages/x/src/decl.ts", "export const SHARED = 1;\n"]]);
+    const product = new Map([
+      ["packages/y/src/user.ts", "import { SHARED } from '@tasuki/x';\nconst a = SHARED;\n"],
+    ]);
+    const exceptions = [{ file: "packages/x/src/decl.ts", name: "SHARED", reason: "検査の土台" }];
+    // When
+    const problems = findStaleSymbolExceptions(exceptions, pkgSrc, product);
+    // Then
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /不要/);
+  });
+
+  /**
+   * **サブパスで取り込む形もある。**（#214 の敵対的検証が実測で見つけた）
+   *
+   * `apps/timer-web` は `@tasuki/timer-core/aggregate` や `@tasuki/timer-core/problem`
+   * からしか取り込まないファイルを多数持つ。取り込みの判定を「指定子の直後がクォート」に
+   * 限ると、**これらのファイルからの参照が生存の根拠として数えられなくなる**。
+   */
+  test("サブパスで取り込んでいるファイルからの参照も、不要になったと報告する", () => {
+    // Given: 公開元をサブパスで取り込んでいる
+    const pkgSrc = new Map([["packages/x/src/decl.ts", "export const SHARED = 1;\n"]]);
+    const product = new Map([
+      ["packages/y/src/user.ts", "import { SHARED } from '@tasuki/x/sub';\nconst a = SHARED;\n"],
+    ]);
+    const exceptions = [{ file: "packages/x/src/decl.ts", name: "SHARED", reason: "検査の土台" }];
+    // When
+    const problems = findStaleSymbolExceptions(exceptions, pkgSrc, product);
+    // Then
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /不要/);
+  });
+
+  /**
+   * 前方一致では当たらないこと。`@tasuki/x-extra` は `x` とは別のパッケージである。
+   */
+  test("名前が前方一致するだけの別パッケージからの参照は数えない", () => {
+    // Given
+    const pkgSrc = new Map([["packages/x/src/decl.ts", "export const SHARED = 1;\n"]]);
+    const product = new Map([
+      ["packages/y/src/user.ts", "import { SHARED } from '@tasuki/x-extra';\nconst a = SHARED;\n"],
+    ]);
+    const exceptions = [{ file: "packages/x/src/decl.ts", name: "SHARED", reason: "検査の土台" }];
+    // When
+    const problems = findStaleSymbolExceptions(exceptions, pkgSrc, product);
+    // Then
+    assert.deepEqual(problems, []);
   });
 
   test("理由が空の例外は問題として報告する", () => {

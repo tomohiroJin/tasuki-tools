@@ -53,6 +53,17 @@ export const ERROR_CODES = [
 
 export type ErrorCode = (typeof ERROR_CODES)[number];
 
+/**
+ * `code` が `ERROR_CODES` に載っているか（#214・docs/poker/adr/0003 決定 2）。
+ *
+ * 受信の契約は未知の `code` も通すようになったが、**画面が意味を知っているのは
+ * `ERROR_CODES` に載っているものだけ**である。専用画面や自動再試行の分岐に入れてよいかを
+ * ここで判定し、未知のものは境界で畳む。
+ */
+export function isKnownErrorCode(code: string): code is ErrorCode {
+  return (ERROR_CODES as readonly string[]).includes(code);
+}
+
 const ParticipantViewSchema = v.strictObject({
   id: v.string(),
   name: v.string(),
@@ -90,14 +101,40 @@ export const ServerMessageSchema = v.variant('type', [
     round: RoundViewSchema,
     yourVote: v.nullable(CardSchema),
   }),
-  v.strictObject({
+  // **error だけは前方互換にする（#214・docs/poker/adr/0003 決定 1）。**
+  //
+  // `error` は消えたルームの案内（#76 J-1）と入室の自動再試行（#147）の**唯一の引き金**で、
+  // 捨てるとどちらも起きない。サーバーが `code` を増やしても（#63・#103 で 2 度増えた）、
+  // `error` に任意フィールドを足しても、古いバンドルがフレームごと捨ててはならない。
+  //
+  // - `v.object`: 宣言していないキーは**無視して落とす**（画面へは運ばない）
+  // - 非空文字列: 未知の `code` も通す。意味を持たない空文字だけは通さない
+  //
+  // 未知の `code` を既知と取り違えないための畳み込みは `isKnownErrorCode()` が担う。
+  // **joined / room-state は strictObject のまま**（前方互換にするかは #216 で決める）。
+  v.object({
     type: v.literal('error'),
-    code: v.picklist(ERROR_CODES),
+    code: v.pipe(v.string(), v.minLength(1)),
     message: v.string(),
   }),
 ]);
 
 export type ServerMessage = v.InferOutput<typeof ServerMessageSchema>;
+
+/**
+ * **サーバーが送ってよいメッセージ**（#214・docs/poker/adr/0003 決定 4）。
+ *
+ * 受信の契約（`ServerMessage`）は前方互換のため `code` を任意の非空文字列まで広げたが、
+ * **送信側は `ERROR_CODES` に縛ったままにする。** 広く受けるのは古いバンドルを守るための
+ * ものであって、サーバーが好き勝手に送ってよいという意味ではない。
+ *
+ * これが `ServerMessage` のままだと、`Broadcaster.sendTo` に渡す `code` の**綴り誤りが
+ * 型検査を通る**（#214 の敵対的検証が実測した）。`handlers.ts` の
+ * `sendError(code: ErrorCode, …)` だけが担保していて、ポートの型では担保されていなかった。
+ */
+export type OutboundServerMessage =
+  | Exclude<ServerMessage, { type: 'error' }>
+  | { type: 'error'; code: ErrorCode; message: string };
 export type RoomStateMessage = Extract<ServerMessage, { type: 'room-state' }>;
 export type ParticipantView = v.InferOutput<typeof ParticipantViewSchema>;
 export type RoundStats = v.InferOutput<typeof StatsSchema>;

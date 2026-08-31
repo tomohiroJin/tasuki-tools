@@ -7,7 +7,7 @@
  * 足すとスナップショットの形が変わり振る舞い不変を壊すため、接続レジストリは
  * アダプタの内側に置き、このポートはルーム ID と参加者 ID だけで話す。
  */
-import type { Room, ServerMessage } from '@tasuki/poker-core';
+import type { OutboundServerMessage, Room } from '@tasuki/poker-core';
 
 export interface RoomSocket {
   send(data: string): void;
@@ -36,5 +36,10 @@ export interface Broadcaster {
   resetRoom(roomId: string): void;
   countIn(roomId: string): number;
   broadcastSnapshot(roomId: string, room: Room): void;
-  sendTo(socket: RoomSocket, msg: ServerMessage): void;
+  /**
+   * **受け取るのは `OutboundServerMessage`**（#214・docs/poker/adr/0003 決定 4）。
+   * 受信の契約（`ServerMessage`）は `error.code` を任意の非空文字列まで広げているので、
+   * そのまま使うと**綴りを誤った `code` が型検査を通る**。
+   */
+  sendTo(socket: RoomSocket, msg: OutboundServerMessage): void;
 }

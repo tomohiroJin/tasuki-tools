@@ -139,9 +139,27 @@ revealed 後の例:
 | `not-joined` | join 前の操作 | vote, reveal, next-round |
 | `message-too-large` | メッセージのバイト数が上限超過 | 全 C→S（[#63](https://github.com/tomohiroJin/tasuki-tools/issues/63)） |
 | `server-busy` | ルーム数が上限に達している | create-room（#63） |
+| `rate-limited` | 入室失敗が続き、レート制限に掛かった | join-room（[#103](https://github.com/tomohiroJin/tasuki-tools/issues/103)・[#147](https://github.com/tomohiroJin/tasuki-tools/issues/147)） |
 
 `message-too-large` と `server-busy` は**利用者の入力の誤りではなくサーバー側の事情**を表す。
 `invalid-message` に畳むと画面の案内が誤りになるため分けている。いずれも接続は維持する。
+`rate-limited` は総当たりの緩和であり、これも利用者の入力の誤りとは別物である。
+
+#### 受信は広く、送信は狭く（[#214](https://github.com/tomohiroJin/tasuki-tools/issues/214)）
+
+**上の表はサーバーが送ってよい `code` の正本である。** 一方、受信側
+（`apps/poker-web`）は前方互換のため、**この表に無い `code` も、宣言していない
+余剰キーも受け取る**（`docs/poker/adr/0003`）。サーバーが `code` を増やしたり
+`error` にフィールドを足したりしたとき、古いバンドルがフレームごと捨てると、
+消えたルームの案内（#76 J-1）も入室の自動再試行（#147）も起きなくなるためである。
+
+**受信が広いことは、送信側が表の外を送ってよいという意味ではない。** 新しい `code` を
+足すときは `ERROR_CODES` とこの表の両方に足すこと。表に無い `code` を受け取った画面は、
+**専用の扱いをせず** `message` をそのまま示す（意味を知らないコードから案内を推測すると、
+無関係な対処へ誘導することになる）。
+
+なお `joined` / `room-state` は前方互換ではなく、宣言していないキーがあると捨てる。
+これを変えるかは [#216](https://github.com/tomohiroJin/tasuki-tools/issues/216) で扱う。
 
 ## 公開に耐えるための防御（#63）
 

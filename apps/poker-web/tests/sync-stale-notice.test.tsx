@@ -57,8 +57,16 @@ const A_BROKEN_ROOM_STATE = {
  *
  * **これも黙ってはいけない。** poker の `error` は消えたルームの案内（#76 J-1）と
  * 入室の自動再試行（#147）の唯一の引き金で、捨てれば利用者は何の反応も得られない。
+ *
+ * **落とし方を `code` の未知から `message` の型違反へ替えた（#214）。**
+ * 未知の `code` は `docs/poker/adr/0003` で通すようにしたので、もう捨てられない
+ * （捨てないことは `error-frame-forward-compat.test.tsx` が固定している）。
+ * ここで見たいのは「`error` 固有の項目が落ちても黙らない」ことなので、
+ * **いま実際に落ちる形**へ差し替える。経路は `["message"]` になり、
+ * 正しい `room-state` に余剰キー `message` を足したときと**同じ名前**になる ——
+ * `0002` 決定 2 が「経路では選り分けられない」と結論した理由そのものである。
  */
-const A_BROKEN_ERROR = { type: 'error', code: 'unknown-code', message: 'm' };
+const A_BROKEN_ERROR = { type: 'error', code: 'room-not-found', message: 123 };
 
 let warn: ReturnType<typeof vi.spyOn>;
 
