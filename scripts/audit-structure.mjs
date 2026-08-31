@@ -838,12 +838,130 @@ export function sc039cSelfOnlyPublicSymbols(packageSrcFiles, productSources, exc
 }
 
 /**
- * SC-039 まとめ。3 種の内訳をまとめて返す（他の SC 関数と異なり複合値）。
+ * `index.ts` の**再エクスポート節**から、公開している名前を「値」と「型」に分けて返す（純粋）。
+ *
+ * ## 判定は index.ts の書き方だけで行う — **宣言側を読みに行かない**
+ *
+ * 「その名前が本当に値か型か」は宣言ファイルを読めば分かるが、読みに行くと
+ * 判定が字句解析の深さに依存し、穴が増えるたびに**静かに緑へ倒れる**
+ * （#184 / #193 で `audit-public-surface.mjs` が実際にたどった道）。
+ * ここでは `export type { … }` とインラインの `type` 修飾子という、
+ * **書き手が明示した印だけ**を見る。印を書き忘れた型は値として数えられ、
+ * 過剰報告（赤）に倒れる。偽陽性はレビューで消せるが、偽陰性は誰にも見えない。
+ *
+ * ## 何を見ていないか
+ *
+ * - **`export *`** は扱わない。ADR-0016 決定 2 項目 2 が禁じており、
+ *   `scripts/audit-public-surface.mjs` が別に落とす。
+ * - **index.ts 自身に書かれた宣言**（`export const X = 1;`）は数えない。
+ *   再エクスポート節（`… from '…'`）だけを見る。index を単なる公開面に保つ規約の裏返しであり、
+ *   直接宣言を置けばこの指標からは消える（**緑へ倒れる経路**。走査対象は自分たちが書く
+ *   エントリであり、この書き方を選ぶ動機が無いことを受容の根拠とする）。
+ * - **コメントや文字列の中にある `export { … } from '…'` の字面**も節として拾う。
+ *   拾えば実在しない名前が「未使用の値」として数えられるので、倒れる向きは赤である。
+ */
+export function extractContractNames(indexSource) {
+  const values = [];
+  const types = [];
+  for (const m of indexSource.matchAll(/export\s+(type\s+)?\{([^}]*)\}\s*from\s*["'][^"']+["']/g)) {
+    const isTypeClause = Boolean(m[1]);
+    for (const raw of m[2].replace(/\/\/.*$/gm, "").split(",")) {
+      const entry = raw.trim();
+      if (entry === "") continue;
+      const isInlineType = /^type\s/.test(entry);
+      // **公開名は `as` の右側。** 利用者が書くのはこちらである。
+      const name = entry.replace(/^type\s+/, "").split(/\s+as\s+/).pop().trim();
+      if (name === "") continue;
+      (isTypeClause || isInlineType ? types : values).push(name);
+    }
+  }
+  return { values, types };
+}
+
+/**
+ * `source` が `packageName` のパッケージ**本体**から名前つきで取り込んでいる記号名（純粋）。
+ *
+ * **サブパスからの取り込みは数えない。** `@tasuki/timer-core/aggregate` は `index.ts` を
+ * 通らないため、index の列挙が使われた根拠にならない（{@link isImportedBy} が
+ * SC-039③ のためにサブパスまで数えるのと、ここは意図的に向きが違う）。
+ *
+ * 名前空間の綴りには依存させない（`@tasuki/` を書き写すと、名前空間を変えたときに
+ * ここが黙って何も拾わなくなる）。末尾のパッケージ名までで終わっていることだけを見る。
+ *
+ * **取り込み側の `as` は左側が公開名。** `import { a as localName }` が使っているのは `a` である
+ * （{@link extractContractNames} が右側を採るのと逆向きになる）。
+ */
+export function extractNamedImportsFromPackage(source, packageName) {
+  const names = new Set();
+  const isOwnPackage = new RegExp(`/${escapeForRegExp(packageName)}$`);
+  for (const m of source.matchAll(
+    /(?:import|export)\s+(?:type\s+)?(?:[A-Za-z0-9_$]+\s*,\s*)?\{([^}]*)\}\s*from\s*["']([^"']+)["']/g,
+  )) {
+    if (!isOwnPackage.test(m[2])) continue;
+    for (const raw of m[1].replace(/\/\/.*$/gm, "").split(",")) {
+      const entry = raw.trim().replace(/^type\s+/, "");
+      if (entry === "") continue;
+      const name = entry.split(/\s+as\s+/)[0].trim();
+      if (name !== "") names.add(name);
+    }
+  }
+  return names;
+}
+
+/**
+ * SC-039④: 各パッケージの `index.ts` が列挙する**値**のうち、
+ * そのパッケージの外の製品コードから一度も取り込まれないものの件数（#182）。
+ *
+ * ## ②③ との違い — 測っているのは「`export` の要否」ではなく「公開契約の要否」
+ *
+ * ③ は宣言ファイルの `export` が要るかを見る。④ は**パッケージの公開面（`index.ts`）に
+ * 載せる理由があるか**を見る。両者は独立している。実測（#182・2026-09-01）では、
+ * `computeStats` は `snapshot.ts` が相対 import で使うので③では生きているが、
+ * index 経由の利用者は 1 人もいないので④では死んでいた。逆に③が数える記号でも、
+ * index が再エクスポートし公開署名から到達できる型は公開契約として生きている。
+ *
+ * ## 型を数えない理由
+ *
+ * 型は**取り込まれなくても契約の一部**である。`createRoom(…, ids: ParticipantIds):
+ * Result<RoomUpdate, RoomError>` は型推論が効くので誰も `ParticipantIds` を import しないが、
+ * 注釈を書きたい利用者は名前を要求する。「公開している値の署名から到達できるか」を
+ * 機械で判定するには型解決が要り、この検査の素朴さと引き換えになるため、
+ * **型は最初から数えない**（ADR-0016 追記 2026-09-01）。
+ *
+ * **テストからの参照は根拠に含めない**（FR-090。productSources にテストを渡さないこと）。
+ * 自パッケージの中からの取り込みも根拠にしない（index に載せる理由は外から使われることである）。
+ */
+export function sc039dContractOnlyValues(contractFiles, productSources) {
+  let count = 0;
+  for (const [file, source] of contractFiles) {
+    const packageName = /^packages\/([^/]+)\//.exec(file)?.[1];
+    if (packageName === undefined) {
+      // 黙って 0 件にしない。走査対象の組み立てが壊れたときは赤で気づけること。
+      throw new Error(`SC-039④ の走査対象が packages/ 層のパスではありません: ${file}`);
+    }
+    const ownPrefix = `packages/${packageName}/`;
+    const importedFromOutside = new Set();
+    for (const [f, src] of productSources) {
+      if (f.startsWith(ownPrefix)) continue;
+      for (const name of extractNamedImportsFromPackage(src, packageName)) {
+        importedFromOutside.add(name);
+      }
+    }
+    for (const name of extractContractNames(source).values) {
+      if (!importedFromOutside.has(name)) count++;
+    }
+  }
+  return count;
+}
+
+/**
+ * SC-039 まとめ。4 種の内訳をまとめて返す（他の SC 関数と異なり複合値）。
  */
 export function sc039UnreachableElements({
   handlersSource,
   packageSrcFiles,
   productSources,
+  contractFiles,
   exceptions = [],
 }) {
   return {
@@ -854,6 +972,7 @@ export function sc039UnreachableElements({
       productSources,
       exceptions,
     ),
+    contractOnlyValues: sc039dContractOnlyValues(contractFiles, productSources),
   };
 }
 
@@ -1403,6 +1522,27 @@ export function sc039DeclaredReferenceFiles(loaded) {
 }
 
 /**
+ * SC-039④ の**走査対象ファイル**として宣言されているファイル（純粋）。
+ *
+ * 公開契約は「`packages/` 層のエントリ」そのものである。`apps/` のエントリは
+ * 公開契約ではないので入らない（`scripts/audit-public-surface.mjs` が `export *` を
+ * 見る範囲より狭い。あちらは「エントリに `export *` を置く動機が無い」ことを根拠に
+ * 広く採ったが、こちらは「外から取り込まれるか」を問うので、取り込まれる側に限る）。
+ *
+ * **絞り込みを書かない。** 実在確認は `main()` の `existenceTargets` が先に行っており、
+ * ここで `srcFiles.has(entry)` のような条件を足すと、組み立て側が同じ条件で狭まったときに
+ * 宣言側も揃って狭まり、照合が素通りする（{@link sc039DeclaredReferenceFiles} と同じ理由）。
+ *
+ * @param loaded {@link loadScanTargets} の結果
+ */
+export function sc039DeclaredContractFiles(loaded) {
+  return loaded
+    .filter((p) => isPackageLayer(p.pkg) && hasScanTarget(p.src) && hasScanTarget(p.entry))
+    .map((p) => `${p.pkg}/${p.src}/${p.entry}`)
+    .sort();
+}
+
+/**
  * ファイル単位のずれを人が読める形にする（純粋）。
  *
  * **`formatTargetDiff` を流用しない。** あちらの文言は「宣言にあるが実在しない ←
@@ -1517,6 +1657,7 @@ export function findSrcWithoutEntry(declarations) {
 export function buildSc039Sources(loaded) {
   const packageSrcFiles = new Map();
   const productSources = new Map();
+  const contractFiles = new Map();
   const comparedPackages = [];
   const referencePackages = [];
 
@@ -1531,6 +1672,13 @@ export function buildSc039Sources(loaded) {
       const before = packageSrcFiles.size;
       for (const [k, v] of p.srcFiles) packageSrcFiles.set(prefix + k, v);
       if (packageSrcFiles.size > before) comparedPackages.push(p.pkg);
+
+      // SC-039④ の走査対象は `packages/` 層のエントリそのもの（#182）。
+      // **エントリが読めなかったときは入れない。** 宣言側
+      // （{@link sc039DeclaredContractFiles}）は無条件に挙げるので、
+      // 入れ損ねはファイル単位の照合で赤になる（空文字列で埋めると黙って 0 件になる）。
+      const entrySource = hasScanTarget(p.entry) ? p.srcFiles.get(p.entry) : undefined;
+      if (entrySource !== undefined) contractFiles.set(prefix + p.entry, entrySource);
     }
 
     if (!hasScanTarget(p.entry)) continue;
@@ -1546,6 +1694,7 @@ export function buildSc039Sources(loaded) {
   return {
     packageSrcFiles,
     productSources,
+    contractFiles,
     comparedPackages: comparedPackages.sort(),
     referencePackages: referencePackages.sort(),
   };
@@ -1560,7 +1709,8 @@ export function buildSc039Sources(loaded) {
 export function formatSc039ScanVolume(sources) {
   return (
     `照合先 ${sources.comparedPackages.length} パッケージ / ${sources.packageSrcFiles.size} ファイル、` +
-    `参照元 ${sources.referencePackages.length} パッケージ / ${sources.productSources.size} ファイル`
+    `参照元 ${sources.referencePackages.length} パッケージ / ${sources.productSources.size} ファイル、` +
+    `公開契約 ${sources.contractFiles.size} ファイル`
   );
 }
 
@@ -1575,6 +1725,7 @@ export function sc039ScanVolumeDimensions(sources) {
     { label: "SC-039 の照合先ファイル", count: sources.packageSrcFiles.size },
     { label: "SC-039 の参照元パッケージ", count: sources.referencePackages.length },
     { label: "SC-039 の参照元ファイル", count: sources.productSources.size },
+    { label: "SC-039④ の公開契約ファイル", count: sources.contractFiles.size },
   ];
 }
 
@@ -1613,7 +1764,7 @@ export function buildAllTestFiles(loaded) {
  * 名乗ると、`loaded` を痩せさせる変更が丸ごと素通りする（実測: `loaded` から 1 件
  * 落としても出力がバイト単位で同一のまま exit 0 だった）。
  */
-export function scanVolumeOf(loaded, packageSrcFiles, productSources, allTestFiles) {
+export function scanVolumeOf(loaded, packageSrcFiles, productSources, allTestFiles, contractFiles) {
   return {
     走査パッケージ: loaded.length,
     "src ファイル": loaded.reduce((n, p) => n + p.srcFiles.size, 0),
@@ -1621,6 +1772,7 @@ export function scanVolumeOf(loaded, packageSrcFiles, productSources, allTestFil
     "SC-039 照合先": packageSrcFiles.size,
     "SC-039 参照元": productSources.size,
     テスト集合: allTestFiles.size,
+    "SC-039 公開契約": contractFiles.size,
   };
 }
 
@@ -1682,18 +1834,19 @@ function runAudit(loaded, sc039Sources, allTestFiles) {
   const handlersSource = sync.srcFiles.get("application/handlers.ts") ?? "";
   // **走査対象は `main()` が照合したものをそのまま受け取る**（ADR-0014 決定 9）。
   // ここで組み立て直すと、腐った例外を抱えたまま静かに「0 件」を報告できてしまう。
-  const { packageSrcFiles, productSources } = sc039Sources;
+  const { packageSrcFiles, productSources, contractFiles } = sc039Sources;
   const sc039 = sc039UnreachableElements({
     handlersSource,
     packageSrcFiles,
     productSources,
+    contractFiles,
     exceptions: SC039C_EXCEPTIONS,
   });
 
   // **測った集合そのものから規模を名乗る**（#198）。`main()` が照合したときの値と
   // 突き合わせるための申告であり、ここで数え直しているのは「件数」ではなく
   // 「いま指標を測るのに使った集合の `size`」である。
-  const measured = scanVolumeOf(loaded, packageSrcFiles, productSources, allTestFiles);
+  const measured = scanVolumeOf(loaded, packageSrcFiles, productSources, allTestFiles, contractFiles);
 
   const results = {
     sc027: { value: sc027, target: 0 },
@@ -1712,8 +1865,9 @@ function runAudit(loaded, sc039Sources, allTestFiles) {
       value:
         `分岐 ${sc039.unreachableBranches}（${SC039A_SCOPE}）/ ` +
         `データ ${sc039.unusedPublicDataLines} 行 / ` +
-        `公開記号 ${sc039.selfOnlyPublicSymbols} 件`,
-      target: "分岐0 / データ0行 / 公開記号0件",
+        `公開記号 ${sc039.selfOnlyPublicSymbols} 件 / ` +
+        `公開契約 ${sc039.contractOnlyValues} 件`,
+      target: "分岐0 / データ0行 / 公開記号0件 / 公開契約0件",
       raw: sc039,
     },
   };
@@ -1850,6 +2004,7 @@ function main() {
     sc039Sources.packageSrcFiles,
     sc039Sources.productSources,
     allTestFiles,
+    sc039Sources.contractFiles,
   );
 
   // SC-039②③ の走査範囲そのものの健全性（#180）。**指標を出す前に見る。**
@@ -1896,10 +2051,27 @@ function main() {
     sc039DeclaredReferenceFiles(loaded),
     [...sc039Sources.productSources.keys()],
   );
-  if (hasTargetDrift(sc039FileDrift) || hasTargetDrift(sc039RefFileDrift)) {
+  // SC-039④ の走査対象（`packages/` 層のエントリ）も同じ機構で照合する（#182）。
+  const sc039ContractDrift = diffTargets(
+    sc039DeclaredContractFiles(loaded),
+    [...sc039Sources.contractFiles.keys()],
+  );
+  if (
+    hasTargetDrift(sc039FileDrift) ||
+    hasTargetDrift(sc039RefFileDrift) ||
+    hasTargetDrift(sc039ContractDrift)
+  ) {
     const merged = {
-      missing: [...sc039FileDrift.missing, ...sc039RefFileDrift.missing].sort(),
-      unexpected: [...sc039FileDrift.unexpected, ...sc039RefFileDrift.unexpected].sort(),
+      missing: [
+        ...sc039FileDrift.missing,
+        ...sc039RefFileDrift.missing,
+        ...sc039ContractDrift.missing,
+      ].sort(),
+      unexpected: [
+        ...sc039FileDrift.unexpected,
+        ...sc039RefFileDrift.unexpected,
+        ...sc039ContractDrift.unexpected,
+      ].sort(),
     };
     console.error(formatSc039FileDrift(merged, formatSc039ScanVolume(sc039Sources)));
     process.exit(1);
