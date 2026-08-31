@@ -22,6 +22,15 @@ export interface ServerMessageCallbacks {
   onSwitchSignal?: (nextDriverName: string) => void;
   /** 破壊的操作の実行者を伝えるシグナル（Issue #22・FR-077）。文言化は呼び出し側が行う */
   onNotice?: (notice: NoticeSignal) => void;
+  /**
+   * 契約に合わないフレームを捨てたことを知らせる（#181）。渡すのは**落ちた項目の
+   * 経路だけ**（例: `room.config.members.0`）で、落ちた値は渡さない。
+   *
+   * **ここは知らせるだけで、出力先を決めない。** この関数はブラウザに依存しない
+   * 純関数として単体テストに載っており、`console` を直に呼ぶことは ADR 0012 D1 が
+   * 禁じている。出すかどうかと出し先は `use-timer-sync.ts` が決める。
+   */
+  onInvalidFrame?: (paths: string[]) => void;
 }
 
 /**
@@ -33,8 +42,9 @@ export interface ServerMessageCallbacks {
  * 契約を満たすことは別である。** 形の違う JSON は素通りし、`msg.room` の
  * キャストを通って壊れた値がそのまま画面の状態になっていた。
  *
- * 落ちたフレームは黙って捨てる。逆方向（クライアント → サーバー）が
- * `ws-adapter.ts` で `parseBoundaryMessage(CommandSchema, ...)` を通すのと対になる。
+ * 落ちたフレームは画面へ渡さず、`onInvalidFrame` で捨てたことだけを知らせる。
+ * 逆方向（クライアント → サーバー）が `ws-adapter.ts` で
+ * `parseBoundaryMessage(CommandSchema, ...)` を通すのと対になる。
  */
 export function dispatchServerMessage(
   raw: unknown,
@@ -48,7 +58,19 @@ export function dispatchServerMessage(
   }
 
   const parsed = v.safeParse(ServerMsgSchema, json);
-  if (!parsed.success) return;
+  if (!parsed.success) {
+    // **捨てたことを観測できるようにする。**
+    //
+    // `error` や `signal` を 1 通捨てるのは一過性だが、**`snapshot` を捨てる状況は
+    // ほぼ必ず継続する**（契約に合わない値はルームに残り続けるため）。すると画面は
+    // 生きて見えたまま古い状態で止まり、再接続もエラー表示も起きない。
+    // **何も出さないと、利用者にも開発者にも原因が分からない。**
+    //
+    // 値は渡さず、**どの項目で落ちたかの経路だけ**を渡す（ADR 0012 のログ衛生）。
+    // 利用者への表出は別途 #209 で扱う。
+    cb.onInvalidFrame?.(invalidPaths(parsed.issues));
+    return;
+  }
   const msg = parsed.output;
 
   switch (msg.type) {
@@ -99,4 +121,24 @@ export function dispatchServerMessage(
       cb.onTimePong?.(msg.serverTime);
       break;
   }
+}
+
+/**
+ * 検証に落ちた項目の**経路だけ**を取り出す（例: `room.config.members.0`）。
+ *
+ * **値は含めない。** 落ちた値そのものは利用者の入力（表示名など）でありうるので、
+ * devtools へ出してよいものではない（ADR 0012）。
+ * **経路が漏れないのは、いまの `ServerMsgSchema` に動的キーのスキーマ
+ * （`v.record` など）が 1 つも無いからである**（`packages/timer-core/src/schemas.ts`
+ * を全走査して確認）。参加者 ID をキーにするような形を足すと、その識別子が
+ * そのまま経路に載る。足すときはここを見直すこと。
+ *
+ * **根（root）で落ちた場合、valibot の `flatten` は `nested` を持たない。**
+ * 素の数値・`null`・文字列など「そもそもオブジェクトですらない」フレームがこれで、
+ * 何もしないと空配列を返す。**最も形が壊れている場面で診断が無言になる**ので、
+ * その場合は `<root>` を返して「形そのものが違う」と伝える。
+ */
+function invalidPaths(issues: [v.BaseIssue<unknown>, ...v.BaseIssue<unknown>[]]): string[] {
+  const nested = Object.keys(v.flatten(issues).nested ?? {});
+  return nested.length > 0 ? nested : ["<root>"];
 }

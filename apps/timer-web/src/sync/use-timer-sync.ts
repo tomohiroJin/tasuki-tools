@@ -487,6 +487,11 @@ export function useTimerSync(banner: BannerController): TimerSync {
       onConnectionChange: (s) => setConnState(s),
       onReconnected: () => handlersRef.current.handleReconnected(newClient),
       onNotice: (notice) => handlersRef.current.handleNotice(notice),
+      // 契約に合わないフレームを捨てたことを devtools へ残す（#181）。
+      // **`snapshot` を捨てる状況はほぼ必ず継続し、画面は古いまま固まる。**
+      // 出すのは落ちた項目の経路だけで、値は出さない。利用者への表出は #209。
+      onInvalidFrame: (paths) =>
+        console.warn("契約に合わない同期フレームを捨てました:", paths), // log-hygiene:allow 項目の経路のみ（値は出さない）
     });
     newClient.connect();
     setClient(newClient);

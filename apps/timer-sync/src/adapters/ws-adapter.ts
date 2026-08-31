@@ -447,14 +447,22 @@ export class WsAdapter {
   }
 
   /**
-   * 接続を特定できている socket へ直接フレームを送る（#181）。
+   * 手元の socket へ直接フレームを送る（#181）。
    *
    * **`broadcaster` を経由できない経路のための口である。** サイズ超過・不正 JSON・
-   * 内部エラーの 3 つは、まだ `connId` が確定していない／`broadcaster` の関知しない
-   * 段で返す必要がある。ここを `ServerMsg` で受けることで、**その 3 経路も契約の
-   * 型検査を通る**（以前はオブジェクトリテラルを直接 `JSON.stringify` していた）。
+   * 内部エラーの 3 つは、アダプタが `broadcaster` を持たないためここから返す。
+   * ここを `ServerMsg` で受けることで、**その 3 経路も契約の型検査を通る**
+   * （以前はオブジェクトリテラルを直接 `JSON.stringify` していた）。
+   *
+   * **`connId` が確定していないから、ではない。** 3 つの呼び出し元はいずれも
+   * `handleMessage` の配下で、そこは冒頭の `connId === ""` の門を通過済みである
+   * （初出の説明はそう書いていたが誤りだった。#181 の敵対的検証で判明）。
+   *
+   * **`send()` と同じく OPEN のときだけ送る。** `sendInternalError` は
+   * `onMessage(...).catch(...)` から呼ばれるので、**利用者が切ったあとに走りうる**。
    */
   private sendFrame(ws: Socket, msg: ServerMsg): void {
+    if (ws.readyState !== WebSocket.OPEN) return;
     ws.send(JSON.stringify(msg));
   }
 

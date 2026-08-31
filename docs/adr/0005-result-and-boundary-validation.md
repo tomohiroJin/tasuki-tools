@@ -88,22 +88,46 @@ AI 出力の `validateProblem` 検証など）は、本 ADR では扱わない�
 **決定は変えない。実装を規範へ合わせた。**
 
 - **受信側に実行時の門番を置く**（MUST）。`dispatchServerMessage` は
-  `v.safeParse(ServerMsgSchema, ...)` を通し、落ちたフレームは黙って捨てる
+  `v.safeParse(ServerMsgSchema, ...)` を通し、落ちたフレームは画面へ渡さない。
+  **黙って捨てるのではなく、捨てたことは `onInvalidFrame` で外へ知らせる**（下記）
 - **送信側は型で塞ぐ**（MUST）。`WsAdapter.send` / `broadcast` は `ServerMsg` を受ける。
   `broadcaster` を経由できない 3 経路（`MESSAGE_TOO_LARGE` / `INVALID_JSON`・
-  `INVALID_COMMAND` / `INTERNAL_ERROR`）は `sendFrame(ws, msg: ServerMsg)` を通す
+  `INVALID_COMMAND` / `INTERNAL_ERROR`）は `sendFrame(ws, msg: ServerMsg)` を通す。
+
+  **「型で塞ぐ」の射程を取り違えないこと。** TypeScript の型が止めるのは、
+  未知のキー・キー名の誤り・`type` のリテラル違い・必須項目の欠落・粗い型の不一致
+  までである。**スキーマの絞り込み（`minLength` / `maxLength` など）は型では表せない。**
+  該当するのは `Problem` の `title` / `description` / `exampleTest`、
+  `SessionConfig` の `members`、`CompletionRecord` の各項目などで、
+  **`tsc` を通ったフレームが受信側で落ちうる非対称が残る**（送信側は実行時検証 0、
+  受信側は全検証）。この残余の帰結は下記「残っているリスク」に書く。
+
+  **もう 1 つ、書き方によっても抜ける。** 余剰キーを止めているのは
+  TypeScript の余剰プロパティ検査で、これは**その場で書いたオブジェクトリテラル
+  にしか効かない**。変数に組み立ててから渡すと素通りする（実測。
+  `sendFrame({ …, errorCode: "x" })` は TS2353 だが、
+  `const m = { …, nonsense: 1 }; sendFrame(m)` は exit 0）。
+  **フレームを作るヘルパを挟んだ時点でこの MUST の根拠は静かに消える**ので、
+  送信箇所ではその場のリテラルを渡すこと
 - **送信側は実行時検証にしない**（MUST NOT）。「契約から外れたので送らない」経路を
   本番に新設すると、**形が少し違うフレームが届くより、何も届かないほうが利用者には悪い**。
   送信側は型で止め、実行時の門番は受信側に一本化する
 
-この形は `apps/poker-web` が既に採っているもの（`parseServerMessage` →
-`parseWith(ServerMessageSchema, raw)`）と同じで、2 つのアプリの方針が揃う。
+**揃うのは方針であって、配管ではない。** `apps/poker-web` は
+`packages/poker-core` の `parseServerMessage`（→ `@tasuki/protocol` の
+`parseBoundaryMessage`）を経由するが、timer は `dispatch.ts` の中で
+`JSON.parse` と `v.safeParse` を直に呼ぶ。**「受信側の境界で契約に通す」という
+決定は同じで、そこへ至る道具が違う。** timer 側も core に
+`parseServerMessage` を置いて揃える案はあるが、`packages/timer-core` に
+`@tasuki/protocol` 依存を足す変更になるため #181 では採らなかった。
 
 **検査**（いずれも壊して赤を確認済み）:
 
 | 守るもの | 検査 | 壊し方と結果 |
 |---|---|---|
 | 受信側の実行時検証 | `apps/timer-web/test/sync/dispatch.test.ts` | `safeParse` を型アサーションへ戻す → 2 件が赤 |
+| 捨てたことの観測 | 同上 | `onInvalidFrame` の呼び出しを削る／経路ではなく値を渡す → いずれも赤 |
+| 形そのものが違うフレームの診断 | 同上 | 根で落ちたときの `<root>` を外して空配列に戻す → 3 件が赤 |
 | 送信側の型 | `tsc --noEmit` | `broadcastSnapshot` のキーを `roomData` にする → TS2353 |
 | 同上 | `tsc --noEmit` | エラーフレームのキーを `errorCode` にする → TS2353 |
 
@@ -116,4 +140,37 @@ AI 出力の `validateProblem` 検証など）は、本 ADR では扱わない�
   なったため、**監査自身が「例外が不要になりました」と落とした**
 - timer-web のフィクスチャ 6 箇所が `exampleTest: ""` を送っており、`ProblemSchema` の
   最小長 1 を満たしていなかった。**実サーバーが作れない形をテストが流していた**ことになる。
-  検証を入れて初めて露見した（47 件が赤になった）
+  **検証を入れた 2026-08-30 に 47 件が一斉に赤になって初めて露見した**
+  （件数はその日の値で、以後は動く。ここでは「一斉に赤になった」という出来事の記録である）
+
+**残っているリスク（#209 として切り出した）**:
+
+**`error` や `signal` を 1 通捨てるのは一過性だが、`snapshot` を捨てる状況はほぼ必ず
+継続する。** 契約に合わない値はサーバー側のルームに残り続けるため、以後すべての
+`snapshot` が捨てられ、**画面は生きて見えたまま古い状態で固まる**。
+
+具体的な経路: `apps/timer-sync/src/application/handlers.ts` の `rotationDisplayNames()` は
+対応する参加者が居ない ID に空文字を返し、その値は `config.members` に載る。
+`SessionConfigSchema.members` の要素は `displayNameStr`（`minLength(1)`）なので落ちる。
+
+**現時点でこの状態へ至る経路は見つかっていない。** 根拠は `rotation` に在室しない ID が
+残りうる 4 経路を追ったことで、**テストが緑だったことではない**（全件が緑なのは
+「テストが通る経路では作れなかった」ことしか示さない）。追った 4 経路:
+
+- `member.add` — `handlers.ts` が在室を確かめてから足す（`PARTICIPANT_NOT_FOUND`）
+- `config.set` — `build-domain-command.ts` が `members` を落とす（wire から直接は書けない）
+- `member.remove` / `participant.remove` — どちらも `rotation.length <= 1` を守る
+
+ただし**失敗の質は変わった** —— 本 ADR の変更以前は「名前欄が空で表示される」だけだった。
+
+暫定の手当てとして、捨てたことを `onInvalidFrame(paths)` で外へ知らせる。渡すのは
+**落ちた項目の経路だけ**（例: `room.config.members.0`）で、落ちた値は渡さない。
+
+**出力先は `dispatch.ts` が決めない。** 同ファイルはブラウザに依存しない純関数として
+単体テストに載っており、直接の `console` は ADR 0012 D1 が禁じている（実測: 置いたら
+`scripts/audit-log-hygiene.mjs` が落ちた）。`SyncClient` を通して
+`apps/timer-web/src/sync/use-timer-sync.ts`（ログ衛生の `ALLOWED_FILES`）まで運び、
+そこだけが `console.warn` を呼ぶ。
+
+**開発者は気づけるが利用者は気づけない**ので、利用者への表出は
+[#209](https://github.com/tomohiroJin/tasuki-tools/issues/209) で扱う。
