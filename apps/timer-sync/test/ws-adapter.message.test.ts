@@ -233,7 +233,7 @@ describe("WsAdapter メッセージ経路", () => {
     b.once("message", () => {
       bGotSomething = true;
     });
-    adapter.send(connIds[0]!, { type: "time.pong", serverTime: 1 });
+    adapter!.send(connIds[0]!, { type: "time.pong", serverTime: 1 });
 
     // Then
     expect(await gotA).toEqual({ type: "time.pong", serverTime: 1 });
@@ -254,7 +254,7 @@ describe("WsAdapter メッセージ経路", () => {
     // When
     const gotA = waitMessage(a);
     const gotB = waitMessage(b);
-    adapter.broadcast(["conn-1", "conn-2"], { type: "time.pong", serverTime: 2 });
+    adapter!.broadcast(["conn-1", "conn-2"], { type: "time.pong", serverTime: 2 });
 
     // Then
     expect(await gotA).toEqual({ type: "time.pong", serverTime: 2 });

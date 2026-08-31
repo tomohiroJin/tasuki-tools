@@ -13,6 +13,7 @@ import { FakeClock } from "../src/adapters/system-clock.js";
 import type { SessionConfig } from "@tasuki/timer-core";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
+import type { PreRoomCommand, RoomScopedCommand } from "../src/application/handlers.js";
 
 const config: SessionConfig = {
   language: "TypeScript",
@@ -127,7 +128,7 @@ describe("Room.startedAt（開始済みの単調フラグ・D2）", () => {
 
   it("不変条件: clock.running が true ならば startedAt は null/undefined ではない（コマンド種別に依存せず成立する）", async () => {
     // Given（対象コマンドの一覧そのものが前提。各コマンドを新規ルームへ単独で送る）
-    type Cmd = { command: string; [key: string]: unknown };
+    type Cmd = PreRoomCommand | RoomScopedCommand;
     const commands: Cmd[] = [
       { command: "session.act", action: "START" },
       { command: "session.act", action: "PAUSE" },

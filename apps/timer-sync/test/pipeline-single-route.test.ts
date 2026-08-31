@@ -59,7 +59,7 @@ describe("パイプライン単一経路（FR-155/FR-156）", () => {
     expect(caseLabels.sort()).toEqual([...PRE_ROOM_CASE_LABELS].sort());
   });
 
-  it.each(FORMERLY_DEDICATED_COMMANDS)(
+  it.each([...FORMERLY_DEDICATED_COMMANDS])(
     "%s は handleCommand の switch に個別 case を持たない（default 経由で共通パイプラインへ合流する）",
     (command) => {
       // Given（handlersSource はモジュール冒頭で読み込んだソースファイルの内容を直接使う）
@@ -91,7 +91,7 @@ describe("パイプライン単一経路（FR-155/FR-156）", () => {
     expect(callSites).toHaveLength(1);
   });
 
-  it.each(FORMERLY_DEDICATED_COMMANDS)(
+  it.each([...FORMERLY_DEDICATED_COMMANDS])(
     "%s の専用ハンドラは自ら checkPermission/rejectIfUnauthorized を呼ばない（権限判定を重複させない）",
     (command) => {
       // Given: コマンド名からファイル名を導出する（kebab-case）

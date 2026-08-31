@@ -16,6 +16,7 @@ import { FakeClock } from "../src/adapters/system-clock.js";
 import type { ServerMsg, SessionConfig } from "@tasuki/timer-core";
 import { SpyBroadcaster as SharedSpyBroadcaster } from "./support/spy-broadcaster.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
+import type { RoomScopedCommand } from "../src/application/handlers.js";
 
 /**
  * notice の内容と、配信時点での在室者を記録するスパイ。
@@ -72,6 +73,9 @@ describe("signal: notice（実行者の通知）", () => {
     return undefined;
   };
 
+  /** notice の action（配信される値そのものから導く。表と実体を食い違わせない） */
+  type NoticeAction = NonNullable<ReturnType<typeof lastNotice>>["action"];
+
   beforeEach(async () => {
     store = new InMemoryRoomStore();
     broadcaster = new NoticeSpyBroadcaster();
@@ -94,7 +98,7 @@ describe("signal: notice（実行者の通知）", () => {
   });
 
   describe("① 各操作で notice が配信される", () => {
-    const cases: Array<[string, string, () => Record<string, unknown>]> = [
+    const cases: Array<[string, NoticeAction, () => RoomScopedCommand]> = [
       ["session.abort", "session-aborted", () => ({ command: "session.abort" })],
       ["session.reset", "session-reset", () => ({ command: "session.reset" })],
       ["session.complete", "session-completed", () => ({ command: "session.complete" })],

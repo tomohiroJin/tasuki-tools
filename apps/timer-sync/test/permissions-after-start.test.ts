@@ -20,6 +20,7 @@ import { FakeClock } from "../src/adapters/system-clock.js";
 import type { SessionConfig } from "@tasuki/timer-core";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
+import type { RoomScopedCommand } from "../src/application/handlers.js";
 
 const config: SessionConfig = {
   language: "TypeScript",
@@ -108,7 +109,7 @@ describe("開始後の権限（主催者を条件にしない）", () => {
 
   describe("host でない editor が進行操作を実行できる", () => {
     // 開始前は UNAUTHORIZED だった 7 コマンド（T012 と同じ集合）。
-    const cases: Array<[string, () => Record<string, unknown>]> = [
+    const cases: Array<[string, () => RoomScopedCommand]> = [
       ["member.shuffle", () => ({ command: "member.shuffle" })],
       ["member.move", () => ({ command: "member.move", fromIndex: 0, toIndex: 2 })],
       ["role.set", () => ({ command: "role.set", participantId: carolPid, role: "viewer" })],
@@ -209,12 +210,12 @@ describe("開始後の権限（主催者を条件にしない）", () => {
 
     it("viewer は problem.submit を実行できない", async () => {
       // Given
-      const command = {
+      const command: RoomScopedCommand = {
         command: "problem.submit",
         requestId: "req-3",
         problem: { title: "t", description: "d", requirements: [], exampleTest: "", hints: [] },
         usedFallback: false,
-      } as const;
+      };
 
       // When
       const result = await handlers.handleCommand(VIEWER_CONN, command);
@@ -226,12 +227,12 @@ describe("開始後の権限（主催者を条件にしない）", () => {
 
     it("editor は problem.submit で権限拒否されない", async () => {
       // Given
-      const command = {
+      const command: RoomScopedCommand = {
         command: "problem.submit",
         requestId: "req-4",
         problem: { title: "t", description: "d", requirements: [], exampleTest: "", hints: [] },
         usedFallback: false,
-      } as const;
+      };
 
       // When
       await handlers.handleCommand(EDITOR_CONN, command);

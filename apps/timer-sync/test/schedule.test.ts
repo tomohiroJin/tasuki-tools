@@ -57,7 +57,7 @@ describe("Scheduler: サーバー権威タイマー", () => {
     advance(300 * 1000 + 100);
 
     // Then
-    expect(onSwitch).toHaveBeenCalledOnce();
+    expect(onSwitch).toHaveBeenCalledTimes(1);
     expect(onSwitch).toHaveBeenCalledWith("ROOM01");
   });
 
@@ -86,7 +86,7 @@ describe("Scheduler: サーバー権威タイマー", () => {
     advance(60 * 1000 + 100); // 60秒後に発火
 
     // Then
-    expect(onSwitch).toHaveBeenCalledOnce();
+    expect(onSwitch).toHaveBeenCalledTimes(1);
   });
 
   it("複数ルームを個別にスケジュールできる", () => {
@@ -101,13 +101,13 @@ describe("Scheduler: サーバー権威タイマー", () => {
     advance(60 * 1000 + 100);
 
     // Then
-    expect(onSwitch1).toHaveBeenCalledOnce();
+    expect(onSwitch1).toHaveBeenCalledTimes(1);
     expect(onSwitch2).not.toHaveBeenCalled();
 
     // When（さらに進める）
     advance(60 * 1000);
 
     // Then
-    expect(onSwitch2).toHaveBeenCalledOnce();
+    expect(onSwitch2).toHaveBeenCalledTimes(1);
   });
 });
