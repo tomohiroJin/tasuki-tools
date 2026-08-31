@@ -243,19 +243,20 @@ export const MUTATIONS = [
   },
   {
     id: 18,
-    label: "indicatesStaleState の「経路が空なら古い」を反転する",
-    patch: "m18-sync-staleness-empty-paths.patch",
+    label: "捨てたときに syncStale を立てるのをやめる",
+    patch: "m18-poker-stale-never-raised.patch",
     pkg: "apps/poker-web",
-    tests: ["tests/sync-staleness.test.ts"],
+    tests: ["tests/sync-stale-notice.test.tsx"],
     note:
-      "#212 で新設した判定。plan.md の対応表より後に書いたので、そちらには載っていない。" +
-      "落とすと「何が落ちたか説明できない」棄却が一過性の側へ回り、" +
-      "最も壊れた場面でだけ利用者への表出が消える。",
+      "#212 で新設した表出の起点。plan.md の対応表より後に書いたので、そちらには載っていない。" +
+      "落とすと #212 以前へ戻る（捨てるが黙る）。**devtools の記録だけが残るので、" +
+      "console を見ている開発者には気づけて利用者には気づけない**という、" +
+      "本 Issue が塞いだ状態そのものになる。",
   },
   {
     id: 19,
-    label: "room-state 受信時の syncStale の解除を落とす",
-    patch: "m19-poker-sync-stale-never-cleared.patch",
+    label: "有効なフレームを受け取ったときの syncStale の解除を落とす",
+    patch: "m19-poker-stale-never-cleared.patch",
     pkg: "apps/poker-web",
     tests: ["tests/sync-stale-notice.test.tsx"],
     note:

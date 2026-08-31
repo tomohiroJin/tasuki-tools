@@ -165,9 +165,15 @@ test.describe('契約に合わない room-state を捨てたことが画面か�
   /**
    * その接続に届く `room-state` を、指定の間だけ壊れた形へ差し替える。
    *
-   * **実際に壊せた回数を数えて返す。** 契約やフレームの形が変わって
-   * `corruptRoomStateFrame` が素通しへ退化すると、症状は「告知が出ない」という
-   * 原因の読めない失敗になる。**壊せていないことを、壊せていないと言えるようにする。**
+   * **実際に書き換えた回数を数えて返す。** `corruptRoomStateFrame` が素通しへ退化すると、
+   * 症状は「告知が出ない」という原因の読めない失敗になる。**書き換えていないことを、
+   * 書き換えていないと言えるようにする。**
+   *
+   * **数えているのは「書き換えた」ことであって「契約に反した」ことではない。**
+   * 契約側が緩んで `name: 1` を受け入れるようになれば、この数は増えたまま
+   * 告知は出なくなる。そこまで見るには e2e から `parseServerMessage` を呼ぶ必要があり、
+   * `@tasuki/poker-core` は e2e の依存に無い。**その場合に落ちるのは下の告知の判定**で、
+   * ここは失敗の理由を読めるようにするための補助である。
    */
   async function corruptFrom(
     page: Page,
@@ -219,14 +225,16 @@ test.describe('契約に合わない room-state を捨てたことが画面か�
       '2 人目の画面の名簿',
     ).toBeVisible();
 
-    // Then その2: 捨てている側は、それが画面から分かる
+    // Then その2: **壊し屋が実際に働いた。** これを後ろに置くと、壊せていないときに
+    // 先の判定がタイムアウトで落ち、原因の読めない失敗になる
+    expect(corrupter.count(), '壊した room-state の数').toBeGreaterThan(0);
+
+    // Then その3: 捨てている側は、それが画面から分かる
     await expect(page.getByText(/同期できていません/)).toBeVisible();
 
-    // Then その3: **名簿は古いまま固まっている。** 描かれてはいるのに 1 人のまま
+    // Then その4: **名簿は古いまま固まっている。** 描かれてはいるのに 1 人のままで、
+    // 2 人目の行はどこにも無い
     await expect(page.getByRole('heading', { name: '参加者（1人）' })).toBeVisible();
-
-    // Then その4: 壊し屋が実際に働いた。0 件ならここまでの判定は
-    // 「まだ届いていない」と区別がつかない
-    expect(corrupter.count(), '壊した room-state の数').toBeGreaterThan(0);
+    await expect(participantRow(page, GUEST), '作成者の画面の 2 人目の行').toHaveCount(0);
   });
 });

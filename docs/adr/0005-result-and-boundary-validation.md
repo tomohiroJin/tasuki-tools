@@ -178,7 +178,13 @@ AI 出力の `validateProblem` 検証など）は、本 ADR では扱わない�
 
 **利用者への表出（#209）は timer 固有の判断なので、`docs/timer/adr/0006` の追記が
 正本である**（`docs/adr/0002` 決定 3: アプリ固有の判断は `docs/<app>/adr/` へ置く）。
-横断的な事実として 1 つだけ書き残す。**`apps/poker-web` の `usePokerSync` も
-`parseServerMessage`（`packages/poker-core/src/protocol.ts`）の失敗を黙って捨てており、
-利用者への表出は無い**（2026-08-31 実測）。#209 の対象外とし、
-[#212](https://github.com/tomohiroJin/tasuki-tools/issues/212) へ切り出した。
+横断的な事実として 1 つだけ書き残す。`apps/poker-web` の `usePokerSync` も
+`parseServerMessage`（`packages/poker-core/src/protocol.ts`）の失敗を黙って捨てていた。
+#209 の対象外として [#212](https://github.com/tomohiroJin/tasuki-tools/issues/212) へ
+切り出し、**そちらで解消済み**である（正本は `docs/poker/adr/0002`）。
+
+**2 つのアプリで決定が違う点に注意すること。** timer は落ちた項目の経路で
+「一過性の棄却」を選り分けるが、**poker は選り分けない**。poker の契約が
+`v.strictObject` で、経路の名前空間が宣言済みの項目に閉じていないためである
+（実測は `docs/poker/adr/0002` 決定 2）。**同じ問題に見えても、契約の作りが違えば
+使える判断材料も違う。**
