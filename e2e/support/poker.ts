@@ -93,15 +93,6 @@ export function showsVoted(frame: RoomStateFrame, name: string): boolean {
 }
 
 /**
- * `room-state` フレームを、**サーバー→クライアントの契約（`ServerMessageSchema`）に
- * 合わない形**へ書き換える（#212）。他の種類のフレームはそのまま返す。
- *
- * 壊し方は「参加者名を数値にする」。`ParticipantViewSchema.name` は文字列なので、
- * これだけでフレーム全体が落ちる。**製品コードにテスト用の穴は開けない。**
- * ブラウザと同期サーバーの間で差し替えるだけなので、画面から見れば
- * 「サーバーが壊れた値を送ってきた」に等しい。
- */
-/**
  * `error` フレームに、**契約が宣言していないキーを 1 つ足す**（#214）。
  * 他の種類のフレームはそのまま返す。
  *
@@ -124,6 +115,15 @@ export function addUnknownKeyToErrorFrame(payload: string): string {
   return JSON.stringify({ ...frame, retryAfterMs: 1_000 });
 }
 
+/**
+ * `room-state` フレームを、**サーバー→クライアントの契約（`ServerMessageSchema`）に
+ * 合わない形**へ書き換える（#212）。他の種類のフレームはそのまま返す。
+ *
+ * 壊し方は「参加者名を数値にする」。`ParticipantViewSchema.name` は文字列なので、
+ * これだけでフレーム全体が落ちる。**製品コードにテスト用の穴は開けない。**
+ * ブラウザと同期サーバーの間で差し替えるだけなので、画面から見れば
+ * 「サーバーが壊れた値を送ってきた」に等しい。
+ */
 export function corruptRoomStateFrame(payload: string): string {
   let frame: unknown;
   try {

@@ -173,12 +173,18 @@ describe('未知の code を境界で畳む（#214）', () => {
    * `message` は `v.string()` なので空文字も通る。そのまま描くと
    * **エラー表示が空の箱になる**ので、境界で既定文言へ逃がす。
    */
-  it('message が空なら既定文言に置き換える', () => {
+  it.each([
+    ['空文字', ''],
+    // **空白だけでも同じ空の箱になる。**`v.string()` は空白のみの文字列も通す
+    ['半角空白', '   '],
+    ['改行', '\n'],
+    ['全角空白', '\u3000'],
+  ])('message が %s なら既定文言に置き換える', (_label, message) => {
     // Given
     const { result } = renderHook(() => usePokerSync());
     open();
     // When
-    deliver({ type: 'error', code: 'room-closed', message: '' });
+    deliver({ type: 'error', code: 'room-closed', message });
     // Then
     expect(result.current.error).toEqual({ code: null, message: DEFAULT_ERROR_MESSAGE });
   });

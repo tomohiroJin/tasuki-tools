@@ -27,6 +27,7 @@ export type {
   ClientMessage,
   ErrorCode,
   ServerMessage,
+  OutboundServerMessage,
   RoomStateMessage,
   ParticipantView,
   RoundStats,

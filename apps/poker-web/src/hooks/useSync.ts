@@ -158,7 +158,9 @@ export function usePokerSync(): PokerSync {
             // 文言はサーバーのものを使う —— 未知のコードの意味を知るのは向こうだけである。
             setError({
               code: isKnownErrorCode(msg.code) ? msg.code : null,
-              message: msg.message === '' ? DEFAULT_ERROR_MESSAGE : msg.message,
+              // **空白だけの message も空の箱になる。** `v.string()` は空文字も
+              // 空白のみの文字列も通すので、見た目で空になるものをまとめて逃がす。
+              message: msg.message.trim() === '' ? DEFAULT_ERROR_MESSAGE : msg.message,
             });
             break;
         }

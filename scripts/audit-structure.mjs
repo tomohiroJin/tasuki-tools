@@ -665,12 +665,18 @@ function isReferencedElsewhere(name, ownFile, productSources) {
  * `source` が `packageDir`（"packages/timer-core/"）のパッケージを取り込んでいるか。
  *
  * import 指定子の**末尾のディレクトリ名**だけを見る（`@tasuki/timer-core` でも
- * 名前空間が変わっても拾えるように）。クォートまで含めて照合するので、
- * `timer-core-extra` のような前方一致では当たらない。
+ * 名前空間が変わっても拾えるように）。
+ *
+ * **サブパスの取り込みも数える**（`@tasuki/timer-core/aggregate` など）。
+ * `apps/timer-web` にはサブパスからしか取り込まないファイルが多数あり、
+ * クォートだけを見ていると**それらからの参照を生存の根拠として数え落とす**
+ * （#214 の敵対的検証が SC-039③ の件数 15→14 の差として実測した）。
+ * 直後がクォートか `/` であることまで見るので、`timer-core-extra` のような
+ * 前方一致では当たらない。
  */
 function isImportedBy(source, packageDir) {
   const name = packageDir.slice("packages/".length).replace(/\/$/, "");
-  return new RegExp(`/${escapeForRegExp(name)}['"]`).test(source);
+  return new RegExp(`/${escapeForRegExp(name)}['"/]`).test(source);
 }
 
 /** 正規表現に埋め込む文字列を安全にする。 */

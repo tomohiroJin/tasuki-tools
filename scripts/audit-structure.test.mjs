@@ -782,6 +782,43 @@ describe("findStaleSymbolExceptions: 例外表は両方向に腐らせない", (
     assert.match(problems[0], /不要/);
   });
 
+  /**
+   * **サブパスで取り込む形もある。**（#214 の敵対的検証が実測で見つけた）
+   *
+   * `apps/timer-web` は `@tasuki/timer-core/aggregate` や `@tasuki/timer-core/problem`
+   * からしか取り込まないファイルを多数持つ。取り込みの判定を「指定子の直後がクォート」に
+   * 限ると、**これらのファイルからの参照が生存の根拠として数えられなくなる**。
+   */
+  test("サブパスで取り込んでいるファイルからの参照も、不要になったと報告する", () => {
+    // Given: 公開元をサブパスで取り込んでいる
+    const pkgSrc = new Map([["packages/x/src/decl.ts", "export const SHARED = 1;\n"]]);
+    const product = new Map([
+      ["packages/y/src/user.ts", "import { SHARED } from '@tasuki/x/sub';\nconst a = SHARED;\n"],
+    ]);
+    const exceptions = [{ file: "packages/x/src/decl.ts", name: "SHARED", reason: "検査の土台" }];
+    // When
+    const problems = findStaleSymbolExceptions(exceptions, pkgSrc, product);
+    // Then
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /不要/);
+  });
+
+  /**
+   * 前方一致では当たらないこと。`@tasuki/x-extra` は `x` とは別のパッケージである。
+   */
+  test("名前が前方一致するだけの別パッケージからの参照は数えない", () => {
+    // Given
+    const pkgSrc = new Map([["packages/x/src/decl.ts", "export const SHARED = 1;\n"]]);
+    const product = new Map([
+      ["packages/y/src/user.ts", "import { SHARED } from '@tasuki/x-extra';\nconst a = SHARED;\n"],
+    ]);
+    const exceptions = [{ file: "packages/x/src/decl.ts", name: "SHARED", reason: "検査の土台" }];
+    // When
+    const problems = findStaleSymbolExceptions(exceptions, pkgSrc, product);
+    // Then
+    assert.deepEqual(problems, []);
+  });
+
   test("理由が空の例外は問題として報告する", () => {
     // Given
     const exceptions = [{ file: "packages/x/src/decl.ts", name: "ALIVE", reason: "" }];
