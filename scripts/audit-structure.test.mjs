@@ -1418,6 +1418,15 @@ describe("SC-039④: 公開契約に載っているだけの値（#182）", () =
       assert.deepEqual(values, ["publicName"]);
     });
 
+    test("節の中のブロックコメントは名前として拾わない（カンマを含んでも分割を壊さない）", () => {
+      // Given: 中括弧の中にカンマを含むブロックコメントがある列挙
+      const source = "export {\n  a, /* b, c はまだ決めていない */\n  b,\n} from './x';";
+      // When
+      const { values } = extractContractNames(source);
+      // Then: コメントの断片が記号名に化けない
+      assert.deepEqual(values, ["a", "b"]);
+    });
+
     test("節の中の行コメントは名前として拾わない", () => {
       // Given: 註釈つきの列挙
       const source = "export {\n  a, // 説明\n  b,\n} from './x';";
@@ -1482,6 +1491,64 @@ describe("SC-039④: 公開契約に載っているだけの値（#182）", () =
       const names = extractNamedImportsFromPackage("import { a } from '@tasuki/poker-core-extra';", "poker-core");
       // Then
       assert.deepEqual([...names], []);
+    });
+
+    test("行コメントの中の import は取り込みとみなさない", () => {
+      // Given: コメントアウトされた取り込み
+      // When
+      const names = extractNamedImportsFromPackage(
+        "// import { computeStats } from '@tasuki/poker-core';",
+        "poker-core",
+      );
+      // Then: 記号を黙って「生きている」側へ倒さない
+      assert.deepEqual([...names], []);
+    });
+
+    test("ブロックコメントの中の import は取り込みとみなさない", () => {
+      // Given / When
+      const names = extractNamedImportsFromPackage(
+        "/* import { computeStats } from '@tasuki/poker-core'; */",
+        "poker-core",
+      );
+      // Then
+      assert.deepEqual([...names], []);
+    });
+
+    test("JSDoc の中で行頭が `*` の行に書かれた import も取り込みとみなさない", () => {
+      // Given: 説明のために import 文を例示する docstring
+      const source = ["/**", " * import { computeStats } from '@tasuki/poker-core';", " */"].join("\n");
+      // When
+      const names = extractNamedImportsFromPackage(source, "poker-core");
+      // Then
+      assert.deepEqual([...names], []);
+    });
+
+    test("文字列リテラルの中の import は取り込みとみなさない", () => {
+      // Given / When
+      const names = extractNamedImportsFromPackage(
+        `const s = "import { computeStats } from '@tasuki/poker-core';";`,
+        "poker-core",
+      );
+      // Then
+      assert.deepEqual([...names], []);
+    });
+
+    test("行頭から始まる本物の import は、字下げされていても拾う", () => {
+      // Given: 条件付き読み込みなどで字下げされた取り込み
+      // When
+      const names = extractNamedImportsFromPackage("  import { a } from '@tasuki/x';", "x");
+      // Then
+      assert.deepEqual([...names], ["a"]);
+    });
+
+    test("複数行にまたがる import も拾う", () => {
+      // Given / When
+      const names = extractNamedImportsFromPackage(
+        "import {\n  a,\n  b,\n} from '@tasuki/x';",
+        "x",
+      );
+      // Then
+      assert.deepEqual([...names].sort(), ["a", "b"]);
     });
 
     test("`as` で改名していても、使われている公開名は左側", () => {

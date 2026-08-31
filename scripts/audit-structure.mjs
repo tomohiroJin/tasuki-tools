@@ -859,13 +859,17 @@ export function sc039cSelfOnlyPublicSymbols(packageSrcFiles, productSources, exc
  *   エントリであり、この書き方を選ぶ動機が無いことを受容の根拠とする）。
  * - **コメントや文字列の中にある `export { … } from '…'` の字面**も節として拾う。
  *   拾えば実在しない名前が「未使用の値」として数えられるので、倒れる向きは赤である。
+ *   ただし**節の中身からはコメントを落とす**（{@link stripCommentsOnly}）。落とさないと、
+ *   カンマを含むブロックコメントが分割を壊し、記号名そのものがコメントの断片に化ける
+ *   （実測: 節の中でブロックコメントがカンマをまたぐと、記号名が 2 つの断片に割れた。
+ *   この docstring 自身がブロックコメントなので、再現例はテストに置いた）。
  */
 export function extractContractNames(indexSource) {
   const values = [];
   const types = [];
   for (const m of indexSource.matchAll(/export\s+(type\s+)?\{([^}]*)\}\s*from\s*["'][^"']+["']/g)) {
     const isTypeClause = Boolean(m[1]);
-    for (const raw of m[2].replace(/\/\/.*$/gm, "").split(",")) {
+    for (const raw of stripCommentsOnly(m[2]).split(",")) {
       const entry = raw.trim();
       if (entry === "") continue;
       const isInlineType = /^type\s/.test(entry);
@@ -876,6 +880,24 @@ export function extractContractNames(indexSource) {
     }
   }
   return { values, types };
+}
+
+/**
+/**
+ * コメントだけを取り除く（純粋）。**文字列リテラルは残す。**
+ *
+ * {@link stripStringsAndComments} は使えない。あれは文字列リテラルごと落とすので、
+ * `from '@tasuki/poker-core'` の**指定子まで消える**。指定子が消えると
+ * {@link extractNamedImportsFromPackage} はどの取り込みも見つけられなくなり、
+ * 全記号が「取り込まれていない」に化ける（実測で確認した）。
+ *
+ * **剥がしすぎる向きは赤（＝過剰報告）に固定される。** 本物の import 文を巻き込んで
+ * 消せば、その記号は「取り込まれていない」と数えられるだけである。
+ * 逆に剥がし足りないと記号が黙って「生きている」側へ倒れる（緑＝見逃し）ので、
+ * 迷ったら消す側へ倒す。
+ */
+function stripCommentsOnly(source) {
+  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
 }
 
 /**
@@ -897,23 +919,47 @@ export function extractContractNames(indexSource) {
  * **取り込み側の `as` は左側が公開名。** `import { a as localName }` が使っているのは `a` である
  * （{@link extractContractNames} が右側を採るのと逆向きになる）。
  *
- * ## 何を見ていないか — 赤（＝過剰報告）に倒れる
+ * ## コメントは先に落とす — **ここを怠ると緑（＝見逃し）に倒れる**
+ *
+ * 素のソースへ正規表現を当てると、**コメントアウトされた import 文**や docstring 中の
+ * 例示（行頭が `*` の行）を「取り込みあり」と数え、死んだ公開値が黙って生きている側へ倒れる。
+ * 実測で 3 形すべてが拾われた（#182 の敵対的検証）。
+ *
+ * 歯止めは 2 つ重ねる。**どちらも無状態である。**
+ *
+ * 1. {@link stripCommentsOnly} でコメントを落とす（文字列リテラルは残す。理由はそちらの docstring）
+ * 2. `import` / `export` が**行頭（字下げは許す）から始まる**ことを求める。
+ *    docstring の `* import { … }` も `const s = "import { … }"` もこれで外れる
+ *
+ * ## 何を見ていないか
+ *
+ * ### 緑（＝見逃し）に倒れる — 行頭から import 文が始まる文字列リテラル
+ *
+ * 複数行の文字列（テンプレートリテラルなど）の中に、**行頭から始まる完全な import 文**を
+ * 書くと拾われる。塞ぐには文字列リテラルを落とすしかないが、それをすると
+ * 指定子ごと消えて検査が丸ごと空振りする（{@link stripCommentsOnly} 参照）。
+ * 走査対象は自分たちが書く製品コードであり、この書き方を選ぶ動機が無いことを受容の根拠とする。
+ *
+ * ### 赤（＝過剰報告）に倒れる — 放置してよい
  *
  * **名前空間ごとの取り込み**（`import * as core from '@tasuki/poker-core'` から
  * `core.computeStats` を使う形）は拾わない。中括弧を持たないためである。
  * この形の利用者がいる記号は「取り込まれていない」と数えられる。
  * 2026-09-01 の実測ではリポジトリ全体で 0 件だった。
+ *
+ * ブロックコメントの除去が**行をまたいで剥がしすぎた**場合も、本物の import 文が
+ * 消えるだけなので同じく赤へ倒れる。
  */
 export function extractNamedImportsFromPackage(source, packageName) {
   const names = new Set();
   const isOwnPackage = new RegExp(`/${escapeForRegExp(packageName)}$`);
-  for (const m of source.matchAll(
-    /(?:import|export)\s+(?:type\s+)?(?:[A-Za-z0-9_$]+\s*,\s*)?\{([^}]*)\}\s*from\s*["']([^"']+)["']/g,
+  for (const m of stripCommentsOnly(source).matchAll(
+    /^[ \t]*(?:import|export)\s+(?:type\s+)?(?:[A-Za-z0-9_$]+\s*,\s*)?\{([^}]*)\}\s*from\s*["']([^"']+)["']/gm,
   )) {
     const specifier = m[2];
     if (specifier.startsWith(".") || specifier.startsWith("/")) continue;
     if (!isOwnPackage.test(specifier)) continue;
-    for (const raw of m[1].replace(/\/\/.*$/gm, "").split(",")) {
+    for (const raw of m[1].split(",")) {
       const entry = raw.trim().replace(/^type\s+/, "");
       if (entry === "") continue;
       const name = entry.split(/\s+as\s+/)[0].trim();
@@ -1035,11 +1081,18 @@ export const EXCLUDED_PACKAGES = [
  *
  * **「まだ決めていない」は理由ではない**（#180）。走査を `packages/` 全体へ広げたとき、
  * 新たに 16 件が検出された。うちここへ載せたのは上の条件に当てはまる 3 件だけである。
- * 残り 13 件は「パッケージの公開契約（`index.ts` の明示列挙）から外してよいか」という
- * 未決の判断であり、それは #182 が扱う問いそのものである。判断を待つあいだ例外表へ
- * 入れると指標が 0 に戻り、**#182 が読むべき信号を消してしまう**。測定値は落ちない
+ * 残りは未決の判断であり、判断を待つあいだ例外表へ入れると指標が 0 に戻って
+ * **読むべき信号を消してしまう**。測定値は落ちない
  * （ADR-0009 D2。実測で `audit-structure.mjs` は exit 0）ので、見えたまま残す。
  * #135 が走査を広げた結果 SC-031 が未達へ変わったときと同じ扱いである（ADR-0014「影響」）。
+ *
+ * **未決の宛先は #223 である。#182 ではない**（#182 / PR #222 で訂正した）。
+ * ここは長く「それは #182 が扱う問いそのものである」と書いていたが、誤りだった。
+ * ③が測るのは**宣言ファイルの `export` の要否**で、#182 が扱ったのは
+ * **公開面（`index.ts`）に載せる理由の有無**（SC-039④）であり、両者は独立している。
+ * 実測: `computeStats` は `snapshot.ts` が相対 import で使うので③では生きており、
+ * index 経由の利用者はゼロなので④では死んでいた。さらに {@link stripNamedReexports} が
+ * index の再エクスポートを参照から外すため、**index から落としても③の件数は動かない**。
  *
  * **例外表は両方向に腐る。** 記号が消えたのに例外が残れば同名の別記号を静かに覆い、
  * 記号が製品から使われ始めれば例外そのものが不要になる。
@@ -1597,7 +1650,7 @@ export function findSrcWithoutEntry(declarations) {
 }
 
 /**
- * SC-039②③ が使う 2 つの集合（純粋）を、読み込み済みの走査対象から組み立てる。
+ * SC-039②③④ が使う 3 つの集合（純粋）を、読み込み済みの走査対象から組み立てる。
  *
  * **呼ぶのは `main()` の 1 回だけ。`runAudit()` はその結果を引数で受け取る**
  * （ADR-0014 決定 9）。以前は両者が同じ `loaded` から**別々に呼んで**いたため、
@@ -1613,6 +1666,8 @@ export function findSrcWithoutEntry(declarations) {
  *   「撤去予定のファイルからしか参照されていない記号」が生きているように見え、
  *   G1 で撤去した瞬間に SC-039 の値が跳ね上がる（計測器が撤去を検知できない）。
  *   **テストは含めない**（FR-090）。
+ * - `contractFiles`: SC-039④ が数える対象。**`packages/` 層のエントリそのもの**
+ *   （＝そのパッケージの公開契約）。宣言は {@link sc039DeclaredContractFiles} が導く。
  * - `comparedPackages` / `referencePackages`: **実際に 1 件以上寄与したパッケージ**の一覧。
  *   宣言（{@link sc039DeclaredComparedPackages} / {@link sc039DeclaredReferencePackages}）と
  *   全単射で照合するために返す。ここを「宣言をそのまま写す」実装にしてはならない —
@@ -1624,8 +1679,9 @@ export function findSrcWithoutEntry(declarations) {
  *
  * ## 照合の粒度は**ファイル**
  *
- * 返す 2 つの Map のキーそのものが、宣言（{@link sc039DeclaredComparedFiles} /
- * {@link sc039DeclaredReferenceFiles}）と全単射で照合される。**パッケージ単位の
+ * 返す 3 つの Map のキーそのものが、宣言（{@link sc039DeclaredComparedFiles} /
+ * {@link sc039DeclaredReferenceFiles} / {@link sc039DeclaredContractFiles}）と
+ * 全単射で照合される。**パッケージ単位の
  * 名乗りだけでは足りない** — この関数の中に
  * `if (p.pkg === "packages/poker-core" && k === "stats.ts") continue;` の 1 行を
  * 差し込むと、そのパッケージは他の 7 ファイルで寄与し続けるためパッケージ名の照合を
@@ -1732,7 +1788,9 @@ export function formatSc039ScanVolume(sources) {
 /**
  * SC-039②③ の 0 件ガードが見る内訳（ADR-0014 決定 8）。
  *
- * **{@link formatSc039ScanVolume} が出力するのとまったく同じ 4 つ**を見る。
+ * **{@link formatSc039ScanVolume} が出力するのとまったく同じ 5 つ**を見る。
+ * **片方に足したらもう片方にも足すこと**（#182 で公開契約を足したとき、この数字だけが
+ * 4 のまま取り残された）。
  */
 export function sc039ScanVolumeDimensions(sources) {
   return [
