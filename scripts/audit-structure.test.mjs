@@ -29,6 +29,10 @@ import {
   extractPublicDeclarations,
   sc039bUnusedPublicData,
   sc039cSelfOnlyPublicSymbols,
+  extractContractNames,
+  extractNamedImportsFromPackage,
+  sc039dContractOnlyValues,
+  sc039DeclaredContractFiles,
   findStaleSc029Exceptions,
   findStaleSymbolExceptions,
   findStaleTestExceptions,
@@ -1194,17 +1198,18 @@ describe("SC-039②③ の走査対象の宣言（#180）", () => {
     const sources = {
       packageSrcFiles: new Map([["a", ""], ["b", ""]]),
       productSources: new Map([["a", ""], ["b", ""], ["c", ""]]),
+      contractFiles: new Map([["a", ""]]),
       comparedPackages: ["packages/alpha"],
       referencePackages: ["packages/alpha", "apps/delta"],
     };
     // When / Then
     assert.equal(
       formatSc039ScanVolume(sources),
-      "照合先 1 パッケージ / 2 ファイル、参照元 2 パッケージ / 3 ファイル",
+      "照合先 1 パッケージ / 2 ファイル、参照元 2 パッケージ / 3 ファイル、公開契約 1 ファイル",
     );
     assert.deepEqual(
       sc039ScanVolumeDimensions(sources).map((d) => d.count),
-      [1, 2, 2, 3],
+      [1, 2, 2, 3, 1],
     );
   });
 });
@@ -1299,7 +1304,13 @@ describe("走査対象の同一性: 照合した集合と指標が測った集�
   test("scanVolumeOf: 渡された集合そのものの件数を名乗る", () => {
     // Given: 2 パッケージ（src 100+86・test 200+68）と 3 つの派生集合
     // When
-    const volume = scanVolumeOf(loadedOf([[100, 200], [86, 68]]), mapOf(29), mapOf(186), mapOf(268));
+    const volume = scanVolumeOf(
+      loadedOf([[100, 200], [86, 68]]),
+      mapOf(29),
+      mapOf(186),
+      mapOf(268),
+      mapOf(4),
+    );
     // Then
     assert.deepEqual(volume, {
       走査パッケージ: 2,
@@ -1308,6 +1319,7 @@ describe("走査対象の同一性: 照合した集合と指標が測った集�
       "SC-039 照合先": 29,
       "SC-039 参照元": 186,
       テスト集合: 268,
+      "SC-039 公開契約": 4,
     });
   });
 
@@ -1317,7 +1329,7 @@ describe("走査対象の同一性: 照合した集合と指標が測った集�
     // When: パッケージを 1 つ落とす
     loaded.pop();
     // Then: 派生集合が同じままでも、走査パッケージと src/test の件数で分かる
-    const volume = scanVolumeOf(loaded, mapOf(29), mapOf(186), mapOf(268));
+    const volume = scanVolumeOf(loaded, mapOf(29), mapOf(186), mapOf(268), mapOf(4));
     assert.equal(volume["走査パッケージ"], 1);
     assert.equal(volume["src ファイル"], 100);
     assert.equal(volume["test ファイル"], 200);
@@ -1329,7 +1341,7 @@ describe("走査対象の同一性: 照合した集合と指標が測った集�
     // When
     packageSrcFiles.delete("k0");
     // Then: 控えた件数ではなく、いまの件数が出る
-    const volume = scanVolumeOf(loadedOf([[1, 1]]), packageSrcFiles, mapOf(186), mapOf(268));
+    const volume = scanVolumeOf(loadedOf([[1, 1]]), packageSrcFiles, mapOf(186), mapOf(268), mapOf(4));
     assert.equal(volume["SC-039 照合先"], 28);
   });
 
@@ -1363,5 +1375,318 @@ describe("走査対象の同一性: 照合した集合と指標が測った集�
     const drift = findScanVolumeDrift({ "SC-039 参照元": 186 }, {});
     // Then: 黙って通さない
     assert.deepEqual(drift, ["SC-039 参照元: 186 → undefined"]);
+  });
+});
+
+import { buildSc039Sources as buildForContract } from "./audit-structure.mjs";
+import {
+  sc039ScanVolumeDimensions as dimensionsForContract,
+  scanVolumeOf as scanVolumeOfForContract,
+} from "./audit-structure.mjs";
+
+describe("SC-039④: 公開契約に載っているだけの値（#182）", () => {
+  describe("extractContractNames: 列挙を値と型に分ける", () => {
+    test("値の再エクスポートは値として拾う", () => {
+      // Given / When
+      const { values, types } = extractContractNames("export { a, b } from './x';");
+      // Then
+      assert.deepEqual(values, ["a", "b"]);
+      assert.deepEqual(types, []);
+    });
+
+    test("`export type { … }` は型として拾う（値には数えない）", () => {
+      // Given / When
+      const { values, types } = extractContractNames("export type { A } from './x';");
+      // Then
+      assert.deepEqual(values, []);
+      assert.deepEqual(types, ["A"]);
+    });
+
+    test("同じ節に混ざるインライン `type` 修飾子も型として拾う", () => {
+      // Given: 値と型が 1 つの節に同居する書き方
+      // When
+      const { values, types } = extractContractNames("export { type A, b } from './x';");
+      // Then
+      assert.deepEqual(values, ["b"]);
+      assert.deepEqual(types, ["A"]);
+    });
+
+    test("`as` で改名していれば公開名は右側（利用者が書くのはこちら）", () => {
+      // Given / When
+      const { values } = extractContractNames("export { internalName as publicName } from './x';");
+      // Then
+      assert.deepEqual(values, ["publicName"]);
+    });
+
+    test("節の中のブロックコメントは名前として拾わない（カンマを含んでも分割を壊さない）", () => {
+      // Given: 中括弧の中にカンマを含むブロックコメントがある列挙
+      const source = "export {\n  a, /* b, c はまだ決めていない */\n  b,\n} from './x';";
+      // When
+      const { values } = extractContractNames(source);
+      // Then: コメントの断片が記号名に化けない
+      assert.deepEqual(values, ["a", "b"]);
+    });
+
+    test("節の中の行コメントは名前として拾わない", () => {
+      // Given: 註釈つきの列挙
+      const source = "export {\n  a, // 説明\n  b,\n} from './x';";
+      // When
+      const { values } = extractContractNames(source);
+      // Then
+      assert.deepEqual(values, ["a", "b"]);
+    });
+  });
+
+  describe("extractNamedImportsFromPackage: そのパッケージ本体からの取り込みだけを見る", () => {
+    test("パッケージ本体からの取り込みを拾う", () => {
+      // Given / When
+      const names = extractNamedImportsFromPackage(
+        "import { a, b } from '@tasuki/poker-core';",
+        "poker-core",
+      );
+      // Then
+      assert.deepEqual([...names].sort(), ["a", "b"]);
+    });
+
+    test("名前空間の綴りには依存しない（末尾のパッケージ名だけを見る）", () => {
+      // Given: 名前空間が変わっても同じパッケージである
+      // When
+      const names = extractNamedImportsFromPackage("import { a } from '@other/poker-core';", "poker-core");
+      // Then
+      assert.deepEqual([...names], ["a"]);
+    });
+
+    test("サブパスからの取り込みは数えない（index.ts を通らないため）", () => {
+      // Given: index.ts を経由しない取り込み
+      // When
+      const names = extractNamedImportsFromPackage(
+        "import { a } from '@tasuki/timer-core/aggregate';",
+        "timer-core",
+      );
+      // Then
+      assert.deepEqual([...names], []);
+    });
+
+    test("相対 import は拾わない（末尾一致が同名の隣接モジュールに当たる）", () => {
+      // Given: `packages/poker-core/src/index.ts` は自分の `./protocol` を再エクスポートしている。
+      //        末尾一致だけを見ると、これが `@tasuki/protocol` からの取り込みに化ける
+      // When
+      const names = extractNamedImportsFromPackage(
+        "export { isKnownErrorCode } from './protocol';",
+        "protocol",
+      );
+      // Then: 記号を黙って「生きている」側へ倒さない
+      assert.deepEqual([...names], []);
+    });
+
+    test("絶対パスの import も拾わない", () => {
+      // Given / When
+      const names = extractNamedImportsFromPackage("import { a } from '/src/protocol';", "protocol");
+      // Then
+      assert.deepEqual([...names], []);
+    });
+
+    test("前方一致の別パッケージは拾わない", () => {
+      // Given / When
+      const names = extractNamedImportsFromPackage("import { a } from '@tasuki/poker-core-extra';", "poker-core");
+      // Then
+      assert.deepEqual([...names], []);
+    });
+
+    test("行コメントの中の import は取り込みとみなさない", () => {
+      // Given: コメントアウトされた取り込み
+      // When
+      const names = extractNamedImportsFromPackage(
+        "// import { computeStats } from '@tasuki/poker-core';",
+        "poker-core",
+      );
+      // Then: 記号を黙って「生きている」側へ倒さない
+      assert.deepEqual([...names], []);
+    });
+
+    test("ブロックコメントの中の import は取り込みとみなさない", () => {
+      // Given / When
+      const names = extractNamedImportsFromPackage(
+        "/* import { computeStats } from '@tasuki/poker-core'; */",
+        "poker-core",
+      );
+      // Then
+      assert.deepEqual([...names], []);
+    });
+
+    test("JSDoc の中で行頭が `*` の行に書かれた import も取り込みとみなさない", () => {
+      // Given: 説明のために import 文を例示する docstring
+      const source = ["/**", " * import { computeStats } from '@tasuki/poker-core';", " */"].join("\n");
+      // When
+      const names = extractNamedImportsFromPackage(source, "poker-core");
+      // Then
+      assert.deepEqual([...names], []);
+    });
+
+    test("文字列リテラルの中の import は取り込みとみなさない", () => {
+      // Given / When
+      const names = extractNamedImportsFromPackage(
+        `const s = "import { computeStats } from '@tasuki/poker-core';";`,
+        "poker-core",
+      );
+      // Then
+      assert.deepEqual([...names], []);
+    });
+
+    test("行頭から始まる本物の import は、字下げされていても拾う", () => {
+      // Given: 条件付き読み込みなどで字下げされた取り込み
+      // When
+      const names = extractNamedImportsFromPackage("  import { a } from '@tasuki/x';", "x");
+      // Then
+      assert.deepEqual([...names], ["a"]);
+    });
+
+    test("複数行にまたがる import も拾う", () => {
+      // Given / When
+      const names = extractNamedImportsFromPackage(
+        "import {\n  a,\n  b,\n} from '@tasuki/x';",
+        "x",
+      );
+      // Then
+      assert.deepEqual([...names].sort(), ["a", "b"]);
+    });
+
+    test("`as` で改名していても、使われている公開名は左側", () => {
+      // Given / When
+      const names = extractNamedImportsFromPackage("import { a as localName } from '@tasuki/x';", "x");
+      // Then
+      assert.deepEqual([...names], ["a"]);
+    });
+
+    test("`import type { … }` も取り込みとして数える", () => {
+      // Given / When
+      const names = extractNamedImportsFromPackage("import type { A } from '@tasuki/x';", "x");
+      // Then
+      assert.deepEqual([...names], ["A"]);
+    });
+
+    test("インライン `type` 修飾子つきの取り込みも数える", () => {
+      // Given / When
+      const names = extractNamedImportsFromPackage("import { type A, b } from '@tasuki/x';", "x");
+      // Then
+      assert.deepEqual([...names].sort(), ["A", "b"]);
+    });
+  });
+
+  describe("sc039dContractOnlyValues: 外から取り込まれない値を数える", () => {
+    const indexOf = (body) => new Map([["packages/x/src/index.ts", body]]);
+
+    test("外部の製品コードが取り込まない値は数える", () => {
+      // Given: index は a を列挙するが、誰も取り込まない
+      const productSources = new Map([["apps/app/src/main.ts", "console.log('何も取り込まない');"]]);
+      // When / Then
+      assert.equal(sc039dContractOnlyValues(indexOf("export { a } from './a';"), productSources), 1);
+    });
+
+    test("外部の製品コードが取り込む値は数えない", () => {
+      // Given / When / Then
+      const productSources = new Map([["apps/app/src/main.ts", "import { a } from '@tasuki/x';"]]);
+      assert.equal(sc039dContractOnlyValues(indexOf("export { a } from './a';"), productSources), 0);
+    });
+
+    test("型は数えない（公開している値の署名から到達できるため）", () => {
+      // Given: 誰も取り込まない型だけを列挙する
+      const productSources = new Map([["apps/app/src/main.ts", "何も取り込まない"]]);
+      // When / Then
+      assert.equal(sc039dContractOnlyValues(indexOf("export type { A } from './a';"), productSources), 0);
+    });
+
+    test("自パッケージの中からの取り込みは生存の根拠にしない", () => {
+      // Given: 同じパッケージの別ファイルが index 経由で取り込んでいる
+      const productSources = new Map([["packages/x/src/other.ts", "import { a } from '@tasuki/x';"]]);
+      // When / Then: index に載せる理由は「外から使われること」なので数える
+      assert.equal(sc039dContractOnlyValues(indexOf("export { a } from './a';"), productSources), 1);
+    });
+
+    test("識別子が字面として現れるだけでは取り込みとみなさない", () => {
+      // Given: import 文の中括弧の外に同じ綴りがあるだけ
+      const productSources = new Map([["apps/app/src/main.ts", "const a = 1; console.log(a);"]]);
+      // When / Then
+      assert.equal(sc039dContractOnlyValues(indexOf("export { a } from './a';"), productSources), 1);
+    });
+
+    test("パッケージが複数あれば合算する", () => {
+      // Given: 2 パッケージがそれぞれ 1 件ずつ死んだ値を持つ
+      const contractFiles = new Map([
+        ["packages/x/src/index.ts", "export { a } from './a';"],
+        ["packages/y/src/index.ts", "export { b } from './b';"],
+      ]);
+      const productSources = new Map([["apps/app/src/main.ts", "何も取り込まない"]]);
+      // When / Then
+      assert.equal(sc039dContractOnlyValues(contractFiles, productSources), 2);
+    });
+
+    test("`packages/` 層でないパスを渡されたら落ちる（黙って 0 件にしない）", () => {
+      // Given: パッケージ名を取り出せないパス
+      const contractFiles = new Map([["apps/app/src/main.tsx", "export { a } from './a';"]]);
+      // When / Then
+      assert.throws(() => sc039dContractOnlyValues(contractFiles, new Map()), /packages/);
+    });
+  });
+
+  describe("走査対象は宣言から導く（#135 の機構・ADR-0014）", () => {
+    const declarations = [
+      { pkg: "packages/alpha", src: "src", test: "tests", entry: "index.ts" },
+      { pkg: "packages/beta", src: "source", test: "tests", entry: "entry.ts" },
+      { pkg: "packages/gamma", src: null, test: "tests", entry: null },
+      { pkg: "apps/delta", src: "src", test: "tests", entry: "main.tsx" },
+    ];
+    const readDir = (pkg, sub) =>
+      new Map([
+        [pkg === "packages/beta" ? "entry.ts" : pkg === "apps/delta" ? "main.tsx" : "index.ts", "export {} from './x';"],
+        ["other.ts", ""],
+      ]);
+
+    test("宣言側: `packages/` 層で src とエントリを持つものだけを挙げる", () => {
+      // Given / When
+      const files = sc039DeclaredContractFiles(loadScanTargets(declarations, readDir));
+      // Then: apps 層は公開契約ではない。src を持たない宣言も入らない
+      assert.deepEqual(files, ["packages/alpha/src/index.ts", "packages/beta/source/entry.ts"]);
+    });
+
+    test("組み立て側: buildSc039Sources が同じ一覧を返す（全単射で照合できる）", () => {
+      // Given / When
+      const { contractFiles } = buildForContract(loadScanTargets(declarations, readDir));
+      // Then
+      assert.deepEqual(
+        [...contractFiles.keys()].sort(),
+        ["packages/alpha/src/index.ts", "packages/beta/source/entry.ts"],
+      );
+    });
+  });
+
+  describe("走査量の申告に公開契約を含める（#198 の機構）", () => {
+    const mapOf = (n) => new Map([...Array(n).keys()].map((i) => [`k${i}`, ""]));
+
+    test("0 件ガードの内訳に公開契約ファイルが入る", () => {
+      // Given / When
+      const dimensions = dimensionsForContract({
+        comparedPackages: ["a"],
+        packageSrcFiles: mapOf(29),
+        referencePackages: ["a"],
+        productSources: mapOf(186),
+        contractFiles: mapOf(4),
+      });
+      // Then
+      assert.ok(dimensions.some((d) => d.count === 4 && /公開契約/.test(d.label)));
+    });
+
+    test("scanVolumeOf が公開契約の件数も名乗る（照合より後段での間引きを見る）", () => {
+      // Given / When
+      const volume = scanVolumeOfForContract(
+        [{ srcFiles: mapOf(1), testFiles: mapOf(1) }],
+        mapOf(29),
+        mapOf(186),
+        mapOf(268),
+        mapOf(4),
+      );
+      // Then
+      assert.equal(volume["SC-039 公開契約"], 4);
+    });
   });
 });

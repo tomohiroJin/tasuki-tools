@@ -866,6 +866,40 @@ describe("SC-039 の走査範囲の配線: scripts/audit-structure.mjs（#180）
     assert.match(r.stderr, /宣言では走査するのに集合へ入っていない:\s+packages\/poker-core\/src\/deck\.ts/);
   });
 
+  test("公開契約（SC-039④）から 1 パッケージ分を間引くと非ゼロで終了し、名指しする", () => {
+    // Given: 公開契約の集合だけを痩せさせる。痩せると「外から取り込まれない値」を
+    //        そのパッケージについて 1 件も数えなくなるが、指標は report-only なので
+    //        値が下がっただけでは誰も気づけない（#182）。走査対象の照合で落とす
+    const mutate = (s) =>
+      s.replace(
+        "      if (entrySource !== undefined) contractFiles.set(prefix + p.entry, entrySource);",
+        '      if (entrySource !== undefined && p.pkg !== "packages/poker-core") contractFiles.set(prefix + p.entry, entrySource);',
+      );
+    // When
+    const r = runScriptCopy("audit-structure.mjs", mutate);
+    // Then: まず「壊れたこと自体」を確かめる（壊す前と後の両方を数える）
+    const original = fs.readFileSync(path.join(SCRIPTS_DIR, "audit-structure.mjs"), "utf8");
+    assert.equal(
+      countOf(original, "      if (entrySource !== undefined) contractFiles.set(prefix + p.entry, entrySource);"),
+      1,
+      "壊す前の組み立て行が 1 件見つかりません",
+    );
+    assert.equal(countOf(r.source, 'p.pkg !== "packages/poker-core"'), 1, "間引きを差し込めていません");
+    // Then: 走査量の表示でも公開契約がちょうど 1 件だけ減っている（**件数は直書きしない**）
+    const control = runScriptCopy("audit-structure.mjs", (x) => x);
+    const readContract = (stdout) => {
+      const m = stdout.match(/公開契約 (\d+) ファイル/);
+      assert.ok(m, `公開契約の走査量を読めません:\n${stdout}`);
+      return Number(m[1]);
+    };
+    assert.equal(readContract(r.stdout), readContract(control.stdout) - 1, "公開契約がちょうど 1 件だけ減っていません");
+    // Then: ファイル単位の照合が落とし、抜けたファイルを名指しする
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.match(r.stderr, /宣言では走査するのに集合へ入っていない:\s+packages\/poker-core\/src\/index\.ts/);
+    // Then: 指標の表は 1 行も出ていない（照合が指標より前にある）
+    assert.equal(countOf(r.stdout, "SC039 |"), 0, "指標の表が出てしまっています");
+  });
+
   test("宣言していないファイルを集合へ混ぜても非ゼロで終了する（逆向き）", () => {
     // Given: 全単射は両方向を見る。宣言に無いものが集合へ入る向きも落とす
     const mutate = (s) =>
@@ -897,7 +931,13 @@ describe("SC-039 の走査範囲の配線: scripts/audit-structure.mjs（#180）
           "  const sc039FileDriftDisabled = diffTargets(",
         )
         .replace(
-          "  if (hasTargetDrift(sc039FileDrift) || hasTargetDrift(sc039RefFileDrift)) {",
+          [
+            "  if (",
+            "    hasTargetDrift(sc039FileDrift) ||",
+            "    hasTargetDrift(sc039RefFileDrift) ||",
+            "    hasTargetDrift(sc039ContractDrift)",
+            "  ) {",
+          ].join("\n"),
           "  if (false) {",
         );
     // When
