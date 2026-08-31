@@ -31,6 +31,7 @@ import { createCommands, type TimerCommands } from "./commands.js";
 import { decideSnapshotIntents } from "./snapshot-intents.js";
 import { buildNoticeMessage, type NoticeSignal } from "./notice-message.js";
 import { buildSyncUrl } from "./sync-url.js";
+import { indicatesStaleRoom } from "./stale-frame.js";
 import {
   saveResumeIdentity,
   loadResumeIdentity,
@@ -56,6 +57,15 @@ import type { CompletionRecord, Room, SessionConfig } from "@tasuki/timer-core";
 const JOIN_RETRY_WAITING_TEXT = "混み合っています。自動で入り直しています…";
 /** 自動で入り直しても入れなかったときの案内（#147）。 */
 const JOIN_RETRY_EXHAUSTED_TEXT = "混雑が続いています。時間をおいてから再読込してください";
+/**
+ * ルームに入る前に同期フレームを捨てたときの案内（#209）。
+ *
+ * **StatusStrip はルームに入るまで描画されない**ので、その間だけバナーで補う。
+ * 再読込を促さないのは、継続する棄却の原因がサーバー側のルームに残った値で、
+ * 再読込しても直らないため（`docs/timer/adr/0006` の追記）。
+ */
+const SYNC_STALE_BEFORE_ROOM_TEXT =
+  "同期できていません。ルームの状態が読み込めないため、先へ進めません。";
 
 export type AppMode = "setup" | "join" | "lobby" | "session" | "celebration" | "history";
 
@@ -71,6 +81,11 @@ export interface TimerSync {
   /** セッション喪失（room-not-found）。再接続では消えない。 */
   sessionLost: boolean;
   connState: ClientConnState;
+  /**
+   * 契約に合わない同期フレームを捨てて以降、新しい状態を受け取れていない（#209）。
+   * 接続は生きているので `connState` では表せない。StatusStrip の「同期不整合」に使う。
+   */
+  syncStale: boolean;
   generatingProblem: boolean;
   /** サーバー時刻との差。Session の残り時間導出に渡す。 */
   clockOffset: number;
@@ -137,6 +152,9 @@ export function useTimerSync(banner: BannerController): TimerSync {
   const [sessionLost, setSessionLost] = useState(false);
   // 接続状態は WS クライアントから明示通知される（banner には結合しない・R5-1）。
   const [connState, setConnState] = useState<ClientConnState>("online");
+  // 契約に合わない同期フレームを捨てて以降、新しい状態を受け取れていない（#209）。
+  // 立てるのは棄却時、下ろすのは**有効な snapshot を受け取ったとき**だけ（下の注記）。
+  const [syncStale, setSyncStale] = useState(false);
   // 注: AI（BYOK/サブスク）はいったん UI から撤去。お題は定型バンクのみ（NoAiProvider）。
   // AI/定型のお題生成中（「別のお題にする」押下〜新お題確定まで）。スピナー＋減光に使う。
   const [generatingProblem, setGeneratingProblem] = useState(false);
@@ -167,6 +185,8 @@ export function useTimerSync(banner: BannerController): TimerSync {
   // 自分たちで自分たちを締め出す。待ち時間とばらつきは join-retry.ts が決める。
   const joinRetryAttemptRef = useRef(0);
   const joinRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // ルームに入る前に出した「同期できていません」のバナーを、自分が出したときだけ消すための印（#209）。
+  const staleBannerShownRef = useRef(false);
   const cancelJoinRetry = () => {
     if (joinRetryTimerRef.current !== null) {
       clearTimeout(joinRetryTimerRef.current);
@@ -216,7 +236,40 @@ export function useTimerSync(banner: BannerController): TimerSync {
   // client インスタンスだけは第1引数で受け取る。`client` state は `makeClient` 直後の
   // メッセージ処理時点ではまだ `null` のため、ここから読んではいけない。
 
+  /**
+   * 契約に合わないフレームを捨てたことを受け取る（#181・#209）。
+   *
+   * **利用者へは StatusStrip の「同期できていません」として出す。** ただし
+   * StatusStrip はルームに入るまで描画されないので、`room` がまだ無い間は
+   * バナーで補う（この経路が無いと、**壊れた値の残ったルームへ入ろうとした人には
+   * 何も表示されない**）。
+   *
+   * **立てるのは「画面が古くなる棄却」だけ。** 判定は `indicatesStaleRoom` が
+   * スキーマの診断（落ちた項目の経路）から行う。サーバーに定期 `snapshot` 配信は
+   * 無いため、一度立てると次に誰かが操作するまで下りない。一過性の棄却で立てると
+   * 静止したロビーでは警告が延々と残る。
+   *
+   * devtools へは落ちた項目の経路だけを残す（値は出さない・ADR 0012）。
+   */
+  const handleInvalidFrame = (paths: string[]) => {
+    console.warn("契約に合わない同期フレームを捨てました:", paths); // log-hygiene:allow 項目の経路のみ（値は出さない）
+    if (!indicatesStaleRoom(paths)) return;
+    setSyncStale(true);
+    if (room === null) {
+      staleBannerShownRef.current = true;
+      showBanner(SYNC_STALE_BEFORE_ROOM_TEXT, "warn", { autoDismiss: false });
+    }
+  };
+
   const handleRoom = (syncClient: SyncClient, r: Room) => {
+    // **画面が実際に新しい状態を得た。** ここだけが「古い」の解除点である（#209）。
+    setSyncStale(false);
+    // ルームに入る前に出したバナーは、入れた時点で役目を終える。
+    // **この解除だけを行う**（無条件の clearBanner は他の通知まで消す）。
+    if (staleBannerShownRef.current) {
+      staleBannerShownRef.current = false;
+      clearBanner();
+    }
     // 入室できたら再試行の数え直し（#147）。次に混雑へ当たったときは 1 回目から始める。
     cancelJoinRetry();
     joinRetryAttemptRef.current = 0;
@@ -344,6 +397,10 @@ export function useTimerSync(banner: BannerController): TimerSync {
         recordSavedRef.current = false;
         setSessionLost(false);
         setRecord(null);
+        // 捨てた同期フレームの警告もルーム由来なので畳む（#209）。
+        // ここで残すと、次に入った別ルームで前のルームの警告が出る。
+        setSyncStale(false);
+        staleBannerShownRef.current = false;
         // 明示的に退出が成立した以上、この参加者としてのリジュームはもう意味を持たない
         // （次に別ルームへ入ったときに誤って古いルームへ復帰しようとしないため・Issue #24・FR-004）。
         clearResumeIdentity();
@@ -467,6 +524,7 @@ export function useTimerSync(banner: BannerController): TimerSync {
     handleError,
     handleReconnected,
     handleNotice,
+    handleInvalidFrame,
   });
 
   // SyncClient の配線を create/join で共有する。
@@ -487,11 +545,9 @@ export function useTimerSync(banner: BannerController): TimerSync {
       onConnectionChange: (s) => setConnState(s),
       onReconnected: () => handlersRef.current.handleReconnected(newClient),
       onNotice: (notice) => handlersRef.current.handleNotice(notice),
-      // 契約に合わないフレームを捨てたことを devtools へ残す（#181）。
-      // **`snapshot` を捨てる状況はほぼ必ず継続し、画面は古いまま固まる。**
-      // 出すのは落ちた項目の経路だけで、値は出さない。利用者への表出は #209。
-      onInvalidFrame: (paths) =>
-        console.warn("契約に合わない同期フレームを捨てました:", paths), // log-hygiene:allow 項目の経路のみ（値は出さない）
+      // 契約に合わないフレームを捨てたことを知らせる（#181・#209）。
+      // 判断と出力は handleInvalidFrame が持つ（room を読む必要があるため転送する）。
+      onInvalidFrame: (paths) => handlersRef.current.handleInvalidFrame(paths),
     });
     newClient.connect();
     setClient(newClient);
@@ -580,6 +636,9 @@ export function useTimerSync(banner: BannerController): TimerSync {
   };
 
   const newSession = () => {
+    // ルーム由来の画面状態は畳む。持ち越すと次のルームで前の警告が出る（#209）。
+    setSyncStale(false);
+    staleBannerShownRef.current = false;
     client?.dispose();
     setClient(null);
     setRoom(null);
@@ -691,6 +750,7 @@ export function useTimerSync(banner: BannerController): TimerSync {
     endType,
     sessionLost,
     connState,
+    syncStale,
     generatingProblem,
     clockOffset: client?.clockOffset ?? 0,
     commands,

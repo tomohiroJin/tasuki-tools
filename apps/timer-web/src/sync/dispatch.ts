@@ -54,6 +54,10 @@ export function dispatchServerMessage(
   try {
     json = JSON.parse(raw as string);
   } catch {
+    // **ここは「最も壊れている」場面である。** 黙って返すと、利用者への表出（#209）から
+    // この場面だけが丸ごと外れる。落ちた項目は挙げようがないので、根で落ちたときと
+    // 同じ `<root>` を渡す。
+    cb.onInvalidFrame?.(["<root>"]);
     return;
   }
 
@@ -67,7 +71,7 @@ export function dispatchServerMessage(
     // **何も出さないと、利用者にも開発者にも原因が分からない。**
     //
     // 値は渡さず、**どの項目で落ちたかの経路だけ**を渡す（ADR 0012 のログ衛生）。
-    // 利用者への表出は別途 #209 で扱う。
+    // 利用者への表出は #209 で扱った（`docs/timer/adr/0006` の追記）。
     cb.onInvalidFrame?.(invalidPaths(parsed.issues));
     return;
   }

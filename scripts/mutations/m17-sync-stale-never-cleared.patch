@@ -1,0 +1,21 @@
+# 変異 17: sync-stale-never-cleared
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/sync/use-timer-sync.test.tsx
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m17-*.patch
+# 復元: git checkout -- <対象ファイル>
+#
+diff --git a/apps/timer-web/src/sync/use-timer-sync.ts b/apps/timer-web/src/sync/use-timer-sync.ts
+index 3302aa9..b13dde9 100644
+--- a/apps/timer-web/src/sync/use-timer-sync.ts
++++ b/apps/timer-web/src/sync/use-timer-sync.ts
+@@ -263,7 +263,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
+ 
+   const handleRoom = (syncClient: SyncClient, r: Room) => {
+     // **画面が実際に新しい状態を得た。** ここだけが「古い」の解除点である（#209）。
+-    setSyncStale(false);
+     // ルームに入る前に出したバナーは、入れた時点で役目を終える。
+     // **この解除だけを行う**（無条件の clearBanner は他の通知まで消す）。
+     if (staleBannerShownRef.current) {

@@ -1,0 +1,23 @@
+# 変異 16: stale-frame-room-prefix
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/sync/stale-frame.test.ts
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m16-*.patch
+# 復元: git checkout -- <対象ファイル>
+#
+diff --git a/apps/timer-web/src/sync/stale-frame.ts b/apps/timer-web/src/sync/stale-frame.ts
+index 450c9dd..7412224 100644
+--- a/apps/timer-web/src/sync/stale-frame.ts
++++ b/apps/timer-web/src/sync/stale-frame.ts
+@@ -37,8 +37,6 @@ export function indicatesStaleRoom(paths: readonly string[]): boolean {
+     (path) =>
+       path === ROOT ||
+       path === DISCRIMINANT ||
+-      path === ROOM ||
+-      // `roomName` のような別項目を巻き込まないよう、区切りまで含めて見る。
+-      path.startsWith(`${ROOM}.`),
++      path === ROOM,
+   );
+ }

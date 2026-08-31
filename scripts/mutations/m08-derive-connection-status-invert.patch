@@ -9,14 +9,15 @@
 # 復元: git checkout -- <対象ファイル>（同じくリポジトリルートから）
 #
 diff --git a/apps/timer-web/src/ui/connection-status.ts b/apps/timer-web/src/ui/connection-status.ts
-index 44268b2..6d0a47a 100644
+index 49bd868..8a2c43a 100644
 --- a/apps/timer-web/src/ui/connection-status.ts
 +++ b/apps/timer-web/src/ui/connection-status.ts
-@@ -7,6 +7,6 @@ import type { ConnectionStatus } from "./components/StatusStrip.js";
- export type ClientConnState = "online" | "reconnecting";
- 
- export function deriveConnectionStatus(sessionLost: boolean, connState: ClientConnState): ConnectionStatus {
+@@ -29,7 +29,7 @@ export function deriveConnectionStatus(
+   connState: ClientConnState,
+   syncStale: boolean,
+ ): ConnectionStatus {
 -  if (sessionLost) return "lost";
 +  if (!sessionLost) return "lost";
+   // 「古い」を出すのは接続が生きているときだけ。切れているならそちらが先。
+   if (syncStale && connState === "online") return "stale";
    return connState;
- }

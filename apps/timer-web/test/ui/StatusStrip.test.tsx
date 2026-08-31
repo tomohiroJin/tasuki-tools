@@ -45,6 +45,14 @@ describe("StatusStrip", () => {
     expect(screen.getByText(/喪失|Lost|lost/i)).toBeTruthy();
   });
 
+  /**
+   * @requirements #209
+   */
+  it("接続状態が stale のとき同期できていないことを表示する", () => {
+    render(<StatusStrip {...baseProps} connectionStatus="stale" />);
+    expect(screen.getByText(/同期できていません|Out of Sync/i)).toBeTruthy();
+  });
+
   it("自分の表示名と役割を表示する", () => {
     // Given（baseProps に displayName="Alice"・role="host" を重ねる）
     // When

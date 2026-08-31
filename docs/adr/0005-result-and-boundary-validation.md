@@ -173,4 +173,12 @@ AI 出力の `validateProblem` 検証など）は、本 ADR では扱わない�
 そこだけが `console.warn` を呼ぶ。
 
 **開発者は気づけるが利用者は気づけない**ので、利用者への表出は
-[#209](https://github.com/tomohiroJin/tasuki-tools/issues/209) で扱う。
+[#209](https://github.com/tomohiroJin/tasuki-tools/issues/209) で扱った（次の追記）。
+
+
+**利用者への表出（#209）は timer 固有の判断なので、`docs/timer/adr/0006` の追記が
+正本である**（`docs/adr/0002` 決定 3: アプリ固有の判断は `docs/<app>/adr/` へ置く）。
+横断的な事実として 1 つだけ書き残す。**`apps/poker-web` の `usePokerSync` も
+`parseServerMessage`（`packages/poker-core/src/protocol.ts`）の失敗を黙って捨てており、
+利用者への表出は無い**（2026-08-31 実測）。#209 の対象外とし、
+[#212](https://github.com/tomohiroJin/tasuki-tools/issues/212) へ切り出した。

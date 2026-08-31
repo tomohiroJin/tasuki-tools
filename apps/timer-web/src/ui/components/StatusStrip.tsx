@@ -10,7 +10,7 @@ import React from "react";
 import type { RoomPhase } from "@tasuki/timer-core";
 import { NotifySettings } from "./NotifySettings.js";
 
-export type ConnectionStatus = "online" | "reconnecting" | "lost";
+export type ConnectionStatus = "online" | "reconnecting" | "lost" | "stale";
 
 interface StatusStripProps {
   phase: RoomPhase | "lobby";
@@ -35,10 +35,21 @@ const ROLE_LABEL: Record<string, string> = {
 };
 
 // 接続状態の色（ダークステージ上で視認できる明るめの値・色＋テキスト併記）。
+//
+// `stale` は「接続は生きているのに、契約に合わない同期フレームを捨てていて
+// 画面が古いままになっている」状態（#209）。**再読込を促す文言は置かない** ——
+// 継続する棄却の原因はサーバー側のルームに残った値なので、再読込しても直らず
+// 嘘の導線になる。ここは「起きていること」だけを述べる。
+//
+// **文言は自己ホスト書体の base 層に収まる字だけで書く。** base 層はアプリの表示文字から
+// 抽出したもので、外れる字を 1 つ足すと ext 層（約 210 KB）を追加取得する
+// （`packages/ui/README.md`）。「同期不整合」の「整」がまさに base 層外だったため
+// 「同期できていません」にした（2026-08-31・`fonts.css` の unicode-range を実測）。
 const CONNECTION_CONFIG: Record<ConnectionStatus, { label: string; className: string }> = {
   online: { label: "接続中 (Connected)", className: "text-[var(--ok)]" },
   reconnecting: { label: "再接続中… (Reconnecting)", className: "text-[var(--caution)]" },
   lost: { label: "セッション喪失 (Session Lost)", className: "text-[var(--urgent)]" },
+  stale: { label: "同期できていません (Out of Sync)", className: "text-[var(--caution)]" },
 };
 
 export function StatusStrip({

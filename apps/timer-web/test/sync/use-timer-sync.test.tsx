@@ -435,3 +435,187 @@ describe("混雑で入室を拒まれたとき", () => {
     }
   });
 });
+
+/**
+ * 契約に合わない同期フレームを捨てたことを、利用者へ表出できる形で持つ。
+ *
+ * **`snapshot` の棄却はほぼ必ず継続する。** 契約に合わない値はサーバー側のルームに
+ * 残り続けるため、以後すべての `snapshot` が捨てられ、画面は生きて見えたまま
+ * 古い状態で固まる。ここで見るのは「固まっていることが状態として出ているか」と、
+ * 「まだルームに入れていない間も伝わるか」である。
+ *
+ * @requirements #209
+ */
+describe("useTimerSync: 捨てた同期フレームの表出", () => {
+  /** show の引数と clear の両方を記録する差し替え。 */
+  function recordingBanner(): BannerController & {
+    shown: Array<[string, Banner["kind"], { autoDismiss?: boolean } | undefined]>;
+    cleared: number;
+  } {
+    const shown: Array<[string, Banner["kind"], { autoDismiss?: boolean } | undefined]> = [];
+    const state = { banner: null, shown, cleared: 0 } as BannerController & {
+      shown: typeof shown;
+      cleared: number;
+    };
+    state.show = (text, kind, options) => void shown.push([text, kind, options]);
+    state.clear = () => void (state.cleared += 1);
+    return state;
+  }
+
+  /** 接続だけ済ませた状態。**まだ snapshot は届いていないので room は無い。** */
+  function connected(banner: BannerController = fakeBanner()) {
+    const hook = renderHook(() => useTimerSync(banner));
+    act(() => hook.result.current.createRoom("Host"));
+    const ws = latestSocket();
+    act(() => {
+      ws.readyState = FakeWS.OPEN;
+      ws.onopen?.();
+    });
+    const deliver = (msg: Record<string, unknown>) =>
+      act(() => void ws.onmessage?.({ data: JSON.stringify(msg) } as MessageEvent));
+    return { ...hook, ws, banner, deliver };
+  }
+
+  const aValidSnapshot = () => ({ type: "snapshot", room: aRoomView({ code: "ROOM01" }) });
+
+  /**
+   * ADR 0005 の追記が挙げた実際の経路と同じ壊し方をする。
+   * `config.members` の要素は `displayNameStr`（最小長 1）なので、空文字が載ると落ちる。
+   */
+  function aFrameThatViolatesTheContract(): Record<string, unknown> {
+    const room = aRoomView({ code: "ROOM01" });
+    return { type: "snapshot", room: { ...room, config: { ...room.config, members: [""] } } };
+  }
+
+  /** ルームの状態を載せていないフレームの棄却（交代シグナルの `nextDriverName` 欠落）。 */
+  const aDroppedSignal = () => ({ type: "signal", signal: "switch" });
+
+  it("初期状態では同期は古くない", () => {
+    // Given
+    const { result } = connected();
+    // Then
+    expect(result.current.syncStale).toBe(false);
+  });
+
+  it("ルームの中身で落ちたフレームを捨てると同期が古い状態になる", () => {
+    // Given
+    const { result, deliver } = connected();
+    deliver(aValidSnapshot());
+    // When
+    deliver(aFrameThatViolatesTheContract());
+    // Then
+    expect(result.current.syncStale).toBe(true);
+  });
+
+  /**
+   * **一過性の棄却で警告を立てない。** サーバーに定期 `snapshot` 配信は無いので、
+   * 一度立てると次に誰かが操作するまで下りない。画面が古くならない棄却では立てない。
+   */
+  it("ルームの状態を載せていないフレームの棄却では古い状態にしない", () => {
+    // Given
+    const { result, deliver } = connected();
+    deliver(aValidSnapshot());
+    // When
+    deliver(aDroppedSignal());
+    // Then
+    expect(result.current.syncStale).toBe(false);
+  });
+
+  it("捨てたフレームの中身は画面に入らない（前の状態のまま固まる）", () => {
+    // Given
+    const { result, deliver } = connected();
+    deliver(aValidSnapshot());
+    // When
+    deliver(aFrameThatViolatesTheContract());
+    // Then（捨てられたので room は前のまま）
+    expect(result.current.room?.config.members).toEqual(["Host"]);
+  });
+
+  it("有効な snapshot を受け取ると同期が古い状態から戻る", () => {
+    // Given
+    const { result, deliver } = connected();
+    deliver(aFrameThatViolatesTheContract());
+    expect(result.current.syncStale).toBe(true);
+    // When
+    deliver(aValidSnapshot());
+    // Then
+    expect(result.current.syncStale).toBe(false);
+  });
+
+  /**
+   * **点滅の回帰テスト。** クライアントは 10 秒ごとに `time.ping` を送り、
+   * `time.pong` が返る。`snapshot` だけが落ち続ける状況で「有効なフレームが来たら
+   * 解除」にすると、pong のたびに表示が消えて次の snapshot で戻る。
+   * 解除条件は「画面が実際に新しい状態を得たとき」に限る。
+   */
+  it("time.pong を受け取っても同期が古い状態は戻らない", () => {
+    // Given
+    const { result, deliver } = connected();
+    deliver(aFrameThatViolatesTheContract());
+    expect(result.current.syncStale).toBe(true);
+    // When
+    deliver({ type: "time.pong", serverTime: 1_000 });
+    // Then
+    expect(result.current.syncStale).toBe(true);
+  });
+
+  /**
+   * **StatusStrip はルームに入るまで描画されない**（`App.tsx` が
+   * `mode !== "setup" && mode !== "join"` を条件にしている）。そして `mode` を動かすのは
+   * 有効な `snapshot` だけなので、**最初の `snapshot` を捨てると表示する場所が無い。**
+   * その間だけバナーで補う。
+   */
+  it("ルームに入る前の棄却は、消えないバナーで伝える", () => {
+    // Given
+    const banner = recordingBanner();
+    const { deliver } = connected(banner);
+    // When（room がまだ無い状態で最初の snapshot が落ちる）
+    deliver(aFrameThatViolatesTheContract());
+    // Then
+    expect(banner.shown).toHaveLength(1);
+    const [text, kind, options] = banner.shown[0]!;
+    expect(text).toContain("同期できていません");
+    expect(kind).toBe("warn");
+    // 継続する異常なので、時間で消してはいけない
+    expect(options?.autoDismiss).toBe(false);
+  });
+
+  it("ルームに入った後の棄却ではバナーを出さない（StatusStrip に任せる）", () => {
+    // Given
+    const banner = recordingBanner();
+    const { deliver } = connected(banner);
+    deliver(aValidSnapshot());
+    const before = banner.shown.length;
+    // When
+    deliver(aFrameThatViolatesTheContract());
+    // Then
+    expect(banner.shown.length).toBe(before);
+  });
+
+  it("ルームに入れたらバナーを消す", () => {
+    // Given
+    const banner = recordingBanner();
+    const { deliver } = connected(banner);
+    deliver(aFrameThatViolatesTheContract());
+    const before = banner.cleared;
+    // When
+    deliver(aValidSnapshot());
+    // Then
+    expect(banner.cleared).toBeGreaterThan(before);
+  });
+
+  /**
+   * ルーム由来の画面状態は退出・やり直しで畳む（FR-128 と同じ扱い）。
+   * 持ち越すと、次のルームに入った瞬間に前のルームの警告が出る。
+   */
+  it("新しいセッションを始めると古い状態を持ち越さない", () => {
+    // Given
+    const { result, deliver } = connected();
+    deliver(aFrameThatViolatesTheContract());
+    expect(result.current.syncStale).toBe(true);
+    // When
+    act(() => result.current.newSession());
+    // Then
+    expect(result.current.syncStale).toBe(false);
+  });
+});
