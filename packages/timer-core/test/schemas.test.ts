@@ -5,7 +5,9 @@
 
 import { describe, it, expect } from "vitest";
 import * as v from "valibot";
-import { CommandSchema, RoomSchema, ServerMsgSchema } from "../src/index.js";
+import { CommandSchema, ServerMsgSchema } from "../src/index.js";
+// RoomSchema は公開契約に載せない（取り込むのがテストだけのため。#220）。
+import { RoomSchema } from "../src/schemas.js";
 
 describe("CommandSchema host.transfer", () => {
   it("participantId 付きの host.transfer は success", () => {

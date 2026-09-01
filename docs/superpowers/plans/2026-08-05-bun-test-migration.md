@@ -57,6 +57,21 @@ Issue #25（半開き接続の検出）の中核が検証できなくなる。�
 > timer-sync には該当する import が 1 件も無いため実害は無いが、timer-web には
 > 12 件あり（vite/vitest の alias で解決）、**timer-sync だけが使えない非対称**が残る。
 
+> ⚠⚠ **再訂正（2026-09-02・#220）—— 上の訂正が現在は再現しない。**
+>
+> 同じ `@tasuki/timer-core/evolve` の import を `apps/timer-sync/test` へ置いて
+> `bun test` を流すと**通る**。`paths` を存在しないディレクトリへ向けると
+> `Cannot find module` で落ちるので、**解決経路は tsconfig の `paths` そのもの**である。
+>
+> **どちらの測定も直接測定であり、原因は特定できていない。** bun のバージョン文字列は
+> 当時と同じ 1.3.14、`paths` ブロックは #61 以降未変更、`include` の射程（#173 で
+> `src` → `src` + `test`）も無関係だと対照実行で確かめた。追っていない差分として
+> node_modules の配置がある（#185 で `--virtual-store-dir` へ移行）。
+>
+> **上の訂正はこの文書の記録として残す。** 現在の挙動と、それに依存している箇所
+> （`apps/timer-sync/test/error-code-coverage.test.ts` 1 本）は
+> `apps/timer-sync/tsconfig.json` のコメントが正本である。
+
 **順序が肝**: WebSocket の接続確立は**実タイマーのうちに済ませ**、その後でフェイク化する。
 
 ## API 対応表
