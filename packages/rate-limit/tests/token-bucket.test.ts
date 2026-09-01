@@ -4,13 +4,10 @@
  * `now` を引数で受けるので、実時間に一切依存しない（タイマーも sleep も使わない）。
  */
 import { describe, it, expect } from "vitest";
-import {
-  createTokenBucketLimiter,
-  DEFAULT_CAPACITY,
-  DEFAULT_REFILL_PER_SEC,
-  DEFAULT_SWEEP_THRESHOLD,
-  MAX_SWEEP_THRESHOLD,
-} from "../src/index.js";
+import { createTokenBucketLimiter, DEFAULT_CAPACITY, DEFAULT_REFILL_PER_SEC } from "../src/index.js";
+// 掃除しきい値の 2 つは公開契約（index.ts）に載せない —— 外の製品コードが取り込まないため
+// （#221）。宣言ファイルから直接取る（client-key.test.ts の normalizeClientAddress と同じ形）。
+import { DEFAULT_SWEEP_THRESHOLD, MAX_SWEEP_THRESHOLD } from "../src/token-bucket.js";
 
 const T0 = 1_000_000;
 
