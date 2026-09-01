@@ -7,13 +7,11 @@
 
 import { describe, it, expect } from "vitest";
 import * as v from "valibot";
-import {
-  normalizeDisplayName,
-  nameSkeleton,
-  conflictsWithExisting,
-  CommandSchema,
-  MAX_DISPLAY_NAME,
-} from "../src/index.js";
+import { nameSkeleton, conflictsWithExisting, CommandSchema } from "../src/index.js";
+// 公開契約（index.ts）に載せない記号は宣言ファイルから直接取る（#220）。
+// 外の製品コードが取り込まないものは列挙しない、が ADR-0016 追記の条件である。
+import { normalizeDisplayName } from "../src/display-name.js";
+import { MAX_DISPLAY_NAME } from "../src/aggregate.js";
 
 describe("normalizeDisplayName", () => {
   it("前後の空白を落とす（HTML が畳んで見分けが付かなくなるのを防ぐ）", () => {

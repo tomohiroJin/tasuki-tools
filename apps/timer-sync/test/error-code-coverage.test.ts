@@ -32,12 +32,13 @@
 import { describe, it, expect } from "bun:test";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import {
-  ERROR_MESSAGES,
-  DEFAULT_ERROR_MESSAGE,
-  displayMessageFor,
-  SYNC_ERROR_CODES,
-} from "@tasuki/timer-core";
+import { ERROR_MESSAGES, displayMessageFor } from "@tasuki/timer-core";
+// ⚠ **この 2 つはサブパスから取る。** どちらも公開契約（`index.ts` の列挙）には
+// 載っていない —— 取り込んでいるのがこのテストだけであり、テストからの参照は
+// 公開の根拠にしない（FR-090・ADR-0016 追記・#220）。宣言側の `export` は
+// SC-039③ の例外表がこのテストを理由に守っている（両者は独立した判断である）。
+import { SYNC_ERROR_CODES } from "@tasuki/timer-core/errors";
+import { DEFAULT_ERROR_MESSAGE } from "@tasuki/timer-core/error-messages";
 
 const SRC_DIR = join(import.meta.dirname, "../src");
 

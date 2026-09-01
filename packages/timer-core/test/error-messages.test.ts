@@ -15,12 +15,9 @@
  */
 
 import { describe, it, expect } from "vitest";
-import {
-  ERROR_MESSAGES,
-  DEFAULT_ERROR_MESSAGE,
-  displayMessageFor,
-  errorMessageFor,
-} from "../src/index.js";
+import { ERROR_MESSAGES, displayMessageFor, errorMessageFor } from "../src/index.js";
+// DEFAULT_ERROR_MESSAGE は公開契約に載せない（取り込むのがテストだけのため。#220）。
+import { DEFAULT_ERROR_MESSAGE } from "../src/error-messages.js";
 
 /**
  * **画面に文言が出るコードの集合。ここを増やすと利用者に見える文言が変わる。**
