@@ -36,7 +36,10 @@ import { ERROR_MESSAGES, displayMessageFor } from "@tasuki/timer-core";
 // ⚠ **この 2 つはサブパスから取る。** どちらも公開契約（`index.ts` の列挙）には
 // 載っていない —— 取り込んでいるのがこのテストだけであり、テストからの参照は
 // 公開の根拠にしない（FR-090・ADR-0016 追記・#220）。宣言側の `export` は
-// SC-039③ の例外表がこのテストを理由に守っている（両者は独立した判断である）。
+// SC-039③ の例外表（`SC039C_EXCEPTIONS`）が守っているが、**理由は 2 つで別**である:
+// `SYNC_ERROR_CODES` はこのテストが権威列挙の起点にしていること、
+// `DEFAULT_ERROR_MESSAGE` は既定文言の正本であること（このテストとは無関係）。
+// いずれにせよ③（宣言の `export` の要否）と④（公開面に載せる理由）は独立している。
 import { SYNC_ERROR_CODES } from "@tasuki/timer-core/errors";
 import { DEFAULT_ERROR_MESSAGE } from "@tasuki/timer-core/error-messages";
 

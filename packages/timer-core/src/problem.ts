@@ -29,9 +29,17 @@ export interface FallbackProblemEntry {
  * お題オブジェクトを Valibot で検証する
  * AI 由来のテキストを信頼しないデータとして扱う（FR-023）
  */
-export function validateProblem(
-  raw: unknown,
-): Result<Problem, v.ValiError<typeof ProblemSchema>> {
+/**
+ * {@link validateProblem} が返す失敗の型。
+ *
+ * **名前を与えているのは、公開契約から `ProblemSchema`（値）を落としたためである**（#220）。
+ * 素の `v.ValiError<typeof ProblemSchema>` は値 `ProblemSchema` が公開されていないと
+ * 外から書けない。エラー分岐へ注釈を書きたい利用者に名前を渡すのはこの型の役目で、
+ * ADR-0016 追記の「型は署名から到達できるなら列挙してよい」に乗る。
+ */
+export type ProblemValidationError = v.ValiError<typeof ProblemSchema>;
+
+export function validateProblem(raw: unknown): Result<Problem, ProblemValidationError> {
   const result = v.safeParse(ProblemSchema, raw);
   if (result.success) {
     return ok(result.output);

@@ -11,19 +11,32 @@
  * - **型**は、載せた値の**署名から到達できる**なら載せる。取り込まれていなくても
  *   契約の一部である —— `decide(…): Result<DomainEvent[], DomainError>` は型推論が
  *   効くので誰も `DomainError` を書かないが、注釈を書きたい利用者は名前を要求する。
- *   **下の型はすべてこの理由で残している。**
+ *   **下の型はすべてこの理由で残している**（到達しなくなった `FallbackProblemEntry` は
+ *   2026-09-02 に落とした。参照していた唯一の値 `FALLBACK_PROBLEMS` を落としたため）。
+ *
+ * **値を落とすと、その値を型の位置で使う署名が書けなくなることがある。**
+ * `validateProblem` の失敗型は `v.ValiError<typeof ProblemSchema>` だったので、
+ * `ProblemSchema`（値）を落とすと外から名前で書けなくなった。`ProblemValidationError`
+ * という型別名を与えて解いてある。**値を落とす前に、その値が型の位置に現れないか見ること。**
  *
  * 値の側は `scripts/audit-structure.mjs` の SC-039④ が見張る（型は数えない）。
  *
  * ## サブパス入口があるものは、ここに載せない（#220）
  *
  * このパッケージには `index.ts` のほかに**モジュール単位のサブパス入口**がある
- * （`@tasuki/timer-core/aggregate` など。配線は `apps/timer-web` の
- * `vite.config.ts` / `vitest.config.ts` の alias と、各 app の `tsconfig.json` の
- * `paths`）。上限値の定数（`MAX_DISPLAY_NAME` など）と `elapsedMs`
- * `VALID_INTERVAL_MINUTES` は `apps/timer-web` が**このサブパスから**取り込んでおり、
+ * （`@tasuki/timer-core/aggregate` など）。上限値の定数（`MAX_DISPLAY_NAME` など）と
+ * `elapsedMs` `VALID_INTERVAL_MINUTES` は `apps/timer-web` が**このサブパスから**取り込んでおり、
  * index を通らない。**index の列挙が使われた根拠にならない**ので、2026-09-02 に
  * ここから落とした（利用側は無変更。SC-039④ の判定も同じ理由でサブパスを数えない）。
+ *
+ * ⚠ **サブパスの配線は app ごとに違い、モジュールごとに揃ってもいない。**
+ * `apps/timer-web` は `vite.config.ts` / `vitest.config.ts` の alias で解決するが、
+ * **並んでいるのは 8 モジュールだけ**（aggregate / events / errors / decide / evolve /
+ * schemas / problem / records）。一方 `tsconfig.json` の `paths` は
+ * `@tasuki/timer-core/*` のワイルドカードなので、**alias の無いモジュールを
+ * timer-web から取り込むと typecheck は緑のまま build と vitest だけが落ちる。**
+ * 新しいサブパスを timer-web で使うときは、alias を 2 つの設定へ足すこと。
+ * `apps/timer-sync` は tsconfig の `paths` で解決する（下の注意書きも読むこと）。
  *
  * 同じ理由で、テストだけが取り込む値も載せない（FR-090。テストからの参照は
  * 公開の根拠にしない）。`SYNC_ERROR_CODES` と `DEFAULT_ERROR_MESSAGE` は
@@ -68,7 +81,7 @@ export { evolve, advanceDriver } from "./evolve.js";
 export type { ServerMsg, Command } from "./schemas.js";
 export { CommandSchema, ServerMsgSchema } from "./schemas.js";
 // お題
-export type { ProblemWithSource, FallbackProblemEntry } from "./problem.js";
+export type { ProblemWithSource, ProblemValidationError } from "./problem.js";
 export { validateProblem, pickFallback, buildProblemPrompt } from "./problem.js";
 // 記録
 export { buildCompletionRecord } from "./records.js";
