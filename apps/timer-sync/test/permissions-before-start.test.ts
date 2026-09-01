@@ -10,11 +10,13 @@
 
 import { describe, it, expect, beforeEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
+import { makeTestHandlers } from "./support/room-builder.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { SessionConfig } from "@tasuki/timer-core";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
+import type { RoomScopedCommand } from "../src/application/handlers.js";
 
 const config: SessionConfig = {
   language: "TypeScript",
@@ -41,7 +43,7 @@ describe("開始前の権限（従来どおり主催者主導）", () => {
   beforeEach(async () => {
     store = new InMemoryRoomStore();
     broadcaster = new SpyBroadcaster();
-    handlers = makeHandlers({
+    handlers = makeTestHandlers({
       store,
       clock: new FakeClock(1000000),
       broadcaster,
@@ -93,7 +95,7 @@ describe("開始前の権限（従来どおり主催者主導）", () => {
 
   describe("ホスト限定コマンド（層①・層⑤）は editor が実行できない", () => {
     // 開始後に緩和される 7 コマンド。T013 と同じ集合を使い、段階による差を対比させる。
-    const hostOnlyCases: Array<[string, () => Record<string, unknown>]> = [
+    const hostOnlyCases: Array<[string, () => RoomScopedCommand]> = [
       ["driver.assign", () => ({ command: "driver.assign", participantId: carolPid })],
       ["member.shuffle", () => ({ command: "member.shuffle" })],
       ["member.move", () => ({ command: "member.move", fromIndex: 0, toIndex: 2 })],

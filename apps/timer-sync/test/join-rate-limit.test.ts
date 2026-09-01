@@ -24,6 +24,7 @@
 import { describe, it, expect, beforeEach } from "bun:test";
 import { DEFAULT_CAPACITY } from "@tasuki/rate-limit";
 import { makeHandlers } from "../src/application/handlers.js";
+import { makeTestHandlers } from "./support/room-builder.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
@@ -46,7 +47,7 @@ describe("入室失敗のレート制限", () => {
   beforeEach(() => {
     broadcaster = new SpyBroadcaster();
     store = new InMemoryRoomStore();
-    handlers = makeHandlers({
+    handlers = makeTestHandlers({
       store,
       clock: new FakeClock(1_000_000),
       broadcaster,
@@ -110,7 +111,7 @@ describe("入室失敗のレート制限", () => {
     // Given（使い切る）
     const clock = new FakeClock(1_000_000);
     broadcaster = new SpyBroadcaster();
-    handlers = makeHandlers({
+    handlers = makeTestHandlers({
       store: new InMemoryRoomStore(),
       clock,
       broadcaster,
@@ -179,7 +180,7 @@ describe("room.join と ai.unlock のレート制限バケツの共有", () => {
     store = new InMemoryRoomStore();
     clock = new FakeClock(1_000_000);
     broadcaster = new SpyBroadcaster();
-    handlers = makeHandlers({
+    handlers = makeTestHandlers({
       store,
       clock,
       broadcaster,

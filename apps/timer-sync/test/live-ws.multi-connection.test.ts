@@ -184,6 +184,10 @@ describe("実 WS・複数接続", () => {
     // Then 1: 依頼は**ホストではなく代表候補のソケットへ**届く
     const needProblem = await guest.take("signal", (m) => m.signal === "need-problem");
     expect(needProblem).toMatchObject({ signal: "need-problem", requestId: "req-1" });
+    // deadlineMs を持つのは need-problem の枝だけなので、判別子で絞ってから読む
+    if (needProblem.signal !== "need-problem") {
+      throw new Error(`need-problem が来ていない: ${needProblem.signal}`);
+    }
     expect(needProblem.deadlineMs).toBeGreaterThan(0);
 
     // When: 代表が生成結果を投入する

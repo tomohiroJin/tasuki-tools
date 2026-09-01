@@ -268,7 +268,7 @@ describe("ProblemDelegator: 代表生成", () => {
 
 // ─── problemMode による委譲分岐テスト ────────────────────────────────────────
 
-import type { Room, Participant } from "@tasuki/timer-core";
+import type { Participant } from "@tasuki/timer-core";
 
 function makeRoomWithMode(mode: "ai" | "fallback", hasAiKey: boolean): Room {
   const participant: Participant = {

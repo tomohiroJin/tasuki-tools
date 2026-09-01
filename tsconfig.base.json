@@ -20,8 +20,10 @@
     "isolatedModules": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    // 既定は出力しない。tsc で出力するパッケージ（timer-core / timer-sync）だけが
-    // 自分の tsconfig で noEmit: false と declaration / outDir を指定する。
+    // 出力しない。**tsc で出力するパッケージはもう 1 つも無い**（#173）。
+    // かつては timer-core / timer-sync が noEmit: false と declaration / outDir を
+    // 上書きしていたが、その出力を読む側が 0 件だったので廃した。
+    // 出力が要るのは web（vite）と sync（bun build）で、どちらも tsc を通らない。
     "noEmit": true
   }
 }

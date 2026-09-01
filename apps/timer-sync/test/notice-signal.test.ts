@@ -10,11 +10,13 @@
 
 import { describe, it, expect, beforeEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
+import { makeTestHandlers } from "./support/room-builder.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { ServerMsg, SessionConfig } from "@tasuki/timer-core";
 import { SpyBroadcaster as SharedSpyBroadcaster } from "./support/spy-broadcaster.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
+import type { RoomScopedCommand } from "../src/application/handlers.js";
 
 /**
  * notice の内容と、配信時点での在室者を記録するスパイ。
@@ -71,10 +73,13 @@ describe("signal: notice（実行者の通知）", () => {
     return undefined;
   };
 
+  /** notice の action（配信される値そのものから導く。表と実体を食い違わせない） */
+  type NoticeAction = NonNullable<ReturnType<typeof lastNotice>>["action"];
+
   beforeEach(async () => {
     store = new InMemoryRoomStore();
     broadcaster = new NoticeSpyBroadcaster();
-    handlers = makeHandlers({
+    handlers = makeTestHandlers({
       store, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen(),
     });
     const created = await handlers.handleCommand(HOST, {
@@ -93,7 +98,7 @@ describe("signal: notice（実行者の通知）", () => {
   });
 
   describe("① 各操作で notice が配信される", () => {
-    const cases: Array<[string, string, () => Record<string, unknown>]> = [
+    const cases: Array<[string, NoticeAction, () => RoomScopedCommand]> = [
       ["session.abort", "session-aborted", () => ({ command: "session.abort" })],
       ["session.reset", "session-reset", () => ({ command: "session.reset" })],
       ["session.complete", "session-completed", () => ({ command: "session.complete" })],
@@ -236,7 +241,7 @@ describe("退出させられた本人への通知", () => {
   beforeEach(async () => {
     store = new InMemoryRoomStore();
     broadcaster = new NoticeSpyBroadcaster();
-    handlers = makeHandlers({
+    handlers = makeTestHandlers({
       store, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen(),
     });
     const created = await handlers.handleCommand(HOST, {

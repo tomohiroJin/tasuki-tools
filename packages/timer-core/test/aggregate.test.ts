@@ -80,7 +80,7 @@ describe("Participant 型の v2 フィールド", () => {
       presence: "online",
       hasAiKey: false,
       joinedAt: 1000,
-    };
+    } as const;
     // When（isPlaceholder なしでも Participant 型として受理されることを確認する）
     const participant: import("../src/aggregate.js").Participant = requiredFields;
     // Then（型レベルの確認。isPlaceholder は省略 → undefined 扱いで false 相当）
@@ -98,7 +98,7 @@ describe("Participant 型の v2 フィールド", () => {
       presence: "online",
       hasAiKey: false,
       joinedAt: 1000,
-    };
+    } as const;
     // When（driverEligible なしでも Participant 型として受理されることを確認する）
     const participant: import("../src/aggregate.js").Participant = requiredFields;
     // Then

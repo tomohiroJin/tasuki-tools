@@ -5,6 +5,7 @@
 
 import { describe, it, expect, beforeEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
+import { makeTestHandlers } from "./support/room-builder.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { Room } from "@tasuki/timer-core";
@@ -81,7 +82,7 @@ describe("handlers: host.transfer（明示的ホスト移譲）", () => {
     clock = new FakeClock(1000000);
     codeGen = new FakeCodeGen();
     broadcaster = new SpyBroadcaster();
-    handlers = makeHandlers({ store, clock, broadcaster, codeGen });
+    handlers = makeTestHandlers({ store, clock, broadcaster, codeGen });
     store.put(makeTestRoom("HX01"));
   });
 

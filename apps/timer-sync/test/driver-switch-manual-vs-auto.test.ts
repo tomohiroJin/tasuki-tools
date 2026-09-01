@@ -17,6 +17,7 @@
 import { describe, it, expect } from "bun:test";
 import { advanceDriver } from "@tasuki/timer-core";
 import { makeHandlers } from "../src/application/handlers.js";
+import { makeTestHandlers } from "./support/room-builder.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { SessionConfig, Room } from "@tasuki/timer-core";
@@ -88,7 +89,7 @@ describe("手動 SWITCH と自動交代（advanceDriver）の一致（B-2統合�
     ];
     const manualStore = new InMemoryRoomStore();
     const manualClock = new FakeClock(1_000_000);
-    const manualHandlers = makeHandlers({
+    const manualHandlers = makeTestHandlers({
       store: manualStore,
       clock: manualClock,
       broadcaster: new SpyBroadcaster(),
@@ -119,7 +120,7 @@ describe("手動 SWITCH と自動交代（advanceDriver）の一致（B-2統合�
     // Given（rotation [A] のみ。decide の nextIndex は自分自身になる）
     const manualStore = new InMemoryRoomStore();
     const manualClock = new FakeClock(1_000_000);
-    const manualHandlers = makeHandlers({
+    const manualHandlers = makeTestHandlers({
       store: manualStore,
       clock: manualClock,
       broadcaster: new SpyBroadcaster(),

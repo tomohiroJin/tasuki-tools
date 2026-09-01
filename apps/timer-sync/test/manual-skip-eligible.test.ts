@@ -4,6 +4,7 @@
  */
 import { describe, it, expect, beforeEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
+import { makeTestHandlers } from "./support/room-builder.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { SessionConfig, Room } from "@tasuki/timer-core";
@@ -43,7 +44,7 @@ describe("手動スキップの eligibility（v2.10 #3）", () => {
   let handlers: ReturnType<typeof makeHandlers>;
   beforeEach(() => {
     store = new InMemoryRoomStore();
-    handlers = makeHandlers({ store, clock: new FakeClock(1_000_000), broadcaster: new SpyBroadcaster(), codeGen: new FakeCodeGen() });
+    handlers = makeTestHandlers({ store, clock: new FakeClock(1_000_000), broadcaster: new SpyBroadcaster(), codeGen: new FakeCodeGen() });
   });
 
   it("一時離脱(driverEligible=false)の次メンバーを飛ばして次の eligible へ進む", async () => {

@@ -19,11 +19,18 @@ import { publicText, type LogField } from "../../src/application/log/log-safe.js
  * 「Unused '@ts-expect-error' directive.（TS2578）」で落ちる。**
  * 検査の向きが逆（エラーが出ないことを検出する）である点が要点である。
  *
- * ⚠ このファイルが型検査に掛かるのは `apps/timer-sync/tsconfig.test.json` の
- * `include` に `test/log/**\/*` があるからである。パッケージ既定の
- * `tsconfig.json` は `src/**\/*` しか見ておらず、そちらではこのテストは
- * **1 行も型検査されない**（実測: わざと壊した .ts を test/ へ置いても緑のまま通った）。
- * `package.json` の `typecheck` スクリプトがこの設定を指していることが前提条件である。
+ * ⚠ **このファイルが型検査に掛かることが前提条件である。** 掛からなければ
+ * `@ts-expect-error` は 1 ミリも仕事をしない（実測: わざと壊した .ts を test/ へ置いても
+ * 緑のまま通った時期がある）。掛かる根拠は `apps/timer-sync/tsconfig.json` の
+ * `include` に `test` があること、および `package.json` の `typecheck` が
+ * `tsc --noEmit`（＝この tsconfig）を指していることの 2 つである。
+ *
+ * **#136 の時点では専用の `tsconfig.test.json` が `test/log/**\/*` だけを射程に入れていた**
+ * （当時の既定 `tsconfig.json` は `src/**\/*` しか見ていなかった）。#173 で `test` 全体を
+ * 射程へ入れたので、その専用設定は役目を終えて削除した。射程はむしろ広がっている。
+ *
+ * 実測（#173）: `LogField` に `string` を足すと、ここの 3 行が
+ * `TS2578 Unused '@ts-expect-error' directive.` で落ちる。
  */
 describe("LogField の型の壁", () => {
   it("生の string を LogField へ代入できない", () => {

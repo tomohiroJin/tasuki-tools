@@ -100,13 +100,19 @@ export interface HandlerDeps {
    *
    * **必須にしてある。** 以前は「省略時は presence 抜きの既定値」にしていたが、それだと
    * 本番の配線から注入を外しても全テストが緑のままだった（既定値が代わりに動き、
-   * 不在タイマーの解放だけが静かに失われる）。`tsconfig.json` の `include` は
-   * `["src/**\/*"]` なので、必須にすると `tsc --noEmit` が `create-sync-server.ts` の
-   * 漏れを検出する。テスト（`test/**`）は include の外なので影響を受けない。
+   * 不在タイマーの解放だけが静かに失われる）。必須にすると `tsc --noEmit` が
+   * `create-sync-server.ts` の漏れを検出する。
    *
-   * ⚠ **この対処は「テストが型検査の対象外である」ことに依存している。**
-   * `include` にテストを加えるなら、その時点でテスト側の呼び出しにも
-   * この依存を渡すか、別の形で本番配線を検査すること。
+   * **かつてこの対処は「テストが型検査の対象外である」ことに依存していた**
+   * （`tsconfig.json` の `include` が `["src/**\/*"]` だった）。#173 でテストを
+   * 射程へ入れた（`include` は `["src", "test"]`）ので、その依存はもう無い。
+   * 申し送りどおり、**テスト側は既定を 1 箇所で受け取る** ——
+   * `test/support/room-builder.ts` の `makeTestHandlers` が
+   * `unwiredDestroyRoom`（呼ばれたら throw）を既定にしている。
+   *
+   * ⚠ **optional へ戻してはならない。** 戻すと本番の配線から注入を外しても
+   * 既定値が代わりに動き、上に書いた後退がそのまま再現する。
+   * 実測（#173）: `create-sync-server.ts` から注入を外すと `TS2345` で落ちる。
    */
   destroyRoom: (roomCode: string) => void;
 }

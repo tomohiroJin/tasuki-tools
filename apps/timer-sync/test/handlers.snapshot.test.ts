@@ -4,6 +4,7 @@
 
 import { describe, it, expect, beforeEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
+import { makeTestHandlers } from "./support/room-builder.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
@@ -24,7 +25,7 @@ describe("handlers: full snapshot 配信フロー", () => {
     clock = new FakeClock(1000000);
     codeGen = new FakeCodeGen();
     broadcaster = new SpyBroadcaster();
-    handlers = makeHandlers({ store, clock, broadcaster, codeGen });
+    handlers = makeTestHandlers({ store, clock, broadcaster, codeGen });
   });
 
   it("コマンド処理後に全参加者へ snapshot を配信する", async () => {

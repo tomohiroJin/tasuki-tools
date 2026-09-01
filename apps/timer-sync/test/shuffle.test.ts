@@ -5,6 +5,7 @@
 
 import { describe, it, expect, beforeEach, jest, afterEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
+import { makeTestHandlers } from "./support/room-builder.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { SessionConfig, Room } from "@tasuki/timer-core";
@@ -89,7 +90,7 @@ describe("member.shuffle（サーバー権威のランダム化）", () => {
   beforeEach(() => {
     store = new InMemoryRoomStore();
     broadcaster = new SpyBroadcaster();
-    handlers = makeHandlers({
+    handlers = makeTestHandlers({
       store,
       clock: new FakeClock(1_000_000),
       broadcaster,

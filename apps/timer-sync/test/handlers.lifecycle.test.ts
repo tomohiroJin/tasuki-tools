@@ -6,6 +6,7 @@
 
 import { describe, it, expect, jest, beforeEach, afterEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
+import { makeTestHandlers } from "./support/room-builder.js";
 import { Scheduler } from "../src/application/schedule.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
@@ -65,7 +66,7 @@ describe("session.complete: 記録と phase 遷移", () => {
     store = new InMemoryRoomStore();
     clock = new FakeClock(1000000);
     broadcaster = new SpyBroadcaster();
-    handlers = makeHandlers({ store, clock, broadcaster, codeGen: new FakeCodeGen() });
+    handlers = makeTestHandlers({ store, clock, broadcaster, codeGen: new FakeCodeGen() });
   });
 
   it("お題確定後の完成で sessionRecords に記録が追加され phase=celebration になる", async () => {
@@ -124,7 +125,7 @@ describe("session.reset: 最初から再スタート（v2.3 #3）", () => {
     store = new InMemoryRoomStore();
     clock = new FakeClock(1000000);
     broadcaster = new SpyBroadcaster();
-    handlers = makeHandlers({ store, clock, broadcaster, codeGen: new FakeCodeGen() });
+    handlers = makeTestHandlers({ store, clock, broadcaster, codeGen: new FakeCodeGen() });
   });
 
   // v2.3 #3: リセットは「最初から再スタート」になった。session 画面に留まり
@@ -201,7 +202,7 @@ describe("メンバー編集と config.members 同期", () => {
     store = new InMemoryRoomStore();
     clock = new FakeClock(1000000);
     broadcaster = new SpyBroadcaster();
-    handlers = makeHandlers({ store, clock, broadcaster, codeGen: new FakeCodeGen() });
+    handlers = makeTestHandlers({ store, clock, broadcaster, codeGen: new FakeCodeGen() });
   });
 
   it("member.add 後、config.members が rotation に同期する", async () => {
@@ -254,7 +255,7 @@ describe("config.set: Room.config への反映", () => {
   beforeEach(() => {
     store = new InMemoryRoomStore();
     broadcaster = new SpyBroadcaster();
-    handlers = makeHandlers({ store, clock: new FakeClock(1000000), broadcaster, codeGen: new FakeCodeGen() });
+    handlers = makeTestHandlers({ store, clock: new FakeClock(1000000), broadcaster, codeGen: new FakeCodeGen() });
   });
 
   it("language/difficulty を変更すると Room.config が更新される（メンバー名に汚染されない）", async () => {
@@ -320,7 +321,7 @@ describe("role.set: 役割変更", () => {
   beforeEach(async () => {
     store = new InMemoryRoomStore();
     broadcaster = new SpyBroadcaster();
-    handlers = makeHandlers({ store, clock: new FakeClock(1000000), broadcaster, codeGen: new FakeCodeGen() });
+    handlers = makeTestHandlers({ store, clock: new FakeClock(1000000), broadcaster, codeGen: new FakeCodeGen() });
     code = await setupRoom(handlers, store);
     await handlers.handleCommand("viewer-conn", {
       command: "room.join",
@@ -380,7 +381,7 @@ describe("自動交代: スケジューラ配線", () => {
     clock = new FakeClock(1000000);
     broadcaster = new SpyBroadcaster();
     scheduler = new Scheduler(clock);
-    handlers = makeHandlers({ store, clock, broadcaster, codeGen: new FakeCodeGen(), scheduler });
+    handlers = makeTestHandlers({ store, clock, broadcaster, codeGen: new FakeCodeGen(), scheduler });
   });
 
   afterEach(() => {
@@ -458,7 +459,7 @@ describe("ドライバー一時離脱と現ドライバー skip の繰り上げ�
     clock = new FakeClock(1000000);
     broadcaster = new SpyBroadcaster();
     scheduler = new Scheduler(clock);
-    handlers = makeHandlers({ store, clock, broadcaster, codeGen: new FakeCodeGen(), scheduler });
+    handlers = makeTestHandlers({ store, clock, broadcaster, codeGen: new FakeCodeGen(), scheduler });
   });
 
   afterEach(() => {

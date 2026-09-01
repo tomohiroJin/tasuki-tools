@@ -5,6 +5,7 @@
  */
 import { describe, it, expect, beforeEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
+import { makeTestHandlers } from "./support/room-builder.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { Scheduler } from "../src/application/schedule.js";
@@ -104,7 +105,7 @@ describe("session.act RESTART（Issue #14 持ち時間のやり直し）", () =>
     clock = new FakeClock(START);
     scheduler = new SpyScheduler();
     broadcaster = new SpyBroadcaster();
-    handlers = makeHandlers({
+    handlers = makeTestHandlers({
       store,
       clock,
       broadcaster,

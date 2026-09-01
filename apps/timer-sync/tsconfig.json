@@ -3,18 +3,7 @@
   "compilerOptions": {
     // WS アダプタが Bun.serve を使うため（poker-sync と同じ指定）。
     "types": ["bun"],
-    // ルートの base は noEmit: true が既定。このパッケージは tsc で dist を出すので上書きする。
-    "noEmit": false,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "outDir": "./dist",
-    // paths が @tasuki/timer-core を ../../packages/timer-core/src へ向けているため、共通ルートは
-    // このパッケージではなくワークスペース直下（../..）になる。TypeScript 5.x は黙って
-    // そう推論していたが、6.0 からは明示が必須（TS5011）。既に dist/apps/sync/src/... へ
-    // 出力されているので、この指定は現在のレイアウトを明文化するだけで挙動は変わらない。
-    "rootDir": "../..",
-    // ⚠ この paths が効くのは tsc（typecheck / build）だけ。**Bun の実行時解決には使われない**
+    // ⚠ この paths が効くのは tsc（typecheck）だけ。**Bun の実行時解決には使われない**
     // （2026-08-05 実測: paths を存在しないファイルに向けてもテストは緑のまま通る）。
     // bun test は pnpm workspace の symlink と timer-core の main: "./src/index.ts" で
     // bare な @tasuki/timer-core を解決する。そのため **サブパス（@tasuki/timer-core/aggregate
@@ -26,6 +15,11 @@
       "@tasuki/timer-core/*": ["../../packages/timer-core/src/*.ts"]
     }
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  // **emit しない。** 以前は tsc で dist を出し、rootDir: "../.." を明示していたが、
+  // その出力を読む側が 1 つも無かった（#173 で実測: 本番は deploy/timer/app.env の
+  // SYNC_ENTRY=apps/timer-sync/src/server.ts を bun build が直接束ねる。
+  // BUILD_FILTER は @tasuki/timer-web だけなのでデプロイはここの build を呼ばない）。
+  // 出力をやめたので rootDir が不要になり、typecheck 専用の tsconfig.test.json も
+  // 要らなくなった（テストを射程へ入れると build がテストまで dist へ吐く、が理由だった）。
+  "include": ["src", "test"]
 }

@@ -24,7 +24,7 @@ describe("handlers: room.create", () => {
     clock = new FakeClock(1000000);
     codeGen = new FakeCodeGen();
     broadcaster = new SpyBroadcaster();
-    handlers = makeHandlers({ store, clock, broadcaster, codeGen });
+    handlers = makeTestHandlers({ store, clock, broadcaster, codeGen });
   });
 
   it("ルームを作成すると一意のルームコードが発行される", async () => {
@@ -89,7 +89,7 @@ describe("handlers: room.create — maxRooms 上限", () => {
     codeGen = new FakeCodeGen();
     broadcaster = new SpyBroadcaster();
     // maxRooms: 1 で上限を1に設定
-    handlers = makeHandlers({ store, clock, broadcaster, codeGen, maxRooms: 1 });
+    handlers = makeTestHandlers({ store, clock, broadcaster, codeGen, maxRooms: 1 });
   });
 
   it("maxRooms に達すると次の room.create は ROOM_LIMIT_EXCEEDED で失敗する", async () => {

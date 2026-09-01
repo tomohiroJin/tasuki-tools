@@ -30,7 +30,7 @@
 import { WebSocket } from "ws";
 import { createSyncServer, type SyncServer } from "../../src/create-sync-server.js";
 import { loadSyncConfig } from "../../src/config.js";
-import type { Command, Room, ServerMsg } from "@tasuki/timer-core";
+import type { Command, ServerMsg } from "@tasuki/timer-core";
 
 /** 待ちの既定タイムアウト（ms）。実 I/O を挟むので in-process より長く取る。 */
 const DEFAULT_TIMEOUT_MS = 3_000;
@@ -146,8 +146,15 @@ export class LiveClient {
     }
   }
 
-  /** 直近に届いた snapshot のルーム。1 度も届いていなければ throw する。 */
-  latestRoom(): Room {
+  /**
+   * 直近に届いた snapshot のルーム。1 度も届いていなければ throw する。
+   *
+   * 戻り値は **snapshot メッセージが実際に運ぶ型**であり、`@tasuki/timer-core` の `Room`
+   * ではない。両者は省略可能プロパティの表し方が違い（前者は `?: T | undefined`、
+   * 後者は `?: T`）、`exactOptionalPropertyTypes` の下では代入できない。
+   * 返しているものをそのまま名乗る（#173）。
+   */
+  latestRoom(): MsgOf<"snapshot">["room"] {
     for (let i = this.received.length - 1; i >= 0; i--) {
       const msg = this.received[i]!;
       if (msg.type === "snapshot") return msg.room;
@@ -263,7 +270,11 @@ export async function createRoom(
     "room.created",
   );
   if (msg.type !== "room.created") {
-    throw new LiveSetupError(`room.create("${displayName}") が ${msg.code} で失敗した`);
+    // takeMatching は ServerMsg 全体を返すので、述語で絞った先を型にも伝える
+    // （error 以外はここへ来ない。来たなら type をそのまま出す）
+    throw new LiveSetupError(
+      `room.create("${displayName}") が ${msg.type === "error" ? msg.code : msg.type} で失敗した`,
+    );
   }
   return msg;
 }
@@ -287,7 +298,9 @@ export async function joinRoom(
     "room.joined",
   );
   if (msg.type !== "room.joined") {
-    throw new LiveSetupError(`room.join("${displayName}") が ${msg.code} で失敗した`);
+    throw new LiveSetupError(
+      `room.join("${displayName}") が ${msg.type === "error" ? msg.code : msg.type} で失敗した`,
+    );
   }
   return msg;
 }

@@ -5,7 +5,7 @@
 
 import { describe, it, expect, beforeEach } from "bun:test";
 import { DEFAULT_CAPACITY } from "@tasuki/rate-limit";
-import { makeHandlers } from "../src/application/handlers.js";
+import { makeTestHandlers } from "./support/room-builder.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
@@ -25,7 +25,7 @@ describe("ai.unlock", () => {
 
   it("合言葉一致で aiUnlocked=true・problemMode=ai になり snapshot 配信される", async () => {
     // Given
-    const handlers = makeHandlers({
+    const handlers = makeTestHandlers({
       store,
       clock,
       broadcaster,
@@ -61,7 +61,7 @@ describe("ai.unlock", () => {
 
   it("合言葉不一致は AI_UNLOCK_FAILED でルームは変化しない", async () => {
     // Given
-    const handlers = makeHandlers({
+    const handlers = makeTestHandlers({
       store,
       clock,
       broadcaster,
@@ -97,7 +97,7 @@ describe("ai.unlock", () => {
 
   it("aiUnlockKey 未設定（機能無効）では正しい合言葉でも AI_UNLOCK_FAILED（存在秘匿）", async () => {
     // Given（aiUnlockKey を渡さない）
-    const handlers = makeHandlers({
+    const handlers = makeTestHandlers({
       store,
       clock,
       broadcaster,
@@ -128,7 +128,7 @@ describe("ai.unlock", () => {
 
   it("host 以外は UNAUTHORIZED で拒否される", async () => {
     // Given
-    const handlers = makeHandlers({
+    const handlers = makeTestHandlers({
       store,
       clock,
       broadcaster,
@@ -169,7 +169,7 @@ describe("ai.unlock", () => {
 
   it("連続失敗はレート制限される（room.join と同じバケツを共用）", async () => {
     // Given（誤ったキーで容量ぶん試みてレート制限を使い切る）
-    const handlers = makeHandlers({
+    const handlers = makeTestHandlers({
       store,
       clock,
       broadcaster,

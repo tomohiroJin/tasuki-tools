@@ -4,6 +4,7 @@
 
 import { describe, it, expect, jest, beforeEach, afterEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
+import { makeTestHandlers } from "./support/room-builder.js";
 import { ProblemDelegator } from "../src/application/problem-delegation.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
@@ -45,7 +46,7 @@ describe("handlers: problem.request / problem.submit", () => {
     clock = new FakeClock(1000000);
     broadcaster = new SpyBroadcaster();
     delegator = new ProblemDelegator({ store, clock, broadcaster, logger: testLogger, refEncoder: testRefEncoder });
-    handlers = makeHandlers({ store, clock, broadcaster, codeGen: new FakeCodeGen(), delegator });
+    handlers = makeTestHandlers({ store, clock, broadcaster, codeGen: new FakeCodeGen(), delegator });
 
     // host が AI 鍵ありでルーム作成（room.create は hasAiKey を持たないため後で更新）
     const create = await handlers.handleCommand("host-conn", {

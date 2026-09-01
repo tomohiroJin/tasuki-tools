@@ -403,7 +403,6 @@ describe("decide: participant.rename", () => {
         command: "participant.rename",
         participantId: "p1",
         displayName: "Alice",
-        currentDisplayName: "Alice",
       },
       baseAgg,
       NOW,

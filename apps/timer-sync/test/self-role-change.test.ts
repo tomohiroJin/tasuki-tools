@@ -12,6 +12,7 @@
 
 import { describe, it, expect, beforeEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
+import { makeTestHandlers } from "./support/room-builder.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { Room, SessionConfig } from "@tasuki/timer-core";
@@ -55,7 +56,7 @@ describe("role.set: 自分の役割の変更", () => {
   beforeEach(async () => {
     store = new InMemoryRoomStore();
     broadcaster = new SpyBroadcaster();
-    handlers = makeHandlers({
+    handlers = makeTestHandlers({
       store, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen(),
     });
     const created = await handlers.handleCommand(HOST, {
