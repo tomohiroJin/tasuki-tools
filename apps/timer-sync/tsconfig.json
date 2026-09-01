@@ -3,13 +3,22 @@
   "compilerOptions": {
     // WS アダプタが Bun.serve を使うため（poker-sync と同じ指定）。
     "types": ["bun"],
-    // ⚠ この paths が効くのは tsc（typecheck）だけ。**Bun の実行時解決には使われない**
-    // （2026-08-05 実測: paths を存在しないファイルに向けてもテストは緑のまま通る）。
-    // bun test は pnpm workspace の symlink と timer-core の main: "./src/index.ts" で
-    // bare な @tasuki/timer-core を解決する。そのため **サブパス（@tasuki/timer-core/aggregate
-    // など）は bun test では解決できない**。timer-sync に該当する import は 0 件なので
-    // 現状は無害だが、追加するとテストだけが落ちる。timer-web は vite/vitest の alias で
-    // 解決できるため 12 箇所で使っており、そこだけ事情が違う。
+    // ⚠ **この paths は typecheck 専用ではない。bun test の実行時解決にも効く**
+    // （2026-09-02 実測・bun 1.3.14。下の行を存在しないディレクトリへ向けると
+    // `Cannot find module '@tasuki/timer-core/errors'` で落ちる）。壊すと赤くなる。
+    //
+    // 指定子の形で事情が違う。
+    //
+    // - bare な `@tasuki/timer-core` は pnpm workspace の symlink と timer-core の
+    //   main: "./src/index.ts" でも解決できる。**paths を壊しても緑のまま通る**
+    //   （2026-08-05 実測）。この観測から「paths は Bun の実行時解決に使われない」と
+    //   一般化した記述が長く残っていたが、誤りだった。
+    // - サブパス（`@tasuki/timer-core/errors` など）は symlink 側に実体が無い
+    //   （実体は packages/timer-core/src/ 配下）。**下の paths だけが解決経路**である。
+    //
+    // サブパスは apps/timer-sync/test/error-code-coverage.test.ts が使っている
+    // （公開契約に載せない値をテストが取るため。#220）。timer-web は vite/vitest の
+    // alias で解決しており、そちらは別配線である。
     "paths": {
       "@tasuki/timer-core": ["../../packages/timer-core/src/index.ts"],
       "@tasuki/timer-core/*": ["../../packages/timer-core/src/*.ts"]
