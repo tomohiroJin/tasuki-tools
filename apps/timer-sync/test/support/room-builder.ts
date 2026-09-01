@@ -182,7 +182,7 @@ class RoomBuilder {
  * `destroyRoom` を渡しておらず、破棄経路に入れば `undefined` が呼ばれて `TypeError` で
  * 落ちていた。no-op にするとその場面が黙って成功へ変わる。throw なら現状のままである。
  *
- * 破棄そのものを観測したいテストは {@link ../spy-destroyer.js spyDestroyer} を
+ * 破棄そのものを観測したいテストは {@link ./spy-destroyer.js spyDestroyer} を
  * `destroyRoom` へ渡すこと（`destroy-room.test.ts` / `solo-leave.test.ts` がそうしている）。
  */
 function unwiredDestroyRoom(roomCode: string): never {

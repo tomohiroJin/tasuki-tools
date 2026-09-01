@@ -23,8 +23,11 @@
  * - **2 と 3 は実在する穴である。「まだ見ていないだけ」ではない。**
  *   `packages/timer-core/src/evil.tsx` も `packages/timer-core/src/dist/evil.ts` も、
  *   tsc に食われ、import でき、実行される普通のコードでありながらこの検査をすり抜ける
- *   （`tsconfig.json` の `exclude: ["node_modules","dist","test"]` が外すのはパッケージ直下の
- *   `./dist` だけで、`src/dist` は外れない）。レビュアーが陽性対照 `src/evil.ts` と並べて
+ *   （走査対象を決めているのは `readTsFiles` の basename 判定であり、tsconfig とは無関係である。
+ *   当時は `packages/timer-core/tsconfig.json` の `exclude: ["node_modules","dist","test"]` が
+ *   外すのはパッケージ直下の `./dist` だけで `src/dist` は外れない、と補足していたが、
+ *   #173 でその `exclude` ごと消えた。**穴の有無は変わらない** —— 読み飛ばしを決めているのは
+ *   この検査自身だからである）。レビュアーが陽性対照 `src/evil.ts` と並べて
  *   `.tsx` / `.mts` / `src/dist/*.ts` / `src/node_modules/*.ts` の 4 通りで実測した。
  *
  * ## コメント行の扱い — **読み飛ばさない**
