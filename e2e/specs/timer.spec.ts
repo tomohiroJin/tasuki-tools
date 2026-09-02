@@ -8,8 +8,10 @@
  * - タグ無し #11 / #12 — #76 F-1 / F-3 の回帰防止（`local` 専用）。
  * - タグ無し #209 — 契約に合わない同期フレームを捨てたことの表出（`local` 専用。
  *   実サーバーの枠を使ううえ、壊れたフレームは本番では作れない）。
+ * - タグ無し #142 — 同期サーバーの再起動でルームが消えたときの見え方（#76 F-4 の回帰。
+ *   `local` 専用。本番のルームを消すことになるので本番では走らせない）。
  */
-import type { Page } from '@playwright/test';
+import type { Locator, Page, WebSocketRoute } from '@playwright/test';
 import { expect, test } from '../fixtures/test';
 import {
   corruptSnapshotFrame,
@@ -19,6 +21,7 @@ import {
   invitedUrlText,
   joinAsDriver,
   joinAsDriverAt,
+  joinMissingRoomFrame,
   lobbyRotationRow,
   statusStrip,
 } from '../support/timer';
@@ -273,5 +276,123 @@ test.describe('契約に合わない同期フレームを捨てたことが画�
     // Then: 画面に出す場所が無いので、バナーで伝える
     await expect(guest.page.getByText(/同期できていません/)).toBeVisible();
     expect(corrupter.count(), '壊した snapshot の数').toBeGreaterThan(0);
+  });
+});
+
+
+/**
+ * 同期サーバーが再起動してルームが消えたときの見え方（#142・#76 F-4 の回帰防止）。
+ *
+ * 本番は揮発インメモリなので、**再起動はルームの全消滅と同義**である。直す前は
+ * StatusStrip が「セッション喪失」に変わるだけで、タイマー・一時停止・スキップが
+ * そのまま押せる状態で残っていた。押しても何も起きず、やり直す導線も無かった。
+ *
+ * **サーバーは止めない。** 止めると全 worker の共有資源が消え、無関係なシナリオを
+ * 巻き込む（`playwright.config.ts` は local で並列実行する）。代わりに、そのページの
+ * WS だけを落とし、**再接続の `room.join` を存在しないルームへ向ける**。再起動した
+ * サーバーにとって元のコードが「知らないコード」になるのと同じ状態に置くわけで、
+ * **返ってくる `ROOM_NOT_FOUND` は実サーバーが出す本物**である（#209 と同じ流儀）。
+ */
+test.describe('timer のルームが消えたら操作を止めて、やり直す導線を出す', () => {
+  /**
+   * そのページの WS を仲介し、**再接続した瞬間から行き先を「消えたルーム」へ**変える。
+   *
+   * **書き換えた回数を数えて返す。** 契約やフレームの形が変わって
+   * `joinMissingRoomFrame` が素通しへ退化すると、症状は「喪失の画面が出ない」という
+   * 原因の読めない失敗になる。**仕掛けが働かなかったことを、そう言えるようにする。**
+   */
+  async function roomVanishesOnReconnect(
+    page: Page,
+  ): Promise<{ vanish: () => Promise<void>; rewritten: () => number }> {
+    let connections = 0;
+    let rewritten = 0;
+    let live: { toPage: WebSocketRoute; toServer: WebSocketRoute } | undefined;
+
+    await page.routeWebSocket(/\/timer\/ws$/, (ws) => {
+      connections += 1;
+      // 2 本目以降＝再接続。ここから先は「再起動したサーバー」を相手にする
+      const roomIsGone = connections > 1;
+      const server = ws.connectToServer();
+      live = { toPage: ws, toServer: server };
+      ws.onMessage((message) => {
+        const payload = typeof message === 'string' ? message : message.toString();
+        const next = roomIsGone ? joinMissingRoomFrame(payload) : payload;
+        if (next !== payload) rewritten += 1;
+        server.send(next);
+      });
+      server.onMessage((message) => ws.send(message));
+    });
+
+    return {
+      // **両側を落とす。** ページ側だけ閉じるとサーバーは元の接続を掴んだままで、
+      // 「再起動した」状態から離れる
+      vanish: async () => {
+        await live?.toServer.close();
+        await live?.toPage.close();
+      },
+      rewritten: () => rewritten,
+    };
+  }
+
+  /** セッション中に編集者が押せる操作。**押せることを先に確かめてから**消滅を見る。 */
+  function sessionControls(page: Page): readonly (readonly [string, Locator])[] {
+    return [
+      ['スキップ', page.getByRole('button', { name: 'スキップ', exact: true })],
+      ['一時停止', page.getByRole('button', { name: '一時停止', exact: true })],
+      ['完成!', page.getByRole('button', { name: '完成!', exact: true })],
+    ] as const;
+  }
+
+  test('Given 2 人がセッション中 / When 同期サーバーが再起動してルームが消える / Then 効かない操作が残らず、やり直す導線が出る', async ({
+    page,
+    openPeer,
+  }) => {
+    // Given: **仕掛けは goto より前に置く。** 後から足すと最初の接続を仲介できず、
+    //        再接続かどうかの数え上げが 1 本ずれる
+    const host = await roomVanishesOnReconnect(page);
+    const code = await createRoom(page, HOST);
+    const guest = await openPeer('timer-session-lost');
+    const visitor = await roomVanishesOnReconnect(guest.page);
+    await joinAsDriver(guest.page, code, GUEST);
+
+    // Given の確認: 2 人が別人として輪に並び、セッションが始まっている
+    await expect(lobbyRotationRow(page, HOST, 1), '作成者の画面の 1 番目').toHaveCount(1);
+    await expect(lobbyRotationRow(page, GUEST, 2), '作成者の画面の 2 番目').toHaveCount(1);
+    await page.getByRole('button', { name: 'セッションを開始' }).click();
+
+    // Given の確認（対照）: **失う前は、これらが実際に押せる。**
+    // この錨が無いと、後の「押せる要素が無い」は最初から無かっただけかもしれない
+    const controls = sessionControls(page);
+    for (const [label, control] of controls) {
+      await expect(control, `喪失前に押せない操作（${label}）`).toBeEnabled();
+    }
+
+    // When: サーバーが再起動し、ルームが消える
+    await Promise.all([host.vanish(), visitor.vanish()]);
+
+    // Then その1: 何が起きたのかが画面に出る。**両方の画面で**同じに見える
+    for (const [label, target] of screens(page, guest.page)) {
+      await expect(
+        target.getByRole('heading', { name: 'セッションが見つかりません' }),
+        `${label}の画面`,
+      ).toBeVisible();
+    }
+
+    // Then その2: **効かない操作が残っていない。** 直す前はここが全部残っていた
+    for (const [label, control] of controls) {
+      await expect(control, `喪失後も残っている操作（${label}）`).toHaveCount(0);
+    }
+
+    // Then その3: やり直す導線と、端末の記録へ戻る道がある
+    await expect(
+      page.getByRole('button', { name: '新しいセッションを始める' }),
+      'やり直す導線',
+    ).toBeEnabled();
+    await expect(page.getByRole('button', { name: '記録を見る' }), '記録への導線').toBeEnabled();
+
+    // Then その4: **仕掛けが実際に働いた。** 0 件なら、ここまでの判定は
+    // 「ルームが消えたから」ではなく別の理由で成立したことになる
+    expect(host.rewritten(), '作成者の書き換えた room.join の数').toBeGreaterThan(0);
+    expect(visitor.rewritten(), '2 人目の書き換えた room.join の数').toBeGreaterThan(0);
   });
 });

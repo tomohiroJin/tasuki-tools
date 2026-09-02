@@ -7,9 +7,10 @@
  * - タグ無し #13 — #76 J-1 の回帰防止（`local` 専用）。
  * - タグ無し #212 — 契約に合わない `room-state` を捨てたことの表出（`local` 専用。
  *   実ルームの枠を使ううえ、壊れたフレームは本番では作れない）。
+ * - タグ無し #142 — 同期サーバーへ繋がらないときの見え方（#76 F-2 の回帰。`local` 専用）。
  */
 import { expect, test } from '../fixtures/test';
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import {
   addUnknownKeyToErrorFrame,
   addUnknownKeysToRoomStateFrame,
@@ -347,5 +348,76 @@ test.describe('poker の room-state に契約が知らないキーが乗って�
 
     // Then その4: 捨てていないので、捨てた告知は出ない
     await expect(page.getByText(/同期できていません/)).toHaveCount(0);
+  });
+});
+
+
+/**
+ * 同期サーバーへ繋がらないときの見え方（#142・#76 F-2 の回帰防止）。
+ *
+ * poker-sync が起動していないと「参加する」「ルームを作成」が永久に無効になり、
+ * 画面には「接続中です…」だけが出ていた。**一時的な状態にしか見えず、押せない
+ * 理由も分からない。** #76 で「使い物にならない」と報告された事象の正体である。
+ *
+ * **サーバーは止めない。** 止めると全 worker の共有資源が消え、無関係なシナリオを
+ * 巻き込む（`playwright.config.ts` は local で並列実行する）。代わりに、そのページの
+ * WS だけを成立させない。**`connectToServer()` を呼ばないので実サーバーには
+ * 一切触れず**、クライアントから見た状態（一度も繋がっていない）は
+ * サーバーを落としたときと同じになる。
+ */
+test.describe('poker の同期サーバーへ繋がらないことが画面から分かる', () => {
+  /**
+   * そのページの WS を**成立させない**。
+   *
+   * 実測: この形だと `open` は一度も起きず、`everConnected` が false のまま
+   * `failedAttempts` だけが増える。つまり画面は「切断された」ではなく
+   * **「最初から繋がらない」**として扱う —— これが F-2 の場面そのものである。
+   */
+  async function syncServerIsDown(page: Page): Promise<void> {
+    await page.routeWebSocket(/\/poker\/ws$/, (ws) => {
+      void ws.close();
+    });
+  }
+
+  /** 接続の告知。**`role` まで含めて掴む。** 読み上げに乗ることが F-2 の要件である。 */
+  function unreachableAlert(page: Page): Locator {
+    return page.getByRole('alert');
+  }
+
+  test('Given 同期サーバーが停止している / When 利用者が poker を開く / Then 繋がらないことと押せない理由が読み上げ可能な形で示される', async ({
+    page,
+  }) => {
+    // Given: 繋がらない状態で開く
+    await syncServerIsDown(page);
+    await page.goto('/poker/');
+
+    // Then その1: **読み上げに乗る形で**、繋がらないことが伝わっている。
+    // 直す前はここが `role="status"` の「接続中です…」だけだった
+    const notice = unreachableAlert(page);
+    await expect(notice, '接続できないことの告知').toHaveCount(1);
+    await expect(notice, '接続できないことの告知が見えていない').toBeVisible();
+    await expect(notice).toContainText('同期サーバーに接続できません');
+
+    // Then その2: **「接続中です…」のまま留まらない。**
+    // 上で告知そのものが在ることを固定してあるので、この否定は空振りしない
+    await expect(notice, '一時的な状態として案内し続けている').not.toContainText('接続中です');
+
+    // Then その3: 待っても直らないことと、いま何ができないかが書かれている
+    await expect(notice, '復旧まで何ができないかの説明').toContainText('ルームの作成と参加はできません');
+
+    // Then その4: **実際に押せない。** 告知の内容と画面の状態が食い違わない
+    await expect(
+      page.getByRole('button', { name: 'ルームを作成' }),
+      'トップのルーム作成',
+    ).toBeDisabled();
+
+    // Then その5: **招待リンクから来た人にも同じことが伝わる。**
+    // #76 で無効のまま放置されていたのは「参加する」も同じだった
+    await page.goto('/poker/room/e2e-unreachable');
+    await expect(page.getByRole('heading', { name: 'ルームに参加' })).toBeVisible();
+    await expect(unreachableAlert(page), '参加画面での告知').toContainText(
+      '同期サーバーに接続できません',
+    );
+    await expect(page.getByRole('button', { name: '参加する' }), 'ルームへの参加').toBeDisabled();
   });
 });
