@@ -143,7 +143,10 @@ export function corruptSnapshotFrame(payload: string): string {
  * 捏造すると、サーバーがコードを変えた日にこの検査だけが古い契約のまま緑になる）。
  *
  * `code` は `nonEmptyString` なので、この値は境界検証を通って `store.get(code)` まで
- * 到達する（`room-join.ts`）。**別のエラーコードに化けない**ことが、この検査が見たい
- * 経路を通るための条件である。
+ * 到達する（`room-join.ts`）。**ただし「必ず `ROOM_NOT_FOUND` が返る」わけではない。**
+ * 同じ関数は資源を引く**前に**レート判定を通すので、入室失敗の枠が枯れていれば
+ * `JOIN_RATE_LIMITED` が先に返る。枠は #103 以降 **IP 単位**で全 worker が共有し、
+ * `ROOM_NOT_FOUND` のたびに 1 つ消費される。使う側は、その往復（`join-retry.ts` の
+ * 待ち直し）を織り込んで判定すること。
  */
 export const MISSING_ROOM_CODE = 'E2E-ROOM-GONE';

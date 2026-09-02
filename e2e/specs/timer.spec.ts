@@ -280,19 +280,6 @@ test.describe('契約に合わない同期フレームを捨てたことが画�
 });
 
 
-/**
- * 同期サーバーが再起動してルームが消えたときの見え方（#142・#76 F-4 の回帰防止）。
- *
- * 本番は揮発インメモリなので、**再起動はルームの全消滅と同義**である。直す前は
- * StatusStrip が「セッション喪失」に変わるだけで、タイマー・一時停止・スキップが
- * そのまま押せる状態で残っていた。押しても何も起きず、やり直す導線も無かった。
- *
- * **サーバーは止めない。** 止めると全 worker の共有資源が消え、無関係なシナリオを
- * 巻き込む（`playwright.config.ts` は local で並列実行する）。代わりに、そのページの
- * WS だけを落とし、**再接続の `room.join` を存在しないルームへ向ける**。再起動した
- * サーバーにとって元のコードが「知らないコード」になるのと同じ状態に置くわけで、
- * **返ってくる `ROOM_NOT_FOUND` は実サーバーが出す本物**である（#209 と同じ流儀）。
- */
 /** 消滅の仕掛けの状態。ページ側に置き、`page.evaluate` で読み書きする。 */
 interface RoomLossState {
   /** これが立って以降の `room.join` を、消えたルームへ向ける */
@@ -306,6 +293,34 @@ interface LossWindow {
   __e2eSockets: WebSocket[];
 }
 
+/**
+ * 同期サーバーが再起動してルームが消えたときの見え方（#142・#76 F-4 の回帰防止）。
+ *
+ * 本番は揮発インメモリなので、**再起動はルームの全消滅と同義**である。直す前は
+ * StatusStrip が「セッション喪失」に変わるだけで、タイマー・一時停止・スキップが
+ * そのまま押せる状態で残っていた。押しても何も起きず、やり直す導線も無かった。
+ *
+ * **サーバーは止めない。** 止めると全 worker の共有資源が消え、無関係なシナリオを
+ * 巻き込む（`playwright.config.ts` は local で並列実行する）。代わりに、そのページの
+ * WS を落とし、**再接続の `room.join` を存在しないルームへ向ける**。再起動した
+ * サーバーにとって元のコードが「知らないコード」になるのと同じ状態に置くわけで、
+ * **返ってくる `ROOM_NOT_FOUND` は実サーバーが出す本物**である。
+ *
+ * **このシナリオは入室の枠を余分に 1 つずつ使う。** `room.join` は資源を引く前に
+ * レート判定を通り（`room-join.ts`）、**成功しても失敗しても `consume` する**ので、
+ * 消えたルームを指す再入室のぶんだけ普通のシナリオより多く食う。#103 以降その枠は
+ * **IP 単位**（`join-retry.ts` の冒頭）で、全 worker が 1 つのバケツを共有している。
+ *
+ * 枯れると返るのは `JOIN_RATE_LIMITED` で、画面は「混み合っています。自動で
+ * 入り直しています…」のまま進む。クライアントは 2 秒前後から待ち直して入り直すので
+ * （`join-retry.ts`）、**結果の判定にはその往復ぶんの猶予を与えてある**
+ * （実測: 猶予が既定の 5 秒だと `--repeat-each=40` で 40 本中 1〜2 本が落ち、
+ * 20 秒にすると 40/40 緑）。
+ *
+ * **繰り返し実行の上限そのものは、このシナリオの都合ではない。** `--repeat-each=60`
+ * では**細工の無い `@core` も同じように落ちる**（実測）。バケツが尽きると
+ * 正規の入室まで弾かれるためで、これは枠の性質である。
+ */
 test.describe('timer のルームが消えたら操作を止めて、やり直す導線を出す', () => {
   /**
    * そのページの WebSocket を、**ページの中から**掴めるようにし、合図の後だけ
@@ -407,11 +422,14 @@ test.describe('timer のルームが消えたら操作を止めて、やり直�
     await expect(lobbyRotationRow(page, GUEST, 2), '作成者の画面の 2 番目').toHaveCount(1);
     await page.getByRole('button', { name: 'セッションを開始' }).click();
 
-    // Given の確認（対照）: **失う前は、これらが実際に押せる。**
-    // この錨が無いと、後の「押せる要素が無い」は最初から無かっただけかもしれない
-    const controls = sessionControls(page);
-    for (const [label, control] of controls) {
-      await expect(control, `喪失前に押せない操作（${label}）`).toBeEnabled();
+    // Given の確認（対照）: **失う前は、両方の画面でこれらが実際に押せる。**
+    // この錨が無いと、後の「押せる要素が無い」は最初から無かっただけかもしれない。
+    // **作成者だけで見てはいけない。** 参加者の画面は名前と役割の取り回しが違い
+    // （#76 F-3 が壊れたのはそこ）、非ホストにだけ操作が残る壊れ方を見逃す
+    for (const [screen, target] of screens(page, guest.page)) {
+      for (const [label, control] of sessionControls(target)) {
+        await expect(control, `${screen}の画面で喪失前に押せない操作（${label}）`).toBeEnabled();
+      }
     }
 
     // When: サーバーが再起動し、ルームが消える
@@ -429,17 +447,22 @@ test.describe('timer のルームが消えたら操作を止めて、やり直�
       .poll(guestRewritten, { message: '2 人目の room.join を差し替えられていない' })
       .toBeGreaterThan(0);
 
-    // Then その1: 何が起きたのかが画面に出る。**両方の画面で**同じに見える
-    for (const [label, target] of screens(page, guest.page)) {
+    // Then その1: 何が起きたのかが画面に出る。**両方の画面で**同じに見える。
+    // **入室の枠が枯れていると、一度 `JOIN_RATE_LIMITED` を挟む**（上の説明）。
+    // その場合クライアントは 2 秒前後から待ち直して入り直すので、
+    // 既定の 5 秒では往復 1 回ぶんに足りない
+    for (const [screen, target] of screens(page, guest.page)) {
       await expect(
         target.getByRole('heading', { name: 'セッションが見つかりません' }),
-        `${label}の画面`,
-      ).toBeVisible();
+        `${screen}の画面`,
+      ).toBeVisible({ timeout: 20_000 });
     }
 
     // Then その2: **効かない操作が残っていない。** 直す前はここが全部残っていた
-    for (const [label, control] of controls) {
-      await expect(control, `喪失後も残っている操作（${label}）`).toHaveCount(0);
+    for (const [screen, target] of screens(page, guest.page)) {
+      for (const [label, control] of sessionControls(target)) {
+        await expect(control, `${screen}の画面に喪失後も残っている操作（${label}）`).toHaveCount(0);
+      }
     }
 
     // Then その3: やり直す導線と、端末の記録へ戻る道がある
