@@ -18,8 +18,9 @@ import { buildWebApps } from '../harness/build';
 import { REPO_ROOT } from '../harness/paths';
 
 describe('buildWebApps', () => {
-  it('Given ワークスペース / When 呼ぶ / Then turbo の build タスクが成功して終わる', () => {
-    // Given / When: 成功しなければ execFileSync が投げる
+  it('Given ワークスペース / When ビルドを最新化する / Then turbo の build タスクが成功して終わる', () => {
+    // Given: 依存の入ったワークスペース
+    // When: ビルドを最新化する（成功しなければ execFileSync が投げる）
     const output = buildWebApps();
 
     // Then: turbo が build を実行した要約が返る
@@ -31,7 +32,7 @@ describe('buildWebApps', () => {
    * preflight の各検査と同じ流儀。クリーンな環境では常に「見つかる」側を通るため、
    * 見つからない分岐が実起動では一度も踏まれない。
    */
-  it('Given turbo が見つからない / When 呼ぶ / Then 探した場所を示して落ちる', () => {
+  it('Given turbo が見つからない / When ビルドを最新化する / Then 探した場所を示して落ちる', () => {
     // Given: 依存が入っていない作業ツリー
     // When / Then: 「Command failed」ではなく、何が無いのか分かること
     expect(() => buildWebApps('/nonexistent/turbo')).toThrow(/nonexistent\/turbo/);

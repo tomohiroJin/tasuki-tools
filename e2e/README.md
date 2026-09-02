@@ -11,7 +11,6 @@
 
 ```bash
 # リポジトリルートから
-pnpm build            # web アプリのビルドが必要（^build として依存）
 pnpm e2e              # ローカル環境に立てて全シナリオを実行
 pnpm e2e --grep @smoke   # @smoke タグのシナリオだけ実行
 
@@ -32,8 +31,10 @@ TASUKI_E2E_BASE_URL=https://<公開ドメイン> pnpm e2e:prod
 （本番向けの変数が残ったシェルで、ローカルを本番と取り違える事故を防ぐ）が
 意図どおり発火しています。
 
-赤を消すには、各自の `.vscode/settings.json` に次を置きます。`.vscode/*` は
-`.gitignore` の対象なので、リポジトリには入りません。
+**この設定はリポジトリで共有しています。** `.vscode/settings.json` に置いてあり、
+`.gitignore` の `.vscode/*` を否定パターンで戻して追跡下に入れています
+（`tests/vscode-settings.test.ts` が、その 1 行が消えたら赤くします）。
+clone すればそのまま拡張から実行できます。
 
 ```json
 { "playwright.env": { "TASUKI_E2E_TARGET": "local" } }
@@ -44,22 +45,30 @@ TASUKI_E2E_BASE_URL=https://<公開ドメイン> pnpm e2e:prod
 この config のチェックを外すか（Toggle Playwright configs）、拡張を
 ワークスペースで無効化してください。
 
-### テストエクスプローラの ▶ は押さないでください
+### テストエクスプローラの ▶ から実行できます
 
-赤が消えても、拡張から実行できる状態にはなっていません。穴が 2 つ残ります。
+**古い成果物に対して走ることはありません。** `globalSetup` が preflight より前に
+配信対象をビルドするので、拡張から実行しても `pnpm e2e` と同じものを見ます
+（`harness/build.ts`）。turbo がキャッシュするため、`pnpm e2e` 経由では済んだ
+ビルドを引き当てて実質ゼロ秒で戻り、拡張から実行したときだけ実際に走ります。
 
-- **古いビルド成果物に対して走ります。** ビルドを与えているのは `turbo.json` の
-  `dependsOn: ["^build"]` だけで、拡張は turbo を経由しません。そのとき置いてある
-  dist に対して走るので、何に対する結果なのかがわからなくなります
-- **ハーネスが起動したまま残ります。** `globalSetup` は初回だけ走り、teardown は
-  `Run global teardown` を明示的に叩くまで走りません。Caddy と sync がポートを
-  掴んだままになり、次の `pnpm e2e` が preflight で止まります
+ただし拡張には癖が 2 つあります。**どちらも #162 で ▶ を押して実測しました。**
 
-押してしまった場合は「終了後の確認コマンド」で状態を確かめ、残骸があれば
-「異常終了で残骸が出たときの復旧」の手順で撤去してください。
+- **実行後もハーネスが起動したまま残ります。** 拡張は `globalSetup` を初回だけ走らせ、
+  teardown は明示操作まで走らせません（実測: 6.5 秒で終わった実行に対し、Caddy と
+  sync が 7 分後もポートを掴んでいました）。残っている間はターミナルの `pnpm e2e` は
+  preflight で止まります。片付けるには `Ctrl+Shift+P` → **`Run global teardown`**。
+  **`sudo` は要りません。** 完了は何も通知されませんが、確実に片付きます
+  （実測: Caddy に SIGTERM が届き、`/etc/caddy/tasuki` と `/var/www/*` の symlink も消えました）
+- **`harness/` を変更したら、ウィンドウをリロードするまで拡張は古い版を使います。**
+  Node のモジュールキャッシュが拡張の `test-server` プロセスに残るためです
+  （実測: `globalSetup` にビルドを足してもビルドが走らず、
+  `Developer: Reload Window` の後に走りました）
 
-**実行は必ずルートからの `pnpm e2e` を使ってください。** 拡張からも正しく走る
-ようにする作業は Issue #162 で扱います。
+`Run global setup on each run` はオンにしないでください。オンにすると 2 回目の実行で
+`globalSetup` が再走し、前回の残骸に対して preflight が発火して赤くなります。
+
+押したあとの状態が気になるときは「終了後の確認コマンド」で確かめられます。
 
 ## シナリオとタグ
 
