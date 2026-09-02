@@ -23,7 +23,8 @@ const CardSchema = v.variant('kind', [
 // 名前ルールは room.ts の NAME_MAX_LENGTH が単一情報源
 const NameSchema = v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(NAME_MAX_LENGTH));
 
-export const ClientMessageSchema = v.variant('type', [
+// 公開しない（parseClientMessage が唯一の入口であり、外からもテストからも取り込まれない。#182 で index の列挙から外し、#223 で宣言の export も落とした）。
+const ClientMessageSchema = v.variant('type', [
   v.strictObject({ type: v.literal('create-room'), name: NameSchema }),
   v.strictObject({
     type: v.literal('join-room'),
@@ -97,7 +98,8 @@ const RoundViewSchema = v.variant('status', [
   }),
 ]);
 
-export const ServerMessageSchema = v.variant('type', [
+// 公開しない（parseServerMessage が唯一の入口であり、外からもテストからも取り込まれない。#182 で index の列挙から外し、#223 で宣言の export も落とした）。
+const ServerMessageSchema = v.variant('type', [
   v.object({
     type: v.literal('joined'),
     roomId: v.string(),

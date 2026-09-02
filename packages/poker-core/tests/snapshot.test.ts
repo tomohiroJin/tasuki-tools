@@ -1,7 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { createRoom, joinRoom } from '../src/room';
 import { castVote, revealBy } from '../src/round';
-import { snapshotFor } from '../src/snapshot';
+import { createSnapshotBuilder } from '../src/snapshot';
+
+/**
+ * 受信者 1 人ぶんの投影を取る。
+ *
+ * **`createSnapshotBuilder` は公開の入口そのものである。** 以前は同じ 1 行を
+ * `snapshotFor` として src 側に置いていたが、取り込んでいたのはこのテストだけで、
+ * 製品コードは 1 箇所も使っていなかった（#223 で削除した）。検証している中身は
+ * 変えていない —— ビルダーが返す関数を 1 回呼ぶだけで、以前と同じ値が得られる。
+ */
+function snapshotFor(room: Parameters<typeof createSnapshotBuilder>[0], viewerId: string) {
+  return createSnapshotBuilder(room)(viewerId);
+}
 
 function twoPersonRoom() {
   const { room } = createRoom('room0001', 'たろう', {
