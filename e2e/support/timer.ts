@@ -129,3 +129,24 @@ export function corruptSnapshotFrame(payload: string): string {
     room: { ...message.room, config: { ...message.room.config, members: [''] } },
   });
 }
+
+/**
+ * **もう存在しないルームコード**（#142・#76 F-4）。
+ *
+ * 生成器（`NanoidCodeGen`）は 6 文字の `ABCDEFGHJKMNPQRSTUVWXYZ23456789`、
+ * あるいは `<スラグ>-<小文字英数 8 文字>` しか作らない。ハイフンの後ろが 4 文字の
+ * 大文字であるこの値は、どちらの形にも当てはまらないため**実在のルームと衝突しない**。
+ *
+ * 再接続時の `room.join` の行き先をこれに差し替えると、サーバーにとっては
+ * 「知らないコード」になる。**再起動でルームを失った状態と同じ**で、返ってくる
+ * `ROOM_NOT_FOUND` は実サーバーが出す本物である（こちらでエラーフレームを捏造しない。
+ * 捏造すると、サーバーがコードを変えた日にこの検査だけが古い契約のまま緑になる）。
+ *
+ * `code` は `nonEmptyString` なので、この値は境界検証を通って `store.get(code)` まで
+ * 到達する（`room-join.ts`）。**ただし「必ず `ROOM_NOT_FOUND` が返る」わけではない。**
+ * 同じ関数は資源を引く**前に**レート判定を通すので、入室失敗の枠が枯れていれば
+ * `JOIN_RATE_LIMITED` が先に返る。枠は #103 以降 **IP 単位**で全 worker が共有し、
+ * `ROOM_NOT_FOUND` のたびに 1 つ消費される。使う側は、その往復（`join-retry.ts` の
+ * 待ち直し）を織り込んで判定すること。
+ */
+export const MISSING_ROOM_CODE = 'E2E-ROOM-GONE';

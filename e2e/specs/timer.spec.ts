@@ -8,8 +8,10 @@
  * - タグ無し #11 / #12 — #76 F-1 / F-3 の回帰防止（`local` 専用）。
  * - タグ無し #209 — 契約に合わない同期フレームを捨てたことの表出（`local` 専用。
  *   実サーバーの枠を使ううえ、壊れたフレームは本番では作れない）。
+ * - タグ無し #142 — 同期サーバーの再起動でルームが消えたときの見え方（#76 F-4 の回帰。
+ *   `local` 専用。本番のルームを消すことになるので本番では走らせない）。
  */
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { expect, test } from '../fixtures/test';
 import {
   corruptSnapshotFrame,
@@ -19,6 +21,7 @@ import {
   invitedUrlText,
   joinAsDriver,
   joinAsDriverAt,
+  MISSING_ROOM_CODE,
   lobbyRotationRow,
   statusStrip,
 } from '../support/timer';
@@ -273,5 +276,206 @@ test.describe('契約に合わない同期フレームを捨てたことが画�
     // Then: 画面に出す場所が無いので、バナーで伝える
     await expect(guest.page.getByText(/同期できていません/)).toBeVisible();
     expect(corrupter.count(), '壊した snapshot の数').toBeGreaterThan(0);
+  });
+});
+
+
+/** 消滅の仕掛けの状態。ページ側に置き、`page.evaluate` で読み書きする。 */
+interface RoomLossState {
+  /** これが立って以降の `room.join` を、消えたルームへ向ける */
+  losing: boolean;
+  /** 実際に差し替えた回数 */
+  rewritten: number;
+}
+
+interface LossWindow {
+  __e2eRoomLoss: RoomLossState;
+  __e2eSockets: WebSocket[];
+}
+
+/**
+ * 同期サーバーが再起動してルームが消えたときの見え方（#142・#76 F-4 の回帰防止）。
+ *
+ * 本番は揮発インメモリなので、**再起動はルームの全消滅と同義**である。直す前は
+ * StatusStrip が「セッション喪失」に変わるだけで、タイマー・一時停止・スキップが
+ * そのまま押せる状態で残っていた。押しても何も起きず、やり直す導線も無かった。
+ *
+ * **サーバーは止めない。** 止めると全 worker の共有資源が消え、無関係なシナリオを
+ * 巻き込む（`playwright.config.ts` は local で並列実行する）。代わりに、そのページの
+ * WS を落とし、**再接続の `room.join` を存在しないルームへ向ける**。再起動した
+ * サーバーにとって元のコードが「知らないコード」になるのと同じ状態に置くわけで、
+ * **返ってくる `ROOM_NOT_FOUND` は実サーバーが出す本物**である。
+ *
+ * **このシナリオは入室の枠を、ページ 1 枚につき 1 つ余分に使う。** `room.join` は
+ * 資源を引く前にレート判定を通り（`room-join.ts`）、**失敗が確定したときだけ**
+ * `consume` する（`rate-limit-gate.ts` の定義）。消えたルームを指す再入室は必ず
+ * `ROOM_NOT_FOUND` で終わるので、そのぶんが普通のシナリオより多い。#103 以降
+ * その枠は **IP 単位**（`join-retry.ts` の冒頭）で、全 worker が 1 つのバケツを
+ * 共有している。
+ *
+ * 枯れると返るのは `JOIN_RATE_LIMITED` で、画面は「混み合っています。自動で
+ * 入り直しています…」のまま進む。クライアントは 2 秒前後から待ち直して入り直すので
+ * （`join-retry.ts`）、**結果の判定にはその往復ぶんの猶予を与えてある**
+ * （実測: 猶予が既定の 5 秒だと `--repeat-each=40` で 40 本中 1〜2 本が落ち、
+ * 20 秒にすると 40/40 緑）。
+ *
+ * **`--repeat-each` をさらに増やすとハーネスごと頭打ちになる。** 60 では
+ * **細工の無い `@core` も落ちる**（実測。ただし症状は違い、あちらはルーム作成の
+ * 段で止まる）。**原因は特定していない** —— サーバーのログにも失敗時の画面にも
+ * 裏付けが無い。`maxRooms`（既定 50）とルームが残ることが疑わしいが、
+ * **確かめていないので理由として書かない**。
+ */
+test.describe('timer のルームが消えたら操作を止めて、やり直す導線を出す', () => {
+  /**
+   * そのページの WebSocket を、**ページの中から**掴めるようにし、合図の後だけ
+   * `room.join` の行き先を差し替えられるようにする。**`goto` より前に仕込む。**
+   *
+   * **`page.routeWebSocket` を使わない。** 使うと WS が Playwright を経由するようになり、
+   * **ホストが 2 人目の到着を恒久的に取りこぼす**ことがある。しかも落ちるのは
+   * Given の段なので、原因が異常系の実装に見えない。**後から掛けて避けることも
+   * できない** —— 傍受は文書の読み込み時に仕込まれるため、読み込み済みのページに
+   * 後から掛けても新しい接続を捕まえない。
+   *
+   * **実測の条件と数は `e2e/README.md` が正本。**（ここへ転記すると、片方だけ
+   * 更新されて食い違う。実際に一度食い違った。）
+   *
+   * ここは構築子と `send` を包むだけで、フレームは 1 通も外へ出ない。
+   */
+  async function armRoomLoss(page: Page): Promise<void> {
+    await page.addInitScript((missingCode: string) => {
+      const state: RoomLossState = { losing: false, rewritten: 0 };
+      const opened: WebSocket[] = [];
+      Object.defineProperty(window, '__e2eRoomLoss', { value: state });
+      Object.defineProperty(window, '__e2eSockets', { value: opened });
+
+      /** `room.join` の行き先だけを差し替える。他のフレームはそのまま通す。 */
+      const redirectJoin = (payload: string): string => {
+        let frame: unknown;
+        try {
+          frame = JSON.parse(payload);
+        } catch {
+          return payload;
+        }
+        if (typeof frame !== 'object' || frame === null) return payload;
+        const message = frame as { command?: unknown; code?: unknown };
+        if (message.command !== 'room.join' || typeof message.code !== 'string') return payload;
+        return JSON.stringify({ ...message, code: missingCode });
+      };
+
+      const Original = window.WebSocket;
+      window.WebSocket = class extends Original {
+        constructor(url: string | URL, protocols?: string | string[]) {
+          super(url, protocols);
+          opened.push(this);
+        }
+
+        override send(data: Parameters<WebSocket['send']>[0]): void {
+          if (!state.losing || typeof data !== 'string') return super.send(data);
+          const next = redirectJoin(data);
+          if (next !== data) state.rewritten += 1;
+          return super.send(next);
+        }
+      };
+    }, MISSING_ROOM_CODE);
+  }
+
+  /**
+   * そのページのルームを、**呼んだ時点から**失わせる。差し替えた回数を読む関数を返す。
+   *
+   * 順番が要点。まず合図を立て、それから**いま繋がっている接続を落とす**。
+   * クライアントは自動で再入室しに行き、その `room.join` だけが消えたルームを指す。
+   *
+   * **落とせたことを確かめる。** 掴み損ねていると、何も起きないまま
+   * 「喪失の画面が出ない」で落ち、原因が異常系の実装に見える。
+   */
+  async function loseRoom(page: Page): Promise<() => Promise<number>> {
+    const closed = await page.evaluate(() => {
+      const w = window as unknown as LossWindow;
+      w.__e2eRoomLoss.losing = true;
+      const socket = w.__e2eSockets[w.__e2eSockets.length - 1];
+      if (socket === undefined) return false;
+      socket.close();
+      return true;
+    });
+    expect(closed, '落とす対象の接続が見つからない').toBe(true);
+
+    return () => page.evaluate(() => (window as unknown as LossWindow).__e2eRoomLoss.rewritten);
+  }
+
+  /** セッション中に編集者が押せる操作。**押せることを先に確かめてから**消滅を見る。 */
+  function sessionControls(page: Page): readonly (readonly [string, Locator])[] {
+    return [
+      ['スキップ', page.getByRole('button', { name: 'スキップ', exact: true })],
+      ['一時停止', page.getByRole('button', { name: '一時停止', exact: true })],
+      ['完成!', page.getByRole('button', { name: '完成!', exact: true })],
+    ] as const;
+  }
+
+  test('Given 2 人がセッション中 / When 同期サーバーが再起動してルームが消える / Then 効かない操作が残らず、やり直す導線が出る', async ({
+    page,
+    openPeer,
+  }) => {
+    // Given: **仕掛けは据えるだけで、まだ何もしない。** 参加も名簿の同期も、
+    //        他のシナリオとまったく同じ経路をそのまま通る
+    await armRoomLoss(page);
+    const code = await createRoom(page, HOST);
+    const guest = await openPeer('timer-session-lost');
+    await armRoomLoss(guest.page);
+    await joinAsDriver(guest.page, code, GUEST);
+
+    // Given の確認: 2 人が別人として輪に並び、セッションが始まっている
+    await expect(lobbyRotationRow(page, HOST, 1), '作成者の画面の 1 番目').toHaveCount(1);
+    await expect(lobbyRotationRow(page, GUEST, 2), '作成者の画面の 2 番目').toHaveCount(1);
+    await page.getByRole('button', { name: 'セッションを開始' }).click();
+
+    // Given の確認（対照）: **失う前は、両方の画面でこれらが実際に押せる。**
+    // この錨が無いと、後の「押せる要素が無い」は最初から無かっただけかもしれない。
+    // **作成者だけで見てはいけない。** 参加者の画面は名前と役割の取り回しが違い
+    // （#76 F-3 が壊れたのはそこ）、非ホストにだけ操作が残る壊れ方を見逃す
+    for (const [screen, target] of screens(page, guest.page)) {
+      for (const [label, control] of sessionControls(target)) {
+        await expect(control, `${screen}の画面で喪失前に押せない操作（${label}）`).toBeEnabled();
+      }
+    }
+
+    // When: サーバーが再起動し、ルームが消える
+    const hostRewritten = await loseRoom(page);
+    const guestRewritten = await loseRoom(guest.page);
+
+    // **仕掛けが働いたことを、結果を見る前に確かめる。** 後回しにすると、
+    // 差し替えが素通しへ退化した日の症状が「喪失の画面が出ない」になり、
+    // 製品の欠陥と見分けがつかない（実測で確認した）。再接続はバックオフを
+    // 挟むので、待てる形で数える
+    await expect
+      .poll(hostRewritten, { message: '作成者の room.join を差し替えられていない' })
+      .toBeGreaterThan(0);
+    await expect
+      .poll(guestRewritten, { message: '2 人目の room.join を差し替えられていない' })
+      .toBeGreaterThan(0);
+
+    // Then その1: 何が起きたのかが画面に出る。**両方の画面で**同じに見える。
+    // **入室の枠が枯れていると、一度 `JOIN_RATE_LIMITED` を挟む**（上の説明）。
+    // その場合クライアントは 2 秒前後から待ち直して入り直すので、
+    // 既定の 5 秒では往復 1 回ぶんに足りない
+    for (const [screen, target] of screens(page, guest.page)) {
+      await expect(
+        target.getByRole('heading', { name: 'セッションが見つかりません' }),
+        `${screen}の画面`,
+      ).toBeVisible({ timeout: 20_000 });
+    }
+
+    // Then その2: **効かない操作が残っていない。** 直す前はここが全部残っていた
+    for (const [screen, target] of screens(page, guest.page)) {
+      for (const [label, control] of sessionControls(target)) {
+        await expect(control, `${screen}の画面に喪失後も残っている操作（${label}）`).toHaveCount(0);
+      }
+    }
+
+    // Then その3: やり直す導線と、端末の記録へ戻る道がある
+    await expect(
+      page.getByRole('button', { name: '新しいセッションを始める' }),
+      'やり直す導線',
+    ).toBeEnabled();
+    await expect(page.getByRole('button', { name: '記録を見る' }), '記録への導線').toBeEnabled();
   });
 });
