@@ -33,7 +33,8 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 # Playwright 拡張へ TASUKI_E2E_TARGET を渡す設定は共有する（#162）。
-# これが無いと拡張は config の読み込みで落ち、テストエクスプローラが赤くなり続ける。
+# この 1 行が無いと、新しく clone した人へ設定が届かず、拡張は config の読み込みで
+# 落ちてテストエクスプローラが赤くなり続ける（追跡済みの手元では気づけない）。
 !.vscode/settings.json
 .superpowers/
 
