@@ -370,6 +370,17 @@ test.describe('timer のルームが消えたら操作を止めて、やり直�
     // When: サーバーが再起動し、ルームが消える
     await Promise.all([host.vanish(), visitor.vanish()]);
 
+    // **仕掛けが働いたことを、結果を見る前に確かめる。** 後回しにすると、
+    // `joinMissingRoomFrame` が素通しへ退化した日の症状が「喪失の画面が出ない」に
+    // なり、製品の欠陥と見分けがつかない（実測で確認した）。再接続はバックオフを
+    // 挟むので、待てる形で数える
+    await expect
+      .poll(host.rewritten, { message: '作成者の room.join を書き換えられていない' })
+      .toBeGreaterThan(0);
+    await expect
+      .poll(visitor.rewritten, { message: '2 人目の room.join を書き換えられていない' })
+      .toBeGreaterThan(0);
+
     // Then その1: 何が起きたのかが画面に出る。**両方の画面で**同じに見える
     for (const [label, target] of screens(page, guest.page)) {
       await expect(
@@ -389,10 +400,5 @@ test.describe('timer のルームが消えたら操作を止めて、やり直�
       'やり直す導線',
     ).toBeEnabled();
     await expect(page.getByRole('button', { name: '記録を見る' }), '記録への導線').toBeEnabled();
-
-    // Then その4: **仕掛けが実際に働いた。** 0 件なら、ここまでの判定は
-    // 「ルームが消えたから」ではなく別の理由で成立したことになる
-    expect(host.rewritten(), '作成者の書き換えた room.join の数').toBeGreaterThan(0);
-    expect(visitor.rewritten(), '2 人目の書き換えた room.join の数').toBeGreaterThan(0);
   });
 });
