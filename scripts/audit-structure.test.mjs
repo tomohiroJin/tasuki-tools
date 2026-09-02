@@ -373,10 +373,40 @@ describe("SC-039: 生きたモジュール内部の到達不能な要素", () =>
 
   test("③: 自ファイル内でのみ使う公開記号を件数として計上する", () => {
     const packageSrcFiles = new Map([
-      ["packages/timer-core/src/schemas.ts", "export interface SessionConfigSchema { x: number }"],
+      ["packages/timer-core/src/schemas.ts", "export const SessionConfigSchema = v.object({});"],
     ]);
     const productSources = new Map([["apps/web/src/App.tsx", "no reference here"]]);
     assert.equal(sc039cSelfOnlyPublicSymbols(packageSrcFiles, productSources), 1);
+  });
+
+  test("③: 型（interface / type）は数えない（#223。判定に型解決が要るため）", () => {
+    // 公開契約に載せる型は、値の署名から到達できるだけで誰も名前で取り込まない
+    // （ADR-0016 追記）。③はそれを見分けられないので、最初から対象にしない。
+    const packageSrcFiles = new Map([
+      [
+        "packages/poker-core/src/protocol.ts",
+        ["export interface ProtocolError { code: string }", "export type ServerMessage = { type: string };"].join(
+          "\n",
+        ),
+      ],
+    ]);
+    const productSources = new Map([["apps/web/src/App.tsx", "no reference here"]]);
+    assert.equal(sc039cSelfOnlyPublicSymbols(packageSrcFiles, productSources), 0);
+  });
+
+  test("③: 型を混ぜても、同じファイルの値は数え続ける（型の除外が値まで巻き込まない）", () => {
+    const packageSrcFiles = new Map([
+      [
+        "packages/poker-core/src/protocol.ts",
+        [
+          "export type ServerMessage = { type: string };",
+          "export const ERROR_CODES = ['a'];",
+          "export function isKnownErrorCode(c) { return ERROR_CODES.includes(c); }",
+        ].join("\n"),
+      ],
+    ]);
+    const productSources = new Map([["apps/web/src/App.tsx", "no reference here"]]);
+    assert.equal(sc039cSelfOnlyPublicSymbols(packageSrcFiles, productSources), 2);
   });
 
   test("欠陥2回帰: 自ファイル内の他スキーマの合成に使われている定数は②（未使用データ）としては計上しない", () => {

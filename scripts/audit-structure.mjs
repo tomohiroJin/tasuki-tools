@@ -810,9 +810,25 @@ export function sc039bUnusedPublicData(packageSrcFiles, productSources) {
 }
 
 /**
- * SC-039③: 各 packages 配下 src の公開記号（const/interface/type 全種）のうち、
+ * SC-039③: 各 packages 配下 src の公開**値**（`const` / `function` / `class`）のうち、
  * 製品コードから一度も参照されない（＝自ファイル内でのみ使われる。export が不要）ものの件数。
  * **テストからの参照は根拠に含めない**（FR-090）。
+ *
+ * ## 型は数えない（#223・2026-09-02）
+ *
+ * `interface` と `type` は対象外である。**SC-039④ と同じ理由**で、
+ * 「公開している値の署名から到達できるか」を機械で判定するには型解決が要り、
+ * この検査の素朴さと引き換えになる（ADR-0016 追記）。
+ *
+ * 型を数えていた頃、③が挙げた 16 件のうち **11 件が型で、その 11 件すべてが
+ * `index.ts` に載っている公開契約の型だった**（`ProtocolError` は `parseServerMessage` の
+ * Result のエラー型、`ParticipantIds` は `createRoom` の引数型…）。ADR-0016 が
+ * 「型は署名から到達できるなら残す」と定めた当のものを、③が判定できないまま
+ * 未達として数え続けていたことになる。**指標が読み手へ渡していたのは信号ではなく雑音だった。**
+ *
+ * **見なくなるもの**: `index.ts` にも載っていない、どこからも使われない公開型。
+ * これは以後どの検査も見ない（ADR-0016 が④で受け入れたのと同じ受容。型の妥当性は
+ * レビューが見る）。公開面に出ないので影響はパッケージの内側に閉じる。
  *
  * `exceptions`（{@link SC039C_EXCEPTIONS} と同じ形）に載る `file::name` の組は数えない。
  * 例外表が腐っていないかは {@link findStaleSymbolExceptions} が別に見る。
@@ -830,6 +846,8 @@ export function sc039cSelfOnlyPublicSymbols(packageSrcFiles, productSources, exc
   let count = 0;
   for (const [file, content] of packageSrcFiles) {
     for (const decl of extractPublicDeclarations(content)) {
+      // 型は数えない（上の docstring）。判定に型解決が要るものは最初から見ない。
+      if (decl.kind === "interface" || decl.kind === "type") continue;
       if (excepted.has(`${file}::${decl.name}`)) continue;
       if (!isReferencedElsewhere(decl.name, file, productSources)) count++;
     }
@@ -1080,16 +1098,21 @@ export const EXCLUDED_PACKAGES = [
  * ここへ理由つきで挙げる。理由を書けないものは例外にしない。
  *
  * **「まだ決めていない」は理由ではない**（#180）。走査を `packages/` 全体へ広げたとき、
- * 新たに 16 件が検出された。うちここへ載せたのは上の条件に当てはまる 3 件だけである。
- * 残りは未決の判断であり、判断を待つあいだ例外表へ入れると指標が 0 に戻って
- * **読むべき信号を消してしまう**。測定値は落ちない
- * （ADR-0009 D2。実測で `audit-structure.mjs` は exit 0）ので、見えたまま残す。
+ * 新たに 16 件が検出された。判断を待つあいだ例外表へ入れると指標が 0 に戻って
+ * **読むべき信号を消してしまう**ので、未決のまま見えた状態で残した。測定値は落ちない
+ * （ADR-0009 D2。実測で `audit-structure.mjs` は exit 0）。
  * #135 が走査を広げた結果 SC-031 が未達へ変わったときと同じ扱いである（ADR-0014「影響」）。
  *
- * **未決の宛先は #223 である。#182 ではない**（#182 / PR #222 で訂正した）。
- * ここは長く「それは #182 が扱う問いそのものである」と書いていたが、誤りだった。
- * ③が測るのは**宣言ファイルの `export` の要否**で、#182 が扱ったのは
- * **公開面（`index.ts`）に載せる理由の有無**（SC-039④）であり、両者は独立している。
+ * **その未決は #223 で解いた（2026-09-02）。** 内訳は 2 つに割れた。
+ *
+ * - **型 11 件**は、すべて `index.ts` に載っている公開契約の型だった。
+ *   ③はこれを判定できないので、**型を数えるのをやめた**
+ *   （{@link sc039cSelfOnlyPublicSymbols} の docstring）。
+ * - **値 5 件**は、2 件が誰にも使われておらず宣言の `export` を落とし、
+ *   1 件は公開入口への 1 行の委譲でしかなかったので削除し、残る 2 件を上へ載せた。
+ *
+ * ③と④は独立している。③が測るのは**宣言ファイルの `export` の要否**、
+ * ④は**公開面（`index.ts`）に載せる理由の有無**である。
  * 実測: `computeStats` は `snapshot.ts` が相対 import で使うので③では生きており、
  * index 経由の利用者はゼロなので④では死んでいた。さらに {@link stripNamedReexports} が
  * index の再エクスポートを参照から外すため、**index から落としても③の件数は動かない**。
@@ -1099,6 +1122,18 @@ export const EXCLUDED_PACKAGES = [
  * どちらも {@link findStaleSymbolExceptions} が落とす。
  */
 export const SC039C_EXCEPTIONS = [
+  {
+    file: "packages/poker-core/src/protocol.ts",
+    name: "ERROR_CODES",
+    reason:
+      "エラーコードの権威列挙。packages/poker-core/tests/protocol.test.ts が it.each([...ERROR_CODES]) で全コードについて isKnownErrorCode の判定を回す起点にしている。落とすとコード表がテストへ複製され、列挙の追加・削除を検知する検査が写しを検査するだけになる（SYNC_ERROR_CODES と同型）",
+  },
+  {
+    file: "packages/poker-core/src/round.ts",
+    name: "shouldAutoReveal",
+    reason:
+      "自動公開の述語そのものを検証する唯一の土台。packages/poker-core/tests/round.test.ts と room.test.ts が「全員が投票したか」の判定を直接検査している。公開入口の applyAutoReveal は述語と適用を一度に行うため、経由すると『判定が偽なのに公開された』と『判定は真だが適用が壊れた』を切り分けられない",
+  },
   {
     file: "packages/timer-core/src/errors.ts",
     name: "SYNC_ERROR_CODES",
