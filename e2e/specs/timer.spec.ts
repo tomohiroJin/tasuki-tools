@@ -11,7 +11,7 @@
  * - タグ無し #142 — 同期サーバーの再起動でルームが消えたときの見え方（#76 F-4 の回帰。
  *   `local` 専用。本番のルームを消すことになるので本番では走らせない）。
  */
-import type { Locator, Page, WebSocketRoute } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { expect, test } from '../fixtures/test';
 import {
   corruptSnapshotFrame,
@@ -21,7 +21,7 @@ import {
   invitedUrlText,
   joinAsDriver,
   joinAsDriverAt,
-  joinMissingRoomFrame,
+  MISSING_ROOM_CODE,
   lobbyRotationRow,
   statusStrip,
 } from '../support/timer';
@@ -293,45 +293,92 @@ test.describe('契約に合わない同期フレームを捨てたことが画�
  * サーバーにとって元のコードが「知らないコード」になるのと同じ状態に置くわけで、
  * **返ってくる `ROOM_NOT_FOUND` は実サーバーが出す本物**である（#209 と同じ流儀）。
  */
+/** 消滅の仕掛けの状態。ページ側に置き、`page.evaluate` で読み書きする。 */
+interface RoomLossState {
+  /** これが立って以降の `room.join` を、消えたルームへ向ける */
+  losing: boolean;
+  /** 実際に差し替えた回数 */
+  rewritten: number;
+}
+
+interface LossWindow {
+  __e2eRoomLoss: RoomLossState;
+  __e2eSockets: WebSocket[];
+}
+
 test.describe('timer のルームが消えたら操作を止めて、やり直す導線を出す', () => {
   /**
-   * そのページの WS を仲介し、**再接続した瞬間から行き先を「消えたルーム」へ**変える。
+   * そのページの WebSocket を、**ページの中から**掴めるようにし、合図の後だけ
+   * `room.join` の行き先を差し替えられるようにする。**`goto` より前に仕込む。**
    *
-   * **書き換えた回数を数えて返す。** 契約やフレームの形が変わって
-   * `joinMissingRoomFrame` が素通しへ退化すると、症状は「喪失の画面が出ない」という
-   * 原因の読めない失敗になる。**仕掛けが働かなかったことを、そう言えるようにする。**
+   * **`page.routeWebSocket` を使わない。** 使うと WS が Playwright を経由するようになり、
+   * **ホストが 2 人目の到着を恒久的に取りこぼす**ことがある（実測: 8 並列で 8 本中 2 本。
+   * 細工の無い `@core` は 8/8 緑。中継を手で書かず完全に素通しにしても再現した）。
+   * しかも落ちるのは Given の段なので、原因が異常系の実装に見えない。
+   * **後から掛けて避けることもできない** —— 傍受は文書の読み込み時に仕込まれるため、
+   * 読み込み済みのページに後から掛けても新しい接続を捕まえない（実測で確認した）。
+   *
+   * ここは構築子と `send` を包むだけで、フレームは 1 通も外へ出ない。
    */
-  async function roomVanishesOnReconnect(
-    page: Page,
-  ): Promise<{ vanish: () => Promise<void>; rewritten: () => number }> {
-    let connections = 0;
-    let rewritten = 0;
-    let live: { toPage: WebSocketRoute; toServer: WebSocketRoute } | undefined;
+  async function armRoomLoss(page: Page): Promise<void> {
+    await page.addInitScript((missingCode: string) => {
+      const state: RoomLossState = { losing: false, rewritten: 0 };
+      const opened: WebSocket[] = [];
+      Object.defineProperty(window, '__e2eRoomLoss', { value: state });
+      Object.defineProperty(window, '__e2eSockets', { value: opened });
 
-    await page.routeWebSocket(/\/timer\/ws$/, (ws) => {
-      connections += 1;
-      // 2 本目以降＝再接続。ここから先は「再起動したサーバー」を相手にする
-      const roomIsGone = connections > 1;
-      const server = ws.connectToServer();
-      live = { toPage: ws, toServer: server };
-      ws.onMessage((message) => {
-        const payload = typeof message === 'string' ? message : message.toString();
-        const next = roomIsGone ? joinMissingRoomFrame(payload) : payload;
-        if (next !== payload) rewritten += 1;
-        server.send(next);
-      });
-      server.onMessage((message) => ws.send(message));
+      /** `room.join` の行き先だけを差し替える。他のフレームはそのまま通す。 */
+      const redirectJoin = (payload: string): string => {
+        let frame: unknown;
+        try {
+          frame = JSON.parse(payload);
+        } catch {
+          return payload;
+        }
+        if (typeof frame !== 'object' || frame === null) return payload;
+        const message = frame as { command?: unknown; code?: unknown };
+        if (message.command !== 'room.join' || typeof message.code !== 'string') return payload;
+        return JSON.stringify({ ...message, code: missingCode });
+      };
+
+      const Original = window.WebSocket;
+      window.WebSocket = class extends Original {
+        constructor(url: string | URL, protocols?: string | string[]) {
+          super(url, protocols);
+          opened.push(this);
+        }
+
+        override send(data: Parameters<WebSocket['send']>[0]): void {
+          if (!state.losing || typeof data !== 'string') return super.send(data);
+          const next = redirectJoin(data);
+          if (next !== data) state.rewritten += 1;
+          return super.send(next);
+        }
+      };
+    }, MISSING_ROOM_CODE);
+  }
+
+  /**
+   * そのページのルームを、**呼んだ時点から**失わせる。差し替えた回数を読む関数を返す。
+   *
+   * 順番が要点。まず合図を立て、それから**いま繋がっている接続を落とす**。
+   * クライアントは自動で再入室しに行き、その `room.join` だけが消えたルームを指す。
+   *
+   * **落とせたことを確かめる。** 掴み損ねていると、何も起きないまま
+   * 「喪失の画面が出ない」で落ち、原因が異常系の実装に見える。
+   */
+  async function loseRoom(page: Page): Promise<() => Promise<number>> {
+    const closed = await page.evaluate(() => {
+      const w = window as unknown as LossWindow;
+      w.__e2eRoomLoss.losing = true;
+      const socket = w.__e2eSockets[w.__e2eSockets.length - 1];
+      if (socket === undefined) return false;
+      socket.close();
+      return true;
     });
+    expect(closed, '落とす対象の接続が見つからない').toBe(true);
 
-    return {
-      // **両側を落とす。** ページ側だけ閉じるとサーバーは元の接続を掴んだままで、
-      // 「再起動した」状態から離れる
-      vanish: async () => {
-        await live?.toServer.close();
-        await live?.toPage.close();
-      },
-      rewritten: () => rewritten,
-    };
+    return () => page.evaluate(() => (window as unknown as LossWindow).__e2eRoomLoss.rewritten);
   }
 
   /** セッション中に編集者が押せる操作。**押せることを先に確かめてから**消滅を見る。 */
@@ -347,12 +394,12 @@ test.describe('timer のルームが消えたら操作を止めて、やり直�
     page,
     openPeer,
   }) => {
-    // Given: **仕掛けは goto より前に置く。** 後から足すと最初の接続を仲介できず、
-    //        再接続かどうかの数え上げが 1 本ずれる
-    const host = await roomVanishesOnReconnect(page);
+    // Given: **仕掛けは据えるだけで、まだ何もしない。** 参加も名簿の同期も、
+    //        他のシナリオとまったく同じ経路をそのまま通る
+    await armRoomLoss(page);
     const code = await createRoom(page, HOST);
     const guest = await openPeer('timer-session-lost');
-    const visitor = await roomVanishesOnReconnect(guest.page);
+    await armRoomLoss(guest.page);
     await joinAsDriver(guest.page, code, GUEST);
 
     // Given の確認: 2 人が別人として輪に並び、セッションが始まっている
@@ -368,17 +415,18 @@ test.describe('timer のルームが消えたら操作を止めて、やり直�
     }
 
     // When: サーバーが再起動し、ルームが消える
-    await Promise.all([host.vanish(), visitor.vanish()]);
+    const hostRewritten = await loseRoom(page);
+    const guestRewritten = await loseRoom(guest.page);
 
     // **仕掛けが働いたことを、結果を見る前に確かめる。** 後回しにすると、
-    // `joinMissingRoomFrame` が素通しへ退化した日の症状が「喪失の画面が出ない」に
-    // なり、製品の欠陥と見分けがつかない（実測で確認した）。再接続はバックオフを
+    // 差し替えが素通しへ退化した日の症状が「喪失の画面が出ない」になり、
+    // 製品の欠陥と見分けがつかない（実測で確認した）。再接続はバックオフを
     // 挟むので、待てる形で数える
     await expect
-      .poll(host.rewritten, { message: '作成者の room.join を書き換えられていない' })
+      .poll(hostRewritten, { message: '作成者の room.join を差し替えられていない' })
       .toBeGreaterThan(0);
     await expect
-      .poll(visitor.rewritten, { message: '2 人目の room.join を書き換えられていない' })
+      .poll(guestRewritten, { message: '2 人目の room.join を差し替えられていない' })
       .toBeGreaterThan(0);
 
     // Then その1: 何が起きたのかが画面に出る。**両方の画面で**同じに見える

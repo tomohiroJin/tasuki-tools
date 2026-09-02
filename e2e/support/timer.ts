@@ -131,37 +131,19 @@ export function corruptSnapshotFrame(payload: string): string {
 }
 
 /**
- * **もう存在しないルームコード。** 生成器（`NanoidCodeGen`）は 6 文字の
- * `ABCDEFGHJKMNPQRSTUVWXYZ23456789`、あるいは `<スラグ>-<小文字英数 8 文字>` しか作らない。
- * ハイフンの後ろが 4 文字の大文字であるこの値は、どちらの形にも当てはまらないため
- * **実在のルームと衝突しない**。
+ * **もう存在しないルームコード**（#142・#76 F-4）。
+ *
+ * 生成器（`NanoidCodeGen`）は 6 文字の `ABCDEFGHJKMNPQRSTUVWXYZ23456789`、
+ * あるいは `<スラグ>-<小文字英数 8 文字>` しか作らない。ハイフンの後ろが 4 文字の
+ * 大文字であるこの値は、どちらの形にも当てはまらないため**実在のルームと衝突しない**。
+ *
+ * 再接続時の `room.join` の行き先をこれに差し替えると、サーバーにとっては
+ * 「知らないコード」になる。**再起動でルームを失った状態と同じ**で、返ってくる
+ * `ROOM_NOT_FOUND` は実サーバーが出す本物である（こちらでエラーフレームを捏造しない。
+ * 捏造すると、サーバーがコードを変えた日にこの検査だけが古い契約のまま緑になる）。
+ *
+ * `code` は `nonEmptyString` なので、この値は境界検証を通って `store.get(code)` まで
+ * 到達する（`room-join.ts`）。**別のエラーコードに化けない**ことが、この検査が見たい
+ * 経路を通るための条件である。
  */
 export const MISSING_ROOM_CODE = 'E2E-ROOM-GONE';
-
-/**
- * `room.join` フレームの行き先を、存在しないルームへ差し替える（#142・#76 F-4）。
- * 他の種類のフレームはそのまま返す。
- *
- * **狙いは「サーバーが再起動してルームが消えた」状態の再現である。** 揮発
- * インメモリなので、再起動後のサーバーにとって元のルームコードは「知らないコード」に
- * なる。ここではクライアント→サーバーの行き先だけを差し替えて、サーバーを
- * 同じ状態に置く。**返ってくる `ROOM_NOT_FOUND` は実サーバーが出す本物**で、
- * こちら側でエラーフレームを捏造しない。捏造すると、サーバーがコードを変えた日に
- * この検査だけが古い契約のまま緑になる。
- *
- * `code` は `nonEmptyString` なので、この値は境界検証を通って
- * `store.get(code)` まで到達する（`room-join.ts`）。**別のエラーコードに化けない**
- * ことが、この検査が見たい経路を通るための条件である。
- */
-export function joinMissingRoomFrame(payload: string): string {
-  let frame: unknown;
-  try {
-    frame = JSON.parse(payload);
-  } catch {
-    return payload;
-  }
-  if (typeof frame !== 'object' || frame === null) return payload;
-  const message = frame as { command?: unknown; code?: unknown };
-  if (message.command !== 'room.join' || typeof message.code !== 'string') return payload;
-  return JSON.stringify({ ...message, code: MISSING_ROOM_CODE });
-}
