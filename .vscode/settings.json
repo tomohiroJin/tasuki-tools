@@ -1,0 +1,33 @@
+{
+  // Playwright 拡張は e2e/playwright.config.ts を自分で検出して読み込むが、
+  // pnpm e2e / e2e:prod のスクリプトを経由しないため TASUKI_E2E_TARGET が届かない。
+  // config はトップレベルで resolveTarget(process.env) を呼ぶので、テストを 1 件も
+  // 走らせる前に e2e/harness/target.ts で落ち、テストエクスプローラが赤くなり続ける。
+  // これは意図した防御（既定値を持たせない = 本番向け変数の残留による取り違えを防ぐ）が
+  // 発火しているだけで、不具合ではない。
+  //
+  // ここで local を渡すのは、その赤を止めるため。production を選ぶには別途
+  // TASUKI_E2E_BASE_URL が要るので、これを置いても取り違えの危険は増えない。
+  //
+  // ## テストエクスプローラの ▶ について（#162 で実測）
+  //
+  // **押してよい。** globalSetup が配信対象をビルドしてから起動するので、
+  // `pnpm e2e` と同じ成果物に対して走る。ただし癖が 3 つある。
+  //
+  //  1. **ビルドが走るのは、そのウィンドウで最初の ▶ だけ。** 拡張は globalSetup を
+  //     1 回しか走らせず、2 回目以降は飛ばす。app を編集しても古い dist のまま走るので、
+  //     編集を反映するには `Run global teardown` を挟んでから押し直すこと。
+  //     globalSetup の中で何をしてもこの制約は外せない（呼ばれないため）。
+  //  2. **実行後もハーネス（Caddy と sync）が起動したまま残る。** 拡張は globalSetup を
+  //     初回だけ走らせ、teardown は明示操作まで走らせないため。残っている間は
+  //     ターミナルの `pnpm e2e` が preflight で止まる。片付けるには
+  //     Ctrl+Shift+P → `Run global teardown`（**sudo は要らない**）。
+  //     完了は通知されないが、実行すれば確実に片付く。
+  //  3. **e2e/harness/ を変更したら、ウィンドウをリロードするまで拡張は古い版を使う。**
+  //     Node のモジュールキャッシュが拡張の test-server プロセスに残るため。
+  //     Ctrl+Shift+P → `Developer: Reload Window`。
+  //
+  // `Run global setup on each run` はオンにしないこと。オンにすると 2 回目の実行で
+  // globalSetup が再走し、前回の残骸に対して preflight が発火して赤くなる。
+  "playwright.env": { "TASUKI_E2E_TARGET": "local" }
+}

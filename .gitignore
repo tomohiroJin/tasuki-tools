@@ -32,6 +32,10 @@ Thumbs.db
 *.swp
 .vscode/*
 !.vscode/extensions.json
+# Playwright 拡張へ TASUKI_E2E_TARGET を渡す設定は共有する（#162）。
+# この 1 行が無いと、新しく clone した人へ設定が届かず、拡張は config の読み込みで
+# 落ちてテストエクスプローラが赤くなり続ける（追跡済みの手元では気づけない）。
+!.vscode/settings.json
 .superpowers/
 
 # poker 由来（planning-poker/.gitignore から統合）

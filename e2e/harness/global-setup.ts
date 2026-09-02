@@ -12,6 +12,7 @@
  * 「次回起動時に気づける」ことで、この穴を埋めている。
  */
 import type { ChildProcess } from 'node:child_process';
+import { buildWebApps } from './build';
 import { ensureCaddyBinary, installCaddyConfig, removeCaddyConfig, startCaddy, stopCaddy } from './caddy';
 import { runPreflight } from './preflight';
 import { startSyncServers, stopSyncServers } from './sync';
@@ -25,6 +26,12 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
       /* 起動していないので何もしない */
     };
   }
+
+  // **preflight より前に置く。** 配信するのは「ここで作った成果物」であって、
+  // 「そのとき置いてあったもの」ではない。turbo 経由（`pnpm e2e`）なら
+  // `dependsOn: ["^build"]` で済んだビルドを引き当てて即座に戻り、turbo を
+  // 経由しない VSCode の拡張から実行したときだけ実際に走る（#162）。
+  buildWebApps();
 
   await runPreflight(process.env);
 
