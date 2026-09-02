@@ -39,8 +39,3 @@ export function createSnapshotBuilder(room: Room): (viewerId: string) => RoomSta
     yourVote: room.round.votes.get(viewerId) ?? null,
   });
 }
-
-/** Room → 受信者（viewerId）向けの room-state メッセージ */
-export function snapshotFor(room: Room, viewerId: string): RoomStateMessage {
-  return createSnapshotBuilder(room)(viewerId);
-}
