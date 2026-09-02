@@ -828,7 +828,13 @@ export function sc039bUnusedPublicData(packageSrcFiles, productSources) {
  *
  * **見なくなるもの**: `index.ts` にも載っていない、どこからも使われない公開型。
  * これは以後どの検査も見ない（ADR-0016 が④で受け入れたのと同じ受容。型の妥当性は
- * レビューが見る）。公開面に出ないので影響はパッケージの内側に閉じる。
+ * レビューが見る）。
+ *
+ * ⚠ **「index に載らないから外へは出ない」とは言えない。** `packages/timer-core` は
+ * `exports` マップを持たず、app 側の `tsconfig` が `@tasuki/timer-core/*` を
+ * ワイルドカードで通すため、**index に載っていないモジュールの `export type` も
+ * サブパスで名前ごと取り込める**（#220 で配線を確かめた）。受容の根拠は
+ * 「外へ出ないこと」ではなく、**型の妥当性はレビューが見る**という④と同じ割り切りである。
  *
  * `exceptions`（{@link SC039C_EXCEPTIONS} と同じ形）に載る `file::name` の組は数えない。
  * 例外表が腐っていないかは {@link findStaleSymbolExceptions} が別に見る。
@@ -1098,12 +1104,15 @@ export const EXCLUDED_PACKAGES = [
  * ここへ理由つきで挙げる。理由を書けないものは例外にしない。
  *
  * **「まだ決めていない」は理由ではない**（#180）。走査を `packages/` 全体へ広げたとき、
- * 新たに 16 件が検出された。判断を待つあいだ例外表へ入れると指標が 0 に戻って
- * **読むべき信号を消してしまう**ので、未決のまま見えた状態で残した。測定値は落ちない
+ * 新たに 16 件が検出され、**うち 3 件をここへ載せ、残り 13 件は未決のまま見えた状態で残した**
+ * （ADR-0014「広げた結果」）。判断を待つあいだ例外表へ入れると指標が 0 に戻って
+ * **読むべき信号を消してしまう**ためである。測定値は落ちない
  * （ADR-0009 D2。実測で `audit-structure.mjs` は exit 0）。
  * #135 が走査を広げた結果 SC-031 が未達へ変わったときと同じ扱いである（ADR-0014「影響」）。
  *
- * **その未決は #223 で解いた（2026-09-02）。** 内訳は 2 つに割れた。
+ * **その未決は #223 で解いた（2026-09-02）。** ただし解いた時点の集合は上の 13 件とは違う ——
+ * その後の変更で増減し、**着手時は 16 件だった**（数が同じなのは偶然で、同じ集合ではない）。
+ * 内訳は 2 つに割れた。
  *
  * - **型 11 件**は、すべて `index.ts` に載っている公開契約の型だった。
  *   ③はこれを判定できないので、**型を数えるのをやめた**
@@ -1215,10 +1224,22 @@ export function findStaleSymbolExceptions(exceptions, packageSrcFiles, productSo
       );
       continue;
     }
-    const declared = extractPublicDeclarations(content).some((d) => d.name === e.name);
-    if (!declared) {
+    const declared = extractPublicDeclarations(content).filter((d) => d.name === e.name);
+    if (declared.length === 0) {
       problems.push(
         `SC-039③ の例外が指す公開宣言がありません: ${e.file} の ${e.name}（記号が消えたなら例外も消してください）`,
+      );
+      continue;
+    }
+    // **型だけの例外は何も落とさない。** ③は型を数えないので（#223）、載せても
+    // 恒久的に不活性な項目が増えるだけである。散文で「値だけを載せる」と書くのでは
+    // 腐りを止められないので、ここで機構として落とす。
+    //
+    // **同名の値があるなら通す。** 値が消えて同名の型だけが残った場合は落ちるので、
+    // 後から値が復活したときに例外が本物の検出を静かに握り潰す経路も塞がる。
+    if (declared.every((d) => d.kind === "interface" || d.kind === "type")) {
+      problems.push(
+        `SC-039③ の例外に型が載っています: ${e.file} の ${e.name}（③は型を数えないので、この例外は何も落としません。消してください）`,
       );
       continue;
     }

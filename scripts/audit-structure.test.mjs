@@ -864,6 +864,45 @@ describe("findStaleSymbolExceptions: 例外表は両方向に腐らせない", (
   });
 });
 
+describe("findStaleSymbolExceptions: 型の例外は何も落とさないので腐りとして落とす（#223）", () => {
+  const productSources = new Map([["apps/web/src/App.tsx", "no reference here"]]);
+
+  test("型だけの記号を例外に載せると落ちる", () => {
+    const packageSrcFiles = new Map([
+      ["packages/poker-core/src/protocol.ts", "export type ProtocolError = { code: string };"],
+    ]);
+    const exceptions = [
+      { file: "packages/poker-core/src/protocol.ts", name: "ProtocolError", reason: "理由はある" },
+    ];
+    const problems = findStaleSymbolExceptions(exceptions, packageSrcFiles, productSources);
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /型が載っています/);
+  });
+
+  test("対照: 値の例外は落とさない", () => {
+    const packageSrcFiles = new Map([
+      ["packages/poker-core/src/protocol.ts", "export const ERROR_CODES = ['a'];"],
+    ]);
+    const exceptions = [
+      { file: "packages/poker-core/src/protocol.ts", name: "ERROR_CODES", reason: "理由はある" },
+    ];
+    assert.deepEqual(findStaleSymbolExceptions(exceptions, packageSrcFiles, productSources), []);
+  });
+
+  test("同名の値があるなら落とさない（値が消えて型だけ残った場合との差）", () => {
+    const packageSrcFiles = new Map([
+      [
+        "packages/poker-core/src/protocol.ts",
+        ["export const Foo = 1;", "export type Foo = number;"].join("\n"),
+      ],
+    ]);
+    const exceptions = [
+      { file: "packages/poker-core/src/protocol.ts", name: "Foo", reason: "理由はある" },
+    ];
+    assert.deepEqual(findStaleSymbolExceptions(exceptions, packageSrcFiles, productSources), []);
+  });
+});
+
 describe("sc039cSelfOnlyPublicSymbols: 例外表に載る記号は数えない", () => {
   const productSources = new Map([["packages/x/src/user.ts", "const a = 1;\n"]]);
   const packageSrcFiles = new Map([
