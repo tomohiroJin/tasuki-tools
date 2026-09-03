@@ -54,3 +54,36 @@ CI を経由せず publish する乗っ取りの典型を、公開から時間�
   不正値の検証が無いため、無警告で検査が消える）。機械的な検査は
   [Issue #135](https://github.com/tomohiroJin/tasuki-tools/issues/135) で扱う
 - ADR-0008 の決定はいずれも覆らない。本 ADR は 0008 を置換せず、併存する
+
+## 追記（2026-09-03・#154）
+
+### 静かに効かなくなる 3 経路に機械検査が付いた
+
+上の「影響」が「機械的な検査は Issue #135 で扱う」と書いた 3 経路は、#135 の範囲から
+外れて [#154](https://github.com/tomohiroJin/tasuki-tools/issues/154) へ切り出され、
+そこで塞いだ。**この追記は決定を変えない。** 検査の追加であり、`trustPolicy` の運用も
+除外の書き方も従来どおりである。
+
+- **MUST**: `trustPolicyExclude` の各エントリは版を持つ（`名前@版`）。名前だけの形は
+  以後そのパッケージの**全版**を無検査にする。pnpm はこれを「より広い除外」として
+  正常に受け取り、警告も出さない
+- **MUST NOT**: `trustPolicyIgnoreAfter` を置かない。公開からの経過時間で降格判定を
+  無効化する鍵であり、本 ADR の決定を時間で空文化する。検査はこれを「未知のキー」とは
+  別の理由として名指しで落とす
+- **MUST**: 除外した版が依存木から消えたら行を消す。残すと、その版が別の依存元経由で
+  再び現れたときに黙って免除を与える
+
+検査は `scripts/audit-supply-chain-config.mjs`。**判定の権威は pnpm 自身**に置き、
+`pnpm-workspace.yaml` を手で解析しない（`docs/adr/0014` D2）。設定のキーと値は
+`pnpm config list --json` を 2 か所（リポジトリ直下と、同じ `packageManager` を書いた
+素のディレクトリ）で走らせた差分から、除外が指す版の実在は `pnpm why` から取る。
+
+### 版の妥当性は pnpm に任せる
+
+`"semver@6.3"` のように版が不完全な形は、pnpm 自身が
+`ERR_PNPM_INVALID_TRUST_POLICY_EXCLUDE` で落とす（実測）。**黙って通るのは版を
+まったく持たない形だけ**なので、検査はそこだけを見る。版の妥当性を自前で判定すると
+semver の解釈を自作再実装することになり、偽陽性の面が増える。
+
+実測値と機序の正本は
+[設計正本](../superpowers/specs/2026-09-03-supply-chain-config-integrity-design.md) とする。

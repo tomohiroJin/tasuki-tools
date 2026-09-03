@@ -431,6 +431,39 @@ pnpm は「lockfile のハッシュ＋ポリシー」を鍵に検証結果をキ
 CI は毎回フレッシュな checkout なのでこの短絡は起きません。**この罠にかかるのは
 ローカルでの確認作業だけです。**
 
+#### 短絡は 2 段ある（2026-09-03・#154 で実測して書き足し）
+
+上の 2 つ（`node_modules` と検証キャッシュ）は**別々の短絡**で、順番があります。
+`pnpm install --frozen-lockfile` で実測した結果は次のとおりです。
+
+| 実行 | 所要 | `✓ Lockfile passes supply-chain policies` |
+|---|---|---|
+| そのまま | 0.5s | 出ない |
+| 検証キャッシュ**だけ**を消してから | 0.5s | **出ない**（キャッシュが再生成もされない） |
+| `--config.optimistic-repeat-install=false` を付ける | 14.5s | 出る（445 entries） |
+| 同じものをもう一度 | 1.5s | 出ない（ここで初めてキャッシュに当たる） |
+
+**「検証キャッシュを消せば再検証される」は誤りです。** 1 段目（`optimisticRepeatInstall`。
+既定で有効）は `Already up to date` を出して**検証器を作るより手前で return** するため、
+キャッシュを読みも書きもしません。`node_modules` を消す手順が効くのは、
+この 1 段目を成立させないからです。
+
+**`node_modules` を消さずに済ませたいときは、1 段目を直接切ってください。**
+
+```bash
+# 1 段目だけを切る（2 段目のキャッシュに当たると、それでも行は出ません）
+pnpm install --frozen-lockfile --config.optimistic-repeat-install=false
+
+# 2 段とも切る（lockfile もポリシーも変えずに再検証したいとき）
+rm -f ~/.cache/pnpm/lockfile-verified.jsonl
+pnpm install --frozen-lockfile --config.optimistic-repeat-install=false
+```
+
+**この確認は CI では自動で行われます。** `quality` ジョブの install は
+`node scripts/install-with-supply-chain-check.mjs` 経由で走り、検証の行が出なければ
+落ちます（#154）。`node_modules` を CI キャッシュへ載せる・`--trust-lockfile` が
+紛れ込む、といった変更で**CI が緑のまま検証をやめる**経路をここで塞いでいます。
+
 ### CI での扱い
 
 CI の `pnpm install --frozen-lockfile` は `--trust-lockfile` を付けません。
@@ -620,6 +653,7 @@ node scripts/audit-domain-error-shape.mjs        # ドメインエラー型の�
 node scripts/audit-domain-side-effects.mjs       # ドメインの副作用（core が Date.now() 等を直接呼ばないか。ADR-0016 決定 2 項目 4）
 node scripts/audit-web-sync-boundary.mjs         # web 層の同期境界（画面が同期クライアントを直接 import しないか。ADR-0015 MUST 2）
 node scripts/audit-public-surface.mjs            # 公開面（エントリが export * を使っていないか。ADR-0016 決定 2 項目 2）
+node scripts/audit-supply-chain-config.mjs       # pnpm 供給網設定の退化（除外の版指定・死んだ除外行・未知のキーと値。ADR-0008 / ADR-0010）
 node scripts/mutation-check.mjs                  # 変異検査
 node scripts/check-links.mjs                     # リンク検査
 
@@ -649,6 +683,19 @@ bash -c 'set -euo pipefail; targets="$(node scripts/list-scan-targets.mjs shell)
 `git add` するまでは他のファイルからも自分自身からも解決できず、「参照先が
 ありません」と出ます（`git add` すれば解消します）。決定は
 [`docs/adr/0014`](../adr/0014-scan-target-integrity.md) D4。
+
+**`scripts/audit-supply-chain-config.mjs` の権威は pnpm 自身です。** 設定のキーと値は
+`pnpm config list --json`、除外が指す版の実在は `pnpm why` から取ります
+（`pnpm-workspace.yaml` を手で解析しない。[`docs/adr/0014`](../adr/0014-scan-target-integrity.md) D2）。
+**`node_modules` は要らず、`pnpm-lock.yaml` があれば動きます**（新規 worktree で実測）。
+`pnpm -r list` が install 済みを要求するのとは事情が違います。CI では `quality` ジョブの
+install の後ろに置いていますが、これは順序を保証する側を 1 つで済ませるためです。
+
+**供給網ポリシーの検証が実際に走ったことは、CI の install 自体が確かめます。**
+`quality` ジョブの install は `node scripts/install-with-supply-chain-check.mjs` 経由で走り、
+`✓ Lockfile passes supply-chain policies (N entries in …)` が出なければ落ちます（#154）。
+このラッパを手元で直接叩くと、`node_modules` が温まっている限り**落ちるのが正常**です
+（下の[ローカル確認時の注意](#ローカル確認時の注意)を参照）。
 
 **依存の脆弱性検査（`pnpm audit`）は上記に含まれません。** CI の独立ジョブ
 （`audit`）で自動実行され、high 以上の脆弱性で落ちます（決定は
