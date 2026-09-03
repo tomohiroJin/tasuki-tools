@@ -42,7 +42,7 @@ const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SCRIPT_DIR, "..");
 
 /**
- * 走査するパッケージ（リポジトリルート起点）。各パッケージの `src/` 配下の `.ts` を見る。
+ * 走査するパッケージ（リポジトリルート起点）。各パッケージの `src/` 配下の `.ts` / `.tsx` を見る。
  *
  * **ハードコードの配列をやめ、workspace の実体と全単射で照合する**（#135 経路⑪）。
  * 以前は timer-sync・poker-sync・rate-limit の 3 つだけを見ており、新設パッケージは
@@ -120,6 +120,10 @@ export const ALLOWED_FILES = [
   // スキーマは v.strictObject で、送り手が付けた未知のキー名がそのまま経路に載るため
   // （実測）。出しているのは固定の文言だけで、値も経路も含まない。
   "apps/poker-web/src/hooks/useSync.ts",
+  // #157 で `.tsx` を走査対象へ入れたことによる追加。ブラウザの devtools 向けの
+  // console で、ADR 0012 D1 は「ブラウザの console は本決定の対象外」と決めている。
+  // 規範上は自由だが、`.ts` 側（上の 2 件）と扱いを揃えるためマーカーで明示する。
+  "apps/timer-web/src/ui/History.tsx",
 ];
 
 /** 走査結果に必ず存在しなければならないファイル（走査対象の消失を検出する）。 */
@@ -325,7 +329,33 @@ export function findMissingRequired(scanned) {
 }
 
 /**
- * ディレクトリ配下の .ts を読む（`dist` と `node_modules` は除外）。
+ * 走査する拡張子（#157）。
+ *
+ * **`.ts` と `.tsx` を区別しない。** 拡張子は「サーバか画面か」の代理にならない ——
+ * ADR 0015 MUST 2 が求める同期フックは JSX を持たない `.ts` なので、画面から配線を
+ * 移すだけで拡張子が変わり、射程が動く。実際、`.ts` に据え置いていた間は
+ * `apps/timer-web/src/sync/use-timer-sync.ts` のブラウザ `console` にはマーカーが要り、
+ * 同じ `console` が `apps/timer-web/src/ui/History.tsx` では自由だった。
+ *
+ * **`.mts` / `.cts` / `.jsx` は足していない。** 現在 0 件で実需が無い（`docs/adr/0007`）。
+ * 必要になったときに足す。
+ */
+export const SCANNED_EXTENSIONS = [".ts", ".tsx"];
+
+/**
+ * そのファイル名を走査するか。
+ *
+ * **型宣言（`.d.ts`）は走査しない。** 実行時のログ経路を持たない。
+ * 判定を純粋関数として切り出しているのは、**拡張子の集合を機械が検査できる形にする**ため
+ * （切り出す前は、収集から `.tsx` を落としても自己テストが緑のままだった）。
+ */
+export function isScannedFile(name) {
+  if (name.endsWith(".d.ts")) return false;
+  return SCANNED_EXTENSIONS.some((ext) => name.endsWith(ext));
+}
+
+/**
+ * ディレクトリ配下の走査対象ファイルを読む（`dist` と `node_modules` は除外）。
  *
  * **実在しないディレクトリを渡してはならない。** かつてここには
  * `if (!fs.existsSync(abs)) return result;` があり、走査対象を失った状態を
@@ -333,7 +363,7 @@ export function findMissingRequired(scanned) {
  * `main()` が走査の前に済ませるため、ここで実在しないディレクトリを受け取ったら
  * 例外で落ちるのが正しい（黙って空を返すより、うるさく落ちるほうが安全）。
  */
-function readTsFiles(rootDir) {
+function readSourceFiles(rootDir) {
   const result = new Map();
   const abs = path.join(REPO_ROOT, rootDir);
   const walk = (dir) => {
@@ -341,7 +371,7 @@ function readTsFiles(rootDir) {
       if (e.name === "node_modules" || e.name === "dist") continue;
       const full = path.join(dir, e.name);
       if (e.isDirectory()) walk(full);
-      else if (e.name.endsWith(".ts") && !e.name.endsWith(".d.ts")) {
+      else if (isScannedFile(e.name)) {
         const rel = path.relative(REPO_ROOT, full).split(path.sep).join("/");
         result.set(rel, fs.readFileSync(full, "utf8"));
       }
@@ -349,29 +379,6 @@ function readTsFiles(rootDir) {
   };
   walk(abs);
   return result;
-}
-
-/**
- * 走査対象ディレクトリにある `.tsx` の件数を数える（走査はしない）。
- *
- * **見ていないものを黙っていない**ための出力（#135 D7）。射程を `.ts` に
- * 据え置く判断そのものは別 Issue で行う。
- */
-function countSkippedTsx(scanDirs) {
-  let n = 0;
-  for (const dir of scanDirs) {
-    const abs = path.join(REPO_ROOT, dir);
-    const walk = (d) => {
-      for (const e of fs.readdirSync(d, { withFileTypes: true })) {
-        if (e.name === "node_modules" || e.name === "dist") continue;
-        const full = path.join(d, e.name);
-        if (e.isDirectory()) walk(full);
-        else if (e.name.endsWith(".tsx")) n++;
-      }
-    };
-    walk(abs);
-  }
-  return n;
 }
 
 function main() {
@@ -394,7 +401,7 @@ function main() {
   const scanDirs = SCAN_DIRS.filter((dir) => !missingDirs.includes(dir));
   const scanned = new Map();
   for (const dir of scanDirs) {
-    for (const [k, v] of readTsFiles(dir)) scanned.set(k, v);
+    for (const [k, v] of readSourceFiles(dir)) scanned.set(k, v);
   }
   const summary = `${scanDirs.length} パッケージ / ${scanned.size} ファイル`;
 
@@ -408,14 +415,13 @@ function main() {
     process.exit(1);
   }
 
-  // 走査量と未走査 .tsx の件数は、成否によらず必ず出す（#135 D5・E7）。
-  // 違反が出ているときこそ「何を見ていないか」が要る（分岐の前にまとめる）。
+  // 走査量は成否によらず必ず出す（#135 D5・ADR-0014 決定 6）。
+  // 違反が出ているときこそ「何を見たか」が要る（分岐の前にまとめる）。
+  //
+  // **「走査していない .tsx: N 件」の行は #157 で消した。** `.tsx` を走査対象へ入れたので
+  // 常に 0 件を言い続ける出力になる。「見ていないものを黙っていない」という #135 E7 の
+  // 目的は、見るようにすることで果たされた。
   console.log(`[audit-log-hygiene] 走査対象: ${summary}`);
-  console.log(
-    `  走査していない .tsx: ${countSkippedTsx(scanDirs)} 件` +
-      "（ブラウザの console は ADR 0012 D1 が対象外と決定済み。本検査が .tsx を" +
-      "走査しないこと自体の妥当性は別 Issue で判断する）",
-  );
 
   // 走査量のどの内訳も 0 件でないことを見る（ADR-0014 決定 8）。
   //

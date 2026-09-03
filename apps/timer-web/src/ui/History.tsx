@@ -44,7 +44,7 @@ export function History({ onBack }: HistoryProps) {
         setRecords([...loaded].sort((a, b) => b.completedAt - a.completedAt));
       })
       .catch((e) => {
-        console.error("記録の読み込みに失敗しました:", e);
+        console.error("記録の読み込みに失敗しました:", e); // log-hygiene:allow ブラウザの devtools 向け
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -61,7 +61,7 @@ export function History({ onBack }: HistoryProps) {
         setRecords((prev) => prev.filter((r) => r.id !== id));
       })
       .catch((e) => {
-        console.error("記録の削除に失敗しました:", e);
+        console.error("記録の削除に失敗しました:", e); // log-hygiene:allow ブラウザの devtools 向け
       });
   };
 
