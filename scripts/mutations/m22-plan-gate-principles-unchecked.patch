@@ -1,0 +1,20 @@
+diff --git a/scripts/audit-plan-gate.mjs b/scripts/audit-plan-gate.mjs
+index 69b51bd..225dea6 100644
+--- a/scripts/audit-plan-gate.mjs
++++ b/scripts/audit-plan-gate.mjs
+@@ -143,15 +143,6 @@ export function checkGate(rel, text, principles) {
+   }
+ 
+   const problems = [];
+-  const missing = principles
+-    .filter(({ numeral }) => !new RegExp(`^\\|\\s*${numeral}\\.\\s`, "m").test(section))
+-    .map(({ numeral }) => numeral);
+-  if (missing.length > 0) {
+-    problems.push({
+-      file: rel,
+-      message: `判定表に無い原則があります: ${missing.join(" / ")}    ← 憲法の全原則について「通過 / 該当なし / 逸脱」を書いてください`,
+-    });
+-  }
+ 
+   if (!/逸脱なし|Complexity Tracking/.test(section)) {
+     problems.push({
