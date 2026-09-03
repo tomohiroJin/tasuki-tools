@@ -201,7 +201,13 @@ jobs:
         with:
           bun-version: latest
 
-      - run: pnpm install --frozen-lockfile
+      # **素の `pnpm install` に戻さないこと。** ラッパは install を包んで、供給網ポリシーの
+      # 検証（minimumReleaseAge / trustPolicy の再適用）が実際に走ったことを確かめる
+      # （#154・#135 経路⑫）。検証は 2 段の短絡で無警告のまま消える。1 回の CI につき
+      # この 1 ジョブだけが目撃者で、他ジョブの install は素のままでよい（設計正本 D5）。
+      # ラッパへ `--config.optimistic-repeat-install=false` を足してはならない。足すと
+      # 合成した経路を判定することになり、実経路の無検証を見逃す。
+      - run: node scripts/install-with-supply-chain-check.mjs
         if: steps.scope.outputs.code == 'true'
 
       # 構造監査の測定値（SC027〜SC039）は合否を持たない。値の合否は自己テストと変異検査で取る（ADR 0009 D2）。
@@ -237,6 +243,12 @@ jobs:
       # 公開面。エントリが export * を使わず公開記号を明示列挙していることを見る
       # （ADR 0016 決定 2 項目 2 が #72 E6 へ割り当てた機械検査・#168）。
       - run: node scripts/audit-public-surface.mjs
+        if: steps.scope.outputs.code == 'true'
+
+      # pnpm の供給網設定の退化。除外の版指定・死んだ除外行・未知のキーと値を見る
+      # （#154・#135 経路⑤⑥⑦）。権威は pnpm 自身（pnpm config list / pnpm why）なので、
+      # このステップは install 済みであることを要求する（ADR-0014 D2 と同じ制約）。
+      - run: node scripts/audit-supply-chain-config.mjs
         if: steps.scope.outputs.code == 'true'
 
       # 対象は列挙しない。scripts/ 配下の *.test.mjs を git から導出する。

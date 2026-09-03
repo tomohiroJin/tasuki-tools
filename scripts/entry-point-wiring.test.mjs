@@ -60,6 +60,11 @@ const LAUNCH_EXCLUSIONS = [
     reason:
       "起動すると全変異を当てるため数分かかる。symlink 経由の起動は scripts/mutation-check.test.mjs が複製リポジトリで見ている",
   },
+  {
+    file: "scripts/install-with-supply-chain-check.mjs",
+    reason:
+      "起動すると pnpm install が走り、この検査のために node_modules を書き換えることになる。判定は純粋関数へ寄せてあり scripts/install-with-supply-chain-check.test.mjs が見ている",
+  },
 ];
 
 /**
