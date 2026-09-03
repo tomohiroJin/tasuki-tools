@@ -117,12 +117,22 @@ function main() {
     });
   }
 
+  // **`process.exit()` を使わない。** ここまでで `pnpm install` の全出力を
+  // `process.stdout.write` へ流している。stdout がパイプのとき（＝CI）その書き込みは
+  // 非同期で、`process.exit` は残りを捨てる。捨てられるのは、このラッパが出す
+  // 14 行の説明そのものである。**検証が走らなかったことを黙って伝え損なう**という、
+  // このラッパが防ぐはずの失敗と同じ形になる。終了コードだけ置いて自然に終わらせる。
+  let spawnFailed = false;
+
   child.on("error", (error) => {
+    spawnFailed = true;
     console.error(`[install-with-supply-chain-check] pnpm を起動できません: ${error.message}`);
-    process.exit(1);
+    process.exitCode = 1;
   });
 
   child.on("close", (status) => {
+    // 起動そのものに失敗したときは close も来る。理由を二重に出さない。
+    if (spawnFailed) return;
     const evidence = findVerificationEvidence(output);
     const outcome = decideOutcome({ status, evidence });
     if (outcome.message) console.error(outcome.message);
@@ -131,7 +141,7 @@ function main() {
         `[install-with-supply-chain-check] 供給網ポリシーの検証を確認しました（${evidence.entries} entries）`,
       );
     }
-    process.exit(outcome.code);
+    process.exitCode = outcome.code;
   });
 }
 

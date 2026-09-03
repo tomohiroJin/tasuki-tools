@@ -246,8 +246,9 @@ jobs:
         if: steps.scope.outputs.code == 'true'
 
       # pnpm の供給網設定の退化。除外の版指定・死んだ除外行・未知のキーと値を見る
-      # （#154・#135 経路⑤⑥⑦）。権威は pnpm 自身（pnpm config list / pnpm why）なので、
-      # このステップは install 済みであることを要求する（ADR-0014 D2 と同じ制約）。
+      # （#154・#135 経路⑤⑥⑦）。権威は pnpm 自身（pnpm config list / pnpm why）。
+      # どちらも pnpm-lock.yaml があれば動くので install 済みであることは要らないが、
+      # このジョブでは install の後ろに置く（順序を保証する側が 1 つで済む）。
       - run: node scripts/audit-supply-chain-config.mjs
         if: steps.scope.outputs.code == 'true'
 

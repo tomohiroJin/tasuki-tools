@@ -684,10 +684,12 @@ bash -c 'set -euo pipefail; targets="$(node scripts/list-scan-targets.mjs shell)
 ありません」と出ます（`git add` すれば解消します）。決定は
 [`docs/adr/0014`](../adr/0014-scan-target-integrity.md) D4。
 
-**`scripts/audit-supply-chain-config.mjs` は `pnpm install` 済みであることを要求します。**
-設定のキーと値は `pnpm config list --json`、除外が指す版の実在は `pnpm why` から取るためです
+**`scripts/audit-supply-chain-config.mjs` の権威は pnpm 自身です。** 設定のキーと値は
+`pnpm config list --json`、除外が指す版の実在は `pnpm why` から取ります
 （`pnpm-workspace.yaml` を手で解析しない。[`docs/adr/0014`](../adr/0014-scan-target-integrity.md) D2）。
-`docs` ジョブのように install を走らせない場所からは呼べません。
+**`node_modules` は要らず、`pnpm-lock.yaml` があれば動きます**（新規 worktree で実測）。
+`pnpm -r list` が install 済みを要求するのとは事情が違います。CI では `quality` ジョブの
+install の後ろに置いていますが、これは順序を保証する側を 1 つで済ませるためです。
 
 **供給網ポリシーの検証が実際に走ったことは、CI の install 自体が確かめます。**
 `quality` ジョブの install は `node scripts/install-with-supply-chain-check.mjs` 経由で走り、

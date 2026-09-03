@@ -170,8 +170,13 @@ ADR-0014 D2 は **`pnpm-workspace.yaml` を手で解析してはならない（M
 `pnpm-lock.yaml` の `packages:` 節を読めば同じ判定はできるが、生成物の字句解析を
 自作することになり D1 に反する。`pnpm why` を使う（§3.5）。
 
-**制約**: `pnpm why` と `pnpm config list` は `pnpm install` 済みを要求する。したがって
-この検査は `docs` ジョブからは呼べない（ADR-0014 D2 が `check-links` に課したのと同じ制約）。
+**制約は無い（2026-09-03 のレビュー指摘を受けて実測し直した）。** 当初は
+「`pnpm install` 済みを要求する」と書いていたが、**誤りだった**。新規 worktree
+（`node_modules` 無し）で `pnpm config list --json` も `pnpm why -r --json` も exit 0 で動き、
+後者は `semver@6.3.1` を返した。**`pnpm-lock.yaml` があれば足りる。**
+ADR-0014 D2 が `check-links` に課した制約（`pnpm -r list` は install 済みを要求する）とは
+事情が違う。CI では `quality` ジョブの install の後ろに置くが、それは順序を保証する側を
+1 つで済ませるためであって、必要だからではない。
 
 ### D5: ⑫ は CI が実際に走らせる install を包んで判定する
 

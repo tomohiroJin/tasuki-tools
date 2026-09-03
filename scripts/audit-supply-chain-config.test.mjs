@@ -6,6 +6,7 @@ import {
   checkKeyMembership,
   checkValues,
   parseVersionedEntry,
+  parseWhyOutput,
   checkExclusionFormat,
   checkOverrideFormat,
   findDeadExclusions,
@@ -87,15 +88,17 @@ describe("deriveOwnKeys: リポジトリ側にしか無い設定を取り出す"
 
 describe("checkKeyMembership: 未知・禁止・必須欠落（経路⑦）", () => {
   const KEYS = ["packages", "allowBuilds", "minimumReleaseAge", "trustPolicy"];
+  /** 素の環境が何も足していない場合（＝持ち込んだ鍵と実効設定が一致する）。 */
+  const same = (keys) => checkKeyMembership(keys, keys);
 
   test("必須がそろっていて余計なキーが無ければ問題なし", () => {
     // Given / When / Then
-    assert.deepEqual(checkKeyMembership(KEYS), []);
+    assert.deepEqual(same(KEYS), []);
   });
 
   test("未知のキーを名指しして落とす", () => {
     // Given: 綴りを間違えた新しいキー（pnpm は無警告で受け取る）
-    const problems = checkKeyMembership([...KEYS, "thisKeyDoesNotExist"]);
+    const problems = same([...KEYS, "thisKeyDoesNotExist"]);
     // When / Then
     assert.equal(problems.length, 1);
     assert.equal(problems[0].key, "thisKeyDoesNotExist");
@@ -104,12 +107,7 @@ describe("checkKeyMembership: 未知・禁止・必須欠落（経路⑦）", ()
 
   test("既知キーの綴り誤りは「未知」と「必須の欠落」の両方で落ちる", () => {
     // Given: trustPolicy → trustPolicyy（#116 が実測した経路そのもの）
-    const problems = checkKeyMembership([
-      "packages",
-      "allowBuilds",
-      "minimumReleaseAge",
-      "trustPolicyy",
-    ]);
+    const problems = same(["packages", "allowBuilds", "minimumReleaseAge", "trustPolicyy"]);
     // When / Then: 落ちた鍵と、増えた鍵の両方を名指しする
     assert.deepEqual(problems.map((p) => p.key).sort(), ["trustPolicy", "trustPolicyy"]);
   });
@@ -117,7 +115,7 @@ describe("checkKeyMembership: 未知・禁止・必須欠落（経路⑦）", ()
   test("必須キーの欠落をそれぞれ名指しする", () => {
     // Given / When / Then（1 つずつ抜いて、その鍵だけが出ることを見る）
     for (const missing of KEYS) {
-      const problems = checkKeyMembership(KEYS.filter((k) => k !== missing));
+      const problems = same(KEYS.filter((k) => k !== missing));
       assert.deepEqual(
         problems.map((p) => p.key),
         [missing],
@@ -128,12 +126,63 @@ describe("checkKeyMembership: 未知・禁止・必須欠落（経路⑦）", ()
 
   test("禁止キーは未知とは別の理由で落とす", () => {
     // Given: 降格検査を経過時間で無効化する鍵
-    const problems = checkKeyMembership([...KEYS, "trustPolicyIgnoreAfter"]);
+    const problems = same([...KEYS, "trustPolicyIgnoreAfter"]);
     // When / Then
     assert.equal(problems.length, 1);
     assert.equal(problems[0].key, "trustPolicyIgnoreAfter");
     assert.match(problems[0].message, /禁止/);
     assert.doesNotMatch(problems[0].message, /未知/);
+  });
+
+  test("必須キーが持ち込んだ鍵から落ちていても、実効設定にあれば「ありません」と言わない", () => {
+    // Given: 素の環境が同じ値を持つと deriveOwnKeys はその鍵を落とす。実効設定には在るので
+    //        「必須の設定キーがありません」は**事実に反する**（レビュー指摘）
+    // When
+    const problems = checkKeyMembership(
+      ["packages", "allowBuilds", "minimumReleaseAge"], // trustPolicy が差分から落ちた
+      KEYS, // だが実効設定には在る
+    );
+    // Then
+    assert.deepEqual(problems, []);
+  });
+
+  test("実効設定に禁止キーがあれば、リポジトリ由来でなくても落とす", () => {
+    // Given / When: 誰が持ち込んだかによらず、防御が無効化されている事実は変わらない
+    const problems = checkKeyMembership(KEYS, [...KEYS, "trustPolicyIgnoreAfter"]);
+    // Then
+    assert.deepEqual(problems.map((p) => p.key), ["trustPolicyIgnoreAfter"]);
+  });
+
+  test("利用者の環境が足した未知のキーは責めない", () => {
+    // Given / When: 実効設定にしか無い鍵（~/.npmrc・pnpm の既定）を「未知」にすると、
+    //               環境ごとに赤が変わる検査になる
+    const problems = checkKeyMembership(KEYS, [...KEYS, "registry", "userAgent"]);
+    // Then
+    assert.deepEqual(problems, []);
+  });
+});
+
+describe("parseWhyOutput: pnpm why の出力を読む", () => {
+  test("その名前の版だけを取り出す", () => {
+    // Given: 実測した形（トップレベルは一致したパッケージの配列）
+    const stdout = JSON.stringify([
+      { name: "semver", version: "6.3.1", dependents: [] },
+      { name: "semver", version: "7.8.5", dependents: [] },
+    ]);
+    // When / Then
+    assert.deepEqual(parseWhyOutput(stdout, "semver"), ["6.3.1", "7.8.5"]);
+  });
+
+  test("依存木に無い名前は空配列になる（pnpm は exit 0 で [] を返す）", () => {
+    assert.deepEqual(parseWhyOutput("[]", "semver"), []);
+  });
+
+  test("解釈できない出力は例外にする（空配列へ丸めない）", () => {
+    // Given / When / Then: 空配列へ丸めると、**すべての除外が「依存木に無い」と判定され、
+    //                      「行を消してください」という誤った指示を出す**（レビュー指摘）
+    assert.throws(() => parseWhyOutput("", "semver"), /解釈できません/);
+    assert.throws(() => parseWhyOutput("ERR_PNPM_SOMETHING", "semver"), /解釈できません/);
+    assert.throws(() => parseWhyOutput('{"name":"semver"}', "semver"), /配列ではありません/);
   });
 });
 
@@ -309,8 +358,10 @@ describe("findDeadExclusions: 死んだ除外行（経路⑥）", () => {
     assert.equal(problems.length, 1);
   });
 
-  test("版を持たないエントリはここでは扱わない（checkExclusionFormat の仕事）", () => {
-    // Given / When / Then: 同じ 1 件を 2 つの理由で二重に出さない
+  test("書式が壊れたエントリはここでは扱わない（checkExclusionFormat の仕事）", () => {
+    // Given / When / Then: 同じ 1 件を 2 つの理由で二重に出さない。**直し方が食い違う**
+    //                      （あちらは「名前@版 で書いてください」、ここは「行を消してください」）
     assert.deepEqual(findDeadExclusions("trustPolicyExclude", ["semver"], new Map()), []);
+    assert.deepEqual(findDeadExclusions("trustPolicyExclude", ["semver-*@6.3.1"], new Map()), []);
   });
 });

@@ -142,24 +142,34 @@ export function deriveOwnKeys(repoConfig, ambientConfig) {
  * **両方向を見る。** 未知のキーだけを見ると必須キーの消失が素通りし、欠落だけを見ると
  * 綴り誤りで増えた鍵が素通りする（`diffTargets` が両方向を要求するのと同じ理由）。
  * 既知キーの綴りを間違えると、**「未知が 1 つ増え、必須が 1 つ欠ける」**として両方に出る。
+ *
+ * **入力を 2 つ取るのは意図的である。**
+ *
+ * - `ownKeys`（リポジトリが持ち込んだ鍵）で**未知**を見る。実効設定で見ると、利用者の
+ *   環境が持つ鍵まで「未知」になる。
+ * - `effectiveKeys`（pnpm が解決した実効設定の鍵）で**必須の欠落**と**禁止**を見る。
+ *   `ownKeys` は「素の環境と値が同じ鍵」を落とすので、必須キーの値がたまたま環境側と
+ *   一致すると**在るのに「ありません」と言う**。防御として効いているかは実効設定で決まる。
+ *
+ * **残余**: 必須キーが `pnpm-workspace.yaml` ではなく利用者の環境から来ている場合、
+ * ここは区別できない。CI にはその環境が無いので、判定は CI 側が担う
+ * （pnpm 11.5.0 は `.npmrc` も `npm_config_*` もこれらの設定に使わないことを実測済み）。
  */
-export function checkKeyMembership(keys, settings = SETTINGS) {
+export function checkKeyMembership(ownKeys, effectiveKeys, settings = SETTINGS) {
   const problems = [];
-  for (const key of keys) {
-    const spec = settings[key];
-    if (!spec) {
+  for (const key of ownKeys) {
+    if (!settings[key]) {
       problems.push({
         key,
         message: `未知の設定キーです。pnpm は未知のキーを無警告で受け取るため、綴り誤りは検査が消えたことに気づけません`,
       });
-      continue;
-    }
-    if (spec.presence === "forbidden") {
-      problems.push({ key, message: `置いてはならない設定キーです（禁止）。${spec.reason}` });
     }
   }
   for (const [key, spec] of Object.entries(settings)) {
-    if (spec.presence === "required" && !keys.includes(key)) {
+    if (spec.presence === "forbidden" && effectiveKeys.includes(key)) {
+      problems.push({ key, message: `置いてはならない設定キーです（禁止）。${spec.reason}` });
+    }
+    if (spec.presence === "required" && !effectiveKeys.includes(key)) {
       problems.push({ key, message: "必須の設定キーがありません" });
     }
   }
@@ -264,15 +274,17 @@ export function checkOverrideFormat(overrides) {
  * pnpm は lockfile に存在しない除外エントリを無効として扱わない（警告も失敗もしない）。
  * 行が残ったままその版が別の依存元経由で再び現れると、**黙って免除を与える**。
  *
- * **版を持たないエントリはここでは扱わない。** それは {@link checkExclusionFormat} が
- * 既に落としており、同じ 1 件を 2 つの理由で二重に出さない。
+ * **書式が壊れたエントリはここでは扱わない**（版を持たない形・名前パターン）。それは
+ * {@link checkExclusionFormat} が既に落としており、同じ 1 件を 2 つの理由で二重に出さない。
+ * **直し方が食い違うので実害がある** —— あちらは「名前@版 で書いてください」、ここは
+ * 「行を消してください」と言う。`"semver-*@6.3.1"` で実際にその 2 行が並んだ。
  */
 export function findDeadExclusions(key, entries, resolvedVersions) {
   const problems = [];
   for (const entry of entries ?? []) {
     if (typeof entry !== "string") continue;
     const { name, version } = parseVersionedEntry(entry);
-    if (version === null) continue;
+    if (version === null || name.includes("*")) continue;
     if (!(resolvedVersions.get(name) ?? []).includes(version)) {
       problems.push({
         key,
@@ -294,7 +306,14 @@ function readPnpmConfig(cwd) {
     encoding: "utf8",
     maxBuffer: 32 * 1024 * 1024,
   });
-  return JSON.parse(stdout);
+  try {
+    return JSON.parse(stdout);
+  } catch (error) {
+    throw new Error(
+      `pnpm config list --json の出力を解釈できません（cwd: ${cwd}・先頭 200 文字: ${stdout.slice(0, 200)}）`,
+      { cause: error },
+    );
+  }
 }
 
 /**
@@ -320,10 +339,33 @@ function readAmbientConfig(repoRoot) {
 }
 
 /**
- * 依存木にあるその名前の版を列挙する。**`pnpm install` 済みを要求する。**
+ * 依存木にあるその名前の版を列挙する。
  *
- * 依存木に無い名前では `[]` が返る（実測）。終了コードが非ゼロでも同じ扱いにする。
+ * **`node_modules` は要らない。`pnpm-lock.yaml` があれば動く**（2026-09-03 に実測。
+ * 新規 worktree（`node_modules` 無し）で exit 0 のまま `semver@6.3.1` を返した）。
+ * `pnpm -r list` が install 済みを要求するのとは事情が違う。
+ *
+ * 依存木に無い名前では exit 0 ＋ `[]` が返る（実測）。**非ゼロは本当の失敗として扱う。**
  */
+export function parseWhyOutput(stdout, name) {
+  const trimmed = (stdout ?? "").trim();
+  let parsed;
+  try {
+    parsed = JSON.parse(trimmed);
+  } catch (error) {
+    throw new Error(
+      `pnpm why ${name} の出力を解釈できません（先頭 200 文字: ${trimmed.slice(0, 200)}）`,
+      { cause: error },
+    );
+  }
+  if (!Array.isArray(parsed)) {
+    throw new Error(`pnpm why ${name} の出力が配列ではありません: ${typeof parsed}`);
+  }
+  return parsed
+    .filter((entry) => entry?.name === name && typeof entry.version === "string")
+    .map((entry) => entry.version);
+}
+
 function resolveVersions(repoRoot, name) {
   let stdout;
   try {
@@ -333,13 +375,13 @@ function resolveVersions(repoRoot, name) {
       maxBuffer: 64 * 1024 * 1024,
     });
   } catch (error) {
-    stdout = error.stdout ?? "";
+    // **握り潰さない。** pnpm は「依存木に無い」を exit 0 ＋ `[]` で表す（実測）。
+    // 非ゼロは本当の失敗（maxBuffer 超過・pnpm の不具合など）であり、これを空配列へ
+    // 丸めると**すべての除外が「依存木に無い」と判定され、「行を消してください」という
+    // 誤った指示を出す**。消せば pnpm install が全員分壊れる。
+    throw new Error(`pnpm why ${name} が失敗しました: ${error.message}`, { cause: error });
   }
-  const trimmed = stdout.trim();
-  if (!trimmed) return [];
-  return JSON.parse(trimmed)
-    .filter((entry) => entry?.name === name && typeof entry.version === "string")
-    .map((entry) => entry.version);
+  return parseWhyOutput(stdout, name);
 }
 
 function main() {
@@ -369,7 +411,7 @@ function main() {
   }
 
   const problems = [
-    ...checkKeyMembership(keys),
+    ...checkKeyMembership(keys, Object.keys(config)),
     ...checkValues(config, keys),
     ...checkOverrideFormat(config.overrides),
   ];

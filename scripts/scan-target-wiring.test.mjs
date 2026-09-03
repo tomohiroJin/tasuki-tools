@@ -688,11 +688,18 @@ describe("0 件ガードと判定の配線: scripts/audit-supply-chain-config.mj
     // Given: 判定の呼び出しを消す。純粋関数の単体テストだけでは、main から
     //        checkKeyMembership を呼ばなくなった状態を検知できない
     const mutate = (s) =>
-      s.replace("...checkKeyMembership(keys),", '{ key: "配線が消えた", message: "キーの帰属" },');
+      s.replace(
+        "...checkKeyMembership(keys, Object.keys(config)),",
+        '{ key: "配線が消えた", message: "キーの帰属" },',
+      );
     // When
     const r = runScriptCopy("audit-supply-chain-config.mjs", mutate);
     // Then: まず「壊れたこと自体」を確かめる
-    assert.equal(countOf(r.source, "checkKeyMembership(keys)"), 0, "呼び出しを壊せていません");
+    assert.equal(
+      countOf(r.source, "checkKeyMembership(keys, Object.keys(config))"),
+      0,
+      "呼び出しを壊せていません",
+    );
     // Then: 差し込んだ問題がそのまま赤として出る（＝main が problems を見て終了コードを決めている）
     assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
     assert.match(r.stderr, /配線が消えた: キーの帰属/);
