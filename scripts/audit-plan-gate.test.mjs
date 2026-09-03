@@ -5,7 +5,8 @@ import {
   extractPrinciples,
   parsePlanDate,
   classifyPlans,
-  findGateSection,
+  findGateSections,
+  stripCodeFences,
   checkGate,
 } from "./audit-plan-gate.mjs";
 
@@ -134,10 +135,30 @@ describe("classifyPlans: 境界日で切る", () => {
   });
 });
 
-describe("findGateSection: ゲートの節を切り出す", () => {
+describe("stripCodeFences: フェンスの中身を落とす", () => {
+  test("``` で囲まれた中身を落とす", () => {
+    // Given / When
+    const out = stripCodeFences(["外側", "```markdown", "## Constitution Check", "```", "外側 2"].join("\n"));
+    // Then
+    assert.doesNotMatch(out, /Constitution Check/);
+    assert.match(out, /外側 2/);
+  });
+
+  test("~~~ のフェンスも落とす", () => {
+    const out = stripCodeFences(["~~~", "## Constitution Check", "~~~", "本文"].join("\n"));
+    assert.doesNotMatch(out, /Constitution Check/);
+  });
+
+  test("行数を保つ（位置がずれない）", () => {
+    const text = ["a", "```", "b", "```", "c"].join("\n");
+    assert.equal(stripCodeFences(text).split("\n").length, text.split("\n").length);
+  });
+});
+
+describe("findGateSections: ゲートの節を切り出す", () => {
   test("見出しから次の同位以上の見出しまでを返す", () => {
     // Given / When
-    const section = findGateSection(GOOD_GATE);
+    const [section] = findGateSections(GOOD_GATE);
     // Then: 節の中身は入り、次の節（Global Constraints）は入らない
     assert.match(section, /I\. テスト駆動開発/);
     assert.doesNotMatch(section, /別の節の表/);
@@ -147,18 +168,36 @@ describe("findGateSection: ゲートの節を切り出す", () => {
     // Given: `## 規約チェック（Constitution Check）`
     const text = ["## 規約チェック（Constitution Check）", "", "| I. x | y | z |"].join("\n");
     // When / Then
-    assert.match(findGateSection(text), /I\. x/);
+    assert.match(findGateSections(text)[0], /I\. x/);
   });
 
-  test("見出しが無ければ null", () => {
-    assert.equal(findGateSection("# 実装計画\n\n## Global Constraints\n"), null);
+  test("見出しが無ければ空", () => {
+    assert.deepEqual(findGateSections("# 実装計画\n\n## Global Constraints\n"), []);
   });
 
   test("下位の見出しは節を終わらせない", () => {
     // Given: ## の節の中に ### がある
     const text = ["## Constitution Check", "### 補足", "| I. x | y | z |", "## 次の節"].join("\n");
     // When / Then
-    assert.match(findGateSection(text), /I\. x/);
+    assert.match(findGateSections(text)[0], /I\. x/);
+  });
+
+  test("レベル 1 の見出しも拾う（設計正本 D3「レベルは問わない」）", () => {
+    assert.equal(findGateSections("# Constitution Check\n\n| I. x | y | z |").length, 1);
+  });
+
+  test("候補が複数あればすべて返す", () => {
+    // Given: ゲートより前にタスクの見出しがある
+    const text = ["### Task 1: Constitution Check の節を足す", "本文", "## Constitution Check", "| I. x | y | z |"].join("\n");
+    // When / Then
+    assert.equal(findGateSections(text).length, 2);
+  });
+
+  test("フェンスの中の見出しは候補にしない", () => {
+    // Given: ガイドの様式サンプルを引用しただけの plan
+    const text = ["# 引用", "```markdown", "## Constitution Check", "| I. x | y | z |", "```"].join("\n");
+    // When / Then
+    assert.deepEqual(findGateSections(text), []);
   });
 });
 
@@ -236,6 +275,52 @@ describe("checkGate: ゲートの中身（設計正本 D3）", () => {
     const text = GOOD_GATE.replace("| I. テスト駆動開発 |", "| I. テストを先に書く |");
     // When / Then: 設計正本 §7 の申し送りどおり、名前までは一致させない
     assert.deepEqual(checkGate(rel, text, PRINCIPLES), []);
+  });
+
+  test("様式サンプルを引用しただけでは通さない（フェンスの中身は数えない）", () => {
+    // Given: docs/guides/plan-writing.md の見本をそのまま引用した plan。
+    //        **この検査が塞ごうとしている「節はあるが実質が無い」そのもの**
+    const quoted = ["# 引用しただけの plan", "", "```markdown", GOOD_GATE, "```", "", "## 背景"].join("\n");
+    // When
+    const problems = checkGate(rel, quoted, PRINCIPLES);
+    // Then
+    assert.equal(problems.length, 1);
+    assert.match(problems[0].message, /節がありません/);
+  });
+
+  test("ゲートより前に紛らわしい見出しがあっても偽陽性にしない", () => {
+    // Given: `### Task 1: Constitution Check の節を足す` が先にある正しい plan
+    const text = ["# 実装計画", "", "### Task 1: Constitution Check の節を足す", "", "本文。", "", GOOD_GATE].join("\n");
+    // When / Then: 候補のどれか 1 つが満たしていれば通す
+    assert.deepEqual(checkGate(rel, text, PRINCIPLES), []);
+  });
+
+  test("落とすときは最も問題の少ない候補を報告する", () => {
+    // Given: 無関係な候補（原則も結論も無い）と、結論だけ欠けた本物のゲート
+    const text = [
+      "### Task 1: Constitution Check の節を足す",
+      "本文。",
+      GOOD_GATE.replace("**逸脱なし。**", ""),
+    ].join("\n");
+    // When
+    const problems = checkGate(rel, text, PRINCIPLES);
+    // Then: 「原則が全部無い」ではなく「結論が無い」だけが出る
+    assert.equal(problems.length, 1);
+    assert.match(problems[0].message, /逸脱/);
+  });
+
+  test("逸脱の結論を判定表のセルで満たさせない", () => {
+    // Given: すべてのセルに「逸脱なし」と書いただけで、節としての結論が無い
+    const text = [
+      "## Constitution Check",
+      "",
+      ...PRINCIPLES.map((p) => `| ${p.numeral}. x | 通過 | 逸脱なし |`),
+    ].join("\n");
+    // When
+    const problems = checkGate(rel, text, PRINCIPLES);
+    // Then
+    assert.equal(problems.length, 1);
+    assert.match(problems[0].message, /逸脱/);
   });
 
   test("II の行があっても I の行の代わりにはならない", () => {

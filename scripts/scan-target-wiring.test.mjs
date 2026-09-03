@@ -807,7 +807,8 @@ describe("0 件ガードと要求経路の配線: scripts/audit-plan-gate.mjs（
     assert.equal(countOf(r.source, "const m = null;"), 1, "導出を壊せていません");
     // Then
     assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
-    assert.match(r.stderr, /走査対象が 0 件です.*憲法の原則|憲法の原則/);
+    // 選択（`|`）を挟むと優先順位で右辺だけでも満たせてしまうので、丸ごと 1 つの句で見る
+    assert.match(r.stderr, /走査対象が 0 件です（憲法の原則）/);
   });
 
   test("日付を読めなくなると非ゼロで終了する（分類できないものを黙って対象外にしない）", () => {

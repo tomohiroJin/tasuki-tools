@@ -86,7 +86,7 @@ MUST としているが、機械検査が無いまま空文化していた。実
 - **MUST**: 実装計画のファイル名は `YYYY-MM-DD-` で始める。境界日で分類できない
   ファイルは検査が落とす（黙って対象外へ落ちる経路を残さないため）
 
-検査は `scripts/audit-plan-gate.mjs`（CI の `quality` ジョブ）。原則の一覧は
+検査は `scripts/audit-plan-gate.mjs`（CI の **`docs` ジョブ**）。原則の一覧は
 `docs/constitution.md` の見出しから導出し、検査に直書きしない。
 
 ### 塞げていないこと

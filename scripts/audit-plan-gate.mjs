@@ -97,51 +97,75 @@ export function classifyPlans(relPaths, boundary) {
 }
 
 /**
- * ゲートの節を切り出す。
+ * コードフェンスの中身を落とす。
  *
- * **見出しの文言を固定しない。** 実在するゲートは `## Constitution Check` と
+ * **これが無いと、様式サンプルを引用しただけの plan が通る。**
+ * `docs/guides/plan-writing.md` は ```` ```markdown ```` で囲んだ見本を持つ。その見本を
+ * そのまま引用すれば、見出しも全原則の表も逸脱の結論もそろっているように見えるが、
+ * **その plan 自身は何も判定していない**。塞ごうとしている「節はあるが実質が無い」を、
+ * 検査の側が作り出す形になる（レビューで実測。問題 0 件で通った）。
+ *
+ * 行数は保つ（フェンスの中身を空行へ置き換える）。位置がずれると読みにくい。
+ */
+export function stripCodeFences(text) {
+  let inFence = false;
+  let marker = null;
+  return text
+    .split("\n")
+    .map((line) => {
+      const m = /^\s*(```|~~~)/.exec(line);
+      if (m) {
+        if (!inFence) {
+          inFence = true;
+          marker = m[1];
+          return "";
+        }
+        if (m[1] === marker) {
+          inFence = false;
+          marker = null;
+        }
+        return "";
+      }
+      return inFence ? "" : line;
+    })
+    .join("\n");
+}
+
+/**
+ * ゲートの節を**すべて**切り出す。
+ *
+ * **見出しの文言もレベルも固定しない。** 実在するゲートは `## Constitution Check` と
  * `## 規約チェック（Constitution Check）` の 2 種類がある（#113 が後者）。
+ *
+ * **1 つ目だけを採ってはならない。** ゲートより前に `Constitution Check` を含む見出し
+ * （例: `### Task 1: Constitution Check の節を足す`）があると、そのタスク節をゲートと
+ * みなして**正しい plan を偽陽性で落とす**（レビューで実測。誤検出 2 件）。
+ * 候補を全部返し、**どれか 1 つが要求を満たせば通す**のは呼び出し側の仕事。
  *
  * 節は「同位以上の見出し」で終わる。下位の見出し（`###`）は節を終わらせない
  * ——終わらせると、小見出しを挟んだだけで判定表が節の外に出てしまう。
  */
-export function findGateSection(text) {
-  const lines = text.split("\n");
-  const start = lines.findIndex((line) => /^#{2,6}\s.*Constitution Check/.test(line));
-  if (start === -1) return null;
-  const level = /^(#+)/.exec(lines[start])[1].length;
-  let end = lines.length;
-  for (let i = start + 1; i < lines.length; i++) {
-    const m = /^(#+)\s/.exec(lines[i]);
-    if (m && m[1].length <= level) {
-      end = i;
-      break;
+export function findGateSections(text) {
+  const lines = stripCodeFences(text).split("\n");
+  const sections = [];
+  for (let start = 0; start < lines.length; start++) {
+    if (!/^#{1,6}\s.*Constitution Check/.test(lines[start])) continue;
+    const level = /^(#+)/.exec(lines[start])[1].length;
+    let end = lines.length;
+    for (let i = start + 1; i < lines.length; i++) {
+      const m = /^(#+)\s/.exec(lines[i]);
+      if (m && m[1].length <= level) {
+        end = i;
+        break;
+      }
     }
+    sections.push(lines.slice(start, end).join("\n"));
   }
-  return lines.slice(start, end).join("\n");
+  return sections;
 }
 
-/**
- * ゲートの中身を見る（設計正本 D3）。
- *
- * **見出しの存在だけでは通さない。** 空の節を置けば通る検査は、塞ごうとしている
- * 「節はあるが実質が無い」をそのまま再生産する。
- *
- * 原則の行は**節の中**に無ければならない。他の節の表で代用できてしまうと、
- * ゲートを置く場所の意味が消える。
- */
-export function checkGate(rel, text, principles) {
-  const section = findGateSection(text);
-  if (section === null) {
-    return [
-      {
-        file: rel,
-        message:
-          "Constitution Check の節がありません    ← docs/guides/plan-writing.md の様式で節を足してください",
-      },
-    ];
-  }
-
+/** 1 つの候補節が要求を満たしているか。 */
+function evaluateSection(rel, section, principles) {
   const problems = [];
   const missing = principles
     .filter(({ numeral }) => !new RegExp(`^\\|\\s*${numeral}\\.\\s`, "m").test(section))
@@ -153,14 +177,47 @@ export function checkGate(rel, text, principles) {
     });
   }
 
-  if (!/逸脱なし|Complexity Tracking/.test(section)) {
+  // **表のセルで満たさせない。** `| I. x | 通過 | 逸脱なし |` の 1 行だけで結論の要求が
+  // 満たせてしまうと、節全体の判断を書かずに通る（レビューで実測。問題 0 件で通った）。
+  const hasConclusion = section
+    .split("\n")
+    .some((line) => !/^\s*\|/.test(line) && /逸脱なし|Complexity Tracking/.test(line));
+  if (!hasConclusion) {
     problems.push({
       file: rel,
       message:
-        "逸脱の結論がありません    ← 「逸脱なし」と書くか、Complexity Tracking で正当化してください",
+        "逸脱の結論がありません    ← 表の外に「逸脱なし」と書くか、Complexity Tracking で正当化してください",
     });
   }
   return problems;
+}
+
+/**
+ * ゲートの中身を見る（設計正本 D3）。
+ *
+ * **見出しの存在だけでは通さない。** 空の節を置けば通る検査は、塞ごうとしている
+ * 「節はあるが実質が無い」をそのまま再生産する。コードフェンスの中身を落とすのも
+ * 同じ理由である（様式サンプルの引用で満たさせない）。
+ *
+ * 原則の行は**節の中**に無ければならない。他の節の表で代用できてしまうと、
+ * ゲートを置く場所の意味が消える。
+ */
+export function checkGate(rel, text, principles) {
+  const sections = findGateSections(text);
+  if (sections.length === 0) {
+    return [
+      {
+        file: rel,
+        message:
+          "Constitution Check の節がありません    ← docs/guides/plan-writing.md の様式で節を足してください",
+      },
+    ];
+  }
+  // **候補が複数あるときは、1 つでも満たしていれば通す。** 落とすときは最も問題の少ない
+  // 候補を報告する（無関係な見出しの分まで並べると、直すべき節が埋もれる）。
+  return sections
+    .map((section) => evaluateSection(rel, section, principles))
+    .sort((a, b) => a.length - b.length)[0];
 }
 
 const REPO_ROOT = execFileSync("git", ["rev-parse", "--show-toplevel"], {
