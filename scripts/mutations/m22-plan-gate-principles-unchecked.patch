@@ -1,10 +1,10 @@
 diff --git a/scripts/audit-plan-gate.mjs b/scripts/audit-plan-gate.mjs
-index 69b51bd..225dea6 100644
+index 0525344..275f631 100644
 --- a/scripts/audit-plan-gate.mjs
 +++ b/scripts/audit-plan-gate.mjs
-@@ -143,15 +143,6 @@ export function checkGate(rel, text, principles) {
-   }
- 
+@@ -167,16 +167,6 @@ export function findGateSections(text) {
+ /** 1 つの候補節が要求を満たしているか。 */
+ function evaluateSection(rel, section, principles) {
    const problems = [];
 -  const missing = principles
 -    .filter(({ numeral }) => !new RegExp(`^\\|\\s*${numeral}\\.\\s`, "m").test(section))
@@ -15,6 +15,32 @@ index 69b51bd..225dea6 100644
 -      message: `判定表に無い原則があります: ${missing.join(" / ")}    ← 憲法の全原則について「通過 / 該当なし / 逸脱」を書いてください`,
 -    });
 -  }
- 
-   if (!/逸脱なし|Complexity Tracking/.test(section)) {
-     problems.push({
+-
+   // **表のセルで満たさせない。** `| I. x | 通過 | 逸脱なし |` の 1 行だけで結論の要求が
+   // 満たせてしまうと、節全体の判断を書かずに通る（レビューで実測。問題 0 件で通った）。
+   const hasConclusion = section
+diff --git a/scripts/mutations/m22-plan-gate-principles-unchecked.patch b/scripts/mutations/m22-plan-gate-principles-unchecked.patch
+index 111f32d..e69de29 100644
+--- a/scripts/mutations/m22-plan-gate-principles-unchecked.patch
++++ b/scripts/mutations/m22-plan-gate-principles-unchecked.patch
+@@ -1,20 +0,0 @@
+-diff --git a/scripts/audit-plan-gate.mjs b/scripts/audit-plan-gate.mjs
+-index 69b51bd..225dea6 100644
+---- a/scripts/audit-plan-gate.mjs
+-+++ b/scripts/audit-plan-gate.mjs
+-@@ -143,15 +143,6 @@ export function checkGate(rel, text, principles) {
+-   }
+- 
+-   const problems = [];
+--  const missing = principles
+--    .filter(({ numeral }) => !new RegExp(`^\\|\\s*${numeral}\\.\\s`, "m").test(section))
+--    .map(({ numeral }) => numeral);
+--  if (missing.length > 0) {
+--    problems.push({
+--      file: rel,
+--      message: `判定表に無い原則があります: ${missing.join(" / ")}    ← 憲法の全原則について「通過 / 該当なし / 逸脱」を書いてください`,
+--    });
+--  }
+- 
+-   if (!/逸脱なし|Complexity Tracking/.test(section)) {
+-     problems.push({
