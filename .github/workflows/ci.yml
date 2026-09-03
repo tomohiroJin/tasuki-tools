@@ -177,6 +177,13 @@ jobs:
           node-version: 22
       - run: node scripts/check-links.mjs
 
+      # 実装計画の Constitution Check ゲート（#155・#135 経路⑨）。**quality ジョブへ
+      # 置いてはならない。** あちらのステップは code == 'true' で絞り込まれ、
+      # *.md だけの PR では走らない。plan は *.md なので、**ゲートを持たない plan を足す
+      # PR がちょうど絞り込みで外れる**（この検査が捕まえるはずの形そのもの）。
+      # docs ジョブは絞り込まず、pnpm install も要らない（git ls-files とファイル読み取りだけ）。
+      - run: node scripts/audit-plan-gate.mjs
+
   # 手動でしか走らなかった検査を寄せる。ci に混ぜると臨界経路が
   # 2 分 12 秒 → 2 分 42 秒 に伸びるので独立ジョブにする。
   # mutation-check.mjs は変異が属するパッケージの test スクリプトに実際のランナーを
