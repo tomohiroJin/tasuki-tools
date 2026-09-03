@@ -175,3 +175,46 @@ Issue #69 の本文は着手前の実測で事実誤認が 5 点見つかった�
   無くなっても、脆弱な版が選ばれれば audit が落ちる
 - **要らなくなった行を残さない理由**は `pnpm-workspace.yaml` のコメントが書いていたとおりで、
   残すと**親の要求が下がったときにそれを黙って覆い隠す**
+
+## 追記（2026-09-03・#154）
+
+### 供給網ポリシーの検証が走ったことを CI が確かめる
+
+本 ADR の決定（待機期間・降格拒否・`--trust-lockfile` の禁止）はすべて、
+**`pnpm install` のたびにポリシーが lockfile の各エントリへ再適用される**という前提の上に
+立っている。その前提が成立しているかを、これまで誰も確かめていなかった。
+
+検証は **2 段の短絡**で無警告のまま走らなくなる（実測）。
+
+1. `optimisticRepeatInstall`（既定で有効）。`node_modules` が最新だと
+   `Already up to date` を出し、**検証器を作るより手前で return** する。
+   このため**検証キャッシュを消しても走らない**
+2. `~/.cache/pnpm/lockfile-verified.jsonl`。lockfile のハッシュ＋ポリシーが前回と
+   同じなら検証段を飛ばす
+
+CI は新規チェックアウトなので 1 段目が成立せず、現在は毎回走っている。
+**問題は、走ったことを確かめている主体がいなかったこと**である。`node_modules` を
+CI キャッシュへ載せる・`--trust-lockfile` が紛れ込む・pnpm の既定が変わる、の
+いずれでも CI は緑のまま検証をやめる。
+
+- **MUST**: CI の少なくとも 1 ジョブは、`pnpm install` の出力に
+  `✓ Lockfile passes supply-chain policies (N entries in …)` が現れたことを確かめてから
+  次へ進む。実装は `scripts/install-with-supply-chain-check.mjs`（`quality` ジョブ）
+- **MUST NOT**: そのラッパへ `--config.optimistic-repeat-install=false` を足さない。
+  足すと確かめる対象が**合成した経路**になり、CI が実際に通る経路の無検証を見逃す
+- **MUST**: 手元で検証を強制するときは `--config.optimistic-repeat-install=false` を使う。
+  「検証キャッシュを消せば再検証される」は誤りである（1 段目がキャッシュより手前にある）
+
+### 設定の置き場と `overrides` の書式に機械検査が付いた
+
+上の決定にある「設定の置き場は `pnpm-workspace.yaml` の 1 箇所のみ」と、#149 の追記に
+ある「`overrides` のキーは名前@メジャー、値は `^`」は、いずれも運用だけで支えられていた。
+`scripts/audit-supply-chain-config.mjs` がこれを機械で見る。
+
+設定のキー集合を **pnpm 自身の解決結果**（`pnpm config list --json`）から取る形にした
+副産物として、`.npmrc` など `pnpm-workspace.yaml` 以外の場所から供給網設定が入る経路も
+「未知のキー」として落ちる。
+
+**この追記は決定を変えない。** 検査の追加であり、待機期間の値も `overrides` の書き方も
+従来どおりである。実測値と機序の正本は
+[設計正本](../superpowers/specs/2026-09-03-supply-chain-config-integrity-design.md) とする。
