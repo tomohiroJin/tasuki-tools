@@ -315,6 +315,19 @@ export const MUTATIONS = [
       "1 バイトも変わらない**（id 15・20 と同じ型）。落ちるのは単体テストだけであり、" +
       "そのテストが恒真化していないことをここで見る。",
   },
+  {
+    id: 23,
+    label: "audit-log-hygiene の走査対象から .tsx を落とす",
+    patch: "m23-log-hygiene-drops-tsx.patch",
+    pkg: "scripts",
+    tests: ["audit-log-hygiene.test.mjs"],
+    note:
+      "#157 で広げた射程を、赤を消す最短経路で狭める欠陥の型（#174 と同じ）。" +
+      "**この変異は検査本体も赤にする** —— ALLOWED_FILES に載せた History.tsx が " +
+      "走査結果から消え、findStaleAllowances が「陳腐化した許可」として落とすためである。" +
+      "ここで見たいのはそちらではなく、**拡張子を主張する単体テストが恒真化していないこと**。" +
+      "宣言を切り出す前は、収集から .tsx を落としても自己テストは緑のままだった。",
+  },
 ];
 
 /**
