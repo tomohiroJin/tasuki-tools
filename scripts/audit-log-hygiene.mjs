@@ -464,6 +464,15 @@ function main() {
 
   if (problems.length > 0) {
     for (const p of problems) console.error(p);
+    // **直し方を出す。** 射程が `.tsx` へ広がってから（#157）、ブラウザ側のコードにも
+    // この赤が出るようになった。ADR 0012 D1 の本文は「ブラウザの console は本決定の
+    // 対象外とする」と書いているので、**根拠として D1 だけを指すと「検査の誤検知だ」と
+    // 読める**。一段厳しくしているのは 2026-09-04 の追記なので、そちらと手順を名指しする。
+    console.error("\n直し方: docs/guides/security.md「画面側に console を足すとき」");
+    console.error(
+      "  根拠: docs/adr/0012 決定 D1 と 2026-09-04 の追記（ブラウザの console は D1 の対象外だが、" +
+        "検査は ALLOWED_FILES ＋ 行マーカーでの明示を求める）",
+    );
     console.error(`\n${problems.length} 件の問題があります`);
     process.exit(1);
   }

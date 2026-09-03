@@ -111,6 +111,34 @@ logger.error("uncaught", { name: publicText(err.name) }); // log-hygiene:allow �
 この形を使うときは、必ず `// log-hygiene:allow <理由>` を同じ行に付けます。
 理由なしに `publicText()` を呼び出し箇所へ増やさないでください。
 
+### 画面側に `console` を足すとき（#157）
+
+**ログ衛生の検査は `.ts` と `.tsx` を区別しません。** 画面側（`apps/timer-web` /
+`apps/poker-web` / `apps/landing`）に直接の `console` を足すと、CI の `quality` ジョブが
+`直接の console は使えません` で落ちます。
+
+**これは検査の誤検知ではありません。** [`docs/adr/0012`](../adr/0012-logging-secrets-and-disclosure.md)
+決定 D1 の本文は「ブラウザの `console` は本決定の対象外」と書いていますが、
+**同 ADR の 2026-09-04 の追記が、検査ではマーカーでの明示を求める**と定めています
+（規範を厳しくしているのではなく、規範が許すものを可視化しています）。
+
+通したいときは 2 つとも行ってください。
+
+1. `scripts/audit-log-hygiene.mjs` の `ALLOWED_FILES` へそのファイルを足す
+2. その行の末尾に `// log-hygiene:allow <理由>` を付ける
+
+```tsx
+console.error("記録の読み込みに失敗しました:", e); // log-hygiene:allow ブラウザの devtools 向け
+```
+
+**片方だけでは通りません。** 許可だけ足してマーカーが 1 つも無いファイルは
+「許可が陳腐化しています」で落ち、マーカーだけ付けても許可の無いファイルは違反のままです。
+どちらの向きにも穴を作らないための作りです。
+
+**分類「秘密・資格情報・個人に紐づく」の値は、ブラウザの `console` にも出さないでください。**
+その制約は ADR 0011 の分類表で引き続き効きます（D1 の対象外なのは「ログ経路の一本化」であって、
+分類の規律ではありません）。
+
 ## やってはいけないこと
 
 - **`publicText()` を `vocabulary.ts` の外で呼ぶ。**
