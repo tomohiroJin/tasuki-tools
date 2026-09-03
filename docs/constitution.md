@@ -13,6 +13,12 @@ Sync Impact Report
   Check ゲートを通過しなければならない」は残す — テンプレートを名指ししておらず、
   docs/superpowers/plans/ の 4 本が ## Constitution Check 節として体現しているため。
   ゲートの空文化を検出する話は #155 の領分。
+  【2026-09-04 訂正（#155）】直前の「4 本」は誤り。実測ではゲートを持つ実装計画は
+  3 本（#69 / #113 / #119）で、うち #113 の見出しは ## Constitution Check ではなく
+  ## 規約チェック（Constitution Check）である。#155 の起票時の数え違いを、確かめずに
+  ここへ写した。**記述は当時のまま残し、誤りだったことをこの注記で記録する。**
+  原則にも決定にも影響しないため版は上げない。実測の正本は
+  docs/superpowers/specs/2026-09-04-plan-constitution-gate-design.md とする。
 - Modified principles: なし（原則 I〜XI は不変）
 - Templates requiring updates:
   - 削除 .specify/templates/ — spec-kit 経路ごと廃止（#71）。以後、依存テンプレートは無い
