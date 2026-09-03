@@ -1,13 +1,18 @@
 diff --git a/scripts/audit-plan-gate.mjs b/scripts/audit-plan-gate.mjs
-index 0525344..275f631 100644
+index c8f5773..4aa221a 100644
 --- a/scripts/audit-plan-gate.mjs
 +++ b/scripts/audit-plan-gate.mjs
-@@ -167,16 +167,6 @@ export function findGateSections(text) {
+@@ -178,21 +178,6 @@ export function findGateSections(text) {
  /** 1 つの候補節が要求を満たしているか。 */
  function evaluateSection(rel, section, principles) {
    const problems = [];
+-  // **表の行の定義を下の結論判定と揃える**（`^\\s*\\|`）。行頭の空白を許さないと、
+-  // 字下げした判定表（GFM では 3 スペースまで表として描画される）が「全原則欠落」で
+-  // 偽陽性になる。**GitHub 上では正しく見えているのに CI だけが赤くなる**ので原因が追いにくい。
+-  // ピリオド直後の空白も要求しない（`| I.テスト駆動開発 |` を落とさない）。
+-  // ローマ数字の取り違えは起きない —— `I\\.` は `II.` に一致しない（2 文字目が `.` でない）。
 -  const missing = principles
--    .filter(({ numeral }) => !new RegExp(`^\\|\\s*${numeral}\\.\\s`, "m").test(section))
+-    .filter(({ numeral }) => !new RegExp(`^\\s*\\|\\s*${numeral}\\.`, "m").test(section))
 -    .map(({ numeral }) => numeral);
 -  if (missing.length > 0) {
 -    problems.push({
