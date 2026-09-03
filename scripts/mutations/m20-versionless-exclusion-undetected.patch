@@ -1,0 +1,17 @@
+diff --git a/scripts/audit-supply-chain-config.mjs b/scripts/audit-supply-chain-config.mjs
+index f639960..51e0c26 100644
+--- a/scripts/audit-supply-chain-config.mjs
++++ b/scripts/audit-supply-chain-config.mjs
+@@ -221,12 +221,6 @@ export function checkExclusionFormat(key, entries) {
+       });
+       continue;
+     }
+-    if (version === null) {
+-      problems.push({
+-        key,
+-        message: `版を持たないエントリです: ${entry}    ← 以後このパッケージの全版が無検査になります。名前@版 で書いてください`,
+-      });
+-    }
+   }
+   return problems;
+ }

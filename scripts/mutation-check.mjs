@@ -276,6 +276,32 @@ export const MUTATIONS = [
       "1 バイトも変わらない。落ちるのは単体テストだけであり、そのテストが本当に " +
       "恒真化していないことをここで見る。",
   },
+  {
+    id: 20,
+    label: "audit-supply-chain-config から「版を持たない除外」の検出を削る",
+    patch: "m20-versionless-exclusion-undetected.patch",
+    pkg: "scripts",
+    tests: ["audit-supply-chain-config.test.mjs"],
+    note:
+      "#135 経路⑤そのもの。除外エントリが `名前@版` から `名前` へ退化すると、以後その " +
+      "パッケージの全版が降格検査の対象外になる。pnpm から見れば「より広い除外」として " +
+      "正常に動作し、警告も出ない。**本番の宣言は正しい書式なので、この検出が消えても " +
+      "検査結果は 1 バイトも変わらない**（id 15 と同じ型）。落ちるのは単体テストだけであり、" +
+      "そのテストが恒真化していないことをここで見る。",
+  },
+  {
+    id: 21,
+    label: "install-with-supply-chain-check の証跡判定を「常に見つかった」にする",
+    patch: "m21-verification-evidence-always-found.patch",
+    pkg: "scripts",
+    tests: ["install-with-supply-chain-check.test.mjs"],
+    note:
+      "#135 経路⑫。供給網ポリシーの検証は 2 段の短絡（optimisticRepeatInstall / " +
+      "検証キャッシュ）で無警告のまま走らなくなる。証跡の判定が甘くなると、CI は " +
+      "install が成功しただけで緑を出し、minimumReleaseAge と trustPolicy の再適用が " +
+      "止まったことに誰も気づけない。**CI では現に検証が走っているので、この判定を " +
+      "壊しても CI の色は変わらない**。落ちるのは単体テストだけである。",
+  },
 ];
 
 /**
