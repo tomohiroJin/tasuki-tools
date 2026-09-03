@@ -105,28 +105,31 @@ export function classifyPlans(relPaths, boundary) {
  * **その plan 自身は何も判定していない**。塞ごうとしている「節はあるが実質が無い」を、
  * 検査の側が作り出す形になる（レビューで実測。問題 0 件で通った）。
  *
+ * **フェンスの長さを見る（CommonMark の規則）。** 閉じるのは「同じ文字」かつ
+ * 「開始と同じ長さ以上」のときだけである。3 文字固定で判定すると、
+ * ````` ````markdown ````` の内側にある ```` ``` ```` を閉じと誤認し、**以降の本文が素通りする**。
+ * ガイドの様式サンプルは ```` ```markdown ```` の中にあるので、**それを引用するには
+ * 4 バックティックを使うのが自然**であり、この誤りはちょうど狙われる形だった
+ * （実装計画 3 本が現に 4 バックティックを使っている。レビューで実測）。
+ *
  * 行数は保つ（フェンスの中身を空行へ置き換える）。位置がずれると読みにくい。
  */
 export function stripCodeFences(text) {
-  let inFence = false;
-  let marker = null;
+  let fence = null;
   return text
     .split("\n")
     .map((line) => {
-      const m = /^\s*(```|~~~)/.exec(line);
+      const m = /^\s*(`{3,}|~{3,})/.exec(line);
       if (m) {
-        if (!inFence) {
-          inFence = true;
-          marker = m[1];
-          return "";
-        }
-        if (m[1] === marker) {
-          inFence = false;
-          marker = null;
+        const [char, length] = [m[1][0], m[1].length];
+        if (fence === null) {
+          fence = { char, length };
+        } else if (char === fence.char && length >= fence.length) {
+          fence = null;
         }
         return "";
       }
-      return inFence ? "" : line;
+      return fence === null ? line : "";
     })
     .join("\n");
 }
@@ -147,9 +150,10 @@ export function stripCodeFences(text) {
  */
 export function findGateSections(text) {
   const lines = stripCodeFences(text).split("\n");
+  const isGateHeading = (line) => /^#{1,6}\s.*Constitution Check/.test(line);
   const sections = [];
   for (let start = 0; start < lines.length; start++) {
-    if (!/^#{1,6}\s.*Constitution Check/.test(lines[start])) continue;
+    if (!isGateHeading(lines[start])) continue;
     const level = /^(#+)/.exec(lines[start])[1].length;
     let end = lines.length;
     for (let i = start + 1; i < lines.length; i++) {
@@ -159,7 +163,14 @@ export function findGateSections(text) {
         break;
       }
     }
-    sections.push(lines.slice(start, end).join("\n"));
+    const body = lines.slice(start + 1, end);
+    // **他の候補を丸ごと含む節は候補にしない。** 例えば H1 の題に `Constitution Check` が
+    // 入っていると（この機能を扱う実装計画がまさにそう名乗る）、下位に H1 が無いので
+    // **文書全体が 1 つの節**になる。そのまま候補にすると、本物のゲートが空でも、
+    // 別の節に引用した判定表と本文中の「逸脱なし」を拾って通ってしまう
+    // （レビューで実測。problems 0 件）。塞ごうとしている「節はあるが実質が無い」の再発である。
+    if (body.some(isGateHeading)) continue;
+    sections.push([lines[start], ...body].join("\n"));
   }
   return sections;
 }
@@ -167,8 +178,13 @@ export function findGateSections(text) {
 /** 1 つの候補節が要求を満たしているか。 */
 function evaluateSection(rel, section, principles) {
   const problems = [];
+  // **表の行の定義を下の結論判定と揃える**（`^\\s*\\|`）。行頭の空白を許さないと、
+  // 字下げした判定表（GFM では 3 スペースまで表として描画される）が「全原則欠落」で
+  // 偽陽性になる。**GitHub 上では正しく見えているのに CI だけが赤くなる**ので原因が追いにくい。
+  // ピリオド直後の空白も要求しない（`| I.テスト駆動開発 |` を落とさない）。
+  // ローマ数字の取り違えは起きない —— `I\\.` は `II.` に一致しない（2 文字目が `.` でない）。
   const missing = principles
-    .filter(({ numeral }) => !new RegExp(`^\\|\\s*${numeral}\\.\\s`, "m").test(section))
+    .filter(({ numeral }) => !new RegExp(`^\\s*\\|\\s*${numeral}\\.`, "m").test(section))
     .map(({ numeral }) => numeral);
   if (missing.length > 0) {
     problems.push({

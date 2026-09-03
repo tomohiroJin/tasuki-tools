@@ -153,6 +153,24 @@ describe("stripCodeFences: フェンスの中身を落とす", () => {
     const text = ["a", "```", "b", "```", "c"].join("\n");
     assert.equal(stripCodeFences(text).split("\n").length, text.split("\n").length);
   });
+
+  test("開始より短いフェンスでは閉じない（4 バックティックの入れ子）", () => {
+    // Given: ガイドの様式サンプルは ```markdown の中にあるので、**それを引用するには
+    //        4 バックティックを使うのが自然**。3 文字固定で判定すると内側の ``` を
+    //        閉じと誤認し、以降の本文が素通りする（レビューで実測）
+    const out = stripCodeFences(
+      ["````markdown", "```markdown", "## Constitution Check", "```", "````", "外側"].join("\n"),
+    );
+    // Then
+    assert.doesNotMatch(out, /Constitution Check/);
+    assert.match(out, /外側/);
+  });
+
+  test("違う文字のフェンスでは閉じない", () => {
+    const out = stripCodeFences(["```", "## Constitution Check", "~~~", "まだ中", "```"].join("\n"));
+    assert.doesNotMatch(out, /Constitution Check/);
+    assert.doesNotMatch(out, /まだ中/);
+  });
 });
 
 describe("findGateSections: ゲートの節を切り出す", () => {
@@ -191,6 +209,25 @@ describe("findGateSections: ゲートの節を切り出す", () => {
     const text = ["### Task 1: Constitution Check の節を足す", "本文", "## Constitution Check", "| I. x | y | z |"].join("\n");
     // When / Then
     assert.equal(findGateSections(text).length, 2);
+  });
+
+  test("他の候補を丸ごと含む節は候補にしない（H1 の題に語が入る形）", () => {
+    // Given: この機能を扱う実装計画がまさにこう名乗る。下位に H1 が無いので
+    //        **文書全体が 1 つの節**になり、別の節の表と本文の「逸脱なし」で通ってしまう
+    const text = [
+      "# Constitution Check ゲート検査の実装計画",
+      "",
+      "## 背景",
+      "| I. x | 通過 | y |",
+      "**逸脱なし。**",
+      "",
+      "## Constitution Check",
+      "（あとで書く）",
+    ].join("\n");
+    // When / Then: 本物のゲートだけが候補になる
+    const sections = findGateSections(text);
+    assert.equal(sections.length, 1);
+    assert.match(sections[0], /あとで書く/);
   });
 
   test("フェンスの中の見出しは候補にしない", () => {
@@ -321,6 +358,37 @@ describe("checkGate: ゲートの中身（設計正本 D3）", () => {
     // Then
     assert.equal(problems.length, 1);
     assert.match(problems[0].message, /逸脱/);
+  });
+
+  test("字下げした判定表を落とさない（GFM では表として描画される）", () => {
+    // Given: 各行を 2 スペース字下げした正しい判定表。**GitHub 上では表に見えているのに
+    //        CI だけが赤くなる**形だったので、表の行の定義を結論判定と揃えた
+    const text = ["## Constitution Check", ""]
+      .concat(PRINCIPLES.map((p) => `  | ${p.numeral}. x | 通過 | y |`))
+      .concat(["", "**逸脱なし。**"])
+      .join("\n");
+    // When / Then
+    assert.deepEqual(checkGate(rel, text, PRINCIPLES), []);
+  });
+
+  test("ローマ数字の直後に空白が無くても拾う", () => {
+    // Given: 日本語の表記では `| I.テスト駆動開発 |` と書くことがある
+    const text = ["## Constitution Check", ""]
+      .concat(PRINCIPLES.map((p) => `| ${p.numeral}.${p.title} | 通過 | y |`))
+      .concat(["", "**逸脱なし。**"])
+      .join("\n");
+    // When / Then
+    assert.deepEqual(checkGate(rel, text, PRINCIPLES), []);
+  });
+
+  test("4 バックティックで様式サンプルを引用しても通さない", () => {
+    // Given: ガイドの見本（```markdown を含む）を丸ごと引用した plan
+    const quoted = ["# 引用しただけの plan", "", "````markdown", "```markdown", GOOD_GATE, "```", "````"].join("\n");
+    // When
+    const problems = checkGate(rel, quoted, PRINCIPLES);
+    // Then
+    assert.equal(problems.length, 1);
+    assert.match(problems[0].message, /節がありません/);
   });
 
   test("II の行があっても I の行の代わりにはならない", () => {
