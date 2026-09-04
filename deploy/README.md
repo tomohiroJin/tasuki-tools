@@ -189,7 +189,7 @@ RENDER_ONLY=1 DEPLOY_USER=<user> bash deploy/setup.sh timer
 | 秘密 | 置き場 | 用途 |
 |---|---|---|
 | `CLAUDE_CODE_OAUTH_TOKEN` | `/opt/tasuki/tasuki-sync.env`（600） | AI お題生成の子プロセスへ渡す |
-| `AI_UNLOCK_KEY` | 同上 | AI 生成の解錠合言葉 |
+| `AI_UNLOCK_KEY` | 同上 | AI 生成の解錠合言葉。**一様乱数で生成すること**（`openssl rand -hex 20`）。本番では起動時に下限を検査し、割っていれば起動しない（ADR 0011 決定5） |
 | `ADMIN_TOKEN` | 同上 | 管理エンドポイントの認証 |
 
 - **権限は 600 を維持する。** `setup.sh` が作成時に設定するが、手で編集した後も
@@ -208,6 +208,19 @@ RENDER_ONLY=1 DEPLOY_USER=<user> bash deploy/setup.sh timer
 | `CLAUDE_CODE_OAUTH_TOKEN` | Anthropic のコンソールでトークンを失効させ、`claude setup-token` で再発行して env を更新 |
 | `AI_UNLOCK_KEY` | env の値を変えて `sudo systemctl restart tasuki-sync`。**利用者へ新しい合言葉を配り直す** |
 | `ADMIN_TOKEN` | 同上（配り直しは運用者のみ） |
+
+> **⚠ #145 の起動時検査を含む版を初めて配る前に、必ず鍵を差し替えること。**
+> 現行の `AI_UNLOCK_KEY` が下限を割っていると、**デプロイ後にサーバーが起動しない。**
+> `ALLOWED_ORIGINS` や `HOST` と違い、これは運用者が過去に決めた値であり、
+> 普段は変わらない構造的な設定ではない。
+>
+> ```bash
+> # 1. 新しい鍵を生成する（ローカルで実行してよい）
+> openssl rand -hex 20
+> # 2. /opt/tasuki/tasuki-sync.env の AI_UNLOCK_KEY を差し替える
+> # 3. 利用者へ新しい合言葉を配り直す
+> # 4. sudo systemctl restart tasuki-sync
+> ```
 
 いずれも再起動を伴う。影響は前述の「[⚠ 再起動でルームは全消滅する](#-再起動でルームは全消滅する)」のとおり。緊急でなければ利用者のいない時間帯に行う。
 
