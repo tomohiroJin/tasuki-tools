@@ -10,6 +10,8 @@ import {
   findMissingRequired,
   ALLOWED_FILES,
   REQUIRED_FILES,
+  SCANNED_EXTENSIONS,
+  isScannedFile,
 } from "./audit-log-hygiene.mjs";
 
 describe("禁止された構文の検出", () => {
@@ -285,6 +287,47 @@ describe("走査対象の宣言", () => {
     // Given / When / Then
     for (const e of EXCLUDED_PACKAGES) {
       assert.ok(e.reason && e.reason.length > 0, `${e.pkg} に理由がありません`);
+    }
+  });
+});
+
+/**
+ * **規範の写しであって、腐る列挙ではない。**
+ *
+ * `SCANNED_EXTENSIONS` をループするだけのテストでは、**宣言から拡張子を落としても
+ * ループが一緒に縮むので緑のまま**になる（`audit-domain-side-effects.test.mjs` の
+ * `REQUIRED_FORBIDDEN` と同じ理由）。射程を狭める向きの変更を機械で止めるには、
+ * テスト側がリテラルで持つしかない。
+ *
+ * **`.tsx` を落とすときは、設計正本 D1 とこの配列の両方を直すこと。**
+ * 拡張子は「サーバか画面か」の代理にならない —— ADR 0015 MUST 2 が求める同期フックは
+ * JSX を持たない `.ts` なので、画面から配線を移すだけで射程が動く（#157）。
+ */
+const REQUIRED_EXTENSIONS = [".ts", ".tsx"];
+
+describe("走査する拡張子（#157）", () => {
+  test("規範が決めた拡張子がそのまま宣言に入っている", () => {
+    // Given / When / Then（実装側の配列ではなく、上のリテラルを回す）
+    for (const ext of REQUIRED_EXTENSIONS) {
+      assert.ok(SCANNED_EXTENSIONS.includes(ext), `${ext} が SCANNED_EXTENSIONS から落ちている`);
+    }
+  });
+
+  test("宣言した拡張子をそれぞれ実際に走査対象と判定する", () => {
+    // Given / When / Then: 配列に残したまま判定側で無効化する経路を塞ぐ
+    for (const ext of REQUIRED_EXTENSIONS) {
+      assert.equal(isScannedFile(`foo${ext}`), true, `${ext} を走査対象にしていない`);
+    }
+  });
+
+  test("型宣言（.d.ts）は走査しない", () => {
+    // Given / When / Then: 実行時のログ経路を持たない
+    assert.equal(isScannedFile("foo.d.ts"), false);
+  });
+
+  test("関係ない拡張子は走査しない", () => {
+    for (const name of ["foo.js", "foo.json", "foo.md", "foo.css", "foo.tsx.snap"]) {
+      assert.equal(isScannedFile(name), false, `${name} を走査対象にしている`);
     }
   });
 });

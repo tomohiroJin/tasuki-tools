@@ -111,6 +111,34 @@ logger.error("uncaught", { name: publicText(err.name) }); // log-hygiene:allow �
 この形を使うときは、必ず `// log-hygiene:allow <理由>` を同じ行に付けます。
 理由なしに `publicText()` を呼び出し箇所へ増やさないでください。
 
+### 画面側に `console` を足すとき（#157）
+
+**ログ衛生の検査は `.ts` と `.tsx` を区別しません。** 画面側（`apps/timer-web` /
+`apps/poker-web` / `apps/landing`）に直接の `console` を足すと、CI の `quality` ジョブが
+`直接の console は使えません` で落ちます。
+
+**これは検査の誤検知ではありません。** [`docs/adr/0012`](../adr/0012-logging-secrets-and-disclosure.md)
+決定 D1 の本文は「ブラウザの `console` は本決定の対象外」と書いていますが、
+**同 ADR の 2026-09-04 の追記が、検査ではマーカーでの明示を求める**と定めています
+（規範を厳しくしているのではなく、規範が許すものを可視化しています）。
+
+通したいときは 2 つとも行ってください。
+
+1. `scripts/audit-log-hygiene.mjs` の `ALLOWED_FILES` へそのファイルを足す
+2. その行の末尾に `// log-hygiene:allow <理由>` を付ける
+
+```tsx
+console.error("記録の読み込みに失敗しました:", e); // log-hygiene:allow ブラウザの devtools 向け
+```
+
+**片方だけでは通りません。** 許可だけ足してマーカーが 1 つも無いファイルは
+「許可が陳腐化しています」で落ち、マーカーだけ付けても許可の無いファイルは違反のままです。
+どちらの向きにも穴を作らないための作りです。
+
+**分類「秘密・資格情報・個人に紐づく」の値は、ブラウザの `console` にも出さないでください。**
+その制約は ADR 0011 の分類表で引き続き効きます（D1 の対象外なのは「ログ経路の一本化」であって、
+分類の規律ではありません）。
+
 ## やってはいけないこと
 
 - **`publicText()` を `vocabulary.ts` の外で呼ぶ。**
@@ -120,8 +148,8 @@ logger.error("uncaught", { name: publicText(err.name) }); // log-hygiene:allow �
   `apps/timer-sync/src/adapters/console-log-sink.ts` の 1 箇所だけです。
   それ以外から `console.log` / `console.warn` / `console.error` を呼びません
   （[`docs/adr/0012`](../adr/0012-logging-secrets-and-disclosure.md) 決定 D1）。
-  検査を通っている直接呼び出しはリポジトリ全体で 2 箇所（上記の実出力口と、
-  poker-sync の `listening` 行）だけです。
+  **検査を通っている直接呼び出しの件数はここに書きません**（足すたびに腐ります）。
+  現物は `scripts/audit-log-hygiene.mjs` の `ALLOWED_FILES` が正本です。
 - **`as LogSafe` で直接キャストする。** `LogSafe` は型の壁であり、抜け道は
   `publicText()` の 1 関数に集約します。`as LogSafe` を書いた時点でその壁は
   意味を失います。
@@ -174,8 +202,13 @@ const matched = constantTimeEqual(provided, expected);
    **第 1 引数（`event`）が、その場に書いた文字列リテラルのままか**（テンプレート
    リテラル・文字列連結・変数になっていないか）。
 3. [ ] **`console` の直接呼び出しが増えていないか。**
-   `apps/timer-sync/src/adapters/console-log-sink.ts` 以外に `console.*` が
-   追加されていないか。
+   増えているなら、`scripts/audit-log-hygiene.mjs` の `ALLOWED_FILES` への登録と
+   行マーカー（`// log-hygiene:allow <理由>`）が**両方**そろっているか。
+   **どのファイルが許されているかを、この観点へ書き写さないでください**
+   （正本は `ALLOWED_FILES` とその docstring です。写すと必ず食い違います）。
+   見るのは「登録の有無」ではなく **その登録が docstring の挙げる類型に当てはまるか**と、
+   マーカーの理由が「何を出さないか」を述べているかです
+   （上の「画面側に `console` を足すとき」を参照）。
 4. [ ] **例外の扱いが正しいか。** ログや利用者向けエラーへ `message` や
    スタックトレースを出していないか。ログに出してよいのは分類名（`err.name`）だけか。
    利用者向けエラーに載っているのはエラーコードと「公開可」の情報だけか

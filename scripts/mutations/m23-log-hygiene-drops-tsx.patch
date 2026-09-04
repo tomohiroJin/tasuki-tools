@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-log-hygiene.mjs b/scripts/audit-log-hygiene.mjs
+index 0030a28..adbb5b9 100644
+--- a/scripts/audit-log-hygiene.mjs
++++ b/scripts/audit-log-hygiene.mjs
+@@ -340,7 +340,7 @@ export function findMissingRequired(scanned) {
+  * **`.mts` / `.cts` / `.jsx` は足していない。** 現在 0 件で実需が無い（`docs/adr/0007`）。
+  * 必要になったときに足す。
+  */
+-export const SCANNED_EXTENSIONS = [".ts", ".tsx"];
++export const SCANNED_EXTENSIONS = [".ts"];
+ 
+ /**
+  * そのファイル名を走査するか。

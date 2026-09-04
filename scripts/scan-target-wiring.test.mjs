@@ -342,13 +342,16 @@ describe("0 件ガードの配線: scripts/audit-log-hygiene.mjs", () => {
 
   test("走査ディレクトリは実在するがファイルが 0 件になると非ゼロで終了する", () => {
     // Given: 実在確認は通る（ディレクトリはそのまま）が、拾う拡張子を実在しない
-    //        ものへ変えて走査ファイルだけを 0 件にする
+    //        ものへ変えて走査ファイルだけを 0 件にする（#157 で宣言へ切り出した）
     const mutate = (s) =>
-      s.replace('e.name.endsWith(".ts") &&', 'e.name.endsWith(".ts-none") &&');
+      s.replace(
+        'export const SCANNED_EXTENSIONS = [".ts", ".tsx"];',
+        'export const SCANNED_EXTENSIONS = [".ts-none"];',
+      );
     // When
     const r = runScriptCopy("audit-log-hygiene.mjs", mutate);
     // Then: まず「壊れたこと自体」を確かめる
-    assert.equal(countOf(r.source, '.ts-none'), 1, "拡張子の判定を壊せていません");
+    assert.equal(countOf(r.source, '".ts-none"'), 1, "拡張子の判定を壊せていません");
     // Then: 実在確認は素通りし、0 件ガードが落とす
     assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
     assert.doesNotMatch(r.stderr, /宣言にあるが実在しない/);
