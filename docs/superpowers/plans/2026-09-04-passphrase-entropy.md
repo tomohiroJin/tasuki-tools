@@ -384,12 +384,23 @@ Expected: PASS（63 tests = 既存 56 + 新規 7）
 cd /workspaces/claym/local/Tasuki && git status --porcelain
 ```
 
-clean でなければ先に Step 6 のコミットを済ませてから戻る。次に判定を恒真に置き換える。
+clean でなければ **Step 8 のコミットを先に済ませてから戻る**。
+このタスクの実装（`config.ts` / `config.test.ts`）は Step 4 の時点で未コミットなので、**通常はここで一度コミットしてから破壊検証に入ることになる**。
+順序を守らないと、下の `git checkout --` が未コミットの実装を消す。
+
+`apps/timer-sync/src/ai-unlock-key-policy.ts` の `findAiUnlockKeyViolation` の本体の
+**先頭に 1 行だけ**足して、判定を恒真（常に「違反なし」）にする。
+
+```ts
+export function findAiUnlockKeyViolation(key: string): string | null {
+  return null; // ← 破壊検証のために一時的に足す行
+  if (!ASCII_PRINTABLE.test(key)) {
+```
+
+lint は到達不能コードを嫌うので、この状態で lint は走らせない。テストだけ走らせる。
 
 ```bash
-cd /workspaces/claym/local/Tasuki
-sed -i 's|^export function findAiUnlockKeyViolation(key: string): string \| null {|export function findAiUnlockKeyViolation(_key: string): string \| null {\n  return null; // 破壊検証|' apps/timer-sync/src/ai-unlock-key-policy.ts
-cd apps/timer-sync && bun test test/ai-unlock-key-policy.test.ts test/config.test.ts
+cd /workspaces/claym/local/Tasuki/apps/timer-sync && bun test test/ai-unlock-key-policy.test.ts test/config.test.ts
 ```
 
 Expected: FAIL（`ai-unlock-key-policy.test.ts` の違反系 4 件と `config.test.ts` の拒否系 3 件が赤くなる）。
