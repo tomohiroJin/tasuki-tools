@@ -180,9 +180,13 @@ D1 の帰結として、ブラウザの `console` は `ALLOWED_FILES` ＋ 行マ
 
 | 種別 | 対象 |
 |---|---|
-| 変更 | `scripts/audit-log-hygiene.mjs` / `scripts/audit-log-hygiene.test.mjs` / `apps/timer-web/src/ui/History.tsx` / `scripts/mutation-check.mjs` |
+| 変更 | `scripts/audit-log-hygiene.mjs` / `scripts/audit-log-hygiene.test.mjs` / `scripts/scan-target-wiring.test.mjs` / `scripts/mutation-check.mjs` / `apps/timer-web/src/ui/History.tsx` |
 | 追加 | `scripts/mutations/` へ 1 件 |
-| 追記 | `docs/adr/0012`（末尾へ） |
+| 追記 | `docs/adr/0012`（末尾へ）/ `docs/adr/0014`（超越注記）/ `docs/guides/security.md`（画面側の手順・レビュー観点）/ `docs/superpowers/specs/2026-08-16-scan-target-integrity-design.md`（E7・§3・D7・申し送り表へ超越注記） |
 | 振り返り | `docs/retrospectives/2026-09-04-issue-157-log-hygiene-tsx-scope.md` |
+
+**この表はレビュー 3 巡のあいだに 4 件増えた。** 射程を広げる変更は、実装だけでなく
+**その赤を読む人が辿る文書**（メッセージ → ADR → ガイド → レビュー観点）へ波及する。
+成果物表は最後に数え直す。
 
 **PR は 1 本**（`docs/adr/0013` の既定「1 Issue = 1 PR」）。

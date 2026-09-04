@@ -148,8 +148,8 @@ console.error("記録の読み込みに失敗しました:", e); // log-hygiene:
   `apps/timer-sync/src/adapters/console-log-sink.ts` の 1 箇所だけです。
   それ以外から `console.log` / `console.warn` / `console.error` を呼びません
   （[`docs/adr/0012`](../adr/0012-logging-secrets-and-disclosure.md) 決定 D1）。
-  検査を通っている直接呼び出しはリポジトリ全体で 2 箇所（上記の実出力口と、
-  poker-sync の `listening` 行）だけです。
+  **検査を通っている直接呼び出しの件数はここに書きません**（足すたびに腐ります）。
+  現物は `scripts/audit-log-hygiene.mjs` の `ALLOWED_FILES` が正本です。
 - **`as LogSafe` で直接キャストする。** `LogSafe` は型の壁であり、抜け道は
   `publicText()` の 1 関数に集約します。`as LogSafe` を書いた時点でその壁は
   意味を失います。
@@ -202,12 +202,12 @@ const matched = constantTimeEqual(provided, expected);
    **第 1 引数（`event`）が、その場に書いた文字列リテラルのままか**（テンプレート
    リテラル・文字列連結・変数になっていないか）。
 3. [ ] **`console` の直接呼び出しが増えていないか。**
-   **サーバ側**（`apps/timer-sync` / `apps/poker-sync`）では、唯一の実出力口
-   `apps/timer-sync/src/adapters/console-log-sink.ts` と `apps/poker-sync/src/server.ts` の
-   `listening` 行以外に `console.*` が追加されていないか（`docs/adr/0012` 決定 D1）。
-   **画面側**（`apps/*-web` / `apps/landing`）では、`ALLOWED_FILES` への登録と
+   増えているなら、`scripts/audit-log-hygiene.mjs` の `ALLOWED_FILES` への登録と
    行マーカー（`// log-hygiene:allow <理由>`）が**両方**そろっているか。
-   マーカーの理由が「何を出さないか」を述べているか
+   **どのファイルが許されているかを、この観点へ書き写さないでください**
+   （正本は `ALLOWED_FILES` とその docstring です。写すと必ず食い違います）。
+   見るのは「登録の有無」ではなく **その登録が docstring の挙げる類型に当てはまるか**と、
+   マーカーの理由が「何を出さないか」を述べているかです
    （上の「画面側に `console` を足すとき」を参照）。
 4. [ ] **例外の扱いが正しいか。** ログや利用者向けエラーへ `message` や
    スタックトレースを出していないか。ログに出してよいのは分類名（`err.name`）だけか。
