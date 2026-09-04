@@ -341,23 +341,25 @@ describe("loadSyncConfig", () => {
     );
   });
 
-  describe("AI_UNLOCK_KEY の下限（#145・ADR 0011 決定5）", () => {
+  describe("AI_UNLOCK_KEY の下限（#145・ADR 0011 決定5。#237 レビュー指摘2で「AI が有効になる構成のときだけ」検査するよう修正）", () => {
     /** `openssl rand -hex 20` 相当。下限を満たす。 */
     const VALID_KEY = "0123456789abcdef0123456789abcdef01234567";
     const PROD = { NODE_ENV: "production", ALLOWED_ORIGINS: "https://x.example" };
+    /** AI を有効化する側の設定値。値そのものに意味はなく「設定されている」ことだけを使う。 */
+    const TOKEN = "sk-ant-oat01-xxx";
 
-    it("本番で下限を割る AI_UNLOCK_KEY なら起動を拒否する", () => {
+    it("両方設定されていて鍵が下限を割るなら本番で起動を拒否する", () => {
       // Given
-      const env = { ...PROD, AI_UNLOCK_KEY: "himitsu" };
+      const env = { ...PROD, CLAUDE_CODE_OAUTH_TOKEN: TOKEN, AI_UNLOCK_KEY: "himitsu" };
       // When
       const load = () => loadSyncConfig(env);
       // Then
       expect(load).toThrow(/AI_UNLOCK_KEY/);
     });
 
-    it("本番で下限を満たす AI_UNLOCK_KEY なら起動する", () => {
+    it("本番で AI が有効な構成（token と鍵の両方）かつ鍵が下限を満たすなら起動する", () => {
       // Given
-      const env = { ...PROD, AI_UNLOCK_KEY: VALID_KEY };
+      const env = { ...PROD, CLAUDE_CODE_OAUTH_TOKEN: TOKEN, AI_UNLOCK_KEY: VALID_KEY };
       // When
       const c = loadSyncConfig(env);
       // Then
@@ -366,25 +368,40 @@ describe("loadSyncConfig", () => {
 
     it("本番で AI_UNLOCK_KEY が未設定なら検査しない", () => {
       // Given
-      const env = { ...PROD };
+      const env = { ...PROD, CLAUDE_CODE_OAUTH_TOKEN: TOKEN };
       // When
       const c = loadSyncConfig(env);
       // Then
       expect(c.aiUnlockKey).toBeUndefined();
     });
 
-    it("本番以外なら下限を割っていても起動する", () => {
-      // Given
-      const env = { ALLOWED_ORIGINS: "https://x.example", AI_UNLOCK_KEY: "himitsu" };
+    it("CLAUDE_CODE_OAUTH_TOKEN が未設定なら、短い AI_UNLOCK_KEY でも本番で起動する", () => {
+      // Given（トークン側を消して AI を丸ごと止めた構成に残った旧鍵は不活性であり、
+      // それを理由にサービスを止めない。deploy/README.md の「AI をどちらか片方の
+      // 未設定で止められる」案内と整合する）
+      const env = { ...PROD, AI_UNLOCK_KEY: "himitsu" };
       // When
       const c = loadSyncConfig(env);
       // Then
       expect(c.aiUnlockKey).toBe("himitsu");
     });
 
-    it("本番で非 ASCII の AI_UNLOCK_KEY なら起動を拒否する", () => {
+    it("本番以外なら AI が有効な構成でも下限を割っていれば起動する", () => {
       // Given
-      const env = { ...PROD, AI_UNLOCK_KEY: "あ".repeat(40) };
+      const env = {
+        ALLOWED_ORIGINS: "https://x.example",
+        CLAUDE_CODE_OAUTH_TOKEN: TOKEN,
+        AI_UNLOCK_KEY: "himitsu",
+      };
+      // When
+      const c = loadSyncConfig(env);
+      // Then
+      expect(c.aiUnlockKey).toBe("himitsu");
+    });
+
+    it("本番で AI が有効な構成かつ非 ASCII の AI_UNLOCK_KEY なら起動を拒否する", () => {
+      // Given
+      const env = { ...PROD, CLAUDE_CODE_OAUTH_TOKEN: TOKEN, AI_UNLOCK_KEY: "あ".repeat(40) };
       // When
       const load = () => loadSyncConfig(env);
       // Then
@@ -393,7 +410,7 @@ describe("loadSyncConfig", () => {
 
     it("前後に空白があっても trim 後の値で判定する", () => {
       // Given
-      const env = { ...PROD, AI_UNLOCK_KEY: `  ${VALID_KEY}  ` };
+      const env = { ...PROD, CLAUDE_CODE_OAUTH_TOKEN: TOKEN, AI_UNLOCK_KEY: `  ${VALID_KEY}  ` };
       // When
       const c = loadSyncConfig(env);
       // Then
@@ -403,7 +420,7 @@ describe("loadSyncConfig", () => {
     it("拒否の文言に鍵の値を含めない", () => {
       // Given
       const secret = "himitsu-no-aikotoba";
-      const env = { ...PROD, AI_UNLOCK_KEY: secret };
+      const env = { ...PROD, CLAUDE_CODE_OAUTH_TOKEN: TOKEN, AI_UNLOCK_KEY: secret };
       // When
       let message = "";
       try {
@@ -414,6 +431,24 @@ describe("loadSyncConfig", () => {
       // Then
       expect(message).toContain("AI_UNLOCK_KEY");
       expect(message).not.toContain(secret);
+    });
+
+    it("鍵が上限を超えるなら、拒否理由に「以下」を含む（下限違反の文言と矛盾しないこと）", () => {
+      // Given（65 文字＝上限 64 を 1 文字超える）
+      const env = { ...PROD, CLAUDE_CODE_OAUTH_TOKEN: TOKEN, AI_UNLOCK_KEY: "a".repeat(65) };
+      // When
+      let message = "";
+      try {
+        loadSyncConfig(env);
+      } catch (e) {
+        message = (e as Error).message;
+      }
+      // Then
+      expect(message).toContain("AI_UNLOCK_KEY");
+      expect(message).toContain("以下");
+      // 前置きが下限固定の文言だと「下限を満たす必要があります: … 以下にしてください」という
+      // 自己矛盾になる（#237 最終レビュー再指摘1）。前置きは違反の種類に依存しない書き方であること。
+      expect(message).not.toContain("下限を満たす必要があります");
     });
   });
 });

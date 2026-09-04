@@ -91,16 +91,28 @@ export function loadSyncConfig(env: Record<string, string | undefined>): SyncCon
     );
   }
 
-  // AI 解錠キーの下限（#145・ADR 0011 決定5）。
-  // 未設定なら検査しない（未設定＝AI 機能無効という既存の意味を壊さない）。
+  // create-sync-server.ts の aiReady と同じ判定を先に確定させる（両方揃って初めて AI が有効）。
+  const claudeOauthToken = (env["CLAUDE_CODE_OAUTH_TOKEN"] ?? "").trim() || undefined;
+
+  // AI 解錠キーの長さの範囲（下限と、プロトコルの上限）（#145・ADR 0011 決定5）。
+  // AI が有効になる構成（claudeOauthToken と aiUnlockKey が両方設定されている）のときだけ検査する。
+  // トークン側を消して AI を丸ごと止めた構成に残った旧鍵は不活性であり、
+  // 実際には一切使われない（create-sync-server.ts の aiReady が false のまま）。
+  // 不活性な鍵のためにサービスを止めない（#237 レビュー指摘2。deploy/README.md は
+  // 「AI 機能を丸ごと止めたいときは token か 鍵の どちらかを消す」と案内しており、
+  // token 側だけを消して止めた本番が、次のデプロイで不要に起動失敗するのを防ぐ）。
   // 判定は trim 後の値に対して行う（保持する値とずらさない）。
   const aiUnlockKey = (env["AI_UNLOCK_KEY"] ?? "").trim() || undefined;
-  if (isProduction && aiUnlockKey !== undefined) {
+  if (isProduction && claudeOauthToken !== undefined && aiUnlockKey !== undefined) {
     const violation = findAiUnlockKeyViolation(aiUnlockKey);
     if (violation !== null) {
+      // 前置きは違反の種類（文字種・下限・上限のいずれ）に依存しない書き方にする。
+      // 「下限を満たす必要があります」のような下限固定の前置きだと、上限違反時に
+      // 「…: 64 文字以下にしてください」と続き自己矛盾になる（#237 最終レビュー再指摘1）。
       throw new Error(
-        `本番（NODE_ENV=production）では AI_UNLOCK_KEY が下限を満たす必要があります: ${violation}。` +
-          "総当たりに対する余裕はこの下限で決まります（ADR 0011 決定5）。起動を中止します。" +
+        `本番（NODE_ENV=production）では AI_UNLOCK_KEY が規範を満たしていません: ${violation}。` +
+          "この規範は、総当たりへの耐性とプロトコルの上限内で解錠が成立することの両方を守るために" +
+          "起動時に強制します（ADR 0011 決定5）。起動を中止します。" +
           "対処: `openssl rand -hex 20` で生成し直し、env を差し替えてから再起動してください。" +
           "受け取った値は分類「秘密」のため、この文言には含めません。",
       );
@@ -121,7 +133,7 @@ export function loadSyncConfig(env: Record<string, string | undefined>): SyncCon
     roomIdleTtlMs: intEnv(env["ROOM_IDLE_TTL_MS"], 1_800_000),
     adminToken: (env["ADMIN_TOKEN"] ?? "").trim() || undefined,
     aiUnlockKey,
-    claudeOauthToken: (env["CLAUDE_CODE_OAUTH_TOKEN"] ?? "").trim() || undefined,
+    claudeOauthToken,
     aiProblemModel: (env["AI_PROBLEM_MODEL"] ?? "").trim() || DEFAULT_AI_PROBLEM_MODEL,
     aiGenerationTimeoutMs: intEnv(env["AI_GENERATION_TIMEOUT_MS"], 60_000),
     // 0 を許容（=その日の AI 生成を全面停止）。負数・非数値は既定 100。

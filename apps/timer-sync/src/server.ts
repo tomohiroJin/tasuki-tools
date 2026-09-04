@@ -44,7 +44,11 @@ const config = (() => {
   try {
     return loadSyncConfig(process.env);
   } catch (e) {
-    logger.error("config-error", { name: publicText((e as Error).name) }); // log-hygiene:allow 例外の分類のみ
+    const err = e as Error;
+    logger.error("config-error", {
+      name: publicText(err.name), // log-hygiene:allow 起動時 config エラーの文言は運用者向けで値を含まない契約（docs/guides/security.md「ロガの使い方」）
+      message: publicText(err.message), // log-hygiene:allow 同上。loadSyncConfig の throw は値そのものを含めない契約で書かれている（AI_UNLOCK_KEY は EARS E6 でテスト済み）
+    });
     process.exit(1);
   }
 })();

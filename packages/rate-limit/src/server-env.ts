@@ -98,7 +98,8 @@ function resolveNodeEnv(env: Record<string, string | undefined>): string {
       `NODE_ENV の値が未知です（受け取った値: ${JSON.stringify(raw)}）。` +
         `既知の値は ${KNOWN_NODE_ENVS.join(" / ")} のいずれかです。` +
         "表記ゆれ・誤設定によって本番の防御（requireClientAddress・HOST 検査・" +
-        "ALLOWED_ORIGINS 検査）が無言ですり抜けるのを防ぐため起動を中止します。",
+        "ALLOWED_ORIGINS 検査・AI_UNLOCK_KEY の下限検査）が無言ですり抜けるのを防ぐため" +
+        "起動を中止します。",
     );
   }
   return normalized;

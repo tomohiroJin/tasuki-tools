@@ -91,8 +91,8 @@ ERROR: [$APP] $SERVICE が起動していません。**新しい server.js は�
   原因を見る:
     ssh $SSH_HOST "journalctl -u $SERVICE -n 50 --no-pager"
 
-  #103 以降、次の 3 つは**起動しないことで守る**設計です。まずここを疑ってください。
-    ALLOWED_ORIGINS が未設定 / HOST がループバック外 / NODE_ENV が未知の値
+  #103・#145 以降、次の 4 つは**起動しないことで守る**設計です。まずここを疑ってください。
+    ALLOWED_ORIGINS が未設定 / HOST がループバック外 / NODE_ENV が未知の値 / AI_UNLOCK_KEY が下限を割る
     ssh $SSH_HOST "cat '$APP_DIR/$ENV_FILE'"
 MSG
 		exit 1

@@ -121,12 +121,19 @@ poker は対象外（§1 の根拠）。`ADMIN_TOKEN` も対象外とし、別 I
 推奨は `openssl rand -hex 20`。`+` `/` `=` を含まないため、systemd の `EnvironmentFile=`
 （`deploy/timer/service.tmpl:15`）やシェルの引用規則で曖昧さが生じない。
 
-### D4: 検査は「ASCII 印字可能文字のみ・長さ下限」とする。bit 計算を採らない（MUST）
+### D4: 検査は「ASCII 印字可能文字のみ・長さの範囲」とする。bit 計算を採らない（MUST）
 
 判定は無状態で、次の 2 条件のみを見る。
 
 1. trim 後の値が ASCII 印字可能文字（`\x21`–`\x7e`）だけで構成されている（**許可リスト**）
-2. trim 後の長さが下限以上である
+2. trim 後の長さが**下限以上、かつプロトコルの上限（`MAX_AI_UNLOCK_KEY`）以下**である
+
+**上限も見る理由（#237 レビュー指摘3）**: 上限を見ないと、下限だけを満たそうとして
+`openssl rand -hex 40` のような長い鍵を置いた運用者に対し、サーバーは正常起動するのに
+解錠が永久に成功しない（`schemas.ts` の `v.maxLength` と UI の `maxLength` がその長さで
+弾く／切るため）。返るのは存在秘匿の `AI_UNLOCK_FAILED` で不一致と区別がつかず、
+気づく手掛かりが無いまま失敗のたびにレート制限枠だけを消費する。起動時に気づけるよう、
+下限と同じ経路で上限も検査する。
 
 **bit 計算を採らない理由**は §3.3。**ASCII に限る理由**は、推奨する生成コマンドの出力が ASCII であり、
 env ファイル・systemd・シェル・journald を通る値に非 ASCII を許す利点が無いこと。
@@ -197,7 +204,12 @@ slug と同じ語を使わないことを規範に含める（**SHOULD**）。
 `HOST`（83 行）と**同じ型**で 3 つ目の検査を足す。
 
 - **本番限定**（`isProduction`）。既存 2 検査と同じ条件に揃える
-- **`aiUnlockKey` が未設定なら検査しない**（未設定＝AI 機能無効という既存の意味を壊さない）
+- **`claudeOauthToken` と `aiUnlockKey` が両方設定されている（＝ AI が有効になる構成の）
+  ときだけ検査する**（#237 レビュー指摘2）。`aiUnlockKey` が未設定なら従来どおり検査しない
+  （未設定＝AI 機能無効という既存の意味を壊さない）ことに加え、`claudeOauthToken` が
+  未設定のときも検査しない。トークン側を消して AI を丸ごと止めた構成に残る鍵は
+  `create-sync-server.ts` の `aiReady` が false のまま使われない不活性な値であり、
+  それを理由に起動を止めない
 - 判定対象は **trim 後**の値（§3.1）
 - 失敗時は `throw`。**エラー文言に値そのものを含めない**（ADR 0012 のログ衛生。分類は「秘密」）。
   `HOST` の検査は受け取った値を出しているが、あちらの分類は「秘密」ではない
@@ -221,23 +233,34 @@ UI 文言は書体の base 層に収まる必要があり、新しい語彙を�
 
 ### 6.1 EARS（Issue #145 の「振る舞い」節へ転記する）
 
-- **E1**: `NODE_ENV=production` かつ `AI_UNLOCK_KEY` が設定されているとき、その値が下限を満たさないならば、`loadSyncConfig` は起動を拒否しなければならない
-- **E2**: `NODE_ENV=production` かつ `AI_UNLOCK_KEY` が**未設定**のとき、`loadSyncConfig` は下限検査を行ってはならない
-- **E3**: `NODE_ENV` が production でないとき、`loadSyncConfig` は下限検査を行ってはならない
-- **E4**: `AI_UNLOCK_KEY` が非 ASCII 文字を含むとき、`loadSyncConfig` は本番で起動を拒否しなければならない
-- **E5**: 下限検査は前後の空白を除去した値に対して行われなければならない
+- **E1**: `NODE_ENV=production` かつ AI が有効になる構成（`CLAUDE_CODE_OAUTH_TOKEN` と
+  `AI_UNLOCK_KEY` が両方設定されている）のとき、`AI_UNLOCK_KEY` の値が長さの範囲（下限と、
+  プロトコルの上限）を満たさないならば、`loadSyncConfig` は起動を拒否しなければならない
+- **E2**: `NODE_ENV=production` であっても、AI が有効にならない構成（`CLAUDE_CODE_OAUTH_TOKEN`
+  が未設定、または `AI_UNLOCK_KEY` が未設定）のとき、`loadSyncConfig` は長さの検査を
+  行ってはならない（#237 レビュー指摘2。トークン側を消して AI を丸ごと止めた構成に
+  残る鍵は不活性であり、それを理由に起動を止めない）
+- **E3**: `NODE_ENV` が production でないとき、`loadSyncConfig` は長さの検査を行ってはならない
+- **E4**: AI が有効になる構成で `AI_UNLOCK_KEY` が非 ASCII 文字を含むとき、`loadSyncConfig`
+  は本番で起動を拒否しなければならない
+- **E5**: 長さの検査は前後の空白を除去した値に対して行われなければならない
 - **E6**: 起動拒否の文言は `AI_UNLOCK_KEY` の値そのものを含んではならない
+- **E7**: AI が有効になる構成で `AI_UNLOCK_KEY` がプロトコルの上限（`MAX_AI_UNLOCK_KEY`。
+  正本は `packages/timer-core/src/aggregate.ts`）を超えるとき、`loadSyncConfig` は本番で
+  起動を拒否しなければならない（#237 レビュー指摘3。上限超えの鍵は起動できても
+  解錠が永久に失敗するため、起動時に気づけるようにする）
 
 ### 6.2 検査と EARS の対応表
 
 | EARS | 検査の手段 |
 |---|---|
-| E1 | `loadSyncConfig` に本番 env と短い鍵を渡して throw することを確かめる単体テスト |
-| E2 | 同、`AI_UNLOCK_KEY` を渡さず throw しないことを確かめる（既存の `config.test.ts` の本番ケースが該当。**新規追加ぶんが既存を壊さないことの確認も兼ねる**） |
+| E1 | `loadSyncConfig` に本番 env・`CLAUDE_CODE_OAUTH_TOKEN`・短い鍵を渡して throw することを確かめる単体テスト |
+| E2 | 同、`CLAUDE_CODE_OAUTH_TOKEN` を渡さず短い鍵を渡しても throw しないことを確かめる（`config.test.ts`）。加えて `AI_UNLOCK_KEY` を渡さず throw しないことも確かめる（既存の本番ケースが該当。**新規追加ぶんが既存を壊さないことの確認も兼ねる**） |
 | E3 | 同、`NODE_ENV` を設定せず短い鍵を渡して throw しないことを確かめる |
-| E4 | 同、非 ASCII の鍵で throw することを確かめる |
+| E4 | 同、`CLAUDE_CODE_OAUTH_TOKEN` を渡した上で非 ASCII の鍵で throw することを確かめる |
 | E5 | 前後に空白を付けた「下限ちょうど」の鍵が通ることを確かめる |
 | E6 | throw されたメッセージが鍵の値を含まないことを確かめる |
+| E7 | `findAiUnlockKeyViolation` に 64 文字（上限ちょうど）を渡して違反なし、65 文字で違反を確かめる単体テスト（`ai-unlock-key-policy.test.ts`） |
 
 **破壊検証**: 判定関数を恒真に置き換えて E1・E4 が赤くなることを確かめる。
 **対照実行**: 壊す前に、下限を満たす鍵で緑になることを先に確認する。
@@ -271,6 +294,11 @@ UI 文言は書体の base 層に収まる必要があり、新しい語彙を�
   運用ガイドの規範は届かない。UI 文言は書体の base 層の制約があるため **[#235](https://github.com/tomohiroJin/tasuki-tools/issues/235) へ送った**
 - **ADR 0011 決定4 の選択肢 2（ルーム名つきルームでパスフレーズ必須化）の再評価が可能になる。**
   実装は決定4 自身の作法どおり別 Issue とし、**[#236](https://github.com/tomohiroJin/tasuki-tools/issues/236) を起票した**
+- **起動時 config エラーの文言が journald に出るようになった（#237 レビュー指摘1）。**
+  以前は例外の `name`（`"Error"`）しか記録せず、運用者が journalctl から原因に到達できなかった。
+  `apps/timer-sync/src/server.ts` の config エラー経路は例外の `message` も記録するようにした。
+  起動時 config エラーの文言はすべて値そのものを含めない契約（`docs/guides/security.md`）で
+  書かれているため、記録しても秘密は露出しない。
 
 ## 9. 成果物
 

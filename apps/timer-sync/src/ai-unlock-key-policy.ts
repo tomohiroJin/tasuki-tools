@@ -1,12 +1,13 @@
 /**
- * AI 解錠キー（`AI_UNLOCK_KEY`）の下限規範（#145・ADR 0011 決定5）。
+ * AI 解錠キー（`AI_UNLOCK_KEY`）の長さの範囲規範（#145・ADR 0011 決定5）。
  *
  * ## 何を見るか
  *
- * 無状態で 2 つだけ見る。
+ * 無状態で 3 つだけ見る。
  *
  * 1. ASCII 印字可能文字（`\x21`–`\x7e`）だけで構成されているか（**許可リスト**）
  * 2. 長さが下限以上か
+ * 3. 長さがプロトコルの上限（`MAX_AI_UNLOCK_KEY`）以下か
  *
  * ## 何を見ていないか —— **乱数性は検査できない**
  *
@@ -23,6 +24,8 @@
  * 32 文字という下限は「人が手で決めた鍵」をほぼすべて落とすので、
  * 規範と検査の射程がおおむね一致する。
  */
+
+import { MAX_AI_UNLOCK_KEY } from "@tasuki/timer-core/aggregate";
 
 /**
  * 長さの下限。**この定数が値の正本である**（設計正本 D6）。
@@ -46,6 +49,14 @@ const ASCII_PRINTABLE = /^[\x21-\x7e]+$/;
  * 検査した値と保持する値をずらさないために呼び出し側で trim する（設計正本 §3.1）。
  *
  * **戻り値に鍵の値を含めない**（ADR 0012。分類は「秘密」）。
+ *
+ * **上限（`MAX_AI_UNLOCK_KEY`）も見る（#237 レビュー指摘3）。** プロトコルの上限を
+ * 超えた鍵は、ここを通って本番でも正常に起動できてしまうが、実際には
+ * `packages/timer-core/src/schemas.ts` の `v.maxLength` と
+ * `apps/timer-web/src/ui/components/AiUnlockPanel.tsx` の入力欄がその長さで切る・弾くため、
+ * 解錠が永久に成功しない。返るのは存在秘匿の `AI_UNLOCK_FAILED` で不一致と区別がつかず、
+ * 気づく手掛かりが無いまま失敗のたびにレート制限枠だけを消費する。
+ * 起動時に気づけるようにするため、下限と同じ経路で上限も検査する。
  */
 export function findAiUnlockKeyViolation(key: string): string | null {
   if (!ASCII_PRINTABLE.test(key)) {
@@ -53,6 +64,10 @@ export function findAiUnlockKeyViolation(key: string): string | null {
   }
   if (key.length < MIN_LENGTH) {
     return `${MIN_LENGTH} 文字以上にしてください`;
+  }
+  // 上限の値はこのモジュールに書かない。正本は timer-core 側（設計正本 D6 と同じ姿勢）。
+  if (key.length > MAX_AI_UNLOCK_KEY) {
+    return `${MAX_AI_UNLOCK_KEY} 文字以下にしてください`;
   }
   return null;
 }

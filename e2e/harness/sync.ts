@@ -9,7 +9,8 @@
  *
  * NODE_ENV=production も本番相当で渡す（#103）。この変数が効くのは両アプリとも
  * ALLOWED_ORIGINS の fail-closed・HOST のループバック限定・クライアント IP の
- * 必須化の 3 箇所（加えて未知の値なら起動時に throw）。正本は #103 設計正本。
+ * 必須化の 3 箇所に、timer-sync だけに効く AI_UNLOCK_KEY の下限検査（#145・ADR 0011
+ * 決定5）を加えた 4 箇所（加えて未知の値なら起動時に throw）。正本は #103 設計正本。
  * ALLOWED_ORIGINS と HOST はこのハーネスが明示的に渡しているので、
  * 実質的にはクライアント IP 必須化を本番と同じ形で働かせるためにこれを渡している。**これを入れると、実 Caddy
  * 断片で X-Forwarded-For が届かない場合に全シナリオが落ちる。** それが狙いで、
@@ -51,7 +52,8 @@ export async function startSyncServers(): Promise<ChildProcess[]> {
         ALLOWED_ORIGINS: LOCAL_BASE_URL,
         // 本番と同じ経路を通す（#103）。NODE_ENV が効くのは両アプリとも
         // ALLOWED_ORIGINS の fail-closed・HOST のループバック限定・クライアント IP の
-        // 必須化の 3 箇所（加えて未知の値なら起動時に throw）。ALLOWED_ORIGINS と
+        // 必須化の 3 箇所に、timer-sync だけに効く AI_UNLOCK_KEY の下限検査（#145）を
+        // 加えた 4 箇所（加えて未知の値なら起動時に throw）。ALLOWED_ORIGINS と
         // HOST はすぐ上で渡しているので、ここで効くのはクライアント IP の必須化。
         // **これを入れると、実 Caddy 断片で X-Forwarded-For が届かない場合に
         // 全シナリオが落ちる。** それが狙いで、静かに防御が消えるより先に気づける。

@@ -147,16 +147,26 @@ Expected: FAIL（`Cannot find module '../src/ai-unlock-key-policy.js'`）
 
 `apps/timer-sync/src/ai-unlock-key-policy.ts` を新規作成する。
 
+**#237 最終レビュー指摘3（実装後に反映）**: 上限（`MAX_AI_UNLOCK_KEY`。正本は
+`packages/timer-core/src/aggregate.ts`）を見ない状態で本番起動を通すと、運用者が
+`openssl rand -hex 40`（80 文字）のような長い鍵を置いたとき、サーバーは正常起動するのに
+`schemas.ts` の `v.maxLength` と UI の `maxLength` がその長さで切る・弾くため解錠が
+永久に成功しない。判定関数に上限チェックを追加し、上限の値はこのモジュールへ書かず
+`@tasuki/timer-core/aggregate` の `MAX_AI_UNLOCK_KEY` を import して使う（値の正本は
+timer-core 側のまま二重に持たない）。現物は `apps/timer-sync/src/ai-unlock-key-policy.ts`
+を参照（下限だけでなく上限も見る最終形になっている）。
+
 ```ts
 /**
- * AI 解錠キー（`AI_UNLOCK_KEY`）の下限規範（#145・ADR 0011 決定5）。
+ * AI 解錠キー（`AI_UNLOCK_KEY`）の長さの範囲規範（#145・ADR 0011 決定5）。
  *
  * ## 何を見るか
  *
- * 無状態で 2 つだけ見る。
+ * 無状態で 3 つだけ見る。
  *
  * 1. ASCII 印字可能文字（`\x21`–`\x7e`）だけで構成されているか（**許可リスト**）
  * 2. 長さが下限以上か
+ * 3. 長さがプロトコルの上限（`MAX_AI_UNLOCK_KEY`）以下か
  *
  * ## 何を見ていないか —— **乱数性は検査できない**
  *
@@ -173,6 +183,8 @@ Expected: FAIL（`Cannot find module '../src/ai-unlock-key-policy.js'`）
  * 32 文字という下限は「人が手で決めた鍵」をほぼすべて落とすので、
  * 規範と検査の射程がおおむね一致する。
  */
+
+import { MAX_AI_UNLOCK_KEY } from "@tasuki/timer-core/aggregate";
 
 /**
  * 長さの下限。**この定数が値の正本である**（設計正本 D6）。
@@ -196,6 +208,9 @@ const ASCII_PRINTABLE = /^[\x21-\x7e]+$/;
  * 検査した値と保持する値をずらさないために呼び出し側で trim する（設計正本 §3.1）。
  *
  * **戻り値に鍵の値を含めない**（ADR 0012。分類は「秘密」）。
+ *
+ * **上限（`MAX_AI_UNLOCK_KEY`）も見る（#237 レビュー指摘3）。** プロトコルの上限を
+ * 超えた鍵は起動できても解錠が永久に失敗するため、起動時に気づけるよう下限と同じ経路で見る。
  */
 export function findAiUnlockKeyViolation(key: string): string | null {
   if (!ASCII_PRINTABLE.test(key)) {
@@ -203,6 +218,10 @@ export function findAiUnlockKeyViolation(key: string): string | null {
   }
   if (key.length < MIN_LENGTH) {
     return `${MIN_LENGTH} 文字以上にしてください`;
+  }
+  // 上限の値はこのモジュールに書かない。正本は timer-core 側（設計正本 D6 と同じ姿勢）。
+  if (key.length > MAX_AI_UNLOCK_KEY) {
+    return `${MAX_AI_UNLOCK_KEY} 文字以下にしてください`;
   }
   return null;
 }
@@ -244,24 +263,33 @@ git commit -m "feat(timer-sync): AI 解錠キーの下限判定を足す（#145�
 
 `apps/timer-sync/test/config.test.ts` の**末尾**（最後の `});` の直前）に次を足す。
 
+**#237 最終レビュー指摘2（実装後に反映）**: `CLAUDE_CODE_OAUTH_TOKEN` が未設定なら
+`AI_UNLOCK_KEY` は `create-sync-server.ts` の `aiReady` が false のまま一切使われない
+不活性な値であり、検査で起動を止めるべきではない。`isProduction && aiUnlockKey !== undefined`
+だけでなく `claudeOauthToken !== undefined` も条件へ加える。現物は
+`apps/timer-sync/test/config.test.ts` の `describe("AI_UNLOCK_KEY の下限…")` を参照
+（両方設定時のみ検査する最終形になっている）。
+
 ```ts
-  describe("AI_UNLOCK_KEY の下限（#145・ADR 0011 決定5）", () => {
+  describe("AI_UNLOCK_KEY の下限（#145・ADR 0011 決定5。#237 レビュー指摘2で「AI が有効になる構成のときだけ」検査するよう修正）", () => {
     /** `openssl rand -hex 20` 相当。下限を満たす。 */
     const VALID_KEY = "0123456789abcdef0123456789abcdef01234567";
     const PROD = { NODE_ENV: "production", ALLOWED_ORIGINS: "https://x.example" };
+    /** AI を有効化する側の設定値。値そのものに意味はなく「設定されている」ことだけを使う。 */
+    const TOKEN = "sk-ant-oat01-xxx";
 
-    it("本番で下限を割る AI_UNLOCK_KEY なら起動を拒否する", () => {
+    it("両方設定されていて鍵が下限を割るなら本番で起動を拒否する", () => {
       // Given
-      const env = { ...PROD, AI_UNLOCK_KEY: "himitsu" };
+      const env = { ...PROD, CLAUDE_CODE_OAUTH_TOKEN: TOKEN, AI_UNLOCK_KEY: "himitsu" };
       // When
       const load = () => loadSyncConfig(env);
       // Then
       expect(load).toThrow(/AI_UNLOCK_KEY/);
     });
 
-    it("本番で下限を満たす AI_UNLOCK_KEY なら起動する", () => {
+    it("本番で AI が有効な構成（token と鍵の両方）かつ鍵が下限を満たすなら起動する", () => {
       // Given
-      const env = { ...PROD, AI_UNLOCK_KEY: VALID_KEY };
+      const env = { ...PROD, CLAUDE_CODE_OAUTH_TOKEN: TOKEN, AI_UNLOCK_KEY: VALID_KEY };
       // When
       const c = loadSyncConfig(env);
       // Then
@@ -270,25 +298,39 @@ git commit -m "feat(timer-sync): AI 解錠キーの下限判定を足す（#145�
 
     it("本番で AI_UNLOCK_KEY が未設定なら検査しない", () => {
       // Given
-      const env = { ...PROD };
+      const env = { ...PROD, CLAUDE_CODE_OAUTH_TOKEN: TOKEN };
       // When
       const c = loadSyncConfig(env);
       // Then
       expect(c.aiUnlockKey).toBeUndefined();
     });
 
-    it("本番以外なら下限を割っていても起動する", () => {
-      // Given
-      const env = { ALLOWED_ORIGINS: "https://x.example", AI_UNLOCK_KEY: "himitsu" };
+    it("CLAUDE_CODE_OAUTH_TOKEN が未設定なら、短い AI_UNLOCK_KEY でも本番で起動する", () => {
+      // Given（トークン側を消して AI を丸ごと止めた構成に残った旧鍵は不活性であり、
+      // それを理由にサービスを止めない）
+      const env = { ...PROD, AI_UNLOCK_KEY: "himitsu" };
       // When
       const c = loadSyncConfig(env);
       // Then
       expect(c.aiUnlockKey).toBe("himitsu");
     });
 
-    it("本番で非 ASCII の AI_UNLOCK_KEY なら起動を拒否する", () => {
+    it("本番以外なら AI が有効な構成でも下限を割っていれば起動する", () => {
       // Given
-      const env = { ...PROD, AI_UNLOCK_KEY: "あ".repeat(40) };
+      const env = {
+        ALLOWED_ORIGINS: "https://x.example",
+        CLAUDE_CODE_OAUTH_TOKEN: TOKEN,
+        AI_UNLOCK_KEY: "himitsu",
+      };
+      // When
+      const c = loadSyncConfig(env);
+      // Then
+      expect(c.aiUnlockKey).toBe("himitsu");
+    });
+
+    it("本番で AI が有効な構成かつ非 ASCII の AI_UNLOCK_KEY なら起動を拒否する", () => {
+      // Given
+      const env = { ...PROD, CLAUDE_CODE_OAUTH_TOKEN: TOKEN, AI_UNLOCK_KEY: "あ".repeat(40) };
       // When
       const load = () => loadSyncConfig(env);
       // Then
@@ -297,7 +339,7 @@ git commit -m "feat(timer-sync): AI 解錠キーの下限判定を足す（#145�
 
     it("前後に空白があっても trim 後の値で判定する", () => {
       // Given
-      const env = { ...PROD, AI_UNLOCK_KEY: `  ${VALID_KEY}  ` };
+      const env = { ...PROD, CLAUDE_CODE_OAUTH_TOKEN: TOKEN, AI_UNLOCK_KEY: `  ${VALID_KEY}  ` };
       // When
       const c = loadSyncConfig(env);
       // Then
@@ -307,7 +349,7 @@ git commit -m "feat(timer-sync): AI 解錠キーの下限判定を足す（#145�
     it("拒否の文言に鍵の値を含めない", () => {
       // Given
       const secret = "himitsu-no-aikotoba";
-      const env = { ...PROD, AI_UNLOCK_KEY: secret };
+      const env = { ...PROD, CLAUDE_CODE_OAUTH_TOKEN: TOKEN, AI_UNLOCK_KEY: secret };
       // When
       let message = "";
       try {
@@ -343,12 +385,23 @@ import { findAiUnlockKeyViolation } from "./ai-unlock-key-policy.js";
 
 2. `HOST` の検査（既存の `if (isProduction && !isLoopbackHost(host)) { ... }`）の**直後**に足す。
 
+**#237 最終レビュー指摘2（実装後に反映）**: 当初案は `aiUnlockKey` の設定有無だけを見ていたが、
+`CLAUDE_CODE_OAUTH_TOKEN` が未設定なら鍵は `create-sync-server.ts` の `aiReady` が false の
+まま一切使われない不活性な値であり、それを理由に起動を止めるべきではなかった。
+`claudeOauthToken` の算出も `return` の外へ引き上げ、両方が設定されているときだけ検査する。
+
 ```ts
+  // create-sync-server.ts の aiReady と同じ判定を先に確定させる（両方揃って初めて AI が有効）。
+  const claudeOauthToken = (env["CLAUDE_CODE_OAUTH_TOKEN"] ?? "").trim() || undefined;
+
   // AI 解錠キーの下限（#145・ADR 0011 決定5）。
-  // 未設定なら検査しない（未設定＝AI 機能無効という既存の意味を壊さない）。
+  // AI が有効になる構成（claudeOauthToken と aiUnlockKey が両方設定されている）のときだけ検査する。
+  // トークン側を消して AI を丸ごと止めた構成に残った旧鍵は不活性であり、
+  // 実際には一切使われない（create-sync-server.ts の aiReady が false のまま）。
+  // 不活性な鍵のためにサービスを止めない（#237 レビュー指摘2）。
   // 判定は trim 後の値に対して行う（保持する値とずらさない）。
   const aiUnlockKey = (env["AI_UNLOCK_KEY"] ?? "").trim() || undefined;
-  if (isProduction && aiUnlockKey !== undefined) {
+  if (isProduction && claudeOauthToken !== undefined && aiUnlockKey !== undefined) {
     const violation = findAiUnlockKeyViolation(aiUnlockKey);
     if (violation !== null) {
       throw new Error(
@@ -361,13 +414,15 @@ import { findAiUnlockKeyViolation } from "./ai-unlock-key-policy.js";
   }
 ```
 
-3. `return {` の中の `aiUnlockKey` の行を、上で作った変数を使う形へ変える。
+3. `return {` の中の `aiUnlockKey` と `claudeOauthToken` の行を、上で作った変数を使う形へ変える。
 
 ```ts
     aiUnlockKey,
+    claudeOauthToken,
 ```
 
-（変更前は `aiUnlockKey: (env["AI_UNLOCK_KEY"] ?? "").trim() || undefined,`）
+（変更前は `aiUnlockKey: (env["AI_UNLOCK_KEY"] ?? "").trim() || undefined,` と
+`claudeOauthToken: (env["CLAUDE_CODE_OAUTH_TOKEN"] ?? "").trim() || undefined,`）
 
 - [ ] **Step 4: 実行して緑を確認する**
 
@@ -469,6 +524,12 @@ Expected: `### 決定4: ルームコードのエントロピー下限` の次の
 
 `## 影響` の行の直前に、次を挿入する。
 
+**#237 最終レビュー指摘2・3（実装後に反映）**: 最終レビューで「検査の対象は
+`AI_UNLOCK_KEY` が設定されているときではなく、AI が有効になる構成（`CLAUDE_CODE_OAUTH_TOKEN`
+と両方設定されている）のときに限る」「検査が見るのは長さ下限だけでなく、長さの範囲（下限と、
+プロトコルの上限）」の 2 点が実装との乖離として指摘され、下の本文は反映済みの最終形にしてある。
+現物は `docs/adr/0011-threat-model-and-data-classification.md` の決定5を参照。
+
 ```markdown
 ### 決定5: 合言葉のエントロピー下限
 
@@ -496,8 +557,11 @@ Expected: `### 決定4: ルームコードのエントロピー下限` の次の
 目標の 35 倍の余裕を持つ桁数を採ったのと同じ姿勢による。最低線をそのまま下限にすると、
 全ルーム共通・長寿命の秘密が使い捨てのルームコードより薄い余裕になる。
 
-**`AI_UNLOCK_KEY` の下限は本番の起動時 fail-closed で強制する（MUST）。**
-判定は無状態で「ASCII 印字可能文字のみ（許可リスト）」と「長さ下限」の 2 条件だけを見る。
+**`AI_UNLOCK_KEY` の長さの範囲は、AI が有効になる構成（`CLAUDE_CODE_OAUTH_TOKEN` と
+`AI_UNLOCK_KEY` が両方設定されている構成）のときだけ、本番の起動時 fail-closed で
+強制する（MUST）。** トークン側を消して AI を丸ごと止めた構成に残る不活性な鍵のために
+起動を止めない。判定は無状態で「ASCII 印字可能文字のみ（許可リスト）」と
+「長さの範囲（下限と、プロトコルの上限）」の 2 条件だけを見る。
 **文字クラスからエントロピーを算出する方式は採らない** —— 試作して攻撃したところ、
 実質「小文字だけ 7 文字以下」しか弾けなかった（#145 設計正本 §3.3）。
 
@@ -819,7 +883,7 @@ B3
 
 - [ ] **Step 3: #145 の本文へ EARS を転記する承認を得て、反映する**
 
-設計正本 §6.1 の E1〜E6 を #145 の「振る舞い」節へ転記する（#68 の運用 2）。
+設計正本 §6.1 の E1〜E7（**#237 最終レビュー指摘3 で E7 を追加**）を #145 の「振る舞い」節へ転記する（#68 の運用 2）。
 本文の差分を提示し、承認を得てから `gh issue edit 145 --body-file <path>` で反映する。
 
 - [ ] **Step 4: コミットは不要**

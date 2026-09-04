@@ -20,6 +20,24 @@ describe("findAiUnlockKeyViolation", () => {
     expect(violation).toContain("32 文字以上");
   });
 
+  it("64 文字ちょうど（プロトコルの上限）は違反なし", () => {
+    // Given
+    const key = "a".repeat(64);
+    // When
+    const violation = findAiUnlockKeyViolation(key);
+    // Then
+    expect(violation).toBeNull();
+  });
+
+  it("65 文字は上限違反として説明を返す", () => {
+    // Given
+    const key = "a".repeat(65);
+    // When
+    const violation = findAiUnlockKeyViolation(key);
+    // Then
+    expect(violation).toContain("64 文字以下");
+  });
+
   it("`openssl rand -hex 20` 相当（40 文字の 16 進）は違反なし", () => {
     // Given
     const key = "0123456789abcdef0123456789abcdef01234567";
