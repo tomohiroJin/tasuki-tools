@@ -192,7 +192,11 @@ const matched = constantTimeEqual(provided, expected);
 
 ## 合言葉を決めるとき（#145）
 
-規範の正本は `docs/adr/0011-threat-model-and-data-classification.md` の決定5。ここは手順だけを置く。
+**決定の正本**（目標値・前提レート・MUST/SHOULD の別）は
+`docs/adr/0011-threat-model-and-data-classification.md` の決定5。
+**値の正本**は 2 つに分かれる —— `AI_UNLOCK_KEY` の長さ下限は
+`apps/timer-sync/src/ai-unlock-key-policy.ts` の定数、
+**ルームパスフレーズの長さ下限は本節**である。
 
 ### AI 解錠キー（`AI_UNLOCK_KEY`）— 運用者が決める
 
