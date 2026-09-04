@@ -202,8 +202,13 @@ const matched = constantTimeEqual(provided, expected);
    **第 1 引数（`event`）が、その場に書いた文字列リテラルのままか**（テンプレート
    リテラル・文字列連結・変数になっていないか）。
 3. [ ] **`console` の直接呼び出しが増えていないか。**
-   `apps/timer-sync/src/adapters/console-log-sink.ts` 以外に `console.*` が
-   追加されていないか。
+   **サーバ側**（`apps/timer-sync` / `apps/poker-sync`）では、唯一の実出力口
+   `apps/timer-sync/src/adapters/console-log-sink.ts` と `apps/poker-sync/src/server.ts` の
+   `listening` 行以外に `console.*` が追加されていないか（`docs/adr/0012` 決定 D1）。
+   **画面側**（`apps/*-web` / `apps/landing`）では、`ALLOWED_FILES` への登録と
+   行マーカー（`// log-hygiene:allow <理由>`）が**両方**そろっているか。
+   マーカーの理由が「何を出さないか」を述べているか
+   （上の「画面側に `console` を足すとき」を参照）。
 4. [ ] **例外の扱いが正しいか。** ログや利用者向けエラーへ `message` や
    スタックトレースを出していないか。ログに出してよいのは分類名（`err.name`）だけか。
    利用者向けエラーに載っているのはエラーコードと「公開可」の情報だけか

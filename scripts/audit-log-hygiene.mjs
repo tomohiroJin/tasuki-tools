@@ -456,9 +456,11 @@ function main() {
   for (const f of findStaleAllowances(scanned)) {
     problems.push(`許可が陳腐化しています（マーカーが 1 つもありません） → ${f}`);
   }
+  let violationCount = 0;
   for (const [rel, src] of scanned) {
     for (const v of findViolations(rel, src)) {
       problems.push(`${v.file}:${v.line} ${v.hint}`);
+      violationCount++;
     }
   }
 
@@ -468,11 +470,30 @@ function main() {
     // この赤が出るようになった。ADR 0012 D1 の本文は「ブラウザの console は本決定の
     // 対象外とする」と書いているので、**根拠として D1 だけを指すと「検査の誤検知だ」と
     // 読める**。一段厳しくしているのは 2026-09-04 の追記なので、そちらと手順を名指しする。
-    console.error("\n直し方: docs/guides/security.md「画面側に console を足すとき」");
-    console.error(
-      "  根拠: docs/adr/0012 決定 D1 と 2026-09-04 の追記（ブラウザの console は D1 の対象外だが、" +
-        "検査は ALLOWED_FILES ＋ 行マーカーでの明示を求める）",
-    );
+    //
+    // **サーバ側と画面側を書き分ける。** 初版は「ALLOWED_FILES へ足してマーカーを付ける」
+    // だけを出しており、`apps/timer-sync` の**本物の違反**（ルームコードが journal へ
+    // 漏れる類）にも同じ案内が出ていた。**ADR 0012 が防ごうとしているものを、検査自身が
+    // 最短の抜け道として提示していた**（レビューで実測）。どちらに当たるかは人が判断できる
+    // ので、**分類はせず両方を書く**（パッケージの分類表を持つと、それ自体が腐る）。
+    //
+    // 違反が 1 件も無いとき（陳腐化した許可・必須ファイルの消失だけのとき）は出さない。
+    // 直し方が違ううえ、そちらは「許可を消す」「走査対象を戻す」であって下の話ではない。
+    if (violationCount > 0) {
+      console.error("\n直し方は違反の場所で違います:");
+      console.error(
+        "  サーバ側（apps/timer-sync / apps/poker-sync）: ロガ経由へ移してください。" +
+          "**ALLOWED_FILES へ足して通してはいけません**（ADR 0012 決定 D1）",
+      );
+      console.error(
+        "  画面側（apps/timer-web / apps/poker-web / apps/landing）: " +
+          "docs/guides/security.md の「画面側に `console` を足すとき」",
+      );
+      console.error(
+        "  根拠: docs/adr/0012 決定 D1 と 2026-09-04 の追記（ブラウザの console は D1 の" +
+          "対象外だが、検査は ALLOWED_FILES ＋ 行マーカーでの明示を求める）",
+      );
+    }
     console.error(`\n${problems.length} 件の問題があります`);
     process.exit(1);
   }
