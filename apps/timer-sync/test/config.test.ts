@@ -340,4 +340,80 @@ describe("loadSyncConfig", () => {
       },
     );
   });
+
+  describe("AI_UNLOCK_KEY の下限（#145・ADR 0011 決定5）", () => {
+    /** `openssl rand -hex 20` 相当。下限を満たす。 */
+    const VALID_KEY = "0123456789abcdef0123456789abcdef01234567";
+    const PROD = { NODE_ENV: "production", ALLOWED_ORIGINS: "https://x.example" };
+
+    it("本番で下限を割る AI_UNLOCK_KEY なら起動を拒否する", () => {
+      // Given
+      const env = { ...PROD, AI_UNLOCK_KEY: "himitsu" };
+      // When
+      const load = () => loadSyncConfig(env);
+      // Then
+      expect(load).toThrow(/AI_UNLOCK_KEY/);
+    });
+
+    it("本番で下限を満たす AI_UNLOCK_KEY なら起動する", () => {
+      // Given
+      const env = { ...PROD, AI_UNLOCK_KEY: VALID_KEY };
+      // When
+      const c = loadSyncConfig(env);
+      // Then
+      expect(c.aiUnlockKey).toBe(VALID_KEY);
+    });
+
+    it("本番で AI_UNLOCK_KEY が未設定なら検査しない", () => {
+      // Given
+      const env = { ...PROD };
+      // When
+      const c = loadSyncConfig(env);
+      // Then
+      expect(c.aiUnlockKey).toBeUndefined();
+    });
+
+    it("本番以外なら下限を割っていても起動する", () => {
+      // Given
+      const env = { ALLOWED_ORIGINS: "https://x.example", AI_UNLOCK_KEY: "himitsu" };
+      // When
+      const c = loadSyncConfig(env);
+      // Then
+      expect(c.aiUnlockKey).toBe("himitsu");
+    });
+
+    it("本番で非 ASCII の AI_UNLOCK_KEY なら起動を拒否する", () => {
+      // Given
+      const env = { ...PROD, AI_UNLOCK_KEY: "あ".repeat(40) };
+      // When
+      const load = () => loadSyncConfig(env);
+      // Then
+      expect(load).toThrow(/AI_UNLOCK_KEY/);
+    });
+
+    it("前後に空白があっても trim 後の値で判定する", () => {
+      // Given
+      const env = { ...PROD, AI_UNLOCK_KEY: `  ${VALID_KEY}  ` };
+      // When
+      const c = loadSyncConfig(env);
+      // Then
+      expect(c.aiUnlockKey).toBe(VALID_KEY);
+    });
+
+    it("拒否の文言に鍵の値を含めない", () => {
+      // Given
+      const secret = "himitsu-no-aikotoba";
+      const env = { ...PROD, AI_UNLOCK_KEY: secret };
+      // When
+      let message = "";
+      try {
+        loadSyncConfig(env);
+      } catch (e) {
+        message = (e as Error).message;
+      }
+      // Then
+      expect(message).toContain("AI_UNLOCK_KEY");
+      expect(message).not.toContain(secret);
+    });
+  });
 });

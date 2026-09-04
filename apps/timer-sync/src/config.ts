@@ -4,6 +4,7 @@
  * （CSWSH 防止。Origin 検証がサイレントに全許可へ緩むのを防ぐ）。
  */
 import { isLoopbackHost, isProductionEnv } from "@tasuki/rate-limit";
+import { findAiUnlockKeyViolation } from "./ai-unlock-key-policy.js";
 
 export interface SyncConfig {
   port: number;
@@ -90,6 +91,22 @@ export function loadSyncConfig(env: Record<string, string | undefined>): SyncCon
     );
   }
 
+  // AI 解錠キーの下限（#145・ADR 0011 決定5）。
+  // 未設定なら検査しない（未設定＝AI 機能無効という既存の意味を壊さない）。
+  // 判定は trim 後の値に対して行う（保持する値とずらさない）。
+  const aiUnlockKey = (env["AI_UNLOCK_KEY"] ?? "").trim() || undefined;
+  if (isProduction && aiUnlockKey !== undefined) {
+    const violation = findAiUnlockKeyViolation(aiUnlockKey);
+    if (violation !== null) {
+      throw new Error(
+        `本番（NODE_ENV=production）では AI_UNLOCK_KEY が下限を満たす必要があります: ${violation}。` +
+          "総当たりに対する余裕はこの下限で決まります（ADR 0011 決定5）。起動を中止します。" +
+          "対処: `openssl rand -hex 20` で生成し直し、env を差し替えてから再起動してください。" +
+          "受け取った値は分類「秘密」のため、この文言には含めません。",
+      );
+    }
+  }
+
   return {
     // PORT=0 は「OS に空きポートを選ばせる」を意味する有効値なので 0 を通す
     // （poker-sync の config.ts と同じ扱い）。intEnv だと 0 が不正扱いで既定 8787 に
@@ -103,7 +120,7 @@ export function loadSyncConfig(env: Record<string, string | undefined>): SyncCon
     maxRooms: intEnv(env["MAX_ROOMS"], 50),
     roomIdleTtlMs: intEnv(env["ROOM_IDLE_TTL_MS"], 1_800_000),
     adminToken: (env["ADMIN_TOKEN"] ?? "").trim() || undefined,
-    aiUnlockKey: (env["AI_UNLOCK_KEY"] ?? "").trim() || undefined,
+    aiUnlockKey,
     claudeOauthToken: (env["CLAUDE_CODE_OAUTH_TOKEN"] ?? "").trim() || undefined,
     aiProblemModel: (env["AI_PROBLEM_MODEL"] ?? "").trim() || DEFAULT_AI_PROBLEM_MODEL,
     aiGenerationTimeoutMs: intEnv(env["AI_GENERATION_TIMEOUT_MS"], 60_000),
