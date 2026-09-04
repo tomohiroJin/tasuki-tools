@@ -189,7 +189,7 @@ RENDER_ONLY=1 DEPLOY_USER=<user> bash deploy/setup.sh timer
 | 秘密 | 置き場 | 用途 |
 |---|---|---|
 | `CLAUDE_CODE_OAUTH_TOKEN` | `/opt/tasuki/tasuki-sync.env`（600） | AI お題生成の子プロセスへ渡す |
-| `AI_UNLOCK_KEY` | 同上 | AI 生成の解錠合言葉 |
+| `AI_UNLOCK_KEY` | 同上 | AI 生成の解錠合言葉。**一様乱数で生成する**（`openssl rand -hex 20`）。長さ・文字種の規範は `docs/adr/0011-threat-model-and-data-classification.md` 決定5 |
 | `ADMIN_TOKEN` | 同上 | 管理エンドポイントの認証 |
 
 - **権限は 600 を維持する。** `setup.sh` が作成時に設定するが、手で編集した後も
