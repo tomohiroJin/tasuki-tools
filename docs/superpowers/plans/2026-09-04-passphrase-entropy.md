@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- **値の正本は「強制する主体」に置き、文書へ転記しない**（設計正本 D6・ADR 0002「二重正本を作らない」）。`AI_UNLOCK_KEY` の長さ下限はコードの定数、ルームパスフレーズの下限は設計正本 D5、目標値と前提レートは ADR 0011 決定5。
+- **値の正本は「強制する主体」に置き、文書へ転記しない**（設計正本 D6・ADR 0002「二重正本を作らない」）。`AI_UNLOCK_KEY` の長さ下限はコードの定数、ルームパスフレーズの下限は `docs/guides/security.md`、目標値と前提レートは ADR 0011 決定5。
 - **拒否の文言に鍵の値を含めない**（ADR 0012。分類は「秘密」）。`HOST` の検査は受け取った値を出しているが、あちらは「秘密」ではない。
 - **検査は本番限定**（`isProduction`）。既存の `ALLOWED_ORIGINS` / `HOST` 検査と条件を揃える。
 - **`aiUnlockKey` が未設定なら検査しない**（未設定＝AI 機能無効という既存の意味を壊さない）。
@@ -576,7 +576,11 @@ Expected: `## 秘密を比較するとき` と `## レビュー時のチェッ�
 ````markdown
 ## 合言葉を決めるとき（#145）
 
-規範の正本は `docs/adr/0011-threat-model-and-data-classification.md` の決定5。ここは手順だけを置く。
+**決定の正本**（目標値・前提レート・MUST/SHOULD の別）は
+`docs/adr/0011-threat-model-and-data-classification.md` の決定5。
+**値の正本**は 2 つに分かれる —— `AI_UNLOCK_KEY` の長さ下限は
+`apps/timer-sync/src/ai-unlock-key-policy.ts` の定数、
+**ルームパスフレーズの長さ下限は本節**である。
 
 ### AI 解錠キー（`AI_UNLOCK_KEY`）— 運用者が決める
 
