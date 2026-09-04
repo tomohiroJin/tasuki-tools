@@ -34,7 +34,7 @@
 
 **下流依存（本文に記載なし）**: ADR 0011 決定4 の「実施（2026-08-30・#144）」は、
 **選択肢 2（ルーム名つきルームでパスフレーズ必須化）を「#145 が未定で根拠を持てない」ため見送った**と
-記録している。本書の決着でこの再評価が可能になる。実装は決定4 自身の作法どおり別 Issue とする（§8）。
+記録している。本書の決着でこの再評価が可能になる。実装は決定4 自身の作法どおり別 Issue とし、**[#236](https://github.com/tomohiroJin/tasuki-tools/issues/236) を起票した**（§8）。
 
 ## 3. 実測した事実
 
@@ -266,11 +266,11 @@ UI 文言は書体の base 層に収まる必要があり、新しい語彙を�
   本設計はこれを許容する（テストは本番の env 検査を対象にしていない）
 - **systemd の `EnvironmentFile=` が base64 の `+` `/` `=` をどう解析するかは未実測。**
   D3 で hex を推奨することで回避しており、本 Issue では測らない
-- **`ADMIN_TOKEN` に同じ規範が無い。** 同じ「資格情報」分類の運用者設定値である。別 Issue を起票する
+- **`ADMIN_TOKEN` に同じ規範が無い。** 同じ「資格情報」分類の運用者設定値である。**[#234](https://github.com/tomohiroJin/tasuki-tools/issues/234) へ送った**
 - **ルームパスフレーズの入力欄に案内文が無い。** 設定者はホスト（一般利用者）なので、
-  運用ガイドの規範は届かない。UI 文言は書体の base 層の制約があるため別 Issue を起票する
+  運用ガイドの規範は届かない。UI 文言は書体の base 層の制約があるため **[#235](https://github.com/tomohiroJin/tasuki-tools/issues/235) へ送った**
 - **ADR 0011 決定4 の選択肢 2（ルーム名つきルームでパスフレーズ必須化）の再評価が可能になる。**
-  実装は決定4 自身の作法どおり別 Issue とする
+  実装は決定4 自身の作法どおり別 Issue とし、**[#236](https://github.com/tomohiroJin/tasuki-tools/issues/236) を起票した**
 
 ## 9. 成果物
 
@@ -279,4 +279,4 @@ UI 文言は書体の base 層に収まる必要があり、新しい語彙を�
 - `docs/guides/security.md`「合言葉を決めるとき」節
 - `apps/timer-sync` の起動時検査と単体テスト
 - `deploy/README.md` ほか env の注記
-- 申し送り 3 件の Issue 起票（`ADMIN_TOKEN` / パスフレーズの UI 案内 / 決定4 選択肢 2 の再評価）
+- 申し送り 3 件の Issue 起票 —— [#234](https://github.com/tomohiroJin/tasuki-tools/issues/234)（`ADMIN_TOKEN`）/ [#235](https://github.com/tomohiroJin/tasuki-tools/issues/235)（パスフレーズの UI 案内）/ [#236](https://github.com/tomohiroJin/tasuki-tools/issues/236)（決定4 選択肢 2 の再評価）
