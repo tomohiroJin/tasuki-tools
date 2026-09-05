@@ -182,6 +182,49 @@ ssh "$TASUKI_SSH_HOST" 'sudo systemctl start tasuki-sync'
 RENDER_ONLY=1 DEPLOY_USER=<user> bash deploy/setup.sh timer
 ```
 
+## 同一 IP の同時接続数制限（#143）
+
+**同一送信元 IP からの 443 同時接続を 80 本までに制限する。** 適用は
+`deploy/firewall/connlimit.sh`（**実際に効く値の正本はこのスクリプトの `CONNLIMIT_MAX`**）。
+
+### 何の対策か
+
+同時接続上限（`MAX_CONNECTIONS`・本番 200）は**グローバルで IP 単位ではない**ため、
+単一 IP が枠を占有すると正規利用者を締め出せる（ADR 0011 脅威 S7）。それをネットワーク層で止める。
+**アプリ側の IP 単位レート制限（#103）とは別軸**である —— あちらは入室・解錠の**失敗回数**、
+こちらは**同時接続数**を見る。
+
+### 上限を 80 にした根拠
+
+1 人あたり約 2 接続（HTTP/2 多重化）なので、**同一拠点 40 人までは無傷**。
+グローバル 200 枠に対して単一 IP が取れるのは 40% までで、独占はできない。
+想定より大きい拠点が出たら緩める。**値を変えるときは、このスクリプトとこの節の両方を直すこと。**
+
+### 使い方（root が要るので利用者のターミナルで実行する）
+
+```bash
+scp deploy/firewall/connlimit.sh niku9:~/connlimit.sh
+ssh -t niku9 'sudo bash ~/connlimit.sh status'                          # 現状を見る
+ssh -t niku9 'sudo bash ~/connlimit.sh apply --rollback-after 10min'    # 安全網つきで適用
+# 正規利用に問題が無いことを確かめてから
+ssh -t niku9 'sudo bash ~/connlimit.sh confirm'                         # 確定（自動巻き戻しを取消）
+ssh -t niku9 'sudo bash ~/connlimit.sh rollback'                        # 手で戻す
+```
+
+- **22/tcp には触らないので SSH ロックアウトは起きない。** 残るリスクは
+  「上限が低すぎて正規利用者を締め出す」ことだけなので `--rollback-after` で安全網を掛ける
+- `before.rules` / `before6.rules` は適用時に日付つきで退避される
+- スクリプトは冪等。既に入っていれば何もしない
+
+### 守らないもの（限界）
+
+- **QUIC / HTTP/3（UDP 443）は数えない。** 本ルールは TCP の connlimit である。
+  WebSocket は TCP を通るので接続枠の独占は防げるが、UDP 側は射程外
+- **複数 IP へ分散する攻撃者は防げない**（#103 と同じ限界。ADR 0011 決定4）
+- **IPv6 側は現在不活性。** 本番にグローバル IPv6 が無いため（ULA のみ）。
+  後で有効にしたときに静かに穴が開かないよう、`before6.rules` にも
+  **/64 で丸めた**同じルールを先に入れてある（#103 決定 D1 と同じ丸め方）
+
 ## 秘密の取り扱い
 
 **秘密はリポジトリに置かない。** 実体は VPS 上の env ファイルだけに存在する。
