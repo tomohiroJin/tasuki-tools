@@ -50,6 +50,24 @@ require_root() {
 	[ "$(id -u)" -eq 0 ] || die "root で実行してください（sudo bash $0 ...）"
 }
 
+# **触る前に、使う道具が揃っているかを確かめる。**
+# connlimit モジュールが無いまま before.rules へ書いて ufw reload すると、
+# ルール投入に失敗してファイアウォールが不定な状態になりうる。
+# ファイルを 1 バイトも書き換える前に落とす。
+preflight() {
+	command -v ufw >/dev/null || die "ufw が見つかりません"
+	command -v iptables >/dev/null || die "iptables が見つかりません"
+	# 組み込みなら modprobe は失敗するので結果は見ない（best effort）。
+	modprobe xt_connlimit 2>/dev/null || true
+	iptables -m connlimit --help >/dev/null 2>&1 ||
+		die "iptables の connlimit が使えません（xt_connlimit が無い）。適用を中止します"
+	ip6tables -m connlimit --help >/dev/null 2>&1 ||
+		die "ip6tables の connlimit が使えません。適用を中止します"
+	[ -f "$V4_RULES" ] || die "$V4_RULES がありません"
+	[ -f "$V6_RULES" ] || die "$V6_RULES がありません"
+	echo "事前確認: ufw / iptables / ip6tables / connlimit すべて利用できます"
+}
+
 # 挿入する断片。$1 = connlimit-mask（IPv4 は 32、IPv6 は #103 D1 に合わせて 64）
 rule_block() {
 	local mask="$1"
@@ -121,6 +139,7 @@ cmd_apply() {
 		echo "既に適用済みです（何もしません）。値を変えるなら rollback してから apply してください。"
 		return 0
 	fi
+	preflight
 	backup
 	has_block "$V4_RULES" || insert_block "$V4_RULES" 32
 	# IPv6 は #103 D1 に合わせて /64 で丸める。
