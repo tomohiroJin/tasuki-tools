@@ -13,7 +13,10 @@
 ## Global Constraints
 
 - **作業ディレクトリは `/workspaces/claym/local/Tasuki`。** クローンを作らない
-- **`main` へ直接コミットしない。** 1 タスク＝1 ブランチ＝1 PR（憲法 原則 IX）
+- **`main` へ直接コミットしない。** **1 段＝1 ブランチ＝1 PR**（設計正本 §7 の段が PR の単位）。
+  S0 の Task 1〜5 は `docs/issue-95-s0-norms`、S1 の Task 6〜7 は
+  `feature/issue-95-s1-room-core`。**タスクごとにブランチを切らない** ——
+  Task 1〜3 は `docs/adr/README.md` を共有するため、別ブランチにすると必ず衝突する
 - **TDD は必須**（原則 I）。テストを先に書き、赤を確認してから実装する
 - **ドメインは純粋関数のみ。`Date.now()` / `Math.random()` を呼ばない**（原則 VI・`docs/adr/0016` 決定 2-4）
 - **`index.ts` は公開記号を明示列挙する。`export *` を使わない**（`docs/adr/0016` 決定 2-2）
@@ -133,13 +136,21 @@ ls docs/adr/ | tail -5
 
 - [ ] **Step 3: ADR 一覧に 1 行足す**
 
-`docs/adr/README.md` の一覧へ、既存行と同じ書式で `0017` を追記する。
+`docs/adr/README.md` の一覧はマークダウンの表である（2026-09-06 実測）。
 
-```bash
-grep -n "0016" docs/adr/README.md
+```
+| [0016](./0016-core-domain-representation.md) | ドメインの表現は選択制とし、揃える点を定める | Accepted |
 ```
 
-で既存行の書式を見てから、その直後に同じ形で足すこと。
+同じ 3 列で `0016` の行の直後に足す。
+
+```
+| [0017](./0017-bounded-contexts-and-packages.md) | 文脈を 3 つに割り、メンバーシップを上流に置く | Accepted |
+```
+
+```bash
+grep -n "0016" docs/adr/README.md   # 直前の行を確認してから足す
+```
 
 - [ ] **Step 4: リンク検査を通す**
 
@@ -153,7 +164,8 @@ node scripts/check-links.mjs
 - [ ] **Step 5: コミット**
 
 ```bash
-git checkout -b docs/issue-95-adr-bounded-contexts
+# ブランチは S0 で 1 本だけ切る。Task 2 以降は同じブランチに積む
+git rev-parse --abbrev-ref HEAD   # docs/issue-95-s0-norms でなければ切る
 git commit -m "$(cat <<'MSG'
 docs: 文脈分割とパッケージ構成の ADR を置く（#95 S0）
 
@@ -249,7 +261,6 @@ node scripts/check-links.mjs
 - [ ] **Step 3: コミット**
 
 ```bash
-git checkout -b docs/issue-95-adr-url-scheme
 git commit -m "$(cat <<'MSG'
 docs: 入口の一本化と URL 体系の ADR を置く（#95 S0）
 
@@ -351,7 +362,6 @@ node scripts/check-links.mjs
 - [ ] **Step 5: コミット**
 
 ```bash
-git checkout -b docs/issue-95-adr-web-scope
 git commit -m "$(cat <<'MSG'
 docs: web 層の規範の適用範囲に landing を含める ADR を置く（#95 S0）
 
@@ -461,7 +471,6 @@ node scripts/check-links.mjs
 - [ ] **Step 6: コミット**
 
 ```bash
-git checkout -b docs/issue-95-amend-existing-norms
 git commit -m "$(cat <<'MSG'
 docs: 役割廃止と同一性の変更に伴い既存の規範を改定する（#95 S0）
 
@@ -607,8 +616,10 @@ git status --porcelain
 - [ ] **Step 2: ブランチを切る**
 
 ```bash
-git checkout -b feature/issue-95-room-core-package
+git checkout -b feature/issue-95-s1-room-core
 ```
+
+**S1 のブランチはここで 1 本だけ切る。** Task 7 も同じブランチに積む（R1）。
 
 - [ ] **Step 3: パッケージの器を作る**
 
@@ -628,14 +639,16 @@ git checkout -b feature/issue-95-room-core-package
     "typecheck": "tsc --noEmit",
     "lint": "eslint src tests"
   },
-  "dependencies": {
-    "neverthrow": "^8.2.0"
-  },
   "devDependencies": {
     "vitest": "^4.1.10"
   }
 }
 ```
+
+**`dependencies` は空にする（キーごと書かない）。** `display-name.ts` は import を
+1 つも持たない純粋な文字列関数であり（2026-09-06 実測）、`neverthrow` も `valibot` も
+S1 の時点では使わない。`Result` を返す関数はメンバーシップ文脈が振る舞いを持つ
+S4a で入るので、そのときに依存を足す。
 
 `packages/room-core/tsconfig.json`:
 
@@ -658,8 +671,7 @@ export default defineConfig({
 });
 ```
 
-**`valibot` は依存に入れない。** S1 の時点で `room-core` はスキーマを持たない。
-入れると使われない依存が 1 つ増える。
+`packages/room-core/src/` は S1 の時点で `display-name.ts` と `index.ts` の 2 ファイルだけになる。
 
 - [ ] **Step 4: テストを先に移す（赤を作る）**
 
@@ -872,7 +884,7 @@ verbatim で移設した。表示名の正規化と見え方による曖昧判�
 Closes #<S1 の Issue 番号>
 MSG
 )"
-git push -u origin feature/issue-95-room-core-package
+git push -u origin feature/issue-95-s1-room-core
 ```
 
 ---

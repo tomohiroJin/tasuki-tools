@@ -808,7 +808,7 @@ S5a〜S5c の各段のあと `pnpm dev` の実経路（`http://localhost:5175/`�
 | # | 内容 | 利用者から見た状態 | 同じ PR に含める配備資材 |
 |---|---|---|---|
 | S0 | ADR 4 本と子 Issue | 変化なし | — |
-| S1 | `packages/room-core` 新設＋`display-name.ts` の移設（**`timer-core → room-core` の一時依存が生じる**。§3.12b・D17） | 変化なし | — |
+| S1 | `packages/room-core` 新設＋`display-name.ts` の移設（**`timer-core → room-core` の一時依存が生じる**。§3.12b）＋**依存方向の検査の新設**（D17） | 変化なし | — |
 | S2 | サーバー統合（`apps/timer-sync` → `apps/tasuki-sync`、poker を移設、`apps/poker-sync` 退役）＋上限とレート制限の見直し（D22） | 変化なし | `20-poker.conf` の WS を 8787 へ／**`deploy/poker/app.env` を `STATIC_ONLY=1` にし `SERVICE`/`PORT`/`ENV_FILE`/`APP_DIR`/`SYNC_ENTRY` を削除**（§3.13c）／**`deploy/timer/app.env` の `SYNC_ENTRY` を新パスへ**／`tasuki-poker-sync` の停止手順／**`e2e/harness/sync.ts`・`e2e/harness/paths.ts`・`apps/poker-web/vite.config.ts` の 3311 参照**（§3.13b） |
 | S3 | 役割・ホストの廃止（ドメイン・サーバー・両 Web・E2E を同時に） | 全員同格になる。**両ツールとも完全に使える** | — |
 | S4a | 名簿統合（ツールのコアから参加者を抜く。`Round` を集約ルートに。`RotationEntry`） | 変化なし（内部構造のみ。入口はまだツール側） | — |
