@@ -157,8 +157,14 @@ cmd_status() {
 	echo "--- before.rules への追記 ---"
 	if has_block "$V4_RULES"; then echo "IPv4: あり"; else echo "IPv4: なし"; fi
 	if has_block "$V6_RULES"; then echo "IPv6: あり"; else echo "IPv6: なし"; fi
-	echo "--- 実際に効いているルール ---"
-	iptables -S ufw-before-input 2>/dev/null | grep 'connlimit' || echo "(iptables に connlimit なし)"
+	echo "--- ufw 本体 ---"
+	ufw status 2>/dev/null | head -1 || echo "(ufw status を取得できません)"
+	# **v4 と v6 を必ず両方出す。** 片側だけ見て「入っている」と読むと、
+	# v6 のチェーン名の取り違えのような穴を見逃す（実際に踏んだ）。
+	echo "--- 実際に効いているルール（IPv4） ---"
+	iptables -S ufw-before-input 2>/dev/null | grep 'connlimit' || echo "(なし)"
+	echo "--- 実際に効いているルール（IPv6） ---"
+	ip6tables -S ufw6-before-input 2>/dev/null | grep 'connlimit' || echo "(なし)"
 	echo "--- 自動巻き戻しの予約 ---"
 	systemctl list-timers "${ROLLBACK_UNIT}.timer" --all --no-pager 2>/dev/null | head -3 || true
 }
