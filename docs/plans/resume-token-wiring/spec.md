@@ -51,6 +51,12 @@ WebSocket が一時的な切断から自動再接続したあと、web クライ
 - **FR-005**: システムは `session-lost` 判定時に保存済み識別情報を破棄しなければならない。
 - **FR-006**: システムは保存する `resumeToken` を `sessionStorage` に保持しなければならない
   （`localStorage` は用いない）。
+  **【撤廃 2026-09-06・#95】** 復帰の組は `localStorage` にルームコード別で保存する。
+  理由は 2 つある。(1) 参加者は明示的な退出でしか名簿から消えないため、`sessionStorage` だと
+  タブを開き直すたびに別人として join し、前の自分が名簿へ残る（幽霊が溜まる）。
+  (2) 本要件の非機能要件が根拠に挙げた `.claude/rules/security.md` は、`localStorage` と
+  `sessionStorage` を同列に禁じており、2 つを区別する根拠にならない。
+  詳細は[設計正本](../../superpowers/specs/2026-09-06-shared-identity-and-rooms-design.md) D12。
 
 ## 非機能要件
 - **セキュリティ**: `resumeToken` はルーム限定・短命（サーバーメモリ上のみで保持され、
