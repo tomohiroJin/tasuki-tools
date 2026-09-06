@@ -318,6 +318,18 @@ export const MISSING_PATH_EXCEPTIONS = [
       "憲法 2.0.0 の Sync Impact Report が「原則 V の `apps/web` 限定を撤廃した」と" +
       "書くための旧名の引用。撤廃された名前なので実在しないことが正しい",
   },
+  {
+    doc: "docs/adr/0017-bounded-contexts-and-packages.md",
+    path: "packages/room-core",
+    reason:
+      "#95 で決定された新規パッケージの計画。実装前の設計記録として正しい",
+  },
+  {
+    doc: "docs/adr/0017-bounded-contexts-and-packages.md",
+    path: "scripts/audit-dependency-direction.mjs",
+    reason:
+      "#95 で決定された新規スクリプトの計画。実装前の設計記録として正しい",
+  },
 ];
 
 /**
