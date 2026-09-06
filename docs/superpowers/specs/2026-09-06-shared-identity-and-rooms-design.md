@@ -705,6 +705,10 @@ LP（`apps/landing`）を同期クライアント化し、URL と参加状態で
 
 ### 6.1 EARS
 
+> **要求の正本は子 Issue である**（憲法 原則 VIII「要求は Issue（EARS 記法）に記録する」）。
+> 下表は起票の元になった草案であり、**2026-09-06 に #241〜#250 へ移した**。
+> 以後、要求の追加・変更は Issue 側で行い、この表は改訂しない。
+
 | # | 要求 |
 |---|---|
 | R1 | 利用者がルーム名と表示名を入力してルームを作成したとき、システムは選択画面を表示し、ルーム名・参加者一覧・参加用 URL を示すこと |
@@ -807,16 +811,16 @@ S5a〜S5c の各段のあと `pnpm dev` の実経路（`http://localhost:5175/`�
 
 | # | 内容 | 利用者から見た状態 | 同じ PR に含める配備資材 |
 |---|---|---|---|
-| S0 | ADR 4 本と子 Issue | 変化なし | — |
-| S1 | `packages/room-core` 新設＋`display-name.ts` の移設（**`timer-core → room-core` の一時依存が生じる**。§3.12b）＋**依存方向の検査の新設**（D17） | 変化なし | — |
-| S2 | サーバー統合（`apps/timer-sync` → `apps/tasuki-sync`、poker を移設、`apps/poker-sync` 退役）＋上限とレート制限の見直し（D22） | 変化なし | `20-poker.conf` の WS を 8787 へ／**`deploy/poker/app.env` を `STATIC_ONLY=1` にし `SERVICE`/`PORT`/`ENV_FILE`/`APP_DIR`/`SYNC_ENTRY` を削除**（§3.13c）／**`deploy/timer/app.env` の `SYNC_ENTRY` を新パスへ**／`tasuki-poker-sync` の停止手順／**`e2e/harness/sync.ts`・`e2e/harness/paths.ts`・`apps/poker-web/vite.config.ts` の 3311 参照**（§3.13b） |
-| S3 | 役割・ホストの廃止（ドメイン・サーバー・両 Web・E2E を同時に） | 全員同格になる。**両ツールとも完全に使える** | — |
-| S4a | 名簿統合（ツールのコアから参加者を抜く。`Round` を集約ルートに。`RotationEntry`） | 変化なし（内部構造のみ。入口はまだツール側） | — |
-| S4b | 同一性と在席（D12 の `localStorage` 化・D14 の多接続模型・**D21 の在席による適格判定**） | **変わる**（同じ端末で開き直すと同一人物として復帰する／2 タブが 1 人になる） | — |
-| S5a | LP のハブ化＋`packages/sync-client` の抽出＋**timer をハブ経由に対応** | ハブ経由でも従来経路でも timer が使える | `/ws` 断片の新設／**`apps/landing/vite.config.ts` に `/ws` → 8787 の dev 中継を追加**（§3.13b）／`90-landing.conf` の確認／**旧救済断片 `40-timer-legacy-room.conf` の撤去**（D11） |
-| S5b | **poker をハブ経由に対応**（`?room=` を解する） | ハブから両ツールへ行ける | — |
-| S5c | 旧入口の廃止（`Setup` / `Join` / `TopPage` / `NameForm`・ルーム無しは `/` へ）＋`/timer/ws`・`/poker/ws` の撤去 | 入口が 1 つになる | 旧 WS 断片の削除 |
-| S6 | 振り返り（`docs/adr/0003` が epic に MUST） | — | — |
+| S0 | ADR 4 本と子 Issue（**#241**） | 変化なし | — |
+| S1（**#242**） | `packages/room-core` 新設＋`display-name.ts` の移設（**`timer-core → room-core` の一時依存が生じる**。§3.12b）＋**依存方向の検査の新設**（D17） | 変化なし | — |
+| S2（**#243**） | サーバー統合（`apps/timer-sync` → `apps/tasuki-sync`、poker を移設、`apps/poker-sync` 退役）＋上限とレート制限の見直し（D22） | 変化なし | `20-poker.conf` の WS を 8787 へ／**`deploy/poker/app.env` を `STATIC_ONLY=1` にし `SERVICE`/`PORT`/`ENV_FILE`/`APP_DIR`/`SYNC_ENTRY` を削除**（§3.13c）／**`deploy/timer/app.env` の `SYNC_ENTRY` を新パスへ**／`tasuki-poker-sync` の停止手順／**`e2e/harness/sync.ts`・`e2e/harness/paths.ts`・`apps/poker-web/vite.config.ts` の 3311 参照**（§3.13b） |
+| S3（**#244**） | 役割・ホストの廃止（ドメイン・サーバー・両 Web・E2E を同時に） | 全員同格になる。**両ツールとも完全に使える** | — |
+| S4a（**#245**） | 名簿統合（ツールのコアから参加者を抜く。`Round` を集約ルートに。`RotationEntry`） | 変化なし（内部構造のみ。入口はまだツール側） | — |
+| S4b（**#246**） | 同一性と在席（D12 の `localStorage` 化・D14 の多接続模型・**D21 の在席による適格判定**） | **変わる**（同じ端末で開き直すと同一人物として復帰する／2 タブが 1 人になる） | — |
+| S5a（**#247**） | LP のハブ化＋`packages/sync-client` の抽出＋**timer をハブ経由に対応** | ハブ経由でも従来経路でも timer が使える | `/ws` 断片の新設／**`apps/landing/vite.config.ts` に `/ws` → 8787 の dev 中継を追加**（§3.13b）／`90-landing.conf` の確認／**旧救済断片 `40-timer-legacy-room.conf` の撤去**（D11） |
+| S5b（**#248**） | **poker をハブ経由に対応**（`?room=` を解する） | ハブから両ツールへ行ける | — |
+| S5c（**#249**） | 旧入口の廃止（`Setup` / `Join` / `TopPage` / `NameForm`・ルーム無しは `/` へ）＋`/timer/ws`・`/poker/ws` の撤去 | 入口が 1 つになる | 旧 WS 断片の削除 |
+| S6（**#250**） | 振り返り（`docs/adr/0003` が epic に MUST） | — | — |
 
 **S2 が要石である。** 純粋な移設で振る舞いを一切変えないので、既存の全テストが
 「変更していない」ことの証拠になる。ここで振る舞いを変えると以降の段階すべてで足場を失う。
