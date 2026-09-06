@@ -216,6 +216,22 @@ ssh -t niku9 'sudo bash ~/connlimit.sh rollback'                        # 手で
 - `before.rules` / `before6.rules` は適用時に日付つきで退避される
 - スクリプトは冪等。既に入っていれば何もしない
 
+### 踏んだ罠（2026-09-06）
+
+**IPv4 と IPv6 でチェーン名が違う。** `before.rules` は `ufw-before-input`、
+`before6.rules` は **`ufw6-before-input`** である。同じ名前を両方へ書くと
+`ip6tables-restore: No chain/target/match by that name` で `ufw reload` が失敗し、
+**壊れたルールファイルが残って以後の起動でも失敗し続ける**（実際に本番で踏んだ）。
+
+スクリプトは 2 つの手当てを持つ。
+
+- 書く前に `:<チェーン名>` がそのファイルで定義されているかを確かめ、無ければ**書き換えずに落ちる**
+- `ufw reload` に失敗したら、**その場で退避から戻して** reload し直す
+
+**検証は `/usr/share/ufw/iptables/before{,6}.rules`（パッケージ同梱・誰でも読める）で行うこと。**
+`/etc/ufw/` は root でないと読めないが、未編集なら同梱テンプレートと同一である。
+自分で作った「stock 相当」のファイルで試すと、この罠は見つからない。
+
 ### 守らないもの（限界）
 
 - **QUIC / HTTP/3（UDP 443）は数えない。** 本ルールは TCP の connlimit である。

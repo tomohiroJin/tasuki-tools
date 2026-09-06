@@ -68,14 +68,18 @@ preflight() {
 	echo "事前確認: ufw / iptables / ip6tables / connlimit すべて利用できます"
 }
 
-# 挿入する断片。$1 = connlimit-mask（IPv4 は 32、IPv6 は #103 D1 に合わせて 64）
+# 挿入する断片。
+# $1 = チェーン名。**IPv4 は ufw-before-input、IPv6 は ufw6-before-input で別物である。**
+#      同じ名前を両方に書くと ip6tables-restore が
+#      "No chain/target/match by that name" で落ち、ufw が起動できなくなる（実際に踏んだ）。
+# $2 = connlimit-mask（IPv4 は 32、IPv6 は #103 決定 D1 に合わせて 64）
 rule_block() {
-	local mask="$1"
+	local chain="$1" mask="$2"
 	printf '%s\n' "$BEGIN_MARK"
 	printf '%s\n' "# 同一送信元 IP からの 443 同時接続を ${CONNLIMIT_MAX} 本までに制限する（#143）。"
 	printf '%s\n' "# --syn で新規接続だけを数える。REJECT は正規利用者が即座に失敗を知れるようにするため"
 	printf '%s\n' "# （DROP だとブラウザが待たされ、原因の切り分けが難しくなる）。"
-	printf '%s\n' "-A ufw-before-input -p tcp --syn --dport 443 -m connlimit --connlimit-above ${CONNLIMIT_MAX} --connlimit-mask ${mask} -j REJECT --reject-with tcp-reset"
+	printf '%s\n' "-A ${chain} -p tcp --syn --dport 443 -m connlimit --connlimit-above ${CONNLIMIT_MAX} --connlimit-mask ${mask} -j REJECT --reject-with tcp-reset"
 	printf '%s\n' "$END_MARK"
 }
 
@@ -84,11 +88,14 @@ has_block() { grep -qF "$BEGIN_MARK" "$1" 2>/dev/null; }
 # *filter テーブルを閉じる最初の COMMIT の直前へ差し込む。
 # **アンカーが無ければ何もせず落ちる。** 位置を推測して壊すより、気づける形で止める。
 insert_block() {
-	local file="$1" mask="$2" tmp
+	local file="$1" chain="$2" mask="$3" tmp
 	grep -qE '^\*filter' "$file" || die "$file に *filter が見つかりません（想定外の構成）"
 	grep -qE '^COMMIT$' "$file" || die "$file に COMMIT が見つかりません（想定外の構成）"
+	# **書く前に、そのチェーンが本当にこのファイルで定義されているかを見る。**
+	# 名前を取り違えたまま書くと ufw が起動できなくなる。
+	grep -qE "^:${chain} " "$file" || die "$file に :${chain} の定義がありません（チェーン名の取り違え）"
 	tmp="$(mktemp)"
-	awk -v block="$(rule_block "$mask")" '
+	awk -v block="$(rule_block "$chain" "$mask")" '
 		!done && /^COMMIT$/ { print block; done = 1 }
 		{ print }
 	' "$file" >"$tmp"
@@ -105,12 +112,25 @@ remove_block() {
 	rm -f "$tmp"
 }
 
+BACKUP_V4=""
+BACKUP_V6=""
+
 backup() {
 	local stamp
 	stamp="$(date +%Y%m%d-%H%M%S)"
-	cp -p "$V4_RULES" "${V4_RULES}.bak-${stamp}"
-	cp -p "$V6_RULES" "${V6_RULES}.bak-${stamp}"
-	echo "退避: ${V4_RULES}.bak-${stamp} / ${V6_RULES}.bak-${stamp}"
+	BACKUP_V4="${V4_RULES}.bak-${stamp}"
+	BACKUP_V6="${V6_RULES}.bak-${stamp}"
+	cp -p "$V4_RULES" "$BACKUP_V4"
+	cp -p "$V6_RULES" "$BACKUP_V6"
+	echo "退避: $BACKUP_V4 / $BACKUP_V6"
+}
+
+# この実行で取った退避へ戻す。マーカー削除ではなくファイルごと戻すので、
+# 挿入が中途半端でも確実に元へ戻る。
+restore_backup() {
+	[ -n "$BACKUP_V4" ] && [ -f "$BACKUP_V4" ] && cat "$BACKUP_V4" >"$V4_RULES"
+	[ -n "$BACKUP_V6" ] && [ -f "$BACKUP_V6" ] && cat "$BACKUP_V6" >"$V6_RULES"
+	echo "退避から戻しました。"
 }
 
 # ufw reload 後に、ルールが本当に効いているかを見る。
@@ -141,12 +161,19 @@ cmd_apply() {
 	fi
 	preflight
 	backup
-	has_block "$V4_RULES" || insert_block "$V4_RULES" 32
+	has_block "$V4_RULES" || insert_block "$V4_RULES" ufw-before-input 32
 	# IPv6 は #103 D1 に合わせて /64 で丸める。
 	# 本番には現在グローバル IPv6 が無いので今日は不活性だが、
 	# 後で IPv6 を有効にしたときに静かに穴が開かないよう先に入れる。
-	has_block "$V6_RULES" || insert_block "$V6_RULES" 64
-	ufw reload
+	has_block "$V6_RULES" || insert_block "$V6_RULES" ufw6-before-input 64
+	# **reload に失敗したら、壊れたファイルを残さずその場で戻す。**
+	# 残すと次回の起動・reload でも ufw が失敗し続ける（実際に踏んだ）。
+	if ! ufw reload; then
+		echo "ufw reload に失敗しました。退避から戻します。" >&2
+		restore_backup
+		ufw reload || echo "戻したあとの reload も失敗しました。手で確認してください。" >&2
+		die "適用を中止し、元の状態へ戻しました"
+	fi
 	verify_active
 	if [ -n "$after" ]; then
 		systemd-run --on-active="$after" --unit="$ROLLBACK_UNIT" \
