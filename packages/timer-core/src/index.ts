@@ -58,7 +58,6 @@ export type {
   IntervalMinutes,
 } from "./aggregate.js";
 export { secondsLeft, initialAggregate, transferHost } from "./aggregate.js";
-export { nameSkeleton, conflictsWithExisting } from "./display-name.js";
 export { ERROR_MESSAGES, displayMessageFor, errorMessageFor } from "./error-messages.js";
 // イベント
 export type {

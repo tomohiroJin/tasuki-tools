@@ -20,7 +20,7 @@ AI 生成に失敗しても定型お題へ自動縮退します。完成時に�
 
 ## アーキテクチャ概要
 
-timer は **Tasuki monorepo の 3 パッケージ**で構成されます（リポジトリ全体は 9 パッケージ）。
+timer は Tasuki monorepo の**次のパッケージ**で構成されます（下の表が正本。リポジトリ全体の数はここに書かない —— 足すたびに腐る）。
 詳細は [docs/ARCHITECTURE.md](./ARCHITECTURE.md) を参照してください。
 
 | パッケージ | 役割 |
@@ -28,6 +28,7 @@ timer は **Tasuki monorepo の 3 パッケージ**で構成されます（リ�
 | `packages/timer-core`（`@tasuki/timer-core`） | 純粋ドメイン（`decide`/`evolve`・時刻導出・お題・記録・スキーマ・エラー文言）。front/server で共有 |
 | `apps/timer-sync`（`@tasuki/timer-sync`） | 軽量同期サーバー（WebSocket・full snapshot 配信・サーバー権威タイマー・揮発状態） |
 | `apps/timer-web`（`@tasuki/timer-web`） | フロントエンド（React + Vite・`base=/timer/`）。WS クライアント・記録・UI |
+| `packages/room-core`（`@tasuki/room-core`） | メンバーシップ文脈（表示名の規約）。timer 専用ではなく poker とも共有する（#95・`docs/adr/0017`） |
 
 設計判断の経緯は [docs/adr/](./adr/) の ADR を参照してください。
 
@@ -161,13 +162,15 @@ pnpm build              # ビルド
 
 ## ディレクトリ構成
 
-timer は Tasuki の単一 workspace 上の 3 パッケージで構成されます（リポジトリのルートから見た配置）。
+timer が触るパッケージの配置です（リポジトリのルートから見た配置）。
 
 ```
 Tasuki/
 ├─ packages/timer-core/  # @tasuki/timer-core — 純粋ドメイン
 │  └─ src/{aggregate,decide,evolve,events,errors,schemas,problem,problem-bank,
-│           records,display-name,participants,permissions,error-messages}.ts
+│           records,participants,permissions,error-messages}.ts
+├─ packages/room-core/   # @tasuki/room-core — メンバーシップ文脈（表示名の規約。#95 S1）
+│  └─ src/{display-name,index}.ts
 ├─ apps/timer-sync/      # @tasuki/timer-sync — 同期サーバー
 │  └─ src/{domain なし→core 再利用, application/, ports/, adapters/, server.ts}
 ├─ apps/timer-web/       # @tasuki/timer-web — フロントエンド

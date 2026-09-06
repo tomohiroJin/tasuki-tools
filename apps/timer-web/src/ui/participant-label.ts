@@ -10,7 +10,7 @@
  * 別々の規則を持つと、通知で名指しされた人が一覧のどの行だったのか辿れなくなる。
  */
 
-import { nameSkeleton } from "@tasuki/timer-core";
+import { nameSkeleton } from "@tasuki/room-core";
 
 /** 呼び名の判定に必要な参加者の情報。Participant 全体を要求しない。 */
 export interface LabelParticipant {
