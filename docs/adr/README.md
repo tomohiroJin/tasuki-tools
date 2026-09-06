@@ -44,3 +44,4 @@ Michael Nygard 形式（背景 / 決定 / 影響 / ステータス）に従い�
 | [0015](./0015-web-layer-structure.md) | web 層は「純粋関数・同期フック・画面」に責務を分ける | Accepted |
 | [0016](./0016-core-domain-representation.md) | ドメインの表現は選択制とし、揃える点を定める | Accepted |
 | [0017](./0017-bounded-contexts-and-packages.md) | 文脈を 3 つに割り、メンバーシップを上流に置く | Accepted |
+| [0018](./0018-single-entry-and-url-scheme.md) | 入口を LP に一本化し、URL 体系を揃える | Accepted |
