@@ -167,7 +167,9 @@ timer は Tasuki の単一 workspace 上の 3 パッケージで構成されま�
 Tasuki/
 ├─ packages/timer-core/  # @tasuki/timer-core — 純粋ドメイン
 │  └─ src/{aggregate,decide,evolve,events,errors,schemas,problem,problem-bank,
-│           records,display-name,participants,permissions,error-messages}.ts
+│           records,participants,permissions,error-messages}.ts
+├─ packages/room-core/   # @tasuki/room-core — メンバーシップ文脈（表示名の規約。#95 S1）
+│  └─ src/{display-name,index}.ts
 ├─ apps/timer-sync/      # @tasuki/timer-sync — 同期サーバー
 │  └─ src/{domain なし→core 再利用, application/, ports/, adapters/, server.ts}
 ├─ apps/timer-web/       # @tasuki/timer-web — フロントエンド

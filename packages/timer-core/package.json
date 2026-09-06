@@ -13,6 +13,7 @@
     "lint": "eslint src test"
   },
   "dependencies": {
+    "@tasuki/room-core": "workspace:*",
     "neverthrow": "^8.1.1",
     "valibot": "^1.0.0"
   },

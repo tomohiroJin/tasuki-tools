@@ -1082,6 +1082,7 @@ export const SCANNED_PACKAGES = [
   { pkg: "packages/timer-core", src: "src", test: "test", entry: "index.ts" },
   { pkg: "packages/poker-core", src: "src", test: "tests", entry: "index.ts" },
   { pkg: "packages/protocol", src: "src", test: "tests", entry: "index.ts" },
+  { pkg: "packages/room-core", src: "src", test: "tests", entry: "index.ts" },
   { pkg: "packages/rate-limit", src: "src", test: "tests", entry: "index.ts" },
   { pkg: "apps/timer-sync", src: "src", test: "test", entry: "server.ts" },
   { pkg: "apps/timer-web", src: "src", test: "test", entry: "main.tsx" },
