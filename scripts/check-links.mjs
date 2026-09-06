@@ -318,6 +318,18 @@ export const MISSING_PATH_EXCEPTIONS = [
       "憲法 2.0.0 の Sync Impact Report が「原則 V の `apps/web` 限定を撤廃した」と" +
       "書くための旧名の引用。撤廃された名前なので実在しないことが正しい",
   },
+  {
+    doc: "docs/adr/0017-bounded-contexts-and-packages.md",
+    path: "packages/room-core",
+    reason:
+      "一時的。S1（#242）で packages/room-core が実装されたら、checkStaleExceptions が「使われていない例外」として落とすため削除する",
+  },
+  {
+    doc: "docs/adr/0017-bounded-contexts-and-packages.md",
+    path: "scripts/audit-dependency-direction.mjs",
+    reason:
+      "一時的。S1（#242）で scripts/audit-dependency-direction.mjs が実装されたら、checkStaleExceptions が「使われていない例外」として落とすため削除する",
+  },
 ];
 
 /**

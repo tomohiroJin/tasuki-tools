@@ -1,6 +1,6 @@
 # ADR-0007: 揮発インメモリ状態と再起動安全
 
-- **ステータス**: Accepted
+- **ステータス**: Accepted（[#95](https://github.com/tomohiroJin/tasuki-tools/issues/95) による役割・ホストの廃止の決定に伴い 2026-09-06 改定。実施は S3・#244）
 - **関連要件**: FR-012, FR-018, FR-019, FR-020, FR-028, NFR 可用性・プライバシー
 
 ## 背景
@@ -51,3 +51,19 @@
 保持の形だけである。**本追記は、決定の文面が名指しする `Map` が別モジュールの
 ファクトリへ移ったことを記録するものであり、決定を覆すものではない**
 （`docs/adr/0002` の「ADR は追記のみ」）。
+
+**改定（2026-09-06・#95）**: [#95](https://github.com/tomohiroJin/tasuki-tools/issues/95) で
+役割（`host` / `editor` / `viewer`）とホストの概念を**廃止すると決定した**。
+**実施は S3（[#244](https://github.com/tomohiroJin/tasuki-tools/issues/244)）で未了**であり、
+本 ADR 本文の「同一役割として扱う」「主催者が猶予 30 秒を超えて不在なら最古のオンライン
+編集者へ自動委譲（FR-018）」は、実施までは現行の振る舞いである（自動委譲は
+`apps/timer-sync/src/application/handlers.ts` の `transferHostBeforeRemoval` に現存する）。
+**S3 の完了をもって、この 2 つは役割そのものが無くなるため適用対象を失う。**
+
+復帰トークンによる同一参加者としての再接続は維持する。猶予 30 秒はドライバーの
+繰り上げ（R2-1）にのみ残る。
+
+廃止の決定そのものの記録は [`docs/adr/0011`](../../adr/0011-threat-model-and-data-classification.md)
+決定2 の脅威表 S1・S9 と本改定である。廃止対象の一覧（`Role` 型・`permissions.ts`・
+`participants.ts` の不変条件・`role.set`・`host.transfer`・poker の `isHost`）は
+どちらの ADR も持たないため、[設計正本](../../superpowers/specs/2026-09-06-shared-identity-and-rooms-design.md) D5 が正本である。

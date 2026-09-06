@@ -72,3 +72,7 @@ timer-web が後者を持たないためである。
 > （`import type`）だからである。**検査が見ていないもの**（re-export・動的 import・
 > `.mts`・`src/dist`・`allowedImporters` への追記による無力化）は検査の docstring に
 > 書いてある。
+
+> **追記（2026-09-06・#95）**: 本 ADR の適用範囲を「`apps/*-web`」という名前の形で
+> 書いていたため、`apps/landing` が漏れていた。適用範囲の現行の正本は
+> [`docs/adr/0019`](./0019-web-layer-scope-includes-landing.md) である。
