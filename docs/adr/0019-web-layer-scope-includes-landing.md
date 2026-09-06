@@ -37,3 +37,7 @@
 - `apps/landing` が `audit-web-sync-boundary` の対象になる。現状の LP は
   `new WebSocket` も同期モジュールも持たないため、対象に加えても即座には赤くならない
 - `docs/adr/0015` に本 ADR への参照を追記する
+- `docs/guides/architecture.md` の層対応表（「アダプタ」「web の純粋判断」「web の同期フック」
+  「web の画面」の 4 行）も `apps/*-web` という名前の形で範囲を書いている。`docs/adr/0015` は
+  この表を層とディレクトリ対応の正本と定めているため、決定 3 の順序に合わせてこの 4 行も
+  付け替える（ガイドの更新は ADR の改版を要しない・`docs/adr/0002`）

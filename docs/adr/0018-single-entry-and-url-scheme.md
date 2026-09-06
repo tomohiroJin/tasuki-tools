@@ -35,7 +35,7 @@
 
 ### 決定 3: WebSocket の入口は `/ws` 1 つ
 
-`/timer/ws` と `/poker/ws` は移行期間だけ受け付け、移行完了時に撤去する。
+`/timer/ws` と `/poker/ws` は移行期間だけ受け付け、移行完了時に撤去する（**MUST**）。
 
 ### 決定 4: 旧救済断片を撤去する
 
@@ -50,5 +50,5 @@
 
 - LP が同期クライアントになる。静的 SPA ではなくなる
 - `apps/poker-web/src/router.ts` が `?room=` を解するようになる
-- Caddy 断片が 1 本増え（`/ws`）、3 本減る（`/timer/ws`・`/poker/ws`・旧救済）
+- Caddy 断片が 1 本増え（`/ws`）、**2 本減る**（`10-timer-ws.conf`・旧救済 `40-timer-legacy-room.conf`）。`/poker/ws` は `20-poker.conf` 内の `handle` ブロックとして落とす
 - 旧リンク `/?room=CODE` は LP に着地し、そのルームが在れば入れる（救済より良い挙動になる）

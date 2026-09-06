@@ -17,7 +17,8 @@
   **決定そのものの正本は ADR である**（憲法 原則 VIII が MUST とする）。§4 の決定のうち
   ADR を持つもの（D1・D2・D3・D5・D7・D10・D11・D12・D17・D19・D20）は S0 で
   `docs/adr/0017`〜`0019` および既存 ADR の改定へ移設済みであり、各節の冒頭が指す ADR が
-  決定の正本である。残りの決定（D4・D6・D8・D9・D13〜D16・D18・D21・D22）は ADR を持たず、
+  決定の正本である（**D5 のみ、廃止の決定は ADR が持ち、廃止対象の一覧は本文書が正本である**）。
+  残りの決定（D4・D6・D8・D9・D13〜D16・D18・D21・D22）は ADR を持たず、
   本文書が引き続き正本である。
 
 ## 1. 範囲
@@ -279,10 +280,7 @@ S2（サーバー統合）と同じ PR で直さないと、E2E も dev も落�
 
 ### D5: 役割とホストを廃止する
 
-> **決定の正本は [`docs/timer/adr/0007`](../../timer/adr/0007-volatile-in-memory-state.md) の
-> 「改定（2026-09-06・#95）」、および [`docs/adr/0011`](../../adr/0011-threat-model-and-data-classification.md)
-> 決定2 の脅威表 S1・S9 である。** 以下はその決定に至った論拠であり、規範としての効力は
-> それらの ADR が持つ。
+> **廃止の決定そのものの記録は [`docs/timer/adr/0007`](../../timer/adr/0007-volatile-in-memory-state.md) の「改定（2026-09-06・#95）」と [`docs/adr/0011`](../../adr/0011-threat-model-and-data-classification.md) 決定2 の脅威表 S1・S9 にある。ただし廃止対象の一覧（とくに poker の `isHost`）はどちらの ADR も持たないため、本節が引き続き正本である。**
 
 ルームに居る全員が完全に同格になる。廃止対象は `Role` 型・`permissions.ts`・
 `participants.ts`（「編集者以上が 1 名以上残る」不変条件）・`role.set`・`host.transfer`・
@@ -551,8 +549,8 @@ timer-web（`sync/backoff.ts` / `join-retry.ts`）と poker-web（`join-retry.ts
 
 表現そのものは**直接遷移関数 ＋ `Result`** を採る。メンバーシップにイベント履歴・再生・
 段階適用の要求は無く、`docs/adr/0007`（抽象の導入基準）の基準 3 を満たさないため。
-同 ADR の決定 1 は「どちらを採ったかと理由を記録する（MUST）」を課すので、
-**この選択を §9 の ADR に明記する**。
+同 ADR の決定 1 は「どちらを採ったかと理由を記録する（MUST）」を課しており、
+**この選択は [`docs/adr/0017`](../../adr/0017-bounded-contexts-and-packages.md) 決定 5 に明記済みである**。
 
 ### D20: `docs/adr/0015` の適用範囲を `apps/landing` へ広げる
 
@@ -844,7 +842,7 @@ S5a〜S5c の各段のあと `pnpm dev` の実経路（`http://localhost:5175/`�
 
 | # | 内容 | 利用者から見た状態 | 同じ PR に含める配備資材 |
 |---|---|---|---|
-| S0 | ADR 4 本と子 Issue（**#241**） | 変化なし | — |
+| S0 | 新規 ADR 3 本（0017/0018/0019）＋既存 ADR 2 本の改定（`docs/timer/adr/0007`・`docs/adr/0011`）＋FR-006 の撤廃と子 Issue（**#241**） | 変化なし | — |
 | S1（**#242**） | `packages/room-core` 新設＋`display-name.ts` の移設（**`timer-core → room-core` の一時依存が生じる**。§3.12b）＋**依存方向の検査の新設**（D17） | 変化なし | — |
 | S2（**#243**） | サーバー統合（`apps/timer-sync` → `apps/tasuki-sync`、poker を移設、`apps/poker-sync` 退役）＋上限とレート制限の見直し（D22） | 変化なし | `20-poker.conf` の WS を 8787 へ／**`deploy/poker/app.env` を `STATIC_ONLY=1` にし `SERVICE`/`PORT`/`ENV_FILE`/`APP_DIR`/`SYNC_ENTRY` を削除**（§3.13c）／**`deploy/timer/app.env` の `SYNC_ENTRY` を新パスへ**／`tasuki-poker-sync` の停止手順／**`e2e/harness/sync.ts`・`e2e/harness/paths.ts`・`apps/poker-web/vite.config.ts` の 3311 参照**（§3.13b） |
 | S3（**#244**） | 役割・ホストの廃止（ドメイン・サーバー・両 Web・E2E を同時に） | 全員同格になる。**両ツールとも完全に使える** | — |
@@ -940,8 +938,8 @@ timer は元から `?room=` を解するため影響を受けず、**poker だ�
 ## 9. 成果物
 
 - 本設計文書（決定と実測の正本）
-- ADR 4 本
-  - `docs/adr/`（横断）: ①文脈分割とパッケージ構成（`room-core` の表現の選択と理由を含む。
+- 新規 ADR 3 本＋既存 ADR 2 本の改定＋FR-006 の撤廃
+  - `docs/adr/`（横断・新規 3 本）: ①文脈分割とパッケージ構成（`room-core` の表現の選択と理由を含む。
     `docs/adr/0016` 決定 1 が MUST とする記録）／②入口一本化と URL 体系（旧救済断片の撤去を含む）／
     ③`docs/adr/0015` の適用範囲を `apps/landing` へ広げる（D20）
   - `docs/adr/0011` の改定: ①脅威 S9 が名指しする「権限規則の正本
