@@ -10,6 +10,29 @@
 
 **Spec:** [`docs/superpowers/specs/2026-09-06-shared-identity-and-rooms-design.md`](../specs/2026-09-06-shared-identity-and-rooms-design.md)
 
+## Constitution Check
+
+憲法（[`docs/constitution.md`](../../constitution.md) v2.1.4）のコンプライアンスゲート。
+様式の正本は [`docs/guides/plan-writing.md`](../../guides/plan-writing.md)。
+
+| 原則 | 判定 | 根拠 |
+|---|---|---|
+| I. テスト駆動開発 | 通過 | Task 6 はテストを先に移して赤を確認してから実装を移す。Task 7 は失敗するテストから書く。S0（Task 1〜5）は文書のみだが、各 Step にリンク検査と実測の確認を置く |
+| II. 技術選定は ADR を通す | 通過 | パッケージ `@tasuki/room-core` を新設するが**新しい外部依存は 0**（`neverthrow` も外した）。構成の判断は `docs/adr/0017` に記録する |
+| III. 揮発インメモリと単純運用 | 該当なし | 同期サーバーの状態管理に触れない。デプロイを伴わない |
+| IV. 境界の型安全 | 該当なし | 境界検証の中身を変えない。`schemas.ts` は `normalizeDisplayName` の取り込み元が変わるだけ |
+| V. 実画面検証 | 該当なし | 利用者が通る経路は変わらない（S1 は振る舞い不変） |
+| VI. 依存は内向き | 通過 | **この計画の主目的**。ドメインを文脈で割り、依存の向きを Task 7 の検査で機械的に固定する。`timer-core → room-core` の一時依存は `docs/adr/0017` 決定 4 の期限つきとして表に記録する |
+| VII. 検査は壊して確かめる | 通過 | Task 7 Step 6 で 3 通りの破壊検証（import のみ／`package.json` のみ／未宣言パッケージ）、Step 7 で対照実行を行う |
+| VIII. 記録が正本 | 通過 | 決定は ADR、実測と設計は設計正本、様式はガイド。§4 の決定を ADR へ移すのが S0 の目的で、二重正本を残さない |
+| IX. 小さく回す | 通過 | S0 と S1 で PR 2 本（段＝PR）。デプロイは伴わない |
+| X. 抽象は実需で | 通過 | `room-core` は新設した時点で利用者が 2 つ（`timer-core` / `timer-web`）ある。利用者 0 の器を先に作らない。`sync-client` の抽出は利用者が 3 つになる S5a まで行わない |
+| XI. 秘密と個人情報を持ち込まない | 該当なし | 表示名（分類「個人に紐づく」）を扱うモジュールを移設するが、**新しい入力・保持・出力を足さない**。ログ出力も増やさない |
+
+**逸脱なし。** Complexity Tracking での正当化を要する項目はない。
+
+---
+
 ## Global Constraints
 
 - **作業ディレクトリは `/workspaces/claym/local/Tasuki`。** クローンを作らない
@@ -41,6 +64,92 @@ SC039 分岐 0 / データ 0 行 / 公開記号 0 件 / 公開契約 0 件
 ---
 
 # S0: 規範を確定させる
+
+## Task 0: 子 Issue を起票する（**ブランチを切る前に行う。PR には含まれない**）
+
+**Files:**
+- 変更なし（GitHub 上の操作のみ）
+
+**なぜ最初なのか:** 各段のブランチは Issue をきっかけに切られ、その Issue を閉じる。
+起票が後だと、S0 のブランチを切る時点で閉じる先が無く、`Closes #<番号>` を後から
+書き足すことになる。**#95 のサブ Issue として先に全部立てる。**
+
+**Interfaces:**
+- Consumes: 設計正本 §7 の段階表、§6.1 の EARS
+- Produces: S1 以降が着手する単位
+
+- [ ] **Step 1: 既存の open Issue を数え直す**
+
+```bash
+gh issue list --state open --limit 50 --json number,title,labels \
+  --jq '.[] | "\(.number) \(.title)"'
+```
+
+**記憶にある件数と照合しない。** ここで出た結果が現在地である。
+
+- [ ] **Step 2: Issue テンプレートの様式を確認する**
+
+```bash
+cat .github/ISSUE_TEMPLATE/feature.md
+```
+
+「振る舞い」節が EARS 記法であること、DoD のチェックリストがあることを確認する。
+
+- [ ] **Step 3: 9 本の子 Issue を起票する**
+
+`#95` を親とし、次の割り当てで起票する。**各 Issue の「振る舞い」節には、下表の EARS を
+設計正本 §6.1 から写す。** 実測値・型定義・段階の詳細は写さず、設計正本を参照させる。
+
+| 段 | タイトル | 割り当てる EARS |
+|---|---|---|
+| S1 | `packages/room-core` を新設し表示名の規約を移す | （振る舞いの変更なし。DoD は指標の据え置き） |
+| S2 | 同期サーバーを 1 本に統合する | （振る舞いの変更なし） |
+| S3 | 役割とホストを廃止する | R12 |
+| S4a | 名簿を 1 つにする | R8 |
+| S4b | 同一性を `localStorage` へ移し、在席を接続に紐づける | R11 / R14 / R15 / R16 / R17 |
+| S5a | LP をハブにし、timer をハブ経由で使えるようにする | R1 / R2 / R3 / R4 / R6 / R7 / R10 / R13 |
+| S5b | poker をハブ経由で使えるようにする | R4 / R5 |
+| S5c | ツール側の旧入口を撤去する | R9 |
+| S6 | 振り返りを書く | — |
+
+各 Issue の本文に必ず入れるもの:
+
+```markdown
+## 前提
+
+- 設計正本: `docs/superpowers/specs/2026-09-06-shared-identity-and-rooms-design.md`
+- **この段をマージした時点で E2E が緑で、両ツールとも使えること**（設計正本 §7 スライスの原則 2）
+- **`main` は常にデプロイ可能に保つ。** 配備資材の更新はこの PR に含める（同 原則 3）
+
+Closes #<この Issue の番号は起票後に埋まる>
+```
+
+- [ ] **Step 4: 起票結果を確認する**
+
+```bash
+gh issue list --state open --limit 50 --json number,title --jq '.[] | "\(.number) \(.title)"'
+```
+
+期待: 9 本増えている。**数えて確認する。**
+
+- [ ] **Step 5: #95 に段階の対応を書き込む**
+
+```bash
+gh issue comment 95 --body "$(cat <<'MSG'
+設計が固まりました。設計正本は `docs/superpowers/specs/2026-09-06-shared-identity-and-rooms-design.md` です。
+
+本文の「実装時に決めること」8 件はすべて決着しています（対応は設計正本 §4 末尾の表）。
+うち 6 件は本文が想定していない形の決着になりました。とくに項目 5（ホストの概念の統一）は
+「どちらへも寄せず廃止」です。
+
+段階は S0〜S6 の 10 本に分けて子 Issue へ切り出しました。
+MSG
+)"
+```
+
+---
+
+---
 
 ## Task 1: ADR-0017 文脈分割とパッケージ構成
 
@@ -488,86 +597,6 @@ MSG
 
 ---
 
-## Task 5: 子 Issue を起票する
-
-**Files:**
-- 変更なし（GitHub 上の操作）
-
-**Interfaces:**
-- Consumes: 設計正本 §7 の段階表、§6.1 の EARS
-- Produces: S1 以降が着手する単位
-
-- [ ] **Step 1: 既存の open Issue を数え直す**
-
-```bash
-gh issue list --state open --limit 50 --json number,title,labels \
-  --jq '.[] | "\(.number) \(.title)"'
-```
-
-**記憶にある件数と照合しない。** ここで出た結果が現在地である。
-
-- [ ] **Step 2: Issue テンプレートの様式を確認する**
-
-```bash
-cat .github/ISSUE_TEMPLATE/feature.md
-```
-
-「振る舞い」節が EARS 記法であること、DoD のチェックリストがあることを確認する。
-
-- [ ] **Step 3: 9 本の子 Issue を起票する**
-
-`#95` を親とし、次の割り当てで起票する。**各 Issue の「振る舞い」節には、下表の EARS を
-設計正本 §6.1 から写す。** 実測値・型定義・段階の詳細は写さず、設計正本を参照させる。
-
-| 段 | タイトル | 割り当てる EARS |
-|---|---|---|
-| S1 | `packages/room-core` を新設し表示名の規約を移す | （振る舞いの変更なし。DoD は指標の据え置き） |
-| S2 | 同期サーバーを 1 本に統合する | （振る舞いの変更なし） |
-| S3 | 役割とホストを廃止する | R12 |
-| S4a | 名簿を 1 つにする | R8 |
-| S4b | 同一性を `localStorage` へ移し、在席を接続に紐づける | R11 / R14 / R15 / R16 / R17 |
-| S5a | LP をハブにし、timer をハブ経由で使えるようにする | R1 / R2 / R3 / R4 / R6 / R7 / R10 / R13 |
-| S5b | poker をハブ経由で使えるようにする | R4 / R5 |
-| S5c | ツール側の旧入口を撤去する | R9 |
-| S6 | 振り返りを書く | — |
-
-各 Issue の本文に必ず入れるもの:
-
-```markdown
-## 前提
-
-- 設計正本: `docs/superpowers/specs/2026-09-06-shared-identity-and-rooms-design.md`
-- **この段をマージした時点で E2E が緑で、両ツールとも使えること**（設計正本 §7 スライスの原則 2）
-- **`main` は常にデプロイ可能に保つ。** 配備資材の更新はこの PR に含める（同 原則 3）
-
-Closes #<この Issue の番号は起票後に埋まる>
-```
-
-- [ ] **Step 4: 起票結果を確認する**
-
-```bash
-gh issue list --state open --limit 50 --json number,title --jq '.[] | "\(.number) \(.title)"'
-```
-
-期待: 9 本増えている。**数えて確認する。**
-
-- [ ] **Step 5: #95 に段階の対応を書き込む**
-
-```bash
-gh issue comment 95 --body "$(cat <<'MSG'
-設計が固まりました。設計正本は `docs/superpowers/specs/2026-09-06-shared-identity-and-rooms-design.md` です。
-
-本文の「実装時に決めること」8 件はすべて決着しています（対応は設計正本 §4 末尾の表）。
-うち 6 件は本文が想定していない形の決着になりました。とくに項目 5（ホストの概念の統一）は
-「どちらへも寄せず廃止」です。
-
-段階は S0〜S6 の 10 本に分けて子 Issue へ切り出しました。
-MSG
-)"
-```
-
----
-
 # S1: `packages/room-core` を新設し表示名の規約を移す
 
 ## Task 6: `room-core` を作り `display-name` を移す
@@ -620,6 +649,7 @@ git checkout -b feature/issue-95-s1-room-core
 ```
 
 **S1 のブランチはここで 1 本だけ切る。** Task 7 も同じブランチに積む（R1）。
+このブランチが閉じるのは Task 0 で起票した **S1 の Issue** である。
 
 - [ ] **Step 3: パッケージの器を作る**
 
@@ -1224,7 +1254,7 @@ git push
 | D20（web 層の適用範囲） | Task 3 |
 | D5（役割廃止）の規範側 | Task 4（`docs/timer/adr/0007`・`docs/adr/0011`） |
 | D12（同一性）の規範側 | Task 4（FR-006 の撤廃） |
-| §7 の段階 → 子 Issue | Task 5 |
+| §7 の段階 → 子 Issue | Task 0（ブランチ前） |
 | S1（`room-core` 新設・`display-name` 移設） | Task 6 |
 
 **S0・S1 の範囲に、対応するタスクの無い項目は無い。**
@@ -1234,8 +1264,8 @@ D4・D6・D8・D9・D13・D14・D15・D18・D21・D22 は S2 以降の範囲で�
 
 - Task 1 Step 1 と Task 2・Task 3 の ADR 番号は「2026-09-06 時点で 0016 が最大」に基づく。
   **着手時に数え直す手順を Step に入れてある**
-- Task 5 の子 Issue 番号は起票してから決まる。コミットメッセージの `Closes #<番号>` は
-  起票後に埋める
+- Task 0 で起票した Issue 番号を、S0・S1 のコミットメッセージの `Closes #<番号>` に埋める。
+  **バッククォートで囲まない**（自動クローズが効かない）
 - Task 7 の `ALLOWED` は 2026-09-06 の実測に基づく。**合わなければ実体を読んで直す**手順を
   Step 5 に入れてある
 
