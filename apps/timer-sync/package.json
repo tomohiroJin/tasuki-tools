@@ -12,6 +12,7 @@
     "lint": "eslint src test"
   },
   "dependencies": {
+    "@tasuki/room-core": "workspace:*",
     "@tasuki/protocol": "workspace:*",
     "@tasuki/rate-limit": "workspace:*",
     "@tasuki/timer-core": "workspace:*",

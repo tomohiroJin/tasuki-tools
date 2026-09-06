@@ -21,7 +21,9 @@ import {
   MAX_CONFIG_LANGUAGE,
   MAX_CONFIG_DIFFICULTY,
 } from "./aggregate.js";
-import { normalizeDisplayName } from "./display-name.js";
+// #95 S1: 表示名の規約はメンバーシップ文脈（room-core）へ移した。
+// この import は timer-core が表示名を検証しなくなる S4a で消える（docs/adr/0017 決定 4）。
+import { normalizeDisplayName } from "@tasuki/room-core";
 
 // ─── 共通 ───────────────────────────────────────────────────────────────────
 

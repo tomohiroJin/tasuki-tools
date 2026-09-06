@@ -1,17 +1,17 @@
 # 変異 4: display-name-control-chars
 #
 # 検出を期待するテスト:
-#   - packages/timer-core/test/display-name.test.ts
+#   - packages/room-core/tests/display-name.test.ts
 #
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m04-*.patch
 #       (diff のパスはリポジトリルート起点。mutation-check.mjs もリポジトリルートで実行する)
 # 復元: git checkout -- <対象ファイル>（同じくリポジトリルートから）
 #
-diff --git a/packages/timer-core/src/display-name.ts b/packages/timer-core/src/display-name.ts
+diff --git a/packages/room-core/src/display-name.ts b/packages/room-core/src/display-name.ts
 index 7069f28..76834fe 100644
---- a/packages/timer-core/src/display-name.ts
-+++ b/packages/timer-core/src/display-name.ts
+--- a/packages/room-core/src/display-name.ts
++++ b/packages/room-core/src/display-name.ts
 @@ -130,7 +130,6 @@ function stripLabelMarkers(input: string): string {
   */
  export function normalizeDisplayName(raw: string): string {

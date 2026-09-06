@@ -143,6 +143,9 @@ importers:
       '@tasuki/rate-limit':
         specifier: workspace:*
         version: link:../../packages/rate-limit
+      '@tasuki/room-core':
+        specifier: workspace:*
+        version: link:../../packages/room-core
       '@tasuki/timer-core':
         specifier: workspace:*
         version: link:../../packages/timer-core
@@ -168,6 +171,9 @@ importers:
 
   apps/timer-web:
     dependencies:
+      '@tasuki/room-core':
+        specifier: workspace:*
+        version: link:../../packages/room-core
       '@tasuki/timer-core':
         specifier: workspace:*
         version: link:../../packages/timer-core
@@ -305,8 +311,17 @@ importers:
         specifier: ^4.1.10
         version: 4.1.10(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.0(@types/node@26.1.2)(jiti@2.7.0))
 
+  packages/room-core:
+    devDependencies:
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.0(@types/node@26.1.2)(jiti@2.7.0))
+
   packages/timer-core:
     dependencies:
+      '@tasuki/room-core':
+        specifier: workspace:*
+        version: link:../room-core
       neverthrow:
         specifier: ^8.1.1
         version: 8.2.0

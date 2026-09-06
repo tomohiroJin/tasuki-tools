@@ -12,7 +12,6 @@ import {
   transferHost,
   secondsLeft,
   checkPermission,
-  conflictsWithExisting,
   ERROR_MESSAGES,
   errorMessageFor,
   type Room,
@@ -23,6 +22,9 @@ import {
   type RemovalNotification,
   type Command,
 } from "@tasuki/timer-core";
+// 表示名の規約はメンバーシップ文脈（room-core）が持つ（#95 S1・docs/adr/0017 決定 2）。
+// アプリ層が上流の文脈へ依存するのは決定 2 の対象外で、許されている。
+import { conflictsWithExisting } from "@tasuki/room-core";
 import {
   createTokenBucketLimiter,
   DEFAULT_CAPACITY,

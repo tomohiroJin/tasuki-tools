@@ -34,10 +34,9 @@ TDD Mob Pro Timer の構造・データフロー・設計原則をまとめま�
 | `decide.ts` | `decide(cmd, agg, now): Result<DomainEvent[], DomainError>` — コマンド→イベント |
 | `evolve.ts` | `evolve(agg, event, now): Aggregate` — イベント→次状態（全域関数） |
 | `events.ts` / `errors.ts` | `DomainEvent` 合併型 / `DomainError` 合併型 |
-| `schemas.ts` | Valibot スキーマ（Command / ServerMsg / Problem / SessionConfig）。境界で検証と**正規化**を行う |
+| `schemas.ts` | Valibot スキーマ（Command / ServerMsg / Problem / SessionConfig）。境界で検証と**正規化**を行う。表示名の正規化（`normalizeDisplayName`）はメンバーシップ文脈の `packages/room-core` から取り込む（#95 S1 で移設。この取り込みは S4a で消える） |
 | `permissions.ts` | 段階×役割の可否判定（`checkPermission` / `isAllowed`）。front/server が共有する単一の規則（FR-071） |
 | `participants.ts` | 在室者の不変条件（`canRemoveParticipant` / `canDemote` / `transferHost`）。権限とは別の責務。退出通知の種類を決める `removalNotificationFor`（Issue #32）も同じ関心としてここに置く |
-| `display-name.ts` | 表示名の正規化（`normalizeDisplayName`）と見え方の骨格（`nameSkeleton`） |
 | `problem.ts` | 定型お題バンク・`validateProblem`・`pickFallback`・プロンプト生成 |
 | `records.ts` | 完成記録の生成（所要時間は稼働区間のみ積算） |
 | `error-messages.ts` | エラーコード → 利用者向け文言の**単一の正本**（Issue #28・FR-105）。画面表示は `displayMessageFor()`、wire の `message` は `errorMessageFor()` を経由する。**コードと文言は 1 対 1**（Issue #29）— 同じコードを説明が異なるべき複数の操作から返さない |

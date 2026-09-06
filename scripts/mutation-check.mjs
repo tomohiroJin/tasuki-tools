@@ -114,8 +114,8 @@ export const MUTATIONS = [
     id: 4,
     label: "normalizeDisplayName の正規化を1段無効化（制御文字の除去を外す）",
     patch: "m04-display-name-control-chars.patch",
-    pkg: "packages/timer-core",
-    tests: ["test/display-name.test.ts"],
+    pkg: "packages/room-core",
+    tests: ["tests/display-name.test.ts"],
   },
   {
     id: 5,
