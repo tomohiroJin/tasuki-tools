@@ -159,6 +159,20 @@ workspace の実体と突き合わせる形（#135 経路⑪）になってい�
 poker の接続が timer の枠を食う。レート制限は逆に厳しくなる（サービス全体で 1 IP 1 バケツ）。
 #103 が値を決めた前提が変わるため、S2（サーバー統合）と同じ PR で見直す（D22）。
 
+### 3.12b `display-name` には timer-core の外にも利用者が居る
+
+移設（S1）の可否に効くので、利用者を数えた。
+
+- `packages/timer-core/src/schemas.ts` が `normalizeDisplayName` を import している
+  （表示名を正規化してから長さを課す）
+- `packages/timer-core/src/index.ts` が `nameSkeleton` / `conflictsWithExisting` を再輸出している
+- **`apps/timer-web/src/ui/participant-label.ts` が `@tasuki/timer-core` から `nameSkeleton` を
+  import している**（同名の参加者に識別子を添える判定）
+
+**つまり `display-name` を `room-core` へ移すと、timer-core と timer-web の両方が
+`room-core` を要る。** D17 の依存表は web アプリに `room-core` を許しておらず、
+D2（ツールのコアは room-core に依存しない）と正面から衝突する。対処は D17 と S1 の注記で行う。
+
 ### 3.13 参加者は明示的な退出でしか名簿から消えない
 
 切断しても参加者は `presence: "offline"` のまま名簿に残り続ける。名簿から消える経路は
@@ -170,6 +184,28 @@ poker の接続が timer の枠を食う。レート制限は逆に厳しくな�
 
 **この事実が D12 の判断を変える。** タブを閉じたり別タブで開いたりするたびに新しい参加者が
 増え、古い参加者は残り続ける。**幽霊が選択画面の参加者一覧に溜まる。**
+
+### 3.13b 配備とテストの資材が `poker-sync` / `3311` を名指ししている
+
+S2（サーバー統合）と同じ PR で直さないと、E2E も dev も落ちる。
+
+| 箇所 | 内容 |
+|---|---|
+| `e2e/harness/sync.ts` | `{ name: 'poker-sync', entry: 'apps/poker-sync/src/server.ts', port: PORTS.pokerSync }` を起動する |
+| `e2e/harness/paths.ts` | `PORTS = { caddy: 18080, timerSync: 8787, pokerSync: 3311 }` |
+| `apps/poker-web/vite.config.ts` | dev の WS プロキシが `ws://localhost:3311` を指す |
+| `deploy/timer/app.env` | `SYNC_ENTRY=apps/timer-sync/src/server.ts`（改名で宛先を失う） |
+
+また `apps/landing/vite.config.ts` は `/timer` → 5173、`/poker` → 5174 を `ws: true` で
+中継しているが、**`/ws` の中継を持たない**。S5a で LP が同期クライアントになるとき、
+ここに `/ws` → 8787 の中継を足さないと dev で繋がらない。
+
+### 3.13c `STATIC_ONLY` は他のキーとの併存を拒否する
+
+`deploy/landing/app.env` が `STATIC_ONLY=1` の実例で、`deploy/lib/common.sh:80` は
+**`STATIC_ONLY` なのに `SERVICE` 等を持っていたら die する**。したがって
+`deploy/poker/app.env` を web 専用へ変えるときは、`SERVICE` / `PORT` / `ENV_FILE` /
+`APP_DIR` / `SYNC_ENTRY` を**消す**必要がある。残すと deploy が失敗する（fail-closed で正しい挙動）。
 
 ### 3.14 ストレージの規範は `localStorage` と `sessionStorage` を区別しない
 
@@ -419,17 +455,30 @@ timer の `config.members` はローテーションの表示名ミラー（D6b�
 
 ```
 room-core    → （workspace 依存なし）
-timer-core   → （workspace 依存なし）
+timer-core   → （workspace 依存なし）  ※S1〜S4a に限り room-core への一時依存を許す
 poker-core   → （workspace 依存なし）
 protocol     → （workspace 依存なし）
 rate-limit   → （workspace 依存なし）
 ui           → （workspace 依存なし）
 sync-client  → protocol
 tasuki-sync  → room-core, timer-core, poker-core, protocol, rate-limit
-landing      → protocol, sync-client, ui
-timer-web    → protocol, sync-client, timer-core, ui
-poker-web    → protocol, sync-client, poker-core, ui
+landing      → room-core, protocol, sync-client, ui
+timer-web    → room-core, protocol, sync-client, timer-core, ui
+poker-web    → room-core, protocol, sync-client, poker-core, ui
 ```
+
+**web アプリが `room-core` に依存してよいのは、D2 と矛盾しない。** D2 が禁じるのは
+**ツールのドメイン**（`timer-core` / `poker-core`）が上流へ依存することであり、
+アプリ層が純粋なドメインパッケージを使うのは元からの構図である（`timer-web` は既に
+`timer-core` に依存している）。§3.12b のとおり `participant-label.ts` が `nameSkeleton` を
+必要とするため、この辺は避けられない。
+
+**`timer-core → room-core` は期限つきの一時依存である。** §3.12b のとおり、`display-name` を
+移した S1 の時点では `timer-core/src/schemas.ts` がまだ表示名を検証している。
+表示名の検証はメンバーシップ文脈の責務なので、S4a で `timer-core` から表示名の扱いが
+消えるのと同時にこの辺も消す。**表には期限を書き、S4b の完了時に行を削除する**
+（消し忘れれば表と実体がずれるだけで検査は緑のままなので、S4b の DoD に「表からこの行を
+消したか」を入れる）。
 
 **この表は本設計の完了時点の目標状態である**（現状は `timer-web` / `poker-web` が
 `protocol` に依存していないなど、いくつか差がある）。段階ごとに表を更新しながら進める。
@@ -502,7 +551,9 @@ D8（全員が離れてもタイマーは走り続ける）と整合する。
 ### D22: 統合に伴い上限とレート制限の値を見直す
 
 §3.12 のとおり、`MAX_CONNECTIONS` / `MAX_ROOMS` の実効枠が半減し、レート制限は 1 IP
-1 バケツへ厳しくなる。**値の正本は `deploy/timer/env.example`（上限）と #103 設計正本
+1 バケツへ厳しくなる。**さらに D14 の多接続模型が消費を押し上げる** —— 選択画面とツールを
+別タブで開く利用者は 1 人で 2 接続を使う。半減と重なるので、`MAX_CONNECTIONS` は
+据え置きではなく明示的に決め直す。**値の正本は `deploy/timer/env.example`（上限）と #103 設計正本
 （レート制限）であり、本文書は値を転記しない。** S2 で両正本を参照して決める。
 
 `deploy/poker/app.env` は sync を持たなくなるため、**web だけを配る形へ変える**
@@ -696,7 +747,7 @@ D17 の検査は、追加したら意図的に壊して赤を確認する。
 
 ### 6.4 変異検査
 
-S3・S4 の直後に `node scripts/mutation-check.mjs` を回す（作業ツリーが clean でないと
+S3・S4a・S4b の直後に `node scripts/mutation-check.mjs` を回す（作業ツリーが clean でないと
 走らない）。ツールのコアから参加者を抜くと、**既存のテストが「参加者を渡さないので何を
 壊しても通る」状態に倒れる**危険がある。`shouldAutoReveal` が典型で、名簿を引数で受け取る
 形に変えたあと空集合しか渡さないテストは常に緑になる。
@@ -745,11 +796,12 @@ S5a〜S5c の各段のあと `pnpm dev` の実経路（`http://localhost:5175/`�
 | # | 内容 | 利用者から見た状態 | 同じ PR に含める配備資材 |
 |---|---|---|---|
 | S0 | ADR 4 本と子 Issue | 変化なし | — |
-| S1 | `packages/room-core` 新設＋`display-name.ts` の移設 | 変化なし | — |
-| S2 | サーバー統合（`apps/timer-sync` → `apps/tasuki-sync`、poker を移設、`apps/poker-sync` 退役）＋上限とレート制限の見直し（D22） | 変化なし | `20-poker.conf` の WS を 8787 へ／`deploy/poker/app.env` を web 専用へ／`deploy.sh`／`tasuki-poker-sync` の停止手順 |
+| S1 | `packages/room-core` 新設＋`display-name.ts` の移設（**`timer-core → room-core` の一時依存が生じる**。§3.12b・D17） | 変化なし | — |
+| S2 | サーバー統合（`apps/timer-sync` → `apps/tasuki-sync`、poker を移設、`apps/poker-sync` 退役）＋上限とレート制限の見直し（D22） | 変化なし | `20-poker.conf` の WS を 8787 へ／**`deploy/poker/app.env` を `STATIC_ONLY=1` にし `SERVICE`/`PORT`/`ENV_FILE`/`APP_DIR`/`SYNC_ENTRY` を削除**（§3.13c）／**`deploy/timer/app.env` の `SYNC_ENTRY` を新パスへ**／`tasuki-poker-sync` の停止手順／**`e2e/harness/sync.ts`・`e2e/harness/paths.ts`・`apps/poker-web/vite.config.ts` の 3311 参照**（§3.13b） |
 | S3 | 役割・ホストの廃止（ドメイン・サーバー・両 Web・E2E を同時に） | 全員同格になる。**両ツールとも完全に使える** | — |
-| S4 | 名簿統合（ツールのコアから参加者を抜く。`Round` を集約ルートに。`RotationEntry`。多接続模型） | 変化なし（内部構造のみ。入口はまだツール側） | — |
-| S5a | LP のハブ化＋`packages/sync-client` の抽出＋**timer をハブ経由に対応** | ハブ経由でも従来経路でも timer が使える | `/ws` 断片の新設／`90-landing.conf` の確認／**旧救済断片 `40-timer-legacy-room.conf` の撤去**（D11） |
+| S4a | 名簿統合（ツールのコアから参加者を抜く。`Round` を集約ルートに。`RotationEntry`） | 変化なし（内部構造のみ。入口はまだツール側） | — |
+| S4b | 同一性と在席（D12 の `localStorage` 化・D14 の多接続模型・**D21 の在席による適格判定**） | **変わる**（同じ端末で開き直すと同一人物として復帰する／2 タブが 1 人になる） | — |
+| S5a | LP のハブ化＋`packages/sync-client` の抽出＋**timer をハブ経由に対応** | ハブ経由でも従来経路でも timer が使える | `/ws` 断片の新設／**`apps/landing/vite.config.ts` に `/ws` → 8787 の dev 中継を追加**（§3.13b）／`90-landing.conf` の確認／**旧救済断片 `40-timer-legacy-room.conf` の撤去**（D11） |
 | S5b | **poker をハブ経由に対応**（`?room=` を解する） | ハブから両ツールへ行ける | — |
 | S5c | 旧入口の廃止（`Setup` / `Join` / `TopPage` / `NameForm`・ルーム無しは `/` へ）＋`/timer/ws`・`/poker/ws` の撤去 | 入口が 1 つになる | 旧 WS 断片の削除 |
 | S6 | 振り返り（`docs/adr/0003` が epic に MUST） | — | — |
@@ -758,9 +810,14 @@ S5a〜S5c の各段のあと `pnpm dev` の実経路（`http://localhost:5175/`�
 「変更していない」ことの証拠になる。ここで振る舞いを変えると以降の段階すべてで足場を失う。
 危険な移設なので、最後に旧実装を復元して突き合わせる。
 
-**S3 と S4 を分けたのは、役割廃止と名簿統合が別の論理的変更だからである**（原則 IX）。
-S3 を先に済ませると、S4 が運ぶ荷物から役割・ホスト・自動委譲・「編集者以上が 1 名以上残る」
+**S3 と S4a を分けたのは、役割廃止と名簿統合が別の論理的変更だからである**（原則 IX）。
+S3 を先に済ませると、S4a が運ぶ荷物から役割・ホスト・自動委譲・「編集者以上が 1 名以上残る」
 不変条件がまるごと落ちる。
+
+**S4a と S4b を分けたのは、片方が振る舞いを変えないからである。** 名簿統合（S4a）は
+このリポジトリで最も危険な内部移設であり、「振る舞いが変わっていない」ことを既存テストで
+示せる状態に保ちたい。同一性の保存先（D12）と多接続模型（D14）と在席による適格判定（D21）は
+**利用者から見える変更**なので、混ぜると S4a の安全性の根拠が消える。
 
 **S5a〜S5c の間は入口が二重になる。** これは「動き続ける」ための意図的な冗長であり、
 S5c で畳む。ここを畳んだまま進めると、必ずどこかで片方のツールが到達不能になる。
@@ -823,7 +880,7 @@ timer は元から `?room=` を解するため影響を受けず、**poker だ�
   （§3.13）を根拠にしている。資格情報の保存先を変えるため、D5（役割の廃止）と同じく
   既存の MUST を撤廃する。**2026-09-06 に利用者が承認済み**
 - **同一ブラウザで同じルームを 2 タブ開くと、1 人が 2 接続を持つ。** D14 の多接続模型で
-  正しく扱えるが、**timer の既存実装は `connId` を 1 本しか持たない**ので、S4 で
+  正しく扱えるが、**timer の既存実装は `connId` を 1 本しか持たない**ので、S4b で
   模型を変えるまでは後から繋いだタブが前を奪う。段階の順序を守ること
 - **別ブラウザ・ストレージ消去の場合は幽霊が 1 つ残る。** 頻度が低く、`participant.remove` で
   片付けられるため自動退去は入れない（D12）
