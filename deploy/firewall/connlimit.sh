@@ -65,6 +65,12 @@ preflight() {
 		die "ip6tables の connlimit が使えません。適用を中止します"
 	[ -f "$V4_RULES" ] || die "$V4_RULES がありません"
 	[ -f "$V6_RULES" ] || die "$V6_RULES がありません"
+	# **ufw が無効なら触らない。** 無効だと `ufw reload` は
+	# "Firewall not enabled (skipping reload)" と言って**何もせず成功を返す**。
+	# その状態で先へ進むと、古いルールが残っているだけなのに
+	# 「適用できた」と誤判定する（実際に踏んだ）。
+	ufw status 2>/dev/null | head -1 | grep -q "Status: active" ||
+		die "ufw が無効です。先に 'ufw enable' で有効にしてください（無効のまま適用すると reload が黙って飛ばされます）"
 	echo "事前確認: ufw / iptables / ip6tables / connlimit すべて利用できます"
 }
 
@@ -136,11 +142,15 @@ restore_backup() {
 # ufw reload 後に、ルールが本当に効いているかを見る。
 # **入れたつもりで入っていない**のがいちばん危ないので、必ず実物を確認する。
 verify_active() {
-	local n
-	n="$(iptables -S ufw-before-input 2>/dev/null | grep -c 'connlimit' || true)"
-	[ "$n" -ge 1 ] || die "ufw を reload したのに connlimit が iptables に現れません"
-	echo "確認: iptables の ufw-before-input に connlimit が ${n} 件"
+	local n4 n6
+	n4="$(iptables -S ufw-before-input 2>/dev/null | grep -c 'connlimit' || true)"
+	n6="$(ip6tables -S ufw6-before-input 2>/dev/null | grep -c 'connlimit' || true)"
+	# **v4 だけ見て緑にしない。** v6 の取り違えはまさにそこをすり抜けた。
+	[ "$n4" -ge 1 ] || die "iptables の ufw-before-input に connlimit が現れません"
+	[ "$n6" -ge 1 ] || die "ip6tables の ufw6-before-input に connlimit が現れません"
+	echo "確認: IPv4 ${n4} 件 / IPv6 ${n6} 件"
 	iptables -S ufw-before-input | grep 'connlimit'
+	ip6tables -S ufw6-before-input | grep 'connlimit'
 }
 
 cmd_status() {
@@ -183,17 +193,26 @@ cmd_apply() {
 }
 
 cmd_confirm() {
-	systemctl stop "${ROLLBACK_UNIT}.timer" 2>/dev/null || true
-	systemctl reset-failed "${ROLLBACK_UNIT}.service" 2>/dev/null || true
-	echo "自動巻き戻しを取り消しました。設定を確定します。"
+	# **予約が無いのに「取り消しました」と言わない。** 安全網が張られていないのに
+	# 張られていたかのように読めると、失敗に気づけない（実際に踏んだ）。
+	if systemctl list-units --all --no-legend "${ROLLBACK_UNIT}.timer" 2>/dev/null | grep -q .; then
+		systemctl stop "${ROLLBACK_UNIT}.timer" 2>/dev/null || true
+		systemctl reset-failed "${ROLLBACK_UNIT}.service" 2>/dev/null || true
+		echo "自動巻き戻しの予約を取り消しました。設定を確定します。"
+	else
+		echo "自動巻き戻しの予約はありません（取り消すものがありませんでした）。"
+	fi
+	echo "--- 現在の状態 ---"
+	cmd_status
 }
 
 cmd_rollback() {
 	remove_block "$V4_RULES"
 	remove_block "$V6_RULES"
 	ufw reload
-	if iptables -S ufw-before-input 2>/dev/null | grep -q 'connlimit'; then
-		die "巻き戻したのに connlimit が残っています"
+	if iptables -S ufw-before-input 2>/dev/null | grep -q 'connlimit' ||
+		ip6tables -S ufw6-before-input 2>/dev/null | grep -q 'connlimit'; then
+		die "巻き戻したのに connlimit が残っています（ufw が無効で reload が飛ばされた可能性があります）"
 	fi
 	echo "巻き戻しました（connlimit なし）。"
 }

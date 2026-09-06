@@ -232,6 +232,14 @@ ssh -t niku9 'sudo bash ~/connlimit.sh rollback'                        # 手で
 `/etc/ufw/` は root でないと読めないが、未編集なら同梱テンプレートと同一である。
 自分で作った「stock 相当」のファイルで試すと、この罠は見つからない。
 
+**`ufw reload` は無効時に黙って飛ばされる。** `ENABLED=no` のとき reload は
+`Firewall not enabled (skipping reload)` と出して**何もせず成功を返す**。この状態で
+適用すると、古いルールが残っているだけなのに検証が通り「入った」と誤判定する。
+さらに悪いことに、**ルール投入に失敗した `ufw reload` は ufw を無効のまま残す**。
+本番で実際に起きた（不正な v6 ルール → reload 失敗 → `ENABLED=no`）。復旧は
+`sudo ufw --force enable`。スクリプトは適用前に `ufw status` が active であることを
+確かめ、無効なら何もせず落ちる。
+
 ### 守らないもの（限界）
 
 - **QUIC / HTTP/3（UDP 443）は数えない。** 本ルールは TCP の connlimit である。
