@@ -18,7 +18,7 @@
 | 層 | 置き場 | 依存してよいもの |
 |---|---|---|
 | ドメイン（メンバーシップ文脈） | `packages/room-core` | なし（純粋関数と型のみ） |
-| ドメイン（ツール） | `packages/timer-core` `packages/poker-core` | なし（純粋関数と型のみ）。ただし `packages/timer-core` → `packages/room-core` は #95 S1 で生じた期限つきの一時依存で、S4b で外す（`docs/adr/0017` 決定 4） |
+| ドメイン（ツール） | `packages/timer-core` `packages/poker-core` | なし（純粋関数と型のみ）。ただし `packages/timer-core` → `packages/room-core` は #95 S1 で生じた期限つきの一時依存で、**依存そのものは S4a で消える**（timer-core から表示名の扱いが無くなる段）。`scripts/audit-dependency-direction.mjs` の許可表からその行を削除するのは S4b（`docs/adr/0017` 決定 4） |
 | プロトコル契約 | `packages/protocol`・各 core の `protocol.ts`（例: `packages/poker-core/src/protocol.ts`） | ドメインの型 |
 | 共有ユーティリティ（sync 専用） | `packages/rate-limit` | なし（node 標準ライブラリのみ。ドメインの型にも依存しない） |
 | アプリケーション | `apps/*-sync/src/application` | ドメイン・ポート・`packages/rate-limit` |

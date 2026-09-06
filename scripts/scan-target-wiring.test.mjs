@@ -360,6 +360,112 @@ describe("0 件ガードの配線: scripts/audit-log-hygiene.mjs", () => {
   });
 });
 
+describe("宣言と 0 件ガードの配線: scripts/audit-dependency-direction.mjs（#95 S1）", () => {
+  // この検査だけが配線の破壊検証を持たず、**両方のガードを `if (false)` に潰しても
+  // scripts の自己テストが全部緑のままだった**（2026-09-07 のレビューで実測された）。
+  // `audit-dependency-direction.test.mjs` は純粋関数（findViolations）しか見ないので、
+  // main() の中でガードが呼ばれているかは別に見る必要がある（ADR-0014 決定 7・決定 8）。
+
+  test("対照実行: 書き換えない複製は exit 0 で走査量を出す", () => {
+    // Given: 複製するだけで中身は変えない
+    // When
+    const r = runScriptCopy("audit-dependency-direction.mjs", (s) => s);
+    // Then
+    assert.equal(r.status, 0, `対照実行が緑になりません:\n${r.stderr}`);
+    assert.match(
+      r.stdout,
+      /\[audit-dependency-direction\] 走査対象: \d+ パッケージ \/ \d+ ファイル/,
+    );
+  });
+
+  test("許可表に無いパッケージがあると全単射照合が非ゼロで落とす", () => {
+    // Given: 実体はそのまま、宣言から 1 行だけ落とす（実在するのに宣言に無い状態）
+    const mutate = (s) => s.replace('  "packages/room-core": [],\n', "");
+    // When
+    const r = runScriptCopy("audit-dependency-direction.mjs", mutate);
+    // Then: まず「壊れたこと自体」を確かめる
+    assert.equal(countOf(r.source, '"packages/room-core": []'), 0, "宣言を落とせていません");
+    // Then
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.match(r.stderr, /実在するが宣言に無い:\s+packages\/room-core/);
+  });
+
+  test("実在しないパッケージを宣言に足すと全単射照合が非ゼロで落とす", () => {
+    // Given: missing 方向のずれ。**この向きは照合だけが拾える** ——
+    //        `findViolations` が見るのは実在パッケージから作った観測結果なので、
+    //        実在しない宣言はそもそも現れない（unexpected 方向は両方が拾う）。
+    const mutate = (s) =>
+      s.replace('  "packages/room-core": [],', '  "packages/ghost": [],\n  "packages/room-core": [],');
+    // When
+    const r = runScriptCopy("audit-dependency-direction.mjs", mutate);
+    // Then: まず「壊れたこと自体」を確かめる
+    assert.equal(countOf(r.source, '"packages/ghost": []'), 1, "宣言を足せていません");
+    // Then
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.match(r.stderr, /宣言にあるが実在しない:\s+packages\/ghost/);
+  });
+
+  test("全単射照合の配線を消すと、実在しない宣言が素通りする", () => {
+    // Given: 実在しない宣言を足したうえで、照合の分岐そのものを殺す。
+    //        ガードが main() から外れていれば、ずれたまま緑になってしまう。
+    const mutate = (s) =>
+      s
+        .replace('  "packages/room-core": [],', '  "packages/ghost": [],\n  "packages/room-core": [],')
+        .replace("if (hasTargetDrift(drift)) {", "if (false) {");
+    // When
+    const r = runScriptCopy("audit-dependency-direction.mjs", mutate);
+    // Then: まず「壊れたこと自体」を確かめる
+    assert.equal(countOf(r.source, "if (hasTargetDrift(drift)) {"), 0, "照合を壊せていません");
+    // Then: 本体側の分岐が missing 方向の唯一の防波堤であることをここで固定する
+    assert.equal(r.status, 0, "照合を殺しても落ちないことの確認（配線の所在を固定する）");
+    assert.doesNotMatch(r.stderr, /宣言にあるが実在しない/);
+  });
+
+  test("走査対象が 0 件になると非ゼロで終了する", () => {
+    // Given: 全単射照合は素通りさせたまま（宣言は触らない）、走査だけを空にする
+    const mutate = (s) =>
+      s.replace(
+        "  const sources = new Map(packages.map((pkg) => [pkg, listPackageSources(pkg)]));",
+        "  const sources = new Map(packages.map((pkg) => [pkg, []]));",
+      );
+    // When
+    const r = runScriptCopy("audit-dependency-direction.mjs", mutate);
+    // Then: まず「壊れたこと自体」を確かめる
+    // **`listPackageSources(pkg)` だけを数えてはならない。** 関数の定義行
+    // （`function listPackageSources(pkg) {`）にも同じ綴りがあり、呼び出しを
+    // 潰しても数が 0 にならない（この検査を書いた最初の版が実際に踏んだ）。
+    assert.equal(
+      countOf(r.source, "[pkg, listPackageSources(pkg)]"),
+      0,
+      "走査対象の導出を壊せていません",
+    );
+    // Then: 照合では止まらず、0 件ガードが落とす
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.doesNotMatch(r.stderr, /実在するが宣言に無い/);
+    assert.match(r.stdout, /走査対象: \d+ パッケージ \/ 0 ファイル/);
+    assert.match(r.stderr, /走査対象が 0 件です.*ファイル/);
+  });
+
+  test("0 件ガードの配線を消すと、走査 0 件のまま緑になる", () => {
+    // Given: 走査を空にしたうえで、0 件ガードの分岐そのものを殺す
+    const mutate = (s) =>
+      s
+        .replace(
+          "  const sources = new Map(packages.map((pkg) => [pkg, listPackageSources(pkg)]));",
+          "  const sources = new Map(packages.map((pkg) => [pkg, []]));",
+        )
+        .replace("if (emptyDimensions.length > 0) {", "if (false) {");
+    // When
+    const r = runScriptCopy("audit-dependency-direction.mjs", mutate);
+    // Then: まず「壊れたこと自体」を確かめる
+    assert.equal(countOf(r.source, "if (emptyDimensions.length > 0) {"), 0, "ガードを壊せていません");
+    // Then: 0 件ガードが main() の唯一の防波堤であることを固定する
+    assert.equal(r.status, 0, "ガードを殺しても落ちないことの確認（配線の所在を固定する）");
+    assert.match(r.stdout, /走査対象: \d+ パッケージ \/ 0 ファイル/);
+    assert.doesNotMatch(r.stderr, /走査対象が 0 件です/);
+  });
+});
+
 describe("0 件ガードの配線: scripts/audit-assembly-wiring.mjs", () => {
   test("対照実行: 書き換えない複製は exit 0 で走査量を出す", () => {
     // Given: 複製するだけで中身は変えない

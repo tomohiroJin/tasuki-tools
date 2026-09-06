@@ -17,9 +17,17 @@
  *   2. **`package.json` の依存宣言**（`dependencies` と `devDependencies` の両方）に、
  *      表に無い `@tasuki/*` が無い
  *   3. **追跡下の `.ts` / `.tsx` の import 文**に、表に無い `@tasuki/*` が無い
+ *   4. **同じ import 文に、パッケージの外へ出る相対パスが無い**
  *
  * 2 と 3 の**両方**を見る。片方だけだと、宣言せずに import する経路（あるいは
  * 宣言だけして使わない経路）が抜ける。
+ *
+ * 4 が要るのは、**規範を迂回する側だけが通る形**になっていたからである。
+ * `@tasuki/room-core` と書けば赤くなるのに、`../../room-core/src/display-name.js` と
+ * 書くと緑のままだった（2026-09-07 のレビューで指摘され、実測で再現した）。
+ * `moduleResolution: "Bundler"` と各パッケージの `include: ["src", "tests"]` の下では
+ * tsc も vite も bun もこの import を解決するので、実在しうる経路である。
+ * **パッケージ間は必ずパッケージ名で参照する**（そうでなければ 2 と 3 が意味を失う）。
  *
  * **走査は `src` に限らない。** テストコードからの取り込みも依存であり、
  * `src` だけを見ると `test/` 経由の逆流が素通りする（2026-09-07 の実測では
@@ -83,6 +91,14 @@ export const ALLOWED = {
 const TASUKI_SPECIFIER = /["'](@tasuki\/[a-z0-9-]+)/g;
 
 /**
+ * 相対パスの指定子を拾う。
+ *
+ * `from "..."` と `import("...")` の両方を見る。`export ... from "..."` も
+ * `from` を持つので同じ式で拾える。
+ */
+const RELATIVE_SPECIFIER = /(?:from|import)\s*\(?\s*["'](\.[^"']*)["']/g;
+
+/**
  * パッケージごとの `{ manifest, imports }` から違反を返す。
  *
  * 引数を受け取る形にしてあるのは、ファイルシステムを触らずに検査できるようにするため。
@@ -91,7 +107,7 @@ const TASUKI_SPECIFIER = /["'](@tasuki\/[a-z0-9-]+)/g;
  */
 export function findViolations(observed) {
   const violations = [];
-  for (const [pkg, { manifest, imports }] of Object.entries(observed)) {
+  for (const [pkg, { manifest, imports, escapes = [] }] of Object.entries(observed)) {
     const allowed = ALLOWED[pkg];
     if (allowed === undefined) {
       violations.push({ pkg, dep: null, via: "declaration" });
@@ -103,6 +119,11 @@ export function findViolations(observed) {
     }
     for (const dep of new Set(imports)) {
       if (!set.has(dep)) violations.push({ pkg, dep, via: "import" });
+    }
+    // 相対パスでパッケージの外へ出る取り込みは、依存先が表にあるかどうかによらず違反。
+    // 表に載っている依存先であっても、パッケージ名で参照しなければ 2 と 3 が空振りする。
+    for (const dep of new Set(escapes)) {
+      violations.push({ pkg, dep, via: "相対パス" });
     }
   }
   return violations;
@@ -132,11 +153,18 @@ function observe(pkg, files) {
     }
   }
   const imports = [];
+  const escapes = [];
   for (const rel of files) {
     const text = fs.readFileSync(path.join(REPO_ROOT, rel), "utf8");
     for (const m of text.matchAll(TASUKI_SPECIFIER)) imports.push(m[1]);
+    for (const m of text.matchAll(RELATIVE_SPECIFIER)) {
+      // 解決先はリポジトリ相対で持つ。パッケージの接頭辞から外れたら越境。
+      // `path.posix` で畳むのは、走査対象のパスが常に `/` 区切りだから。
+      const target = path.posix.normalize(path.posix.join(path.posix.dirname(rel), m[1]));
+      if (!target.startsWith(`${pkg}/`)) escapes.push(`${rel} → ${m[1]}`);
+    }
   }
-  return { manifest, imports };
+  return { manifest, imports, escapes };
 }
 
 function main() {
@@ -189,7 +217,9 @@ function main() {
     console.error(
       v.dep === null
         ? `  ${v.pkg}: 許可表に宣言がありません`
-        : `  ${v.pkg} → ${v.dep}（${v.via}）`,
+        : v.via === "相対パス"
+          ? `  ${v.pkg}: パッケージの外を相対パスで取り込んでいます ${v.dep}`
+          : `  ${v.pkg} → ${v.dep}（${v.via}）`,
     );
   }
   process.exit(1);

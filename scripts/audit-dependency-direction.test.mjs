@@ -59,6 +59,48 @@ test("package.json と import の両方に出れば両方を報告する（片�
   ]);
 });
 
+test("パッケージの外へ出る相対パスを違反として報告する", () => {
+  // `@tasuki/room-core` と書けば赤くなるのに、相対パスで書くと緑だった経路
+  // （2026-09-07 のレビュー指摘。規範を迂回する側だけが通っていた）。
+  const violations = findViolations({
+    "packages/poker-core": {
+      manifest: [],
+      imports: [],
+      escapes: ["packages/poker-core/src/deck.ts → ../../room-core/src/display-name.js"],
+    },
+  });
+  assert.deepEqual(violations, [
+    {
+      pkg: "packages/poker-core",
+      dep: "packages/poker-core/src/deck.ts → ../../room-core/src/display-name.js",
+      via: "相対パス",
+    },
+  ]);
+});
+
+test("表にある依存先でも、相対パスで取り込めば違反になる", () => {
+  // 表を見て「許されている」と判断してはならない。パッケージ名で参照しない限り、
+  // package.json と import 指定子を見る 2 つの経路がどちらも空振りする。
+  const violations = findViolations({
+    "packages/timer-core": {
+      manifest: ["@tasuki/room-core"],
+      imports: [],
+      escapes: ["packages/timer-core/src/schemas.ts → ../../room-core/src/display-name.js"],
+    },
+  });
+  assert.equal(violations.length, 1);
+  assert.equal(violations[0].via, "相対パス");
+});
+
+test("パッケージの内側で閉じる相対パスは通す", () => {
+  // 越境だけを見る。パッケージ内の相対 import は普通の書き方であり、
+  // ここで拾うと検査が全パッケージで常に赤くなる（空振りの逆の壊れ方）。
+  const violations = findViolations({
+    "packages/room-core": { manifest: [], imports: [], escapes: [] },
+  });
+  assert.deepEqual(violations, []);
+});
+
 test("許可表は空でない（このガード自身の空振り検出）", () => {
   // 下限は「非空」だけにする。固定値は ADR-0014 決定 8 の MUST NOT
   // （パッケージが 1 つ増えるたびに無関係な赤が出る）。
