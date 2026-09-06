@@ -18,6 +18,10 @@
       "dependsOn": ["^build"],
       "outputs": ["coverage/**"]
     },
+    "@tasuki/room-core#test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"]
+    },
     "lint": {
       "outputs": []
     },

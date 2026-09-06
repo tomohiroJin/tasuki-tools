@@ -66,3 +66,30 @@
 - `timer-core` / `poker-core` から参加者エンティティが消える（段階的に。設計正本 §7）
 - `scripts/audit-dependency-direction.mjs` が新設され、CI の `quality` ジョブで走る
 - 詳細な段階分割・実測・型定義は設計正本を参照する。**本 ADR に転記しない**
+
+## 追記（2026-09-07・#242 / S1）
+
+**決定 4 の暫定規定は解消した。** 決定 4 は「同スクリプトは S1（#242）で新設するため、
+それまでの間は設計正本 D17 の表が暫定の正本である」としていたが、S1 で
+`scripts/audit-dependency-direction.mjs` を新設した。**依存の向きの正本は同スクリプトの
+`ALLOWED` である。** 設計正本 D17 の表は**最終形の目標**であり、現在の実体とは異なる
+（例: `landing → room-core, protocol, sync-client, ui` は目標であって、S1 完了時点の実体は
+`apps/landing: ["@tasuki/ui"]` である）。**現況を知りたいときは `ALLOWED` を見ること。**
+
+**期限つき一時依存 `timer-core → room-core` の期限は 2 段に分かれる。**
+混同しやすいので明示する（設計正本 §D17 の該当箇所に対応する）。
+
+| 何を | いつ | 根拠 |
+|---|---|---|
+| 依存そのもの（`timer-core` が `room-core` を取り込むのをやめる） | **S4a**（#245） | timer-core から表示名の扱いが消える段 |
+| `ALLOWED` からその行を削除する | **S4b**（#246） | 行が残っても検査は緑のままなので、S4b の DoD で確認する |
+
+**検査は 4 つの経路を見る。** 決定 4 の本文は `package.json` と import 文の 2 つを挙げて
+いるが、実装は次の 4 つを見る。3 つめまでを塞いでも、4 つめ（相対パスでの越境）が残ると
+**規範を迂回する側だけが通る**（`@tasuki/room-core` と書けば赤いのに
+`../../room-core/src/display-name.js` と書けば緑、という状態が実際にあった）。
+
+1. 宣言と実体の全単射照合（`docs/adr/0014` 決定 1。権威は pnpm 自身）
+2. `package.json` の依存宣言（`dependencies` と `devDependencies`）
+3. 追跡下の `.ts` / `.tsx` の import 指定子（`src` に限らない。テストからの逆流も依存である）
+4. 同じ import 文のうち、パッケージの外へ出る相対パス
