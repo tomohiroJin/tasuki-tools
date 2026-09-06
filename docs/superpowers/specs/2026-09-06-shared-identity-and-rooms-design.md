@@ -174,10 +174,21 @@ poker の接続が timer の枠を食う。レート制限は逆に厳しくな�
 - `packages/timer-core/src/index.ts` が `nameSkeleton` / `conflictsWithExisting` を再輸出している
 - **`apps/timer-web/src/ui/participant-label.ts` が `@tasuki/timer-core` から `nameSkeleton` を
   import している**（同名の参加者に識別子を添える判定）
+- **`apps/timer-sync/src/application/handlers.ts` が `@tasuki/timer-core` から
+  `conflictsWithExisting` を import している**（`participant.addProxy` / `participant.rename` の
+  重複検査。`:447` と `:468` の 2 箇所で呼ぶ）
 
-**つまり `display-name` を `room-core` へ移すと、timer-core と timer-web の両方が
-`room-core` を要る。** D17 の依存表は web アプリに `room-core` を許しておらず、
+> **【S1（#242）実施時の訂正・2026-09-07】** 上の 4 つめは当初の数え上げが落としていた。
+> 本節はもともと利用者を 3 つと数えており、S0・S1 の実装計画はそれを引き継いで
+> 「`conflictsWithExisting` に製品コードの呼び出し元は無い」と書いていた。どちらも誤りである。
+> **S4a で timer-core から表示名の扱いを外すときは、`apps/timer-sync` を数え直すこと。**
+
+**つまり `display-name` を `room-core` へ移すと、timer-core・timer-web・timer-sync の
+3 つが `room-core` を要る。** D17 の依存表は web アプリに `room-core` を許しておらず、
 D2（ツールのコアは room-core に依存しない）と正面から衝突する。対処は D17 と S1 の注記で行う。
+アプリ層（`timer-web` / `timer-sync`）が `room-core` に依存するのは
+[`docs/adr/0017`](../../adr/0017-bounded-contexts-and-packages.md) 決定 2 の対象外であり、
+D17 の目標表（`tasuki-sync → room-core`）とも一致する。
 
 ### 3.13 参加者は明示的な退出でしか名簿から消えない
 
