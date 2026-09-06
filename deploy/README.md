@@ -216,6 +216,20 @@ ssh -t niku9 'sudo bash ~/connlimit.sh rollback'                        # 手で
 - `before.rules` / `before6.rules` は適用時に日付つきで退避される
 - スクリプトは冪等。既に入っていれば何もしない
 
+### ⚠ CDN・リバースプロキシを前段に置くときは必ず外す
+
+**Cloudflare のような CDN を前に置くと、全利用者の接続が CDN の少数の IP から来る。**
+その瞬間、この規則は**全員を 80 本で頭打ちにする**（同一 IP と見なされるため）。
+前段を増やすなら、このルールを外すか、CDN の IP を除外する必要がある。
+#103 が `X-Forwarded-For` の信頼で同じ構造の罠を持っているのと同じ形である。
+
+**退避ファイルは apply のたびに増える。** `/etc/ufw/before{,6}.rules.bak-<日時>` が
+溜まるので、確定後は古いものを消してよい（消さなくても動作には影響しない）。
+
+**`--rollback-after` の安全網は、まだ発火を確認していない**（2026-09-06 時点）。
+機構だけを確かめるなら、ファイアウォールを触らない形で試せる:
+`sudo systemd-run --on-active=1min --unit=rb-test /bin/bash ~/connlimit.sh status`
+
 ### 踏んだ罠（2026-09-06）
 
 **IPv4 と IPv6 でチェーン名が違う。** `before.rules` は `ufw-before-input`、
