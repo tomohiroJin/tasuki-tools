@@ -12,8 +12,10 @@
   [`docs/timer/adr/0007`](../../timer/adr/0007-volatile-in-memory-state.md)（揮発インメモリ状態）
 - **番号の注意**: **`docs/adr/0007`（抽象の導入基準）と `docs/timer/adr/0007`（揮発インメモリ状態）は
   別の文書である。** 本文書では番号だけで指さず、必ずパスで書く
-- **この文書の位置づけ**: **実測値・決定の正本はこの文書**。Issue 本文・PR・子 Issue へ
+- **この文書の位置づけ**: **実測値と設計の正本はこの文書**。Issue 本文・PR・子 Issue へ
   表を転記せず、ここを参照する。
+  **決定そのものの正本は ADR である**（憲法 原則 VIII が MUST とする）。§4 は ADR に載せる
+  決定の草案であり、S0 で `docs/adr/0017`〜`0019` と既存 ADR の改定へ移す。
 
 ## 1. 範囲
 
@@ -456,7 +458,7 @@ timer の `config.members` はローテーションの表示名ミラー（D6b�
 ```
 room-core    → （workspace 依存なし）
 timer-core   → （workspace 依存なし）  ※S1〜S4a に限り room-core への一時依存を許す
-poker-core   → （workspace 依存なし）
+poker-core   → protocol                ※既存。下記の注を見よ
 protocol     → （workspace 依存なし）
 rate-limit   → （workspace 依存なし）
 ui           → （workspace 依存なし）
@@ -465,7 +467,17 @@ tasuki-sync  → room-core, timer-core, poker-core, protocol, rate-limit
 landing      → room-core, protocol, sync-client, ui
 timer-web    → room-core, protocol, sync-client, timer-core, ui
 poker-web    → room-core, protocol, sync-client, poker-core, ui
+e2e          → landing, poker-web, timer-web
 ```
+
+**`poker-core → protocol` は実在する既存の依存であり、本設計では外さない。**
+`packages/poker-core/src/protocol.ts` が `parseBoundaryMessage` を取り込んでいる
+（境界のパースを `@tasuki/protocol` に一本化している）。**timer-core には同じ依存が無い**
+—— timer の wire スキーマは `timer-core/src/schemas.ts` が valibot を直に使い、
+境界のパースは `apps/timer-sync` 側が `@tasuki/protocol` を呼ぶ。
+
+この非対称は #95 の対象外である。**「ツールのドメインは何にも依存しない」と書くと
+実体と食い違う**ので、表は実測どおりに書く（表と実体がずれると検査が嘘になる）。
 
 **web アプリが `room-core` に依存してよいのは、D2 と矛盾しない。** D2 が禁じるのは
 **ツールのドメイン**（`timer-core` / `poker-core`）が上流へ依存することであり、
