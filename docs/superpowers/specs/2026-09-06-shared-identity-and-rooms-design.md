@@ -14,8 +14,11 @@
   別の文書である。** 本文書では番号だけで指さず、必ずパスで書く
 - **この文書の位置づけ**: **実測値と設計の正本はこの文書**。Issue 本文・PR・子 Issue へ
   表を転記せず、ここを参照する。
-  **決定そのものの正本は ADR である**（憲法 原則 VIII が MUST とする）。§4 は ADR に載せる
-  決定の草案であり、S0 で `docs/adr/0017`〜`0019` と既存 ADR の改定へ移す。
+  **決定そのものの正本は ADR である**（憲法 原則 VIII が MUST とする）。§4 の決定のうち
+  ADR を持つもの（D1・D2・D3・D5・D7・D10・D11・D12・D17・D19・D20）は S0 で
+  `docs/adr/0017`〜`0019` および既存 ADR の改定へ移設済みであり、各節の冒頭が指す ADR が
+  決定の正本である。残りの決定（D4・D6・D8・D9・D13〜D16・D18・D21・D22）は ADR を持たず、
+  本文書が引き続き正本である。
 
 ## 1. 範囲
 
@@ -233,6 +236,9 @@ S2（サーバー統合）と同じ PR で直さないと、E2E も dev も落�
 
 ### D1: 文脈を 3 つに割る。共有カーネルを作らない
 
+> **決定の正本は [`docs/adr/0017`](../../adr/0017-bounded-contexts-and-packages.md) 決定 1 である。**
+> 以下はその決定に至った論拠であり、規範としての効力は ADR が持つ。
+
 「`Participant` が 2 箇所で定義されている」は症状であり、原因は**境界づけられた文脈が
 切られていない**ことである。timer と poker はそれぞれ独立した文脈でありながら、
 どちらも「メンバーシップ」という第三の文脈を各自で抱え込んでいる。
@@ -250,10 +256,16 @@ S2（サーバー統合）と同じ PR で直さないと、E2E も dev も落�
 
 ### D2: ツールのコアは room-core に依存しない
 
+> **決定の正本は [`docs/adr/0017`](../../adr/0017-bounded-contexts-and-packages.md) 決定 2 である。**
+> 以下はその決定に至った論拠であり、規範としての効力は ADR が持つ。
+
 `ParticipantId` は不透明な文字列として受け取る。依存させれば型安全は上がるが、
 下流が上流に縛られ、ツール単体で完結する性質を失う。つなぐのはアプリケーション層の責務。
 
 ### D3: 文脈間の整合は明示的なユースケースで合成する
+
+> **決定の正本は [`docs/adr/0017`](../../adr/0017-bounded-contexts-and-packages.md) 決定 3 である。**
+> 以下はその決定に至った論拠であり、規範としての効力は ADR が持つ。
 
 イベントバスを入れない。購読者 2 つで導入するのは原則 X に反する。
 合成が 1 関数に集まっていれば「ツールを足すときに触る場所は 1 箇所」という目的は
@@ -266,6 +278,11 @@ S2（サーバー統合）と同じ PR で直さないと、E2E も dev も落�
 ローテーションに不在者が並ぶ、といった破綻を避ける。
 
 ### D5: 役割とホストを廃止する
+
+> **決定の正本は [`docs/timer/adr/0007`](../../timer/adr/0007-volatile-in-memory-state.md) の
+> 「改定（2026-09-06・#95）」、および [`docs/adr/0011`](../../adr/0011-threat-model-and-data-classification.md)
+> 決定2 の脅威表 S1・S9 である。** 以下はその決定に至った論拠であり、規範としての効力は
+> それらの ADR が持つ。
 
 ルームに居る全員が完全に同格になる。廃止対象は `Role` 型・`permissions.ts`・
 `participants.ts`（「編集者以上が 1 名以上残る」不変条件）・`role.set`・`host.transfer`・
@@ -306,6 +323,9 @@ timer の画面には「そのツールに在席している参加者の一覧�
 
 ### D7: 入口を LP に一本化する
 
+> **決定の正本は [`docs/adr/0018`](../../adr/0018-single-entry-and-url-scheme.md) 決定 1 である。**
+> 以下はその決定に至った論拠であり、規範としての効力は ADR が持つ。
+
 ルーム作成と名乗りの場所を 1 つにする。`apps/timer-web` の `Setup.tsx` / `Join.tsx` と
 `apps/poker-web` の `TopPage.tsx` / `NameForm.tsx` は廃止する。ルームコード無しで
 `/timer/` や `/poker/` を開いた場合は `/` へ送る。
@@ -327,6 +347,9 @@ timer の画面には「そのツールに在席している参加者の一覧�
 
 ### D10: WebSocket の入口を `/ws` に一本化する
 
+> **決定の正本は [`docs/adr/0018`](../../adr/0018-single-entry-and-url-scheme.md) 決定 3 である。**
+> 以下はその決定に至った論拠であり、規範としての効力は ADR が持つ。
+
 3 アプリすべてが同じ入口に繋ぐ。`sync-url.ts` にある「ルート直下の `/ws` に繋いでは
 いけない」というコメントは、**その断片が存在しないから**であった。Caddy はマッチャの
 具体性で並べるため、`handle /ws` を置けば包括フォールバックより先に評価される。
@@ -345,14 +368,16 @@ timer の画面には「そのツールに在席している参加者の一覧�
 poker の `/poker/room/<id>` というパス方式も `?room=` に揃える。ルームコードには日本語が
 入りうる（`朝会モブ-a1b2`）ため、クエリの方が符号化を既存の `buildRoomUrl` に任せられる。
 
-| 経路 | URL |
-|---|---|
-| 参加用 URL（配るもの） | `/?room=CODE` |
-| タイマー | `/timer/?room=CODE` |
-| ポーカー | `/poker/?room=CODE` |
-| 選択画面へ戻る | `/?room=CODE` |
+**URL 体系の表そのものの正本は
+[`docs/adr/0018`](../../adr/0018-single-entry-and-url-scheme.md) 決定 2 である。**
+本文書では転記しない（憲法 原則 VIII）。
 
 ### D12: 同一性は 2 つに分ける
+
+> **決定の正本は
+> [`docs/plans/resume-token-wiring/spec.md`](../../plans/resume-token-wiring/spec.md) の
+> FR-006 撤廃、および [`docs/adr/0011`](../../adr/0011-threat-model-and-data-classification.md)
+> 決定1 の注記である。** 以下はその決定に至った論拠であり、規範としての効力はそちらが持つ。
 
 - **復帰の組（`participantId` / `resumeToken` / 表示名）はサーバー発行・`localStorage` に
   ルームコード別で保存する。** poker が現在採っている形（`apps/poker-web/src/storage.ts`）に揃える
@@ -451,6 +476,9 @@ timer の `config.members` はローテーションの表示名ミラー（D6b�
 
 ### D17: 依存の向きを許可リストで機械的に固定する
 
+> **決定の正本は [`docs/adr/0017`](../../adr/0017-bounded-contexts-and-packages.md) 決定 4 である。**
+> 以下はその決定に至った論拠であり、規範としての効力は ADR が持つ。
+
 §3.6 のとおり原則 VI に守りが無い。表に無い依存を拒否する検査を足す。
 判定は `package.json` の `dependencies` と `import` 文の**両方**を見る（片方だけだと、
 宣言せずに import する経路が抜ける）。
@@ -511,6 +539,9 @@ timer-web（`sync/backoff.ts` / `join-retry.ts`）と poker-web（`join-retry.ts
 
 ### D19: `room-core` は `docs/adr/0016` の「必ず揃える点」に従う
 
+> **決定の正本は [`docs/adr/0017`](../../adr/0017-bounded-contexts-and-packages.md) 決定 5 である。**
+> 以下はその決定に至った論拠であり、規範としての効力は ADR が持つ。
+
 同 ADR の決定 2 は、表現の選択に関わらず次を課す。`room-core` も例外ではない。
 
 1. ドメイン操作の失敗は `Result<T, E>` で表す（MUST）
@@ -525,6 +556,9 @@ timer-web（`sync/backoff.ts` / `join-retry.ts`）と poker-web（`join-retry.ts
 **この選択を §9 の ADR に明記する**。
 
 ### D20: `docs/adr/0015` の適用範囲を `apps/landing` へ広げる
+
+> **決定の正本は [`docs/adr/0019`](../../adr/0019-web-layer-scope-includes-landing.md) である。**
+> 以下はその決定に至った論拠であり、規範としての効力は ADR が持つ。
 
 §3.10 の穴を塞ぐ。LP が同期クライアントになる以上、web 層の 3 責務（純粋関数への切り出し・
 同期フック 1 本への集約・画面は表示に徹する）は LP にも掛かるべきである。
