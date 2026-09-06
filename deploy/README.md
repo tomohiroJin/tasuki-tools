@@ -182,6 +182,95 @@ ssh "$TASUKI_SSH_HOST" 'sudo systemctl start tasuki-sync'
 RENDER_ONLY=1 DEPLOY_USER=<user> bash deploy/setup.sh timer
 ```
 
+## 同一 IP の同時接続数制限（#143）
+
+**同一送信元 IP からの 443 同時接続を 80 本までに制限する。** 適用は
+`deploy/firewall/connlimit.sh`（**実際に効く値の正本はこのスクリプトの `CONNLIMIT_MAX`**）。
+
+### 何の対策か
+
+同時接続上限（`MAX_CONNECTIONS`・本番 200）は**グローバルで IP 単位ではない**ため、
+単一 IP が枠を占有すると正規利用者を締め出せる（ADR 0011 脅威 S7）。それをネットワーク層で止める。
+**アプリ側の IP 単位レート制限（#103）とは別軸**である —— あちらは入室・解錠の**失敗回数**、
+こちらは**同時接続数**を見る。
+
+### 上限を 80 にした根拠
+
+1 人あたり約 2 接続（HTTP/2 多重化）なので、**同一拠点 40 人までは無傷**。
+グローバル 200 枠に対して単一 IP が取れるのは 40% までで、独占はできない。
+想定より大きい拠点が出たら緩める。**値を変えるときは、このスクリプトとこの節の両方を直すこと。**
+
+### 使い方（root が要るので利用者のターミナルで実行する）
+
+```bash
+scp deploy/firewall/connlimit.sh niku9:~/connlimit.sh
+ssh -t niku9 'sudo bash ~/connlimit.sh status'                          # 現状を見る
+ssh -t niku9 'sudo bash ~/connlimit.sh apply --rollback-after 10min'    # 安全網つきで適用
+# 正規利用に問題が無いことを確かめてから
+ssh -t niku9 'sudo bash ~/connlimit.sh confirm'                         # 確定（自動巻き戻しを取消）
+ssh -t niku9 'sudo bash ~/connlimit.sh rollback'                        # 手で戻す
+```
+
+- **22/tcp には触らないので SSH ロックアウトは起きない。** 残るリスクは
+  「上限が低すぎて正規利用者を締め出す」ことだけなので `--rollback-after` で安全網を掛ける
+- `before.rules` / `before6.rules` は適用時に日付つきで退避される
+- スクリプトは冪等。既に入っていれば何もしない
+
+### ⚠ CDN・リバースプロキシを前段に置くときは必ず外す
+
+**Cloudflare のような CDN を前に置くと、全利用者の接続が CDN の少数の IP から来る。**
+その瞬間、この規則は**全員を 80 本で頭打ちにする**（同一 IP と見なされるため）。
+前段を増やすなら、このルールを外すか、CDN の IP を除外する必要がある。
+#103 が `X-Forwarded-For` の信頼で同じ構造の罠を持っているのと同じ形である。
+
+**退避ファイルは apply のたびに増える。** `/etc/ufw/before{,6}.rules.bak-<日時>` が
+溜まるので、確定後は古いものを消してよい（消さなくても動作には影響しない）。
+
+**`--rollback-after` の機構は確認済み**（2026-09-06）。`status` を積んだ使い捨てタイマーを
+1 分後に仕掛け、予約時刻ちょうどに発火して root でスクリプトが完走することを journal で確認した。
+`rollback` も手で実行して動作を確認済みだが、**「タイマー経由で `rollback` が走る」という
+組み合わせそのものは、まだ観測していない**。
+
+ファイアウォールを触らずに機構だけ試すには次を使う（transient なので完走後に自動で消える）:
+
+```bash
+sudo systemd-run --on-active=1min --unit=rb-test /bin/bash ~/connlimit.sh status
+sudo journalctl -u rb-test.service --no-pager -n 30   # 発火の証拠はここにしか残らない
+```
+
+### 踏んだ罠（2026-09-06）
+
+**IPv4 と IPv6 でチェーン名が違う。** `before.rules` は `ufw-before-input`、
+`before6.rules` は **`ufw6-before-input`** である。同じ名前を両方へ書くと
+`ip6tables-restore: No chain/target/match by that name` で `ufw reload` が失敗し、
+**壊れたルールファイルが残って以後の起動でも失敗し続ける**（実際に本番で踏んだ）。
+
+スクリプトは 2 つの手当てを持つ。
+
+- 書く前に `:<チェーン名>` がそのファイルで定義されているかを確かめ、無ければ**書き換えずに落ちる**
+- `ufw reload` に失敗したら、**その場で退避から戻して** reload し直す
+
+**検証は `/usr/share/ufw/iptables/before{,6}.rules`（パッケージ同梱・誰でも読める）で行うこと。**
+`/etc/ufw/` は root でないと読めないが、未編集なら同梱テンプレートと同一である。
+自分で作った「stock 相当」のファイルで試すと、この罠は見つからない。
+
+**`ufw reload` は無効時に黙って飛ばされる。** `ENABLED=no` のとき reload は
+`Firewall not enabled (skipping reload)` と出して**何もせず成功を返す**。この状態で
+適用すると、古いルールが残っているだけなのに検証が通り「入った」と誤判定する。
+さらに悪いことに、**ルール投入に失敗した `ufw reload` は ufw を無効のまま残す**。
+本番で実際に起きた（不正な v6 ルール → reload 失敗 → `ENABLED=no`）。復旧は
+`sudo ufw --force enable`。スクリプトは適用前に `ufw status` が active であることを
+確かめ、無効なら何もせず落ちる。
+
+### 守らないもの（限界）
+
+- **QUIC / HTTP/3（UDP 443）は数えない。** 本ルールは TCP の connlimit である。
+  WebSocket は TCP を通るので接続枠の独占は防げるが、UDP 側は射程外
+- **複数 IP へ分散する攻撃者は防げない**（#103 と同じ限界。ADR 0011 決定4）
+- **IPv6 側は現在不活性。** 本番にグローバル IPv6 が無いため（ULA のみ）。
+  後で有効にしたときに静かに穴が開かないよう、`before6.rules` にも
+  **/64 で丸めた**同じルールを先に入れてある（#103 決定 D1 と同じ丸め方）
+
 ## 秘密の取り扱い
 
 **秘密はリポジトリに置かない。** 実体は VPS 上の env ファイルだけに存在する。
