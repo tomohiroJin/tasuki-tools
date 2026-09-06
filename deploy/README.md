@@ -226,9 +226,17 @@ ssh -t niku9 'sudo bash ~/connlimit.sh rollback'                        # 手で
 **退避ファイルは apply のたびに増える。** `/etc/ufw/before{,6}.rules.bak-<日時>` が
 溜まるので、確定後は古いものを消してよい（消さなくても動作には影響しない）。
 
-**`--rollback-after` の安全網は、まだ発火を確認していない**（2026-09-06 時点）。
-機構だけを確かめるなら、ファイアウォールを触らない形で試せる:
-`sudo systemd-run --on-active=1min --unit=rb-test /bin/bash ~/connlimit.sh status`
+**`--rollback-after` の機構は確認済み**（2026-09-06）。`status` を積んだ使い捨てタイマーを
+1 分後に仕掛け、予約時刻ちょうどに発火して root でスクリプトが完走することを journal で確認した。
+`rollback` も手で実行して動作を確認済みだが、**「タイマー経由で `rollback` が走る」という
+組み合わせそのものは、まだ観測していない**。
+
+ファイアウォールを触らずに機構だけ試すには次を使う（transient なので完走後に自動で消える）:
+
+```bash
+sudo systemd-run --on-active=1min --unit=rb-test /bin/bash ~/connlimit.sh status
+sudo journalctl -u rb-test.service --no-pager -n 30   # 発火の証拠はここにしか残らない
+```
 
 ### 踏んだ罠（2026-09-06）
 
