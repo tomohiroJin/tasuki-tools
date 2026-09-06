@@ -48,7 +48,9 @@
 
 各パッケージが依存してよい先を表で持ち、**表に無い依存を拒否する**（**MUST**）。
 判定は `package.json` の `dependencies` と `import` 文の**両方**を見る。
-表の正本は `scripts/audit-dependency-direction.mjs` とする。
+表の正本は `scripts/audit-dependency-direction.mjs` とする。**同スクリプトは S1（#242）で
+新設するため、それまでの間は[設計正本](../superpowers/specs/2026-09-06-shared-identity-and-rooms-design.md) D17 の表が
+暫定の正本である。**
 
 **期限つきの一時依存は、期限を表に書く。** 期限を過ぎた行の削除は、その段の DoD で確認する。
 
