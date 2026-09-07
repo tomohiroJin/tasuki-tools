@@ -11,10 +11,10 @@
 
 ## 背景
 
-Tasuki には同期サーバーが 2 つある。2026-08-09〜10 時点で `apps/tasuki-sync/src` と
-`apps/tasuki-sync/src/poker` を実際に確かめると、構成が非対称であることが分かる。
+Tasuki には同期サーバーが 2 つある。2026-08-09〜10 時点で timer-sync の `src/` と
+poker-sync の `src/` を実際に確かめると、構成が非対称であることが分かる。
 
-- **`apps/tasuki-sync/src`** は `adapters/`（`ws-adapter.ts` `in-memory-room-store.ts`
+- **timer-sync の `src/`** は `adapters/`（`ws-adapter.ts` `in-memory-room-store.ts`
   `system-clock.ts` `nanoid-code-gen.ts` `claude-cli-problem-provider.ts`）、
   `application/`（`handlers.ts` `presence.ts` `schedule.ts` 等のユースケース）、
   `ports/`（`broadcaster.ts` `clock.ts` `code-gen.ts` `room-store.ts`
@@ -63,7 +63,7 @@ poker-sync で組むにはより大きな作業が要る。
 
 - **本 ADR の時点ではコード（`apps/` `packages/` `e2e/` `scripts/`）を変更しない。**
   適用（poker-sync の再編）は #72 で行う。
-- #72 では `apps/tasuki-sync/src/poker` を `ports/` `adapters/` `application/` へ再編し、
+- #72 では poker-sync の `src/` を `ports/` `adapters/` `application/` へ再編し、
   組み立てを `create-sync-server.ts` 相当の 1 関数へ集約する。利用者から見える
   振る舞い（公開 URL・プロトコル・画面の挙動）は変えない。
 - timer-sync 側の既存構成は変更しない（本 ADR が既に体現している標準そのもの）。

@@ -84,6 +84,21 @@ describe("WS の入口の振り分け", () => {
     expect(reply["roomId"]).toMatch(/^[a-z0-9]+$/);
   });
 
+  // Caddy の `path` マッチャは大小を区別せず、綴りをそのまま上流へ渡す
+  // （2026-09-08 に 2.11.4 で実測）。統合前は断片の `rewrite * /ws` が綴りごと
+  // 正規化していたが、rewrite を外したのでここで吸収する。厳密比較へ戻すと、
+  // **接続はできるのに全コマンドが INVALID_COMMAND になる**静かな壊れ方をする。
+  it.each(["/POKER/WS", "/Poker/Ws", "/poker/WS"])(
+    "%s も poker のメッセージ層へ行く（Caddy は大小を区別しない）",
+    async (path) => {
+      // Given: 統合サーバー（beforeAll で起動済み）
+      // When: 綴りの違う poker の入口へ poker のコマンドを送る
+      const reply = await firstReplyTo(path);
+      // Then: poker が受け付ける
+      expect(reply["type"]).toBe("joined");
+    },
+  );
+
   it("poker の入口は timer のコマンドを受け付けない（逆向きの取り違えも塞ぐ）", async () => {
     // Given: 統合サーバー（beforeAll で起動済み）
     const ws = new WebSocket(`ws://127.0.0.1:${server.port}/poker/ws`);

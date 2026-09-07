@@ -13,6 +13,13 @@
  * 1 箇所で与える。**渡す poker のハンドラは呼ばれたら throw する偽物**である
  * （`test/support/room-builder.ts` の `unwiredDestroyRoom` と同じ形）。
  * timer を試すつもりのテストが poker 側へ流れていたら、緑ではなく赤で気づける。
+ *
+ * ⚠ **この仕掛けが効かない経路が 1 つある。** `detachFromCurrentRoom` は
+ * `WsAdapter.handleClose` の `try/catch` の内側から呼ばれ、throw は
+ * `logger.error("on-disconnect-error", ...)` へ吸われる（コールバックの失敗で
+ * プロセス全体を落とさないための隔離であり、意図した設計である）。したがって
+ * **`/poker/ws` へ繋いで 1 通も送らずに閉じるだけのテストは緑のまま通る。**
+ * 赤で気づけるのはメッセージを送った場合（`dispatch` / `sendError`）だけである。
  */
 import { WsAdapter, type PokerMessageHandlers, type WsAdapterOptions } from "../../src/adapters/ws-adapter.js";
 

@@ -39,7 +39,7 @@ import { deriveClientKeySafely } from "./client-key-safety.js";
 import type { Handlers as PokerHandlers } from "../poker/application/handlers.js";
 
 /**
- * poker のメッセージ層へ振り分けるパス。
+ * poker のメッセージ層へ振り分けるパス。**小文字で書く**（照合は小文字化してから行う）。
  *
  * **本番の Caddy 断片（`deploy/poker/caddy/20-poker.conf`）は rewrite せずに
  * このパスのまま渡す。** 統合前は `/poker/ws` を `/ws` へ剥がしていたが、
@@ -313,7 +313,14 @@ export class WsAdapter {
     // パスは upgrade を試みる前に読む。`new URL` は upgrade の成否に関わらず
     // 必要で、失敗しても handleFetch の try/catch が受ける。
     const url = new URL(req.url);
-    const protocol = url.pathname === POKER_WS_PATH ? "poker" : "timer";
+    // **大小を区別せずに照合する。** Caddy の `path` マッチャは大小を区別せず、
+    // かつ**受け取ったパスをそのままの綴りで**上流へ渡す（2026-09-08 に 2.11.4 で実測。
+    // `handle /poker/ws` は `/POKER/WS` にも一致し、`{path}` は `/POKER/WS` のまま）。
+    // 統合前は断片が `rewrite * /ws` で綴りごと正規化していたため、poker-sync の
+    // `=== '/ws'` という厳密比較でも取りこぼしが無かった。rewrite を外した今、
+    // ここで小文字化しないと `/POKER/WS` が timer 側へ落ち、**接続はできるのに
+    // 全コマンドが INVALID_COMMAND になる**という静かな壊れ方をする。
+    const protocol = url.pathname.toLowerCase() === POKER_WS_PATH ? "poker" : "timer";
     if (
       server.upgrade(req, {
         data: {
