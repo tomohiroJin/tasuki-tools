@@ -173,6 +173,28 @@ git checkout -- pnpm-lock.yaml <書き換わった package.json>
 供給網ポリシー検査も素通りしますが（`✓ Lockfile passes supply-chain policies` が出ます）、
 integrity ハッシュが古いままなので実インストールで `ERR_PNPM_TARBALL_INTEGRITY` になります。
 
+**親を更新しなくても、脆弱な推移依存だけを解き直せば済むことがあります。** 親の要求範囲が
+すでに修正版を含んでいるのに、lockfile が古い版を据え置いているだけ、という形です。
+この場合は `overrides` も親の更新も要りません。
+
+```bash
+pnpm update -r --depth Infinity <対象パッケージ>   # 版は付けない
+git diff --stat                                   # pnpm-lock.yaml だけが動いたか見る
+```
+
+**版を付けないでください。** 付けた形（`pnpm update -r <pkg>@<version>`）は上の警告のとおり
+直接依存の宣言まで書き換えます。付けなければ解決は親の要求範囲の内側に留まるため
+`package.json` は動きませんが、動かなかったことは `git diff --stat` で確かめてください。
+
+実測（2026-09-07・[#254](https://github.com/tomohiroJin/tasuki-tools/issues/254)）では
+`pnpm update -r --depth Infinity fast-uri` が `fast-uri` を 3.1.5 → 3.1.6 へ上げ、
+差分は `pnpm-lock.yaml` の 4 行だけでした（`ajv@8.20.0` の要求範囲がすでに 3.1.6 を
+含んでおり、据え置かれていただけ）。**同時に、待機期間が選ぶ版を押し下げます。**
+このとき `fast-uri` の最新は 3.1.7（2026-09-02 公開）でしたが、公開から 7 日未満のため
+`minimumReleaseAge` に掛かり、選ばれたのは 3.1.6（2026-08-23 公開）でした。
+**修正版が公開されたばかりのときは、この手順自体が空振りします**（待つか、
+前節の `minimumReleaseAgeExclude` の判断に移る）。
+
 #### 書き方
 
 **キーと値のどちらを崩しても、狙っていないメジャーへ影響が漏れます。** どちらも
