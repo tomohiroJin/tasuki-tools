@@ -196,7 +196,7 @@ SC-039④ は 33 → 26 件。残りの内訳と宛先は次のとおり。
 数えるのはここである。ただし「どこからも取り込まれていない」わけではない —— **4 件
 （`normalizeDisplayName` `RoomSchema` `MAX_DISPLAY_NAME` `DEFAULT_ERROR_MESSAGE`）は
 テストが index 経由で取り込んでいた**ので、取り込み口を宣言ファイルへ向け直している
-（timer-core 自身の 3 本は相対 import、`apps/timer-sync` の 1 本はサブパス）。
+（timer-core 自身の 3 本は相対 import、`apps/tasuki-sync` の 1 本はサブパス）。
 テストからの参照を公開の根拠にしないのは FR-090 の延長であり、宣言側の `export` を守る
 `SC039C_EXCEPTIONS`（③）とは独立した判断である。
 
@@ -214,7 +214,7 @@ SC-039④ は 33 → 26 件。残りの内訳と宛先は次のとおり。
 削除ではなく、新しく足した公開型のほうである。例外表へは入れない（未決を 0 に見せない
 という #180 以来の扱い）。判断は SC-039③ を持つ [#223](https://github.com/tomohiroJin/tasuki-tools/issues/223) が引き取る。
 
-**この付け替えの前提に誤りがあった。** `apps/timer-sync/tsconfig.json` は
+**この付け替えの前提に誤りがあった。** `apps/tasuki-sync/tsconfig.json` は
 「bun test はサブパスを解決できない」と書いていたが、2026-09-02 の実測（bun 1.3.14）で
 解決できた。`paths` を存在しないディレクトリへ向けると落ちることまで確かめてある
 （＝ bun は tsconfig の `paths` を実行時解決に使う）。

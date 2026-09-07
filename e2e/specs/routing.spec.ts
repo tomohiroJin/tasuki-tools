@@ -124,17 +124,19 @@ test.describe('@smoke 旧共有リンクの救済', () => {
 
 test.describe('@smoke WebSocket が SPA に吸われていない', () => {
   /**
-   * 応答コードが違うのは実装の差。timer-sync（ws-adapter）は Upgrade が無ければ 426、
-   * poker-sync は `url.pathname === '/ws'` を検査したうえで upgrade に失敗して 400 を返す。
+   * どちらも 426（Upgrade Required）。**#95 S2 で揃った** ——
+   * 統合前は poker-sync だけが `url.pathname === '/ws'` を検査したうえで
+   * upgrade に失敗して 400 を返していた。統合サーバーは 1 つの `handleFetch` で
+   * 受けるので、非 Upgrade の HTTP はどちらのパスでも 426 になる。
    * 「200 でないこと」ではなく具体値で固定する。値が変わったら実装が変わったということ。
    *
-   * **注意: これは timer 側の経路の正しさを保証しない。** timer-sync はパスを見ずに
-   * 無条件で upgrade を試みるため、断片から `rewrite * /ws` を削っても 426 は返り続ける。
-   * timer の経路の正しさは第 2 段の実接続（@core）に委ねる。
+   * **注意: これは経路の正しさを保証しない。** 統合サーバーは `/poker/ws` 以外の
+   * すべてのパスを timer 側として受けるため、断片から `rewrite * /ws` を削っても
+   * 426 は返り続ける。経路の正しさは第 2 段の実接続（@core）に委ねる。
    */
   for (const [wsPath, expectedStatus] of [
     ['/timer/ws', 426],
-    ['/poker/ws', 400],
+    ['/poker/ws', 426],
   ] as const) {
     test(`Given ${wsPath} / When 素の GET を送る / Then ${expectedStatus} が返る（SPA の 200 ではない）`, async ({
       request,

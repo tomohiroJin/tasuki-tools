@@ -112,7 +112,7 @@ const REPO_TOP_LEVEL = /^(packages|apps|scripts|docs|deploy|e2e|\.github)\//;
  * バッククォートの中身がリポジトリ内のパス（ファイルまたはディレクトリ）に見えるか。
  *
  * **拡張子は要求しない**（#156 ①）。要求していたころは
- * `apps/poker-sync/src/application` のようなディレクトリ参照が丸ごと網から落ち、
+ * `apps/poker-web/src/hooks` のようなディレクトリ参照が丸ごと網から落ち、
  * 書いてあるのに一度も検査されなかった。拡張子で切るのをやめた代わりに、
  * ADR 番号の接頭辞参照（`docs/adr/0002`）だけを isAdrNumberRef で名指しし、
  * 別の解決規則（resolveAdrNumberRef）へ回す。
@@ -301,8 +301,16 @@ export const MISSING_PATH_EXCEPTIONS = [
     reason: "docs/adr/0003 の決定により廃止済み。ADR 本文の言及は記録として正しい",
   },
   {
-    path: "apps/timer-sync/.env",
+    path: "apps/tasuki-sync/.env",
     reason: "gitignore 対象。deploy/timer/NOTES.md は、この実 env を各自で作る手順を案内している",
+  },
+  {
+    doc: "docs/adr/0016-core-domain-representation.md",
+    path: "apps/poker-sync/src/server.ts",
+    reason:
+      "2026-08-17 実測時点のパス。#95 S2 で apps/tasuki-sync へ統合され、この名前は撤廃された。" +
+      "当時の実測を書き換えないため、実在しないことが正しい。" +
+      "行番号つきの参照（:244）も、行番号を落としたパスで判定されるのでこの 1 件が免じる",
   },
   {
     doc: "docs/constitution.md",
@@ -329,13 +337,10 @@ export const MISSING_PATH_EXCEPTIONS = [
  * この例外は「一度も赤を抑えなかった」ものとして checkStaleExceptions が落とす。**
  */
 export const STALE_LINE_REF_EXCEPTIONS = [
-  {
-    doc: "docs/adr/0016-core-domain-representation.md",
-    raw: "apps/poker-sync/src/server.ts:244",
-    reason:
-      "2026-08-17 実測時点の行番号。#165 のポート/アダプタ再編で server.ts が縮んだが、" +
-      "ADR は追記のみで書き換えない",
-  },
+  // **現在 0 件である。** 唯一あった `apps/poker-sync/src/server.ts:244` は、#95 S2 で
+  // ファイルごと統合されて消えたため MISSING_PATH_EXCEPTIONS へ移した（パスが実在しない
+  // 段で判定が決まるので、行番号の例外は一度も赤を抑えず「使われていない例外」になる）。
+  // 空でも配列を残すのは、行番号つき参照の免除という機構自体は生きているからである。
 ];
 
 /** 文書とパスに一致する例外を返す（`doc` の無いものは全文書に効く）。 */
@@ -437,10 +442,10 @@ function gitList(args) {
 /**
  * 走査対象と存在判定は、**ファイルシステムではなく git の追跡対象**を見る。
  *
- * ファイルシステムを見ると、gitignore 対象のもの（`apps/timer-sync/.env`・`dist/`・
+ * ファイルシステムを見ると、gitignore 対象のもの（`apps/tasuki-sync/.env`・`dist/`・
  * SDD の作業ディレクトリなど）が開発者の手元にはあり CI のフレッシュな checkout には
  * 無いため、**同じコミットでもローカルと CI で結果が食い違う**。PR-2 の初回 CI で
- * 実際に踏んだ（`deploy/timer/NOTES.md:104` の `apps/timer-sync/.env` がローカルでは
+ * 実際に踏んだ（`deploy/timer/NOTES.md:104` の `apps/tasuki-sync/.env` がローカルでは
  * 緑・CI では赤）。git 基準なら両者が構造的に一致する。
  */
 function trackedPaths() {

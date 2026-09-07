@@ -19,7 +19,7 @@ private vulnerability reporting（Security Advisories からの非公開報告�
 
 | 対象 | 対象外 |
 |---|---|
-| 同期サーバー（`apps/timer-sync` / `apps/poker-sync`） | 依存ライブラリの既知の脆弱性（`pnpm audit` が CI で見ています） |
+| 同期サーバー（`apps/tasuki-sync`。timer と poker の両方を受ける） | 依存ライブラリの既知の脆弱性（`pnpm audit` が CI で見ています） |
 | 配信設定（`deploy/`） | 自己ホストした環境の設定ミス |
 | 資格情報・秘密の露出 | ルームコードを知る人が入室できること（設計上の仕様です） |
 

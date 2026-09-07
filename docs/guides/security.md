@@ -9,15 +9,14 @@ S1〜S13）は [`docs/adr/0011`](../adr/0011-threat-model-and-data-classificatio
 決定の根拠・数値・理由はそちらを読んでください。このガイドは根拠を繰り返さず、
 手順とコード例だけを持ちます（`docs/adr/0002` の三層構造・二重正本の禁止）。
 
-**ロガ経路の対象は `apps/timer-sync` だけです**
+**ロガ経路の対象は同期サーバー `apps/tasuki-sync` です**
 （[`docs/adr/0012`](../adr/0012-logging-secrets-and-disclosure.md) 決定 D1）。
-`apps/poker-sync` は明示的な繰り越しであり、ロガ経路を持ちません。poker-sync の直接出力は
-起動時の `listening` 行 1 本だけで、これは `apps/poker-sync/tests/helpers.ts` が
-`JSON.parse` して実ポートを受け取るテストハーネスとの契約だからです（形式を変えると
-poker-sync のテストが全滅します）。
+かつて poker 側は明示的な繰り越しでロガ経路を持たず、起動ログなどを `console.log` で
+直接出していました。**#95 S2 で同期サーバーが 1 プロセルへ統合され、この繰り越しは
+解消しています**（ADR 0012 の追記）。統合サーバーの出力口はロガ 1 本だけです。
 
 **ただし規律は poker-sync にも効きます。** `scripts/audit-log-hygiene.mjs` は
-`apps/poker-sync/src` も走査するので、許可マーカーの無い直接出力は増やせません。
+`apps/tasuki-sync/src/poker` も走査するので、許可マーカーの無い直接出力は増やせません。
 分類「秘密・資格情報・個人に紐づく」の値をログへ出さないという規範（憲法 原則 XI、
 [`docs/adr/0011`](../adr/0011-threat-model-and-data-classification.md) 決定1）は、
 ロガの有無にかかわらず両アプリに適用されます。
@@ -41,9 +40,9 @@ poker-sync のテストが全滅します）。
 
 ## ロガの使い方
 
-制御されたロガ 1 本（`apps/timer-sync/src/application/log/logger.ts`）が
-`apps/timer-sync` の出力口です。実際の書き出しは `LogSink`（アダプタ）へ委ね、
-本番は唯一の実出力口 `apps/timer-sync/src/adapters/console-log-sink.ts` を使います。
+制御されたロガ 1 本（`apps/tasuki-sync/src/application/log/logger.ts`）が
+`apps/tasuki-sync` の出力口です。実際の書き出しは `LogSink`（アダプタ）へ委ね、
+本番は唯一の実出力口 `apps/tasuki-sync/src/adapters/console-log-sink.ts` を使います。
 
 ```typescript
 import { createLogger } from "./application/log/logger.js";
@@ -73,17 +72,17 @@ logger.warn("ai.skip", {
 出したい値は必ず `fields` 側へ（相関 ID・語彙定数・真偽値のいずれかで）渡してください。
 
 **`LogField` は `number | boolean | LogSafe` だけを受け付け、生の `string` は
-含みません**（`apps/timer-sync/src/application/log/log-safe.ts`）。文字列を出したい
+含みません**（`apps/tasuki-sync/src/application/log/log-safe.ts`）。文字列を出したい
 場合は、次のいずれかを経由します。
 
 - **ルームコード**は `refEncoder.room(code)`、**`requestId`** は
   `refEncoder.request(id)` を通す
-  （`apps/timer-sync/src/application/log/ref-encoder.ts` の `RefEncoder`）。
+  （`apps/tasuki-sync/src/application/log/ref-encoder.ts` の `RefEncoder`）。
   種別ごとに名前空間が分かれた相関 ID（`r_xxxxxxxx` / `q_xxxxxxxx`）を返します。
   `RefEncoder` はプロセス起動ごとのランダムなソルトから作るので、
   `createRefEncoder(salt)` で 1 度だけ組み立てて使い回します。
 - **決まった語彙**（AI 生成のスキップ理由・失敗理由など）は
-  `apps/timer-sync/src/application/log/vocabulary.ts` の定数
+  `apps/tasuki-sync/src/application/log/vocabulary.ts` の定数
   （`AI_SKIP_REASONS` / `AI_FAILURE_REASONS`）を引きます。
 - **既定値どおりかどうか**のような、値そのものではなく真偽で足りる情報は
   `boolean` のまま渡します（例: `logger.info("admin", { enabled: config.adminToken !== undefined })`）。
@@ -93,7 +92,7 @@ logger.warn("ai.skip", {
 ### 新しい語彙を足すとき
 
 ログへ出したい固定文字列（新しい理由コードなど）が増えたら、
-`apps/timer-sync/src/application/log/vocabulary.ts` に定数として足します。
+`apps/tasuki-sync/src/application/log/vocabulary.ts` に定数として足します。
 呼び出し側は定数を引くだけにして、`publicText()` の呼び出し自体は増やしません。
 
 ### 例外: 例外オブジェクトの分類名
@@ -101,8 +100,8 @@ logger.warn("ai.skip", {
 `publicText()` は本来 `vocabulary.ts` の中でのみ呼びます（下記「やっては
 いけないこと」）。唯一の例外が、捕捉した例外オブジェクトの**分類名**
 （`err.name`。`TypeError` のような固定のクラス名で、内容は含まない）を出す
-箇所です。`apps/timer-sync/src/server.ts` と
-`apps/timer-sync/src/adapters/ws-adapter.ts` がこの形を採っています。
+箇所です。`apps/tasuki-sync/src/server.ts` と
+`apps/tasuki-sync/src/adapters/ws-adapter.ts` がこの形を採っています。
 
 ```typescript
 logger.error("uncaught", { name: publicText(err.name) }); // log-hygiene:allow 例外の分類のみ
@@ -145,7 +144,7 @@ console.error("記録の読み込みに失敗しました:", e); // log-hygiene:
   （唯一の例外は上記「例外オブジェクトの分類名」。それ以外は `vocabulary.ts` に
   定数として足す）
 - **`console` を直接呼ぶ。** timer-sync の実出力口は
-  `apps/timer-sync/src/adapters/console-log-sink.ts` の 1 箇所だけです。
+  `apps/tasuki-sync/src/adapters/console-log-sink.ts` の 1 箇所だけです。
   それ以外から `console.log` / `console.warn` / `console.error` を呼びません
   （[`docs/adr/0012`](../adr/0012-logging-secrets-and-disclosure.md) 決定 D1）。
   **検査を通っている直接呼び出しの件数はここに書きません**（足すたびに腐ります）。
@@ -178,7 +177,7 @@ Caddy の `reverse_proxy` はこのヘッダを常に付けるため、正常な
 ## 秘密を比較するとき
 
 秘密・資格情報を比較する処理（管理トークン・AI 解錠キー・ルームの合言葉など）は、必ず
-`constantTimeEqual`（`apps/timer-sync/src/application/secure-compare.ts`）を使います。
+`constantTimeEqual`（`apps/tasuki-sync/src/application/secure-compare.ts`）を使います。
 `===` による通常の文字列比較はタイミングサイドチャネルの対象になります。
 
 ```typescript

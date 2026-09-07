@@ -157,7 +157,7 @@ Previous release: 1.0.0 → 2.0.0
     — 新 IV では「境界で Valibot 検証を行う（MUST）」「失敗は `Result` 型で表現する
     （MUST）」「ドメイン層で例外を制御フローに使わない（MUST NOT）」のみを残し、
     「握りつぶさない」という独立した MUST は撤廃した。これにより、コード内参照のうち
-    IV の 3 番目（`apps/poker-sync/tests/protocol-errors.test.ts:15`。不正メッセージの
+    IV の 3 番目（`apps/tasuki-sync/test/poker/protocol-errors.test.ts:15`。不正メッセージの
     ハンドリングを検証するテストの説明）の根拠は、「不正入力を明示的なエラーとして扱う」
     という強い主張から、「境界で検証を行う（MUST）」という一般的な根拠へ薄まる。
     参照コメント自体・テストの実装は変更しないため参照は引き続き成立するが、
@@ -190,8 +190,8 @@ Previous release: 1.0.0 → 2.0.0
     分かれた際、綴りが「憲法 原則 III」（空白あり）になり、**逐語の鍵では原則 III の
     参照が 1 件も引けなくなった**（同じ鍵での計測は 7 → 6）。数を直しても直らない壊れ方である。
   - 綴りを問わず原則を名指しするコメントまで数えると、**#165 以前から一覧に無いものが
-    既にあった**（`apps/timer-sync/src/server.ts` / `packages/rate-limit/src/client-key.ts` /
-    `packages/rate-limit/src/token-bucket.ts` / `apps/timer-sync/src/application/log/ref-encoder.ts`
+    既にあった**（`apps/tasuki-sync/src/server.ts` / `packages/rate-limit/src/client-key.ts` /
+    `packages/rate-limit/src/token-bucket.ts` / `apps/tasuki-sync/src/application/log/ref-encoder.ts`
     ほか）。この読み方では 7 は最初から実物と合っていない。
 
   どちらの読み方でも「7」は維持できないので、数え上げそのものをやめた。
@@ -200,10 +200,10 @@ Previous release: 1.0.0 → 2.0.0
   「憲法」だけを鍵に引くこと。原則を指さない参照（`憲法 追加制約` 等）も混ざるため、
   引いた結果は上位集合であり、原則への参照かどうかは目で選り分ける。以下は本改版の
   時点で意味の保存を確認した参照であり、その後に足されたものまで含む網羅一覧ではない）:
-  - III（揮発インメモリ）: `apps/poker-sync/src/adapters/in-memory-room-store.ts`
-  - IV（境界の型安全）: `apps/poker-sync/src/adapters/ws-adapter.ts` /
+  - III（揮発インメモリ）: `apps/tasuki-sync/src/poker/adapters/in-memory-room-store.ts`
+  - IV（境界の型安全）: `apps/tasuki-sync/src/adapters/ws-adapter.ts` /
     `apps/poker-web/src/hooks/useSync.ts` /
-    `apps/poker-sync/tests/protocol-errors.test.ts` /
+    `apps/tasuki-sync/test/poker/protocol-errors.test.ts` /
     `packages/poker-core/src/protocol.ts` / `packages/poker-core/src/round.ts` /
     `packages/poker-core/src/room.ts`
 - Follow-up TODOs:

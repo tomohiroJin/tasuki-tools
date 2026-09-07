@@ -82,7 +82,7 @@ claude setup-token      # → sk-ant-oat01-... が出力される
 
 > ⚠ このトークンは個人アカウントのサブスク・クレジットを実際に消費します（共有・プール不可）。
 > 第三者から読める場所には置かず、自己ホストで自分の契約の範囲に限って使ってください。
-> ローカルでは次の手順で `apps/timer-sync/.env`（gitignore 済み）にのみ書きます。
+> ローカルでは次の手順で `apps/tasuki-sync/.env`（gitignore 済み）にのみ書きます。
 
 #### 2. `.env` に設定して起動する
 
@@ -90,13 +90,13 @@ sync は Bun 起動で **cwd（`apps/timer-sync`）の `.env` を自動で読み
 テンプレートをコピーして値を埋めてください。`.env` は `.gitignore` 済みなので誤コミットの心配はありません。
 
 ```bash
-cp apps/timer-sync/.env.example apps/timer-sync/.env
-# apps/timer-sync/.env を編集（最低限 CLAUDE_CODE_OAUTH_TOKEN と AI_UNLOCK_KEY。
+cp apps/tasuki-sync/.env.example apps/tasuki-sync/.env
+# apps/tasuki-sync/.env を編集（最低限 CLAUDE_CODE_OAUTH_TOKEN と AI_UNLOCK_KEY。
 # 下のログ例に合わせるなら AI_PROBLEM_MODEL=haiku も設定。未設定なら既定 sonnet）
 ```
 
 ルートから `pnpm dev` を起動すると、turbo が各ワークスペースを適切な作業ディレクトリで回し、
-sync は `apps/timer-sync` を cwd とするため、この `apps/timer-sync/.env` が読まれます。
+sync は `apps/timer-sync` を cwd とするため、この `apps/tasuki-sync/.env` が読まれます。
 
 ```bash
 pnpm dev
@@ -171,7 +171,7 @@ Tasuki/
 │           records,participants,permissions,error-messages}.ts
 ├─ packages/room-core/   # @tasuki/room-core — メンバーシップ文脈（表示名の規約。#95 S1）
 │  └─ src/{display-name,index}.ts
-├─ apps/timer-sync/      # @tasuki/timer-sync — 同期サーバー
+├─ apps/tasuki-sync/      # @tasuki/timer-sync — 同期サーバー
 │  └─ src/{domain なし→core 再利用, application/, ports/, adapters/, server.ts}
 ├─ apps/timer-web/       # @tasuki/timer-web — フロントエンド
 │  └─ src/{ui/, sync/, ai/, records/, prefs/, platform/}

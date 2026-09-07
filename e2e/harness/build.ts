@@ -27,7 +27,7 @@ export const TURBO_BIN = path.join(REPO_ROOT, 'node_modules/.bin/turbo');
  * 二重に持つと、片方を足したときにもう片方が腐る。
  *
  * 絞らずに `turbo run build` を叩くと、配信に関係しないパッケージ
- * （`@tasuki/poker-sync` の `bun build` など）のビルド失敗でも E2E が
+ * （`@tasuki/poker-web` の vite build など）のビルド失敗でも E2E が
  * 起動しなくなる。turbo は `dependsOn: ["^build"]` を辿るので、
  * これらの依存パッケージは絞っても一緒にビルドされる。
  */

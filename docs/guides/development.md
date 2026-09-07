@@ -10,7 +10,7 @@
 
 - **Node.js 22 以上**（pnpm 11.5.0 が `node:sqlite` を使うため、20 では起動しません）
 - pnpm 11.5.0（`packageManager` 宣言に従うので `corepack enable` でよい）
-- **Bun** — 同期サーバーの起動と `apps/poker-sync` のテスト・ビルドに必要
+- **Bun** — 同期サーバー（`apps/tasuki-sync`）の起動とテストに必要
 
 ```bash
 corepack enable
@@ -57,9 +57,8 @@ Tasuki は **5 つのプロセス**（web 3 + 同期サーバー 2）で構成�
 |---|---|---|
 | 玄関 LP | `pnpm --filter @tasuki/landing dev` | <http://localhost:5175/> |
 | timer の画面 | `pnpm --filter @tasuki/timer-web dev` | <http://localhost:5173/timer/> |
-| timer の同期サーバー | `pnpm --filter @tasuki/timer-sync dev` | （:8787・画面から使う） |
 | poker の画面 | `pnpm --filter @tasuki/poker-web dev` | <http://localhost:5174/poker/> |
-| poker の同期サーバー | `pnpm --filter @tasuki/poker-sync dev` | （:3311・画面から使う） |
+| 同期サーバー（timer と poker で共用） | `pnpm --filter @tasuki/sync dev` | （:8787・画面から使う） |
 
 各アプリは本番と同じ `base` で配信されます。ブラウザで `http://localhost:5173/` のように
 base を省いて開いた場合は、Vite が **302 で `/timer/` へリダイレクト**するので表示できます。
@@ -67,7 +66,8 @@ base を省いて開いた場合は、Vite が **302 で `/timer/` へリダイ�
 動作確認では末尾のパスまで指定してください。
 
 同期サーバーを起動していないと、画面は開けても**ルームの作成・参加ができません**。
-timer なら timer-sync、poker なら poker-sync が対になります。
+**同期サーバーは 1 本で両方を受けます**（#95 S2 で統合。`/timer/ws` と `/ws` が timer、
+`/poker/ws` が poker）。片方のツールだけ使うときも起動するのはこの 1 本です。
 
 > ポートが埋まっていると Vite は次の空きポートへ逃げます。起動時のログに出る URL が正です。
 >
@@ -77,7 +77,7 @@ timer なら timer-sync、poker なら poker-sync が対になります。
 > 確認してください。古い開発サーバーが残っている場合は先に片付けます。
 >
 > ```bash
-> ss -tlnp | grep -E ':(8787|3311|517[3-5])'   # 誰が掴んでいるか
+> ss -tlnp | grep -E ':(8787|517[3-5])'   # 誰が掴んでいるか
 > ```
 
 ## 依存の更新
@@ -167,7 +167,7 @@ git checkout -- pnpm-lock.yaml <書き換わった package.json>
 
 **`pnpm update -r <pkg>@<version>` で直そうとしないでください。** 同名パッケージが
 直接依存と推移依存の両方にいると区別せず、**直接依存の宣言まで書き換えます**
-（`nanoid` で実際に `apps/timer-sync` の `^6.0.1` が `^3.3.18` に書き換わりました）。
+（`nanoid` で実際に `apps/tasuki-sync` の `^6.0.1` が `^3.3.18` に書き換わりました）。
 
 **lockfile の版番号を手で書き換えるのも不可です。** `pnpm install --lockfile-only` も
 供給網ポリシー検査も素通りしますが（`✓ Lockfile passes supply-chain policies` が出ます）、
@@ -201,7 +201,7 @@ git diff --stat                                   # pnpm-lock.yaml だけが動�
 `nanoid` で実際に再現しました。
 
 - **キーは「名前@メジャー」で書く**（`"nanoid@3"`）。名前だけ（`"nanoid"`）にすると
-  **直接依存の宣言まで書き換わります**。実測では `apps/timer-sync` の `nanoid` が
+  **直接依存の宣言まで書き換わります**。実測では `apps/tasuki-sync` の `nanoid` が
   lockfile 上で `^6.0.1` → `^3.3.18` になり、ルームコード生成が 3.x に落ちました。
   `package.json` は `^6.0.1` のまま変わらないため、差分を見ても気づきにくい形です
 - **値は `^` で下限を示す。** 上限のない範囲（`>=3.3.18` 等）にすると
@@ -295,7 +295,7 @@ pnpm install --frozen-lockfile
   行を戻して何が起きたかを確かめてください
 
 **手順 6 のパターンでメジャーまで指定するのは、同名で別メジャーが同居するからです。**
-`nanoid` は直接依存の 6.x（`apps/timer-sync`）と推移依存の 3.x が同居しており、
+`nanoid` は直接依存の 6.x（`apps/tasuki-sync`）と推移依存の 3.x が同居しており、
 `^  nanoid@[0-9]` は**両方のメジャーの行**を返します（判定中は lockfile 冒頭の
 `overrides:` の転記行も混ざります）。**大きいほうのメジャーを読んで
 `6.0.1 >= 3.3.18` と判断し、誤って削除する経路**が開きます。`^  nanoid@3\.` なら
@@ -651,8 +651,8 @@ pnpm e2e              # ローカル環境に立てて全シナリオを実行
 pnpm e2e --grep @smoke   # @smoke タグのシナリオだけ実行
 ```
 
-**`pnpm dev` と同時には実行できません。** Caddy（`18080`）と timer-sync（`8787`）・
-poker-sync（`3311`）を実際に起動するため、`pnpm dev` と同じポートを共有します。
+**`pnpm dev` と同時には実行できません。** Caddy（`18080`）と同期サーバー（`8787`）を
+実際に起動するため、`pnpm dev` と同じポートを共有します。
 `pnpm dev` を止めてから `pnpm e2e` を実行してください。
 
 異常終了（SIGKILL など）で残骸が残った場合は、次回起動時の `preflight` が検出して
@@ -864,7 +864,7 @@ SC-039 の参照元からも静かに外れるためです（外れても走査�
 **並んでいるのは 8 モジュールだけ**です。一方 `tsconfig.json` の `paths` は
 `@tasuki/timer-core/*` のワイルドカードなので、alias の無いモジュールを timer-web から
 取り込むと **`pnpm typecheck` は緑のまま、`pnpm build` と `pnpm test` だけが落ちます**。
-alias は 2 つの設定へ同時に足してください。`apps/timer-sync`（bun）は tsconfig の
+alias は 2 つの設定へ同時に足してください。`apps/tasuki-sync`（bun）は tsconfig の
 `paths` で解決しますが、**その挙動には未解決の食い違いがあります**（同ファイルの注意書き）。
 
 **SC-039③ と SC-039④ は別のことを測ります。** ③は宣言ファイルの `export` が要るか、
@@ -911,7 +911,7 @@ shellcheck・自己テスト（`node --test`）の対象は宣言ではなく `g
 
 **現役の規範文書（`LIVE_DOCS`）では、インラインコードに書いたリポジトリ内のパスも
 検査します。拡張子の有無は問いません**（#156）。ディレクトリ参照
-（`apps/poker-sync/src/adapters`）も、`path:line` 表記の**行番号が対象ファイルの
+（`apps/tasuki-sync/src/poker/adapters`）も、`path:line` 表記の**行番号が対象ファイルの
 行数を超えていないか**も見ます。次の 3 つは対象外です。
 
 - グロブ・変数展開・メタ変数を含むもの（`packages/*/src`・`apps/${APP}/dist`・

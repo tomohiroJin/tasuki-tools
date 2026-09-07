@@ -11,9 +11,15 @@
 
 ## 層とディレクトリの対応表
 
-2026-08-17 時点の構成に基づく対応表です。`apps/timer-sync/src` と
-`apps/poker-sync/src` はどちらも `ls` で `adapters/` `application/` `ports/` の
+2026-08-17 時点の構成に基づく対応表です。`apps/tasuki-sync/src` と
+`apps/tasuki-sync/src/poker` はどちらも `ls` で `adapters/` `application/` `ports/` の
 実在を確認済みで、表の `apps/*-sync/...` の行は両方に当てはまります。
+
+> **#95 S2 で同期サーバーは 1 パッケージになりました**（`apps/tasuki-sync`。ADR 0004 の追記）。
+> `apps/*-sync/...` という書き方はそのままで、いま一致するのはこの 1 つだけです。
+> **poker の実装は `apps/tasuki-sync/src/poker/` 配下にあり**、層の対応は同じです
+> （`src/poker/application` はアプリケーション層、`src/poker/ports` はポート、
+> `src/poker/adapters` はアダプタ）。この入れ子は過渡的な形で、名簿を統合する S4a で畳みます。
 
 | 層 | 置き場 | 依存してよいもの |
 |---|---|---|
@@ -42,7 +48,7 @@
 （IP 文字列とキー文字列のみを扱う）ため「ドメイン」でもなく、両 sync アプリが使い、
 置き場も `src/` 直下（設定・組み立て）・`application/`・`adapters/` にまたがる
 横断的な共有ユーティリティとして独立の行に置く。**どの層から import するかは
-アプリごとに一様ではありません**（例: `apps/poker-sync/src/adapters` からの import は
+アプリごとに一様ではありません**（例: `apps/tasuki-sync/src/poker/adapters` からの import は
 0 件）。現況は `grep -rn "@tasuki/rate-limit" apps/*-sync/src` で引けます。
 
 ## 判断フロー
@@ -87,7 +93,7 @@
 | 交代 | ドライバーが別の参加者へ切り替わること |
 | ラウンド（poker） | poker において、1 テーマに対する 1 回の投票 |
 | 公開（reveal） | poker において、伏せていた各参加者の見積り値を開示すること |
-| お題 | **timer では実装済みのドメイン概念、poker では未実装の提案段階の語。** timer では「TDD の練習課題」を指し、`packages/timer-core/src/problem.ts` の `Problem` 型として実装されている。poker では「見積り対象」を指す語として [#93](https://github.com/tomohiroJin/tasuki-tools/issues/93)（お題の入力と結果の書き出し）で提案中だが、現行の poker 実装（`packages/poker-core` `apps/poker-sync` `apps/poker-web` `packages/protocol`。`grep -rn "お題"` で 0 件を確認済み）にこの概念は存在しない。poker の初回リリース範囲外であることは `docs/poker/specs/001-planning-poker-mvp/spec.md` の Assumptions（「お題（ストーリー）リストの管理…は初回リリースに含めない」）にも明記されている。#93 が実装されるまでは、**timer の「お題」だけが実装済みのドメイン概念**であり、「お題」を使うときは同名別概念になりうることを文脈で明示すること |
+| お題 | **timer では実装済みのドメイン概念、poker では未実装の提案段階の語。** timer では「TDD の練習課題」を指し、`packages/timer-core/src/problem.ts` の `Problem` 型として実装されている。poker では「見積り対象」を指す語として [#93](https://github.com/tomohiroJin/tasuki-tools/issues/93)（お題の入力と結果の書き出し）で提案中だが、現行の poker 実装（`packages/poker-core` `apps/tasuki-sync` `apps/poker-web` `packages/protocol`。`grep -rn "お題"` で 0 件を確認済み）にこの概念は存在しない。poker の初回リリース範囲外であることは `docs/poker/specs/001-planning-poker-mvp/spec.md` の Assumptions（「お題（ストーリー）リストの管理…は初回リリースに含めない」）にも明記されている。#93 が実装されるまでは、**timer の「お題」だけが実装済みのドメイン概念**であり、「お題」を使うときは同名別概念になりうることを文脈で明示すること |
 
 ## 一般的な方法論との対応
 

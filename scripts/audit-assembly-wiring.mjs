@@ -18,7 +18,7 @@
  *
  * ## 何を見ていないか — **「足りる」とは言わない**
  *
- * - **テスト側が経由すること**は直接見ていない。poker-sync の既存テストは
+ * - **テスト側が経由すること**は直接見ていない。poker のサブプロセス起動テストは
  *   `tests/helpers.ts` が `bun run src/server.ts` でサブプロセス起動する形なので、
  *   **エントリの経由を検査すれば、それらのテストも同じ経路を通る**（起動する対象が
  *   同じ `src/server.ts` だからである）。in-process で組み立てる別経路のテスト
@@ -76,7 +76,7 @@
  *   あとに実コードが続く行**は、`*` 始まりなのでコメントとして落とす。
  *
  * これらを塞ぐには式レベルの解析が要る。エントリはプロセスの起動だけを持つ短いファイル
- * （2026-08-18 実測で poker-sync 19 行・timer-sync 70 行）で、上のどれもレビューで
+ * （2026-08-18 実測で poker-sync 19 行・timer-sync 70 行。#95 S2 で 1 本に統合された）で、上のどれもレビューで
  * 目に入る。**精緻にすると「賢い検査ほど穴が増える」を踏む**と判断し、踏み込まない。
  *
  * ## コメント判定がリポジトリ内に 2 本ある — **片側だけ直さないこと**
@@ -110,19 +110,19 @@ const REPO_ROOT = path.resolve(SCRIPT_DIR, "..");
 /**
  * 検査する組。**同期サーバーは全部ここに並べる。**
  *
- * poker-sync だけを見る形にしない。片方だけ見る検査は、もう片方が壊れても緑のままに
- * なる（#135 が繰り返し踏んだ「走査対象がハードコードで片側だけ」の形）。
- * 実在しない組を宣言したら `main()` が赤にする。
+ * 片方だけ見る検査は、もう片方が壊れても緑のままになる（#135 が繰り返し踏んだ
+ * 「走査対象がハードコードで片側だけ」の形）。実在しない組を宣言したら `main()` が赤にする。
+ *
+ * **#95 S2 で同期サーバーが 1 本になったので、この表も 1 組になった**
+ * （`apps/timer-sync` と `apps/poker-sync` が `apps/tasuki-sync` へ統合された）。
+ * 1 組しか無いのは「片側だけ見ている」からではなく、対象が 1 つしか無いからである。
+ * 2 本目の同期サーバーが増えたとき、この表に載せ忘れてもここは緑のままになるが、
+ * 新しいパッケージ自体は `audit-structure.mjs` の走査対象照合が未宣言として先に落とす。
  */
 export const ASSEMBLY_TARGETS = [
   {
-    entry: "apps/poker-sync/src/server.ts",
-    assembler: "apps/poker-sync/src/create-sync-server.ts",
-    fn: "createSyncServer",
-  },
-  {
-    entry: "apps/timer-sync/src/server.ts",
-    assembler: "apps/timer-sync/src/create-sync-server.ts",
+    entry: "apps/tasuki-sync/src/server.ts",
+    assembler: "apps/tasuki-sync/src/create-sync-server.ts",
     fn: "createSyncServer",
   },
 ];

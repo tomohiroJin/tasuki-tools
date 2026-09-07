@@ -1,17 +1,17 @@
 # 変異 10: ref-encoder-passthrough
 #
 # 検出を期待するテスト:
-#   - apps/timer-sync/test/log/ref-encoder.test.ts
-#   - apps/timer-sync/test/log/reclaim-log.test.ts
+#   - apps/tasuki-sync/test/log/ref-encoder.test.ts
+#   - apps/tasuki-sync/test/log/reclaim-log.test.ts
 #
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m10-ref-encoder-passthrough.patch
-# 復元: git checkout -- apps/timer-sync/src/application/log/ref-encoder.ts
+# 復元: git checkout -- apps/tasuki-sync/src/application/log/ref-encoder.ts
 #
-diff --git a/apps/timer-sync/src/application/log/ref-encoder.ts b/apps/timer-sync/src/application/log/ref-encoder.ts
+diff --git a/apps/tasuki-sync/src/application/log/ref-encoder.ts b/apps/tasuki-sync/src/application/log/ref-encoder.ts
 index 0116270..86816a2 100644
---- a/apps/timer-sync/src/application/log/ref-encoder.ts
-+++ b/apps/timer-sync/src/application/log/ref-encoder.ts
+--- a/apps/tasuki-sync/src/application/log/ref-encoder.ts
++++ b/apps/tasuki-sync/src/application/log/ref-encoder.ts
 @@ -31,7 +31,7 @@ function digest(salt: Buffer, kind: string, value: string): string {
  
  export function createRefEncoder(salt: Buffer): RefEncoder {

@@ -500,7 +500,7 @@ export function sc035MessageDefinitions(serverSources, clientSource) {
  * ②③が「timer-core についてのみ 0」を「0」と report していたのが #180 の現象そのもので、
  * ①は同じ形の誤読をまだ残している。**広げないなら、どこを測った 0 なのかを出す。**
  */
-const SC039A_SCOPE = "apps/timer-sync の既知パターンのみ";
+const SC039A_SCOPE = "apps/tasuki-sync の既知パターンのみ";
 
 /**
  * SC-039①: apps/ の到達不能な分岐。
@@ -1084,9 +1084,9 @@ export const SCANNED_PACKAGES = [
   { pkg: "packages/protocol", src: "src", test: "tests", entry: "index.ts" },
   { pkg: "packages/room-core", src: "src", test: "tests", entry: "index.ts" },
   { pkg: "packages/rate-limit", src: "src", test: "tests", entry: "index.ts" },
-  { pkg: "apps/timer-sync", src: "src", test: "test", entry: "server.ts" },
+  // #95 S2 で apps/timer-sync と apps/poker-sync がここへ統合された（1 パッケージ）。
+  { pkg: "apps/tasuki-sync", src: "src", test: "test", entry: "server.ts" },
   { pkg: "apps/timer-web", src: "src", test: "test", entry: "main.tsx" },
-  { pkg: "apps/poker-sync", src: "src", test: "tests", entry: "server.ts" },
   { pkg: "apps/poker-web", src: "src", test: "tests", entry: "main.tsx" },
   { pkg: "apps/landing", src: "src", test: "tests", entry: "main.tsx" },
   { pkg: "e2e", src: null, test: "tests", entry: null },
@@ -1148,7 +1148,7 @@ export const SC039C_EXCEPTIONS = [
     file: "packages/timer-core/src/errors.ts",
     name: "SYNC_ERROR_CODES",
     reason:
-      "apps/timer-sync/test/error-code-coverage.test.ts がソースと双方向に照合済みの権威列挙として起点にしている（PR #34 のレビューで塞いだ穴の土台）",
+      "apps/tasuki-sync/test/error-code-coverage.test.ts がソースと双方向に照合済みの権威列挙として起点にしている（PR #34 のレビューで塞いだ穴の土台）",
   },
   {
     file: "packages/timer-core/src/schemas.ts",
@@ -1336,7 +1336,7 @@ export function findStaleSc029Exceptions(exceptions, testFiles) {
  * 対象外に落ち、区切り済みの 34 行のテストまで分母から消えるため）。**尺度は変えず、
  * 当てはまらないものを名指しで挙げる。**
  *
- * 散文での前例もある（`apps/timer-sync/test/error-code-coverage.test.ts` が
+ * 散文での前例もある（`apps/tasuki-sync/test/error-code-coverage.test.ts` が
  * 「メタテストであり、前提・操作・検証という区切りが通常の意味では当てはまらない」と明記）。
  *
  * **除外は分母から行う。**「この規約の対象ではない」という意味であり、
@@ -1441,7 +1441,7 @@ export const METRIC_FILE_PINS = [
     reason: "SC-035 の clientSource（メッセージ定義の突合対象）",
   },
   {
-    path: "apps/timer-sync/src/application/handlers.ts",
+    path: "apps/tasuki-sync/src/application/handlers.ts",
     reason: "SC-039① の handlersSource（到達不能分岐の検査対象）",
   },
 ];
@@ -1935,7 +1935,7 @@ function runAudit(loaded, sc039Sources, allTestFiles) {
   //   測った範囲は SC039A_SCOPE として指標の値に添える）。
   // **SC-039②③ は #180 で `packages/` 全体へ広げた。** 集合は `buildSc039Sources` が
   // 宣言から導く。ここでは組み立てない。
-  const sync = byPkg.get("apps/timer-sync");
+  const sync = byPkg.get("apps/tasuki-sync");
   const web = byPkg.get("apps/timer-web");
 
   // **テスト集合は `main()` が照合したものをそのまま受け取る**（ADR-0014 決定 9）。

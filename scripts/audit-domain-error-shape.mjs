@@ -36,7 +36,7 @@
  *   `packages/poker-core/src/error-messages.ts`（文言生成関数）も同じ理由で対象外である。
  * - **文言が実際にどこで作られているか**は見ていない。「エラー型が文言を持たない」ことしか
  *   見ないので、たとえばハンドラが `code` を無視して即席の文字列を組み立てても緑になる。
- *   そちらは文言の特性テスト（`apps/poker-sync/tests/error-messages.characterization.test.ts`）の領分である。
+ *   そちらは文言の特性テスト（`apps/tasuki-sync/test/poker/error-messages.characterization.test.ts`）の領分である。
  * - **型の外に置いた文言**（`error-messages.ts` の `switch`）は規範どおりなので、当然見ない。
  * - **`export` の有無は見ていない。** 非公開の宣言も同じ規範に服する（ADR-0016 決定 2 項目 3 は
  *   公開かどうかを条件にしていない）。その代わり、**同名の宣言がファイル内に複数ある場合は

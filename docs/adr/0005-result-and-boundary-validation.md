@@ -10,8 +10,8 @@
 ## 背景
 
 Tasuki には現在 timer と poker の 2 系統のドメイン（`packages/timer-core` /
-`packages/poker-core`）と、それぞれの同期サーバー（`apps/timer-sync` /
-`apps/poker-sync`）がある。どちらも WebSocket 越しの外部入力を受け取り、
+`packages/poker-core`）と、それぞれの同期サーバー（timer-sync / poker-sync）がある。
+どちらも WebSocket 越しの外部入力を受け取り、
 ドメイン側は多くの拒否条件（人数上限、フェーズ競合、権限不足など）を持つ。
 例外で表現すると起こり得るエラーが型に現れず、握り漏れが起きる。
 
@@ -22,11 +22,11 @@ Tasuki には現在 timer と poker の 2 系統のドメイン（`packages/time
 
 - `neverthrow` を依存に持つパッケージ/アプリは **6**（`packages/protocol`,
   `packages/timer-core`, `packages/poker-core`, `apps/timer-web`,
-  `apps/timer-sync`, `apps/poker-sync`。各 `package.json` の `dependencies` を
+  timer-sync, poker-sync。各 `package.json` の `dependencies` を
   実際に grep して確認）
 - `valibot` を依存に持つパッケージ/アプリは **5**（`packages/protocol`,
   `packages/timer-core`, `packages/poker-core`, `apps/timer-web`,
-  `apps/timer-sync`。同様に実測）
+  timer-sync。同様に実測）
 - `packages/poker-core/src/protocol.ts:1` は
   `// WS メッセージプロトコル（contracts/ws-protocol.md の実装。契約の単一情報源）` /
   `// 境界での検証は Valibot、結果は neverthrow の Result（憲法原則 IV）` という
@@ -80,7 +80,7 @@ AI 出力の `validateProblem` 検証など）は、本 ADR では扱わない�
 - 受信側 `apps/timer-web/src/sync/dispatch.ts` は `JSON.parse(raw) as ServerMsg` の
   **型アサーションのみ**で、防いでいたのは `JSON.parse` の例外だけだった。
   **JSON として読めることと、契約を満たすことは別である**
-- 送信側 `apps/timer-sync/src/adapters/ws-adapter.ts` の `send` / `broadcast` は
+- 送信側 `apps/tasuki-sync/src/adapters/ws-adapter.ts` の `send` / `broadcast` は
   `data: unknown` で、`broadcastSnapshot` とエラーフレーム 3 経路は型注釈を通らなかった
 - 逆方向（クライアント → サーバー）は `parseBoundaryMessage(CommandSchema, ...)` を
   通しており、**成立していたのは片方向だけ**だった
@@ -149,7 +149,7 @@ AI 出力の `validateProblem` 検証など）は、本 ADR では扱わない�
 継続する。** 契約に合わない値はサーバー側のルームに残り続けるため、以後すべての
 `snapshot` が捨てられ、**画面は生きて見えたまま古い状態で固まる**。
 
-具体的な経路: `apps/timer-sync/src/application/handlers.ts` の `rotationDisplayNames()` は
+具体的な経路: `apps/tasuki-sync/src/application/handlers.ts` の `rotationDisplayNames()` は
 対応する参加者が居ない ID に空文字を返し、その値は `config.members` に載る。
 `SessionConfigSchema.members` の要素は `displayNameStr`（`minLength(1)`）なので落ちる。
 

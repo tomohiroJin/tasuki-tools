@@ -41,8 +41,8 @@ function waitClose(ws: WebSocket): Promise<{ code: number; reason: string }> {
  * 捕まえる（実際に 1 度踏んで捕まった）。タグを足すときはその検査を必ず走らせること。
  */
 test.describe('Caddy を迂回した直接接続', () => {
-  test('timer-sync は直結を拒否する', async () => {
-    const ws = new WebSocket(`ws://127.0.0.1:${PORTS.timerSync}/ws`);
+  test('timer の入口（/ws）への直結を拒否する', async () => {
+    const ws = new WebSocket(`ws://127.0.0.1:${PORTS.sync}/ws`);
 
     const closed = await waitClose(ws);
 
@@ -50,8 +50,11 @@ test.describe('Caddy を迂回した直接接続', () => {
     expect(closed.reason).toBe('Client address required');
   });
 
-  test('poker-sync は直結を拒否する', async () => {
-    const ws = new WebSocket(`ws://127.0.0.1:${PORTS.pokerSync}/ws`);
+  // **統合後も 2 本残す**（#95 S2）。接続層は 1 つになったが、拒否はパスの振り分けより
+  // 手前（`handleOpen`）で効く。ここが片方だけになると「振り分けを通った先でも
+  // 塞がっている」ことを確かめる目が減る。
+  test('poker の入口（/poker/ws）への直結を拒否する', async () => {
+    const ws = new WebSocket(`ws://127.0.0.1:${PORTS.sync}/poker/ws`);
 
     const closed = await waitClose(ws);
 

@@ -40,8 +40,8 @@ Claude サブスク月次 Agent SDK クレジットにより、運営者負担�
 2 本のみである（2026-08-17 実測）。
 
 **決定の本体（サーバー常駐生成・合言葉解錠・縮退と濫用抑制）は現在も有効で、
-実装も存在する** — `apps/timer-sync/src/adapters/claude-cli-problem-provider.ts` と
-`apps/timer-sync/src/application/ai-limits.ts`。
+実装も存在する** — `apps/tasuki-sync/src/adapters/claude-cli-problem-provider.ts` と
+`apps/tasuki-sync/src/application/ai-limits.ts`。
 
 **この不整合は #33（`docs/plans/adr-alignment-post-refactor/`）が取りこぼしたものである。**
 #33 は #28 後の ADR 整合を扱ったが、対象を論点 1〜3（`docs/timer/adr/` の 0009・0002・0001）に

@@ -4,7 +4,7 @@
  * 起動待ちに固定時間の sleep を使うと、遅いマシンで揺れ、速いマシンで無駄に待つ。
  * 「繋がること」そのものを待つ。
  *
- * Caddy と sync サーバー（timer-sync / poker-sync）の両方の起動待ちで使うため、
+ * Caddy と統合 sync サーバー（apps/tasuki-sync）の両方の起動待ちで使うため、
  * ここに 1 本化する。
  */
 import net from 'node:net';

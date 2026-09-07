@@ -208,7 +208,7 @@ describe("isRepoPathLike", () => {
   test("拡張子の無いディレクトリ参照も受け入れる", () => {
     // Given: #156 ① — 拡張子を要求していたころは丸ごと網から落ちていた
     // When / Then
-    assert.equal(isRepoPathLike("apps/poker-sync/src/application"), true);
+    assert.equal(isRepoPathLike("apps/poker-web/src/hooks"), true);
     assert.equal(isRepoPathLike("packages/ui"), true);
   });
 
@@ -242,7 +242,7 @@ describe("isAdrNumberRef", () => {
   test("ディレクトリ参照・実ファイル参照を接頭辞参照と混同しない", () => {
     // Given: #156 ① の「区別する方法を実装で明示する」を主張するテスト
     // When / Then
-    assert.equal(isAdrNumberRef("apps/poker-sync/src/application"), false);
+    assert.equal(isAdrNumberRef("apps/poker-web/src/hooks"), false);
     assert.equal(isAdrNumberRef("docs/adr/README.md"), false);
     assert.equal(isAdrNumberRef("docs/adr/0002-document-system-three-layers.md"), false);
     assert.equal(isAdrNumberRef("docs/guides/0002"), false);
@@ -367,9 +367,9 @@ describe("checkCodePathRef", () => {
   test("実在しないディレクトリ参照を名指しする", () => {
     // Given: #156 ① — 拡張子が無いので以前は素通りしていた
     // When
-    const r = checkCodePathRef("README.md", ref("apps/poker-sync/src/application"), deps({ exists: () => false }));
+    const r = checkCodePathRef("README.md", ref("apps/poker-web/src/hooks"), deps({ exists: () => false }));
     // Then
-    assert.match(r.error, /README\.md:12 実在しないパスです → `apps\/poker-sync\/src\/application`/);
+    assert.match(r.error, /README\.md:12 実在しないパスです → `apps\/poker-web\/src\/hooks`/);
   });
 
   test("実在するディレクトリ参照は通す", () => {

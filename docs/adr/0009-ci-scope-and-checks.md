@@ -110,7 +110,7 @@ CI のジョブは `ci` の 1 本から `ci` / `quality`（新設）/ `docs`（�
 - リンク検査の例外表（`scripts/check-links.mjs` の `MISSING_PATH_EXCEPTIONS`）は
   2 件を持つ。`docs/adr/0003` と `docs/adr/0008` が言及する `docs/BACKLOG.md` は
   ADR 0003 の決定により廃止済みで不在であることが正しいため、リンクは直さない。
-  もう 1 件の `apps/timer-sync/.env` は gitignore 対象で、実装中（PR-2）の初回 CI で
+  もう 1 件の `apps/tasuki-sync/.env` は gitignore 対象で、実装中（PR-2）の初回 CI で
   `docs` ジョブが落ちて発覚し追加した（経緯は振り返り「踏んだ罠」を参照）。
 - D4 の fail-open が「判定の失敗」に限定されたことで、判定スクリプト自体が
   壊れた場合は CI が赤くなり気づける形になった。裏を返すと、`scripts/ci-scope.mjs`

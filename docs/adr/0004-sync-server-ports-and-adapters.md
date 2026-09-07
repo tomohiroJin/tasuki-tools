@@ -11,10 +11,10 @@
 
 ## 背景
 
-Tasuki には同期サーバーが 2 つある。2026-08-09〜10 時点で `apps/timer-sync/src` と
-`apps/poker-sync/src` を実際に確かめると、構成が非対称であることが分かる。
+Tasuki には同期サーバーが 2 つある。2026-08-09〜10 時点で `apps/tasuki-sync/src` と
+`apps/tasuki-sync/src/poker` を実際に確かめると、構成が非対称であることが分かる。
 
-- **`apps/timer-sync/src`** は `adapters/`（`ws-adapter.ts` `in-memory-room-store.ts`
+- **`apps/tasuki-sync/src`** は `adapters/`（`ws-adapter.ts` `in-memory-room-store.ts`
   `system-clock.ts` `nanoid-code-gen.ts` `claude-cli-problem-provider.ts`）、
   `application/`（`handlers.ts` `presence.ts` `schedule.ts` 等のユースケース）、
   `ports/`（`broadcaster.ts` `clock.ts` `code-gen.ts` `room-store.ts`
@@ -23,7 +23,7 @@ Tasuki には同期サーバーが 2 つある。2026-08-09〜10 時点で `apps
   相互配線）は `create-sync-server.ts` の 1 ファイルに閉じ込められており、
   同ファイルの冒頭コメントは「本番（`server.ts`）とテストが必ずこの関数を通ることが
   要点である」「組み立ての知識はこのファイルだけが持つ」と明記している。
-- **`apps/poker-sync/src`** は `config.ts` / `rooms.ts` / `server.ts` の
+- **`apps/tasuki-sync/src/poker`** は `config.ts` / `rooms.ts` / `server.ts` の
   モジュール関数のみで構成されており、ポートに相当する抽象境界も、組み立てを
   1 箇所へ集約する層も無い。
 
@@ -63,7 +63,33 @@ poker-sync で組むにはより大きな作業が要る。
 
 - **本 ADR の時点ではコード（`apps/` `packages/` `e2e/` `scripts/`）を変更しない。**
   適用（poker-sync の再編）は #72 で行う。
-- #72 では `apps/poker-sync/src` を `ports/` `adapters/` `application/` へ再編し、
+- #72 では `apps/tasuki-sync/src/poker` を `ports/` `adapters/` `application/` へ再編し、
   組み立てを `create-sync-server.ts` 相当の 1 関数へ集約する。利用者から見える
   振る舞い（公開 URL・プロトコル・画面の挙動）は変えない。
 - timer-sync 側の既存構成は変更しない（本 ADR が既に体現している標準そのもの）。
+
+## 追記（2026-09-08・#95 S2）
+
+**同期サーバーは 2 本から 1 本になった。** timer-sync を `apps/tasuki-sync` へ改名して
+合成ルートにし、poker の実装（ハンドラ・ストア・アダプタ・ポート）を
+`apps/tasuki-sync/src/poker/` へ移設した。poker-sync は退役した。
+決定の正本は [`docs/adr/0017`](0017-bounded-contexts-and-packages.md)（文脈分割とパッケージ構成）と
+[`docs/adr/0018`](0018-single-entry-and-url-scheme.md)（入口一本化と URL 体系）である。
+
+**本 ADR の決定（ポート/アダプタ構成と組み立ての一元化）は変えていない。** 変わったのは
+適用先の数だけで、統合サーバーも `create-sync-server.ts` 1 本で組み立てる
+（`scripts/audit-assembly-wiring.mjs` の検査対象も 2 組から 1 組になった）。
+
+統合で 2 つの文脈が共有するのは**接続層だけ**である。保管・時計・ID 生成・配信は
+timer と poker で別のままで、単一の巨大ストアにはしていない。この境界は
+`apps/tasuki-sync/src/create-sync-server.ts` と
+`apps/tasuki-sync/src/adapters/ws-adapter.ts` の docstring に書いてある。
+
+**上限とレート制限の値の見直し**（設計正本 D22）もこの段で行った。
+
+| 設定 | 統合前 | 統合後 | 根拠 |
+|---|---|---|---|
+| `MAX_CONNECTIONS` | 200 × 2 プロセス（実効 400） | 400（プロセス全体で 1 つ） | 接続レジストリが 1 つになるため。実効枠を変えない値を選んだ |
+| `MAX_ROOMS` | 50 × 2 プロセス（実効 100） | 50（**文脈ごと**に効く。実効 100） | timer と poker のルーム保管が別のままなので枠も別。名簿の統合は S4a |
+| レート制限のバケツ | 1 IP につき文脈ごとに 1 つ | 同じ（据え置き） | 統合しても自動的には 1 つにならない。束ねるのは join の経路が 1 本になる S4a |
+

@@ -13,7 +13,8 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 - **構成**
   - [`packages/timer-core`](packages/timer-core/) — ドメインロジック（集約・状態遷移・お題バンク・検証）
   - [`apps/timer-web`](apps/timer-web/) — フロントエンド（React + Vite・`base=/timer/`）
-  - [`apps/timer-sync`](apps/timer-sync/) — リアルタイム同期サーバー（Bun + WebSocket・揮発インメモリ）
+  - [`apps/tasuki-sync`](apps/tasuki-sync/) — リアルタイム同期サーバー（Bun + WebSocket・揮発インメモリ）。
+    **poker と共用**（#95 S2 で 1 プロセスへ統合）
 - **特徴**
   - WebSocket による全参加者リアルタイム同期（サーバープッシュ）
   - モブ順ローテーション表示・「今は誰の番か」の明示
@@ -31,7 +32,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 - **構成**
   - [`packages/poker-core`](packages/poker-core/) — ドメインロジック（デッキ・ラウンド・集計）
   - [`apps/poker-web`](apps/poker-web/) — フロントエンド（React + Vite・`base=/poker/`）
-  - [`apps/poker-sync`](apps/poker-sync/) — リアルタイム同期サーバー（Bun + WebSocket）
+  - [`apps/tasuki-sync`](apps/tasuki-sync/) — リアルタイム同期サーバー（timer と共用）
 - 概要: [`docs/poker/README.md`](docs/poker/README.md)
 - SDD 成果物: [`docs/poker/specs/`](docs/poker/specs/)
 
@@ -56,7 +57,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 
 - **Node.js 22 以上**（pnpm 11.5.0 が `node:sqlite` を使うため、20 では起動しません）
 - pnpm 11.5.0（`packageManager` 宣言に従うので `corepack enable` でよい）
-- **Bun** — 同期サーバーの起動と `apps/poker-sync` のテスト・ビルドに必要
+- **Bun** — 同期サーバー（`apps/tasuki-sync`）の起動とテストに必要
 
 ```bash
 corepack enable

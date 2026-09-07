@@ -37,12 +37,12 @@
 保持し、モジュールグローバルを避ける」について、保持の実装が移動している。**
 
 3 個の可変 `Map`（`hostTokens` / `resumeTokens` / `roomPassphrases`）は
-`apps/timer-sync/src/application/token-store.ts` の `createTokenStore()` へ切り出された。
+`apps/tasuki-sync/src/application/token-store.ts` の `createTokenStore()` へ切り出された。
 同ファイル冒頭は「`handlers.ts` の `makeHandlers` が抱えていた 3 個の可変 `Map` …を、
 ロジックを変えずに 1 モジュールへ切り出したもの（フェーズ 2・純粋な移動）」と記している。
 
 **ただし決定が名指しした性質は、字義どおりの意味でも今なお満たされている。**
-`createTokenStore()` は `apps/timer-sync/src/application/handlers.ts:143` で、
+`createTokenStore()` は `apps/tasuki-sync/src/application/handlers.ts:143` で、
 つまり `makeHandlers` の中で呼ばれ、**ハンドラインスタンスごとに 1 個生成される**。
 同ファイル 140〜142 行のコメントも「ハンドラインスタンスごとに1個生成し、
 モジュール共有を避けてテスト間汚染を防ぐ」と明記している。モジュールグローバルは無い。
@@ -57,7 +57,7 @@
 **実施は S3（[#244](https://github.com/tomohiroJin/tasuki-tools/issues/244)）で未了**であり、
 本 ADR 本文の「同一役割として扱う」「主催者が猶予 30 秒を超えて不在なら最古のオンライン
 編集者へ自動委譲（FR-018）」は、実施までは現行の振る舞いである（自動委譲は
-`apps/timer-sync/src/application/handlers.ts` の `transferHostBeforeRemoval` に現存する）。
+`apps/tasuki-sync/src/application/handlers.ts` の `transferHostBeforeRemoval` に現存する）。
 **S3 の完了をもって、この 2 つは役割そのものが無くなるため適用対象を失う。**
 
 復帰トークンによる同一参加者としての再接続は維持する。猶予 30 秒はドライバーの

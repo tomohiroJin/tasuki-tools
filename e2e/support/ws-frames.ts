@@ -34,7 +34,7 @@ export function watchWebSocketFrames(page: Page): FrameLog {
  *
  * **WS の制御フレーム（ping / pong）はここに来ない。** Playwright の
  * `framereceived` が報告するのはテキスト／バイナリのデータフレームだけである
- * （実測: poker-sync のハートビートを 0.3 秒間隔にして ping を 6 回送らせても、
+ * （実測: sync のハートビートを 0.3 秒間隔にして ping を 6 回送らせても、
  * 受信フレーム数は増えなかった）。したがって呼び出し側は
  * 「受け取ったフレームは全部 JSON である」ことを前提にしてよい。
  */

@@ -14,11 +14,11 @@
  *   node scripts/mutation-check.mjs --full   変異の属するパッケージ全体を実行
  *
  * テストランナー:
- * リポジトリには 3 種類のランナーが混在する（apps/timer-sync は bun test、
+ * リポジトリには 3 種類のランナーが混在する（apps/tasuki-sync は bun test、
  * packages/ui は node --test、それ以外は vitest）。全パッケージへ npx vitest を
  * 決め打ちすると、ランナーが違うパッケージでは「コマンドが見つからない」まま
  * exit code が非 0 になり、テストを 1 件も実行せずに「検出」と誤報告する
- * （#136 で発覚。apps/timer-sync の変異 #3・#5・#10 がこの状態だった）。
+ * （#136 で発覚。apps/tasuki-sync の変異 #3・#5・#10 がこの状態だった）。
  * これを避けるため、対象ディレクトリの package.json の scripts.test からランナーを
  * 判定し（detectRunner）、そのランナーで直接テストファイルを指定して実行する。
  *
@@ -107,7 +107,7 @@ export const MUTATIONS = [
     id: 3,
     label: "computeIneligibleIndices から placeholder の除外を削る",
     patch: "m03-ineligible-placeholder.patch",
-    pkg: "apps/timer-sync",
+    pkg: "apps/tasuki-sync",
     tests: ["test/proxy-auto-switch.test.ts", "test/manual-skip-eligible.test.ts"],
   },
   {
@@ -121,15 +121,15 @@ export const MUTATIONS = [
     id: 5,
     label: "canRemoveParticipant の呼び出しを削る（LAST_MANAGER ガードの無効化）",
     patch: "m05-can-remove-participant-guard.patch",
-    pkg: "apps/timer-sync",
+    pkg: "apps/tasuki-sync",
     tests: ["test/participant-remove.test.ts"],
     note:
       "plan.md の対応表は検出元を packages/timer-core/test/participants.test.ts としていたが、" +
       "これは canRemoveParticipant という純粋関数そのものを検証するテストであり、" +
-      "apps/timer-sync/src/application/handlers.ts 側の「呼び出しを削る」変異（呼び出し元の" +
+      "apps/tasuki-sync/src/application/handlers.ts 側の「呼び出しを削る」変異（呼び出し元の" +
       "欠陥）は検出できない（純粋関数自体は変えていないため）。実際に検出できるのは" +
       "その呼び出しが実際に守っている振る舞い（LAST_MANAGER）を検証している" +
-      "apps/timer-sync/test/participant-remove.test.ts（③・③' のケース）であるため、" +
+      "apps/tasuki-sync/test/participant-remove.test.ts（③・③' のケース）であるため、" +
       "こちらに読み替えた。",
   },
   {
@@ -166,7 +166,7 @@ export const MUTATIONS = [
     id: 10,
     label: "createRefEncoder.room が相関 ID ではなくルームコードをそのまま返す",
     patch: "m10-ref-encoder-passthrough.patch",
-    pkg: "apps/timer-sync",
+    pkg: "apps/tasuki-sync",
     tests: ["test/log/ref-encoder.test.ts", "test/log/reclaim-log.test.ts"],
     note:
       "資格情報がログへ戻る欠陥の型。ADR 0012 D2 の「部分表示も生の値も出さない」" +
@@ -187,7 +187,7 @@ export const MUTATIONS = [
     id: 12,
     label: "レート制限の判定をルーム照会の後ろへ移す",
     patch: "m12-rate-limit-check-after-lookup.patch",
-    pkg: "apps/timer-sync",
+    pkg: "apps/tasuki-sync",
     tests: ["test/join-rate-limit.test.ts", "test/live-ws.rate-limit.test.ts"],
     note:
       "残量が無いときに ROOM_NOT_FOUND が返り、トークンを消費せずに存在確認を" +
@@ -199,13 +199,13 @@ export const MUTATIONS = [
     id: 13,
     label: "WS アダプタの鍵導出が X-Real-IP を（X-Forwarded-For より優先して）読む",
     patch: "m13-adapter-reads-x-real-ip.patch",
-    pkg: "apps/timer-sync",
+    pkg: "apps/tasuki-sync",
     tests: ["test/fail-closed.test.ts", "test/live-ws.rate-limit.test.ts"],
     note:
       "最終レビュー W-1。X-Real-IP は攻撃者が自由に付けられるヘッダ（Caddy は除去・" +
       "上書きしない）。接続のたびに値を変えるだけで毎回まっさらな鍵になり、#103 が" +
-      "塞いだ「再接続でリセット」が復活する欠陥。poker-sync にも同型のテストを足したが、" +
-      "mutation-check の対象は timer-sync 側の 1 件のみとした（W-1 の指示どおり）。",
+      "塞いだ「再接続でリセット」が復活する欠陥。poker 側にも同型のテストを足したが、" +
+      "mutation-check の対象は timer 側の 1 件のみとした（W-1 の指示どおり）。",
   },
   {
     id: 14,
@@ -544,7 +544,7 @@ function resolveBunBin() {
   }
   throw new Error(
     "bun 実行体が見つかりません（PATH にも ~/.bun/bin/bun にも無い）。" +
-      "apps/timer-sync の変異には bun test が必要です。",
+      "apps/tasuki-sync の変異には bun test が必要です。",
   );
 }
 
