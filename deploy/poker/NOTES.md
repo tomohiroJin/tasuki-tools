@@ -62,6 +62,11 @@ ssh <ホスト別名> "grep '^MAX_CONNECTIONS=' /opt/tasuki/tasuki-sync.env"
 TASUKI_SSH_HOST=<ホスト別名> ./deploy/deploy.sh timer
 TASUKI_SSH_HOST=<ホスト別名> ./deploy/deploy.sh poker   # web のみ・STATIC_ONLY
 
+#    **手順 1 が効いたことを起動ログで確かめる（ここが唯一の証拠）。**
+#    手順 1 を飛ばしても deploy.sh は成功するので、これを見るまで気づけない。
+#    maxConn=400 が出ていなければ手順 1 へ戻ること
+ssh <ホスト別名> "journalctl -u tasuki-sync -n 30 --no-pager | grep -o 'maxConn=[0-9]*' | tail -1"
+
 #    断片をホストへ送っておく（設置は次でホスト側から行う）
 scp deploy/poker/caddy/20-poker.conf <ホスト別名>:/tmp/
 
