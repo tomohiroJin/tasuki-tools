@@ -23,6 +23,9 @@ Tasuki の各アプリは「自分の systemd ユニット + 固有ポート + C
 > `STATIC_ONLY=1` になった。旧ユニット `tasuki-poker-sync` の停止手順は
 > [`poker/NOTES.md`](poker/NOTES.md) にある。**timer の再起動で poker のルームも消える**
 > ようになったので、デプロイの重さは 2 アプリぶんに増えている。
+>
+> **切り替え時は実 env の `MAX_CONNECTIONS` を手で直すこと**（同 NOTES の手順 1）。
+> `setup.sh` は既存の env を上書きしないので、`env.example` を直しただけでは届かない。
 
 ### 公開範囲の方針
 

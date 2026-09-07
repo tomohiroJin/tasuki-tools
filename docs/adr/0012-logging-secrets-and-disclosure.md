@@ -49,14 +49,14 @@
 | 箇所 | 理由 |
 |---|---|
 | `apps/tasuki-sync/src/adapters/console-log-sink.ts` | ロガの**唯一の実出力口**。ここだけが `console` を呼ぶ |
-| `apps/tasuki-sync/src/server.ts` の `listening` 行 | **テストハーネスとの契約**（下記の繰り越しを参照） |
+| poker-sync の `server.ts` の `listening` 行 | **テストハーネスとの契約**（下記の繰り越しを参照） |
 
 timer-sync の起動ログと設定エラーは、当初この例外に数えていたが、実装ではいずれも
 ロガ経由になった。例外として数える必要はない。
 
 **poker-sync は繰り越しとする。** poker-sync の直接出力は
-`{"event":"listening","port":...}` の 1 行だけで、これは
-`apps/tasuki-sync/test/poker/helpers.ts` が `JSON.parse` して実ポートを受け取るテスト
+`{"event":"listening","port":...}` の 1 行だけで、これは poker-sync の
+`tests/helpers.ts` が `JSON.parse` して実ポートを受け取るテスト
 ハーネスとの契約である。形式を変えると poker-sync のテストが全滅する。ロガ経路を
 導入しても、この 1 行だけは同じ形式で出し続けなければならず、いま移行しても得られる
 ものが無い。したがって poker-sync へのロガ導入は本 ADR では求めない（繰り越し先は、
@@ -369,3 +369,10 @@ D1 が定めたロガ 1 本だけであり、poker 側にあった `console.log`
 
 **D1 の規律そのものは変えていない。** 対象パッケージの名前が timer-sync から
 `apps/tasuki-sync` へ変わり、その射程に poker が入っただけである。
+
+**上の「直接呼び出しは 2 箇所」の表と繰り越しの記述は、統合前（2026-08-13 時点）の
+記録である。** 統合後に `console` を直接呼ぶのは
+`apps/tasuki-sync/src/adapters/console-log-sink.ts` の 1 箇所だけになり、
+起動ログはロガ経由（`logger.info("listening", ...)`）になった。テストハーネス
+（`apps/tasuki-sync/test/poker/helpers.ts`）も `JSON.parse` をやめ、
+D1 の整形（`event k=v`）から `port=` を読む形へ合わせてある。

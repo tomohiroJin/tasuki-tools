@@ -12,7 +12,7 @@ S1〜S13）は [`docs/adr/0011`](../adr/0011-threat-model-and-data-classificatio
 **ロガ経路の対象は同期サーバー `apps/tasuki-sync` です**
 （[`docs/adr/0012`](../adr/0012-logging-secrets-and-disclosure.md) 決定 D1）。
 かつて poker 側は明示的な繰り越しでロガ経路を持たず、起動ログなどを `console.log` で
-直接出していました。**#95 S2 で同期サーバーが 1 プロセルへ統合され、この繰り越しは
+直接出していました。**#95 S2 で同期サーバーが 1 プロセスへ統合され、この繰り越しは
 解消しています**（ADR 0012 の追記）。統合サーバーの出力口はロガ 1 本だけです。
 
 **ただし規律は poker-sync にも効きます。** `scripts/audit-log-hygiene.mjs` は

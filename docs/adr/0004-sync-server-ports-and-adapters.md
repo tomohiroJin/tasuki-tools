@@ -23,7 +23,7 @@ Tasuki には同期サーバーが 2 つある。2026-08-09〜10 時点で `apps
   相互配線）は `create-sync-server.ts` の 1 ファイルに閉じ込められており、
   同ファイルの冒頭コメントは「本番（`server.ts`）とテストが必ずこの関数を通ることが
   要点である」「組み立ての知識はこのファイルだけが持つ」と明記している。
-- **`apps/tasuki-sync/src/poker`** は `config.ts` / `rooms.ts` / `server.ts` の
+- **poker-sync の `src/`** は `config.ts` / `rooms.ts` / `server.ts` の
   モジュール関数のみで構成されており、ポートに相当する抽象境界も、組み立てを
   1 箇所へ集約する層も無い。
 
