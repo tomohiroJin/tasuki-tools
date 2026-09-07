@@ -1,5 +1,5 @@
 /**
- * テスト用の Logger / RefEncoder（apps/sync 共有）
+ * テスト用の Logger / RefEncoder（apps/tasuki-sync 共有）
  *
  * `Logger` / `RefEncoder` を要求するコンストラクタ（`ProblemDelegator` /
  * `WsAdapter` 等）はテストでも本物の型を満たす必要がある。ログの中身を

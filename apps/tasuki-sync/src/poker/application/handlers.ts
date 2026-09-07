@@ -6,11 +6,13 @@
  * 注入し、ユースケースはポートにのみ依存する）。以前は `server.ts` の
  * module 直下でアダプタを生成しており、in-process のテストが 1 件も書けなかった。
  * 偽のポートを渡してハンドラを直接呼べることが、この形にした理由である
- * （差し替えテストは `tests/create-sync-server.substitution.test.ts`）。
+ * （差し替えテストは `test/poker/create-sync-server.substitution.test.ts`）。
  *
  * **ここに Bun の型は出てこない。** 接続は {@link HandlerConnection}（送信口と
  * 接続ごとの状態だけ）として受け取る。`Bun.ServerWebSocket<ConnectionData>` は
- * 構造的にこれを満たすので、`adapters/ws-adapter.ts` はそのまま渡せる。
+ * 構造的にこれを満たすので、WS アダプタはそのまま渡せる。
+ * **アダプタは統合後 1 本しかない**（`src/adapters/ws-adapter.ts`。timer と共有する接続層で、
+ * poker 側の `adapters/` にはもう置いていない。#95 S2）。
  */
 import {
   applyAutoReveal,

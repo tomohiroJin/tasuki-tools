@@ -23,7 +23,7 @@
  * これを起点に文言決定を検査すれば、手で保守する集合を経由せずに
  * 追記漏れを構造的に検出できる（詳細は「エラーコードの列挙」describe を参照）。
  *
- * 本テストは `apps/web/test/ui/dev-artifacts.test.ts` と同じくソースを走査する
+ * 本テストは `apps/timer-web/test/ui/dev-artifacts.test.ts` と同じくソースを走査する
  * メタテストであり、前提・操作・検証という区切りが通常の意味では当てはまらない。
  *
  * @requirements FR-105, FR-107, FR-114
@@ -123,7 +123,7 @@ function readAllTsFiles(dir: string): string[] {
   return contents;
 }
 
-/** `apps/sync/src` が `type: "error"` で送るエラーコードを集める。 */
+/** `apps/tasuki-sync/src` が `type: "error"` で送るエラーコードを集める。 */
 function collectServerErrorCodes(): Set<string> {
   const codes = new Set<string>();
   for (const source of readAllTsFiles(SRC_DIR)) {
@@ -135,7 +135,7 @@ function collectServerErrorCodes(): Set<string> {
 
 describe("サーバーが送るエラーコード", () => {
   it("すべてのコードについて、画面に出す文言が決まっている", () => {
-    // Given（apps/sync/src 配下の全ソースを走査対象にし、正規表現走査には載らない
+    // Given（apps/tasuki-sync/src 配下の全ソースを走査対象にし、正規表現走査には載らない
     //   変数経由送出コード EMITTED_VIA_VARIABLE を合流させる）
     // When（コードの出現パターンを走査して収集する）
     const codes = [...collectServerErrorCodes(), ...EMITTED_VIA_VARIABLE].sort();
@@ -164,7 +164,7 @@ describe("サーバーが送るエラーコード", () => {
  */
 describe("変数経由コードの整合性", () => {
   it("EMITTED_VIA_VARIABLE の各コードは、ソースに文字列リテラルとして実在する", () => {
-    // Given（apps/sync/src 配下の全ソースを走査対象にする）
+    // Given（apps/tasuki-sync/src 配下の全ソースを走査対象にする）
     const sources = readAllTsFiles(SRC_DIR).join("\n");
     // When（EMITTED_VIA_VARIABLE の各コードがソース中にリテラルとして実在するか調べる）
     const absent = [...EMITTED_VIA_VARIABLE].filter((code) => !sources.includes(`"${code}"`)).sort();
@@ -201,7 +201,7 @@ describe("エラーコードの列挙", () => {
   });
 
   it("列挙されたコードは、すべてソースに実在する", () => {
-    // Given（apps/sync/src 配下の全ソースを走査対象にする）
+    // Given（apps/tasuki-sync/src 配下の全ソースを走査対象にする）
     const sources = readAllTsFiles(SRC_DIR).join("\n");
     // When（列挙側 SYNC_ERROR_CODES の各コードがソース中に実在するか調べる）
     const absent = SYNC_ERROR_CODES.filter((code) => !sources.includes(`"${code}"`));

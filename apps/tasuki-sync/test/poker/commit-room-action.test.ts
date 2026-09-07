@@ -7,7 +7,7 @@
 // **このテストは in-process で組み立てる。** `handleJoinRoom` の冪等化（#171 の根治側）
 // を入れたあと、WS 越しにこの状態を作る経路は残っていないため、
 // 「roomId は持っているが保管にルームが無い接続」を直接組み立てて確かめるしかない
-// （`tests/create-sync-server.substitution.test.ts` の「配線の穴 2」と同じ作り方）。
+// （`test/poker/create-sync-server.substitution.test.ts` の「配線の穴 2」と同じ作り方）。
 import { describe, expect, it } from 'bun:test';
 import type { ServerMessage } from '@tasuki/poker-core';
 import type { RateLimiter } from '@tasuki/rate-limit';

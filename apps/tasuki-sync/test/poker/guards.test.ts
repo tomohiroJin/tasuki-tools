@@ -4,7 +4,7 @@
  * 内容の検証（Valibot）より手前で効く層を対象にする。
  * `src/server.ts` はモジュール読み込み時に `process.env` から config を読むので、
  * サブプロセス起動のこのテストでは上限値を環境変数で注入する
- * （詳しくは tests/helpers.ts の冒頭）。
+ * （詳しくは test/poker/helpers.ts の冒頭）。
  */
 import net from 'node:net';
 import os from 'node:os';
@@ -149,7 +149,7 @@ describe('本番の fail-closed', () => {
 
     // 本番はクライアント鍵の検査（#103）も有効になるため、Origin だけでなく
     // X-Forwarded-For も付ける（このテストの主眼は「起動する」ことであり、
-    // クライアント鍵の検査は tests/fail-closed.test.ts が別途見る）。
+    // クライアント鍵の検査は test/poker/fail-closed.test.ts が別途見る）。
     // When
     const client = await raw(server.port, {
       origin: 'https://ok.example',

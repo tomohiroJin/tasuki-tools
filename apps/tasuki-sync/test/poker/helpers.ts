@@ -10,7 +10,7 @@
 //
 // **この helpers を使う既存テストは、いずれもサブプロセス起動のままである。**
 // #165 PR-2 で `create-sync-server.ts` ができ、`createSyncServer(config)` を呼べば
-// in-process でも起動できるようになった（`tests/create-sync-server.substitution.test.ts`
+// in-process でも起動できるようになった（`test/poker/create-sync-server.substitution.test.ts`
 // がその経路を使う）。既存テストの in-process への移行は、振る舞い不変の証拠を
 // 保つため本 PR では行わない。
 import { spawn } from 'node:child_process';
@@ -121,7 +121,7 @@ export async function waitForLine(
  * @param env 上書きする環境変数。`src/server.ts` はモジュール読み込み時に `process.env` から
  *   config を読むので、**サブプロセス起動では**上限値やハートビート間隔の注入経路は env しかない。
  *   設定オブジェクトを直に渡したいときは `createSyncServer(config)` を in-process で呼ぶ
- *   （`tests/create-sync-server.substitution.test.ts` を参照）。
+ *   （`test/poker/create-sync-server.substitution.test.ts` を参照）。
  */
 export async function startServer(env: Record<string, string> = {}): Promise<TestServer> {
   // `.env` の侵入経路を 2 つとも塞ぐ（理由は keysDefinedInDotenv の docstring）。

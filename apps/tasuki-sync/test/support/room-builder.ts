@@ -1,5 +1,5 @@
 /**
- * aRoom() — ルーム構築ビルダー（apps/sync 共有・新設4）
+ * aRoom() — ルーム構築ビルダー（apps/tasuki-sync 共有・新設4）
  *
  * Given を 1〜2 行に圧縮する。実際のコマンド（room.create / room.join /
  * driver.assign / phase.set）を handleCommand 経由で流すことで、

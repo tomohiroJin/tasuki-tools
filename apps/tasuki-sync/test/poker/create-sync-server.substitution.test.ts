@@ -189,7 +189,7 @@ describe('RoomStore の差し替え（上限判定を実ルームなしで再現
       count: () => 3,
     };
     // 上限判定は idGen も broadcaster の登録系も一切呼ばずに完結するはず。
-    // WS 越しのテスト（tests/guards.test.ts の MAX_ROOMS=1）は最終応答（server-busy）
+    // WS 越しのテスト（test/poker/guards.test.ts の MAX_ROOMS=1）は最終応答（server-busy）
     // までは確認できるが、「本物の crypto.randomUUID() や ws-broadcaster の
     // 登録処理に一度も触れていないこと」までは、ブラックボックスの外からは見えない
     const idGen: IdGen = {
@@ -364,7 +364,7 @@ describe('RoomSocket の差し替え（配信の宛先と回数）', () => {
     });
 
     // Then: room01 の 2 人（host / guest）だけが room-state を受け取る。
-    // **両者に届くこと自体は tests/join.test.ts:49「2人目の参加が両者の room-state に
+    // **両者に届くこと自体は test/poker/join.test.ts:49「2人目の参加が両者の room-state に
     // 配信される」が WS 越しに既に検証済み。** ここで新しいのは
     // 「無関係な room02 には 0 件（不達）」と「ちょうど 1 回（多重配信していない）」の 2 点。
     // 不達は WS 越しでは待ち受けをタイムアウトさせて確認するしかなく、回数は受信側の

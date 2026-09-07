@@ -52,7 +52,7 @@ describe('createWsBroadcaster', () => {
 
   it('同一参加者が別ソケットで再接続済みなら、古いソケットの detach は false を返し外さない', () => {
     // これを落とすと、再接続直後に古いソケットの close が新しい接続を蹴り出す。
-    // WS 越しの特性テスト（tests/socket-identity.characterization.test.ts）と同じ不変条件を、
+    // WS 越しの特性テスト（test/poker/socket-identity.characterization.test.ts）と同じ不変条件を、
     // アダプタ単体でも固定する
     const broadcaster = createWsBroadcaster();
     const oldSocket = recordingSocket();

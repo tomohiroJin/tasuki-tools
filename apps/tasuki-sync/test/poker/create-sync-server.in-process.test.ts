@@ -5,11 +5,11 @@
 //
 // > `server.ts` とテストの**両方**が `createSyncServer()` を経由する（テスト側は import で示す）
 //
-// **「経由する」だけなら既存テストも満たしている。** `tests/helpers.ts` の `startServer` は
+// **「経由する」だけなら既存テストも満たしている。** `test/poker/helpers.ts` の `startServer` は
 // `bun run src/server.ts` をサブプロセス起動するので、`server.ts` 経由で
 // `createSyncServer()` が呼ばれる。正本が指定しているのは主張ではなく**手段**
 // （テスト側の import）であり、それを満たすファイルが 1 つも無かった。
-// ファイル名が紛らわしいが `tests/create-sync-server.substitution.test.ts` は
+// ファイル名が紛らわしいが `test/poker/create-sync-server.substitution.test.ts` は
 // `makeHandlers` の差し替えテストで、`createSyncServer` を import していない。
 //
 // **儀式にしないための線引き**: 「import できた」ことは何も証明しない。ここで観測するのは
@@ -98,10 +98,13 @@ describe('createSyncServer を in-process で起動する', () => {
 //   1. 活線だった接続が切れる（クライアント側が close を観測する）
 //   2. ポートが解放される（同じポートで listen し直せる）
 //
-// **変異検査（2026-08-18 実測）**: `src/adapters/ws-adapter.ts` から
+// **変異検査（2026-08-18 実測）**: 当時の `apps/poker-sync/src/adapters/ws-adapter.ts` から
 // `void server.stop(true);` の行を削除すると 153 pass / 1 fail・終了コード 1 になり、
 // **落ちるのはこの it だけである**（この it を足す前は 153 件が全件緑だった、の裏返し）。
 // 落ちる場所は Then 1 で、Then 2 の bind 確認までは到達しない。
+//
+// ⚠ **件数もパスも当時のものである**（#95 S2 の統合前）。同じ行はいま共有の接続層
+// `src/adapters/ws-adapter.ts` にあり、テストは timer の分と合わさっているので数は違う。
 describe('createSyncServer の close()', () => {
   let server: SyncServer | undefined;
 

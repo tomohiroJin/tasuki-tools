@@ -1,5 +1,5 @@
 /**
- * SpyBroadcaster — Broadcaster の記録つきテスト実装（apps/sync 共有）
+ * SpyBroadcaster — Broadcaster の記録つきテスト実装（apps/tasuki-sync 共有）
  *
  * 既存 29 ファイルにローカル定義されていた `SpyBroadcaster` の和集合。
  * ファイルごとに `snapshots` が roomCode のみ／room のみ／両方、`signals` が

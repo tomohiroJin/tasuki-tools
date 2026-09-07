@@ -181,7 +181,7 @@ export function makeHandlers(deps: HandlerDeps) {
    * **`sendError(connId, "CODE", errorMessageFor("CODE"))` という、コードを
    * 2 回書く形（30 箇所超）を 1 引数のヘルパー（例 `rejectWith(connId, code)`）へ
    * 寄せることは検討したが、あえて寄せていない（T119）。理由は
-   * `apps/sync/test/error-code-coverage.test.ts` の `collectServerErrorCodes()` が
+   * `apps/tasuki-sync/test/error-code-coverage.test.ts` の `collectServerErrorCodes()` が
    * `code:\s*"CODE"` / `err\(\s*"CODE"` という**リテラルの形**だけを正規表現で
    * 走査して「利用者に見せる文言が決まっているか」を検出しているためである。
    * `rejectWith(connId, "CODE")` のような 1 引数呼び出しに変えると、その `"CODE"`

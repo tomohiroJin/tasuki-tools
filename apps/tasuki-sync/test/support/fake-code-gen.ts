@@ -1,5 +1,5 @@
 /**
- * FakeCodeGen — RoomCodeGen の決定的テスト実装（apps/sync 共有）
+ * FakeCodeGen — RoomCodeGen の決定的テスト実装（apps/tasuki-sync 共有）
  *
  * 既存 27 ファイルにローカル定義されていた `FakeCodeGen` の和集合。
  * 各ファイルの違いはプレフィックス文字列（例: "ROOM" / "LC" / "SNAP"）と
