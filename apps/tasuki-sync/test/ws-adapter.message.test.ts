@@ -18,7 +18,7 @@
 import { describe, it, expect, afterEach } from "bun:test";
 import { WebSocket } from "ws";
 import { WsAdapter } from "../src/adapters/ws-adapter.js";
-import { newTestWsAdapter } from "./support/test-ws-adapter.js";
+import { newTestWsAdapter, unwiredPokerHandlers } from "./support/test-ws-adapter.js";
 import { testLogger, collectingLogger } from "./support/test-logger.js";
 
 // ポートは OS に選ばせる（`port: 0`）。実ポートは `adapter.port` から取る。
@@ -262,5 +262,54 @@ describe("WsAdapter メッセージ経路", () => {
     expect(await gotB).toEqual({ type: "time.pong", serverTime: 2 });
     a.close();
     b.close();
+  });
+});
+
+/**
+ * poker のメッセージ層が throw してもプロセスを落とさない（#95 S2）。
+ *
+ * **統合でこの隔離の重みが変わった。** 統合前は poker のハンドラの同期 throw で
+ * 死ぬのは poker のプロセスだけだったが、いまは同じ 1 プロセスに timer のルームも
+ * 載っている（揮発インメモリなので、落ちれば timer の全ルームが消える）。
+ * `server.ts` の `uncaughtException` ハンドラは `process.exit(1)` するので、
+ * アダプタで受け止めていなければそこまで到達してしまう。
+ *
+ * ここで使う poker のハンドラは `unwiredPokerHandlers()`（呼ばれたら throw する偽物）で、
+ * **`dispatch` に到達したこと自体**も同時に確かめている。
+ */
+describe("poker のメッセージ層が throw しても隔離される", () => {
+  it("throw は on-message-error として記録され、接続もサーバーも生き残る", async () => {
+    // Given: 呼ばれたら必ず throw する poker のメッセージ層
+    const { logger, lines } = collectingLogger();
+    adapter = newTestWsAdapter({
+      port: 0,
+      host: "127.0.0.1",
+      allowedOrigins: [],
+      onMessage: async () => {},
+      onDisconnect: () => {},
+      logger,
+      poker: unwiredPokerHandlers(),
+    });
+    const ws = new WebSocket(`ws://127.0.0.1:${adapter.port}/poker/ws`);
+    await waitOpen(ws);
+
+    try {
+      // When: poker の入口へ 1 通送る（ハンドラは throw する）
+      ws.send(JSON.stringify({ type: "create-room", name: "たろう" }));
+
+      // Then: 例外の分類だけが記録される（例外メッセージは載せない・ADR 0012 D3）
+      await waitFor(() => lines.some((l) => l.startsWith("on-message-error ")));
+      const line = lines.find((l) => l.startsWith("on-message-error "))!;
+      expect(line).toContain("name=");
+      expect(line).not.toContain("poker のメッセージ層");
+
+      // Then: 接続は開いたままで、サーバーも動き続ける
+      expect(ws.readyState).toBe(WebSocket.OPEN);
+      // Then: 続けて送っても同じように受け止める（1 回きりの握り潰しではない）
+      ws.send(JSON.stringify({ type: "create-room", name: "はなこ" }));
+      await waitFor(() => lines.filter((l) => l.startsWith("on-message-error ")).length >= 2);
+    } finally {
+      ws.close();
+    }
   });
 });

@@ -68,6 +68,12 @@ curl -H "x-admin-token: $ADMIN_TOKEN" http://127.0.0.1:8787/admin/rooms
 
 - `/status`: アクティブルーム数・累計回収数
 - `/admin/rooms`: 上記＋各ルーム要約（コード/参加者数/online数/ドライバー有無/作成時刻）
+
+> ⚠ **どちらの数字も timer のルームだけ**である（#95 S2）。統合サーバーは poker の
+> ルームを別の保管に持っており、管理エンドポイントはそちらを見ていない。
+> **`activeRooms: 0` は「誰も使っていない」の証拠にならない** —— poker の
+> セッションが動いている可能性がある。再起動は poker のルームも道連れにするので、
+> この数字だけで判断しないこと（poker のルーム数を出すのは別 Issue の領分）。
 - 回収ログは `journalctl -u tasuki-sync | grep reclaimed` で追える
 
 ## AI お題生成（任意機能）

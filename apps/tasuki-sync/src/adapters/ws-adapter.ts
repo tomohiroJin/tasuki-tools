@@ -374,9 +374,16 @@ export class WsAdapter {
   private deriveClientKeySafely(forwardedFor: string | undefined): string | null {
     const derive = this.options.deriveClientKey;
     if (!derive) return null;
-    return deriveClientKeySafely(derive, forwardedFor, (name) => {
-      this.options.logger.error("derive-client-key-error", { name: publicText(name) }); // log-hygiene:allow 例外の分類のみ
-    });
+    // **`?? null` を落とさない。** 注入された実装が `undefined` を返すと
+    // `ws.data.clientKey` が `undefined` になり、`handleOpen` の本番 fail-closed
+    // （`=== null` の厳密比較）が発火しないまま `rateKey` が `connId` へ落ちる
+    // （＝再接続でリセットできるレート制限に戻る）。本番の `createClientKeyDeriver` は
+    // `string | null` しか返さないが、ここは差し替えを前提にした注入点である。
+    return (
+      deriveClientKeySafely(derive, forwardedFor, (name) => {
+        this.options.logger.error("derive-client-key-error", { name: publicText(name) }); // log-hygiene:allow 例外の分類のみ
+      }) ?? null
+    );
   }
 
   /**
@@ -519,17 +526,7 @@ export class WsAdapter {
     // （`@tasuki/poker-core` の ErrorCode）で、どちらも wire に載る値である。
     // 片方へ寄せると相手の web が知らないコードを受け取る（振る舞いが変わる）。
     if (ws.data.protocol === "poker") {
-      if (bytes > this.options.maxMessageBytes) {
-        // 接続は保つ（切断ではなくエラー応答）。再送で回復できる種類の失敗のため。
-        this.options.poker.sendError(ws, "message-too-large", "メッセージが大きすぎます");
-        return;
-      }
-      const result = parseClientMessage(String(raw));
-      if (result.isErr()) {
-        this.options.poker.sendError(ws, result.error.code, result.error.message);
-        return;
-      }
-      this.options.poker.dispatch(ws, result.value);
+      this.handlePokerMessage(ws, raw, bytes);
       return;
     }
 
@@ -563,6 +560,40 @@ export class WsAdapter {
     } catch (err) {
       this.options.logger.error("on-message-error", { name: classifyError(err) });
       this.sendInternalError(ws);
+    }
+  }
+
+  /**
+   * poker のメッセージ層へ渡す（サイズ判定・パース・ディスパッチ）。
+   *
+   * **本体を `try/catch` で隔離する。** poker のハンドラは同期に throw しうる。
+   * 統合前はそれで死ぬのは poker のプロセスだけだったが、**統合後は同じ 1 プロセスに
+   * 載っている timer のルームも道連れになる**（`server.ts` の `uncaughtException` が
+   * `process.exit(1)` する・揮発インメモリ）。このアダプタが `onConnect` /
+   * `onDisconnect` / timer の `onMessage` / poker の `detachFromCurrentRoom` を
+   * 隔離しているのと同じ理由が、ここにも等しく当てはまる。
+   *
+   * **利用者へエラーフレームは返さない。** poker の `ERROR_CODES`
+   * （`packages/poker-core/src/protocol.ts`）に「内部エラー」に当たるコードが無く、
+   * 足すのは wire の契約の変更になる（`docs/poker/adr/0003` 決定 4「送信側は縛ったまま」）。
+   * #95 S2 は振る舞いを変えない段なので、ここでは記録だけ残して接続は保つ。
+   * **返し方を決めるなら別 Issue で**、コードの追加と web 側の案内をまとめて行うこと。
+   */
+  private handlePokerMessage(ws: Socket, raw: string | Buffer, bytes: number): void {
+    try {
+      if (bytes > this.options.maxMessageBytes) {
+        // 接続は保つ（切断ではなくエラー応答）。再送で回復できる種類の失敗のため。
+        this.options.poker.sendError(ws, "message-too-large", "メッセージが大きすぎます");
+        return;
+      }
+      const result = parseClientMessage(String(raw));
+      if (result.isErr()) {
+        this.options.poker.sendError(ws, result.error.code, result.error.message);
+        return;
+      }
+      this.options.poker.dispatch(ws, result.value);
+    } catch (err) {
+      this.options.logger.error("on-message-error", { name: classifyError(err) });
     }
   }
 

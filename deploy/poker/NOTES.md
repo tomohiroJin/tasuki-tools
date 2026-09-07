@@ -45,10 +45,15 @@ poker の同期が切れる時間ができます。
 > 作られており、そのままだと**統合後の timer と poker が合計 200 枠を共有する**
 > （201 本目が 1013 で拒否される）。設計正本 D22 が避けようとした事態そのものである。
 
+**手元（1〜2）とホスト側（3〜5）で場所が変わります。** ホスト側の `sudo` は
+パスワードを聞かれます —— NOPASSWD になっているのは `systemctl` の
+`restart` / `status` / `start` / `stop <SERVICE>` だけなので、`ssh <host> "sudo ..."` の
+一発実行ではなく**対話セッションで**行ってください（TTY が無いと通りません）。
+
 ```bash
+# ── 手元 ────────────────────────────────────────────────────────────
 # 1. 本番の env を統合後の値へ直す（**配る前に**。setup.sh は既存 env を上書きしない）
-#    env は DEPLOY_USER 所有の 600 で、ログインユーザーがそのまま編集できる（sudo は要らない。
-#    このホストの sudo は systemctl の数コマンドしか NOPASSWD になっていない）。
+#    env は DEPLOY_USER 所有の 600 で、ログインユーザーがそのまま編集できる（sudo は不要）
 ssh <ホスト別名> "sed -i 's/^MAX_CONNECTIONS=200\$/MAX_CONNECTIONS=400/' /opt/tasuki/tasuki-sync.env"
 #    **必ず目で確かめる。** 値を手で変えてあった場合、上の sed は何もせず成功する
 ssh <ホスト別名> "grep '^MAX_CONNECTIONS=' /opt/tasuki/tasuki-sync.env"
@@ -57,16 +62,31 @@ ssh <ホスト別名> "grep '^MAX_CONNECTIONS=' /opt/tasuki/tasuki-sync.env"
 TASUKI_SSH_HOST=<ホスト別名> ./deploy/deploy.sh timer
 TASUKI_SSH_HOST=<ホスト別名> ./deploy/deploy.sh poker   # web のみ・STATIC_ONLY
 
-# 3. 新しい 20-poker.conf（/poker/ws → 8787）を設置して Caddy を読み直す
-#    ここまでで poker の WebSocket は統合サーバーが受けている
-sudo systemctl reload caddy
+#    断片をホストへ送っておく（設置は次でホスト側から行う）
+scp deploy/poker/caddy/20-poker.conf <ホスト別名>:/tmp/
 
-# 4. 旧ユニットを停止・無効化する
+# ── ホスト側（ssh <ホスト別名> で入って実行）───────────────────────
+# 3. 新しい 20-poker.conf（/poker/ws → 8787）を設置して Caddy を読み直す。
+#    ここまでで poker の WebSocket は統合サーバーが受けている。
+#    **設置を飛ばすと reload は「何も変わらないまま成功」する**（偽の緑）。
+#    手順 5 の ss は解放しか見ないので、この取りこぼしを検出しない
+sudo install -m 644 /tmp/20-poker.conf /etc/caddy/tasuki/apps/20-poker.conf
+grep -E 'reverse_proxy|rewrite' /etc/caddy/tasuki/apps/20-poker.conf   # 8787・rewrite 無しを目で見る
+sudo caddy validate --config /etc/caddy/Caddyfile && sudo systemctl reload caddy
+
+# 4. 旧ユニットを停止・無効化する（stop は NOPASSWD・disable はパスワードが要る）
 sudo systemctl stop tasuki-poker-sync
 sudo systemctl disable tasuki-poker-sync
 
 # 5. 3311 が解放されたことを確かめる（何も出なければ解放済み）
 ss -tlnp | grep ':3311'
+```
+
+**設置が効いたことは実物で確かめます**（reload の成功は証拠になりません）。
+
+```bash
+# 手元から。統合サーバーが受けていれば 426（旧 poker-sync なら 400 / SPA なら 200）
+curl -s -o /dev/null -w '%{http_code}\n' https://<公開ドメイン>/poker/ws
 ```
 
 ユニットファイル（`/etc/systemd/system/tasuki-poker-sync.service`）と
