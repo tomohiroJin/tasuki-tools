@@ -242,6 +242,12 @@ jobs:
       - run: node scripts/audit-domain-side-effects.mjs
         if: steps.scope.outputs.code == 'true'
 
+      # 依存の向き。パッケージ間の依存が許可表の内側に収まっていることを見る
+      # （憲法 原則 VI が MUST としながら検査が 1 つも無かった。ADR 0017 決定 4・#95 S1）。
+      # 権威は pnpm 自身なので install の後ろに置く。
+      - run: node scripts/audit-dependency-direction.mjs
+        if: steps.scope.outputs.code == 'true'
+
       # web 層の同期境界。画面が同期クライアントを直接 import しないことを見る
       # （ADR 0015 MUST 2 が #72 E4 へ割り当てた機械検査・#167）。
       - run: node scripts/audit-web-sync-boundary.mjs

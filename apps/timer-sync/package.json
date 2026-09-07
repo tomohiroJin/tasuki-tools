@@ -14,6 +14,7 @@
   "dependencies": {
     "@tasuki/protocol": "workspace:*",
     "@tasuki/rate-limit": "workspace:*",
+    "@tasuki/room-core": "workspace:*",
     "@tasuki/timer-core": "workspace:*",
     "nanoid": "^6.0.1",
     "neverthrow": "^8.2.0",

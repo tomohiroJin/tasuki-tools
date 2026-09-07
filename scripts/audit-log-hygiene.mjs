@@ -58,6 +58,7 @@ export const SCANNED_PACKAGES = [
   "packages/poker-core",
   "packages/protocol",
   "packages/rate-limit",
+  "packages/room-core",
   "packages/timer-core",
 ];
 

@@ -74,7 +74,7 @@ const REPO_ROOT = path.resolve(SCRIPT_DIR, "..");
  * サフィックス導出は `packages/timer-domain` のような名前のコアを黙って取りこぼすが、
  * 宣言＋全単射照合はパッケージが増えた時点で赤くなり、書いた人に判断を強制する。
  */
-export const DOMAIN_PACKAGES = ["packages/poker-core", "packages/timer-core"];
+export const DOMAIN_PACKAGES = ["packages/poker-core", "packages/room-core", "packages/timer-core"];
 
 /** 走査から外すパッケージ。**理由が要る。** 実在しなくなったら落ちる（ADR-0014 決定 2）。 */
 export const EXCLUDED_PACKAGES = [
