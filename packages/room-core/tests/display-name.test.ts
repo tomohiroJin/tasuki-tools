@@ -189,13 +189,13 @@ describe("nameSkeleton のメモ化（レビュー指摘・提案）", () => {
 });
 
 /**
- * conflictsWithExisting\uff08T061\uff09\u3002
+ * conflictsWithExisting（T061）。
  *
- * `apps/sync/src/application/handlers.ts` \u306e `participant.addProxy` /
- * `participant.rename` \u306e\u91cd\u8907\u691c\u67fb\u3092\u4e00\u5143\u5316\u3057\u305f\u95a2\u6570\u306e\u56de\u5e30\u30c6\u30b9\u30c8\u3002
- * \u5224\u5b9a\u5185\u5bb9\u306f\u73fe\u5728\u306e handlers.ts \u3068**\u540c\u4e00**\u306b\u3059\u308b
- * \uff08`trim().toLowerCase()` \u306e\u5358\u7d14\u6bd4\u8f03\u30fb\u81ea\u5206\u81ea\u8eab\u3092\u9664\u5916\u3067\u304d\u308b\u30fb`nameSkeleton` \u306f\u4f7f\u308f\u306a\u3044\uff09\u3002
- * \u3088\u308a\u6b63\u3057\u3044\u5224\u5b9a\uff08\u898b\u305f\u76ee\u306e\u66d6\u6627\u5224\u5b9a\u3092\u62d2\u5426\u306b\u3082\u4f7f\u3046\u7b49\uff09\u3078\u306e\u5909\u66f4\u306f\u6319\u52d5\u5909\u66f4\u306b\u306a\u308b\u305f\u3081\u7981\u6b62\u3002
+ * `apps/timer-sync/src/application/handlers.ts` の `participant.addProxy` /
+ * `participant.rename` の重複検査を一元化した関数の回帰テスト。
+ * 判定内容は現在の handlers.ts と**同一**にする
+ * （`trim().toLowerCase()` の単純比較・自分自身を除外できる・`nameSkeleton` は使わない）。
+ * より正しい判定（見た目の曖昧判定を拒否にも使う等）への変更は挙動変更になるため禁止。
  */
 describe("conflictsWithExisting", () => {
   const participants = [

@@ -175,8 +175,10 @@ poker の接続が timer の枠を食う。レート制限は逆に厳しくな�
 - **`apps/timer-web/src/ui/participant-label.ts` が `@tasuki/timer-core` から `nameSkeleton` を
   import している**（同名の参加者に識別子を添える判定）
 - **`apps/timer-sync/src/application/handlers.ts` が `@tasuki/timer-core` から
-  `conflictsWithExisting` を import している**（`participant.addProxy` / `participant.rename` の
-  重複検査。`:447` と `:468` の 2 箇所で呼ぶ）
+  `conflictsWithExisting` を import している**（`participant.addProxy` と
+  `participant.rename` のハンドラで 1 回ずつ呼ぶ）。**行番号は書かない** ——
+  この節を書いた PR 自身が同じファイルにコメントを 2 行足したため、記入した時点で
+  すでに 2 行ずれていた。数えるなら `grep -n conflictsWithExisting` を実行する
 
 > **【S1（#242）実施時の訂正・2026-09-07】** 上の 4 つめは当初の数え上げが落としていた。
 > 本節はもともと利用者を 3 つと数えており、S0・S1 の実装計画はそれを引き継いで

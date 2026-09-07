@@ -421,6 +421,29 @@ describe("宣言と 0 件ガードの配線: scripts/audit-dependency-direction.
     assert.doesNotMatch(r.stderr, /宣言にあるが実在しない/);
   });
 
+  test("走査する拡張子の宣言が pathspec へ配線されている（#252 3 巡目）", () => {
+    // Given: 宣言から .mjs を落とす。**実装が拡張子を直書きしていれば走査量は変わらない**
+    //        （＝宣言と実体がずれるのに緑のまま、という状態を検出する）。
+    //        当初この検査は .ts / .tsx だけを見ており、apps/timer-sync/scripts/*.mjs が
+    //        走査外だった。そこへ禁止依存を足しても exit 0 になる穴があった。
+    const mutate = (s) => s.replace('".mjs", ', "");
+    // When
+    const r = runScriptCopy("audit-dependency-direction.mjs", mutate);
+    // Then: まず「壊れたこと自体」を確かめる
+    assert.equal(countOf(r.source, '".mjs"'), 0, "宣言から .mjs を落とせていません");
+    // Then: 宣言が pathspec へ届いていれば、走査量が実際に減る
+    const before = runScriptCopy("audit-dependency-direction.mjs", (s) => s);
+    const volumeOf = (stdout) => {
+      const m = stdout.match(/走査対象: \d+ パッケージ \/ (\d+) ファイル/);
+      assert.ok(m, `走査量を読めません:\n${stdout}`);
+      return Number(m[1]);
+    };
+    assert.ok(
+      volumeOf(r.stdout) < volumeOf(before.stdout),
+      `宣言を狭めても走査量が減っていません（拡張子が直書きされている疑い）: ${volumeOf(before.stdout)} → ${volumeOf(r.stdout)}`,
+    );
+  });
+
   test("走査対象が 0 件になると非ゼロで終了する", () => {
     // Given: 全単射照合は素通りさせたまま（宣言は触らない）、走査だけを空にする
     const mutate = (s) =>

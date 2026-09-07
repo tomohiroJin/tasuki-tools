@@ -33,7 +33,15 @@
  * `src` だけを見ると `test/` 経由の逆流が素通りする（2026-09-07 の実測では
  * `packages/timer-core/test` `apps/timer-sync/test` `apps/timer-web/test` の 3 つが
  * 実際に `@tasuki/*` を取り込んでいた）。テストディレクトリ名は `test` と `tests` で
- * 割れているので、名前を導出せず**パッケージ配下の追跡下ファイルを全部見る**。
+ * 割れているので、名前を導出せず**パッケージ配下を再帰で見る**。
+ *
+ * **拡張子は {@link SCANNED_EXTENSIONS} で宣言する。** ディレクトリは絞らないが、
+ * 拡張子は絞る（`packages/ui` は woff2 を 7 本 = 約 722KB 同梱しており、全ファイルを
+ * 読むのは無駄である）。**当初 `.ts` / `.tsx` だけを見ていて `.mjs` が素通りした** ——
+ * `apps/timer-sync/scripts/quality-experiment.mjs` は実在し `@tasuki/timer-core` を
+ * 取り込んでいるのに走査外で、そこへ禁止依存を 2 本足しても `exit 0` だった
+ * （2026-09-07 のレビューで指摘され、実測で再現した）。**拡張子を変えるだけで
+ * 決定 4 を迂回できる状態だった** → 実行可能なモジュールの拡張子をすべて宣言する。
  *
  * ## 見ないもの（既知の穴・#253）
  *
@@ -144,14 +152,30 @@ export function findViolations(observed) {
 }
 
 /**
- * パッケージ配下の追跡下 `.ts` / `.tsx` を列挙する。
+ * 走査する拡張子。**JS / TS で実行される可能性のあるものをすべて挙げる。**
+ *
+ * ここを狭めると、狭めた拡張子のファイルから自由に越境できるようになる。
+ * `.ts` / `.tsx` だけだった版では `.mjs` が素通りした（本ファイル冒頭を見よ）。
+ * **設定ファイル（`*.config.js` / `*.config.mjs`）も含む** —— 設定から
+ * `@tasuki/*` を取り込む経路も依存であり、除く理由が無い。
+ */
+export const SCANNED_EXTENSIONS = [".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"];
+
+/**
+ * パッケージ配下の追跡下ファイルを列挙する（拡張子は {@link SCANNED_EXTENSIONS}）。
  *
  * git の pathspec の `*` は `/` を跨ぐので、`<pkg>/*.ts` だけで再帰列挙になる
  * （`**` を書いてはならない。`scripts/lib/scan-targets.mjs` の docstring を見よ）。
  * 追跡下だけを見るので `node_modules` と `dist` は自動的に外れる。
+ *
+ * **pathspec は宣言から導く。** ここに拡張子を直書きすると、宣言を書き換えても
+ * 走査が変わらない（宣言と実体がずれるのに検査は緑のまま）。
  */
 function listPackageSources(pkg) {
-  return listTrackedFiles(REPO_ROOT, [`${pkg}/*.ts`, `${pkg}/*.tsx`]);
+  return listTrackedFiles(
+    REPO_ROOT,
+    SCANNED_EXTENSIONS.map((ext) => `${pkg}/*${ext}`),
+  );
 }
 
 /** 実体を観測する。 */
