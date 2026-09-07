@@ -14,6 +14,7 @@
 // がその経路を使う）。既存テストの in-process への移行は、振る舞い不変の証拠を
 // 保つため本 PR では行わない。
 import { spawn } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -26,6 +27,39 @@ const APP_ROOT = path.resolve(fileURLToPath(new URL('.', import.meta.url)), '../
  * `INVALID_COMMAND` で弾かれる。**
  */
 export const POKER_WS_PATH = '/poker/ws';
+
+/**
+ * 開発用の `.env` が**定義しているキーの名前**を返す（値は読まない）。
+ *
+ * ## なぜ要るのか（#95 S2）
+ *
+ * Bun は cwd の `.env` を自動で読み込む。統合前は poker のテストの cwd が
+ * `apps/poker-sync` で、そこに `.env` は無かったのでこの経路が存在しなかった。
+ * 改名で cwd が `apps/tasuki-sync` へ移り、**開発者が案内どおりに作った
+ * `apps/tasuki-sync/.env`**（`.env.example` と `deploy/timer/NOTES.md` が作成を
+ * 勧めている）がテストへ流れ込むようになった。
+ *
+ * 侵入経路は 2 つあり、**両方を塞がないと効かない**（2026-09-08 実測）。
+ *
+ * 1. **子プロセスが自分で読む** → `bun run --env-file=...` で止める（下の `spawn`）
+ * 2. **`bun test` 自身が読み、`process.env` 経由で子へ継承される** → ここで取り除く
+ *
+ * 実測では `.env` に `ALLOWED_ORIGINS` を置くと `guards.test.ts` が 9 件落ち、
+ * `NODE_ENV=production` を足すと全体で 53 件落ちた。**CI には `.env` が無いので
+ * 緑のまま**で、手元だけが赤くなる（あるいは条件次第で逆になる）。
+ *
+ * **潰すキーを列挙しない。** 列挙は設定が増えるたびに腐る。`.env` が実際に
+ * 定義しているキーを毎回読み取って、それだけを落とす。
+ */
+function keysDefinedInDotenv(): string[] {
+  const dotenv = path.join(APP_ROOT, '.env');
+  if (!existsSync(dotenv)) return [];
+  // 値は解釈しない（引用符・複数行の扱いを再実装しない）。キー名だけを拾う。
+  return readFileSync(dotenv, 'utf8')
+    .split('\n')
+    .map((line) => /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/.exec(line)?.[1])
+    .filter((key): key is string => key !== undefined);
+}
 
 export interface TestServer {
   port: number;
@@ -90,9 +124,15 @@ export async function waitForLine(
  *   （`tests/create-sync-server.substitution.test.ts` を参照）。
  */
 export async function startServer(env: Record<string, string> = {}): Promise<TestServer> {
-  const proc = spawn('bun', ['run', 'src/server.ts'], {
+  // `.env` の侵入経路を 2 つとも塞ぐ（理由は keysDefinedInDotenv の docstring）。
+  // ① 子プロセスが自分で読む経路 → --env-file で空のファイルを指す
+  // ② bun test が読んで process.env 経由で継承される経路 → ここで取り除く
+  const inherited: Record<string, string | undefined> = { ...process.env };
+  for (const key of keysDefinedInDotenv()) delete inherited[key];
+
+  const proc = spawn('bun', ['run', '--env-file=test/support/no-dotenv.env', 'src/server.ts'], {
     cwd: APP_ROOT,
-    env: { ...process.env, PORT: '0', ...env },
+    env: { ...inherited, PORT: '0', ...env },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 
