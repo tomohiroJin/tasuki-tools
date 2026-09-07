@@ -11,10 +11,10 @@
 
 ## 層とディレクトリの対応表
 
-対応表です。`apps/tasuki-sync/src` と `apps/tasuki-sync/src/poker` はどちらも `ls` で
-`adapters/` `application/` `ports/` の実在を確認済みで（2026-09-08 に #95 S2 の統合後の
-構成で確認。初出は 2026-08-17 で、当時は `apps/timer-sync/src` と `apps/poker-sync/src`
-だった）、表の `apps/*-sync/...` の行は両方に当てはまります。
+現在の構成に基づく対応表です。`apps/tasuki-sync/src` と `apps/tasuki-sync/src/poker` は
+どちらも `ls` で `adapters/` `application/` `ports/` の実在を確認済みで、表の
+`apps/*-sync/...` の行は両方に当てはまります（確認は 2026-09-08・#95 S2 の統合後。
+初出は 2026-08-17 で、当時は timer-sync と poker-sync の `src/` を見ていました）。
 
 > **#95 S2 で同期サーバーは 1 パッケージになりました**（`apps/tasuki-sync`。ADR 0004 の追記）。
 > `apps/*-sync/...` という書き方はそのままで、いま一致するのはこの 1 つだけです。
