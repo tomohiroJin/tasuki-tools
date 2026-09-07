@@ -191,7 +191,7 @@ describe("nameSkeleton のメモ化（レビュー指摘・提案）", () => {
 /**
  * conflictsWithExisting（T061）。
  *
- * `apps/timer-sync/src/application/handlers.ts` の `participant.addProxy` /
+ * `apps/tasuki-sync/src/application/handlers.ts` の `participant.addProxy` /
  * `participant.rename` の重複検査を一元化した関数の回帰テスト。
  * 判定内容は現在の handlers.ts と**同一**にする
  * （`trim().toLowerCase()` の単純比較・自分自身を除外できる・`nameSkeleton` は使わない）。

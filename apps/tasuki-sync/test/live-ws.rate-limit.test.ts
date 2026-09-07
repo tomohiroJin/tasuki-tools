@@ -126,7 +126,7 @@ describe("実 WS 越しの入室レート制限", () => {
    * `join-rate-limit.test.ts` にも同じ主張の in-process テストがあるが、あちらは
    * handlers を直接呼ぶ。**実在するコードを実ソケット越しに投げたときも
    * `ROOM_NOT_FOUND` ではなく拒否が返る**ことを、poker 側
-   * （`apps/poker-sync/tests/rate-limit.test.ts`）と同じ粒度でここでも押さえる。
+   * （`test/poker/rate-limit.test.ts`。統合前は apps/poker-sync/tests/）と同じ粒度でここでも押さえる。
    *
    * ここが逆順（照会してから判定）だと、攻撃者はトークンを消費せずに
    * 「そのコードが実在するか」を数え切れないほど試せる。

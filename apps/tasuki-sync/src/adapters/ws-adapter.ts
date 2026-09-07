@@ -71,7 +71,7 @@ const DEFAULT_HEARTBEAT_MAX_MISSES = 2;
 /**
  * httpHandler（`handleAdminHttp`）へ渡すヘッダの許可リスト（N-4）。
  * 実際に読まれているのは `x-admin-token` だけ
- * （`apps/timer-sync/src/application/admin.ts` で確認済み）。
+ * （`apps/tasuki-sync/src/application/admin.ts` で確認済み）。
  * 増やすときは、そのヘッダが本当に読まれる先を確認してから足すこと。
  * `as const` にしてあるのは、受け取り側 `pickHeaders` の `readonly string[]`
  * に噛み合わせるため（Minor 4）。
@@ -335,7 +335,7 @@ export class WsAdapter {
       path: url.pathname + url.search,
       // 非 Upgrade の HTTP リクエストに限っても、生のヘッダを丸ごとは渡さない。
       // httpHandler（handleAdminHttp）が実際に読むのは `x-admin-token` だけ
-      // （apps/timer-sync/src/application/admin.ts で確認済み）なので許可リストに絞る。
+      // （apps/tasuki-sync/src/application/admin.ts で確認済み）なので許可リストに絞る。
       // 「賢い検査より単純な検査・無状態＋許可リストへ倒す」の教訓に合わせる。
       headers: pickHeaders(req.headers, ADMIN_HTTP_ALLOWED_HEADERS),
     });

@@ -1,7 +1,7 @@
 /**
  * `catch (err)` で受けた `err` から、ログへ出してよい「例外の分類」を安全に取り出す。
  *
- * timer-sync（`apps/timer-sync/src/adapters/ws-adapter.ts`）が 6 ラウンドの
+ * sync サーバー（`apps/tasuki-sync/src/adapters/ws-adapter.ts`）が 6 ラウンドの
  * 敵対的レビューを経て固めた形を、poker-sync にも同じガードが要る（#103 Task 7
  * レビュー S-2）ため共有する。複製すると `isLoopbackHost` 等（S-1）と同じ
  * 二重正本の問題が再発するため、ここへ 1 本化する。

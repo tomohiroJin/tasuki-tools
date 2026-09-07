@@ -24,7 +24,7 @@
     // 追っていない。**「解決できる」に依存する記述をここへ足すときは、まず再測すること。**
     //
     // ⚠ **CI の bun は `bun-version: latest` で固定していない**（.github/workflows/ci.yml）。
-    // サブパス解決が変われば apps/timer-sync/test/error-code-coverage.test.ts が
+    // サブパス解決が変われば apps/tasuki-sync/test/error-code-coverage.test.ts が
     // 落ちる。落ちたら、当該テストの取り込み口を戻すか bun を固定するかを決めること
     // （黙って緑になる向きではなく、赤で気づける向きに倒してある）。
     //
@@ -37,7 +37,7 @@
   },
   // **emit しない。** 以前は tsc で dist を出し、rootDir: "../.." を明示していたが、
   // その出力を読む側が 1 つも無かった（#173 で実測: 本番は deploy/timer/app.env の
-  // SYNC_ENTRY=apps/timer-sync/src/server.ts を bun build が直接束ねる。
+  // SYNC_ENTRY=apps/tasuki-sync/src/server.ts を bun build が直接束ねる。
   // BUILD_FILTER は @tasuki/timer-web だけなのでデプロイはここの build を呼ばない）。
   // 出力をやめたので rootDir が不要になり、typecheck 専用の tsconfig.test.json も
   // 要らなくなった（テストを射程へ入れると build がテストまで dist へ吐く、が理由だった）。

@@ -21,7 +21,7 @@ import { publicText, type LogField } from "../../src/application/log/log-safe.js
  *
  * ⚠ **このファイルが型検査に掛かることが前提条件である。** 掛からなければ
  * `@ts-expect-error` は 1 ミリも仕事をしない（実測: わざと壊した .ts を test/ へ置いても
- * 緑のまま通った時期がある）。掛かる根拠は `apps/timer-sync/tsconfig.json` の
+ * 緑のまま通った時期がある）。掛かる根拠は `apps/tasuki-sync/tsconfig.json` の
  * `include` に `test` があること、および `package.json` の `typecheck` が
  * `tsc --noEmit`（＝この tsconfig）を指していることの 2 つである。
  *

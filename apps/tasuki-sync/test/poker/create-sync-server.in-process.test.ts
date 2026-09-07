@@ -146,7 +146,7 @@ describe('createSyncServer の close()', () => {
     //   - 塞がったポートへ `Bun.serve` すると `Error: Failed to start server. Is port N
     //     in use?` が **throw される**。`bun test` の中でも通常のテスト失敗として出る
     //   - `process.exit(1)` するのは timer-sync の `WsAdapter` が自前で持つエラー
-    //     ハンドラ（`apps/timer-sync/src/adapters/ws-adapter.ts`）であって、
+    //     ハンドラ（`apps/tasuki-sync/src/adapters/ws-adapter.ts`）であって、
     //     `Bun.serve` 自体ではない。poker-sync 側に `process.exit` は 1 箇所も無い
     //
     // それでも検証に `createSyncServer` を使わないのは、失敗の原因を bind だけに
