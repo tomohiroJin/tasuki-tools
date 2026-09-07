@@ -15,11 +15,11 @@ S1〜S13）は [`docs/adr/0011`](../adr/0011-threat-model-and-data-classificatio
 直接出していました。**#95 S2 で同期サーバーが 1 プロセスへ統合され、この繰り越しは
 解消しています**（ADR 0012 の追記）。統合サーバーの出力口はロガ 1 本だけです。
 
-**ただし規律は poker-sync にも効きます。** `scripts/audit-log-hygiene.mjs` は
+**規律は poker の実装にも等しく効きます。** `scripts/audit-log-hygiene.mjs` は
 `apps/tasuki-sync/src/poker` も走査するので、許可マーカーの無い直接出力は増やせません。
 分類「秘密・資格情報・個人に紐づく」の値をログへ出さないという規範（憲法 原則 XI、
 [`docs/adr/0011`](../adr/0011-threat-model-and-data-classification.md) 決定1）は、
-ロガの有無にかかわらず両アプリに適用されます。
+どの文脈のコードにも同じように適用されます。
 
 ## 新しい値を足すときの手順
 
@@ -143,7 +143,7 @@ console.error("記録の読み込みに失敗しました:", e); // log-hygiene:
 - **`publicText()` を `vocabulary.ts` の外で呼ぶ。**
   （唯一の例外は上記「例外オブジェクトの分類名」。それ以外は `vocabulary.ts` に
   定数として足す）
-- **`console` を直接呼ぶ。** timer-sync の実出力口は
+- **`console` を直接呼ぶ。** 同期サーバーの実出力口は
   `apps/tasuki-sync/src/adapters/console-log-sink.ts` の 1 箇所だけです。
   それ以外から `console.log` / `console.warn` / `console.error` を呼びません
   （[`docs/adr/0012`](../adr/0012-logging-secrets-and-disclosure.md) 決定 D1）。

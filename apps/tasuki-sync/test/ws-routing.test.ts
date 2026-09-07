@@ -84,12 +84,14 @@ describe("WS の入口の振り分け", () => {
     expect(reply["roomId"]).toMatch(/^[a-z0-9]+$/);
   });
 
-  // Caddy の `path` マッチャは大小を区別せず、綴りをそのまま上流へ渡す
-  // （2026-09-08 に 2.11.4 で実測）。統合前は断片の `rewrite * /ws` が綴りごと
-  // 正規化していたが、rewrite を外したのでここで吸収する。厳密比較へ戻すと、
-  // **接続はできるのに全コマンドが INVALID_COMMAND になる**静かな壊れ方をする。
-  it.each(["/POKER/WS", "/Poker/Ws", "/poker/WS"])(
-    "%s も poker のメッセージ層へ行く（Caddy は大小を区別しない）",
+  // Caddy は**復号したパス**で照合し、**受け取ったままの綴り**を上流へ渡す
+  // （2026-09-08 に 2.11.4 で実測。`handle /poker/ws` は `/POKER/WS` にも
+  // `/poker/%77s` にも一致し、どちらもその綴りのまま届く）。統合前は断片の
+  // `rewrite * /ws` が綴りごと正規化していたが、rewrite を外したのでここで吸収する。
+  // 正規化を外すと、**接続はできるのに全コマンドが INVALID_COMMAND になる**
+  // 静かな壊れ方をする。
+  it.each(["/POKER/WS", "/Poker/Ws", "/poker/WS", "/poker/%77s", "/%70oker/ws"])(
+    "%s も poker のメッセージ層へ行く（Caddy は復号したパスで照合し、綴りはそのまま渡す）",
     async (path) => {
       // Given: 統合サーバー（beforeAll で起動済み）
       // When: 綴りの違う poker の入口へ poker のコマンドを送る

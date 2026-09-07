@@ -292,6 +292,10 @@ describe("poker のメッセージ層が throw しても隔離される", () => 
     });
     const ws = new WebSocket(`ws://127.0.0.1:${adapter.port}/poker/ws`);
     await waitOpen(ws);
+    // close は送信の直後に来るので、送る前に待ち受けを張る
+    const closedWith = new Promise<{ code: number }>((resolve) => {
+      ws.once("close", (code: number) => resolve({ code }));
+    });
 
     try {
       // When: poker の入口へ 1 通送る（ハンドラは throw する）
@@ -303,11 +307,17 @@ describe("poker のメッセージ層が throw しても隔離される", () => 
       expect(line).toContain("name=");
       expect(line).not.toContain("poker のメッセージ層");
 
-      // Then: 接続は開いたままで、サーバーも動き続ける
-      expect(ws.readyState).toBe(WebSocket.OPEN);
-      // Then: 続けて送っても同じように受け止める（1 回きりの握り潰しではない）
-      ws.send(JSON.stringify({ type: "create-room", name: "はなこ" }));
-      await waitFor(() => lines.filter((l) => l.startsWith("on-message-error ")).length >= 2);
+      // Then: **この接続だけ**が 1011 で閉じる（黙って開いたままにはしない。
+      // poker-web にコマンド単位のタイムアウトが無く、応答も切断も無ければ
+      // 画面が永久に待つため）
+      const closed = await closedWith;
+      expect(closed.code).toBe(1011);
+
+      // Then: サーバー自体は生きていて、次の接続を受け付ける
+      const second = new WebSocket(`ws://127.0.0.1:${adapter.port}/poker/ws`);
+      await waitOpen(second);
+      expect(second.readyState).toBe(WebSocket.OPEN);
+      second.close();
     } finally {
       ws.close();
     }

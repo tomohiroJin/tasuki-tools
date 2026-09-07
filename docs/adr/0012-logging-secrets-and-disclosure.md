@@ -48,7 +48,7 @@
 
 | 箇所 | 理由 |
 |---|---|
-| `apps/tasuki-sync/src/adapters/console-log-sink.ts` | ロガの**唯一の実出力口**。ここだけが `console` を呼ぶ |
+| timer-sync の `adapters/console-log-sink.ts` | ロガの**唯一の実出力口**。ここだけが `console` を呼ぶ |
 | poker-sync の `server.ts` の `listening` 行 | **テストハーネスとの契約**（下記の繰り越しを参照） |
 
 timer-sync の起動ログと設定エラーは、当初この例外に数えていたが、実装ではいずれも

@@ -49,6 +49,32 @@ import type { Handlers as PokerHandlers } from "../poker/application/handlers.js
 const POKER_WS_PATH = "/poker/ws";
 
 /**
+ * 振り分けの照合に使う形へパスを正規化する。
+ *
+ * **Caddy は「復号したパス」で照合し、「受け取ったままの綴り」を上流へ渡す**
+ * （2026-09-08 に 2.11.4 で実測）。したがって `handle /poker/ws` には
+ * `/POKER/WS` も `/poker/%77s` も一致し、こちらへはその綴りのまま届く。
+ * `new URL()` の `pathname` は復号しないので、**復号と小文字化の両方**を
+ * ここで行わないと timer 側へ落ちる（接続はできるのに全コマンドが
+ * `INVALID_COMMAND` になる、という静かな壊れ方をする）。
+ *
+ * 統合前は断片の `rewrite * /ws` が綴りごと正規化していたため、poker-sync の
+ * `=== '/ws'` という厳密比較でも取りこぼしが無かった。rewrite を外した以上、
+ * その正規化はこちらの責務になっている。
+ *
+ * **不正な `%` 列（`%zz` など）で `decodeURIComponent` は throw する。**
+ * その場合は復号前の値で照合する（＝ poker には一致せず timer 側へ行く）。
+ * 呼び出し元を巻き込まないことが目的で、投げ直さない。
+ */
+function normalizeWsPath(pathname: string): string {
+  try {
+    return decodeURIComponent(pathname).toLowerCase();
+  } catch {
+    return pathname.toLowerCase();
+  }
+}
+
+/**
  * `catch (err)` で受けた `err` から、ログへ出してよい「例外の分類」を取り出す（I-1）。
  *
  * 分類そのものの実装（`instanceof Error` の実行時判定・`name` ゲッタが throw する
@@ -313,14 +339,9 @@ export class WsAdapter {
     // パスは upgrade を試みる前に読む。`new URL` は upgrade の成否に関わらず
     // 必要で、失敗しても handleFetch の try/catch が受ける。
     const url = new URL(req.url);
-    // **大小を区別せずに照合する。** Caddy の `path` マッチャは大小を区別せず、
-    // かつ**受け取ったパスをそのままの綴りで**上流へ渡す（2026-09-08 に 2.11.4 で実測。
-    // `handle /poker/ws` は `/POKER/WS` にも一致し、`{path}` は `/POKER/WS` のまま）。
-    // 統合前は断片が `rewrite * /ws` で綴りごと正規化していたため、poker-sync の
-    // `=== '/ws'` という厳密比較でも取りこぼしが無かった。rewrite を外した今、
-    // ここで小文字化しないと `/POKER/WS` が timer 側へ落ち、**接続はできるのに
-    // 全コマンドが INVALID_COMMAND になる**という静かな壊れ方をする。
-    const protocol = url.pathname.toLowerCase() === POKER_WS_PATH ? "poker" : "timer";
+    // 綴りの揺れ（大小・パーセント符号化）は `normalizeWsPath` が吸収する。
+    // 理由と実測はその docstring にある。
+    const protocol = normalizeWsPath(url.pathname) === POKER_WS_PATH ? "poker" : "timer";
     if (
       server.upgrade(req, {
         data: {
@@ -573,11 +594,15 @@ export class WsAdapter {
    * `onDisconnect` / timer の `onMessage` / poker の `detachFromCurrentRoom` を
    * 隔離しているのと同じ理由が、ここにも等しく当てはまる。
    *
-   * **利用者へエラーフレームは返さない。** poker の `ERROR_CODES`
+   * **エラーフレームは返さず、接続を 1011 で閉じる。** poker の `ERROR_CODES`
    * （`packages/poker-core/src/protocol.ts`）に「内部エラー」に当たるコードが無く、
    * 足すのは wire の契約の変更になる（`docs/poker/adr/0003` 決定 4「送信側は縛ったまま」）。
-   * #95 S2 は振る舞いを変えない段なので、ここでは記録だけ残して接続は保つ。
-   * **返し方を決めるなら別 Issue で**、コードの追加と web 側の案内をまとめて行うこと。
+   * 一方、**黙って開いたままにするのは統合前より悪い**。統合前はプロセスが落ちて
+   * クライアントが切断を観測し再接続していたが、`apps/poker-web/src/hooks/useSync.ts`
+   * にコマンド単位のタイムアウトは無いため（再接続のバックオフだけ）、応答も切断も
+   * 無ければ画面は永久に待つ。1011（Internal Error）は WebSocket の標準の close コードで、
+   * **新しい wire のコードを足さずに「何かが起きた」ことだけを伝えられる**。
+   * この接続だけが閉じ、同じプロセスに載る timer のルームには波及しない。
    */
   private handlePokerMessage(ws: Socket, raw: string | Buffer, bytes: number): void {
     try {
@@ -594,6 +619,12 @@ export class WsAdapter {
       this.options.poker.dispatch(ws, result.value);
     } catch (err) {
       this.options.logger.error("on-message-error", { name: classifyError(err) });
+      // 閉じるのは**この接続だけ**。close 自体が throw しても巻き込まない。
+      try {
+        ws.close(1011, "Internal error");
+      } catch (closeErr) {
+        this.options.logger.error("on-message-error", { name: classifyError(closeErr) });
+      }
     }
   }
 
