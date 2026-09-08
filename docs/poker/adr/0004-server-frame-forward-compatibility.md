@@ -93,7 +93,7 @@
 ## 影響
 
 - `packages/poker-core/src/protocol.ts` の 7 箇所が `v.strictObject` → `v.object`。
-  **型は変わらない**ので、`apps/poker-web` と `apps/poker-sync` の製品コードは変わらない。
+  **型は変わらない**ので、`apps/poker-web` と poker の同期サーバーの製品コードは変わらない。
 - `0003` の「残っている問題」の 1 つ目（`joined` / `room-state` は前方互換ではない）が解消する。
 - `docs/poker/specs/001-planning-poker-mvp/contracts/ws-protocol.md` の
   「受信は広く、送信は狭く」を `joined` / `room-state` を含む形に直す。

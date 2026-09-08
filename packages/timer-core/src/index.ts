@@ -36,11 +36,11 @@
  * `@tasuki/timer-core/*` のワイルドカードなので、**alias の無いモジュールを
  * timer-web から取り込むと typecheck は緑のまま build と vitest だけが落ちる。**
  * 新しいサブパスを timer-web で使うときは、alias を 2 つの設定へ足すこと。
- * `apps/timer-sync` は tsconfig の `paths` で解決する（下の注意書きも読むこと）。
+ * `apps/tasuki-sync` は tsconfig の `paths` で解決する（下の注意書きも読むこと）。
  *
  * 同じ理由で、テストだけが取り込む値も載せない（FR-090。テストからの参照は
  * 公開の根拠にしない）。`SYNC_ERROR_CODES` と `DEFAULT_ERROR_MESSAGE` は
- * `apps/timer-sync/test/error-code-coverage.test.ts` がサブパスから取り込む。
+ * `apps/tasuki-sync/test/error-code-coverage.test.ts` がサブパスから取り込む。
  */
 
 // 集約・型

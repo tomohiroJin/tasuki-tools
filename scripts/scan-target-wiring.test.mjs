@@ -216,8 +216,8 @@ describe("実在確認の配線: scripts/audit-structure.mjs", () => {
     // Given: SC-027 の到達性測定の起点だけを実在しないファイル名へ変える
     const mutate = (s) =>
       s.replace(
-        '{ pkg: "apps/timer-sync", src: "src", test: "test", entry: "server.ts" }',
-        '{ pkg: "apps/timer-sync", src: "src", test: "test", entry: "server-gone.ts" }',
+        '{ pkg: "apps/tasuki-sync", src: "src", test: "test", entry: "server.ts" }',
+        '{ pkg: "apps/tasuki-sync", src: "src", test: "test", entry: "server-gone.ts" }',
       );
     // When
     const r = runScriptCopy("audit-structure.mjs", mutate);
@@ -225,7 +225,7 @@ describe("実在確認の配線: scripts/audit-structure.mjs", () => {
     assert.equal(countOf(r.source, "server-gone.ts"), 1, "宣言を壊せていません");
     // Then
     assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
-    assert.match(r.stderr, /宣言にあるが実在しない: apps\/timer-sync\/src\/server-gone\.ts/);
+    assert.match(r.stderr, /宣言にあるが実在しない: apps\/tasuki-sync\/src\/server-gone\.ts/);
   });
 
   test("名指しで参照するファイルピンが実在しないと非ゼロで終了し、名指しする", () => {
@@ -424,7 +424,7 @@ describe("宣言と 0 件ガードの配線: scripts/audit-dependency-direction.
   test("走査する拡張子の宣言が pathspec へ配線されている（#252 3 巡目）", () => {
     // Given: 宣言から .mjs を落とす。**実装が拡張子を直書きしていれば走査量は変わらない**
     //        （＝宣言と実体がずれるのに緑のまま、という状態を検出する）。
-    //        当初この検査は .ts / .tsx だけを見ており、apps/timer-sync/scripts/*.mjs が
+    //        当初この検査は .ts / .tsx だけを見ており、apps/tasuki-sync/scripts/*.mjs が
     //        走査外だった。そこへ禁止依存を足しても exit 0 になる穴があった。
     const mutate = (s) => s.replace('".mjs", ', "");
     // When
@@ -527,7 +527,7 @@ describe("0 件ガードの配線: scripts/audit-assembly-wiring.mjs", () => {
     assert.equal(countOf(r.source, "findAssemblyProblems(t, sources)"), 0, "判定の呼び出しを壊せていません");
     // Then: 差し込んだ問題がそのまま赤として出る（＝main が problems を見て終了コードを決めている）
     assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
-    assert.match(r.stderr, /配線が消えた: apps\/poker-sync\/src\/server\.ts/);
+    assert.match(r.stderr, /配線が消えた: apps\/tasuki-sync\/src\/server\.ts/);
   });
 });
 

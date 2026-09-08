@@ -26,10 +26,10 @@ export const TURBO_BIN = path.join(REPO_ROOT, 'node_modules/.bin/turbo');
  * 既に宣言しており（`paths.ts` の説明を参照）、それが唯一の名簿である。
  * 二重に持つと、片方を足したときにもう片方が腐る。
  *
- * 絞らずに `turbo run build` を叩くと、配信に関係しないパッケージ
- * （`@tasuki/poker-sync` の `bun build` など）のビルド失敗でも E2E が
- * 起動しなくなる。turbo は `dependsOn: ["^build"]` を辿るので、
- * これらの依存パッケージは絞っても一緒にビルドされる。
+ * 絞らずに `turbo run build` を叩くと、**配信対象ではないパッケージ**
+ * （同期サーバー `@tasuki/sync` など、E2E が配信しないもの）のビルド失敗でも
+ * E2E が起動しなくなる。turbo は `dependsOn: ["^build"]` を辿るので、
+ * 配信対象が依存しているパッケージは絞っても一緒にビルドされる。
  */
 export function webAppPackages(): readonly string[] {
   const manifest: unknown = JSON.parse(

@@ -45,15 +45,15 @@ const REPO_ROOT = path.resolve(SCRIPT_DIR, "..");
  * 走査するパッケージ（リポジトリルート起点）。各パッケージの `src/` 配下の `.ts` / `.tsx` を見る。
  *
  * **ハードコードの配列をやめ、workspace の実体と全単射で照合する**（#135 経路⑪）。
- * 以前は timer-sync・poker-sync・rate-limit の 3 つだけを見ており、新設パッケージは
+ * 以前は sync 2 本・rate-limit の 3 つだけを見ており、新設パッケージは
  * 黙って対象外になった。packages/rate-limit（生の IP を最も直接扱う）が実際に
  * 素通りし、最終レビューで人が気づくまで緑のままだった。
  */
 export const SCANNED_PACKAGES = [
   "apps/landing",
-  "apps/poker-sync",
   "apps/poker-web",
-  "apps/timer-sync",
+  // #95 S2 で apps/timer-sync と apps/poker-sync がここへ統合された。
+  "apps/tasuki-sync",
   "apps/timer-web",
   "packages/poker-core",
   "packages/protocol",
@@ -104,15 +104,14 @@ const SCAN_DIRS = SCANNED_PACKAGES.map((pkg) => `${pkg}/src`);
  * 持たないファイルは `findStaleAllowances` が赤にする。
  */
 export const ALLOWED_FILES = [
-  "apps/timer-sync/src/adapters/console-log-sink.ts",
-  "apps/timer-sync/src/server.ts",
-  "apps/timer-sync/src/adapters/ws-adapter.ts",
-  "apps/timer-sync/src/application/log/vocabulary.ts",
-  "apps/timer-sync/src/application/log/ref-encoder.ts",
-  "apps/timer-sync/src/application/log/log-safe.ts",
-  "apps/poker-sync/src/server.ts",
-  // #165 PR-2 で conn-rejected / derive-client-key-error が server.ts から移った先。
-  "apps/poker-sync/src/adapters/ws-adapter.ts",
+  "apps/tasuki-sync/src/adapters/console-log-sink.ts",
+  "apps/tasuki-sync/src/server.ts",
+  "apps/tasuki-sync/src/adapters/ws-adapter.ts",
+  "apps/tasuki-sync/src/application/log/vocabulary.ts",
+  "apps/tasuki-sync/src/application/log/ref-encoder.ts",
+  "apps/tasuki-sync/src/application/log/log-safe.ts",
+  // #95 S2 の統合で、poker 側の `console.log` 直呼び（旧 poker-sync の server.ts と
+  // ws-adapter.ts）は無くなった。出口は上の console-log-sink.ts 1 本に揃っている。
   // #167 E4 で App.tsx（本検査の走査対象外）から移った、ブラウザ側の開発者コンソール出力。
   // 出力先は利用者の devtools であってサーバーのログ経路ではない。文言・引数は移設前のまま。
   "apps/timer-web/src/sync/use-timer-sync.ts",
@@ -129,14 +128,17 @@ export const ALLOWED_FILES = [
 
 /** 走査結果に必ず存在しなければならないファイル（走査対象の消失を検出する）。 */
 export const REQUIRED_FILES = [
-  "apps/timer-sync/src/create-sync-server.ts",
-  "apps/timer-sync/src/application/problem-delegation.ts",
-  "apps/timer-sync/src/adapters/console-log-sink.ts",
-  "apps/poker-sync/src/server.ts",
+  "apps/tasuki-sync/src/application/problem-delegation.ts",
+  "apps/tasuki-sync/src/adapters/console-log-sink.ts",
+  "apps/tasuki-sync/src/server.ts",
   // #165 PR-2 の組み立て関数。**ここで見ているのは実在だけである。**
   // E1 が E2 へ割り当てた機械検査は「実在し、server.ts とテストの両方が経由すること」
   // で、経由の側は scripts/audit-assembly-wiring.mjs が見る。
-  "apps/poker-sync/src/create-sync-server.ts",
+  // #95 S2 の統合で 2 本あった組み立て関数が 1 本になった。
+  "apps/tasuki-sync/src/create-sync-server.ts",
+  // 統合で poker のメッセージ層が入った先。ここが落ちると poker 側の
+  // `src/` がまるごと走査から外れても気づけない（#95 S2）。
+  "apps/tasuki-sync/src/poker/application/handlers.ts",
   // 生の IP を最も直接扱うモジュール（W-3）。SCAN_DIRS からまた落ちたら赤にする。
   "packages/rate-limit/src/client-key.ts",
   // #157 で `.tsx` を走査対象へ入れたことを、**実行時に保証する**ための 1 件。

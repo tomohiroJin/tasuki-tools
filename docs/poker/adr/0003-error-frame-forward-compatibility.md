@@ -123,7 +123,7 @@ poker はもともとサーバーが送った `message` をそのまま描いて
 
 ### 4. 送信側は縛ったまま
 
-`apps/poker-sync` の `sendError(code: ErrorCode, ...)` は変えない。**受信側が広く受ける
+poker の同期サーバー（`apps/tasuki-sync/src/poker`）の `sendError(code: ErrorCode, ...)` は変えない。**受信側が広く受ける
 ことと、送信側が好き勝手に送ってよいことは別である。** 新しいコードを足すときは
 `ERROR_CODES` に加える手順を保つ（そうしないと `error-messages.ts` や
 `contracts/ws-protocol.md` との対応が切れる）。
@@ -161,7 +161,7 @@ poker はもともとサーバーが送った `message` をそのまま描いて
 - **`apps/poker-web/src/components/ErrorNote.tsx` を新設**し、`TopPage` / `RoomPage`
   （参加フォームと入室後）から使う（決定 5）。`RoomPage` の既存のエラー表示も
   そちらへ寄せた。
-- `apps/poker-sync` は `Broadcaster.sendTo` の引数型が
+- poker の同期サーバーは `Broadcaster.sendTo` の引数型が
   `ServerMessage` → `OutboundServerMessage` に変わる（決定 4）。**送る値は変わらない。**
 - **未知の `code` を持つ `error` では、`0002` の `stale` 告知が出なくなる**
   （捨てなくなるため）。`0002` 決定 2 の実測表にある「未知の `code` を持つ `error`」の

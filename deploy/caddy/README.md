@@ -127,7 +127,8 @@ for p in / /timer/ /poker/; do
 done
 
 # WebSocket が SPA に吸われていないこと。**判定は「200 でないこと」**。
-# timer-sync は 426、poker-sync は 400（WebSocket upgrade failed）を返す。実装の差。
+# 統合 sync（apps/tasuki-sync）は非 Upgrade の HTTP に 426 を返す。
+# （#95 S2 の統合前、poker-sync だけは 400 を返していた。統合で 426 に揃った。）
 curl -s -o /dev/null -w 'timer/ws → %{http_code}\n' "$HOST/timer/ws"
 curl -s -o /dev/null -w 'poker/ws → %{http_code}\n' "$HOST/poker/ws"
 

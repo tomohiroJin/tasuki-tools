@@ -1,7 +1,7 @@
 # 変異 5: can-remove-participant-guard
 #
 # 検出を期待するテスト:
-#   - apps/timer-sync/test/participant-remove.test.ts
+#   - apps/tasuki-sync/test/participant-remove.test.ts
 #
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m05-*.patch
@@ -13,10 +13,10 @@
 #       command-handlers/participant-remove.ts へ移り、パッチが適用不能に
 #       なっていた（S1-a の作業中に発覚。移設とは無関係の既存の腐り）。
 #       現在の呼び出し位置に合わせて再生成した。
-diff --git a/apps/timer-sync/src/application/command-handlers/participant-remove.ts b/apps/timer-sync/src/application/command-handlers/participant-remove.ts
+diff --git a/apps/tasuki-sync/src/application/command-handlers/participant-remove.ts b/apps/tasuki-sync/src/application/command-handlers/participant-remove.ts
 index 64537a6..5e57b07 100644
---- a/apps/timer-sync/src/application/command-handlers/participant-remove.ts
-+++ b/apps/timer-sync/src/application/command-handlers/participant-remove.ts
+--- a/apps/tasuki-sync/src/application/command-handlers/participant-remove.ts
++++ b/apps/tasuki-sync/src/application/command-handlers/participant-remove.ts
 @@ -82,7 +82,7 @@ export async function handleParticipantRemove(
    }
    // 不変条件: 実在（非代理）の編集者以上が1名以上残ること（FR-072/073）。

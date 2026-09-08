@@ -2,7 +2,7 @@
  * `classifyErrorKind` のテスト。
  *
  * 例外を安全にログへ出すための分類（`err.name` / `typeof err`）を丸める処理は、
- * 元々 `apps/timer-sync/src/adapters/ws-adapter.ts` の非公開関数 `classifyError`
+ * 元々 `apps/tasuki-sync/src/adapters/ws-adapter.ts`（当時は apps/timer-sync）の非公開関数 `classifyError`
  * にだけ実装されていた（`sanitizeErrorKind` を含む）。poker-sync にも同じ形の
  * ガードが要る（#103 Task 7 レビュー S-2）ため、複製すると S-1 と同じ二重正本の
  * 問題が再発する。ここへ切り出し、両アプリから共有する。

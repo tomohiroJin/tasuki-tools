@@ -76,25 +76,6 @@ importers:
         specifier: ^4.1.10
         version: 4.1.10(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.0(@types/node@26.1.2)(jiti@2.7.0))
 
-  apps/poker-sync:
-    dependencies:
-      '@tasuki/poker-core':
-        specifier: workspace:*
-        version: link:../../packages/poker-core
-      '@tasuki/rate-limit':
-        specifier: workspace:*
-        version: link:../../packages/rate-limit
-      neverthrow:
-        specifier: ^8.2.0
-        version: 8.2.0
-    devDependencies:
-      '@types/bun':
-        specifier: ^1.2.0
-        version: 1.3.14
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-
   apps/poker-web:
     dependencies:
       '@tasuki/poker-core':
@@ -135,8 +116,11 @@ importers:
         specifier: ^4.1.10
         version: 4.1.10(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.0(@types/node@26.1.2)(jiti@2.7.0))
 
-  apps/timer-sync:
+  apps/tasuki-sync:
     dependencies:
+      '@tasuki/poker-core':
+        specifier: workspace:*
+        version: link:../../packages/poker-core
       '@tasuki/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
@@ -165,6 +149,9 @@ importers:
       '@types/ws':
         specifier: ^8.5.13
         version: 8.18.1
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
       ws:
         specifier: ^8.21.2
         version: 8.21.2

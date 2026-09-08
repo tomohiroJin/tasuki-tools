@@ -13,23 +13,24 @@ Tasuki の各アプリは「自分の systemd ユニット + 固有ポート + C
 |---|---|---|---|---|---|
 | `landing` | （無し・静的） | — | `/var/www/tasuki-home` | `/`（玄関） | 公開中 |
 | `timer` | `tasuki-sync` | 8787 | `/opt/tasuki` / `/var/www/tasuki` | `/timer/` | 公開中 |
-| `poker` | `tasuki-poker-sync` | 3311 | `/opt/tasuki-poker` / `/var/www/tasuki-poker` | `/poker/` | 公開中 |
+| `poker` | （無し・静的） | — | `/var/www/tasuki-poker` | `/poker/` | 公開中 |
 
 > **3 系統は 2026-08-28 に本番へ出た（#66）。** Planning Poker と玄関 LP はこのときが初回公開。
 > 再起動でルームが全消滅するため、デプロイは指示を得てまとめて 1 回行う方針は変わらない。
 
-### 公開範囲の方針（重要）
+> **#95 S2 で同期サーバーを 1 本に統合した。** `tasuki-sync`（8787）が timer と poker の
+> 両方の WebSocket を受ける。`poker` は web を配るだけの静的アプリになり、`app.env` が
+> `STATIC_ONLY=1` になった。旧ユニット `tasuki-poker-sync` の停止手順は
+> [`poker/NOTES.md`](poker/NOTES.md) にある。**timer の再起動で poker のルームも消える**
+> ようになったので、デプロイの重さは 2 アプリぶんに増えている。
+>
+> **切り替え時は実 env の `MAX_CONNECTIONS` を手で直すこと**（同 NOTES の手順 1）。
+> `setup.sh` は既存の env を上書きしないので、`env.example` を直しただけでは届かない。
 
-**本番に公開しているのは TDD Mob Pro Timer（`packages/timer-core` / `apps/timer-*`）のみである。**
+### 公開範囲の方針
 
-- Planning Poker（`packages/poker-core` / `apps/poker-*`）は同一リポジトリにあるが未公開。
-  デプロイはアプリ単位（`./deploy/deploy.sh <app>`）で、poker を明示的に指定しない限り
-  転送されない。さらに Caddy 断片 `20-poker.conf` を設置していないため、**仮に配置しても
-  公開されない**（S2 / #17 で入れた二重の歯止め）。
-- 公開ドメインの `/poker` パスが 200 を返すことがあるのは、Caddy の SPA フォールバックにより
-  timer の `index.html` が返っているだけで、Planning Poker の実体ではない。
-- **Planning Poker の公開は #66（S4 の成果を本番へ出す）で行う。** 上記の S4 注記のとおり
-  epic #15 の全段階が終わってから 1 回にまとめて実施する方針であり、個別の前倒しは行わない。
+**3 系統（timer / poker / landing）はいずれも公開中である**（2026-08-28・#66）。
+デプロイはアプリ単位（`./deploy/deploy.sh <app>`）で、指定したアプリだけが転送される。
 
 `landing` は **sync サーバーを持たない静的サイト**で、Caddy が直接配信する。`app.env` に
 `STATIC_ONLY=1` を置くと、`deploy.sh` はバンドルとサービス再起動の段を飛ばし、

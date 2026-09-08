@@ -1,0 +1,45 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // WS アダプタが Bun.serve を使うため（poker-sync と同じ指定）。
+    "types": ["bun"],
+    // ⚠ **この paths は typecheck 専用ではない。bun test の実行時解決にも効く**
+    // （2026-09-02 実測・bun 1.3.14。下の行を存在しないディレクトリへ向けると
+    // `Cannot find module '@tasuki/timer-core/errors'` で落ちる）。壊すと赤くなる。
+    //
+    // 指定子の形で事情が違う。
+    //
+    // - bare な `@tasuki/timer-core` は pnpm workspace の symlink と timer-core の
+    //   main: "./src/index.ts" でも解決できる。**paths を壊しても緑のまま通る**
+    // - サブパス（`@tasuki/timer-core/errors` など）は symlink 側に実体が無い
+    //   （実体は packages/timer-core/src/ 配下）。**下の paths だけが解決経路**である
+    //
+    // ⚠⚠ **同条件の直接測定が 2 件あり、結果が食い違っている。原因は未特定である。**
+    // docs/superpowers/plans/2026-08-05-bun-test-migration.md は
+    // 「`@tasuki/timer-core/evolve` を import するテストを足すと解決に失敗する」と
+    // 記録している（PR #61 の敵対的検証）。2026-09-02 に**同じ import で再測すると通る**。
+    // bun のバージョン文字列は当時も今も 1.3.14、この paths ブロックは #61 以降未変更、
+    // include の射程（#173 で src → src+test へ拡大）も無関係だと対照実行で確かめた。
+    // 残る差分（node_modules の配置は #185 で --virtual-store-dir へ移行している）は
+    // 追っていない。**「解決できる」に依存する記述をここへ足すときは、まず再測すること。**
+    //
+    // ⚠ **CI の bun は `bun-version: latest` で固定していない**（.github/workflows/ci.yml）。
+    // サブパス解決が変われば apps/tasuki-sync/test/error-code-coverage.test.ts が
+    // 落ちる。落ちたら、当該テストの取り込み口を戻すか bun を固定するかを決めること
+    // （黙って緑になる向きではなく、赤で気づける向きに倒してある）。
+    //
+    // サブパスを使っているのは上記のテスト 1 本だけである（公開契約に載せない値を
+    // テストが取るため。#220）。timer-web は vite/vitest の alias で解決しており別配線。
+    "paths": {
+      "@tasuki/timer-core": ["../../packages/timer-core/src/index.ts"],
+      "@tasuki/timer-core/*": ["../../packages/timer-core/src/*.ts"]
+    }
+  },
+  // **emit しない。** 以前は tsc で dist を出し、rootDir: "../.." を明示していたが、
+  // その出力を読む側が 1 つも無かった（#173 で実測: 本番は deploy/timer/app.env の
+  // SYNC_ENTRY=apps/tasuki-sync/src/server.ts を bun build が直接束ねる。
+  // BUILD_FILTER は @tasuki/timer-web だけなのでデプロイはここの build を呼ばない）。
+  // 出力をやめたので rootDir が不要になり、typecheck 専用の tsconfig.test.json も
+  // 要らなくなった（テストを射程へ入れると build がテストまで dist へ吐く、が理由だった）。
+  "include": ["src", "test"]
+}

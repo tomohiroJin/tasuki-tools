@@ -1,7 +1,7 @@
-diff --git a/apps/timer-sync/src/application/command-handlers/room-join.ts b/apps/timer-sync/src/application/command-handlers/room-join.ts
+diff --git a/apps/tasuki-sync/src/application/command-handlers/room-join.ts b/apps/tasuki-sync/src/application/command-handlers/room-join.ts
 index 0c87dac..6963e0c 100644
---- a/apps/timer-sync/src/application/command-handlers/room-join.ts
-+++ b/apps/timer-sync/src/application/command-handlers/room-join.ts
+--- a/apps/tasuki-sync/src/application/command-handlers/room-join.ts
++++ b/apps/tasuki-sync/src/application/command-handlers/room-join.ts
 @@ -68,13 +68,6 @@ export function createRoomJoinHandler(deps: RoomJoinDeps) {
      // 時計補正の影響を受けない（設計正本 D8）。`now` と取り違えないこと。
      const rateNow = performance.now();

@@ -41,3 +41,14 @@ Thumbs.db
 # poker 由来（planning-poker/.gitignore から統合）
 .playwright-mcp/
 *.tmp
+
+# 変異検査（scripts/mutation-check.mjs）が実行中だけ作る 2 つ。
+# **コミットしてはならない。** どちらも「いま・この作業ツリーで何が起きているか」を
+# 表す実行時の状態で、他人の環境では意味を持たない。
+# - .lock    同時実行を拒むための PID。残骸を配ると、他人の実行が
+#            見知らぬ PID を理由に拒まれる（生死判定で助かる公算は高いが、賭けない）
+# - .applied 異常終了時に復元するための、適用中の変異のファイル一覧
+# 追跡外にするのは、`git add -A` が巻き込むのを構造的に止めるため
+# （#95 S2 で、当たったままの変異を add -A で取り込みかけた）。
+scripts/mutations/.lock
+scripts/mutations/.applied

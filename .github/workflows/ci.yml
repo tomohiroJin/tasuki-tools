@@ -48,8 +48,8 @@ jobs:
       - run: corepack enable
         if: steps.scope.outputs.code == 'true'
 
-      # poker-sync は Bun 必須。tests/helpers.ts が `bun run src/server.ts` を
-      # サブプロセス起動し、build も `bun build --target=bun` を使う。
+      # 同期サーバー（apps/tasuki-sync）は Bun 必須。テストは bun test で走り、
+      # test/poker/helpers.ts が `bun run src/server.ts` をサブプロセス起動する。
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         if: steps.scope.outputs.code == 'true'
         with:
@@ -187,7 +187,7 @@ jobs:
   # 手動でしか走らなかった検査を寄せる。ci に混ぜると臨界経路が
   # 2 分 12 秒 → 2 分 42 秒 に伸びるので独立ジョブにする。
   # mutation-check.mjs は変異が属するパッケージの test スクリプトに実際のランナーを
-  # 合わせる（apps/timer-sync は bun test）。そのため setup-bun が必要。
+  # 合わせる（apps/tasuki-sync は bun test）。そのため setup-bun が必要。
   quality:
     runs-on: ubuntu-latest
     steps:
@@ -202,7 +202,7 @@ jobs:
       - run: corepack enable
         if: steps.scope.outputs.code == 'true'
 
-      # mutation-check.mjs が apps/timer-sync の変異を bun test で実行するため必要。
+      # mutation-check.mjs が apps/tasuki-sync の変異を bun test で実行するため必要。
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         if: steps.scope.outputs.code == 'true'
         with:

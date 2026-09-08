@@ -31,14 +31,14 @@
  *
  * **走査は `src` に限らない。** テストコードからの取り込みも依存であり、
  * `src` だけを見ると `test/` 経由の逆流が素通りする（2026-09-07 の実測では
- * `packages/timer-core/test` `apps/timer-sync/test` `apps/timer-web/test` の 3 つが
+ * `packages/timer-core/test` `apps/tasuki-sync/test` `apps/timer-web/test` の 3 つが
  * 実際に `@tasuki/*` を取り込んでいた）。テストディレクトリ名は `test` と `tests` で
  * 割れているので、名前を導出せず**パッケージ配下を再帰で見る**。
  *
  * **拡張子は {@link SCANNED_EXTENSIONS} で宣言する。** ディレクトリは絞らないが、
  * 拡張子は絞る（`packages/ui` は woff2 を 7 本 = 約 722KB 同梱しており、全ファイルを
  * 読むのは無駄である）。**当初 `.ts` / `.tsx` だけを見ていて `.mjs` が素通りした** ——
- * `apps/timer-sync/scripts/quality-experiment.mjs` は実在し `@tasuki/timer-core` を
+ * `apps/tasuki-sync/scripts/quality-experiment.mjs` は実在し `@tasuki/timer-core` を
  * 取り込んでいるのに走査外で、そこへ禁止依存を 2 本足しても `exit 0` だった
  * （2026-09-07 のレビューで指摘され、実測で再現した）。**拡張子を変えるだけで
  * 決定 4 を迂回できる状態だった** → 実行可能なモジュールの拡張子をすべて宣言する。
@@ -99,13 +99,15 @@ export const ALLOWED = {
   "apps/landing": ["@tasuki/ui"],
   "apps/timer-web": ["@tasuki/room-core", "@tasuki/timer-core", "@tasuki/ui"],
   "apps/poker-web": ["@tasuki/poker-core", "@tasuki/ui"],
-  "apps/timer-sync": [
+  // #95 S2 で apps/timer-sync と apps/poker-sync がここへ統合された。
+  // poker-core が加わったのはそのため（統合前は poker-sync 側の依存）。
+  "apps/tasuki-sync": [
+    "@tasuki/poker-core",
     "@tasuki/protocol",
     "@tasuki/rate-limit",
     "@tasuki/room-core",
     "@tasuki/timer-core",
   ],
-  "apps/poker-sync": ["@tasuki/poker-core", "@tasuki/rate-limit"],
   e2e: ["@tasuki/landing", "@tasuki/poker-web", "@tasuki/timer-web"],
 };
 

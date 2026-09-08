@@ -179,7 +179,7 @@ export function nameSkeleton(name: string): string {
 /**
  * 表示名の重複検査（T061/T062・FR-104）。
  *
- * `apps/timer-sync/src/application/handlers.ts` の `participant.addProxy` /
+ * `apps/tasuki-sync/src/application/handlers.ts` の `participant.addProxy` /
  * `participant.rename` にそれぞれ独立実装されていた重複検査を一元化したもの。
  * Issue #22 で「規則を1箇所に作ったのに呼び出し側が2系統あって行き渡らなかった」
  * ことを繰り返さないため、判定ロジック自体をここへ集約する。

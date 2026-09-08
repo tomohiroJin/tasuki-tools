@@ -105,5 +105,5 @@ export async function runPreflight(env: Record<string, string | undefined>): Pro
   assertNoCaddyLeftovers();
   assertWebRootsSafe();
   assertDistsBuilt();
-  await assertPortsFree([PORTS.caddy, PORTS.timerSync, PORTS.pokerSync]);
+  await assertPortsFree([PORTS.caddy, PORTS.sync]);
 }

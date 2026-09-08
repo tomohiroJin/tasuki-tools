@@ -50,6 +50,7 @@
         "ALLOWED_ORIGINS",
         "MAX_CONNECTIONS",
         "MAX_ROOMS",
+        "MAX_MESSAGE_BYTES",
         "ROOM_IDLE_TTL_MS",
         "ADMIN_TOKEN",
         "AI_UNLOCK_KEY",

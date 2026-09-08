@@ -27,7 +27,7 @@ pnpm + turbo のモノレポ（詳細は [plan.md](./specs/001-planning-poker-mv
 |-----------|------|
 | `packages/poker-core` | ドメイン（Room 集約・ラウンド状態機械・集計）+ WS プロトコル契約（Valibot / neverthrow） |
 | `apps/poker-web` | React + Vite フロントエンド（base: `/poker/`） |
-| `apps/poker-sync` | Bun + WebSocket 同期サーバー（受信者別秘匿スナップショット配信） |
+| `apps/tasuki-sync` | Bun + WebSocket 同期サーバー（受信者別秘匿スナップショット配信）。**timer と共用**（#95 S2 で統合） |
 | `deploy/` | Caddyfile 断片・systemd ユニット・デプロイスクリプト |
 
 ## 開発
@@ -41,8 +41,8 @@ pnpm install
 pnpm turbo test typecheck
 
 # 開発サーバー（2プロセス）
-pnpm --filter @tasuki/poker-sync dev   # WS サーバー :3311
-pnpm --filter @tasuki/poker-web dev    # Vite :5174（/poker/ 配信、WS は :3311 へ proxy）
+pnpm --filter @tasuki/sync dev         # WS サーバー :8787（timer と共用）
+pnpm --filter @tasuki/poker-web dev    # Vite :5174（/poker/ 配信、WS は :8787 へ proxy）
 ```
 
 ブラウザで **`http://localhost:5174/poker/`** を開く。動作検証シナリオは

@@ -1,6 +1,6 @@
 # アーキテクチャ決定記録（poker）
 
-このディレクトリには、`apps/poker-web` / `apps/poker-sync` / `packages/poker-core` に
+このディレクトリには、`apps/poker-web` / poker の同期サーバー / `packages/poker-core` に
 閉じた設計判断を記録します。各 ADR は Michael Nygard 形式（背景 / 決定 / 影響 /
 ステータス）に従い、「なぜその選択をしたか」を残します。
 

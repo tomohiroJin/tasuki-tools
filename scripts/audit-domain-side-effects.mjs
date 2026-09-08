@@ -79,9 +79,13 @@ export const DOMAIN_PACKAGES = ["packages/poker-core", "packages/room-core", "pa
 /** 走査から外すパッケージ。**理由が要る。** 実在しなくなったら落ちる（ADR-0014 決定 2）。 */
 export const EXCLUDED_PACKAGES = [
   { pkg: "apps/landing", reason: "アプリ層。副作用を置いてよい境界" },
-  { pkg: "apps/poker-sync", reason: "アプリ層。時刻は MonotonicClock ポートのアダプタが読む" },
   { pkg: "apps/poker-web", reason: "アプリ層。副作用を置いてよい境界" },
-  { pkg: "apps/timer-sync", reason: "アプリ層。時刻は Clock ポートのアダプタが読む" },
+  {
+    pkg: "apps/tasuki-sync",
+    reason:
+      "アプリ層。時刻は Clock（timer）/ MonotonicClock（poker）ポートのアダプタが読む。" +
+      "#95 S2 で apps/timer-sync と apps/poker-sync がここへ統合された",
+  },
   { pkg: "apps/timer-web", reason: "アプリ層。NoAiProvider は ProblemProvider ポートのアダプタ" },
   { pkg: "e2e", reason: "テストコード。ドメインではない" },
   { pkg: "packages/protocol", reason: "WS メッセージの型定義のみ。ドメインの判断を持たない" },

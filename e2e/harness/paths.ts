@@ -62,5 +62,10 @@ export const CADDY_CACHE_DIR = path.join(
   `caddy-${CADDY_VERSION}`,
 );
 
-/** ハーネスが使うポート。断片が絶対値で宣言しているため sync 側は変えられない。 */
-export const PORTS = { caddy: 18080, timerSync: 8787, pokerSync: 3311 } as const;
+/**
+ * ハーネスが使うポート。断片が絶対値で宣言しているため sync 側は変えられない。
+ *
+ * **#95 S2 で sync は 1 本になった**（`apps/tasuki-sync` が timer と poker の両方を
+ * 8787 で受ける）。統合前にあった `pokerSync: 3311` は消滅している。
+ */
+export const PORTS = { caddy: 18080, sync: 8787 } as const;

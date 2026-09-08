@@ -32,9 +32,9 @@
 
 ## 決定
 
-### 決定 D1: ログ経路の一本化（対象は `apps/timer-sync`）
+### 決定 D1: ログ経路の一本化（対象は `apps/tasuki-sync`）
 
-**`apps/timer-sync` の出力は、制御されたロガ 1 本を通す（MUST）。** ロガは分類
+**`apps/tasuki-sync` の出力は、制御されたロガ 1 本を通す（MUST）。** ロガは分類
 「秘密・資格情報・個人に紐づく」（ADR 0011 決定1）の値を受け取らない設計とする。
 `process.stdout` への直接書き込み、および未捕捉例外・未処理 rejection のハンドラも
 同じ規律の対象に含める（**MUST**）。ハンドラは分類名（`err.name`）だけを出し、
@@ -46,24 +46,30 @@
 直接の `console.*` 呼び出しは、行単位で明示した例外を除き禁止する（**MUST NOT**）。
 本 ADR に基づく実装後に残っている直接呼び出しは、次の 2 箇所だけである。
 
+> ⚠ **下の表と、続く「繰り越し」の記述は 2026-08-13 時点の記録である**（#95 S2 で
+> 統合されるより前）。**いま同期サーバーの中で許されている直接呼び出しは 1 箇所だけ**で、
+> 2 行目（poker の起動ログ）はロガ経由になり `scripts/audit-log-hygiene.mjs` の
+> `ALLOWED_FILES` からも外れている。現況は本文書末尾の追記を参照すること
+> —— **表を根拠に `console.log` を足すと監査で赤になる。**
+
 | 箇所 | 理由 |
 |---|---|
-| `apps/timer-sync/src/adapters/console-log-sink.ts` | ロガの**唯一の実出力口**。ここだけが `console` を呼ぶ |
-| `apps/poker-sync/src/server.ts` の `listening` 行 | **テストハーネスとの契約**（下記の繰り越しを参照） |
+| timer-sync の `adapters/console-log-sink.ts` | ロガの**唯一の実出力口**。ここだけが `console` を呼ぶ |
+| poker-sync の `server.ts` の `listening` 行 | **テストハーネスとの契約**（下記の繰り越しを参照） |
 
 timer-sync の起動ログと設定エラーは、当初この例外に数えていたが、実装ではいずれも
 ロガ経由になった。例外として数える必要はない。
 
-**`apps/poker-sync` は繰り越しとする。** poker-sync の直接出力は
-`{"event":"listening","port":...}` の 1 行だけで、これは
-`apps/poker-sync/tests/helpers.ts` が `JSON.parse` して実ポートを受け取るテスト
+**poker-sync は繰り越しとする。** poker-sync の直接出力は
+`{"event":"listening","port":...}` の 1 行だけで、これは poker-sync の
+`tests/helpers.ts` が `JSON.parse` して実ポートを受け取るテスト
 ハーネスとの契約である。形式を変えると poker-sync のテストが全滅する。ロガ経路を
 導入しても、この 1 行だけは同じ形式で出し続けなければならず、いま移行しても得られる
 ものが無い。したがって poker-sync へのロガ導入は本 ADR では求めない（繰り越し先は、
 poker 側のログ出力が `listening` 以外にも増えるときとする）。
 
 ただし**規律の対象からは外さない**。`scripts/audit-log-hygiene.mjs` は
-`apps/poker-sync/src` も走査対象に含み、許可マーカーの無い直接出力は増やせない
+`apps/tasuki-sync/src/poker` も走査対象に含み、許可マーカーの無い直接出力は増やせない
 （**MUST NOT**）。分類「秘密・資格情報・個人に紐づく」の値をログへ出さないという
 規範（憲法 原則 XI・ADR 0011 決定1）は、ロガの有無にかかわらず poker-sync にも効く。
 
@@ -179,7 +185,7 @@ env のみに置く（**MUST**）。利用者が決めるルームの合言葉�
 > 書き、あわせて「現行の timer・poker はいずれもこの規律を満たしている」と述べていた。
 > **後者は事実誤認だった。** #136 の完了確認で `sendError` の全 42 箇所を調べたところ、
 > 固定文言でない箇所が実在した（`packages/timer-core/src/permissions.ts` の `denied()`
-> 5 箇所と `apps/timer-sync/src/application/handlers.ts` の 2 箇所。いずれも命令名か
+> 5 箇所と `apps/tasuki-sync/src/application/handlers.ts` の 2 箇所。いずれも命令名か
 > 内部のエラー型名を埋め込む）。
 >
 > 埋め込まれているのは**要求した本人の命令名**と**内部のエラー型名**だけで、秘密・資格情報・
@@ -296,7 +302,7 @@ trustPolicy（信頼証跡の降格を拒否する考え方）を、依存パッ
 - D12 により、ログ整形関数（後続タスク）は制御文字除去を持たない実装を許容しない。
   境界スキーマ自体（文字種・最大長の制限追加）を変更するかどうかは本 ADR の範囲外とし、
   別途判断する。
-- D1 の対象を `apps/timer-sync` に絞ったことで、`apps/poker-sync` はロガ経路を持たない
+- D1 の対象を timer-sync に絞ったことで、poker-sync はロガ経路を持たない
   まま残る。これは既知の繰り越しであり、`docs/guides/security.md` の記述もこの切り分けに
   揃える。ログ衛生の検査は poker-sync も走査し続けるため、規律の穴にはならない。
 - D5 に対応する機械的な検査は存在しない。守られていることの確認はレビュー
@@ -354,3 +360,25 @@ E7 の目的は、見るようにすることで果たされた。
 
 実測値と決定の根拠は
 [設計正本](../superpowers/specs/2026-09-04-log-hygiene-tsx-scope-design.md) とする。
+
+## 追記（2026-09-08・#95 S2）
+
+**繰り越しにしていた poker 側のロガ導入は、同期サーバーの統合によって解消した。**
+
+#95 S2 で timer と poker の同期サーバーを 1 プロセス（`apps/tasuki-sync`）へ統合した
+（[`docs/adr/0017`](0017-bounded-contexts-and-packages.md)）。統合サーバーの出力口は
+D1 が定めたロガ 1 本だけであり、poker 側にあった `console.log` の直呼び
+（起動ログ・`conn-rejected`・`derive-client-key-error`）は消えた。
+
+繰り越しの根拠だった「起動ログの形式を変えるとテストが全滅する」も、統合で形式が
+`event k=v`（D1 の整形）へ変わり、テストハーネス側を合わせることで解消している。
+
+**D1 の規律そのものは変えていない。** 対象パッケージの名前が timer-sync から
+`apps/tasuki-sync` へ変わり、その射程に poker が入っただけである。
+
+**上の「直接呼び出しは 2 箇所」の表と繰り越しの記述は、統合前（2026-08-13 時点）の
+記録である。** 統合後に `console` を直接呼ぶのは
+`apps/tasuki-sync/src/adapters/console-log-sink.ts` の 1 箇所だけになり、
+起動ログはロガ経由（`logger.info("listening", ...)`）になった。テストハーネス
+（`apps/tasuki-sync/test/poker/helpers.ts`）も `JSON.parse` をやめ、
+D1 の整形（`event k=v`）から `port=` を読む形へ合わせてある。

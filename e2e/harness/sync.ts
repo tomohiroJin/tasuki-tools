@@ -1,13 +1,18 @@
 /**
- * timer-sync / poker-sync を Bun で起動する。
+ * 統合 sync サーバー（`apps/tasuki-sync`）を Bun で起動する。
  *
- * ポートは本番と同じ 8787 / 3311。断片が絶対値で宣言しているため変えられない。
+ * **#95 S2 で 2 プロセスから 1 プロセスになった。** timer（`/timer/ws`・`/ws`）と
+ * poker（`/poker/ws`）を同じ 8787 で受ける。関数名が複数形のままなのは、
+ * 起動・停止の戻り値がプロセスの配列で、呼び出し側（globalSetup）が
+ * その形に依存しているためである。
  *
- * ALLOWED_ORIGINS にはローカルの入口 URL を渡す。両サーバーとも空で起動を
+ * ポートは本番と同じ 8787。断片が絶対値で宣言しているため変えられない。
+ *
+ * ALLOWED_ORIGINS にはローカルの入口 URL を渡す。空で起動を
  * 拒否するのは NODE_ENV=production のときだけだが、Origin 検査を本番と同じ形で
  * 働かせるために明示的に渡す。
  *
- * NODE_ENV=production も本番相当で渡す（#103）。この変数が効くのは両アプリとも
+ * NODE_ENV=production も本番相当で渡す（#103）。この変数が効くのは
  * ALLOWED_ORIGINS の fail-closed・HOST のループバック限定・クライアント IP の
  * 必須化の 3 箇所（加えて未知の値なら起動時に throw）。正本は #103 設計正本。
  * ALLOWED_ORIGINS と HOST はこのハーネスが明示的に渡しているので、
@@ -29,8 +34,7 @@ interface SyncSpec {
 }
 
 const SYNC_SERVERS: readonly SyncSpec[] = [
-  { name: 'timer-sync', entry: 'apps/timer-sync/src/server.ts', port: PORTS.timerSync },
-  { name: 'poker-sync', entry: 'apps/poker-sync/src/server.ts', port: PORTS.pokerSync },
+  { name: 'tasuki-sync', entry: 'apps/tasuki-sync/src/server.ts', port: PORTS.sync },
 ];
 
 export async function startSyncServers(): Promise<ChildProcess[]> {
@@ -49,7 +53,7 @@ export async function startSyncServers(): Promise<ChildProcess[]> {
         PORT: String(server.port),
         HOST: '127.0.0.1',
         ALLOWED_ORIGINS: LOCAL_BASE_URL,
-        // 本番と同じ経路を通す（#103）。NODE_ENV が効くのは両アプリとも
+        // 本番と同じ経路を通す（#103）。NODE_ENV が効くのは
         // ALLOWED_ORIGINS の fail-closed・HOST のループバック限定・クライアント IP の
         // 必須化の 3 箇所（加えて未知の値なら起動時に throw）。ALLOWED_ORIGINS と
         // HOST はすぐ上で渡しているので、ここで効くのはクライアント IP の必須化。

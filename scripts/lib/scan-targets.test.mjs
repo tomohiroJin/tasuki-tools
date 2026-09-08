@@ -21,8 +21,8 @@ describe("diffTargets", () => {
 
   test("宣言にあるが実在しないものを missing に出す（移設で対象を失う経路）", () => {
     // Given: 宣言したテストディレクトリが実体に無い
-    const declared = ["packages/timer-core/test", "apps/timer-sync/test"];
-    const actual = ["apps/timer-sync/test"];
+    const declared = ["packages/timer-core/test", "apps/tasuki-sync/test"];
+    const actual = ["apps/tasuki-sync/test"];
     // When
     const diff = diffTargets(declared, actual);
     // Then
@@ -246,7 +246,7 @@ describe("listWorkspacePackages", () => {
     const packages = listWorkspacePackages(REPO_ROOT);
     // Then
     assert.ok(packages.includes("packages/timer-core"));
-    assert.ok(packages.includes("apps/timer-sync"));
+    assert.ok(packages.includes("apps/tasuki-sync"));
     assert.ok(packages.includes("e2e"));
   });
 });

@@ -105,10 +105,10 @@ Issue #69 の本文は着手前の実測で事実誤認が 5 点見つかった�
 ### 影響
 
 - `"nanoid@3": "^3.3.18"` を追加した。差分は lockfile 3 行と設定のみで、直接依存の
-  `nanoid@^6.0.1`（`apps/timer-sync` のルームコード生成）は変わらない
+  `nanoid@^6.0.1`（`apps/tasuki-sync` のルームコード生成）は変わらない
   （**この行は #199 で削除済み。下記「overrides の削除と原因の訂正」を参照**）
 - 実測した却下案（いずれも実行して確認）:
-  - `pnpm update -r nanoid@3.3.18` → `apps/timer-sync/package.json` の `nanoid` を
+  - `pnpm update -r nanoid@3.3.18` → `apps/tasuki-sync/package.json` の `nanoid` を
     `^6.0.1` から `^3.3.18` へ書き換えた
   - `pnpm update -r postcss` → `postcss` 8.5.26 が入るが `nanoid` は 3.3.17 のまま。
     `vite` 経由の `postcss@8.5.25` も別に残る
@@ -117,7 +117,7 @@ Issue #69 の本文は着手前の実測で事実誤認が 5 点見つかった�
     `✓ Lockfile passes supply-chain policies` を出して素通りし、
     `pnpm install --frozen-lockfile` で `ERR_PNPM_TARBALL_INTEGRITY` になった
 - 書き方を崩した場合の実測（`pnpm audit --audit-level high` は**どちらも exit 0**）:
-  - キーを名前だけにする（`"nanoid": "^3.3.18"`）→ 直接依存 `apps/timer-sync` の
+  - キーを名前だけにする（`"nanoid": "^3.3.18"`）→ 直接依存 `apps/tasuki-sync` の
     `nanoid` が lockfile 上で `^6.0.1` → `^3.3.18` になった。`package.json` は
     `^6.0.1` のまま変わらないため、差分では気づきにくい
   - 値を上限のない範囲にする（`"nanoid@3": ">=3.3.18"`）→ `postcss` の依存が

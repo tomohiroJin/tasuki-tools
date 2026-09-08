@@ -1,0 +1,31 @@
+{
+  "name": "@tasuki/sync",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/server.ts",
+    "start": "bun run src/server.ts",
+    "build": "bun build src/server.ts --target=bun --outdir=dist",
+    "test": "bun test --timeout 15000",
+    "test:unit": "bun test --timeout 15000",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src test"
+  },
+  "dependencies": {
+    "@tasuki/poker-core": "workspace:*",
+    "@tasuki/protocol": "workspace:*",
+    "@tasuki/rate-limit": "workspace:*",
+    "@tasuki/room-core": "workspace:*",
+    "@tasuki/timer-core": "workspace:*",
+    "nanoid": "^6.0.1",
+    "neverthrow": "^8.2.0",
+    "valibot": "^1.4.1"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.0",
+    "@types/ws": "^8.5.13",
+    "typescript": "^6.0.3",
+    "ws": "^8.21.2"
+  }
+}
