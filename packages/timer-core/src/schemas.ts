@@ -315,7 +315,8 @@ export type Command = v.InferOutput<typeof CommandSchema>;
 // ─── ServerMsg スキーマ ──────────────────────────────────────────────────────
 
 // Room のスキーマ（Valibot で検証用）
-export const ParticipantSchema = v.object({
+// T057: 自ファイル内でのみ使われるため export を外した（FR-119③・SC-039）。
+const ParticipantSchema = v.object({
   participantId,
   connId: v.nullable(v.string()),
   displayName: nonEmptyString,
