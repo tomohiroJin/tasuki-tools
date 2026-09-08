@@ -8,16 +8,26 @@ import { CommandSchema, ServerMsgSchema } from "../src/index.js";
 // RoomSchema・ParticipantSchema は公開契約に載せない（取り込むのがテストだけのため。#220）。
 import { RoomSchema, ParticipantSchema } from "../src/schemas.js";
 
-describe("役割とホストの廃止（#95 S3）", () => {
-  it("役割とホストのコマンドは受理しない（#95 S3 で廃止）", () => {
-    // 廃止したコマンドは variant のどの枝にも当たらないので境界で落ちる。
-    expect(v.safeParse(CommandSchema, { command: "role.set", participantId: "p1", role: "viewer" }).success)
-      .toBe(false);
-    expect(v.safeParse(CommandSchema, { command: "host.transfer", participantId: "p1" }).success)
-      .toBe(false);
+/**
+ * 役割とホストの廃止（#95 S3）で落とした wire 契約の残骸が復活していないことを固定する。
+ *
+ * @requirements #95
+ */
+describe("役割とホストの廃止", () => {
+  it("役割とホストのコマンドは受理しない", () => {
+    // Given（廃止したコマンドの入力）
+    const roleSet = { command: "role.set", participantId: "p1", role: "viewer" };
+    const hostTransfer = { command: "host.transfer", participantId: "p1" };
+    // When（variant のどの枝にも当たらないので境界で落ちるはず）
+    const roleSetResult = v.safeParse(CommandSchema, roleSet);
+    const hostTransferResult = v.safeParse(CommandSchema, hostTransfer);
+    // Then
+    expect(roleSetResult.success).toBe(false);
+    expect(hostTransferResult.success).toBe(false);
   });
 
-  it("参加者のスキーマは role を持たない（#95 S3 で廃止）", () => {
+  it("参加者のスキーマは role を持たない", () => {
+    // Given
     const participant = {
       participantId: "p1",
       displayName: "あかり",
@@ -26,14 +36,16 @@ describe("役割とホストの廃止（#95 S3）", () => {
       hasAiKey: false,
       joinedAt: 0,
     };
-    // ParticipantSchema は v.object（余剰キーを黙って捨てる）であり strictObject ではない。
+    // When（ParticipantSchema は v.object（余剰キーを黙って捨てる）であり strictObject ではない。
     // そのため「role を含む値を拒否する」という否定形は空振りする（未知キーは
     // 静かに落とされるだけで success は変わらない）。ここでは「role を含む値を
-    // パースした結果に role キーが残らないこと」という肯定形で固定する。
+    // パースした結果に role キーが残らないこと」という肯定形で固定する）。
     const parsed = v.safeParse(ParticipantSchema, { ...participant, role: "host" });
+    const parsedWithoutRole = v.safeParse(ParticipantSchema, participant);
+    // Then
     expect(parsed.success).toBe(true);
     expect(parsed.success && "role" in parsed.output).toBe(false);
-    expect(v.safeParse(ParticipantSchema, participant).success).toBe(true);
+    expect(parsedWithoutRole.success).toBe(true);
   });
 });
 

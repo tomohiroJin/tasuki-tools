@@ -82,14 +82,11 @@ export const ERROR_MESSAGES: Record<string, string> = {
   // driver.assign（指名）でオフラインの対象を拒否したとき。
   DRIVER_ASSIGN_OFFLINE: "オフラインの参加者はドライバーに指名できません。",
   // driver.assign（指名）で対象は実在するが輪（rotation）に居ないとき。
-  // ⚠ この判定条件（handlers.ts）は `session.rotation` に対象が居るかだけを見ており、
-  // 対象の役割（viewer/editor/host）は見ていない。role=editor のまま
-  // member.remove（輪から外れる。役割と無関係に実行できる）で輪の外に出た参加者にも
-  // 同じコードが返るため、「見学者」固定の文言は実態と一致しない。
-  // 役割（role）と輪の所属（rotation）はこのコードベースが明確に区別する独立した2層モデルであり
-  // （`apps/web/src/ui/components/SelfDriverToggle.tsx` の
-  // 「ここはローテーション外（役割は編集者のまま）を表す」コメント参照）、
-  // 役割が見学者である状態と同じ語を使うと2層の区別が読み取れなくなる。
+  // この判定条件（handlers.ts）は `session.rotation` に対象が居るかだけを見ている
+  // （#95 S3 で唯一の判定条件になった。member.remove で輪の外に出た参加者に
+  // このコードが返る）。輪の内側にいる参加者を一時的に指名対象から外したいだけなら、
+  // 輪自体からは抜けずに `Participant.driverEligible` を false にする別経路がある
+  // （`evolve.ts` の `nextEligibleIndex` が参照する、輪の所属とは独立したフラグ）。
   NOT_IN_ROTATION: "ドライバーの輪に加わっていない相手は指名できません。先にドライバーへ加えてください。",
   // ─── ホストの移譲・役割の変更 ───
   // host.transfer で現ホストを対象にしたとき。実行者と対象は同一とは限らない

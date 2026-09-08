@@ -1157,6 +1157,12 @@ export const SC039C_EXCEPTIONS = [
       "packages/timer-core/test/ai-unlock.test.ts がスキーマの entries を直接検査している（公開 API 経由では書けない）",
   },
   {
+    file: "packages/timer-core/src/schemas.ts",
+    name: "ParticipantSchema",
+    reason:
+      "packages/timer-core/test/schemas.test.ts が role キーを含む値をパースした結果に role が残らないこと（#95 S3 で role を落とした後の余剰キー破棄挙動）を直接検査している。CommandSchema 経由では ParticipantSchema 単体の挙動を切り分けて書けない（公開 API 経由では書けない）",
+  },
+  {
     file: "packages/timer-core/src/error-messages.ts",
     name: "DEFAULT_ERROR_MESSAGE",
     reason: "既定文言の正本。落とすと 3 ファイルへ文言リテラルが複製される",
