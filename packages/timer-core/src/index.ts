@@ -57,7 +57,7 @@ export type {
   CompletionRecord,
   IntervalMinutes,
 } from "./aggregate.js";
-export { secondsLeft, initialAggregate, transferHost } from "./aggregate.js";
+export { secondsLeft, initialAggregate } from "./aggregate.js";
 export { ERROR_MESSAGES, displayMessageFor, errorMessageFor } from "./error-messages.js";
 // イベント
 export type {

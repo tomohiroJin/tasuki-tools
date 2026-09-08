@@ -91,7 +91,6 @@ export interface Participant {
   participantId: ParticipantId;
   connId: ConnId | null;
   displayName: string;
-  role: "host" | "editor" | "viewer";
   presence: "online" | "idle" | "offline";
   hasAiKey: boolean;
   joinedAt: number;
@@ -111,7 +110,6 @@ export type RoomPhase = "setup" | "ready" | "session" | "celebration";
 export interface Room {
   code: RoomCode;
   createdAt: number;
-  hostParticipantId: ParticipantId;
   config: SessionConfig;
   problem: Problem | null;
   session: SessionState;
@@ -241,23 +239,6 @@ export function nextEligibleIndex(
   }
   // 全員 ineligible → 現状維持
   return currentIndex;
-}
-
-/** ホストを newHostParticipantId へ移譲する純粋変換（R2-3/R2-4）。
- *  対象を host、現 host を editor に付け替え、hostParticipantId を更新する。
- *  対象の存在・オンライン等の検証は呼び出し側（handler）が行う。 */
-export function transferHost(room: Room, newHostParticipantId: string): Room {
-  return {
-    ...room,
-    hostParticipantId: newHostParticipantId,
-    participants: room.participants.map((p) =>
-      p.participantId === newHostParticipantId
-        ? { ...p, role: "host" }
-        : p.participantId === room.hostParticipantId
-          ? { ...p, role: "editor" }
-          : p,
-    ),
-  };
 }
 
 /** 交代間隔として許容される分の一覧 */

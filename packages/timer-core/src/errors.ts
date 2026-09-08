@@ -26,13 +26,6 @@ export interface BelowMinMembers {
   min: number;
 }
 
-/** 権限不足 */
-interface Unauthorized {
-  type: "Unauthorized";
-  command: string;
-  requiredRole: string;
-}
-
 /** フェーズ競合 */
 interface PhaseConflict {
   type: "PhaseConflict";
@@ -68,7 +61,6 @@ export type DomainError =
   | DuplicateName
   | MemberLimitExceeded
   | BelowMinMembers
-  | Unauthorized
   | PhaseConflict
   | InvalidInterval
   | InvalidIndex

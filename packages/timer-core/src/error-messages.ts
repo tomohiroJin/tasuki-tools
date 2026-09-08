@@ -23,12 +23,10 @@ export const ERROR_MESSAGES: Record<string, string> = {
   EmptyName: "名前を入力してください。",
   MemberLimitExceeded: "メンバーが上限に達しています。",
   InvalidInterval: "その交代間隔は選べません。",
-  UNAUTHORIZED: "この操作の権限がありません。",
   RATE_LIMITED: "試行が多すぎます。しばらく待ってから再試行してください。",
   // ホスト移譲（R2-3）の失敗理由を利用者向けの日本語にする。
   // ⚠ 以下 2 件（PARTICIPANT_OFFLINE / CANNOT_CHANGE_HOST）は Issue #29 で
-  // 操作ごとの新コード（DRIVER_ASSIGN_OFFLINE / HOST_TRANSFER_OFFLINE /
-  // CANNOT_CHANGE_HOST_ROLE 等）へ細分化された旧コードで、`apps/sync/src` の
+  // 操作ごとの新コード（DRIVER_ASSIGN_OFFLINE 等）へ細分化された旧コードで、`apps/sync/src` の
   // どの拒否箇所からももう返らない（`SYNC_ERROR_CODES` の語彙からも外してある）。
   // それでも文言はここに残す。理由は、配備前から開かれたままのタブが
   // 旧サーバー（この細分化より前のバージョン）の応答としてこれらのコードを
@@ -94,18 +92,12 @@ export const ERROR_MESSAGES: Record<string, string> = {
   // 役割が見学者である状態と同じ語を使うと2層の区別が読み取れなくなる。
   NOT_IN_ROTATION: "ドライバーの輪に加わっていない相手は指名できません。先にドライバーへ加えてください。",
   // ─── ホストの移譲・役割の変更 ───
-  // host.transfer（ホスト移譲）でオフラインの対象を拒否したとき。
-  HOST_TRANSFER_OFFLINE: "オフラインの相手にはホストを移譲できません。",
-  // role.set でホストを対象にしたとき（役割の変更は移譲とは別経路）。
-  CANNOT_CHANGE_HOST_ROLE: "ホストの役割は変更できません。先にホストを移譲してください。",
   // host.transfer で現ホストを対象にしたとき。実行者と対象は同一とは限らない
   // （開始後は編集者以上が実行できるため）ため、主語を対象側に置く（FR-138）。
   ALREADY_HOST: "その相手はすでにホストです。",
   // ─── 退出・降格の不変条件 ───
   // participant.remove（退出）で進行できる人が残らなくなるとき。
   LAST_MANAGER_LEAVE: "進行できる人がいなくなるため退出できません。他の人が進行に加わってから操作してください。",
-  // role.set（viewer 化）で進行できる人が残らなくなるとき。
-  LAST_MANAGER_DEMOTE: "進行できる人がいなくなるため見学者にできません。他の人が進行に加わってから操作してください。",
   // ─── ルームへの参加 ───
   // room.join（参加）の試行が閾値を超えたとき。
   JOIN_RATE_LIMITED: "参加の試行が多すぎます。しばらく待ってから再試行してください。",

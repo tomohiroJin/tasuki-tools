@@ -264,17 +264,6 @@ const AiUnlockCommand = v.object({
   key: v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_AI_UNLOCK_KEY)),
 });
 
-const RoleSetCommand = v.object({
-  command: v.literal("role.set"),
-  participantId,
-  role: v.picklist(["editor", "viewer"]),
-});
-
-const HostTransferCommand = v.object({
-  command: v.literal("host.transfer"),
-  participantId,
-});
-
 const PresencePingCommand = v.object({
   command: v.literal("presence.ping"),
 });
@@ -313,8 +302,6 @@ export const CommandSchema = v.variant("command", [
   ProblemModeSetCommand,
   RoomPassphraseSetCommand,
   AiUnlockCommand,
-  RoleSetCommand,
-  HostTransferCommand,
   PresencePingCommand,
   TimePingCommand,
 ]);
@@ -328,12 +315,10 @@ export type Command = v.InferOutput<typeof CommandSchema>;
 // ─── ServerMsg スキーマ ──────────────────────────────────────────────────────
 
 // Room のスキーマ（Valibot で検証用）
-// T057: 自ファイル内でのみ使われるため export を外した（FR-119③・SC-039）。
-const ParticipantSchema = v.object({
+export const ParticipantSchema = v.object({
   participantId,
   connId: v.nullable(v.string()),
   displayName: nonEmptyString,
-  role: v.picklist(["host", "editor", "viewer"]),
   presence: v.picklist(["online", "idle", "offline"]),
   hasAiKey: v.boolean(),
   joinedAt: v.number(),
@@ -379,7 +364,6 @@ const CompletionRecordSchema = v.object({
 export const RoomSchema = v.object({
   code: nonEmptyString,
   createdAt: v.number(),
-  hostParticipantId: participantId,
   config: SessionConfigSchema,
   problem: v.nullable(ProblemSchema),
   session: SessionStateSchema,
@@ -474,7 +458,6 @@ const TimePongMsg = v.object({
 const RoomCreatedMsg = v.object({
   type: v.literal("room.created"),
   code: nonEmptyString,
-  hostToken: nonEmptyString,
   resumeToken: nonEmptyString,
   participantId,
 });

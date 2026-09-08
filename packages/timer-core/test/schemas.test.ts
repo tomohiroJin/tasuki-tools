@@ -1,31 +1,39 @@
 /**
  * CommandSchema の境界バリデーションのテスト
- * host.transfer コマンドの追加分（v2.2 R2-3）を中心に検証する。
  */
 
 import { describe, it, expect } from "vitest";
 import * as v from "valibot";
 import { CommandSchema, ServerMsgSchema } from "../src/index.js";
-// RoomSchema は公開契約に載せない（取り込むのがテストだけのため。#220）。
-import { RoomSchema } from "../src/schemas.js";
+// RoomSchema・ParticipantSchema は公開契約に載せない（取り込むのがテストだけのため。#220）。
+import { RoomSchema, ParticipantSchema } from "../src/schemas.js";
 
-describe("CommandSchema host.transfer", () => {
-  it("participantId 付きの host.transfer は success", () => {
-    // Given
-    const command = { command: "host.transfer", participantId: "p2" };
-    // When
-    const result = v.safeParse(CommandSchema, command);
-    // Then
-    expect(result.success).toBe(true);
+describe("役割とホストの廃止（#95 S3）", () => {
+  it("役割とホストのコマンドは受理しない（#95 S3 で廃止）", () => {
+    // 廃止したコマンドは variant のどの枝にも当たらないので境界で落ちる。
+    expect(v.safeParse(CommandSchema, { command: "role.set", participantId: "p1", role: "viewer" }).success)
+      .toBe(false);
+    expect(v.safeParse(CommandSchema, { command: "host.transfer", participantId: "p1" }).success)
+      .toBe(false);
   });
 
-  it("participantId 欠落の host.transfer は failure", () => {
-    // Given
-    const command = { command: "host.transfer" };
-    // When
-    const result = v.safeParse(CommandSchema, command);
-    // Then
-    expect(result.success).toBe(false);
+  it("参加者のスキーマは role を持たない（#95 S3 で廃止）", () => {
+    const participant = {
+      participantId: "p1",
+      displayName: "あかり",
+      connId: "c1",
+      presence: "online",
+      hasAiKey: false,
+      joinedAt: 0,
+    };
+    // ParticipantSchema は v.object（余剰キーを黙って捨てる）であり strictObject ではない。
+    // そのため「role を含む値を拒否する」という否定形は空振りする（未知キーは
+    // 静かに落とされるだけで success は変わらない）。ここでは「role を含む値を
+    // パースした結果に role キーが残らないこと」という肯定形で固定する。
+    const parsed = v.safeParse(ParticipantSchema, { ...participant, role: "host" });
+    expect(parsed.success).toBe(true);
+    expect(parsed.success && "role" in parsed.output).toBe(false);
+    expect(v.safeParse(ParticipantSchema, participant).success).toBe(true);
   });
 });
 
@@ -90,7 +98,6 @@ describe("RoomSchema startedAt（後方互換・単調フラグ）", () => {
     return {
       code: "ROOM-1",
       createdAt: 0,
-      hostParticipantId: "p1",
       config: {
         language: "TypeScript",
         difficulty: "easy",
@@ -119,7 +126,6 @@ describe("RoomSchema startedAt（後方互換・単調フラグ）", () => {
           participantId: "p1",
           connId: "c1",
           displayName: "A",
-          role: "host",
           presence: "online",
           hasAiKey: false,
           joinedAt: 1,
