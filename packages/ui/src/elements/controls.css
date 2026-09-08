@@ -83,9 +83,3 @@ button.secondary:hover:not(:disabled) {
   border: 1px solid var(--line);
   color: var(--ivory-dim);
 }
-
-.badge.host {
-  color: var(--coal);
-  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
-  border-color: var(--gold-deep);
-}

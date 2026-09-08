@@ -23,11 +23,11 @@ interface RoomState {
   type: 'room-state';
   roomId: string;
   you: string;
-  participants: Array<{ id: string; name: string; isHost: boolean }>;
+  participants: Array<{ id: string; name: string }>;
 }
 
 describe('create-room（契約 #1）', () => {
-  it('joined と room-state（ホスト1人）が返る', async () => {
+  it('joined と room-state（参加者1人）が返る', async () => {
     // Given
     const host = await WsClient.connect(server.port);
     // When
@@ -43,7 +43,7 @@ describe('create-room（契約 #1）', () => {
     expect(state.roomId).toBe(joined.roomId);
     expect(state.you).toBe(joined.participantId);
     expect(state.participants).toHaveLength(1);
-    expect(state.participants[0]).toMatchObject({ name: 'たろう', isHost: true });
+    expect(state.participants[0]).toMatchObject({ name: 'たろう' });
     host.close();
   });
 });

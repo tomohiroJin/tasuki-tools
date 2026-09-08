@@ -29,21 +29,6 @@ async function soloRoom() {
   return host;
 }
 
-/** ホストとゲストが居るルームを作る（どちらも未投票） */
-async function pairRoom() {
-  const host = await WsClient.connect(server.port);
-  host.send({ type: 'create-room', name: 'たろう' });
-  const joined = (await host.nextMatching(isType('joined'))) as { roomId: string };
-  await host.nextMatching(isType('room-state'));
-
-  const guest = await WsClient.connect(server.port);
-  guest.send({ type: 'join-room', roomId: joined.roomId, name: 'はなこ' });
-  await guest.nextMatching(isType('joined'));
-  await guest.nextMatching(isType('room-state'));
-  await host.nextMatching(isType('room-state'));
-  return { host, guest };
-}
-
 describe('WS が送るドメインエラーの文言（特性テスト）', () => {
   it('公開後の vote は not-voting「現在は投票を受け付けていません」', async () => {
     // Given: 1 人だけのルームで投票し、自動公開まで進める
@@ -85,39 +70,9 @@ describe('WS が送るドメインエラーの文言（特性テスト）', () =
     host.close();
   });
 
-  it('非ホストの reveal は not-host「ホストのみが公開できます」', async () => {
-    // Given
-    const { host, guest } = await pairRoom();
-
-    // When
-    guest.send({ type: 'reveal' });
-
-    // Then
-    expect(await guest.nextMatching(isType('error'))).toEqual({
-      type: 'error',
-      code: 'not-host',
-      message: 'ホストのみが公開できます',
-    });
-    host.close();
-    guest.close();
-  });
-
-  it('非ホストの next-round は not-host「ホストのみが次のラウンドを開始できます」', async () => {
-    // Given
-    const { host, guest } = await pairRoom();
-
-    // When
-    guest.send({ type: 'next-round' });
-
-    // Then: 同じ not-host でも文言が違う
-    expect(await guest.nextMatching(isType('error'))).toEqual({
-      type: 'error',
-      code: 'not-host',
-      message: 'ホストのみが次のラウンドを開始できます',
-    });
-    host.close();
-    guest.close();
-  });
+  // #95 S3 でホストと not-host エラーを廃止した。ここに写し取っていた
+  // 「非ホストの reveal / next-round は not-host」の 2 件は、固定する対象の
+  // 振る舞いごと無くなったため削除した（RoomPage.tsx 側は task-6-report.md 参照）。
 
   it('投票中の next-round は not-revealed「票の公開後にのみ次のラウンドを開始できます」', async () => {
     // Given: まだ公開していないルーム

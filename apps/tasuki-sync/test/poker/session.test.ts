@@ -22,7 +22,7 @@ interface Joined {
 interface RoomState {
   type: 'room-state';
   roomId: string;
-  participants: Array<{ id: string; isHost: boolean; connected: boolean; hasVoted: boolean }>;
+  participants: Array<{ id: string; connected: boolean; hasVoted: boolean }>;
   round: { status: string };
 }
 
@@ -36,9 +36,9 @@ async function createRoomOn(client: WsClient, name: string) {
 }
 
 describe('同一ソケットでの再 join（デタッチ）', () => {
-  it('別ルームへ join すると元のルームでは切断扱いになり、ホストは繰上する', async () => {
+  it('別ルームへ join すると元のルームでは切断扱いになる', async () => {
     // Given
-    // ルーム1: A(ホスト) + B / ルーム2: C(ホスト)
+    // ルーム1: A + B / ルーム2: C
     const a = await WsClient.connect(server.port);
     const room1 = await createRoomOn(a, 'えー');
 
@@ -52,14 +52,14 @@ describe('同一ソケットでの再 join（デタッチ）', () => {
     const room2 = await createRoomOn(c, 'しー');
 
     // When
-    // A（ルーム1のホスト）が同じソケットのままルーム2へ join
+    // A が同じソケットのままルーム2へ join
     a.send({ type: 'join-room', roomId: room2.roomId, name: 'えー' });
     await a.nextMatching(
       (msg) => (msg as RoomState).type === 'room-state' && (msg as RoomState).roomId === room2.roomId,
     );
 
     // Then
-    // B にはルーム1の room-state が配信され、A は切断扱い・B がホストに繰上している
+    // B にはルーム1の room-state が配信され、A は切断扱いになっている（#95 S3: 権限繰上は無い）
     const state = (await b.nextMatching(
       (msg) =>
         (msg as RoomState).type === 'room-state' &&
@@ -67,7 +67,7 @@ describe('同一ソケットでの再 join（デタッチ）', () => {
     )) as RoomState;
     expect(state.roomId).toBe(room1.roomId);
     expect(state.participants.find((p) => p.id === room1.participantId)?.connected).toBe(false);
-    expect(state.participants.find((p) => p.id === bJoined.participantId)?.isHost).toBe(true);
+    expect(state.participants.find((p) => p.id === bJoined.participantId)?.connected).toBe(true);
 
     a.close();
     b.close();
@@ -96,7 +96,7 @@ describe('同一ソケットでの再 join（デタッチ）', () => {
 
   it('未投票の参加者が別ルームへ去ると、残りの全員投票で自動公開が成立する', async () => {
     // Given
-    // ルーム1: A(ホスト・投票済み) + B(投票済み) + C(未投票)
+    // ルーム1: A(投票済み) + B(投票済み) + C(未投票)
     const a = await WsClient.connect(server.port);
     const room1 = await createRoomOn(a, 'えー');
     const b = await WsClient.connect(server.port);

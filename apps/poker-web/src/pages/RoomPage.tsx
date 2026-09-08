@@ -209,7 +209,6 @@ export function RoomPage({ roomId, sync }: Props) {
     );
   }
 
-  const isHost = snapshot.participants.find((p) => p.id === snapshot.you)?.isHost ?? false;
   const isVoting = snapshot.round.status === 'voting';
 
   return (
@@ -224,9 +223,9 @@ export function RoomPage({ roomId, sync }: Props) {
         <ParticipantList participants={snapshot.participants} you={snapshot.you} />
       </section>
       {isVoting ? (
-        <VotingSection snapshot={snapshot} sync={sync} isHost={isHost} />
+        <VotingSection snapshot={snapshot} sync={sync} />
       ) : (
-        <RevealedSection snapshot={snapshot} sync={sync} isHost={isHost} />
+        <RevealedSection snapshot={snapshot} sync={sync} />
       )}
     </main>
   );
@@ -235,11 +234,9 @@ export function RoomPage({ roomId, sync }: Props) {
 function VotingSection({
   snapshot,
   sync,
-  isHost,
 }: {
   snapshot: RoomStateMessage;
   sync: PokerSync;
-  isHost: boolean;
 }) {
   // 切断・再接続中は操作を受け付けない（送信しても届かないため）
   const offline = sync.status !== 'open';
@@ -247,13 +244,12 @@ function VotingSection({
     <section>
       <h2>あなたのカード</h2>
       <CardHand selected={snapshot.yourVote} onSelect={sync.vote} disabled={offline} />
-      {isHost && (
-        <p>
-          <button type="button" className="secondary" onClick={sync.reveal} disabled={offline}>
-            票を公開する
-          </button>
-        </p>
-      )}
+      {/* かつてはホストだけに出ていたが、#95 S3 でホストを廃止し全参加者へ開放した */}
+      <p>
+        <button type="button" className="secondary" onClick={sync.reveal} disabled={offline}>
+          票を公開する
+        </button>
+      </p>
     </section>
   );
 }
@@ -261,11 +257,9 @@ function VotingSection({
 function RevealedSection({
   snapshot,
   sync,
-  isHost,
 }: {
   snapshot: RoomStateMessage;
   sync: PokerSync;
-  isHost: boolean;
 }) {
   if (snapshot.round.status !== 'revealed') return null;
   const { votes, stats } = snapshot.round;
@@ -274,17 +268,16 @@ function RevealedSection({
   return (
     <>
       <Results participants={snapshot.participants} votes={votes} stats={stats} />
-      {isHost && (
-        <p className="round-actions">
-          {/* 再投票と次ラウンドはドメイン上同一操作（next-round）。ラベルのみ区別（FR-011） */}
-          <button type="button" onClick={sync.nextRound} disabled={offline}>
-            再投票
-          </button>
-          <button type="button" className="secondary" onClick={sync.nextRound} disabled={offline}>
-            次のラウンドへ
-          </button>
-        </p>
-      )}
+      {/* かつてはホストだけに出ていたが、#95 S3 でホストを廃止し全参加者へ開放した */}
+      <p className="round-actions">
+        {/* 再投票と次ラウンドはドメイン上同一操作（next-round）。ラベルのみ区別（FR-011） */}
+        <button type="button" onClick={sync.nextRound} disabled={offline}>
+          再投票
+        </button>
+        <button type="button" className="secondary" onClick={sync.nextRound} disabled={offline}>
+          次のラウンドへ
+        </button>
+      </p>
     </>
   );
 }
