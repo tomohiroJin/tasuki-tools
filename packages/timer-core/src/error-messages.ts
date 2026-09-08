@@ -16,6 +16,40 @@
  * （LAST_MANAGER / CANNOT_CHANGE_HOST / PARTICIPANT_NOT_FOUND / PARTICIPANT_OFFLINE /
  * RATE_LIMITED の5種）は、画面表示上は元々この表の1文言にしか見えていなかったため、
  * ここへ寄せる（T066）。
+ *
+ * ## wire の後方互換について（FR-137・SC-047）
+ *
+ * この表が「もう返らないコードの文言」を抱えている理由は、**配備前から開かれたままの
+ * タブが旧サーバーの応答を受け取り得る**からである。文言を消すと、その画面の表示は
+ * `displayMessageFor` の既定文言（「操作を完了できませんでした。」）へ退化する（SC-047）。
+ *
+ * ### #95 S3 で受容した非互換（2026-09-08）
+ *
+ * **役割とホストの廃止（#95 S3）で、ServerMsg 側から必須フィールドを 3 つ落とした。**
+ * これは上の「文言だけ残す」で吸収できる範囲を超えた、**wire 契約そのものの非互換**である。
+ *
+ * - `RoomCreatedMsg.hostToken`（`nonEmptyString`・必須）
+ * - `RoomSchema.hostParticipantId`（`participantId`・必須）
+ * - `ParticipantSchema.role`（`picklist(["host","editor","viewer"])`・必須）
+ *
+ * いずれも**必須**だったため、配備前に開かれた古いタブの `ServerMsgSchema` は、
+ * 新サーバーの `room.created` も **snapshot も**（`RoomSchema` は全 snapshot に載る）
+ * 検証に落とす。`apps/timer-web/src/sync/dispatch.ts` はその場合フレームを画面へ渡さず
+ * `onInvalidFrame` を呼び、`use-timer-sync.ts` が「同期できていません。ルームの状態が
+ * 読み込めないため、先へ進めません。」を出す。**古い画面は復帰しない。**
+ *
+ * `hostToken` だけを `v.optional()` にして 1 リリース残す案は**採らなかった**。
+ * `role` と `hostParticipantId` も必須で落ちている以上、`room.created` を救っても
+ * 直後の snapshot で同じ結末になり、何も救えないためである。
+ *
+ * **受容した理由**: この設計は状態を揮発インメモリで持つ（`docs/timer/adr/0007`）。
+ * 配備でプロセスが再起動すると全ルームが消えるので、古いタブはどのみち再読み込みして
+ * 入り直すしかない。非互換で守れる状態がそもそも存在しない。
+ *
+ * **将来 wire を変えるときの判断材料**: 揮発でない状態を持つようになったら、この理由は
+ * 成立しなくなる。必須フィールドの削除は「1 通のメッセージが落ちる」ではなく
+ * **「その接続の snapshot が全部落ちる」**として見積もること。任意化で救えるのは、
+ * 落とすフィールドが**そのメッセージにしか無い**ときだけである。
  */
 export const ERROR_MESSAGES: Record<string, string> = {
   BelowMinMembers: "最後のドライバーは外れられません。",
@@ -24,7 +58,8 @@ export const ERROR_MESSAGES: Record<string, string> = {
   MemberLimitExceeded: "メンバーが上限に達しています。",
   InvalidInterval: "その交代間隔は選べません。",
   RATE_LIMITED: "試行が多すぎます。しばらく待ってから再試行してください。",
-  // ホスト移譲（R2-3）の失敗理由を利用者向けの日本語にする。
+  // 以下 2 件は、**いまは存在しない**ホスト移譲（R2-3）の失敗理由を利用者向けの
+  // 日本語にしたものである（移譲という操作自体が #95 S3 で廃止された）。
   // ⚠ 以下 2 件（PARTICIPANT_OFFLINE / CANNOT_CHANGE_HOST）は Issue #29 で
   // 操作ごとの新コード（DRIVER_ASSIGN_OFFLINE 等）へ細分化された旧コードで、`apps/sync/src` の
   // どの拒否箇所からももう返らない（`SYNC_ERROR_CODES` の語彙からも外してある）。
@@ -32,7 +67,9 @@ export const ERROR_MESSAGES: Record<string, string> = {
   // 旧サーバー（この細分化より前のバージョン）の応答としてこれらのコードを
   // 受け取り得るためである（FR-137）。文言を消すと、その画面の表示は
   // `displayMessageFor` の既定文言（「操作を完了できませんでした。」）へ
-  // 退化してしまう（SC-047）。
+  // 退化してしまう（SC-047）。この残置は
+  // `packages/timer-core/test/error-messages.specificity.test.ts` の
+  // 「旧 3 コードの文言は残置されている（後方互換）」が固定している。
   // 語彙からは外れているのに文言だけ残るのは矛盾ではない。
   // `apps/sync/test/error-code-coverage.test.ts` の「列挙されたコードは、
   // すべてソースに実在する」検査が、SYNC_ERROR_CODES に「もう返らないコード」を
@@ -41,6 +78,14 @@ export const ERROR_MESSAGES: Record<string, string> = {
   // 過去に返していたコードも含めて画面表示を決める場所、という役割の違い）。
   // 同じ理由で残っている前例として下の REMOVED_BY_HOST（旧サーバー互換のための
   // クライアント専用受理コード）も参照のこと。
+  //
+  // ⚠ **#95 S3 以後、この 3 件（下の LAST_MANAGER を含む）は「後継が現役だから残す」
+  // という支えを失った。** 細分化の後継（HOST_TRANSFER_OFFLINE / CANNOT_CHANGE_HOST_ROLE /
+  // ALREADY_HOST / LAST_MANAGER_LEAVE / LAST_MANAGER_DEMOTE）は S3 で文言ごと落ちており、
+  // ホスト移譲・役割変更・「進行できる人が残る」不変条件はいずれも概念ごと存在しない。
+  // 残っている根拠は FR-137・SC-047（＝#29 より前のサーバーの応答を引けること）だけである。
+  // **落とすかどうかは、上の検査（FR-137・SC-047 を辿るテスト）を要件ごと見直す判断になるため、
+  // この段では動かさない。** 次の段で扱うこと。
   PARTICIPANT_OFFLINE: "オフラインの相手にはホストを移譲できません。",
   CANNOT_CHANGE_HOST: "自分自身にはホストを移譲できません。",
   PARTICIPANT_NOT_FOUND: "対象の参加者が見つかりません。",
@@ -71,7 +116,10 @@ export const ERROR_MESSAGES: Record<string, string> = {
   // 細分化された旧コード。`apps/sync/src` からはもう返らず、`SYNC_ERROR_CODES`
   // の語彙からも外してある。上の PARTICIPANT_OFFLINE / CANNOT_CHANGE_HOST と
   // 同じ理由（配備前から開かれた画面が旧サーバーの応答を受け取り得るため。
-  // FR-137・SC-047）で文言だけ残す。
+  // FR-137・SC-047）で文言だけ残す。#95 S3 でこの不変条件そのものが役割ごと
+  // 消えたことによる扱いは、上の PARTICIPANT_OFFLINE の ⚠ にまとめてある。
+  // なお「最後の 1 人はドライバーの輪から外れられない」制約はこれとは別物で、
+  // 上の BelowMinMembers として現役である（役割ではなく rotation の話）。
   LAST_MANAGER: "進行できる人がいなくなるため実行できません。他の人が進行に加わってから操作してください。",
   // ─── 失敗の説明を、実際に行った操作と一致させる（Issue #29） ───
   // 同一のコードが複数の操作から返り、説明がどちらか一方の操作に寄っていた

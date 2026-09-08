@@ -78,7 +78,7 @@ describe("ロビーの開始は全員が押せる", () => {
  */
 describe("ロビーの行操作は全員に出る", () => {
   it("部屋を作った人でなくても他人をドライバーに追加できる", () => {
-    // Given（視点=Bob。Alice は rotation 内なので「ドライバーから外す」が出る側）
+    // Given（視点=Bob。rotation は空なので Alice の行には「ドライバーに追加」が出る）
     const onJoinRotation = vi.fn();
     const room = makeRoom({ session: { rotation: [], currentIndex: 0, isPaused: false, driverCounts: [], totalSwitches: 0 } });
     // When

@@ -52,13 +52,20 @@ TDD Mob Pro Timer の構造・データフロー・設計原則をまとめま�
 
 ### 権限 — 持たない（ルームに居る全員が同格）
 
-**参加者ごとに区別される権限はありません。** ルームに居る人は全員が同格で、どのコマンドも
-在室しているかどうかだけで受理されます。`Role` 型（`host` / `editor` / `viewer`）・
+**参加者ごとに区別される権限はありません。** ルームに居る人は全員が同格で、コマンドの受理は
+まず在室しているかどうかを見ます。`Role` 型（`host` / `editor` / `viewer`）・
 `Participant.role`・`Room.hostParticipantId`・可否判定モジュール（`permissions.ts` の
 `checkPermission` / `isAllowed`）・在室者の不変条件（`participants.ts` の
 `canRemoveParticipant` / `canDemote` / `transferHost`）は、いずれも
 **#95 S3 で廃止しました**（[ADR-0007](./adr/0007-volatile-in-memory-state.md) の
 改定（2026-09-08）／[設計正本](../superpowers/specs/2026-09-06-shared-identity-and-rooms-design.md) D5）。
+
+**ただし在室だけで何でも通るわけではありません。** ドメイン側の事前条件
+（`PhaseConflict` / `InvalidInterval` / `BelowMinMembers` 等）は残りますし、
+**実行者で選別する関門も 1 つだけ残っています**。`problem.submit` は、いまお題の委譲が
+オファーしている参加者本人からの投入しか受理しません（`problem-delegation.ts` の `submit`。
+他の在室者へは `STALE_SUBMISSION` を返します）。これは参加者に貼り付く権限ではなく、
+その時点の委譲順の話です。
 
 **なぜ消したか。** 主催者が落ちた部屋で誰も操作できなくなる「詰み」を、役割を保ったまま
 避けようとすると、段階（開始前／開始後）と対象（自分／他人）で権限を切り替える規則が要り、
@@ -67,8 +74,12 @@ TDD Mob Pro Timer の構造・データフロー・設計原則をまとめま�
 **代わりに残るもの。**
 
 - **ドライバーの適格性**（`Participant.driverEligible`）は役割ではなく**ローテーションの話**として
-  残っています。`driver.skip` / `driver.resume`（「見送り」）で誰でも自分を輪から外し、戻せます。
-  もとから役割とは独立の 2 層構造で、S3 はそのうち役割の層だけを取り除きました。
+  残っています。ただし輪の所属そのものではありません。輪に居るかどうかは `session.rotation`
+  （参加者 ID の配列）で決まり、出入りは `member.add` / `member.remove` が行います
+  （画面では「ドライバーに加わる」「列から外れる」）。`driver.skip` / `driver.resume`（「見送り」）は
+  **輪に居たまま自分の順番を飛ばす**フラグで、枠は保持されます（画面では「一時離脱」「復帰」）。
+  どちらも在室者なら誰でも自分に対して実行できます。もとから役割とは独立の 2 層構造で、
+  S3 はそのうち役割の層だけを取り除きました。
 - **合言葉**（`room.passphrase.set`）と **AI 解錠**（`ai.unlock`）は在室者なら誰でも実行できます。
   合言葉を誰でも設定できることの帰結（他の参加者を締め出しうる）は受容済みです（設計正本 §8）。
 

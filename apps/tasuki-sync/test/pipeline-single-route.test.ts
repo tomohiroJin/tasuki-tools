@@ -56,7 +56,7 @@ const FORMERLY_DEDICATED_COMMANDS = [
 /** 在室を前提としないコマンド（`handleCommand` の switch に個別 case を持ってよい唯一の例外）。 */
 const PRE_ROOM_CASE_LABELS = ["room.create", "room.join", "time.ping"];
 
-describe("パイプライン単一経路（FR-155/FR-156）", () => {
+describe("パイプライン単一経路（FR-155）", () => {
   it("handleCommand の switch は在室前コマンド3件のみを個別 case に持つ", () => {
     // Given: handleCommand 関数本体を切り出す
     const start = handlersSource.indexOf("async function handleCommand(");

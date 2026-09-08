@@ -120,9 +120,16 @@ export const SYNC_ERROR_CODES = [
   // ⚠ UNAUTHORIZED / HOST_TRANSFER_OFFLINE / CANNOT_CHANGE_HOST_ROLE / ALREADY_HOST /
   // LAST_MANAGER_LEAVE / LAST_MANAGER_DEMOTE は #95 S3（役割とホストの廃止）で
   // 発行元ごと消えたため、ここから削除した。可否判定・ホスト移譲・役割変更・
-  // 「進行できる人が残る」不変条件のいずれも概念ごと無くなっており、
-  // 旧サーバー互換のために文言だけ残す上の 3 件（PARTICIPANT_OFFLINE 等）とは
-  // 事情が違う（それらは細分化であって廃止ではなかった）。
+  // 「進行できる人が残る」不変条件のいずれも概念ごと無くなった。
+  //
+  // ⚠ この削除で、上の 3 件（PARTICIPANT_OFFLINE / CANNOT_CHANGE_HOST /
+  // LAST_MANAGER）との対比は**過去の経緯の説明に変わった**。「それらは細分化であって
+  // 廃止ではなかった」は #29 時点の事情としては正しいが、その細分化の後継は
+  // いま全部消えている。3 件の文言が error-messages.ts に残る根拠は
+  // FR-137・SC-047（#29 より前のサーバーの応答を引けること）だけであり、
+  // 落とすかどうかの判断は同ファイルの該当コメントに預けてある。
+  // なお #95 S3 は ServerMsg から必須フィールドも落としており、その非互換を
+  // 受容した記録は error-messages.ts の「wire の後方互換について」にある。
   // ─── お題の委譲 ───
   "DELEGATION_UNAVAILABLE",
   "STALE_SUBMISSION",

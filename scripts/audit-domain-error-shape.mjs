@@ -53,7 +53,7 @@
  *
  * 分けているのは、この 2 つを 1 つの規則にまとめると実物で壊れるからである。
  * 「深さ 0 かつ末尾が `}`」で終えると `RoundError` の合併型が 1 メンバー目で切れる
- * （`  | { code: 'not-host'; op: ... }` が終端に見える）。実物 4 形すべてで確かめた:
+ * （`  | { code: 'not-voting'; op: ... }` が終端に見える）。実物 4 形すべてで確かめた:
  * 1 行の `type`（`RoomError`）、複数行の合併 `type`（`RoundError`）、
  * 複数行の `interface`（timer-core の 9 個）、名前の合併 `type`（timer-core の `DomainError`）。
  *

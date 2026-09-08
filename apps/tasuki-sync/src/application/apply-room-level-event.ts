@@ -74,13 +74,14 @@ function applyRoomLevelEvent(
       // 「session への遷移を初めて観測した」時点で一度だけ記録し、以後は
       // どんな phase 遷移でも消さない（上書きしない）。
       // 可否判定そのものは #95 S3 で撤去済みだが、フラグは残してある。
-      // **サーバー側にこの値を読む処理はもう無い**（`handlers.ts` と当ファイルの
-      // 書き込み時の `== null` 単調性ガードだけが読む）。それでも残すのは、
-      // `RoomSchema` に載っていて snapshot でクライアントへ配信され続けており、
-      // 実際の読み手が `apps/timer-web`（`Session.tsx` の `started`。そこから
-      // `SpectatorSelfActions` へ渡る）だけになっているからである。
-      // その web 側は S3 の後続タスクが役割ごと外す予定で、**外れた時点で
-      // このフィールド自体の要否を判断し直すこと**。
+      // **この値を読む処理はもうどこにも無い。** サーバー側に残るのは `handlers.ts` と
+      // 当ファイルの書き込み時の `== null` 単調性ガード（自分の書き込みを一度きりに
+      // するための参照）だけであり、web 側の読み手も S3 で消えた
+      // （`Session.tsx` の `started` と、そこから渡していた `SpectatorSelfActions` は
+      // どちらも無くなった）。それでも残しているのは、`RoomSchema` に載っていて
+      // snapshot に相乗りしてクライアントへ配信され続けているためである
+      // （撤去は wire 契約の変更になるので、この段では動かさない）。
+      // **フィールドごと落とすかどうかは次の段で判断すること**。
       const startedAt =
         event.phase === "session" && room.startedAt == null ? _now : room.startedAt;
       return { ...room, phase: event.phase, startedAt };
