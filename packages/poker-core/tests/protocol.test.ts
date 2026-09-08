@@ -46,7 +46,7 @@ const A_REVEALED_ROOM_STATE = {
   type: 'room-state',
   roomId: 'a1b2c3d4',
   you: 'p1',
-  participants: [{ id: 'p1', name: 'たろう', isHost: true, connected: true, hasVoted: true }],
+  participants: [{ id: 'p1', name: 'たろう', connected: true, hasVoted: true }],
   round: {
     status: 'revealed',
     votes: [{ participantId: 'p1', card: { kind: 'number', value: 5 } }],
@@ -68,7 +68,7 @@ describe('parseServerMessage', () => {
         roomId: 'a1b2c3d4',
         you: 'p1',
         participants: [
-          { id: 'p1', name: 'たろう', isHost: true, connected: true, hasVoted: false },
+          { id: 'p1', name: 'たろう', connected: true, hasVoted: false },
         ],
         round: { status: 'voting' },
         yourVote: null,
@@ -81,7 +81,7 @@ describe('parseServerMessage', () => {
         roomId: 'a1b2c3d4',
         you: 'p1',
         participants: [
-          { id: 'p1', name: 'たろう', isHost: true, connected: true, hasVoted: true },
+          { id: 'p1', name: 'たろう', connected: true, hasVoted: true },
         ],
         round: {
           status: 'revealed',
@@ -219,7 +219,7 @@ describe('parseServerMessage', () => {
         type: 'room-state',
         roomId: 'a1b2c3d4',
         you: 'p1',
-        participants: [{ id: 'p1', name: 'たろう', isHost: true, connected: true, hasVoted: false }],
+        participants: [{ id: 'p1', name: 'たろう', connected: true, hasVoted: false }],
         round: { status: 'voting', elapsedMs: 1 },
         yourVote: null,
       },

@@ -13,7 +13,6 @@ export function createSnapshotBuilder(room: Room): (viewerId: string) => RoomSta
   const participants = room.participants.map((p) => ({
     id: p.id,
     name: p.name,
-    isHost: p.isHost,
     connected: p.connected,
     hasVoted: room.round.votes.has(p.id),
   }));
