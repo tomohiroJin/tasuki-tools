@@ -37,11 +37,14 @@ function makeRoom(overrides?: Partial<Room>): Room {
   return aRoomView({
     code: "AA0001",
     config,
-    session: { rotation: ["Alice", "Bob"], driverCounts: [0, 0] },
+    // rotation は参加者IDの配列（D6b）。Bob は輪の外に置き、
+    // 「輪の外の在席者でもメモを読める」を実際にその状態で確かめられるようにする。
+    session: { rotation: ["p-alice", "p-carol"], driverCounts: [0, 0] },
     phase: "session",
     participants: [
       makeParticipant({ participantId: "p-alice", displayName: "Alice" }),
-      makeParticipant({ participantId: "p-carol", displayName: "Bob", connId: "c2" }),
+      makeParticipant({ participantId: "p-carol", displayName: "Carol", connId: "c2" }),
+      makeParticipant({ participantId: "p-bob", displayName: "Bob", connId: "c3" }),
     ],
     ...overrides,
   });
@@ -131,7 +134,8 @@ describe("Session 引き継ぎノート入力（§9.1）", () => {
         onHandoffNoteSet={vi.fn()}
       />,
     );
-    // When（既定はプレビュー。「編集」へ切り替える）
+    // When（自分が本当に輪の外に居ることを先に確かめてから、既定のプレビューを編集へ切り替える）
+    expect(screen.getByText(/ドライバーの輪の外/)).toBeTruthy();
     expect(screen.getByText(/残りはリファクタ/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "編集" }));
     // Then

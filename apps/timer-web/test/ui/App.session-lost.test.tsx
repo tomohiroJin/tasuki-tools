@@ -56,7 +56,6 @@ function enterSession(): FakeWS {
   sendServer(ws, {
     type: "room.created",
     code: "ROOM01",
-    hostToken: "ht",
     resumeToken: "rt",
     participantId: CREATOR_ID,
   });

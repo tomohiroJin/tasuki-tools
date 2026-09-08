@@ -88,7 +88,7 @@ describe("App.tsx の state/ref 二重管理（4組）", () => {
   it("roomRef: 生成中お題の再依頼リクエストが最新の room.code を参照する", () => {
     // Given: ロビーに到達し、お題Aが確定している
     const ws = createRoomAndConnect();
-    sendServer(ws, { type: "room.created", code: "ROOM01", hostToken: "ht", resumeToken: "rt", participantId: CREATOR_ID });
+    sendServer(ws, { type: "room.created", code: "ROOM01", resumeToken: "rt", participantId: CREATOR_ID });
     sendServer(ws, {
       type: "snapshot",
       room: aRoomView({
@@ -118,7 +118,7 @@ describe("App.tsx の state/ref 二重管理（4組）", () => {
   it("generatingRef: 生成中に新しいお題が来ると生成中表示が解除される", () => {
     // Given: 「別のお題にする」押下で生成中になっている
     const ws = createRoomAndConnect();
-    sendServer(ws, { type: "room.created", code: "ROOM01", hostToken: "ht", resumeToken: "rt", participantId: CREATOR_ID });
+    sendServer(ws, { type: "room.created", code: "ROOM01", resumeToken: "rt", participantId: CREATOR_ID });
     sendServer(ws, {
       type: "snapshot",
       room: aRoomView({
@@ -153,7 +153,7 @@ describe("App.tsx の state/ref 二重管理（4組）", () => {
   it("participantIdRef + roomRef: notice の実行者が自分のとき「あなた」と表示する", () => {
     // Given: ロビーで自分の participantId が確定している
     const ws = createRoomAndConnect();
-    sendServer(ws, { type: "room.created", code: "ROOM01", hostToken: "ht", resumeToken: "rt", participantId: CREATOR_ID });
+    sendServer(ws, { type: "room.created", code: "ROOM01", resumeToken: "rt", participantId: CREATOR_ID });
     sendServer(ws, {
       type: "snapshot",
       room: aRoomView({
@@ -181,7 +181,7 @@ describe("App.tsx の state/ref 二重管理（4組）", () => {
   it("endTypeRef: 中断（abort）後の celebration snapshot では完成記録を保存しない", async () => {
     // Given: セッション画面まで進める（サーバー権威の phase で直接遷移させる）
     const ws = createRoomAndConnect();
-    sendServer(ws, { type: "room.created", code: "ROOM01", hostToken: "ht", resumeToken: "rt", participantId: CREATOR_ID });
+    sendServer(ws, { type: "room.created", code: "ROOM01", resumeToken: "rt", participantId: CREATOR_ID });
     const sessionRoom = () =>
       aRoomView({
         code: "ROOM01",

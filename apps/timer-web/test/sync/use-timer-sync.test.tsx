@@ -161,7 +161,7 @@ describe("useTimerSync: メッセージの配線", () => {
     // Given
     const { result, deliver } = connected();
     // When
-    deliver({ type: "room.created", code: "ROOM01", hostToken: "ht", resumeToken: "rt", participantId: "me" });
+    deliver({ type: "room.created", code: "ROOM01", resumeToken: "rt", participantId: "me" });
     // Then
     expect(result.current.participantId).toBe("me");
   });

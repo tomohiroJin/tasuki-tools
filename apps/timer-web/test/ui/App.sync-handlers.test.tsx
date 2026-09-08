@@ -119,7 +119,7 @@ describe("SyncClient コールバックが最新の state を読む経路（Issu
   it("onError/leave-room: 退出させられたとき直前のルームコードが参加画面へ引き継がれる", () => {
     // Given: ROOM01 のロビーに居る
     const ws = createRoomAndConnect();
-    sendServer(ws, { type: "room.created", code: "ROOM01", hostToken: "ht", resumeToken: "rt", participantId: CREATOR_ID });
+    sendServer(ws, { type: "room.created", code: "ROOM01", resumeToken: "rt", participantId: CREATOR_ID });
     sendServer(ws, {
       type: "snapshot",
       room: aRoomView({ code: "ROOM01", participants: [participant(CREATOR_ID, "Creator")] }),
@@ -169,7 +169,7 @@ describe("SyncClient コールバックが最新の state を読む経路（Issu
     // Given
     const ws = createRoomAndConnect();
     // When: 識別情報と snapshot を受け取る
-    sendServer(ws, { type: "room.created", code: "ROOM01", hostToken: "ht", resumeToken: "rt-1", participantId: CREATOR_ID });
+    sendServer(ws, { type: "room.created", code: "ROOM01", resumeToken: "rt-1", participantId: CREATOR_ID });
     sendServer(ws, {
       type: "snapshot",
       room: aRoomView({ code: "ROOM01", participants: [participant(CREATOR_ID, "Creator")] }),
@@ -187,7 +187,7 @@ describe("SyncClient コールバックが最新の state を読む経路（Issu
   it("onNeedProblem: 生成にはロビーで設定された最新の言語・難易度が渡る", async () => {
     // Given: ロビーの設定が Python / hard に変わっている
     const ws = createRoomAndConnect();
-    sendServer(ws, { type: "room.created", code: "ROOM01", hostToken: "ht", resumeToken: "rt", participantId: CREATOR_ID });
+    sendServer(ws, { type: "room.created", code: "ROOM01", resumeToken: "rt", participantId: CREATOR_ID });
     sendServer(ws, {
       type: "snapshot",
       room: aRoomView({

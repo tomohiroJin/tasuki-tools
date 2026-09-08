@@ -37,13 +37,14 @@ function makeRoom(overrides?: Partial<Room>): Room {
   return aRoomView({
     code: "AA0001",
     config,
-    session: { rotation: ["Alice", "Bob"], currentIndex: 1, driverCounts: [1, 0], totalSwitches: 1 },
+    // rotation は参加者IDの配列（D6b）。currentIndex=1 なので現ドライバーは Bob。
+    session: { rotation: ["p-alice", "p-bob"], currentIndex: 1, driverCounts: [1, 0], totalSwitches: 1 },
     clock: { running: true, runningSince: 0 },
     phase: "session",
     participants: [
       makeParticipant({ participantId: "p-alice", displayName: "Alice" }),
-      makeParticipant({ participantId: "p-carol", displayName: "Bob", connId: "c2" }),
-      makeParticipant({ participantId: "p-bob", displayName: "Carol", connId: "c3" }),
+      makeParticipant({ participantId: "p-bob", displayName: "Bob", connId: "c2" }),
+      makeParticipant({ participantId: "p-carol", displayName: "Carol", connId: "c3" }),
     ],
     ...overrides,
   });

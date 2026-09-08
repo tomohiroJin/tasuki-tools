@@ -73,7 +73,6 @@ function enterLobby(): FakeWS {
   sendServer(ws, {
     type: "room.created",
     code: "ROOM01",
-    hostToken: "ht",
     resumeToken: "rt",
     participantId: CREATOR_ID,
   });
@@ -174,7 +173,6 @@ describe("捨てた同期フレームを画面で伝える", () => {
     sendServer(ws, {
       type: "room.created",
       code: "ROOM01",
-      hostToken: "ht",
       resumeToken: "rt",
       participantId: CREATOR_ID,
     });
@@ -200,7 +198,6 @@ describe("捨てた同期フレームを画面で伝える", () => {
     sendServer(ws, {
       type: "room.created",
       code: "ROOM01",
-      hostToken: "ht",
       resumeToken: "rt",
       participantId: CREATOR_ID,
     });
