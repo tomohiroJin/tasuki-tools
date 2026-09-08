@@ -585,14 +585,22 @@ describe("0 件ガードの配線: scripts/audit-domain-error-shape.mjs", () => 
 
   test("宣言した型が実在しなくなると非ゼロで終了し、名指しする（改名で空振りする経路）", () => {
     // Given: 実装は変えず、宣言の型名だけを実在しないものへ変える。
-    //        件数は 12 のまま・ファイルも実在するので、0 件ガードにも実在確認にも掛からない
+    //        型名の書き換えだけでは件数もファイル数も動かないので、0 件ガードにも
+    //        実在確認にも掛からない（件数は対照実行と突き合わせて確かめる。ハード
+    //        コードした数は DOMAIN_ERROR_TARGETS の増減で腐るため使わない）
     const mutate = (s) => s.replace('type: "RoundError"', 'type: "RoundFailure"');
     // When
+    const before = runScriptCopy("audit-domain-error-shape.mjs", (s) => s);
     const r = runScriptCopy("audit-domain-error-shape.mjs", mutate);
     // Then: まず「壊れたこと自体」を確かめる
     assert.equal(countOf(r.source, "RoundFailure"), 1, "宣言を壊せていません");
-    // Then
-    assert.match(r.stdout, /走査対象: 12 型 \/ 3 ファイル/);
+    // Then: 走査対象の行が対照実行と同じであることを確かめる（型名の書き換えだけで件数は動かない）
+    const scanLine = (stdout) => {
+      const m = stdout.match(/走査対象: \d+ 型 \/ \d+ ファイル/);
+      assert.ok(m, `走査対象の行を読めません:\n${stdout}`);
+      return m[0];
+    };
+    assert.equal(scanLine(r.stdout), scanLine(before.stdout));
     assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
     assert.match(r.stderr, /RoundFailure の型宣言が見つかりません/);
   });
