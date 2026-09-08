@@ -5,7 +5,13 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { detectRunner, buildCommand, MUTATIONS } from "./mutation-check.mjs";
+import {
+  detectRunner,
+  buildCommand,
+  isPidAlive,
+  lockRefusalReason,
+  MUTATIONS,
+} from "./mutation-check.mjs";
 
 /**
  * `scripts/mutation-check.mjs` の自己テスト（#174）。
@@ -205,6 +211,85 @@ describe("エントリポイントの判定", () => {
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
       fs.rmSync(linkDir, { recursive: true, force: true });
+    }
+  });
+});
+
+/**
+ * 同時実行のロック（#95 S2 のレビューで踏んだ事故への対処）。
+ *
+ * **なぜ要るのか。** 同じ作業ツリーで 2 つ走ると、片方の `git apply` を
+ * もう片方の `git checkout --` が消し、互いの帳簿（`currentlyAppliedFiles` と
+ * マーカー `.applied`）が食い違う。結果は**変異が当たったまま残り、マーカーも消える**
+ * ——どちらの復旧経路でも拾えない状態である。2026-09-08 に実際に起き、
+ * `apps/timer-web/src/sync/stale-frame.ts` に変異 #16 が残った。
+ *
+ * 判定（`lockRefusalReason`）は純粋関数に切ってある。ロックの有無で分岐する経路は
+ * 本来 2 つ同時に走らせないと再現できず、そのままではテストが書けないため。
+ * **配線（main が実際に拒むこと）は下のサブプロセス起動で見る。**
+ */
+describe("同時実行のロック", () => {
+  test("ロックが無ければ拒まない", () => {
+    // Given: ロックファイルが存在しない
+    // When / Then
+    assert.equal(lockRefusalReason(null), null);
+  });
+
+  test("生きている PID のロックがあれば拒み、PID と消し方を伝える", () => {
+    // Given: 生きているプロセスが書いたロック
+    const reason = lockRefusalReason("4242", () => true);
+    // Then: 理由に PID と、消してよい条件が入っている
+    assert.notEqual(reason, null);
+    assert.match(reason, /4242/);
+    assert.match(reason, /scripts\/mutations\/\.lock/);
+    assert.match(reason, /待って/);
+  });
+
+  test("死んだ PID のロックは拒まない（前回の置き土産を引き取る）", () => {
+    // Given: もう居ないプロセスが残したロック
+    // When / Then: 拒む理由は無い
+    assert.equal(lockRefusalReason("4242", () => false), null);
+  });
+
+  test("PID として読めない中身は拒まない（消し方を知らない人が詰まないように）", () => {
+    // Given: 書き込みの途中で殺された等で壊れたロック
+    // When / Then: 生死を問わず拒まない（書き手はもう居ない公算が大きい）
+    for (const broken of ["", "   ", "abc", "-1", "0"]) {
+      assert.equal(
+        lockRefusalReason(broken, () => true),
+        null,
+        `壊れたロック ${JSON.stringify(broken)} で拒んでいる`,
+      );
+    }
+  });
+
+  test("isPidAlive は自分自身を生きていると判定し、あり得ない PID を死んでいると判定する", () => {
+    // Given / When / Then: 自分は必ず生きている
+    assert.equal(isPidAlive(process.pid), true);
+    // Linux の PID 上限（/proc/sys/kernel/pid_max の既定は 4194304）を超える値は割り当たらない
+    assert.equal(isPidAlive(2 ** 31 - 1), false);
+  });
+
+  test("配線: 生きているロックがあると main は何も実行せずに非 0 で終わる", () => {
+    // Given: 自分自身（確実に生きている）の PID を書いたロック
+    const lockPath = path.join(WORKSPACE_ROOT, "scripts/mutations/.lock");
+    assert.equal(fs.existsSync(lockPath), false, "先行するロックが残っている");
+    fs.writeFileSync(lockPath, String(process.pid), "utf8");
+    try {
+      // When: 変異検査を起動する
+      const r = spawnSync("node", ["scripts/mutation-check.mjs"], {
+        cwd: WORKSPACE_ROOT,
+        encoding: "utf8",
+        timeout: 60_000,
+      });
+      // Then: 走り出す前に落ちる（変異の適用も復元も行わない）
+      assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+      assert.match(r.stderr, /別の実行（PID \d+）が走っています/);
+      assert.doesNotMatch(r.stdout ?? "", /変異#?\s*1\b|モード:/, "本体が走り出しています");
+      // Then: 他人のロックを消していない
+      assert.equal(fs.readFileSync(lockPath, "utf8").trim(), String(process.pid));
+    } finally {
+      if (fs.existsSync(lockPath)) fs.rmSync(lockPath);
     }
   });
 });

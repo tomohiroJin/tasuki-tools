@@ -43,6 +43,13 @@
  * - 復元は git checkout -- で行い、異常終了（Ctrl-C 含む）時にも必ず実行する。
  *   「現在適用中の変異」をモジュールスコープの変数で追跡し、シグナルハンドラ・
  *   uncaughtException ハンドラの両方から同じ復元処理を呼べるようにしている。
+ * - **同じ作業ツリーで 2 つ以上を同時に走らせない**（ロックで拒む）。
+ *   2 つが同時に走ると、片方の `git apply` を片方の `git checkout --` が消し、
+ *   互いの復元の帳簿（`currentlyAppliedFiles` とマーカー）が食い違う。結果として
+ *   **変異が当たったまま残り、マーカーも消える**という、どちらの復旧経路でも
+ *   拾えない状態になる。2026-09-08 に実際に起きた —— レビューを並列で回した
+ *   エージェントの 1 体が共有の作業ツリーでこれを完走させ、`stale-frame.ts` に
+ *   変異が残った。踏んだ側は原因を「9p マウント固有の失敗」と誤診している。
  */
 
 import { execFileSync, spawnSync } from "node:child_process";
@@ -395,6 +402,88 @@ function clearMarker() {
 }
 
 /**
+ * 同時実行を拒むためのロック。自分の PID を書く。
+ *
+ * **マーカー（`.applied`）とは役目が違う。** あちらは「異常終了した過去の実行」の
+ * 後始末で、こちらは「いま並走している別の実行」を止める。片方だけでは、
+ * 2 つが同時に走って互いの復元を潰し合う経路（ヘッダの docstring）を塞げない。
+ */
+const LOCK_PATH = path.join(MUTATIONS_DIR, ".lock");
+
+/**
+ * その PID のプロセスが生きているか。
+ *
+ * `process.kill(pid, 0)` はシグナルを送らずに存在だけを確かめる。`EPERM` は
+ * 「居るが自分には送れない」なので**生きている**側に数える（別ユーザーの実行を
+ * 死んだものと見なして踏み潰さない）。
+ */
+export function isPidAlive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    return e.code === "EPERM";
+  }
+}
+
+/**
+ * 既存のロックを見て、実行を拒む理由を返す（拒まないなら null）。
+ *
+ * **判定を純粋関数にしてある**（I/O は呼び出し側）。ロックの有無で分岐する経路は
+ * 実際に 2 つ走らせないと再現できず、そのままではテストが書けないため。
+ *
+ * 壊れたロック（PID として読めない中身）は**無いものとして扱う**。中身が壊れるのは
+ * 書き込みの途中で殺された場合が主で、そのとき書き手はもう死んでいる。拒む側へ
+ * 倒すと、誰も走っていないのに永久に実行できなくなる（消し方を知らない人が詰む）。
+ * 代わりに呼び出し側が警告を出す。
+ */
+export function lockRefusalReason(rawLockText, isAlive = isPidAlive) {
+  if (rawLockText === null || rawLockText === undefined) return null;
+  const pid = Number.parseInt(String(rawLockText).trim(), 10);
+  if (!Number.isInteger(pid) || pid <= 0) return null;
+  if (!isAlive(pid)) return null;
+  return (
+    `[mutation-check] 同じ作業ツリーで別の実行（PID ${pid}）が走っています。\n` +
+    "2 つを同時に走らせると、片方の変異をもう片方の復元が消し、**変異が当たったまま**\n" +
+    "残ることがあります。終わるのを待ってから再実行してください。\n\n" +
+    `そのプロセスがもう居ないと分かっている場合だけ、${path.relative(REPO_ROOT, LOCK_PATH)} を消してください。`
+  );
+}
+
+/** ロックを取る。取れなければ理由を出して非 0 で終わる。 */
+function acquireLock() {
+  const raw = fs.existsSync(LOCK_PATH) ? fs.readFileSync(LOCK_PATH, "utf8") : null;
+  const reason = lockRefusalReason(raw);
+  if (reason !== null) {
+    console.error(reason);
+    process.exit(1);
+  }
+  if (raw !== null) {
+    console.error(
+      `[mutation-check] 前回の実行が残したロックを引き取ります（中身: ${JSON.stringify(raw.trim())}）。`,
+    );
+  }
+  // 置き場が無いことがある（エントリ判定のテストはこのスクリプトだけを一時ディレクトリへ
+  // 複製して起動する）。ロックが取れないせいで main() に入れないのは筋が違うので作る。
+  fs.mkdirSync(path.dirname(LOCK_PATH), { recursive: true });
+  fs.writeFileSync(LOCK_PATH, String(process.pid), "utf8");
+  // **exit で必ず外す。** main() は複数の場所で process.exit するので、
+  // 呼び出し箇所ごとに解放を書くと必ずどれかが漏れる。
+  process.on("exit", releaseLock);
+}
+
+/** ロックを外す。**自分が書いたものだけ**を消す。 */
+function releaseLock() {
+  try {
+    if (!fs.existsSync(LOCK_PATH)) return;
+    if (fs.readFileSync(LOCK_PATH, "utf8").trim() !== String(process.pid)) return;
+    fs.rmSync(LOCK_PATH);
+  } catch {
+    // 解放に失敗しても終了は妨げない。次の実行が「死んだ PID のロック」として引き取る。
+  }
+}
+
+/**
  * 前回の実行が変異を適用したまま異常終了していないかを調べ、していれば復元する。
  * **未コミット変更の検査より前に呼ぶこと。** そうしないと自分が残した変異で自分が止まる。
  */
@@ -646,6 +735,10 @@ function runTests(mutation, full) {
 
 function main() {
   const full = process.argv.includes("--full");
+
+  // **復元より前にロックを取る。** 復元自体が `git checkout --` を撃つので、
+  // 並走している実行の変異をここで消してしまう経路がある。
+  acquireLock();
 
   // 未コミット変更の検査より前に行う。前回の異常終了で残った変異を、
   // その検査に引っかからせるのではなく自分で片付けるため。
