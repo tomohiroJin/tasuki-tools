@@ -38,7 +38,10 @@ describe("handlers: room.create", () => {
     expect(broadcaster.createdFor("conn-001").code).toBeTruthy();
   });
 
-  it("作成者は host ロールで登録される", async () => {
+  // #95 S3 以前は「作成者は host ロールで登録される」ことをここで固定していた。
+  // 役割の廃止で作成者も 1 人の在室者にすぎなくなったため、
+  // 「room.created が指す participantId で在室者として引ける」ことを固定し直す。
+  it("作成者は在室者として登録され、room.created の participantId で引ける", async () => {
     // Given
     const command = { command: "room.create", displayName: "Alice" } as const;
 
@@ -49,10 +52,12 @@ describe("handlers: room.create", () => {
     const value = broadcaster.createdFor("conn-001");
     const room = store.get(value.code);
     expect(room).toBeTruthy();
-    const host = room?.participants.find(
+    const creator = room?.participants.find(
       (p) => p.participantId === value.participantId,
     );
-    expect(host?.role).toBe("host");
+    expect(creator?.displayName).toBe("Alice");
+    expect(creator?.connId).toBe("conn-001");
+    expect(room?.participants).toHaveLength(1);
   });
 
   it("room.created メッセージを送信者に返す", async () => {
@@ -69,7 +74,6 @@ describe("handlers: room.create", () => {
     expect(created).toBeTruthy();
     if (created?.msg.type === "room.created") {
       expect(created.msg.code).toBeTruthy();
-      expect(created.msg.hostToken).toBeTruthy();
       expect(created.msg.resumeToken).toBeTruthy();
       expect(created.msg.participantId).toBeTruthy();
     }
@@ -226,7 +230,7 @@ describe("handlers: room.join", () => {
     expect(error).toBeTruthy();
   });
 
-  it("新規参加者はデフォルトで editor になる（名乗って参加した人はすぐ回せる）", async () => {
+  it("新規参加者は在室者として登録される（名乗って参加した人はすぐ回せる）", async () => {
     // Given
     const room = await aRoom().build();
 
@@ -241,6 +245,7 @@ describe("handlers: room.join", () => {
     // Then
     const stored = room.store.get(room.code);
     const bob = stored?.participants.find((p) => p.displayName === "Bob");
-    expect(bob?.role).toBe("editor");
+    expect(bob?.connId).toBe("conn-002");
+    expect(bob?.presence).toBe("online");
   });
 });

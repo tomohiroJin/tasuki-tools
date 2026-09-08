@@ -1,17 +1,17 @@
 /**
  * プレゼンス管理
- * T049: FR-014, FR-018, FR-020
+ * T049: FR-014, FR-020
  * 状態変化時のみ配信（生存確認では間引く）
+ *
+ * #95 S3 でホストの概念が消えたため、ホスト不在の猶予後自動委譲（旧 FR-018）は
+ * 撤去した。ここに残る不在タイマーはドライバー不在の繰り上げ（R2-1）だけで、
+ * これは役割ではなくローテーションの話である。
  */
 
-import { transferHost } from "@tasuki/timer-core";
 import type { Room, Participant } from "@tasuki/timer-core";
 import type { RoomStore } from "../ports/room-store.js";
 import type { Broadcaster } from "../ports/broadcaster.js";
 import type { Clock } from "../ports/clock.js";
-
-/** ホスト不在の猶予時間（デフォルト30秒）*/
-export const HOST_ABSENCE_GRACE_MS = 30 * 1000;
 
 /** ドライバー不在の猶予時間（デフォルト30秒）。猶予後に次の eligible へ繰り上げる（R2-1）。*/
 export const DRIVER_ABSENCE_GRACE_MS = 30 * 1000;
@@ -22,11 +22,6 @@ export class PresenceManager {
   private readonly clock: Clock;
   /** ドライバー不在発火時に呼ぶコールバック（任意。create-sync-server.ts で handlers.advanceForAbsence に配線）。 */
   private readonly onDriverAbsence?: ((roomCode: string) => void) | undefined;
-  /** ホスト不在タイマー: roomCode → timerHandle */
-  private readonly hostAbsenceTimers = new Map<
-    string,
-    ReturnType<typeof setTimeout>
-  >();
   /** ドライバー不在タイマー: roomCode → timerHandle */
   private readonly driverAbsenceTimers = new Map<
     string,
@@ -70,7 +65,7 @@ export class PresenceManager {
   }
 
   /**
-   * 接続切断時にプレゼンスを offline に更新し、ホスト委譲判定
+   * 接続切断時にプレゼンスを offline に更新し、ドライバー不在の繰り上げを判定する
    */
   handleDisconnect(connId: string): void {
     const room = this.findRoomByConnId(connId);
@@ -83,51 +78,12 @@ export class PresenceManager {
     this.store.put(updated);
     this.broadcaster.broadcastSnapshot(room.code, updated);
 
-    // ホストが切断した場合、猶予後に委譲（FR-018）
-    if (participant.role === "host") {
-      this.scheduleHostAbsence(room.code);
-    }
-
     // 現ドライバーが切断し、かつセッション稼働中なら猶予後に次へ繰り上げる（R2-1）。
     const isCurrentDriver =
       updated.session.rotation[updated.session.currentIndex] === participant.participantId;
     if (updated.clock.running && isCurrentDriver) {
       this.scheduleDriverAbsence(updated.code, participant.participantId);
     }
-  }
-
-  /**
-   * ホスト不在猶予後に最古のオンライン編集者へ主催者権限を委譲（FR-018）
-   */
-  private scheduleHostAbsence(roomCode: string): void {
-    this.clearHostAbsenceTimer(roomCode);
-
-    const timer = setTimeout(() => {
-      this.hostAbsenceTimers.delete(roomCode);
-      const room = this.store.get(roomCode);
-      if (!room) return;
-
-      // ホストが再接続していれば何もしない
-      const host = room.participants.find(
-        (p) => p.participantId === room.hostParticipantId,
-      );
-      if (host?.presence === "online") return;
-
-      // 最古のオンライン編集者を探す
-      const newHost = room.participants
-        .filter((p) => p.role === "editor" && p.presence === "online")
-        .sort((a, b) => a.joinedAt - b.joinedAt)[0];
-
-      if (!newHost) return;
-
-      // 二重実装の乖離を防ぐため core の純粋変換に統一（R2-4）。
-      const updatedRoom = transferHost(room, newHost.participantId);
-
-      this.store.put(updatedRoom);
-      this.broadcaster.broadcastSnapshot(roomCode, updatedRoom);
-    }, HOST_ABSENCE_GRACE_MS);
-
-    this.hostAbsenceTimers.set(roomCode, timer);
   }
 
   /**
@@ -161,25 +117,13 @@ export class PresenceManager {
 
   /** ルーム回収時に、そのルームのプレゼンス関連タイマーを解放する。 */
   clearRoomTimers(roomCode: string): void {
-    this.clearHostAbsenceTimer(roomCode);
     this.clearDriverAbsenceTimer(roomCode);
   }
 
   /** シャットダウン時に全ルームのプレゼンス関連タイマーを解放する（Scheduler.clearAll と対）。 */
   clearAllTimers(): void {
-    for (const roomCode of [...this.hostAbsenceTimers.keys()]) {
-      this.clearHostAbsenceTimer(roomCode);
-    }
     for (const roomCode of [...this.driverAbsenceTimers.keys()]) {
       this.clearDriverAbsenceTimer(roomCode);
-    }
-  }
-
-  private clearHostAbsenceTimer(roomCode: string): void {
-    const timer = this.hostAbsenceTimers.get(roomCode);
-    if (timer !== undefined) {
-      clearTimeout(timer);
-      this.hostAbsenceTimers.delete(roomCode);
     }
   }
 

@@ -220,7 +220,7 @@ describe("v2 コマンドの結合テスト", () => {
     const room = store.get(roomCode);
     const hostParticipant = room?.participants.find((p) => p.connId === hostConn);
     const spectator = room?.participants.find((p) => p.connId === "guest-conn");
-    // 前提: 見学者は輪に居ない。
+    // 前提: 後から参加しただけの人は輪に居ない。
     expect(room?.session.rotation).not.toContain(spectator!.participantId);
 
     // When
@@ -372,20 +372,20 @@ describe("v2 コマンドの結合テスト", () => {
   });
 });
 
-// ─── participant.rename の認可 ──────────────────────────────────────────────
+// ─── participant.rename（対象の解決と重複検査）──────────────────────────────
 
 /**
  * @requirements FR-046, FR-048
  */
-describe("participant.rename の認可", () => {
+describe("participant.rename の対象解決", () => {
   let store: InMemoryRoomStore;
   let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
   let roomCode: string;
-  let hostPid: string;
-  let viewerPid: string;
-  const hostConn = "host-conn";
-  const viewerConn = "viewer-conn";
+  let creatorPid: string;
+  let guestPid: string;
+  const creatorConn = "creator-conn";
+  const guestConn = "guest-conn";
 
   beforeEach(async () => {
     store = new InMemoryRoomStore();
@@ -397,75 +397,77 @@ describe("participant.rename の認可", () => {
       codeGen: new FakeCodeGen(),
     });
 
-    await handlers.handleCommand(hostConn, {
+    await handlers.handleCommand(creatorConn, {
       command: "room.create",
-      displayName: "Host",
+      displayName: "Creator",
     });
-    roomCode = broadcaster.createdFor(hostConn).code;
-    hostPid = broadcaster.createdFor(hostConn).participantId;
+    roomCode = broadcaster.createdFor(creatorConn).code;
+    creatorPid = broadcaster.createdFor(creatorConn).participantId;
 
-    // viewer として参加（新規参加者は viewer 既定）
-    await handlers.handleCommand(viewerConn, {
+    // 後から 1 人参加させる（改名の「他人」役）
+    await handlers.handleCommand(guestConn, {
       command: "room.join",
       code: roomCode,
-      displayName: "Viewer",
+      displayName: "Guest",
       hasAiKey: false,
     });
-    viewerPid = broadcaster.joinedFor(viewerConn).participantId;
+    guestPid = broadcaster.joinedFor(guestConn).participantId;
 
     broadcaster.snapshots.length = 0;
     broadcaster.sent.length = 0;
   });
 
-  it("viewer が他人を rename しようとすると UNAUTHORIZED で拒否される", async () => {
-    // Given（他人＝host を改名しようとする）
+  // #95 S3 以前は「見学者が他人を rename しようとすると UNAUTHORIZED」だった。
+  // 役割の廃止で在室者なら誰でも他人を改名できるようになったため、期待を反転させる。
+  it("後から参加した人が他人（作成者）を rename できる", async () => {
+    // Given（他人＝作成者を改名する）
     const command = {
       command: "participant.rename",
-      participantId: hostPid,
-      displayName: "Hijacked",
+      participantId: creatorPid,
+      displayName: "RenamedByGuest",
     } as const;
     // When
-    await handlers.handleCommand(viewerConn, command);
+    const result = await handlers.handleCommand(guestConn, command);
 
-    // Then（snapshot は発行されず、host 名は変わらない）
-    expect(broadcaster.errorsTo(viewerConn).at(-1)?.code).toBe("UNAUTHORIZED");
+    // Then
+    result._unsafeUnwrap();
     const room = store.get(roomCode);
-    const host = room?.participants.find((p) => p.participantId === hostPid);
-    expect(host?.displayName).toBe("Host");
+    const creator = room?.participants.find((p) => p.participantId === creatorPid);
+    expect(creator?.displayName).toBe("RenamedByGuest");
   });
 
-  it("viewer が自分自身を rename するのは許可される", async () => {
+  it("自分自身を rename できる", async () => {
     // Given（本人を改名する）
     const command = {
       command: "participant.rename",
-      participantId: viewerPid,
-      displayName: "ViewerNew",
+      participantId: guestPid,
+      displayName: "GuestNew",
     } as const;
     // When
-    const result = await handlers.handleCommand(viewerConn, command);
+    const result = await handlers.handleCommand(guestConn, command);
 
     // Then
     result._unsafeUnwrap();
     const updated = broadcaster.latestSnapshot();
-    const self = updated?.participants.find((p) => p.participantId === viewerPid);
-    expect(self?.displayName).toBe("ViewerNew");
+    const self = updated?.participants.find((p) => p.participantId === guestPid);
+    expect(self?.displayName).toBe("GuestNew");
   });
 
-  it("host は他人（viewer）を rename できる", async () => {
+  it("作成者は他人を rename できる", async () => {
     // Given
     const command = {
       command: "participant.rename",
-      participantId: viewerPid,
-      displayName: "RenamedByHost",
+      participantId: guestPid,
+      displayName: "RenamedByCreator",
     } as const;
     // When
-    const result = await handlers.handleCommand(hostConn, command);
+    const result = await handlers.handleCommand(creatorConn, command);
 
     // Then
     result._unsafeUnwrap();
     const updated = broadcaster.latestSnapshot();
-    const target = updated?.participants.find((p) => p.participantId === viewerPid);
-    expect(target?.displayName).toBe("RenamedByHost");
+    const target = updated?.participants.find((p) => p.participantId === guestPid);
+    expect(target?.displayName).toBe("RenamedByCreator");
   });
 
   it("存在しない participantId への rename は PARTICIPANT_NOT_FOUND で拒否される", async () => {
@@ -476,10 +478,10 @@ describe("participant.rename の認可", () => {
       displayName: "Ghost",
     } as const;
     // When
-    await handlers.handleCommand(hostConn, command);
+    await handlers.handleCommand(creatorConn, command);
 
     // Then
-    expect(broadcaster.errorsTo(hostConn).at(-1)?.code).toBe("PARTICIPANT_NOT_FOUND");
+    expect(broadcaster.errorsTo(creatorConn).at(-1)?.code).toBe("PARTICIPANT_NOT_FOUND");
     // snapshot は発行されない（誰の名前も変わらない）
     expect(broadcaster.latestSnapshot()).toBeUndefined();
   });

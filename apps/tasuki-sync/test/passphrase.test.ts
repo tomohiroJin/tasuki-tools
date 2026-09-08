@@ -20,7 +20,7 @@ describe("room.passphrase.set", () => {
   let handlers: ReturnType<typeof makeHandlers>;
   let roomCode: string;
   const hostConn = "host-conn";
-  const editorConn = "editor-conn";
+  const guestConn = "guest-conn";
 
   beforeEach(async () => {
     store = new InMemoryRoomStore();
@@ -74,25 +74,27 @@ describe("room.passphrase.set", () => {
     expect(store.get(roomCode)?.passphraseProtected).toBe(false);
   });
 
-  it("ホスト以外のパスフレーズ設定は UNAUTHORIZED で拒否", async () => {
-    // Given（別 conn が editor として参加。join のデフォルトは editor）
-    await handlers.handleCommand(editorConn, {
+  // #95 S3 以前は「ホスト以外のパスフレーズ設定は UNAUTHORIZED で拒否」だった。
+  // 役割の廃止で在室者なら誰でも設定できるようになったため、期待を反転させる。
+  it("作成者以外の参加者もパスフレーズを設定できる", async () => {
+    // Given（別 conn が後から参加する）
+    await handlers.handleCommand(guestConn, {
       command: "room.join",
       code: roomCode,
-      displayName: "Editor",
+      displayName: "Guest",
       hasAiKey: false,
     });
 
     // When
-    await handlers.handleCommand(editorConn, {
+    const result = await handlers.handleCommand(guestConn, {
       command: "room.passphrase.set",
-      passphrase: "hack",
+      passphrase: "hirakegoma",
     });
 
     // Then
-    expect(broadcaster.errorsTo(editorConn).at(-1)?.code).toBe("UNAUTHORIZED");
-    // passphraseProtected は変化しない
-    expect(store.get(roomCode)?.passphraseProtected).toBeFalsy();
+    result._unsafeUnwrap();
+    expect(broadcaster.errorsTo(guestConn)).toEqual([]);
+    expect(store.get(roomCode)?.passphraseProtected).toBe(true);
   });
 });
 

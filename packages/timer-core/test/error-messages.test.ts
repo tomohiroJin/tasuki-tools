@@ -45,11 +45,10 @@ const CODES_SHOWN_TO_USER = [
   "REMOVED_BY_HOST",
   // Issue #29: 失敗の説明を、実際に行った操作と一致させるための新コード
   // （#95 S3 で役割・ホストの廃止に伴い、HOST_TRANSFER_OFFLINE / CANNOT_CHANGE_HOST_ROLE /
-  // LAST_MANAGER_DEMOTE の 3 件を落とした残り 5 件）。
+  // LAST_MANAGER_DEMOTE / ALREADY_HOST / LAST_MANAGER_LEAVE の 5 件が発行元ごと
+  // 消えたため、残るのはこの 3 件）。
   "DRIVER_ASSIGN_OFFLINE",
-  "ALREADY_HOST",
   "NOT_IN_ROTATION",
-  "LAST_MANAGER_LEAVE",
   "JOIN_RATE_LIMITED",
 ] as const;
 

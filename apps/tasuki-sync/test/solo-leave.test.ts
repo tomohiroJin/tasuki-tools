@@ -250,6 +250,9 @@ describe("ソロ以外は挙動が変わらない（Issue #79）", () => {
     expect(store.get(code)!.participants).toHaveLength(2);
   });
 
+  // #95 S3 以前は「進行できる人が残らない」不変条件（LAST_MANAGER_LEAVE）で拒否されていた。
+  // その不変条件は役割ごと消えたので、Alice は実際に抜ける。**代理を在室者に数える**
+  // という本ケースの主題（＝破棄しない）はそのまま残るので、そちらを固定し直す。
   it("代理だけが残る場合も破棄しない（代理は在室者に数える）", async () => {
     // Given: 代理を 1 名追加する。代理は自分では退出しないので部屋に残り続ける
     await handlers.handleCommand(HOST, {
@@ -257,15 +260,15 @@ describe("ソロ以外は挙動が変わらない（Issue #79）", () => {
     });
     broadcaster.sent.length = 0;
 
-    // When: 唯一の実在の編集者以上である Alice が抜けようとする
+    // When: 実在の在室者が Alice だけの状態で、Alice が抜ける
     const result = await handlers.handleCommand(HOST, {
       command: "participant.remove", participantId: pidOf("Alice"),
     });
 
-    // Then: 「進行できる人が残らない」で拒否され、ルームは破棄されない
-    expect(result.isErr()).toBe(true);
-    expect(lastError(HOST)?.code).toBe("LAST_MANAGER_LEAVE");
+    // Then: 退出は通るが、代理が残るのでルームは破棄されない
+    result._unsafeUnwrap();
     expect(store.get(code)).toBeDefined();
+    expect(store.get(code)!.participants.map((p) => p.displayName)).toEqual(["Proxy"]);
   });
 
   it("他人を退出させて自分が残る通常の退出は、ルームを破棄しない", async () => {

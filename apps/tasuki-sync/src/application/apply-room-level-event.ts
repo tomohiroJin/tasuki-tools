@@ -69,10 +69,12 @@ function applyRoomLevelEvent(
     case "PhaseSet": {
       // startedAt は「一度でも開始したか」を表す単調フラグ（host-spof-relaxation D2）。
       // phase は phase.set で任意方向へ遷移でき "setup" 等へ後戻りもできるため、
-      // 現在の phase で権限を判定すると主催者不在時に誰かが "setup" へ戻した瞬間
-      // ルームが再びホスト限定に締まり、Issue #22 の詰みが再発する。そのため
+      // 現在の phase を段階の判定に使うと、誰かが "setup" へ戻した瞬間に
+      // 「まだ開始していない」へ巻き戻ってしまう。そのため
       // 「session への遷移を初めて観測した」時点で一度だけ記録し、以後は
       // どんな phase 遷移でも消さない（上書きしない）。
+      // 可否判定そのものは #95 S3 で撤去済みだが、このフラグは
+      // セッション記録やスケジュール調停が参照するため残る。
       const startedAt =
         event.phase === "session" && room.startedAt == null ? _now : room.startedAt;
       return { ...room, phase: event.phase, startedAt };
@@ -125,7 +127,6 @@ function applyRoomLevelEvent(
         participantId: event.participantId,
         connId: null,
         displayName: event.displayName,
-        role: "editor",
         presence: "offline",
         hasAiKey: false,
         joinedAt: _now,

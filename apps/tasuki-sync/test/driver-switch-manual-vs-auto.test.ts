@@ -45,13 +45,12 @@ async function setupRunningRoom(
   if (!create.isOk()) throw new Error("create failed");
   const code = store.list().at(-1)!.code;
   const room = store.get(code)!;
-  const host = room.participants[0]!;
+  const creator = room.participants[0]!;
   const participants: Room["participants"] = members.map((m, i) => ({
-    ...host,
-    participantId: i === 0 ? host.participantId : `pid-${m.id}`,
+    ...creator,
+    participantId: i === 0 ? creator.participantId : `pid-${m.id}`,
     connId: m.conn,
     displayName: m.id,
-    role: "editor",
     presence: "online",
     driverEligible: m.eligible ?? true,
   }));

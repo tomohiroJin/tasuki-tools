@@ -1,6 +1,6 @@
 /**
  * member.shuffle（モブ順のランダム化・サーバー権威）の sync テスト
- * サーバーが順列を生成し、稼働中は現ドライバー位置を固定する。host 限定。
+ * サーバーが順列を生成し、稼働中は現ドライバー位置を固定する。在室者なら誰でも実行できる。
  */
 
 import { describe, it, expect, beforeEach, jest, afterEach } from "bun:test";
@@ -22,7 +22,7 @@ const config: SessionConfig = {
 const HOST_CONN = "host-conn";
 
 /**
- * host(=members[0]) が居る稼働/非稼働ルームを作る。
+ * 作成者(=members[0]) が居る稼働/非稼働ルームを作る。
  * rotation/currentIndex/driverCounts/clock.running を上書きして store に置く。
  */
 async function setupRoom(
@@ -42,16 +42,15 @@ async function setupRoom(
   const code = store.list().at(-1)!.code;
 
   const room = store.get(code)!;
-  const host = room.participants[0]!; // role: host, connId: HOST_CONN
-  // rotation 上の各名に participant を割り当てる。先頭は host（HOST_CONN）を維持する。
+  const creator = room.participants[0]!; // connId: HOST_CONN（ルームを作った接続）
+  // rotation 上の各名に participant を割り当てる。先頭は作成者（HOST_CONN）を維持する。
   const participants: Room["participants"] = members.map((name, i) =>
     i === 0
-      ? { ...host, displayName: name }
+      ? { ...creator, displayName: name }
       : {
-          ...host,
+          ...creator,
           participantId: `pid-m-${i}`,
           connId: `conn-${i}`,
-          role: "editor",
           displayName: name,
         },
   );
@@ -102,7 +101,7 @@ describe("member.shuffle（サーバー権威のランダム化）", () => {
     jest.restoreAllMocks();
   });
 
-  it("非稼働中: host の member.shuffle が ok で rotation が並べ替わる（Math.random 固定で決定的）", async () => {
+  it("非稼働中: member.shuffle が ok で rotation が並べ替わる（Math.random 固定で決定的）", async () => {
     // Given（Fisher–Yates で呼ばれる random を固定する。i=2: Math.floor(r*3)、i=1: Math.floor(r*2)。
     // r=0 を返すと i=2 で j=0（[C,B,A]）、i=1 で j=0（[B,C,A]）になる）
     await setupRoom(handlers, store, ["A", "B", "C"], 0, false);
@@ -151,14 +150,19 @@ describe("member.shuffle（サーバー権威のランダム化）", () => {
     expect(room?.session.currentIndex).toBe(2);
   });
 
-  it("host 以外（editor）の member.shuffle は UNAUTHORIZED で拒否される", async () => {
-    // Given
+  // #95 S3 以前は「作成者以外の member.shuffle は UNAUTHORIZED で拒否される」だった。
+  // 役割の廃止で在室者なら誰でも並べ替えられるため、期待を反転させる。
+  it("作成者以外の参加者も member.shuffle を実行でき、rotation が並べ替わる", async () => {
+    // Given（Math.random を固定して並びを決定的にする。上の非稼働中ケースと同じ順列）
     await setupRoom(handlers, store, ["A", "B", "C"], 0, false);
+    jest.spyOn(Math, "random").mockReturnValue(0);
 
-    // When（conn-1 は editor＝"B"）
-    await handlers.handleCommand("conn-1", { command: "member.shuffle" });
+    // When（conn-1 は作成者ではない "B"）
+    const result = await handlers.handleCommand("conn-1", { command: "member.shuffle" });
 
     // Then
-    expect(broadcaster.errorsTo("conn-1").at(-1)?.code).toBe("UNAUTHORIZED");
+    result._unsafeUnwrap();
+    expect(broadcaster.errorsTo("conn-1")).toEqual([]);
+    expect(rotationNames(broadcaster.latestSnapshot())).toEqual(["B", "C", "A"]);
   });
 });

@@ -3,17 +3,19 @@
  *
  * 同一のコードが複数の操作から返っていたために、説明がどちらか一方の操作に
  * 寄っていた（またはどちらにも当てはまらないほど曖昧だった）5 種類を、
- * 操作ごとに区別できる新コードへ分ける。ここでは新 5 コード（#95 S3 で
- * HOST_TRANSFER_OFFLINE / CANNOT_CHANGE_HOST_ROLE / LAST_MANAGER_DEMOTE の
- * 3 コードを役割・ホストの廃止に伴い落とした残り）に文言が定義されていること、
+ * 操作ごとに区別できる新コードへ分ける。ここではその新コードのうち
+ * #95 S3（役割とホストの廃止）を生き延びた 3 件に文言が定義されていること、
  * その文言が「実行した操作」を正しく指し「別の操作」を指さないことを検証する。
+ * 残り 5 件（HOST_TRANSFER_OFFLINE / CANNOT_CHANGE_HOST_ROLE / ALREADY_HOST /
+ * LAST_MANAGER_LEAVE / LAST_MANAGER_DEMOTE）は S3 で発行元ごと消えたため、
+ * 文言も語彙も残っていない。
  *
  * 文言の性質（何を含み、何を含まないか）を検証するのは、`sendError` の
  * 引数を別の文字列リテラルへ差し替えるだけの「型が変わらない意味変更」を
  * 検出する唯一の手段だからである（#28 で `NOT_IN_ROOM` の表示が変わる退行を
  * 型検査もテストも素通しさせた反省）。
  *
- * @requirements FR-131, FR-132, FR-133, FR-134, FR-135, FR-136, FR-137, FR-138, SC-045, SC-047
+ * @requirements FR-131, FR-132, FR-134, FR-136, FR-137, SC-045, SC-047
  */
 
 import { describe, it, expect } from "vitest";
@@ -21,16 +23,14 @@ import { displayMessageFor, DEFAULT_ERROR_MESSAGE } from "../src/error-messages.
 
 const NEW_CODES = [
   "DRIVER_ASSIGN_OFFLINE",
-  "ALREADY_HOST",
   "NOT_IN_ROTATION",
-  "LAST_MANAGER_LEAVE",
   "JOIN_RATE_LIMITED",
 ] as const;
 
 /**
  * @requirements FR-131, US3-1
  */
-describe("新 5 コードの文言が定義されている", () => {
+describe("S3 を生き延びた新コードの文言が定義されている", () => {
   it.each(NEW_CODES)("%s の文言は既定文言ではない", (code) => {
     const shown = displayMessageFor(code);
     expect(shown).not.toBe(DEFAULT_ERROR_MESSAGE);
@@ -49,16 +49,6 @@ describe("DRIVER_ASSIGN_OFFLINE の文言（指名の失敗を移譲と取り違
   it("「指名」を含む", () => {
     const shown = displayMessageFor("DRIVER_ASSIGN_OFFLINE");
     expect(shown).toContain("指名");
-  });
-});
-
-/**
- * @requirements FR-138, US1-3
- */
-describe("ALREADY_HOST の文言（実行者と対象が同一とは限らない）", () => {
-  it("「自分自身」を含まない", () => {
-    const shown = displayMessageFor("ALREADY_HOST");
-    expect(shown).not.toContain("自分自身");
   });
 });
 
@@ -89,16 +79,6 @@ describe("NOT_IN_ROTATION の文言（解消の手がかりを示す）", () => 
   it("指名の失敗であることを示す", () => {
     const shown = displayMessageFor("NOT_IN_ROTATION");
     expect(shown).toContain("指名");
-  });
-});
-
-/**
- * @requirements FR-135, US2-2
- */
-describe("LAST_MANAGER_LEAVE の文言", () => {
-  it("「退出」を含む", () => {
-    const shown = displayMessageFor("LAST_MANAGER_LEAVE");
-    expect(shown).toContain("退出");
   });
 });
 

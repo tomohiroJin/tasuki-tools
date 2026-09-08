@@ -1,7 +1,8 @@
 /**
- * セッションライフサイクル・役割・自動交代のテスト（コードレビュー回帰）
+ * セッションライフサイクル・自動交代のテスト（コードレビュー回帰）
  * session.complete の記録/phase 遷移、config.set の Room.config 反映、
- * role.set、スケジューラ配線による自動交代を検証する。
+ * スケジューラ配線による自動交代を検証する。
+ * （role.set の検証は #95 S3 でコマンドごと廃止されたため無くなった。）
  */
 
 import { describe, it, expect, jest, beforeEach, afterEach } from "bun:test";
@@ -305,63 +306,6 @@ describe("config.set: Room.config への反映", () => {
     // Then
     const after = store.get(code)!;
     expect(after.config.problemEnabled).toBe(false);
-  });
-});
-
-/**
- * @requirements FR-016
- */
-describe("role.set: 役割変更", () => {
-  let store: InMemoryRoomStore;
-  let broadcaster: SpyBroadcaster;
-  let handlers: ReturnType<typeof makeHandlers>;
-  let code: string;
-  let viewerId: string;
-
-  beforeEach(async () => {
-    store = new InMemoryRoomStore();
-    broadcaster = new SpyBroadcaster();
-    handlers = makeTestHandlers({ store, clock: new FakeClock(1000000), broadcaster, codeGen: new FakeCodeGen() });
-    code = await setupRoom(handlers, store);
-    await handlers.handleCommand("viewer-conn", {
-      command: "room.join",
-      code,
-      displayName: "Dave",
-      hasAiKey: false,
-    });
-    viewerId = broadcaster.joinedFor("viewer-conn").participantId;
-  });
-
-  it("host が viewer を editor に昇格できる", async () => {
-    // Given
-    const command = { command: "role.set", participantId: viewerId, role: "editor" } as const;
-
-    // When
-    await handlers.handleCommand("host-conn", command);
-
-    // Then
-    const after = store.get(code)!;
-    const dave = after.participants.find((p) => p.participantId === viewerId);
-    expect(dave?.role).toBe("editor");
-  });
-
-  it("viewer は role.set を実行できない（UNAUTHORIZED）", async () => {
-    // Given
-    broadcaster.sent.length = 0;
-
-    // When
-    await handlers.handleCommand("viewer-conn", {
-      command: "role.set",
-      participantId: viewerId,
-      role: "editor",
-    });
-
-    // Then
-    const error = broadcaster.sent.find((s) => s.msg.type === "error");
-    expect(error?.msg.type).toBe("error");
-    if (error?.msg.type === "error") {
-      expect(error.msg.code).toBe("UNAUTHORIZED");
-    }
   });
 });
 

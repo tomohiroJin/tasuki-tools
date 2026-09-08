@@ -28,7 +28,7 @@ async function setup(
   const room = store.get(code)!;
   const host = room.participants[0]!;
   const mk = (id: string, name: string, conn: string, ov: Partial<Room["participants"][number]> = {}): Room["participants"][number] =>
-    ({ ...host, participantId: id, connId: conn, displayName: name, role: "editor", presence: "online", driverEligible: true, ...ov });
+    ({ ...host, participantId: id, connId: conn, displayName: name, presence: "online", driverEligible: true, ...ov });
   store.put({
     ...room,
     participants: [host, mk("pid-b", "B", "conn-b", bOverrides), mk("pid-c", "C", "conn-c")],

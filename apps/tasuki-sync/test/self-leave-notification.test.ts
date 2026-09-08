@@ -103,18 +103,22 @@ describe("自己退出した本人への通知", () => {
     expect(broadcaster.sent.filter((s) => s.msg.type === "error")).toEqual([]);
   });
 
-  it("退出が拒否されたとき（進行できる人が残らない）、退出通知は届かない", async () => {
-    // Given（Bob・Carol を見学者に降格し、Alice(host) だけが編集者以上の状態にする）
-    await handlers.handleCommand(HOST, { command: "role.set", participantId: pidOf("Bob"), role: "viewer" });
-    await handlers.handleCommand(HOST, { command: "role.set", participantId: pidOf("Carol"), role: "viewer" });
-    broadcaster.sent.length = 0;
-
-    // When（最後の編集者以上である host 自身の退出は拒否される）
+  // #95 S3 以前は「進行できる人が残らない」不変条件（LAST_MANAGER_LEAVE）で拒否させていた。
+  // その不変条件は役割ごと消えたので、残る拒否経路（rotation を空にしない保護）で
+  // 同じ性質 —— 拒否されたら退出通知は届かない —— を固定し直す。
+  it("退出が拒否されたとき（輪の最後の1人）、退出通知は届かない", async () => {
+    // Given（Bob・Carol は輪に入っていないので rotation は Alice 1 人だけ）
     const aliceId = pidOf("Alice");
+    if (store.get(code)!.session.rotation.length !== 1) {
+      throw new Error("前提: rotation が Alice 1 人であること");
+    }
+
+    // When（輪の最後の1人である Alice 自身の退出は拒否される）
     const result = await handlers.handleCommand(HOST, { command: "participant.remove", participantId: aliceId });
 
     // Then
     expect(result.isErr()).toBe(true);
+    expect(broadcaster.errorsTo(HOST).at(-1)?.code).toBe("BelowMinMembers");
     expect(broadcaster.hasErrorCode(HOST, "LEFT_ROOM")).toBe(false);
     expect(broadcaster.hasErrorCode(HOST, "REMOVED_FROM_ROOM")).toBe(false);
   });

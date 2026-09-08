@@ -7,6 +7,10 @@
  * H2/H3 で拒否箇所を操作ごとの新コードへ差し替えたため、現在は各ケースが
  * 差し替え後の新コードを検証する（SC-044・SC-045）。
  *
+ * #95 S3 で役割とホストを廃止したため、CANNOT_CHANGE_HOST 系と LAST_MANAGER 系の
+ * 拒否箇所（②③④④'⑥⑦）は**発行元ごと消えた**。それらのコードはもう存在せず、
+ * ここで検証する対象も無い（コードは `SYNC_ERROR_CODES` からも外してある）。
+ *
  * @requirements SC-044
  */
 
@@ -27,7 +31,7 @@ const config: SessionConfig = {
   intervalMinutes: 5,
 };
 
-const HOST = "es-host";
+const CREATOR = "es-creator";
 const BOB = "es-bob";
 const CAROL = "es-carol";
 
@@ -35,7 +39,7 @@ const CAROL = "es-carol";
  * @requirements SC-044
  */
 describe("拒否箇所が返すコード（現状の記録）", () => {
-  describe("host + 2 参加者のルーム", () => {
+  describe("作成者 + 2 参加者のルーム", () => {
     let store: InMemoryRoomStore;
     let broadcaster: SpyBroadcaster;
     let handlers: ReturnType<typeof makeHandlers>;
@@ -58,11 +62,11 @@ describe("拒否箇所が返すコード（現状の記録）", () => {
       handlers = makeTestHandlers({
         store, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen(),
       });
-      const created = await handlers.handleCommand(HOST, {
+      const created = await handlers.handleCommand(CREATOR, {
         command: "room.create", displayName: "Alice", config,
       });
       if (!created.isOk()) throw new Error("room.create failed");
-      code = broadcaster.createdFor(HOST).code;
+      code = broadcaster.createdFor(CREATOR).code;
       // Bob・Carol は join だけでなく member.add まで行い、輪（rotation）に加わった
       // 進行メンバーにする（⑤の「輪に居ない」ケースだけは join のみに留める別セットアップを使う）。
       await handlers.handleCommand(BOB, { command: "room.join", code, displayName: "Bob", hasAiKey: false });
@@ -70,8 +74,8 @@ describe("拒否箇所が返すコード（現状の記録）", () => {
       await handlers.handleCommand(BOB, { command: "member.add", participantId: pidOf("Bob") });
       await handlers.handleCommand(CAROL, { command: "member.add", participantId: pidOf("Carol") });
       // 稼働中にする（driver.assign はクロックが running でなければ受理されない）。
-      await handlers.handleCommand(HOST, { command: "phase.set", phase: "session" });
-      await handlers.handleCommand(HOST, { command: "session.act", action: "START" });
+      await handlers.handleCommand(CREATOR, { command: "phase.set", phase: "session" });
+      await handlers.handleCommand(CREATOR, { command: "session.act", action: "START" });
       broadcaster.sent.length = 0;
     });
 
@@ -88,116 +92,10 @@ describe("拒否箇所が返すコード（現状の記録）", () => {
       store.put(updated);
 
       // When
-      await handlers.handleCommand(HOST, { command: "driver.assign", participantId: bobId });
+      await handlers.handleCommand(CREATOR, { command: "driver.assign", participantId: bobId });
 
       // Then
-      expect(lastError(HOST)?.code).toBe("DRIVER_ASSIGN_OFFLINE");
-    });
-
-    it("② オフライン相手への host.transfer は HOST_TRANSFER_OFFLINE を返す", async () => {
-      // Given（Bob を実在オフラインにする）
-      const room = store.get(code)!;
-      const bobId = pidOf("Bob");
-      const updated: Room = {
-        ...room,
-        participants: room.participants.map((p) =>
-          p.participantId === bobId ? { ...p, presence: "offline" as const } : p,
-        ),
-      };
-      store.put(updated);
-
-      // When
-      await handlers.handleCommand(HOST, { command: "host.transfer", participantId: bobId });
-
-      // Then
-      expect(lastError(HOST)?.code).toBe("HOST_TRANSFER_OFFLINE");
-    });
-
-    it("③ ホストを対象にした role.set は CANNOT_CHANGE_HOST_ROLE を返す", async () => {
-      // Given
-      const aliceId = pidOf("Alice");
-
-      // When
-      const result = await handlers.handleCommand(HOST, {
-        command: "role.set", participantId: aliceId, role: "viewer",
-      });
-
-      // Then
-      expect(result.isErr()).toBe(true);
-      expect(lastError(HOST)?.code).toBe("CANNOT_CHANGE_HOST_ROLE");
-    });
-
-    it("④ 現ホストを対象にした host.transfer は ALREADY_HOST を返す", async () => {
-      // Given
-      const aliceId = pidOf("Alice");
-
-      // When
-      const result = await handlers.handleCommand(HOST, {
-        command: "host.transfer", participantId: aliceId,
-      });
-
-      // Then
-      expect(result.isErr()).toBe(true);
-      expect(lastError(HOST)?.code).toBe("ALREADY_HOST");
-    });
-
-    /**
-     * @requirements FR-138
-     */
-    it("④' 編集者（非ホスト）が開始後に現ホストへ host.transfer を送っても ALREADY_HOST を返す（実行者と対象が同一とは限らないことの担保）", async () => {
-      // Given（Bob は編集者。開始後は editor+ が host.transfer を実行できる・Issue #22）
-      const aliceId = pidOf("Alice");
-
-      // When
-      const result = await handlers.handleCommand(BOB, {
-        command: "host.transfer", participantId: aliceId,
-      });
-
-      // Then
-      expect(result.isErr()).toBe(true);
-      expect(lastError(BOB)?.code).toBe("ALREADY_HOST");
-    });
-
-    it("⑥ 進行できる人が残らない participant.remove は LAST_MANAGER_LEAVE を返す", async () => {
-      // Given（Bob と Carol を見学者へ降格し、編集者以上を Alice(host) だけにする）
-      await handlers.handleCommand(HOST, { command: "role.set", participantId: pidOf("Bob"), role: "viewer" });
-      await handlers.handleCommand(HOST, { command: "role.set", participantId: pidOf("Carol"), role: "viewer" });
-      broadcaster.sent.length = 0;
-      const aliceId = pidOf("Alice");
-
-      // When
-      const result = await handlers.handleCommand(HOST, {
-        command: "participant.remove", participantId: aliceId,
-      });
-
-      // Then
-      expect(result.isErr()).toBe(true);
-      expect(lastError(HOST)?.code).toBe("LAST_MANAGER_LEAVE");
-    });
-
-    it("⑦ 進行できる人が残らない role.set（viewer 化）は LAST_MANAGER_DEMOTE を返す", async () => {
-      // Given（ホスト不在・実在の編集者は Bob だけの状態を直接組む。④の CANNOT_CHANGE_HOST_ROLE が
-      // 先に効いてしまうため、コマンド経路だけでは到達できない状態を state で作る）
-      const seeded = store.get(code)!;
-      const bobId = pidOf("Bob");
-      const room: Room = {
-        ...seeded,
-        hostParticipantId: "gone",
-        participants: seeded.participants
-          .filter((p) => p.displayName !== "Alice")
-          .map((p) => (p.displayName === "Carol" ? { ...p, role: "viewer" as const } : p)),
-      };
-      store.put(room);
-      broadcaster.sent.length = 0;
-
-      // When
-      const result = await handlers.handleCommand(BOB, {
-        command: "role.set", participantId: bobId, role: "viewer",
-      });
-
-      // Then
-      expect(result.isErr()).toBe(true);
-      expect(lastError(BOB)?.code).toBe("LAST_MANAGER_DEMOTE");
+      expect(lastError(CREATOR)?.code).toBe("DRIVER_ASSIGN_OFFLINE");
     });
   });
 
@@ -224,35 +122,35 @@ describe("拒否箇所が返すコード（現状の記録）", () => {
       handlers = makeTestHandlers({
         store, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen(),
       });
-      const created = await handlers.handleCommand(HOST, {
+      const created = await handlers.handleCommand(CREATOR, {
         command: "room.create", displayName: "Alice", config,
       });
       if (!created.isOk()) throw new Error("room.create failed");
-      code = broadcaster.createdFor(HOST).code;
-      // Bob は join のみ（member.add を呼ばない）ため、輪（rotation）には居ない見学者になる。
+      code = broadcaster.createdFor(CREATOR).code;
+      // Bob は join のみ（member.add を呼ばない）ため、輪（rotation）には居ない参加者になる。
       await handlers.handleCommand(BOB, { command: "room.join", code, displayName: "Bob", hasAiKey: false });
-      await handlers.handleCommand(HOST, { command: "phase.set", phase: "session" });
-      await handlers.handleCommand(HOST, { command: "session.act", action: "START" });
+      await handlers.handleCommand(CREATOR, { command: "phase.set", phase: "session" });
+      await handlers.handleCommand(CREATOR, { command: "session.act", action: "START" });
       broadcaster.sent.length = 0;
     });
 
-    it("⑤ 輪に居ない相手（見学者）への driver.assign は NOT_IN_ROTATION を返す", async () => {
+    it("⑤ 輪に居ない相手への driver.assign は NOT_IN_ROTATION を返す", async () => {
       // Given
       const bobId = pidOf("Bob");
 
       // When
-      await handlers.handleCommand(HOST, { command: "driver.assign", participantId: bobId });
+      await handlers.handleCommand(CREATOR, { command: "driver.assign", participantId: bobId });
 
       // Then
-      expect(lastError(HOST)?.code).toBe("NOT_IN_ROTATION");
+      expect(lastError(CREATOR)?.code).toBe("NOT_IN_ROTATION");
     });
 
     it("③' 存在しない相手への driver.assign は PARTICIPANT_NOT_FOUND を返す（⑤の NOT_IN_ROTATION とは異なるコードになる）", async () => {
       // When
-      await handlers.handleCommand(HOST, { command: "driver.assign", participantId: "pid-unknown" });
+      await handlers.handleCommand(CREATOR, { command: "driver.assign", participantId: "pid-unknown" });
 
       // Then
-      expect(lastError(HOST)?.code).toBe("PARTICIPANT_NOT_FOUND");
+      expect(lastError(CREATOR)?.code).toBe("PARTICIPANT_NOT_FOUND");
     });
   });
 

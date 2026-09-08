@@ -1,59 +1,16 @@
 /**
  * createTokenStore() のテスト。
  *
- * `handlers.ts` の `hostTokens`/`resumeTokens`/`roomPassphrases` が
+ * `handlers.ts` の `resumeTokens`/`roomPassphrases` が
  * これまで担っていた挙動（発行・照合・ルーム単位の解放）をそのまま仕様として固定する。
+ * 3 個目の `hostTokens` は #95 S3 でホストの概念ごと廃止したため、
+ * それを対象にしていた 4 件のテストも概念ごと消えている。
  */
 
 import { describe, it, expect } from "bun:test";
 import { createTokenStore } from "../src/application/token-store.js";
 
 describe("createTokenStore", () => {
-  describe("ホストトークン", () => {
-    /**
-     * @requirements FR-157, US3
-     */
-    it("発行したホストトークンで照合すると一致する", () => {
-      // Given
-      const store = createTokenStore();
-
-      // When
-      store.issueHost("ROOM01", "host-tok-1");
-
-      // Then
-      expect(store.verifyHost("ROOM01", "host-tok-1")).toBe(true);
-    });
-
-    /**
-     * @requirements FR-157, US3
-     */
-    it("異なるトークンで照合すると一致しない", () => {
-      // Given
-      const store = createTokenStore();
-      store.issueHost("ROOM01", "host-tok-1");
-
-      // When
-      const matched = store.verifyHost("ROOM01", "wrong-token");
-
-      // Then
-      expect(matched).toBe(false);
-    });
-
-    /**
-     * @requirements FR-157, US3
-     */
-    it("発行していないルームコードの照合は一致しない", () => {
-      // Given
-      const store = createTokenStore();
-
-      // When
-      const matched = store.verifyHost("NEVER-ISSUED", "anything");
-
-      // Then
-      expect(matched).toBe(false);
-    });
-  });
-
   describe("リジュームトークン", () => {
     /**
      * @requirements FR-157, US3
@@ -133,21 +90,6 @@ describe("createTokenStore", () => {
   });
 
   describe("releaseRoom によるルーム単位の解放", () => {
-    /**
-     * @requirements FR-157, US3
-     */
-    it("ホストトークンが解放され、照合が失敗するようになる", () => {
-      // Given
-      const store = createTokenStore();
-      store.issueHost("ROOM01", "host-tok-1");
-
-      // When
-      store.releaseRoom("ROOM01");
-
-      // Then
-      expect(store.verifyHost("ROOM01", "host-tok-1")).toBe(false);
-    });
-
     /**
      * @requirements FR-157, US3
      */

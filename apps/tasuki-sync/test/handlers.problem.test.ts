@@ -38,7 +38,7 @@ describe("handlers: problem.request / problem.submit", () => {
   let delegator: ProblemDelegator;
   let handlers: ReturnType<typeof makeHandlers>;
   let code: string;
-  let hostId: string;
+  let creatorId: string;
 
   beforeEach(async () => {
     jest.useFakeTimers();
@@ -48,7 +48,7 @@ describe("handlers: problem.request / problem.submit", () => {
     delegator = new ProblemDelegator({ store, clock, broadcaster, logger: testLogger, refEncoder: testRefEncoder });
     handlers = makeTestHandlers({ store, clock, broadcaster, codeGen: new FakeCodeGen(), delegator });
 
-    // host が AI 鍵ありでルーム作成（room.create は hasAiKey を持たないため後で更新）
+    // 作成者が AI 鍵ありでルーム作成（room.create は hasAiKey を持たないため後で更新）
     const create = await handlers.handleCommand("host-conn", {
       command: "room.create",
       displayName: "Alice",
@@ -57,14 +57,14 @@ describe("handlers: problem.request / problem.submit", () => {
     if (!create.isOk()) throw new Error("create failed");
     // 本番（server.ts）は handleCommand の戻り値を破棄する。値は本番と同じ観測点から取る（FR-100）。
     code = broadcaster.createdFor("host-conn").code;
-    hostId = broadcaster.createdFor("host-conn").participantId;
+    creatorId = broadcaster.createdFor("host-conn").participantId;
 
-    // host に AI 鍵を付与
+    // 作成者に AI 鍵を付与
     const room = store.get(code)!;
     store.put({
       ...room,
       participants: room.participants.map((p) =>
-        p.participantId === hostId ? { ...p, hasAiKey: true } : p,
+        p.participantId === creatorId ? { ...p, hasAiKey: true } : p,
       ),
     });
   });
@@ -74,7 +74,7 @@ describe("handlers: problem.request / problem.submit", () => {
     jest.useRealTimers();
   });
 
-  it("editor+ の problem.request で先頭候補へ need-problem が送られる", async () => {
+  it("problem.request で先頭候補へ need-problem が送られる", async () => {
     // Given
     const command = { command: "problem.request", requestId: "req-1" } as const;
 
@@ -108,31 +108,60 @@ describe("handlers: problem.request / problem.submit", () => {
     expect(store.get(code)?.problem?.title).toBe("FizzBuzz");
   });
 
-  it("viewer は problem.request を実行できない", async () => {
-    // Given（既定 editor を host が viewer へ降格してから制限を検証する）
-    const join = await handlers.handleCommand("viewer-conn", {
+  // #95 S3 以前は「見学者は problem.request を実行できない（UNAUTHORIZED）」ことを
+  // ここで固定していた。役割の廃止で在室者なら誰でも要求できるようになったため、
+  // 期待を反転させて「要求が委譲へ届く」ことを固定する。
+  it("後から参加した人も problem.request を実行でき、代表へ need-problem が送られる", async () => {
+    // Given（AI 鍵を持たない参加者が後から加わる。代表は AI 鍵を持つ作成者になる）
+    const join = await handlers.handleCommand("guest-conn", {
       command: "room.join",
       code,
       displayName: "Carol",
       hasAiKey: false,
     });
     join._unsafeUnwrap();
-    const carolPid = store.get(code)!.participants.find((p) => p.displayName === "Carol")!.participantId;
-    await handlers.handleCommand("host-conn", {
-      command: "role.set",
-      participantId: carolPid,
-      role: "viewer",
-    });
     broadcaster.sent.length = 0;
 
     // When
-    await handlers.handleCommand("viewer-conn", {
+    await handlers.handleCommand("guest-conn", {
       command: "problem.request",
       requestId: "req-x",
     });
 
+    // Then（拒否されず、代表（作成者）へ need-problem が届く）
+    expect(broadcaster.errorsTo("guest-conn")).toEqual([]);
+    const needProblem = broadcaster.sent.find(
+      (s) => s.msg.type === "signal" && s.msg.signal === "need-problem",
+    );
+    expect(needProblem?.connId).toBe("host-conn");
+  });
+
+  /**
+   * 旧 `permissions-after-start.test.ts` が「権限層は通過し、その先の委譲層で止まる」
+   * ことの確認として持っていた性質。権限層が無くなっても、**委譲が配線されていなければ
+   * 断られる**という境界は残るので、ここへ引き取って単独で固定する。
+   *
+   * @requirements FR-025
+   */
+  it("委譲が配線されていないハンドラでは problem.request が DELEGATION_UNAVAILABLE で断られる", async () => {
+    // Given（delegator を渡さずに組んだハンドラでルームを作る）
+    const bare = makeTestHandlers({
+      store: new InMemoryRoomStore(),
+      clock: new FakeClock(1000000),
+      broadcaster,
+      codeGen: new FakeCodeGen(),
+    });
+    await bare.handleCommand("bare-conn", { command: "room.create", displayName: "Alice" });
+    broadcaster.sent.length = 0;
+
+    // When
+    const result = await bare.handleCommand("bare-conn", {
+      command: "problem.request",
+      requestId: "req-bare",
+    });
+
     // Then
-    const error = broadcaster.sent.find((s) => s.msg.type === "error");
-    expect(error?.msg.type === "error" && error.msg.code).toBe("UNAUTHORIZED");
+    expect(result.isErr()).toBe(true);
+    expect(broadcaster.errorsTo("bare-conn").at(-1)?.code).toBe("DELEGATION_UNAVAILABLE");
   });
 });

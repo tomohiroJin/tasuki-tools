@@ -29,7 +29,7 @@ describe("resume: 再接続・復帰", () => {
     });
   });
 
-  it("resumeToken で同一参加者・同一 role として復帰する", async () => {
+  it("resumeToken で同一参加者として復帰する（参加者が増えない）", async () => {
     // Given
     const createResult = await handlers.handleCommand("conn-001", {
       command: "room.create",
@@ -55,7 +55,8 @@ describe("resume: 再接続・復帰", () => {
       (p) => p.participantId === participantId,
     );
     expect(participant?.connId).toBe("conn-002");
-    expect(participant?.role).toBe("host");
+    // 新しい参加者が増えていないこと（増えていれば「同一参加者として復帰した」とは言えない）。
+    expect(room?.participants).toHaveLength(1);
   });
 
   it("再接続後に snapshot で完全同期する", async () => {
@@ -103,10 +104,10 @@ describe("resume: 再接続・復帰", () => {
       resumeToken: "invalid-token-xyz",
     });
 
-    // Then（既定 editor で新規参加扱い・UX 再設計）
+    // Then（復帰ではなく新規参加として扱われ、別の participantId で人数が増える）
     const room = store.get(code);
     const charlie = room?.participants.find((p) => p.displayName === "Charlie");
     expect(charlie).toBeTruthy();
-    expect(charlie?.role).toBe("editor");
+    expect(room?.participants).toHaveLength(2);
   });
 });

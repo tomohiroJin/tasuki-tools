@@ -76,6 +76,10 @@ export const ERROR_MESSAGES: Record<string, string> = {
   // ─── 失敗の説明を、実際に行った操作と一致させる（Issue #29） ───
   // 同一のコードが複数の操作から返り、説明がどちらか一方の操作に寄っていた
   // 5 種類を、操作ごとに区別できる新コードへ分ける（plan.md「新旧の対応表」）。
+  // うち ALREADY_HOST / HOST_TRANSFER_OFFLINE / CANNOT_CHANGE_HOST_ROLE /
+  // LAST_MANAGER_LEAVE / LAST_MANAGER_DEMOTE は #95 S3 で発行元ごと消えたため、
+  // 文言も残さず落とした（上の PARTICIPANT_OFFLINE 等と違い、細分化ではなく廃止であり、
+  // 旧サーバーの応答としても「もう起こり得ない操作」の失敗だからである）。
   // 以下の節見出しも `errors.ts` の `SYNC_ERROR_CODES` と同じ分類・同じ順序に
   // そろえてある（T120。誤って NOT_IN_ROTATION だけ指名の節から離れていたのを是正）。
   // ─── 指名（driver.assign） ───
@@ -86,15 +90,9 @@ export const ERROR_MESSAGES: Record<string, string> = {
   // （#95 S3 で唯一の判定条件になった。member.remove で輪の外に出た参加者に
   // このコードが返る）。輪の内側にいる参加者を一時的に指名対象から外したいだけなら、
   // 輪自体からは抜けずに `Participant.driverEligible` を false にする別経路がある
-  // （`evolve.ts` の `nextEligibleIndex` が参照する、輪の所属とは独立したフラグ）。
+  // （`aggregate.ts` の `nextEligibleIndex` が参照する、輪の所属とは独立したフラグ。
+  //   `evolve.ts` はその関数を呼ぶ側である）。
   NOT_IN_ROTATION: "ドライバーの輪に加わっていない相手は指名できません。先にドライバーへ加えてください。",
-  // ─── ホストの移譲・役割の変更 ───
-  // host.transfer で現ホストを対象にしたとき。実行者と対象は同一とは限らない
-  // （開始後は編集者以上が実行できるため）ため、主語を対象側に置く（FR-138）。
-  ALREADY_HOST: "その相手はすでにホストです。",
-  // ─── 退出・降格の不変条件 ───
-  // participant.remove（退出）で進行できる人が残らなくなるとき。
-  LAST_MANAGER_LEAVE: "進行できる人がいなくなるため退出できません。他の人が進行に加わってから操作してください。",
   // ─── ルームへの参加 ───
   // room.join（参加）の試行が閾値を超えたとき。
   JOIN_RATE_LIMITED: "参加の試行が多すぎます。しばらく待ってから再試行してください。",

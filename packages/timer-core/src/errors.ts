@@ -107,8 +107,7 @@ export const SYNC_ERROR_CODES = [
   "PASSPHRASE_REQUIRED",
   "PASSPHRASE_MISMATCH",
   "RATE_LIMITED",
-  // ─── 参加者・権限 ───
-  "UNAUTHORIZED",
+  // ─── 参加者 ───
   "PARTICIPANT_NOT_FOUND",
   // ⚠ PARTICIPANT_OFFLINE / CANNOT_CHANGE_HOST / LAST_MANAGER は
   // Issue #29（H2/H3）で全ての拒否箇所を操作ごとの新コードへ差し替え済みのため、
@@ -118,13 +117,12 @@ export const SYNC_ERROR_CODES = [
   // ─── 指名（driver.assign） ───
   "DRIVER_ASSIGN_OFFLINE",
   "NOT_IN_ROTATION",
-  // ─── ホストの移譲・役割の変更 ───
-  "HOST_TRANSFER_OFFLINE",
-  "CANNOT_CHANGE_HOST_ROLE",
-  "ALREADY_HOST",
-  // ─── 退出・降格の不変条件 ───
-  "LAST_MANAGER_LEAVE",
-  "LAST_MANAGER_DEMOTE",
+  // ⚠ UNAUTHORIZED / HOST_TRANSFER_OFFLINE / CANNOT_CHANGE_HOST_ROLE / ALREADY_HOST /
+  // LAST_MANAGER_LEAVE / LAST_MANAGER_DEMOTE は #95 S3（役割とホストの廃止）で
+  // 発行元ごと消えたため、ここから削除した。可否判定・ホスト移譲・役割変更・
+  // 「進行できる人が残る」不変条件のいずれも概念ごと無くなっており、
+  // 旧サーバー互換のために文言だけ残す上の 3 件（PARTICIPANT_OFFLINE 等）とは
+  // 事情が違う（それらは細分化であって廃止ではなかった）。
   // ─── お題の委譲 ───
   "DELEGATION_UNAVAILABLE",
   "STALE_SUBMISSION",

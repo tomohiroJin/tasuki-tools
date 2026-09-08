@@ -1,28 +1,23 @@
 /**
- * パイプライン単一経路の回帰テスト（フェーズ7・FR-155/FR-156・SC-053）。
+ * パイプライン単一経路の回帰テスト（フェーズ7・FR-155・SC-053）。
  *
- * 目的: `permissions.ts` の集合表（`HOST_ONLY_BEFORE_START`/`EDITOR_PLUS_COMMANDS` 等）を
- * 変更したとき、その変更結果が旧専用ハンドラ6コマンド（`role.set`/`room.passphrase.set`/
- * `ai.unlock`/`host.transfer`/`problem.request`/`problem.submit`）を含む全ての在室前提
- * コマンドへ同一に反映されることを機械的に固定する。
+ * 目的: 在室を前提とするコマンドが、旧専用ハンドラ由来の4コマンド
+ * （`room.passphrase.set`/`ai.unlock`/`problem.request`/`problem.submit`）も含め、
+ * すべて `handleCommand` の `default`（共通パイプライン）へ合流することを機械的に固定する。
+ * 個別 `case` を復活させると、在室確認とアクター解決を迂回する経路が生まれる。
  *
- * 「デッドコードの解消」ではない（旧6コマンドは元々 `checkPermission()` に到達していた。
- * `docs/plans/handlers-command-pipeline/spec.md` の「前提」節参照）。ここで固定するのは、
- * 判定の呼び出し箇所が構造的に1箇所へ集約されていること――つまり `permissions.ts` の
- * 集合表を書き換えれば、その変更が個別ハンドラの重複実装によって迂回されずに
- * 全コマンドへ届くこと――である。`packages/timer-core/test/permissions-differential.test.ts`
- * は「現在の判定が正しいか」を検証するオラクルだが、本ファイルは「その判定が
- * 単一の経路でしか呼ばれていないか」という経路側の構造を検証する。
+ * ⚠ **#95 S3 で目的の半分が消えた。** 元はここで「`permissions.ts` の集合表を
+ * 書き換えれば、その変更が個別ハンドラの重複実装によって迂回されずに全コマンドへ届く」
+ * ことを、`checkPermission` の呼び出し箇所が 1 箇所であることによって保証していた。
+ * S3 で可否判定そのものを撤去したため、その保証対象は無くなっている。
+ * 代わりに置いたのが下の「権限判定の記号がどこにも残っていない」検査で、
+ * **個別ハンドラに可否判定が復活していないこと**を同じ字句的手段で見る。
  *
  * 検証方法: `handlers.ts`/`command-handlers/*.ts` のソースを字句的に検査する。
- * ユニットテストで「集合表を変更したら…」を動的に再現するには `permissions.ts` の
- * 内部集合を外部へ公開する必要があり、それ自体が「判定規則を1箇所に集約する」という
- * 設計（FR-071）に反する。したがって、規則を変更しても迂回できないことを、
- * 呼び出し箇所の構造（＝迂回する余地が無いこと）を機械的に検査することで保証する。
  */
 
 import { describe, it, expect } from "bun:test";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
@@ -31,12 +26,29 @@ const applicationDir = path.join(here, "..", "src", "application");
 
 const handlersSource = readFileSync(path.join(applicationDir, "handlers.ts"), "utf8");
 
-/** 旧専用ハンドラを持っていた6コマンド（Issue #26 前提節参照）。 */
+/** `src/application` 配下の全 `.ts` を「相対パス＋中身」で返す。 */
+function readApplicationSources(): Array<{ file: string; source: string }> {
+  const collected: Array<{ file: string; source: string }> = [];
+  const walk = (dir: string): void => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (entry.name.endsWith(".ts")) {
+        collected.push({ file: path.relative(applicationDir, full), source: readFileSync(full, "utf8") });
+      }
+    }
+  };
+  walk(applicationDir);
+  return collected;
+}
+
+/**
+ * 旧専用ハンドラを持っていたコマンド（Issue #26 前提節参照）。
+ * 元は6件だったが、`role.set` と `host.transfer` は #95 S3 でコマンドごと廃止された。
+ */
 const FORMERLY_DEDICATED_COMMANDS = [
-  "role.set",
   "room.passphrase.set",
   "ai.unlock",
-  "host.transfer",
   "problem.request",
   "problem.submit",
 ] as const;
@@ -74,25 +86,27 @@ describe("パイプライン単一経路（FR-155/FR-156）", () => {
     },
   );
 
-  it("checkPermission の呼び出し箇所は handlers.ts 内に1箇所だけである", () => {
-    // Given/When: 実際の呼び出し（オブジェクトリテラルを渡す形）だけを数える。
-    // コメント中の `checkPermission()` という言及（空括弧）はここでは検出対象にしない。
-    const callSites = handlersSource.match(/checkPermission\(\{/g) ?? [];
+  it("可否判定の記号は src/application のどこにも残っていない", () => {
+    // Given: application 配下の全 .ts を走査対象にする（対照: 1 件も読めなければ検査が空振り）
+    const sources = readApplicationSources();
+    expect(sources.length).toBeGreaterThan(0);
 
-    // Then
-    expect(callSites).toHaveLength(1);
-  });
+    // When: 撤去した可否判定の記号が実際の呼び出しとして現れるファイルを探す
+    const offenders = sources
+      .filter(({ source }) =>
+        /checkPermission\(/.test(source) ||
+        /rejectIfUnauthorized\(/.test(source) ||
+        /requireEditor\(/.test(source) ||
+        /isAllowed\(/.test(source),
+      )
+      .map(({ file }) => file);
 
-  it("rejectIfUnauthorized の呼び出し箇所は handlers.ts 内に1箇所だけである", () => {
-    // Given/When: 関数定義（`function rejectIfUnauthorized(`）を除いた実際の呼び出しを数える。
-    const callSites = handlersSource.match(/(?<!function )rejectIfUnauthorized\(connId/g) ?? [];
-
-    // Then
-    expect(callSites).toHaveLength(1);
+    // Then: 個別ハンドラであれ共通パイプラインであれ、可否判定は 1 箇所も無い
+    expect(offenders).toEqual([]);
   });
 
   it.each([...FORMERLY_DEDICATED_COMMANDS])(
-    "%s の専用ハンドラは自ら checkPermission/rejectIfUnauthorized を呼ばない（権限判定を重複させない）",
+    "%s の専用ハンドラは自ら可否判定を行わない（在室確認とアクター解決は共通パイプラインの責務）",
     (command) => {
       // Given: コマンド名からファイル名を導出する（kebab-case）
       const fileName = `${command.replace(/\./g, "-")}.ts`;

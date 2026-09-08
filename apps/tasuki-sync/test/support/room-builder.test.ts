@@ -13,7 +13,7 @@ import { describe, it, expect } from "bun:test";
 import { aRoom } from "./room-builder.js";
 
 describe("aRoom()", () => {
-  it("参加者を指定しない場合、host のみのルームができる", async () => {
+  it("参加者を指定しない場合、作成者のみのルームができる", async () => {
     // Given（追加オプションを付けない aRoom() を対象にする）
     const builder = aRoom();
     // When

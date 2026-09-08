@@ -10,7 +10,7 @@
 import type { SessionConfig, ProblemMode } from "@tasuki/timer-core";
 
 // RESTART は「現ドライバーのまま持ち時間をやり直す」（Issue #14）。session.act として
-// 受理するため権限は既存の EDITOR_PLUS_COMMANDS（session.act）がそのまま効く。
+// 受理するため、wire スキーマも扱いも既存の session.act と同一になる。
 const VALID_ACTIONS = new Set(["START", "SWITCH", "PAUSE", "RESUME", "RESTART"]);
 const VALID_PHASES = new Set(["setup", "ready", "session", "celebration"]);
 

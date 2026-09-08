@@ -284,7 +284,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
       reclaimer.stop();
       scheduler.clearAll();
       delegator.cancelAll();
-      // 不在猶予タイマー（ホスト委譲・ドライバー繰り上げ）も解放する。
+      // 不在猶予タイマー（ドライバー繰り上げ）も解放する。
       // 本番は直後に process.exit(0) するため観測できる差は無いが、
       // 同一プロセスでサーバーを何度も起動し直すテストでは、放置すると
       // 閉じたはずのサーバーのタイマーが後から発火してしまう。

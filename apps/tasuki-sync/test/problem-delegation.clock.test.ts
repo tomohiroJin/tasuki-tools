@@ -123,11 +123,11 @@ describe("ProblemDelegator: 定型お題の選択が Clock ポートを通る", 
   });
 
   it("代表の投入が検証に落ちた縮退で、clock.now() に対応するお題が確定する", async () => {
-    // Given（AI 鍵を持つ host が代表になれるルーム。problemMode は未設定＝AI 委譲経路）
+    // Given（AI 鍵を持つ作成者が代表になれるルーム。problemMode は未設定＝AI 委譲経路）
     const { room, code, ids, broadcaster, delegator } = await setup((r) => ({
       ...r,
       participants: r.participants.map((p) =>
-        p.participantId === r.hostParticipantId ? { ...p, hasAiKey: true } : p,
+        p.displayName === HOST_NAME ? { ...p, hasAiKey: true } : p,
       ),
     }));
     const hostId = ids[HOST_NAME];

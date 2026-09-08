@@ -23,11 +23,10 @@ import type { RoomStore } from "../../ports/room-store.js";
 import type { RoomCodeGen } from "../../ports/code-gen.js";
 import type { TokenStore } from "../token-store.js";
 
-/** `room.create` が呼び出し元へ返す値。ホストトークンは作成者だけが受け取る。 */
+/** `room.create` が呼び出し元へ返す値。 */
 export interface CreateResult {
   code: string;
   participantId: string;
-  hostToken: string;
   resumeToken: string;
 }
 
@@ -63,7 +62,6 @@ export function createRoomCreateHandler(deps: RoomCreateDeps) {
     }
     const participantId = codeGen.generateParticipantId();
     const resumeToken = codeGen.generateResumeToken();
-    const hostToken = codeGen.generateResumeToken();
 
     const defaultConfig: SessionConfig = cmd.config ?? {
       language: "TypeScript",
@@ -76,11 +74,10 @@ export function createRoomCreateHandler(deps: RoomCreateDeps) {
     // config.members に何が入っていても輪に並べられるのは作成者だけである。
     const agg = initialAggregate(defaultConfig, [participantId]);
 
-    const host: Participant = {
+    const creator: Participant = {
       participantId,
       connId,
       displayName: cmd.displayName,
-      role: "host",
       presence: "online",
       hasAiKey: false,
       joinedAt: now,
@@ -89,7 +86,6 @@ export function createRoomCreateHandler(deps: RoomCreateDeps) {
     const room: Room = {
       code,
       createdAt: now,
-      hostParticipantId: participantId,
       // config.members は rotation の表示名ミラー（D6b）。作成者以外は輪に並べないので、
       // クライアントが渡した members に他人が含まれていてもここで作成者だけに揃える。
       config: { ...defaultConfig, members: [cmd.displayName] },
@@ -97,26 +93,24 @@ export function createRoomCreateHandler(deps: RoomCreateDeps) {
       session: agg.session,
       clock: agg.clock,
       phase: "setup",
-      participants: [host],
+      participants: [creator],
       sessionRecords: [],
       handoffNote: "",
       onBreak: false,
     };
 
     store.put(room);
-    tokenStore.issueHost(code, hostToken);
     tokenStore.issueResume(resumeToken, { participantId, roomCode: code });
 
     broadcaster.sendTo(connId, {
       type: "room.created",
       code,
-      hostToken,
       resumeToken,
       participantId,
     });
 
     broadcaster.broadcastSnapshot(code, room);
 
-    return ok({ code, participantId, hostToken, resumeToken });
+    return ok({ code, participantId, resumeToken });
   };
 }

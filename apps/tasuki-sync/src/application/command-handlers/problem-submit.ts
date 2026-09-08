@@ -1,10 +1,10 @@
 /**
  * `problem.submit` の専用ハンドラ（フェーズ7・パイプライン統合）。
  *
- * 在室確認・アクター解決・権限判定（旧 `requireEditor`）は共通パイプライン
+ * 在室確認とアクター解決は共通パイプライン
  * （`handlers.ts` の `handleRoomCommand`）側で完了済みであり、その結果を
  * `ctx: { room, actor }` として受け取る。このハンドラはドメイン処理
- * （delegator 呼び出し）のみを担う（FR-156: 権限判定の呼び出し箇所を1箇所に集約）。
+ * （delegator 呼び出し）のみを担う。可否判定は #95 S3 で概念ごと消えた。
  */
 
 import { ok, err, type Result } from "neverthrow";
@@ -57,7 +57,7 @@ export function createProblemSubmitHandler(deps: ProblemSubmitDeps) {
       cmd.usedFallback,
     );
     if (!accepted) {
-      sendError(connId, "STALE_SUBMISSION", "この投入は受理されませんでした（期限切れ・権限外）");
+      sendError(connId, "STALE_SUBMISSION", "この投入は受理されませんでした（期限切れ・代表ではない）");
       return err("STALE_SUBMISSION");
     }
 

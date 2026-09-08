@@ -7,12 +7,10 @@ function room(code: string, presences: Array<Room["participants"][number]["prese
   return {
     code,
     createdAt: 0,
-    hostParticipantId: "p0",
     participants: presences.map((presence, i) => ({
       participantId: `p${i}`,
       connId: presence === "offline" ? null : `c${i}`,
       displayName: `u${i}`,
-      role: i === 0 ? "host" : "editor",
       presence,
       joinedAt: 0,
     })),

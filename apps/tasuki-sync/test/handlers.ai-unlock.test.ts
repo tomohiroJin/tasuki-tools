@@ -126,7 +126,9 @@ describe("ai.unlock", () => {
     }
   });
 
-  it("host 以外は UNAUTHORIZED で拒否される", async () => {
+  // #95 S3 以前は「host 以外は UNAUTHORIZED で拒否される」ことをここで固定していた。
+  // 役割の廃止で在室者なら誰でも解錠できるようになったため、期待を反転させる。
+  it("作成者でない参加者も解錠できる", async () => {
     // Given
     const handlers = makeTestHandlers({
       store,
@@ -150,21 +152,16 @@ describe("ai.unlock", () => {
     join._unsafeUnwrap();
     broadcaster.sent.length = 0;
 
-    // When（2人目＝editor が ai.unlock を試みる）
+    // When（2人目＝後から参加した人が ai.unlock を試みる）
     const result = await handlers.handleCommand(memberConn, {
       command: "ai.unlock",
       key: "himitsu",
     });
 
-    // Then
-    expect(result.isErr()).toBe(true);
-    const errorMsg = broadcaster.sent.find(
-      (s) => s.connId === memberConn && s.msg.type === "error",
-    );
-    expect(errorMsg).toBeDefined();
-    if (errorMsg?.msg.type === "error") {
-      expect(errorMsg.msg.code).toBe("UNAUTHORIZED");
-    }
+    // Then（拒否されず、ルームの AI 解錠が実際に立つ）
+    expect(broadcaster.errorsTo(memberConn)).toEqual([]);
+    expect(store.get(code)!.aiUnlocked).toBe(true);
+    expect(result.isOk()).toBe(true);
   });
 
   it("連続失敗はレート制限される（room.join と同じバケツを共用）", async () => {

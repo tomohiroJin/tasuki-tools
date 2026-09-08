@@ -210,7 +210,7 @@ export class ProblemDelegator {
 
   /**
    * 代表からのお題投入を処理する。
-   * @returns 受理したら true、stale/権限外で拒否したら false
+   * @returns 受理したら true、stale／代表ではないなどで拒否したら false
    */
   submit(
     roomCode: string,
@@ -335,26 +335,16 @@ export class ProblemDelegator {
 
 /**
  * 候補列を構築する（FR-026）。
- * host を優先し、続いて editor+ かつ hasAiKey の online を joinedAt 昇順。
- * 末尾に必ず定型確定のセンチネルを置く。
+ * `hasAiKey` の online を joinedAt 昇順に並べ、末尾に必ず定型確定のセンチネルを置く。
+ *
+ * #95 S3 で役割とホストを廃止したため、かつての「ホストを優先し、続いて editor+」という
+ * 2 段の並びは無くなった。全員同格なので参加順だけで決まる。
  */
 function buildCandidates(room: Room): string[] {
-  const eligible = room.participants.filter(
-    (p) =>
-      p.presence === "online" &&
-      p.connId !== null &&
-      p.hasAiKey &&
-      (p.role === "host" || p.role === "editor"),
-  );
-
-  const host = eligible.find((p) => p.participantId === room.hostParticipantId);
-  const others = eligible
-    .filter((p) => p.participantId !== room.hostParticipantId)
-    .sort((a, b) => a.joinedAt - b.joinedAt);
-
-  const ordered = [...(host ? [host] : []), ...others].map(
-    (p) => p.participantId,
-  );
+  const ordered = room.participants
+    .filter((p) => p.presence === "online" && p.connId !== null && p.hasAiKey)
+    .sort((a, b) => a.joinedAt - b.joinedAt)
+    .map((p) => p.participantId);
 
   return [...ordered, FALLBACK];
 }

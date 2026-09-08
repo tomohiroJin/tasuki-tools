@@ -1,7 +1,7 @@
 /**
  * signal: "notice" — 破壊的操作の実行者を全員に伝える（host-spof-relaxation）
  *
- * 開始後は主催者以外も退出・中断・リセット・完成を実行できる。
+ * 在室者なら誰でも退出・中断・リセット・完成を実行できる（#95 S3 で全員同格）。
  * 誰が実行したか分からないと、画面が突然変わった理由を追えず「勝手に壊された」と映る。
  * サーバーは意味（action と実行者）だけを運び、文言化は UI 側が行う。
  *
@@ -211,17 +211,19 @@ describe("signal: notice（実行者の通知）", () => {
   });
 
   describe("⑤ 失敗した操作では notice を配信しない", () => {
-    it("権限で拒否された操作は notice を出さない", async () => {
-      // Given（Carol を見学者に降格し、拒否される操作を送る）
-      await handlers.handleCommand(HOST, { command: "role.set", participantId: pidOf("Carol"), role: "viewer" });
+    // #95 S3 以前は「見学者へ降格した参加者の session.abort が UNAUTHORIZED で拒否される」
+    // ケースでこれを見ていた。可否判定が無くなったので、在室確認で落ちる経路に置き換える
+    // （**在室者なら誰でも実行できる**ことと、**在室していなければ実行できない**ことは別の層）。
+    it("在室していない接続の操作は notice を出さない", async () => {
+      // Given（在室していない接続を用意する）
       broadcaster.signals.length = 0;
       broadcaster.residentsAtSignal.length = 0;
 
       // When
-      await handlers.handleCommand(CAROL, { command: "session.abort" });
+      await handlers.handleCommand("nt-stranger", { command: "session.abort" });
 
       // Then
-      expect(broadcaster.errorsTo(CAROL).at(-1)?.code).toBe("UNAUTHORIZED");
+      expect(broadcaster.errorsTo("nt-stranger").at(-1)?.code).toBe("NOT_IN_ROOM");
       expect(lastNotice()).toBeUndefined();
     });
   });
