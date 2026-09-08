@@ -523,8 +523,11 @@ export function makeHandlers(deps: HandlerDeps) {
     // 記録していたが、これはイベント名のホワイトリストであり、時計を走らせる別のイベント
     // （例: SessionResumed）が漏れると「時計が走っているのに startedAt が未設定」という
     // 状態が生じる（Issue #22 実測: 新規ルームへ session.act RESUME を単独送信すると
-    // clock.running=true / startedAt=undefined になる。session.act は EDITOR_PLUS_COMMANDS
-    // に属し phase によるゲートが無いため到達可能）。
+    // clock.running=true / startedAt=undefined になる。session.act は phase による
+    // ゲートを持たないため、この経路は開始前のルームからでも到達できる。
+    // #95 S3 より前はここに「session.act は EDITOR_PLUS_COMMANDS に属し」という
+    // 但し書きがあったが、その集合表は可否判定ごと消えた。到達可能である理由は
+    // 役割ではなく phase ゲートの不在なので、実測の前提はいまも成り立つ）。
     // イベント名を列挙する設計は将来イベントが増えるたびに更新を要し、この種の見落としが
     // 既に繰り返し起きている。そこでイベント名ではなく「イベント適用後の状態」で判定する:
     // 時計が走っており、かつ startedAt がまだ未設定なら、この時点を開始時刻として記録する。

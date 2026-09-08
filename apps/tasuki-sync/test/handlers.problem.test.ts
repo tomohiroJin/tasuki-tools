@@ -141,6 +141,11 @@ describe("handlers: problem.request / problem.submit", () => {
    * ことの確認として持っていた性質。権限層が無くなっても、**委譲が配線されていなければ
    * 断られる**という境界は残るので、ここへ引き取って単独で固定する。
    *
+   * ⚠ **request と submit の 2 本を対にして置くこと。** 旧ファイルにも 2 本あり、
+   * `problem-request.ts` と `problem-submit.ts` はそれぞれ独立に `delegator` の
+   * 有無を見て `DELEGATION_UNAVAILABLE` を返す（共通の前段があるわけではない）。
+   * 片方だけを移すと、もう片方の分岐を誰も検証していない状態になる。
+   *
    * @requirements FR-025
    */
   it("委譲が配線されていないハンドラでは problem.request が DELEGATION_UNAVAILABLE で断られる", async () => {
@@ -163,5 +168,34 @@ describe("handlers: problem.request / problem.submit", () => {
     // Then
     expect(result.isErr()).toBe(true);
     expect(broadcaster.errorsTo("bare-conn").at(-1)?.code).toBe("DELEGATION_UNAVAILABLE");
+  });
+
+  /**
+   * 上のテストの対（`problem-submit.ts` 側の同じ分岐）。
+   *
+   * @requirements FR-025
+   */
+  it("委譲が配線されていないハンドラでは problem.submit が DELEGATION_UNAVAILABLE で断られる", async () => {
+    // Given（delegator を渡さずに組んだハンドラでルームを作る）
+    const bare = makeTestHandlers({
+      store: new InMemoryRoomStore(),
+      clock: new FakeClock(1000000),
+      broadcaster,
+      codeGen: new FakeCodeGen(),
+    });
+    await bare.handleCommand("bare-conn2", { command: "room.create", displayName: "Alice" });
+    broadcaster.sent.length = 0;
+
+    // When（request を通していないので、代表の確定より手前で断られる）
+    const result = await bare.handleCommand("bare-conn2", {
+      command: "problem.submit",
+      requestId: "req-bare2",
+      problem: validProblem,
+      usedFallback: false,
+    });
+
+    // Then（STALE_SUBMISSION ではなく DELEGATION_UNAVAILABLE であることまで固定する）
+    expect(result.isErr()).toBe(true);
+    expect(broadcaster.errorsTo("bare-conn2").at(-1)?.code).toBe("DELEGATION_UNAVAILABLE");
   });
 });

@@ -31,7 +31,7 @@ export interface ProblemSubmitDeps {
 export function createProblemSubmitHandler(deps: ProblemSubmitDeps) {
   const { delegator, sendError } = deps;
 
-  /** お題投入（委譲代表のみ・editor+）FR-025, FR-026 */
+  /** お題投入（委譲が指名した代表のみ受理する。役割による制限は無い）FR-025, FR-026 */
   return async function handleProblemSubmit(
     connId: string,
     ctx: ProblemSubmitContext,

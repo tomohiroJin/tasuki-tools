@@ -25,7 +25,7 @@ export interface ProblemRequestDeps {
 export function createProblemRequestHandler(deps: ProblemRequestDeps) {
   const { delegator, sendError } = deps;
 
-  /** お題生成依頼（editor+）FR-025, FR-027 */
+  /** お題生成依頼（在室者なら誰でも実行できる）FR-025, FR-027 */
   return async function handleProblemRequest(
     connId: string,
     ctx: ProblemRequestContext,
