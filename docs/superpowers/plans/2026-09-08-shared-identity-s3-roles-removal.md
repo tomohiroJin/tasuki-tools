@@ -23,6 +23,45 @@
 
 ---
 
+## 規約チェック（Constitution Check）
+
+憲法（[`docs/constitution.md`](../../constitution.md) v2.1.4）のコンプライアンスゲート。
+判定は **S3 が実際にやること**に照らして書く（一般論では書かない）。
+
+| 原則 | 判定 | 根拠 |
+|---|---|---|
+| I. テスト駆動開発 | 通過 | この段は大半が削除であり、TDD が効くのは**新しい振る舞いを固定する側**に限られる。「全員同格」を先に固定する新規テスト（`apps/tasuki-sync/test/all-equal-permissions.test.ts` ほか各層 1 本ずつ）と、境界の単独責務を固定する `apps/tasuki-sync/test/unknown-command-boundary.test.ts`、移設先の `packages/timer-core/test/removal-notification.test.ts` を Red から書く。削除するテストは「守っていた性質が概念ごと消えたもの」に限り、1 本ずつ根拠を PR 本文へ書く（設計正本 §6.5） |
+| II. 技術選定は ADR を通す | 該当なし | 依存もスタックも変えない（`package.json` / `pnpm-lock.yaml` に差分を出さない）。廃止という**決定**そのものの記録先は原則 VIII の欄に書く |
+| III. 揮発インメモリと単純運用 | 通過 | 永続化を足さない。配備資材の変更も伴わない（設計正本 §7 の表の S3 行が「—」）。**この段が wire の非互換を受容できる根拠が原則 III そのものである** —— 配備でプロセスが再起動すれば全ルームが消えるので、古いタブに守るべき状態がそもそも存在しない（`packages/timer-core/src/error-messages.ts` の「#95 S3 で受容した非互換」） |
+| IV. 境界の型安全 | 通過 | Valibot による境界検証も、`Result` で失敗を表す規律も変えない。**緊張**: `checkPermission` のステップ 0（`REGISTERED_COMMANDS` による default-deny）が消えるため、未知コマンドの拒否は境界の `CommandSchema`（`v.variant`）**単独**になる（二重だった防御が一重になる）。恒真でないことを Task 3 Step 9 で破壊検証し、上記の境界テストで固定する。**緊張**: `ServerMsg` から必須フィールド 3 つ（`hostToken` / `hostParticipantId` / `role`）を落とすので**wire 契約が後方非互換**になる。任意化で 1 リリース残す案は採らず、受容の理由と将来の判断材料を `packages/timer-core/src/error-messages.ts` へ記録する |
+| V. 実画面検証 | 通過 | Task 8 Step 7 で実画面を通す（非作成者が開始前に設定を変えられる／名簿にホストのバッジと見学者の盤が出ない／見送りが全員に出る／poker で非作成者が公開と次ラウンドを実行できる）。E2E も新しい振る舞いへ向け直す（Task 7） |
+| VI. 依存は内向き | 通過 | `packages/*-core` は純粋関数と純粋なデータ構造のまま。副作用も外向きの依存も足さない。`removalNotificationFor` / `RemovalNotification` は削除する `participants.ts` からの**移設**であり、層をまたがない |
+| VII. 検査は壊して確かめる | 通過 | 破壊検証は Task 3 Step 9（境界だけで未知コマンドが落ちること）。変異検査は Task 8 Step 2 を clean な作業ツリーで回し、概念ごと消えた変異 2 件（id 2 / id 5）だけを落として **id は詰めない**。**緊張**: 走査対象の健全性（[`docs/adr/0014`](../../adr/0014-scan-target-integrity.md)）を洗う Task 8 Step 4 の grep は**消えたファイル名しか見ておらず、消えた「型名」を宣言している検査を取りこぼす**。現に `scripts/audit-domain-error-shape.mjs` が `Unauthorized` を宣言したまま残り、当の検査自身が赤で捕まえた |
+| VIII. 記録が正本 | 通過 | 廃止の決定の正本は [`docs/timer/adr/0007`](../../timer/adr/0007-volatile-in-memory-state.md) の改定と [`docs/adr/0011`](../../adr/0011-threat-model-and-data-classification.md) 決定 2、廃止対象の一覧は[設計正本](../specs/2026-09-06-shared-identity-and-rooms-design.md) D5。この計画は正本を作らず参照する。**この段で完了形にしてよいのは S3 が実際に消したものだけ**であり、S4a 以降のもの（`config.members` の廃止・ローテーションの `RotationEntry` 化・名簿統合・同一性の `localStorage` 化）を「廃止した」と書かない |
+| IX. 小さく回す | 通過 | 「役割とホストの廃止」という 1 つの論理的変更に留め、名簿統合（S4a）と同一性・在席（S4b）は持ち込まない。規模は大きくなるが、ドメイン・サーバー・両 Web・E2E を同時に落とさないと**片方のツールが到達不能な中間状態**ができる（設計正本 §7 スライスの原則 2）ので分割しない。粒度の正本は [`docs/guides/pr-granularity.md`](../../guides/pr-granularity.md)。デプロイは伴わない |
+| X. 抽象は実需で | 通過 | 新しい抽象を作らない。`packages/timer-core/src/removal-notification.ts` の `removalNotificationFor` は利用者が 1 つ（`apps/tasuki-sync/src/application/command-handlers/participant-remove.ts`）だが、これは**新規の抽出ではなく、削除する `participants.ts` からの退避**である。抽出であれば「利用者が 1 つしか無いものを抽出しない（MUST NOT）」に触れるため、性格の違いをここに記録しておく |
+| XI. 秘密と個人情報を持ち込まない | 通過 | 新しい入力・保持・出力を足さず、ログ出力の経路も変えない。むしろ分類「資格情報」を 1 つ**減らす** —— `hostToken` は `TokenStore.verifyHost` の非テスト呼び出しが 0 件で、照合する経路が無いまま発行・送信されていた。機構ごと落とす |
+
+**逸脱なし。** Complexity Tracking での正当化を要する項目は無い。表で「緊張」と書いた 3 点は、
+いずれも憲法の MUST に反するものではなく、**既存の要求と設計の変更**である。
+逸脱ではないが、後戻りの費用が高いので記録しておく。
+
+- **権限が意図的に広がる。** ルームに居る誰でもすべてのルーム操作を実行でき、
+  `room.passphrase.set` も含む。参加者の誰でも合言葉を変更でき、他の参加者を締め出しうる。
+  **2026-09-06 に利用者が承認済み**で、記録は[設計正本](../specs/2026-09-06-shared-identity-and-rooms-design.md) §8 にある。
+  #145 が定めたエントロピー規範は入力の強度の話であり、この権限の話ではない
+- **可否判定の層を丸ごと消す。** `permissions.ts` の判定順序には過去の回帰が複数刻まれており、
+  消したあとで「やはり主催者が要る」となった場合、同じ精度で書き直すのは容易でない（同 §8）。
+  この費用を承知のうえで消す
+- **wire の非互換は「1 通のメッセージが落ちる」ではなく「その接続の snapshot が全部落ちる」。**
+  受容の理由（揮発インメモリ）と、将来この理由が成立しなくなる条件は
+  `packages/timer-core/src/error-messages.ts` に記録する
+
+> **この節は着手後（2026-09-09）に追記した。** ゲートの趣旨は計画を書き始める前に通すことなので、
+> 順序としては誤りである。抜けは `node scripts/audit-plan-gate.mjs` が PR 直前に捕まえた。
+
+---
+
 ## 着手前に確定した事実（2026-09-08・main `781e9ce` で実測）
 
 計画の前提はすべてこの版で数え直した。**Issue #244 本文と設計正本 §3.7 の数値は古いか、偽陽性を含む。**
