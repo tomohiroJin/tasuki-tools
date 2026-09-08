@@ -81,16 +81,17 @@ describe("findDeclarationSpan: 実物にある 4 つの書き方を切り出せ�
   });
 
   test("export の付かない interface も切り出せる（非公開でもドメインエラー型は検査対象）", () => {
-    // Given（#168 Task 1 で timer-core の合併メンバーが非公開になった形）
+    // Given（#168 Task 1 で timer-core の合併メンバーが非公開になった形。
+    // 型名は実在する非公開メンバーに合わせる —— #95 S3 で `Unauthorized` は消えた）
     const src = [
-      "interface Unauthorized {",
-      "  code: 'unauthorized';",
-      "  op: string;",
+      "interface PhaseConflict {",
+      "  type: 'PhaseConflict';",
+      "  currentPhase: string;",
       "}",
       "",
     ].join("\n");
     // When
-    const span = findDeclarationSpan(src, "Unauthorized");
+    const span = findDeclarationSpan(src, "PhaseConflict");
     // Then
     assert.equal(span.startLine, 1);
     assert.equal(span.endLine, 4);
