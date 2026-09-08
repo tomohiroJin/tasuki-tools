@@ -24,8 +24,9 @@ function declaredCardKinds(): string[] {
   return [...kinds].sort();
 }
 
-const PARTICIPANT_A = { id: 'p1', name: 'e2e-a', isHost: true, connected: true, hasVoted: false };
-const PARTICIPANT_B = { id: 'p2', name: 'e2e-b', isHost: false, connected: true, hasVoted: true };
+// かつては isHost を持っていたが、#95 S3 でホスト概念ごと wire から消えた。
+const PARTICIPANT_A = { id: 'p1', name: 'e2e-a', connected: true, hasVoted: false };
+const PARTICIPANT_B = { id: 'p2', name: 'e2e-b', connected: true, hasVoted: true };
 
 /** 投票中にサーバーが実際に送る形（`packages/poker-core/src/snapshot.ts:22-24`）。 */
 const VOTING_FRAME = {

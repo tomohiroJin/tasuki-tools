@@ -18,6 +18,7 @@ import {
   createRoom,
   currentDriverRow,
   driverRoster,
+  intervalButton,
   invitedUrlText,
   joinAsDriver,
   joinAsDriverAt,
@@ -76,6 +77,59 @@ test.describe('@core timer のドライバー交代が両方の画面に届く',
 });
 
 /**
+ * 後から参加した人が開始前に設定を変更できる（#95 S3）。
+ *
+ * かつては役割が `viewer`（見学者）の参加者だけ `SessionConfigPanel` が読み取り
+ * 専用の表示になっていた（同コンポーネントの冒頭コメントが「かつては canEdit=false
+ * （見学者）向けの読み取り表示を持っていた」と明記している）。#95 S3 で役割そのものが
+ * 消え、その分岐ごと無くなったので、いまは参加した順番に関係なく誰でも変更できる。
+ *
+ * ここは**後から参加した側**が変更し、**先に居た側の画面にも同じ値が届く**ことまで
+ * 見る。「エラーが出ない」ではなく、交代間隔の選択状態（`aria-pressed`）が
+ * 両方の画面で実際に入れ替わったことを固定する。
+ */
+test.describe('timer は後から参加した人が開始前に設定を変更できる', () => {
+  test('Given 2 人がロビーに居て、まだ開始していない / When 後から参加した人が交代間隔を変える / Then 両方の画面に新しい設定が届く', async ({
+    page,
+    openPeer,
+  }) => {
+    // Given: 作成者のルームに、招待から 2 人目が参加する
+    const code = await createRoom(page, HOST);
+    const guest = await openPeer('timer-config-by-guest');
+    await joinAsDriver(guest.page, code, GUEST);
+
+    // Given の確認: 2 人が輪に並んでいる。まだ「セッションを開始」を押していない
+    // （＝いまロビーに居ることの錨。ここが無いと下の変更がどの画面の出来事か分からない）
+    await expect(lobbyRotationRow(page, HOST, 1)).toHaveCount(1);
+    await expect(lobbyRotationRow(page, GUEST, 2)).toHaveCount(1);
+
+    // Given の確認: 既定の交代間隔（7分）が両方の画面で選ばれている
+    for (const target of [page, guest.page]) {
+      await expect(intervalButton(target, '7分'), '既定の交代間隔').toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+    }
+
+    // When: **ルームを作った本人ではない**、後から参加した2人目が 10 分へ変更する
+    await intervalButton(guest.page, '10分').click();
+
+    // Then: 変更した側だけでなく、**先に居た作成者の画面にも**同じ値が届く。
+    // どちらも「新しい値が選ばれている」ことと「古い値の選択が外れている」ことの両方を見る
+    for (const [label, target] of screens(page, guest.page)) {
+      await expect(intervalButton(target, '10分'), `${label}の画面（新しい値）`).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+      await expect(intervalButton(target, '7分'), `${label}の画面（古い値）`).toHaveAttribute(
+        'aria-pressed',
+        'false',
+      );
+    }
+  });
+});
+
+/**
  * 招待パネルに出た URL でそのまま参加できること（#11・#76 F-1 の回帰防止）。
  *
  * **「開いて参加できた」だけでは F-1 の再発を検出できない。**
@@ -125,13 +179,16 @@ test.describe('招待パネルに表示された URL でそのまま参加でき
  * 再読込しても参加画面に戻らないこと（#12・#76 F-3 の回帰防止）。
  *
  * **作成者で試してはいけない。** 壊れ方は「復帰時に `participantId` が立たず、
- * `StatusStrip` が作成者へ縮退する」というもので（`App.tsx:687-688` の
- * `self?.displayName ?? room?.config.members[0]` / `self?.role ?? "host"`）、
- * 作成者自身で試すと縮退先と正解が一致してしまい、壊れていても緑になる。
- * **他人の名前と役割を見せられていた**のが F-3 の実害なので、2 人目で検証する。
+ * `StatusStrip` が作成者へ縮退する」というもので（`App.tsx` の
+ * `self?.displayName ?? room?.config.members[0]`）、作成者自身で試すと
+ * 縮退先と正解が一致してしまい、壊れていても緑になる。
+ * **他人の名前を見せられていた**のが F-3 の実害なので、2 人目で検証する。
+ *
+ * かつては役割ラベル（編集者/ホスト）も同じ枠で検証していたが、#95 S3 で
+ * 役割そのものが消えたため、いまは表示名の保持だけを見る。
  */
 test.describe('timer を再読込しても参加画面に戻らない', () => {
-  test('Given 参加済みの 2 人目 / When 再読込する / Then 参加画面に戻らず、自分の名前と役割が保たれる', async ({
+  test('Given 参加済みの 2 人目 / When 再読込する / Then 参加画面に戻らず、自分の名前が保たれる', async ({
     page,
     openPeer,
   }) => {
@@ -157,14 +214,13 @@ test.describe('timer を再読込しても参加画面に戻らない', () => {
     //             「参加ボタンが無い」という否定より、こちらのほうが空振りしない
     await expect(strip, '再読込後のステータス表示').toBeVisible();
 
-    // Then その2: 自分の名前と役割が保たれている
+    // Then その2: 自分の名前が保たれている
     await expect(strip, '再読込後の表示名').toContainText(GUEST);
-    await expect(strip, '再読込後の役割').toContainText('編集者');
 
-    // Then その3: **作成者へ縮退していない。**
-    //             否定は役割ラベルに当てる。名前で否定するとルームコードに
-    //             作成者名が含まれる構成（ルーム名を付けた場合）で誤検出しうる
-    await expect(strip, '作成者の役割へ縮退している').not.toContainText('ホスト');
+    // Then その3: **作成者へ縮退していない。** 名前そのもので否定する。
+    //             このルームでは HOST/GUEST の名前が重ならないので空振りしない
+    //             （下で確かめる: 作成者自身の画面の strip は当然 HOST を含む）
+    await expect(strip, '作成者の名前へ縮退している').not.toContainText(HOST);
   });
 });
 
@@ -331,7 +387,7 @@ test.describe('timer のルームが消えたら操作を止めて、やり直�
    * `room.join` の行き先を差し替えられるようにする。**`goto` より前に仕込む。**
    *
    * **`page.routeWebSocket` を使わない。** 使うと WS が Playwright を経由するようになり、
-   * **ホストが 2 人目の到着を恒久的に取りこぼす**ことがある。しかも落ちるのは
+   * **作成者が 2 人目の到着を恒久的に取りこぼす**ことがある。しかも落ちるのは
    * Given の段なので、原因が異常系の実装に見えない。**後から掛けて避けることも
    * できない** —— 傍受は文書の読み込み時に仕込まれるため、読み込み済みのページに
    * 後から掛けても新しい接続を捕まえない。
@@ -402,7 +458,7 @@ test.describe('timer のルームが消えたら操作を止めて、やり直�
     return () => page.evaluate(() => (window as unknown as LossWindow).__e2eRoomLoss.rewritten);
   }
 
-  /** セッション中に編集者が押せる操作。**押せることを先に確かめてから**消滅を見る。 */
+  /** セッション中に参加者が押せる操作。**押せることを先に確かめてから**消滅を見る。 */
   function sessionControls(page: Page): readonly (readonly [string, Locator])[] {
     return [
       ['スキップ', page.getByRole('button', { name: 'スキップ', exact: true })],
@@ -430,8 +486,8 @@ test.describe('timer のルームが消えたら操作を止めて、やり直�
 
     // Given の確認（対照）: **失う前は、両方の画面でこれらが実際に押せる。**
     // この錨が無いと、後の「押せる要素が無い」は最初から無かっただけかもしれない。
-    // **作成者だけで見てはいけない。** 参加者の画面は名前と役割の取り回しが違い
-    // （#76 F-3 が壊れたのはそこ）、非ホストにだけ操作が残る壊れ方を見逃す
+    // **作成者だけで見てはいけない。** 参加者自身の画面は自分の名前の解決が違い
+    // （#76 F-3 が壊れたのはそこ）、参加者側にだけ操作が残る壊れ方を見逃す
     for (const [screen, target] of screens(page, guest.page)) {
       for (const [label, control] of sessionControls(target)) {
         await expect(control, `${screen}の画面で喪失前に押せない操作（${label}）`).toBeEnabled();
