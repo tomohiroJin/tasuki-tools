@@ -5,7 +5,8 @@
  * 難易度/言語バッジ＋タイトル、要件・テスト例・ヒントは折りたたみ。
  * アクションは言葉＋アイコンで明快に（別のお題/編集/貼り付け/コピー）。
  * compact=true（セッション中）は1行バーに畳み、目立たせない（⑫）。
- * 編集・やり直し・持ち込みは editor+ のみ（canEdit）。コピーは全員可（FR-013/055）。
+ * 編集・やり直し・持ち込み・コピーは全員が使える（FR-013/055）。
+ * かつては「editor+ のみ」を表す canEdit で編集系を塞いでいた（#95 S3 で廃止）。
  */
 
 import React, { useState, useEffect } from "react";
@@ -17,8 +18,6 @@ import { Markdown } from "./Markdown.js";
 
 interface ProblemEditorProps {
   problem: Problem;
-  /** editor+ のとき true。編集・やり直し・持ち込みを許可する（FR-055）。既定 true。 */
-  canEdit?: boolean;
   /** 出題の難易度（room.config 由来）。バッジ表示用。 */
   difficulty?: string;
   /** 出題の言語（room.config 由来）。バッジ表示用。 */
@@ -86,7 +85,6 @@ function linesToArray(text: string): string[] {
 
 export function ProblemEditor({
   problem,
-  canEdit = true,
   difficulty,
   language,
   compact = false,
@@ -145,29 +143,23 @@ export function ProblemEditor({
           <h3 className="text-lg font-bold text-[var(--bone)]">{problem.title}</h3>
         </div>
         <div className="flex flex-wrap gap-2">
-          {canEdit && (
-            <GhostButton onClick={onRegenerate} disabled={generating} aria-label={generating ? "生成中" : "別のお題にする"} className="text-sm">
-              {generating ? (
-                <span className="flex items-center gap-1.5"><Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> 生成中…</span>
-              ) : (
-                <span className="flex items-center gap-1.5"><Dices className="w-4 h-4" aria-hidden="true" /> 別のお題にする</span>
-              )}
-            </GhostButton>
-          )}
-          {canEdit && (
-            <GhostButton
-              onClick={() => setEditing((v) => !v)}
-              disabled={generating}
-              className={`text-sm ${editing ? "ring-2 ring-[var(--signal)]" : ""}`}
-            >
-              <span className="flex items-center gap-1.5"><Pencil className="w-4 h-4" aria-hidden="true" /> {editing ? "編集を閉じる" : "内容を編集"}</span>
-            </GhostButton>
-          )}
-          {canEdit && (
-            <GhostButton onClick={onPaste} disabled={generating} aria-label="お題を持ち込む（貼り付け）" className="text-sm">
-              <span className="flex items-center gap-1.5"><ClipboardPaste className="w-4 h-4" aria-hidden="true" /> 貼り付け</span>
-            </GhostButton>
-          )}
+          <GhostButton onClick={onRegenerate} disabled={generating} aria-label={generating ? "生成中" : "別のお題にする"} className="text-sm">
+            {generating ? (
+              <span className="flex items-center gap-1.5"><Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> 生成中…</span>
+            ) : (
+              <span className="flex items-center gap-1.5"><Dices className="w-4 h-4" aria-hidden="true" /> 別のお題にする</span>
+            )}
+          </GhostButton>
+          <GhostButton
+            onClick={() => setEditing((v) => !v)}
+            disabled={generating}
+            className={`text-sm ${editing ? "ring-2 ring-[var(--signal)]" : ""}`}
+          >
+            <span className="flex items-center gap-1.5"><Pencil className="w-4 h-4" aria-hidden="true" /> {editing ? "編集を閉じる" : "内容を編集"}</span>
+          </GhostButton>
+          <GhostButton onClick={onPaste} disabled={generating} aria-label="お題を持ち込む（貼り付け）" className="text-sm">
+            <span className="flex items-center gap-1.5"><ClipboardPaste className="w-4 h-4" aria-hidden="true" /> 貼り付け</span>
+          </GhostButton>
           <GhostButton onClick={onCopy} aria-label="お題をコピー" className="text-sm">
             <span className="flex items-center gap-1.5"><Copy className="w-4 h-4" aria-hidden="true" /> コピー</span>
           </GhostButton>

@@ -3,22 +3,23 @@
  * T057: FR-046,047,048,050,051,052,061 (US9)
  * Task 6: ドライバー/見学セクション分割・現ドライバー最上部・情報階層化
  *
- * 全参加者の在席状況・現ドライバー・役割を常時一覧表示。
- * 代理追加・改名・スキップ/復帰操作を提供する。
+ * 全参加者の在席状況と現ドライバーを常時一覧表示。
+ * 代理追加・改名・スキップ/復帰操作を提供する。**行の操作は全員に出す**
+ * （#95 S3 で役割とホストを廃止し、管理権限という区別そのものが無くなった）。
  * 色＋テキスト併記（FR-032）。
  * ドライバー（rotation 内）と見学（rotation 外）を別 <ul> で表示し、
  * 現ドライバーをドライバーセクション先頭に固定する。
  */
 
 import React, { useState, useEffect, useRef } from "react";
-import { Users, ChevronUp, ChevronDown, Crown, X } from "lucide-react";
+import { Users, ChevronUp, ChevronDown, X } from "lucide-react";
 import type { Participant } from "@tasuki/timer-core";
 import { MAX_DISPLAY_NAME } from "@tasuki/timer-core/aggregate";
 import { GhostButton, PrimaryButton, SectionHeader } from "../primitives.js";
 import { presenceLabel } from "../presence.js";
 import { PresenceDot } from "./PresenceDot.js";
 import { RemovalConfirmDialog } from "./RemovalConfirmDialog.js";
-import { participantLabel, canTransferHostTo, canRemoveParticipant, canReorderRotation } from "../participant-label.js";
+import { participantLabel } from "../participant-label.js";
 
 /** 小さなダーク用ボタン。RosterPanel 内の改名/離脱/外す等のコンパクト操作用。
  * 行操作はサーバー往復で反映されるため、押下フィードバックが無いと「効いていない」ように見える。
@@ -58,23 +59,20 @@ interface RosterPanelProps {
    *  配列位置ではなく識別子で現ドライバーを判定する（D6b。同名でも取り違えない）。 */
   currentDriverId: string;
   myParticipantId: string;
-  canManage: boolean;
   onRename: (participantId: string, displayName: string) => void;
   onSkip: (participantId: string) => void;
   onResume: (participantId: string) => void;
   onAddProxy: (displayName: string) => void;
-  /** 参加者を退出させる（⑪）。開始後は主催者以外も実行できる（Issue #22・FR-065）。
+  /** 参加者を退出させる（⑪）。誰でも実行できる（Issue #22・FR-065・#95 S3）。
    *  自分自身の退出はここには出さない（SelfDriverToggle が担う・FR-078）。 */
   onRemove?: ((participantId: string) => void) | undefined;
   /** 共有ルームか。確認ダイアログに他参加者への影響を出すかの判断に使う（FR-076）。 */
   isShared?: boolean | undefined;
-  /** ホストを当該参加者へ移譲する（host 限定・オンライン・自分以外のみ表示）。 */
-  onTransferHost?: ((participantId: string) => void) | undefined;
   /** ドライバーのローテーション順（session.rotation＝参加者IDの配列・D6b）。
    *  並べ替えの index 算出に使う（v2.3 #1）。participants の配列位置と rotation の位置は
    *  一致しないため、rotation 内の位置を別途渡す。 */
   rotation?: string[] | undefined;
-  /** ドライバー順の入れ替え（v2.3 #1・host）。fromIndex→toIndex（rotation 内の位置）。
+  /** ドライバー順の入れ替え（v2.3 #1）。fromIndex→toIndex（rotation 内の位置）。
    *  ドライバー行（rotation に含まれる）にのみ上/下ボタンを出す。 */
   onMove?: ((fromIndex: number, toIndex: number) => void) | undefined;
   /** 参加者リストに高さ上限＋内部スクロールを付ける（項目4・Session で有効化）。 */
@@ -83,7 +81,7 @@ interface RosterPanelProps {
    *  true（Session）なら自分の行には一時離脱/復帰を出さず重複を避ける。
    *  false/未指定（Solo 等・自己トグル無し）なら自分の行にも出す。 */
   selfHasExternalToggle?: boolean | undefined;
-  /** ホストが任意メンバーを現ドライバーに指名する（Issue #13・host 限定）。
+  /** 任意メンバーを現ドライバーに指名する（Issue #13）。
    *  未指定なら指名ボタンを描画しない（ソロ等の非対応コンシューマ向け）。 */
   onAssignDriver?: ((participantId: string) => void) | undefined;
 }
@@ -92,7 +90,6 @@ export function RosterPanel({
   participants,
   currentDriverId,
   myParticipantId,
-  canManage,
   selfHasExternalToggle = false,
   onRename,
   onSkip,
@@ -100,7 +97,6 @@ export function RosterPanel({
   onAddProxy,
   onRemove,
   isShared = false,
-  onTransferHost,
   rotation,
   onMove,
   onAssignDriver,
@@ -170,11 +166,9 @@ export function RosterPanel({
     const isCurrentDriver = currentDriverId !== "" && p.participantId === currentDriverId;
     const isMine = p.participantId === myParticipantId;
     const isSkipping = p.driverEligible === false;
-    // 改名は本人 or ホストが可能（観覧者でも自分自身は改名可: FR-046）
-    const canRename = isMine || canManage;
     const isEditing = editingId === p.participantId;
     // ドライバー順での位置。rotation.indexOf(participantId) で算出する
-    // （participants の配列位置とは一致しないため）。-1 なら見学者（rotation 外）。
+    // （participants の配列位置とは一致しないため）。-1 なら見学（rotation 外）。
     const rotationIndex = rotation ? rotation.indexOf(p.participantId) : -1;
     const inRotation = rotationIndex >= 0;
     const rotationLen = rotation?.length ?? 0;
@@ -182,8 +176,8 @@ export function RosterPanel({
     // 退出だけでなく全ての操作に使う。同名の行は順番バッジ以外の見た目が同じで、
     // 「どちらに効く操作なのか」を名前だけでは選べない。
     const label = participantLabel(p.displayName, p.participantId, participants);
-    // 並べ替えはホストが操作でき、ドライバーが2人以上いるときだけ意味を持つ。
-    const canMove = canReorderRotation({ canManage, inRotation, rotationLength: rotationLen }) && !!onMove;
+    // 並べ替えはドライバーが2人以上いるときだけ意味を持つ。
+    const canMove = inRotation && rotationLen > 1 && !!onMove;
 
     return (
       <li
@@ -212,12 +206,12 @@ export function RosterPanel({
           </div>
         ) : (
           <>
-            {/* 1段目: 順番＋在席ドット＋名前＋役割バッジ＋「▶ 今」。
+            {/* 1段目: 順番＋在席ドット＋名前＋「▶ 今」。
                 名前は text-base font-medium で目立たせる。
-                メタ情報（順番番号・役割バッジ）は控えめな色で表示。
+                メタ情報（順番番号）は控えめな色で表示。
                 在席「オンライン」テキストチップは廃止しドット＋sr-only のみに（FR-032 色併記は
                 ドットで維持し、スクリーンリーダーには sr-only テキストで伝える）。
-                役割バッジは host/viewer のみ表示（editor は省略）。 */}
+                かつてはここに「主催者」「観覧」の役割バッジも並べていた（#95 S3 で廃止）。 */}
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 [&>span.chip]:whitespace-nowrap">
               {inRotation && (
                 <span
@@ -235,13 +229,6 @@ export function RosterPanel({
               <span className="min-w-0 font-medium text-base text-[var(--bone)] break-words">
                 {label}
               </span>
-              {/* 役割バッジ: host/viewer のみ（editor は表示しない） */}
-              {p.role === "host" && (
-                <span className="chip text-xs text-[var(--bone-subtle)] font-semibold">主催者</span>
-              )}
-              {p.role === "viewer" && (
-                <span className="chip text-xs text-[var(--bone-subtle)]">観覧</span>
-              )}
               {p.isPlaceholder && (
                 <span className="chip text-xs text-[var(--caution)]">代理</span>
               )}
@@ -263,91 +250,77 @@ export function RosterPanel({
             </div>
 
             {/* 2段目: 操作。バッジと分離し行幅いっぱいで右寄せ＋折返し（flex-wrap）にして、
-                操作が増えても枠からはみ出さないようにする。host 管理操作（譲る/外す）は
-                アイコン化して幅を圧縮（Lobby と同じ Crown/X）。改名は本人 or ホスト。
+                操作が増えても枠からはみ出さないようにする。「外す」はアイコン化して幅を圧縮
+                （Lobby と同じ X）。**操作は全員の行に出す**（#95 S3）。
                 一時離脱/復帰は driver.skip で、自分の分は外部の自己トグルがあるなら出さず重複を避ける（#1）。 */}
-            {canRename && (
-              <div className="mt-1.5 flex flex-wrap items-center justify-end gap-1 pl-4">
+            <div className="mt-1.5 flex flex-wrap items-center justify-end gap-1 pl-4">
+              <MiniButton
+                onClick={() => startRename(p.participantId, p.displayName)}
+                aria-label={`${label} を改名`}
+              >
+                改名
+              </MiniButton>
+              {/* 一時離脱/復帰の表示可否: 自分は外部トグルが無いときのみ（他人は常に出す）。 */}
+              {(!isMine || !selfHasExternalToggle) &&
+                (isSkipping ? (
+                  <MiniButton onClick={() => onResume(p.participantId)} aria-label={`${label} を復帰させる`}>
+                    復帰
+                  </MiniButton>
+                ) : (
+                  <MiniButton onClick={() => onSkip(p.participantId)} aria-label={`${label} を一時離脱させる`}>
+                    一時離脱
+                  </MiniButton>
+                ))}
+              {/* 現ドライバー以外の rotation メンバーを即ドライバーに指名できる（Issue #13）。
+                  実在（非代理）オフラインの相手は無人ドライバーになるため指名不可。
+                  代理(placeholder)は Web 非接続が常態で対面在席するため offline でも指名可能。 */}
+              {onAssignDriver && inRotation && !isCurrentDriver &&
+                (p.presence !== "offline" || p.isPlaceholder === true) && (
                 <MiniButton
-                  onClick={() => startRename(p.participantId, p.displayName)}
-                  aria-label={`${label} を改名`}
+                  onClick={() => onAssignDriver(p.participantId)}
+                  aria-label={`${label} をドライバーにする`}
+                  title="ドライバーにする"
                 >
-                  改名
+                  ドライバーにする
                 </MiniButton>
-                {/* 一時離脱/復帰の表示可否: 自分=外部トグルが無いときのみ／他人=ホストのみ。観覧者は対象外。 */}
-                {p.role !== "viewer" &&
-                  (isMine ? !selfHasExternalToggle : canManage) &&
-                  (isSkipping ? (
-                    <MiniButton onClick={() => onResume(p.participantId)} aria-label={`${label} を復帰させる`}>
-                      復帰
-                    </MiniButton>
-                  ) : (
-                    <MiniButton onClick={() => onSkip(p.participantId)} aria-label={`${label} を一時離脱させる`}>
-                      一時離脱
-                    </MiniButton>
-                  ))}
-                {/* ホストは現ドライバー以外の rotation メンバーを即ドライバーに指名できる（Issue #13）。
-                    実在（非代理）オフラインの相手は無人ドライバーになるため指名不可（host.transfer と同じ方針）。
-                    代理(placeholder)は Web 非接続が常態で対面在席するため offline でも指名可能。 */}
-                {canManage && onAssignDriver && inRotation && !isCurrentDriver &&
-                  (p.presence !== "offline" || p.isPlaceholder === true) && (
+              )}
+              {/* ドライバー順を入れ替えられる（v2.3 #1）。
+                  ドライバー行（rotation に含まれる）にのみ上/下を出す。先頭/末尾は無効化。 */}
+              {canMove && (
+                <>
                   <MiniButton
-                    onClick={() => onAssignDriver(p.participantId)}
-                    aria-label={`${label} をドライバーにする`}
-                    title="ドライバーにする"
+                    onClick={() => onMove!(rotationIndex, rotationIndex - 1)}
+                    disabled={rotationIndex === 0}
+                    aria-label={`${label} を前の順番へ`}
+                    title="前の順番へ"
                   >
-                    ドライバーにする
+                    <ChevronUp className="w-4 h-4" aria-hidden="true" />
                   </MiniButton>
-                )}
-                {/* ホストはドライバー順を入れ替えられる（v2.3 #1）。
-                    ドライバー行（rotation に含まれる）にのみ上/下を出す。先頭/末尾は無効化。 */}
-                {canMove && (
-                  <>
-                    <MiniButton
-                      onClick={() => onMove!(rotationIndex, rotationIndex - 1)}
-                      disabled={rotationIndex === 0}
-                      aria-label={`${label} を前の順番へ`}
-                      title="前の順番へ"
-                    >
-                      <ChevronUp className="w-4 h-4" aria-hidden="true" />
-                    </MiniButton>
-                    <MiniButton
-                      onClick={() => onMove!(rotationIndex, rotationIndex + 1)}
-                      disabled={rotationIndex === rotationLen - 1}
-                      aria-label={`${label} を後の順番へ`}
-                      title="後の順番へ"
-                    >
-                      <ChevronDown className="w-4 h-4" aria-hidden="true" />
-                    </MiniButton>
-                  </>
-                )}
-                {/* ホストを他のオンライン参加者へ譲る（R2-3）。自分・オフライン・現ホストには出さない。
-                    アイコン（Crown）＋aria-label/title で省スペース化。 */}
-                {canTransferHostTo(p, { isSelf: isMine, canManage }) && onTransferHost && (
                   <MiniButton
-                    onClick={() => onTransferHost(p.participantId)}
-                    aria-label={`${label} にホストを譲る`}
-                    title="ホストを譲る"
+                    onClick={() => onMove!(rotationIndex, rotationIndex + 1)}
+                    disabled={rotationIndex === rotationLen - 1}
+                    aria-label={`${label} を後の順番へ`}
+                    title="後の順番へ"
                   >
-                    <Crown className="w-4 h-4" aria-hidden="true" />
+                    <ChevronDown className="w-4 h-4" aria-hidden="true" />
                   </MiniButton>
-                )}
-                {/* 他の参加者を退出させる（⑪）。開始後は主催者以外も実行できる。
-                    自分の行には出さない（自己退出は SelfDriverToggle 側・FR-078）。
-                    取り返しがつかない操作なので確認を挟む（FR-075）。
-                    同名が並ぶときはラベルに識別子を添える。二重参加の幽霊は本人と同名なので、
-                    名前だけだと「どちらを消すのか」を選ぶ時点で区別できない（FR-084）。 */}
-                {canRemoveParticipant({ isSelf: isMine, canManage }) && onRemove && (
-                  <MiniButton
-                    onClick={() => setPendingRemovalId(p.participantId)}
-                    aria-label={`${label} を退出させる`}
-                    title="退出させる"
-                  >
-                    <X className="w-4 h-4" aria-hidden="true" />
-                  </MiniButton>
-                )}
-              </div>
-            )}
+                </>
+              )}
+              {/* 他の参加者を退出させる（⑪）。誰でも実行できる（#95 S3）。
+                  自分の行には出さない（自己退出は SelfDriverToggle 側・FR-078）。
+                  取り返しがつかない操作なので確認を挟む（FR-075）。
+                  同名が並ぶときはラベルに識別子を添える。二重参加の幽霊は本人と同名なので、
+                  名前だけだと「どちらを消すのか」を選ぶ時点で区別できない（FR-084）。 */}
+              {!isMine && onRemove && (
+                <MiniButton
+                  onClick={() => setPendingRemovalId(p.participantId)}
+                  aria-label={`${label} を退出させる`}
+                  title="退出させる"
+                >
+                  <X className="w-4 h-4" aria-hidden="true" />
+                </MiniButton>
+              )}
+            </div>
           </>
         )}
       </li>
@@ -375,11 +348,9 @@ export function RosterPanel({
         color="text-[var(--signal)]"
         title="参加者"
         right={
-          canManage ? (
-            <GhostButton onClick={() => setShowProxyInput((v) => !v)} aria-label="代理参加者を追加" className="text-sm">
-              代理追加
-            </GhostButton>
-          ) : undefined
+          <GhostButton onClick={() => setShowProxyInput((v) => !v)} aria-label="代理参加者を追加" className="text-sm">
+            代理追加
+          </GhostButton>
         }
       />
 

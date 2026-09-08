@@ -29,7 +29,7 @@ vi.mock("../../src/records/indexeddb.js", () => ({
   saveRecord: vi.fn().mockResolvedValue(undefined),
 }));
 
-const HOST_ID = "host-1";
+const CREATOR_ID = "p-alice";
 
 function problemA(): Problem {
   return {
@@ -79,7 +79,7 @@ afterEach(() => {
 /** Setup 画面から「ルームを作る」まで進め、接続済み FakeWS を返す。 */
 function createRoomAndConnect(): FakeWS {
   render(<App />);
-  fireEvent.change(screen.getByLabelText("あなたの名前"), { target: { value: "Host" } });
+  fireEvent.change(screen.getByLabelText("あなたの名前"), { target: { value: "Creator" } });
   fireEvent.click(screen.getByRole("button", { name: /ルームを作る/ }));
   return openLatestSocket();
 }
@@ -88,15 +88,14 @@ describe("App.tsx の state/ref 二重管理（4組）", () => {
   it("roomRef: 生成中お題の再依頼リクエストが最新の room.code を参照する", () => {
     // Given: ロビーに到達し、お題Aが確定している
     const ws = createRoomAndConnect();
-    sendServer(ws, { type: "room.created", code: "ROOM01", hostToken: "ht", resumeToken: "rt", participantId: HOST_ID });
+    sendServer(ws, { type: "room.created", code: "ROOM01", hostToken: "ht", resumeToken: "rt", participantId: CREATOR_ID });
     sendServer(ws, {
       type: "snapshot",
       room: aRoomView({
         code: "ROOM01",
-        hostParticipantId: HOST_ID,
         problem: problemA(),
         participants: [
-          { participantId: HOST_ID, connId: "c1", displayName: "Host", role: "host", presence: "online", hasAiKey: false, joinedAt: 0 },
+          { participantId: CREATOR_ID, connId: "c1", displayName: "Creator", presence: "online", hasAiKey: false, joinedAt: 0 },
         ],
       }),
     });
@@ -119,15 +118,14 @@ describe("App.tsx の state/ref 二重管理（4組）", () => {
   it("generatingRef: 生成中に新しいお題が来ると生成中表示が解除される", () => {
     // Given: 「別のお題にする」押下で生成中になっている
     const ws = createRoomAndConnect();
-    sendServer(ws, { type: "room.created", code: "ROOM01", hostToken: "ht", resumeToken: "rt", participantId: HOST_ID });
+    sendServer(ws, { type: "room.created", code: "ROOM01", hostToken: "ht", resumeToken: "rt", participantId: CREATOR_ID });
     sendServer(ws, {
       type: "snapshot",
       room: aRoomView({
         code: "ROOM01",
-        hostParticipantId: HOST_ID,
         problem: problemA(),
         participants: [
-          { participantId: HOST_ID, connId: "c1", displayName: "Host", role: "host", presence: "online", hasAiKey: false, joinedAt: 0 },
+          { participantId: CREATOR_ID, connId: "c1", displayName: "Creator", presence: "online", hasAiKey: false, joinedAt: 0 },
         ],
       }),
     });
@@ -140,10 +138,9 @@ describe("App.tsx の state/ref 二重管理（4組）", () => {
       type: "snapshot",
       room: aRoomView({
         code: "ROOM01",
-        hostParticipantId: HOST_ID,
         problem: problemB(),
         participants: [
-          { participantId: HOST_ID, connId: "c1", displayName: "Host", role: "host", presence: "online", hasAiKey: false, joinedAt: 0 },
+          { participantId: CREATOR_ID, connId: "c1", displayName: "Creator", presence: "online", hasAiKey: false, joinedAt: 0 },
         ],
       }),
     });
@@ -156,15 +153,14 @@ describe("App.tsx の state/ref 二重管理（4組）", () => {
   it("participantIdRef + roomRef: notice の実行者が自分のとき「あなた」と表示する", () => {
     // Given: ロビーで自分の participantId が確定している
     const ws = createRoomAndConnect();
-    sendServer(ws, { type: "room.created", code: "ROOM01", hostToken: "ht", resumeToken: "rt", participantId: HOST_ID });
+    sendServer(ws, { type: "room.created", code: "ROOM01", hostToken: "ht", resumeToken: "rt", participantId: CREATOR_ID });
     sendServer(ws, {
       type: "snapshot",
       room: aRoomView({
         code: "ROOM01",
-        hostParticipantId: HOST_ID,
         problem: problemA(),
         participants: [
-          { participantId: HOST_ID, connId: "c1", displayName: "Host", role: "host", presence: "online", hasAiKey: false, joinedAt: 0 },
+          { participantId: CREATOR_ID, connId: "c1", displayName: "Creator", presence: "online", hasAiKey: false, joinedAt: 0 },
         ],
       }),
     });
@@ -174,8 +170,8 @@ describe("App.tsx の state/ref 二重管理（4組）", () => {
       type: "signal",
       signal: "notice",
       action: "session-reset",
-      actorName: "Host",
-      actorParticipantId: HOST_ID,
+      actorName: "Creator",
+      actorParticipantId: CREATOR_ID,
     });
 
     // Then: participantIdRef が最新の自分の ID を指しているので「あなた」と表示される
@@ -185,15 +181,14 @@ describe("App.tsx の state/ref 二重管理（4組）", () => {
   it("endTypeRef: 中断（abort）後の celebration snapshot では完成記録を保存しない", async () => {
     // Given: セッション画面まで進める（サーバー権威の phase で直接遷移させる）
     const ws = createRoomAndConnect();
-    sendServer(ws, { type: "room.created", code: "ROOM01", hostToken: "ht", resumeToken: "rt", participantId: HOST_ID });
+    sendServer(ws, { type: "room.created", code: "ROOM01", hostToken: "ht", resumeToken: "rt", participantId: CREATOR_ID });
     const sessionRoom = () =>
       aRoomView({
         code: "ROOM01",
         phase: "session",
-        hostParticipantId: HOST_ID,
         problem: problemA(),
         participants: [
-          { participantId: HOST_ID, connId: "c1", displayName: "Host", role: "host", presence: "online", hasAiKey: false, joinedAt: 0 },
+          { participantId: CREATOR_ID, connId: "c1", displayName: "Creator", presence: "online", hasAiKey: false, joinedAt: 0 },
         ],
         clock: { running: true, runningSince: Date.now() },
       });
@@ -209,10 +204,9 @@ describe("App.tsx の state/ref 二重管理（4組）", () => {
       room: aRoomView({
         code: "ROOM01",
         phase: "celebration",
-        hostParticipantId: HOST_ID,
         problem: problemA(),
         participants: [
-          { participantId: HOST_ID, connId: "c1", displayName: "Host", role: "host", presence: "online", hasAiKey: false, joinedAt: 0 },
+          { participantId: CREATOR_ID, connId: "c1", displayName: "Creator", presence: "online", hasAiKey: false, joinedAt: 0 },
         ],
       }),
     });

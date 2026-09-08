@@ -22,8 +22,7 @@ import { aRoomView } from "../support/room-view.js";
 
 function p(overrides: Partial<Participant>): Participant {
   return {
-    participantId: "x", connId: "c", displayName: "X", role: "editor",
-    presence: "online", hasAiKey: false, joinedAt: 1, ...overrides,
+    participantId: "x", connId: "c", displayName: "X", presence: "online", hasAiKey: false, joinedAt: 1, ...overrides,
   };
 }
 
@@ -31,9 +30,9 @@ function makeRoomWithPresences(): Room {
   return aRoomView({
     config: { members: ["Alice"], intervalMinutes: 5 },
     participants: [
-      p({ participantId: "host-p", displayName: "Alice", role: "host", presence: "online" }),
-      p({ participantId: "bob-p", displayName: "Bob", role: "editor", connId: "c2", presence: "idle" }),
-      p({ participantId: "carol-p", displayName: "Carol", role: "viewer", connId: "c3", presence: "offline" }),
+      p({ participantId: "creator-p", displayName: "Alice", presence: "online" }),
+      p({ participantId: "bob-p", displayName: "Bob", connId: "c2", presence: "idle" }),
+      p({ participantId: "carol-p", displayName: "Carol", connId: "c3", presence: "offline" }),
     ],
   });
 }
@@ -43,7 +42,7 @@ const noop = vi.fn();
 describe("ロビー: 在席状態の sr-only テキスト", () => {
   it("オンライン/離席/オフラインそれぞれの在席テキストが sr-only として存在する", () => {
     // Given
-    render(<Lobby room={makeRoomWithPresences()} participantId="host-p" onStartSession={noop} />);
+    render(<Lobby room={makeRoomWithPresences()} participantId="creator-p" onStartSession={noop} />);
     // When / Then（presenceLabel() のテキストは3状態それぞれ1件ずつ、参加者行内に存在する。
     //   screen.getByText への問い合わせが検証と同じ式になる）
     expect(screen.getByText("オンライン", { selector: ".sr-only" })).toBeTruthy();
@@ -54,7 +53,7 @@ describe("ロビー: 在席状態の sr-only テキスト", () => {
   it("参加者一覧の <ul> に新規の aria-live は付与されない（読み上げの割り込みを避ける）", () => {
     // Given
     const { container } = render(
-      <Lobby room={makeRoomWithPresences()} participantId="host-p" onStartSession={noop} />,
+      <Lobby room={makeRoomWithPresences()} participantId="creator-p" onStartSession={noop} />,
     );
     // When
     const lists = container.querySelectorAll("ul");

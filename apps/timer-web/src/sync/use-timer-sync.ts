@@ -43,7 +43,6 @@ import type { ProblemProvider } from "../ai/provider.js";
 import { errorAction } from "../ui/error-action.js";
 import { joinRetryDelayMs } from "./join-retry.js";
 import { stripRoomParam } from "../ui/room-param.js";
-import { hostChangeMessage } from "../ui/host-change.js";
 import { useLatestRef } from "../ui/use-latest-ref.js";
 import type { BannerController } from "../ui/use-banner.js";
 import type { ClientConnState } from "../ui/connection-status.js";
@@ -108,8 +107,6 @@ export interface TimerSync {
   regenerateProblem(): void;
   /** 代理参加者を加える（participantId はここで生成する）。 */
   addProxy(displayName: string): void;
-  /** 自分の役割を自分で切り替える（participantId 未確定なら何もしない）。 */
-  changeOwnRole(role: "editor" | "viewer"): void;
   newSession(): void;
   showHistory(): void;
   backToSetup(): void;
@@ -159,7 +156,7 @@ export function useTimerSync(banner: BannerController): TimerSync {
   // AI/定型のお題生成中（「別のお題にする」押下〜新お題確定まで）。スピナー＋減光に使う。
   const [generatingProblem, setGeneratingProblem] = useState(false);
 
-  // このクライアントがルーム作成者（＝当初ホスト）か。ロビーでお題生成を自動依頼する判定に使う。
+  // このクライアントがルームを作った側か。ロビーでお題生成を自動依頼する判定に使う。
   // state の写しではない純粋なガード用 ref（Issue #46 でこの種の ref だけが残った）。
   const isCreatorRef = useRef(false);
   // 参加時に "driver" を選択したか。snapshot で自分が参加者に現れたら member.add を一度だけ送る。
@@ -169,8 +166,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
   const problemRequestedRef = useRef(false);
   // 完成記録の二重保存を防ぐガード（celebration の snapshot が複数回来ても1回だけ保存）。
   const recordSavedRef = useRef(false);
-  // ホスト交代検知用に直前 snapshot の hostParticipantId を保持する（R2-4）。
-  const prevHostRef = useRef<string | undefined>(undefined);
   // 生成が返らない異常で固まらないための安全弁タイマー。
   const generatingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // 参加/作成直後の resumeToken を、次に来る snapshot（room.code を含む）と組み合わせて
@@ -559,8 +554,8 @@ export function useTimerSync(banner: BannerController): TimerSync {
   const makeClientRef = useLatestRef(makeClient);
 
   const createRoom = (displayName: string, roomName?: string) => {
-    // 作成者＝当初ホスト。言語/難易度/間隔/オプションは既定で作成し、Lobby で host が
-    // config.set で調整する（最初の画面で選びすぎない・UX 再設計）。お題はロビーで自動生成。
+    // 言語/難易度/間隔/オプションは既定で作成し、ロビーで config.set で調整する
+    // （最初の画面で選びすぎない・UX 再設計）。お題はロビーで自動生成。
     isCreatorRef.current = true;
     problemRequestedRef.current = false;
     resumeDisplayNameRef.current = displayName;
@@ -568,7 +563,7 @@ export function useTimerSync(banner: BannerController): TimerSync {
       language: "TypeScript",
       difficulty: "easy",
       members: [displayName],
-      // モブプロの一般的な既定は7分（v2.3 #4）。ロビーで host が config.set で調整できる。
+      // モブプロの一般的な既定は7分（v2.3 #4）。ロビーで config.set で調整できる。
       intervalMinutes: 7,
     };
     const c = makeClient();
@@ -601,13 +596,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
     () => room,
   );
 
-  /** 自分の役割を自分で切り替える（Issue #22・FR-073b）。開始後のみサーバーが許可する。
-   *  見学者だけが残った部屋を、本人の操作で解消できるようにするための経路。 */
-  const changeOwnRole = (role: "editor" | "viewer") => {
-    if (!participantId) return;
-    commands.setRole(participantId, role);
-  };
-
   /** ロビーの「開始」。お題が未確定なら先に依頼し、phase.set → session.act の順で送る。 */
   const startSession = () => {
     if (!room) return;
@@ -623,7 +611,7 @@ export function useTimerSync(banner: BannerController): TimerSync {
   const complete = () => {
     setEndType("complete");
     // サーバーへ完成を通知。画面遷移と記録生成・保存は snapshot 受信（onRoom の celebration
-    // 処理）で全参加者一斉に行う。ホストだけ先行しない。
+    // 処理）で全参加者一斉に行う。押した人だけ先行しない。
     commands.completeSession();
   };
 
@@ -708,7 +696,7 @@ export function useTimerSync(banner: BannerController): TimerSync {
     // 「自分が誰か」を保存値から先に立てる。再接続経路と違い、ページ読み込み直後は
     // participantId が空で、snapshot だけでは自分を特定できない。空のままだと
     // StatusStrip が config.members[0]（＝作成者）へ縮退し、**復帰した本人が
-    // 他人の名前と役割を見る**ことになる。サーバーが identity を再発行すれば上書きされる。
+    // 他人の名前を見る**ことになる。サーバーが identity を再発行すれば上書きされる。
     setParticipantId(saved.participantId);
     const c = makeClientNow();
     c.send({
@@ -727,19 +715,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
       client?.dispose();
     };
   }, [client]);
-
-  // ホスト交代（明示移譲/自動委譲の双方）を snapshot 差分で検知し、既存 banner で告知する（R2-4）。
-  useEffect(() => {
-    if (!room) {
-      prevHostRef.current = undefined;
-      return;
-    }
-    const msg = hostChangeMessage(prevHostRef.current, room, participantId);
-    prevHostRef.current = room.hostParticipantId;
-    if (msg) {
-      showBanner(msg, "warn");
-    }
-  }, [room, participantId, showBanner]);
 
   return {
     mode,
@@ -761,7 +736,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
     abort,
     regenerateProblem,
     addProxy,
-    changeOwnRole,
     newSession,
     showHistory,
     backToSetup,

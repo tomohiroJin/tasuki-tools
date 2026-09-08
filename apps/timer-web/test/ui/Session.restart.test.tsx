@@ -1,8 +1,8 @@
 /**
  * Session「時間リセット」（現ドライバーのまま持ち時間をやり直す・Issue #14）
  *
- * 現ドライバーのまま持ち時間だけを満タンから走り直す操作が編集者ゾーンに出て、
- * onRestartTimer を発火すること。ホスト専用の全体リセット「最初から」と UI 上で
+ * 現ドライバーのまま持ち時間だけを満タンから走り直す操作が出て、
+ * onRestartTimer を発火すること。全体リセット「最初から」と UI 上で
  * 明確に区別されること（別ボタン・別ゾーン）。閲覧者には出さないこと。
  */
 
@@ -18,7 +18,6 @@ function makeParticipant(overrides: Partial<Participant>): Participant {
     participantId: "p1",
     connId: "c1",
     displayName: "Alice",
-    role: "editor",
     presence: "online",
     hasAiKey: false,
     joinedAt: 1000,
@@ -37,15 +36,14 @@ const config: SessionConfig = {
 function makeRoom(overrides?: Partial<Room>): Room {
   return aRoomView({
     code: "AA0001",
-    hostParticipantId: "host-1",
     config,
     session: { rotation: ["Alice", "Bob"], currentIndex: 1, driverCounts: [1, 0], totalSwitches: 1 },
     clock: { running: true, runningSince: 0 },
     phase: "session",
     participants: [
-      makeParticipant({ participantId: "host-1", displayName: "Alice", role: "host" }),
-      makeParticipant({ participantId: "edit-1", displayName: "Bob", role: "editor", connId: "c2" }),
-      makeParticipant({ participantId: "view-1", displayName: "Carol", role: "viewer", connId: "c3" }),
+      makeParticipant({ participantId: "p-alice", displayName: "Alice" }),
+      makeParticipant({ participantId: "p-carol", displayName: "Bob", connId: "c2" }),
+      makeParticipant({ participantId: "p-bob", displayName: "Carol", connId: "c3" }),
     ],
     ...overrides,
   });
@@ -73,11 +71,11 @@ function handlers() {
  * @requirements Issue #14
  */
 describe("Session 持ち時間のやり直し", () => {
-  it("編集者には「時間リセット」ボタンが出て、押すと持ち時間がリセットされる", () => {
+  it("「時間リセット」ボタンが出て、押すと持ち時間がリセットされる", () => {
     // Given
     const onRestartTimer = vi.fn();
     render(
-      <Session room={makeRoom()} participantId="edit-1" {...handlers()} onRestartTimer={onRestartTimer} />,
+      <Session room={makeRoom()} participantId="p-carol" {...handlers()} onRestartTimer={onRestartTimer} />,
     );
     // When
     fireEvent.click(screen.getByRole("button", { name: /時間リセット/ }));
@@ -93,7 +91,7 @@ describe("Session 持ち時間のやり直し", () => {
       clock: { ...makeRoom().clock, running: false, runningSince: null },
     });
     render(
-      <Session room={room} participantId="edit-1" {...handlers()} onRestartTimer={onRestartTimer} />,
+      <Session room={room} participantId="p-carol" {...handlers()} onRestartTimer={onRestartTimer} />,
     );
     const btn = screen.getByRole("button", { name: /時間リセット/ }) as HTMLButtonElement;
     // Then（無効化されていない）
@@ -104,19 +102,22 @@ describe("Session 持ち時間のやり直し", () => {
     expect(onRestartTimer).toHaveBeenCalledTimes(1);
   });
 
-  it("閲覧者（viewer）には表示しない", () => {
-    render(<Session room={makeRoom()} participantId="view-1" {...handlers()} />);
-    expect(screen.queryByRole("button", { name: /時間リセット/ })).toBeNull();
+  it("誰の視点でも表示する", () => {
+    // Given（かつては閲覧者に出さなかった・#95 S3 で役割が消えた）
+    // When
+    render(<Session room={makeRoom()} participantId="p-bob" {...handlers()} />);
+    // Then
+    expect(screen.getByRole("button", { name: /時間リセット/ })).toBeTruthy();
   });
 
-  it("ホスト専用の「最初から」（全体リセット）とは別のボタンであり、独立して発火する", () => {
+  it("「最初から」（全体リセット）とは別のボタンであり、独立して発火する", () => {
     // Given
     const onRestartTimer = vi.fn();
     const onReset = vi.fn();
     render(
       <Session
         room={makeRoom()}
-        participantId="host-1"
+        participantId="p-alice"
         {...handlers()}
         onRestartTimer={onRestartTimer}
         onReset={onReset}
@@ -146,7 +147,7 @@ describe("Session 持ち時間のやり直し", () => {
   it("やり直しボタンは終了系の隔離ゾーンの外（タイマー操作ゾーン）にある", () => {
     // Given
     // When
-    render(<Session room={makeRoom()} participantId="host-1" {...handlers()} />);
+    render(<Session room={makeRoom()} participantId="p-alice" {...handlers()} />);
     // Then
     const endZone = screen.getByLabelText("セッションを終える");
     const restartBtn = screen.getByRole("button", { name: /時間リセット/ });

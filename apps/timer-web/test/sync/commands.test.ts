@@ -27,8 +27,6 @@ describe("createCommands: 引数をそのまま載せる操作", () => {
   const cases: Array<[string, (c: ReturnType<typeof setup>["commands"]) => void, Record<string, unknown>]> = [
     ["addMember", (c) => c.addMember("p-2"), { command: "member.add", participantId: "p-2" }],
     ["removeParticipant", (c) => c.removeParticipant("p-2"), { command: "participant.remove", participantId: "p-2" }],
-    ["setRole", (c) => c.setRole("p-2", "editor"), { command: "role.set", participantId: "p-2", role: "editor" }],
-    ["transferHost", (c) => c.transferHost("p-2"), { command: "host.transfer", participantId: "p-2" }],
     ["setPassphrase", (c) => c.setPassphrase("ひみつ"), { command: "room.passphrase.set", passphrase: "ひみつ" }],
     ["aiUnlock", (c) => c.aiUnlock("あいことば"), { command: "ai.unlock", key: "あいことば" }],
     ["setProblemMode", (c) => c.setProblemMode("ai"), { command: "problem.mode.set", mode: "ai" }],

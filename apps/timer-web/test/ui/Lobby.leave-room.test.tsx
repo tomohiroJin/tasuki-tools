@@ -7,7 +7,7 @@
  * ここではロビーの参加者一覧に導線を足すだけでよい（App.tsx 側の遷移は対象外）。
  *
  * 確認ダイアログは自己操作のため課さない（FR-079 の既存判断を踏襲）。
- * ホストが他人を退出させる既存フロー（RemovalConfirmDialog 経由）とは別経路。
+ * 他人を退出させるフロー（RemovalConfirmDialog 経由）とは別経路。
  *
  * @requirements FR-001, FR-002, FR-003, FR-004, FR-005
  */
@@ -21,35 +21,17 @@ import { aRoomView } from "../support/room-view.js";
 
 function p(overrides: Partial<Participant>): Participant {
   return {
-    participantId: "x", connId: "c", displayName: "X", role: "editor",
-    presence: "online", hasAiKey: false, joinedAt: 1, ...overrides,
+    participantId: "x", connId: "c", displayName: "X", presence: "online", hasAiKey: false, joinedAt: 1, ...overrides,
   };
 }
 
-/** host=Alice、自分=Bob(editor) の部屋。編集者以上が2名（Alice・Bob）在室する。 */
-function makeRoomWithTwoEditors(): Room {
+/** Alice と自分=Bob の 2 名が在室する部屋。 */
+function makeRoomWithTwoParticipants(): Room {
   return aRoomView({
     config: { members: ["Alice"], intervalMinutes: 5 },
     participants: [
-      p({ participantId: "host-p", displayName: "Alice", role: "host" }),
-      p({ participantId: "bob-p", displayName: "Bob", role: "editor", connId: "c2" }),
-    ],
-  });
-}
-
-/**
- * host=Alice（唯一の編集者以上）＋見学者 Carol の部屋。
- *
- * `@tasuki/timer-core` の `canRemoveParticipant` は「退出後に在室者そのものが0名になる」場合は
- * 不変条件の適用対象を失うとして許可する（＝最後の1人は抜けられる）。無効化を確認するには
- * 「自分が抜けても他の在室者（編集者以上でない人）が残る」構成が必要。
- */
-function makeRoomWithOnlyHostAndViewer(): Room {
-  return aRoomView({
-    config: { members: ["Alice"], intervalMinutes: 5 },
-    participants: [
-      p({ participantId: "host-p", displayName: "Alice", role: "host" }),
-      p({ participantId: "carol-p", displayName: "Carol", role: "viewer", connId: "c3" }),
+      p({ participantId: "creator-p", displayName: "Alice" }),
+      p({ participantId: "bob-p", displayName: "Bob", connId: "c2" }),
     ],
   });
 }
@@ -61,7 +43,7 @@ describe("ロビー: 自分の行の「ルームから抜ける」", () => {
     // Given
     render(
       <Lobby
-        room={makeRoomWithTwoEditors()}
+        room={makeRoomWithTwoParticipants()}
         participantId="bob-p"
         onStartSession={noop}
         onRemoveParticipant={vi.fn()}
@@ -76,7 +58,7 @@ describe("ロビー: 自分の行の「ルームから抜ける」", () => {
     const onRemoveParticipant = vi.fn();
     render(
       <Lobby
-        room={makeRoomWithTwoEditors()}
+        room={makeRoomWithTwoParticipants()}
         participantId="bob-p"
         onStartSession={noop}
         onRemoveParticipant={onRemoveParticipant}
@@ -89,28 +71,12 @@ describe("ロビー: 自分の行の「ルームから抜ける」", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("在室する編集者以上が自分1名のみで、自分以外の在室者(見学者)が残るとき disabled になり理由が title に出る", () => {
-    // Given
+  it("他に在室者が残っていても押せる", () => {
+    // Given（かつては「編集者以上が1名以上残る」という不変条件で無効化していた。
+    //        #95 S3 で役割が消え、その不変条件ごと無くなった）
     render(
       <Lobby
-        room={makeRoomWithOnlyHostAndViewer()}
-        participantId="host-p"
-        onStartSession={noop}
-        onRemoveParticipant={vi.fn()}
-      />,
-    );
-    // When
-    const button = screen.getByRole("button", { name: "ルームから抜ける" }) as HTMLButtonElement;
-    // Then
-    expect(button.disabled).toBe(true);
-    expect(button.title).toContain("進行できる人がいなくなるため抜けられません");
-  });
-
-  it("他に編集者以上がいる場合は enabled のまま", () => {
-    // Given
-    render(
-      <Lobby
-        room={makeRoomWithTwoEditors()}
+        room={makeRoomWithTwoParticipants()}
         participantId="bob-p"
         onStartSession={noop}
         onRemoveParticipant={vi.fn()}
@@ -120,16 +86,17 @@ describe("ロビー: 自分の行の「ルームから抜ける」", () => {
     const button = screen.getByRole("button", { name: "ルームから抜ける" }) as HTMLButtonElement;
     // Then
     expect(button.disabled).toBe(false);
+    expect(button.title).not.toContain("進行できる人がいなくなるため抜けられません");
   });
 
-  it("最後の1人（自分だけ）は enabled のまま抜けられる（退出後に在室者が0名になるため不変条件は適用外）", () => {
+  it("最後の1人（自分だけ）でも抜けられる", () => {
     // Given
     const room = aRoomView({
       config: { members: ["Alice"], intervalMinutes: 5 },
-      participants: [p({ participantId: "host-p", displayName: "Alice", role: "host" })],
+      participants: [p({ participantId: "creator-p", displayName: "Alice" })],
     });
     render(
-      <Lobby room={room} participantId="host-p" onStartSession={noop} onRemoveParticipant={vi.fn()} />,
+      <Lobby room={room} participantId="creator-p" onStartSession={noop} onRemoveParticipant={vi.fn()} />,
     );
     // When
     const button = screen.getByRole("button", { name: "ルームから抜ける" }) as HTMLButtonElement;
@@ -138,7 +105,7 @@ describe("ロビー: 自分の行の「ルームから抜ける」", () => {
   });
 
   it("onRemoveParticipant が未指定なら「ルームから抜ける」ボタンを描画しない", () => {
-    render(<Lobby room={makeRoomWithTwoEditors()} participantId="bob-p" onStartSession={noop} />);
+    render(<Lobby room={makeRoomWithTwoParticipants()} participantId="bob-p" onStartSession={noop} />);
     expect(screen.queryByRole("button", { name: "ルームから抜ける" })).toBeNull();
   });
 });

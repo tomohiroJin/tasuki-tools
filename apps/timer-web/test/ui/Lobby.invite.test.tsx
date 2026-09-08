@@ -20,10 +20,9 @@ function makeRoom(overrides?: Partial<Room>): Room {
     session: { rotation: ["Alice"] },
     participants: [
       {
-        participantId: "host-p",
+        participantId: "creator-p",
         connId: "conn1",
         displayName: "Alice",
-        role: "host",
         presence: "online",
         hasAiKey: false,
         joinedAt: 1000000,
@@ -46,7 +45,7 @@ describe("Lobby 招待 1 操作", () => {
     render(
       <Lobby
         room={makeRoom()}
-        participantId="host-p"
+        participantId="creator-p"
         onStartSession={noop}
       />,
     );
@@ -60,7 +59,7 @@ describe("Lobby 招待 1 操作", () => {
     render(
       <Lobby
         room={makeRoom()}
-        participantId="host-p"
+        participantId="creator-p"
         onStartSession={noop}
       />,
     );
@@ -74,7 +73,7 @@ describe("Lobby 招待 1 操作", () => {
     render(
       <Lobby
         room={makeRoom()}
-        participantId="host-p"
+        participantId="creator-p"
         onStartSession={noop}
       />,
     );
@@ -82,13 +81,13 @@ describe("Lobby 招待 1 操作", () => {
     expect(screen.getByText("Alice")).toBeTruthy();
   });
 
-  it("host にはセッション開始ボタンが表示される", () => {
+  it("セッション開始ボタンが表示される", () => {
     // Given
     // When
     render(
       <Lobby
         room={makeRoom()}
-        participantId="host-p"
+        participantId="creator-p"
         onStartSession={noop}
       />,
     );
@@ -114,7 +113,7 @@ describe("Lobby 招待 1 操作", () => {
     render(
       <Lobby
         room={roomWithProblem}
-        participantId="host-p"
+        participantId="creator-p"
         onStartSession={onStart}
       />,
     );

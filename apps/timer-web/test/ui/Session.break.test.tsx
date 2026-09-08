@@ -14,8 +14,7 @@ import { aRoomView } from "../support/room-view.js";
 
 function makeParticipant(overrides: Partial<Participant>): Participant {
   return {
-    participantId: "p1", connId: "c1", displayName: "Alice", role: "editor",
-    presence: "online", hasAiKey: false, joinedAt: 1000, ...overrides,
+    participantId: "p1", connId: "c1", displayName: "Alice", presence: "online", hasAiKey: false, joinedAt: 1000, ...overrides,
   };
 }
 
@@ -26,11 +25,10 @@ const config: SessionConfig = {
 function makeRoom(onBreak: boolean): Room {
   return aRoomView({
     code: "AA0001",
-    hostParticipantId: "host-1",
     config,
     session: { rotation: ["Alice", "Bob"], driverCounts: [0, 0] },
     phase: "session",
-    participants: [makeParticipant({ participantId: "host-1", displayName: "Alice", role: "host" })],
+    participants: [makeParticipant({ participantId: "p-alice", displayName: "Alice" })],
     onBreak,
   });
 }
@@ -46,12 +44,12 @@ function handlers() {
 
 describe("Session 休憩UI撤去確認（§9.1 削除後）", () => {
   it("休憩ボタンが存在しない", () => {
-    render(<Session room={makeRoom(false)} participantId="host-1" {...handlers()} />);
+    render(<Session room={makeRoom(false)} participantId="p-alice" {...handlers()} />);
     expect(screen.queryByRole("button", { name: /休憩/ })).toBeNull();
   });
 
   it("onBreak=true でも『休憩中』バナーが表示されない", () => {
-    render(<Session room={makeRoom(true)} participantId="host-1" {...handlers()} />);
+    render(<Session room={makeRoom(true)} participantId="p-alice" {...handlers()} />);
     expect(screen.queryByText(/休憩中/)).toBeNull();
   });
 });

@@ -94,7 +94,6 @@ export function dispatchServerMessage(
       cb.onIdentity?.({
         participantId: msg.participantId,
         resumeToken: msg.resumeToken,
-        hostToken: msg.hostToken,
       });
       break;
     case "room.joined":

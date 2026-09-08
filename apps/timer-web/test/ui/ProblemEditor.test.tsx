@@ -239,22 +239,22 @@ describe("ProblemEditor", () => {
     expect(screen.getByText(/expect\(fizzbuzz/)).toBeTruthy();
   });
 
-  it("canEdit=false（観覧者）では編集ボタンを表示せずコピーのみ表示する", () => {
-    // Given
-    const canEdit = false;
+  it("編集もコピーも誰にでも出す", () => {
+    // Given（かつては canEdit=false の観覧者に編集系を出さなかった。#95 S3 で役割が消えた）
     // When
     render(
       <ProblemEditor
         problem={baseProblem}
-        canEdit={canEdit}
         onEdit={noop}
         onCopy={noop}
         onRegenerate={noop}
         onPaste={noop}
       />,
     );
-    // Then（コピーは全員可）
-    expect(screen.queryByRole("button", { name: /内容を編集/ })).toBeNull();
+    // Then
+    expect(screen.getByRole("button", { name: /内容を編集/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /別のお題にする/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /貼り付け/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /コピー/ })).toBeTruthy();
   });
 });
@@ -271,7 +271,6 @@ const mkProblem = (over: Partial<Problem> = {}): Problem => ({
 });
 
 const baseProps = {
-  canEdit: true,
   difficulty: "easy" as const,
   language: "TypeScript",
   onEdit: vi.fn(),

@@ -2,8 +2,9 @@
  * 永続ステータスストリップ
  * T040: FR-035,036,042,032 (US8)
  *
- * 全フェーズに共通して固定表示。フェーズ・自分の名前/役割・接続状態・出題モードを
+ * 全フェーズに共通して固定表示。フェーズ・自分の名前・接続状態・出題モードを
  * 色＋テキスト併記（FR-032）で常時提示する。
+ * かつては名前の隣に役割（ホスト/編集者/観覧）も出していた（#95 S3 で廃止）。
  */
 
 import React from "react";
@@ -15,7 +16,6 @@ export type ConnectionStatus = "online" | "reconnecting" | "lost" | "stale";
 interface StatusStripProps {
   phase: RoomPhase | "lobby";
   displayName: string;
-  role: "host" | "editor" | "viewer";
   connectionStatus: ConnectionStatus;
   roomCode?: string | undefined;
 }
@@ -26,12 +26,6 @@ const PHASE_LABEL: Record<string, string> = {
   ready: "準備完了",
   session: "セッション中",
   celebration: "完了",
-};
-
-const ROLE_LABEL: Record<string, string> = {
-  host: "ホスト (host)",
-  editor: "編集者 (editor)",
-  viewer: "観覧 (viewer)",
 };
 
 // 接続状態の色（ダークステージ上で視認できる明るめの値・色＋テキスト併記）。
@@ -55,7 +49,6 @@ const CONNECTION_CONFIG: Record<ConnectionStatus, { label: string; className: st
 export function StatusStrip({
   phase,
   displayName,
-  role,
   connectionStatus,
   roomCode,
 }: StatusStripProps) {
@@ -75,10 +68,9 @@ export function StatusStrip({
         )}
       </span>
 
-      {/* 自分の名前と役割 */}
+      {/* 自分の名前 */}
       <span className="flex items-center gap-1">
         <span className="text-[var(--bone)]">{displayName}</span>
-        <span className="text-[var(--bone-subtle)]">/ {ROLE_LABEL[role] ?? role}</span>
       </span>
 
       {/* 接続状態（色＋テキスト併記） */}

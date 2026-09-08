@@ -4,8 +4,10 @@
  *
  * Session が独自の簡易一覧ではなく RosterPanel を描画し、
  * 改名・一時離脱(driver.skip)・代理追加の操作が正しいハンドラを発火することを検証する。
- * また viewer 在席で participants 配列と rotation がずれても、
- * 現ドライバーが「名前ベース」で正しくハイライトされることを検証する。
+ * また輪の外の在席者がいて participants 配列と rotation がずれても、
+ * 現ドライバーが正しくハイライトされることを検証する。
+ *
+ * @requirements FR-046, FR-047, FR-048, FR-050, FR-051, FR-061
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -21,7 +23,6 @@ function makeParticipant(overrides: Partial<Participant>): Participant {
     participantId: "p1",
     connId: "c1",
     displayName: "Alice",
-    role: "editor",
     presence: "online",
     hasAiKey: false,
     joinedAt: 1000,
@@ -36,19 +37,18 @@ const config: SessionConfig = {
   intervalMinutes: 5,
 };
 
-/** viewer 在席で participants 配列(3件)と rotation(2件)がずれた部屋。
- *  rotation は参加者IDの配列（D6b）。現ドライバーは rotation[currentIndex=1] = Carol(edit-1)。 */
+/** 輪の外の在席者がいて participants 配列(3件)と rotation(2件)がずれた部屋。
+ *  rotation は参加者IDの配列（D6b）。現ドライバーは rotation[currentIndex=1] = Carol(p-carol)。 */
 function makeRoom(overrides?: Partial<Room>): Room {
   return aRoomView({
     code: "AA0001",
-    hostParticipantId: "host-1",
     config,
-    session: { rotation: ["host-1", "edit-1"], currentIndex: 1, driverCounts: [0, 0] },
+    session: { rotation: ["p-alice", "p-carol"], currentIndex: 1, driverCounts: [0, 0] },
     phase: "session",
     participants: [
-      makeParticipant({ participantId: "host-1", displayName: "Alice", role: "host" }),
-      makeParticipant({ participantId: "view-1", displayName: "Bob", role: "viewer", connId: "c2" }),
-      makeParticipant({ participantId: "edit-1", displayName: "Carol", role: "editor", connId: "c3" }),
+      makeParticipant({ participantId: "p-alice", displayName: "Alice" }),
+      makeParticipant({ participantId: "p-bob", displayName: "Bob", connId: "c2" }),
+      makeParticipant({ participantId: "p-carol", displayName: "Carol", connId: "c3" }),
     ],
     ...overrides,
   });
@@ -81,8 +81,8 @@ describe("Session × RosterPanel 結合", () => {
     // Given
     const handlers = baseHandlers();
     // When
-    render(<Session room={makeRoom()} participantId="host-1" {...handlers} />);
-    // Then（現ドライバー Carol の li に「現在」が付き、viewer Bob には付かない。
+    render(<Session room={makeRoom()} participantId="p-alice" {...handlers} />);
+    // Then（現ドライバー Carol の li に「現在」が付き、輪の外の Bob には付かない。
     // Carol は rotation 内 → ドライバー一覧、Bob は rotation 外 → 見学一覧 に分かれる）
     const driverList = screen.getByRole("list", { name: "ドライバー一覧" });
     const watchList = screen.getByRole("list", { name: "見学一覧" });
@@ -92,33 +92,35 @@ describe("Session × RosterPanel 結合", () => {
     expect(bobItem?.textContent).not.toMatch(/今/);
   });
 
-  it("観覧者に観覧バッジが表示される", () => {
-    // Given
+  it("役割のバッジをどこにも描かない", () => {
+    // Given（かつては「主催者」「観覧」のバッジを名簿に出していた・#95 S3 で廃止）
     const handlers = baseHandlers();
     // When
-    render(<Session room={makeRoom()} participantId="host-1" {...handlers} />);
-    // Then
-    expect(screen.getByText(/観覧/)).toBeTruthy();
+    render(<Session room={makeRoom()} participantId="p-alice" {...handlers} />);
+    // Then（名簿が描かれていることを先に固定してから、不在を見る）
+    expect(screen.getByRole("list", { name: "ドライバー一覧" })).toBeTruthy();
+    expect(screen.queryByText("主催者")).toBeNull();
+    expect(screen.queryByText("観覧")).toBeNull();
   });
 
   it("RosterPanel の離脱操作が driver.skip ハンドラを participantId 付きで発火する", () => {
     // Given
     const handlers = baseHandlers();
-    render(<Session room={makeRoom()} participantId="host-1" {...handlers} />);
-    // When（Carol（editor）は rotation 内 → ドライバー一覧に表示される。
+    render(<Session room={makeRoom()} participantId="p-alice" {...handlers} />);
+    // When（Carol は rotation 内 → ドライバー一覧に表示される。
     // 「離脱」ボタンを押す。タイマー下の即時交代「スキップ」と混同しない）
     const driverList = screen.getByRole("list", { name: "ドライバー一覧" });
     const carolItem = within(driverList).getByText("Carol").closest("li") as HTMLElement;
     const skipBtn = within(carolItem).getByRole("button", { name: /離脱/ });
     fireEvent.click(skipBtn);
     // Then
-    expect(handlers.onDriverSkip).toHaveBeenCalledWith("edit-1");
+    expect(handlers.onDriverSkip).toHaveBeenCalledWith("p-carol");
   });
 
   it("RosterPanel の改名操作が rename ハンドラを発火する", () => {
-    // Given（Carol（editor）は rotation 内 → ドライバー一覧に表示される）
+    // Given（Carol は rotation 内 → ドライバー一覧に表示される）
     const handlers = baseHandlers();
-    render(<Session room={makeRoom()} participantId="host-1" {...handlers} />);
+    render(<Session room={makeRoom()} participantId="p-alice" {...handlers} />);
     // When
     const driverList = screen.getByRole("list", { name: "ドライバー一覧" });
     const carolItem = within(driverList).getByText("Carol").closest("li") as HTMLElement;
@@ -127,13 +129,13 @@ describe("Session × RosterPanel 結合", () => {
     fireEvent.change(input, { target: { value: "Caroline" } });
     fireEvent.click(screen.getByRole("button", { name: /^保存$/ }));
     // Then
-    expect(handlers.onRenameParticipant).toHaveBeenCalledWith("edit-1", "Caroline");
+    expect(handlers.onRenameParticipant).toHaveBeenCalledWith("p-carol", "Caroline");
   });
 
   it("RosterPanel の代理追加操作が addProxy ハンドラを発火する", () => {
     // Given
     const handlers = baseHandlers();
-    render(<Session room={makeRoom()} participantId="host-1" {...handlers} />);
+    render(<Session room={makeRoom()} participantId="p-alice" {...handlers} />);
     // When
     fireEvent.click(screen.getByRole("button", { name: /代理参加者を追加|代理追加/ }));
     fireEvent.change(screen.getByPlaceholderText(/Web 非接続|offline/i), {
@@ -149,7 +151,7 @@ describe("Session × RosterPanel 結合", () => {
     // Given
     const handlers = baseHandlers();
     // When
-    render(<Session room={makeRoom()} participantId="host-1" {...handlers} />);
+    render(<Session room={makeRoom()} participantId="p-alice" {...handlers} />);
     // Then（「CURRENT DRIVER」ラベルの直近に現ドライバー（rotation[1]="Carol"）が表示される）
     const label = screen.getByText(/current driver/i);
     const panel = label.closest("div")?.parentElement ?? label.parentElement!;
@@ -160,41 +162,41 @@ describe("Session × RosterPanel 結合", () => {
     // Given
     const handlers = baseHandlers();
     // When
-    render(<Session room={makeRoom()} participantId="host-1" {...handlers} />);
+    render(<Session room={makeRoom()} participantId="p-alice" {...handlers} />);
     // Then（「次:」の近傍に次ドライバー（rotation[0]="Alice"）が出る）
     const nextLabel = screen.getByText(/次:/);
     expect(nextLabel.parentElement?.textContent).toContain("Alice");
   });
 
   // ─── ランダム・並べ替え ────────────────────────────────────────
-  it("ホストには『ランダム』ボタンが表示され、押すとローテーションがランダムに並べ替わる", () => {
+  it("『ランダム』ボタンが表示され、押すとローテーションがランダムに並べ替わる", () => {
     // Given
     const handlers = baseHandlers();
     const onShuffle = vi.fn();
-    render(<Session room={makeRoom()} participantId="host-1" {...handlers} onShuffle={onShuffle} />);
+    render(<Session room={makeRoom()} participantId="p-alice" {...handlers} onShuffle={onShuffle} />);
     // When
     fireEvent.click(screen.getAllByRole("button", { name: /ランダム/ })[0] as HTMLElement);
     // Then
     expect(onShuffle).toHaveBeenCalledTimes(1);
   });
 
-  it("ホストでない（editor）には『ランダム』ボタンを出さない", () => {
-    // Given（自分=Carol(editor)。host ではない）
+  it("部屋を作った人でなくても『ランダム』ボタンが出る", () => {
+    // Given（自分=Carol。かつては主催者にだけ出していた・#95 S3）
     const handlers = baseHandlers();
     // When
-    render(<Session room={makeRoom()} participantId="edit-1" {...handlers} onShuffle={vi.fn()} />);
+    render(<Session room={makeRoom()} participantId="p-carol" {...handlers} onShuffle={vi.fn()} />);
     // Then
-    expect(screen.queryByRole("button", { name: /ランダム/ })).toBeNull();
+    expect(screen.getAllByRole("button", { name: /ランダム/ }).length).toBeGreaterThan(0);
   });
 
-  it("ホストはロスター行で並べ替えでき、指定した位置へドライバーが移動する", () => {
+  it("ロスター行で並べ替えでき、指定した位置へドライバーが移動する", () => {
     // Given
     const handlers = baseHandlers();
     const onMoveRotation = vi.fn();
     render(
-      <Session room={makeRoom()} participantId="host-1" {...handlers} onMoveRotation={onMoveRotation} />,
+      <Session room={makeRoom()} participantId="p-alice" {...handlers} onMoveRotation={onMoveRotation} />,
     );
-    // When（rotation=[host-1, edit-1]。Carol（index 1）を前の順番へ → move(1, 0)）
+    // When（rotation=[p-alice, p-carol]。Carol（index 1）を前の順番へ → move(1, 0)）
     fireEvent.click(screen.getByRole("button", { name: /Carol を前の順番へ/ }));
     // Then
     expect(onMoveRotation).toHaveBeenCalledWith(1, 0);
@@ -203,14 +205,14 @@ describe("Session × RosterPanel 結合", () => {
   it("RosterPanel の指名操作が driver.assign ハンドラを participantId 付きで発火する", () => {
     // Given
     const handlers = baseHandlers();
-    render(<Session room={makeRoom()} participantId="host-1" {...handlers} />);
-    // When（現ドライバーは Carol（currentIndex=1）。Alice（host-1・rotation[0]）は現ドライバーでない
+    render(<Session room={makeRoom()} participantId="p-alice" {...handlers} />);
+    // When（現ドライバーは Carol（currentIndex=1）。Alice（p-alice・rotation[0]）は現ドライバーでない
     // → ドライバー一覧の Alice 行に「ドライバーにする」が出る）
     const driverList = screen.getByRole("list", { name: "ドライバー一覧" });
     const aliceItem = within(driverList).getByText("Alice").closest("li") as HTMLElement;
     fireEvent.click(within(aliceItem).getByRole("button", { name: /ドライバーにする/ }));
     // Then
-    expect(handlers.onDriverAssign).toHaveBeenCalledWith("host-1");
+    expect(handlers.onDriverAssign).toHaveBeenCalledWith("p-alice");
   });
 });
 
@@ -222,7 +224,7 @@ describe("Session 初回通知ヒントの自動消滅", () => {
     // Given
     const handlers = baseHandlers();
     // When
-    render(<Session room={makeRoom()} participantId="host-1" {...handlers} />);
+    render(<Session room={makeRoom()} participantId="p-alice" {...handlers} />);
     // Then
     expect(screen.getByText(/交代を音で知らせ/)).toBeTruthy();
   });
@@ -230,7 +232,7 @@ describe("Session 初回通知ヒントの自動消滅", () => {
   it("セッション中に通知を ON にすると初回ヒントが手動 dismiss なしで消える", () => {
     // Given
     const handlers = baseHandlers();
-    render(<Session room={makeRoom()} participantId="host-1" {...handlers} />);
+    render(<Session room={makeRoom()} participantId="p-alice" {...handlers} />);
     expect(screen.getByText(/交代を音で知らせ/)).toBeTruthy();
     // When（ポップオーバー等から通知 ON 保存→ NOTIFY_CHANGED_EVENT で useNotifyPreferences が再読込→再描画）
     act(() => {

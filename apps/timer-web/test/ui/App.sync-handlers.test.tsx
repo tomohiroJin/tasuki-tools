@@ -56,15 +56,14 @@ vi.mock("../../src/ai/no-ai.js", () => ({
   },
 }));
 
-const HOST_ID = "host-1";
+const CREATOR_ID = "p-alice";
 const OTHER_ID = "other-1";
 
-function participant(participantId: string, displayName: string, role: "host" | "editor" = "host") {
+function participant(participantId: string, displayName: string) {
   return {
     participantId,
     connId: `c-${participantId}`,
     displayName,
-    role,
     presence: "online" as const,
     hasAiKey: false,
     joinedAt: 0,
@@ -111,7 +110,7 @@ afterEach(() => {
 /** Setup 画面から「ルームを作る」まで進め、接続済み FakeWS を返す。 */
 function createRoomAndConnect(): FakeWS {
   render(<App />);
-  fireEvent.change(screen.getByLabelText("あなたの名前"), { target: { value: "Host" } });
+  fireEvent.change(screen.getByLabelText("あなたの名前"), { target: { value: "Creator" } });
   fireEvent.click(screen.getByRole("button", { name: /ルームを作る/ }));
   return openLatestSocket();
 }
@@ -120,13 +119,13 @@ describe("SyncClient コールバックが最新の state を読む経路（Issu
   it("onError/leave-room: 退出させられたとき直前のルームコードが参加画面へ引き継がれる", () => {
     // Given: ROOM01 のロビーに居る
     const ws = createRoomAndConnect();
-    sendServer(ws, { type: "room.created", code: "ROOM01", hostToken: "ht", resumeToken: "rt", participantId: HOST_ID });
+    sendServer(ws, { type: "room.created", code: "ROOM01", hostToken: "ht", resumeToken: "rt", participantId: CREATOR_ID });
     sendServer(ws, {
       type: "snapshot",
-      room: aRoomView({ code: "ROOM01", hostParticipantId: HOST_ID, participants: [participant(HOST_ID, "Host")] }),
+      room: aRoomView({ code: "ROOM01", participants: [participant(CREATOR_ID, "Creator")] }),
     });
 
-    // When: ホストに退出させられた（destination: "join"）
+    // When: 他の参加者に退出させられた（destination: "join"）
     sendServer(ws, { type: "error", code: "REMOVED_BY_HOST", message: "removed" });
 
     // Then: 参加画面へ移り、直前のルームコード（room?.code から解決）が引き継がれている
@@ -151,9 +150,8 @@ describe("SyncClient コールバックが最新の state を読む経路（Issu
       type: "snapshot",
       room: aRoomView({
         code: "ROOM01",
-        hostParticipantId: HOST_ID,
-        participants: [participant(HOST_ID, "Host"), participant(OTHER_ID, "Guest", "editor")],
-        session: { rotation: [HOST_ID], driverCounts: [0] },
+        participants: [participant(CREATOR_ID, "Creator"), participant(OTHER_ID, "Guest")],
+        session: { rotation: [CREATOR_ID], driverCounts: [0] },
       }),
     });
 
@@ -171,31 +169,30 @@ describe("SyncClient コールバックが最新の state を読む経路（Issu
     // Given
     const ws = createRoomAndConnect();
     // When: 識別情報と snapshot を受け取る
-    sendServer(ws, { type: "room.created", code: "ROOM01", hostToken: "ht", resumeToken: "rt-1", participantId: HOST_ID });
+    sendServer(ws, { type: "room.created", code: "ROOM01", hostToken: "ht", resumeToken: "rt-1", participantId: CREATOR_ID });
     sendServer(ws, {
       type: "snapshot",
-      room: aRoomView({ code: "ROOM01", hostParticipantId: HOST_ID, participants: [participant(HOST_ID, "Host")] }),
+      room: aRoomView({ code: "ROOM01", participants: [participant(CREATOR_ID, "Creator")] }),
     });
 
     // Then: onIdentity で預けた token が、onRoom の room.code と結合して保存される
     expect(loadResumeIdentity()).toEqual({
       code: "ROOM01",
-      participantId: HOST_ID,
+      participantId: CREATOR_ID,
       resumeToken: "rt-1",
-      displayName: "Host",
+      displayName: "Creator",
     });
   });
 
   it("onNeedProblem: 生成にはロビーで設定された最新の言語・難易度が渡る", async () => {
     // Given: ロビーの設定が Python / hard に変わっている
     const ws = createRoomAndConnect();
-    sendServer(ws, { type: "room.created", code: "ROOM01", hostToken: "ht", resumeToken: "rt", participantId: HOST_ID });
+    sendServer(ws, { type: "room.created", code: "ROOM01", hostToken: "ht", resumeToken: "rt", participantId: CREATOR_ID });
     sendServer(ws, {
       type: "snapshot",
       room: aRoomView({
         code: "ROOM01",
-        hostParticipantId: HOST_ID,
-        participants: [participant(HOST_ID, "Host")],
+        participants: [participant(CREATOR_ID, "Creator")],
         config: { language: "Python", difficulty: "hard" },
         problem: {
           title: "既存",

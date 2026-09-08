@@ -22,8 +22,6 @@ export interface TimerCommands {
   /** ローテーションから外す。index は**呼び出し時**の snapshot から解決する。 */
   removeMember(participantId: string): void;
   removeParticipant(participantId: string): void;
-  setRole(participantId: string, role: "editor" | "viewer"): void;
-  transferHost(participantId: string): void;
   /** 空文字で解除。 */
   setPassphrase(passphrase: string): void;
   aiUnlock(key: string): void;
@@ -59,8 +57,6 @@ export function createCommands(send: SendFn, getRoom: () => Room | null): TimerC
       if (idx >= 0) send({ command: "member.remove", index: idx });
     },
     removeParticipant: (participantId) => send({ command: "participant.remove", participantId }),
-    setRole: (participantId, role) => send({ command: "role.set", participantId, role }),
-    transferHost: (participantId) => send({ command: "host.transfer", participantId }),
     setPassphrase: (passphrase) => send({ command: "room.passphrase.set", passphrase }),
     aiUnlock: (key) => send({ command: "ai.unlock", key }),
     setProblemMode: (mode) => send({ command: "problem.mode.set", mode }),

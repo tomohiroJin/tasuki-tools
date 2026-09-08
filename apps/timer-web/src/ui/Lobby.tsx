@@ -5,7 +5,7 @@
  */
 
 import React, { useState } from "react";
-import { Users, Code, Play, UserPlus, UserMinus, ChevronUp, ChevronDown, X, Crown, Shuffle, Bell, Eye, EyeOff } from "lucide-react";
+import { Users, Code, Play, UserPlus, UserMinus, ChevronUp, ChevronDown, X, Shuffle, Bell } from "lucide-react";
 import type { Room, Problem } from "@tasuki/timer-core";
 import { Card, PrimaryButton, GhostButton, SectionHeader } from "./primitives.js";
 import { ProblemEditor } from "./components/ProblemEditor.js";
@@ -18,15 +18,9 @@ import { AiUnlockPanel } from "./components/AiUnlockPanel.js";
 import { EmptyHint } from "./components/EmptyHint.js";
 import { ProblemModeToggle } from "./components/ProblemModeToggle.js";
 import { NotifySettingsPanel } from "./components/NotifySettingsPanel.js";
-import { participantLabel, canTransferHostTo, canRemoveParticipant, canReorderRotation } from "./participant-label.js";
-// 自己退出の不変条件（編集者以上が1名以上残る）は Session.tsx の SelfDriverToggle と
-// 同じ関数（@tasuki/timer-core）に問う。ローカルの canRemoveParticipant（participant-label.ts）は
-// 「自己退出は別経路」と明記された「他人を退出させてよいか」の判定であり、シグネチャも違うため
-// 別名 import して衝突を避ける（plan.md 参照）。
-import { canRemoveParticipant as canLeaveRoomInvariant } from "@tasuki/timer-core";
+import { participantLabel } from "./participant-label.js";
 import { PresenceDot } from "./components/PresenceDot.js";
 import { presenceLabel } from "./presence.js";
-import { startWaitMessage } from "./start-wait-message.js";
 import { RemovalConfirmDialog } from "./components/RemovalConfirmDialog.js";
 import { useNotifyPreferences } from "./use-notify-preferences.js";
 import { saveNotifyPreferences } from "../prefs/local-prefs.js";
@@ -38,35 +32,30 @@ interface LobbyProps {
   room: Room;
   participantId: string;
   onStartSession: () => void;
-  /** お題まわり（開始前にロビーでお題を決める・US3）。editor+ のみ編集できる。 */
+  /** お題まわり（開始前にロビーでお題を決める・US3）。 */
   onEditProblem?: (patch: Partial<Omit<Problem, "source" | "edited">>) => void;
   onRegenerateProblem?: () => void;
   onPasteProblem?: () => void;
   onCopyProblem?: () => void;
   /** AI/定型のお題を生成中。ProblemEditor のスピナー＋減光に使う。 */
   generatingProblem?: boolean;
-  /** セッション設定の変更（言語/難易度/間隔/オプション）。editor+ のみ。config.set を送る。 */
+  /** セッション設定の変更（言語/難易度/間隔/オプション）。config.set を送る。 */
   onConfigSet?: (patch: Partial<SessionConfig>) => void;
   /** 自分をドライバーローテーションに加える（自分のIDで member.add）。2層モデル。 */
   onJoinRotation?: (participantId: string) => void;
   /** 自分をローテーションから外す（自名を渡し、index は App が最新 snapshot から解決）。 */
   onLeaveRotation?: (participantId: string) => void;
-  /** ホストが参加者を退出させる（⑪・host 限定）。 */
+  /** 参加者を退出させる（⑪）。 */
   onRemoveParticipant?: (participantId: string) => void;
-  /** ホストが他の参加者の役割を切り替える（host 限定・開始前・FR-083）。
-   *  これが無いと見学者という状態に誰も到達できず、見学者向けの提示が一度も発動しない。 */
-  onRoleSet?: (participantId: string, role: "editor" | "viewer") => void;
-  /** ホストを当該参加者へ移譲する（host 限定・オンライン・自分以外・現ホスト以外のみ表示）。R2-3。 */
-  onTransferHost?: (participantId: string) => void;
-  /** ドライバー順の入れ替え（④・host）。fromIndex→toIndex（rotation 内の位置）。 */
+  /** ドライバー順の入れ替え（④）。fromIndex→toIndex（rotation 内の位置）。 */
   onMoveRotation?: (fromIndex: number, toIndex: number) => void;
-  /** ドライバー順をランダムに並べ替える（v2.3 #1・host）。member.shuffle を送る。 */
+  /** ドライバー順をランダムに並べ替える（v2.3 #1）。member.shuffle を送る。 */
   onShuffle?: () => void;
-  /** ルームのパスフレーズ設定/解除（R4-2・host 限定）。空文字で解除。 */
+  /** ルームのパスフレーズ設定/解除（R4-2）。空文字で解除。 */
   onSetPassphrase?: (passphrase: string) => void;
-  /** AI お題生成の合言葉で解錠を試みる（host 限定）。 */
+  /** AI お題生成の合言葉で解錠を試みる。 */
   onAiUnlock?: (key: string) => void;
-  /** AI ⇔ 定型モードの切替（problem.mode.set）（host 限定）。 */
+  /** AI ⇔ 定型モードの切替（problem.mode.set）。 */
   onProblemModeSet?: (mode: "ai" | "fallback") => void;
 }
 
@@ -104,18 +93,12 @@ export function Lobby({
   onJoinRotation,
   onLeaveRotation,
   onRemoveParticipant,
-  onRoleSet,
-  onTransferHost,
   onMoveRotation,
   onShuffle,
   onSetPassphrase,
   onAiUnlock,
   onProblemModeSet,
 }: LobbyProps) {
-  const myRole = room.participants.find((p) => p.participantId === participantId)?.role;
-  const isHost = myRole === "host";
-  const isEditor = myRole === "host" || myRole === "editor";
-
   // 退出の確認対象（FR-075）。取り返しがつかない操作なので直接は実行しない。
   // 同名が並ぶ場面では「1クリックで即退出」が誤操作に直結する（実機検証で判明）。
   // Session 画面の RosterPanel と同じ確認体験に揃える。
@@ -134,17 +117,13 @@ export function Lobby({
   // お題機能の有効/無効（デフォルト true・後方互換）
   const problemEnabled = room.config.problemEnabled !== false;
 
-  // 開始ボタン（ルームタブ最上部に配置）
-  const startButton = isHost ? (
+  // 開始ボタン（ルームタブ最上部に配置）。
+  // かつては主催者にだけ出し、それ以外には「主催者の開始を待っています」と表示していた。
+  // #95 S3 で役割が消え、居合わせた誰でも開始できる（待たされる相手がいなくなった）。
+  const startButton = (
     <PrimaryButton className="w-full" onClick={onStartSession} disabled={problemEnabled && !room.problem}>
       <span className="flex items-center justify-center gap-2"><Play className="w-5 h-5" aria-hidden="true" /> セッションを開始</span>
     </PrimaryButton>
-  ) : (
-    <p className="text-center text-sm text-[var(--bone-muted)]">
-      {startWaitMessage(
-        room.participants.find((p) => p.participantId === room.hostParticipantId)?.presence ?? null,
-      )}
-    </p>
   );
 
   return (
@@ -172,18 +151,16 @@ export function Lobby({
           content: (
             <div className="space-y-6">
               {startButton}
-              {/* セッション設定（交代間隔・詳細設定）。canEdit=false の観覧者には読み取り表示される
-                  （旧 ConfigPanel と同じく isHost ではゲートしない）。 */}
+              {/* セッション設定（交代間隔・詳細設定）。誰でも変更できる。 */}
               <Card>
                 <SessionConfigPanel
                   config={room.config}
-                  canEdit={isEditor}
                   onChange={(patch) => onConfigSet?.(patch)}
                 />
               </Card>
               <InvitePanel code={room.code} />
-              {/* ルームのパスフレーズ設定/解除（R4-2・host 限定）。招待のすぐ下に置く。 */}
-              {isHost && onSetPassphrase && (
+              {/* ルームのパスフレーズ設定/解除（R4-2）。招待のすぐ下に置く。 */}
+              {onSetPassphrase && (
                 <Card>
                   <PassphrasePanel
                     protectedNow={!!room.passphraseProtected}
@@ -191,23 +168,21 @@ export function Lobby({
                   />
                 </Card>
               )}
-              {/* 通知設定カード（host 限定）。セッション開始前に音通知を整えておける。 */}
-              {isHost && (
-                <Card>
-                  <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--bone)]">
-                    <Bell className="w-4 h-4 text-[var(--signal)]" aria-hidden="true" /> 交代通知
-                  </div>
-                  <NotifySettingsPanel
-                    prefs={notifyPrefs}
-                    onChange={(patch) => {
-                      const next = { ...notifyPrefs, ...patch };
-                      saveNotifyPreferences(next);
-                      void requestPermissionIfEnabling(patch, next);
-                    }}
-                    onPreview={() => playChime(notifyPrefs.soundId, notifyPrefs.volume)}
-                  />
-                </Card>
-              )}
+              {/* 通知設定カード。セッション開始前に音通知を整えておける。 */}
+              <Card>
+                <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--bone)]">
+                  <Bell className="w-4 h-4 text-[var(--signal)]" aria-hidden="true" /> 交代通知
+                </div>
+                <NotifySettingsPanel
+                  prefs={notifyPrefs}
+                  onChange={(patch) => {
+                    const next = { ...notifyPrefs, ...patch };
+                    saveNotifyPreferences(next);
+                    void requestPermissionIfEnabling(patch, next);
+                  }}
+                  onPreview={() => playChime(notifyPrefs.soundId, notifyPrefs.volume)}
+                />
+              </Card>
               {/* 参加者一覧 */}
               <Card>
                 <SectionHeader
@@ -215,8 +190,8 @@ export function Lobby({
                   color="text-[var(--signal)]"
                   title={`参加者 (${room.participants.length}人)`}
                   right={
-                    /* ドライバー順をランダムに（v2.3 #1・host）。2人以上で意味を持つ。 */
-                    isHost && onShuffle && room.session.rotation.length > 1 ? (
+                    /* ドライバー順をランダムに（v2.3 #1）。2人以上で意味を持つ。 */
+                    onShuffle && room.session.rotation.length > 1 ? (
                       <GhostButton onClick={onShuffle} aria-label="ドライバー順をランダムに並べ替える" className="text-sm">
                         <span className="flex items-center gap-1.5"><Shuffle className="w-4 h-4" aria-hidden="true" /> ランダム</span>
                       </GhostButton>
@@ -235,9 +210,6 @@ export function Lobby({
                     // 二重参加の幽霊は本人と同名なので、名前だけでは操作の対象を選べない。
                     // 表示にも使う: 同名の行はバッジもアイコンも同じで、目で見ても区別できないため。
                     const label = participantLabel(p.displayName, p.participantId, room.participants);
-                    // 自己退出の可否（編集者以上が1名以上残るか）。disabled 判定と title 文言の
-                    // 両方で使うため、行ごとに1回だけ計算する。
-                    const canLeaveRoom = canLeaveRoomInvariant(room.participants, p.participantId);
                     return (
                       <li
                         key={p.participantId}
@@ -258,11 +230,8 @@ export function Lobby({
                         >
                           {inRotation ? `ドライバー${rotationIndex + 1}` : "見学"}
                         </span>
-                        {p.role === "host" && (
-                          <span className="instrument-label shrink-0 rounded-sm bg-[var(--panel)] px-2 py-0.5 border border-[var(--hairline-strong)] text-[var(--bone-muted)]">主催者</span>
-                        )}
-
-                        {/* 操作エリア（本人＝加入/離脱・退出、ホスト＝他人の加入/離脱・並び替え・退出） */}
+                        {/* 操作エリア（本人＝加入/離脱・退出、他人＝加入/離脱・並び替え・退出）。
+                            かつては他人への操作を主催者にだけ出していた（#95 S3 で全員に開いた）。 */}
                         <span className="ml-auto flex shrink-0 items-center gap-1">
                           {isMe && (
                             inRotation ? (
@@ -281,43 +250,19 @@ export function Lobby({
                             )
                           )}
                           {/* ルームから抜ける（自己退出・Issue #37）。自分の操作なので確認は課さない（FR-079）。
-                              不変条件（編集者以上が1名以上残る）はサーバーと同じ関数に問う（FR-080 相当）。
-                              押せるボタンを出しておいて拒否するのは避ける。 */}
+                              かつては「編集者以上が1名以上残る」という不変条件で無効化していた
+                              （#95 S3 でその不変条件ごと消え、いつでも抜けられる）。 */}
                           {isMe && onRemoveParticipant && (
                             <GhostButton
                               onClick={() => onRemoveParticipant(p.participantId)}
-                              disabled={!canLeaveRoom}
-                              title={
-                                canLeaveRoom
-                                  ? "この端末をルームから外します。招待から再参加できます。"
-                                  : "進行できる人がいなくなるため抜けられません。他の人が進行に加わってから操作してください。"
-                              }
+                              title="この端末をルームから外します。招待から再参加できます。"
                               className="text-xs px-3 py-1.5"
                             >
                               ルームから抜ける
                             </GhostButton>
                           )}
-                          {/* ホストは他参加者の役割を切り替えられる（FR-083）。
-                              ローテーションの出入り（下）はドライバーをやるかどうか、
-                              こちらは進行の操作をするかどうかで、意味が違うので別の操作にする。
-                              自分の行には出さない（ホストの自己降格は CANNOT_CHANGE_HOST_ROLE で拒否される）。 */}
-                          {!isMe && isHost && onRoleSet && (
-                            p.role === "viewer" ? (
-                              <RowIconButton
-                                icon={Eye}
-                                label={`${label} を進行に戻す`}
-                                onClick={() => onRoleSet(p.participantId, "editor")}
-                              />
-                            ) : (
-                              <RowIconButton
-                                icon={EyeOff}
-                                label={`${label} を見学者にする`}
-                                onClick={() => onRoleSet(p.participantId, "viewer")}
-                              />
-                            )
-                          )}
-                          {/* ホストは他参加者のドライバー加入/離脱を制御できる（②） */}
-                          {!isMe && isHost && (
+                          {/* 他参加者のドライバー加入/離脱を制御できる（②） */}
+                          {!isMe && (
                             inRotation ? (
                               <RowIconButton
                                 icon={UserMinus}
@@ -333,8 +278,8 @@ export function Lobby({
                               />
                             )
                           )}
-                          {/* ホストはドライバー順を入れ替えられる（④） */}
-                          {canReorderRotation({ canManage: isHost, inRotation, rotationLength: rotationLen }) && onMoveRotation && (
+                          {/* ドライバー順を入れ替えられる（④）。2人以上で意味を持つ。 */}
+                          {inRotation && rotationLen > 1 && onMoveRotation && (
                             <>
                               <RowIconButton
                                 icon={ChevronUp}
@@ -350,16 +295,8 @@ export function Lobby({
                               />
                             </>
                           )}
-                          {/* ホストを他のオンライン参加者へ譲る（R2-3）。自分・オフライン・現ホストには出さない。 */}
-                          {canTransferHostTo(p, { isSelf: isMe, canManage: isHost }) && onTransferHost && (
-                            <RowIconButton
-                              icon={Crown}
-                              label={`${label} にホストを譲る`}
-                              onClick={() => onTransferHost(p.participantId)}
-                            />
-                          )}
-                          {/* ホストは他参加者を退出させられる（⑪） */}
-                          {canRemoveParticipant({ isSelf: isMe, canManage: isHost }) && onRemoveParticipant && (
+                          {/* 他参加者を退出させられる（⑪） */}
+                          {!isMe && onRemoveParticipant && (
                             <RowIconButton
                               icon={X}
                               label={`${label} を退出させる`}
@@ -388,25 +325,22 @@ export function Lobby({
           label: "お題",
           content: (
             <div className="space-y-6">
-              {/* お題あり/なしトグル（お題タブ先頭・host 限定）。 */}
-              {isHost && (
-                <Card>
-                  <ProblemModeToggle
-                    enabled={problemEnabled}
-                    onChange={(v) => onConfigSet?.({ problemEnabled: v })}
-                  />
-                </Card>
-              )}
+              {/* お題あり/なしトグル（お題タブ先頭）。 */}
+              <Card>
+                <ProblemModeToggle
+                  enabled={problemEnabled}
+                  onChange={(v) => onConfigSet?.({ problemEnabled: v })}
+                />
+              </Card>
               {/* お題の設定（言語/難易度/言語プール）。AI お題生成の解錠を末尾に控えめに同居。 */}
               <Card>
                 <ProblemConfigPanel
                   config={room.config}
-                  canEdit={isEditor}
                   problemEnabled={problemEnabled}
                   onChange={(patch) => onConfigSet?.(patch)}
                 />
-                {/* AI お題生成の解錠（host 限定・合言葉方式）。解錠前はテキストリンクのみ。 */}
-                {isHost && onAiUnlock && onProblemModeSet && (
+                {/* AI お題生成の解錠（合言葉方式）。解錠前はテキストリンクのみ。 */}
+                {onAiUnlock && onProblemModeSet && (
                   <div className="mt-4 pt-4 border-t border-[var(--hairline)]">
                     <AiUnlockPanel
                       unlocked={!!room.aiUnlocked}
@@ -418,14 +352,13 @@ export function Lobby({
                 )}
               </Card>
 
-              {/* お題（開始前にここで決める・US3）。確定済みなら editor+ は編集できる。 */}
+              {/* お題（開始前にここで決める・US3）。確定済みなら誰でも編集できる。 */}
               {problemEnabled && (
                 <Card>
                   <SectionHeader icon={Code} color="text-[var(--signal)]" title="お題" />
                   {room.problem ? (
                     <ProblemEditor
                       problem={room.problem}
-                      canEdit={isEditor}
                       difficulty={room.config.difficulty}
                       language={room.config.language}
                       onEdit={onEditProblem ?? (() => {})}

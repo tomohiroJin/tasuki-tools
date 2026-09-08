@@ -17,10 +17,9 @@ function makeRoom(overrides?: Partial<Room>): Room {
     session: { rotation: ["Alice"] },
     participants: [
       {
-        participantId: "host-p",
+        participantId: "creator-p",
         connId: "conn1",
         displayName: "Alice",
-        role: "host",
         presence: "online",
         hasAiKey: false,
         joinedAt: 1000000,
@@ -37,7 +36,7 @@ describe("Lobby 空状態ヒント", () => {
   const noop = vi.fn();
 
   it("参加者が自分1人のとき招待を促すヒントを出す", () => {
-    render(<Lobby room={makeRoom()} participantId="host-p" onStartSession={noop} />);
+    render(<Lobby room={makeRoom()} participantId="creator-p" onStartSession={noop} />);
     expect(screen.getByText(/まだあなただけ/)).toBeInTheDocument();
   });
 
@@ -46,19 +45,17 @@ describe("Lobby 空状態ヒント", () => {
     const room = makeRoom({
       participants: [
         {
-          participantId: "host-p",
+          participantId: "creator-p",
           connId: "conn1",
           displayName: "Alice",
-          role: "host",
           presence: "online",
           hasAiKey: false,
           joinedAt: 1000000,
         },
         {
-          participantId: "editor-p",
+          participantId: "other-p",
           connId: "conn2",
           displayName: "Bob",
-          role: "editor",
           presence: "online",
           hasAiKey: false,
           joinedAt: 1000001,
@@ -66,7 +63,7 @@ describe("Lobby 空状態ヒント", () => {
       ],
     });
     // When
-    render(<Lobby room={room} participantId="host-p" onStartSession={noop} />);
+    render(<Lobby room={room} participantId="creator-p" onStartSession={noop} />);
     // Then
     expect(screen.queryByText(/まだあなただけ/)).toBeNull();
   });

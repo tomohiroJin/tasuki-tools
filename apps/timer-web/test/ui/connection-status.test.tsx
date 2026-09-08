@@ -12,7 +12,6 @@ describe("接続状態の提示", () => {
   const baseProps = {
     phase: "session" as const,
     displayName: "Alice",
-    role: "host" as const,
     roomCode: "CONN01",
     problemMode: undefined as "ai" | "fallback" | undefined,
   };

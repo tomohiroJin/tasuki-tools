@@ -46,7 +46,7 @@ export interface SnapshotContext {
   resumeDisplayName: string;
   /** 参加時に "driver" を宣言したか。 */
   pendingDriverJoin: boolean;
-  /** このクライアントがルーム作成者（＝当初ホスト）か。 */
+  /** このクライアントがルームを作った側か。 */
   isCreator: boolean;
   /** ロビーでのお題自動生成を既に依頼したか。 */
   problemRequested: boolean;
@@ -102,7 +102,7 @@ export function decideSnapshotIntents(
     intents.push({ kind: "clear-generating" });
   }
 
-  // 4. サーバー権威の phase に全参加者が追従する（ホストの開始/完成が全員に反映）。
+  // 4. サーバー権威の phase に全参加者が追従する（誰の開始/完成でも全員に反映）。
   intents.push({ kind: "set-screen", screen: screenForPhase(next.phase) });
 
   // 5. ロビー（開始前）でお題が未確定かつ problemEnabled=true なら、

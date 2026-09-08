@@ -2,7 +2,7 @@
  * 履歴ビュー（端末ローカル記録の可視化）
  * v2.3 #5: 完了記録は IndexedDB に保存されているが閲覧画面が無かった。
  * loadRecords で端末ローカルの完成記録を読み込み、一覧表示・個別削除を提供する。
- * 記録は端末ローカル（IndexedDB）に閉じるため host 限定にせず、誰でも自分の端末の記録を見られる。
+ * 記録は端末ローカル（IndexedDB）に閉じるので、誰でも自分の端末の記録を見られる。
  */
 
 import React, { useEffect, useState } from "react";

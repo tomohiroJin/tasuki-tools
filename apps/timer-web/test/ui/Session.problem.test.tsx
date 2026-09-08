@@ -3,8 +3,8 @@
  * 項目3: FR-009/038/040/041（US3）
  *
  * Session が独自の簡易お題表示ではなく ProblemEditor を描画し、
- * editor+ のフィールド編集が onEditProblem（= problem.edit）を patch 付きで発火すること、
- * 観覧者には編集導線が出ないことを検証する。
+ * フィールド編集が onEditProblem（= problem.edit）を patch 付きで発火することを検証する。
+ * 編集の導線は誰にでも出る（#95 S3 で役割が消えた）。
  */
 
 import { describe, it, expect, vi } from "vitest";
@@ -19,7 +19,6 @@ function makeParticipant(overrides: Partial<Participant>): Participant {
     participantId: "p1",
     connId: "c1",
     displayName: "Alice",
-    role: "editor",
     presence: "online",
     hasAiKey: false,
     joinedAt: 1000,
@@ -47,15 +46,14 @@ const problem: Problem = {
 function makeRoom(overrides?: Partial<Room>): Room {
   return aRoomView({
     code: "AA0001",
-    hostParticipantId: "host-1",
     config,
     problem,
     session: { rotation: ["Alice", "Carol"], driverCounts: [0, 0] },
     phase: "session",
     participants: [
-      makeParticipant({ participantId: "host-1", displayName: "Alice", role: "host" }),
-      makeParticipant({ participantId: "view-1", displayName: "Bob", role: "viewer", connId: "c2" }),
-      makeParticipant({ participantId: "edit-1", displayName: "Carol", role: "editor", connId: "c3" }),
+      makeParticipant({ participantId: "p-alice", displayName: "Alice" }),
+      makeParticipant({ participantId: "p-bob", displayName: "Bob", connId: "c2" }),
+      makeParticipant({ participantId: "p-carol", displayName: "Carol", connId: "c3" }),
     ],
     ...overrides,
   });
@@ -91,7 +89,7 @@ describe("Session × ProblemEditor 結合", () => {
   it("problem があるとき ProblemEditor を描画しお題タイトル・要件を表示する", () => {
     // Given
     const handlers = baseHandlers();
-    render(<Session room={makeRoom()} participantId="host-1" {...handlers} />);
+    render(<Session room={makeRoom()} participantId="p-alice" {...handlers} />);
     // Then（セッション中は折りたたみバー。タイトルはバーに常時表示）
     expect(screen.getByText("FizzBuzz")).toBeTruthy();
     // When（バーを開く → フルカード）
@@ -104,10 +102,10 @@ describe("Session × ProblemEditor 結合", () => {
     expect(screen.getByText("3の倍数はFizz")).toBeTruthy();
   });
 
-  it("editor+ がタイトルを編集すると onEditProblem が patch で発火する", () => {
+  it("タイトルを編集すると onEditProblem が patch で発火する", () => {
     // Given
     const handlers = baseHandlers();
-    render(<Session room={makeRoom()} participantId="host-1" {...handlers} />);
+    render(<Session room={makeRoom()} participantId="p-alice" {...handlers} />);
     // When（折りたたみバーを開いてから編集に入る）
     fireEvent.click(screen.getByRole("button", { name: /詳細を開く/ }));
     fireEvent.click(screen.getByRole("button", { name: /内容を編集/ }));
@@ -118,13 +116,13 @@ describe("Session × ProblemEditor 結合", () => {
     expect(handlers.onEditProblem).toHaveBeenCalledWith({ title: "改題FizzBuzz" });
   });
 
-  it("観覧者には編集ボタンが出ない（編集は editor+ 限定）", () => {
-    // Given
+  it("誰の視点でも編集ボタンが出る", () => {
+    // Given（かつては観覧者に編集系を出さなかった・#95 S3 で役割が消えた）
     const handlers = baseHandlers();
-    render(<Session room={makeRoom()} participantId="view-1" {...handlers} />);
-    // When（バーを開いてもフルカードに編集ボタンは無い）
+    render(<Session room={makeRoom()} participantId="p-bob" {...handlers} />);
+    // When（バーを開くとフルカードに編集ボタンが現れる）
     fireEvent.click(screen.getByRole("button", { name: /詳細を開く/ }));
     // Then
-    expect(screen.queryByRole("button", { name: /内容を編集/ })).toBeNull();
+    expect(screen.getByRole("button", { name: /内容を編集/ })).toBeTruthy();
   });
 });

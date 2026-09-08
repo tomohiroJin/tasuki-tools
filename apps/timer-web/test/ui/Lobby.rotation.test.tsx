@@ -13,18 +13,17 @@ import { aRoomView } from "../support/room-view.js";
 
 function p(overrides: Partial<Participant>): Participant {
   return {
-    participantId: "x", connId: "c", displayName: "X", role: "editor",
-    presence: "online", hasAiKey: false, joinedAt: 1, ...overrides,
+    participantId: "x", connId: "c", displayName: "X", presence: "online", hasAiKey: false, joinedAt: 1, ...overrides,
   };
 }
 
-/** host=Alice(rotation済), 自分=Bob(editor・rotation未加入) の部屋。rotation は参加者IDの配列（D6b）。 */
+/** Alice(rotation済), 自分=Bob(rotation未加入) の部屋。rotation は参加者IDの配列（D6b）。 */
 function makeRoom(): Room {
   return aRoomView({
     config: { members: ["Alice"], intervalMinutes: 5 },
     participants: [
-      p({ participantId: "host-p", displayName: "Alice", role: "host" }),
-      p({ participantId: "bob-p", displayName: "Bob", role: "editor", connId: "c2" }),
+      p({ participantId: "creator-p", displayName: "Alice" }),
+      p({ participantId: "bob-p", displayName: "Bob", connId: "c2" }),
     ],
   });
 }
@@ -57,22 +56,22 @@ describe("Lobby ドライバー加入トグル", () => {
     // index ではなく自名を渡す。index は App が最新 snapshot から解決する）
     const onLeaveRotation = vi.fn();
     const room = makeRoom();
-    room.session.rotation = ["host-p", "bob-p"];
+    room.session.rotation = ["creator-p", "bob-p"];
     room.session.driverCounts = [0, 0];
     render(
-      <Lobby room={room} participantId="host-p" onStartSession={noop} onLeaveRotation={onLeaveRotation} />,
+      <Lobby room={room} participantId="creator-p" onStartSession={noop} onLeaveRotation={onLeaveRotation} />,
     );
     // When
     fireEvent.click(screen.getByRole("button", { name: /列から外れる|外れる/ }));
     // Then
-    expect(onLeaveRotation).toHaveBeenCalledWith("host-p");
+    expect(onLeaveRotation).toHaveBeenCalledWith("creator-p");
   });
 
-  it("ホストは見学者を『ドライバーに追加』できる", () => {
-    // Given（host=Alice 視点。Bob は rotation 未加入＝見学）
+  it("輪の外の人を『ドライバーに追加』できる", () => {
+    // Given（Alice 視点。Bob は rotation 未加入＝輪の外）
     const onJoinRotation = vi.fn();
     render(
-      <Lobby room={makeRoom()} participantId="host-p" onStartSession={noop} onJoinRotation={onJoinRotation} />,
+      <Lobby room={makeRoom()} participantId="creator-p" onStartSession={noop} onJoinRotation={onJoinRotation} />,
     );
     // When
     fireEvent.click(screen.getByRole("button", { name: "Bob をドライバーに追加" }));
@@ -80,14 +79,14 @@ describe("Lobby ドライバー加入トグル", () => {
     expect(onJoinRotation).toHaveBeenCalledWith("bob-p");
   });
 
-  it("ホストはドライバー順を入れ替えられる", () => {
+  it("ドライバー順を入れ替えられる", () => {
     // Given
     const onMoveRotation = vi.fn();
     const room = makeRoom();
-    room.session.rotation = ["host-p", "bob-p"];
+    room.session.rotation = ["creator-p", "bob-p"];
     room.session.driverCounts = [0, 0];
     render(
-      <Lobby room={room} participantId="host-p" onStartSession={noop} onMoveRotation={onMoveRotation} />,
+      <Lobby room={room} participantId="creator-p" onStartSession={noop} onMoveRotation={onMoveRotation} />,
     );
     // When（Bob（rotation index 1）を前の順番へ → move(1, 0)）
     fireEvent.click(screen.getByRole("button", { name: "Bob を前の順番へ" }));
@@ -95,14 +94,14 @@ describe("Lobby ドライバー加入トグル", () => {
     expect(onMoveRotation).toHaveBeenCalledWith(1, 0);
   });
 
-  it("ホストには『ランダム』ボタンが出て、押すとローテーションがランダムに並べ替わる", () => {
+  it("『ランダム』ボタンが出て、押すとローテーションがランダムに並べ替わる", () => {
     // Given
     const onShuffle = vi.fn();
     const room = makeRoom();
-    room.session.rotation = ["host-p", "bob-p"];
+    room.session.rotation = ["creator-p", "bob-p"];
     room.session.driverCounts = [0, 0];
     render(
-      <Lobby room={room} participantId="host-p" onStartSession={noop} onShuffle={onShuffle} />,
+      <Lobby room={room} participantId="creator-p" onStartSession={noop} onShuffle={onShuffle} />,
     );
     // When
     fireEvent.click(screen.getByRole("button", { name: /ランダム/ }));
@@ -110,11 +109,25 @@ describe("Lobby ドライバー加入トグル", () => {
     expect(onShuffle).toHaveBeenCalledTimes(1);
   });
 
-  it("ホストでない参加者には『ランダム』ボタンを出さない", () => {
-    // Given（自分=bob-p。host ではない）
+  it("部屋を作った人でなくても『ランダム』ボタンが出る", () => {
+    // Given（自分=bob-p。かつては主催者にだけ出していた・#95 S3）
+    const room = makeRoom();
+    room.session.rotation = ["creator-p", "bob-p"];
+    room.session.driverCounts = [0, 0];
     // When
     render(
-      <Lobby room={makeRoom()} participantId="bob-p" onStartSession={noop} onShuffle={vi.fn()} />,
+      <Lobby room={room} participantId="bob-p" onStartSession={noop} onShuffle={vi.fn()} />,
+    );
+    // Then
+    expect(screen.getByRole("button", { name: /ランダム/ })).toBeTruthy();
+  });
+
+  it("ドライバーが1人だけなら『ランダム』ボタンを出さない（並べ替える意味が無い）", () => {
+    // Given（既定の makeRoom は rotation が 1 人）
+    const room = makeRoom();
+    // When
+    render(
+      <Lobby room={room} participantId="creator-p" onStartSession={noop} onShuffle={vi.fn()} />,
     );
     // Then
     expect(screen.queryByRole("button", { name: /ランダム/ })).toBeNull();
@@ -129,14 +142,14 @@ describe("Lobby ドライバー加入トグル", () => {
  * @requirements FR-084
  */
 describe("Lobby 同名参加者の区別", () => {
-  /** host=Alice と、同名の Bob 2名（片方は輪の中）が居る部屋。 */
+  /** Alice と、同名の Bob 2名（片方は輪の中）が居る部屋。 */
   function makeDupRoom(): Room {
     const room = makeRoom();
     return {
       ...room,
-      session: { ...room.session, rotation: ["host-p", "bob-0002"], driverCounts: [0, 0] },
+      session: { ...room.session, rotation: ["creator-p", "bob-0002"], driverCounts: [0, 0] },
       participants: [
-        p({ participantId: "host-p", displayName: "Alice", role: "host" }),
+        p({ participantId: "creator-p", displayName: "Alice" }),
         p({ participantId: "pid-0002", displayName: "Bob", connId: "c2" }),
         p({ participantId: "pid-0003", displayName: "Bob", connId: "c3" }),
       ],
@@ -148,7 +161,7 @@ describe("Lobby 同名参加者の区別", () => {
     render(
       <Lobby
         room={makeDupRoom()}
-        participantId="host-p"
+        participantId="creator-p"
         onStartSession={noop}
         onRemoveParticipant={vi.fn()}
       />,
@@ -168,7 +181,7 @@ describe("Lobby 同名参加者の区別", () => {
   it("同名がいると行の表示名にも識別子が出る（目で見ても区別できる）", () => {
     // Given（makeDupRoom: Bob が2名いる部屋）
     // When
-    render(<Lobby room={makeDupRoom()} participantId="host-p" onStartSession={noop} />);
+    render(<Lobby room={makeDupRoom()} participantId="creator-p" onStartSession={noop} />);
     // Then
     expect(screen.queryByText("Bob")).toBeNull();
     expect(screen.getByText("Bob（ID: 0002）")).toBeTruthy();
@@ -181,7 +194,7 @@ describe("Lobby 同名参加者の区別", () => {
     render(
       <Lobby
         room={makeRoom()}
-        participantId="host-p"
+        participantId="creator-p"
         onStartSession={noop}
         onRemoveParticipant={vi.fn()}
       />,
@@ -195,13 +208,13 @@ describe("Lobby 同名参加者の区別", () => {
   // Issue #22 の G8 は「同名2名」の事故だったが、判定規則（isAmbiguousName）が
   // 3名以上でも破綻しないことをここで確認する。
 
-  /** host=Alice と、同名の Bob 3名（いずれも rotation 外＝見学）が居る部屋。 */
+  /** Alice と、同名の Bob 3名（いずれも rotation 外＝輪の外）が居る部屋。 */
   function makeTripleDupRoom(): Room {
     const room = makeRoom();
     return {
       ...room,
       participants: [
-        p({ participantId: "host-p", displayName: "Alice", role: "host" }),
+        p({ participantId: "creator-p", displayName: "Alice" }),
         p({ participantId: "pid-0002", displayName: "Bob", connId: "c2" }),
         p({ participantId: "pid-0003", displayName: "Bob", connId: "c3" }),
         p({ participantId: "pid-0004", displayName: "Bob", connId: "c4" }),
@@ -214,7 +227,7 @@ describe("Lobby 同名参加者の区別", () => {
     render(
       <Lobby
         room={makeTripleDupRoom()}
-        participantId="host-p"
+        participantId="creator-p"
         onStartSession={noop}
         onRemoveParticipant={vi.fn()}
       />,
@@ -235,7 +248,7 @@ describe("Lobby 同名参加者の区別", () => {
   it("同名3名がいると行の表示名にも識別子が出る（目で見ても区別できる）", () => {
     // Given（makeTripleDupRoom: Bob が3名いる部屋）
     // When
-    render(<Lobby room={makeTripleDupRoom()} participantId="host-p" onStartSession={noop} />);
+    render(<Lobby room={makeTripleDupRoom()} participantId="creator-p" onStartSession={noop} />);
     // Then
     expect(screen.queryByText("Bob")).toBeNull();
     expect(screen.getByText("Bob（ID: 0002）")).toBeTruthy();
@@ -262,7 +275,7 @@ describe("Lobby 退出の確認", () => {
     render(
       <Lobby
         room={makeRoomWithGuest()}
-        participantId="host-p"
+        participantId="creator-p"
         onStartSession={noop}
         onRemoveParticipant={onRemoveParticipant}
       />,
@@ -279,7 +292,7 @@ describe("Lobby 退出の確認", () => {
     render(
       <Lobby
         room={makeRoomWithGuest()}
-        participantId="host-p"
+        participantId="creator-p"
         onStartSession={noop}
         onRemoveParticipant={vi.fn()}
       />,
@@ -300,7 +313,7 @@ describe("Lobby 退出の確認", () => {
     render(
       <Lobby
         room={makeRoomWithGuest()}
-        participantId="host-p"
+        participantId="creator-p"
         onStartSession={noop}
         onRemoveParticipant={onRemoveParticipant}
       />,
@@ -318,7 +331,7 @@ describe("Lobby 退出の確認", () => {
     render(
       <Lobby
         room={makeRoomWithGuest()}
-        participantId="host-p"
+        participantId="creator-p"
         onStartSession={noop}
         onRemoveParticipant={onRemoveParticipant}
       />,
@@ -343,7 +356,7 @@ describe("Lobby 確認ダイアログの陳腐化", () => {
     // Given
     const room = roomWithBob();
     const { rerender } = render(
-      <Lobby room={room} participantId="host-p" onStartSession={noop} onRemoveParticipant={vi.fn()} />,
+      <Lobby room={room} participantId="creator-p" onStartSession={noop} onRemoveParticipant={vi.fn()} />,
     );
     fireEvent.click(screen.getByLabelText("Bob を退出させる"));
     expect(screen.getByRole("dialog").textContent).toContain("Bob さん");
@@ -355,7 +368,7 @@ describe("Lobby 確認ダイアログの陳腐化", () => {
       ),
     };
     rerender(
-      <Lobby room={renamed} participantId="host-p" onStartSession={noop} onRemoveParticipant={vi.fn()} />,
+      <Lobby room={renamed} participantId="creator-p" onStartSession={noop} onRemoveParticipant={vi.fn()} />,
     );
     // Then
     expect(screen.getByRole("dialog").textContent).toContain("Bobby さん");
@@ -365,7 +378,7 @@ describe("Lobby 確認ダイアログの陳腐化", () => {
     // Given
     const room = roomWithBob();
     const { rerender } = render(
-      <Lobby room={room} participantId="host-p" onStartSession={noop} onRemoveParticipant={vi.fn()} />,
+      <Lobby room={room} participantId="creator-p" onStartSession={noop} onRemoveParticipant={vi.fn()} />,
     );
     fireEvent.click(screen.getByLabelText("Bob を退出させる"));
     expect(screen.getByRole("dialog")).toBeTruthy();
@@ -375,7 +388,7 @@ describe("Lobby 確認ダイアログの陳腐化", () => {
       participants: room.participants.filter((p) => p.participantId !== "bob-p"),
     };
     rerender(
-      <Lobby room={gone} participantId="host-p" onStartSession={noop} onRemoveParticipant={vi.fn()} />,
+      <Lobby room={gone} participantId="creator-p" onStartSession={noop} onRemoveParticipant={vi.fn()} />,
     );
     // Then
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -404,7 +417,7 @@ describe("Lobby 新設しない操作の不在", () => {
       ],
     };
     // When
-    render(<Lobby room={dupRoom} participantId="host-p" onStartSession={noop} />);
+    render(<Lobby room={dupRoom} participantId="creator-p" onStartSession={noop} />);
     // Then
     const labels = screen.getAllByRole("button").map((b) => b.getAttribute("aria-label") ?? "");
     expect(labels.some((a) => a.includes("をドライバーにする"))).toBe(false);

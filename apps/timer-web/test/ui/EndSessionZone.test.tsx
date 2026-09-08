@@ -32,7 +32,7 @@ describe("EndSessionZone", () => {
    * @requirements Issue #22, FR-074b
    */
   it("完成を押して確認すると完成が記録される", () => {
-    // 開始後は主催者以外も実行でき、誤操作の影響が全員に及ぶため、
+    // 誰でも実行でき、誤操作の影響が全員に及ぶため、
     // 直呼びではなく確認を経て発火する。
     // Given
     const onComplete = vi.fn();

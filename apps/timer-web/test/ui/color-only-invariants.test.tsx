@@ -51,7 +51,6 @@ const DIFFICULTY_CASES = [
 const baseStrip = {
   phase: "session" as const,
   displayName: "Alice",
-  role: "host" as const,
   roomCode: "ABCD01",
 };
 

@@ -12,7 +12,6 @@ describe("StatusStrip", () => {
   const baseProps = {
     phase: "session" as const,
     displayName: "Alice",
-    role: "host" as const,
     connectionStatus: "online" as const,
     problemMode: undefined as "ai" | "fallback" | undefined,
     roomCode: "ABCD01",
@@ -53,13 +52,13 @@ describe("StatusStrip", () => {
     expect(screen.getByText(/同期できていません|Out of Sync/i)).toBeTruthy();
   });
 
-  it("自分の表示名と役割を表示する", () => {
-    // Given（baseProps に displayName="Alice"・role="host" を重ねる）
+  it("自分の表示名だけを出し、役割は出さない", () => {
+    // Given（かつては名前の隣に「ホスト (host)」等の役割ラベルを並べていた・#95 S3 で廃止）
     // When
-    render(<StatusStrip {...baseProps} displayName="Alice" role="host" />);
-    // Then
+    render(<StatusStrip {...baseProps} displayName="Alice" />);
+    // Then（名前が出ていることを先に固定してから、役割の不在を見る）
     expect(screen.getByText(/Alice/)).toBeTruthy();
-    expect(screen.getByText(/host|ホスト/i)).toBeTruthy();
+    expect(screen.queryByText(/host|ホスト|編集者|観覧/i)).toBeNull();
   });
 
   // 出題モード（AI/定型）バッジは AI 撤去に伴い廃止（定型のみのため表示しない）。

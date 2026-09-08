@@ -10,15 +10,15 @@ import type { SessionConfig } from "@tasuki/timer-core";
 const config: SessionConfig = { language: "TypeScript", difficulty: "easy", members: ["Alice"], intervalMinutes: 7 };
 
 describe("SessionConfigPanel", () => {
-  it("canEdit のとき交代間隔グループが表示される", () => {
-    render(<SessionConfigPanel config={config} canEdit onChange={vi.fn()} />);
+  it("交代間隔グループが表示される", () => {
+    render(<SessionConfigPanel config={config} onChange={vi.fn()} />);
     expect(screen.getByRole("group", { name: /交代間隔/ })).toBeTruthy();
   });
 
   it("交代間隔ボタンを押すと交代間隔が変更される", () => {
     // Given
     const onChange = vi.fn();
-    render(<SessionConfigPanel config={config} canEdit onChange={onChange} />);
+    render(<SessionConfigPanel config={config} onChange={onChange} />);
     // When
     fireEvent.click(screen.getByRole("button", { name: "10分" }));
     // Then
@@ -28,7 +28,7 @@ describe("SessionConfigPanel", () => {
   it("詳細設定のナビゲータートグルを押すとナビゲーター機能が有効になる", () => {
     // Given
     const onChange = vi.fn();
-    render(<SessionConfigPanel config={config} canEdit onChange={onChange} />);
+    render(<SessionConfigPanel config={config} onChange={onChange} />);
     // When
     fireEvent.click(screen.getByRole("checkbox", { name: /ナビゲーター/ }));
     // Then
@@ -36,17 +36,7 @@ describe("SessionConfigPanel", () => {
   });
 
   it("休憩リマインダが存在しない", () => {
-    render(<SessionConfigPanel config={config} canEdit onChange={vi.fn()} />);
+    render(<SessionConfigPanel config={config} onChange={vi.fn()} />);
     expect(screen.queryByText(/休憩リマインダ/)).toBeNull();
-  });
-
-  it("canEdit=false では間隔ボタンを出さず現在値を読み取り表示する", () => {
-    // Given
-    const canEdit = false;
-    // When
-    render(<SessionConfigPanel config={config} canEdit={canEdit} onChange={vi.fn()} />);
-    // Then
-    expect(screen.queryByRole("group", { name: /交代間隔/ })).toBeNull();
-    expect(screen.getByText(/7分/)).toBeTruthy();
   });
 });

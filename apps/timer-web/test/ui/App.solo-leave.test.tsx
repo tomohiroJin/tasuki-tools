@@ -27,7 +27,7 @@ vi.mock("../../src/records/indexeddb.js", () => ({
   deleteRecord: vi.fn().mockResolvedValue(undefined),
 }));
 
-const ME_ID = "solo-host-1";
+const ME_ID = "solo-p1";
 
 /** 送信されたコマンド（全ソケット分）。room.join の再送を見張るために記録する。 */
 let sentCommands: Array<Record<string, unknown>>;
@@ -52,14 +52,12 @@ function soloSnapshot() {
   return aRoomView({
     code: "ROOM01",
     phase: "setup",
-    hostParticipantId: ME_ID,
     session: { rotation: [ME_ID], driverCounts: [0] },
     participants: [
       {
         participantId: ME_ID,
         connId: "c-solo",
         displayName: "アリス",
-        role: "host",
         presence: "online",
         hasAiKey: false,
         joinedAt: 0,
@@ -69,7 +67,7 @@ function soloSnapshot() {
 }
 
 /**
- * 招待リンク（`?room=ROOM01`）を開いたソロの主催者として復帰し、
+ * 招待リンク（`?room=ROOM01`）を開いたソロの参加者として復帰し、
  * サーバーから自己退出の成立（LEFT_ROOM）を受け取るところまで進める。
  */
 function leaveSoloRoom(): void {

@@ -15,26 +15,24 @@ import { aRoomView } from "../support/room-view.js";
 
 function makeParticipant(overrides: Partial<Participant>): Participant {
   return {
-    participantId: "p1", connId: "c1", displayName: "Alice", role: "editor",
-    presence: "online", hasAiKey: false, joinedAt: 1000, ...overrides,
+    participantId: "p1", connId: "c1", displayName: "Alice", presence: "online", hasAiKey: false, joinedAt: 1000, ...overrides,
   };
 }
 
 function makeRoom(assertive: boolean, currentIndex: number): Room {
   return aRoomView({
     code: "AA0001",
-    hostParticipantId: "host-1",
     config: {
       members: ["Alice", "Bob"], intervalMinutes: 5,
       ...(assertive && { assertiveSwitch: true }),
     },
     // rotation は参加者IDの配列（D6b）
-    session: { rotation: ["host-1", "edit-1"], currentIndex, driverCounts: [0, 0], totalSwitches: currentIndex },
+    session: { rotation: ["p-alice", "p-carol"], currentIndex, driverCounts: [0, 0], totalSwitches: currentIndex },
     clock: { running: true, runningSince: 0 },
     phase: "session",
     participants: [
-      makeParticipant({ participantId: "host-1", displayName: "Alice", role: "host" }),
-      makeParticipant({ participantId: "edit-1", displayName: "Bob", role: "editor", connId: "c2" }),
+      makeParticipant({ participantId: "p-alice", displayName: "Alice" }),
+      makeParticipant({ participantId: "p-carol", displayName: "Bob", connId: "c2" }),
     ],
   });
 }
@@ -56,13 +54,13 @@ describe("Session 強い交代通知（§9.1）", () => {
   it("assertiveSwitch ON で交代するとオーバーレイに新ドライバーが出る", () => {
     // Given
     const { rerender } = render(
-      <Session room={makeRoom(true, 0)} participantId="host-1" {...handlers()} />,
+      <Session room={makeRoom(true, 0)} participantId="p-alice" {...handlers()} />,
     );
     // 初期表示ではオーバーレイ無し
     expect(screen.queryByRole("alertdialog")).toBeNull();
 
     // When（交代。currentIndex 0→1, ドライバー Bob）
-    rerender(<Session room={makeRoom(true, 1)} participantId="host-1" {...handlers()} />);
+    rerender(<Session room={makeRoom(true, 1)} participantId="p-alice" {...handlers()} />);
 
     // Then
     const overlay = screen.getByRole("alertdialog", { name: /交代/ });
@@ -72,10 +70,10 @@ describe("Session 強い交代通知（§9.1）", () => {
   it("assertiveSwitch OFF では交代してもオーバーレイを出さない", () => {
     // Given
     const { rerender } = render(
-      <Session room={makeRoom(false, 0)} participantId="host-1" {...handlers()} />,
+      <Session room={makeRoom(false, 0)} participantId="p-alice" {...handlers()} />,
     );
     // When
-    rerender(<Session room={makeRoom(false, 1)} participantId="host-1" {...handlers()} />);
+    rerender(<Session room={makeRoom(false, 1)} participantId="p-alice" {...handlers()} />);
     // Then
     expect(screen.queryByRole("alertdialog")).toBeNull();
   });
@@ -85,10 +83,10 @@ describe("Session 強い交代通知（§9.1）", () => {
     vi.useFakeTimers();
     try {
       const { rerender } = render(
-        <Session room={makeRoom(true, 0)} participantId="host-1" {...handlers()} />,
+        <Session room={makeRoom(true, 0)} participantId="p-alice" {...handlers()} />,
       );
       // When（交代してオーバーレイを出す）
-      rerender(<Session room={makeRoom(true, 1)} participantId="host-1" {...handlers()} />);
+      rerender(<Session room={makeRoom(true, 1)} participantId="p-alice" {...handlers()} />);
       expect(screen.queryByRole("alertdialog")).not.toBeNull();
       act(() => { vi.advanceTimersByTime(2600); });
       // Then
@@ -104,13 +102,13 @@ describe("Session 強い交代通知（§9.1）", () => {
     vi.useFakeTimers();
     try {
       const { rerender } = render(
-        <Session room={makeRoom(true, 0)} participantId="host-1" {...handlers()} />,
+        <Session room={makeRoom(true, 0)} participantId="p-alice" {...handlers()} />,
       );
       // When（交代してオーバーレイを出し、表示中に再レンダリング。同じ index・別 props 相当）
-      rerender(<Session room={makeRoom(true, 1)} participantId="host-1" {...handlers()} />);
+      rerender(<Session room={makeRoom(true, 1)} participantId="p-alice" {...handlers()} />);
       expect(screen.queryByRole("alertdialog")).not.toBeNull();
       act(() => { vi.advanceTimersByTime(1000); });
-      rerender(<Session room={makeRoom(true, 1)} participantId="host-1" {...handlers()} />);
+      rerender(<Session room={makeRoom(true, 1)} participantId="p-alice" {...handlers()} />);
       act(() => { vi.advanceTimersByTime(1700); });
       // Then（タイマーは消えず、自動消滅する）
       expect(screen.queryByRole("alertdialog")).toBeNull();
@@ -128,10 +126,10 @@ describe("Session 強い交代通知（§9.1）", () => {
       addListener: vi.fn(), removeListener: vi.fn(), dispatchEvent: vi.fn(),
     }));
     const { rerender } = render(
-      <Session room={makeRoom(true, 0)} participantId="host-1" {...handlers()} />,
+      <Session room={makeRoom(true, 0)} participantId="p-alice" {...handlers()} />,
     );
     // When
-    rerender(<Session room={makeRoom(true, 1)} participantId="host-1" {...handlers()} />);
+    rerender(<Session room={makeRoom(true, 1)} participantId="p-alice" {...handlers()} />);
     // Then
     const overlay = screen.getByRole("alertdialog", { name: /交代/ });
     expect(overlay.getAttribute("data-reduced-motion")).toBe("true");

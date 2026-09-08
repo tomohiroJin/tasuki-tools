@@ -1,6 +1,7 @@
 /**
  * ロビーのお題設定パネル（言語/難易度/ランダム言語プール）。ConfigPanel から分割（v2.9）。
- * problemEnabled=false（お題なし）のときは言語/難易度/プールを出さない。canEdit=false は読み取り表示。
+ * problemEnabled=false（お題なし）のときは言語/難易度/プールを出さない。
+ * かつては canEdit=false（見学者）向けの読み取り表示を持っていた（#95 S3 で廃止）。
  */
 import React, { useState } from "react";
 import { Languages, ChevronDown, Dices } from "lucide-react";
@@ -28,32 +29,13 @@ const SELECT_CLASS =
 
 interface ProblemConfigPanelProps {
   config: SessionConfig;
-  canEdit: boolean;
   onChange: (patch: Partial<SessionConfig>) => void;
   problemEnabled: boolean;
 }
 
-function difficultyLabel(value: string): string {
-  return DIFFICULTIES.find((d) => d.value === value)?.label ?? value;
-}
-
-export function ProblemConfigPanel({ config, canEdit, onChange, problemEnabled }: ProblemConfigPanelProps) {
-  // ランダム対象の言語プール（ホストローカル永続）。チップで増減する。
-  // ※ Rules of Hooks: 早期 return より前で必ず呼ぶ。
+export function ProblemConfigPanel({ config, onChange, problemEnabled }: ProblemConfigPanelProps) {
+  // ランダム対象の言語プール（この端末にローカル永続）。チップで増減する。
   const [pool, setPool] = useState<string[]>(() => loadRandomLanguagePool());
-
-  if (!canEdit) {
-    return (
-      <div className="text-sm text-[var(--bone-muted)]">
-        <SectionHeader icon={Languages} color="text-[var(--signal)]" title="お題の設定" />
-        {problemEnabled ? (
-          <p>{config.language}・{difficultyLabel(config.difficulty)}</p>
-        ) : (
-          <p className="text-[var(--bone-subtle)]">お題なし</p>
-        )}
-      </div>
-    );
-  }
 
   if (!problemEnabled) {
     return (
