@@ -26,7 +26,7 @@
 ```
 
 - `name`: string、trim 後 1〜24 文字
-- 成功: `joined`（作成者がホスト）→ 続けて `room-state`
+- 成功: `joined` → 続けて `room-state`（作成者に特別な地位は無い。#95 S3）
 - 失敗: `error` (`invalid-message`)
 
 ### join-room — ルーム参加・再接続（FR-003, FR-013）
@@ -52,13 +52,14 @@
 - 前提: join 済み・round.status = `voting`
 - revealed 中は `error`（`not-voting`）
 
-### reveal — ホストによる一斉公開（FR-009）
+### reveal — 一斉公開（FR-009）
 
 ```json
 { "type": "reveal" }
 ```
 
-- 前提: ホストのみ。非ホストは `error`（`not-host`）、revealed 中は `error`（`not-voting`）
+- 前提: join 済み・round.status = `voting`。**在室者なら誰でも実行できる**（#95 S3。
+  以前はホストのみで、非ホストへ `not-host` を返していた）。revealed 中は `error`（`not-voting`）
 
 ### next-round — 再投票／次ラウンド開始（FR-011）
 
@@ -66,9 +67,10 @@
 { "type": "next-round" }
 ```
 
-- 前提: ホストのみ・round.status = `revealed`。全票をリセットし voting へ
-  （再投票と次ラウンドはドメイン上同一操作。ラベルは UI の責務）
-- 違反: `error`（`not-host` / `not-revealed`）
+- 前提: join 済み・round.status = `revealed`。全票をリセットし voting へ
+  （再投票と次ラウンドはドメイン上同一操作。ラベルは UI の責務）。
+  **在室者なら誰でも実行できる**（#95 S3）
+- 違反: `error`（`not-revealed`）
 
 ## S→C メッセージ
 
@@ -90,8 +92,8 @@ voting 中の例（受信者 = p1、p2 は投票済み）:
   "roomId": "a1b2c3d4",
   "you": "p1",
   "participants": [
-    { "id": "p1", "name": "たろう", "isHost": true,  "connected": true, "hasVoted": true },
-    { "id": "p2", "name": "はなこ", "isHost": false, "connected": true, "hasVoted": true }
+    { "id": "p1", "name": "たろう", "connected": true, "hasVoted": true },
+    { "id": "p2", "name": "はなこ", "connected": true, "hasVoted": true }
   ],
   "round": { "status": "voting" },
   "yourVote": { "kind": "number", "value": 5 }
@@ -106,8 +108,8 @@ revealed 後の例:
   "roomId": "a1b2c3d4",
   "you": "p1",
   "participants": [
-    { "id": "p1", "name": "たろう", "isHost": true,  "connected": true, "hasVoted": true },
-    { "id": "p2", "name": "はなこ", "isHost": false, "connected": true, "hasVoted": false }
+    { "id": "p1", "name": "たろう", "connected": true, "hasVoted": true },
+    { "id": "p2", "name": "はなこ", "connected": true, "hasVoted": false }
   ],
   "round": {
     "status": "revealed",
@@ -133,7 +135,6 @@ revealed 後の例:
 |------|------|-------------|
 | `invalid-message` | スキーマ検証失敗 | 全 C→S（FR-015） |
 | `room-not-found` | ルーム不存在・破棄済み | join-room（FR-015, US1-AS3）、vote / reveal / next-round（破棄済みルームを指したままの接続。[#171](https://github.com/tomohiroJin/tasuki-tools/issues/171)） |
-| `not-host` | ホスト専用操作 | reveal, next-round |
 | `not-voting` | voting 中でない | vote, reveal |
 | `not-revealed` | revealed 中でない | next-round |
 | `not-joined` | join 前の操作 | vote, reveal, next-round |
@@ -219,7 +220,7 @@ Origin と接続数の検査は **upgrade を通してから close する**。�
 
 | イベント | 挙動 |
 |---------|------|
-| WS 切断 | participant.connected=false → 全員へ `room-state`。ホストなら繰上（joinOrder 最小の接続中参加者、FR-012）。voting 中は自動公開を再評価（US4-AS1） |
+| WS 切断 | participant.connected=false → 全員へ `room-state`。voting 中は自動公開を再評価（US4-AS1）。**ホストの繰上（旧 FR-012）は #95 S3 でホストの概念ごと廃止した** |
 | 接続数 0 | ルームを即時破棄。以後の join-room は `room-not-found`（FR-014） |
 | 全員投票成立 | 自動で revealed へ遷移し全員へ `room-state`（FR-008。分母は接続中の全参加者） |
 | 死活監視での切断 | 上記「WS 切断」と同じ扱い。半開き接続の参加者が connected のまま残らないようにする（#63） |
@@ -228,13 +229,32 @@ Origin と接続数の検査は **upgrade を通してから close する**。�
 
 契約シナリオの最小セット:
 
-1. create-room → joined + room-state（ホスト 1 人）
+1. create-room → joined + room-state（参加者 1 人）
 2. join-room（2人目）→ 双方に room-state 配信
 3. vote（1人）→ 他者の room-state に hasVoted のみ（**生値が含まれないことを検証**）
 4. 全員 vote → 自動 revealed + stats
-5. reveal（ホスト・投票途中）→ revealed、未投票者は votes に含まれない
+5. reveal（投票途中）→ revealed、未投票者は votes に含まれない
 6. next-round → voting に戻り票がリセットされる
-7. ホスト切断 → 繰上した room-state が配信される
+7. 参加者の切断 → connected=false を反映した room-state が配信される
 8. token 付き join-room → 票を保持したまま復帰
 9. 全員切断 → 再 join が room-not-found
-10. 不正メッセージ / 非ホストの reveal → error 応答（接続維持）
+10. 不正メッセージ → error 応答（接続維持）
+
+---
+
+## 改定（2026-09-08・#95 S3）
+
+[#95](https://github.com/tomohiroJin/tasuki-tools/issues/95) の S3
+（[#244](https://github.com/tomohiroJin/tasuki-tools/issues/244)）で **poker からホストの
+概念を廃止し、ルームに居る人を全員同格にした**。本書は `packages/poker-core/src/protocol.ts`
+の仕様定義を名乗る文書なので、実装に合わせて次を直した。
+
+- `room-state` の `participants[]` から **`isHost` を落とした**（`ParticipantViewSchema` から削除済み）。
+- `error` の code 表から **`not-host` を落とした**（`ERROR_CODES` から削除済み）。
+- `reveal` / `next-round` の前提を「ホストのみ」から「join 済みの在室者なら誰でも」へ直した。
+- WS 切断時のホスト繰上（旧 FR-012）を落とした。切断で変わるのは `connected` と、
+  voting 中の自動公開の再評価だけである。
+
+**本書の他の部分（秘匿保証 SC-004・カード表現・自動公開の条件・その他の error code）は
+変えていない。** 同じディレクトリの `spec.md` / `plan.md` / `research.md` / `quickstart.md` /
+`tasks.md` は 2026-07 の MVP 実施時点の記録であり、**当時の設計を伝えるものとしてそのまま残す**。

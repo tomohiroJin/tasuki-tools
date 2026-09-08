@@ -325,6 +325,27 @@ export const MISSING_PATH_EXCEPTIONS = [
       "行番号つきの参照（:244）も、行番号を落としたパスで判定されるのでこの 1 件が免じる",
   },
   {
+    doc: "docs/adr/0011-threat-model-and-data-classification.md",
+    path: "packages/timer-core/src/permissions.ts",
+    reason:
+      "#95 S3（#244）で削除した可否判定モジュール。脅威表 S9 と改定（2026-09-08）が" +
+      "「何を消したか」を記録するために名指ししている。実在しないことが正しい",
+  },
+  {
+    doc: "docs/adr/0012-logging-secrets-and-disclosure.md",
+    path: "packages/timer-core/src/permissions.ts",
+    reason:
+      "2026-08-13 の訂正が「固定文言でない sendError が実在した」ことの実例として挙げた当時のパス。" +
+      "#95 S3 でファイルごと削除したが、当時の調査結果の記録なので書き換えない",
+  },
+  {
+    doc: "docs/adr/0015-web-layer-structure.md",
+    path: "apps/timer-web/src/ui/host-change.ts",
+    reason:
+      "2026-08-17 実測時点で存在した純粋ロジック 9 本の 1 つ。#95 S3（#244）でホストの導線ごと" +
+      "削除した。背景の実測は書き換えず、追記（2026-09-08）が削除を記録している",
+  },
+  {
     doc: "docs/constitution.md",
     path: "packages/core",
     reason:

@@ -20,7 +20,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
   - モブ順ローテーション表示・「今は誰の番か」の明示
   - 現ドライバー不在時の次担当への自動繰上
   - 任意のルーム参加合言葉
-  - AI お題生成（任意・ホストの Claude サブスクで実行・未設定時は定型お題へ安全縮退）
+  - AI お題生成（任意・運営者の Claude サブスクで実行・未設定時は定型お題へ安全縮退）
 - 概要: [`docs/timer/README.md`](docs/timer/README.md)
 - アーキテクチャ: [`docs/timer/ARCHITECTURE.md`](docs/timer/ARCHITECTURE.md)
 - 設計判断（ADR）: [`docs/timer/adr/`](docs/timer/adr/)
