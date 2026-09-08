@@ -67,7 +67,12 @@ describe('同一ソケットでの再 join（デタッチ）', () => {
     )) as RoomState;
     expect(state.roomId).toBe(room1.roomId);
     expect(state.participants.find((p) => p.id === room1.participantId)?.connected).toBe(false);
-    expect(state.participants.find((p) => p.id === bJoined.participantId)?.connected).toBe(true);
+    // isHost はワイヤから完全に消えたことを確かめる（#95 S3。B は接続を切って
+    // いないので connected===true は判別力が弱く、isHost が再び乗ってしまう
+    // ような退行こそが実際に守るべき性質である）
+    expect(state.participants.find((p) => p.id === bJoined.participantId)).not.toHaveProperty(
+      'isHost',
+    );
 
     a.close();
     b.close();

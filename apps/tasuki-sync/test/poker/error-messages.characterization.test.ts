@@ -70,9 +70,12 @@ describe('WS が送るドメインエラーの文言（特性テスト）', () =
     host.close();
   });
 
-  // #95 S3 でホストと not-host エラーを廃止した。ここに写し取っていた
-  // 「非ホストの reveal / next-round は not-host」の 2 件は、固定する対象の
-  // 振る舞いごと無くなったため削除した（RoomPage.tsx 側は task-6-report.md 参照）。
+  // #95 S3 でホストを廃止し、'not-host' は ERROR_CODES と RoundError から消えた。
+  // ここに写し取っていた「非ホストの reveal / next-round は not-host」の 2 件は、
+  // 固定すべき文言そのものが存在しなくなったため削除した（characterization テスト
+  // なので、送られなくなったエラーを書き換えて残す代替先が無い）。画面側で
+  // 「作成者でない参加者にも操作が出る」ことを固定するテストは
+  // apps/poker-web/tests/room-page.all-equal.test.tsx にある。
 
   it('投票中の next-round は not-revealed「票の公開後にのみ次のラウンドを開始できます」', async () => {
     // Given: まだ公開していないルーム
