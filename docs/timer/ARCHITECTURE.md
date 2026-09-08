@@ -221,8 +221,14 @@ need-problem）/ `error` / `time.pong` / `room.created` / `room.joined`。
 
 種類の判定は core の `removalNotificationFor()`、画面の行き先は web の `errorAction()` が持ちます。
 **画面を移すのは `errorAction()` が明示的に列挙したコードだけ**で、既定は `transient`（画面を移さない）です。
-**#95 S3 以前はここに「退出が拒否された場合（`LAST_MANAGER_LEAVE` 等）」という実例がありましたが、
-『進行できる人が 1 名以上残る』という不変条件は役割ごと廃止したため、退出はもう拒否されません。**
+**#95 S3 以前はここに「退出が拒否された場合（`LAST_MANAGER_LEAVE` 等）」という実例が
+ありました。役割由来の不変条件（「実在の編集者以上が 1 名以上残る」）は廃止しましたが、
+退出が拒否されうる経路そのものは残っています** —— ローテーションを空にする退出は
+`BelowMinMembers` で拒まれ（`command-handlers/participant-remove.ts` の rotation 長ガード。
+`evolve` が `currentIndex` を決められなくなるのを防ぐためで、役割とは無関係。
+**在室者が誰も残らないソロの部屋だけは例外で、拒まずにルームごと破棄します**（Issue #79））、
+不正な対象は `INVALID`、居ない相手は `PARTICIPANT_NOT_FOUND` で拒まれます。
+**いずれも `errorAction()` の既定の `transient` に落ちるので、画面は移りません。**
 
 ### エラーコードは操作と 1 対 1（Issue #29）
 

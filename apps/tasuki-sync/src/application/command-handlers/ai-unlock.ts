@@ -40,7 +40,7 @@ export interface AiUnlockDeps {
 export function createAiUnlockHandler(deps: AiUnlockDeps) {
   const { store, broadcaster, rateLimitGate, aiUnlockKey, sendError } = deps;
 
-  /** AI お題生成を合言葉で解錠する（host 限定）。
+  /** AI お題生成を合言葉で解錠する（在室者なら誰でも。#95 S3 以前は host 限定だった）。
    *  合言葉はサーバ env（AI_UNLOCK_KEY）のみに存在し、Room には aiUnlocked(boolean) だけ反映。
    *  未設定（機能無効）でも不一致と同じ AI_UNLOCK_FAILED を返し、機能の存在を秘匿する。
    *  失敗は join と同じレート制限バケツ（rateLimitGate・共有インスタンス）に積算する（総当たり対策）。 */

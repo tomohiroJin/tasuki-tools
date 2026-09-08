@@ -3,7 +3,7 @@
 - **ステータス**: Accepted（2026-08-13、決定4・脅威表 S1/S7・データ分類表・影響を
   2026-08-14 改訂。[#103](https://github.com/tomohiroJin/tasuki-tools/issues/103) 実装に
   伴う実態への追随。決定4 の判定表・影響を 2026-08-30 改訂。
-  [#144](https://github.com/tomohiroJin/tasuki-tools/issues/144) 実装に伴う追随。[#95](https://github.com/tomohiroJin/tasuki-tools/issues/95) による役割廃止の決定に伴い、脅威表 S1・S9 と決定1 の注記を 2026-09-06 改訂。同 S3（[#244](https://github.com/tomohiroJin/tasuki-tools/issues/244)）の実施に伴い、脅威表 S1・S9 を 2026-09-08 改訂）
+  [#144](https://github.com/tomohiroJin/tasuki-tools/issues/144) 実装に伴う追随。[#95](https://github.com/tomohiroJin/tasuki-tools/issues/95) による役割廃止の決定に伴い、脅威表 S1・S9 と決定1 の注記を 2026-09-06 改訂。同 S3（[#244](https://github.com/tomohiroJin/tasuki-tools/issues/244)）の実施に伴い、脅威表 S1・S9・決定5 の見出し語・影響の持ち出し経路の記述を 2026-09-08 改訂）
 - **関連**: [#136](https://github.com/tomohiroJin/tasuki-tools/issues/136)（セキュリティの規範、
   親 epic [#67](https://github.com/tomohiroJin/tasuki-tools/issues/67)）/
   設計正本 [`docs/superpowers/specs/2026-08-13-security-norms-design.md`](../superpowers/specs/2026-08-13-security-norms-design.md) /
@@ -331,8 +331,16 @@ archive §7 の S1〜S11 を現行化し、S12・S13 を新設する（**MUST**�
   自体は `apps/tasuki-sync/src/application/token-store.ts` に現存する」を落とした。
   `permissions.ts` / `participants.ts` は削除し、`hostToken` は発行も検証も消えている。
   `createTokenStore()` が保持するのは `resumeTokens` / `roomPassphrases` の 2 個である。
+- **決定5 の見出し語**: 「ルームパスフレーズ（**ホストが**会議中に決める）」を
+  「ルームに居る誰かが会議中に決める」へ直した。`room.passphrase.set` を実行できる主体が
+  変わったのであって、**下限の値も MUST の中身も動かしていない**。
+- **影響（持ち出し経路）**: 設計正本 3.4.1 節の経路の書き出しを
+  「**editor 権限での参加** → `config.set` への注入 → …」から「参加者としての入室 → …」へ直した。
+  `editor` という役割が存在しないので、それを名乗る記述は経路の説明として成立しない。
+  **経路の成立条件（AI を解錠していること）も、受容の判断も変えていない。**
 
-**分類表（決定1）・エントロピー下限（決定4・決定5）・ログの規律（決定3）は変えていない。**
+**分類表（決定1）・エントロピー下限の値そのもの（決定4・決定5 の MUST）・
+ログの規律（決定3）は変えていない。**
 参加者の同一性そのものの再設計（`config.members` による名簿の一本化、端末側での同一性の保存）は
 S4a 以降の範囲であり、**まだ実施していない**。合言葉（`room.passphrase.set`）がルームに居る
 誰でも設定できるようになったこと、およびその帰結（他の参加者を締め出しうる）は、
