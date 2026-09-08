@@ -84,9 +84,5 @@ export type { ProblemWithSource, ProblemValidationError } from "./problem.js";
 export { validateProblem, pickFallback, buildProblemPrompt } from "./problem.js";
 // 記録
 export { buildCompletionRecord } from "./records.js";
-// 権限判定・不変条件（Issue #22）
-export type { Role, PermissionInput } from "./permissions.js";
-export { checkPermission, isAllowed } from "./permissions.js";
-export { canDemote, canRemoveParticipant } from "./participants.js";
-export type { RemovalNotification } from "./participants.js";
-export { removalNotificationFor } from "./participants.js";
+export type { RemovalNotification } from "./removal-notification.js";
+export { removalNotificationFor } from "./removal-notification.js";
