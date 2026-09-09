@@ -119,6 +119,25 @@ export function intervalButton(page: Page, label: string): Locator {
 }
 
 /**
+ * ロビーの「交代間隔」で**いま選ばれている**ラベルを読む。
+ *
+ * 既定値（`7分`）をテストへ直書きすると、既定を変えた瞬間に落ちる。しかも落ち方が
+ * 「既定が変わった」ではなく「設定が同期されていない」に見えるので、原因を取り違える。
+ * **画面から導く。**
+ *
+ * 選択が**ちょうど 1 つ**であることも同時に見る。0 個なら既定が選ばれておらず、
+ * 2 個以上なら排他になっていない —— どちらも読み取った値を信用できない状態であり、
+ * 黙って先頭を返すと後続のアサーションが意味を失う。
+ */
+export async function selectedIntervalLabel(page: Page): Promise<string> {
+  const selected = page
+    .getByRole('group', { name: '交代間隔' })
+    .getByRole('button', { pressed: true });
+  await expect(selected, '交代間隔で選ばれているボタン').toHaveCount(1);
+  return (await selected.innerText()).trim();
+}
+
+/**
  * `snapshot` フレームを、**サーバー→クライアントの契約（`ServerMsgSchema`）に
  * 合わない形**へ書き換える（#209）。他の種類のフレームはそのまま返す。
  *

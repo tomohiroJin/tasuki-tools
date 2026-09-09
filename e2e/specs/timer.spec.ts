@@ -19,6 +19,7 @@ import {
   currentDriverRow,
   driverRoster,
   intervalButton,
+  selectedIntervalLabel,
   invitedUrlText,
   joinAsDriver,
   joinAsDriverAt,
@@ -26,6 +27,9 @@ import {
   lobbyRotationRow,
   statusStrip,
 } from '../support/timer';
+
+/** 交代間隔の変更先。既定と重ならないことはテスト内で確かめる（既定は画面から読む）。 */
+const NEW_INTERVAL = '10分';
 
 const HOST = 'e2e-a';
 const GUEST = 'e2e-b';
@@ -112,28 +116,34 @@ test.describe('timer は後から参加した人が開始前に設定を変更�
     await expect(lobbyRotationRow(page, HOST, 1)).toHaveCount(1);
     await expect(lobbyRotationRow(page, GUEST, 2)).toHaveCount(1);
 
-    // Given の確認: 既定の交代間隔（7分）が両方の画面で選ばれている
+    // Given の確認: 既定の交代間隔が両方の画面で選ばれている。
+    // **値は直書きしない**（既定を変えるとここが壊れ、しかも「同期されていない」ように見える）。
+    // 作成者の画面から読み、同じ値が 2 人目の画面にも届いていることを見る。
+    const defaultInterval = await selectedIntervalLabel(page);
+    expect(defaultInterval, '既定と変更先が同じでは「変わったこと」を見られない').not.toBe(
+      NEW_INTERVAL,
+    );
     for (const target of [page, guest.page]) {
-      await expect(intervalButton(target, '7分'), '既定の交代間隔').toHaveAttribute(
+      await expect(intervalButton(target, defaultInterval), '既定の交代間隔').toHaveAttribute(
         'aria-pressed',
         'true',
       );
     }
 
-    // When その1: **ルームを作った本人ではない**、後から参加した2人目が 10 分へ変更する
-    await intervalButton(guest.page, '10分').click();
+    // When その1: **ルームを作った本人ではない**、後から参加した2人目が別の値へ変更する
+    await intervalButton(guest.page, NEW_INTERVAL).click();
 
     // Then その1: 変更した側だけでなく、**先に居た作成者の画面にも**同じ値が届く。
     // どちらも「新しい値が選ばれている」ことと「古い値の選択が外れている」ことの両方を見る
     for (const [label, target] of screens(page, guest.page)) {
-      await expect(intervalButton(target, '10分'), `${label}の画面（新しい値）`).toHaveAttribute(
+      await expect(intervalButton(target, NEW_INTERVAL), `${label}の画面（新しい値）`).toHaveAttribute(
         'aria-pressed',
         'true',
       );
-      await expect(intervalButton(target, '7分'), `${label}の画面（古い値）`).toHaveAttribute(
-        'aria-pressed',
-        'false',
-      );
+      await expect(
+        intervalButton(target, defaultInterval),
+        `${label}の画面（古い値）`,
+      ).toHaveAttribute('aria-pressed', 'false');
     }
 
     // When その2: **同じ、ルームを作った本人ではない**2人目が「セッションを開始」を押す

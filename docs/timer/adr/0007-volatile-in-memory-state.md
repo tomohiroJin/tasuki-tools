@@ -1,7 +1,11 @@
 # ADR-0007: 揮発インメモリ状態と再起動安全
 
 - **ステータス**: Accepted（[#95](https://github.com/tomohiroJin/tasuki-tools/issues/95) による役割・ホストの廃止の決定に伴い 2026-09-06 改定。実施は S3・#244・2026-09-08 完了）
-- **関連要件**: FR-012, FR-018, FR-019, FR-020, FR-028, NFR 可用性・プライバシー
+- **関連要件**: FR-012, FR-018（旧）, FR-019, FR-020, FR-028, NFR 可用性・プライバシー
+  - **FR-018（旧）** は `docs/plans/tdd-mob-pro-timer/spec.md` の「主催者不在時の自動委譲」であり、
+    [#95](https://github.com/tomohiroJin/tasuki-tools/issues/95) S3 で廃止した（下の改定を見よ）。
+    `docs/plans/tdd-mob-pro-timer-v2-experience/spec.md` の **FR-018（完成／中断／リセットを
+    別個の操作として提供する）は別番号体系の現役の要求**であり、こちらではない。
 
 ## 背景
 

@@ -19,6 +19,12 @@ TDD Mob Pro Timer の構造・データフロー・設計原則をまとめま�
                     純粋ドメイン・スキーマ・お題・記録
 ```
 
+> **この図と以下の見出しは旧名のまま**です（`apps/sync` → `apps/tasuki-sync`、
+> `apps/web` → `apps/timer-web`、`packages/core` → `packages/timer-core`。同期サーバーは
+> [#95](https://github.com/tomohiroJin/tasuki-tools/issues/95) S2 で timer と poker の 1 本に
+> 統合された）。**ファイルを名指しする箇所は実在するパスへ直してある**ので、たどれない
+> 参照は残っていない。図と見出しの改名は本文の書き換えを伴うため別途行う。
+
 - **依存方向**: 外側（adapters / application）→ ドメイン（純粋）。ドメインは外部依存ゼロ。
 - **core を front/server で共有**: 同じ `decide`/`evolve` をサーバー（`apps/sync`）と共有フロント
   （`apps/web`）の双方が使うため、挙動が一致します（[ADR-0001](./adr/0001-monorepo-shared-core.md),
@@ -180,7 +186,7 @@ argv・ログ・snapshot に混入させません。失敗（タイムアウト�
   サーバー再起動により失効するため、タブ単位で完結する sessionStorage が要件に合致します）。
   `App.tsx` は WS の `onReconnected`（上記）でこれを読み、`resumeToken` 付きの `room.join` を
   利用者の操作なしに再送します。既存の参加者を復帰させるサーバー側処理
-  （`apps/sync/src/application/command-handlers/room-join.ts`）は本 Issue 以前から実装済みでしたが、
+  （`apps/tasuki-sync/src/application/command-handlers/room-join.ts`）は本 Issue 以前から実装済みでしたが、
   web クライアントから一度も使われていませんでした（Issue #24・詳細は
   [docs/plans/resume-token-wiring/](../../docs/plans/resume-token-wiring/)）。
 - `ai/`: `ProblemProvider`。現行は `NoAiProvider`（AI 生成はサーバー側 = ADR-0008）。
@@ -204,7 +210,7 @@ argv・ログ・snapshot に混入させません。失敗（タイムアウト�
 
 ## WS メッセージ契約
 
-`packages/core/src/schemas.ts` の Valibot スキーマが front/server で共有される単一の契約です。
+`packages/timer-core/src/schemas.ts` の Valibot スキーマが front/server で共有される単一の契約です。
 
 **Command（クライアント→サーバー）**: `room.create` / `room.join` / `room.passphrase.set` /
 `config.set` / `phase.set` / `problem.request` / `problem.submit` / `problem.edit` / `problem.mode.set` /
@@ -212,7 +218,7 @@ argv・ログ・snapshot に混入させません。失敗（タイムアウト�
 `session.complete` / `session.abort` / `session.reset` / `driver.skip|resume|assign` /
 `member.add|remove|move|shuffle` / `participant.addProxy|rename|remove` / `handoff.note.set` /
 `break.start|end`（**dormant**: v2.10 で休憩機能を撤去。スキーマは後方互換のため残置、受理されない）/
-`presence.ping` / `time.ping`。正本は `packages/core/src/schemas.ts` の Command union。
+`presence.ping` / `time.ping`。正本は `packages/timer-core/src/schemas.ts` の Command union。
 
 **Server→Client**: `snapshot`（唯一の状態同期）/ `signal`（演出専用: switch / celebration /
 need-problem）/ `error` / `time.pong` / `room.created` / `room.joined`。

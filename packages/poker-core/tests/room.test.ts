@@ -9,26 +9,26 @@ import {
 } from '../src/room';
 import { castVote, shouldAutoReveal } from '../src/round';
 
-const hostIds = { participantId: 'p-host', token: 'tok-host' };
+const creatorIds = { participantId: 'p-creator', token: 'tok-creator' };
 const guestIds = { participantId: 'p-guest', token: 'tok-guest' };
 
 function makeRoom(): Room {
-  return createRoom('room0001', 'たろう', hostIds)._unsafeUnwrap().room;
+  return createRoom('room0001', 'たろう', creatorIds)._unsafeUnwrap().room;
 }
 
 describe('createRoom', () => {
   it('参加者と voting 状態のラウンドで初期化される', () => {
     // Given: 呼び出しに渡すルーム ID・名前・参加者情報自体が前提の指定を兼ねる
     // When
-    const result = createRoom('room0001', 'たろう', hostIds);
+    const result = createRoom('room0001', 'たろう', creatorIds);
     const { room, participant } = result._unsafeUnwrap();
 
     // Then
     expect(room.id).toBe('room0001');
     expect(room.participants).toHaveLength(1);
     expect(participant).toMatchObject({
-      id: 'p-host',
-      token: 'tok-host',
+      id: 'p-creator',
+      token: 'tok-creator',
       name: 'たろう',
       connected: true,
       joinOrder: 0,
@@ -38,7 +38,7 @@ describe('createRoom', () => {
   });
 
   it('名前は前後の空白がトリムされる', () => {
-    const { room } = createRoom('room0001', '  たろう  ', hostIds)._unsafeUnwrap();
+    const { room } = createRoom('room0001', '  たろう  ', creatorIds)._unsafeUnwrap();
     expect(room.participants[0]?.name).toBe('たろう');
   });
 
@@ -47,7 +47,7 @@ describe('createRoom', () => {
     (name) => {
       // Given: name の各値を渡す呼び出し自体が前提の指定を兼ねる
       // When
-      const result = createRoom('room0001', name, hostIds);
+      const result = createRoom('room0001', name, creatorIds);
       // Then
       expect(result.isErr()).toBe(true);
       expect(result._unsafeUnwrapErr().code).toBe('invalid-name');
@@ -102,7 +102,7 @@ describe('joinRoom', () => {
  */
 describe('markDisconnected（US4 / FR-012）', () => {
   function threePersonRoom(): Room {
-    let room = makeRoom(); // p-host (joinOrder 0)
+    let room = makeRoom(); // p-creator (joinOrder 0)
     room = joinRoom(room, 'はなこ', guestIds)._unsafeUnwrap().room; // p-guest (1)
     room = joinRoom(room, 'じろう', { participantId: 'p-3', token: 'tok-3' })._unsafeUnwrap().room; // p-3 (2)
     return room;
@@ -123,7 +123,7 @@ describe('markDisconnected（US4 / FR-012）', () => {
   it('未投票者の切断で全員投票が成立しうる', () => {
     // Given
     let room = threePersonRoom();
-    room = castVote(room, 'p-host', { kind: 'number', value: 5 })._unsafeUnwrap();
+    room = castVote(room, 'p-creator', { kind: 'number', value: 5 })._unsafeUnwrap();
     room = castVote(room, 'p-guest', { kind: 'number', value: 8 })._unsafeUnwrap();
     // Then
     expect(shouldAutoReveal(room)).toBe(false);
