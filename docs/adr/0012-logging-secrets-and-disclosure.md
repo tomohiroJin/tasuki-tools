@@ -382,3 +382,20 @@ D1 が定めたロガ 1 本だけであり、poker 側にあった `console.log`
 起動ログはロガ経由（`logger.info("listening", ...)`）になった。テストハーネス
 （`apps/tasuki-sync/test/poker/helpers.ts`）も `JSON.parse` をやめ、
 D1 の整形（`event k=v`）から `port=` を読む形へ合わせてある。
+
+## 追記（2026-09-09・#258）
+
+**改定: 分類表の例示を `UNAUTHORIZED` から `NOT_IN_ROOM` へ差し替えた。**
+
+決定 D5 の「内部識別子の扱い」の表は、公開してよい値の 1 行目に
+「エラーコード（`UNAUTHORIZED` 等）」と書いていた。`UNAUTHORIZED` は
+[#95](https://github.com/tomohiroJin/tasuki-tools/issues/95) S3
+（[#244](https://github.com/tomohiroJin/tasuki-tools/issues/244)）で役割ごと廃止され、
+発行元も含めて存在しない。**実在しないコードを「公開してよい例」として挙げていると、
+読み手が探して見つからない。** 現役のコードである `NOT_IN_ROOM` へ差し替えた。
+
+**分類そのもの（エラーコードは公開可）は変えていない。** 変えたのは例示の 1 語だけである。
+本改定は [`docs/adr/0002`](./0002-document-system-three-layers.md) の
+「追記（2026-09-09・#258）」が定めた**改定節つきの本文訂正**に当たる
+（決定を覆さず、本文が記述している現況が事実でなくなった場合）。
+

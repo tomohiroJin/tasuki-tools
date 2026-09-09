@@ -232,17 +232,16 @@ describe("signal: notice（実行者の通知）", () => {
     // 落ちていた。役割が無くなっても**在室者がドメインの不変条件で落ちる筋**は残っており、
     // そこを見ないと「在室確認さえ通れば notice が出る」状態を検知できない（#258）。
     it("在室者の操作でも、ドメインの不変条件で落ちれば notice を出さない", async () => {
-      // Given: Bob と Carol が輪から出る（退出ではない。在室したままローテーション外へ）
-      const rotationIndexOf = (name: string): number =>
-        store.get(code)!.session.rotation.indexOf(pidOf(name));
-      await handlers.handleCommand(BOB, { command: "member.remove", index: rotationIndexOf("Bob") });
-      await handlers.handleCommand(CAROL, {
-        command: "member.remove",
-        index: rotationIndexOf("Carol"),
-      });
-
-      // Given の確認: 輪は Alice ひとり・在室は 3 人。**ここが崩れると別の経路を見てしまう**
-      // （在室が 1 人ならソロ退出でルームごと破棄され、不変条件には当たらない）
+      // Given: 在室 3 人・輪はルームを作った Alice ひとり。
+      // **`room.join` は輪に入れない**（在室とローテーションは別の層で、輪への出入りは
+      // `member.add` / `member.remove` で行う）。したがって beforeEach の join 2 件を
+      // 終えた時点でこの状態になっている。**この非自明さを確認で固定する** ——
+      // 「Bob と Carol を輪から外す」と書いた版はここで空振りしており（両者は最初から
+      // 輪の外なので `member.remove` が InvalidIndex で失敗していた）、下の確認が
+      // 別の理由で通っていた。
+      //
+      // 在室が 1 人だと participant.remove はソロ退出でルームごと破棄する経路に入り、
+      // 不変条件には当たらない。**在室 3 人であることが効いている。**
       expect(store.get(code)!.session.rotation).toEqual([pidOf("Alice")]);
       expect(store.get(code)!.participants).toHaveLength(3);
       broadcaster.signals.length = 0;
