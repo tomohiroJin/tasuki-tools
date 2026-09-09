@@ -43,19 +43,21 @@
  * （2026-09-07 のレビューで指摘され、実測で再現した）。**拡張子を変えるだけで
  * 決定 4 を迂回できる状態だった** → 実行可能なモジュールの拡張子をすべて宣言する。
  *
- * ## 見ないもの（既知の穴・#253）
+ * ## 走査量は合計だけでなく内訳も見る（#253・ADR-0014 決定 8）
  *
- * **パッケージ単位の空振りは見ない。** 0 件ガードは走査量の**合計**にしか掛かって
- * いないので、1 つのパッケージだけが走査対象ファイルを失っても、他パッケージ分で
- * 合計が非ゼロのまま緑になる。2026-09-07 の実測では、`apps/timer-web` の 196 ファイル
- * （全体の 38%）を走査から落としても `exit 0` で、**その状態で timer-web に表に無い
- * 依存を足しても報告しなかった**。
+ * **0 件ガードを走査量の合計にしか掛けないと、パッケージ単位の空振りが素通りする。**
+ * 1 つのパッケージだけが走査対象ファイルを失っても、他パッケージ分で合計が非ゼロの
+ * まま緑になる。2026-09-07 の実測では、`apps/timer-web` の 196 ファイル（全体の 38%）を
+ * 走査から落としても `exit 0` で、**その状態で timer-web に表に無い依存を足しても
+ * 報告しなかった**。走査量の行に「316 ファイル」と出るが、比較する基準が無いので
+ * 人も気づけない。
  *
  * `audit-log-hygiene.mjs` は同じ型の穴を `findMissingPaths`（導出先ディレクトリの
  * 実在確認）で塞いでいるが、あちらは `${pkg}/src` というディレクトリを導出する構造で
  * あるのに対し、こちらは git の pathspec でファイルを直接列挙し**中間のディレクトリを
- * 導出しない**ため、同じ関数は当てはまらない。塞ぐには理由つきの除外表が要る
- * （`packages/ui` は TS を 1 つも持たず、0 件が正常である）。**#253 で対応する。**
+ * 導出しない**ため、同じ関数は当てはまらない。そこで**パッケージごとの件数を
+ * 走査量の内訳として扱い**、0 件のものを {@link EXCLUDED_PACKAGES} に載っていない限り
+ * 名指しして落とす（ADR-0014 決定 8 の「内訳のどれか 1 つでも 0 件なら落とす」）。
  *
  * ## 賢くしない
  *
@@ -110,6 +112,43 @@ export const ALLOWED = {
   ],
   e2e: ["@tasuki/landing", "@tasuki/poker-web", "@tasuki/timer-web"],
 };
+
+/**
+ * 走査対象が 0 件でよいパッケージ。**理由が要る**（`docs/adr/0014` 決定 2）。
+ *
+ * ここに載せられるのは「{@link SCANNED_EXTENSIONS} のファイルを 1 つも持たない」
+ * という**現在の実測**であり、そう決めたという話ではない。したがって次の 2 つを機械が見る。
+ *   - **宛先が実在しなくなったら落とす**（決定 2）。改名・移設で除外だけが残る経路。
+ *   - **走査対象を持つようになったら落とす**（陳腐化）。放置すると、そのパッケージが
+ *     後で走査対象を失ったときに黙って除外され、#253 の穴がここから再生する。
+ *
+ * **現在は空である。** かつて `packages/ui` が該当したが、`.mjs` を
+ * {@link SCANNED_EXTENSIONS} へ足した時点で走査対象を持つようになり、除外は不要になった。
+ * 空の表を残すのは、該当が出たときに規範ごと迷わないためである。
+ *
+ * **件数はここに書かない**（足すたびに腐り、それを守る検査も無い）。現況は
+ * このスクリプトを実行すれば走査量として出るし、0 件のパッケージがあれば赤くなる。
+ *
+ * @type {{ pkg: string, reason: string }[]}
+ */
+export const EXCLUDED_PACKAGES = [];
+
+/**
+ * 除外の宣言そのものの妥当性を見る（`docs/adr/0014` 決定 2・決定 9）。
+ *
+ * **決定 2 は「除外には理由を書く」を MUST にしている。** 理由の欄が無い・空・空白だけ、
+ * という行を通すと、赤くなった検査を `{ pkg: "..." }` の 1 行で黙らせられる。決定 9 も
+ * 「宣言の値の妥当性（空文字列・書き忘れ）も検査する」を MUST としており、
+ * **件数のガードでは 1 行の書き忘れを検知できない**（表の長さは変わらないため）。
+ *
+ * 判定は純粋関数にして、I/O と `process.exit` は呼び出し側に置く。
+ */
+export function findInvalidExclusions(entries) {
+  return entries
+    .filter((e) => typeof e?.reason !== "string" || e.reason.trim() === "")
+    .map((e) => e?.pkg ?? "(pkg の指定がありません)")
+    .sort();
+}
 
 /** `@tasuki/*` の import 指定子を 1 行から拾う。 */
 const TASUKI_SPECIFIER = /["'](@tasuki\/[a-z0-9-]+)/g;
@@ -239,6 +278,57 @@ function main() {
   if (emptyDimensions.length > 0) {
     console.error(
       `[audit-dependency-direction] 走査対象が 0 件です（検査が空振りします）: ${emptyDimensions.join(" / ")}`,
+    );
+    process.exit(1);
+  }
+
+  // 走査量の**内訳**（パッケージごとの件数）も 0 件でないことを見る
+  // （ADR-0014 決定 8 の「走査量に内訳があるなら、内訳のどれか 1 つでも 0 件なら落とす」）。
+  // 上の合計のガードでは、1 つのパッケージだけが走査対象を失った状態を検知できない
+  // （他パッケージ分で合計が非ゼロのまま緑になる。#253）。
+  //
+  // **数えるのは宣言ではなく `sources`。** 走査量の算出も実走査も同じ 1 か所から
+  // 導出する（決定 9）ので、ここで 0 件と判じた集合は実走査が見ていない集合と一致する。
+  // 理由の書き忘れを最初に見る（決定 2・決定 9）。宛先の実在より前に置くのは、
+  // 「理由なしの行で検査を黙らせる」経路を、宛先が実在するかどうかに依らず塞ぐため。
+  const invalidExclusions = findInvalidExclusions(EXCLUDED_PACKAGES);
+  if (invalidExclusions.length > 0) {
+    console.error(
+      `[audit-dependency-direction] 除外に理由がありません（なぜ 0 件でよいのかを書く）: ${invalidExclusions.join(" / ")}`,
+    );
+    process.exit(1);
+  }
+
+  const excludedNames = EXCLUDED_PACKAGES.map((e) => e.pkg);
+
+  // 除外の宛先の実在を先に見る（決定 2）。`sources` は実在パッケージからしか作らないので、
+  // 実在しない宛先を後段で数えると `undefined` を読む。**順序に意味がある。**
+  const missingExclusions = excludedNames.filter((pkg) => !sources.has(pkg)).sort();
+  if (missingExclusions.length > 0) {
+    console.error(
+      `[audit-dependency-direction] 除外の宛先が実在しません（改名・移設したなら除外表を直す）: ${missingExclusions.join(" / ")}`,
+    );
+    process.exit(1);
+  }
+
+  // 除外の行は「いま 0 件である」という主張なので、主張が偽になったら落とす。
+  const staleExclusions = excludedNames.filter((pkg) => sources.get(pkg).length > 0).sort();
+  if (staleExclusions.length > 0) {
+    console.error(
+      `[audit-dependency-direction] 除外が陳腐化しています（走査対象を持つので除外は不要）: ${staleExclusions.join(" / ")}`,
+    );
+    process.exit(1);
+  }
+
+  const emptyPackages = findEmptyScanDimensions(
+    packages
+      .filter((pkg) => !excludedNames.includes(pkg))
+      .map((pkg) => ({ label: pkg, count: sources.get(pkg).length })),
+  );
+  if (emptyPackages.length > 0) {
+    console.error(
+      `[audit-dependency-direction] 走査対象が 0 件のパッケージがあります（そのパッケージ分だけ検査が空振りします）: ${emptyPackages.join(" / ")}` +
+        "\n  ← 走査対象を失ったなら直す。0 件が正しいなら EXCLUDED_PACKAGES へ理由つきで載せる",
     );
     process.exit(1);
   }

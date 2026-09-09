@@ -15,7 +15,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { listTrackedFiles } from "./lib/scan-targets.mjs";
+import { listTrackedFiles, listWorkspacePackages } from "./lib/scan-targets.mjs";
 
 const SCRIPTS_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SCRIPTS_DIR, "..");
@@ -66,6 +66,33 @@ function runScriptCopy(scriptName, mutate) {
 /** 部分文字列の出現回数（「壊れたこと自体」を先に確かめるために使う）。 */
 function countOf(source, needle) {
   return source.split(needle).length - 1;
+}
+
+/**
+ * 書き換える前の検査スクリプトを読む。
+ *
+ * **緑を期待する破壊検証には、書き換え「前」の確認が要る。** 書き換え後の出現回数が
+ * 0 件であることだけを見ると、壊す対象の行がそもそも無いとき（ガードが未実装のとき）も
+ * 通ってしまい、テストは偽の緑になる。
+ */
+function readScript(scriptName) {
+  return fs.readFileSync(path.join(SCRIPTS_DIR, scriptName), "utf8");
+}
+
+/**
+ * 「壊す対象が実装に在った」ことと「壊れて消えた」ことの**両方**を見る。
+ *
+ * **書き換え後の 0 件だけを見てはならない。** 置換対象の文字列は、実装側の無害な変更
+ * （引数名を `pkg` から `p` へ変えるなど）でずれる。ずれると `String.replace` は静かに
+ * no-op になり、**走査も判定も健全なまま**テストが走る。緑を期待する破壊検証はそれを
+ * そのまま通す（#253 のレビューで、この穴を実際に踏んだ）。
+ *
+ * 書き換えを重ねる場合は**重ねた分だけ呼ぶこと**。合成した書き換えのうち 1 つが no-op でも、
+ * 「原文と違う」だけの判定では、他の書き換えが効いた分で成立してしまう。
+ */
+function assertBrokenBy(scriptName, mutatedSource, needle, label) {
+  assert.equal(countOf(readScript(scriptName), needle), 1, `${label}: 壊す対象が実装にありません`);
+  assert.equal(countOf(mutatedSource, needle), 0, `${label}: 壊せていません`);
 }
 
 describe("0 件ガードの配線: scripts/audit-structure.mjs", () => {
@@ -414,8 +441,9 @@ describe("宣言と 0 件ガードの配線: scripts/audit-dependency-direction.
         .replace("if (hasTargetDrift(drift)) {", "if (false) {");
     // When
     const r = runScriptCopy("audit-dependency-direction.mjs", mutate);
-    // Then: まず「壊れたこと自体」を確かめる
-    assert.equal(countOf(r.source, "if (hasTargetDrift(drift)) {"), 0, "照合を壊せていません");
+    // Then: まず「壊れたこと自体」を確かめる。**緑を期待する破壊検証には書き換え「前」の
+    // 確認が要る**（対象の行が実装から消えたときも 0 件になり、偽の緑になる）
+    assertBrokenBy("audit-dependency-direction.mjs", r.source, "if (hasTargetDrift(drift)) {", "全単射照合");
     // Then: 本体側の分岐が missing 方向の唯一の防波堤であることをここで固定する
     assert.equal(r.status, 0, "照合を殺しても落ちないことの確認（配線の所在を固定する）");
     assert.doesNotMatch(r.stderr, /宣言にあるが実在しない/);
@@ -457,11 +485,7 @@ describe("宣言と 0 件ガードの配線: scripts/audit-dependency-direction.
     // **`listPackageSources(pkg)` だけを数えてはならない。** 関数の定義行
     // （`function listPackageSources(pkg) {`）にも同じ綴りがあり、呼び出しを
     // 潰しても数が 0 にならない（この検査を書いた最初の版が実際に踏んだ）。
-    assert.equal(
-      countOf(r.source, "[pkg, listPackageSources(pkg)]"),
-      0,
-      "走査対象の導出を壊せていません",
-    );
+    assertBrokenBy("audit-dependency-direction.mjs", r.source, "[pkg, listPackageSources(pkg)]", "走査の導出");
     // Then: 照合では止まらず、0 件ガードが落とす
     assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
     assert.doesNotMatch(r.stderr, /実在するが宣言に無い/);
@@ -469,23 +493,160 @@ describe("宣言と 0 件ガードの配線: scripts/audit-dependency-direction.
     assert.match(r.stderr, /走査対象が 0 件です.*ファイル/);
   });
 
-  test("0 件ガードの配線を消すと、走査 0 件のまま緑になる", () => {
-    // Given: 走査を空にしたうえで、0 件ガードの分岐そのものを殺す
+  test("2 つの 0 件ガードの配線を両方消すと、走査 0 件のまま緑になる", () => {
+    // Given: 走査を空にしたうえで、0 件ガードの分岐を**両方**殺す。
+    //        **#253 で内訳（パッケージ単位）のガードが増えるまでは、合計のガード 1 つを
+    //        殺すだけで緑になった。** 全パッケージが 0 件の状態は内訳のガードにも当たる
+    //        ので、片方だけ殺しても落ちる。ここで固定したいのは「ガードを消せば緑になる」
+    //        ＝ main() の分岐が唯一の防波堤である、という配線の所在なので、両方を殺す。
     const mutate = (s) =>
       s
         .replace(
           "  const sources = new Map(packages.map((pkg) => [pkg, listPackageSources(pkg)]));",
           "  const sources = new Map(packages.map((pkg) => [pkg, []]));",
         )
-        .replace("if (emptyDimensions.length > 0) {", "if (false) {");
+        .replace("if (emptyDimensions.length > 0) {", "if (false) {")
+        .replace("if (emptyPackages.length > 0) {", "if (false) {");
     // When
     const r = runScriptCopy("audit-dependency-direction.mjs", mutate);
-    // Then: まず「壊れたこと自体」を確かめる
-    assert.equal(countOf(r.source, "if (emptyDimensions.length > 0) {"), 0, "ガードを壊せていません");
-    // Then: 0 件ガードが main() の唯一の防波堤であることを固定する
+    // Then: まず「壊れたこと自体」を確かめる。**壊す対象が実装にあることを先に見る** ——
+    //       書き換え後の 0 件だけを見ると、ガードが消えたときも通ってしまう（偽の緑）。
+    assertBrokenBy("audit-dependency-direction.mjs", r.source, "[pkg, listPackageSources(pkg)]", "走査の導出");
+    assertBrokenBy("audit-dependency-direction.mjs", r.source, "if (emptyDimensions.length > 0) {", "合計のガード");
+    assertBrokenBy("audit-dependency-direction.mjs", r.source, "if (emptyPackages.length > 0) {", "内訳のガード");
+    // Then: どちらのガードも main() の防波堤であることを固定する
     assert.equal(r.status, 0, "ガードを殺しても落ちないことの確認（配線の所在を固定する）");
     assert.match(r.stdout, /走査対象: \d+ パッケージ \/ 0 ファイル/);
     assert.doesNotMatch(r.stderr, /走査対象が 0 件です/);
+    assert.doesNotMatch(r.stderr, /走査対象が 0 件のパッケージ/);
+  });
+
+  // ── パッケージ単位の空振り（#253） ────────────────────────────────────────
+  //
+  // 上の 0 件ガードは走査量の**合計**しか見ない。1 つのパッケージだけが走査対象を
+  // 失っても、他パッケージ分で合計が非ゼロのまま緑になる（実測では apps/timer-web の
+  // 196 ファイル＝全体の 38% を落としても exit 0 で、その状態の禁止依存も見逃した）。
+  // **合計のガードでは塞げないことを、同じテストの中で assert する。**
+
+  /** 先頭 1 パッケージだけ走査を空にする（どのパッケージかは実体から導く）。 */
+  const emptyFirstPackage = (s) =>
+    s.replace(
+      "  const sources = new Map(packages.map((pkg) => [pkg, listPackageSources(pkg)]));",
+      "  const sources = new Map(packages.map((pkg, i) => [pkg, i === 0 ? [] : listPackageSources(pkg)]));",
+    );
+
+  /** 理由つき除外へ 1 行足す。表が空でも先頭の `[` は必ずあるので、そこへ挿す。 */
+  const excludePackage = (pkg) => (s) =>
+    s.replace(
+      "export const EXCLUDED_PACKAGES = [",
+      `export const EXCLUDED_PACKAGES = [\n  { pkg: ${JSON.stringify(pkg)}, reason: "配線の破壊検証" },`,
+    );
+
+  test("1 パッケージだけ走査を失うと非ゼロで終了し、そのパッケージを名指しする", () => {
+    // Given: 宣言も合計も触らず、先頭 1 パッケージの走査だけを空にする
+    const first = listWorkspacePackages(REPO_ROOT)[0];
+    // When
+    const r = runScriptCopy("audit-dependency-direction.mjs", emptyFirstPackage);
+    // Then: まず「壊れたこと自体」を確かめる
+    assertBrokenBy("audit-dependency-direction.mjs", r.source, "[pkg, listPackageSources(pkg)]", "走査の導出");
+    // Then: 合計は非ゼロのまま（＝合計のガードでは検知できない状態であること）
+    const total = r.stdout.match(/走査対象: \d+ パッケージ \/ (\d+) ファイル/);
+    assert.ok(total, `走査量を読めません:\n${r.stdout}`);
+    assert.notEqual(Number(total[1]), 0, "合計が 0 件では、合計のガードと区別できません");
+    assert.doesNotMatch(r.stderr, /走査対象が 0 件です/);
+    // Then: パッケージ単位のガードが名指しして落とす
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.match(r.stderr, new RegExp(`走査対象が 0 件のパッケージ[^\\n]*${first}`));
+  });
+
+  test("パッケージ単位のガードの配線を消すと、1 パッケージ空振りのまま緑になる", () => {
+    // Given: 先頭 1 パッケージの走査を空にしたうえで、そのガードの分岐だけを殺す
+    const mutate = (s) => emptyFirstPackage(s).replace("if (emptyPackages.length > 0) {", "if (false) {");
+    // When
+    const r = runScriptCopy("audit-dependency-direction.mjs", mutate);
+    // Then: まず「壊れたこと自体」を確かめる。**書き換え後が 0 件であることだけを
+    //       見てはならない** —— 壊す対象の行がそもそも無い（ガード未実装）ときも
+    //       0 件になり、緑を期待するこのテストは偽の緑になる。
+    assertBrokenBy("audit-dependency-direction.mjs", r.source, "if (emptyPackages.length > 0) {", "内訳のガード");
+    assertBrokenBy("audit-dependency-direction.mjs", r.source, "[pkg, listPackageSources(pkg)]", "走査の導出");
+    // Then: このガードが唯一の防波堤であることを固定する（合計のガードは素通しする）
+    assert.equal(r.status, 0, "ガードを殺しても落ちないことの確認（配線の所在を固定する）");
+    assert.doesNotMatch(r.stderr, /走査対象が 0 件のパッケージ/);
+  });
+
+  test("理由つき除外に載っているパッケージは 0 件でも通す", () => {
+    // Given: 先頭 1 パッケージの走査を空にし、同じパッケージを理由つき除外へ載せる
+    const first = listWorkspacePackages(REPO_ROOT)[0];
+    const mutate = (s) => excludePackage(first)(emptyFirstPackage(s));
+    // When
+    const r = runScriptCopy("audit-dependency-direction.mjs", mutate);
+    // Then: まず「壊れたこと自体」を確かめる
+    assert.equal(countOf(r.source, `{ pkg: ${JSON.stringify(first)}, reason:`), 1, "除外を足せていません");
+    // Then
+    assert.equal(r.status, 0, `除外が効いていません。stderr:\n${r.stderr}`);
+    assert.doesNotMatch(r.stderr, /走査対象が 0 件のパッケージ/);
+  });
+
+  test("理由の無い除外を足すと非ゼロで終了し、名指しする（ADR-0014 決定 2・決定 9）", () => {
+    // Given: 実在するパッケージを、理由を書かずに除外へ載せる。**件数のガードでは
+    //        塞げない** —— 表の長さは変わるが「1 行の書き忘れ」は 0 件にならない
+    const first = listWorkspacePackages(REPO_ROOT)[0];
+    const mutate = (s) =>
+      s.replace(
+        "export const EXCLUDED_PACKAGES = [",
+        `export const EXCLUDED_PACKAGES = [\n  { pkg: ${JSON.stringify(first)} },`,
+      );
+    // When
+    const r = runScriptCopy("audit-dependency-direction.mjs", mutate);
+    // Then: まず「壊れたこと自体」を確かめる
+    assert.equal(countOf(r.source, `{ pkg: ${JSON.stringify(first)} }`), 1, "除外を足せていません");
+    // Then: 理由の検査が先に落とす（宛先は実在するので実在確認では止まらない）
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.match(r.stderr, new RegExp(`除外に理由がありません[^\\n]*${first}`));
+  });
+
+  test("理由の検査の配線を消すと、理由の無い除外が素通りする", () => {
+    // Given: 理由の無い除外を足したうえで、その判定の分岐そのものを殺す
+    const first = listWorkspacePackages(REPO_ROOT)[0];
+    const mutate = (s) =>
+      s
+        .replace(
+          "export const EXCLUDED_PACKAGES = [",
+          `export const EXCLUDED_PACKAGES = [\n  { pkg: ${JSON.stringify(first)} },`,
+        )
+        .replace("if (invalidExclusions.length > 0) {", "if (false) {");
+    // When
+    const r = runScriptCopy("audit-dependency-direction.mjs", mutate);
+    // Then: まず「壊れたこと自体」を確かめる（書き換え前に対象があることも見る）
+    assert.equal(countOf(r.source, `{ pkg: ${JSON.stringify(first)} }`), 1, "除外を足せていません");
+    assertBrokenBy("audit-dependency-direction.mjs", r.source, "if (invalidExclusions.length > 0) {", "理由の検査");
+    // Then: この判定が唯一の防波堤であることを固定する（陳腐化の検査が先に落とす）
+    assert.doesNotMatch(r.stderr, /除外に理由がありません/);
+  });
+
+  test("除外の宛先が実在しなくなると非ゼロで終了し、名指しする（ADR-0014 決定 2）", () => {
+    // Given: workspace に無いパッケージを理由つき除外へ載せる（改名・移設で起きる）
+    // When
+    const r = runScriptCopy("audit-dependency-direction.mjs", excludePackage("packages/ghost"));
+    // Then: まず「壊れたこと自体」を確かめる
+    assert.equal(countOf(r.source, '{ pkg: "packages/ghost", reason:'), 1, "除外を足せていません");
+    // Then
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.match(r.stderr, /除外の宛先が実在しません[^\n]*packages\/ghost/);
+  });
+
+  test("走査対象を持つパッケージを除外に載せたままにすると非ゼロで終了する（陳腐化）", () => {
+    // Given: 走査は壊さず、実際には 0 件でないパッケージを除外へ載せる。
+    //        除外の行は「いま 0 件である」ことの主張なので、主張が偽なら落とす。
+    //        放置すると、そのパッケージが後で走査対象を失ったときに黙って除外される。
+    const first = listWorkspacePackages(REPO_ROOT)[0];
+    // When
+    const r = runScriptCopy("audit-dependency-direction.mjs", excludePackage(first));
+    // Then: まず「壊れたこと自体」を確かめる
+    assert.equal(countOf(r.source, `{ pkg: ${JSON.stringify(first)}, reason:`), 1, "除外を足せていません");
+    // Then
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.match(r.stderr, new RegExp(`除外が陳腐化しています[^\\n]*${first}`));
   });
 });
 
