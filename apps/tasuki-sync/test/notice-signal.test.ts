@@ -226,6 +226,39 @@ describe("signal: notice（実行者の通知）", () => {
       expect(broadcaster.errorsTo("nt-stranger").at(-1)?.code).toBe("NOT_IN_ROOM");
       expect(lastNotice()).toBeUndefined();
     });
+
+    // 上の筋は**最も浅い拒否経路**（在室確認）で落ちる。置き換え前は「見学者へ降格した
+    // 参加者の session.abort が UNAUTHORIZED」を見ており、在室確認を通り抜けた先で
+    // 落ちていた。役割が無くなっても**在室者がドメインの不変条件で落ちる筋**は残っており、
+    // そこを見ないと「在室確認さえ通れば notice が出る」状態を検知できない（#258）。
+    it("在室者の操作でも、ドメインの不変条件で落ちれば notice を出さない", async () => {
+      // Given: Bob と Carol が輪から出る（退出ではない。在室したままローテーション外へ）
+      const rotationIndexOf = (name: string): number =>
+        store.get(code)!.session.rotation.indexOf(pidOf(name));
+      await handlers.handleCommand(BOB, { command: "member.remove", index: rotationIndexOf("Bob") });
+      await handlers.handleCommand(CAROL, {
+        command: "member.remove",
+        index: rotationIndexOf("Carol"),
+      });
+
+      // Given の確認: 輪は Alice ひとり・在室は 3 人。**ここが崩れると別の経路を見てしまう**
+      // （在室が 1 人ならソロ退出でルームごと破棄され、不変条件には当たらない）
+      expect(store.get(code)!.session.rotation).toEqual([pidOf("Alice")]);
+      expect(store.get(code)!.participants).toHaveLength(3);
+      broadcaster.signals.length = 0;
+      broadcaster.residentsAtSignal.length = 0;
+
+      // When: 在室している Bob が、輪に残る最後のひとり Alice を退出させようとする
+      await handlers.handleCommand(BOB, {
+        command: "participant.remove",
+        participantId: pidOf("Alice"),
+      });
+
+      // Then: 最後のドライバーは外せない。**成功していれば participant-removed の notice が
+      // 出る経路**なので（①で固定済み）、ここが空であることに意味がある
+      expect(broadcaster.errorsTo(BOB).at(-1)?.code).toBe("BelowMinMembers");
+      expect(lastNotice()).toBeUndefined();
+    });
   });
 });
 

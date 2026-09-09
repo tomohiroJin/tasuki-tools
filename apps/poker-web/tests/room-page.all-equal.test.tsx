@@ -61,8 +61,11 @@ describe('#95 S3: poker は全員が同格である', () => {
     const sync = makeSync(votingSnapshot());
     // When
     render(<RoomPage roomId={ROOM_ID} sync={sync} />);
-    // Then
-    expect(screen.getByRole('button', { name: /公開/ })).toBeTruthy();
+    // Then: `getByRole` は見つからなければ throw するので、取得できた時点で存在は
+    // 確かめられている（`toBeTruthy()` は何も足さない）。ここで見るのは**押せること** ——
+    // かつては作成者以外に出さない／無効にする分岐があり、そこが戻ったら赤にしたい。
+    const reveal = screen.getByRole('button', { name: /公開/ });
+    expect((reveal as HTMLButtonElement).disabled).toBe(false);
   });
 
   it('ホストのバッジをどこにも描かない', () => {

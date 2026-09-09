@@ -18,7 +18,17 @@ import { FakeClock } from "../../src/adapters/system-clock.js";
 import { SpyBroadcaster } from "./spy-broadcaster.js";
 import { FakeCodeGen } from "./fake-code-gen.js";
 
-/** ルームを作る接続と表示名（作成者に特別な権限は無い。#95 S3 で全員同格）。 */
+/**
+ * ルームを作る接続と表示名（作成者に特別な権限は無い。#95 S3 で全員同格）。
+ *
+ * **定数名は `CREATOR_*` へ直したが、値の `"host-conn"` / `"Host"` は意図的に据え置く。**
+ * `"Host"` は {@link BuiltRoom.ids} の鍵として消費側から引かれ、`"host-conn"` は
+ * このビルダーを使わないテストが同じ綴りを各自で定義している。2026-09-09 の実測で
+ * `apps/tasuki-sync/test` 配下に `host-conn` が 69 箇所（15 ファイル）、`hostConn` が
+ * 93 箇所あり、**ここだけを改名すると語彙が二分される**（片側だけ直した状態になる）。
+ * 値は「作成者を指す固定のテストデータ」以上の意味を持たず、権限の表明はどこにも無い
+ * （`isHost` は製品コードに 0 件）。改名するならテスト全体を一度に掃く別の作業として行う。
+ */
 const CREATOR_CONN = "host-conn";
 const CREATOR_NAME = "Host";
 

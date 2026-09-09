@@ -17,8 +17,8 @@ function snapshotFor(room: Parameters<typeof createSnapshotBuilder>[0], viewerId
 
 function twoPersonRoom() {
   const { room } = createRoom('room0001', 'たろう', {
-    participantId: 'p-host',
-    token: 'tok-host-SECRET',
+    participantId: 'p-creator',
+    token: 'tok-creator-SECRET',
   })._unsafeUnwrap();
   return joinRoom(room, 'はなこ', {
     participantId: 'p-guest',
@@ -33,7 +33,7 @@ describe('snapshotFor（受信者別投影, research R1）', () => {
   it('participants に token がいかなる形でも含まれない', () => {
     // Given: twoPersonRoom() の呼び出し自体が前提の部屋を用意する
     // When
-    const snapshot = snapshotFor(twoPersonRoom(), 'p-host');
+    const snapshot = snapshotFor(twoPersonRoom(), 'p-creator');
     const json = JSON.stringify(snapshot);
     // Then
     expect(json).not.toContain('SECRET');
@@ -44,7 +44,7 @@ describe('snapshotFor（受信者別投影, research R1）', () => {
     // Given
     const room = twoPersonRoom();
     // When / Then（snapshotFor は照会のみで副作用が無いため、呼び出しと検証が同じ式になる）
-    expect(snapshotFor(room, 'p-host').you).toBe('p-host');
+    expect(snapshotFor(room, 'p-creator').you).toBe('p-creator');
     expect(snapshotFor(room, 'p-guest').you).toBe('p-guest');
   });
 
@@ -57,7 +57,7 @@ describe('snapshotFor（受信者別投影, research R1）', () => {
     expect(snapshot.roomId).toBe('room0001');
     expect(snapshot.round).toEqual({ status: 'voting' });
     expect(snapshot.participants).toEqual([
-      { id: 'p-host', name: 'たろう', connected: true, hasVoted: false },
+      { id: 'p-creator', name: 'たろう', connected: true, hasVoted: false },
       { id: 'p-guest', name: 'はなこ', connected: true, hasVoted: false },
     ]);
     expect(snapshot.yourVote).toBeNull();
@@ -75,7 +75,7 @@ describe('snapshotFor: 投票中の秘匿（SC-004 / FR-006）', () => {
   it('他者の票は hasVoted のみで、選択値がいかなる形でも含まれない', () => {
     // Given: votedRoom() の呼び出し自体が前提の部屋を用意する
     // When
-    const snapshot = snapshotFor(votedRoom(), 'p-host');
+    const snapshot = snapshotFor(votedRoom(), 'p-creator');
     const json = JSON.stringify(snapshot);
     // Then
     expect(json).not.toContain('"kind"'); // カード表現そのものが存在しない
@@ -96,9 +96,9 @@ describe('snapshotFor: 公開後（FR-006 / 契約 #5）', () => {
   it('revealed 後は全票が votes に載り、未投票者は含まれない', () => {
     // Given
     let room = castVote(twoPersonRoom(), 'p-guest', five)._unsafeUnwrap();
-    room = revealBy(room, 'p-host')._unsafeUnwrap();
+    room = revealBy(room, 'p-creator')._unsafeUnwrap();
     // When
-    const snapshot = snapshotFor(room, 'p-host');
+    const snapshot = snapshotFor(room, 'p-creator');
     // Then
     expect(snapshot.round.status).toBe('revealed');
     if (snapshot.round.status !== 'revealed') throw new Error('unreachable');
