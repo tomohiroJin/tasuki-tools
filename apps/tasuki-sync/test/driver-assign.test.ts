@@ -1,6 +1,7 @@
 /**
  * driver.assign（Issue #13 任意メンバー強制指名）のサーバ挙動。
- * host 限定・participantId→index 解決・離脱中の自動復帰・現ドライバー指名 no-op を検証する。
+ * 在室者なら誰でも指名できること・participantId→index 解決・離脱中の自動復帰・
+ * 現ドライバー指名 no-op を検証する（#95 S3 以前は host 限定だった）。
  */
 import { describe, it, expect, beforeEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
@@ -13,8 +14,8 @@ import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 const config: SessionConfig = { language: "TypeScript", difficulty: "easy", members: ["A"], intervalMinutes: 5 };
 
-/** host A（rotation[0]）を作り、rotation [A,B,C] を稼働中にして B の eligibility を上書きした room を置く。
- *  B=pid-b/conn-b（editor）・C=pid-c/conn-c（editor）。 */
+/** 作成者 A（rotation[0]）を作り、rotation [A,B,C] を稼働中にして B の eligibility を上書きした room を置く。
+ *  B=pid-b/conn-b・C=pid-c/conn-c。 */
 async function setup(
   handlers: ReturnType<typeof makeHandlers>,
   store: InMemoryRoomStore,

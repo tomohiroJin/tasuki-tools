@@ -61,10 +61,10 @@ describe("NOT_IN_ROTATION の文言（解消の手がかりを示す）", () => 
     expect(shown).not.toContain("見つかりません");
   });
 
-  // driver.assign の NOT_IN_ROTATION 判定は対象が session.rotation に居るかだけを見ており、
-  // 対象の役割（viewer/editor/host）は見ていない。role=editor のまま member.remove で
-  // 輪の外に出た参加者にも同じコードが返るため、「見学者」固定の文言は実態と一致しない
-  // （役割と輪の所属は独立した2層モデル。SelfDriverToggle.tsx 参照）。
+  // driver.assign の NOT_IN_ROTATION 判定は、対象が session.rotation に居るかだけを見る。
+  // member.remove で輪の外に出ただけの在室者にも同じコードが返るため、「見学者」固定の
+  // 文言は実態と一致しない（#95 S3 で役割そのものが消えたので、いま輪の外に居ることは
+  // 立場ではなく所属の話でしかない）。
   it("「見学者」を含まない", () => {
     const shown = displayMessageFor("NOT_IN_ROTATION");
     expect(shown).not.toContain("見学者");

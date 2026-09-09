@@ -110,7 +110,7 @@ describe("v2 コマンドの結合テスト", () => {
 
   // ─── participant.rename ───────────────────────────────────────────────────
 
-  it("host が自分の名前を変更すると snapshot に反映される", async () => {
+  it("作成者が自分の名前を変更すると snapshot に反映される", async () => {
     // Given
     const room = store.get(roomCode);
     const hostParticipant = room?.participants.find((p) => p.connId === hostConn);

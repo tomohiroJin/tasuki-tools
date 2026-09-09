@@ -87,7 +87,7 @@ describe("ソロの部屋からの退出（Issue #79）", () => {
     expect(room.session.rotation).toEqual([pidOf("Alice")]);
   });
 
-  it("ソロのホストは自己退出でき、ルームごと破棄される", async () => {
+  it("1 人だけの参加者は自己退出でき、ルームごと破棄される", async () => {
     // Given
     const aliceId = pidOf("Alice");
 

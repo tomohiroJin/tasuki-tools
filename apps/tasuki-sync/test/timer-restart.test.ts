@@ -43,7 +43,7 @@ const problem: Problem = {
 };
 
 /**
- * host A・editor B・viewer C の 3 人が居るルームを作り、rotation [A,B,C] の
+ * A・B・C の 3 人が居るルームを作り、rotation [A,B,C] の
  * currentIndex=1（B が現ドライバー）で 100 秒消費した稼働状態にして store に置く。
  */
 async function setupRunningRoom(
@@ -114,7 +114,7 @@ describe("session.act RESTART（Issue #14 持ち時間のやり直し）", () =>
     });
   });
 
-  it("現ドライバー（editor 本人）が実行するとタイマーが満タンから走り直す", async () => {
+  it("現ドライバー本人が実行するとタイマーが満タンから走り直す", async () => {
     // Given
     const code = await setupRunningRoom(handlers, store, START);
     expect(secondsLeft(store.get(code)!.clock, START)).toBeCloseTo(200, 0);

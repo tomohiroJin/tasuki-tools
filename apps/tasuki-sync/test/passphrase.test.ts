@@ -1,6 +1,6 @@
 /**
  * room.passphrase.set（任意ルームパスフレーズ）の結合テスト
- * host 限定の設定/解除・平文 snapshot 非混入
+ * 設定/解除（#95 S3 以降は在室者なら誰でも）・平文 snapshot 非混入
  */
 
 import { describe, it, expect, beforeEach } from "bun:test";
@@ -41,7 +41,7 @@ describe("room.passphrase.set", () => {
     broadcaster.sent.length = 0;
   });
 
-  it("ホストはパスフレーズを設定でき passphraseProtected が true（平文は snapshot 非混入）", async () => {
+  it("作成者はパスフレーズを設定でき passphraseProtected が true（平文は snapshot 非混入）", async () => {
     // Given
     const command = { command: "room.passphrase.set", passphrase: "secret" } as const;
 

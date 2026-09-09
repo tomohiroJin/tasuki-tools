@@ -32,7 +32,8 @@ export interface RoomPassphraseSetDeps {
 export function createRoomPassphraseSetHandler(deps: RoomPassphraseSetDeps) {
   const { store, broadcaster, tokenStore } = deps;
 
-  /** ルームパスフレーズを設定/解除する（host 限定・R4-2）。空文字で解除。
+  /** ルームパスフレーズを設定/解除する（R4-2）。**在室者なら誰でも実行できる**
+   *  （#95 S3 以前は host 限定だった）。空文字で解除。
    *  平文は tokenStore（旧 roomPassphrases）に保持し、Room には passphraseProtected(boolean)のみ反映。 */
   return async function handleRoomPassphraseSet(
     _connId: string,
