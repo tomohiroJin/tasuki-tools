@@ -8,7 +8,12 @@
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { findViolations, ALLOWED } from "./audit-dependency-direction.mjs";
+import {
+  findViolations,
+  findInvalidExclusions,
+  ALLOWED,
+  EXCLUDED_PACKAGES,
+} from "./audit-dependency-direction.mjs";
 
 test("表に無い依存を package.json から見つける", () => {
   const violations = findViolations({
@@ -105,4 +110,26 @@ test("許可表は空でない（このガード自身の空振り検出）", ()
   // 下限は「非空」だけにする。固定値は ADR-0014 決定 8 の MUST NOT
   // （パッケージが 1 つ増えるたびに無関係な赤が出る）。
   assert.ok(Object.keys(ALLOWED).length > 0);
+});
+
+test("理由の無い除外を名指しする（決定 2・書き忘れ）", () => {
+  // Given: 理由の欄が無い・空・空白だけ。**どれも「なぜ 0 件でよいのか」を答えていない**
+  const invalid = findInvalidExclusions([
+    { pkg: "packages/a" },
+    { pkg: "packages/b", reason: "" },
+    { pkg: "packages/c", reason: "   " },
+    { pkg: "packages/d", reason: "TS を 1 つも持たない" },
+  ]);
+  // Then: 理由を持つ d だけが通る
+  assert.deepEqual(invalid, ["packages/a", "packages/b", "packages/c"]);
+});
+
+test("pkg の指定も無い行は、名前の代わりに何が足りないかを返す", () => {
+  // Given: 表の書き損じ。ここで throw すると、原因の分からない失敗になる
+  assert.deepEqual(findInvalidExclusions([{}]), ["(pkg の指定がありません)"]);
+});
+
+test("実際の除外表は理由の要件を満たす（表そのものの健全性）", () => {
+  // 表が空のあいだは自明に通るが、行が足された瞬間から効く
+  assert.deepEqual(findInvalidExclusions(EXCLUDED_PACKAGES), []);
 });

@@ -123,14 +123,32 @@ export const ALLOWED = {
  *     後で走査対象を失ったときに黙って除外され、#253 の穴がここから再生する。
  *
  * **現在は空である。** かつて `packages/ui` が該当したが、`.mjs` を
- * {@link SCANNED_EXTENSIONS} へ足した時点で `stylelint.config.mjs` と
- * `tests/tokens.test.mjs` の 2 件を持つようになり、除外は不要になった
- * （2026-09-09 に実測。**0 件のパッケージは 1 つも無い**）。空の表を残すのは、
- * 該当が出たときに規範ごと迷わないためである。
+ * {@link SCANNED_EXTENSIONS} へ足した時点で走査対象を持つようになり、除外は不要になった。
+ * 空の表を残すのは、該当が出たときに規範ごと迷わないためである。
+ *
+ * **件数はここに書かない**（足すたびに腐り、それを守る検査も無い）。現況は
+ * このスクリプトを実行すれば走査量として出るし、0 件のパッケージがあれば赤くなる。
  *
  * @type {{ pkg: string, reason: string }[]}
  */
 export const EXCLUDED_PACKAGES = [];
+
+/**
+ * 除外の宣言そのものの妥当性を見る（`docs/adr/0014` 決定 2・決定 9）。
+ *
+ * **決定 2 は「除外には理由を書く」を MUST にしている。** 理由の欄が無い・空・空白だけ、
+ * という行を通すと、赤くなった検査を `{ pkg: "..." }` の 1 行で黙らせられる。決定 9 も
+ * 「宣言の値の妥当性（空文字列・書き忘れ）も検査する」を MUST としており、
+ * **件数のガードでは 1 行の書き忘れを検知できない**（表の長さは変わらないため）。
+ *
+ * 判定は純粋関数にして、I/O と `process.exit` は呼び出し側に置く。
+ */
+export function findInvalidExclusions(entries) {
+  return entries
+    .filter((e) => typeof e?.reason !== "string" || e.reason.trim() === "")
+    .map((e) => e?.pkg ?? "(pkg の指定がありません)")
+    .sort();
+}
 
 /** `@tasuki/*` の import 指定子を 1 行から拾う。 */
 const TASUKI_SPECIFIER = /["'](@tasuki\/[a-z0-9-]+)/g;
@@ -271,6 +289,16 @@ function main() {
   //
   // **数えるのは宣言ではなく `sources`。** 走査量の算出も実走査も同じ 1 か所から
   // 導出する（決定 9）ので、ここで 0 件と判じた集合は実走査が見ていない集合と一致する。
+  // 理由の書き忘れを最初に見る（決定 2・決定 9）。宛先の実在より前に置くのは、
+  // 「理由なしの行で検査を黙らせる」経路を、宛先が実在するかどうかに依らず塞ぐため。
+  const invalidExclusions = findInvalidExclusions(EXCLUDED_PACKAGES);
+  if (invalidExclusions.length > 0) {
+    console.error(
+      `[audit-dependency-direction] 除外に理由がありません（なぜ 0 件でよいのかを書く）: ${invalidExclusions.join(" / ")}`,
+    );
+    process.exit(1);
+  }
+
   const excludedNames = EXCLUDED_PACKAGES.map((e) => e.pkg);
 
   // 除外の宛先の実在を先に見る（決定 2）。`sources` は実在パッケージからしか作らないので、
@@ -299,7 +327,8 @@ function main() {
   );
   if (emptyPackages.length > 0) {
     console.error(
-      `[audit-dependency-direction] 走査対象が 0 件のパッケージがあります（そのパッケージ分だけ検査が空振りします）: ${emptyPackages.join(" / ")}`,
+      `[audit-dependency-direction] 走査対象が 0 件のパッケージがあります（そのパッケージ分だけ検査が空振りします）: ${emptyPackages.join(" / ")}` +
+        "\n  ← 走査対象を失ったなら直す。0 件が正しいなら EXCLUDED_PACKAGES へ理由つきで載せる",
     );
     process.exit(1);
   }
