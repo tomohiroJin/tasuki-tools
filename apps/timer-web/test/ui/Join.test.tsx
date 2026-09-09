@@ -33,7 +33,7 @@ describe("Join 画面（UX 再設計）", () => {
     expect(onJoin).not.toHaveBeenCalled();
   });
 
-  it("名前＋役割選択で参加すると name/passphrase/mode を伴って参加が要求される", () => {
+  it("名前＋参加方法の選択で参加すると name/passphrase/mode を伴って参加が要求される", () => {
     // Given
     const onJoin = vi.fn();
     render(<Join code="ABC123" onJoin={onJoin} />);
@@ -86,7 +86,7 @@ describe("Join 画面（UX 再設計）", () => {
 describe("Join 参加方法の必須選択", () => {
   beforeEach(() => localStorage.clear());
 
-  it("名前を入れても役割未選択なら参加ボタンは無効", () => {
+  it("名前を入れても参加方法が未選択なら参加ボタンは無効", () => {
     // Given
     render(<Join code="ABCD" onJoin={vi.fn()} />);
     // When

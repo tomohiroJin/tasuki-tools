@@ -15,7 +15,6 @@ export type ErrorCallback = (code: string, message: string) => void;
 export interface Identity {
   participantId: string;
   resumeToken: string;
-  hostToken?: string;
 }
 export type IdentityCallback = (identity: Identity) => void;
 

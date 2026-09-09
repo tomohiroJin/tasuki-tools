@@ -19,15 +19,14 @@ vi.mock("../../src/records/indexeddb.js", () => ({
   saveRecord: vi.fn().mockResolvedValue(undefined),
 }));
 
-const HOST_ID = "host-1";
+const CREATOR_ID = "p-alice";
 const ME_ID = "me-1";
 
-function participant(participantId: string, displayName: string, role: "host" | "editor") {
+function participant(participantId: string, displayName: string) {
   return {
     participantId,
     connId: `c-${participantId}`,
     displayName,
-    role,
     presence: "online" as const,
     hasAiKey: false,
     joinedAt: 0,
@@ -47,13 +46,12 @@ function sendServer(ws: FakeWS, msg: Record<string, unknown>): void {
   });
 }
 
-/** セッション中の部屋の snapshot（自分は編集者として在席）。 */
+/** セッション中の部屋の snapshot（自分も在席している）。 */
 function sessionSnapshot() {
   return aRoomView({
     code: "ROOM01",
     phase: "session",
-    hostParticipantId: HOST_ID,
-    participants: [participant(HOST_ID, "アリス", "host"), participant(ME_ID, "ボブ", "editor")],
+    participants: [participant(CREATOR_ID, "アリス"), participant(ME_ID, "ボブ")],
   });
 }
 
@@ -124,7 +122,7 @@ describe("再読込での復帰（#76 F-3）", () => {
     });
   });
 
-  it("復帰後のステータスに自分の名前と役割が出る", () => {
+  it("復帰後のステータスに自分の名前が出る", () => {
     // Given: 保存済みの識別情報
     saveResumeIdentity({
       code: "ROOM01",
@@ -141,10 +139,10 @@ describe("再読込での復帰（#76 F-3）", () => {
     sendServer(ws, { type: "snapshot", room: sessionSnapshot() });
 
     // Then: 作成者（アリス）ではなく自分（ボブ）として表示される。
-    // ここが崩れると、復帰した本人が他人の名前と役割を見ることになる
+    // ここが崩れると、復帰した本人が他人の名前を見ることになる
     const strip = screen.getByLabelText("ステータス情報");
     expect(strip).toHaveTextContent("ボブ");
-    expect(strip).toHaveTextContent("編集者");
+    expect(strip).not.toHaveTextContent("アリス");
   });
 
   it("別のルームの招待リンクを開いたときは、前のルームへ戻さない", () => {

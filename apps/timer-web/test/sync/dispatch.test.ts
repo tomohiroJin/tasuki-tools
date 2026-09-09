@@ -28,7 +28,6 @@ describe("dispatchServerMessage", () => {
       JSON.stringify({
         type: "room.created",
         code: "X",
-        hostToken: "h",
         resumeToken: "r",
         participantId: "p",
       }),
@@ -38,7 +37,6 @@ describe("dispatchServerMessage", () => {
     expect(onIdentity).toHaveBeenCalledWith({
       participantId: "p",
       resumeToken: "r",
-      hostToken: "h",
     });
   });
 

@@ -28,7 +28,7 @@ import type { TokenStore } from "../token-store.js";
 import type { RateLimitGate } from "../rate-limit-gate.js";
 import { constantTimeEqual } from "../secure-compare.js";
 
-/** `room.join` が呼び出し元へ返す値。参加者はホストトークンを持たない。 */
+/** `room.join` が呼び出し元へ返す値。 */
 export interface JoinResult {
   code: string;
   participantId: string;
@@ -141,9 +141,8 @@ export function createRoomJoinHandler(deps: RoomJoinDeps) {
       return err(code);
     }
 
-    // 新規参加者は editor として登録（UX 再設計の2層モデル: 名乗って参加した人は
-    // すぐドライバーに加われる。ローテーション加入は別操作＝「ドライバーに加わる」）。
-    // 純粋な見学者は host が role.set で viewer へ降格できる。
+    // 名乗って参加した人は、その場で在室者の 1 人になる（#95 S3 で全員同格）。
+    // ローテーション加入は別操作＝「ドライバーに加わる」であり、参加とは独立している。
     const participantId = codeGen.generateParticipantId();
     const resumeToken = codeGen.generateResumeToken();
 
@@ -151,7 +150,6 @@ export function createRoomJoinHandler(deps: RoomJoinDeps) {
       participantId,
       connId,
       displayName: cmd.displayName,
-      role: "editor",
       presence: "online",
       hasAiKey: cmd.hasAiKey,
       joinedAt: now,

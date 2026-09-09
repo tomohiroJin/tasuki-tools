@@ -7,7 +7,7 @@
  * ソケットが実際に閉じたときの `onDisconnect` 配線も、再接続で新しい接続に
  * 状態が引き継がれる経路も通っていない。ここは本当に別ソケットで再現する。
  *
- * @requirements FR-014, FR-018, FR-020, FR-026
+ * @requirements FR-014, FR-020, FR-026
  */
 
 import { describe, it, expect, afterEach } from "bun:test";

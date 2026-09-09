@@ -57,8 +57,8 @@ describe('snapshotFor（受信者別投影, research R1）', () => {
     expect(snapshot.roomId).toBe('room0001');
     expect(snapshot.round).toEqual({ status: 'voting' });
     expect(snapshot.participants).toEqual([
-      { id: 'p-host', name: 'たろう', isHost: true, connected: true, hasVoted: false },
-      { id: 'p-guest', name: 'はなこ', isHost: false, connected: true, hasVoted: false },
+      { id: 'p-host', name: 'たろう', connected: true, hasVoted: false },
+      { id: 'p-guest', name: 'はなこ', connected: true, hasVoted: false },
     ]);
     expect(snapshot.yourVote).toBeNull();
   });

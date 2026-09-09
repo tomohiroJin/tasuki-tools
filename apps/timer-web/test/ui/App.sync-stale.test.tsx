@@ -19,14 +19,13 @@ vi.mock("../../src/records/indexeddb.js", () => ({
   saveRecord: vi.fn().mockResolvedValue(undefined),
 }));
 
-const HOST_ID = "host-1";
+const CREATOR_ID = "p-alice";
 
 function participant(participantId: string, displayName: string) {
   return {
     participantId,
     connId: `c-${participantId}`,
     displayName,
-    role: "host" as const,
     presence: "online" as const,
     hasAiKey: false,
     joinedAt: 0,
@@ -45,8 +44,7 @@ function aValidSnapshot(): Record<string, unknown> {
     room: aRoomView({
       code: "ROOM01",
       phase: "ready",
-      hostParticipantId: HOST_ID,
-      participants: [participant(HOST_ID, "Host")],
+      participants: [participant(CREATOR_ID, "Creator")],
     }),
   };
 }
@@ -60,15 +58,14 @@ function aFrameThatViolatesTheContract(): Record<string, unknown> {
   const room = aRoomView({
     code: "ROOM01",
     phase: "session",
-    hostParticipantId: HOST_ID,
-    participants: [participant(HOST_ID, "Host")],
+    participants: [participant(CREATOR_ID, "Creator")],
   });
   return { type: "snapshot", room: { ...room, config: { ...room.config, members: [""] } } };
 }
 
 function enterLobby(): FakeWS {
   render(<App />);
-  fireEvent.change(screen.getByLabelText("あなたの名前"), { target: { value: "Host" } });
+  fireEvent.change(screen.getByLabelText("あなたの名前"), { target: { value: "Creator" } });
   fireEvent.click(screen.getByRole("button", { name: /ルームを作る/ }));
   const ws = FakeWS.instances[FakeWS.instances.length - 1]!;
   ws.readyState = FakeWS.OPEN;
@@ -76,9 +73,8 @@ function enterLobby(): FakeWS {
   sendServer(ws, {
     type: "room.created",
     code: "ROOM01",
-    hostToken: "ht",
     resumeToken: "rt",
-    participantId: HOST_ID,
+    participantId: CREATOR_ID,
   });
   sendServer(ws, aValidSnapshot());
   return ws;
@@ -169,7 +165,7 @@ describe("捨てた同期フレームを画面で伝える", () => {
   it("ルームに入る前に捨てたときは、表示する場所が無いのでバナーで伝える", () => {
     // Given: 名前を入れてルームを作る操作までは成立している
     render(<App />);
-    fireEvent.change(screen.getByLabelText("あなたの名前"), { target: { value: "Host" } });
+    fireEvent.change(screen.getByLabelText("あなたの名前"), { target: { value: "Creator" } });
     fireEvent.click(screen.getByRole("button", { name: /ルームを作る/ }));
     const ws = FakeWS.instances[FakeWS.instances.length - 1]!;
     ws.readyState = FakeWS.OPEN;
@@ -177,9 +173,8 @@ describe("捨てた同期フレームを画面で伝える", () => {
     sendServer(ws, {
       type: "room.created",
       code: "ROOM01",
-      hostToken: "ht",
       resumeToken: "rt",
-      participantId: HOST_ID,
+      participantId: CREATOR_ID,
     });
 
     // Given の確認: StatusStrip はまだ出ていない（出す場所が無い）
@@ -195,7 +190,7 @@ describe("捨てた同期フレームを画面で伝える", () => {
   it("ルームに入れたらそのバナーは消える", () => {
     // Given
     render(<App />);
-    fireEvent.change(screen.getByLabelText("あなたの名前"), { target: { value: "Host" } });
+    fireEvent.change(screen.getByLabelText("あなたの名前"), { target: { value: "Creator" } });
     fireEvent.click(screen.getByRole("button", { name: /ルームを作る/ }));
     const ws = FakeWS.instances[FakeWS.instances.length - 1]!;
     ws.readyState = FakeWS.OPEN;
@@ -203,9 +198,8 @@ describe("捨てた同期フレームを画面で伝える", () => {
     sendServer(ws, {
       type: "room.created",
       code: "ROOM01",
-      hostToken: "ht",
       resumeToken: "rt",
-      participantId: HOST_ID,
+      participantId: CREATOR_ID,
     });
     sendServer(ws, aFrameThatViolatesTheContract());
     expect(screen.getByText(/同期できていません/)).toBeInTheDocument();

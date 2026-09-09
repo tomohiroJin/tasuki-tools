@@ -44,12 +44,11 @@ describe("実 WS 越しの業務プロトコル", () => {
     // Then 1: room.created の**中身**が届く（ルームコードと本人の識別子・トークン）
     expect(created.code).toMatch(/\S/);
     expect(created.participantId).toMatch(/\S/);
-    expect(created.hostToken).toMatch(/\S/);
     expect(created.resumeToken).toMatch(/\S/);
     // 続けて自分のルームの snapshot が届く
     const firstSnapshot = await host.take("snapshot");
     expect(firstSnapshot.room.code).toBe(created.code);
-    expect(firstSnapshot.room.hostParticipantId).toBe(created.participantId);
+    expect(firstSnapshot.room.participants.map((p) => p.participantId)).toEqual([created.participantId]);
     expect(firstSnapshot.room.phase).toBe("setup");
     // 作成者は作成時点でローテーションに並んでいる（room-create.ts）
     expect(firstSnapshot.room.session.rotation).toEqual([created.participantId]);

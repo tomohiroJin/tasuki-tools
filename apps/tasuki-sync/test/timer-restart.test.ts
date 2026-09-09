@@ -43,7 +43,7 @@ const problem: Problem = {
 };
 
 /**
- * host A・editor B・viewer C の 3 人が居るルームを作り、rotation [A,B,C] の
+ * A・B・C の 3 人が居るルームを作り、rotation [A,B,C] の
  * currentIndex=1（B が現ドライバー）で 100 秒消費した稼働状態にして store に置く。
  */
 async function setupRunningRoom(
@@ -61,14 +61,14 @@ async function setupRunningRoom(
   const code = store.list().at(-1)!.code;
   const room = store.get(code)!;
   const host = room.participants[0]!;
-  const mk = (id: string, name: string, conn: string, role: Room["participants"][number]["role"]) =>
-    ({ ...host, participantId: id, connId: conn, displayName: name, role, presence: "online" as const });
+  const mk = (id: string, name: string, conn: string) =>
+    ({ ...host, participantId: id, connId: conn, displayName: name, presence: "online" as const });
   store.put({
     ...room,
     phase: "session",
     problem,
     handoffNote: "引き継ぎメモ",
-    participants: [host, mk("pid-b", "B", "conn-b", "editor"), mk("pid-c", "C", "conn-c", "viewer")],
+    participants: [host, mk("pid-b", "B", "conn-b"), mk("pid-c", "C", "conn-c")],
     config: { ...room.config, members: ["A", "B", "C"] },
     session: {
       ...room.session,
@@ -114,7 +114,7 @@ describe("session.act RESTART（Issue #14 持ち時間のやり直し）", () =>
     });
   });
 
-  it("現ドライバー（editor 本人）が実行するとタイマーが満タンから走り直す", async () => {
+  it("現ドライバー本人が実行するとタイマーが満タンから走り直す", async () => {
     // Given
     const code = await setupRunningRoom(handlers, store, START);
     expect(secondsLeft(store.get(code)!.clock, START)).toBeCloseTo(200, 0);
@@ -196,20 +196,22 @@ describe("session.act RESTART（Issue #14 持ち時間のやり直し）", () =>
     expect(last?.secondsLeft).toBeCloseTo(INTERVAL_SECONDS, 0);
   });
 
-  it("viewer の実行は UNAUTHORIZED で拒否され状態が変わらない", async () => {
+  // #95 S3 で役割を廃止した。かつては「見学者の RESTART は UNAUTHORIZED で拒否され、
+  // 時計は動かない」ことをここで固定していたので、その期待を反転させる。
+  it("3 人目の参加者も実行でき、持ち時間が巻き戻る", async () => {
     // Given
     const code = await setupRunningRoom(handlers, store, START);
-    const before = store.get(code)!.clock;
 
     // When
-    await handlers.handleCommand("conn-c", { command: "session.act", action: "RESTART" });
+    const result = await handlers.handleCommand("conn-c", { command: "session.act", action: "RESTART" });
 
     // Then
-    expect(broadcaster.errorsTo("conn-c").at(-1)?.code).toBe("UNAUTHORIZED");
-    expect(store.get(code)!.clock).toEqual(before);
+    result._unsafeUnwrap();
+    expect(broadcaster.errorsTo("conn-c")).toEqual([]);
+    expect(secondsLeft(store.get(code)!.clock, START)).toBeCloseTo(INTERVAL_SECONDS, 0);
   });
 
-  it("host も実行できる（editor+ のため）", async () => {
+  it("作成者も実行できる", async () => {
     // Given
     const code = await setupRunningRoom(handlers, store, START);
 

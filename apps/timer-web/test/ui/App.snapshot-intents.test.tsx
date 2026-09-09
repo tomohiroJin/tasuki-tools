@@ -31,7 +31,7 @@ vi.mock("../../src/records/indexeddb.js", () => ({
   saveRecord: vi.fn().mockResolvedValue(undefined),
 }));
 
-const HOST_ID = "host-1";
+const CREATOR_ID = "p-alice";
 const OTHER_ID = "other-1";
 
 function problemA(): Problem {
@@ -45,12 +45,11 @@ function problemA(): Problem {
   };
 }
 
-function participant(participantId: string, displayName: string, role: "host" | "editor" = "host") {
+function participant(participantId: string, displayName: string) {
   return {
     participantId,
     connId: `c-${participantId}`,
     displayName,
-    role,
     presence: "online" as const,
     hasAiKey: false,
     joinedAt: 0,
@@ -79,7 +78,7 @@ function sentFrames(sendSpy: { mock: { calls: unknown[][] } }): Array<Record<str
 /** Setup 画面から「ルームを作る」まで進め、接続済み FakeWS を返す（作成者・isCreator=true）。 */
 function createRoomAndConnect(): FakeWS {
   render(<App />);
-  fireEvent.change(screen.getByLabelText("あなたの名前"), { target: { value: "Host" } });
+  fireEvent.change(screen.getByLabelText("あなたの名前"), { target: { value: "Creator" } });
   fireEvent.click(screen.getByRole("button", { name: /ルームを作る/ }));
   return openLatestSocket();
 }
@@ -112,7 +111,7 @@ describe("persist-completion: 完成フェーズの snapshot でローカル記�
   it("完成（中断でない）なら記録が保存される", () => {
     // Given
     const ws = createRoomAndConnect();
-    sendServer(ws, { type: "room.created", code: "ROOM01", hostToken: "ht", resumeToken: "rt", participantId: HOST_ID });
+    sendServer(ws, { type: "room.created", code: "ROOM01", resumeToken: "rt", participantId: CREATOR_ID });
 
     // When
     sendServer(ws, {
@@ -120,9 +119,8 @@ describe("persist-completion: 完成フェーズの snapshot でローカル記�
       room: aRoomView({
         code: "ROOM01",
         phase: "celebration",
-        hostParticipantId: HOST_ID,
         problem: problemA(),
-        participants: [participant(HOST_ID, "Host")],
+        participants: [participant(CREATOR_ID, "Creator")],
       }),
     });
 
@@ -133,15 +131,14 @@ describe("persist-completion: 完成フェーズの snapshot でローカル記�
   it("中断（abort）後の celebration では saveRecord が呼ばれない（既存の否定側を壊さない）", () => {
     // Given
     const ws = createRoomAndConnect();
-    sendServer(ws, { type: "room.created", code: "ROOM01", hostToken: "ht", resumeToken: "rt", participantId: HOST_ID });
+    sendServer(ws, { type: "room.created", code: "ROOM01", resumeToken: "rt", participantId: CREATOR_ID });
     sendServer(ws, {
       type: "snapshot",
       room: aRoomView({
         code: "ROOM01",
         phase: "session",
-        hostParticipantId: HOST_ID,
         problem: problemA(),
-        participants: [participant(HOST_ID, "Host")],
+        participants: [participant(CREATOR_ID, "Creator")],
         clock: { running: true, runningSince: Date.now() },
       }),
     });
@@ -155,9 +152,8 @@ describe("persist-completion: 完成フェーズの snapshot でローカル記�
       room: aRoomView({
         code: "ROOM01",
         phase: "celebration",
-        hostParticipantId: HOST_ID,
         problem: problemA(),
-        participants: [participant(HOST_ID, "Host")],
+        participants: [participant(CREATOR_ID, "Creator")],
       }),
     });
 
@@ -170,7 +166,7 @@ describe("request-problem: 作成者がロビーで一度だけ代表生成を�
   it("お題の無いロビーの snapshot を受けたら requestId: req-<CODE>-lobby で送る", () => {
     // Given
     const ws = createRoomAndConnect();
-    sendServer(ws, { type: "room.created", code: "ROOM01", hostToken: "ht", resumeToken: "rt", participantId: HOST_ID });
+    sendServer(ws, { type: "room.created", code: "ROOM01", resumeToken: "rt", participantId: CREATOR_ID });
     const sendSpy = vi.spyOn(ws, "send");
 
     // When
@@ -180,8 +176,7 @@ describe("request-problem: 作成者がロビーで一度だけ代表生成を�
         code: "ROOM01",
         phase: "ready",
         problem: null,
-        hostParticipantId: HOST_ID,
-        participants: [participant(HOST_ID, "Host")],
+        participants: [participant(CREATOR_ID, "Creator")],
       }),
     });
 
@@ -195,7 +190,7 @@ describe("regenerate-problem: 作成者がロビーでの難易度変更を受�
   it("難易度が変わった snapshot を受けたら requestId が req-<CODE>-cfg- で始まる依頼を送る", () => {
     // Given
     const ws = createRoomAndConnect();
-    sendServer(ws, { type: "room.created", code: "ROOM01", hostToken: "ht", resumeToken: "rt", participantId: HOST_ID });
+    sendServer(ws, { type: "room.created", code: "ROOM01", resumeToken: "rt", participantId: CREATOR_ID });
     sendServer(ws, {
       type: "snapshot",
       room: aRoomView({
@@ -203,8 +198,7 @@ describe("regenerate-problem: 作成者がロビーでの難易度変更を受�
         phase: "ready",
         problem: problemA(),
         config: { difficulty: "easy" },
-        hostParticipantId: HOST_ID,
-        participants: [participant(HOST_ID, "Host")],
+        participants: [participant(CREATOR_ID, "Creator")],
       }),
     });
     const sendSpy = vi.spyOn(ws, "send");
@@ -217,8 +211,7 @@ describe("regenerate-problem: 作成者がロビーでの難易度変更を受�
         phase: "ready",
         problem: problemA(),
         config: { difficulty: "hard" },
-        hostParticipantId: HOST_ID,
-        participants: [participant(HOST_ID, "Host")],
+        participants: [participant(CREATOR_ID, "Creator")],
       }),
     });
 
@@ -245,9 +238,8 @@ describe("consume-driver-join: 参加時ドライバー宣言は一度きりで�
       type: "snapshot",
       room: aRoomView({
         code: "ROOM01",
-        hostParticipantId: HOST_ID,
-        participants: [participant(HOST_ID, "Host"), participant(OTHER_ID, "Guest", "editor")],
-        session: { rotation: [HOST_ID], driverCounts: [0] },
+        participants: [participant(CREATOR_ID, "Creator"), participant(OTHER_ID, "Guest")],
+        session: { rotation: [CREATOR_ID], driverCounts: [0] },
       }),
     });
 
@@ -257,9 +249,8 @@ describe("consume-driver-join: 参加時ドライバー宣言は一度きりで�
       type: "snapshot",
       room: aRoomView({
         code: "ROOM01",
-        hostParticipantId: HOST_ID,
-        participants: [participant(HOST_ID, "Host"), participant(OTHER_ID, "Guest", "editor")],
-        session: { rotation: [HOST_ID], driverCounts: [0] },
+        participants: [participant(CREATOR_ID, "Creator"), participant(OTHER_ID, "Guest")],
+        session: { rotation: [CREATOR_ID], driverCounts: [0] },
       }),
     });
 

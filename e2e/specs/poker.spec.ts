@@ -113,6 +113,69 @@ test.describe('@core poker は公開まで他人の票を配らない', () => {
 });
 
 /**
+ * poker は 2 人目の参加者が公開でき、次のラウンドへも進められる（#95 S3）。
+ *
+ * かつては「票を公開する」「次のラウンドへ」がどちらもホストにだけ出ており、
+ * `not-host` を返して他の参加者を弾いていた。#95 S3 でホストが廃止され、
+ * `revealBy` と `nextRound` はどの参加者が呼んでも通る（`packages/poker-core/src/round.ts`
+ * の `revealBy` は `_participantId` を無視し、`nextRound` も同様に実行者を見ない）。
+ * 2 つは同じ削除された `requireHost` に守られていた対で、片方だけ確かめても
+ * もう片方の権限チェックが復活する壊れ方は捕まえられない——ここは両方を、
+ * どちらも**ルームを作った本人ではない**側の操作として続けて確かめる。
+ *
+ * **全員が投票し終わる前に、ルームを作った本人ではない側が公開を押す。** 最後の
+ * 1 人が投票した瞬間の自動公開（上の `@core` シナリオ）と経路を分けるため、作成者を
+ * 未投票のまま残す。自動公開の経路をたまたま踏んだだけでは、この筋は何も
+ * 証明しない。
+ */
+test.describe('poker は 2 人目の参加者が公開でき、次のラウンドへも進められる', () => {
+  test('Given 2 人が同じルームに居て、作成者はまだ投票していない / When 2 人目が公開し、続けて次のラウンドへ進める / Then 両方の画面に結果が出て、次のラウンドで投票状態がリセットされる', async ({
+    page,
+    openPeer,
+  }) => {
+    // Given: 2 人が同じルームに並ぶ
+    const roomUrl = await createRoom(page, HOST);
+    const guest = await openPeer('poker-second-reveals');
+    await joinRoom(guest.page, roomUrl, GUEST);
+    await expect(page.getByRole('heading', { name: '参加者（2人）' })).toBeVisible();
+
+    // Given の確認: 2 人目だけが投票し、作成者は未投票のまま。
+    // まだ公開されていないことも固定しておく（この後の公開が本当に「起きた」と言える錨）
+    await chooseCard(guest.page, '5');
+    await expect(resultsSection(page), '公開前').toHaveCount(0);
+
+    // When その1: **ルームを作った本人ではない**、2 人目が「票を公開する」を押す
+    await guest.page.getByRole('button', { name: '票を公開する' }).click();
+
+    // Then その1: 両方の画面に結果セクションが実際に現れる（かつての `not-host` のように弾かれていない）
+    await expect(resultsSection(page), '作成者の画面').toBeVisible();
+    await expect(resultsSection(guest.page), '2人目の画面').toBeVisible();
+
+    // Then その2: **中身も伴っている。** 2 人目の票が公開され、作成者は未投票のまま出る。
+    // バナーが無いだけでは「押しても何も起きていない」との区別がつかない
+    await expect(resultRow(page, GUEST), '公開後の2人目の行').toContainText('5');
+    await expect(resultRow(page, HOST), '公開後の作成者の行').toContainText('未投票');
+
+    // When その2: **同じ、ルームを作った本人ではない**2人目が「次のラウンドへ」を押す
+    await guest.page.getByRole('button', { name: '次のラウンドへ' }).click();
+
+    // Then その3: 次のラウンドへの遷移も非作成者から実際に通る。
+    // 結果セクションが消え（round が voting へ戻った）、かつ**中身が本当にリセットされた**
+    // ことまで見る。ボタンが押せて画面が変わっただけで投票状態が残っていたら意味が無い
+    for (const [label, target] of [
+      ['作成者', page],
+      ['参加者', guest.page],
+    ] as const) {
+      await expect(resultsSection(target), `${label}の画面（次ラウンド後）`).toHaveCount(0);
+      await expect(
+        participantRow(target, GUEST).getByRole('img', { name: '未投票' }),
+        `${label}の画面：前ラウンドで投票済みだった2人目が未投票に戻っている`,
+      ).toBeVisible();
+    }
+  });
+});
+
+/**
  * 消えたルームの招待リンクが行き止まりにならないこと（#13・#76 J-1 の回帰防止）。
  *
  * 壊れていた頃は、終了したルームのリンクでも参加フォームが出て、

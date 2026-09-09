@@ -11,7 +11,6 @@ const p = (participantId: string, displayName: string): Participant => ({
   participantId,
   connId: "c",
   displayName,
-  role: "editor",
   presence: "online",
   hasAiKey: false,
   joinedAt: 1000,

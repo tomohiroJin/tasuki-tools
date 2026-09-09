@@ -103,13 +103,10 @@ export const MUTATIONS = [
       "実際の変異先は同ファイルの (currentIndex + 1) % len。関数の分割位置が" +
       "異なるだけで、同じ「交代先の計算式が1つずれる」欠陥の型。",
   },
-  {
-    id: 2,
-    label: "checkPermission のある規則の許可/拒否を反転（viewer 拒否 → 許可）",
-    patch: "m02-permissions-viewer-invert.patch",
-    pkg: "packages/timer-core",
-    tests: ["test/permissions-differential.test.ts", "test/permissions.test.ts"],
-  },
+  // id 2（checkPermission の viewer 拒否を反転）と id 5（canRemoveParticipant の
+  // 呼び出しを削る）は #95 S3 で削除した。役割とホストを廃止したことで、
+  // どちらも「守っていた性質が概念ごと消えた」変異である（設計正本 §6.5）。
+  // 番号は詰めない —— 過去の記録が id で変異を指しているため。
   {
     id: 3,
     label: "computeIneligibleIndices から placeholder の除外を削る",
@@ -123,21 +120,6 @@ export const MUTATIONS = [
     patch: "m04-display-name-control-chars.patch",
     pkg: "packages/room-core",
     tests: ["tests/display-name.test.ts"],
-  },
-  {
-    id: 5,
-    label: "canRemoveParticipant の呼び出しを削る（LAST_MANAGER ガードの無効化）",
-    patch: "m05-can-remove-participant-guard.patch",
-    pkg: "apps/tasuki-sync",
-    tests: ["test/participant-remove.test.ts"],
-    note:
-      "plan.md の対応表は検出元を packages/timer-core/test/participants.test.ts としていたが、" +
-      "これは canRemoveParticipant という純粋関数そのものを検証するテストであり、" +
-      "apps/tasuki-sync/src/application/handlers.ts 側の「呼び出しを削る」変異（呼び出し元の" +
-      "欠陥）は検出できない（純粋関数自体は変えていないため）。実際に検出できるのは" +
-      "その呼び出しが実際に守っている振る舞い（LAST_MANAGER）を検証している" +
-      "apps/tasuki-sync/test/participant-remove.test.ts（③・③' のケース）であるため、" +
-      "こちらに読み替えた。",
   },
   {
     id: 6,

@@ -2,9 +2,9 @@
  * `participant.remove` 専用分岐（フェーズ5で `handlers.ts` から移動）。
  *
  * `handlers.ts` の `handleRoomCommand` 内にあった `participant.remove` の
- * 専用分岐をそのまま移動した。呼び出し側（`handleRoomCommand`）は在室確認・
- * アクター解決・`rejectIfUnauthorized` を済ませた `{ room, actor }` を
- * `ctx` として渡す。このハンドラは decide/evolve の共通パイプラインを
+ * 専用分岐をそのまま移動した。呼び出し側（`handleRoomCommand`）は在室確認と
+ * アクター解決を済ませた `{ room, actor }` を `ctx` として渡す。
+ * このハンドラは decide/evolve の共通パイプラインを
  * 経由せず、自分自身で `store.put`/`broadcastSnapshot`/`broadcastSignal` を
  * 完結させて `ok(undefined)` を返す（元の分岐と同じ構造。パイプライン共通処理
  * の手前で完結して return する形をそのまま保つ）。
@@ -16,7 +16,6 @@
 import { ok, err, type Result } from "neverthrow";
 import {
   evolve,
-  canRemoveParticipant,
   removalNotificationFor,
   errorMessageFor,
   type Room,
@@ -39,7 +38,6 @@ export interface ParticipantRemoveDeps {
   broadcaster: Broadcaster;
   reconcileSchedule: (room: Room) => void;
   rotationDisplayNames: (room: Room) => string[];
-  transferHostBeforeRemoval: (room: Room, leavingParticipantId: string) => Room;
   messageForRemoval: (
     code: ReturnType<typeof removalNotificationFor>,
     actorDisplayName: string,
@@ -54,8 +52,8 @@ export interface ParticipantRemoveDeps {
  * rotation に居れば rotation からも外し（現ドライバーなら evolve が繰り上げ）、
  * **部屋に誰かが残るなら** rotation 最後の1人は外せない（rotation を空にしない）。
  * 誰も残らないなら部屋ごと破棄する（Issue #79）。
- * 自己退出も可能（FR-079）。誰が実行できるかは呼び出し側の rejectIfUnauthorized が
- * 判定済みで、ここでは「結果の状態が妥当か」だけを検査する。
+ * 自己退出も可能（FR-079）。#95 S3 で在室者は全員同格になったため「誰が実行できるか」
+ * という判定は無く、ここでは「結果の状態が妥当か」だけを検査する。
  */
 export async function handleParticipantRemove(
   connId: string,
@@ -69,7 +67,6 @@ export async function handleParticipantRemove(
     broadcaster,
     reconcileSchedule,
     rotationDisplayNames,
-    transferHostBeforeRemoval,
     messageForRemoval,
     sendError,
     destroyRoom,
@@ -87,12 +84,6 @@ export async function handleParticipantRemove(
     sendError(connId, "PARTICIPANT_NOT_FOUND", errorMessageFor("PARTICIPANT_NOT_FOUND"));
     return err("PARTICIPANT_NOT_FOUND");
   }
-  // 不変条件: 実在（非代理）の編集者以上が1名以上残ること（FR-072/073）。
-  // 権限ではなくドメインガードなので checkPermission とは別に検査する（plan.md D3）。
-  if (!canRemoveParticipant(targetRoom.participants, targetId)) {
-    sendError(connId, "LAST_MANAGER_LEAVE", errorMessageFor("LAST_MANAGER_LEAVE"));
-    return err("LAST_MANAGER_LEAVE");
-  }
 
   /**
    * 退出した本人へ専用通知を送る（残りメンバーの snapshot には含まれず取り残されるため）。
@@ -109,9 +100,9 @@ export async function handleParticipantRemove(
    */
   const notifyRemovedTarget = (): void => {
     if (!target.connId) return;
-    // ホストが自分自身を退出させる経路では先に transferHostBeforeRemoval が走るが、
-    // transferHost は role と hostParticipantId だけを書き換え participantId は変えない
-    // ため、実行者と対象の同一判定（removalNotificationFor）はずれない。
+    // 「自分で抜けた」のか「他人に外された」のかは、実行者と対象の participantId を
+    // 突き合わせて決める。**この比較は #95 S3 でも残る**（役割とは無関係で、
+    // 本人へ見せる文言そのものを分ける唯一の判断である）。
     const removalCode = removalNotificationFor(participant.participantId, targetId);
     sendError(target.connId, removalCode, messageForRemoval(removalCode, participant.displayName));
   };
@@ -128,8 +119,8 @@ export async function handleParticipantRemove(
   // 誰も残らないのであれば rotation を維持する意味は無い。そこで evolve を通さず
   // ルームごと破棄する。緩めるのはこの一点だけで、1 人でも残るなら従来どおり
   // 拒否する（rotation が空の部屋に人が取り残される破綻を作らないため）。
-  // 在室者の数え方は canRemoveParticipant（core）と同じで、代理(isPlaceholder)も
-  // 「残る人」に数える。代理は自分では退出しないので部屋に残り続けるためである。
+  // 在室者の数え方は代理(isPlaceholder)も「残る人」に数える。
+  // 代理は自分では退出しないので部屋に残り続けるためである。
   const remainingResidents = targetRoom.participants.filter((p) => p.participantId !== targetId);
   if (remainingResidents.length === 0) {
     // 後始末はアイドル回収と同じ共通経路へ委ねる（スケジューラ・委譲・presence タイマー・
@@ -142,29 +133,22 @@ export async function handleParticipantRemove(
     return ok(undefined);
   }
 
-  // 対象が現ホストなら、退出させる前にホストを引き継ぐ（plan.md D2b）。
-  // 引き継がずに退出させると hostParticipantId が実在しない参加者を指し、
-  // 開始前のルームはホスト限定操作が誰にも実行できなくなって恒久的に詰む。
-  // 自動委譲は切断契機でしか発火しないため救済もない。
-  const roomBeforeRemoval = target.participantId === targetRoom.hostParticipantId
-    ? transferHostBeforeRemoval(targetRoom, targetId)
-    : targetRoom;
   // rotation の枠を外すかを決める（D6b・FR-085）。
   // rotation は参加者IDの配列なので、退出者の枠は ID でそのまま一意に引ける。
   // 参加順から「枠の持ち主」を推測していた G6 の規則（sameNameOwner）は、
   // 同名の二重参加や再接続で実態とずれたため撤去した。
-  const idx = roomBeforeRemoval.session.rotation.indexOf(targetId);
+  const idx = targetRoom.session.rotation.indexOf(targetId);
   let next: Room = {
-    ...roomBeforeRemoval,
-    participants: roomBeforeRemoval.participants.filter((p) => p.participantId !== targetId),
+    ...targetRoom,
+    participants: targetRoom.participants.filter((p) => p.participantId !== targetId),
   };
   if (idx >= 0) {
-    if (roomBeforeRemoval.session.rotation.length <= 1) {
+    if (targetRoom.session.rotation.length <= 1) {
       sendError(connId, "BelowMinMembers", errorMessageFor("BelowMinMembers"));
       return err("BelowMinMembers");
     }
     const agg = evolve(
-      { session: roomBeforeRemoval.session, clock: roomBeforeRemoval.clock },
+      { session: targetRoom.session, clock: targetRoom.clock },
       { type: "MemberRemoved", index: idx, now },
       now,
     );

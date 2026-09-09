@@ -69,10 +69,19 @@ function applyRoomLevelEvent(
     case "PhaseSet": {
       // startedAt は「一度でも開始したか」を表す単調フラグ（host-spof-relaxation D2）。
       // phase は phase.set で任意方向へ遷移でき "setup" 等へ後戻りもできるため、
-      // 現在の phase で権限を判定すると主催者不在時に誰かが "setup" へ戻した瞬間
-      // ルームが再びホスト限定に締まり、Issue #22 の詰みが再発する。そのため
+      // 現在の phase を段階の判定に使うと、誰かが "setup" へ戻した瞬間に
+      // 「まだ開始していない」へ巻き戻ってしまう。そのため
       // 「session への遷移を初めて観測した」時点で一度だけ記録し、以後は
       // どんな phase 遷移でも消さない（上書きしない）。
+      // 可否判定そのものは #95 S3 で撤去済みだが、フラグは残してある。
+      // **この値を読む処理はもうどこにも無い。** サーバー側に残るのは `handlers.ts` と
+      // 当ファイルの書き込み時の `== null` 単調性ガード（自分の書き込みを一度きりに
+      // するための参照）だけであり、web 側の読み手も S3 で消えた
+      // （`Session.tsx` の `started` と、そこから渡していた `SpectatorSelfActions` は
+      // どちらも無くなった）。それでも残しているのは、`RoomSchema` に載っていて
+      // snapshot に相乗りしてクライアントへ配信され続けているためである
+      // （撤去は wire 契約の変更になるので、この段では動かさない）。
+      // **フィールドごと落とすかどうかは次の段で判断すること**。
       const startedAt =
         event.phase === "session" && room.startedAt == null ? _now : room.startedAt;
       return { ...room, phase: event.phase, startedAt };
@@ -125,7 +134,6 @@ function applyRoomLevelEvent(
         participantId: event.participantId,
         connId: null,
         displayName: event.displayName,
-        role: "editor",
         presence: "offline",
         hasAiKey: false,
         joinedAt: _now,

@@ -5,22 +5,8 @@ import type { Card } from './deck';
 import type { Room } from './room';
 
 export type RoundError =
-  | { code: 'not-host'; op: 'reveal' | 'next-round' }
   | { code: 'not-voting'; op: 'vote' | 'reveal' }
   | { code: 'not-revealed'; op: 'next-round' };
-
-/** ホスト専用操作の認可ガード（reveal / next-round / 将来のホスト操作で共用） */
-function requireHost(
-  room: Room,
-  participantId: string,
-  op: 'reveal' | 'next-round',
-): Result<void, RoundError> {
-  const actor = room.participants.find((p) => p.id === participantId);
-  if (!actor?.isHost) {
-    return err({ code: 'not-host', op });
-  }
-  return ok(undefined);
-}
 
 function withVotes(room: Room, votes: Map<string, Card>): Room {
   return { ...room, round: { ...room.round, votes } };
@@ -49,28 +35,33 @@ export function applyAutoReveal(room: Room): Room {
   return { ...room, round: { ...room.round, status: 'revealed' } };
 }
 
-/** ホストによる手動公開（FR-009） */
-export function revealBy(room: Room, participantId: string): Result<Room, RoundError> {
-  return requireHost(room, participantId, 'reveal').andThen(() => {
-    if (room.round.status !== 'voting') {
-      return err<Room, RoundError>({ code: 'not-voting', op: 'reveal' });
-    }
-    return ok({ ...room, round: { ...room.round, status: 'revealed' as const } });
-  });
+/**
+ * 手動公開（FR-009）。
+ *
+ * #95 S3 で役割とホストを廃止したため、在室者なら誰でも実行できる。
+ * `participantId` は呼び出し元が `RoomAction`（`(room, participantId) => Result<Room, RoundError>`）
+ * として渡す都合上、引数の形を保つためだけに残る（この関数自身は在室確認をしない）。
+ */
+export function revealBy(room: Room, _participantId: string): Result<Room, RoundError> {
+  if (room.round.status !== 'voting') {
+    return err({ code: 'not-voting', op: 'reveal' });
+  }
+  return ok({ ...room, round: { ...room.round, status: 'revealed' as const } });
 }
 
 /**
  * 再投票・次ラウンドの開始（FR-011）。ドメイン上は同一操作で、ラベルは UI の責務。
  * 全票をリセットして voting に戻す。
+ *
+ * #95 S3 で役割とホストを廃止したため、在室者なら誰でも実行できる。
+ * `participantId` は呼び出し元が `RoomAction` として渡す都合上、引数の形を保つためだけに残る。
  */
-export function nextRound(room: Room, participantId: string): Result<Room, RoundError> {
-  return requireHost(room, participantId, 'next-round').andThen(() => {
-    if (room.round.status !== 'revealed') {
-      return err<Room, RoundError>({
-        code: 'not-revealed',
-        op: 'next-round',
-      });
-    }
-    return ok({ ...room, round: { status: 'voting' as const, votes: new Map() } });
-  });
+export function nextRound(room: Room, _participantId: string): Result<Room, RoundError> {
+  if (room.round.status !== 'revealed') {
+    return err({
+      code: 'not-revealed',
+      op: 'next-round',
+    });
+  }
+  return ok({ ...room, round: { status: 'voting' as const, votes: new Map() } });
 }

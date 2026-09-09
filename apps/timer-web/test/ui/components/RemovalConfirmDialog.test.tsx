@@ -10,7 +10,6 @@ function makeParticipant(overrides?: Partial<Participant>): Participant {
     participantId: "p1",
     connId: "conn1",
     displayName: "Alice",
-    role: "host",
     presence: "online",
     hasAiKey: false,
     joinedAt: 1000000,

@@ -64,7 +64,7 @@ describe('revealed の stats（FR-010）', () => {
 });
 
 describe('next-round（契約 #6 / FR-011）', () => {
-  it('ホストの next-round で全員が票リセット済みの voting 状態を受信する', async () => {
+  it('next-round で全員が票リセット済みの voting 状態を受信する', async () => {
     // Given
     const { host, guest } = await setupRevealedRoom();
     // When
@@ -81,16 +81,21 @@ describe('next-round（契約 #6 / FR-011）', () => {
     guest.close();
   });
 
-  it('非ホストの next-round は not-host エラー', async () => {
+  // #95 S3 より前は、ルーム作成者以外が next-round を送ると not-host エラーで
+  // 拒否されていた。ホストと権限判定を廃止したので、いまは作成者でない参加者
+  // （ここでは guest）の next-round も成功し、票がリセットされた voting を受信する。
+  it('作成者でない参加者の next-round でも全員が票リセット済みの voting 状態を受信する', async () => {
     // Given
     const { host, guest } = await setupRevealedRoom();
     // When
     guest.send({ type: 'next-round' });
     // Then
-    expect(await guest.nextMatching(isType('error'))).toMatchObject({
-      type: 'error',
-      code: 'not-host',
-    });
+    for (const client of [host, guest]) {
+      const state = (await client.nextMatching(
+        (msg) => (msg as RoomState).round?.status === 'voting',
+      )) as RoomState;
+      expect(state.participants.every((p) => !p.hasVoted)).toBe(true);
+    }
     host.close();
     guest.close();
   });

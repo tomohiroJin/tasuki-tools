@@ -11,7 +11,7 @@
  * 再編後に書くと「新しい実装に合わせて書いたテスト」になり、退行を検出できない。
  *
  * レビュー（#167 Task 3 の I-1）で表駆動ケースを command 名だけの一致から
- * フレーム全体の一致へ強めた。role.set の role、member.move の fromIndex/toIndex、
+ * フレーム全体の一致へ強めた。member.move の fromIndex/toIndex、
  * config.set の config、handoff.note.set の text 等が壊れても command 名さえ合っていれば
  * 緑になっていたため、Task 6 の大移動がこの網をすり抜けないようにする。
  * requestId・participantId に乱数/現在時刻を含む2件（onRegenerateProblem・onAddProxy）は
@@ -57,9 +57,6 @@ const ARGS: Record<string, unknown[]> = {
   onJoinRotation: ["p-2"],
   onLeaveRotation: ["p-2"],
   onRemoveParticipant: ["p-2"],
-  onRoleSet: ["p-2", "editor"],
-  onSelfRoleChange: ["editor"],
-  onTransferHost: ["p-2"],
   onMoveRotation: [0, 1],
   onSetPassphrase: ["ひみつ"],
   onAiUnlock: ["あいことば"],
@@ -75,15 +72,14 @@ const ARGS: Record<string, unknown[]> = {
 vi.mock("../../src/ui/Lobby.js", () => ({ Lobby: propHarness("lobby") }));
 vi.mock("../../src/ui/Session.js", () => ({ Session: propHarness("session") }));
 
-const HOST_ID = "host-1";
+const CREATOR_ID = "creator-1";
 const OTHER_ID = "p-2";
 
-function participant(participantId: string, displayName: string, role: "host" | "editor" = "host") {
+function participant(participantId: string, displayName: string) {
   return {
     participantId,
     connId: `c-${participantId}`,
     displayName,
-    role,
     presence: "online" as const,
     hasAiKey: false,
     joinedAt: 0,
@@ -120,24 +116,22 @@ afterEach(() => {
 /** ルームを作り、指定 phase の snapshot まで進めて FakeWS を返す。 */
 function enterRoom(phase: "ready" | "session"): FakeWS {
   render(<App />);
-  fireEvent.change(screen.getByLabelText("あなたの名前"), { target: { value: "Host" } });
+  fireEvent.change(screen.getByLabelText("あなたの名前"), { target: { value: "Creator" } });
   fireEvent.click(screen.getByRole("button", { name: /ルームを作る/ }));
   const ws = openLatestSocket();
   sendServer(ws, {
     type: "room.created",
     code: "ROOM01",
-    hostToken: "ht",
     resumeToken: "rt",
-    participantId: HOST_ID,
+    participantId: CREATOR_ID,
   });
   sendServer(ws, {
     type: "snapshot",
     room: aRoomView({
       code: "ROOM01",
       phase,
-      hostParticipantId: HOST_ID,
-      participants: [participant(HOST_ID, "Host"), participant(OTHER_ID, "Other", "editor")],
-      session: { rotation: [HOST_ID, OTHER_ID], currentIndex: 0 },
+      participants: [participant(CREATOR_ID, "Creator"), participant(OTHER_ID, "Other")],
+      session: { rotation: [CREATOR_ID, OTHER_ID], currentIndex: 0 },
       problem: {
         title: "お題",
         description: "説明",
@@ -172,8 +166,6 @@ const LOBBY_CASES: Array<[string, Record<string, unknown>]> = [
   ["onJoinRotation", { command: "member.add", participantId: "p-2" }],
   ["onLeaveRotation", { command: "member.remove", index: 1 }],
   ["onRemoveParticipant", { command: "participant.remove", participantId: "p-2" }],
-  ["onRoleSet", { command: "role.set", participantId: "p-2", role: "editor" }],
-  ["onTransferHost", { command: "host.transfer", participantId: "p-2" }],
   ["onMoveRotation", { command: "member.move", fromIndex: 0, toIndex: 1 }],
   ["onShuffle", { command: "member.shuffle" }],
   ["onSetPassphrase", { command: "room.passphrase.set", passphrase: "ひみつ" }],
@@ -197,8 +189,6 @@ const SESSION_CASES: Array<[string, Record<string, unknown>]> = [
   ["onDriverResume", { command: "driver.resume", participantId: "p-2" }],
   ["onDriverAssign", { command: "driver.assign", participantId: "p-2" }],
   ["onRemoveParticipant", { command: "participant.remove", participantId: "p-2" }],
-  ["onSelfRoleChange", { command: "role.set", participantId: HOST_ID, role: "editor" }],
-  ["onTransferHost", { command: "host.transfer", participantId: "p-2" }],
   ["onMoveRotation", { command: "member.move", fromIndex: 0, toIndex: 1 }],
   ["onShuffle", { command: "member.shuffle" }],
   ["onEditProblem", { command: "problem.edit", patch: { title: "新タイトル" } }],

@@ -37,7 +37,7 @@ export function clearPreferences(): void {
   localStorage.removeItem(PREFS_KEY);
 }
 
-/** ランダム対象にする言語プール（ホストローカル設定）。SessionConfig には載せない。 */
+/** ランダム対象にする言語プール（この端末のローカル設定）。SessionConfig には載せない。 */
 const RANDOM_LANG_POOL_KEY = "tdd-mob:random-language-pool:v1";
 
 /** 既定の言語プール（常用5言語）。未保存・破損時のフォールバックにも使う。 */

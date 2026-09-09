@@ -1,6 +1,7 @@
 /**
  * ロビーのセッション設定パネル（交代間隔＋詳細設定）。ConfigPanel から分割（v2.9）。
- * 変更は onChange(patch) で通知し、呼び出し側が config.set を送る。canEdit=false は読み取り表示。
+ * 変更は onChange(patch) で通知し、呼び出し側が config.set を送る。
+ * かつては canEdit=false（見学者）向けの読み取り表示を持っていた（#95 S3 で廃止）。
  */
 import React from "react";
 import { Settings2, ChevronDown } from "lucide-react";
@@ -10,20 +11,10 @@ import { SectionHeader } from "../primitives.js";
 
 interface SessionConfigPanelProps {
   config: SessionConfig;
-  canEdit: boolean;
   onChange: (patch: Partial<SessionConfig>) => void;
 }
 
-export function SessionConfigPanel({ config, canEdit, onChange }: SessionConfigPanelProps) {
-  if (!canEdit) {
-    return (
-      <div className="text-sm text-[var(--bone-muted)]">
-        <SectionHeader icon={Settings2} color="text-[var(--signal)]" title="セッション設定" />
-        <p>{config.intervalMinutes}分</p>
-      </div>
-    );
-  }
-
+export function SessionConfigPanel({ config, onChange }: SessionConfigPanelProps) {
   const navigatorEnabled = config.navigatorEnabled === true;
   const assertiveSwitch = config.assertiveSwitch === true;
 

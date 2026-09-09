@@ -1,6 +1,5 @@
 /**
  * CommandSchema の境界バリデーションのテスト
- * host.transfer コマンドの追加分（v2.2 R2-3）を中心に検証する。
  */
 
 import { describe, it, expect } from "vitest";
@@ -9,23 +8,91 @@ import { CommandSchema, ServerMsgSchema } from "../src/index.js";
 // RoomSchema は公開契約に載せない（取り込むのがテストだけのため。#220）。
 import { RoomSchema } from "../src/schemas.js";
 
-describe("CommandSchema host.transfer", () => {
-  it("participantId 付きの host.transfer は success", () => {
-    // Given
-    const command = { command: "host.transfer", participantId: "p2" };
-    // When
-    const result = v.safeParse(CommandSchema, command);
+/**
+ * startedAt を含まない最小 Room オブジェクト（v2 以前の既存形式を模す）。
+ *
+ * 参加者スキーマは単体で公開していない（#220・SC-039③）ため、参加者の形を見る検査も
+ * この Room を通して行う。
+ */
+function baseRoom(): Record<string, unknown> {
+  return {
+    code: "ROOM-1",
+    createdAt: 0,
+    config: {
+      language: "TypeScript",
+      difficulty: "easy",
+      members: ["A", "B", "C"],
+      intervalMinutes: 5,
+    },
+    problem: null,
+    session: {
+      rotation: ["A", "B", "C"],
+      currentIndex: 0,
+      isPaused: false,
+      driverCounts: [0, 0, 0],
+      totalSwitches: 0,
+    },
+    clock: {
+      running: false,
+      intervalSeconds: 300,
+      anchorServerTime: 0,
+      secondsLeftAtAnchor: 300,
+      accumulatedElapsedMs: 0,
+      runningSince: null,
+    },
+    phase: "ready",
+    participants: [
+      {
+        participantId: "p1",
+        connId: "c1",
+        displayName: "A",
+        presence: "online",
+        hasAiKey: false,
+        joinedAt: 1,
+      },
+    ],
+    sessionRecords: [],
+    handoffNote: "",
+    onBreak: false,
+  };
+}
+
+/**
+ * 役割とホストの廃止（#95 S3）で落とした wire 契約の残骸が復活していないことを固定する。
+ *
+ * @requirements #95
+ */
+describe("役割とホストの廃止", () => {
+  it("役割とホストのコマンドは受理しない", () => {
+    // Given（廃止したコマンドの入力）
+    const roleSet = { command: "role.set", participantId: "p1", role: "viewer" };
+    const hostTransfer = { command: "host.transfer", participantId: "p1" };
+    // When（variant のどの枝にも当たらないので境界で落ちるはず）
+    const roleSetResult = v.safeParse(CommandSchema, roleSet);
+    const hostTransferResult = v.safeParse(CommandSchema, hostTransfer);
     // Then
-    expect(result.success).toBe(true);
+    expect(roleSetResult.success).toBe(false);
+    expect(hostTransferResult.success).toBe(false);
   });
 
-  it("participantId 欠落の host.transfer は failure", () => {
-    // Given
-    const command = { command: "host.transfer" };
-    // When
-    const result = v.safeParse(CommandSchema, command);
+  it("参加者のスキーマは role を持たない", () => {
+    // Given（role を持つ旧形式の参加者を含む room。参加者の形は snapshot が運ぶ
+    // RoomSchema.participants 経由でしか外から観測しないので、検査もそこを通す）
+    const room = baseRoom();
+    const withRole = (room["participants"] as Array<Record<string, unknown>>).map((p) => ({
+      ...p,
+      role: "host",
+    }));
+    // When（参加者スキーマは v.object（余剰キーを黙って捨てる）であり strictObject ではない。
+    // そのため「role を含む値を拒否する」という否定形は空振りする（未知キーは
+    // 静かに落とされるだけで success は変わらない）。ここでは「role を含む値を
+    // パースした結果に role キーが残らないこと」という肯定形で固定する）。
+    const parsed = v.safeParse(RoomSchema, { ...room, participants: withRole });
+    const parsedWithoutRole = v.safeParse(RoomSchema, room);
     // Then
-    expect(result.success).toBe(false);
+    expect(parsed.success).toBe(true);
+    expect(parsed.success && "role" in parsed.output.participants[0]!).toBe(false);
+    expect(parsedWithoutRole.success).toBe(true);
   });
 });
 
@@ -85,52 +152,6 @@ describe("SessionConfigSchema 言語・難易度の境界", () => {
 });
 
 describe("RoomSchema startedAt（後方互換・単調フラグ）", () => {
-  /** startedAt を含まない最小 Room オブジェクト（v2 以前の既存形式を模す）。 */
-  function baseRoom(): Record<string, unknown> {
-    return {
-      code: "ROOM-1",
-      createdAt: 0,
-      hostParticipantId: "p1",
-      config: {
-        language: "TypeScript",
-        difficulty: "easy",
-        members: ["A", "B", "C"],
-        intervalMinutes: 5,
-      },
-      problem: null,
-      session: {
-        rotation: ["A", "B", "C"],
-        currentIndex: 0,
-        isPaused: false,
-        driverCounts: [0, 0, 0],
-        totalSwitches: 0,
-      },
-      clock: {
-        running: false,
-        intervalSeconds: 300,
-        anchorServerTime: 0,
-        secondsLeftAtAnchor: 300,
-        accumulatedElapsedMs: 0,
-        runningSince: null,
-      },
-      phase: "ready",
-      participants: [
-        {
-          participantId: "p1",
-          connId: "c1",
-          displayName: "A",
-          role: "host",
-          presence: "online",
-          hasAiKey: false,
-          joinedAt: 1,
-        },
-      ],
-      sessionRecords: [],
-      handoffNote: "",
-      onBreak: false,
-    };
-  }
-
   it("startedAt を省略した既存形式の room をパースできる（後方互換）", () => {
     const result = v.safeParse(RoomSchema, baseRoom());
     expect(result.success).toBe(true);

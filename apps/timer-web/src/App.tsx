@@ -4,7 +4,7 @@
  * **表示に徹する**（`docs/adr/0015` MUST 3）。WS の接続状態とメッセージ配線は
  * `sync/use-timer-sync.ts` が持ち、このファイルは同期クライアント（`SyncClient`）を
  * 直接 import しない（同 MUST 2）。ここに残るのは、画面の関心である描画・スクロール・
- * 自分の表示名/役割の導出・クリップボード I/O だけである。
+ * 自分の表示名の導出・クリップボード I/O だけである。
  */
 
 import React, { useEffect } from "react";
@@ -86,10 +86,9 @@ export default function App() {
       });
   };
 
-  // StatusStrip 用に「自分」の表示名・役割を導出する。
+  // StatusStrip 用に「自分」の表示名を導出する。
   const self = room?.participants.find((p) => p.participantId === participantId);
   const selfName = self?.displayName ?? room?.config.members[0] ?? "あなた";
-  const selfRole = self?.role ?? "host";
   // 接続状態: 喪失が最優先、それ以外は WS クライアントの通知に従う（R5-1）。
   // 接続が生きていても、契約に合わないフレームを捨てて画面が古いままなら
   // 「同期不整合」を出す（#209）。
@@ -126,8 +125,6 @@ export default function App() {
           onJoinRotation={commands.addMember}
           onLeaveRotation={commands.removeMember}
           onRemoveParticipant={commands.removeParticipant}
-          onRoleSet={commands.setRole}
-          onTransferHost={commands.transferHost}
           onMoveRotation={commands.moveMember}
           onShuffle={commands.shuffleMembers}
           onSetPassphrase={commands.setPassphrase}
@@ -165,8 +162,6 @@ export default function App() {
           onDriverAssign={commands.driverAssign}
           onAddProxy={sync.addProxy}
           onRemoveParticipant={commands.removeParticipant}
-          onSelfRoleChange={sync.changeOwnRole}
-          onTransferHost={commands.transferHost}
           onMoveRotation={commands.moveMember}
           onShuffle={commands.shuffleMembers}
           onEditProblem={commands.editProblem}
@@ -212,7 +207,6 @@ export default function App() {
           <StatusStrip
             phase={mode}
             displayName={selfName}
-            role={selfRole}
             connectionStatus={connectionStatus}
             roomCode={room?.code}
           />

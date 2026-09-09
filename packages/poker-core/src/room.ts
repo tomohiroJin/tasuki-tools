@@ -8,7 +8,6 @@ export interface Participant {
   /** 再接続用トークン。本人以外へ配信してはならない（snapshot が除外する） */
   token: string;
   name: string;
-  isHost: boolean;
   connected: boolean;
   joinOrder: number;
 }
@@ -52,18 +51,17 @@ export interface RoomUpdate {
   participant: Participant;
 }
 
-/** ルーム作成（作成者がホスト。ラウンドは voting で初期化。FR-001） */
+/** ルーム作成（ラウンドは voting で初期化。FR-001） */
 export function createRoom(
   roomId: string,
-  hostName: string,
+  displayName: string,
   ids: ParticipantIds,
 ): Result<RoomUpdate, RoomError> {
-  return validateName(hostName).map((name) => {
+  return validateName(displayName).map((name) => {
     const participant: Participant = {
       id: ids.participantId,
       token: ids.token,
       name,
-      isHost: true,
       connected: true,
       joinOrder: 0,
     };
@@ -92,36 +90,18 @@ function updateParticipant(
   };
 }
 
-/**
- * 切断処理（US4）。connected=false にし、票は保持する。
- * 切断者がホストなら、接続中の参加者のうち joinOrder 最小の者へ権限を移す（FR-012 / research R6）。
- */
+/** 切断処理（US4）。connected=false にし、票は保持する。 */
 export function markDisconnected(room: Room, participantId: string): Room {
   const leaving = room.participants.find((p) => p.id === participantId);
   if (!leaving) return room;
 
-  let updated = updateParticipant(room, participantId, (p) => ({
+  return updateParticipant(room, participantId, (p) => ({
     ...p,
     connected: false,
-    isHost: false,
   }));
-
-  if (leaving.isHost) {
-    const successor = updated.participants
-      .filter((p) => p.connected)
-      .reduce<Participant | null>(
-        (min, p) => (min === null || p.joinOrder < min.joinOrder ? p : min),
-        null,
-      );
-    if (successor) {
-      updated = updateParticipant(updated, successor.id, (p) => ({ ...p, isHost: true }));
-    }
-  }
-
-  return updated;
 }
 
-/** 再接続による復帰（FR-013）。票・joinOrder は保持され、ホスト権限は自動では戻らない */
+/** 再接続による復帰（FR-013）。票・joinOrder は保持される */
 export function markConnected(room: Room, participantId: string): Room {
   return updateParticipant(room, participantId, (p) => ({ ...p, connected: true }));
 }
@@ -139,7 +119,6 @@ export function joinRoom(
       id: ids.participantId,
       token: ids.token,
       name,
-      isHost: false,
       connected: true,
       joinOrder,
     };

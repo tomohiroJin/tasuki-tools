@@ -56,7 +56,7 @@ const A_RECORD: CompletionRecord = {
   language: "TypeScript",
   difficulty: "easy",
   elapsedSeconds: 300,
-  members: ["Host"],
+  members: ["Creator"],
   totalSwitches: 0,
   completedAt: 1_000_000,
 };
@@ -88,7 +88,7 @@ describe("useTimerSync: 接続の状態", () => {
     // Given
     const { result } = renderHook(() => useTimerSync(fakeBanner()));
     // When
-    act(() => result.current.createRoom("Host"));
+    act(() => result.current.createRoom("Creator"));
     // Then
     expect(FakeWS.instances).toHaveLength(1);
   });
@@ -96,7 +96,7 @@ describe("useTimerSync: 接続の状態", () => {
   it("接続が切れると connState が reconnecting になる（EARS 2）", () => {
     // Given
     const { result } = renderHook(() => useTimerSync(fakeBanner()));
-    act(() => result.current.createRoom("Host"));
+    act(() => result.current.createRoom("Creator"));
     const ws = latestSocket();
     act(() => {
       ws.readyState = FakeWS.OPEN;
@@ -114,7 +114,7 @@ describe("useTimerSync: 接続の状態", () => {
     // Given
     const banner = fakeBanner();
     const { result } = renderHook(() => useTimerSync(banner));
-    act(() => result.current.createRoom("Host"));
+    act(() => result.current.createRoom("Creator"));
     const ws = latestSocket();
     act(() => {
       ws.readyState = FakeWS.OPEN;
@@ -136,7 +136,7 @@ describe("useTimerSync: メッセージの配線", () => {
   function connected() {
     const banner = fakeBanner();
     const hook = renderHook(() => useTimerSync(banner));
-    act(() => hook.result.current.createRoom("Host"));
+    act(() => hook.result.current.createRoom("Creator"));
     const ws = latestSocket();
     act(() => {
       ws.readyState = FakeWS.OPEN;
@@ -161,7 +161,7 @@ describe("useTimerSync: メッセージの配線", () => {
     // Given
     const { result, deliver } = connected();
     // When
-    deliver({ type: "room.created", code: "ROOM01", hostToken: "ht", resumeToken: "rt", participantId: "me" });
+    deliver({ type: "room.created", code: "ROOM01", resumeToken: "rt", participantId: "me" });
     // Then
     expect(result.current.participantId).toBe("me");
   });
@@ -193,8 +193,8 @@ describe("useTimerSync: メッセージの配線", () => {
       type: "signal",
       signal: "notice",
       action: "session-aborted",
-      actorName: "Host",
-      actorParticipantId: "host-p",
+      actorName: "Creator",
+      actorParticipantId: "creator-p",
     });
     // Then
     expect(banner.calls.some((c) => c.startsWith("show:"))).toBe(true);
@@ -281,7 +281,7 @@ describe("useTimerSync: 後始末", () => {
   it("unmount で WebSocket を閉じる", () => {
     // Given
     const { result, unmount } = renderHook(() => useTimerSync(fakeBanner()));
-    act(() => result.current.createRoom("Host"));
+    act(() => result.current.createRoom("Creator"));
     const ws = latestSocket();
     const closeSpy = vi.spyOn(ws, "close");
     // When
@@ -295,7 +295,7 @@ describe("混雑で入室を拒まれたとき", () => {
   /** バナーを差し替えて接続済みにする（上の describe のものとは別に持つ）。 */
   function connectedWith(banner: BannerController) {
     const hook = renderHook(() => useTimerSync(banner));
-    act(() => hook.result.current.createRoom("Host"));
+    act(() => hook.result.current.createRoom("Creator"));
     const ws = latestSocket();
     act(() => {
       ws.readyState = FakeWS.OPEN;
@@ -465,7 +465,7 @@ describe("useTimerSync: 捨てた同期フレームの表出", () => {
   /** 接続だけ済ませた状態。**まだ snapshot は届いていないので room は無い。** */
   function connected(banner: BannerController = fakeBanner()) {
     const hook = renderHook(() => useTimerSync(banner));
-    act(() => hook.result.current.createRoom("Host"));
+    act(() => hook.result.current.createRoom("Creator"));
     const ws = latestSocket();
     act(() => {
       ws.readyState = FakeWS.OPEN;
@@ -528,7 +528,7 @@ describe("useTimerSync: 捨てた同期フレームの表出", () => {
     // When
     deliver(aFrameThatViolatesTheContract());
     // Then（捨てられたので room は前のまま）
-    expect(result.current.room?.config.members).toEqual(["Host"]);
+    expect(result.current.room?.config.members).toEqual(["Creator"]);
   });
 
   it("有効な snapshot を受け取ると同期が古い状態から戻る", () => {

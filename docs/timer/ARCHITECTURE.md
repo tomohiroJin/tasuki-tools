@@ -35,8 +35,7 @@ TDD Mob Pro Timer の構造・データフロー・設計原則をまとめま�
 | `evolve.ts` | `evolve(agg, event, now): Aggregate` — イベント→次状態（全域関数） |
 | `events.ts` / `errors.ts` | `DomainEvent` 合併型 / `DomainError` 合併型 |
 | `schemas.ts` | Valibot スキーマ（Command / ServerMsg / Problem / SessionConfig）。境界で検証と**正規化**を行う。表示名の正規化（`normalizeDisplayName`）はメンバーシップ文脈の `packages/room-core` から取り込む（#95 S1 で移設。この取り込みは S4a で消える） |
-| `permissions.ts` | 段階×役割の可否判定（`checkPermission` / `isAllowed`）。front/server が共有する単一の規則（FR-071） |
-| `participants.ts` | 在室者の不変条件（`canRemoveParticipant` / `canDemote` / `transferHost`）。権限とは別の責務。退出通知の種類を決める `removalNotificationFor`（Issue #32）も同じ関心としてここに置く |
+| `removal-notification.ts` | 退出通知の種類を決める `removalNotificationFor`（Issue #32）。**#95 S3 以前は `participants.ts` に、在室者の不変条件（`canRemoveParticipant` / `canDemote` / `transferHost`）と同居していた。不変条件は役割ごと廃止し、この 1 関数だけが残ったので独立させた** |
 | `problem.ts` | 定型お題バンク・`validateProblem`・`pickFallback`・プロンプト生成 |
 | `records.ts` | 完成記録の生成（所要時間は稼働区間のみ積算） |
 | `error-messages.ts` | エラーコード → 利用者向け文言の**単一の正本**（Issue #28・FR-105）。画面表示は `displayMessageFor()`、wire の `message` は `errorMessageFor()` を経由する。**コードと文言は 1 対 1**（Issue #29）— 同じコードを説明が異なるべき複数の操作から返さない |
@@ -47,32 +46,45 @@ TDD Mob Pro Timer の構造・データフロー・設計原則をまとめま�
 
 - `decide` は副作用なしでコマンドを検証し、`neverthrow` の `Result` を返します（例外を投げない）。
   不正は `Err(DomainError)`（`EmptyName` / `DuplicateName` / `MemberLimitExceeded` /
-  `Unauthorized` / `PhaseConflict` / `InvalidInterval` 等）。
+  `PhaseConflict` / `InvalidInterval` 等）。
 - `evolve` はイベントを適用して次の集約を返す全域関数です。
 - 詳細: [ADR-0002](./adr/0002-decider-pure-domain.md)、[ADR-0006](./adr/0006-result-and-boundary-validation.md)。
 
-### 権限 — 段階 × 役割の単一規則
+### 権限 — 持たない（ルームに居る全員が同格）
 
-可否判定は `permissions.ts` の `checkPermission()` **1 か所**だけが持ちます（FR-071）。
-サーバーの強制（`handlers.ts`）と UI の活性表示（`isAllowed()`）が同じ関数を呼ぶため、
-「押せるのに拒否される」「実行できるのに押せない」というズレが構造的に起きません（SC-022）。
+**参加者ごとに区別される権限はありません。** ルームに居る人は全員が同格で、コマンドの受理は
+まず在室しているかどうかを見ます。`Role` 型（`host` / `editor` / `viewer`）・
+`Participant.role`・`Room.hostParticipantId`・可否判定モジュール（`permissions.ts` の
+`checkPermission` / `isAllowed`）・在室者の不変条件（`participants.ts` の
+`canRemoveParticipant` / `canDemote` / `transferHost`）は、いずれも
+**#95 S3 で廃止しました**（[ADR-0007](./adr/0007-volatile-in-memory-state.md) の
+改定（2026-09-08）／[設計正本](../superpowers/specs/2026-09-06-shared-identity-and-rooms-design.md) D5）。
 
-判定の軸は**役割**（host / editor / viewer）と**段階**の2つです。段階は `Room.startedAt`
-（一度でもセッションを開始したか）で表し、**単調**です。`phase` は `phase.set` で
-`setup` へ戻せてしまうため判定に使いません。戻せる値で権限を決めると、主催者不在の部屋で
-誰かが `setup` へ戻した瞬間に再びホスト限定へ締まり、詰みが再発します（FR-062）。
+**ただし在室だけで何でも通るわけではありません。** ドメイン側の事前条件
+（`PhaseConflict` / `InvalidInterval` / `BelowMinMembers` 等）は残りますし、
+**実行者で選別する関門も 1 つだけ残っています**。`problem.submit` は、いまお題の委譲が
+オファーしている参加者本人からの投入しか受理しません（`problem-delegation.ts` の `submit`。
+他の在室者へは `STALE_SUBMISSION` を返します）。これは参加者に貼り付く権限ではなく、
+その時点の委譲順の話です。
 
-- **開始前**: 従来どおり主催者主導（FR-066）。ホスト限定コマンドと、他人対象の関係コマンドを host に限る
-- **開始後**: 可否判定に主催者であることを**用いない**（FR-063）。編集者以上なら誰でも実行できる。
-  進行系だけでなく入室制御（`room.passphrase.set` / `ai.unlock` / `host.transfer`）も含む。
-  主催者が落ちた部屋を残った人だけで畳めるようにするのが目的なので、管理系を据え置くと
-  主催者不在時に誰も実行できなくなる
-- **見学者**: 段階に関わらず状態変更を拒否（FR-067）。ただし**自分自身が対象の操作は許可**（FR-068）
-- **不変条件は権限とは別**: 「実在の編集者以上が1名以上残る」は `participants.ts` が持ちます。
-  権限が通っても不変条件で拒否されることがあります（例: 最後の編集者は退出できない）
+**なぜ消したか。** 主催者が落ちた部屋で誰も操作できなくなる「詰み」を、役割を保ったまま
+避けようとすると、段階（開始前／開始後）と対象（自分／他人）で権限を切り替える規則が要り、
+その判定順序に過去の回帰が何本も刻まれました。全員同格にすると、規則そのものが消えます。
 
-判定の順序には依存関係があり、入れ替えると過去に起きた回帰が再発します。理由は
-`permissions.ts` の `checkPermission` の docstring に、壊れ方とあわせて書いてあります。
+**代わりに残るもの。**
+
+- **ドライバーの適格性**（`Participant.driverEligible`）は役割ではなく**ローテーションの話**として
+  残っています。ただし輪の所属そのものではありません。輪に居るかどうかは `session.rotation`
+  （参加者 ID の配列）で決まり、出入りは `member.add` / `member.remove` が行います
+  （画面では「ドライバーに加わる」「列から外れる」）。`driver.skip` / `driver.resume`（「見送り」）は
+  **輪に居たまま自分の順番を飛ばす**フラグで、枠は保持されます（画面では「一時離脱」「復帰」）。
+  どちらも在室者なら誰でも自分に対して実行できます。もとから役割とは独立の 2 層構造で、
+  S3 はそのうち役割の層だけを取り除きました。
+- **合言葉**（`room.passphrase.set`）と **AI 解錠**（`ai.unlock`）は在室者なら誰でも実行できます。
+  合言葉を誰でも設定できることの帰結（他の参加者を締め出しうる）は受容済みです（設計正本 §8）。
+
+なお `Room.startedAt`（一度でもセッションを開始したか）は snapshot に残っていますが、
+**権限判定が消えたことで読み手を持ちません**。撤去するかどうかは別の段で判断します。
 
 ### 参加者の同定 — 表示名ではなく識別子
 
@@ -111,9 +123,9 @@ Hexagonal（薄め）構成。アプリケーション層がフローを束ね�
 
 ```
 application/
-  handlers.ts        validate → authorize → decide → evolve → store → broadcast
+  handlers.ts        validate → decide → evolve → store → broadcast（#95 S3 で authorize の段が消えた）
   schedule.ts        サーバー権威タイマー（1 本の setTimeout で次交代のみ待つ）
-  presence.ts        プレゼンス間引き・ホスト委譲（猶予 30 秒）
+  presence.ts        プレゼンス間引き・ドライバー不在の繰り上げ（猶予 30 秒）
   problem-delegation.ts  お題の代表生成・タイムアウト・再委譲・定型縮退
   ai-limits.ts       AI 生成の濫用抑制（同時 1・クールダウン・日次上限）
   room-reclaimer.ts  アイドルルームの回収
@@ -130,7 +142,6 @@ server.ts  依存注入と起動（maxConnections / maxRooms のグローバル�
 ```
 WS message
  ─▶ parse + Valibot 検証（未知 type・過大サイズ・不正を即拒否）
- ─▶ authorize(role)（コマンドごとに再検証）
  ─▶ decide(cmd, agg, now)
       ├─ Err ─▶ 送信者へ error
       └─ Ok(events) ─▶ agg' = events.reduce(evolve)
@@ -143,14 +154,15 @@ WS message
 ### 状態の揮発性とトークン
 
 ルーム状態は `InMemoryRoomStore` に保持し、永続化しません。サーバー再起動は「進行中セッションの終了」を
-意味するのみで復旧手順を要しません（再起動安全）。ホストトークン・復帰トークンは `makeHandlers`
+意味するのみで復旧手順を要しません（再起動安全）。復帰トークンは `makeHandlers`
 クロージャ内の `Map` に保持し、モジュールグローバルを避けます（テスト間汚染防止）。
 詳細: [ADR-0007](./adr/0007-volatile-in-memory-state.md)。
 
 ### お題の AI 生成（サーバー常駐・解錠式）
 
 AI 生成はサーバー常駐の `claude -p` 子プロセス（`adapters/claude-cli-problem-provider.ts`）で行い、
-`AI_UNLOCK_KEY` を知る host だけが解錠できます。OAuth トークンは子プロセスの env にのみ渡し、
+`AI_UNLOCK_KEY` を知る在室者なら誰でも解錠できます（#95 S3 以前はホスト限定でした）。
+OAuth トークンは子プロセスの env にのみ渡し、
 argv・ログ・snapshot に混入させません。失敗（タイムアウト・検証失敗・トークン失効）は全経路で
 定型バンクへ縮退し、濫用は `application/ai-limits.ts`（同時 1・クールダウン・日次上限）で抑制します。
 詳細: [ADR-0008](./adr/0008-server-resident-ai-generation.md)
@@ -177,16 +189,17 @@ argv・ログ・snapshot に混入させません。失敗（タイムアウト�
 - `records/`: IndexedDB 永続化（`indexeddb.ts`）と完成記録の組み立て（`persist.ts`）。
 - `ui/`: 画面（Setup / Join / Lobby / Session / Summary / History）。`screenForPhase` で `room.phase` に追従。
   **`App.tsx` から切り出した純粋な判定関数群**も同じ階層に置きます（`screen.ts` /
-  `connection-status.ts` / `host-change.ts` / `problem-generation.ts` / `join-driver-intent.ts` /
+  `connection-status.ts` / `problem-generation.ts` / `join-driver-intent.ts` /
   `error-action.ts` / `room-param.ts`）。`App.tsx` はそれらの結果を適用するだけにして、
   規則をテストの届く場所に置くのが方針です（`App.tsx` 自体の render テストは持たないため、
-  判定を中に埋めると検証手段が無くなる）。
+  判定を中に埋めると検証手段が無くなる）。**`host-change.ts` も同じ階層にありましたが、
+  ホスト移譲の導線ごと #95 S3 で削除しました。**
 - `platform/`: 通知（`notify.ts`）・交代音とカウントダウン音声（`sound.ts`）。
 
 ### 画面遷移は phase 駆動
 
 共有セッションでは、各クライアントは受信 snapshot の `room.phase`（`setup`/`ready`/`session`/
-`celebration`）から表示画面を導出します（`ui/screen.ts`）。これにより主催者の開始・完成・リセットが
+`celebration`）から表示画面を導出します（`ui/screen.ts`）。これにより誰かの開始・完成・リセットが
 全参加者の画面に一斉反映されます。
 
 ## WS メッセージ契約
@@ -197,8 +210,7 @@ argv・ログ・snapshot に混入させません。失敗（タイムアウト�
 `config.set` / `phase.set` / `problem.request` / `problem.submit` / `problem.edit` / `problem.mode.set` /
 `ai.unlock`（AI 生成の解錠 = ADR-0008）/ `session.act`（START/SWITCH/PAUSE/RESUME/RESTART）/
 `session.complete` / `session.abort` / `session.reset` / `driver.skip|resume|assign` /
-`member.add|remove|move|shuffle` / `participant.addProxy|rename|remove` / `role.set` /
-`host.transfer` / `handoff.note.set` /
+`member.add|remove|move|shuffle` / `participant.addProxy|rename|remove` / `handoff.note.set` /
 `break.start|end`（**dormant**: v2.10 で休憩機能を撤去。スキーマは後方互換のため残置、受理されない）/
 `presence.ping` / `time.ping`。正本は `packages/core/src/schemas.ts` の Command union。
 
@@ -219,8 +231,15 @@ need-problem）/ `error` / `time.pong` / `room.created` / `room.joined`。
 | 代理（クライアント無し） | 送らない | — | — |
 
 種類の判定は core の `removalNotificationFor()`、画面の行き先は web の `errorAction()` が持ちます。
-**退出が拒否された場合（`LAST_MANAGER_LEAVE` 等）は画面を移しません** — `errorAction()` の既定が
-`transient` で、画面を移すコードだけを明示的に列挙してあるためです。
+**画面を移すのは `errorAction()` が明示的に列挙したコードだけ**で、既定は `transient`（画面を移さない）です。
+**#95 S3 以前はここに「退出が拒否された場合（`LAST_MANAGER_LEAVE` 等）」という実例が
+ありました。役割由来の不変条件（「実在の編集者以上が 1 名以上残る」）は廃止しましたが、
+退出が拒否されうる経路そのものは残っています** —— ローテーションを空にする退出は
+`BelowMinMembers` で拒まれ（`command-handlers/participant-remove.ts` の rotation 長ガード。
+`evolve` が `currentIndex` を決められなくなるのを防ぐためで、役割とは無関係。
+**在室者が誰も残らないソロの部屋だけは例外で、拒まずにルームごと破棄します**（Issue #79））、
+不正な対象は `INVALID`、居ない相手は `PARTICIPANT_NOT_FOUND` で拒まれます。
+**いずれも `errorAction()` の既定の `transient` に落ちるので、画面は移りません。**
 
 ### エラーコードは操作と 1 対 1（Issue #29）
 
@@ -233,11 +252,6 @@ need-problem）/ `error` / `time.pong` / `room.created` / `room.joined`。
 |---|---|
 | ドライバー指名・対象がオフライン | `DRIVER_ASSIGN_OFFLINE` |
 | ドライバー指名・対象が輪に居ない | `NOT_IN_ROTATION` |
-| ホスト移譲・対象がオフライン | `HOST_TRANSFER_OFFLINE` |
-| ホスト移譲・対象がすでにホスト | `ALREADY_HOST` |
-| 役割変更・対象がホスト | `CANNOT_CHANGE_HOST_ROLE` |
-| 退出・進行できる人が残らない | `LAST_MANAGER_LEAVE` |
-| 降格・進行できる人が残らない | `LAST_MANAGER_DEMOTE` |
 | ルーム参加・試行過多 | `JOIN_RATE_LIMITED` |
 
 **これらの拒否はほとんどが UI 側で事前に抑止されています**（ボタンを描画しない・無効化する）。
@@ -250,12 +264,18 @@ need-problem）/ `error` / `time.pong` / `room.created` / `room.joined`。
 配備前から開かれた画面が旧サーバーの応答を受け取り得るため、文言を消すと表示が
 既定文言へ退化します。`REMOVED_BY_HOST` と同じ扱いです。
 
+**#95 S3 で外した 6 件（`UNAUTHORIZED` / `HOST_TRANSFER_OFFLINE` / `CANNOT_CHANGE_HOST_ROLE` /
+`ALREADY_HOST` / `LAST_MANAGER_LEAVE` / `LAST_MANAGER_DEMOTE`）は扱いが違い、語彙も文言も
+消しました。**上の 3 件は 1 つのコードを操作ごとへ細分化しただけで、指す事象は今も起こり得ます。
+S3 が外した 6 件は事象そのもの（可否判定・ホスト移譲・役割変更・「進行できる人が残る」不変条件）が
+無くなっており、旧サーバーの応答として届いても説明すべき操作が画面に存在しません。
+
 ## テスト戦略
 
 - **ドメイン単体**: `decide`/`evolve` を純粋関数として網羅。`now` 引数で時刻依存を決定論的に検証。
 - **プロパティテスト**: fast-check で任意操作列の不変条件（`rotation.length === driverCounts.length`、
   `currentIndex` 妥当性、clock/session 整合）を検証（FR-008 / SC-010）。
-- **同期/結合**: full snapshot の冪等置き換え、resume、ホスト委譲、代表生成の再委譲→縮退。
+- **同期/結合**: full snapshot の冪等置き換え、resume、ドライバー不在の繰り上げ、代表生成の再委譲→縮退。
 - **外部ブラックボックス検証**: 起動済みサーバーへ WS で接続するシナリオ検証、実ブラウザ（Playwright）
   での UI 検証を実施済み。
 

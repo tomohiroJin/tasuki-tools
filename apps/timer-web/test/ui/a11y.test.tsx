@@ -22,7 +22,6 @@ describe("アクセシビリティ", () => {
         <StatusStrip
           phase="session"
           displayName="Alice"
-          role="host"
           connectionStatus="online"
           roomCode="AA0001"
         />,
@@ -38,7 +37,6 @@ describe("アクセシビリティ", () => {
         <StatusStrip
           phase="session"
           displayName="Alice"
-          role="host"
           connectionStatus="reconnecting"
           roomCode="AA0001"
         />,

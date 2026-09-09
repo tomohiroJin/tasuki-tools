@@ -19,8 +19,8 @@ interface EndSessionZoneProps {
   isShared: boolean;
 }
 
-// 完成も確認を課す（Issue #22・FR-074b）。開始後は主催者以外も実行でき、
-// 誤操作の影響が全員に及ぶため。中断・リセットとは違い記録は残るので問いを分ける。
+// 完成も確認を課す（Issue #22・FR-074b）。誰でも実行でき、誤操作の影響が全員に及ぶため。
+// 中断・リセットとは違い記録は残るので問いを分ける。
 type PendingAction = "complete" | "abort" | "reset" | null;
 
 /** 確認ボタンの文言。何が起きるかを動詞で示し、「OK」のような曖昧な語を使わない。 */

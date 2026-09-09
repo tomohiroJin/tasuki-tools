@@ -30,14 +30,13 @@ vi.mock("../../src/records/indexeddb.js", () => ({
   saveRecord: vi.fn().mockResolvedValue(undefined),
 }));
 
-const HOST_ID = "host-1";
+const CREATOR_ID = "p-alice";
 
 function participant(participantId: string, displayName: string) {
   return {
     participantId,
     connId: `c-${participantId}`,
     displayName,
-    role: "host" as const,
     presence: "online" as const,
     hasAiKey: false,
     joinedAt: 0,
@@ -59,23 +58,21 @@ function sendServer(ws: FakeWS, msg: Record<string, unknown>): void {
 
 function enterLobby(): FakeWS {
   render(<App />);
-  fireEvent.change(screen.getByLabelText("あなたの名前"), { target: { value: "Host" } });
+  fireEvent.change(screen.getByLabelText("あなたの名前"), { target: { value: "Creator" } });
   fireEvent.click(screen.getByRole("button", { name: /ルームを作る/ }));
   const ws = openLatestSocket();
   sendServer(ws, {
     type: "room.created",
     code: "ROOM01",
-    hostToken: "ht",
     resumeToken: "rt",
-    participantId: HOST_ID,
+    participantId: CREATOR_ID,
   });
   sendServer(ws, {
     type: "snapshot",
     room: aRoomView({
       code: "ROOM01",
       phase: "ready",
-      hostParticipantId: HOST_ID,
-      participants: [participant(HOST_ID, "Host")],
+      participants: [participant(CREATOR_ID, "Creator")],
     }),
   });
   return ws;

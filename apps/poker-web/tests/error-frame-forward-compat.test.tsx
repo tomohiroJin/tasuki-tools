@@ -160,7 +160,6 @@ describe('サーバーが room-state に足したものを、古いバンドル�
         {
           id: 'p1',
           name: participantName,
-          isHost: true,
           connected: true,
           hasVoted: true,
           avatar: 'x',

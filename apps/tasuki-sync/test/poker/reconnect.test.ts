@@ -22,7 +22,7 @@ interface Joined {
 interface RoomState {
   type: 'room-state';
   you: string;
-  participants: Array<{ id: string; isHost: boolean; connected: boolean; hasVoted: boolean }>;
+  participants: Array<{ id: string; connected: boolean; hasVoted: boolean }>;
   round: { status: string };
   yourVote: unknown;
 }
@@ -43,8 +43,11 @@ async function join(roomId: string, name: string, token?: string) {
   return { client, joined, state };
 }
 
-describe('ホスト切断と権限繰上（契約 #7 / FR-012 / SC-005）', () => {
-  it('ホスト切断で最先着の参加者へ繰上した room-state が配信される', async () => {
+describe('参加者切断の通知（契約 #7）', () => {
+  // かつては #95 S3 以前、この切断が「ホスト権限の繰上（FR-012 / SC-005）」を
+  // 引き起こしていた。#95 S3 でホストと権限繰上を廃止したので、ここで固定するのは
+  // 「切断した参加者の connected が room-state で false になって配信される」だけである。
+  it('切断した参加者の connected が room-state で false になって他の参加者へ配信される', async () => {
     // Given
     const { host, joined } = await createHost();
     const guest = await join(joined.roomId, 'はなこ');
@@ -56,11 +59,10 @@ describe('ホスト切断と権限繰上（契約 #7 / FR-012 / SC-005）', () =
     const state = (await guest.client.nextMatching(
       (msg) =>
         (msg as RoomState).type === 'room-state' &&
-        ((msg as RoomState).participants.find((p) => p.id === guest.joined.participantId)
-          ?.isHost ?? false),
+        (msg as RoomState).participants.find((p) => p.id === joined.participantId)?.connected ===
+          false,
     )) as RoomState;
     // Then
-    expect(state.participants.find((p) => p.id === guest.joined.participantId)?.isHost).toBe(true);
     expect(state.participants.find((p) => p.id === joined.participantId)?.connected).toBe(false);
     guest.client.close();
   });

@@ -1,6 +1,7 @@
 /**
  * driver.assign（Issue #13 任意メンバー強制指名）のサーバ挙動。
- * host 限定・participantId→index 解決・離脱中の自動復帰・現ドライバー指名 no-op を検証する。
+ * 在室者なら誰でも指名できること・participantId→index 解決・離脱中の自動復帰・
+ * 現ドライバー指名 no-op を検証する（#95 S3 以前は host 限定だった）。
  */
 import { describe, it, expect, beforeEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
@@ -13,8 +14,8 @@ import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 const config: SessionConfig = { language: "TypeScript", difficulty: "easy", members: ["A"], intervalMinutes: 5 };
 
-/** host A（rotation[0]）を作り、rotation [A,B,C] を稼働中にして B の eligibility を上書きした room を置く。
- *  B=pid-b/conn-b（editor）・C=pid-c/conn-c（editor）。 */
+/** 作成者 A（rotation[0]）を作り、rotation [A,B,C] を稼働中にして B の eligibility を上書きした room を置く。
+ *  B=pid-b/conn-b・C=pid-c/conn-c。 */
 async function setup(
   handlers: ReturnType<typeof makeHandlers>,
   store: InMemoryRoomStore,
@@ -29,7 +30,7 @@ async function setup(
   const room = store.get(code)!;
   const host = room.participants[0]!;
   const mk = (id: string, name: string, conn: string, ov: Partial<Room["participants"][number]> = {}): Room["participants"][number] =>
-    ({ ...host, participantId: id, connId: conn, displayName: name, role: "editor", presence: "online", driverEligible: true, ...ov });
+    ({ ...host, participantId: id, connId: conn, displayName: name, presence: "online", driverEligible: true, ...ov });
   store.put({
     ...room,
     participants: [host, mk("pid-b", "B", "conn-b", bOverrides), mk("pid-c", "C", "conn-c")],
@@ -50,7 +51,7 @@ describe("driver.assign（Issue #13 強制指名）", () => {
     handlers = makeTestHandlers({ store, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen() });
   });
 
-  it("host が任意メンバーを指名すると currentIndex がそのメンバーになる", async () => {
+  it("作成者が任意メンバーを指名すると currentIndex がそのメンバーになる", async () => {
     // Given
     const code = await setup(handlers, store, {});
     // When
@@ -90,14 +91,16 @@ describe("driver.assign（Issue #13 強制指名）", () => {
     expect(store.get(code)!.session.currentIndex).toBe(0);
   });
 
-  it("host 以外（editor）の指名は拒否され状態が変わらない", async () => {
+  // #95 S3 で役割を廃止した。かつては「作成者以外の指名は UNAUTHORIZED で拒否される」
+  // ことをここで固定していたので、その期待を反転させて「通る」ことを固定する。
+  it("作成者でない参加者の指名も通り、currentIndex がそのメンバーになる", async () => {
     // Given
     const code = await setup(handlers, store, {});
     // When
     await handlers.handleCommand("conn-b", { command: "driver.assign", participantId: "pid-c" });
     // Then
-    expect(broadcaster.errorsTo("conn-b").at(-1)?.code).toBe("UNAUTHORIZED");
-    expect(store.get(code)!.session.currentIndex).toBe(0);
+    expect(broadcaster.errorsTo("conn-b")).toEqual([]);
+    expect(store.get(code)!.session.currentIndex).toBe(2); // C
   });
 
   it("rotation 外（未検出 participantId）の指名は拒否される", async () => {

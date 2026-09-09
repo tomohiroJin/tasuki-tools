@@ -1,6 +1,6 @@
 /**
- * ホスト用: AI お題生成の解錠パネル。
- * 合言葉（サーバ env の AI_UNLOCK_KEY）を知るホストだけが解錠できる。
+ * AI お題生成の解錠パネル。
+ * 合言葉（サーバ env の AI_UNLOCK_KEY）を知る人だけが解錠できる。
  * 解錠前は控えめなテキストリンクのみ表示し、クリックで入力欄を開く（隠し機能として目立たせない）。
  * 平文は保持・表示しない（snapshot の aiUnlocked だけで状態を表す）。
  */
@@ -34,7 +34,7 @@ export function AiUnlockPanel({ unlocked, aiMode, onUnlock, onModeSet }: AiUnloc
     setExpanded(false);
   };
 
-  // 未解錠かつ未展開: 隠し機能としてテキストリンクのみ（合言葉を知る host だけが開く）。
+  // 未解錠かつ未展開: 隠し機能としてテキストリンクのみ（合言葉を知る人だけが開く）。
   if (!unlocked && !expanded) {
     return (
       <button

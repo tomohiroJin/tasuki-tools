@@ -1,7 +1,7 @@
 /**
  * `room.passphrase.set` の専用ハンドラ（フェーズ7・パイプライン統合）。
  *
- * 在室確認・アクター解決・権限判定（`rejectIfUnauthorized`）は共通パイプライン
+ * 在室確認とアクター解決は共通パイプライン
  * （`handlers.ts` の `handleRoomCommand`）側で完了済みであり、その結果を
  * `ctx: { room, actor }` として受け取る。このハンドラはドメイン処理
  * （合言葉の正規化・保持・反映）のみを担う。
@@ -32,7 +32,8 @@ export interface RoomPassphraseSetDeps {
 export function createRoomPassphraseSetHandler(deps: RoomPassphraseSetDeps) {
   const { store, broadcaster, tokenStore } = deps;
 
-  /** ルームパスフレーズを設定/解除する（host 限定・R4-2）。空文字で解除。
+  /** ルームパスフレーズを設定/解除する（R4-2）。**在室者なら誰でも実行できる**
+   *  （#95 S3 以前は host 限定だった）。空文字で解除。
    *  平文は tokenStore（旧 roomPassphrases）に保持し、Room には passphraseProtected(boolean)のみ反映。 */
   return async function handleRoomPassphraseSet(
     _connId: string,

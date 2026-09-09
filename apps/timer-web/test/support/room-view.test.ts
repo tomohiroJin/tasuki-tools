@@ -31,12 +31,10 @@ describe("aRoomView()", () => {
     expect(room.handoffNote).toBe("");
     expect(room.onBreak).toBe(false);
 
-    // 既定は host 1 名のみで、rotation にも入っている（App の handleCreateRoom は
-    // 作成者名を members[0] にし、参加者としても host が最初に居る想定）。
+    // 既定は作成者 1 名のみで、rotation にも入っている（App の handleCreateRoom は
+    // 作成者名を members[0] にし、参加者としても作成者が最初に居る想定）。
     expect(room.participants).toHaveLength(1);
-    expect(room.participants[0]?.role).toBe("host");
-    expect(room.hostParticipantId).toBe(room.participants[0]?.participantId);
-    expect(room.session.rotation).toEqual([room.hostParticipantId]);
+    expect(room.session.rotation).toEqual([room.participants[0]?.participantId]);
 
     // clock の間隔は config.intervalMinutes（既定7分）から導出される（秒換算）。
     expect(room.clock.intervalSeconds).toBe(7 * 60);
@@ -81,7 +79,7 @@ describe("aRoomView()", () => {
 
     // Then
     expect(room.session.isPaused).toBe(true);
-    expect(room.session.rotation).toEqual([room.hostParticipantId]);
+    expect(room.session.rotation).toEqual([room.participants[0]?.participantId]);
     expect(room.clock.running).toBe(true);
     expect(room.clock.intervalSeconds).toBe(7 * 60);
   });
@@ -93,7 +91,6 @@ describe("aRoomView()", () => {
         participantId: "p1",
         connId: "c1",
         displayName: "Alice",
-        role: "host" as const,
         presence: "online" as const,
         hasAiKey: false,
         joinedAt: 0,

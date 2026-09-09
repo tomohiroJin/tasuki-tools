@@ -68,7 +68,8 @@ describe("handlers: full snapshot 配信フロー", () => {
     const code = broadcaster.createdFor("conn-001").code;
     const room1 = store.get(code);
 
-    // When（host のみ操作可能なので、viewer 参加の冪等確認として再度 join する）
+    // When（同じ接続から続けて 2 度 join する。room.join は名簿に足すだけで
+    //       session.rotation には触らないので、輪の人数は変わらないはず）
     await handlers.handleCommand("conn-002", {
       command: "room.join",
       code,

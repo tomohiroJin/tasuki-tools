@@ -128,10 +128,16 @@ describe("実 WS 越しのエラー応答", () => {
     expect(host.all("error")).toEqual([]);
   });
 
-  it("wire スキーマに残るが規則表に無いコマンド（break.start）は既定拒否される", async () => {
+  it("wire スキーマに残るが処理されないコマンド（break.start）は UNKNOWN_COMMAND になる", async () => {
     // Given: 撤去済みの休憩機能。CommandSchema には後方互換で残っているが（FR-089）、
-    // permissions.ts の REGISTERED_COMMANDS には無いので default-deny に落ちる。
-    // UI からは到達できず、実ソケットからしか叩けない経路。
+    // `buildDomainCommand` の switch には無い。UI からは到達できず、実ソケットからしか
+    // 叩けない経路である。
+    //
+    // ⚠ #95 S3 でコードが変わった。以前は `permissions.ts` の `REGISTERED_COMMANDS` に
+    // 無いコマンドを `checkPermission` のステップ 0 が UNAUTHORIZED で弾いていたが、
+    // 可否判定ごと撤去したため、いまはパイプラインの `default` まで進んで
+    // UNKNOWN_COMMAND になる。**弾かれること自体は変わらない**（wire に無いコマンドは
+    // その手前の valibot が落とす。`test/unknown-command-boundary.test.ts` を参照）。
     server = startLiveSyncServer();
     const host = await server.connect("host");
     await createRoom(host, "ホスト");
@@ -140,9 +146,9 @@ describe("実 WS 越しのエラー応答", () => {
     // When
     host.send({ command: "break.start" });
 
-    // Then: スキーマは通るが権限判定で弾かれる（UNKNOWN_COMMAND へは進まない）
+    // Then: スキーマは通るがドメインコマンドへ写せず落ちる
     const error = await host.take("error");
-    expect(error.code).toBe("UNAUTHORIZED");
+    expect(error.code).toBe("UNKNOWN_COMMAND");
   });
 });
 

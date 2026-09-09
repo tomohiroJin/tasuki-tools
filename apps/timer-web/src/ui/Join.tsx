@@ -1,7 +1,7 @@
 /**
  * 参加画面（?room= リンクからの参加・UX 再設計）
  * リンクで来た人が「名前を入れてモブに参加」する 1 画面。ゲスト自動参加は廃止。
- * 参加後は editor（ドライバー候補）として参加者一覧に並ぶ（ローテーション加入は別操作）。
+ * 参加後は参加者一覧に並ぶ（ローテーション加入は別操作）。
  */
 
 import React, { useState } from "react";
@@ -110,8 +110,7 @@ export function Join({ code, onJoin }: JoinProps) {
                 onChange={() => setMode("driver")}
               />
               <span className="block">ドライバーとして参加</span>
-              {/* この選択が決めるのは役割ではなく交代の輪への出入りだけ（#76 J-2）。
-                  書いておかないと、見学を選んだ人が「編集者」と表示されて食い違って見える。 */}
+              {/* この選択が決めるのは交代の輪への出入りだけ（#76 J-2）。 */}
               <span className="mt-0.5 block text-xs text-[var(--bone-subtle)]">交代の輪に入る</span>
             </label>
             <label

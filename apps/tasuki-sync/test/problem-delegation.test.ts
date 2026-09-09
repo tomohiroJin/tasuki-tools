@@ -30,7 +30,6 @@ function makeRoom(overrides?: Partial<Room>): Room {
   return {
     code: "PD01",
     createdAt: 1000000,
-    hostParticipantId: "host",
     config: {
       language: "TypeScript",
       difficulty: "easy",
@@ -59,7 +58,6 @@ function makeRoom(overrides?: Partial<Room>): Room {
         participantId: "host",
         connId: "host-conn",
         displayName: "Host",
-        role: "host",
         presence: "online",
         hasAiKey: true,
         joinedAt: 1000000,
@@ -68,7 +66,6 @@ function makeRoom(overrides?: Partial<Room>): Room {
         participantId: "ed1",
         connId: "ed1-conn",
         displayName: "Ed1",
-        role: "editor",
         presence: "online",
         hasAiKey: true,
         joinedAt: 1000100,
@@ -77,7 +74,6 @@ function makeRoom(overrides?: Partial<Room>): Room {
         participantId: "ed2",
         connId: "ed2-conn",
         displayName: "Ed2",
-        role: "editor",
         presence: "online",
         hasAiKey: true,
         joinedAt: 1000200,
@@ -275,7 +271,6 @@ function makeRoomWithMode(mode: "ai" | "fallback", hasAiKey: boolean): Room {
     participantId: "host-p",
     connId: "host-c",
     displayName: "Host",
-    role: "host",
     presence: "online",
     hasAiKey,
     joinedAt: 1000000,
@@ -283,7 +278,6 @@ function makeRoomWithMode(mode: "ai" | "fallback", hasAiKey: boolean): Room {
   return {
     code: "MODERM",
     createdAt: 1000000,
-    hostParticipantId: "host-p",
     config: {
       language: "TypeScript",
       difficulty: "easy",

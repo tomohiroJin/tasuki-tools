@@ -10,7 +10,6 @@ function makeRoom(code: string): Room {
   return {
     code,
     createdAt: Date.now(),
-    hostParticipantId: "host-001",
     config: {
       language: "TypeScript",
       difficulty: "easy",

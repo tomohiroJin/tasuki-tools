@@ -114,8 +114,11 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
 
   /**
    * 接続を現在のルームから切り離す共通処理（close と再 join/再 create で共用）。
-   * connected 更新・ホスト繰上（FR-012）・自動公開の再評価（US4-AS1）・
-   * 接続数 0 での即時破棄（FR-014）をここで一元的に行う。
+   * connected 更新・自動公開の再評価（US4-AS1）・接続数 0 での即時破棄（FR-014）を
+   * ここで一元的に行う。
+   *
+   * かつてはホスト繰上（旧 FR-012）もここが担っていたが、#95 S3 でホストの概念ごと
+   * 廃止した（poker-core からホスト継承ロジックを撤去）。
    */
   function detachFromCurrentRoom(ws: HandlerConnection): void {
     const { participantId, roomId } = ws.data;

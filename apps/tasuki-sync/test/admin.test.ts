@@ -19,7 +19,6 @@ function room(code: string, online: number, total: number, hasDriver: boolean): 
     participantId: `${code}-p${i}`,
     connId: i < online ? `${code}-conn${i}` : null,
     displayName: `${code}-member${i}`,
-    role: i === 0 ? "host" : "editor",
     presence: i < online ? "online" : "offline",
     hasAiKey: false,
     joinedAt: 1000 + i,
@@ -27,7 +26,6 @@ function room(code: string, online: number, total: number, hasDriver: boolean): 
   return {
     code,
     createdAt: 1000,
-    hostParticipantId: `${code}-p0`,
     config: {
       language: "TypeScript",
       difficulty: "easy",

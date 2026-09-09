@@ -1,9 +1,9 @@
 /**
  * 共有メモ（§9.1 拡張）
  *
- * editor+ は「編集／プレビュー」を切替でき、プレビューは Markdown 表示。
+ * 「編集／プレビュー」を切替でき、プレビューは Markdown 表示。
  * 途中参加者への Live Share リンクやルール提示が主用途のため表示領域を広めに取る。
- * viewer はメモがある時だけ Markdown で読み取り表示する。
+ * かつては見学者（役割が viewer）に読み取り専用の表示を返していた（#95 S3 で廃止）。
  *
  * 入力確定（blur／プレビュー切替）時にだけ onCommit を呼ぶ（楽観更新は最小・§5.3）。
  * 親（Session）は room 単位で key を付けて再マウントするため、内部状態は room ごとに初期化される。
@@ -22,13 +22,11 @@ import { Markdown } from "./Markdown.js";
 interface SharedMemoProps {
   /** サーバー権威のメモ本文（snapshot 由来）。 */
   note: string;
-  /** 編集できるか（editor+）。false の閲覧者にはメモがある時だけ読み取り表示する。 */
-  canEdit: boolean;
   /** 確定時にメモを送信する（handoff.note.set）。 */
   onCommit?: ((text: string) => void) | undefined;
 }
 
-export function SharedMemo({ note, canEdit, onCommit }: SharedMemoProps) {
+export function SharedMemo({ note, onCommit }: SharedMemoProps) {
   // ローカル編集状態。サーバー snapshot が来たら追従し、確定時にだけ送信する。
   const [draft, setDraft] = useState(note);
 
@@ -75,23 +73,6 @@ export function SharedMemo({ note, canEdit, onCommit }: SharedMemoProps) {
       {updated ? "共有メモが更新されました" : ""}
     </span>
   );
-
-  // 閲覧者: メモがある時だけ Markdown で表示。
-  if (!canEdit) {
-    if (!note) return null;
-    return (
-      <Card className={highlightClass}>
-        {updateAnnouncement}
-        <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--bone)]">
-          <ArrowRight className="w-4 h-4 text-[var(--signal)]" aria-hidden="true" />
-          共有メモ
-        </div>
-        <div aria-live="polite">
-          <Markdown source={note} />
-        </div>
-      </Card>
-    );
-  }
 
   const segClass = (active: boolean) =>
     `px-3 py-1.5 transition-colors ${

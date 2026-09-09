@@ -4,11 +4,11 @@
  * ルームが消える契機は 2 つある。
  *
  *   1. アイドル回収 — 全員 offline のまま TTL を超えた（`room-reclaimer.ts`）
- *   2. 在室者が 0 人になる退出 — ソロの主催者が自分で抜けた（`command-handlers/participant-remove.ts`）
+ *   2. 在室者が 0 人になる退出 — ひとりだけの部屋で本人が抜けた（`command-handlers/participant-remove.ts`）
  *
  * どちらの契機でも、`store` からルームを消すだけでは足りない。自動交代の予約（`Scheduler`）・
  * お題生成の委譲（`ProblemDelegator`）・不在検知のタイマー（`PresenceManager`）・
- * ホスト/リジュームトークン（`token-store`）は、いずれも roomCode をキーにした
+ * リジュームトークンとパスフレーズ（`token-store`）は、いずれも roomCode をキーにした
  * **別々の Map** で生きている。1 つでも取りこぼすと、既に存在しないルームに対して
  * タイマーが発火し続け、Map も解放されない。
  *
@@ -30,7 +30,7 @@ export interface RoomDestroyerDeps {
   delegator?: { cancel(roomCode: string): void } | undefined;
   /** 不在検知タイマー。`makeHandlers` は `PresenceManager` を知らないため省略可能にしてある。 */
   presence?: { clearRoomTimers(roomCode: string): void } | undefined;
-  /** ホスト/リジュームトークンの解放（`makeHandlers` の `releaseRoom`）。 */
+  /** リジュームトークンとパスフレーズの解放（`makeHandlers` の `releaseRoom`）。 */
   releaseRoom: (roomCode: string) => void;
 }
 

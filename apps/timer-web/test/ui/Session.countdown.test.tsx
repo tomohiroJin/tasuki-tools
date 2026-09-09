@@ -19,22 +19,20 @@ import { Session } from "../../src/ui/Session.js";
 
 function makeParticipant(overrides: Partial<Participant>): Participant {
   return {
-    participantId: "p1", connId: "c1", displayName: "Alice", role: "editor",
-    presence: "online", hasAiKey: false, joinedAt: 1000, ...overrides,
+    participantId: "p1", connId: "c1", displayName: "Alice", presence: "online", hasAiKey: false, joinedAt: 1000, ...overrides,
   };
 }
 
 function makeRoom(running: boolean, isPaused: boolean): Room {
   return aRoomView({
     code: "AA0001",
-    hostParticipantId: "host-1",
     config: { members: ["Alice", "Bob"], intervalMinutes: 5 },
     session: { rotation: ["Alice", "Bob"], isPaused, driverCounts: [0, 0] },
     clock: { running, runningSince: running ? 0 : null },
     phase: "session",
     participants: [
-      makeParticipant({ participantId: "host-1", displayName: "Alice", role: "host" }),
-      makeParticipant({ participantId: "edit-1", displayName: "Bob", role: "editor", connId: "c2" }),
+      makeParticipant({ participantId: "p-alice", displayName: "Alice" }),
+      makeParticipant({ participantId: "p-carol", displayName: "Bob", connId: "c2" }),
     ],
   });
 }
@@ -65,7 +63,7 @@ describe("Session × カウントダウン予告音の配線", () => {
       }),
     );
     // When
-    render(<Session room={makeRoom(true, false)} participantId="host-1" {...handlers()} />);
+    render(<Session room={makeRoom(true, false)} participantId="p-alice" {...handlers()} />);
     // Then
     expect(useCountdownTick).toHaveBeenCalledWith(
       expect.any(Number),
@@ -75,7 +73,7 @@ describe("Session × カウントダウン予告音の配線", () => {
   });
 
   it("一時停止中(running=false)を渡す", () => {
-    render(<Session room={makeRoom(false, true)} participantId="host-1" {...handlers()} />);
+    render(<Session room={makeRoom(false, true)} participantId="p-alice" {...handlers()} />);
     expect(useCountdownTick).toHaveBeenCalledWith(expect.any(Number), false, expect.anything());
   });
 
@@ -83,7 +81,7 @@ describe("Session × カウントダウン予告音の配線", () => {
     // Given（running=true・isPaused=false の部屋）
     const room = makeRoom(true, false);
     // When
-    render(<Session room={room} participantId="host-1" {...handlers()} />);
+    render(<Session room={room} participantId="p-alice" {...handlers()} />);
     // Then
     expect(useCountdownTick).toHaveBeenCalledWith(
       expect.any(Number),

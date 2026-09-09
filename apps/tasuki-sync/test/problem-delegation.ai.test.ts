@@ -34,7 +34,6 @@ function makeRoom(overrides?: Partial<Room>): Room {
   return {
     code: "AI01",
     createdAt: 1000000,
-    hostParticipantId: "host",
     config: {
       language: "TypeScript",
       difficulty: "easy",
@@ -63,7 +62,6 @@ function makeRoom(overrides?: Partial<Room>): Room {
         participantId: "host",
         connId: "host-conn",
         displayName: "Host",
-        role: "host",
         presence: "online",
         hasAiKey: true,
         joinedAt: 1000000,
@@ -256,7 +254,6 @@ describe("ProblemDelegator サーバ生成", () => {
         participantId: "host",
         connId: "host-conn",
         displayName: "Host",
-        role: "host",
         presence: "online",
         hasAiKey: false, // クライアント委譲候補にならないようにする
         joinedAt: 1000000,

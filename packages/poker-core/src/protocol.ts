@@ -46,7 +46,6 @@ export type ClientMessage = v.InferOutput<typeof ClientMessageSchema>;
 export const ERROR_CODES = [
   'invalid-message',
   'room-not-found',
-  'not-host',
   'not-voting',
   'not-revealed',
   'not-joined',
@@ -79,7 +78,6 @@ export function isKnownErrorCode(code: string): code is ErrorCode {
 const ParticipantViewSchema = v.object({
   id: v.string(),
   name: v.string(),
-  isHost: v.boolean(),
   connected: v.boolean(),
   hasVoted: v.boolean(),
 });

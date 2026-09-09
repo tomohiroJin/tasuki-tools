@@ -89,9 +89,11 @@
 |---|---|
 | ルーム | 参加者が集まる同期セッションの単位 |
 | 参加者 | ルームに参加しているユーザー |
-| ホスト | ルームを開始した参加者。ルームの管理権限を持つ |
+| ~~ホスト~~ | **[#95](https://github.com/tomohiroJin/tasuki-tools/issues/95) S3（[#244](https://github.com/tomohiroJin/tasuki-tools/issues/244)・2026-09-08）で廃止した用語。** かつては「ルームを開始した参加者。ルームの管理権限を持つ」を指したが、役割（`host` / `editor` / `viewer`）ごと撤去し、**ルームに居る人は全員同格**になった。管理権限という区別も存在しない。行を消さずに残すのは、旧い文書・コミット・Issue に出てくる語の意味を引けるようにするためである |
 | ドライバー（timer） | timer において、現在タイマーを操作している運転者 |
 | 交代 | ドライバーが別の参加者へ切り替わること |
+| ローテーション（timer） | ドライバーが回ってくる輪そのもの。実体は `session.rotation`（参加者 ID の配列）で、**誰が輪に居るか**を表す。出入りは `member.add` / `member.remove` で行い、在室者なら誰でも自分を出し入れできる（画面では「ドライバーに加わる」「列から外れる」）。輪を出ると順番の枠ごと無くなる |
+| 見送り（timer） | **輪に居たまま、自分に回ってきた順番を飛ばしてもらうこと**（`driver.skip` / `driver.resume`。状態は `Participant.driverEligible`）。画面では「一時離脱」「復帰」。ローテーションの枠は保持されるので、復帰すれば元の位置で順番が回ってくる。**輪から出ること（ローテーション）とは別の層であり、混同しないこと** |
 | ラウンド（poker） | poker において、1 テーマに対する 1 回の投票 |
 | 公開（reveal） | poker において、伏せていた各参加者の見積り値を開示すること |
 | お題 | **timer では実装済みのドメイン概念、poker では未実装の提案段階の語。** timer では「TDD の練習課題」を指し、`packages/timer-core/src/problem.ts` の `Problem` 型として実装されている。poker では「見積り対象」を指す語として [#93](https://github.com/tomohiroJin/tasuki-tools/issues/93)（お題の入力と結果の書き出し）で提案中だが、現行の poker 実装（`packages/poker-core` `apps/tasuki-sync` `apps/poker-web` `packages/protocol`。`grep -rn "お題"` で 0 件を確認済み）にこの概念は存在しない。poker の初回リリース範囲外であることは `docs/poker/specs/001-planning-poker-mvp/spec.md` の Assumptions（「お題（ストーリー）リストの管理…は初回リリースに含めない」）にも明記されている。#93 が実装されるまでは、**timer の「お題」だけが実装済みのドメイン概念**であり、「お題」を使うときは同名別概念になりうることを文脈で明示すること |

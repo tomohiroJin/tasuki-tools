@@ -47,7 +47,6 @@ async function setupRoomWithSecond(
     participantId: "pid-second-B",
     connId: null,
     displayName: "B",
-    role: "editor",
     presence: second.presence,
     isPlaceholder: second.isPlaceholder,
     driverEligible: true,

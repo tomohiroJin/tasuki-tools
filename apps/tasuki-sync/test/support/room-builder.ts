@@ -18,8 +18,9 @@ import { FakeClock } from "../../src/adapters/system-clock.js";
 import { SpyBroadcaster } from "./spy-broadcaster.js";
 import { FakeCodeGen } from "./fake-code-gen.js";
 
-const HOST_CONN = "host-conn";
-const HOST_NAME = "Host";
+/** ルームを作る接続と表示名（作成者に特別な権限は無い。#95 S3 で全員同格）。 */
+const CREATOR_CONN = "host-conn";
+const CREATOR_NAME = "Host";
 
 export interface BuiltRoom {
   handlers: ReturnType<typeof makeHandlers>;
@@ -49,13 +50,13 @@ class RoomBuilder {
   private shouldStart = false;
   private depsOverrides: Partial<HandlerDeps> = {};
 
-  /** 参加者を join させる（host に続けて join した順）。 */
+  /** 参加者を join させる（作成者に続けて join した順）。 */
   withParticipants(...names: string[]): this {
     this.participantNames.push(...names);
     return this;
   }
 
-  /** 現ドライバーを指名する（host または withParticipants で登場済みの名前のみ）。 */
+  /** 現ドライバーを指名する（作成者または withParticipants で登場済みの名前のみ）。 */
   withDriver(name: string): this {
     this.driverName = name;
     return this;
@@ -86,9 +87,9 @@ class RoomBuilder {
 
     const ids: Record<string, string> = {};
 
-    const created = await handlers.handleCommand(HOST_CONN, {
+    const created = await handlers.handleCommand(CREATOR_CONN, {
       command: "room.create",
-      displayName: HOST_NAME,
+      displayName: CREATOR_NAME,
     });
     if (!created.isOk()) {
       throw new RoomBuildError(`room.create に失敗した（${created.error}）`);
@@ -96,9 +97,9 @@ class RoomBuilder {
     // ルームコード・participantId は本番と同じ観測点（配信された room.created）から取る。
     // 本番（server.ts）は handleCommand の戻り値を破棄しており、これらが利用者へ届く
     // 経路は配信メッセージだけである（FR-100）。
-    const createdMsg = broadcaster.createdFor(HOST_CONN);
+    const createdMsg = broadcaster.createdFor(CREATOR_CONN);
     const code = createdMsg.code;
-    ids[HOST_NAME] = createdMsg.participantId;
+    ids[CREATOR_NAME] = createdMsg.participantId;
 
     for (const [index, name] of this.participantNames.entries()) {
       const connId = `conn-${index + 1}`;
@@ -131,14 +132,14 @@ class RoomBuilder {
     // started() していなくても実 App と同じコマンド列（phase.set → session.act START）
     // で開始させる。
     if (this.shouldStart || this.driverName !== undefined) {
-      const phased = await handlers.handleCommand(HOST_CONN, {
+      const phased = await handlers.handleCommand(CREATOR_CONN, {
         command: "phase.set",
         phase: "session",
       });
       if (!phased.isOk()) {
         throw new RoomBuildError(`phase.set("session") に失敗した（${phased.error}）`);
       }
-      const acted = await handlers.handleCommand(HOST_CONN, {
+      const acted = await handlers.handleCommand(CREATOR_CONN, {
         command: "session.act",
         action: "START",
       });
@@ -151,10 +152,10 @@ class RoomBuilder {
       const participantId = ids[this.driverName];
       if (participantId === undefined) {
         throw new RoomBuildError(
-          `withDriver("${this.driverName}") は host / withParticipants に存在しない名前`,
+          `withDriver("${this.driverName}") は作成者 / withParticipants に存在しない名前`,
         );
       }
-      const assigned = await handlers.handleCommand(HOST_CONN, {
+      const assigned = await handlers.handleCommand(CREATOR_CONN, {
         command: "driver.assign",
         participantId,
       });

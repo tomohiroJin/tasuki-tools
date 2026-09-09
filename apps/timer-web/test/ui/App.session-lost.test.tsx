@@ -21,14 +21,13 @@ vi.mock("../../src/records/indexeddb.js", () => ({
   deleteRecord: vi.fn().mockResolvedValue(undefined),
 }));
 
-const HOST_ID = "host-1";
+const CREATOR_ID = "p-alice";
 
 function participant(participantId: string, displayName: string) {
   return {
     participantId,
     connId: `c-${participantId}`,
     displayName,
-    role: "host" as const,
     presence: "online" as const,
     hasAiKey: false,
     joinedAt: 0,
@@ -57,17 +56,15 @@ function enterSession(): FakeWS {
   sendServer(ws, {
     type: "room.created",
     code: "ROOM01",
-    hostToken: "ht",
     resumeToken: "rt",
-    participantId: HOST_ID,
+    participantId: CREATOR_ID,
   });
   sendServer(ws, {
     type: "snapshot",
     room: aRoomView({
       code: "ROOM01",
       phase: "session",
-      hostParticipantId: HOST_ID,
-      participants: [participant(HOST_ID, "アリス")],
+      participants: [participant(CREATOR_ID, "アリス")],
     }),
   });
   return ws;

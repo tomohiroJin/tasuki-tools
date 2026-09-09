@@ -15,7 +15,6 @@ function makeParticipant(overrides?: Partial<Participant>): Participant {
     participantId: "p1",
     connId: "conn1",
     displayName: "Alice",
-    role: "host",
     presence: "online",
     hasAiKey: false,
     joinedAt: 1000000,
@@ -28,7 +27,6 @@ const mk = (id: string, name: string, over: Partial<Participant> = {}): Particip
   participantId: id,
   connId: id,
   displayName: name,
-  role: "editor",
   presence: "online",
   driverEligible: true,
   isPlaceholder: false,
@@ -41,7 +39,6 @@ describe("RosterPanel モブ順表示", () => {
   const noop = vi.fn();
   const baseProps = {
     myParticipantId: "x",
-    canManage: false,
     onRename: noop, onSkip: noop, onResume: noop, onAddProxy: noop,
   };
 
@@ -82,10 +79,10 @@ describe("RosterPanel モブ順表示", () => {
     expect(within(items[1]!).getByText("2")).toBeTruthy();
   });
 
-  it("rotation 外（観覧者）は末尾にまとめる", () => {
+  it("rotation 外の人は末尾にまとめる", () => {
     // Given
     const participants = [
-      mk("v", "Viewer", { role: "viewer", driverEligible: false }),
+      mk("v", "Viewer", { driverEligible: false }),
       mk("a", "Alice"),
     ];
     // When
@@ -127,12 +124,11 @@ describe("RosterPanel", () => {
   const noop = vi.fn();
   const baseProps = {
     participants: [
-      makeParticipant({ participantId: "p1", displayName: "Alice", role: "host" }),
-      makeParticipant({ participantId: "p2", displayName: "Bob", role: "editor", connId: "conn2" }),
+      makeParticipant({ participantId: "p1", displayName: "Alice" }),
+      makeParticipant({ participantId: "p2", displayName: "Bob", connId: "conn2" }),
     ],
     currentDriverId: "p1",
     myParticipantId: "p1",
-    canManage: true,
     onRename: noop,
     onSkip: noop,
     onResume: noop,
@@ -149,12 +145,12 @@ describe("RosterPanel", () => {
   });
 
   it("rotation 上の現ドライバーが participants 配列と不一致でも正しい人がハイライトされる（バグ修正）", () => {
-    // Given（participants[1] が viewer のとき、rotation=["Alice","Carol"] となり
+    // Given（participants[1] が rotation 外のとき、rotation=["Alice","Carol"] となり
     // currentDriverId="p3" が指すのは participants[2]。配列インデックス比較だと誤る）
     const participants = [
-      makeParticipant({ participantId: "p1", displayName: "Alice", role: "host" }),
-      makeParticipant({ participantId: "p2", displayName: "Bob", role: "viewer", connId: "c2" }),
-      makeParticipant({ participantId: "p3", displayName: "Carol", role: "editor", connId: "c3" }),
+      makeParticipant({ participantId: "p1", displayName: "Alice" }),
+      makeParticipant({ participantId: "p2", displayName: "Bob", connId: "c2" }),
+      makeParticipant({ participantId: "p3", displayName: "Carol", connId: "c3" }),
     ];
     // When
     render(<RosterPanel {...baseProps} participants={participants} currentDriverId="p3" />);
@@ -187,22 +183,6 @@ describe("RosterPanel", () => {
     expect(screen.getAllByText(/代理/i).length).toBeGreaterThan(0);
   });
 
-  it("観覧者に観覧バッジが表示される", () => {
-    // Given
-    const withViewer = [
-      ...baseProps.participants,
-      makeParticipant({
-        participantId: "viewer-1",
-        displayName: "Carol",
-        role: "viewer",
-      }),
-    ];
-    // When
-    render(<RosterPanel {...baseProps} participants={withViewer} />);
-    // Then
-    expect(screen.getByText(/観覧|Viewer|viewer/i)).toBeTruthy();
-  });
-
   it("代理追加ボタンが表示され、フォームに名前を入力して追加すると代理参加者が追加される", () => {
     // Given
     const onAddProxy = vi.fn();
@@ -233,30 +213,29 @@ describe("RosterPanel", () => {
     expect(onRename).toHaveBeenCalledWith("p1", "Alicia");
   });
 
-  it("ホストでない観覧者でも自分自身は改名できる", () => {
-    // Given（viewer 視点: canManage=false, myParticipantId=v9）
+  it("自分の行でも他人の行でも改名できる", () => {
+    // Given（かつては管理権限が無いと自分の行しか改名できなかった。#95 S3 で全員同格）
     const onRename = vi.fn();
     const participants = [
-      makeParticipant({ participantId: "p1", displayName: "Alice", role: "host" }),
-      makeParticipant({ participantId: "v9", displayName: "Vic", role: "viewer", connId: "cv" }),
+      makeParticipant({ participantId: "p1", displayName: "Alice" }),
+      makeParticipant({ participantId: "v9", displayName: "Vic", connId: "cv" }),
     ];
     render(
       <RosterPanel
         {...baseProps}
         participants={participants}
-        canManage={false}
         myParticipantId="v9"
         onRename={onRename}
       />,
     );
-    // When
-    const renameBtn = screen.getByRole("button", { name: /改名/ });
-    fireEvent.click(renameBtn);
-    const input = screen.getByDisplayValue("Vic");
-    fireEvent.change(input, { target: { value: "Victor" } });
+    // When（自分ではない Alice の行を改名する）
+    fireEvent.click(screen.getByRole("button", { name: "Alice を改名" }));
+    const input = screen.getByDisplayValue("Alice");
+    fireEvent.change(input, { target: { value: "Alicia" } });
     fireEvent.click(screen.getByRole("button", { name: /^保存$/ }));
     // Then
-    expect(onRename).toHaveBeenCalledWith("v9", "Victor");
+    expect(onRename).toHaveBeenCalledWith("p1", "Alicia");
+    expect(screen.getByRole("button", { name: "Vic を改名" })).toBeTruthy();
   });
 
   it("一時離脱中の参加者に離脱バッジが表示される", () => {
@@ -279,13 +258,13 @@ describe("RosterPanel", () => {
    * @requirements v2.3 #1
    */
   describe("ドライバー並べ替えボタン", () => {
-    // rotation=[p1,p2] のとき、ホストは各ドライバー行に上/下ボタンを見られる。
+    // rotation=[p1,p2] のとき、各ドライバー行に上/下ボタンが出る。
     const moveProps = {
       ...baseProps,
       rotation: ["p1", "p2"],
     };
 
-    it("ホストはドライバー行で『前の順番へ』を押すとドライバーが前の順番へ移動する", () => {
+    it("ドライバー行で『前の順番へ』を押すとドライバーが前の順番へ移動する", () => {
       // Given
       const onMove = vi.fn();
       render(<RosterPanel {...moveProps} onMove={onMove} />);
@@ -295,7 +274,7 @@ describe("RosterPanel", () => {
       expect(onMove).toHaveBeenCalledWith(1, 0);
     });
 
-    it("ホストはドライバー行で『後の順番へ』を押すとドライバーが後の順番へ移動する", () => {
+    it("ドライバー行で『後の順番へ』を押すとドライバーが後の順番へ移動する", () => {
       // Given
       const onMove = vi.fn();
       render(<RosterPanel {...moveProps} onMove={onMove} />);
@@ -331,12 +310,12 @@ describe("RosterPanel", () => {
       expect(onMove).not.toHaveBeenCalled();
     });
 
-    it("見学者（rotation 外）の行には並べ替えボタンを出さない", () => {
-      // Given（Carol は rotation に含まれない見学者）
+    it("rotation 外の行には並べ替えボタンを出さない", () => {
+      // Given（Carol は rotation に含まれない）
       const participants = [
-        makeParticipant({ participantId: "p1", displayName: "Alice", role: "host" }),
-        makeParticipant({ participantId: "p2", displayName: "Bob", role: "editor", connId: "c2" }),
-        makeParticipant({ participantId: "p3", displayName: "Carol", role: "viewer", connId: "c3" }),
+        makeParticipant({ participantId: "p1", displayName: "Alice" }),
+        makeParticipant({ participantId: "p2", displayName: "Bob", connId: "c2" }),
+        makeParticipant({ participantId: "p3", displayName: "Carol", connId: "c3" }),
       ];
       // When
       render(
@@ -347,21 +326,20 @@ describe("RosterPanel", () => {
       expect(screen.queryByRole("button", { name: /Carol を後の順番へ/ })).toBeNull();
     });
 
-    it("canManage=false のときは並べ替えボタンを出さない", () => {
-      // Given
+    it("誰の視点でも並べ替えボタンを出す", () => {
+      // Given（かつては管理権限を持つ人にだけ出していた・#95 S3）
       const onMove = vi.fn();
       // When
       render(
         <RosterPanel
           {...moveProps}
-          canManage={false}
           myParticipantId="p2"
           onMove={onMove}
         />,
       );
       // Then
-      expect(screen.queryByRole("button", { name: /前の順番へ/ })).toBeNull();
-      expect(screen.queryByRole("button", { name: /後の順番へ/ })).toBeNull();
+      expect(screen.getAllByRole("button", { name: /前の順番へ/ }).length).toBeGreaterThan(0);
+      expect(screen.getAllByRole("button", { name: /後の順番へ/ }).length).toBeGreaterThan(0);
     });
 
     it("ドライバーが1人だけのときは並べ替えボタンを出さない", () => {
@@ -411,113 +389,19 @@ describe("RosterPanel", () => {
       expect(screen.getByRole("list").className).not.toContain("overflow-y-auto");
     });
   });
-
-  /**
-   * @requirements R2-3
-   */
-  describe("ホスト移譲ボタン", () => {
-    it("ホストはオンラインの他参加者に『ホストを譲る』を見られ、押すとホスト移譲の要求が送られる", () => {
-      // Given（baseProps: Alice=host(p1, online), Bob=editor(p2, online), 自分=p1(host)）
-      const onTransferHost = vi.fn();
-      render(<RosterPanel {...baseProps} onTransferHost={onTransferHost} />);
-      // When
-      const transferBtn = screen.getByRole("button", { name: /ホストを譲る/ });
-      fireEvent.click(transferBtn);
-      // Then
-      expect(onTransferHost).toHaveBeenCalledWith("p2");
-    });
-
-    it("オフラインの参加者には『ホストを譲る』を出さない", () => {
-      // Given
-      const participants = [
-        makeParticipant({ participantId: "p1", displayName: "Alice", role: "host" }),
-        makeParticipant({
-          participantId: "p2",
-          displayName: "Bob",
-          role: "editor",
-          connId: "conn2",
-          presence: "offline",
-        }),
-      ];
-      // When
-      render(
-        <RosterPanel {...baseProps} participants={participants} onTransferHost={vi.fn()} />,
-      );
-      // Then
-      expect(screen.queryByRole("button", { name: /ホストを譲る/ })).toBeNull();
-    });
-
-    it("canManage=false のときは『ホストを譲る』を出さない", () => {
-      // Given
-      const onTransferHost = vi.fn();
-      // When
-      render(
-        <RosterPanel
-          {...baseProps}
-          canManage={false}
-          myParticipantId="p2"
-          onTransferHost={onTransferHost}
-        />,
-      );
-      // Then
-      expect(screen.queryByRole("button", { name: /ホストを譲る/ })).toBeNull();
-    });
-
-    it("自分自身の行には『ホストを譲る』を出さない", () => {
-      // Given（ホストの自分（p1）のみがオンライン参加者で他にオンライン参加者がいない場合）
-      const participants = [
-        makeParticipant({ participantId: "p1", displayName: "Alice", role: "host" }),
-      ];
-      // When
-      render(
-        <RosterPanel
-          {...baseProps}
-          participants={participants}
-          currentDriverId="p1"
-          onTransferHost={vi.fn()}
-        />,
-      );
-      // Then
-      expect(screen.queryByRole("button", { name: /ホストを譲る/ })).toBeNull();
-    });
-
-    it("現ホストの行には『ホストを譲る』を出さない（他にもう一人ホストがいる異常系の保険）", () => {
-      // Given（通常ホストは1人だが、現ホスト行に出ない条件 p.role !== "host" を担保する）
-      const participants = [
-        makeParticipant({ participantId: "p1", displayName: "Alice", role: "host" }),
-        makeParticipant({
-          participantId: "p2",
-          displayName: "Bob",
-          role: "host",
-          connId: "conn2",
-        }),
-      ];
-      // When
-      render(
-        <RosterPanel {...baseProps} participants={participants} onTransferHost={vi.fn()} />,
-      );
-      // Then
-      expect(screen.queryByRole("button", { name: /ホストを譲る/ })).toBeNull();
-    });
-  });
 });
 
 // ─── セクション分割テスト ────────────────────────────────────────────
 
-/** セクション分割テスト用ヘルパ: role を受け取る mk */
-const mkRolled = (id: string, name: string, role: "host" | "editor" | "viewer"): Participant =>
-  ({ participantId: id, displayName: name, role, presence: "online" } as Participant);
+/** セクション分割テスト用ヘルパ: 最小の参加者を組み立てる */
+const mkPlain = (id: string, name: string): Participant =>
+  ({ participantId: id, displayName: name, presence: "online" } as Participant);
 
 const sectionBase = {
-  participants: [
-    mkRolled("h", "Alice", "host"),
-    mkRolled("b", "Bob", "editor"),
-    mkRolled("v", "Zoe", "viewer"),
-  ],
+  participants: [mkPlain("h", "Alice"), mkPlain("b", "Bob"), mkPlain("v", "Zoe")],
   rotation: ["h", "b"],
   currentDriverId: "b",
   myParticipantId: "h",
-  canManage: true,
   onRename: vi.fn(), onSkip: vi.fn(), onResume: vi.fn(), onAddProxy: vi.fn(),
 };
 
@@ -526,7 +410,7 @@ const sectionBase = {
  */
 describe("RosterPanel セクション分割", () => {
   it("ドライバーと見学のセクション見出しを出す", () => {
-    // Given（sectionBase の host/editor/viewer 構成をそのまま使う）
+    // Given（sectionBase の 3 名構成をそのまま使う）
     // When
     render(<RosterPanel {...sectionBase} />);
     // Then
@@ -544,8 +428,8 @@ describe("RosterPanel セクション分割", () => {
     expect(within(items[0]!).getByText("Bob")).toBeTruthy();
   });
 
-  it("見学者(Zoe)は見学セクションに入る", () => {
-    // Given（sectionBase: Zoe は viewer で rotation 外）
+  it("rotation 外の Zoe は見学セクションに入る", () => {
+    // Given（sectionBase: Zoe は rotation 外）
     // When
     render(<RosterPanel {...sectionBase} />);
     // Then
@@ -560,7 +444,6 @@ describe("RosterPanel セクション分割", () => {
       participantId: `p${i}`,
       connId: `conn${i}`,
       displayName: n,
-      role: "editor" as const,
       presence: "online" as const,
       driverEligible: true,
       isPlaceholder: false,
@@ -573,7 +456,6 @@ describe("RosterPanel セクション分割", () => {
         participants={participants}
         currentDriverId="p3"
         myParticipantId="p0"
-        canManage={false}
         rotation={participants.map((p) => p.participantId)}
         onRename={vi.fn()}
         onSkip={vi.fn()}
@@ -597,13 +479,12 @@ describe("RosterPanel ドライバー指名", () => {
   const onAssignDriver = vi.fn();
   const hostProps = {
     myParticipantId: "x",
-    canManage: true,
     onRename: vi.fn(), onSkip: vi.fn(), onResume: vi.fn(), onAddProxy: vi.fn(),
     onAssignDriver,
   };
   beforeEach(() => onAssignDriver.mockClear());
 
-  it("host は現ドライバー以外の rotation 行に「ドライバーにする」を表示する", () => {
+  it("現ドライバー以外の rotation 行に「ドライバーにする」を表示する", () => {
     // Given
     const participants = [mk("a", "Alice"), mk("b", "Bob")];
     // When
@@ -639,14 +520,14 @@ describe("RosterPanel ドライバー指名", () => {
     expect(within(aliceItem).queryByRole("button", { name: /ドライバーにする/ })).toBeNull();
   });
 
-  it("非 host には「ドライバーにする」を表示しない", () => {
-    // Given
+  it("自分が誰であっても「ドライバーにする」を表示する", () => {
+    // Given（かつては管理権限を持つ人にだけ出していた・#95 S3）
     const participants = [mk("a", "Alice"), mk("b", "Bob")];
     // When
     render(
       <RosterPanel
         {...hostProps}
-        canManage={false}
+        myParticipantId="b"
         participants={participants}
         currentDriverId="a"
         rotation={["a", "b"]}
@@ -655,10 +536,10 @@ describe("RosterPanel ドライバー指名", () => {
     // Then
     const list = screen.getByRole("list", { name: "ドライバー一覧" });
     const bobItem = within(list).getByText("Bob").closest("li") as HTMLElement;
-    expect(within(bobItem).queryByRole("button", { name: /ドライバーにする/ })).toBeNull();
+    expect(within(bobItem).getByRole("button", { name: /ドライバーにする/ })).toBeTruthy();
   });
 
-  it("見学者（rotation 外）には「ドライバーにする」を表示しない", () => {
+  it("rotation 外の人には「ドライバーにする」を表示しない", () => {
     // Given
     const participants = [mk("a", "Alice"), mk("w", "Watcher")];
     // When
@@ -735,7 +616,7 @@ describe("RosterPanel ドライバー指名", () => {
 });
 
 // ─── 退出操作の確認と自己行の扱い（実機検証で判明した欠落） ────────────
-// 開始後は主催者以外も他人を退出させられる。取り返しがつかない操作なので
+// 誰でも他人を退出させられる。取り返しがつかない操作なので
 // 確認を挟み、誰を・何が起きるかを明示する。自分の退出は別の場所（SelfDriverToggle）に置く。
 
 /**
@@ -745,12 +626,11 @@ describe("RosterPanel 退出操作", () => {
   const noop = vi.fn();
   const removeProps = {
     participants: [
-      makeParticipant({ participantId: "p1", displayName: "Alice", role: "host" }),
-      makeParticipant({ participantId: "p2", displayName: "Bob", role: "editor", connId: "conn2" }),
+      makeParticipant({ participantId: "p1", displayName: "Alice" }),
+      makeParticipant({ participantId: "p2", displayName: "Bob", connId: "conn2" }),
     ],
     currentDriverId: "p1",
     myParticipantId: "p1",
-    canManage: true,
     onRename: noop,
     onSkip: noop,
     onResume: noop,
@@ -824,10 +704,12 @@ describe("RosterPanel 退出操作", () => {
     expect(screen.queryByLabelText("Alice を退出させる")).toBeNull();
   });
 
-  it("canManage が false なら他人の退出ボタンを出さない", () => {
-    render(<RosterPanel {...removeProps} canManage={false} onRemove={vi.fn()} />);
-
-    expect(screen.queryByLabelText("Bob を退出させる")).toBeNull();
+  it("自分が誰であっても他人の退出ボタンを出す", () => {
+    // Given（かつては管理権限を持つ人にだけ出していた・#95 S3）
+    // When
+    render(<RosterPanel {...removeProps} myParticipantId="p2" onRemove={vi.fn()} />);
+    // Then
+    expect(screen.getByLabelText("Alice を退出させる")).toBeTruthy();
   });
 });
 
@@ -844,15 +726,14 @@ describe("RosterPanel 同名参加者の区別", () => {
   // 識別子は末尾4文字が表示に使われる。表示名や他の語と紛れない値にしないと、
   // ラベルに識別子が出ていなくても toContain が通ってしまう（偽陽性）。
   const twoBobs = [
-    makeParticipant({ participantId: "pid-0001", displayName: "Alice", role: "host" }),
-    makeParticipant({ participantId: "pid-0002", displayName: "Bob", role: "editor", connId: "c2" }),
-    makeParticipant({ participantId: "pid-0003", displayName: "Bob", role: "editor", connId: "c3" }),
+    makeParticipant({ participantId: "pid-0001", displayName: "Alice" }),
+    makeParticipant({ participantId: "pid-0002", displayName: "Bob", connId: "c2" }),
+    makeParticipant({ participantId: "pid-0003", displayName: "Bob", connId: "c3" }),
   ];
   const dupProps = {
     participants: twoBobs,
     currentDriverId: "pid-0001",
     myParticipantId: "pid-0001",
-    canManage: true,
     onRename: noop,
     onSkip: noop,
     onResume: noop,
@@ -923,8 +804,8 @@ describe("RosterPanel 同名参加者の区別", () => {
   it("同名がいなければ識別子を添えない（通常時に読みにくくしない）", () => {
     // Given
     const single = [
-      makeParticipant({ participantId: "pid-0001", displayName: "Alice", role: "host" }),
-      makeParticipant({ participantId: "pid-0002", displayName: "Bob", role: "editor", connId: "c2" }),
+      makeParticipant({ participantId: "pid-0001", displayName: "Alice" }),
+      makeParticipant({ participantId: "pid-0002", displayName: "Bob", connId: "c2" }),
     ];
     // When
     render(<RosterPanel {...dupProps} participants={single} onRemove={vi.fn()} />);
@@ -971,8 +852,8 @@ describe("RosterPanel 同名参加者の区別", () => {
   it("同名でも自分の行には退出ボタンを出さない（自己退出は別の場所）", () => {
     // Given
     const meDuplicated = [
-      makeParticipant({ participantId: "pid-0001", displayName: "Bob", role: "host" }),
-      makeParticipant({ participantId: "pid-0002", displayName: "Bob", role: "editor", connId: "c2" }),
+      makeParticipant({ participantId: "pid-0001", displayName: "Bob" }),
+      makeParticipant({ participantId: "pid-0002", displayName: "Bob", connId: "c2" }),
     ];
     // When
     render(<RosterPanel {...dupProps} participants={meDuplicated} onRemove={vi.fn()} />);
@@ -989,10 +870,10 @@ describe("RosterPanel 同名参加者の区別", () => {
   // 3名以上でも破綻しないことを、drivers/watchers 双方のセクションで確認する。
 
   const threeBobs = [
-    makeParticipant({ participantId: "pid-0001", displayName: "Alice", role: "host" }),
-    makeParticipant({ participantId: "pid-0002", displayName: "Bob", role: "editor", connId: "c2" }),
-    makeParticipant({ participantId: "pid-0003", displayName: "Bob", role: "editor", connId: "c3" }),
-    makeParticipant({ participantId: "pid-0004", displayName: "Bob", role: "editor", connId: "c4" }),
+    makeParticipant({ participantId: "pid-0001", displayName: "Alice" }),
+    makeParticipant({ participantId: "pid-0002", displayName: "Bob", connId: "c2" }),
+    makeParticipant({ participantId: "pid-0003", displayName: "Bob", connId: "c3" }),
+    makeParticipant({ participantId: "pid-0004", displayName: "Bob", connId: "c4" }),
   ];
 
   it("同名3名が全員ドライバーのとき、ドライバー一覧の全員の行に識別子付きラベルが表示される", () => {
@@ -1015,7 +896,7 @@ describe("RosterPanel 同名参加者の区別", () => {
   });
 
   it("同名3名が全員見学のとき、見学一覧の全員の行に識別子付きラベルが表示される", () => {
-    // Given（3名の Bob は rotation 外＝見学。ドライバーは host のみ）
+    // Given（3名の Bob は rotation 外＝見学。ドライバーは Alice のみ）
     // When
     render(
       <RosterPanel

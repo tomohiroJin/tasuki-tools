@@ -110,7 +110,7 @@ describe('全員投票で自動公開（契約 #4 / FR-008）', () => {
   });
 });
 
-describe('ホストの手動公開（契約 #5 / FR-009）', () => {
+describe('手動公開（契約 #5 / FR-009）', () => {
   it('投票途中でも公開でき、未投票者は votes に含まれない', async () => {
     // Given
     const { host, guest, hostId, guestId } = await setupRoom();
@@ -134,16 +134,25 @@ describe('ホストの手動公開（契約 #5 / FR-009）', () => {
     guest.close();
   });
 
-  it('非ホストの reveal は not-host エラー', async () => {
+  // #95 S3 より前は、ルーム作成者以外が reveal を送ると not-host エラーで拒否されていた。
+  // ホストと権限判定を廃止したので、いまは作成者でない参加者（ここでは guest）の
+  // reveal も成功し、投票中でも公開できる。
+  it('作成者でない参加者の reveal も成功し、投票途中でも公開できる', async () => {
     // Given
-    const { host, guest } = await setupRoom();
+    const { host, guest, guestId } = await setupRoom();
+    host.send({ type: 'vote', card: { kind: 'coffee' } });
+    await host.nextMatching(isType('room-state'));
+    await guest.nextMatching(isType('room-state'));
+
     // When
     guest.send({ type: 'reveal' });
+
     // Then
-    expect(await guest.nextMatching(isType('error'))).toMatchObject({
-      type: 'error',
-      code: 'not-host',
-    });
+    const state = (await guest.nextMatching(
+      (msg) => (msg as RoomState).round?.status === 'revealed',
+    )) as RoomState;
+    if (state.round.status !== 'revealed') throw new Error('unreachable');
+    expect(state.round.votes.some((v) => v.participantId === guestId)).toBe(false);
     host.close();
     guest.close();
   });

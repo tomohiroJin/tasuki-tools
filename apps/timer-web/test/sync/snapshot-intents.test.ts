@@ -14,7 +14,7 @@ import { decideSnapshotIntents, type SnapshotContext } from "../../src/sync/snap
 import { aRoomView } from "../support/room-view.js";
 import type { Room } from "@tasuki/timer-core";
 
-const SELF = "host-p";
+const SELF = "creator-p";
 
 function baseCtx(overrides: Partial<SnapshotContext> = {}): SnapshotContext {
   return {
@@ -78,12 +78,12 @@ describe("decideSnapshotIntents: 復帰情報の保存", () => {
     const room = aRoomView({ code: "ROOM01" });
     const ctx = baseCtx({
       pendingResume: { participantId: SELF, resumeToken: "rt" },
-      resumeDisplayName: "Host",
+      resumeDisplayName: "Creator",
     });
     // When / Then（decideSnapshotIntents の戻り値をそのまま検証するため操作と検証が同じ式になる）
     expect(decideSnapshotIntents(null, room, ctx)).toContainEqual({
       kind: "save-resume",
-      identity: { code: "ROOM01", participantId: SELF, resumeToken: "rt", displayName: "Host" },
+      identity: { code: "ROOM01", participantId: SELF, resumeToken: "rt", displayName: "Creator" },
     });
   });
 
@@ -211,7 +211,7 @@ describe("decideSnapshotIntents: 順序（振る舞いそのもの）", () => {
     });
     const ctx = baseCtx({
       pendingResume: { participantId: SELF, resumeToken: "rt" },
-      resumeDisplayName: "Host",
+      resumeDisplayName: "Creator",
       pendingDriverJoin: true,
       isCreator: true,
       generatingProblem: true,

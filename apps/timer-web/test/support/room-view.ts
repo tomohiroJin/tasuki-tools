@@ -19,16 +19,16 @@ import type { Participant, Room, ServerClock, SessionConfig } from "@tasuki/time
 // 公開されている Room 型から同じ形を導出する（インデックスアクセス型）。verification 内容は変えない。
 type SessionState = Room["session"];
 
-const HOST_ID = "host-p";
+const CREATOR_ID = "creator-p";
 
 function defaultConfig(): SessionConfig {
   // App.tsx handleCreateRoom の既定値（displayName は members[0] に入るが、
-  // ここでは既定の host 名 "Host" を使う。intervalMinutes: 7 が実際の既定）。
-  return { language: "TypeScript", difficulty: "easy", members: ["Host"], intervalMinutes: 7 };
+  // ここでは既定の作成者名 "Creator" を使う。intervalMinutes: 7 が実際の既定）。
+  return { language: "TypeScript", difficulty: "easy", members: ["Creator"], intervalMinutes: 7 };
 }
 
 function defaultSession(): SessionState {
-  return { rotation: [HOST_ID], currentIndex: 0, isPaused: false, driverCounts: [0], totalSwitches: 0 };
+  return { rotation: [CREATOR_ID], currentIndex: 0, isPaused: false, driverCounts: [0], totalSwitches: 0 };
 }
 
 function defaultClock(intervalMinutes: number): ServerClock {
@@ -45,10 +45,9 @@ function defaultClock(intervalMinutes: number): ServerClock {
 function defaultParticipants(): Participant[] {
   return [
     {
-      participantId: HOST_ID,
-      connId: "host-c",
-      displayName: "Host",
-      role: "host",
+      participantId: CREATOR_ID,
+      connId: "creator-c",
+      displayName: "Creator",
       presence: "online",
       hasAiKey: false,
       joinedAt: 0,
@@ -76,7 +75,6 @@ export function aRoomView(overrides: RoomViewOverrides = {}): Room {
   const base: Room = {
     code: "TEST01",
     createdAt: 0,
-    hostParticipantId: HOST_ID,
     config,
     problem: null,
     session,

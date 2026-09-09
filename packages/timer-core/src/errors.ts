@@ -26,13 +26,6 @@ export interface BelowMinMembers {
   min: number;
 }
 
-/** 権限不足 */
-interface Unauthorized {
-  type: "Unauthorized";
-  command: string;
-  requiredRole: string;
-}
-
 /** フェーズ競合 */
 interface PhaseConflict {
   type: "PhaseConflict";
@@ -68,7 +61,6 @@ export type DomainError =
   | DuplicateName
   | MemberLimitExceeded
   | BelowMinMembers
-  | Unauthorized
   | PhaseConflict
   | InvalidInterval
   | InvalidIndex
@@ -115,8 +107,7 @@ export const SYNC_ERROR_CODES = [
   "PASSPHRASE_REQUIRED",
   "PASSPHRASE_MISMATCH",
   "RATE_LIMITED",
-  // ─── 参加者・権限 ───
-  "UNAUTHORIZED",
+  // ─── 参加者 ───
   "PARTICIPANT_NOT_FOUND",
   // ⚠ PARTICIPANT_OFFLINE / CANNOT_CHANGE_HOST / LAST_MANAGER は
   // Issue #29（H2/H3）で全ての拒否箇所を操作ごとの新コードへ差し替え済みのため、
@@ -126,13 +117,19 @@ export const SYNC_ERROR_CODES = [
   // ─── 指名（driver.assign） ───
   "DRIVER_ASSIGN_OFFLINE",
   "NOT_IN_ROTATION",
-  // ─── ホストの移譲・役割の変更 ───
-  "HOST_TRANSFER_OFFLINE",
-  "CANNOT_CHANGE_HOST_ROLE",
-  "ALREADY_HOST",
-  // ─── 退出・降格の不変条件 ───
-  "LAST_MANAGER_LEAVE",
-  "LAST_MANAGER_DEMOTE",
+  // ⚠ UNAUTHORIZED / HOST_TRANSFER_OFFLINE / CANNOT_CHANGE_HOST_ROLE / ALREADY_HOST /
+  // LAST_MANAGER_LEAVE / LAST_MANAGER_DEMOTE は #95 S3（役割とホストの廃止）で
+  // 発行元ごと消えたため、ここから削除した。可否判定・ホスト移譲・役割変更・
+  // 「進行できる人が残る」不変条件のいずれも概念ごと無くなった。
+  //
+  // ⚠ この削除で、上の 3 件（PARTICIPANT_OFFLINE / CANNOT_CHANGE_HOST /
+  // LAST_MANAGER）との対比は**過去の経緯の説明に変わった**。「それらは細分化であって
+  // 廃止ではなかった」は #29 時点の事情としては正しいが、その細分化の後継は
+  // いま全部消えている。3 件の文言が error-messages.ts に残る根拠は
+  // FR-137・SC-047（#29 より前のサーバーの応答を引けること）だけであり、
+  // 落とすかどうかの判断は同ファイルの該当コメントに預けてある。
+  // なお #95 S3 は ServerMsg から必須フィールドも落としており、その非互換を
+  // 受容した記録は error-messages.ts の「wire の後方互換について」にある。
   // ─── お題の委譲 ───
   "DELEGATION_UNAVAILABLE",
   "STALE_SUBMISSION",

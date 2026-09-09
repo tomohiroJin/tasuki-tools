@@ -16,8 +16,10 @@ Claude サブスク月次 Agent SDK クレジットにより、運営者負担�
 - **サーバー常駐生成**: sync サーバーが `claude -p` 子プロセス（`node:child_process` spawn）で生成する。
   OAuth トークン（`CLAUDE_CODE_OAUTH_TOKEN`）はサーバー env のみに置き、子プロセスの env にのみ渡す
   （argv・ログ・snapshot 非混入）。
-- **合言葉解錠**: `AI_UNLOCK_KEY` を知るルームの host だけが有効化できる。トークン/合言葉のどちらかが
+- **合言葉解錠**: `AI_UNLOCK_KEY` を知る在室者が有効化できる。トークン/合言葉のどちらかが
   未設定なら AI 機能は丸ごと無効かつ存在を秘匿（解錠は常に失敗）。
+  （**当初は「ルームの host だけ」と書いていた。**#95 S3 で役割とホストを廃止したため
+  在室者全員へ開いた。下の追記（2026-09-08）を参照。）
 - **縮退と濫用抑制**: 失敗（タイムアウト・検証失敗・トークン失効）は全経路で定型バンクへ縮退。
   同時 1・クールダウン・日次上限（`AI_DAILY_LIMIT`）で運営者クレジットを保護。
 - **BYOK は休眠残置**: `apps/web/src/ai/{byok,key-storage}.ts` は UI から撤去し将来の再有効化に備えて残す。
@@ -49,5 +51,26 @@ Claude サブスク月次 Agent SDK クレジットにより、運営者負担�
 
 あわせて、`apps/timer-web/src/App.tsx` の `resolveProvider()` の docstring が削除済みの
 `key-storage` に言及していたので、実装に合わせて直した（#72 E1）。
+
+本追記は経緯の記録であり、決定を覆すものではない（`docs/adr/0002` の「ADR は追記のみ」）。
+
+## 追記（2026-09-08・#95 S3）
+
+**決定の 2 項目目「合言葉解錠: `AI_UNLOCK_KEY` を知るルームの host だけが有効化できる」の
+「host だけが」という限定は、[#95](https://github.com/tomohiroJin/tasuki-tools/issues/95) S3
+（[#244](https://github.com/tomohiroJin/tasuki-tools/issues/244)）で失効した。**
+
+役割（`host` / `editor` / `viewer`）とホストの概念を廃止したため、解錠を絞る主体が存在しない。
+実装（`apps/tasuki-sync/src/application/command-handlers/ai-unlock.ts` の `handleAiUnlock`）は
+レート制限と合言葉の定数時間比較だけを見ており、参加者の属性を一切参照しない。画面側
+（`apps/timer-web/src/ui/Lobby.tsx`）も `AiUnlockPanel` を役割で出し分けていない。
+**したがって現在は「合言葉を知る在室者なら誰でも解錠できる」である。**
+
+**S3 が触ったのはこの限定だけである。** サーバー常駐生成と、縮退・濫用抑制の 2 項目は
+無傷で、決定の趣旨である「秘密は運営者の env のみに置き、解錠を合言葉で絞る」も変わっていない
+（4 項目目の BYOK については上の追記（2026-08-17・#72 E1）を参照。S3 とは無関係の失効である）。
+絞りの単位が「ルーム内の 1 人」から「合言葉を知っている人」へ移っただけで、
+合言葉を知らない参加者は解錠できない。運用上の含意（鍵を共有した相手の範囲が広がりうる）は
+[`docs/guides/security.md`](../../guides/security.md) の鍵の回転の項に書いた。
 
 本追記は経緯の記録であり、決定を覆すものではない（`docs/adr/0002` の「ADR は追記のみ」）。

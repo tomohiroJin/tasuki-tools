@@ -12,8 +12,7 @@ import { aRoomView } from "../support/room-view.js";
 
 function p(overrides: Partial<Participant>): Participant {
   return {
-    participantId: "x", connId: "c", displayName: "X", role: "editor",
-    presence: "online", hasAiKey: false, joinedAt: 1, ...overrides,
+    participantId: "x", connId: "c", displayName: "X", presence: "online", hasAiKey: false, joinedAt: 1, ...overrides,
   };
 }
 
@@ -21,17 +20,16 @@ const config: SessionConfig = {
   language: "TypeScript", difficulty: "easy", members: ["Alice"], intervalMinutes: 5,
 };
 
-/** rotation=[Alice(host-p)]。rotation は参加者IDの配列（D6b）。
- *  Bob は editor だがローテーション未加入の途中参加者。 */
+/** rotation=[Alice(creator-p)]。rotation は参加者IDの配列（D6b）。
+ *  Bob はローテーション未加入の途中参加者。 */
 function makeRoom(): Room {
   return aRoomView({
     code: "AA0001",
-    hostParticipantId: "host-p",
     config,
     clock: { running: true, runningSince: 0 },
     phase: "session",
     participants: [
-      p({ participantId: "host-p", displayName: "Alice", role: "host" }),
+      p({ participantId: "creator-p", displayName: "Alice" }),
       p({ participantId: "bob-p", displayName: "Bob", connId: "c2" }),
     ],
   });
@@ -69,46 +67,46 @@ describe("Session ドライバー加入/離脱", () => {
     // Given（2人ローテーションにして「外れる」を有効化。最後の1人は外れられないため）
     const onLeaveRotation = vi.fn();
     const room = makeRoom();
-    room.session.rotation = ["host-p", "bob-p"];
+    room.session.rotation = ["creator-p", "bob-p"];
     room.session.driverCounts = [0, 0];
-    render(<Session room={room} participantId="host-p" {...handlers()} onLeaveRotation={onLeaveRotation} />);
+    render(<Session room={room} participantId="creator-p" {...handlers()} onLeaveRotation={onLeaveRotation} />);
     // When
     fireEvent.click(screen.getByRole("button", { name: /列から外れる|外れる/ }));
     // Then（index ではなく自名を渡す）
-    expect(onLeaveRotation).toHaveBeenCalledWith("host-p");
+    expect(onLeaveRotation).toHaveBeenCalledWith("creator-p");
   });
 
   /** 自己操作トグル（「あなた:」を含む行）に限定する。RosterPanel 行にも同名ボタンが出るため。 */
   const selfToggle = () => screen.getByText(/あなた:/).closest("div") as HTMLElement;
 
   it("ドライバーの自分には「一時離脱」が出て、押すと自分が一時離脱する", () => {
-    // Given（Alice(host-p) は rotation 加入・driverEligible 未設定＝稼働中）
+    // Given（Alice(creator-p) は rotation 加入・driverEligible 未設定＝稼働中）
     const onDriverSkip = vi.fn();
-    render(<Session room={makeRoom()} participantId="host-p" {...handlers()} onDriverSkip={onDriverSkip} />);
+    render(<Session room={makeRoom()} participantId="creator-p" {...handlers()} onDriverSkip={onDriverSkip} />);
     // When
     fireEvent.click(within(selfToggle()).getByRole("button", { name: /一時離脱/ }));
     // Then
-    expect(onDriverSkip).toHaveBeenCalledWith("host-p");
+    expect(onDriverSkip).toHaveBeenCalledWith("creator-p");
   });
 
   it("離脱中の自分には「復帰」が出て、押すと自分が復帰する", () => {
-    // Given（自分(host-p=Alice)を離脱中にする）
+    // Given（自分(creator-p=Alice)を離脱中にする）
     const onDriverResume = vi.fn();
     const room = makeRoom();
     room.participants = room.participants.map((pp) =>
-      pp.participantId === "host-p" ? { ...pp, driverEligible: false } : pp,
+      pp.participantId === "creator-p" ? { ...pp, driverEligible: false } : pp,
     );
-    render(<Session room={room} participantId="host-p" {...handlers()} onDriverResume={onDriverResume} />);
+    render(<Session room={room} participantId="creator-p" {...handlers()} onDriverResume={onDriverResume} />);
     // When
     fireEvent.click(within(selfToggle()).getByRole("button", { name: /復帰/ }));
     // Then
-    expect(onDriverResume).toHaveBeenCalledWith("host-p");
+    expect(onDriverResume).toHaveBeenCalledWith("creator-p");
   });
 
   it("Session では自分の行に「一時離脱」を出さず自己トグルに集約する（重複解消）", () => {
     // Given
     // When
-    render(<Session room={makeRoom()} participantId="host-p" {...handlers()} onDriverSkip={vi.fn()} />);
+    render(<Session room={makeRoom()} participantId="creator-p" {...handlers()} onDriverSkip={vi.fn()} />);
     // Then（自己トグルには一時離脱がある）
     expect(within(selfToggle()).getByRole("button", { name: /一時離脱/ })).toBeTruthy();
     // Then（自分(Alice)は rotation 内 → ドライバー一覧に表示される。
@@ -120,9 +118,9 @@ describe("Session ドライバー加入/離脱", () => {
   });
 
   it("最後の1人のときは「列から外れる」が無効化される", () => {
-    // Given（makeRoom は rotation=[host-p] の単独。Alice 視点では外れられない）
+    // Given（makeRoom は rotation=[creator-p] の単独。Alice 視点では外れられない）
     const onLeaveRotation = vi.fn();
-    render(<Session room={makeRoom()} participantId="host-p" {...handlers()} onLeaveRotation={onLeaveRotation} />);
+    render(<Session room={makeRoom()} participantId="creator-p" {...handlers()} onLeaveRotation={onLeaveRotation} />);
     const btn = screen.getByRole("button", { name: /列から外れる|外れる/ });
     // Then
     expect((btn as HTMLButtonElement).disabled).toBe(true);

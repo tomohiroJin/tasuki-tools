@@ -66,7 +66,7 @@ describe('shouldAutoReveal / applyAutoReveal（FR-008）', () => {
     expect(applyAutoReveal(room).round.status).toBe('revealed');
   });
 
-  it('参加者1人（ホストのみ）でも投票すれば即成立する（Edge Case）', () => {
+  it('参加者1人でも投票すれば即成立する（Edge Case）', () => {
     const room = castVote(roomWith(1), 'p1', five)._unsafeUnwrap();
     expect(shouldAutoReveal(room)).toBe(true);
   });
@@ -96,7 +96,7 @@ describe('shouldAutoReveal / applyAutoReveal（FR-008）', () => {
 });
 
 describe('revealBy（FR-009）', () => {
-  it('ホストは全員の投票を待たずに公開できる', () => {
+  it('全員の投票を待たずに公開できる', () => {
     // Given
     let room = roomWith(2);
     room = castVote(room, 'p1', five)._unsafeUnwrap();
@@ -107,13 +107,16 @@ describe('revealBy（FR-009）', () => {
     expect(revealed.round.votes.size).toBe(1);
   });
 
-  it('非ホストの公開は not-host エラー', () => {
-    // Given: roomWith(2) の呼び出し自体が前提の部屋を用意する
+  it('作成者でない参加者も公開できる（役割は無い）', () => {
+    // Given
+    let room = roomWith(2);
+    room = castVote(room, 'p1', five)._unsafeUnwrap();
     // When
-    const result = revealBy(roomWith(2), 'p2');
+    // 前提のガードは置かない。落ちていれば _unsafeUnwrap が throw する（ADR-0006 決定 6 と同じ扱い）
+    const revealed = revealBy(room, 'p2')._unsafeUnwrap();
     // Then
-    expect(result.isErr()).toBe(true);
-    expect(result._unsafeUnwrapErr().code).toBe('not-host');
+    expect(revealed.round.status).toBe('revealed');
+    expect(revealed.round.votes.get('p1')).toEqual(five);
   });
 
   it('revealed 中の再公開は not-voting エラー', () => {
@@ -154,12 +157,14 @@ describe('nextRound（FR-011）', () => {
     expect(result._unsafeUnwrapErr().code).toBe('not-revealed');
   });
 
-  it('非ホストの next-round は not-host エラー', () => {
-    // Given: revealedRoom() の呼び出し自体が前提の部屋を用意する
+  it('作成者でない参加者も次のラウンドを開始できる（役割は無い）', () => {
+    // Given
+    const room = revealedRoom();
     // When
-    const result = nextRound(revealedRoom(), 'p2');
+    // 前提のガードは置かない。落ちていれば _unsafeUnwrap が throw する（ADR-0006 決定 6 と同じ扱い）
+    const next = nextRound(room, 'p2')._unsafeUnwrap();
     // Then
-    expect(result.isErr()).toBe(true);
-    expect(result._unsafeUnwrapErr().code).toBe('not-host');
+    expect(next.round.status).toBe('voting');
+    expect(next.round.votes.size).toBe(0);
   });
 });

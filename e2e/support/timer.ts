@@ -106,6 +106,19 @@ export function currentDriverRow(page: Page): Locator {
 }
 
 /**
+ * ロビーの「交代間隔」から、指定した分数のボタン。
+ *
+ * `exact: true` が必須。**`5分` は `15分` にも部分一致する**（poker の `chooseCard` と
+ * 同じ罠）。ここは #95 S3 で「誰でも変更できる」設定になった
+ * （`apps/timer-web/src/ui/components/SessionConfigPanel.tsx` 冒頭コメント）。
+ */
+export function intervalButton(page: Page, label: string): Locator {
+  return page
+    .getByRole('group', { name: '交代間隔' })
+    .getByRole('button', { name: label, exact: true });
+}
+
+/**
  * `snapshot` フレームを、**サーバー→クライアントの契約（`ServerMsgSchema`）に
  * 合わない形**へ書き換える（#209）。他の種類のフレームはそのまま返す。
  *

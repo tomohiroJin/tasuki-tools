@@ -41,7 +41,7 @@ const A_VALID_ROOM_STATE = {
   type: 'room-state',
   roomId: ROOM_ID,
   you: 'p1',
-  participants: [{ id: 'p1', name: 'はなこ', isHost: true, connected: true, hasVoted: false }],
+  participants: [{ id: 'p1', name: 'はなこ', connected: true, hasVoted: false }],
   round: { status: 'voting' },
   yourVote: null,
 };
@@ -49,7 +49,7 @@ const A_VALID_ROOM_STATE = {
 /** 画面の状態を載せているのに契約へ合わないフレーム（参加者名が数値）。 */
 const A_BROKEN_ROOM_STATE = {
   ...A_VALID_ROOM_STATE,
-  participants: [{ id: 'p1', name: 1, isHost: true, connected: true, hasVoted: false }],
+  participants: [{ id: 'p1', name: 1, connected: true, hasVoted: false }],
 };
 
 /**

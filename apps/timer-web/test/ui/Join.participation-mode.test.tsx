@@ -1,14 +1,12 @@
 /**
  * 参加方法の選択が何を決めるのかを示す（#76 J-2）。
  *
- * 「見学で参加」を選んでも、ステータスの役割表示は「編集者 (editor)」になる。
- * 実装上これは正しい —「見学」が決めるのは**交代の輪に入るかどうか**だけで、
- * 役割ではないため。しかし画面はそれを何も言わないので、選んだ言葉と表示が
- * 食い違って見える。
+ * 「見学で参加」が決めるのは**交代の輪に入るかどうか**だけである。
+ * かつてはこれとは別に「役割」という層があり、見学を選んでもステータスには
+ * 「編集者 (editor)」と出て、選んだ言葉と表示が食い違って見えた（#95 S3 で役割は廃止）。
+ * 画面の言葉が実態（輪への出入り）を指していることを、ここで固定する。
  *
- * 役割を viewer にする直し方は採らない。開始前の `role.set` は主催者限定で、
- * `member.add` も編集者以上が要るため、見学で入った人は開始前に自分で
- * ドライバーへ移れなくなる（主催者に頼むまで詰む）。言葉のほうを実態に合わせる。
+ * @requirements FR-053
  */
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
@@ -21,7 +19,7 @@ describe("参加方法の選択（#76 J-2）", () => {
     // When: 参加画面を開く
     render(<Join code="ROOM01" onJoin={vi.fn()} />);
 
-    // Then: 「見学」が役割ではなく輪への参加を指すと読み取れる
+    // Then: 「見学」が輪への参加を指すと読み取れる
     const group = screen.getByRole("radiogroup", { name: "参加方法" });
     expect(group).toHaveTextContent(/交代の輪に入る/);
     expect(group).toHaveTextContent(/交代の輪に入らない/);

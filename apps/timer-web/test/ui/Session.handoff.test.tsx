@@ -1,10 +1,10 @@
 /**
  * Session × 引き継ぎノート（handoffNote）入力のテスト
- * 仕様 §9.1「引き継ぎノート」: editor+ が「次の人へ」のメモを残せ、交代時に提示される。
+ * 仕様 §9.1「引き継ぎノート」: 「次の人へ」のメモを残せ、交代時に提示される。
  *
  * バックエンド（handoff.note.set コマンド・evolve）は実装済みだが、
- * Web UI に入力経路が無かった。ここでは「editor+ は編集でき、blur で
- * onHandoffNoteSet が発火する／viewer は読み取り専用」を検証する。
+ * Web UI に入力経路が無かった。ここでは「誰でも編集でき、blur で
+ * onHandoffNoteSet が発火する」を検証する。
  */
 
 import { describe, it, expect, vi } from "vitest";
@@ -19,7 +19,6 @@ function makeParticipant(overrides: Partial<Participant>): Participant {
     participantId: "p1",
     connId: "c1",
     displayName: "Alice",
-    role: "editor",
     presence: "online",
     hasAiKey: false,
     joinedAt: 1000,
@@ -37,13 +36,15 @@ const config: SessionConfig = {
 function makeRoom(overrides?: Partial<Room>): Room {
   return aRoomView({
     code: "AA0001",
-    hostParticipantId: "host-1",
     config,
-    session: { rotation: ["Alice", "Bob"], driverCounts: [0, 0] },
+    // rotation は参加者IDの配列（D6b）。Bob は輪の外に置き、
+    // 「輪の外の在席者でもメモを読める」を実際にその状態で確かめられるようにする。
+    session: { rotation: ["p-alice", "p-carol"], driverCounts: [0, 0] },
     phase: "session",
     participants: [
-      makeParticipant({ participantId: "host-1", displayName: "Alice", role: "host" }),
-      makeParticipant({ participantId: "edit-1", displayName: "Bob", role: "editor", connId: "c2" }),
+      makeParticipant({ participantId: "p-alice", displayName: "Alice" }),
+      makeParticipant({ participantId: "p-carol", displayName: "Carol", connId: "c2" }),
+      makeParticipant({ participantId: "p-bob", displayName: "Bob", connId: "c3" }),
     ],
     ...overrides,
   });
@@ -69,12 +70,12 @@ function baseHandlers() {
 }
 
 describe("Session 引き継ぎノート入力（§9.1）", () => {
-  it("editor+ には共有メモの入力欄が表示される（「編集」クリック後）", () => {
+  it("共有メモの入力欄が表示される（「編集」クリック後）", () => {
     // Given
     render(
       <Session
         room={makeRoom()}
-        participantId="host-1"
+        participantId="p-alice"
         {...baseHandlers()}
         onHandoffNoteSet={vi.fn()}
       />,
@@ -92,7 +93,7 @@ describe("Session 引き継ぎノート入力（§9.1）", () => {
     render(
       <Session
         room={makeRoom()}
-        participantId="host-1"
+        participantId="p-alice"
         {...baseHandlers()}
         onHandoffNoteSet={onHandoffNoteSet}
       />,
@@ -111,7 +112,7 @@ describe("Session 引き継ぎノート入力（§9.1）", () => {
     render(
       <Session
         room={makeRoom({ handoffNote: "次はバリデーションから" })}
-        participantId="host-1"
+        participantId="p-alice"
         {...baseHandlers()}
         onHandoffNoteSet={vi.fn()}
       />,
@@ -123,19 +124,22 @@ describe("Session 引き継ぎノート入力（§9.1）", () => {
     expect(field.value).toBe("次はバリデーションから");
   });
 
-  it("viewer には編集欄を出さず、メモがあれば読み取り表示する", () => {
-    // Given
-    // When
+  it("輪の外の在席者でもメモを読めて、編集にも入れる", () => {
+    // Given（かつては役割が viewer の人に読み取り専用表示を返していた・#95 S3 で廃止）
     render(
       <Session
         room={makeRoom({ handoffNote: "残りはリファクタ" })}
-        participantId="view-1"
+        participantId="p-bob"
         {...baseHandlers()}
         onHandoffNoteSet={vi.fn()}
       />,
     );
-    // Then（viewer 視点＝rotation 外の閲覧者。編集欄は無いがメモ内容は読める）
-    expect(screen.queryByLabelText(/共有メモ/)).toBeNull();
+    // When（自分が本当に輪の外に居ることを先に確かめてから、既定のプレビューを編集へ切り替える）
+    expect(screen.getByText(/ドライバーの輪の外/)).toBeTruthy();
     expect(screen.getByText(/残りはリファクタ/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "編集" }));
+    // Then
+    const field = screen.getByLabelText(/共有メモ/) as HTMLTextAreaElement;
+    expect(field.value).toBe("残りはリファクタ");
   });
 });

@@ -1,7 +1,10 @@
 /**
  * アプリケーションハンドラ
  * T034, T036, T040c, T045, T047, T049, T053, T055
- * フロー: validate → authorize → decide → evolve → store → broadcast
+ * フロー: validate → decide → evolve → store → broadcast
+ *
+ * #95 S3 で役割とホストを廃止したため、かつて validate と decide の間にあった
+ * authorize（可否判定）の段は無くなった。在室確認とアクター解決だけが残る。
  */
 
 import { ok, err, type Result } from "neverthrow";
@@ -9,13 +12,10 @@ import {
   decide,
   evolve,
   advanceDriver,
-  transferHost,
   secondsLeft,
-  checkPermission,
   ERROR_MESSAGES,
   errorMessageFor,
   type Room,
-  type Participant,
   type SessionConfig,
   type Problem,
   type ErrorCode,
@@ -45,10 +45,8 @@ import { createRoomJoinHandler, type JoinResult } from "./command-handlers/room-
 export type { CreateResult } from "./command-handlers/room-create.js";
 export type { JoinResult } from "./command-handlers/room-join.js";
 import { createTimePingHandler } from "./command-handlers/time-ping.js";
-import { createRoleSetHandler } from "./command-handlers/role-set.js";
 import { createRoomPassphraseSetHandler } from "./command-handlers/room-passphrase-set.js";
 import { createAiUnlockHandler } from "./command-handlers/ai-unlock.js";
-import { createHostTransferHandler } from "./command-handlers/host-transfer.js";
 import { createProblemRequestHandler } from "./command-handlers/problem-request.js";
 import { createProblemSubmitHandler } from "./command-handlers/problem-submit.js";
 import { handleParticipantRemove } from "./command-handlers/participant-remove.js";
@@ -70,13 +68,14 @@ export type PreRoomCommand = Extract<
  * 在室を前提とするルームスコープコマンド（FR-151/152）。
  *
  * `PreRoomCommand`（4個）を除いた `Command` の残り全variantを指す判別可能 union。
- * うち `packages/timer-core/src/permissions.ts` の `REGISTERED_COMMANDS` に登録されている
- * 25個が「共通パイプラインが実際にドメイン処理する」コマンドであり、`break.start`/
- * `break.end` の2個は wire スキーマ上は残っているが `REGISTERED_COMMANDS` にも
- * `buildDomainCommand` の switch にも無い（`default` → `UNKNOWN_COMMAND` になる
+ * このうち `break.start`/`break.end` の2個は wire スキーマ上は残っているが
+ * `buildDomainCommand` の switch には無い（`default` → `UNKNOWN_COMMAND` になる
  * 到達しない枝。`reconcileSchedule` のコメント参照）。この2個も `handleCommand` の
  * default 分岐（`handleRoomCommand`）へは届く必要があるため（現状の挙動を変えない）、
  * 型としては `RoomScopedCommand` に含めておく。
+ *
+ * かつてここには「25個が `permissions.ts` の `REGISTERED_COMMANDS` に登録されている」
+ * という但し書きがあったが、#95 S3 でその登録表ごと権限判定が消えたため落とした。
  */
 export type RoomScopedCommand = Exclude<Command, PreRoomCommand>;
 
@@ -135,7 +134,7 @@ export interface HandlerDeps {
  *
  * 値を返すのは `room.create` / `room.join` だけである。
  * 他のコマンドは副作用（配信）の完了だけを表すので `undefined` を返す。
- * かつては全ハンドラが `CreateResult` を返す形で、`hostToken: ""` のような
+ * かつては全ハンドラが `CreateResult` を返す形で、
  * **呼び出し側が決して読まないダミー値を 10 箇所で充填していた**。
  */
 export type CommandResult = Result<CreateResult | JoinResult | undefined, ErrorCode>;
@@ -145,7 +144,7 @@ export function makeHandlers(deps: HandlerDeps) {
   const maxRooms = deps.maxRooms ?? 50;
   const aiUnlockKey = deps.aiUnlockKey;
 
-  // トークン保持（ホスト/リジュームトークン・ルームパスフレーズ）は
+  // トークン保持（リジュームトークン・ルームパスフレーズ）は
   // `token-store.ts` の `createTokenStore()` へ切り出した（フェーズ2・純粋な移動）。
   // ハンドラインスタンスごとに1個生成し、モジュール共有を避けてテスト間汚染を防ぐ。
   const tokenStore = createTokenStore();
@@ -325,17 +324,16 @@ export function makeHandlers(deps: HandlerDeps) {
       return err("PARTICIPANT_NOT_FOUND");
     }
 
-    // 権限チェック（FR-017・FR-071）。段階（startedAt）と役割と自己対象かの3点だけを
-    // 事実として渡し、可否の規則は core の checkPermission が単独で持つ。
-    // 関係的権限（本人 or host）もローテーション所有権も、その規則表の中で表現される。
-    if (rejectIfUnauthorized(connId, targetRoom, participant, cmd)) {
-      return err("UNAUTHORIZED");
-    }
+    // ⚠ ここに可否判定は無い。#95 S3 でルームに居る全員が同格になったため、
+    // 在室確認（上の NOT_IN_ROOM）とアクター解決だけがこの段の責務である。
+    // wire スキーマ（`CommandSchema`）に無いコマンドは、ここへ届く手前の valibot が
+    // 落とす（`test/unknown-command-boundary.test.ts` が default-deny を固定している）。
+    // スキーマにあってドメイン処理を持たないものは、下の `UNKNOWN_COMMAND` で落ちる。
 
     // 参加者の退出（⑪）。参加者は Room レベルのため decide ではなくここで扱う。
     // 実装本体は command-handlers/participant-remove.ts へ移動した（フェーズ5・
-    // 純粋な移動。ロジック変更なし）。ここでは在室確認・アクター解決・
-    // rejectIfUnauthorized（上で完了済み）の結果を ctx として渡すだけ。
+    // 純粋な移動。ロジック変更なし）。ここでは在室確認・アクター解決の結果を
+    // ctx として渡すだけ。
     if (cmd.command === "participant.remove") {
       return handleParticipantRemove(
         connId,
@@ -347,7 +345,6 @@ export function makeHandlers(deps: HandlerDeps) {
           broadcaster,
           reconcileSchedule,
           rotationDisplayNames,
-          transferHostBeforeRemoval,
           messageForRemoval,
           sendError,
           destroyRoom,
@@ -355,18 +352,7 @@ export function makeHandlers(deps: HandlerDeps) {
       );
     }
 
-    // role.set は decide/evolve を通らない Room レベルの専用処理（フェーズ7合流）。
-    // 実装本体は command-handlers/role-set.ts へ移動済み。ここでは在室確認・
-    // アクター解決・rejectIfUnauthorized（上で完了済み）の結果を ctx として渡すだけ。
-    if (cmd.command === "role.set") {
-      return handleRoleSet(
-        connId,
-        { room: targetRoom, actor: participant },
-        cmd as { command: "role.set"; participantId: string; role: "editor" | "viewer" },
-      );
-    }
-
-    // room.passphrase.set も decide/evolve を通らない Room レベルの専用処理（フェーズ7合流）。
+    // room.passphrase.set は decide/evolve を通らない Room レベルの専用処理（フェーズ7合流）。
     if (cmd.command === "room.passphrase.set") {
       return handleRoomPassphraseSet(
         connId,
@@ -384,19 +370,10 @@ export function makeHandlers(deps: HandlerDeps) {
       );
     }
 
-    // host.transfer も decide/evolve を通らない Room レベルの専用処理（フェーズ7合流）。
-    if (cmd.command === "host.transfer") {
-      return handleHostTransfer(
-        connId,
-        { room: targetRoom, actor: participant },
-        cmd as { command: "host.transfer"; participantId: string },
-      );
-    }
-
     // problem.request/problem.submit も decide/evolve を通らない Room レベルの
     // 専用処理（フェーズ7合流）。旧 requireEditor（在室確認・アクター解決・
-    // rejectIfUnauthorized を束ねたヘルパ）は、その3つを共通パイプラインが既に
-    // 済ませたため不要になり撤去した（FR-156: 権限判定の呼び出し箇所を1箇所に集約）。
+    // 可否判定を束ねたヘルパ）は、その3つを共通パイプラインが既に済ませたため
+    // 不要になり撤去した。可否判定はさらに #95 S3 で概念ごと消えている。
     if (cmd.command === "problem.request") {
       return handleProblemRequest(
         connId,
@@ -483,7 +460,7 @@ export function makeHandlers(deps: HandlerDeps) {
       const targetPid = typeof cmd.participantId === "string" ? cmd.participantId : "";
       const target = targetRoom.participants.find((p) => p.participantId === targetPid);
       // 対象解決を2段に分ける（Issue #29・T112）。「対象が存在しない」と
-      // 「対象は居るが rotation に居ない（見学者）」は解消手段が異なるため、
+      // 「対象は居るが rotation に居ない」は解消手段が異なるため、
       // 同じ index<0 の1条件で吸収せず、コードも分ける。
       if (!target) {
         sendError(connId, "PARTICIPANT_NOT_FOUND", errorMessageFor("PARTICIPANT_NOT_FOUND"));
@@ -546,8 +523,11 @@ export function makeHandlers(deps: HandlerDeps) {
     // 記録していたが、これはイベント名のホワイトリストであり、時計を走らせる別のイベント
     // （例: SessionResumed）が漏れると「時計が走っているのに startedAt が未設定」という
     // 状態が生じる（Issue #22 実測: 新規ルームへ session.act RESUME を単独送信すると
-    // clock.running=true / startedAt=undefined になる。session.act は EDITOR_PLUS_COMMANDS
-    // に属し phase によるゲートが無いため到達可能）。
+    // clock.running=true / startedAt=undefined になる。session.act は phase による
+    // ゲートを持たないため、この経路は開始前のルームからでも到達できる。
+    // #95 S3 より前はここに「session.act は EDITOR_PLUS_COMMANDS に属し」という
+    // 但し書きがあったが、その集合表は可否判定ごと消えた。到達可能である理由は
+    // 役割ではなく phase ゲートの不在なので、実測の前提はいまも成り立つ）。
     // イベント名を列挙する設計は将来イベントが増えるたびに更新を要し、この種の見落としが
     // 既に繰り返し起きている。そこでイベント名ではなく「イベント適用後の状態」で判定する:
     // 時計が走っており、かつ startedAt がまだ未設定なら、この時点を開始時刻として記録する。
@@ -605,7 +585,7 @@ export function makeHandlers(deps: HandlerDeps) {
     // clock 状態が変わった可能性があるので自動交代を調停する（FR-003）
     reconcileSchedule(updatedRoom);
 
-    // セッションを畳む操作は、開始後は主催者以外も実行できる（FR-063）。
+    // セッションを畳む操作は在室者なら誰でも実行できる（#95 S3）。
     // 誰が実行したか分からないと画面が突然変わった理由を追えないため全員へ伝える（FR-077）。
     const noticeAction = SESSION_NOTICE_ACTIONS[domainCmd.command];
     if (noticeAction) {
@@ -623,18 +603,11 @@ export function makeHandlers(deps: HandlerDeps) {
 
   // ─── 専用ハンドラの合成（フェーズ7・パイプライン統合済み）───────────────────
   //
-  // role.set/room.passphrase.set/ai.unlock/host.transfer/problem.request/
-  // problem.submit は、いずれも handleCommand の switch から専用ケースを削除し、
-  // default（handleRoomCommand・共通パイプライン）経由へ合流させた。在室確認・
-  // アクター解決・rejectIfUnauthorized（旧 requireEditor が束ねていた3つを含む）は
-  // handleRoomCommand 側で1度だけ行い、その結果（{ room, actor }）を各ハンドラへ
-  // ctx として渡す。各ハンドラはドメイン処理のみを持つ関数へ縮退済み（FR-152〜154, 156）。
-
-  const handleRoleSet = createRoleSetHandler({
-    store,
-    broadcaster,
-    sendError,
-  });
+  // room.passphrase.set/ai.unlock/problem.request/problem.submit は、いずれも
+  // handleCommand の switch から専用ケースを削除し、default（handleRoomCommand・
+  // 共通パイプライン）経由へ合流させた。在室確認とアクター解決は handleRoomCommand
+  // 側で1度だけ行い、その結果（{ room, actor }）を各ハンドラへ ctx として渡す。
+  // 各ハンドラはドメイン処理のみを持つ関数へ縮退済み（FR-152〜154）。
 
   const handleRoomPassphraseSet = createRoomPassphraseSetHandler({
     store,
@@ -650,12 +623,6 @@ export function makeHandlers(deps: HandlerDeps) {
     sendError,
   });
 
-  const handleHostTransfer = createHostTransferHandler({
-    store,
-    broadcaster,
-    sendError,
-  });
-
   const handleProblemRequest = createProblemRequestHandler({
     delegator,
     sendError,
@@ -665,31 +632,6 @@ export function makeHandlers(deps: HandlerDeps) {
     delegator,
     sendError,
   });
-
-  /**
-   * 権限を判定し、拒否ならエラーを送って true を返す（呼び出し側は即 return する）。
-   *
-   * 判定そのものは `@tasuki/timer-core` の `checkPermission()` が単独で担う（FR-071）。
-   * かつて5層に分散していた検査（集合ベース・関係ベース・個別ガード・requireEditor・
-   * 専用ハンドラの host 検査）は、すべてこの1関数の呼び出しに集約されている。
-   * 判定に必要な事実の算出（在室・段階・自己対象か）だけがサーバー側の責務である。
-   */
-  function rejectIfUnauthorized(
-    connId: string,
-    room: Room,
-    actor: Participant,
-    cmd: { command: string; [key: string]: unknown },
-  ): boolean {
-    const verdict = checkPermission({
-      command: cmd.command,
-      role: actor.role,
-      started: room.startedAt != null,
-      isSelfTarget: resolveIsSelfTarget(room, actor, cmd),
-    });
-    if (verdict.allowed) return false;
-    sendError(connId, verdict.code, verdict.message);
-    return true;
-  }
 
   /** connId からルームを特定する（参加者として在室しているルーム） */
   function findRoomByConnId(connId: string): Room | undefined {
@@ -713,7 +655,7 @@ export function makeHandlers(deps: HandlerDeps) {
     rateLimitGate.close(connId);
   }
 
-  /** ルーム回収時の後始末。当該ルームのホスト/リジュームトークンを解放する。 */
+  /** ルーム回収時の後始末。当該ルームのリジュームトークンとパスフレーズを解放する。 */
   function releaseRoom(roomCode: string): void {
     tokenStore.releaseRoom(roomCode);
   }
@@ -742,85 +684,6 @@ const SESSION_NOTICE_ACTIONS: Readonly<Record<string, "session-aborted" | "sessi
   "session.reset": "session-reset",
   "session.complete": "session-completed",
 };
-
-// ─── 権限判定に必要な事実の算出 ───────────────────────────────────────────────
-
-/**
- * 対象コマンドの指定方法ごとに「操作対象が実行者自身か」を算出する（FR-068）。
- *
- * 対象の指定方法がコマンドごとに異なる（participantId / rotation の位置）ため、
- * 算出を各所へ散らすと判定漏れが起きる。`checkPermission()` を呼ぶ前に必ずここを通す。
- *
- * rotation が参加者IDの配列になった（D6b）ことで全ての判定が識別子ベースになり、
- * かつて表示名で突き合わせていた2件（member.add / member.remove）の
- * 「同名参加者を区別できない」限界は解消した。
- *
- * 設計: docs/plans/host-spof-relaxation/plan.md「isSelfTarget の算出は単一の resolver に集約する」
- */
-function resolveIsSelfTarget(
-  room: Room,
-  actor: Participant,
-  cmd: { command: string; [key: string]: unknown },
-): boolean {
-  switch (cmd.command) {
-    // participantId で対象を指す関係コマンド。
-    case "participant.rename":
-    case "driver.skip":
-    case "driver.resume":
-    case "participant.remove":
-    case "role.set":
-      return cmd.participantId === actor.participantId;
-
-    // 参加者IDで rotation への参加を指す。
-    case "member.add":
-      return cmd.participantId === actor.participantId;
-
-    // rotation の位置で対象を指す（中身は参加者ID）。
-    case "member.remove":
-      return room.session.rotation[Number(cmd.index)] === actor.participantId;
-
-    // 上記以外は対象を持たない（host.transfer の participantId は「移譲先」であり
-    // 自己対象という概念が成立しないため、ここには含めない）。
-    default:
-      return false;
-  }
-}
-
-/**
- * 退出しようとしている現ホストから、残る在室者へホストを引き継いだルームを返す（plan.md D2b）。
- *
- * D2b の目的は「ホストが抜けた後も誰かが実際に操作できる」ことである。したがって
- * 単純に参加時刻が最も古い在室者を選んではならない。次の優先順で選ぶ。
- *
- *   1. オンラインの編集者   ← `presence.ts` の自動委譲と同じ条件
- *   2. オンラインの見学者   ← 誰も操作できない部屋を残さないための保険
- *   3. オフラインの編集者   ← 全員オフラインならアイドル回収に任せる
- *   4. オフラインの見学者
- *
- * 同順位内は参加時刻の古い順。代理（isPlaceholder）は自分では操作できないので候補にしない。
- *
- * **オフラインの見学者を選んではならない理由（実際に踏んだ落とし穴）:**
- * 参加時刻だけで選ぶと、切断済みの見学者が新ホストになり、オンラインの編集者が
- * 開始前操作を実行できない状態が作れてしまう。D2b が防ぐはずだった詰みそのものである。
- * しかも自動委譲は「ホストの切断」契機でしか発火しないため、既にオフラインの参加者が
- * ホストへ昇格しても新たな委譲タイマーは張られず、自動復旧もしない。
- *
- * 候補がいなければ引き継がずそのまま返す。このとき残るのは代理のみで、代理は
- * presence: "offline" で登録されるためアイドル回収の対象になる。
- *
- * 役割の付け替えは core の純粋関数 `transferHost` に委ねる（二重実装の乖離を防ぐ・R2-4）。
- */
-function transferHostBeforeRemoval(room: Room, leavingParticipantId: string): Room {
-  /** 小さいほど優先。オンラインかどうかを役割より優先する（操作できることが第一）。 */
-  const priority = (p: Participant): number =>
-    (p.presence === "online" ? 0 : 2) + (p.role === "viewer" ? 1 : 0);
-
-  const successor = room.participants
-    .filter((p) => p.participantId !== leavingParticipantId && p.isPlaceholder !== true)
-    .sort((a, b) => priority(a) - priority(b) || a.joinedAt - b.joinedAt)[0];
-  if (!successor) return room;
-  return transferHost(room, successor.participantId);
-}
 
 /**
  * 退出させられた本人へ送る文言を、通知の種類から組み立てる（Issue #32）。

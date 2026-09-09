@@ -15,7 +15,6 @@ function makeRunningRoom(code: string): Room {
   return {
     code,
     createdAt: 1000000,
-    hostParticipantId: "driver-p01",
     config: {
       language: "TypeScript",
       difficulty: "easy",
@@ -44,7 +43,6 @@ function makeRunningRoom(code: string): Room {
         participantId: "driver-p01",
         connId: "d-conn",
         displayName: "Driver",
-        role: "host",
         presence: "online",
         hasAiKey: false,
         joinedAt: 1000000,
@@ -53,7 +51,6 @@ function makeRunningRoom(code: string): Room {
         participantId: "other-p02",
         connId: "o-conn",
         displayName: "Other",
-        role: "editor",
         presence: "online",
         hasAiKey: false,
         joinedAt: 1000100,
@@ -143,5 +140,41 @@ describe("PresenceManager: ドライバー不在の自動繰上", () => {
 
     // Then
     expect(onDriverAbsence).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * 切断そのものの副作用（プレゼンス更新と snapshot 配信）。
+ *
+ * 元は `handoff-host.test.ts`（ホスト不在の自動委譲）に同居していたが、
+ * #95 S3 でホストの概念ごと委譲を廃止した際、この 1 件だけは役割と無関係な
+ * `handleDisconnect` の性質として残るためここへ引き取った。
+ *
+ * @requirements FR-014
+ */
+describe("PresenceManager: 切断時のプレゼンス更新", () => {
+  let store: InMemoryRoomStore;
+  let broadcaster: SpyBroadcaster;
+  let pm: PresenceManager;
+
+  beforeEach(() => {
+    store = new InMemoryRoomStore();
+    broadcaster = new SpyBroadcaster();
+    pm = new PresenceManager({ store, broadcaster, clock: new FakeClock(1000000) });
+  });
+
+  it("切断で presence が offline になり snapshot が配信される", () => {
+    // Given
+    const room = makeRunningRoom("DTEST5");
+    store.put(room);
+
+    // When（現ドライバーではない参加者を切断させる）
+    pm.handleDisconnect("o-conn");
+
+    // Then
+    const updatedRoom = store.get("DTEST5");
+    const other = updatedRoom?.participants.find((p) => p.participantId === "other-p02");
+    expect(other?.presence).toBe("offline");
+    expect(broadcaster.snapshots.length).toBeGreaterThan(0);
   });
 });

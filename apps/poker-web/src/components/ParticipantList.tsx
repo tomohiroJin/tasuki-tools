@@ -27,7 +27,6 @@ export function ParticipantList({ participants, you }: Props) {
             {p.name}
             {p.id === you && <span className="you-mark">（あなた）</span>}
           </span>
-          {p.isHost && <span className="badge host">ホスト</span>}
           {p.hasVoted && <span className="badge voted">投票済み</span>}
           {!p.connected && <span className="badge">切断中</span>}
         </li>

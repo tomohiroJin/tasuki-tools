@@ -16,7 +16,6 @@ function makeParticipant(overrides: Partial<Participant>): Participant {
     participantId: "p1",
     connId: "c1",
     displayName: "Alice",
-    role: "editor",
     presence: "online",
     hasAiKey: false,
     joinedAt: 1000,
@@ -34,13 +33,12 @@ const config: SessionConfig = {
 function makeRoom(overrides?: Partial<Room>): Room {
   return aRoomView({
     code: "ABC123",
-    hostParticipantId: "host-1",
     config,
     session: { rotation: ["Alice", "Carol"], driverCounts: [0, 0] },
     phase: "session",
     participants: [
-      makeParticipant({ participantId: "host-1", displayName: "Alice", role: "host" }),
-      makeParticipant({ participantId: "edit-1", displayName: "Carol", role: "editor", connId: "c3" }),
+      makeParticipant({ participantId: "p-alice", displayName: "Alice" }),
+      makeParticipant({ participantId: "p-carol", displayName: "Carol", connId: "c3" }),
     ],
     ...overrides,
   });
@@ -75,7 +73,7 @@ describe("Session × InvitePanel 結合", () => {
     // user-event v14 は setup() 時に navigator.clipboard を独自 stub に差し替えるため、
     // setup() 後に spyOn で writeText を差し込む
     const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue(undefined);
-    render(<Session room={makeRoom()} participantId="host-1" {...baseHandlers()} />);
+    render(<Session room={makeRoom()} participantId="p-alice" {...baseHandlers()} />);
 
     // When
     await user.click(screen.getByRole("tab", { name: "ルーム" }));
@@ -88,7 +86,7 @@ describe("Session × InvitePanel 結合", () => {
 
   it("デフォルトは「セッション」タブが表示される", () => {
     // Given
-    render(<Session room={makeRoom()} participantId="host-1" {...baseHandlers()} />);
+    render(<Session room={makeRoom()} participantId="p-alice" {...baseHandlers()} />);
     // Then（タイマーが「セッション」タブのデフォルト表示として存在する）
     expect(screen.getByRole("timer")).toBeTruthy();
   });
@@ -96,7 +94,7 @@ describe("Session × InvitePanel 結合", () => {
   it("「ルーム」タブにルームコード ABC123 が表示される", async () => {
     // Given
     const user = userEvent.setup();
-    render(<Session room={makeRoom()} participantId="host-1" {...baseHandlers()} />);
+    render(<Session room={makeRoom()} participantId="p-alice" {...baseHandlers()} />);
     // When
     await user.click(screen.getByRole("tab", { name: "ルーム" }));
     // Then
