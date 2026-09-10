@@ -332,6 +332,34 @@ export const MISSING_PATH_EXCEPTIONS = [
       "「何を消したか」を記録するために名指ししている。実在しないことが正しい",
   },
   {
+    doc: "docs/adr/0017-bounded-contexts-and-packages.md",
+    path: "packages/poker-core/src/room.ts",
+    reason:
+      "#95 S4a（#245）で削除した poker の名簿モジュール（名簿は @tasuki/room-core へ、" +
+      "名前規則は packages/poker-core/src/name.ts へ移した）。この ADR の背景は" +
+      "「Participant が timer-core と poker-core/src/room.ts に二重定義されている」という" +
+      "決定当時（Accepted 2026-09-06）の観測であり、まさにこの ADR の決定が解消したものである。" +
+      "新しいパスへ書き換えると、その決定が存在しなかった状況を観測したことになる。" +
+      "実在しないことが正しい",
+  },
+  {
+    doc: "docs/constitution.md",
+    path: "apps/tasuki-sync/src/poker/adapters/in-memory-room-store.ts",
+    reason:
+      "#95 S4a（#245）で in-memory-round-store.ts へ置き換えて削除したアダプタ。" +
+      "憲法本文が「以下は本改版の時点で意味の保存を確認した参照であり、その後に足された" +
+      "ものまで含む網羅一覧ではない」と自ら断っている、時点つきの記録である" +
+      "（原則 III の参照元一覧）。実在しないことが正しい",
+  },
+  {
+    doc: "docs/constitution.md",
+    path: "packages/poker-core/src/room.ts",
+    reason:
+      "#95 S4a（#245）で削除した poker の名簿モジュール。上と同じ、憲法が自ら" +
+      "「本改版の時点で意味の保存を確認した参照」と断った時点つきの記録である" +
+      "（原則 IV の参照元一覧）。実在しないことが正しい",
+  },
+  {
     doc: "docs/adr/0012-logging-secrets-and-disclosure.md",
     path: "packages/timer-core/src/permissions.ts",
     reason:
