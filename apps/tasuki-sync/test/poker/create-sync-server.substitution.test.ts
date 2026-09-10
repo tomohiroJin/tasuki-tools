@@ -30,11 +30,12 @@
 // （`createSyncServer` は 1 度も import していない）。`src/application/handlers.ts` の
 // コメントがこのファイル名で参照しているため、ファイル名自体は変えていない。
 import { describe, expect, it } from 'bun:test';
-import type { ServerMessage } from '@tasuki/poker-core';
+import { createRound, type ServerMessage } from '@tasuki/poker-core';
 import type { Room as MembershipRoom } from '@tasuki/room-core';
 import { createTokenBucketLimiter, type RateLimiter } from '@tasuki/rate-limit';
 import { InMemoryRoomStore } from '../../src/adapters/in-memory-room-store';
 import { InMemoryRoundStore } from '../../src/poker/adapters/in-memory-round-store';
+import { testToolGate } from '../support/tool-gate';
 import { createTokenStore } from '../../src/application/token-store';
 import { createWsBroadcaster } from '../../src/poker/adapters/ws-broadcaster';
 import { makeHandlers, type HandlerConnection } from '../../src/poker/application/handlers';
@@ -120,9 +121,11 @@ describe('IdGen の差し替え（衝突再試行）', () => {
     // When / Then: 3 回目の候補が採用される
     // （衝突再試行は 2026-08-17 時点でテストが 0 件だった。差し替えなしでは
     //  crypto.randomUUID() の衝突を起こせず、この経路を通せない）
+    const rounds = new InMemoryRoundStore();
     const roomId = makeHandlers({
       store,
-      rounds: new InMemoryRoundStore(),
+      rounds,
+      toolGate: testToolGate({ rounds }),
       tokens: createTokenStore(),
       broadcaster: nullBroadcaster(),
       idGen,
@@ -164,9 +167,11 @@ describe('MonotonicClock の差し替え（レート制限の窓の境界）', (
         throw new Error('token は呼ばれないはず');
       },
     };
+    const rounds = new InMemoryRoundStore();
     const handlers = makeHandlers({
       store,
-      rounds: new InMemoryRoundStore(),
+      rounds,
+      toolGate: testToolGate({ rounds }),
       tokens: createTokenStore(),
       broadcaster,
       idGen,
@@ -258,9 +263,11 @@ describe('RoomStore の差し替え（上限判定を実ルームなしで再現
       },
       sendTo: (_socket, msg) => void sent.push(msg),
     };
+    const rounds = new InMemoryRoundStore();
     const handlers = makeHandlers({
       store,
-      rounds: new InMemoryRoundStore(),
+      rounds,
+      toolGate: testToolGate({ rounds }),
       tokens: createTokenStore(),
       broadcaster,
       idGen,
@@ -329,9 +336,11 @@ describe('RoomStore の差し替え（判定順序: 上限判定は切り離し�
       },
       sendTo: (_socket, msg) => void sent.push(msg),
     };
+    const rounds = new InMemoryRoundStore();
     const handlers = makeHandlers({
       store,
-      rounds: new InMemoryRoundStore(),
+      rounds,
+      toolGate: testToolGate({ rounds }),
       tokens: createTokenStore(),
       broadcaster,
       idGen,
@@ -379,9 +388,16 @@ describe('RoomSocket の差し替え（配信の宛先と回数）', () => {
       participantId: () => 'guest',
       token: () => 'gt',
     };
+    // **ラウンドも置く。** 名簿が timer と 1 つになった以上、名簿にあるだけでは
+    // 「poker のルーム」ではない —— 入口の門（`src/application/tool-gate.ts`）は
+    // ラウンドの有無で判定するので、置かないと join は room-not-found で拒まれる。
+    const rounds = new InMemoryRoundStore();
+    rounds.put('room01', createRound());
+    rounds.put('room02', createRound());
     const handlers = makeHandlers({
       store,
-      rounds: new InMemoryRoundStore(),
+      rounds,
+      toolGate: testToolGate({ rounds }),
       tokens: createTokenStore(),
       broadcaster,
       idGen,
@@ -432,9 +448,11 @@ describe('配線の穴 1: handleCreateRoom の resetRoom 呼び出し', () => {
       participantId: () => 'new-host',
       token: () => 'tok',
     };
+    const rounds = new InMemoryRoundStore();
     const handlers = makeHandlers({
       store,
-      rounds: new InMemoryRoundStore(),
+      rounds,
+      toolGate: testToolGate({ rounds }),
       tokens: createTokenStore(),
       broadcaster,
       idGen,
@@ -491,9 +509,11 @@ describe('配線の穴 2: detachFromCurrentRoom の早期 return での detach �
         throw new Error('token は呼ばれないはず');
       },
     };
+    const rounds = new InMemoryRoundStore();
     const handlers = makeHandlers({
       store,
-      rounds: new InMemoryRoundStore(),
+      rounds,
+      toolGate: testToolGate({ rounds }),
       tokens: createTokenStore(),
       broadcaster,
       idGen,

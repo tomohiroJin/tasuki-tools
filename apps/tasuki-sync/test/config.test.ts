@@ -15,8 +15,11 @@ describe("loadSyncConfig", () => {
     // 接続レジストリが 1 つになったので、実効枠を保つために 400 へ決め直した
     // （#95 S2・D22。値の根拠は SyncConfig.maxConnections の docstring）。
     expect(c.maxConnections).toBe(400);
-    // 一方 maxRooms は**文脈ごと**に効く（timer と poker で別の保管）ので据え置き。
-    expect(c.maxRooms).toBe(50);
+    // maxRooms も同じ理由で決め直した（#95 S4a）。S2 の時点では名簿が文脈ごとに
+    // 2 つあったので 50 ずつで実効枠 100 だったが、名簿が 1 つになって 1 本で数える
+    // ようになったため、100 にしないと実効枠が半減する
+    // （値の根拠は SyncConfig.maxRooms の docstring）。
+    expect(c.maxRooms).toBe(100);
     expect(c.roomIdleTtlMs).toBe(1_800_000);
     expect(c.adminToken).toBeUndefined();
     expect(c.requireClientAddress).toBe(false);
@@ -120,7 +123,7 @@ describe("loadSyncConfig", () => {
     const c = loadSyncConfig(env);
     // Then
     expect(c.maxConnections).toBe(400);
-    expect(c.maxRooms).toBe(50);
+    expect(c.maxRooms).toBe(100);
     expect(c.port).toBe(8787);
   });
 

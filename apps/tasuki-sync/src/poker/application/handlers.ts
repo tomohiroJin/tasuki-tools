@@ -27,42 +27,14 @@
  * 保管と配信は {@link makeHandlers} 内の `commit` 1 本に閉じてある（timer 側の
  * `application/handlers.ts` と同じ規律）。
  *
- * ## ⚠ この段は単独で main へ入れてもデプロイしてもいけない
+ * ## 入口の門（越境の遮断）
  *
- * 名簿を 1 つにした一方で、**入口の門（越境の遮断）がまだ入っていない**。
- * その間だけ、timer のルームコードを poker の入口へ与えると次の 2 つが成立する
- * （「入れてしまう」で済む話ではない）。**どちらも 2026-09-10 に実機の WS で実測した。**
- *
- * 1. **合言葉の検査を一度も通らずに timer の snapshot を受信できる。**
- *    ここで名簿へ足す参加者は実在の `connId` を持ち `presence: "online"` なので、
- *    timer 側の配信（`create-sync-server.ts` の `broadcaster`。**`pokerBroadcaster` ではない**。
- *    `broadcastSnapshot` が `connId !== null && presence !== "offline"` で宛先を作る）に
- *    **そのまま含まれる**。
- *    実測では `config` / `problem` / `session` / `clock` / `phase` / `participants` /
- *    `sessionRecords` / `handoffNote` を載せた snapshot が届いた。
- *    パスフレーズの検査は timer の `command-handlers/room-join.ts` にしか無い
- *    （poker に合言葉の概念が無い）ので、**この経路は検査そのものを迂回する**。
- * 2. **timer の画面に幽霊の参加者として載る。** 実測では timer 側の名簿が
- *    `["アリス", "侵入者"]` になった。
- *
- * ### 閉じたもの（#95 S4a・寿命の一本化）
- *
- * かつてここには 3・4 として、poker の即時破棄（`discardRoom`）に由来する 2 つが並んでいた。
- * **その即時破棄を撤去したので、どちらも成立しなくなった。**
- *
- * - ~~3. 即時破棄が `tokens.releaseRoom` を呼び、timer ルームの合言葉と全復帰トークンまで
- *   巻き添えで消える~~ → **閉じた。** 越境した接続が閉じても、いま `detachFromCurrentRoom` は
- *   名簿の presence を offline にするだけで、トークンには触れない。
- * - ~~4. 即時破棄が `createRoomDestroyer` を通らないので、scheduler / delegator / presence の
- *   予約が消えたルームに対して発火し続け、`TimerStore` のエントリが孤児として残る~~
- *   → **閉じた。** ルームを消す経路は `application/destroy-room.ts` の 1 本だけになり、
- *   後始末は必ず揃って走る（**内訳をここに写さない**。正本はあちらの冒頭）。
- *
- * **意図した中間状態である。** 残る 1・2 を塞ぐのは入口の門（`application/tool-gate.ts`）で、
- * これはこの段の後に来る。**一時的なガードをここへ置かない** —— 後で消す前提のコードは、
- * このリポジトリでは高い確率で自分の欠陥を持ち込む（「対策は自分が塞ぐ欠陥を持つ」）。
- * 代わりに**着地の仕方で担保する**: このコミットは、入口の門と**同じ PR で main へ
- * 入れること**。単独で main へ入れたりデプロイしたりしてはならない。
+ * 名簿が 1 つになったことで、**ルームコードの空間が両ツールで共有された**。
+ * `handleJoinRoom` / `handleCheckRoom` は名簿を引く前に
+ * {@link HandlerDeps.toolGate 入口の門}（`../../application/tool-gate.ts`）を通し、
+ * **poker のラウンドがあるルームにだけ**入れる。timer のルームは「存在しないルーム」と
+ * 完全に同じ応答（`room-not-found`・同じ文言・同じレート制限の積算）で拒む ——
+ * 区別できるとルームコード列挙の手がかりになる（`docs/adr/0011`）。
  */
 import {
   applyAutoReveal,
@@ -89,6 +61,7 @@ import type { Broadcaster, RoomSocket } from '../ports/broadcaster';
 import type { IdGen } from '../ports/id-gen';
 import type { MonotonicClock } from '../ports/monotonic-clock';
 import type { RoundStore } from '../ports/round-store';
+import type { ToolGate } from '../../application/tool-gate.js';
 import { createCommitRoomAction, createDispatch } from './commit-room-action';
 import { createRateLimitGate } from './rate-limit-gate';
 
@@ -128,6 +101,16 @@ export interface HandlerDeps {
    * 旧 `Participant.token` と `findParticipantByToken` の引っ越し先。
    */
   tokens: TokenStore;
+  /**
+   * 入口ごとの門（`../../application/tool-gate.ts`。#95 S4a）。
+   * **timer と同じ 1 個を共有する**（`create-sync-server.ts` が 1 度だけ作る）。
+   *
+   * 名簿は timer と 1 つなので、「名簿にある」ことは「poker のルームである」ことを
+   * 意味しない。ラウンドが無いルーム（timer の入口で作られたルーム）へ入れてしまうと、
+   * **合言葉の検査を一度も通らずに timer の snapshot が届く**（名簿へ足した参加者が
+   * timer 側の配信対象に入るため。2026-09-10 に実機の WS で実測）。
+   */
+  toolGate: ToolGate;
   broadcaster: Broadcaster;
   idGen: IdGen;
   /** レート制限の窓の計測に使う単調時計。**壁時計ではない**（`ports/monotonic-clock.ts`）。 */
@@ -166,8 +149,18 @@ export interface RoomState {
 }
 
 export function makeHandlers(deps: HandlerDeps): Handlers {
-  const { store, rounds, tokens, broadcaster, idGen, clock, wallClock, rateLimiter, maxRooms } =
-    deps;
+  const {
+    store,
+    rounds,
+    tokens,
+    toolGate,
+    broadcaster,
+    idGen,
+    clock,
+    wallClock,
+    rateLimiter,
+    maxRooms,
+  } = deps;
 
   /**
    * レート制限の判定順序はゲートが持つ（`application/rate-limit-gate.ts`）。
@@ -194,10 +187,13 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
   /**
    * 1 ルームの状態一式を読む。**名簿が無ければ「そのルームは無い」**。
    *
-   * ラウンドが無い名簿は voting の空ラウンドとして扱う。名簿とラウンドは
-   * 対で作られるので通常は起こらないが、**名簿が 1 つになった帰結として
-   * 「timer のルームへ poker の入口から入る」経路が一時的に存在する**（門は次の段）。
-   * そこで落ちるより、poker から見て空のラウンドに見えるほうが説明がつく。
+   * ラウンドが無い名簿は voting の空ラウンドとして扱う。名簿とラウンドは `commit` で
+   * 対に書かれ、`destroy-room.ts` で対に消えるので通常は起こらない。
+   *
+   * ⚠ **この関数は入口の門ではない。** 名簿は timer と 1 つなので、timer のルームコードを
+   * 渡せばここは（空ラウンドの）状態を返す。越境を止めるのは
+   * {@link HandlerDeps.toolGate} を通す `handleJoinRoom` / `handleCheckRoom` の側で、
+   * ここへ門を書き足すと判定が 2 箇所へ散る。
    */
   function loadState(roomId: string): RoomState | undefined {
     const room = store.get(roomId);
@@ -404,7 +400,11 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
       return;
     }
 
-    const state = loadState(msg.roomId);
+    // **入口の門**（`../../application/tool-gate.ts`）。poker のラウンドが無いルーム
+    // ——つまり timer の入口で作られたルーム——は、名簿にあっても「無い」と同じに扱う。
+    // 応答（コード・文言）もレート制限の積算も、下の room-not-found と**同一の 1 経路**を
+    // 通す。分けて書くと、いつか片方だけが変わって列挙の手がかりになる（ADR 0011）。
+    const state = toolGate.canEnterVia('poker', msg.roomId) ? loadState(msg.roomId) : undefined;
     if (!state) {
       rateLimit.consumeOnMiss();
       sendError(ws, 'room-not-found', 'ルームが見つかりません');
@@ -531,7 +531,9 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
       return;
     }
 
-    if (store.get(msg.roomId) === undefined) {
+    // **入口の門を通す**（`handleJoinRoom` と同じ判定）。名簿だけを見ると、
+    // この関数は「timer のルームコードが実在するか」を答える神託になる。
+    if (!toolGate.canEnterVia('poker', msg.roomId)) {
       rateLimit.consumeOnMiss();
       sendError(ws, 'room-not-found', 'ルームが見つかりません');
     }

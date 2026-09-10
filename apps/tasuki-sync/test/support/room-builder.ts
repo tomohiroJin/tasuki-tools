@@ -19,6 +19,13 @@ import { InMemoryTimerStore } from "../../src/adapters/in-memory-timer-store.js"
 import { InMemoryRoundStore } from "../../src/poker/adapters/in-memory-round-store.js";
 import { createTokenStore } from "../../src/application/token-store.js";
 import { createRoomDestroyer } from "../../src/application/destroy-room.js";
+import { testToolGate } from "./tool-gate.js";
+import {
+  createTokenBucketLimiter,
+  DEFAULT_CAPACITY,
+  DEFAULT_REFILL_PER_SEC,
+  type RateLimiter,
+} from "@tasuki/rate-limit";
 import { FakeClock } from "../../src/adapters/system-clock.js";
 import { SpyBroadcaster } from "./spy-broadcaster.js";
 import { FakeCodeGen } from "./fake-code-gen.js";
@@ -257,6 +264,20 @@ export interface TestHandlers extends ReturnType<typeof makeHandlers> {
   handleDisconnect: (connId: string) => void;
 }
 
+/**
+ * テスト用のレート制限バケツ（本番と同じ既定容量・補充速度）。
+ *
+ * **テストごとに新しい 1 個を作る**（バケツの残量がテストをまたぐと、実行順で
+ * 結果が変わる）。本番で timer と poker が同じ 1 個を共有していることは、
+ * ここではなく `test/live-ws.rate-limit.test.ts` が実 WS で見る。
+ */
+export function testRateLimiter(): RateLimiter {
+  return createTokenBucketLimiter({
+    capacity: DEFAULT_CAPACITY,
+    refillPerSec: DEFAULT_REFILL_PER_SEC,
+  });
+}
+
 export function makeTestHandlers(overrides?: TestHandlerOverrides): TestHandlers {
   const store = overrides?.store ?? new InMemoryRoomStore();
   const timers = overrides?.timers ?? new InMemoryTimerStore();
@@ -272,6 +293,8 @@ export function makeTestHandlers(overrides?: TestHandlerOverrides): TestHandlers
     store,
     timers,
     tokens: overrides?.tokens ?? createTokenStore(),
+    toolGate: overrides?.toolGate ?? testToolGate({ timers, rounds }),
+    rateLimiter: overrides?.rateLimiter ?? testRateLimiter(),
     clock,
     broadcaster,
     codeGen: overrides?.codeGen ?? new FakeCodeGen(),

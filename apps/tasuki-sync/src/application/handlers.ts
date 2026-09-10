@@ -27,11 +27,7 @@ import {
 // アプリ層が上流の文脈へ依存するのは決定 2 の対象外で、許されている。
 // S4a で名簿そのものもこの文脈が持つようになった。
 import { conflictsWithExisting, type Room as MembershipRoom } from "@tasuki/room-core";
-import {
-  createTokenBucketLimiter,
-  DEFAULT_CAPACITY,
-  DEFAULT_REFILL_PER_SEC,
-} from "@tasuki/rate-limit";
+import type { RateLimiter } from "@tasuki/rate-limit";
 import type { Clock } from "../ports/clock.js";
 import type { Broadcaster } from "../ports/broadcaster.js";
 import type { RoomStore } from "../ports/room-store.js";
@@ -40,6 +36,7 @@ import type { RoomCodeGen } from "../ports/code-gen.js";
 import type { Scheduler } from "./schedule.js";
 import type { ProblemDelegator } from "./problem-delegation.js";
 import { createRateLimitGate } from "./rate-limit-gate.js";
+import type { ToolGate } from "./tool-gate.js";
 import type { TokenStore } from "./token-store.js";
 import { applyEvents, type RoomState } from "./apply-room-level-event.js";
 import { buildTimerSnapshotRoom, occupants, rotationDisplayNames } from "./timer-snapshot-dto.js";
@@ -110,6 +107,32 @@ export interface HandlerDeps {
    * `test/support/room-builder.ts` の `makeTestHandlers` が 1 箇所で持つ。
    */
   tokens: TokenStore;
+  /**
+   * 入口ごとの門（`tool-gate.ts`。#95 S4a）。**timer と poker で同じ 1 個を共有する。**
+   *
+   * 名簿は poker と 1 つなので、「名簿にある」ことは「timer のルームである」ことを
+   * 意味しない。timer の状態が無いルーム（poker の入口で作られたルーム）へ
+   * `room.join` で入れてしまわないよう、`command-handlers/room-join.ts` がここを通す。
+   *
+   * **必須にしてある。** 理由は {@link HandlerDeps.tokens} と同じで、既定を持つと
+   * 本番（`create-sync-server.ts`）が注入を忘れても全テストが緑のまま、
+   * 2 つの入口が別々の規則で判定する状態へ静かに戻る。
+   */
+  toolGate: ToolGate;
+  /**
+   * 入室失敗のレート制限のバケツ（#103・#95 S4a）。
+   * **timer と poker で同じ 1 個を共有する**（`create-sync-server.ts` が 1 度だけ作る）。
+   *
+   * ★ `room.join` と `ai.unlock` がこのバケツを共有することは、以前は
+   * 「`makeHandlers` の内側で 1 度だけ生成する」という**構造**が保証していた。
+   * 注入に変えてその保証が消えたぶんは、テストが受け持つ
+   * （`test/join-rate-limit.test.ts` の「room.join と ai.unlock のレート制限バケツの共有」と、
+   * 実 WS で 3 経路をまたぐ `test/live-ws.rate-limit.test.ts` の「1 IP 1 バケツ」）。
+   *
+   * **必須にしてある**（理由は {@link HandlerDeps.toolGate} と同じ）。
+   * 既定を持たせると、注入を忘れた瞬間に 1 IP あたりの実効予算が黙って 2 倍になる。
+   */
+  rateLimiter: RateLimiter;
   /** AI 解錠合言葉。undefined なら AI 機能は無効（解錠は常に失敗＝存在秘匿）。
    *  createSyncServer はトークン未設定時にもここを undefined にする。 */
   aiUnlockKey?: string | undefined;
@@ -179,17 +202,15 @@ export function makeHandlers(deps: HandlerDeps) {
   // 接続単位だと再接続で窓がリセットされ、総当たりを止められなかった。
   //
   // ★ room.join と ai.unlock は「総当たりの緩和」という同じ目的のため、
-  // 意図的に同一インスタンスのバケツを共有する。makeHandlers 内で 1 度しか生成しない
-  // ことで共有が構造的に保証される。コマンドごとに別インスタンスを作ると、
-  // ai.unlock の総当たり対策が黙って弱まる。
-  // （共有が壊れていないことは `test/join-rate-limit.test.ts` の
-  //   「room.join と ai.unlock のレート制限バケツの共有」で直接検査している。）
-  const rateLimitGate = createRateLimitGate(
-    createTokenBucketLimiter({
-      capacity: DEFAULT_CAPACITY,
-      refillPerSec: DEFAULT_REFILL_PER_SEC,
-    }),
-  );
+  // 同一インスタンスのバケツを共有する。**#95 S4a でバケツの生成が配線
+  // （`create-sync-server.ts`）へ移った**ので、poker の入口とも同じ 1 本になった
+  // （名簿が 1 つになった以上、コード空間も 1 つだから・ADR 0004 の追記）。
+  //
+  // ⚠ **共有はもう構造では保証されない。** 以前は「makeHandlers 内で 1 度しか生成
+  // しない」ことが保証だったが、注入に変えて外へ出た。代わりに検査するのは
+  // `test/join-rate-limit.test.ts`（room.join と ai.unlock）と
+  // `test/live-ws.rate-limit.test.ts`（実 WS で timer と poker の 3 経路）である。
+  const rateLimitGate = createRateLimitGate(deps.rateLimiter);
 
   // ルーム破棄の経路（Issue #79）。後始末の内容と順序は destroy-room.ts の 1 箇所に
   // しか存在せず、ここは受け取るだけ（既定値を持たない理由は HandlerDeps の docstring）。
@@ -357,6 +378,7 @@ export function makeHandlers(deps: HandlerDeps) {
     commit,
     codeGen,
     tokenStore,
+    toolGate: deps.toolGate,
     rateLimitGate,
     sendError,
   });

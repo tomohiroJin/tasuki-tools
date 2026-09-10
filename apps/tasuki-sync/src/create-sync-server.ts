@@ -5,7 +5,11 @@
  * 旧 `apps/poker-sync/src/create-sync-server.ts` の組み立てはこの関数の後半にある。
  *
  * **#95 S4a で共有するものが増えた。** いま 2 つの文脈が共有するのは、接続層
- * （`WsAdapter`）・**名簿（`RoomStore`）**・**復帰トークン（`TokenStore`）**の 3 つである。
+ * （`WsAdapter`）・**名簿（`RoomStore`）**・**復帰トークン（`TokenStore`）**・
+ * **入室失敗のレート制限のバケツ**・**入口の門（`ToolGate`）**の 5 つである。
+ * 後ろの 2 つは名簿を 1 つにした帰結で、どちらも**ルームコードの空間が 1 つになった**
+ * ことに由来する（総当たりの予算も、どの入口から入れるかの判定も、コード空間ごとに
+ * 1 つでなければ意味を失う）。
  * ツールの状態（`TimerStore` / `RoundStore`）・時計・ID 生成・配信はそれぞれ別のまま
  * であり、単一の巨大ストアにはしない（設計正本 §5.5 / D16）。
  *
@@ -43,6 +47,7 @@ import { SystemClock } from "./adapters/system-clock.js";
 import { NanoidCodeGen } from "./adapters/nanoid-code-gen.js";
 import { RoomReclaimer } from "./application/room-reclaimer.js";
 import { createRoomDestroyer } from "./application/destroy-room.js";
+import { createToolGate } from "./application/tool-gate.js";
 import { buildAdminReport, handleAdminHttp } from "./application/admin.js";
 import { AiLimiter } from "./application/ai-limits.js";
 import { ClaudeCliProblemProvider } from "./adapters/claude-cli-problem-provider.js";
@@ -175,10 +180,45 @@ export function createSyncServer(config: SyncConfig): SyncServer {
    */
   let destroyRoom: (roomCode: string) => void;
 
+  /**
+   * 入室失敗のレート制限のバケツ（#103）。**timer と poker で 1 本を共有する**（#95 S4a）。
+   *
+   * 数える単位は接続ではなくクライアント（IP の HMAC）である。接続単位だと再接続で
+   * 窓がリセットされ、ルームコードの総当たりを止められない。
+   *
+   * **1 本にする理由は、名簿を 1 つにしてコード空間が 1 つになったからである。**
+   * S2 までは入口ごとに別バケツで実効枠が保たれていた —— 2 つの入口が別々のコード空間を
+   * 見ていたので、1 つのコードを総当たりできる予算は入口ごとに 1 本ずつしか無かった。
+   * S4a で poker の入口からも timer のルームコードを試せるようになり、別のままなら
+   * 1 IP あたりの実効予算が単純に 2 倍になる（ADR 0004 の追記・#103 設計正本 D22）。
+   *
+   * timer 側は `room.join` と `ai.unlock`、poker 側は `join-room` と `check-room` が
+   * これを消費する。**4 経路で 1 本**である。
+   */
+  const rateLimiter = createTokenBucketLimiter({
+    capacity: DEFAULT_CAPACITY,
+    refillPerSec: DEFAULT_REFILL_PER_SEC,
+  });
+
+  /**
+   * 入口ごとの門（`application/tool-gate.ts`。#95 S4a）。**両方の入口へ同じ 1 個を渡す。**
+   *
+   * 名簿が 1 つになってルームコードの空間が共有されたので、「名簿にある」ことは
+   * 「その入口のルームである」ことを意味しなくなった。判定材料はツールの状態
+   * （`timers` / `rounds`）だけで、名簿には印を持たせない —— S5 で D8 のツール状態の
+   * 遅延生成が来たとき、印は嘘になるが「状態があるか」はそのまま意味を持つ。
+   */
+  const toolGate = createToolGate({
+    hasTimerState: (code) => timers.get(code) !== undefined,
+    hasRound: (code) => rounds.get(code) !== undefined,
+  });
+
   const handlers = makeHandlers({
     store,
     timers,
     tokens,
+    toolGate,
+    rateLimiter,
     clock,
     broadcaster,
     codeGen,
@@ -234,63 +274,21 @@ export function createSyncServer(config: SyncConfig): SyncServer {
   const deriveClientKey = createClientKeyDeriver(randomBytes(32));
 
   // ── poker（見積もり文脈）の組み立て ─────────────────────────────────
-  // **#95 S4a で名簿・復帰トークンが timer と 1 つになった**（`store` / `tokens`）。
+  // **#95 S4a で名簿・復帰トークン・レート制限のバケツ・入口の門が timer と 1 つになった。**
   // poker だけのものは、ラウンドの保管（`rounds`）・単調時計・ID 生成・配信の 4 つである。
-  //
-  // ⚠ **この配線は単独で main へ入れてもデプロイしてもいけない。**
-  // 名簿を 1 つにした一方で入口の門がまだ入っておらず、その間だけ timer のルームコードを
-  // poker の入口へ与えると、次の 2 つが成立する
-  // （詳細は `poker/application/handlers.ts` の冒頭）。
-  // **どちらも 2026-09-10 に実機の WS で実測した。**
-  //   1. 合言葉の検査（`command-handlers/room-join.ts` にしか無い）を**一度も通らずに**、
-  //      timer の snapshot（お題・参加者・輪・時計・AI 状態）を poker のソケットで受信できる。
-  //      **このファイルの `broadcaster`**（timer 側。上の `const broadcaster = {…}`。
-  //      後から作る `pokerBroadcaster` ではない）の `broadcastSnapshot` が、
-  //      共有名簿の `connId` から宛先を作るためである
-  //   2. その接続が timer の名簿に幽霊の参加者として現れ、timer の画面に載る
-  // 塞ぐのは入口の門で、これはこの段の後に来る。**門と同じ PR で着地させること。**
-  //
-  // **#95 S4a の寿命の一本化で、越境の危険のうち 2 つは閉じた。** かつてここには
-  // 3・4 として、poker の即時破棄に由来する 2 つが並んでいた ——
-  // 「`tokens.releaseRoom` が timer ルームの合言葉と全復帰トークンまで消す」と
-  // 「`createRoomDestroyer` を通らないので予約が消えたルームへ発火し続け、
-  // `TimerStore` のエントリが孤児として残る」。**即時破棄そのものを撤去したので、
-  // どちらも成立しない**（破棄経路は上の `destroyRoom` 1 本だけになった）。
   const pokerClock = createPerformanceClock();
   const pokerIdGen = createCryptoIdGen();
   const pokerBroadcaster = createWsBroadcaster();
-  /**
-   * 入室失敗のレート制限（#103）。**数える単位は接続ではなくクライアント（IP の HMAC）**。
-   * 接続単位だと再接続で窓がリセットされ、ルーム ID の総当たりを止められない。
-   *
-   * poker には合言葉が無く、`check-room` が存在確認そのものなので、
-   * join と check は同じバケツを共有する。
-   *
-   * ⚠ **timer のバケツとは別インスタンスである**（timer 側は `makeHandlers` の
-   * 内側で作られる）。#95 S2 まではこれで「統合前と同じ実効枠」だった —— 2 つの入口が
-   * 別々のルームコード空間を見ていたので、1 つのコードを総当たりできる予算は
-   * 入口ごとに 1 本ずつしか無かった（D22 の判断。根拠は `docs/adr/0004` の追記）。
-   *
-   * ⚠ **S4a でその前提が崩れた。据え置きではなく、現に緩んでいる。**
-   * poker の `handleCheckRoom` / `handleJoinRoom` が共有名簿を引くようになったため、
-   * **timer のルームコードの存在確認が poker の入口からもできる**。バケツは別のままなので、
-   * 1 つの IP が 1 つのコード空間へ使える実効予算は**単純に 2 倍**になった。
-   * #103 設計正本が「枠稼ぎを止めている」と数えた前提に直接効く。
-   * 解消（限定器を 1 本にして両方へ注入する）は、入口の門と同じ段の仕事である。
-   */
-  const pokerRateLimiter = createTokenBucketLimiter({
-    capacity: DEFAULT_CAPACITY,
-    refillPerSec: DEFAULT_REFILL_PER_SEC,
-  });
   const pokerHandlers = makePokerHandlers({
     store,
     rounds,
     tokens,
+    toolGate,
     broadcaster: pokerBroadcaster,
     idGen: pokerIdGen,
     clock: pokerClock,
     wallClock: clock,
-    rateLimiter: pokerRateLimiter,
+    rateLimiter,
     maxRooms: config.maxRooms,
   });
 

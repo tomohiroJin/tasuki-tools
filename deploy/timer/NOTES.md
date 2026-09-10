@@ -47,14 +47,50 @@ LP に着地してしまう。`caddy/40-timer-legacy-room.conf` が **`/` かつ
 
 - 本番 env に `NODE_ENV=production` を置くと、`ALLOWED_ORIGINS` 未設定時に sync が
   **起動を拒否**する（CSWSH 防止の fail-closed）。
-- `MAX_CONNECTIONS`（既定 200）/ `MAX_ROOMS`（既定 50）で同時接続数・ルーム数を制限。
+- `MAX_CONNECTIONS`（既定 400）/ `MAX_ROOMS`（既定 100）で同時接続数・ルーム数を制限。
   超過接続は WS 1013、超過 room.create は `ROOM_LIMIT_EXCEEDED` で拒否。
+  **どちらの既定値も、統合の前後で実効枠を保つために決め直したものである**
+  （接続は #95 S2 で 200 → 400、ルームは #95 S4a で 50 → 100。根拠は
+  `apps/tasuki-sync/src/config.ts` の `SyncConfig` の docstring）。
+  **本番で実際に効いている値は起動ログで確かめる**（下の切り替え手順を参照）。
 - `ROOM_IDLE_TTL_MS`（既定 30 分）全員切断が継続したルームを定期回収（60 秒間隔）。
   揮発設計のため回収されたルームは復帰不可（再作成すればよい）。
 - `HEARTBEAT_INTERVAL_MS`（既定 15000）/ `HEARTBEAT_MAX_MISSES`（既定 2）でサーバー主導の
   死活監視（ws ping/pong）を調整する（Issue #25）。回線断・端末スリープ等で半開きのまま残った
   接続を検出し、最大 `interval × (missMax + 1)`（既定で約45秒）以内に `terminate` して
   presence を `offline` に収束させる。一時的な通信の揺れでは切断しない（連続欠落のみ判定）。
+
+## #95 S4a を配布するときに 1 度だけ行うこと
+
+**本番の `app.env`（`/opt/tasuki/tasuki-sync.env`）の `MAX_ROOMS` を 100 に書き換える。**
+
+`deploy/setup.sh` は `[ -f "$APP_DIR/$ENV_FILE" ]` のとき env を**上書きしない**（既存を
+保持する）ので、`deploy/timer/env.example` を直しただけでは本番に届かない。飛ばすと
+名簿の統合で実効枠が **100 → 50 へ半減する**（統合前は 2 プロセス × 50 = 100 で、
+S4a からは 1 本で数える）。**S2 の `MAX_CONNECTIONS` とまったく同型の罠**である
+（あちらの手順は [`../poker/NOTES.md`](../poker/NOTES.md)）。
+
+```bash
+# 1. 配る**前に**本番の env を直す。env は DEPLOY_USER 所有の 600 で、
+#    ログインユーザーがそのまま編集できる（sudo は不要）
+ssh <ホスト別名> "sed -i 's/^MAX_ROOMS=50\$/MAX_ROOMS=100/' /opt/tasuki/tasuki-sync.env"
+#    **必ず目で確かめる。** 値を手で変えてあった場合、上の sed は何もせず成功する。
+#    行そのものが無ければ（古いテンプレートから作った env）追記すること
+ssh <ホスト別名> "grep '^MAX_ROOMS=' /opt/tasuki/tasuki-sync.env"
+
+# 2. 配る
+TASUKI_SSH_HOST=<ホスト別名> ./deploy/deploy.sh timer
+
+# 3. **手順 1 が効いたことを起動ログで確かめる（ここが唯一の証拠）。**
+#    手順 1 を飛ばしても deploy.sh は成功するので、これを見るまで気づけない
+ssh <ホスト別名> "journalctl -u tasuki-sync -n 30 --no-pager | grep -o 'maxRooms=[0-9]*' | tail -1"
+```
+
+`maxRooms=100` が出れば完了。出なければ手順 1 へ戻ること。
+
+> ⚠ **`ROOM_IDLE_TTL_MS` は変えない。** S4a で poker のルームが即時破棄から TTL 保持へ
+> 変わったので同時に占有される数は増えるが、TTL を縮めると timer の復帰体験
+> （席を外して戻る）まで巻き添えになる。
 
 ## 運用可視化（管理エンドポイント）
 

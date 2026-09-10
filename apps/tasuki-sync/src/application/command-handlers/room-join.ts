@@ -28,6 +28,7 @@ import type { TimerStore } from "../../ports/timer-store.js";
 import type { RoomCodeGen } from "../../ports/code-gen.js";
 import type { TokenStore } from "../token-store.js";
 import type { RateLimitGate } from "../rate-limit-gate.js";
+import type { ToolGate } from "../tool-gate.js";
 import { constantTimeEqual } from "../secure-compare.js";
 import { buildTimerSnapshotRoom } from "../timer-snapshot-dto.js";
 import type { RoomState } from "../apply-room-level-event.js";
@@ -48,13 +49,25 @@ export interface RoomJoinDeps {
   commit: (state: RoomState) => void;
   codeGen: RoomCodeGen;
   tokenStore: TokenStore;
-  /** room.join と ai.unlock が共有する単一インスタンス（makeHandlers で1度だけ生成）。 */
+  /** 入口ごとの門（`../tool-gate.ts`）。timer と poker で 1 個を共有する（#95 S4a）。 */
+  toolGate: ToolGate;
+  /** room.join と ai.unlock が共有するバケツの上に立つゲート（`handlers.ts` が組む）。 */
   rateLimitGate: RateLimitGate;
   sendError: (connId: string, code: ErrorCode, message: string) => void;
 }
 
 export function createRoomJoinHandler(deps: RoomJoinDeps) {
-  const { store, timers, broadcaster, commit, codeGen, tokenStore, rateLimitGate, sendError } = deps;
+  const {
+    store,
+    timers,
+    broadcaster,
+    commit,
+    codeGen,
+    tokenStore,
+    toolGate,
+    rateLimitGate,
+    sendError,
+  } = deps;
   const clock = deps.clock;
 
   /** ルーム参加 */
@@ -85,7 +98,16 @@ export function createRoomJoinHandler(deps: RoomJoinDeps) {
     const room = store.get(cmd.code);
     const timer = timers.get(cmd.code);
 
-    if (!room || !timer) {
+    // **入口の門**（`../tool-gate.ts`・#95 S4a）。名簿は poker と 1 つの保管なので、
+    // 「名簿にある」ことは「timer のルームである」ことを意味しない。timer の状態が
+    // 無いルーム（poker の入口で作られたルーム）は、**存在しないルームと完全に同じ応答**
+    // で拒む —— 区別できるとルームコード列挙の手がかりになる（ADR 0011）。
+    //
+    // **`timer === undefined` と同値の判定である。** それでも門を通すのは、
+    // 「そのツールの状態があるルームにだけ入れる」という規則を 2 つの入口で 1 箇所
+    // （`tool-gate.ts`）に集めるためで、S5 の D8（ツール状態の遅延生成）が来たときに
+    // 直す先もそこ 1 つになる。末尾の `!timer` は `timer` を絞り込むために残してある。
+    if (!room || !toolGate.canEnterVia("timer", cmd.code) || !timer) {
       // 失敗を記録（次回以降のレート判定に使う）。時刻は単調時計のほう（D8）。
       rateLimitGate.consume(connId, rateNow);
       sendError(connId, "ROOM_NOT_FOUND", "指定されたルームコードが見つかりません");
