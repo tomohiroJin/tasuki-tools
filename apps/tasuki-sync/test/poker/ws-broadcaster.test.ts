@@ -81,8 +81,17 @@ describe('createWsBroadcaster', () => {
   // `application/destroy-room.ts` と `room-reclaimer` に一本化）。`countIn` は最後の
   // 呼び出し元を失ったのでポートからも外した。
   //
-  // ただし「最後の 1 人が外れた集合はレジストリごと消える」という**アダプタ自身の性質**は
-  // 残っている（`resetRoom` の意味に関わる）。観測を配信そのものに移して固定し直す。
+  // 下の 1 本が守るのは **`detach` の `sockets.delete(participantId)`**、
+  // つまり「外れたソケットへはもう配信されない」ことだけである。
+  //
+  // ⚠ **`detach` のもう 1 行（`if (sockets.size === 0) byRoom.delete(roomId)`）は
+  // ここでは見ていない。** `broadcastSnapshot` は `byRoom.get(roomId)` が空の Map でも
+  // ループが 0 周するだけなので、**その行を落としてもこのテストは緑のまま**である。
+  // 旧テストの `countIn` も `?? 0` で「集合が消えた」と「集合が空」を区別できておらず、
+  // 同じ行を守れていなかった（＝この書き換えで守備範囲は減っていない）。
+  // レジストリ掃除そのものを固定したくなったら、`resetRoom` を挟まずに `attach` の
+  // 集合再利用側から観測する別の 1 本が要る —— **足すときは先に `byRoom.delete` を
+  // 落として赤になることを確かめること**（そうしないと同じ空振りを繰り返す）。
   it('最後の 1 人を detach したあと、そのルームへの配信は誰にも届かない', () => {
     // Given
     const broadcaster = createWsBroadcaster();
@@ -93,7 +102,7 @@ describe('createWsBroadcaster', () => {
     expect(broadcaster.detach('x', 'A', socket)).toBe(true);
     broadcaster.broadcastSnapshot('x', createRound(), rosterOf('A'));
 
-    // Then: 外れたソケットへは配信されない（集合が空でも残っていると届いてしまう）
+    // Then: 外れたソケットへは配信されない（集合から消えていなければ届いてしまう）
     expect(socket.received).toHaveLength(0);
   });
 });
