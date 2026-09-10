@@ -40,7 +40,7 @@ TDD Mob Pro Timer の構造・データフロー・設計原則をまとめま�
 | `decide.ts` | `decide(cmd, agg, now): Result<DomainEvent[], DomainError>` — コマンド→イベント |
 | `evolve.ts` | `evolve(agg, event, now): Aggregate` — イベント→次状態（全域関数） |
 | `events.ts` / `errors.ts` | `DomainEvent` 合併型 / `DomainError` 合併型 |
-| `schemas.ts` | Valibot スキーマ（Command / ServerMsg / Problem / SessionConfig）。境界で検証と**正規化**を行う。表示名の正規化（`normalizeDisplayName`）はメンバーシップ文脈の `packages/room-core` から取り込む（#95 S1 で移設。この取り込みは S4a で消える） |
+| `schemas.ts` | Valibot スキーマ（Command / ServerMsg / Problem / SessionConfig）。境界で検証と**正規化**を行う。表示名の正規化（`normalizeDisplayName`）はメンバーシップ文脈の `packages/room-core` から取り込む（#95 S1 で移設。**この取り込みが消えるのは S4b**（#246）—— 当初は S4a と書いていたが、S4a（#245）では取り込んだままである） |
 | `removal-notification.ts` | 退出通知の種類を決める `removalNotificationFor`（Issue #32）。**#95 S3 以前は `participants.ts` に、在室者の不変条件（`canRemoveParticipant` / `canDemote` / `transferHost`）と同居していた。不変条件は役割ごと廃止し、この 1 関数だけが残ったので独立させた** |
 | `problem.ts` | 定型お題バンク・`validateProblem`・`pickFallback`・プロンプト生成 |
 | `records.ts` | 完成記録の生成（所要時間は稼働区間のみ積算） |

@@ -17,12 +17,21 @@ GitHub spec-kit（specify CLI）のフルワークフロー実践を兼ねた Ta
 - フィボナッチデッキ（0, 1, 2, 3, 5, 8, 13, 21, ?, ☕）による秘匿投票
 - 全員投票 or 在室者の誰かの操作で一斉公開、平均・最頻値の表示（? / ☕ は平均から除外）
 - 再投票・次ラウンド（どちらも在室者なら誰でも実行できる）、同一ブラウザからのトークン自動復帰
-- 状態は揮発インメモリ（全員切断でルーム即時破棄。DB なし）
+- 状態は揮発インメモリ（DB なし）。全員が接続を閉じてもルームは残り、戻れば票も残る
 
 > **ホストは廃止した**（[#95](https://github.com/tomohiroJin/tasuki-tools/issues/95) S3・
 > [#244](https://github.com/tomohiroJin/tasuki-tools/issues/244)・2026-09-08）。以前は
 > ルーム作成者だけが公開と次ラウンドを実行でき、切断時には次の在室者へ権限が繰り上がっていた。
 > 現在はルームに居る人が全員同格で、`isHost` は wire 契約からも画面からも消えている。
+
+> **「全員切断で即時破棄」も廃止した**（[#95](https://github.com/tomohiroJin/tasuki-tools/issues/95) S4a・
+> [#245](https://github.com/tomohiroJin/tasuki-tools/issues/245)・2026-09-10）。名簿を timer と
+> 共有したのに合わせて、ルームが消える契機を**アイドル回収**（全員 offline のまま
+> `ROOM_IDLE_TTL_MS` 超過。既定 30 分）と**在室者 0 人になる退出**の 2 つに揃えた。
+> 全員がタブを閉じても TTL の間はルームが残り、戻れば票も残っている。
+> **揮発であること（サーバー再起動で失われる）は変わらない。**
+> あわせて**入口ごとの門**が付き、timer のルームコードで `/poker/` へは入れない
+> （その逆も同じで、どちらも「存在しないルーム」として拒まれる）。
 
 ## 構成
 
@@ -30,7 +39,7 @@ pnpm + turbo のモノレポ（詳細は [plan.md](./specs/001-planning-poker-mv
 
 | パッケージ | 役割 |
 |-----------|------|
-| `packages/poker-core` | ドメイン（Room 集約・ラウンド状態機械・集計）+ WS プロトコル契約（Valibot / neverthrow） |
+| `packages/poker-core` | ドメイン（`Round` 集約・ラウンド状態機械・集計・名前規則）+ WS プロトコル契約（Valibot / neverthrow）。**名簿（参加者・接続状態・トークン）は持たない** —— `@tasuki/room-core` が持ち、timer と共有する（#95 S4a） |
 | `apps/poker-web` | React + Vite フロントエンド（base: `/poker/`） |
 | `apps/tasuki-sync` | Bun + WebSocket 同期サーバー（受信者別秘匿スナップショット配信）。**timer と共用**（#95 S2 で統合） |
 | `deploy/` | Caddyfile 断片・systemd ユニット・デプロイスクリプト |

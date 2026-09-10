@@ -107,3 +107,25 @@ Technical Context に NEEDS CLARIFICATION はない（技術スタックは憲�
 - **Rationale**: 憲法で固定されたツールチェーンの標準的な使い方であり、
   tdd-mob-pro-timer の実績構成のミラーでもある。
 - **Alternatives considered**: なし（憲法で固定済み）。
+
+---
+
+## 追記（2026-09-10・#95 S4a） — 本書は 2026-07 時点の記録である
+
+本書は MVP 実施時点の技術調査の記録であり、**本文は当時のまま残す**。
+そのまま読むと現況と食い違う点だけをここへ置く。
+
+- **R6（ホスト繰上の判定: 参加順の先頭）は、決定ごと無くなった。**
+  [#95](https://github.com/tomohiroJin/tasuki-tools/issues/95) S3
+  （[#244](https://github.com/tomohiroJin/tasuki-tools/issues/244)）でホストの概念を廃止し、
+  ルームに居る人は全員同格になった。繰上の判定キーだった `joinOrder` も、S4a
+  （[#245](https://github.com/tomohiroJin/tasuki-tools/issues/245)）の名簿統合で消えている。
+- **R1（秘匿込みスナップショット配信）・R2（Bun.serve）・R3（`localStorage` の
+  参加者トークン）・R4（ID 生成）・R5（サブパス配信）・R7（テスト戦略）の決定は生きている。**
+  ただし R3 の「ルームは揮発なので古いトークンが溜まっても実害はない」が前提にしていた
+  「全員切断で即時破棄」は S4a で撤去された（ルームはアイドル回収まで残る）。
+  トークンの保管がクライアント側で、参加失敗時に削除する点は変わらない。
+- **R8（モノレポ構成）の対象だった独立モノレポ `planning-poker/` は、
+  [#15〜#20](https://github.com/tomohiroJin/tasuki-tools/issues/15) で Tasuki 本体へ統合された。**
+
+**現在の正本**: [`contracts/ws-protocol.md`](./contracts/ws-protocol.md) の 2 つの改定節。
