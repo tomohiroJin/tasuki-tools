@@ -104,3 +104,22 @@ pnpm turbo build       # web: /poker/ ベースの静的ビルド、sync: 起動
 
 - `deploy/` の Caddyfile 断片・systemd ユニットを適用後、`https://tasuki.niku9.click/poker` で S1〜S2 を再実施
 - 既存サービス（tdd-mob-pro-timer）が引き続き動作していることを確認
+
+---
+
+## 追記（2026-09-10・#95 S4a） — 手順 3 の期待結果が変わった
+
+本書は 2026-07 の MVP 実施時点の検証ガイドであり、**本文は当時のまま残す**。
+そのまま実行すると次の 2 つで結果が食い違うので、ここに書き足す。
+
+- **「3. 実画面検証シナリオ」S4 の手順 3**（A・B 両方を閉じてから招待リンクを再度開く）は、
+  もう「ルームが見つかりません」にならない。[#95](https://github.com/tomohiroJin/tasuki-tools/issues/95)
+  の S4a で即時破棄（旧 FR-014）を撤去したので、**ルームは残り、票もそのまま**である。
+  消えるのはアイドル回収（全員 offline のまま `ROOM_IDLE_TTL_MS` 超過。既定 30 分）を
+  待った後か、在室者 0 人になる退出の後だけである。
+- 本文がホスト（作成者だけができる操作）を前提にしている箇所 —— S3 の手順 3、S4 の手順 1・2 ——
+  は、[#95](https://github.com/tomohiroJin/tasuki-tools/issues/95) の S3 で概念ごと廃止された。
+  公開・次ラウンドは在室者なら誰でも実行でき、切断時の繰上も無いので S4 の手順 1（SC-005）は
+  そのままでは検証できない。
+
+**現在の正本**: [`contracts/ws-protocol.md`](./contracts/ws-protocol.md) の 2 つの改定節。

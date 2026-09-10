@@ -35,7 +35,7 @@
 { "type": "join-room", "roomId": "a1b2c3d4", "name": "はなこ", "token": "<uuid> | 省略可" }
 ```
 
-- `token` あり・照合一致 → 同一参加者として復帰（票・joinOrder 引き継ぎ。`name` は無視）
+- `token` あり・照合一致 → 同一参加者として復帰（票を引き継ぐ。`name` は無視）
 - `token` なし・不一致 → 新規参加者として追加（voting 中なら未投票扱い、自動公開の分母に入る）
 - **既にその `roomId` に居る接続からの再送は冪等**（[#171](https://github.com/tomohiroJin/tasuki-tools/issues/171)）。
   切り離しも新規参加者の追加も行わず、同じ `participantId` / `token` で `joined` を返して
@@ -221,7 +221,7 @@ Origin と接続数の検査は **upgrade を通してから close する**。�
 | イベント | 挙動 |
 |---------|------|
 | WS 切断 | participant.connected=false → 全員へ `room-state`。voting 中は自動公開を再評価（US4-AS1）。**ホストの繰上（旧 FR-012）は #95 S3 でホストの概念ごと廃止した** |
-| 接続数 0 | ルームを即時破棄。以後の join-room は `room-not-found`（FR-014） |
+| 接続数 0 | **ルームは残る**（#95 S4a）。名簿も票もそのままで、戻れば続けられる。ルームが消える契機はアイドル回収（全員 offline のまま `ROOM_IDLE_TTL_MS` 超過。既定 30 分）と在室者 0 人になる退出の 2 つだけで、それ以後の join-room が `room-not-found` になる（旧 FR-014 の即時破棄は撤去した） |
 | 全員投票成立 | 自動で revealed へ遷移し全員へ `room-state`（FR-008。分母は接続中の全参加者） |
 | 死活監視での切断 | 上記「WS 切断」と同じ扱い。半開き接続の参加者が connected のまま残らないようにする（#63） |
 
@@ -237,7 +237,7 @@ Origin と接続数の検査は **upgrade を通してから close する**。�
 6. next-round → voting に戻り票がリセットされる
 7. 参加者の切断 → connected=false を反映した room-state が配信される
 8. token 付き join-room → 票を保持したまま復帰
-9. 全員切断 → 再 join が room-not-found
+9. 全員切断 → **ルームは残り、token 付きの再 join で票ごと復帰できる**。新規の接続もそのルームへ入れる（#95 S4a。旧・契約 #9「再 join が room-not-found」を置き換えた）
 10. 不正メッセージ → error 応答（接続維持）
 
 ---
@@ -258,3 +258,32 @@ Origin と接続数の検査は **upgrade を通してから close する**。�
 **本書の他の部分（秘匿保証 SC-004・カード表現・自動公開の条件・その他の error code）は
 変えていない。** 同じディレクトリの `spec.md` / `plan.md` / `research.md` / `quickstart.md` /
 `tasks.md` は 2026-07 の MVP 実施時点の記録であり、**当時の設計を伝えるものとしてそのまま残す**。
+
+---
+
+## 改定（2026-09-10・#95 S4a）
+
+[#95](https://github.com/tomohiroJin/tasuki-tools/issues/95) の S4a
+（[#245](https://github.com/tomohiroJin/tasuki-tools/issues/245)）で **poker の名簿を timer と
+共有の `RoomStore` へ移し、ルームの寿命の規則を 1 つに寄せた**。本書は
+`packages/poker-core/src/protocol.ts` の仕様定義を名乗る文書なので、実装に合わせて次を直した。
+
+- **「接続数 0 で即時破棄」（旧 FR-014）を落とした。** ルームが消える契機は
+  アイドル回収（TTL）と在室者 0 人になる退出の 2 つだけになった
+  （`apps/tasuki-sync/src/application/destroy-room.ts`）。**利用者から見える変更である** ——
+  全員がタブを閉じても TTL の間はルームが残り、戻れば票も残っている。
+- **結合テスト観点 #9 を逆の主張へ書き換えた**（消していない）。
+  現物は `apps/tasuki-sync/test/poker/reconnect.test.ts` の
+  「全員が閉じてもルームは残る（#95 S4a・D8）」にある。
+- **`join-room` の説明から `joinOrder` を落とした。** ホスト繰上の判定キーだったが、
+  ホストの概念は S3 で廃止され、S4a の名簿統合で項目そのものが無くなった。
+
+**メッセージの形（`create-room` / `join-room` / `vote` / `reveal` / `next-round` /
+`joined` / `room-state` / `error` の各フィールド）は変えていない。** 秘匿保証 SC-004・
+カード表現・自動公開の条件・error code の一覧も同じである。
+
+同じディレクトリの `spec.md` / `data-model.md` / `plan.md` / `research.md` / `quickstart.md` /
+`tasks.md` は 2026-07 の MVP 実施時点の記録であり、**当時の設計を伝えるものとしてそのまま残す**
+（S3 の改定と同じ扱い。`data-model.md` はそのとき列挙から漏れていたが、実際に手を入れておらず
+`isHost` や `joinOrder` を当時のまま残しているので、同じ「記録」として扱う）。
+本文を直さない代わりに、各ファイルの末尾へ日付つきの追記で現在地の指し先を置いた。

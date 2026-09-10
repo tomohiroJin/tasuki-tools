@@ -128,6 +128,24 @@ v2.0.0（tag `v2.0.0`）として完成した Tasuki を、既存の VPS に公�
   - **M-2 ルーム数上限**: `MAX_ROOMS`（既定 50）到達時の `room.create` を `ROOM_LIMIT_EXCEEDED` で拒否（handlers）。
   - **M-2 アイドル回収**: `ROOM_IDLE_TTL_MS`（既定 30 分）全員 offline が継続したルームを 60 秒間隔の sweep で削除（`RoomReclaimer`）。回収時に scheduler/delegator/presence タイマーと token を解放。
 
+**改定（2026-09-10・#95 S4a） — この節の既定値は 2026-06-07 時点の記録である**
+
+上の M-2 の 3 項目は「**本ブランチで追加した堅牢化**」という当時の観測なので、**数値は書き換えない**
+（`docs/adr/0002` の追記・#258：当時の観測・根拠として書かれた記述は書き換えない）。
+一方で [`docs/adr/0004`](../../adr/0004-sync-server-ports-and-adapters.md) の改定（2026-09-10・#95 S4a）は
+本節を「値の正本」として名指ししているため、指し先の側にここで現在地を置く。
+
+- **`MAX_CONNECTIONS`**: 既定 **400**。#95 S2 で timer と poker の同期サーバーを 1 本に統合し、
+  接続レジストリがプロセス全体で 1 つになったため、実効枠（200 × 2 プロセス）を保つ値へ直した。
+- **`MAX_ROOMS`**: 既定 **100**。S2 では 50（文脈ごとに効いて実効 100）だったが、S4a で名簿を
+  1 つにしたのでプロセス全体で 1 本の枠になり、実効枠を保つ値は 100 である。
+- **`ROOM_IDLE_TTL_MS`**: 既定 30 分（1,800,000 ms）で変わっていない。ただし S4a で poker の
+  「接続数 0 で即時破棄」（旧 FR-014）を撤去したため、**poker のルームもこの TTL で消えるようになった**。
+
+**現在値の正本は [`deploy/timer/env.example`](../../../deploy/timer/env.example) と
+[`apps/tasuki-sync/src/config.ts`](../../../apps/tasuki-sync/src/config.ts) の `loadSyncConfig` である。**
+本節はそこへの入口として読むこと。M-1（fail-closed Origin）は当時のまま効いている。
+
 ## 9. スコープ外（今回やらないこと）
 
 - **M4 のリソース上限**: 最小サブセット（同時接続数 / ルーム数 / アイドル回収）は

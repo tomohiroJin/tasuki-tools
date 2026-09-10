@@ -332,6 +332,15 @@ export const MISSING_PATH_EXCEPTIONS = [
       "「何を消したか」を記録するために名指ししている。実在しないことが正しい",
   },
   {
+    doc: "docs/poker/adr/0001-poker-domain-direct-transition.md",
+    path: "packages/poker-core/src/room.ts",
+    reason:
+      "#95 S4a（#245）で削除した poker の名簿モジュール。この ADR の「根拠」は" +
+      "2026-08-17 の実測で、状態遷移関数の置き場として room.ts を名指ししている。" +
+      "追記（2026-09-10・#95 S4a）は、その実測を書き換えない代わりに" +
+      "「room.ts は消えた」と記録するために同じ名前を再掲している。実在しないことが正しい",
+  },
+  {
     doc: "docs/adr/0017-bounded-contexts-and-packages.md",
     path: "packages/poker-core/src/room.ts",
     reason:

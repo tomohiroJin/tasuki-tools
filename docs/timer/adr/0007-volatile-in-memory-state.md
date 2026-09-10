@@ -88,3 +88,19 @@
 **決定の骨格（揮発インメモリ・再起動安全・記録は端末側）は変えていない。**
 参加者の同一性そのもの（`config.members` による名簿の一本化、`localStorage` への同一性の
 保存）は S4a 以降の範囲であり、**まだ実施していない**。
+
+**改定（2026-09-10・#95 S4a 実施）**: 直前の改定は「参加者の同一性そのもの（`config.members`
+による名簿の一本化、`localStorage` への同一性の保存）は S4a 以降の範囲であり、まだ実施していない」
+と書いた。2026-09-08 時点の記録としてその文はそのまま残すが、S4a
+（[#245](https://github.com/tomohiroJin/tasuki-tools/issues/245)）で前半が動いたので現在地を足す。
+
+- **名簿の一本化は S4a で行った。** ただし `config.members`（wire の `SessionConfig.members`）を
+  名簿の実体にする形ではない。名簿は `@tasuki/room-core` の `Room` / `Participant` が持ち、
+  timer と poker が 1 つの `RoomStore` を共有する。`config.members` は
+  ローテーション順の表示名を映す wire の投影として残り、DTO 側で組み立てる。
+- **`localStorage` への同一性の保存（D12）は依然として未実施**であり、S4b 以降の範囲である。
+- **ルームが消える契機を 2 つに固定した**（アイドル回収と在室者 0 人になる退出。
+  `apps/tasuki-sync/src/application/destroy-room.ts`）。poker が持っていた
+  「最後の接続が切れた瞬間に破棄する」経路は撤去したので、**poker のルームも
+  `ROOM_IDLE_TTL_MS` まで残る**。**決定の骨格（揮発インメモリ・再起動安全・記録は端末側）は
+  変えていない** —— 再起動でルームが失われる点は poker でも同じである。
