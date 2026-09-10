@@ -3,6 +3,7 @@
  *
  * **ドメインに互いを知らせないための場所である。** ここでしか 2 つの文脈は出会わない。
  * 出力の形は S4a で変えない（既存の Web とそのテストが「変えていない」ことの証拠になる）。
+ * **例外が 2 つある**（`buildTimerSnapshotRoom` の `driverEligible` の注記と、`wire.ts` の `startedAt` の注記）。
  *
  * 代理（`isPlaceholder`）はここで**合成される**。名簿には居らず、輪の上の席
  * （`RotationEntry` の `kind: "proxy"`）としてだけ存在するためである。
