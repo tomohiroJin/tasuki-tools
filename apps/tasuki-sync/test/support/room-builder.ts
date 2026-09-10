@@ -16,6 +16,8 @@ import { makeHandlers, type HandlerDeps } from "../../src/application/handlers.j
 import { PresenceManager } from "../../src/application/presence.js";
 import { InMemoryRoomStore } from "../../src/adapters/in-memory-room-store.js";
 import { InMemoryTimerStore } from "../../src/adapters/in-memory-timer-store.js";
+import { InMemoryRoundStore } from "../../src/poker/adapters/in-memory-round-store.js";
+import { createTokenStore } from "../../src/application/token-store.js";
 import { FakeClock } from "../../src/adapters/system-clock.js";
 import { SpyBroadcaster } from "./spy-broadcaster.js";
 import { FakeCodeGen } from "./fake-code-gen.js";
@@ -40,7 +42,7 @@ const CREATOR_NAME = "Host";
 
 export interface BuiltRoom {
   handlers: TestHandlers;
-  /** 名簿の保管（#95 S4a）。 */
+  /** 名簿の保管（#95 S4a）。**poker と共有する**（本番の配線もこの 1 個である）。 */
   store: InMemoryRoomStore;
   /** timer の状態の保管（#95 S4a）。名簿とは `code` で対になる。 */
   timers: InMemoryTimerStore;
@@ -67,7 +69,7 @@ class RoomBuilder {
   private participantNames: string[] = [];
   private driverName: string | undefined;
   private shouldStart = false;
-  private depsOverrides: Partial<HandlerDeps> = {};
+  private depsOverrides: TestHandlerOverrides = {};
 
   /** 参加者を join させる（作成者に続けて join した順）。 */
   withParticipants(...names: string[]): this {
@@ -88,7 +90,7 @@ class RoomBuilder {
   }
 
   /** makeHandlers への依存を上書きする（scheduler/delegator 等、必要になったときだけ使う）。 */
-  withDeps(overrides: Partial<HandlerDeps>): this {
+  withDeps(overrides: TestHandlerOverrides): this {
     this.depsOverrides = { ...this.depsOverrides, ...overrides };
     return this;
   }
@@ -221,7 +223,25 @@ function unwiredDestroyRoom(roomCode: string): never {
  * `Partial<HandlerDeps>` を展開しても必須キーが欠けないことが型で保証される
  * （既定値の選び方は変わっていない —— どのキーも `overrides?.x ?? 既定` である）。
  */
+/**
+ * `makeTestHandlers` が受け取れる上書き。
+ *
+ * `rounds`（poker の状態の保管）は timer の `HandlerDeps` には無い（timer のハンドラは
+ * ラウンドを知らない）。ここで受けるのは、**名簿が 1 つになった以上、ルームの寿命を
+ * 見るテストが「名簿・timer の状態・ラウンドが揃って消えるか」を 1 組の保管で
+ * 観測する必要がある**ためである（#95 S4a）。
+ */
+export interface TestHandlerOverrides extends Partial<HandlerDeps> {
+  /** poker の状態（投票ラウンド）の保管。省略時は空の `InMemoryRoundStore`。 */
+  rounds?: InMemoryRoundStore;
+}
+
 export interface TestHandlers extends ReturnType<typeof makeHandlers> {
+  /**
+   * 配線された poker の状態の保管（#95 S4a）。ルームの寿命を見るテストが
+   * 名簿・timer の状態と揃えて観測できるよう露出する。
+   */
+  rounds: InMemoryRoundStore;
   /**
    * 配線された破棄経路。`makeHandlers` は依存として受け取るだけで返さないので、
    * テストから直接叩けるようここで露出する（既定は {@link unwiredDestroyRoom}）。
@@ -235,9 +255,10 @@ export interface TestHandlers extends ReturnType<typeof makeHandlers> {
   handleDisconnect: (connId: string) => void;
 }
 
-export function makeTestHandlers(overrides?: Partial<HandlerDeps>): TestHandlers {
+export function makeTestHandlers(overrides?: TestHandlerOverrides): TestHandlers {
   const store = overrides?.store ?? new InMemoryRoomStore();
   const timers = overrides?.timers ?? new InMemoryTimerStore();
+  const rounds = overrides?.rounds ?? new InMemoryRoundStore();
   const clock = overrides?.clock ?? new FakeClock(1_000_000);
   const broadcaster = overrides?.broadcaster ?? new SpyBroadcaster();
   const destroyRoom = overrides?.destroyRoom ?? unwiredDestroyRoom;
@@ -245,6 +266,7 @@ export function makeTestHandlers(overrides?: Partial<HandlerDeps>): TestHandlers
     ...overrides,
     store,
     timers,
+    tokens: overrides?.tokens ?? createTokenStore(),
     clock,
     broadcaster,
     codeGen: overrides?.codeGen ?? new FakeCodeGen(),
@@ -259,6 +281,7 @@ export function makeTestHandlers(overrides?: Partial<HandlerDeps>): TestHandlers
   });
   return {
     ...handlers,
+    rounds,
     destroyRoom,
     handleDisconnect: (connId: string) => presence.handleDisconnect(connId),
   };

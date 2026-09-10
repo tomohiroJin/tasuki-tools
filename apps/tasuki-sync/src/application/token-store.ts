@@ -1,6 +1,11 @@
 /**
  * トークン保持（リジュームトークン・ルームパスフレーズ）。
  *
+ * **#95 S4a で poker の復帰トークンもここへ寄った。** それまでは poker の
+ * `Participant.token` としてルームの中に住んでおり、`findParticipantByToken` が
+ * ルーム内を線形探索していた。名簿が `@tasuki/room-core` へ移って `token` を
+ * 持たなくなったため、発行と照会はこの 1 箇所になった（パスフレーズは timer だけが使う）。
+ *
  * `handlers.ts` の `makeHandlers` が抱えていた可変 `Map`
  * （`resumeTokens` / `roomPassphrases`）を、ロジックを変えずに
  * 1モジュールへ切り出したもの（フェーズ2・純粋な移動）。
@@ -11,12 +16,21 @@
  * `releaseRoom` でルーム単位に一括解放する（ルーム回収時の後始末）。
  */
 
-import type { Room } from "@tasuki/timer-core";
+import type { RoomCode } from "@tasuki/room-core";
 
-/** リジュームトークンが指す再接続先（参加者ID・ルームコード） */
+/**
+ * リジュームトークンが指す再接続先（参加者ID・ルームコード）。
+ *
+ * **`roomCode` は必ず突き合わせること**（#95 S4a）。poker の復帰
+ * （`poker/application/handlers.ts` の `handleJoinRoom`）がここへ寄ったことで、
+ * トークンは「どのルームの誰か」を指す唯一の手掛かりになった。要求されたルームと
+ * 照合せずに `participantId` だけを採ると、**あるルームのトークンで別のルームへ
+ * 入れてしまう**（旧 `findParticipantByToken` はルーム内を探していたので、
+ * この照合は構造的に済んでいた）。
+ */
 export interface ResumeTokenData {
   participantId: string;
-  roomCode: Room["code"];
+  roomCode: RoomCode;
 }
 
 export interface TokenStore {
@@ -24,6 +38,16 @@ export interface TokenStore {
   issueResume(resumeToken: string, data: ResumeTokenData): void;
   /** リジュームトークンから再接続先を引く。無ければ `undefined`。 */
   getResume(resumeToken: string): ResumeTokenData | undefined;
+  /**
+   * 発行済みのリジュームトークンを再接続先から逆引きする。無ければ `undefined`。
+   *
+   * poker の「同じ接続からの join-room 再送」（#171 の冪等分岐）だけが使う。あの分岐は
+   * `joined` を返し直すので token を添える必要があるが、**発行し直してはいけない** ——
+   * 画面が localStorage に持っている token が再送のたびに黙って古くなる
+   * （`test/poker/rejoin.test.ts` の「再送しても同一参加者のまま」が同一性を見ている）。
+   * S4a 以前は token が名簿の中（`Participant.token`）にあり、逆引きは要らなかった。
+   */
+  findResumeToken(roomCode: string, participantId: string): string | undefined;
   /** ルームのパスフレーズ（平文）を引く。未設定なら `undefined`。 */
   getPassphrase(roomCode: string): string | undefined;
   /** ルームのパスフレーズを設定する。 */
@@ -44,6 +68,12 @@ export function createTokenStore(): TokenStore {
     },
     getResume(resumeToken) {
       return resumeTokens.get(resumeToken);
+    },
+    findResumeToken(roomCode, participantId) {
+      for (const [token, info] of resumeTokens) {
+        if (info.roomCode === roomCode && info.participantId === participantId) return token;
+      }
+      return undefined;
     },
     getPassphrase(roomCode) {
       return roomPassphrases.get(roomCode);

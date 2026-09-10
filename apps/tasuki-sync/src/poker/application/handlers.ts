@@ -13,37 +13,68 @@
  * 構造的にこれを満たすので、WS アダプタはそのまま渡せる。
  * **アダプタは統合後 1 本しかない**（`src/adapters/ws-adapter.ts`。timer と共有する接続層で、
  * poker 側の `adapters/` にはもう置いていない。#95 S2）。
+ *
+ * ## #95 S4a: 名簿が timer と 1 つになった
+ *
+ * poker が持っていた `Room` / `Participant` は消えた。いま poker の状態は次の 3 つに割れる。
+ *
+ *   - **名簿** — `RoomStore`（`../../ports/room-store.ts`。`@tasuki/room-core` の `Room`）。
+ *     **timer とまったく同じインスタンス**である（`create-sync-server.ts` が配線する）
+ *   - **ラウンド** — `RoundStore`（`../ports/round-store.ts`。`@tasuki/poker-core` の `Round`）
+ *   - **復帰トークン** — `TokenStore`（`../../application/token-store.ts`。これも timer と共有）
+ *
+ * 3 つはルームコードで突き合わせる。**片方だけ書いて配信する形を作らない** ——
+ * 保管と配信は {@link makeHandlers} 内の `commit` 1 本に閉じてある（timer 側の
+ * `application/handlers.ts` と同じ規律）。
+ *
+ * ⚠ **この段では入口の門が無い。** 名簿が 1 つになったので、timer のルームコードを
+ * poker の入口へ与えると入れてしまう。**意図した中間状態**であり、塞ぐのは
+ * 越境の遮断を扱う次の段（`application/tool-gate.ts`）である。
  */
 import {
   applyAutoReveal,
-  createRoom,
-  findParticipantByToken,
-  joinRoom,
-  markConnected,
-  markDisconnected,
+  createRound,
   messageForRoomError,
+  validateName,
   type ClientMessage,
   type ErrorCode,
-  type Room,
+  type ParticipantFragment,
+  type Round,
 } from '@tasuki/poker-core';
+import {
+  addParticipant,
+  attachConnection,
+  detachConnection,
+  findParticipant,
+  type Room as MembershipRoom,
+} from '@tasuki/room-core';
 import type { RateLimiter } from '@tasuki/rate-limit';
+import type { Clock } from '../../ports/clock.js';
+import type { RoomStore } from '../../ports/room-store.js';
+import type { TokenStore } from '../../application/token-store.js';
 import type { Broadcaster, RoomSocket } from '../ports/broadcaster';
 import type { IdGen } from '../ports/id-gen';
 import type { MonotonicClock } from '../ports/monotonic-clock';
-import type { RoomStore } from '../ports/room-store';
+import type { RoundStore } from '../ports/round-store';
 import { createCommitRoomAction, createDispatch } from './commit-room-action';
 import { createRateLimitGate } from './rate-limit-gate';
 
 /**
  * ハンドラが接続に求めるものすべて。
  *
- * `data` は接続ごとの状態のうちハンドラが読み書きする 3 つだけを見る
- * （`connId` / `origin` / `clientKey` は WS アダプタの関心事なので出てこない）。
+ * `data` は接続ごとの状態のうちハンドラが読み書きするものだけを見る
+ * （`origin` / `clientKey` は WS アダプタの関心事なので出てこない）。
  * **Bun の型に依存させないのは、偽の接続を渡してハンドラを直接呼べるようにするため**
  * （`docs/adr/0004` の根拠が挙げた「テスト時にアダプタを差し替えられる構成」）。
+ *
+ * `connId` は #95 S4a で加わった。名簿（`@tasuki/room-core` の `Participant`）が
+ * 在席中の接続を `connId` で持つため、参加・復帰のたびに書き込む必要がある。
+ * **poker の配信そのものは参加者 ID を鍵にした独自レジストリで行う**ので、
+ * この値を読むのは名簿の側だけである。
  */
 export interface HandlerConnection extends RoomSocket {
   data: {
+    connId: string;
     participantId: string | null;
     roomId: string | null;
     /** レート制限の鍵（クライアント鍵。特定できなければ接続 ID）。 */
@@ -52,10 +83,29 @@ export interface HandlerConnection extends RoomSocket {
 }
 
 export interface HandlerDeps {
+  /**
+   * 名簿の保管。**timer と同じインスタンスである**（#95 S4a）。
+   * 保管するのは `@tasuki/room-core` の `Room` で、poker 固有の情報は入っていない。
+   */
   store: RoomStore;
+  /** poker の状態（投票ラウンド）の保管。名簿とはルームコードで対になる。 */
+  rounds: RoundStore;
+  /**
+   * 復帰トークンの発行と照会。**timer と同じインスタンスである**（#95 S4a）。
+   * 旧 `Participant.token` と `findParticipantByToken` の引っ越し先。
+   */
+  tokens: TokenStore;
   broadcaster: Broadcaster;
   idGen: IdGen;
+  /** レート制限の窓の計測に使う単調時計。**壁時計ではない**（`ports/monotonic-clock.ts`）。 */
   clock: MonotonicClock;
+  /**
+   * 壁時計（epoch ms）。名簿の `createdAt` / `joinedAt` に入れる。
+   *
+   * **単調時計を流用してはならない。** 名簿は timer と共有する 1 つの保管であり、
+   * 別系統の値が混ざると 2 つのルームの時刻が比較できなくなる。
+   */
+  wallClock: Clock;
   rateLimiter: RateLimiter;
   maxRooms: number;
 }
@@ -76,8 +126,15 @@ export interface Handlers {
   sendError(ws: HandlerConnection, code: ErrorCode, message: string): void;
 }
 
+/** 1 ルームぶんの poker の状態一式（名簿とラウンド）。 */
+export interface RoomState {
+  room: MembershipRoom;
+  round: Round;
+}
+
 export function makeHandlers(deps: HandlerDeps): Handlers {
-  const { store, broadcaster, idGen, clock, rateLimiter, maxRooms } = deps;
+  const { store, rounds, tokens, broadcaster, idGen, clock, wallClock, rateLimiter, maxRooms } =
+    deps;
 
   /**
    * レート制限の判定順序はゲートが持つ（`application/rate-limit-gate.ts`）。
@@ -86,15 +143,77 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
   const rateLimitGate = createRateLimitGate({ clock, rateLimiter });
 
   /**
+   * 名簿を poker-core が読める断片へ写す（#95 S4a）。
+   *
+   * **`@tasuki/poker-core` は `@tasuki/room-core` を知らない**（依存方向の許可表・
+   * 設計正本 D2）。向こうは `{ id, name, connected }` という構造的型で受けるので、
+   * 語彙の差（`displayName` / `presence`）はここで吸収する。
+   * `connected` は `presence !== "offline"` —— 旧 `Participant.connected` と同値である。
+   */
+  function fragmentsOf(room: MembershipRoom): ParticipantFragment[] {
+    return room.participants.map((p) => ({
+      id: p.id,
+      name: p.displayName,
+      connected: p.presence !== 'offline',
+    }));
+  }
+
+  /**
+   * 1 ルームの状態一式を読む。**名簿が無ければ「そのルームは無い」**。
+   *
+   * ラウンドが無い名簿は voting の空ラウンドとして扱う。名簿とラウンドは
+   * 対で作られるので通常は起こらないが、**名簿が 1 つになった帰結として
+   * 「timer のルームへ poker の入口から入る」経路が一時的に存在する**（門は次の段）。
+   * そこで落ちるより、poker から見て空のラウンドに見えるほうが説明がつく。
+   */
+  function loadState(roomId: string): RoomState | undefined {
+    const room = store.get(roomId);
+    if (!room) return undefined;
+    return { room, round: rounds.get(roomId) ?? createRound() };
+  }
+
+  /**
+   * 更新した状態を保管し、スナップショットを配信する（#95 S4a）。
+   *
+   * **wire の形を組む場所を 1 つにする。** 保管が 2 つに割れた以上、片方だけ put して
+   * もう片方を配信する取り違えが起こりうる。両方の put と配信をここへ束ねてある
+   * （timer 側の `application/handlers.ts` の `commit` と同じ規律）。
+   */
+  function commit(state: RoomState): void {
+    store.put(state.room);
+    rounds.put(state.room.code, state.round);
+    broadcaster.broadcastSnapshot(state.room.code, state.round, fragmentsOf(state.room));
+  }
+
+  /**
+   * ルームの実体を捨てる（FR-014 の即時破棄）。**名簿・ラウンド・トークンを揃って解放する。**
+   *
+   * 旧実装はトークンをルームの中（`Participant.token`）に持っていたので、ルームを
+   * 消せばトークンも一緒に消えた。S4a でトークンが `TokenStore` へ出たため、
+   * 明示的に解放しないと保管に残り続ける。
+   *
+   * ⚠ **この即時破棄は次の段で撤去する（R10・D8）。** 名簿が 1 つになったいま、
+   * 越境して入った poker の接続が全部閉じると、**timer のルームの名簿ごと消える**。
+   * 入口の門（越境の遮断）と、寿命を `room-reclaimer` の TTL へ一本化する変更は
+   * どちらもこの段の後に来る。**この中間状態のままデプロイしてはならない。**
+   */
+  function discardRoom(roomId: string): void {
+    tokens.releaseRoom(roomId);
+    store.remove(roomId);
+    rounds.remove(roomId);
+  }
+
+  /**
    * 衝突しないルーム ID を採る（research R4）。
    *
    * **再試行は方針であって I/O ではない**ので、ポートではなくここが持つ
-   * （IdGen は候補を 1 つ返すだけ）。
+   * （IdGen は候補を 1 つ返すだけ）。**名簿は timer と共有なので、timer の
+   * ルームコードとも衝突しない**（#95 S4a で自動的にそうなった）。
    */
   function generateRoomId(): string {
     for (;;) {
       const id = idGen.roomIdCandidate();
-      if (!store.has(id)) return id;
+      if (store.get(id) === undefined) return id;
     }
   }
 
@@ -114,7 +233,7 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
 
   /**
    * 接続を現在のルームから切り離す共通処理（close と再 join/再 create で共用）。
-   * connected 更新・自動公開の再評価（US4-AS1）・接続数 0 での即時破棄（FR-014）を
+   * presence 更新・自動公開の再評価（US4-AS1）・接続数 0 での即時破棄（FR-014）を
    * ここで一元的に行う。
    *
    * かつてはホスト繰上（旧 FR-012）もここが担っていたが、#95 S3 でホストの概念ごと
@@ -125,8 +244,8 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
     ws.data.participantId = null;
     ws.data.roomId = null;
     if (participantId === null || roomId === null) return;
-    const room = store.get(roomId);
-    if (!room) {
+    const state = loadState(roomId);
+    if (!state) {
       // **ルーム保管には無いのに接続レジストリには残っている接続**への備え。
       // #171 を直すまでは `handleJoinRoom` がこの状態を作っていた（唯一の接続が
       // 同じルームへ join-room を再送すると、ルームが破棄されたまま joined だけが
@@ -141,30 +260,61 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
     if (!broadcaster.detach(roomId, participantId, ws)) return;
 
     if (broadcaster.countIn(roomId) === 0) {
-      store.remove(roomId);
+      discardRoom(roomId);
       return;
     }
 
-    const updatedRoom = applyAutoReveal(markDisconnected(room, participantId));
-    store.put(updatedRoom);
-    broadcaster.broadcastSnapshot(roomId, updatedRoom);
+    // 名簿から接続を外す（旧 `markDisconnected`。`presence` が offline になり
+    // `connected` は false に見える）。票はラウンド側に残る —— 保管が別なので、
+    // 名簿を触っても票には触れないことが構造で保証される。
+    const room = detachConnection(state.room, participantId);
+    commit({ room, round: applyAutoReveal(state.round, fragmentsOf(room)) });
   }
 
   /**
    * join 成功の完了処理（create / token 復帰 / 新規 join の3経路で共用）。
-   * 順序に不変条件がある: socket 登録 → 接続状態の更新 → joined 送信 → 全員へ配信
+   * 順序に不変条件がある: socket 登録 → 接続状態の更新 → joined 送信 → 保管と配信
+   *
+   * `persist` が false のときは配信だけ行い、保管しない。**書き戻すと保管にだけ
+   * ルームが復活し、Broadcaster 側に接続が無い「到達不能なルーム」が `maxRooms` の枠を
+   * 永久に食い潰す**（#165 レビューで発見）。判断は {@link handleJoinRoom} が持つ。
    */
   function completeJoin(
     ws: HandlerConnection,
-    room: Room,
+    state: RoomState,
     participantId: string,
     token: string,
+    persist = true,
   ): void {
-    broadcaster.attach(room.id, participantId, ws);
+    const roomId = state.room.code;
+    broadcaster.attach(roomId, participantId, ws);
     ws.data.participantId = participantId;
-    ws.data.roomId = room.id;
-    sendJoined(ws, room.id, participantId, token);
-    broadcaster.broadcastSnapshot(room.id, room);
+    ws.data.roomId = roomId;
+    sendJoined(ws, roomId, participantId, token);
+    if (persist) {
+      commit(state);
+      return;
+    }
+    broadcaster.broadcastSnapshot(roomId, state.round, fragmentsOf(state.room));
+  }
+
+  /** 名簿へ新しい参加者を足し、復帰トークンを発行する（create / join で共用）。 */
+  function admit(
+    room: MembershipRoom,
+    connId: string,
+    displayName: string,
+  ): { room: MembershipRoom; participantId: string; token: string } {
+    const participantId = idGen.participantId();
+    const token = idGen.token();
+    const updated = addParticipant(room, {
+      id: participantId,
+      displayName,
+      connId,
+      presence: 'online',
+      joinedAt: wallClock.now(),
+    });
+    tokens.issueResume(token, { participantId, roomCode: room.code });
+    return { room: updated, participantId, token };
   }
 
   function handleCreateRoom(
@@ -174,36 +324,48 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
     // ルーム数の上限（Issue #63）。**切り離しより先に判定する**。
     // 先に離脱させてしまうと、拒否されたときに元のルームから追い出されたままになる。
     // 上限が止めるのは新規作成だけで、既存ルームへの参加は妨げない。
-    if (store.count() >= maxRooms) {
+    //
+    // **#95 S4a で数える対象が「poker のルーム」から「名簿にあるルーム全部」に変わった**
+    // （timer と同じ保管を見るため）。枠を決め直すのは越境の遮断と同じ段の仕事である。
+    if (store.list().length >= maxRooms) {
       sendError(ws, 'server-busy', 'ルームの上限に達しています。しばらくしてからお試しください');
       return;
     }
 
     // すでに別ルームに参加中のソケット（二重送信・SPA 遷移）は先に切り離す
     detachFromCurrentRoom(ws);
-    const ids = { participantId: idGen.participantId(), token: idGen.token() };
-    const result = createRoom(generateRoomId(), msg.name, ids);
-    if (result.isErr()) {
-      sendError(ws, 'invalid-message', messageForRoomError(result.error));
+    const name = validateName(msg.name);
+    if (name.isErr()) {
+      sendError(ws, 'invalid-message', messageForRoomError(name.error));
       return;
     }
-    const { room, participant } = result.value;
-    store.put(room);
+    const roomId = generateRoomId();
+    const empty: MembershipRoom = {
+      code: roomId,
+      createdAt: wallClock.now(),
+      participants: [],
+    };
+    const admitted = admit(empty, ws.data.connId, name.value);
     // 新しいルームの接続レジストリは**作り直す**（旧 socketsByRoom.set(room.id, new Map())
     // の復元）。attach は既存の集合を再利用するため、これが無いと到達不能なルームに
     // 残った接続が同一 ID 再採番で別ルームの配信を受ける。
     //
-    // **この 3 行（store.put → resetRoom → completeJoin の attach）は分離してはならない。**
-    // 間に await や別のハンドラへの復帰を挟むと、「store にはあるのに接続レジストリには
+    // **この 2 行（resetRoom → completeJoin の attach と commit）は分離してはならない。**
+    // 間に await や別のハンドラへの復帰を挟むと、「保管にはあるのに接続レジストリには
     // 無い」ルームが外から観測されうるようになる。`handleJoinRoom` と `commitRoomAction`
     // が `!sockets` ガードを持たずに `store.get` の結果だけで進めるのは、この状態が
     // 同期区間に閉じていて誰にも観測できないことが根拠である。崩れると、配信先が空の
     // ままルームが更新されたり、join が room-not-found を返さずに素通りしたりする。
     //
     // **この不変条件は組み立てを create-sync-server.ts へ移しても変わらない。**
-    // 3 行はこの関数の中に閉じたままであり、間に非同期の境界は無い。
-    broadcaster.resetRoom(room.id);
-    completeJoin(ws, room, participant.id, ids.token);
+    // 2 行はこの関数の中に閉じたままであり、間に非同期の境界は無い。
+    broadcaster.resetRoom(roomId);
+    completeJoin(
+      ws,
+      { room: admitted.room, round: createRound() },
+      admitted.participantId,
+      admitted.token,
+    );
   }
 
   function handleJoinRoom(
@@ -220,8 +382,8 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
       return;
     }
 
-    const room = store.get(msg.roomId);
-    if (!room) {
+    const state = loadState(msg.roomId);
+    if (!state) {
       rateLimit.consumeOnMiss();
       sendError(ws, 'room-not-found', 'ルームが見つかりません');
       return;
@@ -236,12 +398,24 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
     // **token は見ない。** 既にこのルームに居る接続の identity はソケット側が正である
     // （画面が添えてくるのは自分自身の token なので、照合しても結果は変わらない）。
     // 別ソケットからの token 復帰（FR-013）はこの分岐に入らないので影響を受けない。
-    if (ws.data.roomId === msg.roomId) {
-      const self = room.participants.find((p) => p.id === ws.data.participantId);
-      if (self !== undefined) {
-        completeJoin(ws, room, self.id, self.token);
+    const self =
+      ws.data.roomId === msg.roomId && ws.data.participantId !== null
+        ? findParticipant(state.room, ws.data.participantId)
+        : undefined;
+    if (self !== undefined) {
+      // 返す token は**発行済みのものそのもの**である。新しく発行し直すと、画面が
+      // localStorage に持っている token が黙って古くなる（再送のたびに変わる）。
+      const issued = tokens.findResumeToken(msg.roomId, self.id);
+      if (issued !== undefined) {
+        completeJoin(ws, state, self.id, issued);
         return;
       }
+      // トークンだけが失われている状態（作る経路は無い）。identity を失わせるより、
+      // 発行し直して同じ参加者のまま続けるほうが利用者の損失が小さい。
+      const token = idGen.token();
+      tokens.issueResume(token, { participantId: self.id, roomCode: msg.roomId });
+      completeJoin(ws, state, self.id, token);
+      return;
     }
 
     // 参加先の存在を確認してから、参加中の別ルームを切り離す（二重送信・SPA 遷移対策）
@@ -254,32 +428,46 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
     // 到達経路は無いが、落とすと戻ってくる欠陥がどちらも重いので残してある。
     //
     // - stillRegistered: detach でレジストリから消えていたら **書き戻さない**。
-    //   書き戻すと store にだけルームが復活し、Broadcaster 側に接続が無い
+    //   書き戻すと保管にだけルームが復活し、Broadcaster 側に接続が無い
     //   「到達不能なルーム」が maxRooms の枠を永久に食い潰す（#165 レビューで発見）。
-    // - `?? room` の読み直し: detach は切断者の markDisconnected と、それによる自動公開で
+    // - `?? state` の読み直し: detach は切断者の presence 更新と、それによる自動公開で
     //   このルームを更新していることがある。読み直さずに detach 前のスナップショットを
     //   書き戻すと自動公開が消える（#165 レビューで発見）。
-    const stillRegistered = store.has(msg.roomId);
-    const current = store.get(msg.roomId) ?? room;
+    const current = loadState(msg.roomId);
+    const stillRegistered = current !== undefined;
+    const live = current ?? state;
 
-    // token 照合による同一参加者の復帰（FR-013）。一致すれば name は無視する
+    // token 照合による同一参加者の復帰（FR-013）。一致すれば name は無視する。
+    //
+    // **`roomCode` を必ず突き合わせる**（#95 S4a）。トークンの保管が全ルーム共通に
+    // なったため、照合を省くと**あるルームのトークンで別のルームへ入れる**。
+    // 旧 `findParticipantByToken(room, token)` はルーム内を探していたので、
+    // この照合は構造的に済んでいた。
+    const presented = msg.token;
+    const resume = presented !== undefined ? tokens.getResume(presented) : undefined;
     const existing =
-      msg.token !== undefined ? findParticipantByToken(current, msg.token) : undefined;
-    if (existing) {
-      const updatedRoom = markConnected(current, existing.id);
-      if (stillRegistered) store.put(updatedRoom);
-      completeJoin(ws, updatedRoom, existing.id, existing.token);
+      presented !== undefined && resume !== undefined && resume.roomCode === msg.roomId
+        ? findParticipant(live.room, resume.participantId)
+        : undefined;
+    if (existing !== undefined && presented !== undefined) {
+      const room = attachConnection(live.room, existing.id, ws.data.connId);
+      completeJoin(ws, { ...live, room }, existing.id, presented, stillRegistered);
       return;
     }
 
-    const ids = { participantId: idGen.participantId(), token: idGen.token() };
-    const result = joinRoom(current, msg.name, ids);
-    if (result.isErr()) {
-      sendError(ws, 'invalid-message', messageForRoomError(result.error));
+    const name = validateName(msg.name);
+    if (name.isErr()) {
+      sendError(ws, 'invalid-message', messageForRoomError(name.error));
       return;
     }
-    if (stillRegistered) store.put(result.value.room);
-    completeJoin(ws, result.value.room, result.value.participant.id, ids.token);
+    const admitted = admit(live.room, ws.data.connId, name.value);
+    completeJoin(
+      ws,
+      { ...live, room: admitted.room },
+      admitted.participantId,
+      admitted.token,
+      stillRegistered,
+    );
   }
 
   /**
@@ -307,13 +495,13 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
       return;
     }
 
-    if (!store.has(msg.roomId)) {
+    if (store.get(msg.roomId) === undefined) {
       rateLimit.consumeOnMiss();
       sendError(ws, 'room-not-found', 'ルームが見つかりません');
     }
   }
 
-  const commitRoomAction = createCommitRoomAction({ store, broadcaster, sendError });
+  const commitRoomAction = createCommitRoomAction({ loadState, commit, fragmentsOf, sendError });
 
   const dispatch = createDispatch({
     handleCreateRoom,

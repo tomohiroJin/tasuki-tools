@@ -11,7 +11,7 @@
  * 到達不能なルームに残った接続が同一 ID の再採番で別ルームの配信を受けてしまった。
  */
 import { describe, expect, it } from 'bun:test';
-import { createRoom, type Room } from '@tasuki/poker-core';
+import { createRound, type ParticipantFragment } from '@tasuki/poker-core';
 import { createWsBroadcaster } from '../../src/poker/adapters/ws-broadcaster';
 import type { RoomSocket } from '../../src/poker/ports/broadcaster';
 
@@ -26,9 +26,12 @@ function recordingSocket(): RoomSocket & { readonly received: string[] } {
   };
 }
 
-function roomOf(roomId: string, hostId: string): Room {
-  return createRoom(roomId, 'たろう', { participantId: hostId, token: 'tok' })._unsafeUnwrap()
-    .room;
+/**
+ * 1 人だけの名簿の断片（#95 S4a で `broadcastSnapshot` の引数がこの形になった）。
+ * このファイルが見るのは配信の宛先だけなので、中身は最小で足りる。
+ */
+function rosterOf(participantId: string): ParticipantFragment[] {
+  return [{ id: participantId, name: 'たろう', connected: true }];
 }
 
 describe('createWsBroadcaster', () => {
@@ -43,7 +46,7 @@ describe('createWsBroadcaster', () => {
     // When: 同じ ID 'x' が再採番され、新しいルームが作られる
     broadcaster.resetRoom('x');
     broadcaster.attach('x', 'B', newSocket);
-    broadcaster.broadcastSnapshot('x', roomOf('x', 'B'));
+    broadcaster.broadcastSnapshot('x', createRound(), rosterOf('B'));
 
     // Then: 新しいルームの接続だけが受け取る
     expect(newSocket.received).toHaveLength(1);
@@ -68,7 +71,7 @@ describe('createWsBroadcaster', () => {
     // Then: 何もせず false を返し、新しいソケットは外れていない
     expect(detached).toBe(false);
     expect(broadcaster.countIn('x')).toBe(1);
-    broadcaster.broadcastSnapshot('x', roomOf('x', 'A'));
+    broadcaster.broadcastSnapshot('x', createRound(), rosterOf('A'));
     expect(newSocket.received).toHaveLength(1);
     expect(oldSocket.received).toHaveLength(0);
   });

@@ -123,7 +123,9 @@ const REPO_ROOT = path.resolve(SCRIPT_DIR, "..");
 export const DOMAIN_ERROR_TARGETS = [
   // poker-core（ADR-0016 決定 2 項目 3 が名指しした 2 型）
   { file: "packages/poker-core/src/round.ts", type: "RoundError" },
-  { file: "packages/poker-core/src/room.ts", type: "RoomError" },
+  // `RoomError` は #95 S4a で `room.ts` から `name.ts` へ引っ越した（名簿は room-core へ、
+  // 名前規則は poker の境界の規則として残った）。型と規範は変わっていない。
+  { file: "packages/poker-core/src/name.ts", type: "RoomError" },
   // timer-core（`DomainError` の合併メンバー。フィールドを持つのはこちら）
   { file: "packages/timer-core/src/errors.ts", type: "EmptyName" },
   { file: "packages/timer-core/src/errors.ts", type: "DuplicateName" },

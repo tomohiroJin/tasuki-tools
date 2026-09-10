@@ -5,23 +5,38 @@
  * `commitRoomAction` を 1 本にしているのは、not-joined 検査・自動公開の再評価・
  * 配信という**毎回同じ後始末**を各操作に書き写さないためである。新しい操作の追加は
  * ドメイン関数を渡すだけで済む。
+ *
+ * **#95 S4a で操作の対象が `Room` から `Round` になった。** 名簿は
+ * `@tasuki/room-core` が持ち、自動公開の判定に要る断片だけを `fragmentsOf` で渡す。
  */
 import { applyAutoReveal, castVote, messageForRoundError, nextRound, revealBy } from '@tasuki/poker-core';
-import type { ClientMessage, ErrorCode, Room, RoundError } from '@tasuki/poker-core';
+import type {
+  ClientMessage,
+  ErrorCode,
+  ParticipantFragment,
+  Round,
+  RoundError,
+} from '@tasuki/poker-core';
+import type { Room as MembershipRoom } from '@tasuki/room-core';
 import type { Result } from 'neverthrow';
-import type { Broadcaster } from '../ports/broadcaster';
-import type { RoomStore } from '../ports/room-store';
-import type { HandlerConnection } from './handlers';
+import type { HandlerConnection, RoomState } from './handlers';
 
-/** ドメイン操作 1 つ。ルームと実行者から次のルームを返す（失敗は `RoundError`）。 */
-export type RoomAction = (room: Room, participantId: string) => Result<Room, RoundError>;
+/** ドメイン操作 1 つ。ラウンドと実行者から次のラウンドを返す（失敗は `RoundError`）。 */
+export type RoomAction = (round: Round, participantId: string) => Result<Round, RoundError>;
 
 /** `commitRoomAction` の形。`dispatch` が種別ごとに束ねる。 */
 export type CommitRoomAction = (ws: HandlerConnection, action: RoomAction) => void;
 
 export interface CommitRoomActionDeps {
-  store: RoomStore;
-  broadcaster: Broadcaster;
+  /** 名簿とラウンドを 1 組で読む（`handlers.ts` の `loadState`）。 */
+  loadState: (roomId: string) => RoomState | undefined;
+  /**
+   * 両方の保管へ put してから配信する唯一の経路（`handlers.ts` の `commit`）。
+   * **ここで直接 store を触らない** —— 片方だけ put して配信する形を作らないため。
+   */
+  commit: (state: RoomState) => void;
+  /** 名簿を poker-core が読める断片へ写す（`handlers.ts` の `fragmentsOf`）。 */
+  fragmentsOf: (room: MembershipRoom) => ParticipantFragment[];
   /**
    * エラー応答。実体は `handlers.ts` が `Broadcaster` から作る 1 つだけである
    * （ここで作り直すと同じ関数が 2 つになり、片方だけが直る形になる）。
@@ -35,8 +50,9 @@ export interface CommitRoomActionDeps {
  * をここで一元的に行う。新しい操作の追加はドメイン関数を渡すだけでよい
  */
 export function createCommitRoomAction({
-  store,
-  broadcaster,
+  loadState,
+  commit,
+  fragmentsOf,
   sendError,
 }: CommitRoomActionDeps): CommitRoomAction {
   return function commitRoomAction(ws, action) {
@@ -45,8 +61,8 @@ export function createCommitRoomAction({
       sendError(ws, 'not-joined', 'ルームに参加していません');
       return;
     }
-    const room = store.get(roomId);
-    if (!room) {
+    const state = loadState(roomId);
+    if (!state) {
       // **黙って落とさない（#171）。** 参加中のつもりの接続が、保管には無いルームを
       // 指していることがありうる。ここで何も返さないと、利用者の画面には
       // 「押しても反応しない」としか見えず、原因に辿り着けない。
@@ -59,14 +75,12 @@ export function createCommitRoomAction({
       sendError(ws, 'room-not-found', 'ルームが見つかりません');
       return;
     }
-    const result = action(room, participantId);
+    const result = action(state.round, participantId);
     if (result.isErr()) {
       sendError(ws, result.error.code, messageForRoundError(result.error));
       return;
     }
-    const updatedRoom = applyAutoReveal(result.value);
-    store.put(updatedRoom);
-    broadcaster.broadcastSnapshot(roomId, updatedRoom);
+    commit({ room: state.room, round: applyAutoReveal(result.value, fragmentsOf(state.room)) });
   };
 }
 
@@ -104,7 +118,7 @@ export function createDispatch({
         handleCheckRoom(ws, msg);
         return;
       case 'vote':
-        commitRoomAction(ws, (room, participantId) => castVote(room, participantId, msg.card));
+        commitRoomAction(ws, (round, participantId) => castVote(round, participantId, msg.card));
         return;
       case 'reveal':
         commitRoomAction(ws, revealBy);

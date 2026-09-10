@@ -3,8 +3,11 @@
  *
  * **#95 S2 で timer と poker の 2 本を 1 プロセスへ統合した**（設計正本 D9）。
  * 旧 `apps/poker-sync/src/create-sync-server.ts` の組み立てはこの関数の後半にある。
- * 2 つの文脈は**接続層（`WsAdapter`）だけを共有し、保管・時計・ID 生成・配信は
- * それぞれ別のまま**である。単一の巨大ストアにはしない（設計正本 §5.5 / D16）。
+ *
+ * **#95 S4a で共有するものが増えた。** いま 2 つの文脈が共有するのは、接続層
+ * （`WsAdapter`）・**名簿（`RoomStore`）**・**復帰トークン（`TokenStore`）**の 3 つである。
+ * ツールの状態（`TimerStore` / `RoundStore`）・時計・ID 生成・配信はそれぞれ別のまま
+ * であり、単一の巨大ストアにはしない（設計正本 §5.5 / D16）。
  *
  * store / clock / codeGen / scheduler / broadcaster / delegator / handlers /
  * presenceManager / reclaimer / WsAdapter の相互参照は、順序と受け渡しに
@@ -44,14 +47,14 @@ import { buildAdminReport, handleAdminHttp } from "./application/admin.js";
 import { AiLimiter } from "./application/ai-limits.js";
 import { ClaudeCliProblemProvider } from "./adapters/claude-cli-problem-provider.js";
 import { createLogger } from "./application/log/logger.js";
+import { createTokenStore } from "./application/token-store.js";
 import { createRefEncoder } from "./application/log/ref-encoder.js";
 import { consoleLogSink } from "./adapters/console-log-sink.js";
-import { createInMemoryRoomStore as createPokerRoomStore } from "./poker/adapters/in-memory-room-store.js";
+import { InMemoryRoundStore } from "./poker/adapters/in-memory-round-store.js";
 import { createPerformanceClock } from "./poker/adapters/performance-clock.js";
 import { createCryptoIdGen } from "./poker/adapters/crypto-id-gen.js";
 import { createWsBroadcaster } from "./poker/adapters/ws-broadcaster.js";
 import { makeHandlers as makePokerHandlers } from "./poker/application/handlers.js";
-import type { RoomStore as PokerRoomStore } from "./poker/ports/room-store.js";
 import type { SyncConfig } from "./config.js";
 import type { Room, ServerMsg, Command } from "@tasuki/timer-core";
 
@@ -66,8 +69,11 @@ export interface SyncServer {
   readonly store: InMemoryRoomStore;
   /** timer の状態の保管。名簿とは `code` で対になる（#95 S4a）。 */
   readonly timers: InMemoryTimerStore;
-  /** poker のルーム保管。**名簿の統合は S4b で行う**（S4a では timer 側だけを移した）。 */
-  readonly pokerStore: PokerRoomStore;
+  /**
+   * poker の状態（投票ラウンド）の保管。**名簿は `store` に統合済み**（#95 S4a）。
+   * timer の `timers` と同じ位置づけで、名簿とはルームコードで対になる。
+   */
+  readonly rounds: InMemoryRoundStore;
   /** 実際に bind したポート。`PORT=0` 起動のときはここが正しい値。 */
   readonly port: number;
   /**
@@ -83,7 +89,16 @@ export interface SyncServer {
 export function createSyncServer(config: SyncConfig): SyncServer {
   const store = new InMemoryRoomStore();
   const timers = new InMemoryTimerStore();
+  const rounds = new InMemoryRoundStore();
   const clock = new SystemClock();
+  /**
+   * 復帰トークンとパスフレーズの保管。**timer と poker で 1 個を共有する**（#95 S4a）。
+   *
+   * poker の復帰トークンが `Participant.token` から `token-store` へ寄ったため、
+   * 別々に持つと `destroyRoom` / `releaseRoom` が片方しか解放しない
+   * （名簿は 1 つなのに、ルームを消してももう片方のトークンが残る）。
+   */
+  const tokens = createTokenStore();
 
   /**
    * 名簿と timer の状態を合成した wire の `Room` の一覧（#95 S4a）。
@@ -163,6 +178,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
   const handlers = makeHandlers({
     store,
     timers,
+    tokens,
     clock,
     broadcaster,
     codeGen,
@@ -213,9 +229,12 @@ export function createSyncServer(config: SyncConfig): SyncServer {
   const deriveClientKey = createClientKeyDeriver(randomBytes(32));
 
   // ── poker（見積もり文脈）の組み立て ─────────────────────────────────
-  // 保管・時計・ID 生成・配信はすべて timer と別物である。**共有しているのは
-  // 接続層（WsAdapter）だけ**で、文脈の統合は S4a で行う（設計正本 §5.4）。
-  const pokerStore = createPokerRoomStore();
+  // **#95 S4a で名簿・復帰トークンが timer と 1 つになった**（`store` / `tokens`）。
+  // poker だけのものは、ラウンドの保管（`rounds`）・単調時計・ID 生成・配信の 4 つである。
+  //
+  // ⚠ **この段では入口の門が無い。** 名簿が 1 つになったので、timer のルームコードを
+  // poker の入口へ与えると入れてしまう（`poker/application/handlers.ts` の冒頭を参照）。
+  // 塞ぐのは越境の遮断を扱う次の段である。
   const pokerClock = createPerformanceClock();
   const pokerIdGen = createCryptoIdGen();
   const pokerBroadcaster = createWsBroadcaster();
@@ -237,10 +256,13 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     refillPerSec: DEFAULT_REFILL_PER_SEC,
   });
   const pokerHandlers = makePokerHandlers({
-    store: pokerStore,
+    store,
+    rounds,
+    tokens,
     broadcaster: pokerBroadcaster,
     idGen: pokerIdGen,
     clock: pokerClock,
+    wallClock: clock,
     rateLimiter: pokerRateLimiter,
     maxRooms: config.maxRooms,
   });
@@ -300,7 +322,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     wsAdapter,
     store,
     timers,
-    pokerStore,
+    rounds,
     port: wsAdapter.port,
     aiReady,
     close: async () => {

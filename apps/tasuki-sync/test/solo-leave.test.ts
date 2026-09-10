@@ -20,6 +20,7 @@ import { createRoomDestroyer } from "../src/application/destroy-room.js";
 import { RoomReclaimer } from "../src/application/room-reclaimer.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
+import { createTokenStore } from "../src/application/token-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
@@ -68,6 +69,7 @@ describe("ソロの部屋からの退出（Issue #79）", () => {
     let destroyRoom: (roomCode: string) => void;
     handlers = makeHandlers({
       store, timers, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen(),
+      tokens: createTokenStore(),
       destroyRoom: (roomCode) => destroyRoom(roomCode),
     });
     destroyRoom = createRoomDestroyer({ store, timers, releaseRoom: handlers.releaseRoom });
@@ -162,6 +164,7 @@ describe("ソロの部屋からの退出（Issue #79）", () => {
       clock: new FakeClock(1_000_000),
       broadcaster: spyBroadcaster,
       codeGen: new FakeCodeGen(),
+      tokens: createTokenStore(),
       destroyRoom: destroy,
     });
     const created = await spyHandlers.handleCommand(HOST, {
@@ -228,6 +231,7 @@ describe("ソロ以外は挙動が変わらない（Issue #79）", () => {
     let destroyRoom: (roomCode: string) => void;
     handlers = makeHandlers({
       store, timers, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen(),
+      tokens: createTokenStore(),
       destroyRoom: (roomCode) => destroyRoom(roomCode),
     });
     destroyRoom = createRoomDestroyer({ store, timers, releaseRoom: handlers.releaseRoom });
@@ -321,6 +325,7 @@ describe("アイドル回収と在室者0人の退出は同じ後始末を通る
       clock: new FakeClock(1_000_000),
       broadcaster,
       codeGen: new FakeCodeGen(),
+      tokens: createTokenStore(),
       destroyRoom: destroy,
     });
     const reclaimer = new RoomReclaimer({

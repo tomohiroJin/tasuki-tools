@@ -11,7 +11,9 @@
 import { describe, expect, it } from 'bun:test';
 import type { ServerMessage } from '@tasuki/poker-core';
 import type { RateLimiter } from '@tasuki/rate-limit';
-import { createInMemoryRoomStore } from '../../src/poker/adapters/in-memory-room-store';
+import { InMemoryRoomStore } from '../../src/adapters/in-memory-room-store';
+import { InMemoryRoundStore } from '../../src/poker/adapters/in-memory-round-store';
+import { createTokenStore } from '../../src/application/token-store';
 import { makeHandlers, type HandlerConnection } from '../../src/poker/application/handlers';
 import type { Broadcaster, RoomSocket } from '../../src/poker/ports/broadcaster';
 import type { IdGen } from '../../src/poker/ports/id-gen';
@@ -58,16 +60,19 @@ const alwaysAllowLimiter: RateLimiter = {
 function setup(data: Partial<HandlerConnection['data']> = {}) {
   const socket = spySocket();
   const handlers = makeHandlers({
-    store: createInMemoryRoomStore(), // 何も put しない → get は常に undefined
+    store: new InMemoryRoomStore(), // 何も put しない → get は常に undefined
+    rounds: new InMemoryRoundStore(),
+    tokens: createTokenStore(),
     broadcaster: passthroughBroadcaster(),
     idGen: unusedIdGen,
     clock: { now: () => 0 },
+    wallClock: { now: () => 0 },
     rateLimiter: alwaysAllowLimiter,
     maxRooms: 50,
   });
   const ws: HandlerConnection = {
     ...socket,
-    data: { participantId: null, roomId: null, rateKey: 'k', ...data },
+    data: { connId: 'c1', participantId: null, roomId: null, rateKey: 'k', ...data },
   };
   return { handlers, ws, received: socket.received };
 }

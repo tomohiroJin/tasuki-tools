@@ -30,15 +30,34 @@
 // （`createSyncServer` は 1 度も import していない）。`src/application/handlers.ts` の
 // コメントがこのファイル名で参照しているため、ファイル名自体は変えていない。
 import { describe, expect, it } from 'bun:test';
-import { createRoom, type ServerMessage } from '@tasuki/poker-core';
+import type { ServerMessage } from '@tasuki/poker-core';
+import type { Room as MembershipRoom } from '@tasuki/room-core';
 import { createTokenBucketLimiter, type RateLimiter } from '@tasuki/rate-limit';
-import { createInMemoryRoomStore } from '../../src/poker/adapters/in-memory-room-store';
+import { InMemoryRoomStore } from '../../src/adapters/in-memory-room-store';
+import { InMemoryRoundStore } from '../../src/poker/adapters/in-memory-round-store';
+import { createTokenStore } from '../../src/application/token-store';
 import { createWsBroadcaster } from '../../src/poker/adapters/ws-broadcaster';
 import { makeHandlers, type HandlerConnection } from '../../src/poker/application/handlers';
 import type { Broadcaster, RoomSocket } from '../../src/poker/ports/broadcaster';
 import type { IdGen } from '../../src/poker/ports/id-gen';
 import type { MonotonicClock } from '../../src/poker/ports/monotonic-clock';
-import type { RoomStore } from '../../src/poker/ports/room-store';
+import type { RoomStore } from '../../src/ports/room-store';
+
+/**
+ * 名簿だけのルームを 1 つ作る（#95 S4a）。
+ *
+ * `createRoom` は poker-core から消え、名簿は `@tasuki/room-core` の `Room` になった。
+ * このファイルが見るのは配線（どのポートが呼ばれるか）なので、中身は最小で足りる。
+ */
+function membershipRoom(code: string, participantId: string, name = 'たろう'): MembershipRoom {
+  return {
+    code,
+    createdAt: 0,
+    participants: [
+      { id: participantId, displayName: name, connId: `conn-${participantId}`, presence: 'online', joinedAt: 0 },
+    ],
+  };
+}
 
 /** 送信を記録するだけのソケット */
 function spySocket(): RoomSocket & { sent: string[] } {
@@ -51,7 +70,10 @@ function connectionOf(
   socket: RoomSocket,
   data: Partial<HandlerConnection['data']> = {},
 ): HandlerConnection {
-  return { ...socket, data: { participantId: null, roomId: null, rateKey: 'k', ...data } };
+  return {
+    ...socket,
+    data: { connId: 'conn-test', participantId: null, roomId: null, rateKey: 'k', ...data },
+  };
 }
 
 /** 何もしない Broadcaster。attach/broadcastSnapshot 等を経由しないテストで使う */
@@ -85,8 +107,8 @@ function alwaysAllowLimiter(): RateLimiter {
 describe('IdGen の差し替え（衝突再試行）', () => {
   it('候補が既存 ID と衝突する間は引き直す', () => {
     // Given: 最初の 2 回だけ既存 ID と同じ候補を返す IdGen
-    const store = createInMemoryRoomStore();
-    store.put(createRoom('taken001', 'たろう', { participantId: 'p', token: 't' })._unsafeUnwrap().room);
+    const store = new InMemoryRoomStore();
+    store.put(membershipRoom('taken001', 'p'));
 
     const candidates = ['taken001', 'taken001', 'fresh999'];
     let i = 0;
@@ -101,9 +123,12 @@ describe('IdGen の差し替え（衝突再試行）', () => {
     //  crypto.randomUUID() の衝突を起こせず、この経路を通せない）
     const roomId = makeHandlers({
       store,
+      rounds: new InMemoryRoundStore(),
+      tokens: createTokenStore(),
       broadcaster: nullBroadcaster(),
       idGen,
       clock: fixedClock(0),
+      wallClock: fixedClock(0),
       rateLimiter: alwaysAllowLimiter(),
       maxRooms: 50,
     }).generateRoomId();
@@ -121,7 +146,7 @@ describe('MonotonicClock の差し替え（レート制限の窓の境界）', (
     let t = 0;
     const clock: MonotonicClock = { now: () => t };
     const rateLimiter = createTokenBucketLimiter({ capacity: 1, refillPerSec: 10 });
-    const store = createInMemoryRoomStore(); // 'nope' はどの時点でも存在しない
+    const store = new InMemoryRoomStore(); // 'nope' はどの時点でも存在しない
     const messages: ServerMessage[] = [];
     const broadcaster: Broadcaster = {
       ...nullBroadcaster(),
@@ -140,7 +165,17 @@ describe('MonotonicClock の差し替え（レート制限の窓の境界）', (
         throw new Error('token は呼ばれないはず');
       },
     };
-    const handlers = makeHandlers({ store, broadcaster, idGen, clock, rateLimiter, maxRooms: 50 });
+    const handlers = makeHandlers({
+      store,
+      rounds: new InMemoryRoundStore(),
+      tokens: createTokenStore(),
+      broadcaster,
+      idGen,
+      clock,
+      wallClock: fixedClock(0),
+      rateLimiter,
+      maxRooms: 50,
+    });
     const ws = connectionOf(spySocket(), { rateKey: 'client-1' });
 
     // When: 同時刻（t=0）で 2 回連続 join-room する
@@ -166,27 +201,32 @@ describe('MonotonicClock の差し替え（レート制限の窓の境界）', (
 });
 
 describe('RoomStore の差し替え（上限判定を実ルームなしで再現）', () => {
-  it('store.count() が上限以上を返すだけで server-busy になり、IdGen/Broadcaster の生成系は一切呼ばれない', () => {
-    // Given: 実際のルームを 1 つも持たないのに count() が上限値を返す store。
+  it('store.list() が上限以上を返すだけで server-busy になり、IdGen/Broadcaster の生成系は一切呼ばれない', () => {
+    // Given: 実際のルームを 1 つも持たないのに list() が上限ぶんを返す store。
     // 実ルーム作成（RoomStore 越しに maxRooms 個の Room を積む、または WS で
     // maxRooms 回 create-room する）を一切経由せずに上限判定だけを再現できるのが
-    // RoomStore を差し替える価値。put/remove/has が実際に呼ばれたら
-    // 上限判定がこの前提から外れているので、その場で失敗させる
+    // RoomStore を差し替える価値。put/remove が実際に呼ばれたら
+    // 上限判定がこの前提から外れているので、その場で失敗させる。
+    //
+    // **#95 S4a で数え方が `count()` から `list().length` へ変わった**（名簿の保管が
+    // timer と 1 つになり、ポートの形が `get/put/remove/list` になったため）。
+    // 数える対象も「poker のルーム」から「名簿にあるルーム全部」に変わっている
     const store: RoomStore = {
       // get() は常に undefined（＝存在するはずの部屋が無い）を返す契約非整合な偽物だが、
-      // このテストの経路では読まれない。上限判定が count() しか読まないことをこの
+      // このテストの経路では読まれない。上限判定が list() しか読まないことをこの
       // テスト自身が確認しているので無害（#165 PR-2 のレビュー指摘）
       get: () => undefined,
       put: () => {
-        throw new Error('put は呼ばれないはず（上限判定は count() だけで完結するはず）');
+        throw new Error('put は呼ばれないはず（上限判定は list() だけで完結するはず）');
       },
       remove: () => {
         throw new Error('remove は呼ばれないはず');
       },
-      has: () => {
-        throw new Error('has は呼ばれないはず');
-      },
-      count: () => 3,
+      list: () => [
+        membershipRoom('r1', 'p1'),
+        membershipRoom('r2', 'p2'),
+        membershipRoom('r3', 'p3'),
+      ],
     };
     // 上限判定は idGen も broadcaster の登録系も一切呼ばずに完結するはず。
     // WS 越しのテスト（test/poker/guards.test.ts の MAX_ROOMS=1）は最終応答（server-busy）
@@ -224,9 +264,12 @@ describe('RoomStore の差し替え（上限判定を実ルームなしで再現
     };
     const handlers = makeHandlers({
       store,
+      rounds: new InMemoryRoundStore(),
+      tokens: createTokenStore(),
       broadcaster,
       idGen,
       clock: fixedClock(0),
+      wallClock: fixedClock(0),
       rateLimiter: alwaysAllowLimiter(),
       maxRooms: 3,
     });
@@ -261,10 +304,7 @@ describe('RoomStore の差し替え（判定順序: 上限判定は切り離し�
       remove: () => {
         throw new Error('remove は呼ばれないはず');
       },
-      has: () => {
-        throw new Error('has は呼ばれないはず');
-      },
-      count: () => 1,
+      list: () => [membershipRoom('r1', 'p1')],
     };
     const idGen: IdGen = {
       roomIdCandidate: () => {
@@ -298,9 +338,12 @@ describe('RoomStore の差し替え（判定順序: 上限判定は切り離し�
     };
     const handlers = makeHandlers({
       store,
+      rounds: new InMemoryRoundStore(),
+      tokens: createTokenStore(),
       broadcaster,
       idGen,
       clock: fixedClock(0),
+      wallClock: fixedClock(0),
       rateLimiter: alwaysAllowLimiter(),
       maxRooms: 1,
     });
@@ -325,13 +368,9 @@ describe('RoomStore の差し替え（判定順序: 上限判定は切り離し�
 describe('RoomSocket の差し替え（配信の宛先と回数）', () => {
   it('broadcastSnapshot はそのルームに attach された全員へちょうど 1 回ずつ届き、他室へは届かない', () => {
     // Given: 2 部屋。room01 にはホストが attach 済み、room02 は無関係な部屋
-    const store = createInMemoryRoomStore();
-    const room = createRoom('room01', 'ホスト', { participantId: 'host', token: 'ht' })._unsafeUnwrap()
-      .room;
-    store.put(room);
-    store.put(
-      createRoom('room02', '無関係', { participantId: 'other', token: 'ot' })._unsafeUnwrap().room,
-    );
+    const store = new InMemoryRoomStore();
+    store.put(membershipRoom('room01', 'host', 'ホスト'));
+    store.put(membershipRoom('room02', 'other', '無関係'));
 
     const broadcaster = createWsBroadcaster();
     const hostSocket = spySocket();
@@ -349,9 +388,12 @@ describe('RoomSocket の差し替え（配信の宛先と回数）', () => {
     };
     const handlers = makeHandlers({
       store,
+      rounds: new InMemoryRoundStore(),
+      tokens: createTokenStore(),
       broadcaster,
       idGen,
       clock: fixedClock(0),
+      wallClock: fixedClock(0),
       rateLimiter: alwaysAllowLimiter(),
       maxRooms: 50,
     });
@@ -386,7 +428,7 @@ describe('配線の穴 1: handleCreateRoom の resetRoom 呼び出し', () => {
     // Given: 到達不能になったルーム 'reused01' に、古い接続だけが接続レジストリに残っている
     // （store には対応するルームが無い。#165 の設計で実際に起こりうる状態として
     // src/application/handlers.ts のコメントが説明しているもの）
-    const store = createInMemoryRoomStore();
+    const store = new InMemoryRoomStore();
     const broadcaster = createWsBroadcaster();
     const oldSocket = spySocket();
     broadcaster.attach('reused01', 'old-participant', oldSocket);
@@ -399,9 +441,12 @@ describe('配線の穴 1: handleCreateRoom の resetRoom 呼び出し', () => {
     };
     const handlers = makeHandlers({
       store,
+      rounds: new InMemoryRoundStore(),
+      tokens: createTokenStore(),
       broadcaster,
       idGen,
       clock: fixedClock(0),
+      wallClock: fixedClock(0),
       rateLimiter: alwaysAllowLimiter(),
       maxRooms: 50,
     });
@@ -422,7 +467,7 @@ describe('配線の穴 2: detachFromCurrentRoom の早期 return での detach �
   it('store に対応するルームが無い接続でも、Broadcaster の接続レジストリからは外す', () => {
     // Given: 接続は roomId を持っているが、store にはそのルームが無い
     // （#165 handlers.ts のコメントが説明する「到達不能ルームに attach されたまま」の状態）
-    const store = createInMemoryRoomStore(); // 何も put しない → get は常に undefined
+    const store = new InMemoryRoomStore(); // 何も put しない → get は常に undefined
     const detachCalls: Array<[roomId: string, participantId: string, socket: RoomSocket]> = [];
     const broadcaster: Broadcaster = {
       attach: () => {
@@ -458,9 +503,12 @@ describe('配線の穴 2: detachFromCurrentRoom の早期 return での detach �
     };
     const handlers = makeHandlers({
       store,
+      rounds: new InMemoryRoundStore(),
+      tokens: createTokenStore(),
       broadcaster,
       idGen,
       clock: fixedClock(0),
+      wallClock: fixedClock(0),
       rateLimiter: alwaysAllowLimiter(),
       maxRooms: 50,
     });

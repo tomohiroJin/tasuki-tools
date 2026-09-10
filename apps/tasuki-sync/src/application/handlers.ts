@@ -39,8 +39,8 @@ import type { TimerStore } from "../ports/timer-store.js";
 import type { RoomCodeGen } from "../ports/code-gen.js";
 import type { Scheduler } from "./schedule.js";
 import type { ProblemDelegator } from "./problem-delegation.js";
-import { createTokenStore } from "./token-store.js";
 import { createRateLimitGate } from "./rate-limit-gate.js";
+import type { TokenStore } from "./token-store.js";
 import { applyEvents, type RoomState } from "./apply-room-level-event.js";
 import { buildTimerSnapshotRoom, occupants, rotationDisplayNames } from "./timer-snapshot-dto.js";
 import { buildDomainCommand } from "./build-domain-command.js";
@@ -97,6 +97,19 @@ export interface HandlerDeps {
   delegator?: ProblemDelegator | undefined;
   /** サーバー全体のルーム数上限（省略時は 50）。DoS 緩和用。 */
   maxRooms?: number | undefined;
+  /**
+   * 復帰トークンとパスフレーズの保管（`token-store.ts`）。
+   *
+   * **#95 S4a で poker と同じインスタンスを注入する形になった。** poker の復帰トークンも
+   * ここへ寄ったので、`destroyRoom` / `releaseRoom` が 1 回でどちらのトークンも解放できる。
+   *
+   * **必須にしてある。** 理由は {@link HandlerDeps.destroyRoom} と同じ ——
+   * 既定で `createTokenStore()` を作ると、本番（`create-sync-server.ts`）が注入を
+   * 忘れても全テストが緑のまま、timer と poker のトークンが**別々の保管へ静かに分かれる**。
+   * 必須なら `tsc --noEmit` が漏れを検出する。テスト側の既定は
+   * `test/support/room-builder.ts` の `makeTestHandlers` が 1 箇所で持つ。
+   */
+  tokens: TokenStore;
   /** AI 解錠合言葉。undefined なら AI 機能は無効（解錠は常に失敗＝存在秘匿）。
    *  createSyncServer はトークン未設定時にもここを undefined にする。 */
   aiUnlockKey?: string | undefined;
@@ -153,8 +166,12 @@ export function makeHandlers(deps: HandlerDeps) {
 
   // トークン保持（リジュームトークン・ルームパスフレーズ）は
   // `token-store.ts` の `createTokenStore()` へ切り出した（フェーズ2・純粋な移動）。
-  // ハンドラインスタンスごとに1個生成し、モジュール共有を避けてテスト間汚染を防ぐ。
-  const tokenStore = createTokenStore();
+  //
+  // **#95 S4a で生成は呼び出し側（配線）へ移った。** それまではハンドラインスタンスごとに
+  // 1 個作っていたが、poker の復帰トークンも同じ保管へ寄ったため、**timer と poker が
+  // 同じインスタンスを見ている必要がある**（`create-sync-server.ts` が 1 個作って両方へ渡す）。
+  // テスト間の汚染は、テストごとに新しい保管を渡すことで従来どおり避けられる。
+  const tokenStore = deps.tokens;
 
   // 入室失敗のレート制限（コード・合言葉の総当たりの緩和）。
   // **数える単位は接続ではなくクライアント（IP の HMAC）である**（#103・ADR 0011 S1）。
