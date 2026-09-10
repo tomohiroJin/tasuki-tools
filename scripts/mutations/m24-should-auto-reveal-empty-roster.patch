@@ -1,0 +1,20 @@
+# 変異 24: should-auto-reveal-empty-roster
+#
+# 検出を期待するテスト:
+#   - packages/poker-core/tests/round.test.ts
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m24-*.patch
+#       (diff のパスはリポジトリルート起点。mutation-check.mjs もリポジトリルートで実行する)
+# 復元: git checkout -- <対象ファイル>（同じくリポジトリルートから）
+#
+diff --git a/packages/poker-core/src/round.ts b/packages/poker-core/src/round.ts
+--- a/packages/poker-core/src/round.ts
++++ b/packages/poker-core/src/round.ts
+@@ -54,5 +54,5 @@
+ export function shouldAutoReveal(round: Round, voters: readonly VoterView[]): boolean {
+   if (round.status !== 'voting') return false;
+   const connected = voters.filter((v) => v.connected);
+-  return connected.length > 0 && connected.every((v) => round.votes.has(v.id));
++  return connected.every((v) => round.votes.has(v.id));
+ }
