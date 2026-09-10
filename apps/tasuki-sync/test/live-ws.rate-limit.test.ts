@@ -154,10 +154,13 @@ describe("実 WS 越しの入室レート制限", () => {
    * バケツを 1 本にしたのはそのためで、共有は `create-sync-server.ts` が
    * `createTokenBucketLimiter()` を 1 度だけ呼んで両方へ渡すことで成り立っている。
    *
-   * ⚠ **これはもう構造では保証されない。** timer 側はかつて `makeHandlers` の内側で
-   * 生成しており「1 インスタンスである」ことが構造の帰結だったが、注入に変えて外へ出た。
-   * **その保証を引き受けているのがこのテストである**（`join-rate-limit.test.ts` の
-   * 「room.join と ai.unlock のバケツの共有」は in-process なので、poker の入口は見ない）。
+   * ⚠ **入口をまたぐ共有（timer ↔ poker）は構造では保証されない。** バケツの生成が
+   * `makeHandlers` の内側から配線へ出たためで、**その保証を引き受けているのがこのテストである。**
+   *
+   * **`room.join` と `ai.unlock` の共有はこれとは別で、いまも構造の帰結である** ——
+   * `makeHandlers` がバケツを 1 度だけゲートに包み、その 1 個を両ハンドラへ渡している。
+   * こちらを裏から確かめるのは `join-rate-limit.test.ts` の
+   * 「room.join と ai.unlock のバケツの共有」で、あれは in-process なので poker の入口は見ない。
    *
    * 3 経路へ `DEFAULT_CAPACITY` を**分けて**消費させる。バケツが別々なら、どの経路も
    * 自分の容量の 1/3 しか使っておらず、最後の追い打ちは拒否されない。

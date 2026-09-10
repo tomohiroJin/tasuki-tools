@@ -6,8 +6,12 @@
  * `ctx: { room, actor }` として受け取る。このハンドラはドメイン処理
  * （レート制限確認・合言葉照合・反映）のみを担う。
  *
- * ★`rateLimitGate` は `makeHandlers` が `room.join` と共有する単一インスタンスを
- * そのまま受け取る（`handlers.ts` の生成箇所のコメント参照。ここで新規生成しない）。
+ * ★`rateLimitGate` は受け取るだけで、ここでは新規生成しない。**バケツとゲートで
+ * 出どころが違う**（#95 S4a）: **バケツ（`RateLimiter`）は配線
+ * （`create-sync-server.ts`）が 1 個作って timer と poker へ渡し**、**ゲートは
+ * `makeHandlers` がそのバケツを 1 度だけ包んで `room.join` と共有する**。
+ * したがって `room.join` と同じバケツを見ることは構造の帰結である
+ * （`handlers.ts` の生成箇所のコメント参照）。
  * この共有はパイプライン統合後も変わらない（レート制限の呼び出し位置はドメイン処理側の
  * ままであり、共通パイプラインへは引き上げていない。理由: 合言葉照合の成否と
  * レート制限の記録が1つの分岐にまとまっているほうが「失敗のときだけ積算する」という
@@ -30,7 +34,7 @@ export interface AiUnlockContext {
 export interface AiUnlockDeps {
   /** 名簿と timer の状態を保管し、合成した snapshot を配信する（`handlers.ts`）。 */
   commit: (state: RoomState) => void;
-  /** room.join と共有する単一インスタンス（makeHandlers で1度だけ生成）。 */
+  /** room.join と共有する単一インスタンス（バケツは配線が 1 個作り、ゲートは makeHandlers が包む）。 */
   rateLimitGate: RateLimitGate;
   /** AI 解錠合言葉。undefined なら AI 機能は無効（解錠は常に失敗＝存在秘匿）。 */
   aiUnlockKey?: string | undefined;

@@ -120,14 +120,19 @@ export interface HandlerDeps {
    */
   toolGate: ToolGate;
   /**
-   * 入室失敗のレート制限のバケツ（#103・#95 S4a）。
+   * 入室失敗のレート制限の**バケツ**（#103・#95 S4a）。
    * **timer と poker で同じ 1 個を共有する**（`create-sync-server.ts` が 1 度だけ作る）。
    *
-   * ★ `room.join` と `ai.unlock` がこのバケツを共有することは、以前は
-   * 「`makeHandlers` の内側で 1 度だけ生成する」という**構造**が保証していた。
-   * 注入に変えてその保証が消えたぶんは、テストが受け持つ
-   * （`test/join-rate-limit.test.ts` の「room.join と ai.unlock のレート制限バケツの共有」と、
-   * 実 WS で 3 経路をまたぐ `test/live-ws.rate-limit.test.ts` の「1 IP 1 バケツ」）。
+   * ★ **共有は 2 段ある。取り違えないこと。**
+   *
+   * - **バケツは配線が 1 個作る**（このプロパティ）。**入口をまたぐ共有
+   *   （timer ↔ poker）だけが構造から出て、テストが受け持つようになった** ——
+   *   実 WS で 3 経路をまたぐ `test/live-ws.rate-limit.test.ts` の「1 IP 1 バケツ」である
+   * - **ゲートは `makeHandlers` がそのバケツを 1 度だけ包む**（下の `rateLimitGate`）。
+   *   したがって **`room.join` と `ai.unlock` が同じバケツを見ることは、いまも
+   *   構造が保証している**（同じゲートのインスタンスを両ハンドラへ渡している）。
+   *   `test/join-rate-limit.test.ts` の「room.join と ai.unlock のレート制限バケツの共有」は
+   *   その構造を裏から確かめるもので、構造の**代わり**ではない
    *
    * **必須にしてある**（理由は {@link HandlerDeps.toolGate} と同じ）。
    * 既定を持たせると、注入を忘れた瞬間に 1 IP あたりの実効予算が黙って 2 倍になる。
@@ -202,13 +207,17 @@ export function makeHandlers(deps: HandlerDeps) {
   // 接続単位だと再接続で窓がリセットされ、総当たりを止められなかった。
   //
   // ★ room.join と ai.unlock は「総当たりの緩和」という同じ目的のため、
-  // 同一インスタンスのバケツを共有する。**#95 S4a でバケツの生成が配線
-  // （`create-sync-server.ts`）へ移った**ので、poker の入口とも同じ 1 本になった
-  // （名簿が 1 つになった以上、コード空間も 1 つだから・ADR 0004 の追記）。
+  // 同一インスタンスのバケツを共有する。**この共有はいまも構造の帰結である** ——
+  // ゲートをここで 1 度だけ包み、その 1 個を `handleRoomJoin` と `handleAiUnlock` の
+  // 両方へ渡しているので、片方だけ別のバケツを見る書き方ができない。
+  // コマンドごとに `createRateLimitGate` を呼ぶ形へ崩すと、ai.unlock の総当たり対策が
+  // 黙って弱まる。（裏取りは `test/join-rate-limit.test.ts` の
+  // 「room.join と ai.unlock のレート制限バケツの共有」。構造の代わりではなく裏付けである。）
   //
-  // ⚠ **共有はもう構造では保証されない。** 以前は「makeHandlers 内で 1 度しか生成
-  // しない」ことが保証だったが、注入に変えて外へ出た。代わりに検査するのは
-  // `test/join-rate-limit.test.ts`（room.join と ai.unlock）と
+  // ⚠ **#95 S4a で構造から出たのは「どのバケツか」だけである。** バケツそのものの生成は
+  // 配線（`create-sync-server.ts`）へ移り、poker の入口とも同じ 1 本になった
+  // （名簿が 1 つになった以上、コード空間も 1 つだから・ADR 0004 の追記）。
+  // **入口をまたぐ共有（timer ↔ poker）はもう構造では保証されず、テストが受け持つ** ——
   // `test/live-ws.rate-limit.test.ts`（実 WS で timer と poker の 3 経路）である。
   const rateLimitGate = createRateLimitGate(deps.rateLimiter);
 
