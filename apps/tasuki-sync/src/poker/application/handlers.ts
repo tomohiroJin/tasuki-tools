@@ -27,9 +27,35 @@
  * 保管と配信は {@link makeHandlers} 内の `commit` 1 本に閉じてある（timer 側の
  * `application/handlers.ts` と同じ規律）。
  *
- * ⚠ **この段では入口の門が無い。** 名簿が 1 つになったので、timer のルームコードを
- * poker の入口へ与えると入れてしまう。**意図した中間状態**であり、塞ぐのは
- * 越境の遮断を扱う次の段（`application/tool-gate.ts`）である。
+ * ## ⚠ この段は単独で main へ入れてもデプロイしてもいけない
+ *
+ * 名簿を 1 つにした一方で、**入口の門（越境の遮断）と寿命の一本化がまだ入っていない**。
+ * その間だけ、timer のルームコードを poker の入口へ与えると次の 4 つが同時に成立する
+ * （2026-09-10 に実機の WS で実測。「入れてしまう」で済む話ではない）。
+ *
+ * 1. **合言葉の検査を一度も通らずに timer の snapshot を受信できる。**
+ *    ここで名簿へ足す参加者は実在の `connId` を持ち `presence: "online"` なので、
+ *    timer 側の配信（`create-sync-server.ts` の `broadcaster.broadcastSnapshot` が
+ *    `connId !== null && presence !== "offline"` で宛先を作る）に**そのまま含まれる**。
+ *    実測では `config` / `problem` / `session` / `clock` / `phase` / `participants` /
+ *    `sessionRecords` / `handoffNote` を載せた snapshot が届いた。
+ *    パスフレーズの検査は timer の `command-handlers/room-join.ts` にしか無い
+ *    （poker に合言葉の概念が無い）ので、**この経路は検査そのものを迂回する**。
+ * 2. **timer の画面に幽霊の参加者として載る。** 実測では timer 側の名簿が
+ *    `["アリス", "侵入者"]` になった。
+ * 3. **{@link discardRoom} が timer ルームの合言葉と全復帰トークンまで消す**
+ *    （`tokens.releaseRoom` は roomCode 単位で、どちらのツールのものかを見ない）。
+ * 4. **{@link discardRoom} は `createRoomDestroyer` を通らない**ので、
+ *    scheduler / delegator / presence の予約が**消えたルームに対して発火し続ける**
+ *    （`application/destroy-room.ts` の冒頭が名指しで禁じている状態そのもの）。
+ *
+ * **意図した中間状態である。** 1・2 を塞ぐのは入口の門（`application/tool-gate.ts`）、
+ * 3・4 を塞ぐのは即時破棄の撤去（寿命を `room-reclaimer` の TTL と
+ * `createRoomDestroyer` へ一本化する）で、どちらもこの段の後に来る。
+ * **一時的なガードをここへ置かない** —— 後で消す前提のコードは、このリポジトリでは
+ * 高い確率で自分の欠陥を持ち込む（「対策は自分が塞ぐ欠陥を持つ」）。
+ * 代わりに**着地の仕方で担保する**: このコミットは、門と寿命の一本化と
+ * **同じ PR で main へ入れること**。単独で main へ入れたりデプロイしたりしてはならない。
  */
 import {
   applyAutoReveal,
@@ -192,10 +218,22 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
    * 消せばトークンも一緒に消えた。S4a でトークンが `TokenStore` へ出たため、
    * 明示的に解放しないと保管に残り続ける。
    *
-   * ⚠ **この即時破棄は次の段で撤去する（R10・D8）。** 名簿が 1 つになったいま、
-   * 越境して入った poker の接続が全部閉じると、**timer のルームの名簿ごと消える**。
-   * 入口の門（越境の遮断）と、寿命を `room-reclaimer` の TTL へ一本化する変更は
-   * どちらもこの段の後に来る。**この中間状態のままデプロイしてはならない。**
+   * ## ⚠ これは `createRoomDestroyer` を通っていない
+   *
+   * **後始末は 3 つ足りない** —— `scheduler.clear` / `delegator.cancel` /
+   * `presence.clearRoomTimers` を呼んでいない。`application/destroy-room.ts` の冒頭は
+   * まさにこの状態（「契機ごとに後始末を並べ直すと、片方だけが更新されて必ずずれる」）を
+   * 禁じている。poker だけの世界ではこの 3 つはどれも予約を持たなかったので害が無かったが、
+   * **名簿が 1 つになったいま、越境した接続がここへ入ると timer のルームに対して
+   * 予約が残ったまま実体だけが消える。**
+   *
+   * さらに `tokens.releaseRoom(roomId)` は roomCode 単位で、どちらのツールのものかを
+   * 見ない。**timer ルームの合言葉と全参加者の復帰トークンまで巻き添えで消える。**
+   *
+   * ⚠ **この即時破棄は次の段で撤去する（R10・D8）。** 撤去したうえで、寿命は
+   * `room-reclaimer` の TTL と `createRoomDestroyer` の 1 本へ寄る。**そこで
+   * `RoundStore` の解放も `createRoomDestroyer` 側へ移る** —— この関数を「トークンと
+   * ラウンドを足すだけ」と読まないこと。落ちているのは上の 3 つである。
    */
   function discardRoom(roomId: string): void {
     tokens.releaseRoom(roomId);
@@ -439,10 +477,20 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
 
     // token 照合による同一参加者の復帰（FR-013）。一致すれば name は無視する。
     //
-    // **`roomCode` を必ず突き合わせる**（#95 S4a）。トークンの保管が全ルーム共通に
-    // なったため、照合を省くと**あるルームのトークンで別のルームへ入れる**。
+    // 判定は 2 段ある。**いま実際に越境を止めているのは後段の `findParticipant` である。**
+    // トークンが指す参加者 ID が、要求されたルームの名簿に居なければ復帰は成立しない。
+    // 参加者 ID は全ルームを通じて一意（poker は `crypto.randomUUID()`、timer は
+    // `p_${nanoid(16)}`）なので、別ルームのトークンはここで必ず外れて新規参加に落ちる。
+    // **この 1 行を「冗長だ」として外してはならない。** 前段だけでは止まらない。
+    //
+    // 前段の `resume.roomCode === msg.roomId` は**現状では到達しない分岐**であり、
+    // 変異検査でも殺せない（外しても全テストが緑のまま。2026-09-10 実測）。それでも置くのは
+    // (1) **ID 生成が変わって同じ ID が 2 つのルームに現れうる形になったとき**に、
+    // 唯一の防波堤になるため、(2) timer 側の `command-handlers/room-join.ts` が同じ形
+    // （`tokenData.roomCode === cmd.code` → `findParticipant`）で書かれており、
+    // 2 つの入口で判定の形が違うと片方だけが直る、の 2 つである。
     // 旧 `findParticipantByToken(room, token)` はルーム内を探していたので、
-    // この照合は構造的に済んでいた。
+    // 「トークンが指すルームが要求されたルームと同じか」は署名の側で済んでいた。
     const presented = msg.token;
     const resume = presented !== undefined ? tokens.getResume(presented) : undefined;
     const existing =

@@ -232,9 +232,20 @@ export function createSyncServer(config: SyncConfig): SyncServer {
   // **#95 S4a で名簿・復帰トークンが timer と 1 つになった**（`store` / `tokens`）。
   // poker だけのものは、ラウンドの保管（`rounds`）・単調時計・ID 生成・配信の 4 つである。
   //
-  // ⚠ **この段では入口の門が無い。** 名簿が 1 つになったので、timer のルームコードを
-  // poker の入口へ与えると入れてしまう（`poker/application/handlers.ts` の冒頭を参照）。
-  // 塞ぐのは越境の遮断を扱う次の段である。
+  // ⚠ **この配線は単独で main へ入れてもデプロイしてもいけない。**
+  // 名簿を 1 つにした一方で入口の門と寿命の一本化がまだ入っておらず、その間だけ
+  // timer のルームコードを poker の入口へ与えると、次の 4 つが同時に成立する
+  // （2026-09-10 に実機の WS で実測。詳細は `poker/application/handlers.ts` の冒頭）。
+  //   1. 合言葉の検査（`command-handlers/room-join.ts` にしか無い）を**一度も通らずに**、
+  //      timer の snapshot（お題・参加者・輪・時計・AI 状態）を poker のソケットで受信できる。
+  //      下の `broadcaster.broadcastSnapshot` が共有名簿の `connId` から宛先を作るためである
+  //   2. その接続が timer の名簿に幽霊の参加者として現れ、timer の画面に載る
+  //   3. poker の即時破棄が `tokens.releaseRoom` を呼ぶので、
+  //      **timer ルームの合言葉と全復帰トークンまで消える**
+  //   4. その即時破棄は `createRoomDestroyer` を通らないので、scheduler / delegator /
+  //      presence の予約が**消えたルームに対して発火し続ける**
+  // 1・2 を塞ぐのは入口の門、3・4 を塞ぐのは即時破棄の撤去で、どちらもこの段の後に来る。
+  // **門と寿命の一本化と同じ PR で着地させること。**
   const pokerClock = createPerformanceClock();
   const pokerIdGen = createCryptoIdGen();
   const pokerBroadcaster = createWsBroadcaster();
@@ -246,10 +257,16 @@ export function createSyncServer(config: SyncConfig): SyncServer {
    * join と check は同じバケツを共有する。
    *
    * ⚠ **timer のバケツとは別インスタンスである**（timer 側は `makeHandlers` の
-   * 内側で作られる）。統合しても 1 IP は文脈ごとに 1 つずつバケツを持つ ——
-   * これは統合前と同じ実効枠であり、#95 S2 で意図して据え置いた（D22 の判断。
-   * 根拠は PR 本文と `docs/adr/0004` の追記）。1 本に束ねるのは、join の経路が
-   * 1 つになる S4a の仕事である。
+   * 内側で作られる）。#95 S2 まではこれで「統合前と同じ実効枠」だった —— 2 つの入口が
+   * 別々のルームコード空間を見ていたので、1 つのコードを総当たりできる予算は
+   * 入口ごとに 1 本ずつしか無かった（D22 の判断。根拠は `docs/adr/0004` の追記）。
+   *
+   * ⚠ **S4a でその前提が崩れた。据え置きではなく、現に緩んでいる。**
+   * poker の `handleCheckRoom` / `handleJoinRoom` が共有名簿を引くようになったため、
+   * **timer のルームコードの存在確認が poker の入口からもできる**。バケツは別のままなので、
+   * 1 つの IP が 1 つのコード空間へ使える実効予算は**単純に 2 倍**になった。
+   * #103 設計正本が「枠稼ぎを止めている」と数えた前提に直接効く。
+   * 解消（限定器を 1 本にして両方へ注入する）は、入口の門と同じ段の仕事である。
    */
   const pokerRateLimiter = createTokenBucketLimiter({
     capacity: DEFAULT_CAPACITY,

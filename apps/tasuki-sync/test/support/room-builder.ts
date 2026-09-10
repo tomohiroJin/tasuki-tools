@@ -232,14 +232,27 @@ function unwiredDestroyRoom(roomCode: string): never {
  * 観測する必要がある**ためである（#95 S4a）。
  */
 export interface TestHandlerOverrides extends Partial<HandlerDeps> {
-  /** poker の状態（投票ラウンド）の保管。省略時は空の `InMemoryRoundStore`。 */
+  /**
+   * poker の状態（投票ラウンド）の保管。省略時は空の `InMemoryRoundStore`。
+   * **渡しても製品コードへは繋がらない**（理由は {@link TestHandlers.rounds}）。
+   */
   rounds?: InMemoryRoundStore;
 }
 
 export interface TestHandlers extends ReturnType<typeof makeHandlers> {
   /**
-   * 配線された poker の状態の保管（#95 S4a）。ルームの寿命を見るテストが
-   * 名簿・timer の状態と揃えて観測できるよう露出する。
+   * poker の状態（投票ラウンド）の保管（#95 S4a）。
+   *
+   * ⚠ **まだ何にも配線されていない。** `makeTestHandlers` が組み立てるのは timer の
+   * `makeHandlers` と `PresenceManager` だけで、timer の `HandlerDeps` に `rounds` は
+   * 無い。**このインスタンスを読み書きする製品コードの経路は 1 本も無い。**
+   *
+   * したがって「破棄したら `rounds` が空である」は**テストが自分で `put` し、
+   * 同じインスタンスを `createRoomDestroyer`（か `destroyRoom` の上書き）へ渡さない
+   * かぎり、常に緑になる**（誰も入れていないので最初から空である）。
+   * {@link unwiredDestroyRoom} と同じ扱いで、露出しているのは
+   * 「配線したくなったときに掴む先を 1 つに決めておく」ためだけである。
+   * 配線が入るのは `createRoomDestroyer` に `RoundStore` の解放を足す段。
    */
   rounds: InMemoryRoundStore;
   /**

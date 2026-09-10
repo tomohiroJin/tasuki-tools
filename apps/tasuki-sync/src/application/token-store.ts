@@ -21,12 +21,25 @@ import type { RoomCode } from "@tasuki/room-core";
 /**
  * リジュームトークンが指す再接続先（参加者ID・ルームコード）。
  *
- * **`roomCode` は必ず突き合わせること**（#95 S4a）。poker の復帰
- * （`poker/application/handlers.ts` の `handleJoinRoom`）がここへ寄ったことで、
- * トークンは「どのルームの誰か」を指す唯一の手掛かりになった。要求されたルームと
- * 照合せずに `participantId` だけを採ると、**あるルームのトークンで別のルームへ
- * 入れてしまう**（旧 `findParticipantByToken` はルーム内を探していたので、
- * この照合は構造的に済んでいた）。
+ * **復帰は 2 段で判定する。`roomCode` の突き合わせだけに頼ってはならない。**
+ * 両方の入口（timer の `command-handlers/room-join.ts`、poker の
+ * `poker/application/handlers.ts`）が
+ * `tokenData.roomCode === 要求されたコード` → `findParticipant(room, participantId)`
+ * の順で書かれている。
+ *
+ * **いま実際に越境を止めているのは後段（名簿の照合）である。** 参加者 ID は全ルームを
+ * 通じて一意（poker は `crypto.randomUUID()`、timer は `p_${nanoid(16)}`）なので、
+ * 別ルームのトークンは後段で必ず外れて新規参加に落ちる。前段の `roomCode` 照合は
+ * **現状では到達しない分岐**であり、外しても全テストが緑のままである（2026-09-10 実測）。
+ *
+ * それでも前段を置くのは、**ID 生成が変わって同じ ID が 2 つのルームに現れうる形に
+ * なったとき**の唯一の防波堤になるからである。逆に言えば、**後段を「冗長だ」として
+ * 外すと、その瞬間に越境が成立する。** 消してよいのはどちらでもない。
+ *
+ * 旧 poker の `findParticipantByToken(room, token)` はルーム内を線形探索していたので、
+ * 「トークンが指すルームが要求されたルームと同じか」は署名の側で済んでいた。
+ * S4a で保管が全ルーム共通の 1 個の Map になり、その保証が署名から消えたぶんを
+ * 上の 2 段が担っている。
  */
 export interface ResumeTokenData {
   participantId: string;

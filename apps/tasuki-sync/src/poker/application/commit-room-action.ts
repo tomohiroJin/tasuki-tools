@@ -17,7 +17,6 @@ import type {
   Round,
   RoundError,
 } from '@tasuki/poker-core';
-import type { Room as MembershipRoom } from '@tasuki/room-core';
 import type { Result } from 'neverthrow';
 import type { HandlerConnection, RoomState } from './handlers';
 
@@ -35,8 +34,14 @@ export interface CommitRoomActionDeps {
    * **ここで直接 store を触らない** —— 片方だけ put して配信する形を作らないため。
    */
   commit: (state: RoomState) => void;
-  /** 名簿を poker-core が読める断片へ写す（`handlers.ts` の `fragmentsOf`）。 */
-  fragmentsOf: (room: MembershipRoom) => ParticipantFragment[];
+  /**
+   * 名簿を poker-core が読める断片へ写す（`handlers.ts` の `fragmentsOf`）。
+   *
+   * 引数の型は `RoomState['room']` から引く。**`@tasuki/room-core` を直接 import しない** ——
+   * このファイルが名簿の語彙を知る必要は無く、知ると `handlers.ts` と 2 箇所で
+   * 名簿の形に依存することになる。
+   */
+  fragmentsOf: (room: RoomState['room']) => ParticipantFragment[];
   /**
    * エラー応答。実体は `handlers.ts` が `Broadcaster` から作る 1 つだけである
    * （ここで作り直すと同じ関数が 2 つになり、片方だけが直る形になる）。
