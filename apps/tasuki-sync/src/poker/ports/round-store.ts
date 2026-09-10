@@ -6,18 +6,20 @@
  * timer 側の `TimerStore` と同じ形であり、同じ規律に従う ——
  * **同じコードの一方だけが存在する状態は作らない**（作る・消すは必ず対で行う）。
  *
- * ⚠ **その規律はこの段ではまだ成立していない。ルームを消す経路が 2 つあり、
- * どちらも自分の知らない保管を取りこぼす。**
+ * **この規律は成立している（#95 S4a・寿命の一本化）。**
  *
- * - TTL 回収（`application/room-reclaimer.ts` → `application/destroy-room.ts`）は
- *   `RoundStore` を知らない。**名簿と timer の状態が消えてラウンドが残る。**
- * - poker の即時破棄（`poker/application/handlers.ts` の `discardRoom`）は
- *   名簿とラウンドを対で消すが、**`TimerStore` を知らない**（poker の `HandlerDeps` に
- *   `TimerStore` は無い）。越境した timer のルームをそこで捨てると、
- *   **timer の状態が孤児として残る。**
+ * - 作る側は `poker/application/handlers.ts` の `commit` 1 本。名簿の `put` と
+ *   ラウンドの `put` を同じ関数の中で必ず対にしている。
+ * - 消す側は `application/destroy-room.ts` の `createRoomDestroyer` 1 本。
+ *   `rounds` は**必須の依存**なので、配線から落とせば `tsc --noEmit` が赤くなる。
+ *   契機は TTL 回収（`application/room-reclaimer.ts`）と在室者 0 人の退出
+ *   （`application/command-handlers/participant-remove.ts`）の 2 つだが、後始末は
+ *   どちらもこの 1 つの関数を通る。
  *
- * `createRoomDestroyer` へ `RoundStore` の解放を足し、即時破棄を撤去して経路を 1 本に
- * 寄せるのは次の段であり、それが入って初めて上の宣言が実体に追いつく。
+ * かつてはここが成立していなかった —— TTL 回収は `RoundStore` を知らず（ラウンドが残る）、
+ * poker の即時破棄（旧 `discardRoom`）は `TimerStore` を知らなかった（timer の状態が
+ * 孤児として残る）。**即時破棄を撤去して経路を 1 本に寄せたことで両方が消えた。**
+ * ここへ「poker だけの破棄」を足し戻すと、片側の取りこぼしがそのまま戻る。
  *
  * **ソケットは持たない。** 誰が接続中かは Broadcaster の担当である
  * （docs/adr/0004 の背景が挙げた「エントリがルームとソケットを同梱」の解消）。

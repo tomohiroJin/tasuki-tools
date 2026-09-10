@@ -34,7 +34,6 @@ export interface Broadcaster {
    * `generateRoomId` の衝突回避を素通りするため、再採番自体は起こりうる）。
    */
   resetRoom(roomId: string): void;
-  countIn(roomId: string): number;
   /**
    * 受信者別スナップショットを配信する。
    *

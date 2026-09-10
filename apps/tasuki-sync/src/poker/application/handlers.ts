@@ -29,10 +29,9 @@
  *
  * ## ⚠ この段は単独で main へ入れてもデプロイしてもいけない
  *
- * 名簿を 1 つにした一方で、**入口の門（越境の遮断）と寿命の一本化がまだ入っていない**。
- * その間だけ、timer のルームコードを poker の入口へ与えると次の 4 つが同時に成立する
- * （「入れてしまう」で済む話ではない）。**1 と 2 は 2026-09-10 に実機の WS で実測した。
- * 3 と 4 は経路をコードで確かめたもので、実機では再現していない。**
+ * 名簿を 1 つにした一方で、**入口の門（越境の遮断）がまだ入っていない**。
+ * その間だけ、timer のルームコードを poker の入口へ与えると次の 2 つが成立する
+ * （「入れてしまう」で済む話ではない）。**どちらも 2026-09-10 に実機の WS で実測した。**
  *
  * 1. **合言葉の検査を一度も通らずに timer の snapshot を受信できる。**
  *    ここで名簿へ足す参加者は実在の `connId` を持ち `presence: "online"` なので、
@@ -45,21 +44,25 @@
  *    （poker に合言葉の概念が無い）ので、**この経路は検査そのものを迂回する**。
  * 2. **timer の画面に幽霊の参加者として載る。** 実測では timer 側の名簿が
  *    `["アリス", "侵入者"]` になった。
- * 3. **{@link discardRoom} が timer ルームの合言葉と全復帰トークンまで消す**
- *    （`tokens.releaseRoom` は roomCode 単位で、どちらのツールのものかを見ない）。
- * 4. **{@link discardRoom} は `createRoomDestroyer` を通らない**ので、
- *    scheduler / delegator / presence の予約が**消えたルームに対して発火し続け**、
- *    さらに **`TimerStore` のエントリが孤児として残る**
- *    （`application/destroy-room.ts` の冒頭と `TimerStore` の宣言が名指しで禁じている
- *    状態そのもの）。落ちている後始末の内訳は {@link discardRoom} に書いた。
  *
- * **意図した中間状態である。** 1・2 を塞ぐのは入口の門（`application/tool-gate.ts`）、
- * 3・4 を塞ぐのは即時破棄の撤去（寿命を `room-reclaimer` の TTL と
- * `createRoomDestroyer` へ一本化する）で、どちらもこの段の後に来る。
- * **一時的なガードをここへ置かない** —— 後で消す前提のコードは、このリポジトリでは
- * 高い確率で自分の欠陥を持ち込む（「対策は自分が塞ぐ欠陥を持つ」）。
- * 代わりに**着地の仕方で担保する**: このコミットは、門と寿命の一本化と
- * **同じ PR で main へ入れること**。単独で main へ入れたりデプロイしたりしてはならない。
+ * ### 閉じたもの（#95 S4a・寿命の一本化）
+ *
+ * かつてここには 3・4 として、poker の即時破棄（`discardRoom`）に由来する 2 つが並んでいた。
+ * **その即時破棄を撤去したので、どちらも成立しなくなった。**
+ *
+ * - ~~3. 即時破棄が `tokens.releaseRoom` を呼び、timer ルームの合言葉と全復帰トークンまで
+ *   巻き添えで消える~~ → **閉じた。** 越境した接続が閉じても、いま `detachFromCurrentRoom` は
+ *   名簿の presence を offline にするだけで、トークンには触れない。
+ * - ~~4. 即時破棄が `createRoomDestroyer` を通らないので、scheduler / delegator / presence の
+ *   予約が消えたルームに対して発火し続け、`TimerStore` のエントリが孤児として残る~~
+ *   → **閉じた。** ルームを消す経路は `application/destroy-room.ts` の 1 本だけになり、
+ *   後始末は必ず揃って走る（**内訳をここに写さない**。正本はあちらの冒頭）。
+ *
+ * **意図した中間状態である。** 残る 1・2 を塞ぐのは入口の門（`application/tool-gate.ts`）で、
+ * これはこの段の後に来る。**一時的なガードをここへ置かない** —— 後で消す前提のコードは、
+ * このリポジトリでは高い確率で自分の欠陥を持ち込む（「対策は自分が塞ぐ欠陥を持つ」）。
+ * 代わりに**着地の仕方で担保する**: このコミットは、入口の門と**同じ PR で main へ
+ * 入れること**。単独で main へ入れたりデプロイしたりしてはならない。
  */
 import {
   applyAutoReveal,
@@ -216,46 +219,6 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
   }
 
   /**
-   * ルームの実体を捨てる（FR-014 の即時破棄）。**名簿・ラウンド・トークンを揃って解放する。**
-   *
-   * 旧実装はトークンをルームの中（`Participant.token`）に持っていたので、ルームを
-   * 消せばトークンも一緒に消えた。S4a でトークンが `TokenStore` へ出たため、
-   * 明示的に解放しないと保管に残り続ける。
-   *
-   * ## ⚠ これは `createRoomDestroyer` を通っていない
-   *
-   * **後始末は 4 つ足りない** —— `scheduler.clear` / `delegator.cancel` /
-   * `presence.clearRoomTimers` / **`timers.remove`** を呼んでいない
-   * （`application/destroy-room.ts` が並べている順序のうち、ここに写っているのは
-   * `releaseRoom` と `store.remove` の 2 つだけである）。`destroy-room.ts` の冒頭は
-   * まさにこの状態（「契機ごとに後始末を並べ直すと、片方だけが更新されて必ずずれる」）を
-   * 禁じている。poker だけの世界では 4 つとも空振りだったので害が無かったが、
-   * **名簿が 1 つになったいま、越境した接続がここへ入ると timer のルームに対して
-   * 予約が残ったまま実体だけが消える。**
-   *
-   * ⚠ **`timers.remove` が落ちているのは、予約の残存より始末が悪い。**
-   * poker の `HandlerDeps` に `TimerStore` は無い（この文脈は timer の状態を知らない）ので、
-   * **越境した timer ルームをここで捨てると、名簿だけ消えて `TimerStore` のエントリが
-   * 孤児として残る**。`ports/timer-store.ts` の宣言が「名簿とは `code` で対になる。
-   * 同じ `code` の一方だけが存在する状態は作らない」と、`destroy-room.ts` が
-   * 「名簿と対で消す（片方だけ残すと幽霊のルームができる・#95 S4a）」と、
-   * どちらも名指しで禁じている状態そのものである。
-   *
-   * さらに `tokens.releaseRoom(roomId)` は roomCode 単位で、どちらのツールのものかを
-   * 見ない。**timer ルームの合言葉と全参加者の復帰トークンまで巻き添えで消える。**
-   *
-   * ⚠ **この即時破棄は次の段で撤去する（R10・D8）。** 撤去したうえで、寿命は
-   * `room-reclaimer` の TTL と `createRoomDestroyer` の 1 本へ寄る。**そこで
-   * `RoundStore` の解放も `createRoomDestroyer` 側へ移る** —— この関数を「トークンと
-   * ラウンドを足すだけ」と読まないこと。落ちているのは上の 4 つである。
-   */
-  function discardRoom(roomId: string): void {
-    tokens.releaseRoom(roomId);
-    store.remove(roomId);
-    rounds.remove(roomId);
-  }
-
-  /**
    * 衝突しないルーム ID を採る（research R4）。
    *
    * **再試行は方針であって I/O ではない**ので、ポートではなくここが持つ
@@ -285,11 +248,11 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
 
   /**
    * 接続を現在のルームから切り離す共通処理（close と再 join/再 create で共用）。
-   * presence 更新・自動公開の再評価（US4-AS1）・接続数 0 での即時破棄（FR-014）を
-   * ここで一元的に行う。
+   * presence 更新と自動公開の再評価（US4-AS1）をここで一元的に行う。
    *
    * かつてはホスト繰上（旧 FR-012）もここが担っていたが、#95 S3 でホストの概念ごと
    * 廃止した（poker-core からホスト継承ロジックを撤去）。
+   * **接続数 0 での即時破棄（旧 FR-014）も #95 S4a で撤去した**（下の注記）。
    */
   function detachFromCurrentRoom(ws: HandlerConnection): void {
     const { participantId, roomId } = ws.data;
@@ -311,10 +274,17 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
     // 同一参加者が別ソケットで再接続済みなら（socket が入れ替わっていたら）何もしない
     if (!broadcaster.detach(roomId, participantId, ws)) return;
 
-    if (broadcaster.countIn(roomId) === 0) {
-      discardRoom(roomId);
-      return;
-    }
+    // #95 S4a: 最後の接続が切れた瞬間の破棄をやめた。ルームの寿命は room-reclaimer の
+    // TTL と participant.remove の在室者 0 判定に一本化されている（R10・D8）。
+    // 保管が 1 つになったため、ここで消すと越境した timer のルームまで巻き添えになる。
+    //
+    // **利用者から見える変更である**（全員がタブを閉じても TTL の間はルームが残り、
+    // 戻れば票も残る）。旧 FR-014 を前提にしていたテストは、その規則ごと
+    // `test/poker/reconnect.test.ts` と `test/room-lifecycle.test.ts` へ移した。
+    //
+    // ここに「接続数 0 なら…」の判定を書き足さないこと。書き足した瞬間に破棄経路が
+    // 2 本に戻り、`application/destroy-room.ts` の冒頭が禁じている「契機ごとに
+    // 後始末を並べ直す」状態（4 つの取りこぼし）が復活する。
 
     // 名簿から接続を外す（旧 `markDisconnected`。`presence` が offline になり
     // `connected` は false に見える）。票はラウンド側に残る —— 保管が別なので、
@@ -442,10 +412,14 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
     }
 
     // **既にこのルームに居る接続からの再送は冪等に扱う（#171）。切り離してはならない。**
-    // 自分がこのルーム唯一の接続だと、下の detachFromCurrentRoom は接続数 0 の分岐に入って
-    // ルームを破棄し（FR-014）、それでも joined を返す。以後この接続は存在しないルームに
-    // attach されたままになり、vote / reveal / next-round は commitRoomAction の
-    // store.get で落ちる（#171 の前は無応答。今は room-not-found を返す）。
+    // かつては、自分がこのルーム唯一の接続だと下の detachFromCurrentRoom が接続数 0 の
+    // 分岐に入ってルームを破棄し（旧 FR-014）、それでも joined を返していた。以後その接続は
+    // 存在しないルームに attach されたままになり、vote / reveal / next-round は
+    // commitRoomAction の store.get で落ちる（#171 の前は無応答。今は room-not-found を返す）。
+    //
+    // **#95 S4a で即時破棄そのものが無くなったが、この分岐は残す。** 破棄されなくなっても、
+    // 切り離せば自分の presence が offline になり参加者 ID も付け替わる —— 再送のたびに
+    // 別人として名簿へ積まれる。冪等であることは #171 とは独立に要る性質である。
     //
     // **token は見ない。** 既にこのルームに居る接続の identity はソケット側が正である
     // （画面が添えてくるのは自分自身の token なので、照合しても結果は変わらない）。

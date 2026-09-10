@@ -30,7 +30,6 @@ function passthroughBroadcaster(): Broadcaster {
     attach: () => undefined,
     detach: () => false,
     resetRoom: () => undefined,
-    countIn: () => 0,
     broadcastSnapshot: () => undefined,
     sendTo: (socket, msg) => socket.send(JSON.stringify(msg)),
   };

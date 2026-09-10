@@ -201,9 +201,14 @@ export function createSyncServer(config: SyncConfig): SyncServer {
   // 後始末を契機ごとに並べ直すと片方だけが更新されて必ずずれるため、内容と順序は
   // `destroy-room.ts` の 1 箇所にしか持たない。契機はアイドル回収（TTL）と
   // 在室者 0 人の退出（Issue #79）の 2 つで、どちらもこの同じ関数を通る。
+  //
+  // **#95 S4a で `rounds`（poker のラウンド）もここが解放するようになった。**
+  // 寿命はツールごとではなくルームごとに 1 つなので、poker 側に別の破棄経路は無い
+  // （旧 `poker/application/handlers.ts` の即時破棄は撤去した・R10・D8）。
   destroyRoom = createRoomDestroyer({
     store,
     timers,
+    rounds,
     scheduler,
     delegator,
     presence: presenceManager,
@@ -233,24 +238,24 @@ export function createSyncServer(config: SyncConfig): SyncServer {
   // poker だけのものは、ラウンドの保管（`rounds`）・単調時計・ID 生成・配信の 4 つである。
   //
   // ⚠ **この配線は単独で main へ入れてもデプロイしてもいけない。**
-  // 名簿を 1 つにした一方で入口の門と寿命の一本化がまだ入っておらず、その間だけ
-  // timer のルームコードを poker の入口へ与えると、次の 4 つが同時に成立する
+  // 名簿を 1 つにした一方で入口の門がまだ入っておらず、その間だけ timer のルームコードを
+  // poker の入口へ与えると、次の 2 つが成立する
   // （詳細は `poker/application/handlers.ts` の冒頭）。
-  // **1 と 2 は 2026-09-10 に実機の WS で実測した。3 と 4 は経路をコードで確かめたもので、
-  // 実機では再現していない。**
+  // **どちらも 2026-09-10 に実機の WS で実測した。**
   //   1. 合言葉の検査（`command-handlers/room-join.ts` にしか無い）を**一度も通らずに**、
   //      timer の snapshot（お題・参加者・輪・時計・AI 状態）を poker のソケットで受信できる。
   //      **このファイルの `broadcaster`**（timer 側。上の `const broadcaster = {…}`。
   //      後から作る `pokerBroadcaster` ではない）の `broadcastSnapshot` が、
   //      共有名簿の `connId` から宛先を作るためである
   //   2. その接続が timer の名簿に幽霊の参加者として現れ、timer の画面に載る
-  //   3. poker の即時破棄が `tokens.releaseRoom` を呼ぶので、
-  //      **timer ルームの合言葉と全復帰トークンまで消える**
-  //   4. その即時破棄は `createRoomDestroyer` を通らないので、scheduler / delegator /
-  //      presence の予約が**消えたルームに対して発火し続け**、さらに poker が
-  //      `TimerStore` を持たないため **timer の状態が孤児として残る**
-  // 1・2 を塞ぐのは入口の門、3・4 を塞ぐのは即時破棄の撤去で、どちらもこの段の後に来る。
-  // **門と寿命の一本化と同じ PR で着地させること。**
+  // 塞ぐのは入口の門で、これはこの段の後に来る。**門と同じ PR で着地させること。**
+  //
+  // **#95 S4a の寿命の一本化で、越境の危険のうち 2 つは閉じた。** かつてここには
+  // 3・4 として、poker の即時破棄に由来する 2 つが並んでいた ——
+  // 「`tokens.releaseRoom` が timer ルームの合言葉と全復帰トークンまで消す」と
+  // 「`createRoomDestroyer` を通らないので予約が消えたルームへ発火し続け、
+  // `TimerStore` のエントリが孤児として残る」。**即時破棄そのものを撤去したので、
+  // どちらも成立しない**（破棄経路は上の `destroyRoom` 1 本だけになった）。
   const pokerClock = createPerformanceClock();
   const pokerIdGen = createCryptoIdGen();
   const pokerBroadcaster = createWsBroadcaster();

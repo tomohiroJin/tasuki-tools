@@ -128,8 +128,9 @@ export interface HandlerDeps {
    * （`tsconfig.json` の `include` が `["src/**\/*"]` だった）。#173 でテストを
    * 射程へ入れた（`include` は `["src", "test"]`）ので、その依存はもう無い。
    * 申し送りどおり、**テスト側は既定を 1 箇所で受け取る** ——
-   * `test/support/room-builder.ts` の `makeTestHandlers` が
-   * `unwiredDestroyRoom`（呼ばれたら throw）を既定にしている。
+   * `test/support/room-builder.ts` の `makeTestHandlers` が、ここと同じ store / timers /
+   * rounds / presence の上に組んだ**本物の `createRoomDestroyer`** を既定にしている
+   * （#95 S4a まではそこも「呼ばれたら throw する偽物」だった）。
    *
    * ⚠ **optional へ戻してはならない。** 戻すと本番の配線から注入を外しても
    * 既定値が代わりに動き、上に書いた後退がそのまま再現する。

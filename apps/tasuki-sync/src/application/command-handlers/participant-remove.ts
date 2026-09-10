@@ -123,12 +123,17 @@ export async function handleParticipantRemove(
   // 誰も残らないのであれば rotation を維持する意味は無い。そこで evolve を通さず
   // ルームごと破棄する。緩めるのはこの一点だけで、1 人でも残るなら従来どおり
   // 拒否する（rotation が空の部屋に人が取り残される破綻を作らないため）。
-  // 在室者の数え方は代理(isPlaceholder)も「残る人」に数える。
-  // 代理は自分では退出しないので部屋に残り続けるためである。
-  const remainingResidents = residents.filter((p) => p.participantId !== targetId);
+  //
+  // 在室者は名簿の人だけを数える。代理はローテーション上のラベルであり、名簿には居ない（D6）。
+  // 名簿が空になれば、輪に代理が残っていてもルームごと破棄する
+  // （S3 が残した「代理だけが残る部屋」はこの変更で作れなくなる・#95 S4a）。
+  // **`occupants()` の結果（`residents`）で数えないこと** —— あちらは輪の代理を
+  // 混ぜて返すので、代理を「残る人」に数えてしまう。
+  const remainingResidents = membership.participants.filter((p) => p.id !== targetId);
   if (remainingResidents.length === 0) {
     // 後始末はアイドル回収と同じ共通経路へ委ねる（スケジューラ・委譲・presence タイマー・
-    // トークン・ストアの 5 点。1 つでも取りこぼすと消えた部屋のタイマーが生き残る）。
+    // トークン・名簿・timer の状態・ラウンド。1 つでも取りこぼすと消えた部屋のタイマーが
+    // 生き残る。内訳と順序の正本は `application/destroy-room.ts`）。
     destroyRoom(timer.code);
     // 破棄した部屋へは snapshot も signal も配信しない（宛先がもう居ない）。
     // 本人への通知だけは残す — 通知が無いと、抜けた本人が操作できない画面に
@@ -150,6 +155,11 @@ export async function handleParticipantRemove(
     timer: { ...timer, aiKeyHolders: timer.aiKeyHolders.filter((id) => id !== targetId) },
   };
   if (idx >= 0) {
+    // 数えるのは**席（`RotationEntry`）**であって名簿の人数ではない。守っているのは
+    // 「evolve が currentIndex を決められる輪が残ること」なので、代理の席も 1 席と数える
+    // （代理は輪の上では実在のメンバーと同格に回る）。上の在室者判定が名簿だけを数えるのと
+    // 基準が違うのは、見ている不変条件が別物だからである ——
+    // あちらは「部屋に人が残るか」、ここは「輪が空にならないか」。
     if (timer.session.rotation.length <= 1) {
       sendError(connId, "BelowMinMembers", errorMessageFor("BelowMinMembers"));
       return err("BelowMinMembers");

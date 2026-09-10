@@ -20,6 +20,7 @@ import { createRoomDestroyer } from "../src/application/destroy-room.js";
 import { RoomReclaimer } from "../src/application/room-reclaimer.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
+import { InMemoryRoundStore } from "../src/poker/adapters/in-memory-round-store.js";
 import { createTokenStore } from "../src/application/token-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
@@ -72,7 +73,12 @@ describe("ソロの部屋からの退出（Issue #79）", () => {
       tokens: createTokenStore(),
       destroyRoom: (roomCode) => destroyRoom(roomCode),
     });
-    destroyRoom = createRoomDestroyer({ store, timers, releaseRoom: handlers.releaseRoom });
+    destroyRoom = createRoomDestroyer({
+      store,
+      timers,
+      rounds: new InMemoryRoundStore(),
+      releaseRoom: handlers.releaseRoom,
+    });
     const created = await handlers.handleCommand(HOST, {
       command: "room.create", displayName: "Alice", config: soloConfig,
     });
@@ -179,7 +185,8 @@ describe("ソロの部屋からの退出（Issue #79）", () => {
       command: "participant.remove", participantId: aliceId,
     });
 
-    // Then: server.ts のアイドル回収と同じ 5 つの後始末を、同じ順序で通る
+    // Then: server.ts のアイドル回収とまったく同じ後始末を、同じ順序で通る
+    // （並びの正本は `src/application/destroy-room.ts`。**件数はここに書かない**）
     result._unsafeUnwrap();
     expect(calls).toEqual([
       `scheduler.clear:${soloCode}`,
@@ -195,6 +202,9 @@ describe("ソロの部屋からの退出（Issue #79）", () => {
 //
 // 緩めたのは「退出後に在室者が 0 人になる」場合だけである。1 人でも残るなら
 // rotation が空の部屋に人が取り残される破綻を作るため、従来どおり拒否し続ける。
+//
+// **#95 S4a で「在室者」の数え方だけが変わった**（名簿の人だけを数え、輪の代理は数えない）。
+// 緩める条件そのものは動かしていない。
 
 /**
  * @requirements Issue #79
@@ -234,7 +244,12 @@ describe("ソロ以外は挙動が変わらない（Issue #79）", () => {
       tokens: createTokenStore(),
       destroyRoom: (roomCode) => destroyRoom(roomCode),
     });
-    destroyRoom = createRoomDestroyer({ store, timers, releaseRoom: handlers.releaseRoom });
+    destroyRoom = createRoomDestroyer({
+      store,
+      timers,
+      rounds: new InMemoryRoundStore(),
+      releaseRoom: handlers.releaseRoom,
+    });
     const created = await handlers.handleCommand(HOST, {
       command: "room.create", displayName: "Alice", config: soloConfig,
     });
@@ -262,25 +277,35 @@ describe("ソロ以外は挙動が変わらない（Issue #79）", () => {
     expect(roomViewOf(store, timers, code).participants).toHaveLength(2);
   });
 
-  // #95 S3 以前は「進行できる人が残らない」不変条件（LAST_MANAGER_LEAVE）で拒否されていた。
-  // その不変条件は役割ごと消えたので、Alice は実際に抜ける。**代理を在室者に数える**
-  // という本ケースの主題（＝破棄しない）はそのまま残るので、そちらを固定し直す。
-  it("代理だけが残る場合も破棄しない（代理は在室者に数える）", async () => {
-    // Given: 代理を 1 名追加する。代理は自分では退出しないので部屋に残り続ける
+  // 主張が 2 度ひっくり返っている節である。
+  //
+  //   - #95 S3 以前: 「進行できる人が残らない」不変条件（LAST_MANAGER_LEAVE）で**拒否**
+  //   - #95 S3: 役割ごと不変条件が消えたので Alice は抜けられる。ただし
+  //     **代理を在室者に数えていた**ので、代理だけが残る部屋ができて**破棄しなかった**
+  //   - #95 S4a（ここ）: 代理は `RotationEntry` になり名簿から出た。在室者は名簿の人だけを
+  //     数えるので、名簿が空になった時点で**破棄する**
+  //
+  // 「代理だけが残る部屋」は S3 が残した宿題そのものだった —— 名簿には誰も居ないのに
+  // 部屋には「人」が居ることになり、説明のつかない状態が TTL まで残っていた。
+  // 作れなくしたのが今回である（#95 S4a・D6）。
+  it("代理だけが残る場合はルームごと破棄される（代理は名簿に居ない）", async () => {
+    // Given: 代理を 1 名追加する。代理は輪の上のラベルであって名簿の住人ではない
     await handlers.handleCommand(HOST, {
       command: "participant.addProxy", displayName: "Proxy", participantId: "ignored-client-supplied",
     });
+    // 前提の確認: 輪には代理の席がある（この席が残っていても破棄されることが主題）
+    expect(timers.get(code)!.session.rotation.some((e) => e.kind === "proxy")).toBe(true);
     broadcaster.sent.length = 0;
 
-    // When: 実在の在室者が Alice だけの状態で、Alice が抜ける
+    // When: 名簿の在室者が Alice だけの状態で、Alice が抜ける
     const result = await handlers.handleCommand(HOST, {
       command: "participant.remove", participantId: pidOf("Alice"),
     });
 
-    // Then: 退出は通るが、代理が残るのでルームは破棄されない
+    // Then: 名簿が空になったのでルームごと消える（代理だけが残る部屋は作らない）
     result._unsafeUnwrap();
-    expect(store.get(code)).toBeDefined();
-    expect(roomViewOf(store, timers, code).participants.map((p) => p.displayName)).toEqual(["Proxy"]);
+    expect(store.get(code)).toBeUndefined();
+    expect(timers.get(code)).toBeUndefined();
   });
 
   it("他人を退出させて自分が残る通常の退出は、ルームを破棄しない", async () => {

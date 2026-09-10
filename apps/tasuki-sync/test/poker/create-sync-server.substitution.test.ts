@@ -82,7 +82,6 @@ function nullBroadcaster(): Broadcaster {
     attach: () => undefined,
     detach: () => false,
     resetRoom: () => undefined,
-    countIn: () => 0,
     broadcastSnapshot: () => undefined,
     sendTo: () => undefined,
   };
@@ -254,9 +253,6 @@ describe('RoomStore の差し替え（上限判定を実ルームなしで再現
       resetRoom: () => {
         throw new Error('resetRoom は呼ばれないはず');
       },
-      countIn: () => {
-        throw new Error('countIn は呼ばれないはず');
-      },
       broadcastSnapshot: () => {
         throw new Error('broadcastSnapshot は呼ばれないはず');
       },
@@ -327,9 +323,6 @@ describe('RoomStore の差し替え（判定順序: 上限判定は切り離し�
       },
       resetRoom: () => {
         throw new Error('resetRoom は呼ばれないはず');
-      },
-      countIn: () => {
-        throw new Error('countIn は呼ばれないはず');
       },
       broadcastSnapshot: () => {
         throw new Error('broadcastSnapshot は呼ばれないはず');
@@ -479,9 +472,6 @@ describe('配線の穴 2: detachFromCurrentRoom の早期 return での detach �
       },
       resetRoom: () => {
         throw new Error('resetRoom は呼ばれないはず');
-      },
-      countIn: () => {
-        throw new Error('countIn は呼ばれないはず（detach 後は早期 return するはず）');
       },
       broadcastSnapshot: () => {
         throw new Error('broadcastSnapshot は呼ばれないはず（配信は行わない契約）');

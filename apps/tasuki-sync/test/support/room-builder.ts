@@ -18,6 +18,7 @@ import { InMemoryRoomStore } from "../../src/adapters/in-memory-room-store.js";
 import { InMemoryTimerStore } from "../../src/adapters/in-memory-timer-store.js";
 import { InMemoryRoundStore } from "../../src/poker/adapters/in-memory-round-store.js";
 import { createTokenStore } from "../../src/application/token-store.js";
+import { createRoomDestroyer } from "../../src/application/destroy-room.js";
 import { FakeClock } from "../../src/adapters/system-clock.js";
 import { SpyBroadcaster } from "./spy-broadcaster.js";
 import { FakeCodeGen } from "./fake-code-gen.js";
@@ -191,31 +192,6 @@ class RoomBuilder {
 }
 
 /**
- * 配線されていない `destroyRoom`（#173）。
- *
- * `HandlerDeps.destroyRoom` は**必須**である（理由はそちらの docstring）。この必須指定は
- * 長らく「テストが型検査の射程外にある」ことに依存しており、テストは渡さずに済んでいた。
- * #173 でテストを射程へ入れたので、既定をここ 1 箇所に置く。
- *
- * **`destroyRoom` を optional へ戻して型エラーを消すことはしない。** 戻すと、本番の配線
- * （`create-sync-server.ts`）から注入を外しても既定値が代わりに動き、不在タイマーの解放
- * だけが静かに失われる状態へ後退する。
- *
- * **既定を no-op にしないのは、振る舞いを静かに変えないため。** これまでテストは
- * `destroyRoom` を渡しておらず、破棄経路に入れば `undefined` が呼ばれて `TypeError` で
- * 落ちていた。no-op にするとその場面が黙って成功へ変わる。throw なら現状のままである。
- *
- * 破棄そのものを観測したいテストは {@link ./spy-destroyer.js spyDestroyer} を
- * `destroyRoom` へ渡すこと（`destroy-room.test.ts` / `solo-leave.test.ts` がそうしている）。
- */
-function unwiredDestroyRoom(roomCode: string): never {
-  throw new Error(
-    `destroyRoom がこのテストへ配線されていません（roomCode=${roomCode}）。` +
-      "破棄経路を通るなら spyDestroyer を destroyRoom へ渡してください。",
-  );
-}
-
-/**
  * makeHandlers を既定の依存（InMemoryRoomStore / FakeClock / SpyBroadcaster / FakeCodeGen）で
  * 組み立てる。`aRoom()` の内部でも使うが、ビルダーの段組みを必要としない単発のテストからも使える。
  *
@@ -234,7 +210,8 @@ function unwiredDestroyRoom(roomCode: string): never {
 export interface TestHandlerOverrides extends Partial<HandlerDeps> {
   /**
    * poker の状態（投票ラウンド）の保管。省略時は空の `InMemoryRoundStore`。
-   * **渡しても製品コードへは繋がらない**（理由は {@link TestHandlers.rounds}）。
+   * 渡したインスタンスは `createRoomDestroyer` の解放対象として製品コードへ繋がる
+   * （理由は {@link TestHandlers.rounds}）。
    */
   rounds?: InMemoryRoundStore;
 }
@@ -243,21 +220,33 @@ export interface TestHandlers extends ReturnType<typeof makeHandlers> {
   /**
    * poker の状態（投票ラウンド）の保管（#95 S4a）。
    *
-   * ⚠ **まだ何にも配線されていない。** `makeTestHandlers` が組み立てるのは timer の
-   * `makeHandlers` と `PresenceManager` だけで、timer の `HandlerDeps` に `rounds` は
-   * 無い。**このインスタンスを読み書きする製品コードの経路は 1 本も無い。**
+   * **{@link makeTestHandlers} の既定の破棄経路へ配線してある。** timer の `HandlerDeps` に
+   * `rounds` は無い（timer のハンドラはラウンドを知らない）が、ルームの寿命は
+   * ツールをまたいで 1 つなので、`createRoomDestroyer` はこの保管も解放する。
+   * したがって「破棄したら `rounds` が空である」は**テストが `put` した実体が
+   * 実際に消えたこと**を見る（配線前は誰も入れていないので常に緑だった）。
    *
-   * したがって「破棄したら `rounds` が空である」は**テストが自分で `put` し、
-   * 同じインスタンスを `createRoomDestroyer`（か `destroyRoom` の上書き）へ渡さない
-   * かぎり、常に緑になる**（誰も入れていないので最初から空である）。
-   * {@link unwiredDestroyRoom} と同じ扱いで、露出しているのは
-   * 「配線したくなったときに掴む先を 1 つに決めておく」ためだけである。
-   * 配線が入るのは `createRoomDestroyer` に `RoundStore` の解放を足す段。
+   * ⚠ **`destroyRoom` を上書きすると、この配線も一緒に外れる**（上書きした関数が
+   * 何を解放するかは上書き側の責任になる。`spyDestroyer` は自分の `rounds` を持つ）。
    */
   rounds: InMemoryRoundStore;
   /**
    * 配線された破棄経路。`makeHandlers` は依存として受け取るだけで返さないので、
-   * テストから直接叩けるようここで露出する（既定は {@link unwiredDestroyRoom}）。
+   * テストから直接叩けるようここで露出する。
+   *
+   * **既定は本物**（`createRoomDestroyer` を、このハンドラ一式と同じ store / timers /
+   * rounds / presence の上に組んだもの）である。以前は呼ばれたら throw する
+   * `unwiredDestroyRoom` を既定にしていたが、**名簿が 1 つになって寿命の規則も 1 つに
+   * なった以上、「破棄されたか」を見るテストが本番と同じ後始末を通らないほうが危うい**
+   * （throw を避けるために各テストが自前の偽物を渡し、後始末の抜けが緑のまま残る）。
+   *
+   * ⚠ **`HandlerDeps.destroyRoom` を optional へ戻して型エラーを消すことはしない。**
+   * 戻すと、本番の配線（`create-sync-server.ts`）から注入を外しても既定値が代わりに動き、
+   * 不在タイマーの解放だけが静かに失われる状態へ後退する（理由はそちらの docstring）。
+   *
+   * 後始末の**呼び出し順序**そのものを観測したいテストは
+   * {@link ./spy-destroyer.js spyDestroyer} を `destroyRoom` へ渡すこと
+   * （`destroy-room.test.ts` / `solo-leave.test.ts` がそうしている）。
    */
   destroyRoom: (roomCode: string) => void;
   /**
@@ -274,7 +263,10 @@ export function makeTestHandlers(overrides?: TestHandlerOverrides): TestHandlers
   const rounds = overrides?.rounds ?? new InMemoryRoundStore();
   const clock = overrides?.clock ?? new FakeClock(1_000_000);
   const broadcaster = overrides?.broadcaster ?? new SpyBroadcaster();
-  const destroyRoom = overrides?.destroyRoom ?? unwiredDestroyRoom;
+  // 破棄経路は本番（`create-sync-server.ts`）と同じ形で組む。handlers が destroyRoom を
+  // 要り、destroyRoom が handlers.releaseRoom と presence を要る相互依存を、後から代入する
+  // クロージャで解く（本番も同じ解き方をしている）。
+  let destroyRoom: (roomCode: string) => void;
   const handlers = makeHandlers({
     ...overrides,
     store,
@@ -283,7 +275,7 @@ export function makeTestHandlers(overrides?: TestHandlerOverrides): TestHandlers
     clock,
     broadcaster,
     codeGen: overrides?.codeGen ?? new FakeCodeGen(),
-    destroyRoom,
+    destroyRoom: (roomCode) => destroyRoom(roomCode),
   });
   const presence = new PresenceManager({
     store,
@@ -292,10 +284,23 @@ export function makeTestHandlers(overrides?: TestHandlerOverrides): TestHandlers
     clock,
     onDriverAbsence: handlers.advanceForAbsence,
   });
+  destroyRoom =
+    overrides?.destroyRoom ??
+    createRoomDestroyer({
+      store,
+      timers,
+      rounds,
+      // scheduler / delegator は `withDeps` で渡されたときだけ後始末に加わる
+      // （渡されていなければ、そもそも予約を作る主体が居ない）。
+      scheduler: overrides?.scheduler,
+      delegator: overrides?.delegator,
+      presence,
+      releaseRoom: handlers.releaseRoom,
+    });
   return {
     ...handlers,
     rounds,
-    destroyRoom,
+    destroyRoom: (roomCode: string) => destroyRoom(roomCode),
     handleDisconnect: (connId: string) => presence.handleDisconnect(connId),
   };
 }

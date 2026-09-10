@@ -31,8 +31,6 @@ export function createWsBroadcaster(): Broadcaster {
     // 空の集合を置き直すのと同じ。attach が新しい Map を作る
     resetRoom: (roomId) => void byRoom.delete(roomId),
 
-    countIn: (roomId) => byRoom.get(roomId)?.size ?? 0,
-
     broadcastSnapshot(roomId, round, participants) {
       const sockets = byRoom.get(roomId);
       if (!sockets) return;

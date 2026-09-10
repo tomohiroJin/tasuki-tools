@@ -70,26 +70,30 @@ describe('createWsBroadcaster', () => {
 
     // Then: 何もせず false を返し、新しいソケットは外れていない
     expect(detached).toBe(false);
-    expect(broadcaster.countIn('x')).toBe(1);
     broadcaster.broadcastSnapshot('x', createRound(), rosterOf('A'));
     expect(newSocket.received).toHaveLength(1);
     expect(oldSocket.received).toHaveLength(0);
   });
 
-  it('最後の 1 人を detach したあと countIn は 0 を返す', () => {
-    // detach は空になった集合を byRoom から消すため、countIn が undefined を返す実装だと
-    // `application/handlers.ts` の `countIn(roomId) === 0` が偽になり、store.remove が呼ばれずルームが残る
-    // （#165 PR-2 で見つかった「到達不能なルームが maxRooms の枠を食う」と同型の欠陥）
+  // かつてここには「最後の 1 人を detach したあと countIn は 0 を返す」があった。
+  // 守っていたのは `application/handlers.ts` の `countIn(roomId) === 0 → store.remove`
+  // （旧 FR-014 の即時破棄）で、**#95 S4a でその分岐ごと撤去した**（寿命は
+  // `application/destroy-room.ts` と `room-reclaimer` に一本化）。`countIn` は最後の
+  // 呼び出し元を失ったのでポートからも外した。
+  //
+  // ただし「最後の 1 人が外れた集合はレジストリごと消える」という**アダプタ自身の性質**は
+  // 残っている（`resetRoom` の意味に関わる）。観測を配信そのものに移して固定し直す。
+  it('最後の 1 人を detach したあと、そのルームへの配信は誰にも届かない', () => {
     // Given
     const broadcaster = createWsBroadcaster();
     const socket = recordingSocket();
-
     broadcaster.attach('x', 'A', socket);
-    expect(broadcaster.countIn('x')).toBe(1);
 
     // When
     expect(broadcaster.detach('x', 'A', socket)).toBe(true);
-    // Then
-    expect(broadcaster.countIn('x')).toBe(0);
+    broadcaster.broadcastSnapshot('x', createRound(), rosterOf('A'));
+
+    // Then: 外れたソケットへは配信されない（集合が空でも残っていると届いてしまう）
+    expect(socket.received).toHaveLength(0);
   });
 });

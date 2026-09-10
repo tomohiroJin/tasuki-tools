@@ -99,19 +99,71 @@ describe('token による復帰（契約 #8 / FR-013）', () => {
   });
 });
 
-describe('全員切断でルーム即時破棄（契約 #9 / FR-014）', () => {
-  it('全員切断後の join-room は room-not-found になる', async () => {
+/**
+ * 全員が閉じてもルームは残る（#95 S4a・R10・D8）。
+ *
+ * **旧・契約 #9（FR-014）「最後の接続が切れた瞬間にルームを破棄する」を置き換えたもの。**
+ * ここで固定していた「全員切断後の join-room は room-not-found」は、規則そのものが
+ * 変わったので**逆の主張へ書き換えた**（消していない）。ルームが消える契機は
+ * アイドル回収（TTL）と在室者 0 人の退出の 2 つだけで、規則そのものは
+ * `test/room-lifecycle.test.ts` が保管の側から固定する。
+ *
+ * **利用者から見える変更である。** 全員がタブを閉じても TTL の間はルームが残り、
+ * 戻れば票も残っている。TTL は既定 30 分なので、ここでは待たずに
+ * 「残っていること」だけを見る（TTL の経過は `room-lifecycle.test.ts` が
+ * `RoomReclaimer.sweep(now)` を直に呼んで観測する）。
+ */
+describe('全員が閉じてもルームは残る（#95 S4a・D8）', () => {
+  it('poker で全員が閉じてもルームは残り、戻ると票が残っている（D8）', async () => {
+    // Given: ひとりだけのルームで投票済み
+    const { host, joined } = await createHost();
+    host.send({ type: 'vote', card: { kind: 'number', value: 8 } });
+    const voted = (await host.nextMatching(isType('room-state'))) as RoomState;
+    expect(voted.yourVote).toEqual({ kind: 'number', value: 8 });
+
+    // When: 唯一の接続を閉じる（旧 FR-014 はこの瞬間にルームを捨てていた）
+    host.close();
+    // 切断の後始末が走り切るのを待つ。即時破棄が残っていれば、この間に消える
+    await new Promise((r) => setTimeout(r, 200));
+
+    // Then: 同じ token で戻れて、切断前の票がそのまま残っている。
+    // **判定は yourVote の値そのもので行う** ——「room-state が来た」だけなら、
+    // 新しいルームを作り直す実装でも通ってしまう
+    const revived = await WsClient.connect(server.port);
+    revived.send({
+      type: 'join-room',
+      roomId: joined.roomId,
+      name: '無視される名前',
+      token: joined.token,
+    });
+    const revivedJoined = (await revived.nextMatching(isType('joined'))) as Joined;
+    expect(revivedJoined.participantId).toBe(joined.participantId);
+    const state = (await revived.nextMatching(isType('room-state'))) as RoomState;
+    expect(state.yourVote).toEqual({ kind: 'number', value: 8 });
+    expect(state.participants).toHaveLength(1);
+
+    revived.close();
+  });
+
+  it('全員切断後でも、まったく新しい接続がそのルームへ参加できる', async () => {
+    // 上の 1 本は token 復帰の経路しか通らない。ルームが「誰にでも見えている」ことは
+    // 別に見る（旧 FR-014 では、ここが room-not-found だった）
     // Given
     const { host, joined } = await createHost();
     host.close();
-    // 破棄処理の完了を少し待つ
     await new Promise((r) => setTimeout(r, 200));
 
     // When
     const client = await WsClient.connect(server.port);
     client.send({ type: 'join-room', roomId: joined.roomId, name: 'はなこ' });
+
     // Then
-    expect(await client.next()).toMatchObject({ type: 'error', code: 'room-not-found' });
+    const guestJoined = (await client.nextMatching(isType('joined'))) as Joined;
+    expect(guestJoined.roomId).toBe(joined.roomId);
+    const state = (await client.nextMatching(isType('room-state'))) as RoomState;
+    // 切断した「たろう」は offline のまま名簿に残る（消えたのは接続だけ）
+    expect(state.participants).toHaveLength(2);
+    expect(state.participants.filter((p) => p.connected)).toHaveLength(1);
     client.close();
   });
 });
