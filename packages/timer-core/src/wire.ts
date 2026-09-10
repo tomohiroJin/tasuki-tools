@@ -74,12 +74,10 @@ export interface Room {
   passphraseProtected?: boolean;
   /** AI お題生成の解錠状態（合言葉照合済み・平文はサーバ専用 = snapshot 非混入）。 */
   aiUnlocked?: boolean;
-  /**
-   * 初めてセッションが開始された時刻（epoch ms）。
-   *
-   * ⚠ **#95 S4a でサーバーは送らなくなった。** 役割の廃止（S3）で読み手が 0 件になり、
-   * `TimerState` は値そのものを持たない。型に残しているのは wire 契約を縮めないためで
-   * （`RoomSchema` にも任意で残っている）、**新しい書き手を足さないこと**。
-   */
-  startedAt?: number | null | undefined;
 }
+
+// ⚠ かつてここには `startedAt`（初めてセッションが開始された時刻）があった。
+// 役割の廃止（#95 S3）で読み手が 0 件になり、S4a で `TimerState` から値ごと消えた。
+// 書き手も読み手も無い任意項目を型と `RoomSchema` に残しても、**宣言の側にだけ生き残る
+// 記号**になるだけなので落とした。`RoomSchema` は非 strict の `v.object` なので、
+// この項目を載せた古い snapshot のパースは今までどおり通る。

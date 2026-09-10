@@ -14,6 +14,11 @@
  * `eligible` はドライバーとして順番が回ってくるかどうか（一時離脱で false になる）。
  * かつては `Participant.driverEligible` が持っていたが、それは名簿の属性ではなく
  * 「輪の上の席の属性」なので、名簿から抜くときにここへ移した。
+ *
+ * ⚠ **`eligible` の書き手は `evolve` ではない。** `DriverSkipped` / `DriverResumed` は
+ * 集約の畳み込みでは扱わず（`evolve.ts` の該当 case を参照）、アプリ層の
+ * `apps/tasuki-sync/src/application/apply-room-level-event.ts` が席を書き換える。
+ * 席そのものを足す `ProxyMemberAdded` も同じ場所である（`MemberAdded` だけが evolve 側）。
  */
 export type RotationEntry =
   | { kind: "member"; participantId: string; eligible: boolean }

@@ -378,7 +378,8 @@ export const RoomSchema = v.object({
   problemMode: v.optional(v.picklist(["ai", "fallback"])),
   passphraseProtected: v.optional(v.boolean()),
   aiUnlocked: v.optional(v.boolean()),
-  startedAt: v.optional(v.nullable(v.number())),
+  // `startedAt` は #95 S4a で落とした（読み手 0 件・書き手 0 件）。非 strict の
+  // `v.object` なので、この項目を載せた古い snapshot も従来どおりパースできる。
 });
 
 const SnapshotMsg = v.object({

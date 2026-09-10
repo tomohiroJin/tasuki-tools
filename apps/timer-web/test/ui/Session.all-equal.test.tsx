@@ -54,7 +54,6 @@ function makeRoom(overrides?: Partial<Room>): Room {
     config,
     session: { rotation: ["p-alice", "p-carol"], driverCounts: [0, 0] },
     phase: "session",
-    startedAt: 5000,
     participants: [
       makeParticipant({ participantId: "p-alice", displayName: "Alice" }),
       makeParticipant({ participantId: "p-bob", displayName: "Bob", connId: "c2" }),
@@ -99,14 +98,10 @@ describe("#95 S3: セッションの導線は全員に出る", () => {
     expect(screen.getByRole("group", { name: "セッションを終える" })).toBeTruthy();
   });
 
-  it("開始前でも終了系ゾーンが出る（開始前だけホスト主導という段階が無くなった）", () => {
-    // Given（startedAt が無い＝一度も開始していない部屋）
-    const room = makeRoom({ startedAt: null });
-    // When
-    render(<Session room={room} participantId="p-bob" {...baseHandlers()} />);
-    // Then
-    expect(screen.getByRole("group", { name: "セッションを終える" })).toBeTruthy();
-  });
+  // かつてここに「開始前でも終了系ゾーンが出る」があった。「開始前」は `startedAt` が
+  // 無い状態としてしか表せず、#95 S4a でその項目ごと消えたため、直前の 1 本と
+  // **文字どおり同じテスト**になった（`EndSessionZone` は段階で出し分けていない）。
+  // 重複を残さず畳んである。
 
   it("部屋を作った人でなくてもランダム化が出る", () => {
     // Given（自分=Bob）
@@ -198,7 +193,7 @@ describe("#95 S3: ホストと見学者の痕跡が画面に無い", () => {
 
   it("ルームタブにもホスト移譲を出さない", () => {
     // Given
-    render(<Session room={makeRoom({ startedAt: null })} participantId="p-alice" {...baseHandlers()} />);
+    render(<Session room={makeRoom()} participantId="p-alice" {...baseHandlers()} />);
     // When
     openRoomTab();
     // Then

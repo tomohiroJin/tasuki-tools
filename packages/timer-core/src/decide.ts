@@ -10,6 +10,7 @@ import {
   MAX_MEMBERS,
   MAX_PROBLEM_REQUIREMENTS,
   nextEligibleIndex,
+  rotationEntryId,
 } from "./aggregate.js";
 import type { DomainEvent } from "./events.js";
 import type { DomainError } from "./errors.js";
@@ -276,8 +277,9 @@ function decideMemberAdd(
   }
 
   // 既にローテーションに並んでいる人は二重に並べない（連打・再送の吸収）。
-  // rotation は席の配列（#95 S4a）なので、名簿を指す席だけを突き合わせる。
-  if (agg.session.rotation.some((e) => e.kind === "member" && e.participantId === trimmed)) {
+  // rotation は席の配列（#95 S4a）なので席の識別子で突き合わせる。**代理の ID も見る**
+  // （移設前の `rotation.includes(trimmed)` と同じ範囲。`kind` で絞る理由は無い）。
+  if (agg.session.rotation.some((e) => rotationEntryId(e) === trimmed)) {
     return err({ type: "DuplicateName", name: trimmed });
   }
 

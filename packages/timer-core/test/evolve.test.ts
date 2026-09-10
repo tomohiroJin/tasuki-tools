@@ -5,7 +5,7 @@
 
 import { describe, it, expect } from "vitest";
 import { evolve, advanceDriver } from "../src/evolve.js";
-import { anAggregate, memberSeats, seatIds } from "./support/aggregate-builder.js";
+import { anAggregate, memberSeats, proxySeat, seatIds } from "./support/aggregate-builder.js";
 
 const baseAgg = anAggregate().build();
 const NOW = 1000000;
@@ -312,6 +312,30 @@ describe("evolve: ConfigSet", () => {
 });
 
 describe("evolve: MemberMoved", () => {
+  it("代理の席を移動しても席の中身は保たれる（ラベルが落ちない）", () => {
+    // Given（Bob の席が代理。名簿に居ない人が輪に並んでいる・#95 S4a D6）
+    let agg = anAggregate()
+      .withSeats(
+        { kind: "member", participantId: "Alice", eligible: true },
+        proxySeat("Bob", "同席のボブ"),
+        { kind: "member", participantId: "Charlie", eligible: true },
+      )
+      .build();
+    agg = { ...agg, session: { ...agg.session, driverCounts: [1, 2, 3], currentIndex: 1 } };
+    // When（代理の席を先頭へ動かす）
+    const next = evolve(agg, { type: "MemberMoved", fromIndex: 1, toIndex: 0, now: NOW }, NOW);
+    // Then
+    expect(seatIds(next.session.rotation)).toEqual(["Bob", "Alice", "Charlie"]);
+    expect(next.session.rotation[0]).toEqual({
+      kind: "proxy",
+      id: "Bob",
+      label: "同席のボブ",
+      eligible: true,
+    });
+    expect(next.session.driverCounts).toEqual([2, 1, 3]);
+    expect(next.session.currentIndex).toBe(0);
+  });
+
   it("メンバーを移動すると rotation と driverCounts が同じ並びで動く", () => {
     // Given
     let agg = anAggregate().build();

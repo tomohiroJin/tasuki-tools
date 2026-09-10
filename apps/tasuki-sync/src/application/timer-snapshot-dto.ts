@@ -111,7 +111,17 @@ export function buildTimerSnapshotRoom(membership: MembershipRoom, timer: TimerS
     createdAt: timer.createdAt,
     config: { ...timer.config, members: rotationDisplayNames(membership, timer) },
     problem: timer.problem,
-    session: { ...timer.session, rotation: timer.session.rotation.map(rotationEntryId) },
+    // **明示列挙にする。** スプレッド（`...timer.session`）だと、サーバー側の
+    // `SessionState` に足したフィールドが**黙って wire に載る**。ここを 5 項目で
+    // 書いておけば、増えた項目は既定で載らず、載せたい人はこの行に書き足すことになる
+    // （型が赤くなるわけではない —— 既定を「載せない」側へ倒すための書き方である）。
+    session: {
+      rotation: timer.session.rotation.map(rotationEntryId),
+      currentIndex: timer.session.currentIndex,
+      isPaused: timer.session.isPaused,
+      driverCounts: timer.session.driverCounts,
+      totalSwitches: timer.session.totalSwitches,
+    },
     clock: timer.clock,
     phase: timer.phase,
     participants: [...members, ...proxies],

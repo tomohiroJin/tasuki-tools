@@ -114,7 +114,8 @@ describe("ルームに居る全員が同格である（開始前）", () => {
     bobPid = room.participants.find((p) => p.displayName === "Bob")!.participantId;
     carolPid = room.participants.find((p) => p.displayName === "Carol")!.participantId;
     // 開始していないこと（かつて最も権限が厳しかった段階）を前提として確かめる。
-    if (room.startedAt != null) throw new Error("開始前を前提にしているが startedAt が立っている");
+    // `startedAt` は #95 S4a で消えたので、時計が走っていないことで見る。
+    if (room.clock.running) throw new Error("開始前を前提にしているが時計が走っている");
 
     broadcaster.sent.length = 0;
   });

@@ -12,7 +12,7 @@ import {
   type Aggregate,
 } from "../src/index.js";
 import type { DomainEvent } from "../src/events.js";
-import { anAggregate, seatIds } from "./support/aggregate-builder.js";
+import { anAggregate, proxySeat, seatIds } from "./support/aggregate-builder.js";
 
 const NOW = 1_000_000;
 
@@ -56,6 +56,32 @@ describe("evolve: MembersShuffled", () => {
     // Then
     expect(seatIds(next.session.rotation)).toEqual(["C", "A", "B"]);
     expect(seatIds(next.session.rotation)[next.session.currentIndex]).toBe("B");
+    expect(next.session.currentIndex).toBe(2);
+  });
+
+  it("代理の席も並べ替わり、現ドライバーが代理でも remap される", () => {
+    // Given（B は代理の席。名簿に居ない人が輪に並んでいる状態・#95 S4a D6）
+    const agg = {
+      ...anAggregate()
+        .withSeats(
+          { kind: "member", participantId: "A", eligible: true },
+          proxySeat("B", "同席のボブ"),
+          { kind: "member", participantId: "C", eligible: true },
+        )
+        .withCurrentDriver(1)
+        .build(),
+    };
+    const event: DomainEvent = { type: "MembersShuffled", order: [2, 0, 1], now: NOW };
+    // When
+    const next = evolve(agg, event, NOW);
+    // Then（代理は自分の ID で並び、現ドライバー（代理）は新インデックス 2 へ追従する）
+    expect(seatIds(next.session.rotation)).toEqual(["C", "A", "B"]);
+    expect(next.session.rotation[2]).toEqual({
+      kind: "proxy",
+      id: "B",
+      label: "同席のボブ",
+      eligible: true,
+    });
     expect(next.session.currentIndex).toBe(2);
   });
 

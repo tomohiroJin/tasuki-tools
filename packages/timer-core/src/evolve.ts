@@ -107,7 +107,13 @@ export function evolve(agg: Aggregate, event: DomainEvent, _now: number): Aggreg
     case "DriverResumed":
     case "ProblemEdited":
     case "ProblemModeSet":
-      // これらはルーム全体のフィールドに影響するが集約(session+clock)は変わらない
+      // **これらを集約の畳み込みでは扱わない**、という意味である。
+      // 「集約が変わらない」という意味ではない —— #95 S4a で `eligible` が
+      // `SessionState.rotation` の席に入り、代理も席になったので、
+      // `ProxyMemberAdded`（席と driverCounts を伸ばす）・`DriverSkipped` /
+      // `DriverResumed`（席の `eligible` を書き換える）は **`session` を変える**。
+      // その反映を持つのはアプリ層（`apps/tasuki-sync/src/application/apply-room-level-event.ts`）
+      // であって、ここではない。**`rotation` を触るのは evolve だけ、と読まないこと。**
       return agg;
   }
 }

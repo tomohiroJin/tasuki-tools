@@ -5,7 +5,7 @@
 
 import { describe, it, expect } from "vitest";
 import { decide } from "../src/decide.js";
-import { anAggregate } from "./support/aggregate-builder.js";
+import { anAggregate, proxySeat } from "./support/aggregate-builder.js";
 
 const baseAgg = anAggregate().build();
 const NOW = 1000000;
@@ -172,6 +172,25 @@ describe("decide: メンバー管理", () => {
     expect(result._unsafeUnwrapErr().type).toBe("DuplicateName");
   });
 
+  /**
+   * rotation は席の配列になり、代理も席として並ぶ。重複判定は席の識別子で行うので、
+   * 代理の ID も突き合わせの対象になる（移設前の `rotation.includes()` と同じ範囲）。
+   *
+   * @requirements #95 S4a, D6
+   */
+  it("代理の席と同じ ID は二重に並べない（席の識別子で突き合わせる）", () => {
+    // Given（輪に代理の席が 1 つある）
+    const withProxy = anAggregate()
+      .withSeats(
+        { kind: "member", participantId: "Alice", eligible: true },
+        proxySeat("pid-proxy", "同席のカルロス"),
+      )
+      .build();
+    // When / Then（代理の ID を member.add しても輪には二重に載らない）
+    const result = decide({ command: "member.add", participantId: "pid-proxy" }, withProxy, NOW);
+    expect(result._unsafeUnwrapErr().type).toBe("DuplicateName");
+  });
+
   it("10人超過はエラー（MemberLimitExceeded）", () => {
     // Given
     const tenMemberAgg = anAggregate()
@@ -274,9 +293,12 @@ describe("decide: config.set", () => {
 
   // ⚠ かつてここには `config.set` の `members` を検証する 4 本（下限・重複・上限・空名）が
   // あった。#95 S4a で `TimerConfig` から `members` が消え、**性質そのものが概念ごと
-  // 無くなった**ので落とした（設計正本 §6.5）。wire から到達しないことは、境界で
-  // members を捨てる `apps/tasuki-sync/src/application/build-domain-command.ts` と、
-  // それを固定する `apps/tasuki-sync/test/unknown-command-boundary.test.ts` 側の責務である。
+  // 無くなった**ので落とした（設計正本 §6.5）。
+  //
+  // 到達不能であることは列挙ではなく**機構**で言える: `decideConfigSet` の
+  // `validatedPartial` は**許可リスト**であり、そこに挙げた項目しか `ConfigSet` に載らない。
+  // `members` はその表に無いので、どの経路から来ても `ConfigSet` には現れない。
+  // （移設前の実測では、境界の `build-domain-command.ts` も `members` を捨てていた。）
 
   it("無効な交代間隔（4）も InvalidInterval", () => {
     const result = decide({ command: "config.set", config: { intervalMinutes: 4 as never } }, baseAgg, NOW);

@@ -99,7 +99,8 @@ export function createRoomJoinHandler(deps: RoomJoinDeps) {
         const existingParticipant = findParticipant(room, tokenData.participantId);
         if (existingParticipant) {
           const updatedRoom = attachConnection(room, tokenData.participantId, connId);
-          store.put(updatedRoom);
+          // 保管は `commit` に一本化してある（下の 1 行）。間の `sendTo` は connId 直送で
+          // ストアを引かないので、ここで先に put する必要は無い。
           broadcaster.sendTo(connId, {
             type: "snapshot",
             room: buildTimerSnapshotRoom(updatedRoom, timer),
