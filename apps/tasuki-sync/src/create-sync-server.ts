@@ -42,7 +42,6 @@ import { ProblemDelegator } from "./application/problem-delegation.js";
 import { WsAdapter } from "./adapters/ws-adapter.js";
 import { InMemoryRoomStore } from "./adapters/in-memory-room-store.js";
 import { InMemoryTimerStore } from "./adapters/in-memory-timer-store.js";
-import { buildTimerSnapshotRoom } from "./application/timer-snapshot-dto.js";
 import { SystemClock } from "./adapters/system-clock.js";
 import { NanoidCodeGen } from "./adapters/nanoid-code-gen.js";
 import { RoomReclaimer } from "./application/room-reclaimer.js";
@@ -105,18 +104,6 @@ export function createSyncServer(config: SyncConfig): SyncServer {
    */
   const tokens = createTokenStore();
 
-  /**
-   * 名簿と timer の状態を合成した wire の `Room` の一覧（#95 S4a）。
-   *
-   * 管理レポート（`buildAdminReport`）は「利用者から見えているルーム」を数えるので、
-   * 合成後の形を渡す。片方しか無いルームは（作成・破棄が対なので）通常は現れないが、
-   * 現れたら数えない。
-   */
-  const snapshotRooms = (): Room[] =>
-    store.list().flatMap((membership) => {
-      const timer = timers.get(membership.code);
-      return timer ? [buildTimerSnapshotRoom(membership, timer)] : [];
-    });
   const codeGen = new NanoidCodeGen();
   const scheduler = new Scheduler(clock);
 
@@ -332,9 +319,12 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     httpHandler: (req) =>
       handleAdminHttp(req.method, req.path, req.headers, {
         adminToken: config.adminToken,
+        // 「利用者から見えているルーム」は名簿が正本（#95 S4a）。timer の状態を持たない
+        // ルーム（poker だけのルームなど）も名簿には載るので、活動中の枠として数える。
         getReport: () =>
           buildAdminReport(
-            snapshotRooms(),
+            store.list(),
+            new Map(timers.list().map((t) => [t.code, t])),
             reclaimer.reclaimedCount,
             aiLimiter ? { today: aiLimiter.todayCount, total: aiLimiter.totalCount } : undefined,
           ),

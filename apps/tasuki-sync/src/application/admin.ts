@@ -3,7 +3,8 @@
  * ルーティング・トークン認証・レポート生成を http から切り離してテスト可能にする。
  * sync は 127.0.0.1 限定バインドのため管理面は元々非公開。ADMIN_TOKEN は多層防御。
  */
-import type { Room } from "@tasuki/timer-core";
+import type { Room as MembershipRoom } from "@tasuki/room-core";
+import type { TimerState } from "@tasuki/timer-core";
 import { constantTimeEqual } from "./secure-compare.js";
 
 /** 管理トークンを定数時間で比較する（タイミングサイドチャネル緩和）。長さ不一致は即 false。 */
@@ -26,9 +27,17 @@ export interface AdminReport {
   rooms: AdminRoomSummary[];
 }
 
-/** 現在のルーム一覧と累計回収数から運用レポートを組み立てる（純粋）。 */
+/**
+ * 名簿（利用者から見えているルームの正本）と timer の状態から運用レポートを組み立てる（純粋）。
+ *
+ * `activeRooms` は名簿の件数で数える。timer の状態を持たないルーム（例: poker だけの
+ * ルーム）も名簿には載るので、その分も枠を食っているものとして数える必要がある
+ * （`MAX_ROOMS` が数える単位と一致させる）。`hasDriver` は timer の状態を引けたときだけ
+ * `session.rotation` の有無で決め、引けなければ `false`（timer を使っていない/未開始）。
+ */
 export function buildAdminReport(
-  rooms: Room[],
+  rooms: MembershipRoom[],
+  timerStates: Map<string, TimerState>,
   reclaimedCount: number,
   aiGeneration?: { today: number; total: number },
 ): AdminReport {
@@ -36,13 +45,16 @@ export function buildAdminReport(
     activeRooms: rooms.length,
     totalReclaimed: reclaimedCount,
     ...(aiGeneration ? { aiGeneration } : {}),
-    rooms: rooms.map((r) => ({
-      code: r.code,
-      participants: r.participants.length,
-      online: r.participants.filter((p) => p.presence === "online").length,
-      hasDriver: r.session.rotation.length > 0,
-      createdAt: r.createdAt,
-    })),
+    rooms: rooms.map((r) => {
+      const timer = timerStates.get(r.code);
+      return {
+        code: r.code,
+        participants: r.participants.length,
+        online: r.participants.filter((p) => p.presence === "online").length,
+        hasDriver: timer ? timer.session.rotation.length > 0 : false,
+        createdAt: r.createdAt,
+      };
+    }),
   };
 }
 
