@@ -182,46 +182,34 @@ test.describe('poker は 2 人目の参加者が公開でき、次のラウン�
  * **名前を入れて送信して初めて**「見つかりません」に変わった。
  * いまは参加を試みる前にルームの生死を尋ねる（`RoomPage.tsx:96-101` の `check-room`）。
  *
- * ルームは最後の参加者の接続が切れた瞬間に消える（`rooms.ts` の `dropIfEmpty`）。
- * `check-room` を送っただけの訪問者は参加者ではないので、この数に入らない。
+ * かつては「ルームを作って全員が離れる」手順で消滅させていたが、ルームの寿命規則が
+ * 変わり、最後の接続が切れても即座には消えなくなった（#95 S4a。既定 30 分の TTL 回収
+ * に一本化）。ここで確かめたい性質は「消えたルームを開くと、名前を入れる前に、戻る道
+ * つきで知らされる」ことであって、寿命規則そのものではない。**実在しないルーム ID の
+ * 招待リンクを直接開く**ことで、寿命規則に依存せず同じ経路（`check-room` →
+ * `room-not-found`）を踏む。
  */
 test.describe('poker の消えたルームのリンクが行き止まりにならない', () => {
-  test('Given 招待リンクを受け取った人 / When ルームが消える / Then 名前を入れる前に、戻る道つきで知らされる', async ({
+  test('Given 実在しないルーム ID の招待リンク / When 開く / Then 名前を入れる前に、戻る道つきで知らされる', async ({
     page,
-    openPeer,
   }) => {
-    // Given: 作成者がルームを作る
-    const owner = await openPeer('poker-owner');
-    const roomUrl = await createRoom(owner.page, 'e2e-owner');
-
-    // Given の確認: **生きている間は、同じリンクから実際に参加できる。**
-    // 「参加フォームが出る」だけでなく参加の成立まで見るのは、下の判定を
-    // 空振りさせないため。**同じ選択子（`参加する`）がここで実際に働いた**ことが、
-    // あとで「参加フォームが出ない」と言える根拠になる
-    const visitor = await openPeer('poker-visitor');
-    await joinRoom(visitor.page, roomUrl, 'e2e-visitor');
-    await expect(participantRow(visitor.page, 'e2e-owner'), '生きているルームの名簿').toHaveCount(
-      1,
-    );
-
-    // When: 全員が居なくなり、ルームが消える（最後の接続が切れた瞬間に破棄される）
-    await owner.page.close();
-    await visitor.page.close();
-
-    // Then その1: 後から同じリンクを開いた人は、**名前を入れる前に**消滅を知らされる。
-    //             サーバーが close を処理し終える時点は制御できないので、
-    //             固定時間で待たずに「そうなること」を条件にして開き直す
+    // Given / When: 実在しないルーム ID の招待リンクを直接開く。
+    //               URL の形は招待パネルが生成するもの（`roomPath`）と同じ
+    //               `/poker/room/:id` を手で組み立てる（createRoom と同じく、
+    //               招待 URL の生成規則そのものはここの検証対象ではない）
     const joinButton = page.getByRole('button', { name: '参加する' });
     const gone = page.getByRole('heading', { name: 'ルームが見つかりません' });
-    await expect(async () => {
-      await page.goto(roomUrl);
-      await expect(gone).toBeVisible({ timeout: 2_000 });
-    }, 'ルームが消えたことが画面に出る').toPass({ timeout: 20_000 });
+    await page.goto('/poker/room/e2e-room-that-never-existed');
+
+    // Then その1: **名前を入れる前に**消滅（未存在）を知らされる
+    await expect(gone, 'ルームが見つからないことが画面に出る').toBeVisible();
 
     // Then その2: **戻る道がある。** これが無いと行き止まりになる
     await expect(page.getByRole('link', { name: 'トップへ戻る' }), '戻る導線').toBeVisible();
 
-    // Then その3: 参加フォームは出ない（名前を入れさせてから落胆させない）
+    // Then その3: 参加フォームは出ない（名前を入れさせてから落胆させない）。
+    //             否定のアサーションの前に、判定対象（gone の見出し）が
+    //             実際に現れていることを Then その1 で確かめてある
     await expect(joinButton, '消えたルームで参加フォームが出ている').toHaveCount(0);
   });
 });
@@ -316,11 +304,15 @@ test.describe('契約に合わない room-state を捨てたことが画面か�
  * 通す。ユニットテスト（`apps/poker-web/tests/error-frame-forward-compat.test.tsx`）は
  * フェイクの WebSocket で同じことを見ているが、**実プロトコルの `error` に本当に効くか**は
  * ここでしか分からない。
+ *
+ * 上と同じ理由（#95 S4a でルームの寿命規則が変わり、最後の接続が切れても即座には
+ * 消えなくなった）で、ここも**実在しないルーム ID の招待リンクを直接開く**形にする。
+ * `check-room` の応答（`room-not-found`）はサーバーが送る `error` フレームなので、
+ * ルームを作らなくても余剰キーの書き換えルートを同じく通る。
  */
 test.describe('poker の error に契約が知らないキーが乗っても案内が出る', () => {
-  test('Given 消えたルームの招待リンク / When error に余剰キーが乗って届く / Then それでも消滅が知らされる', async ({
+  test('Given 実在しないルーム ID の招待リンク / When error に余剰キーが乗って届く / Then それでも消滅が知らされる', async ({
     page,
-    openPeer,
   }) => {
     // Given: この接続に届く error にだけ、契約が宣言していないキーを足す。
     // **実際に足した回数を数える。** 足せていないと「案内が出た」という結果が
@@ -337,22 +329,17 @@ test.describe('poker の error に契約が知らないキーが乗っても案�
       });
     });
 
-    // Given: 作成者がルームを作り、いなくなる
-    const owner = await openPeer('poker-fc-owner');
-    const roomUrl = await createRoom(owner.page, 'e2e-fc-owner');
-    await owner.page.close();
-
-    // When / Then: 後から開いた人に、名前を入れる前に消滅が知らされる
+    // Given / When: 実在しないルーム ID の招待リンクを直接開く
     const gone = page.getByRole('heading', { name: 'ルームが見つかりません' });
-    await expect(async () => {
-      await page.goto(roomUrl);
-      await expect(gone).toBeVisible({ timeout: 2_000 });
-    }, '余剰キーが乗った error でも、消えたルームの案内が出る').toPass({ timeout: 20_000 });
+    await page.goto('/poker/room/e2e-room-that-never-existed-for-error-test');
+
+    // Then その1: 名前を入れる前に、余剰キーが乗った error でも消滅の案内が出る
+    await expect(gone, '余剰キーが乗った error でも、消えたルームの案内が出る').toBeVisible();
 
     // Then その2: **書き換え屋が実際に働いた。** 0 なら上の判定は前方互換を見ていない
     expect(augmented, '余剰キーを足した error の数').toBeGreaterThan(0);
 
-    // Then その4: 捨てていないので、捨てた告知は出ない
+    // Then その3: 捨てていないので、捨てた告知は出ない
     await expect(page.getByText(/同期できていません/)).toHaveCount(0);
   });
 });
