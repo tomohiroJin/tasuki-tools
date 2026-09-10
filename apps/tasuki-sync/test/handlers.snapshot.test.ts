@@ -6,8 +6,10 @@ import { describe, it, expect, beforeEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
 import { makeTestHandlers } from "./support/room-builder.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
+import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
+import { maybeRoomViewOf } from "./support/room-view.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 /**
@@ -15,6 +17,7 @@ import { FakeCodeGen } from "./support/fake-code-gen.js";
  */
 describe("handlers: full snapshot 配信フロー", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let clock: FakeClock;
   let codeGen: FakeCodeGen;
   let broadcaster: SpyBroadcaster;
@@ -22,10 +25,11 @@ describe("handlers: full snapshot 配信フロー", () => {
 
   beforeEach(() => {
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     clock = new FakeClock(1000000);
     codeGen = new FakeCodeGen();
     broadcaster = new SpyBroadcaster();
-    handlers = makeTestHandlers({ store, clock, broadcaster, codeGen });
+    handlers = makeTestHandlers({ store, timers, clock, broadcaster, codeGen });
   });
 
   it("コマンド処理後に全参加者へ snapshot を配信する", async () => {
@@ -66,7 +70,7 @@ describe("handlers: full snapshot 配信フロー", () => {
     });
     if (!createResult.isOk()) throw new Error("create failed");
     const code = broadcaster.createdFor("conn-001").code;
-    const room1 = store.get(code);
+    const room1 = maybeRoomViewOf(store, timers, code);
 
     // When（同じ接続から続けて 2 度 join する。room.join は名簿に足すだけで
     //       session.rotation には触らないので、輪の人数は変わらないはず）
@@ -84,7 +88,7 @@ describe("handlers: full snapshot 配信フロー", () => {
     });
 
     // Then（ルーム自体は変化しているが、不変条件は保たれている）
-    const room2 = store.get(code);
+    const room2 = maybeRoomViewOf(store, timers, code);
     expect(room2?.session.rotation.length).toBe(room1?.session.rotation.length);
   });
 });

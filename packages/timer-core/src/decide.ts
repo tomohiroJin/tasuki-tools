@@ -4,10 +4,9 @@
  */
 
 import { ok, err, type Result } from "neverthrow";
-import type { Aggregate, SessionConfig, ProblemMode } from "./aggregate.js";
+import type { Aggregate, TimerConfig, ProblemMode } from "./aggregate.js";
 import {
   VALID_INTERVAL_MINUTES,
-  MIN_MEMBERS,
   MAX_MEMBERS,
   MAX_PROBLEM_REQUIREMENTS,
   nextEligibleIndex,
@@ -30,13 +29,13 @@ type DecideCommand =
     }
   | { command: "session.complete" }
   | { command: "session.abort" }
-  | { command: "session.reset"; config?: SessionConfig }
+  | { command: "session.reset"; config?: TimerConfig }
   | { command: "member.add"; participantId: string }
   | { command: "member.remove"; index: number }
   | { command: "member.move"; fromIndex: number; toIndex: number }
   // order はサーバー（handler）が生成して渡す（wire コマンドは order を持たない）。
   | { command: "member.shuffle"; order: number[] }
-  | { command: "config.set"; config: Partial<SessionConfig> }
+  | { command: "config.set"; config: Partial<TimerConfig> }
   | { command: "phase.set"; phase: "setup" | "ready" | "session" | "celebration" }
   | { command: "handoff.note.set"; text: string }
   | { command: "break.start" }
@@ -277,7 +276,8 @@ function decideMemberAdd(
   }
 
   // 既にローテーションに並んでいる人は二重に並べない（連打・再送の吸収）。
-  if (agg.session.rotation.includes(trimmed)) {
+  // rotation は席の配列（#95 S4a）なので、名簿を指す席だけを突き合わせる。
+  if (agg.session.rotation.some((e) => e.kind === "member" && e.participantId === trimmed)) {
     return err({ type: "DuplicateName", name: trimmed });
   }
 
@@ -359,8 +359,18 @@ function decideMembersShuffle(
 
 // ─── 設定変更 ────────────────────────────────────────────────────────────────
 
+/**
+ * 設定変更を検証する。
+ *
+ * ⚠ **かつてここには `partial.members` の人数・重複・空名を見る分岐があった。**
+ * #95 S4a で `TimerConfig` から `members` が消え、型の上でも到達できなくなったので
+ * 落とした。落とす前に、wire からも到達しないことを確かめてある ——
+ * `apps/tasuki-sync/src/application/build-domain-command.ts` が `config.set` の
+ * `members` を境界で捨てているため、`BelowMinMembers` はこの経路からは返らない
+ * （破壊検証で実測。設計正本 §6.5 の「性質が概念ごと消えた」ケース）。
+ */
 function decideConfigSet(
-  partial: Partial<SessionConfig>,
+  partial: Partial<TimerConfig>,
   _agg: Aggregate,
   now: number,
 ): Result<DomainEvent[], DomainError> {
@@ -379,33 +389,11 @@ function decideConfigSet(
     }
   }
 
-  // メンバー数の検証
-  if (partial.members !== undefined) {
-    if (partial.members.length < MIN_MEMBERS) {
-      return err({ type: "BelowMinMembers", min: MIN_MEMBERS });
-    }
-    if (partial.members.length > MAX_MEMBERS) {
-      return err({ type: "MemberLimitExceeded", limit: MAX_MEMBERS });
-    }
-    // 重複チェック
-    const names = partial.members.map((m) => m.trim());
-    const uniqueNames = new Set(names);
-    if (uniqueNames.size !== names.length) {
-      const dup = names.find((n, i) => names.indexOf(n) !== i) ?? "";
-      return err({ type: "DuplicateName", name: dup });
-    }
-    // 空名チェック
-    if (names.some((n) => n.length === 0)) {
-      return err({ type: "EmptyName" });
-    }
-  }
-
   // 検証済みの部分設定のみをイベントに載せる（未指定フィールドは適用側で現状維持）。
   // language/difficulty を集約から捏造しない（集約は設定の真実源ではない）。
-  const validatedPartial: Partial<SessionConfig> = {
+  const validatedPartial: Partial<TimerConfig> = {
     ...(partial.language !== undefined && { language: partial.language }),
     ...(partial.difficulty !== undefined && { difficulty: partial.difficulty }),
-    ...(partial.members !== undefined && { members: partial.members.map((m) => m.trim()) }),
     ...(partial.intervalMinutes !== undefined && { intervalMinutes: partial.intervalMinutes }),
     ...(partial.navigatorEnabled !== undefined && { navigatorEnabled: partial.navigatorEnabled }),
     ...(partial.breakEveryRotations !== undefined && { breakEveryRotations: partial.breakEveryRotations }),

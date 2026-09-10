@@ -14,19 +14,23 @@
  */
 
 import { ok, err, type Result } from "neverthrow";
+import { errorMessageFor, type ErrorCode } from "@tasuki/timer-core";
 import {
-  errorMessageFor,
-  type Room,
-  type Participant,
-  type ErrorCode,
-} from "@tasuki/timer-core";
+  addParticipant,
+  attachConnection,
+  findParticipant,
+  type Participant as MembershipParticipant,
+} from "@tasuki/room-core";
 import type { Clock } from "../../ports/clock.js";
 import type { Broadcaster } from "../../ports/broadcaster.js";
 import type { RoomStore } from "../../ports/room-store.js";
+import type { TimerStore } from "../../ports/timer-store.js";
 import type { RoomCodeGen } from "../../ports/code-gen.js";
 import type { TokenStore } from "../token-store.js";
 import type { RateLimitGate } from "../rate-limit-gate.js";
 import { constantTimeEqual } from "../secure-compare.js";
+import { buildTimerSnapshotRoom } from "../timer-snapshot-dto.js";
+import type { RoomState } from "../apply-room-level-event.js";
 
 /** `room.join` が呼び出し元へ返す値。 */
 export interface JoinResult {
@@ -37,8 +41,11 @@ export interface JoinResult {
 
 export interface RoomJoinDeps {
   store: RoomStore;
+  timers: TimerStore;
   clock: Clock;
   broadcaster: Broadcaster;
+  /** 名簿と timer の状態を保管し、合成した snapshot を配信する（`handlers.ts`）。 */
+  commit: (state: RoomState) => void;
   codeGen: RoomCodeGen;
   tokenStore: TokenStore;
   /** room.join と ai.unlock が共有する単一インスタンス（makeHandlers で1度だけ生成）。 */
@@ -47,7 +54,7 @@ export interface RoomJoinDeps {
 }
 
 export function createRoomJoinHandler(deps: RoomJoinDeps) {
-  const { store, broadcaster, codeGen, tokenStore, rateLimitGate, sendError } = deps;
+  const { store, timers, broadcaster, commit, codeGen, tokenStore, rateLimitGate, sendError } = deps;
   const clock = deps.clock;
 
   /** ルーム参加 */
@@ -76,8 +83,9 @@ export function createRoomJoinHandler(deps: RoomJoinDeps) {
     }
 
     const room = store.get(cmd.code);
+    const timer = timers.get(cmd.code);
 
-    if (!room) {
+    if (!room || !timer) {
       // 失敗を記録（次回以降のレート判定に使う）。時刻は単調時計のほう（D8）。
       rateLimitGate.consume(connId, rateNow);
       sendError(connId, "ROOM_NOT_FOUND", "指定されたルームコードが見つかりません");
@@ -88,24 +96,15 @@ export function createRoomJoinHandler(deps: RoomJoinDeps) {
     if (cmd.resumeToken) {
       const tokenData = tokenStore.getResume(cmd.resumeToken);
       if (tokenData && tokenData.roomCode === cmd.code) {
-        const existingParticipant = room.participants.find(
-          (p) => p.participantId === tokenData.participantId,
-        );
+        const existingParticipant = findParticipant(room, tokenData.participantId);
         if (existingParticipant) {
-          const updatedRoom: Room = {
-            ...room,
-            participants: room.participants.map((p) =>
-              p.participantId === tokenData.participantId
-                ? { ...p, connId, presence: "online" }
-                : p,
-            ),
-          };
+          const updatedRoom = attachConnection(room, tokenData.participantId, connId);
           store.put(updatedRoom);
           broadcaster.sendTo(connId, {
             type: "snapshot",
-            room: updatedRoom,
+            room: buildTimerSnapshotRoom(updatedRoom, timer),
           });
-          broadcaster.broadcastSnapshot(cmd.code, updatedRoom);
+          commit({ membership: updatedRoom, timer });
           return ok({
             code: cmd.code,
             participantId: tokenData.participantId,
@@ -146,21 +145,21 @@ export function createRoomJoinHandler(deps: RoomJoinDeps) {
     const participantId = codeGen.generateParticipantId();
     const resumeToken = codeGen.generateResumeToken();
 
-    const newParticipant: Participant = {
-      participantId,
+    const newParticipant: MembershipParticipant = {
+      id: participantId,
       connId,
       displayName: cmd.displayName,
       presence: "online",
-      hasAiKey: cmd.hasAiKey,
       joinedAt: now,
     };
 
-    const updatedRoom: Room = {
-      ...room,
-      participants: [...room.participants, newParticipant],
-    };
+    const updatedRoom = addParticipant(room, newParticipant);
+    // AI 鍵の有無は**名簿ではなく timer の状態**が持つ（#95 S4a）。
+    // 「その人が誰か」ではなく「その人が timer で何をできるか」だからである。
+    const updatedTimer = cmd.hasAiKey
+      ? { ...timer, aiKeyHolders: [...timer.aiKeyHolders, participantId] }
+      : timer;
 
-    store.put(updatedRoom);
     tokenStore.issueResume(resumeToken, { participantId, roomCode: cmd.code });
 
     broadcaster.sendTo(connId, {
@@ -171,10 +170,10 @@ export function createRoomJoinHandler(deps: RoomJoinDeps) {
 
     broadcaster.sendTo(connId, {
       type: "snapshot",
-      room: updatedRoom,
+      room: buildTimerSnapshotRoom(updatedRoom, updatedTimer),
     });
 
-    broadcaster.broadcastSnapshot(cmd.code, updatedRoom);
+    commit({ membership: updatedRoom, timer: updatedTimer });
 
     return ok({ code: cmd.code, participantId, resumeToken });
   };

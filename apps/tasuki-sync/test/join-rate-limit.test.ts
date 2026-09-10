@@ -26,6 +26,7 @@ import { DEFAULT_CAPACITY } from "@tasuki/rate-limit";
 import { makeHandlers } from "../src/application/handlers.js";
 import { makeTestHandlers } from "./support/room-builder.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
+import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
@@ -42,13 +43,16 @@ describe("入室失敗のレート制限", () => {
   let handlers: ReturnType<typeof makeHandlers>;
   let broadcaster: SpyBroadcaster;
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   const conn = "spam-conn";
 
   beforeEach(() => {
     broadcaster = new SpyBroadcaster();
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     handlers = makeTestHandlers({
       store,
+      timers,
       clock: new FakeClock(1_000_000),
       broadcaster,
       codeGen: new FakeCodeGen(),
@@ -171,6 +175,7 @@ describe("入室失敗のレート制限", () => {
  */
 describe("room.join と ai.unlock のレート制限バケツの共有", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let clock: FakeClock;
   let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
@@ -178,10 +183,12 @@ describe("room.join と ai.unlock のレート制限バケツの共有", () => {
 
   beforeEach(() => {
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     clock = new FakeClock(1_000_000);
     broadcaster = new SpyBroadcaster();
     handlers = makeTestHandlers({
       store,
+      timers,
       clock,
       broadcaster,
       codeGen: new FakeCodeGen(),

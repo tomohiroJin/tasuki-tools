@@ -13,7 +13,9 @@
  */
 
 import { makeHandlers, type HandlerDeps } from "../../src/application/handlers.js";
+import { PresenceManager } from "../../src/application/presence.js";
 import { InMemoryRoomStore } from "../../src/adapters/in-memory-room-store.js";
+import { InMemoryTimerStore } from "../../src/adapters/in-memory-timer-store.js";
 import { FakeClock } from "../../src/adapters/system-clock.js";
 import { SpyBroadcaster } from "./spy-broadcaster.js";
 import { FakeCodeGen } from "./fake-code-gen.js";
@@ -37,8 +39,11 @@ const CREATOR_CONN = "host-conn";
 const CREATOR_NAME = "Host";
 
 export interface BuiltRoom {
-  handlers: ReturnType<typeof makeHandlers>;
+  handlers: TestHandlers;
+  /** 名簿の保管（#95 S4a）。 */
   store: InMemoryRoomStore;
+  /** timer の状態の保管（#95 S4a）。名簿とは `code` で対になる。 */
+  timers: InMemoryTimerStore;
   broadcaster: SpyBroadcaster;
   /** 作成されたルームコード */
   code: string;
@@ -90,6 +95,7 @@ class RoomBuilder {
 
   async build(): Promise<BuiltRoom> {
     const store = new InMemoryRoomStore();
+    const timers = new InMemoryTimerStore();
     const broadcaster = new SpyBroadcaster();
     // ビルダーは配信メッセージ（room.created / room.joined）から participantId 等を取るため、
     // broadcaster を差し替えられると前提を組み立てられない。BuiltRoom.broadcaster も
@@ -97,7 +103,7 @@ class RoomBuilder {
     if (this.depsOverrides.broadcaster !== undefined) {
       throw new RoomBuildError("withDeps({ broadcaster }) は差し替えできない");
     }
-    const handlers = makeTestHandlers({ store, broadcaster, ...this.depsOverrides });
+    const handlers = makeTestHandlers({ store, timers, broadcaster, ...this.depsOverrides });
 
     const ids: Record<string, string> = {};
 
@@ -178,7 +184,7 @@ class RoomBuilder {
       }
     }
 
-    return { handlers, store, broadcaster, code, ids };
+    return { handlers, store, timers, broadcaster, code, ids };
   }
 }
 
@@ -215,15 +221,45 @@ function unwiredDestroyRoom(roomCode: string): never {
  * `Partial<HandlerDeps>` を展開しても必須キーが欠けないことが型で保証される
  * （既定値の選び方は変わっていない —— どのキーも `overrides?.x ?? 既定` である）。
  */
-export function makeTestHandlers(
-  overrides?: Partial<HandlerDeps>,
-): ReturnType<typeof makeHandlers> {
-  return makeHandlers({
+export interface TestHandlers extends ReturnType<typeof makeHandlers> {
+  /**
+   * 配線された破棄経路。`makeHandlers` は依存として受け取るだけで返さないので、
+   * テストから直接叩けるようここで露出する（既定は {@link unwiredDestroyRoom}）。
+   */
+  destroyRoom: (roomCode: string) => void;
+  /**
+   * 切断の後始末（`PresenceManager.handleDisconnect`）。本番の配線
+   * （`create-sync-server.ts`）と同じく、同じ store / timers / broadcaster / clock の上に
+   * 組み立てた 1 個のインスタンスを使う。
+   */
+  handleDisconnect: (connId: string) => void;
+}
+
+export function makeTestHandlers(overrides?: Partial<HandlerDeps>): TestHandlers {
+  const store = overrides?.store ?? new InMemoryRoomStore();
+  const timers = overrides?.timers ?? new InMemoryTimerStore();
+  const clock = overrides?.clock ?? new FakeClock(1_000_000);
+  const broadcaster = overrides?.broadcaster ?? new SpyBroadcaster();
+  const destroyRoom = overrides?.destroyRoom ?? unwiredDestroyRoom;
+  const handlers = makeHandlers({
     ...overrides,
-    store: overrides?.store ?? new InMemoryRoomStore(),
-    clock: overrides?.clock ?? new FakeClock(1_000_000),
-    broadcaster: overrides?.broadcaster ?? new SpyBroadcaster(),
+    store,
+    timers,
+    clock,
+    broadcaster,
     codeGen: overrides?.codeGen ?? new FakeCodeGen(),
-    destroyRoom: overrides?.destroyRoom ?? unwiredDestroyRoom,
+    destroyRoom,
   });
+  const presence = new PresenceManager({
+    store,
+    timers,
+    broadcaster,
+    clock,
+    onDriverAbsence: handlers.advanceForAbsence,
+  });
+  return {
+    ...handlers,
+    destroyRoom,
+    handleDisconnect: (connId: string) => presence.handleDisconnect(connId),
+  };
 }

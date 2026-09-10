@@ -15,21 +15,21 @@
  */
 
 import { ok, err, type Result } from "neverthrow";
-import { errorMessageFor, type Room, type Participant, type ErrorCode } from "@tasuki/timer-core";
-import type { Broadcaster } from "../../ports/broadcaster.js";
-import type { RoomStore } from "../../ports/room-store.js";
+import { errorMessageFor, type ErrorCode } from "@tasuki/timer-core";
+import type { Participant as MembershipParticipant } from "@tasuki/room-core";
 import type { RateLimitGate } from "../rate-limit-gate.js";
 import { constantTimeEqual } from "../secure-compare.js";
+import type { RoomState } from "../apply-room-level-event.js";
 
 /** `handleRoomCommand` が事前に解決済みの在室ルームと実行者。 */
 export interface AiUnlockContext {
-  room: Room;
-  actor: Participant;
+  state: RoomState;
+  actor: MembershipParticipant;
 }
 
 export interface AiUnlockDeps {
-  store: RoomStore;
-  broadcaster: Broadcaster;
+  /** 名簿と timer の状態を保管し、合成した snapshot を配信する（`handlers.ts`）。 */
+  commit: (state: RoomState) => void;
   /** room.join と共有する単一インスタンス（makeHandlers で1度だけ生成）。 */
   rateLimitGate: RateLimitGate;
   /** AI 解錠合言葉。undefined なら AI 機能は無効（解錠は常に失敗＝存在秘匿）。 */
@@ -38,10 +38,10 @@ export interface AiUnlockDeps {
 }
 
 export function createAiUnlockHandler(deps: AiUnlockDeps) {
-  const { store, broadcaster, rateLimitGate, aiUnlockKey, sendError } = deps;
+  const { commit, rateLimitGate, aiUnlockKey, sendError } = deps;
 
   /** AI お題生成を合言葉で解錠する（在室者なら誰でも。#95 S3 以前は host 限定だった）。
-   *  合言葉はサーバ env（AI_UNLOCK_KEY）のみに存在し、Room には aiUnlocked(boolean) だけ反映。
+   *  合言葉はサーバ env（AI_UNLOCK_KEY）のみに存在し、timer の状態には aiUnlocked(boolean) だけ反映。
    *  未設定（機能無効）でも不一致と同じ AI_UNLOCK_FAILED を返し、機能の存在を秘匿する。
    *  失敗は join と同じレート制限バケツ（rateLimitGate・共有インスタンス）に積算する（総当たり対策）。 */
   return async function handleAiUnlock(
@@ -49,7 +49,7 @@ export function createAiUnlockHandler(deps: AiUnlockDeps) {
     ctx: AiUnlockContext,
     cmd: { command: "ai.unlock"; key: string },
   ): Promise<Result<undefined, ErrorCode>> {
-    const { room } = ctx;
+    const { membership, timer } = ctx.state;
 
     // 合言葉の照合より前に判定する（join と同じバケツを共有）。
     // rateNow は単調時計（設計正本 D8）。ルームの会計に使う clock.now()（壁時計）とは
@@ -71,9 +71,7 @@ export function createAiUnlockHandler(deps: AiUnlockDeps) {
       return err("AI_UNLOCK_FAILED");
     }
 
-    const updatedRoom: Room = { ...room, aiUnlocked: true, problemMode: "ai" };
-    store.put(updatedRoom);
-    broadcaster.broadcastSnapshot(updatedRoom.code, updatedRoom);
+    commit({ membership, timer: { ...timer, aiUnlocked: true, problemMode: "ai" } });
 
     return ok(undefined);
   };

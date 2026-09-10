@@ -7,8 +7,10 @@ import { describe, it, expect, beforeEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
 import { makeTestHandlers } from "./support/room-builder.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
+import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
+import { maybeRoomViewOf } from "./support/room-view.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 /**
@@ -16,6 +18,7 @@ import { FakeCodeGen } from "./support/fake-code-gen.js";
  */
 describe("room.passphrase.set", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
   let roomCode: string;
@@ -24,9 +27,11 @@ describe("room.passphrase.set", () => {
 
   beforeEach(async () => {
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     broadcaster = new SpyBroadcaster();
     handlers = makeTestHandlers({
       store,
+      timers,
       clock: new FakeClock(1000000),
       broadcaster,
       codeGen: new FakeCodeGen(),
@@ -50,9 +55,9 @@ describe("room.passphrase.set", () => {
 
     // Then
     res._unsafeUnwrap();
-    expect(store.get(roomCode)?.passphraseProtected).toBe(true);
+    expect(maybeRoomViewOf(store, timers, roomCode)?.passphraseProtected).toBe(true);
     // 平文 "secret" が Room（snapshot 対象）に混入していないこと
-    expect(JSON.stringify(store.get(roomCode))).not.toContain("secret");
+    expect(JSON.stringify(maybeRoomViewOf(store, timers, roomCode))).not.toContain("secret");
   });
 
   it("空文字で解除でき passphraseProtected が false", async () => {
@@ -61,7 +66,7 @@ describe("room.passphrase.set", () => {
       command: "room.passphrase.set",
       passphrase: "secret",
     });
-    expect(store.get(roomCode)?.passphraseProtected).toBe(true);
+    expect(maybeRoomViewOf(store, timers, roomCode)?.passphraseProtected).toBe(true);
 
     // When
     const res = await handlers.handleCommand(hostConn, {
@@ -71,7 +76,7 @@ describe("room.passphrase.set", () => {
 
     // Then
     res._unsafeUnwrap();
-    expect(store.get(roomCode)?.passphraseProtected).toBe(false);
+    expect(maybeRoomViewOf(store, timers, roomCode)?.passphraseProtected).toBe(false);
   });
 
   // #95 S3 以前は「ホスト以外のパスフレーズ設定は UNAUTHORIZED で拒否」だった。
@@ -94,7 +99,7 @@ describe("room.passphrase.set", () => {
     // Then
     result._unsafeUnwrap();
     expect(broadcaster.errorsTo(guestConn)).toEqual([]);
-    expect(store.get(roomCode)?.passphraseProtected).toBe(true);
+    expect(maybeRoomViewOf(store, timers, roomCode)?.passphraseProtected).toBe(true);
   });
 });
 
@@ -103,6 +108,7 @@ describe("room.passphrase.set", () => {
  */
 describe("room.join のパスフレーズ検証", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
   let roomCode: string;
@@ -111,9 +117,11 @@ describe("room.join のパスフレーズ検証", () => {
 
   beforeEach(async () => {
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     broadcaster = new SpyBroadcaster();
     handlers = makeTestHandlers({
       store,
+      timers,
       clock: new FakeClock(1000000),
       broadcaster,
       codeGen: new FakeCodeGen(),
@@ -134,7 +142,7 @@ describe("room.join のパスフレーズ検証", () => {
       command: "room.passphrase.set",
       passphrase: "secret",
     });
-    const before = store.get(roomCode)?.participants.length ?? 0;
+    const before = maybeRoomViewOf(store, timers, roomCode)?.participants.length ?? 0;
 
     // When
     const res = await handlers.handleCommand(joinerConn, {
@@ -147,7 +155,7 @@ describe("room.join のパスフレーズ検証", () => {
 
     // Then（参加者が1名増えている）
     res._unsafeUnwrap();
-    expect(store.get(roomCode)?.participants.length).toBe(before + 1);
+    expect(maybeRoomViewOf(store, timers, roomCode)?.participants.length).toBe(before + 1);
   });
 
   it("パスフレーズ未提供は PASSPHRASE_REQUIRED で拒否（参加者数不変）", async () => {
@@ -156,7 +164,7 @@ describe("room.join のパスフレーズ検証", () => {
       command: "room.passphrase.set",
       passphrase: "secret",
     });
-    const before = store.get(roomCode)?.participants.length ?? 0;
+    const before = maybeRoomViewOf(store, timers, roomCode)?.participants.length ?? 0;
 
     // When
     await handlers.handleCommand(joinerConn, {
@@ -169,7 +177,7 @@ describe("room.join のパスフレーズ検証", () => {
     // Then
     expect(broadcaster.errorsTo(joinerConn).at(-1)?.code).toBe("PASSPHRASE_REQUIRED");
     // 参加者数は変化しない
-    expect(store.get(roomCode)?.participants.length).toBe(before);
+    expect(maybeRoomViewOf(store, timers, roomCode)?.participants.length).toBe(before);
   });
 
   it("パスフレーズ不一致は PASSPHRASE_MISMATCH で拒否（参加者数不変）", async () => {
@@ -178,7 +186,7 @@ describe("room.join のパスフレーズ検証", () => {
       command: "room.passphrase.set",
       passphrase: "secret",
     });
-    const before = store.get(roomCode)?.participants.length ?? 0;
+    const before = maybeRoomViewOf(store, timers, roomCode)?.participants.length ?? 0;
 
     // When
     await handlers.handleCommand(joinerConn, {
@@ -192,12 +200,12 @@ describe("room.join のパスフレーズ検証", () => {
     // Then
     expect(broadcaster.errorsTo(joinerConn).at(-1)?.code).toBe("PASSPHRASE_MISMATCH");
     // 参加者数は変化しない
-    expect(store.get(roomCode)?.participants.length).toBe(before);
+    expect(maybeRoomViewOf(store, timers, roomCode)?.participants.length).toBe(before);
   });
 
   it("パスフレーズ未設定ルームは passphrase なしで従来どおり参加できる（後方互換）", async () => {
     // Given
-    const before = store.get(roomCode)?.participants.length ?? 0;
+    const before = maybeRoomViewOf(store, timers, roomCode)?.participants.length ?? 0;
 
     // When
     const res = await handlers.handleCommand(joinerConn, {
@@ -209,7 +217,7 @@ describe("room.join のパスフレーズ検証", () => {
 
     // Then
     res._unsafeUnwrap();
-    expect(store.get(roomCode)?.participants.length).toBe(before + 1);
+    expect(maybeRoomViewOf(store, timers, roomCode)?.participants.length).toBe(before + 1);
   });
 
   it("正規化: 設定側の前後空白は無視され、trim 後一致で参加できる", async () => {
@@ -218,7 +226,7 @@ describe("room.join のパスフレーズ検証", () => {
       command: "room.passphrase.set",
       passphrase: "secret ",
     });
-    const before = store.get(roomCode)?.participants.length ?? 0;
+    const before = maybeRoomViewOf(store, timers, roomCode)?.participants.length ?? 0;
 
     // When（参加側は空白なしの "secret"）
     const res = await handlers.handleCommand(joinerConn, {
@@ -231,7 +239,7 @@ describe("room.join のパスフレーズ検証", () => {
 
     // Then（trim 比較で一致して参加できる）
     res._unsafeUnwrap();
-    expect(store.get(roomCode)?.participants.length).toBe(before + 1);
+    expect(maybeRoomViewOf(store, timers, roomCode)?.participants.length).toBe(before + 1);
   });
 
   it("resume（再接続）はパスフレーズ不要で成功する（再認証されない）", async () => {

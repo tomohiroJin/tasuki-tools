@@ -8,13 +8,15 @@
  */
 
 import { ok, err, type Result } from "neverthrow";
-import { errorMessageFor, type Room, type Participant, type ErrorCode } from "@tasuki/timer-core";
+import { errorMessageFor, type ErrorCode } from "@tasuki/timer-core";
+import type { Participant as MembershipParticipant } from "@tasuki/room-core";
 import type { ProblemDelegator } from "../problem-delegation.js";
+import type { RoomState } from "../apply-room-level-event.js";
 
 /** `handleRoomCommand` が事前に解決済みの在室ルームと実行者。 */
 export interface ProblemRequestContext {
-  room: Room;
-  actor: Participant;
+  state: RoomState;
+  actor: MembershipParticipant;
 }
 
 export interface ProblemRequestDeps {
@@ -31,7 +33,7 @@ export function createProblemRequestHandler(deps: ProblemRequestDeps) {
     ctx: ProblemRequestContext,
     cmd: { command: "problem.request"; requestId: string },
   ): Promise<Result<undefined, ErrorCode>> {
-    const { room } = ctx;
+    const { timer } = ctx.state;
 
     if (!delegator) {
       sendError(connId, "DELEGATION_UNAVAILABLE", errorMessageFor("DELEGATION_UNAVAILABLE"));
@@ -39,7 +41,7 @@ export function createProblemRequestHandler(deps: ProblemRequestDeps) {
     }
 
     // リロール時は旧依頼をキャンセルしてから再委譲する（FR-027）
-    delegator.request(room.code, cmd.requestId);
+    delegator.request(timer.code, cmd.requestId);
 
     return ok(undefined);
   };

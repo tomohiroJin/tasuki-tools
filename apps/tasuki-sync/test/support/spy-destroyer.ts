@@ -2,9 +2,9 @@
  * spyDestroyer — 後始末の呼び出しを記録するルーム破棄経路（Issue #79）
  *
  * `server.ts` が本番で組み立てるのと同じ `createRoomDestroyer` に、記録だけを行う
- * スケジューラ・委譲・presence・トークン解放を差した破棄経路を返す。ストアだけは
- * 本物を渡すので、「後始末が全部呼ばれたか」と「ルームが実際に消えたか」を
- * 同じ 1 つの経路で観測できる。
+ * スケジューラ・委譲・presence・トークン解放を差した破棄経路を返す。ストア（名簿と
+ * timer の状態の 2 つ・#95 S4a）だけは本物を渡すので、「後始末が全部呼ばれたか」と
+ * 「ルームが実際に消えたか」を同じ 1 つの経路で観測できる。
  *
  * 記録は `"scheduler.clear:CODE"` のような文字列にする。**順序も含めて**
  * `toEqual` で固定したいので、呼ばれた種類と対象コードを 1 本の並びで持つ。
@@ -16,6 +16,7 @@
 
 import { createRoomDestroyer } from "../../src/application/destroy-room.js";
 import type { InMemoryRoomStore } from "../../src/adapters/in-memory-room-store.js";
+import type { InMemoryTimerStore } from "../../src/adapters/in-memory-timer-store.js";
 
 export interface SpyDestroyer {
   /** ルームを破棄する（`createRoomDestroyer` の戻り値そのもの）。 */
@@ -24,10 +25,11 @@ export interface SpyDestroyer {
   calls: string[];
 }
 
-export function spyDestroyer(store: InMemoryRoomStore): SpyDestroyer {
+export function spyDestroyer(store: InMemoryRoomStore, timers: InMemoryTimerStore): SpyDestroyer {
   const calls: string[] = [];
   const destroy = createRoomDestroyer({
     store,
+    timers,
     scheduler: { clear: (c) => calls.push(`scheduler.clear:${c}`) },
     delegator: { cancel: (c) => calls.push(`delegator.cancel:${c}`) },
     presence: { clearRoomTimers: (c) => calls.push(`presence.clearRoomTimers:${c}`) },

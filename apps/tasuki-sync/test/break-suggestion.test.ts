@@ -14,6 +14,7 @@ import { makeHandlers } from "../src/application/handlers.js";
 import { makeTestHandlers } from "./support/room-builder.js";
 import { Scheduler } from "../src/application/schedule.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
+import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { SessionConfig } from "@tasuki/timer-core";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
@@ -29,6 +30,7 @@ function suggestBreakCount(spy: SpyBroadcaster): number {
 
 describe("休憩提案シグナル撤去（v2.10・§9.1）", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let broadcaster: SpyBroadcaster;
   let clock: FakeClock;
   let scheduler: Scheduler;
@@ -38,10 +40,11 @@ describe("休憩提案シグナル撤去（v2.10・§9.1）", () => {
 
   async function setup(config: Partial<SessionConfig>) {
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     broadcaster = new SpyBroadcaster();
     clock = new FakeClock(1_000_000);
     scheduler = new Scheduler(clock);
-    handlers = makeTestHandlers({ store, clock, broadcaster, codeGen: new FakeCodeGen(), scheduler });
+    handlers = makeTestHandlers({ store, timers, clock, broadcaster, codeGen: new FakeCodeGen(), scheduler });
 
     const created = await handlers.handleCommand(hostConn, {
       command: "room.create",

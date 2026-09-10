@@ -7,13 +7,16 @@
 import { describe, it, expect, beforeEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
+import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
+import { maybeRoomViewOf } from "./support/room-view.js";
 import { aRoom, makeTestHandlers } from "./support/room-builder.js";
 
 describe("handlers: room.create", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let clock: FakeClock;
   let codeGen: FakeCodeGen;
   let broadcaster: SpyBroadcaster;
@@ -21,10 +24,11 @@ describe("handlers: room.create", () => {
 
   beforeEach(() => {
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     clock = new FakeClock(1000000);
     codeGen = new FakeCodeGen();
     broadcaster = new SpyBroadcaster();
-    handlers = makeTestHandlers({ store, clock, broadcaster, codeGen });
+    handlers = makeTestHandlers({ store, timers, clock, broadcaster, codeGen });
   });
 
   it("ルームを作成すると一意のルームコードが発行される", async () => {
@@ -50,7 +54,7 @@ describe("handlers: room.create", () => {
 
     // Then
     const value = broadcaster.createdFor("conn-001");
-    const room = store.get(value.code);
+    const room = maybeRoomViewOf(store, timers, value.code);
     expect(room).toBeTruthy();
     const creator = room?.participants.find(
       (p) => p.participantId === value.participantId,
@@ -82,6 +86,7 @@ describe("handlers: room.create", () => {
 
 describe("handlers: room.create — maxRooms 上限", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let clock: FakeClock;
   let codeGen: FakeCodeGen;
   let broadcaster: SpyBroadcaster;
@@ -89,11 +94,12 @@ describe("handlers: room.create — maxRooms 上限", () => {
 
   beforeEach(() => {
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     clock = new FakeClock(1000000);
     codeGen = new FakeCodeGen();
     broadcaster = new SpyBroadcaster();
     // maxRooms: 1 で上限を1に設定
-    handlers = makeTestHandlers({ store, clock, broadcaster, codeGen, maxRooms: 1 });
+    handlers = makeTestHandlers({ store, timers, clock, broadcaster, codeGen, maxRooms: 1 });
   });
 
   it("maxRooms に達すると次の room.create は ROOM_LIMIT_EXCEEDED で失敗する", async () => {
@@ -154,8 +160,9 @@ describe("handlers: releaseRoom", () => {
   it("releaseRoom 後はリジュームトークンが無効化され、再参加が新規参加者として扱われる", async () => {
     // Given
     const store = new InMemoryRoomStore();
+    const timers = new InMemoryTimerStore();
     const broadcaster = new SpyBroadcaster();
-    const handlers = makeTestHandlers({ store, broadcaster });
+    const handlers = makeTestHandlers({ store, timers, broadcaster });
     const created = await handlers.handleCommand("conn-001", {
       command: "room.create",
       displayName: "Alice",
@@ -243,7 +250,7 @@ describe("handlers: room.join", () => {
     });
 
     // Then
-    const stored = room.store.get(room.code);
+    const stored = maybeRoomViewOf(room.store, room.timers, room.code);
     const bob = stored?.participants.find((p) => p.displayName === "Bob");
     expect(bob?.connId).toBe("conn-002");
     expect(bob?.presence).toBe("online");

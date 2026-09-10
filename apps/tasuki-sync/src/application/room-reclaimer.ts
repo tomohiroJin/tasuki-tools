@@ -1,6 +1,9 @@
 /**
  * アイドル回収 — 全参加者が offline のまま TTL を超えたルームを削除する（DoS 緩和・FR M4-lite）。
  * presence にフックせず、ストアを定期 sweep で観測する自己完結方式（結合最小）。
+ *
+ * 観測するのは**名簿だけ**である（#95 S4a）。代理は名簿に居らず常に offline なので、
+ * 代理の有無で判定は変わらない（S4a 以前も `presence === "offline"` で同じ結果だった）。
  */
 
 import type { RoomStore } from "../ports/room-store.js";

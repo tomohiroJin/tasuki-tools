@@ -13,11 +13,13 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from "bun:test";
 import { ProblemDelegator } from "../src/application/problem-delegation.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
+import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { AiLimiter } from "../src/application/ai-limits.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { Room } from "@tasuki/timer-core";
 import type { ServerProblemProvider } from "../src/ports/server-problem-provider.js";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
+import { putRoomView, maybeRoomViewOf } from "./support/room-view.js";
 import { testLogger, testRefEncoder } from "./support/test-logger.js";
 
 /** AI 生成で返す有効なお題のフィクスチャ */
@@ -108,12 +110,14 @@ async function flushMicrotasks(): Promise<void> {
  */
 describe("ProblemDelegator サーバ生成", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let clock: FakeClock;
   let broadcaster: SpyBroadcaster;
 
   beforeEach(() => {
     jest.useFakeTimers();
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     clock = new FakeClock(Date.now());
     broadcaster = new SpyBroadcaster();
   });
@@ -135,6 +139,7 @@ describe("ProblemDelegator サーバ生成", () => {
     });
     const delegator = new ProblemDelegator({
       store,
+      timers,
       clock,
       broadcaster,
       serverProvider: provider,
@@ -142,14 +147,14 @@ describe("ProblemDelegator サーバ生成", () => {
       logger: testLogger,
       refEncoder: testRefEncoder,
     });
-    store.put(makeRoom());
+    putRoomView(store, timers, makeRoom());
 
     // When
     delegator.request("AI01", "req-1");
     await runAllTimersAsync();
 
     // Then
-    const room = store.get("AI01");
+    const room = maybeRoomViewOf(store, timers, "AI01");
     expect(room?.problem?.title).toBe("Generated Kata");
     expect(room?.problem?.source).toBe("ai");
     expect(broadcaster.snapshots.some((s) => s.roomCode === "AI01")).toBe(true);
@@ -168,6 +173,7 @@ describe("ProblemDelegator サーバ生成", () => {
     });
     const delegator = new ProblemDelegator({
       store,
+      timers,
       clock,
       broadcaster,
       serverProvider: provider,
@@ -175,14 +181,14 @@ describe("ProblemDelegator サーバ生成", () => {
       logger: testLogger,
       refEncoder: testRefEncoder,
     });
-    store.put(makeRoom());
+    putRoomView(store, timers, makeRoom());
 
     // When
     delegator.request("AI01", "req-1");
     await runAllTimersAsync();
 
     // Then: お題は非 null かつ AI 生成ではない（定型）
-    const room = store.get("AI01");
+    const room = maybeRoomViewOf(store, timers, "AI01");
     expect(room?.problem).not.toBeNull();
     expect(room?.problem?.source).not.toBe("ai");
   });
@@ -200,6 +206,7 @@ describe("ProblemDelegator サーバ生成", () => {
     });
     const delegator = new ProblemDelegator({
       store,
+      timers,
       clock,
       broadcaster,
       serverProvider: provider,
@@ -207,14 +214,14 @@ describe("ProblemDelegator サーバ生成", () => {
       logger: testLogger,
       refEncoder: testRefEncoder,
     });
-    store.put(makeRoom());
+    putRoomView(store, timers, makeRoom());
 
     // When
     delegator.request("AI01", "req-1");
     await runAllTimersAsync();
 
     // Then: 定型へ縮退（source は ai でない）
-    const room = store.get("AI01");
+    const room = maybeRoomViewOf(store, timers, "AI01");
     expect(room?.problem).not.toBeNull();
     expect(room?.problem?.source).not.toBe("ai");
   });
@@ -240,6 +247,7 @@ describe("ProblemDelegator サーバ生成", () => {
     });
     const delegator = new ProblemDelegator({
       store,
+      timers,
       clock,
       broadcaster,
       serverProvider: provider,
@@ -249,7 +257,7 @@ describe("ProblemDelegator サーバ生成", () => {
       refEncoder: testRefEncoder,
     });
     // hasAiKey=false にして縮退後のクライアント委譲で即・定型確定されるようにする
-    store.put(makeRoom({
+    putRoomView(store, timers, makeRoom({
       participants: [{
         participantId: "host",
         connId: "host-conn",
@@ -265,7 +273,7 @@ describe("ProblemDelegator サーバ生成", () => {
     await advanceTimersByTimeAsync(60_001);
 
     // Then: 定型へ縮退
-    const room = store.get("AI01");
+    const room = maybeRoomViewOf(store, timers, "AI01");
     expect(room?.problem).not.toBeNull();
     expect(room?.problem?.source).not.toBe("ai");
   });
@@ -295,6 +303,7 @@ describe("ProblemDelegator サーバ生成", () => {
     });
     const delegator = new ProblemDelegator({
       store,
+      timers,
       clock,
       broadcaster,
       serverProvider: provider,
@@ -302,7 +311,7 @@ describe("ProblemDelegator サーバ生成", () => {
       logger: testLogger,
       refEncoder: testRefEncoder,
     });
-    store.put(makeRoom());
+    putRoomView(store, timers, makeRoom());
 
     // When: 1回目 request → リロール（2回目 request）→ 旧 Promise を resolve
     delegator.request("AI01", "req-1");
@@ -316,7 +325,7 @@ describe("ProblemDelegator サーバ生成", () => {
     await runAllTimersAsync();
 
     // Then: 2回目の結果（Second Kata）が確定、1回目（Generated Kata）は無視
-    const room = store.get("AI01");
+    const room = maybeRoomViewOf(store, timers, "AI01");
     expect(room?.problem?.title).toBe("Second Kata");
     expect(room?.problem?.source).toBe("ai");
   });
@@ -334,6 +343,7 @@ describe("ProblemDelegator サーバ生成", () => {
     });
     const delegator = new ProblemDelegator({
       store,
+      timers,
       clock,
       broadcaster,
       serverProvider: provider,
@@ -342,7 +352,7 @@ describe("ProblemDelegator サーバ生成", () => {
       refEncoder: testRefEncoder,
     });
     // aiUnlocked=false のルームを登録
-    store.put(makeRoom({ aiUnlocked: false }));
+    putRoomView(store, timers, makeRoom({ aiUnlocked: false }));
 
     // When
     delegator.request("AI01", "req-1");
@@ -350,7 +360,7 @@ describe("ProblemDelegator サーバ生成", () => {
 
     // Then: provider は呼ばれず、定型で確定
     expect(provider.generate).not.toHaveBeenCalled();
-    const room = store.get("AI01");
+    const room = maybeRoomViewOf(store, timers, "AI01");
     expect(room?.problem).not.toBeNull();
   });
 
@@ -375,6 +385,7 @@ describe("ProblemDelegator サーバ生成", () => {
     const limiter = new AiLimiter({ clock, dailyLimit: 100, cooldownMs: 0 });
     const delegator = new ProblemDelegator({
       store,
+      timers,
       clock,
       broadcaster,
       serverProvider: provider,
@@ -382,7 +393,7 @@ describe("ProblemDelegator サーバ生成", () => {
       logger: testLogger,
       refEncoder: testRefEncoder,
     });
-    store.put(makeRoom());
+    putRoomView(store, timers, makeRoom());
 
     // When: 1 回目 request（pending）→ リロール（cancel→ 2 回目 request）
     delegator.request("AI01", "req-1");
@@ -396,7 +407,7 @@ describe("ProblemDelegator サーバ生成", () => {
     await runAllTimersAsync();
 
     // Then: 2 回目の結果（Rerolled Kata）が確定
-    const room = store.get("AI01");
+    const room = maybeRoomViewOf(store, timers, "AI01");
     expect(room?.problem?.title).toBe("Rerolled Kata");
     expect(room?.problem?.source).toBe("ai");
   });
@@ -414,6 +425,7 @@ describe("ProblemDelegator サーバ生成", () => {
     });
     const delegator = new ProblemDelegator({
       store,
+      timers,
       clock,
       broadcaster,
       serverProvider: provider,
@@ -421,7 +433,7 @@ describe("ProblemDelegator サーバ生成", () => {
       logger: testLogger,
       refEncoder: testRefEncoder,
     });
-    store.put(makeRoom());
+    putRoomView(store, timers, makeRoom());
 
     // When
     delegator.request("AI01", "req-1");
@@ -429,7 +441,7 @@ describe("ProblemDelegator サーバ生成", () => {
 
     // Then: provider は呼ばれず、定型で確定
     expect(provider.generate).not.toHaveBeenCalled();
-    const room = store.get("AI01");
+    const room = maybeRoomViewOf(store, timers, "AI01");
     expect(room?.problem).not.toBeNull();
   });
 });

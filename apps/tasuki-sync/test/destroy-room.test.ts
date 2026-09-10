@@ -13,13 +13,15 @@
 import { describe, it, expect } from "bun:test";
 import { createRoomDestroyer } from "../src/application/destroy-room.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
+import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { spyDestroyer } from "./support/spy-destroyer.js";
 
 describe("createRoomDestroyer", () => {
   it("タイマー・委譲・presence・トークンを解放してからルームを消す", () => {
     // Given
     const store = new InMemoryRoomStore();
-    const { destroy, calls } = spyDestroyer(store);
+    const timers = new InMemoryTimerStore();
+    const { destroy, calls } = spyDestroyer(store, timers);
 
     // When
     destroy("AAA");
@@ -37,22 +39,27 @@ describe("createRoomDestroyer", () => {
   it("ルームをストアから取り除く", () => {
     // Given
     const store = new InMemoryRoomStore();
-    store.put({ code: "BBB", participants: [] } as never);
-    const { destroy } = spyDestroyer(store);
+    const timers = new InMemoryTimerStore();
+    store.put({ code: "BBB", createdAt: 0, participants: [] });
+    timers.put({ code: "BBB" } as never);
+    const { destroy } = spyDestroyer(store, timers);
 
     // When
     destroy("BBB");
 
     // Then
     expect(store.get("BBB")).toBeUndefined();
+    expect(timers.get("BBB")).toBeUndefined();
   });
 
   it("スケジューラ・委譲・presence を持たない構成でも解放とストア削除は行う", () => {
     // Given: makeHandlers 単体（scheduler/delegator を省略できる）で組んだ場合
     const store = new InMemoryRoomStore();
-    store.put({ code: "CCC", participants: [] } as never);
+    const timers = new InMemoryTimerStore();
+    store.put({ code: "CCC", createdAt: 0, participants: [] });
+    timers.put({ code: "CCC" } as never);
     const released: string[] = [];
-    const destroy = createRoomDestroyer({ store, releaseRoom: (c) => released.push(c) });
+    const destroy = createRoomDestroyer({ store, timers, releaseRoom: (c) => released.push(c) });
 
     // When
     destroy("CCC");
@@ -60,5 +67,6 @@ describe("createRoomDestroyer", () => {
     // Then
     expect(released).toEqual(["CCC"]);
     expect(store.get("CCC")).toBeUndefined();
+    expect(timers.get("CCC")).toBeUndefined();
   });
 });

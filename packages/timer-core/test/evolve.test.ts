@@ -5,7 +5,7 @@
 
 import { describe, it, expect } from "vitest";
 import { evolve, advanceDriver } from "../src/evolve.js";
-import { anAggregate } from "./support/aggregate-builder.js";
+import { anAggregate, memberSeats, seatIds } from "./support/aggregate-builder.js";
 
 const baseAgg = anAggregate().build();
 const NOW = 1000000;
@@ -91,7 +91,7 @@ describe("evolve: DriverSwitched", () => {
 describe("evolve: DriverSwitched（nextIndex === prevIndex）", () => {
   const runningAgg = {
     ...baseAgg,
-    session: { ...baseAgg.session, rotation: ["Alice"], driverCounts: [0], currentIndex: 0 },
+    session: { ...baseAgg.session, rotation: memberSeats("Alice"), driverCounts: [0], currentIndex: 0 },
     clock: {
       ...baseAgg.clock,
       running: true,
@@ -280,23 +280,14 @@ describe("advanceDriver: ineligible を飛ばす交代（plan.md L194/L209）", 
   });
 });
 
-// ─── evolve: ConfigSet によるメンバー再構築（coverage-supplement.test.ts より移動・T036） ──
+// ─── evolve: ConfigSet（coverage-supplement.test.ts より移動・T036） ──
+//
+// ⚠ かつてここには `members` から rotation/driverCounts を組み直す挙動を固定する
+// 2 本があった。#95 S4a で `TimerConfig` から `members` が消え、**輪の出入りは
+// member.add/remove/move・addProxy・participant.remove だけが担う**ようになったので、
+// その性質は概念ごと無くなった（設計正本 §6.5）。残っているのは間隔の反映だけである。
 
-describe("evolve: ConfigSet によるメンバー再構築", () => {
-  it("members 変更で rotation/driverCounts が再構築され、現ドライバー名を追従する", () => {
-    // Given（Bob を現ドライバーにしてから members を入替える）
-    let agg = anAggregate().build();
-    agg = { ...agg, session: { ...agg.session, currentIndex: 1, driverCounts: [2, 3, 1] } };
-    // When
-    const next = evolve(agg, { type: "ConfigSet", config: { members: ["Charlie", "Bob"] }, now: NOW }, NOW);
-    // Then
-    expect(next.session.rotation).toEqual(["Charlie", "Bob"]);
-    // Bob の担当回数(3)が引き継がれる
-    expect(next.session.driverCounts).toEqual([1, 3]);
-    // 現ドライバー Bob は新 rotation の index 1
-    expect(next.session.currentIndex).toBe(1);
-  });
-
+describe("evolve: ConfigSet", () => {
   it("intervalMinutes 変更は停止中なら新間隔で初期化する", () => {
     // Given
     const agg = anAggregate().build();
@@ -307,19 +298,14 @@ describe("evolve: ConfigSet によるメンバー再構築", () => {
     expect(next.clock.secondsLeftAtAnchor).toBe(600);
   });
 
-  it("新メンバー追加は回数0、稼働中の間隔変更は残り時間を凍結する", () => {
+  it("稼働中の間隔変更は残り時間を凍結する", () => {
     // Given
     let agg = anAggregate().build();
     agg = evolve(agg, { type: "SessionStarted", now: NOW }, NOW); // running
     agg = { ...agg, clock: { ...agg.clock, secondsLeftAtAnchor: 123 } };
     // When
-    const next = evolve(
-      agg,
-      { type: "ConfigSet", config: { members: ["Alice", "Dave", "Bob"], intervalMinutes: 7 }, now: NOW },
-      NOW,
-    );
-    // Then（Dave は旧 rotation に無いので 0。稼働中は残り時間を凍結し新間隔で初期化しない）
-    expect(next.session.driverCounts[next.session.rotation.indexOf("Dave")]).toBe(0);
+    const next = evolve(agg, { type: "ConfigSet", config: { intervalMinutes: 7 }, now: NOW }, NOW);
+    // Then（稼働中は残り時間を凍結し新間隔で初期化しない）
     expect(next.clock.intervalSeconds).toBe(420);
     expect(next.clock.secondsLeftAtAnchor).toBe(123);
   });
@@ -333,7 +319,7 @@ describe("evolve: MemberMoved", () => {
     // When
     const next = evolve(agg, { type: "MemberMoved", fromIndex: 0, toIndex: 2, now: NOW }, NOW);
     // Then
-    expect(next.session.rotation).toEqual(["Bob", "Charlie", "Alice"]);
+    expect(seatIds(next.session.rotation)).toEqual(["Bob", "Charlie", "Alice"]);
     expect(next.session.driverCounts).toEqual([2, 3, 1]);
     // 現ドライバー(Alice)は index 0→2 へ追従
     expect(next.session.currentIndex).toBe(2);
@@ -353,7 +339,7 @@ describe("evolve: SessionReset", () => {
     expect(reset.clock.anchorServerTime).toBe(NOW + 5000);
     expect(reset.clock.runningSince).toBe(NOW + 5000);
     expect(reset.clock.secondsLeftAtAnchor).toBe(300);
-    expect(reset.session.rotation).toEqual(["Alice", "Bob", "Charlie"]);
+    expect(seatIds(reset.session.rotation)).toEqual(["Alice", "Bob", "Charlie"]);
     expect(reset.session.totalSwitches).toBe(0);
   });
 });
@@ -366,7 +352,7 @@ describe("evolve: MemberRemoved / MemberMoved の index 調整分岐", () => {
     // When
     const next = evolve(agg, { type: "MemberRemoved", index: 0, now: NOW }, NOW);
     // Then
-    expect(next.session.rotation).toEqual(["Bob", "Charlie"]);
+    expect(seatIds(next.session.rotation)).toEqual(["Bob", "Charlie"]);
     expect(next.session.currentIndex).toBe(1);
   });
 
@@ -377,7 +363,7 @@ describe("evolve: MemberRemoved / MemberMoved の index 調整分岐", () => {
     // When（index2(Charlie) を index0 へ。fromIndex(2)>cur(1) かつ toIndex(0)<=cur(1) → cur++）
     const next = evolve(agg, { type: "MemberMoved", fromIndex: 2, toIndex: 0, now: NOW }, NOW);
     // Then
-    expect(next.session.rotation).toEqual(["Charlie", "Alice", "Bob"]);
+    expect(seatIds(next.session.rotation)).toEqual(["Charlie", "Alice", "Bob"]);
     expect(next.session.currentIndex).toBe(2);
   });
 
@@ -388,7 +374,7 @@ describe("evolve: MemberRemoved / MemberMoved の index 調整分岐", () => {
     // When（index0(Alice) を index2 へ。fromIndex(0)<cur(1) かつ toIndex(2)>=cur(1) → cur--）
     const next = evolve(agg, { type: "MemberMoved", fromIndex: 0, toIndex: 2, now: NOW }, NOW);
     // Then
-    expect(next.session.rotation).toEqual(["Bob", "Charlie", "Alice"]);
+    expect(seatIds(next.session.rotation)).toEqual(["Bob", "Charlie", "Alice"]);
     expect(next.session.currentIndex).toBe(0);
   });
 });

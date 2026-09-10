@@ -7,18 +7,22 @@ import { describe, it, expect, beforeEach } from "bun:test";
 import { DEFAULT_CAPACITY } from "@tasuki/rate-limit";
 import { makeTestHandlers } from "./support/room-builder.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
+import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
+import { roomViewOf, maybeRoomViewOf } from "./support/room-view.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 describe("ai.unlock", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let clock: FakeClock;
   let broadcaster: SpyBroadcaster;
   const hostConn = "host-conn";
 
   beforeEach(async () => {
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     clock = new FakeClock(1_000_000);
     broadcaster = new SpyBroadcaster();
   });
@@ -27,6 +31,7 @@ describe("ai.unlock", () => {
     // Given
     const handlers = makeTestHandlers({
       store,
+      timers,
       clock,
       broadcaster,
       codeGen: new FakeCodeGen(),
@@ -49,7 +54,7 @@ describe("ai.unlock", () => {
 
     // Then
     result._unsafeUnwrap();
-    const room = store.get(code);
+    const room = maybeRoomViewOf(store, timers, code);
     expect(room?.aiUnlocked).toBe(true);
     expect(room?.problemMode).toBe("ai");
     // 全員へ新しい snapshot が配信される
@@ -63,6 +68,7 @@ describe("ai.unlock", () => {
     // Given
     const handlers = makeTestHandlers({
       store,
+      timers,
       clock,
       broadcaster,
       codeGen: new FakeCodeGen(),
@@ -91,7 +97,7 @@ describe("ai.unlock", () => {
       expect(errorMsg.msg.code).toBe("AI_UNLOCK_FAILED");
     }
     // ルームは変化しない
-    const room = store.get(code);
+    const room = maybeRoomViewOf(store, timers, code);
     expect(room?.aiUnlocked).toBeUndefined();
   });
 
@@ -99,6 +105,7 @@ describe("ai.unlock", () => {
     // Given（aiUnlockKey を渡さない）
     const handlers = makeTestHandlers({
       store,
+      timers,
       clock,
       broadcaster,
       codeGen: new FakeCodeGen(),
@@ -132,6 +139,7 @@ describe("ai.unlock", () => {
     // Given
     const handlers = makeTestHandlers({
       store,
+      timers,
       clock,
       broadcaster,
       codeGen: new FakeCodeGen(),
@@ -160,7 +168,7 @@ describe("ai.unlock", () => {
 
     // Then（拒否されず、ルームの AI 解錠が実際に立つ）
     expect(broadcaster.errorsTo(memberConn)).toEqual([]);
-    expect(store.get(code)!.aiUnlocked).toBe(true);
+    expect(roomViewOf(store, timers, code).aiUnlocked).toBe(true);
     expect(result.isOk()).toBe(true);
   });
 
@@ -168,6 +176,7 @@ describe("ai.unlock", () => {
     // Given（誤ったキーで容量ぶん試みてレート制限を使い切る）
     const handlers = makeTestHandlers({
       store,
+      timers,
       clock,
       broadcaster,
       codeGen: new FakeCodeGen(),

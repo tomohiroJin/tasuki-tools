@@ -7,10 +7,12 @@ import { makeHandlers } from "../src/application/handlers.js";
 import { makeTestHandlers } from "./support/room-builder.js";
 import { ProblemDelegator } from "../src/application/problem-delegation.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
+import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { SessionConfig, Problem } from "@tasuki/timer-core";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
+import { roomViewOf, putRoomView, maybeRoomViewOf } from "./support/room-view.js";
 import { testLogger, testRefEncoder } from "./support/test-logger.js";
 
 const config: SessionConfig = {
@@ -33,6 +35,7 @@ const validProblem: Problem = {
  */
 describe("handlers: problem.request / problem.submit", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let clock: FakeClock;
   let broadcaster: SpyBroadcaster;
   let delegator: ProblemDelegator;
@@ -43,10 +46,11 @@ describe("handlers: problem.request / problem.submit", () => {
   beforeEach(async () => {
     jest.useFakeTimers();
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     clock = new FakeClock(1000000);
     broadcaster = new SpyBroadcaster();
-    delegator = new ProblemDelegator({ store, clock, broadcaster, logger: testLogger, refEncoder: testRefEncoder });
-    handlers = makeTestHandlers({ store, clock, broadcaster, codeGen: new FakeCodeGen(), delegator });
+    delegator = new ProblemDelegator({ store, timers, clock, broadcaster, logger: testLogger, refEncoder: testRefEncoder });
+    handlers = makeTestHandlers({ store, timers, clock, broadcaster, codeGen: new FakeCodeGen(), delegator });
 
     // 作成者が AI 鍵ありでルーム作成（room.create は hasAiKey を持たないため後で更新）
     const create = await handlers.handleCommand("host-conn", {
@@ -60,8 +64,8 @@ describe("handlers: problem.request / problem.submit", () => {
     creatorId = broadcaster.createdFor("host-conn").participantId;
 
     // 作成者に AI 鍵を付与
-    const room = store.get(code)!;
-    store.put({
+    const room = roomViewOf(store, timers, code);
+    putRoomView(store, timers, {
       ...room,
       participants: room.participants.map((p) =>
         p.participantId === creatorId ? { ...p, hasAiKey: true } : p,
@@ -105,7 +109,7 @@ describe("handlers: problem.request / problem.submit", () => {
     await handlers.handleCommand("host-conn", command);
 
     // Then
-    expect(store.get(code)?.problem?.title).toBe("FizzBuzz");
+    expect(maybeRoomViewOf(store, timers, code)?.problem?.title).toBe("FizzBuzz");
   });
 
   // #95 S3 以前は「見学者は problem.request を実行できない（UNAUTHORIZED）」ことを

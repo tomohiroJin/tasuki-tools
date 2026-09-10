@@ -19,10 +19,12 @@ import { makeHandlers } from "../src/application/handlers.js";
 import { createRoomDestroyer } from "../src/application/destroy-room.js";
 import { RoomReclaimer } from "../src/application/room-reclaimer.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
+import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 import { spyDestroyer } from "./support/spy-destroyer.js";
+import { roomViewOf, putRoomView } from "./support/room-view.js";
 import type { SessionConfig } from "@tasuki/timer-core";
 
 const soloConfig: SessionConfig = {
@@ -34,6 +36,7 @@ const soloConfig: SessionConfig = {
 
 describe("ソロの部屋からの退出（Issue #79）", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
   let code: string;
@@ -42,7 +45,7 @@ describe("ソロの部屋からの退出（Issue #79）", () => {
   const BOB = "solo-bob";
 
   const pidOf = (name: string): string =>
-    store.get(code)!.participants.find((p) => p.displayName === name)!.participantId;
+    roomViewOf(store, timers, code).participants.find((p) => p.displayName === name)!.participantId;
 
   /** 直近に connId 宛へ送られた error を返す。 */
   const lastError = (connId: string): { code: string; message: string } | undefined => {
@@ -56,6 +59,7 @@ describe("ソロの部屋からの退出（Issue #79）", () => {
   /** Alice ひとりの部屋（rotation=[Alice]）を作る。room.create 直後の状態そのもの。 */
   beforeEach(async () => {
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     broadcaster = new SpyBroadcaster();
     // 破棄経路は本番（create-sync-server.ts）と同じ形で組む。handlers が destroyRoom を
     // 要り、destroyRoom が handlers.releaseRoom を要る相互依存を、後から代入する
@@ -63,10 +67,10 @@ describe("ソロの部屋からの退出（Issue #79）", () => {
     // （HandlerDeps.destroyRoom の docstring 参照）。
     let destroyRoom: (roomCode: string) => void;
     handlers = makeHandlers({
-      store, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen(),
+      store, timers, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen(),
       destroyRoom: (roomCode) => destroyRoom(roomCode),
     });
-    destroyRoom = createRoomDestroyer({ store, releaseRoom: handlers.releaseRoom });
+    destroyRoom = createRoomDestroyer({ store, timers, releaseRoom: handlers.releaseRoom });
     const created = await handlers.handleCommand(HOST, {
       command: "room.create", displayName: "Alice", config: soloConfig,
     });
@@ -80,7 +84,7 @@ describe("ソロの部屋からの退出（Issue #79）", () => {
   it("前提: 作成直後は在室者も rotation も本人ひとりである", () => {
     // Given（beforeEach で room.create 済み）
     // When: room.create しただけの状態を取り出す
-    const room = store.get(code)!;
+    const room = roomViewOf(store, timers, code);
 
     // Then: この 1 人が rotation の最後の 1 人でもあるため、従来は退出が拒否されていた
     expect(room.participants).toHaveLength(1);
@@ -149,10 +153,12 @@ describe("ソロの部屋からの退出（Issue #79）", () => {
   it("破棄は共通の後始末（destroy-room）へ委ね、タイマー・委譲・トークンを取りこぼさない", async () => {
     // Given: 後始末の呼び出しを記録する破棄経路を注入した handlers
     const spyStore = new InMemoryRoomStore();
+    const spyTimers = new InMemoryTimerStore();
     const spyBroadcaster = new SpyBroadcaster();
-    const { destroy, calls } = spyDestroyer(spyStore);
+    const { destroy, calls } = spyDestroyer(spyStore, spyTimers);
     const spyHandlers = makeHandlers({
       store: spyStore,
+      timers: spyTimers,
       clock: new FakeClock(1_000_000),
       broadcaster: spyBroadcaster,
       codeGen: new FakeCodeGen(),
@@ -163,7 +169,7 @@ describe("ソロの部屋からの退出（Issue #79）", () => {
     });
     if (!created.isOk()) throw new Error("room.create failed");
     const soloCode = spyBroadcaster.createdFor(HOST).code;
-    const aliceId = spyStore.get(soloCode)!.participants[0]!.participantId;
+    const aliceId = spyStore.get(soloCode)!.participants[0]!.id;
 
     // When
     const result = await spyHandlers.handleCommand(HOST, {
@@ -192,6 +198,7 @@ describe("ソロの部屋からの退出（Issue #79）", () => {
  */
 describe("ソロ以外は挙動が変わらない（Issue #79）", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
   let code: string;
@@ -200,7 +207,7 @@ describe("ソロ以外は挙動が変わらない（Issue #79）", () => {
   const BOB = "keep-bob";
 
   const pidOf = (name: string): string =>
-    store.get(code)!.participants.find((p) => p.displayName === name)!.participantId;
+    roomViewOf(store, timers, code).participants.find((p) => p.displayName === name)!.participantId;
 
   const lastError = (connId: string): { code: string; message: string } | undefined => {
     const found = [...broadcaster.sent].reverse().find(
@@ -212,6 +219,7 @@ describe("ソロ以外は挙動が変わらない（Issue #79）", () => {
 
   beforeEach(async () => {
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     broadcaster = new SpyBroadcaster();
     // 破棄経路は本番（create-sync-server.ts）と同じ形で組む。handlers が destroyRoom を
     // 要り、destroyRoom が handlers.releaseRoom を要る相互依存を、後から代入する
@@ -219,10 +227,10 @@ describe("ソロ以外は挙動が変わらない（Issue #79）", () => {
     // （HandlerDeps.destroyRoom の docstring 参照）。
     let destroyRoom: (roomCode: string) => void;
     handlers = makeHandlers({
-      store, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen(),
+      store, timers, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen(),
       destroyRoom: (roomCode) => destroyRoom(roomCode),
     });
-    destroyRoom = createRoomDestroyer({ store, releaseRoom: handlers.releaseRoom });
+    destroyRoom = createRoomDestroyer({ store, timers, releaseRoom: handlers.releaseRoom });
     const created = await handlers.handleCommand(HOST, {
       command: "room.create", displayName: "Alice", config: soloConfig,
     });
@@ -235,7 +243,7 @@ describe("ソロ以外は挙動が変わらない（Issue #79）", () => {
     await handlers.handleCommand(BOB, { command: "room.join", code, displayName: "Bob", hasAiKey: false });
     await handlers.handleCommand(BOB, { command: "member.add", participantId: pidOf("Bob") });
     await handlers.handleCommand(HOST, { command: "member.remove", index: 0 });
-    expect(store.get(code)!.session.rotation).toEqual([pidOf("Bob")]);
+    expect(roomViewOf(store, timers, code).session.rotation).toEqual([pidOf("Bob")]);
     broadcaster.sent.length = 0;
 
     // When: rotation 上の最後の 1 人である Bob が自己退出しようとする
@@ -247,7 +255,7 @@ describe("ソロ以外は挙動が変わらない（Issue #79）", () => {
     expect(result.isErr()).toBe(true);
     expect(lastError(BOB)?.code).toBe("BelowMinMembers");
     expect(store.get(code)).toBeDefined();
-    expect(store.get(code)!.participants).toHaveLength(2);
+    expect(roomViewOf(store, timers, code).participants).toHaveLength(2);
   });
 
   // #95 S3 以前は「進行できる人が残らない」不変条件（LAST_MANAGER_LEAVE）で拒否されていた。
@@ -268,7 +276,7 @@ describe("ソロ以外は挙動が変わらない（Issue #79）", () => {
     // Then: 退出は通るが、代理が残るのでルームは破棄されない
     result._unsafeUnwrap();
     expect(store.get(code)).toBeDefined();
-    expect(store.get(code)!.participants.map((p) => p.displayName)).toEqual(["Proxy"]);
+    expect(roomViewOf(store, timers, code).participants.map((p) => p.displayName)).toEqual(["Proxy"]);
   });
 
   it("他人を退出させて自分が残る通常の退出は、ルームを破棄しない", async () => {
@@ -286,7 +294,7 @@ describe("ソロ以外は挙動が変わらない（Issue #79）", () => {
     // Then: 従来どおり snapshot と notice が配信され、ルームは残る
     result._unsafeUnwrap();
     expect(store.get(code)).toBeDefined();
-    expect(store.get(code)!.participants).toHaveLength(1);
+    expect(roomViewOf(store, timers, code).participants).toHaveLength(1);
     expect(broadcaster.snapshots.map((s) => s.roomCode)).toContain(code);
     expect(broadcaster.signalsOf("notice").map((s) => s.action)).toContain("participant-removed");
   });
@@ -304,10 +312,12 @@ describe("アイドル回収と在室者0人の退出は同じ後始末を通る
   it("TTL 回収と退出破棄が、同じ破棄経路で同じ後始末を行う", async () => {
     // Given: 破棄経路をひとつだけ作り、回収（TTL）と退出（handlers）の両方に配線する
     const store = new InMemoryRoomStore();
+    const timers = new InMemoryTimerStore();
     const broadcaster = new SpyBroadcaster();
-    const { destroy, calls } = spyDestroyer(store);
+    const { destroy, calls } = spyDestroyer(store, timers);
     const handlers = makeHandlers({
       store,
+      timers,
       clock: new FakeClock(1_000_000),
       broadcaster,
       codeGen: new FakeCodeGen(),
@@ -325,16 +335,16 @@ describe("アイドル回収と在室者0人の退出は同じ後始末を通る
     });
     if (!leaveCreated.isOk()) throw new Error("room.create failed");
     const leaveCode = broadcaster.createdFor("dr-host").code;
-    const aliceId = store.get(leaveCode)!.participants[0]!.participantId;
+    const aliceId = roomViewOf(store, timers, leaveCode).participants[0]!.participantId;
 
     const idleCreated = await handlers.handleCommand("dr-idle", {
       command: "room.create", displayName: "Zoe", config: soloConfig,
     });
     if (!idleCreated.isOk()) throw new Error("room.create failed");
     const idleCode = broadcaster.createdFor("dr-idle").code;
-    store.put({
-      ...store.get(idleCode)!,
-      participants: store.get(idleCode)!.participants.map((p) => ({ ...p, presence: "offline" as const })),
+    putRoomView(store, timers, {
+      ...roomViewOf(store, timers, idleCode),
+      participants: roomViewOf(store, timers, idleCode).participants.map((p) => ({ ...p, presence: "offline" as const })),
     });
 
     // When

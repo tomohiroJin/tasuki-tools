@@ -8,54 +8,45 @@
  */
 
 import { ok, type Result } from "neverthrow";
-import {
-  type Room,
-  type Participant,
-  type ErrorCode,
-} from "@tasuki/timer-core";
-import type { Broadcaster } from "../../ports/broadcaster.js";
-import type { RoomStore } from "../../ports/room-store.js";
+import { type ErrorCode } from "@tasuki/timer-core";
+import type { Participant as MembershipParticipant } from "@tasuki/room-core";
 import type { TokenStore } from "../token-store.js";
+import type { RoomState } from "../apply-room-level-event.js";
 
 /** `handleRoomCommand` が事前に解決済みの在室ルームと実行者。 */
 export interface RoomPassphraseSetContext {
-  room: Room;
-  actor: Participant;
+  state: RoomState;
+  actor: MembershipParticipant;
 }
 
 export interface RoomPassphraseSetDeps {
-  store: RoomStore;
-  broadcaster: Broadcaster;
+  /** 名簿と timer の状態を保管し、合成した snapshot を配信する（`handlers.ts`）。 */
+  commit: (state: RoomState) => void;
   tokenStore: TokenStore;
 }
 
 export function createRoomPassphraseSetHandler(deps: RoomPassphraseSetDeps) {
-  const { store, broadcaster, tokenStore } = deps;
+  const { commit, tokenStore } = deps;
 
   /** ルームパスフレーズを設定/解除する（R4-2）。**在室者なら誰でも実行できる**
    *  （#95 S3 以前は host 限定だった）。空文字で解除。
-   *  平文は tokenStore（旧 roomPassphrases）に保持し、Room には passphraseProtected(boolean)のみ反映。 */
+   *  平文は tokenStore（旧 roomPassphrases）に保持し、timer の状態には passphraseProtected(boolean)のみ反映。 */
   return async function handleRoomPassphraseSet(
     _connId: string,
     ctx: RoomPassphraseSetContext,
     cmd: { command: "room.passphrase.set"; passphrase: string },
   ): Promise<Result<undefined, ErrorCode>> {
-    const { room } = ctx;
+    const { membership, timer } = ctx.state;
 
     // 前後空白を正規化して保持（設定側/参加側の trim 差異による「正しいのに不一致」を防ぐ）。
     // 空白のみ・空文字は解除扱い。
     const passphrase = cmd.passphrase.trim();
     if (passphrase === "") {
-      tokenStore.deletePassphrase(room.code);
+      tokenStore.deletePassphrase(timer.code);
     } else {
-      tokenStore.setPassphrase(room.code, passphrase);
+      tokenStore.setPassphrase(timer.code, passphrase);
     }
-    const updatedRoom: Room = {
-      ...room,
-      passphraseProtected: passphrase !== "",
-    };
-    store.put(updatedRoom);
-    broadcaster.broadcastSnapshot(updatedRoom.code, updatedRoom);
+    commit({ membership, timer: { ...timer, passphraseProtected: passphrase !== "" } });
 
     return ok(undefined);
   };

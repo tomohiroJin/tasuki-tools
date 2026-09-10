@@ -10,17 +10,17 @@
 import { ok, err, type Result } from "neverthrow";
 import {
   errorMessageFor,
-  type Room,
-  type Participant,
   type Problem,
   type ErrorCode,
 } from "@tasuki/timer-core";
+import type { Participant as MembershipParticipant } from "@tasuki/room-core";
 import type { ProblemDelegator } from "../problem-delegation.js";
+import type { RoomState } from "../apply-room-level-event.js";
 
 /** `handleRoomCommand` が事前に解決済みの在室ルームと実行者。 */
 export interface ProblemSubmitContext {
-  room: Room;
-  actor: Participant;
+  state: RoomState;
+  actor: MembershipParticipant;
 }
 
 export interface ProblemSubmitDeps {
@@ -42,7 +42,8 @@ export function createProblemSubmitHandler(deps: ProblemSubmitDeps) {
       usedFallback: boolean;
     },
   ): Promise<Result<undefined, ErrorCode>> {
-    const { room, actor } = ctx;
+    const { timer } = ctx.state;
+    const { actor } = ctx;
 
     if (!delegator) {
       sendError(connId, "DELEGATION_UNAVAILABLE", errorMessageFor("DELEGATION_UNAVAILABLE"));
@@ -50,9 +51,9 @@ export function createProblemSubmitHandler(deps: ProblemSubmitDeps) {
     }
 
     const accepted = delegator.submit(
-      room.code,
+      timer.code,
       cmd.requestId,
-      actor.participantId,
+      actor.id,
       cmd.problem,
       cmd.usedFallback,
     );

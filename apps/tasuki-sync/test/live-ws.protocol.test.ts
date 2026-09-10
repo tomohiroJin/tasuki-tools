@@ -86,7 +86,9 @@ describe("実 WS 越しの業務プロトコル", () => {
       (msgs) => msgs.some((m) => m.type === "snapshot" && m.room.clock.running),
       "ゲストへ稼働中の snapshot が届く",
     );
-    expect(host.latestRoom().startedAt).toBeGreaterThan(0);
+    // `startedAt` の確認はここにあったが、#95 S4a でサーバーが送らなくなったため落とした
+    // （役割の廃止で読み手が 0 件になり、`TimerState` から値ごと消えた）。時計が走ったことは
+    // 直前の 2 つの待ち受けで確かめている。
 
     // When 5: ゲストをドライバーに指名する
     host.send({ command: "driver.assign", participantId: joined.participantId });

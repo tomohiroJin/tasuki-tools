@@ -13,9 +13,11 @@ import { describe, it, expect, beforeEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
 import { makeTestHandlers } from "./support/room-builder.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
+import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { SessionConfig, Room } from "@tasuki/timer-core";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
+import { roomViewOf, putRoomView } from "./support/room-view.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 const config: SessionConfig = {
@@ -30,6 +32,7 @@ const config: SessionConfig = {
 async function setupRoomWithSecond(
   handlers: ReturnType<typeof makeHandlers>,
   store: InMemoryRoomStore,
+  timers: InMemoryTimerStore,
   second: { presence: Room["participants"][number]["presence"]; isPlaceholder: boolean },
 ): Promise<string> {
   const create = await handlers.handleCommand("host-conn", {
@@ -40,7 +43,7 @@ async function setupRoomWithSecond(
   if (!create.isOk()) throw new Error("create failed");
   // 本番（server.ts）は handleCommand の戻り値を破棄する。値は本番と同じ観測点から取る（FR-100）。
   const code = store.list().at(-1)!.code;
-  const room = store.get(code)!;
+  const room = roomViewOf(store, timers, code);
   const host = room.participants[0]!;
   const secondParticipant: Room["participants"][number] = {
     ...host,
@@ -51,7 +54,7 @@ async function setupRoomWithSecond(
     isPlaceholder: second.isPlaceholder,
     driverEligible: true,
   };
-  store.put({
+  putRoomView(store, timers, {
     ...room,
     participants: [host, secondParticipant],
     session: { ...room.session, rotation: [host.participantId, "pid-second-B"], driverCounts: [0, 0], currentIndex: 0 },
@@ -62,26 +65,28 @@ async function setupRoomWithSecond(
 
 describe("タイマー自動交代と代理メンバー（v2.8）", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let clock: FakeClock;
   let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
 
   beforeEach(() => {
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     clock = new FakeClock(1000000);
     broadcaster = new SpyBroadcaster();
-    handlers = makeTestHandlers({ store, clock, broadcaster, codeGen: new FakeCodeGen() });
+    handlers = makeTestHandlers({ store, timers, clock, broadcaster, codeGen: new FakeCodeGen() });
   });
 
   it("代理メンバー(offline+placeholder)へ自動交代が進む", async () => {
     // Given
-    const code = await setupRoomWithSecond(handlers, store, { presence: "offline", isPlaceholder: true });
+    const code = await setupRoomWithSecond(handlers, store, timers, { presence: "offline", isPlaceholder: true });
 
     // When（= autoSwitch。タイマー発火相当）
     handlers.advanceForAbsence(code);
 
     // Then
-    expect(store.get(code)!.session.currentIndex).toBe(1); // 代理 B へ交代している
+    expect(roomViewOf(store, timers, code).session.currentIndex).toBe(1); // 代理 B へ交代している
   });
 
   /**
@@ -90,12 +95,12 @@ describe("タイマー自動交代と代理メンバー（v2.8）", () => {
    */
   it("実在の offline 参加者（非 placeholder）は従来どおり飛ばす", async () => {
     // Given
-    const code = await setupRoomWithSecond(handlers, store, { presence: "offline", isPlaceholder: false });
+    const code = await setupRoomWithSecond(handlers, store, timers, { presence: "offline", isPlaceholder: false });
 
     // When
     handlers.advanceForAbsence(code);
 
     // Then（B は実在の offline で ineligible → 飛ばされ交代先なし → 現状維持）
-    expect(store.get(code)!.session.currentIndex).toBe(0);
+    expect(roomViewOf(store, timers, code).session.currentIndex).toBe(0);
   });
 });

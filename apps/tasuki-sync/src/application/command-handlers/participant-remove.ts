@@ -18,26 +18,28 @@ import {
   evolve,
   removalNotificationFor,
   errorMessageFor,
-  type Room,
-  type Participant,
+  rotationEntryId,
+  type TimerState,
   type ErrorCode,
 } from "@tasuki/timer-core";
+import { removeParticipant, type Participant as MembershipParticipant } from "@tasuki/room-core";
 import type { Clock } from "../../ports/clock.js";
 import type { Broadcaster } from "../../ports/broadcaster.js";
-import type { RoomStore } from "../../ports/room-store.js";
+import type { RoomState } from "../apply-room-level-event.js";
+import { occupants } from "../timer-snapshot-dto.js";
 
 /** `handleRoomCommand` が事前に解決済みの在室ルームと実行者。 */
 export interface ParticipantRemoveContext {
-  room: Room;
-  actor: Participant;
+  state: RoomState;
+  actor: MembershipParticipant;
 }
 
 export interface ParticipantRemoveDeps {
-  store: RoomStore;
   clock: Clock;
   broadcaster: Broadcaster;
-  reconcileSchedule: (room: Room) => void;
-  rotationDisplayNames: (room: Room) => string[];
+  /** 名簿と timer の状態を保管し、合成した snapshot を配信する（`handlers.ts`）。 */
+  commit: (state: RoomState) => void;
+  reconcileSchedule: (timer: TimerState) => void;
   messageForRemoval: (
     code: ReturnType<typeof removalNotificationFor>,
     actorDisplayName: string,
@@ -62,16 +64,16 @@ export async function handleParticipantRemove(
   deps: ParticipantRemoveDeps,
 ): Promise<Result<undefined, ErrorCode>> {
   const {
-    store,
     clock,
     broadcaster,
+    commit,
     reconcileSchedule,
-    rotationDisplayNames,
     messageForRemoval,
     sendError,
     destroyRoom,
   } = deps;
-  const { room: targetRoom, actor: participant } = ctx;
+  const { state, actor: participant } = ctx;
+  const { membership, timer } = state;
 
   const now = clock.now();
   const targetId = cmd.participantId;
@@ -79,7 +81,9 @@ export async function handleParticipantRemove(
     sendError(connId, "INVALID", "不正な対象は外せません");
     return err("INVALID");
   }
-  const target = targetRoom.participants.find((p) => p.participantId === targetId);
+  // 対象は名簿の参加者か、輪の上の代理のどちらか（#95 S4a）。
+  const residents = occupants(membership, timer);
+  const target = residents.find((p) => p.participantId === targetId);
   if (!target) {
     sendError(connId, "PARTICIPANT_NOT_FOUND", errorMessageFor("PARTICIPANT_NOT_FOUND"));
     return err("PARTICIPANT_NOT_FOUND");
@@ -103,7 +107,7 @@ export async function handleParticipantRemove(
     // 「自分で抜けた」のか「他人に外された」のかは、実行者と対象の participantId を
     // 突き合わせて決める。**この比較は #95 S3 でも残る**（役割とは無関係で、
     // 本人へ見せる文言そのものを分ける唯一の判断である）。
-    const removalCode = removalNotificationFor(participant.participantId, targetId);
+    const removalCode = removalNotificationFor(participant.id, targetId);
     sendError(target.connId, removalCode, messageForRemoval(removalCode, participant.displayName));
   };
 
@@ -121,11 +125,11 @@ export async function handleParticipantRemove(
   // 拒否する（rotation が空の部屋に人が取り残される破綻を作らないため）。
   // 在室者の数え方は代理(isPlaceholder)も「残る人」に数える。
   // 代理は自分では退出しないので部屋に残り続けるためである。
-  const remainingResidents = targetRoom.participants.filter((p) => p.participantId !== targetId);
+  const remainingResidents = residents.filter((p) => p.participantId !== targetId);
   if (remainingResidents.length === 0) {
     // 後始末はアイドル回収と同じ共通経路へ委ねる（スケジューラ・委譲・presence タイマー・
     // トークン・ストアの 5 点。1 つでも取りこぼすと消えた部屋のタイマーが生き残る）。
-    destroyRoom(targetRoom.code);
+    destroyRoom(timer.code);
     // 破棄した部屋へは snapshot も signal も配信しない（宛先がもう居ない）。
     // 本人への通知だけは残す — 通知が無いと、抜けた本人が操作できない画面に
     // 取り残される（Issue #32 で塞いだ穴をソロだけ開け直すことになる）。
@@ -137,36 +141,37 @@ export async function handleParticipantRemove(
   // rotation は参加者IDの配列なので、退出者の枠は ID でそのまま一意に引ける。
   // 参加順から「枠の持ち主」を推測していた G6 の規則（sameNameOwner）は、
   // 同名の二重参加や再接続で実態とずれたため撤去した。
-  const idx = targetRoom.session.rotation.indexOf(targetId);
-  let next: Room = {
-    ...targetRoom,
-    participants: targetRoom.participants.filter((p) => p.participantId !== targetId),
+  const idx = timer.session.rotation.findIndex((e) => rotationEntryId(e) === targetId);
+  // 名簿から外す（代理は名簿に居ないので何も起きない。輪の席だけが下で外れる）。
+  // AI 鍵の持ち主からも落とす —— 名簿から消えた人の鍵を持ち越すと、宛先の無い
+  // 候補が残り続ける（wire には出ないので観測はできないが、参照は残る）。
+  let next: RoomState = {
+    membership: removeParticipant(membership, targetId),
+    timer: { ...timer, aiKeyHolders: timer.aiKeyHolders.filter((id) => id !== targetId) },
   };
   if (idx >= 0) {
-    if (targetRoom.session.rotation.length <= 1) {
+    if (timer.session.rotation.length <= 1) {
       sendError(connId, "BelowMinMembers", errorMessageFor("BelowMinMembers"));
       return err("BelowMinMembers");
     }
     const agg = evolve(
-      { session: targetRoom.session, clock: targetRoom.clock },
+      { session: timer.session, clock: timer.clock },
       { type: "MemberRemoved", index: idx, now },
       now,
     );
-    next = { ...next, session: agg.session, clock: agg.clock };
-    next = { ...next, config: { ...next.config, members: rotationDisplayNames(next) } };
+    next = { ...next, timer: { ...next.timer, session: agg.session, clock: agg.clock } };
   }
-  store.put(next);
-  broadcaster.broadcastSnapshot(next.code, next);
-  reconcileSchedule(next);
+  commit(next);
+  reconcileSchedule(next.timer);
   // 誰が誰を退出させたかを在室者へ伝える（FR-077）。
   // store.put の後に配信することが重要で、broadcastSignal は呼び出し時点のストアから
   // 宛先を決めるため、この順序により退出させられた本人には届かない（本人向けは下の error）。
-  broadcaster.broadcastSignal(next.code, {
+  broadcaster.broadcastSignal(next.timer.code, {
     type: "signal",
     signal: "notice",
     action: "participant-removed",
     actorName: participant.displayName,
-    actorParticipantId: participant.participantId,
+    actorParticipantId: participant.id,
     targetName: target.displayName,
     targetParticipantId: target.participantId,
   });

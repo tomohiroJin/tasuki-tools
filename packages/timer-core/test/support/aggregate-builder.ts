@@ -17,7 +17,18 @@
 
 import { initialAggregate } from "../../src/aggregate.js";
 import { evolve } from "../../src/evolve.js";
-import type { Aggregate, IntervalMinutes, SessionConfig } from "../../src/aggregate.js";
+import { rotationEntryId } from "../../src/aggregate.js";
+import type { Aggregate, IntervalMinutes, RotationEntry, TimerConfig } from "../../src/aggregate.js";
+
+/** 参加者IDの並びを「名簿を指す席」の並びへ写す（#95 S4a）。 */
+export function memberSeats(...ids: string[]): RotationEntry[] {
+  return ids.map((participantId) => ({ kind: "member" as const, participantId, eligible: true }));
+}
+
+/** 席の並びを識別子の並びへ写す（アサーションを ID で書くため）。 */
+export function seatIds(rotation: readonly RotationEntry[]): string[] {
+  return rotation.map(rotationEntryId);
+}
 
 /** 決定的なアンカー時刻の既定値。各テストが独自の epoch を書かなくて済むようにする。 */
 export const NOW = 1_000_000;
@@ -43,7 +54,8 @@ class AggregateBuilder {
   private clockState: ClockState = "initial";
   private anchor: number = NOW;
 
-  /** ローテーション順の参加者ID配列を設定する（D6b: 表示名一覧ではなくIDの配列）。 */
+  /** ローテーション順の参加者ID配列を設定する（D6b: 表示名一覧ではなくIDの配列）。
+   *  #95 S4a で rotation は席の配列になったが、ここは ID で受けて席へ写す。 */
   withRotation(...ids: string[]): this {
     this.rotation = ids;
     return this;
@@ -89,14 +101,13 @@ class AggregateBuilder {
       );
     }
 
-    const config: SessionConfig = {
+    const config: TimerConfig = {
       language: "TypeScript",
       difficulty: "easy",
-      members: this.rotation,
       intervalMinutes: this.intervalMinutes,
     };
 
-    let agg = initialAggregate(config, this.rotation);
+    let agg = initialAggregate(config, memberSeats(...this.rotation));
     agg = {
       ...agg,
       session: { ...agg.session, currentIndex: this.currentIndex },

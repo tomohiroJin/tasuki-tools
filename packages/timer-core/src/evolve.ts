@@ -3,8 +3,8 @@
  * T013: FR-003, FR-007, FR-008
  */
 
-import type { Aggregate, SessionConfig, IntervalMinutes, ServerClock } from "./aggregate.js";
-import { initialAggregate, nextEligibleIndex } from "./aggregate.js";
+import type { Aggregate, TimerConfig, IntervalMinutes, RotationEntry, ServerClock } from "./aggregate.js";
+import { initialAggregate, nextEligibleIndex, rotationEntryId } from "./aggregate.js";
 import type { DomainEvent } from "./events.js";
 
 /**
@@ -274,49 +274,21 @@ function evolveBreakEnded(agg: Aggregate, now: number): Aggregate {
   };
 }
 
+/**
+ * 設定変更を集約へ反映する。
+ *
+ * ⚠ **かつてここには `partial.members` から rotation を組み直す分岐があった。**
+ * #95 S4a で `TimerConfig` から `members` が消え、型の上でも到達できなくなったので
+ * 落とした（wire からも `build-domain-command.ts` が境界で捨てており到達不能だった）。
+ * 輪の出入りは member.add/remove/move・addProxy・participant.remove だけが担う。
+ */
 function evolveConfigSet(
   agg: Aggregate,
-  partial: Partial<SessionConfig>,
+  partial: Partial<TimerConfig>,
   _now: number,
 ): Aggregate {
-  let session = agg.session;
+  const session = agg.session;
   let clock = agg.clock;
-
-  // members 指定時のみ rotation/driverCounts/currentIndex を再構築する。
-  // 現ドライバーを保持しつつ追従する（位置が見つからなければ 0 にクランプ）。
-  //
-  // **注意（D6b）:** rotation は参加者IDの配列になったが、この分岐は `partial.members` の
-  // 中身をそのまま rotation にする。表示名の一覧を渡すと rotation が名前に戻り、
-  // 識別子の不変条件が壊れる。そのためサーバー層（handlers の buildDomainCommand）は
-  // config.set から members を落としており、共有ルームではこの分岐に到達しない。
-  // 輪の出入りは member.add/remove/move・addProxy・participant.remove だけが担う。
-  if (partial.members !== undefined) {
-    const currentMember = agg.session.rotation[agg.session.currentIndex];
-    const newRotation = [...partial.members];
-    // 旧担当回数を引き継ぐ。重複名は左から順に消費し取り違えを防ぐ。
-    const remaining = agg.session.rotation.map((name, i) => ({
-      name,
-      count: agg.session.driverCounts[i] ?? 0,
-      used: false,
-    }));
-    const newDriverCounts = newRotation.map((name) => {
-      const hit = remaining.find((r) => !r.used && r.name === name);
-      if (hit) {
-        hit.used = true;
-        return hit.count;
-      }
-      return 0;
-    });
-    let newIndex = newRotation.indexOf(currentMember ?? "");
-    if (newIndex < 0) newIndex = 0;
-
-    session = {
-      ...session,
-      rotation: newRotation,
-      currentIndex: Math.max(0, Math.min(newIndex, newRotation.length - 1)),
-      driverCounts: newDriverCounts,
-    };
-  }
 
   // intervalMinutes 指定時のみ clock を更新する。
   // 稼働中は残り時間を凍結し（途中変更で残りが飛ばないように）、停止中のみ新間隔で初期化する。
@@ -335,11 +307,12 @@ function evolveConfigSet(
 }
 
 function evolveMemberAdded(agg: Aggregate, participantId: string): Aggregate {
+  const entry: RotationEntry = { kind: "member", participantId, eligible: true };
   return {
     ...agg,
     session: {
       ...agg.session,
-      rotation: [...agg.session.rotation, participantId],
+      rotation: [...agg.session.rotation, entry],
       driverCounts: [...agg.session.driverCounts, 0],
     },
   };
@@ -376,11 +349,11 @@ function evolveMemberMoved(
   const newRotation = [...agg.session.rotation];
   const newDriverCounts = [...agg.session.driverCounts];
 
-  const [movedName] = newRotation.splice(fromIndex, 1);
+  const [movedEntry] = newRotation.splice(fromIndex, 1);
   const [movedCount] = newDriverCounts.splice(fromIndex, 1);
 
-  if (movedName !== undefined) {
-    newRotation.splice(toIndex, 0, movedName);
+  if (movedEntry !== undefined) {
+    newRotation.splice(toIndex, 0, movedEntry);
   }
   if (movedCount !== undefined) {
     newDriverCounts.splice(toIndex, 0, movedCount);
@@ -410,15 +383,19 @@ function evolveMemberMoved(
 /**
  * メンバー順を order（順列）で並べ替える。
  * order[i] = 新しい i 番目に来る旧 rotation インデックス。driverCounts も同じ並びに追従させ、
- * 現ドライバー名を新しい位置へ remap する（位置ではなく名前で人を保持する）。
+ * 現ドライバーの席を新しい位置へ remap する（位置ではなく席の識別子で人を保持する）。
  */
 function evolveMembersShuffled(agg: Aggregate, order: number[]): Aggregate {
   const oldRotation = agg.session.rotation;
   const oldCounts = agg.session.driverCounts;
-  const currentName = oldRotation[agg.session.currentIndex];
+  const currentEntry = oldRotation[agg.session.currentIndex];
   const newRotation = order.map((i) => oldRotation[i]!);
   const newDriverCounts = order.map((i) => oldCounts[i] ?? 0);
-  const remapped = currentName !== undefined ? newRotation.indexOf(currentName) : -1;
+  const currentId = currentEntry !== undefined ? rotationEntryId(currentEntry) : undefined;
+  const remapped =
+    currentId !== undefined
+      ? newRotation.findIndex((e) => rotationEntryId(e) === currentId)
+      : -1;
   return {
     ...agg,
     session: {
@@ -430,19 +407,18 @@ function evolveMembersShuffled(agg: Aggregate, order: number[]): Aggregate {
   };
 }
 
-/** リセット時に SessionConfig を集約から再構成する */
 /**
  * リセット時に `initialAggregate` へ渡す一時的な設定を組む。
  *
- * `initialAggregate` は rotation を第2引数で受け取り `members` を見ない（D6b）ため、
- * ここの `members` は使われない。rotation は参加者IDの配列なので、これを表示名の一覧である
- * `members` に流し込むと「IDが名前として扱われる」誤りになる。空にして流用を封じる。
+ * `initialAggregate` が見るのは `intervalMinutes` だけで、language/difficulty は
+ * 使われない（設定の真実源は `TimerState.config` であって集約ではない）。
+ * かつてここにあった `members: []` は、`TimerConfig` から `members` が消えた
+ * #95 S4a で不要になった。
  */
-function buildConfigFromReset(agg: Aggregate): SessionConfig {
+function buildConfigFromReset(agg: Aggregate): TimerConfig {
   return {
     language: "TypeScript",
     difficulty: "easy",
-    members: [],
     intervalMinutes:
       (agg.clock.intervalSeconds / 60) as IntervalMinutes,
   };

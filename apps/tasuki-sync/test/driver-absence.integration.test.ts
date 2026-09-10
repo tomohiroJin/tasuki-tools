@@ -17,9 +17,11 @@ import {
   DRIVER_ABSENCE_GRACE_MS,
 } from "../src/application/presence.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
+import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { Broadcaster } from "../src/ports/broadcaster.js";
 import type { SessionConfig, Room } from "@tasuki/timer-core";
+import { roomViewOf, putRoomView } from "./support/room-view.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 class NoopBroadcaster implements Broadcaster {
@@ -40,6 +42,7 @@ const config: SessionConfig = {
  */
 describe("統合: ドライバー不在 自動繰上（presence→handlers 実配線）", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let clock: FakeClock;
   let handlers: ReturnType<typeof makeHandlers>;
   let presence: PresenceManager;
@@ -47,12 +50,14 @@ describe("統合: ドライバー不在 自動繰上（presence→handlers 実�
   beforeEach(() => {
     jest.useFakeTimers();
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     clock = new FakeClock(1000000);
     const broadcaster = new NoopBroadcaster();
-    handlers = makeTestHandlers({ store, clock, broadcaster, codeGen: new FakeCodeGen() });
+    handlers = makeTestHandlers({ store, timers, clock, broadcaster, codeGen: new FakeCodeGen() });
     // server.ts と同じ配線。これが本テストの主眼。
     presence = new PresenceManager({
       store,
+      timers,
       broadcaster,
       clock,
       onDriverAbsence: handlers.advanceForAbsence,
@@ -73,7 +78,7 @@ describe("統合: ドライバー不在 自動繰上（presence→handlers 実�
     if (!create.isOk()) throw new Error("create failed");
     // 本番（server.ts）は handleCommand の戻り値を破棄する。値は本番と同じ観測点から取る（FR-100）。
     const code = store.list().at(-1)!.code;
-    const room = store.get(code)!;
+    const room = roomViewOf(store, timers, code);
     const host = room.participants[0]!;
     const participants: Room["participants"] = ["A", "B"].map((name, i) => ({
       ...host,
@@ -82,7 +87,7 @@ describe("統合: ドライバー不在 自動繰上（presence→handlers 実�
       displayName: name,
       presence: "online",
     }));
-    store.put({
+    putRoomView(store, timers, {
       ...room,
       participants,
       session: { ...room.session, rotation: participants.map((p) => p.participantId), currentIndex: 0 },
@@ -97,12 +102,12 @@ describe("統合: ドライバー不在 自動繰上（presence→handlers 実�
 
     // When（現ドライバー A が切断 → presence が offline 化し不在タイマーを張る）
     presence.handleDisconnect("conn-A");
-    expect(store.get(code)!.session.currentIndex).toBe(0); // 猶予中は不変
+    expect(roomViewOf(store, timers, code).session.currentIndex).toBe(0); // 猶予中は不変
     // 猶予経過 → stale-check 通過 → handlers.advanceForAbsence で B(1) へ繰り上げ
     jest.advanceTimersByTime(DRIVER_ABSENCE_GRACE_MS);
 
     // Then
-    const after = store.get(code)!;
+    const after = roomViewOf(store, timers, code);
     expect(after.session.currentIndex).toBe(1);
     expect(after.session.rotation[after.session.currentIndex]).toBe("pid-test-1"); // B
   });

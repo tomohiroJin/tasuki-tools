@@ -1,9 +1,9 @@
 /**
- * InMemoryRoomStore — ルームの揮発インメモリストア
- * T032: FR-013
+ * InMemoryRoomStore — **名簿**の揮発インメモリストア
+ * T032: FR-013（#95 S4a で保管する型がメンバーシップ文脈の Room になった）
  */
 
-import type { Room } from "@tasuki/timer-core";
+import type { Room } from "@tasuki/room-core";
 import type { RoomStore } from "../ports/room-store.js";
 
 export class InMemoryRoomStore implements RoomStore {

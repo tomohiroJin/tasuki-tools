@@ -11,17 +11,21 @@
 import { ok, err, type Result } from "neverthrow";
 import {
   initialAggregate,
-  type Room,
-  type Participant,
+  type RotationEntry,
   type SessionConfig,
+  type TimerConfig,
+  type TimerState,
   type IntervalMinutes,
   type ErrorCode,
 } from "@tasuki/timer-core";
+import type { Participant as MembershipParticipant, Room as MembershipRoom } from "@tasuki/room-core";
 import type { Clock } from "../../ports/clock.js";
 import type { Broadcaster } from "../../ports/broadcaster.js";
 import type { RoomStore } from "../../ports/room-store.js";
+import type { TimerStore } from "../../ports/timer-store.js";
 import type { RoomCodeGen } from "../../ports/code-gen.js";
 import type { TokenStore } from "../token-store.js";
+import type { RoomState } from "../apply-room-level-event.js";
 
 /** `room.create` が呼び出し元へ返す値。 */
 export interface CreateResult {
@@ -32,8 +36,11 @@ export interface CreateResult {
 
 export interface RoomCreateDeps {
   store: RoomStore;
+  timers: TimerStore;
   clock: Clock;
   broadcaster: Broadcaster;
+  /** 名簿と timer の状態を保管し、合成した snapshot を配信する（`handlers.ts`）。 */
+  commit: (state: RoomState) => void;
   codeGen: RoomCodeGen;
   tokenStore: TokenStore;
   /** サーバー全体のルーム数上限（DoS 緩和）。 */
@@ -42,7 +49,7 @@ export interface RoomCreateDeps {
 }
 
 export function createRoomCreateHandler(deps: RoomCreateDeps) {
-  const { store, clock, broadcaster, codeGen, tokenStore, maxRooms, sendError } = deps;
+  const { store, clock, broadcaster, commit, codeGen, tokenStore, maxRooms, sendError } = deps;
 
   /** ルーム作成 */
   return async function handleRoomCreate(
@@ -63,43 +70,49 @@ export function createRoomCreateHandler(deps: RoomCreateDeps) {
     const participantId = codeGen.generateParticipantId();
     const resumeToken = codeGen.generateResumeToken();
 
-    const defaultConfig: SessionConfig = cmd.config ?? {
+    // クライアントが渡すのは wire の設定（`members` を含む）。**名簿はここから作らない**
+    // （#95 S4a・D15）。輪に並べられるのは作成時点の在室者＝作成者ただ一人なので、
+    // `members` に他人が含まれていても無視して落とす。
+    const wireConfig: SessionConfig = cmd.config ?? {
       language: "TypeScript",
       difficulty: "easy",
       members: [cmd.displayName],
       intervalMinutes: 5 as IntervalMinutes,
     };
+    const { members: _ignoredMembers, ...timerConfig } = wireConfig;
+    const config: TimerConfig = timerConfig;
 
-    // rotation は参加者IDの配列（D6b）。作成時点の在室者は作成者ただ一人なので、
-    // config.members に何が入っていても輪に並べられるのは作成者だけである。
-    const agg = initialAggregate(defaultConfig, [participantId]);
+    const seat: RotationEntry = { kind: "member", participantId, eligible: true };
+    const agg = initialAggregate(config, [seat]);
 
-    const creator: Participant = {
-      participantId,
+    const creator: MembershipParticipant = {
+      id: participantId,
       connId,
       displayName: cmd.displayName,
       presence: "online",
-      hasAiKey: false,
       joinedAt: now,
     };
 
-    const room: Room = {
+    const membership: MembershipRoom = {
       code,
       createdAt: now,
-      // config.members は rotation の表示名ミラー（D6b）。作成者以外は輪に並べないので、
-      // クライアントが渡した members に他人が含まれていてもここで作成者だけに揃える。
-      config: { ...defaultConfig, members: [cmd.displayName] },
+      participants: [creator],
+    };
+
+    const timer: TimerState = {
+      code,
+      createdAt: now,
+      config,
       problem: null,
       session: agg.session,
       clock: agg.clock,
       phase: "setup",
-      participants: [creator],
       sessionRecords: [],
       handoffNote: "",
       onBreak: false,
+      aiKeyHolders: [],
     };
 
-    store.put(room);
     tokenStore.issueResume(resumeToken, { participantId, roomCode: code });
 
     broadcaster.sendTo(connId, {
@@ -109,7 +122,7 @@ export function createRoomCreateHandler(deps: RoomCreateDeps) {
       participantId,
     });
 
-    broadcaster.broadcastSnapshot(code, room);
+    commit({ membership, timer });
 
     return ok({ code, participantId, resumeToken });
   };

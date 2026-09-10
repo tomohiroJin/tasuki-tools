@@ -20,10 +20,13 @@
  */
 
 import type { RoomStore } from "../ports/room-store.js";
+import type { TimerStore } from "../ports/timer-store.js";
 
 export interface RoomDestroyerDeps {
-  /** ルームの実体。破棄では `remove` しか使わないため必要な分だけを要求する。 */
+  /** 名簿の実体。破棄では `remove` しか使わないため必要な分だけを要求する。 */
   store: Pick<RoomStore, "remove">;
+  /** timer の状態の実体。**名簿と対で消す**（片方だけ残すと幽霊のルームができる・#95 S4a）。 */
+  timers: Pick<TimerStore, "remove">;
   /** サーバー権威タイマー。省略時は予約を持たない構成（テスト用の `makeHandlers` 単体など）。 */
   scheduler?: { clear(roomCode: string): void } | undefined;
   /** お題代表生成。省略時は委譲を持たない構成。 */
@@ -36,7 +39,7 @@ export interface RoomDestroyerDeps {
 
 /** ルームを破棄する関数を組み立てる。返す関数は何度呼んでも安全（各解放は不在なら no-op）。 */
 export function createRoomDestroyer(deps: RoomDestroyerDeps): (roomCode: string) => void {
-  const { store, scheduler, delegator, presence, releaseRoom } = deps;
+  const { store, timers, scheduler, delegator, presence, releaseRoom } = deps;
 
   return (roomCode: string): void => {
     scheduler?.clear(roomCode);
@@ -44,5 +47,6 @@ export function createRoomDestroyer(deps: RoomDestroyerDeps): (roomCode: string)
     presence?.clearRoomTimers(roomCode);
     releaseRoom(roomCode);
     store.remove(roomCode);
+    timers.remove(roomCode);
   };
 }

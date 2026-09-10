@@ -10,6 +10,7 @@
  */
 
 import { describe, it, expect } from "bun:test";
+import { roomViewOf } from "./room-view.js";
 import { aRoom } from "./room-builder.js";
 
 describe("aRoom()", () => {
@@ -17,24 +18,24 @@ describe("aRoom()", () => {
     // Given（追加オプションを付けない aRoom() を対象にする）
     const builder = aRoom();
     // When
-    const { store, code, ids } = await builder.build();
+    const { store, code, ids, timers } = await builder.build();
 
     // Then
-    const room = store.get(code);
-    expect(room?.participants).toHaveLength(1);
-    expect(room?.participants[0]?.displayName).toBe("Host");
-    expect(ids["Host"]).toBe(room?.participants[0]?.participantId);
+    const room = roomViewOf(store, timers, code);
+    expect(room.participants).toHaveLength(1);
+    expect(room.participants[0]?.displayName).toBe("Host");
+    expect(ids["Host"]).toBe(room.participants[0]?.participantId);
   });
 
   it("withParticipants() で指定した名前が参加者として join する", async () => {
     // Given
     const builder = aRoom().withParticipants("Bob", "Carol");
     // When
-    const { store, code, ids } = await builder.build();
+    const { store, code, ids, timers } = await builder.build();
 
     // Then
-    const room = store.get(code);
-    const names = room?.participants.map((p) => p.displayName);
+    const room = roomViewOf(store, timers, code);
+    const names = room.participants.map((p) => p.displayName);
     expect(names).toEqual(["Host", "Bob", "Carol"]);
     expect(ids["Bob"]).toBeTruthy();
     expect(ids["Carol"]).toBeTruthy();
@@ -44,23 +45,23 @@ describe("aRoom()", () => {
     // Given
     const builder = aRoom().withParticipants("Bob", "Carol").withDriver("Bob");
     // When
-    const { store, code, ids } = await builder.build();
+    const { store, code, ids, timers } = await builder.build();
 
     // Then
-    const room = store.get(code);
-    const currentIndex = room?.session.currentIndex ?? -1;
-    expect(room?.session.rotation[currentIndex]).toBe(ids["Bob"]);
+    const room = roomViewOf(store, timers, code);
+    const currentIndex = room.session.currentIndex ?? -1;
+    expect(room.session.rotation[currentIndex]).toBe(ids["Bob"]);
   });
 
   it("started() でセッションが開始状態（phase: session）になる", async () => {
     // Given
     const builder = aRoom().withParticipants("Bob").started();
     // When
-    const { store, code } = await builder.build();
+    const { store, code, timers } = await builder.build();
 
     // Then
-    const room = store.get(code);
-    expect(room?.phase).toBe("session");
+    const room = roomViewOf(store, timers, code);
+    expect(room.phase).toBe("session");
   });
 
   it("build() は { handlers, store, broadcaster, code, ids } を返す", async () => {

@@ -4,39 +4,22 @@
 
 import { describe, it, expect, beforeEach } from "bun:test";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
-import type { Room } from "@tasuki/timer-core";
+import type { Room } from "@tasuki/room-core";
 
+/**
+ * 名簿の最小ルーム（#95 S4a）。
+ *
+ * このストアが保管するのは**名簿だけ**になった（timer の状態は `InMemoryTimerStore`）。
+ * ここは保管の振る舞い（put/get/remove/list）を見るテストなので、名簿そのものを置く。
+ */
 function makeRoom(code: string): Room {
   return {
     code,
-    createdAt: Date.now(),
-    config: {
-      language: "TypeScript",
-      difficulty: "easy",
-      members: ["Alice", "Bob"],
-      intervalMinutes: 5,
-    },
-    problem: null,
-    session: {
-      rotation: ["Alice", "Bob"],
-      currentIndex: 0,
-      isPaused: false,
-      driverCounts: [0, 0],
-      totalSwitches: 0,
-    },
-    clock: {
-      running: false,
-      intervalSeconds: 300,
-      anchorServerTime: 0,
-      secondsLeftAtAnchor: 300,
-      accumulatedElapsedMs: 0,
-      runningSince: null,
-    },
-    phase: "setup",
-    participants: [],
-    sessionRecords: [],
-    handoffNote: "",
-    onBreak: false,
+    createdAt: 0,
+    participants: [
+      { id: "p0", displayName: "Alice", connId: "c0", presence: "online", joinedAt: 0 },
+      { id: "p1", displayName: "Bob", connId: null, presence: "offline", joinedAt: 1 },
+    ],
   };
 }
 
@@ -68,14 +51,14 @@ describe("InMemoryRoomStore", () => {
   it("put で既存ルームを上書きできる", () => {
     // Given
     const room1 = makeRoom("ABCDE");
-    const room2 = { ...room1, handoffNote: "updated" };
+    const room2 = { ...room1, participants: [] };
     store.put(room1);
 
     // When
     store.put(room2);
 
     // Then
-    expect(store.get("ABCDE")?.handoffNote).toBe("updated");
+    expect(store.get("ABCDE")?.participants).toEqual([]);
   });
 
   it("remove でルームを削除できる", () => {

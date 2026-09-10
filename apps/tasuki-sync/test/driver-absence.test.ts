@@ -6,8 +6,10 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from "bun:test";
 import { PresenceManager, DRIVER_ABSENCE_GRACE_MS } from "../src/application/presence.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
+import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { Room } from "@tasuki/timer-core";
+import { putRoomView, maybeRoomViewOf } from "./support/room-view.js";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 
 /** 稼働中のセッションを持つ room を返す（現ドライバー=Driver）。 */
@@ -67,6 +69,7 @@ function makeRunningRoom(code: string): Room {
  */
 describe("PresenceManager: ドライバー不在の自動繰上", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let broadcaster: SpyBroadcaster;
   let clock: FakeClock;
   let onDriverAbsence: ReturnType<typeof jest.fn>;
@@ -75,10 +78,11 @@ describe("PresenceManager: ドライバー不在の自動繰上", () => {
   beforeEach(() => {
     jest.useFakeTimers();
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     broadcaster = new SpyBroadcaster();
     clock = new FakeClock(1000000);
     onDriverAbsence = jest.fn();
-    pm = new PresenceManager({ store, broadcaster, clock, onDriverAbsence });
+    pm = new PresenceManager({ store, timers, broadcaster, clock, onDriverAbsence });
   });
 
   afterEach(() => {
@@ -88,7 +92,7 @@ describe("PresenceManager: ドライバー不在の自動繰上", () => {
   it("現ドライバー切断後、猶予時間経過で当該ルームコードの不在通知が発火する", () => {
     // Given
     const room = makeRunningRoom("DTEST");
-    store.put(room);
+    putRoomView(store, timers, room);
 
     // When
     pm.handleDisconnect("d-conn");
@@ -103,7 +107,7 @@ describe("PresenceManager: ドライバー不在の自動繰上", () => {
   it("猶予内に現ドライバーが復帰したら繰上しない", () => {
     // Given
     const room = makeRunningRoom("DTEST2");
-    store.put(room);
+    putRoomView(store, timers, room);
     pm.handleDisconnect("d-conn");
 
     // When（猶予の半分経過 → 現ドライバー復帰 → さらに猶予経過）
@@ -118,7 +122,7 @@ describe("PresenceManager: ドライバー不在の自動繰上", () => {
   it("現ドライバー以外の切断ではタイマーを張らない", () => {
     // Given
     const room = makeRunningRoom("DTEST3");
-    store.put(room);
+    putRoomView(store, timers, room);
 
     // When
     pm.handleDisconnect("o-conn");
@@ -132,7 +136,7 @@ describe("PresenceManager: ドライバー不在の自動繰上", () => {
     // Given
     const room = makeRunningRoom("DTEST4");
     room.clock.running = false;
-    store.put(room);
+    putRoomView(store, timers, room);
 
     // When
     pm.handleDisconnect("d-conn");
@@ -154,25 +158,27 @@ describe("PresenceManager: ドライバー不在の自動繰上", () => {
  */
 describe("PresenceManager: 切断時のプレゼンス更新", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let broadcaster: SpyBroadcaster;
   let pm: PresenceManager;
 
   beforeEach(() => {
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     broadcaster = new SpyBroadcaster();
-    pm = new PresenceManager({ store, broadcaster, clock: new FakeClock(1000000) });
+    pm = new PresenceManager({ store, timers, broadcaster, clock: new FakeClock(1000000) });
   });
 
   it("切断で presence が offline になり snapshot が配信される", () => {
     // Given
     const room = makeRunningRoom("DTEST5");
-    store.put(room);
+    putRoomView(store, timers, room);
 
     // When（現ドライバーではない参加者を切断させる）
     pm.handleDisconnect("o-conn");
 
     // Then
-    const updatedRoom = store.get("DTEST5");
+    const updatedRoom = maybeRoomViewOf(store, timers, "DTEST5");
     const other = updatedRoom?.participants.find((p) => p.participantId === "other-p02");
     expect(other?.presence).toBe("offline");
     expect(broadcaster.snapshots.length).toBeGreaterThan(0);

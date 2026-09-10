@@ -272,32 +272,15 @@ describe("decide: config.set", () => {
 
   // ─── coverage-supplement.test.ts より移動（T036） ─────────────────────────
 
-  it("2人未満のメンバー指定は BelowMinMembers（config.set のメンバー下限は据え置き）", () => {
-    const result = decide({ command: "config.set", config: { members: ["Solo"] } }, baseAgg, NOW);
-    expect(result.isErr()).toBe(true);
-  });
-
-  it("重複メンバー指定は DuplicateName", () => {
-    const result = decide({ command: "config.set", config: { members: ["A", "A"] } }, baseAgg, NOW);
-    expect(result._unsafeUnwrapErr().type).toBe("DuplicateName");
-  });
+  // ⚠ かつてここには `config.set` の `members` を検証する 4 本（下限・重複・上限・空名）が
+  // あった。#95 S4a で `TimerConfig` から `members` が消え、**性質そのものが概念ごと
+  // 無くなった**ので落とした（設計正本 §6.5）。wire から到達しないことは、境界で
+  // members を捨てる `apps/tasuki-sync/src/application/build-domain-command.ts` と、
+  // それを固定する `apps/tasuki-sync/test/unknown-command-boundary.test.ts` 側の責務である。
 
   it("無効な交代間隔（4）も InvalidInterval", () => {
     const result = decide({ command: "config.set", config: { intervalMinutes: 4 as never } }, baseAgg, NOW);
     expect(result._unsafeUnwrapErr().type).toBe("InvalidInterval");
-  });
-
-  it("上限超過メンバーは MemberLimitExceeded", () => {
-    // Given
-    const many = Array.from({ length: 11 }, (_, i) => `M${i}`);
-    // When / Then
-    const result = decide({ command: "config.set", config: { members: many } }, baseAgg, NOW);
-    expect(result._unsafeUnwrapErr().type).toBe("MemberLimitExceeded");
-  });
-
-  it("空名を含むメンバーは EmptyName", () => {
-    const result = decide({ command: "config.set", config: { members: ["A", "  "] } }, baseAgg, NOW);
-    expect(result._unsafeUnwrapErr().type).toBe("EmptyName");
   });
 
   it("言語・難易度のみの変更は成功する", () => {

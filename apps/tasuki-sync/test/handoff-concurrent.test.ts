@@ -10,12 +10,15 @@ import { describe, it, expect, beforeEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
 import { makeTestHandlers } from "./support/room-builder.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
+import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
+import { maybeRoomViewOf } from "./support/room-view.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 describe("共有メモの同時書き込み（⑧ last-write-wins）", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
   let code: string;
@@ -24,8 +27,9 @@ describe("共有メモの同時書き込み（⑧ last-write-wins）", () => {
 
   beforeEach(async () => {
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     broadcaster = new SpyBroadcaster();
-    handlers = makeTestHandlers({ store, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen() });
+    handlers = makeTestHandlers({ store, timers, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen() });
     await handlers.handleCommand(hostConn, {
       command: "room.create",
       displayName: "Alice",
@@ -42,7 +46,7 @@ describe("共有メモの同時書き込み（⑧ last-write-wins）", () => {
     await handlers.handleCommand(guestConn, { command: "handoff.note.set", text: "Bob のメモ（最後）" });
 
     // Then
-    const room = store.get(code);
+    const room = maybeRoomViewOf(store, timers, code);
     expect(room?.handoffNote).toBe("Bob のメモ（最後）");
     // 直近 snapshot も同じ値（部分更新や破損がない）
     expect(broadcaster.latestSnapshot()?.handoffNote).toBe("Bob のメモ（最後）");
@@ -56,7 +60,7 @@ describe("共有メモの同時書き込み（⑧ last-write-wins）", () => {
       // When（各回の書き込み直後にその時点の値で一貫することを確認する）
       await handlers.handleCommand(conn, { command: "handoff.note.set", text: seq[i]! });
       // Then
-      expect(store.get(code)?.handoffNote).toBe(seq[i]);
+      expect(maybeRoomViewOf(store, timers, code)?.handoffNote).toBe(seq[i]);
     }
   });
 });

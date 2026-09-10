@@ -6,8 +6,10 @@ import { describe, it, expect, beforeEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
 import { makeTestHandlers } from "./support/room-builder.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
+import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
+import { roomViewOf, putRoomView, maybeRoomViewOf } from "./support/room-view.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 /**
@@ -15,6 +17,7 @@ import { FakeCodeGen } from "./support/fake-code-gen.js";
  */
 describe("v2 コマンドの結合テスト", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
   let roomCode: string;
@@ -22,9 +25,11 @@ describe("v2 コマンドの結合テスト", () => {
 
   beforeEach(async () => {
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     broadcaster = new SpyBroadcaster();
     handlers = makeTestHandlers({
       store,
+      timers,
       clock: new FakeClock(1000000),
       broadcaster,
       codeGen: new FakeCodeGen(),
@@ -112,7 +117,7 @@ describe("v2 コマンドの結合テスト", () => {
 
   it("作成者が自分の名前を変更すると snapshot に反映される", async () => {
     // Given
-    const room = store.get(roomCode);
+    const room = maybeRoomViewOf(store, timers, roomCode);
     const hostParticipant = room?.participants.find((p) => p.connId === hostConn);
     expect(hostParticipant).toBeTruthy();
 
@@ -131,7 +136,7 @@ describe("v2 コマンドの結合テスト", () => {
 
   it("participant.rename しても rotation は動かない（識別子で持つため・D6b）", async () => {
     // Given（rotation に本人の ID が入っていることを前提確認）
-    const room = store.get(roomCode);
+    const room = maybeRoomViewOf(store, timers, roomCode);
     const hostParticipant = room?.participants.find((p) => p.connId === hostConn);
     const before = [...room!.session.rotation];
     expect(before).toContain(hostParticipant!.participantId);
@@ -159,7 +164,7 @@ describe("v2 コマンドの結合テスト", () => {
       displayName: "Dave",
       participantId: "proxy-dup",
     });
-    const room = store.get(roomCode);
+    const room = maybeRoomViewOf(store, timers, roomCode);
     const hostParticipant = room?.participants.find((p) => p.connId === hostConn);
     broadcaster.snapshots.length = 0;
 
@@ -173,14 +178,14 @@ describe("v2 コマンドの結合テスト", () => {
     // Then
     expect(broadcaster.errorsTo(hostConn).at(-1)?.code).toBe("DuplicateName");
     // 名前は変わらず表示名の一意性は保たれる
-    const after = store.get(roomCode);
+    const after = maybeRoomViewOf(store, timers, roomCode);
     expect(after?.participants.map((p) => p.displayName)).toEqual(["Host", "Dave"]);
   });
 
   it("既存の表示名と重複する代理は追加できない（D6b で移設した検査）", async () => {
     // Given（rotation が参加者IDの配列になった時点で、core 側の rotation ベースの重複検査は
     // 「絶対に一致しない」死んだ検査になっていた。実機検証で発見しサーバー層へ移設した）
-    const room = store.get(roomCode);
+    const room = maybeRoomViewOf(store, timers, roomCode);
     const hostName = room!.participants.find((p) => p.connId === hostConn)!.displayName;
 
     // When
@@ -191,7 +196,7 @@ describe("v2 コマンドの結合テスト", () => {
     // Then
     expect(broadcaster.errorsTo(hostConn).at(-1)?.code).toBe("DuplicateName");
     // 輪の長さも参加者も増えない。
-    const after = store.get(roomCode);
+    const after = maybeRoomViewOf(store, timers, roomCode);
     expect(after?.participants.filter((p) => p.displayName === hostName)).toHaveLength(1);
   });
 
@@ -217,7 +222,7 @@ describe("v2 コマンドの結合テスト", () => {
       command: "room.join", code: roomCode, displayName: "Spectator", hasAiKey: false,
     });
     joined._unsafeUnwrap();
-    const room = store.get(roomCode);
+    const room = maybeRoomViewOf(store, timers, roomCode);
     const hostParticipant = room?.participants.find((p) => p.connId === hostConn);
     const spectator = room?.participants.find((p) => p.connId === "guest-conn");
     // 前提: 後から参加しただけの人は輪に居ない。
@@ -239,7 +244,7 @@ describe("v2 コマンドの結合テスト", () => {
     await handlers.handleCommand(hostConn, {
       command: "participant.addProxy", displayName: "Dave", participantId: "proxy-case",
     });
-    const room = store.get(roomCode);
+    const room = maybeRoomViewOf(store, timers, roomCode);
     const hostParticipant = room?.participants.find((p) => p.connId === hostConn);
 
     // When
@@ -255,7 +260,7 @@ describe("v2 コマンドの結合テスト", () => {
 
   it("自分の現在名と同一への rename は許可される（no-op 相当）", async () => {
     // Given
-    const room = store.get(roomCode);
+    const room = maybeRoomViewOf(store, timers, roomCode);
     const hostParticipant = room?.participants.find((p) => p.connId === hostConn);
     const sameName = hostParticipant!.displayName;
     broadcaster.snapshots.length = 0;
@@ -280,7 +285,7 @@ describe("v2 コマンドの結合テスト", () => {
 
   it("driver.skip で参加者の driverEligible が false になる", async () => {
     // Given
-    const room = store.get(roomCode);
+    const room = maybeRoomViewOf(store, timers, roomCode);
     const hostParticipant = room?.participants.find((p) => p.connId === hostConn);
 
     // When
@@ -297,7 +302,7 @@ describe("v2 コマンドの結合テスト", () => {
 
   it("driver.resume で参加者の driverEligible が true に戻る", async () => {
     // Given（まず skip）
-    const room = store.get(roomCode);
+    const room = maybeRoomViewOf(store, timers, roomCode);
     const hostParticipant = room?.participants.find((p) => p.connId === hostConn);
     await handlers.handleCommand(hostConn, {
       command: "driver.skip",
@@ -321,8 +326,8 @@ describe("v2 コマンドの結合テスト", () => {
 
   it("problem.edit でルームの problem フィールドが更新される", async () => {
     // Given（まずお題を設定）
-    const initialRoom = store.get(roomCode)!;
-    store.put({
+    const initialRoom = roomViewOf(store, timers, roomCode);
+    putRoomView(store, timers, {
       ...initialRoom,
       problem: {
         title: "旧タイトル",
@@ -379,6 +384,7 @@ describe("v2 コマンドの結合テスト", () => {
  */
 describe("participant.rename の対象解決", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
   let roomCode: string;
@@ -389,9 +395,11 @@ describe("participant.rename の対象解決", () => {
 
   beforeEach(async () => {
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     broadcaster = new SpyBroadcaster();
     handlers = makeTestHandlers({
       store,
+      timers,
       clock: new FakeClock(1000000),
       broadcaster,
       codeGen: new FakeCodeGen(),
@@ -431,7 +439,7 @@ describe("participant.rename の対象解決", () => {
 
     // Then
     result._unsafeUnwrap();
-    const room = store.get(roomCode);
+    const room = maybeRoomViewOf(store, timers, roomCode);
     const creator = room?.participants.find((p) => p.participantId === creatorPid);
     expect(creator?.displayName).toBe("RenamedByGuest");
   });
@@ -494,14 +502,17 @@ describe("participant.rename の対象解決", () => {
  */
 describe("room-not-found 応答", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
 
   beforeEach(() => {
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     broadcaster = new SpyBroadcaster();
     handlers = makeTestHandlers({
       store,
+      timers,
       clock: new FakeClock(1000000),
       broadcaster,
       codeGen: new FakeCodeGen(),

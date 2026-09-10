@@ -12,10 +12,12 @@ import { describe, it, expect, beforeEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
 import { makeTestHandlers } from "./support/room-builder.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
+import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { ServerMsg, SessionConfig } from "@tasuki/timer-core";
 import { SpyBroadcaster as SharedSpyBroadcaster } from "./support/spy-broadcaster.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
+import { roomViewOf, maybeRoomViewOf } from "./support/room-view.js";
 import type { RoomScopedCommand } from "../src/application/handlers.js";
 
 /**
@@ -55,12 +57,13 @@ const CAROL = "nt-carol";
  */
 describe("signal: notice（実行者の通知）", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let broadcaster: NoticeSpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
   let code: string;
 
   const pidOf = (name: string): string =>
-    store.get(code)!.participants.find((p) => p.displayName === name)!.participantId;
+    roomViewOf(store, timers, code).participants.find((p) => p.displayName === name)!.participantId;
 
   /** 記録された notice のうち最新のものを返す。 */
   const lastNotice = () => {
@@ -78,16 +81,18 @@ describe("signal: notice（実行者の通知）", () => {
 
   beforeEach(async () => {
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     broadcaster = new NoticeSpyBroadcaster();
     handlers = makeTestHandlers({
-      store, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen(),
+      store,
+      timers, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen(),
     });
     const created = await handlers.handleCommand(HOST, {
       command: "room.create", displayName: "Alice", config,
     });
     if (!created.isOk()) throw new Error("room.create failed");
     code = broadcaster.createdFor(HOST).code;
-    broadcaster.bindStore(() => store.get(code)?.participants.map((p) => p.participantId) ?? []);
+    broadcaster.bindStore(() => maybeRoomViewOf(store, timers, code)?.participants.map((p) => p.participantId) ?? []);
     await handlers.handleCommand(BOB, { command: "room.join", code, displayName: "Bob", hasAiKey: false });
     await handlers.handleCommand(CAROL, { command: "room.join", code, displayName: "Carol", hasAiKey: false });
     // 開始後は誰でも破壊的操作を実行できる。Bob（host でない editor）を実行者にする。
@@ -242,8 +247,8 @@ describe("signal: notice（実行者の通知）", () => {
       //
       // 在室が 1 人だと participant.remove はソロ退出でルームごと破棄する経路に入り、
       // 不変条件には当たらない。**在室 3 人であることが効いている。**
-      expect(store.get(code)!.session.rotation).toEqual([pidOf("Alice")]);
-      expect(store.get(code)!.participants).toHaveLength(3);
+      expect(roomViewOf(store, timers, code).session.rotation).toEqual([pidOf("Alice")]);
+      expect(roomViewOf(store, timers, code).participants).toHaveLength(3);
       broadcaster.signals.length = 0;
       broadcaster.residentsAtSignal.length = 0;
 
@@ -268,15 +273,18 @@ describe("signal: notice（実行者の通知）", () => {
  */
 describe("退出させられた本人への通知", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let broadcaster: NoticeSpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
   let code: string;
 
   beforeEach(async () => {
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     broadcaster = new NoticeSpyBroadcaster();
     handlers = makeTestHandlers({
-      store, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen(),
+      store,
+      timers, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen(),
     });
     const created = await handlers.handleCommand(HOST, {
       command: "room.create", displayName: "Alice", config,
@@ -291,7 +299,7 @@ describe("退出させられた本人への通知", () => {
 
   it("コードが REMOVED_FROM_ROOM になる（実行者はホストに限らないため）", async () => {
     // Given
-    const carolId = store.get(code)!.participants.find((p) => p.displayName === "Carol")!.participantId;
+    const carolId = roomViewOf(store, timers, code).participants.find((p) => p.displayName === "Carol")!.participantId;
 
     // When
     await handlers.handleCommand(BOB, { command: "participant.remove", participantId: carolId });
@@ -303,7 +311,7 @@ describe("退出させられた本人への通知", () => {
 
   it("文言に実行者名と再参加できる旨が含まれる", async () => {
     // Given
-    const carolId = store.get(code)!.participants.find((p) => p.displayName === "Carol")!.participantId;
+    const carolId = roomViewOf(store, timers, code).participants.find((p) => p.displayName === "Carol")!.participantId;
 
     // When
     await handlers.handleCommand(BOB, { command: "participant.remove", participantId: carolId });

@@ -34,6 +34,8 @@ import { Scheduler } from "./application/schedule.js";
 import { ProblemDelegator } from "./application/problem-delegation.js";
 import { WsAdapter } from "./adapters/ws-adapter.js";
 import { InMemoryRoomStore } from "./adapters/in-memory-room-store.js";
+import { InMemoryTimerStore } from "./adapters/in-memory-timer-store.js";
+import { buildTimerSnapshotRoom } from "./application/timer-snapshot-dto.js";
 import { SystemClock } from "./adapters/system-clock.js";
 import { NanoidCodeGen } from "./adapters/nanoid-code-gen.js";
 import { RoomReclaimer } from "./application/room-reclaimer.js";
@@ -60,9 +62,11 @@ const RECLAIM_SWEEP_MS = 60_000;
 export interface SyncServer {
   /** WS と管理 HTTP を受けているアダプタ。実際に listen したポートは `wsAdapter.port`。 */
   readonly wsAdapter: WsAdapter;
-  /** timer のルーム保管。運用ログや検証から状態を覗くために公開する。 */
+  /** 名簿の保管。運用ログや検証から状態を覗くために公開する（#95 S4a）。 */
   readonly store: InMemoryRoomStore;
-  /** poker のルーム保管。**timer とは別の保管である**（S4a で名簿を統合するまで）。 */
+  /** timer の状態の保管。名簿とは `code` で対になる（#95 S4a）。 */
+  readonly timers: InMemoryTimerStore;
+  /** poker のルーム保管。**名簿の統合は S4b で行う**（S4a では timer 側だけを移した）。 */
   readonly pokerStore: PokerRoomStore;
   /** 実際に bind したポート。`PORT=0` 起動のときはここが正しい値。 */
   readonly port: number;
@@ -78,7 +82,21 @@ export interface SyncServer {
 /** 設定から同期サーバー一式を組み立てて起動する。 */
 export function createSyncServer(config: SyncConfig): SyncServer {
   const store = new InMemoryRoomStore();
+  const timers = new InMemoryTimerStore();
   const clock = new SystemClock();
+
+  /**
+   * 名簿と timer の状態を合成した wire の `Room` の一覧（#95 S4a）。
+   *
+   * 管理レポート（`buildAdminReport`）は「利用者から見えているルーム」を数えるので、
+   * 合成後の形を渡す。片方しか無いルームは（作成・破棄が対なので）通常は現れないが、
+   * 現れたら数えない。
+   */
+  const snapshotRooms = (): Room[] =>
+    store.list().flatMap((membership) => {
+      const timer = timers.get(membership.code);
+      return timer ? [buildTimerSnapshotRoom(membership, timer)] : [];
+    });
   const codeGen = new NanoidCodeGen();
   const scheduler = new Scheduler(clock);
 
@@ -124,6 +142,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
 
   const delegator = new ProblemDelegator({
     store,
+    timers,
     clock,
     broadcaster,
     serverProvider,
@@ -143,6 +162,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
 
   const handlers = makeHandlers({
     store,
+    timers,
     clock,
     broadcaster,
     codeGen,
@@ -155,6 +175,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
   });
   const presenceManager = new PresenceManager({
     store,
+    timers,
     broadcaster,
     clock,
     // ドライバー不在の猶予後繰り上げ（R2-1）。handlers のスケジューラ経由で交代＋タイマー再アンカー。
@@ -166,6 +187,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
   // 在室者 0 人の退出（Issue #79）の 2 つで、どちらもこの同じ関数を通る。
   destroyRoom = createRoomDestroyer({
     store,
+    timers,
     scheduler,
     delegator,
     presence: presenceManager,
@@ -265,7 +287,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
         adminToken: config.adminToken,
         getReport: () =>
           buildAdminReport(
-            store.list(),
+            snapshotRooms(),
             reclaimer.reclaimedCount,
             aiLimiter ? { today: aiLimiter.todayCount, total: aiLimiter.totalCount } : undefined,
           ),
@@ -277,6 +299,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
   return {
     wsAdapter,
     store,
+    timers,
     pokerStore,
     port: wsAdapter.port,
     aiReady,

@@ -43,21 +43,23 @@
  * `apps/tasuki-sync/test/error-code-coverage.test.ts` がサブパスから取り込む。
  */
 
-// 集約・型
+// 集約・型（サーバー側）
 export type {
   ServerClock,
   Aggregate,
-  SessionConfig,
+  TimerConfig,
+  TimerState,
+  RotationEntry,
   ProblemSource,
   Problem,
-  Participant,
   ProblemMode,
   RoomPhase,
-  Room,
   CompletionRecord,
   IntervalMinutes,
 } from "./aggregate.js";
-export { secondsLeft, initialAggregate } from "./aggregate.js";
+export { secondsLeft, initialAggregate, rotationEntryId } from "./aggregate.js";
+// wire の投影（クライアントへ送る形。ドメインの集約ではない・#95 S4a）
+export type { Room, Participant, SessionConfig } from "./wire.js";
 export { ERROR_MESSAGES, displayMessageFor, errorMessageFor } from "./error-messages.js";
 // イベント
 export type {

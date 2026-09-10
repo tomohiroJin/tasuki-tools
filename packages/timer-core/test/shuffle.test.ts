@@ -12,7 +12,7 @@ import {
   type Aggregate,
 } from "../src/index.js";
 import type { DomainEvent } from "../src/events.js";
-import { anAggregate } from "./support/aggregate-builder.js";
+import { anAggregate, seatIds } from "./support/aggregate-builder.js";
 
 const NOW = 1_000_000;
 
@@ -43,7 +43,7 @@ describe("evolve: MembersShuffled", () => {
     // When
     const next = evolve(agg, event, NOW);
     // Then
-    expect(next.session.rotation).toEqual(["C", "A", "B"]);
+    expect(seatIds(next.session.rotation)).toEqual(["C", "A", "B"]);
     expect(next.session.driverCounts).toEqual([3, 1, 2]);
   });
 
@@ -54,8 +54,8 @@ describe("evolve: MembersShuffled", () => {
     // When
     const next = evolve(agg, event, NOW);
     // Then
-    expect(next.session.rotation).toEqual(["C", "A", "B"]);
-    expect(next.session.rotation[next.session.currentIndex]).toBe("B");
+    expect(seatIds(next.session.rotation)).toEqual(["C", "A", "B"]);
+    expect(seatIds(next.session.rotation)[next.session.currentIndex]).toBe("B");
     expect(next.session.currentIndex).toBe(2);
   });
 
@@ -66,7 +66,7 @@ describe("evolve: MembersShuffled", () => {
     // When
     const next = evolve(agg, event, NOW);
     // Then
-    expect(next.session.rotation).toEqual(["A", "B", "C"]);
+    expect(seatIds(next.session.rotation)).toEqual(["A", "B", "C"]);
     expect(next.session.driverCounts).toEqual([1, 2, 3]);
     expect(next.session.currentIndex).toBe(2);
   });
