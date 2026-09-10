@@ -180,7 +180,7 @@ poker の接続が timer の枠を食う。レート制限は逆に厳しくな�
 > 決定として記録した先は [`docs/adr/0004`](../../adr/0004-sync-server-ports-and-adapters.md) の追記。
 
 > **【S4a（#245）実施時の訂正・2026-09-10】上表の `MAX_ROOMS` 行とレート制限行は S4a で解消する。**
-> 名簿の保管を 1 つにしたため、`MAX_ROOMS` はプロセス全体で 1 本になった。実効枠（50 × 2 = 100）を
+> 名簿の保管を 1 つにするため、`MAX_ROOMS` はプロセス全体で 1 本になる。実効枠（50 × 2 = 100）を
 > 保つ値へ決め直す。レート制限のバケツも 1 本にする（`create-sync-server` で 1 インスタンスを作り
 > 両ハンドラへ注入する）。**S2 が据え置いた理由「timer 側は `room.join` と `ai.unlock` が同一
 > インスタンスを共有することを構造で保証している」は、保証をテストへ移し替えることで対価を払う。**
@@ -892,7 +892,7 @@ S5a〜S5c の各段のあと `pnpm dev` の実経路（`http://localhost:5175/`�
 | S1（**#242**） | `packages/room-core` 新設＋`display-name.ts` の移設（**`timer-core → room-core` の一時依存が生じる**。§3.12b）＋**依存方向の検査の新設**（D17） | 変化なし | — |
 | S2（**#243**） | サーバー統合（`apps/timer-sync` → `apps/tasuki-sync`、poker を移設、`apps/poker-sync` 退役）＋上限とレート制限の見直し（D22） | 変化なし | `20-poker.conf` の WS を 8787 へ／**`deploy/poker/app.env` を `STATIC_ONLY=1` にし `SERVICE`/`PORT`/`ENV_FILE`/`APP_DIR`/`SYNC_ENTRY` を削除**（§3.13c）／**`deploy/timer/app.env` の `SYNC_ENTRY` を新パスへ**／`tasuki-poker-sync` の停止手順／**`e2e/harness/sync.ts`・`e2e/harness/paths.ts`・`apps/poker-web/vite.config.ts` の 3311 参照**（§3.13b） |
 | S3（**#244**） | 役割・ホストの廃止（ドメイン・サーバー・両 Web・E2E を同時に） | 全員同格になる。**両ツールとも完全に使える** | — |
-| S4a（**#245**） | 名簿統合（ツールのコアから参加者を抜く。`Round` を集約ルートに。`RotationEntry`） | 変化なし（内部構造のみ。入口はまだツール側） | — |
+| S4a（**#245**） | 名簿統合（ツールのコアから参加者を抜く。`Round` を集約ルートに。`RotationEntry`） | **変わる**（poker のルームが全員切断後も TTL の間は残り、票も残る／入口ごとに門が付く。詳細は §3.12 の【S4a（#245）実施時の訂正】） | — |
 | S4b（**#246**） | 同一性と在席（D12 の `localStorage` 化・D14 の多接続模型・**D21 の在席による適格判定**） | **変わる**（同じ端末で開き直すと同一人物として復帰する／2 タブが 1 人になる） | — |
 | S5a（**#247**） | LP のハブ化＋`packages/sync-client` の抽出＋**timer をハブ経由に対応** | ハブ経由でも従来経路でも timer が使える | `/ws` 断片の新設／**`apps/landing/vite.config.ts` に `/ws` → 8787 の dev 中継を追加**（§3.13b）／`90-landing.conf` の確認／**旧救済断片 `40-timer-legacy-room.conf` の撤去**（D11） |
 | S5b（**#248**） | **poker をハブ経由に対応**（`?room=` を解する） | ハブから両ツールへ行ける | — |
