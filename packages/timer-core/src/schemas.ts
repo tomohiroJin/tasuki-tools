@@ -22,7 +22,9 @@ import {
   MAX_CONFIG_DIFFICULTY,
 } from "./aggregate.js";
 // #95 S1: 表示名の規約はメンバーシップ文脈（room-core）へ移した。
-// この import は timer-core が表示名を検証しなくなる S4a で消える（docs/adr/0017 決定 4）。
+// ⏳ S4b で削除する（#95・一時依存）—— timer-core が表示名を検証しなくなる段。
+// S4a（#245）では消えなかったので宛先を送り直した（docs/adr/0017 決定 4 の改定 2026-09-10。
+// scripts/audit-dependency-direction.mjs の ALLOWED も同じ段で消す）。
 import { normalizeDisplayName } from "@tasuki/room-core";
 
 // ─── 共通 ───────────────────────────────────────────────────────────────────
