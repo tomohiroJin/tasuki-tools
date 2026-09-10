@@ -3,7 +3,6 @@ import {
   applyAutoReveal,
   castVote,
   createRound,
-  discardVote,
   nextRound,
   revealBy,
   shouldAutoReveal,
@@ -250,22 +249,7 @@ describe('Round が集約ルート（#95 S4a）', () => {
     expect(shouldAutoReveal(round, [])).toBe(false);
   });
 
-  it('退出した人の票は捨てる（R8）', () => {
-    // Given
-    const round = castVote(votingRound(), 'p1', { kind: 'number', value: 3 })._unsafeUnwrap();
-    // When / Then
-    expect(discardVote(round, 'p1').votes.has('p1')).toBe(false);
-  });
-
-  it('居ない人の票を捨てても、残る票は巻き添えにならない（R8・対照）', () => {
-    // 上の 1 本は「votes を丸ごと空にする」実装でも緑になる。捨てるものが無いときに
-    // 何も起きないことを見て、削除が対象の 1 件に閉じていることを確かめる
-    // Given
-    const round = castVote(votingRound(), 'p1', { kind: 'number', value: 3 })._unsafeUnwrap();
-    // When
-    const after = discardVote(round, 'p2');
-    // Then
-    expect(after).toBe(round);
-    expect(after.votes.get('p1')).toEqual({ kind: 'number', value: 3 });
-  });
+  // ⚠ かつてここに `discardVote`（R8）の 2 本があった。#95 S4a で実装ごと落としたので
+  // 一緒に消した（**規則が変わったのではなく、到達経路が生まれなかった**。理由は
+  // `src/round.ts` の跡のコメント）。S5 で `leaveRoom` を作るときに書き直す。
 });

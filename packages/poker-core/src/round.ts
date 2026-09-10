@@ -91,16 +91,11 @@ export function nextRound(round: Round, _actorId: string): Result<Round, RoundEr
   return ok({ status: 'voting' as const, votes: new Map() });
 }
 
-/**
- * 退出した参加者の票を捨てる（R8）。**名簿からの除去とセットでアプリ層が呼ぶ。**
- *
- * 名簿が両ツールで 1 つになった以上、poker の外（timer 側の `participant.remove`）で
- * 人が名簿から消えうる。消えた人の票を残すと、公開後の `votes` に名簿に居ない
- * participantId が載る。
- */
-export function discardVote(round: Round, voterId: string): Round {
-  if (!round.votes.has(voterId)) return round;
-  const votes = new Map(round.votes);
-  votes.delete(voterId);
-  return { ...round, votes };
-}
+// ⚠ かつてここに `discardVote`（退出した人の票を捨てる・R8）があった。#95 S4a で
+// 実装したが、**呼び出し元が 1 つも生まれなかった**。入口ごとの門（`application/tool-gate.ts`）
+// により 1 つのルームは timer か poker のどちらか一方の状態しか持たず、名簿から人を消す
+// `participant.remove` は timer 専用コマンドなので、**poker の票を持つ人が名簿から消える
+// 経路が存在しない**。到達経路の無い値を置くのは憲法 原則 X（抽象は実需があるときだけ）に
+// 反し、`scripts/audit-structure.mjs` の SC-039③ が実際にそれを検出した。
+// **S5 で「ルームから退出する」ユースケース（設計正本 §6.2 の R8 = `leaveRoom`）を作るときに、
+// 呼び出し元と一緒に足し直す。** 実装は 5 行（`votes` を写して 1 件消すだけ）である。

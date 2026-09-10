@@ -22,7 +22,11 @@ import {
   type TimerState,
   type ErrorCode,
 } from "@tasuki/timer-core";
-import { removeParticipant, type Participant as MembershipParticipant } from "@tasuki/room-core";
+import {
+  hasNoParticipants,
+  removeParticipant,
+  type Participant as MembershipParticipant,
+} from "@tasuki/room-core";
 import type { Clock } from "../../ports/clock.js";
 import type { Broadcaster } from "../../ports/broadcaster.js";
 import type { RoomState } from "../apply-room-level-event.js";
@@ -129,8 +133,16 @@ export async function handleParticipantRemove(
   // （S3 が残した「代理だけが残る部屋」はこの変更で作れなくなる・#95 S4a）。
   // **`occupants()` の結果（`residents`）で数えないこと** —— あちらは輪の代理を
   // 混ぜて返すので、代理を「残る人」に数えてしまう。
-  const remainingResidents = membership.participants.filter((p) => p.id !== targetId);
-  if (remainingResidents.length === 0) {
+  //
+  // 判定は `@tasuki/room-core` の `hasNoParticipants` に任せる。「名簿が空か」は
+  // メンバーシップ文脈の述語であり、ここで `participants.length === 0` を書き写すと
+  // **名簿の表現が変わったときに片側だけが取り残される**（#245 のレビューで、
+  // 書き写しが SC-039③④ の指標としても現れた）。
+  //
+  // 対象が代理なら `removeParticipant` は何もしない（代理は名簿に居ない・D6）ので、
+  // ここで先に外しても輪の席の処理は下でそのまま行える。
+  const membershipAfterRemoval = removeParticipant(membership, targetId);
+  if (hasNoParticipants(membershipAfterRemoval)) {
     // 後始末はアイドル回収と同じ共通経路へ委ねる（スケジューラ・委譲・presence タイマー・
     // トークン・名簿・timer の状態・ラウンド。1 つでも取りこぼすと消えた部屋のタイマーが
     // 生き残る。内訳と順序の正本は `application/destroy-room.ts`）。
@@ -151,7 +163,7 @@ export async function handleParticipantRemove(
   // AI 鍵の持ち主からも落とす —— 名簿から消えた人の鍵を持ち越すと、宛先の無い
   // 候補が残り続ける（wire には出ないので観測はできないが、参照は残る）。
   let next: RoomState = {
-    membership: removeParticipant(membership, targetId),
+    membership: membershipAfterRemoval,
     timer: { ...timer, aiKeyHolders: timer.aiKeyHolders.filter((id) => id !== targetId) },
   };
   if (idx >= 0) {
