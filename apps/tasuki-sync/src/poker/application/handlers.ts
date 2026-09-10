@@ -31,12 +31,14 @@
  *
  * 名簿を 1 つにした一方で、**入口の門（越境の遮断）と寿命の一本化がまだ入っていない**。
  * その間だけ、timer のルームコードを poker の入口へ与えると次の 4 つが同時に成立する
- * （2026-09-10 に実機の WS で実測。「入れてしまう」で済む話ではない）。
+ * （「入れてしまう」で済む話ではない）。**1 と 2 は 2026-09-10 に実機の WS で実測した。
+ * 3 と 4 は経路をコードで確かめたもので、実機では再現していない。**
  *
  * 1. **合言葉の検査を一度も通らずに timer の snapshot を受信できる。**
  *    ここで名簿へ足す参加者は実在の `connId` を持ち `presence: "online"` なので、
- *    timer 側の配信（`create-sync-server.ts` の `broadcaster.broadcastSnapshot` が
- *    `connId !== null && presence !== "offline"` で宛先を作る）に**そのまま含まれる**。
+ *    timer 側の配信（`create-sync-server.ts` の `broadcaster`。**`pokerBroadcaster` ではない**。
+ *    `broadcastSnapshot` が `connId !== null && presence !== "offline"` で宛先を作る）に
+ *    **そのまま含まれる**。
  *    実測では `config` / `problem` / `session` / `clock` / `phase` / `participants` /
  *    `sessionRecords` / `handoffNote` を載せた snapshot が届いた。
  *    パスフレーズの検査は timer の `command-handlers/room-join.ts` にしか無い
@@ -46,8 +48,10 @@
  * 3. **{@link discardRoom} が timer ルームの合言葉と全復帰トークンまで消す**
  *    （`tokens.releaseRoom` は roomCode 単位で、どちらのツールのものかを見ない）。
  * 4. **{@link discardRoom} は `createRoomDestroyer` を通らない**ので、
- *    scheduler / delegator / presence の予約が**消えたルームに対して発火し続ける**
- *    （`application/destroy-room.ts` の冒頭が名指しで禁じている状態そのもの）。
+ *    scheduler / delegator / presence の予約が**消えたルームに対して発火し続け**、
+ *    さらに **`TimerStore` のエントリが孤児として残る**
+ *    （`application/destroy-room.ts` の冒頭と `TimerStore` の宣言が名指しで禁じている
+ *    状態そのもの）。落ちている後始末の内訳は {@link discardRoom} に書いた。
  *
  * **意図した中間状態である。** 1・2 を塞ぐのは入口の門（`application/tool-gate.ts`）、
  * 3・4 を塞ぐのは即時破棄の撤去（寿命を `room-reclaimer` の TTL と
@@ -220,12 +224,22 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
    *
    * ## ⚠ これは `createRoomDestroyer` を通っていない
    *
-   * **後始末は 3 つ足りない** —— `scheduler.clear` / `delegator.cancel` /
-   * `presence.clearRoomTimers` を呼んでいない。`application/destroy-room.ts` の冒頭は
+   * **後始末は 4 つ足りない** —— `scheduler.clear` / `delegator.cancel` /
+   * `presence.clearRoomTimers` / **`timers.remove`** を呼んでいない
+   * （`application/destroy-room.ts` が並べている順序のうち、ここに写っているのは
+   * `releaseRoom` と `store.remove` の 2 つだけである）。`destroy-room.ts` の冒頭は
    * まさにこの状態（「契機ごとに後始末を並べ直すと、片方だけが更新されて必ずずれる」）を
-   * 禁じている。poker だけの世界ではこの 3 つはどれも予約を持たなかったので害が無かったが、
+   * 禁じている。poker だけの世界では 4 つとも空振りだったので害が無かったが、
    * **名簿が 1 つになったいま、越境した接続がここへ入ると timer のルームに対して
    * 予約が残ったまま実体だけが消える。**
+   *
+   * ⚠ **`timers.remove` が落ちているのは、予約の残存より始末が悪い。**
+   * poker の `HandlerDeps` に `TimerStore` は無い（この文脈は timer の状態を知らない）ので、
+   * **越境した timer ルームをここで捨てると、名簿だけ消えて `TimerStore` のエントリが
+   * 孤児として残る**。`ports/timer-store.ts` の宣言が「名簿とは `code` で対になる。
+   * 同じ `code` の一方だけが存在する状態は作らない」と、`destroy-room.ts` が
+   * 「名簿と対で消す（片方だけ残すと幽霊のルームができる・#95 S4a）」と、
+   * どちらも名指しで禁じている状態そのものである。
    *
    * さらに `tokens.releaseRoom(roomId)` は roomCode 単位で、どちらのツールのものかを
    * 見ない。**timer ルームの合言葉と全参加者の復帰トークンまで巻き添えで消える。**
@@ -233,7 +247,7 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
    * ⚠ **この即時破棄は次の段で撤去する（R10・D8）。** 撤去したうえで、寿命は
    * `room-reclaimer` の TTL と `createRoomDestroyer` の 1 本へ寄る。**そこで
    * `RoundStore` の解放も `createRoomDestroyer` 側へ移る** —— この関数を「トークンと
-   * ラウンドを足すだけ」と読まないこと。落ちているのは上の 3 つである。
+   * ラウンドを足すだけ」と読まないこと。落ちているのは上の 4 つである。
    */
   function discardRoom(roomId: string): void {
     tokens.releaseRoom(roomId);

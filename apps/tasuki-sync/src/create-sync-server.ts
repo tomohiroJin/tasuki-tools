@@ -235,15 +235,20 @@ export function createSyncServer(config: SyncConfig): SyncServer {
   // ⚠ **この配線は単独で main へ入れてもデプロイしてもいけない。**
   // 名簿を 1 つにした一方で入口の門と寿命の一本化がまだ入っておらず、その間だけ
   // timer のルームコードを poker の入口へ与えると、次の 4 つが同時に成立する
-  // （2026-09-10 に実機の WS で実測。詳細は `poker/application/handlers.ts` の冒頭）。
+  // （詳細は `poker/application/handlers.ts` の冒頭）。
+  // **1 と 2 は 2026-09-10 に実機の WS で実測した。3 と 4 は経路をコードで確かめたもので、
+  // 実機では再現していない。**
   //   1. 合言葉の検査（`command-handlers/room-join.ts` にしか無い）を**一度も通らずに**、
   //      timer の snapshot（お題・参加者・輪・時計・AI 状態）を poker のソケットで受信できる。
-  //      下の `broadcaster.broadcastSnapshot` が共有名簿の `connId` から宛先を作るためである
+  //      **このファイルの `broadcaster`**（timer 側。上の `const broadcaster = {…}`。
+  //      後から作る `pokerBroadcaster` ではない）の `broadcastSnapshot` が、
+  //      共有名簿の `connId` から宛先を作るためである
   //   2. その接続が timer の名簿に幽霊の参加者として現れ、timer の画面に載る
   //   3. poker の即時破棄が `tokens.releaseRoom` を呼ぶので、
   //      **timer ルームの合言葉と全復帰トークンまで消える**
   //   4. その即時破棄は `createRoomDestroyer` を通らないので、scheduler / delegator /
-  //      presence の予約が**消えたルームに対して発火し続ける**
+  //      presence の予約が**消えたルームに対して発火し続け**、さらに poker が
+  //      `TimerStore` を持たないため **timer の状態が孤児として残る**
   // 1・2 を塞ぐのは入口の門、3・4 を塞ぐのは即時破棄の撤去で、どちらもこの段の後に来る。
   // **門と寿命の一本化と同じ PR で着地させること。**
   const pokerClock = createPerformanceClock();

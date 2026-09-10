@@ -101,11 +101,14 @@ describe('join-room（契約 #2）', () => {
    * 書けなくなった。**「`addParticipant` に名前を見る分岐が無い」はコードを読めば
    * 分かるという主張であってテストではない。**
    *
-   * ⚠ **同じ名簿を timer と共有していることが、この 1 本を必要にしている。**
-   * timer 側の参加口（`command-handlers/room-join.ts`）は `conflictsWithExisting` で
-   * **同名を拒否する**。共有の名簿に対して片方が拒否し片方が許すという非対称は、
-   * 「揃えよう」という善意の変更で簡単に崩れる。poker が同名を許すことは
-   * 契約（Edge Case）なので、その形で固定しておく。
+   * ⚠ **「どちらの参加口にも同名判定は無い」が現況である**（2026-09-10 実測）。
+   * `conflictsWithExisting` を呼ぶのは timer の `application/handlers.ts` の
+   * `participant.addProxy` と `participant.rename` だけで、`room.join` は
+   * `command-handlers/room-join.ts` へ早期分岐し、そこは無条件に `addParticipant` する。
+   *
+   * だからこそ固定する価値がある。名簿が timer と 1 つになったいま、**改名・代理追加に
+   * ある判定を「参加のときも揃えよう」と参加口へ広げる変更**は現実に起こりうる。
+   * それが poker 側へ及ぶと、poker が同名を許すという契約（Edge Case）が黙って壊れる。
    *
    * @requirements FR-003
    */
