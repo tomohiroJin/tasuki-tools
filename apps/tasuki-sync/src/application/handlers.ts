@@ -92,8 +92,17 @@ export interface HandlerDeps {
   scheduler?: Scheduler | undefined;
   /** お題代表生成（省略時は problem.request/submit を受け付けない） */
   delegator?: ProblemDelegator | undefined;
-  /** サーバー全体のルーム数上限（省略時は 50）。DoS 緩和用。 */
-  maxRooms?: number | undefined;
+  /**
+   * サーバー全体のルーム数上限（DoS 緩和用）。**名簿の件数を数えるので timer と poker で
+   * 共通の枠である**（#95 S4a）。
+   *
+   * **必須にしてある。** 理由は {@link HandlerDeps.tokens} と同じ ——
+   * 既定値を持たせると、本番（`create-sync-server.ts`）の配線から外しても
+   * `tsc --noEmit` が通り、実効上限が `config.ts` の値と黙って食い違う。
+   * 必須なら型検査が漏れを検出する。テスト側の既定は
+   * `test/support/room-builder.ts` の `TEST_MAX_ROOMS` が 1 箇所で持つ。
+   */
+  maxRooms: number;
   /**
    * 復帰トークンとパスフレーズの保管（`token-store.ts`）。
    *
@@ -189,8 +198,7 @@ export interface HandlerDeps {
 export type CommandResult = Result<CreateResult | JoinResult | undefined, ErrorCode>;
 
 export function makeHandlers(deps: HandlerDeps) {
-  const { store, timers, clock, broadcaster, codeGen, scheduler, delegator } = deps;
-  const maxRooms = deps.maxRooms ?? 50;
+  const { store, timers, clock, broadcaster, codeGen, scheduler, delegator, maxRooms } = deps;
   const aiUnlockKey = deps.aiUnlockKey;
 
   // トークン保持（リジュームトークン・ルームパスフレーズ）は

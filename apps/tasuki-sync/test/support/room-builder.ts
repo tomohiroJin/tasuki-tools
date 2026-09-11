@@ -271,6 +271,17 @@ export interface TestHandlers extends ReturnType<typeof makeHandlers> {
  * 結果が変わる）。本番で timer と poker が同じ 1 個を共有していることは、
  * ここではなく `test/live-ws.rate-limit.test.ts` が実 WS で見る。
  */
+/**
+ * テスト用のルーム数上限の既定。
+ *
+ * **本番の既定（`config.ts` の `MAX_ROOMS` 既定）と同じ値に揃えてある。**
+ * `HandlerDeps.maxRooms` は必須なので（既定値を持たせると配線漏れが型検査を素通りする）、
+ * 上限そのものを検査しないテストが毎回値を選ばずに済むよう、既定はここ 1 箇所が持つ。
+ * 上限の境界を見るテストは `maxRooms` を明示的に上書きすること
+ * （`handlers.room.test.ts` が `maxRooms: 1` でそうしている）。
+ */
+export const TEST_MAX_ROOMS = 100;
+
 export function testRateLimiter(): RateLimiter {
   return createTokenBucketLimiter({
     capacity: DEFAULT_CAPACITY,
@@ -295,6 +306,7 @@ export function makeTestHandlers(overrides?: TestHandlerOverrides): TestHandlers
     tokens: overrides?.tokens ?? createTokenStore(),
     toolGate: overrides?.toolGate ?? testToolGate({ timers, rounds }),
     rateLimiter: overrides?.rateLimiter ?? testRateLimiter(),
+    maxRooms: overrides?.maxRooms ?? TEST_MAX_ROOMS,
     clock,
     broadcaster,
     codeGen: overrides?.codeGen ?? new FakeCodeGen(),
