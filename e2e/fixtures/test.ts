@@ -5,11 +5,14 @@
  *
  * 1. **コンソール監視を取りこぼさない。** 既定の `page` にも、2 人目のために
  *    自分で作る文脈にも、`goto()` より前に監視を付ける。
- * 2. **2 人目を必ず別の `BrowserContext` で作らせる。** poker は `localStorage` の
- *    `poker:participant:<roomId>`、timer は `sessionStorage` に状態を持つため、
- *    同じ文脈でタブを 2 枚開くと 2 人目が 1 人目として復帰し、
+ * 2. **2 人目を必ず別の `BrowserContext` で作らせる。** 両ツールとも復帰の組を
+ *    `localStorage` にルームコード別で持つ（poker は `poker:participant:<roomId>`、
+ *    timer は `tasuki:resume:<ルームコード>`。timer は #95 S4b で `sessionStorage` から
+ *    移った）ため、同じ文脈でタブを 2 枚開くと 2 人目が 1 人目として復帰し、
  *    **「2 人居るつもりで 1 人」のまま緑になる**。素の `browser.newContext()` を
  *    直接呼ばず `openPeer` を通す規律にして、監視の付け忘れも同時に塞ぐ。
+ *    **S4b でこの規律はより重要になった** —— timer の復帰がタブを閉じても生き残る
+ *    ようになったので、文脈を共有した 2 枚目は確実に同一人物として復帰する。
  */
 import { test as base, type Page } from '@playwright/test';
 import { attachConsoleLog, watchConsole, type ConsoleWatcher } from './console';

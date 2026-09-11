@@ -237,7 +237,7 @@ test.describe('timer を再読込しても参加画面に戻らない', () => {
     await expect(strip).toContainText(GUEST);
 
     // When: 同じ page で再読込する。**新しい文脈を作ってはいけない。**
-    //       復帰情報は sessionStorage にあり、文脈を変えると検証の意味が変わる
+    //       復帰の組は `localStorage`（文脈ごと）にあり、文脈を変えると別人になる
     await guest.page.reload();
 
     // Then その1: **参加画面に戻っていない。**

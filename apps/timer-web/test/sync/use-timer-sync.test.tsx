@@ -292,10 +292,18 @@ describe("useTimerSync: 後始末", () => {
 });
 
 describe("混雑で入室を拒まれたとき", () => {
-  /** バナーを差し替えて接続済みにする（上の describe のものとは別に持つ）。 */
+  /**
+   * バナーを差し替えて接続済みにする（上の describe のものとは別に持つ）。
+   *
+   * **入るのは参加（`joinRoom`）経路である。** `JOIN_RATE_LIMITED` は `room.join` の
+   * 応答であって `room.create` では返らないので、作成経路で演じるとこの describe の
+   * 前提が実在しない形になる。**#95 S4b では実害も出る** —— 復帰の組の鍵が
+   * ルームコード別になったため、どのルームへ入ろうとしていたかが分からないと
+   * 再送すべき組を引けない（作成経路は room.created が来るまでコードを知らない）。
+   */
   function connectedWith(banner: BannerController) {
     const hook = renderHook(() => useTimerSync(banner));
-    act(() => hook.result.current.createRoom("Creator"));
+    act(() => hook.result.current.joinRoom(SEEDED_ROOM_CODE, "私"));
     const ws = latestSocket();
     act(() => {
       ws.readyState = FakeWS.OPEN;
@@ -306,11 +314,24 @@ describe("混雑で入室を拒まれたとき", () => {
     return { ...hook, ws, deliver };
   }
 
-  /** 保存済みの識別情報を置く（再接続時の再送と同じ材料）。 */
+  /** 前提で入っておくルーム。保存済みの復帰の組と鍵を合わせる（#95 S4b）。 */
+  const SEEDED_ROOM_CODE = "ROOM01";
+
+  /**
+   * 保存済みの復帰の組を置く（再接続時の再送と同じ材料）。
+   *
+   * **保存先は `localStorage`・鍵はルームコード別**（#95 S4b・D12）。
+   * S4a までは `sessionStorage` にタブで 1 組だった。
+   */
   function seedResumeIdentity() {
-    sessionStorage.setItem(
-      "tdd-mob:resume-identity",
-      JSON.stringify({ code: "ROOM01", participantId: "me", resumeToken: "rt", displayName: "私" }),
+    localStorage.setItem(
+      `tasuki:resume:${SEEDED_ROOM_CODE}`,
+      JSON.stringify({
+        code: SEEDED_ROOM_CODE,
+        participantId: "me",
+        resumeToken: "rt",
+        displayName: "私",
+      }),
     );
   }
 

@@ -2,7 +2,7 @@
  * ソロで抜けた後は、消えたルームへ戻ろうとしない（Issue #79）。
  *
  * サーバー側で「在室者が 0 人になる退出はルームごと破棄する」ようにしたため、
- * 退出が成立した時点でそのルームコードはもう存在しない。ここで sessionStorage の
+ * 退出が成立した時点でそのルームコードはもう存在しない。ここで保存済みの
  * リジューム識別情報や URL の `?room=` が残っていると、再読込のたびに
  * **消えた部屋へ resumeToken 付きの room.join を送り直す**ことになり、
  * 利用者には「抜けたはずなのに参加画面へ引き戻され、失敗する」ように見える。
@@ -85,7 +85,7 @@ function leaveSoloRoom(): void {
   sendServer(ws, { type: "error", code: "LEFT_ROOM", message: "ルームから抜けました。" });
 }
 
-/** 再読込をまねる（同一タブなので sessionStorage と URL はそのまま引き継ぐ）。 */
+/** 再読込をまねる（保存済みの復帰の組と URL はそのまま引き継ぐ）。 */
 function reload(): void {
   cleanup();
   FakeWS.instances = [];
@@ -121,7 +121,7 @@ describe("ソロ退出後の復帰（Issue #79）", () => {
     // Then: 入口画面（作成画面）に戻っている
     expect(screen.getByRole("heading", { name: "TDD Mob Pro Timer" })).toBeInTheDocument();
     // Then: 復帰の手がかりが片方でも残ると、再読込で消えた部屋へ戻ろうとする
-    expect(loadResumeIdentity()).toBeNull();
+    expect(loadResumeIdentity("ROOM01")).toBeNull();
     expect(new URL(window.location.href).searchParams.get("room")).toBeNull();
   });
 
