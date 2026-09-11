@@ -59,6 +59,32 @@ describe("名簿の操作", () => {
     expect(findParticipant(next, "p_alice")).toMatchObject({ connId: null, presence: "offline" });
   });
 
+  // 以下 2 本は `updateParticipant` の「対象外の参加者はそのまま返す」側を守る。
+  // ここが潰れる（全員へ update を当てる）と、1 人の着脱で名簿全員の connId と
+  // presence が同じ値になる。参加者 1 人の名簿では区別できないので 2 人で見る。
+  it("接続を切っても、対象外の参加者は online と connId のままである", () => {
+    const bob: Participant = { ...alice, id: "p_bob", displayName: "ボブ", connId: "c2" };
+    const pair: Room = { ...room, participants: [alice, bob] };
+
+    const next = detachConnection(pair, "p_alice");
+
+    expect(findParticipant(next, "p_alice")).toMatchObject({ connId: null, presence: "offline" });
+    expect(findParticipant(next, "p_bob")).toMatchObject({ connId: "c2", presence: "online" });
+  });
+
+  it("接続を結んでも、対象外の参加者は自分の connId と presence のままである", () => {
+    const bob: Participant = { ...alice, id: "p_bob", displayName: "ボブ", connId: "c2" };
+    const pair: Room = {
+      ...room,
+      participants: [{ ...alice, connId: null, presence: "offline" }, bob],
+    };
+
+    const next = attachConnection(pair, "p_alice", "c9");
+
+    expect(findParticipant(next, "p_alice")).toMatchObject({ connId: "c9", presence: "online" });
+    expect(findParticipant(next, "p_bob")).toMatchObject({ connId: "c2", presence: "online" });
+  });
+
   it("名簿が空かどうかを判定できる", () => {
     expect(hasNoParticipants(room)).toBe(false);
     expect(hasNoParticipants({ ...room, participants: [] })).toBe(true);
