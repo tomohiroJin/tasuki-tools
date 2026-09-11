@@ -39,7 +39,7 @@ pnpm + turbo のモノレポ（詳細は [plan.md](./specs/001-planning-poker-mv
 
 | パッケージ | 役割 |
 |-----------|------|
-| `packages/poker-core` | ドメイン（`Round` 集約・ラウンド状態機械・集計・名前規則）+ WS プロトコル契約（Valibot / neverthrow）。**名簿（参加者・接続状態・トークン）は持たない** —— `@tasuki/room-core` が持ち、timer と共有する（#95 S4a） |
+| `packages/poker-core` | ドメイン（`Round` 集約・ラウンド状態機械・集計・名前規則）+ WS プロトコル契約（Valibot / neverthrow）。**名簿は持たない** —— S4a で poker の状態は 3 つに割れた。**名簿**（参加者・接続状態）は `@tasuki/room-core`、**ラウンド**が `packages/poker-core`、**復帰トークン**は `apps/tasuki-sync/src/application/token-store.ts` で、名簿とトークンは timer と共有する（#95 S4a） |
 | `apps/poker-web` | React + Vite フロントエンド（base: `/poker/`） |
 | `apps/tasuki-sync` | Bun + WebSocket 同期サーバー（受信者別秘匿スナップショット配信）。**timer と共用**（#95 S2 で統合） |
 | `deploy/` | Caddyfile 断片・systemd ユニット・デプロイスクリプト |

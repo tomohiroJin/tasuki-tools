@@ -82,6 +82,55 @@ describe("participant.remove（⑪）", () => {
     expect(result.isOk()).toBe(true);
   });
 
+  /**
+   * 代理（`isPlaceholder`）を対象にした退出（#95 S4a・D6）。
+   *
+   * **代理は名簿に居ない。** `RotationEntry` の `kind: "proxy"` として輪の上にだけ存在する。
+   * したがってここで消えるのは**席だけ**で、名簿（`RoomStore`）は 1 人も減らない。
+   *
+   * この 1 本が無いと、`command-handlers/participant-remove.ts` の
+   * 「対象が代理なら `removeParticipant` は何もしない」というコメントが
+   * **論理的には正しいのに誰も目撃していない主張**のまま残る（#245 のレビュー指摘）。
+   *
+   * ⚠ **代理の `participantId` は client 供給の値をサーバーが再生成する**（`handlers.ts`）。
+   * 送った値で消そうとすると `PARTICIPANT_NOT_FOUND` になり、
+   * 「代理を消したつもりで何も消していない」テストになる（旧新比較で実際に踏んだ）。
+   * **必ず snapshot から実 ID を取ること。**
+   */
+  it("代理を退出させると輪の席だけが消え、名簿は減らない（D6）", async () => {
+    // Given: 代理を 1 人足して輪へ並べる（rotation = [Alice, Bob, 代理]）
+    await handlers.handleCommand(creatorConn, {
+      command: "participant.addProxy",
+      participantId: "client-supplied-ignored",
+      displayName: "同席のカルロス",
+    });
+    // サーバーが再生成した実 ID を snapshot から取る
+    const proxyId = roomViewOf(store, timers, code).participants.find((p) => p.isPlaceholder)!
+      .participantId;
+    await handlers.handleCommand(creatorConn, { command: "member.add", participantId: proxyId });
+    expect(roomViewOf(store, timers, code).session.rotation).toContain(proxyId);
+    const rosterBefore = store.get(code)!.participants.map((p) => p.id);
+    expect(rosterBefore).toEqual([creatorId, guestId]);
+    broadcaster.sent.length = 0;
+    broadcaster.snapshots.length = 0;
+
+    // When: 代理を対象に退出させる
+    const result = await handlers.handleCommand(creatorConn, {
+      command: "participant.remove",
+      participantId: proxyId,
+    });
+
+    // Then: 成功し、輪から代理の席が消える
+    result._unsafeUnwrap();
+    const room = broadcaster.latestSnapshot();
+    expect(room?.session.rotation).not.toContain(proxyId);
+    expect(room?.participants.find((p) => p.participantId === proxyId)).toBeUndefined();
+    // **名簿は 1 人も減らない**（代理はもともと名簿に居ない）
+    expect(store.get(code)!.participants.map((p) => p.id)).toEqual(rosterBefore);
+    // 実在の 2 人は席も名簿もそのまま
+    expect(room?.session.rotation).toEqual([creatorId, guestId]);
+  });
+
   it("最後の1人（rotation 1名）は外せない", async () => {
     // Given（rotation=[Bob] の状態を作る。Alice を対象にすると自己退出の経路になるため、
     // Alice を輪から抜いて Bob だけを残す）
