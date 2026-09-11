@@ -9,7 +9,9 @@
  * **この規律は成立している（#95 S4a・寿命の一本化）。**
  *
  * - 作る側は `poker/application/handlers.ts` の `commit` 1 本。名簿の `put` と
- *   ラウンドの `put` を同じ関数の中で必ず対にしている。
+ *   ラウンドの `put` を同じ関数の中で必ず対にしている（製品コードの `rounds.put` は
+ *   この 1 箇所だけである）。**timer 側は事情が違う** —— 名簿だけ・timer の状態だけを
+ *   書く経路が別にあり、一覧は `application/handlers.ts` の `commit` の docstring にある。
  * - 消す側は `application/destroy-room.ts` の `createRoomDestroyer` 1 本。
  *   `rounds` は**必須の依存**なので、配線から落とせば `tsc --noEmit` が赤くなる。
  *   契機は TTL 回収（`application/room-reclaimer.ts`）と在室者 0 人の退出

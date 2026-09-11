@@ -110,7 +110,10 @@ function applyRoomLevelEvent(
     case "PhaseSet":
       // かつてここには `startedAt`（一度でも開始したかを表す単調フラグ）の記録があった。
       // 役割の廃止（#95 S3）で読み手が 0 件になり、S4a で `TimerState` から落とした。
-      // wire の型（`wire.ts`）には任意項目として残っているが、書き手はもう居ない。
+      // **wire の型（`wire.ts`）と `RoomSchema` からも落としてある** —— 書き手も読み手も
+      // 無い任意項目を宣言だけ残さないため（`wire.ts` の `startedAt` の注記）。
+      // `RoomSchema` は非 strict の `v.object` なので、この項目を載せた古い snapshot の
+      // パースは今までどおり通る。
       return withTimer(state, { ...room, phase: event.phase });
     case "SessionReset":
       // リセット＝最初から再スタート（v2.3 #3）。集約(session/clock)は evolve が

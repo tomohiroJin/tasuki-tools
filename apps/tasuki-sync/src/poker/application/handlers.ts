@@ -296,6 +296,9 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
    * `persist` が false のときは配信だけ行い、保管しない。**書き戻すと保管にだけ
    * ルームが復活し、Broadcaster 側に接続が無い「到達不能なルーム」が `maxRooms` の枠を
    * 永久に食い潰す**（#165 レビューで発見）。判断は {@link handleJoinRoom} が持つ。
+   *
+   * ⚠ **S4a 以降、`persist` に false が渡る経路は無い**（理由は {@link handleJoinRoom} の
+   * `stillRegistered` の注記）。引数を残す理由もそこにある。
    */
   function completeJoin(
     ws: HandlerConnection,
@@ -447,11 +450,17 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
     // 参加先の存在を確認してから、参加中の別ルームを切り離す（二重送信・SPA 遷移対策）
     detachFromCurrentRoom(ws);
 
-    // 以下の 2 つは、**detach が参加先のルームそのものを触った場合**への備えである。
-    // #171 の修正で「参加先＝現在地」は上の冪等分岐が先に返すようになったため、
-    // ここでそうなりうるのは「roomId は一致するのに参加者一覧に自分が居ない」という、
-    // ドメインが作らない状態（participants は増えるか更新されるだけで減らない）に限られる。
-    // 到達経路は無いが、落とすと戻ってくる欠陥がどちらも重いので残してある。
+    // 以下の 2 つは、**detach が参加先のルームそのものを消した場合**への備えだった。
+    //
+    // ⚠ **S4a で構造的に到達しなくなった。** 旧 FR-014（接続数 0 での即時破棄）を撤去した
+    // 結果、`detachFromCurrentRoom` はルームを保管から消さない（上のその関数の注記）。
+    // 直前に存在を確認したルームは detach を跨いでも保管に残るので、`stillRegistered` は
+    // **常に true**、`?? state` の右辺は**常に評価されない**。#165 の欠陥を作っていた
+    // 即時破棄は、もう無い。
+    //
+    // **それでも残す。** S5 でツール状態の遅延生成が入ると、「ルームが保管に居ない瞬間」が
+    // また現れて両方とも再び到達しうるためである（このガードを落とすと #165 の欠陥ごと
+    // 戻ってくる）。当時の理由は次のとおり ——
     //
     // - stillRegistered: detach でレジストリから消えていたら **書き戻さない**。
     //   書き戻すと保管にだけルームが復活し、Broadcaster 側に接続が無い

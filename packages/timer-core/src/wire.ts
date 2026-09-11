@@ -13,7 +13,9 @@
  * **形は S4a で変えない。** `apps/timer-web` のテストを 1 行も書き換えずに通せることが
  * 「振る舞いを変えていない」ことの証拠になるので、ここへ足す・ここから落とすのは
  * wire 契約の変更として別途扱うこと。
- * **例外が 1 つある**（このファイル内の `startedAt` の注記を読むこと）。
+ * **ここで言うのは型の話だけである。型の例外は `startedAt` の 1 つ**（このファイル内の
+ * `startedAt` の注記を読むこと）。**合成の例外**（`participants` の並び・`driverEligible` の
+ * 出し方）は `apps/tasuki-sync/src/application/timer-snapshot-dto.ts` の台帳にある。
  */
 import type {
   CompletionRecord,

@@ -3,7 +3,16 @@
  *
  * **ドメインに互いを知らせないための場所である。** ここでしか 2 つの文脈は出会わない。
  * 出力の形は S4a で変えない（既存の Web とそのテストが「変えていない」ことの証拠になる）。
- * **例外が 2 つある**（`buildTimerSnapshotRoom` の `driverEligible` の注記と、`wire.ts` の `startedAt` の注記）。
+ *
+ * ★ **S4a で wire が変わった点の台帳はここ 1 つである**（同じ内容を他所へ書き写さないこと。
+ * 片方だけが腐る）。`wire.ts` は**型の**例外だけを自分の射程として言う。
+ *
+ * 1. **`startedAt` を型と `RoomSchema` から落とした**（`wire.ts` の `startedAt` の注記）。
+ *    書き手も読み手も 0 件。非 strict の `v.object` なので古い snapshot のパースは通る
+ * 2. **`participants` の並びが挿入順から `[名簿の人…, 代理…]` へ変わった**
+ *    （`buildTimerSnapshotRoom` の `participants` を組む行の注記）
+ * 3. **`driverEligible` の出し方が変わった**（`buildTimerSnapshotRoom` の `eligible` の注記）。
+ *    値を持つ条件が「押した人だけ」から「輪に席がある人」へ変わり、判定の結果は一致する
  *
  * 代理（`isPlaceholder`）はここで**合成される**。名簿には居らず、輪の上の席
  * （`RotationEntry` の `kind: "proxy"`）としてだけ存在するためである。
@@ -125,6 +134,13 @@ export function buildTimerSnapshotRoom(membership: MembershipRoom, timer: TimerS
     },
     clock: timer.clock,
     phase: timer.phase,
+    // ⚠ **並びは S4a で挿入順ではなくなった**（台帳の 2。旧 `ProxyMemberAdded` は
+    // `[...room.participants, proxy]` で足していたので `[m1, proxy, m2]` になりえた。
+    // 新しくは常に `[名簿の人…, 代理…]`）。**席は `joinedAt` を持たないので挿入順は
+    // 復元できない。** 表示への影響は実測で次のとおり ——
+    // `RosterPanel` は輪に居る人を rotation 順へ並べ直すので影響を受けない。
+    // 配列順のまま出すのは `Lobby` の参加者一覧と `RosterPanel` の見学一覧の 2 つで、
+    // どちらも代理が後ろへ寄る（内容は変わらない）。
     participants: [...members, ...proxies],
     sessionRecords: timer.sessionRecords,
     handoffNote: timer.handoffNote,

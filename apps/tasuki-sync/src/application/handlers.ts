@@ -278,8 +278,18 @@ export function makeHandlers(deps: HandlerDeps) {
   /**
    * 更新した状態を保管し、合成した snapshot を配信する（#95 S4a）。
    *
-   * **wire の形を組む場所を 1 つにする。** 保管が 2 つに割れた以上、片方だけ put して
-   * もう片方を配信する取り違えが起こりうる。両方の put と配信をここへ束ねてある。
+   * ★ **wire を組む場所は `timer-snapshot-dto.ts` の `buildTimerSnapshotRoom` の 1 つである。**
+   * 保管が 2 つに割れた以上、片方だけ put してもう片方を配信する取り違えが起こりうる。
+   * それを防ぐのは「配信は必ず DTO を通す」という規律であって、経路の数ではない。
+   *
+   * ⚠ **put と配信を束ねた経路はここだけではない。** この `commit` は名簿と timer の状態を
+   * **両方**書くので、両方を変えるコマンドはここを通す。片方しか変えない経路が別にある ——
+   *
+   * - `application/presence.ts`（`handlePing` / `handleDisconnect`）…… 名簿だけ（`store.put`）
+   * - `application/problem-delegation.ts`（`finalize`）…… timer の状態だけ（`timers.put`）
+   *
+   * **ここを「1 箇所」と書くと、次に presence か delegation を触る人は `commit` を探さず、
+   * その場で 2 行書き足す。** 足すなら DTO を通すことだけは外さないこと。
    */
   function commit(state: RoomState): void {
     store.put(state.membership);
