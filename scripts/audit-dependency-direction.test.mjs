@@ -86,11 +86,16 @@ test("パッケージの外へ出る相対パスを違反として報告する",
 test("表にある依存先でも、相対パスで取り込めば違反になる", () => {
   // 表を見て「許されている」と判断してはならない。パッケージ名で参照しない限り、
   // package.json と import 指定子を見る 2 つの経路がどちらも空振りする。
+  //
+  // ⚠ **前提は「表に現にある組」でなければならない。** ここは長らく
+  // `packages/timer-core → @tasuki/room-core` を使っていたが、#95 S4b でその
+  // 一時依存を外したため `manifest` の側も違反になり、件数が 2 になって落ちた。
+  // **表を変えたらこの前提も数え直すこと**（現に許されている組へ替える）。
   const violations = findViolations({
-    "packages/timer-core": {
-      manifest: ["@tasuki/room-core"],
+    "packages/poker-core": {
+      manifest: ["@tasuki/protocol"],
       imports: [],
-      escapes: ["packages/timer-core/src/schemas.ts → ../../room-core/src/display-name.js"],
+      escapes: ["packages/poker-core/src/protocol.ts → ../../protocol/src/boundary.js"],
     },
   });
   assert.equal(violations.length, 1);
