@@ -4,7 +4,7 @@
 // **#95 S4a で入力が「ルーム」から「ラウンド＋名簿の断片」の 2 つになった。**
 // wire（`room-state` の形）は変えていない —— 組み立てる材料の出所が変わっただけである。
 import type { RoomStateMessage, VoteView } from './protocol';
-import type { Round } from './round';
+import type { Round, VoterView } from './round';
 import { computeStats } from './stats';
 
 /**
@@ -13,11 +13,14 @@ import { computeStats } from './stats';
  * **`@tasuki/room-core` を import しない**（理由は `round.ts` の `VoterView` と同じ）。
  * `name` は room-core の `displayName`、`connected` は `presence !== "offline"` に対応し、
  * 変換はアプリ層が行う。**トークンは受け取らない** —— 受け取らなければ漏らせない。
+ *
+ * **{@link VoterView}（自動公開の判定が要る最小面）を継承する。** 同じ「名簿の断片」を
+ * 2 つ定義して互いを指さない状態を避けるため、`id` / `connected` の定義は `round.ts` 側
+ * 1 つに寄せてある。継承の向きが逆（`Pick<ParticipantFragment, ...>`）だと
+ * `round.ts` → `snapshot.ts` の逆向きの辺が増えるので、上位集合のこちらを派生側にした。
  */
-export interface ParticipantFragment {
-  id: string;
+export interface ParticipantFragment extends VoterView {
   name: string;
-  connected: boolean;
 }
 
 /**

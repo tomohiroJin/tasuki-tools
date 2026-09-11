@@ -24,6 +24,10 @@ export type RoundError =
  * 呼び出し側は room-core の `Participant` から必要な 2 つを写して渡せばよい。
  *
  * `connected` は room-core の `presence !== "offline"` に対応する（アプリ層が変換する）。
+ *
+ * **`snapshot.ts` の `ParticipantFragment` はこれを継承した上位集合である**
+ * （＝名簿の断片の定義はこの 1 つで、こちらが最小面）。アプリ層は両方へ
+ * `ParticipantFragment[]` を渡してよい。
  */
 export interface VoterView {
   id: string;
