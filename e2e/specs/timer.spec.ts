@@ -25,6 +25,7 @@ import {
   joinAsDriverAt,
   MISSING_ROOM_CODE,
   lobbyRotationRow,
+  participantCount,
   statusStrip,
 } from '../support/timer';
 
@@ -253,6 +254,47 @@ test.describe('timer を再読込しても参加画面に戻らない', () => {
     //             このルームでは HOST/GUEST の名前が重ならないので空振りしない
     //             （下で確かめる: 作成者自身の画面の strip は当然 HOST を含む）
     await expect(strip, '作成者の名前へ縮退している').not.toContainText(HOST);
+  });
+});
+
+test.describe('timer はタブを閉じて参加用 URL を開き直しても、名簿に幽霊を作らない', () => {
+  /**
+   * #95 S4b・R16（`local` 専用）。
+   *
+   * 復帰の組を `localStorage` にルームコード別で持つようになった（D12。FR-006 の撤廃）。
+   * **S4a まではタブを閉じると復帰の手がかりが消え、同じ URL を開き直した人は
+   * 別人として join していた** —— 前の自分は `offline` のまま名簿に残り、
+   * 選択画面の参加者一覧に幽霊が溜まる。
+   *
+   * ⚠ **ここは「同じ文脈で 2 枚目のタブ」を意図的に作る。** `openPeer` が別文脈を
+   * 強制するのは「2 人目を 1 人目として復帰させない」ためだが、このシナリオが見たいのは
+   * まさに**同一人物として復帰すること**である。だから同じ文脈で `newPage()` する。
+   *
+   * 判定は**人数**で行う（設計正本 §6.2）。名前で見ると、幽霊は本人と同名なので
+   * 「名前が見えること」は幽霊が居ても真になる。
+   */
+  test('Given 2 人が居る / When 2 人目がタブを閉じて同じ URL を開き直す / Then 参加者は 2 人のままである', async ({
+    page,
+    openPeer,
+  }) => {
+    // Given: 作成者と、招待リンクから来た 2 人目
+    const code = await createRoom(page, HOST);
+    const guest = await openPeer('timer-resume-ghost');
+    await joinAsDriver(guest.page, code, GUEST);
+    await expect(participantCount(page), '2 人が居ることの確認').toBeVisible();
+
+    // When: 2 人目がタブを閉じ、**同じ文脈の新しいタブ**で同じ参加用 URL を開く
+    const context = guest.page.context();
+    await guest.page.close();
+    const reopened = await context.newPage();
+    await reopened.goto(`/timer/?room=${code}`);
+
+    // Then その1: 開き直した本人は参加画面を通らずロビーへ戻り、自分として表示される
+    await expect(statusStrip(reopened), '開き直した本人のステータス表示').toContainText(GUEST);
+
+    // Then その2: **作成者の名簿は 2 人のままである**（別人として増えていない）
+    await expect(participantCount(page), '幽霊が増えていない').toBeVisible();
+    await expect(participantCount(page, 3), '3 人になっていない').toHaveCount(0);
   });
 });
 

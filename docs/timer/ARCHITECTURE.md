@@ -194,8 +194,10 @@ argv・ログ・snapshot に混入させません。失敗（タイムアウト�
   後者の `onopen` でのみ `onReconnected` を呼びます（Issue #24）。
 - `sync/dispatch.ts`: 受信メッセージの純粋な振り分け（snapshot / error / signal / time.pong）。
 - `sync/resume-identity.ts`: 自分の `resumeToken`/`participantId`/ルームコード/表示名を
-  `sessionStorage` に保持します（**localStorage ではない** — resumeToken はルーム限定・短命で
-  サーバー再起動により失効するため、タブ単位で完結する sessionStorage が要件に合致します）。
+  **`localStorage` にルームコード別の鍵（`tasuki:resume:<ルームコード>`）で保持します**
+  （#95 S4b で `sessionStorage` から移しました。`sessionStorage` だとタブを閉じて
+  参加用 URL を開き直すたびに別人として join し、**前の自分が名簿に残って幽霊になる**
+  ため。FR-006 の撤廃・設計正本 D12。poker が公開以来採っている形と同じです）。
   `App.tsx` は WS の `onReconnected`（上記）でこれを読み、`resumeToken` 付きの `room.join` を
   利用者の操作なしに再送します。既存の参加者を復帰させるサーバー側処理
   （`apps/tasuki-sync/src/application/command-handlers/room-join.ts`）は本 Issue 以前から実装済みでしたが、
@@ -303,9 +305,13 @@ S3 が外した 6 件は事象そのもの（可否判定・ホスト移譲・�
 - **XSS**: React 既定エスケープ。AI/ユーザー由来テキストへ `dangerouslySetInnerHTML` 不使用。
 - **トークン管理**: AI 用 OAuth トークンはサーバー env のみ。`claude -p` 子プロセスの env にのみ渡し、
   argv・ログ・snapshot に混入させない（ADR-0008）。
-- **resumeToken の保存先**: `sessionStorage`（`sync/resume-identity.ts`）。`localStorage` は
-  機密情報の保存禁止（セキュリティ規約）だが、`resumeToken` はルーム限定・短命でサーバー
-  再起動により失効するため、タブ単位で完結する `sessionStorage` が要件に合致する（Issue #24）。
+- **resumeToken の保存先**: **`localStorage`・ルームコード別の鍵**（`sync/resume-identity.ts`）。
+  #95 S4b で `sessionStorage` から移した（FR-006 の撤廃・設計正本 D12）。根拠は 2 つ ——
+  ①`sessionStorage` だと開き直すたびに別人として join し名簿に幽霊が溜まる、
+  ②引かれていたセキュリティ規約は `localStorage` と `sessionStorage` を同列に禁じており
+  2 つを区別する根拠にならない（同 §3.14）。同一人物の判定はサーバー発行トークンで行い、
+  表示名では照合しない。鍵をルーム別に分けているので、復帰できるのは同じブラウザ
+  プロファイルの同じルームだけである（Issue #24・#95 S4b）。
 - **WSS / Origin**: 本番は Caddy で WSS 強制・許可 Origin 検証（`ALLOWED_ORIGINS`）。
 - **可用性**: 状態揮発・再起動安全。
 
