@@ -265,13 +265,6 @@ export interface TestHandlers extends ReturnType<typeof makeHandlers> {
 }
 
 /**
- * テスト用のレート制限バケツ（本番と同じ既定容量・補充速度）。
- *
- * **テストごとに新しい 1 個を作る**（バケツの残量がテストをまたぐと、実行順で
- * 結果が変わる）。本番で timer と poker が同じ 1 個を共有していることは、
- * ここではなく `test/live-ws.rate-limit.test.ts` が実 WS で見る。
- */
-/**
  * テスト用のルーム数上限の既定。
  *
  * **本番の既定（`config.ts` の `MAX_ROOMS` 既定）と同じ値に揃えてある。**
@@ -282,6 +275,13 @@ export interface TestHandlers extends ReturnType<typeof makeHandlers> {
  */
 export const TEST_MAX_ROOMS = 100;
 
+/**
+ * テスト用のレート制限バケツ（本番と同じ既定容量・補充速度）。
+ *
+ * **テストごとに新しい 1 個を作る**（バケツの残量がテストをまたぐと、実行順で
+ * 結果が変わる）。本番で timer と poker が同じ 1 個を共有していることは、
+ * ここではなく `test/live-ws.rate-limit.test.ts` が実 WS で見る。
+ */
 export function testRateLimiter(): RateLimiter {
   return createTokenBucketLimiter({
     capacity: DEFAULT_CAPACITY,
