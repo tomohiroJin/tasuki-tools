@@ -70,23 +70,32 @@ LP に着地してしまう。`caddy/40-timer-legacy-room.conf` が **`/` かつ
 S4a からは 1 本で数える）。**S2 の `MAX_CONNECTIONS` とまったく同型の罠**である
 （あちらの手順は [`../poker/NOTES.md`](../poker/NOTES.md)）。
 
+> ⚠ **S2 以降が未配布なら、同じ env の `MAX_CONNECTIONS` も同時に直すこと。**
+> S2 は `MAX_CONNECTIONS` を 200 → 400 にしており（手順は
+> [`../poker/NOTES.md`](../poker/NOTES.md) の手順 1）、そちらも `deploy/setup.sh` では
+> 本番へ届かない。**片方だけ直して配ると、接続の実効枠が 400 → 200 のまま残る。**
+> 未配布かどうかは下の手順 3 の 1 コマンドで分かる（`maxConn=200` なら未配布である）。
+
 ```bash
 # 1. 配る**前に**本番の env を直す。env は DEPLOY_USER 所有の 600 で、
 #    ログインユーザーがそのまま編集できる（sudo は不要）
 ssh <ホスト別名> "sed -i 's/^MAX_ROOMS=50\$/MAX_ROOMS=100/' /opt/tasuki/tasuki-sync.env"
+#    S2 が未配布なら、同じ env のこの 1 行も直す（両方直すまで枠は戻らない）
+ssh <ホスト別名> "sed -i 's/^MAX_CONNECTIONS=200\$/MAX_CONNECTIONS=400/' /opt/tasuki/tasuki-sync.env"
 #    **必ず目で確かめる。** 値を手で変えてあった場合、上の sed は何もせず成功する。
 #    行そのものが無ければ（古いテンプレートから作った env）追記すること
-ssh <ホスト別名> "grep '^MAX_ROOMS=' /opt/tasuki/tasuki-sync.env"
+ssh <ホスト別名> "grep -E '^(MAX_ROOMS|MAX_CONNECTIONS)=' /opt/tasuki/tasuki-sync.env"
 
 # 2. 配る
 TASUKI_SSH_HOST=<ホスト別名> ./deploy/deploy.sh timer
 
 # 3. **手順 1 が効いたことを起動ログで確かめる（ここが唯一の証拠）。**
-#    手順 1 を飛ばしても deploy.sh は成功するので、これを見るまで気づけない
-ssh <ホスト別名> "journalctl -u tasuki-sync -n 30 --no-pager | grep -o 'maxRooms=[0-9]*' | tail -1"
+#    手順 1 を飛ばしても deploy.sh は成功するので、これを見るまで気づけない。
+#    2 つまとめて見る（どちらか片方だけ直す事故がいちばん起きやすい）
+ssh <ホスト別名> "journalctl -u tasuki-sync -n 30 --no-pager | grep -oE '(maxConn|maxRooms)=[0-9]*' | tail -2"
 ```
 
-`maxRooms=100` が出れば完了。出なければ手順 1 へ戻ること。
+`maxConn=400` と `maxRooms=100` の両方が出れば完了。片方でも欠ければ手順 1 へ戻ること。
 
 > ⚠ **`ROOM_IDLE_TTL_MS` は変えない。** S4a で poker のルームが即時破棄から TTL 保持へ
 > 変わったので同時に占有される数は増えるが、TTL を縮めると timer の復帰体験
@@ -105,11 +114,15 @@ curl -H "x-admin-token: $ADMIN_TOKEN" http://127.0.0.1:8787/admin/rooms
 - `/status`: アクティブルーム数・累計回収数
 - `/admin/rooms`: 上記＋各ルーム要約（コード/参加者数/online数/ドライバー有無/作成時刻）
 
-> ⚠ **どちらの数字も timer のルームだけ**である（#95 S2）。統合サーバーは poker の
-> ルームを別の保管に持っており、管理エンドポイントはそちらを見ていない。
-> **`activeRooms: 0` は「誰も使っていない」の証拠にならない** —— poker の
-> セッションが動いている可能性がある。再起動は poker のルームも道連れにするので、
-> この数字だけで判断しないこと（poker のルーム数を出すのは別 Issue の領分）。
+> ✅ **#95 S4a から、どちらの数字も timer と poker の両方を数える。** 名簿
+> （`RoomStore`）が 1 つになり、`activeRooms` はその件数だからである
+> （**`MAX_ROOMS` が数える単位と一致する**）。**再起動が道連れにする範囲と、この数字が
+> 数える範囲は同じ** —— `activeRooms: 0` なら、いま落としても誰のセッションも消えない。
+>
+> `hasDriver` は**そのルームに timer の状態があるときだけ**真になる（`session.rotation` の
+> 有無で決め、timer の状態が無ければ `false`）。したがって **`hasDriver: false` のルームは
+> 「poker だけのルーム」か「timer を開始していないルーム」のどちらか**である。
+> 区別はこのエンドポイントからはつかない。
 - 回収ログは `journalctl -u tasuki-sync | grep reclaimed` で追える
 
 ## AI お題生成（任意機能）

@@ -1,6 +1,6 @@
 // 名前ルール（#95 S4a で `room.ts` から引っ越した。**値も規則も変えていない**）。
 //
-// **`@tasuki/room-core` の `MAX_DISPLAY_NAME`（40）と食い違うが、S4a では寄せない。**
+// **`@tasuki/timer-core` の `MAX_DISPLAY_NAME`（40）と食い違うが、S4a では寄せない。**
 // 寄せると poker の入力規則が変わり、「振る舞いを変えていない」という S4a の主張が崩れる。
 // 統合は入口が 1 つになる S5 の仕事である（設計正本 §7）。
 import { err, ok, type Result } from 'neverthrow';

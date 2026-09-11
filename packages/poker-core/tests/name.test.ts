@@ -6,7 +6,7 @@ import { NAME_MAX_LENGTH, isValidName, validateName } from '../src/name';
  *
  * 元は `createRoom` / `joinRoom` の入り口で検証されていた。両関数は名簿ごと
  * `@tasuki/room-core` へ移ったが、**poker の名前規則（上限 24）は境界の規則として残る**
- * （room-core の `MAX_DISPLAY_NAME` = 40 とは食い違う。寄せるのは S5）。
+ * （timer-core の `MAX_DISPLAY_NAME` = 40 とは食い違う。寄せるのは S5）。
  * 検証している値・境界・エラーコードは移設前と同一である。
  */
 describe('validateName（名前ルール・上限 24）', () => {
