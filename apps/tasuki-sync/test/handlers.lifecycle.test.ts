@@ -10,9 +10,11 @@ import { makeHandlers } from "../src/application/handlers.js";
 import { makeTestHandlers } from "./support/room-builder.js";
 import { Scheduler } from "../src/application/schedule.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
+import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { SessionConfig } from "@tasuki/timer-core";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
+import { roomViewOf, putRoomView } from "./support/room-view.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 const config: SessionConfig = {
@@ -31,6 +33,7 @@ const config: SessionConfig = {
 async function setupRoom(
   handlers: ReturnType<typeof makeHandlers>,
   store: InMemoryRoomStore,
+  timers: InMemoryTimerStore,
 ) {
   const create = await handlers.handleCommand("host-conn", {
     command: "room.create",
@@ -45,7 +48,7 @@ async function setupRoom(
       command: "room.join", code, displayName, hasAiKey: false,
     });
     if (!join.isOk()) throw new Error(`join failed: ${displayName}`);
-    const joinedId = store.get(code)!.participants.find((p) => p.connId === connId)!.participantId;
+    const joinedId = roomViewOf(store, timers, code).participants.find((p) => p.connId === connId)!.participantId;
     const add = await handlers.handleCommand(connId, {
       command: "member.add", participantId: joinedId,
     });
@@ -59,22 +62,24 @@ async function setupRoom(
  */
 describe("session.complete: 記録と phase 遷移", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let clock: FakeClock;
   let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
 
   beforeEach(() => {
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     clock = new FakeClock(1000000);
     broadcaster = new SpyBroadcaster();
-    handlers = makeTestHandlers({ store, clock, broadcaster, codeGen: new FakeCodeGen() });
+    handlers = makeTestHandlers({ store, timers, clock, broadcaster, codeGen: new FakeCodeGen() });
   });
 
   it("お題確定後の完成で sessionRecords に記録が追加され phase=celebration になる", async () => {
     // Given
-    const code = await setupRoom(handlers, store);
-    const room = store.get(code)!;
-    store.put({
+    const code = await setupRoom(handlers, store, timers);
+    const room = roomViewOf(store, timers, code);
+    putRoomView(store, timers, {
       ...room,
       problem: {
         title: "FizzBuzz",
@@ -91,7 +96,7 @@ describe("session.complete: 記録と phase 遷移", () => {
     await handlers.handleCommand("host-conn", { command: "session.complete" });
 
     // Then
-    const after = store.get(code)!;
+    const after = roomViewOf(store, timers, code);
     expect(after.phase).toBe("celebration");
     expect(after.sessionRecords).toHaveLength(1);
     expect(after.sessionRecords[0]?.problemTitle).toBe("FizzBuzz");
@@ -99,9 +104,9 @@ describe("session.complete: 記録と phase 遷移", () => {
 
   it("session.complete を二度呼んでも記録は重複しない（冪等）", async () => {
     // Given
-    const code = await setupRoom(handlers, store);
-    const room = store.get(code)!;
-    store.put({
+    const code = await setupRoom(handlers, store, timers);
+    const room = roomViewOf(store, timers, code);
+    putRoomView(store, timers, {
       ...room,
       problem: { title: "FizzBuzz", description: "d", requirements: ["r"], exampleTest: "t", hints: [] },
     });
@@ -112,21 +117,23 @@ describe("session.complete: 記録と phase 遷移", () => {
     await handlers.handleCommand("host-conn", { command: "session.complete" });
 
     // Then
-    expect(store.get(code)!.sessionRecords).toHaveLength(1);
+    expect(roomViewOf(store, timers, code).sessionRecords).toHaveLength(1);
   });
 });
 
 describe("session.reset: 最初から再スタート（v2.3 #3）", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let clock: FakeClock;
   let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
 
   beforeEach(() => {
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     clock = new FakeClock(1000000);
     broadcaster = new SpyBroadcaster();
-    handlers = makeTestHandlers({ store, clock, broadcaster, codeGen: new FakeCodeGen() });
+    handlers = makeTestHandlers({ store, timers, clock, broadcaster, codeGen: new FakeCodeGen() });
   });
 
   // v2.3 #3: リセットは「最初から再スタート」になった。session 画面に留まり
@@ -135,9 +142,9 @@ describe("session.reset: 最初から再スタート（v2.3 #3）", () => {
   // running=false でリセット後に開始できず詰んでいた）。
   it("reset で phase は session のまま・お題は保持され、ローテーションが初期化され clock は走行で再スタートする", async () => {
     // Given
-    const code = await setupRoom(handlers, store);
-    const room = store.get(code)!;
-    store.put({
+    const code = await setupRoom(handlers, store, timers);
+    const room = roomViewOf(store, timers, code);
+    putRoomView(store, timers, {
       ...room,
       problem: { title: "FizzBuzz", description: "d", requirements: ["r"], exampleTest: "t", hints: [] },
     });
@@ -149,7 +156,7 @@ describe("session.reset: 最初から再スタート（v2.3 #3）", () => {
     await handlers.handleCommand("host-conn", { command: "session.reset" });
 
     // Then
-    const after = store.get(code)!;
+    const after = roomViewOf(store, timers, code);
     // session 画面に留まる（その場で走り直す）
     expect(after.phase).toBe("session");
     // お題は保持される（null クリアされない）
@@ -163,9 +170,9 @@ describe("session.reset: 最初から再スタート（v2.3 #3）", () => {
 
   it("reset しても完成記録の履歴は保持される", async () => {
     // Given
-    const code = await setupRoom(handlers, store);
-    const room = store.get(code)!;
-    store.put({
+    const code = await setupRoom(handlers, store, timers);
+    const room = roomViewOf(store, timers, code);
+    putRoomView(store, timers, {
       ...room,
       problem: { title: "FizzBuzz", description: "d", requirements: ["r"], exampleTest: "t", hints: [] },
       sessionRecords: [
@@ -186,7 +193,7 @@ describe("session.reset: 最初から再スタート（v2.3 #3）", () => {
     await handlers.handleCommand("host-conn", { command: "session.reset" });
 
     // Then
-    expect(store.get(code)!.sessionRecords).toHaveLength(1);
+    expect(roomViewOf(store, timers, code).sessionRecords).toHaveLength(1);
   });
 });
 
@@ -195,20 +202,22 @@ describe("session.reset: 最初から再スタート（v2.3 #3）", () => {
  */
 describe("メンバー編集と config.members 同期", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let clock: FakeClock;
   let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
 
   beforeEach(() => {
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     clock = new FakeClock(1000000);
     broadcaster = new SpyBroadcaster();
-    handlers = makeTestHandlers({ store, clock, broadcaster, codeGen: new FakeCodeGen() });
+    handlers = makeTestHandlers({ store, timers, clock, broadcaster, codeGen: new FakeCodeGen() });
   });
 
   it("member.add 後、config.members が rotation に同期する", async () => {
     // Given
-    const code = await setupRoom(handlers, store);
+    const code = await setupRoom(handlers, store, timers);
 
     // When（代理として Dave を輪に加える。在室者以外は輪に並べられない・D6b）
     await handlers.handleCommand("host-conn", {
@@ -216,7 +225,7 @@ describe("メンバー編集と config.members 同期", () => {
     });
 
     // Then
-    const after = store.get(code)!;
+    const after = roomViewOf(store, timers, code);
     const dave = after.participants.find((p) => p.displayName === "Dave")!;
     expect(after.session.rotation).toContain(dave.participantId);
     // config.members は rotation の表示名ミラー（D6b）。
@@ -225,9 +234,9 @@ describe("メンバー編集と config.members 同期", () => {
 
   it("メンバー編集後の完成記録は最新メンバーを反映する", async () => {
     // Given
-    const code = await setupRoom(handlers, store);
-    const room = store.get(code)!;
-    store.put({
+    const code = await setupRoom(handlers, store, timers);
+    const room = roomViewOf(store, timers, code);
+    putRoomView(store, timers, {
       ...room,
       problem: { title: "FizzBuzz", description: "d", requirements: ["r"], exampleTest: "t", hints: [] },
     });
@@ -240,7 +249,7 @@ describe("メンバー編集と config.members 同期", () => {
     await handlers.handleCommand("host-conn", { command: "session.complete" });
 
     // Then
-    const record = store.get(code)!.sessionRecords[0];
+    const record = roomViewOf(store, timers, code).sessionRecords[0];
     expect(record?.members).toContain("Dave");
   });
 });
@@ -250,18 +259,20 @@ describe("メンバー編集と config.members 同期", () => {
  */
 describe("config.set: Room.config への反映", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
 
   beforeEach(() => {
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     broadcaster = new SpyBroadcaster();
-    handlers = makeTestHandlers({ store, clock: new FakeClock(1000000), broadcaster, codeGen: new FakeCodeGen() });
+    handlers = makeTestHandlers({ store, timers, clock: new FakeClock(1000000), broadcaster, codeGen: new FakeCodeGen() });
   });
 
   it("language/difficulty を変更すると Room.config が更新される（メンバー名に汚染されない）", async () => {
     // Given
-    const code = await setupRoom(handlers, store);
+    const code = await setupRoom(handlers, store, timers);
 
     // When
     await handlers.handleCommand("host-conn", {
@@ -270,7 +281,7 @@ describe("config.set: Room.config への反映", () => {
     });
 
     // Then
-    const after = store.get(code)!;
+    const after = roomViewOf(store, timers, code);
     expect(after.config.language).toBe("Python");
     expect(after.config.difficulty).toBe("hard");
     // メンバーは変更していないので維持
@@ -279,7 +290,7 @@ describe("config.set: Room.config への反映", () => {
 
   it("intervalMinutes を変更すると config と clock の両方に反映される", async () => {
     // Given
-    const code = await setupRoom(handlers, store);
+    const code = await setupRoom(handlers, store, timers);
 
     // When
     await handlers.handleCommand("host-conn", {
@@ -288,14 +299,14 @@ describe("config.set: Room.config への反映", () => {
     });
 
     // Then
-    const after = store.get(code)!;
+    const after = roomViewOf(store, timers, code);
     expect(after.config.intervalMinutes).toBe(10);
     expect(after.clock.intervalSeconds).toBe(600);
   });
 
   it("problemEnabled=false を変更すると Room.config に反映される（お題なし開始・実機で発覚した退行の回帰）", async () => {
     // Given
-    const code = await setupRoom(handlers, store);
+    const code = await setupRoom(handlers, store, timers);
 
     // When
     await handlers.handleCommand("host-conn", {
@@ -304,7 +315,7 @@ describe("config.set: Room.config への反映", () => {
     });
 
     // Then
-    const after = store.get(code)!;
+    const after = roomViewOf(store, timers, code);
     expect(after.config.problemEnabled).toBe(false);
   });
 });
@@ -314,6 +325,7 @@ describe("config.set: Room.config への反映", () => {
  */
 describe("自動交代: スケジューラ配線", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let clock: FakeClock;
   let broadcaster: SpyBroadcaster;
   let scheduler: Scheduler;
@@ -322,10 +334,11 @@ describe("自動交代: スケジューラ配線", () => {
   beforeEach(() => {
     jest.useFakeTimers();
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     clock = new FakeClock(1000000);
     broadcaster = new SpyBroadcaster();
     scheduler = new Scheduler(clock);
-    handlers = makeTestHandlers({ store, clock, broadcaster, codeGen: new FakeCodeGen(), scheduler });
+    handlers = makeTestHandlers({ store, timers, clock, broadcaster, codeGen: new FakeCodeGen(), scheduler });
   });
 
   afterEach(() => {
@@ -335,9 +348,9 @@ describe("自動交代: スケジューラ配線", () => {
 
   it("START 後、交代間隔の経過で自動的にドライバーが進む", async () => {
     // Given
-    const code = await setupRoom(handlers, store);
+    const code = await setupRoom(handlers, store, timers);
     await handlers.handleCommand("host-conn", { command: "session.act", action: "START" });
-    const before = store.get(code)!;
+    const before = roomViewOf(store, timers, code);
     expect(before.session.currentIndex).toBe(0);
 
     // When（FakeClock と vitest タイマーを同時に進める。残り 300 秒）
@@ -345,7 +358,7 @@ describe("自動交代: スケジューラ配線", () => {
     jest.advanceTimersByTime(300000 + 100);
 
     // Then
-    const after = store.get(code)!;
+    const after = roomViewOf(store, timers, code);
     expect(after.session.currentIndex).toBe(1);
     expect(after.session.totalSwitches).toBe(1);
     // switch シグナルが配信される
@@ -354,7 +367,7 @@ describe("自動交代: スケジューラ配線", () => {
 
   it("PAUSE で自動交代タイマーが解除される", async () => {
     // Given
-    const code = await setupRoom(handlers, store);
+    const code = await setupRoom(handlers, store, timers);
     await handlers.handleCommand("host-conn", { command: "session.act", action: "START" });
     await handlers.handleCommand("host-conn", { command: "session.act", action: "PAUSE" });
 
@@ -363,27 +376,27 @@ describe("自動交代: スケジューラ配線", () => {
     jest.advanceTimersByTime(600000 + 100);
 
     // Then
-    const after = store.get(code)!;
+    const after = roomViewOf(store, timers, code);
     expect(after.session.totalSwitches).toBe(0);
   });
 
   it("自動交代は ineligible（skip 済み）のメンバーを飛ばして次の eligible へ進む（plan.md L194）", async () => {
     // Given（setupRoom で参加済みの Bob を host が skip して ineligible にする）
-    const code = await setupRoom(handlers, store);
-    const bob = store.get(code)!.participants.find((p) => p.connId === "bob-conn")!;
+    const code = await setupRoom(handlers, store, timers);
+    const bob = roomViewOf(store, timers, code).participants.find((p) => p.connId === "bob-conn")!;
     await handlers.handleCommand("host-conn", {
       command: "driver.skip",
       participantId: bob.participantId,
     });
     await handlers.handleCommand("host-conn", { command: "session.act", action: "START" });
-    expect(store.get(code)!.session.currentIndex).toBe(0); // Alice
+    expect(roomViewOf(store, timers, code).session.currentIndex).toBe(0); // Alice
 
     // When（交代間隔の経過 → 自動交代は Bob(1) を飛ばして Charlie(2) へ）
     clock.advance(300000);
     jest.advanceTimersByTime(300000 + 100);
 
     // Then
-    expect(store.get(code)!.session.currentIndex).toBe(2);
+    expect(roomViewOf(store, timers, code).session.currentIndex).toBe(2);
   });
 });
 
@@ -392,6 +405,7 @@ describe("自動交代: スケジューラ配線", () => {
  */
 describe("ドライバー一時離脱と現ドライバー skip の繰り上げ（plan.md L209）", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let clock: FakeClock;
   let broadcaster: SpyBroadcaster;
   let scheduler: Scheduler;
@@ -400,10 +414,11 @@ describe("ドライバー一時離脱と現ドライバー skip の繰り上げ�
   beforeEach(() => {
     jest.useFakeTimers();
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     clock = new FakeClock(1000000);
     broadcaster = new SpyBroadcaster();
     scheduler = new Scheduler(clock);
-    handlers = makeTestHandlers({ store, clock, broadcaster, codeGen: new FakeCodeGen(), scheduler });
+    handlers = makeTestHandlers({ store, timers, clock, broadcaster, codeGen: new FakeCodeGen(), scheduler });
   });
 
   afterEach(() => {
@@ -413,10 +428,10 @@ describe("ドライバー一時離脱と現ドライバー skip の繰り上げ�
 
   it("稼働中に現ドライバーを driver.skip すると次の eligible へ繰り上がる", async () => {
     // Given
-    const code = await setupRoom(handlers, store);
+    const code = await setupRoom(handlers, store, timers);
     await handlers.handleCommand("host-conn", { command: "session.act", action: "START" });
-    const host = store.get(code)!.participants.find((p) => p.connId === "host-conn")!;
-    expect(store.get(code)!.session.currentIndex).toBe(0); // Alice が現ドライバー
+    const host = roomViewOf(store, timers, code).participants.find((p) => p.connId === "host-conn")!;
+    expect(roomViewOf(store, timers, code).session.currentIndex).toBe(0); // Alice が現ドライバー
 
     // When
     await handlers.handleCommand("host-conn", {
@@ -425,7 +440,7 @@ describe("ドライバー一時離脱と現ドライバー skip の繰り上げ�
     });
 
     // Then
-    const after = store.get(code)!;
+    const after = roomViewOf(store, timers, code);
     expect(after.session.currentIndex).toBe(1); // Bob へ繰り上がる
     const skipped = after.participants.find((p) => p.participantId === host.participantId);
     expect(skipped?.driverEligible).toBe(false);
@@ -433,10 +448,10 @@ describe("ドライバー一時離脱と現ドライバー skip の繰り上げ�
 
   it("現ドライバー skip でタイマーが次担当向けにリセットされる", async () => {
     // Given（開始から 100 秒経過させてから skip する）
-    const code = await setupRoom(handlers, store);
+    const code = await setupRoom(handlers, store, timers);
     await handlers.handleCommand("host-conn", { command: "session.act", action: "START" });
     clock.advance(100000);
-    const host = store.get(code)!.participants.find((p) => p.connId === "host-conn")!;
+    const host = roomViewOf(store, timers, code).participants.find((p) => p.connId === "host-conn")!;
 
     // When
     await handlers.handleCommand("host-conn", {
@@ -445,7 +460,7 @@ describe("ドライバー一時離脱と現ドライバー skip の繰り上げ�
     });
 
     // Then（次担当でタイマーが満タンに再アンカーされる）
-    const after = store.get(code)!;
+    const after = roomViewOf(store, timers, code);
     expect(after.clock.anchorServerTime).toBe(clock.now());
     expect(after.clock.secondsLeftAtAnchor).toBe(after.clock.intervalSeconds);
   });
@@ -459,7 +474,7 @@ describe("ドライバー一時離脱と現ドライバー skip の繰り上げ�
     });
     const code = broadcaster.createdFor("solo-conn").code;
     await handlers.handleCommand("solo-conn", { command: "session.act", action: "START" });
-    const me = store.get(code)!.participants.find((p) => p.connId === "solo-conn")!;
+    const me = roomViewOf(store, timers, code).participants.find((p) => p.connId === "solo-conn")!;
 
     // When（唯一の eligible を skip する）
     await handlers.handleCommand("solo-conn", {
@@ -468,13 +483,13 @@ describe("ドライバー一時離脱と現ドライバー skip の繰り上げ�
     });
 
     // Then（交代先が無いので現状維持。currentIndex 据え置き・switch カウント無し）
-    const after = store.get(code)!;
+    const after = roomViewOf(store, timers, code);
     expect(after.session.currentIndex).toBe(0);
     expect(after.session.totalSwitches).toBe(0);
 
     // タイマーを進めても無限ループせず、自動交代は現状維持のまま
     clock.advance(600000);
     jest.advanceTimersByTime(600000 + 100);
-    expect(store.get(code)!.session.currentIndex).toBe(0);
+    expect(roomViewOf(store, timers, code).session.currentIndex).toBe(0);
   });
 });

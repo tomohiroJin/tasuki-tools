@@ -47,14 +47,59 @@ LP に着地してしまう。`caddy/40-timer-legacy-room.conf` が **`/` かつ
 
 - 本番 env に `NODE_ENV=production` を置くと、`ALLOWED_ORIGINS` 未設定時に sync が
   **起動を拒否**する（CSWSH 防止の fail-closed）。
-- `MAX_CONNECTIONS`（既定 200）/ `MAX_ROOMS`（既定 50）で同時接続数・ルーム数を制限。
+- `MAX_CONNECTIONS`（既定 400）/ `MAX_ROOMS`（既定 100）で同時接続数・ルーム数を制限。
   超過接続は WS 1013、超過 room.create は `ROOM_LIMIT_EXCEEDED` で拒否。
+  **どちらの既定値も、統合の前後で実効枠を保つために決め直したものである**
+  （接続は #95 S2 で 200 → 400、ルームは #95 S4a で 50 → 100。根拠は
+  `apps/tasuki-sync/src/config.ts` の `SyncConfig` の docstring）。
+  **本番で実際に効いている値は起動ログで確かめる**（下の切り替え手順を参照）。
 - `ROOM_IDLE_TTL_MS`（既定 30 分）全員切断が継続したルームを定期回収（60 秒間隔）。
   揮発設計のため回収されたルームは復帰不可（再作成すればよい）。
 - `HEARTBEAT_INTERVAL_MS`（既定 15000）/ `HEARTBEAT_MAX_MISSES`（既定 2）でサーバー主導の
   死活監視（ws ping/pong）を調整する（Issue #25）。回線断・端末スリープ等で半開きのまま残った
   接続を検出し、最大 `interval × (missMax + 1)`（既定で約45秒）以内に `terminate` して
   presence を `offline` に収束させる。一時的な通信の揺れでは切断しない（連続欠落のみ判定）。
+
+## #95 S4a を配布するときに 1 度だけ行うこと
+
+**本番の `app.env`（`/opt/tasuki/tasuki-sync.env`）の `MAX_ROOMS` を 100 に書き換える。**
+
+`deploy/setup.sh` は `[ -f "$APP_DIR/$ENV_FILE" ]` のとき env を**上書きしない**（既存を
+保持する）ので、`deploy/timer/env.example` を直しただけでは本番に届かない。飛ばすと
+名簿の統合で実効枠が **100 → 50 へ半減する**（統合前は 2 プロセス × 50 = 100 で、
+S4a からは 1 本で数える）。**S2 の `MAX_CONNECTIONS` とまったく同型の罠**である
+（あちらの手順は [`../poker/NOTES.md`](../poker/NOTES.md)）。
+
+> ⚠ **S2 以降が未配布なら、同じ env の `MAX_CONNECTIONS` も同時に直すこと。**
+> S2 は `MAX_CONNECTIONS` を 200 → 400 にしており（手順は
+> [`../poker/NOTES.md`](../poker/NOTES.md) の手順 1）、そちらも `deploy/setup.sh` では
+> 本番へ届かない。**片方だけ直して配ると、接続の実効枠が 400 → 200 のまま残る。**
+> 未配布かどうかは下の手順 3 の 1 コマンドで分かる（`maxConn=200` なら未配布である）。
+
+```bash
+# 1. 配る**前に**本番の env を直す。env は DEPLOY_USER 所有の 600 で、
+#    ログインユーザーがそのまま編集できる（sudo は不要）
+ssh <ホスト別名> "sed -i 's/^MAX_ROOMS=50\$/MAX_ROOMS=100/' /opt/tasuki/tasuki-sync.env"
+#    S2 が未配布なら、同じ env のこの 1 行も直す（両方直すまで枠は戻らない）
+ssh <ホスト別名> "sed -i 's/^MAX_CONNECTIONS=200\$/MAX_CONNECTIONS=400/' /opt/tasuki/tasuki-sync.env"
+#    **必ず目で確かめる。** 値を手で変えてあった場合、上の sed は何もせず成功する。
+#    行そのものが無ければ（古いテンプレートから作った env）追記すること
+ssh <ホスト別名> "grep -E '^(MAX_ROOMS|MAX_CONNECTIONS)=' /opt/tasuki/tasuki-sync.env"
+
+# 2. 配る
+TASUKI_SSH_HOST=<ホスト別名> ./deploy/deploy.sh timer
+
+# 3. **手順 1 が効いたことを起動ログで確かめる（ここが唯一の証拠）。**
+#    手順 1 を飛ばしても deploy.sh は成功するので、これを見るまで気づけない。
+#    2 つまとめて見る（どちらか片方だけ直す事故がいちばん起きやすい）
+ssh <ホスト別名> "journalctl -u tasuki-sync -n 30 --no-pager | grep -oE '(maxConn|maxRooms)=[0-9]*' | tail -2"
+```
+
+`maxConn=400` と `maxRooms=100` の両方が出れば完了。片方でも欠ければ手順 1 へ戻ること。
+
+> ⚠ **`ROOM_IDLE_TTL_MS` は変えない。** S4a で poker のルームが即時破棄から TTL 保持へ
+> 変わったので同時に占有される数は増えるが、TTL を縮めると timer の復帰体験
+> （席を外して戻る）まで巻き添えになる。
 
 ## 運用可視化（管理エンドポイント）
 
@@ -69,11 +114,15 @@ curl -H "x-admin-token: $ADMIN_TOKEN" http://127.0.0.1:8787/admin/rooms
 - `/status`: アクティブルーム数・累計回収数
 - `/admin/rooms`: 上記＋各ルーム要約（コード/参加者数/online数/ドライバー有無/作成時刻）
 
-> ⚠ **どちらの数字も timer のルームだけ**である（#95 S2）。統合サーバーは poker の
-> ルームを別の保管に持っており、管理エンドポイントはそちらを見ていない。
-> **`activeRooms: 0` は「誰も使っていない」の証拠にならない** —— poker の
-> セッションが動いている可能性がある。再起動は poker のルームも道連れにするので、
-> この数字だけで判断しないこと（poker のルーム数を出すのは別 Issue の領分）。
+> ✅ **#95 S4a から、どちらの数字も timer と poker の両方を数える。** 名簿
+> （`RoomStore`）が 1 つになり、`activeRooms` はその件数だからである
+> （**`MAX_ROOMS` が数える単位と一致する**）。**再起動が道連れにする範囲と、この数字が
+> 数える範囲は同じ** —— `activeRooms: 0` なら、いま落としても誰のセッションも消えない。
+>
+> `hasDriver` は**そのルームに timer の状態があるときだけ**真になる（`session.rotation` の
+> 有無で決め、timer の状態が無ければ `false`）。したがって **`hasDriver: false` のルームは
+> 「poker だけのルーム」か「timer を開始していないルーム」のどちらか**である。
+> 区別はこのエンドポイントからはつかない。
 - 回収ログは `journalctl -u tasuki-sync | grep reclaimed` で追える
 
 ## AI お題生成（任意機能）

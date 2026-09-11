@@ -7,8 +7,11 @@
  * deadline 内に投入が無ければ次候補へ再委譲し、全候補失敗なら定型で確定する。
  */
 
-import { validateProblem, pickFallback, type Problem, type Room } from "@tasuki/timer-core";
+import { validateProblem, pickFallback, type Problem, type TimerState } from "@tasuki/timer-core";
+import type { Room as MembershipRoom } from "@tasuki/room-core";
 import type { RoomStore } from "../ports/room-store.js";
+import type { TimerStore } from "../ports/timer-store.js";
+import { buildTimerSnapshotRoom } from "./timer-snapshot-dto.js";
 import type { Broadcaster } from "../ports/broadcaster.js";
 import type { Clock } from "../ports/clock.js";
 import { ProviderFailure, type ServerProblemProvider } from "../ports/server-problem-provider.js";
@@ -41,7 +44,10 @@ export const PROBLEM_DEADLINE_MS = 20 * 1000;
 const FALLBACK = "__fallback__";
 
 export interface ProblemDelegatorDeps {
+  /** 名簿（候補の在席と AI 鍵の突き合わせに使う）。 */
   store: RoomStore;
+  /** timer の状態（設定・お題・解錠状態・AI 鍵の持ち主）。 */
+  timers: TimerStore;
   clock: Clock;
   broadcaster: Broadcaster;
   /** 代表の deadline（テストで上書き可能） */
@@ -77,6 +83,7 @@ interface ServerGenerationState {
 
 export class ProblemDelegator {
   private readonly store: RoomStore;
+  private readonly timers: TimerStore;
   /** 定型お題の選択に使う時刻源（#166 / #72 E3 で初めて実際に使われるようになった） */
   private readonly clock: Clock;
   private readonly broadcaster: Broadcaster;
@@ -94,6 +101,7 @@ export class ProblemDelegator {
 
   constructor(deps: ProblemDelegatorDeps) {
     this.store = deps.store;
+    this.timers = deps.timers;
     this.clock = deps.clock;
     this.broadcaster = deps.broadcaster;
     this.deadlineMs = deps.deadlineMs ?? PROBLEM_DEADLINE_MS;
@@ -110,7 +118,7 @@ export class ProblemDelegator {
   request(roomCode: string, requestId: string): void {
     this.cancel(roomCode);
 
-    const room = this.store.get(roomCode);
+    const room = this.timers.get(roomCode);
     if (!room) return;
 
     // problemMode=fallback の場合は AI 候補へ委譲せず即座に定型で確定する（FR-037/043）
@@ -139,8 +147,9 @@ export class ProblemDelegator {
   }
 
   /** 従来のクライアント代表委譲（候補が空なら即・定型確定） */
-  private startClientDelegation(roomCode: string, requestId: string, room: Room): void {
-    const candidates = buildCandidates(room);
+  private startClientDelegation(roomCode: string, requestId: string, room: TimerState): void {
+    const membership = this.store.get(roomCode);
+    const candidates = membership ? buildCandidates(membership, room) : [FALLBACK];
     this.active.set(roomCode, { requestId, candidates, index: 0, timer: null });
     this.offerToCurrent(roomCode);
   }
@@ -149,7 +158,7 @@ export class ProblemDelegator {
   private startServerGeneration(
     roomCode: string,
     requestId: string,
-    room: Room,
+    room: TimerState,
     release: () => void,
   ): void {
     const abort = new AbortController();
@@ -203,7 +212,7 @@ export class ProblemDelegator {
       req: this.refEncoder.request(requestId),
       reason,
     });
-    const room = this.store.get(roomCode);
+    const room = this.timers.get(roomCode);
     if (!room) return;
     this.startClientDelegation(roomCode, requestId, room);
   }
@@ -227,7 +236,7 @@ export class ProblemDelegator {
     const currentCandidate = state.candidates[state.index];
     if (currentCandidate !== submitterId) return false;
 
-    const room = this.store.get(roomCode);
+    const room = this.timers.get(roomCode);
     if (!room) return false;
 
     // AI 由来テキストは信頼しないデータとして検証し、失敗時は定型へ縮退（FR-023, FR-024）
@@ -269,8 +278,9 @@ export class ProblemDelegator {
     const state = this.active.get(roomCode);
     if (!state) return;
 
-    const room = this.store.get(roomCode);
-    if (!room) {
+    const room = this.timers.get(roomCode);
+    const membership = this.store.get(roomCode);
+    if (!room || !membership) {
       this.cancel(roomCode);
       return;
     }
@@ -284,9 +294,8 @@ export class ProblemDelegator {
       return;
     }
 
-    const candidate = room.participants.find(
-      (p) => p.participantId === candidateId,
-    );
+    // 候補は名簿の参加者（代理は AI 鍵を持たないので候補列に載らない）。
+    const candidate = membership.participants.find((p) => p.id === candidateId);
 
     // 候補が離脱・オフラインなら即座に次候補へ（FR-026）
     if (!candidate || candidate.connId === null || candidate.presence === "offline") {
@@ -323,11 +332,12 @@ export class ProblemDelegator {
 
   /** お題を Room に確定し、全参加者へ snapshot 配信して委譲を終了する */
   private finalize(roomCode: string, problem: Problem): void {
-    const room = this.store.get(roomCode);
-    if (room) {
-      const updated: Room = { ...room, problem };
-      this.store.put(updated);
-      this.broadcaster.broadcastSnapshot(roomCode, updated);
+    const room = this.timers.get(roomCode);
+    const membership = this.store.get(roomCode);
+    if (room && membership) {
+      const updated: TimerState = { ...room, problem };
+      this.timers.put(updated);
+      this.broadcaster.broadcastSnapshot(roomCode, buildTimerSnapshotRoom(membership, updated));
     }
     this.cancel(roomCode);
   }
@@ -340,11 +350,13 @@ export class ProblemDelegator {
  * #95 S3 で役割とホストを廃止したため、かつての「ホストを優先し、続いて editor+」という
  * 2 段の並びは無くなった。全員同格なので参加順だけで決まる。
  */
-function buildCandidates(room: Room): string[] {
-  const ordered = room.participants
-    .filter((p) => p.presence === "online" && p.connId !== null && p.hasAiKey)
+function buildCandidates(membership: MembershipRoom, timer: TimerState): string[] {
+  // AI 鍵の持ち主は timer の状態が持つ（#95 S4a）。名簿はツールを知らない。
+  const holders = new Set(timer.aiKeyHolders);
+  const ordered = membership.participants
+    .filter((p) => p.presence === "online" && p.connId !== null && holders.has(p.id))
     .sort((a, b) => a.joinedAt - b.joinedAt)
-    .map((p) => p.participantId);
+    .map((p) => p.id);
 
   return [...ordered, FALLBACK];
 }

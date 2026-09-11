@@ -7,9 +7,11 @@ import { describe, it, expect, beforeEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
 import { makeTestHandlers } from "./support/room-builder.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
+import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { SessionConfig, Room } from "@tasuki/timer-core";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
+import { roomViewOf, putRoomView } from "./support/room-view.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 const config: SessionConfig = { language: "TypeScript", difficulty: "easy", members: ["A"], intervalMinutes: 5 };
@@ -19,6 +21,7 @@ const config: SessionConfig = { language: "TypeScript", difficulty: "easy", memb
 async function setup(
   handlers: ReturnType<typeof makeHandlers>,
   store: InMemoryRoomStore,
+  timers: InMemoryTimerStore,
   bOverrides: Partial<Room["participants"][number]>,
 ): Promise<string> {
   const create = await handlers.handleCommand("conn-a", {
@@ -27,11 +30,11 @@ async function setup(
   if (!create.isOk()) throw new Error("create failed");
   // 本番（server.ts）は handleCommand の戻り値を破棄する。値は本番と同じ観測点から取る（FR-100）。
   const code = store.list().at(-1)!.code;
-  const room = store.get(code)!;
+  const room = roomViewOf(store, timers, code);
   const host = room.participants[0]!;
   const mk = (id: string, name: string, conn: string, ov: Partial<Room["participants"][number]> = {}): Room["participants"][number] =>
     ({ ...host, participantId: id, connId: conn, displayName: name, presence: "online", driverEligible: true, ...ov });
-  store.put({
+  putRoomView(store, timers, {
     ...room,
     participants: [host, mk("pid-b", "B", "conn-b", bOverrides), mk("pid-c", "C", "conn-c")],
     // rotation は参加者IDの配列（D6b）
@@ -43,39 +46,41 @@ async function setup(
 
 describe("driver.assign（Issue #13 強制指名）", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
   beforeEach(() => {
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     broadcaster = new SpyBroadcaster();
-    handlers = makeTestHandlers({ store, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen() });
+    handlers = makeTestHandlers({ store, timers, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen() });
   });
 
   it("作成者が任意メンバーを指名すると currentIndex がそのメンバーになる", async () => {
     // Given
-    const code = await setup(handlers, store, {});
+    const code = await setup(handlers, store, timers, {});
     // When
     await handlers.handleCommand("conn-a", { command: "driver.assign", participantId: "pid-c" });
     // Then
-    expect(store.get(code)!.session.currentIndex).toBe(2); // C
+    expect(roomViewOf(store, timers, code).session.currentIndex).toBe(2); // C
   });
 
   it("指名交代で totalSwitches が加算される（通常交代と同じカウント）", async () => {
     // Given
-    const code = await setup(handlers, store, {});
+    const code = await setup(handlers, store, timers, {});
     // When
     await handlers.handleCommand("conn-a", { command: "driver.assign", participantId: "pid-c" });
     // Then
-    expect(store.get(code)!.session.totalSwitches).toBe(1);
+    expect(roomViewOf(store, timers, code).session.totalSwitches).toBe(1);
   });
 
   it("一時離脱中のメンバーを指名すると自動復帰する", async () => {
     // Given（B 離脱中）
-    const code = await setup(handlers, store, { driverEligible: false });
+    const code = await setup(handlers, store, timers, { driverEligible: false });
     // When
     await handlers.handleCommand("conn-a", { command: "driver.assign", participantId: "pid-b" });
     // Then
-    const room = store.get(code)!;
+    const room = roomViewOf(store, timers, code);
     expect(room.session.currentIndex).toBe(1); // B
     const b = room.participants.find((p) => p.participantId === "pid-b")!;
     expect(b.driverEligible).toBe(true); // 自動復帰
@@ -83,34 +88,34 @@ describe("driver.assign（Issue #13 強制指名）", () => {
 
   it("現ドライバー自身の指名は状態を変えない（no-op）", async () => {
     // Given（A は rotation[0]・currentIndex 0）
-    const code = await setup(handlers, store, {});
-    const hostPid = store.get(code)!.participants[0]!.participantId;
+    const code = await setup(handlers, store, timers, {});
+    const hostPid = roomViewOf(store, timers, code).participants[0]!.participantId;
     // When
     await handlers.handleCommand("conn-a", { command: "driver.assign", participantId: hostPid });
     // Then
-    expect(store.get(code)!.session.currentIndex).toBe(0);
+    expect(roomViewOf(store, timers, code).session.currentIndex).toBe(0);
   });
 
   // #95 S3 で役割を廃止した。かつては「作成者以外の指名は UNAUTHORIZED で拒否される」
   // ことをここで固定していたので、その期待を反転させて「通る」ことを固定する。
   it("作成者でない参加者の指名も通り、currentIndex がそのメンバーになる", async () => {
     // Given
-    const code = await setup(handlers, store, {});
+    const code = await setup(handlers, store, timers, {});
     // When
     await handlers.handleCommand("conn-b", { command: "driver.assign", participantId: "pid-c" });
     // Then
     expect(broadcaster.errorsTo("conn-b")).toEqual([]);
-    expect(store.get(code)!.session.currentIndex).toBe(2); // C
+    expect(roomViewOf(store, timers, code).session.currentIndex).toBe(2); // C
   });
 
   it("rotation 外（未検出 participantId）の指名は拒否される", async () => {
     // Given
-    const code = await setup(handlers, store, {});
+    const code = await setup(handlers, store, timers, {});
     // When
     await handlers.handleCommand("conn-a", { command: "driver.assign", participantId: "pid-unknown" });
     // Then
     expect(broadcaster.errorsTo("conn-a").at(-1)?.code).toBe("PARTICIPANT_NOT_FOUND");
-    expect(store.get(code)!.session.currentIndex).toBe(0);
+    expect(roomViewOf(store, timers, code).session.currentIndex).toBe(0);
   });
 
   /**
@@ -119,29 +124,29 @@ describe("driver.assign（Issue #13 強制指名）", () => {
    */
   it("実在（非代理）オフラインのメンバーは指名できない", async () => {
     // Given（B は実在オフライン）
-    const code = await setup(handlers, store, { presence: "offline" });
+    const code = await setup(handlers, store, timers, { presence: "offline" });
     // When
     await handlers.handleCommand("conn-a", { command: "driver.assign", participantId: "pid-b" });
     // Then
     expect(broadcaster.errorsTo("conn-a").at(-1)?.code).toBe("DRIVER_ASSIGN_OFFLINE");
-    expect(store.get(code)!.session.currentIndex).toBe(0); // 変わらない
+    expect(roomViewOf(store, timers, code).session.currentIndex).toBe(0); // 変わらない
   });
 
   it("代理（placeholder）はオフラインでも指名できる（対面在席の実在者を表すため）", async () => {
     // Given（B は代理）
-    const code = await setup(handlers, store, { presence: "offline", isPlaceholder: true });
+    const code = await setup(handlers, store, timers, { presence: "offline", isPlaceholder: true });
     // When
     await handlers.handleCommand("conn-a", { command: "driver.assign", participantId: "pid-b" });
     // Then
-    expect(store.get(code)!.session.currentIndex).toBe(1); // B へ交代できる
+    expect(roomViewOf(store, timers, code).session.currentIndex).toBe(1); // B へ交代できる
   });
 
   it("現ドライバー自身の no-op 指名は driverEligible を書き換えない（副作用なし）", async () => {
     // Given（現ドライバー A を一時離脱状態(driverEligible=false)にしておく）
-    const code = await setup(handlers, store, {});
-    const room = store.get(code)!;
+    const code = await setup(handlers, store, timers, {});
+    const room = roomViewOf(store, timers, code);
     const host = room.participants[0]!;
-    store.put({
+    putRoomView(store, timers, {
       ...room,
       participants: [{ ...host, driverEligible: false }, ...room.participants.slice(1)],
     });
@@ -150,7 +155,7 @@ describe("driver.assign（Issue #13 強制指名）", () => {
     await handlers.handleCommand("conn-a", { command: "driver.assign", participantId: host.participantId });
 
     // Then
-    const after = store.get(code)!;
+    const after = roomViewOf(store, timers, code);
     expect(after.session.currentIndex).toBe(0); // no-op（現ドライバー自身）
     expect(after.participants[0]!.driverEligible).toBe(false); // 副作用で復帰させない
   });

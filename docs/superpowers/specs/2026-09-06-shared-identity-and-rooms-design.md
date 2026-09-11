@@ -179,6 +179,20 @@ poker の接続が timer の枠を食う。レート制限は逆に厳しくな�
 > 前提に S4a 以降を計画してはならない。** 束ねるのは join の経路が 1 つになってからである。
 > 決定として記録した先は [`docs/adr/0004`](../../adr/0004-sync-server-ports-and-adapters.md) の追記。
 
+> **【S4a（#245）実施時の訂正・2026-09-10】上表の `MAX_ROOMS` 行とレート制限行は S4a で解消する。**
+> 名簿の保管を 1 つにするため、`MAX_ROOMS` はプロセス全体で 1 本になる。実効枠（50 × 2 = 100）を
+> 保つ値へ決め直す。レート制限のバケツも 1 本にする（`create-sync-server` で 1 インスタンスを作り
+> 両ハンドラへ注入する）。**S2 が据え置いた理由「timer 側は `room.join` と `ai.unlock` が同一
+> インスタンスを共有することを構造で保証している」は、保証をテストへ移し替えることで対価を払う。**
+>
+> **あわせて §7 の S4a 行「変化なし」を訂正する。** 保管を 1 つにすると次の 2 つが利用者から見える。
+>
+> 1. **poker のルームの寿命が変わる。** 最後の接続が切れた瞬間の破棄をやめ、`room-reclaimer` の
+>    TTL 回収に一本化する（R10・D8 の形）。全員が閉じても TTL の間はルームが残り、票も残る
+> 2. **入口ごとに門を置く。** そのツールの状態があるルームにだけ入れる。門が無いと、パスフレーズ
+>    保護された timer のルームへ poker の入口から入れてしまう（poker 側に合言葉の概念が無いため）。
+>    この門は S5 で D8 の遅延生成に置き換わる
+
 ### 3.12b `display-name` には timer-core の外にも利用者が居る
 
 移設（S1）の可否に効くので、利用者を数えた。
@@ -197,7 +211,9 @@ poker の接続が timer の枠を食う。レート制限は逆に厳しくな�
 > **【S1（#242）実施時の訂正・2026-09-07】** 上の 4 つめは当初の数え上げが落としていた。
 > 本節はもともと利用者を 3 つと数えており、S0・S1 の実装計画はそれを引き継いで
 > 「`conflictsWithExisting` に製品コードの呼び出し元は無い」と書いていた。どちらも誤りである。
-> **S4a で timer-core から表示名の扱いを外すときは、`apps/timer-sync` を数え直すこと。**
+> **S4b で timer-core から表示名の扱いを外すときは、`apps/timer-sync` を数え直すこと**
+> （当初は S4a と書いていた。S4a では取り込んだままなので S4b へ送り直した —— 上の依存表と
+> [`docs/adr/0017`](../../adr/0017-bounded-contexts-and-packages.md) の改定節）。
 
 **つまり `display-name` を `room-core` へ移すと、timer-core・timer-web・timer-sync の
 3 つが `room-core` を要る。** D17 の依存表は web アプリに `room-core` を許しておらず、
@@ -489,6 +505,11 @@ timer の `config.members` はローテーションの表示名ミラー（D6b�
 （アプリケーション層）の仕事になる。ローテーションの人数制約（2〜10）はミラーではなく
 ローテーション自身の長さで判定する。
 
+> **【S4a 実施時の追記・2026-09-10】完成記録は DTO では作れない。**
+> `buildCompletionRecord`（`packages/timer-core/src/records.ts`）は `config.members` を読み、
+> 結果は `room.sessionRecords` に**保存される履歴**になる。表示名の解決を DTO 組み立てへ
+> 移すだけでは記録が名前を失う。`buildCompletionRecord` の署名に解決済みの表示名を渡す。
+
 ### D16: スナップショットの DTO はアプリケーション層で組む
 
 選択画面には各ツールの様子（稼働中か・何人居るか）を出したくなる。**これをドメインに
@@ -509,7 +530,7 @@ timer の `config.members` はローテーションの表示名ミラー（D6b�
 
 ```
 room-core    → （workspace 依存なし）
-timer-core   → （workspace 依存なし）  ※S1〜S4a に限り room-core への一時依存を許す
+timer-core   → （workspace 依存なし）  ※S1〜S4b に限り room-core への一時依存を許す
 poker-core   → protocol                ※既存。下記の注を見よ
 protocol     → （workspace 依存なし）
 rate-limit   → （workspace 依存なし）
@@ -539,8 +560,11 @@ e2e          → landing, poker-web, timer-web
 
 **`timer-core → room-core` は期限つきの一時依存である。** §3.12b のとおり、`display-name` を
 移した S1 の時点では `timer-core/src/schemas.ts` がまだ表示名を検証している。
-表示名の検証はメンバーシップ文脈の責務なので、S4a で `timer-core` から表示名の扱いが
-消えるのと同時にこの辺も消す。**表には期限を書き、S4b の完了時に行を削除する**
+表示名の検証はメンバーシップ文脈の責務なので、S4b で `timer-core` から表示名の扱いが
+消えるのと同時にこの辺も消す（当初は S4a と書いていたが、S4a（#245）では
+`timer-core/src/schemas.ts` が `normalizeDisplayName` を取り込んだままである。
+2026-09-10 に S4b へ送り直した —— [`docs/adr/0017`](../../adr/0017-bounded-contexts-and-packages.md)
+の改定節）。**表には期限を書き、S4b の完了時に行を削除する**
 （消し忘れれば表と実体がずれるだけで検査は緑のままなので、S4b の DoD に「表からこの行を
 消したか」を入れる）。
 
@@ -873,7 +897,7 @@ S5a〜S5c の各段のあと `pnpm dev` の実経路（`http://localhost:5175/`�
 | S1（**#242**） | `packages/room-core` 新設＋`display-name.ts` の移設（**`timer-core → room-core` の一時依存が生じる**。§3.12b）＋**依存方向の検査の新設**（D17） | 変化なし | — |
 | S2（**#243**） | サーバー統合（`apps/timer-sync` → `apps/tasuki-sync`、poker を移設、`apps/poker-sync` 退役）＋上限とレート制限の見直し（D22） | 変化なし | `20-poker.conf` の WS を 8787 へ／**`deploy/poker/app.env` を `STATIC_ONLY=1` にし `SERVICE`/`PORT`/`ENV_FILE`/`APP_DIR`/`SYNC_ENTRY` を削除**（§3.13c）／**`deploy/timer/app.env` の `SYNC_ENTRY` を新パスへ**／`tasuki-poker-sync` の停止手順／**`e2e/harness/sync.ts`・`e2e/harness/paths.ts`・`apps/poker-web/vite.config.ts` の 3311 参照**（§3.13b） |
 | S3（**#244**） | 役割・ホストの廃止（ドメイン・サーバー・両 Web・E2E を同時に） | 全員同格になる。**両ツールとも完全に使える** | — |
-| S4a（**#245**） | 名簿統合（ツールのコアから参加者を抜く。`Round` を集約ルートに。`RotationEntry`） | 変化なし（内部構造のみ。入口はまだツール側） | — |
+| S4a（**#245**） | 名簿統合（ツールのコアから参加者を抜く。`Round` を集約ルートに。`RotationEntry`） | **変わる**（poker のルームが全員切断後も TTL の間は残り、票も残る／入口ごとに門が付く。詳細は §3.12 の【S4a（#245）実施時の訂正】） | **`deploy/timer/env.example` の `MAX_ROOMS=100`**／**本番 `app.env` の `MAX_ROOMS` を手で 100 へ**（`deploy/setup.sh` は既存 env を上書きしないので、飛ばすと実効枠が 100 → 50 へ半減する。手順は [`deploy/timer/NOTES.md`](../../../deploy/timer/NOTES.md)） |
 | S4b（**#246**） | 同一性と在席（D12 の `localStorage` 化・D14 の多接続模型・**D21 の在席による適格判定**） | **変わる**（同じ端末で開き直すと同一人物として復帰する／2 タブが 1 人になる） | — |
 | S5a（**#247**） | LP のハブ化＋`packages/sync-client` の抽出＋**timer をハブ経由に対応** | ハブ経由でも従来経路でも timer が使える | `/ws` 断片の新設／**`apps/landing/vite.config.ts` に `/ws` → 8787 の dev 中継を追加**（§3.13b）／`90-landing.conf` の確認／**旧救済断片 `40-timer-legacy-room.conf` の撤去**（D11） |
 | S5b（**#248**） | **poker をハブ経由に対応**（`?room=` を解する） | ハブから両ツールへ行ける | — |

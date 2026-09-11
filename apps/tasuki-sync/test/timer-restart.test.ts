@@ -7,11 +7,13 @@ import { describe, it, expect, beforeEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
 import { makeTestHandlers } from "./support/room-builder.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
+import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { Scheduler } from "../src/application/schedule.js";
 import type { SessionConfig, Room, Problem } from "@tasuki/timer-core";
 import { secondsLeft } from "@tasuki/timer-core";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
+import { roomViewOf, putRoomView } from "./support/room-view.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 /** schedule 呼び出しを記録するだけのスケジューラ（実タイマーを張らない）。 */
@@ -49,6 +51,7 @@ const problem: Problem = {
 async function setupRunningRoom(
   handlers: ReturnType<typeof makeHandlers>,
   store: InMemoryRoomStore,
+  timers: InMemoryTimerStore,
   clockNow: number,
   sessionOverrides: Partial<Room["session"]> = {},
   clockOverrides: Partial<Room["clock"]> = {},
@@ -59,11 +62,11 @@ async function setupRunningRoom(
   if (!create.isOk()) throw new Error("create failed");
   // 本番（server.ts）は handleCommand の戻り値を破棄する。値は本番と同じ観測点から取る（FR-100）。
   const code = store.list().at(-1)!.code;
-  const room = store.get(code)!;
+  const room = roomViewOf(store, timers, code);
   const host = room.participants[0]!;
   const mk = (id: string, name: string, conn: string) =>
     ({ ...host, participantId: id, connId: conn, displayName: name, presence: "online" as const });
-  store.put({
+  putRoomView(store, timers, {
     ...room,
     phase: "session",
     problem,
@@ -95,6 +98,7 @@ async function setupRunningRoom(
 
 describe("session.act RESTART（Issue #14 持ち時間のやり直し）", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let clock: FakeClock;
   let scheduler: SpyScheduler;
   let broadcaster: SpyBroadcaster;
@@ -102,11 +106,13 @@ describe("session.act RESTART（Issue #14 持ち時間のやり直し）", () =>
 
   beforeEach(() => {
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     clock = new FakeClock(START);
     scheduler = new SpyScheduler();
     broadcaster = new SpyBroadcaster();
     handlers = makeTestHandlers({
       store,
+      timers,
       clock,
       broadcaster,
       codeGen: new FakeCodeGen(),
@@ -116,28 +122,28 @@ describe("session.act RESTART（Issue #14 持ち時間のやり直し）", () =>
 
   it("現ドライバー本人が実行するとタイマーが満タンから走り直す", async () => {
     // Given
-    const code = await setupRunningRoom(handlers, store, START);
-    expect(secondsLeft(store.get(code)!.clock, START)).toBeCloseTo(200, 0);
+    const code = await setupRunningRoom(handlers, store, timers, START);
+    expect(secondsLeft(roomViewOf(store, timers, code).clock, START)).toBeCloseTo(200, 0);
 
     // When
     const result = await handlers.handleCommand("conn-b", { command: "session.act", action: "RESTART" });
 
     // Then
     result._unsafeUnwrap();
-    const room = store.get(code)!;
+    const room = roomViewOf(store, timers, code);
     expect(room.clock.running).toBe(true);
     expect(secondsLeft(room.clock, START)).toBeCloseTo(INTERVAL_SECONDS, 0);
   });
 
   it("ドライバー・担当回数・交代回数が変わらない", async () => {
     // Given
-    const code = await setupRunningRoom(handlers, store, START);
+    const code = await setupRunningRoom(handlers, store, timers, START);
 
     // When
     await handlers.handleCommand("conn-b", { command: "session.act", action: "RESTART" });
 
     // Then
-    const room = store.get(code)!;
+    const room = roomViewOf(store, timers, code);
     expect(room.session.currentIndex).toBe(1); // B のまま
     expect(room.session.driverCounts).toEqual([1, 0, 0]);
     expect(room.session.totalSwitches).toBe(1);
@@ -147,13 +153,13 @@ describe("session.act RESTART（Issue #14 持ち時間のやり直し）", () =>
 
   it("お題・共有メモ・メンバー・設定・参加者が維持される", async () => {
     // Given
-    const code = await setupRunningRoom(handlers, store, START);
+    const code = await setupRunningRoom(handlers, store, timers, START);
 
     // When
     await handlers.handleCommand("conn-b", { command: "session.act", action: "RESTART" });
 
     // Then
-    const room = store.get(code)!;
+    const room = roomViewOf(store, timers, code);
     expect(room.problem?.title).toBe("FizzBuzz");
     expect(room.handoffNote).toBe("引き継ぎメモ");
     expect(room.config.members).toEqual(["A", "B", "C"]);
@@ -167,7 +173,7 @@ describe("session.act RESTART（Issue #14 持ち時間のやり直し）", () =>
   it("一時停止中に実行すると走行再開する（isPaused 解除）", async () => {
     // Given
     const code = await setupRunningRoom(
-      handlers, store, START,
+      handlers, store, timers, START,
       { isPaused: true },
       { running: false, secondsLeftAtAnchor: 200, runningSince: null, anchorServerTime: START - 100_000 },
     );
@@ -176,7 +182,7 @@ describe("session.act RESTART（Issue #14 持ち時間のやり直し）", () =>
     await handlers.handleCommand("conn-b", { command: "session.act", action: "RESTART" });
 
     // Then
-    const room = store.get(code)!;
+    const room = roomViewOf(store, timers, code);
     expect(room.session.isPaused).toBe(false);
     expect(room.clock.running).toBe(true);
     expect(secondsLeft(room.clock, START)).toBeCloseTo(INTERVAL_SECONDS, 0);
@@ -184,7 +190,7 @@ describe("session.act RESTART（Issue #14 持ち時間のやり直し）", () =>
 
   it("満タン基準で自動交代が再スケジュールされる", async () => {
     // Given
-    const code = await setupRunningRoom(handlers, store, START);
+    const code = await setupRunningRoom(handlers, store, timers, START);
     scheduler.scheduled.length = 0;
 
     // When
@@ -200,7 +206,7 @@ describe("session.act RESTART（Issue #14 持ち時間のやり直し）", () =>
   // 時計は動かない」ことをここで固定していたので、その期待を反転させる。
   it("3 人目の参加者も実行でき、持ち時間が巻き戻る", async () => {
     // Given
-    const code = await setupRunningRoom(handlers, store, START);
+    const code = await setupRunningRoom(handlers, store, timers, START);
 
     // When
     const result = await handlers.handleCommand("conn-c", { command: "session.act", action: "RESTART" });
@@ -208,29 +214,29 @@ describe("session.act RESTART（Issue #14 持ち時間のやり直し）", () =>
     // Then
     result._unsafeUnwrap();
     expect(broadcaster.errorsTo("conn-c")).toEqual([]);
-    expect(secondsLeft(store.get(code)!.clock, START)).toBeCloseTo(INTERVAL_SECONDS, 0);
+    expect(secondsLeft(roomViewOf(store, timers, code).clock, START)).toBeCloseTo(INTERVAL_SECONDS, 0);
   });
 
   it("作成者も実行できる", async () => {
     // Given
-    const code = await setupRunningRoom(handlers, store, START);
+    const code = await setupRunningRoom(handlers, store, timers, START);
 
     // When
     const result = await handlers.handleCommand("conn-a", { command: "session.act", action: "RESTART" });
 
     // Then
     result._unsafeUnwrap();
-    expect(secondsLeft(store.get(code)!.clock, START)).toBeCloseTo(INTERVAL_SECONDS, 0);
+    expect(secondsLeft(roomViewOf(store, timers, code).clock, START)).toBeCloseTo(INTERVAL_SECONDS, 0);
   });
 
   it("セッション経過時間は巻き戻らない（走った分は積算される）", async () => {
     // Given
-    const code = await setupRunningRoom(handlers, store, START);
+    const code = await setupRunningRoom(handlers, store, timers, START);
 
     // When
     await handlers.handleCommand("conn-b", { command: "session.act", action: "RESTART" });
 
     // Then（開始前 500_000ms + 稼働していた 100_000ms を確定加算する）
-    expect(store.get(code)!.clock.accumulatedElapsedMs).toBe(600_000);
+    expect(roomViewOf(store, timers, code).clock.accumulatedElapsedMs).toBe(600_000);
   });
 });

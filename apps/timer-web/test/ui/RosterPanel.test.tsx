@@ -42,6 +42,31 @@ describe("RosterPanel モブ順表示", () => {
     onRename: noop, onSkip: noop, onResume: noop, onAddProxy: noop,
   };
 
+  /**
+   * 一時離脱は `RotationEntry.eligible`（輪の上の席の属性）を書き換える操作になった。
+   * 席の無い人には効かないので、行の操作としても出さない。
+   *
+   * @requirements #95 S4a, D6
+   */
+  it("見学（rotation 外）の行には一時離脱を出さない", () => {
+    // Given（Alice は輪に居て、Dave は見学）。一時離脱は `RotationEntry.eligible` を
+    // 書き換える操作になったので、席の無い人には効かない。「ドライバーにする」「並べ替え」と
+    // 同じく輪の行だけに出す。
+    const participants = [mk("a", "Alice"), mk("d", "Dave")];
+    // When
+    render(
+      <RosterPanel
+        {...baseProps}
+        participants={participants}
+        currentDriverId="a"
+        rotation={["a"]}
+      />,
+    );
+    // Then
+    expect(screen.getByRole("button", { name: "Alice を一時離脱させる" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Dave を一時離脱させる" })).toBeNull();
+  });
+
   it("rotation 順に並べ替える（participants 配列順とは独立）", () => {
     // Given
     const participants = [mk("b", "Bob"), mk("a", "Alice"), mk("c", "Carol")];

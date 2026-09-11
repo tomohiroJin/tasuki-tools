@@ -9,9 +9,11 @@ import { describe, it, expect, beforeEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
 import { makeTestHandlers } from "./support/room-builder.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
+import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { SessionConfig, Room } from "@tasuki/timer-core";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
+import { roomViewOf, putRoomView } from "./support/room-view.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 const config: SessionConfig = {
@@ -30,6 +32,7 @@ const config: SessionConfig = {
 async function setupRunningRoom(
   handlers: ReturnType<typeof makeHandlers>,
   store: InMemoryRoomStore,
+  timers: InMemoryTimerStore,
   members: string[],
   currentIndex: number,
   presenceByName: Record<string, Room["participants"][number]["presence"]>,
@@ -43,7 +46,7 @@ async function setupRunningRoom(
   // 本番（server.ts）は handleCommand の戻り値を破棄する。値は本番と同じ観測点から取る（FR-100）。
   const code = store.list().at(-1)!.code;
 
-  const room = store.get(code)!;
+  const room = roomViewOf(store, timers, code);
   // 各メンバーが participant として存在するよう presence を設定する。
   // room.create では host(members[0]) のみ participant なので、
   // rotation 上の名前すべてに対応する participant を組み立てる。
@@ -56,7 +59,7 @@ async function setupRunningRoom(
     presence: presenceByName[name] ?? "online",
   }));
 
-  store.put({
+  putRoomView(store, timers, {
     ...room,
     participants,
     session: { ...room.session, rotation: participants.map((p) => p.participantId), currentIndex },
@@ -70,20 +73,22 @@ async function setupRunningRoom(
  */
 describe("advanceForAbsence: ドライバー不在の自動繰上", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let clock: FakeClock;
   let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
 
   beforeEach(() => {
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     clock = new FakeClock(1000000);
     broadcaster = new SpyBroadcaster();
-    handlers = makeTestHandlers({ store, clock, broadcaster, codeGen: new FakeCodeGen() });
+    handlers = makeTestHandlers({ store, timers, clock, broadcaster, codeGen: new FakeCodeGen() });
   });
 
   it("advanceForAbsence はオフラインの現ドライバーを飛ばして次の online へ繰り上げる", async () => {
     // Given
-    const code = await setupRunningRoom(handlers, store, ["A", "B", "C"], 0, {
+    const code = await setupRunningRoom(handlers, store, timers, ["A", "B", "C"], 0, {
       A: "offline",
       B: "online",
       C: "online",
@@ -93,12 +98,12 @@ describe("advanceForAbsence: ドライバー不在の自動繰上", () => {
     handlers.advanceForAbsence(code);
 
     // Then
-    expect(store.get(code)!.session.currentIndex).toBe(1);
+    expect(roomViewOf(store, timers, code).session.currentIndex).toBe(1);
   });
 
   it("他が全員オフライン/ineligible なら現状維持（no-op）", async () => {
     // Given
-    const code = await setupRunningRoom(handlers, store, ["A", "B"], 0, {
+    const code = await setupRunningRoom(handlers, store, timers, ["A", "B"], 0, {
       A: "offline",
       B: "offline",
     });
@@ -107,12 +112,12 @@ describe("advanceForAbsence: ドライバー不在の自動繰上", () => {
     handlers.advanceForAbsence(code);
 
     // Then
-    expect(store.get(code)!.session.currentIndex).toBe(0);
+    expect(roomViewOf(store, timers, code).session.currentIndex).toBe(0);
   });
 
   it("オフライン driver は交代対象から外れる（次が offline なら飛ばして現状維持）", async () => {
     // Given
-    const code = await setupRunningRoom(handlers, store, ["A", "B"], 0, {
+    const code = await setupRunningRoom(handlers, store, timers, ["A", "B"], 0, {
       A: "online",
       B: "offline",
     });
@@ -121,6 +126,6 @@ describe("advanceForAbsence: ドライバー不在の自動繰上", () => {
     handlers.advanceForAbsence(code);
 
     // Then（B(1) は offline で ineligible のため飛ばされ、交代先が無く現状維持）
-    expect(store.get(code)!.session.currentIndex).toBe(0);
+    expect(roomViewOf(store, timers, code).session.currentIndex).toBe(0);
   });
 });

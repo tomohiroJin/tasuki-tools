@@ -11,7 +11,10 @@
 import { describe, expect, it } from 'bun:test';
 import type { ServerMessage } from '@tasuki/poker-core';
 import type { RateLimiter } from '@tasuki/rate-limit';
-import { createInMemoryRoomStore } from '../../src/poker/adapters/in-memory-room-store';
+import { InMemoryRoomStore } from '../../src/adapters/in-memory-room-store';
+import { InMemoryRoundStore } from '../../src/poker/adapters/in-memory-round-store';
+import { testToolGate } from '../support/tool-gate';
+import { createTokenStore } from '../../src/application/token-store';
 import { makeHandlers, type HandlerConnection } from '../../src/poker/application/handlers';
 import type { Broadcaster, RoomSocket } from '../../src/poker/ports/broadcaster';
 import type { IdGen } from '../../src/poker/ports/id-gen';
@@ -28,7 +31,6 @@ function passthroughBroadcaster(): Broadcaster {
     attach: () => undefined,
     detach: () => false,
     resetRoom: () => undefined,
-    countIn: () => 0,
     broadcastSnapshot: () => undefined,
     sendTo: (socket, msg) => socket.send(JSON.stringify(msg)),
   };
@@ -57,17 +59,22 @@ const alwaysAllowLimiter: RateLimiter = {
 /** ルームを 1 つも持たない保管と、ハンドラ一式を組み立てる */
 function setup(data: Partial<HandlerConnection['data']> = {}) {
   const socket = spySocket();
+  const rounds = new InMemoryRoundStore();
   const handlers = makeHandlers({
-    store: createInMemoryRoomStore(), // 何も put しない → get は常に undefined
+    store: new InMemoryRoomStore(), // 何も put しない → get は常に undefined
+    rounds,
+    toolGate: testToolGate({ rounds }),
+    tokens: createTokenStore(),
     broadcaster: passthroughBroadcaster(),
     idGen: unusedIdGen,
     clock: { now: () => 0 },
+    wallClock: { now: () => 0 },
     rateLimiter: alwaysAllowLimiter,
     maxRooms: 50,
   });
   const ws: HandlerConnection = {
     ...socket,
-    data: { participantId: null, roomId: null, rateKey: 'k', ...data },
+    data: { connId: 'c1', participantId: null, roomId: null, rateKey: 'k', ...data },
   };
   return { handlers, ws, received: socket.received };
 }

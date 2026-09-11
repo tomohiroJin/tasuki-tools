@@ -108,3 +108,29 @@ Room から受信者別に生成する読み取り専用ビュー（research R1�
 - **average**: kind='number' の票のみで算術平均。数値票が 0 件なら null（「算出不能」表示）
 - **modes**: 全票（?・☕ 含む）のカード別得票数の最大値を取るカードの配列。同数最頻は全件返す
 - 表示上の丸め（小数 1 桁）は web 側の責務とし、core は生の数値を返す
+
+---
+
+## 追記（2026-09-10・#95 S4a） — 本書は 2026-07 時点の記録である
+
+本書は MVP 実施時点のデータモデルの記録であり、**本文は当時のまま残す**。
+[#95](https://github.com/tomohiroJin/tasuki-tools/issues/95) の S3 と S4a で構造が変わったので、
+現在地との差だけをここに置く。
+
+- **`Participant.isHost` と `joinOrder` は無い**（S3 でホストの概念を廃止し、
+  S4a の名簿統合で `joinOrder` も消えた）。したがって「ホストは常に接続中の参加者から 1 人」も
+  「ホストなら繰上（joinOrder 最小の接続中参加者へ）」も成立しない。
+- **`Room` は poker の集約ルートではない**（S4a）。集約ルートは `Round` で、名簿（参加者・
+  接続状態・トークン）は timer と共有の `RoomStore` が持つ
+  （`packages/room-core` と `apps/tasuki-sync/src/application/`）。
+- **「接続数 0 で即時破棄（FR-014）」は撤去した**（S4a）。全員が接続を閉じてもルームは残り、
+  戻れば票も残っている。消える契機はアイドル回収（`ROOM_IDLE_TTL_MS`。既定 30 分）と
+  在室者 0 人になる退出の 2 つだけである。
+- **接続ライフサイクルの図の「(接続数 0 になった時点でルームごと消滅)」も同じ理由で成立しない。**
+
+変わっていないもの: 同一性を token で識別すること（名前は識別子ではない）、
+1 参加者 1 票と公開前の上書き、`RoomSnapshot` を受信者ごとに生成して voting 中は他人の票を
+配信しないこと（SC-004）、集計ルール（average / modes）。
+
+**現在の正本**: [`contracts/ws-protocol.md`](./contracts/ws-protocol.md) の 2 つの改定節と
+`packages/poker-core/src/round.ts` / `packages/room-core/src/`。

@@ -260,8 +260,13 @@ export function RosterPanel({
               >
                 改名
               </MiniButton>
-              {/* 一時離脱/復帰の表示可否: 自分は外部トグルが無いときのみ（他人は常に出す）。 */}
-              {(!isMine || !selfHasExternalToggle) &&
+              {/* 一時離脱/復帰の表示可否: 輪に席がある行だけ（#95 S4a）。自分は外部トグルが
+                  無いときのみ（他人は常に出す）。
+                  **見学（rotation 外）の行には出さない。** 一時離脱は「輪の上の席の属性」
+                  （`RotationEntry.eligible`）になったので、席の無い人には効かない。
+                  「ドライバーにする」「並べ替え」と同じ扱いに揃えてある。 */}
+              {inRotation &&
+                (!isMine || !selfHasExternalToggle) &&
                 (isSkipping ? (
                   <MiniButton onClick={() => onResume(p.participantId)} aria-label={`${label} を復帰させる`}>
                     復帰

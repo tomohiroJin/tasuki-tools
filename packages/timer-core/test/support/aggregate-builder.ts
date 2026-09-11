@@ -17,7 +17,28 @@
 
 import { initialAggregate } from "../../src/aggregate.js";
 import { evolve } from "../../src/evolve.js";
-import type { Aggregate, IntervalMinutes, SessionConfig } from "../../src/aggregate.js";
+import { rotationEntryId } from "../../src/aggregate.js";
+import type { Aggregate, IntervalMinutes, RotationEntry, TimerConfig } from "../../src/aggregate.js";
+
+/** 参加者IDの並びを「名簿を指す席」の並びへ写す（#95 S4a）。 */
+export function memberSeats(...ids: string[]): RotationEntry[] {
+  return ids.map((participantId) => ({ kind: "member" as const, participantId, eligible: true }));
+}
+
+/**
+ * 代理の席（#95 S4a・D6）。**名簿に居ない人の席**なので、判別可能 union の proxy 側を
+ * 踏むテストはここから作る。`memberSeats` だけを使っていると proxy 側の分岐
+ * （`rotationEntryId` の proxy 分岐・`MembersShuffled` の remap・`member.add` の重複判定）が
+ * 一度も実行されない。
+ */
+export function proxySeat(id: string, label: string): RotationEntry {
+  return { kind: "proxy", id, label, eligible: true };
+}
+
+/** 席の並びを識別子の並びへ写す（アサーションを ID で書くため）。 */
+export function seatIds(rotation: readonly RotationEntry[]): string[] {
+  return rotation.map(rotationEntryId);
+}
 
 /** 決定的なアンカー時刻の既定値。各テストが独自の epoch を書かなくて済むようにする。 */
 export const NOW = 1_000_000;
@@ -38,14 +59,23 @@ export function anAggregate(): AggregateBuilder {
 
 class AggregateBuilder {
   private rotation: string[] = ["Alice", "Bob", "Charlie"];
+  private seats: RotationEntry[] | undefined = undefined;
   private currentIndex = 0;
   private intervalMinutes: IntervalMinutes = 5;
   private clockState: ClockState = "initial";
   private anchor: number = NOW;
 
-  /** ローテーション順の参加者ID配列を設定する（D6b: 表示名一覧ではなくIDの配列）。 */
+  /** ローテーション順の参加者ID配列を設定する（D6b: 表示名一覧ではなくIDの配列）。
+   *  #95 S4a で rotation は席の配列になったが、ここは ID で受けて席へ写す。 */
   withRotation(...ids: string[]): this {
     this.rotation = ids;
+    this.seats = undefined;
+    return this;
+  }
+
+  /** 席そのものを並べる（代理を混ぜたいとき。#95 S4a）。`withRotation` と排他。 */
+  withSeats(...seats: RotationEntry[]): this {
+    this.seats = seats;
     return this;
   }
 
@@ -80,23 +110,23 @@ class AggregateBuilder {
   }
 
   build(): Aggregate {
-    if (this.rotation.length === 0) {
-      throw new AggregateBuildError("withRotation() で最低1人指定する必要がある（空配列は不可）");
+    const seats = this.seats ?? memberSeats(...this.rotation);
+    if (seats.length === 0) {
+      throw new AggregateBuildError("withRotation()/withSeats() で最低1席指定する必要がある（空配列は不可）");
     }
-    if (this.currentIndex < 0 || this.currentIndex >= this.rotation.length) {
+    if (this.currentIndex < 0 || this.currentIndex >= seats.length) {
       throw new AggregateBuildError(
-        `withCurrentDriver(${this.currentIndex}) は rotation（${this.rotation.length}人）の範囲外`,
+        `withCurrentDriver(${this.currentIndex}) は rotation（${seats.length}席）の範囲外`,
       );
     }
 
-    const config: SessionConfig = {
+    const config: TimerConfig = {
       language: "TypeScript",
       difficulty: "easy",
-      members: this.rotation,
       intervalMinutes: this.intervalMinutes,
     };
 
-    let agg = initialAggregate(config, this.rotation);
+    let agg = initialAggregate(config, seats);
     agg = {
       ...agg,
       session: { ...agg.session, currentIndex: this.currentIndex },

@@ -2,7 +2,7 @@
  * ドメインイベント定義
  */
 
-import type { SessionConfig, Problem, RoomPhase, ProblemMode } from "./aggregate.js";
+import type { TimerConfig, Problem, RoomPhase, ProblemMode } from "./aggregate.js";
 
 /** セッション開始 */
 interface SessionStarted {
@@ -55,7 +55,8 @@ interface PhaseSet {
 /** 設定変更（検証済みの部分設定のみを運ぶ。未指定フィールドは現状維持） */
 interface ConfigSet {
   type: "ConfigSet";
-  config: Partial<SessionConfig>;
+  /** 名簿はここを通らない（#95 S4a・D15）。`members` は wire の境界で落ちる。 */
+  config: Partial<TimerConfig>;
   now: number;
 }
 

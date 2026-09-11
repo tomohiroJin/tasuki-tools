@@ -6,7 +6,7 @@
 //
 // timer-core の displayMessageFor() と同じ役割で、同じく core の中に置く
 // （「core の外に出す」という意味ではない。docs/adr/0016 決定 2 の注記）。
-import { NAME_MAX_LENGTH, type RoomError } from './room';
+import { NAME_MAX_LENGTH, type RoomError } from './name';
 import type { RoundError } from './round';
 
 /**

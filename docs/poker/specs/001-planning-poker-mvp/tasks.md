@@ -231,3 +231,26 @@ Task: "apps/sync/src/server.ts vote/reveal" # T028（T027 の後）
 - コミットは 1 タスクまたは Red-Green-Refactor の 1 サイクルごと（git-workflow 規約: Conventional Commits 日本語）
 - 各チェックポイントで止めてストーリー単位の検証ができる
 - スコープ外（お題リスト・永続化・観戦者・デッキ切替・AI 連携）のタスクは存在しない — 追加したくなったら仕様に戻る
+
+---
+
+## 追記（2026-09-10・#95 S4a） — 本書は 2026-07 時点の作業記録である
+
+本書は MVP 実施時点のタスク一覧の記録であり、**`[X]` は当時それを完了したという事実**なので
+**本文は当時のまま残す**。以後に規則そのものが変わったものだけをここへ置く。
+
+- **T042 / T044 / T046 が固定した「全員切断 → 即時破棄で再 join が `room-not-found`」
+  （旧 FR-014）は、S4a（[#245](https://github.com/tomohiroJin/tasuki-tools/issues/245)）で
+  撤去した。** いまは全員が接続を閉じてもルームは残り、戻れば票も残っている。
+  現物のテストは `apps/tasuki-sync/test/poker/reconnect.test.ts` の
+  「全員が閉じてもルームは残る（#95 S4a・D8）」で、**旧・契約 #9 を逆の主張へ
+  書き換えたもの**である（消していない）。
+- **T013 / T041 が固定した `joinOrder` の採番と引き継ぎ、および `isHost` とホスト繰上は
+  無くなった。** ホストは S3（[#244](https://github.com/tomohiroJin/tasuki-tools/issues/244)）で
+  概念ごと廃止され、`joinOrder` は S4a の名簿統合で消えた。
+- **本文が名指しするパス（`packages/core/`・`apps/sync/`・`apps/web/`）は、
+  [#15〜#20](https://github.com/tomohiroJin/tasuki-tools/issues/15) の統合と
+  [#95](https://github.com/tomohiroJin/tasuki-tools/issues/95) S2 で移動している**
+  （`packages/poker-core/`・`apps/tasuki-sync/src/poker/`・`apps/poker-web/`）。
+
+**現在の正本**: [`contracts/ws-protocol.md`](./contracts/ws-protocol.md) の 2 つの改定節。

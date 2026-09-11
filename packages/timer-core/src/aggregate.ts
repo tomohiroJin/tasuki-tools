@@ -3,18 +3,36 @@
  * FR-006, FR-007, FR-008
  */
 
-// T057: 自ファイル内でのみ使う公開記号のため export を外した（FR-119③・SC-039）。
-// 型そのものは他ファイルからも使う（Participant.participantId 等）が、
-// 型エイリアスとして名指しで import している箇所がなく、実体は string のため
-// 呼び出し側は string で十分だった（構造的部分型）。
-type ConnId = string;
-type ParticipantId = string;
-type RoomCode = string;
+/**
+ * ローテーションの 1 席（#95 S4a・D6）。
+ *
+ * **代理は名簿の住人ではなく、輪の上のラベルである。** 名簿（`@tasuki/room-core`）に
+ * 居るのは実際に名乗って入室した人だけで、対面で同席しているだけの人（代理）は
+ * ここにしか存在しない。だからこの型は「名簿の参加者を指す席」と「ラベルだけの席」の
+ * 2 つを持つ判別可能 union になっている。
+ *
+ * `eligible` はドライバーとして順番が回ってくるかどうか（一時離脱で false になる）。
+ * かつては `Participant.driverEligible` が持っていたが、それは名簿の属性ではなく
+ * 「輪の上の席の属性」なので、名簿から抜くときにここへ移した。
+ *
+ * ⚠ **`eligible` の書き手は `evolve` ではない。** `DriverSkipped` / `DriverResumed` は
+ * 集約の畳み込みでは扱わず（`evolve.ts` の該当 case を参照）、アプリ層の
+ * `apps/tasuki-sync/src/application/apply-room-level-event.ts` が席を書き換える。
+ * 席そのものを足す `ProxyMemberAdded` も同じ場所である（`MemberAdded` だけが evolve 側）。
+ */
+export type RotationEntry =
+  | { kind: "member"; participantId: string; eligible: boolean }
+  | { kind: "proxy"; id: string; label: string; eligible: boolean };
+
+/** ローテーションの席の識別子。member は参加者ID、proxy は自分の ID。 */
+export function rotationEntryId(entry: RotationEntry): string {
+  return entry.kind === "member" ? entry.participantId : entry.id;
+}
 
 /** セッション状態（時間系を含まない） */
 interface SessionState {
-  /** ローテーション順の参加者IDリスト */
-  rotation: string[];
+  /** ローテーション順の席（#95 S4a・D6） */
+  rotation: RotationEntry[];
   /** 現ドライバーのインデックス */
   currentIndex: number;
   /** 一時停止フラグ */
@@ -50,14 +68,20 @@ export interface Aggregate {
   clock: ServerClock;
 }
 
-/** セッション設定 */
-export interface SessionConfig {
+/**
+ * timer の設定（**サーバー側**・#95 S4a・D15）。
+ *
+ * **名簿を持たない。** かつてここには `members: string[]`（表示名の一覧）があったが、
+ * それは名簿（`@tasuki/room-core`）と `session.rotation` の二重帳簿だった。表示名の
+ * 解決はアプリ層の DTO 組み立て（`timer-snapshot-dto.ts`）が毎回行う。
+ *
+ * wire へ出る形は {@link ./wire.js SessionConfig}（`members` を持つ）である。
+ */
+export interface TimerConfig {
   /** プログラミング言語 */
   language: string;
   /** 難易度 */
   difficulty: string;
-  /** メンバー名リスト（2〜10人） */
-  members: string[];
   /** 交代間隔（分）: 3/5/7/10/15 のみ */
   intervalMinutes: IntervalMinutes;
   /** ナビゲーター役を明示するか */
@@ -86,36 +110,29 @@ export interface Problem {
   edited?: boolean | undefined;
 }
 
-/** 参加者 */
-export interface Participant {
-  participantId: ParticipantId;
-  connId: ConnId | null;
-  displayName: string;
-  presence: "online" | "idle" | "offline";
-  hasAiKey: boolean;
-  joinedAt: number;
-  /** Web 非接続の代理参加者か（v2追加。既定 false 相当） */
-  isPlaceholder?: boolean;
-  /** ドライバーローテーション対象か（v2追加。既定 true 相当） */
-  driverEligible?: boolean;
-}
-
 /** 出題モード（v2追加） */
 export type ProblemMode = "ai" | "fallback";
 
 /** ルームフェーズ */
 export type RoomPhase = "setup" | "ready" | "session" | "celebration";
 
-/** ルーム全体 */
-export interface Room {
-  code: RoomCode;
+/**
+ * サーバー側の timer の状態（#95 S4a・D2）。
+ *
+ * **名簿を持たない。** 誰が居るかはメンバーシップ文脈（`@tasuki/room-core` の `Room`）が
+ * 正本で、`code` で突き合わせる。この 2 つが出会うのはアプリ層の DTO 組み立て
+ * （`apps/tasuki-sync/src/application/timer-snapshot-dto.ts`）だけである。
+ *
+ * クライアントへ送る形は {@link ./wire.js Room} で、これはその投影ではなく合成結果である。
+ */
+export interface TimerState {
+  code: string;
   createdAt: number;
-  config: SessionConfig;
+  config: TimerConfig;
   problem: Problem | null;
   session: SessionState;
   clock: ServerClock;
   phase: RoomPhase;
-  participants: Participant[];
   sessionRecords: CompletionRecord[];
   handoffNote: string;
   onBreak: boolean;
@@ -125,10 +142,13 @@ export interface Room {
   passphraseProtected?: boolean;
   /** AI お題生成の解錠状態（合言葉照合済み・平文はサーバ専用 = snapshot 非混入）。 */
   aiUnlocked?: boolean;
-  /** 初めてセッションが開始された時刻（epoch ms）。一度設定したら消さない。
-   *  権限判定を「一度でも開始したか」で行うための単調フラグ（D2）。
-   *  phase の後戻り（"setup" 等）では消えない点が重要。 */
-  startedAt?: number | null | undefined;
+  /**
+   * AI お題生成の鍵を持つ参加者の ID。wire の `Participant.hasAiKey` の出所（#95 S4a）。
+   *
+   * 鍵の有無は「その人が誰か」ではなく「その人が timer で何をできるか」なので、
+   * 名簿ではなくここが持つ（`@tasuki/room-core` はツールを知らない）。
+   */
+  aiKeyHolders: string[];
 }
 
 /** 完成記録 */
@@ -191,10 +211,10 @@ export function elapsedMs(
 /**
  * 初期集約を生成する。
  *
- * rotation は**参加者IDの配列**なので、表示名の一覧である `config.members` からは組み立てられない。
- * 呼び出し側が「誰がローテーションに並ぶか」を識別子で渡す（D6b）。
+ * rotation は**席の配列**（{@link RotationEntry}）なので、設定からは組み立てられない。
+ * 呼び出し側が「誰が輪に並ぶか」を席として渡す（D6b・#95 S4a）。
  */
-export function initialAggregate(config: SessionConfig, rotation: readonly string[]): Aggregate {
+export function initialAggregate(config: TimerConfig, rotation: readonly RotationEntry[]): Aggregate {
   return {
     session: {
       rotation: [...rotation],
@@ -247,8 +267,9 @@ export const VALID_INTERVAL_MINUTES = [3, 5, 7, 10, 15] as const;
 /** 交代間隔の型 */
 export type IntervalMinutes = (typeof VALID_INTERVAL_MINUTES)[number];
 
-/** メンバー人数の制約 */
-export const MIN_MEMBERS = 2;
+/** ローテーションに並べられる席数の上限。
+ *  下限（かつての `MIN_MEMBERS`）は、それを見ていた `config.set` の members 検証が
+ *  #95 S4a で概念ごと消えたため落とした（`decide.ts` の削除箇所を参照）。 */
 export const MAX_MEMBERS = 10;
 
 /** お題の要件（requirements）配列の最大件数。巨大入力を拒否するための上限。

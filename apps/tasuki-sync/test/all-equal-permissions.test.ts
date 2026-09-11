@@ -30,10 +30,12 @@ import { describe, it, expect, beforeEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
 import { makeTestHandlers } from "./support/room-builder.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
+import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { SessionConfig } from "@tasuki/timer-core";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
+import { roomViewOf } from "./support/room-view.js";
 import type { RoomScopedCommand } from "../src/application/handlers.js";
 
 const config: SessionConfig = {
@@ -57,6 +59,7 @@ const CAROL_CONN = "equal-carol";
  */
 describe("ルームに居る全員が同格である（開始前）", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
   let roomCode: string;
@@ -65,9 +68,11 @@ describe("ルームに居る全員が同格である（開始前）", () => {
 
   beforeEach(async () => {
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     broadcaster = new SpyBroadcaster();
     handlers = makeTestHandlers({
       store,
+      timers,
       clock: new FakeClock(1000000),
       broadcaster,
       codeGen: new FakeCodeGen(),
@@ -105,11 +110,12 @@ describe("ルームに居る全員が同格である（開始前）", () => {
     });
     if (!carolJoined.isOk()) throw new Error("room.join failed: Carol");
 
-    const room = store.get(roomCode)!;
+    const room = roomViewOf(store, timers, roomCode);
     bobPid = room.participants.find((p) => p.displayName === "Bob")!.participantId;
     carolPid = room.participants.find((p) => p.displayName === "Carol")!.participantId;
     // 開始していないこと（かつて最も権限が厳しかった段階）を前提として確かめる。
-    if (room.startedAt != null) throw new Error("開始前を前提にしているが startedAt が立っている");
+    // `startedAt` は #95 S4a で消えたので、時計が走っていないことで見る。
+    if (room.clock.running) throw new Error("開始前を前提にしているが時計が走っている");
 
     broadcaster.sent.length = 0;
   });
@@ -177,7 +183,7 @@ describe("ルームに居る全員が同格である（開始前）", () => {
 
     // Then（拒否されず、現ドライバーが実際に Bob になっている）
     expect(lastError(ALICE_CONN)).toBeUndefined();
-    const room = store.get(roomCode)!;
+    const room = roomViewOf(store, timers, roomCode);
     expect(room.session.rotation[room.session.currentIndex]).toBe(bobPid);
     expect(result.isOk()).toBe(true);
   });

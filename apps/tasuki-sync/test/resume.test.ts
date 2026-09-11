@@ -6,8 +6,10 @@ import { describe, it, expect, beforeEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
 import { makeTestHandlers } from "./support/room-builder.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
+import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
+import { maybeRoomViewOf } from "./support/room-view.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 /**
@@ -15,14 +17,17 @@ import { FakeCodeGen } from "./support/fake-code-gen.js";
  */
 describe("resume: 再接続・復帰", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
 
   beforeEach(() => {
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     broadcaster = new SpyBroadcaster();
     handlers = makeTestHandlers({
       store,
+      timers,
       clock: new FakeClock(1000000),
       broadcaster,
       codeGen: new FakeCodeGen(),
@@ -50,7 +55,7 @@ describe("resume: 再接続・復帰", () => {
     });
 
     // Then（同一参加者として認識され connId が更新されている）
-    const room = store.get(code);
+    const room = maybeRoomViewOf(store, timers, code);
     const participant = room?.participants.find(
       (p) => p.participantId === participantId,
     );
@@ -105,7 +110,7 @@ describe("resume: 再接続・復帰", () => {
     });
 
     // Then（復帰ではなく新規参加として扱われ、別の participantId で人数が増える）
-    const room = store.get(code);
+    const room = maybeRoomViewOf(store, timers, code);
     const charlie = room?.participants.find((p) => p.displayName === "Charlie");
     expect(charlie).toBeTruthy();
     expect(room?.participants).toHaveLength(2);

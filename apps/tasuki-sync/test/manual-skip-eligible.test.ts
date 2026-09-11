@@ -6,9 +6,11 @@ import { describe, it, expect, beforeEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
 import { makeTestHandlers } from "./support/room-builder.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
+import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { SessionConfig, Room } from "@tasuki/timer-core";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
+import { roomViewOf, putRoomView } from "./support/room-view.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 const config: SessionConfig = { language: "TypeScript", difficulty: "easy", members: ["A"], intervalMinutes: 5 };
@@ -17,6 +19,7 @@ const config: SessionConfig = { language: "TypeScript", difficulty: "easy", memb
 async function setup(
   handlers: ReturnType<typeof makeHandlers>,
   store: InMemoryRoomStore,
+  timers: InMemoryTimerStore,
   bOverrides: Partial<Room["participants"][number]>,
 ): Promise<string> {
   const create = await handlers.handleCommand("conn-a", {
@@ -25,11 +28,11 @@ async function setup(
   if (!create.isOk()) throw new Error("create failed");
   // 本番（server.ts）は handleCommand の戻り値を破棄する。値は本番と同じ観測点から取る（FR-100）。
   const code = store.list().at(-1)!.code;
-  const room = store.get(code)!;
+  const room = roomViewOf(store, timers, code);
   const host = room.participants[0]!;
   const mk = (id: string, name: string, conn: string, ov: Partial<Room["participants"][number]> = {}): Room["participants"][number] =>
     ({ ...host, participantId: id, connId: conn, displayName: name, presence: "online", driverEligible: true, ...ov });
-  store.put({
+  putRoomView(store, timers, {
     ...room,
     participants: [host, mk("pid-b", "B", "conn-b", bOverrides), mk("pid-c", "C", "conn-c")],
     // rotation は参加者IDの配列（D6b）
@@ -41,27 +44,29 @@ async function setup(
 
 describe("手動スキップの eligibility（v2.10 #3）", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let handlers: ReturnType<typeof makeHandlers>;
   beforeEach(() => {
     store = new InMemoryRoomStore();
-    handlers = makeTestHandlers({ store, clock: new FakeClock(1_000_000), broadcaster: new SpyBroadcaster(), codeGen: new FakeCodeGen() });
+    timers = new InMemoryTimerStore();
+    handlers = makeTestHandlers({ store, timers, clock: new FakeClock(1_000_000), broadcaster: new SpyBroadcaster(), codeGen: new FakeCodeGen() });
   });
 
   it("一時離脱(driverEligible=false)の次メンバーを飛ばして次の eligible へ進む", async () => {
     // Given（B は一時離脱）
-    const code = await setup(handlers, store, { driverEligible: false });
+    const code = await setup(handlers, store, timers, { driverEligible: false });
     // When
     await handlers.handleCommand("conn-a", { command: "session.act", action: "SWITCH" });
     // Then
-    expect(store.get(code)!.session.currentIndex).toBe(2); // B を飛ばして C へ
+    expect(roomViewOf(store, timers, code).session.currentIndex).toBe(2); // B を飛ばして C へ
   });
 
   it("全員 eligible なら従来どおり次へ（+1）", async () => {
     // Given（B も eligible）
-    const code = await setup(handlers, store, {});
+    const code = await setup(handlers, store, timers, {});
     // When
     await handlers.handleCommand("conn-a", { command: "session.act", action: "SWITCH" });
     // Then
-    expect(store.get(code)!.session.currentIndex).toBe(1); // B へ
+    expect(roomViewOf(store, timers, code).session.currentIndex).toBe(1); // B へ
   });
 });

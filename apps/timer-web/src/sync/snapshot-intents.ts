@@ -144,6 +144,9 @@ export function decideSnapshotIntents(
         { session: next.session, clock: next.clock },
         next.problem,
         next.config,
+        // 名簿は timer-core の外（#95 S4a・D15）なので、表示名は呼び出し側が渡す。
+        // wire の `config.members` はローテーション順の表示名そのものなのでそのまま使える。
+        next.config.members,
         ctx.now,
         next.code,
       ),

@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { anAggregate, NOW } from "./aggregate-builder.js";
+import { anAggregate, NOW, seatIds } from "./aggregate-builder.js";
 
 describe("anAggregate()", () => {
   it("既定値で集約を作る（rotation 3人・currentIndex=0・clock 停止）", () => {
@@ -17,7 +17,7 @@ describe("anAggregate()", () => {
     // When
     const agg = anAggregate().build();
     // Then
-    expect(agg.session.rotation).toEqual(["Alice", "Bob", "Charlie"]);
+    expect(seatIds(agg.session.rotation)).toEqual(["Alice", "Bob", "Charlie"]);
     expect(agg.session.currentIndex).toBe(0);
     expect(agg.session.driverCounts).toEqual([0, 0, 0]);
     expect(agg.session.totalSwitches).toBe(0);
@@ -30,7 +30,7 @@ describe("anAggregate()", () => {
     // When
     const agg = anAggregate().withRotation(...participantIds).build();
     // Then
-    expect(agg.session.rotation).toEqual(["p1", "p2", "p3", "p4"]);
+    expect(seatIds(agg.session.rotation)).toEqual(["p1", "p2", "p3", "p4"]);
     expect(agg.session.driverCounts).toEqual([0, 0, 0, 0]);
   });
 

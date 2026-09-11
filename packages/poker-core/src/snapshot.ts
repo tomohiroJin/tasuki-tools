@@ -1,28 +1,51 @@
 // 受信者別スナップショット投影（research R1）
 // 秘匿はここで構造的に保証する: token は常に除外、voting 中の他者票は hasVoted のみ（SC-004）
+//
+// **#95 S4a で入力が「ルーム」から「ラウンド＋名簿の断片」の 2 つになった。**
+// wire（`room-state` の形）は変えていない —— 組み立てる材料の出所が変わっただけである。
 import type { RoomStateMessage, VoteView } from './protocol';
-import type { Room } from './room';
+import type { Round, VoterView } from './round';
 import { computeStats } from './stats';
+
+/**
+ * 名簿の断片（`room-state` の participants に要るぶんだけ）。
+ *
+ * **`@tasuki/room-core` を import しない**（理由は `round.ts` の `VoterView` と同じ）。
+ * `name` は room-core の `displayName`、`connected` は `presence !== "offline"` に対応し、
+ * 変換はアプリ層が行う。**トークンは受け取らない** —— 受け取らなければ漏らせない。
+ *
+ * **{@link VoterView}（自動公開の判定が要る最小面）を継承する。** 同じ「名簿の断片」を
+ * 2 つ定義して互いを指さない状態を避けるため、`id` / `connected` の定義は `round.ts` 側
+ * 1 つに寄せてある。継承の向きが逆（`Pick<ParticipantFragment, ...>`）だと
+ * `round.ts` → `snapshot.ts` の逆向きの辺が増えるので、上位集合のこちらを派生側にした。
+ */
+export interface ParticipantFragment extends VoterView {
+  name: string;
+}
 
 /**
  * 受信者に依存しない共有部分（参加者一覧・ラウンド・集計）を 1 回だけ構築し、
  * 受信者ごとの差分（you / yourVote）だけを組み立てるビルダーを返す。
  * ルーム全体への配信（broadcast）で集計や投影を受信者数ぶん再計算しないための入口
  */
-export function createSnapshotBuilder(room: Room): (viewerId: string) => RoomStateMessage {
-  const participants = room.participants.map((p) => ({
+export function createSnapshotBuilder(
+  roomId: string,
+  round: Round,
+  participants: readonly ParticipantFragment[],
+): (viewerId: string) => RoomStateMessage {
+  const views = participants.map((p) => ({
     id: p.id,
     name: p.name,
     connected: p.connected,
-    hasVoted: room.round.votes.has(p.id),
+    hasVoted: round.votes.has(p.id),
   }));
 
-  const round: RoomStateMessage['round'] = (() => {
-    if (room.round.status === 'voting') {
+  const roundView: RoomStateMessage['round'] = (() => {
+    if (round.status === 'voting') {
       // voting 中: 他者の選択値はいかなるフィールドにも含めない（FR-006）
       return { status: 'voting' as const };
     }
-    const votes: VoteView[] = [...room.round.votes.entries()].map(([participantId, card]) => ({
+    const votes: VoteView[] = [...round.votes.entries()].map(([participantId, card]) => ({
       participantId,
       card,
     }));
@@ -31,10 +54,10 @@ export function createSnapshotBuilder(room: Room): (viewerId: string) => RoomSta
 
   return (viewerId) => ({
     type: 'room-state',
-    roomId: room.id,
+    roomId,
     you: viewerId,
-    participants,
-    round,
-    yourVote: room.round.votes.get(viewerId) ?? null,
+    participants: views,
+    round: roundView,
+    yourVote: round.votes.get(viewerId) ?? null,
   });
 }

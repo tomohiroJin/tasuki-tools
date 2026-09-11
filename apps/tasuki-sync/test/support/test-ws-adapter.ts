@@ -10,9 +10,13 @@
  * `HandlerDeps.destroyRoom` を必須へ戻したときと同じ理由である。
  *
  * 接続層だけを試すテストは poker のメッセージ層に用が無いので、既定はここが
- * 1 箇所で与える。**渡す poker のハンドラは呼ばれたら throw する偽物**である
- * （`test/support/room-builder.ts` の `unwiredDestroyRoom` と同じ形）。
+ * 1 箇所で与える。**渡す poker のハンドラは呼ばれたら throw する偽物**である。
  * timer を試すつもりのテストが poker 側へ流れていたら、緑ではなく赤で気づける。
+ *
+ * （`test/support/room-builder.ts` の `destroyRoom` もかつては同じ形の偽物を既定に
+ * していたが、#95 S4a で本物の `createRoomDestroyer` へ差し替えた。**あちらは
+ * 「本番と同じ後始末を通ること」自体が見たい対象**なのに対し、ここで見たいのは
+ * 「そもそも呼ばれないこと」なので、偽物のままにしてある。）
  *
  * ⚠ **この仕掛けが効かない経路が 1 つある。** `detachFromCurrentRoom` は
  * `WsAdapter.handleClose` の `try/catch` の内側から呼ばれ、throw は

@@ -1007,8 +1007,8 @@ export function extractNamedImportsFromPackage(source, packageName) {
  *
  * ## 型を数えない理由
  *
- * 型は**取り込まれなくても契約の一部**である。`createRoom(…, ids: ParticipantIds):
- * Result<RoomUpdate, RoomError>` は型推論が効くので誰も `ParticipantIds` を import しないが、
+ * 型は**取り込まれなくても契約の一部**である。`validateName(raw: string):
+ * Result<string, RoomError>` は型推論が効くので誰も `RoomError` を import しないが、
  * 注釈を書きたい利用者は名前を要求する。「公開している値の署名から到達できるか」を
  * 機械で判定するには型解決が要り、この検査の素朴さと引き換えになるため、
  * **型は最初から数えない**（ADR-0016 追記 2026-09-01）。
@@ -1142,7 +1142,7 @@ export const SC039C_EXCEPTIONS = [
     file: "packages/poker-core/src/round.ts",
     name: "shouldAutoReveal",
     reason:
-      "自動公開の述語そのものを検証する唯一の土台。packages/poker-core/tests/round.test.ts と room.test.ts が「全員が投票したか」の判定を直接検査している。公開入口の applyAutoReveal は述語と適用を一度に行うため、経由すると『判定が偽なのに公開された』と『判定は真だが適用が壊れた』を切り分けられない",
+      "自動公開の述語そのものを検証する唯一の土台。packages/poker-core/tests/round.test.ts が「全員が投票したか」の判定を直接検査している（#95 S4a で room.test.ts は消え、名簿の側は packages/room-core が引き取った）。公開入口の applyAutoReveal は述語と適用を一度に行うため、経由すると『判定が偽なのに公開された』と『判定は真だが適用が壊れた』を切り分けられない。**空の名簿で恒真化しないこと**を殺す 1 本（『在室者が 0 人なら自動公開しない』）も、この記号を直に呼べることに依存している",
   },
   {
     file: "packages/timer-core/src/errors.ts",

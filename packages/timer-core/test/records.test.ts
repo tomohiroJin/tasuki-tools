@@ -7,16 +7,21 @@ import { describe, it, expect } from "vitest";
 import { buildCompletionRecord } from "../src/records.js";
 import { elapsedMs } from "../src/aggregate.js";
 import { evolve } from "../src/evolve.js";
-import type { SessionConfig, Problem, Aggregate } from "../src/aggregate.js";
+import type { TimerConfig, Problem, Aggregate } from "../src/aggregate.js";
 import type { DomainEvent } from "../src/events.js";
 import { anAggregate } from "./support/aggregate-builder.js";
 
-const baseConfig: SessionConfig = {
+const baseConfig: TimerConfig = {
   language: "TypeScript",
   difficulty: "easy",
-  members: ["Alice", "Bob", "Charlie"],
   intervalMinutes: 5,
 };
+
+/**
+ * ローテーション順の表示名。#95 S4a で `config.members` が消えたため、
+ * 呼び出し側が解決して渡す引数になった（D15）。
+ */
+const memberNames = ["Alice", "Bob", "Charlie"];
 
 const problem: Problem = {
   title: "FizzBuzz",
@@ -32,12 +37,12 @@ describe("buildCompletionRecord", () => {
     const agg = anAggregate().build();
     const completedAt = 1000000 + 300000;
     // When
-    const record = buildCompletionRecord(agg, problem, baseConfig, completedAt);
+    const record = buildCompletionRecord(agg, problem, baseConfig, memberNames, completedAt);
     // Then
     expect(record.problemTitle).toBe(problem.title);
     expect(record.language).toBe(baseConfig.language);
     expect(record.difficulty).toBe(baseConfig.difficulty);
-    expect(record.members).toEqual(baseConfig.members);
+    expect(record.members).toEqual(memberNames);
     expect(record.completedAt).toBe(completedAt);
     expect(record.id).toBeTruthy();
   });
@@ -57,7 +62,7 @@ describe("buildCompletionRecord", () => {
     const completeTime = resumeTime + 40000;
     // When
     const totalElapsed = elapsedMs(agg.clock, completeTime);
-    const record = buildCompletionRecord(agg, problem, baseConfig, completeTime);
+    const record = buildCompletionRecord(agg, problem, baseConfig, memberNames, completeTime);
     // Then（60秒 + 40秒 = 100秒。停止30秒は含まない）
     expect(totalElapsed).toBe(100000);
     expect(record.elapsedSeconds).toBe(100); // ms → seconds
@@ -79,7 +84,7 @@ describe("buildCompletionRecord", () => {
       startTime + 20000,
     );
     // When
-    const record = buildCompletionRecord(agg, problem, baseConfig, startTime + 20000);
+    const record = buildCompletionRecord(agg, problem, baseConfig, memberNames, startTime + 20000);
     // Then
     expect(record.totalSwitches).toBe(2);
   });
@@ -88,8 +93,8 @@ describe("buildCompletionRecord", () => {
     // Given
     const agg = anAggregate().build();
     // When
-    const r1 = buildCompletionRecord(agg, problem, baseConfig, 1000000);
-    const r2 = buildCompletionRecord(agg, problem, baseConfig, 1000001);
+    const r1 = buildCompletionRecord(agg, problem, baseConfig, memberNames, 1000000);
+    const r2 = buildCompletionRecord(agg, problem, baseConfig, memberNames, 1000001);
     // Then
     expect(r1.id).not.toBe(r2.id);
   });
@@ -116,7 +121,7 @@ describe("中断（SessionAborted）の記録扱い", () => {
     // Given（完成時のみ記録を生成することを確認する。abort とは対照的）
     const agg = anAggregate().build();
     // When
-    const record = buildCompletionRecord(agg, problem, baseConfig, 1000000);
+    const record = buildCompletionRecord(agg, problem, baseConfig, memberNames, 1000000);
     // Then
     expect(record.problemTitle).toBe(problem.title);
     expect(record.completedAt).toBe(1000000);
@@ -135,7 +140,7 @@ describe("buildCompletionRecord: 周回数とドライバー回数", () => {
     let agg = anAggregate().build();
     agg = { ...agg, session: { ...agg.session, totalSwitches: 6, driverCounts: [2, 2, 2] } };
     // When
-    const rec = buildCompletionRecord(agg, shortProblem, baseConfig, 1000000);
+    const rec = buildCompletionRecord(agg, shortProblem, baseConfig, memberNames, 1000000);
     // Then（6 / 3 = 2）
     expect(rec.rounds).toBe(2);
     expect(rec.driverCounts).toEqual([2, 2, 2]);
@@ -146,7 +151,7 @@ describe("buildCompletionRecord: 周回数とドライバー回数", () => {
     const agg = anAggregate().build();
     const roomId = "ROOM-1";
     // When
-    const rec = buildCompletionRecord(agg, shortProblem, baseConfig, 1000000, roomId);
+    const rec = buildCompletionRecord(agg, shortProblem, baseConfig, memberNames, 1000000, roomId);
     // Then
     expect(rec.roomId).toBe("ROOM-1");
   });
@@ -158,7 +163,7 @@ describe("buildCompletionRecord: 周回数とドライバー回数", () => {
       clock: { running: false, intervalSeconds: 300, anchorServerTime: 0, secondsLeftAtAnchor: 300, accumulatedElapsedMs: 0, runningSince: null },
     };
     // When
-    const rec = buildCompletionRecord(agg, shortProblem, baseConfig, 1000000);
+    const rec = buildCompletionRecord(agg, shortProblem, baseConfig, memberNames, 1000000);
     // Then
     expect(rec.rounds).toBe(0);
   });

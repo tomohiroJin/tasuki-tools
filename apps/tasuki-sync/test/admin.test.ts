@@ -5,36 +5,39 @@
 
 import { describe, it, expect } from "bun:test";
 import { buildAdminReport, handleAdminHttp } from "../src/application/admin.js";
-import type { Room, Participant } from "@tasuki/timer-core";
+import type { Room as MembershipRoom, Participant as MembershipParticipant } from "@tasuki/room-core";
+import type { TimerState } from "@tasuki/timer-core";
 
 /**
- * テスト用の最小 Room を構築する。
+ * テスト用の最小の名簿ルーム（`@tasuki/room-core` の `Room`）を構築する。
  * @param code ルームコード
  * @param online オンライン人数（presence="online"）
  * @param total 参加者総数（残りは presence="offline"）
- * @param hasDriver ドライバーローテーションを持つか（session.rotation の有無）
  */
-function room(code: string, online: number, total: number, hasDriver: boolean): Room {
-  const participants: Participant[] = Array.from({ length: total }, (_, i) => ({
-    participantId: `${code}-p${i}`,
+function membershipRoom(code: string, online: number, total: number): MembershipRoom {
+  const participants: MembershipParticipant[] = Array.from({ length: total }, (_, i) => ({
+    id: `${code}-p${i}`,
     connId: i < online ? `${code}-conn${i}` : null,
     displayName: `${code}-member${i}`,
     presence: i < online ? "online" : "offline",
-    hasAiKey: false,
     joinedAt: 1000 + i,
   }));
+  return { code, createdAt: 1000, participants };
+}
+
+/** テスト用の最小 TimerState を構築する（hasDriver は session.rotation の有無）。 */
+function timerState(code: string, hasDriver: boolean): TimerState {
   return {
     code,
     createdAt: 1000,
     config: {
       language: "TypeScript",
       difficulty: "easy",
-      members: participants.map((p) => p.displayName),
       intervalMinutes: 5,
     },
     problem: null,
     session: {
-      rotation: hasDriver ? ["A"] : [],
+      rotation: hasDriver ? [{ kind: "member", participantId: `${code}-p0`, eligible: true }] : [],
       currentIndex: 0,
       isPaused: false,
       driverCounts: hasDriver ? [0] : [],
@@ -49,24 +52,30 @@ function room(code: string, online: number, total: number, hasDriver: boolean): 
       runningSince: null,
     },
     phase: "setup",
-    participants,
     sessionRecords: [],
     handoffNote: "",
     onBreak: false,
+    aiKeyHolders: [],
   };
 }
 
+/** `code → TimerState` の Map を組み立てる（timer 状態を持たないルームは含めない）。 */
+function timerStates(...states: TimerState[]): Map<string, TimerState> {
+  return new Map(states.map((s) => [s.code, s]));
+}
+
 /**
- * @requirements v2.2 Phase 3a R3-2, R3-3
+ * @requirements v2.2 Phase 3a R3-2, R3-3 / #95 S4a（名簿と timer 状態の合成）
  */
 describe("buildAdminReport", () => {
   it("アクティブルーム数・累計回収数・各ルーム要約", () => {
     // Given
-    const rooms = [room("AA", 1, 2, true), room("BB", 0, 1, false)];
+    const rooms = [membershipRoom("AA", 1, 2), membershipRoom("BB", 0, 1)];
+    const timers = timerStates(timerState("AA", true), timerState("BB", false));
     const totalReclaimed = 5;
 
     // When
-    const rep = buildAdminReport(rooms, totalReclaimed);
+    const rep = buildAdminReport(rooms, timers, totalReclaimed);
 
     // Then
     expect(rep.activeRooms).toBe(2);
@@ -77,18 +86,60 @@ describe("buildAdminReport", () => {
     expect(aa.hasDriver).toBe(true);
     expect(aa.createdAt).toBe(1000);
   });
+
+  it("poker のルームも数える（S2 の申し送りの解消）", () => {
+    // Given: 名簿に timer 由来 1 件・poker 由来（timer 状態を持たない）1 件
+    const rooms = [membershipRoom("TT", 1, 1), membershipRoom("PK", 1, 1)];
+    const timers = timerStates(timerState("TT", true));
+
+    // When
+    const rep = buildAdminReport(rooms, timers, 0);
+
+    // Then
+    expect(rep.activeRooms).toBe(2);
+    expect(rep.rooms.map((r) => r.code).sort()).toEqual(["PK", "TT"]);
+  });
+
+  it("timer 状態が無いルームは hasDriver=false で出る（participants/online は名簿から出る）", () => {
+    // Given: poker だけのルーム（timer 状態なし）
+    const rooms = [membershipRoom("PK", 1, 2)];
+    const timers = timerStates(); // 空
+
+    // When
+    const rep = buildAdminReport(rooms, timers, 0);
+
+    // Then
+    const pk = rep.rooms.find((r) => r.code === "PK")!;
+    expect(pk.hasDriver).toBe(false);
+    expect(pk.participants).toBe(2);
+    expect(pk.online).toBe(1);
+    expect(pk.createdAt).toBe(1000);
+  });
+
+  it("activeRooms は名簿の件数と一致する（poker だけのルームが枠を食っていることが分かる）", () => {
+    // Given: 名簿に poker だけのルームが 1 件（timer 状態は無い）
+    const rooms = [membershipRoom("PK", 0, 1)];
+    const timers = timerStates();
+
+    // When
+    const rep = buildAdminReport(rooms, timers, 0);
+
+    // Then
+    expect(rep.activeRooms).toBe(rooms.length);
+    expect(rep.activeRooms).toBe(1);
+  });
 });
 
 describe("AI 生成カウンタ", () => {
   it("aiGeneration が渡されればレポートに含まれ、未指定なら省略される", () => {
     // Given（aiGeneration 引数の有無をそれぞれ試す）
     // When
-    const withAi = buildAdminReport([], 0, { today: 3, total: 42 });
+    const withAi = buildAdminReport([], timerStates(), 0, { today: 3, total: 42 });
     // Then
     expect(withAi.aiGeneration).toEqual({ today: 3, total: 42 });
 
     // When
-    const without = buildAdminReport([], 0);
+    const without = buildAdminReport([], timerStates(), 0);
     // Then
     expect(without.aiGeneration).toBeUndefined();
   });
@@ -98,7 +149,7 @@ describe("AI 生成カウンタ", () => {
  * @requirements v2.2 Phase 3a R4-1
  */
 describe("handleAdminHttp", () => {
-  const getReport = () => buildAdminReport([room("AA", 0, 1, false)], 3);
+  const getReport = () => buildAdminReport([membershipRoom("AA", 0, 1)], timerStates(), 3);
   const deps = { adminToken: "secret", getReport };
 
   it("ADMIN_TOKEN 未設定なら管理ルートでも null（存在を隠す）", () => {
@@ -142,7 +193,7 @@ describe("handleAdminHttp", () => {
   it("/status レスポンスに aiGeneration が含まれる（report にあるとき）", () => {
     // Given
     const getReportWithAi = () =>
-      buildAdminReport([room("AA", 0, 1, false)], 3, { today: 5, total: 12 });
+      buildAdminReport([membershipRoom("AA", 0, 1)], timerStates(), 3, { today: 5, total: 12 });
 
     // When
     const r = handleAdminHttp("GET", "/status", { "x-admin-token": "secret" }, {

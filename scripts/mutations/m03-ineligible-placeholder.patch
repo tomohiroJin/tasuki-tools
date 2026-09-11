@@ -1,5 +1,9 @@
 # 変異 3: ineligible-placeholder
 #
+# #95 S4a で適格が「席の属性」になったため、変異の書き方も変わった。
+# 代理は名簿に居らず presence を持たないので、「代理も offline 扱いにする」は
+# 「member 以外の席（＝代理）を常に対象外にする」と同じ意味になる。
+#
 # 検出を期待するテスト:
 #   - apps/tasuki-sync/test/proxy-auto-switch.test.ts
 #   - apps/tasuki-sync/test/manual-skip-eligible.test.ts
@@ -10,15 +14,15 @@
 # 復元: git checkout -- <対象ファイル>（同じくリポジトリルートから）
 #
 diff --git a/apps/tasuki-sync/src/application/handlers.ts b/apps/tasuki-sync/src/application/handlers.ts
-index 124c466..bde82a4 100644
+index b56e5c8..3852df5 100644
 --- a/apps/tasuki-sync/src/application/handlers.ts
 +++ b/apps/tasuki-sync/src/application/handlers.ts
-@@ -1437,7 +1437,7 @@ function computeIneligibleIndices(room: Room): Set<number> {
-       // 一時離脱(driverEligible=false)は対象外。実在の切断中(offline)の人も対象外（R2-1）。
-       // ただし代理(placeholder)は Web 非接続が常態で対面在席する実在の人を表すため、
-       // offline でも eligible として扱う（さもないとタイマー自動交代で永久に飛ばされ交代しない）。
--      .filter((p) => p.driverEligible === false || (p.presence === "offline" && p.isPlaceholder !== true))
-+      .filter((p) => p.driverEligible === false || p.presence === "offline")
-       .map((p) => p.participantId),
-   );
-   const set = new Set<number>();
+@@ -780,7 +780,7 @@ function computeIneligibleIndices(membership: MembershipRoom, timer: TimerState)
+     }
+     // 代理は Web 非接続が常態で、対面で在席する実在の人を表す。offline では外さない
+     // （さもないとタイマー自動交代で永久に飛ばされ交代しない）。
+-    if (entry.kind === "member" && offline.has(entry.participantId)) set.add(i);
++    if (entry.kind !== "member" || offline.has(entry.participantId)) set.add(i);
+   });
+   return set;
+ }

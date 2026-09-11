@@ -2,12 +2,12 @@
  * Broadcaster ポート — 誰が接続中かと、どう届けるか。
  *
  * **ルーム保管とは分ける**（docs/adr/0004 の背景が挙げた非対称の解消）。
- * ただし timer-sync の形はそのまま写せない。timer は `Participant.connId` を持ち
- * Broadcaster が connId からソケットを引くが、**poker の Participant に connId は無い**。
- * 足すとスナップショットの形が変わり振る舞い不変を壊すため、接続レジストリは
+ * ただし timer 側の形はそのまま写せない。timer は名簿の `Participant.connId` から
+ * ソケットを引くが、**poker の配信は参加者 ID を鍵にした独自のレジストリで行う**
+ * （受信者別スナップショットの宛先が参加者 ID だから）。接続レジストリは
  * アダプタの内側に置き、このポートはルーム ID と参加者 ID だけで話す。
  */
-import type { OutboundServerMessage, Room } from '@tasuki/poker-core';
+import type { OutboundServerMessage, ParticipantFragment, Round } from '@tasuki/poker-core';
 
 export interface RoomSocket {
   send(data: string): void;
@@ -34,8 +34,20 @@ export interface Broadcaster {
    * `generateRoomId` の衝突回避を素通りするため、再採番自体は起こりうる）。
    */
   resetRoom(roomId: string): void;
-  countIn(roomId: string): number;
-  broadcastSnapshot(roomId: string, room: Room): void;
+  /**
+   * 受信者別スナップショットを配信する。
+   *
+   * **#95 S4a で引数が「ルーム」から「ラウンド＋名簿の断片」の 2 つになった。**
+   * 保管が名簿（`RoomStore`）とラウンド（`RoundStore`）に割れたので、wire の形を
+   * 組む材料もその 2 つから渡す。**wire（`room-state`）の形は変わっていない。**
+   * 名簿の断片への写し替え（`displayName` → `name`・`presence` → `connected`）は
+   * アプリ層が行う（`poker-core` は `@tasuki/room-core` を知らない・設計正本 D2）。
+   */
+  broadcastSnapshot(
+    roomId: string,
+    round: Round,
+    participants: readonly ParticipantFragment[],
+  ): void;
   /**
    * **受け取るのは `OutboundServerMessage`**（#214・docs/poker/adr/0003 決定 4）。
    * 受信の契約（`ServerMessage`）は `error.code` を任意の非空文字列まで広げているので、

@@ -79,7 +79,11 @@ describe('同一ソケットでの再 join（デタッチ）', () => {
     c.close();
   });
 
-  it('二重 create-room で元のルーム（1人）は破棄され、以後 join できない', async () => {
+  // **旧「二重 create-room で元のルーム（1人）は破棄され、以後 join できない」の書き換え。**
+  // #95 S4a で「最後の接続が切れた瞬間の破棄」（旧 FR-014）を撤去したので、元のルームは
+  // 残る。切り離されるのはソケットだけで、名簿にはオフラインの本人が残り続ける
+  // （寿命の規則は `test/room-lifecycle.test.ts`）。
+  it('二重 create-room では元のルームから切り離されるだけで、ルーム自体は残る', async () => {
     // Given
     const a = await WsClient.connect(server.port);
     const room1 = await createRoomOn(a, 'えー');
@@ -89,11 +93,16 @@ describe('同一ソケットでの再 join（デタッチ）', () => {
     const room2 = await createRoomOn(a, 'えー');
     expect(room2.roomId).not.toBe(room1.roomId);
 
-    // Then
-    // ルーム1 は接続数 0 で即時破棄されている（FR-014）
+    // Then: ルーム1 は残っており、別の接続が参加できる
     const probe = await WsClient.connect(server.port);
     probe.send({ type: 'join-room', roomId: room1.roomId, name: 'てすと' });
-    expect(await probe.next()).toMatchObject({ type: 'error', code: 'room-not-found' });
+    const probeJoined = (await probe.nextMatching(isType('joined'))) as { roomId: string };
+    expect(probeJoined.roomId).toBe(room1.roomId);
+
+    // Then: 切り離された当人は offline として名簿に残る（room2 へ移っただけ）
+    const state = (await probe.nextMatching(isType('room-state'))) as RoomState;
+    expect(state.participants).toHaveLength(2);
+    expect(state.participants.filter((p) => p.connected)).toHaveLength(1);
 
     a.close();
     probe.close();

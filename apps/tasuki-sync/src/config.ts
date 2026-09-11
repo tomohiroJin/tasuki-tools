@@ -31,10 +31,22 @@ export interface SyncConfig {
   /**
    * 保持するルーム数の上限。超過時は新規作成を拒否する。
    *
-   * **文脈ごと**に効く（timer のルームと poker のルームは別の保管に載っており、
-   * S2 の時点では名簿も別である。統合は S4a）。したがってプロセス全体では
-   * この値の 2 倍まで保持しうる。統合前も 2 プロセスがそれぞれ 50 を持っていたので、
-   * 既定 50 のままで実効枠は変わらない（#95 S2・D22）。
+   * **プロセス全体で 1 つ**である（#95 S4a で名簿が 1 つの保管になった）。
+   * timer の入口も poker の入口も、同じ名簿の件数を見て新規作成を拒む。
+   *
+   * 既定 100 の根拠は**統合前の実効枠を保つこと**である。統合前は 2 プロセスが
+   * それぞれ 50 を持っていて実効枠は 50 × 2 = 100 だった。S2 で 1 プロセスに
+   * なった後も、名簿が文脈ごとに 2 つあるあいだは 50 ずつで 100 のままだった。
+   * S4a で名簿が 1 つになり 1 本で数えるようになったので、100 にしないと半減する。
+   * （`maxConnections` が S2 で 200 → 400 になったのとまったく同型の調整である。）
+   *
+   * ⚠ **同時に占有される数は増える。** S4a で poker のルームが「最後の接続が切れたら
+   * 即時破棄」から `ROOM_IDLE_TTL_MS`（既定 30 分）保持へ変わったためである。
+   * **TTL は変えない** —— 縮めると timer の復帰体験（席を外して戻る）まで巻き添えになる。
+   *
+   * ⚠ **本番の `app.env` は `deploy/setup.sh` が上書きしない。** `env.example` を
+   * 直しただけでは届かないので、切り替え手順（`deploy/timer/NOTES.md`）に従って
+   * 手で書き換えること。確認は起動ログの `maxRooms` で行う。
    */
   maxRooms: number;
   roomIdleTtlMs: number;
@@ -162,7 +174,8 @@ export function loadSyncConfig(env: Record<string, string | undefined>): SyncCon
     allowedOrigins,
     // 既定 400 の根拠は SyncConfig.maxConnections の docstring（統合前の実効枠を保つ）。
     maxConnections: intEnv(env["MAX_CONNECTIONS"], 400),
-    maxRooms: intEnv(env["MAX_ROOMS"], 50),
+    // 既定 100 の根拠は SyncConfig.maxRooms の docstring（統合前の実効枠を保つ）。
+    maxRooms: intEnv(env["MAX_ROOMS"], 100),
     roomIdleTtlMs: intEnv(env["ROOM_IDLE_TTL_MS"], 1_800_000),
     adminToken: (env["ADMIN_TOKEN"] ?? "").trim() || undefined,
     aiUnlockKey: (env["AI_UNLOCK_KEY"] ?? "").trim() || undefined,

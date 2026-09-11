@@ -110,3 +110,30 @@ planning-poker/                  # 独立 pnpm モノレポ
 | Google Fonts（fonts.googleapis.com への外部ランタイム依存。原則 II の「上記以外の依存」に該当しうる） | UI 刷新で採用した書体（Fraunces / Zen Kaku Gothic New）の配信。npm 依存は増やさない | フォント同梱（self-hosting）はアセット管理・サブセット化・ライセンス確認の作業が増えるため初回リリースでは見送り。オフライン/CDN 障害時はフォールバックフォント（Hiragino 等）で機能に影響なし。将来同梱に切替可 |
 
 上記以外の憲法違反なし。
+
+---
+
+## 追記（2026-09-10・#95 S4a） — 本書は 2026-07 時点の記録である
+
+本書は MVP 実施時点の実装計画の記録であり、**本文は当時のまま残す**。
+そのまま読むと現況と食い違う点だけをここへ置く。
+
+- **「Source Code」の木は独立モノレポ `planning-poker/` を前提にしている。**
+  [#15〜#20](https://github.com/tomohiroJin/tasuki-tools/issues/15) で Tasuki の
+  モノレポへ統合され、`packages/core` は `packages/poker-core`、`apps/web` は
+  `apps/poker-web` になった。同期サーバーは
+  [#95](https://github.com/tomohiroJin/tasuki-tools/issues/95) S2 で timer と 1 本になり、
+  `apps/tasuki-sync`（poker 部分は `src/poker/` 配下）である。
+- **`core/src/room.ts`（Room 集約・参加者管理・ホスト繰上）は無い。** ホストは S3 で
+  概念ごと廃止され、S4a（[#245](https://github.com/tomohiroJin/tasuki-tools/issues/245)）で
+  名簿そのものが `@tasuki/room-core` へ移った。poker の集約ルートは `Round`
+  （`packages/poker-core/src/round.ts`）である。
+- **`sync/src/rooms.ts`（ルームレジストリ・Map・全員切断で即時破棄）は無い。**
+  ルームが消える契機はアイドル回収（`ROOM_IDLE_TTL_MS`。既定 30 分）と
+  在室者 0 人になる退出の 2 つだけで、後始末の正本は
+  `apps/tasuki-sync/src/application/destroy-room.ts` である。
+  全員が接続を閉じてもルームは残り、戻れば票も残っている。
+- Summary と Technical Context がホストを前提にしている箇所（ホスト操作での一斉公開・
+  ホスト切断からの権限繰上 SC-005）も、S3 で成立しなくなっている。
+
+**現在の正本**: [`contracts/ws-protocol.md`](./contracts/ws-protocol.md) の 2 つの改定節。

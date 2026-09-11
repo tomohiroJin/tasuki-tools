@@ -180,3 +180,93 @@ describe('再送と token による復帰の相互作用（FR-013）', () => {
     revived.close();
   });
 });
+
+/**
+ * 別ルームのトークンでは復帰しない（#95 S4a）。
+ *
+ * S4a で復帰トークンの保管が `token-store`（全ルーム共通の 1 個の Map）へ移った。
+ * 旧 `findParticipantByToken(room, token)` は**そのルームの中だけ**を探していたので、
+ * 「トークンが指すルームが要求されたルームと同じか」は構造的に保証されていた。
+ * 移設でその保証が署名から消えたぶんを、ここで振る舞いとして固定する。
+ *
+ * **守っているのは `handleJoinRoom` の 2 段構えのうち後段（名簿の照合）である**
+ * ——`findParticipant(live.room, resume.participantId)` を素通しして
+ * `{ id: resume.participantId }` を採る実装に変えると、この 1 本目が赤になる（変異検査で実測）。
+ * 前段の `resume.roomCode === msg.roomId` は**この 2 本では殺せない**（外しても緑のまま）:
+ * 参加者 ID は crypto 由来で、別ルームの ID が名簿に居ることが無いためである。
+ * 前段は「同じ ID が 2 つのルームに現れうる形へ変わったとき」に備える二重化として置いてある。
+ */
+describe('別ルームのトークンでは復帰しない（#95 S4a）', () => {
+  it('ルーム A のトークンでルーム B へ入っても、A の参加者にはならず新しい参加者になる', async () => {
+    // Given: 別々のルーム A・B があり、A のトークンを手に入れている
+    const alice = await WsClient.connect(server.port);
+    const roomA = await createRoomOn(alice, 'アリス');
+    const bob = await WsClient.connect(server.port);
+    const roomB = await createRoomOn(bob, 'ボブ');
+
+    // When: A のトークンを添えて B へ join する
+    const intruder = await WsClient.connect(server.port);
+    intruder.send({
+      type: 'join-room',
+      roomId: roomB.roomId,
+      name: '侵入者',
+      token: roomA.token,
+    });
+    const joined = (await intruder.nextMatching(isType('joined'))) as Joined;
+    const state = (await intruder.nextMatching(isType('room-state'))) as RoomState;
+
+    // Then: A の participantId を名乗れず、新規参加として扱われる。
+    // 照合を落とすと `joined.participantId` が A のもの（roomA.participantId）になり、
+    // 名簿には「アリス」として 2 人目が現れず 1 人のままになる
+    expect(joined.participantId).not.toBe(roomA.participantId);
+    expect(joined.token).not.toBe(roomA.token);
+    expect(state.participants.map((p) => p.name)).toEqual(['ボブ', '侵入者']);
+
+    // Then: 発行元のルーム A の名簿は増えていない（横取りの副作用が無い）
+    alice.send({ type: 'join-room', roomId: roomA.roomId, name: 'アリス', token: roomA.token });
+    await alice.nextMatching(isType('joined'));
+    const stateA = (await alice.nextMatching(isType('room-state'))) as RoomState;
+    expect(stateA.participants.map((p) => p.name)).toEqual(['アリス']);
+
+    alice.close();
+    bob.close();
+    intruder.close();
+  });
+
+  it('同じルームのトークンなら今までどおり同一参加者として復帰する（対照実行）', async () => {
+    // 上の 1 本だけだと「token を常に無視する」実装でも緑になる。
+    // 照合が正しいトークンまで弾いていないことをここで見る
+    // Given
+    const owner = await WsClient.connect(server.port);
+    const room = await createRoomOn(owner, 'たろう');
+    const guest = await WsClient.connect(server.port);
+    guest.send({ type: 'join-room', roomId: room.roomId, name: 'はなこ' });
+    const guestJoined = (await guest.nextMatching(isType('joined'))) as Joined;
+    await guest.nextMatching(isType('room-state'));
+    await owner.nextMatching(isType('room-state'));
+    guest.close();
+    await owner.nextMatching(
+      (msg) =>
+        (msg as RoomState).type === 'room-state' &&
+        (msg as RoomState).participants.some((p) => !p.connected),
+    );
+
+    // When: 別ソケットから同じルームのトークンで復帰する
+    const revived = await WsClient.connect(server.port);
+    revived.send({
+      type: 'join-room',
+      roomId: room.roomId,
+      name: '無視される名前',
+      token: guestJoined.token,
+    });
+
+    // Then
+    const revivedJoined = (await revived.nextMatching(isType('joined'))) as Joined;
+    expect(revivedJoined.participantId).toBe(guestJoined.participantId);
+    const state = (await revived.nextMatching(isType('room-state'))) as RoomState;
+    expect(state.participants.map((p) => p.name)).toEqual(['たろう', 'はなこ']);
+
+    owner.close();
+    revived.close();
+  });
+});

@@ -5,7 +5,7 @@
 
 import { describe, it, expect } from "vitest";
 import { decide } from "../src/decide.js";
-import { anAggregate } from "./support/aggregate-builder.js";
+import { anAggregate, proxySeat } from "./support/aggregate-builder.js";
 
 const baseAgg = anAggregate().build();
 const NOW = 1000000;
@@ -172,6 +172,25 @@ describe("decide: メンバー管理", () => {
     expect(result._unsafeUnwrapErr().type).toBe("DuplicateName");
   });
 
+  /**
+   * rotation は席の配列になり、代理も席として並ぶ。重複判定は席の識別子で行うので、
+   * 代理の ID も突き合わせの対象になる（移設前の `rotation.includes()` と同じ範囲）。
+   *
+   * @requirements #95 S4a, D6
+   */
+  it("代理の席と同じ ID は二重に並べない（席の識別子で突き合わせる）", () => {
+    // Given（輪に代理の席が 1 つある）
+    const withProxy = anAggregate()
+      .withSeats(
+        { kind: "member", participantId: "Alice", eligible: true },
+        proxySeat("pid-proxy", "同席のカルロス"),
+      )
+      .build();
+    // When / Then（代理の ID を member.add しても輪には二重に載らない）
+    const result = decide({ command: "member.add", participantId: "pid-proxy" }, withProxy, NOW);
+    expect(result._unsafeUnwrapErr().type).toBe("DuplicateName");
+  });
+
   it("10人超過はエラー（MemberLimitExceeded）", () => {
     // Given
     const tenMemberAgg = anAggregate()
@@ -272,32 +291,18 @@ describe("decide: config.set", () => {
 
   // ─── coverage-supplement.test.ts より移動（T036） ─────────────────────────
 
-  it("2人未満のメンバー指定は BelowMinMembers（config.set のメンバー下限は据え置き）", () => {
-    const result = decide({ command: "config.set", config: { members: ["Solo"] } }, baseAgg, NOW);
-    expect(result.isErr()).toBe(true);
-  });
-
-  it("重複メンバー指定は DuplicateName", () => {
-    const result = decide({ command: "config.set", config: { members: ["A", "A"] } }, baseAgg, NOW);
-    expect(result._unsafeUnwrapErr().type).toBe("DuplicateName");
-  });
+  // ⚠ かつてここには `config.set` の `members` を検証する 4 本（下限・重複・上限・空名）が
+  // あった。#95 S4a で `TimerConfig` から `members` が消え、**性質そのものが概念ごと
+  // 無くなった**ので落とした（設計正本 §6.5）。
+  //
+  // 到達不能であることは列挙ではなく**機構**で言える: `decideConfigSet` の
+  // `validatedPartial` は**許可リスト**であり、そこに挙げた項目しか `ConfigSet` に載らない。
+  // `members` はその表に無いので、どの経路から来ても `ConfigSet` には現れない。
+  // （移設前の実測では、境界の `build-domain-command.ts` も `members` を捨てていた。）
 
   it("無効な交代間隔（4）も InvalidInterval", () => {
     const result = decide({ command: "config.set", config: { intervalMinutes: 4 as never } }, baseAgg, NOW);
     expect(result._unsafeUnwrapErr().type).toBe("InvalidInterval");
-  });
-
-  it("上限超過メンバーは MemberLimitExceeded", () => {
-    // Given
-    const many = Array.from({ length: 11 }, (_, i) => `M${i}`);
-    // When / Then
-    const result = decide({ command: "config.set", config: { members: many } }, baseAgg, NOW);
-    expect(result._unsafeUnwrapErr().type).toBe("MemberLimitExceeded");
-  });
-
-  it("空名を含むメンバーは EmptyName", () => {
-    const result = decide({ command: "config.set", config: { members: ["A", "  "] } }, baseAgg, NOW);
-    expect(result._unsafeUnwrapErr().type).toBe("EmptyName");
   });
 
   it("言語・難易度のみの変更は成功する", () => {

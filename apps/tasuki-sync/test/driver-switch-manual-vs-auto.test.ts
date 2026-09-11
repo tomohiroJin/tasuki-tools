@@ -19,9 +19,11 @@ import { advanceDriver } from "@tasuki/timer-core";
 import { makeHandlers } from "../src/application/handlers.js";
 import { makeTestHandlers } from "./support/room-builder.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
+import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { SessionConfig, Room } from "@tasuki/timer-core";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
+import { roomViewOf, putRoomView } from "./support/room-view.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 const config: SessionConfig = {
@@ -35,6 +37,7 @@ const config: SessionConfig = {
 async function setupRunningRoom(
   handlers: ReturnType<typeof makeHandlers>,
   store: InMemoryRoomStore,
+  timers: InMemoryTimerStore,
   members: { id: string; conn: string; eligible?: boolean }[],
 ): Promise<string> {
   const create = await handlers.handleCommand("conn-a", {
@@ -44,7 +47,7 @@ async function setupRunningRoom(
   });
   if (!create.isOk()) throw new Error("create failed");
   const code = store.list().at(-1)!.code;
-  const room = store.get(code)!;
+  const room = roomViewOf(store, timers, code);
   const creator = room.participants[0]!;
   const participants: Room["participants"] = members.map((m, i) => ({
     ...creator,
@@ -54,7 +57,7 @@ async function setupRunningRoom(
     presence: "online",
     driverEligible: m.eligible ?? true,
   }));
-  store.put({
+  putRoomView(store, timers, {
     ...room,
     participants,
     session: {
@@ -87,23 +90,27 @@ describe("手動 SWITCH と自動交代（advanceDriver）の一致（B-2統合�
       { id: "C", conn: "conn-c" },
     ];
     const manualStore = new InMemoryRoomStore();
+    const manualTimers = new InMemoryTimerStore();
     const manualClock = new FakeClock(1_000_000);
     const manualHandlers = makeTestHandlers({
       store: manualStore,
+      timers: manualTimers,
       clock: manualClock,
       broadcaster: new SpyBroadcaster(),
       codeGen: new FakeCodeGen(),
     });
-    const manualCode = await setupRunningRoom(manualHandlers, manualStore, members);
-    const before = manualStore.get(manualCode)!;
+    const manualCode = await setupRunningRoom(manualHandlers, manualStore, manualTimers, members);
+    const before = roomViewOf(manualStore, manualTimers, manualCode);
+    // advanceDriver は**サーバー側の集約**（席の配列）を取る。wire の投影は渡せない（#95 S4a）。
+    const beforeTimer = manualTimers.get(manualCode)!;
 
     // When（手動: session.act SWITCH）
     await manualHandlers.handleCommand("conn-a", { command: "session.act", action: "SWITCH" });
-    const manualResult = manualStore.get(manualCode)!;
+    const manualResult = roomViewOf(manualStore, manualTimers, manualCode);
 
     // 自動交代（autoSwitch）が呼ぶのと同じ入力で advanceDriver を直接評価する
     const autoAgg = advanceDriver(
-      { session: before.session, clock: before.clock },
+      { session: beforeTimer.session, clock: beforeTimer.clock },
       ineligibleIndicesOf(before),
       manualClock.now(),
     );
@@ -118,24 +125,28 @@ describe("手動 SWITCH と自動交代（advanceDriver）の一致（B-2統合�
   it("輪1人（対象外なし）では、手動交代・自動交代のいずれも回数を増やさない（旧B-2反例）", async () => {
     // Given（rotation [A] のみ。decide の nextIndex は自分自身になる）
     const manualStore = new InMemoryRoomStore();
+    const manualTimers = new InMemoryTimerStore();
     const manualClock = new FakeClock(1_000_000);
     const manualHandlers = makeTestHandlers({
       store: manualStore,
+      timers: manualTimers,
       clock: manualClock,
       broadcaster: new SpyBroadcaster(),
       codeGen: new FakeCodeGen(),
     });
-    const manualCode = await setupRunningRoom(manualHandlers, manualStore, [
+    const manualCode = await setupRunningRoom(manualHandlers, manualStore, manualTimers, [
       { id: "A", conn: "conn-a" },
     ]);
-    const before = manualStore.get(manualCode)!;
+    const before = roomViewOf(manualStore, manualTimers, manualCode);
+    // advanceDriver は**サーバー側の集約**（席の配列）を取る。wire の投影は渡せない（#95 S4a）。
+    const beforeTimer = manualTimers.get(manualCode)!;
 
     // When
     await manualHandlers.handleCommand("conn-a", { command: "session.act", action: "SWITCH" });
-    const manualResult = manualStore.get(manualCode)!;
+    const manualResult = roomViewOf(manualStore, manualTimers, manualCode);
 
     const autoAgg = advanceDriver(
-      { session: before.session, clock: before.clock },
+      { session: beforeTimer.session, clock: beforeTimer.clock },
       ineligibleIndicesOf(before),
       manualClock.now(),
     );

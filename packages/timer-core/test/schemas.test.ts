@@ -9,7 +9,7 @@ import { CommandSchema, ServerMsgSchema } from "../src/index.js";
 import { RoomSchema } from "../src/schemas.js";
 
 /**
- * startedAt を含まない最小 Room オブジェクト（v2 以前の既存形式を模す）。
+ * 必須項目だけの最小 Room オブジェクト。
  *
  * 参加者スキーマは単体で公開していない（#220・SC-039③）ため、参加者の形を見る検査も
  * この Room を通して行う。
@@ -151,19 +151,20 @@ describe("SessionConfigSchema 言語・難易度の境界", () => {
   });
 });
 
-describe("RoomSchema startedAt（後方互換・単調フラグ）", () => {
-  it("startedAt を省略した既存形式の room をパースできる（後方互換）", () => {
-    const result = v.safeParse(RoomSchema, baseRoom());
-    expect(result.success).toBe(true);
-  });
-
-  it("startedAt: null の room をパースできる", () => {
-    const result = v.safeParse(RoomSchema, { ...baseRoom(), startedAt: null });
-    expect(result.success).toBe(true);
-  });
-
-  it("startedAt: 1234567890（数値）の room をパースできる", () => {
-    const result = v.safeParse(RoomSchema, { ...baseRoom(), startedAt: 1234567890 });
+describe("RoomSchema の後方互換（未知の項目を落とさず受ける）", () => {
+  // かつてここには `startedAt` の 3 本（省略／null／数値）があった。#95 S4a で
+  // 書き手も読み手も無くなり項目ごと落としたため、3 本のうち「省略できる」は
+  // 項目が無い以上つねに真、「null」「数値」は**もう契約に無い値**を見ていた。
+  //
+  // **落ちた性質は 1 つだけ拾い直す** —— 「その項目を載せた古い snapshot が今も通る」。
+  // これは `v.object` が非 strict であることに依存しており、strict 化すると赤くなる
+  // （＝古いクライアント／古い記録を壊す変更が検出できる）。
+  it("契約から外れた項目（旧 startedAt）が載っていてもパースできる", () => {
+    // Given: S4a 以前のサーバーが送っていた形
+    const legacy = { ...baseRoom(), startedAt: 1234567890 };
+    // When
+    const result = v.safeParse(RoomSchema, legacy);
+    // Then
     expect(result.success).toBe(true);
   });
 });

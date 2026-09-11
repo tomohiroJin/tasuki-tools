@@ -40,7 +40,7 @@ TDD Mob Pro Timer の構造・データフロー・設計原則をまとめま�
 | `decide.ts` | `decide(cmd, agg, now): Result<DomainEvent[], DomainError>` — コマンド→イベント |
 | `evolve.ts` | `evolve(agg, event, now): Aggregate` — イベント→次状態（全域関数） |
 | `events.ts` / `errors.ts` | `DomainEvent` 合併型 / `DomainError` 合併型 |
-| `schemas.ts` | Valibot スキーマ（Command / ServerMsg / Problem / SessionConfig）。境界で検証と**正規化**を行う。表示名の正規化（`normalizeDisplayName`）はメンバーシップ文脈の `packages/room-core` から取り込む（#95 S1 で移設。この取り込みは S4a で消える） |
+| `schemas.ts` | Valibot スキーマ（Command / ServerMsg / Problem / SessionConfig）。境界で検証と**正規化**を行う。表示名の正規化（`normalizeDisplayName`）はメンバーシップ文脈の `packages/room-core` から取り込む（#95 S1 で移設。**この取り込みが消えるのは S4b**（#246）—— 当初は S4a と書いていたが、S4a（#245）では取り込んだままである） |
 | `removal-notification.ts` | 退出通知の種類を決める `removalNotificationFor`（Issue #32）。**#95 S3 以前は `participants.ts` に、在室者の不変条件（`canRemoveParticipant` / `canDemote` / `transferHost`）と同居していた。不変条件は役割ごと廃止し、この 1 関数だけが残ったので独立させた** |
 | `problem.ts` | 定型お題バンク・`validateProblem`・`pickFallback`・プロンプト生成 |
 | `records.ts` | 完成記録の生成（所要時間は稼働区間のみ積算） |
@@ -79,9 +79,12 @@ TDD Mob Pro Timer の構造・データフロー・設計原則をまとめま�
 
 **代わりに残るもの。**
 
-- **ドライバーの適格性**（`Participant.driverEligible`）は役割ではなく**ローテーションの話**として
-  残っています。ただし輪の所属そのものではありません。輪に居るかどうかは `session.rotation`
-  （参加者 ID の配列）で決まり、出入りは `member.add` / `member.remove` が行います
+- **ドライバーの適格性**は役割ではなく**ローテーションの話**として残っています。
+  #95 S4a から**席の属性**（`RotationEntry.eligible`）です —— timer-core のドメインに
+  `Participant` はもうありません。`driverEligible` は wire へ出るときの名前で、
+  `apps/tasuki-sync/src/application/timer-snapshot-dto.ts` が席から引いて載せます。
+  ただし輪の所属そのものではありません。輪に居るかどうかは `session.rotation`
+  （席の配列）で決まり、出入りは `member.add` / `member.remove` が行います
   （画面では「ドライバーに加わる」「列から外れる」）。`driver.skip` / `driver.resume`（「見送り」）は
   **輪に居たまま自分の順番を飛ばす**フラグで、枠は保持されます（画面では「一時離脱」「復帰」）。
   どちらも在室者なら誰でも自分に対して実行できます。もとから役割とは独立の 2 層構造で、
@@ -89,17 +92,26 @@ TDD Mob Pro Timer の構造・データフロー・設計原則をまとめま�
 - **合言葉**（`room.passphrase.set`）と **AI 解錠**（`ai.unlock`）は在室者なら誰でも実行できます。
   合言葉を誰でも設定できることの帰結（他の参加者を締め出しうる）は受容済みです（設計正本 §8）。
 
-なお `Room.startedAt`（一度でもセッションを開始したか）は snapshot に残っていますが、
-**権限判定が消えたことで読み手を持ちません**。撤去するかどうかは別の段で判断します。
+なお `Room.startedAt`（一度でもセッションを開始したか）は、**#95 S4a で snapshot からも型からも
+消しました**。役割の廃止（S3）で読み手が 0 件になり、書き手も読み手も無い任意項目を宣言の側にだけ
+残す形になっていたためです（跡は `packages/timer-core/src/wire.ts` の注記にあります）。
+`RoomSchema` は非 strict なので、この項目を載せた古い snapshot のパースは今までどおり通ります。
 
 ### 参加者の同定 — 表示名ではなく識別子
 
-ローテーション（`session.rotation`）は**参加者 ID の配列**です。表示名の配列ではありません。
+ローテーション（`session.rotation`）は、サーバー側では**席の配列**（`RotationEntry[]`。#95 S4a）、
+wire へ出るときは**席の識別子の配列**です。どちらも表示名の配列ではありません。
+席は「名簿の人の席」（識別子は参加者 ID）と「代理の席」（識別子は席自身の ID）の 2 種類で、
+代理は名簿に居ないため識別子の出所が分かれます。
 同名の参加者（二重参加の幽霊・再接続）が居るとき、名前で枠を引くと別人の枠を巻き添えにします。
 参加順など間接的な手掛かりで持ち主を推測する実装は2度失敗しており、枠と参加者を直接結び付けています。
 
-表示名は**表示のためだけ**に使います。`config.members` は rotation の表示名ミラーで、
-完成記録もこちらを使います。画面で人を指す呼び名は `ui/participant-label.ts` が1か所で決め、
+表示名は**表示のためだけ**に使います。**サーバー側の `TimerConfig` に `members` はありません**
+（#95 S4a・D15。名簿と rotation の二重帳簿だったので落としました）。wire の `config.members` は
+rotation 順の表示名を配信のたびに解決したもので、解決は `timer-snapshot-dto.ts` が行います。
+完成記録（`buildCompletionRecord`）も同じ解決済みの表示名を**引数で**受け取ります
+（timer-core は名簿を知らないため、自分では解決できません）。
+画面で人を指す呼び名は `ui/participant-label.ts` が1か所で決め、
 同名が並ぶときだけ識別子の末尾を添えます（FR-084）。
 
 表示名は境界（`schemas.ts`）で正規化されます。画面で同じに見えるものが同じ文字列になるよう、

@@ -7,9 +7,11 @@ import { describe, it, expect, beforeEach, jest, afterEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
 import { makeTestHandlers } from "./support/room-builder.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
+import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { SessionConfig, Room } from "@tasuki/timer-core";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
+import { roomViewOf, putRoomView } from "./support/room-view.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 const config: SessionConfig = {
@@ -28,6 +30,7 @@ const HOST_CONN = "host-conn";
 async function setupRoom(
   handlers: ReturnType<typeof makeHandlers>,
   store: InMemoryRoomStore,
+  timers: InMemoryTimerStore,
   members: string[],
   currentIndex: number,
   running: boolean,
@@ -41,7 +44,7 @@ async function setupRoom(
   // 本番（server.ts）は handleCommand の戻り値を破棄する。値は本番と同じ観測点から取る（FR-100）。
   const code = store.list().at(-1)!.code;
 
-  const room = store.get(code)!;
+  const room = roomViewOf(store, timers, code);
   const creator = room.participants[0]!; // connId: HOST_CONN（ルームを作った接続）
   // rotation 上の各名に participant を割り当てる。先頭は作成者（HOST_CONN）を維持する。
   const participants: Room["participants"] = members.map((name, i) =>
@@ -55,7 +58,7 @@ async function setupRoom(
         },
   );
 
-  store.put({
+  putRoomView(store, timers, {
     ...room,
     participants,
     session: {
@@ -83,14 +86,17 @@ function rotationNames(room: Room | undefined): string[] {
  */
 describe("member.shuffle（サーバー権威のランダム化）", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
 
   beforeEach(() => {
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     broadcaster = new SpyBroadcaster();
     handlers = makeTestHandlers({
       store,
+      timers,
       clock: new FakeClock(1_000_000),
       broadcaster,
       codeGen: new FakeCodeGen(),
@@ -104,7 +110,7 @@ describe("member.shuffle（サーバー権威のランダム化）", () => {
   it("非稼働中: member.shuffle が ok で rotation が並べ替わる（Math.random 固定で決定的）", async () => {
     // Given（Fisher–Yates で呼ばれる random を固定する。i=2: Math.floor(r*3)、i=1: Math.floor(r*2)。
     // r=0 を返すと i=2 で j=0（[C,B,A]）、i=1 で j=0（[B,C,A]）になる）
-    await setupRoom(handlers, store, ["A", "B", "C"], 0, false);
+    await setupRoom(handlers, store, timers, ["A", "B", "C"], 0, false);
     jest.spyOn(Math, "random").mockReturnValue(0);
 
     // When
@@ -123,7 +129,7 @@ describe("member.shuffle（サーバー権威のランダム化）", () => {
   it("稼働中: 現ドライバーの位置が固定され、その名前が currentIndex で不変", async () => {
     // Given（currentIndex=1＝"B" を稼働中にシャッフル。B の位置＝index 1 は固定される。
     // others=[0,2] をシャッフル。i=1: Math.floor(r*2)。r=0 で j=0＝入れ替えなし→[0,2]）
-    await setupRoom(handlers, store, ["A", "B", "C"], 1, true);
+    await setupRoom(handlers, store, timers, ["A", "B", "C"], 1, true);
     jest.spyOn(Math, "random").mockReturnValue(0);
 
     // When
@@ -138,7 +144,7 @@ describe("member.shuffle（サーバー権威のランダム化）", () => {
 
   it("稼働中: 現ドライバー名は順列の中身に関わらず保持される", async () => {
     // Given（others=[0,1] を i=1: r=0.99→Math.floor(0.99*2)=1 で入れ替え→[1,0]）
-    await setupRoom(handlers, store, ["A", "B", "C"], 2, true);
+    await setupRoom(handlers, store, timers, ["A", "B", "C"], 2, true);
     jest.spyOn(Math, "random").mockReturnValue(0.99);
 
     // When
@@ -154,7 +160,7 @@ describe("member.shuffle（サーバー権威のランダム化）", () => {
   // 役割の廃止で在室者なら誰でも並べ替えられるため、期待を反転させる。
   it("作成者以外の参加者も member.shuffle を実行でき、rotation が並べ替わる", async () => {
     // Given（Math.random を固定して並びを決定的にする。上の非稼働中ケースと同じ順列）
-    await setupRoom(handlers, store, ["A", "B", "C"], 0, false);
+    await setupRoom(handlers, store, timers, ["A", "B", "C"], 0, false);
     jest.spyOn(Math, "random").mockReturnValue(0);
 
     // When（conn-1 は作成者ではない "B"）

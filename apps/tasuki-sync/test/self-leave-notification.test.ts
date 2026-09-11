@@ -14,9 +14,11 @@ import { describe, it, expect, beforeEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
 import { makeTestHandlers } from "./support/room-builder.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
+import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { SessionConfig } from "@tasuki/timer-core";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
+import { roomViewOf } from "./support/room-view.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 const config: SessionConfig = {
@@ -35,18 +37,21 @@ const CAROL = "sl-carol";
  */
 describe("自己退出した本人への通知", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
   let code: string;
 
   const pidOf = (name: string): string =>
-    store.get(code)!.participants.find((p) => p.displayName === name)!.participantId;
+    roomViewOf(store, timers, code).participants.find((p) => p.displayName === name)!.participantId;
 
   beforeEach(async () => {
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     broadcaster = new SpyBroadcaster();
     handlers = makeTestHandlers({
-      store, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen(),
+      store,
+      timers, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen(),
     });
     const created = await handlers.handleCommand(HOST, {
       command: "room.create", displayName: "Alice", config,
@@ -109,7 +114,7 @@ describe("自己退出した本人への通知", () => {
   it("退出が拒否されたとき（輪の最後の1人）、退出通知は届かない", async () => {
     // Given（Bob・Carol は輪に入っていないので rotation は Alice 1 人だけ）
     const aliceId = pidOf("Alice");
-    if (store.get(code)!.session.rotation.length !== 1) {
+    if (roomViewOf(store, timers, code).session.rotation.length !== 1) {
       throw new Error("前提: rotation が Alice 1 人であること");
     }
 

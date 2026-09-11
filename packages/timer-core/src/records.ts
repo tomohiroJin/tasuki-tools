@@ -3,20 +3,38 @@
  * T021: FR-028
  */
 
-import type { Aggregate, CompletionRecord, Problem, SessionConfig } from "./aggregate.js";
+import type { CompletionRecord, Problem, ServerClock, TimerConfig } from "./aggregate.js";
 import { elapsedMs } from "./aggregate.js";
 
 /** ランダムではなく単調増加 ID を生成する（テスト可能性のため now + counter） */
 let counter = 0;
 
 /**
+ * 完成記録の材料になる集約の断面。
+ *
+ * `rotation` は**長さしか見ない**ので要素の型を問わない。サーバー側の集約
+ * （`RotationEntry[]`）と wire の投影（`string[]`・`apps/timer-web` が渡す）の
+ * どちらでも受けるためである。ここを `Aggregate` で受けると wire 側が渡せない。
+ */
+interface RecordSource {
+  session: {
+    rotation: readonly unknown[];
+    driverCounts: readonly number[];
+    totalSwitches: number;
+  };
+  clock: ServerClock;
+}
+
+/**
  * 完成記録を生成する
  * 所要時間は稼働区間のみ積算（停止中は含まない）SC-004
  */
 export function buildCompletionRecord(
-  agg: Aggregate,
+  agg: RecordSource,
   problem: Problem,
-  config: SessionConfig,
+  config: TimerConfig,
+  /** ローテーション順の表示名。名簿は timer-core の外にあるので呼び出し側が解決して渡す（#95 D15） */
+  memberNames: readonly string[],
   now: number,
   roomId?: string,
 ): CompletionRecord {
@@ -30,7 +48,7 @@ export function buildCompletionRecord(
     language: config.language,
     difficulty: config.difficulty,
     elapsedSeconds: Math.round(totalElapsedMs / 1000),
-    members: [...config.members],
+    members: [...memberNames],
     totalSwitches: agg.session.totalSwitches,
     completedAt: now,
     // 振り返り用: ドライバー別回数（rotation と同順）と周回数。

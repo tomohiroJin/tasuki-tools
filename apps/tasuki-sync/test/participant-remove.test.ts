@@ -15,12 +15,15 @@ import { describe, it, expect, beforeEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
 import { makeTestHandlers } from "./support/room-builder.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
+import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
+import { roomViewOf } from "./support/room-view.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 describe("participant.remove（⑪）", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
   let code: string;
@@ -31,8 +34,9 @@ describe("participant.remove（⑪）", () => {
 
   beforeEach(async () => {
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     broadcaster = new SpyBroadcaster();
-    handlers = makeTestHandlers({ store, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen() });
+    handlers = makeTestHandlers({ store, timers, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen() });
     await handlers.handleCommand(creatorConn, {
       command: "room.create",
       displayName: "Alice",
@@ -41,7 +45,7 @@ describe("participant.remove（⑪）", () => {
     creatorId = broadcaster.createdFor(creatorConn).participantId;
     code = broadcaster.createdFor(creatorConn).code;
     await handlers.handleCommand(guestConn, { command: "room.join", code, displayName: "Bob", hasAiKey: false });
-    guestId = store.get(code)!.participants.find((p) => p.displayName === "Bob")!.participantId;
+    guestId = roomViewOf(store, timers, code).participants.find((p) => p.displayName === "Bob")!.participantId;
     // Bob をローテーションに加える → rotation = [Alice, Bob] の各ID
     await handlers.handleCommand(creatorConn, { command: "member.add", participantId: guestId });
     broadcaster.sent.length = 0;
@@ -74,8 +78,57 @@ describe("participant.remove（⑪）", () => {
 
     // Then
     expect(broadcaster.errorsTo(guestConn)).toEqual([]);
-    expect(store.get(code)!.participants.find((p) => p.participantId === creatorId)).toBeUndefined();
+    expect(roomViewOf(store, timers, code).participants.find((p) => p.participantId === creatorId)).toBeUndefined();
     expect(result.isOk()).toBe(true);
+  });
+
+  /**
+   * 代理（`isPlaceholder`）を対象にした退出（#95 S4a・D6）。
+   *
+   * **代理は名簿に居ない。** `RotationEntry` の `kind: "proxy"` として輪の上にだけ存在する。
+   * したがってここで消えるのは**席だけ**で、名簿（`RoomStore`）は 1 人も減らない。
+   *
+   * この 1 本が無いと、`command-handlers/participant-remove.ts` の
+   * 「対象が代理なら `removeParticipant` は何もしない」というコメントが
+   * **論理的には正しいのに誰も目撃していない主張**のまま残る（#245 のレビュー指摘）。
+   *
+   * ⚠ **代理の `participantId` は client 供給の値をサーバーが再生成する**（`handlers.ts`）。
+   * 送った値で消そうとすると `PARTICIPANT_NOT_FOUND` になり、
+   * 「代理を消したつもりで何も消していない」テストになる（旧新比較で実際に踏んだ）。
+   * **必ず snapshot から実 ID を取ること。**
+   */
+  it("代理を退出させると輪の席だけが消え、名簿は減らない（D6）", async () => {
+    // Given: 代理を 1 人足して輪へ並べる（rotation = [Alice, Bob, 代理]）
+    await handlers.handleCommand(creatorConn, {
+      command: "participant.addProxy",
+      participantId: "client-supplied-ignored",
+      displayName: "同席のカルロス",
+    });
+    // サーバーが再生成した実 ID を snapshot から取る
+    const proxyId = roomViewOf(store, timers, code).participants.find((p) => p.isPlaceholder)!
+      .participantId;
+    await handlers.handleCommand(creatorConn, { command: "member.add", participantId: proxyId });
+    expect(roomViewOf(store, timers, code).session.rotation).toContain(proxyId);
+    const rosterBefore = store.get(code)!.participants.map((p) => p.id);
+    expect(rosterBefore).toEqual([creatorId, guestId]);
+    broadcaster.sent.length = 0;
+    broadcaster.snapshots.length = 0;
+
+    // When: 代理を対象に退出させる
+    const result = await handlers.handleCommand(creatorConn, {
+      command: "participant.remove",
+      participantId: proxyId,
+    });
+
+    // Then: 成功し、輪から代理の席が消える
+    result._unsafeUnwrap();
+    const room = broadcaster.latestSnapshot();
+    expect(room?.session.rotation).not.toContain(proxyId);
+    expect(room?.participants.find((p) => p.participantId === proxyId)).toBeUndefined();
+    // **名簿は 1 人も減らない**（代理はもともと名簿に居ない）
+    expect(store.get(code)!.participants.map((p) => p.id)).toEqual(rosterBefore);
+    // 実在の 2 人は席も名簿もそのまま
+    expect(room?.session.rotation).toEqual([creatorId, guestId]);
   });
 
   it("最後の1人（rotation 1名）は外せない", async () => {
@@ -90,7 +143,7 @@ describe("participant.remove（⑪）", () => {
     // Then（拒否され、Bob はまだ居る。rotation 上の最後の1人なので拒否）
     const error = broadcaster.sent.find((s) => s.msg.type === "error" && (s.msg as { code: string }).code === "BelowMinMembers");
     expect(error).toBeTruthy();
-    expect(store.get(code)!.participants.find((p) => p.participantId === guestId)).toBeTruthy();
+    expect(roomViewOf(store, timers, code).participants.find((p) => p.participantId === guestId)).toBeTruthy();
   });
 });
 
@@ -103,6 +156,7 @@ describe("participant.remove（⑪）", () => {
  */
 describe("participant.remove（G3: 自己退出と他者退出）", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
   let code: string;
@@ -113,7 +167,7 @@ describe("participant.remove（G3: 自己退出と他者退出）", () => {
 
   /** 参加者を displayName から引く。 */
   const pidOf = (name: string): string =>
-    store.get(code)!.participants.find((p) => p.displayName === name)!.participantId;
+    roomViewOf(store, timers, code).participants.find((p) => p.displayName === name)!.participantId;
 
   /** 直近に connId 宛へ送られた error を返す。 */
   const lastError = (connId: string): { code: string; message: string } | undefined => {
@@ -127,9 +181,11 @@ describe("participant.remove（G3: 自己退出と他者退出）", () => {
   /** Alice（作成者）/ Bob / Carol の3名が在室するルームを作る（全員同格）。 */
   async function setup(): Promise<void> {
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     broadcaster = new SpyBroadcaster();
     handlers = makeTestHandlers({
-      store, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen(),
+      store,
+      timers, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen(),
     });
     const created = await handlers.handleCommand(CREATOR, {
       command: "room.create",
@@ -167,7 +223,7 @@ describe("participant.remove（G3: 自己退出と他者退出）", () => {
 
     // Then
     result._unsafeUnwrap();
-    expect(store.get(code)!.participants.find((p) => p.participantId === carolId)).toBeUndefined();
+    expect(roomViewOf(store, timers, code).participants.find((p) => p.participantId === carolId)).toBeUndefined();
   });
 
   it("② 参加者は自分自身を退出させられる", async () => {
@@ -181,7 +237,7 @@ describe("participant.remove（G3: 自己退出と他者退出）", () => {
 
     // Then
     result._unsafeUnwrap();
-    expect(store.get(code)!.participants.find((p) => p.participantId === carolId)).toBeUndefined();
+    expect(roomViewOf(store, timers, code).participants.find((p) => p.participantId === carolId)).toBeUndefined();
   });
 
   it("④ 退出させられた本人へ通知が届く（他人に外された場合）", async () => {
@@ -218,6 +274,7 @@ describe("participant.remove（G3: 自己退出と他者退出）", () => {
  */
 describe("participant.remove（G7: 同名参加者を識別子で区別する）", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
   let code: string;
@@ -227,7 +284,7 @@ describe("participant.remove（G7: 同名参加者を識別子で区別する）
   const REAL = "g7-real";
   const GHOST = "g7-ghost";
 
-  const room = () => store.get(code)!;
+  const room = () => roomViewOf(store, timers, code);
 
   /**
    * Alice（作成者）と同名の Bob 2名（輪に居る本物・輪に居ない幽霊）が在室する部屋を作る。
@@ -256,9 +313,11 @@ describe("participant.remove（G7: 同名参加者を識別子で区別する）
 
   beforeEach(async () => {
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     broadcaster = new SpyBroadcaster();
     handlers = makeTestHandlers({
-      store, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen(),
+      store,
+      timers, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen(),
     });
     const created = await handlers.handleCommand(CREATOR, {
       command: "room.create",

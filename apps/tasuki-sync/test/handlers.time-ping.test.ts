@@ -6,6 +6,7 @@ import { describe, it, expect, beforeEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
 import { makeTestHandlers } from "./support/room-builder.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
+import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
@@ -15,15 +16,17 @@ import { FakeCodeGen } from "./support/fake-code-gen.js";
  */
 describe("handlers: time.ping", () => {
   let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
   let clock: FakeClock;
   let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
 
   beforeEach(() => {
     store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
     clock = new FakeClock(1234567890);
     broadcaster = new SpyBroadcaster();
-    handlers = makeTestHandlers({ store, clock, broadcaster, codeGen: new FakeCodeGen() });
+    handlers = makeTestHandlers({ store, timers, clock, broadcaster, codeGen: new FakeCodeGen() });
   });
 
   it("time.pong でサーバー時刻を返す", async () => {

@@ -1,20 +1,21 @@
 import { describe, it, expect, jest } from "bun:test";
 import { RoomReclaimer } from "../src/application/room-reclaimer.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
-import type { Room } from "@tasuki/timer-core";
+import type { Participant, Room } from "@tasuki/room-core";
 
-function room(code: string, presences: Array<Room["participants"][number]["presence"]>): Room {
+/** 回収は**名簿の在席だけ**を見る（#95 S4a）。timer の状態は判定に関わらない。 */
+function room(code: string, presences: Array<Participant["presence"]>): Room {
   return {
     code,
     createdAt: 0,
     participants: presences.map((presence, i) => ({
-      participantId: `p${i}`,
+      id: `p${i}`,
       connId: presence === "offline" ? null : `c${i}`,
       displayName: `u${i}`,
       presence,
       joinedAt: 0,
     })),
-  } as unknown as Room;
+  };
 }
 
 describe("RoomReclaimer", () => {

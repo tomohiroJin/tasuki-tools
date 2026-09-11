@@ -19,9 +19,11 @@ import { DEFAULT_CAPACITY } from "@tasuki/rate-limit";
 import { makeHandlers } from "../src/application/handlers.js";
 import { makeTestHandlers } from "./support/room-builder.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
+import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { Room, SessionConfig } from "@tasuki/timer-core";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
+import { roomViewOf, putRoomView } from "./support/room-view.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 const config: SessionConfig = {
@@ -41,12 +43,13 @@ const CAROL = "es-carol";
 describe("拒否箇所が返すコード（現状の記録）", () => {
   describe("作成者 + 2 参加者のルーム", () => {
     let store: InMemoryRoomStore;
+    let timers: InMemoryTimerStore;
     let broadcaster: SpyBroadcaster;
     let handlers: ReturnType<typeof makeHandlers>;
     let code: string;
 
     const pidOf = (name: string): string =>
-      store.get(code)!.participants.find((p) => p.displayName === name)!.participantId;
+      roomViewOf(store, timers, code).participants.find((p) => p.displayName === name)!.participantId;
 
     const lastError = (connId: string): { code: string; message: string } | undefined => {
       const found = [...broadcaster.sent].reverse().find(
@@ -58,9 +61,11 @@ describe("拒否箇所が返すコード（現状の記録）", () => {
 
     beforeEach(async () => {
       store = new InMemoryRoomStore();
+      timers = new InMemoryTimerStore();
       broadcaster = new SpyBroadcaster();
       handlers = makeTestHandlers({
-        store, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen(),
+        store,
+        timers, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen(),
       });
       const created = await handlers.handleCommand(CREATOR, {
         command: "room.create", displayName: "Alice", config,
@@ -81,7 +86,7 @@ describe("拒否箇所が返すコード（現状の記録）", () => {
 
     it("① オフライン相手への driver.assign は DRIVER_ASSIGN_OFFLINE を返す", async () => {
       // Given（Bob を実在オフラインにする）
-      const room = store.get(code)!;
+      const room = roomViewOf(store, timers, code);
       const bobId = pidOf("Bob");
       const updated: Room = {
         ...room,
@@ -89,7 +94,7 @@ describe("拒否箇所が返すコード（現状の記録）", () => {
           p.participantId === bobId ? { ...p, presence: "offline" as const } : p,
         ),
       };
-      store.put(updated);
+      putRoomView(store, timers, updated);
 
       // When
       await handlers.handleCommand(CREATOR, { command: "driver.assign", participantId: bobId });
@@ -101,12 +106,13 @@ describe("拒否箇所が返すコード（現状の記録）", () => {
 
   describe("輪に居ない相手・存在しない相手（driver.assign）", () => {
     let store: InMemoryRoomStore;
+    let timers: InMemoryTimerStore;
     let broadcaster: SpyBroadcaster;
     let handlers: ReturnType<typeof makeHandlers>;
     let code: string;
 
     const pidOf = (name: string): string =>
-      store.get(code)!.participants.find((p) => p.displayName === name)!.participantId;
+      roomViewOf(store, timers, code).participants.find((p) => p.displayName === name)!.participantId;
 
     const lastError = (connId: string): { code: string; message: string } | undefined => {
       const found = [...broadcaster.sent].reverse().find(
@@ -118,9 +124,11 @@ describe("拒否箇所が返すコード（現状の記録）", () => {
 
     beforeEach(async () => {
       store = new InMemoryRoomStore();
+      timers = new InMemoryTimerStore();
       broadcaster = new SpyBroadcaster();
       handlers = makeTestHandlers({
-        store, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen(),
+        store,
+        timers, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen(),
       });
       const created = await handlers.handleCommand(CREATOR, {
         command: "room.create", displayName: "Alice", config,

@@ -16,6 +16,7 @@ import { ProblemDelegator } from "../src/application/problem-delegation.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 import { aRoom } from "./support/room-builder.js";
+import { putRoomView, roomViewOf } from "./support/room-view.js";
 import { testLogger, testRefEncoder } from "./support/test-logger.js";
 
 /**
@@ -69,12 +70,9 @@ interface Fixture {
  */
 async function setup(mutate: (room: Room) => Room): Promise<Fixture> {
   const built = await aRoom().build();
-  const base = built.store.get(built.code);
-  if (base === undefined) {
-    throw new Error("前提: aRoom() が作ったルームが store から引けない");
-  }
+  const base = roomViewOf(built.store, built.timers, built.code);
   const room = mutate(base);
-  built.store.put(room);
+  putRoomView(built.store, built.timers, room);
 
   assertDiscriminating(room.config.language, room.config.difficulty);
 
@@ -82,6 +80,7 @@ async function setup(mutate: (room: Room) => Room): Promise<Fixture> {
   const broadcaster = new SpyBroadcaster();
   const delegator = new ProblemDelegator({
     store: built.store,
+    timers: built.timers,
     clock: new FakeClock(FIXED_NOW),
     broadcaster,
     logger: testLogger,

@@ -38,3 +38,25 @@ MUST としている。poker はこれまで ADR を 1 本も持っていなか�
 - **将来、イベントの履歴・再生が要るようになったら本 ADR を `Superseded` にする。**
   そのときは Decider への移行を新しい ADR で決める。
 - 本 ADR の時点ではコードを変更しない。
+
+## 追記（2026-09-10・#95 S4a）
+
+### 根拠が名指しする関数のうち 4 つは、いまのコードに無い
+
+[#95](https://github.com/tomohiroJin/tasuki-tools/issues/95) の S4a
+（[#245](https://github.com/tomohiroJin/tasuki-tools/issues/245)）で **poker の名簿を timer と
+共有の `RoomStore` へ移し、`Round` を集約ルートにした**。`packages/poker-core/src/room.ts` は
+消え、上の「根拠」が挙げる `createRoom` `joinRoom` `markDisconnected` `markConnected` と、
+問い合わせの `findParticipantByToken` はドメインから無くなっている。
+
+**上の「根拠」は 2026-08-17 の実測なので書き換えない**（`docs/adr/0002` の追記・#258）。
+現在地は次のとおり（2026-09-11 実測）。
+
+- ドメインは `packages/poker-core/src` が 8 ファイル / 530 行。次の状態を返す関数は
+  `round.ts` の `createRound` `castVote` `applyAutoReveal` `revealBy` `nextRound`
+  の 5 つである。`shouldAutoReveal` `isValidName` が判定述語である点は変わっていない。
+- 名簿の側（入退室・接続状態）は `@tasuki/room-core` が、復帰トークンの照合は
+  `apps/tasuki-sync/src/application/token-store.ts` が持つ。
+
+**決定（直接遷移関数 ＋ `Result`）は変えていない。** 関数の数と置き場が変わっただけで、
+イベント型を挟まない点も、Decider を採らない根拠（履歴・再生の実需が無い）も同じである。

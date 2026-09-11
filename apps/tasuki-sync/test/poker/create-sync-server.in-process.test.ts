@@ -77,10 +77,14 @@ describe('createSyncServer を in-process で起動する', () => {
       expect(state.roomId).toBe(joined.roomId);
       expect(state.participants).toHaveLength(1);
 
-      // Then: サーバー内部の RoomStore にも実在する。
-      // **これは in-process でしか見られない**（サブプロセス起動では store に触れない）
-      expect(server.pokerStore.has(joined.roomId)).toBe(true);
-      expect(server.pokerStore.get(joined.roomId)?.participants[0]?.id).toBe(joined.participantId);
+      // Then: サーバー内部の保管にも実在する。
+      // **これは in-process でしか見られない**（サブプロセス起動では store に触れない）。
+      //
+      // **#95 S4a で保管が 2 つに割れた。** 名簿は timer と共有の `store`、投票ラウンドは
+      // poker だけの `rounds` にある。**両方を見る** —— 片方だけ見ると、
+      // 「名簿は作ったがラウンドを作っていない」配線の抜けを取り逃がす
+      expect(server.store.get(joined.roomId)?.participants[0]?.id).toBe(joined.participantId);
+      expect(server.rounds.get(joined.roomId)).toEqual({ status: 'voting', votes: new Map() });
     } finally {
       host.close();
     }

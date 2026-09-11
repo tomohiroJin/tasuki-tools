@@ -3,10 +3,11 @@
  *
  * `handlers.ts` の `makeHandlers` クロージャ内にあった `handleRoomJoin` を
  * そのまま移動し、参照していたクロージャ変数を `deps` 引数として明示化した。
- * `rateLimitGate` は `makeHandlers` 側で1度だけ生成した共有インスタンスを
- * そのまま受け取る（`ai.unlock` と同じバケツを共有する契約は `handlers.ts` の
- * 生成箇所のコメント参照。ここでは共有インスタンスを受け取って使うだけで、
- * 新規生成はしない）。
+ * `rateLimitGate` は受け取るだけで、ここでは新規生成しない。**バケツとゲートで
+ * 出どころが違う**（#95 S4a）: **バケツ（`RateLimiter`）は配線
+ * （`create-sync-server.ts`）が 1 個作って timer と poker へ渡し**、**ゲートは
+ * `makeHandlers` がそのバケツを 1 度だけ包む**。したがって `ai.unlock` と
+ * 同じバケツを見ることは構造の帰結である（`handlers.ts` の生成箇所のコメント参照）。
  *
  * ★ #103 で数える単位が接続からクライアント（IP の HMAC）へ変わり、それに伴い
  * レート制限へ渡す時刻が**壁時計から単調時計へ変わった**（設計正本 D8）。
@@ -14,19 +15,24 @@
  */
 
 import { ok, err, type Result } from "neverthrow";
+import { errorMessageFor, type ErrorCode } from "@tasuki/timer-core";
 import {
-  errorMessageFor,
-  type Room,
-  type Participant,
-  type ErrorCode,
-} from "@tasuki/timer-core";
+  addParticipant,
+  attachConnection,
+  findParticipant,
+  type Participant as MembershipParticipant,
+} from "@tasuki/room-core";
 import type { Clock } from "../../ports/clock.js";
 import type { Broadcaster } from "../../ports/broadcaster.js";
 import type { RoomStore } from "../../ports/room-store.js";
+import type { TimerStore } from "../../ports/timer-store.js";
 import type { RoomCodeGen } from "../../ports/code-gen.js";
 import type { TokenStore } from "../token-store.js";
 import type { RateLimitGate } from "../rate-limit-gate.js";
+import type { ToolGate } from "../tool-gate.js";
 import { constantTimeEqual } from "../secure-compare.js";
+import { buildTimerSnapshotRoom } from "../timer-snapshot-dto.js";
+import type { RoomState } from "../apply-room-level-event.js";
 
 /** `room.join` が呼び出し元へ返す値。 */
 export interface JoinResult {
@@ -37,17 +43,32 @@ export interface JoinResult {
 
 export interface RoomJoinDeps {
   store: RoomStore;
+  timers: TimerStore;
   clock: Clock;
   broadcaster: Broadcaster;
+  /** 名簿と timer の状態を保管し、合成した snapshot を配信する（`handlers.ts`）。 */
+  commit: (state: RoomState) => void;
   codeGen: RoomCodeGen;
   tokenStore: TokenStore;
-  /** room.join と ai.unlock が共有する単一インスタンス（makeHandlers で1度だけ生成）。 */
+  /** 入口ごとの門（`../tool-gate.ts`）。timer と poker で 1 個を共有する（#95 S4a）。 */
+  toolGate: ToolGate;
+  /** room.join と ai.unlock が共有するバケツの上に立つゲート（`handlers.ts` が組む）。 */
   rateLimitGate: RateLimitGate;
   sendError: (connId: string, code: ErrorCode, message: string) => void;
 }
 
 export function createRoomJoinHandler(deps: RoomJoinDeps) {
-  const { store, broadcaster, codeGen, tokenStore, rateLimitGate, sendError } = deps;
+  const {
+    store,
+    timers,
+    broadcaster,
+    commit,
+    codeGen,
+    tokenStore,
+    toolGate,
+    rateLimitGate,
+    sendError,
+  } = deps;
   const clock = deps.clock;
 
   /** ルーム参加 */
@@ -76,8 +97,18 @@ export function createRoomJoinHandler(deps: RoomJoinDeps) {
     }
 
     const room = store.get(cmd.code);
+    const timer = timers.get(cmd.code);
 
-    if (!room) {
+    // **入口の門**（`../tool-gate.ts`・#95 S4a）。名簿は poker と 1 つの保管なので、
+    // 「名簿にある」ことは「timer のルームである」ことを意味しない。timer の状態が
+    // 無いルーム（poker の入口で作られたルーム）は、**存在しないルームと完全に同じ応答**
+    // で拒む —— 区別できるとルームコード列挙の手がかりになる（ADR 0011）。
+    //
+    // **`timer === undefined` と同値の判定である。** それでも門を通すのは、
+    // 「そのツールの状態があるルームにだけ入れる」という規則を 2 つの入口で 1 箇所
+    // （`tool-gate.ts`）に集めるためで、S5 の D8（ツール状態の遅延生成）が来たときに
+    // 直す先もそこ 1 つになる。末尾の `!timer` は `timer` を絞り込むために残してある。
+    if (!room || !toolGate.canEnterVia("timer", cmd.code) || !timer) {
       // 失敗を記録（次回以降のレート判定に使う）。時刻は単調時計のほう（D8）。
       rateLimitGate.consume(connId, rateNow);
       sendError(connId, "ROOM_NOT_FOUND", "指定されたルームコードが見つかりません");
@@ -88,24 +119,16 @@ export function createRoomJoinHandler(deps: RoomJoinDeps) {
     if (cmd.resumeToken) {
       const tokenData = tokenStore.getResume(cmd.resumeToken);
       if (tokenData && tokenData.roomCode === cmd.code) {
-        const existingParticipant = room.participants.find(
-          (p) => p.participantId === tokenData.participantId,
-        );
+        const existingParticipant = findParticipant(room, tokenData.participantId);
         if (existingParticipant) {
-          const updatedRoom: Room = {
-            ...room,
-            participants: room.participants.map((p) =>
-              p.participantId === tokenData.participantId
-                ? { ...p, connId, presence: "online" }
-                : p,
-            ),
-          };
-          store.put(updatedRoom);
+          const updatedRoom = attachConnection(room, tokenData.participantId, connId);
+          // 保管は `commit` に一本化してある（下の 1 行）。間の `sendTo` は connId 直送で
+          // ストアを引かないので、ここで先に put する必要は無い。
           broadcaster.sendTo(connId, {
             type: "snapshot",
-            room: updatedRoom,
+            room: buildTimerSnapshotRoom(updatedRoom, timer),
           });
-          broadcaster.broadcastSnapshot(cmd.code, updatedRoom);
+          commit({ membership: updatedRoom, timer });
           return ok({
             code: cmd.code,
             participantId: tokenData.participantId,
@@ -146,21 +169,21 @@ export function createRoomJoinHandler(deps: RoomJoinDeps) {
     const participantId = codeGen.generateParticipantId();
     const resumeToken = codeGen.generateResumeToken();
 
-    const newParticipant: Participant = {
-      participantId,
+    const newParticipant: MembershipParticipant = {
+      id: participantId,
       connId,
       displayName: cmd.displayName,
       presence: "online",
-      hasAiKey: cmd.hasAiKey,
       joinedAt: now,
     };
 
-    const updatedRoom: Room = {
-      ...room,
-      participants: [...room.participants, newParticipant],
-    };
+    const updatedRoom = addParticipant(room, newParticipant);
+    // AI 鍵の有無は**名簿ではなく timer の状態**が持つ（#95 S4a）。
+    // 「その人が誰か」ではなく「その人が timer で何をできるか」だからである。
+    const updatedTimer = cmd.hasAiKey
+      ? { ...timer, aiKeyHolders: [...timer.aiKeyHolders, participantId] }
+      : timer;
 
-    store.put(updatedRoom);
     tokenStore.issueResume(resumeToken, { participantId, roomCode: cmd.code });
 
     broadcaster.sendTo(connId, {
@@ -171,10 +194,10 @@ export function createRoomJoinHandler(deps: RoomJoinDeps) {
 
     broadcaster.sendTo(connId, {
       type: "snapshot",
-      room: updatedRoom,
+      room: buildTimerSnapshotRoom(updatedRoom, updatedTimer),
     });
 
-    broadcaster.broadcastSnapshot(cmd.code, updatedRoom);
+    commit({ membership: updatedRoom, timer: updatedTimer });
 
     return ok({ code: cmd.code, participantId, resumeToken });
   };
