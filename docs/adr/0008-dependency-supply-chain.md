@@ -218,3 +218,31 @@ CI キャッシュへ載せる・`--trust-lockfile` が紛れ込む・pnpm の�
 **この追記は決定を変えない。** 検査の追加であり、待機期間の値も `overrides` の書き方も
 従来どおりである。実測値と機序の正本は
 [設計正本](../superpowers/specs/2026-09-03-supply-chain-config-integrity-design.md) とする。
+
+## 追記（2026-09-12・#265） — `overrides` を 1 件置いた（js-yaml）
+
+**`"js-yaml@4": "^4.3.2"` を追加した。** 上の「overrides の削除と原因の訂正」（#199）は
+「これでこのリポジトリの `overrides` は 0 件になり、キーごと消えた」と書いているが、
+**それは #199 時点の記録である**（現況は `pnpm-workspace.yaml` を見ること。
+件数をこの ADR へ書き写さない —— 必ず腐る）。
+
+対象は [GHSA-2883-xcg3-v3hh](https://github.com/advisories/GHSA-2883-xcg3-v3hh)（high・
+`>=4.0.0 <4.3.2`）。依存元は `packages/ui`（devDependencies）の
+`stylelint` → `cosmiconfig` → `js-yaml` で、経路は 2 本（`stylelint` 直下と
+`stylelint-config-recommended` 経由）。
+
+**決定 1（MUST: まず親の更新で解消するかを試す）に従って測った結果を残す。**
+
+| 試したこと | 結果 |
+|---|---|
+| `stylelint` を 17.14.1 → 17.15.0 へ（親の更新） | **colord は 2.9.3 → 2.10.0 へ動き moderate 1 件が解消した。js-yaml は 4.3.1 のまま** —— `cosmiconfig@9.0.2` が lockfile に据え置かれ、その部分木が解き直されないため（cosmiconfig の要求 `^4.1.0` は 4.3.2 を含む） |
+| `pnpm update js-yaml -r`（`--depth Infinity` も） | **lockfile が 1 行も変わらない。** `pnpm update` が動かすのはワークスペースが直接宣言している依存だけで、`js-yaml` はどのパッケージも宣言していない |
+| `pnpm dedupe --lockfile-only` | 「削除の条件」が既に書いているとおり、lockfile を残したままでは木が凍結されるので使えない |
+
+**つまり「親の更新では解消しない」が実測で確かめられたので、決定 1 の MUST の順序どおり
+`overrides` へ進んだ。** 同じ PR で `vitest`（直接依存）も 4.1.10 → 4.1.11 へ上げており、
+そちらは `pnpm update` だけで済んでいる（moderate 2 件。`overrides` は要らない）。
+
+**削除できるのは、`cosmiconfig` が要求を上げるか、依存木から `js-yaml@4.3.1` が
+消えたときである。** 判定は「削除の条件」の手順（`pnpm-lock.yaml` と `node_modules` を
+捨てて解き直す）を隔離環境で行う。**解除予定日は書かない。**

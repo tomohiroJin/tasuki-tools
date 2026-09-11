@@ -32,8 +32,23 @@ trustPolicyExclude:
   # 設計上の偽陽性。依存元は @babel/core（eslint-plugin-react-hooks 経由の開発時依存）。
   - "semver@6.3.1"
 
-# overrides（推移依存の版の下限を引き上げる仕組み）は、現在 1 件も置いていない。
-# 唯一あった "nanoid@3": "^3.3.18" は #199 で削除した。捨てて解き直すと override 無しでも
-# postcss@8.5.26 が nanoid@3.3.18 を選ぶ（＝親の要求だけで足りる）ため。
-# 要らなくなった行を残すと、親の要求が下がったときにそれを黙って覆い隠す。
+# overrides（推移依存の版の下限を引き上げる仕組み）。
 # 書き方・使う条件・削除の条件は docs/adr/0008 と docs/guides/development.md が正本。
+# **キーは「名前@メジャー」、値は ^ で下限**（名前だけにすると直接依存の宣言まで
+# lockfile 上で書き換わり、上限のない範囲は狙っていないメジャーへ漏れる。どちらも
+# pnpm audit は緑のまま）。要らなくなった行を残すと、親の要求が下がったときに黙って覆い隠す。
+#
+# 過去にあった "nanoid@3": "^3.3.18" は #199 で削除した。捨てて解き直すと override 無しでも
+# postcss@8.5.26 が nanoid@3.3.18 を選ぶ（＝親の要求だけで足りる）ため。
+overrides:
+  # js-yaml の high 勧告 GHSA-2883-xcg3-v3hh（>=4.0.0 <4.3.2 が対象。#265）。
+  # 依存元は packages/ui（devDependencies）の stylelint → cosmiconfig → js-yaml で、
+  # 実経路は 2 本（stylelint 直下と stylelint-config-recommended 経由）。
+  #
+  # **親の更新では解消しない**（ADR-0008 の MUST に従って先に試した実測）:
+  #   - stylelint 17.14.1 → 17.15.0 に上げると colord は 2.9.3 → 2.10.0 へ動くが、
+  #     js-yaml は 4.3.1 のまま。cosmiconfig@9.0.2 が lockfile に据え置かれ、
+  #     その部分木が解き直されないためである（cosmiconfig の要求 ^4.1.0 は 4.3.2 を含む）
+  #   - pnpm update js-yaml -r（--depth Infinity も）は lockfile を 1 行も変えない。
+  #     pnpm update が動かすのはワークスペースが直接宣言している依存だけである
+  "js-yaml@4": "^4.3.2"
