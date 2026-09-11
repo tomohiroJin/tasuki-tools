@@ -49,8 +49,9 @@ import {
 import {
   addParticipant,
   attachConnection,
-  detachConnection,
   findParticipant,
+  isPresentIn,
+  removeConnection,
   type Room as MembershipRoom,
 } from '@tasuki/room-core';
 import type { RateLimiter } from '@tasuki/rate-limit';
@@ -62,6 +63,7 @@ import type { IdGen } from '../ports/id-gen';
 import type { MonotonicClock } from '../ports/monotonic-clock';
 import type { RoundStore } from '../ports/round-store';
 import type { ToolGate } from '../../application/tool-gate.js';
+import { TOOL_POKER } from '../../application/tool-id.js';
 import { createCommitRoomAction, createDispatch } from './commit-room-action';
 import { createRateLimitGate } from './rate-limit-gate';
 
@@ -173,14 +175,19 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
    *
    * **`@tasuki/poker-core` は `@tasuki/room-core` を知らない**（依存方向の許可表・
    * 設計正本 D2）。向こうは `{ id, name, connected }` という構造的型で受けるので、
-   * 語彙の差（`displayName` / `presence`）はここで吸収する。
-   * `connected` は `presence !== "offline"` —— 旧 `Participant.connected` と同値である。
+   * 語彙の差（`displayName` / 接続の集まり）はここで吸収する。
+   *
+   * **`connected` は「poker に在席しているか」である**（#95 S4b・D4）。
+   * `presenceOf`（どこかに繋いでいるか）ではない —— 選択画面のタブだけを開いている人を
+   * 「繋いでいる」と数えると、その人の未投票が永久に埋まらず自動公開が来ない。
+   * S4a までは `presence !== "offline"` で、当時は poker の接続しか持てなかったので
+   * 同値だった。
    */
   function fragmentsOf(room: MembershipRoom): ParticipantFragment[] {
     return room.participants.map((p) => ({
       id: p.id,
       name: p.displayName,
-      connected: p.presence !== 'offline',
+      connected: isPresentIn(p, TOOL_POKER),
     }));
   }
 
@@ -282,10 +289,10 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
     // 2 本に戻り、`application/destroy-room.ts` の冒頭が禁じている「契機ごとに
     // 後始末を並べ直す」状態（4 つの取りこぼし）が復活する。
 
-    // 名簿から接続を外す（旧 `markDisconnected`。`presence` が offline になり
-    // `connected` は false に見える）。票はラウンド側に残る —— 保管が別なので、
+    // **名簿からこの接続だけを外す**（#95 S4b）。同じ人の別タブが残っていれば
+    // `connected` は真のままである。票はラウンド側に残る —— 保管が別なので、
     // 名簿を触っても票には触れないことが構造で保証される。
-    const room = detachConnection(state.room, participantId);
+    const room = removeConnection(state.room, ws.data.connId);
     commit({ room, round: applyAutoReveal(state.round, fragmentsOf(room)) });
   }
 
@@ -330,8 +337,7 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
     const updated = addParticipant(room, {
       id: participantId,
       displayName,
-      connId,
-      presence: 'online',
+      connections: new Map([[connId, TOOL_POKER]]),
       joinedAt: wallClock.now(),
     });
     tokens.issueResume(token, { participantId, roomCode: room.code });
@@ -407,7 +413,7 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
     // ——つまり timer の入口で作られたルーム——は、名簿にあっても「無い」と同じに扱う。
     // 応答（コード・文言）もレート制限の積算も、下の room-not-found と**同一の 1 経路**を
     // 通す。分けて書くと、いつか片方だけが変わって列挙の手がかりになる（ADR 0011）。
-    const state = toolGate.canEnterVia('poker', msg.roomId) ? loadState(msg.roomId) : undefined;
+    const state = toolGate.canEnterVia(TOOL_POKER, msg.roomId) ? loadState(msg.roomId) : undefined;
     if (!state) {
       rateLimit.consumeOnMiss();
       sendError(ws, 'room-not-found', 'ルームが見つかりません');
@@ -495,7 +501,8 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
         ? findParticipant(live.room, resume.participantId)
         : undefined;
     if (existing !== undefined && presented !== undefined) {
-      const room = attachConnection(live.room, existing.id, ws.data.connId);
+      // **接続を足す。前の接続を奪わない**（#95 S4b・D14）。
+      const room = attachConnection(live.room, existing.id, ws.data.connId, TOOL_POKER);
       completeJoin(ws, { ...live, room }, existing.id, presented, stillRegistered);
       return;
     }
@@ -542,7 +549,7 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
 
     // **入口の門を通す**（`handleJoinRoom` と同じ判定）。名簿だけを見ると、
     // この関数は「timer のルームコードが実在するか」を答える神託になる。
-    if (!toolGate.canEnterVia('poker', msg.roomId)) {
+    if (!toolGate.canEnterVia(TOOL_POKER, msg.roomId)) {
       rateLimit.consumeOnMiss();
       sendError(ws, 'room-not-found', 'ルームが見つかりません');
     }

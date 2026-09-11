@@ -17,7 +17,7 @@
  * 代理（`isPlaceholder`）はここで**合成される**。名簿には居らず、輪の上の席
  * （`RotationEntry` の `kind: "proxy"`）としてだけ存在するためである。
  */
-import type { Room as MembershipRoom } from "@tasuki/room-core";
+import { presenceOf, type ConnId, type Room as MembershipRoom } from "@tasuki/room-core";
 import {
   rotationEntryId,
   type Participant,
@@ -58,7 +58,14 @@ export interface Occupant {
   isPlaceholder: boolean;
   /** 在席（代理は常に offline。対面で居るがブラウザは繋いでいない） */
   presence: "online" | "idle" | "offline";
-  connId: string | null;
+  /**
+   * その人が持っている接続（#95 S4b）。**1 本ではない。**
+   *
+   * 退出の通知はここに載っている**すべての接続へ送る** —— 選択画面とツールを別タブで
+   * 開いている人を片方のタブだけ追い出すと、残ったタブは存在しないルームの画面を
+   * 映したままになる。代理は接続を持たないので常に空である。
+   */
+  connIds: ConnId[];
 }
 
 export function occupants(membership: MembershipRoom, timer: TimerState): Occupant[] {
@@ -67,15 +74,15 @@ export function occupants(membership: MembershipRoom, timer: TimerState): Occupa
       participantId: p.id,
       displayName: p.displayName,
       isPlaceholder: false,
-      presence: p.presence,
-      connId: p.connId,
+      presence: presenceOf(p),
+      connIds: [...p.connections.keys()],
     })),
     ...proxyEntries(timer).map((e) => ({
       participantId: e.id,
       displayName: e.label,
       isPlaceholder: true,
       presence: "offline" as const,
-      connId: null,
+      connIds: [],
     })),
   ];
 }
@@ -96,9 +103,10 @@ export function buildTimerSnapshotRoom(membership: MembershipRoom, timer: TimerS
     const eligible = seatEligibleOf(timer.session.rotation, p.id);
     return {
       participantId: p.id,
-      connId: p.connId,
+      // ⏳ Task 3 で wire から落とす。多接続では「接続 1 本」が嘘になるため。
+      connId: [...p.connections.keys()][0] ?? null,
       displayName: p.displayName,
-      presence: p.presence,
+      presence: presenceOf(p),
       hasAiKey: aiKeys.has(p.id),
       joinedAt: p.joinedAt,
       ...(eligible !== undefined ? { driverEligible: eligible } : {}),

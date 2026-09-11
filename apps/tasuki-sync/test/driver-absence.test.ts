@@ -9,6 +9,8 @@ import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { Room } from "@tasuki/timer-core";
+import { attachConnection } from "@tasuki/room-core";
+import { TOOL_TIMER } from "../src/application/tool-id.js";
 import { putRoomView, maybeRoomViewOf } from "./support/room-view.js";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 
@@ -89,6 +91,17 @@ describe("PresenceManager: ドライバー不在の自動繰上", () => {
     jest.useRealTimers();
   });
 
+  /**
+   * 現ドライバーが新しい接続で戻ってきた状態を名簿へ作る。
+   *
+   * 本番では `room.join`（resumeToken つき）が `attachConnection` を呼ぶ。ここは
+   * `PresenceManager` 単体のテストなのでハンドラを通さず、同じ関数で名簿を進める。
+   */
+  function reviveDriver(connId: string, tool: string | null = TOOL_TIMER): void {
+    const membership = store.get(store.list()[0]!.code)!;
+    store.put(attachConnection(membership, "driver-p01", connId, tool));
+  }
+
   it("現ドライバー切断後、猶予時間経過で当該ルームコードの不在通知が発火する", () => {
     // Given
     const room = makeRunningRoom("DTEST");
@@ -104,19 +117,57 @@ describe("PresenceManager: ドライバー不在の自動繰上", () => {
     expect(onDriverAbsence).toHaveBeenCalledWith(room.code);
   });
 
-  it("猶予内に現ドライバーが復帰したら繰上しない", () => {
-    // Given
+  // ⚠ **復帰の演じ方が #95 S4b で変わった。** S4a までは切断で `presence` だけが
+  // `offline` になり `connId` が残っていたので、同じ接続からの ping が復帰を表せた。
+  // いま切断はその接続を名簿から外すので、**同じ接続 ID からの ping はもう届かない**
+  // （実際に閉じたソケットなので本番でも届かない）。復帰の実体は
+  // 「新しい接続で resumeToken つきの `room.join` が来る」ことであり、
+  // ここではその結果（名簿に新しい接続が足される）を作ってから ping を送る。
+  it("猶予内に現ドライバーが新しい接続で復帰したら繰上しない（ping で解除）", () => {
+    // Given: 現ドライバーが切断し、猶予タイマーが張られている
     const room = makeRunningRoom("DTEST2");
     putRoomView(store, timers, room);
     pm.handleDisconnect("d-conn");
 
-    // When（猶予の半分経過 → 現ドライバー復帰 → さらに猶予経過）
+    // When（猶予の半分経過 → 新しい接続で復帰 → その接続から ping → さらに猶予経過）
     jest.advanceTimersByTime(DRIVER_ABSENCE_GRACE_MS / 2);
-    pm.handlePing("d-conn");
+    reviveDriver("d-conn-2");
+    pm.handlePing("d-conn-2");
     jest.advanceTimersByTime(DRIVER_ABSENCE_GRACE_MS);
 
     // Then
     expect(onDriverAbsence).not.toHaveBeenCalled();
+  });
+
+  // ping が来なくても発火時の stale-check が守る（2 段目の網）。**在席で判定する**ので、
+  // ハブのタブだけを開いて戻ってきた人はここで「居ない」と扱われる（D21）。
+  it("ping が無くても、発火時に timer へ在席していれば繰上しない", () => {
+    // Given
+    const room = makeRunningRoom("DTEST2b");
+    putRoomView(store, timers, room);
+    pm.handleDisconnect("d-conn");
+
+    // When: ping を送らずに復帰だけして猶予を過ごす
+    reviveDriver("d-conn-2");
+    jest.advanceTimersByTime(DRIVER_ABSENCE_GRACE_MS);
+
+    // Then
+    expect(onDriverAbsence).not.toHaveBeenCalled();
+  });
+
+  it("選択画面のタブだけで戻ってきた場合は繰上する（timer に在席していない・D21）", () => {
+    // Given
+    const room = makeRunningRoom("DTEST2c");
+    putRoomView(store, timers, room);
+    pm.handleDisconnect("d-conn");
+
+    // When: ツールを宣言しない接続（ハブ）で戻る。presence は online に戻るが、
+    // タイマーの前には誰も居ない
+    reviveDriver("hub-conn", null);
+    jest.advanceTimersByTime(DRIVER_ABSENCE_GRACE_MS);
+
+    // Then
+    expect(onDriverAbsence).toHaveBeenCalledWith(room.code);
   });
 
   it("現ドライバー以外の切断ではタイマーを張らない", () => {

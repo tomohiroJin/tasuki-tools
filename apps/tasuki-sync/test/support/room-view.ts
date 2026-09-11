@@ -9,7 +9,9 @@
  * テスト対象の検証の失敗（`expect`）を区別するためである（FR-096）。
  */
 
-import type { Room } from "@tasuki/timer-core";
+import type { ConnId, Participant as MembershipParticipant, ToolId } from "@tasuki/room-core";
+import type { Participant, Room } from "@tasuki/timer-core";
+import { TOOL_TIMER } from "../../src/application/tool-id.js";
 import type { RoomStore } from "../../src/ports/room-store.js";
 import type { TimerStore } from "../../src/ports/timer-store.js";
 import { buildTimerSnapshotRoom } from "../../src/application/timer-snapshot-dto.js";
@@ -44,6 +46,21 @@ export function maybeRoomViewOf(
  * `buildTimerSnapshotRoom` の逆であり、**往復して同じ形に戻ることが前提**である
  * （代理は `isPlaceholder` から、適格は `driverEligible` から、AI 鍵は `hasAiKey` から復元する）。
  */
+/**
+ * wire の presence から接続の集まりを復元する（#95 S4b）。
+ *
+ * **presence は導出値なので、逆写像はここで接続を 1 本でっち上げる**ことになる。
+ * `offline` は「接続が無い」、それ以外は「timer を見ている接続が 1 本ある」である。
+ * 接続 ID は wire の `connId` があればそれを使い、無ければ参加者 ID から導く
+ * （往復して同じ wire に戻ることだけが要件で、値そのものに意味は無い）。
+ */
+function connectionsOf(p: Participant): MembershipParticipant["connections"] {
+  const connections = new Map<ConnId, ToolId | null>();
+  if (p.presence === "offline") return connections;
+  connections.set(p.connId ?? `conn-${p.participantId}`, TOOL_TIMER);
+  return connections;
+}
+
 export function putRoomView(store: RoomStore, timers: TimerStore, room: Room): void {
   const byId = new Map(room.participants.map((p) => [p.participantId, p]));
   store.put({
@@ -55,8 +72,7 @@ export function putRoomView(store: RoomStore, timers: TimerStore, room: Room): v
       .map((p) => ({
         id: p.participantId,
         displayName: p.displayName,
-        connId: p.connId,
-        presence: p.presence,
+        connections: connectionsOf(p),
         joinedAt: p.joinedAt,
       })),
   });

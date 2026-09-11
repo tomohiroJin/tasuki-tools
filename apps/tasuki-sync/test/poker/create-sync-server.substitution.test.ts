@@ -43,6 +43,7 @@ import type { Broadcaster, RoomSocket } from '../../src/poker/ports/broadcaster'
 import type { IdGen } from '../../src/poker/ports/id-gen';
 import type { MonotonicClock } from '../../src/poker/ports/monotonic-clock';
 import type { RoomStore } from '../../src/ports/room-store';
+import { TOOL_POKER } from '../../src/application/tool-id.js';
 
 /**
  * 名簿だけのルームを 1 つ作る（#95 S4a）。
@@ -55,7 +56,12 @@ function membershipRoom(code: string, participantId: string, name = 'たろう')
     code,
     createdAt: 0,
     participants: [
-      { id: participantId, displayName: name, connId: `conn-${participantId}`, presence: 'online', joinedAt: 0 },
+      {
+        id: participantId,
+        displayName: name,
+        connections: new Map([[`conn-${participantId}`, TOOL_POKER]]),
+        joinedAt: 0,
+      },
     ],
   };
 }

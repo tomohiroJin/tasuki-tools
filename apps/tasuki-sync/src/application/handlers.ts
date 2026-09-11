@@ -26,7 +26,12 @@ import {
 // 表示名の規約はメンバーシップ文脈（room-core）が持つ（#95 S1・docs/adr/0017 決定 2）。
 // アプリ層が上流の文脈へ依存するのは決定 2 の対象外で、許されている。
 // S4a で名簿そのものもこの文脈が持つようになった。
-import { conflictsWithExisting, type Room as MembershipRoom } from "@tasuki/room-core";
+import {
+  conflictsWithExisting,
+  findParticipantByConnId,
+  presenceOf,
+  type Room as MembershipRoom,
+} from "@tasuki/room-core";
 import type { RateLimiter } from "@tasuki/rate-limit";
 import type { Clock } from "../ports/clock.js";
 import type { Broadcaster } from "../ports/broadcaster.js";
@@ -425,7 +430,7 @@ export function makeHandlers(deps: HandlerDeps) {
       return err("NOT_IN_ROOM");
     }
 
-    const participant = state.membership.participants.find((p) => p.connId === connId);
+    const participant = findParticipantByConnId(state.membership, connId);
     if (!participant) {
       return err("PARTICIPANT_NOT_FOUND");
     }
@@ -718,7 +723,7 @@ export function makeHandlers(deps: HandlerDeps) {
   function findStateByConnId(connId: string): RoomState | undefined {
     const membership = store
       .list()
-      .find((r) => r.participants.some((p) => p.connId === connId));
+      .find((r) => findParticipantByConnId(r, connId) !== undefined);
     if (!membership) return undefined;
     return loadState(membership.code);
   }
@@ -837,7 +842,7 @@ function buildShuffleOrder(len: number, running: boolean, currentIndex: number):
  */
 function computeIneligibleIndices(membership: MembershipRoom, timer: TimerState): Set<number> {
   const offline = new Set(
-    membership.participants.filter((p) => p.presence === "offline").map((p) => p.id),
+    membership.participants.filter((p) => presenceOf(p) === "offline").map((p) => p.id),
   );
   const set = new Set<number>();
   timer.session.rotation.forEach((entry, i) => {

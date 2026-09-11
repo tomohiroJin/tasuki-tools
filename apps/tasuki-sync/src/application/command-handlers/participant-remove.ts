@@ -96,7 +96,10 @@ export async function handleParticipantRemove(
   /**
    * 退出した本人へ専用通知を送る（残りメンバーの snapshot には含まれず取り残されるため）。
    * クライアントはこれを受けて退出メッセージ＋次の画面へ遷移する。
-   * 代理(connId=null)はクライアントが無いので送らない。
+   * 代理（接続を持たない）はクライアントが無いので送らない。
+   *
+   * **その人の接続すべてへ送る**（#95 S4b）。選択画面とツールを別タブで開いている人を
+   * 片方のタブだけ追い出すと、残ったタブは存在しないルームの画面を映したままになる。
    *
    * 「通知しない」ではなく「誰の操作かで種類を分ける」（Issue #32）。自己退出（本人が
    * 自分自身を対象に退出した）と他者による退出を同じ種類で伝えると、自分で押した操作を
@@ -107,12 +110,13 @@ export async function handleParticipantRemove(
    * 後でも本人には届く（下のソロ退出の経路がこれに依存している）。
    */
   const notifyRemovedTarget = (): void => {
-    if (!target.connId) return;
+    if (target.connIds.length === 0) return;
     // 「自分で抜けた」のか「他人に外された」のかは、実行者と対象の participantId を
     // 突き合わせて決める。**この比較は #95 S3 でも残る**（役割とは無関係で、
     // 本人へ見せる文言そのものを分ける唯一の判断である）。
     const removalCode = removalNotificationFor(participant.id, targetId);
-    sendError(target.connId, removalCode, messageForRemoval(removalCode, participant.displayName));
+    const message = messageForRemoval(removalCode, participant.displayName);
+    for (const connId of target.connIds) sendError(connId, removalCode, message);
   };
 
   // ソロの部屋からの退出（Issue #79）。退出後に在室者が 0 人になるなら、参加者を

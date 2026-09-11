@@ -1,18 +1,21 @@
 import { describe, it, expect, jest } from "bun:test";
 import { RoomReclaimer } from "../src/application/room-reclaimer.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
-import type { Participant, Room } from "@tasuki/room-core";
+import type { Room } from "@tasuki/room-core";
+import { TOOL_TIMER } from "../src/application/tool-id.js";
 
-/** 回収は**名簿の在席だけ**を見る（#95 S4a）。timer の状態は判定に関わらない。 */
-function room(code: string, presences: Array<Participant["presence"]>): Room {
+/**
+ * 回収は**名簿の在席だけ**を見る（#95 S4a）。timer の状態は判定に関わらない。
+ * presence は接続の集まりからの導出なので、`offline` は「接続を持たない人」である（S4b）。
+ */
+function room(code: string, presences: Array<"online" | "offline">): Room {
   return {
     code,
     createdAt: 0,
     participants: presences.map((presence, i) => ({
       id: `p${i}`,
-      connId: presence === "offline" ? null : `c${i}`,
       displayName: `u${i}`,
-      presence,
+      connections: presence === "offline" ? new Map() : new Map([[`c${i}`, TOOL_TIMER]]),
       joinedAt: 0,
     })),
   };

@@ -35,7 +35,9 @@ import {
   DEFAULT_CAPACITY,
   DEFAULT_REFILL_PER_SEC,
 } from "@tasuki/rate-limit";
+import { connectionsIn } from "@tasuki/room-core";
 import { makeHandlers } from "./application/handlers.js";
+import { TOOL_TIMER } from "./application/tool-id.js";
 import { PresenceManager } from "./application/presence.js";
 import { Scheduler } from "./application/schedule.js";
 import { ProblemDelegator } from "./application/problem-delegation.js";
@@ -115,23 +117,34 @@ export function createSyncServer(config: SyncConfig): SyncServer {
   /** Broadcaster 実装（WS アダプタへの橋渡し） */
   let wsAdapter: WsAdapter;
 
+  /**
+   * 配信先は**名簿（`store`）を引いて、timer に在席している接続だけ**へ絞る
+   * （#95 S4b・D4・`connectionsIn`）。
+   *
+   * ⚠ **宛先は「呼び出し時点のストア」から決まる。** 2 つの帰結がある ——
+   *
+   * 1. **保管より先に配信すると、宛先が 1 つ前の名簿になる。** `commit`（`handlers.ts`）と
+   *    `presence.ts` はどちらも put のあとに配信する。この順序に依存している例が
+   *    `participant-remove.ts` にあり、退出させた本人へ全体配信が届かないことを
+   *    この順序で担保している（本人向けは専用の `sendTo`）
+   * 2. **S4a まで `broadcastSnapshot` は引数の wire から `connId` を拾っていた。**
+   *    多接続では wire に接続 1 本を載せられないので、名簿を引く `broadcastSignal` と
+   *    同じ形へ揃えた（wire から `connId` が消えるのはこの帰結である）
+   */
+  const recipientsOf = (roomCode: string): string[] => {
+    const room = store.get(roomCode);
+    return room ? connectionsIn(room, TOOL_TIMER) : [];
+  };
+
   const broadcaster = {
     broadcastSnapshot(roomCode: string, room: Room): void {
-      const connIds = room.participants
-        .filter((p) => p.connId !== null && p.presence !== "offline")
-        .map((p) => p.connId!);
-      wsAdapter.broadcast(connIds, { type: "snapshot", room });
+      wsAdapter.broadcast(recipientsOf(roomCode), { type: "snapshot", room });
     },
     sendTo(connId: string, msg: ServerMsg): void {
       wsAdapter.send(connId, msg);
     },
     broadcastSignal(roomCode: string, msg: ServerMsg): void {
-      const room = store.get(roomCode);
-      if (!room) return;
-      const connIds = room.participants
-        .filter((p) => p.connId !== null && p.presence !== "offline")
-        .map((p) => p.connId!);
-      wsAdapter.broadcast(connIds, msg);
+      wsAdapter.broadcast(recipientsOf(roomCode), msg);
     },
   };
 

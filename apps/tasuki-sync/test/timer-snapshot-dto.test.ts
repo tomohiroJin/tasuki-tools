@@ -15,13 +15,19 @@ import { RoomSchema } from "@tasuki/timer-core/schemas";
 import type { Room as MembershipRoom } from "@tasuki/room-core";
 import { buildTimerSnapshotRoom } from "../src/application/timer-snapshot-dto";
 import type { TimerState } from "@tasuki/timer-core";
+import { TOOL_TIMER } from "../src/application/tool-id.js";
 
 const membership: MembershipRoom = {
   code: "mob-a1b2c3d4",
   createdAt: 500,
   participants: [
-    { id: "p_alice", displayName: "アリス", connId: "c1", presence: "online", joinedAt: 1000 },
-    { id: "p_bob", displayName: "ボブ", connId: null, presence: "offline", joinedAt: 1100 },
+    {
+      id: "p_alice",
+      displayName: "アリス",
+      connections: new Map([["c1", TOOL_TIMER]]),
+      joinedAt: 1000,
+    },
+    { id: "p_bob", displayName: "ボブ", connections: new Map(), joinedAt: 1100 },
   ],
 };
 

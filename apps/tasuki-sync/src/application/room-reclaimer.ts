@@ -7,6 +7,7 @@
  */
 
 import type { RoomStore } from "../ports/room-store.js";
+import { presenceOf } from "@tasuki/room-core";
 
 export interface RoomReclaimerDeps {
   store: RoomStore;
@@ -41,7 +42,7 @@ export class RoomReclaimer {
     const liveCodes = new Set<string>();
     for (const room of this.store.list()) {
       liveCodes.add(room.code);
-      const empty = room.participants.every((p) => p.presence === "offline");
+      const empty = room.participants.every((p) => presenceOf(p) === "offline");
       if (!empty) {
         this.emptySince.delete(room.code);
         continue;

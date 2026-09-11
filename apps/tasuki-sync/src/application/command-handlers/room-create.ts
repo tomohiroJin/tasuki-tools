@@ -26,6 +26,7 @@ import type { TimerStore } from "../../ports/timer-store.js";
 import type { RoomCodeGen } from "../../ports/code-gen.js";
 import type { TokenStore } from "../token-store.js";
 import type { RoomState } from "../apply-room-level-event.js";
+import { TOOL_TIMER } from "../tool-id.js";
 
 /** `room.create` が呼び出し元へ返す値。 */
 export interface CreateResult {
@@ -85,11 +86,12 @@ export function createRoomCreateHandler(deps: RoomCreateDeps) {
     const seat: RotationEntry = { kind: "member", participantId, eligible: true };
     const agg = initialAggregate(config, [seat]);
 
+    // 作成者は「この接続で timer に居る」1 本だけを持つ（#95 S4b・D14）。
+    // 在席と presence はここから導かれるので、欄としては持たせない。
     const creator: MembershipParticipant = {
       id: participantId,
-      connId,
       displayName: cmd.displayName,
-      presence: "online",
+      connections: new Map([[connId, TOOL_TIMER]]),
       joinedAt: now,
     };
 

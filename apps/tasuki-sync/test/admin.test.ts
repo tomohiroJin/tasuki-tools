@@ -7,6 +7,7 @@ import { describe, it, expect } from "bun:test";
 import { buildAdminReport, handleAdminHttp } from "../src/application/admin.js";
 import type { Room as MembershipRoom, Participant as MembershipParticipant } from "@tasuki/room-core";
 import type { TimerState } from "@tasuki/timer-core";
+import { TOOL_TIMER } from "../src/application/tool-id.js";
 
 /**
  * テスト用の最小の名簿ルーム（`@tasuki/room-core` の `Room`）を構築する。
@@ -17,9 +18,9 @@ import type { TimerState } from "@tasuki/timer-core";
 function membershipRoom(code: string, online: number, total: number): MembershipRoom {
   const participants: MembershipParticipant[] = Array.from({ length: total }, (_, i) => ({
     id: `${code}-p${i}`,
-    connId: i < online ? `${code}-conn${i}` : null,
     displayName: `${code}-member${i}`,
-    presence: i < online ? "online" : "offline",
+    // online は「timer を見ている接続を 1 本持つ」、offline は「接続が無い」（#95 S4b）。
+    connections: i < online ? new Map([[`${code}-conn${i}`, TOOL_TIMER]]) : new Map(),
     joinedAt: 1000 + i,
   }));
   return { code, createdAt: 1000, participants };
