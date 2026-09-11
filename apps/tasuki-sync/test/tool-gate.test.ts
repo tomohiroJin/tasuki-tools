@@ -113,28 +113,38 @@ describe("入口の門（越境の遮断・#95 S4a）", () => {
   it("自分のツールのルームへは今までどおり入れる（対照実行）", async () => {
     // 門が全部を塞いでいないことを確かめる。これが無いと、門を「常に拒否」にしても
     // 越境を見ている it は全部緑のままになる（数は書かない。足すたびに腐る）
+
+    // Given: timer の入口で作った timer のルーム
     const owner = await server.connect("owner");
     const created = await createRoom(owner, "アリス");
+
+    // When: 同じ timer の入口から入る
     const guest = await server.connect("guest");
     guest.send({ command: "room.join", code: created.code, displayName: "ボブ", hasAiKey: false });
     const msg = await guest.takeMatching(
       (m) => m.type === "room.joined" || m.type === "error",
       "room.joined",
     );
+    // Then: 門に阻まれず入れる
     expect(msg.type).toBe("room.joined");
   });
 
   it("poker の入口から poker のルームへは今までどおり入れる（対照実行）", async () => {
     // 上の対照は timer 側だけを見ている。poker 側の門を「常に拒否」にしても
     // 気づけないので、poker の入口についても対照を置く。
+
+    // Given: poker の入口で作った poker のルーム
     const poker = await server.connectPoker("poker-owner");
     poker.send({ type: "create-room", name: "ボブ" });
     const created = (await poker.take((m) => m.type === "joined", "joined")) as {
       roomId: string;
     };
 
+    // When: 同じ poker の入口から入る
     const guest = await server.connectPoker("poker-guest");
     const msg = await pokerJoin(guest, created.roomId, "キャロル");
+
+    // Then: 門に阻まれず入れる
     expect(msg.type).toBe("joined");
   });
 });

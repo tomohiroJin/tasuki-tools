@@ -32,8 +32,9 @@ describe('validateName（名前ルール・上限 24）', () => {
   });
 
   it('上限ちょうど（24 文字）は受理される', () => {
-    // 上限が 1 減っても増えても落ちる境界。定数を式に使わず実測値で固定する
+    // Given: 上限が 1 減っても増えても落ちる境界。定数を式に使わず実測値で固定する
     expect(NAME_MAX_LENGTH).toBe(24);
+    // When / Then: 上限ちょうどは受理し、1 文字超えたら弾く
     expect(isValidName('あ'.repeat(24))).toBe(true);
     expect(isValidName('あ'.repeat(25))).toBe(false);
   });
