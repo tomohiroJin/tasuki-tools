@@ -1,0 +1,38 @@
+# 変異 25: ドライバーの適格判定を presence へ戻す（#95 S4b・D21 の要点）
+#
+# S4a までの規則（`presence === "online"` なら対象）へ戻す。**接続が timer のものか
+# ハブのものかを区別しなくなる**ので、選択画面のタブだけを開いている人にも
+# ドライバーが回る。走っているタイマーの前に誰も居ないまま交代が進む。
+#
+# ⚠ **この変異は S4a のテストでは殺せない。** 当時は参加者が持てる接続が timer の
+# ものだけで、`presence === "online"` と「timer に在席」が同義だったからである。
+# 殺すには「online だが timer に在席していない参加者」を作るテストが要る。
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/presence-model.test.ts
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m25-*.patch
+# 復元: git checkout -- <対象ファイル>
+#
+diff --git a/apps/tasuki-sync/src/application/handlers.ts b/apps/tasuki-sync/src/application/handlers.ts
+index 379cb33..a512793 100644
+--- a/apps/tasuki-sync/src/application/handlers.ts
++++ b/apps/tasuki-sync/src/application/handlers.ts
+@@ -30,6 +30,7 @@ import {
+   conflictsWithExisting,
+   findParticipantByConnId,
+   isPresentIn,
++  presenceOf,
+   type Room as MembershipRoom,
+ } from "@tasuki/room-core";
+ import { TOOL_TIMER } from "./tool-id.js";
+@@ -859,7 +860,7 @@ function buildShuffleOrder(len: number, running: boolean, currentIndex: number):
+  */
+ function computeIneligibleIndices(membership: MembershipRoom, timer: TimerState): Set<number> {
+   const watchingTimer = new Set(
+-    membership.participants.filter((p) => isPresentIn(p, TOOL_TIMER)).map((p) => p.id),
++    membership.participants.filter((p) => presenceOf(p) === "online").map((p) => p.id),
+   );
+   const set = new Set<number>();
+   timer.session.rotation.forEach((entry, i) => {
