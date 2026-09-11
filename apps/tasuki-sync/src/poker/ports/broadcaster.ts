@@ -14,11 +14,17 @@ export interface RoomSocket {
 }
 
 export interface Broadcaster {
+  /**
+   * そのソケットを配信先に加える。**1 人が複数のソケットを持てる**（#95 S4b・D14）。
+   * S4a までは同じ参加者の 2 本目が 1 本目を置き換えていた。
+   */
   attach(roomId: string, participantId: string, socket: RoomSocket): void;
   /**
-   * 指定ソケットが現在の登録と同一のときだけ外し、true を返す。
-   * **異なれば何もせず false を返す**（同一参加者が別ソケットで再接続済みの場合）。
-   * これを落とすと、再接続直後に古いソケットの close が新しい接続を蹴り出す。
+   * **指定ソケットだけ**を配信先から外し、外したなら true を返す。
+   * 登録されていなければ何もせず false を返す。
+   *
+   * 他のタブのソケットは残るので、**古いソケットの close が新しい接続を蹴り出すことは
+   * 構造的に起こらない**（S4a はこれを「登録が同一か」の判定で防いでいた・#95 S4b）。
    */
   detach(roomId: string, participantId: string, socket: RoomSocket): boolean;
   /**

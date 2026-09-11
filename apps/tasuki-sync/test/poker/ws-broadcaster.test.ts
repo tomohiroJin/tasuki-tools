@@ -53,26 +53,71 @@ describe('createWsBroadcaster', () => {
     expect(oldSocket.received).toHaveLength(0);
   });
 
-  it('同一参加者が別ソケットで再接続済みなら、古いソケットの detach は false を返し外さない', () => {
-    // これを落とすと、再接続直後に古いソケットの close が新しい接続を蹴り出す。
-    // WS 越しの特性テスト（test/poker/socket-identity.characterization.test.ts）と同じ不変条件を、
-    // アダプタ単体でも固定する
+  // ⚠ **#95 S4b でこのテストの見方が変わった。** 守る不変条件は同じ
+  // （「古いソケットの close が新しい接続を蹴り出さない」）だが、**守り方が変わった**。
+  // S4a は `participantId → socket` の 1 対 1 で、古いソケットの detach を
+  // 「登録が同一でなければ false を返して何もしない」と防いでいた。いまは
+  // `participantId → ソケットの集合`なので、集合から**そのソケットだけ**が外れる。
+  // したがって戻り値は true（実際に外した）になり、それでも新しいソケットは残る。
+  it('古いソケットを外しても、同じ参加者の新しいソケットは配信先に残る', () => {
     const broadcaster = createWsBroadcaster();
     const oldSocket = recordingSocket();
     const newSocket = recordingSocket();
 
-    // Given: 同じ roomId / participantId に別のソケットで attach し直した
+    // Given: 同じ roomId / participantId に 2 本のソケットが繋がっている
     broadcaster.attach('x', 'A', oldSocket);
     broadcaster.attach('x', 'A', newSocket);
 
     // When: 古いソケットで detach を呼ぶ
     const detached = broadcaster.detach('x', 'A', oldSocket);
 
-    // Then: 何もせず false を返し、新しいソケットは外れていない
-    expect(detached).toBe(false);
+    // Then: 外したのは古いソケットだけで、新しいソケットは配信を受け続ける
+    expect(detached).toBe(true);
     broadcaster.broadcastSnapshot('x', createRound(), rosterOf('A'));
     expect(newSocket.received).toHaveLength(1);
     expect(oldSocket.received).toHaveLength(0);
+  });
+
+  // #95 S4b・R17。**選択画面とツールを別タブで開く同一人物が現実的な経路になった。**
+  it('同じ参加者の 2 本のソケットは、どちらも同じ snapshot を受け取る（R17）', () => {
+    const broadcaster = createWsBroadcaster();
+    const tab1 = recordingSocket();
+    const tab2 = recordingSocket();
+
+    // Given: 1 人が 2 本繋いでいる
+    broadcaster.attach('x', 'A', tab1);
+    broadcaster.attach('x', 'A', tab2);
+
+    // When
+    broadcaster.broadcastSnapshot('x', createRound(), rosterOf('A'));
+
+    // Then: 両方へ届き、内容も同一である（受信者別 snapshot は参加者ごとに 1 つ）
+    expect(tab1.received).toHaveLength(1);
+    expect(tab2.received).toHaveLength(1);
+    expect(tab1.received[0]).toBe(tab2.received[0]!);
+  });
+
+  it('同じソケットを二度 attach しても配信は 1 通である（冪等）', () => {
+    const broadcaster = createWsBroadcaster();
+    const socket = recordingSocket();
+
+    broadcaster.attach('x', 'A', socket);
+    broadcaster.attach('x', 'A', socket);
+    broadcaster.broadcastSnapshot('x', createRound(), rosterOf('A'));
+
+    expect(socket.received).toHaveLength(1);
+  });
+
+  it('登録されていないソケットの detach は false を返し、残りに影響しない', () => {
+    const broadcaster = createWsBroadcaster();
+    const attached = recordingSocket();
+    const stranger = recordingSocket();
+    broadcaster.attach('x', 'A', attached);
+
+    expect(broadcaster.detach('x', 'A', stranger)).toBe(false);
+
+    broadcaster.broadcastSnapshot('x', createRound(), rosterOf('A'));
+    expect(attached.received).toHaveLength(1);
   });
 
   // かつてここには「最後の 1 人を detach したあと countIn は 0 を返す」があった。
