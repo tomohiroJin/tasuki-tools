@@ -114,6 +114,56 @@ describe("実 WS・複数接続", () => {
     expect(revived.all("room.joined")).toEqual([]);
   });
 
+  /**
+   * #95 S4b・R17。**1 人が 2 タブを開いても、どちらのタブも更新を受け取り続ける。**
+   *
+   * S4a までは名簿が接続を 1 本しか持てず、後から繋いだソケットが前のソケットを
+   * 名簿から追い出していた。配信の宛先は名簿から決まるので、**前のタブは以後
+   * 1 通も受け取らない**（画面が黙って古くなる）。ここは実ソケット 2 本で
+   * その回帰を止める。
+   */
+  it("同じ人が 2 つのタブを開くと、両方のタブへ snapshot が届く（R17）", async () => {
+    // Given: ホストとゲストが在室し、ゲストは 2 つ目のタブでも同じルームを開いている
+    server = startLiveSyncServer();
+    const host = await server.connect("host");
+    const tab1 = await server.connect("guest-tab1");
+    const created = await createRoom(host, "ホスト");
+    const joined = await joinRoom(tab1, created.code, "ゲスト");
+
+    const tab2 = await server.connect("guest-tab2");
+    tab2.send({
+      command: "room.join",
+      code: created.code,
+      displayName: "ゲスト",
+      hasAiKey: false,
+      resumeToken: joined.resumeToken,
+    });
+    await tab2.take("snapshot");
+
+    // 名簿は 1 人のまま（2 タブが 2 人になっていない）。ホストとゲストで 2 人である
+    expect(tab2.latestRoom().participants).toHaveLength(2);
+
+    // When: ホストが状態を変える（フェーズ遷移）
+    host.send({ command: "phase.set", phase: "ready" });
+
+    // Then: **両方のタブ**が未読の先頭から ready を受け取る
+    // （`until` は履歴全体を見るので、送信前に届いていた snapshot で空振りしうる。
+    //   ここは「この送信の結果が両方へ届いた」ことを見たいので `take` を使う）
+    for (const tab of [tab1, tab2]) {
+      await tab.take("snapshot", (m) => m.room.phase === "ready");
+    }
+
+    // When: 2 つ目のタブだけを閉じる
+    await tab2.close();
+    host.send({ command: "phase.set", phase: "setup" });
+
+    // Then: 残ったタブは受け取り続け、その人は online のままである
+    const after = await tab1.take("snapshot", (m) => m.room.phase === "setup");
+    expect(
+      after.room.participants.find((p) => p.participantId === joined.participantId)?.presence,
+    ).toBe("online");
+  });
+
   it("resumeToken が無いまま同じ名前で入り直すと、別人として増える（復帰との違い）", async () => {
     // Given
     server = startLiveSyncServer();

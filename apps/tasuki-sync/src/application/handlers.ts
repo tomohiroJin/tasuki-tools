@@ -29,9 +29,10 @@ import {
 import {
   conflictsWithExisting,
   findParticipantByConnId,
-  presenceOf,
+  isPresentIn,
   type Room as MembershipRoom,
 } from "@tasuki/room-core";
+import { TOOL_TIMER } from "./tool-id.js";
 import type { RateLimiter } from "@tasuki/rate-limit";
 import type { Clock } from "../ports/clock.js";
 import type { Broadcaster } from "../ports/broadcaster.js";
@@ -834,15 +835,31 @@ function buildShuffleOrder(len: number, running: boolean, currentIndex: number):
 // ─── ドライバー対象外の判定 ──────────────────────────────────────────────────
 
 /**
- * ドライバー対象外の rotation インデックス集合を返す（#95 S4a）。
+ * ドライバー対象外の rotation インデックス集合を返す（#95 S4a、判定は S4b で在席へ）。
  *
  * **適格は席が持ち、在席は名簿が持つ。** 一時離脱（`entry.eligible === false`）は
- * 輪の上の属性なので席から、切断中（offline）かどうかは名簿から引く。
- * D21 の在席判定そのものは S4b の担当で、ここでは従来の判定をそのまま移している。
+ * 輪の上の属性なので席から、タイマーの前に居るかは名簿から引く。
+ *
+ * ## `presence` では判定しない（D21）
+ *
+ * S4a までは `presence === "offline"` を「timer を見ていない」と読んでいた。参加者が
+ * 持てる接続が timer のものだけだった間は同義だったが、**1 人が選択画面（ハブ）や
+ * poker のタブを持てるようになると崩れる** —— その人は `online` なのにタイマーの前には
+ * 居ないので、**タイマーを見ていない人にドライバーが回る**。
+ *
+ * 判定材料を timer の在席（`isPresentIn(p, TOOL_TIMER)`）へ替えてある。
+ * ハブがまだ無い S4b の時点でも、選択画面とツールの 2 タブを開いた利用者が
+ * 片方を閉じた瞬間にこの差が出る。
+ *
+ * **代理（`kind === "proxy"`）は在席の概念を持たないので常に対象である。** Web 非接続が
+ * 常態で、対面に居る実在の人を表すため（外すとタイマー自動交代で永久に飛ばされる）。
+ *
+ * 対象者が 0 名になった場合は呼び出し側（`advanceDriver` / `decide`）が現状維持に
+ * 縮退する（R15）。ここでは「全員が対象外」という集合をそのまま返す。
  */
 function computeIneligibleIndices(membership: MembershipRoom, timer: TimerState): Set<number> {
-  const offline = new Set(
-    membership.participants.filter((p) => presenceOf(p) === "offline").map((p) => p.id),
+  const watchingTimer = new Set(
+    membership.participants.filter((p) => isPresentIn(p, TOOL_TIMER)).map((p) => p.id),
   );
   const set = new Set<number>();
   timer.session.rotation.forEach((entry, i) => {
@@ -850,9 +867,7 @@ function computeIneligibleIndices(membership: MembershipRoom, timer: TimerState)
       set.add(i);
       return;
     }
-    // 代理は Web 非接続が常態で、対面で在席する実在の人を表す。offline では外さない
-    // （さもないとタイマー自動交代で永久に飛ばされ交代しない）。
-    if (entry.kind === "member" && offline.has(entry.participantId)) set.add(i);
+    if (entry.kind === "member" && !watchingTimer.has(entry.participantId)) set.add(i);
   });
   return set;
 }
