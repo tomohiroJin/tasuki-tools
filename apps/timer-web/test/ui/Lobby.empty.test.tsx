@@ -18,7 +18,6 @@ function makeRoom(overrides?: Partial<Room>): Room {
     participants: [
       {
         participantId: "creator-p",
-        connId: "conn1",
         displayName: "Alice",
         presence: "online",
         hasAiKey: false,
@@ -46,7 +45,6 @@ describe("Lobby 空状態ヒント", () => {
       participants: [
         {
           participantId: "creator-p",
-          connId: "conn1",
           displayName: "Alice",
           presence: "online",
           hasAiKey: false,
@@ -54,7 +52,6 @@ describe("Lobby 空状態ヒント", () => {
         },
         {
           participantId: "other-p",
-          connId: "conn2",
           displayName: "Bob",
           presence: "online",
           hasAiKey: false,

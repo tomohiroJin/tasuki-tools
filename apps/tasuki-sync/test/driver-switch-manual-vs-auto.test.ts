@@ -52,11 +52,15 @@ async function setupRunningRoom(
   const participants: Room["participants"] = members.map((m, i) => ({
     ...creator,
     participantId: i === 0 ? creator.participantId : `pid-${m.id}`,
-    connId: m.conn,
     displayName: m.id,
     presence: "online",
     driverEligible: m.eligible ?? true,
   }));
+  // 接続 ID は wire に載らなくなった（#95 S4b）。この表の `conn` をそのまま持たせる
+  // ——テストはその接続 ID でコマンドを送る。
+  const connIds = Object.fromEntries(
+    participants.map((p, i) => [p.participantId, [members[i]!.conn]]),
+  );
   putRoomView(store, timers, {
     ...room,
     participants,
@@ -67,7 +71,7 @@ async function setupRunningRoom(
       currentIndex: 0,
     },
     clock: { ...room.clock, running: true },
-  });
+  }, connIds);
   return code;
 }
 

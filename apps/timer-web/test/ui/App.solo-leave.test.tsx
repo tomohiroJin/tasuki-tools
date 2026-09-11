@@ -56,7 +56,6 @@ function soloSnapshot() {
     participants: [
       {
         participantId: ME_ID,
-        connId: "c-solo",
         displayName: "アリス",
         presence: "online",
         hasAiKey: false,

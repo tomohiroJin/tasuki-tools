@@ -11,7 +11,7 @@ import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
-import { maybeRoomViewOf } from "./support/room-view.js";
+import { maybeRoomViewOf, participantIdOfConn } from "./support/room-view.js";
 import { aRoom, makeTestHandlers } from "./support/room-builder.js";
 
 describe("handlers: room.create", () => {
@@ -60,7 +60,8 @@ describe("handlers: room.create", () => {
       (p) => p.participantId === value.participantId,
     );
     expect(creator?.displayName).toBe("Alice");
-    expect(creator?.connId).toBe("conn-001");
+    // 「その接続の持ち主か」は名簿に聞く（wire は `connId` を持たない・#95 S4b）。
+    expect(participantIdOfConn(store, "conn-001")).toBe(value.participantId);
     expect(room?.participants).toHaveLength(1);
   });
 
@@ -252,7 +253,9 @@ describe("handlers: room.join", () => {
     // Then
     const stored = maybeRoomViewOf(room.store, room.timers, room.code);
     const bob = stored?.participants.find((p) => p.displayName === "Bob");
-    expect(bob?.connId).toBe("conn-002");
     expect(bob?.presence).toBe("online");
+    // 参加した接続の持ち主がその人であること（wire は `connId` を持たない・#95 S4b）。
+    expect(bob).toBeDefined();
+    expect(participantIdOfConn(room.store, "conn-002")).toBe(bob!.participantId);
   });
 });

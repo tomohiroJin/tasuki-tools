@@ -78,7 +78,6 @@ const OTHER_ID = "p-2";
 function participant(participantId: string, displayName: string) {
   return {
     participantId,
-    connId: `c-${participantId}`,
     displayName,
     presence: "online" as const,
     hasAiKey: false,

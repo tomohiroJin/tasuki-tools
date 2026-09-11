@@ -32,15 +32,18 @@ async function setup(
   const code = store.list().at(-1)!.code;
   const room = roomViewOf(store, timers, code);
   const host = room.participants[0]!;
-  const mk = (id: string, name: string, conn: string, ov: Partial<Room["participants"][number]> = {}): Room["participants"][number] =>
-    ({ ...host, participantId: id, connId: conn, displayName: name, presence: "online", driverEligible: true, ...ov });
+  // wire は `connId` を持たない（#95 S4b）。接続 ID は putRoomView の第 4 引数で渡す。
+  const mk = (id: string, name: string, ov: Partial<Room["participants"][number]> = {}): Room["participants"][number] =>
+    ({ ...host, participantId: id, displayName: name, presence: "online", driverEligible: true, ...ov });
+  // 接続 ID は wire に載らなくなった（#95 S4b）。テストは conn-b からも指名を送る。
+  const connIds = { "pid-b": ["conn-b"], "pid-c": ["conn-c"] };
   putRoomView(store, timers, {
     ...room,
-    participants: [host, mk("pid-b", "B", "conn-b", bOverrides), mk("pid-c", "C", "conn-c")],
+    participants: [host, mk("pid-b", "B", bOverrides), mk("pid-c", "C")],
     // rotation は参加者IDの配列（D6b）
     session: { ...room.session, rotation: [host.participantId, "pid-b", "pid-c"], driverCounts: [0, 0, 0], currentIndex: 0 },
     clock: { ...room.clock, running: true },
-  });
+  }, connIds);
   return code;
 }
 

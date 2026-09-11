@@ -14,6 +14,13 @@ import { TOOL_TIMER } from "../src/application/tool-id.js";
 import { putRoomView, maybeRoomViewOf } from "./support/room-view.js";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 
+/**
+ * 前提の接続 ID（#95 S4b）。**wire は `connId` を持たなくなった**ので、どの参加者が
+ * どの接続を持つかは `putRoomView` の第 4 引数で明示する（このテストは `d-conn` /
+ * `o-conn` からの切断・ping を送るため、綴りが一致していなければならない）。
+ */
+const CONNS = { "driver-p01": ["d-conn"], "other-p02": ["o-conn"] } as const;
+
 /** 稼働中のセッションを持つ room を返す（現ドライバー=Driver）。 */
 function makeRunningRoom(code: string): Room {
   return {
@@ -45,7 +52,6 @@ function makeRunningRoom(code: string): Room {
     participants: [
       {
         participantId: "driver-p01",
-        connId: "d-conn",
         displayName: "Driver",
         presence: "online",
         hasAiKey: false,
@@ -53,7 +59,6 @@ function makeRunningRoom(code: string): Room {
       },
       {
         participantId: "other-p02",
-        connId: "o-conn",
         displayName: "Other",
         presence: "online",
         hasAiKey: false,
@@ -105,7 +110,7 @@ describe("PresenceManager: ドライバー不在の自動繰上", () => {
   it("現ドライバー切断後、猶予時間経過で当該ルームコードの不在通知が発火する", () => {
     // Given
     const room = makeRunningRoom("DTEST");
-    putRoomView(store, timers, room);
+    putRoomView(store, timers, room, CONNS);
 
     // When
     pm.handleDisconnect("d-conn");
@@ -126,7 +131,7 @@ describe("PresenceManager: ドライバー不在の自動繰上", () => {
   it("猶予内に現ドライバーが新しい接続で復帰したら繰上しない（ping で解除）", () => {
     // Given: 現ドライバーが切断し、猶予タイマーが張られている
     const room = makeRunningRoom("DTEST2");
-    putRoomView(store, timers, room);
+    putRoomView(store, timers, room, CONNS);
     pm.handleDisconnect("d-conn");
 
     // When（猶予の半分経過 → 新しい接続で復帰 → その接続から ping → さらに猶予経過）
@@ -144,7 +149,7 @@ describe("PresenceManager: ドライバー不在の自動繰上", () => {
   it("ping が無くても、発火時に timer へ在席していれば繰上しない", () => {
     // Given
     const room = makeRunningRoom("DTEST2b");
-    putRoomView(store, timers, room);
+    putRoomView(store, timers, room, CONNS);
     pm.handleDisconnect("d-conn");
 
     // When: ping を送らずに復帰だけして猶予を過ごす
@@ -158,7 +163,7 @@ describe("PresenceManager: ドライバー不在の自動繰上", () => {
   it("選択画面のタブだけで戻ってきた場合は繰上する（timer に在席していない・D21）", () => {
     // Given
     const room = makeRunningRoom("DTEST2c");
-    putRoomView(store, timers, room);
+    putRoomView(store, timers, room, CONNS);
     pm.handleDisconnect("d-conn");
 
     // When: ツールを宣言しない接続（ハブ）で戻る。presence は online に戻るが、
@@ -173,7 +178,7 @@ describe("PresenceManager: ドライバー不在の自動繰上", () => {
   it("現ドライバー以外の切断ではタイマーを張らない", () => {
     // Given
     const room = makeRunningRoom("DTEST3");
-    putRoomView(store, timers, room);
+    putRoomView(store, timers, room, CONNS);
 
     // When
     pm.handleDisconnect("o-conn");
@@ -187,7 +192,7 @@ describe("PresenceManager: ドライバー不在の自動繰上", () => {
     // Given
     const room = makeRunningRoom("DTEST4");
     room.clock.running = false;
-    putRoomView(store, timers, room);
+    putRoomView(store, timers, room, CONNS);
 
     // When
     pm.handleDisconnect("d-conn");
@@ -223,7 +228,7 @@ describe("PresenceManager: 切断時のプレゼンス更新", () => {
   it("切断で presence が offline になり snapshot が配信される", () => {
     // Given
     const room = makeRunningRoom("DTEST5");
-    putRoomView(store, timers, room);
+    putRoomView(store, timers, room, CONNS);
 
     // When（現ドライバーではない参加者を切断させる）
     pm.handleDisconnect("o-conn");

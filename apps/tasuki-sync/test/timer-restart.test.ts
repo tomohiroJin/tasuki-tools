@@ -64,14 +64,17 @@ async function setupRunningRoom(
   const code = store.list().at(-1)!.code;
   const room = roomViewOf(store, timers, code);
   const host = room.participants[0]!;
-  const mk = (id: string, name: string, conn: string) =>
-    ({ ...host, participantId: id, connId: conn, displayName: name, presence: "online" as const });
+  const mk = (id: string, name: string) =>
+    ({ ...host, participantId: id, displayName: name, presence: "online" as const });
+  // 接続 ID は wire に載らなくなった（#95 S4b）。テストは conn-b / conn-c から
+  // RESTART を送るので、その綴りを第 4 引数で渡す。
+  const connIds = { "pid-b": ["conn-b"], "pid-c": ["conn-c"] };
   putRoomView(store, timers, {
     ...room,
     phase: "session",
     problem,
     handoffNote: "引き継ぎメモ",
-    participants: [host, mk("pid-b", "B", "conn-b"), mk("pid-c", "C", "conn-c")],
+    participants: [host, mk("pid-b", "B"), mk("pid-c", "C")],
     config: { ...room.config, members: ["A", "B", "C"] },
     session: {
       ...room.session,
@@ -92,7 +95,7 @@ async function setupRunningRoom(
       accumulatedElapsedMs: 500_000,
       ...clockOverrides,
     },
-  });
+  }, connIds);
   return code;
 }
 

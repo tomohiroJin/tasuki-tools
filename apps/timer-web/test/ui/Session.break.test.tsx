@@ -14,7 +14,7 @@ import { aRoomView } from "../support/room-view.js";
 
 function makeParticipant(overrides: Partial<Participant>): Participant {
   return {
-    participantId: "p1", connId: "c1", displayName: "Alice", presence: "online", hasAiKey: false, joinedAt: 1000, ...overrides,
+    participantId: "p1", displayName: "Alice", presence: "online", hasAiKey: false, joinedAt: 1000, ...overrides,
   };
 }
 

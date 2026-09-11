@@ -87,7 +87,8 @@ describe("接続を引く", () => {
       ...room,
       participants: [{ ...alice, connections: new Map([["c1", "timer"], ["c2", null]]) }],
     };
-    // Then: どちらの接続からも同じ人に辿れる
+
+    // When / Then: どちらの接続からも同じ人に辿れる
     expect(findParticipantByConnId(two, "c1")?.id).toBe("p_alice");
     expect(findParticipantByConnId(two, "c2")?.id).toBe("p_alice");
   });
@@ -102,16 +103,22 @@ describe("在席（isPresentIn）", () => {
   it("ハブ（tool: null）の接続はどのツールにも在席しない", () => {
     // これが R14 の要点である。**ハブに居る人は presence が online でも
     // timer に在席していない** —— offline だけを見る判定では捕まらない。
+    // Given: ハブの接続だけを持つ人
     const inHub: Participant = { ...alice, connections: new Map([["c1", null]]) };
+
+    // When / Then: online だが timer には在席していない
     expect(presenceOf(inHub)).toBe("online");
     expect(isPresentIn(inHub, "timer")).toBe(false);
   });
 
   it("2 つのツールに同時に在席できる（別タブ）", () => {
+    // Given: timer と poker を別タブで開いている人
     const both: Participant = {
       ...alice,
       connections: new Map([["c1", "timer"], ["c2", "poker"]]),
     };
+
+    // When / Then: どちらにも在席している
     expect(isPresentIn(both, "timer")).toBe(true);
     expect(isPresentIn(both, "poker")).toBe(true);
   });
@@ -149,6 +156,7 @@ describe("presence（presenceOf）", () => {
   });
 
   it("最後の接続を閉じると offline になるが、名簿からは消えない（§3.13）", () => {
+    // Given: 接続 1 本のアリスだけが居る名簿（このファイルの `room`）
     // When: 唯一の接続を閉じる
     const next = removeConnection(room, "c1");
 
@@ -185,6 +193,8 @@ describe("接続を結ぶ（attachConnection）", () => {
   });
 
   it("同じ接続 ID を結び直すと宣言が上書きされ、本数は増えない（冪等）", () => {
+    // Given: timer を宣言した接続 c1 を持つアリス
+    // When: 同じ c1 で poker を宣言し直す
     const next = attachConnection(room, "p_alice", "c1", "poker");
     const after = findParticipant(next, "p_alice")!;
     expect(after.connections.size).toBe(1);
@@ -193,6 +203,8 @@ describe("接続を結ぶ（attachConnection）", () => {
   });
 
   it("元の Room と Map を書き換えない", () => {
+    // Given: 接続 1 本のアリス（このファイルの `room`）
+    // When: 2 本目を結ぶ
     attachConnection(room, "p_alice", "c2", "timer");
     expect(alice.connections.size).toBe(1);
     expect([...alice.connections.keys()]).toEqual(["c1"]);
@@ -205,14 +217,20 @@ describe("接続を結ぶ（attachConnection）", () => {
   // 以下 2 本は「対象外の参加者はそのまま返す」側を守る。ここが潰れる
   // （全員へ update を当てる）と、1 人の着脱で名簿全員の接続が同じになる。
   it("結ぶ相手以外の接続は触らない", () => {
+    // Given: 2 人ともそれぞれ 1 本ずつ繋いでいる
     const pair: Room = { ...room, participants: [alice, bob] };
+
+    // When: アリスにだけ接続を足す
     const next = attachConnection(pair, "p_alice", "c9", "timer");
     expect([...findParticipant(next, "p_alice")!.connections.keys()]).toEqual(["c1", "c9"]);
     expect([...findParticipant(next, "p_bob")!.connections.keys()]).toEqual(["c2"]);
   });
 
   it("閉じる接続以外は触らない", () => {
+    // Given: 2 人ともそれぞれ 1 本ずつ繋いでいる
     const pair: Room = { ...room, participants: [alice, bob] };
+
+    // When: アリスの接続だけを閉じる
     const next = removeConnection(pair, "c1");
     expect(presenceOf(findParticipant(next, "p_alice")!)).toBe("offline");
     expect(presenceOf(findParticipant(next, "p_bob")!)).toBe("online");
@@ -232,7 +250,7 @@ describe("接続を閉じる（removeConnection）", () => {
 
 describe("配信先の解決（connectionsIn）", () => {
   it("そのツールに在席している接続だけを返す", () => {
-    // Given: timer に居るアリス（2 本）・poker に居るボブ・ハブのキャロル
+    // Given（準備）: timer に居るアリス（2 本）・poker に居るボブ・ハブのキャロル
     const carol: Participant = {
       ...alice,
       id: "p_carol",
@@ -248,7 +266,7 @@ describe("配信先の解決（connectionsIn）", () => {
       ],
     };
 
-    // Then: timer の配信先はアリスの 2 本だけ
+    // When / Then（操作）: timer の配信先はアリスの 2 本だけ
     expect(connectionsIn(crowd, "timer")).toEqual(["c1", "c1b"]);
     expect(connectionsIn(crowd, "poker")).toEqual(["c3"]);
   });

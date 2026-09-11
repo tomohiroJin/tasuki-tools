@@ -12,12 +12,14 @@
  * `grep -rl 'Participant' apps/timer-web/src` を走らせること —— **件数はここに書かない。
  * 足すたびに腐る**）。
  *
- * **形は S4a で変えない。** `apps/timer-web` のテストを 1 行も書き換えずに通せることが
- * 「振る舞いを変えていない」ことの証拠になるので、ここへ足す・ここから落とすのは
- * wire 契約の変更として別途扱うこと。
- * **ここで言うのは型の話だけである。型の例外は `startedAt` の 1 つ**（このファイル内の
- * `startedAt` の注記を読むこと）。**合成の例外**（`participants` の並び・`driverEligible` の
- * 出し方）は `apps/tasuki-sync/src/application/timer-snapshot-dto.ts` の台帳にある。
+ * **形を変えるのは wire 契約の変更として別途扱う。** S4a はここを変えないことを
+ * 「振る舞いを変えていない」ことの証拠にしていた（`apps/timer-web` のテストを 1 行も
+ * 書き換えずに通せた）。**S4b は利用者から見える変更の段なので、多接続模型が要求する
+ * 分だけ変えた。**
+ * **ここで言うのは型の話だけである。型から落としたのは `startedAt`（S4a）と
+ * `connId`（S4b）の 2 つ**（このファイル末尾の注記を読むこと）。**合成の例外**
+ * （`participants` の並び・`driverEligible` の出し方・`presence` の導出）は
+ * `apps/tasuki-sync/src/application/timer-snapshot-dto.ts` の台帳にある。
  */
 import type {
   CompletionRecord,
@@ -42,7 +44,6 @@ export interface SessionConfig extends TimerConfig {
 /** 参加者（wire）。名簿の 1 人か、ローテーション上の代理のいずれか。 */
 export interface Participant {
   participantId: string;
-  connId: string | null;
   displayName: string;
   presence: "online" | "idle" | "offline";
   hasAiKey: boolean;
@@ -81,6 +82,14 @@ export interface Room {
   aiUnlocked?: boolean;
 }
 
+// ⚠ かつてここには `connId`（在席中の接続 1 本）があった。**#95 S4b で落とした。**
+// 名簿の参加者が接続を複数持てるようになり（D14）、「接続 1 本」という形そのものが
+// 嘘になったためである。**製品コードの読み手は S4a 時点で 0 件**で、
+// `apps/timer-web` のテストの造作にだけ現れていた（サーバー側で配信の宛先を引く
+// 唯一の読み手は `create-sync-server.ts` の `broadcastSnapshot` だったが、
+// これは名簿を引く形へ揃えた）。`RoomSchema` は非 strict の `v.object` なので、
+// この項目を載せた古い snapshot のパースは今までどおり通る。
+//
 // ⚠ かつてここには `startedAt`（初めてセッションが開始された時刻）があった。
 // 役割の廃止（#95 S3）で読み手が 0 件になり、S4a で `TimerState` から値ごと消えた。
 // 書き手も読み手も無い任意項目を型と `RoomSchema` に残しても、**宣言の側にだけ生き残る

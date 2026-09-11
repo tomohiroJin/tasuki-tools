@@ -15,7 +15,7 @@ import { aRoomView } from "../support/room-view.js";
 
 function makeParticipant(overrides: Partial<Participant>): Participant {
   return {
-    participantId: "p1", connId: "c1", displayName: "Alice", presence: "online", hasAiKey: false, joinedAt: 1000, ...overrides,
+    participantId: "p1", displayName: "Alice", presence: "online", hasAiKey: false, joinedAt: 1000, ...overrides,
   };
 }
 
@@ -32,7 +32,7 @@ function makeRoom(assertive: boolean, currentIndex: number): Room {
     phase: "session",
     participants: [
       makeParticipant({ participantId: "p-alice", displayName: "Alice" }),
-      makeParticipant({ participantId: "p-carol", displayName: "Bob", connId: "c2" }),
+      makeParticipant({ participantId: "p-carol", displayName: "Bob" }),
     ],
   });
 }

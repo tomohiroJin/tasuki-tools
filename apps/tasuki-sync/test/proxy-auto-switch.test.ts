@@ -48,7 +48,6 @@ async function setupRoomWithSecond(
   const secondParticipant: Room["participants"][number] = {
     ...host,
     participantId: "pid-second-B",
-    connId: null,
     displayName: "B",
     presence: second.presence,
     isPlaceholder: second.isPlaceholder,

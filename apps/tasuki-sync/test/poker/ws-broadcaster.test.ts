@@ -98,24 +98,30 @@ describe('createWsBroadcaster', () => {
   });
 
   it('同じソケットを二度 attach しても配信は 1 通である（冪等）', () => {
+    // Given
     const broadcaster = createWsBroadcaster();
     const socket = recordingSocket();
 
+    // When: 同じソケットを二度 attach する
     broadcaster.attach('x', 'A', socket);
     broadcaster.attach('x', 'A', socket);
     broadcaster.broadcastSnapshot('x', createRound(), rosterOf('A'));
 
+    // Then
     expect(socket.received).toHaveLength(1);
   });
 
   it('登録されていないソケットの detach は false を返し、残りに影響しない', () => {
+    // Given: 参加者 A に 1 本だけ繋がっている
     const broadcaster = createWsBroadcaster();
     const attached = recordingSocket();
     const stranger = recordingSocket();
     broadcaster.attach('x', 'A', attached);
 
+    // When: 登録されていないソケットで detach を呼ぶ
     expect(broadcaster.detach('x', 'A', stranger)).toBe(false);
 
+    // Then: 繋がっているソケットは配信を受け続ける
     broadcaster.broadcastSnapshot('x', createRound(), rosterOf('A'));
     expect(attached.received).toHaveLength(1);
   });

@@ -152,17 +152,18 @@ describe("ドライバーの適格は在席で決まる（D21）", () => {
     const code = store.list().at(-1)!.code;
     const view = roomViewOf(store, timers, code);
     const a = view.participants[0]!;
-    const seat = (id: string, name: string, conn: string): Room["participants"][number] => ({
+    // wire は `connId` を持たない（#95 S4b）。この輪の 2 人はコマンドを送らないので
+    // 接続 ID は `putRoomView` の既定（`conn-<参加者 ID>`）に任せる。
+    const seat = (id: string, name: string): Room["participants"][number] => ({
       ...a,
       participantId: id,
-      connId: conn,
       displayName: name,
       presence: "online",
       driverEligible: true,
     });
     putRoomView(store, timers, {
       ...view,
-      participants: [a, seat("pid-b", "B", "conn-b"), seat("pid-c", "C", "conn-c")],
+      participants: [a, seat("pid-b", "B"), seat("pid-c", "C")],
       session: {
         ...view.session,
         rotation: [a.participantId, "pid-b", "pid-c"],
@@ -233,7 +234,6 @@ describe("ドライバーの適格は在席で決まる（D21）", () => {
           ...a,
           participantId: "proxy-1",
           displayName: "P",
-          connId: null,
           presence: "offline",
           isPlaceholder: true,
           driverEligible: true,

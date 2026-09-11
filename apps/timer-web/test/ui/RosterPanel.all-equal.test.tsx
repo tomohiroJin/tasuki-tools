@@ -24,7 +24,6 @@ const noop = vi.fn();
 
 function participant(overrides: Partial<Participant> & Pick<Participant, "participantId">): Participant {
   return {
-    connId: "c1",
     displayName: "だれか",
     presence: "online",
     hasAiKey: false,
@@ -45,7 +44,7 @@ const baseProps = {
 describe("#95 S3: 名簿は全員を同格に描く", () => {
   it("部屋を作った人でなくても他の参加者に退出の操作が出る", () => {
     // Given: 自分（みなと）は部屋を作った人ではない
-    const me = participant({ participantId: "p2", displayName: "みなと", connId: "c2" });
+    const me = participant({ participantId: "p2", displayName: "みなと" });
     const other = participant({ participantId: "p1", displayName: "あかり" });
     // When
     render(
@@ -62,7 +61,7 @@ describe("#95 S3: 名簿は全員を同格に描く", () => {
 
   it("自分の行には退出させる操作を出さない（自己退出は別経路）", () => {
     // Given
-    const me = participant({ participantId: "p2", displayName: "みなと", connId: "c2" });
+    const me = participant({ participantId: "p2", displayName: "みなと" });
     const other = participant({ participantId: "p1", displayName: "あかり" });
     // When
     render(

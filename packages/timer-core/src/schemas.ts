@@ -320,7 +320,7 @@ export type Command = v.InferOutput<typeof CommandSchema>;
 // T057: 自ファイル内でのみ使われるため export を外した（FR-119③・SC-039）。
 const ParticipantSchema = v.object({
   participantId,
-  connId: v.nullable(v.string()),
+  // ⚠ `connId` は #95 S4b で落とした（多接続では「接続 1 本」が嘘になる。`wire.ts` の注記）。
   displayName: nonEmptyString,
   presence: v.picklist(["online", "idle", "offline"]),
   hasAiKey: v.boolean(),

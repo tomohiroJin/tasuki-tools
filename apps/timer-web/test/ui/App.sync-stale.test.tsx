@@ -24,7 +24,6 @@ const CREATOR_ID = "p-alice";
 function participant(participantId: string, displayName: string) {
   return {
     participantId,
-    connId: `c-${participantId}`,
     displayName,
     presence: "online" as const,
     hasAiKey: false,

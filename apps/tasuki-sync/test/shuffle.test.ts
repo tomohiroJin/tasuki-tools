@@ -45,7 +45,7 @@ async function setupRoom(
   const code = store.list().at(-1)!.code;
 
   const room = roomViewOf(store, timers, code);
-  const creator = room.participants[0]!; // connId: HOST_CONN（ルームを作った接続）
+  const creator = room.participants[0]!; // 接続は HOST_CONN（ルームを作った接続）
   // rotation 上の各名に participant を割り当てる。先頭は作成者（HOST_CONN）を維持する。
   const participants: Room["participants"] = members.map((name, i) =>
     i === 0
@@ -53,11 +53,15 @@ async function setupRoom(
       : {
           ...creator,
           participantId: `pid-m-${i}`,
-          connId: `conn-${i}`,
           displayName: name,
         },
   );
 
+  // 接続 ID は wire に載らなくなった（#95 S4b）。作成者は本物の接続（HOST_CONN）を
+  // 保ちたいので**指定しない** —— `putRoomView` は既に名簿に居る人の接続をそのまま保つ。
+  const connIds = Object.fromEntries(
+    participants.slice(1).map((p, i) => [p.participantId, [`conn-${i + 1}`]]),
+  );
   putRoomView(store, timers, {
     ...room,
     participants,
@@ -69,7 +73,7 @@ async function setupRoom(
       driverCounts: members.map((_, i) => i + 1), // [1,2,3]
     },
     clock: { ...room.clock, running },
-  });
+  }, connIds);
   return code;
 }
 

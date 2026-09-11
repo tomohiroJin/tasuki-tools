@@ -57,7 +57,6 @@ function makeRoom(overrides?: Partial<Room>): Room {
     participants: [
       {
         participantId: "host",
-        connId: "host-conn",
         displayName: "Host",
         presence: "online",
         hasAiKey: true,
@@ -65,7 +64,6 @@ function makeRoom(overrides?: Partial<Room>): Room {
       },
       {
         participantId: "ed1",
-        connId: "ed1-conn",
         displayName: "Ed1",
         presence: "online",
         hasAiKey: true,
@@ -73,7 +71,6 @@ function makeRoom(overrides?: Partial<Room>): Room {
       },
       {
         participantId: "ed2",
-        connId: "ed2-conn",
         displayName: "Ed2",
         presence: "online",
         hasAiKey: true,
@@ -97,6 +94,19 @@ function needProblemTargets(b: SpyBroadcaster): string[] {
 /**
  * @requirements FR-023, FR-024, FR-025, FR-026, FR-027, US3
  */
+/**
+ * 前提の接続 ID（#95 S4b）。**wire は `connId` を持たなくなった**ので、
+ * どの参加者がどの接続を持つかは `putRoomView` の第 4 引数で明示する
+ * （このテストは need-problem の宛先を接続 ID で突き合わせるため、綴りが一致
+ * していなければならない）。
+ */
+const CONNS = {
+  host: ["host-conn"],
+  ed1: ["ed1-conn"],
+  ed2: ["ed2-conn"],
+  "host-p": ["host-c"],
+} as const;
+
 describe("ProblemDelegator: 代表生成", () => {
   let store: InMemoryRoomStore;
   let timers: InMemoryTimerStore;
@@ -120,7 +130,7 @@ describe("ProblemDelegator: 代表生成", () => {
 
   it("request で先頭候補（host）へ need-problem を送る", () => {
     // Given
-    putRoomView(store, timers, makeRoom());
+    putRoomView(store, timers, makeRoom(), CONNS);
 
     // When
     delegator.request("PD01", "req-1");
@@ -132,7 +142,7 @@ describe("ProblemDelegator: 代表生成", () => {
 
   it("候補が valid な problem を submit すると Room.problem に確定する", () => {
     // Given
-    putRoomView(store, timers, makeRoom());
+    putRoomView(store, timers, makeRoom(), CONNS);
     delegator.request("PD01", "req-1");
 
     // When
@@ -145,7 +155,7 @@ describe("ProblemDelegator: 代表生成", () => {
 
   it("submit 後に snapshot が配信される", () => {
     // Given
-    putRoomView(store, timers, makeRoom());
+    putRoomView(store, timers, makeRoom(), CONNS);
     delegator.request("PD01", "req-1");
     broadcaster.snapshots.length = 0;
 
@@ -158,7 +168,7 @@ describe("ProblemDelegator: 代表生成", () => {
 
   it("deadline 超過で次候補（ed1）へ再委譲する", () => {
     // Given
-    putRoomView(store, timers, makeRoom());
+    putRoomView(store, timers, makeRoom(), CONNS);
     delegator.request("PD01", "req-1");
 
     // When
@@ -171,7 +181,7 @@ describe("ProblemDelegator: 代表生成", () => {
 
   it("全候補が deadline 超過すると定型お題で確定する", () => {
     // Given
-    putRoomView(store, timers, makeRoom());
+    putRoomView(store, timers, makeRoom(), CONNS);
     delegator.request("PD01", "req-1");
 
     // When（host → ed1 → ed2 の 3 候補ぶん deadline を経過）
@@ -187,7 +197,7 @@ describe("ProblemDelegator: 代表生成", () => {
     // Given
     const room = makeRoom();
     room.participants = room.participants.map((p) => ({ ...p, hasAiKey: false }));
-    putRoomView(store, timers, room);
+    putRoomView(store, timers, room, CONNS);
 
     // When
     delegator.request("PD01", "req-1");
@@ -199,7 +209,7 @@ describe("ProblemDelegator: 代表生成", () => {
 
   it("不正な problem の submit は定型へ縮退する", () => {
     // Given
-    putRoomView(store, timers, makeRoom());
+    putRoomView(store, timers, makeRoom(), CONNS);
     delegator.request("PD01", "req-1");
 
     // When（不正な構造＝title 欠落を submit）
@@ -213,7 +223,7 @@ describe("ProblemDelegator: 代表生成", () => {
 
   it("リロール（新 request）で旧依頼の submit はキャンセルされる", () => {
     // Given
-    putRoomView(store, timers, makeRoom());
+    putRoomView(store, timers, makeRoom(), CONNS);
     delegator.request("PD01", "req-1");
     delegator.request("PD01", "req-2"); // リロール
 
@@ -226,7 +236,7 @@ describe("ProblemDelegator: 代表生成", () => {
 
   it("現候補でない参加者の submit は拒否される", () => {
     // Given
-    putRoomView(store, timers, makeRoom());
+    putRoomView(store, timers, makeRoom(), CONNS);
     delegator.request("PD01", "req-1");
 
     // When（先頭候補は host。ed2 が割り込んで submit する）
@@ -238,7 +248,7 @@ describe("ProblemDelegator: 代表生成", () => {
 
   it("リロード後、旧依頼の deadline 発火は新依頼の候補列を進めない（防御）", () => {
     // Given
-    putRoomView(store, timers, makeRoom());
+    putRoomView(store, timers, makeRoom(), CONNS);
     delegator.request("PD01", "req-1"); // host へオファー（旧タイマー）
     delegator.request("PD01", "req-2"); // リロード：cancel で旧タイマー解除、host へ再オファー
     broadcaster.sent.length = 0;
@@ -252,7 +262,7 @@ describe("ProblemDelegator: 代表生成", () => {
 
   it("候補が submit したら deadline タイマーは解除され次候補へ進まない", () => {
     // Given
-    putRoomView(store, timers, makeRoom());
+    putRoomView(store, timers, makeRoom(), CONNS);
     delegator.request("PD01", "req-1");
     delegator.submit("PD01", "req-1", "host", validProblem, false);
 
@@ -273,7 +283,6 @@ import { putRoomView, maybeRoomViewOf } from "./support/room-view.js";
 function makeRoomWithMode(mode: "ai" | "fallback", hasAiKey: boolean): Room {
   const participant: Participant = {
     participantId: "host-p",
-    connId: "host-c",
     displayName: "Host",
     presence: "online",
     hasAiKey,
@@ -316,7 +325,7 @@ describe("ProblemDelegator: problemMode による分岐", () => {
       broadcastSignal: () => {},
     };
     const room = makeRoomWithMode("fallback", true);
-    putRoomView(store, timers, room);
+    putRoomView(store, timers, room, CONNS);
     const delegator = new ProblemDelegator({
       store,
       timers,
@@ -347,7 +356,7 @@ describe("ProblemDelegator: problemMode による分岐", () => {
       broadcastSignal: () => {},
     };
     const room = makeRoomWithMode("ai", false);
-    putRoomView(store, timers, room);
+    putRoomView(store, timers, room, CONNS);
     const delegator = new ProblemDelegator({
       store,
       timers,

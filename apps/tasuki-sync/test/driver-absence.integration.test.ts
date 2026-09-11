@@ -80,19 +80,24 @@ describe("統合: ドライバー不在 自動繰上（presence→handlers 実�
     const code = store.list().at(-1)!.code;
     const room = roomViewOf(store, timers, code);
     const host = room.participants[0]!;
-    const participants: Room["participants"] = ["A", "B"].map((name, i) => ({
+    const names = ["A", "B"];
+    const participants: Room["participants"] = names.map((name, i) => ({
       ...host,
       participantId: `pid-test-${i}`,
-      connId: `conn-${name}`,
       displayName: name,
       presence: "online",
     }));
+    // 接続 ID は wire に載らなくなった（#95 S4b）。どの参加者がどの接続を持つかは
+    // `putRoomView` の第 4 引数で渡す（このテストはその接続 ID でコマンドや切断を送る）。
+    const connIds = Object.fromEntries(
+      participants.map((p, i) => [p.participantId, [`conn-${names[i]}`]]),
+    );
     putRoomView(store, timers, {
       ...room,
       participants,
       session: { ...room.session, rotation: participants.map((p) => p.participantId), currentIndex: 0 },
       clock: { ...room.clock, running: true },
-    });
+    }, connIds);
     return code;
   }
 
