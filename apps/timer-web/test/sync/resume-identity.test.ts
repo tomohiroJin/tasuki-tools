@@ -119,7 +119,8 @@ describe("resume-identity", () => {
 
   // **FR-006 の撤廃**（#95 D12）。旧実装は sessionStorage に 1 組だけ持っていた。
   it("localStorage に保存する（sessionStorage には残さない）", () => {
-    // Given / When
+    // Given: 何も保存されていない状態（beforeEach で両方 clear 済み）
+    // When
     saveResumeIdentity(alice);
 
     // Then

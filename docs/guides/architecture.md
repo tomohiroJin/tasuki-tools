@@ -29,7 +29,7 @@
 | 層 | 置き場 | 依存してよいもの |
 |---|---|---|
 | ドメイン（メンバーシップ文脈） | `packages/room-core` | なし（純粋関数と型のみ） |
-| ドメイン（ツール） | `packages/timer-core` `packages/poker-core` | なし（純粋関数と型のみ）。ただし `packages/timer-core` → `packages/room-core` は #95 S1 で生じた期限つきの一時依存で、**依存そのものは S4b で消える**（timer-core から表示名の扱いが無くなる段。当初は S4a と書いていたが、S4a〜#245 では `packages/timer-core/src/schemas.ts` が `normalizeDisplayName` を取り込んだままである。2026-09-10 に S4b へ送り直した）。`scripts/audit-dependency-direction.mjs` の許可表からその行を削除するのも S4b（`docs/adr/0017` 決定 4・同スクリプトの `ALLOWED` の注記が正しく「⏳ S4b で削除する」と言っている） |
+| ドメイン（ツール） | `packages/timer-core` `packages/poker-core` | なし（純粋関数と型のみ）。**#95 S1 で生じた `packages/timer-core` → `packages/room-core` の期限つき一時依存は S4b（#246）で解消した** —— 表示名の規約は `room-core` に残し、境界で適用する場所を `apps/tasuki-sync/src/application/normalize-command-names.ts` へ移した（`docs/adr/0017` の追記 2026-09-11）。`scripts/audit-dependency-direction.mjs` の許可表からも行が消えている |
 | プロトコル契約 | `packages/protocol`・各 core の `protocol.ts`（例: `packages/poker-core/src/protocol.ts`） | ドメインの型 |
 | 共有ユーティリティ（sync 専用） | `packages/rate-limit` | なし（node 標準ライブラリのみ。ドメインの型にも依存しない） |
 | アプリケーション | `apps/*-sync/src/application` | ドメイン・ポート・`packages/rate-limit` |

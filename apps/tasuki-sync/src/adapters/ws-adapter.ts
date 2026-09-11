@@ -28,7 +28,8 @@
  */
 
 import { CommandSchema } from "@tasuki/timer-core";
-import type { ServerMsg } from "@tasuki/timer-core";
+import { normalizeCommandNames } from "../application/normalize-command-names.js";
+import type { Command, ServerMsg } from "@tasuki/timer-core";
 import { parseClientMessage } from "@tasuki/poker-core";
 import { parseBoundaryMessage } from "@tasuki/protocol";
 import { classifyErrorKind } from "@tasuki/rate-limit";
@@ -572,11 +573,29 @@ export class WsAdapter {
       return;
     }
 
+    // **表示名の正規化と上限は境界のここで掛ける**（#95 S4b。
+    // `application/normalize-command-names.ts` の docstring に理由がある）。
+    // S4a までは wire スキーマ（`CommandSchema`）の `transform` が担っており、
+    // そのために `timer-core` が `@tasuki/room-core` を取り込んでいた。
+    //
+    // **応答は上の `INVALID_COMMAND` と同一である。** 同じ「コマンドの形が不正」という
+    // 答えなので、利用者が受け取るフレーム（コード・文言）を変えない ——
+    // ここを別のコードにすると、正規化の移設が wire の変更になってしまう。
+    const normalized = normalizeCommandNames(parsed.value as Command);
+    if (normalized.isErr()) {
+      this.sendFrame(ws, {
+        type: "error",
+        code: "INVALID_COMMAND",
+        message: "コマンドの形式が不正です",
+      });
+      return;
+    }
+
     // onMessage は型上 `Promise<void>` を返す契約だが、実装が async でなければ
     // 同期的に throw しうる（型は実行時の保証にはならない。`.catch` は reject
     // しか拾わない）。呼び出し自体を try/catch で囲んで別途隔離する（I-5）。
     try {
-      this.options.onMessage(connId, parsed.value).catch(() => {
+      this.options.onMessage(connId, normalized.value).catch(() => {
         this.sendInternalError(ws);
       });
     } catch (err) {

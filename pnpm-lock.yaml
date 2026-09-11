@@ -309,9 +309,6 @@ importers:
 
   packages/timer-core:
     dependencies:
-      '@tasuki/room-core':
-        specifier: workspace:*
-        version: link:../room-core
       neverthrow:
         specifier: ^8.1.1
         version: 8.2.0

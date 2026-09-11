@@ -188,13 +188,15 @@ SC-039④ は 33 → 26 件。残りの内訳と宛先は次のとおり。
 **24 件のうち 9 件は、外から現に使われている。** ただし取り込み口は `index.ts` ではなく
 **モジュール単位のサブパス**（`@tasuki/timer-core/aggregate`）で、`apps/timer-web` が
 上限値の定数（`MAX_DISPLAY_NAME` など）と `elapsedMs` `VALID_INTERVAL_MINUTES` を
-そこから取っている。サブパスは index を通らないので、**index の列挙が使われた根拠に
+そこから取っている（**`MAX_DISPLAY_NAME` は #95 S4b で `@tasuki/room-core` へ移した**ので、
+いまの取り込み先はそちらである。ここは #220 実施時点の記録）。サブパスは index を通らないので、**index の列挙が使われた根拠に
 ならない**（SC-039④ がサブパスを数えないのと同じ理由）。上の「代わりの入口があるなら
 列挙しない」に当たるため落とした。**利用側は 1 ファイルも変えていない。**
 
 残る 15 件は**パッケージの外の製品コードからの取り込みが無い**もので、SC-039④ が
 数えるのはここである。ただし「どこからも取り込まれていない」わけではない —— **4 件
-（`normalizeDisplayName` `RoomSchema` `MAX_DISPLAY_NAME` `DEFAULT_ERROR_MESSAGE`）は
+（`normalizeDisplayName` `RoomSchema` `MAX_DISPLAY_NAME` `DEFAULT_ERROR_MESSAGE`。
+前 2 つと `MAX_DISPLAY_NAME` は #95 S1 / S4b で `@tasuki/room-core` へ移った）は
 テストが index 経由で取り込んでいた**ので、取り込み口を宣言ファイルへ向け直している
 （timer-core 自身の 3 本は相対 import、`apps/tasuki-sync` の 1 本はサブパス）。
 テストからの参照を公開の根拠にしないのは FR-090 の延長であり、宣言側の `export` を守る

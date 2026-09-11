@@ -114,3 +114,32 @@ S4a（#245）が外したのは**名簿そのもの**（`Participant` の保管�
 **期限が動いたので、S4b の DoD では次の 2 つを別々に確認すること。**
 ①`timer-core` が `room-core` を取り込まなくなったこと、②`ALLOWED` からその行が消えたこと。
 ①だけを済ませて②を忘れても検査は緑のままである（この表がもともと警告していた形）。
+
+## 追記（2026-09-11・#95 S4b） — 期限つき一時依存 `timer-core → room-core` を解消した
+
+**期限が来たので外した。** 上の改定が求めた 2 つを、どちらも実測で確認した（2026-09-11）。
+
+| 何 | 実測 |
+|---|---|
+| ① `timer-core` が `room-core` を取り込まなくなった | `packages/timer-core/package.json` の `dependencies` から `"@tasuki/room-core"` を削除（`pnpm-lock.yaml` も更新）。`packages/timer-core` 配下に `@tasuki/room-core` の import は 0 件 |
+| ② `ALLOWED` からその行が消えた | `scripts/audit-dependency-direction.mjs` の `"packages/timer-core"` は `[]` になった |
+
+**外し方は「規約はメンバーシップ文脈に残し、適用する場所を移す」である。** 表示名の
+正規化と上限は `@tasuki/room-core`（`display-name.ts`。`MAX_DISPLAY_NAME` と
+`MAX_NFKC_EXPANSION` も timer-core からここへ移した）に置いたまま、それを**境界で適用する
+関数**を合成ルートへ新設した（`apps/tasuki-sync/src/application/normalize-command-names.ts`。
+`adapters/ws-adapter.ts` がパース直後に 1 度だけ呼ぶ）。timer の wire スキーマ
+（`CommandSchema`）は表示名を素の文字列として受けるだけになった。
+
+**利用者が受け取るフレームは変えていない。** 正規化の失敗は、スキーマが落としていたときと
+同じ `INVALID_COMMAND`（同じ文言）で返る。移設で配線が死んでいないことは実 WS の検査
+（`apps/tasuki-sync/test/live-ws.display-name.test.ts`）で見ており、**配線を切ると
+そのうち 1 本が赤になることも確認した**（原則 VII）。
+
+**破壊検証（設計正本 §6.3 の 3 通り）**も実施した。
+
+1. `packages/timer-core` から `@tasuki/room-core` を import する → 赤
+2. `package.json` にだけ書いて import しない → 赤
+3. どちらもしない → 緑（対照）
+
+決定 2・決定 4 そのものは変えていない。**表に期限つきの一時依存はもう 1 件も無い。**

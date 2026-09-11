@@ -8,7 +8,13 @@
  */
 
 // ./display-name
-export { normalizeDisplayName, nameSkeleton, conflictsWithExisting } from "./display-name.js";
+export {
+  MAX_DISPLAY_NAME,
+  MAX_NFKC_EXPANSION,
+  normalizeDisplayName,
+  nameSkeleton,
+  conflictsWithExisting,
+} from "./display-name.js";
 
 // ./room
 export {

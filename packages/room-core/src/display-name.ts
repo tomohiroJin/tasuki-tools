@@ -24,6 +24,26 @@
  */
 
 /**
+ * 表示名の最大長（文字数）。**正規化した後の長さ**に課す（#95 S4b で timer-core から移設）。
+ *
+ * これは「保存・配信・描画される値」の上限であり、巨大文字列による DoS を防ぐためのもの。
+ * したがって**正規化後に効いていなければ意味がない**。
+ *
+ * ⚠ **poker の `NAME_MAX_LENGTH`（24）と食い違っている。** 寄せるのは S5b（#248）——
+ * ハブで名乗った名前が poker へ届く段である（`packages/poker-core/src/name.ts` の注記）。
+ */
+export const MAX_DISPLAY_NAME = 40;
+
+/**
+ * NFKC が 1 文字を最大いくつへ展開しうるか（U+FDFA `ﷺ` は 18 文字へ展開される）。
+ *
+ * 正規化前の緩い上限を `MAX_DISPLAY_NAME * MAX_NFKC_EXPANSION` に置き、正規化後に
+ * `MAX_DISPLAY_NAME` を厳密に課す。前段だけだと展開で上限を突破される。
+ * 適用するのは境界（`apps/tasuki-sync/src/application/normalize-command-names.ts`）である。
+ */
+export const MAX_NFKC_EXPANSION = 18;
+
+/**
  * 識別子つきの呼び名（`participant-label.ts` が生成する `（ID: xxxx）`）の書式。
  *
  * 利用者がこの書式を名乗れると、「名前が衝突したときの最後の拠り所」である識別子を

@@ -9,7 +9,8 @@ import React, { useState } from "react";
 import { Sparkles, UserRound, History as HistoryIcon } from "lucide-react";
 import { Card, PrimaryButton, GhostButton } from "./primitives.js";
 import { savePreferences, loadPreferences } from "../prefs/local-prefs.js";
-import { MAX_DISPLAY_NAME, MAX_ROOM_NAME } from "@tasuki/timer-core/aggregate";
+import { MAX_ROOM_NAME } from "@tasuki/timer-core/aggregate";
+import { MAX_DISPLAY_NAME } from "@tasuki/room-core";
 
 interface SetupProps {
   /** 入力された自分の名前（と任意のルーム名）でルームを作成する。 */
