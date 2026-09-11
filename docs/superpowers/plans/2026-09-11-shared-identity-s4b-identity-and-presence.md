@@ -118,7 +118,7 @@
 | `apps/tasuki-sync/src/application/problem-delegation.ts` | 候補の送信先を「timer に在席している接続の 1 本」へ |
 | `apps/tasuki-sync/src/application/command-handlers/{room-create,room-join,participant-remove}.ts` | 接続の結び付け・退出通知の宛先を接続単位へ |
 | `apps/tasuki-sync/src/create-sync-server.ts` | 配信先を「そのツールに在席している接続」へ |
-| `apps/tasuki-sync/src/poker/**`（13 ファイル） | 多接続対応＋層のディレクトリへ移設（裁定 3） |
+| `apps/tasuki-sync/src/poker/**`（**実測 11 ファイル**。この表の「13」は着手前の私の数え違い） | 多接続対応＋層のディレクトリへ移設（裁定 3） |
 | `apps/timer-web/src/sync/resume-identity.ts` | `localStorage` にルームコード別。`load/save/clear` がコードを取る |
 | `apps/timer-web/src/sync/use-timer-sync.ts` | 保存・読み出し・破棄にルームコードを渡す |
 | `apps/timer-web/src/ui/{Join,Setup,components/RosterPanel}.tsx` | `MAX_DISPLAY_NAME` の取り込み先を `@tasuki/room-core` へ |

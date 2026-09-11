@@ -123,7 +123,8 @@ poker はもともとサーバーが送った `message` をそのまま描いて
 
 ### 4. 送信側は縛ったまま
 
-poker の同期サーバー（`apps/tasuki-sync/src/poker`）の `sendError(code: ErrorCode, ...)` は変えない。**受信側が広く受ける
+poker の同期サーバー（`apps/tasuki-sync/src/application/poker-handlers.ts` ほか
+`poker-` 接頭辞のファイル）の `sendError(code: ErrorCode, ...)` は変えない。**受信側が広く受ける
 ことと、送信側が好き勝手に送ってよいことは別である。** 新しいコードを足すときは
 `ERROR_CODES` に加える手順を保つ（そうしないと `error-messages.ts` や
 `contracts/ws-protocol.md` との対応が切れる）。

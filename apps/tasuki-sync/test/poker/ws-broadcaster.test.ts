@@ -12,8 +12,8 @@
  */
 import { describe, expect, it } from 'bun:test';
 import { createRound, type ParticipantFragment } from '@tasuki/poker-core';
-import { createWsBroadcaster } from '../../src/poker/adapters/ws-broadcaster';
-import type { RoomSocket } from '../../src/poker/ports/broadcaster';
+import { createWsBroadcaster } from '../../src/adapters/poker-ws-broadcaster';
+import type { RoomSocket } from '../../src/ports/poker-broadcaster';
 
 /** 受け取った本文を記録するだけのソケット */
 function recordingSocket(): RoomSocket & { readonly received: string[] } {

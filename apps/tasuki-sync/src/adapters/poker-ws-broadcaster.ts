@@ -19,7 +19,7 @@
 // Round / ParticipantFragment / ServerMessage の型は Broadcaster の戻り値型から文脈的に付くため、
 // ここでは import しない（import すると @typescript-eslint/no-unused-vars に掛かる）。
 import { createSnapshotBuilder } from '@tasuki/poker-core';
-import type { Broadcaster, RoomSocket } from '../ports/broadcaster';
+import type { Broadcaster, RoomSocket } from '../ports/poker-broadcaster.js';
 
 export function createWsBroadcaster(): Broadcaster {
   const byRoom = new Map<string, Map<string, Set<RoomSocket>>>();

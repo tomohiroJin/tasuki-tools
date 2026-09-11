@@ -12,7 +12,7 @@
  */
 import { createToolGate, type ToolGate } from "../../src/application/tool-gate.js";
 import type { TimerStore } from "../../src/ports/timer-store.js";
-import type { RoundStore } from "../../src/poker/ports/round-store.js";
+import type { RoundStore } from "../../src/ports/poker-round-store.js";
 
 export function testToolGate(stores: { timers?: TimerStore; rounds?: RoundStore }): ToolGate {
   return createToolGate({

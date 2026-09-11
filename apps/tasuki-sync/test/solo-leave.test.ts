@@ -20,7 +20,7 @@ import { createRoomDestroyer } from "../src/application/destroy-room.js";
 import { RoomReclaimer } from "../src/application/room-reclaimer.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
-import { InMemoryRoundStore } from "../src/poker/adapters/in-memory-round-store.js";
+import { InMemoryRoundStore } from "../src/adapters/poker-in-memory-round-store.js";
 import { createTokenStore } from "../src/application/token-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";

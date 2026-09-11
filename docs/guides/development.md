@@ -912,7 +912,7 @@ shellcheck・自己テスト（`node --test`）の対象は宣言ではなく `g
 
 **現役の規範文書（`LIVE_DOCS`）では、インラインコードに書いたリポジトリ内のパスも
 検査します。拡張子の有無は問いません**（#156）。ディレクトリ参照
-（`apps/tasuki-sync/src/poker/adapters`）も、`path:line` 表記の**行番号が対象ファイルの
+（`apps/tasuki-sync/src/adapters`）も、`path:line` 表記の**行番号が対象ファイルの
 行数を超えていないか**も見ます。次の 3 つは対象外です。
 
 - グロブ・変数展開・メタ変数を含むもの（`packages/*/src`・`apps/${APP}/dist`・

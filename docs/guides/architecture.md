@@ -11,16 +11,19 @@
 
 ## 層とディレクトリの対応表
 
-現在の構成に基づく対応表です。`apps/tasuki-sync/src` と `apps/tasuki-sync/src/poker` は
-どちらも `ls` で `adapters/` `application/` `ports/` の実在を確認済みで、表の
-`apps/*-sync/...` の行は両方に当てはまります（確認は 2026-09-08・#95 S2 の統合後。
-初出は 2026-08-17 で、当時は timer-sync と poker-sync の `src/` を見ていました）。
+現在の構成に基づく対応表です。`apps/tasuki-sync/src` は `ls` で `adapters/`
+`application/` `ports/` の実在を確認済みです（確認は 2026-09-11・#95 S4b の平坦化後。
+初出は 2026-08-17 で、当時は timer-sync と poker-sync の `src/` を、
+S2〜S4a では poker 側の入れ子（src/poker 配下。**S4b で畳みました**）も併せて
+見ていました）。
 
 > **#95 S2 で同期サーバーは 1 パッケージになりました**（`apps/tasuki-sync`。ADR 0004 の追記）。
 > `apps/*-sync/...` という書き方はそのままで、いま一致するのはこの 1 つだけです。
-> **poker の実装は `apps/tasuki-sync/src/poker/` 配下にあり**、層の対応は同じです
-> （`src/poker/application` はアプリケーション層、`src/poker/ports` はポート、
-> `src/poker/adapters` はアダプタ）。この入れ子は過渡的な形です。
+> **poker の実装も timer と同じ層のディレクトリに並びます**（#95 S4b で
+> `src/poker/` の入れ子を畳みました）。区別は `poker-` 接頭辞だけで、
+> `src/application/poker-handlers.ts` はアプリケーション層、
+> `src/ports/poker-round-store.ts` はポート、
+> `src/adapters/poker-ws-broadcaster.ts` はアダプタです。
 > **畳むのは S4b（[#246](https://github.com/tomohiroJin/tasuki-tools/issues/246)）です**
 > —— S4a（#245）で畳むと当初は書いていましたが、[#245](https://github.com/tomohiroJin/tasuki-tools/issues/245)
 > の完了条件に入っておらず、多数の import を動かす機械的な移動なので分けました
@@ -53,8 +56,9 @@
 （IP 文字列とキー文字列のみを扱う）ため「ドメイン」でもなく、両 sync アプリが使い、
 置き場も `src/` 直下（設定・組み立て）・`application/`・`adapters/` にまたがる
 横断的な共有ユーティリティとして独立の行に置く。**どの層から import するかは
-アプリごとに一様ではありません**（例: `apps/tasuki-sync/src/poker/adapters` からの import は
-0 件）。現況は `grep -rn "@tasuki/rate-limit" apps/*-sync/src` で引けます。
+アプリごとに一様ではありません**（例: poker のアダプタ
+（`apps/tasuki-sync/src/adapters/poker-*.ts`）からの import は 0 件）。
+現況は `grep -rn "@tasuki/rate-limit" apps/*-sync/src` で引けます。
 
 ## 判断フロー
 

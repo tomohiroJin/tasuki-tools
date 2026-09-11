@@ -37,7 +37,7 @@ import type { Logger } from "../application/log/logger.js";
 import { publicText, type LogSafe } from "../application/log/log-safe.js";
 import { CONN_REJECT_REASONS } from "../application/log/vocabulary.js";
 import { deriveClientKeySafely } from "./client-key-safety.js";
-import type { Handlers as PokerHandlers } from "../poker/application/handlers.js";
+import type { Handlers as PokerHandlers } from "../application/poker-handlers.js";
 
 /**
  * poker のメッセージ層へ振り分けるパス。**小文字で書く**（照合は小文字化してから行う）。
@@ -204,7 +204,7 @@ export interface WsAdapterOptions {
  *
  * **poker 用の 3 つ（`rateKey` / `participantId` / `roomId`）を timer の接続も
  * 持ち回る。** 統合前の poker は同じ 3 つを自分の `ConnectionData` に持っており、
- * `HandlerConnection`（`poker/application/handlers.ts`）が構造的にこれを要求する。
+ * `HandlerConnection`（`application/poker-handlers.ts`）が構造的にこれを要求する。
  * timer 側はこの 3 つを読み書きしない（timer のハンドラは `connId` だけで話し、
  * レート制限の鍵は `onConnect` で受け取ってアプリ層の `RateLimitGate` が持つ）。
  * ⏳ **文脈ごとに分けるのは S4b（#246）で行う**（設計正本 §5.4・D14 の多接続模型の段）。

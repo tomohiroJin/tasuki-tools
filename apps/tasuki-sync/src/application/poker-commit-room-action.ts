@@ -18,7 +18,7 @@ import type {
   RoundError,
 } from '@tasuki/poker-core';
 import type { Result } from 'neverthrow';
-import type { HandlerConnection, RoomState } from './handlers';
+import type { HandlerConnection, RoomState } from './poker-handlers.js';
 
 /** ドメイン操作 1 つ。ラウンドと実行者から次のラウンドを返す（失敗は `RoundError`）。 */
 export type RoomAction = (round: Round, participantId: string) => Result<Round, RoundError>;

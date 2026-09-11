@@ -56,11 +56,11 @@ import { createLogger } from "./application/log/logger.js";
 import { createTokenStore } from "./application/token-store.js";
 import { createRefEncoder } from "./application/log/ref-encoder.js";
 import { consoleLogSink } from "./adapters/console-log-sink.js";
-import { InMemoryRoundStore } from "./poker/adapters/in-memory-round-store.js";
-import { createPerformanceClock } from "./poker/adapters/performance-clock.js";
-import { createCryptoIdGen } from "./poker/adapters/crypto-id-gen.js";
-import { createWsBroadcaster } from "./poker/adapters/ws-broadcaster.js";
-import { makeHandlers as makePokerHandlers } from "./poker/application/handlers.js";
+import { InMemoryRoundStore } from "./adapters/poker-in-memory-round-store.js";
+import { createPerformanceClock } from "./adapters/poker-performance-clock.js";
+import { createCryptoIdGen } from "./adapters/poker-crypto-id-gen.js";
+import { createWsBroadcaster } from "./adapters/poker-ws-broadcaster.js";
+import { makeHandlers as makePokerHandlers } from "./application/poker-handlers.js";
 import type { SyncConfig } from "./config.js";
 import type { Room, ServerMsg, Command } from "@tasuki/timer-core";
 
@@ -244,7 +244,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
   //
   // **#95 S4a で `rounds`（poker のラウンド）もここが解放するようになった。**
   // 寿命はツールごとではなくルームごとに 1 つなので、poker 側に別の破棄経路は無い
-  // （旧 `poker/application/handlers.ts` の即時破棄は撤去した・R10・D8）。
+  // （旧 `application/poker-handlers.ts` の即時破棄は撤去した・R10・D8）。
   destroyRoom = createRoomDestroyer({
     store,
     timers,

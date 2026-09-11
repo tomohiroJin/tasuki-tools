@@ -55,17 +55,17 @@ import {
   type Room as MembershipRoom,
 } from '@tasuki/room-core';
 import type { RateLimiter } from '@tasuki/rate-limit';
-import type { Clock } from '../../ports/clock.js';
-import type { RoomStore } from '../../ports/room-store.js';
-import type { TokenStore } from '../../application/token-store.js';
-import type { Broadcaster, RoomSocket } from '../ports/broadcaster';
-import type { IdGen } from '../ports/id-gen';
-import type { MonotonicClock } from '../ports/monotonic-clock';
-import type { RoundStore } from '../ports/round-store';
-import type { ToolGate } from '../../application/tool-gate.js';
-import { TOOL_POKER } from '../../application/tool-id.js';
-import { createCommitRoomAction, createDispatch } from './commit-room-action';
-import { createRateLimitGate } from './rate-limit-gate';
+import type { Clock } from '../ports/clock.js';
+import type { RoomStore } from '../ports/room-store.js';
+import type { TokenStore } from './token-store.js';
+import type { Broadcaster, RoomSocket } from '../ports/poker-broadcaster.js';
+import type { IdGen } from '../ports/poker-id-gen.js';
+import type { MonotonicClock } from '../ports/poker-monotonic-clock.js';
+import type { RoundStore } from '../ports/poker-round-store.js';
+import type { ToolGate } from './tool-gate.js';
+import { TOOL_POKER } from './tool-id.js';
+import { createCommitRoomAction, createDispatch } from './poker-commit-room-action.js';
+import { createRateLimitGate } from './poker-rate-limit-gate.js';
 
 /**
  * ハンドラが接続に求めるものすべて。

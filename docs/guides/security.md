@@ -16,7 +16,8 @@ S1〜S13）は [`docs/adr/0011`](../adr/0011-threat-model-and-data-classificatio
 解消しています**（ADR 0012 の追記）。統合サーバーの出力口はロガ 1 本だけです。
 
 **規律は poker の実装にも等しく効きます。** `scripts/audit-log-hygiene.mjs` は
-`apps/tasuki-sync/src/poker` も走査するので、許可マーカーの無い直接出力は増やせません。
+`apps/tasuki-sync/src` を丸ごと走査するので poker の実装（`poker-` 接頭辞のファイル）も
+含み、許可マーカーの無い直接出力は増やせません。
 分類「秘密・資格情報・個人に紐づく」の値をログへ出さないという規範（憲法 原則 XI、
 [`docs/adr/0011`](../adr/0011-threat-model-and-data-classification.md) 決定1）は、
 どの文脈のコードにも同じように適用されます。

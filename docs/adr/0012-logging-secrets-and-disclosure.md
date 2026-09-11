@@ -69,7 +69,9 @@ timer-sync の起動ログと設定エラーは、当初この例外に数えて
 poker 側のログ出力が `listening` 以外にも増えるときとする）。
 
 ただし**規律の対象からは外さない**。`scripts/audit-log-hygiene.mjs` は
-`apps/tasuki-sync/src/poker` も走査対象に含み、許可マーカーの無い直接出力は増やせない
+`apps/tasuki-sync/src` を丸ごと走査するので poker の実装（`poker-` 接頭辞のファイル。
+#95 S4b で `src/poker/` の入れ子から層のディレクトリへ畳んだ）も含み、
+許可マーカーの無い直接出力は増やせない
 （**MUST NOT**）。分類「秘密・資格情報・個人に紐づく」の値をログへ出さないという
 規範（憲法 原則 XI・ADR 0011 決定1）は、ロガの有無にかかわらず poker-sync にも効く。
 

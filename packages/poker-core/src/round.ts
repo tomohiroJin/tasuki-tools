@@ -74,7 +74,7 @@ export function applyAutoReveal(round: Round, voters: readonly VoterView[]): Rou
  * **在室確認はしない** —— 在室性は接続の束縛が担保する既存設計であり、
  * 在席（設計正本 D14・D21）で見直すのは S4b（#246）である（S4a では振る舞いを変えない）。
  * `actorId` は呼び出し元が `RoomAction`（`(round, participantId) => Result<Round, RoundError>`。
- * 実体は `apps/tasuki-sync/src/poker/application/commit-room-action.ts`）として渡す都合上、
+ * 実体は `apps/tasuki-sync/src/application/poker-commit-room-action.ts`）として渡す都合上、
  * 引数の形を保つためだけに残る。
  */
 export function revealBy(round: Round, _actorId: string): Result<Round, RoundError> {
