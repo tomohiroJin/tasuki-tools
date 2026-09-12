@@ -162,6 +162,25 @@ describe("入室失敗のレート制限", () => {
     // Then
     expect(broadcaster.errorsTo(conn).at(-1)?.code).toBe("JOIN_RATE_LIMITED");
   });
+
+  it("残量が無いとき、実在しないコードでも JOIN_RATE_LIMITED を返す（存在を教えない）", async () => {
+    // Given（準備）: 残量を使い切る
+    handlers.handleConnectionOpen(conn, "client-A");
+    for (let i = 0; i < DEFAULT_CAPACITY; i++) await badJoin(handlers, conn);
+
+    // When（操作）: 在りもしないコードで入ろうとする
+    await handlers.handleCommand(conn, {
+      command: "room.join",
+      code: "ないルーム-0000",
+      displayName: "侵入者",
+      hasAiKey: false,
+    });
+
+    // Then: **ROOM_NOT_FOUND を返してはならない**（設計正本 D3）。
+    //       照会してから残量を見る実装だと、攻撃者はトークンを消費せずに
+    //       「そのコードのルームが在るか」を数え続けられる
+    expect(broadcaster.errorsTo(conn).at(-1)?.code).toBe("JOIN_RATE_LIMITED");
+  });
 });
 
 /**
