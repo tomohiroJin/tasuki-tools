@@ -1,0 +1,13 @@
+diff --git a/apps/tasuki-sync/src/application/timer-snapshot-dto.ts b/apps/tasuki-sync/src/application/timer-snapshot-dto.ts
+index f52ec0a..899e032 100644
+--- a/apps/tasuki-sync/src/application/timer-snapshot-dto.ts
++++ b/apps/tasuki-sync/src/application/timer-snapshot-dto.ts
+@@ -137,7 +137,7 @@ function showsInTimer(participant: MembershipParticipant): boolean {
+ 
+ export function buildTimerSnapshotRoom(membership: MembershipRoom, timer: TimerState): Room {
+   const aiKeys = new Set(timer.aiKeyHolders);
+-  const members: Participant[] = membership.participants.filter(showsInTimer).map((p) => {
++  const members: Participant[] = membership.participants.map((p) => {
+     // 適格は**席の属性**なので、輪に席がある人だけが値を持つ（輪の外の人は省略）。
+     // S4a 以前は「一度でも見送り／復帰を押した人」だけが値を持っていたが、`false` と
+     // `true` のどちらも同じ条件で出るこの形のほうが素直で、判定（`=== false` /

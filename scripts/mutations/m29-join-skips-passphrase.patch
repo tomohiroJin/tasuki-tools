@@ -1,0 +1,13 @@
+diff --git a/apps/tasuki-sync/src/application/join-room.ts b/apps/tasuki-sync/src/application/join-room.ts
+index 1aba617..439cb74 100644
+--- a/apps/tasuki-sync/src/application/join-room.ts
++++ b/apps/tasuki-sync/src/application/join-room.ts
+@@ -141,7 +141,7 @@ export function joinRoom(
+   // 保持側と同じく前後空白を正規化して比較する。
+   const provided = (input.passphrase ?? "").trim();
+   // 秘密の照合は定数時間で行う（ADR 0012・管理トークン／AI 解錠と同じ規律）。
+-  if (required !== undefined && !constantTimeEqual(provided, required)) {
++  if (false && required !== undefined && !constantTimeEqual(provided, required)) {
+     // 失敗をレート制限に積算（総当たりの緩和・既存 join 制限と統合）。
+     rateLimitGate.consume(input.connId, rateNow);
+     return err(provided ? "PASSPHRASE_MISMATCH" : "PASSPHRASE_REQUIRED");
