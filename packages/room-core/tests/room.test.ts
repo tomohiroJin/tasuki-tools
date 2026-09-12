@@ -274,4 +274,19 @@ describe("配信先の解決（connectionsIn）", () => {
   it("誰も在席していなければ空を返す", () => {
     expect(connectionsIn({ ...room, participants: [] }, "timer")).toEqual([]);
   });
+
+  it("null はハブ（ツールを宣言していない接続）を指す", () => {
+    // Given（準備）: 1 人が選択画面とタイマーを別タブで開き、もう 1 人は選択画面だけに居る
+    const crowd: Room = {
+      ...room,
+      participants: [
+        { ...alice, connections: new Map([["c1", null], ["c2", "timer"]]) },
+        { ...bob, connections: new Map([["c3", null]]) },
+      ],
+    };
+
+    // When / Then（操作）: ハブの配信先は宣言の無い接続で、ツールの配信先とは重ならない
+    expect(connectionsIn(crowd, null)).toEqual(["c1", "c3"]);
+    expect(connectionsIn(crowd, "timer")).toEqual(["c2"]);
+  });
 });
