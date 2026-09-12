@@ -8,7 +8,11 @@
  */
 
 import { validateProblem, pickFallback, type Problem, type TimerState } from "@tasuki/timer-core";
-import type { Room as MembershipRoom } from "@tasuki/room-core";
+import type {
+  Participant as MembershipParticipant,
+  Room as MembershipRoom,
+} from "@tasuki/room-core";
+import { TOOL_TIMER } from "./tool-id.js";
 import type { RoomStore } from "../ports/room-store.js";
 import type { TimerStore } from "../ports/timer-store.js";
 import { buildTimerSnapshotRoom } from "./timer-snapshot-dto.js";
@@ -297,14 +301,21 @@ export class ProblemDelegator {
     // 候補は名簿の参加者（代理は AI 鍵を持たないので候補列に載らない）。
     const candidate = membership.participants.find((p) => p.id === candidateId);
 
-    // 候補が離脱・オフラインなら即座に次候補へ（FR-026）
-    if (!candidate || candidate.connId === null || candidate.presence === "offline") {
+    // **依頼先は「timer を見ている接続」の 1 本である**（#95 S4b）。
+    // 候補が離脱・タイマーの前に居ないなら即座に次候補へ（FR-026）。
+    //
+    // **全接続へは送らない。** 同じ人が選択画面とタイマーを別タブで開いていると、
+    // 両方が生成を始めて 1 つの依頼に 2 つの回答が返る（後から来たほうは
+    // `STALE_SUBMISSION` で弾かれるが、AI の呼び出しは 2 回起きる）。
+    // 宣言順の先頭を採るのは、どれを選んでも同じだからである（同一人物の同一鍵）。
+    const target = candidate === undefined ? undefined : timerConnectionOf(candidate);
+    if (target === undefined) {
       state.index++;
       this.offerToCurrent(roomCode);
       return;
     }
 
-    this.broadcaster.sendTo(candidate.connId, {
+    this.broadcaster.sendTo(target, {
       type: "signal",
       signal: "need-problem",
       requestId: state.requestId,
@@ -354,9 +365,24 @@ function buildCandidates(membership: MembershipRoom, timer: TimerState): string[
   // AI 鍵の持ち主は timer の状態が持つ（#95 S4a）。名簿はツールを知らない。
   const holders = new Set(timer.aiKeyHolders);
   const ordered = membership.participants
-    .filter((p) => p.presence === "online" && p.connId !== null && holders.has(p.id))
+    .filter((p) => timerConnectionOf(p) !== undefined && holders.has(p.id))
     .sort((a, b) => a.joinedAt - b.joinedAt)
     .map((p) => p.id);
 
   return [...ordered, FALLBACK];
+}
+
+/**
+ * その人が timer を見ている接続の 1 本（宣言順の先頭）。居なければ `undefined`。
+ *
+ * S4a までは `connId !== null && presence !== "offline"` がこの判定だった。
+ * 多接続模型では**どのツールを見ているか**まで見る必要がある（#95 S4b・D21）——
+ * 選択画面のタブだけを開いている人に「お題を作って」と頼んでも、その画面に
+ * お題生成の UI は無い。
+ */
+function timerConnectionOf(participant: MembershipParticipant): string | undefined {
+  for (const [connId, tool] of participant.connections) {
+    if (tool === TOOL_TIMER) return connId;
+  }
+  return undefined;
 }

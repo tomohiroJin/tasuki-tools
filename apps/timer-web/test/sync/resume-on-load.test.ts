@@ -2,7 +2,7 @@
  * 再読込・タブ復元での復帰判定（#76 F-3）。
  *
  * これまで復帰は WS の自動再接続（onReconnected）経路にしか無く、ページを読み直すと
- * 必ず参加画面に戻された。sessionStorage には resumeToken が残っているのに使われず、
+ * 必ず参加画面に戻された。保存済みの resumeToken が残っているのに使われず、
  * 名前と参加方法を入れ直し、ローテーションにも入り直す必要があった。
  * poker は再読込で復帰するため、同じ製品の中で挙動が割れていた。
  */
@@ -20,7 +20,7 @@ const identity = (over: Partial<ResumeIdentity> = {}): ResumeIdentity => ({
 
 describe("shouldResumeOnLoad", () => {
   it("同じルームの保存済み識別情報があれば復帰する", () => {
-    // Given: セッション中に再読込した（sessionStorage は同一タブで生き残る）
+    // Given: セッション中に再読込した（復帰の組は localStorage に残る・#95 S4b）
     // When: URL のルームと保存済みのルームが一致する
     // Then: 名前を入れ直させず、そのまま戻す
     expect(shouldResumeOnLoad(identity(), "ROOM01")).toBe(true);

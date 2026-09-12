@@ -28,7 +28,8 @@
  */
 
 import { CommandSchema } from "@tasuki/timer-core";
-import type { ServerMsg } from "@tasuki/timer-core";
+import { normalizeCommandNames } from "../application/normalize-command-names.js";
+import type { Command, ServerMsg } from "@tasuki/timer-core";
 import { parseClientMessage } from "@tasuki/poker-core";
 import { parseBoundaryMessage } from "@tasuki/protocol";
 import { classifyErrorKind } from "@tasuki/rate-limit";
@@ -36,7 +37,7 @@ import type { Logger } from "../application/log/logger.js";
 import { publicText, type LogSafe } from "../application/log/log-safe.js";
 import { CONN_REJECT_REASONS } from "../application/log/vocabulary.js";
 import { deriveClientKeySafely } from "./client-key-safety.js";
-import type { Handlers as PokerHandlers } from "../poker/application/handlers.js";
+import type { Handlers as PokerHandlers } from "../application/poker-handlers.js";
 
 /**
  * poker のメッセージ層へ振り分けるパス。**小文字で書く**（照合は小文字化してから行う）。
@@ -203,13 +204,17 @@ export interface WsAdapterOptions {
  *
  * **poker 用の 3 つ（`rateKey` / `participantId` / `roomId`）を timer の接続も
  * 持ち回る。** 統合前の poker は同じ 3 つを自分の `ConnectionData` に持っており、
- * `HandlerConnection`（`poker/application/handlers.ts`）が構造的にこれを要求する。
+ * `HandlerConnection`（`application/poker-handlers.ts`）が構造的にこれを要求する。
  * timer 側はこの 3 つを読み書きしない（timer のハンドラは `connId` だけで話し、
  * レート制限の鍵は `onConnect` で受け取ってアプリ層の `RateLimitGate` が持つ）。
- * ⏳ **文脈ごとに分けるのは S4b（#246）で行う**（設計正本 §5.4・D14 の多接続模型の段）。
- * S4a（#245）の仕事だと書いていたが、名簿の統合はここに触れずに済んだので分けなかった。
- * S2 で分けると、poker のハンドラとその 20 本近いテストを同じ PR で書き換えることになり、
- * 「純粋な移設で振る舞いを変えない」という段の前提を自分で壊す。
+ * ⏳ **文脈ごとに分けるのは S5c（#249）へ送った**（2026-09-11・S4b 実施時）。
+ * 宛先は S4a（#245）→ S4b（#246）→ S5c（#249）と 2 度動いている。**S4b では
+ * 分ける理由が無かった** —— 多接続模型（D14）が変えたのは名簿の側（`Participant` が
+ * 接続の集まりを持つ）で、接続ごとに持ち回る値の割り方には触れずに済んだ。
+ * **S5c は WS の入口を `/ws` 1 本へ畳む段**であり、そのとき `protocol` の決まり方
+ * （いまはパス）自体が変わる。この構造を割るのは、割り方が決まるその段が最も安い。
+ * S2 で分けなかった理由も残す: poker のハンドラとその 20 本近いテストを同じ PR で
+ * 書き換えることになり、「純粋な移設で振る舞いを変えない」という段の前提を自分で壊す。
  */
 interface ConnectionData {
   connId: string;
@@ -572,11 +577,29 @@ export class WsAdapter {
       return;
     }
 
+    // **表示名の正規化と上限は境界のここで掛ける**（#95 S4b。
+    // `application/normalize-command-names.ts` の docstring に理由がある）。
+    // S4a までは wire スキーマ（`CommandSchema`）の `transform` が担っており、
+    // そのために `timer-core` が `@tasuki/room-core` を取り込んでいた。
+    //
+    // **応答は上の `INVALID_COMMAND` と同一である。** 同じ「コマンドの形が不正」という
+    // 答えなので、利用者が受け取るフレーム（コード・文言）を変えない ——
+    // ここを別のコードにすると、正規化の移設が wire の変更になってしまう。
+    const normalized = normalizeCommandNames(parsed.value as Command);
+    if (normalized.isErr()) {
+      this.sendFrame(ws, {
+        type: "error",
+        code: "INVALID_COMMAND",
+        message: "コマンドの形式が不正です",
+      });
+      return;
+    }
+
     // onMessage は型上 `Promise<void>` を返す契約だが、実装が async でなければ
     // 同期的に throw しうる（型は実行時の保証にはならない。`.catch` は reject
     // しか拾わない）。呼び出し自体を try/catch で囲んで別途隔離する（I-5）。
     try {
-      this.options.onMessage(connId, parsed.value).catch(() => {
+      this.options.onMessage(connId, normalized.value).catch(() => {
         this.sendInternalError(ws);
       });
     } catch (err) {

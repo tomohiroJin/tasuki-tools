@@ -8,8 +8,6 @@ import {
   VALID_INTERVAL_MINUTES,
   MAX_MEMBERS,
   MAX_PROBLEM_REQUIREMENTS,
-  MAX_DISPLAY_NAME,
-  MAX_NFKC_EXPANSION,
   MAX_ROOM_NAME,
   MAX_HANDOFF_NOTE,
   MAX_PROBLEM_TITLE,
@@ -21,39 +19,28 @@ import {
   MAX_CONFIG_LANGUAGE,
   MAX_CONFIG_DIFFICULTY,
 } from "./aggregate.js";
-// #95 S1: 表示名の規約はメンバーシップ文脈（room-core）へ移した。
-// ⏳ S4b で削除する（#95・一時依存）—— timer-core が表示名を検証しなくなる段。
-// S4a（#245）では消えなかったので宛先を送り直した（docs/adr/0017 決定 4 の改定 2026-09-10。
-// scripts/audit-dependency-direction.mjs の ALLOWED も同じ段で消す）。
-import { normalizeDisplayName } from "@tasuki/room-core";
-
 // ─── 共通 ───────────────────────────────────────────────────────────────────
 
 const nonEmptyString = v.pipe(v.string(), v.minLength(1));
 const participantId = nonEmptyString;
 
-// ユーザ入力文字列は信頼境界で最大長を課す（A04・巨大入力 DoS 対策）。
-// 表示名は正規化してから長さを課す（display-name.ts）。
-// 正規化を境界で1度だけ行うことで、以後は正規形しか流れない。入口ごとに trim の有無が
-// 違うと必ずどこかが抜ける（実機では room.join だけ素通りし、"  Bob  " が
-// 画面上 "Bob" と見分けの付かない別人として並んだ）。
+// 表示名は**この層では形だけを見る**（#95 S4b）。
 //
-// **最大長は正規化の前後で二重に課す。**
-// - 前（緩い）: 明らかな巨大入力を NFKC の計算より手前で弾く
-// - 後（厳密）: 実際に保存・配信される長さを保証する
+// S4a まで、ここで正規化（`normalizeDisplayName`）と上限（正規化前後の二重）を
+// 課していた。そのために `timer-core` が `@tasuki/room-core` を取り込んでいた ——
+// 期限つきの一時依存として記録されていたものである（`docs/adr/0017` 決定 4）。
+// **表示名の規約はメンバーシップ文脈のものなので、S4b で適用場所を境界の
+// アプリケーション層（`apps/tasuki-sync/src/application/normalize-command-names.ts`）へ
+// 移した。** 規約そのもの（正規則と上限）は `@tasuki/room-core` に住んでいる。
 //
-// 後段が要るのは **NFKC が文字数を増やしうる**ため。互換分解を持つ文字は1文字が
-// 複数文字へ展開され、最大18倍になる（U+FDFA `ﷺ` → "صلى الله عليه وسلم"）。
-// 前段だけだと 40 文字の入力が 720 文字として保存され、全参加者へ配信・描画される。
-// 上限は巨大文字列の保存/ブロードキャスト/描画による DoS を防ぐためのものなので、
-// **保存される値に対して**効いていなければ意味がない。
-const displayNameStr = v.pipe(
-  v.string(),
-  v.maxLength(MAX_DISPLAY_NAME * MAX_NFKC_EXPANSION),
-  v.transform(normalizeDisplayName),
-  v.minLength(1),
-  v.maxLength(MAX_DISPLAY_NAME),
-);
+// **この変更で利用者が受け取るフレームは変わらない** —— 正規化の失敗は、ここで
+// スキーマが落としていたときと同じ `INVALID_COMMAND`（同じ文言）で返る。
+// 経路の検査は `apps/tasuki-sync/test/live-ws.display-name.test.ts`。
+//
+// ⚠ **ここに上限を書き戻さないこと。** 書き戻すと上限の正本が 2 つになり、
+// `MAX_DISPLAY_NAME` を動かす段（S5b・#248 で poker の 24 と統合する）で片方が取り残される。
+// 巨大入力そのものは接続層のフレーム上限（`maxMessageBytes`）が先に弾く。
+const displayNameStr = v.string();
 const problemTitleStr = v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_PROBLEM_TITLE));
 const problemTextStr = v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_PROBLEM_TEXT));
 const requirementStr = v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_PROBLEM_TEXT));
@@ -71,8 +58,15 @@ const SessionConfigSchema = v.object({
   difficulty: difficultyStr,
   // 境界では 1 人以上を許可する（ルームは作成者 1 人で始まり、join で増える＝2層モデル）。
   // 「セッション中に 2 人未満へ削除しない」という不変条件は decide の guard 側で担保する。
+  // **ここは `displayNameStr` を使わない**（#95 S4b）。`SessionConfig` は
+  // **入ってくるコマンド（`room.create` / `config.set`）と出ていく snapshot の両方**が
+  // 通るスキーマである。出ていく側の `members` は「ローテーション順の表示名」であり、
+  // 空文字が載るのはサーバー側の不整合（rotation に名簿の居ない ID が残った形）なので、
+  // **クライアントの契約検査がそれを捨てられなければならない**
+  // （`apps/timer-web/src/sync/dispatch.ts` → `test/sync/dispatch.test.ts`）。
+  // 入ってくる側の `members` は境界で捨てられる（`build-domain-command.ts`・D6b）。
   members: v.pipe(
-    v.array(displayNameStr),
+    v.array(nonEmptyString),
     v.minLength(1),
     v.maxLength(MAX_MEMBERS),
   ),
@@ -320,7 +314,7 @@ export type Command = v.InferOutput<typeof CommandSchema>;
 // T057: 自ファイル内でのみ使われるため export を外した（FR-119③・SC-039）。
 const ParticipantSchema = v.object({
   participantId,
-  connId: v.nullable(v.string()),
+  // ⚠ `connId` は #95 S4b で落とした（多接続では「接続 1 本」が嘘になる。`wire.ts` の注記）。
   displayName: nonEmptyString,
   presence: v.picklist(["online", "idle", "offline"]),
   hasAiKey: v.boolean(),

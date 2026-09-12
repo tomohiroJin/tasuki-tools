@@ -8,7 +8,6 @@ import type { Participant } from "@tasuki/timer-core";
 function makeParticipant(overrides?: Partial<Participant>): Participant {
   return {
     participantId: "p1",
-    connId: "conn1",
     displayName: "Alice",
     presence: "online",
     hasAiKey: false,

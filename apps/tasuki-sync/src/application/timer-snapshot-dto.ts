@@ -14,10 +14,20 @@
  * 3. **`driverEligible` の出し方が変わった**（`buildTimerSnapshotRoom` の `eligible` の注記）。
  *    値を持つ条件が「押した人だけ」から「輪に席がある人」へ変わり、判定の結果は一致する
  *
+ * ★ **S4b で wire が変わった点も、この台帳に続けて書く。**
+ *
+ * 4. **`connId` を型と `RoomSchema` から落とした**（`wire.ts` の `connId` の注記）。
+ *    参加者が接続を複数持てるようになり（D14）、「接続 1 本」という形が嘘になった。
+ *    製品コードの読み手は 0 件で、サーバー側の唯一の読み手だった配信の宛先解決は
+ *    名簿を引く形へ揃えた（`create-sync-server.ts` の `recipientsOf`）
+ * 5. **`presence` が導出値になった**（`presenceOf`）。値域から `"idle"` が実質消えた
+ *    —— 代入する経路は S4a 時点で 0 件で、導出では表現できない。`RoomSchema` は
+ *    3 値を受けたままなので、古い snapshot のパースは通る
+ *
  * 代理（`isPlaceholder`）はここで**合成される**。名簿には居らず、輪の上の席
  * （`RotationEntry` の `kind: "proxy"`）としてだけ存在するためである。
  */
-import type { Room as MembershipRoom } from "@tasuki/room-core";
+import { presenceOf, type ConnId, type Room as MembershipRoom } from "@tasuki/room-core";
 import {
   rotationEntryId,
   type Participant,
@@ -58,7 +68,14 @@ export interface Occupant {
   isPlaceholder: boolean;
   /** 在席（代理は常に offline。対面で居るがブラウザは繋いでいない） */
   presence: "online" | "idle" | "offline";
-  connId: string | null;
+  /**
+   * その人が持っている接続（#95 S4b）。**1 本ではない。**
+   *
+   * 退出の通知はここに載っている**すべての接続へ送る** —— 選択画面とツールを別タブで
+   * 開いている人を片方のタブだけ追い出すと、残ったタブは存在しないルームの画面を
+   * 映したままになる。代理は接続を持たないので常に空である。
+   */
+  connIds: ConnId[];
 }
 
 export function occupants(membership: MembershipRoom, timer: TimerState): Occupant[] {
@@ -67,15 +84,15 @@ export function occupants(membership: MembershipRoom, timer: TimerState): Occupa
       participantId: p.id,
       displayName: p.displayName,
       isPlaceholder: false,
-      presence: p.presence,
-      connId: p.connId,
+      presence: presenceOf(p),
+      connIds: [...p.connections.keys()],
     })),
     ...proxyEntries(timer).map((e) => ({
       participantId: e.id,
       displayName: e.label,
       isPlaceholder: true,
       presence: "offline" as const,
-      connId: null,
+      connIds: [],
     })),
   ];
 }
@@ -96,9 +113,8 @@ export function buildTimerSnapshotRoom(membership: MembershipRoom, timer: TimerS
     const eligible = seatEligibleOf(timer.session.rotation, p.id);
     return {
       participantId: p.id,
-      connId: p.connId,
       displayName: p.displayName,
-      presence: p.presence,
+      presence: presenceOf(p),
       hasAiKey: aiKeys.has(p.id),
       joinedAt: p.joinedAt,
       ...(eligible !== undefined ? { driverEligible: eligible } : {}),
@@ -108,7 +124,6 @@ export function buildTimerSnapshotRoom(membership: MembershipRoom, timer: TimerS
   // この値を読む処理は無い（候補列の並べ替えは `hasAiKey` の人だけを見る）。
   const proxies: Participant[] = proxyEntries(timer).map((e) => ({
     participantId: e.id,
-    connId: null,
     displayName: e.label,
     presence: "offline" as const,
     hasAiKey: false,

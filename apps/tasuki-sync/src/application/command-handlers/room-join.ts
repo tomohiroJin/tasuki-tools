@@ -33,6 +33,7 @@ import type { ToolGate } from "../tool-gate.js";
 import { constantTimeEqual } from "../secure-compare.js";
 import { buildTimerSnapshotRoom } from "../timer-snapshot-dto.js";
 import type { RoomState } from "../apply-room-level-event.js";
+import { TOOL_TIMER } from "../tool-id.js";
 
 /** `room.join` が呼び出し元へ返す値。 */
 export interface JoinResult {
@@ -121,7 +122,15 @@ export function createRoomJoinHandler(deps: RoomJoinDeps) {
       if (tokenData && tokenData.roomCode === cmd.code) {
         const existingParticipant = findParticipant(room, tokenData.participantId);
         if (existingParticipant) {
-          const updatedRoom = attachConnection(room, tokenData.participantId, connId);
+          // **接続を足す。前の接続を奪わない**（#95 S4b・D14）。選択画面とツールを
+          // 別タブで開く同一人物が現実的な経路になったため、1 本しか持てない模型だと
+          // 後から繋いだタブが前のタブを黙らせる。
+          const updatedRoom = attachConnection(
+            room,
+            tokenData.participantId,
+            connId,
+            TOOL_TIMER,
+          );
           // 保管は `commit` に一本化してある（下の 1 行）。間の `sendTo` は connId 直送で
           // ストアを引かないので、ここで先に put する必要は無い。
           broadcaster.sendTo(connId, {
@@ -171,9 +180,8 @@ export function createRoomJoinHandler(deps: RoomJoinDeps) {
 
     const newParticipant: MembershipParticipant = {
       id: participantId,
-      connId,
       displayName: cmd.displayName,
-      presence: "online",
+      connections: new Map([[connId, TOOL_TIMER]]),
       joinedAt: now,
     };
 

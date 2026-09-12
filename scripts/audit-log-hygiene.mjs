@@ -138,7 +138,7 @@ export const REQUIRED_FILES = [
   "apps/tasuki-sync/src/create-sync-server.ts",
   // 統合で poker のメッセージ層が入った先。ここが落ちると poker 側の
   // `src/` がまるごと走査から外れても気づけない（#95 S2）。
-  "apps/tasuki-sync/src/poker/application/handlers.ts",
+  "apps/tasuki-sync/src/application/poker-handlers.ts",
   // 生の IP を最も直接扱うモジュール（W-3）。SCAN_DIRS からまた落ちたら赤にする。
   "packages/rate-limit/src/client-key.ts",
   // #157 で `.tsx` を走査対象へ入れたことを、**実行時に保証する**ための 1 件。

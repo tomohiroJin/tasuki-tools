@@ -54,7 +54,7 @@ describe('create-room（契約 #1）', () => {
     // 名簿が `@tasuki/room-core` へ移り、`createSnapshotBuilder` が受け取る
     // `ParticipantFragment` に `token` というフィールドが無くなったので、あちらは
     // **渡せる秘密が型に存在しない**（構造的に安全）状態になり、値の検査を落とした。
-    // だが「組み立て側（`poker/application/handlers.ts` の `fragmentsOf`）が
+    // だが「組み立て側（`application/poker-handlers.ts` の `fragmentsOf`）が
     // **別の出所から**トークンを混ぜない」ことは型では保証されない。
     // **その番人はスタック全体でここ 1 本だけである。**
     expect(JSON.stringify(state)).not.toContain(joined.token);

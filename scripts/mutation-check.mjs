@@ -332,6 +332,32 @@ export const MUTATIONS = [
       "**番人が無い実装でも、空でない名簿しか渡さないテストは全部緑のまま通る** —— " +
       "この変異は、その恒真化を殺す 1 本が実在することだけを見る。",
   },
+  {
+    id: 25,
+    label: "ドライバーの適格判定を presence へ戻す（timer の在席を見なくする）",
+    patch: "m25-ineligible-by-presence.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/presence-model.test.ts"],
+    note:
+      "#95 S4b（D21）。S4a までは `presence === \"online\"` が「timer を見ている」と" +
+      "同義だった（参加者が持てる接続が timer のものだけだったため）。多接続模型では" +
+      "**ハブや poker のタブが生きている人も online** なので、この変異は" +
+      "「タイマーを見ていない人にドライバーが回る」を作る。" +
+      "**S4a のテストでは殺せない変異である** —— 殺すには「online だが timer に" +
+      "在席していない参加者」を作るテストが要る（設計正本 §6.2 が R14 に要求した形）。",
+  },
+  {
+    id: 26,
+    label: "attachConnection が前の接続を奪う（1 本模型へ戻す）",
+    patch: "m26-attach-steals-connection.patch",
+    pkg: "packages/room-core",
+    tests: ["tests/room.test.ts"],
+    note:
+      "#95 S4b（D14・R17）。後から繋いだタブが前のタブの接続を名簿から追い出すので、" +
+      "配信の宛先（`connectionsIn`）から前のタブが消え、その画面は以後 1 通も更新を" +
+      "受け取らない（黙って古くなる）。復帰の組を localStorage へ置いた D12 によって" +
+      "「選択画面とツールを別タブ」が現実的な経路になったため、実害のある変異である。",
+  },
 ];
 
 /**

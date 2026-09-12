@@ -15,7 +15,7 @@
  */
 
 import { createRoomDestroyer } from "../../src/application/destroy-room.js";
-import { InMemoryRoundStore } from "../../src/poker/adapters/in-memory-round-store.js";
+import { InMemoryRoundStore } from "../../src/adapters/poker-in-memory-round-store.js";
 import type { InMemoryRoomStore } from "../../src/adapters/in-memory-room-store.js";
 import type { InMemoryTimerStore } from "../../src/adapters/in-memory-timer-store.js";
 

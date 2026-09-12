@@ -199,3 +199,52 @@ describe('切断による自動公開の再評価（US4-AS1）', () => {
     guest1.client.close();
   });
 });
+
+describe('1 人が 2 つのタブを開く（#95 S4b・R17）', () => {
+  it('同じ token で 2 本目を繋いでも名簿は増えず、両方のタブへ room-state が届く', async () => {
+    // Given: 作成者（たろう）と、同じルームに居るはなこ
+    const { host, joined } = await createHost();
+    const guest = await join(joined.roomId, 'はなこ');
+    await host.nextMatching(isType('room-state'));
+
+    // When: はなこが 2 つ目のタブを開く（同じ token で join-room）
+    const tab2 = await WsClient.connect(server.port);
+    tab2.send({ type: 'join-room', roomId: joined.roomId, name: 'はなこ', token: guest.joined.token });
+    const tab2Joined = (await tab2.nextMatching(isType('joined'))) as Joined;
+    const tab2State = (await tab2.nextMatching(isType('room-state'))) as RoomState;
+
+    // Then 1: 同じ参加者として扱われ、名簿は 2 人のままである
+    expect(tab2Joined.participantId).toBe(guest.joined.participantId);
+    expect(tab2State.participants).toHaveLength(2);
+    expect(tab2State.participants.filter((p) => p.connected)).toHaveLength(2);
+
+    // When: たろうが投票する
+    host.send({ type: 'vote', card: { kind: 'number', value: 5 } });
+
+    // Then 2: **両方のタブ**へ反映が届く（S4a までは 1 本目が黙った）
+    for (const client of [guest.client, tab2]) {
+      const state = (await client.nextMatching(
+        (msg) =>
+          (msg as RoomState).type === 'room-state' &&
+          (msg as RoomState).participants.filter((p) => p.hasVoted).length === 1,
+      )) as RoomState;
+      expect(state.participants.filter((p) => p.hasVoted)).toHaveLength(1);
+    }
+
+    // When: 2 つ目のタブだけを閉じる
+    tab2.close();
+
+    // Then 3: はなこは接続中のままである（片方のタブを閉じても離席にならない）
+    const after = (await host.nextMatching(
+      (msg) =>
+        (msg as RoomState).type === 'room-state' &&
+        (msg as RoomState).participants.filter((p) => p.connected).length === 2,
+    )) as RoomState;
+    expect(
+      after.participants.find((p) => p.id === guest.joined.participantId)?.connected,
+    ).toBe(true);
+
+    host.close();
+    guest.client.close();
+  });
+});

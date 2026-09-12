@@ -3,7 +3,7 @@
  * ルーティング・トークン認証・レポート生成を http から切り離してテスト可能にする。
  * sync は 127.0.0.1 限定バインドのため管理面は元々非公開。ADMIN_TOKEN は多層防御。
  */
-import type { Room as MembershipRoom } from "@tasuki/room-core";
+import { presenceOf, type Room as MembershipRoom } from "@tasuki/room-core";
 import type { TimerState } from "@tasuki/timer-core";
 import { constantTimeEqual } from "./secure-compare.js";
 
@@ -50,7 +50,7 @@ export function buildAdminReport(
       return {
         code: r.code,
         participants: r.participants.length,
-        online: r.participants.filter((p) => p.presence === "online").length,
+        online: r.participants.filter((p) => presenceOf(p) === "online").length,
         hasDriver: timer ? timer.session.rotation.length > 0 : false,
         createdAt: r.createdAt,
       };

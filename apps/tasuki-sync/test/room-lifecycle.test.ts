@@ -23,7 +23,7 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
-import { InMemoryRoundStore } from "../src/poker/adapters/in-memory-round-store.js";
+import { InMemoryRoundStore } from "../src/adapters/poker-in-memory-round-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import { RoomReclaimer } from "../src/application/room-reclaimer.js";
 import { makeTestHandlers } from "./support/room-builder.js";

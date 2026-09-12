@@ -276,17 +276,12 @@ export const MAX_MEMBERS = 10;
  *  decide（ドメイン検証）と schemas（Valibot 境界検証）の両方から参照し、値を一元化する。 */
 export const MAX_PROBLEM_REQUIREMENTS = 20;
 
-/** ユーザ入力文字列の最大長（S・A04 安全でない設計）。巨大文字列の保存/ブロードキャスト/
- *  描画による DoS を防ぐため、信頼境界（Valibot コマンドスキーマ）で一律に上限を課す。
- *  UI 側の入力欄 maxLength とも揃えて二重防御にする。 */
-export const MAX_DISPLAY_NAME = 40;
-/**
- * NFKC 正規化が1文字を最大何文字へ展開しうるか（実測 18: U+FDFA `ﷺ`）。
- *
- * 正規化前の緩い上限を `MAX_DISPLAY_NAME * MAX_NFKC_EXPANSION` に置き、正規化後に
- * `MAX_DISPLAY_NAME` を厳密に課す（schemas.ts）。前段だけだと展開で上限を突破される。
- */
-export const MAX_NFKC_EXPANSION = 18;
+// ⚠ かつてここには `MAX_DISPLAY_NAME` と `MAX_NFKC_EXPANSION` があった。
+// **#95 S4b で `@tasuki/room-core` の `display-name.ts` へ移した。** 表示名の規約は
+// メンバーシップ文脈のものであり、その上限をモブタイマーのドメインが持っていたのは、
+// 境界の検証（`schemas.ts`）がここから引いていた名残である。
+// 適用する場所も `apps/tasuki-sync/src/application/normalize-command-names.ts` へ移り、
+// **これで `timer-core → room-core` の期限つき一時依存が消えた**（`docs/adr/0017` 決定 4）。
 export const MAX_ROOM_NAME = 60;
 export const MAX_HANDOFF_NOTE = 2000;
 export const MAX_PROBLEM_TITLE = 200;

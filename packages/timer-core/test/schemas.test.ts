@@ -44,7 +44,6 @@ function baseRoom(): Record<string, unknown> {
     participants: [
       {
         participantId: "p1",
-        connId: "c1",
         displayName: "A",
         presence: "online",
         hasAiKey: false,
@@ -73,6 +72,28 @@ describe("役割とホストの廃止", () => {
     // Then
     expect(roleSetResult.success).toBe(false);
     expect(hostTransferResult.success).toBe(false);
+  });
+
+  // #95 S4b で wire から `connId` を落とした（多接続では「接続 1 本」が嘘になる）。
+  // `role` と同じ形で、**古い snapshot が今でもパースできること**を固定する ——
+  // 参加者スキーマは `v.object`（余剰キーを黙って捨てる）なので、
+  // 「拒否する」ではなく「通り、キーが残らない」が正しい期待である。
+  it("connId を含む旧形式の snapshot はパースでき、そのキーは残らない", () => {
+    // Given（S4a まで wire に載っていた connId を持つ参加者）
+    const room = baseRoom();
+    const withConnId = (room["participants"] as Array<Record<string, unknown>>).map((p) => ({
+      ...p,
+      connId: "c1",
+    }));
+
+    // When
+    const parsed = v.safeParse(RoomSchema, { ...room, participants: withConnId });
+
+    // Then
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(Object.keys(parsed.output.participants[0]!)).not.toContain("connId");
+    }
   });
 
   it("参加者のスキーマは role を持たない", () => {

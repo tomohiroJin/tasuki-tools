@@ -74,7 +74,6 @@ describe("Participant 型の v2 フィールド", () => {
     // Given（v1 互換: 既存の必須フィールドのみを渡す。isPlaceholder は含めない）
     const requiredFields = {
       participantId: "p1",
-      connId: null,
       displayName: "Alice",
       presence: "online",
       hasAiKey: false,
@@ -91,7 +90,6 @@ describe("Participant 型の v2 フィールド", () => {
     // Given（driverEligible を含めない必須フィールドのみ）
     const requiredFields = {
       participantId: "p2",
-      connId: "conn1",
       displayName: "Bob",
       presence: "online",
       hasAiKey: false,

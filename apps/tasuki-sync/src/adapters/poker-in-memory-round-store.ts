@@ -5,7 +5,7 @@
  * 名簿（`InMemoryRoomStore`）と対で扱うものなので、片方だけ書き方が違うと取り違える。
  */
 import type { Round } from '@tasuki/poker-core';
-import type { RoundStore } from '../ports/round-store.js';
+import type { RoundStore } from '../ports/poker-round-store.js';
 
 export class InMemoryRoundStore implements RoundStore {
   private readonly rounds = new Map<string, Round>();

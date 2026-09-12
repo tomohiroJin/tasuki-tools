@@ -14,7 +14,7 @@ import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { SessionConfig } from "@tasuki/timer-core";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
-import { roomViewOf, putRoomView } from "./support/room-view.js";
+import { roomViewOf, putRoomView, participantIdOfConn } from "./support/room-view.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 const config: SessionConfig = {
@@ -48,7 +48,7 @@ async function setupRoom(
       command: "room.join", code, displayName, hasAiKey: false,
     });
     if (!join.isOk()) throw new Error(`join failed: ${displayName}`);
-    const joinedId = roomViewOf(store, timers, code).participants.find((p) => p.connId === connId)!.participantId;
+    const joinedId = roomViewOf(store, timers, code).participants.find((p) => p.participantId === participantIdOfConn(store, connId))!.participantId;
     const add = await handlers.handleCommand(connId, {
       command: "member.add", participantId: joinedId,
     });
@@ -383,7 +383,7 @@ describe("自動交代: スケジューラ配線", () => {
   it("自動交代は ineligible（skip 済み）のメンバーを飛ばして次の eligible へ進む（plan.md L194）", async () => {
     // Given（setupRoom で参加済みの Bob を host が skip して ineligible にする）
     const code = await setupRoom(handlers, store, timers);
-    const bob = roomViewOf(store, timers, code).participants.find((p) => p.connId === "bob-conn")!;
+    const bob = roomViewOf(store, timers, code).participants.find((p) => p.participantId === participantIdOfConn(store, "bob-conn"))!;
     await handlers.handleCommand("host-conn", {
       command: "driver.skip",
       participantId: bob.participantId,
@@ -430,7 +430,7 @@ describe("ドライバー一時離脱と現ドライバー skip の繰り上げ�
     // Given
     const code = await setupRoom(handlers, store, timers);
     await handlers.handleCommand("host-conn", { command: "session.act", action: "START" });
-    const host = roomViewOf(store, timers, code).participants.find((p) => p.connId === "host-conn")!;
+    const host = roomViewOf(store, timers, code).participants.find((p) => p.participantId === participantIdOfConn(store, "host-conn"))!;
     expect(roomViewOf(store, timers, code).session.currentIndex).toBe(0); // Alice が現ドライバー
 
     // When
@@ -451,7 +451,7 @@ describe("ドライバー一時離脱と現ドライバー skip の繰り上げ�
     const code = await setupRoom(handlers, store, timers);
     await handlers.handleCommand("host-conn", { command: "session.act", action: "START" });
     clock.advance(100000);
-    const host = roomViewOf(store, timers, code).participants.find((p) => p.connId === "host-conn")!;
+    const host = roomViewOf(store, timers, code).participants.find((p) => p.participantId === participantIdOfConn(store, "host-conn"))!;
 
     // When
     await handlers.handleCommand("host-conn", {
@@ -474,7 +474,7 @@ describe("ドライバー一時離脱と現ドライバー skip の繰り上げ�
     });
     const code = broadcaster.createdFor("solo-conn").code;
     await handlers.handleCommand("solo-conn", { command: "session.act", action: "START" });
-    const me = roomViewOf(store, timers, code).participants.find((p) => p.connId === "solo-conn")!;
+    const me = roomViewOf(store, timers, code).participants.find((p) => p.participantId === participantIdOfConn(store, "solo-conn"))!;
 
     // When（唯一の eligible を skip する）
     await handlers.handleCommand("solo-conn", {

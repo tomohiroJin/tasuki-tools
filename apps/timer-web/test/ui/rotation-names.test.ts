@@ -9,7 +9,6 @@ import type { Participant } from "@tasuki/timer-core";
 
 const p = (participantId: string, displayName: string): Participant => ({
   participantId,
-  connId: "c",
   displayName,
   presence: "online",
   hasAiKey: false,

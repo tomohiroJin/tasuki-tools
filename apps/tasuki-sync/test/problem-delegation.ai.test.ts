@@ -62,7 +62,6 @@ function makeRoom(overrides?: Partial<Room>): Room {
     participants: [
       {
         participantId: "host",
-        connId: "host-conn",
         displayName: "Host",
         presence: "online",
         hasAiKey: true,
@@ -108,6 +107,19 @@ async function flushMicrotasks(): Promise<void> {
 /**
  * @requirements FR-023, FR-024
  */
+/**
+ * 前提の接続 ID（#95 S4b）。**wire は `connId` を持たなくなった**ので、
+ * どの参加者がどの接続を持つかは `putRoomView` の第 4 引数で明示する
+ * （このテストは need-problem の宛先を接続 ID で突き合わせるため、綴りが一致
+ * していなければならない）。
+ */
+const CONNS = {
+  host: ["host-conn"],
+  ed1: ["ed1-conn"],
+  ed2: ["ed2-conn"],
+  "host-p": ["host-c"],
+} as const;
+
 describe("ProblemDelegator サーバ生成", () => {
   let store: InMemoryRoomStore;
   let timers: InMemoryTimerStore;
@@ -147,7 +159,7 @@ describe("ProblemDelegator サーバ生成", () => {
       logger: testLogger,
       refEncoder: testRefEncoder,
     });
-    putRoomView(store, timers, makeRoom());
+    putRoomView(store, timers, makeRoom(), CONNS);
 
     // When
     delegator.request("AI01", "req-1");
@@ -181,7 +193,7 @@ describe("ProblemDelegator サーバ生成", () => {
       logger: testLogger,
       refEncoder: testRefEncoder,
     });
-    putRoomView(store, timers, makeRoom());
+    putRoomView(store, timers, makeRoom(), CONNS);
 
     // When
     delegator.request("AI01", "req-1");
@@ -214,7 +226,7 @@ describe("ProblemDelegator サーバ生成", () => {
       logger: testLogger,
       refEncoder: testRefEncoder,
     });
-    putRoomView(store, timers, makeRoom());
+    putRoomView(store, timers, makeRoom(), CONNS);
 
     // When
     delegator.request("AI01", "req-1");
@@ -260,13 +272,12 @@ describe("ProblemDelegator サーバ生成", () => {
     putRoomView(store, timers, makeRoom({
       participants: [{
         participantId: "host",
-        connId: "host-conn",
         displayName: "Host",
         presence: "online",
         hasAiKey: false, // クライアント委譲候補にならないようにする
         joinedAt: 1000000,
       }],
-    }));
+    }), CONNS);
 
     // When: タイムアウトが発火するまで時間を進める
     delegator.request("AI01", "req-1");
@@ -311,7 +322,7 @@ describe("ProblemDelegator サーバ生成", () => {
       logger: testLogger,
       refEncoder: testRefEncoder,
     });
-    putRoomView(store, timers, makeRoom());
+    putRoomView(store, timers, makeRoom(), CONNS);
 
     // When: 1回目 request → リロール（2回目 request）→ 旧 Promise を resolve
     delegator.request("AI01", "req-1");
@@ -352,7 +363,7 @@ describe("ProblemDelegator サーバ生成", () => {
       refEncoder: testRefEncoder,
     });
     // aiUnlocked=false のルームを登録
-    putRoomView(store, timers, makeRoom({ aiUnlocked: false }));
+    putRoomView(store, timers, makeRoom({ aiUnlocked: false }), CONNS);
 
     // When
     delegator.request("AI01", "req-1");
@@ -393,7 +404,7 @@ describe("ProblemDelegator サーバ生成", () => {
       logger: testLogger,
       refEncoder: testRefEncoder,
     });
-    putRoomView(store, timers, makeRoom());
+    putRoomView(store, timers, makeRoom(), CONNS);
 
     // When: 1 回目 request（pending）→ リロール（cancel→ 2 回目 request）
     delegator.request("AI01", "req-1");
@@ -433,7 +444,7 @@ describe("ProblemDelegator サーバ生成", () => {
       logger: testLogger,
       refEncoder: testRefEncoder,
     });
-    putRoomView(store, timers, makeRoom());
+    putRoomView(store, timers, makeRoom(), CONNS);
 
     // When
     delegator.request("AI01", "req-1");

@@ -62,7 +62,6 @@ const OTHER_ID = "other-1";
 function participant(participantId: string, displayName: string) {
   return {
     participantId,
-    connId: `c-${participantId}`,
     displayName,
     presence: "online" as const,
     hasAiKey: false,
@@ -176,7 +175,7 @@ describe("SyncClient コールバックが最新の state を読む経路（Issu
     });
 
     // Then: onIdentity で預けた token が、onRoom の room.code と結合して保存される
-    expect(loadResumeIdentity()).toEqual({
+    expect(loadResumeIdentity("ROOM01")).toEqual({
       code: "ROOM01",
       participantId: CREATOR_ID,
       resumeToken: "rt-1",

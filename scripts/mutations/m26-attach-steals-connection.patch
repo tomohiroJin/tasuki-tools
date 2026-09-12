@@ -1,0 +1,29 @@
+# 変異 26: attachConnection が前の接続を奪う（#95 S4b・D14 の要点）
+#
+# S4a までの 1 本模型へ戻す。**後から繋いだタブが前のタブの接続を名簿から追い出す**
+# ので、配信の宛先（`connectionsIn`）から前のタブが消え、その画面は以後 1 通も
+# 更新を受け取らない（黙って古くなる）。
+#
+# 選択画面とツールを別タブで開く利用者は S4b（復帰の組を localStorage へ置いた D12）で
+# 現実的な経路になったので、これは実害のある変異である。
+#
+# 検出を期待するテスト:
+#   - packages/room-core/tests/room.test.ts（R17: 2 本のうち 1 本を閉じても online）
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m26-*.patch
+# 復元: git checkout -- <対象ファイル>
+#
+diff --git a/packages/room-core/src/room.ts b/packages/room-core/src/room.ts
+index a278685..f2869e9 100644
+--- a/packages/room-core/src/room.ts
++++ b/packages/room-core/src/room.ts
+@@ -88,7 +88,7 @@ export function attachConnection(
+ ): Room {
+   return updateParticipant(room, id, (p) => ({
+     ...p,
+-    connections: new Map(p.connections).set(connId, tool),
++    connections: new Map([[connId, tool]]),
+   }));
+ }
+ 

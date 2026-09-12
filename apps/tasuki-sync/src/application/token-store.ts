@@ -23,7 +23,7 @@ import type { RoomCode } from "@tasuki/room-core";
  *
  * **復帰は 2 段で判定する。`roomCode` の突き合わせだけに頼ってはならない。**
  * 両方の入口（timer の `command-handlers/room-join.ts`、poker の
- * `poker/application/handlers.ts`）が
+ * `application/poker-handlers.ts`）が
  * `tokenData.roomCode === 要求されたコード` → `findParticipant(room, participantId)`
  * の順で書かれている。
  *

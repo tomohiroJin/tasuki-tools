@@ -54,14 +54,26 @@ describe("resume: 再接続・復帰", () => {
       resumeToken,
     });
 
-    // Then（同一参加者として認識され connId が更新されている）
+    // Then（同一参加者として認識され、名簿の人数が増えない）
     const room = maybeRoomViewOf(store, timers, code);
     const participant = room?.participants.find(
       (p) => p.participantId === participantId,
     );
-    expect(participant?.connId).toBe("conn-002");
+    expect(participant).toBeDefined();
     // 新しい参加者が増えていないこと（増えていれば「同一参加者として復帰した」とは言えない）。
     expect(room?.participants).toHaveLength(1);
+    // **2 本目の接続が足され、1 本目は奪われない**（#95 S4b・D14・R17）。
+    // ここは「古いソケットを閉じずに別の接続から復帰した」＝別タブの経路である。
+    // 本当の再接続（閉じてから繋ぎ直す）は `live-ws.multi-connection.test.ts` が
+    // 実ソケットで見ており、そちらでは閉じた接続が名簿から外れている。
+    //
+    // ⚠ S4a まではここで `connId` が "conn-002" へ**付け替わる**ことを見ていた。
+    // 付け替えは「後から繋いだタブが前のタブを黙らせる」挙動そのもので、D14 が
+    // やめると決めたものである（旧アサーションは残せない）。
+    expect([...store.get(code)!.participants[0]!.connections.keys()]).toEqual([
+      "conn-001",
+      "conn-002",
+    ]);
   });
 
   it("再接続後に snapshot で完全同期する", async () => {

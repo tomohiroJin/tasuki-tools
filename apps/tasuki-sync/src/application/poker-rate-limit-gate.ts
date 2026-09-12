@@ -34,7 +34,7 @@
  * 渡すと、その差のぶんだけトークンが補充されて判定と消費が食い違う。切符
  * （{@link RateLimitDecision}）が読んだ時刻を保持することでこれを構造的に防ぐ。
  */
-import type { MonotonicClock } from '../ports/monotonic-clock';
+import type { MonotonicClock } from '../ports/poker-monotonic-clock.js';
 import type { RateLimiter } from '@tasuki/rate-limit';
 
 /** 1 回ぶんの判定。`begin()` が返す「切符」。 */

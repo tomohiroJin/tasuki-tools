@@ -95,7 +95,7 @@ describe("App.tsx の state/ref 二重管理（4組）", () => {
         code: "ROOM01",
         problem: problemA(),
         participants: [
-          { participantId: CREATOR_ID, connId: "c1", displayName: "Creator", presence: "online", hasAiKey: false, joinedAt: 0 },
+          { participantId: CREATOR_ID, displayName: "Creator", presence: "online", hasAiKey: false, joinedAt: 0 },
         ],
       }),
     });
@@ -125,7 +125,7 @@ describe("App.tsx の state/ref 二重管理（4組）", () => {
         code: "ROOM01",
         problem: problemA(),
         participants: [
-          { participantId: CREATOR_ID, connId: "c1", displayName: "Creator", presence: "online", hasAiKey: false, joinedAt: 0 },
+          { participantId: CREATOR_ID, displayName: "Creator", presence: "online", hasAiKey: false, joinedAt: 0 },
         ],
       }),
     });
@@ -140,7 +140,7 @@ describe("App.tsx の state/ref 二重管理（4組）", () => {
         code: "ROOM01",
         problem: problemB(),
         participants: [
-          { participantId: CREATOR_ID, connId: "c1", displayName: "Creator", presence: "online", hasAiKey: false, joinedAt: 0 },
+          { participantId: CREATOR_ID, displayName: "Creator", presence: "online", hasAiKey: false, joinedAt: 0 },
         ],
       }),
     });
@@ -160,7 +160,7 @@ describe("App.tsx の state/ref 二重管理（4組）", () => {
         code: "ROOM01",
         problem: problemA(),
         participants: [
-          { participantId: CREATOR_ID, connId: "c1", displayName: "Creator", presence: "online", hasAiKey: false, joinedAt: 0 },
+          { participantId: CREATOR_ID, displayName: "Creator", presence: "online", hasAiKey: false, joinedAt: 0 },
         ],
       }),
     });
@@ -188,7 +188,7 @@ describe("App.tsx の state/ref 二重管理（4組）", () => {
         phase: "session",
         problem: problemA(),
         participants: [
-          { participantId: CREATOR_ID, connId: "c1", displayName: "Creator", presence: "online", hasAiKey: false, joinedAt: 0 },
+          { participantId: CREATOR_ID, displayName: "Creator", presence: "online", hasAiKey: false, joinedAt: 0 },
         ],
         clock: { running: true, runningSince: Date.now() },
       });
@@ -206,7 +206,7 @@ describe("App.tsx の state/ref 二重管理（4組）", () => {
         phase: "celebration",
         problem: problemA(),
         participants: [
-          { participantId: CREATOR_ID, connId: "c1", displayName: "Creator", presence: "online", hasAiKey: false, joinedAt: 0 },
+          { participantId: CREATOR_ID, displayName: "Creator", presence: "online", hasAiKey: false, joinedAt: 0 },
         ],
       }),
     });

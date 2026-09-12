@@ -169,7 +169,7 @@ export function useTimerSync(banner: BannerController): TimerSync {
   // 生成が返らない異常で固まらないための安全弁タイマー。
   const generatingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // 参加/作成直後の resumeToken を、次に来る snapshot（room.code を含む）と組み合わせて
-  // sessionStorage へ保存するための一時保持（Issue #24）。onIdentity では room.code が
+  // 復帰の組を保存するための一時保持（Issue #24）。onIdentity では room.code が
   // まだ分からない（room.joined メッセージに code が含まれない）ため、onRoom まで持ち越す。
   // 素の ref に直接書くのは、onIdentity → onRoom の間に React の再レンダーを待たずに
   // 値を受け渡したいため（両者は別々の WS メッセージから来る）。ハンドラの closure から
@@ -191,6 +191,12 @@ export function useTimerSync(banner: BannerController): TimerSync {
   // 参加/作成時に指定した表示名。resumeToken 再送の room.join に必要
   // （サーバー側スキーマで displayName は必須項目のため・Issue #24）。
   const resumeDisplayNameRef = useRef<string>("");
+  // **いま話しているルームのコード**（#95 S4b）。復帰の組の鍵がルームコード別に
+  // なったので、「どのルームの組を読むか」を知る必要がある。`room` state だけでは
+  // 足りない —— 混雑で弾かれた再試行（#147）や再接続の再送は、snapshot が 1 度も
+  // 届いていない時点でも走る。参加を試みた時点と snapshot を受け取った時点の
+  // 両方で入れる。
+  const roomCodeRef = useRef<string | null>(null);
   // 共有 URL（?room=）からの復帰を mount 時の一度きりにするためのガード。
   const joinedFromUrlRef = useRef(false);
 
@@ -272,6 +278,8 @@ export function useTimerSync(banner: BannerController): TimerSync {
     // このスコープ内では変わらない。値は「直前のレンダー時点の snapshot」である。
     const prevRoom = room;
     setRoom(r);
+    // 復帰の組の鍵（#95 S4b）。作成経路はここで初めてルームコードを知る。
+    roomCodeRef.current = r.code;
 
     const intents = decideSnapshotIntents(prevRoom, r, {
       participantId,
@@ -372,7 +380,9 @@ export function useTimerSync(banner: BannerController): TimerSync {
         // onConnected で消えるため、喪失のような「消えては困る事実」には向かない。
         clearBanner();
         // ルームごと消失した以上、保存済みの resumeToken はもう使えない（Issue #24・FR-005）。
-        clearResumeIdentity();
+        // **鍵はルームコード別**なので、いま居たルームの分だけを捨てる（#95 S4b・D12）。
+        // ここで全部消すと、別のルームの復帰の組まで失う。
+        if (room?.code) clearResumeIdentity(room.code);
         return;
       }
       case "leave-room": {
@@ -382,9 +392,12 @@ export function useTimerSync(banner: BannerController): TimerSync {
         // 退室が成立した以上、再試行の待機も畳む（#147）。止めないと、入口へ戻った
         // 画面へ「混雑が続いています」の固定バナーが後から出る。
         cancelJoinRetry();
-        const removedFrom = room?.code ?? null;
+        const removedFrom = room?.code ?? roomCodeRef.current;
         syncClient.dispose();
         setRoom(null);
+        // このルームの話は終わった。残すと、次に別ルームへ入る前の再送が
+        // 消えたルームを指す（#95 S4b）。
+        roomCodeRef.current = null;
         setClient(null);
         setParticipantId("");
         isCreatorRef.current = false;
@@ -398,7 +411,8 @@ export function useTimerSync(banner: BannerController): TimerSync {
         staleBannerShownRef.current = false;
         // 明示的に退出が成立した以上、この参加者としてのリジュームはもう意味を持たない
         // （次に別ルームへ入ったときに誤って古いルームへ復帰しようとしないため・Issue #24・FR-004）。
-        clearResumeIdentity();
+        // 捨てるのは**退出したルームの分だけ**である（#95 S4b・D12）。
+        if (removedFrom) clearResumeIdentity(removedFrom);
         // ルーム由来の画面状態は退出成立時に破棄する（FR-128）。
         // お題生成中フラグ・安全弁タイマーもルーム固有の途中状態なので、
         // 持ち越すと次に入った別ルームで「何も頼んでいないのに生成中」の
@@ -479,7 +493,12 @@ export function useTimerSync(banner: BannerController): TimerSync {
   // 利用者の操作なしに再送する（Issue #24・FR-002/FR-003）。初回 connect() では
   // 呼ばれないため、ここでの二重送信は起きない。
   const sendResumeJoin = (syncClient: SyncClient): boolean => {
-    const saved = loadResumeIdentity();
+    // **どのルームの復帰の組を読むかは、いま話しているルームで決まる**
+    // （#95 S4b・D12 で鍵がルームコード別になった）。S4a まではタブに 1 組しか
+    // 無かったので引数が要らなかった。
+    const code = room?.code ?? roomCodeRef.current ?? joinCode;
+    if (code === null) return false;
+    const saved = loadResumeIdentity(code);
     if (!saved) return false;
     syncClient.send({
       command: "room.join",
@@ -579,6 +598,7 @@ export function useTimerSync(banner: BannerController): TimerSync {
   ) => {
     isCreatorRef.current = false;
     resumeDisplayNameRef.current = displayName;
+    roomCodeRef.current = code;
     // driver 宣言を ref に記録しておき、snapshot で自分が現れたら member.add を送る。
     if (joinMode === "driver") pendingDriverJoinRef.current = true;
     const c = makeClient();
@@ -630,6 +650,7 @@ export function useTimerSync(banner: BannerController): TimerSync {
     client?.dispose();
     setClient(null);
     setRoom(null);
+    roomCodeRef.current = null;
     setParticipantId("");
     setRecord(null);
     setEndType("complete");
@@ -685,10 +706,11 @@ export function useTimerSync(banner: BannerController): TimerSync {
     setJoinCode(code);
     setMode("join");
 
-    const saved = loadResumeIdentity();
+    const saved = loadResumeIdentity(code);
     if (!shouldResumeOnLoad(saved, code)) return;
 
     isCreatorRef.current = false;
+    roomCodeRef.current = code;
     resumeDisplayNameRef.current = saved.displayName;
     // makeClient は毎レンダー作り直されるので、この mount 時 effect からは
     // ref 経由で呼ぶ（このファイルの handlersRef と同じ作法・Issue #46）。

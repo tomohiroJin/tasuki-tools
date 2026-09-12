@@ -25,7 +25,7 @@ import { aRoomView } from "../support/room-view.js";
 
 function p(overrides: Partial<Participant>): Participant {
   return {
-    participantId: "x", connId: "c", displayName: "X", presence: "online", hasAiKey: false, joinedAt: 1, ...overrides,
+    participantId: "x", displayName: "X", presence: "online", hasAiKey: false, joinedAt: 1, ...overrides,
   };
 }
 
@@ -39,7 +39,7 @@ function makeRoom(overrides?: Partial<Room>): Room {
     session: { rotation: ["creator-p"], driverCounts: [0] },
     participants: [
       p({ participantId: "creator-p", displayName: "Alice" }),
-      p({ participantId: "bob-p", displayName: "Bob", connId: "c2" }),
+      p({ participantId: "bob-p", displayName: "Bob" }),
     ],
     ...overrides,
   });

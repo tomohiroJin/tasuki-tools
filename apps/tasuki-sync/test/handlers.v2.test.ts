@@ -9,7 +9,7 @@ import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
-import { roomViewOf, putRoomView, maybeRoomViewOf } from "./support/room-view.js";
+import { roomViewOf, putRoomView, maybeRoomViewOf, participantIdOfConn } from "./support/room-view.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 /**
@@ -73,7 +73,12 @@ describe("v2 コマンドの結合テスト", () => {
     const proxy = room?.participants.find((p) => p.displayName === "Dave（代理）");
     expect(proxy).toBeTruthy();
     expect(proxy?.isPlaceholder).toBe(true);
-    expect(proxy?.connId).toBeNull();
+    // 代理は接続を持たない。S4a まで wire の `connId: null` がそれを表していたが、
+    // #95 S4b で wire から `connId` が消えたので、**名簿に居ないこと**で確かめる
+    // （代理は輪の上の席としてだけ存在する）。
+    expect(store.get(roomCode)!.participants.map((m) => m.id)).not.toContain(
+      proxy!.participantId,
+    );
   });
 
   it("代理参加者の participantId はサーバー生成され、client 供給のIDを無視する（セキュリティ）", async () => {
@@ -118,7 +123,7 @@ describe("v2 コマンドの結合テスト", () => {
   it("作成者が自分の名前を変更すると snapshot に反映される", async () => {
     // Given
     const room = maybeRoomViewOf(store, timers, roomCode);
-    const hostParticipant = room?.participants.find((p) => p.connId === hostConn);
+    const hostParticipant = room?.participants.find((p) => p.participantId === participantIdOfConn(store, hostConn));
     expect(hostParticipant).toBeTruthy();
 
     // When
@@ -137,7 +142,7 @@ describe("v2 コマンドの結合テスト", () => {
   it("participant.rename しても rotation は動かない（識別子で持つため・D6b）", async () => {
     // Given（rotation に本人の ID が入っていることを前提確認）
     const room = maybeRoomViewOf(store, timers, roomCode);
-    const hostParticipant = room?.participants.find((p) => p.connId === hostConn);
+    const hostParticipant = room?.participants.find((p) => p.participantId === participantIdOfConn(store, hostConn));
     const before = [...room!.session.rotation];
     expect(before).toContain(hostParticipant!.participantId);
 
@@ -165,7 +170,7 @@ describe("v2 コマンドの結合テスト", () => {
       participantId: "proxy-dup",
     });
     const room = maybeRoomViewOf(store, timers, roomCode);
-    const hostParticipant = room?.participants.find((p) => p.connId === hostConn);
+    const hostParticipant = room?.participants.find((p) => p.participantId === participantIdOfConn(store, hostConn));
     broadcaster.snapshots.length = 0;
 
     // When（Host を既存の Dave へ改名 → rotation 一意性が壊れるため拒否されるはず）
@@ -186,7 +191,7 @@ describe("v2 コマンドの結合テスト", () => {
     // Given（rotation が参加者IDの配列になった時点で、core 側の rotation ベースの重複検査は
     // 「絶対に一致しない」死んだ検査になっていた。実機検証で発見しサーバー層へ移設した）
     const room = maybeRoomViewOf(store, timers, roomCode);
-    const hostName = room!.participants.find((p) => p.connId === hostConn)!.displayName;
+    const hostName = room!.participants.find((p) => p.participantId === participantIdOfConn(store, hostConn))!.displayName;
 
     // When
     await handlers.handleCommand(hostConn, {
@@ -223,8 +228,8 @@ describe("v2 コマンドの結合テスト", () => {
     });
     joined._unsafeUnwrap();
     const room = maybeRoomViewOf(store, timers, roomCode);
-    const hostParticipant = room?.participants.find((p) => p.connId === hostConn);
-    const spectator = room?.participants.find((p) => p.connId === "guest-conn");
+    const hostParticipant = room?.participants.find((p) => p.participantId === participantIdOfConn(store, hostConn));
+    const spectator = room?.participants.find((p) => p.participantId === participantIdOfConn(store, "guest-conn"));
     // 前提: 後から参加しただけの人は輪に居ない。
     expect(room?.session.rotation).not.toContain(spectator!.participantId);
 
@@ -245,7 +250,7 @@ describe("v2 コマンドの結合テスト", () => {
       command: "participant.addProxy", displayName: "Dave", participantId: "proxy-case",
     });
     const room = maybeRoomViewOf(store, timers, roomCode);
-    const hostParticipant = room?.participants.find((p) => p.connId === hostConn);
+    const hostParticipant = room?.participants.find((p) => p.participantId === participantIdOfConn(store, hostConn));
 
     // When
     await handlers.handleCommand(hostConn, {
@@ -261,7 +266,7 @@ describe("v2 コマンドの結合テスト", () => {
   it("自分の現在名と同一への rename は許可される（no-op 相当）", async () => {
     // Given
     const room = maybeRoomViewOf(store, timers, roomCode);
-    const hostParticipant = room?.participants.find((p) => p.connId === hostConn);
+    const hostParticipant = room?.participants.find((p) => p.participantId === participantIdOfConn(store, hostConn));
     const sameName = hostParticipant!.displayName;
     broadcaster.snapshots.length = 0;
 
@@ -286,7 +291,7 @@ describe("v2 コマンドの結合テスト", () => {
   it("driver.skip で参加者の driverEligible が false になる", async () => {
     // Given
     const room = maybeRoomViewOf(store, timers, roomCode);
-    const hostParticipant = room?.participants.find((p) => p.connId === hostConn);
+    const hostParticipant = room?.participants.find((p) => p.participantId === participantIdOfConn(store, hostConn));
 
     // When
     await handlers.handleCommand(hostConn, {
@@ -303,7 +308,7 @@ describe("v2 コマンドの結合テスト", () => {
   it("driver.resume で参加者の driverEligible が true に戻る", async () => {
     // Given（まず skip）
     const room = maybeRoomViewOf(store, timers, roomCode);
-    const hostParticipant = room?.participants.find((p) => p.connId === hostConn);
+    const hostParticipant = room?.participants.find((p) => p.participantId === participantIdOfConn(store, hostConn));
     await handlers.handleCommand(hostConn, {
       command: "driver.skip",
       participantId: hostParticipant!.participantId,

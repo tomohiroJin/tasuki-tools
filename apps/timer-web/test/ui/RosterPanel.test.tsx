@@ -13,7 +13,6 @@ import type { Participant } from "@tasuki/timer-core";
 function makeParticipant(overrides?: Partial<Participant>): Participant {
   return {
     participantId: "p1",
-    connId: "conn1",
     displayName: "Alice",
     presence: "online",
     hasAiKey: false,
@@ -25,7 +24,6 @@ function makeParticipant(overrides?: Partial<Participant>): Participant {
 // モブ順表示テスト用ヘルパ（既存 makeParticipant とシグネチャが異なるため別定義）
 const mk = (id: string, name: string, over: Partial<Participant> = {}): Participant => ({
   participantId: id,
-  connId: id,
   displayName: name,
   presence: "online",
   driverEligible: true,
@@ -150,7 +148,7 @@ describe("RosterPanel", () => {
   const baseProps = {
     participants: [
       makeParticipant({ participantId: "p1", displayName: "Alice" }),
-      makeParticipant({ participantId: "p2", displayName: "Bob", connId: "conn2" }),
+      makeParticipant({ participantId: "p2", displayName: "Bob" }),
     ],
     currentDriverId: "p1",
     myParticipantId: "p1",
@@ -174,8 +172,8 @@ describe("RosterPanel", () => {
     // currentDriverId="p3" が指すのは participants[2]。配列インデックス比較だと誤る）
     const participants = [
       makeParticipant({ participantId: "p1", displayName: "Alice" }),
-      makeParticipant({ participantId: "p2", displayName: "Bob", connId: "c2" }),
-      makeParticipant({ participantId: "p3", displayName: "Carol", connId: "c3" }),
+      makeParticipant({ participantId: "p2", displayName: "Bob" }),
+      makeParticipant({ participantId: "p3", displayName: "Carol" }),
     ];
     // When
     render(<RosterPanel {...baseProps} participants={participants} currentDriverId="p3" />);
@@ -198,7 +196,6 @@ describe("RosterPanel", () => {
       makeParticipant({
         participantId: "proxy-1",
         displayName: "Dave",
-        connId: null,
         isPlaceholder: true,
       }),
     ];
@@ -243,7 +240,7 @@ describe("RosterPanel", () => {
     const onRename = vi.fn();
     const participants = [
       makeParticipant({ participantId: "p1", displayName: "Alice" }),
-      makeParticipant({ participantId: "v9", displayName: "Vic", connId: "cv" }),
+      makeParticipant({ participantId: "v9", displayName: "Vic" }),
     ];
     render(
       <RosterPanel
@@ -339,8 +336,8 @@ describe("RosterPanel", () => {
       // Given（Carol は rotation に含まれない）
       const participants = [
         makeParticipant({ participantId: "p1", displayName: "Alice" }),
-        makeParticipant({ participantId: "p2", displayName: "Bob", connId: "c2" }),
-        makeParticipant({ participantId: "p3", displayName: "Carol", connId: "c3" }),
+        makeParticipant({ participantId: "p2", displayName: "Bob" }),
+        makeParticipant({ participantId: "p3", displayName: "Carol" }),
       ];
       // When
       render(
@@ -467,7 +464,6 @@ describe("RosterPanel セクション分割", () => {
     const names = ["A", "B", "C", "D", "E"];
     const participants = names.map((n, i) => ({
       participantId: `p${i}`,
-      connId: `conn${i}`,
       displayName: n,
       presence: "online" as const,
       driverEligible: true,
@@ -652,7 +648,7 @@ describe("RosterPanel 退出操作", () => {
   const removeProps = {
     participants: [
       makeParticipant({ participantId: "p1", displayName: "Alice" }),
-      makeParticipant({ participantId: "p2", displayName: "Bob", connId: "conn2" }),
+      makeParticipant({ participantId: "p2", displayName: "Bob" }),
     ],
     currentDriverId: "p1",
     myParticipantId: "p1",
@@ -752,8 +748,8 @@ describe("RosterPanel 同名参加者の区別", () => {
   // ラベルに識別子が出ていなくても toContain が通ってしまう（偽陽性）。
   const twoBobs = [
     makeParticipant({ participantId: "pid-0001", displayName: "Alice" }),
-    makeParticipant({ participantId: "pid-0002", displayName: "Bob", connId: "c2" }),
-    makeParticipant({ participantId: "pid-0003", displayName: "Bob", connId: "c3" }),
+    makeParticipant({ participantId: "pid-0002", displayName: "Bob" }),
+    makeParticipant({ participantId: "pid-0003", displayName: "Bob" }),
   ];
   const dupProps = {
     participants: twoBobs,
@@ -830,7 +826,7 @@ describe("RosterPanel 同名参加者の区別", () => {
     // Given
     const single = [
       makeParticipant({ participantId: "pid-0001", displayName: "Alice" }),
-      makeParticipant({ participantId: "pid-0002", displayName: "Bob", connId: "c2" }),
+      makeParticipant({ participantId: "pid-0002", displayName: "Bob" }),
     ];
     // When
     render(<RosterPanel {...dupProps} participants={single} onRemove={vi.fn()} />);
@@ -878,7 +874,7 @@ describe("RosterPanel 同名参加者の区別", () => {
     // Given
     const meDuplicated = [
       makeParticipant({ participantId: "pid-0001", displayName: "Bob" }),
-      makeParticipant({ participantId: "pid-0002", displayName: "Bob", connId: "c2" }),
+      makeParticipant({ participantId: "pid-0002", displayName: "Bob" }),
     ];
     // When
     render(<RosterPanel {...dupProps} participants={meDuplicated} onRemove={vi.fn()} />);
@@ -896,9 +892,9 @@ describe("RosterPanel 同名参加者の区別", () => {
 
   const threeBobs = [
     makeParticipant({ participantId: "pid-0001", displayName: "Alice" }),
-    makeParticipant({ participantId: "pid-0002", displayName: "Bob", connId: "c2" }),
-    makeParticipant({ participantId: "pid-0003", displayName: "Bob", connId: "c3" }),
-    makeParticipant({ participantId: "pid-0004", displayName: "Bob", connId: "c4" }),
+    makeParticipant({ participantId: "pid-0002", displayName: "Bob" }),
+    makeParticipant({ participantId: "pid-0003", displayName: "Bob" }),
+    makeParticipant({ participantId: "pid-0004", displayName: "Bob" }),
   ];
 
   it("同名3名が全員ドライバーのとき、ドライバー一覧の全員の行に識別子付きラベルが表示される", () => {

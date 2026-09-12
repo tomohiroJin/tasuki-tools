@@ -34,15 +34,16 @@ import { createRound, type ServerMessage } from '@tasuki/poker-core';
 import type { Room as MembershipRoom } from '@tasuki/room-core';
 import { createTokenBucketLimiter, type RateLimiter } from '@tasuki/rate-limit';
 import { InMemoryRoomStore } from '../../src/adapters/in-memory-room-store';
-import { InMemoryRoundStore } from '../../src/poker/adapters/in-memory-round-store';
+import { InMemoryRoundStore } from '../../src/adapters/poker-in-memory-round-store';
 import { testToolGate } from '../support/tool-gate';
 import { createTokenStore } from '../../src/application/token-store';
-import { createWsBroadcaster } from '../../src/poker/adapters/ws-broadcaster';
-import { makeHandlers, type HandlerConnection } from '../../src/poker/application/handlers';
-import type { Broadcaster, RoomSocket } from '../../src/poker/ports/broadcaster';
-import type { IdGen } from '../../src/poker/ports/id-gen';
-import type { MonotonicClock } from '../../src/poker/ports/monotonic-clock';
+import { createWsBroadcaster } from '../../src/adapters/poker-ws-broadcaster';
+import { makeHandlers, type HandlerConnection } from '../../src/application/poker-handlers';
+import type { Broadcaster, RoomSocket } from '../../src/ports/poker-broadcaster';
+import type { IdGen } from '../../src/ports/poker-id-gen';
+import type { MonotonicClock } from '../../src/ports/poker-monotonic-clock';
 import type { RoomStore } from '../../src/ports/room-store';
+import { TOOL_POKER } from '../../src/application/tool-id.js';
 
 /**
  * 名簿だけのルームを 1 つ作る（#95 S4a）。
@@ -55,7 +56,12 @@ function membershipRoom(code: string, participantId: string, name = 'たろう')
     code,
     createdAt: 0,
     participants: [
-      { id: participantId, displayName: name, connId: `conn-${participantId}`, presence: 'online', joinedAt: 0 },
+      {
+        id: participantId,
+        displayName: name,
+        connections: new Map([[`conn-${participantId}`, TOOL_POKER]]),
+        joinedAt: 0,
+      },
     ],
   };
 }

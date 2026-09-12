@@ -71,8 +71,11 @@ poker-sync で組むにはより大きな作業が要る。
 ## 追記（2026-09-08・#95 S2）
 
 **同期サーバーは 2 本から 1 本になった。** timer-sync を `apps/tasuki-sync` へ改名して
-合成ルートにし、poker の実装（ハンドラ・ストア・アダプタ・ポート）を
-`apps/tasuki-sync/src/poker/` へ移設した。poker-sync は退役した。
+合成ルートにし、poker の実装（ハンドラ・ストア・アダプタ・ポート）を移設した。
+poker-sync は退役した。**S2 の時点では `src/poker/{application,ports,adapters}` という
+入れ子だったが、#95 S4b（#246）で層のディレクトリへ畳んだ** ——
+いま poker の実装は timer と同じ `src/application/` `src/ports/` `src/adapters/` に
+`poker-` 接頭辞つきで並ぶ（例: `src/application/poker-handlers.ts`）。
 決定の正本は [`docs/adr/0017`](0017-bounded-contexts-and-packages.md)（文脈分割とパッケージ構成）と
 [`docs/adr/0018`](0018-single-entry-and-url-scheme.md)（入口一本化と URL 体系）である。
 

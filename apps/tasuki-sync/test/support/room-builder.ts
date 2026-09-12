@@ -16,7 +16,7 @@ import { makeHandlers, type HandlerDeps } from "../../src/application/handlers.j
 import { PresenceManager } from "../../src/application/presence.js";
 import { InMemoryRoomStore } from "../../src/adapters/in-memory-room-store.js";
 import { InMemoryTimerStore } from "../../src/adapters/in-memory-timer-store.js";
-import { InMemoryRoundStore } from "../../src/poker/adapters/in-memory-round-store.js";
+import { InMemoryRoundStore } from "../../src/adapters/poker-in-memory-round-store.js";
 import { createTokenStore } from "../../src/application/token-store.js";
 import { createRoomDestroyer } from "../../src/application/destroy-room.js";
 import { testToolGate } from "./tool-gate.js";

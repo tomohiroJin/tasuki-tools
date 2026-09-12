@@ -46,7 +46,6 @@ function defaultParticipants(): Participant[] {
   return [
     {
       participantId: CREATOR_ID,
-      connId: "creator-c",
       displayName: "Creator",
       presence: "online",
       hasAiKey: false,

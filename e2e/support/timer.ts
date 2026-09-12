@@ -182,3 +182,14 @@ export function corruptSnapshotFrame(payload: string): string {
  * 待ち直し）を織り込んで判定すること。
  */
 export const MISSING_ROOM_CODE = 'E2E-ROOM-GONE';
+
+/**
+ * ロビーの参加者一覧の見出し（`参加者 (N人)`）。
+ *
+ * **人数そのものを判定に使うためのロケータである**（#95 S4b・R16）。
+ * 名簿の増減を名前で見ると、二重参加の幽霊は本人と同名なので
+ * 「名前が見えること」は幽霊が居ても真になる。数で見れば空振りしない。
+ */
+export function participantCount(page: Page, count = 2): Locator {
+  return page.getByText(`参加者 (${String(count)}人)`, { exact: true });
+}

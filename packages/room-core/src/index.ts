@@ -8,16 +8,26 @@
  */
 
 // ./display-name
-export { normalizeDisplayName, nameSkeleton, conflictsWithExisting } from "./display-name.js";
+export {
+  MAX_DISPLAY_NAME,
+  MAX_NFKC_EXPANSION,
+  normalizeDisplayName,
+  nameSkeleton,
+  conflictsWithExisting,
+} from "./display-name.js";
 
 // ./room
 export {
   findParticipant,
+  findParticipantByConnId,
   addParticipant,
   removeParticipant,
   attachConnection,
-  detachConnection,
+  removeConnection,
+  isPresentIn,
+  presenceOf,
+  connectionsIn,
   hasNoParticipants,
 } from "./room.js";
 // Participant / Room: 上の関数の引数・戻り値型。ParticipantId ほかは署名から到達する
-export type { Participant, Room, ParticipantId, ConnId, RoomCode } from "./room.js";
+export type { Participant, Room, ParticipantId, ConnId, RoomCode, ToolId } from "./room.js";

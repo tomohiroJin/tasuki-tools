@@ -89,7 +89,6 @@ describe("aRoomView()", () => {
     const custom = [
       {
         participantId: "p1",
-        connId: "c1",
         displayName: "Alice",
         presence: "online" as const,
         hasAiKey: false,

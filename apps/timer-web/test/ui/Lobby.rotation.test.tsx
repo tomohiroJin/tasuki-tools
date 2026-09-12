@@ -13,7 +13,7 @@ import { aRoomView } from "../support/room-view.js";
 
 function p(overrides: Partial<Participant>): Participant {
   return {
-    participantId: "x", connId: "c", displayName: "X", presence: "online", hasAiKey: false, joinedAt: 1, ...overrides,
+    participantId: "x", displayName: "X", presence: "online", hasAiKey: false, joinedAt: 1, ...overrides,
   };
 }
 
@@ -23,7 +23,7 @@ function makeRoom(): Room {
     config: { members: ["Alice"], intervalMinutes: 5 },
     participants: [
       p({ participantId: "creator-p", displayName: "Alice" }),
-      p({ participantId: "bob-p", displayName: "Bob", connId: "c2" }),
+      p({ participantId: "bob-p", displayName: "Bob" }),
     ],
   });
 }
@@ -150,8 +150,8 @@ describe("Lobby 同名参加者の区別", () => {
       session: { ...room.session, rotation: ["creator-p", "bob-0002"], driverCounts: [0, 0] },
       participants: [
         p({ participantId: "creator-p", displayName: "Alice" }),
-        p({ participantId: "pid-0002", displayName: "Bob", connId: "c2" }),
-        p({ participantId: "pid-0003", displayName: "Bob", connId: "c3" }),
+        p({ participantId: "pid-0002", displayName: "Bob" }),
+        p({ participantId: "pid-0003", displayName: "Bob" }),
       ],
     };
   }
@@ -215,9 +215,9 @@ describe("Lobby 同名参加者の区別", () => {
       ...room,
       participants: [
         p({ participantId: "creator-p", displayName: "Alice" }),
-        p({ participantId: "pid-0002", displayName: "Bob", connId: "c2" }),
-        p({ participantId: "pid-0003", displayName: "Bob", connId: "c3" }),
-        p({ participantId: "pid-0004", displayName: "Bob", connId: "c4" }),
+        p({ participantId: "pid-0002", displayName: "Bob" }),
+        p({ participantId: "pid-0003", displayName: "Bob" }),
+        p({ participantId: "pid-0004", displayName: "Bob" }),
       ],
     };
   }
@@ -413,7 +413,7 @@ describe("Lobby 新設しない操作の不在", () => {
       ...room,
       participants: [
         ...room.participants,
-        p({ participantId: "pid-0002", displayName: "Bob", connId: "c9" }),
+        p({ participantId: "pid-0002", displayName: "Bob" }),
       ],
     };
     // When

@@ -59,8 +59,10 @@ WebSocket が一時的な切断から自動再接続したあと、web クライ
   (2) 本要件の非機能要件が根拠に挙げた `.claude/rules/security.md` は、`localStorage` と
   `sessionStorage` を同列に禁じており、2 つを区別する根拠にならない。
   詳細は[設計正本](../../superpowers/specs/2026-09-06-shared-identity-and-rooms-design.md) D12。
-  **実装は S4b（[#246](https://github.com/tomohiroJin/tasuki-tools/issues/246)）で行う。**
-  それまで `apps/timer-web/src/sync/resume-identity.ts` は `sessionStorage` のままである。
+  **実装は S4b（[#246](https://github.com/tomohiroJin/tasuki-tools/issues/246)）で完了した**
+  （2026-09-11）。`apps/timer-web/src/sync/resume-identity.ts` は `localStorage` に
+  `tasuki:resume:<ルームコード>` の鍵で保持する。旧 `sessionStorage` の値は読まない
+  （トークンはサーバー再起動で失効するため、移す価値が無い）。
 
 ## 非機能要件
 - **セキュリティ**: `resumeToken` はルーム限定・短命（サーバーメモリ上のみで保持され、

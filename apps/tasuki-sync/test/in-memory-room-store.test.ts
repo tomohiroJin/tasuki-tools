@@ -5,6 +5,7 @@
 import { describe, it, expect, beforeEach } from "bun:test";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import type { Room } from "@tasuki/room-core";
+import { TOOL_TIMER } from "../src/application/tool-id.js";
 
 /**
  * 名簿の最小ルーム（#95 S4a）。
@@ -17,8 +18,8 @@ function makeRoom(code: string): Room {
     code,
     createdAt: 0,
     participants: [
-      { id: "p0", displayName: "Alice", connId: "c0", presence: "online", joinedAt: 0 },
-      { id: "p1", displayName: "Bob", connId: null, presence: "offline", joinedAt: 1 },
+      { id: "p0", displayName: "Alice", connections: new Map([["c0", TOOL_TIMER]]), joinedAt: 0 },
+      { id: "p1", displayName: "Bob", connections: new Map(), joinedAt: 1 },
     ],
   };
 }

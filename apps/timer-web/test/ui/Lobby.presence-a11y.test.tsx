@@ -22,7 +22,7 @@ import { aRoomView } from "../support/room-view.js";
 
 function p(overrides: Partial<Participant>): Participant {
   return {
-    participantId: "x", connId: "c", displayName: "X", presence: "online", hasAiKey: false, joinedAt: 1, ...overrides,
+    participantId: "x", displayName: "X", presence: "online", hasAiKey: false, joinedAt: 1, ...overrides,
   };
 }
 
@@ -31,8 +31,8 @@ function makeRoomWithPresences(): Room {
     config: { members: ["Alice"], intervalMinutes: 5 },
     participants: [
       p({ participantId: "creator-p", displayName: "Alice", presence: "online" }),
-      p({ participantId: "bob-p", displayName: "Bob", connId: "c2", presence: "idle" }),
-      p({ participantId: "carol-p", displayName: "Carol", connId: "c3", presence: "offline" }),
+      p({ participantId: "bob-p", displayName: "Bob", presence: "idle" }),
+      p({ participantId: "carol-p", displayName: "Carol", presence: "offline" }),
     ],
   });
 }

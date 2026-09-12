@@ -11,16 +11,19 @@
 
 ## 層とディレクトリの対応表
 
-現在の構成に基づく対応表です。`apps/tasuki-sync/src` と `apps/tasuki-sync/src/poker` は
-どちらも `ls` で `adapters/` `application/` `ports/` の実在を確認済みで、表の
-`apps/*-sync/...` の行は両方に当てはまります（確認は 2026-09-08・#95 S2 の統合後。
-初出は 2026-08-17 で、当時は timer-sync と poker-sync の `src/` を見ていました）。
+現在の構成に基づく対応表です。`apps/tasuki-sync/src` は `ls` で `adapters/`
+`application/` `ports/` の実在を確認済みです（確認は 2026-09-11・#95 S4b の平坦化後。
+初出は 2026-08-17 で、当時は timer-sync と poker-sync の `src/` を、
+S2〜S4a では poker 側の入れ子（src/poker 配下。**S4b で畳みました**）も併せて
+見ていました）。
 
 > **#95 S2 で同期サーバーは 1 パッケージになりました**（`apps/tasuki-sync`。ADR 0004 の追記）。
 > `apps/*-sync/...` という書き方はそのままで、いま一致するのはこの 1 つだけです。
-> **poker の実装は `apps/tasuki-sync/src/poker/` 配下にあり**、層の対応は同じです
-> （`src/poker/application` はアプリケーション層、`src/poker/ports` はポート、
-> `src/poker/adapters` はアダプタ）。この入れ子は過渡的な形です。
+> **poker の実装も timer と同じ層のディレクトリに並びます**（#95 S4b で
+> `src/poker/` の入れ子を畳みました）。区別は `poker-` 接頭辞だけで、
+> `src/application/poker-handlers.ts` はアプリケーション層、
+> `src/ports/poker-round-store.ts` はポート、
+> `src/adapters/poker-ws-broadcaster.ts` はアダプタです。
 > **畳むのは S4b（[#246](https://github.com/tomohiroJin/tasuki-tools/issues/246)）です**
 > —— S4a（#245）で畳むと当初は書いていましたが、[#245](https://github.com/tomohiroJin/tasuki-tools/issues/245)
 > の完了条件に入っておらず、多数の import を動かす機械的な移動なので分けました
@@ -29,7 +32,7 @@
 | 層 | 置き場 | 依存してよいもの |
 |---|---|---|
 | ドメイン（メンバーシップ文脈） | `packages/room-core` | なし（純粋関数と型のみ） |
-| ドメイン（ツール） | `packages/timer-core` `packages/poker-core` | なし（純粋関数と型のみ）。ただし `packages/timer-core` → `packages/room-core` は #95 S1 で生じた期限つきの一時依存で、**依存そのものは S4b で消える**（timer-core から表示名の扱いが無くなる段。当初は S4a と書いていたが、S4a〜#245 では `packages/timer-core/src/schemas.ts` が `normalizeDisplayName` を取り込んだままである。2026-09-10 に S4b へ送り直した）。`scripts/audit-dependency-direction.mjs` の許可表からその行を削除するのも S4b（`docs/adr/0017` 決定 4・同スクリプトの `ALLOWED` の注記が正しく「⏳ S4b で削除する」と言っている） |
+| ドメイン（ツール） | `packages/timer-core` `packages/poker-core` | なし（純粋関数と型のみ）。**#95 S1 で生じた `packages/timer-core` → `packages/room-core` の期限つき一時依存は S4b（#246）で解消した** —— 表示名の規約は `room-core` に残し、境界で適用する場所を `apps/tasuki-sync/src/application/normalize-command-names.ts` へ移した（`docs/adr/0017` の追記 2026-09-11）。`scripts/audit-dependency-direction.mjs` の許可表からも行が消えている |
 | プロトコル契約 | `packages/protocol`・各 core の `protocol.ts`（例: `packages/poker-core/src/protocol.ts`） | ドメインの型 |
 | 共有ユーティリティ（sync 専用） | `packages/rate-limit` | なし（node 標準ライブラリのみ。ドメインの型にも依存しない） |
 | アプリケーション | `apps/*-sync/src/application` | ドメイン・ポート・`packages/rate-limit` |
@@ -53,8 +56,9 @@
 （IP 文字列とキー文字列のみを扱う）ため「ドメイン」でもなく、両 sync アプリが使い、
 置き場も `src/` 直下（設定・組み立て）・`application/`・`adapters/` にまたがる
 横断的な共有ユーティリティとして独立の行に置く。**どの層から import するかは
-アプリごとに一様ではありません**（例: `apps/tasuki-sync/src/poker/adapters` からの import は
-0 件）。現況は `grep -rn "@tasuki/rate-limit" apps/*-sync/src` で引けます。
+アプリごとに一様ではありません**（例: poker のアダプタ
+（`apps/tasuki-sync/src/adapters/poker-*.ts`）からの import は 0 件）。
+現況は `grep -rn "@tasuki/rate-limit" apps/*-sync/src` で引けます。
 
 ## 判断フロー
 

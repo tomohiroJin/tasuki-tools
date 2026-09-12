@@ -54,17 +54,21 @@ async function setupRunningRoom(
   const participants: Room["participants"] = members.map((name, i) => ({
     ...host,
     participantId: `pid-test-${i}`,
-    connId: `conn-${i}`,
     displayName: name,
     presence: presenceByName[name] ?? "online",
   }));
 
+  // 接続 ID は wire に載らなくなった（#95 S4b）。オフラインの人には接続を持たせない
+  // （`putRoomView` が presence から決める）ので、ここでは綴りだけを指定する。
+  const connIds = Object.fromEntries(
+    participants.map((p, i) => [p.participantId, [`conn-${i}`]]),
+  );
   putRoomView(store, timers, {
     ...room,
     participants,
     session: { ...room.session, rotation: participants.map((p) => p.participantId), currentIndex },
     clock: { ...room.clock, running: true },
-  });
+  }, connIds);
   return code;
 }
 

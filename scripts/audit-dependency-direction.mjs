@@ -93,7 +93,7 @@ const REPO_ROOT = path.resolve(__dirname, "..");
  */
 export const ALLOWED = {
   "packages/room-core": [],
-  "packages/timer-core": ["@tasuki/room-core"], // ⏳ S4b で削除する（#95・一時依存）
+  "packages/timer-core": [], // #95 S4b で room-core への一時依存を外した（ADR-0017 決定 4 の期限）
   "packages/poker-core": ["@tasuki/protocol"], // 既存。境界のパースを protocol に一本化
   "packages/protocol": [],
   "packages/rate-limit": [],

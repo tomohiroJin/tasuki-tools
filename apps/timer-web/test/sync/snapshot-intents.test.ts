@@ -2,7 +2,7 @@
  * decideSnapshotIntents の意図と順序を固定する（#167 E4）。
  *
  * App.tsx の handleRoom（88 行・分岐 7 個）から判断だけを抜き出した純粋関数。
- * 副作用（sessionStorage・WS 送信・IndexedDB）は同期フックが意図を見て起こす。
+ * 副作用（復帰の組の保存・WS 送信・IndexedDB）は同期フックが意図を見て起こす。
  *
  * **順序が振る舞いである。** 同じ snapshot に対する送信の並びが変わると、
  * サーバー側の処理順も変わりうる。配列の順をそのまま固定する。

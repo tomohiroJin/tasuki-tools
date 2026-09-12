@@ -15,13 +15,19 @@ import { RoomSchema } from "@tasuki/timer-core/schemas";
 import type { Room as MembershipRoom } from "@tasuki/room-core";
 import { buildTimerSnapshotRoom } from "../src/application/timer-snapshot-dto";
 import type { TimerState } from "@tasuki/timer-core";
+import { TOOL_TIMER } from "../src/application/tool-id.js";
 
 const membership: MembershipRoom = {
   code: "mob-a1b2c3d4",
   createdAt: 500,
   participants: [
-    { id: "p_alice", displayName: "アリス", connId: "c1", presence: "online", joinedAt: 1000 },
-    { id: "p_bob", displayName: "ボブ", connId: null, presence: "offline", joinedAt: 1100 },
+    {
+      id: "p_alice",
+      displayName: "アリス",
+      connections: new Map([["c1", TOOL_TIMER]]),
+      joinedAt: 1000,
+    },
+    { id: "p_bob", displayName: "ボブ", connections: new Map(), joinedAt: 1100 },
   ],
 };
 
@@ -80,7 +86,6 @@ describe("timer のスナップショット DTO（wire の同形性）", () => {
       displayName: "同席のカルロス",
       isPlaceholder: true,
       presence: "offline",
-      connId: null,
       driverEligible: true,
     });
   });
@@ -115,5 +120,44 @@ describe("timer のスナップショット DTO（wire の同形性）", () => {
   it("AI 鍵の持ち主は hasAiKey=true として出る", () => {
     const room = buildTimerSnapshotRoom(membership, { ...timer, aiKeyHolders: ["p_bob"] });
     expect(room.participants.find((p) => p.participantId === "p_bob")?.hasAiKey).toBe(true);
+  });
+
+  // #95 S4b・裁定 1。**多接続では「接続 1 本」が wire に載せられない。**
+  // 読み手は S4a 時点で製品コードに 0 件（テストの造作にだけ現れていた）。
+  it("wire の参加者に connId を載せない（多接続では嘘になる）", () => {
+    // Given: 名簿と timer の状態（このファイルの前提）
+    // When
+    const room = buildTimerSnapshotRoom(membership, timer);
+
+    // Then
+    for (const p of room.participants) {
+      expect(Object.keys(p)).not.toContain("connId");
+    }
+  });
+
+  // presence は接続の集まりからの導出である（D14）。**接続を 2 本持つ人も online 1 つ**で、
+  // wire には本数が出ない（出す必要のある読み手が居ない）。
+  it("接続を 2 本持つ人の presence は online で、本数は wire に出ない", () => {
+    // Given: アリスが 2 本繋いでいる
+    const twoTabs: MembershipRoom = {
+      ...membership,
+      participants: [
+        {
+          ...membership.participants[0]!,
+          connections: new Map([
+            ["c1", TOOL_TIMER],
+            ["c2", TOOL_TIMER],
+          ]),
+        },
+        ...membership.participants.slice(1),
+      ],
+    };
+
+    // When
+    const room = buildTimerSnapshotRoom(twoTabs, timer);
+
+    // Then
+    expect(room.participants[0]).toMatchObject({ participantId: "p_alice", presence: "online" });
+    expect(JSON.stringify(room.participants[0])).not.toContain("c2");
   });
 });

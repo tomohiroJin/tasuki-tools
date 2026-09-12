@@ -24,7 +24,7 @@
  * ## サブパス入口があるものは、ここに載せない（#220）
  *
  * このパッケージには `index.ts` のほかに**モジュール単位のサブパス入口**がある
- * （`@tasuki/timer-core/aggregate` など）。上限値の定数（`MAX_DISPLAY_NAME` など）と
+ * （`@tasuki/timer-core/aggregate` など）。上限値の定数（`MAX_ROOM_NAME` など）と
  * `elapsedMs` `VALID_INTERVAL_MINUTES` は `apps/timer-web` が**このサブパスから**取り込んでおり、
  * index を通らない。**index の列挙が使われた根拠にならない**ので、2026-09-02 に
  * ここから落とした（利用側は無変更。SC-039④ の判定も同じ理由でサブパスを数えない）。

@@ -4,7 +4,7 @@
  * ルームが消える契機は 2 つある。**#95 S4a でこの 2 つが全部になった**（R10・D8）——
  * poker が持っていた「最後の接続が切れた瞬間に破棄する」経路（旧 FR-014）は撤去し、
  * 名簿が 1 つになったのに合わせて寿命の規則も 1 つに寄せた
- * （撤去の跡は `poker/application/handlers.ts` の `detachFromCurrentRoom` にある）。
+ * （撤去の跡は `application/poker-handlers.ts` の `detachFromCurrentRoom` にある）。
  *
  *   1. アイドル回収 — 全員 offline のまま TTL を超えた（`room-reclaimer.ts`）
  *   2. 在室者が 0 人になる退出 — 名簿の最後の 1 人が抜けた（`command-handlers/participant-remove.ts`）
@@ -28,7 +28,7 @@
 
 import type { RoomStore } from "../ports/room-store.js";
 import type { TimerStore } from "../ports/timer-store.js";
-import type { RoundStore } from "../poker/ports/round-store.js";
+import type { RoundStore } from "../ports/poker-round-store.js";
 
 export interface RoomDestroyerDeps {
   /** 名簿の実体。破棄では `remove` しか使わないため必要な分だけを要求する。 */
