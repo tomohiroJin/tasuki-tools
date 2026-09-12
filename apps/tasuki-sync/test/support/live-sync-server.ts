@@ -32,6 +32,7 @@ import { createSyncServer, type SyncServer } from "../../src/create-sync-server.
 import { loadSyncConfig } from "../../src/config.js";
 import type { Command, ServerMsg } from "@tasuki/timer-core";
 import type { ServerMessage as PokerServerMsg } from "@tasuki/poker-core";
+import type { HubCommand, HubServerMsg } from "@tasuki/room-core";
 import { POKER_WS_PATH } from "../poker/helpers";
 
 /** 待ちの既定タイムアウト（ms）。実 I/O を挟むので in-process より長く取る。 */
@@ -275,9 +276,75 @@ export class LivePokerClient {
 }
 
 /** 起動中の同期サーバーと、そこへ繋いだクライアント群。 */
+
+/**
+ * **ハブ（選択画面）の入口**（`/ws`）に繋ぐ実 WebSocket クライアント（#95 S5a）。
+ *
+ * timer / poker の {@link LiveClient} / {@link LivePokerClient} と同じ形にしてある。
+ * 話す言葉だけが違う（名簿のコマンドとサーバーメッセージ）。
+ */
+export class LiveHubClient {
+  readonly received: HubServerMsg[] = [];
+  private cursor = 0;
+  private waiters: Array<() => void> = [];
+
+  constructor(
+    readonly label: string,
+    private readonly ws: WebSocket,
+  ) {
+    ws.on("message", (raw: Buffer) => {
+      this.received.push(JSON.parse(raw.toString()) as HubServerMsg);
+      for (const notify of this.waiters) notify();
+      this.waiters = [];
+    });
+  }
+
+  send(cmd: HubCommand): void {
+    this.ws.send(JSON.stringify(cmd));
+  }
+
+  /** 条件に合う最初の未消費メッセージを待つ。 */
+  async take(
+    predicate: (msg: HubServerMsg) => boolean,
+    what: string,
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+  ): Promise<HubServerMsg> {
+    const deadline = Date.now() + timeoutMs;
+    for (;;) {
+      while (this.cursor < this.received.length) {
+        const msg = this.received[this.cursor];
+        this.cursor += 1;
+        if (msg !== undefined && predicate(msg)) return msg;
+      }
+      const left = deadline - Date.now();
+      if (left <= 0) {
+        throw new LiveSetupError(
+          `${this.label}: ${what} が届かない（受信済み: ${this.received.map((m) => m.type).join(" / ")}）`,
+        );
+      }
+      await new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, Math.min(left, 50));
+        this.waiters.push(() => {
+          clearTimeout(timer);
+          resolve();
+        });
+      });
+    }
+  }
+
+  async close(): Promise<void> {
+    if (this.ws.readyState === this.ws.CLOSED) return;
+    await new Promise<void>((resolve) => {
+      this.ws.once("close", () => resolve());
+      this.ws.close();
+    });
+  }
+}
+
 export class LiveSyncServer {
   private readonly clients: LiveClient[] = [];
   private readonly pokerClients: LivePokerClient[] = [];
+  private readonly hubClients: LiveHubClient[] = [];
 
   constructor(private readonly server: SyncServer) {}
 
@@ -334,12 +401,35 @@ export class LiveSyncServer {
     return client;
   }
 
+  /**
+   * **ハブの入口**（`/ws`）へ新しい WebSocket 接続を開く（#95 S5a）。
+   *
+   * 繋ぐパスだけが違う（振り分けはパスだけで決まる。`src/adapters/ws-adapter.ts`）。
+   * `headers` に `X-Forwarded-For` を渡せば、timer / poker の接続と同じクライアント鍵を
+   * 名乗らせられる（レート制限のバケツが 1 本かどうかを見るのに要る）。
+   */
+  async connectHub(
+    label = `hub-${this.hubClients.length + 1}`,
+    headers: Record<string, string> = {},
+  ): Promise<LiveHubClient> {
+    const ws = new WebSocket(`ws://127.0.0.1:${this.port}/ws`, { headers });
+    await new Promise<void>((resolve, reject) => {
+      ws.once("open", () => resolve());
+      ws.once("error", (e) => reject(new LiveSetupError(`${label} の接続に失敗: ${e.message}`)));
+    });
+    const client = new LiveHubClient(label, ws);
+    this.hubClients.push(client);
+    return client;
+  }
+
   /** 全クライアントを閉じ、サーバーを停止する（afterEach から呼ぶ）。 */
   async close(): Promise<void> {
     for (const client of this.clients) await client.close();
     this.clients.length = 0;
     for (const client of this.pokerClients) await client.close();
     this.pokerClients.length = 0;
+    for (const client of this.hubClients) await client.close();
+    this.hubClients.length = 0;
     await this.server.close();
   }
 }

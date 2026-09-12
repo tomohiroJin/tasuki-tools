@@ -16,6 +16,7 @@ import { makeHandlers, type HandlerDeps } from "../../src/application/handlers.j
 import { PresenceManager } from "../../src/application/presence.js";
 import { InMemoryRoomStore } from "../../src/adapters/in-memory-room-store.js";
 import { InMemoryTimerStore } from "../../src/adapters/in-memory-timer-store.js";
+import { spyHub } from "./hub.js";
 import { InMemoryRoundStore } from "../../src/adapters/poker-in-memory-round-store.js";
 import { createTokenStore } from "../../src/application/token-store.js";
 import { createRoomDestroyer } from "../../src/application/destroy-room.js";
@@ -299,10 +300,12 @@ export function makeTestHandlers(overrides?: TestHandlerOverrides): TestHandlers
   // 要り、destroyRoom が handlers.releaseRoom と presence を要る相互依存を、後から代入する
   // クロージャで解く（本番も同じ解き方をしている）。
   let destroyRoom: (roomCode: string) => void;
+  const hub = overrides?.hub ?? spyHub();
   const handlers = makeHandlers({
     ...overrides,
     store,
     timers,
+    hub,
     tokens: overrides?.tokens ?? createTokenStore(),
     toolGate: overrides?.toolGate ?? testToolGate({ timers, rounds }),
     rateLimiter: overrides?.rateLimiter ?? testRateLimiter(),
@@ -316,6 +319,7 @@ export function makeTestHandlers(overrides?: TestHandlerOverrides): TestHandlers
     store,
     timers,
     broadcaster,
+    hub,
     clock,
     onDriverAbsence: handlers.advanceForAbsence,
   });

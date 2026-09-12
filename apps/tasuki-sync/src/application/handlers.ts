@@ -42,6 +42,8 @@ import type { RoomCodeGen } from "../ports/code-gen.js";
 import type { Scheduler } from "./schedule.js";
 import type { ProblemDelegator } from "./problem-delegation.js";
 import { createRateLimitGate } from "./rate-limit-gate.js";
+import { saveRoster } from "./save-roster.js";
+import type { HubBroadcaster } from "../ports/hub-broadcaster.js";
 import type { ToolGate } from "./tool-gate.js";
 import type { TokenStore } from "./token-store.js";
 import { applyEvents, type RoomState } from "./apply-room-level-event.js";
@@ -153,6 +155,14 @@ export interface HandlerDeps {
    * 既定を持たせると、注入を忘れた瞬間に 1 IP あたりの実効予算が黙って 2 倍になる。
    */
   rateLimiter: RateLimiter;
+  /**
+   * 選択画面（ハブ）への配信（#95 S5a）。
+   *
+   * **必須にしてある**（理由は {@link HandlerDeps.toolGate} と同じ）。既定を持たせると、
+   * 注入を忘れた瞬間に名簿の更新が選択画面へ届かなくなり、しかも timer は正しく動くので
+   * 誰も気づかない。
+   */
+  hub: HubBroadcaster;
   /** AI 解錠合言葉。undefined なら AI 機能は無効（解錠は常に失敗＝存在秘匿）。
    *  createSyncServer はトークン未設定時にもここを undefined にする。 */
   aiUnlockKey?: string | undefined;
@@ -291,14 +301,22 @@ export function makeHandlers(deps: HandlerDeps) {
    * ⚠ **put と配信を束ねた経路はここだけではない。** この `commit` は名簿と timer の状態を
    * **両方**書くので、両方を変えるコマンドはここを通す。片方しか変えない経路が別にある ——
    *
-   * - `application/presence.ts`（`handlePing` / `handleDisconnect`）…… 名簿だけ（`store.put`）
+   * - `application/presence.ts`（`handlePing` / `handleDisconnect`）…… 名簿だけ
    * - `application/problem-delegation.ts`（`finalize`）…… timer の状態だけ（`timers.put`）
    *
    * **ここを「1 箇所」と書くと、次に presence か delegation を触る人は `commit` を探さず、
    * その場で 2 行書き足す。** 足すなら DTO を通すことだけは外さないこと。
+   *
+   * **名簿を書くときは `saveRoster` を通す**（#95 S5a）。素の `store.put` を書くと
+   * 選択画面（ハブ）への配信が落ちる。`test/save-roster.wiring.test.ts` が
+   * 「製品コードで `store.put` を呼ぶのは `save-roster.ts` だけ」を機械的に固定している。
    */
   function commit(state: RoomState): void {
-    store.put(state.membership);
+    // 名簿の保管とハブへの配信は対にする（`save-roster.ts`・#95 S5a）。
+    // **`store.put` をここへ書き戻さないこと** —— 選択画面が更新されなくなる。
+    // 名簿の保管とハブへの配信は対にする（`save-roster.ts`・#95 S5a）。
+    // **`store.put` をここへ書き戻さないこと** —— 選択画面が更新されなくなる。
+    saveRoster({ store, hub: deps.hub }, state.membership);
     timers.put(state.timer);
     broadcaster.broadcastSnapshot(
       state.timer.code,
@@ -757,6 +775,16 @@ export function makeHandlers(deps: HandlerDeps) {
     handleConnectionClose,
     releaseRoom,
     advanceForAbsence: autoSwitch,
+    /**
+     * レート制限のゲート（#95 S5a）。
+     *
+     * **ハブの入口（`hub-handlers.ts`）へ同じインスタンスを渡すために公開する。**
+     * 別インスタンスを作ると `connId → クライアント鍵` の対応が空になり、ハブでは
+     * 鍵が connId へ落ちる —— つまり**再接続するだけでレート制限を回避できる**。
+     * 鍵を登録するのは接続の受理（`handleConnectionOpen`）で、それを呼ぶのは
+     * timer 側の `onConnect` 1 箇所だが、ハブの接続もそこを通る。
+     */
+    rateLimitGate,
   };
 }
 

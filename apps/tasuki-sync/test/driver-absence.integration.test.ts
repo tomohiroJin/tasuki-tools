@@ -12,6 +12,7 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
 import { makeTestHandlers } from "./support/room-builder.js";
+import { spyHub } from "./support/hub.js";
 import {
   PresenceManager,
   DRIVER_ABSENCE_GRACE_MS,
@@ -61,6 +62,7 @@ describe("統合: ドライバー不在 自動繰上（presence→handlers 実�
       broadcaster,
       clock,
       onDriverAbsence: handlers.advanceForAbsence,
+    hub: spyHub(),
     });
   });
 

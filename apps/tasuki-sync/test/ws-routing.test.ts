@@ -1,9 +1,9 @@
 /**
  * WS の入口の振り分け（#95 S2・設計正本 D10）。
  *
- * 統合サーバーは 1 つの待ち受けで 2 つのプロトコルを捌く。**どちらへ流れるかを
- * 決めているのはパスだけ**なので、その対応をここで機械的に固定する
- * （`src/adapters/ws-adapter.ts` の `POKER_WS_PATH`）。
+ * 統合サーバーは 1 つの待ち受けで 3 つのメッセージ層を捌く（#95 S5a でハブが加わった）。
+ * **どれへ流れるかを決めているのはパスだけ**なので、その対応をここで機械的に固定する
+ * （`src/adapters/ws-adapter.ts` の `POKER_WS_PATH` と `HUB_WS_PATH`）。
  *
  * ## なぜ既存のテストでは足りないか
  *
@@ -34,8 +34,17 @@ afterAll(async () => {
   await server.close();
 });
 
-/** `path` へ繋ぎ、poker の `create-room` を 1 通投げて最初の応答を返す。 */
-async function firstReplyTo(path: string): Promise<Record<string, unknown>> {
+/**
+ * `path` へ繋ぎ、`message` を 1 通投げて最初の応答を返す。
+ *
+ * 既定は poker の `create-room`。**判別材料はメッセージ側で選ぶ** —— どの層も
+ * 「知らないコマンド」には同じ形のエラーを返すので、`INVALID_COMMAND` が返ったことは
+ * どこへ届いたかの証拠にならない（S5a でハブを足したときに実際に空振りした）。
+ */
+async function firstReplyTo(
+  path: string,
+  message: Record<string, unknown> = { type: "create-room", name: "たろう" },
+): Promise<Record<string, unknown>> {
   const ws = new WebSocket(`ws://127.0.0.1:${server.port}${path}`);
   try {
     await new Promise<void>((resolve, reject) => {
@@ -55,7 +64,7 @@ async function firstReplyTo(path: string): Promise<Record<string, unknown>> {
         { once: true },
       );
     });
-    ws.send(JSON.stringify({ type: "create-room", name: "たろう" }));
+    ws.send(JSON.stringify(message));
     return await reply;
   } finally {
     ws.close();
@@ -66,13 +75,36 @@ describe("WS の入口の振り分け", () => {
   // 移行期に受ける 3 つのうち timer 側の 2 つと、統合前から timer が受けていた素のパス。
   // 素のパス（`/`）を残すのは、統合前の timer がパスを一切見ずに upgrade しており、
   // 実 WS 越しのテストがそこへ繋いでいるためである（許可リストへ絞ると全滅する）。
-  it.each(["/ws", "/timer/ws", "/"])("%s は timer のメッセージ層へ行く", async (path) => {
+  it.each(["/timer/ws", "/"])("%s は timer のメッセージ層へ行く", async (path) => {
     // Given: 統合サーバー（beforeAll で起動済み）
     // When: poker のコマンドを timer 側の入口へ送る
     const reply = await firstReplyTo(path);
     // Then: timer が「知らないコマンド」として返す
     expect(reply["type"]).toBe("error");
     expect(reply["code"]).toBe("INVALID_COMMAND");
+  });
+
+  // **判別は「timer だけが答えるコマンド」で行う。** `time.ping` は timer のメッセージ層が
+  // `time.pong` で答える唯一のコマンドで、ハブは名簿の言葉（room.create / room.join /
+  // roster）しか話さないため知らないコマンドとして拒む。両者の応答は形も語彙も重ならない。
+  const TIMER_ONLY_COMMAND = { command: "time.ping", clientTime: 1 };
+
+  it("Given ハブの入口 / When timer だけが答えるコマンドを送る / Then 拒まれる（timer へ行っていない）", async () => {
+    // Given: 統合サーバー（beforeAll で起動済み）
+    // When: `/ws` へ timer のコマンドを送る
+    const reply = await firstReplyTo("/ws", TIMER_ONLY_COMMAND);
+
+    // Then: ハブは time.ping を知らない
+    expect(reply["type"]).toBe("error");
+  });
+
+  it("Given timer の入口 / When 同じコマンドを送る / Then time.pong が返る（対照）", async () => {
+    // Given: 統合サーバー（beforeAll で起動済み）
+    // When: `/timer/ws` へ同じコマンドを送る
+    const reply = await firstReplyTo("/timer/ws", TIMER_ONLY_COMMAND);
+
+    // Then: 上の拒否が「どこへ送っても拒まれる」ではないことを、この対照が示す
+    expect(reply["type"]).toBe("time.pong");
   });
 
   it("/poker/ws は poker のメッセージ層へ行く", async () => {

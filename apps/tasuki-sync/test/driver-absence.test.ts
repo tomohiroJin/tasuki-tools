@@ -13,6 +13,7 @@ import { attachConnection } from "@tasuki/room-core";
 import { TOOL_TIMER } from "../src/application/tool-id.js";
 import { putRoomView, maybeRoomViewOf } from "./support/room-view.js";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
+import { spyHub } from "./support/hub.js";
 
 /**
  * 前提の接続 ID（#95 S4b）。**wire は `connId` を持たなくなった**ので、どの参加者が
@@ -89,7 +90,7 @@ describe("PresenceManager: ドライバー不在の自動繰上", () => {
     broadcaster = new SpyBroadcaster();
     clock = new FakeClock(1000000);
     onDriverAbsence = jest.fn();
-    pm = new PresenceManager({ store, timers, broadcaster, clock, onDriverAbsence });
+    pm = new PresenceManager({ store, timers, broadcaster, hub: spyHub(), clock, onDriverAbsence });
   });
 
   afterEach(() => {
@@ -222,7 +223,7 @@ describe("PresenceManager: 切断時のプレゼンス更新", () => {
     store = new InMemoryRoomStore();
     timers = new InMemoryTimerStore();
     broadcaster = new SpyBroadcaster();
-    pm = new PresenceManager({ store, timers, broadcaster, clock: new FakeClock(1000000) });
+    pm = new PresenceManager({ store, timers, broadcaster, hub: spyHub(), clock: new FakeClock(1000000) });
   });
 
   it("切断で presence が offline になり snapshot が配信される", () => {

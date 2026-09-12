@@ -57,6 +57,8 @@ import {
 import type { RateLimiter } from '@tasuki/rate-limit';
 import type { Clock } from '../ports/clock.js';
 import type { RoomStore } from '../ports/room-store.js';
+import type { HubBroadcaster } from '../ports/hub-broadcaster.js';
+import { saveRoster } from './save-roster.js';
 import type { TokenStore } from './token-store.js';
 import type { Broadcaster, RoomSocket } from '../ports/poker-broadcaster.js';
 import type { IdGen } from '../ports/poker-id-gen.js';
@@ -114,6 +116,12 @@ export interface HandlerDeps {
    */
   toolGate: ToolGate;
   broadcaster: Broadcaster;
+  /**
+   * 選択画面（ハブ）への配信（#95 S5a）。**poker 用の `broadcaster` とは別物**である ——
+   * あちらはラウンドを配り、こちらは名簿を配る。poker の入口で名簿が変わったことも
+   * 選択画面へ届ける必要があるので、ここでも受け取る。
+   */
+  hub: HubBroadcaster;
   idGen: IdGen;
   /** レート制限の窓の計測に使う単調時計。**壁時計ではない**（`ports/monotonic-clock.ts`）。 */
   clock: MonotonicClock;
@@ -216,7 +224,8 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
    * （timer 側の `application/handlers.ts` の `commit` と同じ規律）。
    */
   function commit(state: RoomState): void {
-    store.put(state.room);
+    // 名簿の保管とハブへの配信は対にする（`save-roster.ts`・#95 S5a）。
+    saveRoster({ store, hub: deps.hub }, state.room);
     rounds.put(state.room.code, state.round);
     broadcaster.broadcastSnapshot(state.room.code, state.round, fragmentsOf(state.room));
   }

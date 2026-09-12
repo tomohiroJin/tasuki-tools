@@ -50,7 +50,7 @@ export const RosterParticipantSchema = v.object({
   tools: v.array(v.string()),
 });
 
-export const RosterRoomSchema = v.object({
+export const RosterRoomSchema: v.GenericSchema<RosterRoom> = v.object({
   code: nonEmptyString,
   participants: v.array(RosterParticipantSchema),
 });
@@ -68,11 +68,14 @@ export type HubCommand =
       command: "room.join";
       code: string;
       displayName: string;
-      resumeToken?: string;
-      passphrase?: string;
+      // **`| undefined` を明示する。** `exactOptionalPropertyTypes` の下では
+      // 「キーが無い」と「キーはあるが undefined」が別物で、スキーマの推論は後者を出す。
+      // 省くと `HubCommandSchema` に型注釈を付けられず、検証の出力とこの型が静かにずれる。
+      resumeToken?: string | undefined;
+      passphrase?: string | undefined;
     };
 
-export const HubCommandSchema = v.variant("command", [
+export const HubCommandSchema: v.GenericSchema<HubCommand> = v.variant("command", [
   v.object({
     command: v.literal("room.create"),
     roomName: v.string(),
@@ -105,7 +108,7 @@ const identityFields = {
   resumeToken: nonEmptyString,
 };
 
-export const HubServerMsgSchema = v.variant("type", [
+export const HubServerMsgSchema: v.GenericSchema<HubServerMsg> = v.variant("type", [
   v.object({ type: v.literal("room.created"), ...identityFields }),
   v.object({ type: v.literal("room.joined"), ...identityFields }),
   v.object({ type: v.literal("roster"), room: RosterRoomSchema }),

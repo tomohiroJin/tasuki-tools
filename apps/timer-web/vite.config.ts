@@ -31,12 +31,15 @@ export default defineConfig({
     host: true,
     port: 5173,
     proxy: {
-      // 開発時も本番と同じ /timer/ws で繋ぎ、sync の /ws へ rewrite する（本番は Caddy が担う）
+      // 開発時も本番と同じ /timer/ws で繋ぐ（本番は Caddy が担う）。
+      //
+      // ⚠ **rewrite しない**（#95 S5a）。`/ws` はハブ（選択画面）の入口になったので、
+      // ここで剥がすと dev だけ timer の接続がハブ扱いになる。統合サーバーは
+      // 「`/poker/ws` でも `/ws` でもない」パスを timer として受ける。
       "/timer/ws": {
         // sync サーバーは IPv4 で確実に解決する 127.0.0.1 を指定（localhost の IPv6 解決差を回避）
         target: "ws://127.0.0.1:8787",
         ws: true,
-        rewrite: (path) => path.replace(/^\/timer\/ws/, "/ws"),
       },
     },
   },
