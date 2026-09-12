@@ -26,8 +26,16 @@ const MULTIPLIER = 2;
 /** ばらつきの幅。0.5 なら 0.5〜1.5 倍に散らす。 */
 const JITTER_RATIO = 0.5;
 
-/** 諦めるまでの試行回数。 */
-export const JOIN_RETRY_MAX_ATTEMPTS = 6;
+/**
+ * 諦めるまでの試行回数。
+ *
+ * **export しない。** 製品コードでこの値を読む場所は無く（諦めたことは
+ * {@link joinRetryDelayMs} が `null` を返して伝える）、テストのためだけに公開すると
+ * 「使われていない公開記号」（SC-039③④）になる。上限を知りたいテストは
+ * `joinRetryDelayMs` が `null` を返すまで数えれば導出できる —— そちらは
+ * 「利用者から見える振る舞い」を通る分、値の写しより壊れにくい。
+ */
+const JOIN_RETRY_MAX_ATTEMPTS = 6;
 
 /**
  * `attempt` 回目（1 起点）の待ち時間（ms）。上限を超えた回は `null`（諦める）。

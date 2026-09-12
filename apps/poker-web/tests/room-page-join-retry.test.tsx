@@ -25,8 +25,24 @@ import {
   RETRY_WAITING_TEXT,
   RETRY_WAITING_WITHOUT_NAME_TEXT,
 } from '../src/join-retry-plan';
-import { JOIN_RETRY_MAX_ATTEMPTS } from '../src/join-retry';
+import { joinRetryDelayMs } from '../src/join-retry';
 import { saveIdentity } from '../src/storage';
+
+/**
+ * 諦めるまでの試行回数を、**公開された振る舞いから導く**。
+ *
+ * `JOIN_RETRY_MAX_ATTEMPTS` は export していない（製品コードで読む場所が無く、
+ * テストのためだけの公開になるため）。上限は「`null` が返り始める回」として
+ * 外から観測できる。
+ */
+function maxAttempts(): number {
+  for (let n = 1; n <= 100; n++) {
+    if (joinRetryDelayMs(n, () => 0.5) === null) return n - 1;
+  }
+  throw new Error('上限が見つからない（100 回試しても null が返らなかった）');
+}
+
+const JOIN_RETRY_MAX_ATTEMPTS = maxAttempts();
 
 const ROOM_ID = 'ABCD1234';
 const PARTICIPANT_NAME = 'はなこ';

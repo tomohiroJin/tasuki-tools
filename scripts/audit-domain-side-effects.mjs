@@ -94,6 +94,13 @@ export const EXCLUDED_PACKAGES = [
     reason:
       "node 専用の共有ユーティリティ。docs/guides/architecture.md の層対応表でドメインと別の行に置かれている",
   },
+  {
+    pkg: "packages/sync-client",
+    reason:
+      "ブラウザ側のインフラ（WebSocket・タイマー・入室の待ち時間）。ドメインの判断を持たない。" +
+      "待ち時間のばらつきに Math.random を既定引数として持つが、呼び出し側が差し替えられる形であり" +
+      "（joinRetryDelayMs の第 2 引数）、テストはそこを固定して判定する（#95 S5a で新設）",
+  },
   { pkg: "packages/ui", reason: "CSS トークンと書体のみ。TS を 1 つも持たない" },
 ];
 

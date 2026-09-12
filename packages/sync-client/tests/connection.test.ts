@@ -92,7 +92,7 @@ describe('SyncConnection', () => {
     expect(received).toEqual(['{"type":"roster"}']);
   });
 
-  it('Given 一度確立した接続 / When 切断される / Then 待ってから繋ぎ直し onReconnected が呼ばれる', () => {
+  it('Given 一度確立した接続 / When 切断される / Then 待ってから繋ぎ直し、再接続として知らせる', () => {
     // Given
     const onReconnected = vi.fn();
     const conn = new SyncConnection({ url: 'ws://example/ws', onMessage: () => {}, onReconnected });
@@ -104,7 +104,7 @@ describe('SyncConnection', () => {
     vi.advanceTimersByTime(1000);
     latest().open();
 
-    // Then: 初回の確立では呼ばれない（呼び出し元は「保存済みの組で入り直す」判断に使う）
+    // Then: 初回の確立は再接続ではない（利用側は「保存済みの組で入り直す」判断に使う）
     expect(FakeWebSocket.instances).toHaveLength(2);
     expect(onReconnected).toHaveBeenCalledTimes(1);
   });

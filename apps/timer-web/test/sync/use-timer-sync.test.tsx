@@ -14,7 +14,24 @@ import type { Banner, BannerController } from "../../src/ui/use-banner.js";
 import { saveRecord } from "../../src/records/indexeddb.js";
 import { FakeWS } from "../support/fakes.js";
 import { aRoomView } from "../support/room-view.js";
-import { joinRetryDelayMs, JOIN_RETRY_MAX_ATTEMPTS } from "@tasuki/sync-client";
+import { joinRetryDelayMs } from "@tasuki/sync-client";
+
+/**
+ * 諦めるまでの試行回数を、**公開された振る舞いから導く**。
+ *
+ * `JOIN_RETRY_MAX_ATTEMPTS` は export していない（製品コードで読む場所が無く、
+ * テストのためだけの公開になるため）。上限は「`null` が返り始める回」として
+ * 外から観測できる —— 値の写しを持つより、振る舞いを通るぶん壊れにくい。
+ */
+function maxAttempts(): number {
+  for (let n = 1; n <= 100; n++) {
+    if (joinRetryDelayMs(n, () => 0.5) === null) return n - 1;
+  }
+  throw new Error("上限が見つからない（100 回試しても null が返らなかった）");
+}
+
+/** 上限（公開された振る舞いから導く）。 */
+const JOIN_RETRY_MAX_ATTEMPTS = maxAttempts();
 import type { CompletionRecord } from "@tasuki/timer-core";
 
 vi.mock("../../src/records/indexeddb.js", () => ({

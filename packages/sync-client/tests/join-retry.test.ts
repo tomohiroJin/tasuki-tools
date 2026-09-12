@@ -10,14 +10,31 @@
  * @requirements #147
  */
 import { describe, it, expect } from "vitest";
-import { joinRetryDelayMs, JOIN_RETRY_MAX_ATTEMPTS } from "../src/join-retry.js";
+import { joinRetryDelayMs } from "../src/join-retry.js";
+
+/**
+ * 諦めるまでの試行回数を、**公開された振る舞いから導く**。
+ *
+ * `JOIN_RETRY_MAX_ATTEMPTS` は export していない（製品コードで読む場所が無く、
+ * テストのためだけの公開になるため）。上限は「`null` が返り始める回」として
+ * 外から観測できる —— 値の写しを持つより、振る舞いを通るぶん壊れにくい。
+ */
+function maxAttempts(): number {
+  for (let n = 1; n <= 100; n++) {
+    if (joinRetryDelayMs(n, () => 0.5) === null) return n - 1;
+  }
+  throw new Error("上限が見つからない（100 回試しても null が返らなかった）");
+}
+
+
+const MAX_ATTEMPTS = maxAttempts();
 
 describe("入室の再試行方針", () => {
   it("待ち時間は回を追うごとに伸び、上限で頭打ちになる", () => {
     // Given: ばらつきを中央に固定して、伸び方だけを見る
     const mid = () => 0.5;
     // When
-    const delays = Array.from({ length: JOIN_RETRY_MAX_ATTEMPTS }, (_, i) =>
+    const delays = Array.from({ length: MAX_ATTEMPTS }, (_, i) =>
       joinRetryDelayMs(i + 1, mid),
     );
     // Then: 単調非減少で、最後は上限に張り付く
@@ -42,7 +59,7 @@ describe("入室の再試行方針", () => {
     const randoms = [0, 0.25, 0.5, 0.75, 0.999999];
     // When / Then
     for (const r of randoms) {
-      for (let attempt = 1; attempt <= JOIN_RETRY_MAX_ATTEMPTS; attempt++) {
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
         const delay = joinRetryDelayMs(attempt, () => r)!;
         expect(delay, `attempt=${attempt} r=${r}`).toBeGreaterThan(0);
         expect(delay, `attempt=${attempt} r=${r}`).toBeLessThanOrEqual(45_000);
@@ -52,15 +69,15 @@ describe("入室の再試行方針", () => {
 
   it("上限を超えた回は諦めを表す null を返す（無限に試み続けない）", () => {
     // Given / When / Then
-    expect(joinRetryDelayMs(JOIN_RETRY_MAX_ATTEMPTS, () => 0.5)).not.toBeNull();
-    expect(joinRetryDelayMs(JOIN_RETRY_MAX_ATTEMPTS + 1, () => 0.5)).toBeNull();
+    expect(joinRetryDelayMs(MAX_ATTEMPTS, () => 0.5)).not.toBeNull();
+    expect(joinRetryDelayMs(MAX_ATTEMPTS + 1, () => 0.5)).toBeNull();
   });
 
   it("諦めるまでの合計は、実測で超過した人数ぶんの補充を待てる長さがある", () => {
     // Given: バケツの補充は毎秒 1（#103 設計正本 D2）。実測では 40 人が超過した
     const mid = () => 0.5;
     // When
-    const total = Array.from({ length: JOIN_RETRY_MAX_ATTEMPTS }, (_, i) =>
+    const total = Array.from({ length: MAX_ATTEMPTS }, (_, i) =>
       joinRetryDelayMs(i + 1, mid),
     ).reduce<number>((a, b) => a + (b ?? 0), 0);
     // Then
