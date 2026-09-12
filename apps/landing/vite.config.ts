@@ -25,6 +25,10 @@ export default defineConfig({
       //
       // 各ツールの dev サーバーへそのまま転送する。WS も通す必要があるため
       // ws: true を付ける（/timer/ws は 5173 側がさらに sync の /ws へ rewrite する）。
+      // ハブ（選択画面）の WS。本番は Caddy の `/ws` 断片が同じことをする（#95 S5a）。
+      // **これが無いと dev で繋がらない** —— LP の SPA フォールバックが index.html を
+      // 200 で返すので、WebSocket にならずエラーにもならない（静かに壊れる）。
+      '/ws': { target: 'ws://127.0.0.1:8787', changeOrigin: true, ws: true },
       '/timer': { target: 'http://127.0.0.1:5173', changeOrigin: true, ws: true },
       '/poker': { target: 'http://127.0.0.1:5174', changeOrigin: true, ws: true },
     },

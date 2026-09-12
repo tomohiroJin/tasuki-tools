@@ -43,14 +43,22 @@ export interface RosterRoom {
   participants: RosterParticipant[];
 }
 
-export const RosterParticipantSchema = v.object({
+/**
+ * **export しない。** 製品コードの利用者は {@link RosterRoomSchema} だけで、
+ * 公開すると「公開契約にあるが誰も使わない値」（SC-039③④）が増える。
+ */
+const RosterParticipantSchema = v.object({
   participantId: nonEmptyString,
   displayName: nonEmptyString,
   presence: v.picklist(["online", "offline"]),
   tools: v.array(v.string()),
 });
 
-export const RosterRoomSchema: v.GenericSchema<RosterRoom> = v.object({
+/**
+ * **export しない。** 名簿は必ず {@link HubServerMsgSchema} の `roster` として運ばれる ——
+ * 単体で検証する利用者は製品コードに居ない（同じ理由で参加者のスキーマも公開しない）。
+ */
+const RosterRoomSchema: v.GenericSchema<RosterRoom> = v.object({
   code: nonEmptyString,
   participants: v.array(RosterParticipantSchema),
 });

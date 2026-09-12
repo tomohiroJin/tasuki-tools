@@ -101,7 +101,14 @@ export const ALLOWED = {
   "packages/protocol": [],
   "packages/rate-limit": [],
   "packages/ui": [],
-  "apps/landing": ["@tasuki/ui"],
+  // #95 S5a で LP は同期クライアントになった（ADR-0019）。**@tasuki/timer-core を知らない** ——
+  // ハブが扱うのは名簿だけで、タイマーの状態も票も通らない（ADR-0017 の文脈分割）。
+  "apps/landing": [
+    "@tasuki/protocol",
+    "@tasuki/room-core",
+    "@tasuki/sync-client",
+    "@tasuki/ui",
+  ],
   "apps/timer-web": [
     "@tasuki/room-core",
     "@tasuki/sync-client",

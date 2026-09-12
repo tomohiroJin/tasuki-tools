@@ -6,12 +6,13 @@
  */
 import { describe, it, expect } from "vitest";
 import * as v from "valibot";
-import {
-  RosterRoomSchema,
-  HubCommandSchema,
-  HubServerMsgSchema,
-  type RosterRoom,
-} from "../src/wire.js";
+import { HubCommandSchema, HubServerMsgSchema, type RosterRoom } from "../src/wire.js";
+
+/**
+ * 名簿は `roster` メッセージとしてだけ運ばれる（スキーマ単体は公開していない）。
+ * 利用者が実際に通す経路で検証する。
+ */
+const parseRoster = (room: unknown) => v.safeParse(HubServerMsgSchema, { type: "roster", room });
 
 const roster: RosterRoom = {
   code: "朝会モブ-a1b2",
@@ -23,7 +24,7 @@ const roster: RosterRoom = {
 
 describe("名簿の wire", () => {
   it("Given 名簿の形をした値 / When 検証する / Then 通る", () => {
-    expect(v.safeParse(RosterRoomSchema, roster).success).toBe(true);
+    expect(parseRoster(roster).success).toBe(true);
   });
 
   it("Given 項目の欠けた参加者 / When 検証する / Then 落ちる", () => {
@@ -34,7 +35,7 @@ describe("名簿の wire", () => {
     };
 
     // When / Then（操作）: 境界の検証はここで効く（原則 IV）
-    expect(v.safeParse(RosterRoomSchema, broken).success).toBe(false);
+    expect(parseRoster(broken).success).toBe(false);
   });
 
   it("Given 未知の項目が増えた名簿 / When 検証する / Then 通る（古い画面を壊さない）", () => {
@@ -42,7 +43,7 @@ describe("名簿の wire", () => {
     const future = { ...roster, hint: "後から足した" };
 
     // When / Then（操作）: 非 strict なので、項目が増えてもフレームごと捨てない
-    expect(v.safeParse(RosterRoomSchema, future).success).toBe(true);
+    expect(parseRoster(future).success).toBe(true);
   });
 
   it("Given 値域の外の presence / When 検証する / Then 落ちる", () => {
@@ -53,7 +54,7 @@ describe("名簿の wire", () => {
     };
 
     // When / Then（操作）
-    expect(v.safeParse(RosterRoomSchema, broken).success).toBe(false);
+    expect(parseRoster(broken).success).toBe(false);
   });
 });
 

@@ -35,6 +35,15 @@ importers:
 
   apps/landing:
     dependencies:
+      '@tasuki/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
+      '@tasuki/room-core':
+        specifier: workspace:*
+        version: link:../../packages/room-core
+      '@tasuki/sync-client':
+        specifier: workspace:*
+        version: link:../../packages/sync-client
       '@tasuki/ui':
         specifier: workspace:*
         version: link:../../packages/ui
