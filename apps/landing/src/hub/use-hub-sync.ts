@@ -53,7 +53,15 @@ export interface HubSync {
 }
 
 export function useHubSync(): HubSync {
-  const code = useMemo(() => readRoomParam(window.location.href), []);
+  /**
+   * いま映しているルーム。
+   *
+   * **URL の `?room=` だけで決めてはいけない。** ルームを**作った**ときは、その時点まで
+   * URL に `room` が無い（サーバーがコードを決めるまで存在しない）。初期値を URL から
+   * 取り、`room.created` を受けたらここを進める —— 進めないと、作成が成功しても
+   * 「ルームを作る画面」のままになる（E2E が実際にこの形で落ちた）。
+   */
+  const [code, setCode] = useState<string | null>(() => readRoomParam(window.location.href));
   const [joined, setJoined] = useState(false);
   const [roster, setRoster] = useState<RosterRoom | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -112,7 +120,9 @@ export function useHubSync(): HubSync {
           setNeedsPassphrase(false);
           retryRef.current = 0;
           // 作成したときは URL に `?room=` が無いので、履歴を汚さず差し替える。
+          // **画面の側も同時に進める**（URL を書き換えても状態は追随しない）。
           if (msg.type === 'room.created') {
+            setCode(msg.code);
             const url = new URL(window.location.href);
             url.searchParams.set('room', msg.code);
             window.history.replaceState(null, '', url.toString());

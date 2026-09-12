@@ -268,6 +268,10 @@ export const DORMANT_DOCS = [
   { prefix: "docs/retrospectives/", reason: "振り返り。当時の記述を保つのが正しい" },
   { prefix: "packages/protocol/README.md", reason: "パッケージ README。LIVE_DOCS の粒度に合わない" },
   { prefix: "packages/ui/README.md", reason: "パッケージ README。LIVE_DOCS の粒度に合わない" },
+  {
+    prefix: "packages/sync-client/README.md",
+    reason: "パッケージ README（#95 S5a で新設）。protocol / ui と同じ扱い",
+  },
 ];
 
 /**
@@ -315,6 +319,14 @@ export const MISSING_PATH_EXCEPTIONS = [
   {
     path: "apps/tasuki-sync/.env",
     reason: "gitignore 対象。deploy/timer/NOTES.md は、この実 env を各自で作る手順を案内している",
+  },
+  {
+    doc: "docs/adr/0018-single-entry-and-url-scheme.md",
+    path: "deploy/timer/caddy/40-timer-legacy-room.conf",
+    reason:
+      "2026-09-06 の背景として書いた当時のパス。**この ADR の決定 4 がその撤去を定め、" +
+      "#95 S5a（#247）で実施した**ので、実在しないことがむしろ決定どおりである。" +
+      "ADR の背景は追記のみで書き換えないため（docs/adr/0002）、ここで免除する",
   },
   {
     doc: "docs/adr/0016-core-domain-representation.md",

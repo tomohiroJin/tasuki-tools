@@ -26,12 +26,12 @@ function findRepoRoot(from: string): string {
 }
 
 describe("buildRoomUrl", () => {
-  it("公開パス配下の参加 URL を返す", () => {
-    // Given: 玄関 LP がルートを占めるオリジン
+  it("ルート直下の参加 URL を返す（入口は LP に一本化された）", () => {
+    // Given: 玄関 LP がルートを占め、そこがルームコードを解する（#95 S5a・D11）
     // When: 招待 URL を組み立てる
-    // Then: /timer/ 配下を指し、玄関に着地しない
+    // Then: ツールの配下ではない。選択画面に着地して、そこから道具を選ぶ
     expect(buildRoomUrl("https://tasuki.example", "ABC123")).toBe(
-      "https://tasuki.example/timer/?room=ABC123",
+      "https://tasuki.example/?room=ABC123",
     );
   });
 
@@ -40,7 +40,7 @@ describe("buildRoomUrl", () => {
     // When: 招待 URL を組み立てる
     // Then: ポートが保たれる（落とすと別のアプリに繋がる）
     expect(buildRoomUrl("http://localhost:5175", "ABC123")).toBe(
-      "http://localhost:5175/timer/?room=ABC123",
+      "http://localhost:5175/?room=ABC123",
     );
   });
 
@@ -53,12 +53,13 @@ describe("buildRoomUrl", () => {
     expect(new URL(url).searchParams.get("room")).toBe("朝会モブ-a1b2");
   });
 
-  it("ルート直下（?room=）には向けない", () => {
-    // Given: ルートは玄関 LP の包括フォールバックが持っている
-    // When: 招待 URL を組み立てる
-    // Then: ルート直下ではない。ここが直下だとコードを持ったまま LP が
-    // 表示されて参加できない（#76 で実測した事象）
-    expect(buildRoomUrl("https://h", "ABC123")).not.toBe("https://h?room=ABC123");
+  it("ツールの公開パス配下には向けない（旧 S4 の形へ戻さない）", () => {
+    // Given（準備）: S4 から S5a までは `/timer/?room=` を配っていた
+    // When（操作）
+    const url = buildRoomUrl("https://h", "ABC123");
+
+    // Then: 戻すと、配ったリンクが選択画面を素通りして timer に着く
+    expect(url).not.toContain("/timer/");
   });
 });
 
@@ -79,19 +80,16 @@ describe("PUBLIC_PATH と配信設定", () => {
     expect(base?.[1]).toBe(PUBLIC_PATH);
   });
 
-  it("Given 旧リンク救済の Caddy 断片 / When 転送先を読む / Then PUBLIC_PATH 配下へ送っている", () => {
-    // Given: `/` + room クエリを救う本番の断片
-    // When: 転送先を読む
-    // Then: 公開パス配下へ送っている
-    //
-    // 旧リンク救済はあくまで保険で、招待 URL 自体が正しい形を出すのが本筋。
-    // 断片の転送先が公開パスとずれたら、古いリンクの救済も同時に壊れる。
-    const fragment = readFileSync(
-      path.join(findRepoRoot(process.cwd()), "deploy/timer/caddy/40-timer-legacy-room.conf"),
-      "utf8",
+  it("Given 旧リンク救済の断片 / When 探す / Then もう存在しない", () => {
+    // Given（準備）: #95 S5a で撤去した（`docs/adr/0018` 決定 4）。
+    //                招待 URL が `/?room=` になった以上、これが残ると新しいリンクが
+    //                301 でタイマーへ飛ばされ、選択画面に着地しない
+    const fragment = path.join(
+      findRepoRoot(process.cwd()),
+      "deploy/timer/caddy/40-timer-legacy-room.conf",
     );
-    const redir = /^\s*redir\s+@legacy-room\s+(\S+)/m.exec(fragment);
 
-    expect(redir?.[1]?.startsWith(PUBLIC_PATH)).toBe(true);
+    // When / Then（操作）: 復活させたらここが赤くなる
+    expect(existsSync(fragment)).toBe(false);
   });
 });

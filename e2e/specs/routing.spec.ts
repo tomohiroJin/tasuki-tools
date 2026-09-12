@@ -102,16 +102,18 @@ test.describe('@smoke 末尾スラッシュの救済', () => {
   }
 });
 
-test.describe('@smoke 旧共有リンクの救済', () => {
-  test('Given /?room=ABC123 / When GET する / Then 301 で /timer/ へクエリごと送られる', async ({
+test.describe('@smoke 参加用 URL は玄関に着く', () => {
+  test('Given /?room=ABC123 / When GET する / Then 転送されず 200 で玄関が返る', async ({
     request,
   }) => {
-    // Given / When
+    // Given / When: **追跡させない。** 既定では追跡され、最終的な 200 を見て
+    //               「転送が無い」と取り違える
     const response = await request.get('/?room=ABC123', { maxRedirects: 0 });
-    // Then: クエリを落とす改変（redir @legacy-room /timer/ permanent）でも 301 は
-    //       返り続けるため、Location の値まで固定しないと #76 J-1 と同じ壊れ方が素通りする
-    expect(response.status()).toBe(301);
-    expect(response.headers()['location']).toBe('/timer/?room=ABC123');
+
+    // Then: #95 S5a で旧救済断片（40-timer-legacy-room.conf）を撤去した。
+    //       参加用 URL はこの形なので、301 が残っているとタイマーへ飛ばされ、
+    //       選択画面に着地しない（`docs/adr/0018` 決定 4）
+    expect(response.status()).toBe(200);
   });
 
   test('Given room の無い / / When GET する / Then 200 で玄関のまま', async ({ request }) => {
@@ -135,6 +137,9 @@ test.describe('@smoke WebSocket が SPA に吸われていない', () => {
    * 426 は返り続ける。経路の正しさは第 2 段の実接続（@core）に委ねる。
    */
   for (const [wsPath, expectedStatus] of [
+    // #95 S5a で `/ws`（ハブの入口）が加わった。**200 が返るなら断片が設置されておらず、
+    // 包括フォールバック（LP の index.html）に吸われている**という意味になる。
+    ['/ws', 426],
     ['/timer/ws', 426],
     ['/poker/ws', 426],
   ] as const) {

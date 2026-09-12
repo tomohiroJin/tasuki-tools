@@ -80,7 +80,7 @@ describe("Session × InvitePanel 結合", () => {
 
     // Then
     // 公開パス配下を指すこと（ルート直下だと玄関 LP に着地する・#76 F-1）
-    expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/timer/?room=ABC123`);
+    expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/?room=ABC123`);
   });
 
   it("デフォルトは「セッション」タブが表示される", () => {

@@ -11,10 +11,10 @@ import で切り離す**。アプリを増やしてもホストの `Caddyfile` �
 └── tasuki/
     ├── site.conf                    # deploy/caddy/tasuki.conf
     └── apps/
+        ├── 05-hub-ws.conf           # deploy/landing/caddy/（#95 S5a で新設・ハブの WS）
         ├── 10-timer-ws.conf         # deploy/timer/caddy/
         ├── 20-poker.conf            # deploy/poker/caddy/
         ├── 30-timer-spa.conf        # deploy/timer/caddy/
-        ├── 40-timer-legacy-room.conf # deploy/timer/caddy/
         └── 90-landing.conf          # deploy/landing/caddy/（包括フォールバック）
 ```
 
@@ -81,8 +81,8 @@ scp deploy/landing/caddy/90-landing.conf        "$TASUKI_SSH_HOST:/tmp/"
 sudo mkdir -p /etc/caddy/tasuki/apps
 sudo cp /etc/caddy/Caddyfile /etc/caddy/Caddyfile.bak."$(date +%Y%m%d-%H%M)"   # 必ず退避
 sudo install -m 644 /tmp/site.conf /etc/caddy/tasuki/site.conf
-sudo install -m 644 /tmp/10-timer-ws.conf /tmp/20-poker.conf /tmp/30-timer-spa.conf \
-                    /tmp/40-timer-legacy-room.conf /tmp/90-landing.conf \
+sudo install -m 644 /tmp/05-hub-ws.conf /tmp/10-timer-ws.conf /tmp/20-poker.conf \
+                    /tmp/30-timer-spa.conf /tmp/90-landing.conf \
                     /etc/caddy/tasuki/apps/
 
 # 3) 旧断片を削除（S4 の入れ替え。上記「旧ファイルの削除が必須」を参照）

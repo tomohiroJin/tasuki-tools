@@ -165,17 +165,16 @@ test.describe('timer は後から参加した人が開始前に設定を変更�
 /**
  * 招待パネルに出た URL でそのまま参加できること（#11・#76 F-1 の回帰防止）。
  *
- * **「開いて参加できた」だけでは F-1 の再発を検出できない。**
- * `deploy/timer/caddy/40-timer-legacy-room.conf` が旧共有リンクを救済しており、
- * 壊れた形（`/?room=CODE`）でも 301 で `/timer/?room=CODE` へ送られてしまう。
- * つまり参加は成立し、判定は緑になる。**表示された URL の pathname そのものを
- * 固定して初めて、この壊れ方を捕まえられる。**
+ * **向き先は #95 S5a で変わった。** 入口が LP（ハブ）に一本化されたので、招待 URL は
+ * ルート直下の `/?room=CODE` を指す（`docs/adr/0018` 決定 2）。旧リンク救済の 301
+ * （`40-timer-legacy-room.conf`）は同じ段で撤去した ——
+ * 残すとこの形の URL がタイマーへ飛ばされ、選択画面に着地しない。
  *
- * 救済の 301 は古いリンクのための保険であって、いま配る招待 URL が頼るもの
- * ではない（`apps/timer-web/src/ui/room-url.ts` の冒頭コメント）。
+ * **「開いて何か出た」だけでは壊れ方を検出できない。** 表示された URL の pathname を
+ * 固定し、そこがハブの名乗り画面であることまで見る。
  */
 test.describe('招待パネルに表示された URL でそのまま参加できる', () => {
-  test('Given ルームの作成者 / When 画面に出た URL を 2 人目が開く / Then 玄関ではなく timer に着き、参加できる', async ({
+  test('Given ルームの作成者 / When 画面に出た URL を 2 人目が開く / Then 玄関の名乗り画面に着く', async ({
     page,
     openPeer,
   }) => {
@@ -193,18 +192,16 @@ test.describe('招待パネルに表示された URL でそのまま参加でき
     await expect(shown, '招待パネルの参加 URL が見えていない').toBeVisible();
     const invited = (await shown.innerText()).trim();
 
-    // Then その1: **公開パスの上を指していること。**
-    //             ここが `/` だと F-1 の再発だが、旧リンク救済の 301 に隠されて
-    //             下の参加は成功してしまう。文字列そのものを見るのはこの 1 行だけで足りる
-    expect(new URL(invited).pathname, `招待 URL の公開パス（${invited}）`).toBe('/timer/');
+    // Then その1: **ルート直下を指していること**（#95 S5a・D11）。
+    //             ここが `/timer/` なら S4 の形のままで、選択画面を素通りする
+    expect(new URL(invited).pathname, `招待 URL の公開パス（${invited}）`).toBe('/');
+    expect(new URL(invited).searchParams.get('room'), '招待 URL の room').not.toBeNull();
 
-    // Then その2: その URL をそのまま開いて、実際に参加できる
+    // Then その2: その URL を開くと、**玄関の名乗り画面**に着く。
+    //             ここで名乗ってから道具を選ぶ導線は landing.spec.ts が受け持つ
     const guest = await openPeer('timer-invited');
-    await joinAsDriverAt(guest.page, invited, GUEST);
-
-    // Then その3: **2 人が別人として輪に並ぶ。** 同じ人が二重に見えているだけ、を排除する
-    await expect(lobbyRotationRow(page, HOST, 1), '作成者の画面の 1 番目').toHaveCount(1);
-    await expect(lobbyRotationRow(page, GUEST, 2), '作成者の画面の 2 番目').toHaveCount(1);
+    await guest.page.goto(invited);
+    await expect(guest.page.getByRole('button', { name: '参加する' })).toBeVisible();
   });
 });
 

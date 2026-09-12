@@ -11,7 +11,7 @@
 | ポート | 8787（`127.0.0.1` のみ待受） |
 | 配置先 | `/opt/tasuki`（server.js・env）/ `/var/www/tasuki`（web） |
 | 公開パス | `/timer/`（S4 / #19 で `/` から移設。ルートは玄関 LP） |
-| WebSocket | `/timer/ws`（Caddy が sync の `/ws` へ rewrite） |
+| WebSocket | `/timer/ws`（**rewrite しない**。#95 S5a で `/ws` はハブの入口になった） |
 | 初回公開 | 2026-06-09 |
 
 ## 公開パスの移設（S4 / #19）
@@ -24,7 +24,7 @@
 | `apps/timer-web/vite.config.ts` の `base` | `/timer/` | アセットが 404（白画面） |
 | `app.env` の `PUBLIC_PATH` | `/timer/` | ドキュメントと実態が食い違う |
 | `caddy/30-timer-spa.conf` | `handle_path /timer/*` | `/timer/` が LP に吸われる |
-| `caddy/10-timer-ws.conf` | `handle /timer/ws` → `rewrite * /ws` | WS が繋がらない |
+| `caddy/10-timer-ws.conf` | `handle /timer/ws`（**rewrite しない**） | WS が繋がらない／ハブ扱いになる |
 | `apps/timer-web/src/sync/sync-url.ts` の `SYNC_PATH` | `/timer/ws` | WS が繋がらない |
 
 **最後の 2 つは同じ値を別ファイルで持つ**ため、食い違ってもどちらのファイルを見ても
@@ -37,11 +37,26 @@
 辞書順で landing が先に評価されて `/timer/` が LP に吸われる
 （手順は [`../caddy/README.md`](../caddy/README.md)）。
 
-### 旧共有リンクの救済
+### 旧共有リンクの救済（#95 S5a で撤去した）
 
-ルーム共有リンクは `?room=CODE` のクエリ形式のため、移設で `https://<host>/?room=ABC` が
-LP に着地してしまう。`caddy/40-timer-legacy-room.conf` が **`/` かつ `room` クエリ付きの
-ときだけ** `/timer/` へ 301 する。素の `/` は LP のまま。
+S4（#19）から S5a までは `caddy/40-timer-legacy-room.conf` が **`/` かつ `room` クエリ付きの
+ときだけ** `/timer/` へ 301 していた。**S5a で参加用 URL が `/?room=CODE` になった**ため、
+救済と新しい招待リンクが同じ形になり、両立しなくなった（`docs/adr/0018` 決定 4）。
+
+⚠ **ホスト上の `/etc/caddy/tasuki/apps/40-timer-legacy-room.conf` を消すこと。**
+残すと、いま配っている参加用 URL が 301 でタイマーへ飛ばされ、選択画面に着地しない。
+
+⚠ **この 301 は `permanent` なのでブラウザがキャッシュしている。** 断片を消しても、
+以前に旧リンクを開いた端末では飛ばされ続けることがある。利用者には強制再読み込み
+（Ctrl+Shift+R）かキャッシュの消去を案内する。**新しい端末・新しいプロファイルでは起きない。**
+
+### ハブ（選択画面）の WS（#95 S5a で新設）
+
+[`../landing/caddy/05-hub-ws.conf`](../landing/caddy/05-hub-ws.conf) を設置する。`/ws` を統合 sync（8787）へ渡す断片で、
+**rewrite しない**（`/ws` はハブ、`/timer/ws` は timer、`/poker/ws` は poker と、
+パスだけで振り分けている）。同じ段で `10-timer-ws.conf` から `rewrite * /ws` を外したので、
+**こちらも更新して設置し直すこと** —— 古いままだと timer の接続がハブとして扱われ、
+timer の参加者一覧から全員が消える。
 
 ## リソース上限・Origin 保護（公開運用）
 
