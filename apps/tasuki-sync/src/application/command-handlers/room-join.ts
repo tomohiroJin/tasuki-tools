@@ -21,7 +21,7 @@ import type { ToolGate } from "../tool-gate.js";
 import { buildTimerSnapshotRoom } from "../timer-snapshot-dto.js";
 import type { RoomState } from "../apply-room-level-event.js";
 import { TOOL_TIMER } from "../tool-id.js";
-import { joinRoom } from "../join-room.js";
+import { joinRoom, ROOM_NOT_FOUND_MESSAGE } from "../join-room.js";
 
 /** `room.join` が呼び出し元へ返す値。 */
 export interface JoinResult {
@@ -76,10 +76,7 @@ export function createRoomJoinHandler(deps: RoomJoinDeps) {
       const code = joined.error;
       // **ROOM_NOT_FOUND の文言は「存在しないルーム」と完全に同一にする**（ADR 0011）。
       // 入口の門で拒んだことを区別できると、ルームコード列挙の手がかりになる。
-      const message =
-        code === "ROOM_NOT_FOUND"
-          ? "指定されたルームコードが見つかりません"
-          : errorMessageFor(code);
+      const message = code === "ROOM_NOT_FOUND" ? ROOM_NOT_FOUND_MESSAGE : errorMessageFor(code);
       sendError(connId, code, message);
       return err(code);
     }
@@ -90,7 +87,7 @@ export function createRoomJoinHandler(deps: RoomJoinDeps) {
     // 判定している）。**それでも undefined を握りつぶさない** —— 門の条件が変わった
     // ときに、ここが静かに壊れた snapshot を配るのを避ける。
     if (timer === undefined) {
-      sendError(connId, "ROOM_NOT_FOUND", "指定されたルームコードが見つかりません");
+      sendError(connId, "ROOM_NOT_FOUND", ROOM_NOT_FOUND_MESSAGE);
       return err("ROOM_NOT_FOUND");
     }
 

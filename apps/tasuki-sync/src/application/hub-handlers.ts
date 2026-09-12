@@ -24,10 +24,11 @@ import {
   type ToolId,
 } from "@tasuki/room-core";
 import { parseBoundaryMessage } from "@tasuki/protocol";
+import { errorMessageFor } from "@tasuki/timer-core";
 import type { TimerStore } from "../ports/timer-store.js";
 import type { HubBroadcaster } from "../ports/hub-broadcaster.js";
 import { createRoom, type CreateRoomDeps } from "./create-room.js";
-import { joinRoom, type JoinRoomDeps } from "./join-room.js";
+import { joinRoom, ROOM_NOT_FOUND_MESSAGE, type JoinRoomDeps } from "./join-room.js";
 import { saveRoster, type SaveRosterDeps } from "./save-roster.js";
 
 /**
@@ -82,11 +83,8 @@ export function makeHubHandlers(deps: HubHandlerDeps): HubHandlers {
     });
 
     if (created.isErr()) {
-      fail(
-        connId,
-        created.error,
-        "サーバーのルーム数が上限に達しています。時間をおいて再試行してください。",
-      );
+      // 文言は timer の文言表から引く（言い回しの正本を 2 つ作らない）。
+      fail(connId, created.error, errorMessageFor(created.error));
       return;
     }
 
@@ -116,8 +114,14 @@ export function makeHubHandlers(deps: HubHandlerDeps): HubHandlers {
     if (joined.isErr()) {
       // **文言は timer の入口と同じにする。** 選択画面から総当たりされたときに、
       // 「存在しないルーム」と「入れないルーム」を区別させない（ADR 0011）。
+      // **文言の正本は 1 つ**（`@tasuki/timer-core` の文言表と `ROOM_NOT_FOUND_MESSAGE`）。
+      // ここで書き下ろすと、同じコードに 2 つの言い回しが生まれ、片方だけが直る。
       const code = joined.error;
-      fail(connId, code, hubErrorMessage(code));
+      fail(
+        connId,
+        code,
+        code === "ROOM_NOT_FOUND" ? ROOM_NOT_FOUND_MESSAGE : errorMessageFor(code),
+      );
       return;
     }
 
@@ -131,22 +135,6 @@ export function makeHubHandlers(deps: HubHandlerDeps): HubHandlers {
     // `joinRoom` が返した状態をそのまま保管して取りこぼしを防ぐ。
     if (timer !== undefined) timers.put(timer);
     saveRoster(deps, membership);
-  }
-
-  /** 利用者へ返す文言。**timer の入口と同じ言い回しにする。** */
-  function hubErrorMessage(code: string): string {
-    switch (code) {
-      case "ROOM_NOT_FOUND":
-        return "指定されたルームコードが見つかりません";
-      case "PASSPHRASE_REQUIRED":
-        return "このルームは合言葉で保護されています";
-      case "PASSPHRASE_MISMATCH":
-        return "合言葉が違います";
-      case "JOIN_RATE_LIMITED":
-        return "参加の試行が多すぎます。しばらく待ってから試してください";
-      default:
-        return "参加できませんでした";
-    }
   }
 
   return {

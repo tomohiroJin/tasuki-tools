@@ -52,7 +52,7 @@ function callsOfStorePut(): string[] {
 }
 
 describe("名簿の保管の配線", () => {
-  it("Given 製品コード / When store.put の呼び出しを数える / Then save-roster.ts だけが呼ぶ", () => {
+  it("Given 製品コード / When 名簿を保管している場所を数える / Then save-roster.ts だけである", () => {
     // Given / When: src 配下の実体（宣言ではなく字面を見る）
     const callers = callsOfStorePut();
 

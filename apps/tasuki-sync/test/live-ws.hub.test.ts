@@ -37,10 +37,10 @@ async function hubCreate(
 
 describe("ハブの入口（#95 S5a）", () => {
   it("Given ハブの接続 / When ルームを作る / Then 復帰の組と名簿が届く（R1）", async () => {
-    // Given
+    // Given（準備）: ハブの入口へ繋ぐ
     const hub = await server.connectHub();
 
-    // When
+    // When（操作）: ルームを作る
     const created = await hubCreate(hub, "朝会モブ", "あや");
     const roster = await hub.take((m) => m.type === "roster", "roster");
 
@@ -114,8 +114,10 @@ describe("ハブの入口（#95 S5a）", () => {
   });
 
   it("Given 存在しないルーム / When ハブから参加する / Then 門を通った timer と同じ文言で拒まれる", async () => {
-    // Given / When
+    // Given（準備）: ハブの入口へ繋ぐ
     const hub = await server.connectHub();
+
+    // When（操作）: 在りもしないコードで参加しようとする
     hub.send({ command: "room.join", code: "ないルーム-0000", displayName: "あや" });
 
     // Then: 「存在しない」と「入れない」を区別させない（ADR 0011）

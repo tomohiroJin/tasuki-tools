@@ -36,6 +36,15 @@ import type { RateLimitGate } from "./rate-limit-gate.js";
 import type { ToolGate } from "./tool-gate.js";
 import { constantTimeEqual } from "./secure-compare.js";
 
+/**
+ * 「そのルームは無い」と返すときの文言。**入口をまたいで 1 つにする。**
+ *
+ * 入口の門で拒んだ場合も、本当に存在しない場合も、**コード・文言・レート制限の積算まで
+ * 完全に同じ**にする（`docs/adr/0011`）。区別できるとルームコード列挙の手がかりになる。
+ * 文言を入口ごとに書くと、片方だけ言い回しが変わった瞬間にその区別が生まれる。
+ */
+export const ROOM_NOT_FOUND_MESSAGE = "指定されたルームコードが見つかりません";
+
 export interface JoinRoomDeps {
   store: RoomStore;
   timers: TimerStore;

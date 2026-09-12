@@ -119,6 +119,17 @@ const DEFAULT_HEARTBEAT_MAX_MISSES = 2;
  */
 const ADMIN_HTTP_ALLOWED_HEADERS = ["x-admin-token"] as const;
 
+/**
+ * 接続層が自分で返す文言。**コードごとに 1 つだけ**にする（SC-035）。
+ *
+ * timer とハブで同じ事象（フレームが大きすぎる・内部エラー）に同じ言葉を返すので、
+ * それぞれの分岐に書き下ろすと、同じコードに 2 つの言い回しが生まれて片方だけが直る。
+ * **poker の文言はここに無い** —— あちらはコード体系そのものが違う
+ * （`message-too-large` / `@tasuki/poker-core` の ErrorCode）。
+ */
+const MESSAGE_TOO_LARGE_TEXT = "メッセージが大きすぎます";
+const INTERNAL_ERROR_TEXT = "サーバー内部でエラーが発生しました";
+
 /** `headers` のうち `allowed` に含まれるキーだけを取り出す（キーは小文字で比較）。 */
 function pickHeaders(headers: Headers, allowed: readonly string[]): Record<string, string> {
   const picked: Record<string, string> = {};
@@ -618,7 +629,7 @@ export class WsAdapter {
       this.sendFrame(ws, {
         type: "error",
         code: "MESSAGE_TOO_LARGE",
-        message: "メッセージが大きすぎます",
+        message: MESSAGE_TOO_LARGE_TEXT,
       });
       return;
     }
@@ -750,7 +761,7 @@ export class WsAdapter {
       this.sendHubFrame(ws, {
         type: "error",
         code: "MESSAGE_TOO_LARGE",
-        message: "メッセージが大きすぎます",
+        message: MESSAGE_TOO_LARGE_TEXT,
       });
       return;
     }
@@ -760,7 +771,7 @@ export class WsAdapter {
       this.sendHubFrame(ws, {
         type: "error",
         code: "INTERNAL_ERROR",
-        message: "サーバー内部でエラーが発生しました",
+        message: INTERNAL_ERROR_TEXT,
       });
     });
   }
