@@ -129,15 +129,41 @@ overrides:
   "<名前>@<メジャー>": "^<下限>"
 ```
 
-**このリポジトリには現在 `overrides` を 1 件も置いていません。** 唯一あった
-`"nanoid@3": "^3.3.18"` は [#199](https://github.com/tomohiroJin/tasuki-tools/issues/199)
-で削除しました（捨てて解き直すと override 無しでも `postcss` が `nanoid@3.3.18` を選ぶ）。
-**上は書式の例であって、実在の設定の写しではありません。**
+**上は書式の例であって、実在の設定の写しではありません。いま何が置かれているかは
+`pnpm-workspace.yaml` を見てください**（件数をここに書くと必ず腐ります）。置く場合は
+各行に対象アドバイザリ・依存元・親の更新で解消しない理由をコメントで付けます。
+
+**過去に置いた 2 件は、どちらも「要らなかった」と後で分かって外しています。**
+`"nanoid@3": "^3.3.18"` は [#199](https://github.com/tomohiroJin/tasuki-tools/issues/199)、
+`"js-yaml@4": "^4.3.2"` は [#265](https://github.com/tomohiroJin/tasuki-tools/issues/265) で
+外しました（どちらも捨てて解き直すと override 無しで修正版が選ばれた）。
+**置く前に下の「使う前に確かめること」で測ってください。**
+要らなくなった行を残すと、親の要求が下がったときにそれを黙って覆い隠します。
 
 #### 使う前に確かめること
 
 **まず親を更新して解消するかを実際に試します。** 解消するならそちらが本筋で、
 `overrides` は要りません。
+
+**確認は 2 段です。1 段目だけで「解消しない」と決めてはいけません。**
+
+| 段 | 何が分かるか | 分からないこと |
+|---|---|---|
+| 1. 既存の lockfile に対して親を更新する（下の「安い確認」） | **版が上がったなら、親の更新で解消する**（肯定は信じてよい） | **版が上がらないことは何の証拠にもならない**。据え置き（下記）と区別が付かない |
+| 2. lockfile と `node_modules` を捨てて隔離環境で解き直す（下の「測定」） | **`overrides` が要るかどうか**（これが判定） | — |
+
+**1 段目で「上がらない」を見て `overrides` を置くのは測定になっていません。**
+[削除の条件](#削除の条件)が書いている据え置きは、**追加の判定でもまったく同じように
+起こります**。実際に [#149](https://github.com/tomohiroJin/tasuki-tools/issues/149) と
+[#265](https://github.com/tomohiroJin/tasuki-tools/issues/265) の 2 回、この形で
+**要らない `overrides` を置いています**（どちらも要求範囲は最初から修正版を含んでいました）。
+
+**親の更新が効くのは「その親の直下」までです。** #265 では `stylelint` を上げたとき、
+直下の `colord` は動いたのに 2 段下の `js-yaml`（`stylelint → cosmiconfig → js-yaml`）は
+動きませんでした。**2 段以上下を親の更新で動かそうとしても、lockfile の部分木が
+据え置かれます。**
+
+##### 安い確認（1 段目）
 
 **この確認は `package.json` を書き換えます。手元の変更を先にコミットしてください。**
 手順の最後で書き換わったファイルを HEAD へ戻すためです。
@@ -150,6 +176,64 @@ grep -nE "^  <対象パッケージ>@" pnpm-lock.yaml   # 版が上がったか
 # 確認だけなら、書き換わったファイルだけを指定して戻す
 git checkout -- pnpm-lock.yaml <書き換わった package.json>
 ```
+
+**上がっていればここで終わりです**（親の更新を採る）。上がっていなければ 2 段目へ進みます。
+
+##### 測定（2 段目・`overrides` が要るかの判定）
+
+**作業ツリーではなく隔離した複製で測ります。** 判定のために lockfile と `node_modules` を
+捨てる必要があり、作業ツリーでやると手元の状態を壊すためです
+（[削除の条件](#削除の条件)は「行を外す」だけなので作業ツリーで測れます。こちらは
+親の更新も含めて測るので複製を使います）。
+
+```bash
+# 1. 判定したい状態（親を更新済みの package.json）をコミットしておく
+git status --porcelain   # 出力が空であること
+
+# 2. 隔離した複製を作る。pnpm のキャッシュと store も分ける
+DIR=$(mktemp -d) && git archive HEAD | tar -x -C "$DIR" && cd "$DIR"
+export XDG_CACHE_HOME="$DIR/.xdg-cache" XDG_DATA_HOME="$DIR/.xdg-data"        XDG_STATE_HOME="$DIR/.xdg-state" npm_config_store_dir="$DIR/.pnpm-store"
+
+# 3. overrides を置かない状態で、lockfile と node_modules を捨てる
+#    （複製なので node_modules は最初から無いが、確かめてから進む）
+bash -c 'set -euo pipefail
+rm -rf pnpm-lock.yaml node_modules apps/*/node_modules packages/*/node_modules e2e/node_modules
+for p in pnpm-lock.yaml node_modules apps/*/node_modules packages/*/node_modules e2e/node_modules; do
+  if [ -e "$p" ]; then echo "捨て残し: $p"; exit 1; fi
+done
+echo "捨て残しなし"'
+
+# 4. 全体を解決し直し、対象の版と勧告を見る
+corepack pnpm install --lockfile-only
+grep -nE "^  <対象パッケージ>@<対象メジャー>\." pnpm-lock.yaml
+corepack pnpm audit --audit-level high
+```
+
+- **修正版が選ばれ audit が 0 件なら、`overrides` は要りません**（親の要求だけで足ります）
+- **修正版が選ばれないなら `overrides` が要ります。** 置いたうえで下の「動かし方」を通します
+
+##### 既存の lockfile を動かす（`overrides` が要らないと分かった場合も要る手順）
+
+**2 段目で「要らない」と分かっても、既存の lockfile はそのままでは動きません。**
+据え置きは追加の判定を狂わせる一方で、**修正版へ動かすときにも邪魔をします**。
+捨てて解き直せば動きますが、**全依存木が動くので勧告 1 件の解消には差分が大きすぎます**。
+
+そこで、**`overrides` を一時的に置いて解き直し、確認できたら外します。**
+
+```bash
+# 1. overrides に対象を 1 行だけ足す（書式は上記のとおり）
+# 2. lockfile だけを解き直す（node_modules は捨てない。動かしたいのは 1 エントリだけ）
+corepack pnpm install --lockfile-only
+grep -nE "^  <対象パッケージ>@" pnpm-lock.yaml   # 修正版に動いたか
+# 3. overrides の行を外し、もう一度解き直す
+corepack pnpm install --lockfile-only
+grep -nE "^  <対象パッケージ>@" pnpm-lock.yaml   # **修正版のまま**であること（据え置き）
+corepack pnpm audit --audit-level high            # 0 件であること
+```
+
+**3 の「修正版のまま」を必ず目で確かめてください。** ここで版が戻るなら、それは
+`overrides` が現に必要だということです（2 段目の判定と食い違うので、判定をやり直します）。
+**外し忘れると、要らない行が残って親の要求が下がったときにそれを黙って覆い隠します。**
 
 **`pnpm update -r <親パッケージ> --lockfile-only` は `package.json` も書き換えます。**
 `--latest` もバージョン指定も付けていなくても起きます。実測（2026-08-28）では
