@@ -161,6 +161,9 @@ importers:
       '@tasuki/room-core':
         specifier: workspace:*
         version: link:../../packages/room-core
+      '@tasuki/sync-client':
+        specifier: workspace:*
+        version: link:../../packages/sync-client
       '@tasuki/timer-core':
         specifier: workspace:*
         version: link:../../packages/timer-core
@@ -303,6 +306,12 @@ importers:
       '@vitest/coverage-v8':
         specifier: ^4.1.11
         version: 4.1.11(vitest@4.1.11)
+      vitest:
+        specifier: ^4.1.11
+        version: 4.1.11(@types/node@26.1.2)(@vitest/coverage-v8@4.1.11)(jsdom@30.0.1)(vite@8.2.0(@types/node@26.1.2)(jiti@2.7.0))
+
+  packages/sync-client:
+    devDependencies:
       vitest:
         specifier: ^4.1.11
         version: 4.1.11(@types/node@26.1.2)(@vitest/coverage-v8@4.1.11)(jsdom@30.0.1)(vite@8.2.0(@types/node@26.1.2)(jiti@2.7.0))

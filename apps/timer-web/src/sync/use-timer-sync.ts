@@ -41,7 +41,7 @@ import {
 import { NoAiProvider } from "../ai/no-ai.js";
 import type { ProblemProvider } from "../ai/provider.js";
 import { errorAction } from "../ui/error-action.js";
-import { joinRetryDelayMs } from "./join-retry.js";
+import { joinRetryDelayMs } from "@tasuki/sync-client";
 import { stripRoomParam } from "../ui/room-param.js";
 import { useLatestRef } from "../ui/use-latest-ref.js";
 import type { BannerController } from "../ui/use-banner.js";
@@ -177,7 +177,7 @@ export function useTimerSync(banner: BannerController): TimerSync {
   const pendingResumeRef = useRef<{ participantId: string; resumeToken: string } | null>(null);
   // 混雑で入室を拒まれたときの自動再試行（#147）。**即時に送り直してはならない** —
   // 同一 NAT の利用者はレート制限のバケツを共有するため、素朴な再試行は
-  // 自分たちで自分たちを締め出す。待ち時間とばらつきは join-retry.ts が決める。
+  // 自分たちで自分たちを締め出す。待ち時間とばらつきは @tasuki/sync-client の join-retry.ts が決める。
   const joinRetryAttemptRef = useRef(0);
   const joinRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // ルームに入る前に出した「同期できていません」のバナーを、自分が出したときだけ消すための印（#209）。

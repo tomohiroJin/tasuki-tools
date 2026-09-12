@@ -10,7 +10,7 @@
  * @requirements #147
  */
 import { describe, it, expect } from "vitest";
-import { joinRetryDelayMs, JOIN_RETRY_MAX_ATTEMPTS } from "../../src/sync/join-retry.js";
+import { joinRetryDelayMs, JOIN_RETRY_MAX_ATTEMPTS } from "../src/join-retry.js";
 
 describe("入室の再試行方針", () => {
   it("待ち時間は回を追うごとに伸び、上限で頭打ちになる", () => {

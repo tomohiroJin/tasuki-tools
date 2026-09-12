@@ -93,13 +93,21 @@ const REPO_ROOT = path.resolve(__dirname, "..");
  */
 export const ALLOWED = {
   "packages/room-core": [],
+  // 同期クライアントの接続部分（#95 S5a・D18）。**@tasuki/* に依存しない** ——
+  // ツールの語彙を持たないことが、3 つの web アプリから使える条件である。
+  "packages/sync-client": [],
   "packages/timer-core": [], // #95 S4b で room-core への一時依存を外した（ADR-0017 決定 4 の期限）
   "packages/poker-core": ["@tasuki/protocol"], // 既存。境界のパースを protocol に一本化
   "packages/protocol": [],
   "packages/rate-limit": [],
   "packages/ui": [],
   "apps/landing": ["@tasuki/ui"],
-  "apps/timer-web": ["@tasuki/room-core", "@tasuki/timer-core", "@tasuki/ui"],
+  "apps/timer-web": [
+    "@tasuki/room-core",
+    "@tasuki/sync-client",
+    "@tasuki/timer-core",
+    "@tasuki/ui",
+  ],
   "apps/poker-web": ["@tasuki/poker-core", "@tasuki/ui"],
   // #95 S2 で apps/timer-sync と apps/poker-sync がここへ統合された。
   // poker-core が加わったのはそのため（統合前は poker-sync 側の依存）。

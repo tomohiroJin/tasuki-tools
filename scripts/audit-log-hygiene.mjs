@@ -59,6 +59,8 @@ export const SCANNED_PACKAGES = [
   "packages/protocol",
   "packages/rate-limit",
   "packages/room-core",
+  // #95 S5a で新設（同期クライアントの接続部分）。
+  "packages/sync-client",
   "packages/timer-core",
 ];
 

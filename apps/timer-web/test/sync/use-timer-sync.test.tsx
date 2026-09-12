@@ -14,7 +14,7 @@ import type { Banner, BannerController } from "../../src/ui/use-banner.js";
 import { saveRecord } from "../../src/records/indexeddb.js";
 import { FakeWS } from "../support/fakes.js";
 import { aRoomView } from "../support/room-view.js";
-import { joinRetryDelayMs, JOIN_RETRY_MAX_ATTEMPTS } from "../../src/sync/join-retry.js";
+import { joinRetryDelayMs, JOIN_RETRY_MAX_ATTEMPTS } from "@tasuki/sync-client";
 import type { CompletionRecord } from "@tasuki/timer-core";
 
 vi.mock("../../src/records/indexeddb.js", () => ({

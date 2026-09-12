@@ -126,7 +126,9 @@ export const WEB_APPS = [
     // dispatch.ts を許す理由はファイル冒頭の docstring を参照
     // （同期クライアント自身の実装の一部・import type のみ）。
     allowedImporters: ["src/sync/use-timer-sync.ts", "src/sync/dispatch.ts"],
-    wsHolders: ["src/sync/client.ts"],
+    // #95 S5a で `new WebSocket(` は `@tasuki/sync-client` へ移った。**空は弱い宣言ではなく
+    // 「どこにも書いてはいけない」である**（自己テストがこの意味を固定している）。
+    wsHolders: [],
   },
   {
     app: "apps/poker-web",

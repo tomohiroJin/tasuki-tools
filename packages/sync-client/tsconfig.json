@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // WebSocket と setTimeout はブラウザの API なので DOM が要る。
+    // **`DOM.Iterable` は要らない**（DOM のコレクションを反復しない）。
+    "lib": ["ES2022", "DOM"]
+  },
+  "include": ["src", "tests"]
+}

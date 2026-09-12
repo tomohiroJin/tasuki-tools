@@ -1,6 +1,9 @@
 /**
- * 指数バックオフ再接続
- * T042: FR-019
+ * 指数バックオフ再接続（FR-019・T042）。
+ *
+ * **#95 S5a で `apps/timer-web/src/sync/` から移した**（D18）。切断のたびに待ち時間を
+ * 倍にし、上限で頭打ちにする。確立できたら {@link ExponentialBackoff.reset} で戻す ——
+ * 戻し忘れると、一度荒れた回線のクライアントが以後ずっと長く待つ。
  */
 
 export interface BackoffOptions {
