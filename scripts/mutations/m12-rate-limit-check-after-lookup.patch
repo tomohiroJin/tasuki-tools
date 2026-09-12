@@ -1,21 +1,26 @@
 diff --git a/apps/tasuki-sync/src/application/join-room.ts b/apps/tasuki-sync/src/application/join-room.ts
-index 1aba617..f7000a3 100644
+index 1aba617..c2d313d 100644
 --- a/apps/tasuki-sync/src/application/join-room.ts
 +++ b/apps/tasuki-sync/src/application/join-room.ts
-@@ -94,13 +94,13 @@ export function joinRoom(
+@@ -94,10 +94,6 @@ export function joinRoom(
    // 時計補正の影響を受けない。`now` と取り違えないこと。
    const rateNow = performance.now();
  
-+  const room = store.get(input.code);
-+  const timer = timers.get(input.code);
-+
-   // **ルームを照会する前に判定する。** 照会してから判定すると、残量が無いときに
-   // ROOM_NOT_FOUND が返り、攻撃者はトークンを消費せずに存在確認を続けられる（設計正本 D3）。
-   if (rateLimitGate.shouldReject(input.connId, rateNow)) return err("JOIN_RATE_LIMITED");
- 
--  const room = store.get(input.code);
--  const timer = timers.get(input.code);
+-  // **ルームを照会する前に判定する。** 照会してから判定すると、残量が無いときに
+-  // ROOM_NOT_FOUND が返り、攻撃者はトークンを消費せずに存在確認を続けられる（設計正本 D3）。
+-  if (rateLimitGate.shouldReject(input.connId, rateNow)) return err("JOIN_RATE_LIMITED");
 -
-   // **入口の門**（`tool-gate.ts`・#95 S4a）。名簿は poker と 1 つの保管なので、
-   // 「名簿にある」ことは「そのツールのルームである」ことを意味しない。そのツールの状態が
-   // 無いルームは、**存在しないルームと完全に同じ応答**で拒む —— 区別できるとルームコード
+   const room = store.get(input.code);
+   const timer = timers.get(input.code);
+ 
+@@ -115,6 +111,10 @@ export function joinRoom(
+     return err("ROOM_NOT_FOUND");
+   }
+ 
++  // **ルームを照会する前に判定する。** 照会してから判定すると、残量が無いときに
++  // ROOM_NOT_FOUND が返り、攻撃者はトークンを消費せずに存在確認を続けられる（設計正本 D3）。
++  if (rateLimitGate.shouldReject(input.connId, rateNow)) return err("JOIN_RATE_LIMITED");
++
+   // 復帰（同じ端末・同じルーム）。**接続を足す。前の接続を奪わない**（#95 S4b・D14）。
+   if (input.resumeToken) {
+     const tokenData = tokenStore.getResume(input.resumeToken);
