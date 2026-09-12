@@ -11,6 +11,7 @@ import {
   findDisallowedImporters,
   findDisallowedWsHolders,
   declaredPathsOf,
+  listWebAppDirs,
 } from "./audit-web-sync-boundary.mjs";
 
 const timerApp = {
@@ -84,15 +85,20 @@ test("declaredPathsOf の出力に timer/poker 双方の宣言パスが含まれ
   assert.ok(paths.includes("apps/timer-web/src/sync/use-timer-sync.ts"));
 });
 
-test("WEB_APPS は timer と poker の両方を宣言している（片側検査を避ける）", () => {
+test("WEB_APPS は 3 つの web アプリすべてを宣言している（片側検査を避ける）", () => {
   const apps = WEB_APPS.map((a) => a.app).sort();
-  assert.deepEqual(apps, ["apps/poker-web", "apps/timer-web"]);
+  assert.deepEqual(apps, ["apps/landing", "apps/poker-web", "apps/timer-web"]);
 });
 
-test("すべてのアプリが WebSocket の保持先を 1 つ以上宣言している", () => {
-  for (const app of WEB_APPS) {
-    assert.ok(app.wsHolders.length > 0, `${app.app} が wsHolders を宣言していない`);
-  }
+test("wsHolders が空の宣言は「どこにも書いてはいけない」を意味する", () => {
+  // Given: 保持先を 1 つも宣言していないアプリ（#95 S5a の apps/landing がこれに当たる。
+  //        接続の実体は @tasuki/sync-client にあり、そのアプリの src は WS を持たない）
+  const app = { app: "apps/landing", syncModules: [], allowedImporters: [], wsHolders: [] };
+  const files = [{ path: "src/App.tsx", lines: ["  const ws = new WebSocket(url);"] }];
+
+  // When / Then: 空の宣言は弱い宣言ではなく、最も強い禁止である。
+  //              「1 つ以上宣言していること」を求める形にすると、この意味を表せない
+  assert.equal(findDisallowedWsHolders(files, app).length, 1);
 });
 
 test("timer-web の allowedImporters は同期フックと dispatch.ts の 2 本である", () => {
@@ -116,4 +122,22 @@ test("末尾だけが一致する無関係な bare specifier は違反になら�
     { path: "src/main.tsx", lines: ['import { createRoot } from "react-dom/client";'] },
   ];
   assert.deepEqual(findDisallowedImporters(files, timerApp), []);
+});
+
+test("実体の導出は apps/landing を web アプリとして返す", () => {
+  // Given: リポジトリの実体（宣言ではない）
+  // When: 走査対象を導出する
+  const dirs = listWebAppDirs();
+
+  // Then: 名前が -web で終わらない LP も web アプリとして返る（ADR-0019・設計正本 §3.10）。
+  //       名前の綴りに依存した導出は、規約から外れた名前が現れた瞬間に静かに空振りする。
+  assert.ok(dirs.includes("apps/landing"), `実体: ${dirs.join(" / ")}`);
+});
+
+test("実体の導出は同期サーバーを web アプリとして返さない", () => {
+  // Given / When: 実体の導出
+  const dirs = listWebAppDirs();
+
+  // Then: apps 配下でもブラウザで開く入口を持たないものは web 層の射程外である
+  assert.ok(!dirs.includes("apps/tasuki-sync"), `実体: ${dirs.join(" / ")}`);
 });

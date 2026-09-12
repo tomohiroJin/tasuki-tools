@@ -5,9 +5,11 @@
  * ## 何を見るか
  *
  *   0. **宣言と実体の全単射照合**（`docs/adr/0014` 決定 1）: `WEB_APPS` に宣言した
- *      web アプリと、`apps/*-web/package.json` から独立に導出した実体を照合する。
+ *      web アプリと、`apps/*\/index.html` の実在から独立に導出した実体を照合する。
  *      片方向だけだと、新設した web アプリ（例: `apps/admin-web`）が宣言に載らないまま
- *      無検査で素通りする（レビューで実測済み）
+ *      無検査で素通りする（レビューで実測済み）。**導出を名前の綴りから実体へ変えたのは
+ *      #95 S5a である** —— `apps/*-web` という形では `apps/landing` が落ちていた
+ *      （{@link listWebAppDirs}・`docs/adr/0019`）
  *   1. **許可リスト**: 同期クライアント（`syncModules`）を import してよいのは
  *      `allowedImporters` に挙げたファイルだけである
  *   2. **WS の保持先**: `new WebSocket(` を書いてよいのは `wsHolders` に挙げた
@@ -17,10 +19,14 @@
  * 宣言した web アプリ（{@link WEB_APPS}）ごとに、`src` 配下の `.ts` / `.tsx` / `.js` / `.jsx`
  * について検査 1・2 を見る。
  *
- * **timer と poker の両方を宣言する。** poker-web には `sync/client` に相当する
- * モジュールが無く、`hooks/useSync.ts` が `new WebSocket` を直接持つ。検査 1 だけだと
- * poker 側は宣言が空でも通ってしまう（片側検査）。検査 2 が両アプリに効く形なので、
- * これで poker 側も縛られる。
+ * **3 つの web アプリすべてを宣言する**（timer / poker / LP）。poker-web には
+ * `sync/client` に相当するモジュールが無く、`hooks/useSync.ts` が `new WebSocket` を
+ * 直接持つ。検査 1 だけだと poker 側は宣言が空でも通ってしまう（片側検査）。
+ * 検査 2 が全アプリに効く形なので、これで poker 側も縛られる。
+ *
+ * **`wsHolders` が空の宣言は「どこにも書いてはいけない」を意味する**（弱い宣言ではない）。
+ * `apps/landing` がこれに当たり、`src` のどのファイルで `new WebSocket(` を書いても
+ * 違反になる。自己テストがこの意味を直接固定している。
  *
  * ## ファイル収集は git 由来にする
  *
@@ -37,7 +43,7 @@
  * （2026-08-19 実測: `apps/timer-web` で `src/*.ts` + `src/*.tsx` が 82 件、
  * `src/**\/*.ts` + `src/**\/*.tsx` が 78 件）。
  *
- * **`*` は `/` を跨ぐ**ため、`apps/*-web/package.json` のような 1 階層限定のつもりの
+ * **`*` は `/` を跨ぐ**ため、`apps/*\/index.html` のような 1 階層限定のつもりの
  * pathspec も、理論上はより深い一致を返しうる。{@link listWebAppDirs} はこの前提で
  * 返り値を正規表現により 1 階層に絞り込んでいる。
  *
@@ -128,6 +134,16 @@ export const WEB_APPS = [
     syncModules: [],
     allowedImporters: [],
     wsHolders: ["src/hooks/useSync.ts"],
+  },
+  {
+    app: "apps/landing",
+    // LP は #95 S5a で同期クライアントになる（ADR-0019 が web 層の射程をここへ広げた）。
+    // 接続の実体は `@tasuki/sync-client` にあり、**LP の `src` は WS を自分で持たない**。
+    // **この 3 つが空であることが宣言である** —— `wsHolders: []` は「1 行でも
+    // `new WebSocket(` を書いたら違反」という最も強い形で検査 2 を効かせる。
+    syncModules: [],
+    allowedImporters: [],
+    wsHolders: [],
   },
 ];
 
@@ -225,23 +241,32 @@ export function declaredPathsOf(app) {
 }
 
 /**
- * `apps/*-web` の実体を、宣言（`WEB_APPS`）から独立に導出する（ADR-0014 決定 1）。
+ * web アプリの実体を、宣言（`WEB_APPS`）から独立に導出する（ADR-0014 決定 1・ADR-0019）。
  *
- * **`apps/` を readdir して `-web` で終わるものを拾う導出にしてはならない**
- * （`docs/adr/0014` 決定 3 の MUST NOT 相当。readdir は未追跡ディレクトリも拾い、
- * ローカルと CI で見えるものが食い違いうる）。`package.json` の実在を「web アプリで
- * ある」の代理指標にし、`listRepoFiles` の git 由来の列挙に統一する。
+ * **名前の綴り（`apps/*-web`）で導出してはならない**（#95 S5a まではそうしていた）。
+ * `apps/landing` はこの形に一致せず、**LP が同期クライアントになっても検査の対象外の
+ * まま**だった（設計正本 §3.10）。名前の綴りに依存した走査は、規約から外れた名前が
+ * 現れた瞬間に静かに空振りする —— `docs/adr/0014` が扱った走査対象の健全性と同じ機序である。
  *
- * pathspec の `*` は `/` を跨ぐため、`apps/*-web/package.json` は理論上より深い
- * 一致（例: `apps/timer-web/vendor/foo-web/package.json`）も返しうる。返ってきた
- * 相対パスを **1 階層限定の正規表現で絞り込む**ことで、pathspec の挙動そのものには
- * 依存せず結果を確定させる。
+ * 代理指標は **`index.html` の実在**にする。vite の SPA は必ず持ち、同期サーバー
+ * （`apps/tasuki-sync`）は持たない。`package.json` ではなく `index.html` を見るのは、
+ * 「ブラウザで開く入口を持つか」が web 層（`docs/adr/0015`・`docs/adr/0019`）の
+ * 射程そのものだからである。
+ *
+ * **`apps/` を readdir する導出にしてはならない**（`docs/adr/0014` 決定 3 の MUST NOT
+ * 相当。readdir は未追跡ディレクトリも拾い、ローカルと CI で見えるものが食い違いうる）。
+ * `listRepoFiles` の git 由来の列挙に統一する。
+ *
+ * pathspec の `*` は `/` を跨ぐため、`apps/*\/index.html` は理論上より深い一致
+ * （例: `apps/timer-web/vendor/foo/index.html`）も返しうる。返ってきた相対パスを
+ * **1 階層限定の正規表現で絞り込む**ことで、pathspec の挙動そのものには依存せず
+ * 結果を確定させる。
  */
-function listWebAppDirs() {
-  const candidates = listRepoFiles(REPO_ROOT, ["apps/*-web/package.json"]);
+export function listWebAppDirs() {
+  const candidates = listRepoFiles(REPO_ROOT, ["apps/*/index.html"]);
   return candidates
-    .filter((rel) => /^apps\/[^/]+-web\/package\.json$/.test(rel))
-    .map((rel) => rel.slice(0, -"/package.json".length))
+    .filter((rel) => /^apps\/[^/]+\/index\.html$/.test(rel))
+    .map((rel) => rel.slice(0, -"/index.html".length))
     .sort();
 }
 
@@ -331,7 +356,10 @@ function main() {
     findDisallowedWsHolders(filesByApp.get(app.app), app).map(
       (hit) =>
         `[WS の保持先] ${app.app}/${hit.path}:${hit.line} が WebSocket を直接生成しています。` +
-        `許可されているのは ${app.wsHolders.join(" / ")} だけです → ${hit.text}`,
+        // 空の宣言（例: apps/landing）は「どこにも書いてはいけない」の意味なので、
+        // 空文字のまま出すと「許可されているのは  だけです」という壊れた文になる。
+        // 検査 1 のメッセージと同じ形に揃える。
+        `許可されているのは ${app.wsHolders.join(" / ") || "（なし）"} だけです → ${hit.text}`,
     ),
   );
   problems.push(...wsHolderProblems);
