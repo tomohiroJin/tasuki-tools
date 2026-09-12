@@ -19,6 +19,28 @@ LP だけで行えるようにする。timer は選択画面から使えるよ�
 
 ---
 
+## Constitution Check
+
+憲法（[`docs/constitution.md`](../../constitution.md)）のコンプライアンスゲート。
+
+| 原則 | 判定 | 根拠 |
+|---|---|---|
+| I. テスト駆動開発 | 通過 | 全タスクを失敗するテストから始める。判定は純粋関数へ切り出す（`hub-state.ts` / `roster-dto.ts`） |
+| II. 技術選定は ADR を通す | 該当なし | 新しいライブラリを足さない。`valibot` は既にリポジトリにある同じ版を room-core へ足すだけである（`@tailwindcss/postcss` の前例と同型） |
+| III. 揮発インメモリと単純運用 | 通過 | ルームの寿命と回収（`room-reclaimer`）を変えない。ハブの接続も揮発のままで、端末側の保存は `localStorage`（原則 III が「クライアント側のローカル保存はこの限りではない」と明示している） |
+| IV. 境界の型安全 | 通過 | ハブの受信は `parseBoundaryMessage(HubServerMsgSchema, raw)`、送信の検証は `HubCommandSchema`。`localStorage` の読み出しも型注釈を信じず形を検める |
+| V. 実画面検証 | 通過 | Task 10 Step 3 で `http://localhost:5175/` の全遷移を目で通す（#247 の完了条件） |
+| VI. 依存は内向き | 通過 | LP は `@tasuki/room-core` と `@tasuki/sync-client` にだけ依存し、`@tasuki/timer-core` を知らない。依存の向きは `scripts/audit-dependency-direction.mjs` が機械的に見る |
+| VII. 検査は壊して確かめる | 通過 | Task 1 Step 7・Task 4 Step 6 で破壊検証（対照実行つき）。Task 10 Step 2 で変異検査へ 3 件足す |
+| VIII. 記録が正本 | 通過 | 決定は ADR-0017/0018/0019、要求は #247、実測と段階は設計正本、様式は `docs/guides/`。この計画はそれらを指すだけで転記しない |
+| IX. 小さく回す | 通過 | PR 1 本。配備資材は同じ PR に入れる（設計正本 §7 スライスの原則 3）。**デプロイは伴わない**（全段完了後に 1 回・利用者の承認を得てから） |
+| X. 抽象は実需で | 通過 | `packages/sync-client` の利用者は LP と timer-web の 2 つ（S5b で poker-web が 3 つ目）。**抽出だけを先行させない**（設計正本 §8） |
+| XI. 秘密と個人情報を持ち込まない | 通過 | 表示名と在席は分類「個人に紐づく」（ADR-0011 決定 1・D12）。ログへ出さず、ルーム内へのみ配信する。`resumeToken` は分類「資格情報」で扱いを変えない。**ハブの参加にも合言葉の照合を置く**（Task 5） |
+
+**逸脱なし。** Complexity Tracking での正当化を要する項目はない。
+
+---
+
 ## 着手前に読むもの
 
 1. `docs/guides/definition-of-done.md`（DoD 8 項目。該当しない項目は「該当なし」と明記する）
