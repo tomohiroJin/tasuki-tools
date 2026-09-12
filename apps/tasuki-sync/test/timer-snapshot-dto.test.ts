@@ -61,6 +61,56 @@ const timer: TimerState = {
   aiKeyHolders: [],
 };
 
+describe("timer の参加者一覧は在席で絞る（#95 S5a）", () => {
+  /** 選択画面（ハブ）に居る人。接続はあるが、どのツールも宣言していない。 */
+  const atHub = { id: "p_hub", displayName: "ハブの人", connections: new Map([["c9", null]]), joinedAt: 1200 };
+
+  it("Given 選択画面だけに居る人 / When snapshot を組む / Then timer の一覧に出ない", () => {
+    // Given（準備）: 名簿には居るが、宣言しているのはハブだけ
+    const withHub: MembershipRoom = {
+      ...membership,
+      participants: [...membership.participants, atHub],
+    };
+
+    // When（操作）
+    const room = buildTimerSnapshotRoom(withHub, timer);
+
+    // Then: 名簿からは消えていない（在室のまま）。消えるのは timer の一覧からだけ
+    expect(room.participants.map((p) => p.participantId)).not.toContain("p_hub");
+    expect(withHub.participants).toHaveLength(3);
+  });
+
+  it("Given 接続を 1 本も持たない人 / When snapshot を組む / Then 一覧に残る（offline のまま）", () => {
+    // Given（準備）: 回線が切れた人は「timer から離れた」のではなく「どこに居るか分からない」。
+    //               S4b までと同じく offline として一覧に残す —— 消すと退出したように見える
+    // When（操作）
+    const room = buildTimerSnapshotRoom(membership, timer);
+
+    // Then
+    const bob = room.participants.find((p) => p.participantId === "p_bob");
+    expect(bob).toBeDefined();
+    expect(bob?.presence).toBe("offline");
+  });
+
+  it("Given 輪に席を持つ人が選択画面へ戻った / When snapshot を組む / Then 輪の表示名は残る", () => {
+    // Given（準備）: アリスは輪に席を持ったままハブへ移る
+    const movedToHub: MembershipRoom = {
+      ...membership,
+      participants: [
+        { ...membership.participants[0]!, connections: new Map([["c1", null]]) },
+        ...membership.participants.slice(1),
+      ],
+    };
+
+    // When（操作）
+    const room = buildTimerSnapshotRoom(movedToHub, timer);
+
+    // Then: 一覧からは消えるが、ローテーションの状態は保たれる（R7）
+    expect(room.participants.map((p) => p.participantId)).not.toContain("p_alice");
+    expect(room.config.members).toContain("アリス");
+  });
+});
+
 describe("timer のスナップショット DTO（wire の同形性）", () => {
   it("組み立てた room が RoomSchema を通る", () => {
     const room = buildTimerSnapshotRoom(membership, timer);
