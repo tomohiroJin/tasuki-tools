@@ -1,7 +1,7 @@
 /**
  * `room.join` の専用ハンドラ（timer の入口）。
  *
- * **守り（レート制限・入口の門・合言葉・復帰）と名簿の更新は `../join-room.ts` が持つ**
+ * **守り（レート制限・合言葉の関門・復帰）と名簿の更新は `../join-room.ts` が持つ**
  * （#95 S5a）。ここに残るのは timer の wire で返すこと —— 復帰なら snapshot、
  * 新規なら `room.joined` ＋ snapshot —— だけである。ハブの入口（`../hub-handlers.ts`）も
  * 同じ `joinRoom` を呼び、返し方だけが違う。**写しを 2 つ持たない** ——
@@ -17,7 +17,6 @@ import type { TimerStore } from "../../ports/timer-store.js";
 import type { RoomCodeGen } from "../../ports/code-gen.js";
 import type { TokenStore } from "../token-store.js";
 import type { RateLimitGate } from "../rate-limit-gate.js";
-import type { ToolGate } from "../tool-gate.js";
 import { buildTimerSnapshotRoom } from "../timer-snapshot-dto.js";
 import type { RoomState } from "../apply-room-level-event.js";
 import { TOOL_TIMER } from "../tool-id.js";
@@ -39,8 +38,6 @@ export interface RoomJoinDeps {
   commit: (state: RoomState) => void;
   codeGen: RoomCodeGen;
   tokenStore: TokenStore;
-  /** 入口ごとの門（`../tool-gate.ts`）。timer と poker で 1 個を共有する（#95 S4a）。 */
-  toolGate: ToolGate;
   /** room.join と ai.unlock が共有するバケツの上に立つゲート（`handlers.ts` が組む）。 */
   rateLimitGate: RateLimitGate;
   sendError: (connId: string, code: ErrorCode, message: string) => void;
@@ -75,7 +72,7 @@ export function createRoomJoinHandler(deps: RoomJoinDeps) {
     if (joined.isErr()) {
       const code = joined.error;
       // **ROOM_NOT_FOUND の文言は「存在しないルーム」と完全に同一にする**（ADR 0011）。
-      // 入口の門で拒んだことを区別できると、ルームコード列挙の手がかりになる。
+      // 合言葉の関門で拒んだことを区別できると、ルームコード列挙の手がかりになる。
       const message = code === "ROOM_NOT_FOUND" ? ROOM_NOT_FOUND_MESSAGE : errorMessageFor(code);
       sendError(connId, code, message);
       return err(code);
@@ -83,9 +80,9 @@ export function createRoomJoinHandler(deps: RoomJoinDeps) {
 
     const { kind, participantId, resumeToken, membership, timer } = joined.value;
 
-    // 入口の門を通った以上、timer の状態は必ずある（門が「timer の状態があるか」で
-    // 判定している）。**それでも undefined を握りつぶさない** —— 門の条件が変わった
-    // ときに、ここが静かに壊れた snapshot を配るのを避ける。
+    // timer の入口から入った以上、timer の状態は必ずある（無ければ `joinRoom` が
+    // その場で作る・#95 S5b の遅延生成）。**それでも undefined を握りつぶさない** ——
+    // 遅延生成の条件が変わったときに、ここが静かに壊れた snapshot を配るのを避ける。
     if (timer === undefined) {
       sendError(connId, "ROOM_NOT_FOUND", ROOM_NOT_FOUND_MESSAGE);
       return err("ROOM_NOT_FOUND");

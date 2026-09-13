@@ -88,11 +88,12 @@ export function makeHubHandlers(deps: HubHandlerDeps): HubHandlers {
       return;
     }
 
-    const { code, participantId, resumeToken, membership, timer } = created.value;
+    const { code, participantId, resumeToken, membership } = created.value;
 
-    // **timer の状態も作る**（2026-09-13 の裁定③）。入口の門はそのまま効き、
-    // 選択画面から timer へ入れる。poker のラウンドは S5b（#248）で遅延生成にする。
-    timers.put(timer);
+    // **ツールの状態は作らない**（#95 S5b・D8）。選択画面はどのツールも要求せず、
+    // timer の状態も poker のラウンドも、最初にそのツールへ入った人が作る。
+    // S5a はここで timer の状態を作っていた（当時は入口ごとの門があり、状態が無いと
+    // 選択画面から timer へ入れなかったため）。門を廃止したのでその必要が消えた。
     hub.sendTo(connId, { type: "room.created", code, participantId, resumeToken });
     // 保管と配信は対にする（`save-roster.ts`）。作成者自身にも名簿が届く。
     saveRoster(deps, membership);

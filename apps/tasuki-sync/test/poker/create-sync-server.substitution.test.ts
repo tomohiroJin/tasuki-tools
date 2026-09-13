@@ -35,7 +35,6 @@ import type { Room as MembershipRoom } from '@tasuki/room-core';
 import { createTokenBucketLimiter, type RateLimiter } from '@tasuki/rate-limit';
 import { InMemoryRoomStore } from '../../src/adapters/in-memory-room-store';
 import { InMemoryRoundStore } from '../../src/adapters/poker-in-memory-round-store';
-import { testToolGate } from '../support/tool-gate';
 import { createTokenStore } from '../../src/application/token-store';
 import { createWsBroadcaster } from '../../src/adapters/poker-ws-broadcaster';
 import { makeHandlers, type HandlerConnection } from '../../src/application/poker-handlers';
@@ -132,7 +131,6 @@ describe('IdGen の差し替え（衝突再試行）', () => {
     const roomId = makeHandlers({
       store,
       rounds,
-      toolGate: testToolGate({ rounds }),
       tokens: createTokenStore(),
       broadcaster: nullBroadcaster(),
       hub: spyHub(),
@@ -179,7 +177,6 @@ describe('MonotonicClock の差し替え（レート制限の窓の境界）', (
     const handlers = makeHandlers({
       store,
       rounds,
-      toolGate: testToolGate({ rounds }),
       tokens: createTokenStore(),
       broadcaster,
       hub: spyHub(),
@@ -276,7 +273,6 @@ describe('RoomStore の差し替え（上限判定を実ルームなしで再現
     const handlers = makeHandlers({
       store,
       rounds,
-      toolGate: testToolGate({ rounds }),
       tokens: createTokenStore(),
       broadcaster,
       hub: spyHub(),
@@ -350,7 +346,6 @@ describe('RoomStore の差し替え（判定順序: 上限判定は切り離し�
     const handlers = makeHandlers({
       store,
       rounds,
-      toolGate: testToolGate({ rounds }),
       tokens: createTokenStore(),
       broadcaster,
       hub: spyHub(),
@@ -408,7 +403,6 @@ describe('RoomSocket の差し替え（配信の宛先と回数）', () => {
     const handlers = makeHandlers({
       store,
       rounds,
-      toolGate: testToolGate({ rounds }),
       tokens: createTokenStore(),
       broadcaster,
       hub: spyHub(),
@@ -464,7 +458,6 @@ describe('配線の穴 1: handleCreateRoom の resetRoom 呼び出し', () => {
     const handlers = makeHandlers({
       store,
       rounds,
-      toolGate: testToolGate({ rounds }),
       tokens: createTokenStore(),
       broadcaster,
       hub: spyHub(),
@@ -526,7 +519,6 @@ describe('配線の穴 2: detachFromCurrentRoom の早期 return での detach �
     const handlers = makeHandlers({
       store,
       rounds,
-      toolGate: testToolGate({ rounds }),
       tokens: createTokenStore(),
       broadcaster,
       hub: spyHub(),

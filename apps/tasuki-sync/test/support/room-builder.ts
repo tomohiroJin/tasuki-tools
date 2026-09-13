@@ -20,7 +20,6 @@ import { spyHub } from "./hub.js";
 import { InMemoryRoundStore } from "../../src/adapters/poker-in-memory-round-store.js";
 import { createTokenStore } from "../../src/application/token-store.js";
 import { createRoomDestroyer } from "../../src/application/destroy-room.js";
-import { testToolGate } from "./tool-gate.js";
 import {
   createTokenBucketLimiter,
   DEFAULT_CAPACITY,
@@ -307,7 +306,6 @@ export function makeTestHandlers(overrides?: TestHandlerOverrides): TestHandlers
     timers,
     hub,
     tokens: overrides?.tokens ?? createTokenStore(),
-    toolGate: overrides?.toolGate ?? testToolGate({ timers, rounds }),
     rateLimiter: overrides?.rateLimiter ?? testRateLimiter(),
     maxRooms: overrides?.maxRooms ?? TEST_MAX_ROOMS,
     clock,

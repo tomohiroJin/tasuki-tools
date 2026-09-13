@@ -1,9 +1,10 @@
 /**
  * `room.create` の専用ハンドラ（timer の入口）。
  *
- * **判定と状態の組み立ては `../create-room.ts` が持つ**（#95 S5a）。ここに残るのは
- * timer の wire で返すこと（`room.created` と snapshot の配信）だけである。
- * ハブの入口（`../hub-handlers.ts`）も同じ `createRoom` を呼び、返し方だけが違う。
+ * **名簿の組み立ては `../create-room.ts` が持つ**（#95 S5a）。ここに残るのは
+ * timer の wire で返すこと（`room.created` と snapshot の配信）と、
+ * **timer の状態を作ること**（#95 S5b）である。ハブの入口（`../hub-handlers.ts`）も
+ * 同じ `createRoom` を呼ぶが、ツールの状態は作らない（D8）。
  */
 
 import { ok, err, type Result } from "neverthrow";
@@ -17,6 +18,7 @@ import type { TokenStore } from "../token-store.js";
 import type { RoomState } from "../apply-room-level-event.js";
 import { TOOL_TIMER } from "../tool-id.js";
 import { createRoom } from "../create-room.js";
+import { createInitialTimerState } from "../initial-timer-state.js";
 
 /** `room.create` が呼び出し元へ返す値。 */
 export interface CreateResult {
@@ -51,7 +53,6 @@ export function createRoomCreateHandler(deps: RoomCreateDeps) {
       connId,
       displayName: cmd.displayName,
       ...(cmd.roomName !== undefined ? { roomName: cmd.roomName } : {}),
-      ...(cmd.config !== undefined ? { config: cmd.config } : {}),
       // timer の入口から来た接続は、定義上 timer に居る（設計正本 D14 の S4b 追記）。
       tool: TOOL_TIMER,
     });
@@ -65,7 +66,17 @@ export function createRoomCreateHandler(deps: RoomCreateDeps) {
       return err(created.error);
     }
 
-    const { code, participantId, resumeToken, membership, timer } = created.value;
+    const { code, participantId, resumeToken, membership, createdAt } = created.value;
+
+    // **timer の状態はここで作る**（#95 S5b・D8）。遅延生成（`../join-room.ts`）と
+    // 同じ 1 箇所を通す —— 初期状態は「輪に 1 席ある」という不変条件を含んでおり、
+    // 写しを持つと片方だけが席を置かない形になりうる。
+    const timer = createInitialTimerState({
+      code,
+      createdAt,
+      participantId,
+      ...(cmd.config !== undefined ? { config: cmd.config } : {}),
+    });
 
     broadcaster.sendTo(connId, { type: "room.created", code, resumeToken, participantId });
     commit({ membership, timer });

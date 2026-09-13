@@ -13,7 +13,6 @@ import type { ServerMessage } from '@tasuki/poker-core';
 import type { RateLimiter } from '@tasuki/rate-limit';
 import { InMemoryRoomStore } from '../../src/adapters/in-memory-room-store';
 import { InMemoryRoundStore } from '../../src/adapters/poker-in-memory-round-store';
-import { testToolGate } from '../support/tool-gate';
 import { createTokenStore } from '../../src/application/token-store';
 import { makeHandlers, type HandlerConnection } from '../../src/application/poker-handlers';
 import type { Broadcaster, RoomSocket } from '../../src/ports/poker-broadcaster';
@@ -64,7 +63,6 @@ function setup(data: Partial<HandlerConnection['data']> = {}) {
   const handlers = makeHandlers({
     store: new InMemoryRoomStore(), // 何も put しない → get は常に undefined
     rounds,
-    toolGate: testToolGate({ rounds }),
     tokens: createTokenStore(),
     broadcaster: passthroughBroadcaster(),
     hub: spyHub(),

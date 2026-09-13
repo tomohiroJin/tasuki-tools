@@ -6,23 +6,19 @@
  * 返し方（timer の `room.created` か、ハブの `room.created` ＋ `roster` か）は
  * 各メッセージ層に残す。**写しを 2 つ持たない**（`docs/adr/0002` の二重正本の禁止）。
  *
- * ## ハブで作ったルームにも timer の状態を作る（2026-09-13 の裁定）
+ * ## ツールの状態は作らない（#95 S5b・D8）
  *
- * 入口の門（`tool-gate.ts`）は「そのツールの状態があるルームにだけ入れる」ので、
- * timer の状態を作らないと選択画面から timer へ入れない。**poker のラウンドは作らない** ——
- * ハブから作ったルームで poker を選べるようにするのは S5b（#248）の仕事で、
- * そこで D8 のツール状態の遅延生成に置き換わる。
+ * ここが作るのは**名簿だけ**である。timer の状態は timer の入口が
+ * （`command-handlers/room-create.ts` が `initial-timer-state.ts` で）作り、poker の
+ * ラウンドは poker の入口が作る。選択画面から作ったルームはどちらも持たずに生まれ、
+ * **最初にそのツールへ入った人が作る**。
+ *
+ * S5a は逆の裁定（ハブの `room.create` が timer の状態も作る）を採っていた。当時は
+ * 入口ごとの門があり、状態が無いと選択画面から timer へ入れなかったためである。
+ * **S5b で門を廃止したので、その必要が消えた。**
  */
 import { ok, err, type Result } from "neverthrow";
-import {
-  initialAggregate,
-  type ErrorCode,
-  type IntervalMinutes,
-  type RotationEntry,
-  type SessionConfig,
-  type TimerConfig,
-  type TimerState,
-} from "@tasuki/timer-core";
+import type { ErrorCode } from "@tasuki/timer-core";
 import type {
   Participant as MembershipParticipant,
   Room as MembershipRoom,
@@ -46,8 +42,6 @@ export interface CreateRoomInput {
   connId: string;
   displayName: string;
   roomName?: string;
-  /** timer の入口から来た設定（wire の形）。ハブは持たない。 */
-  config?: SessionConfig;
   /** その接続が宣言するツール。**ハブは null**（#95 S5a・D14）。 */
   tool: ToolId | null;
 }
@@ -57,11 +51,15 @@ export interface CreatedRoom {
   participantId: string;
   resumeToken: string;
   membership: MembershipRoom;
-  timer: TimerState;
+  /**
+   * 作成時刻（壁時計）。**ツールの状態を作る側が同じ値を使う**ため返す（#95 S5b）。
+   * 呼び出し側で `clock.now()` を引き直すと、名簿とツールの状態で `createdAt` がずれる。
+   */
+  createdAt: number;
 }
 
 /**
- * ルームを作り、名簿と timer の状態を組み立てて返す。**保管も配信もしない。**
+ * ルームを作り、**名簿を**組み立てて返す。**保管も配信もしない。**
  *
  * 呼び出し側が保管（`commit` / `saveRoster`）まで行うのは、配信すべき相手が
  * 入口ごとに違うためである（timer は snapshot、ハブは roster）。
@@ -85,21 +83,6 @@ export function createRoom(
   const participantId = codeGen.generateParticipantId();
   const resumeToken = codeGen.generateResumeToken();
 
-  // クライアントが渡すのは wire の設定（`members` を含む）。**名簿はここから作らない**
-  // （#95 S4a・D15）。輪に並べられるのは作成時点の在室者＝作成者ただ一人なので、
-  // `members` に他人が含まれていても無視して落とす。
-  const wireConfig: SessionConfig = input.config ?? {
-    language: "TypeScript",
-    difficulty: "easy",
-    members: [input.displayName],
-    intervalMinutes: 5 as IntervalMinutes,
-  };
-  const { members: _ignoredMembers, ...timerConfig } = wireConfig;
-  const config: TimerConfig = timerConfig;
-
-  const seat: RotationEntry = { kind: "member", participantId, eligible: true };
-  const agg = initialAggregate(config, [seat]);
-
   // 作成者は「この接続でそのツールに居る」1 本だけを持つ（#95 S4b・D14）。
   // **ハブから作った人は `null`** —— 選択画面に居るので、timer の一覧には出ない。
   const creator: MembershipParticipant = {
@@ -111,21 +94,7 @@ export function createRoom(
 
   const membership: MembershipRoom = { code, createdAt: now, participants: [creator] };
 
-  const timer: TimerState = {
-    code,
-    createdAt: now,
-    config,
-    problem: null,
-    session: agg.session,
-    clock: agg.clock,
-    phase: "setup",
-    sessionRecords: [],
-    handoffNote: "",
-    onBreak: false,
-    aiKeyHolders: [],
-  };
-
   tokenStore.issueResume(resumeToken, { participantId, roomCode: code });
 
-  return ok({ code, participantId, resumeToken, membership, timer });
+  return ok({ code, participantId, resumeToken, membership, createdAt: now });
 }

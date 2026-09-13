@@ -27,7 +27,6 @@ import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 import { spyDestroyer } from "./support/spy-destroyer.js";
 import { testRateLimiter, TEST_MAX_ROOMS } from "./support/room-builder.js";
-import { testToolGate } from "./support/tool-gate.js";
 import { roomViewOf, putRoomView } from "./support/room-view.js";
 import type { SessionConfig } from "@tasuki/timer-core";
 import { spyHub } from "./support/hub.js";
@@ -74,7 +73,6 @@ describe("ソロの部屋からの退出（Issue #79）", () => {
     handlers = makeHandlers({
       store, timers, clock: new FakeClock(1_000_000), broadcaster, hub: spyHub(), codeGen: new FakeCodeGen(),
       tokens: createTokenStore(),
-      toolGate: testToolGate({ timers }),
       rateLimiter: testRateLimiter(),
       maxRooms: TEST_MAX_ROOMS,
       destroyRoom: (roomCode) => destroyRoom(roomCode),
@@ -178,7 +176,6 @@ describe("ソロの部屋からの退出（Issue #79）", () => {
       hub: spyHub(),
       codeGen: new FakeCodeGen(),
       tokens: createTokenStore(),
-      toolGate: testToolGate({ timers: spyTimers }),
       rateLimiter: testRateLimiter(),
       maxRooms: TEST_MAX_ROOMS,
       destroyRoom: destroy,
@@ -252,7 +249,6 @@ describe("ソロ以外は挙動が変わらない（Issue #79）", () => {
     handlers = makeHandlers({
       store, timers, clock: new FakeClock(1_000_000), broadcaster, hub: spyHub(), codeGen: new FakeCodeGen(),
       tokens: createTokenStore(),
-      toolGate: testToolGate({ timers }),
       rateLimiter: testRateLimiter(),
       maxRooms: TEST_MAX_ROOMS,
       destroyRoom: (roomCode) => destroyRoom(roomCode),
@@ -365,7 +361,6 @@ describe("アイドル回収と在室者0人の退出は同じ後始末を通る
       hub: spyHub(),
       codeGen: new FakeCodeGen(),
       tokens: createTokenStore(),
-      toolGate: testToolGate({ timers }),
       rateLimiter: testRateLimiter(),
       maxRooms: TEST_MAX_ROOMS,
       destroyRoom: destroy,

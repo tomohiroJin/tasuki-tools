@@ -34,33 +34,34 @@ describe("パスフレーズの照合", () => {
  * タイミング特性は戻り値に現れないため、実行時のテストでは
  * `!==` と `constantTimeEqual` を区別できない。
  *
- * **読む先は #95 S5a で移った。** 合言葉の照合は timer の入口とハブの入口で共有する
- * ようになり（`src/application/join-room.ts`）、`command-handlers/room-join.ts` は
- * wire の返し方だけを持つ。**移設に気づかず古いパスを読み続けると、照合が消えても
- * このテストは緑のまま通る** —— 移した側がここを直す責務を負う。
+ * **読む先は 2 度移った。** #95 S5a で timer の入口とハブの入口が照合を共有し
+ * （`src/application/join-room.ts`）、**#95 S5b で poker の入口も同じ関門を通る**ように
+ * なったので、照合そのものは `src/application/room-entry.ts` に住んでいる。
+ * **移設に気づかず古いパスを読み続けると、照合が消えてもこのテストは緑のまま通る**
+ * —— 移した側がここを直す責務を負う。
  */
-const JOIN_ROOM_SRC = readFileSync(
-  path.join(path.dirname(fileURLToPath(import.meta.url)), "../src/application/join-room.ts"),
+const ROOM_ENTRY_SRC = readFileSync(
+  path.join(path.dirname(fileURLToPath(import.meta.url)), "../src/application/room-entry.ts"),
   "utf8",
 );
 
 describe("パスフレーズ照合の形", () => {
   it("constantTimeEqual を通している", () => {
-    // Given（JOIN_ROOM_SRC はモジュール冒頭で読み込んだソースファイルの内容を直接使う）
+    // Given（ROOM_ENTRY_SRC はモジュール冒頭で読み込んだソースファイルの内容を直接使う）
     // When / Then（ソースの正規表現照合をそのまま検証するため操作と検証が同じ式になる）
-    expect(JOIN_ROOM_SRC).toMatch(
-      /constantTimeEqual\(\s*provided\s*,\s*required\s*\)/,
+    expect(ROOM_ENTRY_SRC).toMatch(
+      /constantTimeEqual\(\s*given\s*,\s*required\s*\)/,
     );
   });
 
   it("素の比較演算子でパスフレーズを比べていない", () => {
     // `required !== undefined` の未設定判定は対象外（両辺の名前で限定する）。
-    // Given（JOIN_ROOM_SRC はモジュール冒頭で読み込んだソースファイルの内容を直接使う）
+    // Given（ROOM_ENTRY_SRC はモジュール冒頭で読み込んだソースファイルの内容を直接使う）
     // When / Then（ソースの正規表現照合をそのまま検証するため操作と検証が同じ式になる）
-    expect(JOIN_ROOM_SRC).not.toMatch(
-      /provided\s*(!==|===|!=|==)\s*required/,
+    expect(ROOM_ENTRY_SRC).not.toMatch(
+      /given\s*(!==|===|!=|==)\s*required/,
     );
-    expect(JOIN_ROOM_SRC).not.toMatch(
+    expect(ROOM_ENTRY_SRC).not.toMatch(
       /requiredPassphrase\s*(!==|===|!=|==)\s*providedPassphrase/,
     );
   });
