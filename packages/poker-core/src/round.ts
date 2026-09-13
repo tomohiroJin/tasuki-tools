@@ -95,11 +95,22 @@ export function nextRound(round: Round, _actorId: string): Result<Round, RoundEr
   return ok({ status: 'voting' as const, votes: new Map() });
 }
 
-// ⚠ かつてここに `discardVote`（退出した人の票を捨てる・R8）があった。#95 S4a で
-// 実装したが、**呼び出し元が 1 つも生まれなかった**。入口ごとの門（`application/tool-gate.ts`）
-// により 1 つのルームは timer か poker のどちらか一方の状態しか持たず、名簿から人を消す
-// `participant.remove` は timer 専用コマンドなので、**poker の票を持つ人が名簿から消える
-// 経路が存在しない**。到達経路の無い値を置くのは憲法 原則 X（抽象は実需があるときだけ）に
-// 反し、`scripts/audit-structure.mjs` の SC-039③ が実際にそれを検出した。
-// **S5 で「ルームから退出する」ユースケース（設計正本 §6.2 の R8 = `leaveRoom`）を作るときに、
-// 呼び出し元と一緒に足し直す。** 実装は 5 行（`votes` を写して 1 件消すだけ）である。
+/**
+ * 退出した人の票を捨てる（R8）。**#95 S5b で呼び出し元と一緒に戻した。**
+ *
+ * S4a でも一度実装したが、当時は**到達経路が無かった** —— 入口ごとの門により 1 つの
+ * ルームは timer か poker のどちらか一方の状態しか持たず、名簿から人を消す
+ * `participant.remove` は timer 専用コマンドだったからである。S5b で門を廃止し、
+ * **1 つのルームが両ツールの状態を持てるようになった**ので経路が生まれた
+ * （`apps/tasuki-sync/src/application/command-handlers/participant-remove.ts`）。
+ *
+ * 票を残すと、名簿に居ない人の票が公開時の集計へ混ざる。**status は変えない** ——
+ * 捨てた結果で自動公開が立つかは `applyAutoReveal` が別に判定する（呼び出し側で続けて呼ぶ）。
+ * 居ない人の ID を渡しても壊れない（何も起きない）。
+ */
+export function discardVote(round: Round, voterId: string): Round {
+  if (!round.votes.has(voterId)) return round;
+  const votes = new Map(round.votes);
+  votes.delete(voterId);
+  return { ...round, votes };
+}

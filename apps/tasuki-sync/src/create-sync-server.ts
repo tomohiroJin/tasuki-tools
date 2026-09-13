@@ -250,6 +250,10 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     // トークン未設定なら合言葉も渡さない＝解錠は常に失敗（存在秘匿）
     aiUnlockKey: aiReady ? config.aiUnlockKey : undefined,
     destroyRoom: (roomCode) => destroyRoom(roomCode),
+    // **退出した人の票を捨てる**（R8・#95 S5b）。timer の文脈は poker の保管を知らないので、
+    // ここで繋ぐ。`pokerHandlers` はこの下で組み立てるが、呼ばれるのは要求が届いてからである。
+    discardPokerVote: (roomCode, participantId) =>
+      pokerHandlers.handleParticipantRemoved(roomCode, participantId),
   });
   const presenceManager = new PresenceManager({
     store,

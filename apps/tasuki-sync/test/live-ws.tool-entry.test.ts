@@ -196,3 +196,113 @@ describe("合言葉の関門（#95 S5b・門の置き換え）", () => {
     expect(poker.received).toEqual([]);
   });
 });
+
+/**
+ * 退出した人の票を捨てる（R8・#95 S5b）。
+ *
+ * S4a では**到達経路が無かった** —— 入口ごとの門により 1 つのルームは片方のツールの
+ * 状態しか持たず、名簿から人を消す `participant.remove` は timer 専用コマンドだった。
+ * **S5b で 1 つのルームが両ツールを持てるようになった**ので、timer から外された人の票が
+ * poker のラウンドに残る経路が生まれた。
+ */
+describe("退出で票を捨てる（R8・#95 S5b）", () => {
+  it("Given 投票済みの 2 人 / When 片方が timer から外される / Then 票が消え、残りが全員投票済みなら公開される", async () => {
+    // Given: ハブでルームを作った人が timer に居る（退出させる操作は timer の入口にある）
+    const hub = await server.connectHub("host");
+    const created = await hubCreate(hub, "見積もり", "あや");
+    const timer = await server.connect("timer");
+    timer.send({
+      command: "room.join",
+      code: created.code,
+      displayName: "あや",
+      hasAiKey: false,
+      resumeToken: created.resumeToken,
+    });
+    await timer.take("snapshot");
+
+    // Given: poker に 2 人居て、片方だけが投票している（未投票が 1 人なので公開されない）
+    const voter = await server.connectPoker("voter");
+    voter.send({ type: "join-room", roomId: created.code, name: "いずみ" });
+    await voter.take((m) => m.type === "room-state", "参加後の room-state");
+    const idle = await server.connectPoker("idle");
+    idle.send({ type: "join-room", roomId: created.code, name: "かえで" });
+    const idleJoined = await idle.take((m) => m.type === "joined", "joined");
+    if (idleJoined.type !== "joined") throw new Error("joined ではない");
+    voter.send({ type: "vote", card: { kind: "number", value: 5 } });
+    const beforeRemoval = await voter.take(
+      (m) => m.type === "room-state" && m.round.status === "voting",
+      "投票後の room-state（まだ voting）",
+    );
+    if (beforeRemoval.type !== "room-state") throw new Error("room-state ではない");
+
+    // When: 未投票の人を timer の入口から外す
+    timer.send({ command: "participant.remove", participantId: idleJoined.participantId });
+
+    // Then: 残った全員が投票済みになったので公開される（票の破棄が自動公開へ効く）
+    const revealed = await voter.take(
+      (m) => m.type === "room-state" && m.round.status === "revealed",
+      "退出後の room-state（revealed）",
+    );
+    if (revealed.type !== "room-state" || revealed.round.status !== "revealed") {
+      throw new Error("revealed ではない");
+    }
+    // 外された人は参加者一覧にも票にも残らない
+    expect(revealed.participants.map((p) => p.id)).not.toContain(idleJoined.participantId);
+    expect(revealed.round.votes.map((v) => v.participantId)).not.toContain(
+      idleJoined.participantId,
+    );
+  });
+
+  it("Given 公開済みのラウンド / When 投票した人が外される / Then その票が集計から消える", async () => {
+    // Given: ハブで作ったルームに timer の人が 1 人、poker の人が 2 人居る
+    const hub = await server.connectHub("host");
+    const created = await hubCreate(hub, "見積もり", "あや");
+    const timer = await server.connect("timer");
+    timer.send({
+      command: "room.join",
+      code: created.code,
+      displayName: "あや",
+      hasAiKey: false,
+      resumeToken: created.resumeToken,
+    });
+    await timer.take("snapshot");
+
+    const leaving = await server.connectPoker("leaving");
+    leaving.send({ type: "join-room", roomId: created.code, name: "いずみ" });
+    const leavingJoined = await leaving.take((m) => m.type === "joined", "joined");
+    if (leavingJoined.type !== "joined") throw new Error("joined ではない");
+    const staying = await server.connectPoker("staying");
+    staying.send({ type: "join-room", roomId: created.code, name: "かえで" });
+    await staying.take((m) => m.type === "room-state", "参加後の room-state");
+
+    // Given: 2 人とも投票して公開済み（集計に 2 票ある）
+    leaving.send({ type: "vote", card: { kind: "number", value: 8 } });
+    staying.send({ type: "vote", card: { kind: "number", value: 3 } });
+    const revealed = await staying.take(
+      (m) => m.type === "room-state" && m.round.status === "revealed",
+      "全員投票後の room-state（revealed）",
+    );
+    if (revealed.type !== "room-state" || revealed.round.status !== "revealed") {
+      throw new Error("revealed ではない");
+    }
+    expect(revealed.round.votes).toHaveLength(2);
+
+    // When: 投票した人を timer の入口から外す
+    timer.send({ command: "participant.remove", participantId: leavingJoined.participantId });
+
+    // Then: 集計から 1 票消える（名簿に居ない人の票を残さない）
+    const after = await staying.take(
+      (m) =>
+        m.type === "room-state" &&
+        !m.participants.some((p) => p.id === leavingJoined.participantId),
+      "退出後の room-state",
+    );
+    if (after.type !== "room-state" || after.round.status !== "revealed") {
+      throw new Error("revealed ではない");
+    }
+    expect(after.round.votes).toHaveLength(1);
+    expect(after.round.votes.map((v) => v.participantId)).not.toContain(
+      leavingJoined.participantId,
+    );
+  });
+});

@@ -12,6 +12,7 @@
  * @requirements FR-096, FR-097, US2
  */
 
+import { discardVote } from "@tasuki/poker-core";
 import { makeHandlers, type HandlerDeps } from "../../src/application/handlers.js";
 import { PresenceManager } from "../../src/application/presence.js";
 import { InMemoryRoomStore } from "../../src/adapters/in-memory-room-store.js";
@@ -289,6 +290,23 @@ export function testRateLimiter(): RateLimiter {
   });
 }
 
+/**
+ * 退出で票を捨てる経路（R8・#95 S5b）を、渡された保管の上に組む。
+ *
+ * 本番（`create-sync-server.ts`）は poker のメッセージ層へ繋ぐが、timer のハンドラだけを
+ * 組むテストには配信先が無い。**「何もしない」を既定にしない** —— 既定が握りつぶすと、
+ * 退出しても票が残る後退を全テストが見逃す。
+ */
+export function testVoteDiscarder(
+  rounds: Pick<InMemoryRoundStore, "get" | "put">,
+): (roomCode: string, participantId: string) => void {
+  return (roomCode, participantId) => {
+    const round = rounds.get(roomCode);
+    if (round === undefined) return;
+    rounds.put(roomCode, discardVote(round, participantId));
+  };
+}
+
 export function makeTestHandlers(overrides?: TestHandlerOverrides): TestHandlers {
   const store = overrides?.store ?? new InMemoryRoomStore();
   const timers = overrides?.timers ?? new InMemoryTimerStore();
@@ -312,6 +330,8 @@ export function makeTestHandlers(overrides?: TestHandlerOverrides): TestHandlers
     broadcaster,
     codeGen: overrides?.codeGen ?? new FakeCodeGen(),
     destroyRoom: (roomCode) => destroyRoom(roomCode),
+    // **票の破棄も本番と同じ形で組む**（#95 S5b・R8）。同じ保管の上で票を落とす。
+    discardPokerVote: overrides?.discardPokerVote ?? testVoteDiscarder(rounds),
   });
   const presence = new PresenceManager({
     store,

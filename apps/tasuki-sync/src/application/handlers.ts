@@ -177,6 +177,18 @@ export interface HandlerDeps {
    * 実測（#173）: `create-sync-server.ts` から注入を外すと `TS2345` で落ちる。
    */
   destroyRoom: (roomCode: string) => void;
+  /**
+   * 名簿から人が消えたときに、その人の poker の票を捨てる（R8・#95 S5b）。
+   *
+   * **timer の文脈から poker の保管を触らない。** 配線（`create-sync-server.ts`）が
+   * poker のメッセージ層（`poker-handlers.ts` の `handleParticipantRemoved`）へ繋ぐ。
+   * 退出は**ルームの出来事**であって timer の出来事ではないので、片方の文脈が
+   * もう片方の状態を知らないまま伝えられる形にしてある。
+   *
+   * ⚠ **optional へ戻してはならない**（理由は {@link HandlerDeps.destroyRoom} と同じ）。
+   * 既定値が代わりに動くと、名簿に居ない人の票が公開時の集計へ混ざる。
+   */
+  discardPokerVote: (roomCode: string, participantId: string) => void;
 }
 
 // `CreateResult`/`JoinResult`（`room.create`/`room.join` が呼び出し元へ返す値）の
@@ -461,6 +473,7 @@ export function makeHandlers(deps: HandlerDeps) {
           messageForRemoval,
           sendError,
           destroyRoom,
+          discardPokerVote: deps.discardPokerVote,
         },
       );
     }

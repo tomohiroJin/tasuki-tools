@@ -3,6 +3,7 @@ import {
   applyAutoReveal,
   castVote,
   createRound,
+  discardVote,
   nextRound,
   revealBy,
   shouldAutoReveal,
@@ -249,7 +250,46 @@ describe('Round が集約ルート（#95 S4a）', () => {
     expect(shouldAutoReveal(round, [])).toBe(false);
   });
 
-  // ⚠ かつてここに `discardVote`（R8）の 2 本があった。#95 S4a で実装ごと落としたので
-  // 一緒に消した（**規則が変わったのではなく、到達経路が生まれなかった**。理由は
-  // `src/round.ts` の跡のコメント）。S5 で `leaveRoom` を作るときに書き直す。
+});
+
+describe('discardVote（退出した人の票を捨てる・R8）', () => {
+  const votingRound = (): Round => ({ status: 'voting', votes: new Map() });
+
+  it('Given 票のある人 / When 退出する / Then その票だけが消える', () => {
+    // Given: 2 人が投票している
+    const voted = castVote(votingRound(), 'p1', { kind: 'number', value: 3 })._unsafeUnwrap();
+    const both = castVote(voted, 'p2', { kind: 'number', value: 5 })._unsafeUnwrap();
+
+    // When
+    const after = discardVote(both, 'p1');
+
+    // Then: 残った人の票は触らない
+    expect(after.votes.has('p1')).toBe(false);
+    expect(after.votes.get('p2')).toEqual({ kind: 'number', value: 5 });
+  });
+
+  it('Given 票のない人 / When 退出する / Then 何も起きない', () => {
+    // Given
+    const round = castVote(votingRound(), 'p1', { kind: 'number', value: 3 })._unsafeUnwrap();
+
+    // When: 投票していない人（名簿にすら居ない ID）を渡す
+    const after = discardVote(round, 'いない人');
+
+    // Then: 同じ内容のまま（票を消しも足しもしない）
+    expect(after.votes.size).toBe(1);
+    expect(after.votes.get('p1')).toEqual({ kind: 'number', value: 3 });
+  });
+
+  it('Given 公開済みのラウンド / When 票を捨てる / Then status は変わらない', () => {
+    // Given: 公開済みのラウンド（集計の正しさは捨てた後の votes で決まる）
+    const voted = castVote(votingRound(), 'p1', { kind: 'number', value: 3 })._unsafeUnwrap();
+    const revealed = revealBy(voted, 'p1')._unsafeUnwrap();
+
+    // When
+    const after = discardVote(revealed, 'p1');
+
+    // Then: 遷移の判断は呼び出し側（applyAutoReveal）の責務で、ここは票だけを触る
+    expect(after.status).toBe('revealed');
+    expect(after.votes.size).toBe(0);
+  });
 });

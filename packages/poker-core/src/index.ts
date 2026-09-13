@@ -47,10 +47,16 @@ export type {
 // ./round
 //
 // `shouldAutoReveal` は**載せない**。`applyAutoReveal` が代わりの入口である。
-// （#95 S4a では `discardVote`（R8: 退出した人の票を捨てる）も「呼び出し元が無い」ことを
-// 理由にここへ載せなかったが、その後 `round.ts` から実装ごと落とした。理由と復活の段は
-// `round.ts` の跡のコメントにある。）
-export { createRound, castVote, applyAutoReveal, revealBy, nextRound } from './round';
+// `discardVote`（R8）は **#95 S5b で呼び出し元と一緒に戻した**ので載せる
+// （`apps/tasuki-sync` が退出の経路で呼ぶ。代わりの入口は無い）。
+export {
+  createRound,
+  castVote,
+  applyAutoReveal,
+  discardVote,
+  revealBy,
+  nextRound,
+} from './round';
 // Round: 上の関数の引数・戻り値型（`RoundStore` が保管する型でもある）
 // VoterView: applyAutoReveal の引数型。名簿の断片を構造的部分型で受ける
 //   （`ParticipantFragment` はこれを継承した上位集合。定義は `round.ts` 側 1 つ）

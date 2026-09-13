@@ -48,6 +48,7 @@
 import {
   applyAutoReveal,
   createRound,
+  discardVote,
   type ClientMessage,
   type ErrorCode,
   type ParticipantFragment,
@@ -143,6 +144,14 @@ export interface Handlers {
   handleJoinRoom(ws: HandlerConnection, msg: Extract<ClientMessage, { type: 'join-room' }>): void;
   handleCheckRoom(ws: HandlerConnection, msg: Extract<ClientMessage, { type: 'check-room' }>): void;
   detachFromCurrentRoom(ws: HandlerConnection): void;
+  /**
+   * 名簿から人が消えたときに、その人の票を捨てる（R8・#95 S5b）。
+   *
+   * 呼ぶのは timer の入口（`command-handlers/participant-remove.ts`）である ——
+   * 退出は**ルームの出来事**であって poker の出来事ではないので、poker の wire には
+   * 対応するコマンドが無い。配線は `create-sync-server.ts` が繋ぐ。
+   */
+  handleParticipantRemoved(roomCode: string, participantId: string): void;
   dispatch(ws: HandlerConnection, msg: ClientMessage): void;
   /** 衝突しないルーム ID を採る。**衝突再試行を差し替えテストで検証するため公開する。** */
   generateRoomId(): string;
@@ -570,6 +579,24 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
     }
   }
 
+  /**
+   * 名簿から消えた人の票を捨てて配信し直す（R8・#95 S5b）。
+   *
+   * **ラウンドが無ければ何もしない。** ここで遅延生成すると、poker を誰も開いていない
+   * ルームに、退出しただけでラウンドが生まれる（D8 は「そのツールへ入ったとき」に作る）。
+   *
+   * 名簿は**呼び出し側が更新し終えた後**のものを読む。捨てた結果で自動公開が立つことが
+   * あるので（残った全員が投票済みになる）、`applyAutoReveal` を通してから配信する。
+   */
+  function handleParticipantRemoved(roomCode: string, participantId: string): void {
+    const round = rounds.get(roomCode);
+    const room = store.get(roomCode);
+    if (round === undefined || room === undefined) return;
+
+    const discarded = discardVote(round, participantId);
+    commit({ room, round: applyAutoReveal(discarded, fragmentsOf(room)) });
+  }
+
   const commitRoomAction = createCommitRoomAction({ loadState, commit, fragmentsOf, sendError });
 
   const dispatch = createDispatch({
@@ -584,6 +611,7 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
     handleJoinRoom,
     handleCheckRoom,
     detachFromCurrentRoom,
+    handleParticipantRemoved,
     dispatch,
     generateRoomId,
     sendError,
