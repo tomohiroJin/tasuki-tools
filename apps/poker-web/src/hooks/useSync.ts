@@ -117,7 +117,7 @@ export function usePokerSync(): PokerSync {
       connection.dispose();
       connectionRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- 接続はアプリ生存期間で 1 本
+    // 依存は空。**接続はアプリ生存期間で 1 本**である（張り直すと入室からやり直しになる）。
   }, []);
 
   function handleMessage(raw: string): void {

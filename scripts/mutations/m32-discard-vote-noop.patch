@@ -1,0 +1,13 @@
+diff --git a/packages/poker-core/src/round.ts b/packages/poker-core/src/round.ts
+index 51dbeec..21d7ffd 100644
+--- a/packages/poker-core/src/round.ts
++++ b/packages/poker-core/src/round.ts
+@@ -109,7 +109,7 @@ export function nextRound(round: Round, _actorId: string): Result<Round, RoundEr
+  * 居ない人の ID を渡しても壊れない（何も起きない）。
+  */
+ export function discardVote(round: Round, voterId: string): Round {
+-  if (!round.votes.has(voterId)) return round;
++  if (true || !round.votes.has(voterId)) return round;
+   const votes = new Map(round.votes);
+   votes.delete(voterId);
+   return { ...round, votes };

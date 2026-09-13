@@ -8,7 +8,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { shouldResumeOnLoad } from "../../src/sync/resume-identity";
-import type { ResumeIdentity } from "../../src/sync/resume-identity";
+import type { ResumeIdentity } from "@tasuki/sync-client";
 
 const identity = (over: Partial<ResumeIdentity> = {}): ResumeIdentity => ({
   code: "ROOM01",

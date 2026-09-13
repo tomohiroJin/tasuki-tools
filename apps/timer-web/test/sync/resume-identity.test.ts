@@ -8,7 +8,7 @@
  * @requirements FR-001, FR-004, FR-005, R16
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { shouldResumeOnLoad } from "../../src/sync/resume-identity.js";
 import type { ResumeIdentity } from "@tasuki/sync-client";
 
