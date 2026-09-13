@@ -39,7 +39,7 @@ export const AI_FAILURE_REASONS = {
 /**
  * WebSocket 接続を拒否した理由（#103 敵対的レビュー P-2）。
  * `ws-adapter.ts` の `handleOpen` が拒否する経路（クライアント鍵なし・
- * Origin 不許可・許可リストに無いツール宣言（`tool`。#95 S5c・#249）と
+ * Origin 不許可・許可リストに無いツール宣言（`tool`。#95 S5c・#249））と
  * 1 対 1。本番構成でこれらが無言のままだと、Caddy 側の X-Forwarded-For 転送が
  * 壊れて利用者全員が入れなくなっても journal からは気づけない
  * （クライアント鍵なし・Origin 不許可は再レビューが実測）。
