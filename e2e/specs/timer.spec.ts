@@ -22,7 +22,6 @@ import {
   selectedIntervalLabel,
   invitedUrlText,
   joinAsDriver,
-  joinAsDriverAt,
   MISSING_ROOM_CODE,
   lobbyRotationRow,
   participantCount,
