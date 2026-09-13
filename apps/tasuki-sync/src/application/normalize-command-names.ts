@@ -28,9 +28,9 @@
  * なる。実経路が生きていることは `test/live-ws.display-name.test.ts` が見る。
  */
 
-import { err, ok, type Result } from "neverthrow";
-import { MAX_DISPLAY_NAME, MAX_NFKC_EXPANSION, normalizeDisplayName } from "@tasuki/room-core";
+import { ok, type Result } from "neverthrow";
 import type { Command } from "@tasuki/timer-core";
+import { applyDisplayNameRule, type DisplayNameRejection } from "./display-name-rule.js";
 
 /**
  * 表示名を運ぶコマンド。**この一覧が正本である。**
@@ -47,35 +47,18 @@ const COMMANDS_WITH_DISPLAY_NAME = [
   "participant.rename",
 ] as const;
 
-/** 正規化の失敗理由。呼び出し側はこれを 1 つの wire エラーへ畳む。 */
-export type DisplayNameRejection = "EmptyAfterNormalize" | "TooLong";
-
 /**
  * コマンドが運ぶ表示名を正規形へ直す。
  *
  * 表示名を持たないコマンドは**引数そのものを返す**（写しを作らない）。
  *
- * 上限は正規化の前後で二重に課す。
- *
- * - 前（緩い・`MAX_DISPLAY_NAME * MAX_NFKC_EXPANSION`）: 明らかな巨大入力を NFKC の
- *   計算より手前で弾く
- * - 後（厳密・`MAX_DISPLAY_NAME`）: **実際に保存・配信される長さ**を保証する。
- *   NFKC は 1 文字を最大 18 文字へ展開しうるので（U+FDFA `ﷺ`）、前段だけだと
- *   40 文字の入力が 720 文字として保存され、全参加者へ配信・描画される
+ * **規約の適用は `display-name-rule.ts` が持つ**（#95 S5b）。正規化と上限の二重判定を
+ * ここに書き写すと、入口が 3 つ（timer・ハブ・poker）になった以上、片方だけが直る。
  */
 export function normalizeCommandNames(cmd: Command): Result<Command, DisplayNameRejection> {
   if (!hasDisplayName(cmd)) return ok(cmd);
 
-  const raw = cmd.displayName;
-  // 前段（緩い上限）。NFKC を走らせる前に落とす。
-  if (raw.length > MAX_DISPLAY_NAME * MAX_NFKC_EXPANSION) return err("TooLong");
-
-  const displayName = normalizeDisplayName(raw);
-  if (displayName.length === 0) return err("EmptyAfterNormalize");
-  // 後段（厳密な上限）。保存・配信される値に対して効かなければ意味がない。
-  if (displayName.length > MAX_DISPLAY_NAME) return err("TooLong");
-
-  return ok({ ...cmd, displayName });
+  return applyDisplayNameRule(cmd.displayName).map((displayName) => ({ ...cmd, displayName }));
 }
 
 /** そのコマンドが表示名を運ぶか（運ぶなら型を絞る）。 */

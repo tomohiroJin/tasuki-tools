@@ -4,7 +4,6 @@ import * as v from 'valibot';
 import { type Result } from 'neverthrow';
 import { parseBoundaryMessage } from '@tasuki/protocol';
 import { NUMBER_CARD_VALUES, type Card } from './deck';
-import { NAME_MAX_LENGTH } from './name';
 
 // --- スキーマ ---
 
@@ -20,8 +19,17 @@ const CardSchema = v.variant('kind', [
   v.strictObject({ kind: v.literal('coffee') }),
 ]);
 
-// 名前ルールは name.ts の NAME_MAX_LENGTH が単一情報源
-const NameSchema = v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(NAME_MAX_LENGTH));
+// 表示名は**この層では形だけを見る**（#95 S5b）。
+//
+// 規約（正規化の規則と上限）は `@tasuki/room-core` にあり、適用はアプリケーション層
+// （`apps/tasuki-sync/src/application/display-name-rule.ts`）が timer・ハブと共有して行う。
+// poker が自前の上限（24）を持っていた S4a までは、**ハブで名乗った 40 文字の名前が
+// poker の入口だけで弾かれた**。
+//
+// ⚠ **ここに上限を書き戻さないこと。** 書き戻すと上限の正本が 2 つになる
+// （timer 側の `packages/timer-core/src/schemas.ts` が同じ理由で `v.string()` にしてある）。
+// 巨大入力そのものは接続層のフレーム上限（`maxMessageBytes`）が先に弾く。
+const NameSchema = v.string();
 
 // 公開しない（parseClientMessage が唯一の入口であり、外からもテストからも取り込まれない。#182 で index の列挙から外し、#223 で宣言の export も落とした）。
 const ClientMessageSchema = v.variant('type', [

@@ -90,6 +90,9 @@ importers:
       '@tasuki/poker-core':
         specifier: workspace:*
         version: link:../../packages/poker-core
+      '@tasuki/room-core':
+        specifier: workspace:*
+        version: link:../../packages/room-core
       '@tasuki/ui':
         specifier: workspace:*
         version: link:../../packages/ui

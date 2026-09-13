@@ -27,6 +27,12 @@
  * 保管と配信は {@link makeHandlers} 内の `commit` 1 本に閉じてある（timer 側の
  * `application/handlers.ts` と同じ規律）。
  *
+ * ## 表示名の規約は timer / ハブと共有する（#95 S5b）
+ *
+ * poker が持っていた自前の規約（`packages/poker-core/src/name.ts` の 24 文字）は落とし、
+ * `application/display-name-rule.ts` を通す。**ハブで名乗った名前が poker へ届くのは
+ * S5b から**なので、食い違いはこの段で実害に変わる。
+ *
  * ## 入口の門（越境の遮断）
  *
  * 名簿が 1 つになったことで、**ルームコードの空間が両ツールで共有された**。
@@ -39,8 +45,6 @@
 import {
   applyAutoReveal,
   createRound,
-  messageForRoomError,
-  validateName,
   type ClientMessage,
   type ErrorCode,
   type ParticipantFragment,
@@ -59,6 +63,7 @@ import type { Clock } from '../ports/clock.js';
 import type { RoomStore } from '../ports/room-store.js';
 import type { HubBroadcaster } from '../ports/hub-broadcaster.js';
 import { saveRoster } from './save-roster.js';
+import { applyDisplayNameRule, INVALID_DISPLAY_NAME_MESSAGE } from './display-name-rule.js';
 import type { TokenStore } from './token-store.js';
 import type { Broadcaster, RoomSocket } from '../ports/poker-broadcaster.js';
 import type { IdGen } from '../ports/poker-id-gen.js';
@@ -370,9 +375,9 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
 
     // すでに別ルームに参加中のソケット（二重送信・SPA 遷移）は先に切り離す
     detachFromCurrentRoom(ws);
-    const name = validateName(msg.name);
+    const name = applyDisplayNameRule(msg.name);
     if (name.isErr()) {
-      sendError(ws, 'invalid-message', messageForRoomError(name.error));
+      sendError(ws, 'invalid-message', INVALID_DISPLAY_NAME_MESSAGE);
       return;
     }
     const roomId = generateRoomId();
@@ -516,9 +521,9 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
       return;
     }
 
-    const name = validateName(msg.name);
+    const name = applyDisplayNameRule(msg.name);
     if (name.isErr()) {
-      sendError(ws, 'invalid-message', messageForRoomError(name.error));
+      sendError(ws, 'invalid-message', INVALID_DISPLAY_NAME_MESSAGE);
       return;
     }
     const admitted = admit(live.room, ws.data.connId, name.value);

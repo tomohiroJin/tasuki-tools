@@ -29,8 +29,10 @@
  * これは「保存・配信・描画される値」の上限であり、巨大文字列による DoS を防ぐためのもの。
  * したがって**正規化後に効いていなければ意味がない**。
  *
- * ⚠ **poker の `NAME_MAX_LENGTH`（24）と食い違っている。** 寄せるのは S5b（#248）——
- * ハブで名乗った名前が poker へ届く段である（`packages/poker-core/src/name.ts` の注記）。
+ * **この値がサービス全体の唯一の上限である**（#95 S5b）。poker が持っていた別の上限
+ * （24）は規約ごとここへ寄せた —— ハブで名乗った名前が poker へ届く段になり、
+ * 食い違いが実害へ変わったためである。適用は
+ * `apps/tasuki-sync/src/application/display-name-rule.ts` が 3 つの入口すべてで行う。
  */
 export const MAX_DISPLAY_NAME = 40;
 
