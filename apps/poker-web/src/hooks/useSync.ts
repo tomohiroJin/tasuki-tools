@@ -1,6 +1,14 @@
 // WS 接続とルーム状態の購読（T012 骨格 → T021 → T045 で拡張）
-// 接続はアプリ生存期間で 1 本。切断時は指数バックオフで自動再接続する（US4）
+//
+// **接続そのものは `@tasuki/sync-client` が持つ**（#95 S5b・D18）。接続はアプリ生存期間で
+// 1 本、切断時は指数バックオフで自動再接続（US4）という性質は変わらない —— 保持・再接続・
+// 送信キューの実装を、ハブ・timer と同じ 1 つへ寄せた。ここに残るのは poker の語彙
+// （メッセージの振り分けと画面の状態）だけである。
+//
+// **送信キューをここに持たないこと。** 確立前のコマンドは `SyncConnection` が 1 つの
+// キューで溜めており、ここにもう 1 つ置くと同じコマンドが 2 回出る。
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { SyncConnection, saveResumeIdentity } from '@tasuki/sync-client';
 import {
   DEFAULT_ERROR_MESSAGE,
   isKnownErrorCode,
@@ -10,7 +18,6 @@ import {
   type ErrorCode,
   type RoomStateMessage,
 } from '@tasuki/poker-core';
-import { saveIdentity } from '../storage';
 
 export type ConnectionStatus = 'connecting' | 'open' | 'closed';
 
@@ -69,8 +76,6 @@ export interface PokerSync {
   nextRound: () => void;
 }
 
-const MAX_RECONNECT_DELAY_MS = 5_000;
-
 export function usePokerSync(): PokerSync {
   const [status, setStatus] = useState<ConnectionStatus>('connecting');
   const [self, setSelf] = useState<SelfIdentity | null>(null);
@@ -82,31 +87,19 @@ export function usePokerSync(): PokerSync {
   // 「一度も繋がっていない」と「使えていたのに切れた」は利用者への伝え方が違う（#76 F-2）
   const [everConnected, setEverConnected] = useState(false);
   const [failedAttempts, setFailedAttempts] = useState(0);
-  const wsRef = useRef<WebSocket | null>(null);
+  const connectionRef = useRef<SyncConnection | null>(null);
   /** joined 時に識別情報を保存するため、直近の join/create の名前を控える */
   const pendingNameRef = useRef<string>('');
 
   useEffect(() => {
-    let disposed = false;
-    let attempt = 0;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-
-    const connect = () => {
-      if (disposed) return;
-      setStatus('connecting');
-      const ws = new WebSocket(wsUrl());
-      wsRef.current = ws;
-      const isCurrent = () => wsRef.current === ws && !disposed;
-
-      ws.addEventListener('open', () => {
-        if (!isCurrent()) return;
-        attempt = 0;
+    const connection = new SyncConnection({
+      url: wsUrl(),
+      onOpen: () => {
         setStatus('open');
         setEverConnected(true);
         setFailedAttempts(0);
-      });
-      ws.addEventListener('close', () => {
-        if (!isCurrent()) return;
+      },
+      onClose: () => {
         setStatus('closed');
         setFailedAttempts((n) => n + 1);
         // 新しい接続はサーバー側で未 join 状態から始まる（再入室は RoomPage が行う）
@@ -114,77 +107,77 @@ export function usePokerSync(): PokerSync {
         // 捨てたフレームの告知も前の接続のものなので畳む（#212）。
         // 残すと、**1 通も受け取っていない新しい接続に対して**警告が出続ける。
         setSyncStale(false);
-        // 指数バックオフで再接続（US4。再入室は RoomPage が保存済みトークンで行う）
-        const delay = Math.min(500 * 2 ** attempt, MAX_RECONNECT_DELAY_MS);
-        attempt += 1;
-        timer = setTimeout(connect, delay);
-      });
-      ws.addEventListener('message', (event) => {
-        if (!isCurrent()) return;
-        const result = parseServerMessage(String(event.data));
-        if (result.isErr()) {
-          // 境界検証に失敗したフレームは画面へ渡さない（憲法原則 IV）。
-          //
-          // **捨てたことは必ず利用者へ伝える（#212）。** 黙って捨てると、画面は生きて
-          // 見えたまま古い状態で固まり、利用者には原因が分からない。
-          //
-          // **どのフレームを捨てたかで態度を変えない。** 落ちた項目の経路から
-          // 「一過性の棄却」を選り分ける案は採らなかった（`docs/poker/adr/0002` 決定 2 に
-          // 実測を記録）。そもそも**捨てて無害なフレームは 1 つも無い** ——
-          // `room-state` を捨てれば画面が固まり、`joined` を捨てれば入室が成立せず、
-          // `error` を捨てれば消えたルームの案内（#76 J-1）も入室の再試行（#147）も起きない。
-          console.warn('契約に合わないサーバーメッセージを捨てました'); // log-hygiene:allow 固定の文言のみ（経路も値も出さない）
-          setSyncStale(true);
-          return;
-        }
-        // 契約を満たすフレームが届いた＝サーバーとの間で話が通じている。
-        // **poker に定期的なデータフレームは無い**ので、ここで解除しても点滅しない
-        // （死活監視は WS の制御フレーム ping で、`onmessage` には来ない）。
-        setSyncStale(false);
-        const msg = result.value;
-        switch (msg.type) {
-          case 'joined':
-            setSelf({ roomId: msg.roomId, participantId: msg.participantId, token: msg.token });
-            setJoinedThisConnection(true);
-            saveIdentity(msg.roomId, { token: msg.token, name: pendingNameRef.current });
-            break;
-          case 'room-state':
-            setSnapshot(msg);
-            setError(null); // 正常な状態受信で過去のエラーは解消したとみなす
-            break;
-          case 'error':
-            // 未知のコードは畳む。意味を知らないコードから専用画面や再試行を起こすと、
-            // 無関係な対処へ利用者を誘導することになる（docs/poker/adr/0003 決定 2）。
-            // 文言はサーバーのものを使う —— 未知のコードの意味を知るのは向こうだけである。
-            setError({
-              code: isKnownErrorCode(msg.code) ? msg.code : null,
-              // **空白だけの message も空の箱になる。** `v.string()` は空文字も
-              // 空白のみの文字列も通すので、見た目で空になるものをまとめて逃がす。
-              message: msg.message.trim() === '' ? DEFAULT_ERROR_MESSAGE : msg.message,
-            });
-            break;
-        }
-      });
-    };
-
-    connect();
+      },
+      onMessage: (raw) => handleMessage(raw),
+    });
+    connectionRef.current = connection;
+    setStatus('connecting');
+    connection.connect();
     return () => {
-      disposed = true;
-      if (timer !== undefined) clearTimeout(timer);
-      wsRef.current?.close();
-      wsRef.current = null;
+      connection.dispose();
+      connectionRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 接続はアプリ生存期間で 1 本
   }, []);
+
+  function handleMessage(raw: string): void {
+    const result = parseServerMessage(raw);
+    if (result.isErr()) {
+      // 境界検証に失敗したフレームは画面へ渡さない（憲法原則 IV）。
+      //
+      // **捨てたことは必ず利用者へ伝える（#212）。** 黙って捨てると、画面は生きて
+      // 見えたまま古い状態で固まり、利用者には原因が分からない。
+      //
+      // **どのフレームを捨てたかで態度を変えない。** 落ちた項目の経路から
+      // 「一過性の棄却」を選り分ける案は採らなかった（`docs/poker/adr/0002` 決定 2 に
+      // 実測を記録）。そもそも**捨てて無害なフレームは 1 つも無い** ——
+      // `room-state` を捨てれば画面が固まり、`joined` を捨てれば入室が成立せず、
+      // `error` を捨てれば消えたルームの案内（#76 J-1）も入室の再試行（#147）も起きない。
+      console.warn('契約に合わないサーバーメッセージを捨てました'); // log-hygiene:allow 固定の文言のみ（経路も値も出さない）
+      setSyncStale(true);
+      return;
+    }
+    // 契約を満たすフレームが届いた＝サーバーとの間で話が通じている。
+    // **poker に定期的なデータフレームは無い**ので、ここで解除しても点滅しない
+    // （死活監視は WS の制御フレーム ping で、`onmessage` には来ない）。
+    setSyncStale(false);
+    const msg = result.value;
+    switch (msg.type) {
+      case 'joined':
+        setSelf({ roomId: msg.roomId, participantId: msg.participantId, token: msg.token });
+        setJoinedThisConnection(true);
+        // **端末に置く同一性は 3 つの画面で 1 つ**（#95 S5b・D12）。選択画面で名乗った人が
+        // poker でも同じ人として扱われるのは、同じ鍵を読み書きしているからである。
+        saveResumeIdentity({
+          code: msg.roomId,
+          participantId: msg.participantId,
+          resumeToken: msg.token,
+          displayName: pendingNameRef.current,
+        });
+        break;
+      case 'room-state':
+        setSnapshot(msg);
+        setError(null); // 正常な状態受信で過去のエラーは解消したとみなす
+        break;
+      case 'error':
+        // 未知のコードは畳む。意味を知らないコードから専用画面や再試行を起こすと、
+        // 無関係な対処へ利用者を誘導することになる（docs/poker/adr/0003 決定 2）。
+        // 文言はサーバーのものを使う —— 未知のコードの意味を知るのは向こうだけである。
+        setError({
+          code: isKnownErrorCode(msg.code) ? msg.code : null,
+          // **空白だけの message も空の箱になる。** `v.string()` は空文字も
+          // 空白のみの文字列も通すので、見た目で空になるものをまとめて逃がす。
+          message: msg.message.trim() === '' ? DEFAULT_ERROR_MESSAGE : msg.message,
+        });
+        break;
+    }
+  }
 
   // アクションは ref と安定な setter しか参照しないため一度だけ生成する
   // （メッセージ受信のたびにコールバック群が新品になり、子のメモ化や effect を無駄に動かすのを防ぐ）
   const actions = useMemo(() => {
-    const send = (msg: ClientMessage) => {
-      // CONNECTING 中の send は例外になるため、開いている時だけ送る
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify(msg));
-      }
-    };
+    // 確立前のコマンドは `SyncConnection` が溜めて `onopen` で流す（キューは 1 つだけ）。
+    const send = (msg: ClientMessage) => connectionRef.current?.send(msg);
     return {
       clearError: () => setError(null),
       createRoom: (name: string) => {

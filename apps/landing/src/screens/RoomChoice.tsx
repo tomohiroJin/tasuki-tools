@@ -1,7 +1,8 @@
 import type { RosterRoom } from '@tasuki/room-core';
+import { buildInviteUrl } from '@tasuki/sync-client';
 import { TOOLS } from '../tools.js';
 import { ToolMark } from '../ToolMark.js';
-import { buildInviteUrl } from '../hub/invite-url.js';
+
 import { labelFor } from '../hub/participant-label.js';
 
 /**

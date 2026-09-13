@@ -1,8 +1,9 @@
 /**
- * 端末に置く同一性（#95 D12）。
+ * 端末に置く同一性（#95 D12）。**#95 S5b で `apps/landing` からここへ移した**
+ * （ハブ・timer・poker の 3 つが同じ鍵を読み書きするため）。
  *
  * - **復帰の組**はルームコード別（S4b で timer が採った形と同じ鍵）
- * - **既定の表示名**はルーム非依存（D12 の後半。S4b から S5a へ送られた申し送り）
+ * - **既定の表示名**はルーム非依存（D12 の後半）
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
@@ -11,7 +12,7 @@ import {
   saveDefaultDisplayName,
   saveResumeIdentity,
   clearResumeIdentity,
-} from '../../src/hub/storage.js';
+} from '../src/resume-identity.js';
 
 beforeEach(() => {
   localStorage.clear();
@@ -85,5 +86,58 @@ describe('既定の表示名', () => {
 
     // When / Then（操作）
     expect(loadDefaultDisplayName()).toBe('');
+  });
+});
+
+describe('復帰の組（ルームをまたぐ扱い・#95 S5b で timer から移設）', () => {
+  const alice = {
+    code: 'ABC123',
+    participantId: 'p-1',
+    resumeToken: 'resume-token-xyz',
+    displayName: 'Alice',
+  };
+
+  it('Given 2 つのルームに入った端末 / When それぞれの鍵で読む / Then 2 つのルームの復帰の組を同時に保てる', () => {
+    // Given: 2 つのルームに入ったことがある
+    saveResumeIdentity(alice);
+    saveResumeIdentity({ ...alice, code: 'SECOND', participantId: 'p-2' });
+
+    // When / Then: どちらもそれぞれの鍵で引ける
+    expect(loadResumeIdentity('ABC123')?.participantId).toBe('p-1');
+    expect(loadResumeIdentity('SECOND')?.participantId).toBe('p-2');
+  });
+
+  it('Given 鍵と中身のルームコードが食い違う値 / When 読む / Then 捨てる', () => {
+    // Given: 鍵は ABC123 なのに中身は別のルーム（書き換え・実装の取り違え）
+    localStorage.setItem('tasuki:resume:ABC123', JSON.stringify({ ...alice, code: 'OTHER1' }));
+
+    // When / Then
+    expect(loadResumeIdentity('ABC123')).toBeNull();
+  });
+
+  it('Given 2 つのルームの組 / When 片方を破棄する / Then もう片方は残る', () => {
+    // Given: 2 つのルームの復帰の組がある
+    saveResumeIdentity(alice);
+    saveResumeIdentity({ ...alice, code: 'SECOND', participantId: 'p-2' });
+
+    // When
+    clearResumeIdentity('ABC123');
+
+    // Then: 消えるのは指定したルームだけである
+    expect(loadResumeIdentity('ABC123')).toBeNull();
+    expect(loadResumeIdentity('SECOND')?.participantId).toBe('p-2');
+  });
+
+  // **FR-006 の撤廃**（#95 D12）。旧実装は sessionStorage に 1 組だけ持っていた。
+  it('Given 何も保存されていない端末 / When 保存する / Then localStorage にだけ書く', () => {
+    // Given: 何も保存されていない状態（beforeEach で両方 clear 済み）
+    // When
+    saveResumeIdentity(alice);
+
+    // Then
+    expect(localStorage.getItem('tasuki:resume:ABC123')).not.toBeNull();
+    expect(sessionStorage.getItem('tasuki:resume:ABC123')).toBeNull();
+    // 旧実装の鍵も残さない（移行はしない。トークンは短命で移す価値が無い）
+    expect(sessionStorage.getItem('tdd-mob:resume-identity')).toBeNull();
   });
 });

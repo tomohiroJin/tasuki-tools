@@ -15,17 +15,19 @@
  * 7. 入室が混雑で弾かれたら、`joinRetryDelayMs` の間隔で自動的に試み直す
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { SyncConnection, joinRetryDelayMs } from '@tasuki/sync-client';
-import { parseBoundaryMessage } from '@tasuki/protocol';
-import { HubServerMsgSchema, type HubCommand, type RosterRoom } from '@tasuki/room-core';
-import { readRoomParam } from './room-param.js';
 import {
+  SyncConnection,
   clearResumeIdentity,
+  joinRetryDelayMs,
   loadDefaultDisplayName,
   loadResumeIdentity,
   saveDefaultDisplayName,
   saveResumeIdentity,
-} from './storage.js';
+} from '@tasuki/sync-client';
+import { parseBoundaryMessage } from '@tasuki/protocol';
+import { HubServerMsgSchema, type HubCommand, type RosterRoom } from '@tasuki/room-core';
+import { readRoomParam } from './room-param.js';
+
 
 /** 同期サーバーへの URL。**ハブの入口は `/ws`** で、LP の base（`/`）直下にある。 */
 export function buildHubSyncUrl(location: { protocol: string; host: string }): string {

@@ -5,12 +5,12 @@
 import React, { useEffect, useState } from "react";
 import { Copy, Check } from "lucide-react";
 import { Card, GhostButton } from "../primitives.js";
-import { buildRoomUrl } from "../room-url.js";
+import { buildInviteUrl } from "@tasuki/sync-client";
 
 export function InvitePanel({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
-  const roomUrl = buildRoomUrl(window.location.origin, code);
+  const roomUrl = buildInviteUrl(window.location.origin, code);
 
   const copyText = async (text: string) => {
     if (!navigator.clipboard?.writeText) return;

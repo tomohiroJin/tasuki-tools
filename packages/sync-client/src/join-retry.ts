@@ -12,10 +12,9 @@
  * **上限が要る。** 無限に試み続けると、混雑が解消しない状況でバケツを
  * 消費し続けて自分たちを締め出す。尽きたら利用者へ手立てを示す。
  *
- * このファイルは `apps/poker-web/src/join-retry.ts` と**同じ方針を持つ**。
- * **#95 S5a でここ（`@tasuki/sync-client`）へ移した**が、poker-web はまだ写しのままである
- * （寄せるのは S5b・#248。3 つ目の利用者になる段）。片側だけが変わっていないことは
- * `e2e/tests/join-retry-policy.test.ts` が見る。
+ * **写しはもう無い**（#95 S5b）。S5a まで `apps/poker-web/src/join-retry.ts` が同じ方針を
+ * 写して持ち、`e2e/tests/join-retry-policy.test.ts` が両者の一致を見ていた。poker-web が
+ * このパッケージを使うようになったので、写しも、写しの一致を見る検査も役目を終えた。
  */
 
 /** 最初の待ち時間（ms）。 */

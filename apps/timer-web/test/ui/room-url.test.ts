@@ -7,12 +7,16 @@
  * リダイレクトするため**偶然通ってしまい**、玄関経由（＝本番と同じ経路）のときだけ死ぬ。
  *
  * sync-url.test.ts と同じ方針で、公開パスが配信設定と食い違ったら機械的に落ちるようにする。
+ *
+ * ⚠ **組み立てそのものは `@tasuki/sync-client` が持つ**（#95 S5b）。3 つの画面が同じ
+ * 参加用 URL を配るので、写しを増やす前に寄せた。ここが見るのは**timer の公開パスと
+ * 配信設定の突き合わせ**であり、向こうの単体テストでは代われない。
  */
 import { describe, it, expect } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { PUBLIC_PATH } from "../../src/public-path";
-import { buildRoomUrl } from "../../src/ui/room-url";
+import { buildInviteUrl } from "@tasuki/sync-client";
 
 /** リポジトリルートを上方向に探す（jsdom では import.meta.url が使えないため）。 */
 function findRepoRoot(from: string): string {
@@ -25,12 +29,12 @@ function findRepoRoot(from: string): string {
   }
 }
 
-describe("buildRoomUrl", () => {
+describe("buildInviteUrl", () => {
   it("ルート直下の参加 URL を返す（入口は LP に一本化された）", () => {
     // Given: 玄関 LP がルートを占め、そこがルームコードを解する（#95 S5a・D11）
     // When: 招待 URL を組み立てる
     // Then: ツールの配下ではない。選択画面に着地して、そこから道具を選ぶ
-    expect(buildRoomUrl("https://tasuki.example", "ABC123")).toBe(
+    expect(buildInviteUrl("https://tasuki.example", "ABC123")).toBe(
       "https://tasuki.example/?room=ABC123",
     );
   });
@@ -39,7 +43,7 @@ describe("buildRoomUrl", () => {
     // Given: ポート付きのオリジン
     // When: 招待 URL を組み立てる
     // Then: ポートが保たれる（落とすと別のアプリに繋がる）
-    expect(buildRoomUrl("http://localhost:5175", "ABC123")).toBe(
+    expect(buildInviteUrl("http://localhost:5175", "ABC123")).toBe(
       "http://localhost:5175/?room=ABC123",
     );
   });
@@ -47,7 +51,7 @@ describe("buildRoomUrl", () => {
   it("ルーム名を含むコードでも参加 URL として壊れない", () => {
     // Given: ルーム名は日本語も許すため、コードは非 ASCII になりうる
     // When: 招待 URL を組み立てる
-    const url = buildRoomUrl("https://tasuki.example", "朝会モブ-a1b2");
+    const url = buildInviteUrl("https://tasuki.example", "朝会モブ-a1b2");
 
     // Then: 素の文字列連結と違い、クエリとして読み戻せる
     expect(new URL(url).searchParams.get("room")).toBe("朝会モブ-a1b2");
@@ -56,7 +60,7 @@ describe("buildRoomUrl", () => {
   it("ツールの公開パス配下には向けない（旧 S4 の形へ戻さない）", () => {
     // Given（準備）: S4 から S5a までは `/timer/?room=` を配っていた
     // When（操作）
-    const url = buildRoomUrl("https://h", "ABC123");
+    const url = buildInviteUrl("https://h", "ABC123");
 
     // Then: 戻すと、配ったリンクが選択画面を素通りして timer に着く
     expect(url).not.toContain("/timer/");

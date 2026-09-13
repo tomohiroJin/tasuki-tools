@@ -15,7 +15,7 @@ import { act, cleanup, render, renderHook, screen } from '@testing-library/react
 import { App } from '../src/App';
 import { usePokerSync } from '../src/hooks/useSync';
 import { FakeListenerSocket } from './support/fakes';
-import { saveIdentity } from '../src/storage';
+import { saveResumeIdentity } from '@tasuki/sync-client';
 import { RETRY_WAITING_TEXT } from '../src/join-retry-plan';
 import { DEFAULT_ERROR_MESSAGE } from '@tasuki/poker-core';
 
@@ -37,7 +37,7 @@ function open(): void {
 
 /** 招待リンクでルーム画面を開き、保存済みの識別情報で自動復帰させる。 */
 function openRoomWithStoredIdentity(): void {
-  saveIdentity(ROOM_ID, { token: 'tok-1', name: PARTICIPANT_NAME });
+  saveResumeIdentity({ code: ROOM_ID, participantId: 'p-stored', resumeToken: 'tok-1', displayName: PARTICIPANT_NAME });
   window.history.replaceState(null, '', `/poker/room/${ROOM_ID}`);
   render(<App />);
   open();
