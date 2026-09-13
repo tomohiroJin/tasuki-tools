@@ -2,11 +2,13 @@
  * `ConnectionData` が接続の文脈（`protocol`）ごとに割れていることを実行時に確かめる
  * （#95 S5c・#249。S4b からの申し送り）。
  *
- * **型の性質は型検査では掴めない。** `apps/tasuki-sync/tsconfig.json` の `include` は
- * `["src/**\/*"]` でテストを対象にしないため、`ConnectionData` が判別可能ユニオンに
- * なっていること自体はここでは検証できない。代わりに、実際に開いた接続の `ws.data` を
- * 覗いて「poker 専用の項目（`participantId` / `roomId`）が timer の接続に無い」
- * 「poker の接続には両方ある」ことを実行時に確かめる。
+ * **テストも型検査の射程にある**（`apps/tasuki-sync/tsconfig.json` の
+ * `include: ["src", "test"]`）。ただし「`ConnectionData` が判別可能ユニオンになっている」
+ * こと自体は、この実行時テストのように**型注釈を書かないコード**からは型検査でも
+ * 掴めない（型注釈を書けば検査は通ってしまい、実装が判別可能ユニオンを崩しても
+ * 赤にならない）。代わりに、実際に開いた接続の `ws.data` を覗いて「poker 専用の項目
+ * （`participantId` / `roomId`）が timer の接続に無い」「poker の接続には両方ある」ことを
+ * 実行時に確かめる。
  *
  * **`Bun.serve` を一時的に差し替えて、開いた生のソケットを捕まえる。** `WsAdapter` は
  * 接続ごとの `data`（`ConnectionData`）を private な `connections` にしか持たず、
@@ -78,8 +80,10 @@ function startAdapterCapturingSockets(): {
 
 describe("接続ごとに持ち回る値は文脈ごとに分かれている", () => {
   it("Given timer の接続 / When 受理される / Then poker 専用の項目を持たない", async () => {
-    // Given: `?tool=timer` で繋ぐ
+    // Given: ソケットを捕まえながらアダプタを起動する
     const { port, sockets } = startAdapterCapturingSockets();
+
+    // When: `?tool=timer` で繋ぐ
     const ws = new WebSocket(`ws://127.0.0.1:${port}/ws?tool=timer`);
     await opened(ws);
 
@@ -92,8 +96,10 @@ describe("接続ごとに持ち回る値は文脈ごとに分かれている", (
   });
 
   it("Given poker の接続 / When 受理される / Then poker 専用の項目を両方持つ", async () => {
-    // Given: `?tool=poker` で繋ぐ
+    // Given: ソケットを捕まえながらアダプタを起動する
     const { port, sockets } = startAdapterCapturingSockets();
+
+    // When: `?tool=poker` で繋ぐ
     const ws = new WebSocket(`ws://127.0.0.1:${port}/ws?tool=poker`);
     await opened(ws);
 
