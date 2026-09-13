@@ -257,45 +257,59 @@ export interface WsAdapterOptions {
 }
 
 /**
- * 接続ごとに持ち回る値。
+ * すべての接続が持つ値。
  * `connId` は Origin / 接続数の検査を通ってから採番するため、それまでは空文字。
  * 空のまま閉じた接続は「受け入れていない接続」なので onDisconnect を呼ばない。
- *
- * **poker 用の 3 つ（`rateKey` / `participantId` / `roomId`）を timer の接続も
- * 持ち回る。** 統合前の poker は同じ 3 つを自分の `ConnectionData` に持っており、
- * `HandlerConnection`（`application/poker-handlers.ts`）が構造的にこれを要求する。
- * timer 側はこの 3 つを読み書きしない（timer のハンドラは `connId` だけで話し、
- * レート制限の鍵は `onConnect` で受け取ってアプリ層の `RateLimitGate` が持つ）。
- * ⏳ **文脈ごとに分けるのは S5c（#249）へ送った**（2026-09-11・S4b 実施時）。
- * 宛先は S4a（#245）→ S4b（#246）→ S5c（#249）と 2 度動いている。**S4b では
- * 分ける理由が無かった** —— 多接続模型（D14）が変えたのは名簿の側（`Participant` が
- * 接続の集まりを持つ）で、接続ごとに持ち回る値の割り方には触れずに済んだ。
- * **S5c は WS の入口を `/ws` 1 本へ畳む段**であり、そのとき `protocol` の決まり方
- * （いまはパス）自体が変わる。この構造を割るのは、割り方が決まるその段が最も安い。
- * S2 で分けなかった理由も残す: poker のハンドラとその 20 本近いテストを同じ PR で
- * 書き換えることになり、「純粋な移設で振る舞いを変えない」という段の前提を自分で壊す。
  */
-interface ConnectionData {
+interface ConnectionBase {
   connId: string;
   origin: string;
   /** `X-Forwarded-For` から導いた鍵。特定できなければ null。 */
   clientKey: string | null;
-  /**
-   * どのメッセージ層へ渡すか。upgrade の時点でパスから決まる。
-   *
-   * `"hub"` は選択画面（#95 S5a）。**在席の宣言もここで決まる** —— ハブの接続は
-   * どのツールも宣言しない（`tool: null`）ので、ツールの参加者一覧には出ない。
-   */
-  protocol: "timer" | "poker" | "hub" | "unknown";
   /** レート制限の鍵（クライアント鍵。特定できなければ接続 ID）。受理まで空文字。 */
   rateKey: string;
-  /** poker のみ使用。join 後に入る。 */
-  participantId: string | null;
-  /** poker のみ使用。join 後に入る。 */
-  roomId: string | null;
 }
 
+/**
+ * どのメッセージ層へ渡すかと、その層だけが持つ値（#95 S5c）。
+ *
+ * **S4b までは 3 つの項目（`rateKey` / `participantId` / `roomId`）を全接続が持ち回っていた。**
+ * 統合前の poker が同じ 3 つを持っており、`HandlerConnection`
+ * （`application/poker-handlers.ts`）が構造的にこれを要求するためである。timer 側は
+ * `participantId` / `roomId` を読み書きしない。**この段で入口が `/ws` 1 本になり、
+ * `protocol` の決まり方そのものが変わったので、割り方もここで決めた。**
+ *
+ * `"hub"` は選択画面（#95 S5a）。**在席の宣言もここで決まる** —— ハブの接続はどのツールも
+ * 宣言しない（`tool: null`）ので、ツールの参加者一覧には出ない。
+ * `"unknown"` は許可リストに無い `?tool=` の値。`handleOpen` が 1008 で閉じる。
+ */
+type ToolContext =
+  | { readonly protocol: "timer" }
+  | { readonly protocol: "hub" }
+  | { readonly protocol: "unknown" }
+  | { readonly protocol: "poker"; participantId: string | null; roomId: string | null };
+
+type ConnectionData = ConnectionBase & ToolContext;
+
 type Socket = Bun.ServerWebSocket<ConnectionData>;
+
+/** poker の枝だけに絞った {@link Socket}。{@link isPokerSocket} が絞り込みに使う。 */
+type PokerSocket = Bun.ServerWebSocket<Extract<ConnectionData, { protocol: "poker" }>>;
+
+/**
+ * `ws.data.protocol === "poker"` を型ガードとして使うための関数（#95 S5c）。
+ *
+ * **`ws.data.protocol === "poker"` という条件式そのものは `ws`（`Socket` =
+ * `Bun.ServerWebSocket<ConnectionData>`）を絞り込まない。** TypeScript はプロパティ
+ * アクセス式 `ws.data` の型は絞り込むが、ジェネリックで実体化した `ws` 自体の型までは
+ * 絞り込まないため、`poker.dispatch` 等が要求する `HandlerConnection`
+ * （`data.participantId` / `data.roomId` を無条件に持つ）へそのまま渡せない
+ * （実測: `tsc` はここで `Socket` を `PokerSocket` に代入できないと報告する）。
+ * 型ガード関数として明示すれば、`ws` そのものを `PokerSocket` へ絞り込める。
+ */
+function isPokerSocket(ws: Socket): ws is PokerSocket {
+  return ws.data.protocol === "poker";
+}
 
 export class WsAdapter {
   private readonly server: Bun.Server<ConnectionData>;
@@ -420,19 +434,13 @@ export class WsAdapter {
         : path === POKER_WS_PATH
           ? "poker"
           : "timer";
-    if (
-      server.upgrade(req, {
-        data: {
-          connId: "",
-          origin,
-          clientKey,
-          protocol,
-          rateKey: "",
-          participantId: null,
-          roomId: null,
-        } satisfies ConnectionData,
-      })
-    ) {
+    // poker の枝だけが participantId / roomId を持つ（判別可能ユニオン。#95 S5c）。
+    const base = { connId: "", origin, clientKey, rateKey: "" };
+    const data: ConnectionData =
+      protocol === "poker"
+        ? { ...base, protocol, participantId: null, roomId: null }
+        : { ...base, protocol };
+    if (server.upgrade(req, { data })) {
       return undefined;
     }
 
@@ -657,7 +665,9 @@ export class WsAdapter {
     // （`ServerMsg` の ErrorCode）、poker は `message-too-large`
     // （`@tasuki/poker-core` の ErrorCode）で、どちらも wire に載る値である。
     // 片方へ寄せると相手の web が知らないコードを受け取る（振る舞いが変わる）。
-    if (ws.data.protocol === "poker") {
+    // `isPokerSocket` で絞り込む（`ws.data.protocol === "poker"` だけでは
+    // `ws` 自体の型が絞り込めず、`handlePokerMessage` へ渡せない。docstring 参照）。
+    if (isPokerSocket(ws)) {
       this.handlePokerMessage(ws, raw, bytes);
       return;
     }
@@ -738,7 +748,7 @@ export class WsAdapter {
    * **新しい wire のコードを足さずに「何かが起きた」ことだけを伝えられる**。
    * この接続だけが閉じ、同じプロセスに載る timer のルームには波及しない。
    */
-  private handlePokerMessage(ws: Socket, raw: string | Buffer, bytes: number): void {
+  private handlePokerMessage(ws: PokerSocket, raw: string | Buffer, bytes: number): void {
     try {
       if (bytes > this.options.maxMessageBytes) {
         // 接続は保つ（切断ではなくエラー応答）。再送で回復できる種類の失敗のため。
@@ -830,7 +840,8 @@ export class WsAdapter {
     if (connId === "") return;
     this.connections.delete(connId);
     this.missedPongs.delete(connId);
-    if (ws.data.protocol === "poker") {
+    // `isPokerSocket` で絞り込む（`handlePokerMessage` と同じ理由。docstring 参照）。
+    if (isPokerSocket(ws)) {
       // poker はルーム離脱の後始末をメッセージ層が持つ（timer は presence 管理が持つ）。
       // 隔離の理由は timer 側の onDisconnect と同じ（コールバックの失敗で
       // プロセス全体を落とさない）。
