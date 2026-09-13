@@ -25,8 +25,8 @@ import {
   RETRY_WAITING_TEXT,
   RETRY_WAITING_WITHOUT_NAME_TEXT,
 } from '../src/join-retry-plan';
-import { joinRetryDelayMs } from '../src/join-retry';
-import { saveIdentity } from '../src/storage';
+import { joinRetryDelayMs } from '@tasuki/sync-client';
+import { clearResumeIdentity, loadResumeIdentity, saveResumeIdentity } from '@tasuki/sync-client';
 
 /**
  * 諦めるまでの試行回数を、**公開された振る舞いから導く**。
@@ -77,6 +77,11 @@ function makeSync(over: Partial<PokerSync> = {}): PokerSync {
     syncStale: false,
     error: null,
     clearError: vi.fn(),
+    // **保存の読み書きは本物を通す。** ここを偽物にすると、保存済みの組で入り直す
+    // 経路（#147）が「保存を読んでいるか」を確かめられなくなる。
+    storedIdentity: loadResumeIdentity,
+    forgetIdentity: clearResumeIdentity,
+    inviteUrl: (roomId: string) => `https://example.test/?room=${roomId}`,
     createRoom: vi.fn(),
     joinRoom,
     checkRoom,
@@ -110,7 +115,7 @@ afterEach(() => {
 describe('混雑で入室を拒まれたときの自動再試行', () => {
   it('待っている間に接続の他の値が変わっても、入り直しを取り消さない', async () => {
     // Given: 保存済みの名前を持つ人が、混雑で入室を拒まれて待っている
-    saveIdentity(ROOM_ID, { token: STORED_TOKEN, name: PARTICIPANT_NAME });
+    saveResumeIdentity({ code: ROOM_ID, participantId: 'p-stored', resumeToken: STORED_TOKEN, displayName: PARTICIPANT_NAME });
     const error = rateLimited();
     const { rerender } = render(<RoomPage roomId={ROOM_ID} sync={makeSync({ error })} />);
     joinRoom.mockClear(); // 画面を開いた時点の自動復帰は数えない
@@ -133,7 +138,7 @@ describe('混雑で入室を拒まれたときの自動再試行', () => {
 
   it('待っている途中で画面を離れたら、離れた後に入り直さない', async () => {
     // Given: 保存済みの名前を持つ人が、混雑で拒まれて待っている
-    saveIdentity(ROOM_ID, { token: STORED_TOKEN, name: PARTICIPANT_NAME });
+    saveResumeIdentity({ code: ROOM_ID, participantId: 'p-stored', resumeToken: STORED_TOKEN, displayName: PARTICIPANT_NAME });
     const { unmount } = render(
       <RoomPage roomId={ROOM_ID} sync={makeSync({ error: rateLimited() })} />,
     );
@@ -147,7 +152,7 @@ describe('混雑で入室を拒まれたときの自動再試行', () => {
 
   it('繋がり直したら、前の接続で使い切った試行を数え直す', async () => {
     // Given: 保存済みの名前を持つ人が、この接続で試行を使い切っている
-    saveIdentity(ROOM_ID, { token: STORED_TOKEN, name: PARTICIPANT_NAME });
+    saveResumeIdentity({ code: ROOM_ID, participantId: 'p-stored', resumeToken: STORED_TOKEN, displayName: PARTICIPANT_NAME });
     const { rerender } = render(<RoomPage roomId={ROOM_ID} sync={makeSync()} />);
     for (let i = 0; i <= JOIN_RETRY_MAX_ATTEMPTS; i++) {
       rerender(<RoomPage roomId={ROOM_ID} sync={makeSync({ error: rateLimited() })} />);

@@ -359,6 +359,21 @@ export class LiveSyncServer {
   }
 
   /**
+   * そのルームに timer の状態があるか（#95 S5b）。
+   *
+   * **「まだ作られていない」ことは wire から観測できない**ので、保管を直接覗く。
+   * 遅延生成（D8）が「ルーム作成時には作らない」ことを確かめるのに要る。
+   */
+  hasTimerState(code: string): boolean {
+    return this.server.timers.get(code) !== undefined;
+  }
+
+  /** そのルームに poker のラウンドがあるか（#95 S5b。{@link hasTimerState} と同じ理由）。 */
+  hasRound(code: string): boolean {
+    return this.server.rounds.get(code) !== undefined;
+  }
+
+  /**
    * 新しい WebSocket 接続を開く。
    *
    * `headers` はハンドシェイク要求に足すヘッダ。`X-Forwarded-For` を渡せば、

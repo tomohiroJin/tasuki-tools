@@ -7,8 +7,7 @@ import { NameForm } from '../components/NameForm';
 import { ParticipantList } from '../components/ParticipantList';
 import { Results } from '../components/Results';
 import type { PokerSync } from '../hooks/useSync';
-import { roomPath, topPath } from '../router';
-import { clearIdentity, loadIdentity } from '../storage';
+import { topPath } from '../router';
 import { planJoinRetry } from '../join-retry-plan';
 
 interface Props {
@@ -64,9 +63,16 @@ function legacyCopy(text: string): void {
   if (!ok) throw new Error('copy failed');
 }
 
-function InviteLink({ roomId }: { roomId: string }) {
+/**
+ * 招待リンク。**配るのは選択画面（ハブ）の URL である**（#95 S5b・D11）。
+ *
+ * S5a で参加用 URL は `/?room=CODE` に決まった（`docs/adr/0018` 決定 2）。poker だけが
+ * 旧い `/poker/room/<id>` を配っていると、受け取った人は選択画面を通らずに poker へ
+ * 着地し、**ツールを選び直せない**。組み立ては `@tasuki/sync-client` に 1 つあり、
+ * **画面は同期フックから受け取る**（画面は同期クライアントを直接 import しない）。
+ */
+function InviteLink({ url }: { url: string }) {
   const [copyState, setCopyState] = useState<'idle' | 'done' | 'failed'>('idle');
-  const url = `${location.origin}${roomPath(roomId)}`;
 
   const copy = async () => {
     try {
@@ -110,10 +116,10 @@ export function RoomPage({ roomId, sync }: Props) {
     }
     if (attemptedRef.current || sync.joinedThisConnection) return;
     if (sync.error?.code === 'room-not-found') return; // 消滅したルームへの再試行はしない
-    const stored = loadIdentity(roomId);
+    const stored = sync.storedIdentity(roomId);
     if (stored) {
       attemptedRef.current = true;
-      sync.joinRoom(roomId, stored.name, stored.token);
+      sync.joinRoom(roomId, stored.displayName, stored.resumeToken);
       return;
     }
     // 保存が無い＝招待リンクで初めて来た人。**参加を試みる前に**ルームの生死を尋ねる（#76 J-1）。
@@ -165,8 +171,8 @@ export function RoomPage({ roomId, sync }: Props) {
     // **一度も送り直さないまま試行回数だけを使い切る**（#147 の敵対的検証で判明）。
     // `sync.error` はエラーごとに新しいオブジェクトなので、1 回の拒否につき 1 回走る。
     if (sync.error?.code !== 'rate-limited') return;
-    const stored = loadIdentity(roomId);
-    const name = stored?.name ?? typedNameRef.current;
+    const stored = syncRef.current.storedIdentity(roomId);
+    const name = stored?.displayName ?? typedNameRef.current;
     const plan = planJoinRetry(rateLimitAttemptRef.current, name !== null);
     setRetryNotice(plan.notice);
     // 使い切った。**数え直さない**（数え直すと諦めたはずが送り続ける形になる）。
@@ -175,7 +181,7 @@ export function RoomPage({ roomId, sync }: Props) {
     const timer = setTimeout(() => {
       const s = syncRef.current;
       // 名前があれば入り直す。無ければルームの生死だけを尋ね直す（#76 J-1 と同じ扱い）。
-      if (name !== null) s.joinRoom(roomId, name, stored?.token);
+      if (name !== null) s.joinRoom(roomId, name, stored?.resumeToken);
       else s.checkRoom(roomId);
     }, plan.delayMs);
     return () => clearTimeout(timer);
@@ -183,7 +189,7 @@ export function RoomPage({ roomId, sync }: Props) {
 
   // 消滅したルームのトークンは破棄する（再試行ループ防止）
   useEffect(() => {
-    if (sync.error?.code === 'room-not-found') clearIdentity(roomId);
+    if (sync.error?.code === 'room-not-found') syncRef.current.forgetIdentity(roomId);
   }, [sync.error, roomId]);
 
   // room-not-found はページ全体をエラー表示に（FR-015 / US1-AS3）
@@ -215,7 +221,7 @@ export function RoomPage({ roomId, sync }: Props) {
     <main className="page room">
       <header>
         <h1>プランニングポーカー</h1>
-        <InviteLink roomId={roomId} />
+        <InviteLink url={sync.inviteUrl(roomId)} />
       </header>
       <ErrorNote error={sync.error} onClose={sync.clearError} />
       <section>

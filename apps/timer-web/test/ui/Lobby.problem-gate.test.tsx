@@ -12,6 +12,9 @@ import { Lobby } from "../../src/ui/Lobby.js";
 import type { Room, Participant } from "@tasuki/timer-core";
 import { aRoomView } from "../support/room-view.js";
 
+/** 参加用 URL は同期フックが組み立てる（#95 S5b）。画面へは値として渡す。 */
+const INVITE_URL_FOR_TEST = 'https://tasuki.example/?room=TEST';
+
 function p(overrides: Partial<Participant>): Participant {
   return {
     participantId: "x", displayName: "X", presence: "online", hasAiKey: false, joinedAt: 1, ...overrides,
@@ -38,7 +41,7 @@ describe("Lobby お題ゲート", () => {
     // Given
     const room = makeRoom({ problemEnabled: false });
     // When
-    render(<Lobby room={room} participantId="creator-p" onStartSession={noop} />);
+    render(<Lobby inviteUrl={INVITE_URL_FOR_TEST} room={room} participantId="creator-p" onStartSession={noop} />);
     // Then
     const btn = screen.getByRole("button", { name: /セッションを開始/ });
     expect((btn as HTMLButtonElement).disabled).toBe(false);
@@ -47,7 +50,7 @@ describe("Lobby お題ゲート", () => {
   it("problemEnabled=false のときお題セクションを表示しない", () => {
     // Given
     const room = makeRoom({ problemEnabled: false });
-    render(<Lobby room={room} participantId="creator-p" onStartSession={noop} />);
+    render(<Lobby inviteUrl={INVITE_URL_FOR_TEST} room={room} participantId="creator-p" onStartSession={noop} />);
     // When（「お題」タブをクリックして表示を切り替える）
     const optionsTab = screen.getByRole("tab", { name: /^お題$/ });
     fireEvent.click(optionsTab);
@@ -59,7 +62,7 @@ describe("Lobby お題ゲート", () => {
     // Given
     const room = makeRoom(); // problemEnabled undefined = default true
     // When
-    render(<Lobby room={room} participantId="creator-p" onStartSession={noop} />);
+    render(<Lobby inviteUrl={INVITE_URL_FOR_TEST} room={room} participantId="creator-p" onStartSession={noop} />);
     // Then
     const btn = screen.getByRole("button", { name: /セッションを開始/ });
     expect((btn as HTMLButtonElement).disabled).toBe(true);
@@ -69,7 +72,7 @@ describe("Lobby お題ゲート", () => {
     // Given
     const onConfigSet = vi.fn();
     const room = makeRoom(); // problemEnabled=true
-    render(<Lobby room={room} participantId="creator-p" onStartSession={noop} onConfigSet={onConfigSet} />);
+    render(<Lobby inviteUrl={INVITE_URL_FOR_TEST} room={room} participantId="creator-p" onStartSession={noop} onConfigSet={onConfigSet} />);
     // When（お題タブへ切り替えてトグルを操作。トグルはお題タブ先頭に移動）
     fireEvent.click(screen.getByRole("tab", { name: /^お題$/ }));
     const radio = screen.getByRole("radio", { name: "お題なし" });

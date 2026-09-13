@@ -6,9 +6,10 @@ import { TopPage } from './pages/TopPage';
 import { RoomPage } from './pages/RoomPage';
 
 function useRoute() {
-  const [route, setRoute] = useState(() => parseRoute(location.pathname));
+  // **`?room=` も見る**（#95 S5b）。選択画面の札は `/poker/?room=CODE` を出す。
+  const [route, setRoute] = useState(() => parseRoute(location.pathname, location.search));
   useEffect(() => {
-    const onPopState = () => setRoute(parseRoute(location.pathname));
+    const onPopState = () => setRoute(parseRoute(location.pathname, location.search));
     addEventListener('popstate', onPopState);
     return () => removeEventListener('popstate', onPopState);
   }, []);

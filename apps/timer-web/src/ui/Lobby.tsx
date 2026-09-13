@@ -30,6 +30,8 @@ import type { SessionConfig } from "@tasuki/timer-core";
 
 interface LobbyProps {
   room: Room;
+  /** 参加用 URL（組み立ては同期フックが持つ。画面は受け取って渡すだけ・#95 S5b）。 */
+  inviteUrl: string;
   participantId: string;
   onStartSession: () => void;
   /** お題まわり（開始前にロビーでお題を決める・US3）。 */
@@ -82,6 +84,7 @@ function RowIconButton({
 
 export function Lobby({
   room,
+  inviteUrl,
   participantId,
   onStartSession,
   onEditProblem,
@@ -158,7 +161,7 @@ export function Lobby({
                   onChange={(patch) => onConfigSet?.(patch)}
                 />
               </Card>
-              <InvitePanel code={room.code} />
+              <InvitePanel code={room.code} roomUrl={inviteUrl} />
               {/* ルームのパスフレーズ設定/解除（R4-2）。招待のすぐ下に置く。 */}
               {onSetPassphrase && (
                 <Card>

@@ -13,6 +13,9 @@ import { Lobby } from "../../src/ui/Lobby.js";
 import type { Room } from "@tasuki/timer-core";
 import { aRoomView } from "../support/room-view.js";
 
+/** 参加用 URL は同期フックが組み立てる（#95 S5b）。画面へは値として渡す。 */
+const INVITE_URL_FOR_TEST = 'https://tasuki.example/?room=TEST';
+
 function makeRoom(overrides?: Partial<Room>): Room {
   return aRoomView({
     createdAt: 1000000,
@@ -42,7 +45,7 @@ describe("Lobby 招待 1 操作", () => {
     // Given
     // When
     render(
-      <Lobby
+      <Lobby inviteUrl={INVITE_URL_FOR_TEST}
         room={makeRoom()}
         participantId="creator-p"
         onStartSession={noop}
@@ -56,7 +59,7 @@ describe("Lobby 招待 1 操作", () => {
     // Given
     // When
     render(
-      <Lobby
+      <Lobby inviteUrl={INVITE_URL_FOR_TEST}
         room={makeRoom()}
         participantId="creator-p"
         onStartSession={noop}
@@ -70,7 +73,7 @@ describe("Lobby 招待 1 操作", () => {
     // Given
     // When
     render(
-      <Lobby
+      <Lobby inviteUrl={INVITE_URL_FOR_TEST}
         room={makeRoom()}
         participantId="creator-p"
         onStartSession={noop}
@@ -84,7 +87,7 @@ describe("Lobby 招待 1 操作", () => {
     // Given
     // When
     render(
-      <Lobby
+      <Lobby inviteUrl={INVITE_URL_FOR_TEST}
         room={makeRoom()}
         participantId="creator-p"
         onStartSession={noop}
@@ -110,7 +113,7 @@ describe("Lobby 招待 1 操作", () => {
     const user = userEvent.setup();
     const onStart = vi.fn();
     render(
-      <Lobby
+      <Lobby inviteUrl={INVITE_URL_FOR_TEST}
         room={roomWithProblem}
         participantId="creator-p"
         onStartSession={onStart}

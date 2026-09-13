@@ -1007,8 +1007,8 @@ export function extractNamedImportsFromPackage(source, packageName) {
  *
  * ## 型を数えない理由
  *
- * 型は**取り込まれなくても契約の一部**である。`validateName(raw: string):
- * Result<string, RoomError>` は型推論が効くので誰も `RoomError` を import しないが、
+ * 型は**取り込まれなくても契約の一部**である。`parseClientMessage(raw: string):
+ * Result<ClientMessage, ProtocolError>` は型推論が効くので誰も `ProtocolError` を import しないが、
  * 注釈を書きたい利用者は名前を要求する。「公開している値の署名から到達できるか」を
  * 機械で判定するには型解決が要り、この検査の素朴さと引き換えになるため、
  * **型は最初から数えない**（ADR-0016 追記 2026-09-01）。

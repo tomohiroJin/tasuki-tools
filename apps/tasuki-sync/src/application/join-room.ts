@@ -2,9 +2,15 @@
  * ルームへ参加する（#95 S5a）。**wire を知らない。**
  *
  * timer の入口（`command-handlers/room-join.ts`）とハブの入口（`hub-handlers.ts`）で
- * **同じ守り**（レート制限・入口の門・合言葉・復帰）を通す。写しを 2 つ持つと片方だけが
- * 直り、**合言葉を知らない人が保護ルームの名簿を読める**という形の穴が開く
+ * **同じ守り**（レート制限・合言葉・復帰）を通す。写しを 2 つ持つと片方だけが直り、
+ * **合言葉を知らない人が保護ルームの名簿を読める**という形の穴が開く
  * （S4a で実際に出た欠陥と同型。2026-09-13 の実測 4）。
+ *
+ * ## 入口の門は S5b で廃止した
+ *
+ * S4a〜S5a は「そのツールの状態があるルームにだけ入れる」門（`tool-gate.ts`）を通していた。
+ * **S5b でツール状態を遅延生成にした**（D8）ので、状態の有無は参加の可否を意味しなくなった。
+ * 越境を止めるのは合言葉の関門（`room-entry.ts`）で、poker の入口もそれを通る。
  *
  * ## 返すのは結果だけで、保管も配信もしない
  *
@@ -22,7 +28,6 @@ import type { ErrorCode, TimerState } from "@tasuki/timer-core";
 import {
   addParticipant,
   attachConnection,
-  findParticipant,
   type Participant as MembershipParticipant,
   type Room as MembershipRoom,
   type ToolId,
@@ -33,13 +38,14 @@ import type { TimerStore } from "../ports/timer-store.js";
 import type { RoomCodeGen } from "../ports/code-gen.js";
 import type { TokenStore } from "./token-store.js";
 import type { RateLimitGate } from "./rate-limit-gate.js";
-import type { ToolGate } from "./tool-gate.js";
-import { constantTimeEqual } from "./secure-compare.js";
+import { createInitialTimerState } from "./initial-timer-state.js";
+import { checkPassphrase, findResumableParticipant } from "./room-entry.js";
+import { TOOL_TIMER } from "./tool-id.js";
 
 /**
  * 「そのルームは無い」と返すときの文言。**入口をまたいで 1 つにする。**
  *
- * 入口の門で拒んだ場合も、本当に存在しない場合も、**コード・文言・レート制限の積算まで
+ * 合言葉の関門で拒んだ場合も、本当に存在しない場合も、**コード・文言・レート制限の積算まで
  * 完全に同じ**にする（`docs/adr/0011`）。区別できるとルームコード列挙の手がかりになる。
  * 文言を入口ごとに書くと、片方だけ言い回しが変わった瞬間にその区別が生まれる。
  */
@@ -51,7 +57,6 @@ export interface JoinRoomDeps {
   clock: Clock;
   codeGen: RoomCodeGen;
   tokenStore: TokenStore;
-  toolGate: ToolGate;
   rateLimitGate: RateLimitGate;
 }
 
@@ -62,8 +67,8 @@ export interface JoinRoomInput {
   /**
    * その接続が宣言するツール。**ハブは null**（#95 S5a・D14）。
    *
-   * `null` のときは**入口の門を通さない** —— 門が見るのは「そのツールの状態があるか」で、
-   * ハブはどのツールも要求しないからである。名簿にあるルームには入れる。
+   * `TOOL_TIMER` のときだけ、timer の状態が無ければ**その場で作る**（#95 S5b・D8）。
+   * ハブ（`null`）は選択画面に居るだけなのでどのツールの状態も作らない。
    */
   tool: ToolId | null;
   resumeToken?: string;
@@ -78,7 +83,12 @@ export interface JoinRoomOutcome {
   participantId: string;
   resumeToken: string;
   membership: MembershipRoom;
-  /** そのルームの timer の状態（**poker だけのルームでは無い**）。 */
+  /**
+   * そのルームの timer の状態。
+   *
+   * **timer の入口から入ったなら必ずある**（無ければ遅延生成する・#95 S5b）。
+   * ハブと poker の入口では、まだ誰も timer へ入っていないルームで `undefined` になる。
+   */
   timer: TimerState | undefined;
 }
 
@@ -86,7 +96,7 @@ export function joinRoom(
   deps: JoinRoomDeps,
   input: JoinRoomInput,
 ): Result<JoinRoomOutcome, ErrorCode> {
-  const { store, timers, clock, codeGen, tokenStore, toolGate, rateLimitGate } = deps;
+  const { store, timers, clock, codeGen, tokenStore, rateLimitGate } = deps;
 
   // ルームの会計（joinedAt）に使う壁時計。**レート制限には渡さない**（設計正本 D8）。
   const now = clock.now();
@@ -99,52 +109,49 @@ export function joinRoom(
   if (rateLimitGate.shouldReject(input.connId, rateNow)) return err("JOIN_RATE_LIMITED");
 
   const room = store.get(input.code);
-  const timer = timers.get(input.code);
-
-  // **入口の門**（`tool-gate.ts`・#95 S4a）。名簿は poker と 1 つの保管なので、
-  // 「名簿にある」ことは「そのツールのルームである」ことを意味しない。そのツールの状態が
-  // 無いルームは、**存在しないルームと完全に同じ応答**で拒む —— 区別できるとルームコード
-  // 列挙の手がかりになる（ADR 0011）。
-  //
-  // **ハブ（`tool === null`）は門を通さない。** 選択画面はどのツールも要求せず、
-  // 名簿そのものを見る場所だからである。
-  const gateOpen = input.tool === null || toolGate.canEnterVia(input.tool, input.code);
-  if (!room || !gateOpen) {
+  if (!room) {
     // 失敗を記録（次回以降のレート判定に使う）。時刻は単調時計のほう（D8）。
     rateLimitGate.consume(input.connId, rateNow);
     return err("ROOM_NOT_FOUND");
   }
 
+  const existingTimer = timers.get(input.code);
+
+  /**
+   * この参加で返す timer の状態。**timer の入口なら無ければ作る**（#95 S5b・D8）。
+   *
+   * S4a〜S5a はここに入口ごとの門（`tool-gate.ts`）があり、状態が無いルームを
+   * 「存在しないルーム」として拒んでいた。**入口が選択画面へ一本化される以上、
+   * 拒むのではなく作るのが正しい。** 越境を止めるのは下の合言葉の関門である。
+   */
+  const timerFor = (participantId: string): TimerState | undefined =>
+    input.tool === TOOL_TIMER && existingTimer === undefined
+      ? createInitialTimerState({ code: input.code, createdAt: now, participantId })
+      : existingTimer;
+
   // 復帰（同じ端末・同じルーム）。**接続を足す。前の接続を奪わない**（#95 S4b・D14）。
-  if (input.resumeToken) {
-    const tokenData = tokenStore.getResume(input.resumeToken);
-    if (tokenData && tokenData.roomCode === input.code) {
-      const existing = findParticipant(room, tokenData.participantId);
-      if (existing) {
-        return ok({
-          kind: "resumed",
-          participantId: tokenData.participantId,
-          resumeToken: input.resumeToken,
-          membership: attachConnection(room, tokenData.participantId, input.connId, input.tool),
-          timer,
-        });
-      }
-    }
+  // 判定は `room-entry.ts` が持つ（poker の入口と同じものを通す）。
+  const resumed = findResumableParticipant(tokenStore, room, input.code, input.resumeToken);
+  if (resumed !== undefined && input.resumeToken !== undefined) {
+    return ok({
+      kind: "resumed",
+      participantId: resumed.id,
+      resumeToken: input.resumeToken,
+      membership: attachConnection(room, resumed.id, input.connId, input.tool),
+      timer: timerFor(resumed.id),
+    });
   }
 
-  // パスフレーズ保護ルームは新規参加時に一致を要求する（R4-2）。
+  // **合言葉の関門**（R4-2・#95 S5b でここが越境を止める唯一の場所になった）。
   // 復帰は上で return 済みのためここには来ない＝再認証不要。
   //
   // **ハブもここを通る**（#95 S5a）。通さないと、合言葉を知らない人が選択画面から
   // 保護ルームの名簿を読めてしまう。
-  const required = tokenStore.getPassphrase(input.code);
-  // 保持側と同じく前後空白を正規化して比較する。
-  const provided = (input.passphrase ?? "").trim();
-  // 秘密の照合は定数時間で行う（ADR 0012・管理トークン／AI 解錠と同じ規律）。
-  if (required !== undefined && !constantTimeEqual(provided, required)) {
+  const allowed = checkPassphrase(tokenStore.getPassphrase(input.code), input.passphrase);
+  if (allowed.isErr()) {
     // 失敗をレート制限に積算（総当たりの緩和・既存 join 制限と統合）。
     rateLimitGate.consume(input.connId, rateNow);
-    return err(provided ? "PASSPHRASE_MISMATCH" : "PASSPHRASE_REQUIRED");
+    return err(allowed.error);
   }
 
   // 名乗って参加した人は、その場で在室者の 1 人になる（#95 S3 で全員同格）。
@@ -161,6 +168,7 @@ export function joinRoom(
 
   // AI 鍵の有無は**名簿ではなく timer の状態**が持つ（#95 S4a）。
   // 「その人が誰か」ではなく「その人が timer で何をできるか」だからである。
+  const timer = timerFor(participantId);
   const updatedTimer =
     input.hasAiKey === true && timer !== undefined
       ? { ...timer, aiKeyHolders: [...timer.aiKeyHolders, participantId] }

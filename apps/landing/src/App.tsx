@@ -36,6 +36,13 @@ export function App() {
         />
       );
     case 'choice':
-      return <RoomChoice code={hub.code ?? ''} roster={hub.roster} connection={hub.connection} />;
+      return (
+        <RoomChoice
+          code={hub.code ?? ''}
+          inviteUrl={hub.inviteUrl ?? ''}
+          roster={hub.roster}
+          connection={hub.connection}
+        />
+      );
   }
 }

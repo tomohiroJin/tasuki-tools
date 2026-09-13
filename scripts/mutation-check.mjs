@@ -371,10 +371,59 @@ export const MUTATIONS = [
     label: "参加の合言葉の照合を落とす（保護ルームの名簿が読める）",
     patch: "m29-join-skips-passphrase.patch",
     pkg: "apps/tasuki-sync",
-    tests: ["test/live-ws.hub.test.ts", "test/passphrase.test.ts"],
+    tests: [
+      "test/live-ws.hub.test.ts",
+      "test/passphrase.test.ts",
+      "test/live-ws.tool-entry.test.ts",
+    ],
     note:
-      "#95 S5a。timer とハブで守りを共有した `join-room.ts` の照合そのものを落とす。" +
+      "#95 S5a で timer とハブが守りを共有し、**S5b で poker も同じ関門を通る**ように" +
+      "なった（`room-entry.ts`。入口の門の置き換え）。照合そのものを落とす。" +
       "S4a では同型の欠陥（合言葉を通さずに保護ルームの snapshot が読めた）が実機で出ている。",
+  },
+  {
+    id: 33,
+    label: "poker の参加者一覧から在席の絞り込みを外す（選択画面に居る人が切断中として出る）",
+    patch: "m33-poker-roster-not-filtered.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/live-ws.tool-entry.test.ts"],
+    note:
+      "#95 S5b（R5）。timer 側の m27 と対になる。**実画面で見つけた欠陥である** ——" +
+      "1 つのルームが両ツールを持つようになり、選択画面に居るだけの人が poker の一覧に" +
+      "「切断中」として並んだ。接続は生きているので事実に反する。",
+  },
+  {
+    id: 30,
+    label: "poker のラウンドを遅延生成しない（選択画面から poker へ入れない）",
+    patch: "m30-poker-round-not-lazily-created.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/live-ws.tool-entry.test.ts"],
+    note:
+      "#95 S5b（D8）。ハブで作ったルームはラウンドを持たないので、遅延生成が無いと" +
+      "**選択画面から poker を選んだ人が「ルームが見つかりません」に落ちる**。" +
+      "poker の既存テストは自分で作ったルームしか見ないので、この欠陥を捕まえない。",
+  },
+  {
+    id: 31,
+    label: "timer の状態を遅延生成しない（poker で作ったルームへ timer から入れない）",
+    patch: "m31-timer-state-not-lazily-created.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/live-ws.tool-entry.test.ts"],
+    note:
+      "#95 S5b（D8）。m30 の裏返し。**片方だけ遅延生成にしても気づけない**ので、" +
+      "両方向に変異を置く。",
+  },
+  {
+    id: 32,
+    label: "退出しても票を捨てない（名簿に居ない人の票が集計に混ざる）",
+    patch: "m32-discard-vote-noop.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/live-ws.tool-entry.test.ts"],
+    note:
+      "#95 S5b（R8）。S4a では到達経路が無く実装ごと落としていた。1 つのルームが" +
+      "両ツールを持てるようになって経路が生まれたので、呼び出し元ごと戻した。" +
+      "**`packages/poker-core` を変異させ、配線側のテストで殺す**（純関数のテストだけだと" +
+      "呼び出し元が外れても緑のまま）。",
   },
   {
     id: 26,

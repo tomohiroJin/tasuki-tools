@@ -23,7 +23,7 @@ import React from "react";
 import App from "../../src/App.js";
 import { FakeWS } from "../support/fakes.js";
 import { aRoomView } from "../support/room-view.js";
-import { loadResumeIdentity } from "../../src/sync/resume-identity.js";
+import { loadResumeIdentity } from "@tasuki/sync-client";
 import { clearPreferences } from "../../src/prefs/local-prefs.js";
 
 vi.mock("../../src/records/indexeddb.js", () => ({

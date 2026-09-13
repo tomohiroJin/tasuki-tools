@@ -1,0 +1,15 @@
+diff --git a/apps/tasuki-sync/src/application/poker-handlers.ts b/apps/tasuki-sync/src/application/poker-handlers.ts
+index e92bba5..686c642 100644
+--- a/apps/tasuki-sync/src/application/poker-handlers.ts
++++ b/apps/tasuki-sync/src/application/poker-handlers.ts
+@@ -220,7 +220,9 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
+   function loadState(roomId: string): RoomState | undefined {
+     const room = store.get(roomId);
+     if (!room) return undefined;
+-    return { room, round: rounds.get(roomId) ?? createRound() };
++    const existing = rounds.get(roomId);
++    if (existing === undefined) return undefined;
++    return { room, round: existing };
+   }
+ 
+   /**

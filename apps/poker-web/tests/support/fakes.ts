@@ -1,18 +1,24 @@
 /**
  * poker-web のテスト共有フェイク。
  *
- * **`apps/timer-web/test/support/fakes.ts` の `FakeWS` とは別物である。**
- * あちらは `onopen` / `onmessage` のプロパティ代入で購読する形、こちらは
- * `addEventListener` で購読する形で、`usePokerSync` が使うのは後者しかない。
- * 名前を分けているのは、片方に合わせて「まとめる」と一方の購読が黙って死ぬため。
+ * **購読の形は #95 S5b で変わった。** `usePokerSync` は接続を
+ * `@tasuki/sync-client` の `SyncConnection` に任せるようになり、あちらは
+ * `onopen` / `onmessage` / `onclose` の**プロパティ代入**で購読する。
+ * `addEventListener` だけを持つスタブでは**何も起きないまま全テストが空振りする**ので、
+ * 両方を受け付ける形にしてある（`fire` はどちらの購読にも配る）。
  */
 
-/** `addEventListener` で購読する最小 WebSocket スタブ。 */
+/** プロパティ代入と `addEventListener` の両方で購読できる最小 WebSocket スタブ。 */
 export class FakeListenerSocket {
   static instances: FakeListenerSocket[] = [];
   static readonly OPEN = 1;
 
   readyState = 0;
+  /** `SyncConnection` が代入する購読口。 */
+  onopen: ((event?: unknown) => void) | null = null;
+  onmessage: ((event: unknown) => void) | null = null;
+  onclose: ((event?: unknown) => void) | null = null;
+  onerror: ((event?: unknown) => void) | null = null;
   private readonly handlers: Record<string, ((event: unknown) => void)[]> = {};
 
   constructor(public url: string) {
@@ -23,8 +29,15 @@ export class FakeListenerSocket {
     (this.handlers[type] ??= []).push(handler);
   }
 
-  /** テストから任意のイベントを発火する。 */
+  /** テストから任意のイベントを発火する（プロパティ代入・addEventListener の両方へ配る）。 */
   fire(type: string, event?: unknown): void {
+    const assigned = {
+      open: this.onopen,
+      message: this.onmessage,
+      close: this.onclose,
+      error: this.onerror,
+    }[type];
+    assigned?.(event);
     for (const handler of this.handlers[type] ?? []) handler(event);
   }
 

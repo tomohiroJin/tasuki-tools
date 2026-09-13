@@ -14,6 +14,9 @@ import { Session } from "../../src/ui/Session.js";
 import type { Room, Participant, SessionConfig, Problem } from "@tasuki/timer-core";
 import { aRoomView } from "../support/room-view.js";
 
+/** 参加用 URL は同期フックが組み立てる（#95 S5b）。画面へは値として渡す。 */
+const INVITE_URL_FOR_TEST = 'https://tasuki.example/?room=TEST';
+
 function makeParticipant(overrides: Partial<Participant>): Participant {
   return {
     participantId: "p1",
@@ -88,7 +91,7 @@ describe("Session × ProblemEditor 結合", () => {
   it("problem があるとき ProblemEditor を描画しお題タイトル・要件を表示する", () => {
     // Given
     const handlers = baseHandlers();
-    render(<Session room={makeRoom()} participantId="p-alice" {...handlers} />);
+    render(<Session inviteUrl={INVITE_URL_FOR_TEST} room={makeRoom()} participantId="p-alice" {...handlers} />);
     // Then（セッション中は折りたたみバー。タイトルはバーに常時表示）
     expect(screen.getByText("FizzBuzz")).toBeTruthy();
     // When（バーを開く → フルカード）
@@ -104,7 +107,7 @@ describe("Session × ProblemEditor 結合", () => {
   it("タイトルを編集すると onEditProblem が patch で発火する", () => {
     // Given
     const handlers = baseHandlers();
-    render(<Session room={makeRoom()} participantId="p-alice" {...handlers} />);
+    render(<Session inviteUrl={INVITE_URL_FOR_TEST} room={makeRoom()} participantId="p-alice" {...handlers} />);
     // When（折りたたみバーを開いてから編集に入る）
     fireEvent.click(screen.getByRole("button", { name: /詳細を開く/ }));
     fireEvent.click(screen.getByRole("button", { name: /内容を編集/ }));
@@ -118,7 +121,7 @@ describe("Session × ProblemEditor 結合", () => {
   it("誰の視点でも編集ボタンが出る", () => {
     // Given（かつては観覧者に編集系を出さなかった・#95 S3 で役割が消えた）
     const handlers = baseHandlers();
-    render(<Session room={makeRoom()} participantId="p-bob" {...handlers} />);
+    render(<Session inviteUrl={INVITE_URL_FOR_TEST} room={makeRoom()} participantId="p-bob" {...handlers} />);
     // When（バーを開くとフルカードに編集ボタンが現れる）
     fireEvent.click(screen.getByRole("button", { name: /詳細を開く/ }));
     // Then

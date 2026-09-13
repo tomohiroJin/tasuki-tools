@@ -25,6 +25,9 @@ import { Session } from "../../src/ui/Session.js";
 import type { Room, Participant, SessionConfig } from "@tasuki/timer-core";
 import { aRoomView } from "../support/room-view.js";
 
+/** 参加用 URL は同期フックが組み立てる（#95 S5b）。画面へは値として渡す。 */
+const INVITE_URL_FOR_TEST = 'https://tasuki.example/?room=TEST';
+
 function makeParticipant(overrides: Partial<Participant>): Participant {
   return {
     participantId: "p1",
@@ -92,7 +95,7 @@ describe("#95 S3: セッションの導線は全員に出る", () => {
   it("部屋を作った人でなくても終了系ゾーンが出る", () => {
     // Given（自分=Bob。かつては開始前ホスト限定・開始後編集者以上だった）
     // When
-    render(<Session room={makeRoom()} participantId="p-bob" {...baseHandlers()} />);
+    render(<Session inviteUrl={INVITE_URL_FOR_TEST} room={makeRoom()} participantId="p-bob" {...baseHandlers()} />);
     // Then
     expect(screen.getByRole("group", { name: "セッションを終える" })).toBeTruthy();
   });
@@ -105,14 +108,14 @@ describe("#95 S3: セッションの導線は全員に出る", () => {
   it("部屋を作った人でなくてもランダム化が出る", () => {
     // Given（自分=Bob）
     // When
-    render(<Session room={makeRoom()} participantId="p-bob" {...baseHandlers()} />);
+    render(<Session inviteUrl={INVITE_URL_FOR_TEST} room={makeRoom()} participantId="p-bob" {...baseHandlers()} />);
     // Then
     expect(screen.getAllByLabelText("ドライバー順をランダムに並べ替える").length).toBeGreaterThan(0);
   });
 
   it("ルームタブでもランダム化が出る（タブ間で導線を非対称にしない）", () => {
     // Given
-    render(<Session room={makeRoom()} participantId="p-bob" {...baseHandlers()} />);
+    render(<Session inviteUrl={INVITE_URL_FOR_TEST} room={makeRoom()} participantId="p-bob" {...baseHandlers()} />);
     // When
     openRoomTab();
     // Then
@@ -122,7 +125,7 @@ describe("#95 S3: セッションの導線は全員に出る", () => {
   it("ルームタブからルームを抜けられる", () => {
     // Given
     const handlers = baseHandlers();
-    render(<Session room={makeRoom()} participantId="p-bob" {...handlers} />);
+    render(<Session inviteUrl={INVITE_URL_FOR_TEST} room={makeRoom()} participantId="p-bob" {...handlers} />);
     // When
     openRoomTab();
     fireEvent.click(screen.getByRole("button", { name: "ルームから抜ける" }));
@@ -143,7 +146,7 @@ describe("#95 S3: 進行から外れる導線は全員に出る", () => {
   it("輪の中の人には一時離脱と列から外れるが出る", () => {
     // Given（自分=Carol は rotation 内）
     // When
-    render(<Session room={makeRoom()} participantId="p-carol" {...baseHandlers()} />);
+    render(<Session inviteUrl={INVITE_URL_FOR_TEST} room={makeRoom()} participantId="p-carol" {...baseHandlers()} />);
     // Then
     expect(screen.getByRole("button", { name: "一時離脱" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "列から外れる" })).toBeTruthy();
@@ -152,7 +155,7 @@ describe("#95 S3: 進行から外れる導線は全員に出る", () => {
   it("輪の外の人にも自己トグルの盤が出て、輪へ加われる", () => {
     // Given（自分=Bob は rotation 外。かつては編集者以上にしか盤が出なかった）
     const handlers = baseHandlers();
-    render(<Session room={makeRoom()} participantId="p-bob" {...handlers} />);
+    render(<Session inviteUrl={INVITE_URL_FOR_TEST} room={makeRoom()} participantId="p-bob" {...handlers} />);
     // When
     fireEvent.click(screen.getByRole("button", { name: "ドライバーに加わる" }));
     // Then
@@ -163,7 +166,7 @@ describe("#95 S3: 進行から外れる導線は全員に出る", () => {
   it("一時離脱を押すと自分の driver.skip が送られる", () => {
     // Given（自分=Carol は rotation 内）
     const handlers = baseHandlers();
-    render(<Session room={makeRoom()} participantId="p-carol" {...handlers} />);
+    render(<Session inviteUrl={INVITE_URL_FOR_TEST} room={makeRoom()} participantId="p-carol" {...handlers} />);
     // When
     fireEvent.click(screen.getByRole("button", { name: "一時離脱" }));
     // Then
@@ -181,7 +184,7 @@ describe("#95 S3: ホストと見学者の痕跡が画面に無い", () => {
     // Given（部屋を作った Alice の視点＝かつて最も権限が多かった側）
     const room = makeRoom();
     // When
-    render(<Session room={room} participantId="p-alice" {...baseHandlers()} />);
+    render(<Session inviteUrl={INVITE_URL_FOR_TEST} room={room} participantId="p-alice" {...baseHandlers()} />);
     // Then（名簿が描かれていることを先に固定してから、不在を見る）
     expect(screen.getByRole("list", { name: "ドライバー一覧" })).toBeTruthy();
     expect(screen.queryByLabelText("Carol にホストを譲る")).toBeNull();
@@ -192,7 +195,7 @@ describe("#95 S3: ホストと見学者の痕跡が画面に無い", () => {
 
   it("ルームタブにもホスト移譲を出さない", () => {
     // Given
-    render(<Session room={makeRoom()} participantId="p-alice" {...baseHandlers()} />);
+    render(<Session inviteUrl={INVITE_URL_FOR_TEST} room={makeRoom()} participantId="p-alice" {...baseHandlers()} />);
     // When
     openRoomTab();
     // Then

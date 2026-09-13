@@ -17,7 +17,7 @@ import { buildCompletionRecord, type CompletionRecord, type Room } from "@tasuki
 import { screenForPhase, type Screen } from "../ui/screen.js";
 import { shouldAutoJoinRotation } from "../ui/join-driver-intent.js";
 import { shouldAutoRequestProblem, shouldClearGenerating } from "../ui/problem-generation.js";
-import type { ResumeIdentity } from "./resume-identity.js";
+import type { ResumeIdentity } from "@tasuki/sync-client";
 
 export type SnapshotIntent =
   /** 復帰情報を保存する（room.code が分かるのは snapshot の時点だけ）。 */

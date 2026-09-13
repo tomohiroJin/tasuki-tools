@@ -44,7 +44,6 @@ import type { ProblemDelegator } from "./problem-delegation.js";
 import { createRateLimitGate } from "./rate-limit-gate.js";
 import { saveRoster } from "./save-roster.js";
 import type { HubBroadcaster } from "../ports/hub-broadcaster.js";
-import type { ToolGate } from "./tool-gate.js";
 import type { TokenStore } from "./token-store.js";
 import { applyEvents, type RoomState } from "./apply-room-level-event.js";
 import { buildTimerSnapshotRoom, occupants, rotationDisplayNames } from "./timer-snapshot-dto.js";
@@ -125,18 +124,6 @@ export interface HandlerDeps {
    */
   tokens: TokenStore;
   /**
-   * 入口ごとの門（`tool-gate.ts`。#95 S4a）。**timer と poker で同じ 1 個を共有する。**
-   *
-   * 名簿は poker と 1 つなので、「名簿にある」ことは「timer のルームである」ことを
-   * 意味しない。timer の状態が無いルーム（poker の入口で作られたルーム）へ
-   * `room.join` で入れてしまわないよう、`command-handlers/room-join.ts` がここを通す。
-   *
-   * **必須にしてある。** 理由は {@link HandlerDeps.tokens} と同じで、既定を持つと
-   * 本番（`create-sync-server.ts`）が注入を忘れても全テストが緑のまま、
-   * 2 つの入口が別々の規則で判定する状態へ静かに戻る。
-   */
-  toolGate: ToolGate;
-  /**
    * 入室失敗のレート制限の**バケツ**（#103・#95 S4a）。
    * **timer と poker で同じ 1 個を共有する**（`create-sync-server.ts` が 1 度だけ作る）。
    *
@@ -151,14 +138,14 @@ export interface HandlerDeps {
    *   `test/join-rate-limit.test.ts` の「room.join と ai.unlock のレート制限バケツの共有」は
    *   その構造を裏から確かめるもので、構造の**代わり**ではない
    *
-   * **必須にしてある**（理由は {@link HandlerDeps.toolGate} と同じ）。
+   * **必須にしてある**（理由は {@link HandlerDeps.tokens} と同じ）。
    * 既定を持たせると、注入を忘れた瞬間に 1 IP あたりの実効予算が黙って 2 倍になる。
    */
   rateLimiter: RateLimiter;
   /**
    * 選択画面（ハブ）への配信（#95 S5a）。
    *
-   * **必須にしてある**（理由は {@link HandlerDeps.toolGate} と同じ）。既定を持たせると、
+   * **必須にしてある**（理由は {@link HandlerDeps.tokens} と同じ）。既定を持たせると、
    * 注入を忘れた瞬間に名簿の更新が選択画面へ届かなくなり、しかも timer は正しく動くので
    * 誰も気づかない。
    */
@@ -190,6 +177,18 @@ export interface HandlerDeps {
    * 実測（#173）: `create-sync-server.ts` から注入を外すと `TS2345` で落ちる。
    */
   destroyRoom: (roomCode: string) => void;
+  /**
+   * 名簿から人が消えたときに、その人の poker の票を捨てる（R8・#95 S5b）。
+   *
+   * **timer の文脈から poker の保管を触らない。** 配線（`create-sync-server.ts`）が
+   * poker のメッセージ層（`poker-handlers.ts` の `handleParticipantRemoved`）へ繋ぐ。
+   * 退出は**ルームの出来事**であって timer の出来事ではないので、片方の文脈が
+   * もう片方の状態を知らないまま伝えられる形にしてある。
+   *
+   * ⚠ **optional へ戻してはならない**（理由は {@link HandlerDeps.destroyRoom} と同じ）。
+   * 既定値が代わりに動くと、名簿に居ない人の票が公開時の集計へ混ざる。
+   */
+  discardPokerVote: (roomCode: string, participantId: string) => void;
 }
 
 // `CreateResult`/`JoinResult`（`room.create`/`room.join` が呼び出し元へ返す値）の
@@ -427,7 +426,6 @@ export function makeHandlers(deps: HandlerDeps) {
     commit,
     codeGen,
     tokenStore,
-    toolGate: deps.toolGate,
     rateLimitGate,
     sendError,
   });
@@ -475,6 +473,7 @@ export function makeHandlers(deps: HandlerDeps) {
           messageForRemoval,
           sendError,
           destroyRoom,
+          discardPokerVote: deps.discardPokerVote,
         },
       );
     }

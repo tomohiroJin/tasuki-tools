@@ -26,8 +26,7 @@ import { FakeClock } from "../src/adapters/system-clock.js";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 import { spyDestroyer } from "./support/spy-destroyer.js";
-import { testRateLimiter, TEST_MAX_ROOMS } from "./support/room-builder.js";
-import { testToolGate } from "./support/tool-gate.js";
+import { testVoteDiscarder, testRateLimiter, TEST_MAX_ROOMS } from "./support/room-builder.js";
 import { roomViewOf, putRoomView } from "./support/room-view.js";
 import type { SessionConfig } from "@tasuki/timer-core";
 import { spyHub } from "./support/hub.js";
@@ -70,19 +69,20 @@ describe("ソロの部屋からの退出（Issue #79）", () => {
     // 要り、destroyRoom が handlers.releaseRoom を要る相互依存を、後から代入する
     // クロージャで解く。既定値に頼らないのは、頼ると本番の配線漏れを取り逃がすため
     // （HandlerDeps.destroyRoom の docstring 参照）。
+    const rounds = new InMemoryRoundStore();
     let destroyRoom: (roomCode: string) => void;
     handlers = makeHandlers({
       store, timers, clock: new FakeClock(1_000_000), broadcaster, hub: spyHub(), codeGen: new FakeCodeGen(),
       tokens: createTokenStore(),
-      toolGate: testToolGate({ timers }),
       rateLimiter: testRateLimiter(),
       maxRooms: TEST_MAX_ROOMS,
       destroyRoom: (roomCode) => destroyRoom(roomCode),
+      discardPokerVote: testVoteDiscarder(rounds),
     });
     destroyRoom = createRoomDestroyer({
       store,
       timers,
-      rounds: new InMemoryRoundStore(),
+      rounds,
       releaseRoom: handlers.releaseRoom,
     });
     const created = await handlers.handleCommand(HOST, {
@@ -178,10 +178,10 @@ describe("ソロの部屋からの退出（Issue #79）", () => {
       hub: spyHub(),
       codeGen: new FakeCodeGen(),
       tokens: createTokenStore(),
-      toolGate: testToolGate({ timers: spyTimers }),
       rateLimiter: testRateLimiter(),
       maxRooms: TEST_MAX_ROOMS,
       destroyRoom: destroy,
+      discardPokerVote: testVoteDiscarder(new InMemoryRoundStore()),
     });
     const created = await spyHandlers.handleCommand(HOST, {
       command: "room.create", displayName: "Alice", config: soloConfig,
@@ -248,19 +248,20 @@ describe("ソロ以外は挙動が変わらない（Issue #79）", () => {
     // 要り、destroyRoom が handlers.releaseRoom を要る相互依存を、後から代入する
     // クロージャで解く。既定値に頼らないのは、頼ると本番の配線漏れを取り逃がすため
     // （HandlerDeps.destroyRoom の docstring 参照）。
+    const rounds = new InMemoryRoundStore();
     let destroyRoom: (roomCode: string) => void;
     handlers = makeHandlers({
       store, timers, clock: new FakeClock(1_000_000), broadcaster, hub: spyHub(), codeGen: new FakeCodeGen(),
       tokens: createTokenStore(),
-      toolGate: testToolGate({ timers }),
       rateLimiter: testRateLimiter(),
       maxRooms: TEST_MAX_ROOMS,
       destroyRoom: (roomCode) => destroyRoom(roomCode),
+      discardPokerVote: testVoteDiscarder(rounds),
     });
     destroyRoom = createRoomDestroyer({
       store,
       timers,
-      rounds: new InMemoryRoundStore(),
+      rounds,
       releaseRoom: handlers.releaseRoom,
     });
     const created = await handlers.handleCommand(HOST, {
@@ -365,10 +366,10 @@ describe("アイドル回収と在室者0人の退出は同じ後始末を通る
       hub: spyHub(),
       codeGen: new FakeCodeGen(),
       tokens: createTokenStore(),
-      toolGate: testToolGate({ timers }),
       rateLimiter: testRateLimiter(),
       maxRooms: TEST_MAX_ROOMS,
       destroyRoom: destroy,
+      discardPokerVote: testVoteDiscarder(new InMemoryRoundStore()),
     });
     const reclaimer = new RoomReclaimer({
       store,

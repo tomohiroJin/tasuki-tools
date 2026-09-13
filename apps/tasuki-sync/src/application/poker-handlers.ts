@@ -27,20 +27,28 @@
  * 保管と配信は {@link makeHandlers} 内の `commit` 1 本に閉じてある（timer 側の
  * `application/handlers.ts` と同じ規律）。
  *
- * ## 入口の門（越境の遮断）
+ * ## 表示名の規約は timer / ハブと共有する（#95 S5b）
+ *
+ * poker が持っていた自前の規約（`packages/poker-core/src/name.ts` の 24 文字）は落とし、
+ * `application/display-name-rule.ts` を通す。**ハブで名乗った名前が poker へ届くのは
+ * S5b から**なので、食い違いはこの段で実害に変わる。
+ *
+ * ## 越境の遮断は合言葉の関門が担う（#95 S5b）
  *
  * 名簿が 1 つになったことで、**ルームコードの空間が両ツールで共有された**。
- * `handleJoinRoom` / `handleCheckRoom` は名簿を引く前に
- * {@link HandlerDeps.toolGate 入口の門}（`../../application/tool-gate.ts`）を通し、
- * **poker のラウンドがあるルームにだけ**入れる。timer のルームは「存在しないルーム」と
- * 完全に同じ応答（`room-not-found`・同じ文言・同じレート制限の積算）で拒む ——
- * 区別できるとルームコード列挙の手がかりになる（`docs/adr/0011`）。
+ * S4a〜S5a は入口ごとの門（「poker のラウンドがあるルームにだけ入れる」）で止めていたが、
+ * **S5b でツール状態を遅延生成にした**（D8）ので、ラウンドの有無は参加の可否を意味しなくなった。
+ *
+ * いま止めているのは `handleJoinRoom` / `handleCheckRoom` が通す**合言葉の関門**
+ * （`../application/room-entry.ts`）である。**poker の wire には合言葉の項目が無い**ので、
+ * 保護ルームへの poker からの新規参加は成立しない —— 「存在しないルーム」と完全に同じ応答
+ * （`room-not-found`・同じ文言・同じレート制限の積算）で拒む（`docs/adr/0011`）。
+ * 選択画面で合言葉を通った人は復帰の組を持っているので、そのまま入れる。
  */
 import {
   applyAutoReveal,
   createRound,
-  messageForRoomError,
-  validateName,
+  discardVote,
   type ClientMessage,
   type ErrorCode,
   type ParticipantFragment,
@@ -54,17 +62,18 @@ import {
   removeConnection,
   type Room as MembershipRoom,
 } from '@tasuki/room-core';
+import { checkPassphrase, findResumableParticipant } from './room-entry.js';
 import type { RateLimiter } from '@tasuki/rate-limit';
 import type { Clock } from '../ports/clock.js';
 import type { RoomStore } from '../ports/room-store.js';
 import type { HubBroadcaster } from '../ports/hub-broadcaster.js';
 import { saveRoster } from './save-roster.js';
+import { applyDisplayNameRule, INVALID_DISPLAY_NAME_MESSAGE } from './display-name-rule.js';
 import type { TokenStore } from './token-store.js';
 import type { Broadcaster, RoomSocket } from '../ports/poker-broadcaster.js';
 import type { IdGen } from '../ports/poker-id-gen.js';
 import type { MonotonicClock } from '../ports/poker-monotonic-clock.js';
 import type { RoundStore } from '../ports/poker-round-store.js';
-import type { ToolGate } from './tool-gate.js';
 import { TOOL_POKER } from './tool-id.js';
 import { createCommitRoomAction, createDispatch } from './poker-commit-room-action.js';
 import { createRateLimitGate } from './poker-rate-limit-gate.js';
@@ -105,16 +114,6 @@ export interface HandlerDeps {
    * 旧 `Participant.token` と `findParticipantByToken` の引っ越し先。
    */
   tokens: TokenStore;
-  /**
-   * 入口ごとの門（`../../application/tool-gate.ts`。#95 S4a）。
-   * **timer と同じ 1 個を共有する**（`create-sync-server.ts` が 1 度だけ作る）。
-   *
-   * 名簿は timer と 1 つなので、「名簿にある」ことは「poker のルームである」ことを
-   * 意味しない。ラウンドが無いルーム（timer の入口で作られたルーム）へ入れてしまうと、
-   * **合言葉の検査を一度も通らずに timer の snapshot が届く**（名簿へ足した参加者が
-   * timer 側の配信対象に入るため。2026-09-10 に実機の WS で実測）。
-   */
-  toolGate: ToolGate;
   broadcaster: Broadcaster;
   /**
    * 選択画面（ハブ）への配信（#95 S5a）。**poker 用の `broadcaster` とは別物**である ——
@@ -145,6 +144,14 @@ export interface Handlers {
   handleJoinRoom(ws: HandlerConnection, msg: Extract<ClientMessage, { type: 'join-room' }>): void;
   handleCheckRoom(ws: HandlerConnection, msg: Extract<ClientMessage, { type: 'check-room' }>): void;
   detachFromCurrentRoom(ws: HandlerConnection): void;
+  /**
+   * 名簿から人が消えたときに、その人の票を捨てる（R8・#95 S5b）。
+   *
+   * 呼ぶのは timer の入口（`command-handlers/participant-remove.ts`）である ——
+   * 退出は**ルームの出来事**であって poker の出来事ではないので、poker の wire には
+   * 対応するコマンドが無い。配線は `create-sync-server.ts` が繋ぐ。
+   */
+  handleParticipantRemoved(roomCode: string, participantId: string): void;
   dispatch(ws: HandlerConnection, msg: ClientMessage): void;
   /** 衝突しないルーム ID を採る。**衝突再試行を差し替えテストで検証するため公開する。** */
   generateRoomId(): string;
@@ -163,7 +170,6 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
     store,
     rounds,
     tokens,
-    toolGate,
     broadcaster,
     idGen,
     clock,
@@ -179,6 +185,26 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
   const rateLimitGate = createRateLimitGate({ clock, rateLimiter });
 
   /**
+   * poker の一覧に出す人か（R5・#95 S5b）。
+   *
+   * **「poker に居ない」ことが分かっている人だけを外す。** 外れるのは
+   * **他のツールか選択画面に居る人**であって、接続を 1 本も持たない人ではない ——
+   *
+   * - **選択画面（ハブ）や timer に居る人**は、自分の意思で poker から離れた。一覧から外す
+   * - **切断した人**（接続 0 本）は「どこに居るか分からない」。S4b までと同じく
+   *   `connected: false`（画面では「切断中」）として一覧に残す。消すと**退出したように
+   *   見える**うえ、回線が揺れた人が他の参加者の画面から消えたり現れたりする
+   *
+   * **timer 側の `timer-snapshot-dto.ts` の `showsInTimer` と同じ規則である**（S5a で先に入った）。
+   * S5b まで poker が絞っていなかったのは、1 つのルームが片方のツールの状態しか持たず、
+   * 名簿に居る人が全員 poker の人だったからで、**その前提が S5b で消えた** ——
+   * 実画面で、選択画面に居るだけの人が poker の一覧に「切断中」として並んだ（2026-09-13 実測）。
+   */
+  function showsInPoker(participant: MembershipRoom["participants"][number]): boolean {
+    return isPresentIn(participant, TOOL_POKER) || participant.connections.size === 0;
+  }
+
+  /**
    * 名簿を poker-core が読める断片へ写す（#95 S4a）。
    *
    * **`@tasuki/poker-core` は `@tasuki/room-core` を知らない**（依存方向の許可表・
@@ -190,9 +216,12 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
    * 「繋いでいる」と数えると、その人の未投票が永久に埋まらず自動公開が来ない。
    * S4a までは `presence !== "offline"` で、当時は poker の接続しか持てなかったので
    * 同値だった。
+   *
+   * **自動公開の判定もこの集合を見る。** 絞り込み（{@link showsInPoker}）で外れるのは
+   * `connected: false` になる人だけなので、`shouldAutoReveal` の分母は変わらない。
    */
   function fragmentsOf(room: MembershipRoom): ParticipantFragment[] {
-    return room.participants.map((p) => ({
+    return room.participants.filter(showsInPoker).map((p) => ({
       id: p.id,
       name: p.displayName,
       connected: isPresentIn(p, TOOL_POKER),
@@ -202,18 +231,35 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
   /**
    * 1 ルームの状態一式を読む。**名簿が無ければ「そのルームは無い」**。
    *
-   * ラウンドが無い名簿は voting の空ラウンドとして扱う。名簿とラウンドは `commit` で
-   * 対に書かれ、`destroy-room.ts` で対に消えるので通常は起こらない。
+   * **ラウンドが無い名簿には、その場で空のラウンドを与える —— これが D8 の遅延生成である**
+   * （#95 S5b）。生まれたラウンドは `commit` が保管へ書く（参加が成立したときだけ書かれ、
+   * `handleCheckRoom` のような読み取りでは書かれない）。
    *
-   * ⚠ **この関数は入口の門ではない。** 名簿は timer と 1 つなので、timer のルームコードを
-   * 渡せばここは（空ラウンドの）状態を返す。越境を止めるのは
-   * {@link HandlerDeps.toolGate} を通す `handleJoinRoom` / `handleCheckRoom` の側で、
-   * ここへ門を書き足すと判定が 2 箇所へ散る。
+   * ⚠ **この関数は関門ではない。** 名簿は timer と 1 つなので、timer の入口で作られた
+   * ルームコードを渡してもここは状態を返す。越境を止めるのは合言葉の関門
+   * （`room-entry.ts`）を通す `handleJoinRoom` / `handleCheckRoom` の側で、
+   * ここへ判定を書き足すと 2 箇所へ散る。
    */
   function loadState(roomId: string): RoomState | undefined {
     const room = store.get(roomId);
     if (!room) return undefined;
     return { room, round: rounds.get(roomId) ?? createRound() };
+  }
+
+  /**
+   * その参加が合言葉の関門を通るか（#95 S5b）。
+   *
+   * **poker は合言葉を送れない**ので、保護ルームへ入れるのは「一度その関門を通った人」＝
+   * 有効な復帰の組を持っている人だけである。判定そのものは timer の入口と同じ
+   * `room-entry.ts` が持つ（写しを 2 つ持つと片方だけが直る）。
+   */
+  function mayEnter(
+    room: MembershipRoom,
+    roomId: string,
+    token: string | undefined,
+  ): boolean {
+    if (findResumableParticipant(tokens, room, roomId, token) !== undefined) return true;
+    return checkPassphrase(tokens.getPassphrase(roomId), undefined).isOk();
   }
 
   /**
@@ -370,9 +416,9 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
 
     // すでに別ルームに参加中のソケット（二重送信・SPA 遷移）は先に切り離す
     detachFromCurrentRoom(ws);
-    const name = validateName(msg.name);
+    const name = applyDisplayNameRule(msg.name);
     if (name.isErr()) {
-      sendError(ws, 'invalid-message', messageForRoomError(name.error));
+      sendError(ws, 'invalid-message', INVALID_DISPLAY_NAME_MESSAGE);
       return;
     }
     const roomId = generateRoomId();
@@ -418,12 +464,16 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
       return;
     }
 
-    // **入口の門**（`../../application/tool-gate.ts`）。poker のラウンドが無いルーム
-    // ——つまり timer の入口で作られたルーム——は、名簿にあっても「無い」と同じに扱う。
-    // 応答（コード・文言）もレート制限の積算も、下の room-not-found と**同一の 1 経路**を
+    // 名簿に無いルームは「無い」。ラウンドが無いだけのルームは**遅延生成で入れる**
+    // （#95 S5b・D8。S5a までここに入口ごとの門があった）。
+    const state = loadState(msg.roomId);
+    // **合言葉の関門**（`../application/room-entry.ts`）。poker の wire には合言葉の項目が
+    // 無いので、保護ルームへ新規に入ることはできない。**選択画面で合言葉を通った人は
+    // 復帰の組を持っている**ので、そちらで入れる（timer の入口と同じ規律）。
+    //
+    // 応答（コード・文言）もレート制限の積算も、存在しないルームと**同一の 1 経路**を
     // 通す。分けて書くと、いつか片方だけが変わって列挙の手がかりになる（ADR 0011）。
-    const state = toolGate.canEnterVia(TOOL_POKER, msg.roomId) ? loadState(msg.roomId) : undefined;
-    if (!state) {
+    if (!state || !mayEnter(state.room, msg.roomId, msg.token)) {
       rateLimit.consumeOnMiss();
       sendError(ws, 'room-not-found', 'ルームが見つかりません');
       return;
@@ -489,26 +539,10 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
 
     // token 照合による同一参加者の復帰（FR-013）。一致すれば name は無視する。
     //
-    // 判定は 2 段ある。**いま実際に越境を止めているのは後段の `findParticipant` である。**
-    // トークンが指す参加者 ID が、要求されたルームの名簿に居なければ復帰は成立しない。
-    // 参加者 ID は全ルームを通じて一意（poker は `crypto.randomUUID()`、timer は
-    // `p_${nanoid(16)}`）なので、別ルームのトークンはここで必ず外れて新規参加に落ちる。
-    // **この 1 行を「冗長だ」として外してはならない。** 前段だけでは止まらない。
-    //
-    // 前段の `resume.roomCode === msg.roomId` は**現状では到達しない分岐**であり、
-    // 変異検査でも殺せない（外しても全テストが緑のまま。2026-09-10 実測）。それでも置くのは
-    // (1) **ID 生成が変わって同じ ID が 2 つのルームに現れうる形になったとき**に、
-    // 唯一の防波堤になるため、(2) timer 側の `command-handlers/room-join.ts` が同じ形
-    // （`tokenData.roomCode === cmd.code` → `findParticipant`）で書かれており、
-    // 2 つの入口で判定の形が違うと片方だけが直る、の 2 つである。
-    // 旧 `findParticipantByToken(room, token)` はルーム内を探していたので、
-    // 「トークンが指すルームが要求されたルームと同じか」は署名の側で済んでいた。
+    // **判定は `../application/room-entry.ts` が持つ**（#95 S5b）。timer の入口と同じ
+    // 関数を通す —— 2 つの入口で判定の形が違うと、片方だけが直る。
     const presented = msg.token;
-    const resume = presented !== undefined ? tokens.getResume(presented) : undefined;
-    const existing =
-      presented !== undefined && resume !== undefined && resume.roomCode === msg.roomId
-        ? findParticipant(live.room, resume.participantId)
-        : undefined;
+    const existing = findResumableParticipant(tokens, live.room, msg.roomId, presented);
     if (existing !== undefined && presented !== undefined) {
       // **接続を足す。前の接続を奪わない**（#95 S4b・D14）。
       const room = attachConnection(live.room, existing.id, ws.data.connId, TOOL_POKER);
@@ -516,9 +550,9 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
       return;
     }
 
-    const name = validateName(msg.name);
+    const name = applyDisplayNameRule(msg.name);
     if (name.isErr()) {
-      sendError(ws, 'invalid-message', messageForRoomError(name.error));
+      sendError(ws, 'invalid-message', INVALID_DISPLAY_NAME_MESSAGE);
       return;
     }
     const admitted = admit(live.room, ws.data.connId, name.value);
@@ -556,12 +590,34 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
       return;
     }
 
-    // **入口の門を通す**（`handleJoinRoom` と同じ判定）。名簿だけを見ると、
-    // この関数は「timer のルームコードが実在するか」を答える神託になる。
-    if (!toolGate.canEnterVia(TOOL_POKER, msg.roomId)) {
+    // **join と同じ関門を通す**（#95 S5b）。名簿の有無だけを答えると、この関数は
+    // 「入れないルームが実在するか」を教える神託になる。
+    //
+    // **ここではラウンドを作らない。** 読み取りだけの問い合わせで状態が生まれると、
+    // 誰も入っていないルームに poker のラウンドが積み上がる。
+    const room = store.get(msg.roomId);
+    if (!room || !mayEnter(room, msg.roomId, undefined)) {
       rateLimit.consumeOnMiss();
       sendError(ws, 'room-not-found', 'ルームが見つかりません');
     }
+  }
+
+  /**
+   * 名簿から消えた人の票を捨てて配信し直す（R8・#95 S5b）。
+   *
+   * **ラウンドが無ければ何もしない。** ここで遅延生成すると、poker を誰も開いていない
+   * ルームに、退出しただけでラウンドが生まれる（D8 は「そのツールへ入ったとき」に作る）。
+   *
+   * 名簿は**呼び出し側が更新し終えた後**のものを読む。捨てた結果で自動公開が立つことが
+   * あるので（残った全員が投票済みになる）、`applyAutoReveal` を通してから配信する。
+   */
+  function handleParticipantRemoved(roomCode: string, participantId: string): void {
+    const round = rounds.get(roomCode);
+    const room = store.get(roomCode);
+    if (round === undefined || room === undefined) return;
+
+    const discarded = discardVote(round, participantId);
+    commit({ room, round: applyAutoReveal(discarded, fragmentsOf(room)) });
   }
 
   const commitRoomAction = createCommitRoomAction({ loadState, commit, fragmentsOf, sendError });
@@ -578,6 +634,7 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
     handleJoinRoom,
     handleCheckRoom,
     detachFromCurrentRoom,
+    handleParticipantRemoved,
     dispatch,
     generateRoomId,
     sendError,

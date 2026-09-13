@@ -6,10 +6,11 @@
  *
  * **#95 S4a で共有するものが増えた。** いま 2 つの文脈が共有するのは、接続層
  * （`WsAdapter`）・**名簿（`RoomStore`）**・**復帰トークン（`TokenStore`）**・
- * **入室失敗のレート制限のバケツ**・**入口の門（`ToolGate`）**の 5 つである。
+ * **入室失敗のレート制限のバケツ**の 4 つである（**#95 S5b で入口の門が廃止され 1 つ減った**）。
  * 後ろの 2 つは名簿を 1 つにした帰結で、どちらも**ルームコードの空間が 1 つになった**
- * ことに由来する（総当たりの予算も、どの入口から入れるかの判定も、コード空間ごとに
- * 1 つでなければ意味を失う）。
+ * ことに由来する（総当たりの予算は、コード空間ごとに 1 つでなければ意味を失う）。
+ * どの入口から入れるかの判定も同じ理由で 1 つだが、こちらは配線を持たない ——
+ * 合言葉の関門（`application/room-entry.ts`）はトークン保管を見るだけの関数である。
  * ツールの状態（`TimerStore` / `RoundStore`）・時計・ID 生成・配信はそれぞれ別のまま
  * であり、単一の巨大ストアにはしない（設計正本 §5.5 / D16）。
  *
@@ -52,7 +53,6 @@ import { SystemClock } from "./adapters/system-clock.js";
 import { NanoidCodeGen } from "./adapters/nanoid-code-gen.js";
 import { RoomReclaimer } from "./application/room-reclaimer.js";
 import { createRoomDestroyer } from "./application/destroy-room.js";
-import { createToolGate } from "./application/tool-gate.js";
 import { buildAdminReport, handleAdminHttp } from "./application/admin.js";
 import { AiLimiter } from "./application/ai-limits.js";
 import { ClaudeCliProblemProvider } from "./adapters/claude-cli-problem-provider.js";
@@ -230,24 +230,15 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     refillPerSec: DEFAULT_REFILL_PER_SEC,
   });
 
-  /**
-   * 入口ごとの門（`application/tool-gate.ts`。#95 S4a）。**両方の入口へ同じ 1 個を渡す。**
-   *
-   * 名簿が 1 つになってルームコードの空間が共有されたので、「名簿にある」ことは
-   * 「その入口のルームである」ことを意味しなくなった。判定材料はツールの状態
-   * （`timers` / `rounds`）だけで、名簿には印を持たせない —— S5 で D8 のツール状態の
-   * 遅延生成が来たとき、印は嘘になるが「状態があるか」はそのまま意味を持つ。
-   */
-  const toolGate = createToolGate({
-    hasTimerState: (code) => timers.get(code) !== undefined,
-    hasRound: (code) => rounds.get(code) !== undefined,
-  });
+  // ⚠ かつてここに**入口ごとの門**（`application/tool-gate.ts`）を組み立てる節があった。
+  // **#95 S5b で廃止した** —— ツール状態を遅延生成にした（D8）ので「そのツールの状態が
+  // あるか」は参加の可否を意味しなくなり、越境を止めるのは合言葉の関門
+  // （`application/room-entry.ts`）になった。関門は配線を要らない（トークン保管を見るだけ）。
 
   const handlers = makeHandlers({
     store,
     timers,
     tokens,
-    toolGate,
     hub: hubBroadcaster,
     rateLimiter,
     clock,
@@ -259,6 +250,10 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     // トークン未設定なら合言葉も渡さない＝解錠は常に失敗（存在秘匿）
     aiUnlockKey: aiReady ? config.aiUnlockKey : undefined,
     destroyRoom: (roomCode) => destroyRoom(roomCode),
+    // **退出した人の票を捨てる**（R8・#95 S5b）。timer の文脈は poker の保管を知らないので、
+    // ここで繋ぐ。`pokerHandlers` はこの下で組み立てるが、呼ばれるのは要求が届いてからである。
+    discardPokerVote: (roomCode, participantId) =>
+      pokerHandlers.handleParticipantRemoved(roomCode, participantId),
   });
   const presenceManager = new PresenceManager({
     store,
@@ -315,7 +310,6 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     store,
     rounds,
     tokens,
-    toolGate,
     hub: hubBroadcaster,
     broadcaster: pokerBroadcaster,
     idGen: pokerIdGen,
@@ -328,7 +322,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
   /**
    * ハブ（選択画面）のメッセージ層（#95 S5a）。
    *
-   * **守り（レート制限・入口の門・合言葉・復帰）は timer と共有する** ——
+   * **守り（レート制限・合言葉の関門・復帰）は timer と共有する** ——
    * `join-room.ts` / `create-room.ts` を timer の入口と同じ引数で呼ぶ。
    * **レート制限のゲートも同じインスタンスを渡す** —— 別に作ると `connId → 鍵` の
    * 対応が空になり、`/ws` は再接続で回避できる抜け道になる。
@@ -339,7 +333,6 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     clock,
     codeGen,
     tokenStore: tokens,
-    toolGate,
     rateLimitGate: handlers.rateLimitGate,
     maxRooms: config.maxRooms,
     hub: hubBroadcaster,

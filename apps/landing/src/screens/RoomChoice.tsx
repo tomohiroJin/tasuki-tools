@@ -1,7 +1,7 @@
 import type { RosterRoom } from '@tasuki/room-core';
 import { TOOLS } from '../tools.js';
 import { ToolMark } from '../ToolMark.js';
-import { buildInviteUrl } from '../hub/invite-url.js';
+
 import { labelFor } from '../hub/participant-label.js';
 
 /**
@@ -13,13 +13,14 @@ import { labelFor } from '../hub/participant-label.js';
  */
 export interface RoomChoiceProps {
   readonly code: string;
+  /** 参加用 URL（組み立ては同期フックが持つ。画面は受け取って描くだけ）。 */
+  readonly inviteUrl: string;
   readonly roster: RosterRoom | null;
   readonly connection: 'online' | 'reconnecting';
 }
 
-export function RoomChoice({ code, roster, connection }: RoomChoiceProps) {
+export function RoomChoice({ code, inviteUrl, roster, connection }: RoomChoiceProps) {
   const participants = roster?.participants ?? [];
-  const inviteUrl = buildInviteUrl(window.location.origin, code);
 
   return (
     <main className="page landing">

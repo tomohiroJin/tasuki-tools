@@ -7,9 +7,10 @@
  * 分岐の網羅はここの単体テストが安く見られ、描画側は配線だけを見ればよくなるからで、
  * `connection-notice.ts` と同じ形である。配線は `tests/room-page-join-retry.test.tsx` が見る。
  *
- * 待ち時間そのものは `join-retry.ts`（timer 側と同じ方針の写し）が決める。
+ * 待ち時間そのものは `@tasuki/sync-client` の `joinRetryDelayMs` が決める
+ * （#95 S5b で写しをやめ、ハブ・timer と同じ 1 つになった）。
  */
-import { joinRetryDelayMs } from './join-retry';
+import { joinRetryDelayMs } from '@tasuki/sync-client';
 
 /** 入り直せるときの案内。 */
 export const RETRY_WAITING_TEXT = '混み合っています。自動で入り直しています…';

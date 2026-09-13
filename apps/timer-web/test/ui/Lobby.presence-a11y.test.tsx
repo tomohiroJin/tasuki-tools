@@ -20,6 +20,9 @@ import { Lobby } from "../../src/ui/Lobby.js";
 import type { Room, Participant } from "@tasuki/timer-core";
 import { aRoomView } from "../support/room-view.js";
 
+/** 参加用 URL は同期フックが組み立てる（#95 S5b）。画面へは値として渡す。 */
+const INVITE_URL_FOR_TEST = 'https://tasuki.example/?room=TEST';
+
 function p(overrides: Partial<Participant>): Participant {
   return {
     participantId: "x", displayName: "X", presence: "online", hasAiKey: false, joinedAt: 1, ...overrides,
@@ -42,7 +45,7 @@ const noop = vi.fn();
 describe("ロビー: 在席状態の sr-only テキスト", () => {
   it("オンライン/離席/オフラインそれぞれの在席テキストが sr-only として存在する", () => {
     // Given
-    render(<Lobby room={makeRoomWithPresences()} participantId="creator-p" onStartSession={noop} />);
+    render(<Lobby inviteUrl={INVITE_URL_FOR_TEST} room={makeRoomWithPresences()} participantId="creator-p" onStartSession={noop} />);
     // When / Then（presenceLabel() のテキストは3状態それぞれ1件ずつ、参加者行内に存在する。
     //   screen.getByText への問い合わせが検証と同じ式になる）
     expect(screen.getByText("オンライン", { selector: ".sr-only" })).toBeTruthy();
@@ -53,7 +56,7 @@ describe("ロビー: 在席状態の sr-only テキスト", () => {
   it("参加者一覧の <ul> に新規の aria-live は付与されない（読み上げの割り込みを避ける）", () => {
     // Given
     const { container } = render(
-      <Lobby room={makeRoomWithPresences()} participantId="creator-p" onStartSession={noop} />,
+      <Lobby inviteUrl={INVITE_URL_FOR_TEST} room={makeRoomWithPresences()} participantId="creator-p" onStartSession={noop} />,
     );
     // When
     const lists = container.querySelectorAll("ul");

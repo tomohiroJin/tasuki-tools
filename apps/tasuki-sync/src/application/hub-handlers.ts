@@ -11,23 +11,22 @@
  * 通る。**ここに写しを書かない** —— 片方だけが直ると、合言葉を知らない人が選択画面から
  * 保護ルームの名簿を読める（S4a で実際に出た欠陥と同型）。
  *
- * ## 表示名の正規化もここで掛ける
+ * ## 表示名の規約も timer と共有する
  *
- * timer の入口は `normalize-command-names.ts` が境界で掛けている（#95 S4b）。
- * ハブは別の入口なので、**同じ規約（`@tasuki/room-core` の `normalizeDisplayName`）を
- * ここでも通す**。規約そのものは向こうに 1 つしか無い（R13）。
+ * 適用は `display-name-rule.ts` にあり、timer（`normalize-command-names.ts` 経由）・
+ * poker と**同じ 1 つ**を通る（#95 S5b）。
+ *
+ * ⚠ **S5a のここは判定が死んでいた。** `normalizeDisplayName(raw) === null` を見ていたが、
+ * あの関数は `string` しか返さない —— 空文字も 1000 文字も素通りしていた。
+ * 入口ごとに適用を書くと、この形の抜けは何度でも起きる。
  */
-import {
-  HubCommandSchema,
-  normalizeDisplayName,
-  type HubCommand,
-  type ToolId,
-} from "@tasuki/room-core";
+import { HubCommandSchema, type HubCommand, type ToolId } from "@tasuki/room-core";
 import { parseBoundaryMessage } from "@tasuki/protocol";
 import { errorMessageFor } from "@tasuki/timer-core";
 import type { TimerStore } from "../ports/timer-store.js";
 import type { HubBroadcaster } from "../ports/hub-broadcaster.js";
 import { createRoom, type CreateRoomDeps } from "./create-room.js";
+import { applyDisplayNameRule, INVALID_DISPLAY_NAME_MESSAGE } from "./display-name-rule.js";
 import { joinRoom, ROOM_NOT_FOUND_MESSAGE, type JoinRoomDeps } from "./join-room.js";
 import { saveRoster, type SaveRosterDeps } from "./save-roster.js";
 
@@ -57,17 +56,18 @@ export function makeHubHandlers(deps: HubHandlerDeps): HubHandlers {
   }
 
   /**
-   * 表示名を名簿の規約で正規化する。**空になったら拒む。**
+   * 表示名を名簿の規約で正規化する。**空になったり上限を超えたら拒む。**
    *
    * 見えない文字だけの名前や、正規化で消える名前を通すと、選択画面に無名の行が並ぶ。
+   * 上限を超える名前を通すと、保存・配信・描画される値がそのまま伸びる。
    */
   function normalized(connId: string, raw: string): string | null {
-    const name = normalizeDisplayName(raw);
-    if (name === null) {
-      fail(connId, "INVALID_COMMAND", "表示名の形式が正しくありません");
+    const applied = applyDisplayNameRule(raw);
+    if (applied.isErr()) {
+      fail(connId, "INVALID_COMMAND", INVALID_DISPLAY_NAME_MESSAGE);
       return null;
     }
-    return name;
+    return applied.value;
   }
 
   function handleCreate(connId: string, cmd: Extract<HubCommand, { command: "room.create" }>): void {
@@ -88,11 +88,12 @@ export function makeHubHandlers(deps: HubHandlerDeps): HubHandlers {
       return;
     }
 
-    const { code, participantId, resumeToken, membership, timer } = created.value;
+    const { code, participantId, resumeToken, membership } = created.value;
 
-    // **timer の状態も作る**（2026-09-13 の裁定③）。入口の門はそのまま効き、
-    // 選択画面から timer へ入れる。poker のラウンドは S5b（#248）で遅延生成にする。
-    timers.put(timer);
+    // **ツールの状態は作らない**（#95 S5b・D8）。選択画面はどのツールも要求せず、
+    // timer の状態も poker のラウンドも、最初にそのツールへ入った人が作る。
+    // S5a はここで timer の状態を作っていた（当時は入口ごとの門があり、状態が無いと
+    // 選択画面から timer へ入れなかったため）。門を廃止したのでその必要が消えた。
     hub.sendTo(connId, { type: "room.created", code, participantId, resumeToken });
     // 保管と配信は対にする（`save-roster.ts`）。作成者自身にも名簿が届く。
     saveRoster(deps, membership);

@@ -114,6 +114,7 @@ export default function App() {
         <Lobby
           key={room.code}
           room={room}
+          inviteUrl={sync.inviteUrl ?? ''}
           participantId={participantId}
           generatingProblem={generatingProblem}
           onStartSession={sync.startSession}
@@ -139,6 +140,7 @@ export default function App() {
         <Session
           key={room.code}
           room={room}
+          inviteUrl={sync.inviteUrl ?? ''}
           participantId={participantId}
           generatingProblem={generatingProblem}
           aiUnlocked={!!room.aiUnlocked}

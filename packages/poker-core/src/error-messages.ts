@@ -6,7 +6,6 @@
 //
 // timer-core の displayMessageFor() と同じ役割で、同じく core の中に置く
 // （「core の外に出す」という意味ではない。docs/adr/0016 決定 2 の注記）。
-import { NAME_MAX_LENGTH, type RoomError } from './name';
 import type { RoundError } from './round';
 
 /**
@@ -32,11 +31,7 @@ export function messageForRoundError(error: RoundError): string {
   }
 }
 
-/** RoomError の表示文言。**WS には届かない**（境界の NameSchema が先に弾く）が、
- *  ドメイン検証は docs/adr/0005 の MUST なので残っている。 */
-export function messageForRoomError(error: RoomError): string {
-  switch (error.code) {
-    case 'invalid-name':
-      return `名前は 1〜${NAME_MAX_LENGTH} 文字で入力してください`;
-  }
-}
+// ⚠ かつてここに `messageForRoomError`（表示名が規約に合わないときの文言）があった。
+// **#95 S5b で表示名の規約ごと `@tasuki/room-core` へ寄せた** —— 上限が timer の 40 と
+// 食い違っており、ハブで名乗った名前が poker へ届くこの段で実害になるためである。
+// いまの文言は `apps/tasuki-sync/src/application/display-name-rule.ts` が 1 つだけ持つ。

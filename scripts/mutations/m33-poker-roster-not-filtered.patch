@@ -1,0 +1,13 @@
+diff --git a/apps/tasuki-sync/src/application/poker-handlers.ts b/apps/tasuki-sync/src/application/poker-handlers.ts
+index 167802e..c205aef 100644
+--- a/apps/tasuki-sync/src/application/poker-handlers.ts
++++ b/apps/tasuki-sync/src/application/poker-handlers.ts
+@@ -221,7 +221,7 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
+    * `connected: false` になる人だけなので、`shouldAutoReveal` の分母は変わらない。
+    */
+   function fragmentsOf(room: MembershipRoom): ParticipantFragment[] {
+-    return room.participants.filter(showsInPoker).map((p) => ({
++    return room.participants.map((p) => ({
+       id: p.id,
+       name: p.displayName,
+       connected: isPresentIn(p, TOOL_POKER),

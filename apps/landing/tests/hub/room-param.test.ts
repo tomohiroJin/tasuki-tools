@@ -3,7 +3,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { readRoomParam, stripRoomParam } from '../../src/hub/room-param.js';
-import { buildInviteUrl } from '../../src/hub/invite-url.js';
+import { buildInviteUrl } from '@tasuki/sync-client';
 
 describe('room クエリの読み取り', () => {
   it('Given 参加用 URL / When room を読む / Then ルームコードが取れる', () => {

@@ -35,7 +35,6 @@ import type { Room as MembershipRoom } from '@tasuki/room-core';
 import { createTokenBucketLimiter, type RateLimiter } from '@tasuki/rate-limit';
 import { InMemoryRoomStore } from '../../src/adapters/in-memory-room-store';
 import { InMemoryRoundStore } from '../../src/adapters/poker-in-memory-round-store';
-import { testToolGate } from '../support/tool-gate';
 import { createTokenStore } from '../../src/application/token-store';
 import { createWsBroadcaster } from '../../src/adapters/poker-ws-broadcaster';
 import { makeHandlers, type HandlerConnection } from '../../src/application/poker-handlers';
@@ -132,7 +131,6 @@ describe('IdGen の差し替え（衝突再試行）', () => {
     const roomId = makeHandlers({
       store,
       rounds,
-      toolGate: testToolGate({ rounds }),
       tokens: createTokenStore(),
       broadcaster: nullBroadcaster(),
       hub: spyHub(),
@@ -179,7 +177,6 @@ describe('MonotonicClock の差し替え（レート制限の窓の境界）', (
     const handlers = makeHandlers({
       store,
       rounds,
-      toolGate: testToolGate({ rounds }),
       tokens: createTokenStore(),
       broadcaster,
       hub: spyHub(),
@@ -276,7 +273,6 @@ describe('RoomStore の差し替え（上限判定を実ルームなしで再現
     const handlers = makeHandlers({
       store,
       rounds,
-      toolGate: testToolGate({ rounds }),
       tokens: createTokenStore(),
       broadcaster,
       hub: spyHub(),
@@ -350,7 +346,6 @@ describe('RoomStore の差し替え（判定順序: 上限判定は切り離し�
     const handlers = makeHandlers({
       store,
       rounds,
-      toolGate: testToolGate({ rounds }),
       tokens: createTokenStore(),
       broadcaster,
       hub: spyHub(),
@@ -399,16 +394,20 @@ describe('RoomSocket の差し替え（配信の宛先と回数）', () => {
       participantId: () => 'guest',
       token: () => 'gt',
     };
-    // **ラウンドも置く。** 名簿が timer と 1 つになった以上、名簿にあるだけでは
-    // 「poker のルーム」ではない —— 入口の門（`src/application/tool-gate.ts`）は
-    // ラウンドの有無で判定するので、置かないと join は room-not-found で拒まれる。
+    // **ラウンドも置く。** 見たいのは「配信の宛先と回数」なので、参加の前から
+    // 両室に投票中のラウンドがある状態を前提として与える。
+    //
+    // ⚠ **これは入室の条件ではない**（#95 S5b）。S4a〜S5a は入口の門
+    // （`src/application/tool-gate.ts`）がラウンドの有無で入室の可否を決めていたが、
+    // 門は廃止され、**ラウンドが無ければ入室時に作られる**（D8 の遅延生成。
+    // `src/application/poker-handlers.ts` の `loadState`）。いま入室を止めるのは
+    // 名簿の有無と合言葉の関門（`src/application/room-entry.ts`）である。
     const rounds = new InMemoryRoundStore();
     rounds.put('room01', createRound());
     rounds.put('room02', createRound());
     const handlers = makeHandlers({
       store,
       rounds,
-      toolGate: testToolGate({ rounds }),
       tokens: createTokenStore(),
       broadcaster,
       hub: spyHub(),
@@ -464,7 +463,6 @@ describe('配線の穴 1: handleCreateRoom の resetRoom 呼び出し', () => {
     const handlers = makeHandlers({
       store,
       rounds,
-      toolGate: testToolGate({ rounds }),
       tokens: createTokenStore(),
       broadcaster,
       hub: spyHub(),
@@ -526,7 +524,6 @@ describe('配線の穴 2: detachFromCurrentRoom の早期 return での detach �
     const handlers = makeHandlers({
       store,
       rounds,
-      toolGate: testToolGate({ rounds }),
       tokens: createTokenStore(),
       broadcaster,
       hub: spyHub(),

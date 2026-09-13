@@ -121,11 +121,11 @@ const REPO_ROOT = path.resolve(SCRIPT_DIR, "..");
  * 実在しない型・ファイルを宣言したら `findDomainErrorProblems` が赤にする。
  */
 export const DOMAIN_ERROR_TARGETS = [
-  // poker-core（ADR-0016 決定 2 項目 3 が名指しした 2 型）
+  // poker-core（ADR-0016 決定 2 項目 3 が名指しした 2 型のうち、いま残っている 1 つ）
   { file: "packages/poker-core/src/round.ts", type: "RoundError" },
-  // `RoomError` は #95 S4a で `room.ts` から `name.ts` へ引っ越した（名簿は room-core へ、
-  // 名前規則は poker の境界の規則として残った）。型と規範は変わっていない。
-  { file: "packages/poker-core/src/name.ts", type: "RoomError" },
+  // ⚠ `RoomError`（表示名の規約が返していた型）は **#95 S5b で消えた** —— 規約ごと
+  // `@tasuki/room-core` へ寄せたためである（上限 24 と timer の 40 の統合）。
+  // **宣言から落とすのが正しい対応**で、実在しないファイルを残すと検査自体が赤くなる。
   // timer-core（`DomainError` の合併メンバー。フィールドを持つのはこちら）
   { file: "packages/timer-core/src/errors.ts", type: "EmptyName" },
   { file: "packages/timer-core/src/errors.ts", type: "DuplicateName" },

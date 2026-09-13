@@ -115,7 +115,15 @@ export const ALLOWED = {
     "@tasuki/timer-core",
     "@tasuki/ui",
   ],
-  "apps/poker-web": ["@tasuki/poker-core", "@tasuki/ui"],
+  // #95 S5b: 表示名の上限（`MAX_DISPLAY_NAME`）を room-core から取る。web アプリが
+  // room-core に依存することは `docs/adr/0017` 決定 2 の対象外であり、timer-web も同じ
+  // （規約の写しを画面に持たせないための依存である）。
+  "apps/poker-web": [
+    "@tasuki/poker-core",
+    "@tasuki/room-core",
+    "@tasuki/sync-client",
+    "@tasuki/ui",
+  ],
   // #95 S2 で apps/timer-sync と apps/poker-sync がここへ統合された。
   // poker-core が加わったのはそのため（統合前は poker-sync 側の依存）。
   "apps/tasuki-sync": [

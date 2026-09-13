@@ -51,6 +51,15 @@ export interface ParticipantRemoveDeps {
   sendError: (connId: string, code: ErrorCode, message: string) => void;
   /** ルームごと破棄する共通経路（`destroy-room.ts`）。アイドル回収と同じ後始末を通す。 */
   destroyRoom: (roomCode: string) => void;
+  /**
+   * 名簿から消えた人の票を捨てる（R8・#95 S5b）。**poker の保管はここから触らない** ——
+   * 配線（`create-sync-server.ts`）が poker のメッセージ層へ繋ぐ。
+   *
+   * **必須にしてある。** 省略可能にすると、本番の配線が繋ぎ忘れても全テストが緑のまま、
+   * 名簿に居ない人の票が公開時の集計へ混ざる状態が静かに戻る
+   * （`destroy-room.ts` の `rounds` を必須にしたのと同じ理由）。
+   */
+  discardPokerVote: (roomCode: string, participantId: string) => void;
 }
 
 /**
@@ -75,6 +84,7 @@ export async function handleParticipantRemove(
     messageForRemoval,
     sendError,
     destroyRoom,
+    discardPokerVote,
   } = deps;
   const { state, actor: participant } = ctx;
   const { membership, timer } = state;
@@ -188,6 +198,10 @@ export async function handleParticipantRemove(
     next = { ...next, timer: { ...next.timer, session: agg.session, clock: agg.clock } };
   }
   commit(next);
+  // **退出した人の票を捨てる**（R8・#95 S5b）。名簿を更新し終えてから呼ぶ ——
+  // poker 側は更新後の名簿で自動公開を測り直す（残った全員が投票済みになりうる）。
+  // ルームごと破棄する経路（上の在室者 0）では呼ばない（`destroy-room.ts` が両方消す）。
+  discardPokerVote(next.timer.code, targetId);
   reconcileSchedule(next.timer);
   // 誰が誰を退出させたかを在室者へ伝える（FR-077）。
   // store.put の後に配信することが重要で、broadcastSignal は呼び出し時点のストアから

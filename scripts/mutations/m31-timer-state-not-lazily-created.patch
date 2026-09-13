@@ -1,0 +1,15 @@
+diff --git a/apps/tasuki-sync/src/application/join-room.ts b/apps/tasuki-sync/src/application/join-room.ts
+index e029ce9..9694326 100644
+--- a/apps/tasuki-sync/src/application/join-room.ts
++++ b/apps/tasuki-sync/src/application/join-room.ts
+@@ -125,9 +125,7 @@ export function joinRoom(
+    * 拒むのではなく作るのが正しい。** 越境を止めるのは下の合言葉の関門である。
+    */
+   const timerFor = (participantId: string): TimerState | undefined =>
+-    input.tool === TOOL_TIMER && existingTimer === undefined
+-      ? createInitialTimerState({ code: input.code, createdAt: now, participantId })
+-      : existingTimer;
++    existingTimer;
+ 
+   // 復帰（同じ端末・同じルーム）。**接続を足す。前の接続を奪わない**（#95 S4b・D14）。
+   // 判定は `room-entry.ts` が持つ（poker の入口と同じものを通す）。

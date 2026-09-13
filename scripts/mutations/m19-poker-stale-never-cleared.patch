@@ -8,14 +8,14 @@
 # 復元: git checkout -- <対象ファイル>
 #
 diff --git a/apps/poker-web/src/hooks/useSync.ts b/apps/poker-web/src/hooks/useSync.ts
-index 06142da..bfd777a 100644
+index f63208c..90a8920 100644
 --- a/apps/poker-web/src/hooks/useSync.ts
 +++ b/apps/poker-web/src/hooks/useSync.ts
-@@ -131,7 +131,6 @@ export function usePokerSync(): PokerSync {
-         // 契約を満たすフレームが届いた＝サーバーとの間で話が通じている。
-         // **poker に定期的なデータフレームは無い**ので、ここで解除しても点滅しない
-         // （死活監視は WS の制御フレーム ping で、`onmessage` には来ない）。
--        setSyncStale(false);
-         const msg = result.value;
-         switch (msg.type) {
-           case 'joined':
+@@ -140,7 +140,6 @@ export function usePokerSync(): PokerSync {
+     // 契約を満たすフレームが届いた＝サーバーとの間で話が通じている。
+     // **poker に定期的なデータフレームは無い**ので、ここで解除しても点滅しない
+     // （死活監視は WS の制御フレーム ping で、`onmessage` には来ない）。
+-    setSyncStale(false);
+     const msg = result.value;
+     switch (msg.type) {
+       case 'joined':

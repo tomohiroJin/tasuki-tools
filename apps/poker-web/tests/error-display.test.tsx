@@ -16,7 +16,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { App } from '../src/App';
 import { FakeListenerSocket } from './support/fakes';
-import { saveIdentity } from '../src/storage';
+import { saveResumeIdentity } from '@tasuki/sync-client';
 import { RETRY_WAITING_TEXT } from '../src/join-retry-plan';
 
 const ROOM_ID = 'ABCD1234';
@@ -74,7 +74,7 @@ describe('サーバーのエラーはどの画面でも伝わる（#217）', () 
 
   it('参加フォームで伝える', () => {
     // Given: 招待リンクを開き、まだ入室していない
-    saveIdentity(ROOM_ID, { token: 'tok-1', name: 'はなこ' });
+    saveResumeIdentity({ code: ROOM_ID, participantId: 'p-stored', resumeToken: 'tok-1', displayName: 'はなこ' });
     window.history.replaceState(null, '', `/poker/room/${ROOM_ID}`);
     render(<App />);
     open();
@@ -114,7 +114,7 @@ describe('サーバーのエラーはどの画面でも伝わる（#217）', () 
   it('rate-limited は「自動で入り直しています」だけを出し、二重にしない', () => {
     // Given: 招待リンクを開き、まだ入室していない
     vi.useFakeTimers();
-    saveIdentity(ROOM_ID, { token: 'tok-1', name: 'はなこ' });
+    saveResumeIdentity({ code: ROOM_ID, participantId: 'p-stored', resumeToken: 'tok-1', displayName: 'はなこ' });
     window.history.replaceState(null, '', `/poker/room/${ROOM_ID}`);
     render(<App />);
     open();

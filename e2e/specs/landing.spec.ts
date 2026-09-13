@@ -45,13 +45,14 @@ test.describe('選択画面の札から各ツールへ移動できる', () => {
   const TOOLS = [
     // **目印はそのアプリにしか無いものを選ぶ。** LP へ縮退していたら見えない。
     //
-    // timer は `?room=` を解し、**ハブで名乗った人はそのままロビーに入る** ——
-    // 復帰の組の鍵（`tasuki:resume:<ルームコード>`）をハブと timer で揃えたからである
-    // （#95 S4b の形・D12）。したがって目印は名乗りの画面ではなくロビーのものになる。
+    // **どちらも `?room=` を解し、ハブで名乗った人はそのまま中に入る**（#95 S5b）。
+    // 復帰の組の鍵（`tasuki:resume:<ルームコード>`）を 3 つの画面で揃えたからである
+    // （D12）。したがって目印は名乗りの画面ではなく、ルームの中のものになる。
     //
-    // poker は `?room=` をまだ解さないので入口の画面が出る（S5b・#248 で直す）。
+    // poker のルームは**この段から遅延生成される**（D8）。ハブで作ったルームには
+    // ラウンドが無く、S5a までは入口の門に阻まれて入れなかった。
     { card: 'TDD Mob Pro Timer', path: '/timer/', landmark: 'セッションを開始' },
-    { card: 'Planning Poker', path: '/poker/', landmark: 'ルームを作成' },
+    { card: 'Planning Poker', path: '/poker/', landmark: '票を公開する' },
   ] as const;
 
   for (const tool of TOOLS) {
@@ -146,5 +147,71 @@ test.describe('ハブでルームを作り、名乗って、道具を行き来�
 
     // Then その4: 作成者の選択画面では、参加者が timer に居ることが分かる
     await expect(hostRoster).toContainText('に居ます');
+  });
+});
+
+/**
+ * 選択画面 → poker → 選択画面 → timer の往復（#95 S5b・#248 の R4 / R5）。
+ *
+ * **S5b でしか見られないのは「1 つのルームで両方の道具を使えること」である。**
+ * S5a までハブで作ったルームは timer の状態しか持たず、poker を選ぶと入口の門に
+ * 阻まれていた。ツール状態の遅延生成（D8）がその門を置き換えたことを、実画面で見る。
+ *
+ * 相手側の選択画面に「どの道具に居るか」が出ること（R5）も、ここでしか確かめられない
+ * —— サーバーの実 WS テストは画面を持たず、単体テストは相手の画面を持たない。
+ */
+test.describe('選択画面から両方の道具を行き来できる（#95 S5b）', () => {
+  test('Given 2 人が居るルーム / When 片方が poker と timer を往復する / Then どちらにも入れ、相手にも居場所が見える', async ({
+    page,
+    openPeer,
+  }) => {
+    // Given: 作成者がルームを作り、もう 1 人が参加用 URL から名乗る
+    await page.goto('/');
+    await page.getByLabel('ルーム名').fill('両方の道具');
+    await page.getByLabel('あなたの名前').fill('あや');
+    await page.getByRole('button', { name: 'ルームを作る' }).click();
+    const invite = page.getByLabel('参加用 URL');
+    await expect(invite, '選択画面の参加用 URL').toBeVisible();
+    const inviteUrl = await invite.inputValue();
+
+    const guest = await openPeer('both-tools-guest');
+    await guest.page.goto(inviteUrl);
+    await guest.page.getByLabel('あなたの名前').fill('いずみ');
+    await guest.page.getByRole('button', { name: '参加する' }).click();
+    const hostRoster = page.getByRole('list', { name: '参加者' });
+    await expect(hostRoster).toContainText('いずみ');
+
+    // When その1: 参加者が poker を選ぶ（**ラウンドはこのとき生まれる**・D8）
+    await guest.page
+      .getByRole('list', { name: 'ツール' })
+      .getByRole('link', { name: /Planning Poker/ })
+      .click();
+
+    // Then その1: 名乗り直さずにルームの中に居る（ハブの復帰の組がそのまま効く）
+    await expect
+      .poll(() => new URL(guest.page.url()).pathname, { message: 'poker の行き先' })
+      .toBe('/poker/');
+    await expect(guest.page.getByRole('button', { name: '票を公開する' })).toBeVisible();
+    await expect(guest.page.getByText('いずみ')).toBeVisible();
+
+    // Then その2: 作成者の選択画面に、相手が poker に居ることが出る（R5）
+    await expect(hostRoster).toContainText('Planning Poker に居ます');
+
+    // When その2: 選択画面へ戻り、今度は timer を選ぶ
+    await guest.page.goto(inviteUrl);
+    await guest.page
+      .getByRole('list', { name: 'ツール' })
+      .getByRole('link', { name: /TDD Mob Pro Timer/ })
+      .click();
+
+    // Then その3: timer にも名乗り直さずに入れる（同じルームが両方の状態を持つ）
+    await expect
+      .poll(() => new URL(guest.page.url()).pathname, { message: 'timer の行き先' })
+      .toBe('/timer/');
+    await expect(guest.page.getByRole('button', { name: 'セッションを開始' })).toBeVisible();
+
+    // Then その4: 居場所の表示も追従する（poker から timer へ移ったことが相手に見える）
+    await expect(hostRoster).toContainText('TDD Mob Pro Timer に居ます');
+    await expect(hostRoster).not.toContainText('Planning Poker に居ます');
   });
 });

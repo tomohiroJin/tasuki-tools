@@ -1,8 +1,8 @@
 diff --git a/apps/tasuki-sync/src/application/join-room.ts b/apps/tasuki-sync/src/application/join-room.ts
-index 1aba617..c2d313d 100644
+index e029ce9..6383187 100644
 --- a/apps/tasuki-sync/src/application/join-room.ts
 +++ b/apps/tasuki-sync/src/application/join-room.ts
-@@ -94,10 +94,6 @@ export function joinRoom(
+@@ -104,10 +104,6 @@ export function joinRoom(
    // 時計補正の影響を受けない。`now` と取り違えないこと。
    const rateNow = performance.now();
  
@@ -11,8 +11,8 @@ index 1aba617..c2d313d 100644
 -  if (rateLimitGate.shouldReject(input.connId, rateNow)) return err("JOIN_RATE_LIMITED");
 -
    const room = store.get(input.code);
-   const timer = timers.get(input.code);
- 
+   if (!room) {
+     // 失敗を記録（次回以降のレート判定に使う）。時刻は単調時計のほう（D8）。
 @@ -115,6 +111,10 @@ export function joinRoom(
      return err("ROOM_NOT_FOUND");
    }
@@ -21,6 +21,6 @@ index 1aba617..c2d313d 100644
 +  // ROOM_NOT_FOUND が返り、攻撃者はトークンを消費せずに存在確認を続けられる（設計正本 D3）。
 +  if (rateLimitGate.shouldReject(input.connId, rateNow)) return err("JOIN_RATE_LIMITED");
 +
-   // 復帰（同じ端末・同じルーム）。**接続を足す。前の接続を奪わない**（#95 S4b・D14）。
-   if (input.resumeToken) {
-     const tokenData = tokenStore.getResume(input.resumeToken);
+   const existingTimer = timers.get(input.code);
+ 
+   /**

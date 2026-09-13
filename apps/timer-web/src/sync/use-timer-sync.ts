@@ -32,16 +32,17 @@ import { decideSnapshotIntents } from "./snapshot-intents.js";
 import { buildNoticeMessage, type NoticeSignal } from "./notice-message.js";
 import { buildSyncUrl } from "./sync-url.js";
 import { indicatesStaleRoom } from "./stale-frame.js";
-import {
-  saveResumeIdentity,
-  loadResumeIdentity,
-  clearResumeIdentity,
-  shouldResumeOnLoad,
-} from "./resume-identity.js";
+import { shouldResumeOnLoad } from "./resume-identity.js";
 import { NoAiProvider } from "../ai/no-ai.js";
 import type { ProblemProvider } from "../ai/provider.js";
 import { errorAction } from "../ui/error-action.js";
-import { joinRetryDelayMs } from "@tasuki/sync-client";
+import {
+  buildInviteUrl,
+  clearResumeIdentity,
+  joinRetryDelayMs,
+  loadResumeIdentity,
+  saveResumeIdentity,
+} from "@tasuki/sync-client";
 import { stripRoomParam } from "../ui/room-param.js";
 import { useLatestRef } from "../ui/use-latest-ref.js";
 import type { BannerController } from "../ui/use-banner.js";
@@ -74,6 +75,14 @@ export interface TimerSync {
   /** ?room= で来たときに参加画面へ渡すルームコード。 */
   joinCode: string | null;
   room: Room | null;
+  /**
+   * いま居るルームの参加用 URL（ルームに入っていなければ null）。
+   *
+   * 組み立ては `@tasuki/sync-client` に 1 つだけあり、**それを取り込むのはこのフックの
+   * 仕事である** —— 画面（`.tsx`）は同期クライアントを直接 import しない
+   * （`docs/guides/architecture.md` の層の対応表・`docs/adr/0015`）。
+   */
+  inviteUrl: string | null;
   participantId: string;
   record: CompletionRecord | null;
   endType: EndType;
@@ -742,6 +751,7 @@ export function useTimerSync(banner: BannerController): TimerSync {
     mode,
     joinCode,
     room,
+    inviteUrl: room === null ? null : buildInviteUrl(window.location.origin, room.code),
     participantId,
     record,
     endType,

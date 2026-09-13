@@ -4,9 +4,9 @@
 // WS で送っている文言をここへ写し取る。poker-core のテストは code しか見ておらず、
 // このファイルが無いと文言を書き換えても全テストが緑のまま通る（2026-08-17 実測）。
 //
-// **RoomError の文言はここに無い。** protocol.ts の NameSchema が room.ts の
-// validateName と同じ規則なので、不正な名前は境界で弾かれ WS には届かない（実測）。
-// そちらは packages/poker-core 側の特性テストで固定する。
+// **表示名の文言はここに無い。** #95 S5b で規約ごと `@tasuki/room-core` へ寄せたので、
+// 判定も文言も `apps/tasuki-sync/src/application/display-name-rule.ts` が 1 つだけ持つ
+// （3 つの入口が同じものを通ることは `test/live-ws.display-name.test.ts` が見る）。
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { startServer, WsClient, isType, type TestServer } from './helpers';
 
