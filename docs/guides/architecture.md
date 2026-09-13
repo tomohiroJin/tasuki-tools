@@ -37,11 +37,17 @@ S2〜S4a では poker 側の入れ子（src/poker 配下。**S4b で畳みまし
 | 共有ユーティリティ（sync 専用） | `packages/rate-limit` | なし（node 標準ライブラリのみ。ドメインの型にも依存しない） |
 | アプリケーション | `apps/*-sync/src/application` | ドメイン・ポート・`packages/rate-limit` |
 | ポート | `apps/*-sync/src/ports` | ドメインの型 |
-| アダプタ | `apps/*-sync/src/adapters`・`apps/*-web` | 上のすべて |
-| web の純粋判断 | `apps/*-web` 配下で React・I/O に依存しない `.ts`（例: `apps/timer-web/src/ui/screen.ts`・`apps/poker-web/src/router.ts` の `parseRoute` / `roomPath` / `topPath`） | ドメインの型のみ（React・I/O に依存しない） |
-| web の同期フック | `apps/*-web` の同期フック 1 本（例: `apps/poker-web/src/hooks/useSync.ts`） | 上のすべて ＋ WebSocket |
-| web の画面 | `apps/*-web` の `.tsx` | 同期フックと純粋判断のみ（同期クライアントを直接 import しない） |
+| アダプタ | `apps/*-sync/src/adapters`・web アプリ | 上のすべて |
+| web の純粋判断 | web アプリ配下で React・I/O に依存しない `.ts`（例: `apps/timer-web/src/ui/screen.ts`・`apps/poker-web/src/router.ts` の `parseRoute` / `roomPath` / `topPath`・`apps/landing/src/hub/hub-state.ts`） | ドメインの型のみ（React・I/O に依存しない） |
+| web の同期フック | web アプリの同期フック 1 本（例: `apps/poker-web/src/hooks/useSync.ts`・`apps/landing/src/hub/use-hub-sync.ts`） | 上のすべて ＋ WebSocket |
+| web の画面 | web アプリの `.tsx` | 同期フックと純粋判断のみ（同期クライアントを直接 import しない） |
 | UI 資産 | `packages/ui` | なし（CSS トークンと静的資産） |
+
+> **「web アプリ」を名前の形（`apps/*-web`）で定めない**（`docs/adr/0019` 決定 1・**MUST NOT**）。
+> 範囲は「WebSocket に接続する `apps/*`」であり、機械検査の走査対象は
+> **`vite.config.ts` の実在**から導出する（同 決定 2・`scripts/audit-web-sync-boundary.mjs`）。
+> #95 S5a で `apps/landing` がここへ加わった —— 名前の綴りで範囲を書いていた間、
+> LP は規範の外で同期フックを持ちうる状態だった。
 
 **web 層の 3 行について**: 責務の分離そのものを定めているのは
 [`docs/adr/0015`](../adr/0015-web-layer-structure.md) です。本ガイドはその置き場を

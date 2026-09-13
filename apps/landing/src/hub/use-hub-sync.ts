@@ -54,6 +54,17 @@ export interface HubSync {
 
 export function useHubSync(): HubSync {
   /**
+   * **ページ読み込みの時点で URL にあったルームコード。以後変わらない。**
+   *
+   * 接続はこれだけに依存させる（下の `useEffect`）。**いま映しているルーム
+   * （{@link code}）に依存させてはいけない** —— ルームを作ると `room.created` で
+   * そちらが変わり、**いま使ったばかりの WS を捨てて張り直したうえ、保存したての
+   * 復帰の組で `room.join` を送り直す**（無駄な再接続に加えて、切断と再参加が
+   * サーバー側で競合し、選択画面の名簿がちらつく）。
+   */
+  const initialCode = useMemo(() => readRoomParam(window.location.href), []);
+
+  /**
    * いま映しているルーム。
    *
    * **URL の `?room=` だけで決めてはいけない。** ルームを**作った**ときは、その時点まで
@@ -61,7 +72,14 @@ export function useHubSync(): HubSync {
    * 取り、`room.created` を受けたらここを進める —— 進めないと、作成が成功しても
    * 「ルームを作る画面」のままになる（E2E が実際にこの形で落ちた）。
    */
-  const [code, setCode] = useState<string | null>(() => readRoomParam(window.location.href));
+  const [code, setCode] = useState<string | null>(initialCode);
+  /**
+   * {@link code} の現在値を、接続の `useEffect` の中から読むための控え。
+   *
+   * `onMessage` は張った時点のクロージャを持ち続けるので、素の `code` を読むと
+   * **作成前の値（`null`）を見続ける**。接続を張り直さずに現在値を知るために置く。
+   */
+  const codeRef = useRef<string | null>(initialCode);
   const [joined, setJoined] = useState(false);
   const [roster, setRoster] = useState<RosterRoom | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -79,19 +97,24 @@ export function useHubSync(): HubSync {
     connRef.current?.send(cmd as unknown as Record<string, unknown>);
   }, []);
 
-  /** 保存済みの組で入り直す（再接続・読み込み時の復帰）。 */
+  /**
+   * 保存済みの組で入り直す（再接続・読み込み時の復帰）。
+   *
+   * **見るのは URL 由来の {@link initialCode} である。** 作成で得たコードを見ると、
+   * 作った直後に「復帰」が走って `room.join` を送ってしまう（作成の応答で既に入っている）。
+   */
   const resumeIfPossible = useCallback(() => {
-    if (code === null) return false;
-    const saved = loadResumeIdentity(code);
+    if (initialCode === null) return false;
+    const saved = loadResumeIdentity(initialCode);
     if (saved === null) return false;
     send({
       command: 'room.join',
-      code,
+      code: initialCode,
       displayName: saved.displayName,
       resumeToken: saved.resumeToken,
     });
     return true;
-  }, [code, send]);
+  }, [initialCode, send]);
 
   useEffect(() => {
     const conn = new SyncConnection({
@@ -122,6 +145,7 @@ export function useHubSync(): HubSync {
           // 作成したときは URL に `?room=` が無いので、履歴を汚さず差し替える。
           // **画面の側も同時に進める**（URL を書き換えても状態は追随しない）。
           if (msg.type === 'room.created') {
+            codeRef.current = msg.code;
             setCode(msg.code);
             const url = new URL(window.location.href);
             url.searchParams.set('room', msg.code);
@@ -140,7 +164,8 @@ export function useHubSync(): HubSync {
           const attempt = (retryRef.current += 1);
           const delay = joinRetryDelayMs(attempt);
           const last = lastJoinRef.current;
-          if (delay === null || last === null || code === null) {
+          const target = codeRef.current;
+          if (delay === null || last === null || target === null) {
             setError(msg.message);
             return;
           }
@@ -148,17 +173,17 @@ export function useHubSync(): HubSync {
           setTimeout(() => {
             send({
               command: 'room.join',
-              code,
+              code: target,
               displayName: last.displayName,
               ...(last.passphrase !== undefined ? { passphrase: last.passphrase } : {}),
             });
           }, delay);
           return;
         }
-        if (msg.code === 'ROOM_NOT_FOUND' && code !== null) {
+        if (msg.code === 'ROOM_NOT_FOUND' && codeRef.current !== null) {
           // **保存済みの組で入れなかったら捨てる。** 残すと、消えたルームへ
           // 毎回入り直そうとして参加画面に戻れない（poker の clearIdentity と同じ扱い）。
-          clearResumeIdentity(code);
+          clearResumeIdentity(codeRef.current);
         }
         setError(msg.message);
       },
@@ -175,7 +200,7 @@ export function useHubSync(): HubSync {
     conn.connect();
 
     // 読み込み時の復帰（R16）。同じ端末・同じルームなら名乗りを求めない。
-    const saved = code === null ? null : loadResumeIdentity(code);
+    const saved = initialCode === null ? null : loadResumeIdentity(initialCode);
     if (saved !== null) {
       lastJoinRef.current = { displayName: saved.displayName };
       resumeIfPossible();
@@ -185,8 +210,10 @@ export function useHubSync(): HubSync {
       conn.dispose();
       connRef.current = null;
     };
-    // 入口の URL はページ読み込みで決まる（全ページ読み込みで WS が張り直しになる・D14）。
-  }, [code, resumeIfPossible, send]);
+    // **依存は URL 由来の値だけにする。** 入口の URL はページ読み込みで決まり
+    // （全ページ読み込みで WS が張り直しになる・D14）、作成で得たコードをここへ混ぜると
+    // 作成のたびに接続が張り直る（`tests/hub/use-hub-sync.test.tsx` が固定している）。
+  }, [initialCode, resumeIfPossible, send]);
 
   const createRoom = useCallback(
     (roomName: string, displayName: string) => {

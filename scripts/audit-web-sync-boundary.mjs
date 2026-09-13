@@ -5,7 +5,7 @@
  * ## 何を見るか
  *
  *   0. **宣言と実体の全単射照合**（`docs/adr/0014` 決定 1）: `WEB_APPS` に宣言した
- *      web アプリと、`apps/*\/index.html` の実在から独立に導出した実体を照合する。
+ *      web アプリと、`apps/*\/vite.config.ts` の実在から独立に導出した実体を照合する。
  *      片方向だけだと、新設した web アプリ（例: `apps/admin-web`）が宣言に載らないまま
  *      無検査で素通りする（レビューで実測済み）。**導出を名前の綴りから実体へ変えたのは
  *      #95 S5a である** —— `apps/*-web` という形では `apps/landing` が落ちていた
@@ -43,7 +43,7 @@
  * （2026-08-19 実測: `apps/timer-web` で `src/*.ts` + `src/*.tsx` が 82 件、
  * `src/**\/*.ts` + `src/**\/*.tsx` が 78 件）。
  *
- * **`*` は `/` を跨ぐ**ため、`apps/*\/index.html` のような 1 階層限定のつもりの
+ * **`*` は `/` を跨ぐ**ため、`apps/*\/vite.config.ts` のような 1 階層限定のつもりの
  * pathspec も、理論上はより深い一致を返しうる。{@link listWebAppDirs} はこの前提で
  * 返り値を正規表現により 1 階層に絞り込んでいる。
  *
@@ -250,25 +250,24 @@ export function declaredPathsOf(app) {
  * まま**だった（設計正本 §3.10）。名前の綴りに依存した走査は、規約から外れた名前が
  * 現れた瞬間に静かに空振りする —— `docs/adr/0014` が扱った走査対象の健全性と同じ機序である。
  *
- * 代理指標は **`index.html` の実在**にする。vite の SPA は必ず持ち、同期サーバー
- * （`apps/tasuki-sync`）は持たない。`package.json` ではなく `index.html` を見るのは、
- * 「ブラウザで開く入口を持つか」が web 層（`docs/adr/0015`・`docs/adr/0019`）の
- * 射程そのものだからである。
+ * 代理指標は **`vite.config.ts` の実在**にする（`docs/adr/0019` 決定 2 が **MUST** で
+ * 指定している）。ブラウザ向けにビルドするアプリは必ず持ち、同期サーバー
+ * （`apps/tasuki-sync`。`bun build` で束ねる）は持たない。
  *
  * **`apps/` を readdir する導出にしてはならない**（`docs/adr/0014` 決定 3 の MUST NOT
  * 相当。readdir は未追跡ディレクトリも拾い、ローカルと CI で見えるものが食い違いうる）。
  * `listRepoFiles` の git 由来の列挙に統一する。
  *
- * pathspec の `*` は `/` を跨ぐため、`apps/*\/index.html` は理論上より深い一致
- * （例: `apps/timer-web/vendor/foo/index.html`）も返しうる。返ってきた相対パスを
+ * pathspec の `*` は `/` を跨ぐため、`apps/*\/vite.config.ts` は理論上より深い一致
+ * （例: `apps/timer-web/vendor/foo/vite.config.ts`）も返しうる。返ってきた相対パスを
  * **1 階層限定の正規表現で絞り込む**ことで、pathspec の挙動そのものには依存せず
  * 結果を確定させる。
  */
 export function listWebAppDirs() {
-  const candidates = listRepoFiles(REPO_ROOT, ["apps/*/index.html"]);
+  const candidates = listRepoFiles(REPO_ROOT, ["apps/*/vite.config.ts"]);
   return candidates
-    .filter((rel) => /^apps\/[^/]+\/index\.html$/.test(rel))
-    .map((rel) => rel.slice(0, -"/index.html".length))
+    .filter((rel) => /^apps\/[^/]+\/vite\.config\.ts$/.test(rel))
+    .map((rel) => rel.slice(0, -"/vite.config.ts".length))
     .sort();
 }
 

@@ -12,8 +12,9 @@
  * **上限が要る。** 無限に試み続けると、混雑が解消しない状況でバケツを
  * 消費し続けて自分たちを締め出す。尽きたら利用者へ手立てを示す。
  *
- * このファイルは `apps/timer-web/src/sync/join-retry.ts` と**同じ方針を持つ**。
- * 2 つの web の間に TypeScript を共有するパッケージが無いため写しているが、
+ * このファイルは `packages/sync-client/src/join-retry.ts` の**写しである**。
+ * **#95 S5a で共有パッケージ（`@tasuki/sync-client`）ができ、timer-web はそちらへ移った。**
+ * poker-web を寄せるのは S5b（#248）なので、それまでこの写しが残る。
  * 片側だけが変わっていないことは `e2e/tests/join-retry-policy.test.ts` が見る。
  */
 

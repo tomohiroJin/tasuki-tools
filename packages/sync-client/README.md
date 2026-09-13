@@ -5,8 +5,9 @@
 
 ## 持つもの
 
-- **WS の保持と再接続** —— `new WebSocket(` を書いてよいのはこのパッケージだけである
-  （`scripts/audit-web-sync-boundary.mjs` が web アプリ側を 0 件で縛っている）
+- **WS の保持と再接続** —— `apps/landing` と `apps/timer-web` では `new WebSocket(` を
+  1 行も書かない（`scripts/audit-web-sync-boundary.mjs` が両者の `wsHolders` を空で縛る）。
+  **`apps/poker-web` はまだ自分で持っている**（`src/hooks/useSync.ts`。寄せるのは S5b・#248）
 - **指数バックオフ** —— 切断後に繋ぎ直すまでの待ち時間
 - **送信キュー** —— 確立前に送ろうとしたコマンドを確立時に流す
 - **入室の再試行方針** —— 混雑で弾かれたときの待ち時間（ばらつきと上限つき）

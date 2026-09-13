@@ -23,7 +23,7 @@
  * 移行期は `/ws`・`/timer/ws`・`/poker/ws` の 3 つを受ける（D10。S5c で `/ws` に畳む）。
  *
  * 統合前の poker は `url.pathname === '/ws'` 以外を 404 で返していた。その振る舞いは
- * **失われる**（`/poker/ws` 以外は timer 側として upgrade される）。poker へ届く経路は
+ * **失われる**（`/poker/ws` 以外は poker 以外の層として upgrade される）。poker へ届く経路は
  * Caddy 断片と vite の dev プロキシだけで、どちらも `/poker/ws` しか出さない。
  */
 
@@ -45,7 +45,8 @@ import type { Handlers as PokerHandlers } from "../application/poker-handlers.js
  *
  * **本番の Caddy 断片（`deploy/poker/caddy/20-poker.conf`）は rewrite せずに
  * このパスのまま渡す。** 統合前は `/poker/ws` を `/ws` へ剥がしていたが、
- * 剥がすと timer と区別できなくなる（timer 側の断片は今も `/ws` へ剥がす）。
+ * 剥がすと timer と区別できなくなる。**#95 S5a からは timer 側の断片も剥がさない**
+ * （`/ws` がハブの入口になったため。{@link HUB_WS_PATH}）。
  * 一致は `apps/landing/tests/caddy-fragment-port.test.ts` が機械的に固定している。
  */
 const POKER_WS_PATH = "/poker/ws";

@@ -94,6 +94,29 @@ describe('ハブの同期', () => {
     expect(new URL(window.location.href).searchParams.get('room')).toBe('朝会モブ-a1b2');
   });
 
+  it('Given ルームを作った直後 / When room.created が届く / Then 接続は張り直されない', () => {
+    // Given（準備）: 作成の時点では URL に room が無い
+    render(<App />);
+    act(() => socket().open());
+
+    // When（操作）: サーバーが作成を返す（画面は選択画面へ進む）
+    act(() => {
+      socket().deliver({
+        type: 'room.created',
+        code: 'R1',
+        participantId: 'p1',
+        resumeToken: 't1',
+      });
+    });
+
+    // Then: **接続は 1 本のまま。** ここが 2 本になると、いま使ったばかりの WS を捨てて
+    //       張り直し、保存したての復帰の組で room.join を送り直す（無駄な再接続と、
+    //       切断と再参加が競合して名簿がちらつく）
+    expect(ScriptedWebSocket.instances).toHaveLength(1);
+    const commands = socket().sent.map((raw) => JSON.parse(raw) as Record<string, unknown>);
+    expect(commands.filter((c) => c['command'] === 'room.join')).toHaveLength(0);
+  });
+
   it('Given 参加の応答 / When roster が届く / Then 参加者一覧に出る', () => {
     // Given（準備）: 参加用 URL から開く
     window.history.replaceState(null, '', '/?room=R1');

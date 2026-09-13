@@ -24,7 +24,8 @@ export default defineConfig({
       // LP が再描画されるだけで移動できない（エラーにならないので気づきにくい）。
       //
       // 各ツールの dev サーバーへそのまま転送する。WS も通す必要があるため
-      // ws: true を付ける（/timer/ws は 5173 側がさらに sync の /ws へ rewrite する）。
+      // ws: true を付ける（/timer/ws はそのままの綴りで sync へ届く —— #95 S5a で
+      // 5173 側の rewrite を外した。`/ws` がハブの入口になったため）。
       // ハブ（選択画面）の WS。本番は Caddy の `/ws` 断片が同じことをする（#95 S5a）。
       // **これが無いと dev で繋がらない** —— LP の SPA フォールバックが index.html を
       // 200 で返すので、WebSocket にならずエラーにもならない（静かに壊れる）。
