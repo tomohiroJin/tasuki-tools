@@ -3,16 +3,19 @@
  *
  * S5c で入口を玄関と同じ `/ws` 1 本へ畳んだ。S5b までは `/timer/ws` という経路
  * そのものがツールの宣言だったが、入口を畳んだ以上、経路ではツールを決められない。
- * ここではクエリ（`?tool=timer`）がツールを宣言する。
+ * ここではクエリ（`SYNC_TOOL_QUERY` = `tool=timer`）がツールを宣言する。
  *
- * この値は Caddy 断片（`deploy/landing/caddy/05-hub-ws.conf`）が受ける `/ws` と
- * 一致していなければ接続できない。App.tsx に直書きされていたときはテストから触れず、
- * 移設漏れを検出する手段が無かったため、関数として切り出して固定する。
+ * `SYNC_PATH`（`/ws`）は Caddy 断片（`deploy/landing/caddy/05-hub-ws.conf`）が受ける
+ * パスと一致していなければ接続できない。パスとクエリを別の定数に分けているのは、
+ * 前者は断片と、後者は統合サーバーの振り分けと突き合わされる別のものだからである
+ * （#95 S4b の教訓「同じ string の意味を変えるなら改名する」）。
+ * App.tsx に直書きされていたときはテストから触れず、移設漏れを検出する手段が
+ * 無かったため、関数として切り出して固定する。
  */
 import { describe, it, expect } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { buildSyncUrl, SYNC_PATH } from "../../src/sync/sync-url";
+import { buildSyncUrl, SYNC_PATH, SYNC_TOOL_QUERY } from "../../src/sync/sync-url";
 
 /** リポジトリルートを上方向に探す（jsdom では import.meta.url が使えないため）。 */
 function findRepoRoot(from: string): string {
@@ -51,21 +54,23 @@ describe("buildSyncUrl", () => {
   });
 
   it("パスはハブと同じ /ws で、ツールはクエリが宣言する", () => {
-    // Caddy 断片は `/ws` だけを受け、クエリはそのまま上流へ渡る（#95 S5c）。
-    expect(SYNC_PATH).toBe("/ws?tool=timer");
+    // Caddy 断片は `/ws`（SYNC_PATH）だけを受け、クエリ（SYNC_TOOL_QUERY）は
+    // そのまま上流へ渡る（#95 S5c）。
+    expect(SYNC_PATH).toBe("/ws");
+    expect(SYNC_TOOL_QUERY).toBe("tool=timer");
   });
 });
 
 describe("SYNC_PATH と本番の Caddy 断片", () => {
-  it("Given 本番のハブの断片 / When 受け付けるパスを読む / Then SYNC_PATH のパス部分と一致する", () => {
+  it("Given 本番のハブの断片 / When 受け付けるパスを読む / Then SYNC_PATH と一致する", () => {
     // Given: 本番へ設置されるハブの Caddy 断片
     // When: そこが受け付ける WebSocket のパスを読む
-    // Then: クライアントが繋ぐ先（SYNC_PATH のパス部分）と一致する
+    // Then: クライアントが繋ぐ先（SYNC_PATH）と一致する
     //
     // 両者は別ファイルにある同じ値で、食い違っても どちらのファイルを見ても正しく見える。
     // 移設のたびに人が突き合わせるのをやめ、ここで機械的に固定する。
-    // Caddy の `handle` はパスだけで振り分け、クエリは見ない（そのまま上流へ渡る）ため、
-    // 突き合わせは SYNC_PATH からクエリを落としたパス部分だけで行う。
+    // Caddy の `handle` はパスだけで振り分け、クエリ（SYNC_TOOL_QUERY）は見ない
+    // （そのまま上流へ渡る）ため、ここで突き合わせるのは SYNC_PATH だけでよい。
 
     const fragment = readFileSync(
       path.join(findRepoRoot(process.cwd()), "deploy/landing/caddy/05-hub-ws.conf"),
@@ -78,7 +83,7 @@ describe("SYNC_PATH と本番の Caddy 断片", () => {
         .join("\n"),
     );
 
-    expect(handled?.[1]).toBe(SYNC_PATH.split("?")[0]);
+    expect(handled?.[1]).toBe(SYNC_PATH);
   });
 
   it("Given 本番のハブの断片 / When rewrite を探す / Then 1 つも無い", () => {
