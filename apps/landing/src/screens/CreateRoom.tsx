@@ -70,7 +70,9 @@ export function CreateRoom({ defaultDisplayName, error, connection, onCreate }: 
           />
         </label>
 
-        {error !== null && (
+        {/* 接続の告知が出ている間は error を出さない（二重表示の回避・poker の
+            RoomPage.tsx が持っていた扱いを移した）。切れている以上 error は古い情報である。 */}
+        {error !== null && connection === 'online' && (
           <p className="hub-error" role="alert">
             {error}
           </p>

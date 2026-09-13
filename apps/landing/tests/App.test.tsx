@@ -121,6 +121,30 @@ describe('玄関（ハブ）', () => {
     // 復旧後に送るので、ここを直接見ないと「積まれて後で発火する」不具合を見逃す
     expect(sendSpy).not.toHaveBeenCalled();
   });
+
+  it('Given error が立っている / When 接続が切れる / Then role="alert" は接続の告知 1 つだけになる', () => {
+    // Given（準備）: サーバーからのエラーで error が立っている
+    render(<App />);
+    act(() => {
+      socket().onmessage?.({
+        data: JSON.stringify({
+          type: 'error',
+          code: 'SOMETHING_WRONG',
+          message: '予期しないエラーが起きました',
+        }),
+      });
+    });
+    expect(screen.getByRole('alert')).toHaveTextContent('予期しないエラーが起きました');
+
+    // When（操作）: 同期サーバーとの接続が切れる
+    act(() => socket().onclose?.());
+
+    // Then: 二重表示にならない（poker の RoomPage.tsx から移した扱い）。
+    // 切れている間、error は古い情報なので接続の告知だけが残る
+    const alerts = screen.getAllByRole('alert');
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toHaveTextContent('同期サーバーに接続できません');
+  });
 });
 
 describe('選択画面', () => {
