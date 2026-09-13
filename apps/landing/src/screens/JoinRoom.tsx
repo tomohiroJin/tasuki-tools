@@ -29,6 +29,10 @@ export function JoinRoom({
 
   const submit = (event: FormEvent): void => {
     event.preventDefault();
+    // 未接続なら黙って積まれてしまう（`SyncConnection.send` は捨てずに `pending` へ積む）。
+    // ボタンの disabled はクリック以外の送信経路（requestSubmit・支援技術）を防がないので、
+    // ここでも同じ判定を持つ（#76 の回帰防止）。
+    if (connection !== 'online') return;
     if (displayName.trim() === '') return;
     onJoin(displayName.trim(), needsPassphrase ? passphrase : undefined);
   };

@@ -5,10 +5,11 @@
  * 受け持ち、ここが見るのは「どの画面が出るか」と「札の意匠を変えていないこと」である。
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { App } from '../src/App.js';
 import { TOOLS } from '../src/tools.js';
 import { RoomChoice } from '../src/screens/RoomChoice.js';
+import { SyncConnection } from '@tasuki/sync-client';
 import type { RosterRoom } from '@tasuki/room-core';
 
 /**
@@ -100,6 +101,25 @@ describe('玄関（ハブ）', () => {
 
     // Then: 実際に押せない（告知と画面の状態が食い違わない）
     expect(screen.getByRole('button', { name: 'ルームを作る' })).toBeDisabled();
+  });
+
+  it('Given 未接続 / When disabled を無視してフォームを直接送信する / Then room.create は送られない', () => {
+    // Given（準備）: 玄関を開き、名前を埋める（`displayName` の必須チェックだけでは
+    // 通ってしまわないようにする）
+    const sendSpy = vi.spyOn(SyncConnection.prototype, 'send');
+    render(<App />);
+    fireEvent.change(screen.getByLabelText('あなたの名前'), { target: { value: 'あや' } });
+
+    // When（操作）: 接続が切れた状態で、ボタンの disabled を経由せずフォームを直接
+    // 送信する（`form.requestSubmit()` や支援技術による送信の代わり）
+    act(() => socket().onclose?.());
+    const form = screen.getByRole('button', { name: 'ルームを作る' }).closest('form')!;
+    fireEvent.submit(form);
+
+    // Then: 押せないはずの操作が、実は効いていない（#76 の回帰防止）。
+    // `SyncConnection.send` は未接続でもコマンドを捨てず `pending` へ積んで
+    // 復旧後に送るので、ここを直接見ないと「積まれて後で発火する」不具合を見逃す
+    expect(sendSpy).not.toHaveBeenCalled();
   });
 });
 
