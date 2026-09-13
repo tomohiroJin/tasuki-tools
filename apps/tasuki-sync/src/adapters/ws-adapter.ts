@@ -22,6 +22,10 @@
  * ここを許可リストへ絞ると素のポート（`ws://host:port`）へ繋ぐ既存テストが軒並み落ちる。
  * 移行期は `/ws`・`/timer/ws`・`/poker/ws` の 3 つを受ける（D10。S5c で `/ws` に畳む）。
  *
+ * **S5c（#249）から、接続 URL のクエリ（`?tool=`）を渡した接続はそちらを優先する**
+ * （{@link protocolFromRequestUrl}）。旧パスはこの段では併存させたまま
+ * （Task 5 で落とす）。
+ *
  * 統合前の poker は `url.pathname === '/ws'` 以外を 404 で返していた。その振る舞いは
  * **失われる**（`/poker/ws` 以外は poker 以外の層として upgrade される）。poker へ届く経路は
  * Caddy 断片と vite の dev プロキシだけで、どちらも `/poker/ws` しか出さない。
@@ -63,6 +67,28 @@ const POKER_WS_PATH = "/poker/ws";
  * そのときツールの宣言は wire か接続 URL のクエリへ移る。
  */
 const HUB_WS_PATH = "/ws";
+
+/**
+ * 接続 URL が宣言するツール。**許可リストで判定する**（#95 S5c）。
+ *
+ * S5b まではパスが宣言だった（`/poker/ws`・`/ws`・それ以外は timer）。入口を `/ws` 1 本へ
+ * 畳んだこの段では、経路だけではツールを決められない。**wire には載せられない** ——
+ * メッセージ層はパーサ自体が別（`CommandSchema` / `parseClientMessage` /
+ * `parseBoundaryMessage`）で、最初のフレームを読む前に層を決める必要があるためである。
+ *
+ * **許可リストに無い値は `"unknown"` にして接続を拒否する。** timer へもハブへも落とさない ——
+ * 落とすと、綴りを間違えたクライアントが「繋がるのにコマンドが通らない」という
+ * 静かな壊れ方をする（S5a の rewrite で実際に起きた型）。
+ */
+const TOOL_QUERY_KEY = "tool";
+
+function protocolFromRequestUrl(url: URL): "timer" | "poker" | "hub" | "unknown" {
+  const declared = url.searchParams.get(TOOL_QUERY_KEY);
+  if (declared === null) return "hub";
+  if (declared === "timer") return "timer";
+  if (declared === "poker") return "poker";
+  return "unknown";
+}
 
 /**
  * 振り分けの照合に使う形へパスを正規化する。
@@ -260,7 +286,7 @@ interface ConnectionData {
    * `"hub"` は選択画面（#95 S5a）。**在席の宣言もここで決まる** —— ハブの接続は
    * どのツールも宣言しない（`tool: null`）ので、ツールの参加者一覧には出ない。
    */
-  protocol: "timer" | "poker" | "hub";
+  protocol: "timer" | "poker" | "hub" | "unknown";
   /** レート制限の鍵（クライアント鍵。特定できなければ接続 ID）。受理まで空文字。 */
   rateKey: string;
   /** poker のみ使用。join 後に入る。 */
@@ -386,8 +412,14 @@ export class WsAdapter {
     // 綴りの揺れ（大小・パーセント符号化）は `normalizeWsPath` が吸収する。
     // 理由と実測はその docstring にある。
     const path = normalizeWsPath(url.pathname);
+    // 移行中（この段の Task 5 まで）は旧パスも受ける。クエリでの宣言が優先される。
+    const declared = protocolFromRequestUrl(url);
     const protocol =
-      path === POKER_WS_PATH ? "poker" : path === HUB_WS_PATH ? "hub" : "timer";
+      url.searchParams.has(TOOL_QUERY_KEY) || path === HUB_WS_PATH
+        ? declared
+        : path === POKER_WS_PATH
+          ? "poker"
+          : "timer";
     if (
       server.upgrade(req, {
         data: {
@@ -542,6 +574,15 @@ export class WsAdapter {
   }
 
   private handleOpen(ws: Socket): void {
+    // 宣言されたツールが許可リストに無い。受け入れると「繋がるのにコマンドが通らない」
+    // 静かな壊れ方になるので、理由つきで閉じる。
+    if (ws.data.protocol === "unknown") {
+      // 列挙値だけを出す（P-2）。`?tool=` の値そのものは利用者由来なので載せない（ADR 0012 D3）。
+      this.options.logger.warn("conn-rejected", { reason: CONN_REJECT_REASONS.tool });
+      ws.close(1008, "Unknown tool");
+      return;
+    }
+
     // クライアント鍵の検査は Origin より前に置く。**どちらも 1008 なので、
     // 後ろに置くと「直結が拒否される」ことを確かめるテストが Origin 拒否を
     // 見ているだけ、という空振りになる。**

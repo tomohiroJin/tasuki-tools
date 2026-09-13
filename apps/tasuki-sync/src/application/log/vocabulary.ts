@@ -38,12 +38,14 @@ export const AI_FAILURE_REASONS = {
 
 /**
  * WebSocket 接続を拒否した理由（#103 敵対的レビュー P-2）。
- * `ws-adapter.ts` の `handleOpen` が拒否する 2 経路（クライアント鍵なし・
- * Origin 不許可）と 1 対 1。本番構成でこの 2 経路が無言のままだと、
- * Caddy 側の X-Forwarded-For 転送が壊れて利用者全員が入れなくなっても
- * journal からは気づけない（再レビューが実測）。
+ * `ws-adapter.ts` の `handleOpen` が拒否する経路（クライアント鍵なし・
+ * Origin 不許可・許可リストに無いツール宣言（`tool`。#95 S5c・#249）と
+ * 1 対 1。本番構成でこれらが無言のままだと、Caddy 側の X-Forwarded-For 転送が
+ * 壊れて利用者全員が入れなくなっても journal からは気づけない
+ * （クライアント鍵なし・Origin 不許可は再レビューが実測）。
  */
 export const CONN_REJECT_REASONS = {
   clientAddress: publicText("client-address"), // log-hygiene:allow 語彙定義
   origin: publicText("origin"), // log-hygiene:allow 語彙定義
+  tool: publicText("tool"), // log-hygiene:allow 語彙定義
 } as const satisfies Record<string, LogSafe>;
