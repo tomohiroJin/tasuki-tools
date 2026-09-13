@@ -30,7 +30,8 @@ export type ConnectionStatus = 'connecting' | 'open' | 'closed';
 
 export function wsUrl(): string {
   const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
-  return `${scheme}://${location.host}/poker/ws`;
+  // **入口は玄関と同じ `/ws` で、ツールはクエリが宣言する**（#95 S5c）。
+  return `${scheme}://${location.host}/ws?tool=poker`;
 }
 
 export interface SelfIdentity {

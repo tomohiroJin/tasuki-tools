@@ -1,18 +1,16 @@
 /**
- * 同期サーバーへの WebSocket URL を組み立てる（S4 / #19）。
+ * 同期サーバーへの WebSocket URL を組み立てる（S4 / #19・#95 S5c）。
  *
- * timer は `/timer/` 配下で配信されるため、WS も同じ配下に置く。Caddy が
- * `/timer/ws` を受けて sync サーバーの `/ws` へ rewrite する
- * （`deploy/timer/caddy/10-timer-ws.conf`）。
+ * **入口は玄関と同じ `/ws` 1 本で、ツールはクエリが宣言する**（#95 S5c）。
+ * S5b までは `/timer/ws` という経路そのものが宣言だった。入口を畳んだ以上、
+ * 経路ではツールを決められない。
  *
- * ルート直下（`/ws`）に繋いではいけない。ルートは LP の包括フォールバックが
- * 持っているので、WebSocket にならず index.html が 200 で返る。
+ * ここで組み立てるパスは Caddy 断片（`deploy/landing/caddy/05-hub-ws.conf`）が受ける
+ * `/ws` と一致していること。食い違うと WS が繋がらないのに、どちらのファイルも
+ * 正しく見える。`test/sync/sync-url.test.ts` と
+ * `apps/landing/tests/caddy-fragment-port.test.ts` がこの一致を機械的に固定している。
  */
-
-import { PUBLIC_PATH } from "../public-path.js";
-
-/** 公開パス配下の WS エンドポイント。Caddy 断片と一致していること。 */
-export const SYNC_PATH = `${PUBLIC_PATH}ws`;
+export const SYNC_PATH = "/ws?tool=timer";
 
 /** URL の組み立てに必要な location の一部。テストから差し替えられるようにする。 */
 export interface SyncUrlLocation {
