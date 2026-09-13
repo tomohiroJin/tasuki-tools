@@ -12,8 +12,9 @@
  * **上限が要る。** 無限に試み続けると、混雑が解消しない状況でバケツを
  * 消費し続けて自分たちを締め出す。尽きたら利用者へ手立てを示す。
  *
- * このファイルは `apps/timer-web/src/sync/join-retry.ts` と**同じ方針を持つ**。
- * 2 つの web の間に TypeScript を共有するパッケージが無いため写しているが、
+ * このファイルは `packages/sync-client/src/join-retry.ts` の**写しである**。
+ * **#95 S5a で共有パッケージ（`@tasuki/sync-client`）ができ、timer-web はそちらへ移った。**
+ * poker-web を寄せるのは S5b（#248）なので、それまでこの写しが残る。
  * 片側だけが変わっていないことは `e2e/tests/join-retry-policy.test.ts` が見る。
  */
 
@@ -26,8 +27,16 @@ const MULTIPLIER = 2;
 /** ばらつきの幅。0.5 なら 0.5〜1.5 倍に散らす。 */
 const JITTER_RATIO = 0.5;
 
-/** 諦めるまでの試行回数。 */
-export const JOIN_RETRY_MAX_ATTEMPTS = 6;
+/**
+ * 諦めるまでの試行回数。
+ *
+ * **export しない。** 製品コードでこの値を読む場所は無く（諦めたことは
+ * {@link joinRetryDelayMs} が `null` を返して伝える）、テストのためだけに公開すると
+ * 「使われていない公開記号」（SC-039③④）になる。上限を知りたいテストは
+ * `joinRetryDelayMs` が `null` を返すまで数えれば導出できる —— そちらは
+ * 「利用者から見える振る舞い」を通る分、値の写しより壊れにくい。
+ */
+const JOIN_RETRY_MAX_ATTEMPTS = 6;
 
 /**
  * `attempt` 回目（1 起点）の待ち時間（ms）。上限を超えた回は `null`（諦める）。

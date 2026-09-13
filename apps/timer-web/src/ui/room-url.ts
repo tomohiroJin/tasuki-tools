@@ -1,15 +1,18 @@
 /**
  * ルームへの参加 URL（招待リンク・QR）を組み立てる（#76 F-1）。
  *
- * ルート直下の `?room=CODE` に向けてはいけない。ルートは玄関 LP の包括フォールバックが
- * 持っているので、コードを持ったまま LP が表示され、参加画面へ行けない。
- * 本番には旧リンク救済の 301（`deploy/timer/caddy/40-timer-legacy-room.conf`）があるが、
- * それは古いリンクのための保険であって、いま配る招待 URL が頼るものではない。
+ * **向き先は #95 S5a で変わった。** ルート直下の `?room=CODE` が正しい形である ——
+ * 入口が LP（ハブ）に一本化され、そこがルームコードを解して名乗りの画面を出すからである
+ * （`docs/adr/0018` 決定 2・設計正本 D11）。
+ *
+ * S4（#19）から S5a までは `/timer/?room=CODE` を配っていた。ルートは玄関 LP の
+ * 包括フォールバックが持っていて、コードを渡しても参加画面へ行けなかったためである。
+ * **同じ段で旧リンク救済の 301（`40-timer-legacy-room.conf`）を撤去した** ——
+ * 残すと、この形の URL がタイマーへ飛ばされて選択画面に着地しない。
  *
  * App.tsx に直書きされていた頃はテストから触れず、移設漏れを検出する手段が無かった。
- * sync-url.ts と同じく関数として切り出し、公開パスとの一致をテストで固定する。
+ * sync-url.ts と同じく関数として切り出し、形をテストで固定する。
  */
-import { PUBLIC_PATH } from "../public-path.js";
 
 /**
  * オリジンとルームコードから参加 URL を組み立てる。
@@ -18,7 +21,7 @@ import { PUBLIC_PATH } from "../public-path.js";
  * 素の文字列連結では壊れるため、クエリとして符号化する。
  */
 export function buildRoomUrl(origin: string, code: string): string {
-  const url = new URL(PUBLIC_PATH, origin);
+  const url = new URL("/", origin);
   url.searchParams.set("room", code);
   return url.toString();
 }

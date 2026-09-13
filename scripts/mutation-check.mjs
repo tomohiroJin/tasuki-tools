@@ -347,6 +347,36 @@ export const MUTATIONS = [
       "在席していない参加者」を作るテストが要る（設計正本 §6.2 が R14 に要求した形）。",
   },
   {
+    id: 27,
+    label: "timer の参加者一覧から在席の絞り込みを外す（選択画面に居る人が出る）",
+    patch: "m27-timer-roster-not-filtered.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/timer-snapshot-dto.test.ts"],
+    note:
+      "#95 S5a（R5 / R6）。選択画面へ戻った人が timer の一覧に残り続ける欠陥。" +
+      "**名簿からは消えないので、サーバーの状態を見ても気づけない** —— wire の形だけが違う。",
+  },
+  {
+    id: 28,
+    label: "ハブへの配信先を timer の接続へすり替える（選択画面が更新されない）",
+    patch: "m28-hub-broadcast-to-timer.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/live-ws.hub.test.ts"],
+    note:
+      "#95 S5a（R3）。名簿が変わっても選択画面に届かない欠陥。" +
+      "**timer は正しく動き続ける**ので、ハブの実 WS テストでしか捕まらない。",
+  },
+  {
+    id: 29,
+    label: "参加の合言葉の照合を落とす（保護ルームの名簿が読める）",
+    patch: "m29-join-skips-passphrase.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/live-ws.hub.test.ts", "test/passphrase.test.ts"],
+    note:
+      "#95 S5a。timer とハブで守りを共有した `join-room.ts` の照合そのものを落とす。" +
+      "S4a では同型の欠陥（合言葉を通さずに保護ルームの snapshot が読めた）が実機で出ている。",
+  },
+  {
     id: 26,
     label: "attachConnection が前の接続を奪う（1 本模型へ戻す）",
     patch: "m26-attach-steals-connection.patch",

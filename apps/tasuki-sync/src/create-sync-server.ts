@@ -36,6 +36,10 @@ import {
   DEFAULT_REFILL_PER_SEC,
 } from "@tasuki/rate-limit";
 import { connectionsIn } from "@tasuki/room-core";
+import type { HubServerMsg } from "@tasuki/room-core";
+import { buildRoster } from "./application/roster-dto.js";
+import { makeHubHandlers } from "./application/hub-handlers.js";
+import type { HubBroadcaster } from "./ports/hub-broadcaster.js";
 import { makeHandlers } from "./application/handlers.js";
 import { TOOL_TIMER } from "./application/tool-id.js";
 import { PresenceManager } from "./application/presence.js";
@@ -136,6 +140,32 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     return room ? connectionsIn(room, TOOL_TIMER) : [];
   };
 
+  /**
+   * ハブ（選択画面）の配信先（#95 S5a）。**ツールを宣言していない接続**である。
+   *
+   * timer 側（{@link recipientsOf}）と同じく、宛先は**呼び出し時点のストア**から決まる。
+   * 中身（名簿）も同じ時点から引くので、保管より先に配信して 1 つ前の名簿を配る事故は
+   * `saveRoster`（保管と配信を対にする）と合わせて塞いである。
+   */
+  const hubRecipientsOf = (roomCode: string): string[] => {
+    const room = store.get(roomCode);
+    return room ? connectionsIn(room, null) : [];
+  };
+
+  const hubBroadcaster: HubBroadcaster = {
+    sendTo(connId: string, msg: HubServerMsg): void {
+      wsAdapter.sendHub(connId, msg);
+    },
+    broadcastRoster(roomCode: string): void {
+      const room = store.get(roomCode);
+      if (!room) return;
+      wsAdapter.broadcastHub(hubRecipientsOf(roomCode), {
+        type: "roster",
+        room: buildRoster(room),
+      });
+    },
+  };
+
   const broadcaster = {
     broadcastSnapshot(roomCode: string, room: Room): void {
       wsAdapter.broadcast(recipientsOf(roomCode), { type: "snapshot", room });
@@ -218,6 +248,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     timers,
     tokens,
     toolGate,
+    hub: hubBroadcaster,
     rateLimiter,
     clock,
     broadcaster,
@@ -233,6 +264,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     store,
     timers,
     broadcaster,
+    hub: hubBroadcaster,
     clock,
     // ドライバー不在の猶予後繰り上げ（R2-1）。handlers のスケジューラ経由で交代＋タイマー再アンカー。
     onDriverAbsence: handlers.advanceForAbsence,
@@ -284,12 +316,33 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     rounds,
     tokens,
     toolGate,
+    hub: hubBroadcaster,
     broadcaster: pokerBroadcaster,
     idGen: pokerIdGen,
     clock: pokerClock,
     wallClock: clock,
     rateLimiter,
     maxRooms: config.maxRooms,
+  });
+
+  /**
+   * ハブ（選択画面）のメッセージ層（#95 S5a）。
+   *
+   * **守り（レート制限・入口の門・合言葉・復帰）は timer と共有する** ——
+   * `join-room.ts` / `create-room.ts` を timer の入口と同じ引数で呼ぶ。
+   * **レート制限のゲートも同じインスタンスを渡す** —— 別に作ると `connId → 鍵` の
+   * 対応が空になり、`/ws` は再接続で回避できる抜け道になる。
+   */
+  const hubHandlers = makeHubHandlers({
+    store,
+    timers,
+    clock,
+    codeGen,
+    tokenStore: tokens,
+    toolGate,
+    rateLimitGate: handlers.rateLimitGate,
+    maxRooms: config.maxRooms,
+    hub: hubBroadcaster,
   });
 
   wsAdapter = new WsAdapter({
@@ -305,6 +358,9 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     logger,
     deriveClientKey,
     requireClientAddress: config.requireClientAddress,
+    onHubMessage: async (connId, raw) => {
+      await hubHandlers.handleMessage(connId, raw);
+    },
     onMessage: async (connId, msg) => {
       // msg は ws-adapter 側で CommandSchema（valibot）に通した検証済みの値であり、
       // 実体は Command 型と一致する（onMessage の型は unknown のままなのでここでキャストする）。

@@ -40,6 +40,8 @@ import { rotationEntryId } from "@tasuki/timer-core";
 import type { RoomStore } from "../ports/room-store.js";
 import type { TimerStore } from "../ports/timer-store.js";
 import type { Broadcaster } from "../ports/broadcaster.js";
+import type { HubBroadcaster } from "../ports/hub-broadcaster.js";
+import { saveRoster } from "./save-roster.js";
 import type { Clock } from "../ports/clock.js";
 import { buildTimerSnapshotRoom } from "./timer-snapshot-dto.js";
 import { TOOL_TIMER } from "./tool-id.js";
@@ -51,6 +53,8 @@ export class PresenceManager {
   private readonly store: RoomStore;
   private readonly timers: TimerStore;
   private readonly broadcaster: Broadcaster;
+  /** 選択画面（ハブ）への配信（#95 S5a）。切断は名簿の変化なので、ここにも届ける。 */
+  private readonly hub: HubBroadcaster;
   private readonly clock: Clock;
   /** ドライバー不在発火時に呼ぶコールバック（任意。create-sync-server.ts で handlers.advanceForAbsence に配線）。 */
   private readonly onDriverAbsence?: ((roomCode: string) => void) | undefined;
@@ -64,12 +68,14 @@ export class PresenceManager {
     store: RoomStore;
     timers: TimerStore;
     broadcaster: Broadcaster;
+    hub: HubBroadcaster;
     clock: Clock;
     onDriverAbsence?: ((roomCode: string) => void) | undefined;
   }) {
     this.store = deps.store;
     this.timers = deps.timers;
     this.broadcaster = deps.broadcaster;
+    this.hub = deps.hub;
     this.clock = deps.clock;
     this.onDriverAbsence = deps.onDriverAbsence;
   }
@@ -112,7 +118,9 @@ export class PresenceManager {
     if (!participant) return;
 
     const updated = removeConnection(room, connId);
-    this.store.put(updated);
+    // 名簿の保管とハブへの配信は対にする（`save-roster.ts`・#95 S5a）。
+    // 切断で presence が変わったことは、選択画面にも届く必要がある。
+    saveRoster({ store: this.store, hub: this.hub }, updated);
 
     const after = findParticipant(updated, participant.id);
     const timer = this.timers.get(room.code);

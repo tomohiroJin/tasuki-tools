@@ -9,7 +9,7 @@ describe("InvitePanel", () => {
     expect(screen.getByText("ABC123")).toBeInTheDocument();
   });
 
-  it("参加URLコピーで clipboard に公開パス配下の参加 URL を書く", async () => {
+  it("参加URLコピーで clipboard に玄関の参加 URL を書く", async () => {
     // Given（user-event v14 は setup() 時に navigator.clipboard を独自 stub に
     // 差し替えるため、setup() 後に spyOn で writeText を差し込む）
     const user = userEvent.setup();
@@ -20,7 +20,7 @@ describe("InvitePanel", () => {
     // Then: ルート直下ではなく /timer/ 配下（#76 F-1）。
     // ルート直下だと玄関 LP に着地して参加画面へ行けない。
     expect(writeText).toHaveBeenCalledWith(
-      `${window.location.origin}/timer/?room=ABC123`,
+      `${window.location.origin}/?room=ABC123`,
     );
   });
 
@@ -32,7 +32,7 @@ describe("InvitePanel", () => {
 
     // Then: URL が画面に出ており、手で選んで拾える
     expect(
-      screen.getByText(`${window.location.origin}/timer/?room=ABC123`),
+      screen.getByText(`${window.location.origin}/?room=ABC123`),
     ).toBeInTheDocument();
   });
 

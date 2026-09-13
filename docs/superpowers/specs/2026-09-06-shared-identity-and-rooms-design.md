@@ -523,6 +523,19 @@ export interface Participant {
 > `attachConnection` へ渡す形である。**`tool: null` を作る経路はまだ無い**（在席判定の
 > テストだけが作る）。**この判断は S5a（#247）で見直す。** 宛先は #247 の完了条件に書いた。
 
+> **【S5a 実施時の追記・2026-09-13】経路で分ける。ハブの入口は `/ws` とする。**
+> 見直しの結果、**wire には引き続き `tool` を載せない**（2026-09-13・利用者承認）。
+> `adapters/ws-adapter.ts` は `/poker/ws` を poker、**`/ws` をハブ**、それ以外を timer として
+> 扱い、各メッセージ層が定数（`"timer"` / `"poker"` / `null`）を `attachConnection` へ渡す。
+>
+> **`/ws` は S4b まで timer が使っていた。** 本番の Caddy 断片が `/timer/ws` を `/ws` へ
+> rewrite していたためで、S5a でその rewrite を外した（`deploy/timer/caddy/10-timer-ws.conf` /
+> `apps/timer-web/vite.config.ts`）。外さずに入口だけ足すと、**timer の接続がハブとして
+> 扱われて timer の参加者一覧から全員が消える**。
+>
+> **S5c（#249）でこの決まり方そのものが変わる。** 入口が `/ws` 1 本に畳まれるので、
+> そのときツールの宣言は wire か接続 URL のクエリへ移る。宛先は #249 の完了条件に書いた。
+
 ### D15: `config.members` を廃止する
 
 timer の `config.members` はローテーションの表示名ミラー（D6b）だが、timer-core は

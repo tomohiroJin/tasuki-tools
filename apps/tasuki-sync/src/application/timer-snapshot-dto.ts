@@ -24,10 +24,24 @@
  *    —— 代入する経路は S4a 時点で 0 件で、導出では表現できない。`RoomSchema` は
  *    3 値を受けたままなので、古い snapshot のパースは通る
  *
+ * ★ **S5a で wire が変わった点も、この台帳に続けて書く。**
+ *
+ * 6. **`participants` が timer の在席者に絞られた**（{@link showsInTimer}）。
+ *    選択画面（ハブ）や poker に居る人は載らない（R5 / R6）。**切断した人は載る** ——
+ *    「timer から離れた」ことが分かっているのは前者だけだからである。
+ *    名簿からは誰も消えず、輪の席も表示名（`config.members`）も残る（R7）。
+ *
  * 代理（`isPlaceholder`）はここで**合成される**。名簿には居らず、輪の上の席
  * （`RotationEntry` の `kind: "proxy"`）としてだけ存在するためである。
  */
-import { presenceOf, type ConnId, type Room as MembershipRoom } from "@tasuki/room-core";
+import {
+  isPresentIn,
+  presenceOf,
+  type ConnId,
+  type Participant as MembershipParticipant,
+  type Room as MembershipRoom,
+} from "@tasuki/room-core";
+import { TOOL_TIMER } from "./tool-id.js";
 import {
   rotationEntryId,
   type Participant,
@@ -103,9 +117,27 @@ function seatEligibleOf(rotation: readonly RotationEntry[], id: string): boolean
   return entry?.eligible;
 }
 
+/**
+ * timer の一覧に出す人か（#95 S5a・R5 / R6）。
+ *
+ * **「timer に居ない」ことが分かっている人だけを外す。** 外れるのは
+ * **他のツールか選択画面に居る人**であって、接続を 1 本も持たない人ではない ——
+ *
+ * - **選択画面（ハブ）に居る人**は、自分の意思で timer から離れた。一覧から外す（R6）
+ * - **切断した人**（接続 0 本）は「どこに居るか分からない」。S4b までと同じく
+ *   `offline` として一覧に残す。消すと**退出したように見える**うえ、回線が揺れた人が
+ *   他の参加者の画面から消えたり現れたりする
+ *
+ * **名簿からは誰も消えない。** 消えるのは timer の画面に出る一覧からだけで、
+ * 輪の席・投票・タイマーの状態は保たれる（R7）。
+ */
+function showsInTimer(participant: MembershipParticipant): boolean {
+  return isPresentIn(participant, TOOL_TIMER) || participant.connections.size === 0;
+}
+
 export function buildTimerSnapshotRoom(membership: MembershipRoom, timer: TimerState): Room {
   const aiKeys = new Set(timer.aiKeyHolders);
-  const members: Participant[] = membership.participants.map((p) => {
+  const members: Participant[] = membership.participants.filter(showsInTimer).map((p) => {
     // 適格は**席の属性**なので、輪に席がある人だけが値を持つ（輪の外の人は省略）。
     // S4a 以前は「一度でも見送り／復帰を押した人」だけが値を持っていたが、`false` と
     // `true` のどちらも同じ条件で出るこの形のほうが素直で、判定（`=== false` /

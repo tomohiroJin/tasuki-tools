@@ -24,6 +24,7 @@ import { makeTestHandlers } from "./support/room-builder.js";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 import { putRoomView, roomViewOf } from "./support/room-view.js";
+import { spyHub } from "./support/hub.js";
 
 const config: SessionConfig = {
   language: "TypeScript",
@@ -47,6 +48,7 @@ describe("多接続模型（#95 S4b）", () => {
       timers,
       clock: new FakeClock(1_000_000),
       broadcaster,
+      hub: spyHub(),
       codeGen: new FakeCodeGen(),
     });
   });
@@ -97,6 +99,7 @@ describe("多接続模型（#95 S4b）", () => {
       store,
       timers,
       broadcaster,
+      hub: spyHub(),
       clock: new FakeClock(1_000_000),
     });
     broadcaster.snapshots.length = 0;

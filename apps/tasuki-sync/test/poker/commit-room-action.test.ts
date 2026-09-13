@@ -18,6 +18,7 @@ import { createTokenStore } from '../../src/application/token-store';
 import { makeHandlers, type HandlerConnection } from '../../src/application/poker-handlers';
 import type { Broadcaster, RoomSocket } from '../../src/ports/poker-broadcaster';
 import type { IdGen } from '../../src/ports/poker-id-gen';
+import { spyHub } from '../support/hub.js';
 
 /** 送信された ServerMessage を記録するだけのソケット */
 function spySocket(): RoomSocket & { received: ServerMessage[] } {
@@ -66,6 +67,7 @@ function setup(data: Partial<HandlerConnection['data']> = {}) {
     toolGate: testToolGate({ rounds }),
     tokens: createTokenStore(),
     broadcaster: passthroughBroadcaster(),
+    hub: spyHub(),
     idGen: unusedIdGen,
     clock: { now: () => 0 },
     wallClock: { now: () => 0 },

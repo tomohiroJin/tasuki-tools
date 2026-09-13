@@ -11,6 +11,9 @@
     "lint": "eslint src tests",
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "valibot": "^1.4.1"
+  },
   "devDependencies": {
     "@vitest/coverage-v8": "^4.1.11",
     "vitest": "^4.1.11"

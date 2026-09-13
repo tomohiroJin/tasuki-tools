@@ -5,7 +5,7 @@
  * 実装は `Bun.serve`（S5・#20）。
  * 外から見える振る舞い（close コード・エラーコード・426）は ws 実装のときと同じ。
  *
- * ## 2 つのプロトコルを 1 本の待ち受けで捌く（#95 S2・D9 / D10）
+ * ## 3 つのメッセージ層を 1 本の待ち受けで捌く（#95 S2・S5a・D9 / D10）
  *
  * timer と poker の同期サーバーを 1 プロセスへ統合した。`Bun.serve` は 1 プロセスに
  * 1 つの `websocket` ハンドラしか持てないため、**接続層はここに 1 つだけ**置き、
@@ -16,14 +16,14 @@
  * | 接続層（このクラス） | Origin 検査・クライアント鍵・接続数上限・connId 採番・死活監視・フレーム上限 | **1 つになる**（接続数上限は D22 で値を決め直した） |
  * | メッセージ層 | パース・ディスパッチ・接続ごとのアプリ状態 | **プロトコルごとに分かれたまま** |
  *
- * 振り分けは**パスだけ**で行う（{@link POKER_WS_PATH}）。`/poker/ws` は poker、
- * **それ以外はすべて timer** である。「それ以外すべて」なのは統合前の timer が
- * パスを一切見ずに upgrade していたためで、ここを許可リストへ絞ると
- * 素のポート（`ws://host:port`）へ繋ぐ既存テストが軒並み落ちる。
+ * 振り分けは**パスだけ**で行う。`/poker/ws` は poker（{@link POKER_WS_PATH}）、
+ * `/ws` はハブ（{@link HUB_WS_PATH}・#95 S5a）、**それ以外はすべて timer** である。
+ * 「それ以外すべて」なのは統合前の timer がパスを一切見ずに upgrade していたためで、
+ * ここを許可リストへ絞ると素のポート（`ws://host:port`）へ繋ぐ既存テストが軒並み落ちる。
  * 移行期は `/ws`・`/timer/ws`・`/poker/ws` の 3 つを受ける（D10。S5c で `/ws` に畳む）。
  *
  * 統合前の poker は `url.pathname === '/ws'` 以外を 404 で返していた。その振る舞いは
- * **失われる**（`/poker/ws` 以外は timer 側として upgrade される）。poker へ届く経路は
+ * **失われる**（`/poker/ws` 以外は poker 以外の層として upgrade される）。poker へ届く経路は
  * Caddy 断片と vite の dev プロキシだけで、どちらも `/poker/ws` しか出さない。
  */
 
@@ -32,6 +32,7 @@ import { normalizeCommandNames } from "../application/normalize-command-names.js
 import type { Command, ServerMsg } from "@tasuki/timer-core";
 import { parseClientMessage } from "@tasuki/poker-core";
 import { parseBoundaryMessage } from "@tasuki/protocol";
+import type { HubServerMsg } from "@tasuki/room-core";
 import { classifyErrorKind } from "@tasuki/rate-limit";
 import type { Logger } from "../application/log/logger.js";
 import { publicText, type LogSafe } from "../application/log/log-safe.js";
@@ -44,10 +45,24 @@ import type { Handlers as PokerHandlers } from "../application/poker-handlers.js
  *
  * **本番の Caddy 断片（`deploy/poker/caddy/20-poker.conf`）は rewrite せずに
  * このパスのまま渡す。** 統合前は `/poker/ws` を `/ws` へ剥がしていたが、
- * 剥がすと timer と区別できなくなる（timer 側の断片は今も `/ws` へ剥がす）。
+ * 剥がすと timer と区別できなくなる。**#95 S5a からは timer 側の断片も剥がさない**
+ * （`/ws` がハブの入口になったため。{@link HUB_WS_PATH}）。
  * 一致は `apps/landing/tests/caddy-fragment-port.test.ts` が機械的に固定している。
  */
 const POKER_WS_PATH = "/poker/ws";
+
+/**
+ * ハブ（選択画面）のメッセージ層へ振り分けるパス。**小文字で書く**（照合は小文字化してから行う）。
+ *
+ * **S4b までここは timer だった。** 本番の Caddy 断片が `/timer/ws` を `/ws` へ rewrite
+ * していたためで、S5a でその rewrite を外した（`deploy/timer/caddy/10-timer-ws.conf`）。
+ * 外さずにここを足すと、**timer の接続がハブとして扱われ、timer の参加者一覧から
+ * 全員が消える**（在席の宣言は接続が来た入口が行うため。設計正本 D14・S5a の裁定）。
+ *
+ * **S5c（#249）でこの決まり方そのものが変わる** —— 入口が `/ws` 1 本に畳まれるので、
+ * そのときツールの宣言は wire か接続 URL のクエリへ移る。
+ */
+const HUB_WS_PATH = "/ws";
 
 /**
  * 振り分けの照合に使う形へパスを正規化する。
@@ -105,6 +120,17 @@ const DEFAULT_HEARTBEAT_MAX_MISSES = 2;
  */
 const ADMIN_HTTP_ALLOWED_HEADERS = ["x-admin-token"] as const;
 
+/**
+ * 接続層が自分で返す文言。**コードごとに 1 つだけ**にする（SC-035）。
+ *
+ * timer とハブで同じ事象（フレームが大きすぎる・内部エラー）に同じ言葉を返すので、
+ * それぞれの分岐に書き下ろすと、同じコードに 2 つの言い回しが生まれて片方だけが直る。
+ * **poker の文言はここに無い** —— あちらはコード体系そのものが違う
+ * （`message-too-large` / `@tasuki/poker-core` の ErrorCode）。
+ */
+const MESSAGE_TOO_LARGE_TEXT = "メッセージが大きすぎます";
+const INTERNAL_ERROR_TEXT = "サーバー内部でエラーが発生しました";
+
 /** `headers` のうち `allowed` に含まれるキーだけを取り出す（キーは小文字で比較）。 */
 function pickHeaders(headers: Headers, allowed: readonly string[]): Record<string, string> {
   const picked: Record<string, string> = {};
@@ -144,6 +170,13 @@ export interface WsAdapterOptions {
   maxConnections?: number;
   allowedOrigins: string[];
   onMessage: (connId: string, msg: unknown) => Promise<void>;
+  /**
+   * ハブ（選択画面）へ届いた生テキスト（#95 S5a）。
+   *
+   * **timer の `onMessage` と違い、パース前の文字列を渡す。** 境界の検証を
+   * メッセージ層（`application/hub-handlers.ts`）に置き、この層は経路とサイズだけを見る。
+   */
+  onHubMessage: (connId: string, raw: string) => Promise<void>;
   /**
    * 接続が閉じたときに呼ばれる（Origin / 接続数上限で弾いた接続は除く。
    * その場合はアプリ層へ「受け入れていない接続」を通知しない）。
@@ -221,8 +254,13 @@ interface ConnectionData {
   origin: string;
   /** `X-Forwarded-For` から導いた鍵。特定できなければ null。 */
   clientKey: string | null;
-  /** どちらのメッセージ層へ渡すか。upgrade の時点でパスから決まる。 */
-  protocol: "timer" | "poker";
+  /**
+   * どのメッセージ層へ渡すか。upgrade の時点でパスから決まる。
+   *
+   * `"hub"` は選択画面（#95 S5a）。**在席の宣言もここで決まる** —— ハブの接続は
+   * どのツールも宣言しない（`tool: null`）ので、ツールの参加者一覧には出ない。
+   */
+  protocol: "timer" | "poker" | "hub";
   /** レート制限の鍵（クライアント鍵。特定できなければ接続 ID）。受理まで空文字。 */
   rateKey: string;
   /** poker のみ使用。join 後に入る。 */
@@ -347,7 +385,9 @@ export class WsAdapter {
     const url = new URL(req.url);
     // 綴りの揺れ（大小・パーセント符号化）は `normalizeWsPath` が吸収する。
     // 理由と実測はその docstring にある。
-    const protocol = normalizeWsPath(url.pathname) === POKER_WS_PATH ? "poker" : "timer";
+    const path = normalizeWsPath(url.pathname);
+    const protocol =
+      path === POKER_WS_PATH ? "poker" : path === HUB_WS_PATH ? "hub" : "timer";
     if (
       server.upgrade(req, {
         data: {
@@ -456,6 +496,30 @@ export class WsAdapter {
     }
   }
 
+  /**
+   * ハブ（選択画面）の接続へ送る（#95 S5a）。
+   *
+   * **timer の {@link send} と分けてある。** 型が違う（`HubServerMsg`）だけでなく、
+   * 混ぜると「timer の snapshot をハブへ送る」経路が型検査を通ってしまう。
+   */
+  sendHub(connId: string, data: HubServerMsg): void {
+    const ws = this.connections.get(connId);
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(data));
+    }
+  }
+
+  /** ハブの接続へ一斉に送る。 */
+  broadcastHub(connIds: string[], data: HubServerMsg): void {
+    const json = JSON.stringify(data);
+    for (const connId of connIds) {
+      const ws = this.connections.get(connId);
+      if (ws?.readyState === WebSocket.OPEN) {
+        ws.send(json);
+      }
+    }
+  }
+
   broadcast(connIds: string[], data: ServerMsg): void {
     const json = JSON.stringify(data);
     for (const connId of connIds) {
@@ -557,11 +621,16 @@ export class WsAdapter {
       return;
     }
 
+    if (ws.data.protocol === "hub") {
+      this.handleHubMessage(ws, raw, bytes);
+      return;
+    }
+
     if (bytes > this.options.maxMessageBytes) {
       this.sendFrame(ws, {
         type: "error",
         code: "MESSAGE_TOO_LARGE",
-        message: "メッセージが大きすぎます",
+        message: MESSAGE_TOO_LARGE_TEXT,
       });
       return;
     }
@@ -677,6 +746,39 @@ export class WsAdapter {
    * `onMessage(...).catch(...)` から呼ばれるので、**利用者が切ったあとに走りうる**。
    */
   private sendFrame(ws: Socket, msg: ServerMsg): void {
+    if (ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify(msg));
+  }
+
+  /**
+   * ハブ（選択画面）のメッセージ層へ渡す（#95 S5a）。
+   *
+   * **境界のパースはメッセージ層が持つ**（`application/hub-handlers.ts` が
+   * `HubCommandSchema` で検める）。ここはサイズ制限だけを掛ける —— 大きすぎるフレームを
+   * パーサへ渡さないのは timer / poker と同じ規律である。
+   */
+  private handleHubMessage(ws: Socket, raw: string | Buffer, bytes: number): void {
+    if (bytes > this.options.maxMessageBytes) {
+      this.sendHubFrame(ws, {
+        type: "error",
+        code: "MESSAGE_TOO_LARGE",
+        message: MESSAGE_TOO_LARGE_TEXT,
+      });
+      return;
+    }
+    // メッセージ層の失敗でプロセス全体を落とさない（timer / poker の onMessage と同じ隔離）。
+    void this.options.onHubMessage(ws.data.connId, raw.toString()).catch((err: unknown) => {
+      this.options.logger.error("on-message-error", { name: classifyError(err) });
+      this.sendHubFrame(ws, {
+        type: "error",
+        code: "INTERNAL_ERROR",
+        message: INTERNAL_ERROR_TEXT,
+      });
+    });
+  }
+
+  /** ハブの接続へ 1 通送る（OPEN のときだけ）。 */
+  private sendHubFrame(ws: Socket, msg: HubServerMsg): void {
     if (ws.readyState !== WebSocket.OPEN) return;
     ws.send(JSON.stringify(msg));
   }

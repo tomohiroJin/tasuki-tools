@@ -30,6 +30,7 @@ import { testRateLimiter, TEST_MAX_ROOMS } from "./support/room-builder.js";
 import { testToolGate } from "./support/tool-gate.js";
 import { roomViewOf, putRoomView } from "./support/room-view.js";
 import type { SessionConfig } from "@tasuki/timer-core";
+import { spyHub } from "./support/hub.js";
 
 const soloConfig: SessionConfig = {
   language: "TypeScript",
@@ -71,7 +72,7 @@ describe("ソロの部屋からの退出（Issue #79）", () => {
     // （HandlerDeps.destroyRoom の docstring 参照）。
     let destroyRoom: (roomCode: string) => void;
     handlers = makeHandlers({
-      store, timers, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen(),
+      store, timers, clock: new FakeClock(1_000_000), broadcaster, hub: spyHub(), codeGen: new FakeCodeGen(),
       tokens: createTokenStore(),
       toolGate: testToolGate({ timers }),
       rateLimiter: testRateLimiter(),
@@ -174,6 +175,7 @@ describe("ソロの部屋からの退出（Issue #79）", () => {
       timers: spyTimers,
       clock: new FakeClock(1_000_000),
       broadcaster: spyBroadcaster,
+      hub: spyHub(),
       codeGen: new FakeCodeGen(),
       tokens: createTokenStore(),
       toolGate: testToolGate({ timers: spyTimers }),
@@ -248,7 +250,7 @@ describe("ソロ以外は挙動が変わらない（Issue #79）", () => {
     // （HandlerDeps.destroyRoom の docstring 参照）。
     let destroyRoom: (roomCode: string) => void;
     handlers = makeHandlers({
-      store, timers, clock: new FakeClock(1_000_000), broadcaster, codeGen: new FakeCodeGen(),
+      store, timers, clock: new FakeClock(1_000_000), broadcaster, hub: spyHub(), codeGen: new FakeCodeGen(),
       tokens: createTokenStore(),
       toolGate: testToolGate({ timers }),
       rateLimiter: testRateLimiter(),
@@ -360,6 +362,7 @@ describe("アイドル回収と在室者0人の退出は同じ後始末を通る
       timers,
       clock: new FakeClock(1_000_000),
       broadcaster,
+      hub: spyHub(),
       codeGen: new FakeCodeGen(),
       tokens: createTokenStore(),
       toolGate: testToolGate({ timers }),

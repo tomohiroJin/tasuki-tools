@@ -44,6 +44,7 @@ import type { IdGen } from '../../src/ports/poker-id-gen';
 import type { MonotonicClock } from '../../src/ports/poker-monotonic-clock';
 import type { RoomStore } from '../../src/ports/room-store';
 import { TOOL_POKER } from '../../src/application/tool-id.js';
+import { spyHub } from '../support/hub.js';
 
 /**
  * 名簿だけのルームを 1 つ作る（#95 S4a）。
@@ -134,6 +135,7 @@ describe('IdGen の差し替え（衝突再試行）', () => {
       toolGate: testToolGate({ rounds }),
       tokens: createTokenStore(),
       broadcaster: nullBroadcaster(),
+      hub: spyHub(),
       idGen,
       clock: fixedClock(0),
       wallClock: fixedClock(0),
@@ -180,6 +182,7 @@ describe('MonotonicClock の差し替え（レート制限の窓の境界）', (
       toolGate: testToolGate({ rounds }),
       tokens: createTokenStore(),
       broadcaster,
+      hub: spyHub(),
       idGen,
       clock,
       wallClock: fixedClock(0),
@@ -276,6 +279,7 @@ describe('RoomStore の差し替え（上限判定を実ルームなしで再現
       toolGate: testToolGate({ rounds }),
       tokens: createTokenStore(),
       broadcaster,
+      hub: spyHub(),
       idGen,
       clock: fixedClock(0),
       wallClock: fixedClock(0),
@@ -349,6 +353,7 @@ describe('RoomStore の差し替え（判定順序: 上限判定は切り離し�
       toolGate: testToolGate({ rounds }),
       tokens: createTokenStore(),
       broadcaster,
+      hub: spyHub(),
       idGen,
       clock: fixedClock(0),
       wallClock: fixedClock(0),
@@ -406,6 +411,7 @@ describe('RoomSocket の差し替え（配信の宛先と回数）', () => {
       toolGate: testToolGate({ rounds }),
       tokens: createTokenStore(),
       broadcaster,
+      hub: spyHub(),
       idGen,
       clock: fixedClock(0),
       wallClock: fixedClock(0),
@@ -461,6 +467,7 @@ describe('配線の穴 1: handleCreateRoom の resetRoom 呼び出し', () => {
       toolGate: testToolGate({ rounds }),
       tokens: createTokenStore(),
       broadcaster,
+      hub: spyHub(),
       idGen,
       clock: fixedClock(0),
       wallClock: fixedClock(0),
@@ -522,6 +529,7 @@ describe('配線の穴 2: detachFromCurrentRoom の早期 return での detach �
       toolGate: testToolGate({ rounds }),
       tokens: createTokenStore(),
       broadcaster,
+      hub: spyHub(),
       idGen,
       clock: fixedClock(0),
       wallClock: fixedClock(0),

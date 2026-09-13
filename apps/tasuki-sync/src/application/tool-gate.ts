@@ -14,12 +14,20 @@
  * 遅延生成に置き換わる** —— そのとき「入口で作られた印」は嘘になるが、
  * 「そのツールの状態があるか」はそのまま意味を持ち続ける。
  *
+ * ⏳ **ハブで作ったルームは timer の状態だけを持つ**（#95 S5a・2026-09-13 の裁定③）。
+ * したがって**選択画面から poker を選んでも、この門が閉じていて入れない**。
+ * S5b（#248）が「1 つのルームが両ツールを持つ」段なので、そこで poker のラウンドを
+ * 遅延生成する（＝この門を D8 の形へ置き換える）。**宛先は #248 の完了条件に書いた。**
+ *
  * ## 2 つの入口で同じ 1 個を使う
  *
  * 生成は配線（`create-sync-server.ts`）が 1 度だけ行い、timer の `makeHandlers` と
  * poker の `makeHandlers` の両方へ同じインスタンスを渡す。規則が 1 箇所にしか
  * 無いことが、片方の入口だけが直る／片方だけが緩む事故を防ぐ。
  */
+
+import type { ToolId } from "@tasuki/room-core";
+import { TOOL_POKER, TOOL_TIMER } from "./tool-id.js";
 
 /** 門が判定に使う材料。どちらも「そのルームにそのツールの状態があるか」だけを答える。 */
 export interface ToolGateDeps {
@@ -35,14 +43,23 @@ export interface ToolGate {
    *
    * **false のときの応答は「存在しないルーム」と完全に同一にすること**
    * （コード・文言・レート制限の積算まで）。呼び出し側の責務である。
+   *
+   * 引数は不透明な {@link ToolId}（#95 S5a）。**知らない綴りは開けない**（下の実装）。
+   * ハブ（`tool: null`）はここを通らない —— 選択画面はどのツールの状態も要求しないので、
+   * 呼び出し側（`join-room.ts`）が門そのものを飛ばす。
    */
-  canEnterVia(tool: "timer" | "poker", code: string): boolean;
+  canEnterVia(tool: ToolId, code: string): boolean;
 }
 
 export function createToolGate(deps: ToolGateDeps): ToolGate {
   return {
-    canEnterVia(tool: "timer" | "poker", code: string): boolean {
-      return tool === "timer" ? deps.hasTimerState(code) : deps.hasRound(code);
+    canEnterVia(tool: ToolId, code: string): boolean {
+      if (tool === TOOL_TIMER) return deps.hasTimerState(code);
+      if (tool === TOOL_POKER) return deps.hasRound(code);
+      // **知らない綴りの入口は開けない**（fail-closed）。値域を不透明な文字列へ広げた以上、
+      // 「timer でなければ poker」という書き方は、綴りを 1 文字間違えた入口を
+      // poker の門へ通してしまう。
+      return false;
     },
   };
 }

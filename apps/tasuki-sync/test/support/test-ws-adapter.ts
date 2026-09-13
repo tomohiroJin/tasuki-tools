@@ -47,12 +47,29 @@ export function unwiredPokerHandlers(): PokerMessageHandlers {
   };
 }
 
-/** 必須オプションのうち、接続層のテストが関心を持たない 3 つだけを任意にしたもの。 */
+/**
+ * 呼ばれたら失敗するハブのメッセージ層（#95 S5a）。「ここへ来るはずがない」を赤で示す。
+ *
+ * poker と同じ規律にしてある —— 既定を「何もしない」にすると、`/ws` へ繋いだ接続が
+ * 黙って無視され、経路の取り違えがテストから見えなくなる。
+ */
+export function unwiredHubHandler(): WsAdapterOptions["onHubMessage"] {
+  return () => {
+    throw new Error(
+      "ハブのメッセージ層が呼ばれました。" +
+        "接続層のテストは /ws へ繋がない想定です（test/support/test-ws-adapter.ts）。",
+    );
+  };
+}
+
+/** 必須オプションのうち、接続層のテストが関心を持たない 4 つだけを任意にしたもの。 */
 export type TestWsAdapterOptions = Omit<
   WsAdapterOptions,
-  "maxMessageBytes" | "maxFrameBytes" | "poker"
+  "maxMessageBytes" | "maxFrameBytes" | "poker" | "onHubMessage"
 > &
-  Partial<Pick<WsAdapterOptions, "maxMessageBytes" | "maxFrameBytes" | "poker">>;
+  Partial<
+    Pick<WsAdapterOptions, "maxMessageBytes" | "maxFrameBytes" | "poker" | "onHubMessage">
+  >;
 
 export function newTestWsAdapter(options: TestWsAdapterOptions): WsAdapter {
   return new WsAdapter({
@@ -60,5 +77,6 @@ export function newTestWsAdapter(options: TestWsAdapterOptions): WsAdapter {
     maxMessageBytes: options.maxMessageBytes ?? DEFAULT_MAX_MESSAGE_BYTES,
     maxFrameBytes: options.maxFrameBytes ?? DEFAULT_MAX_FRAME_BYTES,
     poker: options.poker ?? unwiredPokerHandlers(),
+    onHubMessage: options.onHubMessage ?? unwiredHubHandler(),
   });
 }

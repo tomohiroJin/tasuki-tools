@@ -123,12 +123,18 @@ export function presenceOf(participant: Participant): "online" | "offline" {
 }
 
 /**
- * そのツールへ配信すべき接続の一覧（宣言順）。
+ * その宛先へ配信すべき接続の一覧（宣言順）。
  *
  * **ツール別の配信範囲はここが決める**（設計正本 D4・§5.5 の `broadcastToTool`）。
  * ハブ（`tool: null`）の接続は、どのツールの配信先にも入らない。
+ *
+ * **`null` を渡すとハブ自身への配信先になる**（#95 S5a）。在席の導出
+ * （{@link isPresentIn}）は宣言の無い接続を「どのツールにも在席していない」と読み、
+ * こちらは同じ接続を「選択画面を見ている人」として宛先に数える。**同じ値が 2 つの
+ * 意味を持つのではなく、「宣言が無い」という 1 つの事実を、在席と配信がそれぞれの
+ * 向きから読んでいる。**
  */
-export function connectionsIn(room: Room, tool: ToolId): ConnId[] {
+export function connectionsIn(room: Room, tool: ToolId | null): ConnId[] {
   const ids: ConnId[] = [];
   for (const participant of room.participants) {
     for (const [connId, declared] of participant.connections) {

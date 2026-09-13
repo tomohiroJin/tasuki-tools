@@ -1,32 +1,26 @@
-diff --git a/apps/tasuki-sync/src/application/command-handlers/room-join.ts b/apps/tasuki-sync/src/application/command-handlers/room-join.ts
-index 77f6ac4..899e1a5 100644
---- a/apps/tasuki-sync/src/application/command-handlers/room-join.ts
-+++ b/apps/tasuki-sync/src/application/command-handlers/room-join.ts
-@@ -75,13 +75,6 @@ export function createRoomJoinHandler(deps: RoomJoinDeps) {
-     // 時計補正の影響を受けない（設計正本 D8）。`now` と取り違えないこと。
-     const rateNow = performance.now();
+diff --git a/apps/tasuki-sync/src/application/join-room.ts b/apps/tasuki-sync/src/application/join-room.ts
+index 1aba617..c2d313d 100644
+--- a/apps/tasuki-sync/src/application/join-room.ts
++++ b/apps/tasuki-sync/src/application/join-room.ts
+@@ -94,10 +94,6 @@ export function joinRoom(
+   // 時計補正の影響を受けない。`now` と取り違えないこと。
+   const rateNow = performance.now();
  
--    // **ルームを照会する前に判定する。** 照会してから判定すると、残量が無いときに
--    // ROOM_NOT_FOUND が返り、攻撃者はトークンを消費せずに存在確認を続けられる（設計正本 D3）。
--    if (rateLimitGate.shouldReject(connId, rateNow)) {
--      sendError(connId, "JOIN_RATE_LIMITED", errorMessageFor("JOIN_RATE_LIMITED"));
--      return err("JOIN_RATE_LIMITED");
--    }
+-  // **ルームを照会する前に判定する。** 照会してから判定すると、残量が無いときに
+-  // ROOM_NOT_FOUND が返り、攻撃者はトークンを消費せずに存在確認を続けられる（設計正本 D3）。
+-  if (rateLimitGate.shouldReject(input.connId, rateNow)) return err("JOIN_RATE_LIMITED");
 -
-     const room = store.get(cmd.code);
-     const timer = timers.get(cmd.code);
+   const room = store.get(input.code);
+   const timer = timers.get(input.code);
  
-@@ -92,6 +85,13 @@ export function createRoomJoinHandler(deps: RoomJoinDeps) {
-       return err("ROOM_NOT_FOUND");
-     }
+@@ -115,6 +111,10 @@ export function joinRoom(
+     return err("ROOM_NOT_FOUND");
+   }
  
-+    // **ルームを照会する前に判定する。** 照会してから判定すると、残量が無いときに
-+    // ROOM_NOT_FOUND が返り、攻撃者はトークンを消費せずに存在確認を続けられる（設計正本 D3）。
-+    if (rateLimitGate.shouldReject(connId, rateNow)) {
-+      sendError(connId, "JOIN_RATE_LIMITED", errorMessageFor("JOIN_RATE_LIMITED"));
-+      return err("JOIN_RATE_LIMITED");
-+    }
++  // **ルームを照会する前に判定する。** 照会してから判定すると、残量が無いときに
++  // ROOM_NOT_FOUND が返り、攻撃者はトークンを消費せずに存在確認を続けられる（設計正本 D3）。
++  if (rateLimitGate.shouldReject(input.connId, rateNow)) return err("JOIN_RATE_LIMITED");
 +
-     // リジューム処理
-     if (cmd.resumeToken) {
-       const tokenData = tokenStore.getResume(cmd.resumeToken);
+   // 復帰（同じ端末・同じルーム）。**接続を足す。前の接続を奪わない**（#95 S4b・D14）。
+   if (input.resumeToken) {
+     const tokenData = tokenStore.getResume(input.resumeToken);

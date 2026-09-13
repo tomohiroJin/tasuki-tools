@@ -1,7 +1,8 @@
 /**
  * 2 つの web の入室再試行方針が食い違っていないことを固定する（#147）。
  *
- * `apps/timer-web/src/sync/join-retry.ts` と `apps/poker-web/src/join-retry.ts` は
+ * `packages/sync-client/src/join-retry.ts`（#95 S5a で timer-web から移した）と
+ * `apps/poker-web/src/join-retry.ts` は
  * 同じ方針を持つが、**2 つの web の間に TypeScript を共有するパッケージが無い**ため
  * 写しで持っている（`@tasuki/ui` は CSS とトークンだけの入れ物で、TS を持たない）。
  *
@@ -25,7 +26,7 @@ function findRepoRoot(from: string): string {
 const REPO_ROOT = findRepoRoot(process.cwd());
 
 const COPIES = [
-  'apps/timer-web/src/sync/join-retry.ts',
+  'packages/sync-client/src/join-retry.ts',
   'apps/poker-web/src/join-retry.ts',
 ];
 

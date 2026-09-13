@@ -1,10 +1,15 @@
 /**
- * WS クライアント
- * T042: FR-007, FR-015, SC-001
- * snapshot 置き換え・clockOffset・指数バックオフ
+ * timer の同期クライアント（FR-007・FR-015・SC-001・T042）。
+ *
+ * **接続そのものは `@tasuki/sync-client` が持つ**（#95 S5a・D18）。ここに残るのは
+ * timer の語彙 —— サーバーメッセージの振り分け（`dispatch.ts`）と時計合わせ
+ * （`time.ping` / `clockOffset`）である。
+ *
+ * **送信キューをここに持たないこと。** 確立前のコマンドは `SyncConnection` が
+ * 1 つのキューで溜めており、ここにもう 1 つ置くと同じコマンドが 2 回出る。
  */
 
-import { ExponentialBackoff } from "./backoff.js";
+import { SyncConnection } from "@tasuki/sync-client";
 import { estimateClockOffset, type PingSample } from "./clock-offset.js";
 import { dispatchServerMessage } from "./dispatch.js";
 import type { NoticeSignal } from "./notice-message.js";
@@ -41,21 +46,28 @@ export interface SyncClientOptions {
 }
 
 export class SyncClient {
-  private ws: WebSocket | null = null;
   private readonly options: SyncClientOptions;
-  private readonly backoff = new ExponentialBackoff();
-  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly connection: SyncConnection;
   private _clockOffset = 0;
   private readonly pingSamples: PingSample[] = [];
   private pingTimer: ReturnType<typeof setInterval> | null = null;
-  private disposed = false;
-  /** OPEN 前に送ろうとしたメッセージのキュー（接続確立時にフラッシュする） */
-  private readonly pendingMessages: Record<string, unknown>[] = [];
-  /** 一度でも接続確立（onopen）したか。2回目以降の onopen が「再接続」の判定に使う。 */
-  private hasConnectedOnce = false;
 
   constructor(options: SyncClientOptions) {
     this.options = options;
+    this.connection = new SyncConnection({
+      url: options.url,
+      onMessage: (raw) => this.handleMessage(raw),
+      onOpen: () => {
+        this.options.onConnected?.();
+        this.startPingLoop();
+      },
+      onClose: () => {
+        this.stopPingLoop();
+        this.options.onDisconnected?.();
+      },
+      onReconnected: () => this.options.onReconnected?.(),
+      onConnectionChange: (state) => this.options.onConnectionChange?.(state),
+    });
   }
 
   /** サーバー時刻に補正された現在時刻 */
@@ -69,65 +81,17 @@ export class SyncClient {
   }
 
   connect(): void {
-    if (this.disposed) return;
-    this.ws = new WebSocket(this.options.url);
-
-    this.ws.onopen = () => {
-      // 2回目以降の onopen だけが「切断後の再接続」。初回はここで確立を記録するだけ。
-      const isReconnect = this.hasConnectedOnce;
-      this.hasConnectedOnce = true;
-      this.backoff.reset();
-      this.options.onConnected?.();
-      this.options.onConnectionChange?.("online");
-      this.startPingLoop();
-      // 接続確立前にキューされたメッセージをフラッシュする
-      const queued = this.pendingMessages.splice(0, this.pendingMessages.length);
-      for (const cmd of queued) {
-        this.ws?.send(JSON.stringify(cmd));
-      }
-      if (isReconnect) this.options.onReconnected?.();
-    };
-
-    this.ws.onmessage = (event: MessageEvent) => {
-      this.handleMessage(event.data);
-    };
-
-    this.ws.onclose = () => {
-      this.stopPingLoop();
-      // 破棄済みの close は「こちらから閉じた」結果であり、切断として通知しない（FR-086）。
-      // 通知すると、退出させられた側の画面で「ルームから退出しました。再参加するには…」が
-      // 「接続が切れました。再接続しています...」に上書きされ、退出した事実も再参加できる旨も
-      // 伝わらなくなる。しかも破棄済みなので再接続は行われず、その表示は事実にも反する。
-      if (this.disposed) return;
-      this.options.onDisconnected?.();
-      this.options.onConnectionChange?.("reconnecting");
-      this.scheduleReconnect();
-    };
-
-    this.ws.onerror = () => {
-      // onerror は onclose の前に呼ばれる
-    };
+    this.connection.connect();
   }
 
-  /** コマンドを送信する。未接続なら接続確立時までキューに退避する。 */
+  /** コマンドを送信する。未接続なら接続確立時までキューに退避する（`SyncConnection` が持つ）。 */
   send(cmd: Record<string, unknown>): void {
-    if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(cmd));
-    } else if (!this.disposed) {
-      // CONNECTING 中などはキューに積み、onopen でフラッシュする
-      this.pendingMessages.push(cmd);
-    }
+    this.connection.send(cmd);
   }
 
   dispose(): void {
-    this.disposed = true;
     this.stopPingLoop();
-    if (this.reconnectTimer !== null) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
-    this.ws?.close();
-    this.ws = null;
+    this.connection.dispose();
   }
 
   private handleMessage(data: unknown): void {
@@ -173,13 +137,5 @@ export class SyncClient {
       clearInterval(this.pingTimer);
       this.pingTimer = null;
     }
-  }
-
-  private scheduleReconnect(): void {
-    const delay = this.backoff.nextDelay();
-    this.reconnectTimer = setTimeout(() => {
-      this.reconnectTimer = null;
-      this.connect();
-    }, delay);
   }
 }

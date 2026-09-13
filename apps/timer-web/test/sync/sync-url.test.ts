@@ -81,18 +81,22 @@ describe("SYNC_PATH と本番の Caddy 断片", () => {
     expect(handled?.[1]).toBe(SYNC_PATH);
   });
 
-  it("Given 本番の断片 / When rewrite 先を読む / Then sync サーバーが待つ /ws に戻している", () => {
+  it("Given 本番の断片 / When rewrite を探す / Then 1 つも無い", () => {
     // Given: 本番へ設置される Caddy 断片
-    // When: sync へ渡す前の rewrite を読む
-    // Then: 公開パスを剥がして /ws に戻している
-    //
-    // ここが欠けると sync に /timer/ws がそのまま届く（timer-sync はパスを見ないので
-    // 今は通るが、sync が受けるパスを 1 つに保つのが意図）。
     const fragment = readFileSync(
       path.join(findRepoRoot(process.cwd()), "deploy/timer/caddy/10-timer-ws.conf"),
       "utf8",
     );
 
-    expect(fragment).toMatch(/^\s*rewrite\s+\*\s+\/ws\s*$/m);
+    // #95 S5a で `rewrite * /ws` を外した。
+    // When / Then: **剥がしてはならない。** `/ws` はハブ（選択画面）の入口になったので、
+    // ここで剥がすと timer の接続がハブとして扱われ、timer の参加者一覧から全員が消える
+    // （`apps/tasuki-sync/src/adapters/ws-adapter.ts` の HUB_WS_PATH）。
+    // コメント行は落として見る —— 経緯の説明に `rewrite` の語が出てくるため。
+    const body = fragment
+      .split("\n")
+      .filter((line) => !line.trim().startsWith("#"))
+      .join("\n");
+    expect(body).not.toMatch(/\brewrite\b/);
   });
 });

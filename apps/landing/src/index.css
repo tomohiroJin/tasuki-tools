@@ -191,3 +191,118 @@
     width: min(15rem, 68vw);
   }
 }
+
+/* ---------- ハブ（作成・参加・選択画面）・#95 S5a ---------- */
+
+/* 生の色・生の間隔は書かない。@tasuki/ui のトークンだけを使う。 */
+.hub-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: min(100%, 24rem);
+  margin: 0 auto;
+}
+
+.hub-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.hub-label {
+  font-size: 0.9rem;
+  color: var(--ivory-dim);
+}
+
+.hub-input,
+.hub-invite {
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-card, 0.5rem);
+  background: var(--felt-900);
+  color: var(--ivory);
+  font: inherit;
+}
+
+.hub-input:focus-visible,
+.hub-invite:focus-visible {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px var(--gold-tint);
+}
+
+.hub-submit {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--gold-deep);
+  border-radius: var(--radius-card, 0.5rem);
+  background: var(--gold);
+  color: var(--coal);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.hub-submit:hover,
+.hub-submit:focus-visible {
+  background: var(--gold-bright);
+}
+
+.hub-error {
+  color: var(--rose-bright);
+  font-size: 0.9rem;
+}
+
+.hub-notice {
+  color: var(--pewter);
+  font-size: 0.9rem;
+}
+
+.hub-room {
+  width: min(100%, 32rem);
+  margin: 0 auto 2rem;
+}
+
+.hub-heading {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ivory-dim);
+  margin: 1.5rem 0 0.5rem;
+}
+
+.hub-room-code {
+  font-family: var(--font-display);
+  color: var(--gold-bright);
+}
+
+.hub-roster {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.hub-participant {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card, 0.5rem);
+  color: var(--ivory);
+}
+
+/* 切断中の人は薄く出す（名簿からは消えない・設計正本 §3.13）。 */
+.hub-participant[data-presence='offline'] {
+  color: var(--ivory-faint);
+}
+
+.hub-participant-where {
+  font-size: 0.8rem;
+  color: var(--pewter);
+}
+
+.hub-invite {
+  width: 100%;
+}

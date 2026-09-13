@@ -38,10 +38,11 @@ export const WEB_ROOTS: readonly WebRoot[] = [
 
 /** 経路の本体。**内容を 1 バイトも書き換えずに**設置する。 */
 export const FRAGMENT_SOURCES: readonly string[] = [
+  // #95 S5a: ハブ（選択画面）の WS。旧救済断片（40-timer-legacy-room.conf）は同じ段で消えた。
+  'deploy/landing/caddy/05-hub-ws.conf',
   'deploy/timer/caddy/10-timer-ws.conf',
   'deploy/poker/caddy/20-poker.conf',
   'deploy/timer/caddy/30-timer-spa.conf',
-  'deploy/timer/caddy/40-timer-legacy-room.conf',
   'deploy/landing/caddy/90-landing.conf',
 ].map((rel) => path.join(REPO_ROOT, rel));
 

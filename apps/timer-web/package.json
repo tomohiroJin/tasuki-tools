@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@tasuki/room-core": "workspace:*",
+    "@tasuki/sync-client": "workspace:*",
     "@tasuki/timer-core": "workspace:*",
     "@tasuki/ui": "workspace:*",
     "lucide-react": "^1.28.0",

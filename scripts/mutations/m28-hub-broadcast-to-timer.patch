@@ -1,0 +1,13 @@
+diff --git a/apps/tasuki-sync/src/create-sync-server.ts b/apps/tasuki-sync/src/create-sync-server.ts
+index b65c4e1..5e167a5 100644
+--- a/apps/tasuki-sync/src/create-sync-server.ts
++++ b/apps/tasuki-sync/src/create-sync-server.ts
+@@ -149,7 +149,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
+    */
+   const hubRecipientsOf = (roomCode: string): string[] => {
+     const room = store.get(roomCode);
+-    return room ? connectionsIn(room, null) : [];
++    return room ? connectionsIn(room, "timer") : [];
+   };
+ 
+   const hubBroadcaster: HubBroadcaster = {
