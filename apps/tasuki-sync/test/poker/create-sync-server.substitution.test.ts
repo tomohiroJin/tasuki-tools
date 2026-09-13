@@ -394,9 +394,14 @@ describe('RoomSocket の差し替え（配信の宛先と回数）', () => {
       participantId: () => 'guest',
       token: () => 'gt',
     };
-    // **ラウンドも置く。** 名簿が timer と 1 つになった以上、名簿にあるだけでは
-    // 「poker のルーム」ではない —— 入口の門（`src/application/tool-gate.ts`）は
-    // ラウンドの有無で判定するので、置かないと join は room-not-found で拒まれる。
+    // **ラウンドも置く。** 見たいのは「配信の宛先と回数」なので、参加の前から
+    // 両室に投票中のラウンドがある状態を前提として与える。
+    //
+    // ⚠ **これは入室の条件ではない**（#95 S5b）。S4a〜S5a は入口の門
+    // （`src/application/tool-gate.ts`）がラウンドの有無で入室の可否を決めていたが、
+    // 門は廃止され、**ラウンドが無ければ入室時に作られる**（D8 の遅延生成。
+    // `src/application/poker-handlers.ts` の `loadState`）。いま入室を止めるのは
+    // 名簿の有無と合言葉の関門（`src/application/room-entry.ts`）である。
     const rounds = new InMemoryRoundStore();
     rounds.put('room01', createRound());
     rounds.put('room02', createRound());

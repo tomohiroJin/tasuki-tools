@@ -12,6 +12,9 @@ import { Session } from "../../src/ui/Session.js";
 import type { Room, Participant, SessionConfig } from "@tasuki/timer-core";
 import { aRoomView } from "../support/room-view.js";
 
+/** 参加用 URL は同期フックが組み立てる（#95 S5b）。画面へは値として渡す。 */
+const INVITE_URL_FOR_TEST = 'https://tasuki.example/?room=TEST';
+
 function makeParticipant(overrides: Partial<Participant>): Participant {
   return {
     participantId: "p1", displayName: "Alice", presence: "online", hasAiKey: false, joinedAt: 1000, ...overrides,
@@ -44,12 +47,12 @@ function handlers() {
 
 describe("Session 休憩UI撤去確認（§9.1 削除後）", () => {
   it("休憩ボタンが存在しない", () => {
-    render(<Session room={makeRoom(false)} participantId="p-alice" {...handlers()} />);
+    render(<Session inviteUrl={INVITE_URL_FOR_TEST} room={makeRoom(false)} participantId="p-alice" {...handlers()} />);
     expect(screen.queryByRole("button", { name: /休憩/ })).toBeNull();
   });
 
   it("onBreak=true でも『休憩中』バナーが表示されない", () => {
-    render(<Session room={makeRoom(true)} participantId="p-alice" {...handlers()} />);
+    render(<Session inviteUrl={INVITE_URL_FOR_TEST} room={makeRoom(true)} participantId="p-alice" {...handlers()} />);
     expect(screen.queryByText(/休憩中/)).toBeNull();
   });
 });

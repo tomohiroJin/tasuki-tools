@@ -105,7 +105,7 @@ describe("アクセシビリティ", () => {
     it("InvitePanel のコピー操作は aria-label でアクセシブル名を持つ", () => {
       // Given
       // When
-      render(<InvitePanel code="ABC123" />);
+      render(<InvitePanel code="ABC123" roomUrl="https://tasuki.example/?room=ABC123" />);
       // Then
       expect(
         screen.getByRole("button", { name: "ルームコードをコピー" }),

@@ -94,6 +94,28 @@ describe('ハブの同期', () => {
     expect(new URL(window.location.href).searchParams.get('room')).toBe('朝会モブ-a1b2');
   });
 
+  it('Given 作成の応答 / When 選択画面を見る / Then 配る URL はルート直下の ?room= である', () => {
+    // Given: ルームができた（コードはサーバーが決める）
+    render(<App />);
+    act(() => socket().open());
+
+    // When
+    act(() => {
+      socket().deliver({
+        type: 'room.created',
+        code: '朝会モブ-a1b2',
+        participantId: 'p1',
+        resumeToken: 't1',
+      });
+    });
+
+    // Then: **組み立ては同期フックの責務**（画面は受け取って描くだけ）。
+    //       ツールの配下ではなくルート直下であること（D11・`docs/adr/0018` 決定 2）
+    const invite = screen.getByLabelText('参加用 URL') as HTMLInputElement;
+    expect(new URL(invite.value).pathname).toBe('/');
+    expect(new URL(invite.value).searchParams.get('room')).toBe('朝会モブ-a1b2');
+  });
+
   it('Given ルームを作った直後 / When room.created が届く / Then 接続は張り直されない', () => {
     // Given（準備）: 作成の時点では URL に room が無い
     render(<App />);

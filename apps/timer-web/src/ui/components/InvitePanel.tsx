@@ -5,12 +5,15 @@
 import React, { useEffect, useState } from "react";
 import { Copy, Check } from "lucide-react";
 import { Card, GhostButton } from "../primitives.js";
-import { buildInviteUrl } from "@tasuki/sync-client";
 
-export function InvitePanel({ code }: { code: string }) {
+/**
+ * `roomUrl` は**同期フックが組み立てたものを受け取る**（#95 S5b）。
+ * 画面（`.tsx`）は同期クライアントを直接 import しない —— 層の対応表
+ * （`docs/guides/architecture.md`）と `docs/adr/0015`。
+ */
+export function InvitePanel({ code, roomUrl }: { code: string; roomUrl: string }) {
   const [copied, setCopied] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
-  const roomUrl = buildInviteUrl(window.location.origin, code);
 
   const copyText = async (text: string) => {
     if (!navigator.clipboard?.writeText) return;

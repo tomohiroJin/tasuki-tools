@@ -11,6 +11,9 @@ import { Session } from "../../src/ui/Session.js";
 import type { Room, Participant, SessionConfig } from "@tasuki/timer-core";
 import { aRoomView } from "../support/room-view.js";
 
+/** 参加用 URL は同期フックが組み立てる（#95 S5b）。画面へは値として渡す。 */
+const INVITE_URL_FOR_TEST = 'https://tasuki.example/?room=TEST';
+
 function makeParticipant(overrides: Partial<Participant>): Participant {
   return {
     participantId: "p1",
@@ -72,7 +75,7 @@ describe("Session × InvitePanel 結合", () => {
     // user-event v14 は setup() 時に navigator.clipboard を独自 stub に差し替えるため、
     // setup() 後に spyOn で writeText を差し込む
     const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue(undefined);
-    render(<Session room={makeRoom()} participantId="p-alice" {...baseHandlers()} />);
+    render(<Session inviteUrl={INVITE_URL_FOR_TEST} room={makeRoom()} participantId="p-alice" {...baseHandlers()} />);
 
     // When
     await user.click(screen.getByRole("tab", { name: "ルーム" }));
@@ -80,12 +83,13 @@ describe("Session × InvitePanel 結合", () => {
 
     // Then
     // 公開パス配下を指すこと（ルート直下だと玄関 LP に着地する・#76 F-1）
-    expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/?room=ABC123`);
+    // **画面へ渡された URL をそのまま配ること**（組み立ては同期フックの責務・#95 S5b）。
+    expect(writeText).toHaveBeenCalledWith(INVITE_URL_FOR_TEST);
   });
 
   it("デフォルトは「セッション」タブが表示される", () => {
     // Given
-    render(<Session room={makeRoom()} participantId="p-alice" {...baseHandlers()} />);
+    render(<Session inviteUrl={INVITE_URL_FOR_TEST} room={makeRoom()} participantId="p-alice" {...baseHandlers()} />);
     // Then（タイマーが「セッション」タブのデフォルト表示として存在する）
     expect(screen.getByRole("timer")).toBeTruthy();
   });
@@ -93,7 +97,7 @@ describe("Session × InvitePanel 結合", () => {
   it("「ルーム」タブにルームコード ABC123 が表示される", async () => {
     // Given
     const user = userEvent.setup();
-    render(<Session room={makeRoom()} participantId="p-alice" {...baseHandlers()} />);
+    render(<Session inviteUrl={INVITE_URL_FOR_TEST} room={makeRoom()} participantId="p-alice" {...baseHandlers()} />);
     // When
     await user.click(screen.getByRole("tab", { name: "ルーム" }));
     // Then

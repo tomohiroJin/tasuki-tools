@@ -26,7 +26,7 @@ import {
   RETRY_WAITING_WITHOUT_NAME_TEXT,
 } from '../src/join-retry-plan';
 import { joinRetryDelayMs } from '@tasuki/sync-client';
-import { saveResumeIdentity } from '@tasuki/sync-client';
+import { clearResumeIdentity, loadResumeIdentity, saveResumeIdentity } from '@tasuki/sync-client';
 
 /**
  * 諦めるまでの試行回数を、**公開された振る舞いから導く**。
@@ -77,6 +77,11 @@ function makeSync(over: Partial<PokerSync> = {}): PokerSync {
     syncStale: false,
     error: null,
     clearError: vi.fn(),
+    // **保存の読み書きは本物を通す。** ここを偽物にすると、保存済みの組で入り直す
+    // 経路（#147）が「保存を読んでいるか」を確かめられなくなる。
+    storedIdentity: loadResumeIdentity,
+    forgetIdentity: clearResumeIdentity,
+    inviteUrl: (roomId: string) => `https://example.test/?room=${roomId}`,
     createRoom: vi.fn(),
     joinRoom,
     checkRoom,

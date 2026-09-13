@@ -36,6 +36,8 @@ import { loadNotifyHintSeen, saveNotifyHintSeen } from "../prefs/local-prefs.js"
 
 interface SessionProps {
   room: Room;
+  /** 参加用 URL（組み立ては同期フックが持つ。画面は受け取って渡すだけ・#95 S5b）。 */
+  inviteUrl: string;
   participantId: string;
   clockOffset?: number;
   /** お題の代表生成を待っている間 true（共有時のみ）。生成中表示に使う */
@@ -90,6 +92,7 @@ const URGENT_THRESHOLD_SECONDS = 10;
 
 export function Session({
   room,
+  inviteUrl,
   participantId,
   clockOffset = 0,
   awaitingProblem = false,
@@ -440,7 +443,7 @@ export function Session({
             label: "ルーム",
             content: (
               <div className="space-y-6">
-                <InvitePanel code={room.code} />
+                <InvitePanel code={room.code} roomUrl={inviteUrl} />
                 {/* ルームのパスフレーズ設定/解除（R4-2）。招待のすぐ下に置く。 */}
                 {onSetPassphrase && (
                   <Card>

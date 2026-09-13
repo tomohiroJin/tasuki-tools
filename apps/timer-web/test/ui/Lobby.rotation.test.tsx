@@ -11,6 +11,9 @@ import { Lobby } from "../../src/ui/Lobby.js";
 import type { Room, Participant } from "@tasuki/timer-core";
 import { aRoomView } from "../support/room-view.js";
 
+/** 参加用 URL は同期フックが組み立てる（#95 S5b）。画面へは値として渡す。 */
+const INVITE_URL_FOR_TEST = 'https://tasuki.example/?room=TEST';
+
 function p(overrides: Partial<Participant>): Participant {
   return {
     participantId: "x", displayName: "X", presence: "online", hasAiKey: false, joinedAt: 1, ...overrides,
@@ -35,7 +38,7 @@ const noop = vi.fn();
  */
 describe("Lobby ドライバー加入トグル", () => {
   it("ローテーション未加入の自分には「ドライバーに加わる」が出る", () => {
-    render(<Lobby room={makeRoom()} participantId="bob-p" onStartSession={noop} />);
+    render(<Lobby inviteUrl={INVITE_URL_FOR_TEST} room={makeRoom()} participantId="bob-p" onStartSession={noop} />);
     expect(screen.getByRole("button", { name: /ドライバーに加わる/ })).toBeTruthy();
   });
 
@@ -43,7 +46,7 @@ describe("Lobby ドライバー加入トグル", () => {
     // Given
     const onJoinRotation = vi.fn();
     render(
-      <Lobby room={makeRoom()} participantId="bob-p" onStartSession={noop} onJoinRotation={onJoinRotation} />,
+      <Lobby inviteUrl={INVITE_URL_FOR_TEST} room={makeRoom()} participantId="bob-p" onStartSession={noop} onJoinRotation={onJoinRotation} />,
     );
     // When
     fireEvent.click(screen.getByRole("button", { name: /ドライバーに加わる/ }));
@@ -59,7 +62,7 @@ describe("Lobby ドライバー加入トグル", () => {
     room.session.rotation = ["creator-p", "bob-p"];
     room.session.driverCounts = [0, 0];
     render(
-      <Lobby room={room} participantId="creator-p" onStartSession={noop} onLeaveRotation={onLeaveRotation} />,
+      <Lobby inviteUrl={INVITE_URL_FOR_TEST} room={room} participantId="creator-p" onStartSession={noop} onLeaveRotation={onLeaveRotation} />,
     );
     // When
     fireEvent.click(screen.getByRole("button", { name: /列から外れる|外れる/ }));
@@ -71,7 +74,7 @@ describe("Lobby ドライバー加入トグル", () => {
     // Given（Alice 視点。Bob は rotation 未加入＝輪の外）
     const onJoinRotation = vi.fn();
     render(
-      <Lobby room={makeRoom()} participantId="creator-p" onStartSession={noop} onJoinRotation={onJoinRotation} />,
+      <Lobby inviteUrl={INVITE_URL_FOR_TEST} room={makeRoom()} participantId="creator-p" onStartSession={noop} onJoinRotation={onJoinRotation} />,
     );
     // When
     fireEvent.click(screen.getByRole("button", { name: "Bob をドライバーに追加" }));
@@ -86,7 +89,7 @@ describe("Lobby ドライバー加入トグル", () => {
     room.session.rotation = ["creator-p", "bob-p"];
     room.session.driverCounts = [0, 0];
     render(
-      <Lobby room={room} participantId="creator-p" onStartSession={noop} onMoveRotation={onMoveRotation} />,
+      <Lobby inviteUrl={INVITE_URL_FOR_TEST} room={room} participantId="creator-p" onStartSession={noop} onMoveRotation={onMoveRotation} />,
     );
     // When（Bob（rotation index 1）を前の順番へ → move(1, 0)）
     fireEvent.click(screen.getByRole("button", { name: "Bob を前の順番へ" }));
@@ -101,7 +104,7 @@ describe("Lobby ドライバー加入トグル", () => {
     room.session.rotation = ["creator-p", "bob-p"];
     room.session.driverCounts = [0, 0];
     render(
-      <Lobby room={room} participantId="creator-p" onStartSession={noop} onShuffle={onShuffle} />,
+      <Lobby inviteUrl={INVITE_URL_FOR_TEST} room={room} participantId="creator-p" onStartSession={noop} onShuffle={onShuffle} />,
     );
     // When
     fireEvent.click(screen.getByRole("button", { name: /ランダム/ }));
@@ -116,7 +119,7 @@ describe("Lobby ドライバー加入トグル", () => {
     room.session.driverCounts = [0, 0];
     // When
     render(
-      <Lobby room={room} participantId="bob-p" onStartSession={noop} onShuffle={vi.fn()} />,
+      <Lobby inviteUrl={INVITE_URL_FOR_TEST} room={room} participantId="bob-p" onStartSession={noop} onShuffle={vi.fn()} />,
     );
     // Then
     expect(screen.getByRole("button", { name: /ランダム/ })).toBeTruthy();
@@ -127,7 +130,7 @@ describe("Lobby ドライバー加入トグル", () => {
     const room = makeRoom();
     // When
     render(
-      <Lobby room={room} participantId="creator-p" onStartSession={noop} onShuffle={vi.fn()} />,
+      <Lobby inviteUrl={INVITE_URL_FOR_TEST} room={room} participantId="creator-p" onStartSession={noop} onShuffle={vi.fn()} />,
     );
     // Then
     expect(screen.queryByRole("button", { name: /ランダム/ })).toBeNull();
@@ -159,7 +162,7 @@ describe("Lobby 同名参加者の区別", () => {
   it("同名2名の操作ボタンが互いに異なるラベルになる", () => {
     // Given
     render(
-      <Lobby
+      <Lobby inviteUrl={INVITE_URL_FOR_TEST}
         room={makeDupRoom()}
         participantId="creator-p"
         onStartSession={noop}
@@ -181,7 +184,7 @@ describe("Lobby 同名参加者の区別", () => {
   it("同名がいると行の表示名にも識別子が出る（目で見ても区別できる）", () => {
     // Given（makeDupRoom: Bob が2名いる部屋）
     // When
-    render(<Lobby room={makeDupRoom()} participantId="creator-p" onStartSession={noop} />);
+    render(<Lobby inviteUrl={INVITE_URL_FOR_TEST} room={makeDupRoom()} participantId="creator-p" onStartSession={noop} />);
     // Then
     expect(screen.queryByText("Bob")).toBeNull();
     expect(screen.getByText("Bob（ID: 0002）")).toBeTruthy();
@@ -192,7 +195,7 @@ describe("Lobby 同名参加者の区別", () => {
     // Given（makeRoom: 同名のいない通常の部屋）
     // When
     render(
-      <Lobby
+      <Lobby inviteUrl={INVITE_URL_FOR_TEST}
         room={makeRoom()}
         participantId="creator-p"
         onStartSession={noop}
@@ -225,7 +228,7 @@ describe("Lobby 同名参加者の区別", () => {
   it("同名3名の操作ボタンが互いに異なるラベルになる", () => {
     // Given
     render(
-      <Lobby
+      <Lobby inviteUrl={INVITE_URL_FOR_TEST}
         room={makeTripleDupRoom()}
         participantId="creator-p"
         onStartSession={noop}
@@ -248,7 +251,7 @@ describe("Lobby 同名参加者の区別", () => {
   it("同名3名がいると行の表示名にも識別子が出る（目で見ても区別できる）", () => {
     // Given（makeTripleDupRoom: Bob が3名いる部屋）
     // When
-    render(<Lobby room={makeTripleDupRoom()} participantId="creator-p" onStartSession={noop} />);
+    render(<Lobby inviteUrl={INVITE_URL_FOR_TEST} room={makeTripleDupRoom()} participantId="creator-p" onStartSession={noop} />);
     // Then
     expect(screen.queryByText("Bob")).toBeNull();
     expect(screen.getByText("Bob（ID: 0002）")).toBeTruthy();
@@ -273,7 +276,7 @@ describe("Lobby 退出の確認", () => {
     // Given
     const onRemoveParticipant = vi.fn();
     render(
-      <Lobby
+      <Lobby inviteUrl={INVITE_URL_FOR_TEST}
         room={makeRoomWithGuest()}
         participantId="creator-p"
         onStartSession={noop}
@@ -290,7 +293,7 @@ describe("Lobby 退出の確認", () => {
   it("確認ダイアログに対象者の名前と再参加できる旨を出す", () => {
     // Given
     render(
-      <Lobby
+      <Lobby inviteUrl={INVITE_URL_FOR_TEST}
         room={makeRoomWithGuest()}
         participantId="creator-p"
         onStartSession={noop}
@@ -311,7 +314,7 @@ describe("Lobby 退出の確認", () => {
     // Given
     const onRemoveParticipant = vi.fn();
     render(
-      <Lobby
+      <Lobby inviteUrl={INVITE_URL_FOR_TEST}
         room={makeRoomWithGuest()}
         participantId="creator-p"
         onStartSession={noop}
@@ -329,7 +332,7 @@ describe("Lobby 退出の確認", () => {
     // Given
     const onRemoveParticipant = vi.fn();
     render(
-      <Lobby
+      <Lobby inviteUrl={INVITE_URL_FOR_TEST}
         room={makeRoomWithGuest()}
         participantId="creator-p"
         onStartSession={noop}
@@ -356,7 +359,7 @@ describe("Lobby 確認ダイアログの陳腐化", () => {
     // Given
     const room = roomWithBob();
     const { rerender } = render(
-      <Lobby room={room} participantId="creator-p" onStartSession={noop} onRemoveParticipant={vi.fn()} />,
+      <Lobby inviteUrl={INVITE_URL_FOR_TEST} room={room} participantId="creator-p" onStartSession={noop} onRemoveParticipant={vi.fn()} />,
     );
     fireEvent.click(screen.getByLabelText("Bob を退出させる"));
     expect(screen.getByRole("dialog").textContent).toContain("Bob さん");
@@ -368,7 +371,7 @@ describe("Lobby 確認ダイアログの陳腐化", () => {
       ),
     };
     rerender(
-      <Lobby room={renamed} participantId="creator-p" onStartSession={noop} onRemoveParticipant={vi.fn()} />,
+      <Lobby inviteUrl={INVITE_URL_FOR_TEST} room={renamed} participantId="creator-p" onStartSession={noop} onRemoveParticipant={vi.fn()} />,
     );
     // Then
     expect(screen.getByRole("dialog").textContent).toContain("Bobby さん");
@@ -378,7 +381,7 @@ describe("Lobby 確認ダイアログの陳腐化", () => {
     // Given
     const room = roomWithBob();
     const { rerender } = render(
-      <Lobby room={room} participantId="creator-p" onStartSession={noop} onRemoveParticipant={vi.fn()} />,
+      <Lobby inviteUrl={INVITE_URL_FOR_TEST} room={room} participantId="creator-p" onStartSession={noop} onRemoveParticipant={vi.fn()} />,
     );
     fireEvent.click(screen.getByLabelText("Bob を退出させる"));
     expect(screen.getByRole("dialog")).toBeTruthy();
@@ -388,7 +391,7 @@ describe("Lobby 確認ダイアログの陳腐化", () => {
       participants: room.participants.filter((p) => p.participantId !== "bob-p"),
     };
     rerender(
-      <Lobby room={gone} participantId="creator-p" onStartSession={noop} onRemoveParticipant={vi.fn()} />,
+      <Lobby inviteUrl={INVITE_URL_FOR_TEST} room={gone} participantId="creator-p" onStartSession={noop} onRemoveParticipant={vi.fn()} />,
     );
     // Then
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -417,7 +420,7 @@ describe("Lobby 新設しない操作の不在", () => {
       ],
     };
     // When
-    render(<Lobby room={dupRoom} participantId="creator-p" onStartSession={noop} />);
+    render(<Lobby inviteUrl={INVITE_URL_FOR_TEST} room={dupRoom} participantId="creator-p" onStartSession={noop} />);
     // Then
     const labels = screen.getAllByRole("button").map((b) => b.getAttribute("aria-label") ?? "");
     expect(labels.some((a) => a.includes("をドライバーにする"))).toBe(false);

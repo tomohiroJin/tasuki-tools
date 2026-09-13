@@ -131,6 +131,27 @@ describe('SyncConnection', () => {
     expect(FakeWebSocket.instances).toHaveLength(3);
   });
 
+  it('Given 待ち時間を指定した接続 / When 切断される / Then 既定ではなくその値で待つ', () => {
+    // Given: poker は公開以来 500ms から始める（#95 S5b で実装を寄せても値は保った）
+    const conn = new SyncConnection({
+      url: 'ws://example/ws',
+      onMessage: () => {},
+      backoff: { initialDelayMs: 500, maxDelayMs: 5_000 },
+    });
+    conn.connect();
+    latest().open();
+
+    // When: 切断され、既定（1 秒）の半分だけ待つ
+    latest().onclose?.();
+    vi.advanceTimersByTime(499);
+    const beforeDeadline = FakeWebSocket.instances.length;
+    vi.advanceTimersByTime(1);
+
+    // Then: 既定を受けていれば、この時点ではまだ繋ぎ直していない
+    expect(beforeDeadline).toBe(1);
+    expect(FakeWebSocket.instances).toHaveLength(2);
+  });
+
   it('Given 確立後に切断 / When 状態の変化を見る / Then online と reconnecting が順に通知される', () => {
     // Given
     const states: string[] = [];

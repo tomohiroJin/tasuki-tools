@@ -17,6 +17,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   SyncConnection,
+  buildInviteUrl,
   clearResumeIdentity,
   joinRetryDelayMs,
   loadDefaultDisplayName,
@@ -50,6 +51,14 @@ export interface HubSync {
   readonly needsPassphrase: boolean;
   /** 接続の状態。 */
   readonly connection: 'online' | 'reconnecting';
+  /**
+   * いま映しているルームの参加用 URL（未参加なら null）。
+   *
+   * 組み立ては `@tasuki/sync-client` に 1 つだけあり、**それを取り込むのはこのフックの
+   * 仕事である** —— 画面（`.tsx`）は同期クライアントを直接 import しない
+   * （`docs/guides/architecture.md` の層の対応表・`docs/adr/0015`）。
+   */
+  readonly inviteUrl: string | null;
   createRoom(roomName: string, displayName: string): void;
   joinRoom(displayName: string, passphrase?: string): void;
 }
@@ -245,6 +254,7 @@ export function useHubSync(): HubSync {
   return {
     code,
     joined,
+    inviteUrl: code === null ? null : buildInviteUrl(window.location.origin, code),
     roster,
     defaultDisplayName,
     error,

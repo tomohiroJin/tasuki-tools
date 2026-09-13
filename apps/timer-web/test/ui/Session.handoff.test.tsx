@@ -14,6 +14,9 @@ import { Session } from "../../src/ui/Session.js";
 import type { Room, Participant, SessionConfig } from "@tasuki/timer-core";
 import { aRoomView } from "../support/room-view.js";
 
+/** 参加用 URL は同期フックが組み立てる（#95 S5b）。画面へは値として渡す。 */
+const INVITE_URL_FOR_TEST = 'https://tasuki.example/?room=TEST';
+
 function makeParticipant(overrides: Partial<Participant>): Participant {
   return {
     participantId: "p1",
@@ -72,7 +75,7 @@ describe("Session 引き継ぎノート入力（§9.1）", () => {
   it("共有メモの入力欄が表示される（「編集」クリック後）", () => {
     // Given
     render(
-      <Session
+      <Session inviteUrl={INVITE_URL_FOR_TEST}
         room={makeRoom()}
         participantId="p-alice"
         {...baseHandlers()}
@@ -90,7 +93,7 @@ describe("Session 引き継ぎノート入力（§9.1）", () => {
     // Given
     const onHandoffNoteSet = vi.fn();
     render(
-      <Session
+      <Session inviteUrl={INVITE_URL_FOR_TEST}
         room={makeRoom()}
         participantId="p-alice"
         {...baseHandlers()}
@@ -109,7 +112,7 @@ describe("Session 引き継ぎノート入力（§9.1）", () => {
   it("既存のメモは入力欄の初期値として反映される", () => {
     // Given
     render(
-      <Session
+      <Session inviteUrl={INVITE_URL_FOR_TEST}
         room={makeRoom({ handoffNote: "次はバリデーションから" })}
         participantId="p-alice"
         {...baseHandlers()}
@@ -126,7 +129,7 @@ describe("Session 引き継ぎノート入力（§9.1）", () => {
   it("輪の外の在席者でもメモを読めて、編集にも入れる", () => {
     // Given（かつては役割が viewer の人に読み取り専用表示を返していた・#95 S3 で廃止）
     render(
-      <Session
+      <Session inviteUrl={INVITE_URL_FOR_TEST}
         room={makeRoom({ handoffNote: "残りはリファクタ" })}
         participantId="p-bob"
         {...baseHandlers()}

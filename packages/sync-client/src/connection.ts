@@ -22,7 +22,7 @@
  * 「ルームから退出しました」が「接続が切れました。再接続しています...」に上書きされ、
  * しかも再接続は起きないので表示が事実にも反する。
  */
-import { ExponentialBackoff } from "./backoff.js";
+import { ExponentialBackoff, type BackoffOptions } from "./backoff.js";
 
 export interface SyncConnectionOptions {
   /** 繋ぎ先。`wss://host/ws` のような完全な URL。 */
@@ -44,11 +44,20 @@ export interface SyncConnectionOptions {
   readonly onReconnected?: () => void;
   /** 接続状態の変化。`online`＝確立、`reconnecting`＝切断後の再接続待ち。 */
   readonly onConnectionChange?: (state: "online" | "reconnecting") => void;
+  /**
+   * 再接続の待ち時間（省略時は {@link ExponentialBackoff} の既定）。
+   *
+   * **待ち方の実装は 1 つ、値は利用側が決める。** poker は公開以来 500ms / 上限 5 秒で
+   * 運用しており、#95 S5b で接続の実装をこのパッケージへ寄せたときも**その値を保った**
+   * —— 実装を共有することと、利用者が体感する待ち時間を変えることは別の判断である。
+   * timer とハブは既定（1 秒 / 上限 30 秒）のまま。**どちらに揃えるかは別途決める。**
+   */
+  readonly backoff?: Partial<BackoffOptions>;
 }
 
 export class SyncConnection {
   private ws: WebSocket | null = null;
-  private readonly backoff = new ExponentialBackoff();
+  private readonly backoff: ExponentialBackoff;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private disposed = false;
   /** OPEN 前に送ろうとしたメッセージ（確立時に流す）。 */
@@ -56,7 +65,9 @@ export class SyncConnection {
   /** 一度でも確立したか。2 回目以降の `onopen` が「再接続」の判定に使う。 */
   private hasConnectedOnce = false;
 
-  constructor(private readonly options: SyncConnectionOptions) {}
+  constructor(private readonly options: SyncConnectionOptions) {
+    this.backoff = new ExponentialBackoff(options.backoff ?? {});
+  }
 
   connect(): void {
     if (this.disposed) return;

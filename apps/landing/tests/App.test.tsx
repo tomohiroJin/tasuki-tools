@@ -83,23 +83,40 @@ describe('選択画面', () => {
     ],
   };
 
-  it('Given 参加済み / When 選択画面を見る / Then ルーム名・参加者・参加用 URL が揃う', () => {
+  /**
+   * 画面へ渡す参加用 URL。**組み立ては画面の責務ではない**（#95 S5b で同期フックへ移した）。
+   * 形そのもの（ルート直下の `?room=`）は `@tasuki/sync-client` の単体テストと
+   * `tests/hub/use-hub-sync.test.tsx` が見る。ここが見るのは「渡されたものを描くか」である。
+   */
+  const INVITE_URL = `https://tasuki.example/?room=${encodeURIComponent('朝会モブ-a1b2')}`;
+
+  it('Given 参加済み / When 選択画面を見る / Then ルーム名・参加者・受け取った参加用 URL が出る', () => {
     // Given（準備）: 名簿が届いている
-    render(<RoomChoice code="朝会モブ-a1b2" roster={roster} connection="online" />);
+    render(<RoomChoice
+        code="朝会モブ-a1b2"
+        inviteUrl={INVITE_URL}
+        roster={roster}
+        connection="online"
+      />);
 
     // When（操作）: 配る URL を読む
     const invite = screen.getByLabelText('参加用 URL');
 
-    // Then: **ルート直下の ?room=** である（ツールの配下ではない・D11）
+    // Then: 受け取った URL をそのまま出す（形の正しさは組み立て側の検査が見る）
     expect(screen.getByRole('list', { name: '参加者' })).toHaveTextContent('あや');
-    expect((invite as HTMLInputElement).value).toContain(`/?room=${encodeURIComponent('朝会モブ-a1b2')}`);
+    expect((invite as HTMLInputElement).value).toBe(INVITE_URL);
   });
 
   it('Given 参加済み / When 札を見る / Then ルームコードつきの遷移先になる', () => {
     // Given（準備）: 名簿が届いている
 
     // When（操作）
-    render(<RoomChoice code="朝会モブ-a1b2" roster={roster} connection="online" />);
+    render(<RoomChoice
+        code="朝会モブ-a1b2"
+        inviteUrl={INVITE_URL}
+        roster={roster}
+        connection="online"
+      />);
 
     // Then: 意匠（手札）は変えず、href にコードを付けるだけ（設計正本 §5.7）
     for (const tool of TOOLS) {
@@ -116,7 +133,12 @@ describe('選択画面', () => {
     // Given（準備）: あやは timer、いずみは選択画面に居る
 
     // When（操作）
-    render(<RoomChoice code="朝会モブ-a1b2" roster={roster} connection="online" />);
+    render(<RoomChoice
+        code="朝会モブ-a1b2"
+        inviteUrl={INVITE_URL}
+        roster={roster}
+        connection="online"
+      />);
 
     // Then: 選択画面に居る人（tools が空）には出さない
     const items = screen.getByRole('list', { name: '参加者' }).querySelectorAll('li');
@@ -128,7 +150,12 @@ describe('選択画面', () => {
     // Given（準備）: 切断は在室そのものを終わらせない（設計正本 §3.13）
 
     // When（操作）
-    render(<RoomChoice code="朝会モブ-a1b2" roster={roster} connection="online" />);
+    render(<RoomChoice
+        code="朝会モブ-a1b2"
+        inviteUrl={INVITE_URL}
+        roster={roster}
+        connection="online"
+      />);
 
     // Then
     const items = screen.getByRole('list', { name: '参加者' }).querySelectorAll('li');
@@ -137,7 +164,11 @@ describe('選択画面', () => {
   });
 
   it('Given 再接続中 / When 選択画面を見る / Then 状態が知らされる', () => {
-    render(<RoomChoice code="R1" roster={roster} connection="reconnecting" />);
+    // Given（準備）: 接続が切れている状態を渡す
+    const props = { code: 'R1', inviteUrl: INVITE_URL, roster, connection: 'reconnecting' } as const;
+
+    // When（操作）/ Then: 選択画面を映すと、状態が読み上げ可能な形で出る
+    render(<RoomChoice {...props} />);
     expect(screen.getByRole('status')).toHaveTextContent('再接続');
   });
 
@@ -152,7 +183,9 @@ describe('選択画面', () => {
     };
 
     // When（操作）
-    render(<RoomChoice code="R1" roster={ambiguous} connection="online" />);
+    render(
+      <RoomChoice code="R1" inviteUrl={INVITE_URL} roster={ambiguous} connection="online" />,
+    );
 
     // Then
     expect(screen.getByText('あや（pabc）')).toBeInTheDocument();

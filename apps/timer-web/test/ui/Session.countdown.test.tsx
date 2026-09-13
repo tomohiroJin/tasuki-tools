@@ -17,6 +17,9 @@ vi.mock("../../src/ui/use-countdown-tick.js", () => ({ useCountdownTick: vi.fn()
 import { useCountdownTick } from "../../src/ui/use-countdown-tick.js";
 import { Session } from "../../src/ui/Session.js";
 
+/** 参加用 URL は同期フックが組み立てる（#95 S5b）。画面へは値として渡す。 */
+const INVITE_URL_FOR_TEST = 'https://tasuki.example/?room=TEST';
+
 function makeParticipant(overrides: Partial<Participant>): Participant {
   return {
     participantId: "p1", displayName: "Alice", presence: "online", hasAiKey: false, joinedAt: 1000, ...overrides,
@@ -63,7 +66,7 @@ describe("Session × カウントダウン予告音の配線", () => {
       }),
     );
     // When
-    render(<Session room={makeRoom(true, false)} participantId="p-alice" {...handlers()} />);
+    render(<Session inviteUrl={INVITE_URL_FOR_TEST} room={makeRoom(true, false)} participantId="p-alice" {...handlers()} />);
     // Then
     expect(useCountdownTick).toHaveBeenCalledWith(
       expect.any(Number),
@@ -73,7 +76,7 @@ describe("Session × カウントダウン予告音の配線", () => {
   });
 
   it("一時停止中(running=false)を渡す", () => {
-    render(<Session room={makeRoom(false, true)} participantId="p-alice" {...handlers()} />);
+    render(<Session inviteUrl={INVITE_URL_FOR_TEST} room={makeRoom(false, true)} participantId="p-alice" {...handlers()} />);
     expect(useCountdownTick).toHaveBeenCalledWith(expect.any(Number), false, expect.anything());
   });
 
@@ -81,7 +84,7 @@ describe("Session × カウントダウン予告音の配線", () => {
     // Given（running=true・isPaused=false の部屋）
     const room = makeRoom(true, false);
     // When
-    render(<Session room={room} participantId="p-alice" {...handlers()} />);
+    render(<Session inviteUrl={INVITE_URL_FOR_TEST} room={room} participantId="p-alice" {...handlers()} />);
     // Then
     expect(useCountdownTick).toHaveBeenCalledWith(
       expect.any(Number),

@@ -13,6 +13,9 @@ import { Session } from "../../src/ui/Session.js";
 import type { Room, Participant, SessionConfig } from "@tasuki/timer-core";
 import { aRoomView } from "../support/room-view.js";
 
+/** 参加用 URL は同期フックが組み立てる（#95 S5b）。画面へは値として渡す。 */
+const INVITE_URL_FOR_TEST = 'https://tasuki.example/?room=TEST';
+
 function makeParticipant(overrides: Partial<Participant>): Participant {
   return {
     participantId: "p1",
@@ -75,7 +78,7 @@ describe("Session 持ち時間のやり直し", () => {
     // Given
     const onRestartTimer = vi.fn();
     render(
-      <Session room={makeRoom()} participantId="p-carol" {...handlers()} onRestartTimer={onRestartTimer} />,
+      <Session inviteUrl={INVITE_URL_FOR_TEST} room={makeRoom()} participantId="p-carol" {...handlers()} onRestartTimer={onRestartTimer} />,
     );
     // When
     fireEvent.click(screen.getByRole("button", { name: /時間リセット/ }));
@@ -91,7 +94,7 @@ describe("Session 持ち時間のやり直し", () => {
       clock: { ...makeRoom().clock, running: false, runningSince: null },
     });
     render(
-      <Session room={room} participantId="p-carol" {...handlers()} onRestartTimer={onRestartTimer} />,
+      <Session inviteUrl={INVITE_URL_FOR_TEST} room={room} participantId="p-carol" {...handlers()} onRestartTimer={onRestartTimer} />,
     );
     const btn = screen.getByRole("button", { name: /時間リセット/ }) as HTMLButtonElement;
     // Then（無効化されていない）
@@ -105,7 +108,7 @@ describe("Session 持ち時間のやり直し", () => {
   it("誰の視点でも表示する", () => {
     // Given（かつては閲覧者に出さなかった・#95 S3 で役割が消えた）
     // When
-    render(<Session room={makeRoom()} participantId="p-bob" {...handlers()} />);
+    render(<Session inviteUrl={INVITE_URL_FOR_TEST} room={makeRoom()} participantId="p-bob" {...handlers()} />);
     // Then
     expect(screen.getByRole("button", { name: /時間リセット/ })).toBeTruthy();
   });
@@ -115,7 +118,7 @@ describe("Session 持ち時間のやり直し", () => {
     const onRestartTimer = vi.fn();
     const onReset = vi.fn();
     render(
-      <Session
+      <Session inviteUrl={INVITE_URL_FOR_TEST}
         room={makeRoom()}
         participantId="p-alice"
         {...handlers()}
@@ -147,7 +150,7 @@ describe("Session 持ち時間のやり直し", () => {
   it("やり直しボタンは終了系の隔離ゾーンの外（タイマー操作ゾーン）にある", () => {
     // Given
     // When
-    render(<Session room={makeRoom()} participantId="p-alice" {...handlers()} />);
+    render(<Session inviteUrl={INVITE_URL_FOR_TEST} room={makeRoom()} participantId="p-alice" {...handlers()} />);
     // Then
     const endZone = screen.getByLabelText("セッションを終える");
     const restartBtn = screen.getByRole("button", { name: /時間リセット/ });

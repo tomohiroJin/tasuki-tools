@@ -37,6 +37,7 @@ import { NoAiProvider } from "../ai/no-ai.js";
 import type { ProblemProvider } from "../ai/provider.js";
 import { errorAction } from "../ui/error-action.js";
 import {
+  buildInviteUrl,
   clearResumeIdentity,
   joinRetryDelayMs,
   loadResumeIdentity,
@@ -74,6 +75,14 @@ export interface TimerSync {
   /** ?room= で来たときに参加画面へ渡すルームコード。 */
   joinCode: string | null;
   room: Room | null;
+  /**
+   * いま居るルームの参加用 URL（ルームに入っていなければ null）。
+   *
+   * 組み立ては `@tasuki/sync-client` に 1 つだけあり、**それを取り込むのはこのフックの
+   * 仕事である** —— 画面（`.tsx`）は同期クライアントを直接 import しない
+   * （`docs/guides/architecture.md` の層の対応表・`docs/adr/0015`）。
+   */
+  inviteUrl: string | null;
   participantId: string;
   record: CompletionRecord | null;
   endType: EndType;
@@ -742,6 +751,7 @@ export function useTimerSync(banner: BannerController): TimerSync {
     mode,
     joinCode,
     room,
+    inviteUrl: room === null ? null : buildInviteUrl(window.location.origin, room.code),
     participantId,
     record,
     endType,

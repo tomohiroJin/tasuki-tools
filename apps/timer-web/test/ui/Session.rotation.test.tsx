@@ -10,6 +10,9 @@ import { Session } from "../../src/ui/Session.js";
 import type { Room, Participant, SessionConfig } from "@tasuki/timer-core";
 import { aRoomView } from "../support/room-view.js";
 
+/** 参加用 URL は同期フックが組み立てる（#95 S5b）。画面へは値として渡す。 */
+const INVITE_URL_FOR_TEST = 'https://tasuki.example/?room=TEST';
+
 function p(overrides: Partial<Participant>): Participant {
   return {
     participantId: "x", displayName: "X", presence: "online", hasAiKey: false, joinedAt: 1, ...overrides,
@@ -49,14 +52,14 @@ function handlers() {
  */
 describe("Session ドライバー加入/離脱", () => {
   it("ローテーション未加入の自分には「ドライバーに加わる」が出る", () => {
-    render(<Session room={makeRoom()} participantId="bob-p" {...handlers()} onJoinRotation={vi.fn()} />);
+    render(<Session inviteUrl={INVITE_URL_FOR_TEST} room={makeRoom()} participantId="bob-p" {...handlers()} onJoinRotation={vi.fn()} />);
     expect(screen.getByRole("button", { name: /ドライバーに加わる/ })).toBeTruthy();
   });
 
   it("「ドライバーに加わる」を押すと自分がローテーションに加入する", () => {
     // Given
     const onJoinRotation = vi.fn();
-    render(<Session room={makeRoom()} participantId="bob-p" {...handlers()} onJoinRotation={onJoinRotation} />);
+    render(<Session inviteUrl={INVITE_URL_FOR_TEST} room={makeRoom()} participantId="bob-p" {...handlers()} onJoinRotation={onJoinRotation} />);
     // When
     fireEvent.click(screen.getByRole("button", { name: /ドライバーに加わる/ }));
     // Then
@@ -69,7 +72,7 @@ describe("Session ドライバー加入/離脱", () => {
     const room = makeRoom();
     room.session.rotation = ["creator-p", "bob-p"];
     room.session.driverCounts = [0, 0];
-    render(<Session room={room} participantId="creator-p" {...handlers()} onLeaveRotation={onLeaveRotation} />);
+    render(<Session inviteUrl={INVITE_URL_FOR_TEST} room={room} participantId="creator-p" {...handlers()} onLeaveRotation={onLeaveRotation} />);
     // When
     fireEvent.click(screen.getByRole("button", { name: /列から外れる|外れる/ }));
     // Then（index ではなく自名を渡す）
@@ -82,7 +85,7 @@ describe("Session ドライバー加入/離脱", () => {
   it("ドライバーの自分には「一時離脱」が出て、押すと自分が一時離脱する", () => {
     // Given（Alice(creator-p) は rotation 加入・driverEligible 未設定＝稼働中）
     const onDriverSkip = vi.fn();
-    render(<Session room={makeRoom()} participantId="creator-p" {...handlers()} onDriverSkip={onDriverSkip} />);
+    render(<Session inviteUrl={INVITE_URL_FOR_TEST} room={makeRoom()} participantId="creator-p" {...handlers()} onDriverSkip={onDriverSkip} />);
     // When
     fireEvent.click(within(selfToggle()).getByRole("button", { name: /一時離脱/ }));
     // Then
@@ -96,7 +99,7 @@ describe("Session ドライバー加入/離脱", () => {
     room.participants = room.participants.map((pp) =>
       pp.participantId === "creator-p" ? { ...pp, driverEligible: false } : pp,
     );
-    render(<Session room={room} participantId="creator-p" {...handlers()} onDriverResume={onDriverResume} />);
+    render(<Session inviteUrl={INVITE_URL_FOR_TEST} room={room} participantId="creator-p" {...handlers()} onDriverResume={onDriverResume} />);
     // When
     fireEvent.click(within(selfToggle()).getByRole("button", { name: /復帰/ }));
     // Then
@@ -106,7 +109,7 @@ describe("Session ドライバー加入/離脱", () => {
   it("Session では自分の行に「一時離脱」を出さず自己トグルに集約する（重複解消）", () => {
     // Given
     // When
-    render(<Session room={makeRoom()} participantId="creator-p" {...handlers()} onDriverSkip={vi.fn()} />);
+    render(<Session inviteUrl={INVITE_URL_FOR_TEST} room={makeRoom()} participantId="creator-p" {...handlers()} onDriverSkip={vi.fn()} />);
     // Then（自己トグルには一時離脱がある）
     expect(within(selfToggle()).getByRole("button", { name: /一時離脱/ })).toBeTruthy();
     // Then（自分(Alice)は rotation 内 → ドライバー一覧に表示される。
@@ -120,7 +123,7 @@ describe("Session ドライバー加入/離脱", () => {
   it("最後の1人のときは「列から外れる」が無効化される", () => {
     // Given（makeRoom は rotation=[creator-p] の単独。Alice 視点では外れられない）
     const onLeaveRotation = vi.fn();
-    render(<Session room={makeRoom()} participantId="creator-p" {...handlers()} onLeaveRotation={onLeaveRotation} />);
+    render(<Session inviteUrl={INVITE_URL_FOR_TEST} room={makeRoom()} participantId="creator-p" {...handlers()} onLeaveRotation={onLeaveRotation} />);
     const btn = screen.getByRole("button", { name: /列から外れる|外れる/ });
     // Then
     expect((btn as HTMLButtonElement).disabled).toBe(true);

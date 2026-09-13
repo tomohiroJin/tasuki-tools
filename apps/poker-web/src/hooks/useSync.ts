@@ -8,7 +8,14 @@
 // **送信キューをここに持たないこと。** 確立前のコマンドは `SyncConnection` が 1 つの
 // キューで溜めており、ここにもう 1 つ置くと同じコマンドが 2 回出る。
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { SyncConnection, saveResumeIdentity } from '@tasuki/sync-client';
+import {
+  SyncConnection,
+  buildInviteUrl,
+  clearResumeIdentity,
+  loadResumeIdentity,
+  saveResumeIdentity,
+  type ResumeIdentity,
+} from '@tasuki/sync-client';
 import {
   DEFAULT_ERROR_MESSAGE,
   isKnownErrorCode,
@@ -67,6 +74,24 @@ export interface PokerSync {
    */
   syncStale: boolean;
   clearError: () => void;
+  /**
+   * その部屋に保存してある復帰の組（無ければ `null`）。
+   *
+   * **端末の保存を読むのはこのフックの仕事である。** 画面（`.tsx`）が触ってよいのは
+   * 同期フックと純粋判断だけで、同期クライアントを直接 import しない
+   * （`docs/guides/architecture.md` の層の対応表・`docs/adr/0015`）。
+   */
+  storedIdentity: (roomId: string) => ResumeIdentity | null;
+  /** その部屋の復帰の組を捨てる（消滅したルームへの再試行ループを防ぐ）。 */
+  forgetIdentity: (roomId: string) => void;
+  /**
+   * その部屋の参加用 URL（配るもの）。**選択画面の URL である**（#95 D11）。
+   *
+   * 組み立ては `@tasuki/sync-client` に 1 つだけあり、**それを取り込むのはこのフックの
+   * 仕事である** —— 画面（`.tsx`）は同期クライアントを直接 import しない
+   * （`docs/guides/architecture.md` の層の対応表・`docs/adr/0015`）。
+   */
+  inviteUrl: (roomId: string) => string;
   createRoom: (name: string) => void;
   joinRoom: (roomId: string, name: string, token?: string) => void;
   /** 参加する前にルームの生死だけを尋ねる（#76 J-1）。無ければ room-not-found が返る */
@@ -94,6 +119,11 @@ export function usePokerSync(): PokerSync {
   useEffect(() => {
     const connection = new SyncConnection({
       url: wsUrl(),
+      // **再接続の待ち時間は公開以来の値を保つ**（#95 S5b）。接続の実装を
+      // `@tasuki/sync-client` へ寄せたが、**既定（1 秒 / 上限 30 秒）をそのまま受けると
+      // poker だけ再接続が最大 6 倍遅くなる**。実装の共有と、利用者が体感する待ち時間の
+      // 変更は別の判断である（値の統一は根拠を測ってから別途決める）。
+      backoff: { initialDelayMs: 500, maxDelayMs: 5_000 },
       onOpen: () => {
         setStatus('open');
         setEverConnected(true);
@@ -180,6 +210,9 @@ export function usePokerSync(): PokerSync {
     const send = (msg: ClientMessage) => connectionRef.current?.send(msg);
     return {
       clearError: () => setError(null),
+      storedIdentity: (roomId: string) => loadResumeIdentity(roomId),
+      forgetIdentity: (roomId: string) => clearResumeIdentity(roomId),
+      inviteUrl: (roomId: string) => buildInviteUrl(location.origin, roomId),
       createRoom: (name: string) => {
         pendingNameRef.current = name;
         setError(null); // 新しい試行で過去のエラーをリセット

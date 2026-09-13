@@ -19,6 +19,9 @@ import { Lobby } from "../../src/ui/Lobby.js";
 import type { Room, Participant } from "@tasuki/timer-core";
 import { aRoomView } from "../support/room-view.js";
 
+/** 参加用 URL は同期フックが組み立てる（#95 S5b）。画面へは値として渡す。 */
+const INVITE_URL_FOR_TEST = 'https://tasuki.example/?room=TEST';
+
 function p(overrides: Partial<Participant>): Participant {
   return {
     participantId: "x", displayName: "X", presence: "online", hasAiKey: false, joinedAt: 1, ...overrides,
@@ -42,7 +45,7 @@ describe("ロビー: 自分の行の「ルームから抜ける」", () => {
   it("自分の行に「ルームから抜ける」ボタンが表示される", () => {
     // Given
     render(
-      <Lobby
+      <Lobby inviteUrl={INVITE_URL_FOR_TEST}
         room={makeRoomWithTwoParticipants()}
         participantId="bob-p"
         onStartSession={noop}
@@ -57,7 +60,7 @@ describe("ロビー: 自分の行の「ルームから抜ける」", () => {
     // Given
     const onRemoveParticipant = vi.fn();
     render(
-      <Lobby
+      <Lobby inviteUrl={INVITE_URL_FOR_TEST}
         room={makeRoomWithTwoParticipants()}
         participantId="bob-p"
         onStartSession={noop}
@@ -75,7 +78,7 @@ describe("ロビー: 自分の行の「ルームから抜ける」", () => {
     // Given（かつては「編集者以上が1名以上残る」という不変条件で無効化していた。
     //        #95 S3 で役割が消え、その不変条件ごと無くなった）
     render(
-      <Lobby
+      <Lobby inviteUrl={INVITE_URL_FOR_TEST}
         room={makeRoomWithTwoParticipants()}
         participantId="bob-p"
         onStartSession={noop}
@@ -96,7 +99,7 @@ describe("ロビー: 自分の行の「ルームから抜ける」", () => {
       participants: [p({ participantId: "creator-p", displayName: "Alice" })],
     });
     render(
-      <Lobby room={room} participantId="creator-p" onStartSession={noop} onRemoveParticipant={vi.fn()} />,
+      <Lobby inviteUrl={INVITE_URL_FOR_TEST} room={room} participantId="creator-p" onStartSession={noop} onRemoveParticipant={vi.fn()} />,
     );
     // When
     const button = screen.getByRole("button", { name: "ルームから抜ける" }) as HTMLButtonElement;
@@ -105,7 +108,7 @@ describe("ロビー: 自分の行の「ルームから抜ける」", () => {
   });
 
   it("onRemoveParticipant が未指定なら「ルームから抜ける」ボタンを描画しない", () => {
-    render(<Lobby room={makeRoomWithTwoParticipants()} participantId="bob-p" onStartSession={noop} />);
+    render(<Lobby inviteUrl={INVITE_URL_FOR_TEST} room={makeRoomWithTwoParticipants()} participantId="bob-p" onStartSession={noop} />);
     expect(screen.queryByRole("button", { name: "ルームから抜ける" })).toBeNull();
   });
 });
