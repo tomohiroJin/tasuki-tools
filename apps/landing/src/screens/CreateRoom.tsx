@@ -10,10 +10,12 @@ export interface CreateRoomProps {
   /** 前に名乗った名前（初期値に使う。D12 の後半）。 */
   readonly defaultDisplayName: string;
   readonly error: string | null;
+  /** 同期サーバーへ繋がっているか。繋がっていなければ作成も参加もできない（#76 の回帰防止）。 */
+  readonly connection: 'online' | 'reconnecting';
   onCreate(roomName: string, displayName: string): void;
 }
 
-export function CreateRoom({ defaultDisplayName, error, onCreate }: CreateRoomProps) {
+export function CreateRoom({ defaultDisplayName, error, connection, onCreate }: CreateRoomProps) {
   const [roomName, setRoomName] = useState('');
   const [displayName, setDisplayName] = useState(defaultDisplayName);
 
@@ -33,6 +35,12 @@ export function CreateRoom({ defaultDisplayName, error, onCreate }: CreateRoomPr
           ルームを作って、仲間を招いてください。
         </p>
       </header>
+
+      {connection === 'reconnecting' && (
+        <p className="hub-error" role="alert">
+          同期サーバーに接続できません。復旧するまで、ルームの作成と参加はできません。
+        </p>
+      )}
 
       <form className="hub-form" onSubmit={submit}>
         <label className="hub-field">
@@ -64,7 +72,7 @@ export function CreateRoom({ defaultDisplayName, error, onCreate }: CreateRoomPr
           </p>
         )}
 
-        <button className="hub-submit" type="submit">
+        <button className="hub-submit" type="submit" disabled={connection !== 'online'}>
           ルームを作る
         </button>
       </form>

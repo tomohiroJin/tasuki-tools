@@ -5,7 +5,7 @@
  * 受け持ち、ここが見るのは「どの画面が出るか」と「札の意匠を変えていないこと」である。
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { App } from '../src/App.js';
 import { TOOLS } from '../src/tools.js';
 import { RoomChoice } from '../src/screens/RoomChoice.js';
@@ -14,19 +14,33 @@ import type { RosterRoom } from '@tasuki/room-core';
 /**
  * WebSocket を差し替える。**実物は jsdom に無い**うえ、ここで見たいのは画面だけである。
  * 接続は開いたことにせず、送ったコマンドも捨てる（フックは送信をキューへ積むだけになる）。
+ *
+ * `instances` は接続の切断を試すテスト（#249）が、生成された 1 本を掴んで
+ * `onclose` を発火させるために持つ（`tests/hub/use-hub-sync.test.tsx` の
+ * `ScriptedWebSocket` と同じ作法）。
  */
 class SilentWebSocket {
   static readonly OPEN = 1;
+  static instances: SilentWebSocket[] = [];
   readyState = 0;
   onopen: (() => void) | null = null;
   onclose: (() => void) | null = null;
   onmessage: ((e: { data: unknown }) => void) | null = null;
   onerror: (() => void) | null = null;
+
+  constructor() {
+    SilentWebSocket.instances.push(this);
+  }
+
   send(): void {}
   close(): void {}
 }
 
+/** 生成された（唯一の）接続。 */
+const socket = (): SilentWebSocket => SilentWebSocket.instances[0]!;
+
 beforeEach(() => {
+  SilentWebSocket.instances = [];
   vi.stubGlobal('WebSocket', SilentWebSocket);
   localStorage.clear();
   window.history.replaceState(null, '', '/');
@@ -70,6 +84,22 @@ describe('玄関（ハブ）', () => {
 
     // Then
     expect(screen.getByLabelText('あなたの名前')).toHaveValue('あや');
+  });
+
+  it('Given 同期サーバーへ繋がっていない / When 玄関を開く / Then 繋がらないことと押せない理由が読み上げに乗る', () => {
+    // Given（準備）: 玄関を開く
+    render(<App />);
+
+    // When（操作）: 同期サーバーとの接続が切れ、再接続待ちになる（#76 の回帰防止）
+    act(() => socket().onclose?.());
+
+    // Then: 告知が role="alert" で出ており、いま何ができないかまで書いてある
+    const notice = screen.getByRole('alert');
+    expect(notice).toHaveTextContent('同期サーバーに接続できません');
+    expect(notice).toHaveTextContent('ルームの作成と参加はできません');
+
+    // Then: 実際に押せない（告知と画面の状態が食い違わない）
+    expect(screen.getByRole('button', { name: 'ルームを作る' })).toBeDisabled();
   });
 });
 

@@ -22,6 +22,7 @@ export function App() {
         <CreateRoom
           defaultDisplayName={hub.defaultDisplayName}
           error={hub.error}
+          connection={hub.connection}
           onCreate={hub.createRoom}
         />
       );
@@ -32,6 +33,7 @@ export function App() {
           defaultDisplayName={hub.defaultDisplayName}
           error={hub.error}
           needsPassphrase={hub.needsPassphrase}
+          connection={hub.connection}
           onJoin={hub.joinRoom}
         />
       );
