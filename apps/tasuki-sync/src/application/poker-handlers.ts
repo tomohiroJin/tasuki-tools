@@ -185,6 +185,26 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
   const rateLimitGate = createRateLimitGate({ clock, rateLimiter });
 
   /**
+   * poker の一覧に出す人か（R5・#95 S5b）。
+   *
+   * **「poker に居ない」ことが分かっている人だけを外す。** 外れるのは
+   * **他のツールか選択画面に居る人**であって、接続を 1 本も持たない人ではない ——
+   *
+   * - **選択画面（ハブ）や timer に居る人**は、自分の意思で poker から離れた。一覧から外す
+   * - **切断した人**（接続 0 本）は「どこに居るか分からない」。S4b までと同じく
+   *   `connected: false`（画面では「切断中」）として一覧に残す。消すと**退出したように
+   *   見える**うえ、回線が揺れた人が他の参加者の画面から消えたり現れたりする
+   *
+   * **timer 側の `timer-snapshot-dto.ts` の `showsInTimer` と同じ規則である**（S5a で先に入った）。
+   * S5b まで poker が絞っていなかったのは、1 つのルームが片方のツールの状態しか持たず、
+   * 名簿に居る人が全員 poker の人だったからで、**その前提が S5b で消えた** ——
+   * 実画面で、選択画面に居るだけの人が poker の一覧に「切断中」として並んだ（2026-09-13 実測）。
+   */
+  function showsInPoker(participant: MembershipRoom["participants"][number]): boolean {
+    return isPresentIn(participant, TOOL_POKER) || participant.connections.size === 0;
+  }
+
+  /**
    * 名簿を poker-core が読める断片へ写す（#95 S4a）。
    *
    * **`@tasuki/poker-core` は `@tasuki/room-core` を知らない**（依存方向の許可表・
@@ -196,9 +216,12 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
    * 「繋いでいる」と数えると、その人の未投票が永久に埋まらず自動公開が来ない。
    * S4a までは `presence !== "offline"` で、当時は poker の接続しか持てなかったので
    * 同値だった。
+   *
+   * **自動公開の判定もこの集合を見る。** 絞り込み（{@link showsInPoker}）で外れるのは
+   * `connected: false` になる人だけなので、`shouldAutoReveal` の分母は変わらない。
    */
   function fragmentsOf(room: MembershipRoom): ParticipantFragment[] {
-    return room.participants.map((p) => ({
+    return room.participants.filter(showsInPoker).map((p) => ({
       id: p.id,
       name: p.displayName,
       connected: isPresentIn(p, TOOL_POKER),

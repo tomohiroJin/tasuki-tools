@@ -382,6 +382,17 @@ export const MUTATIONS = [
       "S4a では同型の欠陥（合言葉を通さずに保護ルームの snapshot が読めた）が実機で出ている。",
   },
   {
+    id: 33,
+    label: "poker の参加者一覧から在席の絞り込みを外す（選択画面に居る人が切断中として出る）",
+    patch: "m33-poker-roster-not-filtered.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/live-ws.tool-entry.test.ts"],
+    note:
+      "#95 S5b（R5）。timer 側の m27 と対になる。**実画面で見つけた欠陥である** ——" +
+      "1 つのルームが両ツールを持つようになり、選択画面に居るだけの人が poker の一覧に" +
+      "「切断中」として並んだ。接続は生きているので事実に反する。",
+  },
+  {
     id: 30,
     label: "poker のラウンドを遅延生成しない（選択画面から poker へ入れない）",
     patch: "m30-poker-round-not-lazily-created.patch",

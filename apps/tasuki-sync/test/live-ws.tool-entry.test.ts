@@ -306,3 +306,59 @@ describe("退出で票を捨てる（R8・#95 S5b）", () => {
     );
   });
 });
+
+/**
+ * poker の一覧を在席で絞る（R5・#95 S5b）。
+ *
+ * **timer は S5a で同じ絞り込みを入れた**（`timer-snapshot-dto.ts` の `showsInTimer`）。
+ * poker は S5b まで名簿の全員を載せていて、当時はそれで正しかった —— 1 つのルームは
+ * 片方のツールの状態しか持たず、名簿に居る人は全員が poker の人だったからである。
+ *
+ * **S5b で「選択画面に居る人」が poker の名簿に混ざるようになった。** 実画面で確かめると、
+ * 選択画面に居るだけの人が poker の一覧に「切断中」として並んでいた（2026-09-13 実測）。
+ * 接続は生きているので事実に反する。
+ */
+describe("poker の一覧を在席で絞る（R5・#95 S5b）", () => {
+  it("Given 選択画面に居る人 / When poker の一覧を見る / Then その人は出ない", async () => {
+    // Given: 作成者は選択画面に留まり、別の人が poker へ入る
+    const hub = await server.connectHub("host");
+    const created = await hubCreate(hub, "見積もり", "あや");
+
+    const poker = await server.connectPoker("poker");
+    poker.send({ type: "join-room", roomId: created.code, name: "いずみ" });
+
+    // When
+    const state = await poker.take((m) => m.type === "room-state", "room-state");
+    if (state.type !== "room-state") throw new Error("room-state ではない");
+
+    // Then: poker に居る人だけが並ぶ（選択画面の人は「切断中」ですらない）
+    expect(state.participants.map((p) => p.name)).toEqual(["いずみ"]);
+  });
+
+  it("Given poker から切断した人 / When 一覧を見る / Then 切断中として残る（対照）", async () => {
+    // Given: 2 人が poker に居る
+    const hub = await server.connectHub("host");
+    const created = await hubCreate(hub, "見積もり", "あや");
+    const staying = await server.connectPoker("staying");
+    staying.send({ type: "join-room", roomId: created.code, name: "いずみ" });
+    await staying.take((m) => m.type === "room-state", "参加後の room-state");
+    const leaving = await server.connectPoker("leaving");
+    leaving.send({ type: "join-room", roomId: created.code, name: "かえで" });
+    await staying.take(
+      (m) => m.type === "room-state" && m.participants.length === 2,
+      "2 人になった room-state",
+    );
+
+    // When: 片方が接続を失う（タブを閉じた・回線が切れた）
+    await leaving.close();
+
+    // Then: **消さずに切断中として残す。** 消すと退出したように見え、回線が揺れた人が
+    //       他の画面から消えたり現れたりする（timer の `showsInTimer` と同じ判断）
+    const state = await staying.take(
+      (m) => m.type === "room-state" && m.participants.some((p) => !p.connected),
+      "切断が届いた room-state",
+    );
+    if (state.type !== "room-state") throw new Error("room-state ではない");
+    expect(state.participants.map((p) => p.name).sort()).toEqual(["いずみ", "かえで"]);
+  });
+});
