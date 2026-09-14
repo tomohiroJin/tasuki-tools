@@ -1,0 +1,15 @@
+diff --git a/apps/timer-web/src/sync/use-timer-sync.ts b/apps/timer-web/src/sync/use-timer-sync.ts
+index 2b79b55..8f83a8e 100644
+--- a/apps/timer-web/src/sync/use-timer-sync.ts
++++ b/apps/timer-web/src/sync/use-timer-sync.ts
+@@ -753,8 +753,8 @@ export function useTimerSync(banner: BannerController): TimerSync {
+       redirectTo(entry.to);
+       return;
+     }
+-    if (entry.kind === "history") return;
+-    const code = entry.code;
++    const code = new URLSearchParams(currentSearch()).get("room");
++    if (code === null || code === "") return;
+ 
+     const saved = loadResumeIdentity(code);
+     if (!shouldResumeOnLoad(saved, code)) {

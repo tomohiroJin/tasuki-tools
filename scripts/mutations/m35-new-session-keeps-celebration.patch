@@ -1,0 +1,12 @@
+diff --git a/apps/timer-web/src/sync/use-timer-sync.ts b/apps/timer-web/src/sync/use-timer-sync.ts
+index 2b79b55..0b3da4c 100644
+--- a/apps/timer-web/src/sync/use-timer-sync.ts
++++ b/apps/timer-web/src/sync/use-timer-sync.ts
+@@ -702,7 +702,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
+    * コマンドを送っても、接続の無い `pending` に積まれるだけである。
+    */
+   const newSession = () => {
+-    if (room && !sessionLost) commands.setPhase("setup");
+     redirectTo("/");
+   };
+ 

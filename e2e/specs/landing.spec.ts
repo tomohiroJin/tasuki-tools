@@ -5,8 +5,11 @@
  *   **資材が 200 で返っていても JS が例外で止まっていれば気づけない**。
  *   ここが `production` で LP を実ブラウザで開く唯一の経路。
  * - タグ無し #10 — 札を選ぶと各ツールが開くこと（`local` 専用の回帰）。
+ * - タグ無し #249 — 端末の記録への入口（`?view=history`）と、繋がらないときの玄関
+ *   （`local` 専用。実ルームの枠を使い、WS を成立させない細工も要る）。
  */
 import { expect, test } from '../fixtures/test';
+import type { Page } from '@playwright/test';
 
 test.describe('@core 玄関 LP が実ブラウザで描画される', () => {
   test('Given 稼働中のサイト / When / をブラウザで開く / Then 主要な要素が見え、コンソールエラーが無い', async ({
@@ -213,5 +216,215 @@ test.describe('選択画面から両方の道具を行き来できる（#95 S5b�
     // Then その4: 居場所の表示も追従する（poker から timer へ移ったことが相手に見える）
     await expect(hostRoster).toContainText('TDD Mob Pro Timer に居ます');
     await expect(hostRoster).not.toContainText('Planning Poker に居ます');
+  });
+});
+
+/**
+ * 端末の記録への入口（#95 S5c・#249。利用者の申し送り 2026-09-14）。
+ *
+ * **撤去した旧入口（timer の `Setup`）は「ルームに入っていなくても記録を見られる」
+ * という性質を持っていた。** その性質を保つために、入口を玄関と選択画面の両方へ置き、
+ * 行き先を `?view=history` という URL の形にした（`apps/timer-web/src/ui/entry.ts`）。
+ *
+ * **ここでしか見られないのは「別のアプリへ渡って戻ってくる」ことである。**
+ * 玄関（`apps/landing`）と timer（`apps/timer-web`）は別バンドルで、間に Caddy の
+ * 断片が挟まる。単体テストはどちらか片方の中しか見ないので、
+ * **`/timer/?view=history` が実際に配信されるか**も、**戻り先が開いた元に一致するか**も
+ * 確かめられない。
+ *
+ * **ルーム名に日本語を使う。** ルームコードにはルーム名がそのまま入る（例: `朝会モブ-a1b2`）
+ * ので、`HistoryLink` の `encodeURIComponent` と `hubRoomPath` の符号化のどちらが
+ * 抜けても、戻り先が別のルームになる。素の英数字だけで書くとこの経路が素通りする。
+ */
+test.describe('玄関と選択画面から端末の記録を見て、開いた元へ戻れる（#249）', () => {
+  /** 履歴の画面。**見出しで掴む** —— 空でも記録があっても、ここだけは必ず出る。 */
+  function historyHeading(page: Page) {
+    return page.getByRole('heading', { name: '完了記録の履歴' });
+  }
+
+  test('Given ルームに入っていない玄関 / When 記録を見る / Then 履歴が出て、戻ると玄関へ帰る', async ({
+    page,
+  }) => {
+    // Given: ルームを作る前の玄関（**ルームに入っていない**状態）
+    await page.goto('/');
+    await expect(page.getByRole('button', { name: 'ルームを作る' })).toBeVisible();
+
+    // When: 記録への入口をたどる
+    await page.getByRole('link', { name: '記録を見る' }).click();
+
+    // Then その1: timer の履歴が実際に描画されている。
+    //             **パスまで見る** —— 玄関へ縮退していればこの見出しは無いが、
+    //             行き先そのものが間違っていても気づけるように両方を固定する
+    await expect
+      .poll(() => new URL(page.url()).pathname, { message: '記録の行き先' })
+      .toBe('/timer/');
+    await expect(historyHeading(page), '履歴の見出し').toBeVisible();
+
+    // When: 戻る
+    await page.getByRole('button', { name: '戻る' }).click();
+
+    // Then その2: **開いた元（玄関そのもの）へ帰る。** ルームコードは載らない
+    await expect.poll(() => new URL(page.url()).pathname, { message: '戻り先' }).toBe('/');
+    expect(new URL(page.url()).searchParams.get('room'), '戻り先に載ったルーム').toBeNull();
+    await expect(page.getByRole('button', { name: 'ルームを作る' })).toBeVisible();
+  });
+
+  test('Given 選択画面 / When 記録を見る / Then 履歴が出て、戻ると同じルームの選択画面へ帰る', async ({
+    page,
+  }) => {
+    // Given: 玄関でルームを作ると選択画面になる。**ルーム名は日本語**（符号化の経路を通す）
+    await page.goto('/');
+    await page.getByLabel('ルーム名').fill('記録の回帰');
+    await page.getByLabel('あなたの名前').fill('あや');
+    await page.getByRole('button', { name: 'ルームを作る' }).click();
+    await expect(page.getByRole('list', { name: 'ツール' })).toBeVisible();
+    const code = new URL(page.url()).searchParams.get('room');
+    expect(code, '選択画面のルームコード').not.toBeNull();
+    expect(code, 'ルーム名が日本語のままコードに入っている').toContain('記録の回帰');
+
+    // When: 選択画面の記録への入口をたどる
+    await page.getByRole('link', { name: '記録を見る' }).click();
+
+    // Then その1: 履歴が出て、**どのルームから来たかを URL が運んでいる**
+    await expect
+      .poll(() => new URL(page.url()).pathname, { message: '記録の行き先' })
+      .toBe('/timer/');
+    expect(new URL(page.url()).searchParams.get('room'), '記録へ運ばれたルーム').toBe(code);
+    await expect(historyHeading(page), '履歴の見出し').toBeVisible();
+
+    // Then その2: **記録を見ているだけでは timer の画面にならない。**
+    //             ここが出るなら入口の判定が `?room=` を先に見ている
+    await expect(
+      page.getByRole('button', { name: 'セッションを開始' }),
+      '記録を見るだけのつもりで timer のロビーに着いている',
+    ).toHaveCount(0);
+
+    // When: 戻る
+    await page.getByRole('button', { name: '戻る' }).click();
+
+    // Then その3: **開いた元（同じルームの選択画面）へ帰る。**
+    //             符号化が抜けていればコードが別物になり、ここで食い違う
+    await expect.poll(() => new URL(page.url()).pathname, { message: '戻り先' }).toBe('/');
+    expect(new URL(page.url()).searchParams.get('room'), '戻り先のルーム').toBe(code);
+
+    // Then その4: 名乗り直しを求められず、選択画面がそのまま出る
+    //             （復帰の組が効いている。作成画面へ落ちていれば札は無い）
+    await expect(page.getByRole('list', { name: 'ツール' }), '選択画面の札').toBeVisible();
+    await expect(page.getByLabel('参加用 URL'), '選択画面の参加用 URL').toBeVisible();
+  });
+});
+
+/**
+ * 玄関の同期サーバーへ繋がらないときの見え方（#249・#76 F-2 の回帰防止）。
+ *
+ * **作成と参加のフォームは #95 S5c で玄関へ集まった。** 押せないボタンはここにしか
+ * 無くなったので、「繋がらないと押せない」ことを見張る場所もここになる
+ * （poker 側の同じシナリオは、押せないボタンを失って「入室を待つ画面」の告知だけを見ている）。
+ *
+ * **サーバーは止めない。** 止めると全 worker の共有資源が消え、無関係なシナリオを
+ * 巻き込む（`playwright.config.ts` は local で並列実行する）。代わりに、そのページの
+ * **ハブの WS だけ**を成立させない。`connectToServer()` を呼ばないので実サーバーには
+ * 一切触れず、クライアントから見た状態（一度も繋がっていない）はサーバーを
+ * 落としたときと同じになる。
+ */
+test.describe('玄関の同期サーバーへ繋がらないことが画面から分かる（#249）', () => {
+  /**
+   * そのページの**ハブの WS だけ**を成立させない。
+   *
+   * **`?tool=` を持つ接続（timer / poker）は掴まない。** 入口は `/ws` の 1 本になり、
+   * 振り分けはクエリだけで決まる（`apps/tasuki-sync/src/adapters/ws-adapter.ts` の
+   * `protocolFromRequestUrl`）ので、パスだけで掴むとツール側の接続まで巻き添えになる。
+   */
+  async function hubSyncIsDown(page: Page): Promise<void> {
+    await page.routeWebSocket(
+      (url) => url.pathname === '/ws' && !url.searchParams.has('tool'),
+      (ws) => {
+        void ws.close();
+      },
+    );
+  }
+
+  /** 接続の告知。**`role` まで含めて掴む。** 読み上げに乗ることが F-2 の要件である。 */
+  function unreachableAlert(page: Page) {
+    return page.getByRole('alert');
+  }
+
+  test('Given ハブへ繋がらない / When 玄関を開く / Then ルームを作れないことが読み上げ可能な形で示される', async ({
+    page,
+  }) => {
+    // Given: ハブの接続を成立させない
+    await hubSyncIsDown(page);
+
+    // When: 玄関を開く
+    await page.goto('/');
+
+    // Then その1: **読み上げに乗る形で**、繋がらないことが伝わっている
+    const notice = unreachableAlert(page);
+    await expect(notice, '接続できないことの告知').toHaveCount(1);
+    await expect(notice).toContainText('同期サーバーに接続できません');
+
+    // Then その2: 復旧まで何ができないかが書かれている（一時的な状態として案内しない）
+    await expect(notice, '復旧まで何ができないかの説明').toContainText(
+      'ルームの作成と参加はできません',
+    );
+
+    // Then その3: **押せない。** 未接続で押せると、送った command が黙って積まれるだけで
+    //             画面は何も返さない（#76 F-2 の「使い物にならない」の正体）
+    await expect(
+      page.getByRole('button', { name: 'ルームを作る' }),
+      '繋がっていないのに作成が押せる',
+    ).toBeDisabled();
+  });
+
+  test('Given ハブへ繋がらない / When 参加用 URL を開く / Then 参加できないことが読み上げ可能な形で示される', async ({
+    page,
+    openPeer,
+  }) => {
+    // Given: **実在するルームの参加用 URL を用意する。** 作り話のコードで代用すると、
+    //        参加画面が出る条件（`?room=` があること）しか見ないテストになる
+    await page.goto('/');
+    await page.getByLabel('ルーム名').fill('繋がらない玄関');
+    await page.getByLabel('あなたの名前').fill('あや');
+    await page.getByRole('button', { name: 'ルームを作る' }).click();
+    const invite = page.getByLabel('参加用 URL');
+    await expect(invite, '選択画面の参加用 URL').toBeVisible();
+    const inviteUrl = await invite.inputValue();
+
+    // Given: **別の文脈**で開く（同じ文脈の 2 枚目は復帰の組を共有して名乗りを求められない）。
+    //        その文脈のハブの接続だけを成立させない
+    const guest = await openPeer('hub-offline-guest');
+    await hubSyncIsDown(guest.page);
+
+    // When: 参加用 URL を開く
+    await guest.page.goto(inviteUrl);
+
+    // Then その1: 参加の画面に着いている（作成の画面ではない）
+    await expect(
+      guest.page.getByRole('button', { name: '参加する' }),
+      '参加の画面',
+    ).toBeVisible();
+
+    // Then その2: **読み上げに乗る形で**、繋がらないことが伝わっている
+    const notice = unreachableAlert(guest.page);
+    await expect(notice, '接続できないことの告知').toHaveCount(1);
+    await expect(notice).toContainText('同期サーバーに接続できません');
+    await expect(notice, '復旧まで何ができないかの説明').toContainText(
+      'ルームの作成と参加はできません',
+    );
+
+    // Then その3: **押せない**
+    await expect(
+      guest.page.getByRole('button', { name: '参加する' }),
+      '繋がっていないのに参加が押せる',
+    ).toBeDisabled();
+
+    // Then その4: **対照。** 細工していない作成者の側は繋がったままである。
+    //             名簿が出ていることで見る（**肯定で見る** —— 「告知が出ていない」だけでは、
+    //             作成者の側も一緒に死んでいる場合と区別が付かない）
+    await expect(page.getByRole('list', { name: '参加者' }), '作成者の名簿').toContainText('あや');
+    await expect(
+      page.getByText('接続が切れました'),
+      '細工していない側にまで切断の告知が出ている',
+    ).toHaveCount(0);
   });
 });

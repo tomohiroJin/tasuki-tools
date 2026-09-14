@@ -1,0 +1,14 @@
+diff --git a/apps/timer-web/src/ui/entry.ts b/apps/timer-web/src/ui/entry.ts
+index eb6538a..12af376 100644
+--- a/apps/timer-web/src/ui/entry.ts
++++ b/apps/timer-web/src/ui/entry.ts
+@@ -22,8 +22,7 @@ export function decideEntry(search: string): Entry {
+   if (params.get("view") === "history") {
+     return { kind: "history", backTo: hubRoomPath(code) };
+   }
+-  if (code) return { kind: "room", code };
+-  return { kind: "redirect", to: "/" };
++  return { kind: "room", code: code ?? "" };
+ }
+ 
+ /**
