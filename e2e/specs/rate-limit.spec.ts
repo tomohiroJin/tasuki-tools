@@ -41,7 +41,7 @@ function waitClose(ws: WebSocket): Promise<{ code: number; reason: string }> {
  * 捕まえる（実際に 1 度踏んで捕まった）。タグを足すときはその検査を必ず走らせること。
  */
 test.describe('Caddy を迂回した直接接続', () => {
-  test('timer の入口（/ws）への直結を拒否する', async () => {
+  test('ハブの入口（/ws）への直結を拒否する', async () => {
     const ws = new WebSocket(`ws://127.0.0.1:${PORTS.sync}/ws`);
 
     const closed = await waitClose(ws);

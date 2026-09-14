@@ -72,21 +72,28 @@ sudo rm -f /etc/caddy/tasuki/apps/30-landing.conf \
 # 1) 転送（ローカルから）
 TASUKI_SSH_HOST=<host>
 scp deploy/caddy/tasuki.conf                    "$TASUKI_SSH_HOST:/tmp/site.conf"
+scp deploy/landing/caddy/05-hub-ws.conf         "$TASUKI_SSH_HOST:/tmp/"
 scp deploy/timer/caddy/*.conf                   "$TASUKI_SSH_HOST:/tmp/"
 scp deploy/poker/caddy/20-poker.conf            "$TASUKI_SSH_HOST:/tmp/"
 scp deploy/landing/caddy/90-landing.conf        "$TASUKI_SSH_HOST:/tmp/"
 
 # 2) 設置（VPS で・root）
+# #95 S5c で 10-timer-ws.conf を撤去した。WS の入口は 05-hub-ws.conf（/ws）の 1 本だけ
+# ——これを設置し忘れると本番の WS が一切繋がらない（timer も poker もハブも）。
 sudo mkdir -p /etc/caddy/tasuki/apps
 sudo cp /etc/caddy/Caddyfile /etc/caddy/Caddyfile.bak."$(date +%Y%m%d-%H%M)"   # 必ず退避
 sudo install -m 644 /tmp/site.conf /etc/caddy/tasuki/site.conf
-sudo install -m 644 /tmp/05-hub-ws.conf /tmp/10-timer-ws.conf /tmp/20-poker.conf \
+sudo install -m 644 /tmp/05-hub-ws.conf /tmp/20-poker.conf \
                     /tmp/30-timer-spa.conf /tmp/90-landing.conf \
                     /etc/caddy/tasuki/apps/
 
 # 3) 旧断片を削除（S4 の入れ替え。上記「旧ファイルの削除が必須」を参照）
+# 10-timer-ws.conf は #95 S5c で撤去した。ホストに残っていても実害は無い（WS 入口は
+# クエリで振り分けており、この断片は timer 側の /timer/ws という死んだ handle でしかない）が、
+# 「/ws の 1 本だけ」という前提と食い違う設定を残さないため一緒に消す。
 sudo rm -f /etc/caddy/tasuki/apps/30-landing.conf \
-           /etc/caddy/tasuki/apps/90-timer-spa.conf
+           /etc/caddy/tasuki/apps/90-timer-spa.conf \
+           /etc/caddy/tasuki/apps/10-timer-ws.conf
 
 # 4) site.conf の <公開ドメイン> を実値へ置換（初回のみ）
 sudo sed -i 's|<公開ドメイン>|tasuki.example.com|' /etc/caddy/tasuki/site.conf

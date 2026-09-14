@@ -314,7 +314,7 @@ test.describe('契約に合わない同期フレームを捨てたことが画�
    */
   async function corruptFrom(page: Page, corrupting: () => boolean): Promise<{ count: () => number }> {
     let corrupted = 0;
-    await page.routeWebSocket(/\/ws\?tool=timer$/, (ws) => {
+    await page.routeWebSocket(/\/ws\?.*\btool=timer\b/, (ws) => {
       const server = ws.connectToServer();
       ws.onMessage((message) => server.send(message));
       server.onMessage((message) => {
