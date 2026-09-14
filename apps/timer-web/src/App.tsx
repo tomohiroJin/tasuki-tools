@@ -7,7 +7,9 @@
  * 自分の表示名の導出・クリップボード I/O だけである。
  */
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
+import { decideEntry } from "./ui/entry.js";
+import { currentSearch, navigateTo } from "./platform/location.js";
 import { Setup } from "./ui/Setup.js";
 import { Join } from "./ui/Join.js";
 import { Lobby } from "./ui/Lobby.js";
@@ -30,6 +32,14 @@ export default function App() {
   const bannerController = useBanner();
   const sync = useTimerSync(bannerController);
   const { banner } = bannerController;
+
+  // 玄関・選択画面からの入口判定（#95 S5c）。mount 時の URL で 1 度だけ決める。
+  // sync 側の ?room= 処理が後から mode を書き換えても、明示的に開いた履歴は保つ。
+  //
+  // NOTE: kind: "redirect" の適用（旧入口が無いときに玄関へ送る）は、この段では行わない。
+  // 旧入口（Setup/Join）はまだ生きており、いま適用すると到達不能になる。
+  // 適用は旧入口の撤去と同じ段（Task 8）で行う。
+  const [entry] = useState(() => decideEntry(currentSearch()));
 
   const {
     mode,
@@ -96,6 +106,12 @@ export default function App() {
 
   /** セッション/ロビーはダークステージ固定。Setup/Summary は通常テーマ。 */
   const renderBody = () => {
+    // 玄関・選択画面から明示的に開かれた履歴は、ルームの状態と無関係に最優先で出す
+    // （#95 S5c・端末ローカルの記録はルームが無くても見られる、という Setup の性質を保つ）。
+    if (entry.kind === "history") {
+      return <History onBack={() => navigateTo(entry.backTo)} />;
+    }
+
     // ルームが消えた以上、ロビー・セッション・完了の操作はどれも効かない（#76 F-4）。
     // 履歴は端末ローカルなので喪失しても見られる。ここで先に分岐して、
     // 押しても何も起きない画面を残さない。

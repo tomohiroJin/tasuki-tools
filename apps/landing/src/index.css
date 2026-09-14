@@ -306,3 +306,22 @@
 .hub-invite {
   width: 100%;
 }
+
+/* 端末に残った完了記録への入口（#95 S5c）。フォーム submit と紛れないよう控えめに。 */
+.hub-secondary {
+  display: block;
+  width: min(100%, 24rem);
+  margin: 1rem auto 0;
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-card, 0.5rem);
+  color: var(--ivory-dim);
+  text-align: center;
+  text-decoration: none;
+}
+
+.hub-secondary:hover,
+.hub-secondary:focus-visible {
+  border-color: var(--gold);
+  color: var(--ivory);
+}

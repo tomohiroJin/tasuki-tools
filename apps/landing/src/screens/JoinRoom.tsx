@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { HistoryLink } from './HistoryLink.js';
 
 /**
  * 参加用 URL から来た人が名乗る画面（#95 S5a・R2）。
@@ -90,6 +91,9 @@ export function JoinRoom({
           参加する
         </button>
       </form>
+
+      {/* ルームに入っていなくても端末の記録は見られる（撤去する Setup の性質を保つ）。 */}
+      <HistoryLink roomCode={null} />
     </main>
   );
 }

@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { HistoryLink } from './HistoryLink.js';
 
 /**
  * ルームを作る画面（#95 S5a・R1）。
@@ -82,6 +83,9 @@ export function CreateRoom({ defaultDisplayName, error, connection, onCreate }: 
           ルームを作る
         </button>
       </form>
+
+      {/* ルームに入っていなくても端末の記録は見られる（撤去する Setup の性質を保つ）。 */}
+      <HistoryLink roomCode={null} />
     </main>
   );
 }

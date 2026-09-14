@@ -13,7 +13,11 @@ import { EmptyHint } from "./components/EmptyHint.js";
 import { loadRecords, deleteRecord } from "../records/indexeddb.js";
 
 interface HistoryProps {
-  /** 一覧から元の画面（Setup）へ戻る。 */
+  /**
+   * 一覧から戻る。呼び出し元が行き先を決めて渡す（#95 S5c）。
+   * 玄関・選択画面から開いたときは URL 遷移（`window.location`）、
+   * 旧 Setup 画面から開いたときは内部の mode 切り替えになる。
+   */
   onBack: () => void;
 }
 
