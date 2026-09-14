@@ -468,9 +468,15 @@ test.describe('契約に合わない同期フレームを捨てたことが画�
  * 撤去の段では「同じルームの選択画面へ送る」形にしており、**そのルームの `phase` は
  * `celebration` のまま**だったので、戻ってきた人は完了画面に着く閉路になっていた。
  * 単体テストが `navigateTo` の引数しか見ていなかったので、誰も気づかなかった。
+ *
+ * **1 本目は「交代したうえで一時停止してから完成」させる**（レビュー ①）。
+ * `session.complete` は一時停止中でも通り、`SessionCompleted` は集約を畳み込まないので、
+ * 完了したルームには `running: false` / `isPaused: true` / 進んだ `currentIndex` が残る。
+ * ここで `session.act START` を送ると、**前の残り時間から・前のドライバーから・
+ * 「一時停止中」の表示のまま**次が走り出す。素直に完成させるだけではその枝を通らない。
  */
 test.describe('timer は完了後の「新しいセッション」で、押した人を玄関へ送りルームをロビーへ戻す', () => {
-  test('Given 2 人がセッションを終えた / When 新しいセッションを選ぶ / Then 押した人は玄関へ、残った人はロビーで次を始められる', async ({
+  test('Given 一時停止したまま完了した 2 人 / When 新しいセッションを選ぶ / Then 押した人は玄関へ、残った人は先頭から次を始められる', async ({
     page,
     openPeer,
   }) => {
@@ -482,6 +488,16 @@ test.describe('timer は完了後の「新しいセッション」で、押し�
     await expect(lobbyRotationRow(page, GUEST, 2)).toHaveCount(1);
     await page.getByRole('button', { name: 'セッションを開始' }).click();
     await expect(page.getByRole('timer')).toBeVisible();
+
+    // Given: **交代してから一時停止して**完成として締める。
+    //        こうしないと「前のセッションを引きずる」枝を通らない
+    await page.getByRole('button', { name: 'スキップ', exact: true }).click();
+    await expect(currentDriverRow(page), '交代していない').toContainText(GUEST);
+    await page.getByRole('button', { name: '一時停止', exact: true }).click();
+    await expect(
+      page.getByRole('button', { name: '再開', exact: true }),
+      '一時停止できていない',
+    ).toBeVisible();
     await page.getByRole('button', { name: '完成!', exact: true }).click();
     await page.getByRole('button', { name: '完成として記録する' }).click();
 
@@ -516,6 +532,19 @@ test.describe('timer は完了後の「新しいセッション」で、押し�
     await start.click();
     await expect(statusStrip(guest.page), '開始しても始まっていない').toContainText('セッション中');
     await expect(guest.page.getByRole('timer'), 'タイマーが出ていない').toBeVisible();
+
+    // Then その4: **前のセッションを引きずっていない**（レビュー ①）。
+    //   `session.act START` に落ちると、集約は畳まれないので
+    //   ①ドライバーは前回の続き（GUEST）のまま ②`isPaused` が立ったまま走る、になる。
+    //   ②は「再開ボタンを描きながら時計だけ進む」という、`evolveBreakEnded` が
+    //   明示的に避けている矛盾そのものである
+    await expect(currentDriverRow(guest.page), 'ドライバーが輪の先頭へ戻っていない').toContainText(
+      HOST,
+    );
+    await expect(
+      guest.page.getByRole('button', { name: '一時停止', exact: true }),
+      '一時停止が解けていない（再開ボタンのまま時計が進む）',
+    ).toBeVisible();
   });
 });
 

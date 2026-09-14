@@ -273,3 +273,77 @@ describe("consume-driver-join: 参加時ドライバー宣言は一度きりで�
     expect(added).toEqual([]);
   });
 });
+
+/**
+ * 完了から抜けたら、前のセッションの完了状態を**全端末で**畳む（#95 S5c・レビュー ②）。
+ *
+ * **「開始」を押すのは 1 人だけである。** 「新しいセッション」を押した人は玄関へ去り、
+ * ロビーで「セッションを開始」を押すのは別の誰か、残りは何も押さない。畳むのを
+ * 操作の中に置くと、**押していない端末では `recordSaved` が立ったまま**になり、
+ * 2 本目の完成で自分の端末に記録が保存されない（FR-020 の自動保存）。`record` も
+ * 前回のままなので、2 本目の完了画面に**1 本目の記録**が出る。
+ *
+ * ここは**何も押さない端末**を演じる。押す側の操作は 1 つも呼ばない。
+ */
+describe("clear-completion: 開始を押していない端末でも、2 本目の記録が残る", () => {
+  const ROTATION = { rotation: [CREATOR_ID, OTHER_ID], currentIndex: 0 };
+  const PARTICIPANTS = [participant(CREATOR_ID, "Creator"), participant(OTHER_ID, "Other")];
+
+  /** 完成フェーズの snapshot。交代回数で 1 本目と 2 本目を見分ける。 */
+  function celebration(totalSwitches: number, driverCounts: number[]) {
+    return {
+      type: "snapshot",
+      room: aRoomView({
+        code: "ROOM01",
+        phase: "celebration",
+        problem: problemA(),
+        participants: PARTICIPANTS,
+        session: { ...ROTATION, totalSwitches, driverCounts },
+      }),
+    };
+  }
+
+  it("2 本目の完成で記録が保存され、完了画面にも 2 本目の記録が出る", () => {
+    // Given: 何も押さない端末で 1 本目が完成している
+    const ws = enterRoomAsGuest();
+    sendServer(ws, { type: "room.joined", resumeToken: "rt", participantId: CREATOR_ID });
+    sendServer(ws, celebration(1, [1, 0]));
+    expect(saveRecordMock, "1 本目が保存されていない").toHaveBeenCalledTimes(1);
+    // **`getAllBy` で受ける。** 「N 回」は交代回数のカードとドライバー別の棒の両方に出る
+    expect(screen.getAllByText("1回"), "1 本目の交代回数").not.toHaveLength(0);
+
+    // When: 誰かがロビーへ戻し、誰かが開始し、2 本目が完成する。
+    //       **この端末は 1 度も操作していない**
+    sendServer(ws, {
+      type: "snapshot",
+      room: aRoomView({
+        code: "ROOM01",
+        phase: "setup",
+        problem: problemA(),
+        participants: PARTICIPANTS,
+        session: { ...ROTATION, totalSwitches: 1, driverCounts: [1, 0] },
+      }),
+    });
+    sendServer(ws, celebration(9, [5, 4]));
+
+    // Then その1: 2 本目もこの端末に保存される（FR-020 の自動保存）
+    expect(saveRecordMock, "2 本目が保存されていない").toHaveBeenCalledTimes(2);
+
+    // Then その2: 完了画面に出るのは**2 本目**の記録である
+    expect(screen.getAllByText("9回"), "2 本目の交代回数").not.toHaveLength(0);
+    expect(screen.queryAllByText("1回"), "1 本目の記録が残っている").toHaveLength(0);
+  });
+
+  it("完了から抜けていなければ畳まない（同じ完成の snapshot が 2 度来ても二重保存しない）", () => {
+    // Given: 1 本目が完成している
+    const ws = enterRoomAsGuest();
+    sendServer(ws, { type: "room.joined", resumeToken: "rt", participantId: CREATOR_ID });
+    sendServer(ws, celebration(1, [1, 0]));
+
+    // When: 在席の変化などで、同じ完成フェーズの snapshot がもう一度届く
+    sendServer(ws, celebration(1, [1, 0]));
+
+    // Then: 畳むのは phase が完了から抜けたときだけなので、記録は 1 件のまま
+    expect(saveRecordMock).toHaveBeenCalledTimes(1);
+  });
+});

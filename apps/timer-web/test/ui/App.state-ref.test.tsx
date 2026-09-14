@@ -166,7 +166,7 @@ describe("App.tsx の state/ref 二重管理（4組）", () => {
     });
 
     // Then: participantIdRef が最新の自分の ID を指しているので「あなた」と表示される
-    expect(screen.getByText("あなたがセッションをリセットしました。")).toBeInTheDocument();
+    expect(screen.getByText("あなたがセッションを最初から始め直しました。")).toBeInTheDocument();
   });
 
   it("endTypeRef: 中断（abort）後の celebration snapshot では完成記録を保存しない", async () => {

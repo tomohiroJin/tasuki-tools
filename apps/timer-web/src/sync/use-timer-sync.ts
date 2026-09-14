@@ -329,6 +329,13 @@ export function useTimerSync(banner: BannerController): TimerSync {
         case "clear-generating":
           endGenerating();
           break;
+        case "clear-completion":
+          // 完了から抜けた。前のセッションの記録・終了種別・保存済みの印を畳む
+          // （#95 S5c・レビュー ②）。**押した人の端末だけでなく全端末で降りる。**
+          recordSavedRef.current = false;
+          setRecord(null);
+          setEndType("complete");
+          break;
         case "set-screen":
           setMode(intent.screen);
           break;
@@ -636,9 +643,9 @@ export function useTimerSync(banner: BannerController): TimerSync {
    * `session.act START` が `PhaseConflict` で弾かれる。`session.reset` を送ると、
    * 輪の先頭・満タン・走行へ作り直される。
    *
-   * 前のセッションの残りもここで畳む。**`newSession()` では畳まない** ——
-   * ロビーへ戻す `phase.set` が届くまでの間に `celebration` の snapshot がもう一度来ると、
-   * `recordSaved` を降ろした直後だと**同じ完了記録がもう 1 件保存される**。
+   * **前のセッションの残り（記録・終了種別）はここで畳まない。** 畳むのは
+   * `celebration` から抜けた snapshot を受け取った時点である（`clear-completion` の意図）。
+   * ここで畳むと、**「開始」を押さなかった端末では一生降りない**（押すのは 1 人だけ）。
    */
   const startSession = () => {
     if (!room) return;
@@ -646,11 +653,8 @@ export function useTimerSync(banner: BannerController): TimerSync {
     if (problemEnabled && !room.problem) {
       commands.requestProblem(`req-${room.code}`);
     }
-    recordSavedRef.current = false;
-    setRecord(null);
-    setEndType("complete");
     commands.setPhase("session");
-    if (startActionFor(room.clock.running) === "reset") {
+    if (startActionFor(room.session, room.clock) === "reset") {
       commands.resetSession();
     } else {
       commands.actSession("START");

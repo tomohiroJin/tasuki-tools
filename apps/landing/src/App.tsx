@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useHubSync } from './hub/use-hub-sync.js';
 import { readDepartureNotice } from './hub/departure.js';
 import { screenFor } from './hub/hub-state.js';
@@ -19,19 +19,25 @@ export function App() {
   const hub = useHubSync();
 
   // 退出したことの告知（#95 S5c・I-1）。ツールから送り返されるときだけ URL に印が載る。
-  // **読むのは mount 時の一度きりで、印はその場で落とす** —— 残すと再読込のたびに
-  // 同じ告知が出て「いま外された」と誤って伝わる。
-  const [departure] = useState(() => {
-    const read = readDepartureNotice(window.location.href);
-    if (read.notice !== null) window.history.replaceState(null, '', read.cleanedHref);
-    return read.notice;
-  });
+  //
+  // **読み取りと印の始末を分ける。** 読み取りは初期化子（副作用を持たない純粋な読み）、
+  // 印を落とすのは effect に置く。初期化子の中で `replaceState` まで済ませると、
+  // **`StrictMode` を入れた瞬間に 2 回目の初期化子が印の落ちた URL を読み、告知が消える**
+  // （いまの `main.tsx` に `StrictMode` は無いが、入れた日に静かに壊れる形にしない）。
+  // `replaceState` は何度呼んでも同じ結果なので、effect が 2 度走っても害は無い。
+  const [departure] = useState(() => readDepartureNotice(window.location.href));
+
+  useEffect(() => {
+    if (departure.notice === null) return;
+    // 印を残すと、再読込のたびに同じ告知が出て「いま外された」と誤って伝わる。
+    window.history.replaceState(null, '', departure.cleanedHref);
+  }, [departure]);
 
   switch (screenFor({ code: hub.code, joined: hub.joined })) {
     case 'create':
       return (
         <CreateRoom
-          departure={departure}
+          departure={departure.notice}
           defaultDisplayName={hub.defaultDisplayName}
           error={hub.error}
           connection={hub.connection}
@@ -41,7 +47,7 @@ export function App() {
     case 'join':
       return (
         <JoinRoom
-          departure={departure}
+          departure={departure.notice}
           code={hub.code ?? ''}
           defaultDisplayName={hub.defaultDisplayName}
           error={hub.error}

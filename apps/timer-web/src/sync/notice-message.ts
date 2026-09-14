@@ -49,7 +49,13 @@ export function buildNoticeMessage(notice: NoticeSignal, ctx: NoticeContext): st
     case "session-aborted":
       return `${actor}がセッションを中断しました。`;
     case "session-reset":
-      return `${actor}がセッションをリセットしました。`;
+      // **「リセット」と言わない**（#95 S5c・レビュー ③）。同じ `session.reset` が
+      // 2 つの操作から送られる —— セッション中の「最初から」と、完了後のロビーからの
+      // 「セッションを開始」（2 本目以降。走行中・一時停止中の集約からは `START` が
+      // 使えない・`ui/session-start.ts`）。サーバーはコマンドしか見ないので区別できない。
+      // **どちらにも当てはまる言い方にする** —— 押したボタンの名前（「最初から」）に
+      // 寄せ、起きたこと（先頭・満タンから走り出した）を述べる。
+      return `${actor}がセッションを最初から始め直しました。`;
     case "session-completed":
       return `${actor}がセッションを完成として記録しました。`;
     case "participant-removed": {

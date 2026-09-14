@@ -4,8 +4,12 @@
  * **印を落とすところまでが仕事である。** 残すと再読込のたびに同じ告知が出て、
  * 「いま外された」と誤って伝わる。
  */
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect } from 'vitest';
 import { readDepartureNotice } from '../../src/hub/departure.js';
+
+afterEach(() => {
+  window.history.replaceState(null, '', '/');
+});
 
 describe('readDepartureNotice', () => {
   it('Given 外された印つきの URL / When 読む / Then 再参加の手立てまで伝える文が返る', () => {
@@ -52,6 +56,19 @@ describe('readDepartureNotice', () => {
     // Then
     expect(read.notice).toBeNull();
     expect(new URL(read.cleanedHref).searchParams.get('room')).toBe('ABC123');
+  });
+
+  it('Given 同じ URL / When 2 度読む / Then 同じ答えが返る（読みは副作用を持たない）', () => {
+    // Given: 実際のアドレスバーを指す URL
+    window.history.replaceState(null, '', '/?room=ABC123&left=removed');
+
+    // When: 2 度読む（`StrictMode` は初期化子を 2 度走らせる）
+    const first = readDepartureNotice(window.location.href);
+    const second = readDepartureNotice(window.location.href);
+
+    // Then: **読むだけでは URL を書き換えない。** 印を落とすのは呼び出し側の effect である
+    expect(second.notice).toBe(first.notice);
+    expect(new URL(window.location.href).searchParams.get('left')).toBe('removed');
   });
 
   it('Given 知らない値の印 / When 読む / Then 告知を出さない（綴りが割れたら黙って出さない）', () => {

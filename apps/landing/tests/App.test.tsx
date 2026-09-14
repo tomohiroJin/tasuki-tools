@@ -6,6 +6,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
+import { StrictMode } from 'react';
 import { App } from '../src/App.js';
 import { TOOLS } from '../src/tools.js';
 import { RoomChoice } from '../src/screens/RoomChoice.js';
@@ -310,6 +311,33 @@ describe('ツールから退出して戻されたとき', () => {
     // Then
     expect(screen.getByText('ルームから抜けました。')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'ルームを作る' })).toBeInTheDocument();
+  });
+
+  /**
+   * ⚠ **この 1 本は「壊れても赤くならない」ことを実測済みである**（#95 S5c・レビュー ⑤）。
+   * この環境の React は初期化子を確かに 2 度走らせる（実測: 初期化子=2・本体=2）が、
+   * **採るのは 1 度目の戻り値**なので、印を落とす副作用を初期化子へ戻しても告知は残る。
+   * 副作用を effect へ出したのは「純粋な読みに副作用を混ぜない」ためであって、
+   * 再現する不具合を塞いだのではない。**その形が守られていることは
+   * `tests/hub/departure.test.ts` の「読みは副作用を持たない」が見る。**
+   * ここは `StrictMode` の下でも画面が壊れないことの確認に留まる。
+   */
+  it('Given StrictMode の下で開いた / When 初期化が 2 度走る / Then 告知は消えない', () => {
+    // Given
+    window.history.replaceState(null, '', '/?room=ABC123&left=removed');
+
+    // When
+    render(
+      <StrictMode>
+        <App />
+      </StrictMode>,
+    );
+
+    // Then: 2 度走っても告知は出たままで、印は落ちている
+    expect(
+      screen.getByText('ルームから退出しました。再参加するには名前を入力してください。'),
+    ).toBeInTheDocument();
+    expect(new URL(window.location.href).searchParams.get('left')).toBeNull();
   });
 
   it('対照: Given 印の無い URL / When 開く / Then 告知は出ない', () => {

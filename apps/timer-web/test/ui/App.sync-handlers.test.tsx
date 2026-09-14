@@ -175,7 +175,7 @@ describe("SyncClient コールバックが最新の state を読む経路（Issu
     expect(added).toEqual([{ command: "member.add", participantId: OTHER_ID }]);
   });
 
-  it("onRoom: room.created の resumeToken が snapshot の room.code と組で保存される", () => {
+  it("onRoom: room.joined の resumeToken が snapshot の room.code と組で保存される", () => {
     // Given
     const ws = createRoomAndConnect();
     // When: 識別情報と snapshot を受け取る

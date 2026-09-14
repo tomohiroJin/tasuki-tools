@@ -127,6 +127,47 @@ describe("decideSnapshotIntents: 参加時ドライバー宣言", () => {
   });
 });
 
+describe("decideSnapshotIntents: 完了状態の後片付け", () => {
+  it("完了から抜けたら前のセッションの完了状態を畳む", () => {
+    // Given: 完成フェーズから、誰かがロビーへ戻した
+    const prev = aRoomView({ code: "ROOM01", phase: "celebration", problem });
+    const next = aRoomView({ code: "ROOM01", phase: "setup", problem });
+
+    // When / Then（kinds の戻り値をそのまま検証するため操作と検証が同じ式になる）
+    expect(kinds(next, baseCtx(), prev)).toContain("clear-completion");
+  });
+
+  it("完了に留まっている間は畳まない（同じ完成の snapshot が続いても二重保存しない）", () => {
+    // Given: 完成フェーズのまま、在席の変化などで snapshot がもう一度届く
+    const prev = aRoomView({ code: "ROOM01", phase: "celebration", problem });
+    const next = aRoomView({ code: "ROOM01", phase: "celebration", problem });
+
+    // When / Then
+    expect(kinds(next, baseCtx(), prev)).not.toContain("clear-completion");
+  });
+
+  it("完了を経ていない遷移では畳まない（ロビー→セッション）", () => {
+    // Given: 一度も完成していないルームの通常の開始
+    const prev = aRoomView({ code: "ROOM01", phase: "ready", problem });
+    const next = aRoomView({ code: "ROOM01", phase: "session", problem });
+
+    // When / Then
+    expect(kinds(next, baseCtx(), prev)).not.toContain("clear-completion");
+  });
+
+  it("畳むのは画面遷移より先（set-screen より前に積まれる）", () => {
+    // Given: 完成からロビーへ
+    const prev = aRoomView({ code: "ROOM01", phase: "celebration", problem });
+    const next = aRoomView({ code: "ROOM01", phase: "setup", problem });
+
+    // When
+    const order = kinds(next, baseCtx(), prev);
+
+    // Then: 画面が切り替わる前に完了状態が降りている
+    expect(order.indexOf("clear-completion")).toBeLessThan(order.indexOf("set-screen"));
+  });
+});
+
 describe("decideSnapshotIntents: お題", () => {
   it("輪の先頭の人はロビーでお題が無ければ一度だけ依頼する", () => {
     // Given

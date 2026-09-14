@@ -6,9 +6,9 @@
  * 復帰の組を置いて `?room=CODE` を開くと、`useTimerSync` の入口の effect が
  * `room.join` を送る（撤去前は「名前を入れて『ルームを作る』を押す」だった）。
  *
- * **`isCreator` は立たない。** ルームを作るのはハブであって timer ではないので、
- * 作成者だけの振る舞い（ロビーでの代表お題の自動依頼）を見たいテストは、
- * この経路ではなく `useTimerSync` を直接呼ぶこと。
+ * **お題の代表にはならない。** 代表は「輪の先頭」で決まる（`ui/problem-generation.ts`）
+ * ので、代表として振る舞わせたいテストは `session.rotation` の先頭をこの参加者にすること
+ * （`useTimerSync` を直接呼んでも代表にはならない）。
  */
 import { render, act } from "@testing-library/react";
 import React from "react";
