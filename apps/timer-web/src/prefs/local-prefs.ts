@@ -8,8 +8,9 @@
  * ⚠ **この節の 4 つ（{@link SavedPreferences} / {@link savePreferences} /
  * {@link loadPreferences} / {@link clearPreferences}）に、製品コードからの呼び手は
  * 1 つも無い。** 唯一の呼び手だった timer の旧入口（`Setup.tsx` / `Join.tsx`）を
- * #95 S5c で撤去したためである。生かしているのは `test/prefs/local-prefs.test.ts` だけで、
- * 保存された値を読む画面はもうどこにも無い。
+ * #95 S5c で撤去したためである。**保存された値を読む画面はもうどこにも無い。**
+ * （`clearPreferences` だけは `test/ui/App.*.test.tsx` の 9 本が後始末に使っている。
+ * テストからの参照であって、製品コードの呼び手ではない。）
  *
  * **去就は Issue #272 で決める**（玄関へ移して FR-053 / FR-054 を満たし直すか、
  * 要求ごと畳むか）。決める前に消さない —— 消すと判断の材料が履歴の中だけになる。

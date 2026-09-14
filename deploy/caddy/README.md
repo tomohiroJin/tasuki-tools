@@ -77,17 +77,30 @@ scp deploy/timer/caddy/*.conf                   "$TASUKI_SSH_HOST:/tmp/"
 scp deploy/poker/caddy/20-poker.conf            "$TASUKI_SSH_HOST:/tmp/"
 scp deploy/landing/caddy/90-landing.conf        "$TASUKI_SSH_HOST:/tmp/"
 
-# 2) 設置（VPS で・root）
+# 2) 設置 その 1 — **配信物より先に入れてよい断片だけ**（VPS で・root）
 # #95 S5c で 10-timer-ws.conf を撤去した。WS の入口は 05-hub-ws.conf（/ws）の 1 本だけ
 # ——これを設置し忘れると本番の WS が一切繋がらない（timer も poker もハブも）。
+#
+# ⚠ **ここで入れるのは site.conf と 05-hub-ws.conf の 2 本だけである。**
+# 20-poker.conf は **/poker/ws の handle を落としてある**ので、旧 poker がまだ配信されて
+# いる段で入れると、手順 7 の reload の時点で /poker/ws が SPA フォールバックに吸われ、
+# `deploy.sh poker` が走るまで poker の WS が死ぬ。30-timer-spa.conf と 90-landing.conf も
+# 同じ段（下の「その 2」）へ送る —— 内容は S4 から変わっておらず、いつ入れても同じである。
+# site.conf は S5a・S5c ともに差分が「断片の顔ぶれ」のコメントだけなので、先に入れて無害。
 sudo mkdir -p /etc/caddy/tasuki/apps
 sudo cp /etc/caddy/Caddyfile /etc/caddy/Caddyfile.bak."$(date +%Y%m%d-%H%M)"   # 必ず退避
 sudo install -m 644 /tmp/site.conf /etc/caddy/tasuki/site.conf
-sudo install -m 644 /tmp/05-hub-ws.conf /tmp/20-poker.conf \
-                    /tmp/30-timer-spa.conf /tmp/90-landing.conf \
-                    /etc/caddy/tasuki/apps/
+sudo install -m 644 /tmp/05-hub-ws.conf /etc/caddy/tasuki/apps/
 
-# 3) 旧断片を削除（S4 の入れ替え。上記「旧ファイルの削除が必須」を参照）
+# **旧共有リンクの救済（40-timer-legacy-room.conf・S5a で撤去）はこの段で消す。**
+# 後回しにできない —— 残したまま `deploy.sh landing` を走らせると、新しい玄関が配る
+# 参加用 URL（/?room=CODE）が `permanent` 301 で /timer/ へ飛び、**その 301 を
+# ブラウザがキャッシュする**。開いた端末は断片を消した後も飛ばされ続ける
+# （../timer/NOTES.md の「旧共有リンクの救済」）。ここで消しておけば、その窓が開かない。
+# 先に消しても壊れるのは S4 時代の `/?room=` リンクだけで、旧 LP に着地するだけである。
+sudo rm -f /etc/caddy/tasuki/apps/40-timer-legacy-room.conf
+
+# 3) 旧断片を削除し、残りの断片を設置する（S4 の入れ替え。上記「旧ファイルの削除が必須」を参照）
 # 10-timer-ws.conf は #95 S5c で撤去した。ホストに残っていても実害は無い（WS 入口は
 # クエリで振り分けており、この断片は timer 側の /timer/ws という死んだ handle でしかない）が、
 # 「/ws の 1 本だけ」という前提と食い違う設定を残さないため一緒に消す。
@@ -97,10 +110,18 @@ sudo install -m 644 /tmp/05-hub-ws.conf /tmp/20-poker.conf \
 # 手順 7 の reload 1 回で「旧 timer が配信されたまま /timer/ws が消える」状態になる。
 # 残っていても実害が無いのは真だが、**配信物より先に消すと害がある**（逆向きの事実）。
 # 正しい順序は ../timer/NOTES.md の「#95 S5c を配布するときに行うこと」の順序表にある
-# ——「①05-hub-ws.conf を設置 → ②deploy.sh を 3 本 → ③ここ」。
+# ——「①site.conf と 05-hub-ws.conf を設置＋40 を削除 → ②deploy.sh を 3 本 → ③ここ」。
+# **つまりこの README は 2 度通す。** 1 度目は手順 2 まで（＋4〜7）、2 度目がここである。
 sudo rm -f /etc/caddy/tasuki/apps/30-landing.conf \
            /etc/caddy/tasuki/apps/90-timer-spa.conf \
            /etc/caddy/tasuki/apps/10-timer-ws.conf
+
+# 設置 その 2 — 配信物を入れ替えた後に入れる断片（新しい 20-poker.conf はここ）
+#
+# **まっさらなホストへの初回設置では、手順 2 と手順 3 を分けなくてよい。** 分けるのは
+# 「いま動いている旧い配信物」を壊さないためであり、それが無ければ守るものが無い。
+sudo install -m 644 /tmp/20-poker.conf /tmp/30-timer-spa.conf /tmp/90-landing.conf \
+                    /etc/caddy/tasuki/apps/
 
 # 4) site.conf の <公開ドメイン> を実値へ置換（初回のみ）
 sudo sed -i 's|<公開ドメイン>|tasuki.example.com|' /etc/caddy/tasuki/site.conf
