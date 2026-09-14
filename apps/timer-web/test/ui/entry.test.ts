@@ -28,8 +28,15 @@ describe("timer をどの入口で開いたかを決める", () => {
   });
 
   it("Given 選択画面から記録を開いた / When timer を開く / Then 戻り先は同じルームの選択画面になる", () => {
-    // **`?view=` の判定は `?room=` より先に来る。** 逆だとルームへ入ってしまい、履歴に着けない
-    expect(decideEntry("?view=history&room=朝会モブ-a1b2")).toEqual({
+    // Given: 選択画面の「記録を見る」が作る URL（ルームコードを伴う）
+    const search = "?view=history&room=朝会モブ-a1b2";
+
+    // When: **`?view=` の判定は `?room=` より先に来る。**
+    //       逆だとルームへ入ってしまい、履歴に着けない
+    const entry = decideEntry(search);
+
+    // Then: 戻り先は開いた元（同じルームの選択画面）で、コードは符号化されている
+    expect(entry).toEqual({
       kind: "history",
       backTo: "/?room=%E6%9C%9D%E4%BC%9A%E3%83%A2%E3%83%96-a1b2",
     });
