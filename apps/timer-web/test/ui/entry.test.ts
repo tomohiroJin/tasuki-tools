@@ -34,4 +34,9 @@ describe("timer をどの入口で開いたかを決める", () => {
       backTo: "/?room=%E6%9C%9D%E4%BC%9A%E3%83%A2%E3%83%96-a1b2",
     });
   });
+
+  it("Given 記録を開いたが room が空文字 / When timer を開く / Then 戻り先は玄関になる", () => {
+    // `?room=` 単独の空文字ケース（上の「空の room だけが付いている」）と対になる。
+    expect(decideEntry("?view=history&room=")).toEqual({ kind: "history", backTo: "/" });
+  });
 });

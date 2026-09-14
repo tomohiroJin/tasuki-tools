@@ -33,6 +33,7 @@ import { buildNoticeMessage, type NoticeSignal } from "./notice-message.js";
 import { buildSyncUrl } from "./sync-url.js";
 import { indicatesStaleRoom } from "./stale-frame.js";
 import { shouldResumeOnLoad } from "./resume-identity.js";
+import { decideEntry } from "../ui/entry.js";
 import { NoAiProvider } from "../ai/no-ai.js";
 import type { ProblemProvider } from "../ai/provider.js";
 import { errorAction } from "../ui/error-action.js";
@@ -706,8 +707,13 @@ export function useTimerSync(banner: BannerController): TimerSync {
   // 入り直す必要があった。
   useEffect(() => {
     if (joinedFromUrlRef.current) return;
-    const code = new URLSearchParams(window.location.search).get("room");
-    if (!code) return;
+    // 判定の正本は decideEntry 1 つに保つ（#95 S5c のレビュー指摘）。
+    // ここで独自に ?room= だけを見ると、?view=history&room=CODE のように
+    // 「記録を見るだけ」の URL でも room.join を送ってしまい、見ているだけの人が
+    // 他の参加者の名簿に現れる（在席は接続に紐づく・#95 S4b）。
+    const entry = decideEntry(window.location.search);
+    if (entry.kind !== "room") return;
+    const code = entry.code;
     joinedFromUrlRef.current = true;
     // 参加画面を先に立てておく。復帰が成立すれば snapshot 受信で
     // ロビー/セッションへ上書きされ、成立しなければここが行き先になる

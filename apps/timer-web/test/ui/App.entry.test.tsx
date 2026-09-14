@@ -7,10 +7,20 @@
  *
  * `kind: "redirect"` の適用（旧入口が無いときに玄関へ送る）はこの段では配線していない
  * （旧入口 Setup/Join がまだ生きているため）。ここでは検証しない。
+ *
+ * ## レビューで見つかった実害（#95 S5c）
+ *
+ * 選択画面の「記録を見る」は `?view=history&room=CODE` を作る。選択画面に居る人は
+ * そのルームの `resumeIdentity` を必ず持っているため、`useTimerSync` の mount effect
+ * （`?room=` を見て復帰する経路）が発火すると、履歴を見るだけのつもりで `room.join` が
+ * 送られ、**在席が接続に紐づく設計**（#95 S4b）のもとでは他の参加者の名簿にその人が
+ * 現れてしまう。下の 2 テストはこの経路を「送らないこと」と、対照として「?view= が
+ * 無ければ従来どおり送ること」の両方で確かめる。
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import React from "react";
+import { saveResumeIdentity } from "@tasuki/sync-client";
 
 vi.mock("../../src/records/indexeddb.js", () => ({
   loadRecords: vi.fn().mockResolvedValue([]),
@@ -30,10 +40,12 @@ import { FakeWS } from "../support/fakes.js";
 beforeEach(() => {
   FakeWS.instances = [];
   vi.stubGlobal("WebSocket", FakeWS);
+  localStorage.clear();
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  localStorage.clear();
   window.history.replaceState(null, "", "/");
 });
 
@@ -73,5 +85,56 @@ describe("App の入口配線（?view=history）", () => {
 
     // Then
     expect(navigateTo).toHaveBeenCalledWith("/?room=ROOM01");
+  });
+
+  it("Given 選択画面の resumeIdentity を持っている / When ?view=history&room=CODE を開く / Then room.join を送らない", async () => {
+    // Given: このルームの復帰の組が既に保存されている（選択画面に居た証拠）
+    saveResumeIdentity({
+      code: "ROOM-HIST",
+      participantId: "me-1",
+      resumeToken: "rt_1",
+      displayName: "ボブ",
+    });
+    window.history.replaceState(null, "", "/?view=history&room=ROOM-HIST");
+
+    // When: 記録だけを見るつもりで開く
+    render(<App />);
+    await screen.findByText("完了記録の履歴");
+
+    // Then: 接続そのものが張られない（room.join はおろか WS も開かない）
+    expect(FakeWS.instances).toHaveLength(0);
+  });
+
+  it("対照: Given 同じ resumeIdentity / When view の無い ?room=CODE を開く / Then room.join を送る", () => {
+    // Given: 上のテストと同じ復帰の組（仕込みが効いていることの対照）。
+    // 接続前にキューへ積まれるため、開く前から送信を見張る（App.resume-on-load.test.tsx と同じ作法）。
+    saveResumeIdentity({
+      code: "ROOM-HIST",
+      participantId: "me-1",
+      resumeToken: "rt_1",
+      displayName: "ボブ",
+    });
+    window.history.replaceState(null, "", "/?room=ROOM-HIST");
+    render(<App />);
+    const ws = FakeWS.instances[FakeWS.instances.length - 1]!;
+    const sendSpy = vi.spyOn(ws, "send");
+
+    // When: 接続が開く
+    ws.readyState = FakeWS.OPEN;
+    act(() => {
+      ws.onopen?.();
+    });
+
+    // Then: 同じ仕込みなら、view が無ければ従来どおり room.join を送る
+    const sent = sendSpy.mock.calls.map(
+      ([raw]) => JSON.parse(raw as unknown as string) as Record<string, unknown>,
+    );
+    expect(sent).toContainEqual({
+      command: "room.join",
+      code: "ROOM-HIST",
+      displayName: "ボブ",
+      hasAiKey: false,
+      resumeToken: "rt_1",
+    });
   });
 });
