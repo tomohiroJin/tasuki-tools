@@ -34,6 +34,7 @@ import { publicText, type LogSafe } from "../application/log/log-safe.js";
 import { CONN_REJECT_REASONS } from "../application/log/vocabulary.js";
 import { deriveClientKeySafely } from "./client-key-safety.js";
 import type { Handlers as PokerHandlers } from "../application/poker-handlers.js";
+import { TOOL_POKER, TOOL_TIMER } from "../application/tool-id.js";
 
 /**
  * 接続 URL が宣言するツール。**許可リストで判定する**（#95 S5c）。
@@ -47,14 +48,27 @@ import type { Handlers as PokerHandlers } from "../application/poker-handlers.js
  * **許可リストに無い値は `"unknown"` にして接続を拒否する。** timer へもハブへも落とさない ——
  * 落とすと、綴りを間違えたクライアントが「繋がるのにコマンドが通らない」という
  * 静かな壊れ方をする（S5a の rewrite で実際に起きた型）。
+ *
+ * **綴りは `application/tool-id.ts` から取る**（#95 S5c・A-I1）。S5b までここが照合して
+ * いたのは `/poker/ws` という**別の語彙**（経路）だったが、S5c でクエリへ移り、
+ * `TOOL_TIMER` / `TOOL_POKER` と**同じ語彙**になった。しかも `TOOL_TIMER` は
+ * `roster.tools`（`packages/room-core/src/wire.ts`）として wire にも載る。
+ * リテラルを自前で持つと、次に綴りを変える人がここを取り残し、
+ * **wire 互換を壊したことに気づけない**。
+ *
+ * **戻り値の型はリテラルのまま据え置く。** これは接続層の 4 値の選択子で、
+ * ツール識別子はそのうち 2 つと一致しているだけである（`"hub"` / `"unknown"` に
+ * 対応するツールは無い）。`typeof TOOL_TIMER` にして追従させると、綴りを変えたときに
+ * 黙って通る —— リテラルで受けておくと**この関数で型検査が落ちる**ので、
+ * `ConnectionData.protocol` と wire の両方を見直す機会になる。
  */
 const TOOL_QUERY_KEY = "tool";
 
 function protocolFromRequestUrl(url: URL): "timer" | "poker" | "hub" | "unknown" {
   const declared = url.searchParams.get(TOOL_QUERY_KEY);
   if (declared === null) return "hub";
-  if (declared === "timer") return "timer";
-  if (declared === "poker") return "poker";
+  if (declared === TOOL_TIMER) return TOOL_TIMER;
+  if (declared === TOOL_POKER) return TOOL_POKER;
   return "unknown";
 }
 
