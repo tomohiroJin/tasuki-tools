@@ -139,7 +139,7 @@ done
 # **#95 S5c から、WS の入口は /ws の 1 本だけ。** 旧パス（/timer/ws・/poker/ws）は
 # 断片ごと撤去したので、SPA フォールバックに吸われて 200 が返るのが正しい
 # （e2e/specs/routing.spec.ts が具体値で固定している）。
-curl -s -o /dev/null -w 'ws → %{http_code}\n' "$HOST/ws"
+curl -s -o /dev/null -w 'ws（唯一の WS 入口。426 が正しい） → %{http_code}\n' "$HOST/ws"
 curl -s -o /dev/null -w 'timer/ws（旧入口。200 が正しい） → %{http_code}\n' "$HOST/timer/ws"
 curl -s -o /dev/null -w 'poker/ws（旧入口。200 が正しい） → %{http_code}\n' "$HOST/poker/ws"
 
