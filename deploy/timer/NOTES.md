@@ -61,10 +61,14 @@ S4（#19）から S5a までは `caddy/40-timer-legacy-room.conf` が **`/` か�
 
 ### #95 S5c（旧 WS 入口の撤去）
 
-1. ホスト上の `/etc/caddy/tasuki/apps/10-timer-ws.conf` を**削除する**
-2. `deploy/poker/caddy/20-poker.conf` を**更新して設置し直す**（`/poker/ws` の handle が消えた）
-3. `05-hub-ws.conf`（S5a で新設）が設置済みであることを確かめる —— これが無いと**すべての
-   ツールが繋がらない**。S5c 以降、WS の入口はこの 1 本だけである
+やることは 3 件ある。**順序はここでは決まらない。** 下の
+[「#95 S5c を配布するときに行うこと」](#95-s5c-を配布するときに行うこと3-系統を続けて配る)の
+順序表に従うこと —— 削除を配信物より先にやると、まだ動いている旧 timer が `/timer/ws` を失う。
+
+- `05-hub-ws.conf`（S5a で新設）が設置済みであることを確かめる —— これが無いと**すべての
+  ツールが繋がらない**。S5c 以降、WS の入口はこの 1 本だけである
+- ホスト上の `/etc/caddy/tasuki/apps/10-timer-ws.conf` を**削除する**
+- `deploy/poker/caddy/20-poker.conf` を**更新して設置し直す**（`/poker/ws` の handle が消えた）
 
 ⚠ **旧 WS パスへ繋いだままのタブは静かに壊れる。** 断片を消すと `/timer/ws` は
 `handle_path /timer/*` の SPA フォールバックに吸われ、WebSocket にならずに index.html が
@@ -108,7 +112,7 @@ S4（#19）から S5a までは `caddy/40-timer-legacy-room.conf` が **`/` か�
 |---|---|---|
 | 1 | **`05-hub-ws.conf` を設置する**（`../caddy/README.md` の「設置」手順 2） | **足すだけなので、いま動いている本番に無害。** `/ws` はそれまで包括フォールバック（`90-landing.conf`）に吸われていただけで、旧 timer も旧 poker もこのパスを使っていない |
 | 2 | **`deploy.sh landing` → `timer` → `poker`** | 1 が済んでいれば新しい 3 つは繋がる。旧断片（`/timer/ws`・`/poker/ws`）はこの時点では**使われないまま残っているだけ**で害が無い |
-| 3 | **`10-timer-ws.conf` を削除し、`20-poker.conf` を入れ直す**（同手順 2・3） | **ここを 2 より先にやると、まだ配信中の旧 timer が `/timer/ws` を失う。** 死んだ設定の掃除であって、急いでやる理由が無い |
+| 3 | **`10-timer-ws.conf` を削除し、`20-poker.conf` を入れ直す**（同手順 2・3） | **ここを 2 より先にやると、まだ配信中の旧 timer が `/timer/ws` を失う。** 逆に、後回しにしても壊れはしない（死んだ設定が残るだけ）—— ただし**この段まで済ませてから `pnpm e2e:prod` を回すこと**。`@smoke` の `e2e/specs/routing.spec.ts` は `/timer/ws` に **200**（SPA フォールバック）を期待しており、断片が残っていると 426 が返って**赤になる** |
 
 以下は手順 2 の中身である。
 

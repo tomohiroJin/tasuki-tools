@@ -132,16 +132,19 @@ test.describe('@smoke WebSocket が SPA に吸われていない', () => {
    * 200 で返す（実測で確認済み。`deploy/timer/NOTES.md` の注記も参照）。
    * 「もう WS の入口ではない」ことを具体値で固定する（否定で書かない・空振りしない）。
    */
-  for (const [wsPath, expectedStatus] of [
+  for (const [wsPath, expectedStatus, meaning] of [
     // `/ws` だけが WS の入口である（#95 S5c）。**200 が返るなら断片が設置されておらず、
     // 包括フォールバック（LP の index.html）に吸われている**という意味になる。
-    ['/ws', 426],
+    ['/ws', 426, 'WS の入口として応答する。SPA の 200 ではない'],
     // 旧入口。断片を撤去したので、いまは timer / poker の SPA フォールバックが返る。
     // **426 が返るなら断片が残っている。**
-    ['/timer/ws', 200],
-    ['/poker/ws', 200],
+    ['/timer/ws', 200, 'もう WS の入口ではなく、SPA フォールバックの 200 である'],
+    ['/poker/ws', 200, 'もう WS の入口ではなく、SPA フォールバックの 200 である'],
   ] as const) {
-    test(`Given ${wsPath} / When 素の GET を送る / Then ${expectedStatus} が返る（SPA の 200 ではない）`, async ({
+    // 名前は経路ごとに分ける。**3 つに同じ括弧を付けると、旧入口の 2 本が
+    // 「SPA の 200 ではない」と名乗りながら、まさに SPA の 200 を期待することになる**
+    // （#95 S5c・D-I3。Task 5 のレビューで同型を直したのに再発した）。
+    test(`Given ${wsPath} / When 素の GET を送る / Then ${expectedStatus} が返る（${meaning}）`, async ({
       request,
     }) => {
       // Given / When

@@ -2,8 +2,12 @@
 
 **Date**: 2026-07-16 | **Plan**: [../plan.md](../plan.md) | **Data Model**: [../data-model.md](../data-model.md)
 
-唯一の外部インターフェース。エンドポイントは `wss://<host>/poker/ws`（開発時は Vite proxy 経由、
-[research.md R5](../research.md) 参照）。メッセージは JSON テキストフレーム。
+唯一の外部インターフェース。エンドポイントは `wss://<host>/ws?tool=poker`（開発時は Vite proxy 経由）。
+**#95 S5c（#249）で `/poker/ws` の handle を撤去し、入口を `/ws` の 1 本へ畳んだ。**
+どのツールとして扱うかは接続 URL のクエリ（`?tool=`）が宣言する（`docs/adr/0018`・
+設計正本 `docs/superpowers/specs/2026-09-06-shared-identity-and-rooms-design.md` §10.2）。
+[research.md R5](../research.md) は 2026-07-16 時点の調査記録なので旧エンドポイントのままである
+（調査記録は書き換えない・`docs/adr/0002` の作法）。メッセージは JSON テキストフレーム。
 **すべての受信メッセージは境界で Valibot スキーマ検証し（憲法原則 IV）、検証失敗は
 `error` 応答（code: `invalid-message`）を返して接続は維持する。**
 
