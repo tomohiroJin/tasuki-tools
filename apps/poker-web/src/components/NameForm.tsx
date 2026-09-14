@@ -3,7 +3,7 @@
 // **文字数の正本は `@tasuki/room-core` の `MAX_DISPLAY_NAME`**（#95 S5b）。
 // poker が持っていた自前の上限（24）は規約ごと向こうへ寄せた —— ハブで名乗った
 // 名前が poker へ届くようになり、食い違いが実害に変わったためである。
-// timer の入力欄（`apps/timer-web/src/ui/Join.tsx`）も同じ値を取っている。
+// timer の入力欄も同じ値を取っていた（`Join.tsx` は #95 S5c で撤去し、名乗りは玄関に 1 つ）。
 import { useState, type FormEvent } from 'react';
 import { MAX_DISPLAY_NAME } from '@tasuki/room-core';
 

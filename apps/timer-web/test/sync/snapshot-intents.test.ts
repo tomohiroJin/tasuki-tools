@@ -181,6 +181,28 @@ describe("decideSnapshotIntents: お題", () => {
     expect(intents).toContainEqual({ kind: "regenerate-problem", requestId: "req-ROOM01-cfg-42" });
   });
 
+  it("輪の先頭でなければ作り直しを依頼しない（並び替えで代表が替わる）", () => {
+    // Given: 難易度が変わったが、輪の先頭は自分ではない
+    const rotation = { rotation: ["someone-else", SELF], currentIndex: 0, driverCounts: [0, 0] };
+    const prev = aRoomView({
+      code: "ROOM01",
+      phase: "ready",
+      problem,
+      config: { difficulty: "easy" },
+      session: rotation,
+    });
+    const next = aRoomView({
+      code: "ROOM01",
+      phase: "ready",
+      problem,
+      config: { difficulty: "hard" },
+      session: rotation,
+    });
+
+    // When / Then（kinds の戻り値をそのまま検証するため操作と検証が同じ式になる）
+    expect(kinds(next, baseCtx(), prev)).not.toContain("regenerate-problem");
+  });
+
   it("別のルームの snapshot なら設定変更とみなさない", () => {
     // Given
     const prev = aRoomView({ code: "OTHER", phase: "ready", problem, config: { difficulty: "easy" } });

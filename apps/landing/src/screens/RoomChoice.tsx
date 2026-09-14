@@ -70,7 +70,7 @@ export function RoomChoice({ code, inviteUrl, roster, connection }: RoomChoicePr
         ))}
       </ul>
 
-      {/* ルームに入ったままでも端末の記録は見られる（撤去する Setup の性質を保つ）。
+      {/* ルームに入ったままでも端末の記録は見られる（撤去した旧入口（timer の `Setup`）の性質を保つ）。
           戻り先を持たせて、見終わったら同じルームの選択画面へ戻れるようにする。 */}
       <HistoryLink roomCode={code} />
     </main>

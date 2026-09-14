@@ -11,7 +11,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { screen, fireEvent, act } from "@testing-library/react";
 import { FakeWS } from "../support/fakes.js";
 import { enterRoomAndConnect } from "../support/enter-room.js";
-import { navigateTo } from "../../src/platform/location.js";
+import { navigateTo, redirectTo } from "../../src/platform/location.js";
 import { aRoomView } from "../support/room-view.js";
 import { clearPreferences } from "../../src/prefs/local-prefs.js";
 
@@ -125,9 +125,12 @@ describe("セッション喪失（#76 F-4）", () => {
     // When: 新しく始める
     fireEvent.click(screen.getByRole("button", { name: /新しいセッションを始める/ }));
 
-    // Then: 玄関へ戻る（#95 S5c・R9）。**消えたルームの選択画面へは送らない** ——
-    // ハブはそこで存在しないルームの参加画面を出し、名乗っても必ず失敗する
-    expect(navigateTo).toHaveBeenCalledWith("/");
+    // Then: 玄関へ戻る（#95 S5c・R9・C-1）。**消えたルームの選択画面へは送らない** ——
+    // ハブはそこで存在しないルームの参加画面を出し、名乗っても必ず失敗する。
+    // **`replace` で送る** —— 押した時点の URL は消えたルームなので、`assign` だと
+    // 戻るボタン 1 回でまた `ROOM_NOT_FOUND` を踏む（M-5）
+    expect(redirectTo).toHaveBeenCalledWith("/");
+    expect(navigateTo, "消えたルームを履歴に積んでいる").not.toHaveBeenCalled();
   });
 
   it("端末の記録は喪失しても見られる", () => {

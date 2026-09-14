@@ -8,6 +8,8 @@ import { HistoryLink } from './HistoryLink.js';
  * 保存先も知らず、入力を受けて呼び出すだけである。
  */
 export interface CreateRoomProps {
+  /** ツールから退出して戻ってきたことの告知（無ければ null・#95 S5c）。 */
+  readonly departure: string | null;
   /** 前に名乗った名前（初期値に使う。D12 の後半）。 */
   readonly defaultDisplayName: string;
   readonly error: string | null;
@@ -16,7 +18,13 @@ export interface CreateRoomProps {
   onCreate(roomName: string, displayName: string): void;
 }
 
-export function CreateRoom({ defaultDisplayName, error, connection, onCreate }: CreateRoomProps) {
+export function CreateRoom({
+  departure,
+  defaultDisplayName,
+  error,
+  connection,
+  onCreate,
+}: CreateRoomProps) {
   const [roomName, setRoomName] = useState('');
   const [displayName, setDisplayName] = useState(defaultDisplayName);
 
@@ -40,6 +48,15 @@ export function CreateRoom({ defaultDisplayName, error, connection, onCreate }: 
           ルームを作って、仲間を招いてください。
         </p>
       </header>
+
+      {/* 退出したことの告知（#95 S5c・I-1）。ツールから送り返されたときだけ出る。
+          `role="alert"` にしない —— 接続の告知（下）と読み上げが重なるうえ、
+          これは「いま起きたこと」の報告であって行動を促す警告ではない。 */}
+      {departure !== null && (
+        <p className="hub-notice" role="status">
+          {departure}
+        </p>
+      )}
 
       {connection === 'reconnecting' && (
         <p className="hub-error" role="alert">
@@ -84,7 +101,7 @@ export function CreateRoom({ defaultDisplayName, error, connection, onCreate }: 
         </button>
       </form>
 
-      {/* ルームに入っていなくても端末の記録は見られる（撤去する Setup の性質を保つ）。 */}
+      {/* ルームに入っていなくても端末の記録は見られる（撤去した旧入口（timer の `Setup`）の性質を保つ）。 */}
       <HistoryLink roomCode={null} />
     </main>
   );

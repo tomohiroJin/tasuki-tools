@@ -39,6 +39,19 @@ import App from "../../src/App.js";
 import { navigateTo, redirectTo } from "../../src/platform/location.js";
 import { FakeWS } from "../support/fakes.js";
 import { aRoomView } from "../support/room-view.js";
+import type { Problem } from "@tasuki/timer-core";
+
+/** 完了記録が作られる条件を満たす最小のお題（お題が無いと Summary に記録が出ない）。 */
+function problemA(): Problem {
+  return {
+    title: "FizzBuzz",
+    description: "3 の倍数で Fizz",
+    requirements: ["3 の倍数は Fizz"],
+    exampleTest: "expect(add(1, 2)).toBe(3)",
+    hints: [],
+    source: "fallback",
+  };
+}
 
 beforeEach(() => {
   FakeWS.instances = [];
@@ -172,8 +185,70 @@ describe("App の入口配線（旧入口の撤去・R9）", () => {
     expect(FakeWS.instances, "名乗れないのに接続を張っている").toHaveLength(0);
   });
 
-  it("Given セッションを終えた / When 新しいセッションを選ぶ / Then 同じルームの選択画面へ戻る", () => {
-    // Given: 撤去前は `setMode("setup")` で**撤去する旧入口へ戻していた**（到達不能になる）
+  /**
+   * 完了後の「新しいセッション」（#95 S5c・C-1）。
+   *
+   * **行き先だけを見るテストにしない。** 撤去の段では「同じルームの選択画面へ
+   * `navigateTo` する」を固定していたが、**その行き先のルームは `phase` が
+   * `celebration` のまま**で、戻ってきても Summary がまた出る閉路だった。
+   * `navigateTo` の引数しか見ていなかったので、閉路であることを誰も見ていなかった。
+   * ここでは**ルームがロビーへ戻ること**と**玄関へ送られること**の両方を見る。
+   */
+  it("Given セッションを終えた / When 新しいセッションを選ぶ / Then ルームがロビーへ戻り、玄関へ送られる", () => {
+    // Given: ROOM01 のセッションを完了し、Summary が出ている
+    saveResumeIdentity({
+      code: "ROOM01",
+      participantId: "me-1",
+      resumeToken: "rt_1",
+      displayName: "ボブ",
+    });
+    window.history.replaceState(null, "", "/?room=ROOM01");
+    render(<App />);
+    const ws = FakeWS.instances[FakeWS.instances.length - 1]!;
+    ws.readyState = FakeWS.OPEN;
+    act(() => {
+      ws.onopen?.();
+    });
+    const deliver = (room: unknown) =>
+      act(() => {
+        ws.onmessage?.({ data: JSON.stringify({ type: "snapshot", room }) } as MessageEvent);
+      });
+    // **完了したセッションの時計は走ったままである**（`SessionCompleted` は集約を畳み込まない）。
+    // 次の開始がこの状態から成立することまで見たいので、実物と同じ形を渡す
+    const celebration = aRoomView({
+      code: "ROOM01",
+      phase: "celebration",
+      problem: problemA(),
+      clock: { running: true, runningSince: 1000, secondsLeftAtAnchor: 0 },
+    });
+    deliver(celebration);
+    const sendSpy = vi.spyOn(ws, "send");
+
+    // When
+    fireEvent.click(screen.getByRole("button", { name: /新しいセッション/ }));
+
+    // Then その1: **ルームをロビーへ戻す。** 送るコマンドそのものを見る ——
+    //   `celebration` のまま残すと、同じルームへ戻ってきた人は timer を開くたび
+    //   完了画面に着く（poker は使えるのに timer だけ死んだルームになる）
+    const sent = sendSpy.mock.calls.map(
+      ([raw]) => JSON.parse(raw as unknown as string) as Record<string, unknown>,
+    );
+    expect(sent, "ロビーへ戻す phase.set").toContainEqual({ command: "phase.set", phase: "setup" });
+
+    // Then その2: そのうえで**玄関へ送る**。`?room=` は付けない（付けると選択画面に着いて
+    //   新しいルームを作れない）。**`replace`** で送る（戻るボタンで完了画面へ戻さない）
+    expect(redirectTo).toHaveBeenCalledWith("/");
+    expect(navigateTo, "assign だと戻るボタンで完了画面へ戻る").not.toHaveBeenCalled();
+  });
+
+  /**
+   * ロビーへ戻ったルームで、残った人が次のセッションを始められること（#95 S5c・C-1）。
+   *
+   * **完了したセッションの時計は走ったままである**（`SessionCompleted` は集約を
+   * 畳み込まない）。この状態で `session.act START` を送ると `PhaseConflict` で弾かれる。
+   */
+  it("Given ロビーへ戻ったルーム（時計は走ったまま）/ When セッションを開始する / Then 弾かれない形で送る", () => {
+    // Given
     saveResumeIdentity({
       code: "ROOM01",
       participantId: "me-1",
@@ -189,14 +264,33 @@ describe("App の入口配線（旧入口の撤去・R9）", () => {
     });
     act(() => {
       ws.onmessage?.({
-        data: JSON.stringify({ type: "snapshot", room: aRoomView({ code: "ROOM01", phase: "celebration" }) }),
+        data: JSON.stringify({
+          type: "snapshot",
+          room: aRoomView({
+            code: "ROOM01",
+            phase: "setup",
+            problem: problemA(),
+            clock: { running: true, runningSince: 1000, secondsLeftAtAnchor: 0 },
+          }),
+        }),
       } as MessageEvent);
     });
+    const start = screen.getByRole("button", { name: /セッションを開始/ });
+    expect(start, "お題があるのに開始できない").toBeEnabled();
+    const sendSpy = vi.spyOn(ws, "send");
 
     // When
-    fireEvent.click(screen.getByRole("button", { name: /新しいセッション/ }));
+    fireEvent.click(start);
 
-    // Then: 玄関ではなく**同じルームの選択画面**へ戻す（ルームから出たことにしない）
-    expect(navigateTo).toHaveBeenCalledWith("/?room=ROOM01");
+    // Then: 走行中の START は弾かれるので、**先頭・満タン・走行へ作り直す**方を送る
+    const sent = sendSpy.mock.calls.map(
+      ([raw]) => JSON.parse(raw as unknown as string) as Record<string, unknown>,
+    );
+    expect(sent).toContainEqual({ command: "phase.set", phase: "session" });
+    expect(sent, "新しいセッションの開始").toContainEqual({ command: "session.reset" });
+    expect(
+      sent.filter((f) => f.command === "session.act"),
+      "走行中に START を送ると PhaseConflict で弾かれる",
+    ).toEqual([]);
   });
 });

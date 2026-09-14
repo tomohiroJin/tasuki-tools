@@ -9,7 +9,7 @@
 
 import React, { useEffect, useState } from "react";
 import { decideEntry } from "./ui/entry.js";
-import { currentSearch, navigateTo } from "./platform/location.js";
+import { currentSearch, navigateTo, redirectTo } from "./platform/location.js";
 import { Lobby } from "./ui/Lobby.js";
 import { Session } from "./ui/Session.js";
 import { Summary } from "./ui/Summary.js";
@@ -115,7 +115,11 @@ export default function App() {
       return (
         <SessionLost
           code={room?.code}
-          onNewSession={sync.newSession}
+          // ルームはもう無いので、ロビーへ戻す `phase.set` は誰にも届かない
+          // （#95 S5c・C-1）。ここだけは玄関へ送って作り直してもらう。
+          // **`replace` で送る** —— 押した時点の URL は消えたルームで、履歴に積むと
+          // 戻るボタン 1 回でまた `ROOM_NOT_FOUND` を踏む。
+          onNewSession={() => redirectTo("/")}
           // 記録は URL が決める画面になった（#95 S5c）。**いまのツールの中で**開くので
           // 相対の検索文字列で送る（`/timer/` という公開パスをここへ書かない）。
           // 綴りの対は `ui/entry.ts` の `?view=history` と、玄関の `HistoryLink`。

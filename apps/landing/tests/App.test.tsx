@@ -266,3 +266,59 @@ describe('選択画面', () => {
     expect(screen.getByText('あや（pefg）')).toBeInTheDocument();
   });
 });
+
+/**
+ * 退出したことの告知（#95 S5c・I-1）。
+ *
+ * ツールから退出して戻された人は、**告知が無いと自分が外されたと分からず再参加し、
+ * また外される**（Issue #32 が塞いだ問題の再発）。バナーは遷移で失われるので、
+ * 理由を URL で運んで玄関が出す。
+ */
+describe('ツールから退出して戻されたとき', () => {
+  it('Given 外された印つきで開いた / When 名乗りの画面が出る / Then 理由が告知される', () => {
+    // Given
+    window.history.replaceState(null, '', '/?room=ABC123&left=removed');
+
+    // When
+    render(<App />);
+
+    // Then: 名乗りの画面に、外されたことと再参加の手立てが出ている
+    expect(
+      screen.getByText('ルームから退出しました。再参加するには名前を入力してください。'),
+    ).toBeInTheDocument();
+  });
+
+  it('Given 告知を読んだ / When URL を見る / Then 印は落ちている（再読込で再び出さない）', () => {
+    // Given
+    window.history.replaceState(null, '', '/?room=ABC123&left=removed');
+
+    // When
+    render(<App />);
+
+    // Then: ルームコードは残し、印だけを落とす
+    expect(new URL(window.location.href).searchParams.get('left')).toBeNull();
+    expect(new URL(window.location.href).searchParams.get('room')).toBe('ABC123');
+  });
+
+  it('Given 自分で抜けた印つきで開いた / When ルームを作る画面が出る / Then 抜けたことが告知される', () => {
+    // Given: 自分で抜けた人はルームコードを持ち越さない
+    window.history.replaceState(null, '', '/?left=self');
+
+    // When
+    render(<App />);
+
+    // Then
+    expect(screen.getByText('ルームから抜けました。')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'ルームを作る' })).toBeInTheDocument();
+  });
+
+  it('対照: Given 印の無い URL / When 開く / Then 告知は出ない', () => {
+    // Given（beforeEach が `/` に戻している）
+
+    // When
+    render(<App />);
+
+    // Then: 同じ仕込みで、印が無ければ何も出ない
+    expect(screen.queryByText(/ルームから/)).not.toBeInTheDocument();
+  });
+});

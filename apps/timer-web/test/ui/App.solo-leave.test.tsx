@@ -132,9 +132,10 @@ describe("ソロ退出後の復帰（Issue #79）", () => {
     // When
     leaveSoloRoom();
 
-    // Then: 玄関（`/`）へ送られる。**`?room=` を落とした行き先である**（FR-127 / US2-2）。
-    // 履歴へ積まない `replace` で送るので、戻るボタン 1 回で抜けたルームへ復帰しない
-    expect(redirectTo).toHaveBeenCalledWith("/");
+    // Then: 玄関へ送られる。**`?room=` を落とした行き先である**（FR-127 / US2-2）。
+    // 履歴へ積まない `replace` で送るので、戻るボタン 1 回で抜けたルームへ復帰しない。
+    // **抜けたことは印で玄関へ運ぶ**（#95 S5c・I-1。バナーは遷移で失われる）
+    expect(redirectTo).toHaveBeenCalledWith("/?left=self");
     // Then: 復帰の手がかりが残ると、再読込で消えた部屋へ戻ろうとする
     expect(loadResumeIdentity("ROOM01")).toBeNull();
   });

@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { useHubSync } from './hub/use-hub-sync.js';
+import { readDepartureNotice } from './hub/departure.js';
 import { screenFor } from './hub/hub-state.js';
 import { CreateRoom } from './screens/CreateRoom.js';
 import { JoinRoom } from './screens/JoinRoom.js';
@@ -16,10 +18,20 @@ import { RoomChoice } from './screens/RoomChoice.js';
 export function App() {
   const hub = useHubSync();
 
+  // 退出したことの告知（#95 S5c・I-1）。ツールから送り返されるときだけ URL に印が載る。
+  // **読むのは mount 時の一度きりで、印はその場で落とす** —— 残すと再読込のたびに
+  // 同じ告知が出て「いま外された」と誤って伝わる。
+  const [departure] = useState(() => {
+    const read = readDepartureNotice(window.location.href);
+    if (read.notice !== null) window.history.replaceState(null, '', read.cleanedHref);
+    return read.notice;
+  });
+
   switch (screenFor({ code: hub.code, joined: hub.joined })) {
     case 'create':
       return (
         <CreateRoom
+          departure={departure}
           defaultDisplayName={hub.defaultDisplayName}
           error={hub.error}
           connection={hub.connection}
@@ -29,6 +41,7 @@ export function App() {
     case 'join':
       return (
         <JoinRoom
+          departure={departure}
           code={hub.code ?? ''}
           defaultDisplayName={hub.defaultDisplayName}
           error={hub.error}

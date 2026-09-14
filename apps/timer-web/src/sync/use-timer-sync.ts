@@ -37,7 +37,8 @@ import { decideEntry, hubRoomPath } from "../ui/entry.js";
 import { NoAiProvider } from "../ai/no-ai.js";
 import type { ProblemProvider } from "../ai/provider.js";
 import { errorAction } from "../ui/error-action.js";
-import { currentSearch, navigateTo, redirectTo } from "../platform/location.js";
+import { startActionFor } from "../ui/session-start.js";
+import { currentSearch, redirectTo } from "../platform/location.js";
 import {
   buildInviteUrl,
   clearResumeIdentity,
@@ -131,8 +132,8 @@ export interface TimerSync {
   /** 代理参加者を加える（participantId はここで生成する）。 */
   addProxy(displayName: string): void;
   /**
-   * 完了後に「新しいセッション」を選んだ。**同じルームの選択画面へ戻る**（#95 S5c）。
-   * 撤去前はここで旧入口（`Setup`）へ戻していたので、そのままでは到達不能になる。
+   * 完了後に「新しいセッション」を選んだ。**ルームをロビーへ戻したうえで玄関へ送る**
+   * （#95 S5c・C-1）。押した本人は新しいルームを作りに行き、残る人はロビーに居る。
    */
   newSession(): void;
   /** Summary の明示保存。失敗時はバナーを出す。 */
@@ -437,11 +438,11 @@ export function useTimerSync(banner: BannerController): TimerSync {
         // 表示が最大65秒残ってしまう。beginGenerating と対になる endGenerating を
         // ここでも再利用し、後始末を二重に書かない（DRY）。
         endGenerating();
-        // 退出バナーは自動消去しない。入口画面へ遷移した後も「抜けたこと」を
-        // 利用者が確認できるまで残し続けるべきで、新しいタイマーは張らない
-        // （Issue #32 の狙い＝退出が分からない問題の再発防止）。show 側が
-        // 直前の自動消去タイマー（例: ロビーの一時エラーの4秒タイマー）を解除する。
-        showBanner(friendlyError(code), "warn", { autoDismiss: false });
+        // **告知は玄関が出す**（#95 S5c・I-1）。ここでバナーを出しても、直後の遷移で
+        // 描画される前に破棄される。とりわけ外された人は説明抜きで名乗りの画面に着き、
+        // 外されたと分からずに再参加してまた外される（Issue #32 が塞いだ問題の再発）。
+        // 理由だけを URL に載せて運び、文言は玄関側が `@tasuki/room-core` から引く。
+        //
         // **行き先は玄関（ハブ）である**（#95 S5c・R9）。旧入口（`Setup` / `Join`）を
         // 撤去したので、timer の中に「ルームの外」の画面はもう無い。`destination` の値は
         // そのまま使い、URL へ写すだけにする（判定は `error-action.ts` の 1 箇所に保つ）。
@@ -452,11 +453,11 @@ export function useTimerSync(banner: BannerController): TimerSync {
         if (action.destination === "join") {
           // 他者に外された。直前のルームコードがあれば玄関の参加画面へ引き継ぐ
           // （再参加しやすくする・`docs/timer/ARCHITECTURE.md` の退出の表）。
-          redirectTo(removedFrom ? hubRoomPath(removedFrom) : "/");
+          redirectTo(hubRoomPath(removedFrom ?? null, "removed"));
         } else {
           // destination === "setup": 自分で抜けた。直前ルームへの手がかりを持ち越さない
           // ので、`?room=` を落とした玄関そのものへ送る。
-          redirectTo("/");
+          redirectTo(hubRoomPath(null, "self"));
         }
         return;
       }
@@ -627,15 +628,33 @@ export function useTimerSync(banner: BannerController): TimerSync {
     () => room,
   );
 
-  /** ロビーの「開始」。お題が未確定なら先に依頼し、phase.set → session.act の順で送る。 */
+  /**
+   * ロビーの「開始」。お題が未確定なら先に依頼し、phase.set → 開始の順で送る。
+   *
+   * **開始の送り方は時計の状態で分かれる**（`ui/session-start.ts`・#95 S5c・C-1）。
+   * 完了したセッションの時計は走ったままなので、そこからロビーへ戻って再開するときは
+   * `session.act START` が `PhaseConflict` で弾かれる。`session.reset` を送ると、
+   * 輪の先頭・満タン・走行へ作り直される。
+   *
+   * 前のセッションの残りもここで畳む。**`newSession()` では畳まない** ——
+   * ロビーへ戻す `phase.set` が届くまでの間に `celebration` の snapshot がもう一度来ると、
+   * `recordSaved` を降ろした直後だと**同じ完了記録がもう 1 件保存される**。
+   */
   const startSession = () => {
     if (!room) return;
     const problemEnabled = room.config.problemEnabled !== false;
     if (problemEnabled && !room.problem) {
       commands.requestProblem(`req-${room.code}`);
     }
+    recordSavedRef.current = false;
+    setRecord(null);
+    setEndType("complete");
     commands.setPhase("session");
-    commands.actSession("START");
+    if (startActionFor(room.clock.running) === "reset") {
+      commands.resetSession();
+    } else {
+      commands.actSession("START");
+    }
     setMode("session");
   };
 
@@ -655,22 +674,32 @@ export function useTimerSync(banner: BannerController): TimerSync {
   };
 
   /**
-   * 完了後の「新しいセッション」。**同じルームの選択画面へ戻る**（#95 S5c・R9）。
+   * 完了後の「新しいセッション」。**ルームをロビーへ戻してから玄関（`/`）へ送る**
+   * （#95 S5c・C-1）。
    *
-   * 撤去前はここで旧入口（`Setup`）へ戻していた。撤去後にそれを残すと到達不能な画面を
-   * 指すことになる。行き先はルームの外ではなく**そのルームの選択画面**である ——
-   * セッションを終えただけでルームから出たわけではない。
+   * **2 つとも要る。**
    *
-   * **ルームを失っているとき（#76 F-4）だけは玄関へ送る。** 消えたルームの選択画面へ
-   * 送ると、ハブは存在しないルームの参加画面を出し、名乗っても必ず失敗する。
-   * この経路は `SessionLost` の「新しいセッションを始める」から来る。
+   * - 玄関へ送るだけでは足りない。ルームの `phase` が `celebration` のまま残り、
+   *   同じルームに居る人や参加用 URL で戻ってきた人は、timer を開くたび完了画面に着く。
+   *   **poker は使えるのに timer だけ死んだルーム**が TTL の間ずっと残る。
+   *   `celebration` を抜けられるのは `phase.set` だけで、送れるのはここである
+   * - ロビーへ戻すだけでも足りない。押した人の意図は「このルームでの作業は終わり」で、
+   *   撤去前はそこで新しいルームを作る画面（旧 `Setup`）へ行っていた。同じ意味を保つ
+   *
+   * 行き先は **`?room=` を付けない `/`** である。付けるとその人だけ選択画面に着いて、
+   * 新しいルームを作れない。**`replace` で送る** —— 押した時点の URL は `?room=CODE` で、
+   * 履歴に積むと戻るボタン 1 回で完了画面へ戻ってしまう。
+   *
+   * 前のセッションの残り（完了記録・終了種別）は畳まない。**畳むのは次の開始**である
+   * （{@link startSession} の注記。ここで降ろすと二重保存の窓が開く）。
+   *
+   * **ルームを失っているとき（#76 F-4）はここを通らない。** `SessionLost` の
+   * 「新しいセッションを始める」は遷移だけを行う（`App.tsx`）。消えたルームへ
+   * コマンドを送っても、接続の無い `pending` に積まれるだけである。
    */
   const newSession = () => {
-    const code = sessionLost ? null : (room?.code ?? roomCodeRef.current);
-    // 遷移で丸ごと作り直されるが、接続だけは自分で畳む（ページが離れるまで生き残る）。
-    client?.dispose();
-    setClient(null);
-    navigateTo(code === null ? "/" : hubRoomPath(code));
+    if (room && !sessionLost) commands.setPhase("setup");
+    redirectTo("/");
   };
 
   const regenerateProblem = () => {

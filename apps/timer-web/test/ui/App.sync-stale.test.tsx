@@ -94,7 +94,7 @@ describe("捨てた同期フレームを画面で伝える", () => {
   const connectionText = () => screen.getByLabelText("接続状態").textContent ?? "";
 
   it("正常に同期できている間は接続中とだけ出す", () => {
-    // Given（正常な room.created と snapshot が届く）
+    // Given（玄関で名乗った端末として入り、正常な snapshot が届く）
     // When: 入室が成立する
     enterLobby();
     // Then

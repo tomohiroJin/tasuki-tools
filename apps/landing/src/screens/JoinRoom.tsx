@@ -8,6 +8,8 @@ import { HistoryLink } from './HistoryLink.js';
  * クライアントには分からない。存在秘匿のためサーバーも先には教えない）。
  */
 export interface JoinRoomProps {
+  /** ツールから退出して戻ってきたことの告知（無ければ null・#95 S5c）。 */
+  readonly departure: string | null;
   readonly code: string;
   readonly defaultDisplayName: string;
   readonly error: string | null;
@@ -18,6 +20,7 @@ export interface JoinRoomProps {
 }
 
 export function JoinRoom({
+  departure,
   code,
   defaultDisplayName,
   error,
@@ -46,6 +49,15 @@ export function JoinRoom({
           <span className="hub-room-code">{code}</span> に参加します。
         </p>
       </header>
+
+      {/* 退出したことの告知（#95 S5c・I-1）。ツールから送り返されたときだけ出る。
+          `role="alert"` にしない —— 接続の告知（下）と読み上げが重なるうえ、
+          これは「いま起きたこと」の報告であって行動を促す警告ではない。 */}
+      {departure !== null && (
+        <p className="hub-notice" role="status">
+          {departure}
+        </p>
+      )}
 
       {connection === 'reconnecting' && (
         <p className="hub-error" role="alert">
@@ -92,7 +104,7 @@ export function JoinRoom({
         </button>
       </form>
 
-      {/* ルームに入っていなくても端末の記録は見られる（撤去する Setup の性質を保つ）。 */}
+      {/* ルームに入っていなくても端末の記録は見られる（撤去した旧入口（timer の `Setup`）の性質を保つ）。 */}
       <HistoryLink roomCode={null} />
     </main>
   );

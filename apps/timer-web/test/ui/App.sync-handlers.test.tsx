@@ -134,16 +134,19 @@ describe("SyncClient コールバックが最新の state を読む経路（Issu
     // When: 他の参加者に退出させられた（destination: "join"）
     sendServer(ws, { type: "error", code: "REMOVED_BY_HOST", message: "removed" });
 
-    // Then: 玄関のそのルームへ送られ、直前のルームコード（room?.code から解決）が
+    // Then その1: 玄関のそのルームへ送られ、直前のルームコード（room?.code から解決）が
     // 引き継がれている（#95 S5c・R9。撤去前は timer 自身の `Join` 画面へ移していた）
-    expect(redirectTo).toHaveBeenCalledWith("/?room=ROOM01");
+    // Then その2: **外されたことを玄関へ運ぶ**（#95 S5c・I-1）。ここが無いと、
+    // 外された人は説明抜きで名乗りの画面に着き、また参加してまた外される
+    expect(redirectTo).toHaveBeenCalledWith("/?room=ROOM01&left=removed");
   });
 
   it("onRoom: snapshot に自分が現れたら member.add を1回だけ送る（driver 宣言）", () => {
     // Given: ドライバーを宣言して参加する。
-    // **画面からではなくフックを直接回す。** 参加方法の必須選択（`Join` の
-    // ドライバー/見学）は #95 S5c で撤去され、名乗りはハブに移った。宣言を受け取る
-    // 経路そのものはフックに残っており、ここで見たいのはその配線である。
+    // ⚠ **この `joinRoom()` は製品からは到達しない**（#95 S5c・I-4）。呼び手だった
+    // `Join` 画面を撤去し、名乗りはハブに移った。宣言を受け取る配線はフックに残って
+    // いるが、**叩く利用者はもう居ない**。一掃は別 Issue が持つ。ここは撤去の前後で
+    // 配線が変わっていないことの記録として残している。
     const { result } = renderHook(() =>
       useTimerSync({ banner: null, show: () => {}, clear: () => {} }),
     );
@@ -176,7 +179,7 @@ describe("SyncClient コールバックが最新の state を読む経路（Issu
     // Given
     const ws = createRoomAndConnect();
     // When: 識別情報と snapshot を受け取る
-    sendServer(ws, { type: "room.created", code: "ROOM01", resumeToken: "rt-1", participantId: CREATOR_ID });
+    sendServer(ws, { type: "room.joined", resumeToken: "rt-1", participantId: CREATOR_ID });
     sendServer(ws, {
       type: "snapshot",
       room: aRoomView({ code: "ROOM01", participants: [participant(CREATOR_ID, "Creator")] }),
@@ -194,7 +197,7 @@ describe("SyncClient コールバックが最新の state を読む経路（Issu
   it("onNeedProblem: 生成にはロビーで設定された最新の言語・難易度が渡る", async () => {
     // Given: ロビーの設定が Python / hard に変わっている
     const ws = createRoomAndConnect();
-    sendServer(ws, { type: "room.created", code: "ROOM01", resumeToken: "rt", participantId: CREATOR_ID });
+    sendServer(ws, { type: "room.joined", resumeToken: "rt", participantId: CREATOR_ID });
     sendServer(ws, {
       type: "snapshot",
       room: aRoomView({

@@ -2,7 +2,12 @@
  * `window.location` への薄いラッパ（#95 S5c）。
  *
  * 画面は同期クライアントを直接 import しない（`docs/adr/0015` MUST 2）のと同じ理由で、
- * `window.location` も画面から直接触らずここへ閉じる。テストは `vi.mock` で差し替える。
+ * **遷移**（`assign` / `replace`）はここに閉じる。テストは `vi.mock` で差し替える。
+ *
+ * **読み取りまでは閉じていない。** 同期フックは `buildSyncUrl(window.location)` と
+ * `buildInviteUrl(window.location.origin, ...)` で `window.location` を直接読んでいる
+ * （どちらも `@tasuki/sync-client` へ丸ごと渡す形で、URL の組み立てはあちらが持つ）。
+ * 遷移と違って差し替える必要が無いので、ここへ写しを作っていない（#95 S5c・M-4）。
  */
 
 /** 現在の URL のクエリ文字列（`location.search`）。 */

@@ -29,9 +29,26 @@ export function shouldClearGenerating(
  * —— 旧入口が生きている間は timer 自身が作成者を持っていたため、E2E も含めて
  * 誰もその経路を通っていなかった（#95 S5c の実測で判明）。
  *
- * 「輪の先頭」は作成者と同じ人を指す —— timer の状態は最初にその道具へ入った人が
- * 作り、その人が唯一の席に着く（`apps/tasuki-sync/src/application/initial-timer-state.ts`）。
- * 観測できる値で同じ人を名指しし直しただけで、規則を変えたわけではない。
+ * ## 付け替えで変わった性質（3 つ）
+ *
+ * 選ばれる人は**ふつうは同じ人**である —— timer の状態は最初にその道具へ入った人が作り、
+ * その人が唯一の席に着く（`apps/tasuki-sync/src/application/initial-timer-state.ts`）。
+ * ただし**同じ規則を言い換えただけではない。**
+ *
+ * 1. **判定の源が共有状態になった。** 旧 `isCreator` はクライアント局所のフラグで、
+ *    他人の操作では動かなかった。輪の先頭は snapshot が運ぶ共有の値なので、
+ *    ロビー中に `member.move` / `member.shuffle` で先頭が入れ替われば**代表も入れ替わる**
+ * 2. **重複依頼が起こりうる。** 「もう依頼したか」（`problemRequested`）はクライアント局所の
+ *    ままなので、並び替えの直後に新しい先頭が同じ `req-<CODE>-lobby` をもう一度送りうる
+ * 3. **同じ `participantId` で 2 タブ開いている端末は、両方が代表になる**
+ *    （旧 `isCreator` は作成したタブだけだった）
+ *
+ * **2 と 3 の重複は許容してよい。** サーバーは `problem.request` を受けると
+ * `ProblemDelegator.request(code, requestId)` を呼び、**旧依頼をキャンセルしてから
+ * 委譲し直す**（`apps/tasuki-sync/src/application/command-handlers/problem-request.ts` の
+ * FR-027）。同じ requestId が続けて届いても、走る委譲は常に 1 本で、お題も 1 つに収束する。
+ * 全員が無条件に送る形にしなかったのは、その張り直しを人数ぶん起こさないためであって、
+ * 1 件や 2 件の重複が壊れるからではない。
  */
 export function shouldAutoRequestProblem(args: {
   phase: string;

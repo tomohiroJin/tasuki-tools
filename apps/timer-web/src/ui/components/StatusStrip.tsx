@@ -8,22 +8,29 @@
  */
 
 import React from "react";
-import type { RoomPhase } from "@tasuki/timer-core";
 import { NotifySettings } from "./NotifySettings.js";
+import type { AppMode } from "../../sync/use-timer-sync.js";
 
 export type ConnectionStatus = "online" | "reconnecting" | "lost" | "stale";
 
 interface StatusStripProps {
-  phase: RoomPhase | "lobby";
+  /**
+   * いま出ている画面（#95 S5c・M-6）。
+   *
+   * **`RoomPhase` ではない。** 撤去前は `RoomPhase | "lobby"` を受けており、
+   * `PHASE_LABEL` に `setup` / `ready` の行があったが、**渡る値は `AppMode` だけ**で
+   * その 2 行は誰にも引かれていなかった（`screenForPhase` が `setup`/`ready` を
+   * `lobby` へ畳んでから渡る）。型を実際に渡る値へ絞って、嘘を 1 つ減らす。
+   */
+  phase: AppMode;
   displayName: string;
   connectionStatus: ConnectionStatus;
   roomCode?: string | undefined;
 }
 
-const PHASE_LABEL: Record<string, string> = {
-  setup: "準備",
+/** 画面の日本語名。**キーは `AppMode` と 1 対 1**（漏れは型検査が拾う）。 */
+const PHASE_LABEL: Record<AppMode, string> = {
   lobby: "ロビー",
-  ready: "準備完了",
   session: "セッション中",
   celebration: "完了",
 };
@@ -62,7 +69,7 @@ export function StatusStrip({
     >
       {/* フェーズ + ルームコード */}
       <span className="flex items-center gap-1">
-        <span aria-label="フェーズ">{PHASE_LABEL[phase] ?? phase}</span>
+        <span aria-label="フェーズ">{PHASE_LABEL[phase]}</span>
         {roomCode && (
           <span className="tabular text-[var(--signal)]">({roomCode})</span>
         )}

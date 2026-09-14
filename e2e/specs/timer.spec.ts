@@ -458,6 +458,67 @@ test.describe('契約に合わない同期フレームを捨てたことが画�
 });
 
 
+/**
+ * 完了後の「新しいセッション」（#95 S5c・C-1・`local` 専用）。
+ *
+ * **ここでしか見られないのは「押した人と残った人で行き先が違うこと」と、
+ * 残った人が実際に次のセッションを始められることである。** 単体テストは片方の画面しか
+ * 持たず、`session.act START` が走行中のルームで弾かれるかどうかは実サーバーにしか無い。
+ *
+ * 撤去の段では「同じルームの選択画面へ送る」形にしており、**そのルームの `phase` は
+ * `celebration` のまま**だったので、戻ってきた人は完了画面に着く閉路になっていた。
+ * 単体テストが `navigateTo` の引数しか見ていなかったので、誰も気づかなかった。
+ */
+test.describe('timer は完了後の「新しいセッション」で、押した人を玄関へ送りルームをロビーへ戻す', () => {
+  test('Given 2 人がセッションを終えた / When 新しいセッションを選ぶ / Then 押した人は玄関へ、残った人はロビーで次を始められる', async ({
+    page,
+    openPeer,
+  }) => {
+    // Given: 2 人でセッションを開始し、完成として締める
+    const code = await createRoom(page, HOST);
+    const guest = await openPeer('timer-new-session');
+    await joinAsDriver(guest.page, code, GUEST);
+    await expect(lobbyRotationRow(page, HOST, 1)).toHaveCount(1);
+    await expect(lobbyRotationRow(page, GUEST, 2)).toHaveCount(1);
+    await page.getByRole('button', { name: 'セッションを開始' }).click();
+    await expect(page.getByRole('timer')).toBeVisible();
+    await page.getByRole('button', { name: '完成!', exact: true }).click();
+    await page.getByRole('button', { name: '完成として記録する' }).click();
+
+    // Given の確認: **両方の画面**が完了画面になっている（共有の出来事である）
+    for (const [label, target] of screens(page, guest.page)) {
+      await expect(
+        target.getByRole('button', { name: /新しいセッション/ }),
+        `${label}の画面の完了表示`,
+      ).toBeVisible();
+    }
+
+    // When: 押した人が「新しいセッション」を選ぶ
+    await page.getByRole('button', { name: /新しいセッション/ }).click();
+
+    // Then その1: 押した人は**玄関**に着く。`?room=` は付かない
+    //   （付くと選択画面に着いて、新しいルームを作れない）
+    await expect
+      .poll(() => new URL(page.url()).pathname, { message: '「新しいセッション」の行き先' })
+      .toBe('/');
+    expect(new URL(page.url()).searchParams.get('room'), '玄関に room が付いている').toBeNull();
+    await expect(page.getByLabel('ルーム名'), '新しいルームを作れない').toBeVisible();
+
+    // Then その2: **残った人のルームはロビーへ戻っている。** ここが `celebration` の
+    //   ままだと、あとから参加用 URL で戻ってきた人も完了画面に着く（timer だけ死んだルーム）
+    await expect(statusStrip(guest.page), '残った人のフェーズ表示').toContainText('ロビー');
+
+    // Then その3: **残った人はそのまま次のセッションを始められる。**
+    //   完了したセッションの時計は走ったままなので、走行中の START は弾かれる。
+    //   「押せる」だけでなく、実際にセッションが始まるところまで見る
+    const start = guest.page.getByRole('button', { name: 'セッションを開始' });
+    await expect(start, '次のセッションを始められない').toBeEnabled();
+    await start.click();
+    await expect(statusStrip(guest.page), '開始しても始まっていない').toContainText('セッション中');
+    await expect(guest.page.getByRole('timer'), 'タイマーが出ていない').toBeVisible();
+  });
+});
+
 /** 消滅の仕掛けの状態。ページ側に置き、`page.evaluate` で読み書きする。 */
 interface RoomLossState {
   /** これが立って以降の `room.join` を、消えたルームへ向ける */

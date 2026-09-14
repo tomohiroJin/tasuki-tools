@@ -13,7 +13,7 @@ import { useTimerSync } from "../../src/sync/use-timer-sync.js";
 import type { Banner, BannerController } from "../../src/ui/use-banner.js";
 import { saveRecord } from "../../src/records/indexeddb.js";
 import { FakeWS } from "../support/fakes.js";
-import { navigateTo } from "../../src/platform/location.js";
+import { redirectTo } from "../../src/platform/location.js";
 import { aRoomView } from "../support/room-view.js";
 import { joinRetryDelayMs } from "@tasuki/sync-client";
 
@@ -274,9 +274,11 @@ describe("useTimerSync: 開始（お題なし）", () => {
   it("お題が無い状態でロビーから開始すると problem.request → phase.set → session.act の順で送る", () => {
     // Given
     const { result } = renderHook(() => useTimerSync(fakeBanner()));
-    // 作成者（isCreator）だと、ロビーの snapshot だけで代表お題の自動依頼が別途走り、
-    // startSession() 自身が送る problem.request と混ざって順序を確かめにくくなる。
-    // ここでは非作成者として参加させ、startSession() の配線だけを見る。
+    // **代表（輪の先頭）だと、ロビーの snapshot だけで代表お題の自動依頼が別途走り**、
+    // startSession() 自身が送る problem.request と混ざって順序を確かめにくくなる
+    // （#95 S5c で条件が `isCreator` から「輪の先頭」に替わった）。
+    // ここで代表にならないのは、`aRoomView()` の既定の輪の先頭が `creator-p` で、
+    // この参加者（`p-1`）ではないからである。
     act(() => result.current.joinRoom("ROOM01", "Guest"));
     const ws = latestSocket();
     act(() => {
@@ -652,25 +654,28 @@ describe("useTimerSync: 捨てた同期フレームの表出", () => {
   });
 
   /**
-   * ルーム由来の画面状態を持ち越さない手段が変わった（#95 S5c・R9）。
+   * ルーム由来の画面状態を持ち越さない手段が変わった（#95 S5c・R9 → C-1）。
    *
    * 撤去前は state を 1 つずつ畳んで旧入口（`Setup`）へ戻していた。いまは
-   * **同じルームの選択画面へ遷移する**ので、画面ごと作り直される。畳み忘れを
-   * 心配する state はもう無く、見るべきは「接続を残していないこと」と「行き先」である。
+   * **ルームをロビーへ戻してから玄関へ遷移する**ので、画面ごと作り直される。
+   * 畳み忘れを心配する state はもう無く、見るべきは**送るコマンド**と**行き先**である。
    */
-  it("新しいセッションを始めると接続を畳んで同じルームの選択画面へ送る", () => {
+  it("新しいセッションを始めるとルームをロビーへ戻し、玄関へ送る", () => {
     // Given: ROOM01 に居て、その後で契約に合わないフレームを捨てている
     const { result, deliver, ws } = connected();
     deliver(aValidSnapshot());
     deliver(aFrameThatViolatesTheContract());
     expect(result.current.syncStale).toBe(true);
-    const closeSpy = vi.spyOn(ws, "close");
+    const sendSpy = vi.spyOn(ws, "send");
 
     // When
     act(() => result.current.newSession());
 
-    // Then
-    expect(closeSpy, "遷移するまで WS が残る").toHaveBeenCalled();
-    expect(navigateTo).toHaveBeenCalledWith("/?room=ROOM01");
+    // Then: `celebration` のまま残さない（残すと timer だけ死んだルームになる）
+    const sent = sendSpy.mock.calls.map(
+      ([raw]) => JSON.parse(String(raw)) as Record<string, unknown>,
+    );
+    expect(sent).toContainEqual({ command: "phase.set", phase: "setup" });
+    expect(redirectTo).toHaveBeenCalledWith("/");
   });
 });
