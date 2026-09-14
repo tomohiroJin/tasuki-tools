@@ -216,12 +216,18 @@ export function RoomPage({ roomId, sync }: Props) {
   }
 
   const isVoting = snapshot.round.status === 'voting';
+  const inviteUrl = sync.inviteUrl(roomId);
 
   return (
     <main className="page room">
       <header>
         <h1>プランニングポーカー</h1>
-        <InviteLink url={sync.inviteUrl(roomId)} />
+        {/* 選択画面へ戻る導線。旧入口（poker のトップ画面等）が撤去され、他に戻る
+            手段が無い（利用者の申し送り・2026-09-14）。行き先は招待リンクと同じ
+            **同じルームの選択画面**（玄関まで戻すとルームから出たことになる）ので、
+            組み立ては増やさず sync.inviteUrl を再利用する。 */}
+        <a href={inviteUrl}>選択画面へ戻る</a>
+        <InviteLink url={inviteUrl} />
       </header>
       <ErrorNote error={sync.error} onClose={sync.clearError} />
       <section>
