@@ -10,8 +10,9 @@
  * （組み立ては `@tasuki/sync-client` に 1 つだけ・画面は同期クライアントを直接
  * import しない・`docs/adr/0015` MUST 2）。
  */
-import { describe, it, expect } from 'vitest';
+import { afterEach, beforeEach, describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { clearResumeIdentity, loadResumeIdentity, saveResumeIdentity } from '@tasuki/sync-client';
 import { RoomPage } from '../src/pages/RoomPage';
 import type { RoomStateMessage } from '@tasuki/poker-core';
 import type { PokerSync } from '../src/hooks/useSync';
@@ -36,8 +37,9 @@ function makeSync(): PokerSync {
     everConnected: true,
     failedAttempts: 0,
     self: null,
-    storedIdentity: () => null,
-    forgetIdentity: () => {},
+    // **保存の読み書きは本物を通す**（下の beforeEach が前提を作る）。
+    storedIdentity: loadResumeIdentity,
+    forgetIdentity: clearResumeIdentity,
     inviteUrl: (roomId: string) => `https://example.test/?room=${roomId}`,
     snapshot: votingSnapshot(),
     joinedThisConnection: true,
@@ -51,6 +53,29 @@ function makeSync(): PokerSync {
     nextRound: () => {},
   };
 }
+
+/**
+ * 入室済みの画面を描くための前提。
+ *
+ * **端末の同一性は「入室済み」と不可分である**（#95 S5c・R9）。旧入口を撤去してから、
+ * ルーム画面は同一性が無ければ玄関の参加画面へ送り返す —— 保存を持たない造作で
+ * `joinedThisConnection: true` を渡すと、**実ブラウザなら玄関へ去っていく最中の画面**を
+ * 検証することになる（jsdom では `Not implemented: navigation` が出るだけで緑になった）。
+ * 保存の読み書きは本物を通し、前提を実態に合わせる。
+ */
+beforeEach(() => {
+  localStorage.clear();
+  saveResumeIdentity({
+    code: ROOM_ID,
+    participantId: 'p1',
+    resumeToken: 'tok-1',
+    displayName: 'あかり',
+  });
+});
+
+afterEach(() => {
+  localStorage.clear();
+});
 
 describe('RoomPage のヘッダ', () => {
   it('Given ルームに入っている / When ヘッダを描く / Then 選択画面へ戻る道がある', () => {

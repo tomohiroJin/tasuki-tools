@@ -12,8 +12,9 @@
  *
  * @requirements #95
  */
-import { describe, it, expect } from 'vitest';
+import { afterEach, beforeEach, describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { clearResumeIdentity, loadResumeIdentity, saveResumeIdentity } from '@tasuki/sync-client';
 import { RoomPage } from '../src/pages/RoomPage';
 import type { RoomStateMessage } from '@tasuki/poker-core';
 import type { PokerSync } from '../src/hooks/useSync';
@@ -41,8 +42,9 @@ function makeSync(snapshot: RoomStateMessage | null): PokerSync {
     everConnected: true,
     failedAttempts: 0,
     self: null,
-    storedIdentity: () => null,
-    forgetIdentity: () => {},
+    // **保存の読み書きは本物を通す**（下の beforeEach が前提を作る）。
+    storedIdentity: loadResumeIdentity,
+    forgetIdentity: clearResumeIdentity,
     inviteUrl: (roomId: string) => `https://example.test/?room=${roomId}`,
     snapshot,
     joinedThisConnection: true,
@@ -56,6 +58,30 @@ function makeSync(snapshot: RoomStateMessage | null): PokerSync {
     nextRound: () => {},
   };
 }
+
+/**
+ * 入室済みの画面を描くための前提。
+ *
+ * **端末の同一性は「入室済み」と不可分である**（#95 S5c・R9）。旧入口を撤去してから、
+ * ルーム画面は同一性が無ければ玄関の参加画面へ送り返す —— 保存を持たない造作で
+ * `joinedThisConnection: true` を渡すと、**実ブラウザなら玄関へ去っていく最中の画面**を
+ * 検証することになる（jsdom では `Not implemented: navigation` が出るだけで緑になった）。
+ * 保存の読み書きは本物を通し、前提を実態に合わせる。
+ */
+beforeEach(() => {
+  localStorage.clear();
+  // 視点は 2 人目（p2）。**その人の同一性**を置く
+  saveResumeIdentity({
+    code: ROOM_ID,
+    participantId: 'p2',
+    resumeToken: 'tok-2',
+    displayName: 'みなと',
+  });
+});
+
+afterEach(() => {
+  localStorage.clear();
+});
 
 describe('#95 S3: poker は全員が同格である', () => {
   it('作成者でない参加者にも公開のボタンが出る', () => {
