@@ -2,8 +2,20 @@
  * セッション設定のローカル保存
  * T063: FR-053,054 (US10)
  *
- * 前回の設定（表示名・言語・難易度・メンバー・交代間隔）を
- * localStorage に保存し、再訪時に自動充填する。
+ * 前回の設定（表示名・言語・難易度・メンバー・交代間隔）を localStorage に保存し、
+ * 再訪時に自動充填する —— **という振る舞いは、いま働いていない。**
+ *
+ * ⚠ **この節の 4 つ（{@link SavedPreferences} / {@link savePreferences} /
+ * {@link loadPreferences} / {@link clearPreferences}）に、製品コードからの呼び手は
+ * 1 つも無い。** 唯一の呼び手だった timer の旧入口（`Setup.tsx` / `Join.tsx`）を
+ * #95 S5c で撤去したためである。生かしているのは `test/prefs/local-prefs.test.ts` だけで、
+ * 保存された値を読む画面はもうどこにも無い。
+ *
+ * **去就は Issue #272 で決める**（玄関へ移して FR-053 / FR-054 を満たし直すか、
+ * 要求ごと畳むか）。決める前に消さない —— 消すと判断の材料が履歴の中だけになる。
+ *
+ * この下の言語プール・交代通知・ヒント既読は**生きている**（`ProblemConfigPanel` /
+ * `Lobby` / `Session` などが読み書きする）。死蔵はこの節だけである。
  */
 
 const PREFS_KEY = "tdd-mob:preferences:v1";

@@ -415,9 +415,10 @@ export function useTimerSync(banner: BannerController): TimerSync {
       case "leave-room": {
         // 退出が成立した本人を取り残さない（自己退出＝LEFT_ROOM／他者に退出させられた＝
         // REMOVED_FROM_ROOM・REMOVED_BY_HOST）。後始末は行き先によらず共通で、
-        // 違うのはバナー文言（friendlyError(code) から引く）と行き先だけ（Issue #32・FR-127/128）。
-        // 退室が成立した以上、再試行の待機も畳む（#147）。止めないと、入口へ戻った
-        // 画面へ「混雑が続いています」の固定バナーが後から出る。
+        // 違うのは玄関へ渡す理由（`?left=`）と行き先だけ（Issue #32・FR-127/128）。
+        // **ここで `friendlyError` は呼ばない** —— 文言は玄関が引く（下の注記）。
+        // 退室が成立した以上、待機中の再試行も畳む（#147）。残すと、抜けたはずの
+        // ルームへ入り直そうとする送信が、玄関へ去るまでの間に走る。
         cancelJoinRetry();
         const removedFrom = room?.code ?? roomCodeRef.current;
         syncClient.dispose();

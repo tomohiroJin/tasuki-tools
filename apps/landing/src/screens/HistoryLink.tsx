@@ -13,6 +13,15 @@ export interface HistoryLinkProps {
   readonly roomCode: string | null;
 }
 
+/**
+ * ⚠ **timer の公開パスをここに直書きしている。** 宣言の正本は `src/tools.ts`
+ * （「href は公開パスで、変える場所はここ 1 箇所」）だが、`Tool` に識別子が無いため、
+ * ここから引くには `TOOLS` の中の timer を指す手立て（`id` 欄）を足す必要がある
+ * —— 型を増やす判断なので、この段では行わない（#95 S5c・C-I3）。
+ *
+ * **代わりに `tests/history-link.test.tsx` が `TOOLS` から引いて突き合わせる。**
+ * `tools.ts` の href を変えると、ここを直し忘れた時点でそのテストが赤くなる。
+ */
 export function HistoryLink({ roomCode }: HistoryLinkProps) {
   const href =
     roomCode === null
