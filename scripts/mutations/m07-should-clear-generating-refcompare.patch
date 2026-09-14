@@ -9,7 +9,7 @@
 # 復元: git checkout -- <対象ファイル>（同じくリポジトリルートから）
 #
 diff --git a/apps/timer-web/src/ui/problem-generation.ts b/apps/timer-web/src/ui/problem-generation.ts
-index 27bfa1a..5eca6d2 100644
+index f392965..b337e0b 100644
 --- a/apps/timer-web/src/ui/problem-generation.ts
 +++ b/apps/timer-web/src/ui/problem-generation.ts
 @@ -14,7 +14,7 @@ export function shouldClearGenerating(
@@ -20,4 +20,4 @@ index 27bfa1a..5eca6d2 100644
 +  return prevProblem !== nextProblem;
  }
  
- /** ロビーでの代表お題自動生成を送るべきか（App の effect から判定を分離してテスト可能化）。 */
+ /**
