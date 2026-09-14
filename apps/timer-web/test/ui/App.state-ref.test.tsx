@@ -18,10 +18,9 @@
  * @requirements Issue #41（#28 D-2）
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, act } from "@testing-library/react";
-import React from "react";
-import App from "../../src/App.js";
+import { screen, fireEvent, act } from "@testing-library/react";
 import { FakeWS } from "../support/fakes.js";
+import { enterRoomAndConnect } from "../support/enter-room.js";
 import { aRoomView } from "../support/room-view.js";
 import type { Problem } from "@tasuki/timer-core";
 
@@ -53,14 +52,6 @@ function problemB(): Problem {
   };
 }
 
-/** テスト用に FakeWS を OPEN 状態にし、connect() のキュー送信をフラッシュする。 */
-function openLatestSocket(): FakeWS {
-  const ws = FakeWS.instances[FakeWS.instances.length - 1]!;
-  ws.readyState = FakeWS.OPEN;
-  ws.onopen?.();
-  return ws;
-}
-
 function sendServer(ws: FakeWS, msg: Record<string, unknown>): void {
   act(() => {
     ws.onmessage?.({ data: JSON.stringify(msg) } as MessageEvent);
@@ -69,19 +60,19 @@ function sendServer(ws: FakeWS, msg: Record<string, unknown>): void {
 
 beforeEach(() => {
   FakeWS.instances = [];
+  // 復帰の組は localStorage に残る（#95 S4b）。テスト間で漏らさない。
+  localStorage.clear();
   vi.stubGlobal("WebSocket", FakeWS);
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  localStorage.clear();
 });
 
-/** Setup 画面から「ルームを作る」まで進め、接続済み FakeWS を返す。 */
+/** 玄関で名乗った端末としてルームを開き、接続済み FakeWS を返す（#95 S5c・R9）。 */
 function createRoomAndConnect(): FakeWS {
-  render(<App />);
-  fireEvent.change(screen.getByLabelText("あなたの名前"), { target: { value: "Creator" } });
-  fireEvent.click(screen.getByRole("button", { name: /ルームを作る/ }));
-  return openLatestSocket();
+  return enterRoomAndConnect({ participantId: CREATOR_ID });
 }
 
 describe("App.tsx の state/ref 二重管理（4組）", () => {

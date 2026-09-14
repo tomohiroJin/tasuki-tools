@@ -14,10 +14,17 @@ import { FakeWS } from "../support/fakes.js";
 import { aRoomView } from "../support/room-view.js";
 import { saveResumeIdentity } from "@tasuki/sync-client";
 import { clearPreferences } from "../../src/prefs/local-prefs.js";
+import { redirectTo } from "../../src/platform/location.js";
 
 vi.mock("../../src/records/indexeddb.js", () => ({
   saveRecord: vi.fn().mockResolvedValue(undefined),
 }));
+
+// 遷移は `platform/location.ts` に閉じている（#95 S5c・R9）。テストはそこを差し替える。
+vi.mock("../../src/platform/location.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../src/platform/location.js")>();
+  return { ...actual, navigateTo: vi.fn(), redirectTo: vi.fn() };
+});
 
 const CREATOR_ID = "p-alice";
 const ME_ID = "me-1";
@@ -56,6 +63,8 @@ function sessionSnapshot() {
 
 beforeEach(() => {
   FakeWS.instances = [];
+  // 復帰の組は localStorage に残る（#95 S4b）。テスト間で漏らさない。
+  localStorage.clear();
   vi.stubGlobal("WebSocket", FakeWS);
   sessionStorage.clear();
   clearPreferences();
@@ -63,6 +72,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  localStorage.clear();
   sessionStorage.clear();
   clearPreferences();
   window.history.replaceState(null, "", "/");
@@ -157,18 +167,21 @@ describe("再読込での復帰（#76 F-3）", () => {
     // When: 別のルームの招待リンクで開く
     render(<App />);
 
-    // Then: 通常どおり参加画面から始まる
-    expect(screen.getByRole("heading", { name: "モブに参加" })).toBeInTheDocument();
+    // Then: 前のルームへは繋がず、**そのルームの**名乗りへ送る（#95 S5c・R9）。
+    // 撤去前はここで timer 自身の参加画面（`Join`）を出していた
+    expect(redirectTo).toHaveBeenCalledWith("/?room=ROOM01");
+    expect(FakeWS.instances, "前のルームの組で繋いでいる").toHaveLength(0);
   });
 
-  it("保存が無ければ従来どおり参加画面を出す（招待リンクで初めて来た人）", () => {
+  it("保存が無ければ玄関の名乗りへ送る（招待リンクで初めて来た人）", () => {
     // Given: 保存なし
     window.history.replaceState(null, "", "/?room=ROOM01");
 
     // When: 招待リンクで開く
     render(<App />);
 
-    // Then: 名前と参加方法を尋ねる
-    expect(screen.getByRole("heading", { name: "モブに参加" })).toBeInTheDocument();
+    // Then: 名乗りはハブに 1 つだけある。**コードは落とさずに運ぶ**（#95 S5c・R9）
+    expect(redirectTo).toHaveBeenCalledWith("/?room=ROOM01");
+    expect(FakeWS.instances, "名乗れないのに接続を張っている").toHaveLength(0);
   });
 });

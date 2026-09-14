@@ -14,3 +14,15 @@ export function currentSearch(): string {
 export function navigateTo(to: string): void {
   window.location.assign(to);
 }
+
+/**
+ * 別の URL へ**置き換えて**移動する（履歴に残らない。戻るで元の URL へ往復できない）。
+ *
+ * 行き場の無い URL を玄関へ送り直すのはこちら（#95 S5c・R9）。`navigateTo` で送ると、
+ * 戻るボタンが行き場の無い URL へ戻り、そこからまた送り返される往復になる。
+ * 退出が成立したときも同じ理由でこちらを使う —— 抜けた本人の履歴に、
+ * 直前のルームを指す URL を残さない（FR-127 / US2-2）。
+ */
+export function redirectTo(to: string): void {
+  window.location.replace(to);
+}

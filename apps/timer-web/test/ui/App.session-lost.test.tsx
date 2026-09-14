@@ -8,12 +8,18 @@
  * poker は「ルームが見つかりません／トップへ戻る」に切り替わる。
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, act } from "@testing-library/react";
-import React from "react";
-import App from "../../src/App.js";
+import { screen, fireEvent, act } from "@testing-library/react";
 import { FakeWS } from "../support/fakes.js";
+import { enterRoomAndConnect } from "../support/enter-room.js";
+import { navigateTo } from "../../src/platform/location.js";
 import { aRoomView } from "../support/room-view.js";
 import { clearPreferences } from "../../src/prefs/local-prefs.js";
+
+// 遷移は `platform/location.ts` に閉じている（#95 S5c・R9）。テストはそこを差し替える。
+vi.mock("../../src/platform/location.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../src/platform/location.js")>();
+  return { ...actual, navigateTo: vi.fn(), redirectTo: vi.fn() };
+});
 
 vi.mock("../../src/records/indexeddb.js", () => ({
   saveRecord: vi.fn().mockResolvedValue(undefined),
@@ -33,13 +39,6 @@ function participant(participantId: string, displayName: string) {
   };
 }
 
-function openLatestSocket(): FakeWS {
-  const ws = FakeWS.instances[FakeWS.instances.length - 1]!;
-  ws.readyState = FakeWS.OPEN;
-  ws.onopen?.();
-  return ws;
-}
-
 function sendServer(ws: FakeWS, msg: Record<string, unknown>): void {
   act(() => {
     ws.onmessage?.({ data: JSON.stringify(msg) } as MessageEvent);
@@ -48,16 +47,9 @@ function sendServer(ws: FakeWS, msg: Record<string, unknown>): void {
 
 /** ルームを作ってセッション中まで進める。 */
 function enterSession(): FakeWS {
-  render(<App />);
-  fireEvent.change(screen.getByLabelText("あなたの名前"), { target: { value: "アリス" } });
-  fireEvent.click(screen.getByRole("button", { name: /ルームを作る/ }));
-  const ws = openLatestSocket();
-  sendServer(ws, {
-    type: "room.created",
-    code: "ROOM01",
-    resumeToken: "rt",
-    participantId: CREATOR_ID,
-  });
+  // 玄関で名乗った端末としてルームを開く（#95 S5c・R9。旧入口 Setup はもう無い）。
+  const ws = enterRoomAndConnect({ participantId: CREATOR_ID, displayName: "アリス" });
+  sendServer(ws, { type: "room.joined", resumeToken: "rt", participantId: CREATOR_ID });
   sendServer(ws, {
     type: "snapshot",
     room: aRoomView({
@@ -71,6 +63,8 @@ function enterSession(): FakeWS {
 
 beforeEach(() => {
   FakeWS.instances = [];
+  // 復帰の組は localStorage に残る（#95 S4b）。テスト間で漏らさない。
+  localStorage.clear();
   vi.stubGlobal("WebSocket", FakeWS);
   sessionStorage.clear();
   clearPreferences();
@@ -78,6 +72,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  localStorage.clear();
   sessionStorage.clear();
   clearPreferences();
   window.history.replaceState(null, "", "/");
@@ -130,8 +125,22 @@ describe("セッション喪失（#76 F-4）", () => {
     // When: 新しく始める
     fireEvent.click(screen.getByRole("button", { name: /新しいセッションを始める/ }));
 
-    // Then: 入口へ戻る
-    expect(screen.getByRole("button", { name: /ルームを作る/ })).toBeInTheDocument();
+    // Then: 玄関へ戻る（#95 S5c・R9）。**消えたルームの選択画面へは送らない** ——
+    // ハブはそこで存在しないルームの参加画面を出し、名乗っても必ず失敗する
+    expect(navigateTo).toHaveBeenCalledWith("/");
+  });
+
+  it("端末の記録は喪失しても見られる", () => {
+    // Given: 喪失した
+    const ws = enterSession();
+    sendServer(ws, { type: "error", code: "ROOM_NOT_FOUND", message: "not found" });
+
+    // When: 記録を見る
+    fireEvent.click(screen.getByRole("button", { name: /記録を見る/ }));
+
+    // Then: 履歴は URL が決める画面になった（#95 S5c）。**いまのツールの中で**開くので
+    // 公開パス（`/timer/`）を書かず、相対の検索文字列で送る
+    expect(navigateTo).toHaveBeenCalledWith("?view=history");
   });
 
   it("まだセッション中であるかのような表示を残さない", () => {

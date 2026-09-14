@@ -15,8 +15,10 @@ import { loadRecords, deleteRecord } from "../records/indexeddb.js";
 interface HistoryProps {
   /**
    * 一覧から戻る。呼び出し元が行き先を決めて渡す（#95 S5c）。
-   * 玄関・選択画面から開いたときは URL 遷移（`window.location`）、
-   * 旧 Setup 画面から開いたときは内部の mode 切り替えになる。
+   *
+   * **行き先は URL が運ぶ。** 玄関から開いたなら `/`、選択画面から開いたなら
+   * `/?room=CODE` へ戻す（`ui/entry.ts` の `backTo`）。旧入口（`Setup`）から
+   * 内部の mode 切り替えで開く経路は R9 で撤去した。
    */
   onBack: () => void;
 }

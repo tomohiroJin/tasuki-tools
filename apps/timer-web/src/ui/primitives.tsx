@@ -15,7 +15,7 @@ import type { LucideIcon } from "lucide-react";
 export function Stage({ children }: { children: React.ReactNode }) {
   return (
     <div className="instrument-stage text-[var(--bone)]">
-      {/* PC を主役にするため広めに。Setup/Join/Summary は内側で max-w-md 等を維持。 */}
+      {/* PC を主役にするため広めに。Summary・History は内側で max-w-md 等を維持。 */}
       <div className="relative max-w-6xl mx-auto px-4 py-10 md:py-12">{children}</div>
     </div>
   );

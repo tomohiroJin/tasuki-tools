@@ -8,10 +8,9 @@
  * @requirements #209
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, act } from "@testing-library/react";
-import React from "react";
-import App from "../../src/App.js";
+import { screen, act } from "@testing-library/react";
 import { FakeWS } from "../support/fakes.js";
+import { enterRoomAndConnect } from "../support/enter-room.js";
 import { aRoomView } from "../support/room-view.js";
 import { clearPreferences } from "../../src/prefs/local-prefs.js";
 
@@ -63,24 +62,17 @@ function aFrameThatViolatesTheContract(): Record<string, unknown> {
 }
 
 function enterLobby(): FakeWS {
-  render(<App />);
-  fireEvent.change(screen.getByLabelText("あなたの名前"), { target: { value: "Creator" } });
-  fireEvent.click(screen.getByRole("button", { name: /ルームを作る/ }));
-  const ws = FakeWS.instances[FakeWS.instances.length - 1]!;
-  ws.readyState = FakeWS.OPEN;
-  ws.onopen?.();
-  sendServer(ws, {
-    type: "room.created",
-    code: "ROOM01",
-    resumeToken: "rt",
-    participantId: CREATOR_ID,
-  });
+  // 玄関で名乗った端末としてルームを開く（#95 S5c・R9。旧入口 Setup はもう無い）。
+  const ws = enterRoomAndConnect({ participantId: CREATOR_ID });
+  sendServer(ws, { type: "room.joined", resumeToken: "rt", participantId: CREATOR_ID });
   sendServer(ws, aValidSnapshot());
   return ws;
 }
 
 beforeEach(() => {
   FakeWS.instances = [];
+  // 復帰の組は localStorage に残る（#95 S4b）。テスト間で漏らさない。
+  localStorage.clear();
   vi.stubGlobal("WebSocket", FakeWS);
   sessionStorage.clear();
   clearPreferences();
@@ -90,6 +82,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  localStorage.clear();
   vi.restoreAllMocks();
   sessionStorage.clear();
   clearPreferences();
@@ -162,19 +155,9 @@ describe("捨てた同期フレームを画面で伝える", () => {
    * 補わないと利用者には「ボタンが効かない」としか見えない。
    */
   it("ルームに入る前に捨てたときは、表示する場所が無いのでバナーで伝える", () => {
-    // Given: 名前を入れてルームを作る操作までは成立している
-    render(<App />);
-    fireEvent.change(screen.getByLabelText("あなたの名前"), { target: { value: "Creator" } });
-    fireEvent.click(screen.getByRole("button", { name: /ルームを作る/ }));
-    const ws = FakeWS.instances[FakeWS.instances.length - 1]!;
-    ws.readyState = FakeWS.OPEN;
-    ws.onopen?.();
-    sendServer(ws, {
-      type: "room.created",
-      code: "ROOM01",
-      resumeToken: "rt",
-      participantId: CREATOR_ID,
-    });
+    // Given: 玄関で名乗った端末としてルームを開く操作までは成立している
+    const ws = enterRoomAndConnect({ participantId: CREATOR_ID });
+    sendServer(ws, { type: "room.joined", resumeToken: "rt", participantId: CREATOR_ID });
 
     // Given の確認: StatusStrip はまだ出ていない（出す場所が無い）
     expect(screen.queryByLabelText("接続状態")).toBeNull();
@@ -188,18 +171,8 @@ describe("捨てた同期フレームを画面で伝える", () => {
 
   it("ルームに入れたらそのバナーは消える", () => {
     // Given
-    render(<App />);
-    fireEvent.change(screen.getByLabelText("あなたの名前"), { target: { value: "Creator" } });
-    fireEvent.click(screen.getByRole("button", { name: /ルームを作る/ }));
-    const ws = FakeWS.instances[FakeWS.instances.length - 1]!;
-    ws.readyState = FakeWS.OPEN;
-    ws.onopen?.();
-    sendServer(ws, {
-      type: "room.created",
-      code: "ROOM01",
-      resumeToken: "rt",
-      participantId: CREATOR_ID,
-    });
+    const ws = enterRoomAndConnect({ participantId: CREATOR_ID });
+    sendServer(ws, { type: "room.joined", resumeToken: "rt", participantId: CREATOR_ID });
     sendServer(ws, aFrameThatViolatesTheContract());
     expect(screen.getByText(/同期できていません/)).toBeInTheDocument();
 

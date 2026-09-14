@@ -22,6 +22,7 @@ import {
   selectedIntervalLabel,
   invitedUrlText,
   joinAsDriver,
+  joinViaHub,
   MISSING_ROOM_CODE,
   lobbyRotationRow,
   participantCount,
@@ -205,6 +206,56 @@ test.describe('招待パネルに表示された URL でそのまま参加でき
 });
 
 /**
+ * 行き場の無い URL は玄関へ送り返す（#95 S5c・R9。タグ無し = `local` 専用）。
+ *
+ * **`timer-a11y.spec.ts` では見られない。** あちらは玄関の入力画面をフォーカスの検査に
+ * 使うだけで、`/timer/` を開いても**玄関にも「ルームを作る」がある**ため、
+ * 送り返しが壊れていても緑になる。ここでは**行き先の URL そのもの**を固定する。
+ *
+ * `toContain` は使わない。`/` はあらゆるパスの接頭辞なので、部分一致は恒真になる。
+ */
+test.describe('timer はルームコードの無い URL を玄関へ送り返す', () => {
+  test('Given ルームコードの無い URL / When /timer/ を開く / Then 玄関へ送られる', async ({
+    page,
+  }) => {
+    // Given / When: 旧入口のつもりで `/timer/` を素で開く
+    await page.goto('/timer/');
+
+    // Then その1: **玄関へ移動している。** 送り返しが無ければ `/timer/` に留まる
+    await expect
+      .poll(() => new URL(page.url()).pathname, { message: 'ルーム無しで開いた timer の行き先' })
+      .toBe('/');
+
+    // Then その2: **玄関が実際に描かれている。** 配信が壊れていても
+    //             包括フォールバックが 200 を返すので、URL だけでは素通りする
+    await expect(page.getByLabel('ルーム名')).toBeVisible();
+  });
+
+  test('Given 端末に同一性が無い / When /timer/?room=CODE を直接開く / Then コードを保ったまま玄関の名乗りへ送られる', async ({
+    page,
+    openPeer,
+  }) => {
+    // Given: 実在するルーム（作成者は別の文脈に居る）
+    const host = await openPeer('timer-redirect-host');
+    const code = await createRoom(host.page, HOST);
+
+    // When: ハブを通らずに timer の URL を直接開く（ブックマークや古い共有リンク）
+    await page.goto(`/timer/?room=${encodeURIComponent(code)}`);
+
+    // Then その1: **コードを落とさない。** 落とすと、入りたかったルームを失う
+    await expect
+      .poll(() => new URL(page.url()).searchParams.get('room'), {
+        message: '送り返し先の room',
+      })
+      .toBe(code);
+    await expect.poll(() => new URL(page.url()).pathname).toBe('/');
+
+    // Then その2: 名乗りの画面である（名乗りはハブに 1 つだけある）
+    await expect(page.getByRole('button', { name: '参加する' })).toBeVisible();
+  });
+});
+
+/**
  * 再読込しても参加画面に戻らないこと（#12・#76 F-3 の回帰防止）。
  *
  * **作成者で試してはいけない。** 壊れ方は「復帰時に `participantId` が立たず、
@@ -238,8 +289,8 @@ test.describe('timer を再読込しても参加画面に戻らない', () => {
     await guest.page.reload();
 
     // Then その1: **参加画面に戻っていない。**
-    //             ステータス表示は `mode` が `join` / `setup` のときは描画されないので
-    //             （`App.tsx:819`）、見えていること自体が参加画面でない証拠になる。
+    //             ステータス表示はルームの画面が決まるまで（`mode` が null の間）
+    //             描画されないので、見えていること自体が復帰できた証拠になる。
     //             「参加ボタンが無い」という否定より、こちらのほうが空振りしない
     await expect(strip, '再読込後のステータス表示').toBeVisible();
 
@@ -396,8 +447,9 @@ test.describe('契約に合わない同期フレームを捨てたことが画�
     const guest = await openPeer('timer-stale-newcomer');
     const corrupter = await corruptFrom(guest.page, () => true);
 
-    // When
-    await joinAsDriver(guest.page, code, GUEST);
+    // When: 玄関で名乗って timer へ入る。**輪への加入までは進めない** ——
+    //       ロビーがそもそも描かれないのがこのシナリオの前提である
+    await joinViaHub(guest.page, code, GUEST);
 
     // Then: 画面に出す場所が無いので、バナーで伝える
     await expect(guest.page.getByText(/同期できていません/)).toBeVisible();

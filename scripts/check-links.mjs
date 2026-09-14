@@ -395,6 +395,14 @@ export const MISSING_PATH_EXCEPTIONS = [
       "削除した。背景の実測は書き換えず、追記（2026-09-08）が削除を記録している",
   },
   {
+    doc: "docs/adr/0015-web-layer-structure.md",
+    path: "apps/timer-web/src/ui/room-param.ts",
+    reason:
+      "同じ 9 本の 1 つ。#95 S5c（#249）で旧入口（Setup / Join）を撤去し、自己退出の行き先が" +
+      "玄関そのものになったため呼び手が消えた。背景の実測は書き換えず、追記（2026-09-14）が" +
+      "削除を記録している",
+  },
+  {
     doc: "docs/constitution.md",
     path: "packages/core",
     reason:

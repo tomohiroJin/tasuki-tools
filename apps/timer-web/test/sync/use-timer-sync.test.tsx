@@ -13,8 +13,15 @@ import { useTimerSync } from "../../src/sync/use-timer-sync.js";
 import type { Banner, BannerController } from "../../src/ui/use-banner.js";
 import { saveRecord } from "../../src/records/indexeddb.js";
 import { FakeWS } from "../support/fakes.js";
+import { navigateTo } from "../../src/platform/location.js";
 import { aRoomView } from "../support/room-view.js";
 import { joinRetryDelayMs } from "@tasuki/sync-client";
+
+// 遷移は `platform/location.ts` に閉じている（#95 S5c・R9）。テストはそこを差し替える。
+vi.mock("../../src/platform/location.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../src/platform/location.js")>();
+  return { ...actual, navigateTo: vi.fn(), redirectTo: vi.fn() };
+});
 
 /**
  * 諦めるまでの試行回数を、**公開された振る舞いから導く**。
@@ -92,13 +99,15 @@ afterEach(() => {
 });
 
 describe("useTimerSync: 接続の状態", () => {
-  it("初期状態は online で、ルームは無い", () => {
+  it("初期状態は online で、ルームは無く、どの画面でもない", () => {
     // Given
     const { result } = renderHook(() => useTimerSync(fakeBanner()));
     // When / Then（result.current への問い合わせが検証と同じ式になる）
     expect(result.current.connState).toBe("online");
     expect(result.current.room).toBeNull();
-    expect(result.current.mode).toBe("setup");
+    // **`"lobby"` ではなく `null`。** 旧入口を撤去した後、ルームの画面が決まるまでは
+    // どの画面でもない（#95 S5c・R9）。`"lobby"` を初期値にすると意味が嘘になる
+    expect(result.current.mode).toBeNull();
   });
 
   it("ルームを作ると WebSocket を 1 本だけ開く", () => {
@@ -643,17 +652,25 @@ describe("useTimerSync: 捨てた同期フレームの表出", () => {
   });
 
   /**
-   * ルーム由来の画面状態は退出・やり直しで畳む（FR-128 と同じ扱い）。
-   * 持ち越すと、次のルームに入った瞬間に前のルームの警告が出る。
+   * ルーム由来の画面状態を持ち越さない手段が変わった（#95 S5c・R9）。
+   *
+   * 撤去前は state を 1 つずつ畳んで旧入口（`Setup`）へ戻していた。いまは
+   * **同じルームの選択画面へ遷移する**ので、画面ごと作り直される。畳み忘れを
+   * 心配する state はもう無く、見るべきは「接続を残していないこと」と「行き先」である。
    */
-  it("新しいセッションを始めると古い状態を持ち越さない", () => {
-    // Given
-    const { result, deliver } = connected();
+  it("新しいセッションを始めると接続を畳んで同じルームの選択画面へ送る", () => {
+    // Given: ROOM01 に居て、その後で契約に合わないフレームを捨てている
+    const { result, deliver, ws } = connected();
+    deliver(aValidSnapshot());
     deliver(aFrameThatViolatesTheContract());
     expect(result.current.syncStale).toBe(true);
+    const closeSpy = vi.spyOn(ws, "close");
+
     // When
     act(() => result.current.newSession());
+
     // Then
-    expect(result.current.syncStale).toBe(false);
+    expect(closeSpy, "遷移するまで WS が残る").toHaveBeenCalled();
+    expect(navigateTo).toHaveBeenCalledWith("/?room=ROOM01");
   });
 });

@@ -18,8 +18,19 @@ export function decideEntry(search: string): Entry {
   const params = new URLSearchParams(search);
   const code = params.get("room");
   if (params.get("view") === "history") {
-    return { kind: "history", backTo: code ? `/?room=${encodeURIComponent(code)}` : "/" };
+    return { kind: "history", backTo: code ? hubRoomPath(code) : "/" };
   }
   if (code) return { kind: "room", code };
   return { kind: "redirect", to: "/" };
+}
+
+/**
+ * 玄関のそのルーム（参加用 URL と同じ形・`docs/adr/0018` 決定 2）。
+ *
+ * **ルームコードにはルーム名がそのまま入り、日本語も許される**（例: `朝会モブ-a1b2`）ので、
+ * 素の連結ではなく符号化を通す。行き先が 3 つ（履歴の戻り先・同一性が無いときの送り先・
+ * 完了後の戻り先）に増えたので、綴りをここ 1 箇所に持つ。
+ */
+export function hubRoomPath(code: string): string {
+  return `/?room=${encodeURIComponent(code)}`;
 }

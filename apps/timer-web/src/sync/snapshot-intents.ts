@@ -16,7 +16,11 @@
 import { buildCompletionRecord, type CompletionRecord, type Room } from "@tasuki/timer-core";
 import { screenForPhase, type Screen } from "../ui/screen.js";
 import { shouldAutoJoinRotation } from "../ui/join-driver-intent.js";
-import { shouldAutoRequestProblem, shouldClearGenerating } from "../ui/problem-generation.js";
+import {
+  isRotationRepresentative,
+  shouldAutoRequestProblem,
+  shouldClearGenerating,
+} from "../ui/problem-generation.js";
 import type { ResumeIdentity } from "@tasuki/sync-client";
 
 export type SnapshotIntent =
@@ -46,8 +50,6 @@ export interface SnapshotContext {
   resumeDisplayName: string;
   /** 参加時に "driver" を宣言したか。 */
   pendingDriverJoin: boolean;
-  /** このクライアントがルームを作った側か。 */
-  isCreator: boolean;
   /** ロビーでのお題自動生成を既に依頼したか。 */
   problemRequested: boolean;
   /** 完成記録を既に保存したか。 */
@@ -106,12 +108,14 @@ export function decideSnapshotIntents(
   intents.push({ kind: "set-screen", screen: screenForPhase(next.phase) });
 
   // 5. ロビー（開始前）でお題が未確定かつ problemEnabled=true なら、
-  //    作成者が一度だけ代表生成を依頼する（US3）。
+  //    **輪の先頭の人**が一度だけ代表生成を依頼する（US3・#95 S5c・R9）。
+  //    かつては「ルームを作った側」だったが、ルームを作るのはハブになった。
+  const isRepresentative = isRotationRepresentative(ctx.participantId, next.session.rotation);
   if (
     shouldAutoRequestProblem({
       phase: next.phase,
       hasProblem: !!next.problem,
-      isCreator: ctx.isCreator,
+      isRepresentative,
       alreadyRequested: ctx.problemRequested,
       problemEnabled: next.config.problemEnabled !== false,
     })
@@ -120,14 +124,14 @@ export function decideSnapshotIntents(
   }
 
   // 6. 難易度・言語をロビーで変えたら、お題を作り直して選択と中身を一致させる。
-  //    代表（作成者）のみが依頼し、変化時だけ発火するのでループしない。
+  //    代表（輪の先頭）のみが依頼し、変化時だけ発火するのでループしない。
   const cfgChanged =
     prev?.code === next.code &&
     (prev.config.difficulty !== next.config.difficulty ||
       prev.config.language !== next.config.language);
   if (
     cfgChanged &&
-    ctx.isCreator &&
+    isRepresentative &&
     (next.phase === "setup" || next.phase === "ready") &&
     !!next.problem &&
     next.config.problemEnabled !== false

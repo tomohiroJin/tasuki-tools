@@ -18,17 +18,24 @@
  * @requirements Issue #46 REQ-6
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
-import React from "react";
-import App from "../../src/App.js";
+import { act, waitFor, renderHook } from "@testing-library/react";
 import { FakeWS } from "../support/fakes.js";
+import { enterRoomAndConnect } from "../support/enter-room.js";
 import { aRoomView } from "../support/room-view.js";
 import { loadResumeIdentity } from "@tasuki/sync-client";
 import { clearPreferences } from "../../src/prefs/local-prefs.js";
+import { useTimerSync } from "../../src/sync/use-timer-sync.js";
+import { redirectTo } from "../../src/platform/location.js";
 
 vi.mock("../../src/records/indexeddb.js", () => ({
   saveRecord: vi.fn().mockResolvedValue(undefined),
 }));
+
+// 遷移は `platform/location.ts` に閉じている（#95 S5c・R9）。テストはそこを差し替える。
+vi.mock("../../src/platform/location.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../src/platform/location.js")>();
+  return { ...actual, navigateTo: vi.fn(), redirectTo: vi.fn() };
+});
 
 // お題生成に渡る言語・難易度は、生成結果（pickFallback）からは観測できない
 // （時刻ベースの疑似ランダム選択で、言語が一致しなければ全件から選ぶため）。
@@ -85,9 +92,11 @@ function sendServer(ws: FakeWS, msg: Record<string, unknown>): void {
 
 beforeEach(() => {
   FakeWS.instances = [];
+  // 復帰の組は localStorage に残る（#95 S4b）。テスト間で漏らさない。
+  localStorage.clear();
   vi.stubGlobal("WebSocket", FakeWS);
   sessionStorage.clear();
-  // Join/Setup は前回の名前を localStorage から復元する。テスト間で漏らさない。
+  // 表示名の既定は localStorage に残る。テスト間で漏らさない。
   clearPreferences();
   // vitest.config.ts の restoreMocks: true により、各テスト開始前に
   // generateSpy の実装（mockResolvedValue）が自動で剥がされる（mockClear では戻らない）。
@@ -100,25 +109,23 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  localStorage.clear();
   sessionStorage.clear();
   clearPreferences();
   // ?room= を次のテストへ持ち越さない（App は初回 useEffect で URL を読む）。
   window.history.replaceState(null, "", "/");
 });
 
-/** Setup 画面から「ルームを作る」まで進め、接続済み FakeWS を返す。 */
+/** 玄関で名乗った端末としてルームを開き、接続済み FakeWS を返す（#95 S5c・R9）。 */
 function createRoomAndConnect(): FakeWS {
-  render(<App />);
-  fireEvent.change(screen.getByLabelText("あなたの名前"), { target: { value: "Creator" } });
-  fireEvent.click(screen.getByRole("button", { name: /ルームを作る/ }));
-  return openLatestSocket();
+  return enterRoomAndConnect({ participantId: CREATOR_ID });
 }
 
 describe("SyncClient コールバックが最新の state を読む経路（Issue #46）", () => {
-  it("onError/leave-room: 退出させられたとき直前のルームコードが参加画面へ引き継がれる", () => {
+  it("onError/leave-room: 退出させられたとき直前のルームコードが玄関へ引き継がれる", () => {
     // Given: ROOM01 のロビーに居る
     const ws = createRoomAndConnect();
-    sendServer(ws, { type: "room.created", code: "ROOM01", resumeToken: "rt", participantId: CREATOR_ID });
+    sendServer(ws, { type: "room.joined", resumeToken: "rt", participantId: CREATOR_ID });
     sendServer(ws, {
       type: "snapshot",
       room: aRoomView({ code: "ROOM01", participants: [participant(CREATOR_ID, "Creator")] }),
@@ -127,21 +134,22 @@ describe("SyncClient コールバックが最新の state を読む経路（Issu
     // When: 他の参加者に退出させられた（destination: "join"）
     sendServer(ws, { type: "error", code: "REMOVED_BY_HOST", message: "removed" });
 
-    // Then: 参加画面へ移り、直前のルームコード（room?.code から解決）が引き継がれている
-    // （Join.tsx はコードを見出しではなく本文の span に出す）
-    expect(screen.getByRole("heading", { name: "モブに参加" })).toBeInTheDocument();
-    expect(screen.getByText(/ROOM01/)).toBeInTheDocument();
+    // Then: 玄関のそのルームへ送られ、直前のルームコード（room?.code から解決）が
+    // 引き継がれている（#95 S5c・R9。撤去前は timer 自身の `Join` 画面へ移していた）
+    expect(redirectTo).toHaveBeenCalledWith("/?room=ROOM01");
   });
 
   it("onRoom: snapshot に自分が現れたら member.add を1回だけ送る（driver 宣言）", () => {
-    // Given: ?room= からドライバーとして参加する
-    window.history.replaceState(null, "", "/?room=ROOM01");
-    render(<App />);
-    fireEvent.change(screen.getByLabelText("あなたの名前"), { target: { value: "Guest" } });
-    fireEvent.click(screen.getByRole("radio", { name: "ドライバーとして参加" }));
-    fireEvent.click(screen.getByRole("button", { name: /参加/ }));
+    // Given: ドライバーを宣言して参加する。
+    // **画面からではなくフックを直接回す。** 参加方法の必須選択（`Join` の
+    // ドライバー/見学）は #95 S5c で撤去され、名乗りはハブに移った。宣言を受け取る
+    // 経路そのものはフックに残っており、ここで見たいのはその配線である。
+    const { result } = renderHook(() =>
+      useTimerSync({ banner: null, show: () => {}, clear: () => {} }),
+    );
+    act(() => result.current.joinRoom("ROOM01", "Guest", "", "driver"));
     const ws = openLatestSocket();
-    sendServer(ws, { type: "room.joined", code: "ROOM01", resumeToken: "rt", participantId: OTHER_ID });
+    sendServer(ws, { type: "room.joined", resumeToken: "rt", participantId: OTHER_ID });
 
     // When: 自分を含む snapshot が届く（rotation には未加入）
     const sendSpy = vi.spyOn(ws, "send");

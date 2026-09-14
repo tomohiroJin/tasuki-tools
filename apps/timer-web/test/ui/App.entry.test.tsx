@@ -5,8 +5,10 @@
  * ここで見るのは、`App.tsx` が mount 時の URL を見て `History` を最優先で出し、
  * 「戻る」が `platform/location.js` 経由で戻り先 URL へ遷移することだけである。
  *
- * `kind: "redirect"` の適用（旧入口が無いときに玄関へ送る）はこの段では配線していない
- * （旧入口 Setup/Join がまだ生きているため）。ここでは検証しない。
+ * **`kind: "redirect"` の適用もここで見る（#95 S5c・R9）。** 旧入口（`Setup` / `Join`）を
+ * 撤去したので、ルームコードを伴わない URL には行き先が無い。玄関（`/`）へ送る。
+ * ルームコードはあるのに端末へ同一性が無いときも、名乗りはハブに 1 つだけあるので
+ * **コードを落とさずに**玄関の参加画面へ送る。
  *
  * ## レビューで見つかった実害（#95 S5c）
  *
@@ -30,17 +32,23 @@ vi.mock("../../src/records/indexeddb.js", () => ({
 
 vi.mock("../../src/platform/location.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../src/platform/location.js")>();
-  return { ...actual, navigateTo: vi.fn() };
+  return { ...actual, navigateTo: vi.fn(), redirectTo: vi.fn() };
 });
 
 import App from "../../src/App.js";
-import { navigateTo } from "../../src/platform/location.js";
+import { navigateTo, redirectTo } from "../../src/platform/location.js";
 import { FakeWS } from "../support/fakes.js";
+import { aRoomView } from "../support/room-view.js";
 
 beforeEach(() => {
   FakeWS.instances = [];
   vi.stubGlobal("WebSocket", FakeWS);
   localStorage.clear();
+  // **呼び出し履歴を明示的に捨てる。** `restoreMocks: true` は `vi.mock` のファクトリが
+  // 作った `vi.fn()` の `mock.calls` までは確実に消さず、前のテストの遷移が次のテストへ
+  // 漏れる（実測: 未実装のはずの遷移が「呼ばれている」で緑になった）。
+  vi.mocked(navigateTo).mockClear();
+  vi.mocked(redirectTo).mockClear();
 });
 
 afterEach(() => {
@@ -136,5 +144,59 @@ describe("App の入口配線（?view=history）", () => {
       hasAiKey: false,
       resumeToken: "rt_1",
     });
+  });
+});
+
+describe("App の入口配線（旧入口の撤去・R9）", () => {
+  it("Given ルームコードが無い / When timer を開く / Then 玄関へ送られる", () => {
+    // Given: `/timer/` を素で開いた（旧入口の Setup はもう無い）
+    window.history.replaceState(null, "", "/");
+
+    // When
+    render(<App />);
+
+    // Then: 画面を描かずに玄関へ送る。**replace で送る**（戻るで往復しないため）
+    expect(redirectTo).toHaveBeenCalledWith("/");
+    expect(FakeWS.instances, "行き先が無いのに接続を張っている").toHaveLength(0);
+  });
+
+  it("Given ルームコードはあるが端末に同一性が無い / When timer を開く / Then 玄関の参加画面へ送られる", () => {
+    // Given: ハブを通らずに `/timer/?room=CODE` を直接開いた
+    window.history.replaceState(null, "", "/?room=%E6%9C%9D%E4%BC%9A%E3%83%A2%E3%83%96-a1b2");
+
+    // When
+    render(<App />);
+
+    // Then: 名乗りはハブに 1 つだけある。コードは落とさずに運ぶ
+    expect(redirectTo).toHaveBeenCalledWith("/?room=%E6%9C%9D%E4%BC%9A%E3%83%A2%E3%83%96-a1b2");
+    expect(FakeWS.instances, "名乗れないのに接続を張っている").toHaveLength(0);
+  });
+
+  it("Given セッションを終えた / When 新しいセッションを選ぶ / Then 同じルームの選択画面へ戻る", () => {
+    // Given: 撤去前は `setMode("setup")` で**撤去する旧入口へ戻していた**（到達不能になる）
+    saveResumeIdentity({
+      code: "ROOM01",
+      participantId: "me-1",
+      resumeToken: "rt_1",
+      displayName: "ボブ",
+    });
+    window.history.replaceState(null, "", "/?room=ROOM01");
+    render(<App />);
+    const ws = FakeWS.instances[FakeWS.instances.length - 1]!;
+    ws.readyState = FakeWS.OPEN;
+    act(() => {
+      ws.onopen?.();
+    });
+    act(() => {
+      ws.onmessage?.({
+        data: JSON.stringify({ type: "snapshot", room: aRoomView({ code: "ROOM01", phase: "celebration" }) }),
+      } as MessageEvent);
+    });
+
+    // When
+    fireEvent.click(screen.getByRole("button", { name: /新しいセッション/ }));
+
+    // Then: 玄関ではなく**同じルームの選択画面**へ戻す（ルームから出たことにしない）
+    expect(navigateTo).toHaveBeenCalledWith("/?room=ROOM01");
   });
 });
