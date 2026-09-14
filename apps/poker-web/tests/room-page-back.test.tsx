@@ -44,7 +44,6 @@ function makeSync(): PokerSync {
     error: null,
     syncStale: false,
     clearError: () => {},
-    createRoom: () => {},
     joinRoom: () => {},
     checkRoom: () => {},
     vote: () => {},

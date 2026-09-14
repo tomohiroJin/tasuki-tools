@@ -4,9 +4,9 @@
  * 純関数（`connectionNotice`）とフックが個別に緑でも、**その間の配線が 1 本切れていれば
  * 利用者には何も見えない**。ここは App を通して実経路を通す。
  *
- * **ルーム画面まで見る。** 症状（名簿や票が更新されない）が出るのはそちらで、
- * トップ画面だけを見ていると、ルーム画面から告知を落としても気づけない
- * （実際に、トップ画面しか通らない版では告知を消しても全件緑だった）。
+ * **入室後の画面まで見る。** 症状（名簿や票が更新されない）が出るのはそちらで、
+ * 入室前の画面だけを見ていると、入室後の画面から告知を落としても気づけない
+ * （実際に、入室前しか通らない版では告知を消しても全件緑だった）。
  *
  * @requirements #212
  */
@@ -14,6 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { App } from '../src/App';
 import { FakeListenerSocket } from './support/fakes';
+import { saveResumeIdentity } from '@tasuki/sync-client';
 
 const ROOM_ID = 'ABCD1234';
 
@@ -29,6 +30,17 @@ function open(): void {
     FakeListenerSocket.latest().readyState = FakeListenerSocket.OPEN;
     FakeListenerSocket.latest().fire('open');
   });
+}
+
+/**
+ * 参加用 URL からルーム画面を開く。
+ *
+ * **同一性を先に置く。** 無いまま開くと画面は玄関の参加画面へ送り返し、
+ * ここで見たい告知の経路まで辿り着かない（#95 S5c・R9）。
+ */
+function openRoom(): void {
+  render(<App />);
+  open();
 }
 
 function close(): void {
@@ -73,7 +85,9 @@ let warn: ReturnType<typeof vi.spyOn>;
 beforeEach(() => {
   FakeListenerSocket.instances = [];
   vi.stubGlobal('WebSocket', FakeListenerSocket);
-  window.history.replaceState(null, '', '/poker/');
+  localStorage.clear();
+  saveResumeIdentity({ code: ROOM_ID, participantId: 'p-stored', resumeToken: 'tok-1', displayName: 'はなこ' });
+  window.history.replaceState(null, '', `/poker/?room=${ROOM_ID}`);
   // 捨てたことは devtools にも残る。出力を汚さずに、呼ばれたことは見られるようにする。
   warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 });
@@ -82,15 +96,15 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+  localStorage.clear();
   window.history.replaceState(null, '', '/');
 });
 
 describe('捨てたサーバーメッセージを画面で伝える', () => {
   it('正常に同期できている間は何も出さない', () => {
     // Given
-    render(<App />);
+    openRoom();
     // When
-    open();
     deliver(A_VALID_ROOM_STATE);
     // Then
     expect(screen.queryByText(/同期できていません/)).toBeNull();
@@ -98,8 +112,7 @@ describe('捨てたサーバーメッセージを画面で伝える', () => {
 
   it('画面の状態を載せたフレームを捨てると、そのことを伝える', () => {
     // Given
-    render(<App />);
-    open();
+    openRoom();
     deliver(A_VALID_ROOM_STATE);
     // When
     deliver(A_BROKEN_ROOM_STATE);
@@ -108,14 +121,13 @@ describe('捨てたサーバーメッセージを画面で伝える', () => {
   });
 
   /**
-   * **症状が出るのはこの画面である。** トップ画面だけを見ていると、
-   * ルーム画面から告知を落としても検査が素通りする。
+   * **症状が出るのはこの画面である。** 入室前だけを見ていると、
+   * 入室後の画面から告知を落としても検査が素通りする。
    */
-  it('ルーム画面でも伝える', () => {
-    // Given: 招待リンクを開いた状態
-    window.history.replaceState(null, '', `/poker/room/${ROOM_ID}`);
-    render(<App />);
-    open();
+  it('入室後の画面でも伝える', () => {
+    // Given: 入室が成立している
+    openRoom();
+    deliver(A_VALID_ROOM_STATE);
     // When
     deliver(A_BROKEN_ROOM_STATE);
     // Then
@@ -124,8 +136,7 @@ describe('捨てたサーバーメッセージを画面で伝える', () => {
 
   it('有効なフレームが届けば消える', () => {
     // Given
-    render(<App />);
-    open();
+    openRoom();
     deliver(A_BROKEN_ROOM_STATE);
     expect(screen.getByText(/同期できていません/)).toBeTruthy();
     // When
@@ -140,8 +151,7 @@ describe('捨てたサーバーメッセージを画面で伝える', () => {
    */
   it('一過性に見えるフレームの棄却でも伝える', () => {
     // Given
-    render(<App />);
-    open();
+    openRoom();
     deliver(A_VALID_ROOM_STATE);
     // When
     deliver(A_BROKEN_ERROR);
@@ -155,8 +165,7 @@ describe('捨てたサーバーメッセージを画面で伝える', () => {
    */
   it('接続が切れたら持ち越さない', () => {
     // Given
-    render(<App />);
-    open();
+    openRoom();
     deliver(A_BROKEN_ROOM_STATE);
     expect(screen.getByText(/同期できていません/)).toBeTruthy();
     // When
@@ -171,8 +180,7 @@ describe('捨てたサーバーメッセージを画面で伝える', () => {
    */
   it('捨てたことを devtools にも残す', () => {
     // Given
-    render(<App />);
-    open();
+    openRoom();
     // When
     deliver(A_BROKEN_ROOM_STATE);
     // Then

@@ -10,14 +10,14 @@
  *      試行回数だけを使い切る**
  *   2. 待っている途中で画面を離れたら、待機中の入り直しが取り消されること
  *   3. 接続し直したら数え直すこと。前の接続で諦めていても、新しい接続では改めて試みる
- *   4. 送り直す名前を持っていないときに「自動で入り直しています」と言わず、
+ *   4. 送り直す名前を失ったときに「自動で入り直しています」と言わず、
  *      それでもルームの生死は尋ね直すこと
  *
  * この 3 点はどれも「画面に何が出るか」と「いつ送り直すか」の組み合わせで決まるため、
  * 描画しないと確かめられない。そのために jsdom を入れている（`vitest.config.ts`）。
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import { RoomPage } from '../src/pages/RoomPage';
 import type { ConnectionStatus, PokerSync, SyncError } from '../src/hooks/useSync';
 import {
@@ -82,7 +82,6 @@ function makeSync(over: Partial<PokerSync> = {}): PokerSync {
     storedIdentity: loadResumeIdentity,
     forgetIdentity: clearResumeIdentity,
     inviteUrl: (roomId: string) => `https://example.test/?room=${roomId}`,
-    createRoom: vi.fn(),
     joinRoom,
     checkRoom,
     vote: vi.fn(),
@@ -174,35 +173,33 @@ describe('混雑で入室を拒まれたときの自動再試行', () => {
 });
 
 describe('入り直せるかどうかで案内を変える', () => {
-  it('名前をまだ入れていない人には、入り直していると言わない', async () => {
-    // Given: 保存も入力も無い（招待リンクで初めて来て、まだ名前を入れていない人）
+  /**
+   * **名乗りを失うことがある。** 同じ端末の別のタブが、消滅したルームのトークンを
+   * 捨てる（`forgetIdentity`）と、待っているこの画面の足元から保存が消える
+   * （`localStorage` は同じオリジンで共有される）。
+   *
+   * 名乗っていない人がこの画面へ来ることはもう無い（玄関へ送り返す・#95 S5c・R9）が、
+   * **持っていたものを失う経路は残る。** 送り直す名前が無いのに「入り直しています」と
+   * 出すと、画面の言うことが嘘になる。
+   */
+  it('名乗りを失った人には、入り直していると言わない', async () => {
+    // Given: 保存済みの名乗りで入室を待っている
+    saveResumeIdentity({ code: ROOM_ID, participantId: 'p-stored', resumeToken: STORED_TOKEN, displayName: PARTICIPANT_NAME });
     const { rerender } = render(<RoomPage roomId={ROOM_ID} sync={makeSync()} />);
-    joinRoom.mockClear();
-    checkRoom.mockClear(); // 画面を開いた時点の生死確認は数えない
-    // When: 混雑で入室を拒まれ、待ち時間が過ぎる
+    joinRoom.mockClear(); // 画面を開いた時点の自動復帰は数えない
+    checkRoom.mockClear();
+
+    // When: 別のタブが保存を捨て、そのうえで混雑で入室を拒まれ、待ち時間が過ぎる
+    clearResumeIdentity(ROOM_ID);
     rerender(<RoomPage roomId={ROOM_ID} sync={makeSync({ error: rateLimited() })} />);
     await advanceTimers(LONGER_THAN_ANY_DELAY_MS);
+
     // Then: 入り直しているとは言わず、名前を伴う入室も試みない
     expect(screen.getByText(RETRY_WAITING_WITHOUT_NAME_TEXT)).not.toBeNull();
     expect(screen.queryByText(RETRY_WAITING_TEXT)).toBeNull();
     expect(joinRoom).not.toHaveBeenCalled();
     // それでもルームの生死は尋ね直す。ここが落ちると、待っている間にルームが
-    // 終了しても知らされず、参加フォームの前で待ち続ける（#76 J-1 の再発）。
+    // 終了しても知らされず、待機画面の前で待ち続ける（#76 J-1 の再発）。
     expect(checkRoom).toHaveBeenCalledWith(ROOM_ID);
-  });
-
-  it('名前を入れてから弾かれた人には、入り直していると伝える', async () => {
-    // Given: 招待リンクで来た人が名前を入れて送った（保存はまだ無い）
-    const { rerender } = render(<RoomPage roomId={ROOM_ID} sync={makeSync()} />);
-    fireEvent.change(screen.getByLabelText('あなたの名前'), { target: { value: PARTICIPANT_NAME } });
-    fireEvent.click(screen.getByRole('button', { name: '参加する' }));
-    joinRoom.mockClear();
-    // When: 混雑で入室を拒まれ、待ち時間が過ぎる
-    rerender(<RoomPage roomId={ROOM_ID} sync={makeSync({ error: rateLimited() })} />);
-    await advanceTimers(LONGER_THAN_ANY_DELAY_MS);
-    // Then: 入り直していると伝え、実際にその名前で入り直す
-    expect(screen.getByText(RETRY_WAITING_TEXT)).not.toBeNull();
-    expect(screen.queryByText(RETRY_WAITING_WITHOUT_NAME_TEXT)).toBeNull();
-    expect(joinRoom).toHaveBeenCalledWith(ROOM_ID, PARTICIPANT_NAME, undefined);
   });
 });

@@ -49,7 +49,6 @@ function makeSync(snapshot: RoomStateMessage | null): PokerSync {
     error: null,
     syncStale: false,
     clearError: () => {},
-    createRoom: () => {},
     joinRoom: () => {},
     checkRoom: () => {},
     vote: () => {},

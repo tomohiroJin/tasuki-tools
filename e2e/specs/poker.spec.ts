@@ -19,6 +19,7 @@ import {
   createRoom,
   joinRoom,
   participantRow,
+  sendJoinToMissingRoom,
   resultRow,
   resultsSection,
   roomStateFrames,
@@ -176,44 +177,129 @@ test.describe('poker は 2 人目の参加者が公開でき、次のラウン�
 });
 
 /**
- * 消えたルームの招待リンクが行き止まりにならないこと（#13・#76 J-1 の回帰防止）。
+ * 行き場の無い URL が玄関へ送られること（#95 S5c・R9。タグ無し = `local` 専用）。
  *
- * 壊れていた頃は、終了したルームのリンクでも参加フォームが出て、
- * **名前を入れて送信して初めて**「見つかりません」に変わった。
- * いまは参加を試みる前にルームの生死を尋ねる（`RoomPage.tsx:96-101` の `check-room`）。
+ * 旧入口（`TopPage` と `RoomPage` の参加フォーム）を撤去したので、ルームコードを
+ * 伴わない URL にも、名乗っていない人にも、poker の中に行き先が無い。
  *
- * かつては「ルームを作って全員が離れる」手順で消滅させていたが、ルームの寿命規則が
- * 変わり、最後の接続が切れても即座には消えなくなった（#95 S4a。既定 30 分の TTL 回収
- * に一本化）。ここで確かめたい性質は「消えたルームを開くと、名前を入れる前に、戻る道
- * つきで知らされる」ことであって、寿命規則そのものではない。**実在しないルーム ID の
- * 招待リンクを直接開く**ことで、寿命規則に依存せず同じ経路（`check-room` →
- * `room-not-found`）を踏む。
+ * **リダイレクト任せのテストにしない。** 玄関にも入力欄があるので、送り返しが
+ * 壊れていても「入力欄が見える」だけなら緑になる。**行き先の URL そのもの**を固定する。
+ * `toContain` も使わない —— `/` はあらゆるパスの接頭辞なので部分一致は恒真になる。
  */
-test.describe('poker の消えたルームのリンクが行き止まりにならない', () => {
-  test('Given 実在しないルーム ID の招待リンク / When 開く / Then 名前を入れる前に、戻る道つきで知らされる', async ({
+test.describe('poker は行き場の無い URL を玄関へ送り返す', () => {
+  test('Given ルームコードの無い URL / When /poker/ を開く / Then 玄関へ送られる', async ({
     page,
   }) => {
-    // Given / When: 実在しないルーム ID の招待リンクを直接開く。
-    //               URL の形は招待パネルが生成するもの（`roomPath`）と同じ
-    //               `/poker/room/:id` を手で組み立てる（createRoom と同じく、
-    //               招待 URL の生成規則そのものはここの検証対象ではない）
-    const joinButton = page.getByRole('button', { name: '参加する' });
-    const gone = page.getByRole('heading', { name: 'ルームが見つかりません' });
-    await page.goto('/poker/room/e2e-room-that-never-existed');
+    // Given / When: 旧入口のつもりで `/poker/` を素で開く
+    await page.goto('/poker/');
 
-    // Then その1: **名前を入れる前に**消滅（未存在）を知らされる
-    await expect(gone, 'ルームが見つからないことが画面に出る').toBeVisible();
+    // Then その1: **玄関へ移動している。** 送り返しが無ければ `/poker/` に留まる
+    await expect
+      .poll(() => new URL(page.url()).pathname, { message: 'ルーム無しで開いた poker の行き先' })
+      .toBe('/');
+
+    // Then その2: **玄関が実際に描かれている。** 配信が壊れていても
+    //             包括フォールバックが 200 を返すので、URL だけでは素通りする
+    await expect(page.getByLabel('ルーム名')).toBeVisible();
+  });
+
+  test('Given 旧リンク / When /poker/room/<code> を開く / Then コードを保ったまま玄関へ送られる', async ({
+    page,
+    openPeer,
+  }) => {
+    // Given: 実在するルーム（作成者は別の文脈に居る）。旧リンクはもう配られないが、
+    //        ブックマークと履歴からは来る
+    const host = await openPeer('poker-legacy-link-host');
+    const roomUrl = await createRoom(host.page, HOST);
+    const code = new URL(roomUrl).searchParams.get('room');
+    expect(code, '招待 URL からルームコードを読めていない').not.toBeNull();
+
+    // When: 旧い形の URL を直接開く
+    await page.goto(`/poker/room/${encodeURIComponent(code ?? '')}`);
+
+    // Then その1: **コードを落とさない。** 落とすと、入りたかったルームを失う
+    await expect
+      .poll(() => new URL(page.url()).searchParams.get('room'), { message: '送り返し先の room' })
+      .toBe(code);
+    await expect.poll(() => new URL(page.url()).pathname).toBe('/');
+
+    // Then その2: 名乗りの画面である（名乗りはハブに 1 つだけある）
+    await expect(page.getByRole('button', { name: '参加する' })).toBeVisible();
+  });
+
+  test('Given 端末に同一性が無い / When /poker/?room=<code> を直接開く / Then 玄関の参加画面へ送られる', async ({
+    page,
+    openPeer,
+  }) => {
+    // Given: 実在するルーム（作成者は別の文脈に居る）
+    const host = await openPeer('poker-hub-bypass-host');
+    const roomUrl = await createRoom(host.page, GUEST);
+    const code = new URL(roomUrl).searchParams.get('room');
+    expect(code, '招待 URL からルームコードを読めていない').not.toBeNull();
+
+    // When: ハブを通らずに poker の URL を直接開く（名乗っていないので同一性が無い）
+    await page.goto(`/poker/?room=${encodeURIComponent(code ?? '')}`);
+
+    // Then その1: コードを保ったまま玄関の参加画面へ
+    await expect
+      .poll(() => new URL(page.url()).searchParams.get('room'), { message: '送り返し先の room' })
+      .toBe(code);
+    await expect.poll(() => new URL(page.url()).pathname).toBe('/');
+
+    // Then その2: **poker がここで名前を聞かない。** 名乗る場所はハブに 1 つだけある
+    await expect(page.getByRole('button', { name: '参加する' })).toBeVisible();
+  });
+});
+
+/**
+ * 消えたルームが行き止まりにならないこと（#13・#76 J-1 の回帰防止）。
+ *
+ * 壊れていた頃は、終了したルームのリンクでも参加フォームが出て、**名前を入れて
+ * 送信して初めて**「見つかりません」に変わった。
+ *
+ * **#95 S5c で入口が変わった。** ルームコードを伴わない URL も旧リンクも玄関へ
+ * 送られるので、poker の画面へ辿り着くのは**端末に同一性を持つ人**だけになった ——
+ * 本番は揮発インメモリで、同期サーバーが再起動すると、その人の持つルームが消える。
+ * 確かめたい性質（消えたルームを開くと、戻る道つきで知らされる）は変わらないので、
+ * **送り先のルームコードを差し替えて**同じ経路（`join-room` → `room-not-found`）を踏む。
+ */
+test.describe('poker の消えたルームが行き止まりにならない', () => {
+  test('Given 同一性はあるがルームが消えている / When poker を開く / Then 戻る道つきで知らされる', async ({
+    page,
+  }) => {
+    // Given: 玄関で名乗ってルームに入る（ここまでで端末に同一性が残る）
+    await createRoom(page, HOST);
+
+    // Given: 以後の `join-room` を、存在しないルームへ向ける。
+    //        **実際に差し替えた回数を数える。** 0 なら以降の判定は別の理由で緑になる
+    let redirected = 0;
+    await page.routeWebSocket(/\/ws\?.*\btool=poker\b/, (ws) => {
+      const server = ws.connectToServer();
+      ws.onMessage((message) => {
+        const payload = typeof message === 'string' ? message : message.toString();
+        const next = sendJoinToMissingRoom(payload);
+        if (next !== payload) redirected += 1;
+        server.send(next);
+      });
+      server.onMessage((message) => ws.send(message));
+    });
+
+    // When: 繋ぎ直す（再読込。保存された同一性で入り直そうとする）
+    await page.reload();
+
+    // Then その1: 消滅を知らされる
+    await expect(
+      page.getByRole('heading', { name: 'ルームが見つかりません' }),
+      'ルームが見つからないことが画面に出る',
+    ).toBeVisible();
 
     // Then その2: **戻る道がある。** これが無いと行き止まりになる
     await expect(page.getByRole('link', { name: 'トップへ戻る' }), '戻る導線').toBeVisible();
 
-    // Then その3: 参加フォームは出ない（名前を入れさせてから落胆させない）。
-    //             否定のアサーションの前に、判定対象（gone の見出し）が
-    //             実際に現れていることを Then その1 で確かめてある
-    await expect(joinButton, '消えたルームで参加フォームが出ている').toHaveCount(0);
+    // Then その3: **差し替え屋が実際に働いた**
+    expect(redirected, '差し替えた join-room の数').toBeGreaterThan(0);
   });
 });
-
 
 test.describe('契約に合わない room-state を捨てたことが画面から分かる', () => {
   /**
@@ -300,27 +386,36 @@ test.describe('契約に合わない room-state を捨てたことが画面か�
  * `v.strictObject` だった頃は**任意フィールドが 1 つ乗っただけで**フレームごと捨てられ、
  * どちらも起きなくなった。`docs/poker/adr/0003` で `error` だけを前方互換にしてある。
  *
- * ここは上の「消えたルームのリンク」と同じ筋書きを、**`error` に余剰キーを乗せた状態**で
- * 通す。ユニットテスト（`apps/poker-web/tests/error-frame-forward-compat.test.tsx`）は
+ * ここは上の「消えたルーム」と同じ筋書きを、**`error` に余剰キーを乗せた状態**で通す。
+ * ユニットテスト（`apps/poker-web/tests/error-frame-forward-compat.test.tsx`）は
  * フェイクの WebSocket で同じことを見ているが、**実プロトコルの `error` に本当に効くか**は
  * ここでしか分からない。
  *
- * 上と同じ理由（#95 S4a でルームの寿命規則が変わり、最後の接続が切れても即座には
- * 消えなくなった）で、ここも**実在しないルーム ID の招待リンクを直接開く**形にする。
- * `check-room` の応答（`room-not-found`）はサーバーが送る `error` フレームなので、
- * ルームを作らなくても余剰キーの書き換えルートを同じく通る。
+ * 上と同じ理由（#95 S5c で入口が玄関 1 つになり、poker の画面へ辿り着くのは端末に
+ * 同一性を持つ人だけになった）で、ここも**送り先のルームコードを差し替える**形にする。
+ * `join-room` の応答（`room-not-found`）はサーバーが送る `error` フレームなので、
+ * 余剰キーの書き換えルートを同じく通る。
  */
 test.describe('poker の error に契約が知らないキーが乗っても案内が出る', () => {
-  test('Given 実在しないルーム ID の招待リンク / When error に余剰キーが乗って届く / Then それでも消滅が知らされる', async ({
+  test('Given 同一性はあるがルームが消えている / When error に余剰キーが乗って届く / Then それでも消滅が知らされる', async ({
     page,
   }) => {
-    // Given: この接続に届く error にだけ、契約が宣言していないキーを足す。
-    // **実際に足した回数を数える。** 足せていないと「案内が出た」という結果が
-    // 前方互換とは無関係になり、検査が空振りする
+    // Given: 玄関で名乗ってルームに入る（ここまでで端末に同一性が残る）
+    await createRoom(page, HOST);
+
+    // Given: 以後の `join-room` を存在しないルームへ向け、**届く error にだけ**
+    // 契約が宣言していないキーを足す。**実際に足した回数を数える。**
+    // 足せていないと「案内が出た」という結果が前方互換とは無関係になり、検査が空振りする
     let augmented = 0;
+    let redirected = 0;
     await page.routeWebSocket(/\/ws\?.*\btool=poker\b/, (ws) => {
       const server = ws.connectToServer();
-      ws.onMessage((message) => server.send(message));
+      ws.onMessage((message) => {
+        const payload = typeof message === 'string' ? message : message.toString();
+        const next = sendJoinToMissingRoom(payload);
+        if (next !== payload) redirected += 1;
+        server.send(next);
+      });
       server.onMessage((message) => {
         const payload = typeof message === 'string' ? message : message.toString();
         const next = addUnknownKeyToErrorFrame(payload);
@@ -329,17 +424,20 @@ test.describe('poker の error に契約が知らないキーが乗っても案�
       });
     });
 
-    // Given / When: 実在しないルーム ID の招待リンクを直接開く
+    // When: 繋ぎ直す（再読込。保存された同一性で入り直そうとする）
     const gone = page.getByRole('heading', { name: 'ルームが見つかりません' });
-    await page.goto('/poker/room/e2e-room-that-never-existed-for-error-test');
+    await page.reload();
 
-    // Then その1: 名前を入れる前に、余剰キーが乗った error でも消滅の案内が出る
+    // Then その1: 余剰キーが乗った error でも、消滅の案内が出る
     await expect(gone, '余剰キーが乗った error でも、消えたルームの案内が出る').toBeVisible();
 
-    // Then その2: **書き換え屋が実際に働いた。** 0 なら上の判定は前方互換を見ていない
+    // Then その2: **差し替え屋が実際に働いた**（前提を作れていないと別のものを見ている）
+    expect(redirected, '差し替えた join-room の数').toBeGreaterThan(0);
+
+    // Then その3: **書き換え屋が実際に働いた。** 0 なら上の判定は前方互換を見ていない
     expect(augmented, '余剰キーを足した error の数').toBeGreaterThan(0);
 
-    // Then その3: 捨てていないので、捨てた告知は出ない
+    // Then その4: 捨てていないので、捨てた告知は出ない
     await expect(page.getByText(/同期できていません/)).toHaveCount(0);
   });
 });
@@ -409,6 +507,11 @@ test.describe('poker の room-state に契約が知らないキーが乗って�
  * 画面には「接続中です…」だけが出ていた。**一時的な状態にしか見えず、押せない
  * 理由も分からない。** #76 で「使い物にならない」と報告された事象の正体である。
  *
+ * **見る場所は #95 S5c で変わった。** 作成と参加のフォームは玄関へ移り、poker に
+ * 残るのは**入室を待つ画面**である。押せないボタンはもう無いので、ここで見るのは
+ * 「繋がらないことが読み上げに乗る形で伝わるか」までになる（**玄関側の「ルームを作る」
+ * が押せないことは玄関のテストの仕事**）。
+ *
  * **サーバーは止めない。** 止めると全 worker の共有資源が消え、無関係なシナリオを
  * 巻き込む（`playwright.config.ts` は local で並列実行する）。代わりに、そのページの
  * WS だけを成立させない。**`connectToServer()` を呼ばないので実サーバーには
@@ -434,12 +537,16 @@ test.describe('poker の同期サーバーへ繋がらないことが画面か�
     return page.getByRole('alert');
   }
 
-  test('Given 同期サーバーが停止している / When 利用者が poker を開く / Then 繋がらないことと押せない理由が読み上げ可能な形で示される', async ({
+  test('Given 同期サーバーが停止している / When 利用者が poker を開く / Then 繋がらないことと操作できない理由が読み上げ可能な形で示される', async ({
     page,
   }) => {
-    // Given: 繋がらない状態で開く
+    // Given: 玄関で名乗ってルームに入る（ここまでで端末に同一性が残る）。
+    //        **同一性が無いと poker は玄関へ送り返す**ので、この画面まで辿り着かない
+    await createRoom(page, HOST);
+
+    // Given: poker の接続だけを成立させないようにして、開き直す
     await syncServerIsDown(page);
-    await page.goto('/poker/');
+    await page.reload();
 
     // Then その1: **読み上げに乗る形で**、繋がらないことが伝わっている。
     // 直す前はここが `role="status"` の「接続中です…」だけだった
@@ -455,19 +562,15 @@ test.describe('poker の同期サーバーへ繋がらないことが画面か�
     // Then その3: 待っても直らないことと、いま何ができないかが書かれている
     await expect(notice, '復旧まで何ができないかの説明').toContainText('ルームの作成と参加はできません');
 
-    // Then その4: **実際に押せない。** 告知の内容と画面の状態が食い違わない
+    // Then その4: **告知の内容と画面の状態が食い違わない。** 入室は成立しておらず、
+    // 待っている画面のままである（繋がっていれば名簿と投票の画面へ替わる）
     await expect(
-      page.getByRole('button', { name: 'ルームを作成' }),
-      'トップのルーム作成',
-    ).toBeDisabled();
-
-    // Then その5: **招待リンクから来た人にも同じことが伝わる。**
-    // #76 で無効のまま放置されていたのは「参加する」も同じだった
-    await page.goto('/poker/room/e2e-unreachable');
-    await expect(page.getByRole('heading', { name: 'ルームに参加' })).toBeVisible();
-    await expect(unreachableAlert(page), '参加画面での告知').toContainText(
-      '同期サーバーに接続できません',
-    );
-    await expect(page.getByRole('button', { name: '参加する' }), 'ルームへの参加').toBeDisabled();
+      page.getByRole('heading', { name: 'ルームに参加しています' }),
+      '入室を待つ画面',
+    ).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'プランニングポーカー' }),
+      '繋がっていないのに入室後の画面が出ている',
+    ).toHaveCount(0);
   });
 });

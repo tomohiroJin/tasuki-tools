@@ -1,13 +1,15 @@
-// ルーム画面: 未参加なら参加フォーム、参加後は招待リンク + 参加者一覧 + 投票（US1/US2/US4）
+// ルーム画面: 入室が成立するまでは待機、成立後は招待リンク + 参加者一覧 + 投票（US1/US2/US4）
+//
+// **ここで名前は聞かない**（#95 S5c・R9）。名乗る場所は玄関に 1 つだけあり、
+// 端末に同一性が無いままここへ来た人は玄関の参加画面へ送り返す。
 import { useEffect, useRef, useState } from 'react';
 import type { RoomStateMessage } from '@tasuki/poker-core';
 import { CardHand } from '../components/CardHand';
 import { ErrorNote } from '../components/ErrorNote';
-import { NameForm } from '../components/NameForm';
 import { ParticipantList } from '../components/ParticipantList';
 import { Results } from '../components/Results';
 import type { PokerSync } from '../hooks/useSync';
-import { topPath } from '../router';
+import { hubPathFor, redirectTo } from '../router';
 import { planJoinRetry } from '../join-retry-plan';
 
 interface Props {
@@ -15,15 +17,20 @@ interface Props {
   sync: PokerSync;
 }
 
-function JoinForm({
-  roomId,
-  sync,
-  notice,
-  onNameSubmitted,
-}: Props & { notice: string | null; onNameSubmitted: (name: string) => void }) {
+/**
+ * 入室が成立するまでの待機画面。
+ *
+ * **撤去前はここが参加フォームだった**（#95 S5c・R9）。名乗りは玄関に 1 つだけになり、
+ * ここへ来る人は端末に同一性を持っている —— 画面が待つのは `joined` と最初の
+ * `room-state` だけである。
+ *
+ * それでも**告知の口は残す**。混雑で弾かれている間（#147）とサーバーのエラー（#217）を
+ * ここで落とすと、待っている人には何も起きていないようにしか見えない。
+ */
+function JoiningView({ sync, notice }: { sync: PokerSync; notice: string | null }) {
   return (
     <main className="page">
-      <h1>ルームに参加</h1>
+      <h1>ルームに参加しています</h1>
       {/* 混雑で弾かれている間、この画面には何の手がかりも出ていなかった（#147）。 */}
       {notice && (
         <p className="error-note" role="status">
@@ -34,18 +41,6 @@ function JoinForm({
           server-busy も画面から消える。rate-limited は上の notice が受け持つので
           ErrorNote 側で出さない（二重表示の回避） */}
       <ErrorNote error={sync.error} onClose={sync.clearError} />
-      <NameForm
-        submitLabel="参加する"
-        placeholder="例: はなこ"
-        onSubmit={(name) => {
-          // 混雑で弾かれたときに**この名前で**入り直せるよう控える（#147）。
-          // 保存（saveIdentity）は joined を受け取ってからなので、初めて来た人が
-          // 弾かれた時点では保存が無く、控えておかないと入り直せない。
-          onNameSubmitted(name);
-          sync.joinRoom(roomId, name);
-        }}
-        disabled={sync.status !== 'open'}
-      />
     </main>
   );
 }
@@ -122,12 +117,12 @@ export function RoomPage({ roomId, sync }: Props) {
       sync.joinRoom(roomId, stored.displayName, stored.resumeToken);
       return;
     }
-    // 保存が無い＝招待リンクで初めて来た人。**参加を試みる前に**ルームの生死を尋ねる（#76 J-1）。
-    // これが無いと、終了したルームのリンクでも参加フォームが出て、名前を入れて
-    // 送信して初めて「見つかりません」に変わる。無ければ room-not-found が返り、
-    // 下のエラー表示へ切り替わる。生きていれば無音で、参加フォームがそのまま残る。
+    // 保存が無い＝まだ名乗っていない。**玄関の参加画面へ送り返す**（#95 S5c・R9）。
+    // 名乗る場所はハブに 1 つだけあり、ここでもう一度聞かない。**コードは落とさない**
+    // —— 落とすと、招待リンクやブックマークから来た人が入りたかったルームを失う。
+    // ルームが消えていることも玄関が伝える（名前を入れる前に分かる・#76 J-1）。
     attemptedRef.current = true;
-    sync.checkRoom(roomId);
+    redirectTo(hubPathFor(roomId));
   }, [sync, roomId]);
 
   // 混雑で弾かれたら、待ってから入り直す（#147）。
@@ -138,9 +133,6 @@ export function RoomPage({ roomId, sync }: Props) {
   // **即時に送り直してはならない** — 待ち時間とばらつきは join-retry.ts が決める。
   const rateLimitAttemptRef = useRef(0);
   const [retryNotice, setRetryNotice] = useState<string | null>(null);
-  // 入力された名前。保存（saveIdentity）は joined を受け取ってからなので、
-  // 初めて来た人が弾かれた時点では保存が無い。控えておかないと入り直せない。
-  const typedNameRef = useRef<string | null>(null);
   // 効果の依存に `sync` そのものを入れないための持ち手（下記）。
   const syncRef = useRef(sync);
   syncRef.current = sync;
@@ -172,7 +164,10 @@ export function RoomPage({ roomId, sync }: Props) {
     // `sync.error` はエラーごとに新しいオブジェクトなので、1 回の拒否につき 1 回走る。
     if (sync.error?.code !== 'rate-limited') return;
     const stored = syncRef.current.storedIdentity(roomId);
-    const name = stored?.displayName ?? typedNameRef.current;
+    // **保存が消えていることがある。** 同じ端末の別のタブが、消滅したルームの
+    // トークンを捨てる（下の `forgetIdentity`）と、この画面の足元から名乗りが消える。
+    // 送り直す名前を持たないのに「入り直しています」と出すと、画面の言うことが嘘になる。
+    const name = stored?.displayName ?? null;
     const plan = planJoinRetry(rateLimitAttemptRef.current, name !== null);
     setRetryNotice(plan.notice);
     // 使い切った。**数え直さない**（数え直すと諦めたはずが送り続ける形になる）。
@@ -198,21 +193,16 @@ export function RoomPage({ roomId, sync }: Props) {
       <main className="page">
         <h1>ルームが見つかりません</h1>
         <p>ルームは終了したか、リンクが正しくない可能性があります。</p>
-        <a href={topPath()}>トップへ戻る</a>
+        {/* **消えたルームの選択画面へは送らない。** ハブはそこで存在しないルームの
+            参加画面を出し、名乗っても必ず失敗する（timer の `SessionLost` と同じ扱い）。 */}
+        <a href="/">トップへ戻る</a>
       </main>
     );
   }
 
   const { snapshot } = sync;
   if (!snapshot || snapshot.roomId !== roomId) {
-    return (
-      <JoinForm
-        roomId={roomId}
-        sync={sync}
-        notice={retryNotice}
-        onNameSubmitted={(name) => (typedNameRef.current = name)}
-      />
-    );
+    return <JoiningView sync={sync} notice={retryNotice} />;
   }
 
   const isVoting = snapshot.round.status === 'voting';

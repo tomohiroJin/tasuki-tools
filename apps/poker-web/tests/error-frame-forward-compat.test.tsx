@@ -35,10 +35,15 @@ function open(): void {
   });
 }
 
-/** 招待リンクでルーム画面を開き、保存済みの識別情報で自動復帰させる。 */
+/**
+ * 選択画面（ハブ）の札からルーム画面を開き、保存済みの識別情報で入室させる。
+ *
+ * **同一性を先に置くのは前提であって飾りではない**（#95 S5c・R9）。無いまま開くと
+ * 画面は玄関の参加画面へ送り返し、ここで見たい受信の経路まで辿り着かない。
+ */
 function openRoomWithStoredIdentity(): void {
   saveResumeIdentity({ code: ROOM_ID, participantId: 'p-stored', resumeToken: 'tok-1', displayName: PARTICIPANT_NAME });
-  window.history.replaceState(null, '', `/poker/room/${ROOM_ID}`);
+  window.history.replaceState(null, '', `/poker/?room=${ROOM_ID}`);
   render(<App />);
   open();
 }
@@ -47,7 +52,7 @@ beforeEach(() => {
   FakeListenerSocket.instances = [];
   localStorage.clear();
   vi.stubGlobal('WebSocket', FakeListenerSocket);
-  window.history.replaceState(null, '', '/poker/');
+  window.history.replaceState(null, '', `/poker/?room=${ROOM_ID}`);
   vi.spyOn(console, 'warn').mockImplementation(() => {});
 });
 
@@ -66,10 +71,8 @@ describe('サーバーが error に足したものを、古いバンドルが捨
    * `v.strictObject` はフレームごと捨て、消えたルームの案内が出なくなっていた。
    */
   it('room-not-found に余剰キーがあっても、専用画面が出る', () => {
-    // Given: 招待リンクを開いた
-    window.history.replaceState(null, '', `/poker/room/${ROOM_ID}`);
-    render(<App />);
-    open();
+    // Given: 参加用 URL から来て、保存済みの同一性で入室を試みている
+    openRoomWithStoredIdentity();
     // When: サーバーが error に任意フィールドを足して返した
     deliver({
       type: 'error',
@@ -177,12 +180,10 @@ describe('サーバーが room-state に足したものを、古いバンドル�
 
   it('余剰キーが乗っていても名簿が更新され、告知も出ない', () => {
     // Given: ルーム画面を開いている
-    window.history.replaceState(null, '', `/poker/room/${ROOM_ID}`);
-    render(<App />);
-    open();
+    openRoomWithStoredIdentity();
     // When: サーバーが 6 層すべてにフィールドを足したフレームを送る
     deliver(roomStateWithUnknownKeys('はなこ'));
-    // Then: 画面が描かれる（捨てていれば参加フォームのままになる）
+    // Then: 画面が描かれる（捨てていれば入室を待つ画面のままになる）
     expect(screen.getByRole('heading', { name: '参加者（1人）' })).toBeTruthy();
     // 名前は名簿と結果の両方に出るので、あることだけを見る
     expect(screen.getAllByText(/はなこ/).length).toBeGreaterThan(0);
@@ -196,9 +197,7 @@ describe('サーバーが room-state に足したものを、古いバンドル�
    */
   it('余剰キーが乗り続けても、名簿は更新され続ける', () => {
     // Given
-    window.history.replaceState(null, '', `/poker/room/${ROOM_ID}`);
-    render(<App />);
-    open();
+    openRoomWithStoredIdentity();
     deliver(roomStateWithUnknownKeys('はなこ'));
     // When: 2 通目が届く
     deliver(roomStateWithUnknownKeys('たろう'));
