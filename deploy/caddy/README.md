@@ -143,6 +143,9 @@ curl -s -o /dev/null -w 'ws → %{http_code}\n' "$HOST/ws"
 curl -s -o /dev/null -w 'timer/ws（旧入口。200 が正しい） → %{http_code}\n' "$HOST/timer/ws"
 curl -s -o /dev/null -w 'poker/ws（旧入口。200 が正しい） → %{http_code}\n' "$HOST/poker/ws"
 
-# 旧共有リンクの救済（/?room= は timer へ 301。room 無しの / は LP のまま）
-curl -s -o /dev/null -w '?room 付き → %{http_code} %{redirect_url}\n' "$HOST/?room=TEST"
+# **#95 S5a から /?room=CODE は参加用 URL そのものである。** 旧共有リンクの救済断片
+# （40-timer-legacy-room.conf）は撤去した——残っていると、いま配っている招待リンクが
+# 301 で timer へ飛ばされ、選択画面に着地しない（deploy/timer/NOTES.md）。
+# **ここで 301 が返ったら断片が消し残っている。** 200（玄関 LP）が正しい。
+curl -s -o /dev/null -w '?room 付き（200 が正しい） → %{http_code} %{redirect_url}\n' "$HOST/?room=TEST"
 ```

@@ -93,3 +93,20 @@ timer-web が後者を持たないためである。
 > 現時点で残っているのは 7 本であり、**背景の観察も決定の MUST 1 も変わっていない。**
 > なお同じ段で `apps/timer-web/src/ui/entry.ts`（入口の判定）を足しており、MUST 1 の
 > 「副作用のない判断は純粋関数へ」はいまも守られている。
+
+> **追記（2026-09-14・#95 S5c・2 件目）**: 同じ表の `apps/poker-web` 側の記述
+> —— 「`apps/poker-web/src/router.ts` の `parseRoute` / `roomPath` / `topPath`
+> （同ファイルで副作用を持つのは `navigate` のみ）」—— は、**名指ししている記号のうち
+> 3 つが現存しない**（[#249](https://github.com/tomohiroJin/tasuki-tools/issues/249)）。
+> 旧入口（`TopPage` / `NameForm`）の撤去で行き先が変わったためである。
+>
+> | 表の記号 | 現況 |
+> |---|---|
+> | `parseRoute` | 現存（戻り値が `{name:'room'}` と `{name:'redirect'}` の 2 枝になった） |
+> | `roomPath` | **削除。** 参加用 URL は玄関の `/?room=CODE` になり、poker が自分のパスを組む必要が消えた。玄関の URL を組む `hubPathFor` がその位置にある |
+> | `topPath` | **削除。** `/poker/` の旧入口そのものが無くなった |
+> | `navigate`（唯一の副作用） | **改名して `redirectTo`。** 行き場の無い URL へ `assign` で送ると、戻るボタンがその URL へ戻ってまた送り返される往復になるため、`location.replace` へ替えた。**同ファイルで副作用を持つのがこれ 1 つだけである点は変わっていない** |
+>
+> **表は 2026-08-17 時点の実測なのでそのまま残す**（`docs/adr/0002` の「ADR は追記のみ」）。
+> 記号の綴りは変わったが、**背景の観察（poker-web は純粋ロジックを `.ts` に切り出している）も
+> 決定の MUST 1 も変わっていない。**

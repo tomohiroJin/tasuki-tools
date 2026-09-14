@@ -70,6 +70,9 @@ S4（#19）から S5a までは `caddy/40-timer-legacy-room.conf` が **`/` か�
 `handle_path /timer/*` の SPA フォールバックに吸われ、WebSocket にならずに index.html が
 200 で返る。エラーにならないので気づきにくい（強制再読み込みで直る。新しいタブでは起きない）。
 
+**断片の入れ替えだけでは S5c は配り終わらない。** 配信物の手順は下の
+「#95 S5c を配布するときに行うこと」を参照。
+
 ## リソース上限・Origin 保護（公開運用）
 
 - 本番 env に `NODE_ENV=production` を置くと、`ALLOWED_ORIGINS` 未設定時に sync が
@@ -86,6 +89,29 @@ S4（#19）から S5a までは `caddy/40-timer-legacy-room.conf` が **`/` か�
   死活監視（ws ping/pong）を調整する（Issue #25）。回線断・端末スリープ等で半開きのまま残った
   接続を検出し、最大 `interval × (missMax + 1)`（既定で約45秒）以内に `terminate` して
   presence を `offline` に収束させる。一時的な通信の揺れでは切断しない（連続欠落のみ判定）。
+
+## #95 S5c を配布するときに行うこと（3 系統を続けて配る）
+
+S5c は玄関・timer・poker の**すべて**の配信物を変える。`deploy.sh` はアプリ単位なので、
+**3 回叩くまで配り終わらない**。
+
+```bash
+TASUKI_SSH_HOST=<ホスト別名> ./deploy/deploy.sh landing
+TASUKI_SSH_HOST=<ホスト別名> ./deploy/deploy.sh timer    # sync サーバーもここで入れ替わる
+TASUKI_SSH_HOST=<ホスト別名> ./deploy/deploy.sh poker
+```
+
+⚠ **途中で止めると、入口が食い違ったまま公開される。** 版が混ざったときに起きることは
+どちらの向きでも黙って壊れる形になる。
+
+| 配った側 | 古いまま | 起きること |
+|---|---|---|
+| timer / poker | 玄関 | ルームコード無しで `/timer/` を開いた人が玄関へ送られるが、玄関に接続の告知と記録への入口が無い（作成が押せるのに何も起きない場面が残る） |
+| 玄関 | timer | 玄関の「記録を見る」が `/timer/?view=history` を開くのに、古い timer は `?view=` を知らず**旧入口（`Setup`）に着く** |
+| 玄関 | poker | 参加用 URL から選択画面に入れるが、poker の札を選んだ先で**古い名乗りのフォーム**がもう一度出る |
+
+⚠ **`deploy.sh timer` の再起動は poker のルームも道連れにする**（同期サーバーが 1 本・#95 S2）。
+揮発インメモリなので、**利用者が使っていない時間帯に 3 つまとめて配ること**。
 
 ## #95 S4a を配布するときに 1 度だけ行うこと
 
