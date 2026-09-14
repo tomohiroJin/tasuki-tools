@@ -24,12 +24,31 @@ describe('parseRoute', () => {
   it.each([
     ['/poker/room/a1b2c3d4', '/?room=a1b2c3d4'],
     ['/poker/room/a1b2c3d4/', '/?room=a1b2c3d4'],
-    // ルーム名がそのままコードに入り、日本語も許される。**符号化して運ぶ**
-    ['/poker/room/朝会モブ-a1b2', '/?room=%E6%9C%9D%E4%BC%9A%E3%83%A2%E3%83%96-a1b2'],
+    // **ブラウザが渡す形で書く。** `location.pathname` は百分率符号化されて返るので、
+    // 生の日本語が `parseRoute` へ届くことはない（下の往復のテストで実測している）。
+    // ここで復号せずに組み立てると `%` がもう一度逃げ、玄関が読むコードが別物になる
+    ['/poker/room/%E6%9C%9D%E4%BC%9A%E3%83%A2%E3%83%96-a1b2', '/?room=%E6%9C%9D%E4%BC%9A%E3%83%A2%E3%83%96-a1b2'],
+    // 手で書かれた URL には壊れた `%` 列が来る。**落とさずに素のまま運ぶ**
+    // （復号できないものを捨てると、行き先で何が起きたか分からなくなる）
+    ['/poker/room/%zz-a1b2', '/?room=%25zz-a1b2'],
   ])('Given 旧リンク / When %s を開く / Then コードを保ったまま玄関へ送る', (path, to) => {
     // Given: 旧リンクはもう配られないが、ブックマークと履歴からは来る
     // When / Then: **コードを落とさない**（落とすと入りたかったルームを失う）
     expect(parseRoute(path, '')).toEqual({ name: 'redirect', to });
+  });
+
+  it('Given 日本語のルーム名を含む旧リンク / When ブラウザが開く / Then 玄関が読むコードは元のまま', () => {
+    // Given: **実際のブラウザが作る `pathname`**（生の日本語は `parseRoute` へ届かない）。
+    // 期待値を手で書き写さず URL から導くのは、符号化の綴りを 2 か所に持たないため
+    const code = '朝会モブ-a1b2';
+    const { pathname } = new URL(`http://tasuki.test/poker/room/${code}`);
+
+    // When
+    const route = parseRoute(pathname, '');
+
+    // Then: 行き先の `?room=` を読み戻すと元のコードに戻る（二重符号化していない）
+    const to = route.name === 'redirect' ? route.to : '';
+    expect(new URL(to, 'http://tasuki.test').searchParams.get('room')).toBe(code);
   });
 
   it.each([

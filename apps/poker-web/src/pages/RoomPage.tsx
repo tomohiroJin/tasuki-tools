@@ -101,6 +101,30 @@ function InviteLink({ url }: { url: string }) {
 }
 
 export function RoomPage({ roomId, sync }: Props) {
+  // 端末に同一性が無ければ、**玄関の参加画面へ送り返す**（#95 S5c・R9）。
+  //
+  // **接続を待たない。** timer は同じ決定を mount 時の効果で、接続状態を見ずに適用する
+  // （`apps/timer-web/src/sync/use-timer-sync.ts` の入口の効果）。ここだけ WS の確立を
+  // 待つと、同じ URL の形に対して 2 つの道具の挙動が割れるうえ、サーバーが落ちている間は
+  // 入室を試みられないのに「ルームに参加しています」を見せ続けることになる。
+  //
+  // 名乗る場所はハブに 1 つだけあり、ここでもう一度聞かない。**コードは落とさない**
+  // —— 落とすと、招待リンクやブックマークから来た人が入りたかったルームを失う。
+  //
+  // **ルームの消滅が分かるのは名乗った後である。** 玄関は先に名乗らせてから参加を試み、
+  // 失敗して初めて不在を告げる（`apps/landing/src/screens/JoinRoom.tsx`）。
+  // 「名前を入れる前に知らせる」という #76 J-1 の性質は、いまハブ側の宿題である。
+  //
+  // 守りが 1 つ要る: `room-not-found` を受けると下の効果が `forgetIdentity` で保存を
+  // 捨てるので、そのまま走り直すと**消滅の案内（戻る道つき）を出す前に玄関へ飛ぶ**。
+  const entryAppliedRef = useRef(false);
+  useEffect(() => {
+    if (entryAppliedRef.current) return;
+    if (sync.error?.code === 'room-not-found') return;
+    entryAppliedRef.current = true;
+    if (sync.storedIdentity(roomId) === null) redirectTo(hubPathFor(roomId));
+  }, [sync, roomId]);
+
   // 保存済みトークンでの自動復帰（US4 / FR-013）。接続が開くたびに 1 回だけ試みる。
   // 判定は「この接続で joined 済みか」で行う（切断前の古い snapshot では判定しない）
   const attemptedRef = useRef(false);
@@ -112,17 +136,10 @@ export function RoomPage({ roomId, sync }: Props) {
     if (attemptedRef.current || sync.joinedThisConnection) return;
     if (sync.error?.code === 'room-not-found') return; // 消滅したルームへの再試行はしない
     const stored = sync.storedIdentity(roomId);
-    if (stored) {
-      attemptedRef.current = true;
-      sync.joinRoom(roomId, stored.displayName, stored.resumeToken);
-      return;
-    }
-    // 保存が無い＝まだ名乗っていない。**玄関の参加画面へ送り返す**（#95 S5c・R9）。
-    // 名乗る場所はハブに 1 つだけあり、ここでもう一度聞かない。**コードは落とさない**
-    // —— 落とすと、招待リンクやブックマークから来た人が入りたかったルームを失う。
-    // ルームが消えていることも玄関が伝える（名前を入れる前に分かる・#76 J-1）。
+    // 保存が無い＝まだ名乗っていない。**上の効果が玄関へ送っている**ので、ここは何もしない。
+    if (!stored) return;
     attemptedRef.current = true;
-    redirectTo(hubPathFor(roomId));
+    sync.joinRoom(roomId, stored.displayName, stored.resumeToken);
   }, [sync, roomId]);
 
   // 混雑で弾かれたら、待ってから入り直す（#147）。

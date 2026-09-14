@@ -53,9 +53,10 @@ describe('connectionNotice', () => {
       syncStale: false,
     });
 
-    // Then: ボタンが無効な理由まで書く。それが分からないのが問題の本体だった
-    expect(notice.kind === 'unreachable' && notice.text).toContain('作成');
-    expect(notice.kind === 'unreachable' && notice.text).toContain('参加');
+    // Then: 何ができないのかまで書く。それが分からないのが問題の本体だった。
+    // **「作成」は数えない**（#95 S5c で作る口は玄関へ移った）
+    expect(notice.kind === 'unreachable' && notice.text).toContain('参加できません');
+    expect(notice.kind === 'unreachable' && notice.text).not.toContain('作成');
   });
 
   it('一度繋がった後の切断は、まず再接続中として扱う', () => {

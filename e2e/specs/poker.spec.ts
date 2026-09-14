@@ -560,7 +560,7 @@ test.describe('poker の同期サーバーへ繋がらないことが画面か�
     await expect(notice, '一時的な状態として案内し続けている').not.toContainText('接続中です');
 
     // Then その3: 待っても直らないことと、いま何ができないかが書かれている
-    await expect(notice, '復旧まで何ができないかの説明').toContainText('ルームの作成と参加はできません');
+    await expect(notice, '復旧まで何ができないかの説明').toContainText('ルームに参加できません');
 
     // Then その4: **告知の内容と画面の状態が食い違わない。** 入室は成立しておらず、
     // 待っている画面のままである（繋がっていれば名簿と投票の画面へ替わる）
