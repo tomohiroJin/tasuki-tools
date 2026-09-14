@@ -11,7 +11,7 @@ import { App } from '../src/App.js';
 import { TOOLS } from '../src/tools.js';
 import { RoomChoice } from '../src/screens/RoomChoice.js';
 import { SyncConnection } from '@tasuki/sync-client';
-import type { RosterRoom } from '@tasuki/room-core';
+import { MAX_DISPLAY_NAME, type RosterRoom } from '@tasuki/room-core';
 
 /**
  * WebSocket を差し替える。**実物は jsdom に無い**うえ、ここで見たいのは画面だけである。
@@ -86,6 +86,44 @@ describe('玄関（ハブ）', () => {
 
     // Then
     expect(screen.getByLabelText('あなたの名前')).toHaveValue('あや');
+  });
+
+  /**
+   * 名前の文字数の上限（#95 S5c・C-I1）。
+   *
+   * **玄関が唯一の名乗り場になった。** 撤去した poker の `NameForm.tsx` は
+   * `maxLength={MAX_DISPLAY_NAME}` を持っており、40 字より先は打てなかった。
+   * 上限が無いと超過した名前を送れてしまい、サーバー
+   * （`apps/tasuki-sync/src/application/display-name-rule.ts`）は弾くものの、
+   * 返す文言は**探りを防ぐため理由を伏せた**「表示名の形式が正しくありません」なので、
+   * 利用者は長すぎることを知る手段が無い。
+   *
+   * **期待値に 40 を書かない。** 写経すると上限を動かしたときに画面とテストが
+   * 揃って古いまま緑になる（正本は `@tasuki/room-core` の `MAX_DISPLAY_NAME`）。
+   */
+  it('Given ルームを作る画面 / When 名前の入力を見る / Then 表示名の上限で打ち切られる', () => {
+    // Given（準備）: 素の入口
+
+    // When（操作）
+    render(<App />);
+
+    // Then
+    expect(screen.getByLabelText<HTMLInputElement>('あなたの名前').maxLength).toBe(
+      MAX_DISPLAY_NAME,
+    );
+  });
+
+  it('Given 参加用 URL から来た名乗りの画面 / When 名前の入力を見る / Then 表示名の上限で打ち切られる', () => {
+    // Given（準備）: 配られた参加用 URL
+    window.history.replaceState(null, '', '/?room=ABC123');
+
+    // When（操作）
+    render(<App />);
+
+    // Then
+    expect(screen.getByLabelText<HTMLInputElement>('あなたの名前').maxLength).toBe(
+      MAX_DISPLAY_NAME,
+    );
   });
 
   it('Given 同期サーバーへ繋がっていない / When 玄関を開く / Then 繋がらないことと押せない理由が読み上げに乗る', () => {

@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { MAX_DISPLAY_NAME } from '@tasuki/room-core';
 import { HistoryLink } from './HistoryLink.js';
 
 /**
@@ -68,12 +69,18 @@ export function JoinRoom({
       <form className="hub-form" onSubmit={submit}>
         <label className="hub-field">
           <span className="hub-label">あなたの名前</span>
+          {/* 文字数の上限の正本は `@tasuki/room-core` の `MAX_DISPLAY_NAME`（撤去した poker の
+              `NameForm.tsx` から移した）。ここを外すと、超えた名前を送れてしまう ——
+              サーバーは弾くが、返る文言は探りを防ぐため理由を伏せてあるので
+              （`apps/tasuki-sync/src/application/display-name-rule.ts`）、
+              利用者は長すぎることを知る手段が無い。 */}
           <input
             className="hub-input"
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
             placeholder="いずみ"
             autoComplete="nickname"
+            maxLength={MAX_DISPLAY_NAME}
             required
           />
         </label>
