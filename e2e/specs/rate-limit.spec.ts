@@ -50,11 +50,11 @@ test.describe('Caddy を迂回した直接接続', () => {
     expect(closed.reason).toBe('Client address required');
   });
 
-  // **統合後も 2 本残す**（#95 S2）。接続層は 1 つになったが、拒否はパスの振り分けより
-  // 手前（`handleOpen`）で効く。ここが片方だけになると「振り分けを通った先でも
-  // 塞がっている」ことを確かめる目が減る。
-  test('poker の入口（/poker/ws）への直結を拒否する', async () => {
-    const ws = new WebSocket(`ws://127.0.0.1:${PORTS.sync}/poker/ws`);
+  // **統合後も 2 本残す**（#95 S2）。接続層は 1 つになったが、拒否はクエリでの
+  // 振り分けより手前（`handleOpen`）で効く。ここが片方だけになると「振り分けを
+  // 通った先でも塞がっている」ことを確かめる目が減る。
+  test('poker として（/ws?tool=poker）の直結を拒否する', async () => {
+    const ws = new WebSocket(`ws://127.0.0.1:${PORTS.sync}/ws?tool=poker`);
 
     const closed = await waitClose(ws);
 

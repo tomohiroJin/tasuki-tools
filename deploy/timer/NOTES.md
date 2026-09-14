@@ -11,24 +11,26 @@
 | ポート | 8787（`127.0.0.1` のみ待受） |
 | 配置先 | `/opt/tasuki`（server.js・env）/ `/var/www/tasuki`（web） |
 | 公開パス | `/timer/`（S4 / #19 で `/` から移設。ルートは玄関 LP） |
-| WebSocket | `/timer/ws`（**rewrite しない**。#95 S5a で `/ws` はハブの入口になった） |
+| WebSocket | `/ws`（唯一の WS 入口。ツールはクエリ `?tool=timer` が宣言する。#95 S5c） |
 | 初回公開 | 2026-06-09 |
 
 ## 公開パスの移設（S4 / #19）
 
-`/` から `/timer/` へ移した。ルートは玄関 LP が占める。揃える必要があるのは 5 箇所で、
-1 つでも取り残すと白画面・404・WS 不通のいずれかになる。
+`/` から `/timer/` へ移した。ルートは玄関 LP が占める。当時揃える必要があったのは
+5 箇所で、1 つでも取り残すと白画面・404・WS 不通のいずれかになった
+（WS 関連の 2 箇所は #95 S5c で表から落ちている。下の注記を参照）。
 
 | 箇所 | 値 | 取り残すと |
 |---|---|---|
 | `apps/timer-web/vite.config.ts` の `base` | `/timer/` | アセットが 404（白画面） |
 | `app.env` の `PUBLIC_PATH` | `/timer/` | ドキュメントと実態が食い違う |
 | `caddy/30-timer-spa.conf` | `handle_path /timer/*` | `/timer/` が LP に吸われる |
-| `caddy/10-timer-ws.conf` | `handle /timer/ws`（**rewrite しない**） | WS が繋がらない／ハブ扱いになる |
-| `apps/timer-web/src/sync/sync-url.ts` の `SYNC_PATH` | `/timer/ws` | WS が繋がらない |
 
-**最後の 2 つは同じ値を別ファイルで持つ**ため、食い違ってもどちらのファイルを見ても
-正しく見える。`apps/timer-web/test/sync/sync-url.test.ts` が両者を読み比べて機械的に
+⚠ **WS 関連の行は #95 S5c で無くなった。** `caddy/10-timer-ws.conf`（`handle /timer/ws`）は
+撤去し、`apps/timer-web/src/sync/sync-url.ts` の `SYNC_PATH` は `/ws` になった
+（値は玄関ハブと共用。下の「#95 S5c（旧 WS 入口の撤去）」を参照）。**最後の 2 つが
+同じ値を別ファイルで持つ**構図自体は変わっておらず、`apps/timer-web/test/sync/sync-url.test.ts`
+が両者（`SYNC_PATH` と `deploy/landing/caddy/05-hub-ws.conf`）を読み比べて機械的に
 固定している（どちらか一方だけ変えるとテストが落ちる）。
 
 `WEB_ROOT`（`/var/www/tasuki`）と sync サーバーの実装は**変えていない**。
@@ -53,10 +55,20 @@ S4（#19）から S5a までは `caddy/40-timer-legacy-room.conf` が **`/` か�
 ### ハブ（選択画面）の WS（#95 S5a で新設）
 
 [`../landing/caddy/05-hub-ws.conf`](../landing/caddy/05-hub-ws.conf) を設置する。`/ws` を統合 sync（8787）へ渡す断片で、
-**rewrite しない**（`/ws` はハブ、`/timer/ws` は timer、`/poker/ws` は poker と、
-パスだけで振り分けている）。同じ段で `10-timer-ws.conf` から `rewrite * /ws` を外したので、
-**こちらも更新して設置し直すこと** —— 古いままだと timer の接続がハブとして扱われ、
-timer の参加者一覧から全員が消える。
+**rewrite しない**。#95 S5c からはこの断片が **唯一の WS 入口**で、
+ツール（timer / poker / ハブ）は接続 URL のクエリ（`?tool=`）で決まる
+（下の「#95 S5c（旧 WS 入口の撤去）」を参照）。
+
+### #95 S5c（旧 WS 入口の撤去）
+
+1. ホスト上の `/etc/caddy/tasuki/apps/10-timer-ws.conf` を**削除する**
+2. `deploy/poker/caddy/20-poker.conf` を**更新して設置し直す**（`/poker/ws` の handle が消えた）
+3. `05-hub-ws.conf`（S5a で新設）が設置済みであることを確かめる —— これが無いと**すべての
+   ツールが繋がらない**。S5c 以降、WS の入口はこの 1 本だけである
+
+⚠ **旧 WS パスへ繋いだままのタブは静かに壊れる。** 断片を消すと `/timer/ws` は
+`handle_path /timer/*` の SPA フォールバックに吸われ、WebSocket にならずに index.html が
+200 で返る。エラーにならないので気づきにくい（強制再読み込みで直る。新しいタブでは起きない）。
 
 ## リソース上限・Origin 保護（公開運用）
 

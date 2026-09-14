@@ -1,15 +1,14 @@
 /**
  * 接続 URL のクエリでツールを宣言する（#95 S5c・#249）。
  *
- * 入口を `/ws` 1 本へ畳むにあたり、ツールの宣言はパス（`src/adapters/ws-adapter.ts` の
- * `POKER_WS_PATH` / `HUB_WS_PATH`）だけでは決められなくなる。この段では接続 URL の
- * クエリ（`?tool=`）を読んで層を決め、**旧パスは併存させたまま**にする（Task 5 で落とす）。
+ * 入口は `/ws` の 1 本だけで、振り分けは接続 URL のクエリ（`?tool=`）だけで決まる
+ * （`src/adapters/ws-adapter.ts` の `protocolFromRequestUrl`）。旧パス
+ * （`/timer/ws`・`/poker/ws`）による振り分けは Task 5 で撤去した。
  *
- * 判別の仕方は `test/ws-routing.test.ts` と同じ発想を使う：同じ 1 つのメッセージ
- * （poker の `create-room`）を送り、**どちらのプロトコルが答えたか**で判定する。
- * timer の `CommandSchema` はこれを知らないので `INVALID_COMMAND` を返し、
- * poker は `joined` を返す。両者の応答は形も語彙も重ならないため、
- * 取り違えを空振りではなく赤で検出できる。
+ * 判別の仕方は同じ 1 つのメッセージ（poker の `create-room`）を送り、
+ * **どちらのプロトコルが答えたか**で判定する。timer の `CommandSchema` はこれを
+ * 知らないので `INVALID_COMMAND` を返し、poker は `joined` を返す。両者の応答は
+ * 形も語彙も重ならないため、取り違えを空振りではなく赤で検出できる。
  */
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { loadSyncConfig } from "../src/config.js";

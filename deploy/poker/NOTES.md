@@ -94,6 +94,11 @@ ss -tlnp | grep ':3311'
 curl -s -o /dev/null -w '%{http_code}\n' https://<公開ドメイン>/poker/ws
 ```
 
+> ⚠ **#95 S5c で `/poker/ws` の handle 自体を撤去した。** 上のコマンドは S2 移行当時の
+> 確認手順で、いまは（統合サーバーが正しく受けていても）SPA フォールバックの 200 が
+> 返る。現在の WS 入口は `/ws` の 1 本だけなので、確かめるならそちらを叩くこと
+> （`../caddy/README.md` の確認コマンド）。
+
 ユニットファイル（`/etc/systemd/system/tasuki-poker-sync.service`）と
 `/opt/tasuki-poker` は、しばらく残して切り戻せるようにしておきます。
 撤去するときは `sudo systemctl daemon-reload` を忘れないこと。

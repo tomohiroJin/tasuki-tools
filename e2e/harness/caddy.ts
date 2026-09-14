@@ -87,7 +87,7 @@ function writeTopCaddyfile(): string {
 }
 
 /**
- * 断片 5 本と site.conf を設置する。
+ * 断片（`FRAGMENT_SOURCES`）と site.conf を設置する。
  *
  * 断片は内容を変えずにコピーする。site.conf だけアドレス行 1 行を差し替える。
  */

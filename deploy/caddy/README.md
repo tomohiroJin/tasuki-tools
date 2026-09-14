@@ -11,8 +11,7 @@ import で切り離す**。アプリを増やしてもホストの `Caddyfile` �
 └── tasuki/
     ├── site.conf                    # deploy/caddy/tasuki.conf
     └── apps/
-        ├── 05-hub-ws.conf           # deploy/landing/caddy/（#95 S5a で新設・ハブの WS）
-        ├── 10-timer-ws.conf         # deploy/timer/caddy/
+        ├── 05-hub-ws.conf           # deploy/landing/caddy/（唯一の WS 入口。#95 S5c）
         ├── 20-poker.conf            # deploy/poker/caddy/
         ├── 30-timer-spa.conf        # deploy/timer/caddy/
         └── 90-landing.conf          # deploy/landing/caddy/（包括フォールバック）
@@ -126,11 +125,16 @@ for p in / /timer/ /poker/; do
   curl -s -o /dev/null -w "$p → %{http_code}\n" "$HOST$p"
 done
 
-# WebSocket が SPA に吸われていないこと。**判定は「200 でないこと」**。
-# 統合 sync（apps/tasuki-sync）は非 Upgrade の HTTP に 426 を返す。
+# WebSocket が SPA に吸われていないこと。統合 sync（apps/tasuki-sync）は
+# 非 Upgrade の HTTP に 426 を返す。
 # （#95 S2 の統合前、poker-sync だけは 400 を返していた。統合で 426 に揃った。）
-curl -s -o /dev/null -w 'timer/ws → %{http_code}\n' "$HOST/timer/ws"
-curl -s -o /dev/null -w 'poker/ws → %{http_code}\n' "$HOST/poker/ws"
+#
+# **#95 S5c から、WS の入口は /ws の 1 本だけ。** 旧パス（/timer/ws・/poker/ws）は
+# 断片ごと撤去したので、SPA フォールバックに吸われて 200 が返るのが正しい
+# （e2e/specs/routing.spec.ts が具体値で固定している）。
+curl -s -o /dev/null -w 'ws → %{http_code}\n' "$HOST/ws"
+curl -s -o /dev/null -w 'timer/ws（旧入口。200 が正しい） → %{http_code}\n' "$HOST/timer/ws"
+curl -s -o /dev/null -w 'poker/ws（旧入口。200 が正しい） → %{http_code}\n' "$HOST/poker/ws"
 
 # 旧共有リンクの救済（/?room= は timer へ 301。room 無しの / は LP のまま）
 curl -s -o /dev/null -w '?room 付き → %{http_code} %{redirect_url}\n' "$HOST/?room=TEST"

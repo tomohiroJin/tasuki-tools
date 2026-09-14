@@ -234,7 +234,7 @@ test.describe('契約に合わない room-state を捨てたことが画面か�
     corrupting: () => boolean,
   ): Promise<{ count: () => number }> {
     let corrupted = 0;
-    await page.routeWebSocket(/\/poker\/ws$/, (ws) => {
+    await page.routeWebSocket(/\/ws\?tool=poker$/, (ws) => {
       const server = ws.connectToServer();
       ws.onMessage((message) => server.send(message));
       server.onMessage((message) => {
@@ -318,7 +318,7 @@ test.describe('poker の error に契約が知らないキーが乗っても案�
     // **実際に足した回数を数える。** 足せていないと「案内が出た」という結果が
     // 前方互換とは無関係になり、検査が空振りする
     let augmented = 0;
-    await page.routeWebSocket(/\/poker\/ws$/, (ws) => {
+    await page.routeWebSocket(/\/ws\?tool=poker$/, (ws) => {
       const server = ws.connectToServer();
       ws.onMessage((message) => server.send(message));
       server.onMessage((message) => {
@@ -359,7 +359,7 @@ test.describe('poker の room-state に契約が知らないキーが乗って�
     // Given: この接続に届く room-state のすべての層へ、契約が知らないキーを足す。
     // **足した回数を数える。** 0 なら以降の判定は前方互換を見ていない
     let augmented = 0;
-    await page.routeWebSocket(/\/poker\/ws$/, (ws) => {
+    await page.routeWebSocket(/\/ws\?tool=poker$/, (ws) => {
       const server = ws.connectToServer();
       ws.onMessage((message) => server.send(message));
       server.onMessage((message) => {
@@ -424,7 +424,7 @@ test.describe('poker の同期サーバーへ繋がらないことが画面か�
    * **「最初から繋がらない」**として扱う —— これが F-2 の場面そのものである。
    */
   async function syncServerIsDown(page: Page): Promise<void> {
-    await page.routeWebSocket(/\/poker\/ws$/, (ws) => {
+    await page.routeWebSocket(/\/ws\?tool=poker$/, (ws) => {
       void ws.close();
     });
   }

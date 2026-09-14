@@ -22,11 +22,11 @@ import path from 'node:path';
 const APP_ROOT = path.resolve(fileURLToPath(new URL('.', import.meta.url)), '../..');
 
 /**
- * poker のメッセージ層へ振り分けられる WS のパス（`src/adapters/ws-adapter.ts` の
- * `POKER_WS_PATH`）。**ここを `/ws` に戻すと timer 側へ流れ、poker のコマンドが
- * `INVALID_COMMAND` で弾かれる。**
+ * poker のメッセージ層へ振り分けられる接続 URL（`src/adapters/ws-adapter.ts` の
+ * `protocolFromRequestUrl`）。入口は `/ws` の 1 本で、**クエリ（`?tool=poker`）を
+ * 落とすとハブ側へ流れ、poker のコマンドが `INVALID_COMMAND` で弾かれる**（#95 S5c）。
  */
-export const POKER_WS_PATH = '/poker/ws';
+export const POKER_WS_URL = '/ws?tool=poker';
 
 /**
  * 開発用の `.env` が**定義しているキーの名前**を返す（値は読まない）。
@@ -201,7 +201,7 @@ export class WsClient {
   private constructor(private ws: WebSocket) {}
 
   static async connect(port: number): Promise<WsClient> {
-    const ws = new WebSocket(`ws://127.0.0.1:${port}${POKER_WS_PATH}`);
+    const ws = new WebSocket(`ws://127.0.0.1:${port}${POKER_WS_URL}`);
     const client = new WsClient(ws);
     ws.addEventListener('message', (event) => {
       const msg: unknown = JSON.parse(String(event.data));

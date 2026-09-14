@@ -69,8 +69,9 @@ function startAdapter(options: Options = {}): void {
   });
 }
 
+/** timer として接続する URL（入口は /ws の 1 本で、ツールはクエリが宣言する。#95 S5c）。 */
 function adapterUrl(): string {
-  return `ws://127.0.0.1:${adapter!.port}`;
+  return `ws://127.0.0.1:${adapter!.port}/ws?tool=timer`;
 }
 
 async function connect(options: Options = {}): Promise<WebSocket> {
@@ -187,7 +188,7 @@ describe("WsAdapter メッセージ経路", () => {
       onDisconnect: () => {},
       logger,
     });
-    const ws = new WebSocket(`ws://127.0.0.1:${adapter.port}`);
+    const ws = new WebSocket(`ws://127.0.0.1:${adapter.port}/ws?tool=timer`);
     await waitOpen(ws);
 
     // When
@@ -290,7 +291,7 @@ describe("poker のメッセージ層が throw しても隔離される", () => 
       logger,
       poker: unwiredPokerHandlers(),
     });
-    const ws = new WebSocket(`ws://127.0.0.1:${adapter.port}/poker/ws`);
+    const ws = new WebSocket(`ws://127.0.0.1:${adapter.port}/ws?tool=poker`);
     await waitOpen(ws);
     // close は送信の直後に来るので、送る前に待ち受けを張る
     const closedWith = new Promise<{ code: number }>((resolve) => {
@@ -314,7 +315,7 @@ describe("poker のメッセージ層が throw しても隔離される", () => 
       expect(closed.code).toBe(1011);
 
       // Then: サーバー自体は生きていて、次の接続を受け付ける
-      const second = new WebSocket(`ws://127.0.0.1:${adapter.port}/poker/ws`);
+      const second = new WebSocket(`ws://127.0.0.1:${adapter.port}/ws?tool=poker`);
       await waitOpen(second);
       expect(second.readyState).toBe(WebSocket.OPEN);
       second.close();

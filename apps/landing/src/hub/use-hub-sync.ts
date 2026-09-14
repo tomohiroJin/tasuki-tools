@@ -6,7 +6,8 @@
  *
  * ## 何をするか
  *
- * 1. `/ws` へ繋ぐ（ハブの入口。`apps/tasuki-sync/src/adapters/ws-adapter.ts` の `HUB_WS_PATH`）
+ * 1. `/ws` へ繋ぐ（唯一の WS 入口。`?tool=` を付けない接続はハブとして扱われる。
+ *    `apps/tasuki-sync/src/adapters/ws-adapter.ts` の `protocolFromRequestUrl`）
  * 2. 受信は `HubServerMsgSchema` で検める（**境界の検証**・原則 IV）。合わないフレームは捨てる
  * 3. `room.created` / `room.joined` を受けたら、復帰の組と既定の表示名を端末へ保存する
  * 4. 読み込み時、URL の `?room=` に対応する組があれば**名乗らずに復帰する**（R16）

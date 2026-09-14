@@ -33,7 +33,7 @@ import { loadSyncConfig } from "../../src/config.js";
 import type { Command, ServerMsg } from "@tasuki/timer-core";
 import type { ServerMessage as PokerServerMsg } from "@tasuki/poker-core";
 import type { HubCommand, HubServerMsg } from "@tasuki/room-core";
-import { POKER_WS_PATH } from "../poker/helpers";
+import { POKER_WS_URL } from "../poker/helpers";
 
 /** 待ちの既定タイムアウト（ms）。実 I/O を挟むので in-process より長く取る。 */
 const DEFAULT_TIMEOUT_MS = 3_000;
@@ -204,9 +204,9 @@ export class LiveClient {
 }
 
 /**
- * **poker の入口**（`/poker/ws`）へ繋いだ実 WS クライアント。
+ * **poker として**（`/ws?tool=poker`）繋いだ実 WS クライアント。
  *
- * 同じプロセスに timer と poker の 2 つの入口があるので、**入口をまたぐ性質**
+ * 同じプロセスに timer と poker の 2 つのメッセージ層があるので、**層をまたぐ性質**
  * （入口の門・レート制限の 1 IP 1 バケツ）は片方のクライアントだけでは観測できない。
  * ここは {@link LiveClient} の poker 版で、受け持つのは
  * 「送る・条件に合う応答を 1 件取り出す・閉じる」の 3 つだけである
@@ -374,17 +374,19 @@ export class LiveSyncServer {
   }
 
   /**
-   * 新しい WebSocket 接続を開く。
+   * timer として新しい WebSocket 接続を開く。
    *
    * `headers` はハンドシェイク要求に足すヘッダ。`X-Forwarded-For` を渡せば、
    * 本番で Caddy が付ける状況（＝レート制限の鍵が IP から導かれる状況）を
    * 実ソケットで再現できる（設計正本 D5）。
+   *
+   * **入口は `/ws` の 1 本で、ツールはクエリ（`?tool=timer`）が宣言する**（#95 S5c）。
    */
   async connect(
     label = `client-${this.clients.length + 1}`,
     headers: Record<string, string> = {},
   ): Promise<LiveClient> {
-    const ws = new WebSocket(`ws://127.0.0.1:${this.port}`, { headers });
+    const ws = new WebSocket(`ws://127.0.0.1:${this.port}/ws?tool=timer`, { headers });
     await new Promise<void>((resolve, reject) => {
       ws.once("open", () => resolve());
       ws.once("error", (e) => reject(new LiveSetupError(`${label} の接続に失敗: ${e.message}`)));
@@ -395,18 +397,19 @@ export class LiveSyncServer {
   }
 
   /**
-   * **poker の入口**（`/poker/ws`）へ新しい WebSocket 接続を開く。
+   * **poker として** 新しい WebSocket 接続を開く。
    *
-   * timer 側の {@link connect} と同じ引数で、違うのは繋ぐパスだけである
-   * （振り分けはパスだけで決まる。`src/adapters/ws-adapter.ts`）。
-   * `headers` に `X-Forwarded-For` を渡せば、**timer の接続と同じクライアント鍵**を
-   * 名乗らせられる（レート制限のバケツが 1 本かどうかを見るのに要る）。
+   * timer 側の {@link connect} と同じ引数で、違うのはクエリの宣言だけである
+   * （振り分けは接続 URL のクエリだけで決まる。`src/adapters/ws-adapter.ts` の
+   * `protocolFromRequestUrl`）。`headers` に `X-Forwarded-For` を渡せば、
+   * **timer の接続と同じクライアント鍵**を名乗らせられる（レート制限のバケツが
+   * 1 本かどうかを見るのに要る）。
    */
   async connectPoker(
     label = `poker-${this.pokerClients.length + 1}`,
     headers: Record<string, string> = {},
   ): Promise<LivePokerClient> {
-    const ws = new WebSocket(`ws://127.0.0.1:${this.port}${POKER_WS_PATH}`, { headers });
+    const ws = new WebSocket(`ws://127.0.0.1:${this.port}${POKER_WS_URL}`, { headers });
     await new Promise<void>((resolve, reject) => {
       ws.once("open", () => resolve());
       ws.once("error", (e) => reject(new LiveSetupError(`${label} の接続に失敗: ${e.message}`)));
@@ -417,9 +420,9 @@ export class LiveSyncServer {
   }
 
   /**
-   * **ハブの入口**（`/ws`）へ新しい WebSocket 接続を開く（#95 S5a）。
+   * **ハブとして** 新しい WebSocket 接続を開く（#95 S5a）。
    *
-   * 繋ぐパスだけが違う（振り分けはパスだけで決まる。`src/adapters/ws-adapter.ts`）。
+   * `?tool=` を付けない接続はハブとして扱われる（`protocolFromRequestUrl`）。
    * `headers` に `X-Forwarded-For` を渡せば、timer / poker の接続と同じクライアント鍵を
    * 名乗らせられる（レート制限のバケツが 1 本かどうかを見るのに要る）。
    */

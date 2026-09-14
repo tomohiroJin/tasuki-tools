@@ -5,7 +5,7 @@
  * 実装は `Bun.serve`（S5・#20）。
  * 外から見える振る舞い（close コード・エラーコード・426）は ws 実装のときと同じ。
  *
- * ## 3 つのメッセージ層を 1 本の待ち受けで捌く（#95 S2・S5a・D9 / D10）
+ * ## 3 つのメッセージ層を 1 本の待ち受けで捌く（#95 S2・S5a・S5c・D9 / D10）
  *
  * timer と poker の同期サーバーを 1 プロセスへ統合した。`Bun.serve` は 1 プロセスに
  * 1 つの `websocket` ハンドラしか持てないため、**接続層はここに 1 つだけ**置き、
@@ -16,19 +16,10 @@
  * | 接続層（このクラス） | Origin 検査・クライアント鍵・接続数上限・connId 採番・死活監視・フレーム上限 | **1 つになる**（接続数上限は D22 で値を決め直した） |
  * | メッセージ層 | パース・ディスパッチ・接続ごとのアプリ状態 | **プロトコルごとに分かれたまま** |
  *
- * 振り分けは**パスだけ**で行う。`/poker/ws` は poker（{@link POKER_WS_PATH}）、
- * `/ws` はハブ（{@link HUB_WS_PATH}・#95 S5a）、**それ以外はすべて timer** である。
- * 「それ以外すべて」なのは統合前の timer がパスを一切見ずに upgrade していたためで、
- * ここを許可リストへ絞ると素のポート（`ws://host:port`）へ繋ぐ既存テストが軒並み落ちる。
- * 移行期は `/ws`・`/timer/ws`・`/poker/ws` の 3 つを受ける（D10。S5c で `/ws` に畳む）。
- *
- * **S5c（#249）から、接続 URL のクエリ（`?tool=`）を渡した接続はそちらを優先する**
- * （{@link protocolFromRequestUrl}）。旧パスはこの段では併存させたまま
- * （Task 5 で落とす）。
- *
- * 統合前の poker は `url.pathname === '/ws'` 以外を 404 で返していた。その振る舞いは
- * **失われる**（`/poker/ws` 以外は poker 以外の層として upgrade される）。poker へ届く経路は
- * Caddy 断片と vite の dev プロキシだけで、どちらも `/poker/ws` しか出さない。
+ * **振り分けは接続 URL のクエリ（`?tool=`）だけで決める**（{@link protocolFromRequestUrl}）。
+ * 入口は `/ws` の 1 本だけである（#95 S5c・#249 Task 5）。`/timer/ws`・`/poker/ws` という
+ * パスによる振り分けは撤去した —— 旧パスは Caddy 断片ごと落としたので、本番でこの層へ
+ * 届くことはもう無い。
  */
 
 import { CommandSchema } from "@tasuki/timer-core";
@@ -45,36 +36,13 @@ import { deriveClientKeySafely } from "./client-key-safety.js";
 import type { Handlers as PokerHandlers } from "../application/poker-handlers.js";
 
 /**
- * poker のメッセージ層へ振り分けるパス。**小文字で書く**（照合は小文字化してから行う）。
- *
- * **本番の Caddy 断片（`deploy/poker/caddy/20-poker.conf`）は rewrite せずに
- * このパスのまま渡す。** 統合前は `/poker/ws` を `/ws` へ剥がしていたが、
- * 剥がすと timer と区別できなくなる。**#95 S5a からは timer 側の断片も剥がさない**
- * （`/ws` がハブの入口になったため。{@link HUB_WS_PATH}）。
- * 一致は `apps/landing/tests/caddy-fragment-port.test.ts` が機械的に固定している。
- */
-const POKER_WS_PATH = "/poker/ws";
-
-/**
- * ハブ（選択画面）のメッセージ層へ振り分けるパス。**小文字で書く**（照合は小文字化してから行う）。
- *
- * **S4b までここは timer だった。** 本番の Caddy 断片が `/timer/ws` を `/ws` へ rewrite
- * していたためで、S5a でその rewrite を外した（`deploy/timer/caddy/10-timer-ws.conf`）。
- * 外さずにここを足すと、**timer の接続がハブとして扱われ、timer の参加者一覧から
- * 全員が消える**（在席の宣言は接続が来た入口が行うため。設計正本 D14・S5a の裁定）。
- *
- * **S5c（#249）でこの決まり方そのものが変わる** —— 入口が `/ws` 1 本に畳まれるので、
- * そのときツールの宣言は wire か接続 URL のクエリへ移る。
- */
-const HUB_WS_PATH = "/ws";
-
-/**
  * 接続 URL が宣言するツール。**許可リストで判定する**（#95 S5c）。
  *
- * S5b まではパスが宣言だった（`/poker/ws`・`/ws`・それ以外は timer）。入口を `/ws` 1 本へ
- * 畳んだこの段では、経路だけではツールを決められない。**wire には載せられない** ——
- * メッセージ層はパーサ自体が別（`CommandSchema` / `parseClientMessage` /
- * `parseBoundaryMessage`）で、最初のフレームを読む前に層を決める必要があるためである。
+ * **入口は `/ws` の 1 本だけなので、経路ではツールを決められない**（S5b までは
+ * パス自体が宣言だった。`/poker/ws` は poker、`/ws` はハブ、それ以外は timer）。
+ * **wire には載せられない** —— メッセージ層はパーサ自体が別（`CommandSchema` /
+ * `parseClientMessage` / `parseBoundaryMessage`）で、最初のフレームを読む前に
+ * 層を決める必要があるためである。
  *
  * **許可リストに無い値は `"unknown"` にして接続を拒否する。** timer へもハブへも落とさない ——
  * 落とすと、綴りを間違えたクライアントが「繋がるのにコマンドが通らない」という
@@ -88,32 +56,6 @@ function protocolFromRequestUrl(url: URL): "timer" | "poker" | "hub" | "unknown"
   if (declared === "timer") return "timer";
   if (declared === "poker") return "poker";
   return "unknown";
-}
-
-/**
- * 振り分けの照合に使う形へパスを正規化する。
- *
- * **Caddy は「復号したパス」で照合し、「受け取ったままの綴り」を上流へ渡す**
- * （2026-09-08 に 2.11.4 で実測）。したがって `handle /poker/ws` には
- * `/POKER/WS` も `/poker/%77s` も一致し、こちらへはその綴りのまま届く。
- * `new URL()` の `pathname` は復号しないので、**復号と小文字化の両方**を
- * ここで行わないと timer 側へ落ちる（接続はできるのに全コマンドが
- * `INVALID_COMMAND` になる、という静かな壊れ方をする）。
- *
- * 統合前は断片の `rewrite * /ws` が綴りごと正規化していたため、poker-sync の
- * `=== '/ws'` という厳密比較でも取りこぼしが無かった。rewrite を外した以上、
- * その正規化はこちらの責務になっている。
- *
- * **不正な `%` 列（`%zz` など）で `decodeURIComponent` は throw する。**
- * その場合は復号前の値で照合する（＝ poker には一致せず timer 側へ行く）。
- * 呼び出し元を巻き込まないことが目的で、投げ直さない。
- */
-function normalizeWsPath(pathname: string): string {
-  try {
-    return decodeURIComponent(pathname).toLowerCase();
-  } catch {
-    return pathname.toLowerCase();
-  }
 }
 
 /**
@@ -252,7 +194,7 @@ export interface WsAdapterOptions {
    * 根拠と統合による変化は `config.ts` の同名フィールドの docstring にある。
    */
   maxFrameBytes: number;
-  /** poker のメッセージ層。`/poker/ws` に来た接続だけがここへ流れる。 */
+  /** poker のメッセージ層。`?tool=poker` を宣言した接続だけがここへ流れる。 */
   poker: PokerMessageHandlers;
 }
 
@@ -420,20 +362,10 @@ export class WsAdapter {
     const origin = req.headers.get("origin") ?? "";
     // **鍵はここで作る。** 生の IP をこの行より先へ持ち出さない（ADR 0012 D3）。
     const clientKey = this.deriveClientKeySafely(req.headers.get("x-forwarded-for") ?? undefined);
-    // パスは upgrade を試みる前に読む。`new URL` は upgrade の成否に関わらず
-    // 必要で、失敗しても handleFetch の try/catch が受ける。
+    // `new URL` は upgrade の成否に関わらず必要で、失敗しても handleFetch の try/catch が受ける。
     const url = new URL(req.url);
-    // 綴りの揺れ（大小・パーセント符号化）は `normalizeWsPath` が吸収する。
-    // 理由と実測はその docstring にある。
-    const path = normalizeWsPath(url.pathname);
-    // 移行中（この段の Task 5 まで）は旧パスも受ける。クエリでの宣言が優先される。
-    const declared = protocolFromRequestUrl(url);
-    const protocol =
-      url.searchParams.has(TOOL_QUERY_KEY) || path === HUB_WS_PATH
-        ? declared
-        : path === POKER_WS_PATH
-          ? "poker"
-          : "timer";
+    // 入口は /ws の 1 本だけなので、振り分けはクエリ（?tool=）だけで決まる（#95 S5c）。
+    const protocol = protocolFromRequestUrl(url);
     // poker の枝だけが participantId / roomId を持つ（判別可能ユニオン。#95 S5c）。
     const base = { connId: "", origin, clientKey, rateKey: "" };
     const data: ConnectionData =

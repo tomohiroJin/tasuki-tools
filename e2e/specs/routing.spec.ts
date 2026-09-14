@@ -126,22 +126,20 @@ test.describe('@smoke 参加用 URL は玄関に着く', () => {
 
 test.describe('@smoke WebSocket が SPA に吸われていない', () => {
   /**
-   * どちらも 426（Upgrade Required）。**#95 S2 で揃った** ——
-   * 統合前は poker-sync だけが `url.pathname === '/ws'` を検査したうえで
-   * upgrade に失敗して 400 を返していた。統合サーバーは 1 つの `handleFetch` で
-   * 受けるので、非 Upgrade の HTTP はどちらのパスでも 426 になる。
-   * 「200 でないこと」ではなく具体値で固定する。値が変わったら実装が変わったということ。
-   *
-   * **注意: これは経路の正しさを保証しない。** 統合サーバーは `/poker/ws` 以外の
-   * すべてのパスを timer 側として受けるため、断片から `rewrite * /ws` を削っても
-   * 426 は返り続ける。経路の正しさは第 2 段の実接続（@core）に委ねる。
+   * **#95 S5c で WS の入口を `/ws` の 1 本へ畳んだ。** `/timer/ws`・`/poker/ws` の
+   * 断片（の handle）は撤去したので、いまはその 2 つの SPA フォールバック
+   * （`handle_path /timer/*` / `handle_path /poker/*`）が拾い、index.html を
+   * 200 で返す（実測で確認済み。`deploy/timer/NOTES.md` の注記も参照）。
+   * 「もう WS の入口ではない」ことを具体値で固定する（否定で書かない・空振りしない）。
    */
   for (const [wsPath, expectedStatus] of [
-    // #95 S5a で `/ws`（ハブの入口）が加わった。**200 が返るなら断片が設置されておらず、
+    // `/ws` だけが WS の入口である（#95 S5c）。**200 が返るなら断片が設置されておらず、
     // 包括フォールバック（LP の index.html）に吸われている**という意味になる。
     ['/ws', 426],
-    ['/timer/ws', 426],
-    ['/poker/ws', 426],
+    // 旧入口。断片を撤去したので、いまは timer / poker の SPA フォールバックが返る。
+    // **426 が返るなら断片が残っている。**
+    ['/timer/ws', 200],
+    ['/poker/ws', 200],
   ] as const) {
     test(`Given ${wsPath} / When 素の GET を送る / Then ${expectedStatus} が返る（SPA の 200 ではない）`, async ({
       request,

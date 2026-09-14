@@ -16,7 +16,7 @@
  * 受信は拡張長（126 / 127）も読む。
  */
 import net from 'node:net';
-import { POKER_WS_PATH } from './helpers';
+import { POKER_WS_URL } from './helpers';
 import { randomBytes } from 'node:crypto';
 
 const OPCODE_TEXT = 0x1;
@@ -139,7 +139,7 @@ export function connectRaw(port: number, options: RawConnectOptions = {}): Promi
       const xRealIpLine =
         options.xRealIp === undefined ? '' : `X-Real-Ip: ${options.xRealIp}\r\n`;
       socket.write(
-        `GET ${POKER_WS_PATH} HTTP/1.1\r\n` +
+        `GET ${POKER_WS_URL} HTTP/1.1\r\n` +
           `Host: 127.0.0.1:${port}\r\n` +
           `Upgrade: websocket\r\n` +
           `Connection: Upgrade\r\n` +
