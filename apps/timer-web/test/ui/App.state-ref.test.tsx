@@ -18,10 +18,9 @@
  * @requirements Issue #41（#28 D-2）
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, act } from "@testing-library/react";
-import React from "react";
-import App from "../../src/App.js";
+import { screen, fireEvent, act } from "@testing-library/react";
 import { FakeWS } from "../support/fakes.js";
+import { enterRoomAndConnect } from "../support/enter-room.js";
 import { aRoomView } from "../support/room-view.js";
 import type { Problem } from "@tasuki/timer-core";
 
@@ -53,14 +52,6 @@ function problemB(): Problem {
   };
 }
 
-/** テスト用に FakeWS を OPEN 状態にし、connect() のキュー送信をフラッシュする。 */
-function openLatestSocket(): FakeWS {
-  const ws = FakeWS.instances[FakeWS.instances.length - 1]!;
-  ws.readyState = FakeWS.OPEN;
-  ws.onopen?.();
-  return ws;
-}
-
 function sendServer(ws: FakeWS, msg: Record<string, unknown>): void {
   act(() => {
     ws.onmessage?.({ data: JSON.stringify(msg) } as MessageEvent);
@@ -69,26 +60,26 @@ function sendServer(ws: FakeWS, msg: Record<string, unknown>): void {
 
 beforeEach(() => {
   FakeWS.instances = [];
+  // 復帰の組は localStorage に残る（#95 S4b）。テスト間で漏らさない。
+  localStorage.clear();
   vi.stubGlobal("WebSocket", FakeWS);
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  localStorage.clear();
 });
 
-/** Setup 画面から「ルームを作る」まで進め、接続済み FakeWS を返す。 */
+/** 玄関で名乗った端末としてルームを開き、接続済み FakeWS を返す（#95 S5c・R9）。 */
 function createRoomAndConnect(): FakeWS {
-  render(<App />);
-  fireEvent.change(screen.getByLabelText("あなたの名前"), { target: { value: "Creator" } });
-  fireEvent.click(screen.getByRole("button", { name: /ルームを作る/ }));
-  return openLatestSocket();
+  return enterRoomAndConnect({ participantId: CREATOR_ID });
 }
 
 describe("App.tsx の state/ref 二重管理（4組）", () => {
   it("roomRef: 生成中お題の再依頼リクエストが最新の room.code を参照する", () => {
     // Given: ロビーに到達し、お題Aが確定している
     const ws = createRoomAndConnect();
-    sendServer(ws, { type: "room.created", code: "ROOM01", resumeToken: "rt", participantId: CREATOR_ID });
+    sendServer(ws, { type: "room.joined", resumeToken: "rt", participantId: CREATOR_ID });
     sendServer(ws, {
       type: "snapshot",
       room: aRoomView({
@@ -118,7 +109,7 @@ describe("App.tsx の state/ref 二重管理（4組）", () => {
   it("generatingRef: 生成中に新しいお題が来ると生成中表示が解除される", () => {
     // Given: 「別のお題にする」押下で生成中になっている
     const ws = createRoomAndConnect();
-    sendServer(ws, { type: "room.created", code: "ROOM01", resumeToken: "rt", participantId: CREATOR_ID });
+    sendServer(ws, { type: "room.joined", resumeToken: "rt", participantId: CREATOR_ID });
     sendServer(ws, {
       type: "snapshot",
       room: aRoomView({
@@ -153,7 +144,7 @@ describe("App.tsx の state/ref 二重管理（4組）", () => {
   it("participantIdRef + roomRef: notice の実行者が自分のとき「あなた」と表示する", () => {
     // Given: ロビーで自分の participantId が確定している
     const ws = createRoomAndConnect();
-    sendServer(ws, { type: "room.created", code: "ROOM01", resumeToken: "rt", participantId: CREATOR_ID });
+    sendServer(ws, { type: "room.joined", resumeToken: "rt", participantId: CREATOR_ID });
     sendServer(ws, {
       type: "snapshot",
       room: aRoomView({
@@ -175,13 +166,13 @@ describe("App.tsx の state/ref 二重管理（4組）", () => {
     });
 
     // Then: participantIdRef が最新の自分の ID を指しているので「あなた」と表示される
-    expect(screen.getByText("あなたがセッションをリセットしました。")).toBeInTheDocument();
+    expect(screen.getByText("あなたがセッションを最初から始め直しました。")).toBeInTheDocument();
   });
 
   it("endTypeRef: 中断（abort）後の celebration snapshot では完成記録を保存しない", async () => {
     // Given: セッション画面まで進める（サーバー権威の phase で直接遷移させる）
     const ws = createRoomAndConnect();
-    sendServer(ws, { type: "room.created", code: "ROOM01", resumeToken: "rt", participantId: CREATOR_ID });
+    sendServer(ws, { type: "room.joined", resumeToken: "rt", participantId: CREATOR_ID });
     const sessionRoom = () =>
       aRoomView({
         code: "ROOM01",

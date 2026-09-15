@@ -22,7 +22,7 @@
  * `WsAdapter.handleClose` の `try/catch` の内側から呼ばれ、throw は
  * `logger.error("on-disconnect-error", ...)` へ吸われる（コールバックの失敗で
  * プロセス全体を落とさないための隔離であり、意図した設計である）。したがって
- * **`/poker/ws` へ繋いで 1 通も送らずに閉じるだけのテストは緑のまま通る。**
+ * **`?tool=poker` を宣言して繋ぎ、1 通も送らずに閉じるだけのテストは緑のまま通る。**
  * 赤で気づけるのはメッセージを送った場合（`dispatch` / `sendError`）だけである。
  */
 import { WsAdapter, type PokerMessageHandlers, type WsAdapterOptions } from "../../src/adapters/ws-adapter.js";
@@ -37,7 +37,7 @@ export function unwiredPokerHandlers(): PokerMessageHandlers {
   const fail = (name: string): never => {
     throw new Error(
       `poker のメッセージ層（${name}）が呼ばれました。` +
-        "接続層のテストは /poker/ws へ繋がない想定です（test/support/test-ws-adapter.ts）。",
+        "接続層のテストは ?tool=poker で繋がない想定です（test/support/test-ws-adapter.ts）。",
     );
   };
   return {

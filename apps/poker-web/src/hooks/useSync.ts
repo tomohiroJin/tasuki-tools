@@ -30,7 +30,8 @@ export type ConnectionStatus = 'connecting' | 'open' | 'closed';
 
 export function wsUrl(): string {
   const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
-  return `${scheme}://${location.host}/poker/ws`;
+  // **入口は玄関と同じ `/ws` で、ツールはクエリが宣言する**（#95 S5c）。
+  return `${scheme}://${location.host}/ws?tool=poker`;
 }
 
 export interface SelfIdentity {
@@ -92,7 +93,6 @@ export interface PokerSync {
    * （`docs/guides/architecture.md` の層の対応表・`docs/adr/0015`）。
    */
   inviteUrl: (roomId: string) => string;
-  createRoom: (name: string) => void;
   joinRoom: (roomId: string, name: string, token?: string) => void;
   /** 参加する前にルームの生死だけを尋ねる（#76 J-1）。無ければ room-not-found が返る */
   checkRoom: (roomId: string) => void;
@@ -113,7 +113,7 @@ export function usePokerSync(): PokerSync {
   const [everConnected, setEverConnected] = useState(false);
   const [failedAttempts, setFailedAttempts] = useState(0);
   const connectionRef = useRef<SyncConnection | null>(null);
-  /** joined 時に識別情報を保存するため、直近の join/create の名前を控える */
+  /** joined 時に識別情報を保存するため、直近の join の名前を控える */
   const pendingNameRef = useRef<string>('');
 
   useEffect(() => {
@@ -213,11 +213,6 @@ export function usePokerSync(): PokerSync {
       storedIdentity: (roomId: string) => loadResumeIdentity(roomId),
       forgetIdentity: (roomId: string) => clearResumeIdentity(roomId),
       inviteUrl: (roomId: string) => buildInviteUrl(location.origin, roomId),
-      createRoom: (name: string) => {
-        pendingNameRef.current = name;
-        setError(null); // 新しい試行で過去のエラーをリセット
-        send({ type: 'create-room', name });
-      },
       joinRoom: (roomId: string, name: string, token?: string) => {
         pendingNameRef.current = name;
         setError(null);

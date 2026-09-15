@@ -8,27 +8,57 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { parseFrames } from './ws-frames';
 
-/**
- * ルームを作り、そのルームの URL を返す。
- *
- * ここで `page.url()` を使ってよいのは、**招待 URL の生成規則が検証対象ではない**から。
- * 招待パネルが出す URL 文字列そのものを確かめるのは第 3 段のシナリオ #11 の仕事で、
- * あちらは画面に表示された URL を読み取って開かなければ意味がない（#76 F-1）。
- */
-export async function createRoom(page: Page, name: string): Promise<string> {
-  await page.goto('/poker/');
-  await page.getByLabel('あなたの名前').fill(name);
-  await page.getByRole('button', { name: 'ルームを作成' }).click();
-  await expect(page.getByRole('heading', { name: 'プランニングポーカー' })).toBeVisible();
-  return page.url();
+/** 選択画面のツールの札。ここから各ツールへ入る（#95 S5a・R1）。 */
+function toolCard(page: Page, name: string): Locator {
+  return page.getByRole('list', { name: 'ツール' }).getByRole('link', { name: new RegExp(name) });
 }
 
-/** 既存のルームへ参加する。**呼び出し側は必ず別の `BrowserContext` の page を渡すこと。** */
+/**
+ * 玄関でルームを作って poker を開き、**そのルームの参加用 URL を返す**。
+ *
+ * **入口は玄関ただ 1 つになった**（#95 S5c・R9）。poker の旧入口（`TopPage`）は
+ * 撤去したので、「`/poker/` を開いて名前を入れる」経路はもう無い。ここが通らなく
+ * なったら、それは手順が古いのではなく**入口が壊れている**。
+ *
+ * 返すのは**招待パネルが画面に出している URL 文字列**である。`page.url()` で
+ * 代用しない —— それでは自分の居場所を読むだけで、poker が配る URL を見ない
+ * （#76 F-1）。生成規則そのものを確かめるシナリオは、この戻り値ではなく
+ * 画面から読み取った値を使うこと。
+ */
+export async function createRoom(page: Page, name: string): Promise<string> {
+  await page.goto('/');
+  await page.getByLabel('あなたの名前').fill(name);
+  await page.getByRole('button', { name: 'ルームを作る' }).click();
+  await toolCard(page, 'Planning Poker').click();
+  await expect(page.getByRole('heading', { name: 'プランニングポーカー' })).toBeVisible();
+  return invitedUrlText(page).innerText();
+}
+
+/**
+ * 渡された参加用 URL を玄関で開いて名乗り、poker を開く。
+ *
+ * **呼び出し側は必ず別の `BrowserContext` の page を渡すこと。**
+ *
+ * 撤去前は poker の `RoomPage` が名前を聞いていた（`JoinForm`）。**名乗りはハブに
+ * 1 つだけになった**（#95 S5c・R9）ので、名乗る場所はここ 1 箇所である。
+ */
 export async function joinRoom(page: Page, roomUrl: string, name: string): Promise<void> {
   await page.goto(roomUrl);
   await page.getByLabel('あなたの名前').fill(name);
   await page.getByRole('button', { name: '参加する' }).click();
+  await toolCard(page, 'Planning Poker').click();
   await expect(page.getByRole('heading', { name: 'プランニングポーカー' })).toBeVisible();
+}
+
+/**
+ * 招待パネルが画面に出している参加 URL。
+ *
+ * この要素（`RoomPage.tsx` の `.invite-url`）は素の `<span>` でアクセシブル名を
+ * 持たないため、**可視テキストの形で掴む**しかない（timer の `invitedUrlText` と同じ）。
+ * 範囲を狭めるために「`http` で始まる文字列」という形そのものを条件にしている。
+ */
+export function invitedUrlText(page: Page): Locator {
+  return page.getByText(/^https?:\/\/\S+$/);
 }
 
 /**
@@ -90,6 +120,45 @@ export function roomStateFrames(payloads: readonly string[]): RoomStateFrame[] {
 /** そのフレームで、指定した名前の人が投票済みとして配信されているか。 */
 export function showsVoted(frame: RoomStateFrame, name: string): boolean {
   return frame.participants.some((p) => p.name === name && p.hasVoted === true);
+}
+
+/**
+ * **もう存在しないルームコード**（timer の `MISSING_ROOM_CODE` と同じ役）。
+ *
+ * 生成器（`NanoidCodeGen`）は 6 文字の `ABCDEFGHJKMNPQRSTUVWXYZ23456789`、あるいは
+ * `<スラグ>-<小文字英数 8 文字>` しか作らない。この値はどちらの形にも当てはまらないため
+ * **実在のルームと衝突しない**。
+ */
+export const MISSING_ROOM_ID = 'e2e-poker-room-gone';
+
+/**
+ * クライアントが送る `join-room` の行き先を、**存在しないルームへ差し替える**
+ * （#95 S5c・R9）。他の種類のフレームはそのまま返す。
+ *
+ * **旧入口を撤去したので、「消えたルームの画面」は URL では作れなくなった。**
+ * ルームコードを伴わない URL も旧リンクも玄関へ送られ、poker の画面まで届かない。
+ * いまここへ来るのは**端末に同一性を持つ人**だけで、そのルームが消えている状況
+ * （本番は揮発インメモリで、同期サーバーの再起動でルームが全て消える）を
+ * 実プロトコル越しに作るには、送り先そのものを差し替えるのが最短である。
+ *
+ * `token` は載せない。存在しないルームでは照合まで進まない（サーバーは名簿を引く
+ * 前にレート判定だけを行い、無ければ `room-not-found` を返す）ので、残すと
+ * 「トークンが効いたのか」を読み違える余地だけが増える。
+ *
+ * **製品コードにテスト用の穴は開けない。** ブラウザと同期サーバーの間で
+ * 差し替えるだけなので、サーバーから見れば「知らないコードへの join」に等しい。
+ */
+export function sendJoinToMissingRoom(payload: string): string {
+  let frame: unknown;
+  try {
+    frame = JSON.parse(payload);
+  } catch {
+    return payload;
+  }
+  if (typeof frame !== 'object' || frame === null) return payload;
+  const message = frame as { type?: unknown; name?: unknown };
+  if (message.type !== 'join-room') return payload;
+  return JSON.stringify({ type: 'join-room', roomId: MISSING_ROOM_ID, name: message.name });
 }
 
 /**

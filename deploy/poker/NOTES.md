@@ -71,12 +71,17 @@ ssh <ホスト別名> "journalctl -u tasuki-sync -n 30 --no-pager | grep -o 'max
 scp deploy/poker/caddy/20-poker.conf <ホスト別名>:/tmp/
 
 # ── ホスト側（ssh <ホスト別名> で入って実行）───────────────────────
-# 3. 新しい 20-poker.conf（/poker/ws → 8787）を設置して Caddy を読み直す。
+# 3. 【S2 移行当時の記録】新しい 20-poker.conf（/poker/ws → 8787）を設置して Caddy を読み直す。
 #    ここまでで poker の WebSocket は統合サーバーが受けている。
 #    **設置を飛ばすと reload は「何も変わらないまま成功」する**（偽の緑）。
 #    手順 5 の ss は解放しか見ないので、この取りこぼしを検出しない
+#
+#    ⚠ **#95 S5c で `/poker/ws` の handle 自体を撤去した。** いまの 20-poker.conf に
+#    `reverse_proxy` は無く、下の grep は何も出ない（それが正しい——出たら断片が古い）。
+#    poker の WS 入口はもう `/ws?tool=poker`（`../landing/caddy/05-hub-ws.conf`）だけで、
+#    そちらの設置手順は `../caddy/README.md` を見ること。
 sudo install -m 644 /tmp/20-poker.conf /etc/caddy/tasuki/apps/20-poker.conf
-grep -E 'reverse_proxy|rewrite' /etc/caddy/tasuki/apps/20-poker.conf   # 8787・rewrite 無しを目で見る
+grep -E 'reverse_proxy|rewrite' /etc/caddy/tasuki/apps/20-poker.conf   # S5c 以降は何も出ないのが正しい
 sudo caddy validate --config /etc/caddy/Caddyfile && sudo systemctl reload caddy
 
 # 4. 旧ユニットを停止・無効化する（stop は NOPASSWD・disable はパスワードが要る）
@@ -93,6 +98,11 @@ ss -tlnp | grep ':3311'
 # 手元から。統合サーバーが受けていれば 426（旧 poker-sync なら 400 / SPA なら 200）
 curl -s -o /dev/null -w '%{http_code}\n' https://<公開ドメイン>/poker/ws
 ```
+
+> ⚠ **#95 S5c で `/poker/ws` の handle 自体を撤去した。** 上のコマンドは S2 移行当時の
+> 確認手順で、いまは（統合サーバーが正しく受けていても）SPA フォールバックの 200 が
+> 返る。現在の WS 入口は `/ws` の 1 本だけなので、確かめるならそちらを叩くこと
+> （`../caddy/README.md` の確認コマンド）。
 
 ユニットファイル（`/etc/systemd/system/tasuki-poker-sync.service`）と
 `/opt/tasuki-poker` は、しばらく残して切り戻せるようにしておきます。

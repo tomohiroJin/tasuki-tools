@@ -266,6 +266,10 @@ export const DORMANT_DOCS = [
       "poker の現役の規範は docs/poker/adr/ にあり、そちらは LIVE_DOCS に入れている",
   },
   { prefix: "docs/retrospectives/", reason: "振り返り。当時の記述を保つのが正しい" },
+  {
+    prefix: "packages/dev-hub-redirect/README.md",
+    reason: "パッケージ README（#95 S5c 追補で新設）。protocol / ui / sync-client と同じ扱い",
+  },
   { prefix: "packages/protocol/README.md", reason: "パッケージ README。LIVE_DOCS の粒度に合わない" },
   { prefix: "packages/ui/README.md", reason: "パッケージ README。LIVE_DOCS の粒度に合わない" },
   {
@@ -393,6 +397,14 @@ export const MISSING_PATH_EXCEPTIONS = [
     reason:
       "2026-08-17 実測時点で存在した純粋ロジック 9 本の 1 つ。#95 S3（#244）でホストの導線ごと" +
       "削除した。背景の実測は書き換えず、追記（2026-09-08）が削除を記録している",
+  },
+  {
+    doc: "docs/adr/0015-web-layer-structure.md",
+    path: "apps/timer-web/src/ui/room-param.ts",
+    reason:
+      "同じ 9 本の 1 つ。#95 S5c（#249）で旧入口（Setup / Join）を撤去し、自己退出の行き先が" +
+      "玄関そのものになったため呼び手が消えた。背景の実測は書き換えず、追記（2026-09-14）が" +
+      "削除を記録している",
   },
   {
     doc: "docs/constitution.md",

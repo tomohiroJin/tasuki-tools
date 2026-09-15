@@ -437,6 +437,69 @@ export const MUTATIONS = [
       "受け取らない（黙って古くなる）。復帰の組を localStorage へ置いた D12 によって" +
       "「選択画面とツールを別タブ」が現実的な経路になったため、実害のある変異である。",
   },
+  {
+    id: 34,
+    label: "?view=history でも room.join を送る（判定の正本を decideEntry から外す）",
+    patch: "m34-history-view-joins-room.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/App.entry.test.tsx"],
+    note:
+      "#95 S5c（#249）。**レビューで実際に見つかった欠陥である。** 入口の判定を " +
+      "`decideEntry` 1 つに寄せる前は、ここが独自に `?room=` だけを見ていた。" +
+      "選択画面の「記録を見る」は `?view=history&room=CODE` を作り、開く人は必ず " +
+      "そのルームの復帰の組を持っているので、**記録を見るだけのつもりの人が " +
+      "`room.join` を送り、他の参加者の名簿に現れた**（在席は接続に紐づく・#95 S4b）。" +
+      "変異は当時の実装そのもので、`?view=` が無い経路は変えない —— " +
+      "**対照（`?room=` だけなら送る）を持つテストでしか殺せない**。",
+  },
+  {
+    id: 35,
+    label: "「新しいセッション」でルームをロビーへ戻さない（phase.set を送らない）",
+    patch: "m35-new-session-keeps-celebration.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/sync/use-timer-sync.test.tsx"],
+    note:
+      "#95 S5c（C-1）。**実画面で見つけた欠陥である。** 玄関へ送るだけで `celebration` を " +
+      "残すと、同じルームへ戻った人は timer を開くたび完了画面に着き、往復のたびに " +
+      "端末の完了記録が増え続ける。**poker は使えるのに timer だけ死んだルーム**になる。" +
+      "遷移（`redirectTo`）は残すので、**行き先だけを見るテストでは捕まらない** —— " +
+      "送るコマンドを見て初めて殺せる。",
+  },
+  {
+    id: 36,
+    label: "接続 URL の ?tool= を無視して常に timer の層へ流す",
+    patch: "m36-tool-query-always-timer.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/ws-adapter-tool-query.test.ts"],
+    note:
+      "#95 S5c（#249）。入口を `/ws` の 1 本に畳んだので、**経路ではツールを決められない**。" +
+      "振り分けの根拠はクエリだけになった。無視すると poker のコマンドが timer の " +
+      "メッセージ層へ落ち、**繋がるのにコマンドが通らない**という静かな壊れ方をする。" +
+      "`?tool=` 無し（ハブ）は変えないので、**ハブの接続を見るテストでは緑のまま**である。",
+  },
+  {
+    id: 37,
+    label: "旧リンク（/poker/room/<id>）の誘導先からルームコードを落とす",
+    patch: "m37-poker-legacy-path-drops-code.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/router.test.ts"],
+    note:
+      "#95 S5c（R9）。旧入口を撤去して玄関へ送るようにしたが、**コードを落とすと " +
+      "ブックマークから来た人が入りたかったルームを失う**。玄関そのものは開くので、" +
+      "**「玄関へ送る」ことだけを見るテストは素通りする**。",
+  },
+  {
+    id: 38,
+    label: "ルームコードが無くても玄関へ送り返さない（空のコードでルーム扱いにする）",
+    patch: "m38-entry-without-code-stays.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/entry.test.ts"],
+    note:
+      "#95 S5c（R9）。旧入口（`Setup` / `Join`）を撤去した以上、**ルームコードを伴わない " +
+      "URL には行き先が無い**。送り返さないと、空のコードのまま入室しようとして " +
+      "**名乗る場所の無い画面に取り残される**（撤去前はそこに `Setup` が居た）。" +
+      "この段の前提そのものなので、退化を無言で許さないように置く。",
+  },
 ];
 
 /**

@@ -86,11 +86,12 @@ describe('Caddy 断片の転送先ポート', () => {
   const proxied = proxiedPorts();
   const declared = declaredPorts();
 
-  it('Given deploy 配下 / When reverse_proxy を集める / Then 3 本ある（走査先を間違えていない）', () => {
-    // `/ws`（ハブ・#95 S5a で新設）・`/timer/ws`・`/poker/ws` の 3 本。**すべて 8787 を指す**
+  it('Given deploy 配下 / When reverse_proxy を集める / Then 1 本ある（走査先を間違えていない）', () => {
+    // `/ws`（ハブ・#95 S5a で新設）の 1 本だけ。**8787 を指す**
     // —— #95 S2 で同期サーバーを 1 プロセスへ統合したため（統合前は poker が 3311）。
+    // #95 S5c で `/timer/ws`・`/poker/ws` の断片（の handle）を撤去し、入口は /ws だけになった。
     // 0 本だと以降の検査が素通りするので、本数と値の両方を固定する。
-    expect(proxied.map((p) => p.port).sort()).toEqual(['8787', '8787', '8787']);
+    expect(proxied.map((p) => p.port).sort()).toEqual(['8787']);
   });
 
   it('Given app.env / When PORT を集める / Then 1 本ある', () => {
@@ -109,18 +110,13 @@ describe('Caddy 断片の転送先ポート', () => {
 });
 
 /**
- * WS 断片の rewrite（#95 S2・設計正本 D10）。
+ * WS 断片の rewrite と入口の一本化（#95 S2・S5c・設計正本 D10）。
  *
- * 統合サーバーは 1 つの待ち受けで timer と poker を捌き、**振り分けをパスだけで
- * 決める**（`apps/tasuki-sync/src/adapters/ws-adapter.ts` の `POKER_WS_PATH`）。
- * したがって poker の断片が `/ws` へ剥がすと、poker のコマンドが timer 側の
- * メッセージ層へ流れて `INVALID_COMMAND` で弾かれる。**断片と sync の両方を見ても
- * どちらも正しく見える**種類の食い違いなので、ここで機械的に止める。
- *
- * **#95 S5a で timer 側も剥がさなくなった。** `/ws` がハブ（選択画面）の入口になり、
- * そこへ剥がすと timer の接続がハブとして扱われて、timer の参加者一覧から全員が消える。
- * timer の断片に rewrite が無いことは `apps/timer-web/test/sync/sync-url.test.ts` も
- * 併せて固定している（そちらはクライアントが繋ぐパスとの一致も見る）。
+ * **#95 S5c で入口を `/ws` 1 本へ畳んだ。** 統合サーバーは接続 URL のクエリ
+ * （`?tool=`）だけでメッセージ層を振り分ける（`apps/tasuki-sync/src/adapters/ws-adapter.ts`
+ * の `protocolFromRequestUrl`）。`/timer/ws`・`/poker/ws` の handle はもう無く、
+ * それらのパスへ来た HTTP は SPA フォールバックに吸われる（`e2e/specs/routing.spec.ts`
+ * が具体値で固定している）。
  */
 describe('WS 断片の rewrite', () => {
   const fragment = (rel: string): string[] =>
@@ -128,39 +124,51 @@ describe('WS 断片の rewrite', () => {
       .split('\n')
       .filter((line) => !line.trim().startsWith('#'));
 
-  it.each([
-    ['landing/caddy/05-hub-ws.conf'],
-    ['timer/caddy/10-timer-ws.conf'],
-    ['poker/caddy/20-poker.conf'],
-  ])('%s は rewrite しない（剥がすと別のメッセージ層へ流れる）', (rel) => {
-    // Given: 本番へ設置される WS の断片
-    const lines = fragment(rel);
+  /** WS の断片が `handle <path> { ... }` で受けるパスを集める（`handle_path` の SPA フォールバックは含まない）。 */
+  function handledWsPathsOf(rel: string): string[] {
+    return fragment(rel)
+      .map((line) => /^\s*handle\s+(\S+)\s*\{/.exec(line)?.[1])
+      .filter((v): v is string => v !== undefined);
+  }
 
-    // When / Then: 振り分けはパスだけで決まる。剥がした瞬間に行き先が変わる
+  /** deploy 配下の全 .conf 断片（deploy 相対パス）。 */
+  function allFragments(): string[] {
+    const found: string[] = [];
+    for (const app of appDirs()) {
+      const dir = path.join(DEPLOY_ROOT, app, 'caddy');
+      let entries: string[];
+      try {
+        entries = readdirSync(dir);
+      } catch {
+        continue;
+      }
+      for (const name of entries) {
+        if (name.endsWith('.conf')) found.push(path.join(app, 'caddy', name));
+      }
+    }
+    return found;
+  }
+
+  it('WS を受ける断片は /ws の 1 本だけである', () => {
+    // #95 S5c で入口を 1 本に畳んだ。2 本以上あるなら、どれかが死んだ設定として残っている。
+    const wsHandles = allFragments().flatMap(handledWsPathsOf);
+
+    expect(wsHandles).toEqual(['/ws']);
+  });
+
+  it('ハブの断片（/ws）は rewrite しない（剥がすと別のメッセージ層へ流れる）', () => {
+    // Given: 本番へ設置される唯一の WS 断片
+    const lines = fragment('landing/caddy/05-hub-ws.conf');
+
+    // When / Then: 振り分けはクエリだけで決まる。rewrite で綴りを変えると意味が変わる
     expect(lines.filter((line) => /^\s*rewrite\s/.test(line))).toEqual([]);
   });
 
   it('ハブの断片が受けるパスは /ws である', () => {
     // Given: 本番へ設置されるハブの断片
-    const lines = fragment('landing/caddy/05-hub-ws.conf');
+    const handled = handledWsPathsOf('landing/caddy/05-hub-ws.conf');
 
-    // When: WebSocket を受ける handle を読む
-    const handled = lines
-      .map((line) => /^\s*handle\s+(\S+)\s*\{/.exec(line)?.[1])
-      .filter((v): v is string => v !== undefined);
-
-    // Then: sync の HUB_WS_PATH と同じ値
+    // Then: sync の SYNC_PATH（`apps/timer-web/src/sync/sync-url.ts`）と同じ値
     expect(handled).toContain('/ws');
-  });
-
-  it('poker の断片が受けるパスは /poker/ws である', () => {
-    // Given: 本番へ設置される poker の断片
-    const lines = fragment('poker/caddy/20-poker.conf');
-    // When: WebSocket を受ける handle を読む
-    const handled = lines
-      .map((line) => /^\s*handle\s+(\S+)\s*\{/.exec(line)?.[1])
-      .filter((v): v is string => v !== undefined);
-    // Then: sync の POKER_WS_PATH と同じ値が含まれる
-    expect(handled).toContain('/poker/ws');
   });
 });

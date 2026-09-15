@@ -33,9 +33,12 @@ import { buildNoticeMessage, type NoticeSignal } from "./notice-message.js";
 import { buildSyncUrl } from "./sync-url.js";
 import { indicatesStaleRoom } from "./stale-frame.js";
 import { shouldResumeOnLoad } from "./resume-identity.js";
+import { decideEntry, hubRoomPath } from "../ui/entry.js";
 import { NoAiProvider } from "../ai/no-ai.js";
 import type { ProblemProvider } from "../ai/provider.js";
 import { errorAction } from "../ui/error-action.js";
+import { startActionFor } from "../ui/session-start.js";
+import { currentSearch, redirectTo } from "../platform/location.js";
 import {
   buildInviteUrl,
   clearResumeIdentity,
@@ -43,7 +46,6 @@ import {
   loadResumeIdentity,
   saveResumeIdentity,
 } from "@tasuki/sync-client";
-import { stripRoomParam } from "../ui/room-param.js";
 import { useLatestRef } from "../ui/use-latest-ref.js";
 import type { BannerController } from "../ui/use-banner.js";
 import type { ClientConnState } from "../ui/connection-status.js";
@@ -67,13 +69,26 @@ const JOIN_RETRY_EXHAUSTED_TEXT = "混雑が続いています。時間をおい
 const SYNC_STALE_BEFORE_ROOM_TEXT =
   "同期できていません。ルームの状態が読み込めないため、先へ進めません。";
 
-export type AppMode = "setup" | "join" | "lobby" | "session" | "celebration" | "history";
+/**
+ * ルームの中で表示する画面（#95 S5c・R9）。
+ *
+ * **旧入口（`Setup` / `Join`）を撤去したので、ルームの外の画面はここに無い。**
+ * 名乗りも合言葉もハブ（玄関）に 1 つだけあり、timer は「そのルームのどこに居るか」
+ * だけを持つ。端末の完了記録（履歴）も URL（`?view=history`）が決めるもので、
+ * ルームの状態ではないため、ここには現れない（`ui/entry.ts`）。
+ *
+ * 値は `ui/screen.ts` の {@link Screen} と同じ —— サーバー権威の `phase` に追従する。
+ */
+export type AppMode = "lobby" | "session" | "celebration";
 
 export interface TimerSync {
-  /** 表示すべき画面。 */
-  mode: AppMode;
-  /** ?room= で来たときに参加画面へ渡すルームコード。 */
-  joinCode: string | null;
+  /**
+   * 表示すべき画面。**まだどの画面でもないときは `null`。**
+   *
+   * `"lobby"` を初期値にしてはいけない。ルームが無い間は `mode === "lobby" && room` が
+   * 偽なので描画はされないが、**意味が嘘になる**（ロビーに居ないのにロビーと言う）。
+   */
+  mode: AppMode | null;
   room: Room | null;
   /**
    * いま居るルームの参加用 URL（ルームに入っていなければ null）。
@@ -116,9 +131,11 @@ export interface TimerSync {
   regenerateProblem(): void;
   /** 代理参加者を加える（participantId はここで生成する）。 */
   addProxy(displayName: string): void;
+  /**
+   * 完了後に「新しいセッション」を選んだ。**ルームをロビーへ戻したうえで玄関へ送る**
+   * （#95 S5c・C-1）。押した本人は新しいルームを作りに行き、残る人はロビーに居る。
+   */
   newSession(): void;
-  showHistory(): void;
-  backToSetup(): void;
   /** Summary の明示保存。失敗時はバナーを出す。 */
   saveRecordManually(record: CompletionRecord): void;
 }
@@ -145,9 +162,7 @@ const friendlyError = displayMessageFor;
 export function useTimerSync(banner: BannerController): TimerSync {
   const { show: showBanner, clear: clearBanner } = banner;
 
-  const [mode, setMode] = useState<AppMode>("setup");
-  // ?room= で来たときに参加画面に渡すルームコード（未参加の間だけ保持）。
-  const [joinCode, setJoinCode] = useState<string | null>(null);
+  const [mode, setMode] = useState<AppMode | null>(null);
   const [room, setRoom] = useState<Room | null>(null);
   const [participantId, setParticipantId] = useState<string>("");
   const [record, setRecord] = useState<CompletionRecord | null>(null);
@@ -165,9 +180,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
   // AI/定型のお題生成中（「別のお題にする」押下〜新お題確定まで）。スピナー＋減光に使う。
   const [generatingProblem, setGeneratingProblem] = useState(false);
 
-  // このクライアントがルームを作った側か。ロビーでお題生成を自動依頼する判定に使う。
-  // state の写しではない純粋なガード用 ref（Issue #46 でこの種の ref だけが残った）。
-  const isCreatorRef = useRef(false);
   // 参加時に "driver" を選択したか。snapshot で自分が参加者に現れたら member.add を一度だけ送る。
   // 名前ではなく「宣言したか」だけを持つ（誰を加えるかは自分の participantId で決まる・D6b）。
   const pendingDriverJoinRef = useRef(false);
@@ -206,8 +218,8 @@ export function useTimerSync(banner: BannerController): TimerSync {
   // 届いていない時点でも走る。参加を試みた時点と snapshot を受け取った時点の
   // 両方で入れる。
   const roomCodeRef = useRef<string | null>(null);
-  // 共有 URL（?room=）からの復帰を mount 時の一度きりにするためのガード。
-  const joinedFromUrlRef = useRef(false);
+  // 入口の適用（`decideEntry` の結果）を mount 時の一度きりにするためのガード。
+  const entryAppliedRef = useRef(false);
 
   // App unmount 時にタイマーを掃除する（setState-on-unmounted を防ぐ）。
   useEffect(() => {
@@ -295,7 +307,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
       pendingResume: pendingResumeRef.current,
       resumeDisplayName: resumeDisplayNameRef.current,
       pendingDriverJoin: pendingDriverJoinRef.current,
-      isCreator: isCreatorRef.current,
       problemRequested: problemRequestedRef.current,
       recordSaved: recordSavedRef.current,
       generatingProblem,
@@ -317,6 +328,13 @@ export function useTimerSync(banner: BannerController): TimerSync {
           break;
         case "clear-generating":
           endGenerating();
+          break;
+        case "clear-completion":
+          // 完了から抜けた。前のセッションの記録・終了種別・保存済みの印を畳む
+          // （#95 S5c・レビュー ②）。**押した人の端末だけでなく全端末で降りる。**
+          recordSavedRef.current = false;
+          setRecord(null);
+          setEndType("complete");
           break;
         case "set-screen":
           setMode(intent.screen);
@@ -397,9 +415,10 @@ export function useTimerSync(banner: BannerController): TimerSync {
       case "leave-room": {
         // 退出が成立した本人を取り残さない（自己退出＝LEFT_ROOM／他者に退出させられた＝
         // REMOVED_FROM_ROOM・REMOVED_BY_HOST）。後始末は行き先によらず共通で、
-        // 違うのはバナー文言（friendlyError(code) から引く）と行き先だけ（Issue #32・FR-127/128）。
-        // 退室が成立した以上、再試行の待機も畳む（#147）。止めないと、入口へ戻った
-        // 画面へ「混雑が続いています」の固定バナーが後から出る。
+        // 違うのは玄関へ渡す理由（`?left=`）と行き先だけ（Issue #32・FR-127/128）。
+        // **ここで `friendlyError` は呼ばない** —— 文言は玄関が引く（下の注記）。
+        // 退室が成立した以上、待機中の再試行も畳む（#147）。残すと、抜けたはずの
+        // ルームへ入り直そうとする送信が、玄関へ去るまでの間に走る。
         cancelJoinRetry();
         const removedFrom = room?.code ?? roomCodeRef.current;
         syncClient.dispose();
@@ -409,7 +428,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
         roomCodeRef.current = null;
         setClient(null);
         setParticipantId("");
-        isCreatorRef.current = false;
         problemRequestedRef.current = false;
         recordSavedRef.current = false;
         setSessionLost(false);
@@ -428,31 +446,26 @@ export function useTimerSync(banner: BannerController): TimerSync {
         // 表示が最大65秒残ってしまう。beginGenerating と対になる endGenerating を
         // ここでも再利用し、後始末を二重に書かない（DRY）。
         endGenerating();
-        // 退出バナーは自動消去しない。入口画面へ遷移した後も「抜けたこと」を
-        // 利用者が確認できるまで残し続けるべきで、新しいタイマーは張らない
-        // （Issue #32 の狙い＝退出が分からない問題の再発防止）。show 側が
-        // 直前の自動消去タイマー（例: ロビーの一時エラーの4秒タイマー）を解除する。
-        showBanner(friendlyError(code), "warn", { autoDismiss: false });
+        // **告知は玄関が出す**（#95 S5c・I-1）。ここでバナーを出しても、直後の遷移で
+        // 描画される前に破棄される。とりわけ外された人は説明抜きで名乗りの画面に着き、
+        // 外されたと分からずに再参加してまた外される（Issue #32 が塞いだ問題の再発）。
+        // 理由だけを URL に載せて運び、文言は玄関側が `@tasuki/room-core` から引く。
+        //
+        // **行き先は玄関（ハブ）である**（#95 S5c・R9）。旧入口（`Setup` / `Join`）を
+        // 撤去したので、timer の中に「ルームの外」の画面はもう無い。`destination` の値は
+        // そのまま使い、URL へ写すだけにする（判定は `error-action.ts` の 1 箇所に保つ）。
+        //
+        // **どちらも `replace` で送る**（FR-127 / US2-2）。押した URL には `?room=` が
+        // 残っており、履歴に積むと戻るボタン 1 回で抜けたはずのルームへ復帰してしまう。
+        setMode(null);
         if (action.destination === "join") {
-          // 直前のルームコードがあれば参加画面へ引き継ぐ（無ければ入口へ・現状の挙動を維持）。
-          if (removedFrom) {
-            setJoinCode(removedFrom);
-            setMode("join");
-          } else {
-            setMode("setup");
-          }
+          // 他者に外された。直前のルームコードがあれば玄関の参加画面へ引き継ぐ
+          // （再参加しやすくする・`docs/timer/ARCHITECTURE.md` の退出の表）。
+          redirectTo(hubRoomPath(removedFrom ?? null, "removed"));
         } else {
-          // destination === "setup": 入口画面へ戻すときは直前ルームへの手がかりを
-          // 保持しない（FR-127 / US2-2）。joinCode に値が残っている可能性があるので
-          // 明示的にクリアする。
-          setJoinCode(null);
-          // 画面上の state をクリアしただけでは不十分。アドレスバーの URL に
-          // ?room=... が残っていると、それ自体が「直前のルームへ復帰するための
-          // 手がかり」になり、リロード一発で抜けたはずのルームの参加画面へ
-          // 戻ってしまう。pushState ではなく replaceState を使い、戻るボタンの
-          // 履歴に退出前の URL を積まないようにする。
-          window.history.replaceState(null, "", stripRoomParam(window.location.href));
-          setMode("setup");
+          // destination === "setup": 自分で抜けた。直前ルームへの手がかりを持ち越さない
+          // ので、`?room=` を落とした玄関そのものへ送る。
+          redirectTo(hubRoomPath(null, "self"));
         }
         return;
       }
@@ -505,7 +518,7 @@ export function useTimerSync(banner: BannerController): TimerSync {
     // **どのルームの復帰の組を読むかは、いま話しているルームで決まる**
     // （#95 S4b・D12 で鍵がルームコード別になった）。S4a まではタブに 1 組しか
     // 無かったので引数が要らなかった。
-    const code = room?.code ?? roomCodeRef.current ?? joinCode;
+    const code = room?.code ?? roomCodeRef.current;
     if (code === null) return false;
     const saved = loadResumeIdentity(code);
     if (!saved) return false;
@@ -584,7 +597,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
   const createRoom = (displayName: string, roomName?: string) => {
     // 言語/難易度/間隔/オプションは既定で作成し、ロビーで config.set で調整する
     // （最初の画面で選びすぎない・UX 再設計）。お題はロビーで自動生成。
-    isCreatorRef.current = true;
     problemRequestedRef.current = false;
     resumeDisplayNameRef.current = displayName;
     const config: SessionConfig = {
@@ -605,7 +617,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
     passphrase = "",
     joinMode: "driver" | "spectator" = "spectator",
   ) => {
-    isCreatorRef.current = false;
     resumeDisplayNameRef.current = displayName;
     roomCodeRef.current = code;
     // driver 宣言を ref に記録しておき、snapshot で自分が現れたら member.add を送る。
@@ -625,7 +636,18 @@ export function useTimerSync(banner: BannerController): TimerSync {
     () => room,
   );
 
-  /** ロビーの「開始」。お題が未確定なら先に依頼し、phase.set → session.act の順で送る。 */
+  /**
+   * ロビーの「開始」。お題が未確定なら先に依頼し、phase.set → 開始の順で送る。
+   *
+   * **開始の送り方は時計の状態で分かれる**（`ui/session-start.ts`・#95 S5c・C-1）。
+   * 完了したセッションの時計は走ったままなので、そこからロビーへ戻って再開するときは
+   * `session.act START` が `PhaseConflict` で弾かれる。`session.reset` を送ると、
+   * 輪の先頭・満タン・走行へ作り直される。
+   *
+   * **前のセッションの残り（記録・終了種別）はここで畳まない。** 畳むのは
+   * `celebration` から抜けた snapshot を受け取った時点である（`clear-completion` の意図）。
+   * ここで畳むと、**「開始」を押さなかった端末では一生降りない**（押すのは 1 人だけ）。
+   */
   const startSession = () => {
     if (!room) return;
     const problemEnabled = room.config.problemEnabled !== false;
@@ -633,7 +655,11 @@ export function useTimerSync(banner: BannerController): TimerSync {
       commands.requestProblem(`req-${room.code}`);
     }
     commands.setPhase("session");
-    commands.actSession("START");
+    if (startActionFor(room.session, room.clock) === "reset") {
+      commands.resetSession();
+    } else {
+      commands.actSession("START");
+    }
     setMode("session");
   };
 
@@ -652,25 +678,33 @@ export function useTimerSync(banner: BannerController): TimerSync {
     commands.abortSession();
   };
 
+  /**
+   * 完了後の「新しいセッション」。**ルームをロビーへ戻してから玄関（`/`）へ送る**
+   * （#95 S5c・C-1）。
+   *
+   * **2 つとも要る。**
+   *
+   * - 玄関へ送るだけでは足りない。ルームの `phase` が `celebration` のまま残り、
+   *   同じルームに居る人や参加用 URL で戻ってきた人は、timer を開くたび完了画面に着く。
+   *   **poker は使えるのに timer だけ死んだルーム**が TTL の間ずっと残る。
+   *   `celebration` を抜けられるのは `phase.set` だけで、送れるのはここである
+   * - ロビーへ戻すだけでも足りない。押した人の意図は「このルームでの作業は終わり」で、
+   *   撤去前はそこで新しいルームを作る画面（旧 `Setup`）へ行っていた。同じ意味を保つ
+   *
+   * 行き先は **`?room=` を付けない `/`** である。付けるとその人だけ選択画面に着いて、
+   * 新しいルームを作れない。**`replace` で送る** —— 押した時点の URL は `?room=CODE` で、
+   * 履歴に積むと戻るボタン 1 回で完了画面へ戻ってしまう。
+   *
+   * 前のセッションの残り（完了記録・終了種別）は畳まない。**畳むのは次の開始**である
+   * （{@link startSession} の注記。ここで降ろすと二重保存の窓が開く）。
+   *
+   * **ルームを失っているとき（#76 F-4）はここを通らない。** `SessionLost` の
+   * 「新しいセッションを始める」は遷移だけを行う（`App.tsx`）。消えたルームへ
+   * コマンドを送っても、接続の無い `pending` に積まれるだけである。
+   */
   const newSession = () => {
-    // ルーム由来の画面状態は畳む。持ち越すと次のルームで前の警告が出る（#209）。
-    setSyncStale(false);
-    staleBannerShownRef.current = false;
-    client?.dispose();
-    setClient(null);
-    setRoom(null);
-    roomCodeRef.current = null;
-    setParticipantId("");
-    setRecord(null);
-    setEndType("complete");
-    setSessionLost(false);
-    isCreatorRef.current = false;
-    problemRequestedRef.current = false;
-    recordSavedRef.current = false;
-    // ?room= 由来の参加状態もリセットし、次回は通常の Setup から始める（レビュー #6）。
-    joinedFromUrlRef.current = false;
-    setJoinCode(null);
-    setMode("setup");
+    if (room && !sessionLost) commands.setPhase("setup");
+    redirectTo("/");
   };
 
   const regenerateProblem = () => {
@@ -685,9 +719,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
   /** 代理参加者を加える（participantId はここで生成する・乱数は commands に持ち込まない）。 */
   const addProxy = (displayName: string) => commands.addProxy(makeProxyId(), displayName);
 
-  const showHistory = () => setMode("history");
-  const backToSetup = () => setMode("setup");
-
   /** Summary の明示保存。完成時に自動保存済みだが put（upsert）なので冪等。
    *  ボタン側で「保存しました」を表示するため、ここでは永続化と失敗時通知のみ行う。 */
   const saveRecordManually = (rec: CompletionRecord) => {
@@ -697,28 +728,43 @@ export function useTimerSync(banner: BannerController): TimerSync {
     });
   };
 
-  // 共有 URL（?room=コード）で開かれたら参加画面を表示する（ゲスト自動参加は廃止）。
-  // 名前を入れて「モブに参加」したときに初めて room.join する。
-  //
-  // ただし**同じタブで再読込した本人だけは例外**で、保存済みの resumeToken で
-  // そのまま戻す（#76 F-3）。従来は復帰が WS の自動再接続経路にしかなく、
-  // 再読込・タブ復元のたびに名前と参加方法を入れ直し、ローテーションにも
-  // 入り直す必要があった。
+  /**
+   * 開かれた URL から入口を決めて適用する（#95 S5c・R9）。**mount 時の一度きり。**
+   *
+   * 判定の正本は `decideEntry` 1 つに保つ（#95 S5c のレビュー指摘）。ここで独自に
+   * `?room=` だけを見ると、`?view=history&room=CODE` のように「記録を見るだけ」の
+   * URL でも `room.join` を送ってしまい、見ているだけの人が他の参加者の名簿に現れる
+   * （在席は接続に紐づく・#95 S4b）。
+   *
+   * | URL | すること |
+   * |---|---|
+   * | `?view=history`（`?room=` の有無を問わず） | 何もしない（画面側が履歴を出す） |
+   * | `?room=CODE` ＋ 端末に同一性あり | 保存済みの `resumeToken` で `room.join`（#76 F-3） |
+   * | `?room=CODE` ＋ 同一性なし | **玄関のそのルームへ replace**（名乗りはハブに 1 つ） |
+   * | それ以外 | **玄関へ replace**（旧入口を撤去したので行き先が無い） |
+   *
+   * 送るのは `replace` である。`assign` だと、戻るボタンが行き場の無い URL へ戻り、
+   * そこからまた送り返される往復になる。
+   */
   useEffect(() => {
-    if (joinedFromUrlRef.current) return;
-    const code = new URLSearchParams(window.location.search).get("room");
-    if (!code) return;
-    joinedFromUrlRef.current = true;
-    // 参加画面を先に立てておく。復帰が成立すれば snapshot 受信で
-    // ロビー/セッションへ上書きされ、成立しなければここが行き先になる
-    // （失効トークン・消えたルームの経路を別に用意しなくて済む）。
-    setJoinCode(code);
-    setMode("join");
+    if (entryAppliedRef.current) return;
+    entryAppliedRef.current = true;
+    const entry = decideEntry(currentSearch());
+    if (entry.kind === "redirect") {
+      redirectTo(entry.to);
+      return;
+    }
+    if (entry.kind === "history") return;
+    const code = entry.code;
 
     const saved = loadResumeIdentity(code);
-    if (!shouldResumeOnLoad(saved, code)) return;
+    if (!shouldResumeOnLoad(saved, code)) {
+      // 名乗りはハブに 1 つだけある。**コードは落とさずに運ぶ** —— 落とすと、
+      // リンクで来た人が入りたかったルームを失う。
+      redirectTo(hubRoomPath(code));
+      return;
+    }
 
-    isCreatorRef.current = false;
     roomCodeRef.current = code;
     resumeDisplayNameRef.current = saved.displayName;
     // makeClient は毎レンダー作り直されるので、この mount 時 effect からは
@@ -749,7 +795,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
 
   return {
     mode,
-    joinCode,
     room,
     inviteUrl: room === null ? null : buildInviteUrl(window.location.origin, room.code),
     participantId,
@@ -769,8 +814,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
     regenerateProblem,
     addProxy,
     newSession,
-    showHistory,
-    backToSetup,
     saveRecordManually,
   };
 }

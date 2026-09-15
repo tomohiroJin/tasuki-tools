@@ -15,7 +15,6 @@
 import { describe, it, expect } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { PUBLIC_PATH } from "../../src/public-path";
 import { buildInviteUrl } from "@tasuki/sync-client";
 
 /** リポジトリルートを上方向に探す（jsdom では import.meta.url が使えないため）。 */
@@ -67,21 +66,43 @@ describe("buildInviteUrl", () => {
   });
 });
 
-describe("PUBLIC_PATH と配信設定", () => {
-  it("Given vite の base / When 読む / Then PUBLIC_PATH と一致する", () => {
-    // Given: timer-web の配信設定
-    // When: base を読む
-    // Then: クライアントが組み立てる公開パスと一致する
-    //
-    // 別ファイルにある同じ値で、食い違ってもどちらを見ても正しく見える。
-    // #19 の移設漏れはまさにこれで、ここで機械的に固定する。
-    const config = readFileSync(
-      path.join(findRepoRoot(process.cwd()), "apps/timer-web/vite.config.ts"),
-      "utf8",
-    );
-    const base = /^\s*base:\s*["']([^"']+)["']/m.exec(config);
+describe("timer の公開パスと配信設定", () => {
+  /**
+   * **突き合わせる相手が変わった**（#95 S5c）。
+   *
+   * S5b までは `src/public-path.ts` の `PUBLIC_PATH` が製品コードの正本で、
+   * WS の接続先と招待 URL がそれを読んでいた。S5c で WS の入口が `/ws` になり
+   * （`sync/sync-url.ts` の `SYNC_PATH`）、招待 URL は玄関の `/?room=` を配る
+   * `@tasuki/sync-client` へ移ったので、**製品コードにこの値を読む場所は 1 つも
+   * 残っていない**。読み手のいない定数を src に置くと、製品コードの入口から
+   * 到達しないモジュールになる（`scripts/audit-structure.mjs` の SC-027）ので消した。
+   *
+   * **突き合わせそのものは消さない。** #19 の移設漏れ（#76 F-1）が起きた原因は
+   * 「同じ公開パスが別々のファイルに 3 つあり、食い違ってもどれを見ても正しく見える」
+   * ことで、その構図は S5c でも変わっていない。**src の定数を経由せず、
+   * 配信設定 3 つを直に読み比べる** —— こちらのほうが守る範囲は広い
+   * （以前は vite の `base` としか比べていなかった）。
+   */
+  it("Given vite の base・app.env・Caddy 断片 / When 3 つを読む / Then 同じ公開パスを指す", () => {
+    // Given: 公開パスを別々に持つ 3 つの配信設定
+    const root = findRepoRoot(process.cwd());
+    const vite = readFileSync(path.join(root, "apps/timer-web/vite.config.ts"), "utf8");
+    const env = readFileSync(path.join(root, "deploy/timer/app.env"), "utf8");
+    const caddy = readFileSync(path.join(root, "deploy/timer/caddy/30-timer-spa.conf"), "utf8");
 
-    expect(base?.[1]).toBe(PUBLIC_PATH);
+    // When: それぞれから公開パスを取り出す
+    const base = /^\s*base:\s*["']([^"']+)["']/m.exec(vite)?.[1];
+    const publicPath = /^PUBLIC_PATH=(\S+)$/m.exec(env)?.[1];
+    // `handle_path /timer/* {` の `*` を除いた部分。末尾スラッシュまで含めて比べる
+    const handled = /^handle_path\s+([^\s*]+)\*/m.exec(caddy)?.[1];
+
+    // Then その1: **3 つとも実際に読めた。** 取り出しに失敗して undefined 同士が
+    //             一致する形で素通りさせない（正規表現が古くなると必ずこうなる）
+    expect({ base, publicPath, handled }).toEqual({
+      base: "/timer/",
+      publicPath: "/timer/",
+      handled: "/timer/",
+    });
   });
 
   it("Given 旧リンク救済の断片 / When 探す / Then もう存在しない", () => {

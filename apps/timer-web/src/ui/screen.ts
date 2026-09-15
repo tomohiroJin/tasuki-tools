@@ -5,12 +5,16 @@
 
 import type { RoomPhase } from "@tasuki/timer-core";
 
-export type Screen = "setup" | "lobby" | "session" | "celebration";
+export type Screen = "lobby" | "session" | "celebration";
 
 /**
  * サーバー権威の phase を、表示すべき画面に対応付ける。
  * setup/ready はロビー（開始前の待機・お題プレビュー）、
  * session はセッション、celebration は完成画面。
+ *
+ * **`"setup"` という画面は無い。** `phase` の `"setup"` はロビーへ写る。
+ * 旧入口（`Setup.tsx`）を撤去するまで `Screen` にだけ `"setup"` が残っていたが、
+ * この関数は一度も返しておらず、腐った枝だった（#95 S5c・R9）。
  */
 export function screenForPhase(phase: RoomPhase): Screen {
   switch (phase) {

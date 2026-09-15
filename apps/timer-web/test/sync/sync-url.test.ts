@@ -1,15 +1,21 @@
 /**
- * 同期サーバーへの WebSocket URL の組み立て（S4 / #19）。
+ * 同期サーバーへの WebSocket URL の組み立て（S4 / #19・#95 S5c）。
  *
- * timer は `/` から `/timer/` へ移設され、WS も `/timer/ws` になった。
- * この値は Caddy 断片（`deploy/timer/caddy/10-timer-ws.conf`）と一致していなければ
- * 接続できない。App.tsx に直書きされていたときはテストから触れず、移設漏れを
- * 検出する手段が無かったため、関数として切り出して固定する。
+ * S5c で入口を玄関と同じ `/ws` 1 本へ畳んだ。S5b までは `/timer/ws` という経路
+ * そのものがツールの宣言だったが、入口を畳んだ以上、経路ではツールを決められない。
+ * ここではクエリ（`SYNC_TOOL_QUERY` = `tool=timer`）がツールを宣言する。
+ *
+ * `SYNC_PATH`（`/ws`）は Caddy 断片（`deploy/landing/caddy/05-hub-ws.conf`）が受ける
+ * パスと一致していなければ接続できない。パスとクエリを別の定数に分けているのは、
+ * 前者は断片と、後者は統合サーバーの振り分けと突き合わされる別のものだからである
+ * （#95 S4b の教訓「同じ string の意味を変えるなら改名する」）。
+ * App.tsx に直書きされていたときはテストから触れず、移設漏れを検出する手段が
+ * 無かったため、関数として切り出して固定する。
  */
 import { describe, it, expect } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { buildSyncUrl, SYNC_PATH } from "../../src/sync/sync-url";
+import { buildSyncUrl, SYNC_PATH, SYNC_TOOL_QUERY } from "../../src/sync/sync-url";
 
 /** リポジトリルートを上方向に探す（jsdom では import.meta.url が使えないため）。 */
 function findRepoRoot(from: string): string {
@@ -23,21 +29,23 @@ function findRepoRoot(from: string): string {
 }
 
 describe("buildSyncUrl", () => {
-  it("https のページからは wss で繋ぐ", () => {
+  it("Given https の玄関 / When URL を組み立てる / Then wss でツールを宣言する", () => {
     // Given: TLS で配信されているページ
     // When: 同期先の URL を組み立てる
-    // Then: 暗号化された WebSocket になる（混在コンテンツにしない）
+    // Then: 暗号化された WebSocket で、ツール（timer）をクエリで宣言する
+
     expect(buildSyncUrl({ protocol: "https:", host: "tasuki.example" })).toBe(
-      "wss://tasuki.example/timer/ws",
+      "wss://tasuki.example/ws?tool=timer",
     );
   });
 
-  it("http のページからは ws で繋ぐ", () => {
+  it("Given http の玄関 / When URL を組み立てる / Then ws でツールを宣言する", () => {
     // Given: 開発サーバー（平文）
     // When: 同期先の URL を組み立てる
-    // Then: 平文の WebSocket になる
+    // Then: 平文の WebSocket で、ツール（timer）をクエリで宣言する
+
     expect(buildSyncUrl({ protocol: "http:", host: "localhost:5173" })).toBe(
-      "ws://localhost:5173/timer/ws",
+      "ws://localhost:5173/ws?tool=timer",
     );
   });
 
@@ -45,30 +53,27 @@ describe("buildSyncUrl", () => {
     expect(buildSyncUrl({ protocol: "http:", host: "127.0.0.1:4173" })).toContain("127.0.0.1:4173");
   });
 
-  it("パスは公開パス配下の /timer/ws に固定する", () => {
-    // Caddy は /timer/ws を受けて sync の /ws へ rewrite する。
-    // ここが `/ws` のままだと、包括フォールバック（LP）に吸われて
-    // WebSocket ではなく index.html が 200 で返る。
-    expect(SYNC_PATH).toBe("/timer/ws");
-    expect(buildSyncUrl({ protocol: "https:", host: "h" })).toMatch(/\/timer\/ws$/);
-  });
-
-  it("ルート直下（/ws）には繋がない", () => {
-    // LP がルートを占めるため、/ws は timer のものではなくなった。
-    expect(buildSyncUrl({ protocol: "https:", host: "h" })).not.toBe("wss://h/ws");
+  it("パスはハブと同じ /ws で、ツールはクエリが宣言する", () => {
+    // Caddy 断片は `/ws`（SYNC_PATH）だけを受け、クエリ（SYNC_TOOL_QUERY）は
+    // そのまま上流へ渡る（#95 S5c）。
+    expect(SYNC_PATH).toBe("/ws");
+    expect(SYNC_TOOL_QUERY).toBe("tool=timer");
   });
 });
 
 describe("SYNC_PATH と本番の Caddy 断片", () => {
-  it("Given 本番の断片 / When 受け付けるパスを読む / Then SYNC_PATH と一致する", () => {
-    // Given: 本番へ設置される Caddy 断片
+  it("Given 本番のハブの断片 / When 受け付けるパスを読む / Then SYNC_PATH と一致する", () => {
+    // Given: 本番へ設置されるハブの Caddy 断片
     // When: そこが受け付ける WebSocket のパスを読む
     // Then: クライアントが繋ぐ先（SYNC_PATH）と一致する
     //
     // 両者は別ファイルにある同じ値で、食い違っても どちらのファイルを見ても正しく見える。
     // 移設のたびに人が突き合わせるのをやめ、ここで機械的に固定する。
+    // Caddy の `handle` はパスだけで振り分け、クエリ（SYNC_TOOL_QUERY）は見ない
+    // （そのまま上流へ渡る）ため、ここで突き合わせるのは SYNC_PATH だけでよい。
+
     const fragment = readFileSync(
-      path.join(findRepoRoot(process.cwd()), "deploy/timer/caddy/10-timer-ws.conf"),
+      path.join(findRepoRoot(process.cwd()), "deploy/landing/caddy/05-hub-ws.conf"),
       "utf8",
     );
     const handled = /^\s*handle\s+(\S+)\s*\{/m.exec(
@@ -81,17 +86,18 @@ describe("SYNC_PATH と本番の Caddy 断片", () => {
     expect(handled?.[1]).toBe(SYNC_PATH);
   });
 
-  it("Given 本番の断片 / When rewrite を探す / Then 1 つも無い", () => {
-    // Given: 本番へ設置される Caddy 断片
+  it("Given 本番のハブの断片 / When rewrite を探す / Then 1 つも無い", () => {
+    // Given: 本番へ設置されるハブの Caddy 断片
     const fragment = readFileSync(
-      path.join(findRepoRoot(process.cwd()), "deploy/timer/caddy/10-timer-ws.conf"),
+      path.join(findRepoRoot(process.cwd()), "deploy/landing/caddy/05-hub-ws.conf"),
       "utf8",
     );
 
     // #95 S5a で `rewrite * /ws` を外した。
-    // When / Then: **剥がしてはならない。** `/ws` はハブ（選択画面）の入口になったので、
-    // ここで剥がすと timer の接続がハブとして扱われ、timer の参加者一覧から全員が消える
-    // （`apps/tasuki-sync/src/adapters/ws-adapter.ts` の HUB_WS_PATH）。
+    // When / Then: **剥がしてはならない。** 統合サーバーは 1 つの待ち受けで複数の
+    // メッセージ層を捌き、どれへ流すかは接続 URL のクエリ（`?tool=`）だけで決めている
+    // （`apps/tasuki-sync/src/adapters/ws-adapter.ts`。#95 S5c で経路からクエリへ移した）。
+    // `rewrite` は URI を書き換える操作で、その宣言ごと差し替えうる。
     // コメント行は落として見る —— 経緯の説明に `rewrite` の語が出てくるため。
     const body = fragment
       .split("\n")

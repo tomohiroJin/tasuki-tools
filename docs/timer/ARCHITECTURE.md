@@ -207,10 +207,13 @@ argv・ログ・snapshot に混入させません。失敗（タイムアウト�
   **BYOK 一式（`byok.ts` / `key-storage.ts` / `AiSettingsModal.tsx`）は Issue #28 で撤去した。**
   「将来の再有効化に備えて残置」という休眠コードは持たない（US1・FR-087）。
 - `records/`: IndexedDB 永続化（`indexeddb.ts`）と完成記録の組み立て（`persist.ts`）。
-- `ui/`: 画面（Setup / Join / Lobby / Session / Summary / History）。`screenForPhase` で `room.phase` に追従。
+- `ui/`: 画面（Lobby / Session / Summary / History / SessionLost）。`screenForPhase` で `room.phase` に追従。
+  **ルームの作成と名乗りの画面はここにありません** —— 玄関（`apps/landing`）に 1 つだけ置き、
+  timer は URL（`?room=` / `?view=history`）とその端末に保存された同一性からしか入りません
+  （#95 S5c・R9。`Setup.tsx` / `Join.tsx` と `room-param.ts` は同じ段で撤去しました）。
   **`App.tsx` から切り出した純粋な判定関数群**も同じ階層に置きます（`screen.ts` /
   `connection-status.ts` / `problem-generation.ts` / `join-driver-intent.ts` /
-  `error-action.ts` / `room-param.ts`）。`App.tsx` はそれらの結果を適用するだけにして、
+  `error-action.ts` / `entry.ts`）。`App.tsx` はそれらの結果を適用するだけにして、
   規則をテストの届く場所に置くのが方針です（`App.tsx` 自体の render テストは持たないため、
   判定を中に埋めると検証手段が無くなる）。**`host-change.ts` も同じ階層にありましたが、
   ホスト移譲の導線ごと #95 S3 で削除しました。**
@@ -243,11 +246,16 @@ need-problem）/ `error` / `time.pong` / `room.created` / `room.joined`。
 本人に何も届かないと、退出前の画面に留まったまま操作だけが拒否される「取り残し」になります。
 そこで `error` を 1 接続へ直送する経路を使い、**誰の操作による退出かで種類を分けます**。
 
-| 誰が誰を | 本人へ送るコード | 本人の画面 | URL の `?room=` |
+**行き先は #95 S5c で玄関（ハブ）になりました。** 旧入口（`Setup` / `Join`）を撤去したので、
+timer の中に「ルームの外」の画面はもうありません。`destination` の値は変えず、URL へ写します。
+どちらも `location.replace` で送ります —— 履歴に積むと、戻るボタン 1 回で抜けたはずの
+ルームへ復帰してしまいます。
+
+| 誰が誰を | 本人へ送るコード | 本人の行き先 | `?room=` |
 |---|---|---|---|
-| 自分が自分を | `LEFT_ROOM` | 入口（Setup） | **除去する**（復帰は招待からやり直す） |
-| 他者が自分を | `REMOVED_FROM_ROOM` | 参加（Join） | 保持する（再参加しやすくする） |
-| 他者が自分を（旧サーバー） | `REMOVED_BY_HOST` | 参加（Join） | 保持する |
+| 自分が自分を | `LEFT_ROOM` | 玄関（`/`） | **落とす**（復帰は招待からやり直す） |
+| 他者が自分を | `REMOVED_FROM_ROOM` | 玄関のそのルーム（`/?room=CODE`） | 運ぶ（再参加しやすくする） |
+| 他者が自分を（旧サーバー） | `REMOVED_BY_HOST` | 玄関のそのルーム（`/?room=CODE`） | 運ぶ |
 | 代理（クライアント無し） | 送らない | — | — |
 
 種類の判定は core の `removalNotificationFor()`、画面の行き先は web の `errorAction()` が持ちます。

@@ -3,12 +3,15 @@
  *
  * #214 で `error` を捨てなくなり、フレームは `setError` まで届くようになった。
  * ところが `sync.error` を描いていたのは**入室後**の `error-note` だけで、
- * トップ画面と参加フォームには表出が無かった。その結果、
+ * 入室前の画面には表出が無かった。その結果、
  * **#214 以前は出ていた「同期できていません」も出なくなり**（捨てないので当然）、
  * 入室前のエラーは画面からも devtools からも完全に消えていた（2026-08-31 に実測）。
  *
  * `App` を通して実経路で見る。**画面ごとに配線が別**なので、1 つ通ったからといって
- * 他が通っているとは言えない（#212 でトップ画面しか通らない検査が素通りした）。
+ * 他が通っているとは言えない（#212 で 1 つの画面しか通らない検査が素通りした）。
+ *
+ * **入室前の画面は 1 つになった**（#95 S5c・R9）。トップ画面と参加フォームを撤去し、
+ * 残るのは入室を待つ画面である。名乗りと、名乗る前のエラーは玄関が受け持つ。
  *
  * @requirements #217
  */
@@ -26,6 +29,19 @@ function deliver(frame: unknown): void {
   act(() => {
     FakeListenerSocket.latest().fire('message', { data: JSON.stringify(frame) });
   });
+}
+
+/**
+ * 参加用 URL からルーム画面を開く。
+ *
+ * **同一性を先に置く。** 無いまま開くと画面は玄関の参加画面へ送り返し、
+ * ここで見たいエラーの表出まで辿り着かない（#95 S5c・R9）。
+ */
+function openRoom(): void {
+  saveResumeIdentity({ code: ROOM_ID, participantId: 'p-stored', resumeToken: 'tok-1', displayName: 'はなこ' });
+  window.history.replaceState(null, '', `/poker/?room=${ROOM_ID}`);
+  render(<App />);
+  open();
 }
 
 function open(): void {
@@ -48,7 +64,7 @@ beforeEach(() => {
   FakeListenerSocket.instances = [];
   localStorage.clear();
   vi.stubGlobal('WebSocket', FakeListenerSocket);
-  window.history.replaceState(null, '', '/poker/');
+  window.history.replaceState(null, '', `/poker/?room=${ROOM_ID}`);
   vi.spyOn(console, 'warn').mockImplementation(() => {});
 });
 
@@ -61,23 +77,9 @@ afterEach(() => {
 });
 
 describe('サーバーのエラーはどの画面でも伝わる（#217）', () => {
-  it('トップ画面で伝える', () => {
-    // Given: ルームを作ろうとしている
-    window.history.replaceState(null, '', '/poker/');
-    render(<App />);
-    open();
-    // When
-    deliver(UNKNOWN_ERROR);
-    // Then
-    expect(screen.getByText('このルームは終了しました')).toBeTruthy();
-  });
-
-  it('参加フォームで伝える', () => {
-    // Given: 招待リンクを開き、まだ入室していない
-    saveResumeIdentity({ code: ROOM_ID, participantId: 'p-stored', resumeToken: 'tok-1', displayName: 'はなこ' });
-    window.history.replaceState(null, '', `/poker/room/${ROOM_ID}`);
-    render(<App />);
-    open();
+  it('入室を待つ画面で伝える', () => {
+    // Given: 参加用 URL を開き、まだ入室できていない
+    openRoom();
     // When
     deliver(UNKNOWN_ERROR);
     // Then
@@ -86,9 +88,7 @@ describe('サーバーのエラーはどの画面でも伝わる（#217）', () 
 
   it('入室後の画面で伝える（従来どおり）', () => {
     // Given
-    window.history.replaceState(null, '', `/poker/room/${ROOM_ID}`);
-    render(<App />);
-    open();
+    openRoom();
     deliver(A_ROOM_STATE);
     // When
     deliver(UNKNOWN_ERROR);
@@ -98,8 +98,7 @@ describe('サーバーのエラーはどの画面でも伝わる（#217）', () 
 
   it('閉じると消える', () => {
     // Given
-    render(<App />);
-    open();
+    openRoom();
     deliver(UNKNOWN_ERROR);
     // When
     fireEvent.click(screen.getByRole('button', { name: '閉じる' }));
@@ -112,12 +111,9 @@ describe('サーバーのエラーはどの画面でも伝わる（#217）', () 
    * 同じ 1 つの出来事が 2 つの別々の問題に見える。
    */
   it('rate-limited は「自動で入り直しています」だけを出し、二重にしない', () => {
-    // Given: 招待リンクを開き、まだ入室していない
+    // Given: 参加用 URL を開き、まだ入室していない
     vi.useFakeTimers();
-    saveResumeIdentity({ code: ROOM_ID, participantId: 'p-stored', resumeToken: 'tok-1', displayName: 'はなこ' });
-    window.history.replaceState(null, '', `/poker/room/${ROOM_ID}`);
-    render(<App />);
-    open();
+    openRoom();
     // When
     deliver({ type: 'error', code: 'rate-limited', message: '混み合っています' });
     // Then
@@ -132,9 +128,7 @@ describe('サーバーのエラーはどの画面でも伝わる（#217）', () 
    */
   it('room-not-found は専用画面だけを出す', () => {
     // Given
-    window.history.replaceState(null, '', `/poker/room/${ROOM_ID}`);
-    render(<App />);
-    open();
+    openRoom();
     // When
     deliver({ type: 'error', code: 'room-not-found', message: 'ルームが見つかりません' });
     // Then

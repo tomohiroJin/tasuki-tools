@@ -18,10 +18,10 @@
  * @requirements #167（#72 E4）
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, act, cleanup } from "@testing-library/react";
-import React from "react";
-import App from "../../src/App.js";
+import { screen, fireEvent, act, cleanup, renderHook } from "@testing-library/react";
 import { FakeWS } from "../support/fakes.js";
+import { enterRoomAndConnect } from "../support/enter-room.js";
+import { useTimerSync } from "../../src/sync/use-timer-sync.js";
 import { aRoomView } from "../support/room-view.js";
 import { clearPreferences } from "../../src/prefs/local-prefs.js";
 import { saveRecord as saveRecordMock } from "../../src/records/indexeddb.js";
@@ -74,16 +74,24 @@ function sentFrames(sendSpy: { mock: { calls: unknown[][] } }): Array<Record<str
   return sendSpy.mock.calls.map((c) => JSON.parse(String(c[0])) as Record<string, unknown>);
 }
 
-/** Setup 画面から「ルームを作る」まで進め、接続済み FakeWS を返す（作成者・isCreator=true）。 */
-function createRoomAndConnect(): FakeWS {
-  render(<App />);
-  fireEvent.change(screen.getByLabelText("あなたの名前"), { target: { value: "Creator" } });
-  fireEvent.click(screen.getByRole("button", { name: /ルームを作る/ }));
-  return openLatestSocket();
+/**
+ * 玄関で名乗った端末としてルームを開き、接続済み FakeWS を返す（#95 S5c・R9）。
+ *
+ * 旧入口（`Setup`）を撤去したので、timer に「ルームを作る」画面はもう無い（作るのはハブ）。
+ * **代表（お題を依頼する人）は「輪の先頭」で決まる**ようになったので、代表として
+ * 振る舞わせたいテストは `session.rotation` の先頭をこの参加者にする。
+ */
+function enterRoomAsGuest(): FakeWS {
+  return enterRoomAndConnect({ participantId: CREATOR_ID, displayName: "Creator" });
 }
+
+/** 自分（CREATOR_ID）が輪の先頭に居る＝お題の代表であることを表す session。 */
+const SELF_LEADS_ROTATION = { rotation: [CREATOR_ID], currentIndex: 0, driverCounts: [0] };
 
 beforeEach(() => {
   FakeWS.instances = [];
+  // 復帰の組は localStorage に残る（#95 S4b）。テスト間で漏らさない。
+  localStorage.clear();
   vi.stubGlobal("WebSocket", FakeWS);
   sessionStorage.clear();
   clearPreferences();
@@ -101,6 +109,7 @@ afterEach(() => {
   // 明示的に unmount する（他の describe と App インスタンスを共有しないため）。
   cleanup();
   vi.unstubAllGlobals();
+  localStorage.clear();
   sessionStorage.clear();
   clearPreferences();
   window.history.replaceState(null, "", "/");
@@ -109,8 +118,8 @@ afterEach(() => {
 describe("persist-completion: 完成フェーズの snapshot でローカル記録が実際に保存される", () => {
   it("完成（中断でない）なら記録が保存される", () => {
     // Given
-    const ws = createRoomAndConnect();
-    sendServer(ws, { type: "room.created", code: "ROOM01", resumeToken: "rt", participantId: CREATOR_ID });
+    const ws = enterRoomAsGuest();
+    sendServer(ws, { type: "room.joined", resumeToken: "rt", participantId: CREATOR_ID });
 
     // When
     sendServer(ws, {
@@ -129,8 +138,8 @@ describe("persist-completion: 完成フェーズの snapshot でローカル記�
 
   it("中断（abort）後の celebration では saveRecord が呼ばれない（既存の否定側を壊さない）", () => {
     // Given
-    const ws = createRoomAndConnect();
-    sendServer(ws, { type: "room.created", code: "ROOM01", resumeToken: "rt", participantId: CREATOR_ID });
+    const ws = enterRoomAsGuest();
+    sendServer(ws, { type: "room.joined", resumeToken: "rt", participantId: CREATOR_ID });
     sendServer(ws, {
       type: "snapshot",
       room: aRoomView({
@@ -161,11 +170,11 @@ describe("persist-completion: 完成フェーズの snapshot でローカル記�
   });
 });
 
-describe("request-problem: 作成者がロビーで一度だけ代表生成を依頼する", () => {
+describe("request-problem: 輪の先頭の人がロビーで一度だけ代表生成を依頼する", () => {
   it("お題の無いロビーの snapshot を受けたら requestId: req-<CODE>-lobby で送る", () => {
     // Given
-    const ws = createRoomAndConnect();
-    sendServer(ws, { type: "room.created", code: "ROOM01", resumeToken: "rt", participantId: CREATOR_ID });
+    const ws = enterRoomAsGuest();
+    sendServer(ws, { type: "room.joined", resumeToken: "rt", participantId: CREATOR_ID });
     const sendSpy = vi.spyOn(ws, "send");
 
     // When
@@ -176,6 +185,7 @@ describe("request-problem: 作成者がロビーで一度だけ代表生成を�
         phase: "ready",
         problem: null,
         participants: [participant(CREATOR_ID, "Creator")],
+        session: SELF_LEADS_ROTATION,
       }),
     });
 
@@ -185,11 +195,11 @@ describe("request-problem: 作成者がロビーで一度だけ代表生成を�
   });
 });
 
-describe("regenerate-problem: 作成者がロビーでの難易度変更を受けて作り直しを依頼する", () => {
+describe("regenerate-problem: 輪の先頭の人がロビーでの難易度変更を受けて作り直しを依頼する", () => {
   it("難易度が変わった snapshot を受けたら requestId が req-<CODE>-cfg- で始まる依頼を送る", () => {
     // Given
-    const ws = createRoomAndConnect();
-    sendServer(ws, { type: "room.created", code: "ROOM01", resumeToken: "rt", participantId: CREATOR_ID });
+    const ws = enterRoomAsGuest();
+    sendServer(ws, { type: "room.joined", resumeToken: "rt", participantId: CREATOR_ID });
     sendServer(ws, {
       type: "snapshot",
       room: aRoomView({
@@ -198,6 +208,7 @@ describe("regenerate-problem: 作成者がロビーでの難易度変更を受�
         problem: problemA(),
         config: { difficulty: "easy" },
         participants: [participant(CREATOR_ID, "Creator")],
+        session: SELF_LEADS_ROTATION,
       }),
     });
     const sendSpy = vi.spyOn(ws, "send");
@@ -211,6 +222,7 @@ describe("regenerate-problem: 作成者がロビーでの難易度変更を受�
         problem: problemA(),
         config: { difficulty: "hard" },
         participants: [participant(CREATOR_ID, "Creator")],
+        session: SELF_LEADS_ROTATION,
       }),
     });
 
@@ -223,14 +235,17 @@ describe("regenerate-problem: 作成者がロビーでの難易度変更を受�
 
 describe("consume-driver-join: 参加時ドライバー宣言は一度きりで、輪から外れても再送しない", () => {
   it("宣言を消費した後は、自分が輪から外れた snapshot が来ても member.add を再送しない", () => {
-    // Given: ?room= からドライバーとして参加する
-    window.history.replaceState(null, "", "/?room=ROOM01");
-    render(<App />);
-    fireEvent.change(screen.getByLabelText("あなたの名前"), { target: { value: "Guest" } });
-    fireEvent.click(screen.getByRole("radio", { name: "ドライバーとして参加" }));
-    fireEvent.click(screen.getByRole("button", { name: /参加/ }));
+    // Given: ドライバーを宣言して参加する。
+    // ⚠ **この `joinRoom()` は製品からは到達しない**（#95 S5c・I-4）。呼び手だった
+    // `Join` 画面を撤去し、名乗りはハブに移った。宣言を受け取る配線はフックに残って
+    // いるが、**叩く利用者はもう居ない**。一掃は別 Issue が持つ。ここは撤去の前後で
+    // 配線が変わっていないことの記録として残している。
+    const { result } = renderHook(() =>
+      useTimerSync({ banner: null, show: () => {}, clear: () => {} }),
+    );
+    act(() => result.current.joinRoom("ROOM01", "Guest", "", "driver"));
     const ws = openLatestSocket();
-    sendServer(ws, { type: "room.joined", code: "ROOM01", resumeToken: "rt", participantId: OTHER_ID });
+    sendServer(ws, { type: "room.joined", resumeToken: "rt", participantId: OTHER_ID });
 
     // 自分を含む最初の snapshot（rotation 未加入）→ 宣言を消費し member.add を1回送る
     sendServer(ws, {
@@ -256,5 +271,79 @@ describe("consume-driver-join: 参加時ドライバー宣言は一度きりで�
     // Then: 宣言は最初の snapshot で消費済みなので、2 回目では member.add を送らない
     const added = sentFrames(sendSpy).filter((f) => f.command === "member.add");
     expect(added).toEqual([]);
+  });
+});
+
+/**
+ * 完了から抜けたら、前のセッションの完了状態を**全端末で**畳む（#95 S5c・レビュー ②）。
+ *
+ * **「開始」を押すのは 1 人だけである。** 「新しいセッション」を押した人は玄関へ去り、
+ * ロビーで「セッションを開始」を押すのは別の誰か、残りは何も押さない。畳むのを
+ * 操作の中に置くと、**押していない端末では `recordSaved` が立ったまま**になり、
+ * 2 本目の完成で自分の端末に記録が保存されない（FR-020 の自動保存）。`record` も
+ * 前回のままなので、2 本目の完了画面に**1 本目の記録**が出る。
+ *
+ * ここは**何も押さない端末**を演じる。押す側の操作は 1 つも呼ばない。
+ */
+describe("clear-completion: 開始を押していない端末でも、2 本目の記録が残る", () => {
+  const ROTATION = { rotation: [CREATOR_ID, OTHER_ID], currentIndex: 0 };
+  const PARTICIPANTS = [participant(CREATOR_ID, "Creator"), participant(OTHER_ID, "Other")];
+
+  /** 完成フェーズの snapshot。交代回数で 1 本目と 2 本目を見分ける。 */
+  function celebration(totalSwitches: number, driverCounts: number[]) {
+    return {
+      type: "snapshot",
+      room: aRoomView({
+        code: "ROOM01",
+        phase: "celebration",
+        problem: problemA(),
+        participants: PARTICIPANTS,
+        session: { ...ROTATION, totalSwitches, driverCounts },
+      }),
+    };
+  }
+
+  it("2 本目の完成で記録が保存され、完了画面にも 2 本目の記録が出る", () => {
+    // Given: 何も押さない端末で 1 本目が完成している
+    const ws = enterRoomAsGuest();
+    sendServer(ws, { type: "room.joined", resumeToken: "rt", participantId: CREATOR_ID });
+    sendServer(ws, celebration(1, [1, 0]));
+    expect(saveRecordMock, "1 本目が保存されていない").toHaveBeenCalledTimes(1);
+    // **`getAllBy` で受ける。** 「N 回」は交代回数のカードとドライバー別の棒の両方に出る
+    expect(screen.getAllByText("1回"), "1 本目の交代回数").not.toHaveLength(0);
+
+    // When: 誰かがロビーへ戻し、誰かが開始し、2 本目が完成する。
+    //       **この端末は 1 度も操作していない**
+    sendServer(ws, {
+      type: "snapshot",
+      room: aRoomView({
+        code: "ROOM01",
+        phase: "setup",
+        problem: problemA(),
+        participants: PARTICIPANTS,
+        session: { ...ROTATION, totalSwitches: 1, driverCounts: [1, 0] },
+      }),
+    });
+    sendServer(ws, celebration(9, [5, 4]));
+
+    // Then その1: 2 本目もこの端末に保存される（FR-020 の自動保存）
+    expect(saveRecordMock, "2 本目が保存されていない").toHaveBeenCalledTimes(2);
+
+    // Then その2: 完了画面に出るのは**2 本目**の記録である
+    expect(screen.getAllByText("9回"), "2 本目の交代回数").not.toHaveLength(0);
+    expect(screen.queryAllByText("1回"), "1 本目の記録が残っている").toHaveLength(0);
+  });
+
+  it("完了から抜けていなければ畳まない（同じ完成の snapshot が 2 度来ても二重保存しない）", () => {
+    // Given: 1 本目が完成している
+    const ws = enterRoomAsGuest();
+    sendServer(ws, { type: "room.joined", resumeToken: "rt", participantId: CREATOR_ID });
+    sendServer(ws, celebration(1, [1, 0]));
+
+    // When: 在席の変化などで、同じ完成フェーズの snapshot がもう一度届く
+    sendServer(ws, celebration(1, [1, 0]));
+
+    // Then: 畳むのは phase が完了から抜けたときだけなので、記録は 1 件のまま
+    expect(saveRecordMock).toHaveBeenCalledTimes(1);
   });
 });

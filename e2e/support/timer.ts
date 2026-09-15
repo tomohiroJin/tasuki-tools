@@ -6,18 +6,29 @@ import { expect, type Locator, type Page } from '@playwright/test';
 /** 招待パネルの QR の代替テキストからルームコードを読む形。 */
 const QR_ALT = /^ルーム (.+) の QR コード$/;
 
+/** 選択画面のツールの札。ここから各ツールへ入る（#95 S5a・R1）。 */
+function toolCard(page: Page, name: string): Locator {
+  return page.getByRole('list', { name: 'ツール' }).getByRole('link', { name: new RegExp(name) });
+}
+
 /**
- * ルームを作り、ルームコードを返す。
+ * 玄関でルームを作って timer を開き、ルームコードを返す。
+ *
+ * **入口は玄関ただ 1 つになった**（#95 S5c・R9）。timer の旧入口（`Setup`）は撤去したので、
+ * 「`/timer/` を開いて名前を入れる」経路はもう無い。ここが通らなくなったら、
+ * それは手順が古いのではなく**入口が壊れている**。
  *
  * コードを **QR の `alt` から読む**のは、画面上でコードを載せている要素のうち
  * アクセシブル名を持つのがそこだけだから（大きな数字は素の `<span>`、
  * 招待 URL も素の `<p>`）。`alt` は製品が元から持っている情報で、
- * テストのために足したものではない。
+ * テストのために足したものではない。**玄関の URL から読み取らない** ——
+ * 自分の居場所を読むだけでは、timer が実際にそのルームを映していることを見ない。
  */
 export async function createRoom(page: Page, name: string): Promise<string> {
-  await page.goto('/timer/');
+  await page.goto('/');
   await page.getByLabel('あなたの名前').fill(name);
   await page.getByRole('button', { name: 'ルームを作る' }).click();
+  await toolCard(page, 'TDD Mob Pro Timer').click();
 
   const qr = page.getByRole('img', { name: QR_ALT });
   await expect(qr).toBeVisible();
@@ -30,29 +41,45 @@ export async function createRoom(page: Page, name: string): Promise<string> {
 }
 
 /**
- * 渡された URL を開き、ドライバーとして参加する。
+ * 渡された参加用 URL を玄関で開いて名乗り、timer を開く（輪には入らない）。
  *
  * **URL を組み立てずに受け取るのが要点。** 招待パネルが出した URL 文字列
  * そのものを開く回帰シナリオ（#76 F-1）は、こちらを直接使う。
  *
- * ラジオは `sr-only` で `check()` できない（クリック可能な位置に無い）。
- * **利用者と同じく、包んでいるラベルの可視テキストを押す。**
+ * 撤去前は timer の `Join` が名前と参加方法（ドライバー/見学）を聞いていた。
+ * **名乗りはハブに 1 つだけになり、輪への加入はロビーの操作に分かれた**（#95 S5c・R9）。
  */
-export async function joinAsDriverAt(page: Page, url: string, name: string): Promise<void> {
+export async function joinViaHubAt(page: Page, url: string, name: string): Promise<void> {
   await page.goto(url);
   await page.getByLabel('あなたの名前').fill(name);
-  await page.getByText('ドライバーとして参加', { exact: true }).click();
-  await page.getByRole('button', { name: 'モブに参加' }).click();
+  await page.getByRole('button', { name: '参加する' }).click();
+  await toolCard(page, 'TDD Mob Pro Timer').click();
 }
 
 /**
- * ルームコードからドライバーとして参加する。
+ * ルームコードから玄関で名乗って timer を開く（輪には入らない）。
  *
  * **招待 URL の生成規則を検証しない場面のための近道。** 参加の成立そのものが
  * 目的で、どんな URL を配るかは問わないシナリオはこちらを使う。
  */
+export async function joinViaHub(page: Page, code: string, name: string): Promise<void> {
+  await joinViaHubAt(page, `/?room=${encodeURIComponent(code)}`, name);
+}
+
+/**
+ * 玄関で名乗って timer へ入り、**ロビーで交代の輪に加わる**。
+ *
+ * 撤去前は参加画面の「ドライバーとして参加」がこれを兼ねていた。その必須選択は
+ * #95 S5c で廃止され、輪への加入はロビーの操作になった。**加わったことまで待つ** ——
+ * 待たないと、1 人だけの輪でセッションを始めてしまう。
+ */
 export async function joinAsDriver(page: Page, code: string, name: string): Promise<void> {
-  await joinAsDriverAt(page, `/timer/?room=${code}`, name);
+  await joinViaHub(page, code, name);
+  await page.getByRole('button', { name: 'ドライバーに加わる' }).click();
+  await expect(
+    page.getByRole('button', { name: 'ドライバーに加わる' }),
+    '輪に加わっても「ドライバーに加わる」が残っている',
+  ).toHaveCount(0);
 }
 
 /**
@@ -82,7 +109,7 @@ export function invitedUrlText(page: Page): Locator {
   return page.getByText(/^https?:\/\/\S+$/);
 }
 
-/** 参加前（Setup / Join）では出ない、常設のステータス表示。 */
+/** ルームの画面が決まるまで（`mode` が null の間）は出ない、常設のステータス表示。 */
 export function statusStrip(page: Page): Locator {
   return page.getByRole('status', { name: 'ステータス情報' });
 }

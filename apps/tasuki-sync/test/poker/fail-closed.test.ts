@@ -1,11 +1,11 @@
 /**
- * 統合サーバーの本番 fail-closed を **poker の入口（`/poker/ws`）から**確かめる
+ * 統合サーバーの本番 fail-closed を **poker として（`/ws?tool=poker`）**確かめる
  * （#103・設計正本 D6）。
  *
  * 起動時の検査（HOST・ALLOWED_ORIGINS）は `test/fail-closed.test.ts` と同じ
  * `loadSyncConfig` を見るので重なる。**残しているのは接続時の検査のほう**で、
- * こちらは生ソケット（`raw-ws-client.ts`）で `/poker/ws` へ繋ぐ。#95 S2 の統合で
- * 接続層は 1 つになったが、**パスの振り分けを含めて塞がっていること**は
+ * こちらは生ソケット（`raw-ws-client.ts`）で `/ws?tool=poker` へ繋ぐ。#95 S2 の統合で
+ * 接続層は 1 つになったが、**poker のメッセージ層まで塞がっていること**は
  * timer 側の入口を見るテストでは確かめられない。
  */
 import { describe, it, expect, afterEach } from 'bun:test';

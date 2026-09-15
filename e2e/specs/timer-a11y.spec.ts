@@ -64,8 +64,11 @@ test.describe('キーボードのフォーカスが必ず見える', () => {
   test('Given 玄関の入力画面 / When Tab で送る / Then 当たった操作要素に輪郭が出る', async ({
     page,
   }) => {
-    // Given
-    await page.goto('/timer/');
+    // Given: **玄関を直接開く**（#95 S5c・R9）。
+    //   `/timer/` のままにしてはいけない —— 旧入口を撤去した後は玄関へ送り返される
+    //   ので、**送り返しが壊れても玄関にも「ルームを作る」があり、緑のまま通る**。
+    //   送り返しそのものは `timer.spec.ts` の専用シナリオが見る
+    await page.goto('/');
     await expect(page.getByRole('button', { name: 'ルームを作る' })).toBeVisible();
 
     // **「輪郭や影が出ているか」を単体で見てはいけない。** 主操作ボタンは装飾として

@@ -6,7 +6,8 @@
  *
  * ## 何をするか
  *
- * 1. `/ws` へ繋ぐ（ハブの入口。`apps/tasuki-sync/src/adapters/ws-adapter.ts` の `HUB_WS_PATH`）
+ * 1. `/ws` へ繋ぐ（唯一の WS 入口。`?tool=` を付けない接続はハブとして扱われる。
+ *    `apps/tasuki-sync/src/adapters/ws-adapter.ts` の `protocolFromRequestUrl`）
  * 2. 受信は `HubServerMsgSchema` で検める（**境界の検証**・原則 IV）。合わないフレームは捨てる
  * 3. `room.created` / `room.joined` を受けたら、復帰の組と既定の表示名を端末へ保存する
  * 4. 読み込み時、URL の `?room=` に対応する組があれば**名乗らずに復帰する**（R16）
@@ -41,6 +42,13 @@ export interface HubSync {
   readonly code: string | null;
   /** そのルームへ参加済みか。 */
   readonly joined: boolean;
+  /**
+   * 端末の復帰の組で入り直そうとしていて、まだ返事が来ていないか（#95 S5c 追補）。
+   *
+   * **「まだ分からない」を「名乗る必要がある」と混同させないための値である。**
+   * これが true の間、画面は名乗りを求めない（`hub/hub-state.ts` の `screenFor`）。
+   */
+  readonly resuming: boolean;
   /** 選択画面に映す名簿（未参加なら null）。 */
   readonly roster: RosterRoom | null;
   /** 名乗るフォームの初期値（前に名乗った名前）。 */
@@ -92,6 +100,20 @@ export function useHubSync(): HubSync {
    */
   const codeRef = useRef<string | null>(initialCode);
   const [joined, setJoined] = useState(false);
+  /**
+   * 復帰の返事待ち。
+   *
+   * **初期値は「この端末がこのルームの復帰の組を持っているか」で決める。** 持っていない
+   * 人（招待リンクを受け取っただけの人）は待つ対象が無いので、いままでどおり
+   * すぐ参加画面を出す —— ここを常に true から始めると、**名乗るべき人が
+   * 読み込み中のまま止まる**。
+   *
+   * 降りるのは**復帰に対するサーバーの最初の返事が来たとき**である（入室の成立でも
+   * エラーでも降ろす）。降ろさない経路を作ると待ちが終わらない。
+   */
+  const [resuming, setResuming] = useState(
+    () => initialCode !== null && loadResumeIdentity(initialCode) !== null,
+  );
   const [roster, setRoster] = useState<RosterRoom | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [needsPassphrase, setNeedsPassphrase] = useState(false);
@@ -150,6 +172,7 @@ export function useHubSync(): HubSync {
           });
           saveDefaultDisplayName(lastJoinRef.current?.displayName ?? '');
           setJoined(true);
+          setResuming(false);
           setError(null);
           setNeedsPassphrase(false);
           retryRef.current = 0;
@@ -165,6 +188,11 @@ export function useHubSync(): HubSync {
           return;
         }
         // エラー
+        //
+        // **どのエラーでも復帰の待ちは終わらせる。** ここへ来た時点で「この端末の組では
+        // 入れなかった」ことが確定しており、待ち続けると読み込み中の表示から抜けられない
+        // （合言葉を求められた・混雑で弾かれた場合も、参加画面で文言を読ませて操作させる）。
+        setResuming(false);
         if (msg.code === 'PASSPHRASE_REQUIRED' || msg.code === 'PASSPHRASE_MISMATCH') {
           setNeedsPassphrase(true);
           setError(msg.message);
@@ -254,6 +282,7 @@ export function useHubSync(): HubSync {
   return {
     code,
     joined,
+    resuming,
     inviteUrl: code === null ? null : buildInviteUrl(window.location.origin, code),
     roster,
     defaultDisplayName,

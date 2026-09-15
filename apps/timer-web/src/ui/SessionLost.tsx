@@ -16,9 +16,14 @@ import { Card, PrimaryButton, GhostButton } from "./primitives.js";
 interface SessionLostProps {
   /** 消えたルームのコード（分かる場合のみ表示する） */
   code?: string | undefined;
-  /** 入口へ戻って新しいルームを作る */
+  /**
+   * 玄関へ戻って新しいルームを作る（#95 S5c・R9）。
+   *
+   * **消えたルームの選択画面へは送らない。** ハブはそこで存在しないルームの
+   * 参加画面を出し、名乗っても必ず失敗する。
+   */
   onNewSession: () => void;
-  /** 端末に残った完了記録を見る */
+  /** 端末に残った完了記録を見る（`?view=history` で開く） */
   onShowHistory: () => void;
 }
 

@@ -32,6 +32,10 @@ export {
 // Participant / Room: 上の関数の引数・戻り値型。ParticipantId ほかは署名から到達する
 export type { Participant, Room, ParticipantId, ConnId, RoomCode, ToolId } from "./room.js";
 
+// ./departure —— 退出したことを玄関へ運ぶ言葉（#95 S5c・URL の上を通る）
+export { DEPARTURE_PARAM, parseDepartureReason, departureNoticeFor } from "./departure.js";
+export type { DepartureReason } from "./departure.js";
+
 // ./wire —— 選択画面（ハブ）との間の言葉（#95 S5a）
 // 名簿そのもののスキーマは公開しない（`roster` メッセージとしてだけ運ばれる）。
 export { HubCommandSchema, HubServerMsgSchema } from "./wire.js";

@@ -7,14 +7,15 @@
  * 自分の表示名の導出・クリップボード I/O だけである。
  */
 
-import React, { useEffect } from "react";
-import { Setup } from "./ui/Setup.js";
-import { Join } from "./ui/Join.js";
+import React, { useEffect, useState } from "react";
+import { decideEntry } from "./ui/entry.js";
+import { currentSearch, navigateTo, redirectTo } from "./platform/location.js";
 import { Lobby } from "./ui/Lobby.js";
 import { Session } from "./ui/Session.js";
 import { Summary } from "./ui/Summary.js";
 import { SessionLost } from "./ui/SessionLost.js";
 import { History } from "./ui/History.js";
+import { Loading } from "./ui/Loading.js";
 import { StatusStrip } from "./ui/components/StatusStrip.js";
 import { deriveConnectionStatus } from "./ui/connection-status.js";
 import { Stage } from "./ui/primitives.js";
@@ -31,9 +32,15 @@ export default function App() {
   const sync = useTimerSync(bannerController);
   const { banner } = bannerController;
 
+  // 玄関・選択画面からの入口判定（#95 S5c）。mount 時の URL で 1 度だけ決める。
+  // sync 側の ?room= 処理が後から mode を書き換えても、明示的に開いた履歴は保つ。
+  //
+  // **`kind: "redirect"` の適用（行き先の無い URL を玄関へ送る）は同期フックが持つ**
+  // （`sync/use-timer-sync.ts` の入口の effect）。判定はこの 1 つの関数、適用は 1 箇所。
+  const [entry] = useState(() => decideEntry(currentSearch()));
+
   const {
     mode,
-    joinCode,
     room,
     participantId,
     record,
@@ -94,17 +101,30 @@ export default function App() {
   // 「同期不整合」を出す（#209）。
   const connectionStatus = deriveConnectionStatus(sessionLost, connState, syncStale);
 
-  /** セッション/ロビーはダークステージ固定。Setup/Summary は通常テーマ。 */
+  /** セッション/ロビーはダークステージ固定。Summary は通常テーマ。 */
   const renderBody = () => {
+    // 玄関・選択画面から明示的に開かれた履歴は、ルームの状態と無関係に最優先で出す
+    // （#95 S5c・端末ローカルの記録はルームが無くても見られる、という旧入口の性質を保つ）。
+    if (entry.kind === "history") {
+      return <History onBack={() => navigateTo(entry.backTo)} />;
+    }
+
     // ルームが消えた以上、ロビー・セッション・完了の操作はどれも効かない（#76 F-4）。
     // 履歴は端末ローカルなので喪失しても見られる。ここで先に分岐して、
     // 押しても何も起きない画面を残さない。
-    if (sessionLost && mode !== "history") {
+    if (sessionLost) {
       return (
         <SessionLost
           code={room?.code}
-          onNewSession={sync.newSession}
-          onShowHistory={sync.showHistory}
+          // ルームはもう無いので、ロビーへ戻す `phase.set` は誰にも届かない
+          // （#95 S5c・C-1）。ここだけは玄関へ送って作り直してもらう。
+          // **`replace` で送る** —— 押した時点の URL は消えたルームで、履歴に積むと
+          // 戻るボタン 1 回でまた `ROOM_NOT_FOUND` を踏む。
+          onNewSession={() => redirectTo("/")}
+          // 記録は URL が決める画面になった（#95 S5c）。**いまのツールの中で**開くので
+          // 相対の検索文字列で送る（`/timer/` という公開パスをここへ書かない）。
+          // 綴りの対は `ui/entry.ts` の `?view=history` と、玄関の `HistoryLink`。
+          onShowHistory={() => navigateTo("?view=history")}
         />
       );
     }
@@ -187,24 +207,23 @@ export default function App() {
       );
     }
 
-    if (mode === "join" && joinCode && !room) {
-      return <Join code={joinCode} onJoin={(name, passphrase, joinMode) => sync.joinRoom(joinCode, name, passphrase, joinMode)} />;
-    }
-
-    // 端末ローカルの完了記録を可視化する履歴ビュー（v2.3 #5）。Setup から開き、戻ると Setup へ。
-    if (mode === "history") {
-      return <History onBack={sync.backToSetup} />;
-    }
-
-    return <Setup onCreateRoom={sync.createRoom} onShowHistory={sync.showHistory} />;
+    // ここへ落ちるのは「ルームの画面がまだ決まっていない」間だけである（#95 S5c・R9）。
+    // 行き先の無い URL は同期フックが玄関へ送っており、**旧入口はもう無い**。
+    // 復帰の `room.join` に対する snapshot を待つ間と、玄関へ送り返している間が当たる。
+    //
+    // **`null` を返してはいけない**（#95 S5c 追補・利用者の実画面フィードバック）。
+    // 撤去前は `Setup` が受け皿で、いまは `StatusStrip` すら出ない（`mode === null`）ため、
+    // 選択画面から timer を開いた人には白い画面だけが残る。
+    return <Loading />;
   };
 
   return (
     <Stage>
-      {/* 永続ステータスストリップ（全画面共通・FR-036）。参加前（Setup/Join）と履歴（history）は出さない。
+      {/* 永続ステータスストリップ（全画面共通・FR-036）。ルームの画面が決まるまで（`mode` が
+          null の間）は出さない —— 履歴だけを開いたときと、復帰の snapshot を待つ間がここに当たる。
           セッション喪失時も出さない。ルームはもう無いのに「セッション中」と言い続けることになり、
           本文の「セッションが見つかりません」と矛盾する（#76 F-4）。 */}
-      {mode !== "setup" && mode !== "join" && mode !== "history" && !sessionLost && (
+      {mode !== null && !sessionLost && (
         <div className="mb-4">
           <StatusStrip
             phase={mode}

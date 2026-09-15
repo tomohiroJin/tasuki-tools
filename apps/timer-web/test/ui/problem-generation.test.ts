@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { shouldClearGenerating, shouldAutoRequestProblem } from "../../src/ui/problem-generation.js";
+import {
+  isRotationRepresentative,
+  shouldAutoRequestProblem,
+  shouldClearGenerating,
+} from "../../src/ui/problem-generation.js";
 import type { Problem } from "@tasuki/timer-core";
 
 const mk = (title: string, source?: Problem["source"]): Problem => ({
@@ -33,9 +37,9 @@ describe("shouldClearGenerating", () => {
 });
 
 describe("shouldAutoRequestProblem", () => {
-  const base = { phase: "lobby", hasProblem: false, isCreator: true, alreadyRequested: false, problemEnabled: true };
+  const base = { phase: "lobby", hasProblem: false, isRepresentative: true, alreadyRequested: false, problemEnabled: true };
 
-  it("ロビーでお題未確定・作成者・未要求・お題有効なら true", () => {
+  it("ロビーでお題未確定・代表・未要求・お題有効なら true", () => {
     expect(shouldAutoRequestProblem({ ...base, phase: "ready" })).toBe(true);
     expect(shouldAutoRequestProblem({ ...base, phase: "setup" })).toBe(true);
   });
@@ -45,11 +49,32 @@ describe("shouldAutoRequestProblem", () => {
   it("既にお題があれば false", () => {
     expect(shouldAutoRequestProblem({ ...base, phase: "ready", hasProblem: true })).toBe(false);
   });
-  it("作成者以外/要求済みは false", () => {
-    expect(shouldAutoRequestProblem({ ...base, phase: "ready", isCreator: false })).toBe(false);
+  it("代表以外/要求済みは false", () => {
+    expect(shouldAutoRequestProblem({ ...base, phase: "ready", isRepresentative: false })).toBe(false);
     expect(shouldAutoRequestProblem({ ...base, phase: "ready", alreadyRequested: true })).toBe(false);
   });
   it("session フェーズでは false", () => {
     expect(shouldAutoRequestProblem({ ...base, phase: "session" })).toBe(false);
+  });
+});
+
+describe("isRotationRepresentative", () => {
+  it("輪の先頭が自分なら true", () => {
+    // Given / When / Then（問い合わせがそのまま検証になる）
+    expect(isRotationRepresentative("me", ["me", "other"])).toBe(true);
+  });
+
+  it("輪に居ても先頭でなければ false", () => {
+    expect(isRotationRepresentative("me", ["other", "me"])).toBe(false);
+  });
+
+  it("輪が空なら false", () => {
+    expect(isRotationRepresentative("me", [])).toBe(false);
+  });
+
+  it("participantId が未確定（空文字）なら false（空の輪と突き合わせて真にしない）", () => {
+    // Given: identity 未受信。**`rotation[0]` も undefined の側で一致させない**
+    // When / Then
+    expect(isRotationRepresentative("", [])).toBe(false);
   });
 });

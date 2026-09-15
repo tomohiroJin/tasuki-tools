@@ -22,6 +22,7 @@ import {
   selectedIntervalLabel,
   invitedUrlText,
   joinAsDriver,
+  joinViaHub,
   MISSING_ROOM_CODE,
   lobbyRotationRow,
   participantCount,
@@ -205,6 +206,56 @@ test.describe('招待パネルに表示された URL でそのまま参加でき
 });
 
 /**
+ * 行き場の無い URL は玄関へ送り返す（#95 S5c・R9。タグ無し = `local` 専用）。
+ *
+ * **`timer-a11y.spec.ts` では見られない。** あちらは玄関の入力画面をフォーカスの検査に
+ * 使うだけで、`/timer/` を開いても**玄関にも「ルームを作る」がある**ため、
+ * 送り返しが壊れていても緑になる。ここでは**行き先の URL そのもの**を固定する。
+ *
+ * `toContain` は使わない。`/` はあらゆるパスの接頭辞なので、部分一致は恒真になる。
+ */
+test.describe('timer はルームコードの無い URL を玄関へ送り返す', () => {
+  test('Given ルームコードの無い URL / When /timer/ を開く / Then 玄関へ送られる', async ({
+    page,
+  }) => {
+    // Given / When: 旧入口のつもりで `/timer/` を素で開く
+    await page.goto('/timer/');
+
+    // Then その1: **玄関へ移動している。** 送り返しが無ければ `/timer/` に留まる
+    await expect
+      .poll(() => new URL(page.url()).pathname, { message: 'ルーム無しで開いた timer の行き先' })
+      .toBe('/');
+
+    // Then その2: **玄関が実際に描かれている。** 配信が壊れていても
+    //             包括フォールバックが 200 を返すので、URL だけでは素通りする
+    await expect(page.getByLabel('ルーム名')).toBeVisible();
+  });
+
+  test('Given 端末に同一性が無い / When /timer/?room=CODE を直接開く / Then コードを保ったまま玄関の名乗りへ送られる', async ({
+    page,
+    openPeer,
+  }) => {
+    // Given: 実在するルーム（作成者は別の文脈に居る）
+    const host = await openPeer('timer-redirect-host');
+    const code = await createRoom(host.page, HOST);
+
+    // When: ハブを通らずに timer の URL を直接開く（ブックマークや古い共有リンク）
+    await page.goto(`/timer/?room=${encodeURIComponent(code)}`);
+
+    // Then その1: **コードを落とさない。** 落とすと、入りたかったルームを失う
+    await expect
+      .poll(() => new URL(page.url()).searchParams.get('room'), {
+        message: '送り返し先の room',
+      })
+      .toBe(code);
+    await expect.poll(() => new URL(page.url()).pathname).toBe('/');
+
+    // Then その2: 名乗りの画面である（名乗りはハブに 1 つだけある）
+    await expect(page.getByRole('button', { name: '参加する' })).toBeVisible();
+  });
+});
+
+/**
  * 再読込しても参加画面に戻らないこと（#12・#76 F-3 の回帰防止）。
  *
  * **作成者で試してはいけない。** 壊れ方は「復帰時に `participantId` が立たず、
@@ -238,8 +289,8 @@ test.describe('timer を再読込しても参加画面に戻らない', () => {
     await guest.page.reload();
 
     // Then その1: **参加画面に戻っていない。**
-    //             ステータス表示は `mode` が `join` / `setup` のときは描画されないので
-    //             （`App.tsx:819`）、見えていること自体が参加画面でない証拠になる。
+    //             ステータス表示はルームの画面が決まるまで（`mode` が null の間）
+    //             描画されないので、見えていること自体が復帰できた証拠になる。
     //             「参加ボタンが無い」という否定より、こちらのほうが空振りしない
     await expect(strip, '再読込後のステータス表示').toBeVisible();
 
@@ -314,7 +365,7 @@ test.describe('契約に合わない同期フレームを捨てたことが画�
    */
   async function corruptFrom(page: Page, corrupting: () => boolean): Promise<{ count: () => number }> {
     let corrupted = 0;
-    await page.routeWebSocket(/\/timer\/ws$/, (ws) => {
+    await page.routeWebSocket(/\/ws\?.*\btool=timer\b/, (ws) => {
       const server = ws.connectToServer();
       ws.onMessage((message) => server.send(message));
       server.onMessage((message) => {
@@ -396,8 +447,9 @@ test.describe('契約に合わない同期フレームを捨てたことが画�
     const guest = await openPeer('timer-stale-newcomer');
     const corrupter = await corruptFrom(guest.page, () => true);
 
-    // When
-    await joinAsDriver(guest.page, code, GUEST);
+    // When: 玄関で名乗って timer へ入る。**輪への加入までは進めない** ——
+    //       ロビーがそもそも描かれないのがこのシナリオの前提である
+    await joinViaHub(guest.page, code, GUEST);
 
     // Then: 画面に出す場所が無いので、バナーで伝える
     await expect(guest.page.getByText(/同期できていません/)).toBeVisible();
@@ -405,6 +457,96 @@ test.describe('契約に合わない同期フレームを捨てたことが画�
   });
 });
 
+
+/**
+ * 完了後の「新しいセッション」（#95 S5c・C-1・`local` 専用）。
+ *
+ * **ここでしか見られないのは「押した人と残った人で行き先が違うこと」と、
+ * 残った人が実際に次のセッションを始められることである。** 単体テストは片方の画面しか
+ * 持たず、`session.act START` が走行中のルームで弾かれるかどうかは実サーバーにしか無い。
+ *
+ * 撤去の段では「同じルームの選択画面へ送る」形にしており、**そのルームの `phase` は
+ * `celebration` のまま**だったので、戻ってきた人は完了画面に着く閉路になっていた。
+ * 単体テストが `navigateTo` の引数しか見ていなかったので、誰も気づかなかった。
+ *
+ * **1 本目は「交代したうえで一時停止してから完成」させる**（レビュー ①）。
+ * `session.complete` は一時停止中でも通り、`SessionCompleted` は集約を畳み込まないので、
+ * 完了したルームには `running: false` / `isPaused: true` / 進んだ `currentIndex` が残る。
+ * ここで `session.act START` を送ると、**前の残り時間から・前のドライバーから・
+ * 「一時停止中」の表示のまま**次が走り出す。素直に完成させるだけではその枝を通らない。
+ */
+test.describe('timer は完了後の「新しいセッション」で、押した人を玄関へ送りルームをロビーへ戻す', () => {
+  test('Given 一時停止したまま完了した 2 人 / When 新しいセッションを選ぶ / Then 押した人は玄関へ、残った人は先頭から次を始められる', async ({
+    page,
+    openPeer,
+  }) => {
+    // Given: 2 人でセッションを開始し、完成として締める
+    const code = await createRoom(page, HOST);
+    const guest = await openPeer('timer-new-session');
+    await joinAsDriver(guest.page, code, GUEST);
+    await expect(lobbyRotationRow(page, HOST, 1)).toHaveCount(1);
+    await expect(lobbyRotationRow(page, GUEST, 2)).toHaveCount(1);
+    await page.getByRole('button', { name: 'セッションを開始' }).click();
+    await expect(page.getByRole('timer')).toBeVisible();
+
+    // Given: **交代してから一時停止して**完成として締める。
+    //        こうしないと「前のセッションを引きずる」枝を通らない
+    await page.getByRole('button', { name: 'スキップ', exact: true }).click();
+    await expect(currentDriverRow(page), '交代していない').toContainText(GUEST);
+    await page.getByRole('button', { name: '一時停止', exact: true }).click();
+    await expect(
+      page.getByRole('button', { name: '再開', exact: true }),
+      '一時停止できていない',
+    ).toBeVisible();
+    await page.getByRole('button', { name: '完成!', exact: true }).click();
+    await page.getByRole('button', { name: '完成として記録する' }).click();
+
+    // Given の確認: **両方の画面**が完了画面になっている（共有の出来事である）
+    for (const [label, target] of screens(page, guest.page)) {
+      await expect(
+        target.getByRole('button', { name: /新しいセッション/ }),
+        `${label}の画面の完了表示`,
+      ).toBeVisible();
+    }
+
+    // When: 押した人が「新しいセッション」を選ぶ
+    await page.getByRole('button', { name: /新しいセッション/ }).click();
+
+    // Then その1: 押した人は**玄関**に着く。`?room=` は付かない
+    //   （付くと選択画面に着いて、新しいルームを作れない）
+    await expect
+      .poll(() => new URL(page.url()).pathname, { message: '「新しいセッション」の行き先' })
+      .toBe('/');
+    expect(new URL(page.url()).searchParams.get('room'), '玄関に room が付いている').toBeNull();
+    await expect(page.getByLabel('ルーム名'), '新しいルームを作れない').toBeVisible();
+
+    // Then その2: **残った人のルームはロビーへ戻っている。** ここが `celebration` の
+    //   ままだと、あとから参加用 URL で戻ってきた人も完了画面に着く（timer だけ死んだルーム）
+    await expect(statusStrip(guest.page), '残った人のフェーズ表示').toContainText('ロビー');
+
+    // Then その3: **残った人はそのまま次のセッションを始められる。**
+    //   完了したセッションの時計は走ったままなので、走行中の START は弾かれる。
+    //   「押せる」だけでなく、実際にセッションが始まるところまで見る
+    const start = guest.page.getByRole('button', { name: 'セッションを開始' });
+    await expect(start, '次のセッションを始められない').toBeEnabled();
+    await start.click();
+    await expect(statusStrip(guest.page), '開始しても始まっていない').toContainText('セッション中');
+    await expect(guest.page.getByRole('timer'), 'タイマーが出ていない').toBeVisible();
+
+    // Then その4: **前のセッションを引きずっていない**（レビュー ①）。
+    //   `session.act START` に落ちると、集約は畳まれないので
+    //   ①ドライバーは前回の続き（GUEST）のまま ②`isPaused` が立ったまま走る、になる。
+    //   ②は「再開ボタンを描きながら時計だけ進む」という、`evolveBreakEnded` が
+    //   明示的に避けている矛盾そのものである
+    await expect(currentDriverRow(guest.page), 'ドライバーが輪の先頭へ戻っていない').toContainText(
+      HOST,
+    );
+    await expect(
+      guest.page.getByRole('button', { name: '一時停止', exact: true }),
+      '一時停止が解けていない（再開ボタンのまま時計が進む）',
+    ).toBeVisible();
+  });
+});
 
 /** 消滅の仕掛けの状態。ページ側に置き、`page.evaluate` で読み書きする。 */
 interface RoomLossState {

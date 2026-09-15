@@ -3,23 +3,31 @@
  *
  * サーバー側で「在室者が 0 人になる退出はルームごと破棄する」ようにしたため、
  * 退出が成立した時点でそのルームコードはもう存在しない。ここで保存済みの
- * リジューム識別情報や URL の `?room=` が残っていると、再読込のたびに
- * **消えた部屋へ resumeToken 付きの room.join を送り直す**ことになり、
- * 利用者には「抜けたはずなのに参加画面へ引き戻され、失敗する」ように見える。
+ * リジューム識別情報が残っていると、再読込のたびに**消えた部屋へ resumeToken 付きの
+ * room.join を送り直す**ことになり、利用者には「抜けたはずなのに引き戻され、失敗する」
+ * ように見える。
  *
- * LEFT_ROOM を受けた後始末（`clearResumeIdentity` と `stripRoomParam`）は既にあるので、
- * ソロ退出という新しい経路でもそれが効いていることを実際の画面越しに固定する。
+ * **行き先は #95 S5c で変わった。** 旧入口（`Setup` / `Join`）を撤去したので、
+ * 退出が成立した本人は玄関（`/`）へ送られる。`?room=` を URL から消す後始末
+ * （`stripRoomParam`）は、行き先そのものに `?room=` が無くなったため不要になった。
  *
  * @requirements Issue #79, FR-004, FR-127
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, act, cleanup } from "@testing-library/react";
+import { render, act, cleanup } from "@testing-library/react";
 import React from "react";
 import App from "../../src/App.js";
 import { FakeWS } from "../support/fakes.js";
 import { aRoomView } from "../support/room-view.js";
 import { saveResumeIdentity, loadResumeIdentity } from "@tasuki/sync-client";
 import { clearPreferences } from "../../src/prefs/local-prefs.js";
+import { redirectTo } from "../../src/platform/location.js";
+
+// 遷移は `platform/location.ts` に閉じている（#95 S5c・R9）。テストはそこを差し替える。
+vi.mock("../../src/platform/location.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../src/platform/location.js")>();
+  return { ...actual, navigateTo: vi.fn(), redirectTo: vi.fn() };
+});
 
 vi.mock("../../src/records/indexeddb.js", () => ({
   saveRecord: vi.fn().mockResolvedValue(undefined),
@@ -96,6 +104,11 @@ function reload(): void {
 
 beforeEach(() => {
   FakeWS.instances = [];
+  // **呼び出し履歴を明示的に捨てる。** `restoreMocks: true` は `vi.mock` のファクトリが
+  // 作った `vi.fn()` の `mock.calls` までは確実に消さず、前のテストの遷移が漏れる。
+  vi.mocked(redirectTo).mockClear();
+  // 復帰の組は localStorage に残る（#95 S4b）。テスト間で漏らさない。
+  localStorage.clear();
   sentCommands = [];
   vi.stubGlobal("WebSocket", FakeWS);
   vi.spyOn(FakeWS.prototype, "send").mockImplementation((raw?: string) => {
@@ -107,37 +120,40 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  localStorage.clear();
   sessionStorage.clear();
   clearPreferences();
   window.history.replaceState(null, "", "/");
 });
 
 describe("ソロ退出後の復帰（Issue #79）", () => {
-  it("退出が成立したら入口画面へ戻り、URL とセッション保存の両方から手がかりが消える", () => {
+  it("退出が成立したら玄関へ送られ、復帰の手がかりも消える", () => {
     // Given（leaveSoloRoom がソロ退出の一連の流れ全体を行う）
     // When
     leaveSoloRoom();
 
-    // Then: 入口画面（作成画面）に戻っている
-    expect(screen.getByRole("heading", { name: "TDD Mob Pro Timer" })).toBeInTheDocument();
-    // Then: 復帰の手がかりが片方でも残ると、再読込で消えた部屋へ戻ろうとする
+    // Then: 玄関へ送られる。**`?room=` を落とした行き先である**（FR-127 / US2-2）。
+    // 履歴へ積まない `replace` で送るので、戻るボタン 1 回で抜けたルームへ復帰しない。
+    // **抜けたことは印で玄関へ運ぶ**（#95 S5c・I-1。バナーは遷移で失われる）
+    expect(redirectTo).toHaveBeenCalledWith("/?left=self");
+    // Then: 復帰の手がかりが残ると、再読込で消えた部屋へ戻ろうとする
     expect(loadResumeIdentity("ROOM01")).toBeNull();
-    expect(new URL(window.location.href).searchParams.get("room")).toBeNull();
   });
 
   it("退出直後に再読込しても、消えたルームへ room.join を送り直さない", () => {
     // Given
     leaveSoloRoom();
 
-    // When: 同じタブで読み直す
+    // When: 同じタブで読み直す（遷移は差し替えてあるので URL は `?room=ROOM01` のまま
+    //       残る。**保存が消えていることだけで止まる**ことを見るには、むしろ好都合）
     reload();
 
-    // Then: 参加画面へ引き戻されず、join も飛ばない
-    expect(screen.getByRole("heading", { name: "TDD Mob Pro Timer" })).toBeInTheDocument();
+    // Then: join も飛ばず、玄関の名乗りへ送り直されるだけ
     expect(sentCommands.filter((c) => c.command === "room.join")).toEqual([]);
+    expect(redirectTo).toHaveBeenCalledWith("/?room=ROOM01");
   });
 
-  it("退出前の招待リンクを開き直しても、自動復帰せず参加画面から始まる", () => {
+  it("退出前の招待リンクを開き直しても、自動復帰せず玄関の名乗りから始まる", () => {
     // Given
     leaveSoloRoom();
 
@@ -145,12 +161,14 @@ describe("ソロ退出後の復帰（Issue #79）", () => {
     cleanup();
     FakeWS.instances = [];
     sentCommands = [];
+    vi.mocked(redirectTo).mockClear();
     window.history.replaceState(null, "", "/?room=ROOM01");
     render(<App />);
     if (FakeWS.instances.length > 0) openLatestSocket();
 
-    // Then: 保存済み識別情報は消えているので、勝手に resumeToken 付きで join し直さない
-    expect(screen.getByRole("heading", { name: "モブに参加" })).toBeInTheDocument();
+    // Then: 保存済み識別情報は消えているので、勝手に resumeToken 付きで join し直さない。
+    // 名乗りはハブに 1 つだけあり、**コードは落とさずに運ぶ**（#95 S5c・R9）
     expect(sentCommands.filter((c) => c.command === "room.join")).toEqual([]);
+    expect(redirectTo).toHaveBeenCalledWith("/?room=ROOM01");
   });
 });

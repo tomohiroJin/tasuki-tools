@@ -242,8 +242,22 @@
   cursor: pointer;
 }
 
-.hub-submit:hover,
-.hub-submit:focus-visible {
+/* **押せないボタンを押せると見せない**（#95 S5c・C-I2）。
+   地の灰色化と `cursor: not-allowed` は基底層（`@tasuki/ui` の `button:disabled`）が
+   与えるが、**下の :hover は詳細度 (0,2,0) でそれ (0,1,1) に勝つ** —— `:not(:disabled)` を
+   付けないと、押せないボタンがホバーで明るくなり、有効なボタンと見分けが付かなくなる。
+   基底層の `button:hover:not(:disabled)` が同じ理由でガードされている。
+   `cursor` をここでも書くのは、`.hub-submit` が `cursor: pointer` を明示している以上、
+   基底層の勝ち負けに頼らず同じ場所で打ち消しておくためである。
+
+   ⚠ **この 2 つの規則は検査に掛からない。** 単体テストも E2E も `toBeDisabled()`
+   （＝属性）しか見ないので、消しても緑のまま通る。 */
+.hub-submit:disabled {
+  cursor: not-allowed;
+}
+
+.hub-submit:hover:not(:disabled),
+.hub-submit:focus-visible:not(:disabled) {
   background: var(--gold-bright);
 }
 
@@ -305,4 +319,23 @@
 
 .hub-invite {
   width: 100%;
+}
+
+/* 端末に残った完了記録への入口（#95 S5c）。フォーム submit と紛れないよう控えめに。 */
+.hub-secondary {
+  display: block;
+  width: min(100%, 24rem);
+  margin: 1rem auto 0;
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-card, 0.5rem);
+  color: var(--ivory-dim);
+  text-align: center;
+  text-decoration: none;
+}
+
+.hub-secondary:hover,
+.hub-secondary:focus-visible {
+  border-color: var(--gold);
+  color: var(--ivory);
 }

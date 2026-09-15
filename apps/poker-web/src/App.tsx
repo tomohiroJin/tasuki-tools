@@ -1,8 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
-import { navigate, parseRoute, roomPath, topPath } from './router';
+import { useEffect, useState } from 'react';
+import { parseRoute, redirectTo } from './router';
 import { usePokerSync } from './hooks/useSync';
 import { connectionNotice } from './connection-notice';
-import { TopPage } from './pages/TopPage';
 import { RoomPage } from './pages/RoomPage';
 
 function useRoute() {
@@ -16,19 +15,34 @@ function useRoute() {
   return route;
 }
 
+/**
+ * 玄関へ送り返している間の画面（#95 S5c 追補・利用者の実画面フィードバック）。
+ *
+ * 旧入口（`TopPage`）を撤去したので、ルームコードを伴わない URL には行き先が無く、
+ * `App` は玄関へ送り返すだけになった。遷移が終わるまでの待ち時間は実ブラウザでは
+ * 目に見える長さになるため、**待っていることが分かる表示**を置く
+ * （timer の `ui/Loading.tsx` と同じ文言・同じ役割）。
+ */
+function RedirectingView() {
+  return (
+    <main className="page">
+      <p className="loading-note" role="status">
+        読み込んでいます…
+      </p>
+    </main>
+  );
+}
+
 export function App() {
   const route = useRoute();
   const sync = usePokerSync();
 
-  // ルーム作成完了（joined）でトップからルーム画面へ 1 回だけ遷移する。
-  // 同じルームへの再遷移はしない（戻るボタンでトップに戻れなくなるのを防ぐ）
-  const navigatedRoomRef = useRef<string | null>(null);
+  // 行き先の無い URL は玄関へ送る（#95 S5c・R9）。**判定は `parseRoute`、適用はここ 1 箇所**
+  // （`docs/adr/0015` MUST 1・MUST 3）。旧入口を撤去したので、ルームコードを伴わない URL に
+  // 出せる画面はもう無い ——「ページが見つかりません」も玄関へ吸収された。
   useEffect(() => {
-    if (route.name === 'top' && sync.self && navigatedRoomRef.current !== sync.self.roomId) {
-      navigatedRoomRef.current = sync.self.roomId;
-      navigate(roomPath(sync.self.roomId));
-    }
-  }, [route, sync.self]);
+    if (route.name === 'redirect') redirectTo(route.to);
+  }, [route]);
 
   // 切断中は再接続バナーを出しつつ画面は維持する（自動再接続 + トークン復帰。US4）。
   // 繋がらないときは、待っても直らないことと操作できない理由まで伝える（#76 F-2）。
@@ -48,29 +62,10 @@ export function App() {
     </div>
   );
 
-  const page = (() => {
-    switch (route.name) {
-      case 'top':
-        return (
-          <TopPage
-            onCreate={sync.createRoom}
-            disabled={sync.status !== 'open'}
-            error={sync.error}
-            onClearError={sync.clearError}
-          />
-        );
-      case 'room':
-        return <RoomPage roomId={route.roomId} sync={sync} />;
-      case 'not-found':
-        return (
-          <main className="page">
-            <h1>ページが見つかりません</h1>
-            <p>リンクの形式が正しくない可能性があります。</p>
-            <a href={topPath()}>トップへ戻る</a>
-          </main>
-        );
-    }
-  })();
+  // **送り返している間も白いままにしない**（#95 S5c 追補・利用者の実画面フィードバック）。
+  // `location.replace` が効くまでの間、ここで `null` を返すと画面には何も出ない。
+  const page =
+    route.name === 'room' ? <RoomPage roomId={route.roomId} sync={sync} /> : <RedirectingView />;
 
   return (
     <>

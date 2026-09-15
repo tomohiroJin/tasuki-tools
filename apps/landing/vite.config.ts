@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { HUB_PORT } from '@tasuki/dev-hub-redirect';
 
 // LP はルート（/）を占める玄関（S4 / #19）。各ツールはサブパスへ移した。
 // base は Caddy 断片（90-landing.conf）と app.env の PUBLIC_PATH と揃っていること。
@@ -9,7 +10,9 @@ export default defineConfig({
   server: {
     // 既定ポートを明示する。3 アプリを同時に起動するため、既定（5173）のままだと
     // 取り合いになって毎回別のポートに逃げ、起動手順を書けなくなる。
-    port: 5175,
+    // 値は @tasuki/dev-hub-redirect の HUB_PORT と共有する（timer / poker の
+    // dev-only リダイレクト先と同じ値を 2 箇所に書くと食い違うため）。
+    port: HUB_PORT,
     // 全インターフェース(IPv4含む)で待受。コンテナ/WSL からホスト側ブラウザへ
     // ポートフォワードできるようにする（既定の localhost だと IPv6 [::1] のみで掴めない）。
     // dev スクリプトの --host と二重指定にならないよう、設定はここに一本化する。
@@ -23,9 +26,9 @@ export default defineConfig({
       // Vite の SPA フォールバックが LP 自身の index.html を 200 で返すため、
       // LP が再描画されるだけで移動できない（エラーにならないので気づきにくい）。
       //
-      // 各ツールの dev サーバーへそのまま転送する。WS も通す必要があるため
-      // ws: true を付ける（/timer/ws はそのままの綴りで sync へ届く —— #95 S5a で
-      // 5173 側の rewrite を外した。`/ws` がハブの入口になったため）。
+      // 各ツールの dev サーバーへそのまま転送する。ws: true は各ツールの Vite
+      // 自身の HMR ソケット用（同期の WS ではない —— 同期は `?tool=` で宣言し、
+      // 下の `/ws` を通る。#95 S5c）。
       // ハブ（選択画面）の WS。本番は Caddy の `/ws` 断片が同じことをする（#95 S5a）。
       // **これが無いと dev で繋がらない** —— LP の SPA フォールバックが index.html を
       // 200 で返すので、WebSocket にならずエラーにもならない（静かに壊れる）。

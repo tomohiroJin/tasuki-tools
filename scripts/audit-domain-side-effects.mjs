@@ -88,6 +88,12 @@ export const EXCLUDED_PACKAGES = [
   },
   { pkg: "apps/timer-web", reason: "アプリ層。NoAiProvider は ProblemProvider ポートのアダプタ" },
   { pkg: "e2e", reason: "テストコード。ドメインではない" },
+  {
+    pkg: "packages/dev-hub-redirect",
+    reason:
+      "dev サーバー専用の Vite プラグインと玄関のポート（#95 S5c 追補）。ドメインの判断を持たず、" +
+      "本番ビルドにも載らない（apply: \"serve\"）。時刻も乱数も使わない",
+  },
   { pkg: "packages/protocol", reason: "WS メッセージの型定義のみ。ドメインの判断を持たない" },
   {
     pkg: "packages/rate-limit",

@@ -18,6 +18,15 @@ interface RotationLineupProps {
   isPaused: boolean;
 }
 
+/**
+ * 席の人が timer の画面に居ないことを示す短い印（#95 S5c）。
+ *
+ * **色ではなく文字で示す**（WCAG 1.4.1）。文言は自己ホスト書体の base 層に収まる字だけで
+ * 書くこと —— 外れた字が 1 つあるだけで ext 層（約 210KB）を引く（`packages/ui/README.md`）。
+ */
+const AWAY_LABEL = "別の画面";
+const AWAY_REASON = "別の画面を見ているため、ドライバーの順番は回りません";
+
 /** 各メンバーの「いつ番が来るか」ラベルを返す */
 function whenLabel(m: MemberTurn): string {
   if (m.isCurrent) return "▶ 今";
@@ -57,6 +66,8 @@ export function RotationLineup({ rotation, currentIndex, intervalSeconds, selfIn
             // 同名参加者が居ても行を取り違えないよう識別子を key にする（表示名は一意でない）
             key={m.participantId}
             className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm ${
+              m.isAway ? "opacity-70 " : ""
+            }${
               m.isCurrent
                 ? "bg-[var(--signal-tint)] border border-[var(--signal-edge)] text-[var(--bone)]"
                 : m.isSelf
@@ -72,10 +83,18 @@ export function RotationLineup({ rotation, currentIndex, intervalSeconds, selfIn
             <span className="font-medium">{m.name}</span>
             {/* 自分マーカー */}
             {m.isSelf && <span className="text-[var(--signal)]">（あなた）</span>}
-            {/* いつ番が来るか */}
-            <span className={m.isCurrent ? "font-semibold text-[var(--signal)]" : "text-[var(--bone-subtle)]"}>
-              {whenLabel(m)}
-            </span>
+            {/* 離席マーカー（#95 S5c）。この席は timer の画面に居ない。 */}
+            {m.isAway && (
+              <span className="text-[var(--bone-subtle)]" title={AWAY_REASON}>
+                {AWAY_LABEL}
+              </span>
+            )}
+            {/* いつ番が来るか。離席の席には回ってこないので、現ドライバー以外は予告しない。 */}
+            {(!m.isAway || m.isCurrent) && (
+              <span className={m.isCurrent ? "font-semibold text-[var(--signal)]" : "text-[var(--bone-subtle)]"}>
+                {whenLabel(m)}
+              </span>
+            )}
           </li>
         ))}
       </ol>

@@ -11,10 +11,9 @@
  * @requirements #167（#72 E4）EARS 2
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, act } from "@testing-library/react";
-import React from "react";
-import App from "../../src/App.js";
+import { screen, act } from "@testing-library/react";
 import { FakeWS } from "../support/fakes.js";
+import { enterRoomAndConnect } from "../support/enter-room.js";
 import { aRoomView } from "../support/room-view.js";
 import { clearPreferences } from "../../src/prefs/local-prefs.js";
 
@@ -34,13 +33,6 @@ function participant(participantId: string, displayName: string) {
   };
 }
 
-function openLatestSocket(): FakeWS {
-  const ws = FakeWS.instances[FakeWS.instances.length - 1]!;
-  ws.readyState = FakeWS.OPEN;
-  ws.onopen?.();
-  return ws;
-}
-
 function sendServer(ws: FakeWS, msg: Record<string, unknown>): void {
   act(() => {
     ws.onmessage?.({ data: JSON.stringify(msg) } as MessageEvent);
@@ -48,16 +40,9 @@ function sendServer(ws: FakeWS, msg: Record<string, unknown>): void {
 }
 
 function enterLobby(): FakeWS {
-  render(<App />);
-  fireEvent.change(screen.getByLabelText("あなたの名前"), { target: { value: "Creator" } });
-  fireEvent.click(screen.getByRole("button", { name: /ルームを作る/ }));
-  const ws = openLatestSocket();
-  sendServer(ws, {
-    type: "room.created",
-    code: "ROOM01",
-    resumeToken: "rt",
-    participantId: CREATOR_ID,
-  });
+  // 玄関で名乗った端末としてルームを開く（#95 S5c・R9。旧入口 Setup はもう無い）。
+  const ws = enterRoomAndConnect({ participantId: CREATOR_ID, displayName: "Creator" });
+  sendServer(ws, { type: "room.joined", resumeToken: "rt", participantId: CREATOR_ID });
   sendServer(ws, {
     type: "snapshot",
     room: aRoomView({
@@ -71,6 +56,8 @@ function enterLobby(): FakeWS {
 
 beforeEach(() => {
   FakeWS.instances = [];
+  // 復帰の組は localStorage に残る（#95 S4b）。テスト間で漏らさない。
+  localStorage.clear();
   vi.stubGlobal("WebSocket", FakeWS);
   sessionStorage.clear();
   clearPreferences();
@@ -78,6 +65,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  localStorage.clear();
   sessionStorage.clear();
   clearPreferences();
   window.history.replaceState(null, "", "/");

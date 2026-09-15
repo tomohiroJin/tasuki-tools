@@ -11,8 +11,7 @@ import で切り離す**。アプリを増やしてもホストの `Caddyfile` �
 └── tasuki/
     ├── site.conf                    # deploy/caddy/tasuki.conf
     └── apps/
-        ├── 05-hub-ws.conf           # deploy/landing/caddy/（#95 S5a で新設・ハブの WS）
-        ├── 10-timer-ws.conf         # deploy/timer/caddy/
+        ├── 05-hub-ws.conf           # deploy/landing/caddy/（唯一の WS 入口。#95 S5c）
         ├── 20-poker.conf            # deploy/poker/caddy/
         ├── 30-timer-spa.conf        # deploy/timer/caddy/
         └── 90-landing.conf          # deploy/landing/caddy/（包括フォールバック）
@@ -73,21 +72,56 @@ sudo rm -f /etc/caddy/tasuki/apps/30-landing.conf \
 # 1) 転送（ローカルから）
 TASUKI_SSH_HOST=<host>
 scp deploy/caddy/tasuki.conf                    "$TASUKI_SSH_HOST:/tmp/site.conf"
+scp deploy/landing/caddy/05-hub-ws.conf         "$TASUKI_SSH_HOST:/tmp/"
 scp deploy/timer/caddy/*.conf                   "$TASUKI_SSH_HOST:/tmp/"
 scp deploy/poker/caddy/20-poker.conf            "$TASUKI_SSH_HOST:/tmp/"
 scp deploy/landing/caddy/90-landing.conf        "$TASUKI_SSH_HOST:/tmp/"
 
-# 2) 設置（VPS で・root）
+# 2) 設置 その 1 — **配信物より先に入れてよい断片だけ**（VPS で・root）
+# #95 S5c で 10-timer-ws.conf を撤去した。WS の入口は 05-hub-ws.conf（/ws）の 1 本だけ
+# ——これを設置し忘れると本番の WS が一切繋がらない（timer も poker もハブも）。
+#
+# ⚠ **ここで入れるのは site.conf と 05-hub-ws.conf の 2 本だけである。**
+# 20-poker.conf は **/poker/ws の handle を落としてある**ので、旧 poker がまだ配信されて
+# いる段で入れると、手順 7 の reload の時点で /poker/ws が SPA フォールバックに吸われ、
+# `deploy.sh poker` が走るまで poker の WS が死ぬ。30-timer-spa.conf と 90-landing.conf も
+# 同じ段（下の「その 2」）へ送る —— 内容は S4 から変わっておらず、いつ入れても同じである。
+# site.conf は S5a・S5c ともに差分が「断片の顔ぶれ」のコメントだけなので、先に入れて無害。
 sudo mkdir -p /etc/caddy/tasuki/apps
 sudo cp /etc/caddy/Caddyfile /etc/caddy/Caddyfile.bak."$(date +%Y%m%d-%H%M)"   # 必ず退避
 sudo install -m 644 /tmp/site.conf /etc/caddy/tasuki/site.conf
-sudo install -m 644 /tmp/05-hub-ws.conf /tmp/10-timer-ws.conf /tmp/20-poker.conf \
-                    /tmp/30-timer-spa.conf /tmp/90-landing.conf \
-                    /etc/caddy/tasuki/apps/
+sudo install -m 644 /tmp/05-hub-ws.conf /etc/caddy/tasuki/apps/
 
-# 3) 旧断片を削除（S4 の入れ替え。上記「旧ファイルの削除が必須」を参照）
+# **旧共有リンクの救済（40-timer-legacy-room.conf・S5a で撤去）はこの段で消す。**
+# 後回しにできない —— 残したまま `deploy.sh landing` を走らせると、新しい玄関が配る
+# 参加用 URL（/?room=CODE）が `permanent` 301 で /timer/ へ飛び、**その 301 を
+# ブラウザがキャッシュする**。開いた端末は断片を消した後も飛ばされ続ける
+# （../timer/NOTES.md の「旧共有リンクの救済」）。ここで消しておけば、その窓が開かない。
+# 先に消しても壊れるのは S4 時代の `/?room=` リンクだけで、旧 LP に着地するだけである。
+sudo rm -f /etc/caddy/tasuki/apps/40-timer-legacy-room.conf
+
+# 3) 旧断片を削除し、残りの断片を設置する（S4 の入れ替え。上記「旧ファイルの削除が必須」を参照）
+# 10-timer-ws.conf は #95 S5c で撤去した。ホストに残っていても実害は無い（WS 入口は
+# クエリで振り分けており、この断片は timer 側の /timer/ws という死んだ handle でしかない）が、
+# 「/ws の 1 本だけ」という前提と食い違う設定を残さないため一緒に消す。
+#
+# ⚠ **S5a〜S5c の初回配布では、この手順 3 だけを後回しにする。** ここを上から順に
+# 実行すると、手順 2（設置）と手順 3（削除）の間に配信物の入れ替えが挟まらず、
+# 手順 7 の reload 1 回で「旧 timer が配信されたまま /timer/ws が消える」状態になる。
+# 残っていても実害が無いのは真だが、**配信物より先に消すと害がある**（逆向きの事実）。
+# 正しい順序は ../timer/NOTES.md の「#95 S5c を配布するときに行うこと」の順序表にある
+# ——「①site.conf と 05-hub-ws.conf を設置＋40 を削除 → ②deploy.sh を 3 本 → ③ここ」。
+# **つまりこの README は 2 度通す。** 1 度目は手順 2 まで（＋4〜7）、2 度目がここである。
 sudo rm -f /etc/caddy/tasuki/apps/30-landing.conf \
-           /etc/caddy/tasuki/apps/90-timer-spa.conf
+           /etc/caddy/tasuki/apps/90-timer-spa.conf \
+           /etc/caddy/tasuki/apps/10-timer-ws.conf
+
+# 設置 その 2 — 配信物を入れ替えた後に入れる断片（新しい 20-poker.conf はここ）
+#
+# **まっさらなホストへの初回設置では、手順 2 と手順 3 を分けなくてよい。** 分けるのは
+# 「いま動いている旧い配信物」を壊さないためであり、それが無ければ守るものが無い。
+sudo install -m 644 /tmp/20-poker.conf /tmp/30-timer-spa.conf /tmp/90-landing.conf \
+                    /etc/caddy/tasuki/apps/
 
 # 4) site.conf の <公開ドメイン> を実値へ置換（初回のみ）
 sudo sed -i 's|<公開ドメイン>|tasuki.example.com|' /etc/caddy/tasuki/site.conf
@@ -126,12 +160,20 @@ for p in / /timer/ /poker/; do
   curl -s -o /dev/null -w "$p → %{http_code}\n" "$HOST$p"
 done
 
-# WebSocket が SPA に吸われていないこと。**判定は「200 でないこと」**。
-# 統合 sync（apps/tasuki-sync）は非 Upgrade の HTTP に 426 を返す。
+# WebSocket が SPA に吸われていないこと。統合 sync（apps/tasuki-sync）は
+# 非 Upgrade の HTTP に 426 を返す。
 # （#95 S2 の統合前、poker-sync だけは 400 を返していた。統合で 426 に揃った。）
-curl -s -o /dev/null -w 'timer/ws → %{http_code}\n' "$HOST/timer/ws"
-curl -s -o /dev/null -w 'poker/ws → %{http_code}\n' "$HOST/poker/ws"
+#
+# **#95 S5c から、WS の入口は /ws の 1 本だけ。** 旧パス（/timer/ws・/poker/ws）は
+# 断片ごと撤去したので、SPA フォールバックに吸われて 200 が返るのが正しい
+# （e2e/specs/routing.spec.ts が具体値で固定している）。
+curl -s -o /dev/null -w 'ws（唯一の WS 入口。426 が正しい） → %{http_code}\n' "$HOST/ws"
+curl -s -o /dev/null -w 'timer/ws（旧入口。200 が正しい） → %{http_code}\n' "$HOST/timer/ws"
+curl -s -o /dev/null -w 'poker/ws（旧入口。200 が正しい） → %{http_code}\n' "$HOST/poker/ws"
 
-# 旧共有リンクの救済（/?room= は timer へ 301。room 無しの / は LP のまま）
-curl -s -o /dev/null -w '?room 付き → %{http_code} %{redirect_url}\n' "$HOST/?room=TEST"
+# **#95 S5a から /?room=CODE は参加用 URL そのものである。** 旧共有リンクの救済断片
+# （40-timer-legacy-room.conf）は撤去した——残っていると、いま配っている招待リンクが
+# 301 で timer へ飛ばされ、選択画面に着地しない（deploy/timer/NOTES.md）。
+# **ここで 301 が返ったら断片が消し残っている。** 200（玄関 LP）が正しい。
+curl -s -o /dev/null -w '?room 付き（200 が正しい） → %{http_code} %{redirect_url}\n' "$HOST/?room=TEST"
 ```

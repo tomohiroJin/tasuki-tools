@@ -29,7 +29,9 @@ describe("buildNoticeMessage", () => {
   describe("操作ごとの文言", () => {
     const cases: Array<[NoticeSignal["action"], string]> = [
       ["session-aborted", "中断"],
-      ["session-reset", "リセット"],
+      // **「リセット」とは言わない**（#95 S5c・レビュー ③）。同じコマンドが
+      // セッション中の「最初から」と、完了後のロビーからの「開始」の両方から送られる
+      ["session-reset", "最初から始め直しました"],
       ["session-completed", "完成"],
     ];
 

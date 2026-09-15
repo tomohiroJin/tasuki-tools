@@ -1,86 +1,90 @@
 import { describe, expect, it } from 'vitest';
-import { parseRoute, roomPath, topPath } from '../src/router';
+import { hubPathFor, parseRoute } from '../src/router';
 
+/**
+ * 旧入口（`TopPage`）を撤去した後のルート判定（#95 S5c・R9）。
+ *
+ * ルームコードを伴わない URL には行き先が無い。**玄関（`/`）へ送る** ——
+ * 名乗りと合言葉の入力はそこに 1 つだけある。
+ */
 describe('parseRoute', () => {
   it.each([
-    ['/poker/', { name: 'top' }],
-    ['/poker', { name: 'top' }],
-  ])('%s → トップ', (path, expected) => {
-    // Given: 渡す path 自体が前提の指定を兼ねる
-    // When / Then（parseRoute は照会のみで副作用が無いため、呼び出しと検証が同じ式になる）
-    expect(parseRoute(path)).toEqual(expected);
-  });
-
-  it.each([
-    ['/poker/room/a1b2c3d4', 'a1b2c3d4'],
-    ['/poker/room/a1b2c3d4/', 'a1b2c3d4'],
-  ])('%s → ルーム（roomId 抽出）', (path, roomId) => {
-    // Given: 渡す path 自体が前提の指定を兼ねる
-    // When / Then（parseRoute は照会のみで副作用が無いため、呼び出しと検証が同じ式になる）
-    expect(parseRoute(path)).toEqual({ name: 'room', roomId });
-  });
-
-  it.each([
+    ['/poker/'],
+    ['/poker'],
     ['/poker/unknown'],
     ['/poker/room/'],
     ['/poker/room/has/slash'],
     ['/other'],
-  ])('%s → not-found（不正な形式のリンク FR-015）', (path) => {
+  ])('Given ルームコードが無い / When %s を開く / Then 玄関へ送る', (path) => {
     // Given: 渡す path 自体が前提の指定を兼ねる
     // When / Then（parseRoute は照会のみで副作用が無いため、呼び出しと検証が同じ式になる）
-    expect(parseRoute(path)).toEqual({ name: 'not-found' });
-  });
-});
-
-describe('roomPath / topPath', () => {
-  it('roomId からルーム画面のパスを生成する', () => {
-    expect(roomPath('a1b2c3d4')).toBe('/poker/room/a1b2c3d4');
+    expect(parseRoute(path, '')).toEqual({ name: 'redirect', to: '/' });
   });
 
-  it('topPath はトップ画面のパスを返し、parseRoute と往復できる', () => {
-    // Given: topPath・roomPath の呼び出し自体が前提の指定を兼ねる
-    // When / Then（topPath・parseRoute・roomPath は照会のみで副作用が無いため、呼び出しと検証が同じ式になる）
-    expect(topPath()).toBe('/poker/');
-    expect(parseRoute(topPath())).toEqual({ name: 'top' });
-    expect(parseRoute(roomPath('a1b2c3d4'))).toEqual({ name: 'room', roomId: 'a1b2c3d4' });
+  it.each([
+    ['/poker/room/a1b2c3d4', '/?room=a1b2c3d4'],
+    ['/poker/room/a1b2c3d4/', '/?room=a1b2c3d4'],
+    // **ブラウザが渡す形で書く。** `location.pathname` は百分率符号化されて返るので、
+    // 生の日本語が `parseRoute` へ届くことはない（下の往復のテストで実測している）。
+    // ここで復号せずに組み立てると `%` がもう一度逃げ、玄関が読むコードが別物になる
+    ['/poker/room/%E6%9C%9D%E4%BC%9A%E3%83%A2%E3%83%96-a1b2', '/?room=%E6%9C%9D%E4%BC%9A%E3%83%A2%E3%83%96-a1b2'],
+    // 手で書かれた URL には壊れた `%` 列が来る。**落とさずに素のまま運ぶ**
+    // （復号できないものを捨てると、行き先で何が起きたか分からなくなる）
+    ['/poker/room/%zz-a1b2', '/?room=%25zz-a1b2'],
+  ])('Given 旧リンク / When %s を開く / Then コードを保ったまま玄関へ送る', (path, to) => {
+    // Given: 旧リンクはもう配られないが、ブックマークと履歴からは来る
+    // When / Then: **コードを落とさない**（落とすと入りたかったルームを失う）
+    expect(parseRoute(path, '')).toEqual({ name: 'redirect', to });
   });
-});
 
-/**
- * 選択画面（ハブ）から渡ってくる形（#95 S5b・#248）。
- *
- * 選択画面の札は `/poker/?room=CODE` を出す。**S5a まで `parseRoute` は `pathname` しか
- * 見ておらず、この URL は `{name:'top'}` に落ちてクエリが捨てられていた** ——
- * ハブからルームへ入れないのは poker だけで、timer は元から `?room=` を解する。
- */
-describe('parseRoute（?room= つき・#95 S5b）', () => {
+  it('Given 日本語のルーム名を含む旧リンク / When ブラウザが開く / Then 玄関が読むコードは元のまま', () => {
+    // Given: **実際のブラウザが作る `pathname`**（生の日本語は `parseRoute` へ届かない）。
+    // 期待値を手で書き写さず URL から導くのは、符号化の綴りを 2 か所に持たないため
+    const code = '朝会モブ-a1b2';
+    const { pathname } = new URL(`http://tasuki.test/poker/room/${code}`);
+
+    // When
+    const route = parseRoute(pathname, '');
+
+    // Then: 行き先の `?room=` を読み戻すと元のコードに戻る（二重符号化していない）
+    const to = route.name === 'redirect' ? route.to : '';
+    expect(new URL(to, 'http://tasuki.test').searchParams.get('room')).toBe(code);
+  });
+
   it.each([
     ['/poker/', '?room=a1b2c3d4', 'a1b2c3d4'],
     ['/poker', '?room=a1b2c3d4', 'a1b2c3d4'],
-    // ルームコードにはルーム名がそのまま入り、日本語も許される（`?room=` は符号化される）
     ['/poker/', `?room=${encodeURIComponent('朝会モブ-a1b2')}`, '朝会モブ-a1b2'],
-  ])('%s%s → ルーム（%s）', (path, search, roomId) => {
+  ])('Given ハブの札から来た / When %s%s を開く / Then そのルームへ入る', (path, search, roomId) => {
     // Given: 渡す path と search 自体が前提の指定を兼ねる
     // When / Then（parseRoute は照会のみで副作用が無いため、呼び出しと検証が同じ式になる）
     expect(parseRoute(path, search)).toEqual({ name: 'room', roomId });
   });
 
-  it.each([
-    ['?room='],
-    ['?other=x'],
-    [''],
-  ])('%s → トップのまま（空のコードで入室させない）', (search) => {
-    // Given: 渡す search 自体が前提の指定を兼ねる
-    // When / Then（parseRoute は照会のみで副作用が無いため、呼び出しと検証が同じ式になる）
-    expect(parseRoute('/poker/', search)).toEqual({ name: 'top' });
-  });
+  it.each([['?room='], ['?other=x'], ['']])(
+    'Given 空のコード（%s） / When /poker/ を開く / Then 入室させず玄関へ送る',
+    (search) => {
+      // Given: 渡す search 自体が前提の指定を兼ねる
+      // When / Then（parseRoute は照会のみで副作用が無いため、呼び出しと検証が同じ式になる）
+      expect(parseRoute('/poker/', search)).toEqual({ name: 'redirect', to: '/' });
+    },
+  );
 
-  it('ルーム画面のパスに ?room= が付いていても、パスのルームを優先する', () => {
+  it('Given 旧リンクに ?room= が残っている / When 開く / Then パスのコードを保って送る', () => {
     // Given: 旧リンク（/poker/room/<id>）を開いたまま ?room= が残っている状況
     // When / Then: 画面に出ているルームを勝手に乗り換えない
     expect(parseRoute('/poker/room/a1b2c3d4', '?room=other')).toEqual({
-      name: 'room',
-      roomId: 'a1b2c3d4',
+      name: 'redirect',
+      to: '/?room=a1b2c3d4',
     });
+  });
+});
+
+describe('hubPathFor', () => {
+  it('Given 日本語を含むルームコード / When 玄関の URL を組む / Then 符号化して載せる', () => {
+    // Given: ルームコードにはルーム名がそのまま入る
+    // When / Then: 素の連結ではなく符号化を通す（`docs/adr/0018` 決定 2 の参加用 URL と同じ形）
+    expect(hubPathFor('朝会モブ-a1b2')).toBe('/?room=%E6%9C%9D%E4%BC%9A%E3%83%A2%E3%83%96-a1b2');
+    expect(hubPathFor('a1b2c3d4')).toBe('/?room=a1b2c3d4');
   });
 });

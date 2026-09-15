@@ -5,7 +5,7 @@
  * 実装は `Bun.serve`（S5・#20）。
  * 外から見える振る舞い（close コード・エラーコード・426）は ws 実装のときと同じ。
  *
- * ## 3 つのメッセージ層を 1 本の待ち受けで捌く（#95 S2・S5a・D9 / D10）
+ * ## 3 つのメッセージ層を 1 本の待ち受けで捌く（#95 S2・S5a・S5c・D9 / D10）
  *
  * timer と poker の同期サーバーを 1 プロセスへ統合した。`Bun.serve` は 1 プロセスに
  * 1 つの `websocket` ハンドラしか持てないため、**接続層はここに 1 つだけ**置き、
@@ -16,15 +16,10 @@
  * | 接続層（このクラス） | Origin 検査・クライアント鍵・接続数上限・connId 採番・死活監視・フレーム上限 | **1 つになる**（接続数上限は D22 で値を決め直した） |
  * | メッセージ層 | パース・ディスパッチ・接続ごとのアプリ状態 | **プロトコルごとに分かれたまま** |
  *
- * 振り分けは**パスだけ**で行う。`/poker/ws` は poker（{@link POKER_WS_PATH}）、
- * `/ws` はハブ（{@link HUB_WS_PATH}・#95 S5a）、**それ以外はすべて timer** である。
- * 「それ以外すべて」なのは統合前の timer がパスを一切見ずに upgrade していたためで、
- * ここを許可リストへ絞ると素のポート（`ws://host:port`）へ繋ぐ既存テストが軒並み落ちる。
- * 移行期は `/ws`・`/timer/ws`・`/poker/ws` の 3 つを受ける（D10。S5c で `/ws` に畳む）。
- *
- * 統合前の poker は `url.pathname === '/ws'` 以外を 404 で返していた。その振る舞いは
- * **失われる**（`/poker/ws` 以外は poker 以外の層として upgrade される）。poker へ届く経路は
- * Caddy 断片と vite の dev プロキシだけで、どちらも `/poker/ws` しか出さない。
+ * **振り分けは接続 URL のクエリ（`?tool=`）だけで決める**（{@link protocolFromRequestUrl}）。
+ * 入口は `/ws` の 1 本だけである（#95 S5c・#249 Task 5）。`/timer/ws`・`/poker/ws` という
+ * パスによる振り分けは撤去した —— 旧パスは Caddy 断片ごと落としたので、本番でこの層へ
+ * 届くことはもう無い。
  */
 
 import { CommandSchema } from "@tasuki/timer-core";
@@ -39,55 +34,42 @@ import { publicText, type LogSafe } from "../application/log/log-safe.js";
 import { CONN_REJECT_REASONS } from "../application/log/vocabulary.js";
 import { deriveClientKeySafely } from "./client-key-safety.js";
 import type { Handlers as PokerHandlers } from "../application/poker-handlers.js";
+import { TOOL_POKER, TOOL_TIMER } from "../application/tool-id.js";
 
 /**
- * poker のメッセージ層へ振り分けるパス。**小文字で書く**（照合は小文字化してから行う）。
+ * 接続 URL が宣言するツール。**許可リストで判定する**（#95 S5c）。
  *
- * **本番の Caddy 断片（`deploy/poker/caddy/20-poker.conf`）は rewrite せずに
- * このパスのまま渡す。** 統合前は `/poker/ws` を `/ws` へ剥がしていたが、
- * 剥がすと timer と区別できなくなる。**#95 S5a からは timer 側の断片も剥がさない**
- * （`/ws` がハブの入口になったため。{@link HUB_WS_PATH}）。
- * 一致は `apps/landing/tests/caddy-fragment-port.test.ts` が機械的に固定している。
+ * **入口は `/ws` の 1 本だけなので、経路ではツールを決められない**（S5b までは
+ * パス自体が宣言だった。`/poker/ws` は poker、`/ws` はハブ、それ以外は timer）。
+ * **wire には載せられない** —— メッセージ層はパーサ自体が別（`CommandSchema` /
+ * `parseClientMessage` / `parseBoundaryMessage`）で、最初のフレームを読む前に
+ * 層を決める必要があるためである。
+ *
+ * **許可リストに無い値は `"unknown"` にして接続を拒否する。** timer へもハブへも落とさない ——
+ * 落とすと、綴りを間違えたクライアントが「繋がるのにコマンドが通らない」という
+ * 静かな壊れ方をする（S5a の rewrite で実際に起きた型）。
+ *
+ * **綴りは `application/tool-id.ts` から取る**（#95 S5c・A-I1）。S5b までここが照合して
+ * いたのは `/poker/ws` という**別の語彙**（経路）だったが、S5c でクエリへ移り、
+ * `TOOL_TIMER` / `TOOL_POKER` と**同じ語彙**になった。しかも `TOOL_TIMER` は
+ * `roster.tools`（`packages/room-core/src/wire.ts`）として wire にも載る。
+ * リテラルを自前で持つと、次に綴りを変える人がここを取り残し、
+ * **wire 互換を壊したことに気づけない**。
+ *
+ * **戻り値の型はリテラルのまま据え置く。** これは接続層の 4 値の選択子で、
+ * ツール識別子はそのうち 2 つと一致しているだけである（`"hub"` / `"unknown"` に
+ * 対応するツールは無い）。`typeof TOOL_TIMER` にして追従させると、綴りを変えたときに
+ * 黙って通る —— リテラルで受けておくと**この関数で型検査が落ちる**ので、
+ * `ConnectionData.protocol` と wire の両方を見直す機会になる。
  */
-const POKER_WS_PATH = "/poker/ws";
+const TOOL_QUERY_KEY = "tool";
 
-/**
- * ハブ（選択画面）のメッセージ層へ振り分けるパス。**小文字で書く**（照合は小文字化してから行う）。
- *
- * **S4b までここは timer だった。** 本番の Caddy 断片が `/timer/ws` を `/ws` へ rewrite
- * していたためで、S5a でその rewrite を外した（`deploy/timer/caddy/10-timer-ws.conf`）。
- * 外さずにここを足すと、**timer の接続がハブとして扱われ、timer の参加者一覧から
- * 全員が消える**（在席の宣言は接続が来た入口が行うため。設計正本 D14・S5a の裁定）。
- *
- * **S5c（#249）でこの決まり方そのものが変わる** —— 入口が `/ws` 1 本に畳まれるので、
- * そのときツールの宣言は wire か接続 URL のクエリへ移る。
- */
-const HUB_WS_PATH = "/ws";
-
-/**
- * 振り分けの照合に使う形へパスを正規化する。
- *
- * **Caddy は「復号したパス」で照合し、「受け取ったままの綴り」を上流へ渡す**
- * （2026-09-08 に 2.11.4 で実測）。したがって `handle /poker/ws` には
- * `/POKER/WS` も `/poker/%77s` も一致し、こちらへはその綴りのまま届く。
- * `new URL()` の `pathname` は復号しないので、**復号と小文字化の両方**を
- * ここで行わないと timer 側へ落ちる（接続はできるのに全コマンドが
- * `INVALID_COMMAND` になる、という静かな壊れ方をする）。
- *
- * 統合前は断片の `rewrite * /ws` が綴りごと正規化していたため、poker-sync の
- * `=== '/ws'` という厳密比較でも取りこぼしが無かった。rewrite を外した以上、
- * その正規化はこちらの責務になっている。
- *
- * **不正な `%` 列（`%zz` など）で `decodeURIComponent` は throw する。**
- * その場合は復号前の値で照合する（＝ poker には一致せず timer 側へ行く）。
- * 呼び出し元を巻き込まないことが目的で、投げ直さない。
- */
-function normalizeWsPath(pathname: string): string {
-  try {
-    return decodeURIComponent(pathname).toLowerCase();
-  } catch {
-    return pathname.toLowerCase();
-  }
+function protocolFromRequestUrl(url: URL): "timer" | "poker" | "hub" | "unknown" {
+  const declared = url.searchParams.get(TOOL_QUERY_KEY);
+  if (declared === null) return "hub";
+  if (declared === TOOL_TIMER) return TOOL_TIMER;
+  if (declared === TOOL_POKER) return TOOL_POKER;
+  return "unknown";
 }
 
 /**
@@ -226,50 +208,64 @@ export interface WsAdapterOptions {
    * 根拠と統合による変化は `config.ts` の同名フィールドの docstring にある。
    */
   maxFrameBytes: number;
-  /** poker のメッセージ層。`/poker/ws` に来た接続だけがここへ流れる。 */
+  /** poker のメッセージ層。`?tool=poker` を宣言した接続だけがここへ流れる。 */
   poker: PokerMessageHandlers;
 }
 
 /**
- * 接続ごとに持ち回る値。
+ * すべての接続が持つ値。
  * `connId` は Origin / 接続数の検査を通ってから採番するため、それまでは空文字。
  * 空のまま閉じた接続は「受け入れていない接続」なので onDisconnect を呼ばない。
- *
- * **poker 用の 3 つ（`rateKey` / `participantId` / `roomId`）を timer の接続も
- * 持ち回る。** 統合前の poker は同じ 3 つを自分の `ConnectionData` に持っており、
- * `HandlerConnection`（`application/poker-handlers.ts`）が構造的にこれを要求する。
- * timer 側はこの 3 つを読み書きしない（timer のハンドラは `connId` だけで話し、
- * レート制限の鍵は `onConnect` で受け取ってアプリ層の `RateLimitGate` が持つ）。
- * ⏳ **文脈ごとに分けるのは S5c（#249）へ送った**（2026-09-11・S4b 実施時）。
- * 宛先は S4a（#245）→ S4b（#246）→ S5c（#249）と 2 度動いている。**S4b では
- * 分ける理由が無かった** —— 多接続模型（D14）が変えたのは名簿の側（`Participant` が
- * 接続の集まりを持つ）で、接続ごとに持ち回る値の割り方には触れずに済んだ。
- * **S5c は WS の入口を `/ws` 1 本へ畳む段**であり、そのとき `protocol` の決まり方
- * （いまはパス）自体が変わる。この構造を割るのは、割り方が決まるその段が最も安い。
- * S2 で分けなかった理由も残す: poker のハンドラとその 20 本近いテストを同じ PR で
- * 書き換えることになり、「純粋な移設で振る舞いを変えない」という段の前提を自分で壊す。
  */
-interface ConnectionData {
+interface ConnectionBase {
   connId: string;
   origin: string;
   /** `X-Forwarded-For` から導いた鍵。特定できなければ null。 */
   clientKey: string | null;
-  /**
-   * どのメッセージ層へ渡すか。upgrade の時点でパスから決まる。
-   *
-   * `"hub"` は選択画面（#95 S5a）。**在席の宣言もここで決まる** —— ハブの接続は
-   * どのツールも宣言しない（`tool: null`）ので、ツールの参加者一覧には出ない。
-   */
-  protocol: "timer" | "poker" | "hub";
   /** レート制限の鍵（クライアント鍵。特定できなければ接続 ID）。受理まで空文字。 */
   rateKey: string;
-  /** poker のみ使用。join 後に入る。 */
-  participantId: string | null;
-  /** poker のみ使用。join 後に入る。 */
-  roomId: string | null;
 }
 
+/**
+ * どのメッセージ層へ渡すかと、その層だけが持つ値（#95 S5c）。
+ *
+ * **S4b までは 3 つの項目（`rateKey` / `participantId` / `roomId`）を全接続が持ち回っていた。**
+ * 統合前の poker が同じ 3 つを持っており、`HandlerConnection`
+ * （`application/poker-handlers.ts`）が構造的にこれを要求するためである。timer 側は
+ * `participantId` / `roomId` を読み書きしない。**この段で入口が `/ws` 1 本になり、
+ * `protocol` の決まり方そのものが変わったので、割り方もここで決めた。**
+ *
+ * `"hub"` は選択画面（#95 S5a）。**在席の宣言もここで決まる** —— ハブの接続はどのツールも
+ * 宣言しない（`tool: null`）ので、ツールの参加者一覧には出ない。
+ * `"unknown"` は許可リストに無い `?tool=` の値。`handleOpen` が 1008 で閉じる。
+ */
+type ToolContext =
+  | { readonly protocol: "timer" }
+  | { readonly protocol: "hub" }
+  | { readonly protocol: "unknown" }
+  | { readonly protocol: "poker"; participantId: string | null; roomId: string | null };
+
+type ConnectionData = ConnectionBase & ToolContext;
+
 type Socket = Bun.ServerWebSocket<ConnectionData>;
+
+/** poker の枝だけに絞った {@link Socket}。{@link isPokerSocket} が絞り込みに使う。 */
+type PokerSocket = Bun.ServerWebSocket<Extract<ConnectionData, { protocol: "poker" }>>;
+
+/**
+ * `ws.data.protocol === "poker"` を型ガードとして使うための関数（#95 S5c）。
+ *
+ * **`ws.data.protocol === "poker"` という条件式そのものは `ws`（`Socket` =
+ * `Bun.ServerWebSocket<ConnectionData>`）を絞り込まない。** TypeScript はプロパティ
+ * アクセス式 `ws.data` の型は絞り込むが、ジェネリックで実体化した `ws` 自体の型までは
+ * 絞り込まないため、`poker.dispatch` 等が要求する `HandlerConnection`
+ * （`data.participantId` / `data.roomId` を無条件に持つ）へそのまま渡せない
+ * （実測: `tsc` はここで `Socket` を `PokerSocket` に代入できないと報告する）。
+ * 型ガード関数として明示すれば、`ws` そのものを `PokerSocket` へ絞り込める。
+ */
+function isPokerSocket(ws: Socket): ws is PokerSocket {
+  return ws.data.protocol === "poker";
+}
 
 export class WsAdapter {
   private readonly server: Bun.Server<ConnectionData>;
@@ -380,27 +376,17 @@ export class WsAdapter {
     const origin = req.headers.get("origin") ?? "";
     // **鍵はここで作る。** 生の IP をこの行より先へ持ち出さない（ADR 0012 D3）。
     const clientKey = this.deriveClientKeySafely(req.headers.get("x-forwarded-for") ?? undefined);
-    // パスは upgrade を試みる前に読む。`new URL` は upgrade の成否に関わらず
-    // 必要で、失敗しても handleFetch の try/catch が受ける。
+    // `new URL` は upgrade の成否に関わらず必要で、失敗しても handleFetch の try/catch が受ける。
     const url = new URL(req.url);
-    // 綴りの揺れ（大小・パーセント符号化）は `normalizeWsPath` が吸収する。
-    // 理由と実測はその docstring にある。
-    const path = normalizeWsPath(url.pathname);
-    const protocol =
-      path === POKER_WS_PATH ? "poker" : path === HUB_WS_PATH ? "hub" : "timer";
-    if (
-      server.upgrade(req, {
-        data: {
-          connId: "",
-          origin,
-          clientKey,
-          protocol,
-          rateKey: "",
-          participantId: null,
-          roomId: null,
-        } satisfies ConnectionData,
-      })
-    ) {
+    // 入口は /ws の 1 本だけなので、振り分けはクエリ（?tool=）だけで決まる（#95 S5c）。
+    const protocol = protocolFromRequestUrl(url);
+    // poker の枝だけが participantId / roomId を持つ（判別可能ユニオン。#95 S5c）。
+    const base = { connId: "", origin, clientKey, rateKey: "" };
+    const data: ConnectionData =
+      protocol === "poker"
+        ? { ...base, protocol, participantId: null, roomId: null }
+        : { ...base, protocol };
+    if (server.upgrade(req, { data })) {
       return undefined;
     }
 
@@ -542,6 +528,15 @@ export class WsAdapter {
   }
 
   private handleOpen(ws: Socket): void {
+    // 宣言されたツールが許可リストに無い。受け入れると「繋がるのにコマンドが通らない」
+    // 静かな壊れ方になるので、理由つきで閉じる。
+    if (ws.data.protocol === "unknown") {
+      // 列挙値だけを出す（P-2）。`?tool=` の値そのものは利用者由来なので載せない（ADR 0012 D3）。
+      this.options.logger.warn("conn-rejected", { reason: CONN_REJECT_REASONS.tool });
+      ws.close(1008, "Unknown tool");
+      return;
+    }
+
     // クライアント鍵の検査は Origin より前に置く。**どちらも 1008 なので、
     // 後ろに置くと「直結が拒否される」ことを確かめるテストが Origin 拒否を
     // 見ているだけ、という空振りになる。**
@@ -616,7 +611,9 @@ export class WsAdapter {
     // （`ServerMsg` の ErrorCode）、poker は `message-too-large`
     // （`@tasuki/poker-core` の ErrorCode）で、どちらも wire に載る値である。
     // 片方へ寄せると相手の web が知らないコードを受け取る（振る舞いが変わる）。
-    if (ws.data.protocol === "poker") {
+    // `isPokerSocket` で絞り込む（`ws.data.protocol === "poker"` だけでは
+    // `ws` 自体の型が絞り込めず、`handlePokerMessage` へ渡せない。docstring 参照）。
+    if (isPokerSocket(ws)) {
       this.handlePokerMessage(ws, raw, bytes);
       return;
     }
@@ -697,7 +694,7 @@ export class WsAdapter {
    * **新しい wire のコードを足さずに「何かが起きた」ことだけを伝えられる**。
    * この接続だけが閉じ、同じプロセスに載る timer のルームには波及しない。
    */
-  private handlePokerMessage(ws: Socket, raw: string | Buffer, bytes: number): void {
+  private handlePokerMessage(ws: PokerSocket, raw: string | Buffer, bytes: number): void {
     try {
       if (bytes > this.options.maxMessageBytes) {
         // 接続は保つ（切断ではなくエラー応答）。再送で回復できる種類の失敗のため。
@@ -789,7 +786,8 @@ export class WsAdapter {
     if (connId === "") return;
     this.connections.delete(connId);
     this.missedPongs.delete(connId);
-    if (ws.data.protocol === "poker") {
+    // `isPokerSocket` で絞り込む（`handlePokerMessage` と同じ理由。docstring 参照）。
+    if (isPokerSocket(ws)) {
       // poker はルーム離脱の後始末をメッセージ層が持つ（timer は presence 管理が持つ）。
       // 隔離の理由は timer 側の onDisconnect と同じ（コールバックの失敗で
       // プロセス全体を落とさない）。

@@ -8,7 +8,7 @@ import type { SyncError } from '../hooks/useSync';
  * 持っているものを汎用表示にも出すと、**同じ 1 つの出来事が 2 つの別々の問題に見える。**
  *
  * - `room-not-found` → ページ全体が専用画面に替わる（#76 J-1）
- * - `rate-limited` → 参加フォームに「自動で入り直しています」が出る（#147）
+ * - `rate-limited` → 入室を待つ画面に「自動で入り直しています」が出る（#147）
  *
  * **未知の `code` はここに載らない**（`docs/poker/adr/0003` 決定 2 で `null` に畳まれる）。
  * 意味を知らないコードに専用の表出はありえないので、汎用表示が受け持つ。
@@ -25,8 +25,9 @@ interface Props {
 /**
  * どの画面でも同じ形でエラーを伝える（#217）。
  *
- * これが入室後の画面にしか無かったため、**トップ画面と参加フォームでは
- * サーバーのエラーが画面からも devtools からも消えていた。**
+ * これが入室後の画面にしか無かったため、**入室前の画面では
+ * サーバーのエラーが画面からも devtools からも消えていた**（当時の入室前は
+ * トップ画面と参加フォームで、#95 S5c の撤去後は入室を待つ画面だけになった）。
  */
 export function ErrorNote({ error, onClose }: Props) {
   if (error === null || hasDedicatedDisplay(error.code)) return null;

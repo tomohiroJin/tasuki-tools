@@ -13,7 +13,7 @@ GitHub spec-kit（specify CLI）のフルワークフロー実践を兼ねた Ta
 
 ## 機能（MVP）
 
-- ルーム作成と招待リンク参加（名前入力のみ、アカウント不要）
+- 招待リンク参加（アカウント不要。**ルームを作る画面と名乗りは玄関に 1 つだけ**・#95 S5c）
 - フィボナッチデッキ（0, 1, 2, 3, 5, 8, 13, 21, ?, ☕）による秘匿投票
 - 全員投票 or 在室者の誰かの操作で一斉公開、平均・最頻値の表示（? / ☕ は平均から除外）
 - 再投票・次ラウンド（どちらも在室者なら誰でも実行できる）、同一ブラウザからのトークン自動復帰
@@ -32,6 +32,13 @@ GitHub spec-kit（specify CLI）のフルワークフロー実践を兼ねた Ta
 > **揮発であること（サーバー再起動で失われる）は変わらない。**
 > あわせて**入口ごとの門**が付き、timer のルームコードで `/poker/` へは入れない
 > （その逆も同じで、どちらも「存在しないルーム」として拒まれる）。
+
+> **旧入口（トップ画面と参加フォーム）を撤去した**（[#95](https://github.com/tomohiroJin/tasuki-tools/issues/95) S5c・
+> [#249](https://github.com/tomohiroJin/tasuki-tools/issues/249)・2026-09-14）。ルームを作るのも
+> 名乗るのも**玄関（`/`）に 1 つだけ**になり、poker は「ルームコードを伴う URL」と
+> その端末に保存された同一性からしか入れない。ルームコードの無い `/poker/` も、
+> 旧リンク（`/poker/room/<id>`）も玄関へ送る —— 旧リンクは**コードを保ったまま**
+> `/?room=CODE` へ送るので、ブックマークから来た人も入りたかったルームへ辿り着く。
 
 ## 構成
 
@@ -56,11 +63,15 @@ pnpm turbo test typecheck
 
 # 開発サーバー（2プロセス）
 pnpm --filter @tasuki/sync dev         # WS サーバー :8787（timer と共用）
-pnpm --filter @tasuki/poker-web dev    # Vite :5174（/poker/ 配信、WS は :8787 へ proxy）
+pnpm --filter @tasuki/poker-web dev    # Vite :5174（/poker/ 配信。**画面は :5175 の玄関から開く**）
 ```
 
-ブラウザで **`http://localhost:5174/poker/`** を開く。動作検証シナリオは
-[quickstart.md](./specs/001-planning-poker-mvp/quickstart.md) を参照。
+ブラウザで **<http://localhost:5175/>（玄関）** を開き、ルームを作って poker の札を選ぶ。
+動作検証シナリオは [quickstart.md](./specs/001-planning-poker-mvp/quickstart.md) を参照。
+
+> ⚠ `http://localhost:5174/poker/` を直接開くと、**再読み込みが止まらなくなります**
+> （#95 S5c で旧入口を撤去し、ルームコードの無いツールは `/` へ送り返すようになったため。
+> :5174 では `/` が poker 自身で、Vite の base リダイレクトと噛み合って回り続けます）。
 
 > 起動手順の正本は [開発手順ガイド](../guides/development.md) です。
 
