@@ -95,8 +95,9 @@ describe("SYNC_PATH と本番の Caddy 断片", () => {
 
     // #95 S5a で `rewrite * /ws` を外した。
     // When / Then: **剥がしてはならない。** 統合サーバーは 1 つの待ち受けで複数の
-    // メッセージ層を捌き、どれへ流すかをパスだけで決めている
-    // （`apps/tasuki-sync/src/adapters/ws-adapter.ts`）。
+    // メッセージ層を捌き、どれへ流すかは接続 URL のクエリ（`?tool=`）だけで決めている
+    // （`apps/tasuki-sync/src/adapters/ws-adapter.ts`。#95 S5c で経路からクエリへ移した）。
+    // `rewrite` は URI を書き換える操作で、その宣言ごと差し替えうる。
     // コメント行は落として見る —— 経緯の説明に `rewrite` の語が出てくるため。
     const body = fragment
       .split("\n")
