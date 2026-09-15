@@ -228,12 +228,19 @@ export function RoomPage({ roomId, sync }: Props) {
   return (
     <main className="page room">
       <header>
-        <h1>プランニングポーカー</h1>
-        {/* 選択画面へ戻る導線。旧入口（poker のトップ画面等）が撤去され、他に戻る
-            手段が無い（利用者の申し送り・2026-09-14）。行き先は招待リンクと同じ
-            **同じルームの選択画面**（玄関まで戻すとルームから出たことになる）ので、
-            組み立ては増やさず sync.inviteUrl を再利用する。 */}
-        <a href={inviteUrl}>選択画面へ戻る</a>
+        {/* 見出しと戻る導線を 1 行に組む（#95 S5c 追補・利用者の実画面フィードバック）。
+            素のリンクを招待リンクの塊の上へ置くと、どこへ属する操作か分からず浮いていた。
+            timer は `StatusStrip` の中に収めてあるので、こちらも見出しの相方にする。 */}
+        <div className="room-title">
+          <h1>プランニングポーカー</h1>
+          {/* 選択画面へ戻る導線。旧入口（poker のトップ画面等）が撤去され、他に戻る
+              手段が無い（利用者の申し送り・2026-09-14）。行き先は招待リンクと同じ
+              **同じルームの選択画面**（玄関まで戻すとルームから出たことになる）ので、
+              組み立ては増やさず sync.inviteUrl を再利用する。 */}
+          <a className="room-back" href={inviteUrl}>
+            選択画面へ戻る
+          </a>
+        </div>
         <InviteLink url={inviteUrl} />
       </header>
       <ErrorNote error={sync.error} onClose={sync.clearError} />

@@ -18,9 +18,27 @@
 
 /* ---------- ルームヘッダー・招待リンク ---------- */
 
+/* 見出しと「選択画面へ戻る」を 1 行に組む（#95 S5c 追補）。
+   ヘッダの中で招待リンクの上に素のリンクが浮いていたのを、見出しの相方にする。 */
+.room-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
 .room header h1 {
+  margin: 0 0 0.4rem;
   font-style: italic;
   font-size: 1.6rem;
+}
+
+/* 戻る導線は見出しより一段小さく、折り返させない（行の右端に置く）。
+   色は `@tasuki/ui` の素の `a`（真鍮の明色）をそのまま継ぐ。 */
+.room-back {
+  flex: none;
+  font-size: 0.8rem;
 }
 
 .invite {
