@@ -130,6 +130,19 @@ describe('ツールから選択画面へ戻ったとき', () => {
     expect(screen.getByLabelText('あなたの名前')).toBeInTheDocument();
   });
 
+  it('(e) Given 同一性はあるが同期サーバーへ繋がらない / When 復帰を待っている / Then 繋がらないことを伝える', () => {
+    // Given: 復帰の返事は接続が戻るまで来ない。**黙って待たせると理由不明のまま止まる**
+    haveIdentity();
+    openFromTool();
+    render(<App />);
+
+    // When: 接続が切れて再接続待ちになる
+    act(() => socket().onclose?.());
+
+    // Then: 読み込み中の一言だけを残さず、何が起きているかを出す
+    expect(screen.getByRole('alert')).toHaveTextContent('同期サーバーに接続できません');
+  });
+
   it('(d) Given 同一性はあるが復帰に失敗した / When ルームが見つからない / Then 名乗る画面へ落ちる', () => {
     // Given: ルームが消えた後に戻ってきた（保存だけが残っている）
     haveIdentity();
