@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import { hubRedirectPlugin } from "../../vite.dev-hub-redirect";
 
 // vite 8 は `configLoader: 'native'` を将来の既定にする予定で、その下では `__dirname` が
 // 使えない（build 時に警告が出る）。`import.meta.dirname` は Node 20.11 以降で使え、
@@ -11,7 +12,11 @@ const coreRoot = path.resolve(import.meta.dirname, "../../packages/timer-core/sr
 // base は Caddy 断片（30-timer-spa.conf）と app.env の PUBLIC_PATH と揃っていること。
 export default defineConfig({
   base: "/timer/",
-  plugins: [react()],
+  // hubRedirectPlugin: :5173 を直接開いたときの無限リロード対策（dev のみ・詳細は
+  // vite.dev-hub-redirect.ts）。旧入口撤去（#95 S5c）で行き場の無い URL は `/` へ
+  // 送られるが、:5173 では `/` はこのサーバー自身（base リダイレクトで `/timer/` へ
+  // 戻る）なのでループする。`/` を玄関（:5175）へ送って断つ。
+  plugins: [react(), hubRedirectPlugin()],
   resolve: {
     alias: [
       { find: "@tasuki/timer-core/aggregate", replacement: path.join(coreRoot, "aggregate.ts") },
