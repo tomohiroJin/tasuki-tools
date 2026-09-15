@@ -5,6 +5,7 @@ import { screenFor } from './hub/hub-state.js';
 import { CreateRoom } from './screens/CreateRoom.js';
 import { JoinRoom } from './screens/JoinRoom.js';
 import { RoomChoice } from './screens/RoomChoice.js';
+import { Resuming } from './screens/Resuming.js';
 
 /**
  * Tasuki の玄関（#95 S5a でハブになった）。
@@ -40,7 +41,7 @@ export function App() {
     window.history.replaceState(null, '', departure.cleanedHref);
   }, [departure]);
 
-  switch (screenFor({ code: hub.code, joined: hub.joined })) {
+  switch (screenFor({ code: hub.code, joined: hub.joined, resuming: hub.resuming })) {
     case 'create':
       return (
         <CreateRoom
@@ -63,6 +64,11 @@ export function App() {
           onJoin={hub.joinRoom}
         />
       );
+    case 'resuming':
+      // 復帰の返事待ち。**名乗らせない**（#95 S5c 追補）。
+      // 告知（`departure`）はここでは出さない —— 待ちは必ず選択画面か参加画面へ
+      // 落ちるので、落ちた先で出せば一度だけ読ませられる。
+      return <Resuming code={hub.code ?? ''} connection={hub.connection} />;
     case 'choice':
       return (
         <RoomChoice
