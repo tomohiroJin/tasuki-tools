@@ -15,6 +15,7 @@ import { Session } from "./ui/Session.js";
 import { Summary } from "./ui/Summary.js";
 import { SessionLost } from "./ui/SessionLost.js";
 import { History } from "./ui/History.js";
+import { Loading } from "./ui/Loading.js";
 import { StatusStrip } from "./ui/components/StatusStrip.js";
 import { deriveConnectionStatus } from "./ui/connection-status.js";
 import { Stage } from "./ui/primitives.js";
@@ -208,8 +209,12 @@ export default function App() {
 
     // ここへ落ちるのは「ルームの画面がまだ決まっていない」間だけである（#95 S5c・R9）。
     // 行き先の無い URL は同期フックが玄関へ送っており、**旧入口はもう無い**。
-    // 復帰の `room.join` に対する snapshot を待つ数十 ms がここに当たる。
-    return null;
+    // 復帰の `room.join` に対する snapshot を待つ間と、玄関へ送り返している間が当たる。
+    //
+    // **`null` を返してはいけない**（#95 S5c 追補・利用者の実画面フィードバック）。
+    // 撤去前は `Setup` が受け皿で、いまは `StatusStrip` すら出ない（`mode === null`）ため、
+    // 選択画面から timer を開いた人には白い画面だけが残る。
+    return <Loading />;
   };
 
   return (

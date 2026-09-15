@@ -15,6 +15,24 @@ function useRoute() {
   return route;
 }
 
+/**
+ * 玄関へ送り返している間の画面（#95 S5c 追補・利用者の実画面フィードバック）。
+ *
+ * 旧入口（`TopPage`）を撤去したので、ルームコードを伴わない URL には行き先が無く、
+ * `App` は玄関へ送り返すだけになった。遷移が終わるまでの待ち時間は実ブラウザでは
+ * 目に見える長さになるため、**待っていることが分かる表示**を置く
+ * （timer の `ui/Loading.tsx` と同じ文言・同じ役割）。
+ */
+function RedirectingView() {
+  return (
+    <main className="page">
+      <p className="loading-note" role="status">
+        読み込んでいます…
+      </p>
+    </main>
+  );
+}
+
 export function App() {
   const route = useRoute();
   const sync = usePokerSync();
@@ -44,8 +62,10 @@ export function App() {
     </div>
   );
 
-  // 送り返している間に出す画面は無い（遷移の完了を待つだけ）。
-  const page = route.name === 'room' ? <RoomPage roomId={route.roomId} sync={sync} /> : null;
+  // **送り返している間も白いままにしない**（#95 S5c 追補・利用者の実画面フィードバック）。
+  // `location.replace` が効くまでの間、ここで `null` を返すと画面には何も出ない。
+  const page =
+    route.name === 'room' ? <RoomPage roomId={route.roomId} sync={sync} /> : <RedirectingView />;
 
   return (
     <>

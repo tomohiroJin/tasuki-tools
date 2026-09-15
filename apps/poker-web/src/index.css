@@ -6,6 +6,16 @@
 
 @import '@tasuki/ui';
 
+/* ---------- 遷移中の待ち表示 ---------- */
+
+/* 玄関へ送り返している間の一言（#95 S5c 追補）。卓の上で控えめに置く。 */
+.loading-note {
+  margin: 0;
+  padding: var(--space-6) 0;
+  color: var(--ivory-dim);
+  text-align: center;
+}
+
 /* ---------- ルームヘッダー・招待リンク ---------- */
 
 .room header h1 {
