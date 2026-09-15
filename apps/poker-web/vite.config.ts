@@ -1,12 +1,12 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { hubRedirectPlugin } from '../../vite.dev-hub-redirect';
+import { hubRedirectPlugin } from '@tasuki/dev-hub-redirect';
 
 // サブパス /poker/ 配信（憲法 追加制約 / research R5）
 export default defineConfig({
   base: '/poker/',
   // hubRedirectPlugin: :5174 を直接開いたときの無限リロード対策（dev のみ・詳細は
-  // vite.dev-hub-redirect.ts）。旧入口撤去（#95 S5c）で行き場の無い URL は `/` へ
+  // @tasuki/dev-hub-redirect）。旧入口撤去（#95 S5c）で行き場の無い URL は `/` へ
   // 送られるが、:5174 では `/` はこのサーバー自身（base リダイレクトで `/poker/` へ
   // 戻る）なのでループする。`/` を玄関（:5175）へ送って断つ。
   plugins: [react(), hubRedirectPlugin()],

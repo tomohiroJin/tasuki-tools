@@ -266,6 +266,10 @@ export const DORMANT_DOCS = [
       "poker の現役の規範は docs/poker/adr/ にあり、そちらは LIVE_DOCS に入れている",
   },
   { prefix: "docs/retrospectives/", reason: "振り返り。当時の記述を保つのが正しい" },
+  {
+    prefix: "packages/dev-hub-redirect/README.md",
+    reason: "パッケージ README（#95 S5c 追補で新設）。protocol / ui / sync-client と同じ扱い",
+  },
   { prefix: "packages/protocol/README.md", reason: "パッケージ README。LIVE_DOCS の粒度に合わない" },
   { prefix: "packages/ui/README.md", reason: "パッケージ README。LIVE_DOCS の粒度に合わない" },
   {
