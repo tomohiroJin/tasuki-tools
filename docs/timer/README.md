@@ -40,7 +40,10 @@ timer は Tasuki monorepo の**次のパッケージ**で構成されます（�
 - **Bun** — 同期サーバーの起動（`bun run --watch`）とテストに必要
 
 > 起動手順の正本は [開発手順ガイド](../guides/development.md) です。
-> timer だけを動かす場合も、**画面は `http://localhost:5173/timer/`**（`/` ではありません）。
+> **画面は <http://localhost:5175/>（玄関）から開いてください。** timer だけを触るときも同じです。
+> ⚠ `http://localhost:5173/timer/` を直接開くと、**再読み込みが止まらなくなります**
+> （#95 S5c で旧入口を撤去し、ルームコードの無いツールは `/` へ送り返すようになったため。
+> :5173 では `/` が timer 自身で、Vite の base リダイレクトと噛み合って回り続けます）。
 
 ## インストール
 
@@ -56,7 +59,7 @@ pnpm install    # リポジトリのルートで実行する
 pnpm dev
 
 # 個別起動
-pnpm --filter @tasuki/timer-web dev     # フロント（Vite :5173 → http://localhost:5173/timer/）
+pnpm --filter @tasuki/timer-web dev     # フロント（Vite :5173。**画面は :5175 の玄関から開く**）
 pnpm --filter @tasuki/sync dev          # 同期サーバー（Bun, 既定 8787。poker と共用）
 ```
 

@@ -63,11 +63,15 @@ pnpm turbo test typecheck
 
 # 開発サーバー（2プロセス）
 pnpm --filter @tasuki/sync dev         # WS サーバー :8787（timer と共用）
-pnpm --filter @tasuki/poker-web dev    # Vite :5174（/poker/ 配信、WS は :8787 へ proxy）
+pnpm --filter @tasuki/poker-web dev    # Vite :5174（/poker/ 配信。**画面は :5175 の玄関から開く**）
 ```
 
-ブラウザで **`http://localhost:5174/poker/`** を開く。動作検証シナリオは
-[quickstart.md](./specs/001-planning-poker-mvp/quickstart.md) を参照。
+ブラウザで **<http://localhost:5175/>（玄関）** を開き、ルームを作って poker の札を選ぶ。
+動作検証シナリオは [quickstart.md](./specs/001-planning-poker-mvp/quickstart.md) を参照。
+
+> ⚠ `http://localhost:5174/poker/` を直接開くと、**再読み込みが止まらなくなります**
+> （#95 S5c で旧入口を撤去し、ルームコードの無いツールは `/` へ送り返すようになったため。
+> :5174 では `/` が poker 自身で、Vite の base リダイレクトと噛み合って回り続けます）。
 
 > 起動手順の正本は [開発手順ガイド](../guides/development.md) です。
 
