@@ -41,7 +41,7 @@ export function TeamOrbit({ members, currentIndex, size = 340, children }: TeamO
       <div className="absolute inset-0 flex items-center justify-center">{children}</div>
       {/* 1 人だけのときは周回アバターを出さない（文字盤 12 時上に孤立した点が乗るのを避ける）。
           現ドライバーは中央の Crown＋名前で十分に伝わる。複数人で初めて周回を可視化する。 */}
-      {len > 1 && members.map(({ participantId, displayName, label }, i) => {
+      {len > 1 && members.map(({ participantId, displayName, label, isAway }, i) => {
         const angle = (i / len) * 2 * Math.PI - Math.PI / 2;
         const x = center + Math.cos(angle) * orbitRadius;
         const y = center + Math.sin(angle) * orbitRadius;
@@ -51,6 +51,8 @@ export function TeamOrbit({ members, currentIndex, size = 340, children }: TeamO
           <div
             key={participantId}
             className={`absolute flex items-center justify-center rounded-full font-bold text-sm tabular transition-all duration-700 animate-pop-in ${
+              isAway ? "opacity-50 " : ""
+            }${
               isCurrent
                 ? "bg-[var(--signal)] text-[var(--on-signal)] scale-125 shadow-[0_0_0_2px_var(--signal-edge),0_6px_18px_var(--signal-glow)] z-20"
                 : isNext
@@ -63,7 +65,9 @@ export function TeamOrbit({ members, currentIndex, size = 340, children }: TeamO
               left: x - avatarSize / 2,
               top: y - avatarSize / 2,
             }}
-            title={label}
+            // 離席（timer の画面に居ない）は薄く置く。色だけに頼らないよう、
+            // 文字での説明は交代順ストリップ（RotationLineup）が担う（#95 S5c）。
+            title={isAway ? `${label}（別の画面）` : label}
           >
             {isCurrent && (
               <Crown className="w-3.5 h-3.5 absolute -top-2 -right-1 text-[var(--on-signal)] drop-shadow rotate-12" />

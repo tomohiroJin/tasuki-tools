@@ -5,8 +5,8 @@ import React from "react";
 import { RotationLineup } from "../../src/ui/components/RotationLineup.js";
 
 describe("RotationLineup", () => {
-  const mk = (id: string, name: string, label = name) => ({
-    participantId: id, displayName: name, label,
+  const mk = (id: string, name: string, label = name, isAway = false) => ({
+    participantId: id, displayName: name, label, isAway,
   });
   const props = {
     rotation: [mk("p1", "Alice"), mk("p2", "Bob"), mk("p3", "Carol")],
@@ -53,5 +53,46 @@ describe("RotationLineup", () => {
     expect(screen.getByText("Bob（ID: p1）")).toBeTruthy();
     expect(screen.getByText("Bob（ID: p2）")).toBeTruthy();
     expect(screen.getAllByText("（あなた）")).toHaveLength(1);
+  });
+
+  it("timer に居ない席は「別の画面」と出し、順番の予告を出さない", () => {
+    // Given（Bob は選択画面へ戻っており、サーバーはこの席をドライバーから外す・D21）
+    const rotation = [mk("p1", "Alice"), mk("p2", "Bob", "Bob", true)];
+
+    // When
+    render(
+      <RotationLineup
+        rotation={rotation}
+        currentIndex={0}
+        intervalSeconds={300}
+        selfIndex={0}
+        isPaused={false}
+      />,
+    );
+
+    // Then（名前は出るが、回ってこない順番を予告しない）
+    expect(screen.getByText("Bob")).toBeTruthy();
+    expect(screen.getByText("別の画面")).toBeTruthy();
+    expect(screen.queryByText("⟶ 次")).toBeNull();
+  });
+
+  it("在席している席には「別の画面」を出さず、順番の予告も従来どおり出す（対照）", () => {
+    // Given（同じ並びで、Bob が timer に居るだけの違い）
+    const rotation = [mk("p1", "Alice"), mk("p2", "Bob")];
+
+    // When
+    render(
+      <RotationLineup
+        rotation={rotation}
+        currentIndex={0}
+        intervalSeconds={300}
+        selfIndex={0}
+        isPaused={false}
+      />,
+    );
+
+    // Then
+    expect(screen.queryByText("別の画面")).toBeNull();
+    expect(screen.getByText("⟶ 次")).toBeTruthy();
   });
 });
