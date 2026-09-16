@@ -35,6 +35,9 @@ importers:
 
   apps/landing:
     dependencies:
+      '@tasuki/invite-ui':
+        specifier: workspace:*
+        version: link:../../packages/invite-ui
       '@tasuki/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
@@ -90,6 +93,9 @@ importers:
 
   apps/poker-web:
     dependencies:
+      '@tasuki/invite-ui':
+        specifier: workspace:*
+        version: link:../../packages/invite-ui
       '@tasuki/poker-core':
         specifier: workspace:*
         version: link:../../packages/poker-core
@@ -179,6 +185,9 @@ importers:
 
   apps/timer-web:
     dependencies:
+      '@tasuki/invite-ui':
+        specifier: workspace:*
+        version: link:../../packages/invite-ui
       '@tasuki/room-core':
         specifier: workspace:*
         version: link:../../packages/room-core
@@ -200,9 +209,6 @@ importers:
       partysocket:
         specifier: ^1.0.2
         version: 1.3.0(react@19.2.8)
-      qrcode:
-        specifier: ^1.5.4
-        version: 1.5.4
       react:
         specifier: ^19.1.0
         version: 19.2.8
@@ -228,9 +234,6 @@ importers:
       '@testing-library/user-event':
         specifier: ^14.6.3
         version: 14.6.3(@testing-library/dom@10.4.1)
-      '@types/qrcode':
-        specifier: ^1.5.5
-        version: 1.5.6
       '@types/react':
         specifier: ^19.1.0
         version: 19.2.18
@@ -292,6 +295,34 @@ importers:
       vite:
         specifier: ^8.2.0
         version: 8.2.0(@types/node@26.1.2)(jiti@2.7.0)
+      vitest:
+        specifier: ^4.1.11
+        version: 4.1.11(@types/node@26.1.2)(@vitest/coverage-v8@4.1.11)(jsdom@30.0.1)(vite@8.2.0(@types/node@26.1.2)(jiti@2.7.0))
+
+  packages/invite-ui:
+    dependencies:
+      qrcode:
+        specifier: ^1.5.4
+        version: 1.5.4
+    devDependencies:
+      '@testing-library/react':
+        specifier: ^16.1.0
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@types/qrcode':
+        specifier: ^1.5.5
+        version: 1.5.6
+      '@types/react':
+        specifier: ^19.1.0
+        version: 19.2.18
+      jsdom:
+        specifier: ^30.0.1
+        version: 30.0.1
+      react:
+        specifier: ^19.1.0
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.1.0
+        version: 19.2.8(react@19.2.8)
       vitest:
         specifier: ^4.1.11
         version: 4.1.11(@types/node@26.1.2)(@vitest/coverage-v8@4.1.11)(jsdom@30.0.1)(vite@8.2.0(@types/node@26.1.2)(jiti@2.7.0))

@@ -282,7 +282,7 @@ describe('選択画面', () => {
 
     // When（操作）/ Then: 選択画面を映すと、状態が読み上げ可能な形で出る
     render(<RoomChoice {...props} />);
-    expect(screen.getByRole('status')).toHaveTextContent('再接続');
+    expect(screen.getByText('接続が切れました。再接続しています…')).toHaveAttribute('role', 'status');
   });
 
   it('Given 同じ見え方の名前が 2 人 / When 一覧を見る / Then 識別子が添えられる', () => {

@@ -101,6 +101,7 @@ export const ALLOWED = {
   "packages/protocol": [],
   "packages/rate-limit": [],
   "packages/ui": [],
+  "packages/invite-ui": [], // ADR-0020: ブラウザ操作のみ。ドメイン・同期への依存なし。
   // dev サーバー専用の Vite プラグインと玄関のポートの正本（#95 S5c 追補・#249）。
   // **@tasuki/* に依存しない** —— ツールの語彙を持たず、3 つの vite.config.ts から
   // 同じものを参照できることが存在理由である。ルート直下に置いていた頃は、どの
@@ -110,6 +111,7 @@ export const ALLOWED = {
   // #95 S5a で LP は同期クライアントになった（ADR-0019）。**@tasuki/timer-core を知らない** ——
   // ハブが扱うのは名簿だけで、タイマーの状態も票も通らない（ADR-0017 の文脈分割）。
   "apps/landing": [
+    "@tasuki/invite-ui",
     "@tasuki/dev-hub-redirect",
     "@tasuki/protocol",
     "@tasuki/room-core",
@@ -117,6 +119,7 @@ export const ALLOWED = {
     "@tasuki/ui",
   ],
   "apps/timer-web": [
+    "@tasuki/invite-ui",
     "@tasuki/dev-hub-redirect",
     "@tasuki/room-core",
     "@tasuki/sync-client",
@@ -127,6 +130,7 @@ export const ALLOWED = {
   // room-core に依存することは `docs/adr/0017` 決定 2 の対象外であり、timer-web も同じ
   // （規約の写しを画面に持たせないための依存である）。
   "apps/poker-web": [
+    "@tasuki/invite-ui",
     "@tasuki/dev-hub-redirect",
     "@tasuki/poker-core",
     "@tasuki/room-core",

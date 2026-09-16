@@ -238,6 +238,7 @@ export const LIVE_DOCS = [
   "e2e/",
   "docs/constitution.md",
   "docs/poker/adr/",
+  "packages/invite-ui/README.md", // ADR-0020 の現行 API 案内。コードパスも検査する。
 ];
 
 /**

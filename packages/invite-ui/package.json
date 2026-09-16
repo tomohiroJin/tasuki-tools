@@ -1,0 +1,23 @@
+{
+  "name": "@tasuki/invite-ui",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "test": "vitest run",
+    "lint": "eslint src tests",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": { "qrcode": "^1.5.4" },
+  "peerDependencies": { "react": "^19.1.0" },
+  "devDependencies": {
+    "@testing-library/react": "^16.1.0",
+    "@types/qrcode": "^1.5.5",
+    "@types/react": "^19.1.0",
+    "jsdom": "^30.0.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "vitest": "^4.1.11"
+  }
+}

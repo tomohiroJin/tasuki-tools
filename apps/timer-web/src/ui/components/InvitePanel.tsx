@@ -2,7 +2,8 @@
  * 招待パネル（ルームコード・コピー・QR・参加URLコピー）。
  * Lobby「ルーム」タブと Session「ルーム」タブで再利用する（v2.2 Epic1・#1）。
  */
-import React, { useEffect, useState } from "react";
+import React from "react";
+import { useCopyText, useInviteQr } from "@tasuki/invite-ui";
 import { Copy, Check } from "lucide-react";
 import { Card, GhostButton } from "../primitives.js";
 
@@ -12,34 +13,9 @@ import { Card, GhostButton } from "../primitives.js";
  * （`docs/guides/architecture.md`）と `docs/adr/0015`。
  */
 export function InvitePanel({ code, roomUrl }: { code: string; roomUrl: string }) {
-  const [copied, setCopied] = useState(false);
-  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
-
-  const copyText = async (text: string) => {
-    if (!navigator.clipboard?.writeText) return;
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      /* 権限拒否等は無視 */
-    }
-  };
-
-  useEffect(() => {
-    let cancelled = false;
-    import("qrcode")
-      .then((QRCode) => QRCode.toDataURL(roomUrl, { width: 200 }))
-      .then((url: string) => {
-        if (!cancelled) setQrDataUrl(url);
-      })
-      .catch(() => {
-        /* QR 生成失敗は無視 */
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [roomUrl]);
+  const codeCopy = useCopyText(code);
+  const urlCopy = useCopyText(roomUrl);
+  const qr = useInviteQr(roomUrl, true);
 
   return (
     <Card className="text-center">
@@ -48,33 +24,35 @@ export function InvitePanel({ code, roomUrl }: { code: string; roomUrl: string }
         <span className="tabular text-4xl md:text-5xl font-black tracking-wider break-all text-[var(--signal)]">
           {code}
         </span>
-        <GhostButton onClick={() => copyText(code)} aria-label="ルームコードをコピー">
+        <GhostButton onClick={codeCopy.copy} aria-label="ルームコードをコピー">
           <span className="flex items-center gap-1 text-sm">
-            {copied ? <Check className="w-4 h-4 text-[var(--ok)]" aria-hidden="true" /> : <Copy className="w-4 h-4" aria-hidden="true" />}
-            {copied ? "コピーしました" : "コピー"}
+            {codeCopy.state === 'done' ? <Check className="w-4 h-4 text-[var(--ok)]" aria-hidden="true" /> : <Copy className="w-4 h-4" aria-hidden="true" />}
+            {codeCopy.state === 'done' ? "コピーしました" : "コピー"}
           </span>
         </GhostButton>
       </div>
-      {qrDataUrl && (
+      {qr.dataUrl && (
         <img
-          src={qrDataUrl}
+          src={qr.dataUrl}
           alt={`ルーム ${code} の QR コード`}
           /* 地は白のまま。QR は明暗のコントラストで読むため、卓の色に寄せると
              読み取り率が落ちる（装飾ではなく機能上の要請）。 */
           className="h-52 w-52 rounded-xl bg-white p-2.5 mx-auto mt-4"
         />
       )}
-      {/* 参加 URL は画面にも出す。非セキュアオリジン（LAN の IP 等）では
-          navigator.clipboard が無く、コピーボタンは黙って何もしない。
-          URL が出ていなければ、その環境では誰も招待できない（#76 F-1）。 */}
+      {/* コピーの方法がどちらも使えない環境でも、手で選んで共有できる（#76 F-1）。 */}
       <p className="tabular mt-4 break-all text-xs text-[var(--bone-muted)] select-all">
         {roomUrl}
       </p>
       <div className="mt-2">
-        <GhostButton onClick={() => copyText(roomUrl)}>
+        <GhostButton onClick={urlCopy.copy}>
           <span className="flex items-center gap-1 text-sm"><Copy className="w-4 h-4" aria-hidden="true" /> 参加 URL をコピー</span>
         </GhostButton>
       </div>
+      <p role="status" className="mt-2 text-xs text-[var(--bone-muted)]">
+        {urlCopy.state === 'done' && '参加 URL をコピーしました。'}
+        {(urlCopy.state === 'failed' || codeCopy.state === 'failed') && 'コピーできません。URL またはルームコードを選んでコピーしてください。'}
+      </p>
     </Card>
   );
 }

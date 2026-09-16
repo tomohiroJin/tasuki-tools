@@ -10,8 +10,8 @@
  * （組み立ては `@tasuki/sync-client` に 1 つだけ・画面は同期クライアントを直接
  * import しない・`docs/adr/0015` MUST 2）。
  */
-import { afterEach, beforeEach, describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { clearResumeIdentity, loadResumeIdentity, saveResumeIdentity } from '@tasuki/sync-client';
 import { RoomPage } from '../src/pages/RoomPage';
 import type { RoomStateMessage } from '@tasuki/poker-core';
@@ -75,9 +75,36 @@ beforeEach(() => {
 
 afterEach(() => {
   localStorage.clear();
+  vi.unstubAllGlobals();
 });
 
 describe('RoomPage のヘッダ', () => {
+  it('Given 入室済み / When 招待リンクをコピーする / Then 同期フックの URL を clipboard へ書く', async () => {
+    // Given: Clipboard API が使える入室済みの画面。
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { clipboard: { writeText } });
+    render(<RoomPage roomId={ROOM_ID} sync={makeSync()} />);
+
+    // When: 招待リンクをコピーする。
+    fireEvent.click(screen.getByRole('button', { name: '招待リンクをコピー' }));
+
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('https://example.test/?room=ABCD1234'));
+    expect(screen.getByRole('button', { name: 'コピーしました' })).toBeDefined();
+  });
+
+  it('Given clipboard と従来コピーが使えない / When コピーを選ぶ / Then 手動選択を案内し URL を残す', async () => {
+    // Given: どちらの自動コピーも使えない。
+    vi.stubGlobal('navigator', {});
+    Object.defineProperty(document, 'execCommand', { configurable: true, value: undefined });
+    render(<RoomPage roomId={ROOM_ID} sync={makeSync()} />);
+
+    // When: 招待リンクをコピーする。
+    fireEvent.click(screen.getByRole('button', { name: '招待リンクをコピー' }));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'コピーできません（URL を選択してください）' })).toBeDefined());
+    expect(screen.getByText('https://example.test/?room=ABCD1234')).toBeDefined();
+  });
+
   it('Given ルームに入っている / When ヘッダを描く / Then 選択画面へ戻る道がある', () => {
     // Given
     const sync = makeSync();

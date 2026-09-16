@@ -42,6 +42,11 @@ S2〜S4a では poker 側の入れ子（src/poker 配下。**S4b で畳みまし
 | web の同期フック | web アプリの同期フック 1 本（例: `apps/poker-web/src/hooks/useSync.ts`・`apps/landing/src/hub/use-hub-sync.ts`） | 上のすべて ＋ WebSocket |
 | web の画面 | web アプリの `.tsx` | 同期フックと純粋判断のみ（同期クライアントを直接 import しない） |
 | UI 資産 | `packages/ui` | なし（CSS トークンと静的資産） |
+| 招待のブラウザ操作 | `packages/invite-ui` | React・ブラウザ API・既存の qrcode。ドメイン・同期クライアントには依存しない（[ADR-0020](../adr/0020-invite-browser-operations.md)） |
+
+web の画面は、招待のコピー・QR 生成については `packages/invite-ui` のフックを使う。
+同期フックから受け取った URL を渡し、操作結果を描画する。URL の組み立てや
+WebSocket の配線はこの共有先へ移さない。
 
 > **「web アプリ」を名前の形（`apps/*-web`）で定めない**（`docs/adr/0019` 決定 1・**MUST NOT**）。
 > 範囲は「WebSocket に接続する `apps/*`」であり、機械検査の走査対象は

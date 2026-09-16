@@ -1,4 +1,6 @@
 import type { RosterRoom } from '@tasuki/room-core';
+import { useId, useState } from 'react';
+import { useCopyText, useInviteQr } from '@tasuki/invite-ui';
 import { TOOLS } from '../tools.js';
 import { ToolMark } from '../ToolMark.js';
 import { HistoryLink } from './HistoryLink.js';
@@ -22,6 +24,10 @@ export interface RoomChoiceProps {
 
 export function RoomChoice({ code, inviteUrl, roster, connection }: RoomChoiceProps) {
   const participants = roster?.participants ?? [];
+  const copy = useCopyText(inviteUrl);
+  const [showQr, setShowQr] = useState(false);
+  const qr = useInviteQr(inviteUrl, showQr);
+  const qrId = useId();
 
   return (
     <main className="page landing">
@@ -52,6 +58,22 @@ export function RoomChoice({ code, inviteUrl, roster, connection }: RoomChoicePr
 
         <h2 className="hub-heading">参加用 URL</h2>
         <input className="hub-invite" readOnly value={inviteUrl} aria-label="参加用 URL" />
+        <div className="hub-invite-actions">
+          <button type="button" onClick={copy.copy}>参加用 URL をコピー</button>
+          <button type="button" aria-expanded={showQr} aria-controls={qrId} onClick={() => setShowQr(!showQr)}>
+            {showQr ? 'QR コードを閉じる' : 'QR コードを表示'}
+          </button>
+        </div>
+        <p className="hub-invite-status" role="status">
+          {copy.state === 'done' && 'コピーしました。'}
+          {copy.state === 'failed' && 'コピーできません。URL を選んでコピーしてください。'}
+        </p>
+        <div id={qrId} hidden={!showQr} className="hub-invite-qr">
+          {qr.dataUrl && <img src={qr.dataUrl} width={200} height={200} alt="参加用 URL の QR コード" />}
+          {showQr && !qr.dataUrl && (
+            <p role="status">{qr.failed ? 'QR コードを表示できません。URL を選んでコピーしてください。' : 'QR コードを準備しています…'}</p>
+          )}
+        </div>
       </section>
 
       <ul className="hand" aria-label="ツール">

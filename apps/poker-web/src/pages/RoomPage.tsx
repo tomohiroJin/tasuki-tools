@@ -3,6 +3,7 @@
 // **ここで名前は聞かない**（#95 S5c・R9）。名乗る場所は玄関に 1 つだけあり、
 // 端末に同一性が無いままここへ来た人は玄関の参加画面へ送り返す。
 import { useEffect, useRef, useState } from 'react';
+import { useCopyText } from '@tasuki/invite-ui';
 import type { RoomStateMessage } from '@tasuki/poker-core';
 import { CardHand } from '../components/CardHand';
 import { ErrorNote } from '../components/ErrorNote';
@@ -45,19 +46,6 @@ function JoiningView({ sync, notice }: { sync: PokerSync; notice: string | null 
   );
 }
 
-/** 非セキュアオリジン（http の LAN 利用等）向けのフォールバックコピー */
-function legacyCopy(text: string): void {
-  const textarea = document.createElement('textarea');
-  textarea.value = text;
-  textarea.style.position = 'fixed';
-  textarea.style.opacity = '0';
-  document.body.appendChild(textarea);
-  textarea.select();
-  const ok = document.execCommand('copy');
-  textarea.remove();
-  if (!ok) throw new Error('copy failed');
-}
-
 /**
  * 招待リンク。**配るのは選択画面（ハブ）の URL である**（#95 S5b・D11）。
  *
@@ -67,26 +55,7 @@ function legacyCopy(text: string): void {
  * **画面は同期フックから受け取る**（画面は同期クライアントを直接 import しない）。
  */
 function InviteLink({ url }: { url: string }) {
-  const [copyState, setCopyState] = useState<'idle' | 'done' | 'failed'>('idle');
-
-  const copy = async () => {
-    try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(url);
-      } else {
-        legacyCopy(url);
-      }
-      setCopyState('done');
-    } catch {
-      try {
-        legacyCopy(url);
-        setCopyState('done');
-      } catch {
-        setCopyState('failed'); // URL は画面に出ているので手動選択で代替できる
-      }
-    }
-    setTimeout(() => setCopyState('idle'), 2000);
-  };
+  const { state: copyState, copy } = useCopyText(url);
 
   return (
     <div className="invite">

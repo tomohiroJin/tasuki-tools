@@ -67,10 +67,10 @@ export default tseslint.config(
     // なり、下の 2 ルールが静かに無効化された。次に apps/*-web/src/** へ直したが、
     // それも S3 で apps/landing を足した瞬間に同じ穴が開いた。
     //
-    // そこで**全アプリのソース**を対象にする。この 2 ルールはフック呼び出しが
+    // そこで**全アプリと共有パッケージのソース**を対象にする。この 2 ルールはフック呼び出しが
     // 無いファイルでは何も報告しないので、React を使わない sync 側に当たっても
-    // 無害（実測: sync / packages に use* 関数は 0 件）。
-    files: ["apps/*/src/**/*.{ts,tsx}"],
+    // 無害。#269 で invite-ui に移したフックも、移設前と同じ検査を受ける。
+    files: ["apps/*/src/**/*.{ts,tsx}", "packages/*/src/**/*.{ts,tsx}"],
     plugins: { "react-hooks": reactHooks },
     rules: {
       "react-hooks/rules-of-hooks": "error",
