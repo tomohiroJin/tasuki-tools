@@ -8,13 +8,17 @@
 
 @import '@tasuki/ui';
 
+/* 余白・色・角丸は共有トークンに合わせる。寸法はこの画面の配置を定める。 */
+
 .landing {
   display: flex;
   flex-direction: column;
   align-items: center;
   min-height: 100dvh;
   justify-content: center;
-  gap: clamp(2.5rem, 8vh, 4.5rem);
+  gap: var(--space-6);
+  padding: var(--space-6) var(--space-5);
+  overflow-wrap: anywhere;
 }
 
 /* ---------- ヒーロー ---------- */
@@ -29,11 +33,8 @@
   font-weight: 600;
   letter-spacing: 0.02em;
   line-height: 1;
-  margin: 0 0 1rem;
-  background: linear-gradient(160deg, var(--ivory) 52%, var(--gold-bright));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  margin: 0 0 var(--space-4);
+  color: var(--ivory);
 }
 
 .tagline {
@@ -52,7 +53,7 @@
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  gap: clamp(1rem, 4vw, 2.5rem);
+  gap: var(--space-5);
   perspective: 900px;
 }
 
@@ -61,6 +62,7 @@
   ここでは寸法と中身の並びだけを足す。5:7 はトランプの比率。
 */
 .tool-card {
+  background: var(--ivory);
   width: min(15rem, 40vw);
   height: auto;
   aspect-ratio: 5 / 7;
@@ -73,8 +75,8 @@
   grid-template-rows: 1fr auto auto;
   align-items: center;
   justify-items: center;
-  row-gap: 0.35rem;
-  padding: 1.4rem 1rem 1.6rem;
+  row-gap: var(--space-2);
+  padding: var(--space-5) var(--space-4) var(--space-6);
   text-decoration: none;
   text-align: center;
 }
@@ -106,8 +108,7 @@
   outline: none;
   box-shadow:
     0 0 0 3px var(--gold),
-    0 0 26px rgba(236, 200, 121, 0.5),
-    0 16px 28px rgba(0, 0, 0, 0.45);
+    var(--shadow-popover);
 }
 
 /* ---------- 札の中身 ---------- */
@@ -191,22 +192,30 @@
     width: min(15rem, 68vw);
   }
 }
-
-/* ---------- ハブ（作成・参加・選択画面）・#95 S5a ---------- */
-
-/* 生の色・生の間隔は書かない。@tasuki/ui のトークンだけを使う。 */
+/* ---------- 作成・参加 ---------- */
 .hub-form {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
-  width: min(100%, 24rem);
-  margin: 0 auto;
+  gap: var(--space-5);
+  width: min(100%, 26rem);
+  padding: var(--space-6);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  background: var(--felt-900);
+  box-shadow: var(--shadow-popover);
+}
+
+.hub-section-title {
+  margin: 0;
+  font-size: 1.35rem;
+  letter-spacing: 0;
+  color: var(--ivory);
 }
 
 .hub-field {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: var(--space-2);
 }
 
 .hub-label {
@@ -216,146 +225,237 @@
 
 .hub-input,
 .hub-invite {
-  padding: 0.7rem 0.9rem;
+  min-width: 0;
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
   border: 1px solid var(--line-strong);
-  border-radius: var(--radius-card, 0.5rem);
-  background: var(--felt-900);
+  border-radius: var(--radius-md);
+  background: var(--felt-950);
   color: var(--ivory);
   font: inherit;
+}
+
+.hub-input::placeholder {
+  color: var(--ivory-faint);
 }
 
 .hub-input:focus-visible,
 .hub-invite:focus-visible {
-  outline: none;
-  border-color: var(--gold);
-  box-shadow: 0 0 0 3px var(--gold-tint);
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
 }
 
 .hub-submit {
-  padding: 0.75rem 1rem;
+  padding: var(--space-3) var(--space-4);
   border: 1px solid var(--gold-deep);
-  border-radius: var(--radius-card, 0.5rem);
+  border-radius: var(--radius-md);
   background: var(--gold);
   color: var(--coal);
   font: inherit;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
 }
 
-/* **押せないボタンを押せると見せない**（#95 S5c・C-I2）。
-   地の灰色化と `cursor: not-allowed` は基底層（`@tasuki/ui` の `button:disabled`）が
-   与えるが、**下の :hover は詳細度 (0,2,0) でそれ (0,1,1) に勝つ** —— `:not(:disabled)` を
-   付けないと、押せないボタンがホバーで明るくなり、有効なボタンと見分けが付かなくなる。
-   基底層の `button:hover:not(:disabled)` が同じ理由でガードされている。
-   `cursor` をここでも書くのは、`.hub-submit` が `cursor: pointer` を明示している以上、
-   基底層の勝ち負けに頼らず同じ場所で打ち消しておくためである。
-
-   ⚠ **この 2 つの規則は検査に掛からない。** 単体テストも E2E も `toBeDisabled()`
-   （＝属性）しか見ないので、消しても緑のまま通る。 */
 .hub-submit:disabled {
   cursor: not-allowed;
 }
-
 .hub-submit:hover:not(:disabled),
 .hub-submit:focus-visible:not(:disabled) {
   background: var(--gold-bright);
 }
-
 .hub-error {
   color: var(--rose-bright);
   font-size: 0.9rem;
 }
-
 .hub-notice {
-  color: var(--pewter);
-  font-size: 0.9rem;
-}
-
-.hub-room {
-  width: min(100%, 32rem);
-  margin: 0 auto 2rem;
-}
-
-.hub-heading {
-  font-size: 0.9rem;
-  font-weight: 600;
   color: var(--ivory-dim);
-  margin: 1.5rem 0 0.5rem;
+  font-size: 0.9rem;
 }
 
-.hub-room-code {
-  font-family: var(--font-display);
-  color: var(--gold-bright);
+/* ---------- 選択: ルーム → 道具 → 参加者・招待 ---------- */
+.landing-choice {
+  max-width: 1120px;
+  justify-content: flex-start;
 }
 
-.hub-roster {
+.landing-choice .landing-hero {
   display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+  width: 100%;
+  padding-bottom: var(--space-5);
+  border-bottom: 1px solid var(--line-strong);
+  text-align: left;
+}
+
+.landing-choice .wordmark {
+  font-size: 2.5rem;
+  margin: 0;
+}
+.hub-room-summary {
+  min-width: 0;
+}
+.hub-room-code {
+  margin: 0;
+  color: var(--gold-bright);
+  overflow-wrap: anywhere;
+}
+
+.hub-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  align-items: start;
+  gap: var(--space-6);
+  width: 100%;
+}
+
+.hub-tools {
+  min-width: 0;
+  padding: var(--space-5) 0;
+}
+.hub-tools .hub-section-title {
+  text-align: center;
+  margin-bottom: var(--space-6);
+}
+.hub-tools .hand {
+  padding: var(--space-4);
+}
+.hub-tools .tool-card {
+  width: 100%;
+}
+.hub-tools .hand li {
+  min-width: 0;
+  flex: 1;
+}
+.hub-room {
+  display: grid;
+  gap: var(--space-5);
+  min-width: 0;
+}
+.hub-panel {
+  min-width: 0;
+  padding: var(--space-5);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  background: var(--felt-900);
+}
+.hub-heading {
+  margin: 0 0 var(--space-4);
+  font-size: 0.95rem;
+  letter-spacing: 0;
+  color: var(--ivory);
+}
+.hub-roster {
   list-style: none;
   padding: 0;
   margin: 0;
 }
-
 .hub-participant {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: 0.6rem;
-  padding: 0.45rem 0.7rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-card, 0.5rem);
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-3) 0;
   color: var(--ivory);
 }
-
-/* 切断中の人は薄く出す（名簿からは消えない・設計正本 §3.13）。 */
-.hub-participant[data-presence='offline'] {
-  color: var(--ivory-faint);
+.hub-participant + .hub-participant {
+  border-top: 1px solid var(--line);
 }
-
+.hub-participant-name {
+  font-weight: 500;
+}
 .hub-participant-where {
+  flex-basis: 100%;
   font-size: 0.8rem;
-  color: var(--pewter);
+  color: var(--ivory-dim);
 }
-
+.hub-participant[data-presence='offline'] {
+  color: var(--ivory-dim);
+}
+.hub-presence {
+  color: var(--ivory-dim);
+  font-size: 0.8rem;
+}
 .hub-invite {
-  width: 100%;
+  font-size: 0.85rem;
 }
-
 .hub-invite-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 0.75rem;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
 }
-
+.hub-invite-actions button {
+  padding: var(--space-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--felt-800);
+  color: var(--ivory);
+  box-shadow: none;
+  font-size: 0.85rem;
+  letter-spacing: 0;
+}
+.hub-invite-actions button:hover:not(:disabled) {
+  background: var(--felt-700);
+}
 .hub-invite-status {
-  min-height: 1.5em;
+  margin: var(--space-3) 0 0;
   color: var(--ivory-dim);
   font-size: 0.85rem;
 }
-
+.hub-invite-status:empty {
+  margin: 0;
+}
+.hub-invite-qr {
+  margin-top: var(--space-4);
+}
 .hub-invite-qr img {
   display: block;
   max-width: 100%;
   height: auto;
-  /* 白い余白は QR 画像に含まれる。卓の配色で上書きしない。 */
 }
-
-/* 端末に残った完了記録への入口（#95 S5c）。フォーム submit と紛れないよう控えめに。 */
 .hub-secondary {
-  display: block;
-  width: min(100%, 24rem);
-  margin: 1rem auto 0;
-  padding: 0.6rem 1rem;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-card, 0.5rem);
+  padding: var(--space-2) var(--space-4);
   color: var(--ivory-dim);
   text-align: center;
-  text-decoration: none;
+  text-underline-offset: var(--space-1);
+}
+.hub-secondary:hover, .hub-secondary:focus-visible {
+  color: var(--ivory);
 }
 
-.hub-secondary:hover,
-.hub-secondary:focus-visible {
-  border-color: var(--gold);
-  color: var(--ivory);
+@media (max-width: 720px) {
+  .landing {
+    padding: var(--space-5) var(--space-4);
+  }
+  .hub-form {
+    padding: var(--space-5);
+  }
+  .hub-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .hub-tools {
+    padding: 0;
+  }
+  .hub-tools .hand {
+    flex-direction: row;
+    align-items: stretch;
+    padding: 0;
+    gap: var(--space-3);
+  }
+  .hub-tools .tool-card {
+    height: 100%;
+    padding: var(--space-5) var(--space-2);
+  }
+  .hub-tools .hub-section-title {
+    margin-bottom: var(--space-5);
+  }
+  .hub-tools .tool-name {
+    font-size: 0.95rem;
+  }
+  .hub-tools .tool-summary {
+    font-size: 0.75rem;
+  }
 }

@@ -65,7 +65,8 @@ export function CreateRoom({
         </p>
       )}
 
-      <form className="hub-form" onSubmit={submit}>
+      <form className="hub-form" aria-labelledby="hub-form-heading" onSubmit={submit}>
+        <h2 className="hub-section-title" id="hub-form-heading">ルームを作る</h2>
         <label className="hub-field">
           <span className="hub-label">ルーム名</span>
           <input

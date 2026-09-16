@@ -149,7 +149,7 @@ test.describe('ハブでルームを作り、名乗って、道具を行き来�
     });
 
     // Then その4: 作成者の選択画面では、参加者が timer に居ることが分かる
-    await expect(hostRoster).toContainText('に居ます');
+    await expect(hostRoster).toContainText('にいます');
   });
 });
 
@@ -198,7 +198,7 @@ test.describe('選択画面から両方の道具を行き来できる（#95 S5b�
     await expect(guest.page.getByText('いずみ')).toBeVisible();
 
     // Then その2: 作成者の選択画面に、相手が poker に居ることが出る（R5）
-    await expect(hostRoster).toContainText('Planning Poker に居ます');
+    await expect(hostRoster).toContainText('Planning Poker にいます');
 
     // When その2: 選択画面へ戻り、今度は timer を選ぶ
     await guest.page.goto(inviteUrl);
@@ -214,8 +214,8 @@ test.describe('選択画面から両方の道具を行き来できる（#95 S5b�
     await expect(guest.page.getByRole('button', { name: 'セッションを開始' })).toBeVisible();
 
     // Then その4: 居場所の表示も追従する（poker から timer へ移ったことが相手に見える）
-    await expect(hostRoster).toContainText('TDD Mob Pro Timer に居ます');
-    await expect(hostRoster).not.toContainText('Planning Poker に居ます');
+    await expect(hostRoster).toContainText('TDD Mob Pro Timer にいます');
+    await expect(hostRoster).not.toContainText('Planning Poker にいます');
   });
 });
 
