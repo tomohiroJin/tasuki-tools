@@ -8,9 +8,10 @@ import { HistoryLink } from './HistoryLink.js';
 import { labelFor } from '../hub/participant-label.js';
 
 /**
- * 選択画面（#95 S5a・R1）。ルーム名・参加者一覧・参加用 URL・ツールの札を並べる。
+ * 選択画面（#95 S5a・R1）。ルーム名を見出しに置き、道具・参加者・仲間を招くの 3 つを
+ * 見出しつきの領域に分けて並べる（#270）。
  *
- * 札の意匠と既存の {@link TOOLS} を保ち、道具選択と参加者・招待を区切る。
+ * **札の意匠は変えない**（設計正本 §5.7）。既存の {@link TOOLS} をそのまま使い、
  * `href` に `?room=CODE` を付けるだけである。新しいツールを足すときに触るのは、
  * 今と同じく `src/tools.ts` の 1 ファイルになる。
  */

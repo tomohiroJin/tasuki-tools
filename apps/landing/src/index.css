@@ -34,14 +34,19 @@
   letter-spacing: 0.02em;
   line-height: 1;
   margin: 0 0 var(--space-4);
-  color: var(--ivory);
+  /* 字そのものを象牙から真鍮へ流す。札の面と同じく、単色には潰さない。
+     `color` は透明になるので、コントラストは停止点で測る（`landing-design.spec.ts`）。 */
+  background: linear-gradient(160deg, var(--ivory) 52%, var(--gold-bright));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .tagline {
   margin: 0;
   color: var(--ivory-dim);
-  font-size: 0.95rem;
-  line-height: 1.9;
+  font-size: var(--font-size-base);
+  line-height: var(--line-normal);
 }
 
 /* ---------- 手札 ---------- */
@@ -62,7 +67,6 @@
   ここでは寸法と中身の並びだけを足す。5:7 はトランプの比率。
 */
 .tool-card {
-  background: var(--ivory);
   width: min(15rem, 40vw);
   height: auto;
   aspect-ratio: 5 / 7;
@@ -124,17 +128,17 @@
   font-family: var(--font-display);
   font-style: italic;
   font-weight: 600;
-  /* 札の幅いっぱいに伸びて窮屈にならないよう、折り返しを許して少し小さめに */
-  font-size: clamp(0.95rem, 3vw, 1.1rem);
-  line-height: 1.3;
+  font-size: var(--font-size-base);
+  line-height: var(--line-tight);
   color: var(--coal);
   text-wrap: balance;
 }
 
 .tool-summary {
-  font-size: 0.78rem;
-  line-height: 1.6;
+  font-size: var(--font-size-xs);
+  line-height: var(--line-normal);
   color: var(--coal-soft);
+  text-wrap: pretty;
 }
 
 /* ---------- 配る演出 ---------- */
@@ -192,7 +196,8 @@
     width: min(15rem, 68vw);
   }
 }
-/* ---------- 作成・参加 ---------- */
+/* ---------- 玄関の共通部品（`.hub-*` は作成・参加・選択・復帰の 4 画面で共有する。
+              画面名で節を切ると使用箇所とずれるので、役割で切っている） ---------- */
 .hub-form {
   display: flex;
   flex-direction: column;
@@ -207,7 +212,8 @@
 
 .hub-section-title {
   margin: 0;
-  font-size: 1.35rem;
+  font-size: var(--font-size-lg);
+  line-height: var(--line-tight);
   letter-spacing: 0;
   color: var(--ivory);
 }
@@ -219,7 +225,7 @@
 }
 
 .hub-label {
-  font-size: 0.9rem;
+  font-size: var(--font-size-sm);
   color: var(--ivory-dim);
 }
 
@@ -256,6 +262,16 @@
   cursor: pointer;
 }
 
+/* **押せないボタンを押せると見せない**（#95 S5c・C-I2）。
+   地の灰色化と `cursor: not-allowed` は基底層（`@tasuki/ui` の `button:disabled`）が
+   与えるが、**下の :hover は詳細度 (0,2,0) でそれ (0,1,1) に勝つ** —— `:not(:disabled)` を
+   付けないと、押せないボタンがホバーで明るくなり、有効なボタンと見分けが付かなくなる。
+   基底層の `button:hover:not(:disabled)` が同じ理由でガードされている。
+   `cursor` をここでも書くのは、`.hub-submit` が `cursor: pointer` を明示している以上、
+   基底層の勝ち負けに頼らず同じ場所で打ち消しておくためである。
+
+   ⚠ **この 2 つの規則は検査に掛からない。** 単体テストも E2E も `toBeDisabled()`
+   （＝属性）しか見ないので、消しても緑のまま通る。 */
 .hub-submit:disabled {
   cursor: not-allowed;
 }
@@ -265,14 +281,22 @@
 }
 .hub-error {
   color: var(--rose-bright);
-  font-size: 0.9rem;
+  font-size: var(--font-size-sm);
 }
 .hub-notice {
   color: var(--ivory-dim);
-  font-size: 0.9rem;
+  font-size: var(--font-size-sm);
 }
 
-/* ---------- 選択: ルーム → 道具 → 参加者・招待 ---------- */
+/* ルームコードは参加・選択・復帰の 3 画面に出る。 */
+.hub-room-code {
+  font-family: var(--font-display);
+  margin: 0;
+  color: var(--gold-bright);
+  overflow-wrap: anywhere;
+}
+
+/* ---------- 選択画面の作業領域（ルーム → 道具 → 参加者・招待） ---------- */
 .landing-choice {
   max-width: 1120px;
   justify-content: flex-start;
@@ -296,11 +320,6 @@
 }
 .hub-room-summary {
   min-width: 0;
-}
-.hub-room-code {
-  margin: 0;
-  color: var(--gold-bright);
-  overflow-wrap: anywhere;
 }
 
 .hub-workspace {
@@ -330,8 +349,10 @@
   flex: 1;
 }
 .hub-room {
+  /* 左列（札）より短く終わるのは自然なので引き伸ばさない。参加者が 1 人のときに
+     中身の無いパネルを作るほうが悪い。代わりに間を詰めて「短い」を意図に見せる。 */
   display: grid;
-  gap: var(--space-5);
+  gap: var(--space-4);
   min-width: 0;
 }
 .hub-panel {
@@ -343,7 +364,8 @@
 }
 .hub-heading {
   margin: 0 0 var(--space-4);
-  font-size: 0.95rem;
+  font-size: var(--font-size-base);
+  line-height: var(--line-tight);
   letter-spacing: 0;
   color: var(--ivory);
 }
@@ -368,7 +390,7 @@
 }
 .hub-participant-where {
   flex-basis: 100%;
-  font-size: 0.8rem;
+  font-size: var(--font-size-xs);
   color: var(--ivory-dim);
 }
 .hub-participant[data-presence='offline'] {
@@ -376,10 +398,13 @@
 }
 .hub-presence {
   color: var(--ivory-dim);
-  font-size: 0.8rem;
+  font-size: var(--font-size-xs);
 }
 .hub-invite {
-  font-size: 0.85rem;
+  /* URL は桁を揃えたいものなので等幅に置く（`--font-mono` の定義コメントの用途）。
+     percent-encode の並びが締まって、記号の連なりが読めるようになる。 */
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
 }
 .hub-invite-actions {
   display: flex;
@@ -394,19 +419,27 @@
   background: var(--felt-800);
   color: var(--ivory);
   box-shadow: none;
-  font-size: 0.85rem;
+  font-size: var(--font-size-sm);
   letter-spacing: 0;
 }
 .hub-invite-actions button:hover:not(:disabled) {
   background: var(--felt-700);
 }
+/* コピーの結果は空 → 文字 → 空と入れ替わる（#269）。**高さを先に確保しておく** ——
+   確保しないと文字が出た瞬間に直下の `.hub-invite-qr` が押し下がり、QR を開いたまま
+   コピーした人の手元で的が動く。`:empty` の余白調整では高さが埋まらないので効かない。
+
+   確保するのは **1 行分の行箱**（`--line-normal`）であって `1.5em` では足りない。
+   本文の行間は 1.7 なので、1.5em だと 0.2em だけ足りずに 2〜3px 動く（#269 の値が
+   これで、実測して初めて残っているのが分かった）。
+
+   ⚠ **この規則は検査に掛からない。** E2E は横幅とコントラストしか測っておらず、
+   縦のずれは見ていないので、消しても緑のまま通る。 */
 .hub-invite-status {
+  min-height: calc(1em * var(--line-normal));
   margin: var(--space-3) 0 0;
   color: var(--ivory-dim);
-  font-size: 0.85rem;
-}
-.hub-invite-status:empty {
-  margin: 0;
+  font-size: var(--font-size-sm);
 }
 .hub-invite-qr {
   margin-top: var(--space-4);
@@ -439,23 +472,24 @@
   .hub-tools {
     padding: 0;
   }
+  /* 札は基底の `.hand` と同じく縦に積む。**横に 2 枚並べると文字が入らない** ——
+     320px では札が 131px しか取れず、一行説明に 133px 必要で最後の 1 文字だけが
+     次行へ落ちた。横並びのまま収めるには 10.5px まで縮める必要があり、
+     「12px の本文で AA」という配色トークンの前提を割る。積めば 218px 取れて、
+     道具名も説明も 1 行に収まり、2 枚とも画面内に残る（実測）。
+
+     `.hub-tools .tool-card` の `width: 100%` は詳細度 (0,2,0) で基底の
+     `.tool-card`(0,1,0) に勝つので、ここで明示的に上書きする。 */
   .hub-tools .hand {
-    flex-direction: row;
-    align-items: stretch;
     padding: 0;
-    gap: var(--space-3);
+    gap: var(--space-4);
   }
   .hub-tools .tool-card {
-    height: 100%;
-    padding: var(--space-5) var(--space-2);
+    width: min(15rem, 68vw);
+    height: auto;
+    padding: var(--space-5) var(--space-4);
   }
   .hub-tools .hub-section-title {
     margin-bottom: var(--space-5);
-  }
-  .hub-tools .tool-name {
-    font-size: 0.95rem;
-  }
-  .hub-tools .tool-summary {
-    font-size: 0.75rem;
   }
 }
