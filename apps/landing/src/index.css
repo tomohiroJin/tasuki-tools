@@ -8,13 +8,17 @@
 
 @import '@tasuki/ui';
 
+/* 余白・色・角丸は共有トークンに合わせる。寸法はこの画面の配置を定める。 */
+
 .landing {
   display: flex;
   flex-direction: column;
   align-items: center;
   min-height: 100dvh;
   justify-content: center;
-  gap: clamp(2.5rem, 8vh, 4.5rem);
+  gap: var(--space-6);
+  padding: var(--space-6) var(--space-5);
+  overflow-wrap: anywhere;
 }
 
 /* ---------- ヒーロー ---------- */
@@ -29,7 +33,9 @@
   font-weight: 600;
   letter-spacing: 0.02em;
   line-height: 1;
-  margin: 0 0 1rem;
+  margin: 0 0 var(--space-4);
+  /* 字そのものを象牙から真鍮へ流す。札の面と同じく、単色には潰さない。
+     `color` は透明になるので、コントラストは停止点で測る（`landing-design.spec.ts`）。 */
   background: linear-gradient(160deg, var(--ivory) 52%, var(--gold-bright));
   -webkit-background-clip: text;
   background-clip: text;
@@ -39,8 +45,8 @@
 .tagline {
   margin: 0;
   color: var(--ivory-dim);
-  font-size: 0.95rem;
-  line-height: 1.9;
+  font-size: var(--font-size-base);
+  line-height: var(--line-normal);
 }
 
 /* ---------- 手札 ---------- */
@@ -52,7 +58,7 @@
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  gap: clamp(1rem, 4vw, 2.5rem);
+  gap: var(--space-5);
   perspective: 900px;
 }
 
@@ -73,8 +79,8 @@
   grid-template-rows: 1fr auto auto;
   align-items: center;
   justify-items: center;
-  row-gap: 0.35rem;
-  padding: 1.4rem 1rem 1.6rem;
+  row-gap: var(--space-2);
+  padding: var(--space-5) var(--space-4) var(--space-6);
   text-decoration: none;
   text-align: center;
 }
@@ -106,8 +112,7 @@
   outline: none;
   box-shadow:
     0 0 0 3px var(--gold),
-    0 0 26px rgba(236, 200, 121, 0.5),
-    0 16px 28px rgba(0, 0, 0, 0.45);
+    var(--shadow-popover);
 }
 
 /* ---------- 札の中身 ---------- */
@@ -123,17 +128,17 @@
   font-family: var(--font-display);
   font-style: italic;
   font-weight: 600;
-  /* 札の幅いっぱいに伸びて窮屈にならないよう、折り返しを許して少し小さめに */
-  font-size: clamp(0.95rem, 3vw, 1.1rem);
-  line-height: 1.3;
+  font-size: var(--font-size-base);
+  line-height: var(--line-tight);
   color: var(--coal);
   text-wrap: balance;
 }
 
 .tool-summary {
-  font-size: 0.78rem;
-  line-height: 1.6;
+  font-size: var(--font-size-xs);
+  line-height: var(--line-normal);
   color: var(--coal-soft);
+  text-wrap: pretty;
 }
 
 /* ---------- 配る演出 ---------- */
@@ -191,54 +196,69 @@
     width: min(15rem, 68vw);
   }
 }
-
-/* ---------- ハブ（作成・参加・選択画面）・#95 S5a ---------- */
-
-/* 生の色・生の間隔は書かない。@tasuki/ui のトークンだけを使う。 */
+/* ---------- 玄関の共通部品（`.hub-*` は作成・参加・選択・復帰の 4 画面で共有する。
+              画面名で節を切ると使用箇所とずれるので、役割で切っている） ---------- */
 .hub-form {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
-  width: min(100%, 24rem);
-  margin: 0 auto;
+  gap: var(--space-5);
+  width: min(100%, 26rem);
+  padding: var(--space-6);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  background: var(--felt-900);
+  box-shadow: var(--shadow-popover);
+}
+
+.hub-section-title {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  line-height: var(--line-tight);
+  letter-spacing: 0;
+  color: var(--ivory);
 }
 
 .hub-field {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: var(--space-2);
 }
 
 .hub-label {
-  font-size: 0.9rem;
+  font-size: var(--font-size-sm);
   color: var(--ivory-dim);
 }
 
 .hub-input,
 .hub-invite {
-  padding: 0.7rem 0.9rem;
+  min-width: 0;
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
   border: 1px solid var(--line-strong);
-  border-radius: var(--radius-card, 0.5rem);
-  background: var(--felt-900);
+  border-radius: var(--radius-md);
+  background: var(--felt-950);
   color: var(--ivory);
   font: inherit;
 }
 
+.hub-input::placeholder {
+  color: var(--ivory-faint);
+}
+
 .hub-input:focus-visible,
 .hub-invite:focus-visible {
-  outline: none;
-  border-color: var(--gold);
-  box-shadow: 0 0 0 3px var(--gold-tint);
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
 }
 
 .hub-submit {
-  padding: 0.75rem 1rem;
+  padding: var(--space-3) var(--space-4);
   border: 1px solid var(--gold-deep);
-  border-radius: var(--radius-card, 0.5rem);
+  border-radius: var(--radius-md);
   background: var(--gold);
   color: var(--coal);
   font: inherit;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
 }
 
@@ -255,107 +275,221 @@
 .hub-submit:disabled {
   cursor: not-allowed;
 }
-
 .hub-submit:hover:not(:disabled),
 .hub-submit:focus-visible:not(:disabled) {
   background: var(--gold-bright);
 }
-
 .hub-error {
   color: var(--rose-bright);
-  font-size: 0.9rem;
+  font-size: var(--font-size-sm);
 }
-
 .hub-notice {
-  color: var(--pewter);
-  font-size: 0.9rem;
-}
-
-.hub-room {
-  width: min(100%, 32rem);
-  margin: 0 auto 2rem;
-}
-
-.hub-heading {
-  font-size: 0.9rem;
-  font-weight: 600;
   color: var(--ivory-dim);
-  margin: 1.5rem 0 0.5rem;
+  font-size: var(--font-size-sm);
 }
 
+/* ルームコードは参加・選択・復帰の 3 画面に出る。 */
 .hub-room-code {
   font-family: var(--font-display);
+  margin: 0;
   color: var(--gold-bright);
+  overflow-wrap: anywhere;
 }
 
-.hub-roster {
+/* ---------- 選択画面の作業領域（ルーム → 道具 → 参加者・招待） ---------- */
+.landing-choice {
+  max-width: 1120px;
+  justify-content: flex-start;
+}
+
+.landing-choice .landing-hero {
   display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+  width: 100%;
+  padding-bottom: var(--space-5);
+  border-bottom: 1px solid var(--line-strong);
+  text-align: left;
+}
+
+.landing-choice .wordmark {
+  font-size: 2.5rem;
+  margin: 0;
+}
+.hub-room-summary {
+  min-width: 0;
+}
+
+.hub-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  align-items: start;
+  gap: var(--space-6);
+  width: 100%;
+}
+
+.hub-tools {
+  min-width: 0;
+  padding: var(--space-5) 0;
+}
+.hub-tools .hub-section-title {
+  text-align: center;
+  margin-bottom: var(--space-6);
+}
+.hub-tools .hand {
+  padding: var(--space-4);
+}
+.hub-tools .tool-card {
+  width: 100%;
+}
+.hub-tools .hand li {
+  min-width: 0;
+  flex: 1;
+}
+.hub-room {
+  /* 左列（札）より短く終わるのは自然なので引き伸ばさない。参加者が 1 人のときに
+     中身の無いパネルを作るほうが悪い。代わりに間を詰めて「短い」を意図に見せる。 */
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+.hub-panel {
+  min-width: 0;
+  padding: var(--space-5);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  background: var(--felt-900);
+}
+.hub-heading {
+  margin: 0 0 var(--space-4);
+  font-size: var(--font-size-base);
+  line-height: var(--line-tight);
+  letter-spacing: 0;
+  color: var(--ivory);
+}
+.hub-roster {
   list-style: none;
   padding: 0;
   margin: 0;
 }
-
 .hub-participant {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: 0.6rem;
-  padding: 0.45rem 0.7rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-card, 0.5rem);
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-3) 0;
   color: var(--ivory);
 }
-
-/* 切断中の人は薄く出す（名簿からは消えない・設計正本 §3.13）。 */
-.hub-participant[data-presence='offline'] {
-  color: var(--ivory-faint);
+.hub-participant + .hub-participant {
+  border-top: 1px solid var(--line);
 }
-
+.hub-participant-name {
+  font-weight: 500;
+}
 .hub-participant-where {
-  font-size: 0.8rem;
-  color: var(--pewter);
+  flex-basis: 100%;
+  font-size: var(--font-size-xs);
+  color: var(--ivory-dim);
 }
-
+.hub-participant[data-presence='offline'] {
+  color: var(--ivory-dim);
+}
+.hub-presence {
+  color: var(--ivory-dim);
+  font-size: var(--font-size-xs);
+}
 .hub-invite {
-  width: 100%;
+  /* URL は桁を揃えたいものなので等幅に置く（`--font-mono` の定義コメントの用途）。
+     percent-encode の並びが締まって、記号の連なりが読めるようになる。 */
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
 }
-
 .hub-invite-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 0.75rem;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
 }
+.hub-invite-actions button {
+  padding: var(--space-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--felt-800);
+  color: var(--ivory);
+  box-shadow: none;
+  font-size: var(--font-size-sm);
+  letter-spacing: 0;
+}
+.hub-invite-actions button:hover:not(:disabled) {
+  background: var(--felt-700);
+}
+/* コピーの結果は空 → 文字 → 空と入れ替わる（#269）。**高さを先に確保しておく** ——
+   確保しないと文字が出た瞬間に直下の `.hub-invite-qr` が押し下がり、QR を開いたまま
+   コピーした人の手元で的が動く。`:empty` の余白調整では高さが埋まらないので効かない。
 
+   確保するのは **1 行分の行箱**（`--line-normal`）であって `1.5em` では足りない。
+   本文の行間は 1.7 なので、1.5em だと 0.2em だけ足りずに 2〜3px 動く（#269 の値が
+   これで、実測して初めて残っているのが分かった）。
+
+   ⚠ **この規則は検査に掛からない。** E2E は横幅とコントラストしか測っておらず、
+   縦のずれは見ていないので、消しても緑のまま通る。 */
 .hub-invite-status {
-  min-height: 1.5em;
+  min-height: calc(1em * var(--line-normal));
+  margin: var(--space-3) 0 0;
   color: var(--ivory-dim);
-  font-size: 0.85rem;
+  font-size: var(--font-size-sm);
 }
-
+.hub-invite-qr {
+  margin-top: var(--space-4);
+}
 .hub-invite-qr img {
   display: block;
   max-width: 100%;
   height: auto;
-  /* 白い余白は QR 画像に含まれる。卓の配色で上書きしない。 */
 }
-
-/* 端末に残った完了記録への入口（#95 S5c）。フォーム submit と紛れないよう控えめに。 */
 .hub-secondary {
-  display: block;
-  width: min(100%, 24rem);
-  margin: 1rem auto 0;
-  padding: 0.6rem 1rem;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-card, 0.5rem);
+  padding: var(--space-2) var(--space-4);
   color: var(--ivory-dim);
   text-align: center;
-  text-decoration: none;
+  text-underline-offset: var(--space-1);
+}
+.hub-secondary:hover, .hub-secondary:focus-visible {
+  color: var(--ivory);
 }
 
-.hub-secondary:hover,
-.hub-secondary:focus-visible {
-  border-color: var(--gold);
-  color: var(--ivory);
+@media (max-width: 720px) {
+  .landing {
+    padding: var(--space-5) var(--space-4);
+  }
+  .hub-form {
+    padding: var(--space-5);
+  }
+  .hub-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .hub-tools {
+    padding: 0;
+  }
+  /* 札は基底の `.hand` と同じく縦に積む。**横に 2 枚並べると文字が入らない** ——
+     320px では札が 131px しか取れず、一行説明に 133px 必要で最後の 1 文字だけが
+     次行へ落ちた。横並びのまま収めるには 10.5px まで縮める必要があり、
+     「12px の本文で AA」という配色トークンの前提を割る。積めば 218px 取れて、
+     道具名も説明も 1 行に収まり、2 枚とも画面内に残る（実測）。
+
+     `.hub-tools .tool-card` の `width: 100%` は詳細度 (0,2,0) で基底の
+     `.tool-card`(0,1,0) に勝つので、ここで明示的に上書きする。 */
+  .hub-tools .hand {
+    padding: 0;
+    gap: var(--space-4);
+  }
+  .hub-tools .tool-card {
+    width: min(15rem, 68vw);
+    height: auto;
+    padding: var(--space-5) var(--space-4);
+  }
+  .hub-tools .hub-section-title {
+    margin-bottom: var(--space-5);
+  }
 }

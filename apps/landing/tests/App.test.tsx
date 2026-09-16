@@ -255,8 +255,8 @@ describe('選択画面', () => {
 
     // Then: 選択画面に居る人（tools が空）には出さない
     const items = screen.getByRole('list', { name: '参加者' }).querySelectorAll('li');
-    expect(items[0]?.textContent).toContain('に居ます');
-    expect(items[1]?.textContent).not.toContain('に居ます');
+    expect(items[0]?.textContent).toContain('にいます');
+    expect(items[1]?.textContent).not.toContain('にいます');
   });
 
   it('Given 切断中の人 / When 一覧を見る / Then 名簿には残る（消えない）', () => {
