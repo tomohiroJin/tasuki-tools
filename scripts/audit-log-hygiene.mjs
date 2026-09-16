@@ -62,6 +62,7 @@ export const SCANNED_PACKAGES = [
   "packages/room-core",
   // #95 S5a で新設（同期クライアントの接続部分）。
   "packages/sync-client",
+  "packages/invite-ui",
   "packages/timer-core",
 ];
 

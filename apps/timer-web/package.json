@@ -14,6 +14,7 @@
     "lint": "eslint src test"
   },
   "dependencies": {
+    "@tasuki/invite-ui": "workspace:*",
     "@tasuki/room-core": "workspace:*",
     "@tasuki/sync-client": "workspace:*",
     "@tasuki/timer-core": "workspace:*",
@@ -21,7 +22,6 @@
     "lucide-react": "^1.28.0",
     "neverthrow": "^8.2.0",
     "partysocket": "^1.0.2",
-    "qrcode": "^1.5.4",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "valibot": "^1.4.1"
@@ -32,7 +32,6 @@
     "@testing-library/jest-dom": "^7.0.0",
     "@testing-library/react": "^16.1.0",
     "@testing-library/user-event": "^14.6.3",
-    "@types/qrcode": "^1.5.5",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^6.0.5",

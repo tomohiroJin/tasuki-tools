@@ -89,6 +89,12 @@ export const EXCLUDED_PACKAGES = [
   { pkg: "apps/timer-web", reason: "アプリ層。NoAiProvider は ProblemProvider ポートのアダプタ" },
   { pkg: "e2e", reason: "テストコード。ドメインではない" },
   {
+    pkg: "packages/invite-ui",
+    reason:
+      "招待のブラウザ操作（ADR-0020）。Clipboard API・表示タイマー・QR 生成を担う境界であり、" +
+      "ドメインの判断を持たない",
+  },
+  {
     pkg: "packages/dev-hub-redirect",
     reason:
       "dev サーバー専用の Vite プラグインと玄関のポート（#95 S5c 追補）。ドメインの判断を持たず、" +

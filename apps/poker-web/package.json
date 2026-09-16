@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@tasuki/invite-ui": "workspace:*",
     "@tasuki/poker-core": "workspace:*",
     "@tasuki/room-core": "workspace:*",
     "@tasuki/sync-client": "workspace:*",

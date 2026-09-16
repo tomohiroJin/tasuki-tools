@@ -321,6 +321,26 @@
   width: 100%;
 }
 
+.hub-invite-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.hub-invite-status {
+  min-height: 1.5em;
+  color: var(--ivory-dim);
+  font-size: 0.85rem;
+}
+
+.hub-invite-qr img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  /* 白い余白は QR 画像に含まれる。卓の配色で上書きしない。 */
+}
+
 /* 端末に残った完了記録への入口（#95 S5c）。フォーム submit と紛れないよう控えめに。 */
 .hub-secondary {
   display: block;
