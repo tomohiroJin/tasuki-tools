@@ -15,10 +15,14 @@
  *   - 先頭が不在だと、難易度・言語を変えてもお題が作り直されない
  *     （バッジだけ「上級」になり、中身は初級のまま）
  *
- * **お題が未確定の状態（`problem: null`）を作っているのはサーバーである**
- * （`application/initial-timer-state.ts` が唯一の書き手）。それを埋める責任も
- * 同じ側に置く。クライアントに「代表」を置く限り、在席していない人に依頼を
- * 期待する構造が残り続ける。
+ * **お題が未確定の状態（`problem: null`）を作るのも埋めるのもサーバーである。**
+ * だから埋める責任もサーバー側に置く —— クライアントに「代表」を置く限り、
+ * 在席していない人に依頼を期待する構造が残り続ける。
+ *
+ * **書き手を数えて書かない**（`application/lobby-problem.ts` の注記と同じ理由）。
+ * かつてここには「`initial-timer-state.ts` が唯一の書き手」とあったが、#273 で
+ * 2 つ目が増えてその 1 文だけが嘘になった。見るべきは人数ではなく、
+ * **ロビーで `problem` が null なら誰かが用意する**という不変条件のほうである。
  */
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import type { Problem, ServerMsg } from "@tasuki/timer-core";
