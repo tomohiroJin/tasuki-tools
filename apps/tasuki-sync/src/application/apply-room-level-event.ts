@@ -134,12 +134,9 @@ function applyRoomLevelEvent(
       // phase を書く場所はこのファイルの 3 箇所（ここと `SessionCompleted` /
       // `SessionAborted` の `celebration`）と `initial-timer-state.ts` の
       // 初期値だけである。ロビーへ**入る**遷移はここにしか無い。
-      const entersLobby = isLobbyPhase(event.phase) && !isLobbyPhase(room.phase);
-      return withTimer(state, {
-        ...room,
-        phase: event.phase,
-        ...(entersLobby ? { problem: null } : {}),
-      });
+      const next: TimerState = { ...room, phase: event.phase };
+      if (isLobbyPhase(event.phase) && !isLobbyPhase(room.phase)) next.problem = null;
+      return withTimer(state, next);
     }
     case "SessionReset":
       // リセット＝最初から再スタート（v2.3 #3）。集約(session/clock)は evolve が
