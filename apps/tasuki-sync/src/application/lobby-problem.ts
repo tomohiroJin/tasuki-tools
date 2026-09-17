@@ -17,13 +17,26 @@ import type { TimerState } from "@tasuki/timer-core";
 import type { ProblemDelegator } from "./problem-delegation.js";
 
 /**
+ * ロビー（セッション開始前）を表す phase か。
+ *
+ * **捨てる側と埋める側で定義が割れないよう、ここ 1 箇所が持つ**（#273）。
+ * 捨てる側（`apply-room-level-event.ts` の `PhaseSet`）が「ロビーへ入った」と見なす
+ * 範囲と、埋める側（{@link fillLobbyProblem}）が「お題を用意する」範囲がずれると、
+ * **落としたきり誰も埋めないロビー**ができる（片方だけ `ready` を含めた形が
+ * ちょうどそれになる）。1 行の重複だが、ずれた側が行き止まりを作るので共有する。
+ */
+export function isLobbyPhase(phase: TimerState["phase"]): boolean {
+  return phase === "setup" || phase === "ready";
+}
+
+/**
  * お題を使うルームか（`problemEnabled` は任意項目で、既定は「使う」）。
  *
  * **ロビー（開始前）だけを見る。** 走っているセッションの足元でお題を差し替えない。
  */
 function wantsLobbyProblem(timer: TimerState): boolean {
   if (timer.config.problemEnabled === false) return false;
-  return timer.phase === "setup" || timer.phase === "ready";
+  return isLobbyPhase(timer.phase);
 }
 
 /**

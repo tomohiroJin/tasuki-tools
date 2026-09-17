@@ -21,6 +21,9 @@
 import { buildCompletionRecord, type Aggregate, type DomainEvent, type RotationEntry, type TimerState } from "@tasuki/timer-core";
 import type { Room as MembershipRoom } from "@tasuki/room-core";
 import { rotationDisplayNames } from "./timer-snapshot-dto.js";
+// ロビーの定義は「お題を用意する側」が持つ（`lobby-problem.ts` の `isLobbyPhase`）。
+// ここが落とす範囲と向こうが埋める範囲は一致していなければならない（#273）。
+import { isLobbyPhase } from "./lobby-problem.js";
 
 /** 1 ルームの状態一式（名簿と timer の状態。`code` で対になっている）。 */
 export interface RoomState {
@@ -107,14 +110,37 @@ function applyRoomLevelEvent(
 ): StateWithAggregate {
   const room = state.timer;
   switch (event.type) {
-    case "PhaseSet":
+    case "PhaseSet": {
       // かつてここには `startedAt`（一度でも開始したかを表す単調フラグ）の記録があった。
       // 役割の廃止（#95 S3）で読み手が 0 件になり、S4a で `TimerState` から落とした。
       // **wire の型（`wire.ts`）と `RoomSchema` からも落としてある** —— 書き手も読み手も
       // 無い任意項目を宣言だけ残さないため（`wire.ts` の `startedAt` の注記）。
       // `RoomSchema` は非 strict の `v.object` なので、この項目を載せた古い snapshot の
       // パースは今までどおり通る。
-      return withTimer(state, { ...room, phase: event.phase });
+      //
+      // **ロビーへ入ってきたルームは、前のセッションのお題を持ち越さない**（#273）。
+      // #249（#95 S5c）で「新しいセッション」がルームをロビーへ戻す形になり、
+      // 同じルームで 2 本目を始める経路が初めてできた。お題を残すと 2 本目が
+      // 1 本目と同じお題で始まる。
+      //
+      // **埋め直しはここでは起こさない。** `lobby-problem.ts` が commit のたびに
+      // 「ロビーで `problem` が無いなら用意する」という**不変条件**を見ており（#271）、
+      // ここが null にすればその場で埋まる。引き金を並べる側には回らない。
+      //
+      // **ロビーの外から入ったときだけ落とす。** 既にロビーに居るルームへ
+      // `phase.set setup` がもう 1 通届いても（完了画面に居た 2 人目が遅れて押す）、
+      // 用意し終えたお題を捨てて全員の画面で作り直しを走らせない。
+      //
+      // phase を書く場所はこのファイルの 3 箇所（ここと `SessionCompleted` /
+      // `SessionAborted` の `celebration`）と `initial-timer-state.ts` の
+      // 初期値だけである。ロビーへ**入る**遷移はここにしか無い。
+      const entersLobby = isLobbyPhase(event.phase) && !isLobbyPhase(room.phase);
+      return withTimer(state, {
+        ...room,
+        phase: event.phase,
+        ...(entersLobby ? { problem: null } : {}),
+      });
+    }
     case "SessionReset":
       // リセット＝最初から再スタート（v2.3 #3）。集約(session/clock)は evolve が
       // 先頭・満タン・走行に初期化済み。お題・メンバー・設定・引き継ぎは維持し、
