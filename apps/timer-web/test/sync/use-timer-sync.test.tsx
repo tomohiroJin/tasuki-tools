@@ -15,7 +15,7 @@ import { saveRecord } from "../../src/records/indexeddb.js";
 import { FakeWS } from "../support/fakes.js";
 import { redirectTo } from "../../src/platform/location.js";
 import { aRoomView } from "../support/room-view.js";
-import { joinRetryDelayMs, saveResumeIdentity } from "@tasuki/sync-client";
+import { clearResumeIdentity, joinRetryDelayMs, saveResumeIdentity } from "@tasuki/sync-client";
 
 // 遷移は `platform/location.ts` に閉じている（#95 S5c・R9）。テストはそこを差し替える。
 vi.mock("../../src/platform/location.js", async (importOriginal) => {
@@ -468,8 +468,12 @@ describe("混雑で入室を拒まれたとき", () => {
       const send = vi.spyOn(ws, "send");
       deliver({ type: "error", code: "JOIN_RATE_LIMITED", message: "混み合っています" });
 
-      // When: 別タブが同じルームから退出し、この端末の復帰の組が消える
-      localStorage.removeItem(`tasuki:resume:${SEEDED_ROOM_CODE}`);
+      // When: 別タブが同じルームから退出し、この端末の復帰の組が消える。
+      // **鍵の形を写さない。** 退出の後始末が実際に呼ぶ関数をそのまま使う ——
+      // 生の `localStorage.removeItem()` で鍵を組み立てると、`@tasuki/sync-client` が
+      // 接頭辞や版を足した日に**黙って何も消さなくなり**、このテストは狙った枝
+      // （`sendResumeJoin` が偽を返す）へ一度も入らないまま別の理由で赤くなる。
+      clearResumeIdentity(SEEDED_ROOM_CODE);
       act(() => void vi.advanceTimersByTime(maxDelayOf(1) + 100));
 
       // Then: 送る材料が無いので送らず、利用者が次に取れる手立てを出す
