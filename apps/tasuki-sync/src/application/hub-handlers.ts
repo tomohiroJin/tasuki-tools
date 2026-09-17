@@ -25,6 +25,7 @@ import { parseBoundaryMessage } from "@tasuki/protocol";
 import { errorMessageFor } from "@tasuki/timer-core";
 import type { TimerStore } from "../ports/timer-store.js";
 import type { HubBroadcaster } from "../ports/hub-broadcaster.js";
+import { checkRoom } from "./check-room.js";
 import { createRoom, type CreateRoomDeps } from "./create-room.js";
 import { applyDisplayNameRule, INVALID_DISPLAY_NAME_MESSAGE } from "./display-name-rule.js";
 import { joinRoom, ROOM_NOT_FOUND_MESSAGE, type JoinRoomDeps } from "./join-room.js";
@@ -99,6 +100,21 @@ export function makeHubHandlers(deps: HubHandlerDeps): HubHandlers {
     saveRoster(deps, membership);
   }
 
+  /**
+   * ルームの生死だけを返す（#274）。**名乗る前に尋ねられる唯一の問い合わせである。**
+   *
+   * 規則は `check-room.ts` が持つ。**合言葉の関門は通さない**（同ファイルの理由を参照）。
+   * 在るときは何も返さない —— 無音で足りるうえ、確定的な肯定は開示が大きい。
+   */
+  function handleCheck(connId: string, cmd: Extract<HubCommand, { command: "room.check" }>): void {
+    const checked = checkRoom(deps, { connId, code: cmd.code });
+    if (checked.isErr()) {
+      // 文言の引き方は `handleJoin` と同じにする（言い回しの正本を 2 つ作らない）。
+      const code = checked.error;
+      fail(connId, code, code === "ROOM_NOT_FOUND" ? ROOM_NOT_FOUND_MESSAGE : errorMessageFor(code));
+    }
+  }
+
   function handleJoin(connId: string, cmd: Extract<HubCommand, { command: "room.join" }>): void {
     const displayName = normalized(connId, cmd.displayName);
     if (displayName === null) return;
@@ -113,10 +129,16 @@ export function makeHubHandlers(deps: HubHandlerDeps): HubHandlers {
     });
 
     if (joined.isErr()) {
-      // **文言は timer の入口と同じにする。** 選択画面から総当たりされたときに、
-      // 「存在しないルーム」と「入れないルーム」を区別させない（ADR 0011）。
-      // **文言の正本は 1 つ**（`@tasuki/timer-core` の文言表と `ROOM_NOT_FOUND_MESSAGE`）。
+      // **文言の正本は 1 つにする**（`@tasuki/timer-core` の文言表と `ROOM_NOT_FOUND_MESSAGE`）。
       // ここで書き下ろすと、同じコードに 2 つの言い回しが生まれ、片方だけが直る。
+      //
+      // ⚠ **ハブは「存在しないルーム」と「合言葉が要るルーム」を区別して返す。**
+      // 前者は `ROOM_NOT_FOUND`、後者は `PASSPHRASE_REQUIRED` で、文言も違う。
+      // ハブは合言葉を送れるので、これは意図された開示である（選択画面で合言葉を
+      // 通ってからツールを選ぶのが正規の経路）。区別させないのは**合言葉を送れない
+      // 入口**（poker）の側の規律であり、そちらは `room-entry.ts` が受け持つ。
+      // S4a の入口ごとの門があった頃は、ここにも「区別させない」と書いてあったが、
+      // 門の廃止（#95 S5b）で対象を失っていた（#274 で訂正）。
       const code = joined.error;
       fail(
         connId,
@@ -153,6 +175,10 @@ export function makeHubHandlers(deps: HubHandlerDeps): HubHandlers {
       const cmd = parsed.value;
       if (cmd.command === "room.create") {
         handleCreate(connId, cmd);
+        return;
+      }
+      if (cmd.command === "room.check") {
+        handleCheck(connId, cmd);
         return;
       }
       handleJoin(connId, cmd);
