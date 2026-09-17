@@ -104,7 +104,16 @@ export const HubCommandSchema: v.GenericSchema<HubCommand> = v.variant("command"
     resumeToken: v.optional(v.string()),
     passphrase: v.optional(v.string()),
   }),
-  v.object({
+  // **ここだけ strict にする。** 余剰フィールドを拒むのは `docs/adr/0011` 決定2 の
+  // 脅威 S3 が MUST とする規律で、poker の `ClientMessage`（`poker-core/src/protocol.ts`）は
+  // 既に `v.strictObject` で揃えてある。
+  //
+  // 上の `room.create` / `room.join` が非 strict なのは**古い取り決めの名残**である。
+  // このファイルの冒頭が挙げる非 strict の理由（サーバーが項目を足したとき、古い
+  // クライアントがフレームごと捨てるのを避ける）は、**サーバーから画面へ送る
+  // `HubServerMsg` の話**であって、画面からサーバーへ送るコマンドには当てはまらない。
+  // 新設のこのコマンドには古いクライアントが居ないので、厳しい側から始める。
+  v.strictObject({
     command: v.literal("room.check"),
     code: nonEmptyString,
   }),
