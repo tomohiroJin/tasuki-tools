@@ -255,6 +255,17 @@ export class ProblemDelegator {
     return true;
   }
 
+  /**
+   * そのルームで委譲が走っているか（#271）。
+   *
+   * 「お題が無いなら用意する」側（`lobby-problem.ts`）が、**参加のたびに
+   * 張り直さない**ために見る。`problem` が null であることは「誰も依頼していない」を
+   * 意味しない —— 依頼済みで返りを待っている間も null である。
+   */
+  isRequesting(roomCode: string): boolean {
+    return this.active.has(roomCode) || this.activeServer.has(roomCode);
+  }
+
   /** ルームの進行中委譲をキャンセルする */
   cancel(roomCode: string): void {
     const state = this.active.get(roomCode);

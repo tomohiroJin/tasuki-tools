@@ -58,6 +58,7 @@ import { createAiUnlockHandler } from "./command-handlers/ai-unlock.js";
 import { createProblemRequestHandler } from "./command-handlers/problem-request.js";
 import { createProblemSubmitHandler } from "./command-handlers/problem-submit.js";
 import { handleParticipantRemove } from "./command-handlers/participant-remove.js";
+import { fillLobbyProblem, regenerateLobbyProblem } from "./lobby-problem.js";
 
 /**
  * 在室を前提としないコマンド（FR-151）。
@@ -415,6 +416,7 @@ export function makeHandlers(deps: HandlerDeps) {
     codeGen,
     tokenStore,
     maxRooms,
+    delegator,
     sendError,
   });
 
@@ -427,6 +429,7 @@ export function makeHandlers(deps: HandlerDeps) {
     codeGen,
     tokenStore,
     rateLimitGate,
+    delegator,
     sendError,
   });
 
@@ -628,6 +631,9 @@ export function makeHandlers(deps: HandlerDeps) {
     }
 
     const now = clock.now();
+    // 設定変更でお題を作り直すかを決めるための「変更前」（#271）。`applyEvents` を
+    // 通した後では取れないので、ここで控える。
+    const configBefore = state.timer.config;
     const agg = { session: state.timer.session, clock: state.timer.clock };
     const result = decide(domainCmd, agg, now);
 
@@ -688,6 +694,25 @@ export function makeHandlers(deps: HandlerDeps) {
     commit(state);
     // clock 状態が変わった可能性があるので自動交代を調停する（FR-003）
     reconcileSchedule(state.timer);
+
+    // **ロビーでお題を使うルームには、お題がある**（#271）。
+    //
+    // かつてはクライアントの「代表」（輪の先頭）がこの 2 つを送っていた。
+    // 先頭が timer に居ないと誰も送らず、**お題が永久に出ない**か、
+    // **バッジだけが新しい難易度になり中身は古いまま**になっていた。
+    //
+    // **引き金を並べずに、commit のたびに不変条件を見る。** 引き金の列挙は
+    // 必ず取りこぼす —— 実際に「お題なし → お題あり」は、難易度の変更だけを
+    // 見ていたときに漏れていた。
+    if (
+      state.timer.config.language !== configBefore.language ||
+      state.timer.config.difficulty !== configBefore.difficulty
+    ) {
+      // 設定が変わったなら、走っている委譲を畳んで選び直す（リロールと同じ・FR-027）。
+      regenerateLobbyProblem(delegator, state.timer, now);
+    } else {
+      fillLobbyProblem(delegator, state.timer);
+    }
 
     // セッションを畳む操作は在室者なら誰でも実行できる（#95 S3）。
     // 誰が実行したか分からないと画面が突然変わった理由を追えないため全員へ伝える（FR-077）。

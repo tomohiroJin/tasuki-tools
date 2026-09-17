@@ -145,6 +145,7 @@ application/
   schedule.ts        サーバー権威タイマー（1 本の setTimeout で次交代のみ待つ）
   presence.ts        プレゼンス間引き・ドライバー不在の繰り上げ（猶予 30 秒）
   problem-delegation.ts  お題の代表生成・タイムアウト・再委譲・定型縮退
+  lobby-problem.ts   ロビーのお題を用意する引き金（#271。旧来はクライアントが送っていた）
   ai-limits.ts       AI 生成の濫用抑制（同時 1・クールダウン・日次上限）
   room-reclaimer.ts  アイドルルームの回収
   admin.ts           管理エンドポイント（127.0.0.1 限定）

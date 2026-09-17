@@ -17,9 +17,9 @@ import type { Room } from "@tasuki/timer-core";
 /**
  * 自分の参加者 ID。
  *
- * **`aRoomView()` の既定のルームは輪の先頭がこの人である。** お題の代表は
- * 「輪の先頭」で決まる（#95 S5c・R9）ので、既定のままなら自分が代表になる。
- * 代表でない側を見たいテストは `session.rotation` を明示して外す。
+ * **`aRoomView()` の既定のルームは輪の先頭がこの人である。** #271 で
+ * お題の依頼はサーバーへ移ったので、先頭かどうかはお題の判断には効かない
+ * （輪に関わるのは参加時ドライバー宣言だけ）。
  */
 const SELF = "creator-p";
 
@@ -29,7 +29,6 @@ function baseCtx(overrides: Partial<SnapshotContext> = {}): SnapshotContext {
     pendingResume: null,
     resumeDisplayName: "",
     pendingDriverJoin: false,
-    problemRequested: false,
     recordSaved: false,
     generatingProblem: false,
     endType: "complete",
@@ -169,16 +168,17 @@ describe("decideSnapshotIntents: 完了状態の後片付け", () => {
 });
 
 describe("decideSnapshotIntents: お題", () => {
-  it("輪の先頭の人はロビーでお題が無ければ一度だけ依頼する", () => {
-    // Given
+  it("ロビーでお題が無くても、クライアントは依頼を送らない（サーバーが用意する・#271）", () => {
+    // Given: ロビーでお題が未確定。**自分は輪の先頭である**（旧実装ならここで依頼していた）
     const room = aRoomView({ code: "ROOM01", phase: "ready", problem: null });
-    // When
-    const intents = decideSnapshotIntents(null, room, baseCtx());
-    // Then
-    expect(intents).toContainEqual({ kind: "request-problem", requestId: "req-ROOM01-lobby" });
+
+    // When / Then: 立つのは画面追従だけ。
+    // **`not.toContain("request-problem")` では見張れない** —— その意図は型から
+    // 消えたので、その検査は永久に成立する（恒真）。意図の並びを丸ごと突き合わせる。
+    expect(kinds(room, baseCtx())).toEqual(["set-screen"]);
   });
 
-  it("輪の先頭でなければ依頼しない（全員が送ると委譲が何度も張り直される）", () => {
+  it("輪の先頭でなくても、クライアントは依頼を送らない（#271）", () => {
     // Given: 輪の先頭は自分ではない
     const room = aRoomView({
       code: "ROOM01",
@@ -187,61 +187,20 @@ describe("decideSnapshotIntents: お題", () => {
       session: { rotation: ["someone-else", SELF], currentIndex: 0, driverCounts: [0, 0] },
     });
 
-    // When / Then（kinds の戻り値をそのまま検証するため操作と検証が同じ式になる）
-    expect(kinds(room, baseCtx())).not.toContain("request-problem");
+    // When / Then: 立つのは画面追従だけ（恒真にならないよう並びごと見る）
+    expect(kinds(room, baseCtx())).toEqual(["set-screen"]);
   });
 
-  it("自分の participantId が未確定なら依頼しない（空文字と空の輪を突き合わせない）", () => {
-    // Given: identity 未受信で、輪もまだ空
-    const room = aRoomView({
-      code: "ROOM01",
-      phase: "ready",
-      problem: null,
-      session: { rotation: [], currentIndex: 0, driverCounts: [] },
-    });
-
-    // When / Then
-    expect(kinds(room, baseCtx({ participantId: "" }))).not.toContain("request-problem");
-  });
-
-  it("既に依頼済みなら送らない", () => {
-    // Given
-    const room = aRoomView({ code: "ROOM01", phase: "ready", problem: null });
-    const ctx = baseCtx({ problemRequested: true });
-    // When / Then（kinds の戻り値をそのまま検証するため操作と検証が同じ式になる）
-    expect(kinds(room, ctx)).not.toContain("request-problem");
-  });
-
-  it("難易度が変わったら輪の先頭の人が作り直しを依頼する（requestId に now が入る）", () => {
-    // Given
+  it("難易度が変わっても、クライアントは生成中の表示を立てない（#271 レビュー）", () => {
+    // Given: 難易度が変わった
     const prev = aRoomView({ code: "ROOM01", phase: "ready", problem, config: { difficulty: "easy" } });
     const next = aRoomView({ code: "ROOM01", phase: "ready", problem, config: { difficulty: "hard" } });
-    // When
-    const intents = decideSnapshotIntents(prev, next, baseCtx({ now: 42 }));
-    // Then
-    expect(intents).toContainEqual({ kind: "regenerate-problem", requestId: "req-ROOM01-cfg-42" });
-  });
 
-  it("輪の先頭でなければ作り直しを依頼しない（並び替えで代表が替わる）", () => {
-    // Given: 難易度が変わったが、輪の先頭は自分ではない
-    const rotation = { rotation: ["someone-else", SELF], currentIndex: 0, driverCounts: [0, 0] };
-    const prev = aRoomView({
-      code: "ROOM01",
-      phase: "ready",
-      problem,
-      config: { difficulty: "easy" },
-      session: rotation,
-    });
-    const next = aRoomView({
-      code: "ROOM01",
-      phase: "ready",
-      problem,
-      config: { difficulty: "hard" },
-      session: rotation,
-    });
-
-    // When / Then（kinds の戻り値をそのまま検証するため操作と検証が同じ式になる）
-    expect(kinds(next, baseCtx(), prev)).not.toContain("regenerate-problem");
+    // When / Then: 作り直すのはサーバーで、待ちの表示も立てない。
+    // **立てると降ろせなくなる** —— サーバーは設定変更とお題確定の snapshot を
+    // 同じ tick で送るので、2 本目を処理する時点でも「生成中ではない」ままになり、
+    // 内容差分で降ろす clear-generating が成立しない（実測で 65 秒固まった）。
+    expect(kinds(next, baseCtx(), prev)).toEqual(["set-screen"]);
   });
 
   it("別のルームの snapshot なら設定変更とみなさない", () => {
@@ -249,7 +208,17 @@ describe("decideSnapshotIntents: お題", () => {
     const prev = aRoomView({ code: "OTHER", phase: "ready", problem, config: { difficulty: "easy" } });
     const next = aRoomView({ code: "ROOM01", phase: "ready", problem, config: { difficulty: "hard" } });
     // When / Then（kinds の戻り値をそのまま検証するため操作と検証が同じ式になる）
-    expect(kinds(next, baseCtx(), prev)).not.toContain("regenerate-problem");
+    expect(kinds(next, baseCtx(), prev)).toEqual(["set-screen"]);
+  });
+
+  it("お題を使わないルームでは、設定が変わっても生成中の表示を出さない（#271）", () => {
+    // Given: お題なしのルームで難易度だけが変わった
+    const cfg = { problemEnabled: false };
+    const prev = aRoomView({ code: "ROOM01", phase: "ready", problem, config: { ...cfg, difficulty: "easy" } });
+    const next = aRoomView({ code: "ROOM01", phase: "ready", problem, config: { ...cfg, difficulty: "hard" } });
+
+    // When / Then
+    expect(kinds(next, baseCtx(), prev)).toEqual(["set-screen"]);
   });
 
   it("生成中にお題の内容が変わったら生成中を解除する", () => {
@@ -319,19 +288,7 @@ describe("decideSnapshotIntents: 順序（振る舞いそのもの）", () => {
       "set-screen",
       "persist-completion",
     ]);
-    // 注: celebration では request-problem / regenerate-problem は立たない
-    // （どちらも phase が setup/ready のときだけ）。
+    // 注: お題系の意図はもう無い（依頼も待ちの表示もサーバー側・#271）。
   });
 
-  it("phase=ready でお題が無い代表の snapshot では、set-screen が request-problem より前に来る", () => {
-    // 上のケースは celebration シナリオのため、set-screen とお題系 2 意図
-    // （request-problem・regenerate-problem）の相対順を誰も見ていなかった。
-    // set-screen（4番目）は request-problem（5番目）より先に配列へ積まれるはず。
-    // Given
-    const room = aRoomView({ code: "ROOM01", phase: "ready", problem: null });
-    // When
-    const intents = decideSnapshotIntents(null, room, baseCtx());
-    // Then
-    expect(intents.map((i) => i.kind)).toEqual(["set-screen", "request-problem"]);
-  });
 });

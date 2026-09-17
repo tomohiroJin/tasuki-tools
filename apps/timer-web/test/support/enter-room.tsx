@@ -6,9 +6,9 @@
  * 復帰の組を置いて `?room=CODE` を開くと、`useTimerSync` の入口の effect が
  * `room.join` を送る（撤去前は「名前を入れて『ルームを作る』を押す」だった）。
  *
- * **お題の代表にはならない。** 代表は「輪の先頭」で決まる（`ui/problem-generation.ts`）
- * ので、代表として振る舞わせたいテストは `session.rotation` の先頭をこの参加者にすること
- * （`useTimerSync` を直接呼んでも代表にはならない）。
+ * **お題の依頼には関与しない。** #271 で依頼はサーバーへ移り、クライアントから
+ * 「代表」の概念が消えた（`apps/tasuki-sync/src/application/lobby-problem.ts`）。
+ * 輪の先頭であるかどうかは、お題の振る舞いには効かない。
  */
 import { render, act } from "@testing-library/react";
 import React from "react";

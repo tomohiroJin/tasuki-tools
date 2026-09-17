@@ -7,7 +7,7 @@
  *
  * **配列の順が振る舞いである。** 現行 handleRoom の実行順をそのまま保つ:
  * resume 保存 → 参加時ドライバー宣言 → 生成中の解除 → 完了状態の後片付け →
- * 画面遷移 → お題の自動依頼 → 設定変更での作り直し → 完成記録。
+ * 画面遷移 → 完成記録。
  *
  * **現在時刻は ctx.now で注入する。** この module から `Date.now()` を呼ばない
  * （`docs/adr/0016`。#166 が timer-core の pickFallback に対して採った作法と同じ）。
@@ -16,11 +16,7 @@
 import { buildCompletionRecord, type CompletionRecord, type Room } from "@tasuki/timer-core";
 import { screenForPhase, type Screen } from "../ui/screen.js";
 import { shouldAutoJoinRotation } from "../ui/join-driver-intent.js";
-import {
-  isRotationRepresentative,
-  shouldAutoRequestProblem,
-  shouldClearGenerating,
-} from "../ui/problem-generation.js";
+import { shouldClearGenerating } from "../ui/problem-generation.js";
 import type { ResumeIdentity } from "@tasuki/sync-client";
 
 export type SnapshotIntent =
@@ -36,10 +32,6 @@ export type SnapshotIntent =
   | { kind: "clear-completion" }
   /** サーバー権威の phase に画面を追従させる。 */
   | { kind: "set-screen"; screen: Screen }
-  /** ロビーでの代表お題生成を依頼する。 */
-  | { kind: "request-problem"; requestId: string }
-  /** 難易度・言語の変更でお題を作り直す（生成中の表示も立てる）。 */
-  | { kind: "regenerate-problem"; requestId: string }
   /** 完成記録を作って保存する。 */
   | { kind: "persist-completion"; record: CompletionRecord };
 
@@ -52,15 +44,13 @@ export interface SnapshotContext {
   resumeDisplayName: string;
   /** 参加時に "driver" を宣言したか。 */
   pendingDriverJoin: boolean;
-  /** ロビーでのお題自動生成を既に依頼したか。 */
-  problemRequested: boolean;
   /** 完成記録を既に保存したか。 */
   recordSaved: boolean;
   /** お題生成中の表示が出ているか。 */
   generatingProblem: boolean;
   /** 終了種別。中断のときは完成記録を作らない。 */
   endType: "complete" | "abort";
-  /** 現在時刻。requestId と完成記録に使う。 */
+  /** 現在時刻。完成記録に使う。 */
   now: number;
 }
 
@@ -124,39 +114,21 @@ export function decideSnapshotIntents(
   // 5. サーバー権威の phase に全参加者が追従する（誰の開始/完成でも全員に反映）。
   intents.push({ kind: "set-screen", screen: screenForPhase(next.phase) });
 
-  // 6. ロビー（開始前）でお題が未確定かつ problemEnabled=true なら、
-  //    **輪の先頭の人**が一度だけ代表生成を依頼する（US3・#95 S5c・R9）。
-  //    かつては「ルームを作った側」だったが、ルームを作るのはハブになった。
-  const isRepresentative = isRotationRepresentative(ctx.participantId, next.session.rotation);
-  if (
-    shouldAutoRequestProblem({
-      phase: next.phase,
-      hasProblem: !!next.problem,
-      isRepresentative,
-      alreadyRequested: ctx.problemRequested,
-      problemEnabled: next.config.problemEnabled !== false,
-    })
-  ) {
-    intents.push({ kind: "request-problem", requestId: `req-${next.code}-lobby` });
-  }
+  // ⚠ **ここに「設定が変わったら生成中の表示を出す」を置いてはならない**（#271 のレビュー）。
+  //
+  //    サーバーは設定変更の snapshot と、作り直したお題の snapshot を**同じ tick で
+  //    続けて送る**。`handleRoom` が読む `room` と `generatingProblem` は直前のレンダー
+  //    時点の値なので、2 本目を処理する時点でもまだ「変更前のルーム・生成中ではない」
+  //    ままである。結果、**お題が確定した後の snapshot で生成中が立ち直り**、
+  //    内容差分で降ろす `clear-generating`（上の 3.）は二度と成立しない。
+  //    実測では `aria-busy=true` のまま 6 秒経っても降りず、お題パネル全体が
+  //    `pointer-events: none` で固まった（65 秒の安全弁が切れるまで全員が操作できない）。
+  //
+  //    「別のお題にする」の生成中表示は押した人の操作の中で立てている
+  //    （`use-timer-sync.ts` の `regenerateProblem`）ので、この経路とは無関係である。
+  //    設定変更でも待ちを見せたいなら、**生成中をサーバー権威の状態にする**こと（#283）。
 
-  // 7. 難易度・言語をロビーで変えたら、お題を作り直して選択と中身を一致させる。
-  //    代表（輪の先頭）のみが依頼し、変化時だけ発火するのでループしない。
-  const cfgChanged =
-    prev?.code === next.code &&
-    (prev.config.difficulty !== next.config.difficulty ||
-      prev.config.language !== next.config.language);
-  if (
-    cfgChanged &&
-    isRepresentative &&
-    (next.phase === "setup" || next.phase === "ready") &&
-    !!next.problem &&
-    next.config.problemEnabled !== false
-  ) {
-    intents.push({ kind: "regenerate-problem", requestId: `req-${next.code}-cfg-${ctx.now}` });
-  }
-
-  // 8. 完成フェーズかつ「完成（中断でない）」のとき、各端末でローカル記録を生成する
+  // 6. 完成フェーズかつ「完成（中断でない）」のとき、各端末でローカル記録を生成する
   //    （FR-020/028/059）。中断（abort）では記録を作らない。
   if (next.phase === "celebration" && next.problem && ctx.endType !== "abort" && !ctx.recordSaved) {
     intents.push({
