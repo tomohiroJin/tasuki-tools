@@ -39,6 +39,8 @@ describe('不在の知らせ', () => {
     // 最初から無いコードなのか、サーバーが再起動したのかを言い分けられない
     render(<RoomGone code="朝会モブ-a1b2" />);
 
+    // **否定の前に肯定を置く。** 否定だけだと、何も描かれていない画面に対しても緑になる
+    expect(screen.getByRole('heading', { name: 'ルームが見つかりません' })).toBeTruthy();
     expect(screen.queryByText(/終了しています/)).toBeNull();
   });
 

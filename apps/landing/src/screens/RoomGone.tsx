@@ -41,8 +41,11 @@ export function RoomGone({ code }: RoomGoneProps) {
         終了したか、URL が正しくない可能性があります。
       </p>
 
-      {/* **戻る道。** これが無いと行き止まりになる。 */}
-      <a className="hub-submit" href="/">
+      {/* **戻る道。** これが無いと行き止まりになる。
+          `hub-submit` は `<button>` 専用（下線が消えず、影も要素セレクタ `button` にしか
+          掛からない）。**ハブでリンクを飾るのは `hub-secondary` である**（`HistoryLink` と同じ）。
+          poker の同じ画面も、戻る道は素のリンクにしてある。 */}
+      <a className="hub-secondary" href="/">
         新しいルームを作る
       </a>
 
