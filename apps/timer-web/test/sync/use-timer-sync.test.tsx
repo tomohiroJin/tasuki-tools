@@ -195,13 +195,33 @@ describe("useTimerSync: メッセージの配線", () => {
     expect(result.current.mode).toBe("session");
   });
 
-  it("identity を受け取ると participantId が入る", () => {
-    // Given
-    const { result, deliver } = connected();
-    // When
-    deliver({ type: "room.joined", code: "ROOM01", resumeToken: "rt", participantId: "me" });
+  /**
+   * サーバーが発行した identity が、入口の effect が置いた「保存値の自分」を上書きする。
+   *
+   * **保存値とサーバー発行値は必ず別の ID にする。** 同じ ID にすると、入口の effect が
+   * `setParticipantId(saved.participantId)` を呼んだ時点で期待値が成立し、
+   * `handleIdentity` の `setParticipantId` を潰しても緑のままになる（恒真）。
+   * #272 のレビューで、実際にこの形の恒真テストが見つかった。
+   *
+   * 実物の場面は**復帰トークンの失効**である。サーバーは別の `participantId` を
+   * 再発行するので、ここで上書きしないと保存値の古い自分が残り、
+   * `buildNoticeMessage` の「あなた」判定も StatusStrip の自分も**他人を指す**。
+   */
+  it("identity を受け取ると、保存値の participantId をサーバー発行の値で上書きする", () => {
+    // Given: 端末の保存値と、サーバーがこれから発行する値は別人の ID
+    const { result, deliver } = enterRoom(fakeBanner(), { participantId: "saved-me" });
+    expect(result.current.participantId, "入口の effect が保存値を立てている").toBe("saved-me");
+
+    // When: 復帰トークンが失効し、サーバーが別の participantId を再発行する
+    deliver({
+      type: "room.joined",
+      code: "ROOM01",
+      resumeToken: "rt-2",
+      participantId: "reissued-me",
+    });
+
     // Then
-    expect(result.current.participantId).toBe("me");
+    expect(result.current.participantId).toBe("reissued-me");
   });
 
   it("room-not-found でセッション喪失になり、再接続しても戻らない（EARS 4）", () => {
