@@ -110,3 +110,14 @@ timer-web が後者を持たないためである。
 > **表は 2026-08-17 時点の実測なのでそのまま残す**（`docs/adr/0002` の「ADR は追記のみ」）。
 > 記号の綴りは変わったが、**背景の観察（poker-web は純粋ロジックを `.ts` に切り出している）も
 > 決定の MUST 1 も変わっていない。**
+
+> **追記（2026-09-17・#272）**: 同じ表の `apps/timer-web/src/ui/join-driver-intent.ts` も
+> **到達不能になったので削除した**
+> （[#272](https://github.com/tomohiroJin/tasuki-tools/issues/272)）。参加時にドライバーを
+> 宣言する導線は旧入口（`Join`）にしか無く、#95 S5c（#249）の撤去で宣言を立てる者が
+> 消えたためである（名乗りは玄関に 1 つ）。同じ段で
+> `apps/timer-web/src/sync/snapshot-intents.ts` の `consume-driver-join` /
+> `join-rotation` の意図と、`apps/timer-web/src/sync/use-timer-sync.ts` の
+> `pendingDriverJoinRef` も畳んでいる。
+> **表は 2026-08-17 時点の実測なのでそのまま残す**（`docs/adr/0002` の「ADR は追記のみ」）。
+> 現時点で残っているのは 6 本であり、**背景の観察も決定の MUST 1 も変わっていない。**

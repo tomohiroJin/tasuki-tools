@@ -15,7 +15,7 @@ import { saveRecord } from "../../src/records/indexeddb.js";
 import { FakeWS } from "../support/fakes.js";
 import { redirectTo } from "../../src/platform/location.js";
 import { aRoomView } from "../support/room-view.js";
-import { joinRetryDelayMs } from "@tasuki/sync-client";
+import { clearResumeIdentity, joinRetryDelayMs, saveResumeIdentity } from "@tasuki/sync-client";
 
 // 遷移は `platform/location.ts` に閉じている（#95 S5c・R9）。テストはそこを差し替える。
 vi.mock("../../src/platform/location.js", async (importOriginal) => {
@@ -69,8 +69,40 @@ function fakeBannerRecordingArgs(): BannerController & {
   };
 }
 
-function latestSocket(): FakeWS {
-  return FakeWS.instances[FakeWS.instances.length - 1]!;
+/** 玄関で名乗った端末が開く URL のルームコード。 */
+const ENTERED_ROOM_CODE = "ROOM01";
+
+/**
+ * 玄関で名乗った端末としてフックを起こし、接続済みの FakeWS を返す（#272）。
+ *
+ * **`createRoom` / `joinRoom` は #272 で畳んだ。** ルームを作るのも名乗るのも玄関
+ * （`apps/landing`）の仕事になり、timer が接続を張る経路は入口の effect 1 つだけに
+ * なった —— 復帰の組を置いて `?room=CODE` を開く、という実物と同じ Given を通す。
+ */
+function enterRoom(
+  banner: BannerController,
+  options: { code?: string; participantId?: string; displayName?: string; resumeToken?: string } = {},
+) {
+  const {
+    code = ENTERED_ROOM_CODE,
+    participantId = "me",
+    displayName = "Creator",
+    resumeToken = "rt",
+  } = options;
+  saveResumeIdentity({ code, participantId, resumeToken, displayName });
+  window.history.replaceState(null, "", `/?room=${encodeURIComponent(code)}`);
+  const hook = renderHook(() => useTimerSync(banner));
+  const ws = FakeWS.instances[FakeWS.instances.length - 1];
+  if (ws === undefined) {
+    throw new Error("ルームへ入る接続が張られませんでした（入口の判定が変わった可能性）。");
+  }
+  act(() => {
+    ws.readyState = FakeWS.OPEN;
+    ws.onopen?.();
+  });
+  const deliver = (msg: Record<string, unknown>) =>
+    act(() => void ws.onmessage?.({ data: JSON.stringify(msg) } as MessageEvent));
+  return { ...hook, ws, deliver };
 }
 
 /** テスト用の完成記録（永続化ポリシーの判断には使わないので中身は任意）。 */
@@ -88,12 +120,15 @@ const A_RECORD: CompletionRecord = {
 beforeEach(() => {
   FakeWS.instances = [];
   vi.stubGlobal("WebSocket", FakeWS);
+  // 復帰の組は localStorage に残る（#95 S4b）。テスト間で漏らさない。
+  localStorage.clear();
   sessionStorage.clear();
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.mocked(saveRecord).mockReset().mockResolvedValue(undefined);
+  localStorage.clear();
   sessionStorage.clear();
   window.history.replaceState(null, "", "/");
 });
@@ -110,24 +145,16 @@ describe("useTimerSync: 接続の状態", () => {
     expect(result.current.mode).toBeNull();
   });
 
-  it("ルームを作ると WebSocket を 1 本だけ開く", () => {
-    // Given
-    const { result } = renderHook(() => useTimerSync(fakeBanner()));
-    // When
-    act(() => result.current.createRoom("Creator"));
+  it("玄関から入ると WebSocket を 1 本だけ開く", () => {
+    // Given / When
+    enterRoom(fakeBanner());
     // Then
     expect(FakeWS.instances).toHaveLength(1);
   });
 
   it("接続が切れると connState が reconnecting になる（EARS 2）", () => {
     // Given
-    const { result } = renderHook(() => useTimerSync(fakeBanner()));
-    act(() => result.current.createRoom("Creator"));
-    const ws = latestSocket();
-    act(() => {
-      ws.readyState = FakeWS.OPEN;
-      ws.onopen?.();
-    });
+    const { result, ws } = enterRoom(fakeBanner());
     expect(result.current.connState).toBe("online");
 
     // When
@@ -139,13 +166,7 @@ describe("useTimerSync: 接続の状態", () => {
   it("切断でバナーを出し、再確立で消す", () => {
     // Given
     const banner = fakeBanner();
-    const { result } = renderHook(() => useTimerSync(banner));
-    act(() => result.current.createRoom("Creator"));
-    const ws = latestSocket();
-    act(() => {
-      ws.readyState = FakeWS.OPEN;
-      ws.onopen?.();
-    });
+    const { ws } = enterRoom(banner);
     // When
     act(() => void ws.onclose?.());
     act(() => {
@@ -161,16 +182,7 @@ describe("useTimerSync: 接続の状態", () => {
 describe("useTimerSync: メッセージの配線", () => {
   function connected() {
     const banner = fakeBanner();
-    const hook = renderHook(() => useTimerSync(banner));
-    act(() => hook.result.current.createRoom("Creator"));
-    const ws = latestSocket();
-    act(() => {
-      ws.readyState = FakeWS.OPEN;
-      ws.onopen?.();
-    });
-    const deliver = (msg: Record<string, unknown>) =>
-      act(() => void ws.onmessage?.({ data: JSON.stringify(msg) } as MessageEvent));
-    return { ...hook, ws, banner, deliver };
+    return { ...enterRoom(banner), banner };
   }
 
   it("snapshot を受け取ると room と画面が更新される（EARS 1）", () => {
@@ -183,13 +195,33 @@ describe("useTimerSync: メッセージの配線", () => {
     expect(result.current.mode).toBe("session");
   });
 
-  it("identity を受け取ると participantId が入る", () => {
-    // Given
-    const { result, deliver } = connected();
-    // When
-    deliver({ type: "room.created", code: "ROOM01", resumeToken: "rt", participantId: "me" });
+  /**
+   * サーバーが発行した identity が、入口の effect が置いた「保存値の自分」を上書きする。
+   *
+   * **保存値とサーバー発行値は必ず別の ID にする。** 同じ ID にすると、入口の effect が
+   * `setParticipantId(saved.participantId)` を呼んだ時点で期待値が成立し、
+   * `handleIdentity` の `setParticipantId` を潰しても緑のままになる（恒真）。
+   * #272 のレビューで、実際にこの形の恒真テストが見つかった。
+   *
+   * 実物の場面は**復帰トークンの失効**である。サーバーは別の `participantId` を
+   * 再発行するので、ここで上書きしないと保存値の古い自分が残り、
+   * `buildNoticeMessage` の「あなた」判定も StatusStrip の自分も**他人を指す**。
+   */
+  it("identity を受け取ると、保存値の participantId をサーバー発行の値で上書きする", () => {
+    // Given: 端末の保存値と、サーバーがこれから発行する値は別人の ID
+    const { result, deliver } = enterRoom(fakeBanner(), { participantId: "saved-me" });
+    expect(result.current.participantId, "入口の effect が保存値を立てている").toBe("saved-me");
+
+    // When: 復帰トークンが失効し、サーバーが別の participantId を再発行する
+    deliver({
+      type: "room.joined",
+      code: "ROOM01",
+      resumeToken: "rt-2",
+      participantId: "reissued-me",
+    });
+
     // Then
-    expect(result.current.participantId).toBe("me");
+    expect(result.current.participantId).toBe("reissued-me");
   });
 
   it("room-not-found でセッション喪失になり、再接続しても戻らない（EARS 4）", () => {
@@ -273,18 +305,10 @@ describe("useTimerSync: 明示保存の失敗経路", () => {
 describe("useTimerSync: 開始（お題なし）", () => {
   it("お題が無い状態でロビーから開始すると problem.request → phase.set → session.act の順で送る", () => {
     // Given
-    const { result } = renderHook(() => useTimerSync(fakeBanner()));
     // 見るのは startSession() が送る 3 本の順序である。#271 でロビーの snapshot から
     // お題の自動依頼が消えたので、輪の先頭かどうかはこの順序に影響しない
     // （かつては代表だと自動依頼が混ざり、順序を確かめにくかった）。
-    act(() => result.current.joinRoom("ROOM01", "Guest"));
-    const ws = latestSocket();
-    act(() => {
-      ws.readyState = FakeWS.OPEN;
-      ws.onopen?.();
-    });
-    const deliver = (msg: Record<string, unknown>) =>
-      act(() => void ws.onmessage?.({ data: JSON.stringify(msg) } as MessageEvent));
+    const { result, ws, deliver } = enterRoom(fakeBanner(), { displayName: "Guest" });
     deliver({ type: "room.joined", code: "ROOM01", resumeToken: "rt", participantId: "p-1" });
     deliver({ type: "snapshot", room: aRoomView({ code: "ROOM01", phase: "ready" }) });
     expect(result.current.mode).toBe("lobby");
@@ -306,9 +330,7 @@ describe("useTimerSync: 開始（お題なし）", () => {
 describe("useTimerSync: 後始末", () => {
   it("unmount で WebSocket を閉じる", () => {
     // Given
-    const { result, unmount } = renderHook(() => useTimerSync(fakeBanner()));
-    act(() => result.current.createRoom("Creator"));
-    const ws = latestSocket();
+    const { unmount, ws } = enterRoom(fakeBanner());
     const closeSpy = vi.spyOn(ws, "close");
     // When
     unmount();
@@ -321,45 +343,18 @@ describe("混雑で入室を拒まれたとき", () => {
   /**
    * バナーを差し替えて接続済みにする（上の describe のものとは別に持つ）。
    *
-   * **入るのは参加（`joinRoom`）経路である。** `JOIN_RATE_LIMITED` は `room.join` の
-   * 応答であって `room.create` では返らないので、作成経路で演じるとこの describe の
-   * 前提が実在しない形になる。**#95 S4b では実害も出る** —— 復帰の組の鍵が
-   * ルームコード別になったため、どのルームへ入ろうとしていたかが分からないと
-   * 再送すべき組を引けない（作成経路は room.created が来るまでコードを知らない）。
+   * **入るのは参加（`room.join`）経路である。** `JOIN_RATE_LIMITED` は `room.join` の
+   * 応答であって `room.create` では返らない。**#95 S4b では実害も出る** —— 復帰の組の
+   * 鍵がルームコード別になったため、どのルームへ入ろうとしていたかが分からないと
+   * 再送すべき組を引けない。**#272 以降、timer が接続を張る経路はこれ 1 つだけ**
+   * （作成は玄関の仕事になった）なので、`enterRoom` がそのまま前提になる。
    */
   function connectedWith(banner: BannerController) {
-    const hook = renderHook(() => useTimerSync(banner));
-    act(() => hook.result.current.joinRoom(SEEDED_ROOM_CODE, "私"));
-    const ws = latestSocket();
-    act(() => {
-      ws.readyState = FakeWS.OPEN;
-      ws.onopen?.();
-    });
-    const deliver = (msg: Record<string, unknown>) =>
-      act(() => void ws.onmessage?.({ data: JSON.stringify(msg) } as MessageEvent));
-    return { ...hook, ws, deliver };
+    return enterRoom(banner, { code: SEEDED_ROOM_CODE, displayName: "私" });
   }
 
   /** 前提で入っておくルーム。保存済みの復帰の組と鍵を合わせる（#95 S4b）。 */
   const SEEDED_ROOM_CODE = "ROOM01";
-
-  /**
-   * 保存済みの復帰の組を置く（再接続時の再送と同じ材料）。
-   *
-   * **保存先は `localStorage`・鍵はルームコード別**（#95 S4b・D12）。
-   * S4a までは `sessionStorage` にタブで 1 組だった。
-   */
-  function seedResumeIdentity() {
-    localStorage.setItem(
-      `tasuki:resume:${SEEDED_ROOM_CODE}`,
-      JSON.stringify({
-        code: SEEDED_ROOM_CODE,
-        participantId: "me",
-        resumeToken: "rt",
-        displayName: "私",
-      }),
-    );
-  }
 
   /**
    * その回に起こりうる最大の待ち時間（ms）。ばらつきの上端を取る。
@@ -387,7 +382,6 @@ describe("混雑で入室を拒まれたとき", () => {
     // Given: 保存済みの識別情報があり、入室が混雑で拒まれた
     vi.useFakeTimers();
     try {
-      seedResumeIdentity();
       const { ws, deliver } = connectedWith(fakeBanner());
       const send = vi.spyOn(ws, "send");
       deliver({ type: "error", code: "JOIN_RATE_LIMITED", message: "混み合っています" });
@@ -406,7 +400,6 @@ describe("混雑で入室を拒まれたとき", () => {
     // Given
     vi.useFakeTimers();
     try {
-      seedResumeIdentity();
       const banner = fakeBannerRecordingArgs();
       const { deliver } = connectedWith(banner);
       // When
@@ -423,7 +416,6 @@ describe("混雑で入室を拒まれたとき", () => {
     // Given: 混雑で弾かれて再試行を待っている最中に、退室が成立する
     vi.useFakeTimers();
     try {
-      seedResumeIdentity();
       const banner = fakeBannerRecordingArgs();
       const { deliver } = connectedWith(banner);
       deliver({ type: "error", code: "JOIN_RATE_LIMITED", message: "混み合っています" });
@@ -442,7 +434,6 @@ describe("混雑で入室を拒まれたとき", () => {
     // Given: 混雑で弾かれて再試行を待っている最中に、ルームが消える
     vi.useFakeTimers();
     try {
-      seedResumeIdentity();
       const banner = fakeBannerRecordingArgs();
       const { deliver } = connectedWith(banner);
       deliver({ type: "error", code: "JOIN_RATE_LIMITED", message: "混み合っています" });
@@ -457,11 +448,47 @@ describe("混雑で入室を拒まれたとき", () => {
     }
   });
 
+  /**
+   * 待機中に復帰の組が消えると、自動では入り直せない（`sendResumeJoin` が偽を返す枝）。
+   *
+   * **#272 はこの枝を「条件が永久に偽になった」と見立てて畳む候補に挙げたが、実測では
+   * まだ成立する。** 消えた前提は「招待リンクで来た初回」のほうである（旧入口の撤去で、
+   * 復帰の組を持たない端末は入口の effect を通れなくなった）。残る経路は**別タブが同じ
+   * ルームの組を捨てたとき** —— 鍵は `localStorage`・ルームコード別（#95 S4b・D12）で、
+   * 選択画面や poker を別タブで開くのは現実的な使い方である。
+   *
+   * ここが無いと「自動で入り直しています…」が消えないまま、何も起きない画面になる。
+   */
+  it("待機中に別タブが復帰の組を捨てたら、手立てを伝えて再送をやめる", () => {
+    // Given: 混雑で弾かれて再試行を待っている
+    vi.useFakeTimers();
+    try {
+      const banner = fakeBannerRecordingArgs();
+      const { ws, deliver } = connectedWith(banner);
+      const send = vi.spyOn(ws, "send");
+      deliver({ type: "error", code: "JOIN_RATE_LIMITED", message: "混み合っています" });
+
+      // When: 別タブが同じルームから退出し、この端末の復帰の組が消える。
+      // **鍵の形を写さない。** 退出の後始末が実際に呼ぶ関数をそのまま使う ——
+      // 生の `localStorage.removeItem()` で鍵を組み立てると、`@tasuki/sync-client` が
+      // 接頭辞や版を足した日に**黙って何も消さなくなり**、このテストは狙った枝
+      // （`sendResumeJoin` が偽を返す）へ一度も入らないまま別の理由で赤くなる。
+      clearResumeIdentity(SEEDED_ROOM_CODE);
+      act(() => void vi.advanceTimersByTime(maxDelayOf(1) + 100));
+
+      // Then: 送る材料が無いので送らず、利用者が次に取れる手立てを出す
+      expect(sentCommands(send)).not.toContain("room.join");
+      const lastCall = banner.showCalls[banner.showCalls.length - 1];
+      expect(lastCall?.[0]).toMatch(/再読込|読み込み直/);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("試行を使い切ったら、何をすれば入れるかを伝えて再送をやめる", () => {
     // Given
     vi.useFakeTimers();
     try {
-      seedResumeIdentity();
       const banner = fakeBannerRecordingArgs();
       const { ws, deliver } = connectedWith(banner);
       const send = vi.spyOn(ws, "send");
@@ -511,16 +538,7 @@ describe("useTimerSync: 捨てた同期フレームの表出", () => {
 
   /** 接続だけ済ませた状態。**まだ snapshot は届いていないので room は無い。** */
   function connected(banner: BannerController = fakeBanner()) {
-    const hook = renderHook(() => useTimerSync(banner));
-    act(() => hook.result.current.createRoom("Creator"));
-    const ws = latestSocket();
-    act(() => {
-      ws.readyState = FakeWS.OPEN;
-      ws.onopen?.();
-    });
-    const deliver = (msg: Record<string, unknown>) =>
-      act(() => void ws.onmessage?.({ data: JSON.stringify(msg) } as MessageEvent));
-    return { ...hook, ws, banner, deliver };
+    return { ...enterRoom(banner), banner };
   }
 
   const aValidSnapshot = () => ({ type: "snapshot", room: aRoomView({ code: "ROOM01" }) });

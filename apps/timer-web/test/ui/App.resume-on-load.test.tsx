@@ -13,7 +13,6 @@ import App from "../../src/App.js";
 import { FakeWS } from "../support/fakes.js";
 import { aRoomView } from "../support/room-view.js";
 import { saveResumeIdentity } from "@tasuki/sync-client";
-import { clearPreferences } from "../../src/prefs/local-prefs.js";
 import { redirectTo } from "../../src/platform/location.js";
 
 vi.mock("../../src/records/indexeddb.js", () => ({
@@ -67,14 +66,12 @@ beforeEach(() => {
   localStorage.clear();
   vi.stubGlobal("WebSocket", FakeWS);
   sessionStorage.clear();
-  clearPreferences();
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
   localStorage.clear();
   sessionStorage.clear();
-  clearPreferences();
   window.history.replaceState(null, "", "/");
 });
 

@@ -13,7 +13,6 @@ import { FakeWS } from "../support/fakes.js";
 import { enterRoomAndConnect } from "../support/enter-room.js";
 import { navigateTo, redirectTo } from "../../src/platform/location.js";
 import { aRoomView } from "../support/room-view.js";
-import { clearPreferences } from "../../src/prefs/local-prefs.js";
 
 // 遷移は `platform/location.ts` に閉じている（#95 S5c・R9）。テストはそこを差し替える。
 vi.mock("../../src/platform/location.js", async (importOriginal) => {
@@ -67,14 +66,12 @@ beforeEach(() => {
   localStorage.clear();
   vi.stubGlobal("WebSocket", FakeWS);
   sessionStorage.clear();
-  clearPreferences();
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
   localStorage.clear();
   sessionStorage.clear();
-  clearPreferences();
   window.history.replaceState(null, "", "/");
 });
 

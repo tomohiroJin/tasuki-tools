@@ -30,7 +30,6 @@ function makeSync(over: Partial<PokerSync> = {}): PokerSync {
     status: 'open',
     everConnected: true,
     failedAttempts: 0,
-    self: null,
     snapshot: null,
     joinedThisConnection: false,
     syncStale: false,

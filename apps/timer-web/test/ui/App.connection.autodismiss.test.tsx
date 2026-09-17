@@ -22,7 +22,6 @@ import { screen, act } from "@testing-library/react";
 import { FakeWS } from "../support/fakes.js";
 import { enterRoomAndConnect } from "../support/enter-room.js";
 import { aRoomView } from "../support/room-view.js";
-import { clearPreferences } from "../../src/prefs/local-prefs.js";
 import { displayMessageFor } from "@tasuki/timer-core";
 
 vi.mock("../../src/records/indexeddb.js", () => ({
@@ -68,7 +67,6 @@ beforeEach(() => {
   localStorage.clear();
   vi.stubGlobal("WebSocket", FakeWS);
   sessionStorage.clear();
-  clearPreferences();
 });
 
 afterEach(() => {
@@ -79,7 +77,6 @@ afterEach(() => {
   vi.unstubAllGlobals();
   localStorage.clear();
   sessionStorage.clear();
-  clearPreferences();
   window.history.replaceState(null, "", "/");
 });
 

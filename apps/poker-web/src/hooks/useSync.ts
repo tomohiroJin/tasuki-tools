@@ -34,12 +34,6 @@ export function wsUrl(): string {
   return `${scheme}://${location.host}/ws?tool=poker`;
 }
 
-export interface SelfIdentity {
-  roomId: string;
-  participantId: string;
-  token: string;
-}
-
 export interface SyncError {
   /**
    * サーバーが増やした未知のコードは `null`（#214・docs/poker/adr/0003 決定 2）。
@@ -52,14 +46,19 @@ export interface SyncError {
   message: string;
 }
 
+/**
+ * poker の画面が同期から受け取るもの。
+ *
+ * **`self`（`joined` 受信後の自分の識別情報）と型 `SelfIdentity` はここに無い**（#272）。
+ * 読み手だった「作成 → 遷移」の効果が #95 S5c（#249）の旧入口撤去で消えたためである。
+ * `joined` の中身は端末の同一性（`saveResumeIdentity`）としてだけ使う。
+ */
 export interface PokerSync {
   status: ConnectionStatus;
   /** この画面で一度でも接続が確立したか（繋がらない/切れたの区別に使う。#76 F-2） */
   everConnected: boolean;
   /** 直近の接続確立以降、連続して接続に失敗した回数 */
   failedAttempts: number;
-  /** joined 受信後の自分の識別情報 */
-  self: SelfIdentity | null;
   /** 最新の受信者別ルーム状態（受信スナップショットで丸ごと置換。research R1） */
   snapshot: RoomStateMessage | null;
   /**
@@ -103,7 +102,6 @@ export interface PokerSync {
 
 export function usePokerSync(): PokerSync {
   const [status, setStatus] = useState<ConnectionStatus>('connecting');
-  const [self, setSelf] = useState<SelfIdentity | null>(null);
   const [snapshot, setSnapshot] = useState<RoomStateMessage | null>(null);
   const [joinedThisConnection, setJoinedThisConnection] = useState(false);
   const [error, setError] = useState<SyncError | null>(null);
@@ -174,7 +172,6 @@ export function usePokerSync(): PokerSync {
     const msg = result.value;
     switch (msg.type) {
       case 'joined':
-        setSelf({ roomId: msg.roomId, participantId: msg.participantId, token: msg.token });
         setJoinedThisConnection(true);
         // **端末に置く同一性は 3 つの画面で 1 つ**（#95 S5b・D12）。選択画面で名乗った人が
         // poker でも同じ人として扱われるのは、同じ鍵を読み書きしているからである。
@@ -231,7 +228,6 @@ export function usePokerSync(): PokerSync {
       status,
       everConnected,
       failedAttempts,
-      self,
       snapshot,
       joinedThisConnection,
       error,
@@ -242,7 +238,6 @@ export function usePokerSync(): PokerSync {
       status,
       everConnected,
       failedAttempts,
-      self,
       snapshot,
       joinedThisConnection,
       error,

@@ -1,54 +1,17 @@
 /**
- * セッション設定のローカル保存
- * T063: FR-053,054 (US10)
+ * timer の端末ローカル設定（言語プール・交代通知・ヒント既読）。
  *
- * 前回の設定（表示名・言語・難易度・メンバー・交代間隔）を localStorage に保存し、
- * 再訪時に自動充填する —— **という振る舞いは、いま働いていない。**
+ * **セッション設定の保存（`SavedPreferences` / `savePreferences` / `loadPreferences` /
+ * `clearPreferences`・鍵 `tdd-mob:preferences:v1`）は #272 で畳んだ。** 唯一の呼び手
+ * だった timer の旧入口（`Setup.tsx` / `Join.tsx`）を #95 S5c（#249）で撤去し、
+ * 保存された値を読む画面がどこにも無くなったためである。要求（FR-053 / FR-054
+ * 「再訪時に前回の設定を既定として自動提示する」）は timer からは降ろし、
+ * **玄関（`apps/landing`）側の要求として別 Issue へ預けた**
+ * （`docs/plans/tdd-mob-pro-timer-v2-experience/spec.md` の FR-053 / FR-054 の注記）。
  *
- * ⚠ **この節の 4 つ（{@link SavedPreferences} / {@link savePreferences} /
- * {@link loadPreferences} / {@link clearPreferences}）に、製品コードからの呼び手は
- * 1 つも無い。** 唯一の呼び手だった timer の旧入口（`Setup.tsx` / `Join.tsx`）を
- * #95 S5c で撤去したためである。**保存された値を読む画面はもうどこにも無い。**
- * （`clearPreferences` だけは `test/ui/App.*.test.tsx` の 9 本が後始末に使っている。
- * テストからの参照であって、製品コードの呼び手ではない。）
- *
- * **去就は Issue #272 で決める**（玄関へ移して FR-053 / FR-054 を満たし直すか、
- * 要求ごと畳むか）。決める前に消さない —— 消すと判断の材料が履歴の中だけになる。
- *
- * この下の言語プール・交代通知・ヒント既読は**生きている**（`ProblemConfigPanel` /
- * `Lobby` / `Session` などが読み書きする）。死蔵はこの節だけである。
+ * ここに残る 3 つは**生きている**（`ProblemConfigPanel` / `Lobby` / `Session` などが
+ * 読み書きする）。
  */
-
-const PREFS_KEY = "tdd-mob:preferences:v1";
-
-export interface SavedPreferences {
-  displayName: string;
-  language: string;
-  difficulty: string;
-  members: string[];
-  intervalMinutes: number;
-}
-
-/** 設定を localStorage に保存する（FR-053） */
-export function savePreferences(prefs: SavedPreferences): void {
-  localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
-}
-
-/** 保存済み設定を返す。未保存なら null（FR-054） */
-export function loadPreferences(): SavedPreferences | null {
-  const raw = localStorage.getItem(PREFS_KEY);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as SavedPreferences;
-  } catch {
-    return null;
-  }
-}
-
-/** 設定を削除する */
-export function clearPreferences(): void {
-  localStorage.removeItem(PREFS_KEY);
-}
 
 /** ランダム対象にする言語プール（この端末のローカル設定）。SessionConfig には載せない。 */
 const RANDOM_LANG_POOL_KEY = "tdd-mob:random-language-pool:v1";

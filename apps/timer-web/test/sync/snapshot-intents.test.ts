@@ -15,20 +15,18 @@ import { aRoomView } from "../support/room-view.js";
 import type { Room } from "@tasuki/timer-core";
 
 /**
- * 自分の参加者 ID。
+ * 自分の参加者 ID（復帰の組に入る値）。
  *
  * **`aRoomView()` の既定のルームは輪の先頭がこの人である。** #271 で
- * お題の依頼はサーバーへ移ったので、先頭かどうかはお題の判断には効かない
- * （輪に関わるのは参加時ドライバー宣言だけ）。
+ * お題の依頼はサーバーへ移り、#272 で参加時ドライバー宣言も畳んだので、
+ * **輪の位置はこの純粋関数の判断に一切効かない**。
  */
 const SELF = "creator-p";
 
 function baseCtx(overrides: Partial<SnapshotContext> = {}): SnapshotContext {
   return {
-    participantId: SELF,
     pendingResume: null,
     resumeDisplayName: "",
-    pendingDriverJoin: false,
     recordSaved: false,
     generatingProblem: false,
     endType: "complete",
@@ -98,31 +96,17 @@ describe("decideSnapshotIntents: 復帰情報の保存", () => {
   });
 });
 
-describe("decideSnapshotIntents: 参加時ドライバー宣言", () => {
-  it("自分が参加者に現れたら宣言を降ろし、輪に居なければ加入する", () => {
-    // Given
+describe("decideSnapshotIntents: 輪への自動加入は無い（#272）", () => {
+  /**
+   * **`not.toContain("join-rotation")` では見張れない** —— その意図は型から消えたので、
+   * その検査は永久に成立する（恒真）。意図の並びを丸ごと突き合わせる（#271 で同じ罠を
+   * 踏んだお題の意図と同じ書き方）。
+   */
+  it("自分が輪に居なくても、クライアントは member.add を起こさない", () => {
+    // Given: 輪に自分が居ないロビー（#272 より前なら driver 宣言で加入していた場面）
     const room = aRoomView({ session: { rotation: ["other"], currentIndex: 0 } });
-    // When
-    const intents = decideSnapshotIntents(null, room, baseCtx({ pendingDriverJoin: true }));
-    // Then
-    expect(intents.map((i) => i.kind)).toEqual(
-      expect.arrayContaining(["consume-driver-join", "join-rotation"]),
-    );
-  });
-
-  it("既に輪に居るなら宣言だけ降ろして加入は送らない", () => {
-    // Given
-    const room = aRoomView({ session: { rotation: [SELF], currentIndex: 0 } });
-    // When
-    const k = kinds(room, baseCtx({ pendingDriverJoin: true }));
-    // Then
-    expect(k).toContain("consume-driver-join");
-    expect(k).not.toContain("join-rotation");
-  });
-
-  it("自分がまだ参加者に現れていないなら宣言を降ろさない", () => {
-    const room = aRoomView({ participants: [] });
-    expect(kinds(room, baseCtx({ pendingDriverJoin: true }))).not.toContain("consume-driver-join");
+    // When / Then: 立つのは画面追従だけ
+    expect(kinds(room, baseCtx())).toEqual(["set-screen"]);
   });
 });
 
@@ -276,19 +260,17 @@ describe("decideSnapshotIntents: 順序（振る舞いそのもの）", () => {
     const ctx = baseCtx({
       pendingResume: { participantId: SELF, resumeToken: "rt" },
       resumeDisplayName: "Creator",
-      pendingDriverJoin: true,
       generatingProblem: true,
     });
     // When / Then（decideSnapshotIntents の戻り値をそのまま検証するため操作と検証が同じ式になる）
     expect(decideSnapshotIntents(prev, next, ctx).map((i) => i.kind)).toEqual([
       "save-resume",
-      "consume-driver-join",
-      "join-rotation",
       "clear-generating",
       "set-screen",
       "persist-completion",
     ]);
     // 注: お題系の意図はもう無い（依頼も待ちの表示もサーバー側・#271）。
+    //     参加時ドライバー宣言の 2 種も無い（旧入口の撤去で立てる者が消えた・#272）。
   });
 
 });
