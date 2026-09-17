@@ -635,13 +635,15 @@ export function RoomGone({ code }: RoomGoneProps) {
         </p>
       </header>
 
-      {/* `role="alert"` にしない —— 画面そのものが替わっており、
-          これは「いま起きたこと」の割り込みではなく、この画面の主題である。 */}
-      <h2 className="hub-section-title" role="status">
-        ルームが見つかりません
-      </h2>
+      {/* ⚠ **見出しに `role` を付けない。** ARIA の `role` は暗黙の役割を**上書きする**ので、
+          `<h2 role="status">` にすると**その要素は見出しでなくなる**（`getByRole('heading')`
+          が見つけられず、支援技術の見出し一覧からも消える）。
+          知らせは下の段落が持つ（`Resuming.tsx` と同じ形）。 */}
+      <h2 className="hub-section-title">ルームが見つかりません</h2>
 
-      <p className="hub-notice">
+      {/* `role="alert"` にしない —— 画面そのものが替わっており、これは
+          「いま起きたこと」の割り込みではなく、この画面の主題である。 */}
+      <p className="hub-notice" role="status">
         終了したか、URL が正しくない可能性があります。
       </p>
 
@@ -657,8 +659,8 @@ export function RoomGone({ code }: RoomGoneProps) {
 }
 ```
 
-⚠ **`role="status"` を `h2` に置いた形が読み上げで意図どおりか、手順 5 で実画面を見ること。**
-不自然なら `role` を外し、`hub-notice` の段落側へ移す（見出しは残す）。
+⚠ **見出しは見出しのままにする。** `role` を付けて上書きすると
+`getByRole('heading', ...)` が見つけられなくなり、テストも E2E も落ちる。
 
 - [ ] **手順 4: 通ることを確かめる**
 
