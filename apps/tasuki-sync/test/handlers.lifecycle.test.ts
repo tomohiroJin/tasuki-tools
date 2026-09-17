@@ -298,6 +298,38 @@ describe("phase.set: ロビーへ戻るとお題は持ち越さない（#273）"
     expect(roomViewOf(store, timers, code).problem?.title).toBe("FizzBuzz");
   });
 
+  /**
+   * 落とす条件の**行き先**の側（#273 のレビュー②の変異検査）。
+   *
+   * 条件は「`celebration` 発」と「行き先がロビー」の 2 つでできている。
+   * **行き先の判定を外しても、この describe は全部緑のままだった**（実測。全パッケージで
+   * 落ちたのは `live-ws.multi-connection.test.ts` の 1 本だけで、あれは別の性質を
+   * 見ているテストにたまたま引っかかったにすぎない）。片側が恒真化していたので、
+   * ここで塞ぐ（憲法 原則 VII）。
+   *
+   * `phase.set` にガードが無く `sync-client` が溜めたコマンドを流す以上、
+   * **`celebration` に居るルームへ遅れた `phase.set session` が届く経路も実在する**
+   * （切断中に「セッションを開始」を押した端末）。行き先を見ずに落とすと、
+   * 始まったばかりのセッションがお題を持たないまま走り出す ——
+   * `lobby-problem.ts` はロビーでしか埋めないので、誰も埋め直さない。
+   */
+  it("Given 完了画面のルーム / When 遅れて届いた phase.set session が流れる / Then お題を消さない", async () => {
+    // Given: 完成してお題つきで完了画面に居る
+    const code = await setupRoom(handlers, store, timers);
+    putRoomView(store, timers, { ...roomViewOf(store, timers, code), problem });
+    await handlers.handleCommand("host-conn", { command: "session.act", action: "START" });
+    await handlers.handleCommand("host-conn", { command: "session.complete" });
+    if (roomViewOf(store, timers, code).phase !== "celebration") {
+      throw new Error("前提が崩れた: 完成していない");
+    }
+
+    // When: 切断中に押された「セッションを開始」が、再接続で溜まっていた分として届く
+    await handlers.handleCommand("host-conn", { command: "phase.set", phase: "session" });
+
+    // Then: ロビーへ入る遷移ではないので落とさない（落とすと誰も埋め直さない）
+    expect(roomViewOf(store, timers, code).problem?.title).toBe("FizzBuzz");
+  });
+
   it("Given 既にロビーに居るルーム / When もう一度ロビーへ戻す / Then 用意済みのお題を捨てない", async () => {
     // Given: ロビーでお題が用意された状態（`fillLobbyProblem` が埋めた直後と同じ）
     const code = await setupRoom(handlers, store, timers);
