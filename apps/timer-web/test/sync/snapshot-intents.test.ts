@@ -17,9 +17,9 @@ import type { Room } from "@tasuki/timer-core";
 /**
  * 自分の参加者 ID。
  *
- * **`aRoomView()` の既定のルームは輪の先頭がこの人である。** お題の代表は
- * 「輪の先頭」で決まる（#95 S5c・R9）ので、既定のままなら自分が代表になる。
- * 代表でない側を見たいテストは `session.rotation` を明示して外す。
+ * **`aRoomView()` の既定のルームは輪の先頭がこの人である。** #271 で
+ * お題の依頼はサーバーへ移ったので、先頭かどうかはお題の判断には効かない
+ * （輪に関わるのは参加時ドライバー宣言だけ）。
  */
 const SELF = "creator-p";
 
@@ -29,7 +29,6 @@ function baseCtx(overrides: Partial<SnapshotContext> = {}): SnapshotContext {
     pendingResume: null,
     resumeDisplayName: "",
     pendingDriverJoin: false,
-    problemRequested: false,
     recordSaved: false,
     generatingProblem: false,
     endType: "complete",
@@ -169,16 +168,15 @@ describe("decideSnapshotIntents: 完了状態の後片付け", () => {
 });
 
 describe("decideSnapshotIntents: お題", () => {
-  it("輪の先頭の人はロビーでお題が無ければ一度だけ依頼する", () => {
-    // Given
+  it("ロビーでお題が無くても、クライアントは依頼を送らない（サーバーが用意する・#271）", () => {
+    // Given: ロビーでお題が未確定。**自分は輪の先頭である**（旧実装ならここで依頼していた）
     const room = aRoomView({ code: "ROOM01", phase: "ready", problem: null });
-    // When
-    const intents = decideSnapshotIntents(null, room, baseCtx());
-    // Then
-    expect(intents).toContainEqual({ kind: "request-problem", requestId: "req-ROOM01-lobby" });
+
+    // When / Then: 依頼の意図は 1 つも立たない
+    expect(kinds(room, baseCtx())).not.toContain("request-problem");
   });
 
-  it("輪の先頭でなければ依頼しない（全員が送ると委譲が何度も張り直される）", () => {
+  it("輪の先頭でなくても、クライアントは依頼を送らない（#271）", () => {
     // Given: 輪の先頭は自分ではない
     const room = aRoomView({
       code: "ROOM01",
@@ -187,43 +185,12 @@ describe("decideSnapshotIntents: お題", () => {
       session: { rotation: ["someone-else", SELF], currentIndex: 0, driverCounts: [0, 0] },
     });
 
-    // When / Then（kinds の戻り値をそのまま検証するため操作と検証が同じ式になる）
+    // When / Then
     expect(kinds(room, baseCtx())).not.toContain("request-problem");
   });
 
-  it("自分の participantId が未確定なら依頼しない（空文字と空の輪を突き合わせない）", () => {
-    // Given: identity 未受信で、輪もまだ空
-    const room = aRoomView({
-      code: "ROOM01",
-      phase: "ready",
-      problem: null,
-      session: { rotation: [], currentIndex: 0, driverCounts: [] },
-    });
-
-    // When / Then
-    expect(kinds(room, baseCtx({ participantId: "" }))).not.toContain("request-problem");
-  });
-
-  it("既に依頼済みなら送らない", () => {
-    // Given
-    const room = aRoomView({ code: "ROOM01", phase: "ready", problem: null });
-    const ctx = baseCtx({ problemRequested: true });
-    // When / Then（kinds の戻り値をそのまま検証するため操作と検証が同じ式になる）
-    expect(kinds(room, ctx)).not.toContain("request-problem");
-  });
-
-  it("難易度が変わったら輪の先頭の人が作り直しを依頼する（requestId に now が入る）", () => {
-    // Given
-    const prev = aRoomView({ code: "ROOM01", phase: "ready", problem, config: { difficulty: "easy" } });
-    const next = aRoomView({ code: "ROOM01", phase: "ready", problem, config: { difficulty: "hard" } });
-    // When
-    const intents = decideSnapshotIntents(prev, next, baseCtx({ now: 42 }));
-    // Then
-    expect(intents).toContainEqual({ kind: "regenerate-problem", requestId: "req-ROOM01-cfg-42" });
-  });
-
-  it("輪の先頭でなければ作り直しを依頼しない（並び替えで代表が替わる）", () => {
-    // Given: 難易度が変わったが、輪の先頭は自分ではない
+  it("難易度が変わったら、輪の先頭かどうかに関わらず生成中の表示を出す（#271）", () => {
+    // Given: 難易度が変わった。**輪の先頭は自分ではない**
     const rotation = { rotation: ["someone-else", SELF], currentIndex: 0, driverCounts: [0, 0] };
     const prev = aRoomView({
       code: "ROOM01",
@@ -240,8 +207,10 @@ describe("decideSnapshotIntents: お題", () => {
       session: rotation,
     });
 
-    // When / Then（kinds の戻り値をそのまま検証するため操作と検証が同じ式になる）
-    expect(kinds(next, baseCtx(), prev)).not.toContain("regenerate-problem");
+    // When / Then: 作り直すのはサーバーなので依頼は送らないが、待っていることは見せる
+    const k = kinds(next, baseCtx(), prev);
+    expect(k).toContain("begin-generating");
+    expect(k).not.toContain("regenerate-problem");
   });
 
   it("別のルームの snapshot なら設定変更とみなさない", () => {
@@ -249,7 +218,17 @@ describe("decideSnapshotIntents: お題", () => {
     const prev = aRoomView({ code: "OTHER", phase: "ready", problem, config: { difficulty: "easy" } });
     const next = aRoomView({ code: "ROOM01", phase: "ready", problem, config: { difficulty: "hard" } });
     // When / Then（kinds の戻り値をそのまま検証するため操作と検証が同じ式になる）
-    expect(kinds(next, baseCtx(), prev)).not.toContain("regenerate-problem");
+    expect(kinds(next, baseCtx(), prev)).not.toContain("begin-generating");
+  });
+
+  it("お題を使わないルームでは、設定が変わっても生成中の表示を出さない（#271）", () => {
+    // Given: お題なしのルームで難易度だけが変わった
+    const cfg = { problemEnabled: false };
+    const prev = aRoomView({ code: "ROOM01", phase: "ready", problem, config: { ...cfg, difficulty: "easy" } });
+    const next = aRoomView({ code: "ROOM01", phase: "ready", problem, config: { ...cfg, difficulty: "hard" } });
+
+    // When / Then
+    expect(kinds(next, baseCtx(), prev)).not.toContain("begin-generating");
   });
 
   it("生成中にお題の内容が変わったら生成中を解除する", () => {
@@ -319,19 +298,19 @@ describe("decideSnapshotIntents: 順序（振る舞いそのもの）", () => {
       "set-screen",
       "persist-completion",
     ]);
-    // 注: celebration では request-problem / regenerate-problem は立たない
-    // （どちらも phase が setup/ready のときだけ）。
+    // 注: celebration では begin-generating は立たない（phase が setup/ready のときだけ）。
   });
 
-  it("phase=ready でお題が無い代表の snapshot では、set-screen が request-problem より前に来る", () => {
-    // 上のケースは celebration シナリオのため、set-screen とお題系 2 意図
-    // （request-problem・regenerate-problem）の相対順を誰も見ていなかった。
-    // set-screen（4番目）は request-problem（5番目）より先に配列へ積まれるはず。
+  it("設定が変わった snapshot では、set-screen が begin-generating より前に来る", () => {
+    // 上のケースは celebration シナリオのため、set-screen とお題系の意図の
+    // 相対順を誰も見ていなかった。set-screen（5番目）は begin-generating（6番目）
+    // より先に配列へ積まれるはず。
     // Given
-    const room = aRoomView({ code: "ROOM01", phase: "ready", problem: null });
+    const prev = aRoomView({ code: "ROOM01", phase: "ready", problem, config: { difficulty: "easy" } });
+    const next = aRoomView({ code: "ROOM01", phase: "ready", problem, config: { difficulty: "hard" } });
     // When
-    const intents = decideSnapshotIntents(null, room, baseCtx());
+    const intents = decideSnapshotIntents(prev, next, baseCtx());
     // Then
-    expect(intents.map((i) => i.kind)).toEqual(["set-screen", "request-problem"]);
+    expect(intents.map((i) => i.kind)).toEqual(["set-screen", "begin-generating"]);
   });
 });

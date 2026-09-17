@@ -183,8 +183,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
   // 参加時に "driver" を選択したか。snapshot で自分が参加者に現れたら member.add を一度だけ送る。
   // 名前ではなく「宣言したか」だけを持つ（誰を加えるかは自分の participantId で決まる・D6b）。
   const pendingDriverJoinRef = useRef(false);
-  // ロビーでのお題自動生成依頼を一度だけ行うためのガード。
-  const problemRequestedRef = useRef(false);
   // 完成記録の二重保存を防ぐガード（celebration の snapshot が複数回来ても1回だけ保存）。
   const recordSavedRef = useRef(false);
   // 生成が返らない異常で固まらないための安全弁タイマー。
@@ -307,7 +305,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
       pendingResume: pendingResumeRef.current,
       resumeDisplayName: resumeDisplayNameRef.current,
       pendingDriverJoin: pendingDriverJoinRef.current,
-      problemRequested: problemRequestedRef.current,
       recordSaved: recordSavedRef.current,
       generatingProblem,
       endType,
@@ -326,6 +323,11 @@ export function useTimerSync(banner: BannerController): TimerSync {
         case "join-rotation":
           syncClient.send({ command: "member.add", participantId: intent.participantId });
           break;
+        case "begin-generating":
+          // サーバーがお題を作り直している間の表示（#271）。**全員が入る** ——
+          // 依頼を送った 1 人だけではない（依頼を送るのはサーバーになった）。
+          beginGenerating();
+          break;
         case "clear-generating":
           endGenerating();
           break;
@@ -338,14 +340,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
           break;
         case "set-screen":
           setMode(intent.screen);
-          break;
-        case "request-problem":
-          problemRequestedRef.current = true;
-          syncClient.send({ command: "problem.request", requestId: intent.requestId });
-          break;
-        case "regenerate-problem":
-          syncClient.send({ command: "problem.request", requestId: intent.requestId });
-          beginGenerating();
           break;
         case "persist-completion":
           recordSavedRef.current = true;
@@ -428,8 +422,7 @@ export function useTimerSync(banner: BannerController): TimerSync {
         roomCodeRef.current = null;
         setClient(null);
         setParticipantId("");
-        problemRequestedRef.current = false;
-        recordSavedRef.current = false;
+            recordSavedRef.current = false;
         setSessionLost(false);
         setRecord(null);
         // 捨てた同期フレームの警告もルーム由来なので畳む（#209）。
@@ -597,7 +590,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
   const createRoom = (displayName: string, roomName?: string) => {
     // 言語/難易度/間隔/オプションは既定で作成し、ロビーで config.set で調整する
     // （最初の画面で選びすぎない・UX 再設計）。お題はロビーで自動生成。
-    problemRequestedRef.current = false;
     resumeDisplayNameRef.current = displayName;
     const config: SessionConfig = {
       language: "TypeScript",

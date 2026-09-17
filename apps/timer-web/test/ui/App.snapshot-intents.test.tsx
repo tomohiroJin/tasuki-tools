@@ -170,14 +170,40 @@ describe("persist-completion: 完成フェーズの snapshot でローカル記�
   });
 });
 
-describe("request-problem: 輪の先頭の人がロビーで一度だけ代表生成を依頼する", () => {
-  it("お題の無いロビーの snapshot を受けたら requestId: req-<CODE>-lobby で送る", () => {
+describe("begin-generating: 設定が変わったら、輪の先頭でなくても生成中の表示に入る（#271）", () => {
+  it("難易度が変わった snapshot を受けたら、お題カードが生成中になる", () => {
+    // Given: お題のあるロビー。**輪の先頭は自分ではない**（旧実装ならここで何も起きなかった）
+    const ws = enterRoomAsGuest();
+    sendServer(ws, { type: "room.joined", resumeToken: "rt", participantId: CREATOR_ID });
+    const othersRotation = { rotation: [OTHER_ID, CREATOR_ID], currentIndex: 0, driverCounts: [0, 0] };
+    const lobby = (difficulty: string) =>
+      aRoomView({
+        code: "ROOM01",
+        phase: "ready",
+        problem: problemA(),
+        config: { difficulty },
+        participants: [participant(CREATOR_ID, "Creator"), participant(OTHER_ID, "Other")],
+        session: othersRotation,
+      });
+    sendServer(ws, { type: "snapshot", room: lobby("easy") });
+    // ロビーはタブで分かれている。お題カードは「お題」タブの側にある。
+    fireEvent.click(screen.getByRole("tab", { name: "お題" }));
+    expect(screen.getByRole("group", { name: "お題" })).not.toHaveAttribute("aria-busy");
+
+    // When: 誰かが難易度を変えた（サーバーが作り直す）
+    sendServer(ws, { type: "snapshot", room: lobby("hard") });
+
+    // Then: 待っていることが見える
+    expect(screen.getByRole("group", { name: "お題" })).toHaveAttribute("aria-busy", "true");
+  });
+
+  it("依頼そのものは送らない（作り直すのはサーバー・#271）", () => {
     // Given
     const ws = enterRoomAsGuest();
     sendServer(ws, { type: "room.joined", resumeToken: "rt", participantId: CREATOR_ID });
     const sendSpy = vi.spyOn(ws, "send");
 
-    // When
+    // When: お題の無いロビー（旧実装なら代表として依頼を送っていた場面）
     sendServer(ws, {
       type: "snapshot",
       room: aRoomView({
@@ -190,46 +216,7 @@ describe("request-problem: 輪の先頭の人がロビーで一度だけ代表�
     });
 
     // Then
-    const requests = sentFrames(sendSpy).filter((f) => f.command === "problem.request");
-    expect(requests).toEqual([{ command: "problem.request", requestId: "req-ROOM01-lobby" }]);
-  });
-});
-
-describe("regenerate-problem: 輪の先頭の人がロビーでの難易度変更を受けて作り直しを依頼する", () => {
-  it("難易度が変わった snapshot を受けたら requestId が req-<CODE>-cfg- で始まる依頼を送る", () => {
-    // Given
-    const ws = enterRoomAsGuest();
-    sendServer(ws, { type: "room.joined", resumeToken: "rt", participantId: CREATOR_ID });
-    sendServer(ws, {
-      type: "snapshot",
-      room: aRoomView({
-        code: "ROOM01",
-        phase: "ready",
-        problem: problemA(),
-        config: { difficulty: "easy" },
-        participants: [participant(CREATOR_ID, "Creator")],
-        session: SELF_LEADS_ROTATION,
-      }),
-    });
-    const sendSpy = vi.spyOn(ws, "send");
-
-    // When
-    sendServer(ws, {
-      type: "snapshot",
-      room: aRoomView({
-        code: "ROOM01",
-        phase: "ready",
-        problem: problemA(),
-        config: { difficulty: "hard" },
-        participants: [participant(CREATOR_ID, "Creator")],
-        session: SELF_LEADS_ROTATION,
-      }),
-    });
-
-    // Then
-    const requests = sentFrames(sendSpy).filter((f) => f.command === "problem.request");
-    expect(requests).toHaveLength(1);
-    expect(requests[0]!.requestId).toMatch(/^req-ROOM01-cfg-/);
+    expect(sentFrames(sendSpy).filter((f) => f.command === "problem.request")).toEqual([]);
   });
 });
 

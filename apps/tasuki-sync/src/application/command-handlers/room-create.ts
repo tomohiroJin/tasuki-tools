@@ -19,6 +19,8 @@ import type { RoomState } from "../apply-room-level-event.js";
 import { TOOL_TIMER } from "../tool-id.js";
 import { createRoom } from "../create-room.js";
 import { createInitialTimerState } from "../initial-timer-state.js";
+import { fillLobbyProblem } from "../lobby-problem.js";
+import type { ProblemDelegator } from "../problem-delegation.js";
 
 /** `room.create` が呼び出し元へ返す値。 */
 export interface CreateResult {
@@ -38,11 +40,13 @@ export interface RoomCreateDeps {
   tokenStore: TokenStore;
   /** サーバー全体のルーム数上限（DoS 緩和）。 */
   maxRooms: number;
+  /** ロビーのお題を用意する委譲（#271）。未構成なら依頼を起こさない。 */
+  delegator?: ProblemDelegator | undefined;
   sendError: (connId: string, code: ErrorCode, message: string) => void;
 }
 
 export function createRoomCreateHandler(deps: RoomCreateDeps) {
-  const { broadcaster, commit } = deps;
+  const { broadcaster, commit, delegator } = deps;
 
   /** ルーム作成 */
   return async function handleRoomCreate(
@@ -80,6 +84,9 @@ export function createRoomCreateHandler(deps: RoomCreateDeps) {
 
     broadcaster.sendTo(connId, { type: "room.created", code, resumeToken, participantId });
     commit({ membership, timer });
+    // **ロビーのお題はサーバーが用意する**（#271）。保管した後に呼ぶ ——
+    // 委譲は保管を引いてお題を確定し、その場で snapshot を配信する。
+    fillLobbyProblem(delegator, timer);
 
     return ok({ code, participantId, resumeToken });
   };
