@@ -113,6 +113,10 @@ S5b 追記の 3）、poker からの新規参加はそもそも成立しない�
 **ハブから見て「存在秘匿」は保護ルームについて成立していない。** ハブは合言葉を送れるので、
 これは欠陥ではなく意図された開示である（選択画面で合言葉を通す導線が正規の経路）。
 
+**既存の検査がこれを固定している。** `apps/tasuki-sync/test/live-ws.hub.test.ts` の
+「合言葉で保護された timer のルーム／ハブから合言葉なしで参加する」は、
+返る `code` が `PASSPHRASE_REQUIRED` であることを明示的に期待している。
+
 ### 3.6 開いているルームの静かな存在確認は、いまも成立する
 
 poker の入口（`/ws?tool=poker`）へ `check-room` を送れば、**副作用なしに**開いているルームの
@@ -429,7 +433,7 @@ if (msg.code === 'JOIN_RATE_LIMITED') {
 |---|---|
 | E1 | `apps/landing/tests/hub/use-hub-sync.test.tsx`（照会を送る・`gone` が立つ）＋ `hub-state.test.ts`（`gone` 画面へ落ちる）＋ E2E |
 | E2 | `use-hub-sync.test.tsx`（組を持つ人が `ROOM_NOT_FOUND` で `gone` になる） |
-| **E3** | `apps/tasuki-sync/test/check-room.test.ts`（**保護ルームは「在る」扱い**） |
+| **E3** | `apps/tasuki-sync/test/live-ws.hub.test.ts`（**保護ルームを実プロトコル越しに照会して無音**）。⚠ **単体（`check-room.test.ts`）では見られない** —— `checkRoom` は合言葉を参照しないので、単体のこの主張は恒真になる。合言葉を掛ける経路は timer の `room.passphrase.set` なので、実 WS でしか組めない |
 | E4 | `check-room.test.ts`（残量なしでストアを引かない） |
 | E5 | `check-room.test.ts`＋`test/live-ws.hub.test.ts`（実プロトコルで無音） |
 | E6 | `apps/landing/tests/hub/room-gone.test.tsx`（戻る道・フォームの不在） |
