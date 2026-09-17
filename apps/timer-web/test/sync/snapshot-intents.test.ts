@@ -172,8 +172,10 @@ describe("decideSnapshotIntents: お題", () => {
     // Given: ロビーでお題が未確定。**自分は輪の先頭である**（旧実装ならここで依頼していた）
     const room = aRoomView({ code: "ROOM01", phase: "ready", problem: null });
 
-    // When / Then: 依頼の意図は 1 つも立たない
-    expect(kinds(room, baseCtx())).not.toContain("request-problem");
+    // When / Then: 立つのは画面追従だけ。
+    // **`not.toContain("request-problem")` では見張れない** —— その意図は型から
+    // 消えたので、その検査は永久に成立する（恒真）。意図の並びを丸ごと突き合わせる。
+    expect(kinds(room, baseCtx())).toEqual(["set-screen"]);
   });
 
   it("輪の先頭でなくても、クライアントは依頼を送らない（#271）", () => {
@@ -185,8 +187,8 @@ describe("decideSnapshotIntents: お題", () => {
       session: { rotation: ["someone-else", SELF], currentIndex: 0, driverCounts: [0, 0] },
     });
 
-    // When / Then
-    expect(kinds(room, baseCtx())).not.toContain("request-problem");
+    // When / Then: 立つのは画面追従だけ（恒真にならないよう並びごと見る）
+    expect(kinds(room, baseCtx())).toEqual(["set-screen"]);
   });
 
   it("難易度が変わっても、クライアントは生成中の表示を立てない（#271 レビュー）", () => {

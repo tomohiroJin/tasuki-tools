@@ -128,7 +128,7 @@ export function decideSnapshotIntents(
   //    （`use-timer-sync.ts` の `regenerateProblem`）ので、この経路とは無関係である。
   //    設定変更でも待ちを見せたいなら、**生成中をサーバー権威の状態にする**こと（#283）。
 
-  // 7. 完成フェーズかつ「完成（中断でない）」のとき、各端末でローカル記録を生成する
+  // 6. 完成フェーズかつ「完成（中断でない）」のとき、各端末でローカル記録を生成する
   //    （FR-020/028/059）。中断（abort）では記録を作らない。
   if (next.phase === "celebration" && next.problem && ctx.endType !== "abort" && !ctx.recordSaved) {
     intents.push({
