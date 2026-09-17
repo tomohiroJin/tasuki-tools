@@ -274,11 +274,9 @@ describe("useTimerSync: 開始（お題なし）", () => {
   it("お題が無い状態でロビーから開始すると problem.request → phase.set → session.act の順で送る", () => {
     // Given
     const { result } = renderHook(() => useTimerSync(fakeBanner()));
-    // **代表（輪の先頭）だと、ロビーの snapshot だけで代表お題の自動依頼が別途走り**、
-    // startSession() 自身が送る problem.request と混ざって順序を確かめにくくなる
-    // （#95 S5c で条件が `isCreator` から「輪の先頭」に替わった）。
-    // ここで代表にならないのは、`aRoomView()` の既定の輪の先頭が `creator-p` で、
-    // この参加者（`p-1`）ではないからである。
+    // 見るのは startSession() が送る 3 本の順序である。#271 でロビーの snapshot から
+    // お題の自動依頼が消えたので、輪の先頭かどうかはこの順序に影響しない
+    // （かつては代表だと自動依頼が混ざり、順序を確かめにくかった）。
     act(() => result.current.joinRoom("ROOM01", "Guest"));
     const ws = latestSocket();
     act(() => {

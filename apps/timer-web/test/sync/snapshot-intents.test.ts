@@ -189,28 +189,16 @@ describe("decideSnapshotIntents: お題", () => {
     expect(kinds(room, baseCtx())).not.toContain("request-problem");
   });
 
-  it("難易度が変わったら、輪の先頭かどうかに関わらず生成中の表示を出す（#271）", () => {
-    // Given: 難易度が変わった。**輪の先頭は自分ではない**
-    const rotation = { rotation: ["someone-else", SELF], currentIndex: 0, driverCounts: [0, 0] };
-    const prev = aRoomView({
-      code: "ROOM01",
-      phase: "ready",
-      problem,
-      config: { difficulty: "easy" },
-      session: rotation,
-    });
-    const next = aRoomView({
-      code: "ROOM01",
-      phase: "ready",
-      problem,
-      config: { difficulty: "hard" },
-      session: rotation,
-    });
+  it("難易度が変わっても、クライアントは生成中の表示を立てない（#271 レビュー）", () => {
+    // Given: 難易度が変わった
+    const prev = aRoomView({ code: "ROOM01", phase: "ready", problem, config: { difficulty: "easy" } });
+    const next = aRoomView({ code: "ROOM01", phase: "ready", problem, config: { difficulty: "hard" } });
 
-    // When / Then: 作り直すのはサーバーなので依頼は送らないが、待っていることは見せる
-    const k = kinds(next, baseCtx(), prev);
-    expect(k).toContain("begin-generating");
-    expect(k).not.toContain("regenerate-problem");
+    // When / Then: 作り直すのはサーバーで、待ちの表示も立てない。
+    // **立てると降ろせなくなる** —— サーバーは設定変更とお題確定の snapshot を
+    // 同じ tick で送るので、2 本目を処理する時点でも「生成中ではない」ままになり、
+    // 内容差分で降ろす clear-generating が成立しない（実測で 65 秒固まった）。
+    expect(kinds(next, baseCtx(), prev)).toEqual(["set-screen"]);
   });
 
   it("別のルームの snapshot なら設定変更とみなさない", () => {
@@ -218,7 +206,7 @@ describe("decideSnapshotIntents: お題", () => {
     const prev = aRoomView({ code: "OTHER", phase: "ready", problem, config: { difficulty: "easy" } });
     const next = aRoomView({ code: "ROOM01", phase: "ready", problem, config: { difficulty: "hard" } });
     // When / Then（kinds の戻り値をそのまま検証するため操作と検証が同じ式になる）
-    expect(kinds(next, baseCtx(), prev)).not.toContain("begin-generating");
+    expect(kinds(next, baseCtx(), prev)).toEqual(["set-screen"]);
   });
 
   it("お題を使わないルームでは、設定が変わっても生成中の表示を出さない（#271）", () => {
@@ -228,7 +216,7 @@ describe("decideSnapshotIntents: お題", () => {
     const next = aRoomView({ code: "ROOM01", phase: "ready", problem, config: { ...cfg, difficulty: "hard" } });
 
     // When / Then
-    expect(kinds(next, baseCtx(), prev)).not.toContain("begin-generating");
+    expect(kinds(next, baseCtx(), prev)).toEqual(["set-screen"]);
   });
 
   it("生成中にお題の内容が変わったら生成中を解除する", () => {
@@ -298,19 +286,7 @@ describe("decideSnapshotIntents: 順序（振る舞いそのもの）", () => {
       "set-screen",
       "persist-completion",
     ]);
-    // 注: celebration では begin-generating は立たない（phase が setup/ready のときだけ）。
+    // 注: お題系の意図はもう無い（依頼も待ちの表示もサーバー側・#271）。
   });
 
-  it("設定が変わった snapshot では、set-screen が begin-generating より前に来る", () => {
-    // 上のケースは celebration シナリオのため、set-screen とお題系の意図の
-    // 相対順を誰も見ていなかった。set-screen（5番目）は begin-generating（6番目）
-    // より先に配列へ積まれるはず。
-    // Given
-    const prev = aRoomView({ code: "ROOM01", phase: "ready", problem, config: { difficulty: "easy" } });
-    const next = aRoomView({ code: "ROOM01", phase: "ready", problem, config: { difficulty: "hard" } });
-    // When
-    const intents = decideSnapshotIntents(prev, next, baseCtx());
-    // Then
-    expect(intents.map((i) => i.kind)).toEqual(["set-screen", "begin-generating"]);
-  });
 });

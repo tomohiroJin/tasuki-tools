@@ -323,11 +323,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
         case "join-rotation":
           syncClient.send({ command: "member.add", participantId: intent.participantId });
           break;
-        case "begin-generating":
-          // サーバーがお題を作り直している間の表示（#271）。**全員が入る** ——
-          // 依頼を送った 1 人だけではない（依頼を送るのはサーバーになった）。
-          beginGenerating();
-          break;
         case "clear-generating":
           endGenerating();
           break;
@@ -422,7 +417,7 @@ export function useTimerSync(banner: BannerController): TimerSync {
         roomCodeRef.current = null;
         setClient(null);
         setParticipantId("");
-            recordSavedRef.current = false;
+        recordSavedRef.current = false;
         setSessionLost(false);
         setRecord(null);
         // 捨てた同期フレームの警告もルーム由来なので畳む（#209）。

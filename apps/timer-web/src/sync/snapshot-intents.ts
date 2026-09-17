@@ -7,7 +7,7 @@
  *
  * **配列の順が振る舞いである。** 現行 handleRoom の実行順をそのまま保つ:
  * resume 保存 → 参加時ドライバー宣言 → 生成中の解除 → 完了状態の後片付け →
- * 画面遷移 → 設定変更での生成中表示 → 完成記録。
+ * 画面遷移 → 完成記録。
  *
  * **現在時刻は ctx.now で注入する。** この module から `Date.now()` を呼ばない
  * （`docs/adr/0016`。#166 が timer-core の pickFallback に対して採った作法と同じ）。
@@ -26,8 +26,6 @@ export type SnapshotIntent =
   | { kind: "consume-driver-join" }
   /** 自分をローテーションへ加える。 */
   | { kind: "join-rotation"; participantId: string }
-  /** お題生成中の表示を出す（サーバーが作り直している間・#271）。 */
-  | { kind: "begin-generating" }
   /** お題生成中の表示を解除する。 */
   | { kind: "clear-generating" }
   /** 前のセッションの完了状態（記録・終了種別・保存済みの印）を畳む。 */
@@ -116,27 +114,19 @@ export function decideSnapshotIntents(
   // 5. サーバー権威の phase に全参加者が追従する（誰の開始/完成でも全員に反映）。
   intents.push({ kind: "set-screen", screen: screenForPhase(next.phase) });
 
-  // 6. 難易度・言語をロビーで変えたら、**待っていることを見せる**（#271）。
+  // ⚠ **ここに「設定が変わったら生成中の表示を出す」を置いてはならない**（#271 のレビュー）。
   //
-  //    **依頼そのものはもう送らない。** かつてはここで「代表」（輪の先頭）が
-  //    `problem.request` を送っていたが、輪は切断では変わらないので、先頭が timer に
-  //    居ないと誰も送らなかった —— お題が永久に出ないか、設定だけが変わって中身が
-  //    古いまま残った。作り直すのはサーバーである（`application/lobby-problem.ts`）。
+  //    サーバーは設定変更の snapshot と、作り直したお題の snapshot を**同じ tick で
+  //    続けて送る**。`handleRoom` が読む `room` と `generatingProblem` は直前のレンダー
+  //    時点の値なので、2 本目を処理する時点でもまだ「変更前のルーム・生成中ではない」
+  //    ままである。結果、**お題が確定した後の snapshot で生成中が立ち直り**、
+  //    内容差分で降ろす `clear-generating`（上の 3.）は二度と成立しない。
+  //    実測では `aria-busy=true` のまま 6 秒経っても降りず、お題パネル全体が
+  //    `pointer-events: none` で固まった（65 秒の安全弁が切れるまで全員が操作できない）。
   //
-  //    **代表かどうかは見ない。** 全員が同じ snapshot で生成中に入り、
-  //    お題の内容が変わった時点で全員が降りる（上の 3.）。旧実装では
-  //    スピナーが出るのは依頼を送った 1 人だけだった。
-  const cfgChanged =
-    prev?.code === next.code &&
-    (prev.config.difficulty !== next.config.difficulty ||
-      prev.config.language !== next.config.language);
-  if (
-    cfgChanged &&
-    (next.phase === "setup" || next.phase === "ready") &&
-    next.config.problemEnabled !== false
-  ) {
-    intents.push({ kind: "begin-generating" });
-  }
+  //    「別のお題にする」の生成中表示は押した人の操作の中で立てている
+  //    （`use-timer-sync.ts` の `regenerateProblem`）ので、この経路とは無関係である。
+  //    設定変更でも待ちを見せたいなら、**生成中をサーバー権威の状態にする**こと（#283）。
 
   // 7. 完成フェーズかつ「完成（中断でない）」のとき、各端末でローカル記録を生成する
   //    （FR-020/028/059）。中断（abort）では記録を作らない。
