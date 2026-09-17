@@ -237,7 +237,7 @@ AI を使わず手持ちの題材から選び、少し編集し、言語や難�
   旧入口（`Setup.tsx` / `Join.tsx`）を #95 S5c（[#249](https://github.com/tomohiroJin/tasuki-tools/issues/249)）
   で撤去し、名乗りもルーム作成も玄関（`apps/landing`）に 1 つだけ置いた。
   **要求そのものは捨てていない。玄関側の要求として別 Issue へ預けた**
-  （預け先の Issue 番号は起票後にここへ入れる）。**SC-015 の前半（再訪時に前回の設定が
+  （預け先は [#284](https://github.com/tomohiroJin/tasuki-tools/issues/284)）。**SC-015 の前半（再訪時に前回の設定が
   既定として埋まる）も、同じ理由で玄関側が満たすものになった。**
   なお **既存利用者の端末に残った `tdd-mob:preferences:v1` は消さない** ——
   読み手も書き手も無い値のために掃除コードを足すのは、憲法 原則 X（抽象は実需で）に反する。
