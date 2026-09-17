@@ -1,8 +1,13 @@
 /**
  * `decideSnapshotIntents` が返す意図のうち、App.tsx の適用 switch を経由しないと
- * 誰にも守られない 4 種（`persist-completion` / `request-problem` /
- * `regenerate-problem` / `consume-driver-join`）を、App 経由の副作用（WS 送信・
- * IndexedDB 保存）で直接確認する肯定テスト（#167 Task 5 レビュー指摘）。
+ * 誰にも守られないもの（`persist-completion` / `begin-generating` /
+ * `consume-driver-join`）を、App 経由の副作用（画面・IndexedDB 保存）で
+ * 直接確認する肯定テスト（#167 Task 5 レビュー指摘）。
+ *
+ * **#271 で顔ぶれが変わった。** かつてここに居た `request-problem` /
+ * `regenerate-problem` は、お題の依頼がサーバーへ移って消えた
+ * （`apps/tasuki-sync/src/application/lobby-problem.ts`）。代わりに、
+ * 設定変更で全員が生成中に入る `begin-generating` が来ている。
  *
  * Task 5 の対照実行で、この 4 種は「switch の case を握りつぶしても 1 件も
  * テストが落ちない」ことが判明した。既存の否定テスト（例:
