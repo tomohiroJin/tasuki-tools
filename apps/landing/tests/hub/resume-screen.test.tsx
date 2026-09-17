@@ -143,7 +143,7 @@ describe('ツールから選択画面へ戻ったとき', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('同期サーバーに接続できません');
   });
 
-  it('(d) Given 同一性はあるが復帰に失敗した / When ルームが見つからない / Then 名乗る画面へ落ちる', () => {
+  it('(d) Given 同一性はあるが復帰に失敗した / When ルームが見つからない / Then 不在の知らせへ落ちる', () => {
     // Given: ルームが消えた後に戻ってきた（保存だけが残っている）
     haveIdentity();
     openFromTool();
@@ -159,8 +159,12 @@ describe('ツールから選択画面へ戻ったとき', () => {
       });
     });
 
-    // Then: 待ち続けない。名乗り直す道を出す
-    expect(screen.getByRole('button', { name: '参加する' })).toBeInTheDocument();
+    // Then: 待ち続けない（元の意図）。**行き先が変わった**（#274・経路2）——
+    // 以前はここで名乗り直す画面を出していたが、そのルームは消えているので
+    // 名乗っても必ず失敗する。不在を知らせて戻る道を出す。
+    expect(screen.getByRole('heading', { name: 'ルームが見つかりません' })).toBeInTheDocument();
     expect(screen.queryByText(/読み込んでいます/)).not.toBeInTheDocument();
+    // **名乗らせない。** これが #274 の本体である
+    expect(screen.queryByRole('button', { name: '参加する' })).not.toBeInTheDocument();
   });
 });

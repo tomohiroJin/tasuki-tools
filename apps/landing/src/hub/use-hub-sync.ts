@@ -49,6 +49,13 @@ export interface HubSync {
    * これが true の間、画面は名乗りを求めない（`hub/hub-state.ts` の `screenFor`）。
    */
   readonly resuming: boolean;
+  /**
+   * そのルームが見つからないと分かったか（#274）。
+   *
+   * **名乗る前に立つことがある。** 復帰の組を持たない人には、接続と同時に
+   * 生死を尋ねている。組を持つ人は `room.join` の答えで同じ印が立つ。
+   */
+  readonly gone: boolean;
   /** 選択画面に映す名簿（未参加なら null）。 */
   readonly roster: RosterRoom | null;
   /** 名乗るフォームの初期値（前に名乗った名前）。 */
@@ -114,6 +121,7 @@ export function useHubSync(): HubSync {
   const [resuming, setResuming] = useState(
     () => initialCode !== null && loadResumeIdentity(initialCode) !== null,
   );
+  const [gone, setGone] = useState(false);
   const [roster, setRoster] = useState<RosterRoom | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [needsPassphrase, setNeedsPassphrase] = useState(false);
@@ -149,6 +157,18 @@ export function useHubSync(): HubSync {
     return true;
   }, [initialCode, send]);
 
+  /**
+   * ルームの生死だけを尋ねる（#274）。**復帰の組を持たない人にだけ送る。**
+   *
+   * 組を持つ人には `room.join` が同じ答えを返すので、送るとバケツを二重に使うだけである
+   * （レート制限は IP 単位で、同じ NAT の利用者が枠を共有する）。
+   */
+  const checkIfNeeded = useCallback(() => {
+    if (initialCode === null) return;
+    if (loadResumeIdentity(initialCode) !== null) return;
+    send({ command: 'room.check', code: initialCode });
+  }, [initialCode, send]);
+
   useEffect(() => {
     const conn = new SyncConnection({
       url: buildHubSyncUrl(window.location),
@@ -173,6 +193,7 @@ export function useHubSync(): HubSync {
           saveDefaultDisplayName(lastJoinRef.current?.displayName ?? '');
           setJoined(true);
           setResuming(false);
+          setGone(false);
           setError(null);
           setNeedsPassphrase(false);
           retryRef.current = 0;
@@ -223,6 +244,12 @@ export function useHubSync(): HubSync {
           // **保存済みの組で入れなかったら捨てる。** 残すと、消えたルームへ
           // 毎回入り直そうとして参加画面に戻れない（poker の clearIdentity と同じ扱い）。
           clearResumeIdentity(codeRef.current);
+          // **名乗りフォームを出さない**（#274・#76 J-1）。照会の答えでも
+          // 入室の答えでも、行き先は同じ画面である。
+          setGone(true);
+          // ここで返す。`error` を埋めると、不在の画面と参加画面用の文言が
+          // 同じことを 2 通りの言い方で出すことになる。
+          return;
         }
         setError(msg.message);
       },
@@ -233,6 +260,9 @@ export function useHubSync(): HubSync {
       onReconnected: () => {
         // 切断中に名簿が変わっているので、入り直して新しい名簿を受け取る。
         resumeIfPossible();
+        // **切断中にルームが終わっていることがある。** 名乗りフォームの前で
+        // 待っている人はそれを知らないので、尋ね直す（#274）。
+        checkIfNeeded();
       },
     });
     connRef.current = conn;
@@ -244,6 +274,8 @@ export function useHubSync(): HubSync {
       lastJoinRef.current = { displayName: saved.displayName };
       resumeIfPossible();
     }
+    // **組が無い人には生死を尋ねる**（#274）。名乗る前に不在を知らせるため。
+    checkIfNeeded();
 
     return () => {
       conn.dispose();
@@ -252,7 +284,7 @@ export function useHubSync(): HubSync {
     // **依存は URL 由来の値だけにする。** 入口の URL はページ読み込みで決まり
     // （全ページ読み込みで WS が張り直しになる・D14）、作成で得たコードをここへ混ぜると
     // 作成のたびに接続が張り直る（`tests/hub/use-hub-sync.test.tsx` が固定している）。
-  }, [initialCode, resumeIfPossible, send]);
+  }, [initialCode, resumeIfPossible, checkIfNeeded, send]);
 
   const createRoom = useCallback(
     (roomName: string, displayName: string) => {
@@ -283,6 +315,7 @@ export function useHubSync(): HubSync {
     code,
     joined,
     resuming,
+    gone,
     inviteUrl: code === null ? null : buildInviteUrl(window.location.origin, code),
     roster,
     defaultDisplayName,

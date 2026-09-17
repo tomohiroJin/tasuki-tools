@@ -9,21 +9,25 @@ import { screenFor } from '../../src/hub/hub-state.js';
 
 describe('画面の決め方', () => {
   it('Given ルームコードが無い / When 画面を決める / Then 作成になる', () => {
-    expect(screenFor({ code: null, joined: false, resuming: false })).toBe('create');
+    expect(screenFor({ code: null, joined: false, resuming: false, gone: false })).toBe('create');
   });
 
   it('Given ルームコードがあり未参加 / When 画面を決める / Then 参加になる', () => {
-    expect(screenFor({ code: '朝会モブ-a1b2', joined: false, resuming: false })).toBe('join');
+    expect(screenFor({ code: '朝会モブ-a1b2', joined: false, resuming: false, gone: false })).toBe(
+      'join',
+    );
   });
 
   it('Given ルームコードがあり参加済み / When 画面を決める / Then 選択画面になる', () => {
-    expect(screenFor({ code: '朝会モブ-a1b2', joined: true, resuming: false })).toBe('choice');
+    expect(screenFor({ code: '朝会モブ-a1b2', joined: true, resuming: false, gone: false })).toBe(
+      'choice',
+    );
   });
 
   it('Given ルームコードが無いのに参加済み / When 画面を決める / Then 作成になる', () => {
     // 参加用 URL から room を消した状態。**選択画面を出さない** ——
     // どのルームを映すか決まらないので、入口へ戻す
-    expect(screenFor({ code: null, joined: true, resuming: false })).toBe('create');
+    expect(screenFor({ code: null, joined: true, resuming: false, gone: false })).toBe('create');
   });
 });
 
@@ -36,21 +40,60 @@ describe('画面の決め方', () => {
  */
 describe('復帰を試している間', () => {
   it('Given 復帰の返事待ち / When 画面を決める / Then 名乗る画面にはしない', () => {
-    expect(screenFor({ code: '朝会モブ-a1b2', joined: false, resuming: true })).toBe('resuming');
+    expect(screenFor({ code: '朝会モブ-a1b2', joined: false, resuming: true, gone: false })).toBe(
+      'resuming',
+    );
   });
 
   it('Given 復帰できた / When 画面を決める / Then 選択画面になる', () => {
     // 返事が来た時点で resuming は降りるが、行き違っても選択画面が勝つ
-    expect(screenFor({ code: '朝会モブ-a1b2', joined: true, resuming: true })).toBe('choice');
+    expect(screenFor({ code: '朝会モブ-a1b2', joined: true, resuming: true, gone: false })).toBe(
+      'choice',
+    );
   });
 
   it('Given 復帰を試していない（端末に同一性が無い）/ When 画面を決める / Then 名乗る画面になる', () => {
     // ⚠ この 1 本が無いと「常に名乗らせない」実装でも緑になる
-    expect(screenFor({ code: '朝会モブ-a1b2', joined: false, resuming: false })).toBe('join');
+    expect(screenFor({ code: '朝会モブ-a1b2', joined: false, resuming: false, gone: false })).toBe(
+      'join',
+    );
   });
 
   it('Given ルームコードが無いのに復帰中 / When 画面を決める / Then 作成になる', () => {
     // どのルームを映すか決まらない以上、待つ対象も無い
-    expect(screenFor({ code: null, joined: false, resuming: true })).toBe('create');
+    expect(screenFor({ code: null, joined: false, resuming: true, gone: false })).toBe('create');
+  });
+});
+
+/**
+ * 見つからないルームの参加用 URL（#274）。
+ *
+ * **名乗りフォームを出さない。** 出すと、送信して初めて不在が分かる。
+ */
+describe('ルームが見つからないとき', () => {
+  it('Given 未参加で見つからない / When 画面を決める / Then 不在の画面になる', () => {
+    expect(screenFor({ code: '朝会モブ-a1b2', joined: false, resuming: false, gone: true })).toBe(
+      'gone',
+    );
+  });
+
+  it('Given 復帰の返事待ちのまま見つからないと分かった / When 画面を決める / Then 不在の画面になる', () => {
+    // 経路2。待ちが降りる前に判定が来ても、名乗りフォームへは落とさない
+    expect(screenFor({ code: '朝会モブ-a1b2', joined: false, resuming: true, gone: true })).toBe(
+      'gone',
+    );
+  });
+
+  it('Given 参加済みなのに見つからない印が立っている / When 画面を決める / Then 選択画面のまま', () => {
+    // **`joined` を先に見る。** ここを逆にすると「参加した後にルームが消えた」場合の
+    // 選択画面の振る舞いまで変わる。それは #274 の射程外である
+    expect(screenFor({ code: '朝会モブ-a1b2', joined: true, resuming: false, gone: true })).toBe(
+      'choice',
+    );
+  });
+
+  it('Given コードが無い / When 画面を決める / Then 作成のまま', () => {
+    // どのルームの不在かを言えないので、不在の画面は出さない
+    expect(screenFor({ code: null, joined: false, resuming: false, gone: true })).toBe('create');
   });
 });

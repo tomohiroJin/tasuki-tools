@@ -7,6 +7,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
+import { saveResumeIdentity } from '@tasuki/sync-client';
 import { App } from '../../src/App.js';
 
 /** 送った中身を覚え、サーバーからの応答を差し込める WebSocket。 */
@@ -221,5 +222,102 @@ describe('ハブの同期', () => {
 
     // Then
     expect(localStorage.getItem('tasuki:resume:R1')).toBeNull();
+  });
+});
+
+/**
+ * 名乗る前にルームの不在を知る（#274・#76 J-1）。
+ */
+describe('ルームの生死の照会', () => {
+  /** `?room=` 付きで玄関を開いた状態にする。 */
+  const openWithRoom = (code: string): void => {
+    window.history.replaceState(null, '', `/?room=${encodeURIComponent(code)}`);
+  };
+
+  /** 送られた `room.check` の件数。 */
+  const checksSent = (): number =>
+    socket().sent.filter((raw) => JSON.parse(raw).command === 'room.check').length;
+
+  it('Given 復帰の組が無い参加用 URL / When 玄関を開く / Then 生死の照会が送られる', () => {
+    openWithRoom('朝会モブ-a1b2');
+
+    render(<App />);
+    act(() => socket().open());
+
+    expect(checksSent()).toBe(1);
+  });
+
+  it('Given 復帰の組がある参加用 URL / When 玄関を開く / Then 照会は送られない', () => {
+    // **送るとバケツを二重に使うだけ**。この人には room.join が同じ答えを返す
+    openWithRoom('朝会モブ-a1b2');
+    saveResumeIdentity({
+      code: '朝会モブ-a1b2',
+      participantId: 'p1',
+      resumeToken: 't1',
+      displayName: 'あや',
+    });
+
+    render(<App />);
+    act(() => socket().open());
+
+    expect(checksSent()).toBe(0);
+  });
+
+  it('Given 照会を送った / When 見つからないと返る / Then 名乗りフォームを出さない（経路1）', () => {
+    openWithRoom('朝会モブ-a1b2');
+    render(<App />);
+    act(() => socket().open());
+
+    act(() =>
+      socket().deliver({
+        type: 'error',
+        code: 'ROOM_NOT_FOUND',
+        message: '指定されたルームコードが見つかりません',
+      }),
+    );
+
+    expect(screen.getByRole('heading', { name: 'ルームが見つかりません' })).toBeTruthy();
+    expect(screen.queryByLabelText('あなたの名前')).toBeNull();
+  });
+
+  it('Given 復帰の組で入り直した / When 見つからないと返る / Then 名乗りフォームを出さない（経路2）', () => {
+    // **Issue 本文が触れていない経路。** 症状は経路1 と同じである
+    openWithRoom('朝会モブ-a1b2');
+    saveResumeIdentity({
+      code: '朝会モブ-a1b2',
+      participantId: 'p1',
+      resumeToken: 't1',
+      displayName: 'あや',
+    });
+    render(<App />);
+    act(() => socket().open());
+
+    act(() =>
+      socket().deliver({
+        type: 'error',
+        code: 'ROOM_NOT_FOUND',
+        message: '指定されたルームコードが見つかりません',
+      }),
+    );
+
+    expect(screen.getByRole('heading', { name: 'ルームが見つかりません' })).toBeTruthy();
+    expect(screen.queryByLabelText('あなたの名前')).toBeNull();
+  });
+
+  it('Given 照会を送った / When 混雑で弾かれる / Then 不在とは言わない', () => {
+    // 無音の意味は「生きている、または拒否された」。**断定しない側にしか外れない**
+    openWithRoom('朝会モブ-a1b2');
+    render(<App />);
+    act(() => socket().open());
+
+    act(() =>
+      socket().deliver({
+        type: 'error',
+        code: 'JOIN_RATE_LIMITED',
+        message: '試行が多すぎます。しばらくしてからお試しください',
+      }),
+    );
+
+    expect(screen.queryByRole('heading', { name: 'ルームが見つかりません' })).toBeNull();
   });
 });
