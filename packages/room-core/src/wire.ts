@@ -81,7 +81,15 @@ export type HubCommand =
       // 省くと `HubCommandSchema` に型注釈を付けられず、検証の出力とこの型が静かにずれる。
       resumeToken?: string | undefined;
       passphrase?: string | undefined;
-    };
+    }
+  /**
+   * ルームの生死だけを尋ねる（#274）。**名前を受け取らない。**
+   *
+   * 招待リンクを踏んだ人が、名乗る前に不在を知るための問い合わせである。
+   * 応答は**無いときだけ**返る（`HubServerMsg` の `error` / `ROOM_NOT_FOUND`）。
+   * 在るときの肯定は返さない —— 無音で足りるうえ、確定的な肯定は開示が大きい。
+   */
+  | { command: "room.check"; code: string };
 
 export const HubCommandSchema: v.GenericSchema<HubCommand> = v.variant("command", [
   v.object({
@@ -95,6 +103,10 @@ export const HubCommandSchema: v.GenericSchema<HubCommand> = v.variant("command"
     displayName: v.string(),
     resumeToken: v.optional(v.string()),
     passphrase: v.optional(v.string()),
+  }),
+  v.object({
+    command: v.literal("room.check"),
+    code: nonEmptyString,
   }),
 ]);
 
