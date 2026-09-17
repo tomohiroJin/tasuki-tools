@@ -269,6 +269,35 @@ describe("phase.set: ロビーへ戻るとお題は持ち越さない（#273）"
     expect(roomViewOf(store, timers, code).sessionRecords).toHaveLength(1);
   });
 
+  /**
+   * 落とす条件は**完了画面から出る遷移**に限る（#273 のレビュー②）。
+   *
+   * `decide.ts` の `phase.set` は**現在の phase を一切見ずに** `PhaseSet` を返す
+   * （ガードが無い）。一方 `packages/sync-client/src/connection.ts` は未確立時の
+   * コマンドを溜め、**再接続の `onopen` でそのまま流す**。したがって
+   * 「切断中に押された『新しいセッション』が、再接続後に**走行中の**ルームへ届く」
+   * 経路は実在する。
+   *
+   * 「ロビー以外 → ロビー」で落とすと、この 1 通で**走っているセッションのお題が
+   * 消えて別のお題に差し替わる**。完了画面から出る遷移だけを見れば起きない。
+   */
+  it("Given 走行中のセッション / When 遅れて届いた phase.set setup が流れる / Then 走っているお題を消さない", async () => {
+    // Given: お題を確定させてセッションを走らせる
+    const code = await setupRoom(handlers, store, timers);
+    putRoomView(store, timers, { ...roomViewOf(store, timers, code), problem });
+    await handlers.handleCommand("host-conn", { command: "phase.set", phase: "session" });
+    await handlers.handleCommand("host-conn", { command: "session.act", action: "START" });
+    if (roomViewOf(store, timers, code).phase !== "session") {
+      throw new Error("前提が崩れた: セッションが始まっていない");
+    }
+
+    // When: 切断中に押された「新しいセッション」が、再接続で溜まっていた分として届く
+    await handlers.handleCommand("host-conn", { command: "phase.set", phase: "setup" });
+
+    // Then: 完了していないので、走っていたお題はそのまま残る
+    expect(roomViewOf(store, timers, code).problem?.title).toBe("FizzBuzz");
+  });
+
   it("Given 既にロビーに居るルーム / When もう一度ロビーへ戻す / Then 用意済みのお題を捨てない", async () => {
     // Given: ロビーでお題が用意された状態（`fillLobbyProblem` が埋めた直後と同じ）
     const code = await setupRoom(handlers, store, timers);
