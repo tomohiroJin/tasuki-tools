@@ -500,6 +500,34 @@ export const MUTATIONS = [
       "**名乗る場所の無い画面に取り残される**（撤去前はそこに `Setup` が居た）。" +
       "この段の前提そのものなので、退化を無言で許さないように置く。",
   },
+  {
+    id: 39,
+    label: "「新しいセッション」でロビーへ戻っても前のお題を落とさない",
+    patch: "m39-new-session-keeps-old-problem.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/handlers.lifecycle.test.ts", "test/lobby-problem-autorequest.test.ts"],
+    note:
+      "#273。#249（#95 S5c）が「新しいセッション」をロビーへ戻す形にしたことで、" +
+      "**同じルームで 2 本目を始める経路が初めてできた**。落とさないと 2 本目が " +
+      "1 本目と同じお題で始まる。**埋め直しは `lobby-problem.ts` の不変条件が勝手に " +
+      "やる**ので、落とす側を消しても例外は出ず、ロビーは普通に描画される —— " +
+      "お題の中身を見て初めて殺せる。",
+  },
+  {
+    id: 40,
+    label: "落とすときに「ロビーでお題を扱う範囲」を見ない（`celebration` を出たら常に落とす）",
+    patch: "m40-drop-ignores-lobby-scope.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/handlers.lifecycle.test.ts"],
+    note:
+      "#273 のレビュー 2 巡目。落とす条件は「`celebration` 発」と「行き先が " +
+      "`usesLobbyProblem` の範囲」の 2 つでできており、**後者を外しても #273 の検査は " +
+      "全部緑のままだった**（実測。全パッケージで落ちたのは別の性質を見ている " +
+      "`live-ws.multi-connection.test.ts` の 1 本だけ）。恒真化していた側なので " +
+      "恒久的に塞ぐ。殺すのは 2 つの経路である —— 遅れて届いた `phase.set session` で " +
+      "**始まったばかりのセッションがお題を失う**ことと、お題を使わない設定のルームで " +
+      "**落としたきり誰も埋めず完成記録が消える**こと。",
+  },
 ];
 
 /**
