@@ -282,6 +282,18 @@ describe("phase.set: ロビーへ戻るとお題は持ち越さない（#273）"
     ] as const) {
       await handlers.handleCommand("host-conn", command);
     }
+    // **見ているのは本数だけである。射程はここまで。**
+    //
+    // 中身（`problemTitle`）は 2 本とも 1 本目のお題の名前になる。お題を使わない
+    // ルームのお題は落とさないので、`buildCompletionRecord` が受け取るのは
+    // ずっと 1 本目のお題だからである。**実際には取り組んでいないお題名が履歴に
+    // 残る**が、**これは main からの既存の振る舞いで、この PR の退行ではない**
+    // （実測: main `0d37d44` の src でも branch でも `["FizzBuzz","FizzBuzz"]`）。
+    //
+    // 直すには「無条件に落とす」＋「お題を使わないルームでは
+    // `SessionCompleted` がタイトルを捏造しない」の 2 つが要る。後者は完成記録の
+    // 作り方そのものの変更で、#273 の EARS（2 本目のために新しいお題を用意する）の
+    // 外側にある。**本数しか見ていないのは手落ちではなく線引きである。**
     expect(roomViewOf(store, timers, code).sessionRecords).toHaveLength(2);
   });
 
