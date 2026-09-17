@@ -171,4 +171,52 @@ describe("ロビーのお題はサーバーが用意する（#271）", () => {
     );
     expect(after).not.toBeNull();
   });
+
+  /**
+   * 2 本目のお題（#273）。
+   *
+   * #249（#95 S5c）で「新しいセッション」は**ルームをロビーへ戻してから玄関へ送る**
+   * ようになった（`apps/timer-web/src/sync/use-timer-sync.ts` の `newSession`）。
+   * 送るのは `phase.set setup` の 1 通だけで、**お題の作り直しは誰も頼まない**。
+   *
+   * **お題の中身の比較では見分けられない。** `pickFallback` は
+   * `Math.abs(now) % candidates.length` で選ぶので、作り直しても同じお題を引きうる
+   * （#283）。そこで 1 本目に**この実行だけの印**を付けてから完成させる。
+   *
+   * **「いったん `problem: null` の snapshot が届くこと」は見ない。** それは
+   * 「落として埋める」という現在の実装の道順であって、利用者への約束ではない。
+   * 見るのは「2 本目のロビーに出るお題が 1 本目ではないこと」である。
+   */
+  it("Given 完了したセッション / When 「新しいセッション」でロビーへ戻す / Then 2 本目のお題が用意される", async () => {
+    // Given: timer でルームを作り、1 本目のお題に印を付ける
+    const owner = await server.connect("owner");
+    await createRoom(owner, "あや", {
+      config: {
+        language: "TypeScript",
+        difficulty: "easy",
+        members: ["あや"],
+        intervalMinutes: 5,
+      },
+    });
+    if ((await awaitProblem(owner)) === null) {
+      throw new Error("前提が崩れた: 1 本目のお題が用意されていない");
+    }
+    const firstTitle = "1 本目のお題（#273）";
+    owner.send({ command: "problem.edit", patch: { title: firstTitle } });
+    await owner.take("snapshot", (m) => m.room.problem?.title === firstTitle);
+
+    // Given: 走らせて完成させる（phase=celebration）
+    owner.send({ command: "phase.set", phase: "session" });
+    owner.send({ command: "session.act", action: "START" });
+    owner.send({ command: "session.complete" });
+    await owner.take("snapshot", (m) => m.room.phase === "celebration");
+
+    // When: 「新しいセッション」が送る 1 通だけを送る（お題の依頼は送らない）
+    owner.send({ command: "phase.set", phase: "setup" });
+
+    // Then: 2 本目のロビーにお題が出ており、それは 1 本目のお題ではない
+    const lobby = await awaitSnapshot(owner, (r) => r.phase === "setup" && r.problem !== null);
+    expect(lobby, "2 本目のお題が用意されない").not.toBeNull();
+    expect(lobby?.problem?.title, "1 本目のお題が残っている").not.toBe(firstTitle);
+  });
 });
