@@ -213,11 +213,13 @@ argv・ログ・snapshot に混入させません。失敗（タイムアウト�
   timer は URL（`?room=` / `?view=history`）とその端末に保存された同一性からしか入りません
   （#95 S5c・R9。`Setup.tsx` / `Join.tsx` と `room-param.ts` は同じ段で撤去しました）。
   **`App.tsx` から切り出した純粋な判定関数群**も同じ階層に置きます（`screen.ts` /
-  `connection-status.ts` / `problem-generation.ts` / `join-driver-intent.ts` /
-  `error-action.ts` / `entry.ts`）。`App.tsx` はそれらの結果を適用するだけにして、
+  `connection-status.ts` / `problem-generation.ts` / `error-action.ts` / `entry.ts`）。
+  `App.tsx` はそれらの結果を適用するだけにして、
   規則をテストの届く場所に置くのが方針です（`App.tsx` 自体の render テストは持たないため、
   判定を中に埋めると検証手段が無くなる）。**`host-change.ts` も同じ階層にありましたが、
-  ホスト移譲の導線ごと #95 S3 で削除しました。**
+  ホスト移譲の導線ごと #95 S3 で削除しました。** **`join-driver-intent.ts` も
+  #272 で削除しました** —— 参加時のドライバー宣言は旧入口（`Join`）にしか無く、
+  #95 S5c の撤去で宣言を立てる者が消えたためです。
 - `platform/`: 通知（`notify.ts`）・交代音とカウントダウン音声（`sound.ts`）。
 
 ### 画面遷移は phase 駆動

@@ -53,7 +53,7 @@ import type { EndType } from "../ui/Summary.js";
 import { saveRecord } from "../records/indexeddb.js";
 import { persistRecordIfComplete } from "../records/persist.js";
 import { displayMessageFor } from "@tasuki/timer-core";
-import type { CompletionRecord, Room, SessionConfig } from "@tasuki/timer-core";
+import type { CompletionRecord, Room } from "@tasuki/timer-core";
 
 /** 混雑で入室を拒まれ、自動で入り直している間の案内（#147）。 */
 const JOIN_RETRY_WAITING_TEXT = "混み合っています。自動で入り直しています…";
@@ -116,14 +116,13 @@ export interface TimerSync {
   /** 引数をそのまま載せて送るだけの操作。 */
   commands: TimerCommands;
 
-  createRoom(displayName: string, roomName?: string): void;
-  joinRoom(
-    code: string,
-    displayName?: string,
-    passphrase?: string,
-    joinMode?: "driver" | "spectator",
-  ): void;
-  /** ロビーの「開始」。お題が無ければ依頼してから phase.set と START を送る。 */
+  /**
+   * ロビーの「開始」。お題が無ければ依頼してから phase.set と START を送る。
+   *
+   * **ここに `createRoom` / `joinRoom` は無い**（#272）。ルームを作るのも名乗るのも
+   * 玄関（`apps/landing`）の仕事で、timer が入るのは URL（`?room=`）とその端末に
+   * 保存された同一性からだけである（下の入口の effect）。
+   */
   startSession(): void;
   complete(): void;
   abort(): void;
@@ -180,9 +179,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
   // AI/定型のお題生成中（「別のお題にする」押下〜新お題確定まで）。スピナー＋減光に使う。
   const [generatingProblem, setGeneratingProblem] = useState(false);
 
-  // 参加時に "driver" を選択したか。snapshot で自分が参加者に現れたら member.add を一度だけ送る。
-  // 名前ではなく「宣言したか」だけを持つ（誰を加えるかは自分の participantId で決まる・D6b）。
-  const pendingDriverJoinRef = useRef(false);
   // 完成記録の二重保存を防ぐガード（celebration の snapshot が複数回来ても1回だけ保存）。
   const recordSavedRef = useRef(false);
   // 生成が返らない異常で固まらないための安全弁タイマー。
@@ -281,7 +277,7 @@ export function useTimerSync(banner: BannerController): TimerSync {
     }
   };
 
-  const handleRoom = (syncClient: SyncClient, r: Room) => {
+  const handleRoom = (r: Room) => {
     // **画面が実際に新しい状態を得た。** ここだけが「古い」の解除点である（#209）。
     setSyncStale(false);
     // ルームに入る前に出したバナーは、入れた時点で役目を終える。
@@ -301,10 +297,8 @@ export function useTimerSync(banner: BannerController): TimerSync {
     roomCodeRef.current = r.code;
 
     const intents = decideSnapshotIntents(prevRoom, r, {
-      participantId,
       pendingResume: pendingResumeRef.current,
       resumeDisplayName: resumeDisplayNameRef.current,
-      pendingDriverJoin: pendingDriverJoinRef.current,
       recordSaved: recordSavedRef.current,
       generatingProblem,
       endType,
@@ -316,12 +310,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
         case "save-resume":
           saveResumeIdentity(intent.identity);
           pendingResumeRef.current = null;
-          break;
-        case "consume-driver-join":
-          pendingDriverJoinRef.current = false;
-          break;
-        case "join-rotation":
-          syncClient.send({ command: "member.add", participantId: intent.participantId });
           break;
         case "clear-generating":
           endGenerating();
@@ -477,8 +465,13 @@ export function useTimerSync(banner: BannerController): TimerSync {
         showBanner(JOIN_RETRY_WAITING_TEXT, "warn", { autoDismiss: false });
         joinRetryTimerRef.current = setTimeout(() => {
           joinRetryTimerRef.current = null;
-          // 保存が無い（招待リンクで来た初回など）と自動では入り直せないので、
-          // 手立てを示して終わる。
+          // 保存が無いと自動では入り直せないので、手立てを示して終わる。
+          //
+          // **「招待リンクで来た初回」はもう通らない**（#272）。旧入口（`Join`）を
+          // 撤去したので、入るには入口の effect が復帰の組を読めていることが前提になった。
+          // 残っている経路は**別タブが同じルームの組を捨てたとき**である ——
+          // 鍵は `localStorage`・ルームコード別（#95 S4b・D12）で、選択画面や poker を
+          // 別タブで開くのは現実的な使い方なので、向こうで退出されるとここが成立する。
           if (!sendResumeJoin(syncClient)) {
             showBanner(JOIN_RETRY_EXHAUSTED_TEXT, "warn", { autoDismiss: false });
           }
@@ -559,7 +552,7 @@ export function useTimerSync(banner: BannerController): TimerSync {
   const makeClient = (): SyncClient => {
     const newClient = new SyncClient({
       url: buildSyncUrl(window.location),
-      onRoom: (r) => handlersRef.current.handleRoom(newClient, r),
+      onRoom: (r) => handlersRef.current.handleRoom(r),
       onIdentity: (identity) => handlersRef.current.handleIdentity(identity),
       onNeedProblem: (requestId) => handlersRef.current.handleNeedProblem(newClient, requestId),
       onError: (code) => handlersRef.current.handleError(newClient, code),
@@ -581,37 +574,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
   // mount 時 effect（再読込での復帰）から呼ぶための ref。makeClient は毎レンダー
   // 作り直されるため、依存配列へ入れると effect が毎レンダー走ってしまう。
   const makeClientRef = useLatestRef(makeClient);
-
-  const createRoom = (displayName: string, roomName?: string) => {
-    // 言語/難易度/間隔/オプションは既定で作成し、ロビーで config.set で調整する
-    // （最初の画面で選びすぎない・UX 再設計）。お題はロビーで自動生成。
-    resumeDisplayNameRef.current = displayName;
-    const config: SessionConfig = {
-      language: "TypeScript",
-      difficulty: "easy",
-      members: [displayName],
-      // モブプロの一般的な既定は7分（v2.3 #4）。ロビーで config.set で調整できる。
-      intervalMinutes: 7,
-    };
-    const c = makeClient();
-    c.send({ command: "room.create", displayName, config, ...(roomName && { roomName }) });
-  };
-
-  // 共有 URL（?room=コード）からの参加。joinMode="driver" なら snapshot 後に rotation 加入する。
-  const joinRoom = (
-    code: string,
-    displayName = "ゲスト",
-    passphrase = "",
-    joinMode: "driver" | "spectator" = "spectator",
-  ) => {
-    resumeDisplayNameRef.current = displayName;
-    roomCodeRef.current = code;
-    // driver 宣言を ref に記録しておき、snapshot で自分が現れたら member.add を送る。
-    if (joinMode === "driver") pendingDriverJoinRef.current = true;
-    const c = makeClient();
-    // 空のパスフレーズは送らない（未設定ルームの従来挙動を維持）。
-    c.send({ command: "room.join", code, displayName, hasAiKey: false, ...(passphrase ? { passphrase } : {}) });
-  };
 
   // client / room は state なので毎レンダー作り直されるが、送信は都度呼ぶだけなのでメモ化
   // しない（現行の 1 行ラッパーも毎レンダー作り直されており、同じ性質を保つ）。
@@ -793,8 +755,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
     generatingProblem,
     clockOffset: client?.clockOffset ?? 0,
     commands,
-    createRoom,
-    joinRoom,
     startSession,
     complete,
     abort,

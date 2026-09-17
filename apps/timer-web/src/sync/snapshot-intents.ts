@@ -6,8 +6,11 @@
  * 副作用は同期フックが意図を見て起こす。
  *
  * **配列の順が振る舞いである。** 現行 handleRoom の実行順をそのまま保つ:
- * resume 保存 → 参加時ドライバー宣言 → 生成中の解除 → 完了状態の後片付け →
- * 画面遷移 → 完成記録。
+ * resume 保存 → 生成中の解除 → 完了状態の後片付け → 画面遷移 → 完成記録。
+ *
+ * **参加時ドライバー宣言（`consume-driver-join` / `join-rotation`）は #272 で畳んだ。**
+ * 宣言を立てていたのは timer の旧入口（`Join`）だけで、#95 S5c（#249）の撤去で
+ * 立てる者が居なくなった（名乗りは玄関に 1 つ）。
  *
  * **現在時刻は ctx.now で注入する。** この module から `Date.now()` を呼ばない
  * （`docs/adr/0016`。#166 が timer-core の pickFallback に対して採った作法と同じ）。
@@ -15,17 +18,12 @@
 
 import { buildCompletionRecord, type CompletionRecord, type Room } from "@tasuki/timer-core";
 import { screenForPhase, type Screen } from "../ui/screen.js";
-import { shouldAutoJoinRotation } from "../ui/join-driver-intent.js";
 import { shouldClearGenerating } from "../ui/problem-generation.js";
 import type { ResumeIdentity } from "@tasuki/sync-client";
 
 export type SnapshotIntent =
   /** 復帰情報を保存する（room.code が分かるのは snapshot の時点だけ）。 */
   | { kind: "save-resume"; identity: ResumeIdentity }
-  /** 参加時ドライバー宣言を降ろす（輪に入れたかに関わらず一度きり）。 */
-  | { kind: "consume-driver-join" }
-  /** 自分をローテーションへ加える。 */
-  | { kind: "join-rotation"; participantId: string }
   /** お題生成中の表示を解除する。 */
   | { kind: "clear-generating" }
   /** 前のセッションの完了状態（記録・終了種別・保存済みの印）を畳む。 */
@@ -36,14 +34,10 @@ export type SnapshotIntent =
   | { kind: "persist-completion"; record: CompletionRecord };
 
 export interface SnapshotContext {
-  /** 自分の参加者ID。identity 未受信なら空文字。 */
-  participantId: string;
   /** room.created / room.joined で受け取り、まだ保存していない復帰情報。 */
   pendingResume: { participantId: string; resumeToken: string } | null;
   /** 参加/作成時に指定した表示名（resumeToken 再送の room.join に必要）。 */
   resumeDisplayName: string;
-  /** 参加時に "driver" を宣言したか。 */
-  pendingDriverJoin: boolean;
   /** 完成記録を既に保存したか。 */
   recordSaved: boolean;
   /** お題生成中の表示が出ているか。 */
@@ -76,27 +70,13 @@ export function decideSnapshotIntents(
     });
   }
 
-  // 2. 参加時ドライバー宣言: 自分が参加者に現れたら一度だけ rotation に加入する。
-  //    宣言は「参加時の一度きり」で、輪に入れたかに関わらずここで降ろす。降ろさないと、
-  //    後で自分が輪を抜けた瞬間に再追加が走り、意図しない再加入になる。
-  if (
-    ctx.pendingDriverJoin &&
-    ctx.participantId &&
-    next.participants.some((p) => p.participantId === ctx.participantId)
-  ) {
-    intents.push({ kind: "consume-driver-join" });
-    if (shouldAutoJoinRotation({ participantId: ctx.participantId, rotation: next.session.rotation })) {
-      intents.push({ kind: "join-rotation", participantId: ctx.participantId });
-    }
-  }
-
-  // 3. 生成中で、お題の内容が前回から変化したら生成中を解除
+  // 2. 生成中で、お題の内容が前回から変化したら生成中を解除
   //    （AI 成功・定型縮退・タイムアウト確定の全経路）。
   if (shouldClearGenerating(ctx.generatingProblem, prev?.problem ?? null, next.problem ?? null)) {
     intents.push({ kind: "clear-generating" });
   }
 
-  // 4. 完了から抜けたら、前のセッションの完了状態を畳む（#95 S5c・レビュー ②）。
+  // 3. 完了から抜けたら、前のセッションの完了状態を畳む（#95 S5c・レビュー ②）。
   //
   //    **全端末で降ろす必要がある。** 「新しいセッション」を押した人はそのまま玄関へ去り、
   //    「セッションを開始」を押すのは別の人で、残りは何も押さない。押した人の操作の中で
@@ -111,7 +91,7 @@ export function decideSnapshotIntents(
     intents.push({ kind: "clear-completion" });
   }
 
-  // 5. サーバー権威の phase に全参加者が追従する（誰の開始/完成でも全員に反映）。
+  // 4. サーバー権威の phase に全参加者が追従する（誰の開始/完成でも全員に反映）。
   intents.push({ kind: "set-screen", screen: screenForPhase(next.phase) });
 
   // ⚠ **ここに「設定が変わったら生成中の表示を出す」を置いてはならない**（#271 のレビュー）。
@@ -120,7 +100,7 @@ export function decideSnapshotIntents(
   //    続けて送る**。`handleRoom` が読む `room` と `generatingProblem` は直前のレンダー
   //    時点の値なので、2 本目を処理する時点でもまだ「変更前のルーム・生成中ではない」
   //    ままである。結果、**お題が確定した後の snapshot で生成中が立ち直り**、
-  //    内容差分で降ろす `clear-generating`（上の 3.）は二度と成立しない。
+  //    内容差分で降ろす `clear-generating`（上の 2.）は二度と成立しない。
   //    実測では `aria-busy=true` のまま 6 秒経っても降りず、お題パネル全体が
   //    `pointer-events: none` で固まった（65 秒の安全弁が切れるまで全員が操作できない）。
   //
@@ -128,7 +108,7 @@ export function decideSnapshotIntents(
   //    （`use-timer-sync.ts` の `regenerateProblem`）ので、この経路とは無関係である。
   //    設定変更でも待ちを見せたいなら、**生成中をサーバー権威の状態にする**こと（#283）。
 
-  // 6. 完成フェーズかつ「完成（中断でない）」のとき、各端末でローカル記録を生成する
+  // 5. 完成フェーズかつ「完成（中断でない）」のとき、各端末でローカル記録を生成する
   //    （FR-020/028/059）。中断（abort）では記録を作らない。
   if (next.phase === "celebration" && next.problem && ctx.endType !== "abort" && !ctx.recordSaved) {
     intents.push({

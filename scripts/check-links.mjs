@@ -408,6 +408,14 @@ export const MISSING_PATH_EXCEPTIONS = [
       "削除を記録している",
   },
   {
+    doc: "docs/adr/0015-web-layer-structure.md",
+    path: "apps/timer-web/src/ui/join-driver-intent.ts",
+    reason:
+      "同じ 9 本の 1 つ。#272 で削除した。参加時ドライバー宣言を立てるのは旧入口（Join）だけで、" +
+      "#95 S5c（#249）の撤去で宣言を立てる者が消えたため呼び手が 0 になった。" +
+      "背景の実測は書き換えず、追記（2026-09-17）が削除を記録している",
+  },
+  {
     doc: "docs/constitution.md",
     path: "packages/core",
     reason:

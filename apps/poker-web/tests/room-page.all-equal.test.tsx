@@ -41,7 +41,6 @@ function makeSync(snapshot: RoomStateMessage | null): PokerSync {
     status: 'open',
     everConnected: true,
     failedAttempts: 0,
-    self: null,
     // **保存の読み書きは本物を通す**（下の beforeEach が前提を作る）。
     storedIdentity: loadResumeIdentity,
     forgetIdentity: clearResumeIdentity,
