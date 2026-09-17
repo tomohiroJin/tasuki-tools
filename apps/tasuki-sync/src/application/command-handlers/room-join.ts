@@ -108,7 +108,8 @@ export function createRoomJoinHandler(deps: RoomJoinDeps) {
     // **ロビーのお題はサーバーが用意する**（#271）。遅延生成で timer の状態が
     // 生まれた直後がここなので、未確定ならこの場で依頼を起こす。既にお題があるか、
     // 委譲が走っていれば何もしない（参加のたびに張り直さない）。
-    fillLobbyProblem(delegator, timer);
+    // 時刻は依頼 ID を一意にするために渡す（#273。`fillLobbyProblem` の注記）。
+    fillLobbyProblem(delegator, timer, deps.clock.now());
 
     return ok({ code: cmd.code, participantId, resumeToken });
   };

@@ -86,7 +86,8 @@ export function createRoomCreateHandler(deps: RoomCreateDeps) {
     commit({ membership, timer });
     // **ロビーのお題はサーバーが用意する**（#271）。保管した後に呼ぶ ——
     // 委譲は保管を引いてお題を確定し、その場で snapshot を配信する。
-    fillLobbyProblem(delegator, timer);
+    // 時刻は依頼 ID を一意にするために渡す（#273。`fillLobbyProblem` の注記）。
+    fillLobbyProblem(delegator, timer, deps.clock.now());
 
     return ok({ code, participantId, resumeToken });
   };

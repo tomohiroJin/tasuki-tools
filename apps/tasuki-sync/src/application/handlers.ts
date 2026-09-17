@@ -711,7 +711,7 @@ export function makeHandlers(deps: HandlerDeps) {
       // 設定が変わったなら、走っている委譲を畳んで選び直す（リロールと同じ・FR-027）。
       regenerateLobbyProblem(delegator, state.timer, now);
     } else {
-      fillLobbyProblem(delegator, state.timer);
+      fillLobbyProblem(delegator, state.timer, now);
     }
 
     // セッションを畳む操作は在室者なら誰でも実行できる（#95 S3）。

@@ -44,16 +44,32 @@ function wantsLobbyProblem(timer: TimerState): boolean {
  *
  * **走っている委譲があれば触らない。** ここは参加のたびに通るので、張り直すと
  * 人が入るたびに AI 生成が中断されて始め直される。
+ *
+ * **`now` は requestId を一意にするためのもの**で、{@link regenerateLobbyProblem} と
+ * 同じ理由で要る —— 古い委譲の応答を新しい依頼のものと取り違えないためである
+ * （`ProblemDelegator` の stale 防御は requestId の文字列比較だけで、候補一致と
+ * 合わせても**同じ ID・同じ候補なら通る**）。
+ *
+ * **固定文字列で足りていたのは #273 より前までである。** それまでロビーの依頼は
+ * ルームの一生で 1 回しか起きなかった（`problem` が null へ戻る経路が無かった）。
+ * #273 が「2 本目のロビーで再び null になる」経路を作ったので、同じ ID が
+ * 別の依頼に二度使われうるようになった。期限に間に合わなかった 1 本目の応答は
+ * 後から必ず飛ぶ（`apps/timer-web` の `handleNeedProblem` は deadline を見ずに
+ * 投入する）ので、衝突すると 2 本目のロビーがそれを受け取ってしまう。
+ *
+ * **ここで時刻を読まない。** 呼び出し側が既に持っている `now` を渡すこと
+ * （`handlers.ts` は `clock.now()`、入口のハンドラは `deps.clock.now()`）。
  */
 export function fillLobbyProblem(
   delegator: ProblemDelegator | undefined,
   timer: TimerState,
+  now: number,
 ): void {
   if (!delegator) return;
   if (timer.problem !== null) return;
   if (!wantsLobbyProblem(timer)) return;
   if (delegator.isRequesting(timer.code)) return;
-  delegator.request(timer.code, `req-${timer.code}-lobby`);
+  delegator.request(timer.code, `req-${timer.code}-lobby-${now}`);
 }
 
 /**

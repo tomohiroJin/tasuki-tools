@@ -127,15 +127,27 @@ function applyRoomLevelEvent(
       // 「ロビーで `problem` が無いなら用意する」という**不変条件**を見ており（#271）、
       // ここが null にすればその場で埋まる。引き金を並べる側には回らない。
       //
-      // **ロビーの外から入ったときだけ落とす。** 既にロビーに居るルームへ
-      // `phase.set setup` がもう 1 通届いても（完了画面に居た 2 人目が遅れて押す）、
-      // 用意し終えたお題を捨てて全員の画面で作り直しを走らせない。
+      // **落とすのは完了画面から出るときだけである。**
       //
-      // phase を書く場所はこのファイルの 3 箇所（ここと `SessionCompleted` /
-      // `SessionAborted` の `celebration`）と `initial-timer-state.ts` の
-      // 初期値だけである。ロビーへ**入る**遷移はここにしか無い。
+      // `decide.ts` の `phase.set` は**現在の phase を一切見ずに** `PhaseSet` を返す
+      // （ガードが無い）。一方 `packages/sync-client/src/connection.ts` は未確立時の
+      // コマンドを溜め、**再接続の `onopen` でそのまま流す**。つまり「切断中に押された
+      // 『新しいセッション』が、再接続後に**走行中の**ルームへ届く」経路が実在する。
+      // 「ロビー以外 → ロビー」で落とすと、この 1 通で走っているセッションのお題が
+      // 消えて別のお題に差し替わる（レビュー②）。
+      //
+      // **`celebration` はセッションの終わりを表す唯一の phase である** ——
+      // 完成（`SessionCompleted`）も中断（`SessionAborted`）もここを通る（下の 2 case）。
+      // 「新しいセッション」は完了画面からしか押せないので、意図する遷移は
+      // すべて `celebration` 発である。
+      //
+      // **行き先は `isLobbyPhase` で見る。** ここが落とす範囲と
+      // `lobby-problem.ts` が埋める範囲は一致していなければならない（ずれると
+      // 落としたきり誰も埋めないロビーができる）。`celebration → session` は
+      // 落とさない —— 溜まっていた `phase.set session` が後から届いても、
+      // 用意済みのお題を捨てる理由は無い。
       const next: TimerState = { ...room, phase: event.phase };
-      if (isLobbyPhase(event.phase) && !isLobbyPhase(room.phase)) next.problem = null;
+      if (room.phase === "celebration" && isLobbyPhase(event.phase)) next.problem = null;
       return withTimer(state, next);
     }
     case "SessionReset":
