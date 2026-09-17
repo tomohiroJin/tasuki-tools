@@ -6,7 +6,7 @@
  * 受け持つ（あちらは本番と同じ `createSyncServer()` を通る）。
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { saveResumeIdentity } from '@tasuki/sync-client';
 import { App } from '../../src/App.js';
 
@@ -348,6 +348,40 @@ describe('ルームの生死の照会', () => {
       });
 
       expect(checksSent(), '待った後').toBe(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('Given 照会が混雑で弾かれた / When 待つ前に利用者が名乗る / Then 幽霊の照会は飛ばない', () => {
+    // **待ち時間の間、名乗りフォームは操作できる。** 取り消さないと、
+    // 名乗る前の状態を捕まえたタイマーが後から発火し、`retryRef` の予算を食い合う
+    vi.useFakeTimers();
+    try {
+      openWithRoom('朝会モブ-a1b2');
+      render(<App />);
+      act(() => socket().open());
+      act(() =>
+        socket().deliver({
+          type: 'error',
+          code: 'JOIN_RATE_LIMITED',
+          message: '試行が多すぎます。しばらくしてからお試しください',
+        }),
+      );
+      expect(checksSent(), '最初の照会').toBe(1);
+
+      // When: 待ち時間が経つ前に名乗る
+      act(() => {
+        fireEvent.change(screen.getByLabelText('あなたの名前'), { target: { value: 'あや' } });
+        fireEvent.submit(screen.getByRole('button', { name: '参加する' }).closest('form')!);
+      });
+
+      act(() => {
+        vi.advanceTimersByTime(30_000);
+      });
+
+      // Then: 照会は増えていない（幽霊が飛んでいない）
+      expect(checksSent(), '名乗った後の照会').toBe(1);
     } finally {
       vi.useRealTimers();
     }

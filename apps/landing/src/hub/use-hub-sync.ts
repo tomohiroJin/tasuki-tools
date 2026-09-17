@@ -138,9 +138,24 @@ export function useHubSync(): HubSync {
   const retryRef = useRef(0);
   /** 自動で入り直すときに使う、直近の名乗り。 */
   const lastJoinRef = useRef<{ displayName: string; passphrase?: string } | null>(null);
+  /**
+   * 再試行のタイマー。**利用者が自分で動いたら取り消す。**
+   *
+   * 待ち時間の間、名乗りフォームは操作できる（`screenFor` は `join` を返し続ける）。
+   * 取り消さないと、**利用者が名乗った後に、名乗る前の状態を捕まえたタイマーが発火する**
+   * —— 照会の再試行が幽霊のように飛び、`retryRef` の予算を入室と食い合う。
+   */
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const send = useCallback((cmd: HubCommand) => {
     connRef.current?.send(cmd as unknown as Record<string, unknown>);
+  }, []);
+
+  /** 仕掛かっている再試行を取り消す。**利用者の操作が優先する。** */
+  const cancelRetry = useCallback(() => {
+    if (retryTimerRef.current === null) return;
+    clearTimeout(retryTimerRef.current);
+    retryTimerRef.current = null;
   }, []);
 
   /**
@@ -235,7 +250,8 @@ export function useHubSync(): HubSync {
             return;
           }
           setError(msg.message);
-          setTimeout(() => {
+          retryTimerRef.current = setTimeout(() => {
+            retryTimerRef.current = null;
             // **`last === null` は「まだ名乗っていない」** ＝ 送ったのは照会だけである
             // （#274）。エラーのフレームに相関の手がかりが無いので、送った側の状態で
             // 見分ける。経路2 の人は復帰を送る前に `lastJoinRef` が埋まっている。
@@ -290,26 +306,35 @@ export function useHubSync(): HubSync {
     checkIfNeeded();
 
     return () => {
+      // **画面が消えた後にタイマーが発火するのを防ぐ。** 取り消さないと、
+      // dispose 済みの接続へ向けて送信を試みることになる。
+      cancelRetry();
       conn.dispose();
       connRef.current = null;
     };
     // **依存は URL 由来の値だけにする。** 入口の URL はページ読み込みで決まり
     // （全ページ読み込みで WS が張り直しになる・D14）、作成で得たコードをここへ混ぜると
     // 作成のたびに接続が張り直る（`tests/hub/use-hub-sync.test.tsx` が固定している）。
-  }, [initialCode, resumeIfPossible, checkIfNeeded, send]);
+  }, [initialCode, resumeIfPossible, checkIfNeeded, send, cancelRetry]);
 
   const createRoom = useCallback(
     (roomName: string, displayName: string) => {
+      // **利用者が別の道を選んだ。** 仕掛かっていた再試行（照会の可能性がある）は
+      // もう意味を持たないので取り消す。
+      cancelRetry();
       lastJoinRef.current = { displayName };
       setError(null);
       send({ command: 'room.create', roomName, displayName });
     },
-    [send],
+    [send, cancelRetry],
   );
 
   const joinRoom = useCallback(
     (displayName: string, passphrase?: string) => {
       if (code === null) return;
+      // **利用者が自分で名乗った。** 待ち時間の間に仕掛かっていた再試行（名乗る前の
+      // 状態を捕まえている）を取り消さないと、名乗った後に幽霊の照会が飛ぶ（#274）。
+      cancelRetry();
       lastJoinRef.current = { displayName, ...(passphrase !== undefined ? { passphrase } : {}) };
       setError(null);
       retryRef.current = 0;
@@ -320,7 +345,7 @@ export function useHubSync(): HubSync {
         ...(passphrase !== undefined ? { passphrase } : {}),
       });
     },
-    [code, send],
+    [code, send, cancelRetry],
   );
 
   return {
