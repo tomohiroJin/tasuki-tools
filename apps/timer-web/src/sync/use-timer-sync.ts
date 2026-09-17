@@ -81,6 +81,13 @@ const SYNC_STALE_BEFORE_ROOM_TEXT =
  */
 export type AppMode = "lobby" | "session" | "celebration";
 
+/**
+ * timer の画面が同期から受け取るもの。
+ *
+ * **`createRoom` / `joinRoom` はここに無い**（#272）。ルームを作るのも名乗るのも
+ * 玄関（`apps/landing`）の仕事で、timer が入るのは URL（`?room=`）とその端末に
+ * 保存された同一性からだけである（このファイル末尾の入口の effect）。
+ */
 export interface TimerSync {
   /**
    * 表示すべき画面。**まだどの画面でもないときは `null`。**
@@ -116,13 +123,7 @@ export interface TimerSync {
   /** 引数をそのまま載せて送るだけの操作。 */
   commands: TimerCommands;
 
-  /**
-   * ロビーの「開始」。お題が無ければ依頼してから phase.set と START を送る。
-   *
-   * **ここに `createRoom` / `joinRoom` は無い**（#272）。ルームを作るのも名乗るのも
-   * 玄関（`apps/landing`）の仕事で、timer が入るのは URL（`?room=`）とその端末に
-   * 保存された同一性からだけである（下の入口の effect）。
-   */
+  /** ロビーの「開始」。お題が無ければ依頼してから phase.set と START を送る。 */
   startSession(): void;
   complete(): void;
   abort(): void;

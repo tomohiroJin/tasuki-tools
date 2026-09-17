@@ -46,19 +46,20 @@ export interface SyncError {
   message: string;
 }
 
+/**
+ * poker の画面が同期から受け取るもの。
+ *
+ * **`self`（`joined` 受信後の自分の識別情報）と型 `SelfIdentity` はここに無い**（#272）。
+ * 読み手だった「作成 → 遷移」の効果が #95 S5c（#249）の旧入口撤去で消えたためである。
+ * `joined` の中身は端末の同一性（`saveResumeIdentity`）としてだけ使う。
+ */
 export interface PokerSync {
   status: ConnectionStatus;
   /** この画面で一度でも接続が確立したか（繋がらない/切れたの区別に使う。#76 F-2） */
   everConnected: boolean;
   /** 直近の接続確立以降、連続して接続に失敗した回数 */
   failedAttempts: number;
-  /**
-   * 最新の受信者別ルーム状態（受信スナップショットで丸ごと置換。research R1）
-   *
-   * **`self`（joined 受信後の自分の識別情報）はここに無い**（#272）。読み手だった
-   * 「作成 → 遷移」の効果が #95 S5c（#249）の旧入口撤去で消えた。`joined` の
-   * 中身は端末の同一性（`saveResumeIdentity`）としてだけ使う。
-   */
+  /** 最新の受信者別ルーム状態（受信スナップショットで丸ごと置換。research R1） */
   snapshot: RoomStateMessage | null;
   /**
    * 現在の WS 接続で joined を受信済みか。再接続するとサーバー側は未 join に戻るため、
