@@ -8,22 +8,57 @@
  * なってツール間の行き来が常態になると、輪の先頭が timer に居ない状態が普通に起きる。
  * そのとき誰も依頼を送らず、ロビーが行き止まりになっていた。
  *
- * **`problem: null` を作っているのはこちら側である**（`initial-timer-state.ts` が
- * 唯一の書き手）。埋める責任も同じ側に置く —— クライアントに代表を置く限り、
- * 在席していない人に依頼を期待する構造が残る。
+ * **`problem: null` を作るのも埋めるのもサーバー側である。** 埋める責任をこちらに
+ * 置くのはそのためで、クライアントに代表を置く限り、在席していない人に依頼を
+ * 期待する構造が残る。
+ *
+ * **書き手を数えて書かない。** かつてここには「`initial-timer-state.ts` が唯一の
+ * 書き手」とあったが、#273 で 2 つ目（`apply-room-level-event.ts` の `PhaseSet`。
+ * 完了画面からロビーへ戻るときに前のセッションのお題を持ち越さない）が増え、
+ * **その 1 文だけが嘘として残った**。数ではなく引き方を書く ——
+ * 書き手は `grep -rn 'problem: null\|problem = null' apps/tasuki-sync/src` で引ける。
+ * 大事なのは人数ではなく、**ロビーで `problem` が null なら誰かが用意する**という
+ * 不変条件のほうである。
  */
 
 import type { TimerState } from "@tasuki/timer-core";
 import type { ProblemDelegator } from "./problem-delegation.js";
 
 /**
- * お題を使うルームか（`problemEnabled` は任意項目で、既定は「使う」）。
+ * その設定のルームが、この phase に居るあいだロビーのお題を持つか。
  *
- * **ロビー（開始前）だけを見る。** 走っているセッションの足元でお題を差し替えない。
+ * **捨てる側と埋める側は、この 1 つの判断を共有する**（#273）。
+ * 捨てる側（`apply-room-level-event.ts` の `PhaseSet`）が「ここへ入ったら落とす」と
+ * 見なす範囲と、埋める側（{@link fillLobbyProblem}）が「ここでは用意する」と見なす
+ * 範囲がずれると、**落としたきり誰も埋めないロビー**ができる。
+ *
+ * **判断は 2 つあり、どちらか片方だけを共有しても足りない。**
+ *
+ *   1. **phase がロビー（開始前）であること。** 走っているセッションの足元で
+ *      お題を差し替えない
+ *   2. **そのルームがお題を使うこと**（`problemEnabled` は任意項目で既定は「使う」）。
+ *      これは利用者がロビーで切り替えられる設定である（`Lobby.tsx` の
+ *      `onConfigSet({ problemEnabled: v })`）
+ *
+ * 1 だけを共有していた形が、ちょうど行き止まりを作った（レビュー 2 巡目①）——
+ * 「お題ありで走らせ、途中でお題を off にして完了し、新しいセッションにする」と、
+ * 落とす側だけが動いて誰も埋めない。下流では `SessionCompleted` の
+ * `if (room.problem)` が立たず、**2 本目の完成記録が作られなくなる**。
+ *
+ * `TimerState` ではなく設定と phase を別々に取るのは、**捨てる側が見たいのが
+ * 「遷移先の phase」だから**である（そのときのルームはまだ `celebration` に居る）。
  */
+export function usesLobbyProblem(
+  config: TimerState["config"],
+  phase: TimerState["phase"],
+): boolean {
+  if (config.problemEnabled === false) return false;
+  return phase === "setup" || phase === "ready";
+}
+
+/** いまのルームがロビーのお題を持つ状態か（{@link usesLobbyProblem} を現在の状態で引く）。 */
 function wantsLobbyProblem(timer: TimerState): boolean {
-  if (timer.config.problemEnabled === false) return false;
-  return timer.phase === "setup" || timer.phase === "ready";
+  return usesLobbyProblem(timer.config, timer.phase);
 }
 
 /**
@@ -31,23 +66,44 @@ function wantsLobbyProblem(timer: TimerState): boolean {
  *
  * **走っている委譲があれば触らない。** ここは参加のたびに通るので、張り直すと
  * 人が入るたびに AI 生成が中断されて始め直される。
+ *
+ * **`now` は requestId を一意にするためのもの**で、{@link regenerateLobbyProblem} と
+ * 同じ理由で要る —— 古い委譲の応答を新しい依頼のものと取り違えないためである
+ * （`ProblemDelegator` の stale 防御は requestId の文字列比較だけで、候補一致と
+ * 合わせても**同じ ID・同じ候補なら通る**）。
+ *
+ * **固定文字列で足りていたのは #273 より前までである。** それまでロビーの依頼は
+ * ルームの一生で 1 回しか起きなかった（`problem` が null へ戻る経路が無かった）。
+ * #273 が「2 本目のロビーで再び null になる」経路を作ったので、同じ ID が
+ * 別の依頼に二度使われうるようになった。期限に間に合わなかった 1 本目の応答は
+ * 後から必ず飛ぶ（`apps/timer-web` の `handleNeedProblem` は deadline を見ずに
+ * 投入する）ので、衝突すると 2 本目のロビーがそれを受け取ってしまう。
+ *
+ * **ここで時刻を読まない。** 呼び出し側が既に持っている `now` を渡すこと
+ * （`handlers.ts` は `clock.now()`、入口のハンドラは `deps.clock.now()`）。
  */
 export function fillLobbyProblem(
   delegator: ProblemDelegator | undefined,
   timer: TimerState,
+  now: number,
 ): void {
   if (!delegator) return;
   if (timer.problem !== null) return;
   if (!wantsLobbyProblem(timer)) return;
   if (delegator.isRequesting(timer.code)) return;
-  delegator.request(timer.code, `req-${timer.code}-lobby`);
+  delegator.request(timer.code, `req-${timer.code}-lobby-${now}`);
 }
 
 /**
- * 言語・難易度が変わったので、ロビーのお題を作り直す。
+ * いま載っているお題が「いまのロビーのもの」でなくなったので、作り直す。
+ *
+ * **どういう変化がそれに当たるかは呼び出し側（`handlers.ts`）が判定する。**
+ * ここに条件を書き写すと、増えたときに片側だけが古くなる（judgement は 1 箇所）。
  *
  * **こちらは走っている委譲を畳んで張り直す**（リロールと同じ・FR-027）。
  * 選び直しの途中で設定が変わったなら、新しい設定で選び直すのが正しい。
+ * **裏返すと、呼ぶたびに AI 生成が中断される** —— 実際には変わっていない設定で
+ * 呼ぶと、定型へ縮退したうえ日次枠を 1 消費する（`ai-limits.ts`・#283 の 3 点目）。
  * `now` は requestId を一意にするためのもので、古い委譲の応答を新しい依頼の
  * ものと取り違えないために要る（`ProblemDelegator` の stale 防御）。
  */

@@ -145,7 +145,10 @@ application/
   schedule.ts        サーバー権威タイマー（1 本の setTimeout で次交代のみ待つ）
   presence.ts        プレゼンス間引き・ドライバー不在の繰り上げ（猶予 30 秒）
   problem-delegation.ts  お題の代表生成・タイムアウト・再委譲・定型縮退
-  lobby-problem.ts   ロビーのお題を用意する引き金（#271。旧来はクライアントが送っていた）
+  lobby-problem.ts   ロビーのお題を用意する不変条件（#271。旧来はクライアントが送っていた）。
+                     「ロビーでお題を扱う範囲」（`usesLobbyProblem`。phase と
+                     problemEnabled の両方）もここが正本 —— ロビーへ入ったルームの
+                     お題を落とす側（`apply-room-level-event.ts`）と共有する（#273）
   ai-limits.ts       AI 生成の濫用抑制（同時 1・クールダウン・日次上限）
   room-reclaimer.ts  アイドルルームの回収
   admin.ts           管理エンドポイント（127.0.0.1 限定）
@@ -186,6 +189,23 @@ argv・ログ・snapshot に混入させません。失敗（タイムアウト�
 定型バンクへ縮退し、濫用は `application/ai-limits.ts`（同時 1・クールダウン・日次上限）で抑制します。
 詳細: [ADR-0008](./adr/0008-server-resident-ai-generation.md)
 （旧 BYOK + 代表生成方式は [ADR-0005](./adr/0005-secret-zero-byok-problem.md) = Superseded）。
+
+定型バンクの選択は `pickFallback` が `Math.abs(now) % candidates.length` で行うため、
+**作り直しても同じお題を引くことがあります**（TypeScript の `hard` は候補 7 件）。
+「新しいセッション」（#273）が保証するのは**前のお題を落とすところまで**で、
+別のお題になることまでは保証しません（重複の扱いは #283 の領分）。
+
+お題の作り直しは**言語・難易度が変わったときだけ**起きます。そのため
+**「お題を使う」を off → on に戻したときは、そのとき載っているお題がそのまま残ります**
+（1 本前のものでも差し替わりません）。引き金を足せば作り直せますが、
+`regenerateLobbyProblem` は `problem !== null` を見ずに張り直すので、
+**手編集した／貼り付けたお題を捨て、AI 解錠ルームでは日次枠を 1 消費します**。
+安全に判定するにはお題自身に「どの設定のために作られたか」を持たせる必要があり、
+wire の契約が変わるため #283 の領分です。
+
+同じ理由で、**「お題を使う」を off にしたルームの完成記録は、2 本目以降も 1 本目の
+お題名で作られます**（`buildCompletionRecord` が受け取るお題が変わらないため）。
+実際には取り組んでいないお題名が履歴に残りますが、これも従来からの振る舞いです。
 
 ## apps/web — フロントエンド
 

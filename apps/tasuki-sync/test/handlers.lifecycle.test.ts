@@ -198,6 +198,216 @@ describe("session.reset: 最初から再スタート（v2.3 #3）", () => {
 });
 
 /**
+ * ロビーへ戻ったルームは前のセッションのお題を持たない（#273）。
+ *
+ * #249（#95 S5c）で「新しいセッション」が**ルームをロビーへ戻してから玄関へ送る**形に
+ * なった（`apps/timer-web/src/sync/use-timer-sync.ts` の `newSession`。送るのは
+ * `phase.set setup` の 1 通だけ）。それまでは同じルームで 2 本目を始めること自体が
+ * 無かったので、`PhaseSet` がお題を残しても誰も困らなかった。
+ *
+ * **お題を埋める側は既に不変条件で書かれている**（`application/lobby-problem.ts` は
+ * commit のたびに「ロビーで `problem` が無いなら用意する」を見る・#271）。
+ * 足りないのは**捨てる側**だけである。ここは delegator を配線せずに、
+ * 「落ちたこと」そのものを見る（埋め直しは `lobby-problem-autorequest.test.ts` が
+ * 実 WS で見る）。
+ */
+describe("phase.set: ロビーへ戻るとお題は持ち越さない（#273）", () => {
+  let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
+  let clock: FakeClock;
+  let broadcaster: SpyBroadcaster;
+  let handlers: ReturnType<typeof makeHandlers>;
+
+  const problem = {
+    title: "FizzBuzz",
+    description: "d",
+    requirements: ["r"],
+    exampleTest: "t",
+    hints: [],
+  };
+
+  beforeEach(() => {
+    store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
+    clock = new FakeClock(1000000);
+    broadcaster = new SpyBroadcaster();
+    handlers = makeTestHandlers({ store, timers, clock, broadcaster, codeGen: new FakeCodeGen() });
+  });
+
+  /**
+   * **埋め直す気が無いなら落とさない**（#273 のレビュー 2 巡目①）。
+   *
+   * `problemEnabled` は利用者がロビーで切り替えられる設定である
+   * （`Lobby.tsx` の `onConfigSet({ problemEnabled: v })`）。埋める側は
+   * `problemEnabled === false` なら埋めない。落とす側が phase しか見ないと、
+   * **落としたきり誰も埋めないロビー**ができる —— `usesLobbyProblem` の注記が言う
+   * 対称性を、phase で取って 2 つ目の条件で崩していた。
+   *
+   * 下流への実害は `SessionCompleted` の `if (room.problem)` である。お題が
+   * null のままだと**完成記録が作られなくなる**（実測: main では 2 本、
+   * 落とす側が `problemEnabled` を見ないと 1 本になる）。
+   *
+   * **正は「落とさない」と判断した。** #273 の EARS は「2 本目のために新しい
+   * お題を用意すること」であり、お題を使わないルームには用意すべき「新しいお題」が
+   * 無い。落としても誰も得をせず、記録だけが消える。
+   * （お題を使わないルームが完成記録を持てないこと自体は `buildCompletionRecord` の
+   * 前提であり、#273 の射程外である。）
+   */
+  it("Given お題を使わない設定へ切り替えて完了した / When ロビーへ戻す / Then お題を落とさず、2 本目の完成記録も残る", async () => {
+    // Given: お題ありで 1 本目を走らせ、途中で「お題を使わない」へ切り替えて完成する
+    const code = await setupRoom(handlers, store, timers);
+    putRoomView(store, timers, { ...roomViewOf(store, timers, code), problem });
+    await handlers.handleCommand("host-conn", { command: "phase.set", phase: "session" });
+    await handlers.handleCommand("host-conn", { command: "session.act", action: "START" });
+    await handlers.handleCommand("host-conn", {
+      command: "config.set",
+      config: { problemEnabled: false },
+    });
+    await handlers.handleCommand("host-conn", { command: "session.complete" });
+    if (roomViewOf(store, timers, code).sessionRecords.length !== 1) {
+      throw new Error("前提が崩れた: 1 本目の完成記録が作られていない");
+    }
+
+    // When: 「新しいセッション」でロビーへ戻す
+    await handlers.handleCommand("host-conn", { command: "phase.set", phase: "setup" });
+
+    // Then: 埋め直す気が無いルームのお題は落とさない（落とすと誰も埋めない）
+    expect(roomViewOf(store, timers, code).problem).not.toBeNull();
+
+    // Then: 2 本目も完成記録が残る（`SessionCompleted` はお題が無いと記録を作らない）
+    for (const command of [
+      { command: "phase.set", phase: "session" },
+      { command: "session.reset" },
+      { command: "session.complete" },
+    ] as const) {
+      await handlers.handleCommand("host-conn", command);
+    }
+    // **見ているのは本数だけである。射程はここまで。**
+    //
+    // 中身（`problemTitle`）は 2 本とも 1 本目のお題の名前になる。お題を使わない
+    // ルームのお題は落とさないので、`buildCompletionRecord` が受け取るのは
+    // ずっと 1 本目のお題だからである。**実際には取り組んでいないお題名が履歴に
+    // 残る**が、**これは main からの既存の振る舞いで、この PR の退行ではない**
+    // （実測: main `0d37d44` の src でも branch でも `["FizzBuzz","FizzBuzz"]`）。
+    //
+    // 直すには「無条件に落とす」＋「お題を使わないルームでは
+    // `SessionCompleted` がタイトルを捏造しない」の 2 つが要る。後者は完成記録の
+    // 作り方そのものの変更で、#273 の EARS（2 本目のために新しいお題を用意する）の
+    // 外側にある。**本数しか見ていないのは手落ちではなく線引きである。**
+    expect(roomViewOf(store, timers, code).sessionRecords).toHaveLength(2);
+  });
+
+  it("Given 完了したセッション / When ロビーへ戻す / Then 1 本目のお題は残らない", async () => {
+    // Given: お題を確定させ、走らせて完成させる（phase=celebration）
+    const code = await setupRoom(handlers, store, timers);
+    putRoomView(store, timers, { ...roomViewOf(store, timers, code), problem });
+    await handlers.handleCommand("host-conn", { command: "phase.set", phase: "session" });
+    await handlers.handleCommand("host-conn", { command: "session.act", action: "START" });
+    clock.advance(120000);
+    await handlers.handleCommand("host-conn", { command: "session.complete" });
+    if (roomViewOf(store, timers, code).phase !== "celebration") {
+      throw new Error("前提が崩れた: 完成していない");
+    }
+
+    // When: 「新しいセッション」が送る 1 通
+    await handlers.handleCommand("host-conn", { command: "phase.set", phase: "setup" });
+
+    // Then: 2 本目のロビーに 1 本目のお題は出ていない
+    const after = roomViewOf(store, timers, code);
+    expect(after.phase).toBe("setup");
+    expect(after.problem).toBeNull();
+  });
+
+  it("Given 完成記録 / When ロビーへ戻す / Then 記録は残る（お題だけを落とす）", async () => {
+    // Given
+    const code = await setupRoom(handlers, store, timers);
+    putRoomView(store, timers, { ...roomViewOf(store, timers, code), problem });
+    await handlers.handleCommand("host-conn", { command: "session.act", action: "START" });
+    await handlers.handleCommand("host-conn", { command: "session.complete" });
+
+    // When
+    await handlers.handleCommand("host-conn", { command: "phase.set", phase: "setup" });
+
+    // Then: 完成記録は Summary / 履歴の元なので畳まない
+    expect(roomViewOf(store, timers, code).sessionRecords).toHaveLength(1);
+  });
+
+  /**
+   * 落とす条件は**完了画面から出る遷移**に限る（#273 のレビュー②）。
+   *
+   * `decide.ts` の `phase.set` は**現在の phase を一切見ずに** `PhaseSet` を返す
+   * （ガードが無い）。一方 `packages/sync-client/src/connection.ts` は未確立時の
+   * コマンドを溜め、**再接続の `onopen` でそのまま流す**。したがって
+   * 「切断中に押された『新しいセッション』が、再接続後に**走行中の**ルームへ届く」
+   * 経路は実在する。
+   *
+   * 「ロビー以外 → ロビー」で落とすと、この 1 通で**走っているセッションのお題が
+   * 消えて別のお題に差し替わる**。完了画面から出る遷移だけを見れば起きない。
+   */
+  it("Given 走行中のセッション / When 遅れて届いた phase.set setup が流れる / Then 走っているお題を消さない", async () => {
+    // Given: お題を確定させてセッションを走らせる
+    const code = await setupRoom(handlers, store, timers);
+    putRoomView(store, timers, { ...roomViewOf(store, timers, code), problem });
+    await handlers.handleCommand("host-conn", { command: "phase.set", phase: "session" });
+    await handlers.handleCommand("host-conn", { command: "session.act", action: "START" });
+    if (roomViewOf(store, timers, code).phase !== "session") {
+      throw new Error("前提が崩れた: セッションが始まっていない");
+    }
+
+    // When: 切断中に押された「新しいセッション」が、再接続で溜まっていた分として届く
+    await handlers.handleCommand("host-conn", { command: "phase.set", phase: "setup" });
+
+    // Then: 完了していないので、走っていたお題はそのまま残る
+    expect(roomViewOf(store, timers, code).problem?.title).toBe("FizzBuzz");
+  });
+
+  /**
+   * 落とす条件の**行き先**の側（#273 のレビュー②の変異検査）。
+   *
+   * 条件は「`celebration` 発」と「行き先がロビー」の 2 つでできている。
+   * **行き先の判定を外しても、この describe は全部緑のままだった**（実測。全パッケージで
+   * 落ちたのは `live-ws.multi-connection.test.ts` の 1 本だけで、あれは別の性質を
+   * 見ているテストにたまたま引っかかったにすぎない）。片側が恒真化していたので、
+   * ここで塞ぐ（憲法 原則 VII）。
+   *
+   * `phase.set` にガードが無く `sync-client` が溜めたコマンドを流す以上、
+   * **`celebration` に居るルームへ遅れた `phase.set session` が届く経路も実在する**
+   * （切断中に「セッションを開始」を押した端末）。行き先を見ずに落とすと、
+   * 始まったばかりのセッションがお題を持たないまま走り出す ——
+   * `lobby-problem.ts` はロビーでしか埋めないので、誰も埋め直さない。
+   */
+  it("Given 完了画面のルーム / When 遅れて届いた phase.set session が流れる / Then お題を消さない", async () => {
+    // Given: 完成してお題つきで完了画面に居る
+    const code = await setupRoom(handlers, store, timers);
+    putRoomView(store, timers, { ...roomViewOf(store, timers, code), problem });
+    await handlers.handleCommand("host-conn", { command: "session.act", action: "START" });
+    await handlers.handleCommand("host-conn", { command: "session.complete" });
+    if (roomViewOf(store, timers, code).phase !== "celebration") {
+      throw new Error("前提が崩れた: 完成していない");
+    }
+
+    // When: 切断中に押された「セッションを開始」が、再接続で溜まっていた分として届く
+    await handlers.handleCommand("host-conn", { command: "phase.set", phase: "session" });
+
+    // Then: ロビーへ入る遷移ではないので落とさない（落とすと誰も埋め直さない）
+    expect(roomViewOf(store, timers, code).problem?.title).toBe("FizzBuzz");
+  });
+
+  it("Given 既にロビーに居るルーム / When もう一度ロビーへ戻す / Then 用意済みのお題を捨てない", async () => {
+    // Given: ロビーでお題が用意された状態（`fillLobbyProblem` が埋めた直後と同じ）
+    const code = await setupRoom(handlers, store, timers);
+    putRoomView(store, timers, { ...roomViewOf(store, timers, code), problem });
+
+    // When: 完了画面に居た 2 人目が、遅れて「新しいセッション」を押す
+    //       （押した瞬間の画面は celebration でも、届く頃にはもう setup である）
+    await handlers.handleCommand("host-conn", { command: "phase.set", phase: "setup" });
+
+    // Then: 用意済みのお題がそのまま残る（捨てると全員の画面で作り直しが走る）
+    expect(roomViewOf(store, timers, code).problem?.title).toBe("FizzBuzz");
+  });
+});
+
+/**
  * @requirements FR-028
  */
 describe("メンバー編集と config.members 同期", () => {

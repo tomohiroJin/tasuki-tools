@@ -21,6 +21,9 @@
 import { buildCompletionRecord, type Aggregate, type DomainEvent, type RotationEntry, type TimerState } from "@tasuki/timer-core";
 import type { Room as MembershipRoom } from "@tasuki/room-core";
 import { rotationDisplayNames } from "./timer-snapshot-dto.js";
+// 「ロビーでお題を扱う範囲」は用意する側が持つ（`lobby-problem.ts` の `usesLobbyProblem`）。
+// ここが落とす範囲と向こうが埋める範囲は一致していなければならない（#273）。
+import { usesLobbyProblem } from "./lobby-problem.js";
 
 /** 1 ルームの状態一式（名簿と timer の状態。`code` で対になっている）。 */
 export interface RoomState {
@@ -107,14 +110,51 @@ function applyRoomLevelEvent(
 ): StateWithAggregate {
   const room = state.timer;
   switch (event.type) {
-    case "PhaseSet":
+    case "PhaseSet": {
       // かつてここには `startedAt`（一度でも開始したかを表す単調フラグ）の記録があった。
       // 役割の廃止（#95 S3）で読み手が 0 件になり、S4a で `TimerState` から落とした。
       // **wire の型（`wire.ts`）と `RoomSchema` からも落としてある** —— 書き手も読み手も
       // 無い任意項目を宣言だけ残さないため（`wire.ts` の `startedAt` の注記）。
       // `RoomSchema` は非 strict の `v.object` なので、この項目を載せた古い snapshot の
       // パースは今までどおり通る。
-      return withTimer(state, { ...room, phase: event.phase });
+      //
+      // **ロビーへ入ってきたルームは、前のセッションのお題を持ち越さない**（#273）。
+      // #249（#95 S5c）で「新しいセッション」がルームをロビーへ戻す形になり、
+      // 同じルームで 2 本目を始める経路が初めてできた。お題を残すと 2 本目が
+      // 1 本目と同じお題で始まる。
+      //
+      // **埋め直しはここでは起こさない。** `lobby-problem.ts` が commit のたびに
+      // 「ロビーで `problem` が無いなら用意する」という**不変条件**を見ており（#271）、
+      // ここが null にすればその場で埋まる。引き金を並べる側には回らない。
+      //
+      // **落とすのは完了画面から出るときだけである。**
+      //
+      // `decide.ts` の `phase.set` は**現在の phase を一切見ずに** `PhaseSet` を返す
+      // （ガードが無い）。一方 `packages/sync-client/src/connection.ts` は未確立時の
+      // コマンドを溜め、**再接続の `onopen` でそのまま流す**。つまり「切断中に押された
+      // 『新しいセッション』が、再接続後に**走行中の**ルームへ届く」経路が実在する。
+      // 「ロビー以外 → ロビー」で落とすと、この 1 通で走っているセッションのお題が
+      // 消えて別のお題に差し替わる（レビュー②）。
+      //
+      // **`celebration` はセッションの終わりを表す唯一の phase である** ——
+      // 完成（`SessionCompleted`）も中断（`SessionAborted`）もここを通る（下の 2 case）。
+      // 「新しいセッション」は完了画面からしか押せないので、意図する遷移は
+      // すべて `celebration` 発である。
+      //
+      // **行き先は `usesLobbyProblem` で見る。** ここが落とす範囲と
+      // `lobby-problem.ts` が埋める範囲は一致していなければならない（ずれると
+      // 落としたきり誰も埋めないロビーができる）。**判断は phase だけではない** ——
+      // お題を使わない設定（`problemEnabled: false`）のルームは埋め直されないので、
+      // 落とすと完成記録まで消える（レビュー 2 巡目①）。
+      //
+      // `celebration → session` も落とさない —— 溜まっていた `phase.set session` が
+      // 後から届いても、用意済みのお題を捨てる理由は無い。
+      const next: TimerState = { ...room, phase: event.phase };
+      if (room.phase === "celebration" && usesLobbyProblem(room.config, event.phase)) {
+        next.problem = null;
+      }
+      return withTimer(state, next);
+    }
     case "SessionReset":
       // リセット＝最初から再スタート（v2.3 #3）。集約(session/clock)は evolve が
       // 先頭・満タン・走行に初期化済み。お題・メンバー・設定・引き継ぎは維持し、

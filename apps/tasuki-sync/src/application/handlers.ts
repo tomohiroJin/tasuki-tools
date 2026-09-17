@@ -704,6 +704,19 @@ export function makeHandlers(deps: HandlerDeps) {
     // **引き金を並べずに、commit のたびに不変条件を見る。** 引き金の列挙は
     // 必ず取りこぼす —— 実際に「お題なし → お題あり」は、難易度の変更だけを
     // 見ていたときに漏れていた。
+    // **作り直すのは、お題の中身を決める入力が変わったときだけである。**
+    // `pickFallback` と `ServerProblemProvider` が受け取るのは language と difficulty の
+    // 2 つだけなので、この 2 つが変わったお題は古い。
+    //
+    // ⚠ **ここに引き金を足す前に `regenerateLobbyProblem` の代償を見ること。**
+    // あれは `problem !== null` も `isRequesting` も見ずに張り直すので、呼べば
+    // **利用者が手編集した／貼り付けたお題を捨てる**。AI 解錠ルームでは日次枠を
+    // 1 消費し、クールダウン中なら定型へ格下げされる（`ai-limits.ts`・#283 の 3 点目）。
+    // 「載っているお題が古いかどうか」を安全に判定するには、お題自身に
+    // **どの設定のために作られたか**を持たせるしかない（wire の契約が変わるので
+    // #283 と同じ段の話）。それが無いまま引き金を並べると、古さを直すたびに
+    // **正当なお題を巻き添えにする**。実際に `problemEnabled` の off → on を
+    // 足して踏んだ（取り下げ済み。残存は `docs/timer/ARCHITECTURE.md` に記録）。
     if (
       state.timer.config.language !== configBefore.language ||
       state.timer.config.difficulty !== configBefore.difficulty
@@ -711,7 +724,7 @@ export function makeHandlers(deps: HandlerDeps) {
       // 設定が変わったなら、走っている委譲を畳んで選び直す（リロールと同じ・FR-027）。
       regenerateLobbyProblem(delegator, state.timer, now);
     } else {
-      fillLobbyProblem(delegator, state.timer);
+      fillLobbyProblem(delegator, state.timer, now);
     }
 
     // セッションを畳む操作は在室者なら誰でも実行できる（#95 S3）。
