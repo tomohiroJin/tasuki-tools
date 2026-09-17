@@ -145,75 +145,21 @@ describe("ロビーのお題はサーバーが用意する（#271）", () => {
   });
 
   /**
-   * **お題を使う状態へ戻ったら、載っているお題は「前のもの」である**（#273・3 巡目①）。
+   * **お題の中身を決める入力が変わっていないなら、設定を送り直しても作り直さない。**
    *
-   * お題を使わないルームのお題は落とさない（落とすと完成記録まで消える）。
-   * その代わり**1 本目のお題がロビーに残ったまま 2 本目へ持ち越される**ので、
-   * 利用者が「お題あり」へ戻した瞬間、それがそのまま 2 本目のお題になる ——
-   * `fillLobbyProblem` は `problem !== null` で抜けるため誰も作り直さない。
-   * #273 が塞いだはずの症状が、設定を戻す経路で再発する。
+   * `regenerateLobbyProblem` は `problem !== null` も `isRequesting` も見ずに張り直す。
+   * つまり呼べば**利用者が手編集した／貼り付けたお題をそのまま捨てる**し、AI 解錠
+   * ルームでは日次枠を 1 消費し、クールダウン中なら定型へ格下げされる
+   * （`ai-limits.ts`・#283 の 3 点目）。作り直しの引き金を広げるほど、
+   * **古さを直すつもりで正当なお題を巻き添えにする**。
    *
-   * 言語・難易度の変更と同じ性質の変化なので、同じように作り直す。
-   */
-  it("Given お題なしで完了したルーム / When 新しいセッションでお題ありへ戻す / Then 1 本目のお題は残らない", async () => {
-    // Given: お題ありで作り、1 本目のお題に印を付ける
-    const owner = await server.connect("owner");
-    await createRoom(owner, "あや", {
-      config: {
-        language: "TypeScript",
-        difficulty: "easy",
-        members: ["あや"],
-        intervalMinutes: 5,
-      },
-    });
-    if ((await awaitProblem(owner)) === null) {
-      throw new Error("前提が崩れた: 1 本目のお題が用意されていない");
-    }
-    const firstTitle = "1 本目のお題（#273 の 3 巡目）";
-    owner.send({ command: "problem.edit", patch: { title: firstTitle } });
-    await owner.take("snapshot", (m) => m.room.problem?.title === firstTitle);
-
-    // Given: ロビーで「お題なし」へ切り替えてから、1 本目を走らせて完成させる
-    owner.send({ command: "config.set", config: { problemEnabled: false } });
-    owner.send({ command: "phase.set", phase: "session" });
-    owner.send({ command: "session.act", action: "START" });
-    owner.send({ command: "session.complete" });
-    await owner.take("snapshot", (m) => m.room.phase === "celebration");
-
-    // Given: 「新しいセッション」でロビーへ戻す（お題なしのルームなので落とさない）
-    owner.send({ command: "phase.set", phase: "setup" });
-    await owner.take("snapshot", (m) => m.room.phase === "setup");
-
-    // When: 2 本目のロビーで「お題あり」へ戻す
-    owner.send({ command: "config.set", config: { problemEnabled: true } });
-
-    // Then: 2 本目のお題が用意され、それは 1 本目のお題ではない。
-    //
-    // **設定が変わった snapshot で待たない。** `commit` は設定だけを反映した
-    // snapshot を先に配り、作り直したお題はその後の snapshot で載る（実測した
-    // 並びは `true/<1 本目>` → `true/<別のお題>`）。前者で止めると、実装が
-    // 直っていても赤になる —— 見るのは**お題そのものが入れ替わったこと**である。
-    const lobby = await awaitSnapshot(
-      owner,
-      (r) => r.config.problemEnabled !== false && r.problem !== null && r.problem.title !== firstTitle,
-    );
-    expect(
-      lobby,
-      `2 本目のお題へ入れ替わらない（最後に届いたお題: ${owner.latestRoom().problem?.title ?? "なし"}）`,
-    ).not.toBeNull();
-  });
-
-  /**
-   * **「お題あり」のまま設定を送り直しても作り直さない**（#273・3 巡目①の対）。
+   * ここで送るのは `problemEnabled: true` である。**未設定と `true` はどちらも
+   * 「使う」**なので（`aggregate.ts` の `problemEnabled?: boolean`）、人間には
+   * 「何も変えていない」操作にあたる。引き金を素の不一致で書くと
+   * `undefined → true` が「変化した」に化けてここが赤くなる。
    *
-   * `problemEnabled` は任意項目で、**未設定と `true` はどちらも「使う」**である
-   * （`aggregate.ts` の `problemEnabled?: boolean`）。作り直しの判定を
-   * 素の不一致（`configBefore.problemEnabled !== 次の値`）で書くと、
-   * **`undefined` → `true` が「変化した」に化ける**。作り直しは走っている委譲を
-   * 畳んで張り直すので（リロール相当）、AI 生成の途中なら**中断して定型へ縮退し、
-   * 日次枠まで 1 消費する**（`ai-limits.ts`・#283 の 3 点目）。
-   *
-   * ここは「お題を使わない状態から戻ったとき」だけを引き金にしていることを固定する。
+   * **この 1 本が、全 sync テストのうち唯一この性質を見ている**（実測: 判定を
+   * `true` に固定する変異を当てると、719 件のうち落ちるのはこれだけだった）。
    */
   it("Given お題ありのルーム / When 同じ「お題あり」を送り直す / Then お題は作り直されない", async () => {
     // Given: お題ありで作る（`problemEnabled` は未設定＝使う）

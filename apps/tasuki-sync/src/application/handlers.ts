@@ -704,30 +704,24 @@ export function makeHandlers(deps: HandlerDeps) {
     // **引き金を並べずに、commit のたびに不変条件を見る。** 引き金の列挙は
     // 必ず取りこぼす —— 実際に「お題なし → お題あり」は、難易度の変更だけを
     // 見ていたときに漏れていた。
-    // **ただし「いま載っているお題が古い」だけは不変条件で書けない。** `problem` は
-    // 何のために作られたかを持たないので、埋める側から見えるのは「null かどうか」
-    // だけである。**非 null のお題が古くなる道が増えるたび、ここに 1 行増える** ——
-    // それがこの箇所が繰り返し漏れる理由である（構造的な答えは、お題に「どの設定・
-    // どのセッションのために作ったか」を持たせて埋める側から判定できるようにすること。
-    // wire の契約が変わるので #283 と同じ段で扱う）。
+    // **作り直すのは、お題の中身を決める入力が変わったときだけである。**
+    // `pickFallback` と `ServerProblemProvider` が受け取るのは language と difficulty の
+    // 2 つだけなので、この 2 つが変わったお題は古い。
     //
-    // いま数えている「古くなる道」は 2 つ:
-    //   - お題の中身を決める入力が変わった（`pickFallback` と `ServerProblemProvider`
-    //     が受け取るのは language / difficulty の 2 つだけである）
-    //   - **お題を使わない状態から使う状態へ戻った**（#273）。お題を使わないルームの
-    //     お題は落とさないので、戻った瞬間に載っているのは前のセッションのものである
-    const problemInputsChanged =
+    // ⚠ **ここに引き金を足す前に `regenerateLobbyProblem` の代償を見ること。**
+    // あれは `problem !== null` も `isRequesting` も見ずに張り直すので、呼べば
+    // **利用者が手編集した／貼り付けたお題を捨てる**。AI 解錠ルームでは日次枠を
+    // 1 消費し、クールダウン中なら定型へ格下げされる（`ai-limits.ts`・#283 の 3 点目）。
+    // 「載っているお題が古いかどうか」を安全に判定するには、お題自身に
+    // **どの設定のために作られたか**を持たせるしかない（wire の契約が変わるので
+    // #283 と同じ段の話）。それが無いまま引き金を並べると、古さを直すたびに
+    // **正当なお題を巻き添えにする**。実際に `problemEnabled` の off → on を
+    // 足して踏んだ（取り下げ済み。残存は `docs/timer/ARCHITECTURE.md` に記録）。
+    if (
       state.timer.config.language !== configBefore.language ||
-      state.timer.config.difficulty !== configBefore.difficulty;
-    // **`problemEnabled` は未設定と `true` がどちらも「使う」である。** 素の不一致で
-    // 書くと `undefined → true` が「変化した」に化ける。作り直しは走っている委譲を
-    // 畳んで張り直すので、AI 生成の途中なら中断して定型へ縮退し、日次枠まで 1 消費する
-    // （`ai-limits.ts`・#283 の 3 点目）。**「使わない」から出たときだけ**を見る。
-    const problemsTurnedBackOn =
-      configBefore.problemEnabled === false && state.timer.config.problemEnabled !== false;
-
-    if (problemInputsChanged || problemsTurnedBackOn) {
-      // いまのお題は古いので、走っている委譲を畳んで選び直す（リロールと同じ・FR-027）。
+      state.timer.config.difficulty !== configBefore.difficulty
+    ) {
+      // 設定が変わったなら、走っている委譲を畳んで選び直す（リロールと同じ・FR-027）。
       regenerateLobbyProblem(delegator, state.timer, now);
     } else {
       fillLobbyProblem(delegator, state.timer, now);
