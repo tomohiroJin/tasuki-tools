@@ -183,7 +183,7 @@ export function useTimerSync(banner: BannerController): TimerSync {
   const recordSavedRef = useRef(false);
   // 生成が返らない異常で固まらないための安全弁タイマー。
   const generatingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // 参加/作成直後の resumeToken を、次に来る snapshot（room.code を含む）と組み合わせて
+  // 参加直後の resumeToken を、次に来る snapshot（room.code を含む）と組み合わせて
   // 復帰の組を保存するための一時保持（Issue #24）。onIdentity では room.code が
   // まだ分からない（room.joined メッセージに code が含まれない）ため、onRoom まで持ち越す。
   // 素の ref に直接書くのは、onIdentity → onRoom の間に React の再レンダーを待たずに
@@ -203,8 +203,10 @@ export function useTimerSync(banner: BannerController): TimerSync {
       joinRetryTimerRef.current = null;
     }
   };
-  // 参加/作成時に指定した表示名。resumeToken 再送の room.join に必要
+  // 参加時に名乗った表示名。resumeToken 再送の room.join に必要
   // （サーバー側スキーマで displayName は必須項目のため・Issue #24）。
+  // **入れるのは入口の effect 1 箇所だけ**（#272 で作成経路が消えたため）。
+  // 値の出どころは端末に保存された復帰の組で、大元は玄関で名乗った名前である。
   const resumeDisplayNameRef = useRef<string>("");
   // **いま話しているルームのコード**（#95 S4b）。復帰の組の鍵がルームコード別に
   // なったので、「どのルームの組を読むか」を知る必要がある。`room` state だけでは
@@ -293,7 +295,10 @@ export function useTimerSync(banner: BannerController): TimerSync {
     // このスコープ内では変わらない。値は「直前のレンダー時点の snapshot」である。
     const prevRoom = room;
     setRoom(r);
-    // 復帰の組の鍵（#95 S4b）。作成経路はここで初めてルームコードを知る。
+    // 復帰の組の鍵（#95 S4b）を、サーバー権威の値へ揃え直す。
+    // **入口の effect が既に URL のコードを入れている**（#272 で作成経路が消え、
+    // 「ここで初めてコードを知る」経路は無くなった）。それでも代入を残すのは、
+    // 権威はサーバーが返す `r.code` のほうだからである。
     roomCodeRef.current = r.code;
 
     const intents = decideSnapshotIntents(prevRoom, r, {
@@ -544,7 +549,8 @@ export function useTimerSync(banner: BannerController): TimerSync {
     handleInvalidFrame,
   });
 
-  // SyncClient の配線を create/join で共有する。
+  // SyncClient の配線。**呼ぶのは入口の effect 1 箇所だけ**である
+  // （#272 で `createRoom` / `joinRoom` を畳み、create/join の 2 経路で共有する形は消えた）。
   // 各コールバックは handlersRef.current の同名ハンドラへ転送するだけで、
   // 生成時に固定されても実際に走るのは常に最新レンダーのハンドラになる。
   // onConnected / onDisconnected / onConnectionChange は setter 呼び出し1行で、

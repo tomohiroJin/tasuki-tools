@@ -36,7 +36,7 @@ export type SnapshotIntent =
 export interface SnapshotContext {
   /** room.created / room.joined で受け取り、まだ保存していない復帰情報。 */
   pendingResume: { participantId: string; resumeToken: string } | null;
-  /** 参加/作成時に指定した表示名（resumeToken 再送の room.join に必要）。 */
+  /** 参加時に名乗った表示名（resumeToken 再送の room.join に必要）。 */
   resumeDisplayName: string;
   /** 完成記録を既に保存したか。 */
   recordSaved: boolean;
