@@ -190,6 +190,11 @@ argv・ログ・snapshot に混入させません。失敗（タイムアウト�
 詳細: [ADR-0008](./adr/0008-server-resident-ai-generation.md)
 （旧 BYOK + 代表生成方式は [ADR-0005](./adr/0005-secret-zero-byok-problem.md) = Superseded）。
 
+定型バンクの選択は `pickFallback` が `Math.abs(now) % candidates.length` で行うため、
+**作り直しても同じお題を引くことがあります**（TypeScript の `hard` は候補 7 件）。
+「新しいセッション」（#273）が保証するのは**前のお題を落とすところまで**で、
+別のお題になることまでは保証しません（重複の扱いは #283 の領分）。
+
 ## apps/web — フロントエンド
 
 - `sync/client.ts`: WS クライアント。snapshot 置き換え・`clockOffset` 推定・指数バックオフ再接続。
