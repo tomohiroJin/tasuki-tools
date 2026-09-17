@@ -20,7 +20,6 @@ import App from "../../src/App.js";
 import { FakeWS } from "../support/fakes.js";
 import { aRoomView } from "../support/room-view.js";
 import { saveResumeIdentity, loadResumeIdentity } from "@tasuki/sync-client";
-import { clearPreferences } from "../../src/prefs/local-prefs.js";
 import { redirectTo } from "../../src/platform/location.js";
 
 // 遷移は `platform/location.ts` に閉じている（#95 S5c・R9）。テストはそこを差し替える。
@@ -115,14 +114,12 @@ beforeEach(() => {
     if (typeof raw === "string") sentCommands.push(JSON.parse(raw) as Record<string, unknown>);
   });
   sessionStorage.clear();
-  clearPreferences();
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
   localStorage.clear();
   sessionStorage.clear();
-  clearPreferences();
   window.history.replaceState(null, "", "/");
 });
 

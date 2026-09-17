@@ -1,12 +1,13 @@
 /**
- * 設定ローカル保存のテスト
+ * 端末ローカル設定（言語プール・交代通知）のテスト。
+ *
+ * **セッション設定の保存（`SavedPreferences`）のテストは #272 で畳んだ。**
+ * 実装ごと畳んだためである（要求 FR-053 / FR-054 は玄関側へ預けた。
+ * `apps/timer-web/src/prefs/local-prefs.ts` の冒頭を参照）。
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import {
-  savePreferences,
-  loadPreferences,
-  clearPreferences,
   loadRandomLanguagePool,
   saveRandomLanguagePool,
   DEFAULT_RANDOM_LANGUAGE_POOL,
@@ -14,57 +15,6 @@ import {
   saveNotifyPreferences,
   DEFAULT_NOTIFY_PREFERENCES,
 } from "../../src/prefs/local-prefs.js";
-
-/**
- * @requirements T062, T063, FR-053, FR-054, US10
- */
-describe("設定ローカル保存", () => {
-  beforeEach(() => localStorage.clear());
-  afterEach(() => localStorage.clear());
-
-  it("設定を保存して再読み込みできる", () => {
-    // Given
-    savePreferences({
-      displayName: "Alice",
-      language: "Python",
-      difficulty: "medium",
-      members: ["Alice", "Bob"],
-      intervalMinutes: 7,
-    });
-
-    // When
-    const loaded = loadPreferences();
-
-    // Then
-    expect(loaded?.displayName).toBe("Alice");
-    expect(loaded?.language).toBe("Python");
-    expect(loaded?.difficulty).toBe("medium");
-    expect(loaded?.members).toEqual(["Alice", "Bob"]);
-    expect(loaded?.intervalMinutes).toBe(7);
-  });
-
-  it("保存がない場合は null を返す", () => {
-    expect(loadPreferences()).toBeNull();
-  });
-
-  it("clearPreferences で削除される", () => {
-    // Given
-    savePreferences({ displayName: "Alice", language: "Go", difficulty: "easy", members: [], intervalMinutes: 5 });
-    // When
-    clearPreferences();
-    // Then
-    expect(loadPreferences()).toBeNull();
-  });
-
-  it("部分的な設定の保存も機能する（displayName のみ等）", () => {
-    // Given
-    savePreferences({ displayName: "Bob", language: "TypeScript", difficulty: "easy", members: ["Bob"], intervalMinutes: 5 });
-    // When
-    const loaded = loadPreferences();
-    // Then
-    expect(loaded?.displayName).toBe("Bob");
-  });
-});
 
 describe("randomLanguagePool", () => {
   beforeEach(() => localStorage.clear());

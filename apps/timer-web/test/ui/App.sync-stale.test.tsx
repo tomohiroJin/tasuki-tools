@@ -12,7 +12,6 @@ import { screen, act } from "@testing-library/react";
 import { FakeWS } from "../support/fakes.js";
 import { enterRoomAndConnect } from "../support/enter-room.js";
 import { aRoomView } from "../support/room-view.js";
-import { clearPreferences } from "../../src/prefs/local-prefs.js";
 
 vi.mock("../../src/records/indexeddb.js", () => ({
   saveRecord: vi.fn().mockResolvedValue(undefined),
@@ -75,7 +74,6 @@ beforeEach(() => {
   localStorage.clear();
   vi.stubGlobal("WebSocket", FakeWS);
   sessionStorage.clear();
-  clearPreferences();
   // 捨てたことは devtools にも残る（#181）。テスト出力を汚さないために黙らせる。
   vi.spyOn(console, "warn").mockImplementation(() => {});
 });
@@ -85,7 +83,6 @@ afterEach(() => {
   localStorage.clear();
   vi.restoreAllMocks();
   sessionStorage.clear();
-  clearPreferences();
   window.history.replaceState(null, "", "/");
 });
 

@@ -18,13 +18,11 @@
  * @requirements Issue #46 REQ-6
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { act, waitFor, renderHook } from "@testing-library/react";
+import { act, waitFor } from "@testing-library/react";
 import { FakeWS } from "../support/fakes.js";
 import { enterRoomAndConnect } from "../support/enter-room.js";
 import { aRoomView } from "../support/room-view.js";
 import { loadResumeIdentity } from "@tasuki/sync-client";
-import { clearPreferences } from "../../src/prefs/local-prefs.js";
-import { useTimerSync } from "../../src/sync/use-timer-sync.js";
 import { redirectTo } from "../../src/platform/location.js";
 
 vi.mock("../../src/records/indexeddb.js", () => ({
@@ -64,7 +62,6 @@ vi.mock("../../src/ai/no-ai.js", () => ({
 }));
 
 const CREATOR_ID = "p-alice";
-const OTHER_ID = "other-1";
 
 function participant(participantId: string, displayName: string) {
   return {
@@ -74,14 +71,6 @@ function participant(participantId: string, displayName: string) {
     hasAiKey: false,
     joinedAt: 0,
   };
-}
-
-/** テスト用に FakeWS を OPEN 状態にし、connect() のキュー送信をフラッシュする。 */
-function openLatestSocket(): FakeWS {
-  const ws = FakeWS.instances[FakeWS.instances.length - 1]!;
-  ws.readyState = FakeWS.OPEN;
-  ws.onopen?.();
-  return ws;
 }
 
 function sendServer(ws: FakeWS, msg: Record<string, unknown>): void {
@@ -96,8 +85,6 @@ beforeEach(() => {
   localStorage.clear();
   vi.stubGlobal("WebSocket", FakeWS);
   sessionStorage.clear();
-  // 表示名の既定は localStorage に残る。テスト間で漏らさない。
-  clearPreferences();
   // vitest.config.ts の restoreMocks: true により、各テスト開始前に
   // generateSpy の実装（mockResolvedValue）が自動で剥がされる（mockClear では戻らない）。
   // 剥がされた状態のまま onNeedProblem を呼ぶと provider.generate() が undefined を返し、
@@ -111,7 +98,6 @@ afterEach(() => {
   vi.unstubAllGlobals();
   localStorage.clear();
   sessionStorage.clear();
-  clearPreferences();
   // ?room= を次のテストへ持ち越さない（App は初回 useEffect で URL を読む）。
   window.history.replaceState(null, "", "/");
 });
@@ -139,40 +125,6 @@ describe("SyncClient コールバックが最新の state を読む経路（Issu
     // Then その2: **外されたことを玄関へ運ぶ**（#95 S5c・I-1）。ここが無いと、
     // 外された人は説明抜きで名乗りの画面に着き、また参加してまた外される
     expect(redirectTo).toHaveBeenCalledWith("/?room=ROOM01&left=removed");
-  });
-
-  it("onRoom: snapshot に自分が現れたら member.add を1回だけ送る（driver 宣言）", () => {
-    // Given: ドライバーを宣言して参加する。
-    // ⚠ **この `joinRoom()` は製品からは到達しない**（#95 S5c・I-4）。呼び手だった
-    // `Join` 画面を撤去し、名乗りはハブに移った。宣言を受け取る配線はフックに残って
-    // いるが、**叩く利用者はもう居ない**。一掃は別 Issue が持つ。ここは撤去の前後で
-    // 配線が変わっていないことの記録として残している。
-    const { result } = renderHook(() =>
-      useTimerSync({ banner: null, show: () => {}, clear: () => {} }),
-    );
-    act(() => result.current.joinRoom("ROOM01", "Guest", "", "driver"));
-    const ws = openLatestSocket();
-    sendServer(ws, { type: "room.joined", resumeToken: "rt", participantId: OTHER_ID });
-
-    // When: 自分を含む snapshot が届く（rotation には未加入）
-    const sendSpy = vi.spyOn(ws, "send");
-    sendServer(ws, {
-      type: "snapshot",
-      room: aRoomView({
-        code: "ROOM01",
-        participants: [participant(CREATOR_ID, "Creator"), participant(OTHER_ID, "Guest")],
-        session: { rotation: [CREATOR_ID], driverCounts: [0] },
-      }),
-    });
-
-    // Then: 自分の participantId（onIdentity で確定した最新値）で member.add が飛ぶ
-    // FakeWS.send() は引数なし宣言のため mock.calls の要素型は空タプル []。
-    // 実際には JSON 文字列1個で呼ばれるので、既存 App.state-ref.test.tsx と同じ
-    // キャストで実際の呼び出し形（[string][]）に合わせる。
-    const added = (sendSpy.mock.calls as unknown as [string][])
-      .map(([raw]) => JSON.parse(raw))
-      .filter((c) => c.command === "member.add");
-    expect(added).toEqual([{ command: "member.add", participantId: OTHER_ID }]);
   });
 
   it("onRoom: room.joined の resumeToken が snapshot の room.code と組で保存される", () => {

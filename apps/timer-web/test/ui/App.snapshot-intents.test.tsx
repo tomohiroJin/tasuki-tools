@@ -1,8 +1,11 @@
 /**
- * `decideSnapshotIntents` が返す意図のうち、App.tsx の適用 switch を経由しないと
- * 誰にも守られないもの（`persist-completion` / `consume-driver-join`）を、
- * App 経由の副作用（画面・IndexedDB 保存）で直接確認する肯定テスト
- * （#167 Task 5 レビュー指摘）。
+ * `decideSnapshotIntents` が返す意図のうち、同期フックの適用 switch を経由しないと
+ * 誰にも守られないもの（`persist-completion`）を、App 経由の副作用
+ * （画面・IndexedDB 保存）で直接確認する肯定テスト（#167 Task 5 レビュー指摘）。
+ *
+ * **#272 で参加時ドライバー宣言（`consume-driver-join` / `join-rotation`）が消えた。**
+ * 宣言を立てる旧入口（`Join`）を #95 S5c で撤去したためである。あとに残るのは
+ * 「クライアントが輪をいじらない」ことを見る否定側だけになった。
  *
  * **#271 でお題系の意図が全部消えた。** `request-problem` / `regenerate-problem` は
  * お題の依頼がサーバーへ移って不要になった
@@ -24,12 +27,10 @@
  * @requirements #167（#72 E4）
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { screen, fireEvent, act, cleanup, renderHook } from "@testing-library/react";
+import { screen, fireEvent, act, cleanup } from "@testing-library/react";
 import { FakeWS } from "../support/fakes.js";
 import { enterRoomAndConnect } from "../support/enter-room.js";
-import { useTimerSync } from "../../src/sync/use-timer-sync.js";
 import { aRoomView } from "../support/room-view.js";
-import { clearPreferences } from "../../src/prefs/local-prefs.js";
 import { saveRecord as saveRecordMock } from "../../src/records/indexeddb.js";
 import type { Problem } from "@tasuki/timer-core";
 
@@ -61,14 +62,6 @@ function participant(participantId: string, displayName: string) {
   };
 }
 
-/** テスト用に FakeWS を OPEN 状態にし、connect() のキュー送信をフラッシュする。 */
-function openLatestSocket(): FakeWS {
-  const ws = FakeWS.instances[FakeWS.instances.length - 1]!;
-  ws.readyState = FakeWS.OPEN;
-  ws.onopen?.();
-  return ws;
-}
-
 function sendServer(ws: FakeWS, msg: Record<string, unknown>): void {
   act(() => {
     ws.onmessage?.({ data: JSON.stringify(msg) } as MessageEvent);
@@ -85,7 +78,7 @@ function sentFrames(sendSpy: { mock: { calls: unknown[][] } }): Array<Record<str
  *
  * 旧入口（`Setup`）を撤去したので、timer に「ルームを作る」画面はもう無い（作るのはハブ）。
  * **お題の依頼はサーバーが起こす**（#271）ので、輪の先頭かどうかはお題の振る舞いに
- * 効かない。輪を明示するテストは、参加時ドライバー宣言の側を見ている。
+ * 効かない。
  */
 function enterRoomAsGuest(): FakeWS {
   return enterRoomAndConnect({ participantId: CREATOR_ID, displayName: "Creator" });
@@ -100,7 +93,6 @@ beforeEach(() => {
   localStorage.clear();
   vi.stubGlobal("WebSocket", FakeWS);
   sessionStorage.clear();
-  clearPreferences();
   // vitest.config.ts の restoreMocks: true は各テスト開始前に
   // mockImplementation/mockResolvedValue を剥がすだけで、vi.mock ファクトリ由来の
   // saveRecord モックの呼び出し履歴（mock.calls）までは確実にクリアしない
@@ -117,7 +109,6 @@ afterEach(() => {
   vi.unstubAllGlobals();
   localStorage.clear();
   sessionStorage.clear();
-  clearPreferences();
   window.history.replaceState(null, "", "/");
 });
 
@@ -234,44 +225,33 @@ describe("設定変更: 依頼も待ちの表示もクライアントは持た�
   });
 });
 
-describe("consume-driver-join: 参加時ドライバー宣言は一度きりで、輪から外れても再送しない", () => {
-  it("宣言を消費した後は、自分が輪から外れた snapshot が来ても member.add を再送しない", () => {
-    // Given: ドライバーを宣言して参加する。
-    // ⚠ **この `joinRoom()` は製品からは到達しない**（#95 S5c・I-4）。呼び手だった
-    // `Join` 画面を撤去し、名乗りはハブに移った。宣言を受け取る配線はフックに残って
-    // いるが、**叩く利用者はもう居ない**。一掃は別 Issue が持つ。ここは撤去の前後で
-    // 配線が変わっていないことの記録として残している。
-    const { result } = renderHook(() =>
-      useTimerSync({ banner: null, show: () => {}, clear: () => {} }),
-    );
-    act(() => result.current.joinRoom("ROOM01", "Guest", "", "driver"));
-    const ws = openLatestSocket();
+describe("輪への自動加入: 玄関から入った端末は member.add を起こさない（#272）", () => {
+  /**
+   * **参加時ドライバー宣言は #272 で畳んだ。** 宣言を立てていたのは旧入口（`Join`）
+   * だけで、#95 S5c の撤去で立てる者が居なくなった。ここは「配線ごと消えた」ことを
+   * App 経由で固定する —— 消えたあとに誰かが `member.add` を送り直す配線を足したら
+   * 落ちる（純粋関数側の並び検査だけでは、フックの適用 switch を見張れない）。
+   */
+  it("自分が輪に居ない snapshot が続けて届いても member.add を送らない", () => {
+    // Given: 玄関で名乗った端末としてルームへ入る（製品の唯一の経路）
+    const ws = enterRoomAndConnect({ participantId: OTHER_ID, displayName: "Guest" });
     sendServer(ws, { type: "room.joined", resumeToken: "rt", participantId: OTHER_ID });
 
-    // 自分を含む最初の snapshot（rotation 未加入）→ 宣言を消費し member.add を1回送る
-    sendServer(ws, {
-      type: "snapshot",
-      room: aRoomView({
-        code: "ROOM01",
-        participants: [participant(CREATOR_ID, "Creator"), participant(OTHER_ID, "Guest")],
-        session: { rotation: [CREATOR_ID], driverCounts: [0] },
-      }),
-    });
-
-    // When: 自分が輪から外れた（skip 等で rotation から消えた）snapshot が続けて届く
+    // When: 自分は参加者に居るが輪には居ない snapshot が 2 度届く
     const sendSpy = vi.spyOn(ws, "send");
-    sendServer(ws, {
+    const outsideRotation = {
       type: "snapshot",
       room: aRoomView({
         code: "ROOM01",
         participants: [participant(CREATOR_ID, "Creator"), participant(OTHER_ID, "Guest")],
         session: { rotation: [CREATOR_ID], driverCounts: [0] },
       }),
-    });
+    };
+    sendServer(ws, outsideRotation);
+    sendServer(ws, outsideRotation);
 
-    // Then: 宣言は最初の snapshot で消費済みなので、2 回目では member.add を送らない
-    const added = sentFrames(sendSpy).filter((f) => f.command === "member.add");
-    expect(added).toEqual([]);
+    // Then: 一度も送らない（輪に入るのはロビーの操作だけ）
+    expect(sentFrames(sendSpy).filter((f) => f.command === "member.add")).toEqual([]);
   });
 });
 
