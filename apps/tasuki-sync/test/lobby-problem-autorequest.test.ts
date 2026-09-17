@@ -178,13 +178,35 @@ describe("ロビーのお題はサーバーが用意する（#271）", () => {
     owner.send({ command: "problem.edit", patch: { title: marked } });
     await owner.take("snapshot", (m) => m.room.problem?.title === marked);
 
+    // 印が載った時点から先だけを見るために、いまの受信数を控える。
+    const snapshotsBefore = owner.all("snapshot").length;
+
     // When: 未設定から `true` を送る（人間には「何も変えていない」操作）
     owner.send({ command: "config.set", config: { problemEnabled: true } });
 
-    // Then: 印が残ったまま（作り直されていない）。
-    //       配信は来るので、静けさではなく**届いた snapshot の中身**で見る。
-    await owner.take("snapshot", (m) => m.room.config.problemEnabled === true);
-    expect(owner.latestRoom().problem?.title, "送り直しで作り直された").toBe(marked);
+    // **往復を 1 つ挟んでから読む。** `config.set` が起こす配信は 2 通になりうる ——
+    // `commit` が配る「設定を反映した snapshot」（お題はまだ印のまま）と、そのあとに
+    // `finalize` から飛ぶ「作り直したお題の snapshot」である。**前者だけを `take` で
+    // 掴んで `latestRoom()` を読むと、2 通目が届く前に継続が走ったときに退行があっても
+    // 緑になる**（`latestRoom` は受信済みのものしか見ない）。
+    //
+    // 同じ接続のフレームは送信順に届くので、**`config.set` より後に投げた
+    // `time.ping` の応答**を待てば、その時点で `config.set` 由来の配信はすべて
+    // 受信済みだと言い切れる。`time.pong` は snapshot を伴わないので、待つこと自体が
+    // 観測対象を動かさない。
+    owner.send({ command: "time.ping", clientTime: 0 });
+    await owner.take("time.pong");
+
+    // Then: この操作で届いた snapshot は、1 通も印を書き換えていない。
+    //       **`latestRoom()` の 1 点ではなく、届いた全通に対して主張する。**
+    const titles = owner
+      .all("snapshot")
+      .slice(snapshotsBefore)
+      .map((m) => m.room.problem?.title ?? "（お題なし）");
+    expect(titles.length, "config.set の配信が 1 通も届いていない").toBeGreaterThan(0);
+    expect([...new Set(titles)], "送り直しで作り直された").toEqual([marked]);
+    // 設定そのものは反映されている（空振りで緑になっていないことの確認）。
+    expect(owner.latestRoom().config.problemEnabled).toBe(true);
   });
 
   it("Given 輪の先頭が去ったロビー / When 残った人が難易度を変える / Then その難易度のお題へ作り直される", async () => {
