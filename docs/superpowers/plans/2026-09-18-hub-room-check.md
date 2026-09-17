@@ -491,7 +491,19 @@ import { checkRoom } from "./check-room.js";
 実行: `cd apps/tasuki-sync && bun test test/live-ws.hub.test.ts`
 期待: PASS（既存を含む全件）
 
-- [ ] **手順 5: 壊して赤を見る（DoD 3）**
+- [ ] **手順 5: 型検査が緑に戻ることを確かめる**
+
+⚠ **Task 1 が `HubCommand` に変種を足した時点で、このパッケージの型検査は壊れている。**
+`handleMessage` の最後が `handleJoin(connId, cmd)` を呼ぶが、`cmd` は
+`room.join | room.check` の union になっており、`handleJoin` は `room.join` しか受けない。
+**それを直すのがこのタスクである。**
+
+実行: `cd apps/tasuki-sync && bun run typecheck`
+期待: 出力が `$ tsc --noEmit` だけ（エラー 0 件）
+
+緑にならなければコミットせず、報告すること。
+
+- [ ] **手順 6: 壊して赤を見る（DoD 3）**
 
 `check-room.ts` の `store.get(...)` の判定へ関門を足す（`checkPassphrase(...)` を import して
 `|| !checkPassphrase(deps.tokenStore.getPassphrase(input.code), undefined).isOk()` 相当を書く）。
@@ -499,11 +511,11 @@ import { checkRoom } from "./check-room.js";
 
 ⚠ 戻した後に `git status --porcelain` が空であることを見る。
 
-- [ ] **手順 6: 変異検査（DoD 4）**
+- [ ] **手順 7: 変異検査（DoD 4）**
 
 `handleMessage` の `room.check` の分岐を消し、追加した 3 件が赤くなることを確かめて戻す。
 
-- [ ] **手順 7: コミットする**
+- [ ] **手順 8: コミットする**
 
 ```bash
 git add apps/tasuki-sync/src/application/hub-handlers.ts \
