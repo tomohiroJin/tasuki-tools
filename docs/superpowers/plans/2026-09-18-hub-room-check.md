@@ -514,122 +514,7 @@ git commit -m "feat: ハブの入口で生死の照会を受け付ける（#274�
 
 ---
 
-### Task 4: `screenFor` に `gone` を足す
-
-**ファイル**
-- 変更: `apps/landing/src/hub/hub-state.ts`
-- テスト: `apps/landing/tests/hub/hub-state.test.ts`
-
-**インターフェース**
-- 産出: `HubScreen` に `'gone'`、`HubScreenInput` に `readonly gone: boolean`。
-  Task 5・6 が使う
-
-- [ ] **手順 1: 落ちるテストを書く**
-
-`apps/landing/tests/hub/hub-state.test.ts` の末尾へ追加する。
-**既存の呼び出しにも `gone: false` を足す必要がある**（型が増えるため）。まず既存の
-`screenFor({ code: ..., joined: ..., resuming: ... })` を全て
-`screenFor({ ..., gone: false })` へ書き換えてから、次を追加する。
-
-```ts
-/**
- * 見つからないルームの参加用 URL（#274）。
- *
- * **名乗りフォームを出さない。** 出すと、送信して初めて不在が分かる。
- */
-describe("ルームが見つからないとき", () => {
-  it("Given 未参加で見つからない / When 画面を決める / Then 不在の画面になる", () => {
-    expect(screenFor({ code: '朝会モブ-a1b2', joined: false, resuming: false, gone: true })).toBe(
-      'gone',
-    );
-  });
-
-  it("Given 復帰の返事待ちのまま見つからないと分かった / When 画面を決める / Then 不在の画面になる", () => {
-    // 経路2。待ちが降りる前に判定が来ても、名乗りフォームへは落とさない
-    expect(screenFor({ code: '朝会モブ-a1b2', joined: false, resuming: true, gone: true })).toBe(
-      'gone',
-    );
-  });
-
-  it("Given 参加済みなのに見つからない印が立っている / When 画面を決める / Then 選択画面のまま", () => {
-    // **`joined` を先に見る。** ここを逆にすると「参加した後にルームが消えた」場合の
-    // 選択画面の振る舞いまで変わる。それは #274 の射程外である
-    expect(screenFor({ code: '朝会モブ-a1b2', joined: true, resuming: false, gone: true })).toBe(
-      'choice',
-    );
-  });
-
-  it("Given コードが無い / When 画面を決める / Then 作成のまま", () => {
-    // どのルームの不在かを言えないので、不在の画面は出さない
-    expect(screenFor({ code: null, joined: false, resuming: false, gone: true })).toBe('create');
-  });
-});
-```
-
-- [ ] **手順 2: 落ちることを確かめる**
-
-実行: `cd apps/landing && pnpm vitest run tests/hub/hub-state.test.ts`
-期待: FAIL（`gone` が `HubScreenInput` に無く、型検査とアサーションの両方で落ちる）
-
-- [ ] **手順 3: 実装する**
-
-`apps/landing/src/hub/hub-state.ts` を変更する。冒頭の表へ 1 行足す。
-
-```ts
- * | `/?room=CODE` | 見つからない（消えた・最初から無い） | **不在の知らせ** |
-```
-
-型と関数を変える。
-
-```ts
-export type HubScreen = 'create' | 'join' | 'choice' | 'resuming' | 'gone';
-
-export interface HubScreenInput {
-  readonly code: string | null;
-  readonly joined: boolean;
-  readonly resuming: boolean;
-  /**
-   * そのルームが見つからないと分かったか（#274）。
-   *
-   * **名乗る前に分かることがある。** 復帰の組を持たない人には、玄関が接続と同時に
-   * 生死を尋ねる（`use-hub-sync.ts`）。組を持つ人は `room.join` の答えで同じ印が立つ。
-   */
-  readonly gone: boolean;
-}
-
-export function screenFor({ code, joined, resuming, gone }: HubScreenInput): HubScreen {
-  if (code === null) return 'create';
-  if (joined) return 'choice';
-  // **`joined` の後に見る。** 前に置くと「参加した後にルームが消えた」場合の
-  // 選択画面の振る舞いまで変わり、#274 の射程を超える。
-  //
-  // **`resuming` より前に見る。** 復帰の返事が `ROOM_NOT_FOUND` だった人は、
-  // 待ちが降りる前にここへ来る。後ろに置くと読み込み中の表示から抜けられない。
-  if (gone) return 'gone';
-  return resuming ? 'resuming' : 'join';
-}
-```
-
-- [ ] **手順 4: 通ることを確かめる**
-
-実行: `cd apps/landing && pnpm vitest run tests/hub/hub-state.test.ts`
-期待: PASS（全件）
-
-- [ ] **手順 5: 壊して赤を見る（DoD 3）**
-
-`if (gone) return 'gone';` を `if (joined) return 'choice';` の前へ移し、
-「参加済みなのに見つからない印」が FAIL することを確かめて戻す。
-
-- [ ] **手順 6: コミットする**
-
-```bash
-git add apps/landing/src/hub/hub-state.ts apps/landing/tests/hub/hub-state.test.ts
-git commit -m "feat: 玄関の画面判定に不在の状態を足す（#274）"
-```
-
----
-
-### Task 5: 不在を知らせる画面
+### Task 4: 不在を知らせる画面
 
 **ファイル**
 - 新設: `apps/landing/src/screens/RoomGone.tsx`
@@ -637,7 +522,7 @@ git commit -m "feat: 玄関の画面判定に不在の状態を足す（#274）"
 
 **インターフェース**
 - 産出: `RoomGone({ code }: RoomGoneProps)`、`RoomGoneProps { readonly code: string }`。
-  Task 6 が `App.tsx` から使う
+  Task 5 が `App.tsx` から使う
 
 - [ ] **手順 1: 落ちるテストを書く**
 
@@ -782,18 +667,121 @@ git commit -m "feat: ルームが見つからないことを知らせる画面�
 
 ---
 
-### Task 6: 玄関が名乗る前に照会する
+### Task 5: 玄関の状態と照会
+
+⚠ **このタスクは 3 ファイルを 1 つのコミットに載せる。** `screenFor` の入力に必須の
+項目を足すと、呼び出し元の `App.tsx` が同時に直らなければ型検査が壊れる。さらに
+`App.tsx` の `case 'gone'` は Task 4 の `RoomGone` が要る。**分けられない。**
 
 **ファイル**
+- 変更: `apps/landing/src/hub/hub-state.ts`
 - 変更: `apps/landing/src/hub/use-hub-sync.ts`
 - 変更: `apps/landing/src/App.tsx`
+- テスト: `apps/landing/tests/hub/hub-state.test.ts`
 - テスト: `apps/landing/tests/hub/use-hub-sync.test.tsx`
 
 **インターフェース**
-- 利用: Task 1 の `room.check`、Task 4 の `screenFor` / `gone`、Task 5 の `RoomGone`
-- 産出: `HubSync` に `readonly gone: boolean`
+- 利用: Task 1 の `room.check`、Task 4 の `RoomGone`（`RoomGoneProps { code: string }`）
+- 産出: `HubScreen` に `'gone'`、`HubScreenInput` に `readonly gone: boolean`、
+  `HubSync` に `readonly gone: boolean`、フック内の `checkIfNeeded()`。
+  Task 6 が `checkIfNeeded` と `JOIN_RATE_LIMITED` の分岐を使う
+
+#### 画面判定（`hub-state.ts`）
 
 - [ ] **手順 1: 落ちるテストを書く**
+
+`apps/landing/tests/hub/hub-state.test.ts` の末尾へ追加する。
+**既存の呼び出しにも `gone: false` を足す必要がある**（型が増えるため）。まず既存の
+`screenFor({ code: ..., joined: ..., resuming: ... })` を全て
+`screenFor({ ..., gone: false })` へ書き換えてから、次を追加する。
+
+```ts
+/**
+ * 見つからないルームの参加用 URL（#274）。
+ *
+ * **名乗りフォームを出さない。** 出すと、送信して初めて不在が分かる。
+ */
+describe("ルームが見つからないとき", () => {
+  it("Given 未参加で見つからない / When 画面を決める / Then 不在の画面になる", () => {
+    expect(screenFor({ code: '朝会モブ-a1b2', joined: false, resuming: false, gone: true })).toBe(
+      'gone',
+    );
+  });
+
+  it("Given 復帰の返事待ちのまま見つからないと分かった / When 画面を決める / Then 不在の画面になる", () => {
+    // 経路2。待ちが降りる前に判定が来ても、名乗りフォームへは落とさない
+    expect(screenFor({ code: '朝会モブ-a1b2', joined: false, resuming: true, gone: true })).toBe(
+      'gone',
+    );
+  });
+
+  it("Given 参加済みなのに見つからない印が立っている / When 画面を決める / Then 選択画面のまま", () => {
+    // **`joined` を先に見る。** ここを逆にすると「参加した後にルームが消えた」場合の
+    // 選択画面の振る舞いまで変わる。それは #274 の射程外である
+    expect(screenFor({ code: '朝会モブ-a1b2', joined: true, resuming: false, gone: true })).toBe(
+      'choice',
+    );
+  });
+
+  it("Given コードが無い / When 画面を決める / Then 作成のまま", () => {
+    // どのルームの不在かを言えないので、不在の画面は出さない
+    expect(screenFor({ code: null, joined: false, resuming: false, gone: true })).toBe('create');
+  });
+});
+```
+
+- [ ] **手順 2: 落ちることを確かめる**
+
+実行: `cd apps/landing && pnpm vitest run tests/hub/hub-state.test.ts`
+期待: FAIL（`gone` が `HubScreenInput` に無く、型検査とアサーションの両方で落ちる）
+
+- [ ] **手順 3: 実装する**
+
+`apps/landing/src/hub/hub-state.ts` を変更する。冒頭の表へ 1 行足す。
+
+```ts
+ * | `/?room=CODE` | 見つからない（消えた・最初から無い） | **不在の知らせ** |
+```
+
+型と関数を変える。
+
+```ts
+export type HubScreen = 'create' | 'join' | 'choice' | 'resuming' | 'gone';
+
+export interface HubScreenInput {
+  readonly code: string | null;
+  readonly joined: boolean;
+  readonly resuming: boolean;
+  /**
+   * そのルームが見つからないと分かったか（#274）。
+   *
+   * **名乗る前に分かることがある。** 復帰の組を持たない人には、玄関が接続と同時に
+   * 生死を尋ねる（`use-hub-sync.ts`）。組を持つ人は `room.join` の答えで同じ印が立つ。
+   */
+  readonly gone: boolean;
+}
+
+export function screenFor({ code, joined, resuming, gone }: HubScreenInput): HubScreen {
+  if (code === null) return 'create';
+  if (joined) return 'choice';
+  // **`joined` の後に見る。** 前に置くと「参加した後にルームが消えた」場合の
+  // 選択画面の振る舞いまで変わり、#274 の射程を超える。
+  //
+  // **`resuming` より前に見る。** 復帰の返事が `ROOM_NOT_FOUND` だった人は、
+  // 待ちが降りる前にここへ来る。後ろに置くと読み込み中の表示から抜けられない。
+  if (gone) return 'gone';
+  return resuming ? 'resuming' : 'join';
+}
+```
+
+- [ ] **手順 4: 通ることを確かめる**
+
+実行: `cd apps/landing && pnpm vitest run tests/hub/hub-state.test.ts`
+期待: PASS（全件）
+
+#### 照会と画面の結線（`use-hub-sync.ts` ＋ `App.tsx`）
+
+- [ ] **手順 5: 落ちるテストを書く**
 
 `apps/landing/tests/hub/use-hub-sync.test.tsx` の末尾へ追加する。
 先頭の import に `saveResumeIdentity` を足すこと。
@@ -901,13 +889,13 @@ describe('ルームの生死の照会', () => {
 });
 ```
 
-- [ ] **手順 2: 落ちることを確かめる**
+- [ ] **手順 6: 落ちることを確かめる**
 
 実行: `cd apps/landing && pnpm vitest run tests/hub/use-hub-sync.test.tsx`
 期待: 追加した 5 件のうち、照会を数える 2 件と画面を見る 2 件が FAIL
 （「混雑で弾かれる」は現状でも緑になりうる。他の赤を根拠に進む）
 
-- [ ] **手順 3: 実装する**
+- [ ] **手順 7: 実装する**
 
 `apps/landing/src/hub/use-hub-sync.ts` を変更する。
 
@@ -1005,44 +993,52 @@ describe('ルームの生死の照会', () => {
       return <RoomGone code={hub.code ?? ''} />;
 ```
 
-- [ ] **手順 4: 通ることを確かめる**
+- [ ] **手順 8: 通ることを確かめる**
 
 実行: `cd apps/landing && pnpm vitest run tests/hub/`
 期待: PASS（既存を含む全件）
 
-- [ ] **手順 5: 壊して赤を見る（DoD 3）**
+#### 壊して確かめる
+
+- [ ] **手順 9: 壊して赤を見る その1（画面判定・DoD 3）**
+
+`if (gone) return 'gone';` を `if (joined) return 'choice';` の前へ移し、
+「参加済みなのに見つからない印」が FAIL することを確かめて戻す。
+
+- [ ] **手順 10: 壊して赤を見る その2（照会・DoD 3）**
 
 `checkIfNeeded` の `loadResumeIdentity(initialCode) !== null` の判定を外し、
 「復帰の組がある参加用 URL では照会が送られない」が FAIL することを確かめて戻す。
 
-- [ ] **手順 6: 変異検査（DoD 4）**
+- [ ] **手順 11: 変異検査（DoD 4）**
 
 `setGone(true)` を消し、経路1・経路2 の 2 件が赤くなることを確かめて戻す。
 ⚠ 戻した後に `git status --porcelain` が空であることを見る。
 
-- [ ] **手順 7: コミットする**
+- [ ] **手順 12: コミットする**
 
 ```bash
-git add apps/landing/src/hub/use-hub-sync.ts apps/landing/src/App.tsx \
-        apps/landing/tests/hub/use-hub-sync.test.tsx
+git add apps/landing/src/hub/hub-state.ts apps/landing/src/hub/use-hub-sync.ts \
+        apps/landing/src/App.tsx \
+        apps/landing/tests/hub/hub-state.test.ts apps/landing/tests/hub/use-hub-sync.test.tsx
 git commit -m "feat: 玄関が名乗る前にルームの生死を尋ねるようにする（#274）"
 ```
 
 ---
 
-### Task 7: 照会がレート制限で弾かれたら待ってから送り直す
+### Task 6: 照会がレート制限で弾かれたら待ってから送り直す
 
 **ファイル**
 - 変更: `apps/landing/src/hub/use-hub-sync.ts`
 - テスト: `apps/landing/tests/hub/use-hub-sync.test.tsx`
 
 **インターフェース**
-- 利用: Task 6 の `checkIfNeeded` と `JOIN_RATE_LIMITED` の分岐、
+- 利用: Task 5 の `checkIfNeeded` と `JOIN_RATE_LIMITED` の分岐、
   `joinRetryDelayMs`（既に import 済み）
 
 - [ ] **手順 1: 落ちるテストを書く**
 
-Task 6 で足した `describe('ルームの生死の照会', ...)` の末尾へ追加する。
+Task 5 で足した `describe('ルームの生死の照会', ...)` の末尾へ追加する。
 
 ```tsx
   it('Given 照会が混雑で弾かれた / When 待ち時間が過ぎる / Then 照会を送り直す', () => {
@@ -1148,13 +1144,13 @@ git commit -m "fix: 混雑で弾かれた生死の照会を待ってから送り
 
 ---
 
-### Task 8: 実画面で確かめる（E2E）
+### Task 7: 実画面で確かめる（E2E）
 
 **ファイル**
 - 変更: `e2e/specs/landing.spec.ts`
 
 **インターフェース**
-- 利用: Task 1〜7 の全て。実サーバー・実ブラウザを通る
+- 利用: Task 1〜6 の全て。実サーバー・実ブラウザを通る
 
 - [ ] **手順 1: 落ちるテストを書く**
 
@@ -1205,11 +1201,11 @@ test.describe('見つからないルームの参加用 URL', () => {
 
 ⚠ **ポートを 1 度に 1 本しか掴めない。** 他に `pnpm dev` が動いていないことを確かめてから走らせる。
 
-**このタスクは Task 1〜7 の後に来るので、素の実行では緑になる。** 赤を見る手順は
+**このタスクは Task 1〜6 の後に来るので、素の実行では緑になる。** 赤を見る手順は
 手順 5（破壊検証）が受け持つ。ここでは**対照実行**として、まず緑になることを確かめる。
 
 実行: `pnpm e2e --grep '見つからないルーム'`
-期待: PASS（緑にならなければ Task 1〜7 のどこかが未完成。先へ進まない）
+期待: PASS（緑にならなければ Task 1〜6 のどこかが未完成。先へ進まない）
 
 - [ ] **手順 3: タグの規律を確かめる**
 
@@ -1240,7 +1236,7 @@ git commit -m "test: 見つからないルームの参加用 URL を実画面で
 
 ---
 
-### Task 9: 規範文書を合わせる
+### Task 8: 規範文書を合わせる
 
 **ファイル**
 - 変更: `docs/adr/0011-threat-model-and-data-classification.md`
@@ -1307,7 +1303,7 @@ git commit -m "test: 見つからないルームの参加用 URL を実画面で
 期待: PASS
 
 ⚠ **リンク検査は `git ls-files` を見る。** 新規ファイルは `git add` するまで走査されない。
-Task 9 に入る前に、これまでのタスクが全てコミット済みであることを確かめる。
+Task 8 に入る前に、これまでのタスクが全てコミット済みであることを確かめる。
 
 - [ ] **手順 5: コミットする**
 
@@ -1341,7 +1337,7 @@ pnpm build
 ⚠ **終わったらポートを解放する**（起動しっぱなしにすると利用者の `pnpm dev` を潰す）。
 
 見るもの: 名乗りフォームが出ないこと・見出し・戻る道・`RoomGone` の `role` の読み上げが
-不自然でないこと（Task 5 手順 3 の ⚠）。
+不自然でないこと（Task 4 手順 3 の ⚠）。
 
 - [ ] **敵対的レビューを回す**
 
