@@ -1240,6 +1240,7 @@ git commit -m "test: 見つからないルームの参加用 URL を実画面で
 
 **ファイル**
 - 変更: `docs/adr/0011-threat-model-and-data-classification.md`
+- 変更: `docs/superpowers/specs/2026-09-18-hub-room-check-design.md`（§5.1）
 - 変更: `docs/superpowers/specs/2026-09-06-shared-identity-and-rooms-design.md`（§5.7）
 - 変更: `apps/poker-web/src/pages/RoomPage.tsx`（コメントのみ）
 
@@ -1269,7 +1270,36 @@ git commit -m "test: 見つからないルームの参加用 URL を実画面で
 設計正本: `docs/superpowers/specs/2026-09-18-hub-room-check-design.md` D2。
 ```
 
-- [ ] **手順 2: #95 設計正本の §5.7 へ 1 行足す**
+- [ ] **手順 2: この設計正本の §5.1 を実装に合わせる**
+
+⚠ **正本が実装と食い違っている。** Task 1 のレビューが拾った。
+`docs/superpowers/specs/2026-09-18-hub-room-check-design.md` の §5.1 は
+
+```ts
+v.object({ command: v.literal("room.check"), code: nonEmptyString }),
+```
+
+と書いているが、実装は `v.strictObject` である（Task 1 の `63ff381`）。
+**正本を読んだ次の担当者が「非 strict」を前提に組む**ので、放置しない。
+
+その行を次へ置き換え、直後へ理由を 1 段落足すこと。
+
+```ts
+v.strictObject({ command: v.literal("room.check"), code: nonEmptyString }),
+```
+
+```markdown
+**ここだけ strict にする。** 余剰フィールドを拒むのは `docs/adr/0011` 決定2 の脅威 S3 が
+MUST とする規律で、poker の `ClientMessage`（`packages/poker-core/src/protocol.ts`）は
+既に `v.strictObject` で揃えてある。**同じファイルの `room.create` / `room.join` が
+非 strict なのは古い取り決めの名残である** —— このファイル冒頭が挙げる非 strict の理由
+（サーバーが項目を足したとき、古いクライアントがフレームごと捨てるのを避ける）は
+**サーバーから画面へ送る `HubServerMsg` の話**であって、画面からサーバーへ送るコマンドには
+当てはまらない。新設のこのコマンドには古いクライアントが居ないので、厳しい側から始める。
+**あの 2 つを strict にするのは #274 の射程外**（申し送り）。
+```
+
+- [ ] **手順 3: #95 設計正本の §5.7 へ 1 行足す**
 
 `docs/superpowers/specs/2026-09-06-shared-identity-and-rooms-design.md` の §5.7 の画面の表へ、
 既存の行と同じ体裁で追加する（**表の他の行は触らない**）。
@@ -1278,7 +1308,7 @@ git commit -m "test: 見つからないルームの参加用 URL を実画面で
 | `/?room=CODE` | 見つからない | **不在の知らせ**（#274） |
 ```
 
-- [ ] **手順 3: `RoomPage.tsx` のコメントを直す**
+- [ ] **手順 4: `RoomPage.tsx` のコメントを直す**
 
 `apps/poker-web/src/pages/RoomPage.tsx` の次の 3 行を、
 
@@ -1297,7 +1327,7 @@ git commit -m "test: 見つからないルームの参加用 URL を実画面で
   // ここへ送り返した人は、その判定を玄関側で受ける。
 ```
 
-- [ ] **手順 4: 文書の検査を走らせる**
+- [ ] **手順 5: 文書の検査を走らせる**
 
 実行: `node scripts/check-links.mjs`（CI の `docs` ジョブが走らせているのと同じもの）
 期待: PASS
@@ -1305,10 +1335,11 @@ git commit -m "test: 見つからないルームの参加用 URL を実画面で
 ⚠ **リンク検査は `git ls-files` を見る。** 新規ファイルは `git add` するまで走査されない。
 Task 8 に入る前に、これまでのタスクが全てコミット済みであることを確かめる。
 
-- [ ] **手順 5: コミットする**
+- [ ] **手順 6: コミットする**
 
 ```bash
 git add docs/adr/0011-threat-model-and-data-classification.md \
+        docs/superpowers/specs/2026-09-18-hub-room-check-design.md \
         docs/superpowers/specs/2026-09-06-shared-identity-and-rooms-design.md \
         apps/poker-web/src/pages/RoomPage.tsx
 git commit -m "docs: ハブの生死照会が関門を通さない理由を規範へ書く（#274）"
