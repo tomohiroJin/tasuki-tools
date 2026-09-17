@@ -320,4 +320,36 @@ describe('ルームの生死の照会', () => {
 
     expect(screen.queryByRole('heading', { name: 'ルームが見つかりません' })).toBeNull();
   });
+
+  it('Given 照会が混雑で弾かれた / When 待ち時間が過ぎる / Then 照会を送り直す', () => {
+    // **送り直さないと性質が効かない。** バケツが枯れている間、
+    // 消えたルームのリンクを踏んだ人は名乗りフォームを見続ける。
+    // poker は同じことを既にしている（`RoomPage.tsx` の再試行）
+    vi.useFakeTimers();
+    try {
+      openWithRoom('朝会モブ-a1b2');
+      render(<App />);
+      act(() => socket().open());
+      expect(checksSent(), '最初の照会').toBe(1);
+
+      act(() =>
+        socket().deliver({
+          type: 'error',
+          code: 'JOIN_RATE_LIMITED',
+          message: '試行が多すぎます。しばらくしてからお試しください',
+        }),
+      );
+
+      // **即時には送らない。** 即時に送り直すと、枯れたバケツを叩き続ける
+      expect(checksSent(), '弾かれた直後').toBe(1);
+
+      act(() => {
+        vi.advanceTimersByTime(30_000);
+      });
+
+      expect(checksSent(), '待った後').toBe(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

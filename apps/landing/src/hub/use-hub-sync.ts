@@ -129,7 +129,12 @@ export function useHubSync(): HubSync {
   const defaultDisplayName = useMemo(() => loadDefaultDisplayName(), []);
 
   const connRef = useRef<SyncConnection | null>(null);
-  /** 入室の再試行回数（混雑で弾かれたときだけ増える）。 */
+  /**
+   * 混雑で弾かれたときの再試行回数。**入室と照会で共有する。**
+   *
+   * 照会（名乗る前）と入室（名乗った後）が同時に飛ぶことはなく、`joinRoom` が
+   * 呼ばれた時点で 0 に戻るため、1 本で足りる。
+   */
   const retryRef = useRef(0);
   /** 自動で入り直すときに使う、直近の名乗り。 */
   const lastJoinRef = useRef<{ displayName: string; passphrase?: string } | null>(null);
@@ -220,17 +225,24 @@ export function useHubSync(): HubSync {
           return;
         }
         if (msg.code === 'JOIN_RATE_LIMITED') {
-          // 混雑で弾かれた人を、操作なしで入室まで運ぶ（#147 と同じ方針）。
+          // 混雑で弾かれた人を、操作なしで先へ運ぶ（#147 と同じ方針）。
           const attempt = (retryRef.current += 1);
           const delay = joinRetryDelayMs(attempt);
           const last = lastJoinRef.current;
           const target = codeRef.current;
-          if (delay === null || last === null || target === null) {
+          if (delay === null || target === null) {
             setError(msg.message);
             return;
           }
           setError(msg.message);
           setTimeout(() => {
+            // **`last === null` は「まだ名乗っていない」** ＝ 送ったのは照会だけである
+            // （#274）。エラーのフレームに相関の手がかりが無いので、送った側の状態で
+            // 見分ける。経路2 の人は復帰を送る前に `lastJoinRef` が埋まっている。
+            if (last === null) {
+              send({ command: 'room.check', code: target });
+              return;
+            }
             send({
               command: 'room.join',
               code: target,
