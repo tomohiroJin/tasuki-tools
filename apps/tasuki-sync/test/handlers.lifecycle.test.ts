@@ -234,6 +234,57 @@ describe("phase.set: ロビーへ戻るとお題は持ち越さない（#273）"
     handlers = makeTestHandlers({ store, timers, clock, broadcaster, codeGen: new FakeCodeGen() });
   });
 
+  /**
+   * **埋め直す気が無いなら落とさない**（#273 のレビュー 2 巡目①）。
+   *
+   * `problemEnabled` は利用者がロビーで切り替えられる設定である
+   * （`Lobby.tsx` の `onConfigSet({ problemEnabled: v })`）。埋める側は
+   * `problemEnabled === false` なら埋めない。落とす側が phase しか見ないと、
+   * **落としたきり誰も埋めないロビー**ができる —— `isLobbyPhase` の注記に書いた
+   * 対称性を、phase で取って 2 つ目の条件で崩していた。
+   *
+   * 下流への実害は `SessionCompleted` の `if (room.problem)` である。お題が
+   * null のままだと**完成記録が作られなくなる**（実測: main では 2 本、
+   * 落とす側が `problemEnabled` を見ないと 1 本になる）。
+   *
+   * **正は「落とさない」と判断した。** #273 の EARS は「2 本目のために新しい
+   * お題を用意すること」であり、お題を使わないルームには用意すべき「新しいお題」が
+   * 無い。落としても誰も得をせず、記録だけが消える。
+   * （お題を使わないルームが完成記録を持てないこと自体は `buildCompletionRecord` の
+   * 前提であり、#273 の射程外である。）
+   */
+  it("Given お題を使わない設定へ切り替えて完了した / When ロビーへ戻す / Then お題を落とさず、2 本目の完成記録も残る", async () => {
+    // Given: お題ありで 1 本目を走らせ、途中で「お題を使わない」へ切り替えて完成する
+    const code = await setupRoom(handlers, store, timers);
+    putRoomView(store, timers, { ...roomViewOf(store, timers, code), problem });
+    await handlers.handleCommand("host-conn", { command: "phase.set", phase: "session" });
+    await handlers.handleCommand("host-conn", { command: "session.act", action: "START" });
+    await handlers.handleCommand("host-conn", {
+      command: "config.set",
+      config: { problemEnabled: false },
+    });
+    await handlers.handleCommand("host-conn", { command: "session.complete" });
+    if (roomViewOf(store, timers, code).sessionRecords.length !== 1) {
+      throw new Error("前提が崩れた: 1 本目の完成記録が作られていない");
+    }
+
+    // When: 「新しいセッション」でロビーへ戻す
+    await handlers.handleCommand("host-conn", { command: "phase.set", phase: "setup" });
+
+    // Then: 埋め直す気が無いルームのお題は落とさない（落とすと誰も埋めない）
+    expect(roomViewOf(store, timers, code).problem).not.toBeNull();
+
+    // Then: 2 本目も完成記録が残る（`SessionCompleted` はお題が無いと記録を作らない）
+    for (const command of [
+      { command: "phase.set", phase: "session" },
+      { command: "session.reset" },
+      { command: "session.complete" },
+    ] as const) {
+      await handlers.handleCommand("host-conn", command);
+    }
+    expect(roomViewOf(store, timers, code).sessionRecords).toHaveLength(2);
+  });
+
   it("Given 完了したセッション / When ロビーへ戻す / Then 1 本目のお題は残らない", async () => {
     // Given: お題を確定させ、走らせて完成させる（phase=celebration）
     const code = await setupRoom(handlers, store, timers);
