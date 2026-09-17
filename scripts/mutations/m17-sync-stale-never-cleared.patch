@@ -8,12 +8,12 @@
 # 復元: git checkout -- <対象ファイル>
 #
 diff --git a/apps/timer-web/src/sync/use-timer-sync.ts b/apps/timer-web/src/sync/use-timer-sync.ts
-index 3302aa9..b13dde9 100644
+index 2e17f32..ec1849e 100644
 --- a/apps/timer-web/src/sync/use-timer-sync.ts
 +++ b/apps/timer-web/src/sync/use-timer-sync.ts
-@@ -263,7 +263,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
+@@ -279,7 +279,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
  
-   const handleRoom = (syncClient: SyncClient, r: Room) => {
+   const handleRoom = (r: Room) => {
      // **画面が実際に新しい状態を得た。** ここだけが「古い」の解除点である（#209）。
 -    setSyncStale(false);
      // ルームに入る前に出したバナーは、入れた時点で役目を終える。
