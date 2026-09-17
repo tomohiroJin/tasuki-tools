@@ -240,7 +240,7 @@ describe("phase.set: ロビーへ戻るとお題は持ち越さない（#273）"
    * `problemEnabled` は利用者がロビーで切り替えられる設定である
    * （`Lobby.tsx` の `onConfigSet({ problemEnabled: v })`）。埋める側は
    * `problemEnabled === false` なら埋めない。落とす側が phase しか見ないと、
-   * **落としたきり誰も埋めないロビー**ができる —— `isLobbyPhase` の注記に書いた
+   * **落としたきり誰も埋めないロビー**ができる —— `usesLobbyProblem` の注記が言う
    * 対称性を、phase で取って 2 つ目の条件で崩していた。
    *
    * 下流への実害は `SessionCompleted` の `if (room.problem)` である。お題が

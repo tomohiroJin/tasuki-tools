@@ -146,8 +146,9 @@ application/
   presence.ts        プレゼンス間引き・ドライバー不在の繰り上げ（猶予 30 秒）
   problem-delegation.ts  お題の代表生成・タイムアウト・再委譲・定型縮退
   lobby-problem.ts   ロビーのお題を用意する不変条件（#271。旧来はクライアントが送っていた）。
-                     ロビーの範囲（`isLobbyPhase`）もここが正本 —— ロビーへ入った
-                     ルームのお題を落とす側（`apply-room-level-event.ts`）と共有する（#273）
+                     「ロビーでお題を扱う範囲」（`usesLobbyProblem`。phase と
+                     problemEnabled の両方）もここが正本 —— ロビーへ入ったルームの
+                     お題を落とす側（`apply-room-level-event.ts`）と共有する（#273）
   ai-limits.ts       AI 生成の濫用抑制（同時 1・クールダウン・日次上限）
   room-reclaimer.ts  アイドルルームの回収
   admin.ts           管理エンドポイント（127.0.0.1 限定）

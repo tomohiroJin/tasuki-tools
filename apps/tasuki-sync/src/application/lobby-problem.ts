@@ -17,26 +17,40 @@ import type { TimerState } from "@tasuki/timer-core";
 import type { ProblemDelegator } from "./problem-delegation.js";
 
 /**
- * ロビー（セッション開始前）を表す phase か。
+ * その設定のルームが、この phase に居るあいだロビーのお題を持つか。
  *
- * **捨てる側と埋める側で定義が割れないよう、ここ 1 箇所が持つ**（#273）。
- * 捨てる側（`apply-room-level-event.ts` の `PhaseSet`）が「ロビーへ入った」と見なす
- * 範囲と、埋める側（{@link fillLobbyProblem}）が「お題を用意する」範囲がずれると、
- * **落としたきり誰も埋めないロビー**ができる（片方だけ `ready` を含めた形が
- * ちょうどそれになる）。1 行の重複だが、ずれた側が行き止まりを作るので共有する。
+ * **捨てる側と埋める側は、この 1 つの判断を共有する**（#273）。
+ * 捨てる側（`apply-room-level-event.ts` の `PhaseSet`）が「ここへ入ったら落とす」と
+ * 見なす範囲と、埋める側（{@link fillLobbyProblem}）が「ここでは用意する」と見なす
+ * 範囲がずれると、**落としたきり誰も埋めないロビー**ができる。
+ *
+ * **判断は 2 つあり、どちらか片方だけを共有しても足りない。**
+ *
+ *   1. **phase がロビー（開始前）であること。** 走っているセッションの足元で
+ *      お題を差し替えない
+ *   2. **そのルームがお題を使うこと**（`problemEnabled` は任意項目で既定は「使う」）。
+ *      これは利用者がロビーで切り替えられる設定である（`Lobby.tsx` の
+ *      `onConfigSet({ problemEnabled: v })`）
+ *
+ * 1 だけを共有していた形が、ちょうど行き止まりを作った（レビュー 2 巡目①）——
+ * 「お題ありで走らせ、途中でお題を off にして完了し、新しいセッションにする」と、
+ * 落とす側だけが動いて誰も埋めない。下流では `SessionCompleted` の
+ * `if (room.problem)` が立たず、**2 本目の完成記録が作られなくなる**。
+ *
+ * `TimerState` ではなく設定と phase を別々に取るのは、**捨てる側が見たいのが
+ * 「遷移先の phase」だから**である（そのときのルームはまだ `celebration` に居る）。
  */
-export function isLobbyPhase(phase: TimerState["phase"]): boolean {
+export function usesLobbyProblem(
+  config: TimerState["config"],
+  phase: TimerState["phase"],
+): boolean {
+  if (config.problemEnabled === false) return false;
   return phase === "setup" || phase === "ready";
 }
 
-/**
- * お題を使うルームか（`problemEnabled` は任意項目で、既定は「使う」）。
- *
- * **ロビー（開始前）だけを見る。** 走っているセッションの足元でお題を差し替えない。
- */
+/** いまのルームがロビーのお題を持つ状態か（{@link usesLobbyProblem} を現在の状態で引く）。 */
 function wantsLobbyProblem(timer: TimerState): boolean {
-  if (timer.config.problemEnabled === false) return false;
-  return isLobbyPhase(timer.phase);
+  return usesLobbyProblem(timer.config, timer.phase);
 }
 
 /**

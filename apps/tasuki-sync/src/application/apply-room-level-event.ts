@@ -21,9 +21,9 @@
 import { buildCompletionRecord, type Aggregate, type DomainEvent, type RotationEntry, type TimerState } from "@tasuki/timer-core";
 import type { Room as MembershipRoom } from "@tasuki/room-core";
 import { rotationDisplayNames } from "./timer-snapshot-dto.js";
-// ロビーの定義は「お題を用意する側」が持つ（`lobby-problem.ts` の `isLobbyPhase`）。
+// 「ロビーでお題を扱う範囲」は用意する側が持つ（`lobby-problem.ts` の `usesLobbyProblem`）。
 // ここが落とす範囲と向こうが埋める範囲は一致していなければならない（#273）。
-import { isLobbyPhase } from "./lobby-problem.js";
+import { usesLobbyProblem } from "./lobby-problem.js";
 
 /** 1 ルームの状態一式（名簿と timer の状態。`code` で対になっている）。 */
 export interface RoomState {
@@ -141,13 +141,18 @@ function applyRoomLevelEvent(
       // 「新しいセッション」は完了画面からしか押せないので、意図する遷移は
       // すべて `celebration` 発である。
       //
-      // **行き先は `isLobbyPhase` で見る。** ここが落とす範囲と
+      // **行き先は `usesLobbyProblem` で見る。** ここが落とす範囲と
       // `lobby-problem.ts` が埋める範囲は一致していなければならない（ずれると
-      // 落としたきり誰も埋めないロビーができる）。`celebration → session` は
-      // 落とさない —— 溜まっていた `phase.set session` が後から届いても、
-      // 用意済みのお題を捨てる理由は無い。
+      // 落としたきり誰も埋めないロビーができる）。**判断は phase だけではない** ——
+      // お題を使わない設定（`problemEnabled: false`）のルームは埋め直されないので、
+      // 落とすと完成記録まで消える（レビュー 2 巡目①）。
+      //
+      // `celebration → session` も落とさない —— 溜まっていた `phase.set session` が
+      // 後から届いても、用意済みのお題を捨てる理由は無い。
       const next: TimerState = { ...room, phase: event.phase };
-      if (room.phase === "celebration" && isLobbyPhase(event.phase)) next.problem = null;
+      if (room.phase === "celebration" && usesLobbyProblem(room.config, event.phase)) {
+        next.problem = null;
+      }
       return withTimer(state, next);
     }
     case "SessionReset":
