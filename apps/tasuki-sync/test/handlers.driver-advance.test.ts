@@ -116,7 +116,11 @@ describe("advanceForAbsence: ドライバー不在の自動繰上", () => {
     handlers.advanceForAbsence(code);
 
     // Then
-    expect(roomViewOf(store, timers, code).session.currentIndex).toBe(0);
+    const after = roomViewOf(store, timers, code);
+    expect(after.session.currentIndex).toBe(0);
+    // 全席不適格は nextIndex を null へ縮退させる唯一の関門（D6・レビュー指摘2）。
+    // ここを外すと ineligible.size === seats.length の比較が壊れても誰も気づかない。
+    expect(after.session.nextIndex).toBeNull();
   });
 
   it("オフライン driver は交代対象から外れる（次が offline なら飛ばして現状維持）", async () => {
@@ -143,6 +147,13 @@ describe("advanceForAbsence: ドライバー不在の自動繰上", () => {
       B: "offline",
       C: "online",
     });
+
+    // 交代前に nextIndex の判定力を確かめる（レビュー指摘1）。currentIndex=0・ineligible={1}・
+    // len=3 のこの局面は、正しい nextEligibleIndex は 2（Bを飛ばす）を返すが、wire.ts が
+    // 「使ってはならない」と書く素朴な (currentIndex+1)%len は 1 を返す —— 両者が分岐する
+    // 局面でしか、この関門が本物の判定を持っているかは確かめられない。交代後（currentIndex=2）
+    // まで待つと ineligible={1} の効果が (2+1)%3=0 という「たまたま同じ答え」に隠れてしまう。
+    expect(roomViewOf(store, timers, code).session.nextIndex).toBe(2); // 素朴な (cur+1)%len なら 1 になるはず
 
     // When（交代を実際に起こす。判定を直接呼ばない）
     await handlers.handleCommand("conn-0", { command: "session.act", action: "SWITCH" });

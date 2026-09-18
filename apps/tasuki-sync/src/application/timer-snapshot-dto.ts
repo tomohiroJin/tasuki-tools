@@ -31,6 +31,21 @@
  *    「timer から離れた」ことが分かっているのは前者だけだからである。
  *    名簿からは誰も消えず、輪の席も表示名（`config.members`）も残る（R7）。
  *
+ * ★ **#276 で wire が変わった点も、この台帳に続けて書く。**
+ *
+ * 7. **`session.seats: Seat[]` と `session.nextIndex: number | null` が必須項目として増えた**
+ *    （{@link seatSkipReason}／`wire.ts` の `Seat` / `Room.session.seats` / `Room.session.nextIndex`
+ *    の注記）。`RoomSchema` の `SessionStateSchema`（`schemas.ts`）は**わざと任意にしていない**
+ *    （D7）—— 省略可にすると画面側に「config.members から補う」フォールバック経路が
+ *    復活し、「サーバーが送る席」と「画面が推測する席」の 2 経路に戻ってしまう。
+ *    そのため**古い snapshot（この 2 項目を持たない）の互換は無い** —— `RoomSchema` の
+ *    パースそのものが落ち、画面は「最新ではありません」側へ倒れる（`sync/stale-frame.ts`）。
+ *    上の 4・5 項目（`connId` / `startedAt` の削除）とは逆に、**今回は非 strict の
+ *    `v.object` であることが助けにならない**（必須項目が丸ごと無いため）。
+ *    したがって配布は**同期サーバーが先**でなければならない（`deploy/timer/NOTES.md` の
+ *    順序表）。逆順だと、まだ `seats` / `nextIndex` を送らない旧サーバーへ新しい画面が
+ *    繋がり、招待客全員が「最新ではありません」を見る。
+ *
  * 代理（`isPlaceholder`）はここで**合成される**。名簿には居らず、輪の上の席
  * （`RotationEntry` の `kind: "proxy"`）としてだけ存在するためである。
  */
