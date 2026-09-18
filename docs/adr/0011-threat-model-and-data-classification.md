@@ -400,3 +400,20 @@ S4a 以降の範囲であり、**まだ実施していない**。合言葉（`ro
   （IP 単位のレート制限）であることと、その信頼の根拠が起動時 fail-closed にあることは
   変えていない。** 値の正本は `deploy/timer/env.example` と
   `apps/tasuki-sync/src/config.ts` である。
+
+## 追記（2026-09-18・#274）
+
+**ハブの生死の照会は合言葉の関門を通さない。** 決定2 の #95 S5b 追記は
+「`check-room`（生死の問い合わせ）も同じ関門を通す」としているが、**これは
+合言葉を送れない入口（poker）についての規律である。**
+
+ハブは合言葉を送れる。したがって保護ルームはハブから見て「入れるルーム」であり、
+関門を通して「存在しない」と答えると、**合言葉を持つ正規の招待客に嘘をつく**。
+ハブの `room.join` は既に保護ルームへ `PASSPHRASE_REQUIRED` を返して存在を開示しており、
+照会の開示水準はそれと同じに揃う（新しく漏れる情報は無い）。
+
+実装は `apps/tasuki-sync/src/application/check-room.ts`。poker の
+`handleCheckRoom` と**関門の扱いが逆であることが正しい**。両方の doc コメントが
+相手を名指ししてこの理由を持つ。
+
+設計正本: `docs/superpowers/specs/2026-09-18-hub-room-check-design.md` D2。

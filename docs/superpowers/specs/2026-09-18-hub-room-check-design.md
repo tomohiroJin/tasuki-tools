@@ -297,8 +297,17 @@ poker の画面と見出しが同じ文字列になるが、別ページなの�
 ```
 
 ```ts
-v.object({ command: v.literal("room.check"), code: nonEmptyString }),
+v.strictObject({ command: v.literal("room.check"), code: nonEmptyString }),
 ```
+
+**ここだけ strict にする。** 余剰フィールドを拒むのは `docs/adr/0011` 決定2 の脅威 S3 が
+MUST とする規律で、poker の `ClientMessage`（`packages/poker-core/src/protocol.ts`）は
+既に `v.strictObject` で揃えてある。**同じファイルの `room.create` / `room.join` が
+非 strict なのは古い取り決めの名残である** —— このファイル冒頭が挙げる非 strict の理由
+（サーバーが項目を足したとき、古いクライアントがフレームごと捨てるのを避ける）は
+**サーバーから画面へ送る `HubServerMsg` の話**であって、画面からサーバーへ送るコマンドには
+当てはまらない。新設のこのコマンドには古いクライアントが居ないので、厳しい側から始める。
+**あの 2 つを strict にするのは #274 の射程外**（申し送り）。
 
 公開記号は増えない（`HubCommand` / `HubCommandSchema` は既に公開契約にある）。
 
