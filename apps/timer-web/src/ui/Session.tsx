@@ -156,10 +156,8 @@ export function Session({
   const rotationLen = room.session.rotation.length;
   const nextIndex =
     rotationLen > 0 ? (room.session.currentIndex + 1) % rotationLen : 0;
-  // rotation は参加者IDの配列（D6b）。表示用に「識別子＋表示名」へ一度だけ写す。
-  // `config.members` も渡す —— `participants` は timer の在席者に絞られており（#95 S5a）、
-  // 選択画面へ戻った人の名前はそこからは引けない（渡さないと席が名無しで残る・S5c）。
-  const rotation = rotationMembers(room.session.rotation, room.participants, room.config.members);
+  // 席はサーバーが組む（#276 D2）。表示用に「識別子＋表示名＋呼び名」へ一度だけ写す。
+  const rotation = rotationMembers(room.session.seats, room.participants);
   // 現ドライバー・次・ナビは呼び名（同名が並ぶときは識別子つき）で出す。
   // 素の表示名だと同名2名がどちらも「Bob」になり「次は誰か」が判別できない。
   const rotationNames = rotation.map((m) => m.label);
@@ -170,7 +168,7 @@ export function Session({
     rotationLen > 0 ? (rotationNames[nextIndex] ?? "—") : "—";
   // 次の席の人が timer の画面に居ないなら、その席は飛ばされる（サーバーの適格判定・D21）。
   // 名前だけ出すと「なぜ番が来ないのか」が読めないので、理由を添える。
-  const isNextAway = rotation[nextIndex]?.isAway === true;
+  const isNextAway = rotation[nextIndex]?.skipReason === "away";
   // ナビゲーター（⑦）。次ドライバーと別概念にし、既定では「現ドライバーの前の人
   //（直前に運転していた退役ドライバー）」をメインナビとする。文脈を最も持つ人。
   // rotation が1人のときは現ドライバーと一致するため表示しない。

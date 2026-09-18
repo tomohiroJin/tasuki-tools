@@ -10,7 +10,7 @@ import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import React from "react";
 import { Session } from "../../src/ui/Session.js";
-import type { Participant, Room } from "@tasuki/timer-core";
+import type { Participant, Room, Seat } from "@tasuki/timer-core";
 import { aRoomView } from "../support/room-view.js";
 
 const INVITE_URL_FOR_TEST = "https://tasuki.example/?room=TEST";
@@ -26,15 +26,25 @@ const handlers = {
   onDriverResume: noop, onDriverAssign: noop, onAddProxy: noop, onHandoffNoteSet: noop,
 };
 
-/** rotation=[あや, ゆう]。`present` が偽なら「ゆう」は選択画面へ戻っている。 */
+/**
+ * rotation=[あや, ゆう]。`present` が偽なら「ゆう」は選択画面へ戻っている。
+ *
+ * 席（`skipReason`）はサーバーが組むため、`aRoomView` の既定は輪から機械的に
+ * 導くだけで在席かどうかを推測しない（#276）。この Given で「ゆう」を離席させたい
+ * ときは、`session.seats` を丸ごと渡してサーバーの決定を模す。
+ */
 function makeRoom(options: { present: boolean }): Room {
   const participants = options.present
     ? [p("aya-p", "あや"), p("yuu-p", "ゆう")]
     : [p("aya-p", "あや")];
+  const seats: Seat[] = [
+    { id: "aya-p", displayName: "あや", isProxy: false, skipReason: null },
+    { id: "yuu-p", displayName: "ゆう", isProxy: false, skipReason: options.present ? null : "away" },
+  ];
   return aRoomView({
     code: "AA0001",
     config: { members: ["あや", "ゆう"] },
-    session: { rotation: ["aya-p", "yuu-p"], currentIndex: 0, driverCounts: [0, 0] },
+    session: { rotation: ["aya-p", "yuu-p"], currentIndex: 0, driverCounts: [0, 0], seats },
     clock: { running: true, runningSince: 0 },
     phase: "session",
     participants,

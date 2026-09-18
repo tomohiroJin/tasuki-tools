@@ -3,8 +3,8 @@ import { computeRotationStatus } from "../../src/ui/rotation-status.js";
 
 describe("computeRotationStatus", () => {
   /** rotation の枠は識別子＋表示名の対（D6b）。 */
-  const mk = (id: string, name: string, label = name, isAway = false) => ({
-    participantId: id, displayName: name, label, isAway,
+  const mk = (id: string, name: string, label = name, skipReason: "away" | null = null) => ({
+    participantId: id, displayName: name, label, skipReason,
   });
   const base = {
     rotation: [mk("p1", "Alice"), mk("p2", "Bob"), mk("p3", "Carol")],
@@ -71,7 +71,7 @@ describe("computeRotationStatus", () => {
 
   it("timer に居ない席かどうかを枠からそのまま引き継ぐ", () => {
     // Given（Bob だけが選択画面へ戻っている）
-    const rotation = [mk("p1", "Alice"), mk("p2", "Bob", "Bob", true), mk("p3", "Carol")];
+    const rotation = [mk("p1", "Alice"), mk("p2", "Bob", "Bob", "away"), mk("p3", "Carol")];
 
     // When
     const r = computeRotationStatus({ ...base, rotation });

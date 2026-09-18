@@ -5,8 +5,8 @@ import React from "react";
 import { RotationLineup } from "../../src/ui/components/RotationLineup.js";
 
 describe("RotationLineup", () => {
-  const mk = (id: string, name: string, label = name, isAway = false) => ({
-    participantId: id, displayName: name, label, isAway,
+  const mk = (id: string, name: string, label = name, skipReason: "away" | null = null) => ({
+    participantId: id, displayName: name, label, skipReason,
   });
   const props = {
     rotation: [mk("p1", "Alice"), mk("p2", "Bob"), mk("p3", "Carol")],
@@ -57,7 +57,7 @@ describe("RotationLineup", () => {
 
   it("timer に居ない席は「別の画面」と出し、順番の予告を出さない", () => {
     // Given（Bob は選択画面へ戻っており、サーバーはこの席をドライバーから外す・D21）
-    const rotation = [mk("p1", "Alice"), mk("p2", "Bob", "Bob", true)];
+    const rotation = [mk("p1", "Alice"), mk("p2", "Bob", "Bob", "away")];
 
     // When
     render(

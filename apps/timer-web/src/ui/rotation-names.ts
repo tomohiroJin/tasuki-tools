@@ -1,13 +1,13 @@
 /**
- * rotation（参加者IDの配列・D6b）を表示名へ写すヘルパ。
+ * 席（サーバーが組む交代の輪の1枠・#276 D2）を表示用ビューへ写すヘルパ。
  *
  * 同定は識別子で、表示は名前で行う。この境界を1箇所に閉じ込めることで、
  * 「表示名で rotation を照合して同名の別人を取り違える」という Issue #22 の
  * 主要な欠陥が画面側で再発しないようにする。
  */
 
-import type { Participant } from "@tasuki/timer-core";
-import { participantLabel } from "./participant-label.js";
+import type { Seat, SeatSkipReason } from "@tasuki/timer-core";
+import { participantLabel, type LabelParticipant } from "./participant-label.js";
 
 /** rotation 1枠分の表示用ビュー。識別子・表示名・呼び名を対にして持つ。 */
 export interface RotationMember {
@@ -22,59 +22,47 @@ export interface RotationMember {
    */
   label: string;
   /**
-   * その席の人が **timer の画面に居ない**か（#95 S5a・S5c）。
+   * その席が飛ばされる理由（`Seat.skipReason`・#276 D3）。null は「次の交代で番が回る」。
    *
-   * 真なら表示名は `config.members` から補っている。サーバーはこの席をドライバーから
-   * 外すので（`computeIneligibleIndices`・D21）、**順番は回らない**。画面がこの理由を
-   * 示せないと、利用者には「誰の番か分からないまま飛ばされる枠」に見える。
-   *
-   * 代理（`isPlaceholder`）は一覧に載るので常に偽である。対面に居る実在の人を表し、
-   * ドライバーも回る。
+   * サーバーが `computeIneligibleIndices`（D21）でドライバーから外した席にだけ付く。
+   * 画面がこの理由を示せないと、利用者には「誰の番か分からないまま飛ばされる枠」に見える。
+   * 理由を 3 種類に出し分けるのはこの関数の仕事ではない（各表示コンポーネント側で扱う）。
    */
-  isAway: boolean;
+  skipReason: SeatSkipReason | null;
 }
 
 /**
- * rotation を「識別子＋表示名」の配列へ写す。
+ * 席の配列を「識別子＋表示名＋呼び名」の配列へ写す。
+ *
+ * **席はサーバーが組む。** `Seat.displayName` は絞っていない名簿（在席者に限らない）
+ * から引かれており、`config.members` の添字対応で名前を補う経路はここには無い
+ * （その経路は席の側・`buildTimerSnapshotRoom` に畳まれた）。
+ *
+ * 呼び名の判定対象は **`seats` と `participants` の和集合**（id で重複排除）。
+ * 片方だけでは足りない —— `seats` だけだと輪の外の見学者との同名を取りこぼし
+ * （見学者は席を持たない）、`participants` だけだと離席者どうしの同名を取りこぼす
+ * （`participants` は timer の在席者に絞られており、離席した席の相方が乗らない・R5/R6）。
  *
  * 表示名だけの配列にしないのは、React の key や行の同定に識別子が要るためである。
  * 表示名は同名参加者で衝突しうるので、key に使うと同名の行同士が入れ替わったときに
  * DOM が取り違えられる（強調やアニメーションが別人の行に付く）。
- *
- * ## 名前の引き先が 2 つある理由（#95 S5a・S5c）
- *
- * かつてここには「対応する参加者が居ない ID は表示名が空文字になるが、サーバーが退出時に
- * rotation からも外すため通常は発生しない」と書いてあった。**S5a でこの前提が崩れた。**
- * `participants` は timer の在席者に絞って送られるようになり（選択画面や poker に居る人は
- * 載らない）、一方で**名簿からは誰も消えず、輪の席も表示名も残る**（R7）。S5c で
- * 「選択画面へ戻る」導線が付いたので、誰でもこの状態に到達できる。
- *
- * サーバーは**絞っていない名簿**から `config.members`（rotation と同じ順の表示名）を
- * 組んでいる（`apps/tasuki-sync/src/application/timer-snapshot-dto.ts` の
- * `rotationDisplayNames`）。`participants` から引けなかった席はそこから補い、{@link
- * RotationMember.isAway} を立てる。
- *
- * ⚠ **`memberNames` との対応づけは添字しかない。** 表示名の配列なので識別子を持たず、
- * wire の型（`SessionConfig`）も `RoomSchema` も rotation との長さの一致を要求していない。
- * ずれた配列から引くと**別人の名前を席に貼る**という最悪の壊れ方をするので、
- * **長さが一致するときだけ**添字で引き、違えば S5a 以前と同じ空文字へ落とす。
  */
 export function rotationMembers(
-  rotation: readonly string[],
-  participants: readonly Participant[],
-  memberNames: readonly string[] = [],
+  seats: readonly Seat[],
+  participants: readonly LabelParticipant[],
 ): RotationMember[] {
-  const names = new Map(participants.map((p) => [p.participantId, p.displayName]));
-  // 添字で対応づけてよいのは長さが一致するときだけ（上の注記）。
-  const fallbackNames = memberNames.length === rotation.length ? memberNames : [];
-  return rotation.map((participantId, index) => {
-    const presentName = names.get(participantId);
-    const displayName = presentName ?? fallbackNames[index] ?? "";
-    return {
-      participantId,
-      displayName,
-      label: participantLabel(displayName, participantId, participants),
-      isAway: presentName === undefined,
-    };
-  });
+  // 呼び名の判定対象は「同じ画面に並ぶ人」全員（#276 D9）。
+  // seats だけだと輪の外の見学者との同名を取りこぼし、participants だけだと
+  // 離席者どうしの同名を取りこぼす（S5a で participants が在席で絞られたため）。
+  const byId = new Map<string, LabelParticipant>();
+  for (const s of seats) byId.set(s.id, { participantId: s.id, displayName: s.displayName });
+  for (const p of participants) if (!byId.has(p.participantId)) byId.set(p.participantId, p);
+  const pool = [...byId.values()];
+
+  return seats.map((s) => ({
+    participantId: s.id,
+    displayName: s.displayName,
+    label: participantLabel(s.displayName, s.id, pool),
+    skipReason: s.skipReason,
+  }));
 }

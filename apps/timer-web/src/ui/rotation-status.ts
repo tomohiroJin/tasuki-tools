@@ -16,7 +16,7 @@ export interface MemberTurn {
   isNext: boolean;
   isSelf: boolean;
   minutesAway: number | null;
-  /** timer の画面に居ない席か（RotationMember.isAway）。番が回らない理由の表示に使う。 */
+  /** timer の画面に居ない席か（RotationMember.skipReason === "away"）。番が回らない理由の表示に使う。 */
   isAway: boolean;
 }
 
@@ -51,7 +51,7 @@ export function computeRotationStatus(args: {
       isNext: len > 1 && turnsAway === 1,
       isSelf: i === selfIndex,
       minutesAway,
-      isAway: member.isAway,
+      isAway: member.skipReason === "away",
     };
   });
 

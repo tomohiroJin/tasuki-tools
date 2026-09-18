@@ -21,7 +21,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import React from "react";
 import { Lobby } from "../../src/ui/Lobby.js";
 import type { Room, Participant } from "@tasuki/timer-core";
-import { aRoomView } from "../support/room-view.js";
+import { aRoomView, type RoomViewOverrides } from "../support/room-view.js";
 
 /** 参加用 URL は同期フックが組み立てる（#95 S5b）。画面へは値として渡す。 */
 const INVITE_URL_FOR_TEST = 'https://tasuki.example/?room=TEST';
@@ -36,7 +36,7 @@ function p(overrides: Partial<Participant>): Participant {
  * Alice（部屋を作った人）と Bob の 2 名。視点はつねに Bob（作った人ではない側）に置く。
  * `problemEnabled: false` にして、お題待ちによる開始ボタンの無効化と混ざらないようにする。
  */
-function makeRoom(overrides?: Partial<Room>): Room {
+function makeRoom(overrides?: RoomViewOverrides): Room {
   return aRoomView({
     config: { members: ["Alice"], intervalMinutes: 5, problemEnabled: false },
     session: { rotation: ["creator-p"], driverCounts: [0] },

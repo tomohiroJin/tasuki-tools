@@ -41,7 +41,8 @@ export function TeamOrbit({ members, currentIndex, size = 340, children }: TeamO
       <div className="absolute inset-0 flex items-center justify-center">{children}</div>
       {/* 1 人だけのときは周回アバターを出さない（文字盤 12 時上に孤立した点が乗るのを避ける）。
           現ドライバーは中央の Crown＋名前で十分に伝わる。複数人で初めて周回を可視化する。 */}
-      {len > 1 && members.map(({ participantId, displayName, label, isAway }, i) => {
+      {len > 1 && members.map(({ participantId, displayName, label, skipReason }, i) => {
+        const isAway = skipReason === "away";
         const angle = (i / len) * 2 * Math.PI - Math.PI / 2;
         const x = center + Math.cos(angle) * orbitRadius;
         const y = center + Math.sin(angle) * orbitRadius;
