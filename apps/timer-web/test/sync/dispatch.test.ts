@@ -200,6 +200,27 @@ describe("dispatchServerMessage: 契約を満たさないフレーム", () => {
   });
 
   /**
+   * `session.seats` を必須にした（#276 D7）ことで、それを欠いた snapshot が
+   * 実際に `room.session.seats` の経路で落ちることを固定する。
+   *
+   * `indicatesStaleRoom` がこの経路を「画面を古い側へ倒す」と扱うことは
+   * Task 1（`stale-frame.test.ts`）で確認済みなので、ここでは重複させない。
+   * ここで見るのは「検証器が本当にこの経路を出すか」だけである。
+   */
+  it("session.seats を欠いた snapshot は room.session.seats の経路で落ちる", () => {
+    // Given: 妥当な wire ルームから seats だけを欠かす
+    const onInvalidFrame = vi.fn();
+    const base = aRoomView();
+    const session = { ...base.session } as Record<string, unknown>;
+    delete session["seats"];
+    const room = { ...base, session };
+    // When
+    dispatchServerMessage(JSON.stringify({ type: "snapshot", room }), { onInvalidFrame });
+    // Then
+    expect(onInvalidFrame).toHaveBeenCalledWith(["room.session.seats"]);
+  });
+
+  /**
    * **JSON として読めない入力は「最も壊れている」場面である。** そこだけ無言だと、
    * 利用者への表出（#209）からその場面だけが丸ごと外れる。
    */
