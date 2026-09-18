@@ -349,4 +349,13 @@ describe("RoomSchema の seats / nextIndex（#276 D7）", () => {
     room.session.seats[0]!.skipReason = "見送り" as never;
     expect(v.safeParse(RoomSchema, room).success).toBe(false);
   });
+
+  // #276 D2: displayName は nonEmptyString ではなく v.string()。名簿から引けない
+  // 席は空文字になりうる（設計 §3.3 の縮退）ため、ここで弾くと**名前が引けない席が
+  // あるだけで snapshot 全体が落ちる**。いまはコメントだけが守っている性質を固定する。
+  it("seats の displayName は空文字を許す（名簿から引けない席の縮退）", () => {
+    const room = validRoom();
+    room.session.seats[0]!.displayName = "";
+    expect(v.safeParse(RoomSchema, room).success).toBe(true);
+  });
 });

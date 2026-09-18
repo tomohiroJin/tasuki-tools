@@ -260,10 +260,21 @@ export function buildTimerSnapshotRoom(membership: MembershipRoom, timer: TimerS
   // 全席が不適格ならサーバーは現状維持へ縮退する（R15）。`nextEligibleIndex` は
   // その場合 currentIndex を返すので、「次は現ドライバー」と区別が付かない。
   // 画面に人名を出させないため、ここで null へ倒す（D6）。
-  const nextIndex =
+  const candidate =
     seats.length === 0 || ineligible.size === seats.length
       ? null
       : nextEligibleIndex(timer.session, timer.session.currentIndex, ineligible);
+  // D6 追補（最終レビュー指摘）: 席が 2 つ以上あり、かつ適格なのが現ドライバーの席
+  // だけのときも `nextEligibleIndex` は `currentIndex` を返す（全席不適格のときと
+  // 同じ「区別が付かない」形）。ここを見落とすと画面は「Current Driver: あや」の
+  // 直下に「次: あや」を出す —— 2 人ルームで相方が離席する、最も起きやすい場面である。
+  // 「交代しても運転者が変わらないなら人名を出さない」へ倒し、null にする。
+  // ⚠ 席が 1 つだけの輪はこの分岐に入れない。`(0+1)%1 = 0` で「自分が次」を返すのは
+  // #276 より前からの既存の振る舞いであり、射程外（この分岐を変えると変わってしまう）。
+  const nextIndex =
+    candidate !== null && seats.length >= 2 && candidate === timer.session.currentIndex
+      ? null
+      : candidate;
   // 代理の `joinedAt` は名簿の作成時刻で埋める。席は追加時刻を持たないが、
   // この値を読む処理は無い（候補列の並べ替えは `hasAiKey` の人だけを見る）。
   const proxies: Participant[] = proxyEntries(timer).map((e) => ({

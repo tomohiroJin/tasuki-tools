@@ -332,8 +332,10 @@ const SessionStateSchema = v.object({
   // #276 D7: 任意にしない。省略可にすると画面側にフォールバック経路が残り、
   // 「サーバーが送る席」と「config.members から補う席」の 2 経路が戻る。
   // 旧サーバーの snapshot は `room.session.seats` の経路で落ち、画面は
-  // 「最新ではありません」側へ倒れる（`sync/stale-frame.ts`）。配布は
-  // **同期サーバーが先**（`deploy/timer/NOTES.md` の順序表）。
+  // 「最新ではありません」側へ倒れる（`sync/stale-frame.ts`）。配布時の窓と
+  // その影響は `deploy/timer/NOTES.md` の順序表と設計文書 §7 を参照する
+  // （`deploy.sh timer` は画面とサーバーを同じ 1 コマンドで配るため、
+  // 順序は選べない。「同期サーバーが先」ではない）。
   seats: v.array(SeatSchema),
   nextIndex: v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0))),
 });
@@ -1462,8 +1464,10 @@ git push
 
 Run: `cd /workspaces/claym/local/Tasuki && sed -n 1,80p deploy/timer/NOTES.md`
 
-**#274 が既に「同期サーバーが先」と書いているはずである。** 書いてあるなら理由を
-1 行足すだけでよい（新しい節を作らない）。無いなら節を足す。
+**#274 は「玄関」と「同期サーバー」を別コマンドで配れる前提だったので「同期サーバーが先」と
+書いているが、`deploy.sh timer` は画面とサーバーを同じ 1 コマンドの内側で配るため、この前提が
+そのまま当てはまるとは限らない。** `deploy/deploy.sh` を読み、`timer` 内部の転送順序
+（web dist → server.js → 再起動、画面が先）を確かめてから節を書くこと。
 
 ⚠ **節を追記すると直後の小節が親を変える**（→ [[appending-a-section-reparents-the-next-one]]）。
 **追記は末尾へ**、または既存節の中へ入れること。
@@ -1472,9 +1476,13 @@ Run: `cd /workspaces/claym/local/Tasuki && sed -n 1,80p deploy/timer/NOTES.md`
 
 ```markdown
 - **#276 で `snapshot.room.session` に `seats` / `nextIndex` が増えた。**
-  `RoomSchema` で必須にしてあるので、**timer の画面を先に配ると旧サーバーの snapshot が
-  検証に落ち、全員の画面が「最新ではありません」になる**。#274 と同じく
-  `deploy.sh timer`（同期サーバー）が先である。
+  `RoomSchema` で必須にしてあるため、`deploy.sh timer` 内部の転送順序
+  （web dist 転送 → server.js 転送 → 再起動）の、転送後・再起動前の窓で新規に
+  読み込んだ画面は旧サーバーの snapshot を検証に落とし「最新ではありません」を見る。
+  窓は再起動で閉じ、再起動自体がインメモリのルームを全消滅させるため、影響は
+  配布中の数十秒に留まる。**この内部順序（画面→サーバー）は変更しない** ——
+  #274 の「玄関」と「同期サーバー」とは違い、`timer` は画面とサーバーが同じ
+  1 コマンドの内側にあり、順序を選べない。詳細は設計文書 §7 を参照する。
 ```
 
 - [ ] **Step 3: リンク検査を走らせる**
@@ -1576,8 +1584,13 @@ wire に載せ、timer の画面がそれを使うようにする。Issue 本文
 
 ## ⚠ 配布の順序
 
-**`deploy.sh timer`（同期サーバー）を先に配ること。** `seats` / `nextIndex` を
-`RoomSchema` で必須にしているため、画面を先に配ると旧サーバーの snapshot が検証に落ちる。
+`deploy.sh timer` は web dist の転送 → `server.js` の転送 → 再起動の順に進む
+（画面が先。画面とサーバーが同じ 1 コマンドの内側にあるため、この順序は選べない）。
+`seats` / `nextIndex` を `RoomSchema` で必須にしたため、転送後・再起動前の窓で
+新規に読み込んだ画面は旧サーバーの snapshot を検証に落とし「最新ではありません」を見る。
+窓は再起動で閉じ、再起動自体がインメモリのルームを全消滅させるため、影響は配布中の
+数十秒に留まる（既に開いている画面は旧バンドルのままなので影響を受けない）。
+詳細は設計文書 §7 を参照。
 
 ## テスト方法
 
