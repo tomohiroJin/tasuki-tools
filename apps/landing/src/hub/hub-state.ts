@@ -49,7 +49,9 @@ export function screenFor({ code, joined, resuming, gone }: HubScreenInput): Hub
   // 待ちが降りる前にここへ来る。後ろに置くと読み込み中の表示から抜けられない。
   if (gone) return 'gone';
   // 復帰の返事を待っている間は名乗らせない。**待ちが終われば必ずどちらかへ落ちる** ——
-  // 返事が来れば `joined`、来なければ（同一性が無い・ルームが消えた・合言葉が要る）
+  // 返事が来れば `joined`、来なければ（同一性が無い・合言葉が要る）
   // `resuming` が降りて参加画面になる（`use-hub-sync.ts` を参照）。
+  // **ルームが消えた場合はここへ来ない** —— 上の `if (gone) return 'gone';` で
+  // 既に捌かれている。
   return resuming ? 'resuming' : 'join';
 }
