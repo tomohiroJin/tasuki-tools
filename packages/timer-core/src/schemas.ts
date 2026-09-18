@@ -354,8 +354,10 @@ const SessionStateSchema = v.object({
   // #276 D7: 任意にしない。省略可にすると画面側にフォールバック経路が残り、
   // 「サーバーが送る席」と「config.members から補う席」の 2 経路が戻る。
   // 旧サーバーの snapshot は `room.session.seats` の経路で落ち、画面は
-  // 「最新ではありません」側へ倒れる（`sync/stale-frame.ts`）。配布は
-  // **同期サーバーが先**（`deploy/timer/NOTES.md` の順序表）。
+  // 「最新ではありません」側へ倒れる（`sync/stale-frame.ts`）。配布時の窓と
+  // その影響は `deploy/timer/NOTES.md` の順序表と設計文書 §7 を参照する。
+  // **「同期サーバーが先」という記述は誤りだった**（`deploy.sh timer` は画面と
+  // サーバーを同じ 1 コマンドで配るため、順序を選べない。Task 9 で是正）。
   seats: v.array(SeatSchema),
   nextIndex: v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0))),
 });

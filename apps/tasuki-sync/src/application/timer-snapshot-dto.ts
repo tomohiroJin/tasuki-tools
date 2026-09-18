@@ -42,9 +42,10 @@
  *    パースそのものが落ち、画面は「最新ではありません」側へ倒れる（`sync/stale-frame.ts`）。
  *    上の 4・5 項目（`connId` / `startedAt` の削除）とは逆に、**今回は非 strict の
  *    `v.object` であることが助けにならない**（必須項目が丸ごと無いため）。
- *    したがって配布は**同期サーバーが先**でなければならない（`deploy/timer/NOTES.md` の
- *    順序表）。逆順だと、まだ `seats` / `nextIndex` を送らない旧サーバーへ新しい画面が
- *    繋がり、招待客全員が「最新ではありません」を見る。
+ *    配布時の窓とその影響は `deploy/timer/NOTES.md` の順序表と設計文書 §7
+ *    （`docs/superpowers/specs/2026-09-18-rotation-seat-and-presence-design.md`）を参照する。
+ *    **「同期サーバーが先」という記述は誤りだった**（`deploy.sh timer` は画面とサーバーを
+ *    同じ 1 コマンドで配るため、順序を選べない。Task 9 で是正）。
  *
  * 代理（`isPlaceholder`）はここで**合成される**。名簿には居らず、輪の上の席
  * （`RotationEntry` の `kind: "proxy"`）としてだけ存在するためである。

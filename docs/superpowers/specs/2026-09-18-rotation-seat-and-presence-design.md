@@ -194,8 +194,13 @@ nextIndex: number | null;
 snapshot が検証に落ち、既存の「壊れた snapshot」経路（`sync/stale-frame.ts`・`sync/dispatch.ts`）へ
 乗る。**黙って空の輪を見せるより、そちらのほうがよい**という判断である。
 
-⚠ **この経路が実際にどう見えるかは未実測である。** 実装の最初に確かめ、
-違っていれば D7 を作り直す（§6 の最初の項目）。
+⚠ **この経路は Task 1・Task 2 でユニットテストの経路として実測済みである
+（本番実機での確認ではない）。** `indicatesStaleRoom` が `room.session.seats` /
+`room.session.nextIndex` を「画面を古い側へ倒す」と判定することは Task 1
+（`597c7bc`・`apps/timer-web/test/sync/stale-frame.test.ts:51-55`）で固定し、
+`session.seats` を欠いた snapshot が実際に `room.session.seats` の経路で検証に
+落ちることは Task 2（`e766210`・`apps/timer-web/test/sync/dispatch.test.ts:202-221`）で
+固定した。D7 を作り直す必要は無い。
 
 ### D8. `config.members` と `session.rotation` は残す
 
@@ -295,3 +300,10 @@ D7 で `seats` / `nextIndex` を `RoomSchema` の必須項目にしたため、w
 - **現ドライバー切断の 30 秒猶予と帯の印の関係**（§3.2）。猶予中は「未接続と出ているが
   まだ現ドライバー」になる。表示としては正しいが、利用者が「なぜまだこの人なのか」を
   読めるかは確認していない。#250（S6）の材料へ
+- **設計の誤りが下流へ写った実例（Task 9 で是正）**: #276 の計画・ブリーフは「同期サーバー
+  （`deploy.sh timer`）を先に配る」という、`deploy/deploy.sh` の実際のフローでは
+  実行不可能な指示を持っていた。この誤りは §7（旧版）だけでなく、実装時に書かれた
+  コード注釈 2 箇所（`apps/tasuki-sync/src/application/timer-snapshot-dto.ts` の
+  D7 の説明・`packages/timer-core/src/schemas.ts` の `SessionStateSchema` のコメント）
+  にも「したがって配布は同期サーバーが先」という同じ誤りとして写っていた。
+  設計の誤りは実装・レビューへ同じ向きに伝播する、という型の実例である
