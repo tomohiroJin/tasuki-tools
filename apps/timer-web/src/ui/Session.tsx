@@ -154,21 +154,19 @@ export function Session({
   // 「検査しているように見えて何も守っていない」ため、判定ごと畳んで導線を全員へ出す。
 
   const rotationLen = room.session.rotation.length;
-  const nextIndex =
-    rotationLen > 0 ? (room.session.currentIndex + 1) % rotationLen : 0;
-  // 席はサーバーが組む（#276 D2）。表示用に「識別子＋表示名＋呼び名」へ一度だけ写す。
+  // 「次は誰か」はサーバーが決める（#276 D1 / D6）。かつてここには
+  // `(currentIndex + 1) % rotationLen` があったが、サーバーは不適格な席を飛ばして
+  // 繰り上げるので食い違った（画面は「次: いずみ」、実際の交代は別の人）。
+  const nextIndex = room.session.nextIndex;
+  // 席はサーバーが組む（識別子・表示名・番が回らない理由）。`participants` も渡すのは
+  // 呼び名の判定のためで、輪の外の見学者との同名を取りこぼさないようにする（D9）。
   const rotation = rotationMembers(room.session.seats, room.participants);
   // 現ドライバー・次・ナビは呼び名（同名が並ぶときは識別子つき）で出す。
   // 素の表示名だと同名2名がどちらも「Bob」になり「次は誰か」が判別できない。
   const rotationNames = rotation.map((m) => m.label);
   const currentDriverId = room.session.rotation[room.session.currentIndex] ?? "";
-  const currentDriverName =
-    rotationNames[room.session.currentIndex] ?? "—";
-  const nextDriverName =
-    rotationLen > 0 ? (rotationNames[nextIndex] ?? "—") : "—";
-  // 次の席の人が timer の画面に居ないなら、その席は飛ばされる（サーバーの適格判定・D21）。
-  // 名前だけ出すと「なぜ番が来ないのか」が読めないので、理由を添える。
-  const isNextAway = rotation[nextIndex]?.skipReason === "away";
+  const currentDriverName = rotationNames[room.session.currentIndex] ?? "—";
+  const nextDriverName = nextIndex !== null ? (rotationNames[nextIndex] ?? "—") : "—";
   // ナビゲーター（⑦）。次ドライバーと別概念にし、既定では「現ドライバーの前の人
   //（直前に運転していた退役ドライバー）」をメインナビとする。文脈を最も持つ人。
   // rotation が1人のときは現ドライバーと一致するため表示しない。
@@ -284,7 +282,7 @@ export function Session({
           </div>
 
           <div className="flex justify-center mb-4 boot-reveal" style={{ animationDelay: "60ms" }}>
-            <TeamOrbit members={rotation} currentIndex={room.session.currentIndex} size={orbitSize}>
+            <TeamOrbit members={rotation} currentIndex={room.session.currentIndex} nextIndex={nextIndex} size={orbitSize}>
               <CircularProgress
                 progress={progress}
                 warning={isUrgent}
@@ -313,7 +311,9 @@ export function Session({
           <div className="flex flex-wrap items-center justify-center gap-2 text-lg text-[var(--bone-muted)] boot-reveal" style={{ animationDelay: "150ms" }}>
             <ArrowRight className="w-5 h-5 text-[var(--steel)]" aria-hidden="true" />
             次: <span className="text-[var(--bone)] font-bold text-lg">{nextDriverName}</span>
-            {isNextAway && <span className="text-[var(--bone-subtle)]">（別の画面）</span>}
+            {nextIndex === null && (
+              <span className="text-[var(--bone-subtle)]">（交代できる人がいません）</span>
+            )}
             {room.config.navigatorEnabled && navigatorName && (
               <span className="ml-3 text-[var(--bone-subtle)]">ナビ: <span className="text-[var(--bone-muted)]">{navigatorName}</span></span>
             )}
@@ -324,7 +324,7 @@ export function Session({
             <RotationLineup
               rotation={rotation}
               currentIndex={room.session.currentIndex}
-              nextIndex={room.session.nextIndex}
+              nextIndex={nextIndex}
               intervalSeconds={room.clock.intervalSeconds || 1}
               selfIndex={currentParticipant ? room.session.rotation.indexOf(currentParticipant.participantId) : -1}
               isPaused={room.session.isPaused}
