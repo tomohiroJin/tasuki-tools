@@ -37,6 +37,28 @@ wire に載せ、timer の画面がそれを表示に使うようにする。
   `Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>`
 - **各タスクの終わりで push する**（保留しない）
 
+## Constitution Check（規約チェック）
+
+憲法（[`docs/constitution.md`](../../constitution.md) v2.1.4）のコンプライアンスゲート。
+
+| 原則 | 判定 | 根拠 |
+|---|---|---|
+| I. テスト駆動開発 | 通過 | 全タスクで TDD（Red → Green）。判定は純粋関数に寄せた（`seatSkipReason` / `computeRotationStatus` / `rotationMembers`） |
+| II. 技術選定は ADR を通す | 該当なし | 新しいライブラリを 1 つも足していない |
+| III. 揮発インメモリと単純運用 | 該当なし | サーバーの状態管理の方式（揮発インメモリという性質そのもの）には触れていない |
+| IV. 境界の型安全 | 通過 | valibot の `RoomSchema` を広げ、`session.seats` / `session.nextIndex` を必須にした。欠けたら落ちること・揃えば通ることの両方をテストで固定した（対照実行） |
+| V. 実画面検証 | 通過 | 交代の帯に理由が 3 種類出る／「次は誰か」がサーバーの決定になる／「あと N 人・約 M 分後」が飛ばされる席を数えなくなる、と利用者に見えるものが変わる。**実画面での確認は Task 10 Step 4 で行う。本節を書いた時点ではまだ実施していない**（制御側が利用者に諮ってから実施する） |
+| VI. 依存は内向き | 通過 | ドメイン（`packages/timer-core`）には型を足しただけ。判定ロジックはアプリケーション層（`apps/tasuki-sync/src/application/`）に置いた |
+| VII. 検査は壊して確かめる | 通過 | 変異検査に m41 / m42 を追加し、全 42 件の検出を実測した。実装中も素朴な式へ変異させて赤くなることを各所で確認した |
+| VIII. 記録が正本 | 通過 | 設計正本は [`docs/superpowers/specs/2026-09-18-rotation-seat-and-presence-design.md`](../specs/2026-09-18-rotation-seat-and-presence-design.md) |
+| IX. 小さく回す | 通過 | PR 1 本。デプロイは伴わない（配布の制約は設計 §7 と `deploy/timer/NOTES.md` に記録済み） |
+| X. 抽象は実需で | 通過 | 新しい抽象は `skip-reason-text.ts`（文言表）1 つだけ。2 つのコンポーネントが同じ語を使うために切り出した |
+| XI. 秘密と個人情報を持ち込まない | 該当なし | 秘密・個人情報を扱っていない。wire に載せた `displayName` は既存の `config.members` と同じ情報で、新しい種類の情報は増えていない |
+
+**逸脱なし。** Complexity Tracking での正当化を要する項目はない。
+ただし V の根拠欄に記したとおり、実画面での確認は Task 10 Step 4 で行う予定であり、
+**本節を書いた時点ではまだ実施していない**（「実施済み」ではない点に注意）。
+
 ## 用語
 
 | 語 | 意味 |
