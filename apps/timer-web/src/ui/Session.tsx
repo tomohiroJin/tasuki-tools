@@ -324,6 +324,7 @@ export function Session({
             <RotationLineup
               rotation={rotation}
               currentIndex={room.session.currentIndex}
+              nextIndex={room.session.nextIndex}
               intervalSeconds={room.clock.intervalSeconds || 1}
               selfIndex={currentParticipant ? room.session.rotation.indexOf(currentParticipant.participantId) : -1}
               isPaused={room.session.isPaused}

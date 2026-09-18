@@ -2,15 +2,16 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import React from "react";
+import type { SeatSkipReason } from "@tasuki/timer-core";
 import { RotationLineup } from "../../src/ui/components/RotationLineup.js";
 
 describe("RotationLineup", () => {
-  const mk = (id: string, name: string, label = name, skipReason: "away" | null = null) => ({
+  const mk = (id: string, name: string, label = name, skipReason: SeatSkipReason | null = null) => ({
     participantId: id, displayName: name, label, skipReason,
   });
   const props = {
     rotation: [mk("p1", "Alice"), mk("p2", "Bob"), mk("p3", "Carol")],
-    currentIndex: 0, intervalSeconds: 300, isPaused: false,
+    currentIndex: 0, nextIndex: 1, intervalSeconds: 300, isPaused: false,
   };
 
   it("番号付きで全員を並べ、現在に「今」次に「次」を出す", () => {
@@ -44,6 +45,7 @@ describe("RotationLineup", () => {
       <RotationLineup
         rotation={rotation}
         currentIndex={0}
+        nextIndex={1}
         intervalSeconds={300}
         selfIndex={1}
         isPaused={false}
@@ -56,7 +58,8 @@ describe("RotationLineup", () => {
   });
 
   it("timer に居ない席は「別の画面」と出し、順番の予告を出さない", () => {
-    // Given（Bob は選択画面へ戻っており、サーバーはこの席をドライバーから外す・D21）
+    // Given（Bob は選択画面へ戻っており、サーバーはこの席をドライバーから外す・D21）。
+    // 他に交代できる席が無いので、サーバーの nextIndex は null になる。
     const rotation = [mk("p1", "Alice"), mk("p2", "Bob", "Bob", "away")];
 
     // When
@@ -64,6 +67,7 @@ describe("RotationLineup", () => {
       <RotationLineup
         rotation={rotation}
         currentIndex={0}
+        nextIndex={null}
         intervalSeconds={300}
         selfIndex={0}
         isPaused={false}
@@ -85,6 +89,7 @@ describe("RotationLineup", () => {
       <RotationLineup
         rotation={rotation}
         currentIndex={0}
+        nextIndex={1}
         intervalSeconds={300}
         selfIndex={0}
         isPaused={false}
@@ -94,5 +99,51 @@ describe("RotationLineup", () => {
     // Then
     expect(screen.queryByText("別の画面")).toBeNull();
     expect(screen.getByText("⟶ 次")).toBeTruthy();
+  });
+});
+
+describe("番が回らない理由（#276 E1 / D11）", () => {
+  const mk = (
+    id: string, name: string, label = name,
+    skipReason: SeatSkipReason | null = null,
+  ) => ({ participantId: id, displayName: name, label, skipReason });
+
+  it("一時離脱・別の画面・未接続をそれぞれ文字で示す", () => {
+    render(
+      <RotationLineup
+        rotation={[
+          mk("p1", "Alice"),
+          mk("p2", "Bob", "Bob", "stood-down"),
+          mk("p3", "Carol", "Carol", "away"),
+          mk("p4", "Dave", "Dave", "disconnected"),
+        ]}
+        currentIndex={0} nextIndex={0} intervalSeconds={300} isPaused={false} selfIndex={0}
+      />,
+    );
+    expect(screen.getByText("離脱中")).toBeTruthy();
+    expect(screen.getByText("別の画面")).toBeTruthy();
+    expect(screen.getByText("未接続")).toBeTruthy();
+  });
+
+  it("現ドライバーには「順番は回りません」と言わない（運転中のため）", () => {
+    render(
+      <RotationLineup
+        rotation={[mk("p1", "Alice", "Alice", "disconnected"), mk("p2", "Bob")]}
+        currentIndex={0} nextIndex={1} intervalSeconds={300} isPaused={false} selfIndex={1}
+      />,
+    );
+    expect(screen.getByTitle("接続が切れています")).toBeTruthy();
+    expect(screen.queryByTitle(/順番は回りません/)).toBeNull();
+  });
+
+  it("自分の席が飛ばされるときは「あとnull人」を出さない", () => {
+    render(
+      <RotationLineup
+        rotation={[mk("p1", "Alice"), mk("p2", "Bob", "Bob", "disconnected")]}
+        currentIndex={0} nextIndex={0} intervalSeconds={300} isPaused={false} selfIndex={1}
+      />,
+    );
+    expect(screen.getByText("あなた: 番が回りません（未接続）")).toBeTruthy();
+    expect(screen.queryByText(/あとnull人/)).toBeNull();
   });
 });
