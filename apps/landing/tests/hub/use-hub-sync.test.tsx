@@ -6,7 +6,8 @@
  * 受け持つ（あちらは本番と同じ `createSyncServer()` を通る）。
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { saveResumeIdentity } from '@tasuki/sync-client';
 import { App } from '../../src/App.js';
 
 /** 送った中身を覚え、サーバーからの応答を差し込める WebSocket。 */
@@ -221,5 +222,228 @@ describe('ハブの同期', () => {
 
     // Then
     expect(localStorage.getItem('tasuki:resume:R1')).toBeNull();
+  });
+});
+
+/**
+ * 名乗る前にルームの不在を知る（#274・#76 J-1）。
+ */
+describe('ルームの生死の照会', () => {
+  /** `?room=` 付きで玄関を開いた状態にする。 */
+  const openWithRoom = (code: string): void => {
+    window.history.replaceState(null, '', `/?room=${encodeURIComponent(code)}`);
+  };
+
+  /** 送られた `room.check` の件数。 */
+  const checksSent = (): number =>
+    socket().sent.filter((raw) => JSON.parse(raw).command === 'room.check').length;
+
+  it('Given 復帰の組が無い参加用 URL / When 玄関を開く / Then 生死の照会が送られる', () => {
+    openWithRoom('朝会モブ-a1b2');
+
+    render(<App />);
+    act(() => socket().open());
+
+    expect(checksSent()).toBe(1);
+  });
+
+  it('Given 復帰の組がある参加用 URL / When 玄関を開く / Then 照会は送られない', () => {
+    // **送るとバケツを二重に使うだけ**。この人には room.join が同じ答えを返す
+    openWithRoom('朝会モブ-a1b2');
+    saveResumeIdentity({
+      code: '朝会モブ-a1b2',
+      participantId: 'p1',
+      resumeToken: 't1',
+      displayName: 'あや',
+    });
+
+    render(<App />);
+    act(() => socket().open());
+
+    expect(checksSent()).toBe(0);
+  });
+
+  it('Given 照会を送った / When 見つからないと返る / Then 名乗りフォームを出さない（経路1）', () => {
+    openWithRoom('朝会モブ-a1b2');
+    render(<App />);
+    act(() => socket().open());
+
+    act(() =>
+      socket().deliver({
+        type: 'error',
+        code: 'ROOM_NOT_FOUND',
+        message: '指定されたルームコードが見つかりません',
+      }),
+    );
+
+    expect(screen.getByRole('heading', { name: 'ルームが見つかりません' })).toBeTruthy();
+    expect(screen.queryByLabelText('あなたの名前')).toBeNull();
+  });
+
+  it('Given 復帰の組で入り直した / When 見つからないと返る / Then 名乗りフォームを出さない（経路2）', () => {
+    // **Issue 本文が触れていない経路。** 症状は経路1 と同じである
+    openWithRoom('朝会モブ-a1b2');
+    saveResumeIdentity({
+      code: '朝会モブ-a1b2',
+      participantId: 'p1',
+      resumeToken: 't1',
+      displayName: 'あや',
+    });
+    render(<App />);
+    act(() => socket().open());
+
+    act(() =>
+      socket().deliver({
+        type: 'error',
+        code: 'ROOM_NOT_FOUND',
+        message: '指定されたルームコードが見つかりません',
+      }),
+    );
+
+    expect(screen.getByRole('heading', { name: 'ルームが見つかりません' })).toBeTruthy();
+    expect(screen.queryByLabelText('あなたの名前')).toBeNull();
+  });
+
+  it('Given 照会を送った / When 混雑で弾かれる / Then 不在とは言わない', () => {
+    // 無音の意味は「生きている、または拒否された」。**断定しない側にしか外れない**
+    openWithRoom('朝会モブ-a1b2');
+    render(<App />);
+    act(() => socket().open());
+
+    act(() =>
+      socket().deliver({
+        type: 'error',
+        code: 'JOIN_RATE_LIMITED',
+        message: '試行が多すぎます。しばらくしてからお試しください',
+      }),
+    );
+
+    expect(screen.queryByRole('heading', { name: 'ルームが見つかりません' })).toBeNull();
+    // 否定だけでは画面が何も描かなくても緑になる（M1）。この場合の正しい肯定は
+    // 「名乗りフォームが出たままである」こと
+    expect(screen.getByLabelText('あなたの名前')).toBeTruthy();
+  });
+
+  it('Given 照会が混雑で弾かれた / When 待ち時間が過ぎる / Then 照会を送り直す', () => {
+    // **送り直さないと性質が効かない。** バケツが枯れている間、
+    // 消えたルームのリンクを踏んだ人は名乗りフォームを見続ける。
+    // poker は同じことを既にしている（`RoomPage.tsx` の再試行）
+    vi.useFakeTimers();
+    try {
+      openWithRoom('朝会モブ-a1b2');
+      render(<App />);
+      act(() => socket().open());
+      expect(checksSent(), '最初の照会').toBe(1);
+
+      act(() =>
+        socket().deliver({
+          type: 'error',
+          code: 'JOIN_RATE_LIMITED',
+          message: '試行が多すぎます。しばらくしてからお試しください',
+        }),
+      );
+
+      // **即時には送らない。** 即時に送り直すと、枯れたバケツを叩き続ける
+      expect(checksSent(), '弾かれた直後').toBe(1);
+
+      act(() => {
+        vi.advanceTimersByTime(30_000);
+      });
+
+      expect(checksSent(), '待った後').toBe(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('Given 照会が混雑で弾かれた / When 待つ前に利用者が名乗る / Then 幽霊の照会は飛ばない', () => {
+    // **待ち時間の間、名乗りフォームは操作できる。** 取り消さないと、
+    // 名乗る前の状態を捕まえたタイマーが後から発火し、`retryRef` の予算を食い合う
+    vi.useFakeTimers();
+    try {
+      openWithRoom('朝会モブ-a1b2');
+      render(<App />);
+      act(() => socket().open());
+      act(() =>
+        socket().deliver({
+          type: 'error',
+          code: 'JOIN_RATE_LIMITED',
+          message: '試行が多すぎます。しばらくしてからお試しください',
+        }),
+      );
+      expect(checksSent(), '最初の照会').toBe(1);
+
+      // When: 待ち時間が経つ前に名乗る
+      act(() => {
+        fireEvent.change(screen.getByLabelText('あなたの名前'), { target: { value: 'あや' } });
+        fireEvent.submit(screen.getByRole('button', { name: '参加する' }).closest('form')!);
+      });
+
+      act(() => {
+        vi.advanceTimersByTime(30_000);
+      });
+
+      // Then: 照会は増えていない（幽霊が飛んでいない）
+      expect(checksSent(), '名乗った後の照会').toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('Given 照会と入室が続けて弾かれる / When 待ち時間が過ぎる / Then room.join の再送は1通だけ（I1）', () => {
+    // **仕掛かっているタイマーを消さずに上書きすると、2 本とも発火して room.join が
+    // 2 通飛ぶ**（再送には resumeToken が付かないので、同じ表示名の参加者が
+    // 名簿に 2 行並ぶ）。到達する筋（2026-09-18 の最終レビュー I1）:
+    //   1. 照会を送る（room.check）
+    //   2. 返事が来る前に利用者が名乗る → joinRoom() が room.join を送る
+    //   3. 照会への JOIN_RATE_LIMITED が届く → room.join の再送を予約する（タイマー A）
+    //   4. 入室への JOIN_RATE_LIMITED が届く → タイマー A を消さずに上書きする（タイマー B）
+    //   5. A も B も発火し、room.join が 2 通飛ぶ
+    const joinsSent = (): number =>
+      socket()
+        .sent.filter((raw) => (JSON.parse(raw) as Record<string, unknown>)['command'] === 'room.join')
+        .length;
+
+    vi.useFakeTimers();
+    try {
+      openWithRoom('朝会モブ-a1b2');
+      render(<App />);
+      act(() => socket().open());
+      expect(checksSent(), '最初の照会').toBe(1);
+
+      // 返事が来る前に利用者が名乗る（このとき仕掛かっている再試行は無い）
+      act(() => {
+        fireEvent.change(screen.getByLabelText('あなたの名前'), { target: { value: 'あや' } });
+        fireEvent.submit(screen.getByRole('button', { name: '参加する' }).closest('form')!);
+      });
+      const joinsBeforeRetries = joinsSent();
+      expect(joinsBeforeRetries, '名乗った直後の room.join').toBe(1);
+
+      // 照会への JOIN_RATE_LIMITED（タイマー A を予約）
+      act(() =>
+        socket().deliver({
+          type: 'error',
+          code: 'JOIN_RATE_LIMITED',
+          message: '試行が多すぎます。しばらくしてからお試しください',
+        }),
+      );
+      // 入室への JOIN_RATE_LIMITED（タイマー B を予約。A を取り消さずに上書きするのが I1 のバグ）
+      act(() =>
+        socket().deliver({
+          type: 'error',
+          code: 'JOIN_RATE_LIMITED',
+          message: '試行が多すぎます。しばらくしてからお試しください',
+        }),
+      );
+
+      act(() => {
+        vi.advanceTimersByTime(30_000);
+      });
+
+      // Then: 再送は 1 通だけ（直す前は A・B 両方が発火して 2 通になる）
+      expect(joinsSent() - joinsBeforeRetries, '待った後に増えた room.join（再送分）').toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

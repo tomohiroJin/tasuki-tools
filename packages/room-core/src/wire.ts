@@ -81,7 +81,15 @@ export type HubCommand =
       // 省くと `HubCommandSchema` に型注釈を付けられず、検証の出力とこの型が静かにずれる。
       resumeToken?: string | undefined;
       passphrase?: string | undefined;
-    };
+    }
+  /**
+   * ルームの生死だけを尋ねる（#274）。**名前を受け取らない。**
+   *
+   * 招待リンクを踏んだ人が、名乗る前に不在を知るための問い合わせである。
+   * 応答は**無いときだけ**返る（`HubServerMsg` の `error` / `ROOM_NOT_FOUND`）。
+   * 在るときの肯定は返さない —— 無音で足りるうえ、確定的な肯定は開示が大きい。
+   */
+  | { command: "room.check"; code: string };
 
 export const HubCommandSchema: v.GenericSchema<HubCommand> = v.variant("command", [
   v.object({
@@ -95,6 +103,19 @@ export const HubCommandSchema: v.GenericSchema<HubCommand> = v.variant("command"
     displayName: v.string(),
     resumeToken: v.optional(v.string()),
     passphrase: v.optional(v.string()),
+  }),
+  // **ここだけ strict にする。** 余剰フィールドを拒むのは `docs/adr/0011` 決定2 の
+  // 脅威 S3 が MUST とする規律で、poker の `ClientMessage`（`poker-core/src/protocol.ts`）は
+  // 既に `v.strictObject` で揃えてある。
+  //
+  // 上の `room.create` / `room.join` が非 strict なのは**古い取り決めの名残**である。
+  // このファイルの冒頭が挙げる非 strict の理由（サーバーが項目を足したとき、古い
+  // クライアントがフレームごと捨てるのを避ける）は、**サーバーから画面へ送る
+  // `HubServerMsg` の話**であって、画面からサーバーへ送るコマンドには当てはまらない。
+  // 新設のこのコマンドには古いクライアントが居ないので、厳しい側から始める。
+  v.strictObject({
+    command: v.literal("room.check"),
+    code: nonEmptyString,
   }),
 ]);
 

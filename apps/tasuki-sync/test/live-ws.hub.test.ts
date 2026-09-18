@@ -148,4 +148,74 @@ describe("ハブの入口（#95 S5a）", () => {
     );
     expect(reply.type).toBe("snapshot");
   });
+
+  it("Given 在らぬルームコード / When ハブから生死を尋ねる / Then 見つからないと返る（#274）", async () => {
+    const hub = await server.connectHub("asker");
+
+    hub.send({ command: "room.check", code: "zzzzzzzz" });
+
+    const reply = await hub.take((m) => m.type === "error", "照会への応答");
+    if (reply.type !== "error") throw new Error("error ではない");
+    expect(reply.code).toBe("ROOM_NOT_FOUND");
+  });
+
+  it("Given 在るルーム / When ハブから生死を尋ねる / Then 何も返らない（#274）", async () => {
+    // Given: ハブでルームを作る（作成者は別の接続に居る）
+    const owner = await server.connectHub("owner");
+    const created = await hubCreate(owner, "朝会モブ", "あや");
+    await owner.take((m) => m.type === "roster", "作成直後の roster");
+
+    // When: まだ名乗っていない人が生死だけを尋ね、続けて在らぬコードも尋ねる
+    const hub = await server.connectHub("asker");
+    hub.send({ command: "room.check", code: created.code });
+    hub.send({ command: "room.check", code: "zzzzzzzz" });
+
+    // **関門を置く。** 応答が必ず返り、しかもエラーとは別の型で返る命令を最後に送る。
+    // 接続ごとに順序は保たれるので、この応答が届いた時点で
+    // **上の 2 つの照会への応答はすべて届き終えている。**
+    hub.send({ command: "room.create", roomName: "関門", displayName: "みはり" });
+    await hub.take((m) => m.type === "room.created", "関門の応答");
+
+    // Then: 届いたエラーは **1 通だけ**。在るルームへの照会は無音である。
+    //
+    // ⚠ **`take` で 1 通目のエラーを掴んで code を見る形にしてはいけない。**
+    // 誤って ROOM_NOT_FOUND を返した場合もそれが先に届き、在らぬコードへの応答と
+    // 同じ形なので見分けがつかず、判定が恒真になる（2026-09-18 の破壊検証で実測）。
+    // **関門の後に通数で見る。**
+    const errors = hub.received.filter((m) => m.type === "error");
+    expect(errors.length, "届いたエラーの通数").toBe(1);
+  });
+
+  it("Given 合言葉で保護されたルーム / When ハブから生死を尋ねる / Then 見つからないとは言わない（#274）", async () => {
+    // **この 1 件が設計正本 D2（ハブの照会は合言葉の関門を通さない）を守る唯一の検査である。**
+    // `mayEnter` を通すようにすると、合言葉を持つ正規の招待客に
+    // 「存在しない」と答えることになる。
+    //
+    // Given: timer の入口でルームを作り、合言葉を掛ける
+    const owner = await server.connect("owner");
+    const room = await createRoom(owner, "ぬし");
+    owner.send({ command: "room.passphrase.set", passphrase: "ひみつ" });
+    // **関門を本物にする。** `createRoom` は `room.created` で止まるので、素の
+    // `take("snapshot")` は**作成時の** snapshot に当たってその場で返り、
+    // 合言葉が適用されたことを何も保証しない（2026-09-18 の最終レビューで判明）。
+    // `passphraseProtected` が立った snapshot を待って、前提を主張する。
+    await owner.takeMatching(
+      (m) => m.type === "snapshot" && m.room.passphraseProtected === true,
+      "合言葉が掛かった snapshot",
+    );
+
+    // When: 合言葉を知らない人が生死だけを尋ね、続けて在らぬコードも尋ねる
+    const hub = await server.connectHub("asker");
+    hub.send({ command: "room.check", code: room.code });
+    hub.send({ command: "room.check", code: "zzzzzzzz" });
+
+    // 関門: 応答が必ず返り、しかもエラーとは別の型で返る命令を最後に送る
+    // （在るルーム側のテストと同じ理由。単独の `take` は先着の誤答と見分けがつかない）
+    hub.send({ command: "room.create", roomName: "関門", displayName: "みはり" });
+    await hub.take((m) => m.type === "room.created", "関門の応答");
+
+    // Then: 届いたエラーは 1 通だけ（在らぬコードへの応答）。保護ルームへの照会は無音。
+    const errors = hub.received.filter((m) => m.type === "error");
+    expect(errors.length, "届いたエラーの通数").toBe(1);
+  });
 });

@@ -6,6 +6,7 @@ import { CreateRoom } from './screens/CreateRoom.js';
 import { JoinRoom } from './screens/JoinRoom.js';
 import { RoomChoice } from './screens/RoomChoice.js';
 import { Resuming } from './screens/Resuming.js';
+import { RoomGone } from './screens/RoomGone.js';
 
 /**
  * Tasuki の玄関（#95 S5a でハブになった）。
@@ -41,7 +42,9 @@ export function App() {
     window.history.replaceState(null, '', departure.cleanedHref);
   }, [departure]);
 
-  switch (screenFor({ code: hub.code, joined: hub.joined, resuming: hub.resuming })) {
+  switch (
+    screenFor({ code: hub.code, joined: hub.joined, resuming: hub.resuming, gone: hub.gone })
+  ) {
     case 'create':
       return (
         <CreateRoom
@@ -66,8 +69,12 @@ export function App() {
       );
     case 'resuming':
       // 復帰の返事待ち。**名乗らせない**（#95 S5c 追補）。
-      // 告知（`departure`）はここでは出さない —— 待ちは必ず選択画面か参加画面へ
-      // 落ちるので、落ちた先で出せば一度だけ読ませられる。
+      // 待ちは選択画面・参加画面・不在の知らせのいずれかへ落ちる。
+      // 告知（`departure`）はここでは出さない —— 選択画面・参加画面へ落ちた場合は
+      // 落ちた先で出せば一度だけ読ませられる。**不在の知らせ（`gone`）は告知を出さない**
+      // （退出の告知と不在の告知を並べない・#274）ので、**その経路では告知が
+      // 読まれないまま消える。** それでよいのは、そのルームはもう無く、退出したことより
+      // 不在のほうが利用者に必要な報せだからである。
       return <Resuming code={hub.code ?? ''} connection={hub.connection} />;
     case 'choice':
       return (
@@ -78,5 +85,10 @@ export function App() {
           connection={hub.connection}
         />
       );
+    case 'gone':
+      // 見つからないルームの参加用 URL（#274）。**名乗らせない。**
+      // 告知（`departure`）はここでは出さない —— 退出の告知と不在の告知を
+      // 並べると冗長になる（`Resuming` と同じ扱い）。
+      return <RoomGone code={hub.code ?? ''} />;
   }
 }

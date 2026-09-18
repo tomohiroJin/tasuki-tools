@@ -106,3 +106,35 @@ describe("ハブへのサーバーメッセージ", () => {
     expect(v.safeParse(HubServerMsgSchema, msg).success).toBe(false);
   });
 });
+
+/**
+ * ルームの生死の照会（#274）。**名前を受け取らない。**
+ *
+ * 通る形と落ちる形を対で置く（このファイルの冒頭の規律）。
+ */
+describe("生死の照会の wire", () => {
+  it("Given コードだけの照会 / When 検証する / Then 通る", () => {
+    const parsed = v.safeParse(HubCommandSchema, { command: "room.check", code: "朝会モブ-a1b2" });
+
+    expect(parsed.success).toBe(true);
+  });
+
+  it("Given 空のコード / When 検証する / Then 落ちる", () => {
+    // 空文字を通すと、サーバーが必ず ROOM_NOT_FOUND を返す問い合わせでバケツを消費できる
+    const parsed = v.safeParse(HubCommandSchema, { command: "room.check", code: "" });
+
+    expect(parsed.success).toBe(false);
+  });
+
+  it("Given 表示名を混ぜた照会 / When 検証する / Then 落ちる", () => {
+    // **照会は名前を受け取らない。** 余剰フィールドを通すと、
+    // 「名乗らずに尋ねる」という性質が wire の側から崩れる
+    const parsed = v.safeParse(HubCommandSchema, {
+      command: "room.check",
+      code: "朝会モブ-a1b2",
+      displayName: "あや",
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+});

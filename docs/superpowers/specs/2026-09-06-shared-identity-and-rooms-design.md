@@ -819,13 +819,14 @@ broadcastToTool(code, toolId, msg)  // timer.snapshot / poker.snapshot
 
 ### 5.7 画面と経路
 
-LP（`apps/landing`）を同期クライアント化し、URL と参加状態で 3 つに分岐させる。
+LP（`apps/landing`）を同期クライアント化し、URL と参加状態で下表のとおり分岐させる。
 
 | URL | 参加状態 | 表示 |
 |---|---|---|
 | `/` | — | ルーム名＋自分の名前を入れて**作成** |
 | `/?room=CODE` | 未参加 | 自分の名前を入れて**参加** |
 | `/?room=CODE` | 参加済み | **選択画面**（ツールの札・ルーム名・参加者一覧・参加用 URL） |
+| `/?room=CODE` | 見つからない | **不在の知らせ**（#274） |
 
 選択画面の札は既存の `apps/landing/src/tools.ts` の `TOOLS` をそのまま使い、`href` に
 `?room=CODE` を付ける。手札の意匠は変えない。新しいツールを足すときに触るのは、
