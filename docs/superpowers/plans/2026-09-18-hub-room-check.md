@@ -1263,6 +1263,7 @@ git commit -m "test: 見つからないルームの参加用 URL を実画面で
 - 変更: `docs/superpowers/specs/2026-09-18-hub-room-check-design.md`（§5.1）
 - 変更: `docs/superpowers/specs/2026-09-06-shared-identity-and-rooms-design.md`（§5.7）
 - 変更: `apps/poker-web/src/pages/RoomPage.tsx`（コメントのみ）
+- 変更: `e2e/specs/landing.spec.ts`（冒頭の索引コメントのみ）
 
 - [ ] **手順 1: ADR 0011 へ追補する**
 
@@ -1290,7 +1291,36 @@ git commit -m "test: 見つからないルームの参加用 URL を実画面で
 設計正本: `docs/superpowers/specs/2026-09-18-hub-room-check-design.md` D2。
 ```
 
-- [ ] **手順 2: この設計正本の §5.1 を実装に合わせる**
+- [ ] **手順 2: `landing.spec.ts` の索引コメントを実態に合わせる**
+
+⚠ **冒頭の索引が嘘をついている。** Task 7 のレビューが拾った。
+`e2e/specs/landing.spec.ts` の冒頭コメントは、このファイルの各シナリオを
+タグ・Issue 番号つきで列挙する索引になっているが、**Task 7 で足した `@core` の
+シナリオが載っていない**。さらに次の一文が**字義どおりには成立しなくなった**。
+
+```
+ *   ここが `production` で LP を実ブラウザで開く唯一の経路。
+```
+
+Task 7 が `production` でも実ブラウザで LP を開く 2 本目を足したためである。
+
+索引へ 1 行足し、「唯一の経路」を言い直すこと。
+
+```
+ * - `@core #7` — 実ブラウザで描画されること。`@smoke` は HTTP しか見ないので、
+ *   **資材が 200 で返っていても JS が例外で止まっていれば気づけない**。
+ * - `@core #274` — 見つからないルームの参加用 URL で、名乗らされずに知らされること。
+ *   **入室の枠を 1 つ使う**（照会は無かったときだけ消費する。容量 60・補充 1/秒なので
+ *   影響は無視できる。2026-09-18 実測）。
+ * - タグ無し #10 — 札を選ぶと各ツールが開くこと（`local` 専用の回帰）。
+ * - タグ無し #249 — 端末の記録への入口（`?view=history`）と、繋がらないときの玄関
+ *   （`local` 専用。実ルームの枠を使い、WS を成立させない細工も要る）。
+```
+
+⚠ **`@smoke` は HTTP しか見ない、という説明は残すこと。** 消すと、なぜ実ブラウザの
+シナリオが要るのかの理由が失われる。
+
+- [ ] **手順 3: この設計正本の §5.1 を実装に合わせる**
 
 ⚠ **正本が実装と食い違っている。** Task 1 のレビューが拾った。
 `docs/superpowers/specs/2026-09-18-hub-room-check-design.md` の §5.1 は
@@ -1319,7 +1349,7 @@ MUST とする規律で、poker の `ClientMessage`（`packages/poker-core/src/p
 **あの 2 つを strict にするのは #274 の射程外**（申し送り）。
 ```
 
-- [ ] **手順 3: #95 設計正本の §5.7 へ 1 行足す**
+- [ ] **手順 4: #95 設計正本の §5.7 へ 1 行足す**
 
 `docs/superpowers/specs/2026-09-06-shared-identity-and-rooms-design.md` の §5.7 の画面の表へ、
 既存の行と同じ体裁で追加する（**表の他の行は触らない**）。
@@ -1328,7 +1358,7 @@ MUST とする規律で、poker の `ClientMessage`（`packages/poker-core/src/p
 | `/?room=CODE` | 見つからない | **不在の知らせ**（#274） |
 ```
 
-- [ ] **手順 4: `RoomPage.tsx` のコメントを直す**
+- [ ] **手順 5: `RoomPage.tsx` のコメントを直す**
 
 `apps/poker-web/src/pages/RoomPage.tsx` の次の 3 行を、
 
@@ -1347,7 +1377,7 @@ MUST とする規律で、poker の `ClientMessage`（`packages/poker-core/src/p
   // ここへ送り返した人は、その判定を玄関側で受ける。
 ```
 
-- [ ] **手順 5: 文書の検査を走らせる**
+- [ ] **手順 6: 文書の検査を走らせる**
 
 実行: `node scripts/check-links.mjs`（CI の `docs` ジョブが走らせているのと同じもの）
 期待: PASS
@@ -1355,13 +1385,14 @@ MUST とする規律で、poker の `ClientMessage`（`packages/poker-core/src/p
 ⚠ **リンク検査は `git ls-files` を見る。** 新規ファイルは `git add` するまで走査されない。
 Task 8 に入る前に、これまでのタスクが全てコミット済みであることを確かめる。
 
-- [ ] **手順 6: コミットする**
+- [ ] **手順 7: コミットする**
 
 ```bash
 git add docs/adr/0011-threat-model-and-data-classification.md \
         docs/superpowers/specs/2026-09-18-hub-room-check-design.md \
         docs/superpowers/specs/2026-09-06-shared-identity-and-rooms-design.md \
-        apps/poker-web/src/pages/RoomPage.tsx
+        apps/poker-web/src/pages/RoomPage.tsx \
+        e2e/specs/landing.spec.ts
 git commit -m "docs: ハブの生死照会が関門を通さない理由を規範へ書く（#274）"
 ```
 
