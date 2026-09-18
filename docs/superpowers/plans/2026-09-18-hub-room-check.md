@@ -16,6 +16,27 @@ vitest（`apps/landing`・`packages/room-core`）/ Playwright（`e2e`）
 **設計正本**: `docs/superpowers/specs/2026-09-18-hub-room-check-design.md`
 （**計画は正本に従属する。両方を読むこと**）
 
+## Constitution Check
+
+憲法（[`docs/constitution.md`](../../constitution.md) v2.1.4）のコンプライアンスゲート。
+様式の正本は [`docs/guides/plan-writing.md`](../../guides/plan-writing.md)。
+
+| 原則 | 判定 | 根拠 |
+|---|---|---|
+| I. テスト駆動開発 | 通過 | 全 8 タスクが Red → Green → 破壊検証 → コミットで閉じる。判定は純粋関数（`checkRoom` / `screenFor`）へ切り出して単体で試す |
+| II. 技術選定は ADR を通す | 該当なし | 新しい依存を足さない。既存の valibot / neverthrow / React / Playwright だけを使う |
+| III. 揮発インメモリと単純運用 | 通過 | 照会は**読み取りだけ**。名簿にも触らず、接続もツール状態もラウンドも作らない（`Pick<RoomStore, "get">` で書ける口を渡さない） |
+| IV. 境界の型安全 | 通過 | `room.check` は `packages/room-core` の wire に載せ、境界で valibot が検める。**`v.strictObject` で余剰フィールドを拒む**（ADR 0011 決定2 S3） |
+| V. 実画面検証 | 通過 | 利用者の通る経路が変わる。E2E を 1 本（`@core`）足し、仕上げで実画面と対照を確認する |
+| VI. 依存は内向き | 通過 | `check-room.ts` はポート（`RoomStore` / `RateLimitGate`）にのみ依存し、wire を知らない。画面は同期クライアントを直接触らず `use-hub-sync` を通す（ADR 0015 / 0019） |
+| VII. 検査は壊して確かめる | 通過 | 各タスクに破壊検証を課す。**とくに D2 を守る 1 本（保護ルームを照会しても「見つからない」と言わない）は、関門を足す変異で赤くなることを確かめる** |
+| VIII. 記録が正本 | 通過 | 決定は ADR 0011 の追補、設計は設計正本、様式はガイド、実測は設計正本 §3 へ。**この計画に数値の正本を作らない** |
+| IX. 小さく回す | 通過 | PR 1 本。**デプロイは伴わない**（配布の順序は申し送りに残す） |
+| X. 抽象は実需で | 通過 | poker の `check-room` の流用を先に検討し、**関門の扱いが逆になる**という実需があって初めて `room.check` を新設する（設計正本 D1・D2） |
+| XI. 秘密と個人情報を持ち込まない | 通過 | 扱うのはルームコード（分類「資格情報」）のみ。**ログへ出さない**。開示の変化は ADR 0011 の追補で分類し直す |
+
+**逸脱なし。** Complexity Tracking での正当化を要する項目はない。
+
 ## 全体の制約
 
 - **`room.check` は合言葉の関門（`mayEnter` / `checkPassphrase`）を通さない**（正本 D2）。
