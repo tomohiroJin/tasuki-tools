@@ -2,8 +2,11 @@
  * 輪に席はあるが timer の画面に居ない人の見え方（#95 S5c）。
  *
  * S5a で `participants` が timer の在席者に絞られたため、選択画面へ戻った人の名前は
- * `participants` から引けない。画面はサーバーが用意した `config.members`
- * （rotation と同じ順の表示名）を渡すことでその席を埋める。
+ * `participants` から引けない。**#276 でこの穴を埋める経路が変わった** —— かつては
+ * 画面側が `config.members`（rotation と同じ順の表示名）を渡して席を補っていたが、
+ * いまはサーバーが組む `session.seats`（`Seat.displayName` は絞っていない名簿から引く）
+ * がその席の名前と `skipReason`（離席理由）を直接運んでくる。`config.members` から
+ * 輪の名前を補う経路は画面側から消えた（`rotation-names.ts` 参照）。
  */
 
 import { describe, it, expect } from "vitest";
