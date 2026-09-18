@@ -528,6 +528,28 @@ export const MUTATIONS = [
       "**始まったばかりのセッションがお題を失う**ことと、お題を使わない設定のルームで " +
       "**落としたきり誰も埋めず完成記録が消える**こと。",
   },
+  {
+    id: 41,
+    label: "seatSkipReason から一時離脱の優先を削る",
+    patch: "m41-seat-skip-reason-ignores-standdown.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/timer-snapshot-dto.test.ts"],
+    note:
+      "#276 D3。一時離脱（entry.eligible === false）は在席より先に見る。" +
+      "削ると、timer に在席したまま一時離脱している人の理由が null（番が回る）に" +
+      "化けるか、away/disconnected という別の理由に化ける。" +
+      "**画面が言う理由とサーバーの判断がずれる**という #276 そのものの欠陥。",
+  },
+  {
+    id: 42,
+    label: "snapshot の nextIndex を (currentIndex + 1) % len へ戻す",
+    patch: "m42-next-index-naive.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/timer-snapshot-dto.test.ts", "test/handlers.driver-advance.test.ts"],
+    note:
+      "#276 が直した欠陥そのもの。飛ばされる席を数に入れるため、画面が出す「次」と" +
+      "実際の交代先が食い違う。殺せないなら、直したことの証拠が無い。",
+  },
 ];
 
 /**

@@ -8,6 +8,13 @@
 # ものだけで、`presence === "online"` と「timer に在席」が同義だったからである。
 # 殺すには「online だが timer に在席していない参加者」を作るテストが要る。
 #
+# **#276 で判定材料（`isPresentIn(p, TOOL_TIMER)`）が `handlers.ts` の
+# `computeIneligibleIndices` から `apps/tasuki-sync/src/application/timer-snapshot-dto.ts`
+# の `watchingTimerIds` へ移設された**ので、当て直した（Task 8。当て直す前は
+# `git apply` 自体が `patch does not apply` で失敗し、変異検査の全実行が m25 で
+# 止まっていた）。`presenceOf` は移設先で既に import 済みなので import 行の追加は
+# 不要になった。
+#
 # 検出を期待するテスト:
 #   - apps/tasuki-sync/test/presence-model.test.ts
 #
@@ -15,24 +22,16 @@
 #       git apply scripts/mutations/m25-*.patch
 # 復元: git checkout -- <対象ファイル>
 #
-diff --git a/apps/tasuki-sync/src/application/handlers.ts b/apps/tasuki-sync/src/application/handlers.ts
-index 379cb33..a512793 100644
---- a/apps/tasuki-sync/src/application/handlers.ts
-+++ b/apps/tasuki-sync/src/application/handlers.ts
-@@ -30,6 +30,7 @@ import {
-   conflictsWithExisting,
-   findParticipantByConnId,
-   isPresentIn,
-+  presenceOf,
-   type Room as MembershipRoom,
- } from "@tasuki/room-core";
- import { TOOL_TIMER } from "./tool-id.js";
-@@ -859,7 +860,7 @@ function buildShuffleOrder(len: number, running: boolean, currentIndex: number):
-  */
- function computeIneligibleIndices(membership: MembershipRoom, timer: TimerState): Set<number> {
-   const watchingTimer = new Set(
+diff --git a/apps/tasuki-sync/src/application/timer-snapshot-dto.ts b/apps/tasuki-sync/src/application/timer-snapshot-dto.ts
+index 16603c8..6a37d4b 100644
+--- a/apps/tasuki-sync/src/application/timer-snapshot-dto.ts
++++ b/apps/tasuki-sync/src/application/timer-snapshot-dto.ts
+@@ -198,7 +198,7 @@ function seatSkipReason(
+ /** timer に在席している参加者の識別子。 */
+ function watchingTimerIds(membership: MembershipRoom): Set<string> {
+   return new Set(
 -    membership.participants.filter((p) => isPresentIn(p, TOOL_TIMER)).map((p) => p.id),
 +    membership.participants.filter((p) => presenceOf(p) === "online").map((p) => p.id),
    );
-   const set = new Set<number>();
-   timer.session.rotation.forEach((entry, i) => {
+ }
+

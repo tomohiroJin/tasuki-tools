@@ -1,0 +1,27 @@
+# 変異 42: next-index-naive
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/timer-snapshot-dto.test.ts
+#   - apps/tasuki-sync/test/handlers.driver-advance.test.ts
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m42-*.patch
+#       (diff のパスはリポジトリルート起点。mutation-check.mjs もリポジトリルートで実行する)
+# 復元: git checkout -- <対象ファイル>（同じくリポジトリルートから）
+#
+diff --git a/apps/tasuki-sync/src/application/timer-snapshot-dto.ts b/apps/tasuki-sync/src/application/timer-snapshot-dto.ts
+index 16603c8..9f4f9c4 100644
+--- a/apps/tasuki-sync/src/application/timer-snapshot-dto.ts
++++ b/apps/tasuki-sync/src/application/timer-snapshot-dto.ts
+@@ -260,9 +260,9 @@ export function buildTimerSnapshotRoom(membership: MembershipRoom, timer: TimerS
+   // その場合 currentIndex を返すので、「次は現ドライバー」と区別が付かない。
+   // 画面に人名を出させないため、ここで null へ倒す（D6）。
+   const nextIndex =
+-    seats.length === 0 || ineligible.size === seats.length
++    seats.length === 0
+       ? null
+-      : nextEligibleIndex(timer.session, timer.session.currentIndex, ineligible);
++      : (timer.session.currentIndex + 1) % seats.length;
+   // 代理の `joinedAt` は名簿の作成時刻で埋める。席は追加時刻を持たないが、
+   // この値を読む処理は無い（候補列の並べ替えは `hasAiKey` の人だけを見る）。
+   const proxies: Participant[] = proxyEntries(timer).map((e) => ({
