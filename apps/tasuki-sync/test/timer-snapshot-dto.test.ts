@@ -16,6 +16,7 @@ import type { Room as MembershipRoom } from "@tasuki/room-core";
 import { buildTimerSnapshotRoom } from "../src/application/timer-snapshot-dto";
 import type { TimerState } from "@tasuki/timer-core";
 import { TOOL_TIMER } from "../src/application/tool-id.js";
+import { TOOL_HUB } from "../src/application/hub-handlers.js";
 
 const membership: MembershipRoom = {
   code: "mob-a1b2c3d4",
@@ -209,5 +210,58 @@ describe("timer のスナップショット DTO（wire の同形性）", () => {
     // Then
     expect(room.participants[0]).toMatchObject({ participantId: "p_alice", presence: "online" });
     expect(JSON.stringify(room.participants[0])).not.toContain("c2");
+  });
+});
+
+describe("seats の skipReason（#276 D3 / D4）", () => {
+  /** 名簿と timer を組み、seats を返す。 */
+  function seatsOf(args: {
+    connections: Map<string, string | null>; // アリスの接続（ツール名は TOOL_TIMER / TOOL_HUB）
+    eligible?: boolean; // アリスの席の eligible
+  }) {
+    const m: MembershipRoom = {
+      ...membership,
+      participants: [{ ...membership.participants[0]!, connections: args.connections }],
+    };
+    const t: TimerState = {
+      ...timer,
+      session: {
+        ...timer.session,
+        rotation: [
+          { kind: "member", participantId: "p_alice", eligible: args.eligible ?? true },
+        ],
+        driverCounts: [0],
+      },
+    };
+    return buildTimerSnapshotRoom(m, t).session.seats;
+  }
+
+  it("timer に在席していれば番が回る", () => {
+    expect(seatsOf({ connections: new Map([["c1", TOOL_TIMER]]) })[0]!.skipReason).toBe(null);
+  });
+
+  it("接続が 1 本も無ければ disconnected", () => {
+    expect(seatsOf({ connections: new Map() })[0]!.skipReason).toBe("disconnected");
+  });
+
+  it("接続はあるが timer に居なければ away", () => {
+    expect(seatsOf({ connections: new Map([["c1", TOOL_HUB]]) })[0]!.skipReason).toBe("away");
+  });
+
+  it("一時離脱は在席より優先される（D3）", () => {
+    // timer に在席していても、本人が一時離脱していれば stood-down と言う。
+    expect(
+      seatsOf({ connections: new Map([["c1", TOOL_TIMER]]), eligible: false })[0]!.skipReason,
+    ).toBe("stood-down");
+  });
+
+  it("切断していても一時離脱が優先される（D3）", () => {
+    expect(seatsOf({ connections: new Map(), eligible: false })[0]!.skipReason).toBe("stood-down");
+  });
+
+  it("代理は在席の概念を持たないので番が回る（D4）", () => {
+    const seats = buildTimerSnapshotRoom(membership, timer).session.seats;
+    const proxy = seats.find((s) => s.isProxy);
+    expect(proxy?.skipReason).toBe(null);
   });
 });

@@ -28,6 +28,8 @@ const validProblem: Problem = {
 };
 
 function makeRoom(overrides?: Partial<Room>): Room {
+  // 席は輪から導く（#276）。輪だけを変えると席の長さが食い違う造作になるのを避ける。
+  const rotation = ["A", "B"];
   return {
     code: "PD01",
     createdAt: 1000000,
@@ -39,11 +41,14 @@ function makeRoom(overrides?: Partial<Room>): Room {
     },
     problem: null,
     session: {
-      rotation: ["A", "B"],
+      rotation,
       currentIndex: 0,
       isPaused: false,
-      driverCounts: [0, 0],
+      driverCounts: rotation.map(() => 0),
       totalSwitches: 0,
+      // このテストは代表生成・委譲を扱う（skipReason は対象外）。
+      seats: rotation.map((id) => ({ id, displayName: id, isProxy: false, skipReason: null })),
+      nextIndex: rotation.length > 1 ? 1 : null,
     },
     clock: {
       running: false,
@@ -288,6 +293,8 @@ function makeRoomWithMode(mode: "ai" | "fallback", hasAiKey: boolean): Room {
     hasAiKey,
     joinedAt: 1000000,
   };
+  // 席は輪から導く（#276）。輪だけを変えると席の長さが食い違う造作になるのを避ける。
+  const rotation = ["Host"];
   return {
     code: "MODERM",
     createdAt: 1000000,
@@ -298,7 +305,16 @@ function makeRoomWithMode(mode: "ai" | "fallback", hasAiKey: boolean): Room {
       intervalMinutes: 5,
     },
     problem: null,
-    session: { rotation: ["Host"], currentIndex: 0, isPaused: false, driverCounts: [0], totalSwitches: 0 },
+    session: {
+      rotation,
+      currentIndex: 0,
+      isPaused: false,
+      driverCounts: rotation.map(() => 0),
+      totalSwitches: 0,
+      // このテストは problemMode の分岐を扱う（skipReason は対象外）。
+      seats: rotation.map((id) => ({ id, displayName: id, isProxy: false, skipReason: null })),
+      nextIndex: rotation.length > 1 ? 1 : null,
+    },
     clock: { running: false, intervalSeconds: 300, anchorServerTime: 0, secondsLeftAtAnchor: 300, accumulatedElapsedMs: 0, runningSince: null },
     phase: "setup",
     participants: [participant],

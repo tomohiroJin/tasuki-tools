@@ -24,22 +24,33 @@ const CONNS = { "driver-p01": ["d-conn"], "other-p02": ["o-conn"] } as const;
 
 /** 稼働中のセッションを持つ room を返す（現ドライバー=Driver）。 */
 function makeRunningRoom(code: string): Room {
+  // 席は輪から導く（#276）。輪だけを変えると席の長さが食い違う造作になるのを避ける。
+  const rotation = ["driver-p01", "other-p02"];
+  const displayNames = ["Driver", "Other"];
   return {
     code,
     createdAt: 1000000,
     config: {
       language: "TypeScript",
       difficulty: "easy",
-      members: ["Driver", "Other"],
+      members: displayNames,
       intervalMinutes: 5,
     },
     problem: null,
     session: {
-      rotation: ["driver-p01", "other-p02"],
+      rotation,
       currentIndex: 0,
       isPaused: false,
-      driverCounts: [0, 0],
+      driverCounts: rotation.map(() => 0),
       totalSwitches: 0,
+      // このテストは在席の交代検知そのものを扱う（skipReason は対象外）。
+      seats: rotation.map((id, i) => ({
+        id,
+        displayName: displayNames[i]!,
+        isProxy: false,
+        skipReason: null,
+      })),
+      nextIndex: rotation.length > 1 ? 1 : null,
     },
     clock: {
       running: true,

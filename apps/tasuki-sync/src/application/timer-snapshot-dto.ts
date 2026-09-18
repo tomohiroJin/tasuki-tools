@@ -47,8 +47,15 @@ import {
   type Participant,
   type Room,
   type RotationEntry,
+  type Seat,
+  type SeatSkipReason,
   type TimerState,
 } from "@tasuki/timer-core";
+// nextEligibleIndex は index.ts の公開契約に載っていない（ADR-0016・#220 —
+// 「代わりの入口があるなら index に載せない」）。`aggregate` はサブパス入口として
+// 列挙済みのモジュールなので、そこから直接取り込む（RoomSchema が `/schemas` から
+// 取り込むのと同じ経路）。
+import { nextEligibleIndex } from "@tasuki/timer-core/aggregate";
 
 /** ローテーション上の代理の席だけを取り出す。 */
 type ProxyEntry = Extract<RotationEntry, { kind: "proxy" }>;
@@ -135,6 +142,73 @@ function showsInTimer(participant: MembershipParticipant): boolean {
   return isPresentIn(participant, TOOL_TIMER) || participant.connections.size === 0;
 }
 
+/**
+ * その席の番が飛ぶ理由（#276 D3 / D4）。`null` なら次の交代で番が回る。
+ *
+ * **この関数が適格判定の正本である。** {@link computeIneligibleIndices}（交代先の決定）と
+ * wire の `seats[].skipReason`（画面が出す理由）の両方がここから出る。2 つに分けると、
+ * 「番は飛ぶのに画面は理由を知らない」「画面が言う理由とサーバーの判断が違う」という
+ * #276 そのものの欠陥が再発する。
+ *
+ * **一時離脱は在席より先に見る**（D3）。在席していても本人が降りているなら、
+ * 利用者にとっての理由は「一時離脱中」である。
+ *
+ * **代理は在席の概念を持たない。** Web 非接続が常態で、対面に居る実在の人を表すため、
+ * 外すとタイマー自動交代で永久に飛ばされる。
+ *
+ * ## `presence` では判定しない（D21・旧 `handlers.ts` の `computeIneligibleIndices` から移設）
+ *
+ * S4a までは `presence === "offline"` を「timer を見ていない」と読んでいた。参加者が
+ * 持てる接続が timer のものだけだった間は同義だったが、**1 人が選択画面（ハブ）や
+ * poker のタブを持てるようになると崩れる** —— その人は `online` なのにタイマーの前には
+ * 居ないので、**タイマーを見ていない人にドライバーが回る**。
+ *
+ * 判定材料を timer の在席（`isPresentIn(p, TOOL_TIMER)`）へ替えてある。
+ * ハブがまだ無い S4b の時点でも、選択画面とツールの 2 タブを開いた利用者が
+ * 片方を閉じた瞬間にこの差が出る。
+ */
+function seatSkipReason(
+  entry: RotationEntry,
+  watchingTimer: ReadonlySet<string>,
+  byId: ReadonlyMap<string, MembershipParticipant>,
+): SeatSkipReason | null {
+  if (entry.eligible === false) return "stood-down";
+  if (entry.kind === "proxy") return null;
+  if (watchingTimer.has(entry.participantId)) return null;
+  // 名簿に居ない席は「どこに居るか分からない」。接続数を問えないので切断として扱う。
+  const participant = byId.get(entry.participantId);
+  return participant && participant.connections.size > 0 ? "away" : "disconnected";
+}
+
+/** timer に在席している参加者の識別子。 */
+function watchingTimerIds(membership: MembershipRoom): Set<string> {
+  return new Set(
+    membership.participants.filter((p) => isPresentIn(p, TOOL_TIMER)).map((p) => p.id),
+  );
+}
+
+/**
+ * ドライバー対象外の rotation インデックス集合（#95 S4a、判定は S4b で在席へ）。
+ *
+ * **判定そのものは {@link seatSkipReason} が持つ。** ここはその結果を添字の集合へ
+ * 畳むだけである（#276 D5。`handlers.ts` から移設した）。
+ *
+ * 対象者が 0 名になった場合は呼び出し側（`advanceDriver` / `decide`）が現状維持に
+ * 縮退する（R15）。ここでは「全員が対象外」という集合をそのまま返す。
+ */
+export function computeIneligibleIndices(
+  membership: MembershipRoom,
+  timer: TimerState,
+): Set<number> {
+  const watching = watchingTimerIds(membership);
+  const byId = new Map(membership.participants.map((p) => [p.id, p]));
+  const set = new Set<number>();
+  timer.session.rotation.forEach((entry, i) => {
+    if (seatSkipReason(entry, watching, byId) !== null) set.add(i);
+  });
+  return set;
+}
+
 export function buildTimerSnapshotRoom(membership: MembershipRoom, timer: TimerState): Room {
   const aiKeys = new Set(timer.aiKeyHolders);
   const members: Participant[] = membership.participants.filter(showsInTimer).map((p) => {
@@ -152,6 +226,28 @@ export function buildTimerSnapshotRoom(membership: MembershipRoom, timer: TimerS
       ...(eligible !== undefined ? { driverEligible: eligible } : {}),
     };
   });
+  // 席ごとの skipReason と、次に交代する先（#276 D2 / D5）。判定の出所は
+  // seatSkipReason（適格判定の正本）1 つに揃える —— computeIneligibleIndices を
+  // ここで呼び直すと同じ判定が 2 度走る（seats が既に理由を持っている）。
+  const watching = watchingTimerIds(membership);
+  const byId = new Map(membership.participants.map((p) => [p.id, p]));
+  const names = new Map(membership.participants.map((p) => [p.id, p.displayName]));
+  const seats: Seat[] = timer.session.rotation.map((e) => ({
+    id: rotationEntryId(e),
+    displayName: e.kind === "proxy" ? e.label : (names.get(e.participantId) ?? ""),
+    isProxy: e.kind === "proxy",
+    skipReason: seatSkipReason(e, watching, byId),
+  }));
+  const ineligible = new Set(
+    seats.flatMap((s, i) => (s.skipReason !== null ? [i] : [])),
+  );
+  // 全席が不適格ならサーバーは現状維持へ縮退する（R15）。`nextEligibleIndex` は
+  // その場合 currentIndex を返すので、「次は現ドライバー」と区別が付かない。
+  // 画面に人名を出させないため、ここで null へ倒す（D6）。
+  const nextIndex =
+    seats.length === 0 || ineligible.size === seats.length
+      ? null
+      : nextEligibleIndex(timer.session, timer.session.currentIndex, ineligible);
   // 代理の `joinedAt` は名簿の作成時刻で埋める。席は追加時刻を持たないが、
   // この値を読む処理は無い（候補列の並べ替えは `hasAiKey` の人だけを見る）。
   const proxies: Participant[] = proxyEntries(timer).map((e) => ({
@@ -178,6 +274,8 @@ export function buildTimerSnapshotRoom(membership: MembershipRoom, timer: TimerS
       isPaused: timer.session.isPaused,
       driverCounts: timer.session.driverCounts,
       totalSwitches: timer.session.totalSwitches,
+      seats,
+      nextIndex,
     },
     clock: timer.clock,
     phase: timer.phase,

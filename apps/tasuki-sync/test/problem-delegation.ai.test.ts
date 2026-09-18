@@ -33,6 +33,8 @@ const VALID_PROBLEM = {
 
 /** テスト用 Room フィクスチャ（既存テストの makeRoom を参考に aiUnlocked 対応を追加） */
 function makeRoom(overrides?: Partial<Room>): Room {
+  // 席は輪から導く（#276）。輪だけを変えると席の長さが食い違う造作になるのを避ける。
+  const rotation = ["A"];
   return {
     code: "AI01",
     createdAt: 1000000,
@@ -44,11 +46,14 @@ function makeRoom(overrides?: Partial<Room>): Room {
     },
     problem: null,
     session: {
-      rotation: ["A"],
+      rotation,
       currentIndex: 0,
       isPaused: false,
-      driverCounts: [0],
+      driverCounts: rotation.map(() => 0),
       totalSwitches: 0,
+      // このテストは AI 委譲を扱う（skipReason は対象外）。
+      seats: rotation.map((id) => ({ id, displayName: id, isProxy: false, skipReason: null })),
+      nextIndex: rotation.length > 1 ? 1 : null,
     },
     clock: {
       running: false,

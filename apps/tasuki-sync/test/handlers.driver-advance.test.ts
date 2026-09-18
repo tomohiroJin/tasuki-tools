@@ -132,4 +132,25 @@ describe("advanceForAbsence: ドライバー不在の自動繰上", () => {
     // Then（B(1) は offline で ineligible のため飛ばされ、交代先が無く現状維持）
     expect(roomViewOf(store, timers, code).session.currentIndex).toBe(0);
   });
+
+  // computeIneligibleIndices と seats[].skipReason は同じ関数（seatSkipReason）から
+  // 出るので、両者が一致するというテストは恒真になる（#276 Step 6）。ここは判定を
+  // 直接呼ばず、SWITCH コマンドで実際に交代を起こし、飛ばされた結果を見る。
+  it("切断した席は交代で飛ばされ、seats に理由が載り、nextIndex がその先を指す（#276 E1 / E2）", async () => {
+    // Given: 輪は A(現・在席) → B(切断) → C(在席)。B には接続を持たせない。
+    const code = await setupRunningRoom(handlers, store, timers, ["A", "B", "C"], 0, {
+      A: "online",
+      B: "offline",
+      C: "online",
+    });
+
+    // When（交代を実際に起こす。判定を直接呼ばない）
+    await handlers.handleCommand("conn-0", { command: "session.act", action: "SWITCH" });
+
+    // Then
+    const after = roomViewOf(store, timers, code);
+    expect(after.session.currentIndex).toBe(2); // Bを飛ばした
+    expect(after.session.seats[1]!.skipReason).toBe("disconnected"); // 理由が載っている
+    expect(after.session.nextIndex).toBe(0); // 次はAへ戻る
+  });
 });
