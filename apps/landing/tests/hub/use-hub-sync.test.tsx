@@ -319,6 +319,9 @@ describe('ルームの生死の照会', () => {
     );
 
     expect(screen.queryByRole('heading', { name: 'ルームが見つかりません' })).toBeNull();
+    // 否定だけでは画面が何も描かなくても緑になる（M1）。この場合の正しい肯定は
+    // 「名乗りフォームが出たままである」こと
+    expect(screen.getByLabelText('あなたの名前')).toBeTruthy();
   });
 
   it('Given 照会が混雑で弾かれた / When 待ち時間が過ぎる / Then 照会を送り直す', () => {
@@ -382,6 +385,63 @@ describe('ルームの生死の照会', () => {
 
       // Then: 照会は増えていない（幽霊が飛んでいない）
       expect(checksSent(), '名乗った後の照会').toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('Given 照会と入室が続けて弾かれる / When 待ち時間が過ぎる / Then room.join の再送は1通だけ（I1）', () => {
+    // **仕掛かっているタイマーを消さずに上書きすると、2 本とも発火して room.join が
+    // 2 通飛ぶ**（再送には resumeToken が付かないので、同じ表示名の参加者が
+    // 名簿に 2 行並ぶ）。到達する筋（2026-09-18 の最終レビュー I1）:
+    //   1. 照会を送る（room.check）
+    //   2. 返事が来る前に利用者が名乗る → joinRoom() が room.join を送る
+    //   3. 照会への JOIN_RATE_LIMITED が届く → room.join の再送を予約する（タイマー A）
+    //   4. 入室への JOIN_RATE_LIMITED が届く → タイマー A を消さずに上書きする（タイマー B）
+    //   5. A も B も発火し、room.join が 2 通飛ぶ
+    const joinsSent = (): number =>
+      socket()
+        .sent.filter((raw) => (JSON.parse(raw) as Record<string, unknown>)['command'] === 'room.join')
+        .length;
+
+    vi.useFakeTimers();
+    try {
+      openWithRoom('朝会モブ-a1b2');
+      render(<App />);
+      act(() => socket().open());
+      expect(checksSent(), '最初の照会').toBe(1);
+
+      // 返事が来る前に利用者が名乗る（このとき仕掛かっている再試行は無い）
+      act(() => {
+        fireEvent.change(screen.getByLabelText('あなたの名前'), { target: { value: 'あや' } });
+        fireEvent.submit(screen.getByRole('button', { name: '参加する' }).closest('form')!);
+      });
+      const joinsBeforeRetries = joinsSent();
+      expect(joinsBeforeRetries, '名乗った直後の room.join').toBe(1);
+
+      // 照会への JOIN_RATE_LIMITED（タイマー A を予約）
+      act(() =>
+        socket().deliver({
+          type: 'error',
+          code: 'JOIN_RATE_LIMITED',
+          message: '試行が多すぎます。しばらくしてからお試しください',
+        }),
+      );
+      // 入室への JOIN_RATE_LIMITED（タイマー B を予約。A を取り消さずに上書きするのが I1 のバグ）
+      act(() =>
+        socket().deliver({
+          type: 'error',
+          code: 'JOIN_RATE_LIMITED',
+          message: '試行が多すぎます。しばらくしてからお試しください',
+        }),
+      );
+
+      act(() => {
+        vi.advanceTimersByTime(30_000);
+      });
+
+      // Then: 再送は 1 通だけ（直す前は A・B 両方が発火して 2 通になる）
+      expect(joinsSent() - joinsBeforeRetries, '待った後に増えた room.join（再送分）').toBe(1);
     } finally {
       vi.useRealTimers();
     }

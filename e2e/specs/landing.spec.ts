@@ -465,7 +465,9 @@ test.describe('@core 見つからないルームの参加用 URL', () => {
     ).toBeVisible();
 
     // Then その2: **名乗らされない。** これが #274 の本体である
-    await expect(page.getByLabel('あなたの名前'), '名乗りフォーム').toBeHidden();
+    // ⚠ **不在を明示する。** `toBeHidden()` は要素が存在しなくても通ってしまうので、
+    // 「無い」ことそのものを見る `toHaveCount(0)` にする（最終レビュー M5）。
+    await expect(page.getByLabel('あなたの名前'), '名乗りフォーム').toHaveCount(0);
 
     // Then その3: **戻る道がある。** これが無いと行き止まりになる
     await expect(

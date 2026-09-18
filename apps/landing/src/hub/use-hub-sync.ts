@@ -250,6 +250,10 @@ export function useHubSync(): HubSync {
             return;
           }
           setError(msg.message);
+          // **仕掛かっているタイマーを消してから積む。** 消さずに上書きすると、
+          // 消えた側は `retryTimerRef` から外れたまま生き残り、`cancelRetry()` でも
+          // 接続の後始末でも取り消せなくなる（最終レビュー I1）。
+          cancelRetry();
           retryTimerRef.current = setTimeout(() => {
             retryTimerRef.current = null;
             // **`last === null` は「まだ名乗っていない」** ＝ 送ったのは照会だけである

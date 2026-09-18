@@ -819,7 +819,7 @@ broadcastToTool(code, toolId, msg)  // timer.snapshot / poker.snapshot
 
 ### 5.7 画面と経路
 
-LP（`apps/landing`）を同期クライアント化し、URL と参加状態で 3 つに分岐させる。
+LP（`apps/landing`）を同期クライアント化し、URL と参加状態で下表のとおり分岐させる。
 
 | URL | 参加状態 | 表示 |
 |---|---|---|
