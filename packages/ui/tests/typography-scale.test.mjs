@@ -20,6 +20,9 @@ import { fileURLToPath } from 'node:url';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = resolve(ROOT, 'src');
 
+/** 書体スケール段の名前パターン（数字と `-` を含む。e.g. `--font-size-2xl`）。 */
+const FONT_SIZE_NAME = '--font-size-[a-z0-9-]+';
+
 /** `src/` 配下の CSS を再帰で拾う（`src` からの相対パスで返す）。 */
 function cssFiles() {
   return readdirSync(SRC, { recursive: true })
@@ -36,7 +39,7 @@ function cssFiles() {
  */
 function definedSteps() {
   const css = readFileSync(resolve(SRC, 'tokens/typography.css'), 'utf8');
-  return [...css.matchAll(/^\s*(--font-size-[a-z0-9-]+)\s*:/gm)].map((m) => m[1]);
+  return [...css.matchAll(new RegExp(`^\\s*(${FONT_SIZE_NAME})\\s*:`, 'gm'))].map((m) => m[1]);
 }
 
 /**
@@ -107,7 +110,7 @@ test('font-size の宣言は 1 行に収まっている', () => {
 const EXEMPT = /scale-exempt:\s*\S/;
 
 /** 5 段のいずれかを参照している形（フォールバック付きは許さない。段の不在を隠すため）。 */
-const TOKEN_REF = /^var\(\s*--font-size-[a-z]+\s*\)$/;
+const TOKEN_REF = new RegExp(`^var\\(\\s*${FONT_SIZE_NAME}\\s*\\)$`);
 
 test('font-size は 5 段のトークンを参照するか、同じ行に理由のある例外である', () => {
   // Given / When
@@ -127,7 +130,7 @@ test('参照している段が typography.css に実在する', () => {
   const steps = new Set(definedSteps());
   // When（打ち間違いは CSS では黙って無効になり、継承値で描かれる）
   const unknown = declarations()
-    .map((d) => ({ d, m: /^var\(\s*(--font-size-[a-z-]+)\s*\)$/.exec(d.value) }))
+    .map((d) => ({ d, m: new RegExp(`^var\\(\\s*(${FONT_SIZE_NAME})\\s*\\)$`).exec(d.value) }))
     .filter(({ m }) => m !== null && !steps.has(m[1]))
     .map(({ d, m }) => `${d.file}:${d.line}  ${m[1]}`);
   // Then
