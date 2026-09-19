@@ -7,7 +7,7 @@
  */
 
 import type { Seat, SeatSkipReason } from "@tasuki/timer-core";
-import { participantLabel, type LabelParticipant } from "./participant-label.js";
+import { labelPool, participantLabel, type LabelParticipant } from "./participant-label.js";
 
 /** rotation 1枠分の表示用ビュー。識別子・表示名・呼び名を対にして持つ。 */
 export interface RotationMember {
@@ -38,10 +38,9 @@ export interface RotationMember {
  * から引かれており、`config.members` の添字対応で名前を補う経路はここには無い
  * （その経路は席の側・`buildTimerSnapshotRoom` に畳まれた）。
  *
- * 呼び名の判定対象は **`seats` と `participants` の和集合**（id で重複排除）。
- * 片方だけでは足りない —— `seats` だけだと輪の外の見学者との同名を取りこぼし
- * （見学者は席を持たない）、`participants` だけだと離席者どうしの同名を取りこぼす
- * （`participants` は timer の在席者に絞られており、離席した席の相方が乗らない・R5/R6）。
+ * 呼び名の判定対象プールは `labelPool`（`participant-label.ts`）に1つだけ置く。
+ * ここで別に和集合を組むと、一覧側の呼び出し口（`RosterPanel.tsx` 等）と規則が
+ * ずれたときに検出できない（敵対的レビュー #276 指摘1）。
  *
  * 表示名だけの配列にしないのは、React の key や行の同定に識別子が要るためである。
  * 表示名は同名参加者で衝突しうるので、key に使うと同名の行同士が入れ替わったときに
@@ -51,13 +50,7 @@ export function rotationMembers(
   seats: readonly Seat[],
   participants: readonly LabelParticipant[],
 ): RotationMember[] {
-  // 呼び名の判定対象は「同じ画面に並ぶ人」全員（#276 D9）。
-  // seats だけだと輪の外の見学者との同名を取りこぼし、participants だけだと
-  // 離席者どうしの同名を取りこぼす（S5a で participants が在席で絞られたため）。
-  const byId = new Map<string, LabelParticipant>();
-  for (const s of seats) byId.set(s.id, { participantId: s.id, displayName: s.displayName });
-  for (const p of participants) if (!byId.has(p.participantId)) byId.set(p.participantId, p);
-  const pool = [...byId.values()];
+  const pool = labelPool(seats, participants);
 
   return seats.map((s) => ({
     participantId: s.id,

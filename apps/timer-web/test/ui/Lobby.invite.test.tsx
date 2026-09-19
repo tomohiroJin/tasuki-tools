@@ -20,7 +20,10 @@ function makeRoom(overrides?: Partial<Room>): Room {
   return aRoomView({
     createdAt: 1000000,
     config: { members: ["Alice"], intervalMinutes: 5 },
-    session: { rotation: ["Alice"] },
+    // rotation は参加者IDの配列（D6b）。表示名 "Alice" を rotation に置くと、席の造作
+    // （seatsFrom）が id: "Alice" の別席を生み、実在の "creator-p" と同名の別人に見える
+    // （#276 で Lobby が席も同名判定に使うようになり、この取り違えが表面化した）。
+    session: { rotation: ["creator-p"] },
     participants: [
       {
         participantId: "creator-p",

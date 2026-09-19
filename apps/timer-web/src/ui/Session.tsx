@@ -412,6 +412,7 @@ export function Session({
         )}
         <RosterPanel
           participants={room.participants}
+          seats={room.session.seats}
           currentDriverId={currentDriverId}
           myParticipantId={participantId}
           // 自分の一時離脱/復帰は上の SelfDriverToggle が担うため、行には出さず重複を避ける（#1）。
@@ -484,6 +485,7 @@ export function Session({
                   )}
                   <RosterPanel
                     participants={room.participants}
+                    seats={room.session.seats}
                     currentDriverId={currentDriverId}
                     myParticipantId={participantId}
                     selfHasExternalToggle={false}
