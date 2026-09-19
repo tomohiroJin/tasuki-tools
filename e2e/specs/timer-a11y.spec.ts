@@ -151,7 +151,7 @@ test.describe('文字が背景に対して読める（WCAG AA）', () => {
       const ground = sample.backgrounds.map((paint) => describePaint(paint)).join(' ← ');
       if (measurement === null) {
         // **黙って飛ばさない。** 飛ばすと「測れていないのに緑」に戻る
-        unmeasurable.push(`「${sample.text}」 文字=${sample.ink.join('/')} 地=${ground}`);
+        unmeasurable.push(`「${sample.text}」 文字=${describePaint(sample.ink)} 地=${ground}`);
         continue;
       }
 
@@ -160,15 +160,17 @@ test.describe('文字が背景に対して読める（WCAG AA）', () => {
       if (ratio < required) {
         failures.push(
           `「${sample.text}」 ${ratio.toFixed(2)}:1（要 ${required}:1・${sample.fontSize}px/${sample.fontWeight}）` +
-            ` 文字=${sample.ink.join('/')} 地=${ground}`,
+            ` 文字=${describePaint(sample.ink)} 地=${ground}`,
         );
       }
     }
 
     // Then（**測った件数も固定する。** 走査が空振りして 0 件でも緑になるのを防ぐ）
-    expect(measured, '1 つも測れていない').toBeGreaterThan(15);
+    //   件数の判定は最後に置く。先に置くと、下地が読めなくなったときに
+    //   「1 つも測れていない」だけが出て、**理由を説明する一覧が出ない**
     expect(unmeasurable, `下地か字の色を決められない文字が ${unmeasurable.length} 件`).toEqual([]);
     expect(failures, `AA を満たさない文字が ${failures.length} 件`).toEqual([]);
+    expect(measured, '1 つも測れていない').toBeGreaterThan(15);
   });
 });
 

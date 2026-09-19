@@ -62,7 +62,7 @@ async function checkText(page: Page): Promise<void> {
     const measurement = measureSample(sample);
     const ground = sample.backgrounds.map((paint) => describePaint(paint)).join(' ← ');
     if (measurement === null) {
-      unmeasurable.push(`「${sample.text}」 文字=${sample.ink.join('/')} 地=${ground}`);
+      unmeasurable.push(`「${sample.text}」 文字=${describePaint(sample.ink)} 地=${ground}`);
       continue;
     }
     measured += 1;
@@ -70,7 +70,7 @@ async function checkText(page: Page): Promise<void> {
     if (ratio < required) {
       failures.push(
         `「${sample.text}」 ${ratio.toFixed(2)}:1（要 ${required}:1・${sample.fontSize}px/${sample.fontWeight}）` +
-          ` 文字=${sample.ink.join('/')} 地=${ground}`,
+          ` 文字=${describePaint(sample.ink)} 地=${ground}`,
       );
     }
   }

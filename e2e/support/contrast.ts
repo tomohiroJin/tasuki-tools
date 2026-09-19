@@ -17,7 +17,7 @@ export interface Rgba {
   readonly a: number;
 }
 
-export function parseColor(css: string): Rgba | null {
+function parseColor(css: string): Rgba | null {
   const m = /rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,/\s]+([\d.]+))?\s*\)/.exec(css);
   if (m === null) return null;
   return {
@@ -29,7 +29,7 @@ export function parseColor(css: string): Rgba | null {
 }
 
 /** 前景を背景の上に重ねた実効色。 */
-export function composite(fg: Rgba, bg: Rgba): Rgba {
+function composite(fg: Rgba, bg: Rgba): Rgba {
   const a = fg.a;
   return {
     r: fg.r * a + bg.r * (1 - a),
@@ -44,11 +44,11 @@ function channel(value: number): number {
   return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
 }
 
-export function relativeLuminance({ r, g, b }: Rgba): number {
+function relativeLuminance({ r, g, b }: Rgba): number {
   return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
 }
 
-export function contrastRatio(fg: Rgba, bg: Rgba): number {
+function contrastRatio(fg: Rgba, bg: Rgba): number {
   const [lighter, darker] = [relativeLuminance(fg), relativeLuminance(bg)].sort((x, y) => y - x);
   return ((lighter as number) + 0.05) / ((darker as number) + 0.05);
 }
@@ -59,7 +59,7 @@ export function contrastRatio(fg: Rgba, bg: Rgba): number {
  * 18.66px 以上の太字、または 24px 以上は「大きな文字」として 3:1 で足りる。
  * それ以外は 4.5:1。
  */
-export function requiredRatio(fontSizePx: number, fontWeight: number): number {
+function requiredRatio(fontSizePx: number, fontWeight: number): number {
   const large = fontSizePx >= 24 || (fontSizePx >= 18.66 && fontWeight >= 700);
   return large ? 3 : 4.5;
 }
@@ -79,14 +79,14 @@ export interface Paint {
 
 /** ページ側から持ち帰る素材。背景は「内側から外側へ」の並びで返す。 */
 export interface Sample {
-  readonly color: string;
   /**
-   * 字を塗っている色の候補。
+   * 字を塗っているもの。
    *
-   * 普通は `color` 1 つ。`background-clip: text` の字は `color` が透明なので、
-   * 代わりに塗りの停止点が入る（そのまま測ると下地と同色になり比が 1.0 に落ちる）。
+   * 普通は `color`（`-webkit-text-fill-color` があればそちら）だけ。
+   * `background-clip: text` の字は塗りが字に乗るので、そちらの `Paint` が入る。
+   * **地と同じ形で持つ** —— 読めるかどうかの裁定を 1 箇所（`imageStops`）に任せる。
    */
-  readonly ink: readonly string[];
+  readonly ink: Paint;
   /** 要素自身から、最初の不透明な祖先までの塗り（内 → 外）。 */
   readonly backgrounds: readonly Paint[];
   readonly fontSize: number;
@@ -106,12 +106,17 @@ export interface Sample {
  * **停止点がすべて不透明なグラデーションは、その層で下を隠す**（#279）。
  * 合成と候補の組み立ては呼び出し側（`groundCandidates`）が行う。
  *
+ * **ここでは「読めたか」を判定しない。** 読めない色（`oklch()` など）が来たら、
+ * 下を隠すとは見なさずに層として記録し、遡り続ける。測れるかどうかの裁定は
+ * `groundCandidates` が一手に引き受ける —— 判定が 2 箇所にあると食い違う。
+ *
  * 外の変数を掴まないので、そのまま `locator.evaluate` に渡せる。
  */
 export function sampleInPage(element: Element): Sample {
-  const alphaOf = (css: string): number => {
+  /** `rgb()` / `rgba()` の α。**読めない色は `null`**（透明と同じ 0 にしてはいけない）。 */
+  const alphaOf = (css: string): number | null => {
     const m = /rgba?\(\s*[\d.]+[,\s]+[\d.]+[,\s]+[\d.]+(?:[,/\s]+([\d.]+))?\s*\)/.exec(css);
-    if (m === null) return 0;
+    if (m === null) return null;
     return m[1] === undefined ? 1 : Number(m[1]);
   };
   const stopsOf = (image: string): string[] =>
@@ -123,27 +128,32 @@ export function sampleInPage(element: Element): Sample {
   let node: Element | null = element;
   while (node !== null) {
     const s = getComputedStyle(node);
-    // `background-clip: text` の塗りは**字**に乗るもので、箱の下地ではない
-    const image = paintsGlyphs(s) ? 'none' : s.backgroundImage;
-    const stops = stopsOf(image);
-    const colorAlpha = alphaOf(s.backgroundColor);
-    if (colorAlpha > 0 || image !== 'none') {
-      backgrounds.push({ color: s.backgroundColor, image });
-      // 読めない塗り（画像）は下を隠しているかもしれないので、そこで止める。
-      // 候補を組み立てる側が「測れない」と判断する
-      const opaqueImage =
-        image !== 'none' &&
-        (stops.length === 0 || stops.every((stop) => alphaOf(stop) === 1));
-      if (colorAlpha === 1 || opaqueImage) break;
+    // `background-clip: text` の層は**字**を塗るもので、箱には何も置かない。
+    // 色も塗りもまとめて飛ばす（色だけ地に数えると、字の色で地を測ることになる）
+    if (!paintsGlyphs(s)) {
+      const image = s.backgroundImage;
+      const colorAlpha = alphaOf(s.backgroundColor);
+      if (colorAlpha === null || colorAlpha > 0 || image !== 'none') {
+        backgrounds.push({ color: s.backgroundColor, image });
+        // 読める塗りが箱を覆っているときだけ、そこで止める。
+        // 読めない画像（写真・テクスチャ）も覆うので止めてよい ——
+        // どちらの場合も測れるかは `groundCandidates` が決める
+        const stops = stopsOf(image);
+        const covers =
+          image !== 'none' && (stops.length === 0 || stops.every((stop) => alphaOf(stop) === 1));
+        if (colorAlpha === 1 || covers) break;
+      }
     }
     node = node.parentElement;
   }
+  // **字の色は `color` とは限らない。** `-webkit-text-fill-color` は `color` を上書きして
+  // 字を塗る（`color` は不透明のまま透明な字になりうる。実測）
+  const fill = style.webkitTextFillColor === '' ? style.color : style.webkitTextFillColor;
   return {
-    color: style.color,
     ink:
-      paintsGlyphs(style) && alphaOf(style.color) === 0
-        ? stopsOf(style.backgroundImage)
-        : [style.color],
+      paintsGlyphs(style) && alphaOf(fill) === 0
+        ? { color: style.backgroundColor, image: style.backgroundImage }
+        : { color: fill, image: 'none' },
     backgrounds,
     fontSize: Number.parseFloat(style.fontSize),
     fontWeight: Number(style.fontWeight) || 400,
@@ -155,9 +165,44 @@ export function sampleInPage(element: Element): Sample {
  * 候補の上限。**超えたら「測れない」に倒す。**
  *
  * 透明な停止点を含む層は下を隠さないので、候補は層ごとに掛け算で増える。
- * 現に出る形（羅紗 1 枚＋淡い敷き 1〜2 枚）では 10 を超えない。
+ * 実測では羅紗だけで 6 候補（停止点 5 ＋色 1）、その上に半透明の敷きと
+ * グラデーションをもう 1 枚重ねると 20 前後になる。
+ * **足りなくなったら上げること** —— 上限に当たると落ちる理由が
+ * 「下地か字の色を決められない」になり、本当の原因を指さなくなる。
  */
 const MAX_GROUND_CANDIDATES = 32;
+
+/**
+ * 塗りの色をすべて `rgb()` として読めるか。
+ *
+ * **`rgb()` だけを拾って残りを捨ててはいけない。** Chromium は `oklch()` を計算値でも
+ * 畳まず、`color-mix()` は `color(srgb …)` になる（実測）。拾える分だけで測ると、
+ * 「停止点が全部不透明だから下を隠す層」と誤判定して**明るい停止点ごと消える**。
+ *
+ * 判定は**関数名の許可リスト**で行う。計算値では色は関数形（`rgb()` / `oklch()` …）に
+ * 揃うので、知らない関数が出たら読めないと見なす。列挙するのは CSS の構文であって
+ * 画面の都合ではないので腐らない（`url(…)` の中身は data-URI に何が入っていても
+ * 構わないので、先に畳んでから見る）。
+ */
+function isReadablePaint(image: string): boolean {
+  const withoutUrls = image.replace(/url\((?:"[^"]*"|'[^']*'|[^)]*)\)/g, 'url()');
+  for (const match of withoutUrls.matchAll(/([a-z-]+)\(/g)) {
+    if (!READABLE_PAINT_FUNCTIONS.has(match[1] as string)) return false;
+  }
+  return true;
+}
+
+const READABLE_PAINT_FUNCTIONS = new Set([
+  'rgb',
+  'rgba',
+  'url',
+  'linear-gradient',
+  'radial-gradient',
+  'conic-gradient',
+  'repeating-linear-gradient',
+  'repeating-radial-gradient',
+  'repeating-conic-gradient',
+]);
 
 /**
  * `background-image` が塗る色。読めない塗り（画像など）は `null`。
@@ -173,6 +218,8 @@ function imageStops(image: string): Rgba[] | null {
   // 読める層が 1 枚も無い（`url(…)` の写真・テクスチャだけ）なら、何色で塗られて
   // いるかが分からない。**祖先へ抜けて別のものを測るより「測れない」に倒す**
   if (!image.includes('gradient')) return null;
+  // 読めない色表記が 1 つでも混ざっていたら、拾える分だけで測らない
+  if (!isReadablePaint(image)) return null;
   const stops: Rgba[] = [];
   for (const match of image.matchAll(/rgba?\([^)]*\)/g)) {
     const parsed = parseColor(match[0]);
@@ -223,20 +270,17 @@ export function groundCandidates(backgrounds: readonly Paint[]): Rgba[] | null {
 }
 
 /**
- * 字と下地の**最悪の組み合わせ**の比。
+ * 字を塗っている色の候補。読めない塗りは `null`（＝測れない）。
  *
- * グラデーションは字の側にも下地の側にも来るので、どちらも候補の集合として扱い、
- * 総当たりで一番小さい比を返す。一番不利なところで足りていれば、面のどこに
- * 字が乗っても足りる。
+ * 停止点が取れればそれが字の色。取れなければ色そのもの（`background-clip: text` で
+ * **単色**を字に流している場合がここに来る）。
  */
-export function worstContrast(inks: readonly Rgba[], grounds: readonly Rgba[]): number {
-  let worst = Number.POSITIVE_INFINITY;
-  for (const ground of grounds) {
-    for (const ink of inks) {
-      worst = Math.min(worst, contrastRatio(composite(ink, ground), ground));
-    }
-  }
-  return worst;
+function inkCandidates(ink: Paint): Rgba[] | null {
+  const stops = imageStops(ink.image);
+  if (stops === null) return null;
+  if (stops.length > 0) return stops;
+  const color = parseColor(ink.color);
+  return color === null ? null : [color];
 }
 
 /** 測った結果。`ink` / `ground` は失敗時の説明に使う「一番不利だった組み合わせ」。 */
@@ -248,7 +292,12 @@ export interface Measurement {
 }
 
 /**
- * 持ち帰った素材から比を出す。**測れないときは `null`**。
+ * 持ち帰った素材から、**字と下地の最悪の組み合わせ**の比を出す。
+ * **測れないときは `null`**。
+ *
+ * グラデーションは字の側にも下地の側にも来るので、どちらも候補の集合として扱い、
+ * 総当たりで一番小さい比を採る。一番不利なところで足りていれば、面のどこに
+ * 字が乗っても足りる。
  *
  * `null` を黙って読み飛ばすと、走査は「測れていないのに緑」に戻る。
  * 呼び出し側は件数を数えて 0 件であることを固定すること。
@@ -256,13 +305,8 @@ export interface Measurement {
 export function measureSample(sample: Sample): Measurement | null {
   const grounds = groundCandidates(sample.backgrounds);
   if (grounds === null) return null;
-  const inks: Rgba[] = [];
-  for (const candidate of sample.ink) {
-    const parsed = parseColor(candidate);
-    if (parsed === null) return null;
-    inks.push(parsed);
-  }
-  if (inks.length === 0) return null;
+  const inks = inkCandidates(sample.ink);
+  if (inks === null) return null;
 
   let worst: Measurement | null = null;
   for (const ground of grounds) {
@@ -276,7 +320,14 @@ export function measureSample(sample: Sample): Measurement | null {
   return worst;
 }
 
-/** 失敗したときに「何を地として見たか」を読めるようにする。 */
+/**
+ * 失敗したときに「何を地として見たか」を読めるようにする。
+ *
+ * **data-URI は畳む。** 羅紗の織り目は 370 文字あり、そのまま出すと
+ * **一番落ちやすい行（羅紗に直接乗った文字）の失敗メッセージが潰れる**。
+ */
 export function describePaint(paint: Paint): string {
-  return paint.image === 'none' ? paint.color : `${paint.color} + ${paint.image}`;
+  if (paint.image === 'none') return paint.color;
+  const image = paint.image.replace(/url\((?:"[^"]*"|'[^']*'|[^)]*)\)/g, 'url(…)');
+  return `${paint.color} + ${image}`;
 }

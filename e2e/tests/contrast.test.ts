@@ -9,20 +9,14 @@
  * そこから先（候補の組み立てと最悪比の選択）は純関数にしてある。速い側に置ける。
  */
 import { describe, it, expect } from 'vitest';
-import {
-  groundCandidates,
-  measureSample,
-  worstContrast,
-  type Paint,
-  type Sample,
-} from '../support/contrast';
+import { groundCandidates, measureSample, type Paint, type Sample } from '../support/contrast';
 
 const FELT = 'rgb(10, 43, 33)';
 const FELT_LIGHT = 'rgb(23, 80, 64)';
 const IVORY_LIGHTEST = 'rgb(255, 253, 244)';
 const IVORY_DARKEST = 'rgb(234, 225, 198)';
 const TRANSPARENT = 'rgba(0, 0, 0, 0)';
-const BONE_FAINT = { r: 245, g: 239, b: 221, a: 0.66 };
+const BONE_FAINT = 'rgba(245, 239, 221, 0.66)';
 
 /**
  * 実測の形に合わせた層の作り方。
@@ -36,8 +30,7 @@ const layer = (color: string, ...stops: string[]): Paint => ({
 });
 
 const sample = (overrides: Partial<Sample> = {}): Sample => ({
-  color: 'rgb(38, 35, 28)',
-  ink: ['rgb(38, 35, 28)'],
+  ink: { color: 'rgb(38, 35, 28)', image: 'none' },
   backgrounds: [layer(FELT)],
   fontSize: 16,
   fontWeight: 400,
@@ -147,6 +140,32 @@ describe('下地の候補を組み立てる', () => {
     expect(groundCandidates([texture, layer(FELT)])).toBeNull();
   });
 
+  it('rgb 以外の色表記が混ざる塗りは「測れない」を返す', () => {
+    // Given Chromium は `oklch()` と `color-mix()`（= `color(srgb …)`）を計算値でも
+    //   rgb へ畳まない（実測）。rgb だけを拾うと**残りを黙って捨てる**ことになり、
+    //   「全部不透明だから下を隠す層」と誤判定して明るい停止点ごと消える
+    const modern = {
+      color: TRANSPARENT,
+      image: 'linear-gradient(oklch(0.9 0.1 90), rgb(0, 0, 0))',
+    };
+    const mixed = {
+      color: TRANSPARENT,
+      image: 'linear-gradient(color(srgb 0.5 0 0.5), rgb(0, 0, 0))',
+    };
+
+    // When / Then 読めない色が 1 つでもあれば測れないに倒す
+    expect(groundCandidates([modern, layer(FELT)])).toBeNull();
+    expect(groundCandidates([mixed, layer(FELT)])).toBeNull();
+  });
+
+  it('rgb 以外の色表記で塗られた背景色も「測れない」を返す', () => {
+    // Given `background-color: oklch(…)` の層（塗りは無い）
+    const modern = { color: 'oklch(0.7 0.1 150)', image: 'none' };
+
+    // When / Then 透明と同一視して素通りしない
+    expect(groundCandidates([modern, layer(FELT)])).toBeNull();
+  });
+
   it('候補が組み合わせ爆発を起こすなら「測れない」を返す（賢く測らない）', () => {
     // Given 透明な停止点を持つ層は下を隠さないので、候補は層ごとに掛け算で増える
     const many = Array.from({ length: 4 }, () => layer(TRANSPARENT, FELT, FELT_LIGHT, TRANSPARENT));
@@ -158,28 +177,25 @@ describe('下地の候補を組み立てる', () => {
 
 describe('最悪の組み合わせで比を出す', () => {
   it('下地の候補のうち、最も比が小さくなるものを選ぶ', () => {
-    // Given 羅紗の照明（明るい停止点を含む）の上に、薄い象牙の文字が乗っている
-    const grounds = groundCandidates([layer(FELT, FELT_LIGHT, TRANSPARENT)]);
-    expect(grounds).not.toBeNull();
-    if (grounds === null) return;
-    const darkest = grounds.filter((g) => g.g === 43);
-    expect(darkest).not.toHaveLength(0);
+    // Given 同じ薄い象牙の文字を、羅紗の単色の上と、照明のグラデーションの上に置く
+    const bone = { color: BONE_FAINT, image: 'none' };
+    const onFlatFelt = sample({ ink: bone, backgrounds: [layer(FELT)] });
+    const onLitFelt = sample({ ink: bone, backgrounds: [layer(FELT, FELT_LIGHT, TRANSPARENT)] });
 
-    // When 一番暗いところだけで測った場合と、候補すべてで測った場合を比べる
-    const onDark = worstContrast([BONE_FAINT], darkest);
-    const worst = worstContrast([BONE_FAINT], grounds);
+    // When それぞれ測る
+    const flat = measureSample(onFlatFelt);
+    const lit = measureSample(onLitFelt);
 
     // Then 明るい停止点の分だけ厳しい値が出る（パレットの注釈と同じ 4.52:1）
-    expect(worst).toBeLessThan(onDark);
-    expect(worst).toBeCloseTo(4.52, 1);
+    expect(lit?.ratio).toBeLessThan(flat?.ratio as number);
+    expect(lit?.ratio).toBeCloseTo(4.52, 1);
   });
 
   it('字がグラデーションで塗られていても比が 1.0 に落ちない', () => {
     // Given `background-clip: text` の字は `color` が透明。そのまま測ると下地と
     //   同色になり、**落ちる理由が嘘になる**（偽陽性）
     const wordmark = sample({
-      color: TRANSPARENT,
-      ink: [IVORY_LIGHTEST, 'rgb(236, 200, 121)'],
+      ink: layer(TRANSPARENT, IVORY_LIGHTEST, 'rgb(236, 200, 121)'),
       backgrounds: [layer(FELT)],
       fontSize: 32,
       fontWeight: 700,
@@ -196,8 +212,7 @@ describe('最悪の組み合わせで比を出す', () => {
   it('字の候補のうち、最も比が小さくなるものを選ぶ', () => {
     // Given 停止点の片方が羅紗に近い字
     const inkNearGround = sample({
-      color: TRANSPARENT,
-      ink: [IVORY_LIGHTEST, FELT_LIGHT],
+      ink: layer(TRANSPARENT, IVORY_LIGHTEST, FELT_LIGHT),
       backgrounds: [layer(FELT)],
     });
 
@@ -212,7 +227,10 @@ describe('最悪の組み合わせで比を出す', () => {
     // Given 下地に届かない素材と、字の色を解けない素材
     // When / Then どちらも null
     expect(measureSample(sample({ backgrounds: [layer(TRANSPARENT)] }))).toBeNull();
-    expect(measureSample(sample({ color: 'var(--ink)', ink: ['var(--ink)'] }))).toBeNull();
+    expect(measureSample(sample({ ink: { color: 'var(--ink)', image: 'none' } }))).toBeNull();
+    expect(
+      measureSample(sample({ ink: { color: TRANSPARENT, image: 'linear-gradient(oklch(0.9 0.1 90), rgb(0, 0, 0))' } })),
+    ).toBeNull();
   });
 
   it('大きな文字の下限は 3:1、それ以外は 4.5:1 を返す', () => {
