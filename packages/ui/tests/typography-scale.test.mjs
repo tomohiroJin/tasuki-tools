@@ -102,12 +102,26 @@ test('font-size の宣言は 1 行に収まっている', () => {
 });
 
 /**
- * 例外の印。**理由まで求める**（`\S` で空でないことを見る）。
+ * 例外コメントの理由を取り出す。**理由まで求める**（空文字列は例外として認めない）。
  *
- * 印だけで通せると「scale-exempt:」と書くだけの空手形になり、塞ごうとしている
- * 「直値が混ざっても何も赤くならない」をそのまま作り直すことになる。
+ * `scale-exempt:` から、同じ行にあるコメント終端（アスタリスクに続くスラッシュ）の
+ * **手前まで**を理由とし、前後の空白を落として返す。理由が空なら `null`（＝例外ではない）。
+ *
+ * 旧実装は `/scale-exempt:\s*\S/` という正規表現で「印の直後に非空白が 1 文字あるか」
+ * だけを見ていた。ところが理由が空のコメントでも、終端記号のアスタリスク自体が
+ * `\S` に当たってしまい、「理由あり」と誤判定していた
+ * （#280 Task 4 の破壊検証で発覚）。この関数は理由の**中身**を取り出して空かどうかを
+ * 直接見ることで、終端記号を理由と誤認しないようにする。
+ *
+ * **同じ行にコメント終端が無い場合（複数行コメント）は判定しない。** 理由がどこで終わるか
+ * 決められない入力は、例外を通す側ではなく赤へ倒す（fail-closed）。
  */
-const EXEMPT = /scale-exempt:\s*\S/;
+function exemptReason(text) {
+  const m = /scale-exempt:([^]*?)\*\//.exec(text);
+  if (!m) return null;
+  const reason = m[1].trim();
+  return reason === '' ? null : reason;
+}
 
 /** 5 段のいずれかを参照している形（フォールバック付きは許さない。段の不在を隠すため）。 */
 const TOKEN_REF = new RegExp(`^var\\(\\s*${FONT_SIZE_NAME}\\s*\\)$`);
@@ -116,12 +130,39 @@ test('font-size は 5 段のトークンを参照するか、同じ行に理由�
   // Given / When
   const offenders = declarations()
     .filter((d) => !TOKEN_REF.test(d.value))
-    .filter((d) => !EXEMPT.test(d.text));
+    .filter((d) => exemptReason(d.text) === null);
   // Then
   assert.deepEqual(
     offenders.map(where),
     [],
     '5 段へ寄せるか、同じ行に `/* scale-exempt: 理由 */` を書くこと（設計正本 D6）',
+  );
+});
+
+test('例外コメントは理由が空だと通らない（コメント終端の `*` を理由と誤認しない）', () => {
+  // Given / When / Then（理由あり → 例外として通る）
+  assert.notEqual(
+    exemptReason("  font-size: 0.6rem; /* scale-exempt: 札のコーナーピップ */"),
+    null,
+    '理由が書かれている例外は通るべき',
+  );
+  // 理由が空（スペースのみ）→ 通らない。これが今回の欠陥そのもの
+  assert.equal(
+    exemptReason('  font-size: 0.6rem; /* scale-exempt: */'),
+    null,
+    '理由が空の例外は通らないべき',
+  );
+  // 印だけで終端が続く形（同じ実体。空白すら無い）も同じ理由で落ちる
+  assert.equal(
+    exemptReason('  font-size: 0.6rem; /* scale-exempt:*/'),
+    null,
+    '理由が空（空白も無い）の例外は通らないべき',
+  );
+  // `scale-exempt` を含まない普通の行 → 例外ではない
+  assert.equal(
+    exemptReason("  font-size: var(--font-size-sm);"),
+    null,
+    '例外の印が無い行は例外として扱わないべき',
   );
 });
 
