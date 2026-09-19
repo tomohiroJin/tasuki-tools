@@ -51,6 +51,11 @@ function definedSteps() {
  *
  * **1 行に複数あっても全部拾う**（`matchAll`）。1 つ目だけを見ると、
  * 2 つ目を並べるだけで検査をすり抜けられる。
+ *
+ * **コメントアウトされた宣言も同じ形で拾う。** `/* 旧実装: font-size: 1.5rem; *\/` の
+ * ような行は、CSS として無効でも文字列としては宣言の形をしているため 1 件として
+ * 数えられる。理由が無ければ落ちるので実害は無い（fail-closed）が、
+ * 将来「なぜここが赤いのか分からない」を防ぐために明記しておく。
  */
 function declarations() {
   const found = [];
@@ -94,11 +99,55 @@ test('流動スケールの段は 5 つである', () => {
   );
 });
 
-test('font-size の宣言は 1 行に収まっている', () => {
+test('font-size の宣言は同じ行で `;` まで終端している', () => {
   // Given / When（`;` で閉じていない = 値が次の行へ続いている）
+  //
+  // **名前と失敗メッセージが見ているのはこれだけ。** ブロック内最後の宣言は CSS 文法上
+  // `;` を省略できる（`font-size: 1rem }` は合法な 1 行の宣言）ため、「1 行に収まっている」
+  // という言い方は原因を指さない。ここが赤くなるのは「同じ行で `;` まで書き切っていない」
+  // 場合であり、判定ロジック自体は変えていない（誤る向きは fail-closed のまま）。
   const spanning = declarations().filter((d) => !d.terminated);
   // Then（複数行にまたがると、例外の印を同じ行に置く規約が成立しない）
-  assert.deepEqual(spanning.map(where), [], '宣言を 1 行に収めること（設計正本 D6）');
+  assert.deepEqual(
+    spanning.map(where),
+    [],
+    '宣言は同じ行で `;` まで終端すること（設計正本 D6）',
+  );
+});
+
+/**
+ * `src/**\/*.css` に `font` の一括指定（shorthand）が無いことを検査する。
+ *
+ * `declarations()` は `font-size` という綴りだけを探すので、
+ * `font: 700 0.6rem/1 var(--font-body);` のような一括指定は 1 件も拾えない。
+ * これは #280 が塞ごうとしている「直値が混ざっても何も赤くならない」の
+ * 再生産になる（最終レビュー Important 1）。
+ *
+ * `font-size:` / `font-family:` / `font-weight:` 等は `font` の直後に `-` が
+ * 続くため、`font\s*:`（`font` の直後が空白かコロン）には一致しない。
+ */
+function fontShorthandOffenders() {
+  const offenders = [];
+  for (const rel of cssFiles()) {
+    const lines = readFileSync(join(SRC, rel), 'utf8').split('\n');
+    lines.forEach((line, i) => {
+      if (/(?:^|[;{}\s])font\s*:/.test(line)) {
+        offenders.push(`${rel}:${i + 1}  ${line.trim()}`);
+      }
+    });
+  }
+  return offenders;
+}
+
+test('font の一括指定（shorthand）を使っていない', () => {
+  // Given / When
+  const offenders = fontShorthandOffenders();
+  // Then（一括指定は font-size の検査を素通りする。個別プロパティで書くこと）
+  assert.deepEqual(
+    offenders,
+    [],
+    '`font: …` の一括指定ではなく `font-size` 等の個別プロパティで書くこと（5 段の検査を素通りさせないため）',
+  );
 });
 
 /**
@@ -163,6 +212,18 @@ test('例外コメントは理由が空だと通らない（コメント終端�
     exemptReason("  font-size: var(--font-size-sm);"),
     null,
     '例外の印が無い行は例外として扱わないべき',
+  );
+});
+
+test('exemptReason は同じ行にコメント終端が無い（複数行コメント）例外を通さない', () => {
+  // Given / When / Then（fail-closed を固定する：正規表現を緩めても赤くなるはずの入力）
+  //
+  // `exemptReason` の docstring は「同じ行に終端が無い場合は判定しない（null を返す）」と
+  // 主張しているが、それ自体を固定するテストが無かった（最終レビュー Minor 1）。
+  assert.equal(
+    exemptReason('  font-size: 0.6rem; /* scale-exempt: 理由'),
+    null,
+    '同じ行にコメント終端 `*/` が無い（複数行にまたがる）例外は通らないべき',
   );
 });
 

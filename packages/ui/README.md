@@ -147,7 +147,8 @@ pnpm --filter @tasuki/ui test   # node:test（トークンの契約・書体の�
 - **印だけでは通らない。** `scale-exempt:` の後ろに理由が要る
 - **理由は宣言と同じ行に置く。** 離すと片方だけが動く
 - 「直すのが面倒」を例外の理由にしない
-- 現在の例外は 2 件（`input[type='text']` の 16px 下限と、上のコーナーピップ）
+- 現在の例外は `grep -rn 'scale-exempt' packages/ui/src` で数える（件数をここに書かない。
+  例外が増減してもこの文書が黙って古くなる）
 
 判断の経緯は
 [設計正本](../../docs/superpowers/specs/2026-09-20-ui-typography-scale-design.md)。
