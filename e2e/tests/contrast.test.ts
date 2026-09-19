@@ -102,6 +102,23 @@ describe('下地の候補を組み立てる', () => {
     expect(groundCandidates([layer('color-mix(in srgb, red, blue)')])).toBeNull();
   });
 
+  it('グラデーションと画像が混ざる面は、読める層だけで測る（羅紗の織り目）', () => {
+    // 本体の羅紗は「照明のグラデーション 2 枚 + 織り目の data-URI」で塗ってある。
+    // 織り目まで測れないことを理由に全部を赤くすると検査が使えなくなるので、
+    // **読める層で測る**。楽観側に倒れる限界は `imageStops` の注釈に書いてある。
+    const felt = {
+      color: FELT,
+      image: `radial-gradient(120% 90% at 50% -10%, ${FELT_LIGHT} 0%, ${TRANSPARENT} 75%), url("data:image/svg+xml,%3Csvg%3E")`,
+    };
+
+    expect(groundCandidates([felt])?.map((g) => [g.r, g.g, g.b])).toEqual(
+      expect.arrayContaining([
+        [10, 43, 33],
+        [23, 80, 64],
+      ]),
+    );
+  });
+
   it('グラデーション以外の画像で塗られた面も「測れない」を返す', () => {
     // 写真・テクスチャ・SVG の data-URI は、どんな色で塗られているか文字列からは
     // 分からない。**祖先へ抜けて別のものを測るくらいなら測れないと言う**（#279）。

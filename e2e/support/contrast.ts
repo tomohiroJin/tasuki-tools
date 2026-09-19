@@ -159,11 +159,19 @@ export function sampleInPage(element: Element): Sample {
  */
 const MAX_GROUND_CANDIDATES = 32;
 
-/** `background-image` が塗る色。読めない塗り（画像など）は `null`。 */
+/**
+ * `background-image` が塗る色。読めない塗り（画像など）は `null`。
+ *
+ * **限界を 1 つ持つ。** 塗りは何枚も重ねられるので、グラデーションと `url(…)` が
+ * 混ざることがある（羅紗の照明＋織り目がこれ）。その場合は**読める層だけで測る**
+ * ので、結果は織り目の分だけ楽観的になる。織り目のような薄い粒であれば実害は
+ * 無いが、**不透明な写真をグラデーションと重ねて敷くとここが嘘をつく** ——
+ * そう塗りたくなったら、層を分けるか、この関数を層ごとに解く形へ広げること。
+ */
 function imageStops(image: string): Rgba[] | null {
   if (image === 'none') return [];
-  // グラデーション以外（`url(…)` の写真・テクスチャ）は、何色で塗られているかが
-  // 文字列から分からない。**祖先へ抜けて別のものを測るより「測れない」に倒す**
+  // 読める層が 1 枚も無い（`url(…)` の写真・テクスチャだけ）なら、何色で塗られて
+  // いるかが分からない。**祖先へ抜けて別のものを測るより「測れない」に倒す**
   if (!image.includes('gradient')) return null;
   const stops: Rgba[] = [];
   for (const match of image.matchAll(/rgba?\([^)]*\)/g)) {
