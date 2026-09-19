@@ -23,8 +23,16 @@ const IVORY_LIGHTEST = 'rgb(255, 253, 244)';
 const IVORY_DARKEST = 'rgb(234, 225, 198)';
 const TRANSPARENT = 'rgba(0, 0, 0, 0)';
 
-/** 実測の形に合わせた層の作り方（`background-color` と停止点は両方ありうる）。 */
-const layer = (color: string, ...stops: string[]): Paint => ({ color, stops });
+/**
+ * 実測の形に合わせた層の作り方。
+ *
+ * `background-image` は計算値の文字列のまま持つ（停止点の読み取りまで含めて
+ * 検査したいので、あらかじめ配列に解いたものを渡さない）。
+ */
+const layer = (color: string, ...stops: string[]): Paint => ({
+  color,
+  image: stops.length === 0 ? 'none' : `linear-gradient(165deg, ${stops.join(', ')})`,
+});
 
 const sample = (overrides: Partial<Sample> = {}): Sample => ({
   color: 'rgb(38, 35, 28)',
@@ -92,6 +100,13 @@ describe('下地の候補を組み立てる', () => {
   it('塗りを色として解けないなら「測れない」を返す', () => {
     expect(groundCandidates([layer(TRANSPARENT, 'var(--ivory)'), layer(FELT)])).toBeNull();
     expect(groundCandidates([layer('color-mix(in srgb, red, blue)')])).toBeNull();
+  });
+
+  it('グラデーション以外の画像で塗られた面も「測れない」を返す', () => {
+    // 写真・テクスチャ・SVG の data-URI は、どんな色で塗られているか文字列からは
+    // 分からない。**祖先へ抜けて別のものを測るくらいなら測れないと言う**（#279）。
+    const texture = { color: TRANSPARENT, image: 'url("data:image/svg+xml,%3Csvg%3E")' };
+    expect(groundCandidates([texture, layer(FELT)])).toBeNull();
   });
 
   it('候補が組み合わせ爆発を起こすなら「測れない」を返す（賢く測らない）', () => {

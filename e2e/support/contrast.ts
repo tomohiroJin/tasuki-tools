@@ -73,8 +73,8 @@ export function requiredRatio(fontSizePx: number, fontWeight: number): number {
  */
 export interface Paint {
   readonly color: string;
-  /** `background-image` のグラデーションから読んだ停止点（グラデーションでなければ空）。 */
-  readonly stops: readonly string[];
+  /** `background-image` の計算値。塗っていなければ `'none'`。 */
+  readonly image: string;
 }
 
 /** ページ側から持ち帰る素材。背景は「内側から外側へ」の並びで返す。 */
@@ -124,12 +124,17 @@ export function sampleInPage(element: Element): Sample {
   while (node !== null) {
     const s = getComputedStyle(node);
     // `background-clip: text` の塗りは**字**に乗るもので、箱の下地ではない
-    const stops = paintsGlyphs(s) ? [] : stopsOf(s.backgroundImage);
+    const image = paintsGlyphs(s) ? 'none' : s.backgroundImage;
+    const stops = stopsOf(image);
     const colorAlpha = alphaOf(s.backgroundColor);
-    if (colorAlpha > 0 || stops.length > 0) {
-      backgrounds.push({ color: s.backgroundColor, stops });
-      const opaqueGradient = stops.length > 0 && stops.every((stop) => alphaOf(stop) === 1);
-      if (colorAlpha === 1 || opaqueGradient) break;
+    if (colorAlpha > 0 || image !== 'none') {
+      backgrounds.push({ color: s.backgroundColor, image });
+      // 読めない塗り（画像）は下を隠しているかもしれないので、そこで止める。
+      // 候補を組み立てる側が「測れない」と判断する
+      const opaqueImage =
+        image !== 'none' &&
+        (stops.length === 0 || stops.every((stop) => alphaOf(stop) === 1));
+      if (colorAlpha === 1 || opaqueImage) break;
     }
     node = node.parentElement;
   }
@@ -154,16 +159,27 @@ export function sampleInPage(element: Element): Sample {
  */
 const MAX_GROUND_CANDIDATES = 32;
 
+/** `background-image` が塗る色。読めない塗り（画像など）は `null`。 */
+function imageStops(image: string): Rgba[] | null {
+  if (image === 'none') return [];
+  // グラデーション以外（`url(…)` の写真・テクスチャ）は、何色で塗られているかが
+  // 文字列から分からない。**祖先へ抜けて別のものを測るより「測れない」に倒す**
+  if (!image.includes('gradient')) return null;
+  const stops: Rgba[] = [];
+  for (const match of image.matchAll(/rgba?\([^)]*\)/g)) {
+    const parsed = parseColor(match[0]);
+    if (parsed === null) return null;
+    stops.push(parsed);
+  }
+  return stops.length === 0 ? null : stops;
+}
+
 /** 1 つの層を、その外側の候補（`bases`）の上に重ねる。`null` は「測れない」。 */
 function paintOver(paint: Paint, bases: readonly Rgba[] | null): Rgba[] | null {
   const color = parseColor(paint.color);
   if (color === null) return null;
-  const stops: Rgba[] = [];
-  for (const stop of paint.stops) {
-    const parsed = parseColor(stop);
-    if (parsed === null) return null;
-    stops.push(parsed);
-  }
+  const stops = imageStops(paint.image);
+  if (stops === null) return null;
 
   // 停止点がすべて不透明なグラデーションは箱を覆い隠す。外側は見えない。
   // （`background-size` を縮めて敷き詰めない塗り方をすると下が覗くが、
@@ -250,4 +266,9 @@ export function measureSample(sample: Sample): Measurement | null {
     }
   }
   return worst;
+}
+
+/** 失敗したときに「何を地として見たか」を読めるようにする。 */
+export function describePaint(paint: Paint): string {
+  return paint.image === 'none' ? paint.color : `${paint.color} + ${paint.image}`;
 }
