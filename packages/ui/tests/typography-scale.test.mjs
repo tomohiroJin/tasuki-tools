@@ -97,3 +97,27 @@ test('font-size の宣言は 1 行に収まっている', () => {
   // Then（複数行にまたがると、例外の印を同じ行に置く規約が成立しない）
   assert.deepEqual(spanning.map(where), [], '宣言を 1 行に収めること（設計正本 D6）');
 });
+
+/**
+ * 例外の印。**理由まで求める**（`\S` で空でないことを見る）。
+ *
+ * 印だけで通せると「scale-exempt:」と書くだけの空手形になり、塞ごうとしている
+ * 「直値が混ざっても何も赤くならない」をそのまま作り直すことになる。
+ */
+const EXEMPT = /scale-exempt:\s*\S/;
+
+/** 5 段のいずれかを参照している形（フォールバック付きは許さない。段の不在を隠すため）。 */
+const TOKEN_REF = /^var\(\s*--font-size-[a-z]+\s*\)$/;
+
+test('font-size は 5 段のトークンを参照するか、同じ行に理由のある例外である', () => {
+  // Given / When
+  const offenders = declarations()
+    .filter((d) => !TOKEN_REF.test(d.value))
+    .filter((d) => !EXEMPT.test(d.text));
+  // Then
+  assert.deepEqual(
+    offenders.map(where),
+    [],
+    '5 段へ寄せるか、同じ行に `/* scale-exempt: 理由 */` を書くこと（設計正本 D6）',
+  );
+});
