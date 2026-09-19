@@ -90,7 +90,10 @@ function seat(id: string, name: string, skipReason: SeatSkipReason | null = null
 }
 
 describe("Session 「次」はサーバーの nextIndex が指す人を出す（#276）", () => {
-  it("「次」はサーバーの nextIndex が指す人を出す（#276 E2）", () => {
+  /**
+   * @requirements #276 E2
+   */
+  it("「次」はサーバーの nextIndex が指す人を出す", () => {
     // 輪: [あや(現), ゆう(離席), かい]。素朴な `(currentIndex + 1) % len` なら
     // 「次: ゆう」になるところ。サーバーは離席中の「ゆう」を飛ばし「かい」を指す。
     const room = aRoomView({
@@ -125,7 +128,10 @@ describe("Session 「次」はサーバーの nextIndex が指す人を出す（
     expect(screen.queryByText("（別の画面）")).toBeNull();
   });
 
-  it("全席が不適格なら人名を出さない（#276 E5）", () => {
+  /**
+   * @requirements #276 E5
+   */
+  it("全席が不適格なら人名を出さない", () => {
     const room = aRoomView({
       code: "AA0001",
       config: { members: ["あや", "ゆう"] },

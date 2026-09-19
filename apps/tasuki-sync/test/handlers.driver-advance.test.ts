@@ -140,7 +140,10 @@ describe("advanceForAbsence: ドライバー不在の自動繰上", () => {
   // computeIneligibleIndices と seats[].skipReason は同じ関数（seatSkipReason）から
   // 出るので、両者が一致するというテストは恒真になる（#276 Step 6）。ここは判定を
   // 直接呼ばず、SWITCH コマンドで実際に交代を起こし、飛ばされた結果を見る。
-  it("切断した席は交代で飛ばされ、seats に理由が載り、nextIndex がその先を指す（#276 E1 / E2）", async () => {
+  /**
+   * @requirements #276 E1, E2
+   */
+  it("切断した席は交代で飛ばされ、seats に理由が載り、nextIndex がその先を指す", async () => {
     // Given: 輪は A(現・在席) → B(切断) → C(在席)。B には接続を持たせない。
     const code = await setupRunningRoom(handlers, store, timers, ["A", "B", "C"], 0, {
       A: "online",
