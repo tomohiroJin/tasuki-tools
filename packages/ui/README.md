@@ -132,3 +132,22 @@ pnpm --filter @tasuki/ui test   # node:test（トークンの契約・書体の�
 
 - **伏せ札の裏模様**: 現時点で poker の座席インジケータ（`.seat-card.facedown`）でしか
   使っておらず、利用者が 1 つしかないため poker 側に残している
+
+## 書体の大きさ
+
+**`font-size` は 5 段のトークン（`--font-size-xs` 〜 `-xl`）を使う。**
+直値を書くと `tests/typography-scale.test.mjs` が落ちる。
+
+5 段のどれにも当てはまらない大きさが要るときは、**同じ行に理由を書いて例外にする**。
+
+```css
+  font-size: 0.6rem; /* scale-exempt: 札のコーナーピップ。ADR-0001 が 9.6px を名指ししている */
+```
+
+- **印だけでは通らない。** `scale-exempt:` の後ろに理由が要る
+- **理由は宣言と同じ行に置く。** 離すと片方だけが動く
+- 「直すのが面倒」を例外の理由にしない
+- 現在の例外は 2 件（`input[type='text']` の 16px 下限と、上のコーナーピップ）
+
+判断の経緯は
+[設計正本](../../docs/superpowers/specs/2026-09-20-ui-typography-scale-design.md)。

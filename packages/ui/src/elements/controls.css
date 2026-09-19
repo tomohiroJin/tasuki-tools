@@ -14,7 +14,7 @@ label {
 
 input[type='text'] {
   padding: 0.75rem 0.9rem;
-  font-size: 1rem; /* scale-exempt: 16px を下回らせない。iOS Safari は 16px 未満の入力欄にフォーカスすると画面を自動で拡大する。base の下限は 15.5px でこれに掛かる（設計正本 D4） */
+  font-size: 1rem; /* scale-exempt: 16px を下回らせない。iOS Safari は 16px 未満の入力欄にフォーカスすると画面を自動で拡大する（未検証）。base の下限は 15.5px でこれに掛かる（設計正本 D4） */
   font-family: var(--font-body);
   color: var(--ivory);
   background: rgba(0, 0, 0, 0.28);
