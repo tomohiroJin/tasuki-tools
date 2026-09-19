@@ -150,6 +150,11 @@ export const MUTATIONS = [
     patch: "m09-build-notice-message-invert.patch",
     pkg: "apps/timer-web",
     tests: ["test/sync/notice-message.test.ts"],
+    note:
+      "#276 の呼び名プールの統一（labelPool・敵対的レビュー #276 指摘1）で label() 周辺に" +
+      "行が足されて当たらなくなったので当て直した。反転する条件式" +
+      "（`participantId === ctx.selfParticipantId` → `!==`）自体は元のパッチと一字一句同じで、" +
+      "作る欠陥（実行者が自分なのに「あなた」と出ない／他人なのに「あなた」と出る）も変わらない。",
   },
   {
     id: 10,
