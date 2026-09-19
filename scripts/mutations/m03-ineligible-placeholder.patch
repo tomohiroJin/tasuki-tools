@@ -8,6 +8,17 @@
 # 行も変わった（`offline.has(...)` → `!watchingTimer.has(...)`）。当てる場所と
 # 意味は同じである。
 #
+# **#276 で `computeIneligibleIndices` が `handlers.ts` から
+# `apps/tasuki-sync/src/application/timer-snapshot-dto.ts` の `seatSkipReason` へ
+# 移設された**ので、当て直した（Task 8。当て直す前は `git apply` 自体が
+# `patch does not apply` で失敗し、変異検査の全実行が m03 で止まっていた）。
+# 「代理を対象外にする」判定は `seatSkipReason` の `if (entry.kind === "proxy")
+# return null;` に集約されたので、この行を削るのが同じ意味の変異になる
+# （proxy の `entry.participantId` は型上 undefined だが、bun のテストランナーは
+# 型検査をしないため実行はそのまま通り、`watchingTimer.has(undefined)` は false、
+# `byId.get(undefined)` も undefined になって "disconnected" 側へ落ちる ——
+# 元の変異と同じく「代理が常に対象外」という結果になる）。
+#
 # 検出を期待するテスト:
 #   - apps/tasuki-sync/test/proxy-auto-switch.test.ts
 #   - apps/tasuki-sync/test/manual-skip-eligible.test.ts
@@ -17,16 +28,15 @@
 #       (diff のパスはリポジトリルート起点。mutation-check.mjs もリポジトリルートで実行する)
 # 復元: git checkout -- <対象ファイル>（同じくリポジトリルートから）
 #
-diff --git a/apps/tasuki-sync/src/application/handlers.ts b/apps/tasuki-sync/src/application/handlers.ts
-index 379cb33..366a8bc 100644
---- a/apps/tasuki-sync/src/application/handlers.ts
-+++ b/apps/tasuki-sync/src/application/handlers.ts
-@@ -867,7 +867,7 @@ function computeIneligibleIndices(membership: MembershipRoom, timer: TimerState)
-       set.add(i);
-       return;
-     }
--    if (entry.kind === "member" && !watchingTimer.has(entry.participantId)) set.add(i);
-+    if (entry.kind !== "member" || !watchingTimer.has(entry.participantId)) set.add(i);
-   });
-   return set;
- }
+diff --git a/apps/tasuki-sync/src/application/timer-snapshot-dto.ts b/apps/tasuki-sync/src/application/timer-snapshot-dto.ts
+index 16603c8..bc2ca85 100644
+--- a/apps/tasuki-sync/src/application/timer-snapshot-dto.ts
++++ b/apps/tasuki-sync/src/application/timer-snapshot-dto.ts
+@@ -188,7 +188,6 @@ function seatSkipReason(
+   byId: ReadonlyMap<string, MembershipParticipant>,
+ ): SeatSkipReason | null {
+   if (entry.eligible === false) return "stood-down";
+-  if (entry.kind === "proxy") return null;
+   if (watchingTimer.has(entry.participantId)) return null;
+   // 名簿に居ない席は「どこに居るか分からない」。接続数を問えないので切断として扱う。
+   const participant = byId.get(entry.participantId);

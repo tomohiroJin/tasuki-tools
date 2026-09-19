@@ -13,7 +13,7 @@
  * @requirements FR-096, FR-097, FR-118, US2
  */
 
-import type { Participant, Room, ServerClock, SessionConfig } from "@tasuki/timer-core";
+import type { Participant, Room, Seat, ServerClock, SessionConfig } from "@tasuki/timer-core";
 
 // SessionState は T057 で自ファイル内専用の内部型として export を外した（FR-119③・SC-039）。
 // 公開されている Room 型から同じ形を導出する（インデックスアクセス型）。verification 内容は変えない。
@@ -28,7 +28,35 @@ function defaultConfig(): SessionConfig {
 }
 
 function defaultSession(): SessionState {
-  return { rotation: [CREATOR_ID], currentIndex: 0, isPaused: false, driverCounts: [0], totalSwitches: 0 };
+  return {
+    rotation: [CREATOR_ID],
+    currentIndex: 0,
+    isPaused: false,
+    driverCounts: [0],
+    totalSwitches: 0,
+    seats: [{ id: CREATOR_ID, displayName: "Creator", isProxy: false, skipReason: null }],
+    nextIndex: 0,
+  };
+}
+
+/**
+ * 席と「次の番」は輪から導く（#276）。
+ *
+ * 固定値を置くと、`session: { rotation: [...] }` だけを上書きしたテストで
+ * 席と輪の長さが食い違う造作ができる。型検査はそれを拾わないので、
+ * **黙って嘘の前提を持つテスト**になる。サーバーは常に輪と同じ順・同じ長さで
+ * 送るので、造作もそう振る舞わせる。
+ *
+ * 表示名は `config.members`（輪と同じ順の表示名）から引く。理由を持つ席を作りたい
+ * テストは `session.seats` を丸ごと渡して上書きすること。
+ */
+function seatsFrom(rotation: readonly string[], memberNames: readonly string[]): Seat[] {
+  return rotation.map((id, i) => ({
+    id,
+    displayName: memberNames[i] ?? "",
+    isProxy: false,
+    skipReason: null,
+  }));
 }
 
 function defaultClock(intervalMinutes: number): ServerClock {
@@ -69,6 +97,17 @@ export type RoomViewOverrides = Partial<Omit<Room, "config" | "session" | "clock
 export function aRoomView(overrides: RoomViewOverrides = {}): Room {
   const config = { ...defaultConfig(), ...(overrides.config ?? {}) };
   const session = { ...defaultSession(), ...(overrides.session ?? {}) };
+  // 席と次の番は、上書き後の輪から導く（明示的に渡されていれば、それを尊重する）。
+  const seats = overrides.session?.seats ?? seatsFrom(session.rotation, config.members);
+  // ⚠ ここでの `(currentIndex + 1) % len` は造作の都合であって、製品の規則ではない。
+  // 製品側でこの式を使ってよい場所は 1 つも無い（それが #276 の主題である）。
+  const nextIndex =
+    overrides.session?.nextIndex !== undefined
+      ? overrides.session.nextIndex
+      : session.rotation.length > 0
+        ? (session.currentIndex + 1) % session.rotation.length
+        : null;
+  const merged = { ...session, seats, nextIndex };
   const clock = { ...defaultClock(config.intervalMinutes), ...(overrides.clock ?? {}) };
 
   const base: Room = {
@@ -76,7 +115,7 @@ export function aRoomView(overrides: RoomViewOverrides = {}): Room {
     createdAt: 0,
     config,
     problem: null,
-    session,
+    session: merged,
     clock,
     phase: "setup",
     participants: defaultParticipants(),
@@ -85,5 +124,5 @@ export function aRoomView(overrides: RoomViewOverrides = {}): Room {
     onBreak: false,
   };
 
-  return { ...base, ...overrides, config, session, clock };
+  return { ...base, ...overrides, config, session: merged, clock };
 }

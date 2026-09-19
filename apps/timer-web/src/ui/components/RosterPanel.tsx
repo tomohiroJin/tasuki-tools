@@ -13,13 +13,13 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { Users, ChevronUp, ChevronDown, X } from "lucide-react";
-import type { Participant } from "@tasuki/timer-core";
+import type { Participant, Seat } from "@tasuki/timer-core";
 import { MAX_DISPLAY_NAME } from "@tasuki/room-core";
 import { GhostButton, PrimaryButton, SectionHeader } from "../primitives.js";
 import { presenceLabel } from "../presence.js";
 import { PresenceDot } from "./PresenceDot.js";
 import { RemovalConfirmDialog } from "./RemovalConfirmDialog.js";
-import { participantLabel } from "../participant-label.js";
+import { labelPool, participantLabel } from "../participant-label.js";
 
 /** 小さなダーク用ボタン。RosterPanel 内の改名/離脱/外す等のコンパクト操作用。
  * 行操作はサーバー往復で反映されるため、押下フィードバックが無いと「効いていない」ように見える。
@@ -84,6 +84,9 @@ interface RosterPanelProps {
   /** 任意メンバーを現ドライバーに指名する（Issue #13）。
    *  未指定なら指名ボタンを描画しない（ソロ等の非対応コンシューマ向け）。 */
   onAssignDriver?: ((participantId: string) => void) | undefined;
+  /** 輪の席（`session.seats`・#276 D2）。呼び名の同名判定プールに使う（敵対的レビュー #276 指摘1）。
+   *  未指定なら `participants` のみで判定する（ソロ等 seats を持たないコンシューマ向け）。 */
+  seats?: readonly Seat[] | undefined;
 }
 
 export function RosterPanel({
@@ -101,7 +104,12 @@ export function RosterPanel({
   onMove,
   onAssignDriver,
   scrollable = false,
+  seats,
 }: RosterPanelProps) {
+  // 呼び名の同名判定プール（`participant-label.ts` に1つだけ置く規則の呼び出し口）。
+  // `participants` だけだと、輪に席は残るが timer 画面には居ない離席者を取りこぼし、
+  // 交代順ストリップ（`rotation-names.ts`）とここで判定結果がずれる（敵対的レビュー #276 指摘1）。
+  const pool = labelPool(seats ?? [], participants);
   const [proxyName, setProxyName] = useState("");
   const [showProxyInput, setShowProxyInput] = useState(false);
   // 改名中の参加者 ID と編集中の名前（同時に1人だけ編集できる）
@@ -174,8 +182,9 @@ export function RosterPanel({
     const rotationLen = rotation?.length ?? 0;
     // 同名が並ぶときだけ識別子を添える（FR-084・規則は participant-label.ts に1つだけ）。
     // 退出だけでなく全ての操作に使う。同名の行は順番バッジ以外の見た目が同じで、
-    // 「どちらに効く操作なのか」を名前だけでは選べない。
-    const label = participantLabel(p.displayName, p.participantId, participants);
+    // 「どちらに効く操作なのか」を名前だけでは選べない。判定対象は pool
+    // （seats と participants の和集合）で、この画面に表示中の participants だけではない。
+    const label = participantLabel(p.displayName, p.participantId, pool);
     // 並べ替えはドライバーが2人以上いるときだけ意味を持つ。
     const canMove = inRotation && rotationLen > 1 && !!onMove;
 
@@ -339,7 +348,7 @@ export function RosterPanel({
       {pendingRemoval && onRemove && (
         <RemovalConfirmDialog
           pendingRemoval={pendingRemoval}
-          participants={participants}
+          participants={pool}
           isShared={isShared}
           onConfirm={(id) => {
             onRemove(id);

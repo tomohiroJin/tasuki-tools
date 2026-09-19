@@ -3,12 +3,12 @@ import { computeRotationStatus } from "../../src/ui/rotation-status.js";
 
 describe("computeRotationStatus", () => {
   /** rotation の枠は識別子＋表示名の対（D6b）。 */
-  const mk = (id: string, name: string, label = name, isAway = false) => ({
-    participantId: id, displayName: name, label, isAway,
+  const mk = (id: string, name: string, label = name, skipReason: "away" | null = null) => ({
+    participantId: id, displayName: name, label, skipReason,
   });
   const base = {
     rotation: [mk("p1", "Alice"), mk("p2", "Bob"), mk("p3", "Carol")],
-    currentIndex: 0, intervalSeconds: 300, selfIndex: 2, isPaused: false,
+    currentIndex: 0, nextIndex: 1, intervalSeconds: 300, selfIndex: 2, isPaused: false,
   };
 
   it("turnsAway は現在を 0 として循環する", () => {
@@ -71,12 +71,61 @@ describe("computeRotationStatus", () => {
 
   it("timer に居ない席かどうかを枠からそのまま引き継ぐ", () => {
     // Given（Bob だけが選択画面へ戻っている）
-    const rotation = [mk("p1", "Alice"), mk("p2", "Bob", "Bob", true), mk("p3", "Carol")];
+    const rotation = [mk("p1", "Alice"), mk("p2", "Bob", "Bob", "away"), mk("p3", "Carol")];
 
     // When
-    const r = computeRotationStatus({ ...base, rotation });
+    const r = computeRotationStatus({ ...base, rotation, nextIndex: 2 });
 
     // Then（画面は「なぜ番が飛ぶか」をここから引く）
-    expect(r.members.map((m) => m.isAway)).toEqual([false, true, false]);
+    expect(r.members.map((m) => m.skipReason)).toEqual([null, "away", null]);
+  });
+});
+
+describe("飛ばされる席を数えない（#276 E3 / D13）", () => {
+  // 輪: [アリス(現), ボブ(切断), カルロス, ダイア]
+  const rotation = [
+    { participantId: "a", displayName: "アリス", label: "アリス", skipReason: null },
+    { participantId: "b", displayName: "ボブ", label: "ボブ", skipReason: "disconnected" as const },
+    { participantId: "c", displayName: "カルロス", label: "カルロス", skipReason: null },
+    { participantId: "d", displayName: "ダイア", label: "ダイア", skipReason: null },
+  ];
+  const status = () =>
+    computeRotationStatus({
+      rotation, currentIndex: 0, nextIndex: 2, intervalSeconds: 300, selfIndex: 3, isPaused: false,
+    });
+
+  it("飛ばされる席は turnsAway を持たない", () => {
+    expect(status().members[1]!.turnsAway).toBe(null);
+    expect(status().members[1]!.minutesAway).toBe(null);
+  });
+
+  it("飛ばされる席を挟んだ先は、その席を数に入れない", () => {
+    // カルロスは「次」。素朴な計算なら 2 になるところ。
+    expect(status().members[2]!.turnsAway).toBe(1);
+    expect(status().members[3]!.turnsAway).toBe(2);
+  });
+
+  it("minutesAway も詰まった数から出す", () => {
+    expect(status().members[3]!.minutesAway).toBe(10); // 2 順 × 5 分
+  });
+
+  it("isNext はサーバーの nextIndex と一致する席だけ", () => {
+    expect(status().members.map((m) => m.isNext)).toEqual([false, false, true, false]);
+  });
+
+  it("現ドライバーは飛ばされる状態でも turnsAway が 0", () => {
+    const r = [{ ...rotation[0]!, skipReason: "away" as const }, ...rotation.slice(1)];
+    const s = computeRotationStatus({
+      rotation: r, currentIndex: 0, nextIndex: 2, intervalSeconds: 300, selfIndex: 0, isPaused: false,
+    });
+    expect(s.members[0]!.turnsAway).toBe(0);
+    expect(s.members[0]!.isCurrent).toBe(true);
+  });
+
+  it("nextIndex が null なら isNext はどこにも立たない", () => {
+    const s = computeRotationStatus({
+      rotation, currentIndex: 0, nextIndex: null, intervalSeconds: 300, selfIndex: 3, isPaused: false,
+    });
+    expect(s.members.some((m) => m.isNext)).toBe(false);
   });
 });

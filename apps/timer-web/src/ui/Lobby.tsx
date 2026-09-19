@@ -18,7 +18,7 @@ import { AiUnlockPanel } from "./components/AiUnlockPanel.js";
 import { EmptyHint } from "./components/EmptyHint.js";
 import { ProblemModeToggle } from "./components/ProblemModeToggle.js";
 import { NotifySettingsPanel } from "./components/NotifySettingsPanel.js";
-import { participantLabel } from "./participant-label.js";
+import { labelPool, participantLabel } from "./participant-label.js";
 import { PresenceDot } from "./components/PresenceDot.js";
 import { presenceLabel } from "./presence.js";
 import { RemovalConfirmDialog } from "./components/RemovalConfirmDialog.js";
@@ -114,6 +114,11 @@ export function Lobby({
     ? room.participants.find((p) => p.participantId === pendingRemovalId) ?? null
     : null;
 
+  // 呼び名の同名判定プール（`participant-label.ts` に1つだけ置く規則の呼び出し口）。
+  // `room.participants` だけだと、輪に席は残るが timer 画面には居ない離席者を取りこぼし、
+  // Session 側（RosterPanel・交代順ストリップ）と判定結果がずれる（敵対的レビュー #276 指摘1）。
+  const labelParticipantPool = labelPool(room.session.seats, room.participants);
+
   // 通知設定（ロビーのカードで直接編集できるよう、ライブ購読）。
   const notifyPrefs = useNotifyPreferences();
 
@@ -136,7 +141,7 @@ export function Lobby({
       {pendingRemoval && onRemoveParticipant && (
         <RemovalConfirmDialog
           pendingRemoval={pendingRemoval}
-          participants={room.participants}
+          participants={labelParticipantPool}
           isShared={true}
           onConfirm={(id) => {
             onRemoveParticipant(id);
@@ -212,7 +217,7 @@ export function Lobby({
                     // 同名が並ぶときだけ識別子を添える（FR-084・規則は participant-label.ts に1つだけ）。
                     // 二重参加の幽霊は本人と同名なので、名前だけでは操作の対象を選べない。
                     // 表示にも使う: 同名の行はバッジもアイコンも同じで、目で見ても区別できないため。
-                    const label = participantLabel(p.displayName, p.participantId, room.participants);
+                    const label = participantLabel(p.displayName, p.participantId, labelParticipantPool);
                     return (
                       <li
                         key={p.participantId}

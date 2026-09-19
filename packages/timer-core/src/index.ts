@@ -59,7 +59,9 @@ export type {
 } from "./aggregate.js";
 export { secondsLeft, initialAggregate, rotationEntryId } from "./aggregate.js";
 // wire の投影（クライアントへ送る形。ドメインの集約ではない・#95 S4a）
-export type { Room, Participant, SessionConfig } from "./wire.js";
+// Seat / SeatSkipReason は #276 D2 で追加。apps/timer-web と apps/tasuki-sync の両方が
+// 取り込むため、サブパスではなく index に載せる（他の wire 型と同じ扱い）。
+export type { Room, Participant, SessionConfig, Seat, SeatSkipReason } from "./wire.js";
 export { ERROR_MESSAGES, displayMessageFor, errorMessageFor } from "./error-messages.js";
 // イベント
 export type {

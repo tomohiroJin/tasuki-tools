@@ -14,7 +14,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, within, act } from "@testing-library/react";
 import React from "react";
 import { Session } from "../../src/ui/Session.js";
-import type { Room, Participant, SessionConfig } from "@tasuki/timer-core";
+import type { Room, Participant, Seat, SessionConfig } from "@tasuki/timer-core";
 import { saveNotifyPreferences, loadNotifyPreferences } from "../../src/prefs/local-prefs.js";
 import { aRoomView } from "../support/room-view.js";
 
@@ -215,6 +215,46 @@ describe("Session × RosterPanel 結合", () => {
     fireEvent.click(within(aliceItem).getByRole("button", { name: /ドライバーにする/ }));
     // Then
     expect(handlers.onDriverAssign).toHaveBeenCalledWith("p-alice");
+  });
+});
+
+/**
+ * @requirements 敵対的レビュー #276 指摘1
+ */
+describe("参加者一覧と現ドライバー表示は同じ人を同じ呼び方で示す", () => {
+  it("離席した同名がいても、名簿一覧と現ドライバー表示が同じ識別子付き呼び名を使う", () => {
+    // Given（輪に同名「Bob」が2人。bob2222 は選択画面へ戻り participants から消えている
+    // が・#95 S5a、席（seats）は輪に残っている・#276）
+    const room: Room = aRoomView({
+      code: "AA0001",
+      config: { members: ["Bob", "Bob"] },
+      session: {
+        rotation: ["bob1111", "bob2222"],
+        currentIndex: 0,
+        driverCounts: [0, 0],
+        seats: [
+          { id: "bob1111", displayName: "Bob", isProxy: false, skipReason: null },
+          { id: "bob2222", displayName: "Bob", isProxy: false, skipReason: "away" },
+        ] satisfies Seat[],
+      },
+      phase: "session",
+      participants: [makeParticipant({ participantId: "bob1111", displayName: "Bob" })],
+    });
+
+    // When
+    render(<Session inviteUrl={INVITE_URL_FOR_TEST} room={room} participantId="bob1111" {...baseHandlers()} />);
+
+    // Then（CURRENT DRIVER 見出しは rotation-names.ts の pool（seats と participants の和集合）
+    // で既に識別子付きの呼び名を出している。名簿一覧（RosterPanel）が participants だけで
+    // 別に判定していると、同じ Bob なのに一覧側だけ識別子が付かない —— 通知や見出しで
+    // 名指しされた人が、一覧のどの行だったのか辿れなくなる（実機で確認された非対称）。
+    const expectedLabel = "Bob（ID: 1111）";
+    const heading = screen.getByText(/current driver/i);
+    const headingPanel = heading.closest("div")?.parentElement ?? heading.parentElement!;
+    expect(headingPanel.textContent).toContain(expectedLabel);
+
+    const driverList = screen.getByRole("list", { name: "ドライバー一覧" });
+    expect(within(driverList).getByText(expectedLabel)).toBeTruthy();
   });
 });
 

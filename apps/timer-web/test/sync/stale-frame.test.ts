@@ -47,4 +47,13 @@ describe("indicatesStaleRoom", () => {
   it("1 つでも当てはまれば画面を古くする", () => {
     expect(indicatesStaleRoom(["message", "room.phase"])).toBe(true);
   });
+
+  /**
+   * @requirements #276 D7
+   */
+  it("session の項目が落ちた経路は、画面が古い側へ倒れる", () => {
+    // `seats` を必須にすると、旧サーバーの snapshot はこの経路で落ちる。
+    expect(indicatesStaleRoom(["room.session.seats"])).toBe(true);
+    expect(indicatesStaleRoom(["room.session.nextIndex"])).toBe(true);
+  });
 });

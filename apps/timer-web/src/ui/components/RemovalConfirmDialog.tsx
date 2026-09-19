@@ -7,13 +7,15 @@
  */
 
 import type { Participant } from "@tasuki/timer-core";
-import { participantLabel } from "../participant-label.js";
+import { participantLabel, type LabelParticipant } from "../participant-label.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 
 interface RemovalConfirmDialogProps {
   /** 確認対象（居なければ何も描画しない）。identity のみで participants から都度引く既存設計を維持する。 */
   pendingRemoval: Participant | null;
-  participants: readonly Participant[]; // participantLabel の同名判定に必要
+  // participantLabel の同名判定に必要。呼び出し側が seats を含めた pool（`labelPool`）を
+  // 渡せるよう Participant 全体ではなく LabelParticipant の配列を受ける（敵対的レビュー #276 指摘1）。
+  participants: readonly LabelParticipant[];
   isShared: boolean; // Lobby は常に true を渡し、現状の文言を変えない
   onConfirm: (participantId: string) => void;
   onCancel: () => void;

@@ -533,6 +533,7 @@ export function useTimerSync(banner: BannerController): TimerSync {
     const text = buildNoticeMessage(notice, {
       selfParticipantId: participantId,
       participants: room?.participants ?? [],
+      seats: room?.session.seats ?? [],
     });
     showBanner(text, "warn");
   };

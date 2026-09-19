@@ -334,6 +334,16 @@ const ServerClockSchema = v.object({
   runningSince: v.nullable(v.number()),
 });
 
+// #276 D2: displayName に nonEmptyString を使わない。名簿から引けない席は
+// 空文字になりうる（設計 §3.3 の縮退）ため、ここで弾くと名前が引けない席が
+// あるだけで snapshot 全体が落ちてしまう。
+const SeatSchema = v.object({
+  id: nonEmptyString,
+  displayName: v.string(),
+  isProxy: v.boolean(),
+  skipReason: v.nullable(v.picklist(["stood-down", "away", "disconnected"])),
+});
+
 // T057: 自ファイル内でのみ使われるため export を外した（FR-119③・SC-039）。
 const SessionStateSchema = v.object({
   rotation: v.array(v.string()),
@@ -341,6 +351,12 @@ const SessionStateSchema = v.object({
   isPaused: v.boolean(),
   driverCounts: v.array(v.pipe(v.number(), v.integer(), v.minValue(0))),
   totalSwitches: v.pipe(v.number(), v.integer(), v.minValue(0)),
+  // #276 D7: 任意にしない。省略可にすると画面側にフォールバック経路が残り、
+  // 「サーバーが送る席」と「config.members から補う席」の 2 経路が戻る。
+  // 配布時の窓・後方互換の扱いは台帳を参照する
+  // （`apps/tasuki-sync/src/application/timer-snapshot-dto.ts` の項目 7）。
+  seats: v.array(SeatSchema),
+  nextIndex: v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0))),
 });
 
 // T057: 自ファイル内でのみ使われるため export を外した（FR-119③・SC-039）。

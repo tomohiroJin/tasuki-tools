@@ -8,16 +8,20 @@
 #       (diff のパスはリポジトリルート起点。mutation-check.mjs もリポジトリルートで実行する)
 # 復元: git checkout -- <対象ファイル>（同じくリポジトリルートから）
 #
+# ⚠ #276 の呼び名プールの統一（labelPool・敵対的レビュー #276 指摘1）で
+# label() の周辺行が変わり、当て直した（行番号が 35→43 にずれただけで、
+# 反転する条件式そのものは元のパッチと一字一句同じ）。
+#
 diff --git a/apps/timer-web/src/sync/notice-message.ts b/apps/timer-web/src/sync/notice-message.ts
-index 45bf5b1..d6d9109 100644
+index 9c111a1..0436b8b 100644
 --- a/apps/timer-web/src/sync/notice-message.ts
 +++ b/apps/timer-web/src/sync/notice-message.ts
-@@ -35,7 +35,7 @@ function label(
+@@ -43,7 +43,7 @@ function label(
    participantId: string,
    ctx: NoticeContext,
  ): string {
 -  if (participantId === ctx.selfParticipantId) return "あなた";
 +  if (participantId !== ctx.selfParticipantId) return "あなた";
-   return participantLabel(name, participantId, ctx.participants, "さん");
+   const pool = labelPool(ctx.seats ?? [], ctx.participants);
+   return participantLabel(name, participantId, pool, "さん");
  }
- 

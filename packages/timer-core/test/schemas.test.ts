@@ -31,6 +31,14 @@ function baseRoom(): Record<string, unknown> {
       isPaused: false,
       driverCounts: [0, 0, 0],
       totalSwitches: 0,
+      // #276 D7: seats は rotation と同じ順・同じ長さ（この Room の主題は
+      // seats/nextIndex 自体ではないため、輪と揃った最小値を置く）。
+      seats: [
+        { id: "A", displayName: "A", isProxy: false, skipReason: null },
+        { id: "B", displayName: "B", isProxy: false, skipReason: null },
+        { id: "C", displayName: "C", isProxy: false, skipReason: null },
+      ],
+      nextIndex: 1,
     },
     clock: {
       running: false,
@@ -274,5 +282,80 @@ describe("ServerMsgSchema signal: notice（実行者の通知）", () => {
     const result = v.safeParse(ServerMsgSchema, message);
     // Then
     expect(result.success).toBe(true);
+  });
+});
+
+// ─── RoomSchema の seats / nextIndex（#276 D7） ────────────────────────────
+
+/** 最小の妥当な wire ルーム。seats / nextIndex を持つ。 */
+function validRoom() {
+  return {
+    code: "mob-a1b2c3d4",
+    createdAt: 0,
+    config: { language: "TypeScript", difficulty: "easy", intervalMinutes: 5, members: ["アリス"] },
+    problem: null,
+    session: {
+      rotation: ["p_alice"],
+      currentIndex: 0,
+      isPaused: false,
+      driverCounts: [0],
+      totalSwitches: 0,
+      seats: [{ id: "p_alice", displayName: "アリス", isProxy: false, skipReason: null }],
+      // 型推論だけだと number に固定され、後段の「null を取れる」テストが代入できない
+      // （型検査が拾う。テストの造作なので product 側の型は変えない）。
+      nextIndex: 0 as number | null,
+    },
+    clock: {
+      running: false,
+      intervalSeconds: 300,
+      anchorServerTime: 0,
+      secondsLeftAtAnchor: 300,
+      accumulatedElapsedMs: 0,
+      runningSince: null,
+    },
+    phase: "ready",
+    participants: [],
+    sessionRecords: [],
+    handoffNote: "",
+    onBreak: false,
+  };
+}
+
+describe("RoomSchema の seats / nextIndex（#276 D7）", () => {
+  it("揃っていれば通る（対照実行）", () => {
+    expect(v.safeParse(RoomSchema, validRoom()).success).toBe(true);
+  });
+
+  it("seats が欠けたら落ちる", () => {
+    const room = validRoom();
+    delete (room.session as Record<string, unknown>).seats;
+    expect(v.safeParse(RoomSchema, room).success).toBe(false);
+  });
+
+  it("nextIndex が欠けたら落ちる", () => {
+    const room = validRoom();
+    delete (room.session as Record<string, unknown>).nextIndex;
+    expect(v.safeParse(RoomSchema, room).success).toBe(false);
+  });
+
+  it("nextIndex は null を取れる（全席が不適格・D6）", () => {
+    const room = validRoom();
+    room.session.nextIndex = null;
+    expect(v.safeParse(RoomSchema, room).success).toBe(true);
+  });
+
+  it("skipReason は 3 語と null だけを受ける", () => {
+    const room = validRoom();
+    room.session.seats[0]!.skipReason = "見送り" as never;
+    expect(v.safeParse(RoomSchema, room).success).toBe(false);
+  });
+
+  // #276 D2: displayName は nonEmptyString ではなく v.string()。名簿から引けない
+  // 席は空文字になりうる（設計 §3.3 の縮退）ため、ここで弾くと**名前が引けない席が
+  // あるだけで snapshot 全体が落ちる**。いまはコメントだけが守っている性質を固定する。
+  it("seats の displayName は空文字を許す（名簿から引けない席の縮退）", () => {
+    const room = validRoom();
+    room.session.seats[0]!.displayName = "";
+    expect(v.safeParse(RoomSchema, room).success).toBe(true);
   });
 });

@@ -26,13 +26,7 @@ import {
 // 表示名の規約はメンバーシップ文脈（room-core）が持つ（#95 S1・docs/adr/0017 決定 2）。
 // アプリ層が上流の文脈へ依存するのは決定 2 の対象外で、許されている。
 // S4a で名簿そのものもこの文脈が持つようになった。
-import {
-  conflictsWithExisting,
-  findParticipantByConnId,
-  isPresentIn,
-  type Room as MembershipRoom,
-} from "@tasuki/room-core";
-import { TOOL_TIMER } from "./tool-id.js";
+import { conflictsWithExisting, findParticipantByConnId } from "@tasuki/room-core";
 import type { RateLimiter } from "@tasuki/rate-limit";
 import type { Clock } from "../ports/clock.js";
 import type { Broadcaster } from "../ports/broadcaster.js";
@@ -46,7 +40,12 @@ import { saveRoster } from "./save-roster.js";
 import type { HubBroadcaster } from "../ports/hub-broadcaster.js";
 import type { TokenStore } from "./token-store.js";
 import { applyEvents, type RoomState } from "./apply-room-level-event.js";
-import { buildTimerSnapshotRoom, occupants, rotationDisplayNames } from "./timer-snapshot-dto.js";
+import {
+  buildTimerSnapshotRoom,
+  computeIneligibleIndices,
+  occupants,
+  rotationDisplayNames,
+} from "./timer-snapshot-dto.js";
 import { buildDomainCommand } from "./build-domain-command.js";
 import { createRoomCreateHandler, type CreateResult } from "./command-handlers/room-create.js";
 import { createRoomJoinHandler, type JoinResult } from "./command-handlers/room-join.js";
@@ -893,46 +892,6 @@ function buildShuffleOrder(len: number, running: boolean, currentIndex: number):
     order.push(pos === currentIndex ? currentIndex : others[cursor++]!);
   }
   return order;
-}
-
-// ─── ドライバー対象外の判定 ──────────────────────────────────────────────────
-
-/**
- * ドライバー対象外の rotation インデックス集合を返す（#95 S4a、判定は S4b で在席へ）。
- *
- * **適格は席が持ち、在席は名簿が持つ。** 一時離脱（`entry.eligible === false`）は
- * 輪の上の属性なので席から、タイマーの前に居るかは名簿から引く。
- *
- * ## `presence` では判定しない（D21）
- *
- * S4a までは `presence === "offline"` を「timer を見ていない」と読んでいた。参加者が
- * 持てる接続が timer のものだけだった間は同義だったが、**1 人が選択画面（ハブ）や
- * poker のタブを持てるようになると崩れる** —— その人は `online` なのにタイマーの前には
- * 居ないので、**タイマーを見ていない人にドライバーが回る**。
- *
- * 判定材料を timer の在席（`isPresentIn(p, TOOL_TIMER)`）へ替えてある。
- * ハブがまだ無い S4b の時点でも、選択画面とツールの 2 タブを開いた利用者が
- * 片方を閉じた瞬間にこの差が出る。
- *
- * **代理（`kind === "proxy"`）は在席の概念を持たないので常に対象である。** Web 非接続が
- * 常態で、対面に居る実在の人を表すため（外すとタイマー自動交代で永久に飛ばされる）。
- *
- * 対象者が 0 名になった場合は呼び出し側（`advanceDriver` / `decide`）が現状維持に
- * 縮退する（R15）。ここでは「全員が対象外」という集合をそのまま返す。
- */
-function computeIneligibleIndices(membership: MembershipRoom, timer: TimerState): Set<number> {
-  const watchingTimer = new Set(
-    membership.participants.filter((p) => isPresentIn(p, TOOL_TIMER)).map((p) => p.id),
-  );
-  const set = new Set<number>();
-  timer.session.rotation.forEach((entry, i) => {
-    if (entry.eligible === false) {
-      set.add(i);
-      return;
-    }
-    if (entry.kind === "member" && !watchingTimer.has(entry.participantId)) set.add(i);
-  });
-  return set;
 }
 
 // ─── ルームレベルのイベント適用 ──────────────────────────────────────────────

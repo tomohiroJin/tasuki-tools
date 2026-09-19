@@ -1,0 +1,22 @@
+# 変異 41: seat-skip-reason-ignores-standdown
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/timer-snapshot-dto.test.ts
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m41-*.patch
+#       (diff のパスはリポジトリルート起点。mutation-check.mjs もリポジトリルートで実行する)
+# 復元: git checkout -- <対象ファイル>（同じくリポジトリルートから）
+#
+diff --git a/apps/tasuki-sync/src/application/timer-snapshot-dto.ts b/apps/tasuki-sync/src/application/timer-snapshot-dto.ts
+index 16603c8..7032667 100644
+--- a/apps/tasuki-sync/src/application/timer-snapshot-dto.ts
++++ b/apps/tasuki-sync/src/application/timer-snapshot-dto.ts
+@@ -187,7 +187,6 @@ function seatSkipReason(
+   watchingTimer: ReadonlySet<string>,
+   byId: ReadonlyMap<string, MembershipParticipant>,
+ ): SeatSkipReason | null {
+-  if (entry.eligible === false) return "stood-down";
+   if (entry.kind === "proxy") return null;
+   if (watchingTimer.has(entry.participantId)) return null;
+   // 名簿に居ない席は「どこに居るか分からない」。接続数を問えないので切断として扱う。

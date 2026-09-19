@@ -116,7 +116,11 @@ describe("advanceForAbsence: ドライバー不在の自動繰上", () => {
     handlers.advanceForAbsence(code);
 
     // Then
-    expect(roomViewOf(store, timers, code).session.currentIndex).toBe(0);
+    const after = roomViewOf(store, timers, code);
+    expect(after.session.currentIndex).toBe(0);
+    // 全席不適格は nextIndex を null へ縮退させる唯一の関門（D6・レビュー指摘2）。
+    // ここを外すと ineligible.size === seats.length の比較が壊れても誰も気づかない。
+    expect(after.session.nextIndex).toBeNull();
   });
 
   it("オフライン driver は交代対象から外れる（次が offline なら飛ばして現状維持）", async () => {
@@ -131,5 +135,36 @@ describe("advanceForAbsence: ドライバー不在の自動繰上", () => {
 
     // Then（B(1) は offline で ineligible のため飛ばされ、交代先が無く現状維持）
     expect(roomViewOf(store, timers, code).session.currentIndex).toBe(0);
+  });
+
+  // computeIneligibleIndices と seats[].skipReason は同じ関数（seatSkipReason）から
+  // 出るので、両者が一致するというテストは恒真になる（#276 Step 6）。ここは判定を
+  // 直接呼ばず、SWITCH コマンドで実際に交代を起こし、飛ばされた結果を見る。
+  /**
+   * @requirements #276 E1, E2
+   */
+  it("切断した席は交代で飛ばされ、seats に理由が載り、nextIndex がその先を指す", async () => {
+    // Given: 輪は A(現・在席) → B(切断) → C(在席)。B には接続を持たせない。
+    const code = await setupRunningRoom(handlers, store, timers, ["A", "B", "C"], 0, {
+      A: "online",
+      B: "offline",
+      C: "online",
+    });
+
+    // 交代前に nextIndex の判定力を確かめる（レビュー指摘1）。currentIndex=0・ineligible={1}・
+    // len=3 のこの局面は、正しい nextEligibleIndex は 2（Bを飛ばす）を返すが、wire.ts が
+    // 「使ってはならない」と書く素朴な (currentIndex+1)%len は 1 を返す —— 両者が分岐する
+    // 局面でしか、この関門が本物の判定を持っているかは確かめられない。交代後（currentIndex=2）
+    // まで待つと ineligible={1} の効果が (2+1)%3=0 という「たまたま同じ答え」に隠れてしまう。
+    expect(roomViewOf(store, timers, code).session.nextIndex).toBe(2); // 素朴な (cur+1)%len なら 1 になるはず
+
+    // When（交代を実際に起こす。判定を直接呼ばない）
+    await handlers.handleCommand("conn-0", { command: "session.act", action: "SWITCH" });
+
+    // Then
+    const after = roomViewOf(store, timers, code);
+    expect(after.session.currentIndex).toBe(2); // Bを飛ばした
+    expect(after.session.seats[1]!.skipReason).toBe("disconnected"); // 理由が載っている
+    expect(after.session.nextIndex).toBe(0); // 次はAへ戻る
   });
 });

@@ -54,6 +54,28 @@ export interface Participant {
   driverEligible?: boolean;
 }
 
+/** 席が飛ばされる理由。null は「番が回る」。優先順位は stood-down が先（#276 D3）。 */
+export type SeatSkipReason = "stood-down" | "away" | "disconnected";
+
+/**
+ * 交代の輪の席 1 つ（#276 D2）。
+ *
+ * `rotation` と**同じ順・同じ長さ**で、同じ場所（`buildTimerSnapshotRoom`）が両方を組む。
+ * `id` を自分で持つので、画面は添字ではなく識別子で照合できる ——
+ * `config.members` の「長さが一致するときだけ添字で引く」という応急処置（S5c）は
+ * 輪の表示から外れる。
+ *
+ * `displayName` は**絞っていない名簿**から引く。`participants` は timer の在席者に
+ * 絞られているため（R5 / R6）、離席した人の名前はそこからは引けない。
+ */
+export interface Seat {
+  id: string;
+  displayName: string;
+  /** Web 非接続の代理か（`Participant.isPlaceholder` と同じ意味） */
+  isProxy: boolean;
+  skipReason: SeatSkipReason | null;
+}
+
 /** ルーム全体（wire） */
 export interface Room {
   code: string;
@@ -67,6 +89,16 @@ export interface Room {
     isPaused: boolean;
     driverCounts: number[];
     totalSwitches: number;
+    /** 席ごとの表示名と「番が回らない理由」（#276 D2）。rotation と同じ順・同じ長さ。 */
+    seats: Seat[];
+    /**
+     * 次の交代で**実際に**ドライバーになる席の添字（#276 D6）。
+     *
+     * 輪が空、または全席が不適格なら `null`（サーバーは現状維持へ縮退する・R15）。
+     * 画面はこれを使うこと。`(currentIndex + 1) % len` は飛ばされる席を数に入れるので
+     * サーバーの決定と食い違う。
+     */
+    nextIndex: number | null;
   };
   clock: ServerClock;
   phase: RoomPhase;

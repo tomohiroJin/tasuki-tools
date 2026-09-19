@@ -140,6 +140,14 @@ TASUKI_SSH_HOST=<ホスト別名> ./deploy/deploy.sh poker
 ⚠ **`deploy.sh timer` の再起動は poker のルームも道連れにする**（同期サーバーが 1 本・#95 S2）。
 揮発インメモリなので、**利用者が使っていない時間帯に 3 つまとめて配ること**。
 
+⚠ **`deploy.sh timer` は #276 でも配布順序の窓を持つ（上の S5c の 3 系統とは別件）。**
+`timer` の内部は web dist の転送 → `server.js` の転送 → 再起動の順に進むため、その間に
+新規に読み込み・再読み込みした画面は「最新ではありません」を見ることがある
+（`seats` / `nextIndex` が `RoomSchema` で必須化されたため。理由と仕組みは設計文書
+[`../../docs/superpowers/specs/2026-09-18-rotation-seat-and-presence-design.md`](../../docs/superpowers/specs/2026-09-18-rotation-seat-and-presence-design.md)
+の §7 を参照）。窓は再起動で閉じ、再起動自体がルームを全消滅させるので影響は
+配布中の数十秒に留まる。**この順序は変更しない。**
+
 ## #95 S4a を配布するときに 1 度だけ行うこと
 
 **本番の `app.env`（`/opt/tasuki/tasuki-sync.env`）の `MAX_ROOMS` を 100 に書き換える。**

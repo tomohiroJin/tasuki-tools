@@ -150,6 +150,11 @@ export const MUTATIONS = [
     patch: "m09-build-notice-message-invert.patch",
     pkg: "apps/timer-web",
     tests: ["test/sync/notice-message.test.ts"],
+    note:
+      "#276 の呼び名プールの統一（labelPool・敵対的レビュー #276 指摘1）で label() 周辺に" +
+      "行が足されて当たらなくなったので当て直した。反転する条件式" +
+      "（`participantId === ctx.selfParticipantId` → `!==`）自体は元のパッチと一字一句同じで、" +
+      "作る欠陥（実行者が自分なのに「あなた」と出ない／他人なのに「あなた」と出る）も変わらない。",
   },
   {
     id: 10,
@@ -527,6 +532,28 @@ export const MUTATIONS = [
       "恒久的に塞ぐ。殺すのは 2 つの経路である —— 遅れて届いた `phase.set session` で " +
       "**始まったばかりのセッションがお題を失う**ことと、お題を使わない設定のルームで " +
       "**落としたきり誰も埋めず完成記録が消える**こと。",
+  },
+  {
+    id: 41,
+    label: "seatSkipReason から一時離脱の優先を削る",
+    patch: "m41-seat-skip-reason-ignores-standdown.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/timer-snapshot-dto.test.ts"],
+    note:
+      "#276 D3。一時離脱（entry.eligible === false）は在席より先に見る。" +
+      "削ると、timer に在席したまま一時離脱している人の理由が null（番が回る）に" +
+      "化けるか、away/disconnected という別の理由に化ける。" +
+      "**画面が言う理由とサーバーの判断がずれる**という #276 そのものの欠陥。",
+  },
+  {
+    id: 42,
+    label: "snapshot の nextIndex を (currentIndex + 1) % len へ戻す",
+    patch: "m42-next-index-naive.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/timer-snapshot-dto.test.ts", "test/handlers.driver-advance.test.ts"],
+    note:
+      "#276 が直した欠陥そのもの。飛ばされる席を数に入れるため、画面が出す「次」と" +
+      "実際の交代先が食い違う。殺せないなら、直したことの証拠が無い。",
   },
 ];
 
