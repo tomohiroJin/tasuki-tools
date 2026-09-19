@@ -36,7 +36,7 @@ function cssFiles() {
  */
 function definedSteps() {
   const css = readFileSync(resolve(SRC, 'tokens/typography.css'), 'utf8');
-  return [...css.matchAll(/^\s*(--font-size-[a-z]+)\s*:/gm)].map((m) => m[1]);
+  return [...css.matchAll(/^\s*(--font-size-[a-z0-9-]+)\s*:/gm)].map((m) => m[1]);
 }
 
 /**
@@ -120,4 +120,16 @@ test('font-size は 5 段のトークンを参照するか、同じ行に理由�
     [],
     '5 段へ寄せるか、同じ行に `/* scale-exempt: 理由 */` を書くこと（設計正本 D6）',
   );
+});
+
+test('参照している段が typography.css に実在する', () => {
+  // Given
+  const steps = new Set(definedSteps());
+  // When（打ち間違いは CSS では黙って無効になり、継承値で描かれる）
+  const unknown = declarations()
+    .map((d) => ({ d, m: /^var\(\s*(--font-size-[a-z-]+)\s*\)$/.exec(d.value) }))
+    .filter(({ m }) => m !== null && !steps.has(m[1]))
+    .map(({ d, m }) => `${d.file}:${d.line}  ${m[1]}`);
+  // Then
+  assert.deepEqual(unknown, [], '存在しない段を参照している');
 });
