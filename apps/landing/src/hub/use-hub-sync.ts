@@ -63,18 +63,32 @@ const LEGACY_PREFERENCES_KEY = 'tdd-mob:preferences:v1';
  * `loadResumeIdentity`（壊れた組を捨てる読み）をそのまま呼んでいる。
  */
 function takeDefaultDisplayName(): string {
+  dropLegacyPreferences();
+  const stored = loadDefaultDisplayName();
+  const usable = usableDefaultDisplayName(stored);
+  // 空文字を渡すと鍵ごと消える（`saveDefaultDisplayName` の約束）。
+  if (usable !== stored) saveDefaultDisplayName(usable);
+  return usable;
+}
+
+/**
+ * timer 時代の設定を落とす。**落とせなくても先へ進む。**
+ *
+ * 保管庫そのものが使えない端末がある（cookie を全面禁止した Chrome では**読むだけで**
+ * `SecurityError` が飛び、容量超過では書き込みが投げる）。ここで投げると玄関は描画の
+ * 初期化子でそれを踏み、**画面ごと真っ白になる** ——「片付けができない」は利用者に
+ * 見せる話ではない（EARS 3）。
+ *
+ * **例外はここで飲み切る。** 呼び手（{@link takeDefaultDisplayName}）をまとめて try で
+ * 包まないのは、そうすると**片付けの失敗が前回の名前を道連れにする**ためである
+ * （読み書きはできるのに消去だけが拒まれる端末では、名前は読めていたはずである）。
+ * 読み書きの側は `@tasuki/sync-client` が自分で飲み込むので、生の保管庫操作はここだけになる。
+ */
+function dropLegacyPreferences(): void {
   try {
     localStorage.removeItem(LEGACY_PREFERENCES_KEY);
-    const stored = loadDefaultDisplayName();
-    const usable = usableDefaultDisplayName(stored);
-    // 空文字を渡すと鍵ごと消える（`saveDefaultDisplayName` の約束）。
-    if (usable !== stored) saveDefaultDisplayName(usable);
-    return usable;
   } catch {
-    // 保管庫そのものが使えない端末（cookie 全面禁止・容量超過）。**既定が無いのと
-    // 同じ扱いにする**（EARS 3）—— ここで投げると玄関が真っ白になる。
-    // `@tasuki/sync-client` 側は自分で飲み込むので、残るのは上の `removeItem` だけである。
-    return '';
+    // 使えない保管庫。落とせないだけで、名乗ること自体はできる
   }
 }
 
