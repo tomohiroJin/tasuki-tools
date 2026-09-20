@@ -210,10 +210,10 @@ describe("ProblemDelegator: 生成中はサーバー権威（#283）", () => {
     // Then: **生成中 → 確定の 2 本**が、この順で届く。
     //
     // かつてここは「見せる『間』が無いなら 1 本で済ませる」として確定だけを送っていた。
-    // ところが **65 秒の安全弁も押下側の局所スピナーも落とした**後なので、
-    // その形だと**押しても画面が一瞬も反応しない** —— `pickFallback` が同じ候補を
-    // 引いた回は結果も変わらないので、利用者には「何も起きていない」と区別が付かない。
-    // 押下のフィードバックはサーバーが出す 1 本目が担う。
+    // 帳簿としてそれは嘘で、途中から繋いだ端末も AI の長い待ちもこの 1 本を起点にする。
+    // ⚠ **ただしこれは押下のフィードバックではない** —— 送信元の端末では 2 本が
+    // 同じ task で届いて 1 回の描画に畳まれる（実測で押した本人は 10 回中 0 回）。
+    // 手応えを作っているのは `pickFallback` が直前のお題を外すこと（下の検査）である。
     const sent = broadcaster.snapshots.filter((s) => s.roomCode === "GEN01");
     expect(sent.length).toBe(2);
     expect(sent[0]!.room.problemGeneration).toEqual({ active: true, degraded: false });
@@ -256,23 +256,66 @@ describe("ProblemDelegator: 生成中はサーバー権威（#283）", () => {
 
   // ─── EARS 2: 同じお題が選ばれても表示を解除する ───────────────────────────
 
-  it("作り直しの結果が前と同じお題でも、生成中は降りる", () => {
-    // Given: 定型で確定したお題が既に載っているルーム。
-    // **`pickFallback` は `Math.abs(now) % candidates.length` で選ぶので、同じ時刻なら
-    //   必ず同じお題が返る。** これが #283 の穴 1（内容差分では降ろせない）そのものである。
+  it("確定したお題が 1 文字も変わらなくても、生成中は降りる", () => {
+    // Given: あるお題が載っているルームと、AI 鍵を持つ代表（委譲は返りを待つ）
+    //
+    // **観測点は `submit` である。** かつてここは「同じ時刻で 2 回依頼すれば
+    // `pickFallback` が同じお題を返す」という前提で書いていたが、#283 のレビューで
+    // **`pickFallback` が直前のお題を候補から外す**ようになり、その前提は作れなくなった。
+    // 守りたい契約（**降ろす判断がお題の内容に依存しない**）は変わっていないので、
+    // 内容を自分で決められる `submit` の経路で同じ形を作る。
+    const shown = { ...VALID_PROBLEM, source: "ai" as const };
     const delegator = makeDelegator();
-    putRoomView(store, timers, makeRoom({ problemMode: "fallback", aiUnlocked: false }), CONNS);
+    putRoomView(
+      store,
+      timers,
+      makeRoom({
+        problem: shown,
+        problemMode: "ai",
+        aiUnlocked: false,
+        participants: [
+          {
+            participantId: "alice",
+            displayName: "Alice",
+            presence: "online",
+            hasAiKey: true,
+            joinedAt: 1_000_000,
+          },
+        ],
+      }),
+      { alice: ["alice-conn"] },
+    );
     delegator.request("GEN01", "req-1");
-    const first = broadcaster.snapshots.at(-1)!.room;
+    expect(broadcaster.snapshots.at(-1)!.room.problemGeneration?.active).toBe(true);
 
-    // When: 時刻を動かさずにもう一度依頼する（＝同じお題が選ばれる）
+    // When: 代表が**いま載っているのと全く同じお題**を投入する
+    const accepted = delegator.submit("GEN01", "req-1", "alice", shown, false);
+    if (!accepted) throw new Error("前提: 代表からの submit が受理されなかった");
+
+    // Then: お題は 1 文字も変わっていないのに、生成中は降りている。
+    // **内容差分で降ろしていた実装ではここが降りない**（それが #283 の穴 1 だった）。
+    const last = broadcaster.snapshots.at(-1)!.room;
+    expect(last.problem).toEqual(shown);
+    expect(last.problemGeneration).toEqual({ active: false, degraded: false });
+  });
+
+  it("「別のお題にする」は、いま載っているお題を返さない（押下が画面に出る）", () => {
+    // Given: 定型のお題が載っているルーム（AI 無しの既定の形）
+    const delegator = makeDelegator();
+    const room = makeRoom({ aiUnlocked: false });
+    delete (room as { problemMode?: unknown }).problemMode;
+    putRoomView(store, timers, room, CONNS);
+    delegator.request("GEN01", "req-1");
+    const first = broadcaster.snapshots.at(-1)!.room.problem!;
+
+    // When: **時刻を動かさずに**もう一度依頼する。
+    // `pickFallback` は `Math.abs(now) % 候補数` で選ぶので、直前を外していなければ
+    // 必ず同じお題が返る（その回は画面が一切変わらず、押したことが分からない）。
     delegator.request("GEN01", "req-2");
 
-    // Then: お題は 1 文字も変わっていないのに、生成中は降りている
-    const second = broadcaster.snapshots.at(-1)!.room;
-    expect(second.problem?.title).toBe(first.problem!.title);
-    expect(second.problem?.source).toBe(first.problem!.source);
-    expect(second.problemGeneration).toEqual({ active: false, degraded: false });
+    // Then: 別のお題になっている
+    const second = broadcaster.snapshots.at(-1)!.room.problem!;
+    expect(second.title).not.toBe(first.title);
   });
 
   it("サーバー生成が成功したら、生成中が降りて縮退の印も立たない", async () => {

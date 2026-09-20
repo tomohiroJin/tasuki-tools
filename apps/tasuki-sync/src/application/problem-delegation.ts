@@ -134,13 +134,26 @@ export class ProblemDelegator {
     // 新しい依頼が始まった。帳簿を「生成中・縮退なし」から引き直し、**必ず 1 本配信する**
     // （#283・レビュー指摘 3）。
     //
-    // ⚠ **「同じ tick で確定するなら送らない」にしてはならない。** 本番のロビーは
-    // まさにその形（`problemMode` 未設定・AI 無し・全員 `hasAiKey: false` なので候補が
-    // 定型センチネルだけになり、依頼と確定が同じ tick で終わる）を通る。そこを省くと、
-    // **65 秒の安全弁も押下側の局所スピナーも落とした**あとの画面は押しても一瞬も
-    // 反応せず、`pickFallback` が同じ候補を引いた回は結果も変わらないので
-    // 「何も起きていない」と区別が付かない。実測で 8 回連打して `aria-busy` が
-    // 一度も立たなかった。**押下のフィードバックはこの 1 本目が担う。**
+    // ⚠ **「同じ tick で確定するなら送らない」にしてはならない。** 帳簿は
+    // 「いま作り直している」と言える瞬間を必ず 1 本残す —— 途中から繋いだ端末も、
+    // AI 生成で実際に数十秒待つ経路も、この 1 本が起点になる。
+    //
+    // ⚠ **ただしこの 1 本を「押下のフィードバック」と見なしてはならない。**
+    //    2 端末・10 回連打の実測（AI 無しの既定ルーム）——
+    //
+    //      押した本人 A: 生成中が観測された回数 **0 / 10**
+    //      押していない B: **7 / 10**（`aria-busy` が真だった時間は 8〜11ms）
+    //
+    //    A では**サーバーが送った 2 本（生成中 → 確定）が同じ task で届き、
+    //    React の自動バッチングで 1 回の描画に畳まれる**（jsdom で再現済み ——
+    //    1 本目の直後に DOM を読むと `aria-busy="true"` の要素は 0 個、
+    //    別々の task で届けると 1 個）。B はわずかに遅れて別々に届くので 2 回描画される。
+    //    B の 8〜11ms も人の目には見えない。
+    //
+    //    **押下が画面に出ることを保証しているのは `pickFallback` が直前のお題を
+    //    候補から外すこと**である（`packages/timer-core/src/problem.ts`）。
+    //    結果が必ず変わるので、描画が 1 回に畳まれても違いが見える。
+    //    この 1 本を消しても、あちらを消しても、押下の手応えは無くなる。
     this.writeGeneration(roomCode, { active: true, degraded: false });
     this.broadcastGeneration(roomCode);
 
@@ -192,7 +205,15 @@ export class ProblemDelegator {
    * 見た目には出ず、**同じ結末なのに wire の値だけが 2 通り**という形で残っていた。
    */
   private fallbackProblem(room: TimerState): Problem {
-    const fb = pickFallback(room.config.language, room.config.difficulty, this.clock.now());
+    // 直前のお題（いま載っているもの）を候補から外す（#283 のレビュー）。
+    // **同じお題が返ると、押したことが画面に出ない** —— 依頼の冒頭に配信している
+    // 「生成中」は、送信元の端末では確定と同じ描画に畳まれて一度も現れない。
+    const fb = pickFallback(
+      room.config.language,
+      room.config.difficulty,
+      this.clock.now(),
+      room.problem,
+    );
     return { ...fb.problem, source: fb.source };
   }
 

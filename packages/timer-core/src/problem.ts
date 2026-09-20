@@ -53,6 +53,11 @@ export function validateProblem(raw: unknown): Result<Problem, ProblemValidation
  * 言語・難易度に合った定型お題を返す
  * AI 生成失敗時のフォールバック（FR-024）
  *
+ * @param previous いま載っているお題（無ければ `null`）。**候補から外すために使う** ——
+ *   同じお題が返ると「別のお題にする」を押したことが画面に出ない（下の注記）。
+ *   **既定値は置かない** —— `now` と同じ理由で、既定があると呼び出し側が無変更で通り、
+ *   配線されていることが検査されないまま緑になる。
+ *
  * @param now 選択の元になる値。**実体は擬似乱数の種であり、時刻としての意味は持たない。**
  *   引数名を `now` にしているのは `docs/timer/adr/0002`（時刻は引数 `now` として注入し、
  *   現在時刻をドメイン内で直接読まない）と timer-core の他所（`records.ts` `evolve.ts`
@@ -67,6 +72,7 @@ export function pickFallback(
   language: string,
   difficulty: string,
   now: number,
+  previous: Problem | null,
 ): ProblemWithSource {
   // 言語・難易度でフィルタ
   let candidates = FALLBACK_PROBLEMS.filter(
@@ -85,12 +91,44 @@ export function pickFallback(
     candidates = FALLBACK_PROBLEMS;
   }
 
+  // 直前のお題を候補から外す（#283 のレビュー）。
+  //
+  // **「別のお題にする」が同じお題を返すと、押したことが画面に出ない。**
+  // 生成中の表示はサーバーが依頼の冒頭に 1 本配信しているが、AI を使わない既定の
+  // ルームでは依頼と確定が同じ tick で終わるため、**送信元の端末では 2 本が
+  // 1 回の描画に畳まれて生成中が一度も現れない**（jsdom で再現・実ブラウザでも
+  // 押した本人は 10 回中 0 回だった）。結果が必ず変わるようにするのが、押下が
+  // 画面に出ることの唯一の保証である。
+  //
+  // **同一性は `title` で見る。** 3 つとも理由がある ——
+  //
+  // - **参照比較は使えない。** 確定時に `{ ...entry.problem, source }` の写しを作るので、
+  //   ルームに載っているお題はバンクの実体ではない
+  // - **深い等値も使えない。** 利用者が中身を編集すると一致しなくなり、
+  //   **編集された直後だけ除外が効かない**という一番分かりにくい形で抜ける
+  // - **`title` は利用者が「同じお題だ」と感じる単位そのもの**である。説明だけを
+  //   編集してタイトルが残っているなら、その項目は外す（タイトルが変わらないと
+  //   「何も起きていない」ように見えるため）。タイトルごと書き換えられたお題は
+  //   バンクのどの項目とも一致しないので何も外れない —— 画面に出ているのは
+  //   利用者が作った別物なので、どれが返っても「変わった」ことは分かる
+  const remaining = previous === null
+    ? candidates
+    : candidates.filter((e) => e.problem.title !== previous.title);
+  // ⚠ **除いて空になったら元へ戻す。** ここを削ると `candidates[index]` が
+  // `undefined` になり、お題が 1 件も返らない。現在の定型バンクは全 33 件が
+  // 全言語を載せているので、最も狭い組（`hard`）でも候補は 7 件あり**この枝は
+  // 今のところ通らない**。それでも置くのは、バンクが痩せた瞬間に「別のお題にする」が
+  // 例外で落ちるより、同じお題が返るほうがましだからである（下の
+  // `?? FALLBACK_PROBLEMS[0]!` を置かない判断とは向きが違う —— あれは
+  // **渡し忘れという誤りを隠す**が、これは**契約「必ず 1 件返す」を守る**）。
+  const pool = remaining.length > 0 ? remaining : candidates;
+
   // 疑似ランダムに選択（呼び出し側が渡した値ベース）
-  const index = Math.abs(now) % candidates.length;
-  // `?? FALLBACK_PROBLEMS[0]!` は置かない。有効な now では candidates[index] が必ず
+  const index = Math.abs(now) % pool.length;
+  // `?? FALLBACK_PROBLEMS[0]!` は置かない。有効な now では pool[index] が必ず
   // 定義済みなので死んだ枝であり、置くと now の渡し忘れ（NaN）を黙って飲み込んで
   // 先頭のお題を返してしまう。テストは型検査の射程外なので、これが唯一の防波堤になる。
-  const entry = candidates[index]!;
+  const entry = pool[index]!;
 
   return { problem: entry.problem, source: "fallback" };
 }

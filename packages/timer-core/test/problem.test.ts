@@ -9,6 +9,7 @@ import {
   pickFallback,
   FALLBACK_PROBLEMS,
 } from "../src/problem.js";
+import type { Problem } from "../src/aggregate.js";
 
 describe("validateProblem: Valibot検証", () => {
   it("正常なお題は Ok を返す", () => {
@@ -116,7 +117,7 @@ describe("pickFallback: 定型お題へのフォールバック", () => {
     const language = "TypeScript";
     const difficulty = "easy";
     // When
-    const result = pickFallback(language, difficulty, 0);
+    const result = pickFallback(language, difficulty, 0, null);
     // Then
     expect(result.source).toBe("fallback");
     expect(result.problem).toBeTruthy();
@@ -127,7 +128,7 @@ describe("pickFallback: 定型お題へのフォールバック", () => {
     const language = "TypeScript";
     const difficulty = "easy";
     // When
-    const { problem } = pickFallback(language, difficulty, 0);
+    const { problem } = pickFallback(language, difficulty, 0, null);
     // Then
     expect(problem.title).toBeTruthy();
     expect(problem.description).toBeTruthy();
@@ -141,7 +142,7 @@ describe("pickFallback: 定型お題へのフォールバック", () => {
     // Given
     const unknownLanguage = "COBOL-不明言語";
     // When
-    const result = pickFallback(unknownLanguage, "easy", 0);
+    const result = pickFallback(unknownLanguage, "easy", 0, null);
     // Then
     expect(result.source).toBe("fallback");
     expect(result.problem.title.length).toBeGreaterThan(0);
@@ -157,7 +158,7 @@ describe("pickFallback: 定型お題へのフォールバック", () => {
     const validation = validateProblem(invalidAiResult as never);
     expect(validation.isErr()).toBe(true);
     // When（フォールバックを使う）
-    const fallback = pickFallback("TypeScript", "easy", 0);
+    const fallback = pickFallback("TypeScript", "easy", 0, null);
     // Then
     expect(fallback.source).toBe("fallback");
   });
@@ -173,8 +174,8 @@ describe("pickFallback: 定型お題へのフォールバック", () => {
     // Given
     const now = 12345;
     // When
-    const a = pickFallback("TypeScript", "easy", now);
-    const b = pickFallback("TypeScript", "easy", now);
+    const a = pickFallback("TypeScript", "easy", now, null);
+    const b = pickFallback("TypeScript", "easy", now, null);
     // Then
     expect(a.problem.title).toBe(b.problem.title);
   });
@@ -184,7 +185,7 @@ describe("pickFallback: 定型お題へのフォールバック", () => {
     const unknownLanguage = "COBOL-不明言語";
     // When
     const titles = Array.from({ length: FALLBACK_PROBLEMS.length }, (_, now) =>
-      pickFallback(unknownLanguage, "easy", now).problem.title,
+      pickFallback(unknownLanguage, "easy", now, null).problem.title,
     );
     // Then（重複が無い＝全件を 1 度ずつ選んでいる）
     expect(new Set(titles).size).toBe(FALLBACK_PROBLEMS.length);
@@ -194,7 +195,7 @@ describe("pickFallback: 定型お題へのフォールバック", () => {
     // Given
     const negativeNow = -7;
     // When
-    const result = pickFallback("COBOL-不明言語", "easy", negativeNow);
+    const result = pickFallback("COBOL-不明言語", "easy", negativeNow, null);
     // Then
     expect(FALLBACK_PROBLEMS.some((e) => e.problem.title === result.problem.title)).toBe(true);
   });
@@ -318,5 +319,120 @@ describe("buildProblemPrompt 日本語化", () => {
     // Then
     expect(p).toContain("Go");
     expect(p).toContain("hard");
+  });
+});
+
+/**
+ * 直前のお題を候補から外す（#283 のレビュー）。
+ *
+ * **なぜ要るか。** 「別のお題にする」を押したことが画面に出る保証が、ここにしか無い。
+ * 生成中の表示はサーバーが依頼の冒頭に 1 本配信しているが、AI を使わない既定のルームでは
+ * 依頼と確定が同じ tick で終わるため、**送信元の端末では 2 本が 1 回の描画に畳まれて
+ * 生成中が一度も現れない**（実ブラウザで押した本人は 10 回中 0 回、押していない側は
+ * 7 回／`aria-busy` が真の時間は 8〜11ms）。結果が必ず変わることが唯一の手応えになる。
+ *
+ * @requirements #283
+ */
+describe("pickFallback: 直前のお題を外す", () => {
+  /** バンクに載っている言語（全項目が同じ一覧を持つので先頭から採る）。 */
+  const LANGUAGES = FALLBACK_PROBLEMS[0]!.languages;
+  const DIFFICULTIES = ["easy", "medium", "hard"] as const;
+  /** 候補の並びの端まで当たるように、候補数より多い剰余を歩かせる。 */
+  const NOWS = [0, 1, 2, 3, 4, 5, 6, 7, 11, 12, 1_755_500_000_000, -7];
+
+  /** そのお題をいま載せている、という前提を作る（出所は確定時に付く形に合わせる）。 */
+  function asPrevious(title: string): Problem {
+    const entry = FALLBACK_PROBLEMS.find((e) => e.problem.title === title);
+    if (!entry) throw new Error(`前提: 定型バンクに「${title}」が無い`);
+    return { ...entry.problem, source: "fallback" };
+  }
+
+  it("どの言語・難易度・どの直前のお題でも、直前と同じお題は返らない", () => {
+    // Given: バンクが作りうる (言語 × 難易度 × 直前) の全組み合わせ
+    const offenders: string[] = [];
+    for (const language of LANGUAGES) {
+      for (const difficulty of DIFFICULTIES) {
+        for (const entry of FALLBACK_PROBLEMS) {
+          const previous = asPrevious(entry.problem.title);
+          for (const now of NOWS) {
+            // When
+            const got = pickFallback(language, difficulty, now, previous).problem.title;
+            // Then（違反を集めてから一度に報告する。1 件目で止めると全体像が見えない）
+            if (got === previous.title) {
+              offenders.push(`${language}/${difficulty}/now=${now} → ${got}`);
+            }
+          }
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  /**
+   * **契約「必ず 1 件返す」**（候補が 1 件しかない場合の番人）。
+   *
+   * 除いた結果が空になったら元の候補集合へ戻す、という枝がこれを守っている。
+   * ⚠ **現在の定型バンクではその枝は通らない** —— 全項目が全言語を載せているので、
+   * 最も狭い組（`hard`）でも候補は 7 件ある（`grep -c 'difficulty: "hard"'` で 7）。
+   * **バンクが痩せて候補が 1 件になった瞬間に、この検査が最初に赤くなる**
+   * （番人が無ければ `undefined` を返して落ちる）。
+   */
+  it("どの組み合わせでも、必ず有効な定型お題が 1 件返る", () => {
+    const titles = new Set(FALLBACK_PROBLEMS.map((e) => e.problem.title));
+    for (const language of [...LANGUAGES, "COBOL-不明言語"]) {
+      for (const difficulty of [...DIFFICULTIES, "不明難易度"]) {
+        for (const entry of FALLBACK_PROBLEMS) {
+          const result = pickFallback(
+            language,
+            difficulty,
+            0,
+            { ...entry.problem, source: "fallback" },
+          );
+          expect(result.source).toBe("fallback");
+          expect(titles.has(result.problem.title)).toBe(true);
+        }
+      }
+    }
+  });
+
+  it("直前のお題が候補に無ければ、何も外れない（null を渡したときと同じ結果）", () => {
+    // Given: `hard` の候補に入っていない `easy` のお題を直前として渡す
+    const easyOnly = FALLBACK_PROBLEMS.find((e) => e.difficulty === "easy")!;
+    const previous: Problem = { ...easyOnly.problem, source: "fallback" };
+    for (const now of NOWS) {
+      // When / Then
+      expect(pickFallback("TypeScript", "hard", now, previous).problem.title).toBe(
+        pickFallback("TypeScript", "hard", now, null).problem.title,
+      );
+    }
+  });
+
+  it("タイトルごと書き換えられたお題は、何も外さない", () => {
+    // Given: 利用者が貼り付けた／タイトルを編集したお題（バンクのどれとも一致しない）
+    const pasted: Problem = {
+      title: "自分で持ち込んだお題",
+      description: "説明",
+      requirements: [],
+      exampleTest: "t()",
+      hints: [],
+      source: "custom",
+    };
+    for (const now of NOWS) {
+      // When / Then: 画面に出ているのは利用者が作った別物なので、
+      // バンクのどれが返っても「変わった」ことは分かる
+      expect(pickFallback("TypeScript", "easy", now, pasted).problem.title).toBe(
+        pickFallback("TypeScript", "easy", now, null).problem.title,
+      );
+    }
+  });
+
+  it("説明だけを編集してタイトルが残っているお題は、外す", () => {
+    // Given: 中身は違うがタイトルは同じ（画面の見出しは変わらない）
+    const base = pickFallback("TypeScript", "easy", 0, null).problem;
+    const edited: Problem = { ...base, description: "自分で書き換えた説明", edited: true };
+    // When / Then: 同じタイトルが返ると「何も起きていない」ように見える
+    for (const now of NOWS) {
+      expect(pickFallback("TypeScript", "easy", now, edited).problem.title).not.toBe(base.title);
+    }
   });
 });

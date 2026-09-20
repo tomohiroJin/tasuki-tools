@@ -351,8 +351,11 @@ export function useTimerSync(banner: BannerController): TimerSync {
       // ★await より前に読む: 生成待ちの間に届いた snapshot の値を使わないため（Issue #46 REQ-7）。
       const language = room?.config.language ?? "TypeScript";
       const difficulty = room?.config.difficulty ?? "easy";
+      // 直前のお題も await より前に読む（上と同じ理由）。定型バンクから選ぶ実装は
+      // これを候補から外すので、「別のお題にする」の結果が必ず変わる（#283 のレビュー）。
+      const previousProblem = room?.problem ?? null;
       const provider = resolveProvider();
-      const { problem, source } = await provider.generate(language, difficulty);
+      const { problem, source } = await provider.generate(language, difficulty, previousProblem);
       syncClient.send({
         command: "problem.submit",
         requestId,
