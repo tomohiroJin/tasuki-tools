@@ -9,14 +9,15 @@
 # 復元: git checkout -- <対象ファイル>（同じくリポジトリルートから）
 #
 diff --git a/packages/room-core/src/display-name.ts b/packages/room-core/src/display-name.ts
-index 7069f28..76834fe 100644
+index 1621ac4..b9b76c1 100644
 --- a/packages/room-core/src/display-name.ts
 +++ b/packages/room-core/src/display-name.ts
-@@ -130,7 +130,6 @@ function stripLabelMarkers(input: string): string {
+@@ -165,7 +165,7 @@ function stripLabelMarkers(input: string): string {
   */
  export function normalizeDisplayName(raw: string): string {
-   return stripLabelMarkers(raw.normalize("NFKC").replace(INVISIBLE_FORMAT, ""))
--    .replace(CONTROL_CHARS, "")
+   return stripLabelMarkers(
+-    raw.normalize("NFKC").replace(INVISIBLE_FORMAT, "").replace(CONTROL_CHARS, ""),
++    raw.normalize("NFKC").replace(INVISIBLE_FORMAT, ""),
+   )
      .replace(/\s+/g, " ")
      .trim();
- }
