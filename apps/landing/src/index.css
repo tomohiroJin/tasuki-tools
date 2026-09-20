@@ -239,6 +239,15 @@
   background: var(--felt-950);
   color: var(--ivory);
   font: inherit;
+  /* `font: inherit` は親の <label>（要素層の `label` 規則）の書体を丸ごと継承する。
+     `label` は `--font-size-sm` の流動スケールで、狭い画面では 13.432px まで
+     下がる —— 16px を下回る入力欄は iOS Safari がフォーカス時に画面を自動で
+     拡大させる（未検証。一次情報での裏取りはできていないが、この環境で
+     実機検証はできない）。`font-size` は一括指定の `font` より後ろに書いた方が
+     勝つので、ここだけ上書きして入力欄を独立させる。`16px` に固定せず `1rem`
+     にするのは、利用者がブラウザの既定文字サイズを広げている場合にその設定を
+     尊重するため。 */
+  font-size: 1rem;
 }
 
 .hub-input::placeholder {
@@ -404,7 +413,10 @@
   /* URL は桁を揃えたいものなので等幅に置く（`--font-mono` の定義コメントの用途）。
      percent-encode の並びが締まって、記号の連なりが読めるようになる。 */
   font-family: var(--font-mono);
-  font-size: var(--font-size-sm);
+  /* `font-size` はここに置かない。この規則は `.hub-input, .hub-invite`（本ファイル
+     上部）より後ろにあり、同じ詳細度なら後勝ちなので、ここに書くと iOS Safari の
+     自動拡大対策（`font-size: 1rem`）を踏みつぶしてしまう（実測で判明）。
+     書体を等幅にするだけなら `font-size` は要らない。 */
 }
 .hub-invite-actions {
   display: flex;

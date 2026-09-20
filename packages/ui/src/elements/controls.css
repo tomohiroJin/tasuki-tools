@@ -1,42 +1,24 @@
 /* ============================================================
-   Tasuki UI — 操作系（入力・ボタン・バッジ）
-   ボタンは真鍮のチップ、入力は卓に沈んだ窪み。
+   Tasuki UI — 操作系（ラベル・ボタン・バッジ）
+   ボタンは真鍮のチップ。
+   ※ `input[type='text']` の規則はここで一度も画面に当たらないと分かり削除した（#280）。
+     利用側が `type="text"` を明示する日が来れば、そのとき実需として改めて置く
+     （設計正本 §12・憲法 原則 X）。
    ============================================================ */
 
 label {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  font-size: 0.85rem;
+  font-size: var(--font-size-sm);
   color: var(--ivory-dim);
   text-align: left;
-}
-
-input[type='text'] {
-  padding: 0.75rem 0.9rem;
-  font-size: 1rem;
-  font-family: var(--font-body);
-  color: var(--ivory);
-  background: rgba(0, 0, 0, 0.28);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-input[type='text']::placeholder {
-  color: rgba(245, 239, 221, 0.32);
-}
-
-input[type='text']:focus {
-  outline: none;
-  border-color: var(--gold);
-  box-shadow: 0 0 0 3px rgba(207, 161, 76, 0.22);
 }
 
 button {
   font-family: var(--font-body);
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: var(--font-size-sm);
   letter-spacing: 0.06em;
   padding: 0.7rem 1.4rem;
   border-radius: 999px;
@@ -75,7 +57,7 @@ button.secondary:hover:not(:disabled) {
 }
 
 .badge {
-  font-size: 0.66rem;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   letter-spacing: 0.08em;
   padding: 0.1rem 0.55rem;

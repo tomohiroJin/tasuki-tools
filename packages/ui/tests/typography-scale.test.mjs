@@ -1,0 +1,266 @@
+/**
+ * 書体の大きさが 5 段のトークンに従っていることを検査する（#280）。
+ *
+ * ## なぜ必要か
+ * `tokens/typography.css` は 5 段の流動スケールを持つが、**それに合否の判定が無かった**ため、
+ * `elements/` 層が直値で書いても何も赤くならなかった。同じことが #270 で
+ * `apps/landing` に起きており、実寸 8 種類のリズムの無い自前スケールになっていた。
+ *
+ * ## 許可リストを持たない
+ * 段の名前は `typography.css` の定義から導出し、対象は `src/` 配下の CSS 全件である。
+ * 要素が増えても射程が自動で広がるので、**列挙に化けない**（設計正本 §5）。
+ * #270 はこれを E2E の許可リストでやろうとして 9 件ぶん膨らみ、入れられなかった。
+ */
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readdirSync, readFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const SRC = resolve(ROOT, 'src');
+
+/** 書体スケール段の名前パターン（数字と `-` を含む。e.g. `--font-size-2xl`）。 */
+const FONT_SIZE_NAME = '--font-size-[a-z0-9-]+';
+
+/** `src/` 配下の CSS を再帰で拾う（`src` からの相対パスで返す）。 */
+function cssFiles() {
+  return readdirSync(SRC, { recursive: true })
+    .map(String)
+    .filter((p) => p.endsWith('.css'))
+    .sort();
+}
+
+/**
+ * `typography.css` が定義している段の名前。
+ *
+ * **ここで列挙しない。** 定義そのものを正本にすることで、段を増やしたときに
+ * 検査側の書き換えを忘れて射程が古いまま残る、という事故を防ぐ。
+ */
+function definedSteps() {
+  const css = readFileSync(resolve(SRC, 'tokens/typography.css'), 'utf8');
+  return [...css.matchAll(new RegExp(`^\\s*(${FONT_SIZE_NAME})\\s*:`, 'gm'))].map((m) => m[1]);
+}
+
+/**
+ * `font-size` の宣言を拾う。
+ *
+ * **プロパティ名の直前が `-` や英数字のものは拾わない。** `--font-size-xs: clamp(...)` は
+ * カスタムプロパティの**定義**であって `font-size` の宣言ではない。後読み `(?<![\w-])` で
+ * 「直前が単語構成文字でも `-` でもないこと」を求めることで区別する。**この後読みは
+ * 区切り文字を消費しない**（旧実装の `(?:^|[;{}\s])` は消費してしまい、1 行に 2 つ
+ * 並べると `;` を 1 つ目が使い切ってしまうため 2 つ目を見逃した）。
+ *
+ * **プロパティ名は大文字小文字を区別しない**（`i` フラグ）。CSS のプロパティ名自体が
+ * 大文字小文字を区別しないため、`FONT-SIZE: 99px;` も有効な宣言であり見逃せない。
+ * （`--font-size-xs` のような**カスタムプロパティ名**は大文字小文字を区別するので、
+ * こちらの `i` フラグには影響しない。上記の後読みで別途除外している。）
+ *
+ * **1 行に複数あっても全部拾う**（`matchAll`）。1 つ目だけを見ると、
+ * 2 つ目を並べるだけで検査をすり抜けられる。区切り文字を消費しない後読みにしたことで、
+ * `;` を挟まない隣接（コメント直後 `*\/font-size: …` 等）でも取りこぼさない。
+ *
+ * **コメントアウトされた宣言も同じ形で拾う。** `/* 旧実装: font-size: 1.5rem; *\/` の
+ * ような行は、CSS として無効でも文字列としては宣言の形をしているため 1 件として
+ * 数えられる。理由が無ければ落ちるので実害は無い（fail-closed）が、
+ * 将来「なぜここが赤いのか分からない」を防ぐために明記しておく。
+ *
+ * **`text` は宣言ごとにスコープする。** 直後から次の宣言の手前まで（次が無ければ
+ * 行末まで）だけを返す。行全体を渡すと、同じ行に複数の宣言があるとき 1 つの
+ * `scale-exempt` コメントがその行の全宣言を免除してしまう（詳細は `exemptReason` の
+ * 呼び出し側を参照）。
+ */
+function declarations() {
+  const found = [];
+  for (const rel of cssFiles()) {
+    const lines = readFileSync(join(SRC, rel), 'utf8').split('\n');
+    lines.forEach((line, i) => {
+      const matches = [...line.matchAll(/(?<![\w-])font-size\s*:\s*([^;]*)(;?)/gi)];
+      matches.forEach((m, idx) => {
+        const start = m.index + m[0].length;
+        const end = idx + 1 < matches.length ? matches[idx + 1].index : line.length;
+        found.push({
+          file: rel,
+          line: i + 1,
+          value: m[1].trim(),
+          terminated: m[2] === ';',
+          text: line.slice(start, end),
+        });
+      });
+    });
+  }
+  return found;
+}
+
+/** 失敗メッセージ用の位置表記。 */
+const where = (d) => `${d.file}:${d.line}  font-size: ${d.value}`;
+
+test('走査が空振りしていない（ファイルも宣言も実際に拾えている）', () => {
+  // Given / When
+  const files = cssFiles();
+  const decls = declarations();
+  // Then（0 件で緑になると、以降のすべての検査が無言で死ぬ）
+  assert.ok(files.length > 0, 'src 配下に CSS が 1 つも無い');
+  assert.ok(decls.length > 0, 'font-size の宣言を 1 つも拾えていない');
+});
+
+test('流動スケールの段は 5 つである', () => {
+  // Given / When
+  const steps = definedSteps();
+  // Then（**ここだけは意図的に件数と名前を固定する**。段が黙って増減したら気づきたい）
+  assert.deepEqual(
+    [...steps].sort(),
+    ['--font-size-base', '--font-size-lg', '--font-size-sm', '--font-size-xl', '--font-size-xs'],
+    '段の構成が変わっている。増減させるなら設計正本と README を先に直すこと',
+  );
+});
+
+test('font-size の宣言は同じ行で `;` まで終端している', () => {
+  // Given / When（`;` で閉じていない = 値が次の行へ続いている）
+  //
+  // **名前と失敗メッセージが見ているのはこれだけ。** ブロック内最後の宣言は CSS 文法上
+  // `;` を省略できる（`font-size: 1rem }` は合法な 1 行の宣言）ため、「1 行に収まっている」
+  // という言い方は原因を指さない。ここが赤くなるのは「同じ行で `;` まで書き切っていない」
+  // 場合であり、判定ロジック自体は変えていない（誤る向きは fail-closed のまま）。
+  const spanning = declarations().filter((d) => !d.terminated);
+  // Then（複数行にまたがると、例外の印を同じ行に置く規約が成立しない）
+  assert.deepEqual(
+    spanning.map(where),
+    [],
+    '宣言は同じ行で `;` まで終端すること（設計正本 D6）',
+  );
+});
+
+/**
+ * `src/**\/*.css` に `font` の一括指定（shorthand）が無いことを検査する。
+ *
+ * `declarations()` は `font-size` という綴りだけを探すので、
+ * `font: 700 0.6rem/1 var(--font-body);` のような一括指定は 1 件も拾えない。
+ * これは #280 が塞ごうとしている「直値が混ざっても何も赤くならない」の
+ * 再生産になる（最終レビュー Important 1）。
+ *
+ * `font-size:` / `font-family:` / `font-weight:` 等は `font` の直後に `-` が
+ * 続くため、`font\s*:`（`font` の直後が空白かコロン）には一致しない。
+ *
+ * `declarations()` と同じ理由で、先頭の区切り文字は後読み `(?<![\w-])` で
+ * 消費しないようにし（1 行に複数あっても見逃さない）、プロパティ名は
+ * 大文字小文字を区別しない（`i` フラグ。`FONT: 700 99px/1 sans-serif;` も有効な
+ * 一括指定であるため）。
+ */
+function fontShorthandOffenders() {
+  const offenders = [];
+  for (const rel of cssFiles()) {
+    const lines = readFileSync(join(SRC, rel), 'utf8').split('\n');
+    lines.forEach((line, i) => {
+      if (/(?<![\w-])font\s*:/i.test(line)) {
+        offenders.push(`${rel}:${i + 1}  ${line.trim()}`);
+      }
+    });
+  }
+  return offenders;
+}
+
+test('font の一括指定（shorthand）を使っていない', () => {
+  // Given / When
+  const offenders = fontShorthandOffenders();
+  // Then（一括指定は font-size の検査を素通りする。個別プロパティで書くこと）
+  assert.deepEqual(
+    offenders,
+    [],
+    '`font: …` の一括指定ではなく `font-size` 等の個別プロパティで書くこと（5 段の検査を素通りさせないため）',
+  );
+});
+
+/**
+ * 例外コメントの理由を取り出す。**理由まで求める**（空文字列は例外として認めない）。
+ *
+ * `scale-exempt:` から、同じ行にあるコメント終端（アスタリスクに続くスラッシュ）の
+ * **手前まで**を理由とし、前後の空白を落として返す。理由が空なら `null`（＝例外ではない）。
+ *
+ * 旧実装は `/scale-exempt:\s*\S/` という正規表現で「印の直後に非空白が 1 文字あるか」
+ * だけを見ていた。ところが理由が空のコメントでも、終端記号のアスタリスク自体が
+ * `\S` に当たってしまい、「理由あり」と誤判定していた
+ * （#280 Task 4 の破壊検証で発覚）。この関数は理由の**中身**を取り出して空かどうかを
+ * 直接見ることで、終端記号を理由と誤認しないようにする。
+ *
+ * **同じ行にコメント終端が無い場合（複数行コメント）は判定しない。** 理由がどこで終わるか
+ * 決められない入力は、例外を通す側ではなく赤へ倒す（fail-closed）。
+ *
+ * この関数自体は渡された `text` の中だけを見る。**`declarations()` は物理行の全体では
+ * なく、その宣言の直後から次の宣言の手前まで（次が無ければ行末まで）だけを `text` として
+ * 渡す。** 同じ行に複数の宣言があるとき、1 つの `scale-exempt` コメントが行の全宣言を
+ * 免除してしまう抜け穴を防ぐため（詳細は `declarations()` の docstring）。
+ */
+function exemptReason(text) {
+  const m = /scale-exempt:([^]*?)\*\//.exec(text);
+  if (!m) return null;
+  const reason = m[1].trim();
+  return reason === '' ? null : reason;
+}
+
+/** 5 段のいずれかを参照している形（フォールバック付きは許さない。段の不在を隠すため）。 */
+const TOKEN_REF = new RegExp(`^var\\(\\s*${FONT_SIZE_NAME}\\s*\\)$`);
+
+test('font-size は 5 段のトークンを参照するか、同じ行に理由のある例外である', () => {
+  // Given / When
+  const offenders = declarations()
+    .filter((d) => !TOKEN_REF.test(d.value))
+    .filter((d) => exemptReason(d.text) === null);
+  // Then
+  assert.deepEqual(
+    offenders.map(where),
+    [],
+    '5 段へ寄せるか、同じ行に `/* scale-exempt: 理由 */` を書くこと（設計正本 D6）',
+  );
+});
+
+test('例外コメントは理由が空だと通らない（コメント終端の `*` を理由と誤認しない）', () => {
+  // Given / When / Then（理由あり → 例外として通る）
+  assert.notEqual(
+    exemptReason("  font-size: 0.6rem; /* scale-exempt: 札のコーナーピップ */"),
+    null,
+    '理由が書かれている例外は通るべき',
+  );
+  // 理由が空（スペースのみ）→ 通らない。これが今回の欠陥そのもの
+  assert.equal(
+    exemptReason('  font-size: 0.6rem; /* scale-exempt: */'),
+    null,
+    '理由が空の例外は通らないべき',
+  );
+  // 印だけで終端が続く形（同じ実体。空白すら無い）も同じ理由で落ちる
+  assert.equal(
+    exemptReason('  font-size: 0.6rem; /* scale-exempt:*/'),
+    null,
+    '理由が空（空白も無い）の例外は通らないべき',
+  );
+  // `scale-exempt` を含まない普通の行 → 例外ではない
+  assert.equal(
+    exemptReason("  font-size: var(--font-size-sm);"),
+    null,
+    '例外の印が無い行は例外として扱わないべき',
+  );
+});
+
+test('exemptReason は同じ行にコメント終端が無い（複数行コメント）例外を通さない', () => {
+  // Given / When / Then（fail-closed を固定する：正規表現を緩めても赤くなるはずの入力）
+  //
+  // `exemptReason` の docstring は「同じ行に終端が無い場合は判定しない（null を返す）」と
+  // 主張しているが、それ自体を固定するテストが無かった（最終レビュー Minor 1）。
+  assert.equal(
+    exemptReason('  font-size: 0.6rem; /* scale-exempt: 理由'),
+    null,
+    '同じ行にコメント終端 `*/` が無い（複数行にまたがる）例外は通らないべき',
+  );
+});
+
+test('参照している段が typography.css に実在する', () => {
+  // Given
+  const steps = new Set(definedSteps());
+  // When（打ち間違いは CSS では黙って無効になり、継承値で描かれる）
+  const unknown = declarations()
+    .map((d) => ({ d, m: new RegExp(`^var\\(\\s*(${FONT_SIZE_NAME})\\s*\\)$`).exec(d.value) }))
+    .filter(({ m }) => m !== null && !steps.has(m[1]))
+    .map(({ d, m }) => `${d.file}:${d.line}  ${m[1]}`);
+  // Then
+  assert.deepEqual(unknown, [], '存在しない段を参照している');
+});

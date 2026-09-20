@@ -1,7 +1,7 @@
 /* ============================================================
    Tasuki UI — 要素層のまとめ読み
 
-   **素の要素セレクタ（`html` / `body` / `h1` / `button` / `input` / `label`）を
+   **素の要素セレクタ（`html` / `body` / `h1` / `button` / `label` / `.card`）を
    直接飾る層。** poker-web と landing だけが読む。
 
    timer-web は読まない。Tailwind のユーティリティで全操作要素を組んでいるため、
