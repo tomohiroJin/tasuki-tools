@@ -14,7 +14,7 @@ Tasuki の共通ビジュアル「**夜のカードテーブル**」。深緑の
 ```
 src/
   tokens/    変数と @font-face だけ。**素の要素セレクタを置かない**
-  elements/  html / body / h1 / button / input / .card を直接飾る
+  elements/  html / body / h1 / button / label / .card を直接飾る
   fonts/     自己ホストの woff2 と OFL
 ```
 

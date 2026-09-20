@@ -74,8 +74,10 @@ a {
  * ブラウザ既定に委ねられ、landing だけが `.tool-card` に独自のリングを補っていた。
  * timer-web が持っていた規約をここへ引き上げる（ADR-0001）。
  *
- * 詳細度は (0,1,0)。landing の `.tool-card:focus-visible`(0,2,0) と
- * `input[type='text']:focus`(0,2,1) は従来どおりこちらより優先される。 */
+ * 詳細度は (0,1,0)。landing の `.tool-card:focus-visible`(0,2,0) は
+ * 従来どおりこちらより優先される。
+ * （`input[type='text']:focus` との比較を挙げていたが、その規則自体を #280 で
+ *   削除したため、いまは比較対象ではない。） */
 :focus-visible {
   outline: 2px solid var(--gold);
   outline-offset: 3px;
