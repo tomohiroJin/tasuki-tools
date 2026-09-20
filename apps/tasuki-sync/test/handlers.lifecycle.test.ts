@@ -333,6 +333,40 @@ describe("phase.set: ロビーへ戻るとお題は持ち越さない（#273）"
   });
 
   /**
+   * **引き継ぎメモは意図して残している（#287）。**
+   *
+   * 「新しいセッション」で落とすのはお題だけである。引き継ぎメモは「次のドライバーへの
+   * 申し送り」（FR-030）であり、**同じルーム・同じ顔ぶれで 2 本目を始めるなら
+   * 1 本目の終わりに書いたメモは引き継がれてよい** —— 利用者が 2026-09-20 にそう判断した。
+   *
+   * **線は「セッションに属するか、ルームに属するか」で引く。** お題は 1 本の
+   * セッションの題材なので落とす。引き継ぎメモ・完成記録・設定はルームに属するので残す
+   * （`SessionReset` の注記も「お題・メンバー・設定・引き継ぎは維持」と書いている）。
+   *
+   * **このテストは判断を固定するためにある。** 「前のセッションの残骸だ」と見て
+   * 落とす実装へ変えると赤くなる。変えるなら、まずこの判断を覆すこと。
+   */
+  it("Given 引き継ぎメモを書いて完了した / When ロビーへ戻す / Then お題は落ちるが引き継ぎメモは残る", async () => {
+    // Given: 1 本目でお題を確定し、引き継ぎメモを書いて完成する
+    const code = await setupRoom(handlers, store, timers);
+    putRoomView(store, timers, { ...roomViewOf(store, timers, code), problem });
+    await handlers.handleCommand("host-conn", { command: "handoff.note.set", text: "次は境界値から" });
+    await handlers.handleCommand("host-conn", { command: "session.act", action: "START" });
+    await handlers.handleCommand("host-conn", { command: "session.complete" });
+    if (roomViewOf(store, timers, code).handoffNote !== "次は境界値から") {
+      throw new Error("前提が崩れた: 引き継ぎメモが書けていない");
+    }
+
+    // When: 「新しいセッション」でロビーへ戻す
+    await handlers.handleCommand("host-conn", { command: "phase.set", phase: "setup" });
+
+    // Then: お題（セッションのもの）は落ち、引き継ぎメモ（ルームのもの）は残る
+    const after = roomViewOf(store, timers, code);
+    expect(after.problem).toBeNull();
+    expect(after.handoffNote).toBe("次は境界値から");
+  });
+
+  /**
    * 落とす条件は**完了画面から出る遷移**に限る（#273 のレビュー②）。
    *
    * `decide.ts` の `phase.set` は**現在の phase を一切見ずに** `PhaseSet` を返す
