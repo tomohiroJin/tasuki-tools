@@ -2,11 +2,22 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, renderHook } from '@testing-library/react';
 import { useCopyText } from '../src/index.js';
 
+/**
+ * `Object.defineProperty` で入れた値は `vi.unstubAllGlobals()` では戻らない。
+ * 戻さないと、後から足したテストが「使えない `execCommand`」を引き継いで偽の緑になる。
+ */
+const execCommandBefore = Object.getOwnPropertyDescriptor(document, 'execCommand');
+function restoreExecCommand(): void {
+  if (execCommandBefore) Object.defineProperty(document, 'execCommand', execCommandBefore);
+  else Reflect.deleteProperty(document, 'execCommand');
+}
+
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   vi.useRealTimers();
+  restoreExecCommand();
 });
 
 describe('共有コピー操作', () => {

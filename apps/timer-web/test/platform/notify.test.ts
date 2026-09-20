@@ -79,6 +79,16 @@ describe("requestPermissionIfEnabling", () => {
   });
 });
 
+/**
+ * `Object.defineProperty` で入れた値は `vi.unstubAllGlobals()` では戻らない。
+ * 戻さないと、後から足したテストが前のテストの `hidden` を引き継いで偽の緑になる。
+ */
+const hiddenBefore = Object.getOwnPropertyDescriptor(document, "hidden");
+function restoreHidden(): void {
+  if (hiddenBefore) Object.defineProperty(document, "hidden", hiddenBefore);
+  else Reflect.deleteProperty(document, "hidden");
+}
+
 describe("OS 通知の発火条件", () => {
   let ctor: ReturnType<typeof vi.fn>;
   beforeEach(() => {
@@ -86,7 +96,10 @@ describe("OS 通知の発火条件", () => {
     // Notification をモック（permission=granted）。
     vi.stubGlobal("Notification", Object.assign(ctor, { permission: "granted" }));
   });
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    restoreHidden();
+  });
 
   it("タブが前面（hidden=false）のときは通知を出さない", () => {
     // Given

@@ -72,9 +72,20 @@ beforeEach(() => {
   });
 });
 
+/**
+ * `Object.defineProperty` で入れた値は `vi.unstubAllGlobals()` では戻らない。
+ * 戻さないと、後から足したテストが「使えない `execCommand`」を引き継いで偽の緑になる。
+ */
+const execCommandBefore = Object.getOwnPropertyDescriptor(document, 'execCommand');
+function restoreExecCommand(): void {
+  if (execCommandBefore) Object.defineProperty(document, 'execCommand', execCommandBefore);
+  else Reflect.deleteProperty(document, 'execCommand');
+}
+
 afterEach(() => {
   localStorage.clear();
   vi.unstubAllGlobals();
+  restoreExecCommand();
 });
 
 describe('RoomPage のヘッダ', () => {
