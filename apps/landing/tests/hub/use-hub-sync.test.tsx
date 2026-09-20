@@ -7,7 +7,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { saveResumeIdentity } from '@tasuki/sync-client';
+import { saveDefaultDisplayName, saveResumeIdentity } from '@tasuki/sync-client';
 import { App } from '../../src/App.js';
 
 /** 送った中身を覚え、サーバーからの応答を差し込める WebSocket。 */
@@ -465,7 +465,7 @@ describe('既定の表示名の書き換え', () => {
 
   it('Given 既定が入った名乗りの欄 / When 書き換えて送る / Then 書き換えた側が送られる', () => {
     // Given（準備）: 前回の名乗りが既定として入っている
-    localStorage.setItem('tasuki:display-name', 'あや');
+    saveDefaultDisplayName('あや');
     window.history.replaceState(null, '', '/?room=ABC123');
     render(<App />);
     act(() => socket().open());
@@ -483,7 +483,7 @@ describe('既定の表示名の書き換え', () => {
 
   it('Given 書き換えて入室した / When 玄関を開き直す / Then 既定は書き換えた側になる', () => {
     // Given（準備）: 既定を書き換えて入室が成立する
-    localStorage.setItem('tasuki:display-name', 'あや');
+    saveDefaultDisplayName('あや');
     window.history.replaceState(null, '', '/?room=ABC123');
     const first = render(<App />);
     act(() => socket().open());

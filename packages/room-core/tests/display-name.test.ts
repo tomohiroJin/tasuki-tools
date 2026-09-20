@@ -99,6 +99,52 @@ describe("normalizeDisplayName（防御の迂回に対する回帰）", () => {
     expect(normalizeDisplayName("Bob(ID: rqdK")).toBe("Bob");
   });
 
+  /**
+   * 制御文字でラベルの見出しを割ると、剥がしを逃れたうえで**ラベルが復活する**（#284）。
+   *
+   * 剥がし（`stripLabelMarkers`）が制御文字の除去より先に走っていたため、
+   * `ID` の中や `:` の直前に 1 文字挟むだけで書式の照合が外れ、そのあと制御文字だけが
+   * 落ちて `(ID: rqdK)` が完成していた。`<scr<script>ipt>` 型のすり抜けと同型で、
+   * **実在の参加者と完全に同一のラベルを名乗れる**。
+   *
+   * 境界（`apps/tasuki-sync/.../display-name-rule.ts`）は正規化を 1 度しか掛けないので、
+   * この値はそのまま保存・配信される。
+   */
+  it("制御文字でラベルの見出しを割っても剥がす（復活させない）", () => {
+    // Given（準備）: `ID` の内側・`:` の直前に C0 制御文字を 1 つ挟む
+    // When / Then（操作）
+    expect(normalizeDisplayName("Bob（ID: rqdK）")).toBe("Bob");
+    expect(normalizeDisplayName("Bob（ID: rqdK）")).toBe("Bob");
+    expect(normalizeDisplayName("Bob(ID: rqdK)")).toBe("Bob");
+    expect(normalizeDisplayName("Bob（ID: rqdK）")).toBe("Bob");
+  });
+
+  /**
+   * 正規化は**冪等**である（#284）。
+   *
+   * 1 度通した値をもう 1 度通しても変わらない。崩れると、同じ保存値でも**掛けた回数で
+   * 答えが変わる** —— 玄関は描画のたびに読み直しうるし、`StrictMode` の下と本番でも
+   * 回数が違う。「1 度掛ければ正規形」という前提は、これを名乗る側の全員が置いている。
+   */
+  it("冪等である（2 度掛けても変わらない）", () => {
+    // Given（準備）: 剥がし・制御文字・不可視・空白の畳みが同時に効く入力
+    const inputs = [
+      "Bob（ID: rqdK）",
+      "Bob（ID: rqdK）",
+      "Bob（（ID: x）ID: rqdK）",
+      "Bob" + ZWSP,
+      "  Bob\n\tSmith  ",
+      "Ｂｏｂ（ＩＤ：rqdK）",
+      "Bob (guest)",
+    ];
+
+    // When / Then（操作）
+    for (const input of inputs) {
+      const once = normalizeDisplayName(input);
+      expect(normalizeDisplayName(once), input).toBe(once);
+    }
+  });
+
   it("剥がした結果はすべて素の名前に一致する（同名として識別子が付けられる）", () => {
     // Given
     const attacks = [
@@ -106,6 +152,9 @@ describe("normalizeDisplayName（防御の迂回に対する回帰）", () => {
       "Bob（（ID: x）ID: rqdK）",
       "Bob（ＩＤ: rqdK）",
       "Bob（ID: rqdK",
+      // 制御文字で見出しを割る形（#284）。剥がしの後に制御文字が落ちて復活していた
+      "Bob（ID: rqdK）",
+      "Bob（ID: rqdK）",
     ];
     // When / Then
     for (const a of attacks) {

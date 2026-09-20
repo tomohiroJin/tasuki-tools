@@ -4,9 +4,25 @@
  * **ここは純粋判断だけを見る。** 保管庫の読み書きと画面への現れ方は
  * `tests/default-display-name.test.tsx` が画面ごしに見る。
  */
-import { describe, it, expect } from 'vitest';
-import { MAX_DISPLAY_NAME } from '@tasuki/room-core';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { MAX_DISPLAY_NAME, MAX_NFKC_EXPANSION, normalizeDisplayName } from '@tasuki/room-core';
 import { usableDefaultDisplayName } from '../../src/hub/default-display-name.js';
+
+/**
+ * 正規化そのものは本物を使い、**呼ばれたかどうかだけ**を見えるようにする。
+ *
+ * 前段の緩い上限（{@link MAX_DISPLAY_NAME} × {@link MAX_NFKC_EXPANSION}）の狙いは
+ * 「巨大な保存値で正規化を走らせない」ことであり、**戻り値では確かめられない**
+ * （段が有っても無くても空文字になる）。差が出るのは「走ったかどうか」だけである。
+ */
+vi.mock('@tasuki/room-core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tasuki/room-core')>();
+  return { ...actual, normalizeDisplayName: vi.fn(actual.normalizeDisplayName) };
+});
+
+beforeEach(() => {
+  vi.mocked(normalizeDisplayName).mockClear();
+});
 
 describe('既定として提示してよい表示名', () => {
   it('Given 前に名乗った名前 / When 検める / Then そのまま提示してよい', () => {
@@ -56,5 +72,35 @@ describe('既定として提示してよい表示名', () => {
     // Given（準備）: NFKC は 1 文字を最大 `MAX_NFKC_EXPANSION` 文字へ広げる。
     // **上限は正規化の後に効かなければ意味がない**（`display-name.ts` の正本と同じ理由）
     expect(usableDefaultDisplayName('ﷺ'.repeat(MAX_DISPLAY_NAME))).toBe('');
+  });
+
+  /**
+   * 前段の緩い上限（#284・レビュー所見 3）。正本 `applyDisplayNameRule` と揃える。
+   *
+   * ここは**描画フェーズ**で走る。保管庫は誰でも書き換えられるので上限いっぱい
+   * （5M 文字）の値を置け、実測で 292ms かかった（入れ子ラベル 20 段 × 5M 文字）。
+   * 固まりはしないが、玄関を開くたびに払う必要のない代金である。
+   */
+  describe('前段の緩い上限', () => {
+    /** 前段を素通りする長さの値（後段で落ちる）。 */
+    const underCap = 'a'.repeat(MAX_DISPLAY_NAME * MAX_NFKC_EXPANSION);
+    /** 前段で落ちる長さの値。 */
+    const overCap = 'a'.repeat(MAX_DISPLAY_NAME * MAX_NFKC_EXPANSION + 1);
+
+    it('Given 前段を超える値 / When 検める / Then 正規化を走らせずに空にする', () => {
+      // When（操作）
+      expect(usableDefaultDisplayName(overCap)).toBe('');
+
+      // Then: **戻り値では差が出ない**ので、走ったかどうかを見る
+      expect(vi.mocked(normalizeDisplayName)).not.toHaveBeenCalled();
+    });
+
+    it('Given 前段ちょうどの値 / When 検める / Then 正規化は走る（境界の内側）', () => {
+      // Given（対照）: 段を「常に落とす」に壊すと、ここが赤くなる
+      expect(usableDefaultDisplayName(underCap)).toBe('');
+
+      // Then
+      expect(vi.mocked(normalizeDisplayName)).toHaveBeenCalledTimes(1);
+    });
   });
 });

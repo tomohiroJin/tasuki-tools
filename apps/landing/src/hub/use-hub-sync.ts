@@ -49,40 +49,17 @@ export function buildHubSyncUrl(location: { protocol: string; host: string }): s
 const LEGACY_PREFERENCES_KEY = 'tdd-mob:preferences:v1';
 
 /**
- * 名乗りの欄へ差し出す既定の表示名を取り出す（FR-053 / FR-054・#284）。
- *
- * **読むついでに片付ける。** 片付け専用の経路を作らない（憲法 原則 X）ので、
- * 玄関を開くたびに通るこの読みへ次の 2 つを相乗りさせている:
- *
- * 1. 提示できない保存値を**その鍵ごと捨てる**。残すと玄関を開くたびに同じ値で
- *    弾かれ続ける（`resume-identity.ts` の壊れた組と同じ扱い）
- * 2. timer 時代の設定（{@link LEGACY_PREFERENCES_KEY}）を落とす
- *
- * **何度呼んでも同じ結果になる**（消す・書き直すはいずれも冪等）ので、`StrictMode` が
- * 初期化子を 2 度走らせても害が無い。同じ理由で、すぐ上の `useState` の初期化子も
- * `loadResumeIdentity`（壊れた組を捨てる読み）をそのまま呼んでいる。
- */
-function takeDefaultDisplayName(): string {
-  dropLegacyPreferences();
-  const stored = loadDefaultDisplayName();
-  const usable = usableDefaultDisplayName(stored);
-  // 空文字を渡すと鍵ごと消える（`saveDefaultDisplayName` の約束）。
-  if (usable !== stored) saveDefaultDisplayName(usable);
-  return usable;
-}
-
-/**
  * timer 時代の設定を落とす。**落とせなくても先へ進む。**
  *
  * 保管庫そのものが使えない端末がある（cookie を全面禁止した Chrome では**読むだけで**
- * `SecurityError` が飛び、容量超過では書き込みが投げる）。ここで投げると玄関は描画の
- * 初期化子でそれを踏み、**画面ごと真っ白になる** ——「片付けができない」は利用者に
- * 見せる話ではない（EARS 3）。
+ * `SecurityError` が飛び、容量超過では書き込みが投げる）。投げたまま外へ出すと、
+ * 玄関が**画面ごと真っ白になる** ——「片付けができない」は利用者に見せる話ではない
+ * （EARS 3）。
  *
- * **例外はここで飲み切る。** 呼び手（{@link takeDefaultDisplayName}）をまとめて try で
- * 包まないのは、そうすると**片付けの失敗が前回の名前を道連れにする**ためである
- * （読み書きはできるのに消去だけが拒まれる端末では、名前は読めていたはずである）。
- * 読み書きの側は `@tasuki/sync-client` が自分で飲み込むので、生の保管庫操作はここだけになる。
+ * **例外はここで飲み切る。** 呼び手をまとめて try で包まないのは、そうすると
+ * **片付けの失敗が前回の名前を道連れにする**ためである（読み書きはできるのに消去だけが
+ * 拒まれる端末では、名前は読めていたはずである）。読み書きの側は `@tasuki/sync-client` が
+ * 自分で飲み込むので、生の保管庫操作はここだけになる。
  */
 function dropLegacyPreferences(): void {
   try {
@@ -182,12 +159,43 @@ export function useHubSync(): HubSync {
   const [needsPassphrase, setNeedsPassphrase] = useState(false);
   const [connection, setConnection] = useState<'online' | 'reconnecting'>('online');
   /**
-   * 名乗りの欄の既定（FR-053 / FR-054・#284）。**読むのは読み込みの 1 度だけ。**
+   * 読み込みの時点で端末に入っていた表示名（FR-053 / FR-054・#284）。
+   *
+   * **読むだけで、書かない。** 保管庫への書き込みは下の `useEffect` が受け持つ
+   * （`App.tsx` の `readDepartureNotice` と同じ分け方 —— **初期化子に副作用を混ぜない**）。
+   * ここに `removeItem` / `setItem` を混ぜると、`StrictMode` が初期化子を 2 度走らせる
+   * テストと、`StrictMode` を持たない本番（`main.tsx`）とで**読む対象が変わりうる**。
+   */
+  const storedDisplayName = useMemo(() => loadDefaultDisplayName(), []);
+  /**
+   * 名乗りの欄の既定。**読むのは読み込みの 1 度だけ。**
    *
    * 以後の書き換えは画面側の `useState` が持つ（EARS 4）。ここを描画のたびに読み直すと、
    * 入力中の値を保存値で上書きしてしまう。
    */
-  const defaultDisplayName = useMemo(() => takeDefaultDisplayName(), []);
+  const defaultDisplayName = useMemo(
+    () => usableDefaultDisplayName(storedDisplayName),
+    [storedDisplayName],
+  );
+
+  /**
+   * 端末の片付け（#284）。**片付け専用の経路は作らない**（憲法 原則 X）ので、
+   * 玄関を開くたびに通るここへ 2 つを相乗りさせている:
+   *
+   * 1. 提示できない保存値を**その鍵ごと捨てる**。残すと玄関を開くたびに同じ値で
+   *    弾かれ続ける（`resume-identity.ts` の壊れた組と同じ扱い）
+   * 2. timer 時代の設定（{@link LEGACY_PREFERENCES_KEY}）を落とす
+   *
+   * **何度走っても同じ結果になる。** `normalizeDisplayName` は冪等
+   * （`packages/room-core/src/display-name.ts`・#284 で順序を直して回復させた）なので
+   * {@link usableDefaultDisplayName} も冪等であり、消去も書き直しも冪等である。
+   * `StrictMode` が effect を 2 度走らせても、保管庫は同じ値に落ち着く。
+   */
+  useEffect(() => {
+    dropLegacyPreferences();
+    // 空文字を渡すと鍵ごと消える（`saveDefaultDisplayName` の約束）。
+    if (defaultDisplayName !== storedDisplayName) saveDefaultDisplayName(defaultDisplayName);
+  }, [storedDisplayName, defaultDisplayName]);
 
   const connRef = useRef<SyncConnection | null>(null);
   /**

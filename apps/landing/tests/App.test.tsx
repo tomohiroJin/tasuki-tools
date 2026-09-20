@@ -10,7 +10,7 @@ import { StrictMode } from 'react';
 import { App } from '../src/App.js';
 import { TOOLS } from '../src/tools.js';
 import { RoomChoice } from '../src/screens/RoomChoice.js';
-import { SyncConnection } from '@tasuki/sync-client';
+import { SyncConnection, saveDefaultDisplayName } from '@tasuki/sync-client';
 import { MAX_DISPLAY_NAME, type RosterRoom } from '@tasuki/room-core';
 
 /**
@@ -77,8 +77,10 @@ describe('玄関（ハブ）', () => {
   });
 
   it('Given 前に名乗った名前 / When 参加画面を開く / Then 初期値に入る', () => {
-    // Given（準備）: ルーム非依存の既定表示名（D12 の後半）
-    localStorage.setItem('tasuki:display-name', 'あや');
+    // Given（準備）: ルーム非依存の既定表示名（D12 の後半）。
+    // **鍵の綴りは写さない** —— 綴りの正本と、それを固定する検査は
+    // `packages/sync-client` にある（#284 のレビュー所見 4）
+    saveDefaultDisplayName('あや');
     window.history.replaceState(null, '', '/?room=R1');
 
     // When（操作）

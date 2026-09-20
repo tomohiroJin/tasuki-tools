@@ -87,6 +87,22 @@ describe('既定の表示名', () => {
     // When / Then（操作）
     expect(loadDefaultDisplayName()).toBe('');
   });
+
+  /**
+   * 鍵の綴りを固定する（#284）。**綴りは既に配布済みの端末との契約である。**
+   *
+   * ここが唯一の写しであり、玄関側のテストは綴りを書かずに
+   * `saveDefaultDisplayName` / `loadDefaultDisplayName` を通す。そうしないと、
+   * 鍵を変えたとき**書き込みも読み出しも新しい鍵で揃ってしまい、どのテストも緑のまま
+   * 既存利用者の名前だけが消える**（読み書きが対で動く値の、いちばん静かな壊れ方）。
+   */
+  it('Given 保存した既定の表示名 / When 保管庫を直接見る / Then tasuki:display-name にある', () => {
+    // Given（準備）
+    saveDefaultDisplayName('あや');
+
+    // When / Then（操作）: ルームコードを含まない 1 本の鍵（D12 の後半）
+    expect(localStorage.getItem('tasuki:display-name')).toBe('あや');
+  });
 });
 
 describe('復帰の組（ルームをまたぐ扱い・#95 S5b で timer から移設）', () => {

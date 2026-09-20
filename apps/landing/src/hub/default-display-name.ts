@@ -28,7 +28,7 @@
  * **保管庫には触らない**（`docs/guides/architecture.md` の「web の純粋判断」層）。
  * 読み書きと鍵の綴りは同期フック（`use-hub-sync.ts`）が持つ。
  */
-import { MAX_DISPLAY_NAME, normalizeDisplayName } from '@tasuki/room-core';
+import { MAX_DISPLAY_NAME, MAX_NFKC_EXPANSION, normalizeDisplayName } from '@tasuki/room-core';
 
 /**
  * 既定として提示してよい表示名。提示できないなら空文字。
@@ -37,10 +37,21 @@ import { MAX_DISPLAY_NAME, normalizeDisplayName } from '@tasuki/room-core';
  * 理由も分からず名前を失う。直しても通らない値（正規化すると消える・上限を超える）
  * だけを空にする。
  *
- * 上限は**正規化の後**に課す。NFKC は 1 文字を最大 `MAX_NFKC_EXPANSION` 文字へ
- * 広げるので、前に課しても保存・配信される長さを保証できない（正本と同じ理由）。
+ * 上限は**正本と同じく二段で課す**（`applyDisplayNameRule`）。
+ *
+ * - **前段（緩い）**: `MAX_DISPLAY_NAME * MAX_NFKC_EXPANSION` を超える入力は、NFKC も
+ *   ラベルの剥がしも走らせずに落とす。ここが描画フェーズであることが理由である ——
+ *   保管庫は誰でも書き換えられるので、上限いっぱい（5M 文字）の値を置ける。
+ *   実測で **292ms** かかった（入れ子ラベル 20 段 × 5M 文字。素の 5M 文字で 136ms）。
+ *   固まりはしないが、玄関を開くたびに払う必要のない代金である
+ * - **後段（厳密）**: 正規化の後に `MAX_DISPLAY_NAME` を課す。NFKC は 1 文字を最大
+ *   `MAX_NFKC_EXPANSION` 文字へ広げるので、前段だけでは保存・配信される長さを保証できない
+ *
+ * **前段を正本と揃えるのは、2 箇所の判定を食い違わせないためでもある。** 片方にだけ
+ * 段があると、「玄関は通すのにサーバーが弾く」値の帯ができる。
  */
 export function usableDefaultDisplayName(stored: string): string {
+  if (stored.length > MAX_DISPLAY_NAME * MAX_NFKC_EXPANSION) return '';
   const normalized = normalizeDisplayName(stored);
   if (normalized === '') return '';
   if (normalized.length > MAX_DISPLAY_NAME) return '';

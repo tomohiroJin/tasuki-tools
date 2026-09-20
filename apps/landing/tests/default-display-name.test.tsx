@@ -6,12 +6,26 @@
  * いちばん起きやすい壊れ方を通してしまう）。ここでは**名乗る → 玄関を開き直す**の
  * 往復を通し、**次の描画で欄に現れるところまで**を見る。
  *
- * 鍵の綴りは `packages/sync-client/tests/resume-identity.test.ts` が固定している。
- * こちらはそれを写さず、振る舞いだけで書く。
+ * ## 「空欄になる」だけを期待値にしない
+ *
+ * 壊れた保存値の検査は、期待値が「空欄」なので**「保存が無い端末」の検査と見分けが
+ * 付かない**。鍵の綴りが変われば書き込みは誰も読まない鍵へ行き、読み出しは元から
+ * `null` を返すので、**提示の経路が丸ごと壊れていても緑になる**。そこで 2 つを課している:
+ *
+ * 1. **鍵の綴りを写さない。** 置くのも確かめるのも `@tasuki/sync-client` の
+ *    `saveDefaultDisplayName` / `loadDefaultDisplayName`（製品コードと同じ入口）を通す。
+ *    綴りそのものは `packages/sync-client/tests/resume-identity.test.ts` が固定している
+ * 2. **同じ経路に正当な値を置いた対照を先に置く。** 提示が生きていることを見せてから
+ *    壊れた値を置く。経路が死んでいれば対照が赤くなる
+ *
+ * **旧鍵 `tdd-mob:preferences:v1` だけは綴りで書く。** 読み手も書き手も #272 で消えて
+ * いるので通せる入口が無く、綴りそのものが古い端末との唯一の接点である。
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
+import { StrictMode } from 'react';
 import { MAX_DISPLAY_NAME } from '@tasuki/room-core';
+import { loadDefaultDisplayName, saveDefaultDisplayName } from '@tasuki/sync-client';
 import { App } from '../src/App.js';
 
 /** 開いたことにはせず、届いたメッセージだけを差し込める WebSocket（`App.test.tsx` と同じ作法）。 */
@@ -106,11 +120,17 @@ describe('前回の名乗りを既定として提示する', () => {
   });
 
   it('Given 上限を超える保存値 / When 玄関を開く / Then 空の欄になり、その値は残らない', () => {
-    // Given（準備）: 手で書き換えられた保管庫（原則 IV）。`maxLength` は**打ち込みしか
-    // 止めない**ので、初期値として入れるとそのまま送信でき、サーバーは理由を伏せた
+    // Given（対照）: **同じ鍵・同じ入口**に正当な値を置くと提示される。
+    // これが赤なら、以下の「空欄」は経路が死んでいるだけかもしれない
+    saveDefaultDisplayName('あや');
+    const control = render(<App />);
+    expect(nameField(), '対照: 正当な保存値は提示される').toHaveValue('あや');
+    control.unmount();
+
+    // Given（準備）: 同じ入口に上限超えの値を置く。`maxLength` は**打ち込みしか
+    // 止めない**ので、初期値として入るとそのまま送信でき、サーバーは理由を伏せた
     // 文言で弾く —— 利用者には直しようが無い
-    const tooLong = 'あ'.repeat(MAX_DISPLAY_NAME + 10);
-    localStorage.setItem('tasuki:display-name', tooLong);
+    saveDefaultDisplayName('あ'.repeat(MAX_DISPLAY_NAME + 10));
 
     // When（操作）
     render(<App />);
@@ -121,12 +141,20 @@ describe('前回の名乗りを既定として提示する', () => {
 
     // Then: **残さない。** 残すと玄関を開くたびに同じ値で弾かれ続ける
     // （`resume-identity.ts` の壊れた組と同じ扱い）
-    expect(localStorage.getItem('tasuki:display-name')).toBeNull();
+    expect(loadDefaultDisplayName()).toBe('');
   });
 
-  it('Given 空白だけの保存値 / When 玄関を開く / Then 空の欄になる（押しても何も起きない欄を出さない）', () => {
-    // Given（準備）: 空白は `required` を素通りするのに、画面の送信判定が黙って弾く
-    localStorage.setItem('tasuki:display-name', '   ');
+  it('Given 幅を持たない文字だけの保存値 / When 玄関を開く / Then 空の欄になり、その値は残らない', () => {
+    // Given（対照）: 提示の経路が生きていることを先に見せる
+    saveDefaultDisplayName('あや');
+    const control = render(<App />);
+    expect(nameField(), '対照: 正当な保存値は提示される').toHaveValue('あや');
+    control.unmount();
+
+    // Given（準備）: U+200B は `trim()` では落ちないので**保存の入口も通る**。
+    // 画面には何も見えないままサーバーへ飛び、`EmptyAfterNormalize` で弾かれる
+    saveDefaultDisplayName('​');
+    expect(loadDefaultDisplayName(), '保存の入口を通ること').toBe('​');
 
     // When（操作）
     render(<App />);
@@ -134,6 +162,7 @@ describe('前回の名乗りを既定として提示する', () => {
     // Then
     expect(nameField()).toHaveValue('');
     expect(screen.queryByRole('alert')).toBeNull();
+    expect(loadDefaultDisplayName()).toBe('');
   });
 
   it('Given localStorage が使えない端末 / When 玄関を開く / Then 空の欄が出て、玄関は描ける', () => {
@@ -194,6 +223,42 @@ describe('前回の名乗りを既定として提示する', () => {
 
     // Then: 空欄から始まる（**消すことと移すことを取り違えていない**）
     expect(nameField()).toHaveValue('');
-    expect(localStorage.getItem('tasuki:display-name')).toBeNull();
+    expect(loadDefaultDisplayName()).toBe('');
+  });
+
+  /**
+   * `StrictMode` と本番で結果が割れないこと（#284・レビュー所見 2）。
+   *
+   * `StrictMode` は初期化子と effect を 2 度走らせる。**本番（`src/main.tsx`）には
+   * `StrictMode` が無い**ので、初期化子の中で保管庫を書き換えていると
+   * 「2 度目が書き換え後を読む」テストと「1 度しか読まない本番」で**欄の値が割れる**。
+   * 実際、正規化が冪等でなかった頃は割れていた（ラベルを復活させる値で、
+   * テストは `Bob`・本番は `Bob(ID: rqdK)` になる）。
+   */
+  it.each([
+    ['正当な名前', 'あや'],
+    // 制御文字でラベルの見出しを割る値。#284 で正規化の順序を直すまで冪等でなかった
+    ['ラベルを復活させかけた値', 'Bob（ID: rqdK）'],
+    ['前後に空白のある値', '  あや さん  '],
+  ])('Given %s / When StrictMode の有無で開く / Then 欄の値も保管庫も一致する', (_name, stored) => {
+    // Given（準備）: 同じ保存値から始める
+    saveDefaultDisplayName(stored);
+    const plain = render(<App />);
+    const plainValue = nameField().value;
+    const plainStored = loadDefaultDisplayName();
+    plain.unmount();
+
+    // When（操作）: 同じ保存値を置き直して `StrictMode` で開く
+    localStorage.clear();
+    saveDefaultDisplayName(stored);
+    render(
+      <StrictMode>
+        <App />
+      </StrictMode>,
+    );
+
+    // Then: 見えるものも残るものも同じ
+    expect(nameField().value, '欄の値').toBe(plainValue);
+    expect(loadDefaultDisplayName(), '保管庫に残る値').toBe(plainStored);
   });
 });
