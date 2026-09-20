@@ -332,6 +332,49 @@ describe("ProblemDelegator: 生成中はサーバー権威（#283）", () => {
     expect(last.problemGeneration).toEqual({ active: false, degraded: true });
   });
 
+  it("印を立てたあと代表が AI のお題を投入してきたら、印は持ち越さない", () => {
+    // Given: AI 枠が取れず縮退の印を立て、クライアント委譲へ落ちた状態。
+    // 候補になれる AI 鍵の持ち主が 1 人居るので、委譲は返りを待つ。
+    const limiter = new AiLimiter({ clock, dailyLimit: 10, cooldownMs: 60_000, maxConcurrent: 5 });
+    const first = limiter.tryAcquire("GEN01");
+    if (first.ok) first.release();
+    const delegator = makeDelegator({ serverProvider: pendingProvider(), aiLimiter: limiter });
+    putRoomView(
+      store,
+      timers,
+      makeRoom({
+        participants: [
+          {
+            participantId: "alice",
+            displayName: "Alice",
+            presence: "online",
+            hasAiKey: true,
+            joinedAt: 1_000_000,
+          },
+        ],
+      }),
+      { alice: ["alice-conn"] },
+    );
+    delegator.request("GEN01", "req-2");
+    expect(timers.get("GEN01")?.problemGeneration?.degraded).toBe(true); // 前提: 印が立っている
+
+    // When: その代表が **AI で作ったお題**を投入してくる
+    const accepted = delegator.submit(
+      "GEN01",
+      "req-2",
+      "alice",
+      { ...VALID_PROBLEM, source: "ai" },
+      false,
+    );
+    if (!accepted) throw new Error("前提: 代表からの submit が受理されなかった");
+
+    // Then: 確定したのは AI のお題なので、印は降りている。
+    // **持ち越すと、AI 由来のバッジの隣へ「定型のお題に切り替えました」が並ぶ。**
+    const last = broadcaster.snapshots.at(-1)!.room;
+    expect(last.problem?.source).toBe("ai");
+    expect(last.problemGeneration).toEqual({ active: false, degraded: false });
+  });
+
   it("最初から定型モードのルームでは、縮退の印は立たない", () => {
     // Given: AI を試みてすらいないルーム。ここで印が立つと
     // 「AI での生成ができませんでした」が常時出っぱなしになる。
