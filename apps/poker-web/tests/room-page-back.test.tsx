@@ -72,9 +72,20 @@ beforeEach(() => {
   });
 });
 
+/**
+ * `Object.defineProperty` で入れた値は `vi.unstubAllGlobals()` では戻らない。
+ * 戻さないと、後から足したテストが「使えない `execCommand`」を引き継いで偽の緑になる。
+ */
+const execCommandBefore = Object.getOwnPropertyDescriptor(document, 'execCommand');
+function restoreExecCommand(): void {
+  if (execCommandBefore) Object.defineProperty(document, 'execCommand', execCommandBefore);
+  else Reflect.deleteProperty(document, 'execCommand');
+}
+
 afterEach(() => {
   localStorage.clear();
   vi.unstubAllGlobals();
+  restoreExecCommand();
 });
 
 describe('RoomPage のヘッダ', () => {
@@ -88,7 +99,8 @@ describe('RoomPage のヘッダ', () => {
     fireEvent.click(screen.getByRole('button', { name: '招待リンクをコピー' }));
 
     await waitFor(() => expect(writeText).toHaveBeenCalledWith('https://example.test/?room=ABCD1234'));
-    expect(screen.getByRole('button', { name: 'コピーしました' })).toBeDefined();
+    // `writeText` の呼び出しは同期に済む。表示は解決後の再描画なので、DOM は待って取る。
+    expect(await screen.findByRole('button', { name: 'コピーしました' })).toBeDefined();
   });
 
   it('Given clipboard と従来コピーが使えない / When コピーを選ぶ / Then 手動選択を案内し URL を残す', async () => {

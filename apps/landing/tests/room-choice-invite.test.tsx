@@ -9,7 +9,17 @@ vi.mock('@tasuki/invite-ui', async (importOriginal) => {
 });
 const URL = 'https://example.test/?room=%E6%9C%9D%E4%BC%9A-ab12';
 
-afterEach(() => { cleanup(); vi.resetAllMocks(); vi.unstubAllGlobals(); });
+/**
+ * `Object.defineProperty` で入れた値は `vi.unstubAllGlobals()` では戻らない。
+ * 戻さないと、後から足したテストが「使えない `execCommand`」を引き継いで偽の緑になる。
+ */
+const execCommandBefore = Object.getOwnPropertyDescriptor(document, 'execCommand');
+function restoreExecCommand(): void {
+  if (execCommandBefore) Object.defineProperty(document, 'execCommand', execCommandBefore);
+  else Reflect.deleteProperty(document, 'execCommand');
+}
+
+afterEach(() => { cleanup(); vi.resetAllMocks(); vi.unstubAllGlobals(); restoreExecCommand(); });
 beforeEach(async () => {
   const actual = await vi.importActual<typeof import('@tasuki/invite-ui')>('@tasuki/invite-ui');
   vi.mocked(useInviteQr).mockImplementation(actual.useInviteQr);
