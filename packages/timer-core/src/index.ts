@@ -53,6 +53,9 @@ export type {
   ProblemSource,
   Problem,
   ProblemMode,
+  // #283 で追加。wire の `Room.problemGeneration` の型なので、`Room` を載せている以上
+  // 署名から到達する（ADR-0016 追記「型は署名から到達できるなら載せる」）。
+  ProblemGeneration,
   RoomPhase,
   CompletionRecord,
   IntervalMinutes,

@@ -1,18 +1,34 @@
 /**
- * AI お題生成の「生成中」フラグを下ろすべきか判定する純関数。
- * 生成中で、かつ snapshot のお題が前回から内容変化（title または source）したら true。
- * 参照比較は使わない（presence 更新などお題に無関係な snapshot で room が
- * 新規オブジェクトになっても誤解除しないため）。null→problem の初回確定も変化とみなす。
+ * お題の生成にまつわる表示を決める純関数（#283）。
+ *
+ * **材料はサーバーが送る帳簿（`Room.problemGeneration`）だけである。**
+ *
+ * かつてここには `shouldClearGenerating` があり、前後の snapshot のお題の内容
+ * （title / source）が変わったかで「生成が終わった」を推測していた。その推測は
+ * **2 通りに破れる** ——
+ *
+ * - 作り直しで**同じお題が選ばれる**と差分が出ない（`pickFallback` は候補から選ぶ）。
+ *   降ろす経路が成立せず、押した人だけが安全弁の 65 秒まで固まった
+ * - 途中から繋ぎ直した端末は**前の snapshot を持たない**ので、差分をそもそも問えない
+ *
+ * ⚠ **ここに内容差分を戻さないこと。** 帳簿が無い snapshot（配布の窓で旧サーバーが
+ * 送るもの）では「出さない」へ倒す。推測で埋めると #283 が閉じた穴がそのまま開く。
  */
-import type { Problem } from "@tasuki/timer-core";
+import type { Room } from "@tasuki/timer-core";
 
-export function shouldClearGenerating(
-  generating: boolean,
-  prevProblem: Problem | null,
-  nextProblem: Problem | null,
-): boolean {
-  if (!generating) return false;
-  if (prevProblem === null && nextProblem === null) return false;
-  if (prevProblem === null || nextProblem === null) return true; // 片方だけ null＝確定/消失
-  return prevProblem.title !== nextProblem.title || prevProblem.source !== nextProblem.source;
+/** サーバーがいまお題を作り直しているか（EARS 1・EARS 2）。 */
+export function isGeneratingProblem(room: Room | null): boolean {
+  return room?.problemGeneration?.active === true;
+}
+
+/**
+ * 「AI で作れなかったので定型にした」という断り書きを出すか（EARS 3）。
+ *
+ * **生成中は出さない。** 走っている最中に結末を言うと、そのあと AI で作れた場合に
+ * 嘘になる（縮退の印は AI を試みて落ちた時点で立ち、確定まで持ち越される）。
+ */
+export function showsFallbackNotice(room: Room | null): boolean {
+  const generation = room?.problemGeneration;
+  if (generation === undefined) return false;
+  return !generation.active && generation.degraded;
 }

@@ -130,10 +130,16 @@ export const MUTATIONS = [
   },
   {
     id: 7,
-    label: "shouldClearGenerating の内容比較を参照比較に変える",
-    patch: "m07-should-clear-generating-refcompare.patch",
+    label: "帳簿を持たない snapshot を生成中側へ倒す（旧サーバーで画面が固まる）",
+    patch: "m07-generating-guesses-when-ledger-missing.patch",
     pkg: "apps/timer-web",
     tests: ["test/ui/problem-generation.test.ts"],
+    note:
+      "#283。**かつては `shouldClearGenerating` の内容比較を参照比較に変える変異だった** —— " +
+      "生成中をクライアントが内容差分で降ろしていた頃の対象で、その関数ごと消えたので" +
+      "同じ欠陥の新しい住所へ移した。塞いだ形は**「無い情報を推測で埋める」**である。" +
+      "配布の窓（新しい画面 × 旧サーバー）では帳簿そのものが来ないので、" +
+      "推測すると**降ろす者が誰も居ない生成中**がお題パネルを固める。",
   },
   {
     id: 8,
@@ -554,6 +560,18 @@ export const MUTATIONS = [
     note:
       "#276 が直した欠陥そのもの。飛ばされる席を数に入れるため、画面が出す「次」と" +
       "実際の交代先が食い違う。殺せないなら、直したことの証拠が無い。",
+  },
+  {
+    id: 43,
+    label: "確定時に生成中を降ろす条件へ「お題が変わったなら」を足す",
+    patch: "m43-finalize-clears-only-on-change.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/problem-generation-state.test.ts"],
+    note:
+      "#283 の穴 1。**これは #283 より前のクライアント実装（内容差分で降ろす）を" +
+      "サーバーへ移した形である** —— `pickFallback` は候補の中から選ぶので、" +
+      "「別のお題にする」で同じ候補に当たると降りない。殺せないなら、" +
+      "サーバー権威にした意味（内容に依存せず降りる）の証拠が無い。",
   },
 ];
 

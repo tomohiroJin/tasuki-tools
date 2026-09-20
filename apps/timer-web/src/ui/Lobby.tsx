@@ -41,6 +41,8 @@ interface LobbyProps {
   onCopyProblem?: () => void;
   /** AI/定型のお題を生成中。ProblemEditor のスピナー＋減光に使う。 */
   generatingProblem?: boolean;
+  /** AI で作れずに定型へ落ちたことを断る（#283・EARS 3）。 */
+  showsFallbackNotice?: boolean;
   /** セッション設定の変更（言語/難易度/間隔/オプション）。config.set を送る。 */
   onConfigSet?: (patch: Partial<SessionConfig>) => void;
   /** 自分をドライバーローテーションに加える（自分のIDで member.add）。2層モデル。 */
@@ -90,6 +92,7 @@ export function Lobby({
   onEditProblem,
   onRegenerateProblem,
   generatingProblem = false,
+  showsFallbackNotice = false,
   onPasteProblem,
   onCopyProblem,
   onConfigSet,
@@ -374,6 +377,7 @@ export function Lobby({
                       onPaste={onPasteProblem ?? (() => {})}
                       onCopy={onCopyProblem ?? (() => {})}
                       generating={generatingProblem}
+                      fallbackNotice={showsFallbackNotice}
                     />
                   ) : (
                     <div className="space-y-3">
@@ -381,7 +385,7 @@ export function Lobby({
                         <span className="inline-block h-4 w-4 animate-pulse rounded-full bg-[var(--signal)] mb-2" aria-hidden="true" />
                         <p>
                           {room.aiUnlocked && room.problemMode === "ai"
-                            ? "AI がお題を作成中です…（最大 1 分）"
+                            ? "AI がお題を作成中です…（1 分以上かかることがあります）"
                             : "お題を準備中です…"}
                         </p>
                       </div>

@@ -7,7 +7,13 @@
  * deadline 内に投入が無ければ次候補へ再委譲し、全候補失敗なら定型で確定する。
  */
 
-import { validateProblem, pickFallback, type Problem, type TimerState } from "@tasuki/timer-core";
+import {
+  validateProblem,
+  pickFallback,
+  type Problem,
+  type ProblemGeneration,
+  type TimerState,
+} from "@tasuki/timer-core";
 import type {
   Participant as MembershipParticipant,
   Room as MembershipRoom,
@@ -125,10 +131,15 @@ export class ProblemDelegator {
     const room = this.timers.get(roomCode);
     if (!room) return;
 
+    // 新しい依頼が始まった。帳簿を「生成中・縮退なし」から引き直す（#283）。
+    // **ここでは配信しない。** この場で確定してしまう経路（定型モード・候補ゼロ）では
+    // 「生成中」の snapshot が直後の確定に上書きされるだけの無駄な 1 本になる。
+    // 待ちが実際に残ったかどうかは {@link settleAfterDispatch} が最後に見る。
+    this.writeGeneration(roomCode, { active: true, degraded: false });
+
     // problemMode=fallback の場合は AI 候補へ委譲せず即座に定型で確定する（FR-037/043）
     if (room.problemMode === "fallback") {
-      const fb = pickFallback(room.config.language, room.config.difficulty, this.clock.now());
-      this.finalize(roomCode, { ...fb.problem, source: "fallback" });
+      this.finalize(roomCode, this.fallbackProblem(room));
       return;
     }
 
@@ -138,6 +149,7 @@ export class ProblemDelegator {
       const acquired = this.aiLimiter.tryAcquire(roomCode);
       if (acquired.ok) {
         this.startServerGeneration(roomCode, requestId, room, acquired.release);
+        this.settleAfterDispatch(roomCode);
         return;
       }
       this.logger.warn("ai.skip", {
@@ -145,9 +157,71 @@ export class ProblemDelegator {
         req: this.refEncoder.request(requestId),
         reason: AI_SKIP_REASONS[acquired.reason],
       });
+      // **AI で作るつもりだったのに枠が取れなかった。** この先は実質・定型なので
+      // 縮退の印を立てる（#283 の穴 3）。走っている生成を設定変更が中断した直後が
+      // ちょうどこの形で、利用者には何も伝わらないまま定型へ落ちていた。
+      this.writeGeneration(roomCode, { active: true, degraded: true });
     }
 
     this.startClientDelegation(roomCode, requestId, room);
+    this.settleAfterDispatch(roomCode);
+  }
+
+  // ─── 生成の帳簿（#283）─────────────────────────────────────────────────────
+  //
+  // 「生成中」をサーバーが持つ。**書き手はこのクラスだけである** ——
+  // 他の場所が書くと、委譲の実態（`active` / `activeServer`）と帳簿が食い違い、
+  // 誰も降ろさない生成中が生まれる。
+
+  /**
+   * 定型バンクから 1 つ選ぶ。**出所（`source: "fallback"`）はここで必ず付ける**（#283）。
+   *
+   * `pickFallback` は出所をお題の外（`ProblemWithSource.source`）で返すので、素の
+   * `fb.problem` をそのまま確定すると**出所不明のお題**になる（`Problem.source` の
+   * 省略はそういう意味である）。付けていたのは `request()` の定型モードの経路だけで、
+   * **本番が実際に通る経路**（候補を使い切って定型へ落ちる。実クライアントは常に
+   * `hasAiKey: false` を送るので候補は定型センチネルだけになる）は付けていなかった。
+   * 画面の出所バッジは「印が無ければ定型」と書いてあるため、この食い違いは
+   * 見た目には出ず、**同じ結末なのに wire の値だけが 2 通り**という形で残っていた。
+   */
+  private fallbackProblem(room: TimerState): Problem {
+    const fb = pickFallback(room.config.language, room.config.difficulty, this.clock.now());
+    return { ...fb.problem, source: fb.source };
+  }
+
+  /** 帳簿を書く（配信はしない）。ルームが消えていれば何もしない。 */
+  private writeGeneration(roomCode: string, generation: ProblemGeneration): void {
+    const room = this.timers.get(roomCode);
+    if (!room) return;
+    this.timers.put({ ...room, problemGeneration: generation });
+  }
+
+  /** いまの帳簿を在室者全員へ配信する（EARS 1）。 */
+  private broadcastGeneration(roomCode: string): void {
+    const room = this.timers.get(roomCode);
+    const membership = this.store.get(roomCode);
+    if (!room || !membership) return;
+    this.broadcaster.broadcastSnapshot(roomCode, buildTimerSnapshotRoom(membership, room));
+  }
+
+  /**
+   * 依頼を出し終えた時点の帳簿を整える（#283）。**3 つの出口がある。**
+   *
+   * - **まだ返りを待っている** → 生成中を在室者全員へ配信する（EARS 1）。
+   *   押した人だけでなく全員に出るのはここが効いているからである
+   * - **同じ tick で確定した** → `finalize` が既に降ろして配信済み。何もしない
+   * - **どちらでもない** → 委譲がルーム不在などで畳まれた。ここを空振りさせると
+   *   **誰も降ろさない生成中**が残るので、帳簿を降ろして配信する
+   */
+  private settleAfterDispatch(roomCode: string): void {
+    if (this.isRequesting(roomCode)) {
+      this.broadcastGeneration(roomCode);
+      return;
+    }
+    const generation = this.timers.get(roomCode)?.problemGeneration;
+    if (generation?.active !== true) return;
+    this.writeGeneration(roomCode, { active: false, degraded: generation.degraded });
+    this.broadcastGeneration(roomCode);
   }
 
   /** 従来のクライアント代表委譲（候補が空なら即・定型確定） */
@@ -218,7 +292,10 @@ export class ProblemDelegator {
     });
     const room = this.timers.get(roomCode);
     if (!room) return;
+    // **AI 生成が失敗した。** この先は実質・定型なので縮退の印を立てる（#283 の穴 3）。
+    this.writeGeneration(roomCode, { active: true, degraded: true });
     this.startClientDelegation(roomCode, requestId, room);
+    this.settleAfterDispatch(roomCode);
   }
 
   /**
@@ -245,9 +322,7 @@ export class ProblemDelegator {
 
     // AI 由来テキストは信頼しないデータとして検証し、失敗時は定型へ縮退（FR-023, FR-024）
     const validated = validateProblem(problem);
-    const finalProblem: Problem = validated.isOk()
-      ? validated.value
-      : pickFallback(room.config.language, room.config.difficulty, this.clock.now()).problem;
+    const finalProblem: Problem = validated.isOk() ? validated.value : this.fallbackProblem(room);
 
     void usedFallback; // 出所バッジはクライアント側で表示するためここでは保持しない
 
@@ -304,8 +379,7 @@ export class ProblemDelegator {
 
     // 候補を使い切った、または FALLBACK センチネルに到達したら定型で確定
     if (candidateId === undefined || candidateId === FALLBACK) {
-      const fb = pickFallback(room.config.language, room.config.difficulty, this.clock.now());
-      this.finalize(roomCode, fb.problem);
+      this.finalize(roomCode, this.fallbackProblem(room));
       return;
     }
 
@@ -357,7 +431,18 @@ export class ProblemDelegator {
     const room = this.timers.get(roomCode);
     const membership = this.store.get(roomCode);
     if (room && membership) {
-      const updated: TimerState = { ...room, problem };
+      const updated: TimerState = {
+        ...room,
+        problem,
+        // **確定したので生成中は降りる。内容が前と同じでも降りる**（#283 の穴 1）。
+        // 内容差分で降ろしていた頃は、`pickFallback` が同じ候補に当たると
+        // title も source も変わらず、押した人だけが安全弁の 65 秒まで固まっていた。
+        // 縮退の印は依頼の途中で立ったものを持ち越す（次の `request` で降りる）。
+        problemGeneration: {
+          active: false,
+          degraded: room.problemGeneration?.degraded ?? false,
+        },
+      };
       this.timers.put(updated);
       this.broadcaster.broadcastSnapshot(roomCode, buildTimerSnapshotRoom(membership, updated));
     }

@@ -24,8 +24,16 @@ interface ProblemEditorProps {
   language?: string;
   /** セッション中など、1行バーに畳んで表示する（⑫ 目立たせない）。 */
   compact?: boolean;
-  /** AI/定型のお題を生成中（「別のお題にする」押下〜確定まで）。スピナー＋減光に使う。 */
+  /** サーバーがお題を作り直している最中か（#283）。スピナー＋減光に使う。 */
   generating?: boolean;
+  /**
+   * AI で作れずに定型へ落ちたことを断る（#283・EARS 3）。
+   *
+   * 設定を変えると走っている AI 生成が中断され、取り直しはクールダウンに当たって
+   * 定型へ落ちる。**設定を変えた以上その方が正しいが、黙って落ちると利用者は
+   * 「AI のお題のはず」と思ったままになる。**
+   */
+  fallbackNotice?: boolean;
   onEdit: (patch: Partial<Omit<Problem, "source" | "edited">>) => void;
   onCopy: () => void;
   onRegenerate: () => void;
@@ -89,6 +97,7 @@ export function ProblemEditor({
   language,
   compact = false,
   generating = false,
+  fallbackNotice = false,
   onEdit,
   onCopy,
   onRegenerate,
@@ -136,6 +145,14 @@ export function ProblemEditor({
       aria-busy={generating || undefined}
       className={`flex flex-col gap-3 ${generating ? "opacity-50 pointer-events-none" : ""}`}
     >
+      {/* AI から定型へ落ちたことの断り（#283・EARS 3）。
+          `role="status"` は控えめな読み上げ（polite）で、操作の邪魔をしない。 */}
+      {fallbackNotice && (
+        <p role="status" className="text-xs text-[var(--caution)]">
+          AI でのお題生成ができなかったため、定型のお題に切り替えました。
+        </p>
+      )}
+
       {/* ヘッダー: バッジ＋タイトル＋アクション */}
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex flex-col gap-1.5">

@@ -1,0 +1,28 @@
+# 変異 43: finalize-clears-only-on-change
+#
+# 確定時に生成中を降ろす条件へ「お題の内容が変わったなら」を足す。
+# **これは #283 より前のクライアント実装（内容差分で降ろす）をサーバーへ移した形**で、
+# 同じお題が選び直されると降りない。`pickFallback` は候補の中から選ぶので、
+# 「別のお題にする」を押すと現実的な確率で同じ候補に当たる。
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/problem-generation-state.test.ts
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m43-*.patch
+#       (diff のパスはリポジトリルート起点。mutation-check.mjs もリポジトリルートで実行する)
+# 復元: git checkout -- <対象ファイル>（同じくリポジトリルートから）
+#
+diff --git a/apps/tasuki-sync/src/application/problem-delegation.ts b/apps/tasuki-sync/src/application/problem-delegation.ts
+index fad909d..5022ca0 100644
+--- a/apps/tasuki-sync/src/application/problem-delegation.ts
++++ b/apps/tasuki-sync/src/application/problem-delegation.ts
+@@ -439,7 +439,7 @@ export class ProblemDelegator {
+         // title も source も変わらず、押した人だけが安全弁の 65 秒まで固まっていた。
+         // 縮退の印は依頼の途中で立ったものを持ち越す（次の `request` で降りる）。
+         problemGeneration: {
+-          active: false,
++          active: room.problem?.title === problem.title,
+           degraded: room.problemGeneration?.degraded ?? false,
+         },
+       };
