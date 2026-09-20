@@ -44,7 +44,7 @@ describe('既定として提示してよい表示名', () => {
   it('Given 幅を持たない文字だけの値 / When 検める / Then 空にする', () => {
     // Given（準備）: U+200B は `trim()` では落ちず、画面には何も見えないまま
     // サーバーへ飛んで `EmptyAfterNormalize` で弾かれる
-    expect(usableDefaultDisplayName('​')).toBe('');
+    expect(usableDefaultDisplayName('\u200b')).toBe('');
   });
 
   it('Given 上限ちょうどの値 / When 検める / Then そのまま提示してよい', () => {

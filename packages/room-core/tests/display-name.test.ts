@@ -113,10 +113,10 @@ describe("normalizeDisplayName（防御の迂回に対する回帰）", () => {
   it("制御文字でラベルの見出しを割っても剥がす（復活させない）", () => {
     // Given（準備）: `ID` の内側・`:` の直前に C0 制御文字を 1 つ挟む
     // When / Then（操作）
-    expect(normalizeDisplayName("Bob（ID: rqdK）")).toBe("Bob");
-    expect(normalizeDisplayName("Bob（ID: rqdK）")).toBe("Bob");
-    expect(normalizeDisplayName("Bob(ID: rqdK)")).toBe("Bob");
-    expect(normalizeDisplayName("Bob（ID: rqdK）")).toBe("Bob");
+    expect(normalizeDisplayName("Bob（I\u0008D: rqdK）")).toBe("Bob");
+    expect(normalizeDisplayName("Bob（ID\u007f: rqdK）")).toBe("Bob");
+    expect(normalizeDisplayName("Bob(I\u0001D: rqdK)")).toBe("Bob");
+    expect(normalizeDisplayName("Bob（\u001bID: rqdK）")).toBe("Bob");
   });
 
   /**
@@ -129,8 +129,8 @@ describe("normalizeDisplayName（防御の迂回に対する回帰）", () => {
   it("冪等である（2 度掛けても変わらない）", () => {
     // Given（準備）: 剥がし・制御文字・不可視・空白の畳みが同時に効く入力
     const inputs = [
-      "Bob（ID: rqdK）",
-      "Bob（ID: rqdK）",
+      "Bob（I\u0008D: rqdK）",
+      "Bob（ID\u007f: rqdK）",
       "Bob（（ID: x）ID: rqdK）",
       "Bob" + ZWSP,
       "  Bob\n\tSmith  ",
@@ -153,8 +153,8 @@ describe("normalizeDisplayName（防御の迂回に対する回帰）", () => {
       "Bob（ＩＤ: rqdK）",
       "Bob（ID: rqdK",
       // 制御文字で見出しを割る形（#284）。剥がしの後に制御文字が落ちて復活していた
-      "Bob（ID: rqdK）",
-      "Bob（ID: rqdK）",
+      "Bob（I\u0008D: rqdK）",
+      "Bob（ID\u007f: rqdK）",
     ];
     // When / Then
     for (const a of attacks) {

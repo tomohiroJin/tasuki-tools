@@ -24,6 +24,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { StrictMode } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { MAX_DISPLAY_NAME } from '@tasuki/room-core';
 import { loadDefaultDisplayName, saveDefaultDisplayName } from '@tasuki/sync-client';
 import { App } from '../src/App.js';
@@ -153,8 +154,8 @@ describe('前回の名乗りを既定として提示する', () => {
 
     // Given（準備）: U+200B は `trim()` では落ちないので**保存の入口も通る**。
     // 画面には何も見えないままサーバーへ飛び、`EmptyAfterNormalize` で弾かれる
-    saveDefaultDisplayName('​');
-    expect(loadDefaultDisplayName(), '保存の入口を通ること').toBe('​');
+    saveDefaultDisplayName('\u200b');
+    expect(loadDefaultDisplayName(), '保存の入口を通ること').toBe('\u200b');
 
     // When（操作）
     render(<App />);
@@ -227,6 +228,30 @@ describe('前回の名乗りを既定として提示する', () => {
   });
 
   /**
+   * 描画フェーズでは保管庫へ書かない（#284・レビュー所見 2）。
+   *
+   * `renderToStaticMarkup` は**描画フェーズだけ**を走らせ、effect を走らせない。
+   * ここで書き込みが起きていれば、それは初期化子（`useMemo` / `useState`）の中で
+   * 書いているということである —— `App.tsx` が「初期化子に副作用を混ぜない」と
+   * 明記している規範に反し、`StrictMode` が初期化子を 2 度走らせるテストと、
+   * `StrictMode` を持たない本番（`src/main.tsx`）とで**読む対象が変わりうる**。
+   */
+  it('Given 提示できない保存値 / When 描画フェーズだけ走らせる / Then 保管庫は書き換わらない', () => {
+    // Given（準備）: 片付け（鍵の削除）と書き直しの両方が起きうる状態にする
+    saveDefaultDisplayName('\u200b');
+    localStorage.setItem('tdd-mob:preferences:v1', '{}');
+
+    // When（操作）: effect を走らせずに描画する
+    const markup = renderToStaticMarkup(<App />);
+
+    // Then（対照）: 描画そのものは成立している（空振りで緑になっていない）
+    expect(markup).toContain('Tasuki');
+    // Then: 保管庫はどちらも触られていない。片付けるのは effect の仕事である
+    expect(loadDefaultDisplayName(), '既定の表示名').toBe('\u200b');
+    expect(localStorage.getItem('tdd-mob:preferences:v1'), '旧鍵').toBe('{}');
+  });
+
+  /**
    * `StrictMode` と本番で結果が割れないこと（#284・レビュー所見 2）。
    *
    * `StrictMode` は初期化子と effect を 2 度走らせる。**本番（`src/main.tsx`）には
@@ -238,7 +263,7 @@ describe('前回の名乗りを既定として提示する', () => {
   it.each([
     ['正当な名前', 'あや'],
     // 制御文字でラベルの見出しを割る値。#284 で正規化の順序を直すまで冪等でなかった
-    ['ラベルを復活させかけた値', 'Bob（ID: rqdK）'],
+    ['ラベルを復活させかけた値', 'Bob（I\u0008D: rqdK）'],
     ['前後に空白のある値', '  あや さん  '],
   ])('Given %s / When StrictMode の有無で開く / Then 欄の値も保管庫も一致する', (_name, stored) => {
     // Given（準備）: 同じ保存値から始める
