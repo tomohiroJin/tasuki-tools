@@ -53,10 +53,13 @@ function stubGenerateResolvedValue(): void {
     source: "fallback",
   });
 }
+// ⚠ **引数は 1 つ残らず転送すること。** かつてここは `generate(language, difficulty)` の
+// 2 つだけを転送していた。#283 で「直前のお題」を足したとき、**造作が黙って落として
+// いたせいで配線が切れても緑のまま**だった（型検査はテスト造作を拾わない）。
 vi.mock("../../src/ai/no-ai.js", () => ({
   NoAiProvider: class {
-    generate(language: string, difficulty: string) {
-      return generateSpy(language, difficulty);
+    generate(...args: unknown[]) {
+      return generateSpy(...args);
     }
   },
 }));
@@ -171,8 +174,18 @@ describe("SyncClient コールバックが最新の state を読む経路（Issu
     const sendSpy = vi.spyOn(ws, "send");
     sendServer(ws, { type: "signal", signal: "need-problem", requestId: "req-1", deadlineMs: 60000 });
 
-    // Then: 生成時の引数が room.config の最新値になっている
-    await waitFor(() => expect(generateSpy).toHaveBeenCalledWith("Python", "hard"));
+    // Then: 生成時の引数が room.config の最新値になっている。
+    // **3 つ目（直前のお題）まで見る**（#283 のレビュー）—— 定型バンクから選ぶ実装は
+    // これを候補から外すので、渡し忘れると「別のお題にする」が同じお題を返しうる。
+    // 送信元の端末では生成中の snapshot が確定と同じ描画に畳まれるため、
+    // **結果が変わること以外に押したことが画面に出る手段が無い**。
+    await waitFor(() =>
+      expect(generateSpy).toHaveBeenCalledWith(
+        "Python",
+        "hard",
+        expect.objectContaining({ title: "既存" }),
+      ),
+    );
 
     // Then: ハンドラが catch に落ちず最後まで走り、生成結果が problem.submit として
     // サーバーへ送られる（requestId は need-problem のものを引き継ぐ）。

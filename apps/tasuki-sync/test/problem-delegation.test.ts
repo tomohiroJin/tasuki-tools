@@ -357,8 +357,13 @@ describe("ProblemDelegator: problemMode による分岐", () => {
 
     // Then（fallback モード: need-problem シグナルを送らずに即座に定型 snapshot）
     expect(sentSignals).toHaveLength(0);
-    expect(snapshots).toHaveLength(1);
-    expect(snapshots[0]?.problem).toBeTruthy();
+    // #283 レビュー指摘 3 で配信が 2 本になった —— 依頼の冒頭で「生成中」を 1 本、
+    // 確定でもう 1 本。**同じ tick で終わる依頼でも省かない**（省くと押下が
+    // 画面に一切現れない）。この検査の主題は「即座に定型で確定する」ことなので、
+    // 最後の 1 本がお題を持つことで固定する。
+    expect(snapshots).toHaveLength(2);
+    expect(snapshots[0]?.problem).toBeNull();
+    expect(snapshots.at(-1)?.problem).toBeTruthy();
   });
 
   it("problemMode=ai かつ候補がいない場合でも定型で確定する", () => {
@@ -386,8 +391,10 @@ describe("ProblemDelegator: problemMode による分岐", () => {
     // When
     delegator.request("MODERM", "req-no-candidate");
 
-    // Then（候補なし→定型で確定）
-    expect(snapshots).toHaveLength(1);
-    expect(snapshots[0]?.problem).toBeTruthy();
+    // Then（候補なし→定型で確定）。配信が 2 本なのは #283 レビュー指摘 3
+    // （依頼の冒頭の「生成中」＋確定）。**この経路は本番のロビーそのもの**である。
+    expect(snapshots).toHaveLength(2);
+    expect(snapshots[0]?.problem).toBeNull();
+    expect(snapshots.at(-1)?.problem).toBeTruthy();
   });
 });

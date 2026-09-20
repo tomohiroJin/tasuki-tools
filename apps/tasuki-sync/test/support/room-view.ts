@@ -158,6 +158,9 @@ export function putRoomView(
       ? { passphraseProtected: room.passphraseProtected }
       : {}),
     ...(room.aiUnlocked !== undefined ? { aiUnlocked: room.aiUnlocked } : {}),
+    ...(room.problemGeneration !== undefined
+      ? { problemGeneration: room.problemGeneration }
+      : {}),
     aiKeyHolders: room.participants.filter((p) => p.hasAiKey).map((p) => p.participantId),
   });
 }

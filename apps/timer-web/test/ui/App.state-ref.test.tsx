@@ -2,9 +2,9 @@
  * App.tsx の state/ref 二重管理リファクタの characterization test（Issue #41）。
  *
  * `makeClient` のコールバックは生成時の値で固定される（closure）ため、
- * `room` / `endType` / `participantId` / `generatingProblem` は state（描画用）と
- * ref（closure 用・`useLatestRef` 経由）の両方で保持している。
- * Issue #41 はこの4本の ref 宣言を1本の集約 ref にまとめるリファクタで、
+ * `room` / `endType` / `participantId` は state（描画用）と
+ * ref（closure 用・`useLatestRef` 経由）の両方で保持していた。
+ * Issue #41 はその ref 宣言を1本の集約 ref にまとめるリファクタで、
  * 値そのものや同期タイミングは変えない。
  *
  * 着手前は App.tsx を直接 render するテストが存在しなかったため、
@@ -13,7 +13,14 @@
  *
  * なお Issue #46 で `latestRef`（state の写し）は撤廃され、コールバックは
  * ハンドラ束の ref 経由で最新の state を読むようになった。このファイルが検証する
- * 「4組の値が実際に使われるフロー」の期待値は、その前後で変わらない。
+ * 「値が実際に使われるフロー」の期待値は、その前後で変わらない。
+ *
+ * **#283 で `generatingProblem` の組そのものが消えた。** 生成中はサーバーが持つ
+ * 状態（`Room.problemGeneration`）になり、画面は snapshot をそのまま読むだけに
+ * なったので、state も ref も要らない。**ここにあった 1 件は移設ではなく削除である** ——
+ * 代わりの検査は `App.problem-generation.test.tsx` にあり、そちらは
+ * 「同じお題でも降りる」「押していない端末でも立つ」という**旧実装では作れない
+ * 前提**を見ている（ここへ残すと、消えた仕組みの名前だけが生き続ける）。
  *
  * @requirements Issue #41（#28 D-2）
  */
@@ -35,17 +42,6 @@ function problemA(): Problem {
     title: "FizzBuzz",
     description: "3の倍数でFizz",
     requirements: ["3の倍数はFizz"],
-    exampleTest: "expect(add(1, 2)).toBe(3)",
-    hints: [],
-    source: "fallback",
-  };
-}
-
-function problemB(): Problem {
-  return {
-    title: "回文判定",
-    description: "文字列が回文か判定する",
-    requirements: ["大文字小文字を無視"],
     exampleTest: "expect(add(1, 2)).toBe(3)",
     hints: [],
     source: "fallback",
@@ -75,7 +71,7 @@ function createRoomAndConnect(): FakeWS {
   return enterRoomAndConnect({ participantId: CREATOR_ID });
 }
 
-describe("App.tsx の state/ref 二重管理（4組）", () => {
+describe("App.tsx の state/ref 二重管理", () => {
   it("roomRef: 生成中お題の再依頼リクエストが最新の room.code を参照する", () => {
     // Given: ロビーに到達し、お題Aが確定している
     const ws = createRoomAndConnect();
@@ -104,41 +100,6 @@ describe("App.tsx の state/ref 二重管理（4組）", () => {
     const [rawSent] = sendSpy.mock.calls[0] as unknown as [string];
     const sent = JSON.parse(rawSent);
     expect(sent.requestId).toContain("ROOM01");
-  });
-
-  it("generatingRef: 生成中に新しいお題が来ると生成中表示が解除される", () => {
-    // Given: 「別のお題にする」押下で生成中になっている
-    const ws = createRoomAndConnect();
-    sendServer(ws, { type: "room.joined", resumeToken: "rt", participantId: CREATOR_ID });
-    sendServer(ws, {
-      type: "snapshot",
-      room: aRoomView({
-        code: "ROOM01",
-        problem: problemA(),
-        participants: [
-          { participantId: CREATOR_ID, displayName: "Creator", presence: "online", hasAiKey: false, joinedAt: 0 },
-        ],
-      }),
-    });
-    fireEvent.click(screen.getByRole("tab", { name: "お題" }));
-    fireEvent.click(screen.getByRole("button", { name: "別のお題にする" }));
-    expect(screen.getByRole("button", { name: "生成中" })).toBeInTheDocument();
-
-    // When: 変化したお題Bを含む snapshot が届く
-    sendServer(ws, {
-      type: "snapshot",
-      room: aRoomView({
-        code: "ROOM01",
-        problem: problemB(),
-        participants: [
-          { participantId: CREATOR_ID, displayName: "Creator", presence: "online", hasAiKey: false, joinedAt: 0 },
-        ],
-      }),
-    });
-
-    // Then: 生成中表示が解除され、通常の「別のお題にする」に戻る
-    expect(screen.queryByRole("button", { name: "生成中" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "別のお題にする" })).toBeInTheDocument();
   });
 
   it("participantIdRef + roomRef: notice の実行者が自分のとき「あなた」と表示する", () => {

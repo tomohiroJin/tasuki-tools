@@ -374,6 +374,14 @@ const CompletionRecordSchema = v.object({
   rounds: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
 });
 
+// お題の生成の状態（#283）。**任意項目にしてある**（`wire.ts` の `problemGeneration` の注記）。
+// 配布は画面が先なので、旧サーバーの snapshot（この項目を持たない）も通らなければならない。
+// T057 と同じ理由で自ファイル内専用（FR-119③・SC-039）。
+const ProblemGenerationSchema = v.object({
+  active: v.boolean(),
+  degraded: v.boolean(),
+});
+
 export const RoomSchema = v.object({
   code: nonEmptyString,
   createdAt: v.number(),
@@ -390,6 +398,8 @@ export const RoomSchema = v.object({
   problemMode: v.optional(v.picklist(["ai", "fallback"])),
   passphraseProtected: v.optional(v.boolean()),
   aiUnlocked: v.optional(v.boolean()),
+  // お題の生成の状態（#283）。サーバー権威。
+  problemGeneration: v.optional(ProblemGenerationSchema),
   // `startedAt` は #95 S4a で落とした（読み手 0 件・書き手 0 件）。非 strict の
   // `v.object` なので、この項目を載せた古い snapshot も従来どおりパースできる。
 });

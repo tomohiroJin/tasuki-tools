@@ -13,8 +13,8 @@
  * 代わりに、ハンドラ本体をこのフックの本体スコープに置き、`handlersRef` へ毎レンダー
  * 同期する。`SyncClient` へ渡すのは `handlersRef.current` の同名関数を呼ぶだけの
  * 転送関数なので、固定されるのは転送だけで、実際に走るのは常に最新レンダーの
- * ハンドラになる。結果、これらのハンドラは `room` / `endType` / `participantId` /
- * `generatingProblem` を **素の state としてそのまま読める**（Issue #46）。
+ * ハンドラになる。結果、これらのハンドラは `room` / `endType` / `participantId`
+ * を **素の state としてそのまま読める**（Issue #46）。
  *
  * **同期は render 本体で行う。** `useEffect` を挟むと差し替えが 1 レンダー遅れ、
  * その隙間に届いた WS メッセージを古いハンドラが処理する（Issue #46 REQ-3）。
@@ -38,6 +38,7 @@ import { NoAiProvider } from "../ai/no-ai.js";
 import type { ProblemProvider } from "../ai/provider.js";
 import { errorAction } from "../ui/error-action.js";
 import { startActionFor } from "../ui/session-start.js";
+import { isGeneratingProblem, showsFallbackNotice } from "../ui/problem-generation.js";
 import { currentSearch, redirectTo } from "../platform/location.js";
 import {
   buildInviteUrl,
@@ -116,7 +117,15 @@ export interface TimerSync {
    * 接続は生きているので `connState` では表せない。StatusStrip の「同期不整合」に使う。
    */
   syncStale: boolean;
+  /**
+   * サーバーがいまお題を作り直しているか（#283）。**この端末の状態ではない。**
+   *
+   * `room.problemGeneration` をそのまま読む。押した人の操作の中で立てていた頃は、
+   * 同じお題が選び直されると降ろせず 65 秒固まった（`ui/problem-generation.ts` の注記）。
+   */
   generatingProblem: boolean;
+  /** AI で作れずに定型へ落ちたことを利用者へ示すか（#283・EARS 3）。 */
+  showsFallbackNotice: boolean;
   /** サーバー時刻との差。Session の残り時間導出に渡す。 */
   clockOffset: number;
 
@@ -127,7 +136,7 @@ export interface TimerSync {
   startSession(): void;
   complete(): void;
   abort(): void;
-  /** 「別のお題にする」。生成中を立ててから依頼する。 */
+  /** 「別のお題にする」。依頼を送るだけで、待ちの表示はサーバーの返事に従う（#283）。 */
   regenerateProblem(): void;
   /** 代理参加者を加える（participantId はここで生成する）。 */
   addProxy(displayName: string): void;
@@ -177,13 +186,13 @@ export function useTimerSync(banner: BannerController): TimerSync {
   // 立てるのは棄却時、下ろすのは**有効な snapshot を受け取ったとき**だけ（下の注記）。
   const [syncStale, setSyncStale] = useState(false);
   // 注: AI（BYOK/サブスク）はいったん UI から撤去。お題は定型バンクのみ（NoAiProvider）。
-  // AI/定型のお題生成中（「別のお題にする」押下〜新お題確定まで）。スピナー＋減光に使う。
-  const [generatingProblem, setGeneratingProblem] = useState(false);
+  //
+  // **お題の生成中は state に持たない**（#283）。サーバーが持つ状態を読むだけである ——
+  // 局所のフラグにすると、降ろす契機を画面側で作らなければならず、内容差分にも
+  // タイマーにも穴がある（`ui/problem-generation.ts` の注記）。
 
   // 完成記録の二重保存を防ぐガード（celebration の snapshot が複数回来ても1回だけ保存）。
   const recordSavedRef = useRef(false);
-  // 生成が返らない異常で固まらないための安全弁タイマー。
-  const generatingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // 参加直後の resumeToken を、次に来る snapshot（room.code を含む）と組み合わせて
   // 復帰の組を保存するための一時保持（Issue #24）。onIdentity では room.code が
   // まだ分からない（room.joined メッセージに code が含まれない）ため、onRoom まで持ち越す。
@@ -221,7 +230,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
   // App unmount 時にタイマーを掃除する（setState-on-unmounted を防ぐ）。
   useEffect(() => {
     return () => {
-      if (generatingTimerRef.current) clearTimeout(generatingTimerRef.current);
       // 再試行の待機タイマーも畳む（#147）。アンマウント後に走らせる意味は無い。
       if (joinRetryTimerRef.current !== null) clearTimeout(joinRetryTimerRef.current);
     };
@@ -230,22 +238,9 @@ export function useTimerSync(banner: BannerController): TimerSync {
   /** 代理参加者の一意な participantId を生成する（衝突回避のため乱数を含める） */
   const makeProxyId = () => `proxy-${Math.random().toString(36).slice(2, 10)}`;
 
-  // 生成中フラグを立て、65 秒の安全弁を張る（サーバ 60 秒タイムアウト＋余裕）。
-  const beginGenerating = () => {
-    setGeneratingProblem(true);
-    if (generatingTimerRef.current) clearTimeout(generatingTimerRef.current);
-    generatingTimerRef.current = setTimeout(() => {
-      setGeneratingProblem(false);
-      generatingTimerRef.current = null;
-    }, 65_000);
-  };
-  const endGenerating = () => {
-    setGeneratingProblem(false);
-    if (generatingTimerRef.current) {
-      clearTimeout(generatingTimerRef.current);
-      generatingTimerRef.current = null;
-    }
-  };
+  // ⚠ **65 秒の安全弁はここに戻さない**（#283）。安全弁が要ったのは、降ろす契機が
+  //    お題の内容差分しか無く、それが成立しない場合があったからである。生成中が
+  //    サーバーの状態になった以上、降りない状態そのものが作れない。
 
   // ─── SyncClient のコールバック本体 ─────────────────────────────────────────
   //
@@ -306,7 +301,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
       pendingResume: pendingResumeRef.current,
       resumeDisplayName: resumeDisplayNameRef.current,
       recordSaved: recordSavedRef.current,
-      generatingProblem,
       endType,
       now: Date.now(),
     });
@@ -316,9 +310,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
         case "save-resume":
           saveResumeIdentity(intent.identity);
           pendingResumeRef.current = null;
-          break;
-        case "clear-generating":
-          endGenerating();
           break;
         case "clear-completion":
           // 完了から抜けた。前のセッションの記録・終了種別・保存済みの印を畳む
@@ -360,8 +351,11 @@ export function useTimerSync(banner: BannerController): TimerSync {
       // ★await より前に読む: 生成待ちの間に届いた snapshot の値を使わないため（Issue #46 REQ-7）。
       const language = room?.config.language ?? "TypeScript";
       const difficulty = room?.config.difficulty ?? "easy";
+      // 直前のお題も await より前に読む（上と同じ理由）。定型バンクから選ぶ実装は
+      // これを候補から外すので、「別のお題にする」の結果が必ず変わる（#283 のレビュー）。
+      const previousProblem = room?.problem ?? null;
       const provider = resolveProvider();
-      const { problem, source } = await provider.generate(language, difficulty);
+      const { problem, source } = await provider.generate(language, difficulty, previousProblem);
       syncClient.send({
         command: "problem.submit",
         requestId,
@@ -423,11 +417,10 @@ export function useTimerSync(banner: BannerController): TimerSync {
         // 捨てるのは**退出したルームの分だけ**である（#95 S4b・D12）。
         if (removedFrom) clearResumeIdentity(removedFrom);
         // ルーム由来の画面状態は退出成立時に破棄する（FR-128）。
-        // お題生成中フラグ・安全弁タイマーもルーム固有の途中状態なので、
-        // 持ち越すと次に入った別ルームで「何も頼んでいないのに生成中」の
-        // 表示が最大65秒残ってしまう。beginGenerating と対になる endGenerating を
-        // ここでも再利用し、後始末を二重に書かない（DRY）。
-        endGenerating();
+        // **お題の生成中はここで畳む必要が無い**（#283）——
+        // `setRoom(null)` でルームが消えれば、そこから読む生成中も同時に消える。
+        // かつては局所のフラグと 65 秒の安全弁を別途畳んでいた（畳み忘れると、
+        // 次に入った別ルームで「何も頼んでいないのに生成中」が最大 65 秒残った）。
         // **告知は玄関が出す**（#95 S5c・I-1）。ここでバナーを出しても、直後の遷移で
         // 描画される前に破棄される。とりわけ外された人は説明抜きで名乗りの画面に着き、
         // 外されたと分からずに再参加してまた外される（Issue #32 が塞いだ問題の再発）。
@@ -667,8 +660,8 @@ export function useTimerSync(banner: BannerController): TimerSync {
   const regenerateProblem = () => {
     const code = room?.code;
     if (code) {
-      beginGenerating();
-      // 直近のお題と重複しにくい新規生成を代表へ依頼する（FR-012）。
+      // 依頼を送るだけ。**ここで生成中を立てない**（#283）——
+      // 立てるのは実際に作り直しているサーバーで、画面はその snapshot に従う。
       commands.requestProblem(`req-${code}-regen-${Date.now()}`);
     }
   };
@@ -760,7 +753,10 @@ export function useTimerSync(banner: BannerController): TimerSync {
     sessionLost,
     connState,
     syncStale,
-    generatingProblem,
+    // お題の生成中と縮退の断り書きは、サーバーが送る帳簿から導く（#283）。
+    // **state を持たない**ので、降ろし忘れという状態が作れない。
+    generatingProblem: isGeneratingProblem(room),
+    showsFallbackNotice: showsFallbackNotice(room),
     clockOffset: client?.clockOffset ?? 0,
     commands,
     startSession,

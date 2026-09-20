@@ -24,6 +24,7 @@
 import type {
   CompletionRecord,
   Problem,
+  ProblemGeneration,
   ProblemMode,
   RoomPhase,
   ServerClock,
@@ -112,6 +113,19 @@ export interface Room {
   passphraseProtected?: boolean;
   /** AI お題生成の解錠状態（合言葉照合済み・平文はサーバ専用 = snapshot 非混入）。 */
   aiUnlocked?: boolean;
+  /**
+   * お題の生成の状態（#283）。**任意項目である。**
+   *
+   * `deploy.sh timer` は画面を先に配ってからサーバーを再起動するので、
+   * 「新しい画面 × 旧サーバー」の窓は**順序では避けられない**（#276 の実測）。
+   * #276 の `session.seats` は必須にしたため、その窓では snapshot 全体が契約検査に
+   * 落ちる（画面は「最新ではありません」へ倒れる）。ここは**欠けていたら
+   * 「生成していない」と読めばよいだけ**なので、同じ代償を払う理由が無い。
+   *
+   * ⚠ **画面はこの項目に「無ければ推測する」経路を作ってはならない。** 推測の正体は
+   * お題の内容差分で、それを落とすことが #283 の目的である。無いなら出さない。
+   */
+  problemGeneration?: ProblemGeneration;
 }
 
 // ⚠ かつてここには `connId`（在席中の接続 1 本）があった。**#95 S4b で落とした。**

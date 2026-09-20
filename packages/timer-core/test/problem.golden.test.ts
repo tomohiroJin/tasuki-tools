@@ -57,7 +57,7 @@ describe("pickFallback: 変更前の選択結果（ゴールデン値）", () =>
     (language, difficulty, now, expectedTitle) => {
       // Given: GOLDEN 表の各行（language / difficulty / now）を渡す呼び出し自体が前提の指定を兼ねる
       // When（変更後は now を引数で渡す。偽タイマーは不要）
-      const result = pickFallback(language, difficulty, now);
+      const result = pickFallback(language, difficulty, now, null);
       // Then
       expect(result.problem.title).toBe(expectedTitle);
       expect(result.source).toBe("fallback");

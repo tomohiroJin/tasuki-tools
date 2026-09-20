@@ -45,8 +45,10 @@ afterEach(() => {
  * 通さないための前提確認である。前提の失敗は `throw`（検証の失敗＝`expect` と区別する・FR-096）。
  */
 function assertDiscriminating(language: string, difficulty: string): void {
-  const wired = pickFallback(language, difficulty, FIXED_NOW).problem;
-  const unwired = pickFallback(language, difficulty, 0).problem;
+  // 第 4 引数（直前のお題）は `null` —— このファイルのルームはどれもお題を持たない
+  // 状態で依頼するので、本番と同じ入力である（#283 のレビュー）。
+  const wired = pickFallback(language, difficulty, FIXED_NOW, null).problem;
+  const unwired = pickFallback(language, difficulty, 0, null).problem;
   if (wired.title === unwired.title) {
     throw new Error(
       `前提: FIXED_NOW=${FIXED_NOW} は now=0 と同じお題（${wired.title}）を選ぶため、配線の有無を判別できない`,
@@ -114,10 +116,10 @@ describe("ProblemDelegator: 定型お題の選択が Clock ポートを通る", 
     // When
     delegator.request(code, "req-mode-fallback");
 
-    // Then（即時確定の経路だけが source:"fallback" を足す。ここで経路を固定する）
+    // Then（定型で確定した以上、出所は "fallback" である）
     expect(finalizedProblem(broadcaster).source).toBe("fallback");
     // clock.now() を渡したときに選ばれるお題と一致する
-    const expected = pickFallback(room.config.language, room.config.difficulty, FIXED_NOW).problem;
+    const expected = pickFallback(room.config.language, room.config.difficulty, FIXED_NOW, null).problem;
     expect(finalizedProblem(broadcaster)).toMatchObject(expected);
   });
 
@@ -142,7 +144,7 @@ describe("ProblemDelegator: 定型お題の選択が Clock ポートを通る", 
     }
 
     // Then
-    const expected = pickFallback(room.config.language, room.config.difficulty, FIXED_NOW).problem;
+    const expected = pickFallback(room.config.language, room.config.difficulty, FIXED_NOW, null).problem;
     expect(finalizedProblem(broadcaster)).toMatchObject(expected);
   });
 
@@ -156,10 +158,14 @@ describe("ProblemDelegator: 定型お題の選択が Clock ポートを通る", 
     // When
     delegator.request(code, "req-no-candidate");
 
-    // Then（候補使い切りの経路は source を足さずに確定する。ここで経路を固定する）
-    // `sent` が 0 件であることは経路の証拠にならない（即時確定の経路も need-problem を送らない）。
-    expect(finalizedProblem(broadcaster).source).toBeUndefined();
-    const expected = pickFallback(room.config.language, room.config.difficulty, FIXED_NOW).problem;
+    // Then（#283 で上の経路と揃えた。**かつてはここだけ `source` を足していなかった** ——
+    // 実クライアントは常に `hasAiKey: false` を送るので候補は定型センチネルだけになり、
+    // **本番のロビーのお題はすべて出所不明だった**。画面の出所バッジが「印が無ければ定型」と
+    // 書いてあるため見た目には出ず、同じ結末なのに wire の値だけが 2 通りある形で残っていた。
+    // 経路を分けるのは下の `toMatchObject` のほうである（clock.now() を渡し違えれば
+    // 別のお題が選ばれて落ちる。この検査の主題はそちらである）。
+    expect(finalizedProblem(broadcaster).source).toBe("fallback");
+    const expected = pickFallback(room.config.language, room.config.difficulty, FIXED_NOW, null).problem;
     expect(finalizedProblem(broadcaster)).toMatchObject(expected);
   });
 });

@@ -44,6 +44,8 @@ interface SessionProps {
   awaitingProblem?: boolean;
   /** AI/定型のお題を生成中（regenerate 中）。ProblemEditor のスピナー＋減光に使う。 */
   generatingProblem?: boolean;
+  /** AI で作れずに定型へ落ちたことを断る（#283・EARS 3）。 */
+  showsFallbackNotice?: boolean;
   /** AI 解錠ルームか（生成中文言の出し分けに使う）。 */
   aiUnlocked?: boolean;
   /** AI モードか（problemMode === "ai"）。生成中文言の出し分けに使う。 */
@@ -97,6 +99,7 @@ export function Session({
   clockOffset = 0,
   awaitingProblem = false,
   generatingProblem = false,
+  showsFallbackNotice = false,
   aiUnlocked = false,
   aiMode = false,
   onSkip,
@@ -245,6 +248,7 @@ export function Session({
             onRegenerate={() => onRegenerateProblem?.()}
             onPaste={() => onPasteProblem?.()}
             generating={generatingProblem}
+            fallbackNotice={showsFallbackNotice}
           />
         </Card>
       ) : (
@@ -254,7 +258,7 @@ export function Session({
               <span className="inline-block h-4 w-4 animate-pulse rounded-full bg-[var(--signal)] mb-2" aria-hidden="true" />
               <p>
                 {aiUnlocked && aiMode
-                  ? "AI がお題を作成中です…（最大 1 分）"
+                  ? "AI がお題を作成中です…（1 分以上かかることがあります）"
                   : "お題を生成中…"}
               </p>
             </div>
