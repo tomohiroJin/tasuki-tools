@@ -1,0 +1,27 @@
+# 変異 47: delegator-forgets-previous-problem
+#
+# サーバーが pickFallback へ直前のお題を渡すのをやめる（null を渡す）。
+# 除外そのものは生きているのに**配線が切れる**形で、pickFallback 単体の検査では
+# 気づけない。「別のお題にする」が同じお題を返しうる状態へ戻る。
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/problem-generation-state.test.ts
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m47-*.patch
+#       (diff のパスはリポジトリルート起点。mutation-check.mjs もリポジトリルートで実行する)
+# 復元: git checkout -- <対象ファイル>（同じくリポジトリルートから）
+#
+diff --git a/apps/tasuki-sync/src/application/problem-delegation.ts b/apps/tasuki-sync/src/application/problem-delegation.ts
+index 2e71dc0..e9ea525 100644
+--- a/apps/tasuki-sync/src/application/problem-delegation.ts
++++ b/apps/tasuki-sync/src/application/problem-delegation.ts
+@@ -212,7 +212,7 @@ export class ProblemDelegator {
+       room.config.language,
+       room.config.difficulty,
+       this.clock.now(),
+-      room.problem,
++      null,
+     );
+     return { ...fb.problem, source: fb.source };
+   }

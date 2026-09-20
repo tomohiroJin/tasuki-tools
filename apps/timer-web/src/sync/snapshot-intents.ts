@@ -6,7 +6,11 @@
  * 副作用は同期フックが意図を見て起こす。
  *
  * **配列の順が振る舞いである。** 現行 handleRoom の実行順をそのまま保つ:
- * resume 保存 → 生成中の解除 → 完了状態の後片付け → 画面遷移 → 完成記録。
+ * resume 保存 → 完了状態の後片付け → 画面遷移 → 完成記録。
+ *
+ * **お題の生成中の解除（`clear-generating`）は #283 で消えた。** 生成中は
+ * サーバーが持つ状態（`Room.problemGeneration`）になったので、画面は snapshot を
+ * そのまま読めばよく、解除という出来事が要らなくなった。
  *
  * **参加時ドライバー宣言（`consume-driver-join` / `join-rotation`）は #272 で畳んだ。**
  * 宣言を立てていたのは timer の旧入口（`Join`）だけで、#95 S5c（#249）の撤去で
@@ -18,14 +22,11 @@
 
 import { buildCompletionRecord, type CompletionRecord, type Room } from "@tasuki/timer-core";
 import { screenForPhase, type Screen } from "../ui/screen.js";
-import { shouldClearGenerating } from "../ui/problem-generation.js";
 import type { ResumeIdentity } from "@tasuki/sync-client";
 
 export type SnapshotIntent =
   /** 復帰情報を保存する（room.code が分かるのは snapshot の時点だけ）。 */
   | { kind: "save-resume"; identity: ResumeIdentity }
-  /** お題生成中の表示を解除する。 */
-  | { kind: "clear-generating" }
   /** 前のセッションの完了状態（記録・終了種別・保存済みの印）を畳む。 */
   | { kind: "clear-completion" }
   /** サーバー権威の phase に画面を追従させる。 */
@@ -40,8 +41,6 @@ export interface SnapshotContext {
   resumeDisplayName: string;
   /** 完成記録を既に保存したか。 */
   recordSaved: boolean;
-  /** お題生成中の表示が出ているか。 */
-  generatingProblem: boolean;
   /** 終了種別。中断のときは完成記録を作らない。 */
   endType: "complete" | "abort";
   /** 現在時刻。完成記録に使う。 */
@@ -70,13 +69,7 @@ export function decideSnapshotIntents(
     });
   }
 
-  // 2. 生成中で、お題の内容が前回から変化したら生成中を解除
-  //    （AI 成功・定型縮退・タイムアウト確定の全経路）。
-  if (shouldClearGenerating(ctx.generatingProblem, prev?.problem ?? null, next.problem ?? null)) {
-    intents.push({ kind: "clear-generating" });
-  }
-
-  // 3. 完了から抜けたら、前のセッションの完了状態を畳む（#95 S5c・レビュー ②）。
+  // 2. 完了から抜けたら、前のセッションの完了状態を畳む（#95 S5c・レビュー ②）。
   //
   //    **全端末で降ろす必要がある。** 「新しいセッション」を押した人はそのまま玄関へ去り、
   //    「セッションを開始」を押すのは別の人で、残りは何も押さない。押した人の操作の中で
@@ -91,24 +84,25 @@ export function decideSnapshotIntents(
     intents.push({ kind: "clear-completion" });
   }
 
-  // 4. サーバー権威の phase に全参加者が追従する（誰の開始/完成でも全員に反映）。
+  // 3. サーバー権威の phase に全参加者が追従する（誰の開始/完成でも全員に反映）。
   intents.push({ kind: "set-screen", screen: screenForPhase(next.phase) });
 
   // ⚠ **ここに「設定が変わったら生成中の表示を出す」を置いてはならない**（#271 のレビュー）。
   //
-  //    サーバーは設定変更の snapshot と、作り直したお題の snapshot を**同じ tick で
-  //    続けて送る**。`handleRoom` が読む `room` と `generatingProblem` は直前のレンダー
-  //    時点の値なので、2 本目を処理する時点でもまだ「変更前のルーム・生成中ではない」
-  //    ままである。結果、**お題が確定した後の snapshot で生成中が立ち直り**、
-  //    内容差分で降ろす `clear-generating`（上の 2.）は二度と成立しない。
+  //    かつてこの位置には、内容差分で降ろす `clear-generating` があった。サーバーは
+  //    設定変更の snapshot と、作り直したお題の snapshot を**同じ tick で続けて送る**。
+  //    `handleRoom` が読む `room` は直前のレンダー時点の値なので、2 本目を処理する
+  //    時点でもまだ「変更前のルーム」のままである。結果、**お題が確定した後の
+  //    snapshot で生成中が立ち直り**、内容差分で降ろす経路は二度と成立しなかった。
   //    実測では `aria-busy=true` のまま 6 秒経っても降りず、お題パネル全体が
-  //    `pointer-events: none` で固まった（65 秒の安全弁が切れるまで全員が操作できない）。
+  //    `pointer-events: none` で固まった。
   //
-  //    「別のお題にする」の生成中表示は押した人の操作の中で立てている
-  //    （`use-timer-sync.ts` の `regenerateProblem`）ので、この経路とは無関係である。
-  //    設定変更でも待ちを見せたいなら、**生成中をサーバー権威の状態にする**こと（#283）。
+  //    **#283 で生成中はサーバーの状態（`Room.problemGeneration`）になった。**
+  //    画面は snapshot をそのまま読むだけなので、立てる／降ろすという出来事が要らない。
+  //    ここに待ちの表示を足す理由はもう無い —— 待ちを見せたいなら、それを知っている
+  //    サーバー側（`ProblemDelegator`）が帳簿に書くこと。
 
-  // 5. 完成フェーズかつ「完成（中断でない）」のとき、各端末でローカル記録を生成する
+  // 4. 完成フェーズかつ「完成（中断でない）」のとき、各端末でローカル記録を生成する
   //    （FR-020/028/059）。中断（abort）では記録を作らない。
   if (next.phase === "celebration" && next.problem && ctx.endType !== "abort" && !ctx.recordSaved) {
     intents.push({

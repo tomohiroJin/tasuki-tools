@@ -47,6 +47,16 @@
  *    **「同期サーバーが先」という記述は誤りだった**（`deploy.sh timer` は画面とサーバーを
  *    同じ 1 コマンドで配るため、順序を選べない。Task 9 で是正）。
  *
+ * ★ **#283 で wire が変わった点も、この台帳に続けて書く。**
+ *
+ * 8. **`problemGeneration`（お題の生成の状態）が任意項目として増えた**
+ *    （`wire.ts` の `Room.problemGeneration` の注記）。**#276 の `seats` とは逆に、
+ *    わざと任意にしてある** —— `deploy.sh timer` は画面を先に配るので
+ *    「新しい画面 × 旧サーバー」の窓は順序では避けられず、必須にするとその窓で
+ *    snapshot 全体が契約検査に落ちる。この項目は**欠けていたら「生成していない」**と
+ *    読めばよいだけなので、同じ代償を払う理由が無い。
+ *    値を作るのは `ProblemDelegator` ただ 1 つで、ここはそれをそのまま載せる。
+ *
  * 代理（`isPlaceholder`）はここで**合成される**。名簿には居らず、輪の上の席
  * （`RotationEntry` の `kind: "proxy"`）としてだけ存在するためである。
  */
@@ -323,5 +333,11 @@ export function buildTimerSnapshotRoom(membership: MembershipRoom, timer: TimerS
       ? { passphraseProtected: timer.passphraseProtected }
       : {}),
     ...(timer.aiUnlocked !== undefined ? { aiUnlocked: timer.aiUnlocked } : {}),
+    // お題の生成の状態（#283）。**ここで作らない** —— `ProblemDelegator` が
+    // 委譲の開始と終了で書いた帳簿をそのまま載せるだけである。ここで
+    // 「お題が null なら生成中」のように推測すると、書き手が 2 つになる。
+    ...(timer.problemGeneration !== undefined
+      ? { problemGeneration: timer.problemGeneration }
+      : {}),
   };
 }

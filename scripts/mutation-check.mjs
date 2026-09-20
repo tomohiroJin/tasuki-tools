@@ -130,10 +130,16 @@ export const MUTATIONS = [
   },
   {
     id: 7,
-    label: "shouldClearGenerating の内容比較を参照比較に変える",
-    patch: "m07-should-clear-generating-refcompare.patch",
+    label: "帳簿を持たない snapshot を生成中側へ倒す（旧サーバーで画面が固まる）",
+    patch: "m07-generating-guesses-when-ledger-missing.patch",
     pkg: "apps/timer-web",
     tests: ["test/ui/problem-generation.test.ts"],
+    note:
+      "#283。**かつては `shouldClearGenerating` の内容比較を参照比較に変える変異だった** —— " +
+      "生成中をクライアントが内容差分で降ろしていた頃の対象で、その関数ごと消えたので" +
+      "同じ欠陥の新しい住所へ移した。塞いだ形は**「無い情報を推測で埋める」**である。" +
+      "配布の窓（新しい画面 × 旧サーバー）では帳簿そのものが来ないので、" +
+      "推測すると**降ろす者が誰も居ない生成中**がお題パネルを固める。",
   },
   {
     id: 8,
@@ -554,6 +560,65 @@ export const MUTATIONS = [
     note:
       "#276 が直した欠陥そのもの。飛ばされる席を数に入れるため、画面が出す「次」と" +
       "実際の交代先が食い違う。殺せないなら、直したことの証拠が無い。",
+  },
+  {
+    id: 43,
+    label: "確定時に生成中を降ろす条件へ「お題が変わったなら」を足す",
+    patch: "m43-finalize-clears-only-on-change.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/problem-generation-state.test.ts"],
+    note:
+      "#283 の穴 1。**これは #283 より前のクライアント実装（内容差分で降ろす）を" +
+      "サーバーへ移した形である** —— `pickFallback` は候補の中から選ぶので、" +
+      "「別のお題にする」で同じ候補に当たると降りない。殺せないなら、" +
+      "サーバー権威にした意味（内容に依存せず降りる）の証拠が無い。",
+  },
+  {
+    id: 44,
+    label: "依頼の冒頭の配信を「待ちが残る依頼だけ」に絞る（押下が画面に出ない）",
+    patch: "m44-request-skips-pending-announcement.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/problem-generation-state.test.ts"],
+    note:
+      "#283 のレビュー指摘 3（当初実装そのもの）。**本番のロビーがこの絞り込みに落ちる** —— " +
+      "実クライアントは常に `hasAiKey: false` を送るので候補が定型センチネルだけになり、" +
+      "依頼と確定が同じ tick で終わる。帳簿として「いま作り直している」と言える瞬間が" +
+      "1 本も残らず、途中から繋いだ端末はその依頼を知る術が無い。" +
+      "**押下の手応えのほうは m46 / m47 が守っている**（送信元では生成中の snapshot が" +
+      "確定と同じ描画に畳まれるため、この 1 本目では見えない・実測 10 回中 0 回）。",
+  },
+  {
+    id: 45,
+    label: "委譲の行き止まりで帳簿を整えない（降ろせない生成中が残る）",
+    patch: "m45-dead-end-leaves-generating-on.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/problem-generation-state.test.ts"],
+    note:
+      "#283 のレビュー指摘 4。`offerToCurrent` の行き止まりへは **`onDeadline` の " +
+      "setTimeout からも入る**ので、降ろしてくれる呼び出し側が居ない。" +
+      "**65 秒の安全弁を落とした以上、画面側に逃げ道が無い** —— " +
+      "以後どの snapshot を受け取ってもお題パネルは操作不能のままになる。",
+  },
+  {
+    id: 46,
+    label: "直前のお題の同一性を title 比較から参照比較へ変える（除外が空振りする）",
+    patch: "m46-pickfallback-excludes-by-reference.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/problem.test.ts"],
+    note:
+      "#283 のレビュー。確定時に写しを作るので参照は決して一致せず、**除外が何も外さなくなる**。" +
+      "生成中の snapshot は送信元の端末では確定と同じ描画に畳まれる（実測で押した本人は " +
+      "10 回中 0 回）ので、**結果が変わること以外に押下の手応えが無い**。",
+  },
+  {
+    id: 47,
+    label: "サーバーが pickFallback へ直前のお題を渡さない（配線だけが切れる）",
+    patch: "m47-delegator-forgets-previous-problem.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/problem-generation-state.test.ts"],
+    note:
+      "#283 のレビュー。除外そのものは生きているので **pickFallback 単体の検査では気づけない**。" +
+      "「別のお題にする」が同じお題を返しうる状態へ戻る。",
   },
 ];
 

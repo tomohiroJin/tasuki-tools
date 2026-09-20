@@ -7,7 +7,13 @@
  * deadline 内に投入が無ければ次候補へ再委譲し、全候補失敗なら定型で確定する。
  */
 
-import { validateProblem, pickFallback, type Problem, type TimerState } from "@tasuki/timer-core";
+import {
+  validateProblem,
+  pickFallback,
+  type Problem,
+  type ProblemGeneration,
+  type TimerState,
+} from "@tasuki/timer-core";
 import type {
   Participant as MembershipParticipant,
   Room as MembershipRoom,
@@ -125,10 +131,35 @@ export class ProblemDelegator {
     const room = this.timers.get(roomCode);
     if (!room) return;
 
+    // 新しい依頼が始まった。帳簿を「生成中・縮退なし」から引き直し、**必ず 1 本配信する**
+    // （#283・レビュー指摘 3）。
+    //
+    // ⚠ **「同じ tick で確定するなら送らない」にしてはならない。** 帳簿は
+    // 「いま作り直している」と言える瞬間を必ず 1 本残す —— 途中から繋いだ端末も、
+    // AI 生成で実際に数十秒待つ経路も、この 1 本が起点になる。
+    //
+    // ⚠ **ただしこの 1 本を「押下のフィードバック」と見なしてはならない。**
+    //    2 端末・10 回連打の実測（AI 無しの既定ルーム）——
+    //
+    //      押した本人 A: 生成中が観測された回数 **0 / 10**
+    //      押していない B: **7 / 10**（`aria-busy` が真だった時間は 8〜11ms）
+    //
+    //    A では**サーバーが送った 2 本（生成中 → 確定）が同じ task で届き、
+    //    React の自動バッチングで 1 回の描画に畳まれる**（jsdom で再現済み ——
+    //    1 本目の直後に DOM を読むと `aria-busy="true"` の要素は 0 個、
+    //    別々の task で届けると 1 個）。B はわずかに遅れて別々に届くので 2 回描画される。
+    //    B の 8〜11ms も人の目には見えない。
+    //
+    //    **押下が画面に出ることを保証しているのは `pickFallback` が直前のお題を
+    //    候補から外すこと**である（`packages/timer-core/src/problem.ts`）。
+    //    結果が必ず変わるので、描画が 1 回に畳まれても違いが見える。
+    //    この 1 本を消しても、あちらを消しても、押下の手応えは無くなる。
+    this.writeGeneration(roomCode, { active: true, degraded: false });
+    this.broadcastGeneration(roomCode);
+
     // problemMode=fallback の場合は AI 候補へ委譲せず即座に定型で確定する（FR-037/043）
     if (room.problemMode === "fallback") {
-      const fb = pickFallback(room.config.language, room.config.difficulty, this.clock.now());
-      this.finalize(roomCode, { ...fb.problem, source: "fallback" });
+      this.finalize(roomCode, this.fallbackProblem(room));
       return;
     }
 
@@ -138,6 +169,7 @@ export class ProblemDelegator {
       const acquired = this.aiLimiter.tryAcquire(roomCode);
       if (acquired.ok) {
         this.startServerGeneration(roomCode, requestId, room, acquired.release);
+        this.settleIfAbandoned(roomCode);
         return;
       }
       this.logger.warn("ai.skip", {
@@ -145,9 +177,83 @@ export class ProblemDelegator {
         req: this.refEncoder.request(requestId),
         reason: AI_SKIP_REASONS[acquired.reason],
       });
+      // **AI で作るつもりだったのに枠が取れなかった。** この先は実質・定型なので
+      // 縮退の印を立てる（#283 の穴 3）。走っている生成を設定変更が中断した直後が
+      // ちょうどこの形で、利用者には何も伝わらないまま定型へ落ちていた。
+      this.writeGeneration(roomCode, { active: true, degraded: true });
     }
 
     this.startClientDelegation(roomCode, requestId, room);
+    this.settleIfAbandoned(roomCode);
+  }
+
+  // ─── 生成の帳簿（#283）─────────────────────────────────────────────────────
+  //
+  // 「生成中」をサーバーが持つ。**書き手はこのクラスだけである** ——
+  // 他の場所が書くと、委譲の実態（`active` / `activeServer`）と帳簿が食い違い、
+  // 誰も降ろさない生成中が生まれる。
+
+  /**
+   * 定型バンクから 1 つ選ぶ。**出所（`source: "fallback"`）はここで必ず付ける**（#283）。
+   *
+   * `pickFallback` は出所をお題の外（`ProblemWithSource.source`）で返すので、素の
+   * `fb.problem` をそのまま確定すると**出所不明のお題**になる（`Problem.source` の
+   * 省略はそういう意味である）。付けていたのは `request()` の定型モードの経路だけで、
+   * **本番が実際に通る経路**（候補を使い切って定型へ落ちる。実クライアントは常に
+   * `hasAiKey: false` を送るので候補は定型センチネルだけになる）は付けていなかった。
+   * 画面の出所バッジは「印が無ければ定型」と書いてあるため、この食い違いは
+   * 見た目には出ず、**同じ結末なのに wire の値だけが 2 通り**という形で残っていた。
+   */
+  private fallbackProblem(room: TimerState): Problem {
+    // 直前のお題（いま載っているもの）を候補から外す（#283 のレビュー）。
+    // **同じお題が返ると、押したことが画面に出ない** —— 依頼の冒頭に配信している
+    // 「生成中」は、送信元の端末では確定と同じ描画に畳まれて一度も現れない。
+    const fb = pickFallback(
+      room.config.language,
+      room.config.difficulty,
+      this.clock.now(),
+      room.problem,
+    );
+    return { ...fb.problem, source: fb.source };
+  }
+
+  /** 帳簿を書く（配信はしない）。ルームが消えていれば何もしない。 */
+  private writeGeneration(roomCode: string, generation: ProblemGeneration): void {
+    const room = this.timers.get(roomCode);
+    if (!room) return;
+    this.timers.put({ ...room, problemGeneration: generation });
+  }
+
+  /** いまの帳簿を在室者全員へ配信する（EARS 1）。 */
+  private broadcastGeneration(roomCode: string): void {
+    const room = this.timers.get(roomCode);
+    const membership = this.store.get(roomCode);
+    if (!room || !membership) return;
+    this.broadcaster.broadcastSnapshot(roomCode, buildTimerSnapshotRoom(membership, room));
+  }
+
+  /**
+   * **見捨てられた生成中**を降ろす（#283・レビュー指摘 4）。
+   *
+   * 帳簿が「生成中」なのに委譲がもう走っていない、という組み合わせは
+   * **誰も降ろせない**状態である。`finalize` を通らずに委譲が畳まれる道が
+   * `offerToCurrent` の行き止まり（ルームか名簿が揃っていない）にあり、
+   * そこへは `onDeadline` の `setTimeout` からも入ってくる —— つまり
+   * **帳簿を整えてくれる呼び出し側が居ない経路が実在する**。
+   *
+   * **65 秒の安全弁を落とした以上、画面側に逃げ道は無い。** 残ると以後どの snapshot を
+   * 受け取ってもお題パネルは減光・操作不能のままになる。委譲が畳まれうる場所からは
+   * 必ずここを通ること。
+   *
+   * 待ちが残っている場合は何もしない（配信は `request` の冒頭で済んでいる。
+   * 同じ値をもう 1 本送っても受け手が再描画するだけである）。
+   */
+  private settleIfAbandoned(roomCode: string): void {
+    if (this.isRequesting(roomCode)) return;
+    const generation = this.timers.get(roomCode)?.problemGeneration;
+    if (generation?.active !== true) return;
+    this.writeGeneration(roomCode, { active: false, degraded: generation.degraded });
+    this.broadcastGeneration(roomCode);
   }
 
   /** 従来のクライアント代表委譲（候補が空なら即・定型確定） */
@@ -218,7 +324,10 @@ export class ProblemDelegator {
     });
     const room = this.timers.get(roomCode);
     if (!room) return;
+    // **AI 生成が失敗した。** この先は実質・定型なので縮退の印を立てる（#283 の穴 3）。
+    this.writeGeneration(roomCode, { active: true, degraded: true });
     this.startClientDelegation(roomCode, requestId, room);
+    this.settleIfAbandoned(roomCode);
   }
 
   /**
@@ -245,9 +354,7 @@ export class ProblemDelegator {
 
     // AI 由来テキストは信頼しないデータとして検証し、失敗時は定型へ縮退（FR-023, FR-024）
     const validated = validateProblem(problem);
-    const finalProblem: Problem = validated.isOk()
-      ? validated.value
-      : pickFallback(room.config.language, room.config.difficulty, this.clock.now()).problem;
+    const finalProblem: Problem = validated.isOk() ? validated.value : this.fallbackProblem(room);
 
     void usedFallback; // 出所バッジはクライアント側で表示するためここでは保持しない
 
@@ -296,7 +403,11 @@ export class ProblemDelegator {
     const room = this.timers.get(roomCode);
     const membership = this.store.get(roomCode);
     if (!room || !membership) {
+      // **行き止まり。** `finalize` を通らずに委譲が終わるので、帳簿は自分で整える
+      // （#283・レビュー指摘 4）。**ここへは `onDeadline` の setTimeout からも入る** ——
+      // その場合、降ろしてくれる呼び出し側は居ない。
       this.cancel(roomCode);
+      this.settleIfAbandoned(roomCode);
       return;
     }
 
@@ -304,8 +415,7 @@ export class ProblemDelegator {
 
     // 候補を使い切った、または FALLBACK センチネルに到達したら定型で確定
     if (candidateId === undefined || candidateId === FALLBACK) {
-      const fb = pickFallback(room.config.language, room.config.difficulty, this.clock.now());
-      this.finalize(roomCode, fb.problem);
+      this.finalize(roomCode, this.fallbackProblem(room));
       return;
     }
 
@@ -357,7 +467,23 @@ export class ProblemDelegator {
     const room = this.timers.get(roomCode);
     const membership = this.store.get(roomCode);
     if (room && membership) {
-      const updated: TimerState = { ...room, problem };
+      const updated: TimerState = {
+        ...room,
+        problem,
+        // **確定したので生成中は降りる。内容が前と同じでも降りる**（#283 の穴 1）。
+        // 内容差分で降ろしていた頃は、`pickFallback` が同じ候補に当たると
+        // title も source も変わらず、押した人だけが安全弁の 65 秒まで固まっていた。
+        //
+        // 縮退の印は**定型で確定したときだけ**持ち越す（レビュー指摘 1）。
+        // 依頼の途中で立った印をそのまま持ち越すと、AI の枠が取れずに印を立てたあと
+        // **代表が AI で作ったお題を投入してきた**場合に、`source: "ai"` のバッジの隣へ
+        // 「定型のお題に切り替えました」が並ぶ。印が語れるのは、いま確定した
+        // **そのお題が定型であるとき**だけである。
+        problemGeneration: {
+          active: false,
+          degraded: problem.source === "fallback" && room.problemGeneration?.degraded === true,
+        },
+      };
       this.timers.put(updated);
       this.broadcaster.broadcastSnapshot(roomCode, buildTimerSnapshotRoom(membership, updated));
     }

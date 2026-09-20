@@ -24,8 +24,16 @@ interface ProblemEditorProps {
   language?: string;
   /** セッション中など、1行バーに畳んで表示する（⑫ 目立たせない）。 */
   compact?: boolean;
-  /** AI/定型のお題を生成中（「別のお題にする」押下〜確定まで）。スピナー＋減光に使う。 */
+  /** サーバーがお題を作り直している最中か（#283）。スピナー＋減光に使う。 */
   generating?: boolean;
+  /**
+   * AI で作れずに定型へ落ちたことを断る（#283・EARS 3）。
+   *
+   * 設定を変えると走っている AI 生成が中断され、取り直しはクールダウンに当たって
+   * 定型へ落ちる。**設定を変えた以上その方が正しいが、黙って落ちると利用者は
+   * 「AI のお題のはず」と思ったままになる。**
+   */
+  fallbackNotice?: boolean;
   onEdit: (patch: Partial<Omit<Problem, "source" | "edited">>) => void;
   onCopy: () => void;
   onRegenerate: () => void;
@@ -78,6 +86,22 @@ function Badges({
   );
 }
 
+/**
+ * AI から定型へ落ちたことの断り（#283・EARS 3）。
+ *
+ * **フルカードと 1 行バーの両方がこれを使う。** 文言を 2 箇所に書くと、片方だけが
+ * 古くなる（#283 のレビュー指摘 5 は「片方にしか無い」ことそのものだった）。
+ * `role="status"` は控えめな読み上げ（polite）で、操作の邪魔をしない。
+ */
+function FallbackNotice({ show }: { show: boolean }) {
+  if (!show) return null;
+  return (
+    <p role="status" className="text-xs text-[var(--caution)]">
+      AI でのお題生成ができなかったため、定型のお題に切り替えました。
+    </p>
+  );
+}
+
 /** 改行区切りテキストを配列へ（空行は除去・前後空白トリム） */
 function linesToArray(text: string): string[] {
   return text.split("\n").map((s) => s.trim()).filter((s) => s.length > 0);
@@ -89,6 +113,7 @@ export function ProblemEditor({
   language,
   compact = false,
   generating = false,
+  fallbackNotice = false,
   onEdit,
   onCopy,
   onRegenerate,
@@ -113,18 +138,36 @@ export function ProblemEditor({
     problem.requirements.length > 0 || !!problem.exampleTest || problem.hints.length > 0;
 
   // compact かつ未展開 = 1行バーのみ（難易度＋タイトル＋開く）。
+  //
+  // ⚠ **ここも `role="group" aria-label="お題"` で包む**（#283・レビュー指摘 5）。
+  //    かつてこの枝は素の `<button>` を返しており、カード本体に付けた `aria-busy` も
+  //    縮退の断りも**こちらには無かった**。`Session.tsx` は `compact` を渡し、バーの
+  //    初期状態は未展開なので、**セッション中にバーを開いていない在室者には
+  //    生成中も縮退も届かない** —— 「押した人の画面にだけ出る」という、#283 が
+  //    取り除いたはずの状態がセッション中にだけ残っていた。
+  //    包む器はフルカードと同じ綴りにする（観測点を 2 つに割らない）。
   if (compact && !barOpen) {
     return (
-      <button
-        type="button"
-        onClick={() => setBarOpen(true)}
-        aria-expanded={false}
-        className="flex w-full items-center gap-2 text-left text-sm text-[var(--bone-muted)] hover:text-[var(--bone)]"
-      >
-        <Badges difficulty={difficulty} edited={problem.edited} source={problem.source} />
-        <span className="font-semibold text-[var(--bone)] truncate">{problem.title}</span>
-        <span className="ml-auto flex items-center gap-1 text-[var(--bone-muted)]">詳細を開く <ChevronDown className="w-4 h-4" aria-hidden="true" /></span>
-      </button>
+      <div role="group" aria-label="お題" aria-busy={generating || undefined} className="flex flex-col gap-2">
+        <FallbackNotice show={fallbackNotice} />
+        <button
+          type="button"
+          onClick={() => setBarOpen(true)}
+          aria-expanded={false}
+          disabled={generating}
+          className={`flex w-full items-center gap-2 text-left text-sm text-[var(--bone-muted)] hover:text-[var(--bone)] ${generating ? "opacity-50" : ""}`}
+        >
+          <Badges difficulty={difficulty} edited={problem.edited} source={problem.source} />
+          <span className="font-semibold text-[var(--bone)] truncate">{problem.title}</span>
+          <span className="ml-auto flex items-center gap-1 text-[var(--bone-muted)]">
+            {generating ? (
+              <><Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> 生成中…</>
+            ) : (
+              <>詳細を開く <ChevronDown className="w-4 h-4" aria-hidden="true" /></>
+            )}
+          </span>
+        </button>
+      </div>
     );
   }
 
@@ -136,6 +179,8 @@ export function ProblemEditor({
       aria-busy={generating || undefined}
       className={`flex flex-col gap-3 ${generating ? "opacity-50 pointer-events-none" : ""}`}
     >
+      <FallbackNotice show={fallbackNotice} />
+
       {/* ヘッダー: バッジ＋タイトル＋アクション */}
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex flex-col gap-1.5">

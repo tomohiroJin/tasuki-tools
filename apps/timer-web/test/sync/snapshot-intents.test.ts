@@ -28,7 +28,6 @@ function baseCtx(overrides: Partial<SnapshotContext> = {}): SnapshotContext {
     pendingResume: null,
     resumeDisplayName: "",
     recordSaved: false,
-    generatingProblem: false,
     endType: "complete",
     now: 1_000,
     ...overrides,
@@ -205,12 +204,18 @@ describe("decideSnapshotIntents: お題", () => {
     expect(kinds(next, baseCtx(), prev)).toEqual(["set-screen"]);
   });
 
-  it("生成中にお題の内容が変わったら生成中を解除する", () => {
-    // Given
+  it("お題が確定しても、ここは何も判断しない（#283）", () => {
+    // Given: お題が null から確定へ変わった
     const prev = aRoomView({ problem: null });
     const next = aRoomView({ problem });
-    // When / Then（kinds の戻り値をそのまま検証するため操作と検証が同じ式になる）
-    expect(kinds(next, baseCtx({ generatingProblem: true }), prev)).toContain("clear-generating");
+
+    // When / Then: 立つのは画面追従だけ。**生成中の解除はもうここに無い** ——
+    // 生成中はサーバーの状態（`Room.problemGeneration`）になったので、画面は
+    // snapshot をそのまま読む。お題の内容差分で「終わった」を推測する経路は
+    // 同じお題が選び直されると成立せず、押した人だけが 65 秒固まっていた。
+    // **並びごと見る**（`not.toContain("clear-generating")` は意図が型から消えた以上
+    // 永久に成立する恒真検査になる）。
+    expect(kinds(next, baseCtx(), prev)).toEqual(["set-screen"]);
   });
 });
 
@@ -260,16 +265,14 @@ describe("decideSnapshotIntents: 順序（振る舞いそのもの）", () => {
     const ctx = baseCtx({
       pendingResume: { participantId: SELF, resumeToken: "rt" },
       resumeDisplayName: "Creator",
-      generatingProblem: true,
     });
     // When / Then（decideSnapshotIntents の戻り値をそのまま検証するため操作と検証が同じ式になる）
     expect(decideSnapshotIntents(prev, next, ctx).map((i) => i.kind)).toEqual([
       "save-resume",
-      "clear-generating",
       "set-screen",
       "persist-completion",
     ]);
-    // 注: お題系の意図はもう無い（依頼も待ちの表示もサーバー側・#271）。
+    // 注: お題系の意図はもう無い（依頼も待ちの表示もサーバー側・#271 / #283）。
     //     参加時ドライバー宣言の 2 種も無い（旧入口の撤去で立てる者が消えた・#272）。
   });
 

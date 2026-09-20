@@ -4,9 +4,10 @@
  * App.tsx は `makeClient` に渡すコールバック（onRoom/onIdentity 等）が生成時の値で
  * 固定されるため、同じ値を state と ref の両方で持つ「並行保持」を複数箇所で行っている
  * （room/roomRef, participantId/participantIdRef, endType/endTypeRef,
- * generatingProblem/generatingRef の4組・実測。spec は5組を見込んでいたが、実際に
- * state と対になっている ref はこの4組のみだった。（当時の）isCreatorRef 等は state を
- * 持たない純粋なガード用 ref であり対象外）。
+ * generatingProblem/generatingRef の4組・**当時の**実測。spec は5組を見込んでいたが、
+ * 実際に state と対になっている ref はこの4組のみだった。（当時の）isCreatorRef 等は
+ * state を持たない純粋なガード用 ref であり対象外）。
+ * **`generatingProblem` の組は #283 で消えている**（生成中はサーバーが持つ状態になった）。
  *
  * 並行保持そのものは避けられない（closure が生成時点の値を固定するため）が、
  * 「render のたびに ref.current を最新値へ同期する」処理が state ごとに手書きで

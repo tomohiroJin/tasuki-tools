@@ -8,9 +8,11 @@
  * `SyncClient` へ渡すのは `ref.current` の同名関数を呼ぶだけの転送関数なので、
  * 固定されるのは転送だけで、実際に走るのは常に最新レンダーのハンドラになる。
  *
- * かつては同じ仕組みで「state の写し」（room/participantId/endType/generatingProblem）を
- * 保持していたが、それは state と ref の並行保持そのものだった。Issue #46 で
- * 保持する中身をハンドラ束へ入れ替え、state の写しは無くなっている。
+ * かつては同じ仕組みで「state の写し」（room/participantId/endType）を保持していたが、
+ * それは state と ref の並行保持そのものだった。Issue #46 で保持する中身を
+ * ハンドラ束へ入れ替え、state の写しは無くなっている。
+ * （`generatingProblem` の組は #283 でさらに消えた —— 生成中はサーバーが持つ状態に
+ * なり、画面は snapshot をそのまま読むので state も ref も要らない。）
  *
  * 同期は render 本体の中で行う（`useEffect` を挟まない）。挟むと、passive effect が
  * commit と非同期に flush される都合で、差し替え前に届いた WS メッセージを

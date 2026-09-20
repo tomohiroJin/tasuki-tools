@@ -359,3 +359,52 @@ describe("RoomSchema の seats / nextIndex（#276 D7）", () => {
     expect(v.safeParse(RoomSchema, room).success).toBe(true);
   });
 });
+
+/**
+ * お題の生成の状態（#283）。**任意項目である**ことがこの契約の要点である。
+ *
+ * `deploy.sh timer` は画面を先に配ってからサーバーを再起動するので、
+ * 「新しい画面 × 旧サーバー」の窓は順序では避けられない（#276 の実測）。
+ * 必須にすると、その窓で snapshot 全体が契約検査に落ち、画面は
+ * 「最新ではありません」側へ倒れる（#276 の `session.seats` がそうした）。
+ *
+ * @requirements #283
+ */
+describe("RoomSchema: お題の生成の状態", () => {
+  it("項目を持たない snapshot（旧サーバー）も通る", () => {
+    // Given: この項目を知らないサーバーが送る形
+    const room = baseRoom();
+    // When
+    const parsed = v.safeParse(RoomSchema, room);
+    // Then
+    expect(parsed.success).toBe(true);
+    if (parsed.success) expect(parsed.output.problemGeneration).toBeUndefined();
+  });
+
+  it("生成中と縮退の印を載せた snapshot は、そのまま通る", () => {
+    // Given
+    const room = { ...baseRoom(), problemGeneration: { active: true, degraded: true } };
+    // When
+    const parsed = v.safeParse(RoomSchema, room);
+    // Then
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.output.problemGeneration).toEqual({ active: true, degraded: true });
+    }
+  });
+
+  it("形が違えば落とす（壊れた値を画面へ通さない）", () => {
+    // Given: active が真偽値でない
+    const room = { ...baseRoom(), problemGeneration: { active: "yes", degraded: false } };
+    // When / Then
+    expect(v.safeParse(RoomSchema, room).success).toBe(false);
+  });
+
+  it("片方だけの帳簿は落とす（既定で埋めない）", () => {
+    // Given: degraded が無い。**ここを任意にすると「印が無い＝縮退していない」と
+    // 「印を送れないサーバー」が区別できなくなる。** 項目ごと有るか無いかで分ける。
+    const room = { ...baseRoom(), problemGeneration: { active: true } };
+    // When / Then
+    expect(v.safeParse(RoomSchema, room).success).toBe(false);
+  });
+});

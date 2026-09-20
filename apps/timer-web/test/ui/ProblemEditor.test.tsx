@@ -323,3 +323,52 @@ describe("ProblemEditor 生成中表示", () => {
     expect((btn as HTMLButtonElement).disabled).toBe(false);
   });
 });
+
+/**
+ * セッション中の 1 行バー（`compact` かつ未展開）でも、生成中と縮退の断りが届くこと
+ * （#283・レビュー指摘 5）。
+ *
+ * バーは早期 return で別の枝を返すため、**カード本体に付けた `aria-busy` も
+ * 断り書きもこちらには無かった**。`Session.tsx` は `compact` を渡し、バーの初期状態は
+ * 未展開なので、**セッション中にバーを開いていない在室者には EARS 1 も EARS 3 も
+ * 届かない**。在室者全員に示すことが EARS 1 の要点なので、ここが抜けていると
+ * 「押した人の画面にだけ出る」旧実装と同じ状態がセッション中に残る。
+ *
+ * @requirements #283 EARS 1・EARS 3
+ */
+describe("ProblemEditor: セッション中の 1 行バー（compact）", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("生成中はバーも aria-busy になる", () => {
+    // Given / When
+    render(<ProblemEditor {...baseProps} problem={mkProblem({ source: "fallback" })} compact generating />);
+    // Then
+    expect(screen.getByRole("group", { name: "お題" }).getAttribute("aria-busy")).toBe("true");
+  });
+
+  it("生成中でなければ aria-busy は付かない（対照）", () => {
+    render(<ProblemEditor {...baseProps} problem={mkProblem({ source: "fallback" })} compact />);
+    expect(screen.getByRole("group", { name: "お題" }).hasAttribute("aria-busy")).toBe(false);
+  });
+
+  it("縮退の断りはバーを開いていなくても出る", () => {
+    // Given / When
+    render(<ProblemEditor {...baseProps} problem={mkProblem({ source: "fallback" })} compact fallbackNotice />);
+    // Then
+    expect(screen.getByRole("status")).toHaveTextContent(/AI.*定型/);
+  });
+
+  it("縮退していなければ断りは出ない（対照）", () => {
+    render(<ProblemEditor {...baseProps} problem={mkProblem({ source: "fallback" })} compact />);
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("バーは従来どおり押して開ける（包んでも操作が死なない）", () => {
+    // Given
+    render(<ProblemEditor {...baseProps} problem={mkProblem({ source: "fallback" })} compact />);
+    // When
+    fireEvent.click(screen.getByRole("button", { name: /詳細を開く/ }));
+    // Then: 展開後はフルカードの操作が現れる
+    expect(screen.getByRole("button", { name: "別のお題にする" })).toBeTruthy();
+  });
+});

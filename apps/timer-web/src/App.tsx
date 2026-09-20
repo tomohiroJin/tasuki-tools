@@ -49,6 +49,7 @@ export default function App() {
     connState,
     syncStale,
     generatingProblem,
+    showsFallbackNotice,
     commands,
   } = sync;
 
@@ -137,6 +138,7 @@ export default function App() {
           inviteUrl={sync.inviteUrl ?? ''}
           participantId={participantId}
           generatingProblem={generatingProblem}
+          showsFallbackNotice={showsFallbackNotice}
           onStartSession={sync.startSession}
           onEditProblem={commands.editProblem}
           onRegenerateProblem={sync.regenerateProblem}
@@ -163,6 +165,7 @@ export default function App() {
           inviteUrl={sync.inviteUrl ?? ''}
           participantId={participantId}
           generatingProblem={generatingProblem}
+          showsFallbackNotice={showsFallbackNotice}
           aiUnlocked={!!room.aiUnlocked}
           aiMode={room.problemMode === "ai"}
           clockOffset={sync.clockOffset}

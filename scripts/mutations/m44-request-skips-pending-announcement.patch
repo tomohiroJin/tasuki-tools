@@ -1,0 +1,31 @@
+# 変異 44: request-skips-pending-announcement
+#
+# 依頼の冒頭の配信を「待ちが残る依頼だけ」に絞る（#283 の当初実装）。
+# **本番のロビーはこの絞り込みに落ちる** —— `problemMode` 未設定・AI 無し・
+# 実クライアントは常に hasAiKey: false なので候補が定型センチネルだけになり、
+# 依頼と確定が同じ tick で終わる。帳簿として「いま作り直している」と言える瞬間が
+# 1 本も残らなくなり、途中から繋いだ端末はその依頼を知る術が無い。
+# （押下の手応えのほうは m46 / m47 —— 直前のお題を候補から外すこと —— が守っている。
+#  送信元の端末では生成中の snapshot が確定と同じ描画に畳まれるため。）
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/problem-generation-state.test.ts
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m44-*.patch
+#       (diff のパスはリポジトリルート起点。mutation-check.mjs もリポジトリルートで実行する)
+# 復元: git checkout -- <対象ファイル>（同じくリポジトリルートから）
+#
+diff --git a/apps/tasuki-sync/src/application/problem-delegation.ts b/apps/tasuki-sync/src/application/problem-delegation.ts
+index 2e71dc0..387c6aa 100644
+--- a/apps/tasuki-sync/src/application/problem-delegation.ts
++++ b/apps/tasuki-sync/src/application/problem-delegation.ts
+@@ -155,7 +155,7 @@ export class ProblemDelegator {
+     //    結果が必ず変わるので、描画が 1 回に畳まれても違いが見える。
+     //    この 1 本を消しても、あちらを消しても、押下の手応えは無くなる。
+     this.writeGeneration(roomCode, { active: true, degraded: false });
+-    this.broadcastGeneration(roomCode);
++    if (this.isRequesting(roomCode)) this.broadcastGeneration(roomCode);
+ 
+     // problemMode=fallback の場合は AI 候補へ委譲せず即座に定型で確定する（FR-037/043）
+     if (room.problemMode === "fallback") {
