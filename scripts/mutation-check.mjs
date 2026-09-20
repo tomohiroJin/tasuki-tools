@@ -122,9 +122,9 @@ export const MUTATIONS = [
     tests: ["tests/display-name.test.ts"],
   },
   {
-    id: 43,
+    id: 48,
     label: "normalizeDisplayName の段を #284 以前の順序へ戻す（制御文字でラベルの剥がしを逃れられる）",
-    patch: "m43-display-name-strip-before-controls.patch",
+    patch: "m48-display-name-strip-before-controls.patch",
     pkg: "packages/room-core",
     tests: ["tests/display-name.test.ts"],
   },
