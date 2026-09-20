@@ -193,6 +193,21 @@ describe("お題の生成中はサーバー権威（#283）", () => {
     expect(screen.getByRole("button", { name: "別のお題にする" })).toBeEnabled();
   });
 
+  it("セッション中（1 行バーを開いていない在室者）にも生成中が届く", () => {
+    // Given: セッション画面（`Session.tsx` は ProblemEditor へ `compact` を渡し、
+    // バーの初期状態は未展開）。**ここが抜けていると、セッション中は
+    // 「押した人の画面にだけ出る」旧実装と同じ状態が残る**（レビュー指摘 5）。
+    const ws = enterLobby();
+    sendSnapshot(ws, {
+      phase: "session",
+      problem: fallbackProblem(),
+      problemGeneration: { active: true, degraded: false },
+    });
+
+    // When / Then: バーを開かないまま生成中が分かる
+    expect(problemCardIsBusy()).toBe(true);
+  });
+
   // ─── EARS 3: AI から定型へ縮退したことを示す ──────────────────────────────
 
   it("AI から定型へ落ちたら、その旨が画面に出る", () => {
@@ -208,6 +223,32 @@ describe("お題の生成中はサーバー権威（#283）", () => {
 
     // Then
     expect(fallbackNoticeInProblemCard()).toHaveTextContent(/AI.*定型/);
+  });
+
+  it("縮退のあと利用者が手で書き換えたら、断り書きは消える", () => {
+    // Given: 縮退で定型が載っている
+    const ws = enterLobby();
+    sendSnapshot(ws, {
+      problem: fallbackProblem(),
+      problemGeneration: { active: false, degraded: true },
+      problemMode: "ai",
+      aiUnlocked: true,
+    });
+    fireEvent.click(screen.getByRole("tab", { name: "お題" }));
+    expect(fallbackNoticeInProblemCard()).not.toBeNull();
+
+    // When: 利用者が貼り付け／編集した（`problem.edit` が `edited: true` を立てる）
+    sendSnapshot(ws, {
+      problem: { ...fallbackProblem(), title: "自分で持ち込んだお題", edited: true },
+      problemGeneration: { active: false, degraded: true },
+      problemMode: "ai",
+      aiUnlocked: true,
+    });
+
+    // Then: 自分で持ち込んだお題に「AI で作れなかったので定型にしました」は付かない。
+    // **サーバーの印はまだ立っている**（降りるのは次の依頼のとき）ので、
+    // 印だけを見ていると出続ける。
+    expect(fallbackNoticeInProblemCard()).toBeNull();
   });
 
   it("縮退していなければ、その断り書きは出ない", () => {

@@ -1,0 +1,28 @@
+# 変異 45: dead-end-leaves-generating-on
+#
+# `offerToCurrent` の行き止まり（ルームか名簿が揃っていない）で帳簿を整えない。
+# **ここへは onDeadline の setTimeout からも入る**ので、降ろしてくれる呼び出し側が
+# 居ない。`problemGeneration.active` が真のまま残り、65 秒の安全弁を落とした画面には
+# 逃げ道が無く、以後どの snapshot を受け取ってもお題パネルは操作不能のままになる。
+# `isRequesting` も真のままなので、ロビーのお題を用意し直す経路まで塞がる。
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/problem-generation-state.test.ts
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m45-*.patch
+#       (diff のパスはリポジトリルート起点。mutation-check.mjs もリポジトリルートで実行する)
+# 復元: git checkout -- <対象ファイル>（同じくリポジトリルートから）
+#
+diff --git a/apps/tasuki-sync/src/application/problem-delegation.ts b/apps/tasuki-sync/src/application/problem-delegation.ts
+index abd826b..5564cc1 100644
+--- a/apps/tasuki-sync/src/application/problem-delegation.ts
++++ b/apps/tasuki-sync/src/application/problem-delegation.ts
+@@ -386,7 +386,6 @@ export class ProblemDelegator {
+       // （#283・レビュー指摘 4）。**ここへは `onDeadline` の setTimeout からも入る** ——
+       // その場合、降ろしてくれる呼び出し側は居ない。
+       this.cancel(roomCode);
+-      this.settleIfAbandoned(roomCode);
+       return;
+     }
+ 

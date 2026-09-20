@@ -131,11 +131,18 @@ export class ProblemDelegator {
     const room = this.timers.get(roomCode);
     if (!room) return;
 
-    // 新しい依頼が始まった。帳簿を「生成中・縮退なし」から引き直す（#283）。
-    // **ここでは配信しない。** この場で確定してしまう経路（定型モード・候補ゼロ）では
-    // 「生成中」の snapshot が直後の確定に上書きされるだけの無駄な 1 本になる。
-    // 待ちが実際に残ったかどうかは {@link settleAfterDispatch} が最後に見る。
+    // 新しい依頼が始まった。帳簿を「生成中・縮退なし」から引き直し、**必ず 1 本配信する**
+    // （#283・レビュー指摘 3）。
+    //
+    // ⚠ **「同じ tick で確定するなら送らない」にしてはならない。** 本番のロビーは
+    // まさにその形（`problemMode` 未設定・AI 無し・全員 `hasAiKey: false` なので候補が
+    // 定型センチネルだけになり、依頼と確定が同じ tick で終わる）を通る。そこを省くと、
+    // **65 秒の安全弁も押下側の局所スピナーも落とした**あとの画面は押しても一瞬も
+    // 反応せず、`pickFallback` が同じ候補を引いた回は結果も変わらないので
+    // 「何も起きていない」と区別が付かない。実測で 8 回連打して `aria-busy` が
+    // 一度も立たなかった。**押下のフィードバックはこの 1 本目が担う。**
     this.writeGeneration(roomCode, { active: true, degraded: false });
+    this.broadcastGeneration(roomCode);
 
     // problemMode=fallback の場合は AI 候補へ委譲せず即座に定型で確定する（FR-037/043）
     if (room.problemMode === "fallback") {
@@ -149,7 +156,7 @@ export class ProblemDelegator {
       const acquired = this.aiLimiter.tryAcquire(roomCode);
       if (acquired.ok) {
         this.startServerGeneration(roomCode, requestId, room, acquired.release);
-        this.settleAfterDispatch(roomCode);
+        this.settleIfAbandoned(roomCode);
         return;
       }
       this.logger.warn("ai.skip", {
@@ -164,7 +171,7 @@ export class ProblemDelegator {
     }
 
     this.startClientDelegation(roomCode, requestId, room);
-    this.settleAfterDispatch(roomCode);
+    this.settleIfAbandoned(roomCode);
   }
 
   // ─── 生成の帳簿（#283）─────────────────────────────────────────────────────
@@ -205,19 +212,23 @@ export class ProblemDelegator {
   }
 
   /**
-   * 依頼を出し終えた時点の帳簿を整える（#283）。**3 つの出口がある。**
+   * **見捨てられた生成中**を降ろす（#283・レビュー指摘 4）。
    *
-   * - **まだ返りを待っている** → 生成中を在室者全員へ配信する（EARS 1）。
-   *   押した人だけでなく全員に出るのはここが効いているからである
-   * - **同じ tick で確定した** → `finalize` が既に降ろして配信済み。何もしない
-   * - **どちらでもない** → 委譲がルーム不在などで畳まれた。ここを空振りさせると
-   *   **誰も降ろさない生成中**が残るので、帳簿を降ろして配信する
+   * 帳簿が「生成中」なのに委譲がもう走っていない、という組み合わせは
+   * **誰も降ろせない**状態である。`finalize` を通らずに委譲が畳まれる道が
+   * `offerToCurrent` の行き止まり（ルームか名簿が揃っていない）にあり、
+   * そこへは `onDeadline` の `setTimeout` からも入ってくる —— つまり
+   * **帳簿を整えてくれる呼び出し側が居ない経路が実在する**。
+   *
+   * **65 秒の安全弁を落とした以上、画面側に逃げ道は無い。** 残ると以後どの snapshot を
+   * 受け取ってもお題パネルは減光・操作不能のままになる。委譲が畳まれうる場所からは
+   * 必ずここを通ること。
+   *
+   * 待ちが残っている場合は何もしない（配信は `request` の冒頭で済んでいる。
+   * 同じ値をもう 1 本送っても受け手が再描画するだけである）。
    */
-  private settleAfterDispatch(roomCode: string): void {
-    if (this.isRequesting(roomCode)) {
-      this.broadcastGeneration(roomCode);
-      return;
-    }
+  private settleIfAbandoned(roomCode: string): void {
+    if (this.isRequesting(roomCode)) return;
     const generation = this.timers.get(roomCode)?.problemGeneration;
     if (generation?.active !== true) return;
     this.writeGeneration(roomCode, { active: false, degraded: generation.degraded });
@@ -295,7 +306,7 @@ export class ProblemDelegator {
     // **AI 生成が失敗した。** この先は実質・定型なので縮退の印を立てる（#283 の穴 3）。
     this.writeGeneration(roomCode, { active: true, degraded: true });
     this.startClientDelegation(roomCode, requestId, room);
-    this.settleAfterDispatch(roomCode);
+    this.settleIfAbandoned(roomCode);
   }
 
   /**
@@ -371,7 +382,11 @@ export class ProblemDelegator {
     const room = this.timers.get(roomCode);
     const membership = this.store.get(roomCode);
     if (!room || !membership) {
+      // **行き止まり。** `finalize` を通らずに委譲が終わるので、帳簿は自分で整える
+      // （#283・レビュー指摘 4）。**ここへは `onDeadline` の setTimeout からも入る** ——
+      // その場合、降ろしてくれる呼び出し側は居ない。
       this.cancel(roomCode);
+      this.settleIfAbandoned(roomCode);
       return;
     }
 
@@ -437,10 +452,15 @@ export class ProblemDelegator {
         // **確定したので生成中は降りる。内容が前と同じでも降りる**（#283 の穴 1）。
         // 内容差分で降ろしていた頃は、`pickFallback` が同じ候補に当たると
         // title も source も変わらず、押した人だけが安全弁の 65 秒まで固まっていた。
-        // 縮退の印は依頼の途中で立ったものを持ち越す（次の `request` で降りる）。
+        //
+        // 縮退の印は**定型で確定したときだけ**持ち越す（レビュー指摘 1）。
+        // 依頼の途中で立った印をそのまま持ち越すと、AI の枠が取れずに印を立てたあと
+        // **代表が AI で作ったお題を投入してきた**場合に、`source: "ai"` のバッジの隣へ
+        // 「定型のお題に切り替えました」が並ぶ。印が語れるのは、いま確定した
+        // **そのお題が定型であるとき**だけである。
         problemGeneration: {
           active: false,
-          degraded: room.problemGeneration?.degraded ?? false,
+          degraded: problem.source === "fallback" && room.problemGeneration?.degraded === true,
         },
       };
       this.timers.put(updated);

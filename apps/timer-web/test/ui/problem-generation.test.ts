@@ -14,6 +14,19 @@ import {
   showsFallbackNotice,
 } from "../../src/ui/problem-generation.js";
 import { aRoomView } from "../support/room-view.js";
+import type { Problem } from "@tasuki/timer-core";
+
+/** サーバーが定型で確定したお題（手つかず）。 */
+function fallbackProblem(): Problem {
+  return {
+    title: "FizzBuzz",
+    description: "3 の倍数で Fizz",
+    requirements: [],
+    exampleTest: "",
+    hints: [],
+    source: "fallback",
+  };
+}
 
 describe("isGeneratingProblem", () => {
   it("サーバーが生成中と言っているなら true", () => {
@@ -41,23 +54,65 @@ describe("isGeneratingProblem", () => {
 
 describe("showsFallbackNotice", () => {
   it("生成が終わっていて AI から定型へ落ちていたなら true", () => {
-    const room = aRoomView({ problemGeneration: { active: false, degraded: true } });
+    // 断りは**載っているお題**についてのものなので、お題が要る。
+    const room = aRoomView({
+      problemGeneration: { active: false, degraded: true },
+      problem: fallbackProblem(),
+    });
     expect(showsFallbackNotice(room)).toBe(true);
   });
 
   it("まだ生成中なら出さない（結末が決まっていない）", () => {
     // 走っている最中に「定型になりました」と言うと、そのあと AI で作れた場合に嘘になる。
-    const room = aRoomView({ problemGeneration: { active: true, degraded: true } });
+    const room = aRoomView({
+      problemGeneration: { active: true, degraded: true },
+      problem: fallbackProblem(),
+    });
     expect(showsFallbackNotice(room)).toBe(false);
   });
 
   it("縮退していないなら false", () => {
-    const room = aRoomView({ problemGeneration: { active: false, degraded: false } });
+    const room = aRoomView({
+      problemGeneration: { active: false, degraded: false },
+      problem: fallbackProblem(),
+    });
     expect(showsFallbackNotice(room)).toBe(false);
   });
 
   it("帳簿そのものが無ければ false", () => {
-    expect(showsFallbackNotice(aRoomView())).toBe(false);
+    expect(showsFallbackNotice(aRoomView({ problem: fallbackProblem() }))).toBe(false);
+  });
+
+  it("利用者が手で書き換えたお題には出さない（貼り付け・編集）", () => {
+    // Given: 縮退で定型が載ったあと、利用者が貼り付け／編集した
+    //（`problem.edit` は `edited: true` を立てる。出所は `fallback` のまま残る）
+    const room = aRoomView({
+      problemGeneration: { active: false, degraded: true },
+      problem: { ...fallbackProblem(), edited: true },
+    });
+    // When / Then: 印が語れるのは**サーバーが確定したそのお題**についてだけである。
+    // 書き換えられた後も出し続けると、自分で持ち込んだお題に
+    // 「AI で作れなかったので定型にしました」が付く。
+    expect(showsFallbackNotice(room)).toBe(false);
+  });
+
+  it("お題そのものが落ちていれば出さない（ロビーへ戻った直後）", () => {
+    // Given: 完了画面からロビーへ戻ると、サーバーは前のお題を落とす（#273）
+    const room = aRoomView({
+      problemGeneration: { active: false, degraded: true },
+      problem: null,
+    });
+    // When / Then: 断るべきお題がもう無い
+    expect(showsFallbackNotice(room)).toBe(false);
+  });
+
+  it("サーバーが確定した定型のお題がそのまま載っている間は出す", () => {
+    // Given / When / Then（対照。上の 2 件が「出さない」ことの意味を持つために要る）
+    const room = aRoomView({
+      problemGeneration: { active: false, degraded: true },
+      problem: fallbackProblem(),
+    });
+    expect(showsFallbackNotice(room)).toBe(true);
   });
 
   it("ルームがまだ無ければ false", () => {

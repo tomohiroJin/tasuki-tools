@@ -1,0 +1,29 @@
+# 変異 44: request-skips-pending-announcement
+#
+# 依頼の冒頭の配信を「待ちが残る依頼だけ」に絞る（#283 の当初実装）。
+# **本番のロビーはこの絞り込みに落ちる** —— `problemMode` 未設定・AI 無し・
+# 実クライアントは常に hasAiKey: false なので候補が定型センチネルだけになり、
+# 依頼と確定が同じ tick で終わる。65 秒の安全弁も押下側の局所スピナーも落とした後なので、
+# 画面は押しても一瞬も反応しない（実測で 8 回連打して aria-busy が一度も立たなかった）。
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/problem-generation-state.test.ts
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m44-*.patch
+#       (diff のパスはリポジトリルート起点。mutation-check.mjs もリポジトリルートで実行する)
+# 復元: git checkout -- <対象ファイル>（同じくリポジトリルートから）
+#
+diff --git a/apps/tasuki-sync/src/application/problem-delegation.ts b/apps/tasuki-sync/src/application/problem-delegation.ts
+index abd826b..14c1b65 100644
+--- a/apps/tasuki-sync/src/application/problem-delegation.ts
++++ b/apps/tasuki-sync/src/application/problem-delegation.ts
+@@ -142,7 +142,7 @@ export class ProblemDelegator {
+     // 「何も起きていない」と区別が付かない。実測で 8 回連打して `aria-busy` が
+     // 一度も立たなかった。**押下のフィードバックはこの 1 本目が担う。**
+     this.writeGeneration(roomCode, { active: true, degraded: false });
+-    this.broadcastGeneration(roomCode);
++    if (this.isRequesting(roomCode)) this.broadcastGeneration(roomCode);
+ 
+     // problemMode=fallback の場合は AI 候補へ委譲せず即座に定型で確定する（FR-037/043）
+     if (room.problemMode === "fallback") {

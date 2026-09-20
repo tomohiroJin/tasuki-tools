@@ -24,11 +24,25 @@ export function isGeneratingProblem(room: Room | null): boolean {
 /**
  * 「AI で作れなかったので定型にした」という断り書きを出すか（EARS 3）。
  *
- * **生成中は出さない。** 走っている最中に結末を言うと、そのあと AI で作れた場合に
- * 嘘になる（縮退の印は AI を試みて落ちた時点で立ち、確定まで持ち越される）。
+ * **この断りは、いま画面に載っているお題についてのものである。**
+ * サーバーの印（`degraded`）が降りるのは次の依頼のときだけなので、印だけを見ると
+ * **利用者が自分で貼り付けた／編集したお題にまで**「AI で作れませんでした」が付く
+ * （レビュー指摘 2）。印が語れるのは**サーバーが確定したそのお題がそのまま
+ * 載っている間**だけなので、載っているお題の側も見る。
+ *
+ * ⚠ **ここに「お題の内容が変わったか」を持ち込まないこと。** 見るのは
+ * 「人の手が入ったか」（`edited`）であって、前の snapshot との差分ではない ——
+ * 差分に戻すと #283 が閉じた穴がそのまま開く。
  */
 export function showsFallbackNotice(room: Room | null): boolean {
-  const generation = room?.problemGeneration;
+  if (room === null) return false;
+  const generation = room.problemGeneration;
   if (generation === undefined) return false;
-  return !generation.active && generation.degraded;
+  // 走っている最中に結末を言うと、そのあと AI で作れた場合に嘘になる。
+  if (generation.active) return false;
+  if (!generation.degraded) return false;
+  // 断るべきお題がもう無い（完了画面からロビーへ戻ると落ちる・#273）。
+  if (room.problem === null) return false;
+  // 利用者が手で書き換えた以上、もうサーバーが選んだお題ではない。
+  return room.problem.edited !== true;
 }

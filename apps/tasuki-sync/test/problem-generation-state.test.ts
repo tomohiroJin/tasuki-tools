@@ -194,20 +194,64 @@ describe("ProblemDelegator: 生成中はサーバー権威（#283）", () => {
     expect(fresh.problemGeneration).toEqual({ active: true, degraded: false });
   });
 
-  it("同じ tick で確定する依頼では、生成中だけの snapshot を挟まない", () => {
-    // Given: 定型モードのルーム（依頼と確定が同じ tick で終わる）
+  it("**既定のルーム**（AI 無し）でも、生成中の snapshot が先に 1 本届く", () => {
+    // Given: 本番の実クライアントが作るルームそのもの ——
+    // `problemMode` は未設定、`aiUnlocked` は偽、全員 `hasAiKey: false`。
+    // この形は `startClientDelegation` の候補が定型センチネルだけになり、
+    // **依頼と確定が同じ tick で終わる**（本番のロビーは必ずここを通る）。
+    const delegator = makeDelegator();
+    const room = makeRoom({ aiUnlocked: false });
+    delete (room as { problemMode?: unknown }).problemMode;
+    putRoomView(store, timers, room, CONNS);
+
+    // When
+    delegator.request("GEN01", "req-1");
+
+    // Then: **生成中 → 確定の 2 本**が、この順で届く。
+    //
+    // かつてここは「見せる『間』が無いなら 1 本で済ませる」として確定だけを送っていた。
+    // ところが **65 秒の安全弁も押下側の局所スピナーも落とした**後なので、
+    // その形だと**押しても画面が一瞬も反応しない** —— `pickFallback` が同じ候補を
+    // 引いた回は結果も変わらないので、利用者には「何も起きていない」と区別が付かない。
+    // 押下のフィードバックはサーバーが出す 1 本目が担う。
+    const sent = broadcaster.snapshots.filter((s) => s.roomCode === "GEN01");
+    expect(sent.length).toBe(2);
+    expect(sent[0]!.room.problemGeneration).toEqual({ active: true, degraded: false });
+    expect(sent[1]!.room.problemGeneration).toEqual({ active: false, degraded: false });
+    // 1 本目はまだお題を持たない／2 本目で確定している（順序が逆になっていないこと）
+    expect(sent[0]!.room.problem).toBeNull();
+    expect(sent[1]!.room.problem).not.toBeNull();
+  });
+
+  it("定型モードのルームでも、生成中の snapshot が先に 1 本届く", () => {
+    // Given: `problemMode: "fallback"`（候補を確認せず即座に確定する経路）
     const delegator = makeDelegator();
     putRoomView(store, timers, makeRoom({ problemMode: "fallback", aiUnlocked: false }), CONNS);
 
     // When
     delegator.request("GEN01", "req-1");
 
-    // Then: 配信は確定の 1 本だけで、その中身は「生成中ではない」。
-    // 見せる「間」が無いのに 2 本送ると、受け手は無意味な再描画をするだけである。
+    // Then
     const sent = broadcaster.snapshots.filter((s) => s.roomCode === "GEN01");
-    expect(sent.length).toBe(1);
-    expect(sent[0]!.room.problemGeneration).toEqual({ active: false, degraded: false });
-    expect(sent[0]!.room.problem).not.toBeNull();
+    expect(sent.length).toBe(2);
+    expect(sent[0]!.room.problemGeneration?.active).toBe(true);
+    expect(sent[1]!.room.problemGeneration?.active).toBe(false);
+  });
+
+  it("サーバー生成を待つ依頼では、生成中の snapshot を二重に送らない", () => {
+    // Given: 返ってこない provider（待ちが残る経路）
+    const delegator = makeDelegator({
+      serverProvider: pendingProvider(),
+      aiLimiter: generousLimiter(),
+    });
+    putRoomView(store, timers, makeRoom(), CONNS);
+
+    // When
+    delegator.request("GEN01", "req-1");
+
+    // Then: 依頼の冒頭で 1 本送っている。待ちが残ったからといって同じものを
+    // もう 1 本送る理由は無い（受け手は同じ値で再描画するだけである）。
+    expect(broadcaster.snapshots.filter((s) => s.roomCode === "GEN01").length).toBe(1);
   });
 
   // ─── EARS 2: 同じお題が選ばれても表示を解除する ───────────────────────────
@@ -329,6 +373,46 @@ describe("ProblemDelegator: 生成中はサーバー権威（#283）", () => {
   });
 
   // ─── 委譲が畳まれても降りる ───────────────────────────────────────────────
+
+  it("期限切れのあとルームの名簿が消えていても、生成中は降りる", async () => {
+    // Given: AI 鍵を持つ代表へ依頼した状態（20 秒の期限つき）
+    const delegator = makeDelegator();
+    putRoomView(
+      store,
+      timers,
+      makeRoom({
+        problemMode: "ai",
+        aiUnlocked: false,
+        participants: [
+          {
+            participantId: "alice",
+            displayName: "Alice",
+            presence: "online",
+            hasAiKey: true,
+            joinedAt: 1_000_000,
+          },
+        ],
+      }),
+      { alice: ["alice-conn"] },
+    );
+    delegator.request("GEN01", "req-1");
+    expect(broadcaster.snapshots.at(-1)!.room.problemGeneration?.active).toBe(true);
+
+    // When: 名簿だけが消えた状態で期限が切れる（`offerToCurrent` が行き止まる形）。
+    // **ここは `request()` からではなく `onDeadline` の setTimeout から来る**ので、
+    // 帳簿を整えてくれる呼び出し側が居ない。
+    store.remove("GEN01");
+    jest.advanceTimersByTime(PROBLEM_DEADLINE_MS + 1);
+    await flushMicrotasks();
+
+    // Then: 保管の帳簿が「生成中」のまま残っていない。
+    // **残ると、誰も降ろせない。** 65 秒の安全弁を落とした以上、画面側に逃げ道が無く、
+    // 以後どの snapshot を受け取ってもお題パネルは減光・操作不能のままになる。
+    expect(timers.get("GEN01")?.problemGeneration?.active).toBe(false);
+    // 委譲も畳まれている（`isRequesting` が真のままだと、ロビーのお題を
+    // 用意し直す `fillLobbyProblem` まで永久に塞がる）
+    expect(delegator.isRequesting("GEN01")).toBe(false);
+  });
 
   it("代表の期限切れで定型に落ち着いたときも、生成中は降りる", async () => {
     // Given: AI 鍵を持つ代表が 1 人だけ居るルーム（クライアント委譲の経路）

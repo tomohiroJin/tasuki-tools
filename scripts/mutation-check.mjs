@@ -573,6 +573,30 @@ export const MUTATIONS = [
       "「別のお題にする」で同じ候補に当たると降りない。殺せないなら、" +
       "サーバー権威にした意味（内容に依存せず降りる）の証拠が無い。",
   },
+  {
+    id: 44,
+    label: "依頼の冒頭の配信を「待ちが残る依頼だけ」に絞る（押下が画面に出ない）",
+    patch: "m44-request-skips-pending-announcement.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/problem-generation-state.test.ts"],
+    note:
+      "#283 のレビュー指摘 3（当初実装そのもの）。**本番のロビーがこの絞り込みに落ちる** —— " +
+      "実クライアントは常に `hasAiKey: false` を送るので候補が定型センチネルだけになり、" +
+      "依頼と確定が同じ tick で終わる。65 秒の安全弁も押下側の局所スピナーも落とした後なので、" +
+      "**押しても画面が一瞬も反応しない**（実測で 8 回連打して `aria-busy` が一度も立たなかった）。",
+  },
+  {
+    id: 45,
+    label: "委譲の行き止まりで帳簿を整えない（降ろせない生成中が残る）",
+    patch: "m45-dead-end-leaves-generating-on.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/problem-generation-state.test.ts"],
+    note:
+      "#283 のレビュー指摘 4。`offerToCurrent` の行き止まりへは **`onDeadline` の " +
+      "setTimeout からも入る**ので、降ろしてくれる呼び出し側が居ない。" +
+      "**65 秒の安全弁を落とした以上、画面側に逃げ道が無い** —— " +
+      "以後どの snapshot を受け取ってもお題パネルは操作不能のままになる。",
+  },
 ];
 
 /**
