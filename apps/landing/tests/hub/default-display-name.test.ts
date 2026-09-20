@@ -1,0 +1,60 @@
+/**
+ * 端末に残っていた表示名を、既定として提示してよいか（#284・FR-053 / FR-054 の EARS 3）。
+ *
+ * **ここは純粋判断だけを見る。** 保管庫の読み書きと画面への現れ方は
+ * `tests/default-display-name.test.tsx` が画面ごしに見る。
+ */
+import { describe, it, expect } from 'vitest';
+import { MAX_DISPLAY_NAME } from '@tasuki/room-core';
+import { usableDefaultDisplayName } from '../../src/hub/default-display-name.js';
+
+describe('既定として提示してよい表示名', () => {
+  it('Given 前に名乗った名前 / When 検める / Then そのまま提示してよい', () => {
+    // Given / When / Then: 自分が書いた値は、そのまま次の初期値になる
+    expect(usableDefaultDisplayName('あや')).toBe('あや');
+  });
+
+  it('Given 未保存（空文字） / When 検める / Then 空のまま', () => {
+    // Given（準備）: `loadDefaultDisplayName` は未保存を空文字で返す
+    expect(usableDefaultDisplayName('')).toBe('');
+  });
+
+  it('Given 空白だけの値 / When 検める / Then 空にする（押しても何も起きない欄を出さない）', () => {
+    // Given（準備）: 手で書き込まれた値。`required` は素通りするが、画面の
+    // 送信判定（`displayName.trim() === ''`）が黙って弾くので、**ボタンが死ぬ**
+    expect(usableDefaultDisplayName('   ')).toBe('');
+  });
+
+  it('Given 幅を持たない文字だけの値 / When 検める / Then 空にする', () => {
+    // Given（準備）: U+200B は `trim()` では落ちず、画面には何も見えないまま
+    // サーバーへ飛んで `EmptyAfterNormalize` で弾かれる
+    expect(usableDefaultDisplayName('​')).toBe('');
+  });
+
+  it('Given 上限ちょうどの値 / When 検める / Then そのまま提示してよい', () => {
+    // Given（準備）: 境界の内側。**ここを落とすと正当な名前が消える**
+    const name = 'あ'.repeat(MAX_DISPLAY_NAME);
+
+    // When / Then
+    expect(usableDefaultDisplayName(name)).toBe(name);
+  });
+
+  it('Given 上限を 1 文字超える値 / When 検める / Then 空にする（弾かれる値を提示しない）', () => {
+    // Given（準備）: `maxLength` は**打ち込みしか止めない**。初期値として入れた値は
+    // そのまま送信でき、サーバーは理由を伏せた文言で弾く
+    // （`apps/tasuki-sync/src/application/display-name-rule.ts`）
+    expect(usableDefaultDisplayName('あ'.repeat(MAX_DISPLAY_NAME + 1))).toBe('');
+  });
+
+  it('Given 正規化で縮む値 / When 検める / Then 正規形を提示する（名前ごと捨てない）', () => {
+    // Given（準備）: 前後の空白・畳める空白は直せる。直せるものまで空にすると、
+    // 利用者は理由も分からず名前を失う
+    expect(usableDefaultDisplayName('  あや  さん ')).toBe('あや さん');
+  });
+
+  it('Given 正規化してから上限を超える値 / When 検める / Then 空にする', () => {
+    // Given（準備）: NFKC は 1 文字を最大 `MAX_NFKC_EXPANSION` 文字へ広げる。
+    // **上限は正規化の後に効かなければ意味がない**（`display-name.ts` の正本と同じ理由）
+    expect(usableDefaultDisplayName('ﷺ'.repeat(MAX_DISPLAY_NAME))).toBe('');
+  });
+});

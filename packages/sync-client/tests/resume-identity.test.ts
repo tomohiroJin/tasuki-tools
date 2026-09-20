@@ -5,7 +5,7 @@
  * - **復帰の組**はルームコード別（S4b で timer が採った形と同じ鍵）
  * - **既定の表示名**はルーム非依存（D12 の後半）
  */
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   loadDefaultDisplayName,
   loadResumeIdentity,
@@ -139,5 +139,71 @@ describe('復帰の組（ルームをまたぐ扱い・#95 S5b で timer から�
     expect(sessionStorage.getItem('tasuki:resume:ABC123')).toBeNull();
     // 旧実装の鍵も残さない（移行はしない。トークンは短命で移す価値が無い）
     expect(sessionStorage.getItem('tdd-mob:resume-identity')).toBeNull();
+  });
+});
+
+/**
+ * 保管庫そのものが使えない端末（#284）。
+ *
+ * **`localStorage` は「必ずある」ものではない。** cookie を全面禁止した Chrome では
+ * **読むだけで** `SecurityError` が飛び、容量超過では書き込みが投げる。投げたまま
+ * 外へ出すと、呼び手（玄関の描画の初期化子）がそれを踏んで画面ごと落ちる。
+ *
+ * **使えない保管庫は「何も保存されていない」と同じに扱う。** 端末に覚えられない
+ * だけで、名乗って参加すること自体はできる。
+ */
+describe('保管庫が使えない端末', () => {
+  const saved = {
+    getItem: Storage.prototype.getItem,
+    setItem: Storage.prototype.setItem,
+    removeItem: Storage.prototype.removeItem,
+  };
+
+  /** 保管庫へのあらゆる出入りを拒む。 */
+  const denyStorage = (): void => {
+    const deny = (): never => {
+      throw new DOMException('The operation is insecure.', 'SecurityError');
+    };
+    Storage.prototype.getItem = deny;
+    Storage.prototype.setItem = deny;
+    Storage.prototype.removeItem = deny;
+  };
+
+  afterEach(() => {
+    Storage.prototype.getItem = saved.getItem;
+    Storage.prototype.setItem = saved.setItem;
+    Storage.prototype.removeItem = saved.removeItem;
+  });
+
+  it('Given 読めない保管庫 / When 既定の表示名を読む / Then 空文字（投げない）', () => {
+    denyStorage();
+    expect(loadDefaultDisplayName()).toBe('');
+  });
+
+  it('Given 書けない保管庫 / When 既定の表示名を保存する / Then 投げない', () => {
+    denyStorage();
+    expect(() => saveDefaultDisplayName('あや')).not.toThrow();
+  });
+
+  it('Given 読めない保管庫 / When 復帰の組を読む / Then null（投げない）', () => {
+    denyStorage();
+    expect(loadResumeIdentity('ABC123')).toBeNull();
+  });
+
+  it('Given 書けない保管庫 / When 復帰の組を保存する / Then 投げない', () => {
+    denyStorage();
+    expect(() =>
+      saveResumeIdentity({
+        code: 'ABC123',
+        participantId: 'p1',
+        resumeToken: 't1',
+        displayName: 'あや',
+      }),
+    ).not.toThrow();
+  });
+
+  it('Given 消せない保管庫 / When 復帰の組を破棄する / Then 投げない', () => {
+    denyStorage();
+    expect(() => clearResumeIdentity('ABC123')).not.toThrow();
   });
 });

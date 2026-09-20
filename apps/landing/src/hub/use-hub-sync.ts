@@ -29,12 +29,53 @@ import {
 import { parseBoundaryMessage } from '@tasuki/protocol';
 import { HubServerMsgSchema, type HubCommand, type RosterRoom } from '@tasuki/room-core';
 import { readRoomParam } from './room-param.js';
+import { usableDefaultDisplayName } from './default-display-name.js';
 
 
 /** 同期サーバーへの URL。**ハブの入口は `/ws`** で、LP の base（`/`）直下にある。 */
 export function buildHubSyncUrl(location: { protocol: string; host: string }): string {
   const scheme = location.protocol === 'https:' ? 'wss:' : 'ws:';
   return `${scheme}//${location.host}/ws`;
+}
+
+/**
+ * timer 時代の設定の鍵（#284）。**読み手も書き手も #272 で消えた。**
+ *
+ * 中身（`{ displayName, language, difficulty, members[], intervalMinutes }`）のうち
+ * `displayName` は `docs/adr/0011` の「個人に紐づく情報」に当たる。読む者が居ないなら、
+ * 端末に置き続ける理由が無い。**移行はしない** —— 語彙も画面も入れ替わった値を
+ * 引き写すより、一度名乗り直してもらうほうが確かである。
+ */
+const LEGACY_PREFERENCES_KEY = 'tdd-mob:preferences:v1';
+
+/**
+ * 名乗りの欄へ差し出す既定の表示名を取り出す（FR-053 / FR-054・#284）。
+ *
+ * **読むついでに片付ける。** 片付け専用の経路を作らない（憲法 原則 X）ので、
+ * 玄関を開くたびに通るこの読みへ次の 2 つを相乗りさせている:
+ *
+ * 1. 提示できない保存値を**その鍵ごと捨てる**。残すと玄関を開くたびに同じ値で
+ *    弾かれ続ける（`resume-identity.ts` の壊れた組と同じ扱い）
+ * 2. timer 時代の設定（{@link LEGACY_PREFERENCES_KEY}）を落とす
+ *
+ * **何度呼んでも同じ結果になる**（消す・書き直すはいずれも冪等）ので、`StrictMode` が
+ * 初期化子を 2 度走らせても害が無い。同じ理由で、すぐ上の `useState` の初期化子も
+ * `loadResumeIdentity`（壊れた組を捨てる読み）をそのまま呼んでいる。
+ */
+function takeDefaultDisplayName(): string {
+  try {
+    localStorage.removeItem(LEGACY_PREFERENCES_KEY);
+    const stored = loadDefaultDisplayName();
+    const usable = usableDefaultDisplayName(stored);
+    // 空文字を渡すと鍵ごと消える（`saveDefaultDisplayName` の約束）。
+    if (usable !== stored) saveDefaultDisplayName(usable);
+    return usable;
+  } catch {
+    // 保管庫そのものが使えない端末（cookie 全面禁止・容量超過）。**既定が無いのと
+    // 同じ扱いにする**（EARS 3）—— ここで投げると玄関が真っ白になる。
+    // `@tasuki/sync-client` 側は自分で飲み込むので、残るのは上の `removeItem` だけである。
+    return '';
+  }
 }
 
 export interface HubSync {
@@ -126,7 +167,13 @@ export function useHubSync(): HubSync {
   const [error, setError] = useState<string | null>(null);
   const [needsPassphrase, setNeedsPassphrase] = useState(false);
   const [connection, setConnection] = useState<'online' | 'reconnecting'>('online');
-  const defaultDisplayName = useMemo(() => loadDefaultDisplayName(), []);
+  /**
+   * 名乗りの欄の既定（FR-053 / FR-054・#284）。**読むのは読み込みの 1 度だけ。**
+   *
+   * 以後の書き換えは画面側の `useState` が持つ（EARS 4）。ここを描画のたびに読み直すと、
+   * 入力中の値を保存値で上書きしてしまう。
+   */
+  const defaultDisplayName = useMemo(() => takeDefaultDisplayName(), []);
 
   const connRef = useRef<SyncConnection | null>(null);
   /**
