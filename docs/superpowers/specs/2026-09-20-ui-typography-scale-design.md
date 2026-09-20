@@ -284,9 +284,32 @@ CSS の属性セレクタは解決後の型ではなく**属性の有無**を見
 
 - `apps/landing`（`CreateRoom.tsx` / `JoinRoom.tsx`）の `<input>` はすべて
   `className="hub-input"` のみで `type` 属性を持たない（合言葉欄だけ `type="password"`）。
-  玄関の入力欄の書体は `apps/landing/src/index.css` の `.hub-input`
-  （`font: inherit` で 16px）が面倒を見ており、要素層の `input[type='text']` には
-  依存していない
+  要素層の `input[type='text']` には依存していない（ここは変わらない）
+
+  > **訂正**: この段落は当初「玄関の入力欄の書体は `apps/landing/src/index.css` の
+  > `.hub-input`（`font: inherit` で 16px）が面倒を見ている」と書いていたが、**これは
+  > 事実誤認だった**（敵対的レビューで指摘）。実際の連鎖は次のとおりである。
+  >
+  > 1. `<input className="hub-input">` は `<label className="hub-field">` の直接の子。
+  >    `.hub-field` は `font-size` を持たない
+  > 2. したがって `<label>` の書体は**要素層の `label { font-size: … }`**
+  >    （`packages/ui/src/elements/controls.css`）が決める —— **本 PR が変更した行そのもの**
+  > 3. `.hub-input` は `font: inherit` なので、親である `<label>` から継承する
+  >
+  > （`<span className="hub-label">` は `<input>` の兄弟であって親ではないため、
+  > その書体（sm・別のクラス）は `<input>` の継承には効かない。）
+  >
+  > **つまり本 PR は、玄関の入力欄の実寸を動かしている。** Chromium 実測（同レビュー）:
+  > 変更前は玄関の `<label>`（したがって継承する `<input>` も）が固定 13.6px だったのに対し、
+  > 本 PR 後は `--font-size-sm` の流動スケールにより **360px で 13.432px、1280px で 15.2px**
+  > になる。**16px になる瞬間は一度も無い。** PR 本文の計測表は `label` の行しか載せておらず、
+  > `<input>` が連動することには触れていなかった。
+  >
+  > **iOS Safari の自動拡大について（事実のみ）**: 入力欄は変更前から 13.6px であり、
+  > すでに 16px を下回っていた。**この問題は本 PR より前から存在し、本 PR でも解消して
+  > いない**（360px ではむしろ 0.17px ぶんさらに小さくなる）。解消するには `apps/landing`
+  > 側（`.hub-field` / `.hub-input` / `label` の使い分け）を変える必要があり、本 PR の
+  > 射程外である。
 - `apps/poker-web` には `<input>` が **0 件**
 - `type="text"` を書いているのは `apps/timer-web` のみだが、`apps/timer-web` は
   `@tasuki/ui/tokens.css` しか読まず、要素層（`elements/`）のこの規則は届かない

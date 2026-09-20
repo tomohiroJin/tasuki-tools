@@ -45,32 +45,48 @@ function definedSteps() {
 /**
  * `font-size` の宣言を拾う。
  *
- * **プロパティ名の直前が `-` のものは拾わない。** `--font-size-xs: clamp(...)` は
- * カスタムプロパティの**定義**であって `font-size` の宣言ではない。直前の 1 文字を
- * `[;{}\s]` か行頭に限ることで区別する。
+ * **プロパティ名の直前が `-` や英数字のものは拾わない。** `--font-size-xs: clamp(...)` は
+ * カスタムプロパティの**定義**であって `font-size` の宣言ではない。後読み `(?<![\w-])` で
+ * 「直前が単語構成文字でも `-` でもないこと」を求めることで区別する。**この後読みは
+ * 区切り文字を消費しない**（旧実装の `(?:^|[;{}\s])` は消費してしまい、1 行に 2 つ
+ * 並べると `;` を 1 つ目が使い切ってしまうため 2 つ目を見逃した）。
+ *
+ * **プロパティ名は大文字小文字を区別しない**（`i` フラグ）。CSS のプロパティ名自体が
+ * 大文字小文字を区別しないため、`FONT-SIZE: 99px;` も有効な宣言であり見逃せない。
+ * （`--font-size-xs` のような**カスタムプロパティ名**は大文字小文字を区別するので、
+ * こちらの `i` フラグには影響しない。上記の後読みで別途除外している。）
  *
  * **1 行に複数あっても全部拾う**（`matchAll`）。1 つ目だけを見ると、
- * 2 つ目を並べるだけで検査をすり抜けられる。
+ * 2 つ目を並べるだけで検査をすり抜けられる。区切り文字を消費しない後読みにしたことで、
+ * `;` を挟まない隣接（コメント直後 `*\/font-size: …` 等）でも取りこぼさない。
  *
  * **コメントアウトされた宣言も同じ形で拾う。** `/* 旧実装: font-size: 1.5rem; *\/` の
  * ような行は、CSS として無効でも文字列としては宣言の形をしているため 1 件として
  * 数えられる。理由が無ければ落ちるので実害は無い（fail-closed）が、
  * 将来「なぜここが赤いのか分からない」を防ぐために明記しておく。
+ *
+ * **`text` は宣言ごとにスコープする。** 直後から次の宣言の手前まで（次が無ければ
+ * 行末まで）だけを返す。行全体を渡すと、同じ行に複数の宣言があるとき 1 つの
+ * `scale-exempt` コメントがその行の全宣言を免除してしまう（詳細は `exemptReason` の
+ * 呼び出し側を参照）。
  */
 function declarations() {
   const found = [];
   for (const rel of cssFiles()) {
     const lines = readFileSync(join(SRC, rel), 'utf8').split('\n');
     lines.forEach((line, i) => {
-      for (const m of line.matchAll(/(?:^|[;{}\s])font-size\s*:\s*([^;]*)(;?)/g)) {
+      const matches = [...line.matchAll(/(?<![\w-])font-size\s*:\s*([^;]*)(;?)/gi)];
+      matches.forEach((m, idx) => {
+        const start = m.index + m[0].length;
+        const end = idx + 1 < matches.length ? matches[idx + 1].index : line.length;
         found.push({
           file: rel,
           line: i + 1,
           value: m[1].trim(),
           terminated: m[2] === ';',
-          text: line,
+          text: line.slice(start, end),
         });
-      }
+      });
     });
   }
   return found;
@@ -125,13 +141,18 @@ test('font-size の宣言は同じ行で `;` まで終端している', () => {
  *
  * `font-size:` / `font-family:` / `font-weight:` 等は `font` の直後に `-` が
  * 続くため、`font\s*:`（`font` の直後が空白かコロン）には一致しない。
+ *
+ * `declarations()` と同じ理由で、先頭の区切り文字は後読み `(?<![\w-])` で
+ * 消費しないようにし（1 行に複数あっても見逃さない）、プロパティ名は
+ * 大文字小文字を区別しない（`i` フラグ。`FONT: 700 99px/1 sans-serif;` も有効な
+ * 一括指定であるため）。
  */
 function fontShorthandOffenders() {
   const offenders = [];
   for (const rel of cssFiles()) {
     const lines = readFileSync(join(SRC, rel), 'utf8').split('\n');
     lines.forEach((line, i) => {
-      if (/(?:^|[;{}\s])font\s*:/.test(line)) {
+      if (/(?<![\w-])font\s*:/i.test(line)) {
         offenders.push(`${rel}:${i + 1}  ${line.trim()}`);
       }
     });
@@ -164,6 +185,11 @@ test('font の一括指定（shorthand）を使っていない', () => {
  *
  * **同じ行にコメント終端が無い場合（複数行コメント）は判定しない。** 理由がどこで終わるか
  * 決められない入力は、例外を通す側ではなく赤へ倒す（fail-closed）。
+ *
+ * この関数自体は渡された `text` の中だけを見る。**`declarations()` は物理行の全体では
+ * なく、その宣言の直後から次の宣言の手前まで（次が無ければ行末まで）だけを `text` として
+ * 渡す。** 同じ行に複数の宣言があるとき、1 つの `scale-exempt` コメントが行の全宣言を
+ * 免除してしまう抜け穴を防ぐため（詳細は `declarations()` の docstring）。
  */
 function exemptReason(text) {
   const m = /scale-exempt:([^]*?)\*\//.exec(text);
