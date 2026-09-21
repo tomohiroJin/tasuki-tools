@@ -47,6 +47,37 @@ describe('既定として提示してよい表示名', () => {
     expect(usableDefaultDisplayName('\u200b')).toBe('');
   });
 
+  /**
+   * **第1層を生き延びる種類も落とす**（#284 の 3 巡目）。
+   *
+   * ZWJ・U+FE0F・U+00AD・U+3164 などは正当な用途のために出力へ残るので、
+   * それ 1 文字だけの保存値は**正規化後の長さが 1** になる。空文字だけを見ていると
+   * 通り、欄は空に見えるのに `required` も `trim()` も素通りして送信できてしまう。
+   * 判定は `@tasuki/room-core` の `rendersAsNothing` に 1 つだけあり、
+   * 境界（`normalize-command-names.test.ts`）と同じものを使う。
+   */
+  it.each([
+    ['ZWJ', '\u200d'],
+    ['字形選択子', '\ufe0f'],
+    ['ソフトハイフン', '\u00ad'],
+    ['ハングル填字', '\u3164'],
+    ['書記素結合子', '\u034f'],
+    ['前置結合記号', '\u0600'],
+  ])('Given 第1層を生き延びる %s だけの値 / When 検める / Then 空にする', (_name, ch) => {
+    // Given（準備）: 正規化しても長さ 1 のまま残る
+    // When / Then（操作）
+    expect(usableDefaultDisplayName(ch)).toBe('');
+  });
+
+  it('Given 絵文字を含む値 / When 検める / Then 落とさない（巻き添えにしない）', () => {
+    // Given（準備）: ZWJ で連結した家族絵文字は「見える名前」である
+    const family = '\u{1f468}\u200d\u{1f469}';
+
+    // When / Then（操作）
+    expect(usableDefaultDisplayName(family)).toBe(family);
+    expect(usableDefaultDisplayName('❤\ufe0f')).toBe('❤\ufe0f');
+  });
+
   it('Given 上限ちょうどの値 / When 検める / Then そのまま提示してよい', () => {
     // Given（準備）: 境界の内側。**ここを落とすと正当な名前が消える**
     const name = 'あ'.repeat(MAX_DISPLAY_NAME);
