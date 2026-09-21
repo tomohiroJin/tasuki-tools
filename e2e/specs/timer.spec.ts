@@ -435,6 +435,11 @@ test.describe('契約に合わない同期フレームを捨てたことが画�
    * 入ろうとした人は最初の `snapshot` から捨てる。`StatusStrip` はルームに入るまで
    * 描画されないので、**補わないと画面には何も出ない**（実測で「参加ボタンを押しても
    * 名前入力の画面のまま」だった）。
+   *
+   * **#292 で出す場所が 2 つになった。** 読み込み中の受け皿（`Loading`）が接続状態を
+   * 常時出すようになり、`stale` はそこにも現れる。バナーと重なるので、**判定は
+   * バナーだけが持つ「先へ進めません」で名指しする** —— 「同期できていません」の
+   * 5 文字は両方に当たり、strict mode violation で落ちる。
    */
   test('Given 最初から契約に合わない snapshot しか来ない / When ルームへ入ろうとする / Then 進めない理由が画面に出る', async ({
     page,
@@ -451,8 +456,16 @@ test.describe('契約に合わない同期フレームを捨てたことが画�
     //       ロビーがそもそも描かれないのがこのシナリオの前提である
     await joinViaHub(guest.page, code, GUEST);
 
-    // Then: 画面に出す場所が無いので、バナーで伝える
-    await expect(guest.page.getByText(/同期できていません/)).toBeVisible();
+    // Then: バナーで伝える（#209）。**名指しは「先へ進めません」で行う** ——
+    //       #292 で読み込み中の受け皿も接続状態を出すようになり、「同期できていません」の
+    //       5 文字は 2 箇所に当たる（strict mode violation で落ちる）。バナーだけが
+    //       持つのは「先へ進めない」という帰結である
+    await expect(guest.page.getByText(/先へ進めません/)).toBeVisible();
+
+    // Then: **受け皿にも接続の状態が出る**（#292 EARS 2）。#209 の時点ではここに
+    //       出す場所が無く、バナーだけが頼りだった。いまは待っている間も読める
+    await expect(guest.page.getByLabel('接続状態')).toHaveText(/同期できていません/);
+
     expect(corrupter.count(), '壊した snapshot の数').toBeGreaterThan(0);
   });
 });
