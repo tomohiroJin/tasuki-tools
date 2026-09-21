@@ -196,6 +196,50 @@ export const MUTATIONS = [
       "実際に起こりうる形**にしてあり、判定も早期 return も残るのでコードを読んだだけでは欠陥に見えない。",
   },
   {
+    id: 56,
+    label: "代理を送った直後に無条件でフォームを畳む（サーバーの返事を待たない）",
+    patch: "m56-proxy-closes-before-server-answers.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/RosterPanel.duplicate-proxy.test.tsx"],
+    note:
+      "#291 の敵対的レビュー。**#291 の最初の修正が実際にこの形だった。** 画面の同名判定は名簿と席しか" +
+      "見ておらず、サーバーの `occupants` より狭い。**選択画面に居るだけの人との同名**は実 WS で" +
+      "`DuplicateName` が返ることを測ってある（輪が満席・表示名の規約違反も画面には予測できない）。" +
+      "畳むとその経路だけで入力ごと消え、**#291 の症状が戻る**。",
+  },
+  {
+    id: 57,
+    label: "改名の同名判定から自分自身の除外を落とす（画面がサーバーより厳しくなる）",
+    patch: "m57-rename-forgets-to-exclude-self.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/RosterPanel.duplicate-proxy.test.tsx"],
+    note:
+      "#291 の敵対的レビュー。サーバーは `conflictsWithExisting(residents, displayName, target.participantId)` と" +
+      "対象を除外して比べる。落とすと**こちら向きの誤り（画面のほうが厳しい）**になり、" +
+      "**保険が無い** —— サーバーが通す操作を画面が拒むので、利用者は正当な操作をできなくなる。",
+  },
+  {
+    id: 58,
+    label: "拒否の理由を名簿の変化に追随させない（もう追加できる名前に「まだ駄目」と言う）",
+    patch: "m58-rejection-ignores-roster-change.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/RosterPanel.duplicate-proxy.test.tsx"],
+    note:
+      "#291 の敵対的レビュー。**理由の文言そのものを state に置く素朴な実装は必ずこうなる。**" +
+      "正規形を持って描画時にいまの名簿へ尋ねる形にしてあるのはそのためである。",
+  },
+  {
+    id: 59,
+    label: "代理が現れたとき入力欄の中身を見ずに畳む（打ちかけの入力が黙って消える）",
+    patch: "m59-arrival-discards-retyped-input.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/RosterPanel.duplicate-proxy.test.tsx"],
+    note:
+      "#291。**対策そのものが持つ欠陥である**（[[countermeasures-carry-the-flaw-they-fix]]）。" +
+      "送ったあと返事を待つ間に別の名前を打ち始めていると、あとから届いた名簿で畳んだ拍子に" +
+      "**打ちかけの入力が黙って消える** —— #291 が直しているものとまったく同じ形。",
+  },
+  {
     id: 6,
     label: "freezeRunningClock の凍結を外す（一時停止で満タンに戻る）",
     patch: "m06-freeze-running-clock.patch",

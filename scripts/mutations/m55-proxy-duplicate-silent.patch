@@ -1,6 +1,6 @@
 # 変異 55: roster-proxy-duplicate-silent
 #
-# 同名の代理追加を**拒むところまでは同じで、理由を出さずにフォームを閉じて入力を捨てる**。
+# 同名の代理追加を**拒むところまでは同じで、理由を出さずにフォームを畳んで入力を捨てる**。
 # Issue #291 で利用者が踏んだ姿そのものである ——「押しても何も起きない」。
 # 拒否は起きているので名簿は増えず、押した場所には何も残らない。
 # サーバーの `DuplicateName` バナーはページ上端に出るが、名簿を下まで
@@ -18,19 +18,16 @@
 # 復元: git checkout -- <対象ファイル>（同じくリポジトリルートから）
 #
 diff --git a/apps/timer-web/src/ui/components/RosterPanel.tsx b/apps/timer-web/src/ui/components/RosterPanel.tsx
-index f58a8de..65fa068 100644
+index 066418a..e155794 100644
 --- a/apps/timer-web/src/ui/components/RosterPanel.tsx
 +++ b/apps/timer-web/src/ui/components/RosterPanel.tsx
-@@ -158,10 +158,8 @@ export function RosterPanel({
-     // 弾かれるべき入力なので、そのままサーバーへ渡して理由を答えさせる。
+@@ -260,7 +260,8 @@ export function RosterPanel({
+     if (!name) return;
      const normalized = normalizeDisplayName(name);
-     if (normalized !== "" && conflictsWithExisting(pool, normalized)) {
--      setProxyError(
--        `「${name}」は追加できませんでした。同じ名前の人がすでに居ます。` +
--          `所属やイニシャルなどを添えて、呼び分けの付く名前にすると追加できます。`,
--      );
+     if (someoneHolds(normalized)) {
+-      setProxyRejection((prev) => ({ typed: name, normalized, attempt: (prev?.attempt ?? 0) + 1 }));
 +      setProxyName("");
 +      setShowProxyInput(false);
        return;
      }
-     setProxyError(null);
+     setProxyRejection(null);

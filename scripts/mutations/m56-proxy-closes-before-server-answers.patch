@@ -1,0 +1,34 @@
+# 変異 56: proxy-closes-before-server-answers
+#
+# 代理を送った**直後に無条件でフォームを畳む**（返事を待たない）。
+#
+# 画面の同名判定は名簿と席しか見ておらず、サーバーの判定プール（`occupants` ＝
+# 名簿の参加者全員＋輪の上の代理）より狭い。**選択画面に居るだけの人との同名**は
+# 実 WS で `DuplicateName` が返ることを測ってある。輪が満席（`MemberLimitExceeded`）と
+# 表示名の規約違反（`INVALID_COMMAND`）も画面には予測できない。
+# 畳むとそれらの場合に入力ごと消え、**#291 の症状がその経路だけで戻る**。
+#
+# #291 の最初の修正が実際にこの形で、敵対的レビューが指摘した。
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/ui/RosterPanel.duplicate-proxy.test.tsx
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m56-*.patch
+# 復元: git checkout -- <対象ファイル>
+#
+diff --git a/apps/timer-web/src/ui/components/RosterPanel.tsx b/apps/timer-web/src/ui/components/RosterPanel.tsx
+index 066418a..9c327d2 100644
+--- a/apps/timer-web/src/ui/components/RosterPanel.tsx
++++ b/apps/timer-web/src/ui/components/RosterPanel.tsx
+@@ -266,8 +266,9 @@ export function RosterPanel({
+     setProxyRejection(null);
+     // 正規形が空の名前は突き合わせられないので待たない（サーバーが規約で弾く）。
+     // 待たない＝閉じる条件が来ないだけで、フォームと入力はそのまま残る。
+-    setPendingProxy(normalized !== "" ? normalized : null);
+     onAddProxy(name);
++    setProxyName("");
++    setShowProxyInput(false);
+   };
+ 
+   const startRename = (participantId: string, current: string) => {

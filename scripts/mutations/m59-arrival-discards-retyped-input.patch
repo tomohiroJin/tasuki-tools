@@ -1,0 +1,27 @@
+# 変異 59: arrival-discards-retyped-input
+#
+# 名簿に代理が現れたとき、**入力欄の中身を見ずに**フォームを畳む。
+#
+# 送ったあと返事を待つ間に利用者が別の名前を打ち始めていると、あとから届いた
+# 名簿で畳んだ拍子に**打ちかけの入力が黙って消える**。#291 が直しているもの
+# （打った文字が黙って消える）とまったく同じ形で、**対策そのものが持つ欠陥**である。
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/ui/RosterPanel.duplicate-proxy.test.tsx
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m59-*.patch
+# 復元: git checkout -- <対象ファイル>
+#
+diff --git a/apps/timer-web/src/ui/components/RosterPanel.tsx b/apps/timer-web/src/ui/components/RosterPanel.tsx
+index 066418a..0497f7e 100644
+--- a/apps/timer-web/src/ui/components/RosterPanel.tsx
++++ b/apps/timer-web/src/ui/components/RosterPanel.tsx
+@@ -205,7 +205,6 @@ export function RosterPanel({
+     // 打ち始めていると、あとから届いた名簿で閉じた拍子にその入力が消える ——
+     // #291 が直そうとしているもの（打った文字が黙って消える）と同じ形である。
+     // **いま入力欄に載っているのが送った名前のときだけ**畳む。
+-    if (normalizeDisplayName(proxyName.trim()) !== pendingProxy) return;
+     setProxyName("");
+     setShowProxyInput(false);
+   }, [proxyArrived, proxyName, pendingProxy]);
