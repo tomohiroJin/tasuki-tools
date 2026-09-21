@@ -31,3 +31,16 @@ export function navigateTo(to: string): void {
 export function redirectTo(to: string): void {
   window.location.replace(to);
 }
+
+/**
+ * いまの URL をそのまま開き直す（#292）。
+ *
+ * **`redirectTo(window.location.href)` で代用してはいけない。** `location.replace()` は
+ * 「いまの文書とフラグメントだけが違う URL」への遷移を**同一文書内のスクロール**として
+ * 扱うため、URL に `#` があると再読み込みが起きない。いま timer 側に `#` を作る経路は
+ * 無いが、**行き止まりの画面（`ui/Loading.tsx`）の唯一の主操作がこの一行に乗っている**
+ * ので、条件つきで効く書き方を残さず原語に寄せる。
+ */
+export function reloadPage(): void {
+  window.location.reload();
+}

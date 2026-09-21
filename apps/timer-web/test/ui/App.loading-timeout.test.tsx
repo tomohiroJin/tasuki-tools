@@ -38,13 +38,13 @@ vi.mock("../../src/records/indexeddb.js", () => ({
 // 遷移は `platform/location.ts` に閉じている（#95 S5c・R9）。テストはそこを差し替える。
 vi.mock("../../src/platform/location.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../src/platform/location.js")>();
-  return { ...actual, navigateTo: vi.fn(), redirectTo: vi.fn() };
+  return { ...actual, navigateTo: vi.fn(), redirectTo: vi.fn(), reloadPage: vi.fn() };
 });
 
 import App from "../../src/App.js";
 import { FakeWS } from "../support/fakes.js";
 import { aRoomView } from "../support/room-view.js";
-import { redirectTo } from "../../src/platform/location.js";
+import { redirectTo, reloadPage } from "../../src/platform/location.js";
 
 /** 実装が使う期限。テストは「その値で分岐すること」を見るので、前後の両方を測る。 */
 const DEADLINE_MS = 10_000;
@@ -142,14 +142,21 @@ describe("読み込みが終わらないときの行き止まり（#292・EARS 1
     expect(alert).toHaveTextContent(DEAD_END_TITLE);
   });
 
-  it("「再読み込みする」はいまの URL を開き直す", () => {
+  /**
+   * **`redirectTo(window.location.href)` で代用しない**（レビュー指摘 3）。
+   * `location.replace()` はフラグメントだけが違う URL への遷移を同一文書内の
+   * スクロールとして扱うため、`#` を持つ URL では再読み込みが起きない。
+   * ここは原語（`reloadPage` → `location.reload()`）を通ることを固定する。
+   */
+  it("「再読み込みする」は開き直しの原語を通る（置き換え遷移で代用しない）", () => {
     openRoomAwaitingSnapshot();
     advance(DEADLINE_MS);
-    const here = window.location.href;
 
     fireEvent.click(screen.getByRole("button", { name: /再読み込み/ }));
 
-    expect(redirectTo).toHaveBeenCalledWith(here);
+    expect(reloadPage).toHaveBeenCalledTimes(1);
+    // 置き換え遷移へ落ちていない（落ちると `#` 付きの URL で効かない）
+    expect(redirectTo).not.toHaveBeenCalledWith(window.location.href);
   });
 
   it("「最初の画面へ戻る」は玄関へ送る", () => {
@@ -268,21 +275,129 @@ describe("読み込みが終わらないときの行き止まり（#292・EARS 1
     // Then
     expect(screen.getByText(DEAD_END_TITLE)).toBeVisible();
   });
+
+  /**
+   * **入り直しを使い切った枝には、期限を張り直す相手が居ない**（レビュー指摘 1）。
+   * `retry-later` は先頭で期限を畳むが、使い切りの枝は送信せずに `return` するので、
+   * 印を立てないと**どれだけ待っても行き止まりにならない**。諦めのバナー
+   * （`autoDismiss: false`）は残るが、本文は「読み込んでいます…」と言い続け、
+   * 「次にできること」の 2 つも出ない —— EARS 1 をこの経路だけ満たせていなかった。
+   *
+   * ⚠ **回数を書き写さない。** 使い切りは `joinRetryDelayMs` が `null` を返す回で、
+   * それが何回目かは #147 の方針（`JOIN_RETRY_MAX_ATTEMPTS` は非公開）が決める。
+   */
+  it("混雑の入り直しを使い切ったら、待たずにその場で行き止まりになる", () => {
+    // Given
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    const ws = openRoomAwaitingSnapshot();
+
+    // When: 拒否され続け、入り直しの手が尽きるところまで進める
+    for (let attempt = 1; ; attempt += 1) {
+      sendServer(ws, { type: "error", code: "JOIN_RATE_LIMITED", message: "busy" });
+      const delay = joinRetryDelayMs(attempt, () => 0.5);
+      if (delay === null) break; // 使い切った（この拒否では入り直しを送っていない）
+      advance(delay);
+    }
+
+    // Then: **時間を進めずに**行き止まりが出ている（期限の発火を待たない）
+    expect(screen.getByText(DEAD_END_TITLE)).toBeVisible();
+    expect(screen.getByRole("button", { name: /再読み込み/ })).toBeVisible();
+    expect(screen.getByRole("button", { name: /最初の画面へ戻る/ })).toBeVisible();
+    // 待っているように見せない
+    expect(screen.queryByText(/読み込んでいます/)).toBeNull();
+    // 既存の諦めのバナーは残る（消える表示に事実を預けない・#147）
+    expect(screen.getByText(/時間をおいてから再読込してください/)).toBeVisible();
+  });
+
+  /**
+   * 使い切りのもう 1 つの枝: 入り直しの時刻は来たが、**復帰の組が消えていて送れない**
+   * （別タブが同じルームの組を捨てた場合・`localStorage` はルームコード別）。
+   * ここも送信が無いので期限が張られない。
+   */
+  it("入り直しの時刻に復帰の組が消えていたら、待たずにその場で行き止まりになる", () => {
+    // Given
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    const ws = openRoomAwaitingSnapshot();
+    sendServer(ws, { type: "error", code: "JOIN_RATE_LIMITED", message: "busy" });
+
+    // When: 待っている間に別タブが復帰の組を捨てた
+    localStorage.clear();
+    const delay = joinRetryDelayMs(1, () => 0.5);
+    if (delay === null) throw new Error("1 回目で使い切るのは方針の想定外");
+    advance(delay);
+
+    // Then: 送れないまま待たせない
+    expect(screen.getByText(DEAD_END_TITLE)).toBeVisible();
+    expect(screen.getByText(/時間をおいてから再読込してください/)).toBeVisible();
+  });
 });
 
 describe("読み込み中の接続状態（#292・EARS 2）", () => {
-  it("対照: 読み込み中も接続の状態が読める", () => {
+  /**
+   * 実際に描かれた接続状態の文字（装飾の丸は除く）。
+   *
+   * ⚠ **`toHaveTextContent("接続中")` で済ませない。** 「再接続中」も「接続中」を
+   * 含むので、部分一致で見ると**別の状態でも緑になる**。ここは完全一致で測る。
+   */
+  function connectionText(): string {
+    return screen.getByLabelText("接続状態").textContent?.replace(/●/g, "").trim() ?? "";
+  }
+
+  /**
+   * **WS が一度も開いていない間は「接続中」と言わない**（レビュー指摘 2）。
+   *
+   * `SyncConnection` が通知するのは `onopen` と `onclose` だけで、確立前は何も来ない。
+   * 初期値が `online` だと、ソケットが `CONNECTING` のまま滞留する状況
+   * （中間装置が SYN を落とす・キャプティブポータル）で、**繋がっていないのに
+   * 接続中と断言する**。行き止まりに接続状態を並べた以上、ここは嘘であってはならない。
+   */
+  it("WS が開く前は、接続中ではなく確立前だと分かる表示になる", () => {
+    // Given / When: onopen を呼ばずに描く
+    vi.useFakeTimers();
+    saveResumeIdentity({
+      code: ROOM_CODE,
+      participantId: "me-1",
+      resumeToken: "rt_1",
+      displayName: "ボブ",
+    });
+    window.history.replaceState(null, "", `/?room=${ROOM_CODE}`);
+    render(<App />);
+
+    // Then
+    expect(connectionText()).toBe("つないでいます…");
+  });
+
+  it("確立前のまま期限が切れたら、行き止まりの横でも接続中とは言わない", () => {
+    // Given: onopen が来ない（ソケットが CONNECTING のまま滞留している）
+    vi.useFakeTimers();
+    saveResumeIdentity({
+      code: ROOM_CODE,
+      participantId: "me-1",
+      resumeToken: "rt_1",
+      displayName: "ボブ",
+    });
+    window.history.replaceState(null, "", `/?room=${ROOM_CODE}`);
+    render(<App />);
+
+    // When
+    advance(DEADLINE_MS);
+
+    // Then: 「読み込めませんでした」と「接続中」が並ばない
+    expect(screen.getByText(DEAD_END_TITLE)).toBeVisible();
+    expect(connectionText()).toBe("つないでいます…");
+  });
+
+  it("対照: 確立したら接続中に変わる", () => {
     openRoomAwaitingSnapshot();
 
-    const region = screen.getByLabelText("接続状態");
-    expect(region).toBeVisible();
-    expect(region).toHaveTextContent("接続中");
+    expect(screen.getByLabelText("接続状態")).toBeVisible();
+    expect(connectionText()).toBe("接続中");
   });
 
   it("読み込み中に切断されたら、接続の状態が再接続中に変わる", () => {
     // Given
     const ws = openRoomAwaitingSnapshot();
-    expect(screen.getByLabelText("接続状態")).not.toHaveTextContent("再接続中");
+    expect(connectionText()).toBe("接続中");
 
     // When
     act(() => {
@@ -290,13 +405,13 @@ describe("読み込み中の接続状態（#292・EARS 2）", () => {
     });
 
     // Then: ルームの画面が決まる前でも、接続が切れたことが読める
-    expect(screen.getByLabelText("接続状態")).toHaveTextContent("再接続中");
+    expect(connectionText()).toBe("再接続中…");
   });
 
   it("行き止まりになった後も接続の状態が読める", () => {
     openRoomAwaitingSnapshot();
     advance(DEADLINE_MS);
 
-    expect(screen.getByLabelText("接続状態")).toHaveTextContent("接続中");
+    expect(connectionText()).toBe("接続中");
   });
 });

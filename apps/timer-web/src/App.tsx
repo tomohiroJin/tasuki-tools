@@ -9,7 +9,7 @@
 
 import React, { useEffect, useState } from "react";
 import { decideEntry } from "./ui/entry.js";
-import { currentSearch, navigateTo, redirectTo } from "./platform/location.js";
+import { currentSearch, navigateTo, redirectTo, reloadPage } from "./platform/location.js";
 import { Lobby } from "./ui/Lobby.js";
 import { Session } from "./ui/Session.js";
 import { Summary } from "./ui/Summary.js";
@@ -225,10 +225,11 @@ export default function App() {
       <Loading
         connectionStatus={connectionStatus}
         timedOut={joinTimedOut}
-        // **いまの URL へ置き換えて開き直す**（#292 EARS 3）。遷移は
+        // **いまの URL をそのまま開き直す**（#292 EARS 3）。遷移は
         // `platform/location.ts` に閉じている（#95 S5c・R9）ので、`location.reload()` を
-        // ここで直接呼ばない。`replace` なのは、履歴に同じ URL を積み増さないため。
-        onReload={() => redirectTo(window.location.href)}
+        // ここで直接呼ばない。**`redirectTo(href)` で代用しない** —— `#` を持つ URL では
+        // 再読み込みが起きない（`reloadPage` の注記）。
+        onReload={reloadPage}
         // 行き先は `?room=` を付けない玄関（`SessionLost` の「新しいセッション」と同じ）。
         // 付けるとハブがそのルームの参加画面を出し、答えないサーバーへまた送られる。
         onLeave={() => redirectTo("/")}

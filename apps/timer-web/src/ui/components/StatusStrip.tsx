@@ -11,7 +11,7 @@ import React from "react";
 import { NotifySettings } from "./NotifySettings.js";
 import type { AppMode } from "../../sync/use-timer-sync.js";
 
-export type ConnectionStatus = "online" | "reconnecting" | "lost" | "stale";
+export type ConnectionStatus = "connecting" | "online" | "reconnecting" | "lost" | "stale";
 
 interface StatusStripProps {
   /**
@@ -47,6 +47,12 @@ const PHASE_LABEL: Record<AppMode, string> = {
 // （`packages/ui/README.md`）。「同期不整合」の「整」がまさに base 層外だったため
 // 「同期できていません」にした（2026-08-31・`fonts.css` の unicode-range を実測）。
 const CONNECTION_CONFIG: Record<ConnectionStatus, { label: string; className: string }> = {
+  // `connecting` は「まだ一度も確立していない」（#292）。**この帯には実際には出ない** ——
+  // 帯が描かれるのは `mode !== null`、つまり snapshot を受け取った後だからである。
+  // それでも行を持つのは `Record<ConnectionStatus, …>` が**状態の増減を型検査に
+  // 拾わせる**ためで、抜けを作ると「名前の無い状態」が黙って通る。
+  // 文言は `ui/Loading.tsx` と揃える（`test/ui/Loading.test.tsx` が突き合わせる）。
+  connecting: { label: "つないでいます… (Connecting)", className: "text-[var(--caution)]" },
   online: { label: "接続中 (Connected)", className: "text-[var(--ok)]" },
   reconnecting: { label: "再接続中… (Reconnecting)", className: "text-[var(--caution)]" },
   lost: { label: "セッション喪失 (Session Lost)", className: "text-[var(--urgent)]" },

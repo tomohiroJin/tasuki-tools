@@ -47,6 +47,10 @@ import type { ConnectionStatus } from "./components/StatusStrip.js";
  * 型検査に拾わせる**からで、抜けを作ると「新しい状態だけ名前が無い」が素通りする。
  */
 const CONNECTION_TEXT: Record<ConnectionStatus, string> = {
+  // **ここが `connecting` を実際に出す唯一の場所である**（#292 のレビュー）。
+  // 確立前は `StatusStrip` がまだ描かれていないので、ソケットが `CONNECTING` の
+  // まま滞留していることを読めるのはこの受け皿だけになる。
+  connecting: "つないでいます…",
   online: "接続中",
   reconnecting: "再接続中…",
   lost: "セッション喪失",
@@ -54,6 +58,7 @@ const CONNECTION_TEXT: Record<ConnectionStatus, string> = {
 };
 
 const CONNECTION_TONE: Record<ConnectionStatus, string> = {
+  connecting: "text-[var(--caution)]",
   online: "text-[var(--ok)]",
   reconnecting: "text-[var(--caution)]",
   lost: "text-[var(--urgent)]",

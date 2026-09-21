@@ -144,8 +144,12 @@ export interface TimerSync {
    * `room.join` の答えを待つ期限が切れた（#292）。
    *
    * **画面に出るのは `mode === null` の間だけ**である（`Loading` が受け取る）。
-   * ルームの画面が決まった後の再送で立っても、そこには前のルームが見えており、
-   * 無言で待たされているわけではない。
+   * ルームの画面が決まった後（再接続の再送など）に立っても、この印はどこにも出ない。
+   *
+   * ⚠ **そこに見えているのは、答えが返らないまま古くなった盤面である。**
+   * `StatusStrip` は WS が繋がっている限り「接続中」と言い続けるので、**利用者は
+   * 凍った盤面を生きているものとして操作しうる。** #292 の射程は「読み込み中」なので
+   * ここでは直していない —— 未解決のまま残る穴である。
    */
   joinTimedOut: boolean;
   /** サーバー時刻との差。Session の残り時間導出に渡す。 */
@@ -203,7 +207,10 @@ export function useTimerSync(banner: BannerController): TimerSync {
   // セッション喪失（room-not-found）。StatusStrip を lost 表示にし、再接続では消えない。
   const [sessionLost, setSessionLost] = useState(false);
   // 接続状態は WS クライアントから明示通知される（banner には結合しない・R5-1）。
-  const [connState, setConnState] = useState<ClientConnState>("online");
+  // **初期値は `connecting`**（#292 のレビュー）。通知が来るのは `onopen` と `onclose`
+  // だけで、確立前は何も来ない —— `online` から始めると、繋がっていないのに
+  // 「接続中」と断言する（`ui/connection-status.ts` の注記）。
+  const [connState, setConnState] = useState<ClientConnState>("connecting");
   // 契約に合わない同期フレームを捨てて以降、新しい状態を受け取れていない（#209）。
   // 立てるのは棄却時、下ろすのは**有効な snapshot を受け取ったとき**だけ（下の注記）。
   const [syncStale, setSyncStale] = useState(false);
@@ -240,14 +247,31 @@ export function useTimerSync(banner: BannerController): TimerSync {
   // `room.join` の答えを待つ期限（#292）。再試行の待機（joinRetryTimerRef）とは別物で、
   // あちらは「待ってから送り直す」、こちらは「送ってから諦める」を測る。
   const joinDeadlineTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const cancelJoinDeadline = () => {
+  /** 期限のタイマーだけを片付ける。**印（`joinTimedOut`）には触らない。** */
+  const clearJoinDeadlineTimer = () => {
     if (joinDeadlineTimerRef.current !== null) {
       clearTimeout(joinDeadlineTimerRef.current);
       joinDeadlineTimerRef.current = null;
     }
+  };
+  /** 待つのをやめる（＝先へ進めた・もう待つ相手が居ない）。印も降ろす。 */
+  const cancelJoinDeadline = () => {
+    clearJoinDeadlineTimer();
     // 畳むときは印も降ろす。残すと、次にこの受け皿へ戻ってきた人（退出後の遷移待ち・
     // 別ルームへの入り直し）が、いきなり行き止まりの画面を見る。
     setJoinTimedOut(false);
+  };
+  /**
+   * **待っても入れないと確定した。期限の発火を待たずに印を立てる**（#292 のレビュー）。
+   *
+   * 混雑の入り直しを使い切った枝は、**期限を張り直す相手（送信）が無い**。
+   * ここで印を立てないと、諦めのバナーは出るのに本文は「読み込んでいます…」のままで、
+   * もう入れないのに待っているように見え、次にできることも出ない（EARS 1 の穴）。
+   * さらに 10 秒待ってから同じ表示を出す理由は無いので、その場で立てる。
+   */
+  const giveUpJoinWait = () => {
+    clearJoinDeadlineTimer();
+    setJoinTimedOut(true);
   };
   /**
    * 期限を張り直す。**`room.join` を送った直後に呼ぶ**（送る前ではない）。
@@ -257,7 +281,8 @@ export function useTimerSync(banner: BannerController): TimerSync {
    * とうに古くなっている。立てるのは setter だけにして、畳む判断は下の各ハンドラが持つ。
    */
   const armJoinDeadline = () => {
-    cancelJoinDeadline();
+    clearJoinDeadlineTimer();
+    setJoinTimedOut(false);
     joinDeadlineTimerRef.current = setTimeout(() => {
       joinDeadlineTimerRef.current = null;
       setJoinTimedOut(true);
@@ -528,6 +553,10 @@ export function useTimerSync(banner: BannerController): TimerSync {
           // 接続し直したときだけ。
           joinRetryAttemptRef.current = attempt;
           showBanner(JOIN_RETRY_EXHAUSTED_TEXT, "warn", { autoDismiss: false });
+          // **ここで待つのをやめる**（#292 のレビュー）。送り直さない以上、期限を
+          // 張り直す相手が居ない —— 印を立てないと、諦めのバナーの下で本文が
+          // 「読み込んでいます…」と言い続け、次にできることも出ない。
+          giveUpJoinWait();
           return;
         }
         joinRetryAttemptRef.current = attempt;
@@ -543,6 +572,9 @@ export function useTimerSync(banner: BannerController): TimerSync {
           // 別タブで開くのは現実的な使い方なので、向こうで退出されるとここが成立する。
           if (!sendResumeJoin(syncClient)) {
             showBanner(JOIN_RETRY_EXHAUSTED_TEXT, "warn", { autoDismiss: false });
+            // 送れなかったので期限も張られていない（`sendResumeJoin` は送れたときだけ
+            // 張る）。上の使い切りと同じく、ここで待つのをやめる（#292 のレビュー）。
+            giveUpJoinWait();
           }
         }, delay);
         return;

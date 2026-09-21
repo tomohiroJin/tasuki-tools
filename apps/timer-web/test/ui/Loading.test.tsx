@@ -27,6 +27,7 @@ import type { ConnectionStatus } from "../../src/ui/components/StatusStrip.js";
  * 状態を足してここへ書き忘れると型検査が落ちる（件数は書かない・腐るため）。
  */
 const ALL_STATUSES: Record<ConnectionStatus, null> = {
+  connecting: null,
   online: null,
   reconnecting: null,
   lost: null,
