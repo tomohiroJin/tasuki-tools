@@ -1043,6 +1043,79 @@ function recoverFromCrashedRun() {
   }
 }
 
+/** 復元の再試行回数と待機時間。index.lock の競合は一過性という前提で決めた値。 */
+const RESTORE_MAX_ATTEMPTS = 5;
+const RESTORE_RETRY_DELAY_MS = 300;
+
+/**
+ * 復元を再試行込みで実行し、最終的に戻ったかどうかを判定する。
+ *
+ * **「コマンドが成功した」と「実際に戻った」は別の事実である。** `git checkout --` の
+ * 失敗（`.git/index.lock` の競合等）は一過性なので、`checkoutFn` が例外を投げても
+ * 即座には諦めない。一方 `checkoutFn` が例外を投げずに終わっても、それだけでは
+ * 戻ったとは判定しない —— 必ず `isRestoredFn` で実際に HEAD と一致したかを確かめる。
+ * 両方の意味で「コマンドの結果」を鵜呑みにしない。
+ *
+ * **判定を純粋関数にしてある**（実 I/O は呼び出し側が注入する）。git のロック競合は
+ * 実際に再現しなくても、「コマンドは成功したのにファイルが戻っていない」状況を
+ * 注入した関数で作れば、再試行の回数・打ち切りの判定はテストできる。
+ *
+ * @param {string[]} files - 復元対象（REPO_ROOT からの相対パス）
+ * @param {object} io
+ * @param {() => void} io.checkoutFn - 復元コマンドを 1 回試みる。失敗時は投げてよい
+ *   （ここで捕まえ、次の試行へ回す。最後の試行の例外も握りつぶし、戻ったかどうかは
+ *   常に isRestoredFn で判定する）
+ * @param {() => boolean} io.isRestoredFn - files が HEAD と一致していれば true
+ * @param {(attempt: number) => void} io.waitFn - 次の試行前の待機（試行番号を渡す）
+ * @param {number} [io.maxAttempts]
+ * @returns {{ restored: boolean, attempts: number }}
+ */
+export function restoreWithRetry(
+  files,
+  { checkoutFn, isRestoredFn, waitFn, maxAttempts = RESTORE_MAX_ATTEMPTS },
+) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      checkoutFn();
+    } catch {
+      // 投げても即座には諦めない。index.lock の競合は一過性であり得るため、
+      // 最終判定は下の isRestoredFn に委ねる（コマンドの成否では判定しない）。
+    }
+    if (isRestoredFn()) return { restored: true, attempts: attempt };
+    if (attempt < maxAttempts) waitFn(attempt);
+  }
+  return { restored: false, attempts: maxAttempts };
+}
+
+/**
+ * 復元に失敗したときの、見逃しようのないメッセージを組み立てる（純粋関数）。
+ *
+ * 長い走行のログに `console.error` の 1 行が流れて見逃された実例があるため、
+ * **致命的である旨・試行回数・残っているファイル名**を必ず含める。
+ */
+export function formatRestoreFailureMessage(files, attempts) {
+  return (
+    `[mutation-check] 致命的: ${attempts} 回試行しても復元できませんでした。\n` +
+    "製品コードに変異が当たったままです（認証バイパスや入力検証の迂回を含みうる）。\n" +
+    "手動で以下を確認し、必要なら git checkout -- で戻してください:\n" +
+    files.map((f) => `  - ${f}`).join("\n")
+  );
+}
+
+/** files が HEAD と一致しているか（`git status --porcelain` の出力が空かどうかで見る）。 */
+function isRestoredToHead(files) {
+  const out = execFileSync("git", ["status", "--porcelain", "--", ...files], {
+    cwd: REPO_ROOT,
+    encoding: "utf8",
+  });
+  return out.trim() === "";
+}
+
+/** 再試行の待機（同期）。SharedArrayBuffer + Atomics.wait は追加依存なしで同期待機できる。 */
+function sleepSync(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
 function restoreCurrentMutation() {
   // マーカーは git apply の**前**に書くため、apply 自体が失敗した場合は
   // currentlyAppliedFiles が空のままマーカーだけが残る。ここで先に消しておかないと、
@@ -1052,17 +1125,28 @@ function restoreCurrentMutation() {
   if (currentlyAppliedFiles.length === 0) return;
   const files = currentlyAppliedFiles;
   currentlyAppliedFiles = [];
-  try {
-    execFileSync("git", ["checkout", "--", ...files], { cwd: REPO_ROOT, stdio: "inherit" });
+
+  const result = restoreWithRetry(files, {
+    checkoutFn: () =>
+      execFileSync("git", ["checkout", "--", ...files], { cwd: REPO_ROOT, stdio: "inherit" }),
+    isRestoredFn: () => isRestoredToHead(files),
+    waitFn: () => sleepSync(RESTORE_RETRY_DELAY_MS),
+    maxAttempts: RESTORE_MAX_ATTEMPTS,
+  });
+
+  if (result.restored) {
     // eslint-disable-next-line no-console
-    console.error(`[mutation-check] 復元しました: ${files.join(", ")}`);
-  } catch (e) {
-    // 復元自体が失敗するのは最悪のケース。ここで握りつぶさず必ず知らせる。
-    // eslint-disable-next-line no-console
-    console.error(`[mutation-check] 復元に失敗しました。手動で確認してください: ${files.join(", ")}`);
-    // eslint-disable-next-line no-console
-    console.error(e);
+    console.error(
+      `[mutation-check] 復元しました: ${files.join(", ")}` +
+        (result.attempts > 1 ? `（${result.attempts} 回目の試行で確認）` : ""),
+    );
+    return;
   }
+
+  // 復元自体が失敗するのは最悪のケース。ここで握りつぶさず、非 0 で終了して必ず知らせる。
+  // eslint-disable-next-line no-console
+  console.error(formatRestoreFailureMessage(files, result.attempts));
+  process.exit(1);
 }
 
 // 異常終了（Ctrl-C・kill・未捕捉例外）でも必ず復元する。
