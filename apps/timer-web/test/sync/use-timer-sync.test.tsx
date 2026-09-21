@@ -123,6 +123,11 @@ beforeEach(() => {
   // 復帰の組は localStorage に残る（#95 S4b）。テスト間で漏らさない。
   localStorage.clear();
   sessionStorage.clear();
+  // **呼び出し履歴を明示的に捨てる。** `restoreMocks: true` は `vi.mock` のファクトリが
+  // 作った `vi.fn()` の `mock.calls` までは確実に消さず、前のテストの遷移が次のテストへ
+  // 漏れる（`test/ui/App.entry.test.tsx` と同じ理由）。`not.toHaveBeenCalled()` で
+  // 見る #290 のテストはこれが無いと前のテストの `redirectTo("/")` を拾って落ちる。
+  vi.mocked(redirectTo).mockClear();
 });
 
 afterEach(() => {
@@ -675,10 +680,11 @@ describe("useTimerSync: 捨てた同期フレームの表出", () => {
    * ルーム由来の画面状態を持ち越さない手段が変わった（#95 S5c・R9 → C-1）。
    *
    * 撤去前は state を 1 つずつ畳んで旧入口（`Setup`）へ戻していた。いまは
-   * **ルームをロビーへ戻してから玄関へ遷移する**ので、画面ごと作り直される。
-   * 畳み忘れを心配する state はもう無く、見るべきは**送るコマンド**と**行き先**である。
+   * **ルームをロビーへ戻す**ので、画面ごと作り直される。ルームが生きているうちは
+   * 玄関へは遷移しない（#290・D5）。畳み忘れを心配する state はもう無く、
+   * 見るべきは**送るコマンド**と**行き先**である。
    */
-  it("新しいセッションを始めるとルームをロビーへ戻し、玄関へ送る", () => {
+  it("新しいセッションを始めるとルームをロビーへ戻し、玄関へは送らない", () => {
     // Given: ROOM01 に居て、その後で契約に合わないフレームを捨てている
     const { result, deliver, ws } = connected();
     deliver(aValidSnapshot());
@@ -694,6 +700,22 @@ describe("useTimerSync: 捨てた同期フレームの表出", () => {
       ([raw]) => JSON.parse(String(raw)) as Record<string, unknown>,
     );
     expect(sent).toContainEqual({ command: "phase.set", phase: "setup" });
+    // **押した本人も他の全員と同じくロビーへ戻る**（#290・D5）。遷移すると、
+    // 押した人だけがルームから出される。
+    expect(redirectTo).not.toHaveBeenCalled();
+  });
+
+  it("ルームを失っているときは、新しいセッションで玄関へ送る", () => {
+    // Given: ROOM01 が消えている（`ROOM_NOT_FOUND` を受けた）
+    const { result, deliver } = connected();
+    deliver(aValidSnapshot());
+    deliver({ type: "error", code: "ROOM_NOT_FOUND", message: "no room" });
+    expect(result.current.sessionLost).toBe(true);
+
+    // When
+    act(() => result.current.newSession());
+
+    // Then: 宛先が無いので `phase.set` は送らず、玄関へ送る
     expect(redirectTo).toHaveBeenCalledWith("/");
   });
 });

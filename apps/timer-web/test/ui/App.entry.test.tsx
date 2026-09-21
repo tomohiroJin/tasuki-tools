@@ -186,15 +186,19 @@ describe("App の入口配線（旧入口の撤去・R9）", () => {
   });
 
   /**
-   * 完了後の「新しいセッション」（#95 S5c・C-1）。
+   * 完了後の「新しいセッション」（#95 S5c・C-1、行き先は #290・D5 で改めた）。
    *
    * **行き先だけを見るテストにしない。** 撤去の段では「同じルームの選択画面へ
    * `navigateTo` する」を固定していたが、**その行き先のルームは `phase` が
    * `celebration` のまま**で、戻ってきても Summary がまた出る閉路だった。
    * `navigateTo` の引数しか見ていなかったので、閉路であることを誰も見ていなかった。
-   * ここでは**ルームがロビーへ戻ること**と**玄関へ送られること**の両方を見る。
+   *
+   * **ルームが生きているなら玄関へは送らない（#290）。** `phase.set` は在室者
+   * 全員へ届くので、押した本人も他の全員と同じく snapshot でロビーへ戻る。ここで
+   * 玄関へ遷移すると、押した本人だけがルームから出される食い違いが起きていた。
+   * ここでは**ルームがロビーへ戻ること**と**玄関へは送られないこと**の両方を見る。
    */
-  it("Given セッションを終えた / When 新しいセッションを選ぶ / Then ルームがロビーへ戻り、玄関へ送られる", () => {
+  it("Given セッションを終えた / When 新しいセッションを選ぶ / Then ルームがロビーへ戻り、玄関へは送らない", () => {
     // Given: ROOM01 のセッションを完了し、Summary が出ている
     saveResumeIdentity({
       code: "ROOM01",
@@ -235,10 +239,11 @@ describe("App の入口配線（旧入口の撤去・R9）", () => {
     );
     expect(sent, "ロビーへ戻す phase.set").toContainEqual({ command: "phase.set", phase: "setup" });
 
-    // Then その2: そのうえで**玄関へ送る**。`?room=` は付けない（付けると選択画面に着いて
-    //   新しいルームを作れない）。**`replace`** で送る（戻るボタンで完了画面へ戻さない）
-    expect(redirectTo).toHaveBeenCalledWith("/");
-    expect(navigateTo, "assign だと戻るボタンで完了画面へ戻る").not.toHaveBeenCalled();
+    // Then その2: **玄関へは送らない**（#290・D5）。ルームは生きたままなので、
+    //   押した本人も他の全員と同じく `phase.set` の snapshot でロビーへ戻る。
+    //   ここで玄関へ遷移すると、押した本人だけがルームから出されてしまう。
+    expect(redirectTo).not.toHaveBeenCalled();
+    expect(navigateTo).not.toHaveBeenCalled();
   });
 
   /**
