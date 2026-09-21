@@ -8,6 +8,7 @@
  * **判定だけを持ち、状態を変えない。** 輪へ実際に入れるのは呼び出し側である
  * （`command-handlers/participant-remove.ts`）。
  */
+import { presenceOf } from "@tasuki/room-core";
 import type { Participant } from "@tasuki/room-core";
 
 export function pickPromotionTarget(
@@ -20,7 +21,7 @@ export function pickPromotionTarget(
   );
   if (candidates.length === 0) return null;
   // 在席を 0・離席を 1 とし、小さいほうを優先する。
-  const presenceRank = (p: Participant): number => (p.connections.size > 0 ? 0 : 1);
+  const presenceRank = (p: Participant): number => (presenceOf(p) === "online" ? 0 : 1);
   return candidates.reduce((best, p) => {
     const byPresence = presenceRank(p) - presenceRank(best);
     if (byPresence !== 0) return byPresence < 0 ? p : best;
