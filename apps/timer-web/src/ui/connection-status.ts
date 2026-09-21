@@ -5,7 +5,20 @@
  */
 import type { ConnectionStatus } from "./components/StatusStrip.js";
 
-export type ClientConnState = "online" | "reconnecting";
+/**
+ * WS クライアントが知っている接続の状態。
+ *
+ * **`connecting` は「まだ一度も確立していない」**（#292 のレビュー）。
+ * `SyncConnection` が通知するのは `online`（`onopen`）と `reconnecting`（`onclose`）の
+ * 2 つだけで、**確立前は何も通知が来ない**。初期値を `online` にしていたため、
+ * ソケットが `CONNECTING` のまま滞留する状況（中間装置が SYN を落とす・
+ * キャプティブポータル）でも画面は「接続中」と断言していた。読み込み中の
+ * 行き止まりに接続状態を並べた以上、そこが嘘だと原因の取り違えを招く。
+ *
+ * **この値を作るのは同期フックの初期値だけである。** 通知が来た時点で
+ * `online` / `reconnecting` のどちらかへ移り、二度とここへは戻らない。
+ */
+export type ClientConnState = "connecting" | "online" | "reconnecting";
 
 /**
  * 表示する接続状態を決める。

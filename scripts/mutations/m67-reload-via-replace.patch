@@ -1,0 +1,22 @@
+# 変異 67: reload-via-replace
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/ui/App.loading-timeout.test.tsx
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m67-*.patch
+# 復元: git checkout -- <対象ファイル>
+#
+diff --git a/apps/timer-web/src/App.tsx b/apps/timer-web/src/App.tsx
+index 69a343c..a1ee9c5 100644
+--- a/apps/timer-web/src/App.tsx
++++ b/apps/timer-web/src/App.tsx
+@@ -229,7 +229,7 @@ export default function App() {
+         // `platform/location.ts` に閉じている（#95 S5c・R9）ので、`location.reload()` を
+         // ここで直接呼ばない。**`redirectTo(href)` で代用しない** —— `#` を持つ URL では
+         // 再読み込みが起きない（`reloadPage` の注記）。
+-        onReload={reloadPage}
++        onReload={() => redirectTo(window.location.href)}
+         // 行き先は `?room=` を付けない玄関（`SessionLost` の「新しいセッション」と同じ）。
+         // 付けるとハブがそのルームの参加画面を出し、答えないサーバーへまた送られる。
+         onLeave={() => redirectTo("/")}

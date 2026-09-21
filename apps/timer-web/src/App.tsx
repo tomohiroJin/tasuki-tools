@@ -9,7 +9,7 @@
 
 import React, { useEffect, useState } from "react";
 import { decideEntry } from "./ui/entry.js";
-import { currentSearch, navigateTo, redirectTo } from "./platform/location.js";
+import { currentSearch, navigateTo, redirectTo, reloadPage } from "./platform/location.js";
 import { Lobby } from "./ui/Lobby.js";
 import { Session } from "./ui/Session.js";
 import { Summary } from "./ui/Summary.js";
@@ -50,6 +50,7 @@ export default function App() {
     syncStale,
     generatingProblem,
     showsFallbackNotice,
+    joinTimedOut,
     commands,
   } = sync;
 
@@ -217,7 +218,23 @@ export default function App() {
     // **`null` を返してはいけない**（#95 S5c 追補・利用者の実画面フィードバック）。
     // 撤去前は `Setup` が受け皿で、いまは `StatusStrip` すら出ない（`mode === null`）ため、
     // 選択画面から timer を開いた人には白い画面だけが残る。
-    return <Loading />;
+    //
+    // **接続状態と行き止まりもここが出す**（#292）。`StatusStrip` は `mode !== null` の
+    // ときしか描かれないので、ここが出ている間は接続状態を読む場所が他に無い。
+    return (
+      <Loading
+        connectionStatus={connectionStatus}
+        timedOut={joinTimedOut}
+        // **いまの URL をそのまま開き直す**（#292 EARS 3）。遷移は
+        // `platform/location.ts` に閉じている（#95 S5c・R9）ので、`location.reload()` を
+        // ここで直接呼ばない。**`redirectTo(href)` で代用しない** —— `#` を持つ URL では
+        // 再読み込みが起きない（`reloadPage` の注記）。
+        onReload={reloadPage}
+        // 行き先は `?room=` を付けない玄関（`SessionLost` の「新しいセッション」と同じ）。
+        // 付けるとハブがそのルームの参加画面を出し、答えないサーバーへまた送られる。
+        onLeave={() => redirectTo("/")}
+      />
+    );
   };
 
   return (

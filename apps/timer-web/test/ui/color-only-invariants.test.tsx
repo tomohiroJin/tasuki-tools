@@ -30,6 +30,7 @@ import { ProblemEditor } from "../../src/ui/components/ProblemEditor.js";
  * 素通りしない。件数は書かない（足すたびに腐るため）。
  */
 const CONNECTION_LABELS: Record<ConnectionStatus, string> = {
+  connecting: "つないでいます",
   online: "接続中",
   reconnecting: "再接続中",
   lost: "セッション喪失",

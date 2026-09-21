@@ -134,11 +134,13 @@ afterEach(() => {
 });
 
 describe("useTimerSync: 接続の状態", () => {
-  it("初期状態は online で、ルームは無く、どの画面でもない", () => {
+  it("初期状態は connecting で、ルームは無く、どの画面でもない", () => {
     // Given
     const { result } = renderHook(() => useTimerSync(fakeBanner()));
     // When / Then（result.current への問い合わせが検証と同じ式になる）
-    expect(result.current.connState).toBe("online");
+    // **`"online"` ではない**（#292 のレビュー）。通知が来るのは `onopen` と `onclose`
+    // だけなので、確立前を `online` で表すと「繋がっていないのに接続中」と断言する
+    expect(result.current.connState).toBe("connecting");
     expect(result.current.room).toBeNull();
     // **`"lobby"` ではなく `null`。** 旧入口を撤去した後、ルームの画面が決まるまでは
     // どの画面でもない（#95 S5c・R9）。`"lobby"` を初期値にすると意味が嘘になる

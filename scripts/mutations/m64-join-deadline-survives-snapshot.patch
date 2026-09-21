@@ -1,0 +1,21 @@
+# 変異 64: join-deadline-survives-snapshot
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/ui/App.loading-timeout.test.tsx
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m64-*.patch
+# 復元: git checkout -- <対象ファイル>
+#
+diff --git a/apps/timer-web/src/sync/use-timer-sync.ts b/apps/timer-web/src/sync/use-timer-sync.ts
+index fe0a18b..72778a3 100644
+--- a/apps/timer-web/src/sync/use-timer-sync.ts
++++ b/apps/timer-web/src/sync/use-timer-sync.ts
+@@ -340,7 +340,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
+     cancelJoinRetry();
+     joinRetryAttemptRef.current = 0;
+     // 画面が決まった以上、答えを待つ期限はもう測らない（#292）。
+-    cancelJoinDeadline();
+     // `room` はこのハンドラを作ったレンダーの const なので、下で `setRoom(r)` しても
+     // このスコープ内では変わらない。値は「直前のレンダー時点の snapshot」である。
+     const prevRoom = room;

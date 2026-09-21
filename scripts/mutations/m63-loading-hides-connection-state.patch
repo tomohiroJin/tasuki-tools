@@ -1,0 +1,24 @@
+# 変異 63: loading-hides-connection-state
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/ui/App.loading-timeout.test.tsx
+#   - apps/timer-web/test/ui/Loading.test.tsx
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m63-*.patch
+# 復元: git checkout -- <対象ファイル>
+#
+diff --git a/apps/timer-web/src/ui/Loading.tsx b/apps/timer-web/src/ui/Loading.tsx
+index 48c93a1..c2edfe6 100644
+--- a/apps/timer-web/src/ui/Loading.tsx
++++ b/apps/timer-web/src/ui/Loading.tsx
+@@ -149,9 +149,6 @@ export function Loading({ connectionStatus, timedOut, onReload, onLeave }: Loadi
+         aria-hidden="true"
+       />
+       <p>読み込んでいます…</p>
+-      <p className="mt-2">
+-        <ConnectionLine status={connectionStatus} />
+-      </p>
+     </div>
+   );
+ }
