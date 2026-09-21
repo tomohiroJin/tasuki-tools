@@ -121,15 +121,13 @@ export const MUTATIONS = [
     pkg: "packages/room-core",
     tests: ["tests/display-name.test.ts"],
   },
-  {
-    id: 48,
-    label: "normalizeDisplayName の段を #284 以前の順序へ戻す（制御文字でラベルの剥がしを逃れられる）",
-    patch: "m48-display-name-strip-before-controls.patch",
-    pkg: "packages/room-core",
-    tests: ["tests/display-name.test.ts"],
-    note:
-      "#284。**plan.md の対応表（#1〜#9）より後に足した変異である。** `normalizeDisplayName` の段を、制御文字の除去がラベルの剥がしより後だった頃へ戻す。その順序だと `ID` の内側に制御文字を 1 つ挟むだけで照合が外れ、あとで制御文字が落ちて `(ID: rqdK)` が復活する（実在参加者と同じラベルを名乗れる）。",
-  },
+  // id 48（normalizeDisplayName の段を #284 以前の順序へ戻す）は #284 の 3 巡目で削除した。
+  // **等価変異になったためである。** 段の順序は「制御文字でラベルの見出しを割る」ことを
+  // 防いでいたが、3 巡目でラベルの照合が**伏せた写し**の上で行われるようになり、
+  // その写しは `\p{Cc}`（制御文字を含む）も伏せる。順序を戻しても出力は変わらない
+  // —— 生成した 30 万件で差 0 件を実測した。いま同じ性質を守るのは id 49（照合を生の
+  // 文字列に戻す）と id 53（伏せる集合を狭める）である。
+  // 番号は詰めない —— 過去の記録が id で変異を指しているため。
   {
     id: 49,
     label: "ラベルの照合を「目に映る姿」ではなく生の文字列に戻す（画面に出ない文字で見出しを割れる）",
