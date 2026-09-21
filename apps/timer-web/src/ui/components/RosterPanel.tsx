@@ -11,10 +11,10 @@
  * 現ドライバーをドライバーセクション先頭に固定する。
  */
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useId, useRef } from "react";
 import { Users, ChevronUp, ChevronDown, X } from "lucide-react";
 import type { Participant, Seat } from "@tasuki/timer-core";
-import { MAX_DISPLAY_NAME } from "@tasuki/room-core";
+import { conflictsWithExisting, MAX_DISPLAY_NAME, normalizeDisplayName } from "@tasuki/room-core";
 import { GhostButton, PrimaryButton, SectionHeader } from "../primitives.js";
 import { presenceLabel } from "../presence.js";
 import { PresenceDot } from "./PresenceDot.js";
@@ -112,6 +112,11 @@ export function RosterPanel({
   const pool = labelPool(seats ?? [], participants);
   const [proxyName, setProxyName] = useState("");
   const [showProxyInput, setShowProxyInput] = useState(false);
+  // 代理追加を受け付けられなかった理由（#291）。フォームの中に出すので、
+  // 1 画面に RosterPanel が 2 つ描かれても（Session のセッションタブ／ルームタブ）
+  // 結び付け（aria-describedby）が混線しないよう識別子は useId で作る。
+  const [proxyError, setProxyError] = useState<string | null>(null);
+  const proxyErrorId = useId();
   // 改名中の参加者 ID と編集中の名前（同時に1人だけ編集できる）
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
@@ -126,9 +131,41 @@ export function RosterPanel({
     ? participants.find((p) => p.participantId === pendingRemovalId) ?? null
     : null;
 
+  /**
+   * 代理を追加する。**送る前に手元の名簿で同名を見る**（#291）。
+   *
+   * サーバーは同名の代理追加を `DuplicateName` で拒む（改名も同じ規則）。拒否自体は
+   * 画面まで届いていたが、出ていたのは**ページ上端のバナー**で、名簿を下までスクロール
+   * した操作地点からは見えなかった（実ブラウザで測ると 1075px 上・4 秒で自動消去）。
+   * その上で押した瞬間にフォームが閉じて入力も消えるので、利用者からは
+   * 「押しても何も起きない」に見える。**理由は押した場所に出す。**
+   *
+   * ⚠ **サーバーより厳しくしない。** サーバーの判定プール（`occupants` ＝名簿の
+   * 参加者**全員**＋輪の上の代理）は、画面が持つ {@link pool}（`seats` ∪
+   * `participants`）より広い。狭い側で通してサーバーに拒まれるのは
+   * `DuplicateName` のバナーが拾えるが、**サーバーが通す名前をここで拒むと
+   * 利用者は正当な操作をできなくなる**（そちらには保険が無い）。
+   *
+   * 述語は写さずサーバーと同じ `conflictsWithExisting` を呼ぶ。比べる値も揃えて、
+   * サーバーが境界で掛ける `normalizeDisplayName` を通してから渡す。
+   */
   const handleAddProxy = () => {
-    if (!proxyName.trim()) return;
-    onAddProxy(proxyName.trim());
+    const name = proxyName.trim();
+    if (!name) return;
+    // 正規化すると空になる名前（不可視文字だけ等）は**同名の話ではない**。
+    // `Seat.displayName` は名簿から引けないと `""` へ落ちるので、ここを素通りさせると
+    // 「同じ名前の人がすでに居ます」という**嘘の理由**を出しうる。表示名の規約で
+    // 弾かれるべき入力なので、そのままサーバーへ渡して理由を答えさせる。
+    const normalized = normalizeDisplayName(name);
+    if (normalized !== "" && conflictsWithExisting(pool, normalized)) {
+      setProxyError(
+        `「${name}」は追加できませんでした。同じ名前の人がすでに居ます。` +
+          `所属やイニシャルなどを添えて、呼び分けの付く名前にすると追加できます。`,
+      );
+      return;
+    }
+    setProxyError(null);
+    onAddProxy(name);
     setProxyName("");
     setShowProxyInput(false);
   };
@@ -362,25 +399,50 @@ export function RosterPanel({
         color="text-[var(--signal)]"
         title="参加者"
         right={
-          <GhostButton onClick={() => setShowProxyInput((v) => !v)} aria-label="代理参加者を追加" className="text-sm">
+          <GhostButton
+            onClick={() => {
+              // 開閉で理由は持ち越さない。閉じて開き直した先に前回の赤が残っていると、
+              // いま打っている名前について言っているように読める（#291）。
+              setProxyError(null);
+              setShowProxyInput((v) => !v);
+            }}
+            aria-label="代理参加者を追加"
+            className="text-sm"
+          >
             代理追加
           </GhostButton>
         }
       />
 
-      {/* 代理追加フォーム */}
+      {/* 代理追加フォーム。受け付けられなかった理由は**この中**に出す（#291）。 */}
       {showProxyInput && (
-        <div className="flex gap-2 mb-3">
-          <input
-            type="text"
-            value={proxyName}
-            onChange={(e) => setProxyName(e.target.value)}
-            placeholder="Web 非接続のメンバー名"
-            aria-label="代理参加者の名前"
-            maxLength={MAX_DISPLAY_NAME}
-            className="flex-1 rounded-md border border-[var(--hairline-strong)] bg-[var(--panel-2)] px-3 py-2 text-sm text-[var(--bone)] outline-none focus:border-[var(--signal)] focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]"
-          />
-          <PrimaryButton onClick={handleAddProxy} className="px-4 py-2 text-sm">追加</PrimaryButton>
+        <div className="mb-3">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={proxyName}
+              onChange={(e) => {
+                setProxyName(e.target.value);
+                // 打ち直した瞬間に理由を降ろす。直した名前の横に古い理由が残ると、
+                // 利用者は「まだ駄目なのか」と読む。
+                setProxyError(null);
+              }}
+              placeholder="Web 非接続のメンバー名"
+              aria-label="代理参加者の名前"
+              maxLength={MAX_DISPLAY_NAME}
+              aria-invalid={proxyError !== null ? true : undefined}
+              aria-describedby={proxyError !== null ? proxyErrorId : undefined}
+              className="flex-1 rounded-md border border-[var(--hairline-strong)] bg-[var(--panel-2)] px-3 py-2 text-sm text-[var(--bone)] outline-none focus:border-[var(--signal)] focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]"
+            />
+            <PrimaryButton onClick={handleAddProxy} className="px-4 py-2 text-sm">追加</PrimaryButton>
+          </div>
+          {proxyError !== null && (
+            // `role="alert"` にして、目で追っていない人にも即時に読み上げさせる。
+            // 色だけで伝えないよう、理由と次の手は文言そのものが持つ（FR-032）。
+            <p id={proxyErrorId} role="alert" className="mt-2 text-sm text-[var(--caution)]">
+              {proxyError}
+            </p>
+          )}
         </div>
       )}
 
