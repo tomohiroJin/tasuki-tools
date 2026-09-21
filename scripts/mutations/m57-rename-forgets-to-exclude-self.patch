@@ -1,0 +1,30 @@
+# 変異 57: rename-forgets-to-exclude-self
+#
+# 改名の同名判定から**自分自身の除外を落とす**。
+#
+# サーバーは `conflictsWithExisting(residents, displayName, target.participantId)` と
+# 対象を除外して比べる（現在名と同じ名前への改名は許す）。除外を落とすと
+# **画面がサーバーより厳しくなる** —— こちら向きの誤りには保険が無い
+# （サーバーが通す操作を画面が拒むので、利用者は正当な操作をできなくなる）。
+# 大文字小文字だけを直す改名や、空白を整えるだけの改名が一切できなくなる。
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/ui/RosterPanel.duplicate-proxy.test.tsx
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m57-*.patch
+# 復元: git checkout -- <対象ファイル>
+#
+diff --git a/apps/timer-web/src/ui/components/RosterPanel.tsx b/apps/timer-web/src/ui/components/RosterPanel.tsx
+index 066418a..c79463b 100644
+--- a/apps/timer-web/src/ui/components/RosterPanel.tsx
++++ b/apps/timer-web/src/ui/components/RosterPanel.tsx
+@@ -301,7 +301,7 @@ export function RosterPanel({
+     const normalized = normalizeDisplayName(typed);
+     // 自分自身は比べない（現在名と同じ名前への改名は許す）。サーバーの
+     // `conflictsWithExisting(residents, displayName, target.participantId)` と同じ。
+-    if (someoneHolds(normalized, participantId)) {
++    if (someoneHolds(normalized)) {
+       setRenameRejection((prev) => ({ typed, normalized, attempt: (prev?.attempt ?? 0) + 1 }));
+       return;
+     }

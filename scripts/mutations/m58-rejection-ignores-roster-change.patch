@@ -1,0 +1,32 @@
+# 変異 58: rejection-ignores-roster-change
+#
+# 拒否の理由を**名簿の変化に追随させない**（記録した時点の判断を出し続ける）。
+#
+# 同名だと言って拒んだ相手が退出しても、「同じ名前の人がすでに居ます」と
+# `aria-invalid="true"` が残り続ける。**もう追加できる名前について「まだ駄目」と
+# 言う**ので、利用者は打ち直す必要が無いのに打ち直す。
+#
+# 理由の文言そのものを state に置く素朴な実装は必ずこうなる。正規形を持って
+# 描画時にいまの名簿へ尋ねる形にしてあるのはそのためである。
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/ui/RosterPanel.duplicate-proxy.test.tsx
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m58-*.patch
+# 復元: git checkout -- <対象ファイル>
+#
+diff --git a/apps/timer-web/src/ui/components/RosterPanel.tsx b/apps/timer-web/src/ui/components/RosterPanel.tsx
+index 066418a..ed60873 100644
+--- a/apps/timer-web/src/ui/components/RosterPanel.tsx
++++ b/apps/timer-web/src/ui/components/RosterPanel.tsx
+@@ -181,8 +181,7 @@ export function RosterPanel({
+ 
+   // **理由は名簿の変化に追随させる**（#291 レビュー指摘3）。持っているのは正規形で、
+   // 出すかどうかは毎回いまの `pool` に尋ねる。相手が退出したら「まだ駄目」と言わない。
+-  const activeProxyRejection =
+-    proxyRejection !== null && someoneHolds(proxyRejection.normalized) ? proxyRejection : null;
++  const activeProxyRejection = proxyRejection;
+   const activeRenameRejection =
+     renameRejection !== null &&
+     editingId !== null &&
