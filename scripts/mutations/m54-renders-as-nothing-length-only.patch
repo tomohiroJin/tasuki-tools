@@ -1,0 +1,26 @@
+# 変異 54: renders-as-nothing-length-only
+#
+# 字面の無い表示名の判定を長さだけに戻す。ZWJ や U+FE0F 1 文字の名前が通り、
+# 名簿に何も見えない行が並ぶ。
+#
+# 検出を期待するテスト:
+#   - packages/room-core/tests/display-name.test.ts
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m54-renders-as-nothing-length-only.patch
+#       (diff のパスはリポジトリルート起点。mutation-check.mjs もリポジトリルートで実行する)
+# 復元: git checkout -- <対象ファイル>（同じくリポジトリルートから）
+#
+diff --git a/packages/room-core/src/display-name.ts b/packages/room-core/src/display-name.ts
+index 7c68896..aaadb0f 100644
+--- a/packages/room-core/src/display-name.ts
++++ b/packages/room-core/src/display-name.ts
+@@ -324,7 +324,7 @@ export function nameSkeleton(name: string): string {
+  * 片方だけに置くと「玄関は弾くのにサーバーは通す」帯ができる。
+  */
+ export function rendersAsNothing(name: string): boolean {
+-  return name.replace(INVISIBLE_ALL, "").trim() === "";
++  return name.trim() === "";
+ }
+ 
+ /**

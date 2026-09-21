@@ -23,6 +23,14 @@
  *
  * `resumeToken` は**そのルーム限定・短命**（サーバー再起動で失効する）。同じ判断で
  * poker は公開以来この形で動いており、S4b で timer も、S5b で 3 つとも揃えた。
+ *
+ * ## 保管庫そのものが使えないことがある（#284）
+ *
+ * `localStorage` は**「必ずある」ものではない**。cookie を全面禁止した Chrome では
+ * **読むだけで** `SecurityError` が飛び、容量超過では書き込みが投げる。ここが投げると、
+ * 呼び手（玄関は描画の初期化子でこれを読む）が巻き添えで落ち、**画面が真っ白になる**。
+ * **使えない保管庫は「何も保存されていない」と同じに扱う** —— 端末に覚えられない
+ * だけで、名乗って参加すること自体はできる。
  */
 
 /** 復帰の組の鍵。**ルームコードごとに 1 組**。 */
@@ -31,6 +39,37 @@ const RESUME_PREFIX = "tasuki:resume:";
 const DISPLAY_NAME_KEY = "tasuki:display-name";
 
 const resumeKeyOf = (code: string): string => `${RESUME_PREFIX}${code}`;
+
+/**
+ * 保管庫から読む。**使えない保管庫は「未保存」と同じ**（#284）。
+ *
+ * `localStorage` の取得そのものが投げる環境があるので、参照ごと try の中へ入れる。
+ */
+function readItem(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+/** 保管庫へ書く。**書けなくても諦めるだけ**（次の訪問で覚えていないだけである）。 */
+function writeItem(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // 使えない保管庫（cookie 全面禁止・容量超過）。覚えないまま進む
+  }
+}
+
+/** 保管庫から消す。**消せなくても諦めるだけ。** */
+function removeItem(key: string): void {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // 同上
+  }
+}
 
 /**
  * 自分の参加者を復帰時に特定するための組。
@@ -47,12 +86,12 @@ export interface ResumeIdentity {
 
 /** 復帰の組を、そのルームコードの鍵で保存する。 */
 export function saveResumeIdentity(identity: ResumeIdentity): void {
-  localStorage.setItem(resumeKeyOf(identity.code), JSON.stringify(identity));
+  writeItem(resumeKeyOf(identity.code), JSON.stringify(identity));
 }
 
 /** そのルームの復帰の組。未保存・破損・項目欠け・鍵と中身の食い違いなら null。 */
 export function loadResumeIdentity(code: string): ResumeIdentity | null {
-  const raw = localStorage.getItem(resumeKeyOf(code));
+  const raw = readItem(resumeKeyOf(code));
   if (raw === null) return null;
   try {
     const parsed: unknown = JSON.parse(raw);
@@ -60,13 +99,13 @@ export function loadResumeIdentity(code: string): ResumeIdentity | null {
   } catch {
     // 壊れた JSON は下で捨てる
   }
-  localStorage.removeItem(resumeKeyOf(code));
+  removeItem(resumeKeyOf(code));
   return null;
 }
 
 /** そのルームの復帰の組を破棄する（明示的な退出・ルーム消滅時に呼ぶ）。 */
 export function clearResumeIdentity(code: string): void {
-  localStorage.removeItem(resumeKeyOf(code));
+  removeItem(resumeKeyOf(code));
 }
 
 /**
@@ -91,13 +130,34 @@ function isResumeIdentity(value: unknown): value is ResumeIdentity {
 export function saveDefaultDisplayName(name: string): void {
   const trimmed = name.trim();
   if (trimmed === "") {
-    localStorage.removeItem(DISPLAY_NAME_KEY);
+    removeItem(DISPLAY_NAME_KEY);
     return;
   }
-  localStorage.setItem(DISPLAY_NAME_KEY, trimmed);
+  writeItem(DISPLAY_NAME_KEY, trimmed);
 }
 
 /** 保存済みの既定の表示名（無ければ空文字。フォームの初期値にそのまま使える）。 */
 export function loadDefaultDisplayName(): string {
-  return localStorage.getItem(DISPLAY_NAME_KEY) ?? "";
+  return readItem(DISPLAY_NAME_KEY) ?? "";
+}
+
+/**
+ * timer 時代の設定の鍵（#284）。**読み手も書き手も #272 で消えた。**
+ *
+ * 中身（`{ displayName, language, difficulty, members[], intervalMinutes }`）のうち
+ * `displayName` は `docs/adr/0011` の「個人に紐づく情報」に当たる。読む者が居ないなら、
+ * 端末に置き続ける理由が無い。**移行はしない** —— 語彙も画面も入れ替わった値を
+ * 引き写すより、一度名乗り直してもらうほうが確かである。
+ */
+const LEGACY_PREFERENCES_KEY = "tdd-mob:preferences:v1";
+
+/**
+ * timer 時代の設定を落とす。**落とせなくても先へ進む**（{@link removeItem} が飲む）。
+ *
+ * 綴りをここへ置くのは、**鍵の綴りの正本をこのファイル 1 本に揃える**ためである
+ * （玄関のテストが `tdd-mob:preferences:v1` を 4 箇所に写していた）。読み手も書き手も
+ * 既に無い鍵なので、綴りそのものが古い端末との唯一の接点になる。
+ */
+export function clearLegacyPreferences(): void {
+  removeItem(LEGACY_PREFERENCES_KEY);
 }

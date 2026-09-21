@@ -8,6 +8,9 @@
  * 「再訪時に前回の設定を既定として自動提示する」）は timer からは降ろし、
  * **玄関（`apps/landing`）側の要求として別 Issue へ預けた**
  * （`docs/plans/tdd-mob-pro-timer-v2-experience/spec.md` の FR-053 / FR-054 の注記）。
+ * **移管先は #284 で確定した** —— 範囲は表示名だけで、鍵は `tasuki:display-name`
+ * （`packages/sync-client/src/resume-identity.ts`）。**旧鍵 `tdd-mob:preferences:v1` は
+ * 玄関が落とす**ので、この鍵はもうどこからも書かれない。
  *
  * ここに残る 3 つは**生きている**（`ProblemConfigPanel` / `Lobby` / `Session` などが
  * 読み書きする）。

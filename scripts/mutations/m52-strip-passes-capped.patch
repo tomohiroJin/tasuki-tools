@@ -1,0 +1,31 @@
+# 変異 52: strip-passes-capped
+#
+# 剥がしを 20 回で打ち切る（#284 の 3 巡目以前）。入れ子を 21 段書くだけで
+# 剥がし残しがそのまま返り、実在参加者と同じラベルを名乗れる。冪等性も同時に崩れる。
+#
+# 検出を期待するテスト:
+#   - packages/room-core/tests/display-name.test.ts
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m52-strip-passes-capped.patch
+#       (diff のパスはリポジトリルート起点。mutation-check.mjs もリポジトリルートで実行する)
+# 復元: git checkout -- <対象ファイル>（同じくリポジトリルートから）
+#
+diff --git a/packages/room-core/src/display-name.ts b/packages/room-core/src/display-name.ts
+index 7c68896..84c4077 100644
+--- a/packages/room-core/src/display-name.ts
++++ b/packages/room-core/src/display-name.ts
+@@ -168,11 +168,12 @@ const IGNORABLE_WHEN_RENDERED = new RegExp(INVISIBLE_SOURCE, "u");
+  */
+ function stripLabelMarkers(input: string): string {
+   let current = input;
+-  for (;;) {
++  for (let i = 0; i < 20; i++) {
+     const next = stripLabelMarkersOnce(current);
+     if (next === current) return current;
+     current = next;
+   }
++  return current;
+ }
+ 
+ /**

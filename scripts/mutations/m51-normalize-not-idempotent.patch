@@ -1,23 +1,26 @@
-# 変異 4: display-name-control-chars
+# 変異 51: normalize-not-idempotent
+#
+# 文字を抜いたことで解禁された合成が適用されず、2 度掛けると値が変わる。
 #
 # 検出を期待するテスト:
 #   - packages/room-core/tests/display-name.test.ts
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m04-*.patch
+#       git apply scripts/mutations/m51-normalize-not-idempotent.patch
 #       (diff のパスはリポジトリルート起点。mutation-check.mjs もリポジトリルートで実行する)
 # 復元: git checkout -- <対象ファイル>（同じくリポジトリルートから）
 #
 diff --git a/packages/room-core/src/display-name.ts b/packages/room-core/src/display-name.ts
-index 7c68896..08202bc 100644
+index 7c68896..08a6018 100644
 --- a/packages/room-core/src/display-name.ts
 +++ b/packages/room-core/src/display-name.ts
-@@ -261,7 +261,7 @@ function stripLabelMarkersOnce(input: string): string {
-  */
- export function normalizeDisplayName(raw: string): string {
-   return stripLabelMarkers(
--    raw.normalize("NFKC").replace(INVISIBLE_FORMAT, "").replace(CONTROL_CHARS, ""),
-+    raw.normalize("NFKC").replace(INVISIBLE_FORMAT, ""),
+@@ -264,8 +264,7 @@ export function normalizeDisplayName(raw: string): string {
+     raw.normalize("NFKC").replace(INVISIBLE_FORMAT, "").replace(CONTROL_CHARS, ""),
    )
      .replace(/\s+/g, " ")
-     .trim()
+-    .trim()
+-    .normalize("NFKC");
++    .trim();
+ }
+ 
+ /**

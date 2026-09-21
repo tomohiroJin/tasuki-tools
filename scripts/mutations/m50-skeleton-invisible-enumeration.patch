@@ -1,0 +1,25 @@
+# 変異 50: skeleton-invisible-enumeration
+#
+# 見た目が同じなのに骨格が割れ、曖昧判定が発火しなくなる（総当たりで 541 件）。
+#
+# 検出を期待するテスト:
+#   - packages/room-core/tests/display-name.test.ts
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m50-skeleton-invisible-enumeration.patch
+#       (diff のパスはリポジトリルート起点。mutation-check.mjs もリポジトリルートで実行する)
+# 復元: git checkout -- <対象ファイル>（同じくリポジトリルートから）
+#
+diff --git a/packages/room-core/src/display-name.ts b/packages/room-core/src/display-name.ts
+index 7c68896..42fef13 100644
+--- a/packages/room-core/src/display-name.ts
++++ b/packages/room-core/src/display-name.ts
+@@ -299,7 +299,7 @@ export function nameSkeleton(name: string): string {
+   // 結合記号が基底文字と隣り合い、合成が解禁される —— 掛け直さないと
+   // `"Jose" + ZWJ + U+0301` が `"José"` と別の骨格になり、**見た目が同じなのに
+   // 曖昧判定が発火しない**。`normalizeDisplayName` の末尾に入れた 1 行と同じ理由である。
+-  const compat = name.normalize("NFKC").replace(INVISIBLE_ALL, "").normalize("NFKC");
++  const compat = name.normalize("NFKC").replace(INVISIBLE_ALL, "");
+   let out = "";
+   for (const ch of compat) {
+     out += CONFUSABLES.get(ch) ?? ch;

@@ -31,5 +31,6 @@ export {
   clearResumeIdentity,
   saveDefaultDisplayName,
   loadDefaultDisplayName,
+  clearLegacyPreferences,
   type ResumeIdentity,
 } from "./resume-identity.js";

@@ -13,6 +13,7 @@ export {
   MAX_NFKC_EXPANSION,
   normalizeDisplayName,
   nameSkeleton,
+  rendersAsNothing,
   conflictsWithExisting,
 } from "./display-name.js";
 

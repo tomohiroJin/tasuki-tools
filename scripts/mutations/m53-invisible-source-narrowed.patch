@@ -1,0 +1,27 @@
+# 変異 53: invisible-source-narrowed
+#
+# 照合・比較で伏せる集合を Default_Ignorable 単独へ狭める（#284 の 2 巡目）。
+# あの性質は \p{Cf} から前置結合記号・割注・聖刻文字の書式制御を差し引くので、
+# U+0600 などの 32 点が漏れてラベルの見出しを割れる。
+#
+# 検出を期待するテスト:
+#   - packages/room-core/tests/display-name.test.ts
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m53-invisible-source-narrowed.patch
+#       (diff のパスはリポジトリルート起点。mutation-check.mjs もリポジトリルートで実行する)
+# 復元: git checkout -- <対象ファイル>（同じくリポジトリルートから）
+#
+diff --git a/packages/room-core/src/display-name.ts b/packages/room-core/src/display-name.ts
+index 7c68896..dda5ef4 100644
+--- a/packages/room-core/src/display-name.ts
++++ b/packages/room-core/src/display-name.ts
+@@ -115,7 +115,7 @@ const INVISIBLE_FORMAT = /[\u200b\u200c\u202a-\u202e\u2060-\u2064\u2066-\u2069\u
+  * 決める字形選択子で、保存する値から落とすと `❤️` が `❤` になる。U+0600 などの
+  * 前置結合記号も、アラビア語の正当な組版に要る。
+  */
+-const INVISIBLE_SOURCE = "[\\p{Cc}\\p{Cf}\\p{Default_Ignorable_Code_Point}]";
++const INVISIBLE_SOURCE = "\\p{Default_Ignorable_Code_Point}";
+ 
+ /** 第2層でだけ落とす不可視文字（ZWJ を含む）。見た目が同じものを同じ骨格へ寄せる。 */
+ const INVISIBLE_ALL = new RegExp(INVISIBLE_SOURCE, "gu");

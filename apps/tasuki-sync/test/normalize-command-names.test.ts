@@ -162,4 +162,35 @@ describe("NFKC 展開と最大長", () => {
     // Given / When / Then
     expect(normalizeCommandNames(join("a".repeat(MAX_DISPLAY_NAME + 1))).isErr()).toBe(true);
   });
+
+  /**
+   * **字面を持たない文字だけの名前を拒む**（#284 の 3 巡目）。
+   *
+   * 長さだけを見ていると通る。第1層は ZWJ・U+FE0F・U+00AD・U+3164 などを
+   * **正当な用途のために残す**ので、それ 1 文字だけの名前は「正規化後の長さ 1」になり、
+   * `EmptyAfterNormalize` に当たらなかった。通すと名簿に**何も見えない行**が並ぶ。
+   *
+   * 判定の正本は `@tasuki/room-core` の `rendersAsNothing` で、**玄関の既定も同じものを
+   * 使う**（片方だけに置くと「玄関は弾くのにサーバーは通す」帯ができる）。
+   */
+  it("字面を持たない文字だけの名前は拒否される", () => {
+    // Given: 第1層を生き延びる種類（U+200B は第1層で消えるので長さ 0 になる）
+    const blanks = ["\u200d", "\u00ad", "\ufe0f", "\u3164",
+                    "\u034f", "\u0600", "\ufff9"];
+
+    // When / Then
+    for (const raw of blanks) {
+      expect(normalizeCommandNames(join(raw)).isErr(), JSON.stringify(raw)).toBe(true);
+    }
+  });
+
+  it("字面のある名前は通る（絵文字と字形選択子を巻き添えにしない）", () => {
+    // Given: ZWJ で連結した家族絵文字と、字形選択子つきの記号
+    const visible = ["\u{1f468}\u200d\u{1f469}", "❤\ufe0f", "Bob"];
+
+    // When / Then
+    for (const raw of visible) {
+      expect(normalizeCommandNames(join(raw)).isOk(), JSON.stringify(raw)).toBe(true);
+    }
+  });
 });

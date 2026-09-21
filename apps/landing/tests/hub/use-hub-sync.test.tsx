@@ -7,7 +7,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { saveResumeIdentity } from '@tasuki/sync-client';
+import { saveDefaultDisplayName, saveResumeIdentity } from '@tasuki/sync-client';
 import { App } from '../../src/App.js';
 
 /** 送った中身を覚え、サーバーからの応答を差し込める WebSocket。 */
@@ -445,5 +445,67 @@ describe('ルームの生死の照会', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+/**
+ * 既定として提示した名前を、利用者が書き換えたとき（#284・FR-053 / FR-054 の EARS 4）。
+ *
+ * **送られた中身まで見る。** 欄の見た目だけを見る検査は、「書き換えは映るが送るのは
+ * 保存値」という壊れ方を通してしまう（初期値を `value` に直結させて `state` を
+ * 使わない実装がまさにこれになる）。
+ */
+describe('既定の表示名の書き換え', () => {
+  /** 送られた `room.join` の `displayName`。 */
+  const joinedNames = (): string[] =>
+    socket()
+      .sent.map((raw) => JSON.parse(raw) as Record<string, unknown>)
+      .filter((cmd) => cmd['command'] === 'room.join')
+      .map((cmd) => cmd['displayName'] as string);
+
+  it('Given 既定が入った名乗りの欄 / When 書き換えて送る / Then 書き換えた側が送られる', () => {
+    // Given（準備）: 前回の名乗りが既定として入っている
+    saveDefaultDisplayName('あや');
+    window.history.replaceState(null, '', '/?room=ABC123');
+    render(<App />);
+    act(() => socket().open());
+    expect(screen.getByLabelText<HTMLInputElement>('あなたの名前')).toHaveValue('あや');
+
+    // When（操作）: 別の名前で名乗り直す
+    act(() => {
+      fireEvent.change(screen.getByLabelText('あなたの名前'), { target: { value: 'いずみ' } });
+      fireEvent.submit(screen.getByRole('button', { name: '参加する' }).closest('form')!);
+    });
+
+    // Then: 保存値ではなく、書き換えた側が飛ぶ
+    expect(joinedNames()).toEqual(['いずみ']);
+  });
+
+  it('Given 書き換えて入室した / When 玄関を開き直す / Then 既定は書き換えた側になる', () => {
+    // Given（準備）: 既定を書き換えて入室が成立する
+    saveDefaultDisplayName('あや');
+    window.history.replaceState(null, '', '/?room=ABC123');
+    const first = render(<App />);
+    act(() => socket().open());
+    act(() => {
+      fireEvent.change(screen.getByLabelText('あなたの名前'), { target: { value: 'いずみ' } });
+      fireEvent.submit(screen.getByRole('button', { name: '参加する' }).closest('form')!);
+    });
+    act(() =>
+      socket().deliver({
+        type: 'room.joined',
+        code: 'ABC123',
+        participantId: 'p1',
+        resumeToken: 't1',
+      }),
+    );
+    first.unmount();
+
+    // When（操作）: 素の入口を開き直す
+    window.history.replaceState(null, '', '/');
+    render(<App />);
+
+    // Then: **上書きされている**（古い既定を残す実装はここで赤くなる）
+    expect(screen.getByLabelText<HTMLInputElement>('あなたの名前')).toHaveValue('いずみ');
   });
 });
