@@ -1231,42 +1231,77 @@ function sleepSync(ms) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 }
 
+/**
+ * `restoreCurrentMutation`（通常サイクルの復元）の判定部分。`decideCrashRecovery`
+ * と対になる形（実 I/O を呼び出し側が注入する・ログ文言だけ持つ）にして、
+ * `restoreCurrentMutation` 本体を「モジュール変数を読んで実 I/O を注入するだけの
+ * 配線」に薄く保つ。マーカーを消すタイミングの規則自体は `verifyRestoreAndClearMarker`
+ * に一元化してあるので、ここでは持たない（**同じ規則を 2 つ持たない**）。
+ *
+ * @param {string[]} files - 直前の変異で `git apply` した（はずの）ファイル一覧
+ * @param {object} io
+ * @param {() => void} io.checkoutFn
+ * @param {() => boolean} io.isRestoredFn
+ * @param {(attempt: number) => void} io.waitFn
+ * @param {() => void} io.clearMarkerFn
+ * @param {(msg: string) => void} [io.logFn]
+ * @param {number} [io.maxAttempts]
+ * @returns {{ restored: boolean | null, attempts?: number }}
+ */
+export function decideMutationRestore(
+  files,
+  { checkoutFn, isRestoredFn, waitFn, clearMarkerFn, logFn = () => {}, maxAttempts = RESTORE_MAX_ATTEMPTS },
+) {
+  const outcome = verifyRestoreAndClearMarker(files, {
+    checkoutFn,
+    isRestoredFn,
+    waitFn,
+    clearMarkerFn,
+    onRestored: (attempts) => {
+      logFn(
+        `[mutation-check] 復元しました: ${files.join(", ")}` +
+          (attempts > 1 ? `（${attempts} 回目の試行で確認）` : ""),
+      );
+    },
+    maxAttempts,
+  });
+
+  if (outcome.restored === false) {
+    logFn(formatRestoreFailureMessage(files, outcome.attempts));
+  }
+
+  return outcome;
+}
+
+/**
+ * `restoreCurrentMutation` 本体。判定は `decideMutationRestore`（→
+ * `verifyRestoreAndClearMarker`）に委ねてあり、そちらは単体テストで直接検証している
+ * （`mutation-check.test.mjs` の「マーカーを消すタイミング」「通常サイクルの復元判定」節）。
+ *
+ * **この関数自体は単体テストの対象に入っていない。** モジュール内変数
+ * （`currentlyAppliedFiles`）と実 `execFileSync`・実 `fs`・`process.exit` に
+ * 直接依存しており、シグナルハンドラ（下）からも呼ばれる副作用の塊のため、
+ * 安く注入可能な形にできなかった（`recoverFromCrashedRun` も同じ理由で同様）。
+ * ここを直接壊す変更（例: 実引数の組み方や `process.exit` の条件）は、
+ * E2E（`tests/e2e` のルーム離脱系）と、CI 上で本検査自身が自分の変異パッチを
+ * 実際に適用・復元して回る実行でしか捕まらない。
+ */
 function restoreCurrentMutation() {
   const files = currentlyAppliedFiles;
   currentlyAppliedFiles = [];
 
-  // `verifyRestoreAndClearMarker` がマーカーを消すタイミングを決める。
-  // files が空（= マーカーは git apply の**前**に書くため、apply 自体が失敗した場合は
-  // currentlyAppliedFiles が空のままマーカーだけが残る。実際に m05 のパッチが
-  // 適用できなくなったときにこれが起きた）なら、検証を待たずにここで消してよい。
-  // files が空でないとき（= apply には成功しており、戻すものが実在する）は、
-  // **戻ったと確認できてから**でないと消してはならない。以前はこの分岐をせず
-  // 呼び出しの先頭で無条件に `clearMarker()` していたため、apply 成功後に復元が
-  // 失敗するケースでもマーカーが先に消え、「変異が製品コードに残っている」という
-  // 唯一の記録を復元の成否を見る前に失っていた（次回起動時の `recoverFromCrashedRun`
-  // が拾えなくなる）。
-  const outcome = verifyRestoreAndClearMarker(files, {
+  const outcome = decideMutationRestore(files, {
     checkoutFn: () =>
       execFileSync("git", ["checkout", "--", ...files], { cwd: REPO_ROOT, stdio: "inherit" }),
     isRestoredFn: () => isRestoredToHead(files),
     waitFn: () => sleepSync(RESTORE_RETRY_DELAY_MS),
     clearMarkerFn: clearMarker,
-    onRestored: (attempts) => {
-      // eslint-disable-next-line no-console
-      console.error(
-        `[mutation-check] 復元しました: ${files.join(", ")}` +
-          (attempts > 1 ? `（${attempts} 回目の試行で確認）` : ""),
-      );
-    },
+    // eslint-disable-next-line no-console
+    logFn: (msg) => console.error(msg),
     maxAttempts: RESTORE_MAX_ATTEMPTS,
   });
 
-  if (outcome.restored !== false) return; // true（復元済み）と null（戻すものが無かった）は正常終了
-
-  // 復元自体が失敗するのは最悪のケース。ここで握りつぶさず、非 0 で終了して必ず知らせる。
-  // eslint-disable-next-line no-console
-  console.error(formatRestoreFailureMessage(files, outcome.attempts));
-  process.exit(1);
+  if (outcome.restored === false) process.exit(1);
 }
 
 // 異常終了（Ctrl-C・kill・未捕捉例外）でも必ず復元する。

@@ -13,6 +13,8 @@ import {
   restoreWithRetry,
   formatRestoreFailureMessage,
   decideCrashRecovery,
+  verifyRestoreAndClearMarker,
+  decideMutationRestore,
   MUTATIONS,
 } from "./mutation-check.mjs";
 
@@ -539,5 +541,143 @@ describe("クラッシュからの復旧の判定（decideCrashRecovery）", () 
     assert.equal(outcome.restored, true);
     assert.equal(outcome.attempts, 2);
     assert.equal(clearCalls, 1);
+  });
+});
+
+/**
+ * マーカーを消すタイミングの規則そのもの（修正ラウンド 3 / #290 のレビュー指摘）。
+ *
+ * **なぜこの節が要るか**: 上の「decideCrashRecovery」の 3 件は `verifyRestoreAndClearMarker`
+ * を間接的に通るが、それは `recoverFromCrashedRun` 経路だけである。`restoreCurrentMutation`
+ * （通常サイクルの復元）も同じ関数を通るが、上の 3 件は一切そちらを通らない。
+ * つまり誰かが `restoreCurrentMutation` の中だけを元の「無条件 `clearMarker()`」へ
+ * 書き戻しても、上の 3 件は全部緑のままだった —— 正しい実装と誤実装が同じ結果を
+ * 返す位置にしかアサーションが無い状態。ここでは `verifyRestoreAndClearMarker` を
+ * **直接 import** し、`clearMarkerFn` の**呼び出し回数**を数える形で「いつ呼ばれるか／
+ * いつ呼ばれないか」を固定する。
+ */
+describe("マーカーを消すタイミング（verifyRestoreAndClearMarker を直接検証）", () => {
+  test("files が空なら、検証を待たずに clearMarkerFn を 1 回だけ呼ぶ（m05 のケース）", () => {
+    // Given/When
+    let checkoutCalls = 0;
+    let clearCalls = 0;
+    const outcome = verifyRestoreAndClearMarker([], {
+      checkoutFn: () => {
+        checkoutCalls += 1;
+      },
+      isRestoredFn: () => true,
+      waitFn: () => {},
+      clearMarkerFn: () => {
+        clearCalls += 1;
+      },
+    });
+    // Then: 戻すものが無いので checkout は 1 度も呼ばれず、マーカーだけ消える。
+    // ここが消えると、次回の起動が「前回は異常終了した」と誤報告し続ける。
+    assert.equal(outcome.restored, null);
+    assert.equal(checkoutCalls, 0);
+    assert.equal(clearCalls, 1);
+  });
+
+  test("files が非空で復元が成功すれば、戻ったと確認できてから clearMarkerFn を 1 回だけ呼ぶ", () => {
+    // Given
+    let clearCalls = 0;
+    const restoredAttempts = [];
+    // When
+    const outcome = verifyRestoreAndClearMarker(["a.ts"], {
+      checkoutFn: () => {},
+      isRestoredFn: () => true,
+      waitFn: () => {},
+      clearMarkerFn: () => {
+        clearCalls += 1;
+      },
+      onRestored: (attempts) => restoredAttempts.push(attempts),
+      maxAttempts: 3,
+    });
+    // Then
+    assert.equal(outcome.restored, true);
+    assert.equal(clearCalls, 1);
+    assert.deepEqual(restoredAttempts, [1]);
+  });
+
+  test("files が非空で復元が失敗し続ければ、clearMarkerFn は一度も呼ばれない（この修正の核心）", () => {
+    // Given: checkout は例外を投げない（「成功」を装う）が、isRestoredFn は常に false
+    //   —— これが今回のバグの再現条件そのもの。ここで clearMarkerFn が呼ばれてしまう
+    //   実装（＝ restoreCurrentMutation を無条件 clearMarker() へ書き戻した状態と同値）
+    //   なら、このアサーションが落ちる。
+    let clearCalls = 0;
+    // When
+    const outcome = verifyRestoreAndClearMarker(["a.ts"], {
+      checkoutFn: () => {},
+      isRestoredFn: () => false,
+      waitFn: () => {},
+      clearMarkerFn: () => {
+        clearCalls += 1;
+      },
+      maxAttempts: 3,
+    });
+    // Then: マーカーを残したまま致命的な結果を返す
+    assert.equal(outcome.restored, false);
+    assert.equal(
+      clearCalls,
+      0,
+      "戻っていないのに clearMarkerFn が呼ばれている（無条件 clearMarker() への退行を検知できていない）",
+    );
+  });
+});
+
+/**
+ * `restoreCurrentMutation`（通常サイクルの復元）の判定部分を直接検証する
+ * （修正ラウンド 3 / #290）。`restoreCurrentMutation` 自身は module-level 変数
+ * （`currentlyAppliedFiles`）と実 I/O（`execFileSync`・`process.exit`）に直接
+ * 依存しており安く注入できないため対象にしていない（この節の直後のコメント、
+ * および `mutation-check.mjs` 側の `restoreCurrentMutation` 直前のコメントを参照）。
+ * ここで検証するのは、その配線が委ねる判定ロジック（`decideMutationRestore`）である。
+ */
+describe("通常サイクルの復元判定（decideMutationRestore）", () => {
+  test("戻れば、ファイル名入りの復元ログを出しマーカーを消す", () => {
+    // Given
+    let clearCalls = 0;
+    const logs = [];
+    // When
+    const outcome = decideMutationRestore(["a.ts", "b.ts"], {
+      checkoutFn: () => {},
+      isRestoredFn: () => true,
+      waitFn: () => {},
+      clearMarkerFn: () => {
+        clearCalls += 1;
+      },
+      logFn: (msg) => logs.push(msg),
+    });
+    // Then
+    assert.equal(outcome.restored, true);
+    assert.equal(clearCalls, 1);
+    assert.ok(
+      logs.some((m) => m.includes("復元しました: a.ts, b.ts")),
+      "復元ログにファイル名が出ていない",
+    );
+  });
+
+  test("戻らなければ、マーカーを消さず致命的なログを出す", () => {
+    // Given
+    let clearCalls = 0;
+    const logs = [];
+    // When
+    const outcome = decideMutationRestore(["a.ts"], {
+      checkoutFn: () => {},
+      isRestoredFn: () => false,
+      waitFn: () => {},
+      clearMarkerFn: () => {
+        clearCalls += 1;
+      },
+      logFn: (msg) => logs.push(msg),
+      maxAttempts: 2,
+    });
+    // Then
+    assert.equal(outcome.restored, false);
+    assert.equal(clearCalls, 0, "戻っていないのにマーカーを消している");
+    assert.ok(
+      logs.some((m) => /a\.ts/.test(m)),
+      "致命的なログにファイル名が出ていない",
+    );
   });
 });
