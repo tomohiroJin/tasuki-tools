@@ -284,6 +284,27 @@ describe("RosterPanel 代理追加の同名拒否（#291）", () => {
     expect(screen.queryByLabelText("代理参加者の名前")).toBeNull();
   });
 
+  it("自分でフォームを閉じたら、あとから同名が現れても勝手に開閉しない", () => {
+    // Given（Dave を送ったあと、待たずに自分でフォームを畳み、また開いた）
+    const onAddProxy = vi.fn();
+    const { rerender } = render(
+      <RosterPanel {...baseProps} participants={participants} onAddProxy={onAddProxy} />,
+    );
+    addProxy("Dave");
+    fireEvent.click(screen.getByRole("button", { name: "代理参加者を追加" }));
+    fireEvent.click(screen.getByRole("button", { name: "代理参加者を追加" }));
+    // When（無関係の経緯で Dave という代理が名簿に現れる）
+    rerender(
+      <RosterPanel
+        {...baseProps}
+        participants={[...participants, mk("proxy-1", "Dave", { isPlaceholder: true })]}
+        onAddProxy={onAddProxy}
+      />,
+    );
+    // Then（見ているフォームが目の前で勝手に閉じたりしない）
+    expect(screen.queryByLabelText("代理参加者の名前")).not.toBeNull();
+  });
+
   it("Enter でも送れる", () => {
     // Given（閉じずにその場で直させる形にした以上、直した直後の自然な操作は Enter）
     const onAddProxy = vi.fn();
