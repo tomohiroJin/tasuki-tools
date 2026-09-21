@@ -18,8 +18,9 @@
  * 2. **同じ経路に正当な値を置いた対照を先に置く。** 提示が生きていることを見せてから
  *    壊れた値を置く。経路が死んでいれば対照が赤くなる
  *
- * **旧鍵 `tdd-mob:preferences:v1` だけは綴りで書く。** 読み手も書き手も #272 で消えて
- * いるので通せる入口が無く、綴りそのものが古い端末との唯一の接点である。
+ * **旧鍵の綴りは {@link LEGACY_KEY} の 1 箇所だけに置く。** 4 箇所へ写していたのを
+ * 畳んだ（3 巡目のレビュー）。この値だけは製品コードの入口を通して置けない ——
+ * 読み手も書き手も #272 で消えており、綴りそのものが古い端末との唯一の接点である。
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
@@ -60,6 +61,15 @@ const deliver = (msg: unknown): void => {
 
 /** 名乗りの欄。 */
 const nameField = (): HTMLInputElement => screen.getByLabelText<HTMLInputElement>('あなたの名前');
+
+/**
+ * timer 時代の設定の鍵。
+ *
+ * **綴りの正本と、それを固定する検査は `@tasuki/sync-client` にある**
+ * （`clearLegacyPreferences` と `tests/resume-identity.test.ts`）。ここに写しが 1 つだけ
+ * 要るのは、**この値には書き手が存在せず、製品コードの入口を通して置けない**ためである。
+ */
+const LEGACY_KEY = 'tdd-mob:preferences:v1';
 
 beforeEach(() => {
   SilentWebSocket.instances = [];
@@ -203,7 +213,7 @@ describe('前回の名乗りを既定として提示する', () => {
     // 中身の `displayName` は `docs/adr/0011` の「個人に紐づく情報」であり、
     // 読む者が居ないなら端末に置き続ける理由が無い
     localStorage.setItem(
-      'tdd-mob:preferences:v1',
+      LEGACY_KEY,
       JSON.stringify({ displayName: 'あや', language: 'ja', difficulty: 'normal', members: [], intervalMinutes: 10 }),
     );
 
@@ -211,13 +221,13 @@ describe('前回の名乗りを既定として提示する', () => {
     render(<App />);
 
     // Then
-    expect(localStorage.getItem('tdd-mob:preferences:v1')).toBeNull();
+    expect(localStorage.getItem(LEGACY_KEY)).toBeNull();
   });
 
   it('Given timer 時代の設定が残る端末 / When 玄関を開く / Then その表示名は引き継がない', () => {
     // Given（準備）: 移行はしないと決めた（#284）。読み手も書き手も既に無く、
     // 個人に紐づく値を新しい鍵へ移してまで生かす理由が無い
-    localStorage.setItem('tdd-mob:preferences:v1', JSON.stringify({ displayName: 'あや' }));
+    localStorage.setItem(LEGACY_KEY, JSON.stringify({ displayName: 'あや' }));
 
     // When（操作）
     render(<App />);
@@ -262,7 +272,7 @@ describe('前回の名乗りを既定として提示する', () => {
   it('Given 提示できない保存値 / When 描画フェーズだけ走らせる / Then 保管庫は書き換わらない', () => {
     // Given（準備）: 片付け（鍵の削除）と書き直しの両方が起きうる状態にする
     saveDefaultDisplayName('\u200b');
-    localStorage.setItem('tdd-mob:preferences:v1', '{}');
+    localStorage.setItem(LEGACY_KEY, '{}');
 
     // When（操作）: effect を走らせずに描画する
     const markup = renderToStaticMarkup(<App />);
@@ -271,7 +281,7 @@ describe('前回の名乗りを既定として提示する', () => {
     expect(markup).toContain('Tasuki');
     // Then: 保管庫はどちらも触られていない。片付けるのは effect の仕事である
     expect(loadDefaultDisplayName(), '既定の表示名').toBe('\u200b');
-    expect(localStorage.getItem('tdd-mob:preferences:v1'), '旧鍵').toBe('{}');
+    expect(localStorage.getItem(LEGACY_KEY), '旧鍵').toBe('{}');
   });
 
   /**

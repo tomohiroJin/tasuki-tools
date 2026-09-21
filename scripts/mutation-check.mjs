@@ -127,6 +127,8 @@ export const MUTATIONS = [
     patch: "m48-display-name-strip-before-controls.patch",
     pkg: "packages/room-core",
     tests: ["tests/display-name.test.ts"],
+    note:
+      "#284。**plan.md の対応表（#1〜#9）より後に足した変異である。** `normalizeDisplayName` の段を、制御文字の除去がラベルの剥がしより後だった頃へ戻す。その順序だと `ID` の内側に制御文字を 1 つ挟むだけで照合が外れ、あとで制御文字が落ちて `(ID: rqdK)` が復活する（実在参加者と同じラベルを名乗れる）。",
   },
   {
     id: 49,
@@ -134,6 +136,8 @@ export const MUTATIONS = [
     patch: "m49-label-match-without-view.patch",
     pkg: "packages/room-core",
     tests: ["tests/display-name.test.ts"],
+    note:
+      "#284。**対応表より後に足した変異。** ラベルの照合を「目に映る姿」ではなく生の文字列に戻す。ZWJ や U+00AD のように**出力からは落とせない**文字で見出しを割れるようになる（総当たりで 544 件）。",
   },
   {
     id: 50,
@@ -141,6 +145,8 @@ export const MUTATIONS = [
     patch: "m50-skeleton-invisible-enumeration.patch",
     pkg: "packages/room-core",
     tests: ["tests/display-name.test.ts"],
+    note:
+      "#284。**対応表より後に足した変異。** 第 2 層（`nameSkeleton`）が不可視を抜いた後の NFKC を外す。抜いたことで解禁された合成が適用されず、`\"Jose\" + ZWJ + U+0301` が `\"José\"` と別の骨格になって曖昧判定が発火しない。",
   },
   {
     id: 51,
@@ -148,6 +154,35 @@ export const MUTATIONS = [
     patch: "m51-normalize-not-idempotent.patch",
     pkg: "packages/room-core",
     tests: ["tests/display-name.test.ts"],
+    note:
+      "#284。**対応表より後に足した変異。** `normalizeDisplayName` 末尾の NFKC を外す。不可視・制御文字を抜くとそこで合成が解禁されるため、掛けた回数で答えが変わる（`\"A\" + U+200B + U+030A`）。玄関が提示した値とサーバーが保存する値が食い違う。",
+  },
+  {
+    id: 52,
+    label: "剥がしを 20 回で打ち切る（入れ子 21 段で剥がし残しが通る）",
+    patch: "m52-strip-passes-capped.patch",
+    pkg: "packages/room-core",
+    tests: ["tests/display-name.test.ts"],
+    note:
+      "#284。**対応表より後に足した変異。** 剥がしの回数上限（20）を戻す。上限 40 文字は正規化の**後**に課されるので「表示名は短いから数回で収まる」は成り立たず、境界の前段が通す 720 文字ぶんだけ入れ子を書ける。21 段で `\"Bob(ID: rqdK)ID: rqdK)\"` がそのまま返り、冪等性も同時に崩れる。",
+  },
+  {
+    id: 53,
+    label: "伏せる集合を Default_Ignorable 単独へ狭める（\p{Cf} の 32 点が漏れる）",
+    patch: "m53-invisible-source-narrowed.patch",
+    pkg: "packages/room-core",
+    tests: ["tests/display-name.test.ts"],
+    note:
+      "#284。**対応表より後に足した変異。** `Default_Ignorable_Code_Point` は `\\p{Cf}` から前置結合記号・割注・聖刻文字の書式制御を差し引いて定義される。単独で使うと U+0600–0605 / U+FFF9–FFFB / U+13430–1343F など 32 点が漏れ、そこでラベルの見出しを割れる。**和集合であることが要件である。**",
+  },
+  {
+    id: 54,
+    label: "字面の無い表示名の判定を長さだけに戻す（何も見えない参加者が名簿に並ぶ）",
+    patch: "m54-renders-as-nothing-length-only.patch",
+    pkg: "packages/room-core",
+    tests: ["tests/display-name.test.ts"],
+    note:
+      "#284。**対応表より後に足した変異。** ZWJ・U+FE0F・U+00AD などは正当な用途のために出力へ残すので、それ 1 文字だけの名前は「長さ 1」で通る。境界も玄関も弾かず、名簿に**何も見えない行**が並ぶ。",
   },
   {
     id: 6,

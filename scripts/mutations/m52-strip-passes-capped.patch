@@ -1,15 +1,18 @@
-# 変異 4: display-name-control-chars
+# 変異 52: strip-passes-capped
+#
+# 剥がしを 20 回で打ち切る（#284 の 3 巡目以前）。入れ子を 21 段書くだけで
+# 剥がし残しがそのまま返り、実在参加者と同じラベルを名乗れる。冪等性も同時に崩れる。
 #
 # 検出を期待するテスト:
 #   - packages/room-core/tests/display-name.test.ts
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m04-*.patch
+#       git apply scripts/mutations/m52-strip-passes-capped.patch
 #       (diff のパスはリポジトリルート起点。mutation-check.mjs もリポジトリルートで実行する)
 # 復元: git checkout -- <対象ファイル>（同じくリポジトリルートから）
 #
 diff --git a/packages/room-core/src/display-name.ts b/packages/room-core/src/display-name.ts
-index 273c561..08202bc 100644
+index 273c561..84c4077 100644
 --- a/packages/room-core/src/display-name.ts
 +++ b/packages/room-core/src/display-name.ts
 @@ -77,32 +77,48 @@ const CONTROL_CHARS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/g;
@@ -109,7 +112,7 @@ index 273c561..08202bc 100644
  
  /**
   * ラベル書式を、**変化がなくなるまで**剥がす。
-@@ -151,16 +158,21 @@ const IGNORABLE_WHEN_RENDERED = /\p{Default_Ignorable_Code_Point}/u;
+@@ -151,11 +158,17 @@ const IGNORABLE_WHEN_RENDERED = /\p{Default_Ignorable_Code_Point}/u;
   * 実機で `"Bob（（ID: x）ID: rqdK）"` が `"Bob（ID: rqdK）"` になり、実在参加者の
   * 識別子を完全に偽造できた。HTML サニタイザの `<scr<script>ipt>` と同じ形の欠陥である。
   *
@@ -125,16 +128,11 @@ index 273c561..08202bc 100644
  function stripLabelMarkers(input: string): string {
    let current = input;
 -  for (let i = 0; i < MAX_STRIP_PASSES; i++) {
-+  for (;;) {
++  for (let i = 0; i < 20; i++) {
      const next = stripLabelMarkersOnce(current);
      if (next === current) return current;
      current = next;
-   }
--  return current;
- }
- 
- /**
-@@ -202,11 +214,6 @@ function stripLabelMarkersOnce(input: string): string {
+@@ -202,11 +215,6 @@ function stripLabelMarkersOnce(input: string): string {
    let copied = 0;
    let match: RegExpExecArray | null;
    while ((match = LABEL_MARKER.exec(view)) !== null) {
@@ -146,7 +144,7 @@ index 273c561..08202bc 100644
      const start = from[match.index]!;
      const end = to[match.index + match[0].length - 1]!;
      out += input.slice(copied, start);
-@@ -225,6 +232,7 @@ function stripLabelMarkersOnce(input: string): string {
+@@ -225,6 +233,7 @@ function stripLabelMarkersOnce(input: string): string {
   * 4. 識別子ラベルの書式を、変化がなくなるまで剥がす（なりすまし防止）
   * 5. 連続する空白（改行・タブ・全角空白を含む）を1つの半角空白に畳む
   * 6. 前後の空白を落とす
@@ -154,7 +152,7 @@ index 273c561..08202bc 100644
   *
   * **制御文字は書式を照合する前に落とす**（#284 で 3 と 4 を入れ替えた）。剥がしが
   * 先だと、`（I` と `D:` の間に制御文字を 1 つ挟むだけで書式の照合が外れ、そのあと
-@@ -233,7 +241,13 @@ function stripLabelMarkersOnce(input: string): string {
+@@ -233,7 +242,13 @@ function stripLabelMarkersOnce(input: string): string {
   *
   * **落とさずに残す文字（ZWJ など）でも同じ割り方ができる。** そちらは消すと絵文字の
   * 連結が壊れるので、{@link stripLabelMarkersOnce} が**照合のときだけ伏せる**。
@@ -169,16 +167,7 @@ index 273c561..08202bc 100644
   *
   * **最後にもう一度 NFKC を掛けるのは冪等性のためである**（#284 の 2 巡目）。
   * 1 の NFKC の後に 2・3 で文字を抜くと、**そこで初めて隣り合った組み合わせの合成が
-@@ -247,7 +261,7 @@ function stripLabelMarkersOnce(input: string): string {
-  */
- export function normalizeDisplayName(raw: string): string {
-   return stripLabelMarkers(
--    raw.normalize("NFKC").replace(INVISIBLE_FORMAT, "").replace(CONTROL_CHARS, ""),
-+    raw.normalize("NFKC").replace(INVISIBLE_FORMAT, ""),
-   )
-     .replace(/\s+/g, " ")
-     .trim()
-@@ -281,7 +295,11 @@ export function nameSkeleton(name: string): string {
+@@ -281,7 +296,11 @@ export function nameSkeleton(name: string): string {
    const cached = skeletonCache.get(name);
    if (cached !== undefined) return cached;
  
@@ -191,7 +180,7 @@ index 273c561..08202bc 100644
    let out = "";
    for (const ch of compat) {
      out += CONFUSABLES.get(ch) ?? ch;
-@@ -295,6 +313,20 @@ export function nameSkeleton(name: string): string {
+@@ -295,6 +314,20 @@ export function nameSkeleton(name: string): string {
    return skeleton;
  }
  

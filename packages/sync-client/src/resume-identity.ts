@@ -140,3 +140,24 @@ export function saveDefaultDisplayName(name: string): void {
 export function loadDefaultDisplayName(): string {
   return readItem(DISPLAY_NAME_KEY) ?? "";
 }
+
+/**
+ * timer 時代の設定の鍵（#284）。**読み手も書き手も #272 で消えた。**
+ *
+ * 中身（`{ displayName, language, difficulty, members[], intervalMinutes }`）のうち
+ * `displayName` は `docs/adr/0011` の「個人に紐づく情報」に当たる。読む者が居ないなら、
+ * 端末に置き続ける理由が無い。**移行はしない** —— 語彙も画面も入れ替わった値を
+ * 引き写すより、一度名乗り直してもらうほうが確かである。
+ */
+const LEGACY_PREFERENCES_KEY = "tdd-mob:preferences:v1";
+
+/**
+ * timer 時代の設定を落とす。**落とせなくても先へ進む**（{@link removeItem} が飲む）。
+ *
+ * 綴りをここへ置くのは、**鍵の綴りの正本をこのファイル 1 本に揃える**ためである
+ * （玄関のテストが `tdd-mob:preferences:v1` を 4 箇所に写していた）。読み手も書き手も
+ * 既に無い鍵なので、綴りそのものが古い端末との唯一の接点になる。
+ */
+export function clearLegacyPreferences(): void {
+  removeItem(LEGACY_PREFERENCES_KEY);
+}

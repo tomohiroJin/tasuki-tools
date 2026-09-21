@@ -19,6 +19,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   SyncConnection,
   buildInviteUrl,
+  clearLegacyPreferences,
   clearResumeIdentity,
   joinRetryDelayMs,
   loadDefaultDisplayName,
@@ -36,37 +37,6 @@ import { usableDefaultDisplayName } from './default-display-name.js';
 export function buildHubSyncUrl(location: { protocol: string; host: string }): string {
   const scheme = location.protocol === 'https:' ? 'wss:' : 'ws:';
   return `${scheme}//${location.host}/ws`;
-}
-
-/**
- * timer 時代の設定の鍵（#284）。**読み手も書き手も #272 で消えた。**
- *
- * 中身（`{ displayName, language, difficulty, members[], intervalMinutes }`）のうち
- * `displayName` は `docs/adr/0011` の「個人に紐づく情報」に当たる。読む者が居ないなら、
- * 端末に置き続ける理由が無い。**移行はしない** —— 語彙も画面も入れ替わった値を
- * 引き写すより、一度名乗り直してもらうほうが確かである。
- */
-const LEGACY_PREFERENCES_KEY = 'tdd-mob:preferences:v1';
-
-/**
- * timer 時代の設定を落とす。**落とせなくても先へ進む。**
- *
- * 保管庫そのものが使えない端末がある（cookie を全面禁止した Chrome では**読むだけで**
- * `SecurityError` が飛び、容量超過では書き込みが投げる）。投げたまま外へ出すと、
- * 玄関が**画面ごと真っ白になる** ——「片付けができない」は利用者に見せる話ではない
- * （EARS 3）。
- *
- * **例外はここで飲み切る。** 呼び手をまとめて try で包まないのは、そうすると
- * **片付けの失敗が前回の名前を道連れにする**ためである（読み書きはできるのに消去だけが
- * 拒まれる端末では、名前は読めていたはずである）。読み書きの側は `@tasuki/sync-client` が
- * 自分で飲み込むので、生の保管庫操作はここだけになる。
- */
-function dropLegacyPreferences(): void {
-  try {
-    localStorage.removeItem(LEGACY_PREFERENCES_KEY);
-  } catch {
-    // 使えない保管庫。落とせないだけで、名乗ること自体はできる
-  }
 }
 
 export interface HubSync {
@@ -184,7 +154,8 @@ export function useHubSync(): HubSync {
    *
    * 1. **提示できない保存値を、その鍵ごと捨てる。** 残すと玄関を開くたびに同じ値で
    *    弾かれ続ける（`resume-identity.ts` の壊れた組と同じ扱い）
-   * 2. timer 時代の設定（{@link LEGACY_PREFERENCES_KEY}）を落とす
+   * 2. timer 時代の設定を落とす（`clearLegacyPreferences`。鍵の綴りと、保管庫が
+   *    使えない端末での握り潰しは `@tasuki/sync-client` に 1 箇所だけ置いてある）
    *
    * **捨てる以外の書き込みはしない**（#284 のレビュー所見 3）。提示できる値まで
    * 正規形で上書きすると、**利用者の保存値を黙って書き潰す**。`normalizeDisplayName` の
@@ -197,9 +168,9 @@ export function useHubSync(): HubSync {
    * （`StrictMode` は effect を 2 度走らせる）。
    */
   useEffect(() => {
-    dropLegacyPreferences();
+    clearLegacyPreferences();
     // 空文字を渡すと鍵ごと消える（`saveDefaultDisplayName` の約束）。
-    if (defaultDisplayName === "" && storedDisplayName !== "") saveDefaultDisplayName("");
+    if (defaultDisplayName === '' && storedDisplayName !== '') saveDefaultDisplayName('');
   }, [storedDisplayName, defaultDisplayName]);
 
   const connRef = useRef<SyncConnection | null>(null);

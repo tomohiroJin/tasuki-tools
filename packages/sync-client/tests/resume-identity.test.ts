@@ -12,6 +12,7 @@ import {
   saveDefaultDisplayName,
   saveResumeIdentity,
   clearResumeIdentity,
+  clearLegacyPreferences,
 } from '../src/resume-identity.js';
 
 beforeEach(() => {
@@ -96,6 +97,23 @@ describe('既定の表示名', () => {
    * 鍵を変えたとき**書き込みも読み出しも新しい鍵で揃ってしまい、どのテストも緑のまま
    * 既存利用者の名前だけが消える**（読み書きが対で動く値の、いちばん静かな壊れ方）。
    */
+  /**
+   * 旧鍵の綴りを固定する（#284）。**玄関はこの綴りを持たない。**
+   *
+   * 読み手も書き手も #272 で消えているので、綴りそのものが古い端末との唯一の接点である。
+   * ここが唯一の写しで、玄関のテストは振る舞い（開くと落ちる）だけを見る。
+   */
+  it('Given timer 時代の設定が残る端末 / When 片付ける / Then tdd-mob:preferences:v1 が消える', () => {
+    // Given（準備）: #272 で読み手も書き手も消えたまま残っている値
+    localStorage.setItem('tdd-mob:preferences:v1', '{"displayName":"あや"}');
+
+    // When（操作）
+    clearLegacyPreferences();
+
+    // Then: 綴りが変わればここが赤くなる（玄関側は振る舞いしか見ていない）
+    expect(localStorage.getItem('tdd-mob:preferences:v1')).toBeNull();
+  });
+
   it('Given 保存した既定の表示名 / When 保管庫を直接見る / Then tasuki:display-name にある', () => {
     // Given（準備）
     saveDefaultDisplayName('あや');
@@ -192,22 +210,34 @@ describe('保管庫が使えない端末', () => {
   });
 
   it('Given 読めない保管庫 / When 既定の表示名を読む / Then 空文字（投げない）', () => {
+    // Given（準備）: 保管庫への出入りが拒まれる端末
     denyStorage();
+
+    // When / Then（操作）: 未保存と同じ扱いにする（玄関の欄はそのまま空で出る）
     expect(loadDefaultDisplayName()).toBe('');
   });
 
   it('Given 書けない保管庫 / When 既定の表示名を保存する / Then 投げない', () => {
+    // Given（準備）
     denyStorage();
+
+    // When / Then（操作）: 覚えられないだけで、名乗って参加すること自体はできる
     expect(() => saveDefaultDisplayName('あや')).not.toThrow();
   });
 
   it('Given 読めない保管庫 / When 復帰の組を読む / Then null（投げない）', () => {
+    // Given（準備）
     denyStorage();
+
+    // When / Then（操作）: 玄関は描画の初期化子でこれを読む。投げると画面が真っ白になる
     expect(loadResumeIdentity('ABC123')).toBeNull();
   });
 
   it('Given 書けない保管庫 / When 復帰の組を保存する / Then 投げない', () => {
+    // Given（準備）
     denyStorage();
+
+    // When / Then（操作）: 入室の応答を受けた瞬間に投げると、選択画面へ進めなくなる
     expect(() =>
       saveResumeIdentity({
         code: 'ABC123',
@@ -219,7 +249,48 @@ describe('保管庫が使えない端末', () => {
   });
 
   it('Given 消せない保管庫 / When 復帰の組を破棄する / Then 投げない', () => {
+    // Given（準備）
     denyStorage();
+
+    // When / Then（操作）: ルーム消滅の知らせを描く途中で投げると、不在の画面が出ない
     expect(() => clearResumeIdentity('ABC123')).not.toThrow();
+  });
+
+  it('Given 消せない保管庫 / When timer 時代の設定を落とす / Then 投げない', () => {
+    // Given（準備）
+    denyStorage();
+
+    // When / Then（操作）: 片付けの失敗は利用者に見せる話ではない
+    expect(() => clearLegacyPreferences()).not.toThrow();
+  });
+
+  /**
+   * **`localStorage` の取得そのものが投げる経路**（#284 の 3 巡目）。
+   *
+   * 実装の注釈は「参照ごと try の中へ入れる」と宣言しているのに、検査は
+   * `Storage.prototype` のメソッドを差し替えているだけで**その経路を再現していなかった**。
+   * 誰かが `const ls = localStorage;` を try の外へ括り出しても緑のままになる。
+   * cookie を全面禁止した Chrome で実際に起きるのはこちらである。
+   */
+  it('Given localStorage の取得そのものが投げる端末 / When 読み書きする / Then 投げない', () => {
+    // Given（準備）: プロパティの取得で SecurityError が飛ぶ
+    const original = Object.getOwnPropertyDescriptor(window, 'localStorage');
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      get() {
+        throw new DOMException('The operation is insecure.', 'SecurityError');
+      },
+    });
+
+    try {
+      // When / Then（操作）: どの入口も外へ投げない
+      expect(loadDefaultDisplayName(), '既定の表示名の読み').toBe('');
+      expect(() => saveDefaultDisplayName('あや'), '既定の表示名の書き').not.toThrow();
+      expect(loadResumeIdentity('ABC123'), '復帰の組の読み').toBeNull();
+      expect(() => clearResumeIdentity('ABC123'), '復帰の組の破棄').not.toThrow();
+      expect(() => clearLegacyPreferences(), '旧鍵の片付け').not.toThrow();
+    } finally {
+      if (original !== undefined) Object.defineProperty(window, 'localStorage', original);
+    }
   });
 });

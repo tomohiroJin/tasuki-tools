@@ -30,7 +30,12 @@
  */
 
 import { err, ok, type Result } from "neverthrow";
-import { MAX_DISPLAY_NAME, MAX_NFKC_EXPANSION, normalizeDisplayName } from "@tasuki/room-core";
+import {
+  MAX_DISPLAY_NAME,
+  MAX_NFKC_EXPANSION,
+  normalizeDisplayName,
+  rendersAsNothing,
+} from "@tasuki/room-core";
 
 /** 表示名が受け取れなかった理由。呼び出し側はこれを 1 つの wire エラーへ畳む。 */
 export type DisplayNameRejection = "EmptyAfterNormalize" | "TooLong";
@@ -51,7 +56,10 @@ export function applyDisplayNameRule(raw: string): Result<string, DisplayNameRej
   if (raw.length > MAX_DISPLAY_NAME * MAX_NFKC_EXPANSION) return err("TooLong");
 
   const displayName = normalizeDisplayName(raw);
-  if (displayName.length === 0) return err("EmptyAfterNormalize");
+  // **長さだけを見ない**（#284 の 3 巡目）。ZWJ・U+FE0F・U+00AD などは正当な用途の
+  // ために残すので、それ 1 文字だけの名前は「長さ 1」で通り、名簿に
+  // **何も見えない行**が並ぶ。
+  if (rendersAsNothing(displayName)) return err("EmptyAfterNormalize");
   // 後段（厳密な上限）。保存・配信される値に対して効かなければ意味がない。
   if (displayName.length > MAX_DISPLAY_NAME) return err("TooLong");
 

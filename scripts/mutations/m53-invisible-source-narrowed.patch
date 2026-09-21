@@ -1,15 +1,19 @@
-# 変異 4: display-name-control-chars
+# 変異 53: invisible-source-narrowed
+#
+# 照合・比較で伏せる集合を Default_Ignorable 単独へ狭める（#284 の 2 巡目）。
+# あの性質は \p{Cf} から前置結合記号・割注・聖刻文字の書式制御を差し引くので、
+# U+0600 などの 32 点が漏れてラベルの見出しを割れる。
 #
 # 検出を期待するテスト:
 #   - packages/room-core/tests/display-name.test.ts
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m04-*.patch
+#       git apply scripts/mutations/m53-invisible-source-narrowed.patch
 #       (diff のパスはリポジトリルート起点。mutation-check.mjs もリポジトリルートで実行する)
 # 復元: git checkout -- <対象ファイル>（同じくリポジトリルートから）
 #
 diff --git a/packages/room-core/src/display-name.ts b/packages/room-core/src/display-name.ts
-index 273c561..08202bc 100644
+index 273c561..dda5ef4 100644
 --- a/packages/room-core/src/display-name.ts
 +++ b/packages/room-core/src/display-name.ts
 @@ -77,32 +77,48 @@ const CONTROL_CHARS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/g;
@@ -75,7 +79,7 @@ index 273c561..08202bc 100644
 + * 前置結合記号も、アラビア語の正当な組版に要る。
   */
 -const INVISIBLE_ALL = /\p{Default_Ignorable_Code_Point}/gu;
-+const INVISIBLE_SOURCE = "[\\p{Cc}\\p{Cf}\\p{Default_Ignorable_Code_Point}]";
++const INVISIBLE_SOURCE = "\\p{Default_Ignorable_Code_Point}";
 +
 +/** 第2層でだけ落とす不可視文字（ZWJ を含む）。見た目が同じものを同じ骨格へ寄せる。 */
 +const INVISIBLE_ALL = new RegExp(INVISIBLE_SOURCE, "gu");
@@ -169,15 +173,6 @@ index 273c561..08202bc 100644
   *
   * **最後にもう一度 NFKC を掛けるのは冪等性のためである**（#284 の 2 巡目）。
   * 1 の NFKC の後に 2・3 で文字を抜くと、**そこで初めて隣り合った組み合わせの合成が
-@@ -247,7 +261,7 @@ function stripLabelMarkersOnce(input: string): string {
-  */
- export function normalizeDisplayName(raw: string): string {
-   return stripLabelMarkers(
--    raw.normalize("NFKC").replace(INVISIBLE_FORMAT, "").replace(CONTROL_CHARS, ""),
-+    raw.normalize("NFKC").replace(INVISIBLE_FORMAT, ""),
-   )
-     .replace(/\s+/g, " ")
-     .trim()
 @@ -281,7 +295,11 @@ export function nameSkeleton(name: string): string {
    const cached = skeletonCache.get(name);
    if (cached !== undefined) return cached;

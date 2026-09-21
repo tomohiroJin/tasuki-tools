@@ -1,15 +1,18 @@
-# 変異 4: display-name-control-chars
+# 変異 54: renders-as-nothing-length-only
+#
+# 字面の無い表示名の判定を長さだけに戻す。ZWJ や U+FE0F 1 文字の名前が通り、
+# 名簿に何も見えない行が並ぶ。
 #
 # 検出を期待するテスト:
 #   - packages/room-core/tests/display-name.test.ts
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m04-*.patch
+#       git apply scripts/mutations/m54-renders-as-nothing-length-only.patch
 #       (diff のパスはリポジトリルート起点。mutation-check.mjs もリポジトリルートで実行する)
 # 復元: git checkout -- <対象ファイル>（同じくリポジトリルートから）
 #
 diff --git a/packages/room-core/src/display-name.ts b/packages/room-core/src/display-name.ts
-index 273c561..08202bc 100644
+index 273c561..aaadb0f 100644
 --- a/packages/room-core/src/display-name.ts
 +++ b/packages/room-core/src/display-name.ts
 @@ -77,32 +77,48 @@ const CONTROL_CHARS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/g;
@@ -169,15 +172,6 @@ index 273c561..08202bc 100644
   *
   * **最後にもう一度 NFKC を掛けるのは冪等性のためである**（#284 の 2 巡目）。
   * 1 の NFKC の後に 2・3 で文字を抜くと、**そこで初めて隣り合った組み合わせの合成が
-@@ -247,7 +261,7 @@ function stripLabelMarkersOnce(input: string): string {
-  */
- export function normalizeDisplayName(raw: string): string {
-   return stripLabelMarkers(
--    raw.normalize("NFKC").replace(INVISIBLE_FORMAT, "").replace(CONTROL_CHARS, ""),
-+    raw.normalize("NFKC").replace(INVISIBLE_FORMAT, ""),
-   )
-     .replace(/\s+/g, " ")
-     .trim()
 @@ -281,7 +295,11 @@ export function nameSkeleton(name: string): string {
    const cached = skeletonCache.get(name);
    if (cached !== undefined) return cached;
@@ -206,7 +200,7 @@ index 273c561..08202bc 100644
 + * 片方だけに置くと「玄関は弾くのにサーバーは通す」帯ができる。
 + */
 +export function rendersAsNothing(name: string): boolean {
-+  return name.replace(INVISIBLE_ALL, "").trim() === "";
++  return name.trim() === "";
 +}
 +
  /**
