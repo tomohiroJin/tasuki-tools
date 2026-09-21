@@ -192,6 +192,23 @@ describe("読み込みが終わらないときの行き止まり（#292・EARS 1
     expect(vi.getTimerCount()).toBe(pending - 1);
   });
 
+  /**
+   * セッション喪失も畳む必要がある局面だが、**画面からは区別できない** ——
+   * `App` は `sessionLost` を先に見て `SessionLost` を描くので、印が立っても
+   * `Loading` は出ない。ここも残っているタイマーの数で測る。
+   */
+  it("セッションを失ったら期限のタイマーそのものが消える（実測）", () => {
+    // Given
+    const ws = openRoomAwaitingSnapshot();
+    const pending = vi.getTimerCount();
+
+    // When: 入ろうとしたルームがもう無い
+    sendServer(ws, { type: "error", code: "ROOM_NOT_FOUND", message: "gone" });
+
+    // Then: ちょうど 1 本（期限）減る
+    expect(vi.getTimerCount()).toBe(pending - 1);
+  });
+
   it("退出が成立したら、去った後に行き止まりが出ない（畳み忘れ）", () => {
     // Given: room.join を送った直後に、自己退出が成立した
     const ws = openRoomAwaitingSnapshot();
