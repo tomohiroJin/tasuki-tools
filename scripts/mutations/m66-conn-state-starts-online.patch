@@ -1,0 +1,22 @@
+# 変異 66: conn-state-starts-online
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/ui/App.loading-timeout.test.tsx
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m66-*.patch
+# 復元: git checkout -- <対象ファイル>
+#
+diff --git a/apps/timer-web/src/sync/use-timer-sync.ts b/apps/timer-web/src/sync/use-timer-sync.ts
+index 2f6ba06..0c8b809 100644
+--- a/apps/timer-web/src/sync/use-timer-sync.ts
++++ b/apps/timer-web/src/sync/use-timer-sync.ts
+@@ -210,7 +210,7 @@ export function useTimerSync(banner: BannerController): TimerSync {
+   // **初期値は `connecting`**（#292 のレビュー）。通知が来るのは `onopen` と `onclose`
+   // だけで、確立前は何も来ない —— `online` から始めると、繋がっていないのに
+   // 「接続中」と断言する（`ui/connection-status.ts` の注記）。
+-  const [connState, setConnState] = useState<ClientConnState>("connecting");
++  const [connState, setConnState] = useState<ClientConnState>("online");
+   // 契約に合わない同期フレームを捨てて以降、新しい状態を受け取れていない（#209）。
+   // 立てるのは棄却時、下ろすのは**有効な snapshot を受け取ったとき**だけ（下の注記）。
+   const [syncStale, setSyncStale] = useState(false);

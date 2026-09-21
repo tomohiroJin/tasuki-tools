@@ -738,6 +738,53 @@ export const MUTATIONS = [
       "「表示が出ないこと」を見るアサーションでは**畳んでも畳まなくても緑になる**ため、" +
       "検出しているのは残っているタイマーの数そのものを測るテストである。",
   },
+  {
+    id: 65,
+    label: "混雑の入り直しを使い切っても待ち続ける（諦めのバナーの下で読み込み中が残る）",
+    patch: "m65-join-retry-exhausted-keeps-waiting.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/App.loading-timeout.test.tsx"],
+    note:
+      "#292 のレビュー。使い切りの枝は**送信せずに `return` する**ので、" +
+      "期限を張り直す相手が居ない。印を立てないと、諦めのバナー（`autoDismiss: false`）の下で" +
+      "本文が「読み込んでいます…」と言い続け、**次にできることが出ない**。" +
+      "⚠ 期限の発火を待つ形では直らない —— **張られていないものは切れない。**",
+  },
+  {
+    id: 66,
+    label: "接続状態の初期値を online へ戻す（繋がる前から接続中と断言する）",
+    patch: "m66-conn-state-starts-online.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/App.loading-timeout.test.tsx"],
+    note:
+      "#292 のレビュー。`SyncConnection` が通知するのは `onopen` と `onclose` だけで、" +
+      "**確立前は何も来ない**。ソケットが `CONNECTING` のまま滞留する状況（中間装置が " +
+      "SYN を落とす・キャプティブポータル）で、行き止まりの横に「接続中」が並ぶ —— " +
+      "接続状態を読める場所を足した目的と逆向きになる。",
+  },
+  {
+    id: 67,
+    label: "再読み込みを置き換え遷移で代用する（# を持つ URL で効かない）",
+    patch: "m67-reload-via-replace.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/App.loading-timeout.test.tsx"],
+    note:
+      "#292 のレビュー。`location.replace()` はフラグメントだけが違う URL への遷移を" +
+      "**同一文書内のスクロール**として扱うため、`#` があると再読み込みが起きない。" +
+      "いま timer に `#` を作る経路は無いが、**行き止まりの唯一の主操作がこの一行に乗る。**",
+  },
+  {
+    id: 68,
+    label: "入り直しの時刻に復帰の組が無くても待ち続ける（送れないまま読み込み中が残る）",
+    patch: "m68-resume-missing-keeps-waiting.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/App.loading-timeout.test.tsx"],
+    note:
+      "#292 のレビュー。m65 と同じ穴のもう 1 つの枝。**別タブが同じルームの復帰の組を" +
+      "捨てた場合**（鍵は `localStorage`・ルームコード別）に成立し、送信が無いので" +
+      "期限も張られない。2 つの枝を別の変異にしてあるのは、片方だけ直しても" +
+      "もう片方が残るためである。",
+  },
 ];
 
 /**
