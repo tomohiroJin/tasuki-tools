@@ -200,6 +200,18 @@ describe("RosterPanel 代理追加の同名拒否（#291）", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
+  it("前後の空白は落として送る", () => {
+    // Given（変異検査で分かった穴。`proxyName.trim()` を素の `proxyName` へ戻しても
+    //        既存のどのテストも赤くならなかった。判定側は `normalizeDisplayName` が
+    //        空白を畳むので気づけず、**送る値だけ**が静かに変わる）
+    const onAddProxy = vi.fn();
+    render(<RosterPanel {...baseProps} participants={participants} onAddProxy={onAddProxy} />);
+    // When
+    addProxy("  Dave  ");
+    // Then
+    expect(onAddProxy).toHaveBeenCalledWith("Dave");
+  });
+
   it("名前を打ち直すと理由は消える（直したのに赤いままにしない）", () => {
     // Given（一度拒まれた状態）
     render(<RosterPanel {...baseProps} participants={participants} onAddProxy={vi.fn()} />);
