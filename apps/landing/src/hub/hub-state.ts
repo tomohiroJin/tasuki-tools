@@ -35,9 +35,17 @@ export interface HubScreenInput {
    * 生死を尋ねる（`use-hub-sync.ts`）。組を持つ人は `room.join` の答えで同じ印が立つ。
    */
   readonly gone: boolean;
+  /**
+   * 退出の告知（`?left=`）を持って来たか（#290・D4）。
+   *
+   * **`gone` の意味を変える。** 死んだ招待 URL で来た人には不在が必要な報せだが、
+   * この人は「たったいま自分が抜けて、その結果この部屋が消えた」人である。
+   * 不在だけを告げると、自分で押した操作の結果なのに何かが壊れたように読める。
+   */
+  readonly departed: boolean;
 }
 
-export function screenFor({ code, joined, resuming, gone }: HubScreenInput): HubScreen {
+export function screenFor({ code, joined, resuming, gone, departed }: HubScreenInput): HubScreen {
   // **ルームコードが無ければ、参加済みでも作成へ戻す。** どのルームを映すか決まらない
   // （参加用 URL から room だけ消された場合にここへ来る）。
   if (code === null) return 'create';
@@ -47,7 +55,10 @@ export function screenFor({ code, joined, resuming, gone }: HubScreenInput): Hub
   //
   // **`resuming` より前に見る。** 復帰の返事が `ROOM_NOT_FOUND` だった人は、
   // 待ちが降りる前にここへ来る。後ろに置くと読み込み中の表示から抜けられない。
-  if (gone) return 'gone';
+  // **`?left=` を持つ人は作成画面へ。** 退出の告知がその不在の説明になっているので、
+  // 「ルームが見つかりません／URL が正しくない可能性があります」を重ねない（#290・D4）。
+  // 告知を持たない人（死んだ招待 URL）は従来どおり不在の知らせである（#274）。
+  if (gone) return departed ? 'create' : 'gone';
   // 復帰の返事を待っている間は名乗らせない。**待ちが終われば必ずどちらかへ落ちる** ——
   // 返事が来れば `joined`、来なければ（同一性が無い・合言葉が要る）
   // `resuming` が降りて参加画面になる（`use-hub-sync.ts` を参照）。
