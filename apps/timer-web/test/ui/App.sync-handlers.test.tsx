@@ -120,7 +120,7 @@ describe("SyncClient コールバックが最新の state を読む経路（Issu
       room: aRoomView({ code: "ROOM01", participants: [participant(CREATOR_ID, "Creator")] }),
     });
 
-    // When: 他の参加者に退出させられた（destination: "join"）
+    // When: 他の参加者に退出させられた（reason: "removed"）
     sendServer(ws, { type: "error", code: "REMOVED_BY_HOST", message: "removed" });
 
     // Then その1: 玄関のそのルームへ送られ、直前のルームコード（room?.code から解決）が

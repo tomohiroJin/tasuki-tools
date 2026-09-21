@@ -19,7 +19,9 @@
 /** 退出の理由を運ぶクエリの名前。 */
 export const DEPARTURE_PARAM = "left";
 
-/** 退出の理由。`error-action.ts` の `destination` と 1 対 1 に対応する。 */
+/** 退出の理由。`error-action.ts` の `errorAction()` が返す `leave-room` の `reason` と
+ * 1 対 1 に対応する。**行き先はこの理由では分岐しない**（#290・D3）——
+ * ルームがまだ在るかを判断するのは玄関であって、退出した本人ではない。 */
 export type DepartureReason = "self" | "removed";
 
 /** 玄関が受け取った値を理由へ直す。知らない値は null（告知を出さない）。 */

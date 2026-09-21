@@ -11,16 +11,16 @@ describe("errorAction", () => {
     expect(errorAction("ROOM_NOT_FOUND")).toEqual({ kind: "session-lost" });
   });
 
-  it("LEFT_ROOM は入口画面へ戻す退出動作を示す", () => {
-    expect(errorAction("LEFT_ROOM")).toEqual({ kind: "leave-room", destination: "setup" });
+  it("LEFT_ROOM は自分で抜けた退出動作を示す", () => {
+    expect(errorAction("LEFT_ROOM")).toEqual({ kind: "leave-room", reason: "self" });
   });
 
-  it("REMOVED_FROM_ROOM は参加画面へ戻す退出動作を示す", () => {
-    expect(errorAction("REMOVED_FROM_ROOM")).toEqual({ kind: "leave-room", destination: "join" });
+  it("REMOVED_FROM_ROOM は外された退出動作を示す", () => {
+    expect(errorAction("REMOVED_FROM_ROOM")).toEqual({ kind: "leave-room", reason: "removed" });
   });
 
-  it("REMOVED_BY_HOST は参加画面へ戻す退出動作を示す", () => {
-    expect(errorAction("REMOVED_BY_HOST")).toEqual({ kind: "leave-room", destination: "join" });
+  it("REMOVED_BY_HOST は外された退出動作を示す", () => {
+    expect(errorAction("REMOVED_BY_HOST")).toEqual({ kind: "leave-room", reason: "removed" });
   });
 
   it("JOIN_RATE_LIMITED は待ってから入り直す動作を示す", () => {

@@ -478,8 +478,8 @@ export function useTimerSync(banner: BannerController): TimerSync {
       }
       case "leave-room": {
         // 退出が成立した本人を取り残さない（自己退出＝LEFT_ROOM／他者に退出させられた＝
-        // REMOVED_FROM_ROOM・REMOVED_BY_HOST）。後始末は行き先によらず共通で、
-        // 違うのは玄関へ渡す理由（`?left=`）と行き先だけ（Issue #32・FR-127/128）。
+        // REMOVED_FROM_ROOM・REMOVED_BY_HOST）。後始末も行き先も離れ方で分けない
+        // （#290・D3）。違うのは玄関へ渡す理由（`?left=`）だけである（Issue #32・FR-127/128）。
         // **ここで `friendlyError` は呼ばない** —— 文言は玄関が引く（下の注記）。
         // 退室が成立した以上、待機中の再試行も畳む（#147）。残すと、抜けたはずの
         // ルームへ入り直そうとする送信が、玄関へ去るまでの間に走る。
@@ -517,22 +517,12 @@ export function useTimerSync(banner: BannerController): TimerSync {
         // 外されたと分からずに再参加してまた外される（Issue #32 が塞いだ問題の再発）。
         // 理由だけを URL に載せて運び、文言は玄関側が `@tasuki/room-core` から引く。
         //
-        // **行き先は玄関（ハブ）である**（#95 S5c・R9）。旧入口（`Setup` / `Join`）を
-        // 撤去したので、timer の中に「ルームの外」の画面はもう無い。`destination` の値は
-        // そのまま使い、URL へ写すだけにする（判定は `error-action.ts` の 1 箇所に保つ）。
-        //
-        // **どちらも `replace` で送る**（FR-127 / US2-2）。押した URL には `?room=` が
-        // 残っており、履歴に積むと戻るボタン 1 回で抜けたはずのルームへ復帰してしまう。
         setMode(null);
-        if (action.destination === "join") {
-          // 他者に外された。直前のルームコードがあれば玄関の参加画面へ引き継ぐ
-          // （再参加しやすくする・`docs/timer/ARCHITECTURE.md` の退出の表）。
-          redirectTo(hubRoomPath(removedFrom ?? null, "removed"));
-        } else {
-          // destination === "setup": 自分で抜けた。直前ルームへの手がかりを持ち越さない
-          // ので、`?room=` を落とした玄関そのものへ送る。
-          redirectTo(hubRoomPath(null, "self"));
-        }
+        // **行き先は離れ方で分けない**（#290・D3）。ルームがまだ在るかを知っているのは
+        // 玄関（サーバーへ尋ねる・#274）であって、抜けた本人ではない。コードを運び、
+        // 判断は玄関へ委ねる。**コードを失っている場合は `hubRoomPath` が `?room=` を
+        // 落とす** —— 存在しないコードを載せると、退出の告知より不在が前に出る。
+        redirectTo(hubRoomPath(removedFrom ?? null, action.reason));
         return;
       }
       case "retry-later": {
