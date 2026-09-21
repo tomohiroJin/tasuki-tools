@@ -276,7 +276,12 @@ argv・ログ・snapshot に混入させません。失敗（タイムアウト�
   **BYOK 一式（`byok.ts` / `key-storage.ts` / `AiSettingsModal.tsx`）は Issue #28 で撤去した。**
   「将来の再有効化に備えて残置」という休眠コードは持たない（US1・FR-087）。
 - `records/`: IndexedDB 永続化（`indexeddb.ts`）と完成記録の組み立て（`persist.ts`）。
-- `ui/`: 画面（Lobby / Session / Summary / History / SessionLost）。`screenForPhase` で `room.phase` に追従。
+- `ui/`: 画面（Lobby / Session / Summary / History / SessionLost / Loading）。`screenForPhase` で `room.phase` に追従。
+  `Loading` だけは `room.phase` に対応せず、**ルームの画面がまだ決まっていない間**（`mode === null`）の
+  受け皿です。ここは `StatusStrip` が描かれないので、**接続状態を出すのも `Loading` の役目**です。
+  さらに `room.join` の答えには期限があり（`sync/use-timer-sync.ts` の `JOIN_RESPONSE_DEADLINE_MS`）、
+  切れたら次にできること（再読み込み・玄関へ戻る）を示します —— 繋がっているのに
+  サーバーが答えない場合、それが無いと無言で永久に待つことになります（#292）。
   **ルームの作成と名乗りの画面はここにありません** —— 玄関（`apps/landing`）に 1 つだけ置き、
   timer は URL（`?room=` / `?view=history`）とその端末に保存された同一性からしか入りません
   （#95 S5c・R9。`Setup.tsx` / `Join.tsx` と `room-param.ts` は同じ段で撤去しました）。

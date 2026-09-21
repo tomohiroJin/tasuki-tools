@@ -151,19 +151,24 @@ describe("捨てた同期フレームを画面で伝える", () => {
    * 有効な `snapshot` だけなので **StatusStrip はまだ描画されておらず**、
    * 補わないと利用者には「ボタンが効かない」としか見えない。
    */
-  it("ルームに入る前に捨てたときは、表示する場所が無いのでバナーで伝える", () => {
+  it("ルームに入る前に捨てたときは、StatusStrip が無いのでバナーで伝える", () => {
     // Given: 玄関で名乗った端末としてルームを開く操作までは成立している
     const ws = enterRoomAndConnect({ participantId: CREATOR_ID });
     sendServer(ws, { type: "room.joined", resumeToken: "rt", participantId: CREATOR_ID });
 
-    // Given の確認: StatusStrip はまだ出ていない（出す場所が無い）
-    expect(screen.queryByLabelText("接続状態")).toBeNull();
+    // Given の確認: StatusStrip はまだ出ていない（`mode` を動かすのは有効な snapshot だけ）。
+    // **接続状態そのものは #292 で読めるようになった**（`Loading` が出す）ので、
+    // 「接続状態」の領域ではなく**帯そのもの**の不在で確かめる。
+    expect(screen.queryByLabelText("ステータス情報")).toBeNull();
 
     // When: 最初の snapshot が契約に合わず捨てられる
     sendServer(ws, aFrameThatViolatesTheContract());
 
-    // Then: 何が起きているかが画面から分かる
-    expect(screen.getByText(/同期できていません/)).toBeInTheDocument();
+    // Then: 何が起きているかが画面から分かる。
+    // **バナーを名指しで見る** —— `Loading` の接続状態も「同期できていません」と出すため、
+    // その 5 文字だけを見ると帯の側に当たって「通っていないのに緑」になりうる。
+    // バナーだけが持つのは「先へ進めない」という帰結のほうである。
+    expect(screen.getByText(/先へ進めません/)).toBeInTheDocument();
   });
 
   it("ルームに入れたらそのバナーは消える", () => {
@@ -171,13 +176,13 @@ describe("捨てた同期フレームを画面で伝える", () => {
     const ws = enterRoomAndConnect({ participantId: CREATOR_ID });
     sendServer(ws, { type: "room.joined", resumeToken: "rt", participantId: CREATOR_ID });
     sendServer(ws, aFrameThatViolatesTheContract());
-    expect(screen.getByText(/同期できていません/)).toBeInTheDocument();
+    expect(screen.getByText(/先へ進めません/)).toBeInTheDocument();
 
     // When
     sendServer(ws, aValidSnapshot());
 
     // Then（StatusStrip が出る場所へ移ったので、バナーは役目を終える）
-    expect(screen.getByLabelText("接続状態")).toBeInTheDocument();
-    expect(screen.queryByText(/同期できていません/)).toBeNull();
+    expect(screen.getByLabelText("ステータス情報")).toBeInTheDocument();
+    expect(screen.queryByText(/先へ進めません/)).toBeNull();
   });
 });
