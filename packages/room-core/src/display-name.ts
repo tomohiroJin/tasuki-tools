@@ -88,8 +88,21 @@ const CONTROL_CHARS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/g;
  */
 const INVISIBLE_FORMAT = /[\u200b\u200c\u202a-\u202e\u2060-\u2064\u2066-\u2069\ufeff\u180e]/g;
 
-/** 第2層でだけ落とす不可視文字（ZWJ を含む）。見た目が同じものを同じ骨格へ寄せる。 */
-const INVISIBLE_ALL = /[\u200b-\u200f\u2060-\u2064\u202a-\u202e\ufeff\u180e]/g;
+/**
+ * 第2層でだけ落とす不可視文字（ZWJ を含む）。見た目が同じものを同じ骨格へ寄せる。
+ *
+ * **列挙をやめて性質で指す**（#284 の 2 巡目）。個別に挙げていたときは
+ * U+00AD・U+034F・U+FE00–U+FE0F（字形選択）・U+115F / U+1160 / U+3164（ハングル填字）・
+ * U+E0000–U+E01EF（タグ）などが漏れており、**画面では `Bob` と 1 ピクセルも違わない
+ * `Bob + U+00AD` が別の骨格になっていた** —— 曖昧判定が発火せず、識別子も添えられない
+ * まま見分けの付かない行が並ぶ。総当たりで **541 件**あり、全部がこの性質を持っていた
+ * （`tests/display-name.test.ts` の反証探索が毎回数え直す）。
+ *
+ * **落とすのは比較のときだけである。** 第1層（{@link INVISIBLE_FORMAT}）へ足しては
+ * いけない —— U+FE0F は絵文字の見せ方を決める字形選択子で、保存する値から落とすと
+ * `❤️` が `❤` になる。
+ */
+const INVISIBLE_ALL = /\p{Default_Ignorable_Code_Point}/gu;
 
 /**
  * 見た目がラテン文字と紛らわしい文字の対応表（キリル・ギリシャ）。
@@ -118,6 +131,20 @@ const CONFUSABLES: ReadonlyMap<string, string> = new Map([
 const MAX_STRIP_PASSES = 20;
 
 /**
+ * **描画時に無視される文字**（#284 の 2 巡目）。照合のためだけに伏せる。
+ *
+ * **列挙しない。** Unicode の `Default_Ignorable_Code_Point` をそのまま使う ——
+ * 「画面に何も出ない文字」の定義そのものであり、版が上がれば追随する
+ * （`docs/` の「列挙は腐る。機構で指す」）。総当たり（BMP 全域 ＋ タグ・字形選択の面）で
+ * 見出しを割れたコードポイントは **544 件あり、その全部がこの性質を持っていた**
+ * （`tests/display-name.test.ts` の反証探索が毎回数え直す）。
+ *
+ * 個別に挙げていた頃に取り逃がしていた例: ZWJ (U+200D)・U+00AD・U+034F・
+ * U+FE0E / U+FE0F・U+115F / U+1160 / U+3164（ハングル填字）・U+E0000–U+E01EF。
+ */
+const IGNORABLE_WHEN_RENDERED = /\p{Default_Ignorable_Code_Point}/u;
+
+/**
  * ラベル書式を、**変化がなくなるまで**剥がす。
  *
  * 1回だけだと、剥がした結果が再びラベルの形になる入力を取り逃がす。
@@ -129,11 +156,63 @@ const MAX_STRIP_PASSES = 20;
 function stripLabelMarkers(input: string): string {
   let current = input;
   for (let i = 0; i < MAX_STRIP_PASSES; i++) {
-    const next = current.replace(LABEL_MARKER, "");
+    const next = stripLabelMarkersOnce(current);
     if (next === current) return current;
     current = next;
   }
   return current;
+}
+
+/**
+ * ラベル書式を 1 巡ぶん剥がす。**照合は「目に映る姿」に対して行う。**
+ *
+ * 見出し（`(ID:`）の内側に**描画時に無視される文字**を 1 つ挟むだけで書式の照合が
+ * 外れる。そのまま通すと、画面では実在の参加者のラベルと**1 ピクセルも違わない**
+ * 文字列を名乗れてしまう（`participant-label.ts` が生成する `（ID: xxxx）`）。
+ * しかも第 2 層（`nameSkeleton`）は攻撃者を `"bob(id: rqdk)"`、被害者を `"bob"` と
+ * 算出するので**曖昧判定も発火しない** —— 実測で確かめてある。
+ *
+ * **落とすのは照合のときだけで、出力には残す。** 単純に消すと ZWJ が巻き添えになり、
+ * 家族絵文字が 3 つに分解される（{@link INVISIBLE_FORMAT} が ZWJ を残す理由）。
+ * そこで「無視される文字を伏せた写し」で位置を見つけ、**元の文字列の対応する範囲**を
+ * 削る。範囲の中に居る無視される文字だけが一緒に消え、ラベルの外の ZWJ は残る。
+ */
+function stripLabelMarkersOnce(input: string): string {
+  /** 照合用の写し。 */
+  let view = "";
+  /** 写しの各 UTF-16 単位が、元の文字列のどこから来たか（開始と終端）。 */
+  const from: number[] = [];
+  const to: number[] = [];
+
+  let at = 0;
+  for (const ch of input) {
+    if (!IGNORABLE_WHEN_RENDERED.test(ch)) {
+      for (let k = 0; k < ch.length; k++) {
+        view += ch[k];
+        from.push(at);
+        to.push(at + ch.length);
+      }
+    }
+    at += ch.length;
+  }
+
+  LABEL_MARKER.lastIndex = 0;
+  let out = "";
+  /** 元の文字列のうち、ここまでを出力済み。 */
+  let copied = 0;
+  let match: RegExpExecArray | null;
+  while ((match = LABEL_MARKER.exec(view)) !== null) {
+    // 空マッチは起こらない書式だが、起きれば無限ループになるので進めておく。
+    if (match[0].length === 0) {
+      LABEL_MARKER.lastIndex += 1;
+      continue;
+    }
+    const start = from[match.index]!;
+    const end = to[match.index + match[0].length - 1]!;
+    out += input.slice(copied, start);
+    copied = end;
+  }
+  return out + input.slice(copied);
 }
 
 /**
@@ -147,18 +226,21 @@ function stripLabelMarkers(input: string): string {
  * 5. 連続する空白（改行・タブ・全角空白を含む）を1つの半角空白に畳む
  * 6. 前後の空白を落とす
  *
- * **見えない文字は、書式を照合する前にすべて落とす**（#284 で 3 と 4 を入れ替えた）。
- * 剥がしが先だと、`（I` と `D:` の間に制御文字を 1 つ挟むだけで書式の照合が外れ、
- * そのあと 3 が制御文字だけを落として **`(ID: rqdK)` が完成する**。実測で
- * `"Bob（I\u0008D: rqdK）"` と `"Bob（ID\u007f: rqdK）"` が素通りしていた ——
- * `<scr<script>ipt>` 型のすり抜けで、しかも**剥がしの繰り返し（20 パス）では防げない**
- * （1 パス目で「変化なし」と判定されて抜けるため）。境界は正規化を 1 度しか
- * 掛けないので、この値はそのまま保存・配信される。
+ * **制御文字は書式を照合する前に落とす**（#284 で 3 と 4 を入れ替えた）。剥がしが
+ * 先だと、`（I` と `D:` の間に制御文字を 1 つ挟むだけで書式の照合が外れ、そのあと
+ * 制御文字だけが落ちて **`(ID: rqdK)` が完成する**。`<scr<script>ipt>` 型のすり抜けで、
+ * **剥がしの繰り返し（20 パス）では防げない**（1 パス目で「変化なし」と判定して抜ける）。
  *
- * この順序は**冪等性の根拠でもある**。出てきた値にはもう不可視文字も制御文字も
- * ラベル書式も無く、NFKC も空白の畳みも冪等なので、2 度掛けても変わらない
- * （`tests/display-name.test.ts` の「冪等である」が見張る）。**入れ替える前は
- * 冪等ではなかった** —— 上の例は 1 度目で `"Bob(ID: rqdK)"`、2 度目で `"Bob"` になる。
+ * **落とさずに残す文字（ZWJ など）でも同じ割り方ができる。** そちらは消すと絵文字の
+ * 連結が壊れるので、{@link stripLabelMarkersOnce} が**照合のときだけ伏せる**。
+ * 総当たりで見つかった抜け道は 544 件あり、全部がこの 2 つのどちらかで塞がる。
+ *
+ * **最後にもう一度 NFKC を掛けるのは冪等性のためである**（#284 の 2 巡目）。
+ * 1 の NFKC の後に 2・3 で文字を抜くと、**そこで初めて隣り合った組み合わせの合成が
+ * 解禁される** —— `"A" + U+200B + U+030A` は 1 度目が `"A" + U+030A`（分解形）、
+ * 2 度目が `"\u00c5"`（合成形）だった。この 1 行が無いと「1 度掛ければ正規形」という
+ * 前提が崩れ、掛けた回数で答えが変わる。**手で選んだ入力では気づけない** ので、
+ * `tests/display-name.test.ts` の反証探索が生成した入力で 2 度掛けを突き合わせる。
  *
  * 結果が空文字になることがある（`"   "` など）。**空の可否は呼び出し側で判定する**
  * （境界スキーマは正規化後に最小長を課して弾く）。
@@ -168,7 +250,8 @@ export function normalizeDisplayName(raw: string): string {
     raw.normalize("NFKC").replace(INVISIBLE_FORMAT, "").replace(CONTROL_CHARS, ""),
   )
     .replace(/\s+/g, " ")
-    .trim();
+    .trim()
+    .normalize("NFKC");
 }
 
 /**

@@ -119,32 +119,6 @@ describe("normalizeDisplayName（防御の迂回に対する回帰）", () => {
     expect(normalizeDisplayName("Bob（\u001bID: rqdK）")).toBe("Bob");
   });
 
-  /**
-   * 正規化は**冪等**である（#284）。
-   *
-   * 1 度通した値をもう 1 度通しても変わらない。崩れると、同じ保存値でも**掛けた回数で
-   * 答えが変わる** —— 玄関は描画のたびに読み直しうるし、`StrictMode` の下と本番でも
-   * 回数が違う。「1 度掛ければ正規形」という前提は、これを名乗る側の全員が置いている。
-   */
-  it("冪等である（2 度掛けても変わらない）", () => {
-    // Given（準備）: 剥がし・制御文字・不可視・空白の畳みが同時に効く入力
-    const inputs = [
-      "Bob（I\u0008D: rqdK）",
-      "Bob（ID\u007f: rqdK）",
-      "Bob（（ID: x）ID: rqdK）",
-      "Bob" + ZWSP,
-      "  Bob\n\tSmith  ",
-      "Ｂｏｂ（ＩＤ：rqdK）",
-      "Bob (guest)",
-    ];
-
-    // When / Then（操作）
-    for (const input of inputs) {
-      const once = normalizeDisplayName(input);
-      expect(normalizeDisplayName(once), input).toBe(once);
-    }
-  });
-
   it("剥がした結果はすべて素の名前に一致する（同名として識別子が付けられる）", () => {
     // Given
     const attacks = [
@@ -284,5 +258,172 @@ describe("conflictsWithExisting", () => {
 
   it("\u7a7a\u914d\u5217\u306a\u3089\u5e38\u306b\u885d\u7a81\u3057\u306a\u3044", () => {
     expect(conflictsWithExisting([], "Bob")).toBe(false);
+  });
+});
+
+/**
+ * なりすましの反証探索（#284 の 2 巡目）。**列挙して満足せず、総当たりで数え直す。**
+ *
+ * 1 巡目は「制御文字を先に落とせば塞がる」と手で選んだ入力だけで確かめ、**544 件の
+ * 抜け道を残したまま「塞いだ」と報告した**。手で選ぶ限り、選ばなかった文字は
+ * いつまでも見つからない。ここでは判定基準を実装から独立させ、**入力の側を機械が作る**。
+ *
+ * 判定基準は「**目に映る姿**」である —— 出力から描画時に無視される文字を落とし、
+ * それでも見出しの形が残っていれば、画面では実在参加者のラベルと見分けが付かない。
+ */
+describe("なりすましの反証探索（#284）", () => {
+  /** 見出しの形。**実装とは別に書く**（実装の綴りが誤っていても気づけるように）。 */
+  const LOOKS_LIKE_LABEL = /[（(]\s*ID\s*[:：]/iu;
+  /** 目に映る姿（描画時に無視される文字を伏せる）。 */
+  const asSeen = (value: string): string =>
+    value.replace(/\p{Default_Ignorable_Code_Point}/gu, "");
+
+  /** 走査するコードポイント: BMP 全域 ＋ タグ・字形選択の面。 */
+  function* codePoints(): Generator<number> {
+    for (let cp = 0; cp <= 0xffff; cp++) {
+      if (cp >= 0xd800 && cp <= 0xdfff) continue; // サロゲート単体は文字ではない
+      yield cp;
+    }
+    for (let cp = 0xe0000; cp <= 0xe01ef; cp++) yield cp;
+  }
+
+  it("見出しを割れるコードポイントは 1 つも無い（BMP 全域 ＋ タグ・字形選択の面）", () => {
+    // Given（準備）: 1 文字を見出しの内側・前後へ挟む
+    const inject = (c: string): string[] => [
+      `Bob(I${c}D: rqdK)`,
+      `Bob(${c}ID: rqdK)`,
+      `Bob(ID${c}: rqdK)`,
+      `Bob(ID:${c} rqdK)`,
+      `Bob(I${c}${c}D: rqdK)`,
+      `Bob（I${c}D: rqdK）`,
+    ];
+
+    // When（操作）: 総当たり
+    const bypass: string[] = [];
+    for (const cp of codePoints()) {
+      const ch = String.fromCodePoint(cp);
+      for (const input of inject(ch)) {
+        if (LOOKS_LIKE_LABEL.test(asSeen(normalizeDisplayName(input)))) {
+          bypass.push("U+" + cp.toString(16).toUpperCase().padStart(4, "0"));
+          break;
+        }
+      }
+    }
+
+    // Then: 直す前は 544 件（ZWJ・U+00AD・U+034F・字形選択・ハングル填字・タグ面）
+    expect(bypass.join(" ")).toBe("");
+  });
+
+  it("見た目が同じなのに骨格が割れるコードポイントは 1 つも無い", () => {
+    // Given（準備）: 第 2 層が寄せそこねると、曖昧判定が発火せず識別子も付かない
+    const victim = nameSkeleton(normalizeDisplayName("Bob"));
+
+    // When（操作）
+    const split: string[] = [];
+    for (const cp of codePoints()) {
+      const ch = String.fromCodePoint(cp);
+      for (const raw of [`Bob${ch}`, `Bo${ch}b`, `${ch}Bob`]) {
+        const out = normalizeDisplayName(raw);
+        if (asSeen(out) === "Bob" && nameSkeleton(out) !== victim) {
+          split.push("U+" + cp.toString(16).toUpperCase().padStart(4, "0"));
+          break;
+        }
+      }
+    }
+
+    // Then: 直す前は 541 件
+    expect(split.join(" ")).toBe("");
+  });
+
+  it("ZWJ はラベルの外では残る（絵文字の連結を壊さない）", () => {
+    // Given（準備）: 照合のときだけ伏せる、という作りが効いているか
+    const ZWJ2 = "\u200d";
+    const family = "\u{1f468}" + ZWJ2 + "\u{1f469}" + ZWJ2 + "\u{1f467}";
+
+    // When / Then（操作）
+    expect(normalizeDisplayName(family), "家族絵文字だけ").toBe(family);
+    // **ラベルを付けても外側の ZWJ は生き残る**（単純に消す実装だと 3 つに分解される）
+    expect(normalizeDisplayName(family + "(ID: rqdK)"), "家族絵文字＋ラベル").toBe(family);
+    // ラベルの内側に居る ZWJ だけが、ラベルごと消える
+    expect(normalizeDisplayName("Bob(I" + ZWJ2 + "D: rqdK)"), "ラベル内の ZWJ").toBe("Bob");
+  });
+});
+
+/**
+ * 冪等性の反証探索（#284 の 2 巡目）。
+ *
+ * **手で選んだ入力で「冪等」と言ってはいけない。** 1 巡目はそれで 7 入力だけを通し、
+ * `"A" + U+200B + U+030A`（1 度目が分解形・2 度目が合成形）を取り逃がした。
+ * **不可視文字や制御文字を抜くと、そこで初めて隣り合った組み合わせの合成が解禁される。**
+ *
+ * ここでは語彙（結合記号・不可視・制御・空白・全角・ラベルの部品・絵文字）から入力を
+ * **生成して**2 度掛けを突き合わせる。種は固定してあるので、落ちたら必ず再現する。
+ */
+describe("冪等性の反証探索（#284）", () => {
+  /** 再現可能な擬似乱数（mulberry32）。 */
+  function rng(seed: number): () => number {
+    let a = seed >>> 0;
+    return () => {
+      a = (a + 0x6d2b79f5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  /** 正規化のどの段にも触る語彙。 */
+  const ALPHABET = [
+    "A", "a", "B", "o", "b", "か", "ｶ", "Ｂ", "O",
+    // 結合記号（前の文字と合成しうる）
+    "\u0300", "\u0301", "\u030a", "\u0308", "\u0327", "\u0653", "\u09be", "\u0f71",
+    // 描画時に無視される文字（抜けると合成が解禁される）
+    "\u200b", "\u200c", "\u200d", "\u00ad", "\u034f", "\u2060", "\ufeff",
+    "\ufe0f", "\ufe0e", "\u115f", "\u1160", "\u3164", "\u061c", "\u180e",
+    "\u{e0001}", "\u{e0100}",
+    // 双方向制御
+    "\u202a", "\u202e", "\u2066", "\u2069",
+    // 制御文字・空白
+    "\u0000", "\u0001", "\u001b", "\u007f", "\u009f", " ", "\t", "\n",
+    "\u3000", "\u00a0",
+    // ラベルの部品
+    "(", ")", "（", "）", "I", "D", ":", "：", "ID", "ＩＤ", "id",
+    // 互換分解・合成に効くもの
+    "\ufdfa", "\u2163", "ﬁ", "①", "㍿",
+    // 絵文字
+    "\u{1f468}", "\u{1f469}", "\u{1f467}", "\u{1f600}",
+  ];
+
+  it("生成した入力で 2 度掛けても変わらない", () => {
+    // Given（準備）
+    const next = rng(20260921);
+    const counterexamples: string[] = [];
+
+    // When（操作）
+    for (let i = 0; i < 50_000; i++) {
+      const len = 1 + Math.floor(next() * 8);
+      let s = "";
+      for (let k = 0; k < len; k++) s += ALPHABET[Math.floor(next() * ALPHABET.length)]!;
+      const once = normalizeDisplayName(s);
+      if (normalizeDisplayName(once) !== once) {
+        counterexamples.push(JSON.stringify(s) + " -> " + JSON.stringify(once));
+        if (counterexamples.length >= 5) break;
+      }
+    }
+
+    // Then
+    expect(counterexamples.join("\n")).toBe("");
+  });
+
+  it("不可視文字を抜くと合成が解禁される形（見つけた反例そのもの）", () => {
+    // Given（準備）: U+200B を落とすと A と U+030A が隣り合い、2 度目で合成されていた
+    const input = "A\u200b\u030a";
+
+    // When
+    const once = normalizeDisplayName(input);
+
+    // Then: 1 度で合成まで済む（末尾の NFKC が無いと "A" + U+030A で止まる）
+    expect(once).toBe("\u00c5");
+    expect(normalizeDisplayName(once)).toBe(once);
   });
 });
