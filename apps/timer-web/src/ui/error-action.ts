@@ -1,5 +1,7 @@
 /**
- * エラーコードを受けて画面が次に何をするかの決定（Issue #32・FR-127/FR-129）。
+ * エラーコードを受けて画面が次に何をするかの決定（Issue #32・FR-125/FR-129）。
+ *
+ * 行き先の決定（旧 FR-127）はここでは行わない（#290 で `use-timer-sync.ts` へ移管）。
  */
 
 import type { DepartureReason } from "@tasuki/room-core";

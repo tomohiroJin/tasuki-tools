@@ -1,6 +1,10 @@
 /**
  * エラーコード → 画面の次の動作マッピングのテスト
- * @requirements FR-127, FR-129, US1-4, US2-1, US2-2
+ * @requirements FR-125, FR-129
+ *
+ * 行き先の決定はここでは行わない（旧 FR-127・US2-1・US2-2。#290 で
+ * `use-timer-sync.ts` 側へ移管した）。`errorAction()` は `reason` を返すだけで、
+ * URL の組み立てはしない。
  */
 
 import { describe, it, expect } from "vitest";
