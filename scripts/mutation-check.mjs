@@ -1099,67 +1099,125 @@ export function formatRestoreFailureMessage(files, attempts) {
 }
 
 /**
- * 前回の実行が変異を適用したまま終了していた場合の復旧を判定する（recoverFromCrashedRun の判定部分）。
+ * 復元を再試行込みで実行し、**戻ったと確認できてから初めてマーカーを消す**。
+ * `restoreCurrentMutation`（通常サイクルの復元）と `recoverFromCrashedRun`
+ * （前回の異常終了からの復旧）の両方が、この 1 つの関数を通してマーカーを消す。
  *
- * `restoreCurrentMutation` と同じ `restoreWithRetry` を使う（**同じ処理を 2 つ持たない**）。
- * 実 I/O（checkout・戻ったかの確認・待機・マーカー消去・ログ出力）は呼び出し側が注入する。
+ * **なぜ 2 箇所から呼ぶ 1 つの関数にしたか。** 「検証してから消す」という規則を
+ * 最初は `recoverFromCrashedRun` 側の判定（旧 `decideCrashRecovery` 独自実装）
+ * にだけ入れ、`restoreCurrentMutation` の主経路（毎回の変異適用→復元）には
+ * 入れ忘れていた実績がある（レビューで指摘された）。あちらは
+ * `clearMarker()` が `currentlyAppliedFiles.length === 0` の判定より**前**にあり、
+ * 通常サイクルでも復元の成否に関わらずマーカーが先に消えていた。同じ規則を
+ * 2 箇所に別々に書くと、片方を直したときもう片方が古いまま取り残される
+ * （このリポジトリの記録にある「対策は自分が塞ぐ欠陥を持つ」そのもの）。
+ * ここで一本化し、二度目の取り残しを構造的に起こせなくする。
  *
- * **マーカーを消すタイミングは `restoreCurrentMutation` と意図的に違える。**
- * 向こうは「apply 自体が失敗して何も適用されていないのにマーカーだけ残った」場合を
- * 主眼に置いており、そのときは戻すものが無いので先に消してよい（そう先頭のコメントに
- * 書いてある）。一方こちらの `files` は**前回の実行が実際に git apply したことが
- * マーカーの存在そのもので分かっている**ため、復元を試みる前提がそもそも違う。
- * ここで検証前にマーカーを消すと、復元が失敗したときに「前回は異常終了して
- * 変異が残っている」という記録そのものが消え、次回の起動が復旧を試みなくなる
- * （`process.exit(1)` で人には見えても、状態としては失われる）。
- * そのため**戻ったことを確認できてから**しか消さない。戻らなければマーカーを残したまま
- * 致命的として終了し、次回の起動が同じ復旧を再試行できるようにする。
+ * `files.length === 0` のときだけ、検証を待たずにマーカーを消す。これは
+ * 「そもそも戻すものが無い」ケース（`restoreCurrentMutation` 側でいう、
+ * `git apply` 自体が失敗して何も適用されていない状態。マーカーは `git apply`
+ * の**前**に書くため、apply が失敗すると空の `currentlyAppliedFiles` と
+ * マーカーだけが残る。実際に m05 のパッチでこれが起きた）と、
+ * `recoverFromCrashedRun` 側でいう「マーカーの中身が壊れて空」のケースを兼ねる。
+ * どちらも戻す対象が無いので、検証する意味がない。
  *
- * @param {string[]} files - マーカーから読んだ、適用中だったはずのファイル一覧
+ * `files.length > 0` のときは、`restoreWithRetry` が「戻った」と確認できてから
+ * `clearMarkerFn` を呼ぶ。戻らなければマーカーは**残したまま**致命的な結果を返す。
+ * ここで消してしまうと、復元が失敗したときに「変異が製品コードに残っている」
+ * という唯一の記録が消え、次回の起動（`recoverFromCrashedRun`）が
+ * 復旧を試みなくなる（`process.exit(1)` で人には見えても、状態としては失われる）。
+ *
+ * @param {string[]} files
  * @param {object} io
  * @param {() => void} io.checkoutFn
  * @param {() => boolean} io.isRestoredFn
  * @param {(attempt: number) => void} io.waitFn
  * @param {() => void} io.clearMarkerFn - 戻ったこと（または戻すものが無いこと）が
  *   確認できたときだけ呼ばれる
- * @param {(msg: string) => void} [io.logFn]
+ * @param {(attempts: number) => void} [io.onRestored] - 戻ったときに 1 度だけ呼ばれる
+ *   （呼び出し側ごとに文言が違うログはここで出す）
  * @param {number} [io.maxAttempts]
  * @returns {{ restored: boolean | null, attempts?: number }} restored が null なら
- *   「戻すものが無かった」（マーカーの中身が空）。
+ *   「戻すものが無かった」（files が空）。
  */
-export function decideCrashRecovery(
+export function verifyRestoreAndClearMarker(
   files,
-  { checkoutFn, isRestoredFn, waitFn, clearMarkerFn, logFn = () => {}, maxAttempts = RESTORE_MAX_ATTEMPTS },
+  { checkoutFn, isRestoredFn, waitFn, clearMarkerFn, onRestored = () => {}, maxAttempts = RESTORE_MAX_ATTEMPTS },
 ) {
   if (files.length === 0) {
-    // 中身が空の壊れたマーカー。戻すものが無いので、検証を待たずに消してよい。
     clearMarkerFn();
     return { restored: null };
   }
-
-  logFn(
-    "[mutation-check] 前回の実行が変異を適用したまま異常終了していました。復元します:\n" +
-      files.map((f) => `  - ${f}`).join("\n"),
-  );
 
   const result = restoreWithRetry(files, { checkoutFn, isRestoredFn, waitFn, maxAttempts });
 
   if (result.restored) {
     // ここまで来て初めて「戻った」と確認できたので、ここでマーカーを消す。
     clearMarkerFn();
-    logFn(
-      "[mutation-check] 復元しました。" +
-        (result.attempts > 1 ? `（${result.attempts} 回目の試行で確認）` : ""),
-    );
+    onRestored(result.attempts);
     return { restored: true, attempts: result.attempts };
   }
 
   // マーカーはあえて消さない（上のコメント参照）。次回の起動がここをもう一度拾う。
-  logFn(formatRestoreFailureMessage(files, result.attempts));
   return { restored: false, attempts: result.attempts };
 }
 
-/** files が HEAD と一致しているか（`git status --porcelain` の出力が空かどうかで見る）。 */
+/**
+ * 前回の実行が変異を適用したまま終了していた場合の復旧を判定する（recoverFromCrashedRun の判定部分）。
+ * マーカーを消すタイミングの規則は `verifyRestoreAndClearMarker` に一本化してある。
+ *
+ * @param {string[]} files - マーカーから読んだ、適用中だったはずのファイル一覧
+ * @param {object} io
+ * @param {() => void} io.checkoutFn
+ * @param {() => boolean} io.isRestoredFn
+ * @param {(attempt: number) => void} io.waitFn
+ * @param {() => void} io.clearMarkerFn
+ * @param {(msg: string) => void} [io.logFn]
+ * @param {number} [io.maxAttempts]
+ * @returns {{ restored: boolean | null, attempts?: number }}
+ */
+export function decideCrashRecovery(
+  files,
+  { checkoutFn, isRestoredFn, waitFn, clearMarkerFn, logFn = () => {}, maxAttempts = RESTORE_MAX_ATTEMPTS },
+) {
+  if (files.length > 0) {
+    logFn(
+      "[mutation-check] 前回の実行が変異を適用したまま異常終了していました。復元します:\n" +
+        files.map((f) => `  - ${f}`).join("\n"),
+    );
+  }
+
+  const outcome = verifyRestoreAndClearMarker(files, {
+    checkoutFn,
+    isRestoredFn,
+    waitFn,
+    clearMarkerFn,
+    onRestored: (attempts) => {
+      logFn(
+        "[mutation-check] 復元しました。" +
+          (attempts > 1 ? `（${attempts} 回目の試行で確認）` : ""),
+      );
+    },
+    maxAttempts,
+  });
+
+  if (outcome.restored === false) {
+    logFn(formatRestoreFailureMessage(files, outcome.attempts));
+  }
+
+  return outcome;
+}
+
+/**
+ * files が HEAD と一致しているか（`git status --porcelain` の出力が空かどうかで見る）。
+ *
+ * **将来の注意（Minor・レビュー指摘）**: 変異パッチが**新規ファイルを追加する**形になると、
+ * `git checkout --` では新規ファイルは消えず `git status --porcelain` が「?? 」行を
+ * 返し続けるため、`isRestoredFn` が永久に false を返し `restoreWithRetry` が
+ * 毎回致命的終了する（安全側の誤検知であり本番へは出ないが、そのままでは復旧不能）。
+ * 現行の `MUTATIONS`（既存ファイルの変更のみ）には該当が無い。新規ファイルを追加する
+ * 変異を足す場合は、`git clean` 等で未追跡ファイルも戻す手当てが別途必要になる。
+ */
 function isRestoredToHead(files) {
   const out = execFileSync("git", ["status", "--porcelain", "--", ...files], {
     cwd: REPO_ROOT,
@@ -1174,35 +1232,40 @@ function sleepSync(ms) {
 }
 
 function restoreCurrentMutation() {
-  // マーカーは git apply の**前**に書くため、apply 自体が失敗した場合は
-  // currentlyAppliedFiles が空のままマーカーだけが残る。ここで先に消しておかないと、
-  // 次回の実行が「前回は異常終了した」と誤って報告する（実際に m05 のパッチが
-  // 適用できなくなったときにこれが起きた）。
-  clearMarker();
-  if (currentlyAppliedFiles.length === 0) return;
   const files = currentlyAppliedFiles;
   currentlyAppliedFiles = [];
 
-  const result = restoreWithRetry(files, {
+  // `verifyRestoreAndClearMarker` がマーカーを消すタイミングを決める。
+  // files が空（= マーカーは git apply の**前**に書くため、apply 自体が失敗した場合は
+  // currentlyAppliedFiles が空のままマーカーだけが残る。実際に m05 のパッチが
+  // 適用できなくなったときにこれが起きた）なら、検証を待たずにここで消してよい。
+  // files が空でないとき（= apply には成功しており、戻すものが実在する）は、
+  // **戻ったと確認できてから**でないと消してはならない。以前はこの分岐をせず
+  // 呼び出しの先頭で無条件に `clearMarker()` していたため、apply 成功後に復元が
+  // 失敗するケースでもマーカーが先に消え、「変異が製品コードに残っている」という
+  // 唯一の記録を復元の成否を見る前に失っていた（次回起動時の `recoverFromCrashedRun`
+  // が拾えなくなる）。
+  const outcome = verifyRestoreAndClearMarker(files, {
     checkoutFn: () =>
       execFileSync("git", ["checkout", "--", ...files], { cwd: REPO_ROOT, stdio: "inherit" }),
     isRestoredFn: () => isRestoredToHead(files),
     waitFn: () => sleepSync(RESTORE_RETRY_DELAY_MS),
+    clearMarkerFn: clearMarker,
+    onRestored: (attempts) => {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[mutation-check] 復元しました: ${files.join(", ")}` +
+          (attempts > 1 ? `（${attempts} 回目の試行で確認）` : ""),
+      );
+    },
     maxAttempts: RESTORE_MAX_ATTEMPTS,
   });
 
-  if (result.restored) {
-    // eslint-disable-next-line no-console
-    console.error(
-      `[mutation-check] 復元しました: ${files.join(", ")}` +
-        (result.attempts > 1 ? `（${result.attempts} 回目の試行で確認）` : ""),
-    );
-    return;
-  }
+  if (outcome.restored !== false) return; // true（復元済み）と null（戻すものが無かった）は正常終了
 
   // 復元自体が失敗するのは最悪のケース。ここで握りつぶさず、非 0 で終了して必ず知らせる。
   // eslint-disable-next-line no-console
-  console.error(formatRestoreFailureMessage(files, result.attempts));
+  console.error(formatRestoreFailureMessage(files, outcome.attempts));
   process.exit(1);
 }
 
