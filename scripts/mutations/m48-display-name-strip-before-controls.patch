@@ -1,4 +1,4 @@
-# 変異 43: display-name-strip-before-controls
+# 変異 48: display-name-strip-before-controls
 #
 # #284 以前の段の順序（剥がし → 制御文字の除去）へ戻す。この順序だと
 # `ID` の内側に制御文字を 1 つ挟むだけで書式の照合が外れ、そのあと制御文字が
@@ -9,7 +9,7 @@
 #   - packages/room-core/tests/display-name.test.ts
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m43-*.patch
+#       git apply scripts/mutations/m48-*.patch
 #       (diff のパスはリポジトリルート起点。mutation-check.mjs もリポジトリルートで実行する)
 # 復元: git checkout -- <対象ファイル>（同じくリポジトリルートから）
 #
