@@ -52,6 +52,33 @@ function MiniButton({
   );
 }
 
+/**
+ * 名前を受け付けられなかったこと（#291）。
+ *
+ * **正規形を持つのが肝である。** 打った文字列は文言に出すために、正規形は
+ * 「その理由がまだ生きているか」を毎回いまの名簿へ尋ねるために持つ。
+ * 理由の文言そのものを state に置くと、相手が退出しても「まだ駄目」と言い続ける。
+ */
+interface Rejection {
+  /** 利用者が打った文字列（前後の空白だけ落としたもの）。文言に出す。 */
+  typed: string;
+  /** サーバーと同じ正規化を掛けた値。名簿との突き合わせに使う。 */
+  normalized: string;
+  /**
+   * 失敗の通し番号。`role="alert"` の `key` に使う。
+   *
+   * 同じ名前で 2 度押したとき、文言もノードも変わらないと支援技術は**再告知しない**
+   * （2 度目以降が無反応に見える＝#291 と同じ症状）。番号を進めて張り替える。
+   */
+  attempt: number;
+}
+
+/** 送った改名。着いたかどうかは**識別子で**確かめる。 */
+interface PendingRename {
+  participantId: string;
+  normalized: string;
+}
+
 interface RosterPanelProps {
   participants: Participant[];
   /** 現ドライバーの参加者ID（session.rotation[currentIndex]）。
@@ -110,16 +137,90 @@ export function RosterPanel({
   // `participants` だけだと、輪に席は残るが timer 画面には居ない離席者を取りこぼし、
   // 交代順ストリップ（`rotation-names.ts`）とここで判定結果がずれる（敵対的レビュー #276 指摘1）。
   const pool = labelPool(seats ?? [], participants);
+
+  /**
+   * その名前（正規形）の持ち主が名簿に居るか。**述語はサーバーと同じものに任せる。**
+   *
+   * この 1 つが 3 役を担う ——「送る前に拒む」「拒んだ理由がまだ生きているか」
+   * 「送った名前が名簿に現れたか」。3 箇所に別々の比べ方を置くと、片方だけ直る。
+   *
+   * 正規形が空の名前は**突き合わせない**。`Seat.displayName` は名簿から引けないと
+   * `""` へ落ちるので（`timer-snapshot-dto.ts` の `names.get(…) ?? ""`）、
+   * 素通りさせると「同じ名前の人がすでに居ます」という嘘の理由を出しうる。
+   */
+  const someoneHolds = (normalized: string, excludeId?: string) =>
+    normalized !== "" && conflictsWithExisting(pool, normalized, excludeId);
+
+  /** その人**だけ**を見て、いまその名前を持っているか（改名が着いたかの判定）。 */
+  const holdsName = (participantId: string, normalized: string) =>
+    normalized !== "" &&
+    conflictsWithExisting(
+      pool.filter((p) => p.participantId === participantId),
+      normalized,
+    );
+
   const [proxyName, setProxyName] = useState("");
   const [showProxyInput, setShowProxyInput] = useState(false);
-  // 代理追加を受け付けられなかった理由（#291）。フォームの中に出すので、
+  // 送った代理の正規形。**名簿に現れるまで持つ**（#291 レビュー指摘1）。
+  // サーバーの拒否理由には画面が予測できないものがある（輪が満席・選択画面に
+  // 居るだけの人との同名・表示名の規約違反）。送った瞬間に閉じて入力を捨てると、
+  // そのときだけ #291 と同じ「押しても何も起きない」が戻る。
+  const [pendingProxy, setPendingProxy] = useState<string | null>(null);
+  // 代理追加を受け付けられなかったこと（#291）。フォームの中に出すので、
   // 1 画面に RosterPanel が 2 つ描かれても（Session のセッションタブ／ルームタブ）
   // 結び付け（aria-describedby）が混線しないよう識別子は useId で作る。
-  const [proxyError, setProxyError] = useState<string | null>(null);
+  const [proxyRejection, setProxyRejection] = useState<Rejection | null>(null);
   const proxyErrorId = useId();
   // 改名中の参加者 ID と編集中の名前（同時に1人だけ編集できる）
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  // 改名も代理追加と同じ形にする（#291 レビュー指摘2）。同じファイル・同じ述語・同じ症状。
+  const [pendingRename, setPendingRename] = useState<PendingRename | null>(null);
+  const [renameRejection, setRenameRejection] = useState<Rejection | null>(null);
+  const renameErrorId = useId();
+
+  // **理由は名簿の変化に追随させる**（#291 レビュー指摘3）。持っているのは正規形で、
+  // 出すかどうかは毎回いまの `pool` に尋ねる。相手が退出したら「まだ駄目」と言わない。
+  const activeProxyRejection =
+    proxyRejection !== null && someoneHolds(proxyRejection.normalized) ? proxyRejection : null;
+  const activeRenameRejection =
+    renameRejection !== null &&
+    editingId !== null &&
+    someoneHolds(renameRejection.normalized, editingId)
+      ? renameRejection
+      : null;
+
+  // 送った代理が名簿に現れたか。
+  //
+  // ⚠ **見ているのは名前であって、自分の要求ではない。** wire は要求の識別子を
+  // 持たないので、**同じ名前の代理が同時に別の人から入った**ときは、自分の要求が
+  // `DuplicateName` で拒まれていてもここは「現れた」と読む。サーバーは同名を
+  // 1 人しか通さないので、**画面には利用者が足したかった名前の人がちょうど 1 人居る**
+  // 状態になる。取り違えても利用者の目的は達している側へ倒れるので受容する。
+  const proxyArrived = pendingProxy !== null && someoneHolds(pendingProxy);
+  useEffect(() => {
+    if (!proxyArrived) return;
+    setPendingProxy(null);
+    // ⚠ **この対策自身が入力を捨てうる。** 送ったあと返事を待つ間に利用者が別の名前を
+    // 打ち始めていると、あとから届いた名簿で閉じた拍子にその入力が消える ——
+    // #291 が直そうとしているもの（打った文字が黙って消える）と同じ形である。
+    // **いま入力欄に載っているのが送った名前のときだけ**畳む。
+    if (normalizeDisplayName(proxyName.trim()) !== pendingProxy) return;
+    setProxyName("");
+    setShowProxyInput(false);
+  }, [proxyArrived, proxyName, pendingProxy]);
+
+  // 送った改名が着いたか。こちらは**相手を識別子で絞れる**ので取り違えようがない。
+  const renameArrived =
+    pendingRename !== null && holdsName(pendingRename.participantId, pendingRename.normalized);
+  useEffect(() => {
+    if (!renameArrived) return;
+    setPendingRename(null);
+    // 代理追加と同じ理由で、打ち直していたらその入力は捨てない。
+    if (normalizeDisplayName(editName.trim()) !== pendingRename?.normalized) return;
+    setEditingId(null);
+    setEditName("");
+  }, [renameArrived, editName, pendingRename]);
   // 退出の確認対象。取り返しがつかない操作なので直接は実行しない（FR-075）。
   //
   // 参加者オブジェクトではなく**識別子だけ**を持ち、表示は毎回最新の participants から引く。
@@ -146,40 +247,74 @@ export function RosterPanel({
    * `DuplicateName` のバナーが拾えるが、**サーバーが通す名前をここで拒むと
    * 利用者は正当な操作をできなくなる**（そちらには保険が無い）。
    *
-   * 述語は写さずサーバーと同じ `conflictsWithExisting` を呼ぶ。比べる値も揃えて、
-   * サーバーが境界で掛ける `normalizeDisplayName` を通してから渡す。
+   * 述語は写さずサーバーと同じ `conflictsWithExisting` を呼ぶ（{@link someoneHolds}）。
+   * 比べる値も揃えて、サーバーが境界で掛ける `normalizeDisplayName` を通してから渡す。
+   *
+   * **送ったあともフォームは閉じない**（レビュー指摘1）。画面が予測できない拒否
+   * （輪が満席・選択画面に居るだけの人との同名・表示名の規約違反）が残っており、
+   * そこで閉じると入力ごと消えて #291 の症状がそのまま戻る。閉じるのは
+   * **名簿にその代理が現れたとき**（{@link proxyArrived}）だけにする。
    */
   const handleAddProxy = () => {
     const name = proxyName.trim();
     if (!name) return;
-    // 正規化すると空になる名前（不可視文字だけ等）は**同名の話ではない**。
-    // `Seat.displayName` は名簿から引けないと `""` へ落ちるので、ここを素通りさせると
-    // 「同じ名前の人がすでに居ます」という**嘘の理由**を出しうる。表示名の規約で
-    // 弾かれるべき入力なので、そのままサーバーへ渡して理由を答えさせる。
     const normalized = normalizeDisplayName(name);
-    if (normalized !== "" && conflictsWithExisting(pool, normalized)) {
-      setProxyError(
-        `「${name}」は追加できませんでした。同じ名前の人がすでに居ます。` +
-          `所属やイニシャルなどを添えて、呼び分けの付く名前にすると追加できます。`,
-      );
+    if (someoneHolds(normalized)) {
+      setProxyRejection((prev) => ({ typed: name, normalized, attempt: (prev?.attempt ?? 0) + 1 }));
       return;
     }
-    setProxyError(null);
+    setProxyRejection(null);
+    // 正規形が空の名前は突き合わせられないので待たない（サーバーが規約で弾く）。
+    // 待たない＝閉じる条件が来ないだけで、フォームと入力はそのまま残る。
+    setPendingProxy(normalized !== "" ? normalized : null);
     onAddProxy(name);
-    setProxyName("");
-    setShowProxyInput(false);
   };
 
   const startRename = (participantId: string, current: string) => {
     setEditingId(participantId);
     setEditName(current);
+    setPendingRename(null);
+    setRenameRejection(null);
   };
 
-  const submitRename = (participantId: string) => {
-    const trimmed = editName.trim();
-    if (trimmed) onRename(participantId, trimmed);
+  const cancelRename = () => {
     setEditingId(null);
     setEditName("");
+    setPendingRename(null);
+    setRenameRejection(null);
+  };
+
+  /**
+   * 改名を送る。**代理追加と同じ形にしてある**（#291 レビュー指摘2）。
+   *
+   * サーバーは改名も同じ `conflictsWithExisting` で拒む（`DuplicateName`）。
+   * ここが送りっぱなしで編集欄を閉じていた間、同名への改名は
+   * **#291 とまったく同じ無言の失敗**だった —— 名前は変わらず、理由も出ない。
+   */
+  const submitRename = (participantId: string) => {
+    const typed = editName.trim();
+    // 空は「やめた」と同じ扱い（#291 より前からの振る舞いを変えない）。
+    if (!typed) {
+      cancelRename();
+      return;
+    }
+    const normalized = normalizeDisplayName(typed);
+    // 自分自身は比べない（現在名と同じ名前への改名は許す）。サーバーの
+    // `conflictsWithExisting(residents, displayName, target.participantId)` と同じ。
+    if (someoneHolds(normalized, participantId)) {
+      setRenameRejection((prev) => ({ typed, normalized, attempt: (prev?.attempt ?? 0) + 1 }));
+      return;
+    }
+    setRenameRejection(null);
+    setPendingRename(normalized !== "" ? { participantId, normalized } : null);
+    onRename(participantId, typed);
+  };
+
+  /** Enter で送る（レビュー指摘4）。閉じずにその場で直させる形にした以上、直後の自然な操作はこれ。 */
+  const submitOnEnter = (submit: () => void) => (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    submit();
   };
 
   // rotation 内かどうかを判定するヘルパ（rotation は参加者IDの配列・D6b）
@@ -237,18 +372,41 @@ export function RosterPanel({
         }`}
       >
         {isEditing ? (
-          /* 改名中は入力＋保存/キャンセルで行を専有する。 */
-          <div className="flex w-full min-w-0 gap-1">
-            <input
-              type="text"
-              value={editName}
-              onChange={(e) => setEditName(e.target.value)}
-              aria-label={`${label} の新しい名前`}
-              maxLength={MAX_DISPLAY_NAME}
-              className="min-w-0 flex-1 rounded-md border border-[var(--hairline-strong)] bg-[var(--panel-2)] px-2 py-1 text-sm text-[var(--bone)] outline-none focus:border-[var(--signal)] focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]"
-            />
-            <MiniButton onClick={() => submitRename(p.participantId)}>保存</MiniButton>
-            <MiniButton onClick={() => setEditingId(null)}>取消</MiniButton>
+          /* 改名中は入力＋保存/キャンセルで行を専有する。
+             受け付けられなかった理由も**この行の中**に出す（#291 レビュー指摘2）。 */
+          <div className="w-full min-w-0">
+            <div className="flex w-full min-w-0 gap-1">
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => {
+                  setEditName(e.target.value);
+                  // 打ち直した瞬間に理由を降ろす（直したのに赤いままにしない）。
+                  setRenameRejection(null);
+                }}
+                onKeyDown={submitOnEnter(() => submitRename(p.participantId))}
+                aria-label={`${label} の新しい名前`}
+                maxLength={MAX_DISPLAY_NAME}
+                aria-invalid={activeRenameRejection !== null ? true : undefined}
+                aria-describedby={activeRenameRejection !== null ? renameErrorId : undefined}
+                className="min-w-0 flex-1 rounded-md border border-[var(--hairline-strong)] bg-[var(--panel-2)] px-2 py-1 text-sm text-[var(--bone)] outline-none focus:border-[var(--signal)] focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]"
+              />
+              <MiniButton onClick={() => submitRename(p.participantId)}>保存</MiniButton>
+              <MiniButton onClick={cancelRename}>取消</MiniButton>
+            </div>
+            {activeRenameRejection !== null && (
+              <p
+                // `key` を失敗のたびに進めてノードごと張り替える。同じ文言のままだと
+                // 2 度目以降が読み上げられない（#291 レビュー指摘5）。
+                key={activeRenameRejection.attempt}
+                id={renameErrorId}
+                role="alert"
+                className="mt-2 text-sm text-[var(--caution)]"
+              >
+                {`「${activeRenameRejection.typed}」へは変えられませんでした。同じ名前の人がすでに居ます。` +
+                  `所属やイニシャルなどを添えて、呼び分けの付く名前にすると変えられます。`}
+              </p>
+            )}
           </div>
         ) : (
           <>
@@ -403,7 +561,10 @@ export function RosterPanel({
             onClick={() => {
               // 開閉で理由は持ち越さない。閉じて開き直した先に前回の赤が残っていると、
               // いま打っている名前について言っているように読める（#291）。
-              setProxyError(null);
+              setProxyRejection(null);
+              // 自分で閉じたなら、届くのを待っていた代理も待たない
+              // （待ったままだと、あとで同名が現れた拍子に勝手に開閉する）。
+              setPendingProxy(null);
               setShowProxyInput((v) => !v);
             }}
             aria-label="代理参加者を追加"
@@ -425,22 +586,30 @@ export function RosterPanel({
                 setProxyName(e.target.value);
                 // 打ち直した瞬間に理由を降ろす。直した名前の横に古い理由が残ると、
                 // 利用者は「まだ駄目なのか」と読む。
-                setProxyError(null);
+                setProxyRejection(null);
               }}
+              onKeyDown={submitOnEnter(handleAddProxy)}
               placeholder="Web 非接続のメンバー名"
               aria-label="代理参加者の名前"
               maxLength={MAX_DISPLAY_NAME}
-              aria-invalid={proxyError !== null ? true : undefined}
-              aria-describedby={proxyError !== null ? proxyErrorId : undefined}
+              aria-invalid={activeProxyRejection !== null ? true : undefined}
+              aria-describedby={activeProxyRejection !== null ? proxyErrorId : undefined}
               className="flex-1 rounded-md border border-[var(--hairline-strong)] bg-[var(--panel-2)] px-3 py-2 text-sm text-[var(--bone)] outline-none focus:border-[var(--signal)] focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]"
             />
             <PrimaryButton onClick={handleAddProxy} className="px-4 py-2 text-sm">追加</PrimaryButton>
           </div>
-          {proxyError !== null && (
+          {activeProxyRejection !== null && (
             // `role="alert"` にして、目で追っていない人にも即時に読み上げさせる。
             // 色だけで伝えないよう、理由と次の手は文言そのものが持つ（FR-032）。
-            <p id={proxyErrorId} role="alert" className="mt-2 text-sm text-[var(--caution)]">
-              {proxyError}
+            // `key` は失敗のたびに進める（同じ文言・同じノードだと再告知されない）。
+            <p
+              key={activeProxyRejection.attempt}
+              id={proxyErrorId}
+              role="alert"
+              className="mt-2 text-sm text-[var(--caution)]"
+            >
+              {`「${activeProxyRejection.typed}」は追加できませんでした。同じ名前の人がすでに居ます。` +
+                `所属やイニシャルなどを添えて、呼び分けの付く名前にすると追加できます。`}
             </p>
           )}
         </div>
