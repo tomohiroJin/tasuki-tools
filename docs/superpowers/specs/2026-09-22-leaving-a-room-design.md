@@ -252,10 +252,28 @@ D3 の帰結である。`newSession()` から `redirectTo("/")` を落とし、�
 
 ### 旧挙動を固定している既存テスト（書き換える）
 
-- **`apps/tasuki-sync/test/solo-leave.test.ts:274-292`** ——
-  「実在の在室者が 1 人残るなら、rotation 最後の 1 人の退出は**従来どおり拒否される**」を
-  緑で固定している。削除ではなく、期待を「繰り上げて退出が成立し、輪は空にならない」へ書き換える
-- **`apps/timer-web/test/ui/error-action.test.ts:15-23`** —— 3 件の期待値が変わる
+**数を数えない。見つける手段を決める。** 着手時に次を走らせ、出たものを 1 つずつ判断する。
+
+```bash
+grep -rn "BelowMinMembers\|destination\|left=self" apps packages --include='*.ts' --include='*.tsx' | grep -i test
+grep -rn "redirectTo" apps/timer-web/test
+```
+
+2026-09-22 時点で当たるのは次の 4 つである（**この一覧は腐る。上の手段が正本**）。
+
+- `apps/tasuki-sync/test/solo-leave.test.ts:274-292` ——
+  「rotation 最後の 1 人の退出は**従来どおり拒否される**」を緑で固定している。
+  削除ではなく、期待を「繰り上げて退出が成立し、輪は空にならない」へ書き換える
+- `apps/timer-web/test/ui/error-action.test.ts:15-23` —— `destination` の期待 3 件
+- `apps/timer-web/test/sync/use-timer-sync.test.tsx:681-698` ——
+  「新しいセッション…**玄関へ送る**」（`redirectTo` が `/` で呼ばれることを固定している）
+- `apps/timer-web/test/ui/App.solo-leave.test.tsx:135` —— 自己退出の行き先 `"/?left=self"`
+
+⚠ **`apps/timer-web/test/ui/entry.test.ts:70-79` は変えない。**
+`hubRoomPath(null, "self")` → `/?left=self` を見ているが、**この関数の振る舞いは変えない**
+（変えるのは呼び出し側）。緑のままが正しい。
+`apps/timer-web/test/ui/App.sync-handlers.test.tsx:130` も変わらない ——
+外された人の行き先は元から正しく、今回そちらへ揃える。
 
 **見落とすと「テストが緑だから正しい」という偽の確認になる。** 着手時にまず赤にしてから直す。
 
