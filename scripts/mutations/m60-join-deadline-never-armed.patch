@@ -1,0 +1,21 @@
+# 変異 60: join-deadline-never-armed
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/ui/App.loading-timeout.test.tsx
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m60-*.patch
+# 復元: git checkout -- <対象ファイル>
+#
+diff --git a/apps/timer-web/src/sync/use-timer-sync.ts b/apps/timer-web/src/sync/use-timer-sync.ts
+index fe0a18b..e39a206 100644
+--- a/apps/timer-web/src/sync/use-timer-sync.ts
++++ b/apps/timer-web/src/sync/use-timer-sync.ts
+@@ -810,7 +810,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
+     // 送ったところから答えを待つ期限を測る（#292）。**ここが本来の入口である** ——
+     // `sendResumeJoin` を通るのは再接続と混雑の入り直しだけで、初回の読み込みは
+     // この effect が直接組み立てて送っている。
+-    armJoinDeadlineRef.current();
+     // 依存は ref と setter のみで、いずれも再生成されない。ref オブジェクトの同一性は
+     // レンダーを跨いで保たれるため、依存に挙げてもこの effect は mount 時の 1 回きり。
+   }, [makeClientRef, armJoinDeadlineRef]);

@@ -681,6 +681,63 @@ export const MUTATIONS = [
       "#283 のレビュー。除外そのものは生きているので **pickFallback 単体の検査では気づけない**。" +
       "「別のお題にする」が同じお題を返しうる状態へ戻る。",
   },
+  {
+    id: 60,
+    label: "room.join の答えを待つ期限を張らない（無言で永久に待つ状態へ戻る）",
+    patch: "m60-join-deadline-never-armed.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/App.loading-timeout.test.tsx"],
+    note:
+      "#292。**対応表より後に足した変異。** 入口の effect が `room.join` を送った直後の" +
+      "期限を張らなくなる。切断ならバナーが出るが、**繋がっているのに答えが返らない場合は" +
+      "「読み込んでいます…」だけが永久に出続ける** —— #292 が塞いだ欠陥そのものである。",
+  },
+  {
+    id: 61,
+    label: "混雑で入室を拒まれたときに期限を畳まない（待てば入れる人を無応答と断じる）",
+    patch: "m61-join-deadline-survives-rate-limit.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/App.loading-timeout.test.tsx"],
+    note:
+      "#292。**対応表より後に足した変異。** `JOIN_RATE_LIMITED` は「待てば入れる」経路で、" +
+      "#147 の待ちは回を追うごとに倍になり最大 30 秒＋ばらつき。**期限（10 秒）を必ず追い越す。**" +
+      "⚠ **1 回目の拒否だけでは検出できない** —— 入り直しの送信が期限を張り直してしまうため、" +
+      "検出には**待ちが期限を追い越す回**まで進める必要がある（テスト側の注記を参照）。",
+  },
+  {
+    id: 62,
+    label: "退出が成立したときに期限を畳まない（去った後に行き止まりが出る）",
+    patch: "m62-join-deadline-survives-leave.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/App.loading-timeout.test.tsx"],
+    note:
+      "#292。**対応表より後に足した変異。** `leave-room` は `mode` を `null` に戻すので、" +
+      "玄関へ遷移し終えるまでの間この受け皿が出る。畳まないと、抜けたはずの人が最後に" +
+      "「ルームの情報を読み込めませんでした」を見る（`cancelJoinRetry` が #147 で塞いだのと同じ型）。",
+  },
+  {
+    id: 63,
+    label: "待っている間の接続状態を Loading から落とす（読み込み中に接続が読めなくなる）",
+    patch: "m63-loading-hides-connection-state.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/App.loading-timeout.test.tsx", "test/ui/Loading.test.tsx"],
+    note:
+      "#292 EARS 2。**対応表より後に足した変異。** `StatusStrip` は `mode !== null` の" +
+      "ときしか描かれないので、ここを落とすと**ルームの画面が決まる前は接続状態を読む場所が" +
+      "どこにも無くなる**。切断と無応答の区別が付かなくなるのが実害である。",
+  },
+  {
+    id: 64,
+    label: "snapshot が届いても期限のタイマーを畳まない（印が立ったまま残る）",
+    patch: "m64-join-deadline-survives-snapshot.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/App.loading-timeout.test.tsx"],
+    note:
+      "#292。**対応表より後に足した変異。** ⚠ **画面には何も出ない** —— ルームの画面が" +
+      "決まった後は `Loading` が描かれないので、印が立っても誰の目にも触れない。" +
+      "「表示が出ないこと」を見るアサーションでは**畳んでも畳まなくても緑になる**ため、" +
+      "検出しているのは残っているタイマーの数そのものを測るテストである。",
+  },
 ];
 
 /**
