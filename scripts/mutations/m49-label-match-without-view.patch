@@ -1,0 +1,27 @@
+# 変異 49: label-match-without-view
+#
+# ラベルの剥がしが、描画時に無視される文字を伏せずに照合するようになる。
+# 見出し（`(ID:`）の内側に ZWJ・U+00AD・字形選択などを 1 つ挟むだけで
+# 剥がしを外せ、実在参加者と同一のラベルを名乗れる（総当たりで 544 件）。
+#
+# 検出を期待するテスト:
+#   - packages/room-core/tests/display-name.test.ts
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m49-label-match-without-view.patch
+#       (diff のパスはリポジトリルート起点。mutation-check.mjs もリポジトリルートで実行する)
+# 復元: git checkout -- <対象ファイル>（同じくリポジトリルートから）
+#
+diff --git a/packages/room-core/src/display-name.ts b/packages/room-core/src/display-name.ts
+index 273c561..26ed9e0 100644
+--- a/packages/room-core/src/display-name.ts
++++ b/packages/room-core/src/display-name.ts
+@@ -186,7 +186,7 @@ function stripLabelMarkersOnce(input: string): string {
+ 
+   let at = 0;
+   for (const ch of input) {
+-    if (!IGNORABLE_WHEN_RENDERED.test(ch)) {
++    if (true) {
+       for (let k = 0; k < ch.length; k++) {
+         view += ch[k];
+         from.push(at);

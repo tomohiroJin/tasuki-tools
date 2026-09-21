@@ -1,0 +1,25 @@
+# 変異 50: skeleton-invisible-enumeration
+#
+# 見た目が同じなのに骨格が割れ、曖昧判定が発火しなくなる（総当たりで 541 件）。
+#
+# 検出を期待するテスト:
+#   - packages/room-core/tests/display-name.test.ts
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m50-skeleton-invisible-enumeration.patch
+#       (diff のパスはリポジトリルート起点。mutation-check.mjs もリポジトリルートで実行する)
+# 復元: git checkout -- <対象ファイル>（同じくリポジトリルートから）
+#
+diff --git a/packages/room-core/src/display-name.ts b/packages/room-core/src/display-name.ts
+index 273c561..aee6f74 100644
+--- a/packages/room-core/src/display-name.ts
++++ b/packages/room-core/src/display-name.ts
+@@ -102,7 +102,7 @@ const INVISIBLE_FORMAT = /[\u200b\u200c\u202a-\u202e\u2060-\u2064\u2066-\u2069\u
+  * いけない —— U+FE0F は絵文字の見せ方を決める字形選択子で、保存する値から落とすと
+  * `❤️` が `❤` になる。
+  */
+-const INVISIBLE_ALL = /\p{Default_Ignorable_Code_Point}/gu;
++const INVISIBLE_ALL = /[\u200b-\u200f\u2060-\u2064\u202a-\u202e\ufeff\u180e]/g;
+ 
+ /**
+  * 見た目がラテン文字と紛らわしい文字の対応表（キリル・ギリシャ）。

@@ -129,6 +129,27 @@ export const MUTATIONS = [
     tests: ["tests/display-name.test.ts"],
   },
   {
+    id: 49,
+    label: "ラベルの照合を「目に映る姿」ではなく生の文字列に戻す（画面に出ない文字で見出しを割れる）",
+    patch: "m49-label-match-without-view.patch",
+    pkg: "packages/room-core",
+    tests: ["tests/display-name.test.ts"],
+  },
+  {
+    id: 50,
+    label: "第2層の不可視文字を性質から旧列挙へ戻す（見た目が同じ名前の骨格が割れる）",
+    patch: "m50-skeleton-invisible-enumeration.patch",
+    pkg: "packages/room-core",
+    tests: ["tests/display-name.test.ts"],
+  },
+  {
+    id: 51,
+    label: "normalizeDisplayName の末尾の NFKC を外す（掛けた回数で答えが変わる）",
+    patch: "m51-normalize-not-idempotent.patch",
+    pkg: "packages/room-core",
+    tests: ["tests/display-name.test.ts"],
+  },
+  {
     id: 6,
     label: "freezeRunningClock の凍結を外す（一時停止で満タンに戻る）",
     patch: "m06-freeze-running-clock.patch",
