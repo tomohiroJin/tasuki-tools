@@ -316,6 +316,11 @@ export function useTimerSync(banner: BannerController): TimerSync {
    * 静止したロビーでは警告が延々と残る。
    *
    * devtools へは落ちた項目の経路だけを残す（値は出さない・ADR 0012）。
+   *
+   * **`room.join` の答えを待つ期限はここでは畳まない**（#292）。捨てた以上その
+   * `snapshot` は届かなかったのと同じで、ルームに入る前ならこの人は先へ進めない。
+   * バナーは起きていることを述べるだけ（再読込を促さない）なので、**次にできることを
+   * 示すのは期限の側の仕事**である。
    */
   const handleInvalidFrame = (paths: string[]) => {
     console.warn("契約に合わない同期フレームを捨てました:", paths); // log-hygiene:allow 項目の経路のみ（値は出さない）
@@ -545,6 +550,10 @@ export function useTimerSync(banner: BannerController): TimerSync {
       case "transient": {
         // それ以外は「一時的な操作エラー」。分かりやすい日本語にし、数秒で自動消去する
         // （生のコードを残し続けない・画面遷移後も居座らせない）。
+        //
+        // **期限はここでは畳まない**（#292）。バナーは 4 秒で消えるので、これが
+        // `room.join` に対する返事だった場合、畳むと**元の無言の待ちへ戻る**。
+        // 「サーバーが何か言った」ことと「先へ進めるようになった」ことは別である。
         showBanner(friendlyError(code), "warn");
         return;
       }
