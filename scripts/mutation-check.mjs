@@ -842,6 +842,28 @@ export const MUTATIONS = [
       "期限も張られない。2 つの枝を別の変異にしてあるのは、片方だけ直しても" +
       "もう片方が残るためである。",
   },
+  {
+    id: 69,
+    label: "繰り上げの在席優先を潰す（presenceRank が常に同じ値を返す）",
+    patch: "m69-pick-promotion-target-presence-rank-flat.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/pick-promotion-target.test.ts"],
+    note:
+      "#290・D2。`presenceRank` が在席・離席を区別しなくなると、joinedAt の早い順だけで" +
+      "繰り上げ先が決まる。**先に参加した離席者が、後から来た在席者より優先される** —— " +
+      "#276 が扱った「席は在るのに誰も居ない」状態を、繰り上げ自身が作り直すことになる。",
+  },
+  {
+    id: 70,
+    label: "玄関の departed 分岐を潰す（gone のとき常に 'gone' を返す）",
+    patch: "m70-hub-departed-branch-flat.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hub/hub-state.test.ts"],
+    note:
+      "#290・D4。`screenFor` が `departed` を見なくなると、`?left=`（自分の退出の結果" +
+      "ルームが消えた）を持つ人にも死んだ招待 URL と同じ「不在の知らせ」が出る。" +
+      "**自分で押した操作の結果なのに、何かが壊れたように読める画面へ落ちる。**",
+  },
 ];
 
 /**
