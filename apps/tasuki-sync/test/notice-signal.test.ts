@@ -236,30 +236,25 @@ describe("signal: notice（実行者の通知）", () => {
     // 参加者の session.abort が UNAUTHORIZED」を見ており、在室確認を通り抜けた先で
     // 落ちていた。役割が無くなっても**在室者がドメインの不変条件で落ちる筋**は残っており、
     // そこを見ないと「在室確認さえ通れば notice が出る」状態を検知できない（#258）。
+    // #290・D1 により、`participant.remove`（ルームから抜ける）は見学者を繰り上げて
+    // 成立するようになり、この経路からは BelowMinMembers が出なくなった
+    // （docs/timer/ARCHITECTURE.md 参照）。「rotation を空にしない」不変条件は
+    // 依然として `member.remove`（列から外れる）に残っているため、そちらで固定し直す。
     it("在室者の操作でも、ドメインの不変条件で落ちれば notice を出さない", async () => {
       // Given: 在室 3 人・輪はルームを作った Alice ひとり。
       // **`room.join` は輪に入れない**（在室とローテーションは別の層で、輪への出入りは
       // `member.add` / `member.remove` で行う）。したがって beforeEach の join 2 件を
-      // 終えた時点でこの状態になっている。**この非自明さを確認で固定する** ——
-      // 「Bob と Carol を輪から外す」と書いた版はここで空振りしており（両者は最初から
-      // 輪の外なので `member.remove` が InvalidIndex で失敗していた）、下の確認が
-      // 別の理由で通っていた。
-      //
-      // 在室が 1 人だと participant.remove はソロ退出でルームごと破棄する経路に入り、
-      // 不変条件には当たらない。**在室 3 人であることが効いている。**
+      // 終えた時点でこの状態になっている。**この非自明さを確認で固定する**。
       expect(roomViewOf(store, timers, code).session.rotation).toEqual([pidOf("Alice")]);
       expect(roomViewOf(store, timers, code).participants).toHaveLength(3);
       broadcaster.signals.length = 0;
       broadcaster.residentsAtSignal.length = 0;
 
-      // When: 在室している Bob が、輪に残る最後のひとり Alice を退出させようとする
-      await handlers.handleCommand(BOB, {
-        command: "participant.remove",
-        participantId: pidOf("Alice"),
-      });
+      // When: 在室している Bob が、輪に残る最後のひとり Alice の枠を外そうとする
+      await handlers.handleCommand(BOB, { command: "member.remove", index: 0 });
 
-      // Then: 最後のドライバーは外せない。**成功していれば participant-removed の notice が
-      // 出る経路**なので（①で固定済み）、ここが空であることに意味がある
+      // Then: 最後のドライバーは外せない。**成功していれば notice が出る経路**なので、
+      // ここが空であることに意味がある
       expect(broadcaster.errorsTo(BOB).at(-1)?.code).toBe("BelowMinMembers");
       expect(lastNotice()).toBeUndefined();
     });

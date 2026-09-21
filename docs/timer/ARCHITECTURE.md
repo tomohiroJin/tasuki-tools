@@ -342,11 +342,17 @@ timer の中に「ルームの外」の画面はもうありません。`destina
 **画面を移すのは `errorAction()` が明示的に列挙したコードだけ**で、既定は `transient`（画面を移さない）です。
 **#95 S3 以前はここに「退出が拒否された場合（`LAST_MANAGER_LEAVE` 等）」という実例が
 ありました。役割由来の不変条件（「実在の編集者以上が 1 名以上残る」）は廃止しましたが、
-退出が拒否されうる経路そのものは残っています** —— ローテーションを空にする退出は
-`BelowMinMembers` で拒まれ（`command-handlers/participant-remove.ts` の rotation 長ガード。
-`evolve` が `currentIndex` を決められなくなるのを防ぐためで、役割とは無関係。
-**在室者が誰も残らないソロの部屋だけは例外で、拒まずにルームごと破棄します**（Issue #79））、
-不正な対象は `INVALID`、居ない相手は `PARTICIPANT_NOT_FOUND` で拒まれます。
+退出が拒否されうる経路そのものは残っています —— ただし `member.remove`（列から外れる）
+に限った話です。** ローテーションを空にする列外しは `BelowMinMembers` で拒まれます
+（`decide.ts` の `decideMemberRemove` にある rotation 長ガード。`evolve` が `currentIndex`
+を決められなくなるのを防ぐためで、役割とは無関係）。
+
+**`participant.remove`（ルームから抜ける）からは、この `BelowMinMembers` はもう出ません**
+（#290・D1）。輪の最後の席の持ち主が抜けるときは、部屋に見学者が残っているなら
+先にその 1 人を繰り上げてから外すため、輪を空にする状況そのものが起きなくなりました
+（`command-handlers/participant-remove.ts`）。**在室者が誰も残らないソロの部屋は元から
+例外で、拒まずにルームごと破棄します**（Issue #79）。`participant.remove` に残る拒否経路は、
+不正な対象を指した `INVALID` と、居ない相手を指した `PARTICIPANT_NOT_FOUND` だけです。
 **いずれも `errorAction()` の既定の `transient` に落ちるので、画面は移りません。**
 
 ### エラーコードは操作と 1 対 1（Issue #29）

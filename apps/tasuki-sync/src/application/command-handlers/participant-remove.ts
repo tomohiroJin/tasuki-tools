@@ -27,6 +27,7 @@ import {
   removeParticipant,
   type Participant as MembershipParticipant,
 } from "@tasuki/room-core";
+import { pickPromotionTarget } from "../pick-promotion-target.js";
 import type { Clock } from "../../ports/clock.js";
 import type { Broadcaster } from "../../ports/broadcaster.js";
 import type { RoomState } from "../apply-room-level-event.js";
@@ -182,19 +183,26 @@ export async function handleParticipantRemove(
   };
   if (idx >= 0) {
     // 数えるのは**席（`RotationEntry`）**であって名簿の人数ではない。守っているのは
-    // 「evolve が currentIndex を決められる輪が残ること」なので、代理の席も 1 席と数える
-    // （代理は輪の上では実在のメンバーと同格に回る）。上の在室者判定が名簿だけを数えるのと
-    // 基準が違うのは、見ている不変条件が別物だからである ——
-    // あちらは「部屋に人が残るか」、ここは「輪が空にならないか」。
+    // 「evolve が currentIndex を決められる輪が残ること」なので、代理の席も 1 席と数える。
+    //
+    // **最後の 1 席でも拒まない**（#290・D1）。見学者を先に繰り上げてから外すので、
+    // 輪は一瞬も空にならず、`evolveMemberRemoved` の `% 0`（NaN）に触れない。
+    // 拒否を残すのは候補が居ないときの防御で、**名簿が空でない限りここへは来ない** ——
+    // 退出者が唯一の席を持つなら、残る名簿の全員が見学だからである。
+    let working = { session: timer.session, clock: timer.clock };
     if (timer.session.rotation.length <= 1) {
-      sendError(connId, "BelowMinMembers", errorMessageFor("BelowMinMembers"));
-      return err("BelowMinMembers");
+      const seatedIds = new Set(timer.session.rotation.map(rotationEntryId));
+      const promoted = pickPromotionTarget(membership.participants, seatedIds, targetId);
+      if (promoted === null) {
+        sendError(connId, "BelowMinMembers", errorMessageFor("BelowMinMembers"));
+        return err("BelowMinMembers");
+      }
+      const added = evolve(working, { type: "MemberAdded", participantId: promoted.id, now }, now);
+      working = { session: added.session, clock: added.clock };
     }
-    const agg = evolve(
-      { session: timer.session, clock: timer.clock },
-      { type: "MemberRemoved", index: idx, now },
-      now,
-    );
+    // **`idx` は繰り上げの後も有効である。** `MemberAdded` は席を末尾へ足すので、
+    // 先にある退出者の位置は動かない（ここへ来る時点で `idx` は 0 である）。
+    const agg = evolve(working, { type: "MemberRemoved", index: idx, now }, now);
     next = { ...next, timer: { ...next.timer, session: agg.session, clock: agg.clock } };
   }
   commit(next);

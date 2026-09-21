@@ -131,19 +131,19 @@ describe("participant.remove（⑪）", () => {
     expect(room?.session.rotation).toEqual([creatorId, guestId]);
   });
 
-  it("最後の1人（rotation 1名）は外せない", async () => {
+  it("最後の1人（rotation 1名）でも、見学者へ繰り上げて他者から退出させられる（#290）", async () => {
     // Given（rotation=[Bob] の状態を作る。Alice を対象にすると自己退出の経路になるため、
-    // Alice を輪から抜いて Bob だけを残す）
+    // Alice を輪から抜いて Bob だけを残す。Alice は見学のまま在室し続ける）
     await handlers.handleCommand(creatorConn, { command: "member.remove", index: 0 }); // [Bob]
     broadcaster.sent.length = 0;
 
     // When（作成者が Bob を消そうとする）
-    await handlers.handleCommand(creatorConn, { command: "participant.remove", participantId: guestId });
+    const result = await handlers.handleCommand(creatorConn, { command: "participant.remove", participantId: guestId });
 
-    // Then（拒否され、Bob はまだ居る。rotation 上の最後の1人なので拒否）
-    const error = broadcaster.sent.find((s) => s.msg.type === "error" && (s.msg as { code: string }).code === "BelowMinMembers");
-    expect(error).toBeTruthy();
-    expect(roomViewOf(store, timers, code).participants.find((p) => p.participantId === guestId)).toBeTruthy();
+    // Then（#290・D1 により拒否されない。見学中の Alice が繰り上がり、Bob は退室する）
+    expect(result.isOk()).toBe(true);
+    expect(roomViewOf(store, timers, code).participants.find((p) => p.participantId === guestId)).toBeUndefined();
+    expect(roomViewOf(store, timers, code).session.rotation).toEqual([creatorId]);
   });
 });
 
@@ -378,9 +378,9 @@ describe("participant.remove（G7: 同名参加者を識別子で区別する）
     expect(room().participants.some((p) => p.participantId === ghostId)).toBe(true);
   });
 
-  it("③ 輪に本物1人だけのとき、その本物は最後のドライバー保護で外せない", async () => {
-    // Given（Alice を輪から抜いて rotation=[本物Bob] にする）
-    const { realId } = await setupBobs(true);
+  it("③ 輪に本物1人だけのとき、その本物を外すと見学者へ繰り上がる（#290）", async () => {
+    // Given（Alice を輪から抜いて rotation=[本物Bob] にする。幽霊は本物より先に参加している）
+    const { realId, ghostId } = await setupBobs(true);
     await handlers.handleCommand(CREATOR, { command: "member.remove", index: 0 });
     expect(room().session.rotation).toEqual([realId]);
     broadcaster.sent.length = 0;
@@ -390,13 +390,12 @@ describe("participant.remove（G7: 同名参加者を識別子で区別する）
       command: "participant.remove", participantId: realId,
     });
 
-    // Then
-    expect(result.isErr()).toBe(true);
-    const err = [...broadcaster.sent].reverse().find((x) => x.msg.type === "error");
-    expect(err?.msg.type === "error" && err.msg.code).toBe("BelowMinMembers");
-    // 同名の幽霊が居合わせても保護は素通りしない（別人が枠を引き継がない）。
-    expect(room().participants.some((p) => p.participantId === realId)).toBe(true);
-    expect(room().session.rotation).toEqual([realId]);
+    // Then（#290・D1 により拒否されない。参加が最も早い作成者 Alice が繰り上がる ——
+    // 同名の幽霊が居合わせても、別人（幽霊）が枠を引き継ぐことはない）
+    expect(result.isOk()).toBe(true);
+    expect(room().session.rotation).toEqual([creatorId]);
+    expect(room().participants.some((p) => p.participantId === realId)).toBe(false);
+    expect(room().participants.some((p) => p.participantId === ghostId)).toBe(true);
   });
 
   it("④ 枠を外さないケースでは最後のドライバー保護（BelowMinMembers）が誤発火しない", async () => {
