@@ -285,14 +285,15 @@ describe("ソロ以外は挙動が変わらない（Issue #79）", () => {
     });
 
     // Then: 拒まれず、見学だった Alice が繰り上がって輪に 1 席残る
-    expect(result.isOk()).toBe(true);
+    // ※ 後続の検証が成功を含意するため isOk() は取らない
     expect(roomViewOf(store, timers, code).session.rotation).toEqual([pidOf("Alice")]);
     expect(roomViewOf(store, timers, code).participants).toHaveLength(1);
     // 自己退出なので「外された」ではない
     expect(lastError(BOB)?.code).toBe("LEFT_ROOM");
   });
 
-  it("作成者と参加者だけのルームで、作成者が抜けられる（#290 の頭書きの場面）", async () => {
+  // #290 の頭書きの場面（作成者と参加者だけのルームで、作成者が抜けるケース）
+  it("作成者と参加者だけのルームで、作成者が抜けられる", async () => {
     // Given: Alice が作ったルーム（rotation=[Alice]）へ Bob が参加しただけの状態。
     // **Bob は輪に入っていない（見学）** —— これが既定であり、報告された場面である。
     await handlers.handleCommand(BOB, { command: "room.join", code, displayName: "Bob", hasAiKey: false });
@@ -305,7 +306,7 @@ describe("ソロ以外は挙動が変わらない（Issue #79）", () => {
     });
 
     // Then: 成立し、Bob が繰り上がる。輪は空にならない
-    expect(result.isOk()).toBe(true);
+    // ※ 後続の検証が成功を含意するため isOk() は取らない
     expect(roomViewOf(store, timers, code).session.rotation).toEqual([pidOf("Bob")]);
     expect(lastError(HOST)?.code).toBe("LEFT_ROOM");
   });

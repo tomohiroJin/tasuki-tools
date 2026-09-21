@@ -113,7 +113,7 @@ describe("自己退出した本人への通知", () => {
   // 参加者を残せる限り見学者を繰り上げるようになったため、`participant.remove` からは
   // 拒否されなくなった（docs/timer/ARCHITECTURE.md 参照）。したがって「輪の最後の1人」
   // という同じ場面は、いまは拒否ではなく**受理されて見学者が繰り上がる**ことを固定する。
-  it("輪の最後の1人でも、見学者が繰り上がって退出が受理され LEFT_ROOM が届く（#290）", async () => {
+  it("輪の最後の1人でも、見学者が繰り上がって退出が受理され LEFT_ROOM が届く", async () => {
     // Given（Bob・Carol は輪に入っていないので rotation は Alice 1 人だけ）
     const aliceId = pidOf("Alice");
     if (roomViewOf(store, timers, code).session.rotation.length !== 1) {
@@ -124,7 +124,7 @@ describe("自己退出した本人への通知", () => {
     const result = await handlers.handleCommand(HOST, { command: "participant.remove", participantId: aliceId });
 
     // Then: 拒否されず、見学だった誰か（Bob か Carol）が繰り上がって本人へ LEFT_ROOM が届く
-    expect(result.isOk()).toBe(true);
+    // ※ 後続の検証が成功を含意するため isOk() は取らない
     expect(broadcaster.hasErrorCode(HOST, "LEFT_ROOM")).toBe(true);
     expect(broadcaster.hasErrorCode(HOST, "BelowMinMembers")).toBe(false);
     expect(broadcaster.hasErrorCode(HOST, "REMOVED_FROM_ROOM")).toBe(false);

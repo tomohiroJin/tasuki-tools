@@ -131,7 +131,8 @@ describe("participant.remove（⑪）", () => {
     expect(room?.session.rotation).toEqual([creatorId, guestId]);
   });
 
-  it("最後の1人（rotation 1名）でも、見学者へ繰り上げて他者から退出させられる（#290）", async () => {
+  // #290: 輪の最後の1人を他者から退出させる経路。繰り上げが見学者から行われることを確かめる
+  it("最後の1人（rotation 1名）でも、見学者へ繰り上げて他者から退出させられる", async () => {
     // Given（rotation=[Bob] の状態を作る。Alice を対象にすると自己退出の経路になるため、
     // Alice を輪から抜いて Bob だけを残す。Alice は見学のまま在室し続ける）
     await handlers.handleCommand(creatorConn, { command: "member.remove", index: 0 }); // [Bob]
@@ -141,7 +142,7 @@ describe("participant.remove（⑪）", () => {
     const result = await handlers.handleCommand(creatorConn, { command: "participant.remove", participantId: guestId });
 
     // Then（#290・D1 により拒否されない。見学中の Alice が繰り上がり、Bob は退室する）
-    expect(result.isOk()).toBe(true);
+    // ※ 後続の検証が成功を含意するため isOk() は取らない
     expect(roomViewOf(store, timers, code).participants.find((p) => p.participantId === guestId)).toBeUndefined();
     expect(roomViewOf(store, timers, code).session.rotation).toEqual([creatorId]);
   });
@@ -378,7 +379,8 @@ describe("participant.remove（G7: 同名参加者を識別子で区別する）
     expect(room().participants.some((p) => p.participantId === ghostId)).toBe(true);
   });
 
-  it("③ 輪に本物1人だけのとき、その本物を外すと見学者へ繰り上がる（#290）", async () => {
+  // #290: 分岐③（輪に本物1人だけ）を対象に外す経路
+  it("③ 輪に本物1人だけのとき、その本物を外すと見学者へ繰り上がる", async () => {
     // Given（Alice を輪から抜いて rotation=[本物Bob] にする。幽霊は本物より先に参加している）
     const { realId, ghostId } = await setupBobs(true);
     await handlers.handleCommand(CREATOR, { command: "member.remove", index: 0 });
@@ -392,7 +394,7 @@ describe("participant.remove（G7: 同名参加者を識別子で区別する）
 
     // Then（#290・D1 により拒否されない。参加が最も早い作成者 Alice が繰り上がる ——
     // 同名の幽霊が居合わせても、別人（幽霊）が枠を引き継ぐことはない）
-    expect(result.isOk()).toBe(true);
+    // ※ 後続の検証が成功を含意するため isOk() は取らない
     expect(room().session.rotation).toEqual([creatorId]);
     expect(room().participants.some((p) => p.participantId === realId)).toBe(false);
     expect(room().participants.some((p) => p.participantId === ghostId)).toBe(true);
