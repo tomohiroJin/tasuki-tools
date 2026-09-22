@@ -864,6 +864,28 @@ export const MUTATIONS = [
       "ルームが消えた）を持つ人にも死んだ招待 URL と同じ「不在の知らせ」が出る。" +
       "**自分で押した操作の結果なのに、何かが壊れたように読める画面へ落ちる。**",
   },
+  {
+    id: 71,
+    label: "自分を引けないときの縮退で輪の先頭の席の名前を借りる",
+    patch: "m71-self-name-borrows-first-seat.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/App.self-name.test.tsx"],
+    note:
+      "#294。#294 以前の縮退（当時の出所は `config.members[0]`。値は席の 0 番と同じ）へ" +
+      "戻す変異。輪は並べ替えられるので、出るのは自分でも作成者でもない他人である。" +
+      "**復帰トークンが拒まれてから新しい participantId が届くまでの窓**で実際に効く。",
+  },
+  {
+    id: 72,
+    label: "完成記録の表示名を席ではなく名簿の並びから引く",
+    patch: "m72-record-names-from-roster-order.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/sync/snapshot-intents.test.ts"],
+    note:
+      "#294。記録の `members` は `driverCounts` と添字で対になって描かれる" +
+      "（`ui/Summary.tsx`）ので、輪と違う並びを渡すと**別人の回数が別人の名前の横に" +
+      "並ぶ**。名簿は輪の外の人も含むため長さも一致しない。",
+  },
 ];
 
 /**

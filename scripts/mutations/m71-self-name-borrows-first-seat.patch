@@ -1,0 +1,28 @@
+# 変異 71: self-name-borrows-first-seat
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/ui/App.self-name.test.tsx
+#     「名簿から自分を引けないとき、StatusStrip は輪の先頭の人の名前を出さない」
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m71-*.patch
+# 復元: git checkout -- <対象ファイル>
+#
+# #294。自分を名簿から引けないときの縮退を、#294 以前と同じ「輪の先頭の席の名前」へ
+# 戻す（当時の出所は `config.members[0]` で、値は席の 0 番と同じものだった）。
+# 輪は並べ替えられるので、これは自分でも作成者でもない**他人**である。
+# 名簿から自分を引けない窓（復帰トークンが拒まれ、新しい participantId が届くまで）
+# は実在し、そこで**復帰した本人が他人の名前を見る**。
+diff --git a/apps/timer-web/src/App.tsx b/apps/timer-web/src/App.tsx
+index 9fafb68..11f0bea 100644
+--- a/apps/timer-web/src/App.tsx
++++ b/apps/timer-web/src/App.tsx
+@@ -103,7 +103,7 @@ export default function App() {
+   // `participantId` が届くまでの間）は実在する —— そこで他人の名前を「自分」として
+   // 出していた。**誰か分からないなら、誰かの名前を借りない。**
+   const self = room?.participants.find((p) => p.participantId === participantId);
+-  const selfName = self?.displayName ?? "あなた";
++  const selfName = self?.displayName ?? room?.session.seats[0]?.displayName ?? "あなた";
+   // 接続状態: 喪失が最優先、それ以外は WS クライアントの通知に従う（R5-1）。
+   // 接続が生きていても、契約に合わないフレームを捨てて画面が古いままなら
+   // 「同期不整合」を出す（#209）。
