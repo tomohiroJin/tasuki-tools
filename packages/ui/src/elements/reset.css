@@ -19,6 +19,10 @@ html {
 body {
   margin: 0;
   min-height: 100dvh;
+  /* 織り目（body::after）を**ページ全体**の高さに広げるための位置指定。
+   * これが無いと絶対配置の基準が初期包含ブロック（＝画面 1 枚分）になり、
+   * 縦に長いページで下端の織り目が消える。 */
+  position: relative;
   background-color: var(--felt-900);
   /* フェルトの照明: 中央上からの灯り + 周辺減光（織り目は body::after） */
   background-image:
@@ -35,11 +39,15 @@ body {
  * 測り、織り目の分だけ楽観側に倒れていた。マスクは塗りを減らすだけなので、
  * 「最悪でも `background-color` が全面に来る」として正しく測れる。
  *
- * 合成は以前と同じ（黒 × 0.05 × 乱流の α）。`position: fixed` が
- * `background-attachment: fixed` の役目を継ぐ。 */
+ * 合成は以前と同じ（黒 × 0.05 × 乱流の α）。
+ *
+ * ⚠ **`position: fixed` にしてはいけない。** 合成層ができて、**ページ全体の文字が
+ * サブピクセルのアンチエイリアスを失う**（実測: 旧実装との画素比較で文字の縁が
+ * 最大 172 段変わり、色の開きが 108 → 43 に落ちた）。`absolute` なら最大 4 段で、
+ * これは織り目の粒の位置がずれただけ。地が動かないので見た目は変わらない。 */
 body::after {
   content: "";
-  position: fixed;
+  position: absolute;
   inset: 0;
   z-index: -1;
   pointer-events: none;
