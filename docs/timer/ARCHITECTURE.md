@@ -348,12 +348,29 @@ timer の中に「ルームの外」の画面はもうありません。**`?room
 （`decide.ts` の `decideMemberRemove` にある rotation 長ガード。`evolve` が `currentIndex`
 を決められなくなるのを防ぐためで、役割とは無関係）。
 
-**`participant.remove`（ルームから抜ける）からは、この `BelowMinMembers` はもう出ません**
+**`participant.remove`（ルームから抜ける）では、この `BelowMinMembers` に到達しません**
 （#290・D1）。輪の最後の席の持ち主が抜けるときは、部屋に見学者が残っているなら
 先にその 1 人を繰り上げてから外すため、輪を空にする状況そのものが起きなくなりました
 （`command-handlers/participant-remove.ts`）。**在室者が誰も残らないソロの部屋は元から
-例外で、拒まずにルームごと破棄します**（Issue #79）。`participant.remove` に残る拒否経路は、
-不正な対象を指した `INVALID` と、居ない相手を指した `PARTICIPANT_NOT_FOUND` だけです。
+例外で、拒まずにルームごと破棄します**（Issue #79）。
+
+⚠ **「出さない」ではなく「到達しない」です。** `participant.remove` のコードには
+`BelowMinMembers` を送る枝が**防御として残っています**（繰り上げ候補が居なかった場合）。
+到達しないのは 2 つのガードの重なりによるものです。
+
+1. あの枝は **`if (idx >= 0)`（対象が輪の席を持つ）の中**にあります。席を持たない見学者が
+   抜けるときは輪に触らないので、そこへは入りません
+2. 入ったうえで候補が空になるのは、**名簿が空になる場合と同値**です（退出者が唯一の席を
+   持つなら、残る名簿の全員が見学だからです）。名簿が空になる経路は
+   `hasNoParticipants` の早期 return がその手前で捌いています。代理は名簿に居ませんが
+   席は持つので、代理が居れば `rotation.length >= 2` となりガードに到達しません
+
+**枝を消してはいけません。** 上の同値が崩れる変更（名簿の表現・繰り上げの条件・代理の席の
+扱い）を入れたとき、輪を空にして `evolveMemberRemoved` の `% 0`（`NaN`）へ落ちるのを
+最後に止めるのがこの枝です。
+
+したがって `participant.remove` で**実際に利用者が見る**拒否は、不正な対象を指した
+`INVALID` と、居ない相手を指した `PARTICIPANT_NOT_FOUND` の 2 つです。
 **いずれも `errorAction()` の既定の `transient` に落ちるので、画面は移りません。**
 
 **走行中の繰り上げは `clock` に触りません**（`evolveMemberRemoved` が書き換えるのは
