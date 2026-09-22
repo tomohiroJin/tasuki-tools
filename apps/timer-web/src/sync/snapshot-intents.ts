@@ -116,8 +116,11 @@ export function decideSnapshotIntents(
         next.problem,
         next.config,
         // 名簿は timer-core の外（#95 S4a・D15）なので、表示名は呼び出し側が渡す。
-        // wire の `config.members` はローテーション順の表示名そのものなのでそのまま使える。
-        next.config.members,
+        // **席から引く**（#294）—— 記録の `members` は `driverCounts` と添字で対に
+        // なっており（`ui/Summary.tsx`）、対応が付く並びは輪の順だけである。
+        // `session.seats` は輪と同じ順・同じ長さで、席ごとに識別子を持つ
+        // （かつてここが読んでいた `config.members` は添字でしか対応が付かなかった）。
+        next.session.seats.map((seat) => seat.displayName),
         ctx.now,
         next.code,
       ),

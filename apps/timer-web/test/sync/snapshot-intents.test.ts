@@ -244,6 +244,40 @@ describe("decideSnapshotIntents: 完成記録", () => {
     const room = aRoomView({ phase: "celebration", problem: null });
     expect(kinds(room, baseCtx())).not.toContain("persist-completion");
   });
+
+  it("記録に載る表示名は席（`session.seats`）から引く（#294）", () => {
+    // Given: 席の並びと表示名が、名簿の並びとも `config.members` とも食い違うルーム。
+    // **食い違わせるのが要点である** —— 実物では 3 つとも同じ規則で組まれるため、
+    // 一致させた造作では「どこから引いたか」が区別できず、検査が恒真になる。
+    const room = aRoomView({
+      phase: "celebration",
+      problem,
+      config: { members: ["この名前は記録に載ってはならない", "こちらも"] },
+      session: {
+        rotation: ["p-bob", "p-aya"],
+        driverCounts: [2, 1],
+        seats: [
+          { id: "p-bob", displayName: "ボブ", isProxy: false, skipReason: null },
+          { id: "p-aya", displayName: "あや", isProxy: false, skipReason: null },
+        ],
+      },
+      // 名簿は席と**逆順**（`participants` から引く実装なら並びが入れ替わる）。
+      participants: [
+        { participantId: "p-aya", displayName: "あや", presence: "online", hasAiKey: false, joinedAt: 0 },
+        { participantId: "p-bob", displayName: "ボブ", presence: "online", hasAiKey: false, joinedAt: 0 },
+      ],
+    });
+
+    // When
+    const intents = decideSnapshotIntents(null, room, baseCtx());
+    const persist = intents.find((i) => i.kind === "persist-completion");
+
+    // Then: 席と同じ順の表示名が載る（`driverCounts` と添字で対になる・`Summary.tsx`）
+    expect(persist?.kind === "persist-completion" ? persist.record.members : null).toEqual([
+      "ボブ",
+      "あや",
+    ]);
+  });
 });
 
 describe("decideSnapshotIntents: 順序（振る舞いそのもの）", () => {
