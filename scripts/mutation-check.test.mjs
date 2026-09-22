@@ -10,6 +10,11 @@ import {
   buildCommand,
   isPidAlive,
   lockRefusalReason,
+  restoreWithRetry,
+  formatRestoreFailureMessage,
+  decideCrashRecovery,
+  verifyRestoreAndClearMarker,
+  decideMutationRestore,
   MUTATIONS,
 } from "./mutation-check.mjs";
 
@@ -342,5 +347,337 @@ describe("同時実行のロック", () => {
     } finally {
       if (fs.existsSync(lockPath)) fs.rmSync(lockPath);
     }
+  });
+});
+
+/**
+ * 復元の再試行と検証（Task 7b / #290）。
+ *
+ * **背景（実測で判明）**: `.git/index.lock` の競合で `git checkout --` による復元が
+ * 3 回失敗し、変異（合言葉チェックの短絡・不可視文字除去の削除）が製品コードに
+ * 当たったまま残った。当時のコードは `catch` で `console.error` するだけで、
+ * 再試行も「実際に戻ったか」の検証も終了コードの変更もしていなかった。
+ *
+ * **「コマンドが成功した」と「実際に戻った」は別の事実である。** ここでは、
+ * `git checkout --` を叩く実 I/O（`checkoutFn`）・戻ったかを確かめる実 I/O
+ * （`isRestoredFn`）・再試行の待機（`waitFn`）をすべて注入できる形にして、
+ * 判定（何回試すか・いつ諦めるか）だけを取り出して検証する。`lockRefusalReason`
+ * と同じ形（判定を純粋関数へ、実 I/O は呼び出し側）。git のロック競合そのものは
+ * 再現しない——見たいのは「コマンドは成功を返した（＝例外を投げなかった）のに
+ * ファイルが戻っていない」という状況での振る舞いである。
+ */
+describe("復元の再試行と検証", () => {
+  test("checkout が例外を投げずに終わっても、ファイルが戻っていなければ最大試行回数まで再試行する", () => {
+    // Given: checkoutFn は毎回「成功」する（例外を投げない）が、isRestoredFn は常に
+    // 「戻っていない」を返す —— index.lock 競合で checkout 自体が空振りし続ける状況を模す
+    let checkoutCalls = 0;
+    let waitCalls = 0;
+    // When
+    const result = restoreWithRetry(["a.ts", "b.ts"], {
+      checkoutFn: () => {
+        checkoutCalls += 1;
+      },
+      isRestoredFn: () => false,
+      waitFn: () => {
+        waitCalls += 1;
+      },
+      maxAttempts: 3,
+    });
+    // Then: 諦めるまで指定回数分だけ叩き、戻ったとは判定しない
+    assert.equal(result.restored, false);
+    assert.equal(result.attempts, 3);
+    assert.equal(checkoutCalls, 3, "checkoutFn の呼び出し回数");
+    assert.equal(waitCalls, 2, "待機は試行の間だけ（最後の失敗の後には待たない）");
+  });
+
+  test("再試行の途中で戻れば、そこで打ち切り正常な結果を返す", () => {
+    // Given: 2 回目の checkout の後に isRestoredFn が true になる
+    let attempts = 0;
+    // When
+    const result = restoreWithRetry(["a.ts"], {
+      checkoutFn: () => {
+        attempts += 1;
+      },
+      isRestoredFn: () => attempts >= 2,
+      waitFn: () => {},
+      maxAttempts: 5,
+    });
+    // Then: 3 回目以降は試みない
+    assert.equal(result.restored, true);
+    assert.equal(result.attempts, 2);
+    assert.equal(attempts, 2, "戻った後は checkoutFn を追加で呼ばない");
+  });
+
+  test("checkoutFn が例外を投げても、直後に戻っていれば異常とは扱わない（index.lock は一過性）", () => {
+    // Given: 1 回目は例外（index.lock 競合を模す）、2 回目で戻る
+    let calls = 0;
+    // When
+    const result = restoreWithRetry(["a.ts"], {
+      checkoutFn: () => {
+        calls += 1;
+        if (calls === 1) throw new Error("index.lock");
+      },
+      isRestoredFn: () => calls >= 2,
+      waitFn: () => {},
+      maxAttempts: 5,
+    });
+    // Then
+    assert.equal(result.restored, true);
+    assert.equal(result.attempts, 2);
+  });
+
+  test("checkoutFn が最後まで例外を投げ続けても、最大試行回数で致命的な結果を返す", () => {
+    // Given: checkout が一度も成功しない（＝例外を投げ続ける）
+    let calls = 0;
+    // When
+    const result = restoreWithRetry(["a.ts"], {
+      checkoutFn: () => {
+        calls += 1;
+        throw new Error("index.lock");
+      },
+      isRestoredFn: () => false,
+      waitFn: () => {},
+      maxAttempts: 4,
+    });
+    // Then
+    assert.equal(result.restored, false);
+    assert.equal(result.attempts, 4);
+    assert.equal(calls, 4);
+  });
+
+  test("致命的な結果のメッセージに、残っているファイル名がすべて出る", () => {
+    // Given / When
+    const msg = formatRestoreFailureMessage(
+      ["apps/tasuki-sync/src/x.ts", "packages/timer-core/src/y.ts"],
+      5,
+    );
+    // Then: ファイル名が省略されずに並ぶ
+    assert.match(msg, /apps\/tasuki-sync\/src\/x\.ts/);
+    assert.match(msg, /packages\/timer-core\/src\/y\.ts/);
+    // Then: 見逃しようのない書き方であること（致命的だと分かる語と試行回数）
+    assert.match(msg, /手動/);
+    assert.match(msg, /5/);
+  });
+});
+
+/**
+ * クラッシュからの復旧（recoverFromCrashedRun の判定部分）の再試行・検証・マーカー
+ * 消去のタイミング（修正ラウンド 1 / #290）。
+ *
+ * **背景**: `recoverFromCrashedRun()` は旧実装では `restoreWithRetry` を使わず、
+ * `git checkout --` が例外を投げなければ「復元しました。」と report するだけだった
+ * （検証も再試行も無い）。しかもマーカー（`.applied`）を復元の**前**に消していたため、
+ * 復元が失敗しても次回の起動は「前回は異常終了した」という記録を失っていた
+ * （`process.exit(1)` で人には見えても、状態としては失われる）。
+ *
+ * ここでは両方を見る。git のロック競合そのものは再現しない —— 見たいのは
+ * 「復元コマンドが成功を返したのにファイルが戻っていない」状況での振る舞いと、
+ * そのときマーカーを消していないかである。
+ */
+describe("クラッシュからの復旧の判定（decideCrashRecovery）", () => {
+  test("マーカーの中身が空なら、復元を試みずマーカーだけ消す", () => {
+    // Given: 壊れたマーカー（中身が空）を模す
+    let checkoutCalls = 0;
+    let clearCalls = 0;
+    // When
+    const outcome = decideCrashRecovery([], {
+      checkoutFn: () => {
+        checkoutCalls += 1;
+      },
+      isRestoredFn: () => true,
+      waitFn: () => {},
+      clearMarkerFn: () => {
+        clearCalls += 1;
+      },
+    });
+    // Then: 戻すものが無いので checkout は 1 度も呼ばれず、マーカーだけ消える
+    assert.equal(outcome.restored, null);
+    assert.equal(checkoutCalls, 0);
+    assert.equal(clearCalls, 1);
+  });
+
+  test("checkout が成功を返してもファイルが戻っていなければ、マーカーを消さずに致命的な結果を返す", () => {
+    // Given: checkoutFn は例外を投げない（「成功」を装う）が、isRestoredFn は常に false
+    let clearCalls = 0;
+    const logs = [];
+    // When
+    const outcome = decideCrashRecovery(["apps/timer-web/src/sync/use-timer-sync.ts"], {
+      checkoutFn: () => {},
+      isRestoredFn: () => false,
+      waitFn: () => {},
+      clearMarkerFn: () => {
+        clearCalls += 1;
+      },
+      logFn: (msg) => logs.push(msg),
+      maxAttempts: 3,
+    });
+    // Then: 致命的として扱い、マーカーは**消さない**（次回の起動が拾えるように残す）
+    assert.equal(outcome.restored, false);
+    assert.equal(clearCalls, 0, "戻っていないのにマーカーを消している");
+    // Then: 残っているファイル名がログに出る
+    assert.ok(
+      logs.some((m) => /apps\/timer-web\/src\/sync\/use-timer-sync\.ts/.test(m)),
+      "致命的なログにファイル名が出ていない",
+    );
+  });
+
+  test("再試行の末に戻れば、そこでマーカーを消し正常な結果を返す", () => {
+    // Given: 2 回目の checkout の後に isRestoredFn が true になる
+    let attempts = 0;
+    let clearCalls = 0;
+    // When
+    const outcome = decideCrashRecovery(["a.ts"], {
+      checkoutFn: () => {
+        attempts += 1;
+      },
+      isRestoredFn: () => attempts >= 2,
+      waitFn: () => {},
+      clearMarkerFn: () => {
+        clearCalls += 1;
+      },
+      maxAttempts: 5,
+    });
+    // Then: 戻った後にだけマーカーを消す
+    assert.equal(outcome.restored, true);
+    assert.equal(outcome.attempts, 2);
+    assert.equal(clearCalls, 1);
+  });
+});
+
+/**
+ * マーカーを消すタイミングの規則そのもの（修正ラウンド 3 / #290 のレビュー指摘）。
+ *
+ * **なぜこの節が要るか**: 上の「decideCrashRecovery」の 3 件は `verifyRestoreAndClearMarker`
+ * を間接的に通るが、それは `recoverFromCrashedRun` 経路だけである。`restoreCurrentMutation`
+ * （通常サイクルの復元）も同じ関数を通るが、上の 3 件は一切そちらを通らない。
+ * つまり誰かが `restoreCurrentMutation` の中だけを元の「無条件 `clearMarker()`」へ
+ * 書き戻しても、上の 3 件は全部緑のままだった —— 正しい実装と誤実装が同じ結果を
+ * 返す位置にしかアサーションが無い状態。ここでは `verifyRestoreAndClearMarker` を
+ * **直接 import** し、`clearMarkerFn` の**呼び出し回数**を数える形で「いつ呼ばれるか／
+ * いつ呼ばれないか」を固定する。
+ */
+describe("マーカーを消すタイミング（verifyRestoreAndClearMarker を直接検証）", () => {
+  test("files が空なら、検証を待たずに clearMarkerFn を 1 回だけ呼ぶ（m05 のケース）", () => {
+    // Given/When
+    let checkoutCalls = 0;
+    let clearCalls = 0;
+    const outcome = verifyRestoreAndClearMarker([], {
+      checkoutFn: () => {
+        checkoutCalls += 1;
+      },
+      isRestoredFn: () => true,
+      waitFn: () => {},
+      clearMarkerFn: () => {
+        clearCalls += 1;
+      },
+    });
+    // Then: 戻すものが無いので checkout は 1 度も呼ばれず、マーカーだけ消える。
+    // ここが消えると、次回の起動が「前回は異常終了した」と誤報告し続ける。
+    assert.equal(outcome.restored, null);
+    assert.equal(checkoutCalls, 0);
+    assert.equal(clearCalls, 1);
+  });
+
+  test("files が非空で復元が成功すれば、戻ったと確認できてから clearMarkerFn を 1 回だけ呼ぶ", () => {
+    // Given
+    let clearCalls = 0;
+    const restoredAttempts = [];
+    // When
+    const outcome = verifyRestoreAndClearMarker(["a.ts"], {
+      checkoutFn: () => {},
+      isRestoredFn: () => true,
+      waitFn: () => {},
+      clearMarkerFn: () => {
+        clearCalls += 1;
+      },
+      onRestored: (attempts) => restoredAttempts.push(attempts),
+      maxAttempts: 3,
+    });
+    // Then
+    assert.equal(outcome.restored, true);
+    assert.equal(clearCalls, 1);
+    assert.deepEqual(restoredAttempts, [1]);
+  });
+
+  test("files が非空で復元が失敗し続ければ、clearMarkerFn は一度も呼ばれない（この修正の核心）", () => {
+    // Given: checkout は例外を投げない（「成功」を装う）が、isRestoredFn は常に false
+    //   —— これが今回のバグの再現条件そのもの。ここで clearMarkerFn が呼ばれてしまう
+    //   実装（＝ restoreCurrentMutation を無条件 clearMarker() へ書き戻した状態と同値）
+    //   なら、このアサーションが落ちる。
+    let clearCalls = 0;
+    // When
+    const outcome = verifyRestoreAndClearMarker(["a.ts"], {
+      checkoutFn: () => {},
+      isRestoredFn: () => false,
+      waitFn: () => {},
+      clearMarkerFn: () => {
+        clearCalls += 1;
+      },
+      maxAttempts: 3,
+    });
+    // Then: マーカーを残したまま致命的な結果を返す
+    assert.equal(outcome.restored, false);
+    assert.equal(
+      clearCalls,
+      0,
+      "戻っていないのに clearMarkerFn が呼ばれている（無条件 clearMarker() への退行を検知できていない）",
+    );
+  });
+});
+
+/**
+ * `restoreCurrentMutation`（通常サイクルの復元）の判定部分を直接検証する
+ * （修正ラウンド 3 / #290）。`restoreCurrentMutation` 自身は module-level 変数
+ * （`currentlyAppliedFiles`）と実 I/O（`execFileSync`・`process.exit`）に直接
+ * 依存しており安く注入できないため対象にしていない（この節の直後のコメント、
+ * および `mutation-check.mjs` 側の `restoreCurrentMutation` 直前のコメントを参照）。
+ * ここで検証するのは、その配線が委ねる判定ロジック（`decideMutationRestore`）である。
+ */
+describe("通常サイクルの復元判定（decideMutationRestore）", () => {
+  test("戻れば、ファイル名入りの復元ログを出しマーカーを消す", () => {
+    // Given
+    let clearCalls = 0;
+    const logs = [];
+    // When
+    const outcome = decideMutationRestore(["a.ts", "b.ts"], {
+      checkoutFn: () => {},
+      isRestoredFn: () => true,
+      waitFn: () => {},
+      clearMarkerFn: () => {
+        clearCalls += 1;
+      },
+      logFn: (msg) => logs.push(msg),
+    });
+    // Then
+    assert.equal(outcome.restored, true);
+    assert.equal(clearCalls, 1);
+    assert.ok(
+      logs.some((m) => m.includes("復元しました: a.ts, b.ts")),
+      "復元ログにファイル名が出ていない",
+    );
+  });
+
+  test("戻らなければ、マーカーを消さず致命的なログを出す", () => {
+    // Given
+    let clearCalls = 0;
+    const logs = [];
+    // When
+    const outcome = decideMutationRestore(["a.ts"], {
+      checkoutFn: () => {},
+      isRestoredFn: () => false,
+      waitFn: () => {},
+      clearMarkerFn: () => {
+        clearCalls += 1;
+      },
+      logFn: (msg) => logs.push(msg),
+      maxAttempts: 2,
+    });
+    // Then
+    assert.equal(outcome.restored, false);
+    assert.equal(clearCalls, 0, "戻っていないのにマーカーを消している");
+    assert.ok(
+      logs.some((m) => /a\.ts/.test(m)),
+      "致命的なログにファイル名が出ていない",
+    );
   });
 });

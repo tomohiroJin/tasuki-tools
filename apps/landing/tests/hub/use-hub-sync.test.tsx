@@ -449,6 +449,67 @@ describe('ルームの生死の照会', () => {
 });
 
 /**
+ * D4 が開けた窓（#290 最終レビュー・取りこぼし A-1）。
+ *
+ * 「不在 かつ 退出の告知あり → 作成画面」を足したことで、URL 由来の古いコード
+ * （`initialCode`）が非 null のまま作成画面に居る状態が新たに到達可能になった。
+ * そこで新しいルームを作った後、古いコードについての `ROOM_NOT_FOUND` が遅れて
+ * 届く（再接続時の生死の再照会など）と、**尋ねた相手といま映しているルームが
+ * 違う**のに、いま作ったばかりの新しいルームの復帰の組を巻き添えに消してしまう。
+ */
+describe('D4 が開けた窓（古いコードの不在が新しいルームを巻き添えにしない）', () => {
+  it('Given 抜けて作成画面から新しいルームを作った / When 古いコードについて遅れて ROOM_NOT_FOUND が届く / Then 新しいルームの復帰の組は消えない', () => {
+    // Given: 抜けた直後の参加用 URL（古いコード）と退出の告知を持って玄関へ着く
+    window.history.replaceState(null, '', '/?room=OLD&left=self');
+    render(<App />);
+    act(() => socket().open());
+
+    // 復帰の組を持たないので玄関は OLD の生死を尋ねている。答えが「不在」で返り、
+    // 退出の告知があるので作成画面へ落ちる（D4）
+    act(() =>
+      socket().deliver({
+        type: 'error',
+        code: 'ROOM_NOT_FOUND',
+        message: '指定されたルームコードが見つかりません',
+      }),
+    );
+    expect(screen.getByRole('button', { name: 'ルームを作る' })).toBeInTheDocument();
+
+    // When: 作成画面から新しいルームを作る（codeRef は NEW を指すようになる。
+    // initialCode は URL 由来のまま OLD で変わらない）
+    act(() => {
+      fireEvent.change(screen.getByLabelText('ルーム名'), { target: { value: '朝会モブ' } });
+      fireEvent.change(screen.getByLabelText('あなたの名前'), { target: { value: 'あや' } });
+      fireEvent.submit(screen.getByRole('button', { name: 'ルームを作る' }).closest('form')!);
+    });
+    act(() =>
+      socket().deliver({
+        type: 'room.created',
+        code: 'NEW',
+        participantId: 'p1',
+        resumeToken: 't1',
+      }),
+    );
+    expect(localStorage.getItem('tasuki:resume:NEW')).not.toBeNull();
+
+    // When: 古いコード（OLD）についての ROOM_NOT_FOUND が、新しいルームを作った後に
+    // 遅れて届く（再接続時に initialCode=OLD の生死を尋ね直した場合を想定）
+    act(() =>
+      socket().deliver({
+        type: 'error',
+        code: 'ROOM_NOT_FOUND',
+        message: '指定されたルームコードが見つかりません',
+      }),
+    );
+
+    // Then: いま作ったばかりの新しいルームの復帰の組は残っている
+    // （尋ねた相手 OLD といま映しているルーム NEW が違うので、巻き添えにしてはいけない。
+    // 消してしまう実装だとここが null になって落ちる）
+    expect(localStorage.getItem('tasuki:resume:NEW')).not.toBeNull();
+  });
+});
+
+/**
  * 既定として提示した名前を、利用者が書き換えたとき（#284・FR-053 / FR-054 の EARS 4）。
  *
  * **送られた中身まで見る。** 欄の見た目だけを見る検査は、「書き換えは映るが送るのは

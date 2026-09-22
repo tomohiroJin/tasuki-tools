@@ -167,8 +167,9 @@ export interface TimerSync {
   /** 代理参加者を加える（participantId はここで生成する）。 */
   addProxy(displayName: string): void;
   /**
-   * 完了後に「新しいセッション」を選んだ。**ルームをロビーへ戻したうえで玄関へ送る**
-   * （#95 S5c・C-1）。押した本人は新しいルームを作りに行き、残る人はロビーに居る。
+   * 完了後に「新しいセッション」を選んだ。**ルームが生きているなら、押した本人も
+   * 含めて在室者全員がロビーへ戻る**（`phase.set` は在室者全員へ届く・#290・D5）。
+   * 玄関（`/`）へ送るのは、ルームを失っているとき（`SessionLost`）だけである。
    */
   newSession(): void;
   /** Summary の明示保存。失敗時はバナーを出す。 */
@@ -453,7 +454,8 @@ export function useTimerSync(banner: BannerController): TimerSync {
 
   const handleError = (syncClient: SyncClient, code: string) => {
     console.error("WS error:", code); // log-hygiene:allow ブラウザの devtools 向け
-    // 画面が次に何をするかは errorAction() の判定に委ねる（Issue #32・FR-127/129）。
+    // 画面が次に何をするかは errorAction() の判定に委ねる（Issue #32・FR-125/FR-129・
+    // `ui/error-action.ts` の docstring と揃える）。
     // 分岐は kind の判別可能合併を網羅する（未処理の kind があれば型検査で気づける）。
     const action = errorAction(code);
     switch (action.kind) {
@@ -478,8 +480,10 @@ export function useTimerSync(banner: BannerController): TimerSync {
       }
       case "leave-room": {
         // 退出が成立した本人を取り残さない（自己退出＝LEFT_ROOM／他者に退出させられた＝
-        // REMOVED_FROM_ROOM・REMOVED_BY_HOST）。後始末は行き先によらず共通で、
-        // 違うのは玄関へ渡す理由（`?left=`）と行き先だけ（Issue #32・FR-127/128）。
+        // REMOVED_FROM_ROOM・REMOVED_BY_HOST）。後始末も行き先も離れ方で分けない
+        // （#290・D3）。違うのは玄関へ渡す理由（`?left=`）だけである（Issue #32・FR-128）。
+        // **FR-127 は「入口の画面」を求めるが、#290・D3 でコードを運ぶ「玄関のそのルーム」
+        // へ意図して再解釈している**（旧入口 `Setup`/`Join` は #249 で撤去済み）。
         // **ここで `friendlyError` は呼ばない** —— 文言は玄関が引く（下の注記）。
         // 退室が成立した以上、待機中の再試行も畳む（#147）。残すと、抜けたはずの
         // ルームへ入り直そうとする送信が、玄関へ去るまでの間に走る。
@@ -517,22 +521,12 @@ export function useTimerSync(banner: BannerController): TimerSync {
         // 外されたと分からずに再参加してまた外される（Issue #32 が塞いだ問題の再発）。
         // 理由だけを URL に載せて運び、文言は玄関側が `@tasuki/room-core` から引く。
         //
-        // **行き先は玄関（ハブ）である**（#95 S5c・R9）。旧入口（`Setup` / `Join`）を
-        // 撤去したので、timer の中に「ルームの外」の画面はもう無い。`destination` の値は
-        // そのまま使い、URL へ写すだけにする（判定は `error-action.ts` の 1 箇所に保つ）。
-        //
-        // **どちらも `replace` で送る**（FR-127 / US2-2）。押した URL には `?room=` が
-        // 残っており、履歴に積むと戻るボタン 1 回で抜けたはずのルームへ復帰してしまう。
         setMode(null);
-        if (action.destination === "join") {
-          // 他者に外された。直前のルームコードがあれば玄関の参加画面へ引き継ぐ
-          // （再参加しやすくする・`docs/timer/ARCHITECTURE.md` の退出の表）。
-          redirectTo(hubRoomPath(removedFrom ?? null, "removed"));
-        } else {
-          // destination === "setup": 自分で抜けた。直前ルームへの手がかりを持ち越さない
-          // ので、`?room=` を落とした玄関そのものへ送る。
-          redirectTo(hubRoomPath(null, "self"));
-        }
+        // **行き先は離れ方で分けない**（#290・D3）。ルームがまだ在るかを知っているのは
+        // 玄関（サーバーへ尋ねる・#274）であって、抜けた本人ではない。コードを運び、
+        // 判断は玄関へ委ねる。**コードを失っている場合は `hubRoomPath` が `?room=` を
+        // 落とす** —— 存在しないコードを載せると、退出の告知より不在が前に出る。
+        redirectTo(hubRoomPath(removedFrom ?? null, action.reason));
         return;
       }
       case "retry-later": {
@@ -744,31 +738,35 @@ export function useTimerSync(banner: BannerController): TimerSync {
   };
 
   /**
-   * 完了後の「新しいセッション」。**ルームをロビーへ戻してから玄関（`/`）へ送る**
-   * （#95 S5c・C-1）。
+   * 完了後の「新しいセッション」。**ルームが生きているならロビーへ戻すだけで、
+   * 玄関へは遷移しない**（#290・D5）。理由は下の実装コメントを参照。
    *
-   * **2 つとも要る。**
+   * ルームの `phase` が `celebration` のまま残ると、同じルームに居る人や参加用
+   * URL で戻ってきた人は、timer を開くたび完了画面に着く。**poker は使えるのに
+   * timer だけ死んだルーム**が TTL の間ずっと残るので、`phase.set` は必ず送る。
    *
-   * - 玄関へ送るだけでは足りない。ルームの `phase` が `celebration` のまま残り、
-   *   同じルームに居る人や参加用 URL で戻ってきた人は、timer を開くたび完了画面に着く。
-   *   **poker は使えるのに timer だけ死んだルーム**が TTL の間ずっと残る。
-   *   `celebration` を抜けられるのは `phase.set` だけで、送れるのはここである
-   * - ロビーへ戻すだけでも足りない。押した人の意図は「このルームでの作業は終わり」で、
-   *   撤去前はそこで新しいルームを作る画面（旧 `Setup`）へ行っていた。同じ意味を保つ
-   *
-   * 行き先は **`?room=` を付けない `/`** である。付けるとその人だけ選択画面に着いて、
-   * 新しいルームを作れない。**`replace` で送る** —— 押した時点の URL は `?room=CODE` で、
-   * 履歴に積むと戻るボタン 1 回で完了画面へ戻ってしまう。
+   * 玄関（`/`）へ送るのは、ルームを失っているときだけである。行き先は
+   * **`?room=` を付けない `/`**。付けるとその人だけ選択画面に着いて、新しい
+   * ルームを作れない。`redirectTo` は内部で `replace` を使うため履歴に残らない。
    *
    * 前のセッションの残り（完了記録・終了種別）は畳まない。**畳むのは次の開始**である
    * （{@link startSession} の注記。ここで降ろすと二重保存の窓が開く）。
    *
-   * **ルームを失っているとき（#76 F-4）はここを通らない。** `SessionLost` の
-   * 「新しいセッションを始める」は遷移だけを行う（`App.tsx`）。消えたルームへ
-   * コマンドを送っても、接続の無い `pending` に積まれるだけである。
+   * **`SessionLost` 画面（`App.tsx`）の「新しいセッションを始める」はここを
+   * 通らず、遷移だけを行う。** 消えたルームへコマンドを送っても、接続の無い
+   * `pending` に積まれるだけである。
    */
   const newSession = () => {
-    if (room && !sessionLost) commands.setPhase("setup");
+    // **ルームが生きているなら遷移しない**（#290・D5）。`phase.set` は在室者全員へ
+    // 届くので、押した本人も他の全員と同じく snapshot でロビーへ戻る。
+    // かつてここに `redirectTo("/")` があったのは、#249 以前の `newSession` が
+    // 「まっさらな新しいルームを作る」操作で、旧 `Setup`（＝作成画面）へ戻していた
+    // 名残である。押した本人だけがルームから出されていた。
+    if (room && !sessionLost) {
+      commands.setPhase("setup");
+      return;
+    }
+    // ルームを失っているときは戻る先が無いので玄関へ（`SessionLost` と同じ）。
     redirectTo("/");
   };
 

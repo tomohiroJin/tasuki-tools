@@ -1,11 +1,15 @@
 /**
- * エラーコードを受けて画面が次に何をするかの決定（Issue #32・FR-127/FR-129）。
+ * エラーコードを受けて画面が次に何をするかの決定（Issue #32・FR-125/FR-129）。
+ *
+ * 行き先の決定（旧 FR-127）はここでは行わない（#290 で `use-timer-sync.ts` へ移管）。
  */
 
-/** 画面の次の動作。誰の操作で退出したかにより行き先が分かれる。 */
+import type { DepartureReason } from "@tasuki/room-core";
+
+/** 画面の次の動作。**行き先は分岐しない**（#290・D3）。運ぶのは理由だけである。 */
 export type ErrorAction =
   | { kind: "session-lost" }
-  | { kind: "leave-room"; destination: "join" | "setup" }
+  | { kind: "leave-room"; reason: DepartureReason }
   /** 混雑で入室を拒まれた。待ってから入り直せば入れる（#147）。 */
   | { kind: "retry-later" }
   | { kind: "transient" };
@@ -26,10 +30,10 @@ export function errorAction(code: string): ErrorAction {
     case "JOIN_RATE_LIMITED":
       return { kind: "retry-later" };
     case "LEFT_ROOM":
-      return { kind: "leave-room", destination: "setup" };
+      return { kind: "leave-room", reason: "self" };
     case "REMOVED_FROM_ROOM":
     case "REMOVED_BY_HOST":
-      return { kind: "leave-room", destination: "join" };
+      return { kind: "leave-room", reason: "removed" };
     default:
       return { kind: "transient" };
   }

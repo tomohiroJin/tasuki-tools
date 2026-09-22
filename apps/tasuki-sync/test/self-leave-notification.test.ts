@@ -109,22 +109,26 @@ describe("自己退出した本人への通知", () => {
   });
 
   // #95 S3 以前は「進行できる人が残らない」不変条件（LAST_MANAGER_LEAVE）で拒否させていた。
-  // その不変条件は役割ごと消えたので、残る拒否経路（rotation を空にしない保護）で
-  // 同じ性質 —— 拒否されたら退出通知は届かない —— を固定し直す。
-  it("退出が拒否されたとき（輪の最後の1人）、退出通知は届かない", async () => {
+  // その不変条件は役割ごと消え、続く「rotation を空にしない保護」も #290・D1 で
+  // 参加者を残せる限り見学者を繰り上げるようになったため、`participant.remove` からは
+  // 拒否されなくなった（docs/timer/ARCHITECTURE.md 参照）。したがって「輪の最後の1人」
+  // という同じ場面は、いまは拒否ではなく**受理されて見学者が繰り上がる**ことを固定する。
+  it("輪の最後の1人でも、見学者が繰り上がって退出が受理され LEFT_ROOM が届く", async () => {
     // Given（Bob・Carol は輪に入っていないので rotation は Alice 1 人だけ）
     const aliceId = pidOf("Alice");
     if (roomViewOf(store, timers, code).session.rotation.length !== 1) {
       throw new Error("前提: rotation が Alice 1 人であること");
     }
 
-    // When（輪の最後の1人である Alice 自身の退出は拒否される）
-    const result = await handlers.handleCommand(HOST, { command: "participant.remove", participantId: aliceId });
+    // When（輪の最後の1人である Alice 自身が退出する）
+    await handlers.handleCommand(HOST, { command: "participant.remove", participantId: aliceId });
 
-    // Then
-    expect(result.isErr()).toBe(true);
-    expect(broadcaster.errorsTo(HOST).at(-1)?.code).toBe("BelowMinMembers");
-    expect(broadcaster.hasErrorCode(HOST, "LEFT_ROOM")).toBe(false);
+    // Then: 拒否されず、見学だった誰か（Bob か Carol）が繰り上がって本人へ LEFT_ROOM が届く
+    // ※ 後続の検証が成功を含意するため isOk() は取らない
+    expect(broadcaster.hasErrorCode(HOST, "LEFT_ROOM")).toBe(true);
+    expect(broadcaster.hasErrorCode(HOST, "BelowMinMembers")).toBe(false);
     expect(broadcaster.hasErrorCode(HOST, "REMOVED_FROM_ROOM")).toBe(false);
+    expect(roomViewOf(store, timers, code).session.rotation).toHaveLength(1);
+    expect(roomViewOf(store, timers, code).session.rotation).not.toEqual([aliceId]);
   });
 });

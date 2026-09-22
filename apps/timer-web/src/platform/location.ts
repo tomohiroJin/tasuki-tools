@@ -25,8 +25,10 @@ export function navigateTo(to: string): void {
  *
  * 行き場の無い URL を玄関へ送り直すのはこちら（#95 S5c・R9）。`navigateTo` で送ると、
  * 戻るボタンが行き場の無い URL へ戻り、そこからまた送り返される往復になる。
- * 退出が成立したときも同じ理由でこちらを使う —— 抜けた本人の履歴に、
- * 直前のルームを指す URL を残さない（FR-127 / US2-2）。
+ * 退出が成立したときも同じ理由でこちらを使う —— **履歴には残らない**ので、戻るボタンで
+ * 抜けた直前のルームへ往復することはない。ただし行き先の URL 自体は `?room=CODE&left=<reason>`
+ * を保つ（#290・D3）。抜けた本人のアドレスバーに `?room=CODE` が載ることと、
+ * 履歴に積まないことは別の話である（FR-127 / US2-2）。
  */
 export function redirectTo(to: string): void {
   window.location.replace(to);

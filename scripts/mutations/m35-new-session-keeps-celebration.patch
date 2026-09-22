@@ -1,12 +1,29 @@
+# 変異 35: new-session-keeps-celebration
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/sync/use-timer-sync.test.tsx
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m35-*.patch
+#       (diff のパスはリポジトリルート起点。mutation-check.mjs もリポジトリルートで実行する)
+# 復元: git checkout -- <対象ファイル>（同じくリポジトリルートから）
+#
+# #290 で newSession の実装が「ルームが生きているなら遷移しない」形に変わり、
+# if 文が単文から早期 return を持つブロックへ変わった（パッチの文脈行がずれて
+# 当たらなくなっていたため、#290 で作り直した。変異そのもの ——
+# 「ルームが生きているときの setPhase("setup") を送らない」——は変えていない）。
 diff --git a/apps/timer-web/src/sync/use-timer-sync.ts b/apps/timer-web/src/sync/use-timer-sync.ts
-index 2b79b55..0b3da4c 100644
+index cc3192d..00a862b 100644
 --- a/apps/timer-web/src/sync/use-timer-sync.ts
 +++ b/apps/timer-web/src/sync/use-timer-sync.ts
-@@ -702,7 +702,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
-    * コマンドを送っても、接続の無い `pending` に積まれるだけである。
-    */
-   const newSession = () => {
--    if (room && !sessionLost) commands.setPhase("setup");
+@@ -760,10 +760,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
+     // かつてここに `redirectTo("/")` があったのは、#249 以前の `newSession` が
+     // 「まっさらな新しいルームを作る」操作で、旧 `Setup`（＝作成画面）へ戻していた
+     // 名残である。押した本人だけがルームから出されていた。
+-    if (room && !sessionLost) {
+-      commands.setPhase("setup");
+-      return;
+-    }
+     // ルームを失っているときは戻る先が無いので玄関へ（`SessionLost` と同じ）。
      redirectTo("/");
    };
- 

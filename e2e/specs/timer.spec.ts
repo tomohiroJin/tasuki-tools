@@ -474,8 +474,8 @@ test.describe('契約に合わない同期フレームを捨てたことが画�
 /**
  * 完了後の「新しいセッション」（#95 S5c・C-1・`local` 専用）。
  *
- * **ここでしか見られないのは「押した人と残った人で行き先が違うこと」と、
- * 残った人が実際に次のセッションを始められることである。** 単体テストは片方の画面しか
+ * **ここでしか見られないのは、押した人自身の画面がロビーへ戻ること**と、
+ * **そのルームで実際に次のセッションを始められることである。** 単体テストは片方の画面しか
  * 持たず、`session.act START` が走行中のルームで弾かれるかどうかは実サーバーにしか無い。
  *
  * 撤去の段では「同じルームの選択画面へ送る」形にしており、**そのルームの `phase` は
@@ -487,9 +487,14 @@ test.describe('契約に合わない同期フレームを捨てたことが画�
  * 完了したルームには `running: false` / `isPaused: true` / 進んだ `currentIndex` が残る。
  * ここで `session.act START` を送ると、**前の残り時間から・前のドライバーから・
  * 「一時停止中」の表示のまま**次が走り出す。素直に完成させるだけではその枝を通らない。
+ *
+ * **いまはこうなっている（#290）**: ルームが生きているなら、押した人も他の全員と
+ * 同じく `phase.set` の snapshot でロビーへ戻るだけで、玄関へは送らない。かつては
+ * 押した本人だけが玄関へ出されていたが、それ自体が誤りだった（本人だけがルームから
+ * 追い出される）。玄関へ送るのはルームを失っているとき（`sessionLost`）だけである。
  */
-test.describe('timer は完了後の「新しいセッション」で、押した人を玄関へ送りルームをロビーへ戻す', () => {
-  test('Given 一時停止したまま完了した 2 人 / When 新しいセッションを選ぶ / Then 押した人は玄関へ、残った人は先頭から次を始められる', async ({
+test.describe('timer は完了後の「新しいセッション」で、押した人も含めてルームをロビーへ戻す', () => {
+  test('Given 一時停止したまま完了した 2 人 / When 押した人が新しいセッションを選ぶ / Then 両方の画面がロビーへ戻り、押した人自身がそのルームで次を始められる', async ({
     page,
     openPeer,
   }) => {
@@ -522,40 +527,45 @@ test.describe('timer は完了後の「新しいセッション」で、押し�
       ).toBeVisible();
     }
 
-    // When: 押した人が「新しいセッション」を選ぶ
+    // When: 押した人（HOST）が「新しいセッション」を選ぶ
     await page.getByRole('button', { name: /新しいセッション/ }).click();
 
-    // Then その1: 押した人は**玄関**に着く。`?room=` は付かない
-    //   （付くと選択画面に着いて、新しいルームを作れない）
+    // Then その1: 押した人は**同じルームに留まる**。玄関へは送られない
+    //   （かつては `redirectTo("/")` で押した本人だけが追い出されていた。
+    //   `?room=` 付きの `/timer/` のまま、というのがいまの正しい行き先である）
     await expect
       .poll(() => new URL(page.url()).pathname, { message: '「新しいセッション」の行き先' })
-      .toBe('/');
-    expect(new URL(page.url()).searchParams.get('room'), '玄関に room が付いている').toBeNull();
-    await expect(page.getByLabel('ルーム名'), '新しいルームを作れない').toBeVisible();
+      .toBe('/timer/');
+    expect(new URL(page.url()).searchParams.get('room'), '押した人からルームが外れている').toBe(
+      code,
+    );
 
-    // Then その2: **残った人のルームはロビーへ戻っている。** ここが `celebration` の
-    //   ままだと、あとから参加用 URL で戻ってきた人も完了画面に着く（timer だけ死んだルーム）
-    await expect(statusStrip(guest.page), '残った人のフェーズ表示').toContainText('ロビー');
+    // Then その2（主役）: **両方の画面のフェーズがロビーへ戻っている。** ここが
+    //   `celebration` のままだと、あとから参加用 URL で戻ってきた人も完了画面に着く
+    //   （timer だけ死んだルーム）。押した人も含め、全員が同じ snapshot でロビーに戻る
+    for (const [label, target] of screens(page, guest.page)) {
+      await expect(statusStrip(target), `${label}のフェーズ表示`).toContainText('ロビー');
+    }
 
-    // Then その3: **残った人はそのまま次のセッションを始められる。**
+    // Then その3: **押した人自身が、そのルームで次のセッションを始められる。**
     //   完了したセッションの時計は走ったままなので、走行中の START は弾かれる。
     //   「押せる」だけでなく、実際にセッションが始まるところまで見る
-    const start = guest.page.getByRole('button', { name: 'セッションを開始' });
+    const start = page.getByRole('button', { name: 'セッションを開始' });
     await expect(start, '次のセッションを始められない').toBeEnabled();
     await start.click();
-    await expect(statusStrip(guest.page), '開始しても始まっていない').toContainText('セッション中');
-    await expect(guest.page.getByRole('timer'), 'タイマーが出ていない').toBeVisible();
+    await expect(statusStrip(page), '開始しても始まっていない').toContainText('セッション中');
+    await expect(page.getByRole('timer'), 'タイマーが出ていない').toBeVisible();
 
     // Then その4: **前のセッションを引きずっていない**（レビュー ①）。
     //   `session.act START` に落ちると、集約は畳まれないので
     //   ①ドライバーは前回の続き（GUEST）のまま ②`isPaused` が立ったまま走る、になる。
     //   ②は「再開ボタンを描きながら時計だけ進む」という、`evolveBreakEnded` が
     //   明示的に避けている矛盾そのものである
-    await expect(currentDriverRow(guest.page), 'ドライバーが輪の先頭へ戻っていない').toContainText(
+    await expect(currentDriverRow(page), 'ドライバーが輪の先頭へ戻っていない').toContainText(
       HOST,
     );
     await expect(
-      guest.page.getByRole('button', { name: '一時停止', exact: true }),
+      page.getByRole('button', { name: '一時停止', exact: true }),
       '一時停止が解けていない（再開ボタンのまま時計が進む）',
     ).toBeVisible();
   });

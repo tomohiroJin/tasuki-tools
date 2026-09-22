@@ -1,6 +1,10 @@
 /**
  * エラーコード → 画面の次の動作マッピングのテスト
- * @requirements FR-127, FR-129, US1-4, US2-1, US2-2
+ * @requirements FR-125, FR-129
+ *
+ * 行き先の決定はここでは行わない（旧 FR-127・US2-1・US2-2。#290 で
+ * `use-timer-sync.ts` 側へ移管した）。`errorAction()` は `reason` を返すだけで、
+ * URL の組み立てはしない。
  */
 
 import { describe, it, expect } from "vitest";
@@ -11,16 +15,16 @@ describe("errorAction", () => {
     expect(errorAction("ROOM_NOT_FOUND")).toEqual({ kind: "session-lost" });
   });
 
-  it("LEFT_ROOM は入口画面へ戻す退出動作を示す", () => {
-    expect(errorAction("LEFT_ROOM")).toEqual({ kind: "leave-room", destination: "setup" });
+  it("LEFT_ROOM は自分で抜けた退出動作を示す", () => {
+    expect(errorAction("LEFT_ROOM")).toEqual({ kind: "leave-room", reason: "self" });
   });
 
-  it("REMOVED_FROM_ROOM は参加画面へ戻す退出動作を示す", () => {
-    expect(errorAction("REMOVED_FROM_ROOM")).toEqual({ kind: "leave-room", destination: "join" });
+  it("REMOVED_FROM_ROOM は外された退出動作を示す", () => {
+    expect(errorAction("REMOVED_FROM_ROOM")).toEqual({ kind: "leave-room", reason: "removed" });
   });
 
-  it("REMOVED_BY_HOST は参加画面へ戻す退出動作を示す", () => {
-    expect(errorAction("REMOVED_BY_HOST")).toEqual({ kind: "leave-room", destination: "join" });
+  it("REMOVED_BY_HOST は外された退出動作を示す", () => {
+    expect(errorAction("REMOVED_BY_HOST")).toEqual({ kind: "leave-room", reason: "removed" });
   });
 
   it("JOIN_RATE_LIMITED は待ってから入り直す動作を示す", () => {

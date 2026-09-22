@@ -43,7 +43,13 @@ export function App() {
   }, [departure]);
 
   switch (
-    screenFor({ code: hub.code, joined: hub.joined, resuming: hub.resuming, gone: hub.gone })
+    screenFor({
+      code: hub.code,
+      joined: hub.joined,
+      resuming: hub.resuming,
+      gone: hub.gone,
+      departed: departure.notice !== null,
+    })
   ) {
     case 'create':
       return (
@@ -69,12 +75,12 @@ export function App() {
       );
     case 'resuming':
       // 復帰の返事待ち。**名乗らせない**（#95 S5c 追補）。
-      // 待ちは選択画面・参加画面・不在の知らせのいずれかへ落ちる。
-      // 告知（`departure`）はここでは出さない —— 選択画面・参加画面へ落ちた場合は
-      // 落ちた先で出せば一度だけ読ませられる。**不在の知らせ（`gone`）は告知を出さない**
-      // （退出の告知と不在の告知を並べない・#274）ので、**その経路では告知が
-      // 読まれないまま消える。** それでよいのは、そのルームはもう無く、退出したことより
-      // 不在のほうが利用者に必要な報せだからである。
+      // 待ちは選択画面・参加画面・不在の知らせ・作成画面のいずれかへ落ちる。
+      // 告知（`departure`）はここでは出さない —— 選択画面・参加画面・作成画面へ落ちた
+      // 場合は落ちた先で出せば一度だけ読ませられる。**不在の知らせ（`gone`）は告知を
+      // 出さない**（退出の告知と不在の告知を並べない・#274）が、告知を持つ人は
+      // `screenFor` が `gone` ではなく `create` へ落とすので（#290・D4）、
+      // その経路では告知が読まれないまま消えることはもう無い。
       return <Resuming code={hub.code ?? ''} connection={hub.connection} />;
     case 'choice':
       return (
@@ -89,6 +95,13 @@ export function App() {
       // 見つからないルームの参加用 URL（#274）。**名乗らせない。**
       // 告知（`departure`）はここでは出さない —— 退出の告知と不在の告知を
       // 並べると冗長になる（`Resuming` と同じ扱い）。
+      //
+      // **`?left=` を持つ人はここへ来ない。** #274 はここへ来る全員に不在の知らせだけを
+      // 見せる判断だったが、それは「死んだ招待 URL で来た人」を想定したものだった。
+      // 退出の告知を持つ人は「たったいま自分が抜けて、その結果この部屋が消えた」人で、
+      // 不在だけを見せると自分の操作の結果なのに何かが壊れたように読める。そこで
+      // #290（D4）で判断を狭め、告知を持つ人は `screenFor` が `create` へ落とすように
+      // した —— 作成画面で告知を読ませる。ここへ来るのは告知を持たない人だけである。
       return <RoomGone code={hub.code ?? ''} />;
   }
 }

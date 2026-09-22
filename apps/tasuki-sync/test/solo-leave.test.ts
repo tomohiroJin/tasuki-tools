@@ -271,7 +271,7 @@ describe("ソロ以外は挙動が変わらない（Issue #79）", () => {
     code = broadcaster.createdFor(HOST).code;
   });
 
-  it("実在の在室者が 1 人残るなら、rotation 最後の 1 人の退出は従来どおり拒否される", async () => {
+  it("実在の在室者が残るなら、rotation 最後の 1 人の退出は見学者を繰り上げて成立する", async () => {
     // Given: Alice を輪から外し rotation=[Bob]・在室は Alice と Bob の 2 名にする
     await handlers.handleCommand(BOB, { command: "room.join", code, displayName: "Bob", hasAiKey: false });
     await handlers.handleCommand(BOB, { command: "member.add", participantId: pidOf("Bob") });
@@ -279,16 +279,36 @@ describe("ソロ以外は挙動が変わらない（Issue #79）", () => {
     expect(roomViewOf(store, timers, code).session.rotation).toEqual([pidOf("Bob")]);
     broadcaster.sent.length = 0;
 
-    // When: rotation 上の最後の 1 人である Bob が自己退出しようとする
-    const result = await handlers.handleCommand(BOB, {
+    // When: rotation 上の最後の 1 人である Bob が自己退出する
+    await handlers.handleCommand(BOB, {
       command: "participant.remove", participantId: pidOf("Bob"),
     });
 
-    // Then: 拒否され、ルームも Bob も残る（在室者 0 人にならないため破棄しない）
-    expect(result.isErr()).toBe(true);
-    expect(lastError(BOB)?.code).toBe("BelowMinMembers");
-    expect(store.get(code)).toBeDefined();
-    expect(roomViewOf(store, timers, code).participants).toHaveLength(2);
+    // Then: 拒まれず、見学だった Alice が繰り上がって輪に 1 席残る
+    // ※ 後続の検証が成功を含意するため isOk() は取らない
+    expect(roomViewOf(store, timers, code).session.rotation).toEqual([pidOf("Alice")]);
+    expect(roomViewOf(store, timers, code).participants).toHaveLength(1);
+    // 自己退出なので「外された」ではない
+    expect(lastError(BOB)?.code).toBe("LEFT_ROOM");
+  });
+
+  // #290 の頭書きの場面（作成者と参加者だけのルームで、作成者が抜けるケース）
+  it("作成者と参加者だけのルームで、作成者が抜けられる", async () => {
+    // Given: Alice が作ったルーム（rotation=[Alice]）へ Bob が参加しただけの状態。
+    // **Bob は輪に入っていない（見学）** —— これが既定であり、報告された場面である。
+    await handlers.handleCommand(BOB, { command: "room.join", code, displayName: "Bob", hasAiKey: false });
+    expect(roomViewOf(store, timers, code).session.rotation).toEqual([pidOf("Alice")]);
+    broadcaster.sent.length = 0;
+
+    // When: 作成者の Alice が「ルームから抜ける」を押す
+    await handlers.handleCommand(HOST, {
+      command: "participant.remove", participantId: pidOf("Alice"),
+    });
+
+    // Then: 成立し、Bob が繰り上がる。輪は空にならない
+    // ※ 後続の検証が成功を含意するため isOk() は取らない
+    expect(roomViewOf(store, timers, code).session.rotation).toEqual([pidOf("Bob")]);
+    expect(lastError(HOST)?.code).toBe("LEFT_ROOM");
   });
 
   // 主張が 2 度ひっくり返っている節である。

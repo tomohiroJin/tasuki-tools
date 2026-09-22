@@ -342,7 +342,8 @@ describe('ツールから退出して戻されたとき', () => {
   });
 
   it('Given 自分で抜けた印つきで開いた / When ルームを作る画面が出る / Then 抜けたことが告知される', () => {
-    // Given: 自分で抜けた人はルームコードを持ち越さない
+    // Given: D3 では離れ方によらず `?room=CODE&left=<reason>` へ送るのが既定だが、
+    // ここでは運ぶルームコード自体を失っている場合（`?left=self` のみ）を検査する
     window.history.replaceState(null, '', '/?left=self');
 
     // When
@@ -351,6 +352,37 @@ describe('ツールから退出して戻されたとき', () => {
     // Then
     expect(screen.getByText('ルームから抜けました。')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'ルームを作る' })).toBeInTheDocument();
+  });
+
+  /**
+   * 症状②の最も普通の経路（#290 最終レビュー・取りこぼし A-2）。
+   *
+   * 1 人で作って気が変わる → 抜ける → 部屋が消える → **ルームコードを URL に持ったまま**
+   * 玄関へ戻り、`room.check` の答えが「不在」で返る。ここを端から端まで見るテストが
+   * 無かった（`App.tsx` の `departed: departure.notice !== null` を `departed: false` に
+   * 変えても全テストが緑のまま通っていた）。壊れると、設計正本 §7 が「最も普通の場面で
+   * 誤解を招く」と退けた「ルームが見つかりません」が出る。
+   */
+  it('Given 自分で抜けた印つきの参加用 URL / When ルームが見つからないと返る / Then 作成画面で告知を読む', () => {
+    // Given: 抜けた直後、古いルームコードを URL に持ったまま玄関へ戻ってきた
+    window.history.replaceState(null, '', '/?room=ABC123&left=self');
+    render(<App />);
+
+    // When: 復帰の組を持たないので生死を尋ねており、その答えが「不在」で返る
+    act(() => {
+      socket().onmessage?.({
+        data: JSON.stringify({
+          type: 'error',
+          code: 'ROOM_NOT_FOUND',
+          message: '指定されたルームコードが見つかりません',
+        }),
+      });
+    });
+
+    // Then: 「ルームが見つかりません」ではなく、作成画面で退出の告知を読む（#290・D4）
+    expect(screen.getByRole('button', { name: 'ルームを作る' })).toBeInTheDocument();
+    expect(screen.getByText('ルームから抜けました。')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'ルームが見つかりません' })).toBeNull();
   });
 
   /**
