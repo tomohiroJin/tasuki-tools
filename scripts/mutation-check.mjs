@@ -240,6 +240,28 @@ export const MUTATIONS = [
       "**打ちかけの入力が黙って消える** —— #291 が直しているものとまったく同じ形。",
   },
   {
+    id: 60,
+    label: "色を決められない塗り（url）を無いものとして扱う（読めた層だけで緑を出す）",
+    patch: "m60-unreadable-layer-ignored.patch",
+    pkg: "e2e",
+    tests: ["tests/contrast.test.ts"],
+    note:
+      "#296。**対応表より後に足した変異。** これは #279 まで実在した欠陥そのもので、" +
+      "羅紗の織り目のような薄い粒なら実害は無いが、**不透明な写真を重ねると検査が嘘をつく**。" +
+      "落とすと、読めた層（照明のグラデーション）だけで測って緑を出す形に戻る。",
+  },
+  {
+    id: 61,
+    label: "字と並ぶ擬似要素（in-flow の罫線）も地に数える",
+    patch: "m61-in-flow-pseudo-counted-as-ground.patch",
+    pkg: "e2e",
+    tests: ["tests/contrast.test.ts"],
+    note:
+      "#296。**対応表より後に足した変異。** 擬似要素を地に含めるとき、`position` を見ないと" +
+      "見出しの下の罫線まで下地に混ざる（実測で玄関に実在する）。**乗っていない塗りで字を測る**" +
+      "ことになり、地が明るい側へ嘘をつく。対策そのものが持つ欠陥の型。",
+  },
+  {
     id: 6,
     label: "freezeRunningClock の凍結を外す（一時停止で満タンに戻る）",
     patch: "m06-freeze-running-clock.patch",

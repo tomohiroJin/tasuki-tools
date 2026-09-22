@@ -1,0 +1,13 @@
+diff --git a/e2e/support/contrast.ts b/e2e/support/contrast.ts
+index db6be07..78bdca7 100644
+--- a/e2e/support/contrast.ts
++++ b/e2e/support/contrast.ts
+@@ -253,8 +253,6 @@ function isGroundPseudo(paint: Paint): boolean {
+   if (origin === undefined) return false;
+   // 生成されていない擬似要素は描かれない（Chromium は `none` / `normal` を返す）
+   if (origin.content === 'none' || origin.content === 'normal') return false;
+-  // in-flow の擬似要素は字と並ぶ箱であって、字の下ではない
+-  if (origin.position === 'static') return false;
+   // 負でない z は字の上に乗る。乗るものを地に数えると、地が明るい側へ嘘をつく
+   const z = zIndexOf(paint);
+   if (!Number.isFinite(z) || z >= 0) return false;
