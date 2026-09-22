@@ -91,6 +91,23 @@ describe('地になる層を選ぶ', () => {
     expect(layers).toEqual([layer(FELT)]);
   });
 
+  it('in-flow の擬似要素は、負の z-index が書いてあっても地に数えない', () => {
+    // Given `z-index` は位置指定のある要素にしか効かないが、**計算値は書いた値のまま
+    //   返る**。`position` を見ずに z だけで判定すると、効いていない z を真に受けて
+    //   字と並ぶ箱を地に混ぜる（上の罫線の例は z が `auto` なので、そちらだけでは
+    //   この誤りを検出できない —— 両方の実装が同じ答えを返してしまう）
+    const rule = pseudoLayer(layer('rgba(240, 230, 200, 0.14)'), {
+      position: 'static',
+      zIndex: '-1',
+    });
+
+    // When 地になる層を選ぶ
+    const layers = groundLayers([rule, layer(FELT)]);
+
+    // Then 落ちる
+    expect(layers).toEqual([layer(FELT)]);
+  });
+
   it('z-index が負でない擬似要素は、字の上に乗るので地に数えない', () => {
     // Given 覆い被さる位置に置かれた擬似要素（`z-index: 0` と `auto`）
     const overlay = pseudoLayer(layer('rgba(0, 0, 0, 0.4)'), { zIndex: '0' });

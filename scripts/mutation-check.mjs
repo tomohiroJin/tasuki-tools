@@ -240,9 +240,9 @@ export const MUTATIONS = [
       "**打ちかけの入力が黙って消える** —— #291 が直しているものとまったく同じ形。",
   },
   {
-    id: 60,
+    id: 73,
     label: "色を決められない塗り（url）を無いものとして扱う（読めた層だけで緑を出す）",
-    patch: "m60-unreadable-layer-ignored.patch",
+    patch: "m73-unreadable-layer-ignored.patch",
     pkg: "e2e",
     tests: ["tests/contrast.test.ts"],
     note:
@@ -251,9 +251,9 @@ export const MUTATIONS = [
       "落とすと、読めた層（照明のグラデーション）だけで測って緑を出す形に戻る。",
   },
   {
-    id: 61,
+    id: 74,
     label: "字と並ぶ擬似要素（in-flow の罫線）も地に数える",
-    patch: "m61-in-flow-pseudo-counted-as-ground.patch",
+    patch: "m74-in-flow-pseudo-counted-as-ground.patch",
     pkg: "e2e",
     tests: ["tests/contrast.test.ts"],
     note:
