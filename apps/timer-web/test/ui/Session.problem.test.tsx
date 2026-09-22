@@ -31,9 +31,11 @@ function makeParticipant(overrides: Partial<Participant>): Participant {
 const config: SessionConfig = {
   language: "TypeScript",
   difficulty: "easy",
-  members: ["Alice", "Carol"],
   intervalMinutes: 5,
 };
+
+/** 席に付ける表示名（輪と同じ順）。wire の項目ではない（#294・造作だけの入口）。 */
+const memberNames = ["Alice", "Carol"];
 
 const problem: Problem = {
   title: "FizzBuzz",
@@ -49,6 +51,7 @@ function makeRoom(overrides?: Partial<Room>): Room {
   return aRoomView({
     code: "AA0001",
     config,
+    memberNames,
     problem,
     session: { rotation: ["Alice", "Carol"], driverCounts: [0, 0] },
     phase: "session",

@@ -52,7 +52,6 @@ describe("休憩提案シグナル撤去（v2.10・§9.1）", () => {
       config: {
         language: "TypeScript",
         difficulty: "easy",
-        members: ["Alice", "Bob"],
         intervalMinutes: 5,
         ...config,
       },

@@ -31,14 +31,17 @@ function makeParticipant(overrides: Partial<Participant>): Participant {
 const config: SessionConfig = {
   language: "TypeScript",
   difficulty: "easy",
-  members: ["Alice", "Bob"],
   intervalMinutes: 5,
 };
+
+/** 席に付ける表示名（輪と同じ順）。wire の項目ではない（#294・造作だけの入口）。 */
+const memberNames = ["Alice", "Bob"];
 
 function makeRoom(overrides?: Partial<Room>): Room {
   return aRoomView({
     code: "AA0001",
     config,
+    memberNames,
     // rotation は参加者IDの配列（D6b）。Bob は輪の外に置き、
     // 「輪の外の在席者でもメモを読める」を実際にその状態で確かめられるようにする。
     session: { rotation: ["p-alice", "p-carol"], driverCounts: [0, 0] },

@@ -40,7 +40,7 @@ describe("participant.remove（⑪）", () => {
     await handlers.handleCommand(creatorConn, {
       command: "room.create",
       displayName: "Alice",
-      config: { language: "TypeScript", difficulty: "easy", members: ["Alice"], intervalMinutes: 5 },
+      config: { language: "TypeScript", difficulty: "easy", intervalMinutes: 5 },
     });
     creatorId = broadcaster.createdFor(creatorConn).participantId;
     code = broadcaster.createdFor(creatorConn).code;
@@ -227,7 +227,7 @@ describe("participant.remove（G3: 自己退出と他者退出）", () => {
     const created = await handlers.handleCommand(CREATOR, {
       command: "room.create",
       displayName: "Alice",
-      config: { language: "TypeScript", difficulty: "easy", members: ["Alice", "Bob", "Carol"], intervalMinutes: 5 },
+      config: { language: "TypeScript", difficulty: "easy", intervalMinutes: 5 },
     });
     if (!created.isOk()) throw new Error("room.create failed");
     code = broadcaster.createdFor(CREATOR).code;
@@ -359,7 +359,7 @@ describe("participant.remove（G7: 同名参加者を識別子で区別する）
     const created = await handlers.handleCommand(CREATOR, {
       command: "room.create",
       displayName: "Alice",
-      config: { language: "TypeScript", difficulty: "easy", members: ["Alice"], intervalMinutes: 5 },
+      config: { language: "TypeScript", difficulty: "easy", intervalMinutes: 5 },
     });
     if (!created.isOk()) throw new Error("room.create failed");
     code = broadcaster.createdFor(CREATOR).code;

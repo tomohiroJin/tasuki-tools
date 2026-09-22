@@ -17,7 +17,6 @@ import { FakeCodeGen } from "./support/fake-code-gen.js";
 const config: SessionConfig = {
   language: "TypeScript",
   difficulty: "easy",
-  members: ["A", "B", "C"],
   intervalMinutes: 5,
 };
 
@@ -38,7 +37,7 @@ async function setupRoom(
   const create = await handlers.handleCommand(HOST_CONN, {
     command: "room.create",
     displayName: members[0]!,
-    config: { ...config, members },
+    config,
   });
   if (!create.isOk()) throw new Error("create failed");
   // 本番（server.ts）は handleCommand の戻り値を破棄する。値は本番と同じ観測点から取る（FR-100）。
@@ -126,8 +125,8 @@ describe("member.shuffle（サーバー権威のランダム化）", () => {
     expect(rotationNames(room)).toEqual(["B", "C", "A"]);
     // driverCounts も順列に追従する（元 [1,2,3] が order=[1,2,0] で並ぶ）。
     expect(room?.session.driverCounts).toEqual([2, 3, 1]);
-    // config.members も rotation にミラーされる。
-    expect(room?.config.members).toEqual(["B", "C", "A"]);
+    // 席の表示名も rotation と同じ順で出る。
+    expect(room?.session.seats.map((s) => s.displayName)).toEqual(["B", "C", "A"]);
   });
 
   it("稼働中: 現ドライバーの位置が固定され、その名前が currentIndex で不変", async () => {

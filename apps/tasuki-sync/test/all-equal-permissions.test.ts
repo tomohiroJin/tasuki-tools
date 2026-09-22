@@ -41,7 +41,6 @@ import type { RoomScopedCommand } from "../src/application/handlers.js";
 const config: SessionConfig = {
   language: "TypeScript",
   difficulty: "easy",
-  members: ["Creator", "Alice", "Bob"],
   intervalMinutes: 5,
 };
 

@@ -35,9 +35,11 @@ function makeParticipant(overrides: Partial<Participant>): Participant {
 const config: SessionConfig = {
   language: "TypeScript",
   difficulty: "easy",
-  members: ["Alice", "Carol"],
   intervalMinutes: 5,
 };
+
+/** 席に付ける表示名（輪と同じ順）。wire の項目ではない（#294・造作だけの入口）。 */
+const memberNames = ["Alice", "Carol"];
 
 /** 輪の外の在席者がいて participants 配列(3件)と rotation(2件)がずれた部屋。
  *  rotation は参加者IDの配列（D6b）。現ドライバーは rotation[currentIndex=1] = Carol(p-carol)。 */
@@ -45,6 +47,7 @@ function makeRoom(overrides?: Partial<Room>): Room {
   return aRoomView({
     code: "AA0001",
     config,
+    memberNames,
     session: { rotation: ["p-alice", "p-carol"], currentIndex: 1, driverCounts: [0, 0] },
     phase: "session",
     participants: [
@@ -227,7 +230,7 @@ describe("参加者一覧と現ドライバー表示は同じ人を同じ呼び�
     // が・#95 S5a、席（seats）は輪に残っている・#276）
     const room: Room = aRoomView({
       code: "AA0001",
-      config: { members: ["Bob", "Bob"] },
+      memberNames: ["Bob", "Bob"],
       session: {
         rotation: ["bob1111", "bob2222"],
         currentIndex: 0,

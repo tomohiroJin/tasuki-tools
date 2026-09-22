@@ -42,9 +42,11 @@ function makeParticipant(overrides: Partial<Participant>): Participant {
 const config: SessionConfig = {
   language: "TypeScript",
   difficulty: "easy",
-  members: ["Alice", "Carol"],
   intervalMinutes: 5,
 };
+
+/** 席に付ける表示名（輪と同じ順）。wire の項目ではない（#294・造作だけの入口）。 */
+const memberNames = ["Alice", "Carol"];
 
 /**
  * Alice（部屋を作った人）・Bob（輪の外）・Carol（ドライバー）が在室するセッション中の部屋。
@@ -54,6 +56,7 @@ function makeRoom(overrides?: Partial<Room>): Room {
   return aRoomView({
     code: "AA0001",
     config,
+    memberNames,
     session: { rotation: ["p-alice", "p-carol"], driverCounts: [0, 0] },
     phase: "session",
     participants: [

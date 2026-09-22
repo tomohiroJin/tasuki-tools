@@ -132,11 +132,11 @@ export function putRoomView(
         joinedAt: p.joinedAt,
       })),
   });
-  const { members: _members, ...config } = room.config;
   timers.put({
     code: room.code,
     createdAt: room.createdAt,
-    config,
+    // wire の設定は保管する設定と同じ形である（#294 で `members` が落ちた）。
+    config: room.config,
     problem: room.problem,
     session: {
       ...room.session,

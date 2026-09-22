@@ -106,9 +106,10 @@ describe("timer の参加者一覧は在席で絞る（#95 S5a）", () => {
     // When（操作）
     const room = buildTimerSnapshotRoom(movedToHub, timer);
 
-    // Then: 一覧からは消えるが、ローテーションの状態は保たれる（R7）
+    // Then: 一覧からは消えるが、ローテーションの状態は保たれる（R7）。
+    // 残ることを見るのは**席の表示名**である（#294 で `config.members` が落ちた）。
     expect(room.participants.map((p) => p.participantId)).not.toContain("p_alice");
-    expect(room.config.members).toContain("アリス");
+    expect(room.session.seats.map((s) => s.displayName)).toContain("アリス");
   });
 });
 
@@ -146,9 +147,18 @@ describe("timer のスナップショット DTO（wire の同形性）", () => {
     expect(room.session.rotation).toEqual(["p_alice", "p_proxy1"]);
   });
 
-  it("config.members はローテーションの表示名として解決される", () => {
+  it("席はローテーション順の表示名として解決される", () => {
     const room = buildTimerSnapshotRoom(membership, timer);
-    expect(room.config.members).toEqual(["アリス", "同席のカルロス"]);
+    expect(room.session.seats.map((s) => s.displayName)).toEqual(["アリス", "同席のカルロス"]);
+  });
+
+  it("wire の config は保管している設定そのもので、表示名を持たない", () => {
+    // Given: 名簿と timer の状態（表示名は名簿の側にだけある）
+    // When: snapshot を組む
+    const room = buildTimerSnapshotRoom(membership, timer);
+    // Then: 合成で足す項目はもう無い（名簿由来の値が config へ混ざらない）
+    expect(room.config).toEqual(timer.config);
+    expect("members" in room.config).toBe(false);
   });
 
   it("見送り中のエントリは driverEligible=false として出る", () => {

@@ -23,7 +23,8 @@ function p(overrides: Partial<Participant>): Participant {
 /** Alice(rotation済), 自分=Bob(rotation未加入) の部屋。rotation は参加者IDの配列（D6b）。 */
 function makeRoom(): Room {
   return aRoomView({
-    config: { members: ["Alice"], intervalMinutes: 5 },
+    memberNames: ["Alice"],
+      config: { intervalMinutes: 5 },
     participants: [
       p({ participantId: "creator-p", displayName: "Alice" }),
       p({ participantId: "bob-p", displayName: "Bob" }),

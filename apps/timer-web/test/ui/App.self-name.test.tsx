@@ -48,7 +48,6 @@ function enterRoomWhereIAmNotListed(): void {
     room: aRoomView({
       code: "ROOM01",
       phase: "ready",
-      config: { members: ["あや"] },
       session: {
         rotation: [OTHER_ID],
         driverCounts: [0],
@@ -83,16 +82,21 @@ afterEach(() => {
 
 describe("自分の名前が引けないときの縮退（#294 EARS 1）", () => {
   it("名簿から自分を引けないとき、StatusStrip は「あなた」を出す", () => {
+    // Given: 自分が名簿に居ないルーム
+    // When: その snapshot を描いた
     enterRoomWhereIAmNotListed();
 
+    // Then
     const strip = screen.getByRole("status", { name: "ステータス情報" });
     expect(within(strip).getByText("あなた")).toBeTruthy();
   });
 
   it("名簿から自分を引けないとき、StatusStrip は輪の先頭の人の名前を出さない", () => {
+    // Given: 自分が名簿に居ないルーム
+    // When: その snapshot を描いた
     enterRoomWhereIAmNotListed();
 
-    // 輪の先頭（＝別人）の名前は画面の他の場所には出てよい。帯の中に出てはならない。
+    // Then: 輪の先頭（＝別人）の名前は画面の他の場所には出てよいが、帯の中に出てはならない
     const strip = screen.getByRole("status", { name: "ステータス情報" });
     expect(within(strip).queryByText("あや")).toBeNull();
   });

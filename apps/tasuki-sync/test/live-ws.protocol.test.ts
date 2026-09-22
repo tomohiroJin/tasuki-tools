@@ -67,13 +67,14 @@ describe("実 WS 越しの業務プロトコル", () => {
     // When 3: ゲストがローテーションへ加わる（作成者は作成時点で並んでいる）
     await addToRotation(guest, joined.participantId);
 
-    // Then 3: rotation は参加者IDの配列で届き、config.members は表示名へ写される
+    // Then 3: rotation は参加者IDの配列で届き、席が表示名を持つ（#294 以前は
+    //         `config.members` が同じ写しを持っていた）
     const rotated = await host.take(
       "snapshot",
       (m) => m.room.session.rotation.length === 2,
     );
     expect(rotated.room.session.rotation).toEqual([created.participantId, joined.participantId]);
-    expect(rotated.room.config.members).toEqual(["ホスト", "ゲスト"]);
+    expect(rotated.room.session.seats.map((s) => s.displayName)).toEqual(["ホスト", "ゲスト"]);
 
     // When 4: セッション段階へ移して開始する
     host.send({ command: "phase.set", phase: "session" });

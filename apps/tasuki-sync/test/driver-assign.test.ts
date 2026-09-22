@@ -14,7 +14,7 @@ import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 import { roomViewOf, putRoomView } from "./support/room-view.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 
-const config: SessionConfig = { language: "TypeScript", difficulty: "easy", members: ["A"], intervalMinutes: 5 };
+const config: SessionConfig = { language: "TypeScript", difficulty: "easy", intervalMinutes: 5 };
 
 /** 作成者 A（rotation[0]）を作り、rotation [A,B,C] を稼働中にして B の eligibility を上書きした room を置く。
  *  B=pid-b/conn-b・C=pid-c/conn-c。 */
@@ -25,7 +25,7 @@ async function setup(
   bOverrides: Partial<Room["participants"][number]>,
 ): Promise<string> {
   const create = await handlers.handleCommand("conn-a", {
-    command: "room.create", displayName: "A", config: { ...config, members: ["A"] },
+    command: "room.create", displayName: "A", config,
   });
   if (!create.isOk()) throw new Error("create failed");
   // 本番（server.ts）は handleCommand の戻り値を破棄する。値は本番と同じ観測点から取る（FR-100）。

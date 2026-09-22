@@ -107,10 +107,12 @@ wire へ出るときは**席の識別子の配列**です。どちらも表示�
 参加順など間接的な手掛かりで持ち主を推測する実装は2度失敗しており、枠と参加者を直接結び付けています。
 
 表示名は**表示のためだけ**に使います。**サーバー側の `TimerConfig` に `members` はありません**
-（#95 S4a・D15。名簿と rotation の二重帳簿だったので落としました）。wire の `config.members` は
-rotation 順の表示名を配信のたびに解決したもので、解決は `timer-snapshot-dto.ts` が行います。
-完成記録（`buildCompletionRecord`）も同じ解決済みの表示名を**引数で**受け取ります
-（timer-core は名簿を知らないため、自分では解決できません）。
+（#95 S4a・D15。名簿と rotation の二重帳簿だったので落としました）。**wire にもありません**
+（#294。かつての `config.members` は rotation 順の表示名でしたが、読み手は席
+（`session.seats`）へ移り、残っていた 2 つの流用も畳みました）。rotation 順の表示名を
+解決するのは `timer-snapshot-dto.ts` の 1 か所で、そこから席・交代の通知・サーバー側の
+完成記録へ配ります。完成記録（`buildCompletionRecord`）は解決済みの表示名を**引数で**
+受け取ります（timer-core は名簿を知らないため、自分では解決できません）。
 画面で人を指す呼び名は `ui/participant-label.ts` が1か所で決め、
 同名が並ぶときだけ識別子の末尾を添えます（FR-084）。
 

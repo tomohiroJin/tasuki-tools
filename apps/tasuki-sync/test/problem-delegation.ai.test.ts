@@ -41,7 +41,6 @@ function makeRoom(overrides?: Partial<Room>): Room {
     config: {
       language: "TypeScript",
       difficulty: "easy",
-      members: ["A"],
       intervalMinutes: 5,
     },
     problem: null,

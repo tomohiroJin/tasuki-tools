@@ -193,3 +193,32 @@ AI 出力の `validateProblem` 検証など）は、本 ADR では扱わない�
 > 書いていたが、`docs/poker/adr/0004` がサーバー→クライアントを `v.object` にしたため、
 > その前提は成り立たない。**結論は変わらない** —— 経路の名前空間の問題は `v.object` でも
 > 同じで、変わったのは捨てる場面の広さだけである。
+
+---
+
+**追記（2026-09-22・#294）: 上で挙げた経路の具体例が 1 つ移った。**
+
+「`snapshot` を捨てる状況はほぼ必ず継続する」という**リスクそのものは変わらない**。
+変わったのは、その具体例として挙げていた**投影の置き場所**である。
+
+`config.members`（ローテーション順の表示名）は **#294 で wire から落ちた**。読み手は
+`session.seats`（#276 D2。要素の `displayName` は `v.string()` で空文字を許す）へ移り、
+残っていた 2 つの流用も畳んだためである。したがって上の
+
+> `SessionConfigSchema.members` の要素は `displayNameStr`（`minLength(1)`）なので落ちる。
+
+は、**いまは成り立たない**（その項目自体が無い）。
+
+**同じ壊れ方をする投影はまだある。** `rotationDisplayNames()` の結果は、サーバー側の
+完成記録（`apps/tasuki-sync/src/application/apply-room-level-event.ts` の
+`SessionCompleted`）を通って `sessionRecords[].members` として wire へ出る。
+`CompletionRecordSchema.members` の要素は `nonEmptyString` なので、**空文字が 1 つ
+載れば snapshot 全体が落ちる**という構図はそのまま残っている。
+
+- **この状態へ至る経路は、いまも見つかっていない。** 上で追った 4 経路のうち
+  `config.set` の理由づけだけが変わった —— 境界で取り除いていたのをやめ、
+  **`SessionConfigSchema` から項目ごと落とした**（`v.object` の出力に未知のキーは
+  残らない。`packages/timer-core/test/schemas.test.ts` が固定している）
+- **棄却の再現に使う造作も移した。** `aRecordWithUnresolvableName()`
+  （`apps/timer-web/test/support/room-view.ts`）と `e2e/support/timer.ts` がそれで、
+  経路は `room.sessionRecords.0.members.0` になる

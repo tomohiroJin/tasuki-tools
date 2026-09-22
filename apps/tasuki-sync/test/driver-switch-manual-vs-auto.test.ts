@@ -29,7 +29,6 @@ import { FakeCodeGen } from "./support/fake-code-gen.js";
 const config: SessionConfig = {
   language: "TypeScript",
   difficulty: "easy",
-  members: ["A"],
   intervalMinutes: 5,
 };
 

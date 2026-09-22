@@ -20,7 +20,6 @@ import { FakeCodeGen } from "./support/fake-code-gen.js";
 const config: SessionConfig = {
   language: "TypeScript",
   difficulty: "easy",
-  members: ["Alice", "Bob", "Charlie"],
   intervalMinutes: 5,
 };
 
@@ -182,7 +181,7 @@ describe("session.reset: 最初から再スタート（v2.3 #3）", () => {
           language: "TypeScript",
           difficulty: "easy",
           elapsedSeconds: 60,
-          members: ["Alice", "Bob"],
+          members: ["Alice"],
           totalSwitches: 1,
           completedAt: 1000000,
         },
@@ -444,7 +443,7 @@ describe("phase.set: ロビーへ戻るとお題は持ち越さない（#273）"
 /**
  * @requirements FR-028
  */
-describe("メンバー編集と config.members 同期", () => {
+describe("メンバー編集と席の表示名の同期", () => {
   let store: InMemoryRoomStore;
   let timers: InMemoryTimerStore;
   let clock: FakeClock;
@@ -459,7 +458,7 @@ describe("メンバー編集と config.members 同期", () => {
     handlers = makeTestHandlers({ store, timers, clock, broadcaster, codeGen: new FakeCodeGen() });
   });
 
-  it("member.add 後、config.members が rotation に同期する", async () => {
+  it("member.add 後、席の表示名が rotation に同期する", async () => {
     // Given
     const code = await setupRoom(handlers, store, timers);
 
@@ -472,8 +471,8 @@ describe("メンバー編集と config.members 同期", () => {
     const after = roomViewOf(store, timers, code);
     const dave = after.participants.find((p) => p.displayName === "Dave")!;
     expect(after.session.rotation).toContain(dave.participantId);
-    // config.members は rotation の表示名ミラー（D6b）。
-    expect(after.config.members).toContain("Dave");
+    // 席の表示名は rotation の写しである（D6b・#276 D2。#294 で `config.members` は落ちた）。
+    expect(after.session.seats.map((s) => s.displayName)).toContain("Dave");
   });
 
   it("メンバー編集後の完成記録は最新メンバーを反映する", async () => {
@@ -529,7 +528,7 @@ describe("config.set: Room.config への反映", () => {
     expect(after.config.language).toBe("Python");
     expect(after.config.difficulty).toBe("hard");
     // メンバーは変更していないので維持
-    expect(after.config.members).toEqual(["Alice", "Bob", "Charlie"]);
+    expect(after.session.seats.map((s) => s.displayName)).toEqual(["Alice", "Bob", "Charlie"]);
   });
 
   it("intervalMinutes を変更すると config と clock の両方に反映される", async () => {
@@ -714,7 +713,7 @@ describe("ドライバー一時離脱と現ドライバー skip の繰り上げ�
     await handlers.handleCommand("solo-conn", {
       command: "room.create",
       displayName: "Onlyone",
-      config: { language: "TypeScript", difficulty: "easy", members: ["Onlyone"], intervalMinutes: 5 },
+      config: { language: "TypeScript", difficulty: "easy", intervalMinutes: 5 },
     });
     const code = broadcaster.createdFor("solo-conn").code;
     await handlers.handleCommand("solo-conn", { command: "session.act", action: "START" });

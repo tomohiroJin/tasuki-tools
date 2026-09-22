@@ -168,8 +168,10 @@ export async function selectedIntervalLabel(page: Page): Promise<string> {
  * `snapshot` フレームを、**サーバー→クライアントの契約（`ServerMsgSchema`）に
  * 合わない形**へ書き換える（#209）。他の種類のフレームはそのまま返す。
  *
- * 壊し方は ADR 0005 の追記が挙げた実際の経路に合わせる。`config.members` の
- * 要素の `displayNameStr` が最小長 1 なので、空文字が載ると `SessionConfigSchema` に落ちる。
+ * 壊し方は ADR 0005 の追記が挙げた経路に合わせる。名簿から引けない席の表示名は
+ * 空文字になり、それはサーバー側の完成記録（`sessionRecords[].members`）に載る。
+ * `CompletionRecordSchema.members` の要素は最小長 1 なので、そこで落ちる
+ * （#294 以前は同じ空文字が `config.members` に載っていた）。
  * **製品コードにテスト用の穴は開けない。** ブラウザと同期サーバーの間で
  * 差し替えるだけなので、画面から見れば「サーバーが壊れた値を送ってきた」に等しい。
  */
@@ -181,11 +183,25 @@ export function corruptSnapshotFrame(payload: string): string {
     return payload;
   }
   if (typeof frame !== 'object' || frame === null) return payload;
-  const message = frame as { type?: unknown; room?: { config?: Record<string, unknown> } };
-  if (message.type !== 'snapshot' || message.room?.config === undefined) return payload;
+  const message = frame as { type?: unknown; room?: Record<string, unknown> };
+  if (message.type !== 'snapshot' || message.room === undefined) return payload;
   return JSON.stringify({
     ...message,
-    room: { ...message.room, config: { ...message.room.config, members: [''] } },
+    room: {
+      ...message.room,
+      sessionRecords: [
+        {
+          id: 'rec-corrupt',
+          problemTitle: 'FizzBuzz',
+          language: 'TypeScript',
+          difficulty: 'easy',
+          elapsedSeconds: 1,
+          members: [''],
+          totalSwitches: 0,
+          completedAt: 1,
+        },
+      ],
+    },
   });
 }
 

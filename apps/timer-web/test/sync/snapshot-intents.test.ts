@@ -245,14 +245,13 @@ describe("decideSnapshotIntents: 完成記録", () => {
     expect(kinds(room, baseCtx())).not.toContain("persist-completion");
   });
 
-  it("記録に載る表示名は席（`session.seats`）から引く（#294）", () => {
-    // Given: 席の並びと表示名が、名簿の並びとも `config.members` とも食い違うルーム。
-    // **食い違わせるのが要点である** —— 実物では 3 つとも同じ規則で組まれるため、
+  it("記録に載る表示名は席から引く（名簿の並びには従わない）", () => {
+    // Given: 席の並びと表示名が、**名簿の並びと食い違う**ルーム。
+    // **食い違わせるのが要点である** —— 実物ではどちらも同じ名簿から組まれるため、
     // 一致させた造作では「どこから引いたか」が区別できず、検査が恒真になる。
     const room = aRoomView({
       phase: "celebration",
       problem,
-      config: { members: ["この名前は記録に載ってはならない", "こちらも"] },
       session: {
         rotation: ["p-bob", "p-aya"],
         driverCounts: [2, 1],

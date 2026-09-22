@@ -24,7 +24,7 @@ export interface ServerMessageCallbacks {
   onNotice?: (notice: NoticeSignal) => void;
   /**
    * 契約に合わないフレームを捨てたことを知らせる（#181）。渡すのは**落ちた項目の
-   * 経路だけ**（例: `room.config.members.0`）で、落ちた値は渡さない。
+   * 経路だけ**（例: `room.sessionRecords.0.members.0`）で、落ちた値は渡さない。
    *
    * **ここは知らせるだけで、出力先を決めない。** この関数はブラウザに依存しない
    * 純関数として単体テストに載っており、`console` を直に呼ぶことは ADR 0012 D1 が
@@ -127,7 +127,7 @@ export function dispatchServerMessage(
 }
 
 /**
- * 検証に落ちた項目の**経路だけ**を取り出す（例: `room.config.members.0`）。
+ * 検証に落ちた項目の**経路だけ**を取り出す（例: `room.sessionRecords.0.members.0`）。
  *
  * **値は含めない。** 落ちた値そのものは利用者の入力（表示名など）でありうるので、
  * devtools へ出してよいものではない（ADR 0012）。

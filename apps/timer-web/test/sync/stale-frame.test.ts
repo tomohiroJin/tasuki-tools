@@ -8,7 +8,7 @@ import { indicatesStaleRoom } from "../../src/sync/stale-frame.js";
 
 describe("indicatesStaleRoom", () => {
   it("ルームの中身で落ちたものは画面を古くする", () => {
-    expect(indicatesStaleRoom(["room.config.members.0"])).toBe(true);
+    expect(indicatesStaleRoom(["room.sessionRecords.0.members.0"])).toBe(true);
   });
 
   it("room そのものが壊れていても画面を古くする", () => {

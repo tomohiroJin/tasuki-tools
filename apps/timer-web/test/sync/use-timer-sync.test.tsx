@@ -14,7 +14,7 @@ import type { Banner, BannerController } from "../../src/ui/use-banner.js";
 import { saveRecord } from "../../src/records/indexeddb.js";
 import { FakeWS } from "../support/fakes.js";
 import { redirectTo } from "../../src/platform/location.js";
-import { aRoomView } from "../support/room-view.js";
+import { aRoomView, aRecordWithUnresolvableName } from "../support/room-view.js";
 import { clearResumeIdentity, joinRetryDelayMs, saveResumeIdentity } from "@tasuki/sync-client";
 
 // 遷移は `platform/location.ts` に閉じている（#95 S5c・R9）。テストはそこを差し替える。
@@ -551,12 +551,13 @@ describe("useTimerSync: 捨てた同期フレームの表出", () => {
   const aValidSnapshot = () => ({ type: "snapshot", room: aRoomView({ code: "ROOM01" }) });
 
   /**
-   * ADR 0005 の追記が挙げた実際の経路と同じ壊し方をする。
-   * `config.members` の要素は `displayNameStr`（最小長 1）なので、空文字が載ると落ちる。
+   * ADR 0005 の追記が挙げた経路（名簿から引けない席の空文字）と同じ壊し方をする。
+   * #294 で `config.members` が wire から落ちたので、その投影はサーバー側の
+   * 完成記録（`sessionRecords[].members`・最小長 1）が引き継いだ。
    */
   function aFrameThatViolatesTheContract(): Record<string, unknown> {
     const room = aRoomView({ code: "ROOM01" });
-    return { type: "snapshot", room: { ...room, config: { ...room.config, members: [""] } } };
+    return { type: "snapshot", room: { ...room, sessionRecords: [aRecordWithUnresolvableName()] } };
   }
 
   /** ルームの状態を載せていないフレームの棄却（交代シグナルの `nextDriverName` 欠落）。 */
@@ -600,7 +601,7 @@ describe("useTimerSync: 捨てた同期フレームの表出", () => {
     // When
     deliver(aFrameThatViolatesTheContract());
     // Then（捨てられたので room は前のまま）
-    expect(result.current.room?.config.members).toEqual(["Creator"]);
+    expect(result.current.room?.sessionRecords).toEqual([]);
   });
 
   it("有効な snapshot を受け取ると同期が古い状態から戻る", () => {

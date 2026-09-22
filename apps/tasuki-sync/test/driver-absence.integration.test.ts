@@ -34,7 +34,6 @@ class NoopBroadcaster implements Broadcaster {
 const config: SessionConfig = {
   language: "TypeScript",
   difficulty: "easy",
-  members: ["A", "B"],
   intervalMinutes: 5,
 };
 
