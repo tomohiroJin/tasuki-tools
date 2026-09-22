@@ -285,7 +285,8 @@ function evolveBreakEnded(agg: Aggregate, now: number): Aggregate {
  *
  * ⚠ **かつてここには `partial.members` から rotation を組み直す分岐があった。**
  * #95 S4a で `TimerConfig` から `members` が消え、型の上でも到達できなくなったので
- * 落とした（wire からも `build-domain-command.ts` が境界で捨てており到達不能だった）。
+ * 落とした（wire からも到達不能である。#294 より前は境界の `build-domain-command.ts` が
+ * 捨てていたが、いまは `SessionConfigSchema` に項目そのものが無い）。
  * 輪の出入りは member.add/remove/move・addProxy・participant.remove だけが担う。
  */
 function evolveConfigSet(

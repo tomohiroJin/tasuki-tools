@@ -367,9 +367,14 @@ function decideMembersShuffle(
  * ⚠ **かつてここには `partial.members` の人数・重複・空名を見る分岐があった。**
  * #95 S4a で `TimerConfig` から `members` が消え、型の上でも到達できなくなったので
  * 落とした。落とす前に、wire からも到達しないことを確かめてある ——
- * `apps/tasuki-sync/src/application/build-domain-command.ts` が `config.set` の
- * `members` を境界で捨てているため、`BelowMinMembers` はこの経路からは返らない
- * （破壊検証で実測。設計正本 §6.5 の「性質が概念ごと消えた」ケース）。
+ * `BelowMinMembers` はこの経路からは返らない（破壊検証で実測。設計正本 §6.5 の
+ * 「性質が概念ごと消えた」ケース）。
+ *
+ * **到達不能の根拠は #294 で移った。** それまでは境界
+ * （`apps/tasuki-sync/src/application/build-domain-command.ts`）が `config.set` の
+ * `members` を捨てていた。いまは `SessionConfigSchema`（`schemas.ts`）に項目が無く、
+ * **パーサの出力に未知のキーが残らない**ことが根拠である
+ * （取り除きのコードはもう無い。探しても見つからない）。
  */
 function decideConfigSet(
   partial: Partial<TimerConfig>,

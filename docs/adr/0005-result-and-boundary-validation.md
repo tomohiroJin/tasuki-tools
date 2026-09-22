@@ -222,3 +222,21 @@ AI 出力の `validateProblem` 検証など）は、本 ADR では扱わない�
 - **棄却の再現に使う造作も移した。** `aRecordWithUnresolvableName()`
   （`apps/timer-web/test/support/room-view.ts`）と `e2e/support/timer.ts` がそれで、
   経路は `room.sessionRecords.0.members.0` になる
+
+**受け入れた副作用（#294 のレビュー指摘 4）**: 端末に残る完成記録の `members` に、
+**空文字が入りうるようになった**。#294 より前は、空文字を含む snapshot は
+`SessionConfigSchema.members` で**フレームごと捨てられていた**ため、記録を組む段には
+届かなかった。いまは席（`seats[].displayName` は `v.string()`）から引くので届く。
+
+**これは直さずに受け入れる。** 理由は 3 つ ——
+
+1. **捨てていた側が望ましい姿ではない。** 空文字 1 つでルームの全 snapshot が捨てられ、
+   画面が古いまま固まるのが従来の姿である（この節の冒頭で「残っているリスク」として
+   挙げているのがそれ）。名前が 1 つ空欄で出るほうが、利用者にとっては軽い
+2. **画面はすでに空の表示名を描ける。** 交代の輪は #276 D2 でこれを受け入れており
+   （`ui/rotation-names.ts` → `participant-label.ts`）、同名が並ぶときは識別子を添える
+3. **端末の記録に契約検査は掛かっていない**（`records/indexeddb.ts` は素の読み書き）。
+   この値が `CompletionRecordSchema` を通ることは無い
+
+**到達経路はいまも見つかっていない**（この節の 4 経路を参照）。見つかったときに
+「名前を引けない席」をどう名乗らせるかは、記録と画面で揃えて決めること。

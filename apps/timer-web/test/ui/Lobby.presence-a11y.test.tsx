@@ -32,7 +32,7 @@ function p(overrides: Partial<Participant>): Participant {
 function makeRoomWithPresences(): Room {
   return aRoomView({
     memberNames: ["Alice"],
-      config: { intervalMinutes: 5 },
+    config: { intervalMinutes: 5 },
     participants: [
       p({ participantId: "creator-p", displayName: "Alice", presence: "online" }),
       p({ participantId: "bob-p", displayName: "Bob", presence: "idle" }),

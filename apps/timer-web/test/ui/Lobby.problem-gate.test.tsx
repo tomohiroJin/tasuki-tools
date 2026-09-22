@@ -24,7 +24,7 @@ function p(overrides: Partial<Participant>): Participant {
 function makeRoom(configOverrides?: object): Room {
   return aRoomView({
     memberNames: ["Alice"],
-      config: { intervalMinutes: 5, ...configOverrides },
+    config: { intervalMinutes: 5, ...configOverrides },
     session: { rotation: ["Alice"] },
     participants: [
       p({ participantId: "creator-p", displayName: "Alice" }),

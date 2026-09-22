@@ -24,7 +24,7 @@ function p(overrides: Partial<Participant>): Participant {
 function makeRoom(): Room {
   return aRoomView({
     memberNames: ["Alice"],
-      config: { intervalMinutes: 5 },
+    config: { intervalMinutes: 5 },
     participants: [
       p({ participantId: "creator-p", displayName: "Alice" }),
       p({ participantId: "bob-p", displayName: "Bob" }),

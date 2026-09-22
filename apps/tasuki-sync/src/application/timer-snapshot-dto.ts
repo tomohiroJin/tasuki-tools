@@ -276,10 +276,16 @@ export function buildTimerSnapshotRoom(membership: MembershipRoom, timer: TimerS
   // ここで呼び直すと同じ判定が 2 度走る（seats が既に理由を持っている）。
   const watching = watchingTimerIds(membership);
   const byId = new Map(membership.participants.map((p) => [p.id, p]));
-  const names = new Map(membership.participants.map((p) => [p.id, p.displayName]));
-  const seats: Seat[] = timer.session.rotation.map((e) => ({
+  // **表示名の解決は {@link rotationDisplayNames} 1 つに揃える**（#294 のレビュー指摘）。
+  // かつてここには同じ規則を書いた 2 つ目の実装があった。`config.members` が wire に
+  // あった間は「同じ関数の結果が 2 か所へ出る」形だったが、それが落ちた後も
+  // **席（画面が読む）とサーバー側の完成記録（`apply-room-level-event.ts`）が
+  // 別々の実装から名前を引く**状態が残っていた。片方だけが変わると、同じセッションの
+  // 記録と画面が違う名前を言う。
+  const displayNames = rotationDisplayNames(membership, timer);
+  const seats: Seat[] = timer.session.rotation.map((e, i) => ({
     id: rotationEntryId(e),
-    displayName: e.kind === "proxy" ? e.label : (names.get(e.participantId) ?? ""),
+    displayName: displayNames[i] ?? "",
     isProxy: e.kind === "proxy",
     skipReason: seatSkipReason(e, watching, byId),
   }));
@@ -319,7 +325,9 @@ export function buildTimerSnapshotRoom(membership: MembershipRoom, timer: TimerS
     code: timer.code,
     createdAt: timer.createdAt,
     // wire の設定は保管している設定と同じ形である（#294 で `members` が落ちた・台帳 9）。
-    config: timer.config,
+    // **写しを渡す。** 保管している実体をそのまま配ると、wire の投影と集約が同じ
+    // オブジェクトを指す（この関数の外で配信前に触られたら、集約ごと変わる）。
+    config: { ...timer.config },
     problem: timer.problem,
     // **明示列挙にする。** スプレッド（`...timer.session`）だと、サーバー側の
     // `SessionState` に足したフィールドが**黙って wire に載る**。ここに

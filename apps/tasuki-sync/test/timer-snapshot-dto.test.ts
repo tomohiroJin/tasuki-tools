@@ -159,6 +159,8 @@ describe("timer のスナップショット DTO（wire の同形性）", () => {
     // Then: 合成で足す項目はもう無い（名簿由来の値が config へ混ざらない）
     expect(room.config).toEqual(timer.config);
     expect("members" in room.config).toBe(false);
+    // ただし**写しである**（保管している実体を wire の投影と共有しない）
+    expect(room.config).not.toBe(timer.config);
   });
 
   it("見送り中のエントリは driverEligible=false として出る", () => {

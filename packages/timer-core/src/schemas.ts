@@ -348,8 +348,10 @@ const SessionStateSchema = v.object({
   isPaused: v.boolean(),
   driverCounts: v.array(v.pipe(v.number(), v.integer(), v.minValue(0))),
   totalSwitches: v.pipe(v.number(), v.integer(), v.minValue(0)),
-  // #276 D7: 任意にしない。省略可にすると画面側にフォールバック経路が残り、
-  // 「サーバーが送る席」と「config.members から補う席」の 2 経路が戻る。
+  // #276 D7: 任意にしない。省略可にすると画面側にフォールバック経路が戻る。
+  // **#294 で判断はより強くなった** —— 当時の補い元だった `config.members` は wire から
+  // 落ちたので、席が欠けたときに「画面が推測する席」を組む材料はもう存在しない。
+  // 任意にすると、席の無い snapshot で輪が丸ごと消えるか、推測の材料を**作り直す**ことになる。
   // 配布時の窓・後方互換の扱いは台帳を参照する
   // （`apps/tasuki-sync/src/application/timer-snapshot-dto.ts` の項目 7）。
   seats: v.array(SeatSchema),

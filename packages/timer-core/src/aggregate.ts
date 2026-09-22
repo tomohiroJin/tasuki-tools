@@ -75,7 +75,9 @@ export interface Aggregate {
  * それは名簿（`@tasuki/room-core`）と `session.rotation` の二重帳簿だった。表示名の
  * 解決はアプリ層の DTO 組み立て（`timer-snapshot-dto.ts`）が毎回行う。
  *
- * wire へ出る形は {@link ./wire.js SessionConfig}（`members` を持つ）である。
+ * **wire へ出る形もこれと同じである**（{@link ./wire.js SessionConfig} は別名にすぎない）。
+ * #294 まで wire だけが `members`（ローテーション順の表示名）を持っていたが、読み手が
+ * 席（`session.seats`）へ移ったので落とした。
  */
 export interface TimerConfig {
   /** プログラミング言語 */

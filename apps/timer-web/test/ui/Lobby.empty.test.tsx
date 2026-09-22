@@ -17,7 +17,7 @@ function makeRoom(overrides?: Partial<Room>): Room {
   return aRoomView({
     createdAt: 1000000,
     memberNames: ["Alice"],
-      config: { intervalMinutes: 5 },
+    config: { intervalMinutes: 5 },
     session: { rotation: ["Alice"] },
     participants: [
       {
