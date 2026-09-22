@@ -167,8 +167,9 @@ export interface TimerSync {
   /** 代理参加者を加える（participantId はここで生成する）。 */
   addProxy(displayName: string): void;
   /**
-   * 完了後に「新しいセッション」を選んだ。**ルームをロビーへ戻したうえで玄関へ送る**
-   * （#95 S5c・C-1）。押した本人は新しいルームを作りに行き、残る人はロビーに居る。
+   * 完了後に「新しいセッション」を選んだ。**ルームが生きているなら、押した本人も
+   * 含めて在室者全員がロビーへ戻る**（`phase.set` は在室者全員へ届く・#290・D5）。
+   * 玄関（`/`）へ送るのは、ルームを失っているとき（`SessionLost`）だけである。
    */
   newSession(): void;
   /** Summary の明示保存。失敗時はバナーを出す。 */
@@ -453,7 +454,8 @@ export function useTimerSync(banner: BannerController): TimerSync {
 
   const handleError = (syncClient: SyncClient, code: string) => {
     console.error("WS error:", code); // log-hygiene:allow ブラウザの devtools 向け
-    // 画面が次に何をするかは errorAction() の判定に委ねる（Issue #32・FR-127/129）。
+    // 画面が次に何をするかは errorAction() の判定に委ねる（Issue #32・FR-125/FR-129・
+    // `ui/error-action.ts` の docstring と揃える）。
     // 分岐は kind の判別可能合併を網羅する（未処理の kind があれば型検査で気づける）。
     const action = errorAction(code);
     switch (action.kind) {

@@ -121,7 +121,7 @@ describe("自己退出した本人への通知", () => {
     }
 
     // When（輪の最後の1人である Alice 自身が退出する）
-    const result = await handlers.handleCommand(HOST, { command: "participant.remove", participantId: aliceId });
+    await handlers.handleCommand(HOST, { command: "participant.remove", participantId: aliceId });
 
     // Then: 拒否されず、見学だった誰か（Bob か Carol）が繰り上がって本人へ LEFT_ROOM が届く
     // ※ 後続の検証が成功を含意するため isOk() は取らない

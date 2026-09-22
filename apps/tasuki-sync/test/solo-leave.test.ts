@@ -280,7 +280,7 @@ describe("ソロ以外は挙動が変わらない（Issue #79）", () => {
     broadcaster.sent.length = 0;
 
     // When: rotation 上の最後の 1 人である Bob が自己退出する
-    const result = await handlers.handleCommand(BOB, {
+    await handlers.handleCommand(BOB, {
       command: "participant.remove", participantId: pidOf("Bob"),
     });
 
@@ -301,7 +301,7 @@ describe("ソロ以外は挙動が変わらない（Issue #79）", () => {
     broadcaster.sent.length = 0;
 
     // When: 作成者の Alice が「ルームから抜ける」を押す
-    const result = await handlers.handleCommand(HOST, {
+    await handlers.handleCommand(HOST, {
       command: "participant.remove", participantId: pidOf("Alice"),
     });
 

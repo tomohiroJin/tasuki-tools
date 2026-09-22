@@ -234,28 +234,31 @@ describe("signal: notice（実行者の通知）", () => {
 
     // 上の筋は**最も浅い拒否経路**（在室確認）で落ちる。置き換え前は「見学者へ降格した
     // 参加者の session.abort が UNAUTHORIZED」を見ており、在室確認を通り抜けた先で
-    // 落ちていた。役割が無くなっても**在室者がドメインの不変条件で落ちる筋**は残っており、
+    // 落ちていた。役割が無くなっても**在室者が在室確認より奥の解決で落ちる筋**は残っており、
     // そこを見ないと「在室確認さえ通れば notice が出る」状態を検知できない（#258）。
-    // #290・D1 により、`participant.remove`（ルームから抜ける）は見学者を繰り上げて
-    // 成立するようになり、この経路からは BelowMinMembers が出なくなった
-    // （docs/timer/ARCHITECTURE.md 参照）。「rotation を空にしない」不変条件は
-    // 依然として `member.remove`（列から外れる）に残っているため、そちらで固定し直す。
-    it("在室者の操作でも、ドメインの不変条件で落ちれば notice を出さない", async () => {
-      // Given: 在室 3 人・輪はルームを作った Alice ひとり。
-      // **`room.join` は輪に入れない**（在室とローテーションは別の層で、輪への出入りは
-      // `member.add` / `member.remove` で行う）。したがって beforeEach の join 2 件を
-      // 終えた時点でこの状態になっている。**この非自明さを確認で固定する**。
-      expect(roomViewOf(store, timers, code).session.rotation).toEqual([pidOf("Alice")]);
-      expect(roomViewOf(store, timers, code).participants).toHaveLength(3);
+    //
+    // かつてここは `member.remove` で `BelowMinMembers` を起こしていたが、これは
+    // 「成功しても notice を出さない種類の操作」である（`SESSION_NOTICE_ACTIONS` は
+    // session.abort/session.reset/session.complete の 3 つのみで、`member.remove` は
+    // 含まれない）。したがって `expect(lastNotice()).toBeUndefined()` は、実装が正しくても
+    // 誤って notice を出しても同じ値を返す位置にあり、緑でも何も守っていなかった
+    // （レビュー実測で確認済み）。同じ「在室確認より奥で落ちる」筋のうち、**成功すれば
+    // notice（participant-removed）が出る経路**（① で確認済み）である `participant.remove`
+    // に存在しない participantId を渡し、`PARTICIPANT_NOT_FOUND` で落とす形に置き換える。
+    it("在室者の操作でも、対象が見当たらず失敗すれば notice を出さない", async () => {
+      // Given: 在室確認（浅い拒否経路）は通す。対象解決（在室確認より奥）で落とす。
       broadcaster.signals.length = 0;
       broadcaster.residentsAtSignal.length = 0;
 
-      // When: 在室している Bob が、輪に残る最後のひとり Alice の枠を外そうとする
-      await handlers.handleCommand(BOB, { command: "member.remove", index: 0 });
+      // When: 在室している Bob が、存在しない participantId を対象に退出を試みる
+      await handlers.handleCommand(BOB, {
+        command: "participant.remove",
+        participantId: "nt-does-not-exist",
+      });
 
-      // Then: 最後のドライバーは外せない。**成功していれば notice が出る経路**なので、
-      // ここが空であることに意味がある
-      expect(broadcaster.errorsTo(BOB).at(-1)?.code).toBe("BelowMinMembers");
+      // Then: 対象が見つからず失敗する。**成功していれば notice（participant-removed）が
+      // 出る経路**（① で確認済み）なので、ここが空であることに意味がある
+      expect(broadcaster.errorsTo(BOB).at(-1)?.code).toBe("PARTICIPANT_NOT_FOUND");
       expect(lastNotice()).toBeUndefined();
     });
   });

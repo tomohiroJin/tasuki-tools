@@ -9,21 +9,22 @@
 #       (diff のパスはリポジトリルート起点。mutation-check.mjs もリポジトリルートで実行する)
 # 復元: git checkout -- <対象ファイル>（同じくリポジトリルートから）
 #
-# #290・D2。`presenceRank` が在席・離席を区別せず常に同じ値（0）を返すようにする。
-# `presenceOf` は呼ぶが結果を捨てるだけなので import は使われたまま残る
+# #290・D2。`presenceRank` が在席・離席を区別せず常に同じ値（SEATED_RANK）を返すようにする。
+# `isPresentIn` は呼ぶが結果を捨てるだけなので import は使われたまま残る
 # （未使用 import による別経路の検出を避け、狙った分岐だけを殺す）。
 # こうなると在席優先が消え、joinedAt の早い順だけで選ばれる ——
 # 先に参加した離席者が、後から来た在席者より優先されてしまう。
 diff --git a/apps/tasuki-sync/src/application/pick-promotion-target.ts b/apps/tasuki-sync/src/application/pick-promotion-target.ts
-index a1f44f6..81f4121 100644
+index e6408bd..d985c17 100644
 --- a/apps/tasuki-sync/src/application/pick-promotion-target.ts
 +++ b/apps/tasuki-sync/src/application/pick-promotion-target.ts
-@@ -21,7 +21,7 @@ export function pickPromotionTarget(
-   );
-   if (candidates.length === 0) return null;
-   // 在席を 0・離席を 1 とし、小さいほうを優先する。
--  const presenceRank = (p: Participant): number => (presenceOf(p) === "online" ? 0 : 1);
-+  const presenceRank = (p: Participant): number => (presenceOf(p), 0);
+@@ -32,8 +32,7 @@ export function pickPromotionTarget(
+   // 唯一のドライバーになり、`seatSkipReason` がその席を不適格と判定し続けて
+   // `advanceDriver` が「現状維持＋再アンカー」へ縮退する
+   // （`apps/tasuki-sync/src/application/timer-snapshot-dto.ts` の D21 と同じ理由）。
+-  const presenceRank = (p: Participant): number =>
+-    isPresentIn(p, TOOL_TIMER) ? SEATED_RANK : AWAY_RANK;
++  const presenceRank = (p: Participant): number => (isPresentIn(p, TOOL_TIMER), SEATED_RANK);
    return candidates.reduce((best, p) => {
      const byPresence = presenceRank(p) - presenceRank(best);
      if (byPresence !== 0) return byPresence < 0 ? p : best;

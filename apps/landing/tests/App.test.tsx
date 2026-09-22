@@ -342,7 +342,8 @@ describe('ツールから退出して戻されたとき', () => {
   });
 
   it('Given 自分で抜けた印つきで開いた / When ルームを作る画面が出る / Then 抜けたことが告知される', () => {
-    // Given: 自分で抜けた人はルームコードを持ち越さない
+    // Given: D3 では離れ方によらず `?room=CODE&left=<reason>` へ送るのが既定だが、
+    // ここでは運ぶルームコード自体を失っている場合（`?left=self` のみ）を検査する
     window.history.replaceState(null, '', '/?left=self');
 
     // When
