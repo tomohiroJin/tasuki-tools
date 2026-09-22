@@ -20,12 +20,31 @@ body {
   margin: 0;
   min-height: 100dvh;
   background-color: var(--felt-900);
-  /* フェルトの照明: 中央上からの灯り + 周辺減光 + 織り目 */
+  /* フェルトの照明: 中央上からの灯り + 周辺減光（織り目は body::after） */
   background-image:
     radial-gradient(120% 90% at 50% -10%, var(--felt-700) 0%, var(--felt-800) 45%, transparent 75%),
-    radial-gradient(140% 120% at 50% 115%, var(--felt-950) 0%, transparent 55%),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+    radial-gradient(140% 120% at 50% 115%, var(--felt-950) 0%, transparent 55%);
   background-attachment: fixed;
+}
+
+/* 織り目。**濃さと色は CSS に出し、粒だけをマスクに作らせる**（#296）。
+ *
+ * 以前は照明と同じ `background-image` の 3 枚目に、濃さを畳んだ data-URI
+ * （`feColorMatrix` の α = 0.05）として置いていた。見た目は同じだが、
+ * **コントラスト検査からは色も薄さも読めない** —— 検査は読めた層（照明）だけで
+ * 測り、織り目の分だけ楽観側に倒れていた。マスクは塗りを減らすだけなので、
+ * 「最悪でも `background-color` が全面に来る」として正しく測れる。
+ *
+ * 合成は以前と同じ（黒 × 0.05 × 乱流の α）。`position: fixed` が
+ * `background-attachment: fixed` の役目を継ぐ。 */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-color: rgba(0, 0, 0, 0.05);
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 /* ---------- レイアウト ---------- */

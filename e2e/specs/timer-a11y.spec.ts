@@ -16,7 +16,7 @@
  */
 import { expect, test } from '../fixtures/test';
 import { createRoom } from '../support/timer';
-import { describePaint, measureSample, sampleInPage } from '../support/contrast';
+import { describePaint, groundLayers, measureSample, sampleInPage } from '../support/contrast';
 
 const HOST = 'a11y-a';
 
@@ -148,7 +148,7 @@ test.describe('文字が背景に対して読める（WCAG AA）', () => {
       // 透明度を上げて文字を薄くしても比が変わらず、**どれだけ薄くしても緑になる**（実測）。
       // 下地がグラデーションなら停止点のうち一番不利なところで測る（#279）
       const measurement = measureSample(sample);
-      const ground = sample.backgrounds.map((paint) => describePaint(paint)).join(' ← ');
+      const ground = groundLayers(sample.backgrounds).map(describePaint).join(' ← ');
       if (measurement === null) {
         // **黙って飛ばさない。** 飛ばすと「測れていないのに緑」に戻る
         unmeasurable.push(`「${sample.text}」 文字=${describePaint(sample.ink)} 地=${ground}`);

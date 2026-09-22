@@ -9,7 +9,14 @@
  * そこから先（候補の組み立てと最悪比の選択）は純関数にしてある。速い側に置ける。
  */
 import { describe, it, expect } from 'vitest';
-import { groundCandidates, measureSample, type Paint, type Sample } from '../support/contrast';
+import {
+  groundCandidates,
+  groundLayers,
+  measureSample,
+  type Paint,
+  type PseudoOrigin,
+  type Sample,
+} from '../support/contrast';
 
 const FELT = 'rgb(10, 43, 33)';
 const FELT_LIGHT = 'rgb(23, 80, 64)';
@@ -38,6 +45,112 @@ const sample = (overrides: Partial<Sample> = {}): Sample => ({
   ...overrides,
 });
 
+/**
+ * 擬似要素が敷いた層。既定は timer の計器ステージ（画面全体の裏に敷く形）。
+ *
+ * 素性はブラウザから持ち帰った計算値のまま渡す —— 地に数えるかの裁定は
+ * `groundLayers` の側にあり、`sampleInPage` は判定しない（#279 と同じ向き）。
+ */
+const pseudoLayer = (
+  paint: Paint,
+  origin: Partial<PseudoOrigin> = {},
+  opacity = 1,
+): Paint => ({
+  ...paint,
+  opacity,
+  pseudo: { which: '::after', content: '""', position: 'fixed', zIndex: '-1', owner: 0, ...origin },
+});
+
+describe('地になる層を選ぶ', () => {
+  it('字の下に敷かれた擬似要素は、自分の背景の内側の層として入る', () => {
+    // Given 計器ステージ（不透明な地）の上に、方眼を敷く `::before` が乗っている
+    const grid = pseudoLayer(layer(TRANSPARENT, 'rgba(245, 239, 221, 0.05)', TRANSPARENT), {
+      which: '::before',
+      zIndex: '-2',
+    });
+
+    // When 地になる層を選ぶ
+    const layers = groundLayers([grid, layer(FELT)]);
+
+    // Then 方眼が地の側に残り、ステージの色より内側に並ぶ
+    expect(layers.map((paint) => paint.color)).toEqual([TRANSPARENT, FELT]);
+  });
+
+  it('字と並ぶ擬似要素（in-flow の罫線）は地に数えない', () => {
+    // Given 玄関の見出しの `::after`（`position: static` の罫線）。実測で見つけた形で、
+    //   これを地に数えると**乗っていない塗りで字を測る**ことになる
+    const rule = pseudoLayer(layer(TRANSPARENT, 'rgba(240, 230, 200, 0.14)', TRANSPARENT), {
+      position: 'static',
+      zIndex: 'auto',
+    });
+
+    // When 地になる層を選ぶ
+    const layers = groundLayers([rule, layer(FELT)]);
+
+    // Then 罫線は落ちる
+    expect(layers).toEqual([layer(FELT)]);
+  });
+
+  it('z-index が負でない擬似要素は、字の上に乗るので地に数えない', () => {
+    // Given 覆い被さる位置に置かれた擬似要素（`z-index: 0` と `auto`）
+    const overlay = pseudoLayer(layer('rgba(0, 0, 0, 0.4)'), { zIndex: '0' });
+    const auto = pseudoLayer(layer('rgba(0, 0, 0, 0.4)'), { zIndex: 'auto' });
+
+    // When / Then どちらも地にはならない
+    expect(groundLayers([overlay, layer(FELT)])).toEqual([layer(FELT)]);
+    expect(groundLayers([auto, layer(FELT)])).toEqual([layer(FELT)]);
+  });
+
+  it('生成されていない擬似要素と、何も塗らない擬似要素は数えない', () => {
+    // Given `content` が無いもの（そもそも描かれない）と、塗りを持たないもの
+    const absent = pseudoLayer(layer('rgb(255, 0, 0)'), { content: 'none' });
+    const blank = pseudoLayer(layer(TRANSPARENT));
+
+    // When / Then どちらも落ちる（落とさないと透明な層で候補が増えるだけになる）
+    expect(groundLayers([absent, layer(FELT)])).toEqual([layer(FELT)]);
+    expect(groundLayers([blank, layer(FELT)])).toEqual([layer(FELT)]);
+  });
+
+  it('同じ要素の擬似要素は、z-index の大きい方が内側に来る', () => {
+    // Given 方眼（z=-2）とグレイン（z=-1）。グレインの方が字に近い側に塗られる
+    const grain = pseudoLayer(
+      { color: TRANSPARENT, image: 'url("data:image/svg+xml,%3Csvg%3E")' },
+      { which: '::after', zIndex: '-1' },
+    );
+    const grid = pseudoLayer(layer(TRANSPARENT, 'rgba(245, 239, 221, 0.05)', TRANSPARENT), {
+      which: '::before',
+      zIndex: '-2',
+    });
+
+    // When 持ち帰った順（`::before` が先）で選ぶ
+    const layers = groundLayers([grid, grain, layer(FELT)]);
+
+    // Then 並びは z-index の降順に直る（内 → 外）
+    expect(layers.map((paint) => paint.pseudo?.which ?? 'own')).toEqual([
+      '::after',
+      '::before',
+      'own',
+    ]);
+  });
+
+  it('別の要素の擬似要素どうしは並べ替えない', () => {
+    // Given 内側の要素の擬似要素（z=-2）と、外側の要素の擬似要素（z=-1）。
+    //   z だけで並べ替えると、内と外が入れ替わって下地の順序が壊れる
+    const inner = pseudoLayer(layer('rgba(255, 0, 0, 0.2)'), { owner: 0, zIndex: '-2' });
+    const outer = pseudoLayer(layer('rgba(0, 0, 255, 0.2)'), { owner: 1, zIndex: '-1' });
+
+    // When 地になる層を選ぶ
+    const layers = groundLayers([inner, outer, layer(FELT)]);
+
+    // Then 持ち帰った並び（内 → 外）のまま
+    expect(layers.map((paint) => paint.color)).toEqual([
+      'rgba(255, 0, 0, 0.2)',
+      'rgba(0, 0, 255, 0.2)',
+      FELT,
+    ]);
+  });
+});
+
 describe('下地の候補を組み立てる', () => {
   it('グラデーションだけで塗られた面は、停止点すべてを候補にする', () => {
     // Given 札の面（色は透明で、塗りは象牙のグラデーション）が羅紗に乗っている
@@ -47,7 +160,7 @@ describe('下地の候補を組み立てる', () => {
     const grounds = groundCandidates(card);
 
     // Then 停止点がそのまま候補になる
-    expect(grounds?.map((g) => [g.r, g.g, g.b])).toEqual([
+    expect(grounds?.map((g) => [g.lightest.r, g.lightest.g, g.lightest.b])).toEqual([
       [255, 253, 244],
       [234, 225, 198],
     ]);
@@ -62,7 +175,9 @@ describe('下地の候補を組み立てる', () => {
     const grounds = groundCandidates(card);
 
     // Then 羅紗は候補に現れない
-    expect(grounds?.some((g) => g.r === 10 && g.g === 43 && g.b === 33)).toBe(false);
+    expect(
+      grounds?.some((g) => g.lightest.r === 10 && g.lightest.g === 43 && g.lightest.b === 33),
+    ).toBe(false);
   });
 
   it('透明な停止点を含むなら、その下の色も候補に残す', () => {
@@ -73,7 +188,7 @@ describe('下地の候補を組み立てる', () => {
     const grounds = groundCandidates(felt);
 
     // Then 照明の明るいところも、照明が切れたところの色も候補になる
-    expect(grounds?.map((g) => [g.r, g.g, g.b])).toEqual(
+    expect(grounds?.map((g) => [g.lightest.r, g.lightest.g, g.lightest.b])).toEqual(
       expect.arrayContaining([
         [10, 43, 33],
         [23, 80, 64],
@@ -94,7 +209,7 @@ describe('下地の候補を組み立てる', () => {
 
     // Then 停止点の数だけ、敷きを重ねた色が出る（素の象牙は残らない）
     expect(grounds).toHaveLength(2);
-    expect(grounds?.[0]?.r).toBeCloseTo(255 * 0.88 + 236 * 0.12, 5);
+    expect(grounds?.[0]?.lightest.r).toBeCloseTo(255 * 0.88 + 236 * 0.12, 5);
   });
 
   it('不透明な層に届かなければ「測れない」を返す（黙って遡らない）', () => {
@@ -110,10 +225,9 @@ describe('下地の候補を組み立てる', () => {
     expect(groundCandidates([layer('color-mix(in srgb, red, blue)')])).toBeNull();
   });
 
-  it('グラデーションと画像が混ざる面は、読める層だけで測る（羅紗の織り目）', () => {
-    // Given 本体の羅紗は「照明のグラデーション + 織り目の data-URI」で塗ってある。
-    //   織り目まで測れないことを理由に全部を赤くすると検査が使えなくなるので、
-    //   読める層で測る。楽観側に倒れる限界は `imageStops` の注釈に書いてある
+  it('グラデーションと画像が混ざる面は、読めた層だけで緑にしない（#296）', () => {
+    // Given 「照明のグラデーション + 織り目の data-URI」で塗られた面。#279 までは
+    //   読める層だけで測っていたので、**不透明な写真を重ねても緑が出た**
     const felt = {
       color: FELT,
       image: `radial-gradient(120% 90% at 50% -10%, ${FELT_LIGHT} 0%, ${TRANSPARENT} 75%), url("data:image/svg+xml,%3Csvg%3E")`,
@@ -122,22 +236,67 @@ describe('下地の候補を組み立てる', () => {
     // When 下地の候補を組み立てる
     const grounds = groundCandidates([felt]);
 
-    // Then 読めた層の色が候補になる
-    expect(grounds?.map((g) => [g.r, g.g, g.b])).toEqual(
-      expect.arrayContaining([
-        [10, 43, 33],
-        [23, 80, 64],
-      ]),
-    );
+    // Then 読めない層の分だけ「取りうる明るさの幅」になる
+    expect(grounds?.map((g) => [g.darkest.r, g.lightest.r])).toEqual([[0, 255]]);
   });
 
-  it('グラデーション以外の画像で塗られた面も「測れない」を返す', () => {
+  it('グラデーション以外の画像で塗られた面は、黒から白までの幅になる', () => {
     // Given 写真・テクスチャ・SVG の data-URI だけで塗られた面。
     //   どんな色で塗られているかは文字列から分からない
     const texture = { color: TRANSPARENT, image: 'url("data:image/svg+xml,%3Csvg%3E")' };
 
-    // When / Then 祖先へ抜けて別のものを測るくらいなら測れないと言う
-    expect(groundCandidates([texture, layer(FELT)])).toBeNull();
+    // When 下地の候補を組み立てる
+    const grounds = groundCandidates([texture, layer(FELT)]);
+
+    // Then 祖先へ抜けて別のものを測らず、取りうる幅として持つ
+    expect(grounds).toHaveLength(1);
+    expect(grounds?.[0]?.darkest).toMatchObject({ r: 0, g: 0, b: 0 });
+    expect(grounds?.[0]?.lightest).toMatchObject({ r: 255, g: 255, b: 255 });
+  });
+
+  it('読める層だけで塗られた面は、幅を持たない（1 点に決まる）', () => {
+    // Given 羅紗の照明（色も停止点も rgb で読める）
+    const felt = [layer(FELT, FELT_LIGHT, TRANSPARENT)];
+
+    // When 下地の候補を組み立てる
+    const grounds = groundCandidates(felt);
+
+    // Then 暗い端と明るい端が一致する（幅は読めない層からしか生まれない）
+    expect(grounds?.map((g) => g.darkest)).toEqual(grounds?.map((g) => g.lightest));
+  });
+
+  it('地に数えない擬似要素は、候補を 1 つも増やさない', () => {
+    // Given 字と並ぶ罫線（地ではない）を混ぜた素材
+    const rule = pseudoLayer(layer(TRANSPARENT, 'rgba(240, 230, 200, 0.14)', TRANSPARENT), {
+      position: 'static',
+      zIndex: 'auto',
+    });
+
+    // When / Then 混ぜない素材とまったく同じ候補になる
+    expect(groundCandidates([rule, layer(FELT)])).toEqual(groundCandidates([layer(FELT)]));
+  });
+
+  it('薄さのある層は覆い隠さないので、外側の地まで測り続ける', () => {
+    // Given 不透明な停止点だけのグラデーションを `opacity: 0.5` で敷いた擬似要素。
+    //   薄さを無視すると「停止点が全部不透明だから下を隠す」と誤判定する
+    const veil = pseudoLayer(layer(TRANSPARENT, 'rgb(255, 255, 255)'), {}, 0.5);
+
+    // When 外側に不透明な層が無い素材を組み立てる
+    const grounds = groundCandidates([veil]);
+
+    // Then 覆ったことにして止めず、届いていないと言う
+    expect(grounds).toBeNull();
+  });
+
+  it('擬似要素の薄さは、停止点の α にも掛かる', () => {
+    // Given 白の不透明な停止点を、`opacity: 0.5` で羅紗の上に敷く
+    const veil = pseudoLayer(layer(TRANSPARENT, 'rgb(255, 255, 255)'), {}, 0.5);
+
+    // When 下地の候補を組み立てる
+    const grounds = groundCandidates([veil, layer(FELT)]);
+
+    // Then 羅紗と白の中間が候補になる
+    expect(grounds?.map((g) => g.lightest.r)).toContain(10 * 0.5 + 255 * 0.5);
   });
 
   it('rgb 以外の色表記が混ざる塗りは「測れない」を返す', () => {
@@ -221,6 +380,56 @@ describe('最悪の組み合わせで比を出す', () => {
 
     // Then 読めない方の停止点で比が出る
     expect(measured?.ratio).toBeLessThan(2);
+  });
+
+  it('不透明な写真を敷いた面の字は、読めた層だけで緑にしない（#296）', () => {
+    // Given 羅紗の照明に不透明な写真を重ねた面に、薄い象牙の字が乗っている。
+    //   写真は白で塗られているかもしれないので、照明だけで測ると嘘の緑が出る
+    const photographed = {
+      color: FELT,
+      image: `linear-gradient(165deg, ${FELT_LIGHT}, ${TRANSPARENT}), url("data:image/jpeg;base64,AAAA")`,
+    };
+
+    // When 測る
+    const measured = measureSample(
+      sample({ ink: { color: BONE_FAINT, image: 'none' }, backgrounds: [photographed] }),
+    );
+
+    // Then AA を満たさない（数字は出るが、足りないことが分かる形で出る）
+    expect(measured?.ratio).toBeLessThan(4.5);
+  });
+
+  it('幅の中に字の明るさが入るなら、比は 1 まで落ちる', () => {
+    // Given 不透明な写真の上の中間の灰色。下地は黒から白まで取りうるので、
+    //   **字とまったく同じ明るさになりうる**。両端だけで測ると 3.9:1 と出て、
+    //   本当の最悪（読めなくなる組み合わせ）を見落とす
+    const photo = { color: TRANSPARENT, image: 'url("data:image/jpeg;base64,AAAA")' };
+
+    // When 測る
+    const measured = measureSample(
+      sample({ ink: { color: 'rgb(128, 128, 128)', image: 'none' }, backgrounds: [photo] }),
+    );
+
+    // Then 比は 1（＝まったく読めない場合がある）
+    expect(measured?.ratio).toBeCloseTo(1, 5);
+  });
+
+  it('擬似要素の薄さが CSS に出ていれば、その分だけの幅で測る', () => {
+    // Given 計器ステージのグレイン（粒は読めないが `opacity: 0.04` が CSS に出ている）
+    const grain = pseudoLayer(
+      { color: TRANSPARENT, image: 'url("data:image/svg+xml,%3Csvg%3E")' },
+      {},
+      0.04,
+    );
+    const ink = { color: BONE_FAINT, image: 'none' };
+
+    // When グレインのある面と、無い面で測る
+    const grained = measureSample(sample({ ink, backgrounds: [grain, layer(FELT)] }));
+    const plain = measureSample(sample({ ink, backgrounds: [layer(FELT)] }));
+
+    // Then 4% ぶんだけ厳しくなるが、測れなくはならない
+    expect(grained?.ratio).toBeLessThan(plain?.ratio as number);
+    expect(grained?.ratio).toBeGreaterThan(4.5);
   });
 
   it('測れないものは null を返す（呼び出し側が黙って飛ばせないようにする）', () => {

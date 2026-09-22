@@ -75,6 +75,32 @@ export interface Paint {
   readonly color: string;
   /** `background-image` の計算値。塗っていなければ `'none'`。 */
   readonly image: string;
+  /**
+   * 層の `opacity`。要素自身の背景は 1。
+   *
+   * **擬似要素の層にだけ入る。** 擬似要素には字が乗らないので、薄さを地にだけ
+   * 畳んでよい。要素自身の `opacity` は**その要素の字にも掛かる**ので、地だけに
+   * 畳むと嘘になる（#296 でも扱わない。`sampleInPage` は読まない）。
+   */
+  readonly opacity?: number;
+  /** 擬似要素が敷いた層のときだけ入る素性。地に数えるかの裁定は `groundLayers`。 */
+  readonly pseudo?: PseudoOrigin;
+}
+
+/**
+ * 擬似要素の素性（計算値のまま）。
+ *
+ * **ここに判定結果を入れない。** ブラウザの中で裁定すると、同じ判定が
+ * `sampleInPage` と `groundLayers` の 2 箇所に散って食い違う（#279 の教訓）。
+ */
+export interface PseudoOrigin {
+  readonly which: '::before' | '::after';
+  /** `content` の計算値。生成されていなければ `'none'`。 */
+  readonly content: string;
+  readonly position: string;
+  readonly zIndex: string;
+  /** 何番目の祖先が持つ擬似要素か。**並べ替えを同じ要素の中に閉じるために使う**。 */
+  readonly owner: number;
 }
 
 /** ページ側から持ち帰る素材。背景は「内側から外側へ」の並びで返す。 */
@@ -113,6 +139,17 @@ export interface Sample {
  * 外の変数を掴まないので、そのまま `locator.evaluate` に渡せる。
  */
 export function sampleInPage(element: Element): Sample {
+  /** 擬似要素の塗り。**選り分けずに全部持ち帰る**（裁定は `groundLayers`）。 */
+  const pseudoPaints = (node: Element, owner: number): Paint[] =>
+    (['::before', '::after'] as const).map((which) => {
+      const ps = getComputedStyle(node, which);
+      return {
+        color: ps.backgroundColor,
+        image: ps.backgroundImage,
+        opacity: Number(ps.opacity),
+        pseudo: { which, content: ps.content, position: ps.position, zIndex: ps.zIndex, owner },
+      };
+    });
   /** `rgb()` / `rgba()` の α。**読めない色は `null`**（透明と同じ 0 にしてはいけない）。 */
   const alphaOf = (css: string): number | null => {
     const m = /rgba?\(\s*[\d.]+[,\s]+[\d.]+[,\s]+[\d.]+(?:[,/\s]+([\d.]+))?\s*\)/.exec(css);
@@ -126,8 +163,14 @@ export function sampleInPage(element: Element): Sample {
   const style = getComputedStyle(element);
   const backgrounds: Paint[] = [];
   let node: Element | null = element;
+  let owner = 0;
   while (node !== null) {
     const s = getComputedStyle(node);
+    // 擬似要素が敷いた面は、その要素の背景の**内側**・子孫の背景の**外側**に入る。
+    // 走査を止めるかどうかはここでは見ない —— 覆う層に当たれば
+    // `groundCandidates` が外側を捨てるので、余分に集めても結果は変わらない
+    backgrounds.push(...pseudoPaints(node, owner));
+    owner += 1;
     // `background-clip: text` の層は**字**を塗るもので、箱には何も置かない。
     // 色も塗りもまとめて飛ばす（色だけ地に数えると、字の色で地を測ることになる）
     if (!paintsGlyphs(s)) {
@@ -159,6 +202,66 @@ export function sampleInPage(element: Element): Sample {
     fontWeight: Number(style.fontWeight) || 400,
     text: (element.textContent ?? '').trim().slice(0, 40),
   };
+}
+
+/**
+ * 持ち帰った層のうち、**本当に字の下に敷かれているもの**だけを内 → 外で返す（#296）。
+ *
+ * 擬似要素は 2 種類に分かれる。**計器ステージの方眼・グレインのように画面の裏へ
+ * 敷かれるもの**（`position` が out-of-flow で `z-index` が負）は、その要素の背景の
+ * 内側に入る本物の地である。一方**見出しの下の罫線のように字と並ぶもの**
+ * （`position: static`）は、字が乗っていない別の箱で、地に数えると**乗っていない塗りで
+ * 字を測る**ことになる。実測ではこの 2 種類しか現れなかった。
+ *
+ * **幾何は見ない。** 覆っているかを測り始めると検査が賢くなり、賢い分だけ穴が増える。
+ * 覆っていない擬似要素を拾っても**厳しい側に倒れるだけ**なので、構文だけで決める。
+ */
+export function groundLayers(backgrounds: readonly Paint[]): Paint[] {
+  const kept = backgrounds.filter((paint) => paint.pseudo === undefined || isGroundPseudo(paint));
+  const ordered: Paint[] = [];
+  for (let i = 0; i < kept.length; ) {
+    const owner = kept[i]?.pseudo?.owner;
+    if (owner === undefined) {
+      ordered.push(kept[i] as Paint);
+      i += 1;
+      continue;
+    }
+    // **並べ替えは同じ要素の擬似要素の中だけ。** 要素をまたいで z で並べると、
+    // 内側の要素の層が外側の要素の層より外へ回って下地の順序が壊れる
+    let end = i;
+    while (end < kept.length && kept[end]?.pseudo?.owner === owner) end += 1;
+    ordered.push(...sortByPaintOrder(kept.slice(i, end)));
+    i = end;
+  }
+  return ordered;
+}
+
+/** `z-index` の大きい方が字に近い（内側）。同値なら後から塗られた方（`::after`）が上。 */
+function sortByPaintOrder(run: readonly Paint[]): Paint[] {
+  return run
+    .map((paint, index) => ({ paint, index }))
+    .sort((a, b) => zIndexOf(b.paint) - zIndexOf(a.paint) || b.index - a.index)
+    .map((entry) => entry.paint);
+}
+
+function zIndexOf(paint: Paint): number {
+  return Number.parseInt(paint.pseudo?.zIndex ?? '', 10);
+}
+
+function isGroundPseudo(paint: Paint): boolean {
+  const origin = paint.pseudo;
+  if (origin === undefined) return false;
+  // 生成されていない擬似要素は描かれない（Chromium は `none` / `normal` を返す）
+  if (origin.content === 'none' || origin.content === 'normal') return false;
+  // in-flow の擬似要素は字と並ぶ箱であって、字の下ではない
+  if (origin.position === 'static') return false;
+  // 負でない z は字の上に乗る。乗るものを地に数えると、地が明るい側へ嘘をつく
+  const z = zIndexOf(paint);
+  if (!Number.isFinite(z) || z >= 0) return false;
+  if (paint.opacity === 0) return false;
+  // 何も塗っていない層を残すと、候補が増えるだけで何も守らない
+  const color = parseColor(paint.color);
+  return paint.image !== 'none' || color === null || color.a > 0;
 }
 
 /**
@@ -205,64 +308,111 @@ const READABLE_PAINT_FUNCTIONS = new Set([
 ]);
 
 /**
- * `background-image` が塗る色。読めない塗り（画像など）は `null`。
+ * 塗りの読み取り結果。**「読めない」を 2 つに分ける**（#296）。
  *
- * **限界を 1 つ持つ。** 塗りは何枚も重ねられるので、グラデーションと `url(…)` が
- * 混ざることがある（羅紗の照明＋織り目がこれ）。その場合は**読める層だけで測る**
- * ので、結果は織り目の分だけ楽観的になる。織り目のような薄い粒であれば実害は
- * 無いが、**不透明な写真をグラデーションと重ねて敷くとここが嘘をつく** ——
- * そう塗りたくなったら、層を分けるか、この関数を層ごとに解く形へ広げること。
+ * - `unknown` … `url(…)` のように、**何色で塗られているかが原理的に文字列から
+ *   決まらない**層。写真・テクスチャがこれ。無いものとして扱わず、幅で押さえる
+ * - `unreadable` … `oklch()` のように、**こちらが解けていないだけ**の色表記。
+ *   幅にしてしまうと「対応すれば測れる」ことが見えなくなるので「測れない」に倒す
  */
-function imageStops(image: string): Rgba[] | null {
-  if (image === 'none') return [];
-  // 読める層が 1 枚も無い（`url(…)` の写真・テクスチャだけ）なら、何色で塗られて
-  // いるかが分からない。**祖先へ抜けて別のものを測るより「測れない」に倒す**
-  if (!image.includes('gradient')) return null;
+type ImageRead =
+  | { readonly kind: 'stops'; readonly stops: readonly Rgba[] }
+  | { readonly kind: 'unknown' }
+  | { readonly kind: 'unreadable' };
+
+function readImage(image: string): ImageRead {
+  if (image === 'none') return { kind: 'stops', stops: [] };
   // 読めない色表記が 1 つでも混ざっていたら、拾える分だけで測らない
-  if (!isReadablePaint(image)) return null;
+  if (!isReadablePaint(image)) return { kind: 'unreadable' };
+  // `url(…)` が 1 枚でも混ざれば、その面が何色になるかは決められない。
+  // **読めた層だけで測って緑を出さない**（#296。#279 まではここが楽観側だった）
+  if (image.includes('url(')) return { kind: 'unknown' };
+  if (!image.includes('gradient')) return { kind: 'unreadable' };
   const stops: Rgba[] = [];
   for (const match of image.matchAll(/rgba?\([^)]*\)/g)) {
     const parsed = parseColor(match[0]);
-    if (parsed === null) return null;
+    if (parsed === null) return { kind: 'unreadable' };
     stops.push(parsed);
   }
-  return stops.length === 0 ? null : stops;
+  return stops.length === 0 ? { kind: 'unreadable' } : { kind: 'stops', stops };
 }
 
+/**
+ * 下地の候補。**読めない層が混ざると色は 1 点に決まらない**ので、取りうる明るさの
+ * 暗い端と明るい端で持つ。読める層だけで塗られていれば両端は同じ色になる。
+ */
+export interface Ground {
+  readonly darkest: Rgba;
+  readonly lightest: Rgba;
+}
+
+const WHITE: Rgba = { r: 255, g: 255, b: 255, a: 1 };
+const BLACK: Rgba = { r: 0, g: 0, b: 0, a: 1 };
+
+/** 1 点に決まる下地。 */
+const exact = (color: Rgba): Ground => ({ darkest: color, lightest: color });
+
+/** 幅の両端それぞれに重ねる。合成は各チャンネルで単調なので、両端は両端のまま。 */
+const over = (fg: Rgba, ground: Ground): Ground => ({
+  darkest: composite(fg, ground.darkest),
+  lightest: composite(fg, ground.lightest),
+});
+
 /** 1 つの層を、その外側の候補（`bases`）の上に重ねる。`null` は「測れない」。 */
-function paintOver(paint: Paint, bases: readonly Rgba[] | null): Rgba[] | null {
+function paintOver(paint: Paint, bases: readonly Ground[] | null): Ground[] | null {
+  const opacity = paint.opacity ?? 1;
   const color = parseColor(paint.color);
   if (color === null) return null;
-  const stops = imageStops(paint.image);
-  if (stops === null) return null;
+  const read = readImage(paint.image);
+  if (read.kind === 'unreadable') return null;
+
+  // **色を決められない層は「無いもの」にしない。** どんな色にも塗られうるので
+  // 白と黒で挟む。`mix-blend-mode` もここで押さえる —— 合成を真似ずに、
+  // screen（明るくする向き）は白側、multiply（暗くする向き）は黒側に入る
+  if (read.kind === 'unknown') {
+    if (opacity === 1) return [{ darkest: BLACK, lightest: WHITE }]; // 覆い隠す
+    if (bases === null) return null; // 不透明な層に届いていない
+    return bases.map((base) => ({
+      darkest: composite({ ...BLACK, a: opacity }, base.darkest),
+      lightest: composite({ ...WHITE, a: opacity }, base.lightest),
+    }));
+  }
+
+  // 層の `opacity` は、その層の色にも停止点にも掛かる
+  const fade = (c: Rgba): Rgba => ({ ...c, a: c.a * opacity });
+  const stops = read.stops.map(fade);
+  const tint = fade(color);
 
   // 停止点がすべて不透明なグラデーションは箱を覆い隠す。外側は見えない。
   // （`background-size` を縮めて敷き詰めない塗り方をすると下が覗くが、
   //   この規範ではその形を使っていない。使うなら層を分けて塗ること）
-  if (stops.length > 0 && stops.every((stop) => stop.a === 1)) return stops;
+  if (stops.length > 0 && stops.every((stop) => stop.a === 1)) return stops.map(exact);
 
   // 色そのものが下になる。不透明ならそこで止まり、透けるなら外側と合成する。
-  let unders: Rgba[];
-  if (color.a === 1) unders = [{ ...color }];
+  let unders: Ground[];
+  if (tint.a === 1) unders = [exact({ ...tint })];
   else if (bases === null) return null; // 不透明な層に届いていない
-  else unders = bases.map((base) => composite(color, base));
+  else unders = bases.map((base) => over(tint, base));
 
   if (stops.length === 0) return unders;
   // 透明な停止点を含むグラデーションは下を隠さないので、下の色も候補に残す
-  return [...unders, ...stops.flatMap((stop) => unders.map((under) => composite(stop, under)))];
+  return [...unders, ...stops.flatMap((stop) => unders.map((under) => over(stop, under)))];
 }
 
 /**
- * 集めた塗り（内 → 外）から、**下地になりうる色をすべて**出す。
+ * 集めた塗り（内 → 外）から、**下地になりうるものをすべて**出す。
  *
  * グラデーションは場所によって色が違うので、1 つの下地には畳めない。停止点を
  * 候補として並べ、**どれと比べても足りること**を呼び出し側が見る。下地を決め
  * られない場合は `null` を返す —— **黙って祖先へ遡って別のものを測らない**（#279）。
+ *
+ * 地に数えない層（字と並ぶ擬似要素など）はここで落とす（#296）。
  */
-export function groundCandidates(backgrounds: readonly Paint[]): Rgba[] | null {
-  let candidates: Rgba[] | null = null;
-  for (let i = backgrounds.length - 1; i >= 0; i -= 1) {
-    candidates = paintOver(backgrounds[i] as Paint, candidates);
+export function groundCandidates(backgrounds: readonly Paint[]): Ground[] | null {
+  const layers = groundLayers(backgrounds);
+  let candidates: Ground[] | null = null;
+  for (let i = layers.length - 1; i >= 0; i -= 1) {
+    candidates = paintOver(layers[i] as Paint, candidates);
     if (candidates === null) return null;
     if (candidates.length > MAX_GROUND_CANDIDATES) return null;
   }
@@ -276,9 +426,11 @@ export function groundCandidates(backgrounds: readonly Paint[]): Rgba[] | null {
  * **単色**を字に流している場合がここに来る）。
  */
 function inkCandidates(ink: Paint): Rgba[] | null {
-  const stops = imageStops(ink.image);
-  if (stops === null) return null;
-  if (stops.length > 0) return stops;
+  const read = readImage(ink.image);
+  // **字の側は幅で測らない。** 何色か分からない塗りを白と黒で挟むと、どんな配色でも
+  // 「白い字の場合がある」ことになって必ず落ちる。字は測れないと言う方が正しい
+  if (read.kind !== 'stops') return null;
+  if (read.stops.length > 0) return [...read.stops];
   const color = parseColor(ink.color);
   return color === null ? null : [color];
 }
@@ -311,13 +463,44 @@ export function measureSample(sample: Sample): Measurement | null {
   let worst: Measurement | null = null;
   for (const ground of grounds) {
     for (const ink of inks) {
-      const ratio = contrastRatio(composite(ink, ground), ground);
+      const { ratio, at } = worstAgainst(ink, ground);
       if (worst === null || ratio < worst.ratio) {
-        worst = { ratio, required: requiredRatio(sample.fontSize, sample.fontWeight), ink, ground };
+        worst = {
+          ratio,
+          required: requiredRatio(sample.fontSize, sample.fontWeight),
+          ink,
+          ground: at,
+        };
       }
     }
   }
   return worst;
+}
+
+/**
+ * 1 つの字の色と 1 つの下地の候補で、**最悪の比**を出す。
+ *
+ * 幅を持つ候補（読めない層から来たもの）では、**両端の間で字と地の明暗が
+ * 入れ替わる**ことがある。入れ替わるなら、その間に「字とまったく同じ明るさ」に
+ * なる地が必ずあるので、比は 1 まで落ちうる。**両端だけ見ると見落とす。**
+ *
+ * 入れ替わらないなら、比は明るさについて単調なので**悪い方の端**が最悪になる。
+ */
+function worstAgainst(ink: Rgba, ground: Ground): { ratio: number; at: Rgba } {
+  const ends = [ground.darkest, ground.lightest].map((at) => {
+    const inked = composite(ink, at);
+    return {
+      at,
+      ratio: contrastRatio(inked, at),
+      inkIsLighter: relativeLuminance(inked) > relativeLuminance(at),
+    };
+  });
+  const [darker, lighter] = ends as [(typeof ends)[number], (typeof ends)[number]];
+  // 幅の中で明暗が入れ替わる ＝ 途中に「字と同じ明るさの地」がある
+  if (darker.inkIsLighter !== lighter.inkIsLighter) return { ratio: 1, at: { ...ink, a: 1 } };
+  return darker.ratio <= lighter.ratio
+    ? { ratio: darker.ratio, at: darker.at }
+    : { ratio: lighter.ratio, at: lighter.at };
 }
 
 /**
@@ -327,7 +510,11 @@ export function measureSample(sample: Sample): Measurement | null {
  * **一番落ちやすい行（羅紗に直接乗った文字）の失敗メッセージが潰れる**。
  */
 export function describePaint(paint: Paint): string {
-  if (paint.image === 'none') return paint.color;
   const image = paint.image.replace(/url\((?:"[^"]*"|'[^']*'|[^)]*)\)/g, 'url(…)');
-  return `${paint.color} + ${image}`;
+  const body = paint.image === 'none' ? paint.color : `${paint.color} + ${image}`;
+  // **擬似要素の層はそれと分かる形で出す。** 出どころが CSS のどこかを探すとき、
+  // 祖先の背景だけを見ても見つからない（#296）
+  if (paint.pseudo === undefined) return body;
+  const opacity = paint.opacity === undefined || paint.opacity === 1 ? '' : ` ×${paint.opacity}`;
+  return `${paint.pseudo.which}{${body}${opacity}}`;
 }
