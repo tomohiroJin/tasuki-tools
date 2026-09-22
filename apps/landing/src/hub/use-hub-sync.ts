@@ -323,6 +323,12 @@ export function useHubSync(): HubSync {
           return;
         }
         if (msg.code === 'ROOM_NOT_FOUND' && codeRef.current !== null) {
+          // **作成でルームが進んだ後は、URL 由来の古いコードの不在で新しいルームを巻き添えに
+          // しない**（#290・D4 が「不在＋退出の告知 → 作成画面」を足したことで、initialCode が
+          // 非 null のまま作成画面に居る状態が到達可能になった。作成後は codeRef が新しい
+          // コードを指す一方、尋ねた相手は古い initialCode のままなので、両者が食い違う
+          // ときは新しいルームの復帰の組を消してはいけない）。
+          if (codeRef.current !== initialCode) return;
           // **保存済みの組で入れなかったら捨てる。** 残すと、消えたルームへ
           // 毎回入り直そうとして参加画面に戻れない（poker の clearIdentity と同じ扱い）。
           clearResumeIdentity(codeRef.current);

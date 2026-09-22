@@ -355,6 +355,37 @@ describe('ツールから退出して戻されたとき', () => {
   });
 
   /**
+   * 症状②の最も普通の経路（#290 最終レビュー・取りこぼし A-2）。
+   *
+   * 1 人で作って気が変わる → 抜ける → 部屋が消える → **ルームコードを URL に持ったまま**
+   * 玄関へ戻り、`room.check` の答えが「不在」で返る。ここを端から端まで見るテストが
+   * 無かった（`App.tsx` の `departed: departure.notice !== null` を `departed: false` に
+   * 変えても全テストが緑のまま通っていた）。壊れると、設計正本 §7 が「最も普通の場面で
+   * 誤解を招く」と退けた「ルームが見つかりません」が出る。
+   */
+  it('Given 自分で抜けた印つきの参加用 URL / When ルームが見つからないと返る / Then 作成画面で告知を読む', () => {
+    // Given: 抜けた直後、古いルームコードを URL に持ったまま玄関へ戻ってきた
+    window.history.replaceState(null, '', '/?room=ABC123&left=self');
+    render(<App />);
+
+    // When: 復帰の組を持たないので生死を尋ねており、その答えが「不在」で返る
+    act(() => {
+      socket().onmessage?.({
+        data: JSON.stringify({
+          type: 'error',
+          code: 'ROOM_NOT_FOUND',
+          message: '指定されたルームコードが見つかりません',
+        }),
+      });
+    });
+
+    // Then: 「ルームが見つかりません」ではなく、作成画面で退出の告知を読む（#290・D4）
+    expect(screen.getByRole('button', { name: 'ルームを作る' })).toBeInTheDocument();
+    expect(screen.getByText('ルームから抜けました。')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'ルームが見つかりません' })).toBeNull();
+  });
+
+  /**
    * ⚠ **この 1 本は「壊れても赤くならない」ことを実測済みである**（#95 S5c・レビュー ⑤）。
    * この環境の React は初期化子を確かに 2 度走らせる（実測: 初期化子=2・本体=2）が、
    * **採るのは 1 度目の戻り値**なので、印を落とす副作用を初期化子へ戻しても告知は残る。
