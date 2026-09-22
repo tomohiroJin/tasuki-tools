@@ -29,7 +29,6 @@ import { spyHub } from "./support/hub.js";
 const config: SessionConfig = {
   language: "TypeScript",
   difficulty: "easy",
-  members: ["A"],
   intervalMinutes: 5,
 };
 

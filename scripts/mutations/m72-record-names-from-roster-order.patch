@@ -1,0 +1,27 @@
+# 変異 72: record-names-from-roster-order
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/sync/snapshot-intents.test.ts
+#     「記録に載る表示名は席から引く（名簿の並びには従わない）」
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m72-*.patch
+# 復元: git checkout -- <対象ファイル>
+#
+# #294。完成記録に載せる表示名を、席（輪と同じ順）ではなく名簿の並びから引く。
+# 記録の `members` は `driverCounts` と添字で対になって描かれる（`ui/Summary.tsx`）ので、
+# 並びが違う配列を渡すと**別人の回数が別人の名前の横に並ぶ**。名簿は輪に居ない人も
+# 含むため、長さも一致しない。
+diff --git a/apps/timer-web/src/sync/snapshot-intents.ts b/apps/timer-web/src/sync/snapshot-intents.ts
+index 9f150c4..e4512a1 100644
+--- a/apps/timer-web/src/sync/snapshot-intents.ts
++++ b/apps/timer-web/src/sync/snapshot-intents.ts
+@@ -120,7 +120,7 @@ export function decideSnapshotIntents(
+         // なっており（`ui/Summary.tsx`）、対応が付く並びは輪の順だけである。
+         // `session.seats` は輪と同じ順・同じ長さで、席ごとに識別子を持つ
+         // （かつてここが読んでいた `config.members` は添字でしか対応が付かなかった）。
+-        next.session.seats.map((seat) => seat.displayName),
++        next.participants.map((p) => p.displayName),
+         ctx.now,
+         next.code,
+       ),

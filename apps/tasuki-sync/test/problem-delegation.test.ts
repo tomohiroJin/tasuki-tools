@@ -36,7 +36,6 @@ function makeRoom(overrides?: Partial<Room>): Room {
     config: {
       language: "TypeScript",
       difficulty: "easy",
-      members: ["A", "B"],
       intervalMinutes: 5,
     },
     problem: null,
@@ -301,7 +300,6 @@ function makeRoomWithMode(mode: "ai" | "fallback", hasAiKey: boolean): Room {
     config: {
       language: "TypeScript",
       difficulty: "easy",
-      members: ["Host"],
       intervalMinutes: 5,
     },
     problem: null,

@@ -16,8 +16,8 @@
  * 「振る舞いを変えていない」ことの証拠にしていた（`apps/timer-web` のテストを 1 行も
  * 書き換えずに通せた）。**S4b は利用者から見える変更の段なので、多接続模型が要求する
  * 分だけ変えた。**
- * **ここで言うのは型の話だけである。型から落としたのは `startedAt`（S4a）と
- * `connId`（S4b）の 2 つ**（このファイル末尾の注記を読むこと）。**合成の例外**
+ * **ここで言うのは型の話だけである。型から落としたのは `startedAt`（S4a）・
+ * `connId`（S4b）・`config.members`（#294）の 3 つ**（このファイル末尾の注記を読むこと）。**合成の例外**
  * （`participants` の並び・`driverEligible` の出し方・`presence` の導出）は
  * `apps/tasuki-sync/src/application/timer-snapshot-dto.ts` の台帳にある。
  */
@@ -32,15 +32,17 @@ import type {
 } from "./aggregate.js";
 
 /**
- * wire の設定。サーバー側の {@link TimerConfig} に、表示名へ解決した `members` を足したもの。
+ * wire の設定。**サーバー側の {@link TimerConfig} と同じ形である**（#294）。
  *
- * `members` は**ローテーション順の表示名**であり、名簿の写しではない（輪の外に居る人は
- * 載らない）。サーバーは保持せず、snapshot を組むたびに名簿と rotation から解決する（D15）。
+ * かつてここには `members`（ローテーション順の表示名）が足されていた。読み手は
+ * #276 で席（{@link Seat}）へ移り、残っていた 2 つの流用も #294 で畳んだので、
+ * **wire だけにある項目は 1 つも無くなった**。
+ *
+ * 別名を残してあるのは、**`apps/timer-web` と `apps/tasuki-sync` の広い範囲が
+ * この型名で「wire の設定」を受けている**ためである（改名は振る舞いと無関係な
+ * 差分を撒く。このファイル冒頭の `Participant` と同じ判断）。
  */
-export interface SessionConfig extends TimerConfig {
-  /** ローテーション順の表示名（DTO 組み立てで解決する） */
-  members: string[];
-}
+export type SessionConfig = TimerConfig;
 
 /** 参加者（wire）。名簿の 1 人か、ローテーション上の代理のいずれか。 */
 export interface Participant {
@@ -141,3 +143,12 @@ export interface Room {
 // 書き手も読み手も無い任意項目を型と `RoomSchema` に残しても、**宣言の側にだけ生き残る
 // 記号**になるだけなので落とした。`RoomSchema` は非 strict の `v.object` なので、
 // この項目を載せた古い snapshot のパースは今までどおり通る。
+//
+// ⚠ かつて `SessionConfig` には `members`（ローテーション順の表示名）があった。
+// **#294 で落とした。** 本来の読み手だった輪の表示は #276 で `session.seats` へ移り、
+// 残っていた 2 つ（自分の名前が引けないときの縮退・完成記録の表示名）は、どちらも
+// 「輪の順の表示名」を別の用途へ流用していただけだった。**席は識別子を持つ**ので、
+// 添字でしか対応が付かないこの配列を置いておく理由が無くなった。
+// `RoomSchema` は非 strict の `v.object` なので、この項目を載せた古い snapshot の
+// パースは今までどおり通る（`deploy.sh timer` は画面を先に配るため、
+// 「新しい画面 × 旧サーバー」の窓でこれが効く）。

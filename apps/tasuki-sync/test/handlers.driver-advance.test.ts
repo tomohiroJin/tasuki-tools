@@ -19,14 +19,13 @@ import { FakeCodeGen } from "./support/fake-code-gen.js";
 const config: SessionConfig = {
   language: "TypeScript",
   difficulty: "easy",
-  members: ["A", "B", "C"],
   intervalMinutes: 5,
 };
 
 /**
  * room.create でルームを作り、テスト用に rotation / currentIndex / clock.running /
  * 各参加者の presence を上書きして稼働状態の room を store に置く。
- * @param members rotation を構成するメンバー名（config.members と一致させる）
+ * @param members rotation を構成するメンバー名（席の表示名と一致させる）
  * @param presenceByName 名前→presence の対応（指定外は online 扱い）
  */
 async function setupRunningRoom(
@@ -40,7 +39,7 @@ async function setupRunningRoom(
   const create = await handlers.handleCommand("host-conn", {
     command: "room.create",
     displayName: members[0]!,
-    config: { ...config, members },
+    config,
   });
   if (!create.isOk()) throw new Error("create failed");
   // 本番（server.ts）は handleCommand の戻り値を破棄する。値は本番と同じ観測点から取る（FR-100）。

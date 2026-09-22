@@ -246,7 +246,7 @@ describe("実 WS 越しの member.move", () => {
       (m) => m.room.session.rotation[0] === guestId,
     );
     expect(moved.room.session.rotation).toEqual([guestId, creatorId]);
-    expect(moved.room.config.members).toEqual(["ゲスト", "作成者"]);
+    expect(moved.room.session.seats.map((s) => s.displayName)).toEqual(["ゲスト", "作成者"]);
   });
 
   // #95 S3 以前は「開始前は編集者による member.move を拒否する」ことを見ていた。

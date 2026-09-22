@@ -22,10 +22,12 @@ type SessionState = Room["session"];
 const CREATOR_ID = "creator-p";
 
 function defaultConfig(): SessionConfig {
-  // App.tsx handleCreateRoom の既定値（displayName は members[0] に入るが、
-  // ここでは既定の作成者名 "Creator" を使う。intervalMinutes: 7 が実際の既定）。
-  return { language: "TypeScript", difficulty: "easy", members: ["Creator"], intervalMinutes: 7 };
+  // App.tsx handleCreateRoom の既定値（intervalMinutes: 7 が実際の既定）。
+  return { language: "TypeScript", difficulty: "easy", intervalMinutes: 7 };
 }
+
+/** 既定の席の表示名（既定の輪は作成者 1 人）。 */
+const DEFAULT_MEMBER_NAMES = ["Creator"];
 
 function defaultSession(): SessionState {
   return {
@@ -47,8 +49,10 @@ function defaultSession(): SessionState {
  * **黙って嘘の前提を持つテスト**になる。サーバーは常に輪と同じ順・同じ長さで
  * 送るので、造作もそう振る舞わせる。
  *
- * 表示名は `config.members`（輪と同じ順の表示名）から引く。理由を持つ席を作りたい
- * テストは `session.seats` を丸ごと渡して上書きすること。
+ * 表示名は `memberNames`（輪と同じ順の表示名）から引く。**wire の項目ではない** ——
+ * `config.members` は #294 で落ちたので、これはこの造作だけが持つ入口である。
+ * 理由（`skipReason`）や代理を持つ席を作りたいテストは、`session.seats` を丸ごと
+ * 渡して上書きすること。
  */
 function seatsFrom(rotation: readonly string[], memberNames: readonly string[]): Seat[] {
   return rotation.map((id, i) => ({
@@ -82,11 +86,35 @@ function defaultParticipants(): Participant[] {
   ];
 }
 
+/**
+ * サーバーが作った完成記録のうち、**名簿から引けない席が空文字で載ったもの**。
+ *
+ * `config.members` が wire から落ちた（#294）後も、ローテーション順の表示名は
+ * サーバー側の完成記録（`apply-room-level-event.ts` の `SessionCompleted`）を通って
+ * wire へ出る。`CompletionRecordSchema.members` の要素は最小長 1 なので、
+ * **空文字が 1 つ載ると snapshot 全体が契約検査に落ちる**（`docs/adr/0005` が
+ * 挙げた経路は、いまはここである）。契約違反の再現にはこの形を使う。
+ */
+export function aRecordWithUnresolvableName(): Record<string, unknown> {
+  return {
+    id: "rec-1",
+    problemTitle: "FizzBuzz",
+    language: "TypeScript",
+    difficulty: "easy",
+    elapsedSeconds: 300,
+    members: [""],
+    totalSwitches: 2,
+    completedAt: 1_000_000,
+  };
+}
+
 /** aRoomView() の overrides。config / session / clock はネストの部分上書きを許す。 */
 export type RoomViewOverrides = Partial<Omit<Room, "config" | "session" | "clock">> & {
   config?: Partial<SessionConfig>;
   session?: Partial<SessionState>;
   clock?: Partial<ServerClock>;
+  /** 席に付ける表示名（輪と同じ順）。造作だけの入口で、wire には出ない（#294）。 */
+  memberNames?: readonly string[];
 };
 
 /**
@@ -95,10 +123,14 @@ export type RoomViewOverrides = Partial<Omit<Room, "config" | "session" | "clock
  * （丸ごと差し替えたい場合は participants のように配列やトップレベルの他フィールドで行う）。
  */
 export function aRoomView(overrides: RoomViewOverrides = {}): Room {
+  // `memberNames` は造作だけの入口なので、返す Room へ混ぜない（#294）。
+  // スプレッドの余剰プロパティは型検査が拾わないため、ここで明示的に外す。
+  const { memberNames, ...roomOverrides } = overrides;
   const config = { ...defaultConfig(), ...(overrides.config ?? {}) };
   const session = { ...defaultSession(), ...(overrides.session ?? {}) };
   // 席と次の番は、上書き後の輪から導く（明示的に渡されていれば、それを尊重する）。
-  const seats = overrides.session?.seats ?? seatsFrom(session.rotation, config.members);
+  const seats =
+    overrides.session?.seats ?? seatsFrom(session.rotation, memberNames ?? DEFAULT_MEMBER_NAMES);
   // ⚠ ここでの `(currentIndex + 1) % len` は造作の都合であって、製品の規則ではない。
   // 製品側でこの式を使ってよい場所は 1 つも無い（それが #276 の主題である）。
   const nextIndex =
@@ -124,5 +156,5 @@ export function aRoomView(overrides: RoomViewOverrides = {}): Room {
     onBreak: false,
   };
 
-  return { ...base, ...overrides, config, session: merged, clock };
+  return { ...base, ...roomOverrides, config, session: merged, clock };
 }

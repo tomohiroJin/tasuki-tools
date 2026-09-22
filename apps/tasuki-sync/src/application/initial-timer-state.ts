@@ -40,8 +40,9 @@ export interface InitialTimerStateInput {
   /**
    * timer の入口から来た設定（wire の形）。**遅延生成では渡されない**（既定で始める）。
    *
-   * `members` は wire にだけある項目で、名簿の正本ではない（#95 S4a・D15）。
-   * ここで落とす —— 輪に並べられるのは作成時点の在室者ただ一人である。
+   * wire の設定は保管する設定と同じ形である（#294 で `members` が落ちた）ので、
+   * ここはそのまま受ける。名簿は別の正本が持つ（#95 S4a・D15）—— 輪に並べられるのは
+   * 作成時点の在室者ただ一人である。
    */
   config?: SessionConfig;
 }
@@ -54,13 +55,11 @@ const DEFAULT_INTERVAL_MINUTES = 5 as IntervalMinutes;
 export function createInitialTimerState(input: InitialTimerStateInput): TimerState {
   const { code, createdAt, participantId } = input;
 
-  const config: TimerConfig = input.config
-    ? stripWireOnlyFields(input.config)
-    : {
-        language: DEFAULT_LANGUAGE,
-        difficulty: DEFAULT_DIFFICULTY,
-        intervalMinutes: DEFAULT_INTERVAL_MINUTES,
-      };
+  const config: TimerConfig = input.config ?? {
+    language: DEFAULT_LANGUAGE,
+    difficulty: DEFAULT_DIFFICULTY,
+    intervalMinutes: DEFAULT_INTERVAL_MINUTES,
+  };
 
   const seat: RotationEntry = { kind: "member", participantId, eligible: true };
   const agg = initialAggregate(config, [seat]);
@@ -78,10 +77,4 @@ export function createInitialTimerState(input: InitialTimerStateInput): TimerSta
     onBreak: false,
     aiKeyHolders: [],
   };
-}
-
-/** wire にしか無い項目（`members`）を落として、保管する設定の形にする。 */
-function stripWireOnlyFields(wire: SessionConfig): TimerConfig {
-  const { members: _ignoredMembers, ...config } = wire;
-  return config;
 }

@@ -6,7 +6,6 @@
 import * as v from "valibot";
 import {
   VALID_INTERVAL_MINUTES,
-  MAX_MEMBERS,
   MAX_PROBLEM_REQUIREMENTS,
   MAX_ROOM_NAME,
   MAX_HANDOFF_NOTE,
@@ -53,23 +52,21 @@ const difficultyStr = v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_CONFIG_
 
 // ─── SessionConfig スキーマ ─────────────────────────────────────────────────
 
+// `SessionConfig` は**入ってくるコマンド（`room.create` / `config.set`）と
+// 出ていく snapshot の両方**が通るスキーマである。
+//
+// ⚠ かつてここには `members`（ローテーション順の表示名）があった。**#294 で落とした。**
+// 読み手は席（`session.seats`）へ移っている。落としたことで 2 つの効果がある ——
+//
+// 1. **入ってくる `members` はここで消える。** v.object の出力に未知のキーは残らない
+//    （`test/schemas.test.ts` が固定している）。輪の出入りを表示名の配列から組み直す
+//    経路は、境界で取り除くまでもなく通れない（D6b）
+// 2. **出ていく空文字で snapshot 全体が落ちなくなった。** 要素が `nonEmptyString` だった
+//    ため、名簿から引けない席の空文字が 1 つ載るだけで画面は全フレームを捨てていた
+//    （`docs/adr/0005`）。席の `displayName` は #276 D2 で `v.string()` にしてある
 const SessionConfigSchema = v.object({
   language: languageStr,
   difficulty: difficultyStr,
-  // 境界では 1 人以上を許可する（ルームは作成者 1 人で始まり、join で増える＝2層モデル）。
-  // 「セッション中に 2 人未満へ削除しない」という不変条件は decide の guard 側で担保する。
-  // **ここは `displayNameStr` を使わない**（#95 S4b）。`SessionConfig` は
-  // **入ってくるコマンド（`room.create` / `config.set`）と出ていく snapshot の両方**が
-  // 通るスキーマである。出ていく側の `members` は「ローテーション順の表示名」であり、
-  // 空文字が載るのはサーバー側の不整合（rotation に名簿の居ない ID が残った形）なので、
-  // **クライアントの契約検査がそれを捨てられなければならない**
-  // （`apps/timer-web/src/sync/dispatch.ts` → `test/sync/dispatch.test.ts`）。
-  // 入ってくる側の `members` は境界で捨てられる（`build-domain-command.ts`・D6b）。
-  members: v.pipe(
-    v.array(nonEmptyString),
-    v.minLength(1),
-    v.maxLength(MAX_MEMBERS),
-  ),
   intervalMinutes: v.picklist(VALID_INTERVAL_MINUTES),
   navigatorEnabled: v.optional(v.boolean()),
   // 0 は「休憩提案オフ」を表す（ロビーでトグルを外したときに送る）。1 以上で N 巡ごと。
@@ -351,8 +348,10 @@ const SessionStateSchema = v.object({
   isPaused: v.boolean(),
   driverCounts: v.array(v.pipe(v.number(), v.integer(), v.minValue(0))),
   totalSwitches: v.pipe(v.number(), v.integer(), v.minValue(0)),
-  // #276 D7: 任意にしない。省略可にすると画面側にフォールバック経路が残り、
-  // 「サーバーが送る席」と「config.members から補う席」の 2 経路が戻る。
+  // #276 D7: 任意にしない。省略可にすると画面側にフォールバック経路が戻る。
+  // **#294 で判断はより強くなった** —— 当時の補い元だった `config.members` は wire から
+  // 落ちたので、席が欠けたときに「画面が推測する席」を組む材料はもう存在しない。
+  // 任意にすると、席の無い snapshot で輪が丸ごと消えるか、推測の材料を**作り直す**ことになる。
   // 配布時の窓・後方互換の扱いは台帳を参照する
   // （`apps/tasuki-sync/src/application/timer-snapshot-dto.ts` の項目 7）。
   seats: v.array(SeatSchema),

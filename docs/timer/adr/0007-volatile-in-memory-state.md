@@ -104,3 +104,16 @@
   「最後の接続が切れた瞬間に破棄する」経路は撤去したので、**poker のルームも
   `ROOM_IDLE_TTL_MS` まで残る**。**決定の骨格（揮発インメモリ・再起動安全・記録は端末側）は
   変えていない** —— 再起動でルームが失われる点は poker でも同じである。
+
+**改定（2026-09-22・#294 実施）**: 直前の改定は「`config.members` は ローテーション順の
+表示名を映す wire の投影として**残り**、DTO 側で組み立てる」と書いた。2026-09-10 時点の
+記録としてその文はそのまま残すが、[#294](https://github.com/tomohiroJin/tasuki-tools/issues/294)
+で**その投影は wire から落ちた**ので現在地を足す。
+
+- **表示名を映す wire の投影は `session.seats[].displayName` である**（#276 D2）。
+  席は識別子を持つので、画面は添字ではなく識別子で照合できる。
+- **`config.members` はもう存在しない。** wire の設定（`SessionConfig`）は
+  サーバー側の `TimerConfig` と同じ形になった。解決は DTO 側で組み立てるという点は
+  変わっていない（`apps/tasuki-sync/src/application/timer-snapshot-dto.ts` の
+  `rotationDisplayNames` 1 つが席・交代の通知・サーバー側の完成記録へ配る）。
+- **決定の骨格（揮発インメモリ・再起動安全・記録は端末側）は変えていない。**

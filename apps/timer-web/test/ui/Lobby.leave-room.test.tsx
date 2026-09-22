@@ -31,7 +31,8 @@ function p(overrides: Partial<Participant>): Participant {
 /** Alice と自分=Bob の 2 名が在室する部屋。 */
 function makeRoomWithTwoParticipants(): Room {
   return aRoomView({
-    config: { members: ["Alice"], intervalMinutes: 5 },
+    memberNames: ["Alice"],
+    config: { intervalMinutes: 5 },
     participants: [
       p({ participantId: "creator-p", displayName: "Alice" }),
       p({ participantId: "bob-p", displayName: "Bob" }),
@@ -95,7 +96,8 @@ describe("ロビー: 自分の行の「ルームから抜ける」", () => {
   it("最後の1人（自分だけ）でも抜けられる", () => {
     // Given
     const room = aRoomView({
-      config: { members: ["Alice"], intervalMinutes: 5 },
+      memberNames: ["Alice"],
+      config: { intervalMinutes: 5 },
       participants: [p({ participantId: "creator-p", displayName: "Alice" })],
     });
     render(

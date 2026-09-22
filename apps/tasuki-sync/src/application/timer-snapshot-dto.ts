@@ -30,6 +30,8 @@
  *    選択画面（ハブ）や poker に居る人は載らない（R5 / R6）。**切断した人は載る** ——
  *    「timer から離れた」ことが分かっているのは前者だけだからである。
  *    名簿からは誰も消えず、輪の席も表示名（`config.members`）も残る（R7）。
+ *    （**当時の記述である。** その `config.members` は下の 9 で落ちた。R7 が言う
+ *    「表示名が残る」は、いまは席の `displayName` が担う。）
  *
  * ★ **#276 で wire が変わった点も、この台帳に続けて書く。**
  *
@@ -38,6 +40,8 @@
  *    の注記）。`RoomSchema` の `SessionStateSchema`（`schemas.ts`）は**わざと任意にしていない**
  *    （D7）—— 省略可にすると画面側に「config.members から補う」フォールバック経路が
  *    復活し、「サーバーが送る席」と「画面が推測する席」の 2 経路に戻ってしまう。
+ *    （**D7 の判断は生きている。** 補う元だった `config.members` は 9 で消えたので、
+ *    いまは席が欠けたら補う手段そのものが無い。任意化はより一層できない。）
  *    そのため**古い snapshot（この 2 項目を持たない）の互換は無い** —— `RoomSchema` の
  *    パースそのものが落ち、画面は「最新ではありません」側へ倒れる（`sync/stale-frame.ts`）。
  *    上の 4・5 項目（`connId` / `startedAt` の削除）とは逆に、**今回は非 strict の
@@ -56,6 +60,21 @@
  *    snapshot 全体が契約検査に落ちる。この項目は**欠けていたら「生成していない」**と
  *    読めばよいだけなので、同じ代償を払う理由が無い。
  *    値を作るのは `ProblemDelegator` ただ 1 つで、ここはそれをそのまま載せる。
+ *
+ * ★ **#294 で wire が変わった点も、この台帳に続けて書く。**
+ *
+ * 9. **`config.members`（ローテーション順の表示名）を型と `RoomSchema` から落とした**
+ *    （`wire.ts` 末尾の注記）。本来の読み手だった輪の表示は 7 の `seats` へ移っており、
+ *    残っていた読み手 2 つ（`apps/timer-web` の「自分の名前が引けないときの縮退」と
+ *    「完成記録に載せる表示名」）は、どちらも**輪の順の表示名を別の用途へ流用**していた。
+ *    席は識別子を持つので、**添字でしか対応が付かない**この配列を置いておく理由が無い。
+ *    **4・5 と同じく古い snapshot のパースは通る**（非 strict の `v.object`。7 の `seats`
+ *    のように必須項目が増えたわけではないので、配布の窓は広がらない）。
+ *    ⚠ **ついでに失敗経路が 1 つ消えた** —— 要素が `nonEmptyString` だったため、
+ *    名簿から引けない席の空文字が 1 つ載るだけで**画面は snapshot 全体を捨てていた**
+ *    （`docs/adr/0005`）。同じ縮退は 7 の `seats[].displayName`（`v.string()`）が受け止める。
+ *    `rotationDisplayNames` は**残る** —— 交代の通知（`handlers.ts` の `nextDriverName`）と
+ *    サーバー側の完成記録（`apply-room-level-event.ts`）が引き続き使う。
  *
  * 代理（`isPlaceholder`）はここで**合成される**。名簿には居らず、輪の上の席
  * （`RotationEntry` の `kind: "proxy"`）としてだけ存在するためである。
@@ -257,10 +276,16 @@ export function buildTimerSnapshotRoom(membership: MembershipRoom, timer: TimerS
   // ここで呼び直すと同じ判定が 2 度走る（seats が既に理由を持っている）。
   const watching = watchingTimerIds(membership);
   const byId = new Map(membership.participants.map((p) => [p.id, p]));
-  const names = new Map(membership.participants.map((p) => [p.id, p.displayName]));
-  const seats: Seat[] = timer.session.rotation.map((e) => ({
+  // **表示名の解決は {@link rotationDisplayNames} 1 つに揃える**（#294 のレビュー指摘）。
+  // かつてここには同じ規則を書いた 2 つ目の実装があった。`config.members` が wire に
+  // あった間は「同じ関数の結果が 2 か所へ出る」形だったが、それが落ちた後も
+  // **席（画面が読む）とサーバー側の完成記録（`apply-room-level-event.ts`）が
+  // 別々の実装から名前を引く**状態が残っていた。片方だけが変わると、同じセッションの
+  // 記録と画面が違う名前を言う。
+  const displayNames = rotationDisplayNames(membership, timer);
+  const seats: Seat[] = timer.session.rotation.map((e, i) => ({
     id: rotationEntryId(e),
-    displayName: e.kind === "proxy" ? e.label : (names.get(e.participantId) ?? ""),
+    displayName: displayNames[i] ?? "",
     isProxy: e.kind === "proxy",
     skipReason: seatSkipReason(e, watching, byId),
   }));
@@ -299,7 +324,10 @@ export function buildTimerSnapshotRoom(membership: MembershipRoom, timer: TimerS
   return {
     code: timer.code,
     createdAt: timer.createdAt,
-    config: { ...timer.config, members: rotationDisplayNames(membership, timer) },
+    // wire の設定は保管している設定と同じ形である（#294 で `members` が落ちた・台帳 9）。
+    // **写しを渡す。** 保管している実体をそのまま配ると、wire の投影と集約が同じ
+    // オブジェクトを指す（この関数の外で配信前に触られたら、集約ごと変わる）。
+    config: { ...timer.config },
     problem: timer.problem,
     // **明示列挙にする。** スプレッド（`...timer.session`）だと、サーバー側の
     // `SessionState` に足したフィールドが**黙って wire に載る**。ここに

@@ -25,8 +25,9 @@ function makeParticipant(overrides: Partial<Participant>): Participant {
 function makeRoom(assertive: boolean, currentIndex: number): Room {
   return aRoomView({
     code: "AA0001",
+    memberNames: ["Alice", "Bob"],
     config: {
-      members: ["Alice", "Bob"], intervalMinutes: 5,
+      intervalMinutes: 5,
       ...(assertive && { assertiveSwitch: true }),
     },
     // rotation は参加者IDの配列（D6b）

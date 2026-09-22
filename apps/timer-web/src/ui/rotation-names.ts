@@ -35,8 +35,8 @@ export interface RotationMember {
  * 席の配列を「識別子＋表示名＋呼び名」の配列へ写す。
  *
  * **席はサーバーが組む。** `Seat.displayName` は絞っていない名簿（在席者に限らない）
- * から引かれており、`config.members` の添字対応で名前を補う経路はここには無い
- * （その経路は席の側・`buildTimerSnapshotRoom` に畳まれた）。
+ * から引かれている。添字対応で名前を補う経路はここには無い —— かつての補い元だった
+ * `config.members` は wire から落ちた（#294。解決は `buildTimerSnapshotRoom` の 1 箇所）。
  *
  * 呼び名の判定対象プールは `labelPool`（`participant-label.ts`）に1つだけ置く。
  * ここで別に和集合を組むと、一覧側の呼び出し口（`RosterPanel.tsx` 等）と規則が

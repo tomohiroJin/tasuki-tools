@@ -44,7 +44,6 @@ class NoticeSpyBroadcaster extends SharedSpyBroadcaster {
 const config: SessionConfig = {
   language: "TypeScript",
   difficulty: "easy",
-  members: ["Alice", "Bob", "Carol"],
   intervalMinutes: 5,
 };
 

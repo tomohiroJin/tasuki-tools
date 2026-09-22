@@ -18,7 +18,6 @@ import { testLogger, testRefEncoder } from "./support/test-logger.js";
 const config: SessionConfig = {
   language: "TypeScript",
   difficulty: "easy",
-  members: ["Alice", "Bob"],
   intervalMinutes: 5,
 };
 

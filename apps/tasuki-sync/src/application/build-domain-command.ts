@@ -34,11 +34,12 @@ export function buildDomainCommand(cmd: { command: string; [key: string]: unknow
       return { command: "session.reset" as const };
     case "config.set": {
       if (typeof cmd.config !== "object" || cmd.config === null) return null;
-      // members は受け付けない（D6b）。core の ConfigSet は members から rotation を
-      // 組み直すため、表示名の配列を通すと rotation が名前に戻り識別子の不変条件が壊れる。
-      // 輪の出入りは member.add/remove/move・addProxy・participant.remove だけが担う。
-      const { members: _ignored, ...config } = cmd.config as Partial<SessionConfig>;
-      return { command: "config.set" as const, config };
+      // ⚠ ここにはかつて `members` を取り除く分解代入があった。**#294 で不要になった** ——
+      // `members` は wire の設定から消え、`SessionConfigSchema` を通った時点で落ちる
+      // （v.object の出力に未知のキーは残らない。`packages/timer-core/test/schemas.test.ts`）。
+      // 輪の出入りを担うのは member.add/remove/move・addProxy・participant.remove だけ
+      // という決まり（D6b）は変わらない。
+      return { command: "config.set" as const, config: cmd.config as Partial<SessionConfig> };
     }
     case "member.add":
       // 誰を輪に並べるかは参加者IDで指す（D6b）。名前→IDの解決という曖昧さを発生源で消す。

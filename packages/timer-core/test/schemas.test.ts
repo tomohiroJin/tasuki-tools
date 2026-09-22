@@ -408,3 +408,70 @@ describe("RoomSchema: お題の生成の状態", () => {
     expect(v.safeParse(RoomSchema, room).success).toBe(false);
   });
 });
+
+/**
+ * `config.members` を wire から落とした（#294）。
+ *
+ * かつて `SessionConfig` は「サーバー側の設定＋ローテーション順の表示名（`members`）」
+ * だった。表示名の読み手は席（`session.seats`）へ移り、**画面の読み手は 0 件**になった。
+ *
+ * この契約で守るのは 2 つである ——
+ *
+ * 1. **新しいサーバー（項目を持たない）の snapshot が通る**
+ * 2. **旧サーバー（項目を持つ）の snapshot も通る。** `deploy.sh timer` は画面を先に
+ *    配るので「新しい画面 × 旧サーバー」の窓は順序では避けられない（#276 の実測）。
+ *    ここで落とすと、その窓のあいだ画面が丸ごと「最新ではありません」へ倒れる
+ *
+ * ⚠ **ついでに 1 つの失敗経路が消えた。** `members` の要素は `nonEmptyString` だったため、
+ * 名簿から引けない席の空文字が 1 つ載るだけで **snapshot 全体が棄却**されていた
+ * （`docs/adr/0005`・`apps/timer-web/test/ui/App.sync-stale.test.tsx`）。
+ * 席の `displayName` は #276 D2 で `v.string()` にしてあり、同じ縮退を受け止める。
+ */
+describe("RoomSchema: config.members を落とした（#294）", () => {
+  it("members を持たない config の snapshot が通る", () => {
+    // Given: 新しいサーバーが送る形
+    const room = baseRoom();
+    delete (room.config as Record<string, unknown>).members;
+    // When
+    const parsed = v.safeParse(RoomSchema, room);
+    // Then
+    expect(parsed.success).toBe(true);
+  });
+
+  it("members を持つ config の snapshot も通る（旧サーバー・配布の窓）", () => {
+    // Given: この項目をまだ送るサーバーの形（対照実行）
+    const room = baseRoom();
+    // When
+    const parsed = v.safeParse(RoomSchema, room);
+    // Then: 通り、かつ**画面には渡らない**（契約から落ちた項目は出力に残らない）
+    expect(parsed.success).toBe(true);
+    if (parsed.success) expect("members" in parsed.output.config).toBe(false);
+  });
+
+  it("旧サーバーが空文字の members を載せても、snapshot は棄却されない", () => {
+    // Given: 名簿から引けない席がある旧サーバーの形（かつてはこれで全体が落ちた）
+    const room = baseRoom();
+    (room.config as Record<string, unknown>).members = [""];
+    // When
+    const parsed = v.safeParse(RoomSchema, room);
+    // Then
+    expect(parsed.success).toBe(true);
+  });
+
+  it("config.set に members を載せても、境界を越えた先には残らない", () => {
+    // Given: 旧い画面（または細工した接続）が送る形
+    const command = {
+      command: "config.set",
+      config: { language: "TypeScript", difficulty: "easy", intervalMinutes: 5, members: ["X"] },
+    };
+    // When
+    const parsed = v.safeParse(CommandSchema, command);
+    // Then: コマンド自体は受理し、`members` だけがパーサで落ちる。
+    // **`build-domain-command.ts` の取り除きが不要になった根拠がこれである**
+    // （輪の出入りは member.add/remove/move・addProxy・participant.remove だけが担う・D6b）。
+    expect(parsed.success).toBe(true);
+    if (parsed.success && parsed.output.command === "config.set") {
+      expect("members" in parsed.output.config).toBe(false);
+    }
+  });
+});

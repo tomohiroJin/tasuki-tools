@@ -29,7 +29,8 @@ function makeParticipant(overrides: Partial<Participant>): Participant {
 function makeRoom(running: boolean, isPaused: boolean): Room {
   return aRoomView({
     code: "AA0001",
-    config: { members: ["Alice", "Bob"], intervalMinutes: 5 },
+    memberNames: ["Alice", "Bob"],
+    config: { intervalMinutes: 5 },
     session: { rotation: ["Alice", "Bob"], isPaused, driverCounts: [0, 0] },
     clock: { running, runningSince: running ? 0 : null },
     phase: "session",

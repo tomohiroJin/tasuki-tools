@@ -193,3 +193,50 @@ AI 出力の `validateProblem` 検証など）は、本 ADR では扱わない�
 > 書いていたが、`docs/poker/adr/0004` がサーバー→クライアントを `v.object` にしたため、
 > その前提は成り立たない。**結論は変わらない** —— 経路の名前空間の問題は `v.object` でも
 > 同じで、変わったのは捨てる場面の広さだけである。
+
+---
+
+**追記（2026-09-22・#294）: 上で挙げた経路の具体例が 1 つ移った。**
+
+「`snapshot` を捨てる状況はほぼ必ず継続する」という**リスクそのものは変わらない**。
+変わったのは、その具体例として挙げていた**投影の置き場所**である。
+
+`config.members`（ローテーション順の表示名）は **#294 で wire から落ちた**。読み手は
+`session.seats`（#276 D2。要素の `displayName` は `v.string()` で空文字を許す）へ移り、
+残っていた 2 つの流用も畳んだためである。したがって上の
+
+> `SessionConfigSchema.members` の要素は `displayNameStr`（`minLength(1)`）なので落ちる。
+
+は、**いまは成り立たない**（その項目自体が無い）。
+
+**同じ壊れ方をする投影はまだある。** `rotationDisplayNames()` の結果は、サーバー側の
+完成記録（`apps/tasuki-sync/src/application/apply-room-level-event.ts` の
+`SessionCompleted`）を通って `sessionRecords[].members` として wire へ出る。
+`CompletionRecordSchema.members` の要素は `nonEmptyString` なので、**空文字が 1 つ
+載れば snapshot 全体が落ちる**という構図はそのまま残っている。
+
+- **この状態へ至る経路は、いまも見つかっていない。** 上で追った 4 経路のうち
+  `config.set` の理由づけだけが変わった —— 境界で取り除いていたのをやめ、
+  **`SessionConfigSchema` から項目ごと落とした**（`v.object` の出力に未知のキーは
+  残らない。`packages/timer-core/test/schemas.test.ts` が固定している）
+- **棄却の再現に使う造作も移した。** `aRecordWithUnresolvableName()`
+  （`apps/timer-web/test/support/room-view.ts`）と `e2e/support/timer.ts` がそれで、
+  経路は `room.sessionRecords.0.members.0` になる
+
+**受け入れた副作用（#294 のレビュー指摘 4）**: 端末に残る完成記録の `members` に、
+**空文字が入りうるようになった**。#294 より前は、空文字を含む snapshot は
+`SessionConfigSchema.members` で**フレームごと捨てられていた**ため、記録を組む段には
+届かなかった。いまは席（`seats[].displayName` は `v.string()`）から引くので届く。
+
+**これは直さずに受け入れる。** 理由は 3 つ ——
+
+1. **捨てていた側が望ましい姿ではない。** 空文字 1 つでルームの全 snapshot が捨てられ、
+   画面が古いまま固まるのが従来の姿である（この節の冒頭で「残っているリスク」として
+   挙げているのがそれ）。名前が 1 つ空欄で出るほうが、利用者にとっては軽い
+2. **画面はすでに空の表示名を描ける。** 交代の輪は #276 D2 でこれを受け入れており
+   （`ui/rotation-names.ts` → `participant-label.ts`）、同名が並ぶときは識別子を添える
+3. **端末の記録に契約検査は掛かっていない**（`records/indexeddb.ts` は素の読み書き）。
+   この値が `CompletionRecordSchema` を通ることは無い
+
+**到達経路はいまも見つかっていない**（この節の 4 経路を参照）。見つかったときに
+「名前を引けない席」をどう名乗らせるかは、記録と画面で揃えて決めること。

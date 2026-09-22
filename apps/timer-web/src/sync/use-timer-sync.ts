@@ -834,9 +834,11 @@ export function useTimerSync(banner: BannerController): TimerSync {
     // ref 経由で呼ぶ（このファイルの handlersRef と同じ作法・Issue #46）。
     const makeClientNow = makeClientRef.current;
     // 「自分が誰か」を保存値から先に立てる。再接続経路と違い、ページ読み込み直後は
-    // participantId が空で、snapshot だけでは自分を特定できない。空のままだと
-    // StatusStrip が config.members[0]（＝作成者）へ縮退し、**復帰した本人が
-    // 他人の名前を見る**ことになる。サーバーが identity を再発行すれば上書きされる。
+    // participantId が空で、snapshot だけでは自分を特定できない。
+    // **空のままだと StatusStrip は名前を出せない**（#294 以前はそこで輪の先頭の席の
+    // 名前へ縮退しており、**復帰した本人が他人の名前を見て**いた。いまは「あなた」に
+    // なるので誤りはしないが、名乗れるなら名乗ったほうがよい）。
+    // サーバーが identity を再発行すれば上書きされる。
     setParticipantId(saved.participantId);
     const c = makeClientNow();
     c.send({

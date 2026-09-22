@@ -30,15 +30,18 @@ function makeParticipant(overrides: Partial<Participant>): Participant {
 const config: SessionConfig = {
   language: "TypeScript",
   difficulty: "easy",
-  members: ["Alice", "Bob"],
   intervalMinutes: 5,
 };
+
+/** 席に付ける表示名（輪と同じ順）。wire の項目ではない（#294・造作だけの入口）。 */
+const memberNames = ["Alice", "Bob"];
 
 /** 走行中（Bob が現ドライバー）のルーム。overrides で一時停止等に変えられる。 */
 function makeRoom(overrides?: Partial<Room>): Room {
   return aRoomView({
     code: "AA0001",
     config,
+    memberNames,
     // rotation は参加者IDの配列（D6b）。currentIndex=1 なので現ドライバーは Bob。
     session: { rotation: ["p-alice", "p-bob"], currentIndex: 1, driverCounts: [1, 0], totalSwitches: 1 },
     clock: { running: true, runningSince: 0 },

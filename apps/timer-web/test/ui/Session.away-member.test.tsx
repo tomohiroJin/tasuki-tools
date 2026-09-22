@@ -46,7 +46,7 @@ function makeRoom(options: { present: boolean }): Room {
   ];
   return aRoomView({
     code: "AA0001",
-    config: { members: ["あや", "ゆう"] },
+    memberNames: ["あや", "ゆう"],
     session: { rotation: ["aya-p", "yuu-p"], currentIndex: 0, driverCounts: [0, 0], seats },
     clock: { running: true, runningSince: 0 },
     phase: "session",
@@ -98,7 +98,7 @@ describe("Session 「次」はサーバーの nextIndex が指す人を出す（
     // 「次: ゆう」になるところ。サーバーは離席中の「ゆう」を飛ばし「かい」を指す。
     const room = aRoomView({
       code: "AA0001",
-      config: { members: ["あや", "ゆう", "かい"] },
+      memberNames: ["あや", "ゆう", "かい"],
       session: {
         rotation: ["aya-p", "yuu-p", "kai-p"],
         currentIndex: 0,
@@ -134,7 +134,7 @@ describe("Session 「次」はサーバーの nextIndex が指す人を出す（
   it("全席が不適格なら人名を出さない", () => {
     const room = aRoomView({
       code: "AA0001",
-      config: { members: ["あや", "ゆう"] },
+      memberNames: ["あや", "ゆう"],
       session: {
         rotation: ["aya-p", "yuu-p"],
         currentIndex: 0,

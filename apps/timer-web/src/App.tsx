@@ -96,8 +96,14 @@ export default function App() {
   };
 
   // StatusStrip 用に「自分」の表示名を導出する。
+  //
+  // **引けないときは「あなた」へ落とす**（#294）。かつてここは `config.members[0]`
+  // （＝輪の先頭の席の名前）へ縮退していたが、それは自分でも作成者でもない**他人**である。
+  // 輪は並べ替えられるうえ、名簿から自分を引けない場面（復帰トークンが拒まれ、新しい
+  // `participantId` が届くまでの間）は実在する —— そこで他人の名前を「自分」として
+  // 出していた。**誰か分からないなら、誰かの名前を借りない。**
   const self = room?.participants.find((p) => p.participantId === participantId);
-  const selfName = self?.displayName ?? room?.config.members[0] ?? "あなた";
+  const selfName = self?.displayName ?? "あなた";
   // 接続状態: 喪失が最優先、それ以外は WS クライアントの通知に従う（R5-1）。
   // 接続が生きていても、契約に合わないフレームを捨てて画面が古いままなら
   // 「同期不整合」を出す（#209）。

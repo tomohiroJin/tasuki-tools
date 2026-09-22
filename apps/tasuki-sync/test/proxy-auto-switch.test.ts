@@ -23,7 +23,6 @@ import { FakeCodeGen } from "./support/fake-code-gen.js";
 const config: SessionConfig = {
   language: "TypeScript",
   difficulty: "easy",
-  members: ["A"],
   intervalMinutes: 5,
 };
 
@@ -38,7 +37,7 @@ async function setupRoomWithSecond(
   const create = await handlers.handleCommand("host-conn", {
     command: "room.create",
     displayName: "A",
-    config: { ...config, members: ["A"] },
+    config,
   });
   if (!create.isOk()) throw new Error("create failed");
   // 本番（server.ts）は handleCommand の戻り値を破棄する。値は本番と同じ観測点から取る（FR-100）。

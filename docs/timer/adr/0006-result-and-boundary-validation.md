@@ -66,7 +66,7 @@ AI 由来テキストも信頼しないデータです。
 
    | 捨てたフレーム | 経路 | 画面は古くなるか |
    |---|---|---|
-   | 壊れた `snapshot` | `room.config.members.0` | する |
+   | 壊れた `snapshot` | `room.sessionRecords.0.members.0` | する |
    | `room` が数値／欠落 | `room` | する |
    | 素の数値・`null`・文字列・JSON として読めない | `<root>` | する（何だったか分からない） |
    | 配列・`type` 欠落・未知の `type` | `type` | する（同上） |

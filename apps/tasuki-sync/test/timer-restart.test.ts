@@ -32,7 +32,6 @@ const START = 1_000_000;
 const config: SessionConfig = {
   language: "TypeScript",
   difficulty: "easy",
-  members: ["A"],
   intervalMinutes: INTERVAL_MINUTES,
 };
 
@@ -75,7 +74,7 @@ async function setupRunningRoom(
     problem,
     handoffNote: "引き継ぎメモ",
     participants: [host, mk("pid-b", "B"), mk("pid-c", "C")],
-    config: { ...room.config, members: ["A", "B", "C"] },
+    config: { ...room.config },
     session: {
       ...room.session,
       // rotation は参加者IDの配列（D6b）
@@ -165,7 +164,7 @@ describe("session.act RESTART（Issue #14 持ち時間のやり直し）", () =>
     const room = roomViewOf(store, timers, code);
     expect(room.problem?.title).toBe("FizzBuzz");
     expect(room.handoffNote).toBe("引き継ぎメモ");
-    expect(room.config.members).toEqual(["A", "B", "C"]);
+    expect(room.session.seats.map((s) => s.displayName)).toEqual(["A", "B", "C"]);
     expect(room.config.intervalMinutes).toBe(INTERVAL_MINUTES);
     expect(room.participants.map((p) => p.participantId)).toEqual([
       room.participants[0]!.participantId, "pid-b", "pid-c",

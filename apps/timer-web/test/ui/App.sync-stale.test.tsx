@@ -11,7 +11,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { screen, act } from "@testing-library/react";
 import { FakeWS } from "../support/fakes.js";
 import { enterRoomAndConnect } from "../support/enter-room.js";
-import { aRoomView } from "../support/room-view.js";
+import { aRoomView, aRecordWithUnresolvableName } from "../support/room-view.js";
 
 vi.mock("../../src/records/indexeddb.js", () => ({
   saveRecord: vi.fn().mockResolvedValue(undefined),
@@ -48,8 +48,9 @@ function aValidSnapshot(): Record<string, unknown> {
 
 /**
  * ADR 0005 の追記が挙げた実際の経路と同じ壊し方をする。
- * `rotationDisplayNames()` が在室しない ID に返す空文字が `config.members` に載ると、
- * `SessionConfigSchema.members` の要素（`displayNameStr`・最小長 1）に落ちる。
+ * `rotationDisplayNames()` が在室しない ID に返す空文字は、#294 で `config.members` が
+ * 落ちた後、サーバー側の完成記録（`sessionRecords[].members`）に載る。
+ * `CompletionRecordSchema.members` の要素は最小長 1 なので、そこで落ちる。
  */
 function aFrameThatViolatesTheContract(): Record<string, unknown> {
   const room = aRoomView({
@@ -57,7 +58,7 @@ function aFrameThatViolatesTheContract(): Record<string, unknown> {
     phase: "session",
     participants: [participant(CREATOR_ID, "Creator")],
   });
-  return { type: "snapshot", room: { ...room, config: { ...room.config, members: [""] } } };
+  return { type: "snapshot", room: { ...room, sessionRecords: [aRecordWithUnresolvableName()] } };
 }
 
 function enterLobby(): FakeWS {

@@ -34,7 +34,6 @@ import { spyHub } from "./support/hub.js";
 const soloConfig: SessionConfig = {
   language: "TypeScript",
   difficulty: "easy",
-  members: ["Alice"],
   intervalMinutes: 5,
 };
 

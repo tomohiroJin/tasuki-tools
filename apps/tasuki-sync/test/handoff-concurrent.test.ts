@@ -33,7 +33,7 @@ describe("共有メモの同時書き込み（⑧ last-write-wins）", () => {
     await handlers.handleCommand(hostConn, {
       command: "room.create",
       displayName: "Alice",
-      config: { language: "TypeScript", difficulty: "easy", members: ["Alice"], intervalMinutes: 5 },
+      config: { language: "TypeScript", difficulty: "easy", intervalMinutes: 5 },
     });
     code = broadcaster.createdFor(hostConn).code;
     await handlers.handleCommand(guestConn, { command: "room.join", code, displayName: "Bob", hasAiKey: false });

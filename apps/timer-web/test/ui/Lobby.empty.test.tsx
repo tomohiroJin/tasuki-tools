@@ -16,7 +16,8 @@ const INVITE_URL_FOR_TEST = 'https://tasuki.example/?room=TEST';
 function makeRoom(overrides?: Partial<Room>): Room {
   return aRoomView({
     createdAt: 1000000,
-    config: { members: ["Alice"], intervalMinutes: 5 },
+    memberNames: ["Alice"],
+    config: { intervalMinutes: 5 },
     session: { rotation: ["Alice"] },
     participants: [
       {

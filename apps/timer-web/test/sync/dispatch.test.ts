@@ -4,7 +4,7 @@
 
 import { describe, it, expect, vi } from "vitest";
 import { dispatchServerMessage } from "../../src/sync/dispatch.js";
-import { aRoomView } from "../support/room-view.js";
+import { aRoomView, aRecordWithUnresolvableName } from "../support/room-view.js";
 
 /**
  * @requirements T055, FR-025, FR-026
@@ -189,14 +189,15 @@ describe("dispatchServerMessage: 契約を満たさないフレーム", () => {
 
   it("捨てたことは、落ちた項目の経路つきで知らされる", () => {
     // Given: `snapshot` を捨てる状況は継続するので、知らせないと原因が分からない。
-    //        参加者の居ない ID が rotation に残ると members に空文字が載る形を再現する
+    //        名簿から引けない席の表示名が空文字で載る形を再現する（完成記録の経路。
+    //        #294 で `config.members` が落ちた後、この投影がその役を引き継いだ）
     const onInvalidFrame = vi.fn();
     const base = aRoomView();
-    const room = { ...base, config: { ...base.config, members: [""] } };
+    const room = { ...base, sessionRecords: [aRecordWithUnresolvableName()] };
     // When
     dispatchServerMessage(JSON.stringify({ type: "snapshot", room }), { onInvalidFrame });
     // Then: どの項目で落ちたかは知らせるが、落ちた値そのものは渡さない
-    expect(onInvalidFrame).toHaveBeenCalledWith(["room.config.members.0"]);
+    expect(onInvalidFrame).toHaveBeenCalledWith(["room.sessionRecords.0.members.0"]);
   });
 
   /**

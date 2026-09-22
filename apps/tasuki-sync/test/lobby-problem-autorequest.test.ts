@@ -127,7 +127,6 @@ describe("ロビーのお題はサーバーが用意する（#271）", () => {
       config: {
         language: "TypeScript",
         difficulty: "easy",
-        members: ["あや"],
         intervalMinutes: 5,
         problemEnabled: false,
       },
@@ -168,7 +167,6 @@ describe("ロビーのお題はサーバーが用意する（#271）", () => {
       config: {
         language: "TypeScript",
         difficulty: "easy",
-        members: ["あや"],
         intervalMinutes: 5,
       },
     });
@@ -216,7 +214,6 @@ describe("ロビーのお題はサーバーが用意する（#271）", () => {
       config: {
         language: "TypeScript",
         difficulty: "easy",
-        members: ["あや"],
         intervalMinutes: 5,
       },
     });
@@ -263,7 +260,6 @@ describe("ロビーのお題はサーバーが用意する（#271）", () => {
       config: {
         language: "TypeScript",
         difficulty: "easy",
-        members: ["あや"],
         intervalMinutes: 5,
       },
     });

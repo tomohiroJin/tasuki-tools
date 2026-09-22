@@ -7,7 +7,7 @@ import React from "react";
 import { ProblemConfigPanel } from "../../src/ui/components/ProblemConfigPanel.js";
 import type { SessionConfig } from "@tasuki/timer-core";
 
-const config: SessionConfig = { language: "TypeScript", difficulty: "easy", members: ["Alice"], intervalMinutes: 7 };
+const config: SessionConfig = { language: "TypeScript", difficulty: "easy", intervalMinutes: 7 };
 
 describe("ProblemConfigPanel", () => {
   beforeEach(() => localStorage.clear());

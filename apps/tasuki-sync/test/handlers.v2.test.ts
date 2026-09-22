@@ -158,8 +158,8 @@ describe("v2 コマンドの結合テスト", () => {
     // 改名しても ID は変わらないので rotation は一切書き換わらない
     // （旧名で位置を引く処理が無くなり、同名の取り違えが原理的に起きない）
     expect(updated?.session.rotation).toEqual(before);
-    // 表示名ミラーである config.members には新名が載る
-    expect(updated?.config.members).toContain("RenamedDriver");
+    // 表示名の写しである席には新名が載る
+    expect(updated?.session.seats.map((s) => s.displayName)).toContain("RenamedDriver");
   });
 
   it("既存の他メンバー名への rename は DuplicateName で拒否される", async () => {

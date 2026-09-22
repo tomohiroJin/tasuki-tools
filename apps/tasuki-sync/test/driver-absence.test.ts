@@ -33,7 +33,6 @@ function makeRunningRoom(code: string): Room {
     config: {
       language: "TypeScript",
       difficulty: "easy",
-      members: displayNames,
       intervalMinutes: 5,
     },
     problem: null,
