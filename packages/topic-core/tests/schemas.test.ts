@@ -29,6 +29,8 @@ describe("お題の接続のコマンドの境界", () => {
 
   it("room.create / room.check はお題の接続のコマンドではない", () => {
     expect(parse({ command: "room.create", displayName: "a" })).toBe(false);
+    // room.check の実際の入力形(packages/room-core/src/wire.ts の HubCommandSchema)。
+    expect(parse({ command: "room.check", code: "ABCDEF" })).toBe(false);
   });
 
   it("topic フレームは状態をそのまま載せる", () => {

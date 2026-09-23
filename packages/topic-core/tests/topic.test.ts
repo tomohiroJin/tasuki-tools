@@ -33,8 +33,12 @@ describe("お題の帳簿の遷移", () => {
   });
 
   it("定型で確定するとき、縮退かどうかは呼び出し側が決める", () => {
-    expect(settleWithFallback(DEGRADED_AND_GENERATING, FALLBACK_TOPIC, true).degraded).toBe(true);
-    expect(settleWithFallback(DEGRADED_AND_GENERATING, FALLBACK_TOPIC, false).degraded).toBe(false);
+    expect(settleWithFallback(DEGRADED_AND_GENERATING, FALLBACK_TOPIC, true)).toEqual({
+      topic: FALLBACK_TOPIC, generating: false, degraded: true, aiUnlocked: true,
+    });
+    expect(settleWithFallback(DEGRADED_AND_GENERATING, FALLBACK_TOPIC, false)).toEqual({
+      topic: FALLBACK_TOPIC, generating: false, degraded: false, aiUnlocked: true,
+    });
   });
 
   it("手で掲げると source は manual になり、生成中と縮退を降ろす", () => {
