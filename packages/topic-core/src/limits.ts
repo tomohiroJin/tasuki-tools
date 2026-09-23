@@ -11,6 +11,14 @@ export const MAX_TOPIC_TITLE = 200;
 /** 本文の上限（現行の `MAX_PROBLEM_TEXT` を引き継ぐ。定型バンクを畳んだ本文もこの中に収まる） */
 export const MAX_TOPIC_BODY = 4000;
 
+/**
+ * AI 解錠の合言葉の上限。timer-core の `MAX_AI_UNLOCK_KEY`
+ * （`packages/timer-core/src/aggregate.ts:337` の `export const MAX_AI_UNLOCK_KEY = 64;`。
+ * 2026-09-24 にソースを直接確認）と同じ値を写した。topic-core は `@tasuki/*` に
+ * 依存できないため値の共有ができず、値そのものを複製する。
+ */
+export const MAX_AI_UNLOCK_KEY = 64;
+
 export const LANGUAGES = [
   "TypeScript",
   "JavaScript",
