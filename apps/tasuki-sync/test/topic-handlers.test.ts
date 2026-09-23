@@ -144,9 +144,9 @@ function setup(opts: { aiUnlockKey?: string; rateLimiter?: RateLimiter } = {}): 
   };
 }
 
-/** お題の接続で `ROOM` へ参加し、記録を空にする（Given を 1 行にするため）。 */
-async function joined(h: Harness, connId = "topic-1"): Promise<void> {
-  await h.handle(connId, { command: "room.join", code: ROOM, displayName: "Alice" });
+/** お題の接続でルーム（既定は `ROOM`）へ参加し、記録を空にする（Given を 1 行にするため）。 */
+async function joined(h: Harness, connId = "topic-1", code = ROOM): Promise<void> {
+  await h.handle(connId, { command: "room.join", code, displayName: "Alice" });
   if (!h.sent.some((s) => s.connId === connId && s.msg.type === "room.joined")) {
     throw new Error(`前提の構築に失敗した: ${connId} が参加できていない`);
   }
@@ -247,10 +247,12 @@ describe("お題の接続でルームへ入る", () => {
  */
 describe("お題を掲げる・下ろす", () => {
   it("ルームに参加していない接続がお題を掲げても拒まれ、どのルームのお題も変わらない", async () => {
-    // Given: 2 つのルームにお題の状態がある
+    // Given: ROOM には別の接続が在席している（在席者の居るルームを当て推量で選ぶ実装を落とすため）。
+    // OTHER_ROOM にもお題の状態がある
     const h = setup();
-    h.topics.put(ROOM, INITIAL_TOPIC_STATE);
+    await joined(h, "topic-1");
     h.topics.put(OTHER_ROOM, INITIAL_TOPIC_STATE);
+    h.calls.length = 0;
 
     // When: 参加していない接続から
     await h.handle("stranger", { command: "topic.set", title: "乗っ取り", body: "" });
@@ -260,6 +262,22 @@ describe("お題を掲げる・下ろす", () => {
     expect(h.topics.get(ROOM)).toEqual(INITIAL_TOPIC_STATE);
     expect(h.topics.get(OTHER_ROOM)).toEqual(INITIAL_TOPIC_STATE);
     expect(h.calls).toEqual([]);
+  });
+
+  it("お題を掲げると、掲げた接続が在席するルームのお題だけが変わり、ほかのルームへは何も届かない", async () => {
+    // Given: 2 つのルームに、それぞれ別の接続が在席している
+    const h = setup();
+    await joined(h, "topic-a", ROOM);
+    await joined(h, "topic-b", OTHER_ROOM);
+
+    // When: OTHER_ROOM の接続が掲げる
+    await h.handle("topic-b", { command: "topic.set", title: "B のお題", body: "" });
+
+    // Then: 変わるのは OTHER_ROOM だけ。ROOM の状態も、ROOM の接続への配信も変わらない
+    expect(h.topics.get(OTHER_ROOM)?.topic?.title).toBe("B のお題");
+    expect(h.topics.get(ROOM)).toEqual(INITIAL_TOPIC_STATE);
+    expect(topicFramesTo(h, "topic-a")).toEqual([]);
+    expect(topicFramesTo(h, "topic-b").map((s) => s.topic?.title)).toEqual(["B のお題"]);
   });
 
   it("お題を掲げると手入力のお題になり、ルームへ 1 度だけ配られる", async () => {
@@ -410,9 +428,11 @@ describe("AI の解錠", () => {
     // When
     await h.handle("topic-1", { command: "ai.unlock", key: AI_KEY });
 
-    // Then: 機能の有無を区別させない
+    // Then: 機能の有無を区別させない —— 応答も、失敗の枠の積算も違う合言葉と同じ
+    // （積算しないと、枠の減り方から AI が有効かどうかを外から探れる）
     expect(errorsTo(h, "topic-1")).toEqual(["AI_UNLOCK_FAILED"]);
     expect(h.topics.get(ROOM)?.aiUnlocked).toBe(false);
+    expect(h.consumed).toEqual(["topic-1"]);
   });
 
   it("失敗の枠を使い切ると、正しい合言葉でも照合せずに RATE_LIMITED で拒まれる", async () => {
