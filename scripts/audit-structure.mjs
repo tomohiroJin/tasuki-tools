@@ -182,7 +182,7 @@ export function extractTestNames(content) {
   return names;
 }
 
-const SPEC_ID_RE = /T\d{3}|FR-\d{3}|SC-\d{3}|R\d-\d|US\d|G\d|#\d+/;
+const SPEC_ID_RE = /T\d{3}|FR-\d{3}|SC-\d{3}|R\d-\d|US\d|G\d|#\d+|\bE\d+\b/;
 
 /**
  * SC-029: it/test の第 1 引数に仕様の識別番号を含むものの件数。

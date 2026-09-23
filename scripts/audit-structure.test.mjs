@@ -160,6 +160,16 @@ describe("SC-029: テスト名に含まれる仕様の識別番号", () => {
     ]);
     assert.equal(count, 0);
   });
+
+  test("it の名前に spec の E 番号（E12）を含む場合に 1 件と数える", () => {
+    const testFiles = new Map([["a.test.ts", 'it("お題を更新する（E12）", () => {});']]);
+    assert.equal(sc029SpecIdsInNames(testFiles), 1);
+  });
+
+  test("「E2E」は単語境界で仕様の識別番号として拾わない", () => {
+    const testFiles = new Map([["a.test.ts", 'it("E2E の接続を確かめる", () => {});']]);
+    assert.equal(sc029SpecIdsInNames(testFiles), 0);
+  });
 });
 
 describe("SC-030: テスト名に含まれる呼び出しの言い回し", () => {
