@@ -19,7 +19,7 @@
  *   `@requirements` の JSDoc でのみ追跡する（列挙は腐る・テスト名は結果で語る）。
  */
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { DEFAULT_CAPACITY, DEFAULT_REFILL_PER_SEC } from "@tasuki/rate-limit";
+import { DEFAULT_CAPACITY } from "@tasuki/rate-limit";
 import { INITIAL_TOPIC_STATE } from "@tasuki/topic-core";
 import type { HubCommand } from "@tasuki/room-core";
 import type { TopicServerMsg } from "../src/ports/topic-server-msg.js";
@@ -30,7 +30,6 @@ import {
   LiveSetupError,
   type LiveClient,
   type LiveHubClient,
-  type LivePokerClient,
   type LiveSyncServer,
   type LiveTopicClient,
 } from "./support/live-sync-server.js";
@@ -90,15 +89,12 @@ async function topicJoin(
   return { participantId: joined.participantId, resumeToken: joined.resumeToken };
 }
 
-/** これ以上メッセージが届かないことを確かめる（poker には `expectSilence` が無いための写し）。 */
-async function expectPokerSilence(poker: LivePokerClient, ms = 200): Promise<void> {
-  const before = poker.received.length;
-  await Bun.sleep(ms);
-  if (poker.received.length !== before) {
-    const extra = poker.received.slice(before).map((m) => m.type);
-    throw new LiveSetupError(`${poker.label}: 届かないはずのメッセージが来た（${extra.join(", ")}）`);
-  }
-}
+/**
+ * 「配信が届くだけの猶予」として置く待ち時間（ms）。
+ * `expectSilence` 系のように「呼んだ時点からの沈黙」ではなく、**When より前に記録した
+ * 位置**から数えるので、ここでは待つこと自体が目的（届くはずのものが届く時間を確保する）。
+ */
+const SILENCE_MARGIN_MS = 200;
 
 /** 直近 `count` 件のお題エラーコード。 */
 function lastTopicErrorCodes(client: LiveTopicClient, count: number): string[] {
@@ -227,18 +223,30 @@ describe("お題を掲げると、お題の接続とハブへ配信される", (
     poker.send({ type: "join-room", roomId: created.code, name: "こう" });
     await poker.take((m) => m.type === "room-state", "参加後の room-state");
 
+    // Given（続き）: When の直前の位置を記録する。**ハブ受信を待つ間に届いた分**を
+    // 基準に含めてしまうと、「呼んだ時点で沈黙」を確かめるだけの恒真テストになる
+    // （呼ぶより前に届いていても、呼んだ瞬間から見れば「増えていない」ため）。
+    const timerBefore = timer.received.length;
+    const pokerBefore = poker.received.length;
+
     // When
     topic.send({ command: "topic.set", title: "決めた", body: "本文" });
 
-    // Then: **ハブへ届いたことをもって配信が発生した事実を先に確定させてから**
-    //       timer・poker には届いていないことを見る（発生前に沈黙を見ると、
-    //       まだ届いていないだけの見かけ上の緑になりうる）
+    // Then: **ハブへ届いたことをもって配信が発生した事実を先に確定させてから**、
+    //       記録した位置より後に timer・poker へ topic フレームが無いことを見る。
     await hub.take(
       (m) => m.type === "topic" && m.state.topic?.title === "決めた",
       "配信の発生（ハブ側で確定させる）",
     );
-    await timer.expectSilence();
-    await expectPokerSilence(poker);
+    await Bun.sleep(SILENCE_MARGIN_MS);
+    const timerTopicFrames = timer.received
+      .slice(timerBefore)
+      .filter((m) => (m as { type: string }).type === "topic");
+    expect(timerTopicFrames).toHaveLength(0);
+    const pokerTopicFrames = poker.received
+      .slice(pokerBefore)
+      .filter((m) => (m as { type: string }).type === "topic");
+    expect(pokerTopicFrames).toHaveLength(0);
   });
 });
 
@@ -310,7 +318,8 @@ describe("お題ツールの接続以外からは topic.set が拒まれる", ()
 
     // Then（実測したコードを固定する。poker は JSON 不正とスキーマ不正を区別せず
     // どちらも invalid-message へ畳む）
-    expect((reply as { code: string }).code).toBe("invalid-message");
+    if (reply.type !== "error") throw new Error("error ではない");
+    expect(reply.code).toBe("invalid-message");
 
     // より強い確認: 新しいお題の接続で読んでも、お題は変わっていない
     const watcher = await server.connectTopic("watcher");
@@ -322,12 +331,12 @@ describe("お題ツールの接続以外からは topic.set が拒まれる", ()
 });
 
 /**
- * 同じ人が複数のお題の接続（タブ）を持つとき、どちらにも同じお題が届く。
+ * 同じ人が複数のお題の接続（タブ）を持つとき、片方を閉じても残りは配信先であり続ける。
  *
  * @requirements #91 Review Focus 2
  */
 describe("同じ人が 2 本のお題の接続を持つ", () => {
-  it("復帰トークンで開いた 2 本目の接続にも、以後の配信が両方へ届く", async () => {
+  it("2 本目のタブを閉じたあとも、別の人が掲げたお題は残る 1 本のタブへ届く", async () => {
     // Given: 1 本目のお題の接続で参加する
     const hub = await server.connectHub();
     const created = await hubCreate(hub, "モブ", "あや");
@@ -335,99 +344,149 @@ describe("同じ人が 2 本のお題の接続を持つ", () => {
     const joined1 = await topicJoin(tab1, created.code, "あや");
     await tab1.take((m) => m.type === "topic", "タブ1の初期お題");
 
-    // When: 同じ人が復帰トークンで 2 本目のお題の接続を開く（別タブを想定）
+    // Given（続き）: 同じ人が復帰トークンで 2 本目のお題の接続を開く（別タブを想定）
     const tab2 = await server.connectTopic("tab2");
     const joined2 = await topicJoin(tab2, created.code, "あや", {
       resumeToken: joined1.resumeToken,
     });
     await tab2.take((m) => m.type === "topic", "タブ2の初期お題");
 
-    // Then: 同じ参加者として扱われる
+    // Then（前提の確認）: 同じ参加者として扱われる
     expect(joined2.participantId).toBe(joined1.participantId);
 
-    // When: どちらか一方から掲げる
-    tab1.send({ command: "topic.set", title: "決めた", body: "" });
+    // When: 1 本目のタブを閉じる。サーバー側が close を処理し終えるのを、残る
+    // tab2 での無害な往復（room.check は明示的に INVALID_COMMAND を返すだけで、
+    // バケツにもお題の状態にも触れない）で確かめてから次へ進む。
+    await tab1.close();
+    tab2.send({ command: "room.check", code: created.code });
+    const ack = await tab2.take((m) => m.type === "error", "close 反映の往復確認");
+    if (ack.type !== "error") throw new Error("error ではない");
+    expect(ack.code).toBe("INVALID_COMMAND");
 
-    // Then: 両方のタブへ新しいお題が届く（同じ参加者の 2 接続とも配信先である）
-    const onTab1 = await tab1.take(
-      (m) => m.type === "topic" && m.state.topic?.title === "決めた",
-      "タブ1への配信",
-    );
+    // When: **別の人**（別のお題の接続）が掲げる
+    const other = await server.connectTopic("other");
+    await topicJoin(other, created.code, "かえで");
+    await other.take((m) => m.type === "topic", "別の人の初期お題");
+    other.send({ command: "topic.set", title: "決めた", body: "" });
+
+    // Then: 閉じていない方のタブ（tab2）へ届く
     const onTab2 = await tab2.take(
       (m) => m.type === "topic" && m.state.topic?.title === "決めた",
-      "タブ2への配信",
+      "残っているタブへの配信",
     );
-    if (onTab1.type !== "topic" || onTab2.type !== "topic") throw new Error("topic ではない");
-    expect(onTab1.state.topic?.title).toBe("決めた");
+    if (onTab2.type !== "topic") throw new Error("topic ではない");
     expect(onTab2.state.topic?.title).toBe("決めた");
   });
 });
 
 /**
- * `ai.unlock` のレート制限は、`room.join` と同じゲート（同じバケツ）へ積算する。
- * 接続を張り直しても残量は戻らず、同じ IP の timer の `room.join` からも
- * 同じ枯渇が観測できる（1 IP 1 バケツ・#103 と同じ形の検証をお題の接続でも行う）。
+ * `ai.unlock` のレート制限は、`room.join` と同じゲート（同じバケツ）へ積算する
+ * （1 IP 1 バケツ・#103 と同じ形の検証をお題の接続でも行う）。
+ *
+ * 3 本を**それぞれ独立に**分けてある（同じ IP を使い回さない・1 本のサーバーを共有しない）。
+ * 1 本にまとめると、前段のアサーションが先に赤くなって、後段（特に張り直し）が
+ * 実際に検出力を持つかどうかが見えなくなる（レビューで指摘された）。
  *
  * @requirements #91 E21
  */
 describe("お題の ai.unlock は room.join と同じレート制限のバケツを共有する", () => {
-  it("接続を張り直しても RATE_LIMITED が持ち越され、同じ IP の timer の room.join も拒まれる", async () => {
-    // Given: AI 解錠が有効な構成で、ハブ経由でルームを作り、同じ IP からお題の接続で参加する
-    await server.close(); // beforeEach の既定構成では AI が無効なので、独自構成へ張り替える
+  /** beforeEach の既定構成は AI が無効なので、独自構成へ張り替える。 */
+  async function useAiEnabledServer(): Promise<void> {
+    await server.close();
     server = startLiveSyncServer({
       AI_UNLOCK_KEY: "right",
       CLAUDE_CODE_OAUTH_TOKEN: "sk-ant-oat01-dummy",
     });
-    const xff = { "x-forwarded-for": "203.0.113.91" };
+  }
+
+  it("お題の ai.unlock 失敗で枯渇したバケツを、同じ IP の timer の room.join からも見る", async () => {
+    // Given
+    await useAiEnabledServer();
+    const xff = { "x-forwarded-for": "203.0.113.101" };
     const hub = await server.connectHub("hub", xff);
     const created = await hubCreate(hub, "AI 部屋", "あや");
-    const first = await server.connectTopic("first", xff);
-    await topicJoin(first, created.code, "攻撃者");
+    const topic = await server.connectTopic("topic", xff);
+    await topicJoin(topic, created.code, "攻撃者");
 
-    // When 1: 合言葉を間違え続けてバケツを使い切る
-    const drained = await drainTopicBadUnlocks(first, DEFAULT_CAPACITY + 1);
+    // When: 合言葉を間違え続けてバケツを使い切る
+    const drained = await drainTopicBadUnlocks(topic, DEFAULT_CAPACITY + 1);
     expect(drained.at(-1)).toBe("RATE_LIMITED");
 
-    // Then 1（逆方向）: 同じ IP の timer の room.join も同じバケツを見て拒否される
+    // Then: 同じ IP の timer の room.join も同じバケツを見て拒否される
     const timerProbe = await server.connect("timer-probe", xff);
     const timerCodes = await drainBadTimerJoins(timerProbe, 3);
     expect(timerCodes).toContain("JOIN_RATE_LIMITED");
-    await timerProbe.close();
+  });
 
-    // When 2: 切断して繋ぎ直す（新しい connId・同じ IP）。バケツが空のままだと
-    // `room.join` 自体が JOIN_RATE_LIMITED で拒まれる（`join-room.ts` が判定を
-    // 照会より前に置くため）ので、補充を待ってから参加し直す。
-    // 成功した room.join はバケツを消費しないので、補充された分はそのまま
-    // 次の ai.unlock の判定に残る。
-    await first.close();
-    let reconnected: LiveTopicClient | undefined;
-    for (let attempt = 0; attempt < 5 && reconnected === undefined; attempt++) {
-      await Bun.sleep(Math.ceil(1000 / DEFAULT_REFILL_PER_SEC) + 200);
-      const candidate = await server.connectTopic(`retry-${attempt}`, xff);
-      candidate.send({ command: "room.join", code: created.code, displayName: "攻撃者2" });
-      const reply = await candidate.take(
-        (m) => m.type === "room.joined" || m.type === "error",
-        "再参加の応答",
-      );
-      if (reply.type === "room.joined") {
-        reconnected = candidate;
-      } else {
-        await candidate.close();
-      }
-    }
-    if (reconnected === undefined) {
-      throw new LiveSetupError("補充を待っても再参加できなかった");
-    }
+  it("逆方向: 同じ IP の room.join の失敗で枯渇したバケツを、お題の ai.unlock からも見る", async () => {
+    // Given: お題の接続は、あとで ai.unlock を試すため先に参加させておく
+    await useAiEnabledServer();
+    const xff = { "x-forwarded-for": "203.0.113.102" };
+    const hub = await server.connectHub("hub", xff);
+    const created = await hubCreate(hub, "AI 部屋", "あや");
+    const topic = await server.connectTopic("topic", xff);
+    await topicJoin(topic, created.code, "見張り");
 
-    // Then 2: 張り直した直後でも RATE_LIMITED が再び現れる
-    // （バケツが connId ではなくクライアント鍵＝IP に紐づいている証拠）
-    const after = await drainTopicBadUnlocks(reconnected, 3);
-    expect(after).toContain("RATE_LIMITED");
+    // When: 同じ IP の timer の room.join を失敗させ続けてバケツを使い切る
+    const timerProbe = await server.connect("timer-probe", xff);
+    const timerCodes = await drainBadTimerJoins(timerProbe, DEFAULT_CAPACITY + 1);
+    expect(timerCodes.at(-1)).toBe("JOIN_RATE_LIMITED");
+
+    // Then: お題の接続の ai.unlock も、枯渇した同じバケツを見て拒否される
+    const topicCodes = await drainTopicBadUnlocks(topic, 1);
+    expect(topicCodes.at(-1)).toBe("RATE_LIMITED");
+  });
+
+  it("接続を張り直した直後（待ち時間なし）でも、同じ IP の別接続で RATE_LIMITED が再現する", async () => {
+    // Given: 同じ IP から、使い切るより前に 2 本のお題の接続（A・B）を張っておく
+    await useAiEnabledServer();
+    const xff = { "x-forwarded-for": "203.0.113.103" };
+    const hub = await server.connectHub("hub", xff);
+    const created = await hubCreate(hub, "AI 部屋", "あや");
+    const a = await server.connectTopic("a", xff);
+    await topicJoin(a, created.code, "攻撃者A");
+    const b = await server.connectTopic("b", xff);
+    await topicJoin(b, created.code, "攻撃者B");
+
+    // When: A の ai.unlock 失敗だけでバケツを使い切る
+    const drainedByA = await drainTopicBadUnlocks(a, DEFAULT_CAPACITY + 1);
+    expect(drainedByA.at(-1)).toBe("RATE_LIMITED");
+
+    // When: A を閉じる。サーバー側が close を処理し終えるのを、B での無害な往復
+    // （room.check は明示的に INVALID_COMMAND を返すだけで、バケツにもお題の状態にも
+    // 触れない）で確かめてから次へ進む。**待ち時間（sleep）は置かない**——ここで
+    // 見たいのは「補充を待たない・張り直しただけ」でも枯渇が見えることである。
+    await a.close();
+    b.send({ command: "room.check", code: created.code });
+    const ack = await b.take((m) => m.type === "error", "close 反映の往復確認");
+    if (ack.type !== "error") throw new Error("error ではない");
+    expect(ack.code).toBe("INVALID_COMMAND");
+
+    // Then: B の最初の ai.unlock がいきなり RATE_LIMITED になる
+    // （バケツが connId ではなくクライアント鍵＝IP に紐づいている証拠。
+    // B は A とは別の connId で最初から張ってあった接続である）
+    const firstByB = await drainTopicBadUnlocks(b, 1);
+    expect(firstByB.at(-1)).toBe("RATE_LIMITED");
+
+    // 追加確認: 同じ IP の新しい接続 C の room.join も、空のバケツを見て拒まれる
+    // （直後で補充の余地がほぼ無く、決定的に再現する）。
+    const c = await server.connectTopic("c", xff);
+    c.send({ command: "room.join", code: created.code, displayName: "攻撃者C" });
+    const cReply = await c.take(
+      (m) => m.type === "room.joined" || m.type === "error",
+      "C の参加の応答",
+    );
+    if (cReply.type !== "error") throw new Error("C は拒まれるはずが room.joined だった");
+    expect(cReply.code).toBe("JOIN_RATE_LIMITED");
   });
 });
 
 /**
  * ルームが破棄されたあとは、お題の接続からの参加も ROOM_NOT_FOUND になる。
+ *
+ * ここで見るのは**ルーム破棄の配線**（お題の入口が、他ツールと同じ破棄済み判定を
+ * 見ているか）だけである。破棄と同時にお題の状態（`topics`）自体が削除されることは
+ * `topic-handlers.test.ts`（destroy-room の単体テスト）が見ており、ここでは扱わない。
  *
  * @requirements #91 E6
  */
