@@ -241,7 +241,7 @@ export const MUTATIONS = [
   },
   {
     id: 73,
-    label: "色を決められない塗り（url）を無いものとして扱う（読めた層だけで緑を出す）",
+    label: "色を決められない塗り（url）の層を読み飛ばす（読めた層だけで緑を出す）",
     patch: "m73-unreadable-layer-ignored.patch",
     pkg: "e2e",
     tests: ["tests/contrast.test.ts"],
@@ -252,14 +252,16 @@ export const MUTATIONS = [
   },
   {
     id: 74,
-    label: "字と並ぶ擬似要素（in-flow の罫線）も地に数える",
+    label: "流れの中に箱を持つ擬似要素（罫線など）も地に数える",
     patch: "m74-in-flow-pseudo-counted-as-ground.patch",
     pkg: "e2e",
     tests: ["tests/contrast.test.ts"],
     note:
       "#296。**対応表より後に足した変異。** 擬似要素を地に含めるとき、`position` を見ないと" +
       "見出しの下の罫線まで下地に混ざる（実測で玄関に実在する）。**乗っていない塗りで字を測る**" +
-      "ことになり、地が明るい側へ嘘をつく。対策そのものが持つ欠陥の型。",
+      "ことになり、地が明るい側へ嘘をつく。対策そのものが持つ欠陥の型。" +
+      "**判定は許可リスト（`absolute` / `fixed`）である** —— `static` だけを弾く形だと" +
+      "`relative` と `sticky` が漏れ、この変異でも見えなかった（レビュー 2 巡目）。",
   },
   {
     id: 6,

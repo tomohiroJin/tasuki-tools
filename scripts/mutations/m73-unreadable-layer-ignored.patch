@@ -1,14 +1,13 @@
 diff --git a/e2e/support/contrast.ts b/e2e/support/contrast.ts
-index db6be07..c0a2a0b 100644
+index bec5828..91438d8 100644
 --- a/e2e/support/contrast.ts
 +++ b/e2e/support/contrast.ts
-@@ -324,9 +324,6 @@ function readImage(image: string): ImageRead {
-   if (image === 'none') return { kind: 'stops', stops: [] };
-   // 読めない色表記が 1 つでも混ざっていたら、拾える分だけで測らない
-   if (!isReadablePaint(image)) return { kind: 'unreadable' };
--  // `url(…)` が 1 枚でも混ざれば、その面が何色になるかは決められない。
--  // **読めた層だけで測って緑を出さない**（#296。#279 まではここが楽観側だった）
--  if (image.includes('url(')) return { kind: 'unknown' };
-   if (!image.includes('gradient')) return { kind: 'unreadable' };
-   const stops: Rgba[] = [];
-   for (const match of image.matchAll(/rgba?\([^)]*\)/g)) {
+@@ -369,7 +369,7 @@ function readImage(image: string): ImageRead {
+   for (const layer of imageLayers(image)) {
+     // `url(…)` が来たら、その面が何色になるかは決められない。
+     // **読めた層だけで測って緑を出さない**（#296。#279 まではここが楽観側だった）
+-    if (layer.includes('url(')) return { kind: 'unknown' };
++    if (layer.includes('url(')) continue;
+     if (!layer.includes('gradient')) return { kind: 'unreadable' };
+     const parsed: Rgba[] = [];
+     for (const match of layer.matchAll(/rgba?\([^)]*\)/g)) {
