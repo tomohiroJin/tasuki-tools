@@ -65,6 +65,8 @@ const pseudoLayer = (
     zIndex: '-1',
     owner: 0,
     ownerIsolation: 'isolate',
+    backgroundClip: 'border-box',
+    webkitBackgroundClip: 'border-box',
     ...origin,
   },
 });
@@ -132,9 +134,24 @@ describe('地になる層を選ぶ', () => {
     const overlay = pseudoLayer(layer('rgba(0, 0, 0, 0.4)'), { zIndex: '0' });
     const auto = pseudoLayer(layer('rgba(0, 0, 0, 0.4)'), { zIndex: 'auto' });
 
-    // When / Then どちらも地にはならない
+    // When / Then どちらも落ちる（字の上に乗る層を地に数えると、地が明るい側へ嘘をつく）
     expect(groundLayers([overlay, layer(FELT)])).toEqual([layer(FELT)]);
     expect(groundLayers([auto, layer(FELT)])).toEqual([layer(FELT)]);
+  });
+
+  it('字を塗る擬似要素（background-clip: text）は地に数えない', () => {
+    // Given 擬似要素自身の**字**を塗る層。箱には何も置かないので、地に数えると
+    //   その擬似要素の字の色で地を測ることになる（実体の側は #279 で塞いである）
+    const glyphPaint = pseudoLayer(layer(TRANSPARENT, IVORY_LIGHTEST, IVORY_DARKEST), {
+      backgroundClip: 'text',
+    });
+    const webkitGlyphPaint = pseudoLayer(layer(TRANSPARENT, IVORY_LIGHTEST, IVORY_DARKEST), {
+      webkitBackgroundClip: 'text',
+    });
+
+    // When / Then どちらも落ちる（残すと象牙の停止点が羅紗の地として候補に並ぶ）
+    expect(groundLayers([glyphPaint, layer(FELT)])).toEqual([layer(FELT)]);
+    expect(groundLayers([webkitGlyphPaint, layer(FELT)])).toEqual([layer(FELT)]);
   });
 
   it('生成されていない擬似要素と、何も塗らない擬似要素は数えない', () => {
@@ -314,8 +331,10 @@ describe('下地の候補を組み立てる', () => {
     //   どちらも `sampleInPage` が `masked` として持ち帰る
     const clipped = pseudoLayer({ ...layer('rgba(0, 0, 0, 0.05)'), masked: true });
 
-    // When / Then 幅になる
+    // When 下地の候補を組み立てる
     const grounds = groundCandidates([clipped, layer(FELT)]);
+
+    // Then 塗られない端（素の羅紗）が残る
     expect(grounds).toHaveLength(1);
     expect(grounds?.[0]?.lightest).toMatchObject({ r: 10, g: 43, b: 33 });
   });
@@ -379,7 +398,7 @@ describe('下地の候補を組み立てる', () => {
     //   下へ潜る**ので、これを地として測ると画面に出ていない色で測ることになる
     const sunk = pseudoLayer(layer('rgb(0, 0, 0)'), { ownerIsolation: 'auto' });
 
-    // When / Then 黙って地に数えず、測れないと言う
+    // When / Then 測れないと言う（潜った層で測ると、画面に出ていない色で緑が出る）
     expect(groundCandidates([sunk, layer(FELT)])).toBeNull();
   });
 

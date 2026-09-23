@@ -119,6 +119,15 @@ export interface PseudoOrigin {
    * `isolation: isolate` だけを認め、それ以外は「測れない」に倒す**。
    */
   readonly ownerIsolation: string;
+  /**
+   * `background-clip` と `-webkit-background-clip`。
+   *
+   * **`text` の層は字を塗るもので、箱には何も置かない。** 地に数えると
+   * **その擬似要素自身の字の色で地を測る**ことになる。実体の側は #279 で塞いだが、
+   * 擬似要素の経路は #296 で新設したので、同じ穴をここでも塞ぐ。
+   */
+  readonly backgroundClip: string;
+  readonly webkitBackgroundClip: string;
 }
 
 /** ページ側から持ち帰る素材。背景は「内側から外側へ」の並びで返す。 */
@@ -187,6 +196,8 @@ export function sampleInPage(element: Element): Sample {
           zIndex: ps.zIndex,
           owner,
           ownerIsolation,
+          backgroundClip: ps.backgroundClip,
+          webkitBackgroundClip: ps.webkitBackgroundClip,
         },
       };
     });
@@ -296,6 +307,9 @@ function isGroundPseudo(paint: Paint): boolean {
   if (origin === undefined) return false;
   // 生成されていない擬似要素は描かれない（Chromium は `none` / `normal` を返す）
   if (origin.content === 'none' || origin.content === 'normal') return false;
+  // `background-clip: text` の層は**字**を塗るもので、箱には何も置かない。
+  // 色だけ地に数えると、その擬似要素の字の色で地を測ることになる（実体の側と同じ扱い）
+  if (origin.backgroundClip === 'text' || origin.webkitBackgroundClip === 'text') return false;
   // **流れの外に出たものだけを通す許可リスト。** `static` だけを弾くと `relative` と
   // `sticky` が漏れる —— どちらも流れの中に箱を持つので、字の下ではなく字と並ぶ
   if (origin.position !== 'absolute' && origin.position !== 'fixed') return false;
