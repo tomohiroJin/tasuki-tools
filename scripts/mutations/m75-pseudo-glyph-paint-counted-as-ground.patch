@@ -1,0 +1,14 @@
+diff --git a/e2e/support/contrast.ts b/e2e/support/contrast.ts
+index f58788b..14f6e5d 100644
+--- a/e2e/support/contrast.ts
++++ b/e2e/support/contrast.ts
+@@ -307,9 +307,6 @@ function isGroundPseudo(paint: Paint): boolean {
+   if (origin === undefined) return false;
+   // 生成されていない擬似要素は描かれない（Chromium は `none` / `normal` を返す）
+   if (origin.content === 'none' || origin.content === 'normal') return false;
+-  // `background-clip: text` の層は**字**を塗るもので、箱には何も置かない。
+-  // 色だけ地に数えると、その擬似要素の字の色で地を測ることになる（実体の側と同じ扱い）
+-  if (origin.backgroundClip === 'text' || origin.webkitBackgroundClip === 'text') return false;
+   // **流れの外に出たものだけを通す許可リスト。** `static` だけを弾くと `relative` と
+   // `sticky` が漏れる —— どちらも流れの中に箱を持つので、字の下ではなく字と並ぶ
+   if (origin.position !== 'absolute' && origin.position !== 'fixed') return false;

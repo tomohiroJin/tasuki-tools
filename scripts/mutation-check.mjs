@@ -264,6 +264,18 @@ export const MUTATIONS = [
       "`relative` と `sticky` が漏れ、この変異でも見えなかった（レビュー 2 巡目）。",
   },
   {
+    id: 75,
+    label: "字を塗る擬似要素（background-clip: text）も地に数える",
+    patch: "m75-pseudo-glyph-paint-counted-as-ground.patch",
+    pkg: "e2e",
+    tests: ["tests/contrast.test.ts"],
+    note:
+      "#296。**対応表より後に足した変異。** 要素自身の背景には #279 でこのガードを入れたが、" +
+      "#296 で新設した**擬似要素の経路には無かった**（敵対的検証の指摘）。落とすと、" +
+      "擬似要素が字を塗る層の色をその擬似要素の**地**として測ることになる —— " +
+      "**過去に一度塞いだ穴を、新しい経路で開け直す型**である。",
+  },
+  {
     id: 6,
     label: "freezeRunningClock の凍結を外す（一時停止で満タンに戻る）",
     patch: "m06-freeze-running-clock.patch",
