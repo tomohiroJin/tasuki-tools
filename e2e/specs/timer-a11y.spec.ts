@@ -15,10 +15,12 @@
  * `apps/timer-web/test/ui/color-only-invariants.test.tsx` が担当する。
  */
 import { expect, test } from '../fixtures/test';
-import { createRoom } from '../support/timer';
+import { createRoom, joinAsDriver, lobbyRotationRow } from '../support/timer';
 import { describePaint, groundLayers, measureSample, sampleInPage } from '../support/contrast';
 
 const HOST = 'a11y-a';
+/** 輪の 3 人目以降。**3 人いないと felt-700 の面に最も薄い字が乗らない**（#297）。 */
+const GUESTS = ['a11y-b', 'a11y-c'] as const;
 
 test.describe('動きを抑える設定に追従する', () => {
   test('Given reduced-motion を有効にした利用者 / When セッションを開く / Then 演出が止まる', async ({
@@ -112,13 +114,33 @@ test.describe('キーボードのフォーカスが必ず見える', () => {
 });
 
 test.describe('文字が背景に対して読める（WCAG AA）', () => {
-  test('Given セッション中の画面 / When 主要な文字を測る / Then すべて AA を満たす', async ({
+  test('Given 3 人のセッション中の画面 / When 主要な文字を測る / Then すべて AA を満たす', async ({
     page,
+    openPeer,
   }) => {
-    // Given
-    await createRoom(page, HOST);
+    // Given: **3 人で始める**（#297）。最も薄い字（`--bone-subtle` ＝ `--ivory-faint`）が
+    //   最も明るい面（`--panel-2` ＝ `--felt-700`）に乗るのは、周回アバターと交代の列の
+    //   「現でも次でもない人」だけ。1 人のセッションではこの組が画面に出ず、
+    //   **パレットの注釈が主張する最小値 4.52:1 を誰も測っていなかった**
+    //   （α を 0.64 に下げても緑だった。実測）
+    const code = await createRoom(page, HOST);
+    for (const [i, name] of GUESTS.entries()) {
+      const guest = await openPeer(name);
+      await joinAsDriver(guest.page, code, name);
+      await expect(lobbyRotationRow(page, name, i + 2)).toBeVisible();
+    }
     await page.getByRole('button', { name: 'セッションを開始' }).click();
     await expect(page.getByRole('timer')).toBeVisible();
+    // 余裕がいちばん薄い組の色を、トークンから画面上で解いておく（数値を直書きしない）
+    const thinnest = await page.evaluate(() => {
+      const probe = document.createElement('div');
+      probe.style.background = 'var(--panel-2)';
+      probe.style.color = 'var(--bone-subtle)';
+      document.body.append(probe);
+      const { backgroundColor, color } = getComputedStyle(probe);
+      probe.remove();
+      return { ground: backgroundColor, ink: color };
+    });
 
     // When（文字を持つ要素のうち、実際に見えているものを測る）
     const targets = page.locator(
@@ -130,6 +152,7 @@ test.describe('文字が背景に対して読める（WCAG AA）', () => {
     const failures: string[] = [];
     const unmeasurable: string[] = [];
     let measured = 0;
+    let measuredThinnest = 0;
     for (let i = 0; i < count; i += 1) {
       const element = targets.nth(i);
       // 直接の子テキストを持たない入れ物は飛ばす（親子で二重に測らない）
@@ -156,6 +179,7 @@ test.describe('文字が背景に対して読める（WCAG AA）', () => {
       }
 
       measured += 1;
+      if (sample.ink.color === thinnest.ink && ground === thinnest.ground) measuredThinnest += 1;
       const { ratio, required } = measurement;
       if (ratio < required) {
         failures.push(
@@ -171,6 +195,12 @@ test.describe('文字が背景に対して読める（WCAG AA）', () => {
     expect(unmeasurable, `下地か字の色を決められない文字が ${unmeasurable.length} 件`).toEqual([]);
     expect(failures, `AA を満たさない文字が ${failures.length} 件`).toEqual([]);
     expect(measured, '1 つも測れていない').toBeGreaterThan(15);
+    // **余裕がいちばん薄い組を測ったことも固定する**（#297）。画面の作りが変わって
+    //   この組が消えると、上の判定は緑のまま 4.52:1 を見なくなる
+    expect(
+      measuredThinnest,
+      `--bone-subtle（${thinnest.ink}）が --panel-2（${thinnest.ground}）に直接乗った字を測っていない`,
+    ).toBeGreaterThan(0);
   });
 });
 
