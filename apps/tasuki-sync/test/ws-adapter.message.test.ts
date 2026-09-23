@@ -361,7 +361,7 @@ describe("WsAdapter お題（topic）のメッセージ経路", () => {
  * 次のメッセージが実際にハンドラへ届くこと・同じアダプタで新しい接続も張れること
  * （＝サーバーが生きていること）まで確認する。
  *
- * @requirements #91 R18
+ * @requirements #91 spec §5.3
  */
 describe("お題（topic）のメッセージ層が同期 throw しても隔離される", () => {
   it("throw は on-message-error として記録され、INTERNAL_ERROR フレームを返して接続もサーバーも生き残る", async () => {
