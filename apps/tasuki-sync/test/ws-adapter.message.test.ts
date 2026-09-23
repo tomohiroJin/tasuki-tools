@@ -267,6 +267,85 @@ describe("WsAdapter メッセージ経路", () => {
 });
 
 /**
+ * お題（topic）のメッセージ経路（#91）。
+ *
+ * ハブ・timer と同じ接続層を通るが、メッセージ層は分かれている（`onTopicMessage`）。
+ * ここでは「お題の接続へ送った生テキストは `onTopicMessage` にだけ届く（`onMessage` /
+ * `onHubMessage` には届かない）」ことと、「64KB を超えるとサイズ超過のエラーを返し、
+ * 接続は保つ」ことを確かめる。サイズ判定・エラーコード（`MESSAGE_TOO_LARGE`）は
+ * `handleHubMessage` と同じ形である。
+ */
+describe("WsAdapter お題（topic）のメッセージ経路", () => {
+  /** `?tool=topic` で接続する URL。 */
+  function topicUrl(adapterInstance: WsAdapter): string {
+    return `ws://127.0.0.1:${adapterInstance.port}/ws?tool=topic`;
+  }
+
+  it("Given ?tool=topic の接続 / When 生テキストを送る / Then onTopicMessage に届き、onMessage と onHubMessage には届かない", async () => {
+    // Given
+    const topicCalls: Array<[string, string]> = [];
+    let messageCalled = false;
+    let hubCalled = false;
+    adapter = newTestWsAdapter({
+      port: 0,
+      host: "127.0.0.1",
+      allowedOrigins: [],
+      onMessage: async () => {
+        messageCalled = true;
+      },
+      onHubMessage: async () => {
+        hubCalled = true;
+      },
+      onTopicMessage: async (connId, raw) => {
+        topicCalls.push([connId, raw]);
+      },
+      onDisconnect: () => {},
+      logger: testLogger,
+    });
+    const ws = new WebSocket(topicUrl(adapter));
+    await waitOpen(ws);
+
+    // When
+    ws.send("お題のテキスト");
+    await waitFor(() => topicCalls.length > 0);
+
+    // Then
+    expect(topicCalls).toEqual([["conn-1", "お題のテキスト"]]);
+    expect(messageCalled).toBe(false);
+    expect(hubCalled).toBe(false);
+    ws.close();
+  });
+
+  it("Given ?tool=topic の接続 / When 64KB を超える本文を送る / Then onTopicMessage は呼ばれず MESSAGE_TOO_LARGE を返し接続は保つ", async () => {
+    // Given
+    let topicCalled = false;
+    adapter = newTestWsAdapter({
+      port: 0,
+      host: "127.0.0.1",
+      allowedOrigins: [],
+      onMessage: async () => {},
+      onTopicMessage: async () => {
+        topicCalled = true;
+      },
+      onDisconnect: () => {},
+      logger: testLogger,
+    });
+    const ws = new WebSocket(topicUrl(adapter));
+    await waitOpen(ws);
+
+    // When: 64KB 超（境界の外側）
+    ws.send("x".repeat(64 * 1024 + 1));
+    const msg = await waitMessage(ws);
+
+    // Then
+    expect(msg).toMatchObject({ type: "error", code: "MESSAGE_TOO_LARGE" });
+    expect(ws.readyState).toBe(WebSocket.OPEN); // 切らずに返す
+    expect(topicCalled).toBe(false);
+    ws.close();
+  });
+});
+
+/**
  * poker のメッセージ層が throw してもプロセスを落とさない（#95 S2）。
  *
  * **統合でこの隔離の重みが変わった。** 統合前は poker のハンドラの同期 throw で

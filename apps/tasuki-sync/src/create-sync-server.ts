@@ -354,6 +354,11 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     onHubMessage: async (connId, raw) => {
       await hubHandlers.handleMessage(connId, raw);
     },
+    // TODO(#91 Task 9): お題（topic）のメッセージ層をここへ配線する。
+    // いまは接続層（Task 8）だけが入っており、アプリ層のハンドラはまだ無いので
+    // 何もしない最小のスタブにしてある（型検査を通すためだけの仮実装。挙動は次の
+    // タスクで置き換わる）。
+    onTopicMessage: async () => {},
     onMessage: async (connId, msg) => {
       // msg は ws-adapter 側で CommandSchema（valibot）に通した検証済みの値であり、
       // 実体は Command 型と一致する（onMessage の型は unknown のままなのでここでキャストする）。
