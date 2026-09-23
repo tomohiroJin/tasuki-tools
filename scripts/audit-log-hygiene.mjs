@@ -64,6 +64,8 @@ export const SCANNED_PACKAGES = [
   "packages/sync-client",
   "packages/invite-ui",
   "packages/timer-core",
+  // お題の文脈（#91）で新設。
+  "packages/topic-core",
 ];
 
 /** 走査から外すパッケージ。**理由が要る。** 実在しなくなったら落ちる。 */
