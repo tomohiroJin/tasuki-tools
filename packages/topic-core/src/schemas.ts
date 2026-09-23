@@ -11,13 +11,19 @@
 import * as v from "valibot";
 import { DIFFICULTIES, LANGUAGES, MAX_AI_UNLOCK_KEY, MAX_TOPIC_BODY, MAX_TOPIC_TITLE } from "./limits.js";
 
-/** 空白だけのタイトルを拒む(見出しが空の札が全員の画面に出る) */
-const titleStr = v.pipe(
+/**
+ * 空白だけのタイトルを拒む(見出しが空の札が全員の画面に出る)。
+ *
+ * `validate.ts` へ export する(AI 由来の下書きの検証で同じ制約を使い回すため)。
+ * **`index.ts` からは公開しない**(`scripts/audit-*` の公開契約の検査が
+ * 「自分しか使わない公開記号」を数える)。
+ */
+export const titleStr = v.pipe(
   v.string(),
   v.maxLength(MAX_TOPIC_TITLE),
   v.check((s) => s.trim().length > 0, "title must not be blank"),
 );
-const bodyStr = v.pipe(v.string(), v.maxLength(MAX_TOPIC_BODY));
+export const bodyStr = v.pipe(v.string(), v.maxLength(MAX_TOPIC_BODY));
 
 export const TopicSchema = v.object({
   title: titleStr,
