@@ -160,6 +160,9 @@ importers:
       '@tasuki/timer-core':
         specifier: workspace:*
         version: link:../../packages/timer-core
+      '@tasuki/topic-core':
+        specifier: workspace:*
+        version: link:../../packages/topic-core
       nanoid:
         specifier: ^6.0.1
         version: 6.0.1

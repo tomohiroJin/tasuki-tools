@@ -148,6 +148,7 @@ export const ALLOWED = {
     "@tasuki/rate-limit",
     "@tasuki/room-core",
     "@tasuki/timer-core",
+    "@tasuki/topic-core",
   ],
   e2e: ["@tasuki/landing", "@tasuki/poker-web", "@tasuki/timer-web"],
 };
