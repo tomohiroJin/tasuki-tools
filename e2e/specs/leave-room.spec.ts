@@ -40,16 +40,21 @@ test.describe('timer のロビーからルームを抜けると、玄関で告�
     // When: 作成者がロビーの自分の行にある「ルームから抜ける」を押す
     await page.getByRole('button', { name: 'ルームから抜ける' }).click();
 
-    // Then その1: 作成者は玄関（`/`）へ移り、退出の告知を読み上げ可能な形で見る。
+    // Then その1: 作成者は玄関（`/`）へ移る。
+    //             **告知を見る前に、玄関に着いたことを先に待つ。** timer のロビーには
+    //             ステータス帯を含む `role="status"` が複数あるので、遷移前に告知を
+    //             当てにいくと strict mode 違反で落ちる（負荷で実際に踏んだ）
+    await expect
+      .poll(() => new URL(page.url()).pathname, { message: '退出後の行き先のパス' })
+      .toBe('/');
+
+    // Then その2: 退出の告知を読み上げ可能な形で見る。
     //             文言は `departureNoticeFor('self')` と一字一句同じであることまで見る
     //             （`toContain` ではなく厳密一致 —— 部分一致だと「退出しました」との
     //             取り違えを見逃す）
     await expect(page.getByRole('status'), '玄関の退出告知').toHaveText('ルームから抜けました。');
 
-    // Then その2: URL は玄関のルームを指したまま（`room=` は残り、`left=` は読み終えて落ちる）
-    await expect
-      .poll(() => new URL(page.url()).pathname, { message: '退出後の行き先のパス' })
-      .toBe('/');
+    // Then その3: URL は玄関のルームを指したまま（`room=` は残り、`left=` は読み終えて落ちる）
     expect(new URL(page.url()).searchParams.get('room'), '退出後も運ばれるルームコード').toBe(
       code,
     );
@@ -62,7 +67,7 @@ test.describe('timer のロビーからルームを抜けると、玄関で告�
       )
       .toBeNull();
 
-    // Then その3: Bob の画面で、Bob が輪（ドライバー）の1番目へ繰り上がっている。
+    // Then その4: Bob の画面で、Bob が輪（ドライバー）の1番目へ繰り上がっている。
     //             以前はここが起きず、輪は空のまま取り残されていた
     await expect(
       lobbyRotationRow(guest.page, GUEST, 1),

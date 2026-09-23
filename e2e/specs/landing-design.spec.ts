@@ -1,6 +1,6 @@
 import { test, expect } from '../fixtures/test';
 import type { Page, Request } from '@playwright/test';
-import { describePaint, measureSample, sampleInPage } from '../support/contrast';
+import { describePaint, groundLayers, measureSample, sampleInPage } from '../support/contrast';
 
 /**
  * 札の文字は 1 行に収まっていること。
@@ -60,7 +60,7 @@ async function checkText(page: Page): Promise<void> {
     const sample = await element.evaluate(sampleInPage);
     // 大きい文字は 3:1 で足りる。timer-a11y と同じ測り方に揃える（#270）。
     const measurement = measureSample(sample);
-    const ground = sample.backgrounds.map((paint) => describePaint(paint)).join(' ← ');
+    const ground = groundLayers(sample.backgrounds).map(describePaint).join(' ← ');
     if (measurement === null) {
       unmeasurable.push(`「${sample.text}」 文字=${describePaint(sample.ink)} 地=${ground}`);
       continue;

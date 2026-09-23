@@ -19,13 +19,49 @@ html {
 body {
   margin: 0;
   min-height: 100dvh;
+  /* 織り目（body::after）を**ページ全体**の高さに広げるための位置指定。
+   * これが無いと絶対配置の基準が初期包含ブロック（＝画面 1 枚分）になり、
+   * 縦に長いページで下端の織り目が消える。 */
+  position: relative;
+  /* **負の z の擬似要素を、この箱の中に閉じ込める。** これが無いと織り目は
+   * 根の重なりの文脈まで引き上げられ、body の背景との前後が「背景が canvas へ
+   * 伝播しているか」という外の条件に依存する（`html` に背景を置いた瞬間に
+   * 黙って消える）。コントラスト検査も、この宣言がある要素の擬似要素しか
+   * 地として認めない（`e2e/support/contrast.ts` の `ownerIsolation`）。 */
+  isolation: isolate;
   background-color: var(--felt-900);
-  /* フェルトの照明: 中央上からの灯り + 周辺減光 + 織り目 */
+  /* フェルトの照明: 中央上からの灯り + 周辺減光（織り目は body::after） */
   background-image:
     radial-gradient(120% 90% at 50% -10%, var(--felt-700) 0%, var(--felt-800) 45%, transparent 75%),
-    radial-gradient(140% 120% at 50% 115%, var(--felt-950) 0%, transparent 55%),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+    radial-gradient(140% 120% at 50% 115%, var(--felt-950) 0%, transparent 55%);
   background-attachment: fixed;
+}
+
+/* 織り目。**濃さと色は CSS に出し、粒だけをマスクに作らせる**（#296）。
+ *
+ * 以前は照明と同じ `background-image` の 3 枚目に、濃さを畳んだ data-URI
+ * （`feColorMatrix` の α = 0.05）として置いていた。見た目は同じだが、
+ * **コントラスト検査からは色も薄さも読めない** —— 検査は読めた層（照明）だけで
+ * 測り、織り目の分だけ楽観側に倒れていた。色と薄さを CSS に出せば、
+ * 粒がどこに乗るかを知らなくても**取りうる範囲**が決まる。
+ *
+ * 合成は以前と同じ（黒 × 0.05 × 乱流の α）。マスクは画素ごとに塗りを間引くので、
+ * 検査は「全面に乗る場合」と「1 画素も乗らない場合」の**幅**で測る。
+ * ⚠ **間引かれた側が安全とは限らない。** 暗い羅紗に薄い象牙の字を置くこの配色では、
+ * 織り目が乗らない画素（＝素の羅紗）が最も不利になる。
+ *
+ * ⚠ **`position: fixed` にしてはいけない。** 合成層ができて、**ページ全体の文字が
+ * サブピクセルのアンチエイリアスを失う**（実測: 旧実装との画素比較で文字の縁が
+ * 最大 172 段変わり、色の開きが 108 → 43 に落ちた）。`absolute` なら最大 4 段で、
+ * これは織り目の粒の位置がずれただけ。地が動かないので見た目は変わらない。 */
+body::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-color: rgba(0, 0, 0, 0.05);
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 /* ---------- レイアウト ---------- */

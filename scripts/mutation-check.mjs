@@ -240,6 +240,42 @@ export const MUTATIONS = [
       "**打ちかけの入力が黙って消える** —— #291 が直しているものとまったく同じ形。",
   },
   {
+    id: 73,
+    label: "色を決められない塗り（url）の層を読み飛ばす（読めた層だけで緑を出す）",
+    patch: "m73-unreadable-layer-ignored.patch",
+    pkg: "e2e",
+    tests: ["tests/contrast.test.ts"],
+    note:
+      "#296。**対応表より後に足した変異。** これは #279 まで実在した欠陥そのもので、" +
+      "羅紗の織り目のような薄い粒なら実害は無いが、**不透明な写真を重ねると検査が嘘をつく**。" +
+      "落とすと、読めた層（照明のグラデーション）だけで測って緑を出す形に戻る。",
+  },
+  {
+    id: 74,
+    label: "流れの中に箱を持つ擬似要素（罫線など）も地に数える",
+    patch: "m74-in-flow-pseudo-counted-as-ground.patch",
+    pkg: "e2e",
+    tests: ["tests/contrast.test.ts"],
+    note:
+      "#296。**対応表より後に足した変異。** 擬似要素を地に含めるとき、`position` を見ないと" +
+      "見出しの下の罫線まで下地に混ざる（実測で玄関に実在する）。**乗っていない塗りで字を測る**" +
+      "ことになり、地が明るい側へ嘘をつく。対策そのものが持つ欠陥の型。" +
+      "**判定は許可リスト（`absolute` / `fixed`）である** —— `static` だけを弾く形だと" +
+      "`relative` と `sticky` が漏れ、この変異でも見えなかった（レビュー 2 巡目）。",
+  },
+  {
+    id: 75,
+    label: "字を塗る擬似要素（background-clip: text）も地に数える",
+    patch: "m75-pseudo-glyph-paint-counted-as-ground.patch",
+    pkg: "e2e",
+    tests: ["tests/contrast.test.ts"],
+    note:
+      "#296。**対応表より後に足した変異。** 要素自身の背景には #279 でこのガードを入れたが、" +
+      "#296 で新設した**擬似要素の経路には無かった**（敵対的検証の指摘）。落とすと、" +
+      "擬似要素が字を塗る層の色をその擬似要素の**地**として測ることになる —— " +
+      "**過去に一度塞いだ穴を、新しい経路で開け直す型**である。",
+  },
+  {
     id: 6,
     label: "freezeRunningClock の凍結を外す（一時停止で満タンに戻る）",
     patch: "m06-freeze-running-clock.patch",

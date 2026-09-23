@@ -1,0 +1,13 @@
+diff --git a/e2e/support/contrast.ts b/e2e/support/contrast.ts
+index bec5828..91438d8 100644
+--- a/e2e/support/contrast.ts
++++ b/e2e/support/contrast.ts
+@@ -369,7 +369,7 @@ function readImage(image: string): ImageRead {
+   for (const layer of imageLayers(image)) {
+     // `url(…)` が来たら、その面が何色になるかは決められない。
+     // **読めた層だけで測って緑を出さない**（#296。#279 まではここが楽観側だった）
+-    if (layer.includes('url(')) return { kind: 'unknown' };
++    if (layer.includes('url(')) continue;
+     if (!layer.includes('gradient')) return { kind: 'unreadable' };
+     const parsed: Rgba[] = [];
+     for (const match of layer.matchAll(/rgba?\([^)]*\)/g)) {
