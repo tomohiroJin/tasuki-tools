@@ -5,7 +5,7 @@ import {
 } from "../src/index.js";
 
 /**
- * @requirements #91（定型バンクの健全性。spec §10）
+ * @requirements #91(定型バンクの健全性。spec §10)
  */
 describe("定型バンク", () => {
   it("33 件すべてが上限に収まり、空白だけのタイトルが無い", () => {
@@ -46,9 +46,22 @@ describe("pickTopicFallback", () => {
     }
   });
 
-  it("境界を通り抜けて許可リストに無い言語が渡っても、全件から返す", () => {
-    const t = pickTopicFallback("COBOL" as unknown as Language, "easy", 0, null);
-    expect(TOPIC_BANK.some((e) => e.title === t.title)).toBe(true);
-    expect(t.source).toBe("fallback");
+  it("境界を通り抜けて許可リストに無い言語が渡っても、難易度で絞らず全件から返す", () => {
+    // 難易度を "easy" に固定して now を 0..32 で振る。プールが全 33 件なら
+    // ちょうど 33 種のタイトルが出そろい、"easy" 以外の難易度も混ざる。
+    // プールが誤って難易度で絞られたまま(この定型バンクは easy が 12 件)だと、
+    // 33 種そろわず medium / hard も出てこない — その違いで区別する。
+    const seen = new Set<string>();
+    for (let now = 0; now < TOPIC_BANK.length; now++) {
+      const t = pickTopicFallback("COBOL" as unknown as Language, "easy", now, null);
+      expect(t.source).toBe("fallback");
+      seen.add(t.title);
+    }
+    expect(seen.size).toBe(TOPIC_BANK.length);
+    const gotDifficulties = new Set(
+      [...seen].map((title) => TOPIC_BANK.find((e) => e.title === title)?.difficulty),
+    );
+    expect(gotDifficulties.has("medium")).toBe(true);
+    expect(gotDifficulties.has("hard")).toBe(true);
   });
 });
