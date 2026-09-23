@@ -83,6 +83,14 @@ export interface Paint {
    * 畳むと嘘になる（#296 でも扱わない。`sampleInPage` は読まない）。
    */
   readonly opacity?: number;
+  /**
+   * `mask-image` が掛かっているか。
+   *
+   * **マスクは画素ごとに塗りを間引く。** 全面に乗る場合と 1 画素も乗らない場合の
+   * どちらもありうるので、この層は「幅」になる（#296）。**間引かれた側が安全とは
+   * 限らない** —— 暗い地に薄い字を置く配色では、塗られない方が不利になる。
+   */
+  readonly masked?: boolean;
   /** 擬似要素が敷いた層のときだけ入る素性。地に数えるかの裁定は `groundLayers`。 */
   readonly pseudo?: PseudoOrigin;
 }
@@ -101,6 +109,16 @@ export interface PseudoOrigin {
   readonly zIndex: string;
   /** 何番目の祖先が持つ擬似要素か。**並べ替えを同じ要素の中に閉じるために使う**。 */
   readonly owner: number;
+  /**
+   * 持ち主の `isolation`。
+   *
+   * **負の z の擬似要素が持ち主の背景より上に来るのは、持ち主が重なりの文脈を
+   * 作るときだけ**。作らない要素に敷くと、擬似要素は親の文脈まで引き上げられて
+   * **持ち主の背景の下へ潜る**（画面には出ないのに、地として測れてしまう）。
+   * 重なりの文脈を作る条件は数が多く列挙すると腐るので、**意図を宣言する
+   * `isolation: isolate` だけを認め、それ以外は「測れない」に倒す**。
+   */
+  readonly ownerIsolation: string;
 }
 
 /** ページ側から持ち帰る素材。背景は「内側から外側へ」の並びで返す。 */
@@ -140,16 +158,28 @@ export interface Sample {
  */
 export function sampleInPage(element: Element): Sample {
   /** 擬似要素の塗り。**選り分けずに全部持ち帰る**（裁定は `groundLayers`）。 */
-  const pseudoPaints = (node: Element, owner: number): Paint[] =>
-    (['::before', '::after'] as const).map((which) => {
+  const isMasked = (s: CSSStyleDeclaration): boolean =>
+    (s.maskImage ?? s.webkitMaskImage ?? 'none') !== 'none';
+  const pseudoPaints = (node: Element, owner: number): Paint[] => {
+    const ownerIsolation = getComputedStyle(node).isolation;
+    return (['::before', '::after'] as const).map((which) => {
       const ps = getComputedStyle(node, which);
       return {
         color: ps.backgroundColor,
         image: ps.backgroundImage,
         opacity: Number(ps.opacity),
-        pseudo: { which, content: ps.content, position: ps.position, zIndex: ps.zIndex, owner },
+        masked: isMasked(ps),
+        pseudo: {
+          which,
+          content: ps.content,
+          position: ps.position,
+          zIndex: ps.zIndex,
+          owner,
+          ownerIsolation,
+        },
       };
     });
+  };
   /** `rgb()` / `rgba()` の α。**読めない色は `null`**（透明と同じ 0 にしてはいけない）。 */
   const alphaOf = (css: string): number | null => {
     const m = /rgba?\(\s*[\d.]+[,\s]+[\d.]+[,\s]+[\d.]+(?:[,/\s]+([\d.]+))?\s*\)/.exec(css);
@@ -176,15 +206,17 @@ export function sampleInPage(element: Element): Sample {
     if (!paintsGlyphs(s)) {
       const image = s.backgroundImage;
       const colorAlpha = alphaOf(s.backgroundColor);
+      const masked = isMasked(s);
       if (colorAlpha === null || colorAlpha > 0 || image !== 'none') {
-        backgrounds.push({ color: s.backgroundColor, image });
+        backgrounds.push({ color: s.backgroundColor, image, masked });
         // 読める塗りが箱を覆っているときだけ、そこで止める。
         // 読めない画像（写真・テクスチャ）も覆うので止めてよい ——
-        // どちらの場合も測れるかは `groundCandidates` が決める
+        // どちらの場合も測れるかは `groundCandidates` が決める。
+        // **マスクが掛かっていれば覆わない**（画素ごとに間引かれるため）
         const stops = stopsOf(image);
         const covers =
           image !== 'none' && (stops.length === 0 || stops.every((stop) => alphaOf(stop) === 1));
-        if (colorAlpha === 1 || covers) break;
+        if (!masked && (colorAlpha === 1 || covers)) break;
       }
     }
     node = node.parentElement;
@@ -358,6 +390,14 @@ const over = (fg: Rgba, ground: Ground): Ground => ({
   lightest: composite(fg, ground.lightest),
 });
 
+/** 2 つの候補を、両方を含む 1 つの幅にする（どちらになるか決められないとき）。 */
+function widen(a: Ground, b: Ground): Ground {
+  const ends = [a.darkest, a.lightest, b.darkest, b.lightest].sort(
+    (x, y) => relativeLuminance(x) - relativeLuminance(y),
+  );
+  return { darkest: ends[0] as Rgba, lightest: ends[ends.length - 1] as Rgba };
+}
+
 /** 1 つの層を、その外側の候補（`bases`）の上に重ねる。`null` は「測れない」。 */
 function paintOver(paint: Paint, bases: readonly Ground[] | null): Ground[] | null {
   const opacity = paint.opacity ?? 1;
@@ -365,6 +405,19 @@ function paintOver(paint: Paint, bases: readonly Ground[] | null): Ground[] | nu
   if (color === null) return null;
   const read = readImage(paint.image);
   if (read.kind === 'unreadable') return null;
+
+  // 重なりの順序を決められない擬似要素は、地に数えず**測れない**と言う。
+  // 黙って落とすと「画面に出ている地とは違うもので測って緑」に戻る
+  if (paint.pseudo !== undefined && paint.pseudo.ownerIsolation !== 'isolate') return null;
+
+  // マスクが掛かった層は、**全面に乗る場合と 1 画素も乗らない場合**の幅になる。
+  // 塗りまで重なると、どこがどれだけ塗られるかが二重に読めないので測れない
+  if (paint.masked === true) {
+    if (read.kind !== 'stops' || read.stops.length > 0) return null;
+    if (bases === null) return null; // 不透明な層に届いていない
+    const tint = { ...color, a: color.a * opacity };
+    return bases.map((base) => widen(base, over(tint, base)));
+  }
 
   // **色を決められない層は「無いもの」にしない。** どんな色にも塗られうるので
   // 白と黒で挟む。`mix-blend-mode` もここで押さえる —— 合成を真似ずに、

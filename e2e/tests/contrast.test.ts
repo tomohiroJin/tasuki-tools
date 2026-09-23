@@ -58,7 +58,15 @@ const pseudoLayer = (
 ): Paint => ({
   ...paint,
   opacity,
-  pseudo: { which: '::after', content: '""', position: 'fixed', zIndex: '-1', owner: 0, ...origin },
+  pseudo: {
+    which: '::after',
+    content: '""',
+    position: 'fixed',
+    zIndex: '-1',
+    owner: 0,
+    ownerIsolation: 'isolate',
+    ...origin,
+  },
 });
 
 describe('地になる層を選ぶ', () => {
@@ -278,7 +286,9 @@ describe('下地の候補を組み立てる', () => {
     // When 下地の候補を組み立てる
     const grounds = groundCandidates(felt);
 
-    // Then 暗い端と明るい端が一致する（幅は読めない層からしか生まれない）
+    // Then 暗い端と明るい端が一致する（幅は読めない層からしか生まれない）。
+    //   **件数を先に固定する** —— `null` だと両辺が undefined になって恒真化する
+    expect(grounds).toHaveLength(3);
     expect(grounds?.map((g) => g.darkest)).toEqual(grounds?.map((g) => g.lightest));
   });
 
@@ -289,8 +299,47 @@ describe('下地の候補を組み立てる', () => {
       zIndex: 'auto',
     });
 
-    // When / Then 混ぜない素材とまったく同じ候補になる
-    expect(groundCandidates([rule, layer(FELT)])).toEqual(groundCandidates([layer(FELT)]));
+    // When / Then 羅紗だけの候補になる。**期待値は literal で書く** ——
+    //   同じ関数どうしを比べると、両方が `null` を返しても通ってしまう
+    expect(groundCandidates([rule, layer(FELT)])).toEqual([
+      { darkest: { r: 10, g: 43, b: 33, a: 1 }, lightest: { r: 10, g: 43, b: 33, a: 1 } },
+    ]);
+  });
+
+  it('マスクが掛かった層は、全面に塗られる場合と塗られない場合の幅になる', () => {
+    // Given 羅紗の上の織り目。マスクは**画素ごとに塗りを間引く**ので、地は
+    //   「全面に 5% の黒が乗る」から「1 画素も乗らない」までを取りうる。
+    //   全面の側だけで測ると、**薄い象牙の字では緩い方の端**で緑を出す
+    const weave = pseudoLayer({ ...layer('rgba(0, 0, 0, 0.05)'), masked: true });
+
+    // When 下地の候補を組み立てる
+    const grounds = groundCandidates([weave, layer(FELT)]);
+
+    // Then 両端を持つ 1 つの幅になる
+    expect(grounds).toHaveLength(1);
+    expect(grounds?.[0]?.lightest).toMatchObject({ r: 10, g: 43, b: 33 });
+    expect(grounds?.[0]?.darkest.r).toBeCloseTo(10 * 0.95, 5);
+    expect(grounds?.[0]?.darkest.b).toBeCloseTo(33 * 0.95, 5);
+  });
+
+  it('マスクと塗りが重なる層は「測れない」を返す', () => {
+    // Given マスクで間引かれたグラデーション。どこがどれだけ塗られるかが二重に読めない
+    const patterned = pseudoLayer({
+      ...layer(TRANSPARENT, 'rgb(255, 255, 255)', TRANSPARENT),
+      masked: true,
+    });
+
+    // When / Then 幅にも畳めないので測れないに倒す
+    expect(groundCandidates([patterned, layer(FELT)])).toBeNull();
+  });
+
+  it('持ち主が重なりの文脈を作らない擬似要素は「測れない」を返す', () => {
+    // Given `isolation` を持たない要素の、負の z の擬似要素。**持ち主の背景より
+    //   下へ潜る**ので、これを地として測ると画面に出ていない色で測ることになる
+    const sunk = pseudoLayer(layer('rgb(0, 0, 0)'), { ownerIsolation: 'auto' });
+
+    // When / Then 黙って地に数えず、測れないと言う
+    expect(groundCandidates([sunk, layer(FELT)])).toBeNull();
   });
 
   it('薄さのある層は覆い隠さないので、外側の地まで測り続ける', () => {
