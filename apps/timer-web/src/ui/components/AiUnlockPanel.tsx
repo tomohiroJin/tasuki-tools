@@ -87,7 +87,9 @@ export function AiUnlockPanel({ unlocked, aiMode, onUnlock, onModeSet }: AiUnloc
               解錠
             </PrimaryButton>
           </div>
-          <GhostButton onClick={close} className="text-sm text-[var(--bone-subtle)]">
+          {/* 控えめにするのは 1 段まで（muted）。**subtle にしてはいけない** —— ホバーで地が
+              `--panel-hover`（felt-lift）へ明るくなり、subtle は 3.67:1 で AA を割る（#297） */}
+          <GhostButton onClick={close} className="text-sm text-[var(--bone-muted)]">
             閉じる
           </GhostButton>
         </div>

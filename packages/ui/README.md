@@ -21,7 +21,7 @@ src/
 | 利用側 | 読むもの | 理由 |
 |---|---|---|
 | `apps/poker-web` / `apps/landing` | `@import '@tasuki/ui';`（両層） | 素の CSS で組んでいるので要素層がそのまま効く |
-| `apps/timer-web` | `@import '@tasuki/ui/tokens.css';`（トークン層だけ） | Tailwind のユーティリティで全操作要素を組んでいる。要素層を読むと `button { 真鍮のグラデーション }` が下地に敷かれ、両者が部分的に上書きし合う |
+| `apps/timer-web` | `import '@tasuki/ui/tokens.css';`（トークン層だけ・`main.tsx` から） | Tailwind のユーティリティで全操作要素を組んでいる。要素層を読むと `button { 真鍮のグラデーション }` が下地に敷かれ、両者が部分的に上書きし合う |
 
 **この境界は stylelint が機械的に守る。** `src/tokens/` では `selector-max-type` /
 `-class` / `-id` を 0 にしてあるので、うっかり `h2 {}` を足すと lint が落ちる。
@@ -44,8 +44,11 @@ src/
 @import '@tasuki/ui/card.css';      /* カード表現だけ */
 ```
 
-**Tailwind と併用する場合は `@tailwind` より前に置くこと。**
-CSS の `@import` は他の規則より前でないと無効になる。
+**Tailwind 4（`@tailwindcss/postcss`）と併用する場合は、CSS から `@import` しない。**
+JS の入口（`main.tsx` など）で、アプリの CSS より先に `import '@tasuki/ui/tokens.css'` と読む。
+Tailwind が `@import` を展開すると、入れ子の `fonts.css` の `url('../fonts/…')` の基準が
+付け替えられず、Vite は解決できないまま素通しする（ビルドに `didn't resolve at build time`
+の警告が出る）。timer-web はこれで**書体が 1 本も読めていなかった**（#297）。
 
 ## 書体
 

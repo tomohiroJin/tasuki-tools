@@ -1,8 +1,8 @@
-/* 共通のトークン層を先に読む。**`@tailwind` より前に置くこと**（CSS の `@import` は
- * 他の規則より前でなければ無効になる）。要素層（`@tasuki/ui/elements.css`）は
- * `button` や `h2` を直接飾るため **読まない** —— Tailwind のユーティリティと
- * 衝突する（ADR-0001）。 */
-@import '@tasuki/ui/tokens.css';
+/* 共通のトークン層（`@tasuki/ui/tokens.css`）は **`main.tsx` がこのファイルより先に読む**。
+ * ここで `@import` してはいけない —— Tailwind が展開すると書体の `url()` が解決されず、
+ * 書体が 1 本も読めなくなる（#297。理由は `main.tsx` の注釈）。要素層
+ * （`@tasuki/ui/elements.css`）は `button` や `h2` を直接飾るため **読まない** ——
+ * Tailwind のユーティリティと衝突する（ADR-0001）。 */
 
 /* Tailwind 4 は `@tailwind` の 3 行を 1 本の `@import` に置き換えた。 */
 @import 'tailwindcss';

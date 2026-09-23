@@ -53,7 +53,9 @@ async function checkText(page: Page): Promise<void> {
   const failures: string[] = [];
   const unmeasurable: string[] = [];
   let measured = 0;
-  for (const element of await targets.all()) {
+  // 対象は最初に 1 度だけ掴む。`all()` の中身は `nth(i)` で、途中で見えている集合が
+  // 変わると添字がずれて末尾がこぼれる（timer-a11y で実測・#297）
+  for (const element of await targets.elementHandles()) {
     const hasText = await element.evaluate((el) => el instanceof HTMLInputElement ||
       Array.from(el.childNodes).some((n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim()));
     if (!hasText) continue;
