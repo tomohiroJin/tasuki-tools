@@ -40,6 +40,11 @@ import { connectionsIn } from "@tasuki/room-core";
 import type { HubServerMsg } from "@tasuki/room-core";
 import { buildRoster } from "./application/roster-dto.js";
 import { makeHubHandlers } from "./application/hub-handlers.js";
+import { makeTopicBroadcaster } from "./application/topic-broadcast.js";
+import { makeTopicHandlers } from "./application/topic-handlers.js";
+import { TopicGenerator } from "./application/topic-generation.js";
+import { InMemoryTopicStore } from "./adapters/in-memory-topic-store.js";
+import { ClaudeCliTopicProvider } from "./adapters/claude-cli-topic-provider.js";
 import type { HubBroadcaster } from "./ports/hub-broadcaster.js";
 import { makeHandlers } from "./application/handlers.js";
 import { TOOL_TIMER } from "./application/tool-id.js";
@@ -100,6 +105,11 @@ export function createSyncServer(config: SyncConfig): SyncServer {
   const store = new InMemoryRoomStore();
   const timers = new InMemoryTimerStore();
   const rounds = new InMemoryRoundStore();
+  /**
+   * お題の状態の保管（#91）。**ツールではなくルームに属する**ので、timer・poker の保管とは
+   * 別に 1 つ持ち、名簿とはルームコードで対になる（破棄は `destroy-room.ts` が揃えて行う）。
+   */
+  const topics = new InMemoryTopicStore();
   const clock = new SystemClock();
   /**
    * 復帰トークンとパスフレーズの保管。**timer と poker で 1 個を共有する**（#95 S4a）。
@@ -190,6 +200,39 @@ export function createSyncServer(config: SyncConfig): SyncServer {
       })
     : undefined;
 
+  /**
+   * お題の状態の配信（#91）。**ツールごとの broadcaster の外に 1 つ置く**（spec §5.3 の T3）。
+   * 宛先の選別（いまはお題とハブの接続だけ）は `topic-broadcast.ts` が持つ。
+   * `wsAdapter` は下で代入する（上の broadcaster と同じ前方参照）。
+   */
+  const topicBroadcaster = makeTopicBroadcaster({
+    store,
+    topics,
+    send: (connIds, msg) => wsAdapter.broadcastTopic(connIds, msg),
+  });
+
+  /**
+   * お題の生成（#91）。AI が使えるときだけ provider を渡す（timer の `serverProvider` と同じ条件）。
+   *
+   * ⚠ **`aiLimiter` は timer の `delegator` と同じインスタンスを渡す。** 日次上限と同時実行数は
+   * サーバー全体で 1 つの予算であり、別に作るとお題ツールの分だけ予算が黙って増える。
+   */
+  const topicGenerator = new TopicGenerator({
+    topics,
+    clock,
+    publish: (roomCode) => topicBroadcaster.publish(roomCode),
+    provider: aiReady
+      ? new ClaudeCliTopicProvider({
+          token: config.claudeOauthToken!,
+          model: config.aiProblemModel,
+        })
+      : undefined,
+    aiLimiter,
+    aiTimeoutMs: config.aiGenerationTimeoutMs,
+    logger,
+    refEncoder,
+  });
+
   const delegator = new ProblemDelegator({
     store,
     timers,
@@ -222,8 +265,8 @@ export function createSyncServer(config: SyncConfig): SyncServer {
    * S4a で poker の入口からも timer のルームコードを試せるようになり、別のままなら
    * 1 IP あたりの実効予算が単純に 2 倍になる（ADR 0004 の追記・#103 設計正本 D22）。
    *
-   * timer 側は `room.join` と `ai.unlock`、poker 側は `join-room` と `check-room` が
-   * これを消費する。**4 経路で 1 本**である。
+   * **入室と合言葉の照合を行う経路は、入口をまたいですべてこれを消費する**（timer・poker・
+   * ハブ・お題（#91）の各入口。経路の一覧はここに書かない —— 入口を足すたびに腐る）。
    */
   const rateLimiter = createTokenBucketLimiter({
     capacity: DEFAULT_CAPACITY,
@@ -276,8 +319,11 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     store,
     timers,
     rounds,
+    // **#91 でお題の状態と生成もここが解放・中断する**（寿命はルームごとに 1 つ）。
+    topics,
     scheduler,
     delegator,
+    topicGenerator,
     presence: presenceManager,
     releaseRoom: handlers.releaseRoom,
   });
@@ -336,6 +382,34 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     rateLimitGate: handlers.rateLimitGate,
     maxRooms: config.maxRooms,
     hub: hubBroadcaster,
+    // 作成・参加の成功時に、いまのお題を本人へ 1 通送る（#91・E4）。
+    topicBroadcaster,
+  });
+
+  /**
+   * お題ツール（`?tool=topic`）のメッセージ層（#91）。
+   *
+   * **参加の守り（レート制限・合言葉の関門・復帰）はハブと同じく `join-room.ts` を通す。**
+   * **レート制限のゲートも `handlers.rateLimitGate` を渡す。新しく作らない** ——
+   * 別に作ると `connId → クライアント鍵` の対応が空になり、鍵が connId へ落ちる。
+   * そうなると `ai.unlock` の総当たりが**張り直すだけで**枠を回避でき、`room.join` とも
+   * 別の枠になる（`handlers.ts` の「★取り違えないこと」）。お題の接続も `onConnect` を
+   * 通るので（`ws-adapter.ts`）、同じゲートなら鍵が登録済みである。
+   */
+  const topicHandlers = makeTopicHandlers({
+    store,
+    timers,
+    clock,
+    codeGen,
+    tokenStore: tokens,
+    rateLimitGate: handlers.rateLimitGate,
+    hub: hubBroadcaster,
+    topics,
+    generator: topicGenerator,
+    broadcaster: topicBroadcaster,
+    send: (connId, msg) => wsAdapter.sendTopic(connId, msg),
+    // トークン未設定なら合言葉も渡さない＝解錠は常に失敗（存在秘匿。timer と同じ）
+    aiUnlockKey: aiReady ? config.aiUnlockKey : undefined,
   });
 
   wsAdapter = new WsAdapter({
@@ -354,11 +428,9 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     onHubMessage: async (connId, raw) => {
       await hubHandlers.handleMessage(connId, raw);
     },
-    // TODO(#91 Task 9): お題（topic）のメッセージ層をここへ配線する。
-    // いまは接続層（Task 8）だけが入っており、アプリ層のハンドラはまだ無いので
-    // 何もしない最小のスタブにしてある（型検査を通すためだけの仮実装。挙動は次の
-    // タスクで置き換わる）。
-    onTopicMessage: async () => {},
+    onTopicMessage: async (connId, raw) => {
+      await topicHandlers.handleMessage(connId, raw);
+    },
     onMessage: async (connId, msg) => {
       // msg は ws-adapter 側で CommandSchema（valibot）に通した検証済みの値であり、
       // 実体は Command 型と一致する（onMessage の型は unknown のままなのでここでキャストする）。
@@ -411,6 +483,8 @@ export function createSyncServer(config: SyncConfig): SyncServer {
       reclaimer.stop();
       scheduler.clearAll();
       delegator.cancelAll();
+      // お題の生成も止める（子プロセスを残さない。#91）。
+      topicGenerator.cancelAll();
       // 不在猶予タイマー（ドライバー繰り上げ）も解放する。
       // 本番は直後に process.exit(0) するため観測できる差は無いが、
       // 同一プロセスでサーバーを何度も起動し直すテストでは、放置すると

@@ -2,8 +2,8 @@
  * spyDestroyer — 後始末の呼び出しを記録するルーム破棄経路（Issue #79）
  *
  * `server.ts` が本番で組み立てるのと同じ `createRoomDestroyer` に、記録だけを行う
- * スケジューラ・委譲・presence・トークン解放を差した破棄経路を返す。ストア（名簿・
- * timer の状態・poker のラウンドの 3 つ・#95 S4a）だけは本物を渡すので、
+ * スケジューラ・委譲・お題の生成・presence・トークン解放を差した破棄経路を返す。
+ * ストア（名簿と、各ツール・お題の状態・#95 S4a・#91）だけは本物を渡すので、
  * 「後始末が全部呼ばれたか」と「ルームが実際に消えたか」を同じ 1 つの経路で観測できる。
  *
  * 記録は `"scheduler.clear:CODE"` のような文字列にする。**順序も含めて**
@@ -16,6 +16,8 @@
 
 import { createRoomDestroyer } from "../../src/application/destroy-room.js";
 import { InMemoryRoundStore } from "../../src/adapters/poker-in-memory-round-store.js";
+import { InMemoryTopicStore } from "../../src/adapters/in-memory-topic-store.js";
+import type { TopicStore } from "../../src/ports/topic-store.js";
 import type { InMemoryRoomStore } from "../../src/adapters/in-memory-room-store.js";
 import type { InMemoryTimerStore } from "../../src/adapters/in-memory-timer-store.js";
 
@@ -31,19 +33,25 @@ export interface SpyDestroyer {
  *   （その場合ここが空の実体を用意する）。ラウンドが消えたことまで見たいテストは、
  *   自分が `put` した同じインスタンスを渡すこと —— 渡さなければ最初から空なので、
  *   「消えた」の判定は常に緑になる。
+ * @param topics お題の状態の保管（#91）。`rounds` と同じく省略してよい。お題の状態が
+ *   消えたことまで見たいテストは、自分が `put` した同じインスタンスを渡すこと ——
+ *   渡さなければ最初から空なので、「消えた」の判定は常に緑になる。
  */
 export function spyDestroyer(
   store: InMemoryRoomStore,
   timers: InMemoryTimerStore,
   rounds: InMemoryRoundStore = new InMemoryRoundStore(),
+  topics: TopicStore = new InMemoryTopicStore(),
 ): SpyDestroyer {
   const calls: string[] = [];
   const destroy = createRoomDestroyer({
     store,
     timers,
     rounds,
+    topics,
     scheduler: { clear: (c) => calls.push(`scheduler.clear:${c}`) },
     delegator: { cancel: (c) => calls.push(`delegator.cancel:${c}`) },
+    topicGenerator: { cancel: (c) => calls.push(`topicGenerator.cancel:${c}`) },
     presence: { clearRoomTimers: (c) => calls.push(`presence.clearRoomTimers:${c}`) },
     releaseRoom: (c) => calls.push(`releaseRoom:${c}`),
   });

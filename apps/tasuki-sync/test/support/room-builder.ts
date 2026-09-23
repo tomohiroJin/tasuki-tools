@@ -19,6 +19,7 @@ import { InMemoryRoomStore } from "../../src/adapters/in-memory-room-store.js";
 import { InMemoryTimerStore } from "../../src/adapters/in-memory-timer-store.js";
 import { spyHub } from "./hub.js";
 import { InMemoryRoundStore } from "../../src/adapters/poker-in-memory-round-store.js";
+import { InMemoryTopicStore } from "../../src/adapters/in-memory-topic-store.js";
 import { createTokenStore } from "../../src/application/token-store.js";
 import { createRoomDestroyer } from "../../src/application/destroy-room.js";
 import {
@@ -347,6 +348,10 @@ export function makeTestHandlers(overrides?: TestHandlerOverrides): TestHandlers
       store,
       timers,
       rounds,
+      // お題の状態と生成は timer のハンドラが持たない（#91）。空の保管と、中断するものが
+      // 無い生成を差す（お題の後始末の順序と中身は `destroy-room.test.ts` が見る）。
+      topics: new InMemoryTopicStore(),
+      topicGenerator: { cancel: () => {} },
       // scheduler / delegator は `withDeps` で渡されたときだけ後始末に加わる
       // （渡されていなければ、そもそも予約を作る主体が居ない）。
       scheduler: overrides?.scheduler,
