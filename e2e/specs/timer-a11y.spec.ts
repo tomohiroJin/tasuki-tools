@@ -242,5 +242,18 @@ test.describe('書体は常用の層だけを取る', () => {
     //   UI 文言に base 層へ入っていない字を足すと、ここが赤くなる
     const ext = fonts.filter((f) => f.includes('-ext-') || f.includes('-ext.'));
     expect(ext, `常用の層に無い字が画面に出ている（${ext.join(', ')}）`).toEqual([]);
+
+    // Then その3: **取りにいった書体が、書体として読めている**（#297）。
+    //   URL を数えるだけでは、`url()` が解決されずに SPA の HTML が返っていても緑になる
+    //   （実際に timer は書体を 1 本も読めておらず、上の 2 つは緑のままだった）。
+    //   読めなかった面は `status` が `error` になる。読めた面が 1 つ以上あることも固定する
+    const faces = await page.evaluate(async () => {
+      await document.fonts.ready;
+      return Array.from(document.fonts)
+        .filter((face) => face.status !== 'unloaded')
+        .map((face) => `${face.family} ${face.weight} ${face.status}`);
+    });
+    expect(faces.filter((f) => f.endsWith(' error')), `読めなかった書体（${faces.join(', ')}）`).toEqual([]);
+    expect(faces.filter((f) => f.endsWith(' loaded')).length, `読めた書体が無い（${faces.join(', ')}）`).toBeGreaterThan(0);
   });
 });

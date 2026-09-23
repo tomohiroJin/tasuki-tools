@@ -9,7 +9,7 @@
    上書きできる（同じ詳細度なら後勝ち）。
 
      @import '@tasuki/ui';            -- tokens + elements（poker-web / landing）
-     @import '@tasuki/ui/tokens.css'; -- tokens だけ（timer-web）
+     import '@tasuki/ui/tokens.css';  -- tokens だけ（timer-web。JS から読む。README 参照）
    ============================================================ */
 
 @import './tokens/index.css';
