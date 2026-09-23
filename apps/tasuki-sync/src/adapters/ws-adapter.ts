@@ -35,7 +35,7 @@ import { CONN_REJECT_REASONS } from "../application/log/vocabulary.js";
 import { deriveClientKeySafely } from "./client-key-safety.js";
 import type { Handlers as PokerHandlers } from "../application/poker-handlers.js";
 import { TOOL_POKER, TOOL_TIMER, TOOL_TOPIC } from "../application/tool-id.js";
-import type { TopicServerMsg } from "../ports/topic-server-msg.js";
+import type { TopicOwnFrame, TopicServerMsg } from "../ports/topic-server-msg.js";
 
 /**
  * 接続 URL が宣言するツール。**許可リストで判定する**（#95 S5c）。
@@ -828,9 +828,20 @@ export class WsAdapter {
   /**
    * お題（topic）のメッセージ層へ渡す（#91）。
    *
-   * **`handleHubMessage` と同じ形。** 境界のパースはメッセージ層（Task 9 で配線する
-   * アプリ層）が持つ。ここはサイズ制限だけを掛ける —— 大きすぎるフレームをパーサへ
-   * 渡さないのは timer / poker / ハブと同じ規律である。
+   * 境界のパースはメッセージ層（Task 9 で配線するアプリ層）が持つ。ここはサイズ制限
+   * だけを掛ける —— 大きすぎるフレームをパーサへ渡さないのは timer / poker / ハブと
+   * 同じ規律である。
+   *
+   * **本体を `try/catch` で隔離する。** `onTopicMessage` は型上 `Promise<void>` を
+   * 返す契約だが、実装が async でなければ同期的に throw しうる（型は実行時の保証には
+   * ならない。`.catch` は reject しか拾わない）。呼び出し自体を try/catch で囲んで
+   * 別途隔離する（timer の `handleMessage` / I-5 と同じ形）。隔離しないと、
+   * ここでの同期 throw が Bun の websocket ハンドラを抜けて `uncaughtException` に
+   * 達し、`server.ts` が `process.exit(1)` して**同じプロセスに載る timer / poker /
+   * ハブのルームも道連れで消える**（揮発インメモリ）。
+   *
+   * ⚠ **`handleHubMessage` は同じ隔離を持たない（`.catch()` のみ）。** これは
+   * 既知の差分であり、本タスク（fix round 1）では変更しない —— 対象は topic の経路のみ。
    */
   private handleTopicMessage(ws: Socket, raw: string | Buffer, bytes: number): void {
     if (bytes > this.options.maxMessageBytes) {
@@ -841,19 +852,35 @@ export class WsAdapter {
       });
       return;
     }
-    // メッセージ層の失敗でプロセス全体を落とさない（timer / poker / ハブの onMessage と同じ隔離）。
-    void this.options.onTopicMessage(ws.data.connId, raw.toString()).catch((err: unknown) => {
+    try {
+      void this.options.onTopicMessage(ws.data.connId, raw.toString()).catch((err: unknown) => {
+        this.options.logger.error("on-message-error", { name: classifyError(err) });
+        this.sendTopicFrame(ws, {
+          type: "error",
+          code: "INTERNAL_ERROR",
+          message: INTERNAL_ERROR_TEXT,
+        });
+      });
+    } catch (err) {
       this.options.logger.error("on-message-error", { name: classifyError(err) });
       this.sendTopicFrame(ws, {
         type: "error",
         code: "INTERNAL_ERROR",
         message: INTERNAL_ERROR_TEXT,
       });
-    });
+    }
   }
 
-  /** お題（topic）の接続へ 1 通送る（OPEN のときだけ）。 */
-  private sendTopicFrame(ws: Socket, msg: TopicServerMsg): void {
+  /**
+   * お題（topic）の接続へ 1 通送る（OPEN のときだけ）。
+   *
+   * **型は広い `TopicServerMsg` ではなく狭い `TopicOwnFrame` にする**（#91 R18）。
+   * `TopicServerMsg` は `HubServerMsg` を合併しており、その `error` は `code: string`
+   * （無制約）なので、`TOPIC_ERROR_CODES` に無いコードでも通ってしまう。この口は
+   * アダプタが自分でエラーを組み立てて送る経路（サイズ超過・内部エラー）専用であり、
+   * 契約に無いコードを型検査で弾く。
+   */
+  private sendTopicFrame(ws: Socket, msg: TopicOwnFrame): void {
     if (ws.readyState !== WebSocket.OPEN) return;
     ws.send(JSON.stringify(msg));
   }

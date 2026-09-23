@@ -15,6 +15,9 @@ const TIMER_MESSAGES: Partial<Record<TopicErrorCode, string>> = {
 /** `apps/tasuki-sync/src/adapters/ws-adapter.ts` の `MESSAGE_TOO_LARGE_TEXT` をそのまま書き写したもの。 */
 const WS_ADAPTER_MESSAGE_TOO_LARGE_TEXT = "メッセージが大きすぎます";
 
+/** `apps/tasuki-sync/src/adapters/ws-adapter.ts` の `INTERNAL_ERROR_TEXT` をそのまま書き写したもの。 */
+const WS_ADAPTER_INTERNAL_ERROR_TEXT = "サーバー内部でエラーが発生しました";
+
 /**
  * @requirements #91 E20
  */
@@ -33,5 +36,9 @@ describe("お題のエラーの文言", () => {
 
   it("MESSAGE_TOO_LARGE は接続層(ws-adapter)と同じ文を返す", () => {
     expect(topicErrorMessageFor("MESSAGE_TOO_LARGE")).toBe(WS_ADAPTER_MESSAGE_TOO_LARGE_TEXT);
+  });
+
+  it("INTERNAL_ERROR は接続層(ws-adapter)と同じ文を返す", () => {
+    expect(topicErrorMessageFor("INTERNAL_ERROR")).toBe(WS_ADAPTER_INTERNAL_ERROR_TEXT);
   });
 });

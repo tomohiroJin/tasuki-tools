@@ -70,6 +70,9 @@ export const TOPIC_ERROR_CODES = [
   "AI_UNLOCK_FAILED",
   "GENERATION_COOLDOWN",
   "MESSAGE_TOO_LARGE",
+  // 接続層(ws-adapter.ts)がハンドラの同期例外・reject を隔離した結果を伝えるコード。
+  // 文言は接続層の INTERNAL_ERROR_TEXT と同じにする(error-messages.ts)。
+  "INTERNAL_ERROR",
 ] as const;
 export const TopicErrorCodeSchema = v.picklist(TOPIC_ERROR_CODES);
 export type TopicErrorCode = (typeof TOPIC_ERROR_CODES)[number];

@@ -174,6 +174,8 @@ describe("接続 URL のクエリでツールを宣言する", () => {
  * **poker の早期 return を写していないことを見る。** `createSyncServer` はまだお題の
  * ハンドラを配線していない（Task 9）ため、ここは低レベルの `WsAdapter` を
  * `newTestWsAdapter` で直接組み立て、`onConnect` / `onDisconnect` を自前の記録役へ差し替える。
+ *
+ * @requirements #91 spec §5.3
  */
 describe("お題（topic）の接続は poker の早期 return を通らない", () => {
   it("Given ?tool=topic で繋ぐ / When 受理されてから閉じる / Then onConnect が (connId, rateKey) で 1 回、onDisconnect が 1 回呼ばれる", async () => {
@@ -199,7 +201,10 @@ describe("お題（topic）の接続は poker の早期 return を通らない",
 
       // Then: poker のように手前で return していれば、この 2 つはどちらも呼ばれない
       expect(connectCalls.length).toBe(1);
-      const [connId] = connectCalls[0]!;
+      const [connId, rateKey] = connectCalls[0]!;
+      // deriveClientKey を配線していない（XFF も無い）ので、rateKey は connId にフォールバックする
+      // （`ws-adapter.client-key.test.ts` の「X-Forwarded-For が無ければ connId が鍵になる」と同じ形）。
+      expect(rateKey).toBe(connId);
       expect(disconnectCalls).toEqual([connId]);
     } finally {
       await adapter.close();

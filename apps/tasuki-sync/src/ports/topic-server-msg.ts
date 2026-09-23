@@ -16,3 +16,18 @@ export type TopicServerMsg =
   | v.InferOutput<typeof TopicFrameSchema>
   | v.InferOutput<typeof TopicErrorFrameSchema>
   | HubServerMsg;
+
+/**
+ * お題の接続へ、アダプタ自身が組み立てて送るフレーム（#91 R18）。
+ *
+ * **`TopicServerMsg` より狭い。** `TopicServerMsg` は `HubServerMsg` を合併しており、
+ * `HubServerMsg` の `error` は `code: string`（無制約）なので、お題の契約
+ * （`TOPIC_ERROR_CODES`）に無いコードでも `TopicServerMsg` としては型検査を通ってしまう。
+ * アダプタが自分の判断でエラーフレームを組み立てて送る経路（`sendTopicFrame`）は
+ * この狭い型へ絞り、契約に無いコードをコンパイルエラーにする。
+ *
+ * `sendTopic` / `broadcastTopic`（公開 API・Task 9 が `room.joined` 等のハブ形の
+ * 応答に使う）は引き続き広い `TopicServerMsg` を使う。ここを狭めるのはアダプタが
+ * 自分でエラーを組み立てる経路だけである。
+ */
+export type TopicOwnFrame = v.InferOutput<typeof TopicFrameSchema> | v.InferOutput<typeof TopicErrorFrameSchema>;
