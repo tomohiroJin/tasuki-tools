@@ -117,3 +117,15 @@
   変わっていない（`apps/tasuki-sync/src/application/timer-snapshot-dto.ts` の
   `rotationDisplayNames` 1 つが席・交代の通知・サーバー側の完成記録へ配る）。
 - **決定の骨格（揮発インメモリ・再起動安全・記録は端末側）は変えていない。**
+
+**改定（2026-09-23・#250）**: 「改定（2026-09-10・#95 S4a 実施）」は「**`localStorage` への
+同一性の保存（D12）は依然として未実施**であり、S4b 以降の範囲である」と書いた。2026-09-10 時点の
+記録としてその文はそのまま残すが、[#246](https://github.com/tomohiroJin/tasuki-tools/issues/246)
+（#95 S4b・2026-09-12）で**実施済み**なので現在地を足す。
+
+- **復帰の組は端末の `localStorage` にルームコード別で保存する**（`tasuki:resume:<ルームコード>`）。
+  読み書きは `@tasuki/sync-client` の `resume-identity.ts` 1 か所に集め、`saveResumeIdentity` を
+  玄関・timer・poker の 3 つの画面が呼ぶ。
+- **サーバー側の保持は変えていない。** 復帰トークンは引き続き `createTokenStore()` の中の `Map` にあり、
+  再起動で失われる。端末に組が残っていても、再起動後のサーバーはそれを知らないので同一人物としては戻れない。
+- **決定の骨格（揮発インメモリ・再起動安全・記録は端末側）は変えていない。**
