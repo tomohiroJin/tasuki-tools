@@ -19,7 +19,7 @@ import { createRoom, joinAsDriver, lobbyRotationRow } from '../support/timer';
 import { describePaint, groundLayers, measureSample, sampleInPage } from '../support/contrast';
 
 const HOST = 'a11y-a';
-/** 輪の 3 人目以降。**3 人いないと felt-700 の面に最も薄い字が乗らない**（#297）。 */
+/** 輪の 2 人目以降。周回アバターと交代の列が**最も薄い字を felt-700 の面に置くのは 3 人目から**（#297）。 */
 const GUESTS = ['a11y-b', 'a11y-c'] as const;
 
 test.describe('動きを抑える設定に追従する', () => {
@@ -119,10 +119,9 @@ test.describe('文字が背景に対して読める（WCAG AA）', () => {
     openPeer,
   }) => {
     // Given: **3 人で始める**（#297）。最も薄い字（`--bone-subtle` ＝ `--ivory-faint`）が
-    //   最も明るい面（`--panel-2` ＝ `--felt-700`）に乗るのは、周回アバターと交代の列の
-    //   「現でも次でもない人」だけ。1 人のセッションではこの組が画面に出ず、
-    //   **パレットの注釈が主張する最小値 4.52:1 を誰も測っていなかった**
-    //   （α を 0.64 に下げても緑だった。実測）
+    //   最も明るい面（`--panel-2` ＝ `--felt-700`）に乗る箇所のうち、周回アバターと
+    //   交代の列の「現でも次でもない人」は 3 人いないと画面に出ない。
+    //   1 人で出るのは共有メモの空表示だけだった
     const code = await createRoom(page, HOST);
     for (const [i, name] of GUESTS.entries()) {
       const guest = await openPeer(name);
@@ -146,15 +145,19 @@ test.describe('文字が背景に対して読める（WCAG AA）', () => {
     const targets = page.locator(
       'button:visible, a:visible, h1:visible, h2:visible, h3:visible, label:visible, p:visible, span:visible',
     );
-    const count = await targets.count();
+    // **走査の対象は最初に 1 度だけ掴む。** `targets.nth(i)` は呼ぶたびに引き直すので、
+    //   走査の途中で見えている集合が変わると添字がずれ、末尾の要素がこぼれる。
+    //   実測（#297）: 1 人のセッションで共有メモの空表示（4.52:1 の組）を 3 回中 2 回
+    //   読み飛ばし、`--ivory-faint` の α を 0.64 に下げても緑になっていた
+    const elements = await targets.elementHandles();
+    const count = elements.length;
     expect(count, '測る対象が見つからない').toBeGreaterThan(20);
 
     const failures: string[] = [];
     const unmeasurable: string[] = [];
     let measured = 0;
     let measuredThinnest = 0;
-    for (let i = 0; i < count; i += 1) {
-      const element = targets.nth(i);
+    for (const element of elements) {
       // 直接の子テキストを持たない入れ物は飛ばす（親子で二重に測らない）
       const own = await element.evaluate((el) =>
         Array.from(el.childNodes)
