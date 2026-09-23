@@ -99,6 +99,17 @@ describe('地になる層を選ぶ', () => {
     expect(layers).toEqual([layer(FELT)]);
   });
 
+  it('relative / sticky の擬似要素も、字と並ぶので地に数えない', () => {
+    // Given `static` だけを弾くと漏れる。`relative` も `sticky` も**流れの中に箱を持つ**
+    //   ので、字の下ではなく字の横に並ぶ
+    const relative = pseudoLayer(layer('rgba(240, 230, 200, 0.14)'), { position: 'relative' });
+    const sticky = pseudoLayer(layer('rgba(240, 230, 200, 0.14)'), { position: 'sticky' });
+
+    // When / Then どちらも落ちる（地に数えると乗っていない塗りで字を測る）
+    expect(groundLayers([relative, layer(FELT)])).toEqual([layer(FELT)]);
+    expect(groundLayers([sticky, layer(FELT)])).toEqual([layer(FELT)]);
+  });
+
   it('in-flow の擬似要素は、負の z-index が書いてあっても地に数えない', () => {
     // Given `z-index` は位置指定のある要素にしか効かないが、**計算値は書いた値のまま
     //   返る**。`position` を見ずに z だけで判定すると、効いていない z を真に受けて
@@ -277,6 +288,36 @@ describe('下地の候補を組み立てる', () => {
     expect(grounds).toHaveLength(1);
     expect(grounds?.[0]?.darkest).toMatchObject({ r: 0, g: 0, b: 0 });
     expect(grounds?.[0]?.lightest).toMatchObject({ r: 255, g: 255, b: 255 });
+  });
+
+  it('上に不透明な層があるなら、その下の読めない層は幅にしない', () => {
+    // Given テクスチャの**上**に不透明なグラデーションを重ねた面（CSS は先に書いた層が上）。
+    //   テクスチャは 1 画素も見えないのに、層の順序を見ないと黒〜白の幅になり、
+    //   **原因の分からない 1.00:1 の赤**が出る
+    const covered = {
+      color: TRANSPARENT,
+      image: `linear-gradient(165deg, ${IVORY_LIGHTEST}, ${IVORY_DARKEST}), url("data:image/svg+xml,%3Csvg%3E")`,
+    };
+
+    // When 下地の候補を組み立てる
+    const grounds = groundCandidates([covered, layer(FELT)]);
+
+    // Then 上の層の停止点で測れる
+    expect(grounds?.map((g) => [g.lightest.r, g.lightest.g, g.lightest.b])).toEqual([
+      [255, 253, 244],
+      [234, 225, 198],
+    ]);
+  });
+
+  it('間引かれた層は、塗られる場合と塗られない場合の幅になる', () => {
+    // Given `mask-image` でも `clip-path` でも、塗りは**箱の全面に乗るとは限らない**。
+    //   どちらも `sampleInPage` が `masked` として持ち帰る
+    const clipped = pseudoLayer({ ...layer('rgba(0, 0, 0, 0.05)'), masked: true });
+
+    // When / Then 幅になる
+    const grounds = groundCandidates([clipped, layer(FELT)]);
+    expect(grounds).toHaveLength(1);
+    expect(grounds?.[0]?.lightest).toMatchObject({ r: 10, g: 43, b: 33 });
   });
 
   it('読める層だけで塗られた面は、幅を持たない（1 点に決まる）', () => {

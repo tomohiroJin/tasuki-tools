@@ -84,9 +84,9 @@ export interface Paint {
    */
   readonly opacity?: number;
   /**
-   * `mask-image` が掛かっているか。
+   * 塗りが間引かれているか（`mask-image` / `clip-path`）。
    *
-   * **マスクは画素ごとに塗りを間引く。** 全面に乗る場合と 1 画素も乗らない場合の
+   * **どちらも画素ごとに塗りを間引く。** 全面に乗る場合と 1 画素も乗らない場合の
    * どちらもありうるので、この層は「幅」になる（#296）。**間引かれた側が安全とは
    * 限らない** —— 暗い地に薄い字を置く配色では、塗られない方が不利になる。
    */
@@ -158,8 +158,10 @@ export interface Sample {
  */
 export function sampleInPage(element: Element): Sample {
   /** 擬似要素の塗り。**選り分けずに全部持ち帰る**（裁定は `groundLayers`）。 */
+  // **塗りを間引く手段はマスクだけではない。** `clip-path` も同じく箱の一部しか
+  // 塗らせないので、覆う層とは見なさず、幅として測る
   const isMasked = (s: CSSStyleDeclaration): boolean =>
-    (s.maskImage ?? s.webkitMaskImage ?? 'none') !== 'none';
+    (s.maskImage ?? s.webkitMaskImage ?? 'none') !== 'none' || (s.clipPath ?? 'none') !== 'none';
   const pseudoPaints = (node: Element, owner: number): Paint[] => {
     const ownerIsolation = getComputedStyle(node).isolation;
     return (['::before', '::after'] as const).map((which) => {
@@ -285,8 +287,9 @@ function isGroundPseudo(paint: Paint): boolean {
   if (origin === undefined) return false;
   // 生成されていない擬似要素は描かれない（Chromium は `none` / `normal` を返す）
   if (origin.content === 'none' || origin.content === 'normal') return false;
-  // in-flow の擬似要素は字と並ぶ箱であって、字の下ではない
-  if (origin.position === 'static') return false;
+  // **流れの外に出たものだけを通す許可リスト。** `static` だけを弾くと `relative` と
+  // `sticky` が漏れる —— どちらも流れの中に箱を持つので、字の下ではなく字と並ぶ
+  if (origin.position !== 'absolute' && origin.position !== 'fixed') return false;
   // 負でない z は字の上に乗る。乗るものを地に数えると、地が明るい側へ嘘をつく
   const z = zIndexOf(paint);
   if (!Number.isFinite(z) || z >= 0) return false;
@@ -302,10 +305,13 @@ function isGroundPseudo(paint: Paint): boolean {
  * 透明な停止点を含む層は下を隠さないので、候補は層ごとに掛け算で増える。
  * 実測では羅紗だけで 6 候補（停止点 5 ＋色 1）、その上に半透明の敷きと
  * グラデーションをもう 1 枚重ねると 20 前後になる。
- * **足りなくなったら上げること** —— 上限に当たると落ちる理由が
+ * **#296 で擬似要素を地に入れたぶん、掛け算の段が増えた** —— 計器ステージは
+ * 1 候補から 8 候補になり（方眼＋ビネットの停止点 7 ＋素の地）、その上に
+ * 停止点 4 つの半透明パネルを重ねると 32 では足りなくなる（実測）。128 へ上げてある。
+ * **足りなくなったらさらに上げること** —— 上限に当たると落ちる理由が
  * 「下地か字の色を決められない」になり、本当の原因を指さなくなる。
  */
-const MAX_GROUND_CANDIDATES = 32;
+const MAX_GROUND_CANDIDATES = 128;
 
 /**
  * 塗りの色をすべて `rgb()` として読めるか。
@@ -356,17 +362,51 @@ function readImage(image: string): ImageRead {
   if (image === 'none') return { kind: 'stops', stops: [] };
   // 読めない色表記が 1 つでも混ざっていたら、拾える分だけで測らない
   if (!isReadablePaint(image)) return { kind: 'unreadable' };
-  // `url(…)` が 1 枚でも混ざれば、その面が何色になるかは決められない。
-  // **読めた層だけで測って緑を出さない**（#296。#279 まではここが楽観側だった）
-  if (image.includes('url(')) return { kind: 'unknown' };
-  if (!image.includes('gradient')) return { kind: 'unreadable' };
   const stops: Rgba[] = [];
-  for (const match of image.matchAll(/rgba?\([^)]*\)/g)) {
-    const parsed = parseColor(match[0]);
-    if (parsed === null) return { kind: 'unreadable' };
-    stops.push(parsed);
+  // **層は上から見る**（CSS は先に書いた層が上）。上に不透明な層があれば、
+  // その下に読めない層があっても見えない —— 順序を見ずに幅へ倒すと、
+  // 「テクスチャを不透明な塗りで隠す」という正当な塗り方が理由の分からない赤になる
+  for (const layer of imageLayers(image)) {
+    // `url(…)` が来たら、その面が何色になるかは決められない。
+    // **読めた層だけで測って緑を出さない**（#296。#279 まではここが楽観側だった）
+    if (layer.includes('url(')) return { kind: 'unknown' };
+    if (!layer.includes('gradient')) return { kind: 'unreadable' };
+    const parsed: Rgba[] = [];
+    for (const match of layer.matchAll(/rgba?\([^)]*\)/g)) {
+      const color = parseColor(match[0]);
+      if (color === null) return { kind: 'unreadable' };
+      parsed.push(color);
+    }
+    if (parsed.length === 0) return { kind: 'unreadable' };
+    stops.push(...parsed);
+    // 停止点がすべて不透明な層は、下の層を覆い隠す
+    if (parsed.every((stop) => stop.a === 1)) return { kind: 'stops', stops };
   }
   return stops.length === 0 ? { kind: 'unreadable' } : { kind: 'stops', stops };
+}
+
+/**
+ * `background-image` を層に割る（**上が先**）。
+ *
+ * 層の区切りは括弧の外のカンマだけ。グラデーションの停止点も data-URI の中身も
+ * カンマを含むので、**先に `url(…)` を畳んでから**括弧の深さを数える。
+ */
+function imageLayers(image: string): string[] {
+  const folded = image.replace(/url\((?:"[^"]*"|'[^']*'|[^)]*)\)/g, 'url()');
+  const layers: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < folded.length; i += 1) {
+    const char = folded[i];
+    if (char === '(') depth += 1;
+    else if (char === ')') depth -= 1;
+    else if (char === ',' && depth === 0) {
+      layers.push(folded.slice(start, i));
+      start = i + 1;
+    }
+  }
+  layers.push(folded.slice(start));
+  return layers.map((layer) => layer.trim()).filter((layer) => layer !== '');
 }
 
 /**
@@ -567,7 +607,10 @@ export function describePaint(paint: Paint): string {
   const body = paint.image === 'none' ? paint.color : `${paint.color} + ${image}`;
   // **擬似要素の層はそれと分かる形で出す。** 出どころが CSS のどこかを探すとき、
   // 祖先の背景だけを見ても見つからない（#296）
-  if (paint.pseudo === undefined) return body;
+  // **幅を作った素性まで出す。** マスクを伏せると「この色が全面に乗った地で
+  // 測った」と読まれるが、実際に使ったのは「乗らない場合」を含む幅である
+  const masked = paint.masked === true ? ' 間引き有り' : '';
   const opacity = paint.opacity === undefined || paint.opacity === 1 ? '' : ` ×${paint.opacity}`;
-  return `${paint.pseudo.which}{${body}${opacity}}`;
+  if (paint.pseudo === undefined) return masked === '' ? body : `${body}${masked}`;
+  return `${paint.pseudo.which}{${body}${opacity}${masked}}`;
 }
