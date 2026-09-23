@@ -26,3 +26,10 @@ export type { TopicCommand, TopicErrorCode } from "./schemas.js";
 export { topicErrorMessageFor } from "./error-messages.js";
 
 export type { TopicDraft } from "./validate.js";
+
+export { TOPIC_BANK } from "./topic-bank.js";
+export type { TopicBankEntry } from "./topic-bank.js";
+
+export { pickTopicFallback } from "./fallback.js";
+
+export { buildTopicPrompt } from "./prompt.js";
