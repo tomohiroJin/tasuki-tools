@@ -20,7 +20,7 @@ import { createRoom, joinAsDriver, lobbyRotationRow } from '../support/timer';
 import { describePaint, groundLayers, measureSample, sampleInPage } from '../support/contrast';
 
 const HOST = 'a11y-a';
-/** 輪の 2 人目以降。周回アバターと交代の列が**最も薄い字を felt-700 の面に置くのは 3 人目から**（#297）。 */
+/** 輪の 2 人目以降。周回アバターが**最も薄い字を felt-700 の面に置くのは 3 人目から**（#297）。 */
 const GUESTS = ['a11y-b', 'a11y-c'] as const;
 
 /** 3 人のドライバーが輪に並んだロビーを作る。**並んだことまで待つ。** */
@@ -230,9 +230,10 @@ function expectReadable(scan: ContrastScan, minMeasured: number, thinnest: reado
   //   「1 つも測れていない」だけが出て、**理由を説明する一覧が出ない**
   expect(scan.unmeasurable, `下地か字の色を決められない文字が ${scan.unmeasurable.length} 件`).toEqual([]);
   expect(scan.failures, `AA を満たさない文字が ${scan.failures.length} 件`).toEqual([]);
-  expect(scan.measured, '1 つも測れていない').toBeGreaterThan(minMeasured);
+  // 薄い組の欠けも「理由を説明する一覧」なので、件数より前に置く
   const missing = thinnest.filter((pair) => !scan.pairs.has(pair));
   expect(missing, `余裕の薄い組を測っていない（測った組: ${[...scan.pairs].join(' / ')}）`).toEqual([]);
+  expect(scan.measured, '1 つも測れていない').toBeGreaterThan(minMeasured);
 }
 
 test.describe('文字が背景に対して読める（WCAG AA）', () => {
@@ -258,9 +259,10 @@ test.describe('文字が背景に対して読める（WCAG AA）', () => {
     openPeer,
   }) => {
     // Given: **3 人で始める**（#297）。最も薄い字（`--bone-subtle` ＝ `--ivory-faint`）が
-    //   最も明るい面（`--panel-2` ＝ `--felt-700`）に乗る箇所のうち、周回アバターと
-    //   交代の列の「現でも次でもない人」は 3 人いないと画面に出ない。
-    //   1 人で出るのは共有メモの空表示だけだった
+    //   最も明るい面（`--panel-2` ＝ `--felt-700`）に乗る箇所は 3 つあり、出る人数が違う。
+    //   共有メモの空表示は 1 人から、交代の列（`RotationLineup`）の時刻ラベルは
+    //   「次」の人から＝ 2 人から、周回アバター（`TeamOrbit`）は「次」の人を明るい字で
+    //   描くので「現でも次でもない人」＝ **3 人目からしか出ない**。3 つとも測るために 3 人にする
     await createRoomOfThree(page, openPeer);
     await page.getByRole('button', { name: 'セッションを開始' }).click();
     await expect(page.getByRole('timer')).toBeVisible();
