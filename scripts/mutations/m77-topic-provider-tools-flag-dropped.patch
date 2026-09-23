@@ -1,0 +1,25 @@
+# 変異 77: topic-provider-tools-flag-dropped
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/claude-cli-topic-provider.test.ts
+#     「組み込みツールと利用者設定を起動引数で閉じる」（#91・E12）
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m77-*.patch
+# 復元: git apply -R scripts/mutations/m77-*.patch
+#
+# #91・E12・docs/adr/0012 D10・spec §10。起動引数から `--tools ""` を消す。
+# 本番の CLI（2.1.178）で `--tools ""` を落とすと、利用者設定のプラグインが
+# 足す LSP 等の組み込みツールが残ることを実測している（2026-09-24）。
+diff --git a/apps/tasuki-sync/src/adapters/claude-cli-topic-provider.ts b/apps/tasuki-sync/src/adapters/claude-cli-topic-provider.ts
+--- a/apps/tasuki-sync/src/adapters/claude-cli-topic-provider.ts
++++ b/apps/tasuki-sync/src/adapters/claude-cli-topic-provider.ts
+@@ -92,8 +92,6 @@ export class ClaudeCliTopicProvider implements ServerTopicProvider {
+         // （2026-09-24 実測。spec §10）。
+         "--setting-sources",
+         "",
+-        "--tools",
+-        "",
+       ];
+
+       const child = this.spawnFn("claude", args, {

@@ -1,0 +1,26 @@
+# 変異 76: topic-language-not-enumerated
+#
+# 検出を期待するテスト:
+#   - packages/topic-core/tests/schemas.test.ts
+#     「許可リストに無い言語・難易度を拒む」（#91・E13）
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m76-*.patch
+# 復元: git apply -R scripts/mutations/m76-*.patch
+#
+# #91・E13・docs/adr/0012 D10。`language` の検証を許可リスト（v.picklist）から
+# 任意の非空文字列（v.pipe(v.string(), v.minLength(1))）へ戻す。プロンプトへ
+# 任意の文字列が届く——2026-08-13 に持ち出し経路が本番で成立した入口。
+diff --git a/packages/topic-core/src/schemas.ts b/packages/topic-core/src/schemas.ts
+index 585f809..6c95e6c 100644
+--- a/packages/topic-core/src/schemas.ts
++++ b/packages/topic-core/src/schemas.ts
+@@ -51,7 +51,7 @@ export const TopicCommandSchema = v.variant("command", [
+     mode: v.picklist(["ai", "fallback"]),
+     // `docs/adr/0012` D10 の列挙検証。**ここを `v.string()` に戻すと、プロンプトへ
+     // 任意の文字列が届く**(2026-08-13 に持ち出し経路が本番で成立した入口)。
+-    language: v.picklist(LANGUAGES),
++    language: v.pipe(v.string(), v.minLength(1)),
+     difficulty: v.picklist(DIFFICULTIES),
+   }),
+   v.object({

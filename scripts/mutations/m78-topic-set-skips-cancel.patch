@@ -1,0 +1,24 @@
+# 変異 78: topic-set-skips-cancel
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/topic-handlers.test.ts
+#     「お題を掲げるときは、進行中の生成を止めてから書き、書いてから配る」（#91・E11）
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m78-*.patch
+# 復元: git apply -R scripts/mutations/m78-*.patch
+#
+# #91・E11。`topic.set` で `generator.cancel(roomCode)` を呼ばずに書く。
+# 進行中の生成を止めずに掲げると、あとから届いた生成の結果が利用者の掲げた
+# お題を上書きしうる（生成側は自分の生成かどうかだけを見る）。
+diff --git a/apps/tasuki-sync/src/application/topic-handlers.ts b/apps/tasuki-sync/src/application/topic-handlers.ts
+--- a/apps/tasuki-sync/src/application/topic-handlers.ts
++++ b/apps/tasuki-sync/src/application/topic-handlers.ts
+@@ -184,7 +184,6 @@ export function makeTopicHandlers(deps: TopicHandlerDeps): TopicHandlers {
+       case "topic.set":
+         // 進行中の生成を先に止める（E11）。止めずに掲げると、あとから届いた生成の結果が
+         // 利用者の掲げたお題を上書きしうる（生成側は自分の生成かどうかだけを見る）。
+-        generator.cancel(roomCode);
+         commit(roomCode, setManualTopic(currentState(roomCode), { title: cmd.title, body: cmd.body }));
+         return;
+       case "topic.clear":

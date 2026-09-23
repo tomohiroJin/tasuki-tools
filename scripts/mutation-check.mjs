@@ -276,6 +276,122 @@ export const MUTATIONS = [
       "**過去に一度塞いだ穴を、新しい経路で開け直す型**である。",
   },
   {
+    id: 76,
+    label: "language の検証を許可リストから任意の非空文字列へ戻す",
+    patch: "m76-topic-language-not-enumerated.patch",
+    pkg: "packages/topic-core",
+    tests: ["tests/schemas.test.ts"],
+    note:
+      "#91・E13・docs/adr/0012 D10。`language` の検証を許可リスト（v.picklist）から" +
+      "任意の非空文字列（v.pipe(v.string(), v.minLength(1))）へ戻す。プロンプトへ" +
+      "任意の文字列が届く——2026-08-13 に持ち出し経路が本番で成立した入口。",
+  },
+  {
+    id: 77,
+    label: "お題生成の起動引数から --tools \"\" を落とす",
+    patch: "m77-topic-provider-tools-flag-dropped.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/claude-cli-topic-provider.test.ts"],
+    note:
+      "#91・E12・docs/adr/0012 D10・spec §10。起動引数から `--tools \"\"` を消す。" +
+      "本番の CLI（2.1.178）で `--tools \"\"` を落とすと、利用者設定のプラグインが" +
+      "足す LSP 等の組み込みツールが残ることを実測している（2026-09-24）。",
+  },
+  {
+    id: 78,
+    label: "topic.set が進行中の生成を止めずに書く",
+    patch: "m78-topic-set-skips-cancel.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/topic-handlers.test.ts"],
+    note:
+      "#91・E11。`topic.set` から `generator.cancel(roomCode)` を消す。止めずに掲げると、" +
+      "あとから届いた生成の結果が利用者の掲げたお題を上書きしうる。",
+  },
+  {
+    id: 79,
+    label: "クールダウンの判定を中断（cancel）より後ろへ移す",
+    patch: "m79-cooldown-check-after-cancel.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/topic-generation.test.ts"],
+    note:
+      "#91・E22・spec §5.3。`isCoolingDown` の判定を `cancel` より後ろへ移す。" +
+      "先に中断すると、作り直しを拒んだはずのクールダウン中でも進行中の生成が" +
+      "消え（signal が abort され）、「進行中の生成とお題を残す」という契約が壊れる。",
+  },
+  {
+    id: 80,
+    label: "ルーム破棄がお題の生成を中断しない",
+    patch: "m80-destroy-room-skips-topic-cancel.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/destroy-room.test.ts"],
+    note:
+      "#91・E6。ルーム破棄から `topicGenerator.cancel(roomCode)` を消す。" +
+      "破棄されたルームの進行中のお題生成（子プロセス・AI の枠）が止まらないまま" +
+      "走り続ける欠陥。",
+  },
+  {
+    id: 81,
+    label: "お題の ai.unlock へ room.join と別のレート制限ゲートを渡す",
+    patch: "m81-topic-unlock-fresh-rate-limit-gate.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/live-ws.topic.test.ts"],
+    note:
+      "#91・E21・spec §9。`makeTopicHandlers` へ渡す `rateLimitGate` を" +
+      "`handlers.rateLimitGate`（room.join と共有する 1 個）ではなく、" +
+      "`createRateLimitGate(rateLimiter)` で新しく作った別インスタンスにする。" +
+      "バケツが connId→clientKey の登録ごと分かれるため、room.join を枯渇させても" +
+      "ai.unlock は素通りし（逆も同様）、同じ IP からの総当たりが片方のツールを" +
+      "迂回すれば通ってしまう。",
+  },
+  {
+    id: 82,
+    label: "お題の接続を poker の早期 return に乗せる",
+    patch: "m82-topic-takes-poker-early-return.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/ws-adapter-tool-query.test.ts", "test/live-ws.topic.test.ts"],
+    note:
+      "#91・E21・spec §5.3 の MUST。お題の接続を poker と同じ早期 return（onConnect を" +
+      "呼ばずに抜ける）に乗せる。onConnect が呼ばれないと `rateLimitGate.open` が" +
+      "接続とクライアント鍵を結ばず、鍵が connId へ落ちる —— ai.unlock の総当たりが" +
+      "接続を張り直すだけで枠を回避できる（直前の行のコメントが禁じている変更そのもの）。",
+  },
+  {
+    id: 83,
+    label: "timer の生 JSON が TopicCommandSchema に通るとお題の経路へ奪われる",
+    patch: "m83-timer-messages-hijacked-by-topic-schema.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/live-ws.topic.test.ts"],
+    note:
+      "#91・E5・spec T4「お題を変えられるのはお題ツールの接続だけ」。timer の接続の" +
+      "メッセージも、生 JSON が `TopicCommandSchema` に通ればお題の経路" +
+      "（`onTopicMessage`）へ回してしまう。timer の接続は参加済みルームの参加者なので" +
+      "素通りし、本当にお題が書き換わる（timer 側の INVALID_COMMAND が返らない）。",
+  },
+  {
+    id: 84,
+    label: "お題生成の起動引数から --setting-sources \"\" を落とす",
+    patch: "m84-topic-provider-setting-sources-dropped.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/claude-cli-topic-provider.test.ts"],
+    note:
+      "R11・docs/adr/0012 D10・spec §10。起動引数から `--setting-sources \"\"` を消す" +
+      "（`--tools \"\"` は残す）。本番の CLI（2.1.178）で `--tools \"\"` だけでは" +
+      "利用者設定のプラグインが足す LSP 等の組み込みツールが残ることを実測している" +
+      "（2026-09-24）——`--setting-sources \"\"` はその実測を埋める側であり、これを" +
+      "落とすと利用者・プロジェクト設定を読み込む状態へ戻る。",
+  },
+  {
+    id: 85,
+    label: "お題の配信先からハブを落とす",
+    patch: "m85-topic-broadcast-drops-hub.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/topic-handlers.test.ts"],
+    note:
+      "R9・spec §9。`TOPIC_RECIPIENT_TOOLS` からハブ（`TOOL_HUB`）を落とし、" +
+      "お題の接続だけへ配る。ハブ（玄関の選択画面）はお題の掲げ直しを見られなくなり、" +
+      "「玄関で待っている間もお題が読める」という契約（spec §9・E2・E4）が壊れる。",
+  },
+  {
     id: 6,
     label: "freezeRunningClock の凍結を外す（一時停止で満タンに戻る）",
     patch: "m06-freeze-running-clock.patch",
