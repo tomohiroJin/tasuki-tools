@@ -432,6 +432,19 @@ main へは順に入れ、本番への配布は最後に 1 回行う。
 ## 10. 実装時に確かめること
 
 - T8 ① の指定で、本番の CLI（2.1.178）のツール一覧が空になるか。ならなければ AI 生成を入れず、利用者へ報告する（§5.3）
+  - **実測（2026-09-24・CLI 2.1.178）**: 本番と同じ引数に `--output-format stream-json --verbose` を足し、
+    `system` / `init` の行の `tools` を見た。env は本番の provider と同じく `PATH` / `HOME` だけに絞った
+    - 指定なし（対照）: 31 個（`Bash` / `Read` / `Write` / `WebFetch` / `LSP` など）
+    - **`--tools ""` だけ: `["LSP"]` の 1 個が残り、空にならない。** 空の HOME で流すと 0 個になる ——
+      `LSP` は `~/.claude` の利用者設定（有効にしたプラグイン）が足しており、**`--tools ""` は利用者設定が足すツールを閉じない**。
+      `--settings '{}'` と `--strict-mcp-config` もこれを止めない。本番の HOME の中身に結果が左右される
+    - `--tools "" --allowedTools ""`: `["LSP"]`（変わらない）
+    - `--tools "" --disallowedTools LSP`: `[]`。ただし名前の列挙であり、次に利用者設定が足すツールを取りこぼす
+    - **`--setting-sources "" --tools ""`: `[]`**（プラグインも `[]`）。LSP を足すプラグインが入った HOME のままで空になり、
+      OAuth の認証も通る。対照の `--setting-sources ""` だけでは 30 個（LSP だけが消える）
+    - `--bare` は OAuth を受け付けない（`ANTHROPIC_API_KEY` のみ）ので使えない
+  - **採用: `--setting-sources "" --tools ""`**（利用者・プロジェクトの設定を読まず、組み込みツールを全部閉じる）。
+    列挙に頼らず、本番の HOME の中身にも依存しない
 - Caddy 断片の評価順（§5.6）
 - `RoomState` の合成に topic を含めるかどうか（§5.3）
 - 定型バンク 33 件を畳んだ本文が 4000 字に収まるか（単体で全件を検査する）
