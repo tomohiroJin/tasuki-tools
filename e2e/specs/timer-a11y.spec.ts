@@ -141,6 +141,18 @@ test.describe('文字が背景に対して読める（WCAG AA）', () => {
       return { ground: backgroundColor, ink: color };
     });
 
+    // **登場の演出が終わるのを待つ。** 周回アバターは `scale(0)` から現れるので、
+    //   途中で掴むと箱が 0 で `:visible` から外れる（実測: 3 回中 1 回読み飛ばした）。
+    //   回り続ける演出は終わらないので、回数に限りがあるものだけを待つ
+    await page.evaluate(() =>
+      Promise.all(
+        document
+          .getAnimations()
+          .filter((a) => a.effect?.getTiming().iterations !== Infinity)
+          .map((a) => a.finished.catch(() => undefined)),
+      ),
+    );
+
     // When（文字を持つ要素のうち、実際に見えているものを測る）
     const targets = page.locator(
       'button:visible, a:visible, h1:visible, h2:visible, h3:visible, label:visible, p:visible, span:visible',
