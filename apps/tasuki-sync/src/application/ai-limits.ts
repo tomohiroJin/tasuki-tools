@@ -74,6 +74,20 @@ export class AiLimiter {
     };
   }
 
+  /**
+   * クールダウン中か（**枠を取らない読み取り**）。
+   *
+   * `tryAcquire` は同時実行数を先に見るので、自分の生成中に作り直すと `concurrent` が返り、
+   * クールダウンを見分けられない。お題の作り直し（#91）は「クールダウンなら進行中の生成を
+   * 残して拒否する」ので、中断する前にこれで判定する。
+   */
+  isCoolingDown(roomCode: string): boolean {
+    const now = this.clock.now();
+    this.rolloverIfNeeded(now);
+    const last = this.lastStartByRoom.get(roomCode);
+    return last !== undefined && now - last < this.cooldownMs;
+  }
+
   /** 当日（UTC）の生成回数 */
   get todayCount(): number {
     this.rolloverIfNeeded(this.clock.now());
