@@ -75,10 +75,14 @@ export class TopicGenerator {
   request(roomCode: string, req: GenerateRequest): "started" | "cooldown" {
     const state = this.deps.topics.get(roomCode);
     if (state === undefined) return "started"; // ルームが無い。何もしない
-    const wantsAi = req.mode === "ai" && state.aiUnlocked && this.deps.provider !== undefined;
+    const { provider, aiLimiter } = this.deps;
+    // provider と aiLimiter は**両方揃って**初めて AI を使う（problem-delegation.ts と同じ）。
+    // 片方だけだと、あとで `aiLimiter.tryAcquire` 等が呼べず、中断済みの生成を持ったまま
+    // 例外で抜けることになる。
+    const wantsAi = req.mode === "ai" && state.aiUnlocked && provider !== undefined && aiLimiter !== undefined;
 
     // ⚠ クールダウンの判定は中断（cancel）より先に行う（spec §5.3・E22）。
-    if (wantsAi && this.deps.aiLimiter?.isCoolingDown(roomCode) === true) return "cooldown";
+    if (wantsAi && aiLimiter.isCoolingDown(roomCode)) return "cooldown";
 
     this.cancel(roomCode);
     const previous = state.topic;
@@ -87,12 +91,12 @@ export class TopicGenerator {
       this.write(roomCode, (s) => settleWithFallback(s, this.fallback(req, previous), false));
       return "started";
     }
-    if (!wantsAi) {
-      // 未解錠・AI 無効。provider を呼ばずに縮退する（E9）
+    if (!wantsAi || provider === undefined || aiLimiter === undefined) {
+      // 未解錠・AI 無効（provider か aiLimiter が無い場合を含む）。provider を呼ばずに縮退する（E9）
       this.write(roomCode, (s) => settleWithFallback(s, this.fallback(req, previous), true));
       return "started";
     }
-    const acquired = this.deps.aiLimiter!.tryAcquire(roomCode);
+    const acquired = aiLimiter.tryAcquire(roomCode);
     if (!acquired.ok) {
       this.deps.logger.warn("ai.skip", {
         room: this.deps.refEncoder.room(roomCode),
@@ -102,7 +106,7 @@ export class TopicGenerator {
       return "started";
     }
     this.write(roomCode, startGeneration);
-    this.runAi(roomCode, req, previous, acquired.release);
+    this.runAi(roomCode, req, previous, acquired.release, provider);
     return "started";
   }
 
@@ -120,7 +124,13 @@ export class TopicGenerator {
     for (const code of [...this.active.keys()]) this.cancel(code);
   }
 
-  private runAi(roomCode: string, req: GenerateRequest, previous: Topic | null, release: () => void): void {
+  private runAi(
+    roomCode: string,
+    req: GenerateRequest,
+    previous: Topic | null,
+    release: () => void,
+    provider: ServerTopicProvider,
+  ): void {
     const abort = new AbortController();
     const timer = setTimeout(() => abort.abort(), this.aiTimeoutMs);
     const gen: ActiveGeneration = { abort, timer, release };
@@ -140,8 +150,18 @@ export class TopicGenerator {
       this.write(roomCode, (s) => settleWithFallback(s, this.fallback(req, previous), true));
     };
 
-    this.deps.provider!
-      .generate(req.language, req.difficulty, abort.signal)
+    // provider.generate() の**同期の**例外も、非同期の reject と同じ経路（failover）へ流す。
+    // `Promise.resolve().then(() => provider.generate(...))` で包むと呼び出し自体が 1 tick
+    // 遅れ、「request の直後に resolve/reject する」というテスト側の前提が壊れる
+    // （実測: 既存テストが red になった）。呼び出しは同期のまま try/catch で包む。
+    let pending: Promise<unknown>;
+    try {
+      pending = provider.generate(req.language, req.difficulty, abort.signal);
+    } catch (e) {
+      failover(classifyFailure(e));
+      return;
+    }
+    pending
       .then((raw) => {
         if (!isCurrent()) return;
         const draft = validateTopicDraft(raw);

@@ -124,6 +124,26 @@ async function flushMicrotasks(): Promise<void> {
   }
 }
 
+/**
+ * 呼ばれるたびに独立した「外から解決・失敗させられる Promise」を積む偽の provider。
+ * abort には反応しない（`makeManualProvider` と同じ理由）。1 つのルームで
+ * 前の生成を中断せずに作り直した場合など、**呼び出しごとに違う resolve/reject を
+ * 別々に握りたい**（「先の生成が失敗しても、後の生成の成功だけが確定する」の検証用）。
+ */
+function makeQueuedProvider(): {
+  provider: ServerTopicProvider;
+  calls: Array<{ signal: AbortSignal; resolve: (value: unknown) => void; reject: (err: unknown) => void }>;
+} {
+  const calls: Array<{ signal: AbortSignal; resolve: (value: unknown) => void; reject: (err: unknown) => void }> = [];
+  const provider: ServerTopicProvider = {
+    generate: (_language, _difficulty, signal) =>
+      new Promise<unknown>((resolve, reject) => {
+        calls.push({ signal, resolve, reject });
+      }),
+  };
+  return { provider, calls };
+}
+
 describe("TopicGenerator", () => {
   it("定型を求めると、その場で定型を掲げ、縮退しない", () => {
     // Given
@@ -273,6 +293,33 @@ describe("TopicGenerator", () => {
     expect(state?.topic?.source).not.toBe("ai");
   });
 
+  it("provider はあっても aiLimiter が無ければ、provider を呼ばずに定型へ落とす", () => {
+    // Given（aiLimiter を渡さない。problem-delegation.ts と同じく provider と aiLimiter は両方揃って初めて AI を使う）
+    const clock = new FakeClock();
+    const provider: ServerTopicProvider = { generate: jest.fn() };
+    const tracker = makePublishTracker();
+    const store = new InMemoryTopicStore();
+    store.put("R1", makeState({ aiUnlocked: true }));
+    const generator = new TopicGenerator({
+      topics: store,
+      clock,
+      publish: tracker.publish,
+      provider,
+      logger: testLogger,
+      refEncoder: testRefEncoder,
+    });
+
+    // When
+    const result = generator.request("R1", AI_REQ);
+
+    // Then
+    expect(result).toBe("started");
+    expect(provider.generate).not.toHaveBeenCalled();
+    const state = store.get("R1");
+    expect(state?.degraded).toBe(true);
+    expect(state?.topic?.source).not.toBe("ai");
+  });
+
   it("時間切れで定型へ落とす", async () => {
     // Given（短い aiTimeoutMs と、abort で reject する偽の provider。実際の provider と同じ挙動）
     const clock = new FakeClock();
@@ -326,11 +373,15 @@ describe("TopicGenerator", () => {
     // When（クールダウン中に作り直す）
     const second = generator.request("R1", AI_REQ);
 
-    // Then（拒否・provider は増えず・生成中のまま・1 回目の signal は無事）
+    // Then（拒否・provider は増えず・生成中のまま・1 回目の signal は無事・
+    //       お題／縮退／配信のいずれも変わらない）
     expect(second).toBe("cooldown");
     expect(callCount()).toBe(1);
     expect(store.get("R1")?.generating).toBe(true);
     expect(lastSignal()?.aborted).toBe(false);
+    expect(store.get("R1")?.topic).toBeNull();
+    expect(store.get("R1")?.degraded).toBe(false);
+    expect(tracker.calls.length).toBe(1);
   });
 
   it("中断後に provider が解決しても保管に書かない", async () => {
@@ -387,6 +438,230 @@ describe("TopicGenerator", () => {
 
     // Then
     expect(lastSignal()?.aborted).toBe(true);
+  });
+
+  it("中断すると、遅れて届く provider の失敗（abort 由来）は保管に反映されない", async () => {
+    // Given（abort で自動 reject する provider。中断は本物の運用でこの経路を通る）
+    const clock = new FakeClock();
+    const { provider } = makeControllableProvider();
+    const limiter = new AiLimiter({ clock, dailyLimit: 10, cooldownMs: 0 });
+    const tracker = makePublishTracker();
+    const store = new InMemoryTopicStore();
+    store.put("R1", makeState({ aiUnlocked: true, topic: null }));
+    const generator = new TopicGenerator({
+      topics: store,
+      clock,
+      publish: tracker.publish,
+      provider,
+      aiLimiter: limiter,
+      logger: testLogger,
+      refEncoder: testRefEncoder,
+    });
+
+    // When（開始 → 中断。中断の abort が provider の Promise を reject させる。その後片付くまで待つ）
+    generator.request("R1", AI_REQ);
+    generator.cancel("R1");
+    await flushMicrotasks();
+
+    // Then（お題は開始前のまま。publish も開始時の 1 回のまま——
+    //       failover の isCurrent ガードを外すと、この reject が定型へ書き込み、
+    //       ここが red になる）
+    expect(store.get("R1")?.topic).toBeNull();
+    expect(tracker.calls.length).toBe(1);
+  });
+
+  it("先の生成が失敗しても、後から作り直した生成の成功だけが確定する", async () => {
+    // Given（cooldownMs 0 で間を空けずに作り直せる。呼び出しごとに resolve/reject を別々に持てる provider）
+    const clock = new FakeClock();
+    const { provider, calls } = makeQueuedProvider();
+    const limiter = new AiLimiter({ clock, dailyLimit: 10, cooldownMs: 0 });
+    const tracker = makePublishTracker();
+    const store = new InMemoryTopicStore();
+    store.put("R1", makeState({ aiUnlocked: true, topic: null }));
+    const generator = new TopicGenerator({
+      topics: store,
+      clock,
+      publish: tracker.publish,
+      provider,
+      aiLimiter: limiter,
+      logger: testLogger,
+      refEncoder: testRefEncoder,
+    });
+
+    // When（1 回目を開始 → 中断せず作り直す（2 回目）→ 1 回目が遅れて失敗する）
+    generator.request("R1", AI_REQ);
+    generator.request("R1", AI_REQ);
+    expect(calls.length).toBe(2);
+    calls[0]?.reject(new ProviderFailure("stale", "spawnFailed"));
+    await flushMicrotasks();
+
+    // Then（1 回目の失敗では確定しない。2 回目はまだ進行中——
+    //       isCurrent ガードを外すと、ここで定型へ落ちて red になる）
+    expect(store.get("R1")?.topic).toBeNull();
+    expect(store.get("R1")?.generating).toBe(true);
+    expect(tracker.calls.length).toBe(2); // 1 回目の開始・2 回目の開始のみ
+
+    // When（2 回目が成功で解決する）
+    calls[1]?.resolve({ title: "後の生成", body: "本文" });
+    await tracker.waitForCount(3);
+
+    // Then（2 回目の結果で確定する）
+    const state = store.get("R1");
+    expect(state?.topic).toEqual({ title: "後の生成", body: "本文", source: "ai" });
+    expect(state?.generating).toBe(false);
+  });
+
+  describe("限度枠の返却（グローバル同時実行 1 のため、返さないとサーバー全体の AI が止まる）", () => {
+    it("成功したら枠を返す", async () => {
+      // Given
+      const clock = new FakeClock();
+      const { provider, resolve } = makeControllableProvider();
+      const limiter = new AiLimiter({ clock, dailyLimit: 10, cooldownMs: 0 });
+      const tracker = makePublishTracker();
+      const store = new InMemoryTopicStore();
+      store.put("R1", makeState({ aiUnlocked: true }));
+      const generator = new TopicGenerator({
+        topics: store,
+        clock,
+        publish: tracker.publish,
+        provider,
+        aiLimiter: limiter,
+        logger: testLogger,
+        refEncoder: testRefEncoder,
+      });
+
+      // When
+      generator.request("R1", AI_REQ);
+      resolve({ title: "お題", body: "" });
+      await tracker.waitForCount(2);
+
+      // Then（別ルームがすぐ枠を取れる＝枠が返っている。release() を finish から外すと red になる）
+      const other = limiter.tryAcquire("R2");
+      expect(other.ok).toBe(true);
+      if (other.ok) other.release();
+    });
+
+    it("AI が失敗しても枠を返す", async () => {
+      // Given
+      const clock = new FakeClock();
+      const { provider, reject } = makeControllableProvider();
+      const limiter = new AiLimiter({ clock, dailyLimit: 10, cooldownMs: 0 });
+      const tracker = makePublishTracker();
+      const store = new InMemoryTopicStore();
+      store.put("R1", makeState({ aiUnlocked: true }));
+      const generator = new TopicGenerator({
+        topics: store,
+        clock,
+        publish: tracker.publish,
+        provider,
+        aiLimiter: limiter,
+        logger: testLogger,
+        refEncoder: testRefEncoder,
+      });
+
+      // When
+      generator.request("R1", AI_REQ);
+      reject(new ProviderFailure("boom", "spawnFailed"));
+      await tracker.waitForCount(2);
+
+      // Then
+      const other = limiter.tryAcquire("R2");
+      expect(other.ok).toBe(true);
+      if (other.ok) other.release();
+    });
+
+    it("タイムアウトしても枠を返す", async () => {
+      // Given
+      const clock = new FakeClock();
+      const { provider } = makeControllableProvider();
+      const limiter = new AiLimiter({ clock, dailyLimit: 10, cooldownMs: 0 });
+      const tracker = makePublishTracker();
+      const store = new InMemoryTopicStore();
+      store.put("R1", makeState({ aiUnlocked: true }));
+      const generator = new TopicGenerator({
+        topics: store,
+        clock,
+        publish: tracker.publish,
+        provider,
+        aiLimiter: limiter,
+        aiTimeoutMs: 15,
+        logger: testLogger,
+        refEncoder: testRefEncoder,
+      });
+
+      // When
+      generator.request("R1", AI_REQ);
+      await tracker.waitForCount(2);
+
+      // Then
+      const other = limiter.tryAcquire("R2");
+      expect(other.ok).toBe(true);
+      if (other.ok) other.release();
+    });
+
+    it("中断しても枠を返す", () => {
+      // Given
+      const clock = new FakeClock();
+      const { provider } = makeControllableProvider();
+      const limiter = new AiLimiter({ clock, dailyLimit: 10, cooldownMs: 0 });
+      const tracker = makePublishTracker();
+      const store = new InMemoryTopicStore();
+      store.put("R1", makeState({ aiUnlocked: true }));
+      const generator = new TopicGenerator({
+        topics: store,
+        clock,
+        publish: tracker.publish,
+        provider,
+        aiLimiter: limiter,
+        logger: testLogger,
+        refEncoder: testRefEncoder,
+      });
+
+      // When
+      generator.request("R1", AI_REQ);
+      generator.cancel("R1");
+
+      // Then（release() を cancel から外すと red になる）
+      const other = limiter.tryAcquire("R2");
+      expect(other.ok).toBe(true);
+      if (other.ok) other.release();
+    });
+  });
+
+  it("provider が同期的に例外を投げても、定型へ落として枠を返す", async () => {
+    // Given（呼ばれた瞬間に（Promise を返さず）例外を投げる provider）
+    const clock = new FakeClock();
+    const provider: ServerTopicProvider = {
+      generate: () => {
+        throw new Error("同期的に壊れた provider");
+      },
+    };
+    const limiter = new AiLimiter({ clock, dailyLimit: 10, cooldownMs: 0 });
+    const tracker = makePublishTracker();
+    const store = new InMemoryTopicStore();
+    store.put("R1", makeState({ aiUnlocked: true }));
+    const generator = new TopicGenerator({
+      topics: store,
+      clock,
+      publish: tracker.publish,
+      provider,
+      aiLimiter: limiter,
+      logger: testLogger,
+      refEncoder: testRefEncoder,
+    });
+
+    // When
+    generator.request("R1", AI_REQ);
+    await tracker.waitForCount(2);
+
+    // Then（定型へ縮退し、枠も返っている＝ active/timer/枠が残って固まっていない）
+    const state = store.get("R1");
+    expect(state?.degraded).toBe(true);
+    expect(state?.topic?.source).not.toBe("ai");
+    expect(state?.generating).toBe(false);
+    const other = limiter.tryAcquire("R2");
+    expect(other.ok).toBe(true);
+    if (other.ok) other.release();
   });
 
   it("日次上限なら定型へ落として縮退する", () => {
