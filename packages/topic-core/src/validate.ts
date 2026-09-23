@@ -20,18 +20,15 @@ const TopicDraftSchema = v.object({ title: titleStr, body: bodyStr });
 /**
  * {@link validateTopicDraft} が返す失敗の型。
  *
- * 名前を与えているのは、`TopicDraftSchema` を公開契約から落としているためである
- * (#220 と同じ理由。素の `v.ValiError<typeof TopicDraftSchema>` は値が非公開だと
- * 外から注釈を書けない)。
+ * `v.safeParse` が失敗したとき返すのは `ValiError` のインスタンスではなく、
+ * `issues`(検証に失敗した理由の配列。1 件以上)そのものである。ここではその
+ * 実際の値の形に名前を与えている。`TopicDraftSchema` を公開契約から落としているため、
+ * `v.InferIssue<typeof TopicDraftSchema>` は外から書けず、`v.BaseIssue<unknown>` で表す
+ * (#220 と同じ「非公開の値に依存しない名前を与える」理由)。
  */
-export type TopicDraftError = v.ValiError<typeof TopicDraftSchema>;
+export type TopicDraftError = [v.BaseIssue<unknown>, ...v.BaseIssue<unknown>[]];
 
 export function validateTopicDraft(raw: unknown): Result<TopicDraft, TopicDraftError> {
   const result = v.safeParse(TopicDraftSchema, raw);
-  if (result.success) {
-    return ok(result.output);
-  }
-  // `TopicDraftSchema` を公開しないため、`v.ValiError<typeof TopicDraftSchema>` を
-  // 型どおりには構築できない(`timer-core` の `validateProblem` と同じ回避)。
-  return err(result.issues as never);
+  return result.success ? ok(result.output) : err(result.issues);
 }
