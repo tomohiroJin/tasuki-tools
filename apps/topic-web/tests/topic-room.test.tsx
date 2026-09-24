@@ -95,6 +95,14 @@ describe('いまのお題', () => {
     expect(screen.getByRole('button', { name: copy.FALLBACK_BUTTON })).toBeEnabled();
   });
 
+  it('Given 生成中 / When 画面を見る / Then 作っています…は aria-busy の要素の外にある', () => {
+    // Given
+    // When: 画面を見る（`aria-busy` の内容変化は支援技術が busy の間は無視してよい・レビュー指摘）
+    enterWith({ ...IDLE_STATE, generating: true, topic: FIZZ });
+    // Then
+    expect(screen.getByText(copy.GENERATING_TEXT).closest('[aria-busy="true"]')).toBeNull();
+  });
+
   it('Given 定型に落ちた / When 画面を見る / Then 定型にしたと伝える', () => {
     enterWith({ ...IDLE_STATE, degraded: true, topic: { ...FIZZ, source: 'fallback' } });
     expect(screen.getByText(copy.DEGRADED_TEXT)).toBeInTheDocument();
@@ -238,7 +246,7 @@ describe('操作できない間', () => {
     expect(screen.getByRole('heading', { name: copy.JOINING_HEADING })).toBeInTheDocument();
   });
 
-  it('Given 解錠済みで下書きと合言葉がある / When 切れて繋ぎ直し、参加の返事を待つ / Then どの操作も押せず、返事が来たら押せる', () => {
+  it('Given 解錠済みで下書きがある / When 切れて繋ぎ直し、参加の返事を待つ / Then どの操作も押せず、返事が来たら押せる', () => {
     // Given
     vi.useFakeTimers();
     enterWith({ ...IDLE_STATE, aiUnlocked: true, topic: FIZZ });
@@ -270,6 +278,23 @@ describe('操作できない間', () => {
     act(() => latestSocket().drop());
     // Then
     expect(screen.getByRole('button', { name: copy.UNLOCK_BUTTON })).toBeDisabled();
+  });
+
+  it('Given 未解錠で合言葉を書いてある / When 切れて繋ぎ直し、参加の返事を待つ / Then 解錠するは押せず、返事が来たら押せる', () => {
+    // Given
+    vi.useFakeTimers();
+    enterWith();
+    fireEvent.change(screen.getByLabelText(copy.UNLOCK_LABEL), { target: { value: 'secret' } });
+    // When: 切れて、繋ぎ直した（接続は開いているが、まだ参加していない窓）
+    act(() => latestSocket().drop());
+    act(() => vi.advanceTimersByTime(30_000));
+    act(() => latestSocket().open());
+    // Then その1: 参加の返事が来るまでは押せない
+    expect(screen.getByRole('button', { name: copy.UNLOCK_BUTTON })).toBeDisabled();
+    // Then その2: 返事が来たら押せる
+    act(() => latestSocket().deliver({ type: 'room.joined', code: 'R1', participantId: 'p1', resumeToken: 't1' }));
+    expect(screen.getByRole('button', { name: copy.UNLOCK_BUTTON })).toBeEnabled();
+    vi.useRealTimers();
   });
 
   it('Given 入れていた / When 切れる / Then 画面を保ったまま再接続中と伝える', () => {

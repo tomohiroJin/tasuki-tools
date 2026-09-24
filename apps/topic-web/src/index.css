@@ -68,12 +68,15 @@
 
 /* ---------- 接続の告知（poker-web と同じ役割。色は @tasuki/ui の警告の語彙で表す） ---------- */
 
+/* `position: sticky` で下の内容が透けるため、地は不透明にする（レビュー指摘・#297 と同じ理由）。
+   `--rose-tint`/`--rose-veil` は半透明で unreachable が約 4.2:1 まで落ち AA を割った。
+   区別は下線の色（既定 `--rose-edge`／unreachable は太い `--rose-bright`）と太字で出す。 */
 .connection-banner {
   position: sticky;
   top: 0;
   z-index: 10;
   padding: var(--space-2) var(--space-4);
-  background: var(--rose-tint);
+  background: var(--felt-950);
   border-bottom: 1px solid var(--rose-edge);
   color: var(--rose-pale);
   font-size: var(--font-size-sm);
@@ -82,7 +85,8 @@
 
 /* 繋がらない状態は「切れて戻る途中」より強く出す（色だけに頼らず文言でも区別している）。 */
 .connection-banner.unreachable {
-  background: var(--rose-veil);
+  border-bottom-color: var(--rose-bright);
+  border-bottom-width: 2px;
   font-weight: 700;
 }
 
