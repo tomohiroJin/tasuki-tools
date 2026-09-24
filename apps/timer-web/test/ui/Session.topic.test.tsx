@@ -87,7 +87,7 @@ describe("Session のお題の札", () => {
     expect(screen.getByRole("region", { name: "お題" })).toBeInTheDocument();
   });
 
-  it("Given お題が無い / When セッションを描く / Then お題の札は出ない（E16）", () => {
+  it("Given お題が無い / When セッションを描く / Then お題の札は出ない", () => {
     // Given / When
     render(
       <Session

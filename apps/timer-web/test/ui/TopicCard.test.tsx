@@ -19,12 +19,19 @@ describe("お題の札", () => {
     expect(within(region).getByRole("listitem")).toHaveTextContent("3 のときは Fizz");
   });
 
-  it("Given 本文が空 / When 描く / Then タイトルだけが出る", () => {
+  it("Given 本文が空 / When 描く / Then タイトルの見出しの後ろに本文の要素が続かない", () => {
     // Given
     const topic = { title: "FizzBuzz", body: "", source: "manual" as const };
     // When
     render(<TopicCard topic={topic} />);
     // Then
-    expect(screen.getByRole("region", { name: "お題" }).querySelector(".md")).toBeNull();
+    // 「お題」領域の最後の子要素がタイトルの見出し（h3）であること。
+    // Markdown の外側の div が本文の有無に関わらず描かれると、それが
+    // 最後の子要素になってこの比較が崩れる（`TopicCard.tsx` の
+    // `topic.body !== ""` の条件を外すと赤になることを確認済み・
+    // task-3-report.md「修正 1 回目」参照）。
+    const region = screen.getByRole("region", { name: "お題" });
+    const heading = within(region).getByRole("heading", { level: 3, name: "FizzBuzz" });
+    expect(region.lastElementChild).toBe(heading);
   });
 });
