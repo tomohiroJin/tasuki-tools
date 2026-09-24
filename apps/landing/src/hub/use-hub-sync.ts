@@ -29,6 +29,7 @@ import {
 } from '@tasuki/sync-client';
 import { parseBoundaryMessage } from '@tasuki/protocol';
 import { HubServerMsgSchema, type HubCommand, type RosterRoom } from '@tasuki/room-core';
+import { TopicFrameSchema } from '@tasuki/topic-core';
 import { readRoomParam } from './room-param.js';
 import { usableDefaultDisplayName } from './default-display-name.js';
 
@@ -76,6 +77,12 @@ export interface HubSync {
    * （`docs/guides/architecture.md` の層の対応表・`docs/adr/0015`）。
    */
   readonly inviteUrl: string | null;
+  /**
+   * いまのお題のタイトル（無ければ null）。**タイトルだけを持ち、説明は持たない**（spec §5.5）。
+   *
+   * お題の状態はハブの言葉ではなく、ルーム横断の `topic` フレームで届く（spec T3）。
+   */
+  readonly topicTitle: string | null;
   createRoom(roomName: string, displayName: string): void;
   joinRoom(displayName: string, passphrase?: string): void;
 }
@@ -125,6 +132,7 @@ export function useHubSync(): HubSync {
   );
   const [gone, setGone] = useState(false);
   const [roster, setRoster] = useState<RosterRoom | null>(null);
+  const [topicTitle, setTopicTitle] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [needsPassphrase, setNeedsPassphrase] = useState(false);
   const [connection, setConnection] = useState<'online' | 'reconnecting'>('online');
@@ -243,6 +251,14 @@ export function useHubSync(): HubSync {
     const conn = new SyncConnection({
       url: buildHubSyncUrl(window.location),
       onMessage: (raw) => {
+        // お題の状態（spec T3）。ハブの言葉ではないので、ハブのスキーマより先に topic-core の
+        // スキーマで見分ける（見分けるのはアプリ層・spec §5.5）。
+        const topic = parseBoundaryMessage(TopicFrameSchema, raw);
+        if (topic.isOk()) {
+          setTopicTitle(topic.value.state.topic?.title ?? null);
+          return;
+        }
+
         // 境界の検証（原則 IV）。契約に合わないフレームは**捨てる** ——
         // 画面の状態を壊すより、更新されないほうが害が小さい。
         const parsed = parseBoundaryMessage(HubServerMsgSchema, raw);
@@ -415,6 +431,7 @@ export function useHubSync(): HubSync {
     gone,
     inviteUrl: code === null ? null : buildInviteUrl(window.location.origin, code),
     roster,
+    topicTitle,
     defaultDisplayName,
     error,
     needsPassphrase,

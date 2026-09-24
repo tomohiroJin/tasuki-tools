@@ -5,7 +5,7 @@
  * （札の上では線の太さが世界観に直結する）。
  */
 interface Props {
-  readonly kind: "ring" | "spade";
+  readonly kind: "ring" | "spade" | "flag";
 }
 
 export function ToolMark({ kind }: Props) {
@@ -25,6 +25,16 @@ export function ToolMark({ kind }: Props) {
           transform="rotate(-129 24 24)"
         />
         <line x1="24" y1="24" x2="24" y2="11" strokeWidth="2.5" strokeLinecap="round" />
+      </svg>
+    );
+  }
+
+  if (kind === "flag") {
+    // お題の旗。竿が 1 本立ち、上に三角の旗がはためく（「掲げる」の姿）。
+    return (
+      <svg viewBox="0 0 48 48" className="tool-mark" aria-hidden="true" focusable="false">
+        <line x1="14" y1="6" x2="14" y2="42" strokeWidth="2.5" strokeLinecap="round" />
+        <path d="M15 8c6-3 11 3 19 0v14c-8 3-13-3-19 0z" strokeWidth="0" />
       </svg>
     );
   }

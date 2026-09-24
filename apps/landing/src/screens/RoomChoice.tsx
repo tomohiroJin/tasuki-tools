@@ -21,9 +21,14 @@ export interface RoomChoiceProps {
   readonly inviteUrl: string;
   readonly roster: RosterRoom | null;
   readonly connection: 'online' | 'reconnecting';
+  /**
+   * いまのお題のタイトル（無ければ null）。**説明は受け取らない**
+   * （玄関はタイトルだけを出す・spec §5.5）。
+   */
+  readonly topicTitle: string | null;
 }
 
-export function RoomChoice({ code, inviteUrl, roster, connection }: RoomChoiceProps) {
+export function RoomChoice({ code, inviteUrl, roster, connection, topicTitle }: RoomChoiceProps) {
   const participants = roster?.participants ?? [];
   const copy = useCopyText(inviteUrl);
   const [showQr, setShowQr] = useState(false);
@@ -63,6 +68,12 @@ export function RoomChoice({ code, inviteUrl, roster, connection }: RoomChoicePr
               </li>
             ))}
           </ul>
+          {topicTitle !== null && (
+            <p className="hub-topic">
+              <span className="hub-label">いまのお題</span>
+              <span className="hub-topic-title">{topicTitle}</span>
+            </p>
+          )}
         </section>
         <div className="hub-room">
           <section className="hub-panel" aria-labelledby="hub-roster-heading">
@@ -115,15 +126,10 @@ export function RoomChoice({ code, inviteUrl, roster, connection }: RoomChoicePr
  *
  * **綴りの正本はサーバー**（`apps/tasuki-sync/src/application/tool-id.ts`）で、
  * 見せ方の正本は `src/tools.ts` である（設計正本 §7 の既知の地雷 4）。
+ * **名前はツール ID で引く**（並び順で引くと、札を足したときにずれる・#91 PR 2）。
  * 知らない綴りはそのまま出す —— 隠すと、増えたツールが黙って消える。
  */
 function whereLabel(tools: readonly string[]): string {
-  const names = tools.map((id) => TOOL_NAMES[id] ?? id);
+  const names = tools.map((id) => TOOLS.find((tool) => tool.id === id)?.name ?? id);
   return `${names.join(' / ')} にいます`;
 }
-
-/** ツール ID → 札の名前。`src/tools.ts` の並びと対応する。 */
-const TOOL_NAMES: Record<string, string | undefined> = {
-  timer: TOOLS[0]?.name,
-  poker: TOOLS[1]?.name,
-};

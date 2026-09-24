@@ -212,6 +212,7 @@ describe('選択画面', () => {
         inviteUrl={INVITE_URL}
         roster={roster}
         connection="online"
+        topicTitle={null}
       />);
 
     // When（操作）: 配る URL を読む
@@ -231,6 +232,7 @@ describe('選択画面', () => {
         inviteUrl={INVITE_URL}
         roster={roster}
         connection="online"
+        topicTitle={null}
       />);
 
     // Then: 意匠（手札）は変えず、href にコードを付けるだけ（設計正本 §5.7）
@@ -253,6 +255,7 @@ describe('選択画面', () => {
         inviteUrl={INVITE_URL}
         roster={roster}
         connection="online"
+        topicTitle={null}
       />);
 
     // Then: 選択画面に居る人（tools が空）には出さない
@@ -270,6 +273,7 @@ describe('選択画面', () => {
         inviteUrl={INVITE_URL}
         roster={roster}
         connection="online"
+        topicTitle={null}
       />);
 
     // Then
@@ -280,7 +284,7 @@ describe('選択画面', () => {
 
   it('Given 再接続中 / When 選択画面を見る / Then 状態が知らされる', () => {
     // Given（準備）: 接続が切れている状態を渡す
-    const props = { code: 'R1', inviteUrl: INVITE_URL, roster, connection: 'reconnecting' } as const;
+    const props = { code: 'R1', inviteUrl: INVITE_URL, roster, connection: 'reconnecting', topicTitle: null } as const;
 
     // When（操作）/ Then: 選択画面を映すと、状態が読み上げ可能な形で出る
     render(<RoomChoice {...props} />);
@@ -299,7 +303,7 @@ describe('選択画面', () => {
 
     // When（操作）
     render(
-      <RoomChoice code="R1" inviteUrl={INVITE_URL} roster={ambiguous} connection="online" />,
+      <RoomChoice code="R1" inviteUrl={INVITE_URL} roster={ambiguous} connection="online" topicTitle={null} />,
     );
 
     // Then

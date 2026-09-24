@@ -16,11 +16,10 @@ import { TOOLS } from '../src/tools.js';
  * テストが綴りを写していると、`tools.ts` を変えたときに**画面もテストも揃って
  * 古いまま緑**になる（1 つでも取り残すと白画面か 404 になる、と同じ文書が警告している）。
  *
- * **選ぶ鍵に `href` を使わない** —— 使うと突き合わせが恒真になる。`Tool` に識別子が
- * 無いので札の意匠（`mark`）で引く。意匠を変えた人はここで `undefined` を踏み、
- * 対応を考える機会を得る。
+ * **選ぶ鍵に `href` を使わない** —— 使うと突き合わせが恒真になる。ツール ID で引く
+ * （#91 PR 2 で `Tool` に `id` を足した。それまでは札の意匠（`mark`）で引いていた）。
  */
-const TIMER_BASE = TOOLS.find((tool) => tool.mark === 'ring')?.href;
+const TIMER_BASE = TOOLS.find((tool) => tool.id === 'timer')?.href;
 
 describe('HistoryLink（端末の記録への入口）', () => {
   it('Given tools.ts の宣言 / When timer の札を引く / Then 公開パスが取れる（この後の期待値の土台）', () => {

@@ -223,6 +223,50 @@ describe('ハブの同期', () => {
     // Then
     expect(localStorage.getItem('tasuki:resume:R1')).toBeNull();
   });
+
+  it('Given 参加の応答 / When お題の状態が届く / Then 選択画面にいまのお題のタイトルが出る', () => {
+    // Given（準備）
+    window.history.replaceState(null, '', '/?room=R1');
+    render(<App />);
+    act(() => socket().open());
+
+    // When（操作）
+    act(() => {
+      socket().deliver({ type: 'room.joined', code: 'R1', participantId: 'p1', resumeToken: 't1' });
+      socket().deliver({
+        type: 'topic',
+        state: {
+          topic: { title: 'FizzBuzz', body: '説明は出さない', source: 'manual' },
+          generating: false,
+          degraded: false,
+          aiUnlocked: false,
+        },
+      });
+    });
+
+    // Then: タイトルだけを出し、説明は出さない（spec §5.5）
+    expect(screen.getByText('FizzBuzz')).toBeInTheDocument();
+    expect(screen.queryByText('説明は出さない')).toBeNull();
+  });
+
+  it('Given いまのお題が出ている / When お題が下ろされる / Then 行が消える', () => {
+    // Given（準備）
+    window.history.replaceState(null, '', '/?room=R1');
+    render(<App />);
+    act(() => socket().open());
+    const state = { generating: false, degraded: false, aiUnlocked: false };
+    act(() => {
+      socket().deliver({ type: 'room.joined', code: 'R1', participantId: 'p1', resumeToken: 't1' });
+      socket().deliver({ type: 'topic', state: { ...state, topic: { title: 'FizzBuzz', body: '', source: 'manual' } } });
+    });
+    expect(screen.getByText('FizzBuzz')).toBeInTheDocument();
+
+    // When（操作）
+    act(() => socket().deliver({ type: 'topic', state: { ...state, topic: null } }));
+
+    // Then
+    expect(screen.queryByText('いまのお題')).toBeNull();
+  });
 });
 
 /**

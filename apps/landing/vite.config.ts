@@ -35,6 +35,7 @@ export default defineConfig({
       '/ws': { target: 'ws://127.0.0.1:8787', changeOrigin: true, ws: true },
       '/timer': { target: 'http://127.0.0.1:5173', changeOrigin: true, ws: true },
       '/poker': { target: 'http://127.0.0.1:5174', changeOrigin: true, ws: true },
+      '/topic': { target: 'http://127.0.0.1:5176', changeOrigin: true, ws: true },
     },
   },
 });

@@ -47,6 +47,9 @@ importers:
       '@tasuki/sync-client':
         specifier: workspace:*
         version: link:../../packages/sync-client
+      '@tasuki/topic-core':
+        specifier: workspace:*
+        version: link:../../packages/topic-core
       '@tasuki/ui':
         specifier: workspace:*
         version: link:../../packages/ui
