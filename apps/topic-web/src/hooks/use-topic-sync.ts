@@ -81,6 +81,13 @@ export function useTopicSync(roomCode: string): TopicSync {
   /** 混雑で拒まれた回数（入れたら・繋ぎ直したら数え直す）。 */
   const retryRef = useRef(0);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /**
+   * `sendJoin` で送った直近の名前（玄関の `use-hub-sync.ts` の `lastJoinRef` と同じ考え方）。
+   *
+   * `room.joined` の到着時に `localStorage` を読み直すと、応答を待つ間に別のタブが組を
+   * 捨てていた場合に空の名前を拾ってしまう。**送った時点の名前をここに残し、それで保存する。**
+   */
+  const lastJoinRef = useRef<string | null>(null);
 
   const cancelRetry = useCallback(() => {
     if (retryTimerRef.current === null) return;
@@ -108,6 +115,7 @@ export function useTopicSync(roomCode: string): TopicSync {
         setNeedsHub(true);
         return;
       }
+      lastJoinRef.current = saved.displayName;
       conn.send({ command: 'room.join', code: roomCode, displayName: saved.displayName, resumeToken: saved.resumeToken });
     };
 
@@ -116,7 +124,11 @@ export function useTopicSync(roomCode: string): TopicSync {
       switch (plan.kind) {
         case 'gone':
           // 残すと、消えたルームへ毎回入り直そうとする（poker・玄関と同じ扱い）。
+          // `left` と同じく接続を畳む —— 畳まないと、後の切断で再接続してしまい、
+          // 「見つからない」画面が玄関への送り返しに置き換わる。
+          cancelRetry();
           clearResumeIdentity(roomCode);
+          conn.dispose();
           setGone(true);
           return;
         case 'left':
@@ -166,13 +178,14 @@ export function useTopicSync(roomCode: string): TopicSync {
           setTopicState(msg.state);
           return;
         case 'room.joined': {
-          // 端末の同一性は 4 つの画面で 1 つ（#95 S5b・D12）。名前は送ったときのものを残す。
-          const saved = loadResumeIdentity(roomCode);
+          // 端末の同一性は 4 つの画面で 1 つ（#95 S5b・D12）。名前は**送ったときのもの**を残す
+          // （ここで `localStorage` を読み直すと、応答を待つ間に別のタブが組を捨てていた場合に
+          // 空の名前を拾い、次の再接続で空の `displayName` を送ってサーバーに拒まれる）。
           saveResumeIdentity({
             code: msg.code,
             participantId: msg.participantId,
             resumeToken: msg.resumeToken,
-            displayName: saved?.displayName ?? '',
+            displayName: lastJoinRef.current ?? '',
           });
           retryRef.current = 0;
           setRetryNotice(null);

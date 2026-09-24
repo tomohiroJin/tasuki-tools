@@ -30,7 +30,7 @@ afterEach(() => {
 });
 
 /**
- * @requirements #91 E4 spec §5.4
+ * @requirements #91 spec §5.4
  */
 describe('お題ツールのルームへの入り方', () => {
   it('Given 復帰の組がある / When お題ツールを開く / Then お題の入口へ繋ぎ、保存済みの組で入る', () => {
@@ -58,25 +58,31 @@ describe('お題ツールのルームへの入り方', () => {
     expect(redirectTo).toHaveBeenCalledWith('/?room=R1');
   });
 
-  it('Given 入れた / When いまのお題が届く / Then 画面にタイトルが出る', () => {
-    // Given
-    saveResumeIdentity(RESUME);
-    render(<App />);
-    act(() => latestSocket().open());
-    // When
-    act(() => {
-      latestSocket().deliver({ type: 'room.joined', code: 'R1', participantId: 'p1', resumeToken: 't1' });
-      latestSocket().deliver({
-        type: 'topic',
-        state: { ...IDLE_STATE, topic: { title: 'FizzBuzz', body: '', source: 'manual' } },
+  /**
+   * @requirements #91 E4
+   */
+  describe('いまのお題の反映', () => {
+    it('Given 入れた / When いまのお題が届く / Then 画面にタイトルが出る', () => {
+      // Given
+      saveResumeIdentity(RESUME);
+      render(<App />);
+      act(() => latestSocket().open());
+      // When
+      act(() => {
+        latestSocket().deliver({ type: 'room.joined', code: 'R1', participantId: 'p1', resumeToken: 't1' });
+        latestSocket().deliver({
+          type: 'topic',
+          state: { ...IDLE_STATE, topic: { title: 'FizzBuzz', body: '', source: 'manual' } },
+        });
       });
+      // Then
+      expect(screen.getByRole('heading', { name: 'FizzBuzz' })).toBeInTheDocument();
     });
-    // Then
-    expect(screen.getByRole('heading', { name: 'FizzBuzz' })).toBeInTheDocument();
   });
 
   it('Given ルームが消えていた / When ROOM_NOT_FOUND が返る / Then 組を捨てて、見つからないと伝える', () => {
     // Given
+    vi.useFakeTimers();
     saveResumeIdentity(RESUME);
     render(<App />);
     act(() => latestSocket().open());
@@ -85,6 +91,10 @@ describe('お題ツールのルームへの入り方', () => {
     // Then
     expect(loadResumeIdentity('R1')).toBeNull();
     expect(screen.getByRole('heading', { name: GONE_HEADING })).toBeInTheDocument();
+    // Then: 接続を畳んでいるので、切れても繋ぎ直さない
+    act(() => latestSocket().drop());
+    act(() => vi.advanceTimersByTime(30_000));
+    expect(ScriptedWebSocket.instances).toHaveLength(1);
   });
 
   it('Given 合言葉つきのルームで組が効かない / When 合言葉を求められる / Then 玄関のそのルームへ送り返す', () => {
@@ -204,6 +214,18 @@ describe('お題ツールのルームへの入り方', () => {
     expect(loadResumeIdentity('R1')).toEqual({ ...RESUME, resumeToken: 't2' });
   });
 
+  it('Given 入れた組の応答を待つ間に別のタブが組を捨てた / When 参加の応答が届く / Then 送った名前のまま保存する', () => {
+    // Given
+    saveResumeIdentity(RESUME);
+    render(<App />);
+    act(() => latestSocket().open());
+    localStorage.clear();
+    // When: 応答が届く前に組が捨てられていても、送った名前で保存する
+    act(() => latestSocket().deliver({ type: 'room.joined', code: 'R1', participantId: 'p1', resumeToken: 't2' }));
+    // Then
+    expect(loadResumeIdentity('R1')).toEqual({ ...RESUME, resumeToken: 't2' });
+  });
+
   it('Given 切れている間に別のタブが組を捨てた / When 繋ぎ直す / Then 入ろうとせずに玄関へ送り返す', () => {
     // Given
     vi.useFakeTimers();
@@ -221,8 +243,9 @@ describe('お題ツールのルームへの入り方', () => {
     expect(redirectTo).toHaveBeenCalledWith('/?room=R1');
   });
 
-  it('Given 入れた / When 別のタブで抜けた知らせが届く / Then 組を捨て、理由を持って玄関へ戻る', () => {
+  it('Given 入れた / When 別のタブで抜けた知らせが届く / Then 組を捨て、接続を畳んで理由を持って玄関へ戻る', () => {
     // Given
+    vi.useFakeTimers();
     saveResumeIdentity(RESUME);
     render(<App />);
     act(() => latestSocket().open());
@@ -232,16 +255,26 @@ describe('お題ツールのルームへの入り方', () => {
     // Then
     expect(loadResumeIdentity('R1')).toBeNull();
     expect(redirectTo).toHaveBeenCalledWith('/?room=R1&left=self');
+    // Then: 接続を畳んでいるので、切れても繋ぎ直さない
+    act(() => latestSocket().drop());
+    act(() => vi.advanceTimersByTime(30_000));
+    expect(ScriptedWebSocket.instances).toHaveLength(1);
   });
 
-  it('Given 入れた / When 外された知らせが届く / Then 外された理由を持って玄関へ戻る', () => {
+  it('Given 入れた / When 外された知らせが届く / Then 組を捨て、接続を畳んで外された理由を持って玄関へ戻る', () => {
     // Given
+    vi.useFakeTimers();
     saveResumeIdentity(RESUME);
     render(<App />);
     act(() => latestSocket().open());
     // When
     act(() => latestSocket().deliver({ type: 'error', code: 'REMOVED_FROM_ROOM', message: 'x' }));
     // Then
+    expect(loadResumeIdentity('R1')).toBeNull();
     expect(redirectTo).toHaveBeenCalledWith('/?room=R1&left=removed');
+    // Then: 接続を畳んでいるので、切れても繋ぎ直さない
+    act(() => latestSocket().drop());
+    act(() => vi.advanceTimersByTime(30_000));
+    expect(ScriptedWebSocket.instances).toHaveLength(1);
   });
 });
