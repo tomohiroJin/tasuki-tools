@@ -32,17 +32,17 @@
 
 /* ---------- いまのお題（象牙の札） ---------- */
 
+/* body の羅紗グラデーション（felt-700〜felt-950）へ直接乗せない。地を持たない要素は
+ * 最も明るい停止点（felt-700）で測られ、既定の h2 色 `--gold` は 3.92:1 と AA を
+ * 割る（#91 PR 2・topic.spec の実測）。`.topic-panel` と同じ不透明な地（felt-900）を
+ * 与えて、見出しは既定の色のまま読めるようにする（felt-900 上で約 6.42:1）。 */
 .topic-current {
   display: grid;
   gap: var(--space-3);
-}
-
-/* 「いまのお題」の見出しは body の羅紗グラデーション（felt-700〜felt-950）へ直接乗る
- * （`.topic-panel` と違い不透明な地を持たない）。既定の h2 色 `--gold` は最も明るい
- * 停止点（felt-700）で 3.92:1 と AA を割るため、既存のトークン `--gold-bright`
- * （felt-700 上 5.80:1）へ替える（#91 PR 2・topic.spec の実測）。 */
-#topic-current-heading {
-  color: var(--gold-bright);
+  padding: var(--space-5);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  background: var(--felt-900);
 }
 
 .topic-card {
@@ -70,8 +70,12 @@
   color: var(--ivory-dim);
 }
 
+/* `.topic-error` も `<main>` 直下で不透明な地を持たない。`--rose-bright` は
+ * felt-700 上で約 3.55:1 と AA を割り、E2E のどのシナリオでも表示条件（同期エラー）
+ * に当たらないため走査に入らず気づけなかった（レビュー指摘）。より明るい
+ * `--rose-pale`（felt-700 上でも約 5.91:1）へ替える。 */
 .topic-error {
-  color: var(--rose-bright);
+  color: var(--rose-pale);
 }
 
 /* ---------- 接続の告知（poker-web と同じ役割。色は @tasuki/ui の警告の語彙で表す） ---------- */

@@ -8,7 +8,7 @@
  * 利用者の内容で拡張の層を引くのは正しい振る舞いだが、書体の検査が UI の劣化と区別できなくなる。
  */
 import { expect, test } from '../fixtures/test';
-import { expectFocusVisibleOnTab, expectReadable, scanContrast } from '../support/a11y';
+import { expectFocusVisibleOnTab, expectReadable, pairKey, resolveColors, scanContrast } from '../support/a11y';
 import { currentTopic, openTopicTool, setTopic } from '../support/topic';
 
 const TITLE = 'FizzBuzz';
@@ -45,9 +45,20 @@ test.describe('お題を玄関へ配る', () => {
     await guest.page.reload();
     await expect(guest.page.getByRole('region', { name: '道具を選ぶ' }).getByText(TITLE, { exact: true })).toBeVisible();
 
-    // どちらの画面も例外を出していない
+    // Then その4: 新規参加でも、いまのお題が届く（その3 は reload による復帰の経路。
+    //   こちらは別の文脈から招待 URL で初めて参加する経路で、届く仕組みが違う）
+    const newcomer = await openPeer('topic-newcomer');
+    await newcomer.page.goto(inviteUrl);
+    await newcomer.page.getByLabel('あなたの名前').fill('e2e-topic-c');
+    await newcomer.page.getByRole('button', { name: '参加する' }).click();
+    await expect(
+      newcomer.page.getByRole('region', { name: '道具を選ぶ' }).getByText(TITLE, { exact: true }),
+    ).toBeVisible();
+
+    // どの画面も例外を出していない
     expect(consoleWatcher.errors).toEqual([]);
     expect(guest.console.errors).toEqual([]);
+    expect(newcomer.console.errors).toEqual([]);
   });
 
   test('Given お題ツールに居る人 / When 玄関の参加者を見る / Then 札の名前で居場所が出る', async ({ page, openPeer }) => {
@@ -77,11 +88,13 @@ test.describe('お題ツールの入口', () => {
     await expect(stranger.page.getByRole('button', { name: '参加する' })).toBeVisible();
     expect(new URL(stranger.page.url()).pathname).toBe('/');
     expect(new URL(stranger.page.url()).searchParams.get('room')).toBe(code);
+    // 送り返し自体は例外を出していない
+    expect(stranger.console.errors).toEqual([]);
   });
 });
 
 test.describe('お題ツールの文字と書体', () => {
-  test('Given お題を出した画面 / When 文字を測る / Then すべて AA を満たし、常用の層の書体だけを読める', async ({ page }) => {
+  test('Given お題を出した画面 / When 文字を測る / Then すべて AA を満たし、常用の層の書体だけを読める', async ({ page, consoleWatcher }) => {
     // Given（何を取得したかを記録する）
     const fonts: string[] = [];
     page.on('request', (request) => {
@@ -90,9 +103,12 @@ test.describe('お題ツールの文字と書体', () => {
     await openTopicTool(page, 'a11y-topic');
     await setTopic(page, TITLE, BODY);
     await expect(currentTopic(page)).toContainText(BODY);
+    // 余裕の薄い 2 組: 「いまのお題」の見出し（`--gold` on `--felt-900`）と、
+    //   象牙の札の文字（`--coal` on `--ivory`）を測ったことを固定する（レビュー指摘・修正ラウンド 1）
+    const [gold, felt900, coal, ivory] = await resolveColors(page, ['--gold', '--felt-900', '--coal', '--ivory']);
 
     // When / Then その1: 文字が読める（象牙の札の上の字も含む）
-    expectReadable(await scanContrast(page, 10), 8, []);
+    expectReadable(await scanContrast(page, 10), 8, [pairKey(gold!, felt900!), pairKey(coal!, ivory!)]);
 
     // Then その2: 何かは取っていて、拡張の層を引いていない
     expect(fonts.length, `書体を 1 つも取っていない（${fonts.join(', ')}）`).toBeGreaterThan(0);
@@ -108,10 +124,15 @@ test.describe('お題ツールの文字と書体', () => {
     });
     expect(faces.filter((f) => f.endsWith(' error')), `読めなかった書体（${faces.join(', ')}）`).toEqual([]);
     expect(faces.filter((f) => f.endsWith(' loaded')).length, `読めた書体が無い（${faces.join(', ')}）`).toBeGreaterThan(0);
+
+    // 画面は例外を出していない
+    expect(consoleWatcher.errors).toEqual([]);
   });
 
-  test('Given お題ツール / When Tab で送る / Then 当たった操作要素に輪郭が出る', async ({ page }) => {
+  test('Given お題ツール / When Tab で送る / Then 当たった操作要素に輪郭が出る', async ({ page, consoleWatcher }) => {
     await openTopicTool(page, 'focus-topic');
     await expectFocusVisibleOnTab(page);
+    // 画面は例外を出していない
+    expect(consoleWatcher.errors).toEqual([]);
   });
 });
