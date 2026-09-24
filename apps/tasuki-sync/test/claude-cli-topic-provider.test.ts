@@ -222,6 +222,16 @@ describe("ClaudeCliTopicProvider", () => {
       const toolsIndex = args.indexOf("--tools");
       expect(toolsIndex).toBeGreaterThanOrEqual(0);
       expect(args[toolsIndex + 1]).toBe("");
+
+      // ツールを開き直す編集を塞ぐ: 空の `--tools` が最後の 2 つであり（後ろに値を足すと
+      // ツールが開く）、指定がそれぞれ 1 度だけ（後勝ちの 2 度目・`--tools=…` の形が無い）で、
+      // 許可リストの指定（`--allowedTools` / `--allowed-tools`）も無い
+      expect(args.slice(-2)).toEqual(["--tools", ""]);
+      expect(args.filter((a) => a === "--tools" || a.startsWith("--tools="))).toEqual(["--tools"]);
+      expect(
+        args.filter((a) => a === "--setting-sources" || a.startsWith("--setting-sources=")),
+      ).toEqual(["--setting-sources"]);
+      expect(args.filter((a) => /^--allowed-?tools(=|$)/i.test(a))).toEqual([]);
     });
   });
 });

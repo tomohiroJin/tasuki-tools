@@ -3,6 +3,7 @@
  * - スタンドアロンの claude バイナリを node:child_process で起動（Bun でも動作・vitest でもテスト可能）
  * - プロンプトは stdin 渡し（argv 長・エスケープ問題の回避）
  * - --strict-mcp-config 等でユーザー設定を読み込ませない（メモリ実測 726MB→355MB。spec 参照）
+ * - `--setting-sources "" --tools ""` で組み込みツールと利用者設定を閉じる（docs/adr/0012 D10）
  * - OAuth トークンは子プロセスの env にのみ渡す（ログ・snapshot 非混入）
  */
 import { spawn } from "node:child_process";
@@ -98,7 +99,7 @@ export class ClaudeCliTopicProvider implements ServerTopicProvider {
 
       const child = this.spawnFn("claude", args, {
         env: {
-          // PATH/HOME は必要(バイナリ解決・内部キャッシュ)。トークンはここだけに渡す。
+          // PATH/HOME は必要（バイナリ解決・内部キャッシュ）。トークンはここだけに渡す。
           PATH: process.env["PATH"],
           HOME: process.env["HOME"],
           CLAUDE_CODE_OAUTH_TOKEN: this.token,
