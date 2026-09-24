@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    // tests/ が node:fs・node:path を使う（書体の base 層の検査）。landing と同じ理由で明示する
+    "types": ["vite/client", "node"]
+  },
+  "include": ["src", "tests"]
+}

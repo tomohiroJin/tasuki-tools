@@ -140,6 +140,17 @@ export const ALLOWED = {
     "@tasuki/sync-client",
     "@tasuki/ui",
   ],
+  // #91 PR 2: お題ツール。お題を変えられる唯一の画面（spec T4）。
+  // **timer-core・poker-core を知らない**（ツール同士は直接の関係を持たない・spec T1）。
+  // room-core はハブの形（`room.join` の応答・参加の失敗）を検めるために使う。
+  "apps/topic-web": [
+    "@tasuki/dev-hub-redirect",
+    "@tasuki/protocol",
+    "@tasuki/room-core",
+    "@tasuki/sync-client",
+    "@tasuki/topic-core",
+    "@tasuki/ui",
+  ],
   // #95 S2 で apps/timer-sync と apps/poker-sync がここへ統合された。
   // poker-core が加わったのはそのため（統合前は poker-sync 側の依存）。
   "apps/tasuki-sync": [

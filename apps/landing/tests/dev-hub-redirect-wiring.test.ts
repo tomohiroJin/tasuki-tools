@@ -36,7 +36,7 @@ function findRepoRoot(from: string): string {
 const REPO_ROOT = findRepoRoot(process.cwd());
 
 /** 玄関へ送り返す必要があるのは、玄関以外の dev サーバー（＝ツール側）である。 */
-const TOOL_APPS = ['timer-web', 'poker-web'];
+const TOOL_APPS = ['timer-web', 'poker-web', 'topic-web'];
 
 describe.each(TOOL_APPS)('%s の vite.config.ts', (app) => {
   const source = readFileSync(path.join(REPO_ROOT, 'apps', app, 'vite.config.ts'), 'utf8');

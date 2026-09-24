@@ -55,6 +55,8 @@ export const SCANNED_PACKAGES = [
   // #95 S2 で apps/timer-sync と apps/poker-sync がここへ統合された。
   "apps/tasuki-sync",
   "apps/timer-web",
+  // #91 PR 2 で新設（お題ツール）。
+  "apps/topic-web",
   "packages/dev-hub-redirect",
   "packages/poker-core",
   "packages/protocol",

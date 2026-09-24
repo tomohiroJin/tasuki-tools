@@ -19,7 +19,7 @@
  * 宣言した web アプリ（{@link WEB_APPS}）ごとに、`src` 配下の `.ts` / `.tsx` / `.js` / `.jsx`
  * について検査 1・2 を見る。
  *
- * **3 つの web アプリすべてを宣言する**（timer / poker / LP）。poker-web には
+ * **4 つの web アプリすべてを宣言する**（timer / poker / LP / topic）。poker-web には
  * `sync/client` に相当するモジュールが無く、`hooks/useSync.ts` が `new WebSocket` を
  * 直接持つ。検査 1 だけだと poker 側は宣言が空でも通ってしまう（片側検査）。
  * 検査 2 が全アプリに効く形なので、これで poker 側も縛られる。
@@ -143,6 +143,17 @@ export const WEB_APPS = [
     // 接続の実体は `@tasuki/sync-client` にあり、**LP の `src` は WS を自分で持たない**。
     // **この 3 つが空であることが宣言である** —— `wsHolders: []` は「1 行でも
     // `new WebSocket(` を書いたら違反」という最も強い形で検査 2 を効かせる。
+    syncModules: [],
+    allowedImporters: [],
+    wsHolders: [],
+  },
+  {
+    app: "apps/topic-web",
+    // #91 PR 2。接続の実体は `@tasuki/sync-client` にあり、**src は WS を自分で持たない**
+    // （landing と同じ宣言。`wsHolders: []` は「1 行でも `new WebSocket(` を書いたら違反」）。
+    // ⚠ この宣言は**画面（`.tsx`）が `@tasuki/sync-client` を直接 import することは見ない**
+    // （`syncModules` はアプリ内の相対パスだけを見る）。その守りは Task 4 の
+    // `tests/screens-do-not-import-sync-client.test.ts` が topic-web の中で持つ。
     syncModules: [],
     allowedImporters: [],
     wsHolders: [],

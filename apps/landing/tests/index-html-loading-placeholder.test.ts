@@ -1,11 +1,11 @@
 /**
- * 選択画面から timer / poker へ移動する遷移中の白画面対策
- * （#95 S5c 追補・利用者の実画面フィードバック）。
+ * 選択画面から timer / poker / topic へ移動する遷移中の白画面対策
+ * （#95 S5c 追補・#91 PR 2・利用者の実画面フィードバック）。
  *
  * React が起動する前（HTML が届いて JS をダウンロード・パースする間）は
  * `Loading`（`apps/timer-web/src/ui/Loading.tsx`）を描けない。この区間を
  * 埋められるのは `index.html` の `<div id="root">` に置いた静的なプレースホルダ
- * だけである。3 つのアプリすべてに置かないと、置き忘れたアプリだけ
+ * だけである。4 つのアプリすべてに置かないと、置き忘れたアプリだけ
  * 白い画面が残る —— それを個別の `it` で検出する（まとめて OR で見ると
  * 1 つ消しても通ってしまう）。
  *
@@ -56,6 +56,7 @@ const APPS: { name: string; indexHtml: string }[] = [
   { name: 'landing', indexHtml: 'apps/landing/index.html' },
   { name: 'timer-web', indexHtml: 'apps/timer-web/index.html' },
   { name: 'poker-web', indexHtml: 'apps/poker-web/index.html' },
+  { name: 'topic-web', indexHtml: 'apps/topic-web/index.html' },
 ];
 
 describe('index.html の #root に、React 起動前を埋めるプレースホルダがある', () => {
