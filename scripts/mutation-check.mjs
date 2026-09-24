@@ -1058,9 +1058,9 @@ export const MUTATIONS = [
     tests: ["tests/room-choice-layout.test.tsx"],
     note:
       "#91 PR 2。`whereLabel` が `TOOLS.find` によるツール ID 引きをやめ、" +
-      "`['timer', 'poker']` という古い並び順の添字で名前を引くようになる。お題ツールを" +
-      "足したことで `TOOLS` の並びは ['topic', 'timer', 'poker'] になっており、" +
-      "在席先の表示が実際のツールとずれた名前（または undefined）で出る。",
+      "`['timer', 'poker']` という古い並び順の添字で名前を引くようになる。この表に" +
+      "お題ツールは無いので `indexOf('topic')` が -1 になり、`TOOLS[-1]` は undefined で" +
+      "名前の代わりに生の ID「topic」が出る（「Topic Board」と出ない）。",
   },
   {
     id: 88,
@@ -1134,6 +1134,32 @@ export const MUTATIONS = [
       "抜けた・外された知らせが、玄関へ理由つきで戻す `left` ではなく「その場でサーバーの" +
       "文を伝える」`show` へ落ちる。本人は玄関へ戻らず、お題の画面にエラー文だけが" +
       "出た状態に取り残される。",
+  },
+  {
+    id: 94,
+    label: "お題ツールの Markdown が行区切り U+2028 で止まらなくなる",
+    patch: "m94-topic-markdown-line-separator-loop.patch",
+    pkg: "apps/topic-web",
+    tests: ["tests/markdown.test.tsx"],
+    note:
+      "#91 PR 2・最終レビューの指摘（C1）。改行の正規化から U+2028 / U+2029 を外し、" +
+      "かつ段落の前進の保証を外す。見出しの判定の `.` がその字に一致せず、段落の停止条件" +
+      "だけが止まるので、空の段落を積み続けて解析が返らない。本文はサーバーが長さしか" +
+      "見ずに配るので、そのルームでお題ツールを開いた全員のタブが固まる。同期の関数が" +
+      "返らないのでテストの timeout では止まらず、ワーカーがメモリを使い切って落ちる" +
+      "（手元で約 40 秒・exit 1。検査はハングしない）。",
+  },
+  {
+    id: 95,
+    label: "timer の Markdown が行区切り U+2028 で止まらなくなる",
+    patch: "m95-timer-markdown-line-separator-loop.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/Markdown.test.tsx"],
+    note:
+      "#91 PR 2・最終レビューの指摘（C1）。m94 と同じ変異を timer-web の Markdown に" +
+      "当てる（main から同じ正規表現を持っていた）。共有メモのプレビューとお題の説明が" +
+      "同じ部品を使うので、本番の timer でも起こりうる。ワーカーがメモリを使い切って" +
+      "落ちる（手元で約 40 秒・exit 1）。",
   },
 ];
 

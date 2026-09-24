@@ -71,4 +71,27 @@ describe('Markdown（安全な MD サブセット）', () => {
     // Then
     expect(screen.getByRole('heading', { name: '大見出し', level: 4 })).toBeTruthy();
   });
+
+  it('Given 行区切り U+2028 / U+2029 を含む見出し / When 描画する / Then 止まらずに見出しとして出す', () => {
+    // Given（U+2028・U+2029 は見出しの `.` に一致しない。解析が前へ進まず固まった入力）
+    const sources = ['# 見出し\u2028続き', '## a\u2029b'];
+    // When
+    const { unmount } = render(<Markdown source={sources[0]!} />);
+    const headingText = screen.getByRole('heading', { level: 4 }).textContent;
+    unmount();
+    render(<Markdown source={sources[1]!} />);
+    // Then
+    expect(headingText).toBe('見出し');
+    expect(screen.getByRole('heading', { level: 5 }).textContent).toBe('a');
+  }, 2000);
+
+  it('Given U+2028 を含む普通の段落 / When 描画する / Then 止まらずに両方の行を出す', () => {
+    // Given
+    const source = '一行目\u2028二行目';
+    // When
+    const { container } = render(<Markdown source={source} />);
+    // Then
+    expect(container.textContent).toContain('一行目');
+    expect(container.textContent).toContain('二行目');
+  }, 2000);
 });

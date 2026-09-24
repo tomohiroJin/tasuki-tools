@@ -100,7 +100,9 @@ type Block =
 
 /** 行配列をブロックに区切る。 */
 function parseBlocks(src: string): Block[] {
-  const lines = src.replace(/\r\n?/g, '\n').split('\n');
+  // U+2028 / U+2029（行区切り・段落区切り）も改行として扱う。正規表現の `.` はこれらに
+  // 一致しないので、残すと見出しの判定と段落の停止条件が食い違う（下の前進の保証を参照）。
+  const lines = src.replace(/\r\n?|[\u2028\u2029]/g, '\n').split('\n');
   const blocks: Block[] = [];
   let i = 0;
   while (i < lines.length) {
@@ -170,6 +172,13 @@ function parseBlocks(src: string): Block[] {
       !/^>\s?/.test(lines[i] ?? '') &&
       !(lines[i] ?? '').trimStart().startsWith('```')
     ) {
+      para.push(lines[i] ?? '');
+      i++;
+    }
+    // 前進の保証: どの規則にも当たらずに止まった（段落が空の）ときは、その 1 行を段落として
+    // 取り込んで進める。見出しの判定と段落の停止条件が食い違うと、空の段落を積み続けて
+    // 止まらない（U+2028 で実際に起きた）。どちらの規則が変わっても前へ進むための守り。
+    if (para.length === 0) {
       para.push(lines[i] ?? '');
       i++;
     }

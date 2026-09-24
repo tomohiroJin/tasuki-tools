@@ -10,9 +10,9 @@
 # 復元: git apply -R scripts/mutations/m87-*.patch
 #
 # #91 PR 2。玄関の `whereLabel` が ID ではなく `['timer', 'poker']` という並び順で
-# 名前を引くようになる。お題ツールを足したことで `TOOLS` の並びは
-# ['topic', 'timer', 'poker'] になっており、この並び順表は古いままなので、
-# 実在のツール ID とずれた名前（またはズレて undefined 化した名前）が出る。
+# 名前を引くようになる。この並び順表にお題ツールは無いので `indexOf('topic')` が -1 に
+# なり、`TOOLS[-1]` は undefined で、名前の代わりに生の ID「topic」が出る
+# （テストが期待する「Topic Board / TDD Mob Pro Timer にいます」にならない）。
 diff --git a/apps/landing/src/screens/RoomChoice.tsx b/apps/landing/src/screens/RoomChoice.tsx
 --- a/apps/landing/src/screens/RoomChoice.tsx
 +++ b/apps/landing/src/screens/RoomChoice.tsx
