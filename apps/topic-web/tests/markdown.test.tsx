@@ -12,7 +12,7 @@ import { render, screen } from '@testing-library/react';
 import { Markdown } from '../src/components/Markdown';
 
 describe('Markdown（安全な MD サブセット）', () => {
-  it('[表示](https://…) を安全なリンクとして描画する', () => {
+  it('Given [表示](URL) 記法 / When 描画する / Then 安全なリンクとして出す', () => {
     // Given
     const source = '[Google](https://google.com)';
     // When
@@ -24,7 +24,7 @@ describe('Markdown（安全な MD サブセット）', () => {
     expect(a.getAttribute('target')).toBe('_blank');
   });
 
-  it('javascript: スキームのリンクは <a> にせずラベルのみ表示する（XSS 防止）', () => {
+  it('Given javascript: スキームのリンク記法 / When 描画する / Then <a> にせずラベルのみ表示する（XSS 防止）', () => {
     // Given
     const source = '[クリック](javascript:steal)';
     // When
@@ -34,7 +34,7 @@ describe('Markdown（安全な MD サブセット）', () => {
     expect(screen.getByText('クリック')).toBeTruthy();
   });
 
-  it('生 URL を autolink し、末尾の約物は URL に含めない', () => {
+  it('Given 生 URL の後に約物が続く文 / When 描画する / Then autolink し、末尾の約物は URL に含めない', () => {
     // Given
     const source = '参照: https://example.com/a 。';
     // When
@@ -44,7 +44,7 @@ describe('Markdown（安全な MD サブセット）', () => {
     expect(a.getAttribute('href')).toBe('https://example.com/a');
   });
 
-  it('見出し・箇条書き・太字・インラインコードを描画する', () => {
+  it('Given 見出し・箇条書き・太字・インラインコードを含む記法 / When 描画する / Then それぞれの要素で出す', () => {
     // Given
     const source = '## 見出し\n\n- **太字** 項目\n- `code` 項目';
     // When
@@ -56,10 +56,19 @@ describe('Markdown（安全な MD サブセット）', () => {
     expect(screen.getAllByRole('listitem')).toHaveLength(2);
   });
 
-  it('未終端トークンや空文字でもクラッシュしない', () => {
+  it('Given 未終端トークンや空文字 / When 描画する / Then クラッシュしない', () => {
     // Given（未終端トークン・空文字それぞれを対象にする表形式のケース）
     // When（呼び出しと例外なしの検証を一体で行う）
     expect(() => render(<Markdown source="" />)).not.toThrow();
     expect(() => render(<Markdown source={'**bold\n`code\n[a]('} />)).not.toThrow();
+  });
+
+  it('Given # 見出し記法 / When 描画する / Then h4 にする（札のタイトルが h3 のため段を 1 つ下げる）', () => {
+    // Given
+    const source = '# 大見出し';
+    // When
+    render(<Markdown source={source} />);
+    // Then
+    expect(screen.getByRole('heading', { name: '大見出し', level: 4 })).toBeTruthy();
   });
 });

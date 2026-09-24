@@ -7,6 +7,8 @@
  * timer-web の `ui/components/Markdown.tsx` からの移植。解析は同じ。共有化は #91 PR 3 で
  * timer がお題を表示するときに決める。
  *
+ * topic-web では札のタイトル（h3）の下に置くので段を 1 つ下げる（`#`→h4・`##`→h5・`###`→h6）。
+ *
  * 対応記法:
  *  - ブロック: 見出し(# / ## / ###)、箇条書き(- / *)、番号付き(1.)、引用(>)、
  *              コードブロック(``` フェンス)、段落（空行区切り・行内改行は <br/>）
@@ -201,7 +203,8 @@ export function Markdown({ source, className = '' }: MarkdownProps) {
         switch (b.kind) {
           case 'heading': {
             // React 19 の型定義でグローバルの JSX 名前空間が廃止され、React.JSX へ移った。
-            const Tag = (b.level === 1 ? 'h3' : b.level === 2 ? 'h4' : 'h5') as keyof React.JSX.IntrinsicElements;
+            // 札のタイトルが h3 なので、説明側の見出しは 1 段下げる（h4/h5/h6）。
+            const Tag = (b.level === 1 ? 'h4' : b.level === 2 ? 'h5' : 'h6') as keyof React.JSX.IntrinsicElements;
             return (
               <Tag key={key} className="md-h">
                 {renderInline(b.text, key)}

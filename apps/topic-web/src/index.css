@@ -81,13 +81,14 @@
   margin: 0;
   font-weight: 700;
 }
-h3.md-h {
+/* 要素は h4/h5/h6（札のタイトルの h3 の下へ 1 段下げる）だが、大きさの見た目は変えない。 */
+h4.md-h {
   font-size: var(--font-size-base);
 }
-h4.md-h {
+h5.md-h {
   font-size: var(--font-size-sm);
 }
-h5.md-h {
+h6.md-h {
   font-size: var(--font-size-sm);
   font-weight: 600;
 }
