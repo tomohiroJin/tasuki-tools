@@ -364,8 +364,9 @@ export const MUTATIONS = [
     note:
       "#91・E5・spec T4「お題を変えられるのはお題ツールの接続だけ」。timer の接続の" +
       "メッセージも、生 JSON が `TopicCommandSchema` に通ればお題の経路" +
-      "（`onTopicMessage`）へ回してしまう。timer の接続は参加済みルームの参加者なので" +
-      "素通りし、本当にお題が書き換わる（timer 側の INVALID_COMMAND が返らない）。",
+      "（`onTopicMessage`）へ回してしまう。2 段目（`roomCodeOf` がお題ツールの接続だけを" +
+      "数える。m86 が壊す）があるのでお題そのものは変わらないが、timer 側の INVALID_COMMAND" +
+      "ではなくお題の経路の NOT_IN_ROOM が返り、テストは応答コードの違いで検出する。",
   },
   {
     id: 84,
@@ -390,6 +391,17 @@ export const MUTATIONS = [
       "R9・spec §9。`TOPIC_RECIPIENT_TOOLS` からハブ（`TOOL_HUB`）を落とし、" +
       "お題の接続だけへ配る。ハブ（玄関の選択画面）はお題の掲げ直しを見られなくなり、" +
       "「玄関で待っている間もお題が読める」という契約（spec §9・E2・E4）が壊れる。",
+  },
+  {
+    id: 86,
+    label: "お題の在室判定がツールを見ず、接続 ID だけでルームを引く",
+    patch: "m86-topic-room-lookup-ignores-tool.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/topic-handlers.test.ts"],
+    note:
+      "#91・E5・spec T4 の 2 段目。`roomCodeOf` がお題ツールの接続かどうかを見ない。" +
+      "1 段目（ws-adapter の `?tool=topic` による振り分け。m83 が壊す）が崩れると、" +
+      "timer やハブの接続として在席している接続がお題を掲げ・下ろせてしまう。",
   },
   {
     id: 6,

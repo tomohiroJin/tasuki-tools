@@ -11,9 +11,10 @@
 #
 # #91・E5・spec T4「お題を変えられるのはお題ツールの接続だけ」。timer の接続の
 # メッセージも、生 JSON が `TopicCommandSchema` に通ればお題の経路
-# （`onTopicMessage`）へ回してしまう。timer の接続は参加済みルームの参加者
-# （`roomCodeOf` が見つける）なので、素通りして本当にお題が書き換わる
-# （timer 側の INVALID_COMMAND が返らず、`timer.take("error")` がタイムアウトする）。
+# （`onTopicMessage`）へ回してしまう。2 段目（`roomCodeOf` がお題ツールの接続だけを
+# 数える。m86 が壊す）があるので、お題そのものは書き換わらない。代わりに timer 側の
+# INVALID_COMMAND ではなくお題の経路の NOT_IN_ROOM が返り、テストは応答コードの
+# 違いで検出する（2 段目が入る前は素通りしてお題が本当に書き換わっていた）。
 # ⚠ 副作用として `test/live-ws.room-ops.test.ts` の ai.unlock テストも壊れる
 # （timer 自身の ai.unlock コマンドの形が TopicCommandSchema の ai.unlock 分岐と
 # 一致するため、そちらへ奪われる）。ここでは #91 の契約に沿う最小のテストのみを登録する。
