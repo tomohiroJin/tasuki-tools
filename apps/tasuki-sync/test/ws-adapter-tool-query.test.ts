@@ -21,6 +21,9 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { loadSyncConfig } from "../src/config.js";
 import { createSyncServer, type SyncServer } from "../src/create-sync-server.js";
+import { newTestWsAdapter } from "./support/test-ws-adapter.js";
+import { testLogger } from "./support/test-logger.js";
+import type { WsAdapter } from "../src/adapters/ws-adapter.js";
 
 let server: SyncServer;
 
@@ -37,6 +40,25 @@ function closeCodeOf(ws: WebSocket): Promise<number> {
   return new Promise((resolve) => {
     ws.addEventListener("close", (event) => resolve(event.code), { once: true });
   });
+}
+
+/** open イベントを待つ。 */
+function waitOpen(ws: WebSocket): Promise<void> {
+  return new Promise((resolve, reject) => {
+    ws.addEventListener("open", () => resolve(), { once: true });
+    ws.addEventListener("error", () => reject(new Error("接続できない")), { once: true });
+  });
+}
+
+/** 条件が満たされるまで短い間隔でポーリングする（固定 sleep によるフレーキー回避）。 */
+async function waitForCondition(predicate: () => boolean, timeoutMs = 3_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (!predicate()) {
+    if (Date.now() >= deadline) {
+      throw new Error(`waitForCondition: ${timeoutMs}ms 待ったが条件を満たさなかった`);
+    }
+    await Bun.sleep(5);
+  }
 }
 
 /**
@@ -142,6 +164,50 @@ describe("接続 URL のクエリでツールを宣言する", () => {
       expect(reply["type"]).not.toBe("time.pong");
     } finally {
       ws.close();
+    }
+  });
+});
+
+/**
+ * お題（topic）の接続は timer・ハブと同じ `onConnect` / `onDisconnect` を通る（#91・spec §5.3 の MUST）。
+ *
+ * **poker の早期 return を写していないことを見る。** `createSyncServer` はまだお題の
+ * ハンドラを配線していない（Task 9）ため、ここは低レベルの `WsAdapter` を
+ * `newTestWsAdapter` で直接組み立て、`onConnect` / `onDisconnect` を自前の記録役へ差し替える。
+ *
+ * @requirements #91 spec §5.3
+ */
+describe("お題（topic）の接続は poker の早期 return を通らない", () => {
+  it("Given ?tool=topic で繋ぐ / When 受理されてから閉じる / Then onConnect が (connId, rateKey) で 1 回、onDisconnect が 1 回呼ばれる", async () => {
+    // Given: onConnect / onDisconnect を記録する低レベルの WsAdapter
+    const connectCalls: Array<[string, string]> = [];
+    const disconnectCalls: string[] = [];
+    const adapter: WsAdapter = newTestWsAdapter({
+      port: 0,
+      host: "127.0.0.1",
+      allowedOrigins: [],
+      onMessage: async () => {},
+      onConnect: (connId, rateKey) => connectCalls.push([connId, rateKey]),
+      onDisconnect: (connId) => disconnectCalls.push(connId),
+      logger: testLogger,
+    });
+
+    try {
+      // When: `?tool=topic` で繋いでから閉じる
+      const ws = new WebSocket(`ws://127.0.0.1:${adapter.port}/ws?tool=topic`);
+      await waitOpen(ws);
+      ws.close();
+      await waitForCondition(() => disconnectCalls.length > 0);
+
+      // Then: poker のように手前で return していれば、この 2 つはどちらも呼ばれない
+      expect(connectCalls.length).toBe(1);
+      const [connId, rateKey] = connectCalls[0]!;
+      // deriveClientKey を配線していない（XFF も無い）ので、rateKey は connId にフォールバックする
+      // （`ws-adapter.client-key.test.ts` の「X-Forwarded-For が無ければ connId が鍵になる」と同じ形）。
+      expect(rateKey).toBe(connId);
+      expect(disconnectCalls).toEqual([connId]);
+    } finally {
+      await adapter.close();
     }
   });
 });

@@ -1,0 +1,37 @@
+# 変異 81: topic-unlock-fresh-rate-limit-gate
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/live-ws.topic.test.ts
+#     describe「お題の ai.unlock は room.join と同じレート制限のバケツを共有する」
+#     の 3 本（張り直し・逆方向・接続を張り直した直後、いずれも #91・E21）
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m81-*.patch
+# 復元: git apply -R scripts/mutations/m81-*.patch
+#
+# #91・E21・spec §9。`makeTopicHandlers` へ渡す `rateLimitGate` を
+# `handlers.rateLimitGate`（room.join と共有する 1 個）ではなく、
+# `createRateLimitGate(rateLimiter)` で新しく作った別インスタンスにする。
+# バケツが connId→clientKey の登録ごと分かれるため、room.join を枯渇させても
+# ai.unlock は素通りし（逆も同様）、同じ IP からの総当たりが片方のツールを
+# 迂回すれば通ってしまう。
+diff --git a/apps/tasuki-sync/src/create-sync-server.ts b/apps/tasuki-sync/src/create-sync-server.ts
+--- a/apps/tasuki-sync/src/create-sync-server.ts
++++ b/apps/tasuki-sync/src/create-sync-server.ts
+@@ -46,6 +46,7 @@ import { InMemoryTopicStore } from "./adapters/in-memory-topic-store.js";
+ import { ClaudeCliTopicProvider } from "./adapters/claude-cli-topic-provider.js";
+ import type { HubBroadcaster } from "./ports/hub-broadcaster.js";
+ import { makeHandlers } from "./application/handlers.js";
++import { createRateLimitGate } from "./application/rate-limit-gate.js";
+ import { TOOL_TIMER } from "./application/tool-id.js";
+ import { PresenceManager } from "./application/presence.js";
+ import { Scheduler } from "./application/schedule.js";
+@@ -401,7 +402,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
+     clock,
+     codeGen,
+     tokenStore: tokens,
+-    rateLimitGate: handlers.rateLimitGate,
++    rateLimitGate: createRateLimitGate(rateLimiter),
+     hub: hubBroadcaster,
+     topics,
+     generator: topicGenerator,

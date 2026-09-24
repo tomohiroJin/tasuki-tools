@@ -132,6 +132,26 @@ describe("AiLimiter", () => {
     if (!r.ok) expect(r.reason).toBe("daily");
   });
 
+  it("isCoolingDown は枠を取らずにクールダウン中かだけを返す", () => {
+    // Given（R1 で 1 度生成を始めた直後）
+    const clock = makeClock(1_000_000);
+    const limiter = new AiLimiter({ clock, dailyLimit: 10 });
+    const acquired = limiter.tryAcquire("R1");
+    if (!acquired.ok) throw new Error("前提: 取得できる");
+    acquired.release();
+
+    // Then（R1 は 10 秒間クールダウン中。R2 は違う。読んでも日次の回数は増えない）
+    const before = limiter.todayCount;
+    expect([limiter.isCoolingDown("R1"), limiter.isCoolingDown("R2")]).toEqual([true, false]);
+    expect(limiter.todayCount).toBe(before);
+
+    // When（10 秒たつ）
+    clock.advance(10_000);
+
+    // Then
+    expect(limiter.isCoolingDown("R1")).toBe(false);
+  });
+
   it("todayCount / totalCount が取得成功数を数える", () => {
     // Given
     const clock = makeClock(1_000_000);

@@ -1,0 +1,28 @@
+# 変異 86: topic-room-lookup-ignores-tool
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/topic-handlers.test.ts
+#     describe「お題を掲げる・下ろす」の
+#     「timer の接続としてだけ在席している接続がお題を掲げても拒まれ、お題は変わらない」と
+#     「ハブの接続としてだけ在席している接続がお題を下ろそうとしても拒まれ、お題は変わらない」（#91・E5）
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m86-*.patch
+# 復元: git apply -R scripts/mutations/m86-*.patch
+#
+# #91・E5・spec T4「お題を変えられるのはお題ツールの接続だけ」の 2 段目。
+# `roomCodeOf` がツールを見ず、接続 ID だけで在席ルームを引く。1 段目（ws-adapter の
+# `?tool=topic` による振り分け）が壊れると、timer やハブの接続として在席している
+# 接続がお題を掲げ・下ろせてしまう（m83 が 1 段目を壊す変異）。
+diff --git a/apps/tasuki-sync/src/application/topic-handlers.ts b/apps/tasuki-sync/src/application/topic-handlers.ts
+--- a/apps/tasuki-sync/src/application/topic-handlers.ts
++++ b/apps/tasuki-sync/src/application/topic-handlers.ts
+@@ -143,7 +143,7 @@ export function makeTopicHandlers(deps: TopicHandlerDeps): TopicHandlers {
+     // 接続 ID だけで引くと、timer やハブの接続として在席している接続がお題を変えられてしまう。
+     return deps.store
+       .list()
+-      .find((r) => findParticipantByConnId(r, connId)?.connections.get(connId) === TOOL_TOPIC)?.code;
++      .find((r) => findParticipantByConnId(r, connId) !== undefined)?.code;
+   }
+ 
+   /** この接続がどれかのルームに（ツールを問わず）在席しているか。2 度目の参加を拒むために引く。 */

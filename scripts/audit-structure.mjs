@@ -182,7 +182,7 @@ export function extractTestNames(content) {
   return names;
 }
 
-const SPEC_ID_RE = /T\d{3}|FR-\d{3}|SC-\d{3}|R\d-\d|US\d|G\d|#\d+/;
+const SPEC_ID_RE = /T\d{3}|FR-\d{3}|SC-\d{3}|R\d-\d|US\d|G\d|#\d+|\bE\d+\b/;
 
 /**
  * SC-029: it/test の第 1 引数に仕様の識別番号を含むものの件数。
@@ -1083,6 +1083,8 @@ export const SCANNED_PACKAGES = [
   { pkg: "packages/poker-core", src: "src", test: "tests", entry: "index.ts" },
   { pkg: "packages/protocol", src: "src", test: "tests", entry: "index.ts" },
   { pkg: "packages/room-core", src: "src", test: "tests", entry: "index.ts" },
+  // お題の文脈（#91）。timer・poker と同格の 4 つ目の境界づけられた文脈。
+  { pkg: "packages/topic-core", src: "src", test: "tests", entry: "index.ts" },
   { pkg: "packages/rate-limit", src: "src", test: "tests", entry: "index.ts" },
   // #95 S5a で新設（同期クライアントの接続部分・D18）。
   { pkg: "packages/sync-client", src: "src", test: "tests", entry: "index.ts" },

@@ -1,0 +1,28 @@
+# 変異 79: cooldown-check-after-cancel
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/topic-generation.test.ts
+#     『作り直しがクールダウン中なら "cooldown" を返し、進行中の生成とお題を残す』（#91・E22）
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m79-*.patch
+# 復元: git apply -R scripts/mutations/m79-*.patch
+#
+# #91・E22・spec §5.3。`isCoolingDown` の判定を `cancel` より後ろへ移す。
+# 先に中断すると、作り直しを拒んだはずのクールダウン中でも進行中の生成が
+# 消え（signal が abort され）、「進行中の生成とお題を残す」という契約が壊れる。
+diff --git a/apps/tasuki-sync/src/application/topic-generation.ts b/apps/tasuki-sync/src/application/topic-generation.ts
+--- a/apps/tasuki-sync/src/application/topic-generation.ts
++++ b/apps/tasuki-sync/src/application/topic-generation.ts
+@@ -81,10 +81,9 @@ export class TopicGenerator {
+     // 例外で抜けることになる。
+     const wantsAi = req.mode === "ai" && state.aiUnlocked && provider !== undefined && aiLimiter !== undefined;
+
++    this.cancel(roomCode);
+     // ⚠ クールダウンの判定は中断（cancel）より先に行う（spec §5.3・E22）。
+     if (wantsAi && aiLimiter.isCoolingDown(roomCode)) return "cooldown";
+-
+-    this.cancel(roomCode);
+     const previous = state.topic;
+
+     if (req.mode === "fallback") {

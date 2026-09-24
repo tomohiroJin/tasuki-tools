@@ -34,7 +34,8 @@ import { publicText, type LogSafe } from "../application/log/log-safe.js";
 import { CONN_REJECT_REASONS } from "../application/log/vocabulary.js";
 import { deriveClientKeySafely } from "./client-key-safety.js";
 import type { Handlers as PokerHandlers } from "../application/poker-handlers.js";
-import { TOOL_POKER, TOOL_TIMER } from "../application/tool-id.js";
+import { TOOL_POKER, TOOL_TIMER, TOOL_TOPIC } from "../application/tool-id.js";
+import type { TopicOwnFrame, TopicServerMsg } from "../ports/topic-server-msg.js";
 
 /**
  * 接続 URL が宣言するツール。**許可リストで判定する**（#95 S5c）。
@@ -56,19 +57,20 @@ import { TOOL_POKER, TOOL_TIMER } from "../application/tool-id.js";
  * リテラルを自前で持つと、次に綴りを変える人がここを取り残し、
  * **wire 互換を壊したことに気づけない**。
  *
- * **戻り値の型はリテラルのまま据え置く。** これは接続層の 4 値の選択子で、
- * ツール識別子はそのうち 2 つと一致しているだけである（`"hub"` / `"unknown"` に
+ * **戻り値の型はリテラルのまま据え置く。** これは接続層の 5 値の選択子で、
+ * ツール識別子はそのうち 3 つと一致しているだけである（`"hub"` / `"unknown"` に
  * 対応するツールは無い）。`typeof TOOL_TIMER` にして追従させると、綴りを変えたときに
  * 黙って通る —— リテラルで受けておくと**この関数で型検査が落ちる**ので、
  * `ConnectionData.protocol` と wire の両方を見直す機会になる。
  */
 const TOOL_QUERY_KEY = "tool";
 
-function protocolFromRequestUrl(url: URL): "timer" | "poker" | "hub" | "unknown" {
+function protocolFromRequestUrl(url: URL): "timer" | "poker" | "topic" | "hub" | "unknown" {
   const declared = url.searchParams.get(TOOL_QUERY_KEY);
   if (declared === null) return "hub";
   if (declared === TOOL_TIMER) return TOOL_TIMER;
   if (declared === TOOL_POKER) return TOOL_POKER;
+  if (declared === TOOL_TOPIC) return TOOL_TOPIC;
   return "unknown";
 }
 
@@ -160,6 +162,13 @@ export interface WsAdapterOptions {
    */
   onHubMessage: (connId: string, raw: string) => Promise<void>;
   /**
+   * お題（topic）へ届いた生テキスト（#91）。
+   *
+   * **`onHubMessage` と同じく、パース前の文字列を渡す。** 境界の検証はメッセージ層
+   * （Task 9 で配線するアプリ層）に置き、この層は経路とサイズだけを見る。
+   */
+  onTopicMessage: (connId: string, raw: string) => Promise<void>;
+  /**
    * 接続が閉じたときに呼ばれる（Origin / 接続数上限で弾いた接続は除く。
    * その場合はアプリ層へ「受け入れていない接続」を通知しない）。
    *
@@ -241,6 +250,7 @@ interface ConnectionBase {
  */
 type ToolContext =
   | { readonly protocol: "timer" }
+  | { readonly protocol: "topic" }
   | { readonly protocol: "hub" }
   | { readonly protocol: "unknown" }
   | { readonly protocol: "poker"; participantId: string | null; roomId: string | null };
@@ -506,6 +516,32 @@ export class WsAdapter {
     }
   }
 
+  /**
+   * お題（topic）の接続へ送る（#91）。
+   *
+   * **`TopicServerMsg` はハブの接続へ送るときも使う**（この PR の配信先はお題の接続と
+   * ハブの接続だけ・spec §9）。{@link sendHub} と分けてあるのは、`sendHub` の型
+   * （`HubServerMsg`）ではお題のフレーム（`topic` / `error`（お題のコード体系））を
+   * 型検査が拒むためである。
+   */
+  sendTopic(connId: string, data: TopicServerMsg): void {
+    const ws = this.connections.get(connId);
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(data));
+    }
+  }
+
+  /** お題（topic）の接続へ一斉に送る。 */
+  broadcastTopic(connIds: string[], data: TopicServerMsg): void {
+    const json = JSON.stringify(data);
+    for (const connId of connIds) {
+      const ws = this.connections.get(connId);
+      if (ws?.readyState === WebSocket.OPEN) {
+        ws.send(json);
+      }
+    }
+  }
+
   broadcast(connIds: string[], data: ServerMsg): void {
     const json = JSON.stringify(data);
     for (const connId of connIds) {
@@ -577,6 +613,10 @@ export class WsAdapter {
     this.missedPongs.set(connId, 0);
     // poker のメッセージ層に接続受理のフックは無い（統合前の
     // `apps/poker-sync/src/adapters/ws-adapter.ts` も rateKey を入れて終わりだった）。
+    // ⚠ **お題（topic）をこの分岐に足してはならない**（#91・spec §5.3 の MUST）。
+    // ここで return すると onConnect が呼ばれず、`rateLimitGate.open` が接続とクライアント鍵を
+    // 結ばない。すると鍵は connId へ落ち、`ai.unlock` の総当たりが**張り直すだけで**
+    // 枠を回避できる（2026-09-23 のレビューで見つかった）。
     if (ws.data.protocol === "poker") return;
     // onConnect は呼び出し元（アプリ層）のコールバック。throw すると Bun の
     // websocket ハンドラ内なので uncaughtException になり、本番の server.ts が
@@ -620,6 +660,11 @@ export class WsAdapter {
 
     if (ws.data.protocol === "hub") {
       this.handleHubMessage(ws, raw, bytes);
+      return;
+    }
+
+    if (ws.data.protocol === "topic") {
+      this.handleTopicMessage(ws, raw, bytes);
       return;
     }
 
@@ -776,6 +821,66 @@ export class WsAdapter {
 
   /** ハブの接続へ 1 通送る（OPEN のときだけ）。 */
   private sendHubFrame(ws: Socket, msg: HubServerMsg): void {
+    if (ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify(msg));
+  }
+
+  /**
+   * お題（topic）のメッセージ層へ渡す（#91）。
+   *
+   * 境界のパースはメッセージ層（Task 9 で配線するアプリ層）が持つ。ここはサイズ制限
+   * だけを掛ける —— 大きすぎるフレームをパーサへ渡さないのは timer / poker / ハブと
+   * 同じ規律である。
+   *
+   * **本体を `try/catch` で隔離する。** `onTopicMessage` は型上 `Promise<void>` を
+   * 返す契約だが、実装が async でなければ同期的に throw しうる（型は実行時の保証には
+   * ならない。`.catch` は reject しか拾わない）。呼び出し自体を try/catch で囲んで
+   * 別途隔離する（timer の `handleMessage` / I-5 と同じ形）。隔離しないと、
+   * ここでの同期 throw が Bun の websocket ハンドラを抜けて `uncaughtException` に
+   * 達し、`server.ts` が `process.exit(1)` して**同じプロセスに載る timer / poker /
+   * ハブのルームも道連れで消える**（揮発インメモリ）。
+   *
+   * ⚠ **`handleHubMessage` は同じ隔離を持たない（`.catch()` のみ）。** これは
+   * 既知の差分であり、本タスク（fix round 1）では変更しない —— 対象は topic の経路のみ。
+   */
+  private handleTopicMessage(ws: Socket, raw: string | Buffer, bytes: number): void {
+    if (bytes > this.options.maxMessageBytes) {
+      this.sendTopicFrame(ws, {
+        type: "error",
+        code: "MESSAGE_TOO_LARGE",
+        message: MESSAGE_TOO_LARGE_TEXT,
+      });
+      return;
+    }
+    try {
+      void this.options.onTopicMessage(ws.data.connId, raw.toString()).catch((err: unknown) => {
+        this.options.logger.error("on-message-error", { name: classifyError(err) });
+        this.sendTopicFrame(ws, {
+          type: "error",
+          code: "INTERNAL_ERROR",
+          message: INTERNAL_ERROR_TEXT,
+        });
+      });
+    } catch (err) {
+      this.options.logger.error("on-message-error", { name: classifyError(err) });
+      this.sendTopicFrame(ws, {
+        type: "error",
+        code: "INTERNAL_ERROR",
+        message: INTERNAL_ERROR_TEXT,
+      });
+    }
+  }
+
+  /**
+   * お題（topic）の接続へ 1 通送る（OPEN のときだけ）。
+   *
+   * **型は広い `TopicServerMsg` ではなく狭い `TopicOwnFrame` にする**（#91 R18）。
+   * `TopicServerMsg` は `HubServerMsg` を合併しており、その `error` は `code: string`
+   * （無制約）なので、`TOPIC_ERROR_CODES` に無いコードでも通ってしまう。この口は
+   * アダプタが自分でエラーを組み立てて送る経路（サイズ超過・内部エラー）専用であり、
+   * 契約に無いコードを型検査で弾く。
+   */
+  private sendTopicFrame(ws: Socket, msg: TopicOwnFrame): void {
     if (ws.readyState !== WebSocket.OPEN) return;
     ws.send(JSON.stringify(msg));
   }

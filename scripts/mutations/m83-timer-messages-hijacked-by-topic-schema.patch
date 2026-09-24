@@ -1,0 +1,49 @@
+# 変異 83: timer-messages-hijacked-by-topic-schema
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/live-ws.topic.test.ts
+#     describe「お題ツールの接続以外からは topic.set が拒まれる」の
+#     「timer の接続から topic.set を送っても拒まれ、お題は変わらない」（#91・E5）
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m83-*.patch
+# 復元: git apply -R scripts/mutations/m83-*.patch
+#
+# #91・E5・spec T4「お題を変えられるのはお題ツールの接続だけ」。timer の接続の
+# メッセージも、生 JSON が `TopicCommandSchema` に通ればお題の経路
+# （`onTopicMessage`）へ回してしまう。2 段目（`roomCodeOf` がお題ツールの接続だけを
+# 数える。m86 が壊す）があるので、お題そのものは書き換わらない。代わりに timer 側の
+# INVALID_COMMAND ではなくお題の経路の NOT_IN_ROOM が返り、テストは応答コードの
+# 違いで検出する（2 段目が入る前は素通りしてお題が本当に書き換わっていた）。
+# ⚠ 副作用として `test/live-ws.room-ops.test.ts` の ai.unlock テストも壊れる
+# （timer 自身の ai.unlock コマンドの形が TopicCommandSchema の ai.unlock 分岐と
+# 一致するため、そちらへ奪われる）。ここでは #91 の契約に沿う最小のテストのみを登録する。
+diff --git a/apps/tasuki-sync/src/adapters/ws-adapter.ts b/apps/tasuki-sync/src/adapters/ws-adapter.ts
+--- a/apps/tasuki-sync/src/adapters/ws-adapter.ts
++++ b/apps/tasuki-sync/src/adapters/ws-adapter.ts
+@@ -36,6 +36,8 @@ import { deriveClientKeySafely } from "./client-key-safety.js";
+ import type { Handlers as PokerHandlers } from "../application/poker-handlers.js";
+ import { TOOL_POKER, TOOL_TIMER, TOOL_TOPIC } from "../application/tool-id.js";
+ import type { TopicOwnFrame, TopicServerMsg } from "../ports/topic-server-msg.js";
++import * as v from "valibot";
++import { TopicCommandSchema } from "@tasuki/topic-core";
+
+ /**
+  * 接続 URL が宣言するツール。**許可リストで判定する**（#95 S5c）。
+@@ -668,6 +670,16 @@ export class WsAdapter {
+       return;
+     }
+
++    try {
++      const maybeJson: unknown = JSON.parse(raw.toString());
++      if (v.is(TopicCommandSchema, maybeJson)) {
++        void this.options.onTopicMessage(connId, raw.toString());
++        return;
++      }
++    } catch {
++      // JSON でなければ何もしない（下の通常経路が拾う）
++    }
++
+     if (bytes > this.options.maxMessageBytes) {
+       this.sendFrame(ws, {
+         type: "error",

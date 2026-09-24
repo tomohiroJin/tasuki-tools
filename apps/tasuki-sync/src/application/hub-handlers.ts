@@ -4,6 +4,8 @@
  * **名簿の言葉しか話さない。** 受けるのはルームの作成・参加と、生死の照会で、
  * 返すのは復帰の組（`room.created` / `room.joined`）と名簿（`roster`）だけである。
  * タイマーの状態も票もここを通らない（`docs/adr/0017` の文脈分割）。
+ * **例外はお題の状態（#91）** —— お題はルーム全体の資産なので、作成・参加の成功時に
+ * いまのお題を 1 通送る。送るのはお題の配信（`topic-broadcast.ts`）で、ここは呼ぶだけである。
  *
  * ## 守りは timer と共有する
  *
@@ -30,6 +32,7 @@ import { createRoom, type CreateRoomDeps } from "./create-room.js";
 import { applyDisplayNameRule, INVALID_DISPLAY_NAME_MESSAGE } from "./display-name-rule.js";
 import { joinRoom, ROOM_NOT_FOUND_MESSAGE, type JoinRoomDeps } from "./join-room.js";
 import { saveRoster, type SaveRosterDeps } from "./save-roster.js";
+import type { TopicBroadcaster } from "./topic-broadcast.js";
 
 /**
  * ハブの接続が宣言するツール。**どれでもない**（設計正本 D14・S5a の裁定）。
@@ -42,6 +45,13 @@ export const TOOL_HUB: ToolId | null = null;
 export interface HubHandlerDeps extends CreateRoomDeps, JoinRoomDeps, SaveRosterDeps {
   timers: TimerStore;
   hub: HubBroadcaster;
+  /**
+   * お題の状態の配信（#91）。作成・参加に成功した本人へ、いまのお題を 1 通送る（E4）。
+   *
+   * **必須にしてある**（`HandlerDeps.hub` と同じ理由）。省略可にすると、本番の配線から
+   * 落ちても全テストが緑のまま、玄関にだけお題が届かない。
+   */
+  topicBroadcaster: Pick<TopicBroadcaster, "sendCurrent">;
 }
 
 export interface HubHandlers {
@@ -50,7 +60,7 @@ export interface HubHandlers {
 }
 
 export function makeHubHandlers(deps: HubHandlerDeps): HubHandlers {
-  const { hub, timers } = deps;
+  const { hub, timers, topicBroadcaster } = deps;
 
   function fail(connId: string, code: string, message: string): void {
     hub.sendTo(connId, { type: "error", code, message });
@@ -98,6 +108,8 @@ export function makeHubHandlers(deps: HubHandlerDeps): HubHandlers {
     hub.sendTo(connId, { type: "room.created", code, participantId, resumeToken });
     // 保管と配信は対にする（`save-roster.ts`）。作成者自身にも名簿が届く。
     saveRoster(deps, membership);
+    // いまのお題（作った直後は「お題なし」）を本人へ（E4）。お題の状態はここで置かれる。
+    topicBroadcaster.sendCurrent(connId, code);
   }
 
   /**
@@ -158,6 +170,8 @@ export function makeHubHandlers(deps: HubHandlerDeps): HubHandlers {
     // `joinRoom` が返した状態をそのまま保管して取りこぼしを防ぐ。
     if (timer !== undefined) timers.put(timer);
     saveRoster(deps, membership);
+    // いまのお題を本人へ 1 通（E4）。**名簿の保管のあとに呼ぶ**（ルームの在否を名簿で見るため）。
+    topicBroadcaster.sendCurrent(connId, cmd.code);
   }
 
   return {

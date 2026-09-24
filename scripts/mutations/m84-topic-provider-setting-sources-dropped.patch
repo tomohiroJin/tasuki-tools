@@ -1,0 +1,27 @@
+# 変異 84: topic-provider-setting-sources-dropped
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/claude-cli-topic-provider.test.ts
+#     「組み込みツールと利用者設定を起動引数で閉じる」
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m84-*.patch
+# 復元: git apply -R scripts/mutations/m84-*.patch
+#
+# R11・docs/adr/0012 D10・spec §10。起動引数から `--setting-sources ""` を消す
+# （`--tools ""` は残す）。本番の CLI（2.1.178）で `--tools ""` だけでは
+# 利用者設定のプラグインが足す LSP 等の組み込みツールが残ることを実測している
+# （2026-09-24）——`--setting-sources ""` はその実測を埋める側であり、これを
+# 落とすと利用者・プロジェクト設定を読み込む状態へ戻る。
+diff --git a/apps/tasuki-sync/src/adapters/claude-cli-topic-provider.ts b/apps/tasuki-sync/src/adapters/claude-cli-topic-provider.ts
+--- a/apps/tasuki-sync/src/adapters/claude-cli-topic-provider.ts
++++ b/apps/tasuki-sync/src/adapters/claude-cli-topic-provider.ts
+@@ -90,8 +90,6 @@ export class ClaudeCliTopicProvider implements ServerTopicProvider {
+         // LSP が残ることを実測した。`--setting-sources ""` を併せると利用者・プロジェクト
+         // 設定を読まなくなり、本番の HOME の中身に結果が左右されなくなる
+         // （2026-09-24 実測。spec §10）。
+-        "--setting-sources",
+-        "",
+         "--tools",
+         "",
+       ];

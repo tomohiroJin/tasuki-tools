@@ -93,6 +93,9 @@ const REPO_ROOT = path.resolve(__dirname, "..");
  */
 export const ALLOWED = {
   "packages/room-core": [],
+  // お題の文脈（#91）。**@tasuki/* に依存しない** —— ツールのドメインと同格の文脈であり、
+  // 文脈をつなぐのはアプリ層である（docs/adr/0017）。
+  "packages/topic-core": [],
   // 同期クライアントの接続部分（#95 S5a・D18）。**@tasuki/* に依存しない** ——
   // ツールの語彙を持たないことが、3 つの web アプリから使える条件である。
   "packages/sync-client": [],
@@ -145,6 +148,7 @@ export const ALLOWED = {
     "@tasuki/rate-limit",
     "@tasuki/room-core",
     "@tasuki/timer-core",
+    "@tasuki/topic-core",
   ],
   e2e: ["@tasuki/landing", "@tasuki/poker-web", "@tasuki/timer-web"],
 };

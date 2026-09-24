@@ -34,3 +34,6 @@ export const TOOL_TIMER = "timer";
 
 /** poker（見積もり）の入口から来た接続。 */
 export const TOOL_POKER = "poker";
+
+/** お題ツールの入口から来た接続（#91）。 */
+export const TOOL_TOPIC = "topic";

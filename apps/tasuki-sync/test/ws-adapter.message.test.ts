@@ -267,6 +267,158 @@ describe("WsAdapter メッセージ経路", () => {
 });
 
 /**
+ * お題（topic）のメッセージ経路（#91）。
+ *
+ * ハブ・timer と同じ接続層を通るが、メッセージ層は分かれている（`onTopicMessage`）。
+ * ここでは「お題の接続へ送った生テキストは `onTopicMessage` にだけ届く（`onMessage` /
+ * `onHubMessage` には届かない）」ことと、「64KB を超えるとサイズ超過のエラーを返し、
+ * 接続は保つ」ことを確かめる。サイズ判定・エラーコード（`MESSAGE_TOO_LARGE`）は
+ * `handleHubMessage` と同じ形である。
+ *
+ * @requirements #91 spec §5.3
+ */
+describe("WsAdapter お題（topic）のメッセージ経路", () => {
+  /** `?tool=topic` で接続する URL。 */
+  function topicUrl(adapterInstance: WsAdapter): string {
+    return `ws://127.0.0.1:${adapterInstance.port}/ws?tool=topic`;
+  }
+
+  it("Given ?tool=topic の接続 / When 生テキストを送る / Then onTopicMessage に届き、onMessage と onHubMessage には届かない", async () => {
+    // Given
+    const topicCalls: Array<[string, string]> = [];
+    let messageCalled = false;
+    let hubCalled = false;
+    adapter = newTestWsAdapter({
+      port: 0,
+      host: "127.0.0.1",
+      allowedOrigins: [],
+      onMessage: async () => {
+        messageCalled = true;
+      },
+      onHubMessage: async () => {
+        hubCalled = true;
+      },
+      onTopicMessage: async (connId, raw) => {
+        topicCalls.push([connId, raw]);
+      },
+      onDisconnect: () => {},
+      logger: testLogger,
+    });
+    const ws = new WebSocket(topicUrl(adapter));
+    await waitOpen(ws);
+
+    // When
+    ws.send("お題のテキスト");
+    await waitFor(() => topicCalls.length > 0);
+
+    // Then
+    expect(topicCalls).toEqual([["conn-1", "お題のテキスト"]]);
+    expect(messageCalled).toBe(false);
+    expect(hubCalled).toBe(false);
+    ws.close();
+  });
+
+  it("Given ?tool=topic の接続 / When 64KB を超える本文を送る / Then onTopicMessage は呼ばれず MESSAGE_TOO_LARGE を返し接続は保つ", async () => {
+    // Given
+    let topicCalled = false;
+    adapter = newTestWsAdapter({
+      port: 0,
+      host: "127.0.0.1",
+      allowedOrigins: [],
+      onMessage: async () => {},
+      onTopicMessage: async () => {
+        topicCalled = true;
+      },
+      onDisconnect: () => {},
+      logger: testLogger,
+    });
+    const ws = new WebSocket(topicUrl(adapter));
+    await waitOpen(ws);
+
+    // When: 64KB 超（境界の外側）
+    ws.send("x".repeat(64 * 1024 + 1));
+    const msg = await waitMessage(ws);
+
+    // Then
+    expect(msg).toMatchObject({ type: "error", code: "MESSAGE_TOO_LARGE" });
+    expect(ws.readyState).toBe(WebSocket.OPEN); // 切らずに返す
+    expect(topicCalled).toBe(false);
+    ws.close();
+  });
+});
+
+/**
+ * お題（topic）のメッセージ層が同期 throw しても隔離される（#91 fix round 1）。
+ *
+ * `onTopicMessage` は型上 `Promise<void>` を返す契約だが、実装が async でなければ
+ * 同期的に throw しうる（型は実行時の保証にはならない）。`handleTopicMessage` が
+ * この呼び出しを try/catch で囲んでいなければ、ここでの throw は Bun の websocket
+ * ハンドラを抜けて `uncaughtException` に達し、`server.ts` の `process.exit(1)` で
+ * **同じプロセスに載る timer / poker / ハブのルームも道連れで消える**（揮発インメモリ）。
+ *
+ * poker（1011 で接続を閉じる）と違い、お題はエラーフレーム（`INTERNAL_ERROR`）を
+ * 返して**接続を保つ**契約なので、ここではそれを確かめたうえで、同じ接続で
+ * 次のメッセージが実際にハンドラへ届くこと・同じアダプタで新しい接続も張れること
+ * （＝サーバーが生きていること）まで確認する。
+ *
+ * @requirements #91 spec §5.3
+ */
+describe("お題（topic）のメッセージ層が同期 throw しても隔離される", () => {
+  it("throw は on-message-error として記録され、INTERNAL_ERROR フレームを返して接続もサーバーも生き残る", async () => {
+    // Given: 最初の呼び出しだけ同期 throw する onTopicMessage
+    const { logger, lines } = collectingLogger();
+    let calls = 0;
+    adapter = newTestWsAdapter({
+      port: 0,
+      host: "127.0.0.1",
+      allowedOrigins: [],
+      onMessage: async () => {},
+      onTopicMessage: (_connId: string, _raw: string): Promise<void> => {
+        calls++;
+        if (calls === 1) {
+          throw new Error("boom in onTopicMessage");
+        }
+        return Promise.resolve();
+      },
+      onDisconnect: () => {},
+      logger,
+    });
+    const ws = new WebSocket(`ws://127.0.0.1:${adapter.port}/ws?tool=topic`);
+    await waitOpen(ws);
+
+    try {
+      // When: 1 通目を送る（onTopicMessage が同期 throw する）
+      ws.send("1通目");
+      const msg = await waitMessage(ws);
+
+      // Then: エラーフレームが返る（poker と違い接続は切らない）
+      expect(msg).toMatchObject({ type: "error", code: "INTERNAL_ERROR" });
+      // Then: 例外の分類だけが記録される（例外メッセージは載せない・ADR 0012 D3）
+      await waitFor(() => lines.some((l) => l.startsWith("on-message-error ")));
+      const line = lines.find((l) => l.startsWith("on-message-error "))!;
+      expect(line).toContain("name=");
+      expect(line).not.toContain("boom in onTopicMessage");
+
+      // Then: 接続は保たれる
+      expect(ws.readyState).toBe(WebSocket.OPEN);
+
+      // Then: 同じ接続で 2 通目を送るとハンドラへ実際に届く（サーバーが生きて動き続ける）
+      ws.send("2通目");
+      await waitFor(() => calls === 2);
+      expect(calls).toBe(2);
+
+      // Then: 同じアダプタで新しい接続も張れる（プロセス全体は落ちていない）
+      const second = new WebSocket(`ws://127.0.0.1:${adapter.port}/ws?tool=topic`);
+      await waitOpen(second);
+      expect(second.readyState).toBe(WebSocket.OPEN);
+      second.close();
+    } finally {
+      ws.close();
+    }
+  });
+});
+
+/**
  * poker のメッセージ層が throw してもプロセスを落とさない（#95 S2）。
  *
  * **統合でこの隔離の重みが変わった。** 統合前は poker のハンドラの同期 throw で

@@ -1,0 +1,28 @@
+# 変異 82: topic-takes-poker-early-return
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/ws-adapter-tool-query.test.ts
+#     「お題（topic）の接続は poker の早期 return を通らない」
+#   - apps/tasuki-sync/test/live-ws.topic.test.ts
+#     describe「お題の ai.unlock は room.join と同じレート制限のバケツを共有する」（#91・E21）
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m82-*.patch
+# 復元: git apply -R scripts/mutations/m82-*.patch
+#
+# #91・E21・spec §5.3 の MUST。お題の接続を poker と同じ早期 return（onConnect を
+# 呼ばずに抜ける）に乗せる。onConnect が呼ばれないと `rateLimitGate.open` が
+# 接続とクライアント鍵を結ばず、鍵が connId へ落ちる —— ai.unlock の総当たりが
+# 接続を張り直すだけで枠を回避できる（直前の行のコメントが禁じている変更そのもの）。
+diff --git a/apps/tasuki-sync/src/adapters/ws-adapter.ts b/apps/tasuki-sync/src/adapters/ws-adapter.ts
+--- a/apps/tasuki-sync/src/adapters/ws-adapter.ts
++++ b/apps/tasuki-sync/src/adapters/ws-adapter.ts
+@@ -617,7 +617,7 @@ export class WsAdapter {
+     // ここで return すると onConnect が呼ばれず、`rateLimitGate.open` が接続とクライアント鍵を
+     // 結ばない。すると鍵は connId へ落ち、`ai.unlock` の総当たりが**張り直すだけで**
+     // 枠を回避できる（2026-09-23 のレビューで見つかった）。
+-    if (ws.data.protocol === "poker") return;
++    if (ws.data.protocol === "poker" || ws.data.protocol === "topic") return;
+     // onConnect は呼び出し元（アプリ層）のコールバック。throw すると Bun の
+     // websocket ハンドラ内なので uncaughtException になり、本番の server.ts が
+     // process.exit(1) で受ける（実測）。コールバックの失敗でプロセス全体を
