@@ -84,6 +84,23 @@ describe("ClaudeCliTopicProvider", () => {
     expect(fake.written.join("")).toBe(buildTopicPrompt("TypeScript", "easy"));
   });
 
+  it("日本語の 1 文字がチャンクの境目で割れても化けずに受け取る", async () => {
+    // Given（「倍」は UTF-8 で 3 バイト。その途中でチャンクを割る）
+    const fake = makeFakeChild();
+    const { provider } = makeProvider(fake);
+    const bytes = Buffer.from(JSON.stringify({ result: JSON.stringify(TOPIC_JSON) }));
+    const cut = bytes.indexOf(Buffer.from("倍")) + 1;
+
+    // When
+    const p = provider.generate("TypeScript", "easy", new AbortController().signal);
+    fake.stdout.emit("data", bytes.subarray(0, cut));
+    fake.stdout.emit("data", bytes.subarray(cut));
+    (fake.child as unknown as EventEmitter).emit("close", 0);
+
+    // Then
+    await expect(p).resolves.toEqual(TOPIC_JSON);
+  });
+
   it("非ゼロ exit は reject する", async () => {
     // Given
     const fake = makeFakeChild();

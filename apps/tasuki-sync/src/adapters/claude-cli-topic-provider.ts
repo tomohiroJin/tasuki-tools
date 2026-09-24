@@ -107,8 +107,11 @@ export class ClaudeCliTopicProvider implements ServerTopicProvider {
         stdio: ["pipe", "pipe", "pipe"],
       });
 
-      let stdout = "";
-      let stderr = "";
+      // Buffer のまま貯め、close で 1 回だけ文字列にする。チャンクごとに toString すると、
+      // UTF-8 で 3 バイトの日本語が境目で割れたとき `�` に化け、化けたお題が検証を
+      // 通って全員へ配られる（PR #310 のレビュー）
+      const stdoutChunks: Buffer[] = [];
+      const stderrChunks: Buffer[] = [];
       let settled = false;
       const settle = (fn: () => void) => {
         if (settled) return;
@@ -138,17 +141,18 @@ export class ClaudeCliTopicProvider implements ServerTopicProvider {
 
       child.stdout?.on("data", (chunk) => {
         if (settled) return;
-        if (onData(chunk)) stdout += chunk.toString();
+        if (onData(chunk)) stdoutChunks.push(chunk);
       });
       child.stderr?.on("data", (chunk) => {
         if (settled) return;
-        if (onData(chunk)) stderr += chunk.toString();
+        if (onData(chunk)) stderrChunks.push(chunk);
       });
       // spawn 自体の失敗（ENOENT 等）。メッセージは保ったまま分類だけ確定させる。
       child.on("error", (err) => settle(() => reject(new ProviderFailure(err.message, "spawnFailed"))));
       child.on("close", (code) => {
         if (code !== 0) {
           // stderr にトークン様文字列が混入しても外へ出さない（ログ衛生・多層防御）
+          const stderr = Buffer.concat(stderrChunks).toString("utf8");
           const redacted = stderr.replace(/sk-ant-[\w-]+/g, "[redacted]");
           settle(() =>
             reject(new ProviderFailure(`claude -p exit ${code}: ${redacted.slice(0, 200)}`, "processError")),
@@ -160,7 +164,7 @@ export class ClaudeCliTopicProvider implements ServerTopicProvider {
         let parsed: unknown;
         try {
           // --output-format json の外殻 { result: "...", ... } から本文を取り出す
-          const outer = JSON.parse(stdout) as { result?: unknown };
+          const outer = JSON.parse(Buffer.concat(stdoutChunks).toString("utf8")) as { result?: unknown };
           if (typeof outer.result !== "string") {
             throw new Error(
               `--output-format json の result フィールドが文字列ではありません: ${JSON.stringify(outer).slice(0, 200)}`,
