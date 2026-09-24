@@ -12,6 +12,9 @@ const STATE = { topic: null, generating: false, degraded: false, aiUnlocked: fal
  */
 describe('お題ツールが受け取るフレーム', () => {
   it('Given お題の状態のフレーム / When 検める / Then 状態として受け取る', () => {
+    // Given: お題の状態のフレーム
+    // When: 検める
+    // Then: 状態として受け取る
     expect(parseTopicWebMessage(JSON.stringify({ type: 'topic', state: STATE }))).toEqual({
       type: 'topic',
       state: STATE,

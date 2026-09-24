@@ -24,12 +24,18 @@ describe('お題ツールの操作可否と知らせ', () => {
   });
 
   it('Given 空白だけのタイトル・書いたタイトル / When 押せるかを決める / Then 空白だけなら押せない', () => {
+    // Given: 空白だけのタイトル・書いたタイトル（有効・無効の両方）
+    // When: 押せるかを決める
+    // Then: 空白だけなら押せない。書いてあり有効なら押せる。無効なら押せない
     expect(canSubmitTopic('   ', true)).toBe(false);
     expect(canSubmitTopic('FizzBuzz', true)).toBe(true);
     expect(canSubmitTopic('FizzBuzz', false)).toBe(false);
   });
 
   it('Given 空白だけの合言葉・書いた合言葉 / When 押せるかを決める / Then 空白だけなら押せない', () => {
+    // Given: 空白だけの合言葉・書いた合言葉（有効・無効の両方）
+    // When: 押せるかを決める
+    // Then: 空白だけなら押せない。書いてあり有効なら押せる。無効なら押せない
     expect(canUnlock(' ', true)).toBe(false);
     expect(canUnlock('secret', true)).toBe(true);
     expect(canUnlock('secret', false)).toBe(false);
@@ -49,6 +55,9 @@ describe('お題ツールの操作可否と知らせ', () => {
   });
 
   it('Given 一度も繋がらないまま失敗した / When 告知を決める / Then 繋がらないと伝える', () => {
+    // Given: 一度も繋がらないまま失敗した（everConnected: false）
+    // When: 告知を決める
+    // Then: 繋がらないと伝える
     expect(connectionNotice({ status: 'closed', everConnected: false, failedAttempts: 1, syncStale: false })).toEqual({
       kind: 'unreachable',
       text: UNREACHABLE_TEXT,
@@ -56,6 +65,9 @@ describe('お題ツールの操作可否と知らせ', () => {
   });
 
   it('Given 使えていた接続が切れた / When 告知を決める / Then 再接続中と伝える', () => {
+    // Given: 使えていた接続が切れた（everConnected: true）
+    // When: 告知を決める
+    // Then: 再接続中と伝える
     expect(connectionNotice({ status: 'closed', everConnected: true, failedAttempts: 1, syncStale: false })).toEqual({
       kind: 'reconnecting',
       text: RECONNECTING_TEXT,
@@ -63,6 +75,9 @@ describe('お題ツールの操作可否と知らせ', () => {
   });
 
   it('Given 繋がっているが合わないフレームを捨てた / When 告知を決める / Then 同期できていないと伝える', () => {
+    // Given: 繋がっているが合わないフレームを捨てた（status: open・syncStale: true）
+    // When: 告知を決める
+    // Then: 同期できていないと伝える
     expect(connectionNotice({ status: 'open', everConnected: true, failedAttempts: 0, syncStale: true })).toEqual({
       kind: 'stale',
       text: STALE_TEXT,
@@ -70,6 +85,9 @@ describe('お題ツールの操作可否と知らせ', () => {
   });
 
   it('Given 繋がり始めたばかり / When 告知を決める / Then 何も出さない（正常時にちらつかせない）', () => {
+    // Given: 繋がり始めたばかり（status: connecting・失敗 0 回）
+    // When: 告知を決める
+    // Then: 何も出さない（正常時にちらつかせない）
     expect(connectionNotice({ status: 'connecting', everConnected: false, failedAttempts: 0, syncStale: false })).toEqual({
       kind: 'none',
     });
