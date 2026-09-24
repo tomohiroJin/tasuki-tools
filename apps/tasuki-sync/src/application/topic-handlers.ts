@@ -94,9 +94,11 @@ export function makeTopicHandlers(deps: TopicHandlerDeps): TopicHandlers {
     // 既にどこかのルームに居る接続からの 2 度目の参加は拒み、何も変えない（同じルームでも別のルームでも）。
     // 通すと 1 本のソケットが 2 つのルームに載り（または 2 人の参加者が同じ接続を持ち）、切断の
     // 片付けが片方しか外さず、幽霊の参加者が残ってルームが回収されなくなる。
-    // 失敗はほかの参加の失敗と同じハブの形で返す（`failJoin`）。
+    // 失敗はほかの参加の失敗と同じハブの形で返す（`failJoin`）。文言は、この接続が形の不正な
+    // コマンドへ返すものと同じにする（timer-core の表に `INVALID_COMMAND` は無く、引くと既定文に落ちて
+    // 同じコードが経路ごとに別の文になる）。
     if (isInAnyRoom(connId)) {
-      failJoin(connId, "INVALID_COMMAND", errorMessageFor("INVALID_COMMAND"));
+      failJoin(connId, "INVALID_COMMAND", topicErrorMessageFor("INVALID_COMMAND"));
       return;
     }
 

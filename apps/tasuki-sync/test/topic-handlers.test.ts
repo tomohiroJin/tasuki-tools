@@ -157,6 +157,10 @@ async function joined(h: Harness, connId = "topic-1", code = ROOM): Promise<void
 const errorsTo = (h: Harness, connId: string): string[] =>
   h.sent.flatMap((s) => (s.connId === connId && s.msg.type === "error" ? [s.msg.code] : []));
 
+/** 本人へ届いたエラーの文言（同じコードが経路によって別の文にならないことを見る） */
+const errorMessagesTo = (h: Harness, connId: string): string[] =>
+  h.sent.flatMap((s) => (s.connId === connId && s.msg.type === "error" ? [s.msg.message] : []));
+
 const topicFramesTo = (h: Harness, connId: string): TopicState[] =>
   h.sent.flatMap((s) => (s.connId === connId && s.msg.type === "topic" ? [s.msg.state] : []));
 
@@ -264,6 +268,23 @@ describe("お題の接続でルームへ入る", () => {
     expect(errorsTo(h, "topic-1")).toEqual(["INVALID_COMMAND"]);
     expect(h.store.get(ROOM)!.participants).toBe(before);
     expect(h.store.get(ROOM)!.participants.map((p) => p.displayName)).toEqual(["Alice"]);
+  });
+
+  it("二重参加の拒否は、形の不正なコマンドの拒否と同じ文言で返る", async () => {
+    // Given: 形の不正なコマンドを送ったときの文言を先に取る
+    const h = setup();
+    await joined(h, "topic-1", ROOM);
+    await h.handle("topic-1", { command: "topic.set" });
+    const malformedReplies = errorMessagesTo(h, "topic-1");
+    expect(malformedReplies).toHaveLength(1);
+    const malformed = malformedReplies[0]!;
+    h.sent.length = 0;
+
+    // When
+    await h.handle("topic-1", { command: "room.join", code: ROOM, displayName: "Alice2" });
+
+    // Then: 同じ INVALID_COMMAND が経路によって別の文にならない
+    expect(errorMessagesTo(h, "topic-1")).toEqual([malformed]);
   });
 
   it("JSON でない文字列は INVALID_JSON で拒まれる", async () => {

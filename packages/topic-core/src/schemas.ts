@@ -43,10 +43,13 @@ export const TopicFrameSchema = v.object({
   state: TopicStateSchema,
 });
 
+// **余計なフィールドは拒む**（`v.strictObject`）。`docs/adr/0011` 決定 2 S3 の MUST
+// 「未知 type・余剰フィールド・サイズ超過は即拒否」。poker と `room.check` は既に揃えてある
+// （`packages/room-core/src/wire.ts` の注釈）。`v.object` は未知キーを黙って落として通す。
 export const TopicCommandSchema = v.variant("command", [
-  v.object({ command: v.literal("topic.set"), title: titleStr, body: bodyStr }),
-  v.object({ command: v.literal("topic.clear") }),
-  v.object({
+  v.strictObject({ command: v.literal("topic.set"), title: titleStr, body: bodyStr }),
+  v.strictObject({ command: v.literal("topic.clear") }),
+  v.strictObject({
     command: v.literal("topic.generate"),
     mode: v.picklist(["ai", "fallback"]),
     // `docs/adr/0012` D10 の列挙検証。**ここを `v.string()` に戻すと、プロンプトへ
@@ -54,7 +57,7 @@ export const TopicCommandSchema = v.variant("command", [
     language: v.picklist(LANGUAGES),
     difficulty: v.picklist(DIFFICULTIES),
   }),
-  v.object({
+  v.strictObject({
     command: v.literal("ai.unlock"),
     // 空文字は合言葉として無効(timer-core の AiUnlockCommand と同じ)。
     key: v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_AI_UNLOCK_KEY)),

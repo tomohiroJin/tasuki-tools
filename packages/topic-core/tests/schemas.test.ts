@@ -33,6 +33,13 @@ describe("お題の接続のコマンドの境界", () => {
     expect(parse({ command: "room.check", code: "ABCDEF" })).toBe(false);
   });
 
+  it("余計なフィールドが付いたコマンドは、どの種類でも拒む", () => {
+    expect(parse({ command: "topic.set", title: "t", body: "", extra: 1 })).toBe(false);
+    expect(parse({ command: "topic.clear", extra: 1 })).toBe(false);
+    expect(parse({ command: "topic.generate", mode: "ai", language: "Go", difficulty: "hard", extra: 1 })).toBe(false);
+    expect(parse({ command: "ai.unlock", key: "k", extra: 1 })).toBe(false);
+  });
+
   it("topic フレームは状態をそのまま載せる", () => {
     expect(v.safeParse(TopicFrameSchema, { type: "topic", state: INITIAL_TOPIC_STATE }).success).toBe(true);
   });
