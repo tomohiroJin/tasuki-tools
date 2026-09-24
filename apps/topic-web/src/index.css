@@ -37,6 +37,14 @@
   gap: var(--space-3);
 }
 
+/* 「いまのお題」の見出しは body の羅紗グラデーション（felt-700〜felt-950）へ直接乗る
+ * （`.topic-panel` と違い不透明な地を持たない）。既定の h2 色 `--gold` は最も明るい
+ * 停止点（felt-700）で 3.92:1 と AA を割るため、既存のトークン `--gold-bright`
+ * （felt-700 上 5.80:1）へ替える（#91 PR 2・topic.spec の実測）。 */
+#topic-current-heading {
+  color: var(--gold-bright);
+}
+
 .topic-card {
   padding: var(--space-5);
   border-radius: var(--radius-lg);
