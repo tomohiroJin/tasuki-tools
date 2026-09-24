@@ -8,25 +8,21 @@
  * 撤去前の入口は timer の `Setup.tsx` にあり、**ルームに入っていなくても見られた**
  * （#95 S5c でそのファイルごと撤去した）。その性質を保つため、玄関（作成・参加画面）にも置く。
  */
+import { TOOLS } from '../tools.js';
+
 export interface HistoryLinkProps {
   /** いま居るルーム。入っていなければ null（戻り先が玄関になる）。 */
   readonly roomCode: string | null;
 }
 
-/**
- * ⚠ **timer の公開パスをここに直書きしている。** 宣言の正本は `src/tools.ts`
- * （「href は公開パスで、変える場所はここ 1 箇所」）だが、`Tool` に識別子が無いため、
- * ここから引くには `TOOLS` の中の timer を指す手立て（`id` 欄）を足す必要がある
- * —— 型を増やす判断なので、この段では行わない（#95 S5c・C-I3）。
- *
- * **代わりに `tests/history-link.test.tsx` が `TOOLS` から引いて突き合わせる。**
- * `tools.ts` の href を変えると、ここを直し忘れた時点でそのテストが赤くなる。
- */
+/** timer の公開パス。**宣言の正本は `src/tools.ts`**（#91 PR 2 で `Tool` に `id` が入り、引けるようになった）。 */
+const TIMER_BASE = TOOLS.find((tool) => tool.id === 'timer')?.href ?? '/timer/';
+
 export function HistoryLink({ roomCode }: HistoryLinkProps) {
   const href =
     roomCode === null
-      ? '/timer/?view=history'
-      : `/timer/?view=history&room=${encodeURIComponent(roomCode)}`;
+      ? `${TIMER_BASE}?view=history`
+      : `${TIMER_BASE}?view=history&room=${encodeURIComponent(roomCode)}`;
 
   return (
     <a className="hub-secondary" href={href}>

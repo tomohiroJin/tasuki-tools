@@ -2,7 +2,7 @@
 
 Tasuki の共通ビジュアル「**夜のカードテーブル**」。深緑のフェルト、象牙のカード、真鍮のアクセント。
 
-**3 アプリすべて（`apps/timer-web` / `apps/poker-web` / `apps/landing`）が使う。**
+**4 アプリすべて（`apps/timer-web` / `apps/poker-web` / `apps/landing` / `apps/topic-web`）が使う。**
 ただし読む層が違う（下記）。判断の経緯は [ADR-0001](../../docs/adr/0001-design-system-scope.md)。
 
 > かつては「`apps/timer-web` は使わない（Tailwind ベースの別系統のため）」としていた。
@@ -20,7 +20,7 @@ src/
 
 | 利用側 | 読むもの | 理由 |
 |---|---|---|
-| `apps/poker-web` / `apps/landing` | `@import '@tasuki/ui';`（両層） | 素の CSS で組んでいるので要素層がそのまま効く |
+| `apps/poker-web` / `apps/landing` / `apps/topic-web` | `@import '@tasuki/ui';`（両層） | 素の CSS で組んでいるので要素層がそのまま効く |
 | `apps/timer-web` | `import '@tasuki/ui/tokens.css';`（トークン層だけ・`main.tsx` から） | Tailwind のユーティリティで全操作要素を組んでいる。要素層を読むと `button { 真鍮のグラデーション }` が下地に敷かれ、両者が部分的に上書きし合う |
 
 **この境界は stylelint が機械的に守る。** `src/tokens/` では `selector-max-type` /
@@ -57,7 +57,7 @@ Tailwind が `@import` を展開すると、入れ子の `fonts.css` の `url('.
 | ファイル | いつ落ちるか |
 |---|---|
 | `fraunces-latin-{normal,italic}.woff2` | 常時（数字と見出し） |
-| `zkgn-{400,500,700}-base.woff2` | 常時（ASCII・かな・記号・3 アプリが画面に出す漢字） |
+| `zkgn-{400,500,700}-base.woff2` | 常時（ASCII・かな・記号・4 アプリが画面に出す漢字） |
 | `zkgn-{400,500}-ext.woff2` | 利用者名に base 層外の漢字が出たときだけ |
 
 - Fraunces / Zen Kaku Gothic New はいずれも **SIL Open Font License 1.1**。

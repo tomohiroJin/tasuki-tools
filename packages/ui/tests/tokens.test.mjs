@@ -22,7 +22,7 @@ function tokensLayer() {
 }
 
 test('トークン層が、他のパッケージから参照される変数を定義している', () => {
-  // Given（timer-web / poker-web / landing が var() で引いているもの）
+  // Given（timer-web / poker-web / landing / topic-web が var() で引いているもの）
   const required = [
     '--felt-950', '--felt-900', '--felt-800', '--felt-700',
     '--line', '--line-strong',

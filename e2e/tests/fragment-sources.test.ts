@@ -41,17 +41,18 @@ describe('FRAGMENT_SOURCES とディスク上の断片の一致', () => {
   const onDisk = fragmentsOnDisk();
   const declared = [...FRAGMENT_SOURCES];
 
-  it('Given deploy 配下 / When *.conf を走査する / Then 4 本ある（0 件で素通りしないことの固定）', () => {
+  it('Given deploy 配下 / When *.conf を走査する / Then 5 本ある（0 件で素通りしないことの固定）', () => {
     // Given / When: fragmentsOnDisk() が deploy/<app>/caddy を正しく辿れている
     // Then: 0 件だと以降の比較が常に成立してしまう（実際にこの穴を踏んだ）。
     // #95 S5c で 10-timer-ws.conf を撤去し、5 本 → 4 本になった（WS の入口が /ws の 1 本に畳まれたため）。
-    expect(onDisk).toHaveLength(4);
+    // #91 PR 2 で 40-topic.conf が加わり、4 本 → 5 本になった。
+    expect(onDisk).toHaveLength(5);
   });
 
-  it('Given FRAGMENT_SOURCES / When 本数を見る / Then 4 本ある', () => {
+  it('Given FRAGMENT_SOURCES / When 本数を見る / Then 5 本ある', () => {
     // Given / When
-    // Then: 手書きの配列自体が空・欠落していないこと（#95 S5c で 5 本 → 4 本）
-    expect(declared).toHaveLength(4);
+    // Then: 手書きの配列自体が空・欠落していないこと（#95 S5c で 5 本 → 4 本・#91 PR 2 で 4 本 → 5 本）
+    expect(declared).toHaveLength(5);
   });
 
   it('Given FRAGMENT_SOURCES とディスクの一覧 / When 集合として比べる / Then 完全一致する', () => {

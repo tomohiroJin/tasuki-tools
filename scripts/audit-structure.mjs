@@ -1096,6 +1096,8 @@ export const SCANNED_PACKAGES = [
   { pkg: "apps/timer-web", src: "src", test: "test", entry: "main.tsx" },
   { pkg: "apps/poker-web", src: "src", test: "tests", entry: "main.tsx" },
   { pkg: "apps/landing", src: "src", test: "tests", entry: "main.tsx" },
+  // #91 PR 2 で新設（お題ツール）。
+  { pkg: "apps/topic-web", src: "src", test: "tests", entry: "main.tsx" },
   { pkg: "e2e", src: null, test: "tests", entry: null },
 ];
 

@@ -1,0 +1,34 @@
+# 変異 89: topic-web-operate-ignores-join
+#
+# 検出を期待するテスト:
+#   - apps/topic-web/tests/topic-room.test.tsx
+#     describe「操作できない間」の
+#     「Given 解錠済みで下書きがある / When 切れて繋ぎ直し、参加の返事を待つ / Then どの操作も押せず、
+#       返事が来たら押せる」
+#     「Given 未解錠で合言葉を書いてある / When 切れて繋ぎ直し、参加の返事を待つ / Then 解錠するは
+#       押せず、返事が来たら押せる」
+#   - apps/topic-web/tests/topic-view.test.ts
+#     describe「お題ツールの操作可否と知らせ」
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m89-*.patch
+# 復元: git apply -R scripts/mutations/m89-*.patch
+#
+# #91 PR 2。お題ツールの `canOperate` が `joined` を見ず `status === 'open'` だけで
+# 決める。**切断中だけを見る画面のテストは、この変異で緑のまま残る**（切断で `joined`
+# が下りるので、参加の判定が壊れていても隠れる・検出力の検証で実測）。「繋ぎ直して
+# 参加の返事を待つ窓」を見るテストで初めて殺せる —— `SyncConnection` は入り直しの
+# `room.join` より先に送信キューを流すため、参加前に押した操作は `NOT_IN_ROOM` で
+# 拒まれる（利用者から見ると押したのに何も起きない）。
+diff --git a/apps/topic-web/src/topic-view.ts b/apps/topic-web/src/topic-view.ts
+--- a/apps/topic-web/src/topic-view.ts
++++ b/apps/topic-web/src/topic-view.ts
+@@ -13,7 +13,7 @@ export type ConnectionStatus = 'connecting' | 'open' | 'closed';
+  * 流す。押せたままにすると、切断中に押した操作はサーバーで `NOT_IN_ROOM` になる。
+  */
+ export function canOperate(status: ConnectionStatus, joined: boolean): boolean {
+-  return status === 'open' && joined;
++  return status === 'open';
+ }
+
+ /** タイトルを書いてあれば「このお題にする」を押せる（空白だけはサーバーも拒む・topic-core の `titleStr`）。 */

@@ -1,0 +1,37 @@
+{
+  "name": "@tasuki/topic-web",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "lint": "eslint src tests",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tasuki/invite-ui": "workspace:*",
+    "@tasuki/protocol": "workspace:*",
+    "@tasuki/room-core": "workspace:*",
+    "@tasuki/sync-client": "workspace:*",
+    "@tasuki/topic-core": "workspace:*",
+    "@tasuki/ui": "workspace:*",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@tasuki/dev-hub-redirect": "workspace:*",
+    "@testing-library/jest-dom": "^7.0.0",
+    "@testing-library/react": "^16.1.0",
+    "@types/node": "^26.1.2",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^6.0.5",
+    "jsdom": "^30.0.1",
+    "typescript": "^6.0.3",
+    "vite": "^8.2.0",
+    "vitest": "^4.1.11"
+  }
+}

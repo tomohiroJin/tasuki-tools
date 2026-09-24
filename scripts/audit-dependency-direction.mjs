@@ -97,7 +97,7 @@ export const ALLOWED = {
   // 文脈をつなぐのはアプリ層である（docs/adr/0017）。
   "packages/topic-core": [],
   // 同期クライアントの接続部分（#95 S5a・D18）。**@tasuki/* に依存しない** ——
-  // ツールの語彙を持たないことが、3 つの web アプリから使える条件である。
+  // ツールの語彙を持たないことが、4 つの web アプリから使える条件である。
   "packages/sync-client": [],
   "packages/timer-core": [], // #95 S4b で room-core への一時依存を外した（ADR-0017 決定 4 の期限）
   "packages/poker-core": ["@tasuki/protocol"], // 既存。境界のパースを protocol に一本化
@@ -106,19 +106,21 @@ export const ALLOWED = {
   "packages/ui": [],
   "packages/invite-ui": [], // ADR-0020: ブラウザ操作のみ。ドメイン・同期への依存なし。
   // dev サーバー専用の Vite プラグインと玄関のポートの正本（#95 S5c 追補・#249）。
-  // **@tasuki/* に依存しない** —— ツールの語彙を持たず、3 つの vite.config.ts から
+  // **@tasuki/* に依存しない** —— ツールの語彙を持たず、4 つの vite.config.ts から
   // 同じものを参照できることが存在理由である。ルート直下に置いていた頃は、どの
   // パッケージの tsconfig の射程にも入らず typecheck が落ち、パッケージ外を相対パスで
   // 取り込むためこの検査（決定 4）も落ちていた。
   "packages/dev-hub-redirect": [],
   // #95 S5a で LP は同期クライアントになった（ADR-0019）。**@tasuki/timer-core を知らない** ——
   // ハブが扱うのは名簿だけで、タイマーの状態も票も通らない（ADR-0017 の文脈分割）。
+  // #91 PR 2: 玄関は `topic` フレームを topic-core のスキーマで検め、タイトルだけを出す（spec §5.5）。
   "apps/landing": [
     "@tasuki/invite-ui",
     "@tasuki/dev-hub-redirect",
     "@tasuki/protocol",
     "@tasuki/room-core",
     "@tasuki/sync-client",
+    "@tasuki/topic-core",
     "@tasuki/ui",
   ],
   "apps/timer-web": [
@@ -140,6 +142,18 @@ export const ALLOWED = {
     "@tasuki/sync-client",
     "@tasuki/ui",
   ],
+  // #91 PR 2: お題ツール。お題を変えられる唯一の画面（spec T4）。
+  // **timer-core・poker-core を知らない**（ツール同士は直接の関係を持たない・spec T1）。
+  // room-core はハブの形（`room.join` の応答・参加の失敗）を検めるために使う。
+  "apps/topic-web": [
+    "@tasuki/dev-hub-redirect",
+    "@tasuki/invite-ui",
+    "@tasuki/protocol",
+    "@tasuki/room-core",
+    "@tasuki/sync-client",
+    "@tasuki/topic-core",
+    "@tasuki/ui",
+  ],
   // #95 S2 で apps/timer-sync と apps/poker-sync がここへ統合された。
   // poker-core が加わったのはそのため（統合前は poker-sync 側の依存）。
   "apps/tasuki-sync": [
@@ -150,7 +164,7 @@ export const ALLOWED = {
     "@tasuki/timer-core",
     "@tasuki/topic-core",
   ],
-  e2e: ["@tasuki/landing", "@tasuki/poker-web", "@tasuki/timer-web"],
+  e2e: ["@tasuki/landing", "@tasuki/poker-web", "@tasuki/timer-web", "@tasuki/topic-web"],
 };
 
 /**

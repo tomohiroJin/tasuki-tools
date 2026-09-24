@@ -86,7 +86,7 @@
 }
 
 /*
-  2 枚を逆向きに傾ける。狙いは「並べた」ではなく「配った」に見せること。
+  両端の札を逆向きに傾け、真ん中は扇の中心として正位置に置く。狙いは「並べた」ではなく「配った」に見せること。
   等間隔で真っ直ぐ置くとグリッドの体裁になり、卓の上の手札には見えない。
   名前の由来（襷＝斜めに掛けるもの）とも響く。
 */
@@ -144,7 +144,7 @@
 /* ---------- 配る演出 ---------- */
 
 /*
-  卓の中央上から 2 枚が順に配られる。1 度きりの短い所作に留める
+  卓の中央上から 3 枚が順に配られる。1 度きりの短い所作に留める
   （動きを抑えたい環境では @tasuki/ui の base.css が止める）。
 */
 .hand li {
@@ -157,6 +157,11 @@
 
 .hand li:last-child {
   animation-delay: 0.18s;
+}
+
+/* 3 枚目（#91）。真ん中の札は傾けず、配る順は左 → 真ん中 → 右にする。 */
+.hand li:nth-child(2) {
+  animation-delay: 0.12s;
 }
 
 @keyframes deal {
@@ -331,9 +336,12 @@
   min-width: 0;
 }
 
+/* 札が 3 枚になった（#91）。札の列を全幅に取り、参加者と招待のパネルはその下に並べる。
+   3fr : 2fr の 2 列のままだと、1280px で札 1 枚の文字の入る幅が約 147px になり、
+   一行説明が折り返す（#270 と同じ型）。札は実物大（15rem）より大きくしない。 */
 .hub-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
   gap: var(--space-6);
   width: 100%;
@@ -356,11 +364,31 @@
 .hub-tools .hand li {
   min-width: 0;
   flex: 1;
+  max-width: 15rem;
+}
+/* いまのお題（#91・spec §5.5）。札の下に 1 行だけ。長いタイトルは折り返さず省略する
+   （本文は出さない。全文はお題ツールで読む）。 */
+.hub-topic {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  min-width: 0;
+  margin: var(--space-4) 0 0;
+  justify-content: center;
+}
+.hub-topic-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .hub-room {
-  /* 左列（札）より短く終わるのは自然なので引き伸ばさない。参加者が 1 人のときに
-     中身の無いパネルを作るほうが悪い。代わりに間を詰めて「短い」を意図に見せる。 */
+  /* 上の札の列の下に、参加者と招待を並べる。高さは揃えない（参加者が 1 人のときに
+     中身の無いパネルを作るほうが悪い）。既定の stretch のままだと、QR を開いて
+     招待パネルが伸びるたびに参加者パネルまで引き伸ばされてしまう。 */
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(20rem, 100%), 1fr));
+  align-items: start;
   gap: var(--space-4);
   min-width: 0;
 }
@@ -484,11 +512,11 @@
   .hub-tools {
     padding: 0;
   }
-  /* 札は基底の `.hand` と同じく縦に積む。**横に 2 枚並べると文字が入らない** ——
+  /* 札は基底の `.hand` と同じく縦に積む。**横に並べると文字が入らない** ——
      320px では札が 131px しか取れず、一行説明に 133px 必要で最後の 1 文字だけが
      次行へ落ちた。横並びのまま収めるには 10.5px まで縮める必要があり、
      「12px の本文で AA」という配色トークンの前提を割る。積めば 218px 取れて、
-     道具名も説明も 1 行に収まり、2 枚とも画面内に残る（実測）。
+     道具名も説明も 1 行に収まり、札はすべて画面内に残る（実測）。
 
      `.hub-tools .tool-card` の `width: 100%` は詳細度 (0,2,0) で基底の
      `.tool-card`(0,1,0) に勝つので、ここで明示的に上書きする。 */

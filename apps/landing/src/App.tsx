@@ -89,6 +89,7 @@ export function App() {
           inviteUrl={hub.inviteUrl ?? ''}
           roster={hub.roster}
           connection={hub.connection}
+          topicTitle={hub.topicTitle}
         />
       );
     case 'gone':

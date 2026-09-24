@@ -55,6 +55,8 @@ export const SCANNED_PACKAGES = [
   // #95 S2 で apps/timer-sync と apps/poker-sync がここへ統合された。
   "apps/tasuki-sync",
   "apps/timer-web",
+  // #91 PR 2 で新設（お題ツール）。
+  "apps/topic-web",
   "packages/dev-hub-redirect",
   "packages/poker-core",
   "packages/protocol",
@@ -126,6 +128,8 @@ export const ALLOWED_FILES = [
   // スキーマは v.strictObject で、送り手が付けた未知のキー名がそのまま経路に載るため
   // （実測）。出しているのは固定の文言だけで、値も経路も含まない。
   "apps/poker-web/src/hooks/useSync.ts",
+  // #91 PR 2。契約に合わないフレームを捨てたときの固定の文言（poker-web の useSync と同じ）。
+  "apps/topic-web/src/hooks/use-topic-sync.ts",
   // #157 で `.tsx` を走査対象へ入れたことによる追加。ブラウザの devtools 向けの
   // console で、ADR 0012 D1 は「ブラウザの console は本決定の対象外」と決めている。
   // 規範上は自由だが、`.ts` 側（上の 2 件）と扱いを揃えるためマーカーで明示する。

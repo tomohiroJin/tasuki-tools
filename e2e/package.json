@@ -13,7 +13,8 @@
   "dependencies": {
     "@tasuki/landing": "workspace:*",
     "@tasuki/poker-web": "workspace:*",
-    "@tasuki/timer-web": "workspace:*"
+    "@tasuki/timer-web": "workspace:*",
+    "@tasuki/topic-web": "workspace:*"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1",

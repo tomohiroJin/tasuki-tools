@@ -26,7 +26,7 @@ beforeEach(async () => {
 });
 
 function showChoice() {
-  return render(<RoomChoice code="朝会-ab12" inviteUrl={URL} roster={null} connection="online" />);
+  return render(<RoomChoice code="朝会-ab12" inviteUrl={URL} roster={null} connection="online" topicTitle={null} />);
 }
 
 describe('選択画面で参加 URL を配る', () => {

@@ -173,7 +173,7 @@ export function usePokerSync(): PokerSync {
     switch (msg.type) {
       case 'joined':
         setJoinedThisConnection(true);
-        // **端末に置く同一性は 3 つの画面で 1 つ**（#95 S5b・D12）。選択画面で名乗った人が
+        // **端末に置く同一性は 4 つの画面で 1 つ**（#95 S5b・D12）。選択画面で名乗った人が
         // poker でも同じ人として扱われるのは、同じ鍵を読み書きしているからである。
         saveResumeIdentity({
           code: msg.roomId,

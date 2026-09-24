@@ -44,6 +44,15 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 - **構成**: [`apps/landing`](apps/landing/) — Vite + React・静的サイト（同期サーバー無し・`base=/`）
 - 世界観は [`packages/ui`](packages/ui/) の「夜のカードテーブル」を共有
 
+### 4. お題（Topic Board）
+
+お題を用意して全員に見せるツール。玄関の 3 枚目の札から開く。**状態は未公開**（[#91](https://github.com/tomohiroJin/tasuki-tools/issues/91) の PR 3 が main に入った後に配布）。
+
+- **構成**
+  - [`packages/topic-core`](packages/topic-core/) — ドメインロジック
+  - [`apps/topic-web`](apps/topic-web/) — フロントエンド（React + Vite・`base=/topic/`）
+  - [`apps/tasuki-sync`](apps/tasuki-sync/) — リアルタイム同期サーバー（timer・poker と共用）
+
 ## 🔗 ライブデモ
 
 **<https://tasuki.niku9.click/>** — TDD Mob Pro Timer を実際に試せます（ルーム作成 → 招待リンクで参加 → リアルタイム同期）。
@@ -66,12 +75,12 @@ pnpm dev     # 全アプリの dev サーバーを並列起動する
 pnpm test    # 全パッケージのテストを実行する
 ```
 
-**起動したら <http://localhost:5175/> を開いてください。** `pnpm dev` は 4 つのプロセスを
+**起動したら <http://localhost:5175/> を開いてください。** `pnpm dev` は 5 つのプロセスを
 立ち上げ、ログには複数のポートが並びますが、**入口はこの 1 つだけ**です（本番と同じ形）。
 
-> ⚠ **ツールの dev サーバー（:5173 / :5174）を直接開かないでください。**
+> ⚠ **ツールの dev サーバー（:5173 / :5174 / :5176）を直接開かないでください。**
 > #95 S5c で入口を玄関 1 つに畳んだため、ルームコードを伴わずに開くと玄関（`/`）へ
-> 送り返されます。:5173 / :5174 では `/` がそのツール自身なので、Vite の base
+> 送り返されます。:5173 / :5174 / :5176 では `/` がそのツール自身なので、Vite の base
 > リダイレクトと噛み合って**ページの再読み込みが止まらなくなります**。
 
 起動・個別プロセスの内訳・検査コマンドの詳しい手順は
@@ -96,6 +105,7 @@ TypeScript / React 19 + Vite / Bun / WebSocket / Valibot / neverthrow / Vitest /
 | TDD Mob Pro Timer | `/timer/` | 本番公開中 |
 | Planning Poker | `/poker/` | 本番公開中 |
 | 玄関 LP | `/` | 本番公開中 |
+| Topic Board | `/topic/` | 未公開（#91 の配布で公開） |
 
 単一 monorepo への統合は [epic #15](https://github.com/tomohiroJin/tasuki-tools/issues/15) で**実装完了**しました
 （設計: [`docs/superpowers/specs/2026-08-04-monorepo-unification-design.md`](docs/superpowers/specs/2026-08-04-monorepo-unification-design.md)）。

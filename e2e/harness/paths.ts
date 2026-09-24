@@ -2,7 +2,7 @@
  * ハーネスが触る場所の一覧。
  *
  * ここに集約する理由は 2 つ。1 つは後始末で消す対象を取りこぼさないため。
- * もう 1 つは、e2e/package.json が 3 つの web アプリを workspace 依存として
+ * もう 1 つは、e2e/package.json が 4 つの web アプリを workspace 依存として
  * 宣言している理由がここを読めば分かるようにするため —— **コードとしては
  * 使わないが、turbo の `^build` に「先にビルドせよ」と伝えるための宣言**であり、
  * 実際に読むのは下の WEB_ROOTS が指す dist だけである。
@@ -34,6 +34,8 @@ export const WEB_ROOTS: readonly WebRoot[] = [
   { link: '/var/www/tasuki', dist: path.join(REPO_ROOT, 'apps/timer-web/dist') },
   { link: '/var/www/tasuki-poker', dist: path.join(REPO_ROOT, 'apps/poker-web/dist') },
   { link: '/var/www/tasuki-home', dist: path.join(REPO_ROOT, 'apps/landing/dist') },
+  // #91 PR 2
+  { link: '/var/www/tasuki-topic', dist: path.join(REPO_ROOT, 'apps/topic-web/dist') },
 ];
 
 /** 経路の本体。**内容を 1 バイトも書き換えずに**設置する。 */
@@ -43,6 +45,8 @@ export const FRAGMENT_SOURCES: readonly string[] = [
   'deploy/landing/caddy/05-hub-ws.conf',
   'deploy/poker/caddy/20-poker.conf',
   'deploy/timer/caddy/30-timer-spa.conf',
+  // #91 PR 2
+  'deploy/topic/caddy/40-topic.conf',
   'deploy/landing/caddy/90-landing.conf',
 ].map((rel) => path.join(REPO_ROOT, rel));
 

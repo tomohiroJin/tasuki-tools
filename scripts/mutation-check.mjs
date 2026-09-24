@@ -1050,6 +1050,117 @@ export const MUTATIONS = [
       "（`ui/Summary.tsx`）ので、輪と違う並びを渡すと**別人の回数が別人の名前の横に" +
       "並ぶ**。名簿は輪の外の人も含むため長さも一致しない。",
   },
+  {
+    id: 87,
+    label: "玄関の whereLabel が ID ではなく並び順で名前を引く",
+    patch: "m87-whereLabel-index-not-id.patch",
+    pkg: "apps/landing",
+    tests: ["tests/room-choice-layout.test.tsx"],
+    note:
+      "#91 PR 2。`whereLabel` が `TOOLS.find` によるツール ID 引きをやめ、" +
+      "`['timer', 'poker']` という古い並び順の添字で名前を引くようになる。この表に" +
+      "お題ツールは無いので `indexOf('topic')` が -1 になり、`TOOLS[-1]` は undefined で" +
+      "名前の代わりに生の ID「topic」が出る（「Topic Board」と出ない）。",
+  },
+  {
+    id: 88,
+    label: "玄関の use-hub-sync.ts が topic フレームを検めずに捨てる",
+    patch: "m88-hub-topic-frame-not-checked.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hub/use-hub-sync.test.tsx"],
+    note:
+      "#91 PR 2・spec T3。`TopicFrameSchema` で見分ける分岐を消し、`topic` フレームを" +
+      "ハブのスキーマにしか通さなくなる。ハブの契約に合わないので黙って捨てられ、" +
+      "選択画面の「いまのお題」が一生更新されない。",
+  },
+  {
+    id: 89,
+    label: "お題ツールの操作可否が参加を見ない",
+    patch: "m89-topic-web-operate-ignores-join.patch",
+    pkg: "apps/topic-web",
+    tests: ["tests/topic-room.test.tsx", "tests/topic-view.test.ts"],
+    note:
+      "#91 PR 2。`canOperate` が `joined` を見ず `status === 'open'` だけで決める。" +
+      "**切断中だけを見るテストはこの変異で緑のまま残る**（切断で `joined` も下りるため、" +
+      "参加の判定が壊れていても隠れる・検出力の検証で実測）。殺すのは" +
+      "「繋ぎ直して参加の返事を待つ窓」を見るテストである —— `SyncConnection` は" +
+      "入り直しの `room.join` より先に送信キューを流すため、参加前に押した操作は" +
+      "`NOT_IN_ROOM` で拒まれ、利用者から見ると押したのに何も起きない。",
+  },
+  {
+    id: 90,
+    label: "お題ツールの下書きが届いたお題で上書きされる",
+    patch: "m90-topic-editor-draft-overwritten.patch",
+    pkg: "apps/topic-web",
+    tests: ["tests/topic-room.test.tsx"],
+    note:
+      "#91 PR 2。`TopicEditor` に `current` が変わるたび下書きを上書きする `useEffect` を" +
+      "足す。書いている途中に別の人がお題を変えると、打ちかけの下書きが黙って消える —— " +
+      "コンポーネント冒頭のコメントが禁じている性質（「届いたお題で上書きしない」）そのもの。",
+  },
+  {
+    id: 91,
+    label: "GENERATION_COOLDOWN の文が書体の base 層から外れる字へ戻る",
+    patch: "m91-generation-cooldown-kanji-reverts.patch",
+    pkg: "apps/topic-web",
+    tests: ["tests/copy-fits-font-base.test.ts"],
+    note:
+      "#91 PR 2。topic-core の `GENERATION_COOLDOWN` を「少し待ってから、もう一度" +
+      "作ってください。」へ戻す。「少」は書体の常用の層（base）の範囲に無く、" +
+      "「しばらく」へ言い換えたのは計画を書く段の実測でこれが外れていたためである" +
+      "（global-constraints「実測で spec から外したこと」）。`packages/topic-core/" +
+      "tests/error-messages.test.ts` も赤になるが、対応表に載せるのは書体の検査である" +
+      "（「base 層に収める」を守っている本体はこちら）。",
+  },
+  {
+    id: 92,
+    label: "同期フックの onClose から cancelRetry() を外す",
+    patch: "m92-use-topic-sync-onclose-skips-cancel-retry.patch",
+    pkg: "apps/topic-web",
+    tests: ["tests/use-topic-sync.test.tsx"],
+    note:
+      "#91 PR 2。混雑で入り直しの待ちが走っている途中に切れると、待っていたタイマーが" +
+      "生き残ったまま繋ぎ直り、`onReconnected` の送信と合わせて `room.join` が 2 通" +
+      "流れる（2 通目はサーバーが「コマンドの形式が不正です」で拒む）。",
+  },
+  {
+    id: 93,
+    label: "planForError が抜けた知らせを left ではなく show へ落とす",
+    patch: "m93-join-error-plan-left-falls-to-show.patch",
+    pkg: "apps/topic-web",
+    tests: ["tests/use-topic-sync.test.tsx", "tests/join-error-plan.test.ts"],
+    note:
+      "#91 PR 2。`LEFT_ROOM` / `REMOVED_FROM_ROOM` / `REMOVED_BY_HOST` の 2 行を消す。" +
+      "抜けた・外された知らせが、玄関へ理由つきで戻す `left` ではなく「その場でサーバーの" +
+      "文を伝える」`show` へ落ちる。本人は玄関へ戻らず、お題の画面にエラー文だけが" +
+      "出た状態に取り残される。",
+  },
+  {
+    id: 94,
+    label: "お題ツールの Markdown が行区切り U+2028 で止まらなくなる",
+    patch: "m94-topic-markdown-line-separator-loop.patch",
+    pkg: "apps/topic-web",
+    tests: ["tests/markdown.test.tsx"],
+    note:
+      "#91 PR 2・最終レビューの指摘（C1）。改行の正規化から U+2028 / U+2029 を外し、" +
+      "かつ段落の前進の保証を外す。見出しの判定の `.` がその字に一致せず、段落の停止条件" +
+      "だけが止まるので、空の段落を積み続けて解析が返らない。本文はサーバーが長さしか" +
+      "見ずに配るので、そのルームでお題ツールを開いた全員のタブが固まる。同期の関数が" +
+      "返らないのでテストの timeout では止まらず、ワーカーがメモリを使い切って落ちる" +
+      "（手元で約 40 秒・exit 1。検査はハングしない）。",
+  },
+  {
+    id: 95,
+    label: "timer の Markdown が行区切り U+2028 で止まらなくなる",
+    patch: "m95-timer-markdown-line-separator-loop.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/Markdown.test.tsx"],
+    note:
+      "#91 PR 2・最終レビューの指摘（C1）。m94 と同じ変異を timer-web の Markdown に" +
+      "当てる（main から同じ正規表現を持っていた）。共有メモのプレビューとお題の説明が" +
+      "同じ部品を使うので、本番の timer でも起こりうる。ワーカーがメモリを使い切って" +
+      "落ちる（手元で約 40 秒・exit 1）。",
+  },
 ];
 
 /**

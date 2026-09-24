@@ -14,10 +14,11 @@ import { describePaint, groundLayers, measureSample, sampleInPage } from '../sup
  * 回転後の外接矩形を返す —— 高さを行の高さで割ると、1 行でも 2 行と出た。
  * `Range` の矩形は 1 行につき 1 つなので、傾きに影響されない。
  */
-async function checkCardText(page: Page): Promise<void> {
+async function checkCardText(page: Page, expectedCards: number): Promise<void> {
   const cards = page.locator('.tool-card');
+  // 札の枚数を固定する（3 枚目が出なくても、0 枚でも黙って通るのを防ぐ）
+  await expect(cards).toHaveCount(expectedCards);
   const count = await cards.count();
-  if (count === 0) return;
   for (let i = 0; i < count; i += 1) {
     const measured = await cards.nth(i).evaluate((card) =>
       ['.tool-name', '.tool-summary'].map((selector) => {
@@ -47,8 +48,8 @@ async function checkCardText(page: Page): Promise<void> {
  * 祖先へ黙って抜けるのではなく `measureSample` が `null` を返し、下の
  * `unmeasurable` が赤くする。列挙を維持する代わりに機構で拾う。
  */
-async function checkText(page: Page): Promise<void> {
-  await checkCardText(page);
+async function checkText(page: Page, expectedCards: number): Promise<void> {
+  await checkCardText(page, expectedCards);
   const targets = page.locator('main :is(h1, h2, p, span, a, button, input):visible');
   const failures: string[] = [];
   const unmeasurable: string[] = [];
@@ -81,7 +82,7 @@ async function checkText(page: Page): Promise<void> {
   expect(measured).toBeGreaterThan(5);
 }
 
-for (const width of [1280, 320]) {
+for (const width of [1280, 1024, 768, 320]) {
   test(`Given 玄関 / When 作成・参加・選択を幅 ${width} で表示 / Then 読めて横にはみ出さない`, async ({ page, openPeer }, testInfo) => {
     // Given: 実サーバーを通り、UI 文言だけで書体の追加取得を起こさない。
     const fonts: string[] = [];
@@ -91,7 +92,7 @@ for (const width of [1280, 320]) {
     await expect(page.getByRole('button', { name: 'ルームを作る' })).toBeEnabled();
     await page.evaluate(() => document.fonts.ready);
     await page.screenshot({ path: testInfo.outputPath('create.png'), fullPage: true });
-    await checkText(page);
+    await checkText(page, 0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     // When
     await page.getByLabel('ルーム名').fill('朝会');
@@ -107,7 +108,7 @@ for (const width of [1280, 320]) {
     await expect(guest.page.getByRole('button', { name: '参加する' })).toBeEnabled();
     await guest.page.evaluate(() => document.fonts.ready);
     await guest.page.screenshot({ path: testInfo.outputPath('join.png'), fullPage: true });
-    await checkText(guest.page);
+    await checkText(guest.page, 0);
     expect(await guest.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await guest.page.getByLabel('あなたの名前').fill('いずみ');
     await guest.page.getByRole('button', { name: '参加する' }).click();
@@ -129,10 +130,10 @@ for (const width of [1280, 320]) {
     for (const p of [page, guest.page]) {
       expect(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     }
-    await checkText(page);
+    await checkText(page, 3);
     await guest.page.goto('about:blank');
     await expect(page.getByText('切断中', { exact: true })).toBeVisible();
-    await checkText(page);
+    await checkText(page, 3);
     await page.getByRole('button', { name: 'QR コードを表示' }).click();
     await expect(page.getByRole('img', { name: '参加用 URL の QR コード' })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

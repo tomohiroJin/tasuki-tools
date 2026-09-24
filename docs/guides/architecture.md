@@ -32,7 +32,7 @@ S2〜S4a では poker 側の入れ子（src/poker 配下。**S4b で畳みまし
 | 層 | 置き場 | 依存してよいもの |
 |---|---|---|
 | ドメイン（メンバーシップ文脈） | `packages/room-core` | なし（純粋関数と型のみ） |
-| ドメイン（ツール） | `packages/timer-core` `packages/poker-core` | なし（純粋関数と型のみ）。**#95 S1 で生じた `packages/timer-core` → `packages/room-core` の期限つき一時依存は S4b（#246）で解消した** —— 表示名の規約は `room-core` に残し、境界で適用する場所を `apps/tasuki-sync/src/application/normalize-command-names.ts` へ移した（`docs/adr/0017` の追記 2026-09-11）。`scripts/audit-dependency-direction.mjs` の許可表からも行が消えている |
+| ドメイン（ツール） | `packages/timer-core` `packages/poker-core` `packages/topic-core` | なし（純粋関数と型のみ）。**#95 S1 で生じた `packages/timer-core` → `packages/room-core` の期限つき一時依存は S4b（#246）で解消した** —— 表示名の規約は `room-core` に残し、境界で適用する場所を `apps/tasuki-sync/src/application/normalize-command-names.ts` へ移した（`docs/adr/0017` の追記 2026-09-11）。`scripts/audit-dependency-direction.mjs` の許可表からも行が消えている |
 | プロトコル契約 | `packages/protocol`・各 core の `protocol.ts`（例: `packages/poker-core/src/protocol.ts`） | ドメインの型 |
 | 共有ユーティリティ（sync 専用） | `packages/rate-limit` | なし（node 標準ライブラリのみ。ドメインの型にも依存しない） |
 | アプリケーション | `apps/*-sync/src/application` | ドメイン・ポート・`packages/rate-limit` |
@@ -79,8 +79,8 @@ WebSocket の配線はこの共有先へ移さない。
    乱数生成などの副作用はすべてアダプタ（`apps/*-sync/src/adapters`）に置き、
    ポートの型で上位層へ注入します。
 2. **複数アプリで使う純粋ロジックか？ → core。ただし ADR 0007 の抽出基準を
-   先に確認。** `packages/timer-core` / `packages/poker-core` に置けるのは
-   純粋関数・型のみです。抽出してよいかどうかは
+   先に確認。** `packages/timer-core` / `packages/poker-core` / `packages/topic-core` に
+   置けるのは純粋関数・型のみです。抽出してよいかどうかは
    [`docs/adr/0007`](../adr/0007-abstraction-criteria.md)（抽象化の基準。
    憲法 原則 X「抽象は実需で」）を先に確認します。呼び出し箇所が 1 つしか
    無いものは抽出しません。
@@ -117,7 +117,7 @@ WebSocket の配線はこの共有先へ移さない。
 | ~~見学者~~ | **[#95](https://github.com/tomohiroJin/tasuki-tools/issues/95) S3（[#244](https://github.com/tomohiroJin/tasuki-tools/issues/244)・2026-09-08）で廃止した用語。** かつては役割 `viewer` を指し、閲覧はできるが操作を制限された参加者を意味した。役割ごと撤去したので、**制限という区別は存在しない**。生きている「見学」とは 1 文字違いだが、あちらは**ローテーションの層**、こちらは**廃止した役割の層**であり、まったくの別物である。実際に S3 の作業中、実画面の検証が両者を混同して偽の失敗を出した。旧い文書・コミット・Issue でどちらの意味かを取り違えないために、行を消さずに残す |
 | ラウンド（poker） | poker において、1 テーマに対する 1 回の投票 |
 | 公開（reveal） | poker において、伏せていた各参加者の見積り値を開示すること |
-| お題 | **timer では実装済みのドメイン概念、poker では未実装の提案段階の語。** timer では「TDD の練習課題」を指し、`packages/timer-core/src/problem.ts` の `Problem` 型として実装されている。poker では「見積り対象」を指す語として [#93](https://github.com/tomohiroJin/tasuki-tools/issues/93)（お題の入力と結果の書き出し）で提案中だが、現行の poker 実装（`packages/poker-core` `apps/tasuki-sync` `apps/poker-web` `packages/protocol`。`grep -rn "お題"` で 0 件を確認済み）にこの概念は存在しない。poker の初回リリース範囲外であることは `docs/poker/specs/001-planning-poker-mvp/spec.md` の Assumptions（「お題（ストーリー）リストの管理…は初回リリースに含めない」）にも明記されている。#93 が実装されるまでは、**timer の「お題」だけが実装済みのドメイン概念**であり、「お題」を使うときは同名別概念になりうることを文脈で明示すること |
+| お題 | **[#91](https://github.com/tomohiroJin/tasuki-tools/issues/91) で 4 つ目の文脈 `packages/topic-core` が加わり、いま 3 つの独立した概念が同じ語を使う。** ①**共有お題**（`packages/topic-core` の `Topic` 型。タイトル＋本文）: ルームの持ち物として、玄関の 3 枚目の札（お題ツール・`apps/topic-web`、公開パス `/topic/`）で入力し、`topic` フレームで全接続へ配る。玄関はこれを読んで 1 行だけ表示するが、**timer・poker はまだこれを読まない**（配線は #91 の後続 PR）。②**timer 独自の旧概念**: 「TDD の練習課題」を指し、`packages/timer-core/src/problem.ts` の `Problem` 型として実装されている。①とは無関係で、撤去は #91 の後続 PR に予定されている（未撤去）。③**poker の提案**: 「見積り対象」を指す語として [#93](https://github.com/tomohiroJin/tasuki-tools/issues/93)（お題の入力と結果の書き出し）で提案中だが未実装（現行の poker 実装＝`packages/poker-core` `apps/poker-web` `packages/protocol` に`grep -rn "お題"` で 0 件を確認済み。poker の初回リリース範囲外であることは `docs/poker/specs/001-planning-poker-mvp/spec.md` の Assumptions にも明記）。**「お題」を使うときは、必ずどの概念かを文脈で明示すること** |
 
 ## 一般的な方法論との対応
 

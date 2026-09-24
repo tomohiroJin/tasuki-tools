@@ -1,0 +1,29 @@
+# 変異 91: generation-cooldown-kanji-reverts
+#
+# 検出を期待するテスト:
+#   - apps/topic-web/tests/copy-fits-font-base.test.ts
+#     describe「UI の文言は書体の常用の層に収まる」
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m91-*.patch
+# 復元: git apply -R scripts/mutations/m91-*.patch
+#
+# #91 PR 2。topic-core の `GENERATION_COOLDOWN` の文を「少し待ってから、もう一度
+# 作ってください。」へ戻す。「少」の字は書体の常用の層（base）の範囲に無く、
+# 「しばらく」へ言い換えたのは計画を書く段の実測でこれが外れていたためである
+# （global-constraints「実測で spec から外したこと」）。
+#
+# `packages/topic-core/tests/error-messages.test.ts` も赤になるが、対応表に載せるのは
+# こちらの書体の検査である（「base 層に収める」を守っている本体はこちら）。
+diff --git a/packages/topic-core/src/error-messages.ts b/packages/topic-core/src/error-messages.ts
+--- a/packages/topic-core/src/error-messages.ts
++++ b/packages/topic-core/src/error-messages.ts
+@@ -16,7 +16,7 @@ const TOPIC_ERROR_MESSAGES: Record<TopicErrorCode, string> = {
+   NOT_IN_ROOM: "ルームに参加していません",
+   RATE_LIMITED: "続けて失敗しました。しばらく待ってから再試行してください。",
+   AI_UNLOCK_FAILED: "合言葉が正しくありません。",
+-  GENERATION_COOLDOWN: "しばらく待ってから、もう一度作ってください。",
++  GENERATION_COOLDOWN: "少し待ってから、もう一度作ってください。",
+   MESSAGE_TOO_LARGE: "メッセージが大きすぎます",
+   INTERNAL_ERROR: "サーバー内部でエラーが発生しました",
+ };

@@ -1,0 +1,33 @@
+# 変異 88: hub-topic-frame-not-checked
+#
+# 検出を期待するテスト:
+#   - apps/landing/tests/hub/use-hub-sync.test.tsx
+#     describe「ハブの同期」の
+#     「Given 参加の応答 / When お題の状態が届く / Then 選択画面にいまのお題のタイトルが出る」（#91 PR 2）
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m88-*.patch
+# 復元: git apply -R scripts/mutations/m88-*.patch
+#
+# #91 PR 2・spec T3。玄関の `use-hub-sync.ts` が `TopicFrameSchema` で見分ける分岐を
+# 消し、`topic` フレームをハブのスキーマ（`HubServerMsgSchema`）にしか通さなくなる。
+# `topic` フレームはハブの契約に合わないので黙って捨てられ、選択画面の「いまのお題」が
+# 一生更新されない。
+diff --git a/apps/landing/src/hub/use-hub-sync.ts b/apps/landing/src/hub/use-hub-sync.ts
+--- a/apps/landing/src/hub/use-hub-sync.ts
++++ b/apps/landing/src/hub/use-hub-sync.ts
+@@ -251,14 +251,6 @@ export function useHubSync(): HubSync {
+     const conn = new SyncConnection({
+       url: buildHubSyncUrl(window.location),
+       onMessage: (raw) => {
+-        // お題の状態（spec T3）。ハブの言葉ではないので、ハブのスキーマより先に topic-core の
+-        // スキーマで見分ける（見分けるのはアプリ層・spec §5.5）。
+-        const topic = parseBoundaryMessage(TopicFrameSchema, raw);
+-        if (topic.isOk()) {
+-          setTopicTitle(topic.value.state.topic?.title ?? null);
+-          return;
+-        }
+-
+         // 境界の検証（原則 IV）。契約に合わないフレームは**捨てる** ——
+         // 画面の状態を壊すより、更新されないほうが害が小さい。
+         const parsed = parseBoundaryMessage(HubServerMsgSchema, raw);

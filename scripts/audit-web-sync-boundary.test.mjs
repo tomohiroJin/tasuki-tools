@@ -85,9 +85,9 @@ test("declaredPathsOf の出力に timer/poker 双方の宣言パスが含まれ
   assert.ok(paths.includes("apps/timer-web/src/sync/use-timer-sync.ts"));
 });
 
-test("WEB_APPS は 3 つの web アプリすべてを宣言している（片側検査を避ける）", () => {
+test("WEB_APPS は 4 つの web アプリすべてを宣言している（片側検査を避ける）", () => {
   const apps = WEB_APPS.map((a) => a.app).sort();
-  assert.deepEqual(apps, ["apps/landing", "apps/poker-web", "apps/timer-web"]);
+  assert.deepEqual(apps, ["apps/landing", "apps/poker-web", "apps/timer-web", "apps/topic-web"]);
 });
 
 test("wsHolders が空の宣言は「どこにも書いてはいけない」を意味する", () => {

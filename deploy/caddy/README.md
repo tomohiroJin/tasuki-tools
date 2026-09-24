@@ -14,6 +14,7 @@ import で切り離す**。アプリを増やしてもホストの `Caddyfile` �
         ├── 05-hub-ws.conf           # deploy/landing/caddy/（唯一の WS 入口。#95 S5c）
         ├── 20-poker.conf            # deploy/poker/caddy/
         ├── 30-timer-spa.conf        # deploy/timer/caddy/
+        ├── 40-topic.conf            # deploy/topic/caddy/（未公開・#91 PR 3 の後に設置）
         └── 90-landing.conf          # deploy/landing/caddy/（包括フォールバック）
 ```
 
@@ -76,6 +77,8 @@ scp deploy/landing/caddy/05-hub-ws.conf         "$TASUKI_SSH_HOST:/tmp/"
 scp deploy/timer/caddy/*.conf                   "$TASUKI_SSH_HOST:/tmp/"
 scp deploy/poker/caddy/20-poker.conf            "$TASUKI_SSH_HOST:/tmp/"
 scp deploy/landing/caddy/90-landing.conf        "$TASUKI_SSH_HOST:/tmp/"
+# #91 PR 3 の後に配るとき、deploy/topic/caddy/40-topic.conf を同じ手順で足す
+# （置き忘れると /topic/ は包括フォールバック＝玄関に吸われる）
 
 # 2) 設置 その 1 — **配信物より先に入れてよい断片だけ**（VPS で・root）
 # #95 S5c で 10-timer-ws.conf を撤去した。WS の入口は 05-hub-ws.conf（/ws）の 1 本だけ
@@ -122,6 +125,8 @@ sudo rm -f /etc/caddy/tasuki/apps/30-landing.conf \
 # 「いま動いている旧い配信物」を壊さないためであり、それが無ければ守るものが無い。
 sudo install -m 644 /tmp/20-poker.conf /tmp/30-timer-spa.conf /tmp/90-landing.conf \
                     /etc/caddy/tasuki/apps/
+# #91 PR 3 の後に配るとき、deploy/topic/caddy/40-topic.conf を同じ手順で足す
+# （置き忘れると /topic/ は包括フォールバック＝玄関に吸われる）
 
 # 4) site.conf の <公開ドメイン> を実値へ置換（初回のみ）
 sudo sed -i 's|<公開ドメイン>|tasuki.example.com|' /etc/caddy/tasuki/site.conf
@@ -156,6 +161,10 @@ curl -sI "$HOST/"                                        # 200・x-robots-tag: n
 curl -s "$HOST/" | grep -o '<title>[^<]*</title>'        # LP の題名が出る
 
 # 3 系統が並存すること
+# #91 PR 3 の後に配るとき、この列挙に /topic/ を足す。**断片を置き忘れても玄関が 200 を
+# 返すので（90-landing.conf の包括フォールバック）、状態コードでは見分けられない。**
+# curl -s "$HOST/topic/" | grep -o '/topic/assets/' で資材の接頭辞が出ることを見る
+# （e2e/specs/routing.spec.ts の資材の接頭辞の見方と同じ）
 for p in / /timer/ /poker/; do
   curl -s -o /dev/null -w "$p → %{http_code}\n" "$HOST$p"
 done
