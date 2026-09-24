@@ -1,0 +1,26 @@
+# 変異 92: use-topic-sync-onclose-skips-cancel-retry
+#
+# 検出を期待するテスト:
+#   - apps/topic-web/tests/use-topic-sync.test.tsx
+#     describe「お題ツールのルームへの入り方」の
+#     「Given 混雑の待ちの途中で切れた / When 繋ぎ直す / Then 入り直しは 1 通だけ送る」
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m92-*.patch
+# 復元: git apply -R scripts/mutations/m92-*.patch
+#
+# #91 PR 2。同期フックの `onClose` から `cancelRetry()` を外す。混雑で入り直しの待ちが
+# 走っている途中に切れると、待っていたタイマーが生き残ったまま繋ぎ直り、`onReconnected`
+# の送信と合わせて `room.join` が 2 通流れる（2 通目はサーバーが「コマンドの形式が
+# 不正です」で拒む）。コメントが説明している性質そのものが崩れる。
+diff --git a/apps/topic-web/src/hooks/use-topic-sync.ts b/apps/topic-web/src/hooks/use-topic-sync.ts
+--- a/apps/topic-web/src/hooks/use-topic-sync.ts
++++ b/apps/topic-web/src/hooks/use-topic-sync.ts
+@@ -213,7 +213,6 @@ export function useTopicSync(roomCode: string): TopicSync {
+         // **待っている入り直しを畳む。** 切断中に発火すると `room.join` が送信キューに溜まり、
+         // 再接続で `onReconnected` の分と合わせて 2 通流れる（2 通目はサーバーが拒み、
+         // 「コマンドの形式が不正です」が出る）。入り直しは `onReconnected` が 1 回だけ行う。
+-        cancelRetry();
+         setStatus('closed');
+         setFailedAttempts((n) => n + 1);
+         // 新しい接続はサーバー側で未参加から始まる。捨てたフレームの告知も前の接続のもの。

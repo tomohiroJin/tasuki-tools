@@ -1,0 +1,26 @@
+# 変異 87: whereLabel-index-not-id
+#
+# 検出を期待するテスト:
+#   - apps/landing/tests/room-choice-layout.test.tsx
+#     describe「どのツールに居るか」の
+#     「Given お題ツールと timer に居る人 / When 選択画面を開く / Then 札の名前で出る」（#91 PR 2）
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m87-*.patch
+# 復元: git apply -R scripts/mutations/m87-*.patch
+#
+# #91 PR 2。玄関の `whereLabel` が ID ではなく `['timer', 'poker']` という並び順で
+# 名前を引くようになる。お題ツールを足したことで `TOOLS` の並びは
+# ['topic', 'timer', 'poker'] になっており、この並び順表は古いままなので、
+# 実在のツール ID とずれた名前（またはズレて undefined 化した名前）が出る。
+diff --git a/apps/landing/src/screens/RoomChoice.tsx b/apps/landing/src/screens/RoomChoice.tsx
+--- a/apps/landing/src/screens/RoomChoice.tsx
++++ b/apps/landing/src/screens/RoomChoice.tsx
+@@ -130,6 +130,6 @@ export function RoomChoice({ code, inviteUrl, roster, connection, topicTitle }:
+  * 知らない綴りはそのまま出す —— 隠すと、増えたツールが黙って消える。
+  */
+ function whereLabel(tools: readonly string[]): string {
+-  const names = tools.map((id) => TOOLS.find((tool) => tool.id === id)?.name ?? id);
++  const names = tools.map((id) => TOOLS[['timer', 'poker'].indexOf(id)]?.name ?? id);
+   return `${names.join(' / ')} にいます`;
+ }

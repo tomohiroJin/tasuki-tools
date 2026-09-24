@@ -1,0 +1,37 @@
+# 変異 90: topic-editor-draft-overwritten
+#
+# 検出を期待するテスト:
+#   - apps/topic-web/tests/topic-room.test.tsx
+#     describe「書く」の
+#     「Given 下書きの途中 / When 別の人のお題が届く / Then 下書きは残る」
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m90-*.patch
+# 復元: git apply -R scripts/mutations/m90-*.patch
+#
+# #91 PR 2。`TopicEditor` に `current`（届いたお題）が変わるたび下書きを上書きする
+# `useEffect` を足す。書いている途中に別の人がお題を変えると、打ちかけの下書きが
+# 黙って消える —— コンポーネント冒頭のコメントが禁じている性質そのもの
+# （「届いたお題で上書きしない」）。
+diff --git a/apps/topic-web/src/components/TopicEditor.tsx b/apps/topic-web/src/components/TopicEditor.tsx
+--- a/apps/topic-web/src/components/TopicEditor.tsx
++++ b/apps/topic-web/src/components/TopicEditor.tsx
+@@ -1,4 +1,4 @@
+-import { useId, useState } from 'react';
++import { useEffect, useId, useState } from 'react';
+ import { MAX_TOPIC_BODY, MAX_TOPIC_TITLE, type Topic } from '@tasuki/topic-core';
+ import { BODY_LABEL, REWRITE_BUTTON, SET_BUTTON, TITLE_LABEL, WRITE_HEADING } from '../copy';
+ import { canSubmitTopic } from '../topic-view';
+@@ -21,6 +21,12 @@ export function TopicEditor({ current, enabled, onSubmit }: Props) {
+   const titleId = useId();
+   const bodyId = useId();
+   const canSubmit = canSubmitTopic(title, enabled);
++  useEffect(() => {
++    if (current) {
++      setTitle(current.title);
++      setBody(current.body);
++    }
++  }, [current]);
+
+   return (
+     <section className="topic-panel" aria-labelledby={`${titleId}-heading`}>
