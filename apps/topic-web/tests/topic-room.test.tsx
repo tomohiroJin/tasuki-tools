@@ -107,6 +107,18 @@ describe('いまのお題', () => {
     enterWith({ ...IDLE_STATE, degraded: true, topic: { ...FIZZ, source: 'fallback' } });
     expect(screen.getByText(copy.DEGRADED_TEXT)).toBeInTheDocument();
   });
+
+  it('Given 説明が Markdown 記法を含む / When 画面を見る / Then 見出し・箇条書きとして出て、記法の文字は出ない', () => {
+    // Given: 定型バンクの説明は Markdown で書かれている（見出し・箇条書き）
+    const md = { title: 'FizzBuzz', body: '## 背景\n\n- 一\n- 二', source: 'manual' as const };
+    // When
+    enterWith({ ...IDLE_STATE, topic: md });
+    const current = screen.getByRole('region', { name: copy.CURRENT_HEADING });
+    // Then
+    expect(within(current).getByRole('heading', { name: '背景' })).toBeInTheDocument();
+    expect(within(current).getAllByRole('listitem')).toHaveLength(2);
+    expect(current.textContent).not.toContain('##');
+  });
 });
 
 /**

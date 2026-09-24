@@ -50,17 +50,92 @@
   border-radius: var(--radius-lg);
   background: var(--ivory);
   color: var(--coal);
+  /* グリッドの子は既定で中身の最小幅まで伸びる。区切りの無い長いタイトルで
+     `.topic-current`（grid）ごと横にはみ出していた（#91 PR 2・実画面で発見）。 */
+  min-width: 0;
 }
 
 .topic-title {
   margin: 0;
   font-size: var(--font-size-lg);
+  /* 区切りの無い長い文字列（空白なしの 200 字など）でも画面の幅を超えない（実画面で発見）。 */
+  overflow-wrap: anywhere;
 }
 
 .topic-body {
   margin: var(--space-3) 0 0;
-  /* 改行をそのまま見せる（本文は自由文。定型バンクは段落を改行で分けている） */
-  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- 説明の Markdown サブセット（`src/components/Markdown.tsx`。#91 PR 2・欠陥 (a)）
+   ---------- */
+
+/* `white-space: pre-wrap` は Markdown 自身の段落・改行の扱い（空行区切り・行内 <br/>）と
+   二重になる（連続する空行が段落の間隔と別に隙間を作る）ため、`.topic-body` には置かない。
+   ブロック間の間隔は `.md > * + *` の margin で作る（Tailwind の space-y-2 相当）。 */
+.md > * + * {
+  margin-top: var(--space-2);
+}
+
+.md-h {
+  margin: 0;
+  font-weight: 700;
+}
+h3.md-h {
+  font-size: var(--font-size-base);
+}
+h4.md-h {
+  font-size: var(--font-size-sm);
+}
+h5.md-h {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.md-p {
+  margin: 0;
+}
+
+.md-ul,
+.md-ol {
+  margin: 0;
+  padding-left: var(--space-5);
+}
+
+.md-quote {
+  margin: 0;
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--coal-soft);
+}
+
+/* インラインコード。地は変えず、`--coal-soft` の枠（α を書かない）と等幅体で区別する。
+   長い連続文字列（URL 等）も画面幅を超えない（実画面で発見）。 */
+.md-code {
+  padding: 0 0.2em;
+  border: 1px solid var(--coal-soft);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  overflow-wrap: anywhere;
+}
+
+/* コードブロックは折り返さず横スクロールで逃がす（整形済みの中身を保つ）。 */
+.md-pre {
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--coal-soft);
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* `--gold-deep`（象牙の上で約 3.75:1）は本文サイズの AA（4.5:1）を割るため、
+   下線付きの `--coal`（象牙の上で約 13.64:1）で区別する（新しい色を足さない）。 */
+.md-link {
+  color: var(--coal);
+  text-decoration: underline;
   overflow-wrap: anywhere;
 }
 

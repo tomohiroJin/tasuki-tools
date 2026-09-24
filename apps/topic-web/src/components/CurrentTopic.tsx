@@ -1,5 +1,6 @@
 import type { TopicState } from '@tasuki/topic-core';
 import { CLEAR_BUTTON, CURRENT_HEADING, EMPTY_TEXT } from '../copy';
+import { Markdown } from './Markdown';
 
 interface Props {
   readonly state: TopicState | null;
@@ -32,7 +33,7 @@ export function CurrentTopic({ state, notice, enabled, onClear }: Props) {
         ) : (
           <article className="topic-card">
             <h3 className="topic-title">{topic.title}</h3>
-            {topic.body !== '' && <p className="topic-body">{topic.body}</p>}
+            {topic.body !== '' && <Markdown source={topic.body} className="topic-body" />}
           </article>
         )}
         {topic !== null && (

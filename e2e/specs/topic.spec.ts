@@ -135,4 +135,23 @@ test.describe('お題ツールの文字と書体', () => {
     // 画面は例外を出していない
     expect(consoleWatcher.errors).toEqual([]);
   });
+
+  for (const width of [320, 1280]) {
+    const title = `Given 区切りの無い長いタイトルと長い URL を含む説明 / When 幅 ${width} で表示 / Then 掲げられて横にはみ出さない`;
+    test(title, async ({ page, consoleWatcher }) => {
+      // Given: 空白の無い 200 字のタイトルと、長い URL を含む説明
+      const longTitle = 'FizzBuzz'.repeat(25);
+      const longBody = `参照 https://example.com/${'a'.repeat(200)} を見る`;
+      await page.setViewportSize({ width, height: 900 });
+      // When
+      await openTopicTool(page, `overflow-topic-${width}`);
+      await setTopic(page, longTitle, longBody);
+      // Then その1: 先に正しく掲げられたことを確かめる（「いまのお題」に出た）
+      await expect(currentTopic(page).getByRole('heading', { name: longTitle })).toBeVisible();
+      // Then その2: 画面が横にはみ出さない
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      // 画面は例外を出していない
+      expect(consoleWatcher.errors).toEqual([]);
+    });
+  }
 });
