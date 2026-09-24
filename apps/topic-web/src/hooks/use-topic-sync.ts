@@ -175,7 +175,10 @@ export function useTopicSync(roomCode: string): TopicSync {
       setSyncStale(false);
       switch (msg.type) {
         case 'topic':
+          // 状態が変わったら、前の操作の失敗の表示は下ろす（残すと、別の人の解錠の後にも
+          // 「合言葉が正しくありません」が次に押すまで出続ける）。
           setTopicState(msg.state);
+          setError(null);
           return;
         case 'room.joined': {
           // 端末の同一性は 4 つの画面で 1 つ（#95 S5b・D12）。名前は**送ったときのもの**を残す
@@ -189,6 +192,8 @@ export function useTopicSync(roomCode: string): TopicSync {
           });
           retryRef.current = 0;
           setRetryNotice(null);
+          // 入れたら、入る前の失敗の表示は下ろす。
+          setError(null);
           setJoined(true);
           return;
         }

@@ -122,7 +122,7 @@ describe('いまのお題', () => {
 });
 
 /**
- * @requirements #91 E2 spec §5.4
+ * @requirements #91 spec §5.4
  */
 describe('書く', () => {
   it('Given タイトルと説明を書いた / When このお題にする / Then topic.set が送られ、欄が空に戻る', () => {
@@ -188,7 +188,7 @@ describe('書く', () => {
 });
 
 /**
- * @requirements #91 E7 E8 E22 spec §5.4
+ * @requirements #91 spec §5.4
  */
 describe('作る', () => {
   it('Given 未解錠 / When 画面を見る / Then 合言葉の欄があり、AI で作るは出ない', () => {
@@ -242,6 +242,17 @@ describe('作る', () => {
     // Then
     expect(screen.getByRole('alert')).toHaveTextContent('しばらく待ってから、もう一度作ってください。');
   });
+
+  it('Given 合言葉が違うと伝えている / When 別の人の解錠でお題の状態が届く / Then 違うという知らせは消える', () => {
+    // Given
+    enterWith();
+    act(() => latestSocket().deliver({ type: 'error', code: 'AI_UNLOCK_FAILED', message: '合言葉が正しくありません。' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('合言葉が正しくありません。');
+    // When
+    act(() => latestSocket().deliver({ type: 'topic', state: { ...IDLE_STATE, aiUnlocked: true } }));
+    // Then
+    expect(screen.queryByText('合言葉が正しくありません。')).toBeNull();
+  });
 });
 
 /**
@@ -256,6 +267,17 @@ describe('操作できない間', () => {
     act(() => latestSocket().open());
     // Then
     expect(screen.getByRole('heading', { name: copy.JOINING_HEADING })).toBeInTheDocument();
+  });
+
+  it('Given 参加の応答がまだ / When 画面を見る / Then 同じルームの選択画面へ戻る導線がある', () => {
+    // Given
+    saveResumeIdentity(RESUME);
+    // When
+    render(<App />);
+    act(() => latestSocket().open());
+    // Then
+    expect(screen.getByRole('heading', { name: copy.JOINING_HEADING })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: copy.BACK_LINK })).toHaveAttribute('href', '/?room=R1');
   });
 
   it('Given 解錠済みで下書きがある / When 切れて繋ぎ直し、参加の返事を待つ / Then どの操作も押せず、返事が来たら押せる', () => {

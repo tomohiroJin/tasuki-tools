@@ -8,7 +8,7 @@ const STATE = { topic: null, generating: false, degraded: false, aiUnlocked: fal
  * （`apps/tasuki-sync/src/ports/topic-server-msg.ts`）。参加の失敗のコードはハブのもの
  * （`ROOM_NOT_FOUND` 等）なので、お題のエラーのスキーマ（`TopicErrorFrameSchema`）では検めない。
  *
- * @requirements #91 E4
+ * @requirements #91 spec §5.4
  */
 describe('お題ツールが受け取るフレーム', () => {
   it('Given お題の状態のフレーム / When 検める / Then 状態として受け取る', () => {

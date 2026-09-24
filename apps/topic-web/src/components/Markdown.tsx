@@ -222,7 +222,8 @@ export function Markdown({ source, className = '' }: MarkdownProps) {
           }
           case 'code':
             return (
-              <pre key={key} className="md-pre">
+              // 横にスクロールするコードへキーボードでも届くように、フォーカスを受けさせる。
+              <pre key={key} className="md-pre" tabIndex={0}>
                 {b.text}
               </pre>
             );

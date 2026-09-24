@@ -49,6 +49,10 @@ export function TopicRoom({ roomCode }: { roomCode: string }) {
         {banner}
         <main className="page">
           <h1>{JOINING_HEADING}</h1>
+          {/* 参加の返事が来ないまま待つ期限は無い（spec §10.1）。待たされた人が自分で戻れるように。 */}
+          <a className="topic-back" href={hubPathFor(roomCode)}>
+            {BACK_LINK}
+          </a>
           {sync.retryNotice && <p role="status">{sync.retryNotice}</p>}
           {sync.error && <p className="topic-error" role="alert">{sync.error}</p>}
         </main>
