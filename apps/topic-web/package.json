@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@tasuki/invite-ui": "workspace:*",
+    "@tasuki/markdown": "workspace:*",
     "@tasuki/protocol": "workspace:*",
     "@tasuki/room-core": "workspace:*",
     "@tasuki/sync-client": "workspace:*",

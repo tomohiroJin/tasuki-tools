@@ -194,6 +194,9 @@ importers:
       '@tasuki/invite-ui':
         specifier: workspace:*
         version: link:../../packages/invite-ui
+      '@tasuki/markdown':
+        specifier: workspace:*
+        version: link:../../packages/markdown
       '@tasuki/room-core':
         specifier: workspace:*
         version: link:../../packages/room-core
@@ -273,6 +276,9 @@ importers:
       '@tasuki/invite-ui':
         specifier: workspace:*
         version: link:../../packages/invite-ui
+      '@tasuki/markdown':
+        specifier: workspace:*
+        version: link:../../packages/markdown
       '@tasuki/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
