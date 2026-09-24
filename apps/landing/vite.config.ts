@@ -22,7 +22,7 @@ export default defineConfig({
     proxy: {
       // 開発時、LP は本番の Caddy と同じ「玄関」の役割を担う。
       //
-      // これが無いと、LP の札（/timer/ ・ /poker/ を指す）をクリックしても
+      // これが無いと、LP の札（/timer/ ・ /poker/ ・ /topic/ を指す）をクリックしても
       // Vite の SPA フォールバックが LP 自身の index.html を 200 で返すため、
       // LP が再描画されるだけで移動できない（エラーにならないので気づきにくい）。
       //

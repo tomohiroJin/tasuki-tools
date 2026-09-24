@@ -1,8 +1,8 @@
 /**
  * 復帰の組にまつわる timer 側の判断（Issue #24。保存先は #95 S4b、置き場は S5b で変わった）。
  *
- * ⚠ **保存そのものは `@tasuki/sync-client` が持つ**（#95 S5b）。ハブ・timer・poker の
- * 3 つが同じ鍵（`tasuki:resume:<コード>`）を読み書きするので、写しを 3 つに増やす前に
+ * ⚠ **保存そのものは `@tasuki/sync-client` が持つ**（#95 S5b）。ハブ・timer・poker・お題の
+ * 4 つが同じ鍵（`tasuki:resume:<コード>`）を読み書きするので、写しを増やす前に
  * 規約ごと寄せた。ここに残るのは **timer の画面の判断**（{@link shouldResumeOnLoad}）だけである。
  *
  * WS の自動再接続後と、参加用 URL を開き直したときに、利用者の操作なしで
