@@ -103,7 +103,7 @@ test.describe('お題ツールの文字と書体', () => {
     await openTopicTool(page, 'a11y-topic');
     await setTopic(page, TITLE, BODY);
     await expect(currentTopic(page)).toContainText(BODY);
-    // 余裕の薄い 2 組: 「いまのお題」の見出し（`--gold` on `--felt-900`）と、
+    // 測ったことを固定する 2 組: 「いまのお題」の見出し（`--gold` on `--felt-900`）と、
     //   象牙の札の文字（`--coal` on `--ivory`）を測ったことを固定する（レビュー指摘・修正ラウンド 1）
     const [gold, felt900, coal, ivory] = await resolveColors(page, ['--gold', '--felt-900', '--coal', '--ivory']);
 

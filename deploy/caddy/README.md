@@ -161,8 +161,10 @@ curl -sI "$HOST/"                                        # 200・x-robots-tag: n
 curl -s "$HOST/" | grep -o '<title>[^<]*</title>'        # LP の題名が出る
 
 # 3 系統が並存すること
-# #91 PR 3 の後に配るとき、この列挙に /topic/ を足す（未公開のうちは 40-topic.conf を
-# 設置しないので、足すと 404 になる）
+# #91 PR 3 の後に配るとき、この列挙に /topic/ を足す。**断片を置き忘れても玄関が 200 を
+# 返すので（90-landing.conf の包括フォールバック）、状態コードでは見分けられない。**
+# curl -s "$HOST/topic/" | grep -o '/topic/assets/' で資材の接頭辞が出ることを見る
+# （e2e/specs/routing.spec.ts の資材の接頭辞の見方と同じ）
 for p in / /timer/ /poker/; do
   curl -s -o /dev/null -w "$p → %{http_code}\n" "$HOST$p"
 done

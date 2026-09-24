@@ -10,6 +10,7 @@
   `enabled` が真になってから qrcode を読み込む。生成失敗時も URL を残す。
 
 選択画面では「参加用 URL をコピー」「QR コードを表示」から共有できる。
-timer のコード・URL コピーと QR、poker の招待リンクコピーも同じ処理を使う。
+timer のコード・URL コピーと QR、poker とお題ツール（topic-web）の招待リンクコピーも
+同じ処理を使う。
 
 配置の判断: [ADR-0020](../../docs/adr/0020-invite-browser-operations.md)。

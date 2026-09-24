@@ -40,8 +40,8 @@ export async function resolveColors(page: Page, tokens: readonly string[]): Prom
 /**
  * 文字を持つ要素のうち、実際に見えているものを測る。
  *
- * `minTargets` はお題ツールの画面のように timer より要素が少ない画面向けの下限
- * （既定 20・timer の画面数と同じ）。
+ * `minTargets` は測る要素の数の下限（既定 20）。お題ツールの画面のように timer より
+ * 要素が少ない画面では下げて渡す。
  */
 export async function scanContrast(page: Page, minTargets = 20): Promise<ContrastScan> {
   // **登場の演出が終わるのを待つ。** 周回アバターは `scale(0)` から現れるので、
