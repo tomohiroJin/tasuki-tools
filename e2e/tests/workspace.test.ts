@@ -29,7 +29,7 @@ describe('e2e パッケージの登録', () => {
     expect(yaml).toMatch(/^\s*-\s*["']?e2e["']?\s*$/m);
   });
 
-  it('Given e2e の依存宣言 / When 読む / Then 3 つの web アプリを依存として持つ', () => {
+  it('Given e2e の依存宣言 / When 読む / Then 4 つの web アプリを依存として持つ', () => {
     // Given: turbo の ^build は package.json の依存宣言を根拠にする。
     //        ここが抜けると `pnpm e2e` 単独実行で dist がビルドされない。
     const pkg: unknown = JSON.parse(
@@ -40,9 +40,10 @@ describe('e2e パッケージの登録', () => {
       typeof pkg === 'object' && pkg !== null && 'dependencies' in pkg
         ? (pkg as { dependencies: Record<string, string> }).dependencies
         : {};
-    // Then: 3 つとも workspace 依存として宣言されている
+    // Then: 4 つとも workspace 依存として宣言されている（#91 PR 2 で topic-web が加わった）
     expect(deps['@tasuki/timer-web']).toBe('workspace:*');
     expect(deps['@tasuki/poker-web']).toBe('workspace:*');
     expect(deps['@tasuki/landing']).toBe('workspace:*');
+    expect(deps['@tasuki/topic-web']).toBe('workspace:*');
   });
 });

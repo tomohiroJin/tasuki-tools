@@ -14,6 +14,7 @@ import で切り離す**。アプリを増やしてもホストの `Caddyfile` �
         ├── 05-hub-ws.conf           # deploy/landing/caddy/（唯一の WS 入口。#95 S5c）
         ├── 20-poker.conf            # deploy/poker/caddy/
         ├── 30-timer-spa.conf        # deploy/timer/caddy/
+        ├── 40-topic.conf            # deploy/topic/caddy/（topic は #91 の PR 3 の後まで配らない）
         └── 90-landing.conf          # deploy/landing/caddy/（包括フォールバック）
 ```
 
@@ -75,6 +76,7 @@ scp deploy/caddy/tasuki.conf                    "$TASUKI_SSH_HOST:/tmp/site.conf
 scp deploy/landing/caddy/05-hub-ws.conf         "$TASUKI_SSH_HOST:/tmp/"
 scp deploy/timer/caddy/*.conf                   "$TASUKI_SSH_HOST:/tmp/"
 scp deploy/poker/caddy/20-poker.conf            "$TASUKI_SSH_HOST:/tmp/"
+scp deploy/topic/caddy/40-topic.conf            "$TASUKI_SSH_HOST:/tmp/"  # topic は #91 の PR 3 の後まで配らない
 scp deploy/landing/caddy/90-landing.conf        "$TASUKI_SSH_HOST:/tmp/"
 
 # 2) 設置 その 1 — **配信物より先に入れてよい断片だけ**（VPS で・root）
@@ -120,8 +122,9 @@ sudo rm -f /etc/caddy/tasuki/apps/30-landing.conf \
 #
 # **まっさらなホストへの初回設置では、手順 2 と手順 3 を分けなくてよい。** 分けるのは
 # 「いま動いている旧い配信物」を壊さないためであり、それが無ければ守るものが無い。
-sudo install -m 644 /tmp/20-poker.conf /tmp/30-timer-spa.conf /tmp/90-landing.conf \
+sudo install -m 644 /tmp/20-poker.conf /tmp/30-timer-spa.conf /tmp/40-topic.conf /tmp/90-landing.conf \
                     /etc/caddy/tasuki/apps/
+# ⚠ 40-topic.conf は #91 の PR 3 の後まで配らない（この行は将来の設置のための記載）
 
 # 4) site.conf の <公開ドメイン> を実値へ置換（初回のみ）
 sudo sed -i 's|<公開ドメイン>|tasuki.example.com|' /etc/caddy/tasuki/site.conf
@@ -155,8 +158,9 @@ HOST=https://<公開ドメイン>
 curl -sI "$HOST/"                                        # 200・x-robots-tag: noindex, nofollow・HSTS
 curl -s "$HOST/" | grep -o '<title>[^<]*</title>'        # LP の題名が出る
 
-# 3 系統が並存すること
-for p in / /timer/ /poker/; do
+# 4 系統が並存すること
+# ⚠ /topic/ は #91 の PR 3 の後まで配らない（それまでは 40-topic.conf を設置しないので、この行は 404 になる）
+for p in / /timer/ /poker/ /topic/; do
   curl -s -o /dev/null -w "$p → %{http_code}\n" "$HOST$p"
 done
 

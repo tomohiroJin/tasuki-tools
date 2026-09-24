@@ -14,6 +14,7 @@ Tasuki の各アプリは「自分の systemd ユニット + 固有ポート + C
 | `landing` | （無し・静的） | — | `/var/www/tasuki-home` | `/`（玄関） | 公開中 |
 | `timer` | `tasuki-sync` | 8787 | `/opt/tasuki` / `/var/www/tasuki` | `/timer/` | 公開中 |
 | `poker` | （無し・静的） | — | `/var/www/tasuki-poker` | `/poker/` | 公開中 |
+| `topic` | （無し・静的） | — | `/var/www/tasuki-topic` | `/topic/` | 未公開（#91 の PR 3 の後に配布） |
 
 > **3 系統は 2026-08-28 に本番へ出た（#66）。** Planning Poker と玄関 LP はこのときが初回公開。
 > 再起動でルームが全消滅するため、デプロイは指示を得てまとめて 1 回行う方針は変わらない。
