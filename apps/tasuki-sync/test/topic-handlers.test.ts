@@ -230,6 +230,42 @@ describe("お題の接続でルームへ入る", () => {
     expect(errorsTo(h, "topic-1")).toEqual(["INVALID_COMMAND"]);
   });
 
+  it("参加済みの接続が別のルームへ参加し直そうとすると拒まれ、最初のルームにだけ残り、別のルームの名簿は変わらない", async () => {
+    // Given: topic-1 は ROOM に在席し、OTHER_ROOM には Bob が在席している
+    const h = setup();
+    await joined(h, "topic-1", ROOM);
+    await joined(h, "topic-bob", OTHER_ROOM);
+    const otherBefore = h.store.get(OTHER_ROOM)!.participants;
+
+    // When
+    await h.handle("topic-1", { command: "room.join", code: OTHER_ROOM, displayName: "Alice2" });
+
+    // Then: 拒まれ、復帰の組もお題も届かない。topic-1 は ROOM の 1 人にだけ載っている
+    expect(h.sent.filter((s) => s.connId === "topic-1").map((s) => s.msg.type)).toEqual(["error"]);
+    expect(errorsTo(h, "topic-1")).toEqual(["INVALID_COMMAND"]);
+    expect(h.store.get(OTHER_ROOM)!.participants).toBe(otherBefore);
+    const holders = h.store
+      .list()
+      .flatMap((r) => r.participants.filter((p) => p.connections.has("topic-1")).map(() => r.code));
+    expect(holders).toEqual([ROOM]);
+  });
+
+  it("参加済みの接続が同じルームへもう一度参加しようとすると拒まれ、名簿は変わらない", async () => {
+    // Given
+    const h = setup();
+    await joined(h, "topic-1", ROOM);
+    const before = h.store.get(ROOM)!.participants;
+
+    // When: 別の表示名で同じルームへ（通ると同じ接続を持つ参加者が 2 人になる）
+    await h.handle("topic-1", { command: "room.join", code: ROOM, displayName: "Alice2" });
+
+    // Then
+    expect(h.sent.filter((s) => s.connId === "topic-1").map((s) => s.msg.type)).toEqual(["error"]);
+    expect(errorsTo(h, "topic-1")).toEqual(["INVALID_COMMAND"]);
+    expect(h.store.get(ROOM)!.participants).toBe(before);
+    expect(h.store.get(ROOM)!.participants.map((p) => p.displayName)).toEqual(["Alice"]);
+  });
+
   it("JSON でない文字列は INVALID_JSON で拒まれる", async () => {
     // Given
     const h = setup();
@@ -261,6 +297,53 @@ describe("お題を掲げる・下ろす", () => {
     expect(errorsTo(h, "stranger")).toEqual(["NOT_IN_ROOM"]);
     expect(h.topics.get(ROOM)).toEqual(INITIAL_TOPIC_STATE);
     expect(h.topics.get(OTHER_ROOM)).toEqual(INITIAL_TOPIC_STATE);
+    expect(h.calls).toEqual([]);
+  });
+
+  it("timer の接続としてだけ在席している接続がお題を掲げても拒まれ、お題は変わらない", async () => {
+    // Given: ROOM に Alice が timer の接続で在席し、お題の状態がある（振り分けが壊れて
+    // timer の接続がここへ届いた場合を作る）
+    const h = setup();
+    h.store.put({
+      code: ROOM,
+      createdAt: 0,
+      participants: [
+        { id: "p-alice", displayName: "Alice", joinedAt: 0, connections: new Map([["timer-1", "timer"]]) },
+      ],
+    });
+    h.topics.put(ROOM, INITIAL_TOPIC_STATE);
+    h.calls.length = 0;
+
+    // When
+    await h.handle("timer-1", { command: "topic.set", title: "乗っ取り", body: "" });
+
+    // Then
+    expect(errorsTo(h, "timer-1")).toEqual(["NOT_IN_ROOM"]);
+    expect(h.topics.get(ROOM)).toEqual(INITIAL_TOPIC_STATE);
+    expect(h.calls).toEqual([]);
+  });
+
+  it("ハブの接続としてだけ在席している接続がお題を下ろそうとしても拒まれ、お題は変わらない", async () => {
+    // Given: ROOM に Alice がハブの接続で在席し、お題が掲げられている
+    const h = setup();
+    await joined(h, "topic-1");
+    await h.handle("topic-1", { command: "topic.set", title: "FizzBuzz", body: "" });
+    const alice = h.store.get(ROOM)!.participants[0]!;
+    h.store.put({
+      ...h.store.get(ROOM)!,
+      participants: [
+        { ...alice, id: "p-hub", displayName: "Hub", connections: new Map([["hub-1", null]]) },
+        alice,
+      ],
+    });
+    h.calls.length = 0;
+
+    // When
+    await h.handle("hub-1", { command: "topic.clear" });
+
+    // Then
+    expect(errorsTo(h, "hub-1")).toEqual(["NOT_IN_ROOM"]);
+    expect(h.topics.get(ROOM)?.topic?.title).toBe("FizzBuzz");
     expect(h.calls).toEqual([]);
   });
 

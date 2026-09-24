@@ -91,6 +91,15 @@ export function makeTopicHandlers(deps: TopicHandlerDeps): TopicHandlers {
   }
 
   function handleJoin(connId: string, cmd: Extract<HubCommand, { command: "room.join" }>): void {
+    // 既にどこかのルームに居る接続からの 2 度目の参加は拒み、何も変えない（同じルームでも別のルームでも）。
+    // 通すと 1 本のソケットが 2 つのルームに載り（または 2 人の参加者が同じ接続を持ち）、切断の
+    // 片付けが片方しか外さず、幽霊の参加者が残ってルームが回収されなくなる。
+    // 失敗はほかの参加の失敗と同じハブの形で返す（`failJoin`）。
+    if (isInAnyRoom(connId)) {
+      failJoin(connId, "INVALID_COMMAND", errorMessageFor("INVALID_COMMAND"));
+      return;
+    }
+
     const applied = applyDisplayNameRule(cmd.displayName);
     if (applied.isErr()) {
       failJoin(connId, "INVALID_COMMAND", INVALID_DISPLAY_NAME_MESSAGE);
@@ -129,7 +138,17 @@ export function makeTopicHandlers(deps: TopicHandlerDeps): TopicHandlers {
    * 更新され、居ないルームのお題を変えられる。
    */
   function roomCodeOf(connId: string): string | undefined {
-    return deps.store.list().find((r) => findParticipantByConnId(r, connId) !== undefined)?.code;
+    // **お題の接続として在席しているルームだけを数える**（spec T4 の 2 段目）。1 段目は ws-adapter が
+    // `?tool=topic` の接続だけをこのハンドラへ振り分けることで、ここはその振り分けが壊れたときの備え ——
+    // 接続 ID だけで引くと、timer やハブの接続として在席している接続がお題を変えられてしまう。
+    return deps.store
+      .list()
+      .find((r) => findParticipantByConnId(r, connId)?.connections.get(connId) === TOOL_TOPIC)?.code;
+  }
+
+  /** この接続がどれかのルームに（ツールを問わず）在席しているか。2 度目の参加を拒むために引く。 */
+  function isInAnyRoom(connId: string): boolean {
+    return deps.store.list().some((r) => findParticipantByConnId(r, connId) !== undefined);
   }
 
   /** いまの状態を読む。参加時に置かれているはずだが、無ければ既定の状態を置いてから返す。 */
