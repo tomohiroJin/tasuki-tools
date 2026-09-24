@@ -145,6 +145,7 @@ export const ALLOWED = {
   // room-core はハブの形（`room.join` の応答・参加の失敗）を検めるために使う。
   "apps/topic-web": [
     "@tasuki/dev-hub-redirect",
+    "@tasuki/invite-ui",
     "@tasuki/protocol",
     "@tasuki/room-core",
     "@tasuki/sync-client",

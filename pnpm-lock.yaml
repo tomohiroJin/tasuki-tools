@@ -267,6 +267,9 @@ importers:
 
   apps/topic-web:
     dependencies:
+      '@tasuki/invite-ui':
+        specifier: workspace:*
+        version: link:../../packages/invite-ui
       '@tasuki/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol

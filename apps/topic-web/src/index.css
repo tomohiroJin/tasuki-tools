@@ -14,3 +14,152 @@
   color: var(--ivory-dim);
   text-align: center;
 }
+
+/* ---------- 見出しと戻る導線（poker-web の `.room-title` と同じ組み方） ---------- */
+
+.topic-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.topic-back {
+  flex: none;
+  font-size: var(--font-size-sm);
+}
+
+/* ---------- いまのお題（象牙の札） ---------- */
+
+.topic-current {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.topic-card {
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--ivory);
+  color: var(--coal);
+}
+
+.topic-title {
+  margin: 0;
+  font-size: var(--font-size-lg);
+}
+
+.topic-body {
+  margin: var(--space-3) 0 0;
+  /* 改行をそのまま見せる（本文は自由文。定型バンクは段落を改行で分けている） */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.topic-empty,
+.topic-notice {
+  margin: 0;
+  color: var(--ivory-dim);
+}
+
+.topic-error {
+  color: var(--rose-bright);
+}
+
+/* ---------- 接続の告知（poker-web と同じ役割。色は @tasuki/ui の警告の語彙で表す） ---------- */
+
+.connection-banner {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding: var(--space-2) var(--space-4);
+  background: var(--rose-tint);
+  border-bottom: 1px solid var(--rose-edge);
+  color: var(--rose-pale);
+  font-size: var(--font-size-sm);
+  text-align: center;
+}
+
+/* 繋がらない状態は「切れて戻る途中」より強く出す（色だけに頼らず文言でも区別している）。 */
+.connection-banner.unreachable {
+  background: var(--rose-veil);
+  font-weight: 700;
+}
+
+/* ---------- 招待リンク（poker-web の `.invite` と同じ組み方） ---------- */
+
+.topic-invite {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--font-size-sm);
+}
+
+.topic-invite-url {
+  padding: var(--space-2) var(--space-3);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-md);
+  color: var(--ivory-dim);
+  font-family: var(--font-mono);
+  word-break: break-all;
+}
+
+/* ---------- 入力欄（玄関の `.hub-input` と同じ組み方） ---------- */
+
+/* `@tasuki/ui` は入力欄の規則を持たない（#280 で要素層から外した）。書かないと、フェルトの上に
+   ブラウザ既定の白い欄が出る。字の大きさは玄関と同じく `1rem` —— 16px を下回ると iOS Safari が
+   フォーカス時に画面を拡大する（`apps/landing/src/index.css` の `.hub-input` の注記）。 */
+.topic-panel input,
+.topic-panel textarea,
+.topic-panel select {
+  min-width: 0;
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--felt-950);
+  color: var(--ivory);
+  font: inherit;
+  font-size: 1rem;
+}
+
+.topic-panel textarea {
+  resize: vertical;
+}
+
+.topic-panel input:focus-visible,
+.topic-panel textarea:focus-visible,
+.topic-panel select:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+/* ---------- 書く・作る ---------- */
+
+.topic-tools {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
+  gap: var(--space-5);
+}
+
+.topic-panel {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+  padding: var(--space-5);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  background: var(--felt-900);
+}
+
+.topic-panel form {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.topic-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
