@@ -12,10 +12,10 @@
 # 任意の非空文字列（v.pipe(v.string(), v.minLength(1))）へ戻す。プロンプトへ
 # 任意の文字列が届く——2026-08-13 に持ち出し経路が本番で成立した入口。
 diff --git a/packages/topic-core/src/schemas.ts b/packages/topic-core/src/schemas.ts
-index 585f809..6c95e6c 100644
+index 0d48c8f..1a67d09 100644
 --- a/packages/topic-core/src/schemas.ts
 +++ b/packages/topic-core/src/schemas.ts
-@@ -51,7 +51,7 @@ export const TopicCommandSchema = v.variant("command", [
+@@ -54,7 +54,7 @@ export const TopicCommandSchema = v.variant("command", [
      mode: v.picklist(["ai", "fallback"]),
      // `docs/adr/0012` D10 の列挙検証。**ここを `v.string()` に戻すと、プロンプトへ
      // 任意の文字列が届く**(2026-08-13 に持ち出し経路が本番で成立した入口)。
@@ -23,4 +23,4 @@ index 585f809..6c95e6c 100644
 +    language: v.pipe(v.string(), v.minLength(1)),
      difficulty: v.picklist(DIFFICULTIES),
    }),
-   v.object({
+   v.strictObject({
