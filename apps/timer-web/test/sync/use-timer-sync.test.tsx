@@ -266,6 +266,86 @@ describe("useTimerSync: メッセージの配線", () => {
   });
 });
 
+/**
+ * @requirements #91 E2 E15 E16（timer はお題を読んで表示するだけ・spec T3）
+ */
+describe("useTimerSync: お題のフレーム", () => {
+  it("Given ルームに入った timer / When お題のフレームが届く / Then topic にタイトルと本文が入る", () => {
+    // Given
+    const { result, deliver } = enterRoom(fakeBanner());
+    // When
+    deliver({
+      type: "topic",
+      state: {
+        topic: { title: "FizzBuzz", body: "本文", source: "manual" },
+        generating: false,
+        degraded: false,
+        aiUnlocked: false,
+      },
+    });
+    // Then
+    expect(result.current.topic).toEqual({ title: "FizzBuzz", body: "本文", source: "manual" });
+  });
+
+  it("Given お題がある / When お題なしのフレームが届く / Then topic が null に戻る", () => {
+    // Given
+    const { result, deliver } = enterRoom(fakeBanner());
+    deliver({
+      type: "topic",
+      state: {
+        topic: { title: "FizzBuzz", body: "", source: "manual" },
+        generating: false,
+        degraded: false,
+        aiUnlocked: false,
+      },
+    });
+    expect(result.current.topic).not.toBeNull();
+    // When
+    deliver({
+      type: "topic",
+      state: { topic: null, generating: false, degraded: false, aiUnlocked: false },
+    });
+    // Then
+    expect(result.current.topic).toBeNull();
+  });
+
+  it("Given お題がある / When ルームから抜けた知らせが届く / Then topic が null に戻る（抜けたルームのお題を次のルームへ持ち越さない）", () => {
+    // Given
+    const { result, deliver } = enterRoom(fakeBanner());
+    deliver({
+      type: "topic",
+      state: {
+        topic: { title: "FizzBuzz", body: "", source: "manual" },
+        generating: false,
+        degraded: false,
+        aiUnlocked: false,
+      },
+    });
+    expect(result.current.topic).not.toBeNull();
+    // When
+    deliver({ type: "error", code: "LEFT_ROOM", message: "退出しました" });
+    // Then
+    expect(result.current.topic).toBeNull();
+  });
+
+  it("Given ルームに入った timer / When お題のフレームが届く / Then syncStale は立たない", () => {
+    // Given
+    const { result, deliver } = enterRoom(fakeBanner());
+    // When
+    deliver({
+      type: "topic",
+      state: {
+        topic: { title: "FizzBuzz", body: "", source: "manual" },
+        generating: false,
+        degraded: false,
+        aiUnlocked: false,
+      },
+    });
+    // Then
+    expect(result.current.syncStale).toBe(false);
+  });
+});
+
 describe("useTimerSync: 明示保存の失敗経路", () => {
   it("saveRecordManually が失敗すると、文言・種別・自動消去なしでバナーを出す", async () => {
     // Given

@@ -160,6 +160,7 @@ export default function App() {
           onSetPassphrase={commands.setPassphrase}
           onAiUnlock={commands.aiUnlock}
           onProblemModeSet={commands.setProblemMode}
+          topic={sync.topic}
         />
       );
     }
@@ -201,6 +202,7 @@ export default function App() {
           onRegenerateProblem={sync.regenerateProblem}
           onPasteProblem={pasteProblem}
           onSetPassphrase={commands.setPassphrase}
+          topic={sync.topic}
         />
       );
     }

@@ -206,6 +206,9 @@ importers:
       '@tasuki/timer-core':
         specifier: workspace:*
         version: link:../../packages/timer-core
+      '@tasuki/topic-core':
+        specifier: workspace:*
+        version: link:../../packages/topic-core
       '@tasuki/ui':
         specifier: workspace:*
         version: link:../../packages/ui

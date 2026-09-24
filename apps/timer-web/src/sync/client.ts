@@ -14,6 +14,7 @@ import { estimateClockOffset, type PingSample } from "./clock-offset.js";
 import { dispatchServerMessage } from "./dispatch.js";
 import type { NoticeSignal } from "./notice-message.js";
 import type { Room } from "@tasuki/timer-core";
+import type { TopicState } from "@tasuki/topic-core";
 
 export type RoomCallback = (room: Room) => void;
 export type ErrorCallback = (code: string, message: string) => void;
@@ -43,6 +44,8 @@ export interface SyncClientOptions {
   onReconnected?: () => void;
   /** 契約に合わないフレームを捨てたときに、落ちた項目の経路だけを知らせる（#181） */
   onInvalidFrame?: (paths: string[]) => void;
+  /** いまのお題の状態（#91・spec T3）。timer は読むだけ */
+  onTopic?: (state: TopicState) => void;
 }
 
 export class SyncClient {
@@ -104,6 +107,7 @@ export class SyncClient {
       onTimePong: (serverTime) => this.recordPong(serverTime),
       onNotice: (notice) => this.options.onNotice?.(notice),
       onInvalidFrame: (paths) => this.options.onInvalidFrame?.(paths),
+      onTopic: (state) => this.options.onTopic?.(state),
     });
   }
 

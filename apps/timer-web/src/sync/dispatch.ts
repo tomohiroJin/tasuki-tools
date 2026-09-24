@@ -7,6 +7,7 @@
 import * as v from "valibot";
 import { ServerMsgSchema } from "@tasuki/timer-core";
 import type { Room } from "@tasuki/timer-core";
+import { TopicFrameSchema, type TopicState } from "@tasuki/topic-core";
 import type { Identity } from "./client.js";
 import type { NoticeSignal } from "./notice-message.js";
 
@@ -31,6 +32,11 @@ export interface ServerMessageCallbacks {
    * 禁じている。出すかどうかと出し先は `use-timer-sync.ts` が決める。
    */
   onInvalidFrame?: (paths: string[]) => void;
+  /**
+   * いまのお題の状態（#91・spec T3）。**ツールをまたぐフレームなので timer の契約
+   * （`ServerMsgSchema`）には無い**。下の振り分けがそれより先に見分ける。
+   */
+  onTopic?: (state: TopicState) => void;
 }
 
 /**
@@ -58,6 +64,15 @@ export function dispatchServerMessage(
     // この場面だけが丸ごと外れる。落ちた項目は挙げようがないので、根で落ちたときと
     // 同じ `<root>` を渡す。
     cb.onInvalidFrame?.(["<root>"]);
+    return;
+  }
+
+  // **お題のフレームは timer の契約より先に見分ける**（#91・spec §5.5）。順を逆にすると
+  // `ServerMsgSchema` が未知の type として落とし、「同期できていません」（#209）を出す。
+  // `type` が "topic" なのに形が崩れているものは、ここで拾わず下の検証に落として知らせる。
+  const topic = v.safeParse(TopicFrameSchema, json);
+  if (topic.success) {
+    cb.onTopic?.(topic.output.state);
     return;
   }
 

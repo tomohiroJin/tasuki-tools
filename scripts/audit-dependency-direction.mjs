@@ -125,6 +125,8 @@ export const ALLOWED = {
     "@tasuki/topic-core",
     "@tasuki/ui",
   ],
+  // #91 PR 3: `topic` フレームを topic-core のスキーマで検め、お題を読むだけで出す（spec §5.5）。
+  // timer-core は topic-core を知らない（T1）。
   "apps/timer-web": [
     "@tasuki/invite-ui",
     "@tasuki/dev-hub-redirect",
@@ -132,6 +134,7 @@ export const ALLOWED = {
     "@tasuki/room-core",
     "@tasuki/sync-client",
     "@tasuki/timer-core",
+    "@tasuki/topic-core",
     "@tasuki/ui",
   ],
   // #95 S5b: 表示名の上限（`MAX_DISPLAY_NAME`）を room-core から取る。web アプリが

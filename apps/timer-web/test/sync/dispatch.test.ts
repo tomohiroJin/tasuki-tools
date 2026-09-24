@@ -160,6 +160,34 @@ describe("dispatchServerMessage", () => {
 });
 
 /**
+ * @requirements #91 E2 E15 E16（timer はお題を読んで表示するだけ・spec T3）
+ */
+describe("お題のフレームを振り分ける", () => {
+  it("Given お題のフレーム / When 振り分ける / Then onTopic に状態が渡り、捨てたとは言わない", () => {
+    // Given
+    const state = { topic: { title: "FizzBuzz", body: "", source: "manual" }, generating: false, degraded: false, aiUnlocked: false };
+    const onTopic = vi.fn();
+    const onInvalidFrame = vi.fn();
+    // When
+    dispatchServerMessage(JSON.stringify({ type: "topic", state }), { onTopic, onInvalidFrame });
+    // Then
+    expect(onTopic).toHaveBeenCalledWith(state);
+    expect(onInvalidFrame).not.toHaveBeenCalled();
+  });
+
+  it("Given 形の崩れたお題のフレーム / When 振り分ける / Then 捨てたことを知らせる", () => {
+    // Given
+    const onTopic = vi.fn();
+    const onInvalidFrame = vi.fn();
+    // When
+    dispatchServerMessage(JSON.stringify({ type: "topic", state: { topic: 1 } }), { onTopic, onInvalidFrame });
+    // Then
+    expect(onTopic).not.toHaveBeenCalled();
+    expect(onInvalidFrame).toHaveBeenCalled();
+  });
+});
+
+/**
  * 契約（`ServerMsgSchema`）を満たさないフレームは画面へ届けない（#181）。
  *
  * **JSON として読めることと、契約を満たすことは別である。** ここまでの防御は

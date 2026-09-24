@@ -9,7 +9,9 @@ import {
 } from "lucide-react";
 import { secondsLeft, elapsedMs } from "@tasuki/timer-core/aggregate";
 import type { Room, Problem } from "@tasuki/timer-core";
+import type { Topic } from "@tasuki/topic-core";
 import { Card, GhostButton, PrimaryButton } from "./primitives.js";
+import { TopicCard } from "./components/TopicCard.js";
 import { CircularProgress } from "./components/CircularProgress.js";
 import { TeamOrbit } from "./components/TeamOrbit.js";
 import { RotationLineup } from "./components/RotationLineup.js";
@@ -87,6 +89,11 @@ interface SessionProps {
   onPasteProblem?: () => void;
   /** ルームのパスフレーズ設定/解除（R4-2）。空文字で解除。 */
   onSetPassphrase?: (passphrase: string) => void;
+  /**
+   * ルームのいまのお題（#91）。**読むだけ**（作る/直すのはお題ツールの仕事・spec T4）。
+   * 未接続や `topic` フレーム未到達では無いので、無ければ描かない。
+   */
+  topic?: Topic | null;
 }
 
 /** 残り時間がこの秒数以下で緊急表示にする */
@@ -125,6 +132,7 @@ export function Session({
   onRegenerateProblem,
   onPasteProblem,
   onSetPassphrase,
+  topic = null,
 }: SessionProps) {
   // 初回ヒントを閉じたか（手動 dismiss で永続化）。実際の表示可否は下の notifyPrefs.enabled と
   // 組み合わせて派生で判定し、セッション中に通知を ON にしたら自動的に消えるようにする。
@@ -231,6 +239,8 @@ export function Session({
   // 「セッション」タブのコンテンツ（既存 UI をそのまま移動）。
   const sessionPanel = (
     <div className="space-y-6">
+      {/* いまのお題（#91）。timer は読むだけで、変えるのはお題ツールの仕事（spec T4）。 */}
+      {topic && <TopicCard topic={topic} />}
       {/* 初回ヒント（未読かつ通知 OFF のときのみ）。閉じる or 通知 ON で消える。 */}
       {!hintDismissed && !notifyPrefs.enabled && <NotifyHint onDismiss={dismissHint} />}
       {/* お題（確定後）。ProblemEditor で各フィールドを編集できる

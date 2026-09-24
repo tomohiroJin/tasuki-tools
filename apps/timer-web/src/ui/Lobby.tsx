@@ -7,8 +7,10 @@
 import React, { useState } from "react";
 import { Users, Code, Play, UserPlus, UserMinus, ChevronUp, ChevronDown, X, Shuffle, Bell } from "lucide-react";
 import type { Room, Problem } from "@tasuki/timer-core";
+import type { Topic } from "@tasuki/topic-core";
 import { Card, PrimaryButton, GhostButton, SectionHeader } from "./primitives.js";
 import { ProblemEditor } from "./components/ProblemEditor.js";
+import { TopicCard } from "./components/TopicCard.js";
 import { SessionConfigPanel } from "./components/SessionConfigPanel.js";
 import { ProblemConfigPanel } from "./components/ProblemConfigPanel.js";
 import { Tabs } from "./components/Tabs.js";
@@ -61,6 +63,11 @@ interface LobbyProps {
   onAiUnlock?: (key: string) => void;
   /** AI ⇔ 定型モードの切替（problem.mode.set）。 */
   onProblemModeSet?: (mode: "ai" | "fallback") => void;
+  /**
+   * ルームのいまのお題（#91）。**読むだけ**（作る/直すのはお題ツールの仕事・spec T4）。
+   * 未接続や `topic` フレーム未到達では無いので、無ければ描かない。
+   */
+  topic?: Topic | null;
 }
 
 /** 参加者行のコンパクトなアイコンボタン（行が改行だらけにならないよう小さく揃える）。 */
@@ -104,6 +111,7 @@ export function Lobby({
   onSetPassphrase,
   onAiUnlock,
   onProblemModeSet,
+  topic = null,
 }: LobbyProps) {
   // 退出の確認対象（FR-075）。取り返しがつかない操作なので直接は実行しない。
   // 同名が並ぶ場面では「1クリックで即退出」が誤操作に直結する（実機検証で判明）。
@@ -161,6 +169,8 @@ export function Lobby({
           label: "ルーム",
           content: (
             <div className="space-y-6">
+              {/* いまのお題（#91）。timer は読むだけで、変えるのはお題ツールの仕事（spec T4）。 */}
+              {topic && <TopicCard topic={topic} />}
               {startButton}
               {/* セッション設定（交代間隔・詳細設定）。誰でも変更できる。 */}
               <Card>

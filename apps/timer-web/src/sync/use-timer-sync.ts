@@ -55,6 +55,7 @@ import { saveRecord } from "../records/indexeddb.js";
 import { persistRecordIfComplete } from "../records/persist.js";
 import { displayMessageFor } from "@tasuki/timer-core";
 import type { CompletionRecord, Room } from "@tasuki/timer-core";
+import type { Topic } from "@tasuki/topic-core";
 
 /** 混雑で入室を拒まれ、自動で入り直している間の案内（#147）。 */
 const JOIN_RETRY_WAITING_TEXT = "混み合っています。自動で入り直しています…";
@@ -154,6 +155,11 @@ export interface TimerSync {
   joinTimedOut: boolean;
   /** サーバー時刻との差。Session の残り時間導出に渡す。 */
   clockOffset: number;
+  /**
+   * ルームのいまのお題（#91）。**timer は読むだけ**。`topic` フレームで届き、
+   * snapshot には含まれない（spec T3）。
+   */
+  topic: Topic | null;
 
   /** 引数をそのまま載せて送るだけの操作。 */
   commands: TimerCommands;
@@ -217,6 +223,9 @@ export function useTimerSync(banner: BannerController): TimerSync {
   const [syncStale, setSyncStale] = useState(false);
   // `room.join` の答えを待つ期限が切れた（#292）。立てるのは下の期限のタイマーだけ。
   const [joinTimedOut, setJoinTimedOut] = useState(false);
+  // ルームのいまのお題（#91）。`topic` フレームで届く。setter だけなので handlersRef に
+  // 載せる必要は無い（onConnectionChange と同じ理由。makeClient で直接渡す）。
+  const [topic, setTopic] = useState<Topic | null>(null);
   // 注: AI（BYOK/サブスク）はいったん UI から撤去。お題は定型バンクのみ（NoAiProvider）。
   //
   // **お題の生成中は state に持たない**（#283）。サーバーが持つ状態を読むだけである ——
@@ -495,6 +504,8 @@ export function useTimerSync(banner: BannerController): TimerSync {
         const removedFrom = room?.code ?? roomCodeRef.current;
         syncClient.dispose();
         setRoom(null);
+        // お題はルームのもの。抜けたら畳む
+        setTopic(null);
         // このルームの話は終わった。残すと、次に別ルームへ入る前の再送が
         // 消えたルームを指す（#95 S4b）。
         roomCodeRef.current = null;
@@ -670,6 +681,9 @@ export function useTimerSync(banner: BannerController): TimerSync {
       // 契約に合わないフレームを捨てたことを知らせる（#181・#209）。
       // 判断と出力は handleInvalidFrame が持つ（room を読む必要があるため転送する）。
       onInvalidFrame: (paths) => handlersRef.current.handleInvalidFrame(paths),
+      // お題はルームの共有資産（#91）。setter 呼び出し1行なので、onConnectionChange と
+      // 同じ理由で転送を挟まない。
+      onTopic: (state) => setTopic(state.topic),
     });
     newClient.connect();
     setClient(newClient);
@@ -878,6 +892,7 @@ export function useTimerSync(banner: BannerController): TimerSync {
     showsFallbackNotice: showsFallbackNotice(room),
     joinTimedOut,
     clockOffset: client?.clockOffset ?? 0,
+    topic,
     commands,
     startSession,
     complete,
