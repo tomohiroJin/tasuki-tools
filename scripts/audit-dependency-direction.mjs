@@ -105,6 +105,8 @@ export const ALLOWED = {
   "packages/rate-limit": [],
   "packages/ui": [],
   "packages/invite-ui": [], // ADR-0020: ブラウザ操作のみ。ドメイン・同期への依存なし。
+  // #91 PR 3: Markdown サブセットの解析（純粋な関数・描画は各アプリ）。依存 0。
+  "packages/markdown": [],
   // dev サーバー専用の Vite プラグインと玄関のポートの正本（#95 S5c 追補・#249）。
   // **@tasuki/* に依存しない** —— ツールの語彙を持たず、4 つの vite.config.ts から
   // 同じものを参照できることが存在理由である。ルート直下に置いていた頃は、どの

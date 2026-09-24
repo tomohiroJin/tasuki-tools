@@ -65,6 +65,8 @@ export const SCANNED_PACKAGES = [
   // #95 S5a で新設（同期クライアントの接続部分）。
   "packages/sync-client",
   "packages/invite-ui",
+  // #91 PR 3 で新設(Markdown サブセットの解析・純粋な関数)。
+  "packages/markdown",
   "packages/timer-core",
   // お題の文脈（#91）で新設。
   "packages/topic-core",

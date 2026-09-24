@@ -1089,6 +1089,8 @@ export const SCANNED_PACKAGES = [
   // #95 S5a で新設（同期クライアントの接続部分・D18）。
   { pkg: "packages/sync-client", src: "src", test: "tests", entry: "index.ts" },
   { pkg: "packages/invite-ui", src: "src", test: "tests", entry: "index.ts" },
+  // #91 PR 3: Markdown サブセットの解析(純粋な関数)を timer-web/topic-web から出す。
+  { pkg: "packages/markdown", src: "src", test: "tests", entry: "index.ts" },
   // #95 S5c 追補で新設（dev サーバー専用の Vite プラグインと玄関のポートの正本）。
   { pkg: "packages/dev-hub-redirect", src: "src", test: "tests", entry: "index.ts" },
   // #95 S2 で apps/timer-sync と apps/poker-sync がここへ統合された（1 パッケージ）。

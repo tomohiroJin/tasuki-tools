@@ -80,6 +80,8 @@ export const DOMAIN_PACKAGES = [
   // お題の文脈（#91）。timer・poker・room と同格のドメインパッケージ。
   "packages/topic-core",
   "packages/timer-core",
+  // #91 PR 3 で新設。純粋な関数のみ（Date.now() や Math.random() を置いたら赤になるべき）。
+  "packages/markdown",
 ];
 
 /** 走査から外すパッケージ。**理由が要る。** 実在しなくなったら落ちる（ADR-0014 決定 2）。 */
