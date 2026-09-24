@@ -152,3 +152,13 @@ Tailwind 4 は `@theme` による CSS-first の設定を推すが、**`tailwind.
   不要」は実測で成り立たなかった** —— 外すと CSS がかえって増え、`-moz-column-gap` が
   消える。詳細は `apps/timer-web/postcss.config.js` のコメント
 - CSS-first（`@theme`）へ移行するかどうか
+
+## 追記（2026-09-24・#91 PR 2）
+
+### `apps/topic-web` が適用範囲に加わった
+
+お題ツール（`apps/topic-web`）を新設し、`@tasuki/ui` の利用側が 4 アプリになった。
+timer と違い Tailwind を使わず素の CSS で組むため、poker-web / landing と同じく
+トークン層・要素層の両方を `@import '@tasuki/ui';` で読む。決定 1〜5 が定めた
+層構造・トークンの出所・書体の自己ホスト方針はそのまま適用され、本 ADR の決定は
+変えない。

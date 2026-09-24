@@ -97,7 +97,7 @@ export const ALLOWED = {
   // 文脈をつなぐのはアプリ層である（docs/adr/0017）。
   "packages/topic-core": [],
   // 同期クライアントの接続部分（#95 S5a・D18）。**@tasuki/* に依存しない** ——
-  // ツールの語彙を持たないことが、3 つの web アプリから使える条件である。
+  // ツールの語彙を持たないことが、4 つの web アプリから使える条件である。
   "packages/sync-client": [],
   "packages/timer-core": [], // #95 S4b で room-core への一時依存を外した（ADR-0017 決定 4 の期限）
   "packages/poker-core": ["@tasuki/protocol"], // 既存。境界のパースを protocol に一本化
@@ -106,7 +106,7 @@ export const ALLOWED = {
   "packages/ui": [],
   "packages/invite-ui": [], // ADR-0020: ブラウザ操作のみ。ドメイン・同期への依存なし。
   // dev サーバー専用の Vite プラグインと玄関のポートの正本（#95 S5c 追補・#249）。
-  // **@tasuki/* に依存しない** —— ツールの語彙を持たず、3 つの vite.config.ts から
+  // **@tasuki/* に依存しない** —— ツールの語彙を持たず、4 つの vite.config.ts から
   // 同じものを参照できることが存在理由である。ルート直下に置いていた頃は、どの
   // パッケージの tsconfig の射程にも入らず typecheck が落ち、パッケージ外を相対パスで
   // 取り込むためこの検査（決定 4）も落ちていた。

@@ -50,7 +50,7 @@ function paletteHex(name: string): string {
 }
 
 const BG_HEX = paletteHex('felt-950'); // #071f18（timer-web の --ink の出所）
-const TEXT_HEX = paletteHex('ivory'); // #f5efdd（3 アプリ共通の最明テキスト）
+const TEXT_HEX = paletteHex('ivory'); // #f5efdd（4 アプリ共通の最明テキスト）
 
 const APPS: { name: string; indexHtml: string }[] = [
   { name: 'landing', indexHtml: 'apps/landing/index.html' },

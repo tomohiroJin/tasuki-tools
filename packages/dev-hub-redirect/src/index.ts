@@ -3,10 +3,10 @@ import type { Plugin } from "vite";
 /**
  * 玄関（apps/landing）の dev サーバーのポート。
  *
- * timer / poker の vite.config.ts はこの値を「`/` へ来たときの送り先」として使い、
+ * timer / poker / topic の vite.config.ts はこの値を「`/` へ来たときの送り先」として使い、
  * 玄関自身（apps/landing/vite.config.ts）もこの値を `server.port` として使う。
- * 3 つの vite.config.ts に別々にポート番号を書くと、玄関のポートを変えたときに
- * timer / poker 側だけ古い値のまま残って黙って壊れる
+ * 4 つの vite.config.ts に別々にポート番号を書くと、玄関のポートを変えたときに
+ * timer / poker / topic 側だけ古い値のまま残って黙って壊れる
  * （このリポジトリが繰り返し踏んできた「同じ値を複数ファイルに持つと食い違う」型）。
  * 値はここ 1 箇所だけに持つ。
  */
@@ -19,7 +19,7 @@ export const HUB_PORT = 5175;
  * **原因の連鎖**: #95 S5c で旧入口（timer の Setup/Join 等）を撤去し、ルームコードを
  * 伴わずに開いたツールは玄関（`/`）へ送り返すようになった
  * （`apps/timer-web/src/ui/entry.ts` の `decideEntry` → `platform/location.ts` の
- * `redirectTo` が `location.replace("/")` する）。ところが timer / poker の
+ * `redirectTo` が `location.replace("/")` する）。ところが timer / poker / topic の
  * dev サーバーを直接開くと、そのサーバーにとって `/` は自分自身であり玄関ではない
  * —— Vite が `/` を base（`/timer/` 等）へ 302 で戻すため、「`/` へ送る → base が
  * `/timer/` へ戻す → decideEntry が再び `/` へ送る」の無限ループになる

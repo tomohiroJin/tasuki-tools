@@ -114,8 +114,8 @@ logger.error("uncaught", { name: publicText(err.name) }); // log-hygiene:allow �
 ### 画面側に `console` を足すとき（#157）
 
 **ログ衛生の検査は `.ts` と `.tsx` を区別しません。** 画面側（`apps/timer-web` /
-`apps/poker-web` / `apps/landing`）に直接の `console` を足すと、CI の `quality` ジョブが
-`直接の console は使えません` で落ちます。
+`apps/poker-web` / `apps/landing` / `apps/topic-web`）に直接の `console` を足すと、
+CI の `quality` ジョブが `直接の console は使えません` で落ちます。
 
 **これは検査の誤検知ではありません。** [`docs/adr/0012`](../adr/0012-logging-secrets-and-disclosure.md)
 決定 D1 の本文は「ブラウザの `console` は本決定の対象外」と書いていますが、

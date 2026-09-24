@@ -1,10 +1,10 @@
 /**
- * timer と poker の `vite.config.ts` が、玄関へのリダイレクト（`@tasuki/dev-hub-redirect`）を
- * **両方とも配線しているか**を固定する（#95 S5c 追補・#249）。
+ * timer と poker と topic の `vite.config.ts` が、玄関へのリダイレクト（`@tasuki/dev-hub-redirect`）を
+ * **すべて配線しているか**を固定する（#95 S5c 追補・#249）。
  *
  * プラグイン本体の振る舞いは `packages/dev-hub-redirect/tests/hub-redirect.test.ts` が見る。
- * ここが見るのは配線だけで、**片方だけ直す事故**（このリポジトリが繰り返し踏んできた型）を
- * 拾うために 2 つの config を同じ表明に通す。
+ * ここが見るのは配線だけで、**1 つだけ直す事故**（このリポジトリが繰り返し踏んできた型）を
+ * 拾うために 3 つの config を同じ表明に通す。
  *
  * **config を import せず、文字列として読む。** パッケージの外を相対パスで取り込むと
  * `scripts/audit-dependency-direction.mjs`（ADR-0017 決定 4）が落ちるためで、

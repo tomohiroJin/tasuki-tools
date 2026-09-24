@@ -2,13 +2,13 @@
    Tasuki UI — 「夜のカードテーブル」の共通スタイル
 
    **2 層構造**（ADR-0001）:
-     tokens/   … 変数と @font-face だけ。3 アプリすべてが読める
-     elements/ … 素の要素セレクタを飾る。poker-web / landing 専用
+     tokens/   … 変数と @font-face だけ。4 アプリすべてが読める
+     elements/ … 素の要素セレクタを飾る。poker-web / landing / topic-web 専用
 
    利用側の CSS の**先頭**で読み込むこと。利用側の固有スタイルが後に来ることで
    上書きできる（同じ詳細度なら後勝ち）。
 
-     @import '@tasuki/ui';            -- tokens + elements（poker-web / landing）
+     @import '@tasuki/ui';            -- tokens + elements（poker-web / landing / topic-web）
      import '@tasuki/ui/tokens.css';  -- tokens だけ（timer-web。JS から読む。README 参照）
    ============================================================ */
 
