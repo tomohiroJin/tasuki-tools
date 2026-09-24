@@ -26,8 +26,11 @@ describe('お題ツールの URL', () => {
   });
 
   it('Given ルームコード / When 玄関のそのルームを組み立てる / Then 符号化した ?room= になる', () => {
+    // Given: 記号を含むルームコード。
     // 玄関は `URLSearchParams` で読む（`apps/landing/src/hub/room-param.ts`）ので、読み戻して比べる
+    // When
     const url = new URL(hubPathFor('朝会 a&b'), 'http://x');
+    // Then
     expect(url.pathname).toBe('/');
     expect(url.searchParams.get('room')).toBe('朝会 a&b');
   });
