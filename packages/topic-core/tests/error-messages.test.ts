@@ -3,12 +3,13 @@ import { TOPIC_ERROR_CODES, topicErrorMessageFor, type TopicErrorCode } from "..
 
 /**
  * timer-core（`packages/timer-core/src/error-messages.ts`）の文言をそのまま書き写したもの。
- * topic-core は timer-core に依存できないため、直書きして比べる
- * (timer 側の文言が変わったらこのテストが落ちて、揃え直す機会になる)。
+ * topic-core は timer-core に依存できないため、直書きして比べる。
+ *
+ * **`RATE_LIMITED` / `AI_UNLOCK_FAILED` は #91 PR 2 で timer と揃えるのをやめた。** timer の文は
+ * 書体の常用の層に無い字（「多」「違」）を含み、お題ツールが出すたびに拡張の層を取りに行く。
+ * timer の同じコードは、timer のお題の経路ごと PR 3 で消える（spec §9）。
  */
 const TIMER_MESSAGES: Partial<Record<TopicErrorCode, string>> = {
-  RATE_LIMITED: "試行が多すぎます。しばらく待ってから再試行してください。",
-  AI_UNLOCK_FAILED: "合言葉が違います。",
   NOT_IN_ROOM: "ルームに参加していません",
 };
 
@@ -40,5 +41,30 @@ describe("お題のエラーの文言", () => {
 
   it("INTERNAL_ERROR は接続層(ws-adapter)と同じ文を返す", () => {
     expect(topicErrorMessageFor("INTERNAL_ERROR")).toBe(WS_ADAPTER_INTERNAL_ERROR_TEXT);
+  });
+});
+
+/**
+ * お題ツールが画面に出す文。書体の常用の層に収まることは
+ * `apps/topic-web/tests/copy-fits-font-base.test.ts` が守る。ここは文そのものを固定する。
+ *
+ * @requirements #91 spec §5.4（UI 文言は書体の base 層に収める）
+ */
+describe("お題ツールが出す文", () => {
+  /**
+   * @requirements #91 E22
+   */
+  describe("作り直しの拒否", () => {
+    it("作り直しがクールダウンで拒まれたら、待ってから作り直すよう促す", () => {
+      expect(topicErrorMessageFor("GENERATION_COOLDOWN")).toBe("しばらく待ってから、もう一度作ってください。");
+    });
+  });
+
+  it("合言葉が合わなければ、正しくないと伝える", () => {
+    expect(topicErrorMessageFor("AI_UNLOCK_FAILED")).toBe("合言葉が正しくありません。");
+  });
+
+  it("合言葉を続けて外したら、待ってから再試行するよう促す", () => {
+    expect(topicErrorMessageFor("RATE_LIMITED")).toBe("続けて失敗しました。しばらく待ってから再試行してください。");
   });
 });
