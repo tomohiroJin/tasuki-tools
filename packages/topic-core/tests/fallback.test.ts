@@ -31,8 +31,13 @@ describe("定型バンク", () => {
       // When: 開きの後ろで、囲みの閉じとヒントを探す
       const close = at < 0 ? -1 : e.body.indexOf("\n```", at + OPEN.length);
       const hint = e.body.indexOf("ヒント:");
-      // Then: 開きがあり、テストのコードを挟んでヒントより前で閉じている
-      expect({ title: e.title, opened: at >= 0 }).toEqual({ title: e.title, opened: true });
+      // Then: 開きがあり、テストのコードを挟んでヒントより前で閉じている。
+      // 閉じが見つからないと indexOf は -1 を返し「ヒントより前」を素通りするので、閉じの在否を先に見る
+      expect({ title: e.title, opened: at >= 0, closed: close >= 0 }).toEqual({
+        title: e.title,
+        opened: true,
+        closed: true,
+      });
       expect(e.body.slice(at + OPEN.length, close)).toMatch(/^test\(/);
       expect(close).toBeLessThan(hint < 0 ? e.body.length : hint);
     }
