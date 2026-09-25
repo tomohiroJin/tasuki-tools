@@ -17,15 +17,17 @@
  *
  * **#283 で `generatingProblem` の組そのものが消えた。** 生成中はサーバーが持つ
  * 状態（`Room.problemGeneration`）になり、画面は snapshot をそのまま読むだけに
- * なったので、state も ref も要らない。**ここにあった 1 件は移設ではなく削除である** ——
- * 代わりの検査は `App.problem-generation.test.tsx` にあり、そちらは
- * 「同じお題でも降りる」「押していない端末でも立つ」という**旧実装では作れない
- * 前提**を見ている（ここへ残すと、消えた仕組みの名前だけが生き続ける）。
+ * なったので、state も ref も要らない。**ここにあった 1 件は移設ではなく削除である。**
+ *
+ * **#91 PR 3 で roomRef の組（お題の再依頼リクエスト）も消えた。** timer 内でのお題の
+ * 作成・生成は撤去し、お題ツール（別アプリ）へ移った。`regenerateProblem` も
+ * `App.problem-generation.test.tsx` もこの PR で削除したので、代わりの検査は無い
+ * （生成中の演出ごと無くなったため、検査すべき振る舞いも残っていない）。
  *
  * @requirements Issue #41（#28 D-2）
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { screen, fireEvent, act } from "@testing-library/react";
+import { screen, act } from "@testing-library/react";
 import { FakeWS } from "../support/fakes.js";
 import { enterRoomAndConnect } from "../support/enter-room.js";
 import { aRecord, aRoomView } from "../support/room-view.js";
@@ -72,36 +74,6 @@ function createRoomAndConnect(): FakeWS {
 }
 
 describe("App.tsx の state/ref 二重管理", () => {
-  it("roomRef: 生成中お題の再依頼リクエストが最新の room.code を参照する", () => {
-    // Given: ロビーに到達し、お題Aが確定している
-    const ws = createRoomAndConnect();
-    sendServer(ws, { type: "room.joined", resumeToken: "rt", participantId: CREATOR_ID });
-    sendServer(ws, {
-      type: "snapshot",
-      room: aRoomView({
-        code: "ROOM01",
-        problem: problemA(),
-        participants: [
-          { participantId: CREATOR_ID, displayName: "Creator", presence: "online", hasAiKey: false, joinedAt: 0 },
-        ],
-      }),
-    });
-
-    // When: 「お題」タブへ切り替え、「別のお題にする」を押す
-    // （regenerateProblem は roomRef.current?.code を参照する）
-    fireEvent.click(screen.getByRole("tab", { name: "お題" }));
-    const sendSpy = vi.spyOn(ws, "send");
-    fireEvent.click(screen.getByRole("button", { name: "別のお題にする" }));
-
-    // Then: 送信された requestId に現在の room.code（ROOM01）が含まれる
-    expect(sendSpy).toHaveBeenCalledWith(
-      expect.stringContaining('"command":"problem.request"'),
-    );
-    const [rawSent] = sendSpy.mock.calls[0] as unknown as [string];
-    const sent = JSON.parse(rawSent);
-    expect(sent.requestId).toContain("ROOM01");
-  });
-
   it("participantIdRef + roomRef: notice の実行者が自分のとき「あなた」と表示する", () => {
     // Given: ロビーで自分の participantId が確定している
     const ws = createRoomAndConnect();

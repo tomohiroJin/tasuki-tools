@@ -105,35 +105,6 @@ describe("dispatchServerMessage", () => {
     });
   });
 
-  it("signal need-problem は requestId と deadlineMs を onNeedProblem へ渡す", () => {
-    // Given
-    const onNeedProblem = vi.fn();
-    // When
-    dispatchServerMessage(
-      JSON.stringify({
-        type: "signal",
-        signal: "need-problem",
-        requestId: "req-1",
-        deadlineMs: 20000,
-      }),
-      { onNeedProblem },
-    );
-    // Then
-    expect(onNeedProblem).toHaveBeenCalledWith("req-1", 20000);
-  });
-
-  it("signal switch では onNeedProblem を発火しない", () => {
-    // Given
-    const onNeedProblem = vi.fn();
-    // When
-    dispatchServerMessage(
-      JSON.stringify({ type: "signal", signal: "switch", nextDriverName: "Bob" }),
-      { onNeedProblem },
-    );
-    // Then
-    expect(onNeedProblem).not.toHaveBeenCalled();
-  });
-
   it("time.pong は serverTime を onTimePong へ渡す", () => {
     // Given
     const onTimePong = vi.fn();

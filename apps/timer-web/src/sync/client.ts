@@ -30,8 +30,6 @@ export interface SyncClientOptions {
   /** room.created / room.joined 受信時に自分の参加者IDとトークンを通知 */
   onIdentity?: IdentityCallback;
   onError?: ErrorCallback;
-  /** need-problem 受信時（代表に選ばれたとき）に呼ばれる */
-  onNeedProblem?: (requestId: string, deadlineMs: number) => void;
   onConnected?: () => void;
   onDisconnected?: () => void;
   /** 接続状態の変化通知（R5-1）。online=確立、reconnecting=切断後の再接続待ち。 */
@@ -102,8 +100,6 @@ export class SyncClient {
       onRoom: (room: Room) => this.options.onRoom(room),
       onIdentity: (identity) => this.options.onIdentity?.(identity),
       onError: (code, message) => this.options.onError?.(code, message),
-      onNeedProblem: (requestId, deadlineMs) =>
-        this.options.onNeedProblem?.(requestId, deadlineMs),
       onTimePong: (serverTime) => this.recordPong(serverTime),
       onNotice: (notice) => this.options.onNotice?.(notice),
       onInvalidFrame: (paths) => this.options.onInvalidFrame?.(paths),

@@ -1,5 +1,5 @@
 /**
- * timer の端末ローカル設定（言語プール・交代通知・ヒント既読）。
+ * timer の端末ローカル設定（交代通知・ヒント既読）。
  *
  * **セッション設定の保存（`SavedPreferences` / `savePreferences` / `loadPreferences` /
  * `clearPreferences`・鍵 `tdd-mob:preferences:v1`）は #272 で畳んだ。** 唯一の呼び手
@@ -12,37 +12,12 @@
  * （`packages/sync-client/src/resume-identity.ts`）。**旧鍵 `tdd-mob:preferences:v1` は
  * 玄関が落とす**ので、この鍵はもうどこからも書かれない。
  *
- * ここに残る 3 つは**生きている**（`ProblemConfigPanel` / `Lobby` / `Session` などが
- * 読み書きする）。
+ * **ランダム言語プール（旧 `RANDOM_LANG_POOL_KEY`）は #91 PR 3 で畳んだ。** お題の
+ * 作成・生成は timer から撤去し、お題ツール（別アプリ）へ移ったため、timer 側の
+ * 言語プール設定を読み書きする画面がどこにも無くなったからである。
+ *
+ * ここに残るのは、いまも `Session` などが読み書きしているものだけである。
  */
-
-/** ランダム対象にする言語プール（この端末のローカル設定）。SessionConfig には載せない。 */
-const RANDOM_LANG_POOL_KEY = "tdd-mob:random-language-pool:v1";
-
-/** 既定の言語プール（常用5言語）。未保存・破損時のフォールバックにも使う。 */
-export const DEFAULT_RANDOM_LANGUAGE_POOL: string[] = [
-  "TypeScript", "JavaScript", "Python", "Go", "Java",
-];
-
-/** 言語プールを localStorage に保存する。空配列も許容する。 */
-export function saveRandomLanguagePool(pool: string[]): void {
-  localStorage.setItem(RANDOM_LANG_POOL_KEY, JSON.stringify(pool));
-}
-
-/** 言語プールを返す。未保存・破損なら既定プールのコピーを返す。 */
-export function loadRandomLanguagePool(): string[] {
-  const raw = localStorage.getItem(RANDOM_LANG_POOL_KEY);
-  if (raw === null) return [...DEFAULT_RANDOM_LANGUAGE_POOL];
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (Array.isArray(parsed) && parsed.every((x) => typeof x === "string")) {
-      return parsed as string[];
-    }
-    return [...DEFAULT_RANDOM_LANGUAGE_POOL];
-  } catch {
-    return [...DEFAULT_RANDOM_LANGUAGE_POOL];
-  }
-}
 
 /** 交代通知の個人設定（ルーム設定 assertiveSwitch とは独立した自分のデバイス設定）。 */
 const NOTIFY_KEY = "tdd-mob:notify:v1";

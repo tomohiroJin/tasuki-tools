@@ -14,8 +14,12 @@
  * フレーム全体の一致へ強めた。member.move の fromIndex/toIndex、
  * config.set の config、handoff.note.set の text 等が壊れても command 名さえ合っていれば
  * 緑になっていたため、Task 6 の大移動がこの網をすり抜けないようにする。
- * requestId・participantId に乱数/現在時刻を含む2件（onRegenerateProblem・onAddProxy）は
+ * requestId・participantId に乱数/現在時刻を含む onAddProxy は
  * 完全一致にできないため、command と接頭辞だけを見る個別テストに分けている。
+ *
+ * **timer 内でのお題の作成・編集・AI 解錠は #91 PR 3 で撤去した**（お題ツールへ移管）。
+ * それらの prop（onEditProblem・onAiUnlock・onProblemModeSet・onRegenerateProblem）は
+ * もう存在しないため、対応するケースをこのファイルから落とした。
  *
  * @requirements #167（#72 E4）
  */
@@ -50,15 +54,12 @@ function propHarness(prefix: string) {
 
 /** 各コールバックへ渡す引数。ここに無いものは引数なしで呼ばれる。 */
 const ARGS: Record<string, unknown[]> = {
-  onEditProblem: [{ title: "新タイトル" }],
   onConfigSet: [{ difficulty: "hard" }],
   onJoinRotation: ["p-2"],
   onLeaveRotation: ["p-2"],
   onRemoveParticipant: ["p-2"],
   onMoveRotation: [0, 1],
   onSetPassphrase: ["ひみつ"],
-  onAiUnlock: ["あいことば"],
-  onProblemModeSet: ["ai"],
   onHandoffNoteSet: ["引き継ぎメモ"],
   onRenameParticipant: ["p-2", "新しい名前"],
   onDriverSkip: ["p-2"],
@@ -142,10 +143,9 @@ function sentFrames(sendSpy: SendSpy): Array<Record<string, unknown>> {
 }
 
 // prop 名 → 押したときにちょうど 1 通送られるべきフレーム全体。
-// requestId/participantId に乱数・現在時刻を含む onRegenerateProblem・onAddProxy は
+// requestId/participantId に乱数・現在時刻を含む onAddProxy は
 // 完全一致にできないため、この表には含めず個別テストで command と接頭辞だけを見る。
 const LOBBY_CASES: Array<[string, Record<string, unknown>]> = [
-  ["onEditProblem", { command: "problem.edit", patch: { title: "新タイトル" } }],
   ["onConfigSet", { command: "config.set", config: { difficulty: "hard" } }],
   ["onJoinRotation", { command: "member.add", participantId: "p-2" }],
   ["onLeaveRotation", { command: "member.remove", index: 1 }],
@@ -153,8 +153,6 @@ const LOBBY_CASES: Array<[string, Record<string, unknown>]> = [
   ["onMoveRotation", { command: "member.move", fromIndex: 0, toIndex: 1 }],
   ["onShuffle", { command: "member.shuffle" }],
   ["onSetPassphrase", { command: "room.passphrase.set", passphrase: "ひみつ" }],
-  ["onAiUnlock", { command: "ai.unlock", key: "あいことば" }],
-  ["onProblemModeSet", { command: "problem.mode.set", mode: "ai" }],
 ];
 
 const SESSION_CASES: Array<[string, Record<string, unknown>]> = [
@@ -175,7 +173,6 @@ const SESSION_CASES: Array<[string, Record<string, unknown>]> = [
   ["onRemoveParticipant", { command: "participant.remove", participantId: "p-2" }],
   ["onMoveRotation", { command: "member.move", fromIndex: 0, toIndex: 1 }],
   ["onShuffle", { command: "member.shuffle" }],
-  ["onEditProblem", { command: "problem.edit", patch: { title: "新タイトル" } }],
   ["onSetPassphrase", { command: "room.passphrase.set", passphrase: "ひみつ" }],
 ];
 
@@ -191,20 +188,7 @@ describe("App が子画面へ渡すコールバックと WS コマンドの対�
     expect(sentFrames(sendSpy)[0]).toEqual(expected);
   });
 
-  it("onRegenerateProblem は problem.request を requestId の接頭辞 req-ROOM01-regen- で送る", () => {
-    // Given
-    const ws = enterRoom("ready");
-    const sendSpy = vi.spyOn(ws, "send");
-    // When
-    fireEvent.click(screen.getByTestId("lobby:onRegenerateProblem"));
-    // Then
-    expect(sendSpy).toHaveBeenCalledTimes(1);
-    const sent = sentFrames(sendSpy)[0]!;
-    expect(sent.command).toBe("problem.request");
-    expect(sent.requestId).toMatch(/^req-ROOM01-regen-/);
-  });
-
-  it("onStartSession は problem.request を送らず phase.set と session.act START を送る（お題あり）", () => {
+  it("onStartSession は phase.set と session.act START を送る", () => {
     // Given
     const ws = enterRoom("ready");
     const sendSpy = vi.spyOn(ws, "send");
@@ -228,19 +212,6 @@ describe("App が子画面へ渡すコールバックと WS コマンドの対�
     // Then
     expect(sendSpy).toHaveBeenCalledTimes(1);
     expect(sentFrames(sendSpy)[0]).toEqual(expected);
-  });
-
-  it("onRegenerateProblem は problem.request を requestId の接頭辞 req-ROOM01-regen- で送る", () => {
-    // Given
-    const ws = enterRoom("session");
-    const sendSpy = vi.spyOn(ws, "send");
-    // When
-    fireEvent.click(screen.getByTestId("session:onRegenerateProblem"));
-    // Then
-    expect(sendSpy).toHaveBeenCalledTimes(1);
-    const sent = sentFrames(sendSpy)[0]!;
-    expect(sent.command).toBe("problem.request");
-    expect(sent.requestId).toMatch(/^req-ROOM01-regen-/);
   });
 
   it("onAddProxy は participant.addProxy を proxy- で始まる participantId で送る", () => {

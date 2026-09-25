@@ -21,7 +21,6 @@ import { deriveConnectionStatus } from "./ui/connection-status.js";
 import { Stage } from "./ui/primitives.js";
 import { useBanner } from "./ui/use-banner.js";
 import { useTimerSync } from "./sync/use-timer-sync.js";
-import { formatProblemText } from "./ui/problem-text.js";
 // 注: `records/indexeddb.js` は import しない。永続化は同期フックの
 // `saveRecordManually` を通す（画面は表示に徹する・ADR-0015 MUST 3）。
 
@@ -48,8 +47,6 @@ export default function App() {
     sessionLost,
     connState,
     syncStale,
-    generatingProblem,
-    showsFallbackNotice,
     joinTimedOut,
     commands,
   } = sync;
@@ -62,38 +59,6 @@ export default function App() {
   // 共有時の操作はすべて WS コマンド送信（サーバーが状態をミラーし全員へ反映）。
   // セッション画面が使ってよいのは 4 値だけ。開始（START）はロビーの開始処理が送る。
   const act = (action: "SWITCH" | "PAUSE" | "RESUME" | "RESTART") => commands.actSession(action);
-
-  // ─── お題のコピー/貼り付け ─────────────────────────────────────────────────
-  // クリップボードの I/O であって WS 配線ではないので、同期フックへは入れない
-  // （ADR-0015 MUST 2 の対象は接続状態とメッセージ配線）。
-
-  const copyProblem = () => {
-    const p = room?.problem;
-    if (!p || !navigator.clipboard?.writeText) return;
-    navigator.clipboard.writeText(formatProblemText(p)).catch(() => {
-      /* 権限拒否等は無視 */
-    });
-  };
-
-  const pasteProblem = () => {
-    // 自前のお題を持ち込む（FR-040）。クリップボードから取り込み、1行目をタイトル・
-    // 残りを説明として編集経路へ反映する（共有/ソロ共通の problem.edit を再利用）。
-    if (!navigator.clipboard?.readText) return;
-    navigator.clipboard
-      .readText()
-      .then((text) => {
-        const trimmed = text.trim();
-        if (!trimmed) return;
-        const [first = "", ...rest] = trimmed.split("\n");
-        commands.editProblem({
-          title: first.trim(),
-          description: rest.join("\n").trim(),
-        });
-      })
-      .catch(() => {
-        /* 権限拒否等は無視 */
-      });
-  };
 
   // StatusStrip 用に「自分」の表示名を導出する。
   //
@@ -144,13 +109,7 @@ export default function App() {
           room={room}
           inviteUrl={sync.inviteUrl ?? ''}
           participantId={participantId}
-          generatingProblem={generatingProblem}
-          showsFallbackNotice={showsFallbackNotice}
           onStartSession={sync.startSession}
-          onEditProblem={commands.editProblem}
-          onRegenerateProblem={sync.regenerateProblem}
-          onPasteProblem={pasteProblem}
-          onCopyProblem={copyProblem}
           onConfigSet={commands.setConfig}
           onJoinRotation={commands.addMember}
           onLeaveRotation={commands.removeMember}
@@ -158,8 +117,6 @@ export default function App() {
           onMoveRotation={commands.moveMember}
           onShuffle={commands.shuffleMembers}
           onSetPassphrase={commands.setPassphrase}
-          onAiUnlock={commands.aiUnlock}
-          onProblemModeSet={commands.setProblemMode}
           topic={sync.topic}
         />
       );
@@ -172,12 +129,7 @@ export default function App() {
           room={room}
           inviteUrl={sync.inviteUrl ?? ''}
           participantId={participantId}
-          generatingProblem={generatingProblem}
-          showsFallbackNotice={showsFallbackNotice}
-          aiUnlocked={!!room.aiUnlocked}
-          aiMode={room.problemMode === "ai"}
           clockOffset={sync.clockOffset}
-          awaitingProblem={!room.problem}
           onSkip={() => act("SWITCH")}
           onPause={() => act("PAUSE")}
           onResume={() => act("RESUME")}
@@ -197,10 +149,6 @@ export default function App() {
           onRemoveParticipant={commands.removeParticipant}
           onMoveRotation={commands.moveMember}
           onShuffle={commands.shuffleMembers}
-          onEditProblem={commands.editProblem}
-          onCopyProblem={copyProblem}
-          onRegenerateProblem={sync.regenerateProblem}
-          onPasteProblem={pasteProblem}
           onSetPassphrase={commands.setPassphrase}
           topic={sync.topic}
         />

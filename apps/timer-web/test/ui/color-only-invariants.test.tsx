@@ -14,13 +14,11 @@
  * `Lobby.presence-a11y.test.tsx` が担当しているのでここでは重複させない。
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import React from "react";
-import type { Problem } from "@tasuki/timer-core";
 import { StatusStrip } from "../../src/ui/components/StatusStrip.js";
 import type { ConnectionStatus } from "../../src/ui/components/StatusStrip.js";
-import { ProblemEditor } from "../../src/ui/components/ProblemEditor.js";
 
 /**
  * 接続状態。色だけでなく、この文言が必ず並ぶこと。
@@ -42,27 +40,10 @@ const CONNECTION_CASES = Object.entries(CONNECTION_LABELS).map(([status, label])
   label,
 }));
 
-/** 難易度。段階色に加えて、この文言が必ず並ぶこと。 */
-const DIFFICULTY_CASES = [
-  { difficulty: "easy", label: "初級" },
-  { difficulty: "medium", label: "中級" },
-  { difficulty: "hard", label: "上級" },
-] as const;
-
 const baseStrip = {
   phase: "session" as const,
   displayName: "Alice",
   roomCode: "ABCD01",
-};
-
-const baseProblem: Problem = {
-  title: "FizzBuzz",
-  description: "3 の倍数で Fizz",
-  requirements: [],
-  exampleTest: "",
-  hints: [],
-  source: "fallback",
-  edited: false,
 };
 
 describe("色だけで状態を伝えない（FR-032）", () => {
@@ -105,57 +86,6 @@ describe("色だけで状態を伝えない（FR-032）", () => {
       });
 
       // Then（どれも空でなく、互いに重複していない。同じ文言なら色でしか区別できない）
-      for (const text of rendered) expect(text).not.toBe("");
-      expect(new Set(rendered).size).toBe(rendered.length);
-    });
-  });
-
-  describe("難易度バッジ", () => {
-    it.each(DIFFICULTY_CASES)(
-      "$difficulty は「$label」というテキストを段階色と併記する",
-      ({ difficulty, label }) => {
-        // Given
-        render(
-          <ProblemEditor
-            problem={baseProblem}
-            difficulty={difficulty}
-            onEdit={vi.fn()}
-            onCopy={vi.fn()}
-            onRegenerate={vi.fn()}
-            onPaste={vi.fn()}
-          />,
-        );
-        // When
-        const group = screen.getByRole("group", { name: "お題" });
-        // Then
-        expect(within(group).getByText(label)).toBeVisible();
-      },
-    );
-
-    it("色を外しても難易度が伝わる（実際に描画されたバッジの文言が 3 段階で互いに違う）", () => {
-      // Given（DIFFICULTY_CASES の各難易度を入力に使う）
-      // When（実際に描画された文字を集める）
-      const rendered = DIFFICULTY_CASES.map(({ difficulty }) => {
-        const { unmount } = render(
-          <ProblemEditor
-            problem={baseProblem}
-            difficulty={difficulty}
-            onEdit={vi.fn()}
-            onCopy={vi.fn()}
-            onRegenerate={vi.fn()}
-            onPaste={vi.fn()}
-          />,
-        );
-        // バッジ群は見出しの直前に並ぶ。お題の題名を除いた「バッジだけ」の文字を取る
-        const group = screen.getByRole("group", { name: "お題" });
-        const badges = [...group.querySelectorAll("span")]
-          .map((el) => el.textContent?.trim() ?? "")
-          .filter((t) => t !== "" && t !== baseProblem.title);
-        unmount();
-        return badges.join("|");
-      });
-
-      // Then
       for (const text of rendered) expect(text).not.toBe("");
       expect(new Set(rendered).size).toBe(rendered.length);
     });

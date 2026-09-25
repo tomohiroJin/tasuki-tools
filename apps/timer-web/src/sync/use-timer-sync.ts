@@ -34,11 +34,8 @@ import { buildSyncUrl } from "./sync-url.js";
 import { indicatesStaleRoom } from "./stale-frame.js";
 import { shouldResumeOnLoad } from "./resume-identity.js";
 import { decideEntry, hubRoomPath } from "../ui/entry.js";
-import { NoAiProvider } from "../ai/no-ai.js";
-import type { ProblemProvider } from "../ai/provider.js";
 import { errorAction } from "../ui/error-action.js";
 import { startActionFor } from "../ui/session-start.js";
-import { isGeneratingProblem, showsFallbackNotice } from "../ui/problem-generation.js";
 import { currentSearch, redirectTo } from "../platform/location.js";
 import {
   buildInviteUrl,
@@ -133,15 +130,6 @@ export interface TimerSync {
    */
   syncStale: boolean;
   /**
-   * サーバーがいまお題を作り直しているか（#283）。**この端末の状態ではない。**
-   *
-   * `room.problemGeneration` をそのまま読む。押した人の操作の中で立てていた頃は、
-   * 同じお題が選び直されると降ろせず 65 秒固まった（`ui/problem-generation.ts` の注記）。
-   */
-  generatingProblem: boolean;
-  /** AI で作れずに定型へ落ちたことを利用者へ示すか（#283・EARS 3）。 */
-  showsFallbackNotice: boolean;
-  /**
    * `room.join` の答えを待つ期限が切れた（#292）。
    *
    * **画面に出るのは `mode === null` の間だけ**である（`Loading` が受け取る）。
@@ -168,8 +156,6 @@ export interface TimerSync {
   startSession(): void;
   complete(): void;
   abort(): void;
-  /** 「別のお題にする」。依頼を送るだけで、待ちの表示はサーバーの返事に従う（#283）。 */
-  regenerateProblem(): void;
   /** 代理参加者を加える（participantId はここで生成する）。 */
   addProxy(displayName: string): void;
   /**
@@ -180,14 +166,6 @@ export interface TimerSync {
   newSession(): void;
   /** Summary の明示保存。失敗時はバナーを出す。 */
   saveRecordManually(record: CompletionRecord): void;
-}
-
-/** 常に定型バンク（NoAiProvider）を返す。client 側で AI を直接呼ぶ経路（BYOK）は
- *  #28 T010 で撤去済み。サーバー常駐の AI 生成（docs/timer/adr/0008）は残っており、
- *  その解錠とモード切替は `commands.aiUnlock` / `commands.setProblemMode` が担う。 */
-function resolveProvider(): ProblemProvider {
-  // AI はいったん撤去。常に定型バンク（NoAiProvider）を使う。
-  return new NoAiProvider();
 }
 
 /**
@@ -226,11 +204,8 @@ export function useTimerSync(banner: BannerController): TimerSync {
   // ルームのいまのお題（#91）。`topic` フレームで届く。setter だけなので handlersRef に
   // 載せる必要は無い（onConnectionChange と同じ理由。makeClient で直接渡す）。
   const [topic, setTopic] = useState<Topic | null>(null);
-  // 注: AI（BYOK/サブスク）はいったん UI から撤去。お題は定型バンクのみ（NoAiProvider）。
-  //
-  // **お題の生成中は state に持たない**（#283）。サーバーが持つ状態を読むだけである ——
-  // 局所のフラグにすると、降ろす契機を画面側で作らなければならず、内容差分にも
-  // タイマーにも穴がある（`ui/problem-generation.ts` の注記）。
+  // 注: timer 内でのお題の作成・生成・AI 解錠は #91 PR 3 で撤去した。お題は
+  // お題ツール（別アプリ）が作り、timer は `topic` フレームで読むだけになった。
 
   // 参加直後の resumeToken を、次に来る snapshot（room.code を含む）と組み合わせて
   // 復帰の組を保存するための一時保持（Issue #24）。onIdentity では room.code が
@@ -440,29 +415,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
     pendingResumeRef.current = { participantId: pid, resumeToken };
   };
 
-  const handleNeedProblem = async (syncClient: SyncClient, requestId: string) => {
-    // 代表に選ばれたらお題を生成して投入する（FR-025）。失敗時もプロバイダが定型へ縮退。
-    try {
-      // 言語・難易度は最新のルーム設定（ロビーでの編集を反映）から引く。
-      // ★await より前に読む: 生成待ちの間に届いた snapshot の値を使わないため（Issue #46 REQ-7）。
-      const language = room?.config.language ?? "TypeScript";
-      const difficulty = room?.config.difficulty ?? "easy";
-      // 直前のお題も await より前に読む（上と同じ理由）。定型バンクから選ぶ実装は
-      // これを候補から外すので、「別のお題にする」の結果が必ず変わる（#283 のレビュー）。
-      const previousProblem = room?.problem ?? null;
-      const provider = resolveProvider();
-      const { problem, source } = await provider.generate(language, difficulty, previousProblem);
-      syncClient.send({
-        command: "problem.submit",
-        requestId,
-        problem,
-        usedFallback: source === "fallback",
-      });
-    } catch (e) {
-      console.error("お題生成に失敗しました（deadline で再委譲されます）:", e); // log-hygiene:allow ブラウザの devtools 向け
-    }
-  };
-
   const handleError = (syncClient: SyncClient, code: string) => {
     console.error("WS error:", code); // log-hygiene:allow ブラウザの devtools 向け
     // 画面が次に何をするかは errorAction() の判定に委ねる（Issue #32・FR-125/FR-129・
@@ -653,7 +605,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
   const handlersRef = useLatestRef({
     handleRoom,
     handleIdentity,
-    handleNeedProblem,
     handleError,
     handleReconnected,
     handleNotice,
@@ -671,7 +622,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
       url: buildSyncUrl(window.location),
       onRoom: (r) => handlersRef.current.handleRoom(r),
       onIdentity: (identity) => handlersRef.current.handleIdentity(identity),
-      onNeedProblem: (requestId) => handlersRef.current.handleNeedProblem(newClient, requestId),
       onError: (code) => handlersRef.current.handleError(newClient, code),
       onConnected: () => clearBanner(),
       onDisconnected: () =>
@@ -711,7 +661,8 @@ export function useTimerSync(banner: BannerController): TimerSync {
   );
 
   /**
-   * ロビーの「開始」。お題が未確定なら先に依頼し、phase.set → 開始の順で送る。
+   * ロビーの「開始」。お題の有無は見ず、phase.set → 開始の順で送るだけ
+   * （#91 PR 3・お題の作成・依頼は timer から撤去した）。
    *
    * **開始の送り方は時計の状態で分かれる**（`ui/session-start.ts`・#95 S5c・C-1）。
    * 完了したセッションの時計は走ったままなので、そこからロビーへ戻って再開するときは
@@ -724,10 +675,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
    */
   const startSession = () => {
     if (!room) return;
-    const problemEnabled = room.config.problemEnabled !== false;
-    if (problemEnabled && !room.problem) {
-      commands.requestProblem(`req-${room.code}`);
-    }
     commands.setPhase("session");
     if (startActionFor(room.session, room.clock) === "reset") {
       commands.resetSession();
@@ -781,15 +728,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
     }
     // ルームを失っているときは戻る先が無いので玄関へ（`SessionLost` と同じ）。
     redirectTo("/");
-  };
-
-  const regenerateProblem = () => {
-    const code = room?.code;
-    if (code) {
-      // 依頼を送るだけ。**ここで生成中を立てない**（#283）——
-      // 立てるのは実際に作り直しているサーバーで、画面はその snapshot に従う。
-      commands.requestProblem(`req-${code}-regen-${Date.now()}`);
-    }
   };
 
   /** 代理参加者を加える（participantId はここで生成する・乱数は commands に持ち込まない）。 */
@@ -885,10 +823,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
     sessionLost,
     connState,
     syncStale,
-    // お題の生成中と縮退の断り書きは、サーバーが送る帳簿から導く（#283）。
-    // **state を持たない**ので、降ろし忘れという状態が作れない。
-    generatingProblem: isGeneratingProblem(room),
-    showsFallbackNotice: showsFallbackNotice(room),
     joinTimedOut,
     clockOffset: client?.clockOffset ?? 0,
     topic,
@@ -896,7 +830,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
     startSession,
     complete,
     abort,
-    regenerateProblem,
     addProxy,
     newSession,
     saveRecordManually,

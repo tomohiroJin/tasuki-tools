@@ -11,7 +11,7 @@
  * （`docs/adr/0016` の「環境から直接値を読まない」と同じ向き）。
  */
 
-import type { Problem, Room, SessionConfig } from "@tasuki/timer-core";
+import type { Room, SessionConfig } from "@tasuki/timer-core";
 
 /** WS へ 1 フレーム送る関数。`SyncClient.send` をそのまま渡せる形にしてある。 */
 export type SendFn = (cmd: Record<string, unknown>) => void;
@@ -24,8 +24,6 @@ export interface TimerCommands {
   removeParticipant(participantId: string): void;
   /** 空文字で解除。 */
   setPassphrase(passphrase: string): void;
-  aiUnlock(key: string): void;
-  setProblemMode(mode: "ai" | "fallback"): void;
   moveMember(fromIndex: number, toIndex: number): void;
   /** 順列はサーバーが生成するため wire は command のみ。 */
   shuffleMembers(): void;
@@ -38,9 +36,6 @@ export interface TimerCommands {
   driverAssign(participantId: string): void;
   /** participantId は呼び出し側が生成する（乱数をこの module に持ち込まない）。 */
   addProxy(participantId: string, displayName: string): void;
-  editProblem(patch: Partial<Omit<Problem, "source" | "edited">>): void;
-  /** requestId は呼び出し側が組み立てる（現在時刻をこの module に持ち込まない）。 */
-  requestProblem(requestId: string): void;
   setPhase(phase: Room["phase"]): void;
   setConfig(config: Partial<SessionConfig>): void;
   resetSession(): void;
@@ -58,8 +53,6 @@ export function createCommands(send: SendFn, getRoom: () => Room | null): TimerC
     },
     removeParticipant: (participantId) => send({ command: "participant.remove", participantId }),
     setPassphrase: (passphrase) => send({ command: "room.passphrase.set", passphrase }),
-    aiUnlock: (key) => send({ command: "ai.unlock", key }),
-    setProblemMode: (mode) => send({ command: "problem.mode.set", mode }),
     moveMember: (fromIndex, toIndex) => send({ command: "member.move", fromIndex, toIndex }),
     shuffleMembers: () => send({ command: "member.shuffle" }),
     completeSession: () => send({ command: "session.complete" }),
@@ -72,8 +65,6 @@ export function createCommands(send: SendFn, getRoom: () => Room | null): TimerC
     driverAssign: (participantId) => send({ command: "driver.assign", participantId }),
     addProxy: (participantId, displayName) =>
       send({ command: "participant.addProxy", participantId, displayName }),
-    editProblem: (patch) => send({ command: "problem.edit", patch }),
-    requestProblem: (requestId) => send({ command: "problem.request", requestId }),
     setPhase: (phase) => send({ command: "phase.set", phase }),
     setConfig: (config) => send({ command: "config.set", config }),
     resetSession: () => send({ command: "session.reset" }),

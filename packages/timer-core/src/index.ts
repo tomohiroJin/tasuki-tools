@@ -31,8 +31,8 @@
  *
  * ⚠ **サブパスの配線は app ごとに違い、モジュールごとに揃ってもいない。**
  * `apps/timer-web` は `vite.config.ts` / `vitest.config.ts` の alias で解決するが、
- * **並んでいるのは 8 モジュールだけ**（aggregate / events / errors / decide / evolve /
- * schemas / problem / records）。一方 `tsconfig.json` の `paths` は
+ * **並んでいるのは alias に載っているモジュールだけ**（`problem` は #91 PR 3 で
+ * timer-web 側の取り込みが無くなり、alias からも落ちた）。一方 `tsconfig.json` の `paths` は
  * `@tasuki/timer-core/*` のワイルドカードなので、**alias の無いモジュールを
  * timer-web から取り込むと typecheck は緑のまま build と vitest だけが落ちる。**
  * 新しいサブパスを timer-web で使うときは、alias を 2 つの設定へ足すこと。

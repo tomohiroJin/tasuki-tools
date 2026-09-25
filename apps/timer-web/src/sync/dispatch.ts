@@ -15,8 +15,6 @@ export interface ServerMessageCallbacks {
   onRoom?: (room: Room) => void;
   onIdentity?: (identity: Identity) => void;
   onError?: (code: string, message: string) => void;
-  /** need-problem 受信時（代表に選ばれたとき）に呼ばれる */
-  onNeedProblem?: (requestId: string, deadlineMs: number) => void;
   /** time.pong 受信時。clockOffset 推定に使う */
   onTimePong?: (serverTime: number) => void;
   /** 交代シグナル（演出用） */
@@ -121,9 +119,7 @@ export function dispatchServerMessage(
       cb.onError?.(msg.code, msg.message);
       break;
     case "signal":
-      if (msg.signal === "need-problem") {
-        cb.onNeedProblem?.(msg.requestId, msg.deadlineMs);
-      } else if (msg.signal === "switch") {
+      if (msg.signal === "switch") {
         cb.onSwitchSignal?.(msg.nextDriverName);
       } else if (msg.signal === "notice") {
         cb.onNotice?.({

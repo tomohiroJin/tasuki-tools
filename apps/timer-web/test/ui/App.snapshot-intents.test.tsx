@@ -27,7 +27,7 @@
  * @requirements #167（#72 E4）
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { screen, fireEvent, act, cleanup } from "@testing-library/react";
+import { screen, act, cleanup } from "@testing-library/react";
 import { FakeWS } from "../support/fakes.js";
 import { enterRoomAndConnect } from "../support/enter-room.js";
 import { aRecord, aRoomView } from "../support/room-view.js";
@@ -83,9 +83,6 @@ function sentFrames(sendSpy: { mock: { calls: unknown[][] } }): Array<Record<str
 function enterRoomAsGuest(): FakeWS {
   return enterRoomAndConnect({ participantId: CREATOR_ID, displayName: "Creator" });
 }
-
-/** 自分（CREATOR_ID）が輪の先頭に居る session（#271 より前は「お題の代表」だった）。 */
-const SELF_LEADS_ROTATION = { rotation: [CREATOR_ID], currentIndex: 0, driverCounts: [0] };
 
 beforeEach(() => {
   FakeWS.instances = [];
@@ -190,64 +187,6 @@ describe("persist-completion: 完成フェーズの snapshot でローカル記�
     // Then
     expect(saveRecordMock).not.toHaveBeenCalled();
     expect(screen.getByRole("heading", { name: "セッション終了（中断）" })).toBeInTheDocument();
-  });
-});
-
-describe("設定変更: 依頼も待ちの表示もクライアントは持たない（#271）", () => {
-  it("設定変更と作り直したお題が同じ tick で届いても、生成中に固まらない（#271 レビュー）", () => {
-    // Given: お題のあるロビー。
-    const ws = enterRoomAsGuest();
-    sendServer(ws, { type: "room.joined", resumeToken: "rt", participantId: CREATOR_ID });
-    const othersRotation = { rotation: [OTHER_ID, CREATOR_ID], currentIndex: 0, driverCounts: [0, 0] };
-    const lobby = (difficulty: string, problem: Problem) =>
-      aRoomView({
-        code: "ROOM01",
-        phase: "ready",
-        problem,
-        config: { difficulty },
-        participants: [participant(CREATOR_ID, "Creator"), participant(OTHER_ID, "Other")],
-        session: othersRotation,
-      });
-    sendServer(ws, { type: "snapshot", room: lobby("easy", problemA()) });
-    fireEvent.click(screen.getByRole("tab", { name: "お題" }));
-
-    // When: サーバーは設定変更の snapshot と、作り直したお題の snapshot を**続けて**送る。
-    //
-    // **1 つの act に入れるのが要点である。** 本番では 2 フレームが同じ読み取りで届き、
-    // 間に再描画が挟まらない。`sendServer` を 2 回呼ぶと act ごとに描画されてしまい、
-    // この競合は再現しない（それを見落として、生成中が永久に降りない欠陥を通した）。
-    act(() => {
-      ws.onmessage?.({ data: JSON.stringify({ type: "snapshot", room: lobby("hard", problemA()) }) } as MessageEvent);
-      ws.onmessage?.({
-        data: JSON.stringify({ type: "snapshot", room: lobby("hard", { ...problemA(), title: "別のお題" }) }),
-      } as MessageEvent);
-    });
-
-    // Then: お題は差し替わり、パネルは操作できる状態に戻っている
-    expect(screen.getByRole("heading", { level: 3, name: "別のお題" })).toBeDefined();
-    expect(screen.getByRole("group", { name: "お題" })).not.toHaveAttribute("aria-busy");
-  });
-
-  it("依頼そのものは送らない（作り直すのはサーバー・#271）", () => {
-    // Given
-    const ws = enterRoomAsGuest();
-    sendServer(ws, { type: "room.joined", resumeToken: "rt", participantId: CREATOR_ID });
-    const sendSpy = vi.spyOn(ws, "send");
-
-    // When: お題の無いロビー（#271 より前なら代表として依頼を送っていた場面）
-    sendServer(ws, {
-      type: "snapshot",
-      room: aRoomView({
-        code: "ROOM01",
-        phase: "ready",
-        problem: null,
-        participants: [participant(CREATOR_ID, "Creator")],
-        session: SELF_LEADS_ROTATION,
-      }),
-    });
-
-    // Then
-    expect(sentFrames(sendSpy).filter((f) => f.command === "problem.request")).toEqual([]);
   });
 });
 
