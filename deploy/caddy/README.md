@@ -14,7 +14,7 @@ import で切り離す**。アプリを増やしてもホストの `Caddyfile` �
         ├── 05-hub-ws.conf           # deploy/landing/caddy/（唯一の WS 入口。#95 S5c）
         ├── 20-poker.conf            # deploy/poker/caddy/
         ├── 30-timer-spa.conf        # deploy/timer/caddy/
-        ├── 40-topic.conf            # deploy/topic/caddy/（未公開・#91 PR 3 の後に設置）
+        ├── 40-topic.conf            # deploy/topic/caddy/（#91 の配布で設置。順序は deploy/topic/NOTES.md）
         └── 90-landing.conf          # deploy/landing/caddy/（包括フォールバック）
 ```
 
@@ -77,8 +77,8 @@ scp deploy/landing/caddy/05-hub-ws.conf         "$TASUKI_SSH_HOST:/tmp/"
 scp deploy/timer/caddy/*.conf                   "$TASUKI_SSH_HOST:/tmp/"
 scp deploy/poker/caddy/20-poker.conf            "$TASUKI_SSH_HOST:/tmp/"
 scp deploy/landing/caddy/90-landing.conf        "$TASUKI_SSH_HOST:/tmp/"
-# #91 PR 3 の後に配るとき、deploy/topic/caddy/40-topic.conf を同じ手順で足す
-# （置き忘れると /topic/ は包括フォールバック＝玄関に吸われる）
+scp deploy/topic/caddy/40-topic.conf            "$TASUKI_SSH_HOST:/tmp/"
+# ↑ /topic/ の断片（#91）。置き忘れると /topic/ は包括フォールバック＝玄関に吸われる
 
 # 2) 設置 その 1 — **配信物より先に入れてよい断片だけ**（VPS で・root）
 # #95 S5c で 10-timer-ws.conf を撤去した。WS の入口は 05-hub-ws.conf（/ws）の 1 本だけ
@@ -94,6 +94,12 @@ sudo mkdir -p /etc/caddy/tasuki/apps
 sudo cp /etc/caddy/Caddyfile /etc/caddy/Caddyfile.bak."$(date +%Y%m%d-%H%M)"   # 必ず退避
 sudo install -m 644 /tmp/site.conf /etc/caddy/tasuki/site.conf
 sudo install -m 644 /tmp/05-hub-ws.conf /etc/caddy/tasuki/apps/
+
+# #91（お題）の配布では、40-topic.conf もこの段で入れる。/topic/* は既存の断片と接頭辞が
+# 重ならず、古い玄関には札が無いので、配信物より先に入れても誰も辿り着かない
+# （順序の正本は ../topic/NOTES.md の「配布の手順」。web root を先に作っておくこと）。
+# ⚠ 40 番は、撤去済みの旧 40-timer-legacy-room.conf と同じ番号の別物である。
+sudo install -m 644 /tmp/40-topic.conf /etc/caddy/tasuki/apps/
 
 # **旧共有リンクの救済（40-timer-legacy-room.conf・S5a で撤去）はこの段で消す。**
 # 後回しにできない —— 残したまま `deploy.sh landing` を走らせると、新しい玄関が配る
@@ -125,8 +131,6 @@ sudo rm -f /etc/caddy/tasuki/apps/30-landing.conf \
 # 「いま動いている旧い配信物」を壊さないためであり、それが無ければ守るものが無い。
 sudo install -m 644 /tmp/20-poker.conf /tmp/30-timer-spa.conf /tmp/90-landing.conf \
                     /etc/caddy/tasuki/apps/
-# #91 PR 3 の後に配るとき、deploy/topic/caddy/40-topic.conf を同じ手順で足す
-# （置き忘れると /topic/ は包括フォールバック＝玄関に吸われる）
 
 # 4) site.conf の <公開ドメイン> を実値へ置換（初回のみ）
 sudo sed -i 's|<公開ドメイン>|tasuki.example.com|' /etc/caddy/tasuki/site.conf
@@ -160,14 +164,14 @@ HOST=https://<公開ドメイン>
 curl -sI "$HOST/"                                        # 200・x-robots-tag: noindex, nofollow・HSTS
 curl -s "$HOST/" | grep -o '<title>[^<]*</title>'        # LP の題名が出る
 
-# 3 系統が並存すること
-# #91 PR 3 の後に配るとき、この列挙に /topic/ を足す。**断片を置き忘れても玄関が 200 を
-# 返すので（90-landing.conf の包括フォールバック）、状態コードでは見分けられない。**
-# curl -s "$HOST/topic/" | grep -o '/topic/assets/' で資材の接頭辞が出ることを見る
-# （e2e/specs/routing.spec.ts の資材の接頭辞の見方と同じ）
-for p in / /timer/ /poker/; do
+# 4 系統が並存すること（/topic/ は #91 の配布から）
+for p in / /timer/ /poker/ /topic/; do
   curl -s -o /dev/null -w "$p → %{http_code}\n" "$HOST$p"
 done
+# **/topic/ は断片を置き忘れても玄関が 200 を返す**（90-landing.conf の包括フォールバック）ので、
+# 状態コードでは見分けられない。資材の接頭辞が出ることを見る（1 行出れば正常。
+# e2e/specs/routing.spec.ts の資材の接頭辞の見方と同じ）
+curl -s "$HOST/topic/" | grep -o '/topic/assets/' | head -1
 
 # WebSocket が SPA に吸われていないこと。統合 sync（apps/tasuki-sync）は
 # 非 Upgrade の HTTP に 426 を返す。

@@ -28,6 +28,7 @@
 | 参加用 URL（配るもの） | `/?room=CODE` |
 | タイマー | `/timer/?room=CODE` |
 | ポーカー | `/poker/?room=CODE` |
+| お題ツール（#91 で追加。末尾の改定節） | `/topic/?room=CODE` |
 | 選択画面へ戻る | `/?room=CODE` |
 
 パス方式（`/poker/room/<id>`）は使わない（**MUST NOT**）。ルームコードには日本語が
@@ -52,3 +53,16 @@
 - `apps/poker-web/src/router.ts` が `?room=` を解するようになる
 - Caddy 断片が 1 本増え（`/ws`）、**2 本減る**（`10-timer-ws.conf`・旧救済 `40-timer-legacy-room.conf`）。`/poker/ws` は `20-poker.conf` 内の `handle` ブロックとして落とす
 - 旧リンク `/?room=CODE` は LP に着地し、そのルームが在れば入れる（救済より良い挙動になる）
+
+## 改定（2026-09-25・#91 PR 3）
+
+決定 2 の URL の表に **お題ツール `/topic/?room=CODE`** の行を足した。
+[#91](https://github.com/tomohiroJin/tasuki-tools/issues/91) で玄関に 3 枚目の札（お題ツール・`apps/topic-web`）が
+加わったためである（[`docs/adr/0021`](./0021-topic-as-shared-context.md)）。本文が URL 体系の現況を記述しているので、
+[`docs/adr/0002`](./0002-document-system-three-layers.md) の「追記（2026-09-09・#258）」に従い改定節つきで直した。
+
+**決定 1〜4 はそのまま当てはまる。** お題ツールも名乗りの画面を持たず（決定 1）、ルームコードを伴わずに開かれたら
+玄関へ送る。パス方式を使わない（決定 2）。WebSocket の入口は `/ws` の 1 本で、お題ツールはクエリ `?tool=topic` で
+宣言する（決定 3）。配信断片は `deploy/topic/caddy/40-topic.conf` である
+（撤去済みの旧 `40-timer-legacy-room.conf` とは番号が同じだけの別物）。
+

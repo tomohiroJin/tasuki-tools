@@ -121,3 +121,13 @@ timer-web が後者を持たないためである。
 > `pendingDriverJoinRef` も畳んでいる。
 > **表は 2026-08-17 時点の実測なのでそのまま残す**（`docs/adr/0002` の「ADR は追記のみ」）。
 > 現時点で残っているのは 6 本であり、**背景の観察も決定の MUST 1 も変わっていない。**
+
+> **追記（2026-09-25・#91 PR 3）**: 同じ表の `apps/timer-web/src/ui/problem-generation.ts` も
+> **timer のお題作成の撤去に伴い削除した**
+> （[#91](https://github.com/tomohiroJin/tasuki-tools/issues/91)）。お題はルームの持ち物になり、
+> 作成・生成はお題ツール（`apps/topic-web`）へ移った（[`docs/adr/0021`](./0021-topic-as-shared-context.md)）。
+> timer は `topic` フレームのお題を読んで表示するだけで、生成中や定型へ落ちた知らせを判断する相手が
+> 画面から消えたためである。
+> **表は 2026-08-17 時点の実測なのでそのまま残す**（`docs/adr/0002` の「ADR は追記のみ」）。
+> 現時点で残っているのは 5 本であり、**背景の観察も決定の MUST 1 も変わっていない。**
+

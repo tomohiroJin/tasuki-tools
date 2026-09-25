@@ -9,7 +9,7 @@
  *
  * **#271 でお題系の意図が全部消えた。** `request-problem` / `regenerate-problem` は
  * お題の依頼がサーバーへ移って不要になった
- * （`apps/tasuki-sync/src/application/lobby-problem.ts`）。ここに残るのは、
+ * （サーバー側の `lobby-problem.ts`。これも #91 PR 3 で削除した）。ここに残るのは、
  * **クライアントが何もしないこと**を確かめる否定側と、同じ tick で 2 本の
  * snapshot が届いても画面が固まらないことを見る回帰テストである。
  *

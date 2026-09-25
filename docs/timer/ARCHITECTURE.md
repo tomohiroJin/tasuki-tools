@@ -11,12 +11,12 @@ TDD Mob Pro Timer の構造・データフロー・設計原則をまとめま�
 │  ブラウザ複数  │ ───────────────────▶ │ apps/sync（同期サーバー）   │
 │  apps/web    │ ◀─── full snapshot ── │  application → domain      │
 │              │                       │  ports ← adapters          │
-│              │                       │（揮発・再起動安全。AI お題は │
-│              │                       │  サーバー常駐 claude -p）    │
+│              │                       │（揮発・再起動安全。お題は    │
+│              │                       │  お題の文脈が topic で配る） │
 └─────────────┘                       └──────────────────────────┘
         │  共有                         共有
         └────────▶ packages/core（@tasuki/timer-core）◀────────┘
-                    純粋ドメイン・スキーマ・お題・記録
+                    純粋ドメイン・スキーマ・記録
 ```
 
 > **この図と以下の見出しは旧名のまま**です（`apps/sync` → `apps/tasuki-sync`、
@@ -40,10 +40,9 @@ TDD Mob Pro Timer の構造・データフロー・設計原則をまとめま�
 | `decide.ts` | `decide(cmd, agg, now): Result<DomainEvent[], DomainError>` — コマンド→イベント |
 | `evolve.ts` | `evolve(agg, event, now): Aggregate` — イベント→次状態（全域関数） |
 | `events.ts` / `errors.ts` | `DomainEvent` 合併型 / `DomainError` 合併型 |
-| `schemas.ts` | Valibot スキーマ（Command / ServerMsg / Problem / SessionConfig）。境界で検証と**正規化**を行う。表示名の正規化（`normalizeDisplayName`）はメンバーシップ文脈の `packages/room-core` から取り込む（#95 S1 で移設。**この取り込みが消えるのは S4b**（#246）—— 当初は S4a と書いていたが、S4a（#245）では取り込んだままである） |
+| `schemas.ts` | Valibot スキーマ（Command / ServerMsg / SessionConfig）。境界で検証と**正規化**を行う。表示名の正規化（`normalizeDisplayName`）はメンバーシップ文脈の `packages/room-core` から取り込む（#95 S1 で移設。**この取り込みが消えるのは S4b**（#246）—— 当初は S4a と書いていたが、S4a（#245）では取り込んだままである） |
 | `removal-notification.ts` | 退出通知の種類を決める `removalNotificationFor`（Issue #32）。**#95 S3 以前は `participants.ts` に、在室者の不変条件（`canRemoveParticipant` / `canDemote` / `transferHost`）と同居していた。不変条件は役割ごと廃止し、この 1 関数だけが残ったので独立させた** |
-| `problem.ts` | 定型お題バンク・`validateProblem`・`pickFallback`・プロンプト生成 |
-| `records.ts` | 完成記録の生成（所要時間は稼働区間のみ積算） |
+| `records.ts` | 完成記録の生成（所要時間は稼働区間のみ積算）。お題のタイトルは引数（`topicTitle: string \| null`）で受け取る —— timer-core はお題の文脈を知らない（#91） |
 | `error-messages.ts` | エラーコード → 利用者向け文言の**単一の正本**（Issue #28・FR-105）。画面表示は `displayMessageFor()`、wire の `message` は `errorMessageFor()` を経由する。**コードと文言は 1 対 1**（Issue #29）— 同じコードを説明が異なるべき複数の操作から返さない |
 
 ### Decider パターン（decide / evolve）
@@ -67,11 +66,10 @@ TDD Mob Pro Timer の構造・データフロー・設計原則をまとめま�
 改定（2026-09-08）／[設計正本](../superpowers/specs/2026-09-06-shared-identity-and-rooms-design.md) D5）。
 
 **ただし在室だけで何でも通るわけではありません。** ドメイン側の事前条件
-（`PhaseConflict` / `InvalidInterval` / `BelowMinMembers` 等）は残りますし、
-**実行者で選別する関門も 1 つだけ残っています**。`problem.submit` は、いまお題の委譲が
-オファーしている参加者本人からの投入しか受理しません（`problem-delegation.ts` の `submit`。
-他の在室者へは `STALE_SUBMISSION` を返します）。これは参加者に貼り付く権限ではなく、
-その時点の委譲順の話です。
+（`PhaseConflict` / `InvalidInterval` / `BelowMinMembers` 等）は残ります。
+**実行者で選別する関門はありません。** かつて 1 つだけあった `problem.submit`（お題の委譲の
+投入を、オファーした参加者本人に限る）は、#91 PR 3 でクライアントへ生成を委ねる経路ごと撤去しました
+（[`docs/adr/0011`](../adr/0011-threat-model-and-data-classification.md) の改定 2026-09-25）。
 
 **なぜ消したか。** 主催者が落ちた部屋で誰も操作できなくなる「詰み」を、役割を保ったまま
 避けようとすると、段階（開始前／開始後）と対象（自分／他人）で権限を切り替える規則が要り、
@@ -89,8 +87,9 @@ TDD Mob Pro Timer の構造・データフロー・設計原則をまとめま�
   **輪に居たまま自分の順番を飛ばす**フラグで、枠は保持されます（画面では「一時離脱」「復帰」）。
   どちらも在室者なら誰でも自分に対して実行できます。もとから役割とは独立の 2 層構造で、
   S3 はそのうち役割の層だけを取り除きました。
-- **合言葉**（`room.passphrase.set`）と **AI 解錠**（`ai.unlock`）は在室者なら誰でも実行できます。
+- **合言葉**（`room.passphrase.set`）は在室者なら誰でも実行できます。
   合言葉を誰でも設定できることの帰結（他の参加者を締め出しうる）は受容済みです（設計正本 §8）。
+  **AI 解錠**（`ai.unlock`）は #91 PR 3 で timer から消え、お題ツールの接続の操作になりました（在室者なら誰でもできる点は同じ）。
 
 なお `Room.startedAt`（一度でもセッションを開始したか）は、**#95 S4a で snapshot からも型からも
 消しました**。役割の廃止（S3）で読み手が 0 件になり、書き手も読み手も無い任意項目を宣言の側にだけ
@@ -146,18 +145,15 @@ application/
   handlers.ts        validate → decide → evolve → store → broadcast（#95 S3 で authorize の段が消えた）
   schedule.ts        サーバー権威タイマー（1 本の setTimeout で次交代のみ待つ）
   presence.ts        プレゼンス間引き・ドライバー不在の繰り上げ（猶予 30 秒）
-  problem-delegation.ts  お題の代表生成・タイムアウト・再委譲・定型縮退
-  lobby-problem.ts   ロビーのお題を用意する不変条件（#271。旧来はクライアントが送っていた）。
-                     「ロビーでお題を扱う範囲」（`usesLobbyProblem`。phase と
-                     problemEnabled の両方）もここが正本 —— ロビーへ入ったルームの
-                     お題を落とす側（`apply-room-level-event.ts`）と共有する（#273）
+  topic-*.ts         お題の文脈（#91）。お題ツールの接続のハンドラ（topic-handlers）・
+                     生成（topic-generation。サーバー生成と定型だけ）・全接続への配信（topic-broadcast）
   ai-limits.ts       AI 生成の濫用抑制（同時 1・クールダウン・日次上限）
   room-reclaimer.ts  アイドルルームの回収
   admin.ts           管理エンドポイント（127.0.0.1 限定）
   secure-compare.ts  合言葉のタイミングセーフ比較
 ports/   clock / broadcaster / room-store / code-gen（インターフェース）
 adapters/ ws-adapter / in-memory-room-store / system-clock / nanoid-code-gen /
-          claude-cli-problem-provider（AI お題生成・claude -p 子プロセス）
+          claude-cli-topic-provider（AI お題生成・claude -p 子プロセス）
 server.ts  依存注入と起動（maxConnections / maxRooms のグローバル資源上限）
 ```
 
@@ -182,80 +178,24 @@ WS message
 クロージャ内の `Map` に保持し、モジュールグローバルを避けます（テスト間汚染防止）。
 詳細: [ADR-0007](./adr/0007-volatile-in-memory-state.md)。
 
-### お題の AI 生成（サーバー常駐・解錠式）
+### お題 — timer は読むだけ（#91）
 
-AI 生成はサーバー常駐の `claude -p` 子プロセス（`adapters/claude-cli-problem-provider.ts`）で行い、
-`AI_UNLOCK_KEY` を知る在室者なら誰でも解錠できます（#95 S3 以前はホスト限定でした）。
-OAuth トークンは子プロセスの env にのみ渡し、
-argv・ログ・snapshot に混入させません。失敗（タイムアウト・検証失敗・トークン失効）は全経路で
-定型バンクへ縮退し、濫用は `application/ai-limits.ts`（同時 1・クールダウン・日次上限）で抑制します。
-詳細: [ADR-0008](./adr/0008-server-resident-ai-generation.md)
-（旧 BYOK + 代表生成方式は [ADR-0005](./adr/0005-secret-zero-byok-problem.md) = Superseded）。
+**お題は timer の持ち物ではありません。** ルームの持ち物として 4 つ目の文脈（`packages/topic-core`）が持ち、
+お題ツール（`apps/topic-web`）で作って、`topic` フレームでルームの全接続（timer を含む）へ配ります
+（[`docs/adr/0021`](../adr/0021-topic-as-shared-context.md)）。timer の snapshot にお題は入りません。
 
-定型バンクの選択は `pickFallback` が `Math.abs(now) % candidates.length` で行います。
-**直前のお題は候補から外す**ので（#283）、「別のお題にする」は必ず違うお題になります。
-同一性は `title` で見ます（確定時にお題の写しを作るため参照比較は使えず、
-利用者が中身を編集すると深い等値も一致しなくなるため）。
-除いた結果が空になったら元の候補集合へ戻します —— この枝は**現在の定型バンクでは
-通りません**（全 33 件が全言語を載せているので、最も狭い組 `hard` でも候補は 7 件）。
-「新しいセッション」（#273）が保証するのは**前のお題を落とすところまで**で、
-そこから新しく選ぶのは同じ仕組みです。
-
-#### 生成中はサーバーが持つ（#283）
-
-お題を作り直している最中かどうかは、wire の `Room.problemGeneration`
-（`{ active, degraded }`）が運びます。書くのは `ProblemDelegator` ただ 1 つで、
-委譲の開始（`request`）と終了（`finalize`）で動きます。
-
-- **`active`** — 作り直している最中か。**在室者全員の画面が同じ値を見ます**
-  （押した人だけが待つのではありません）
-- **`degraded`** — AI で作るつもりだったのに作れず、定型へ落ちたか。立つのは
-  **AI を試みて失敗したとき**（枠が取れない／生成が失敗する）だけで、最初から
-  定型モードのルームでは立ちません。`finalize` が持ち越すのは
-  **いま確定したお題が定型のときだけ**です（代表が AI で作ったお題を投入してきた場合に、
-  AI 由来のバッジの隣へ「定型に切り替えました」が並ぶのを防ぎます）
-
-**1 回の依頼で snapshot は 2 本出ます**（生成中 → 確定）。**同じ tick で確定する
-依頼でも省きません** —— 途中から繋いだ端末も、AI 生成で実際に数十秒待つ経路も、
-この 1 本目が起点になります。
-
-⚠ **この 1 本目を「押下のフィードバック」と考えてはいけません。**
-2 端末・10 回連打の実測（AI 無しの既定ルーム・`MutationObserver`）では、
-**押した本人で生成中が観測された回数は 0 / 10**、押していない側は 7 / 10
-（`aria-busy` が真だった時間は 8〜11ms）でした。送信元では 2 本が同じ task で届き、
-**React の自動バッチングで 1 回の描画に畳まれます**（jsdom で再現済み）。
-8〜11ms のほうも人の目には見えません。
-**押下が画面に出ることを保証しているのは、上に書いた「直前のお題を候補から外す」
-ほうです。** 結果が必ず変わるので、描画が 1 回に畳まれても違いが分かります。
-
-**画面側は、その印が語れる相手が画面に載っている間だけ断りを出します**
-（`apps/timer-web/src/ui/problem-generation.ts` の `showsFallbackNotice`）。
-印が降りるのは次の依頼のときだけなので、印だけを見ると
-**利用者が貼り付けた／編集したお題**にまで「AI で作れませんでした」が付きます。
-見るのは `problem.edited`（人の手が入ったか）であって、
-**前の snapshot との差分ではありません**。
-
-**この項目は任意です。** `deploy.sh timer` は画面を先に配ってからサーバーを
-再起動するため「新しい画面 × 旧サーバー」の窓が順序では避けられず、必須にすると
-その窓で snapshot 全体が契約検査に落ちます（#276 の `session.seats` がそうしました）。
-画面は**欠けていたら「生成していない」と読みます**。⚠ **欠けている分を
-お題の内容差分で推測しないこと** —— それを落とすことが #283 の目的です
-（内容差分は「同じお題が選ばれた」を変化と見なせず、途中から繋いだ端末は
-比べる前の snapshot をそもそも持ちません）。
-
-お題の作り直しは**言語・難易度が変わったときだけ**起きます。そのため
-**「お題を使う」を off → on に戻したときは、そのとき載っているお題がそのまま残ります**
-（1 本前のものでも差し替わりません）。引き金を足せば作り直せますが、
-`regenerateLobbyProblem` は `problem !== null` を見ずに張り直すので、
-**手編集した／貼り付けたお題を捨て、AI 解錠ルームでは日次枠を 1 消費します**。
-安全に判定するにはお題自身に「どの設定のために作られたか」を持たせる必要があります。
-**#283 はここには手を付けていません** —— あちらが足したのは「いま作り直しているか」
-という生成側の状態で、**お題の来歴ではありません**。引き金を足す前の注意
-（`handlers.ts` のコメント）はそのまま生きています。
-
-同じ理由で、**「お題を使う」を off にしたルームの完成記録は、2 本目以降も 1 本目の
-お題名で作られます**（`buildCompletionRecord` が受け取るお題が変わらないため）。
-実際には取り組んでいないお題名が履歴に残りますが、これも従来からの振る舞いです。
+- **timer がすること**: `topic` フレームのお題（タイトルと本文）をロビーとセッション中の画面に出すだけです。
+  お題の作成・生成・AI 解錠・ロビーでの自動用意・お題機能の切り替え（`problemEnabled`）は #91 PR 3 で撤去しました
+- **完成記録**: お題の有無にかかわらず毎回作ります。同期サーバーのアプリ層が、完了の時点のお題のタイトルだけを
+  `session.complete` へ文字列として渡します（`topicTitle`。お題なしなら `null`）。本文は写しません
+- **お題はセッションをまたいで残ります。** 下ろすのはお題ツールの操作だけです（#273 の「前のセッションのお題を持ち越さない」は廃止）
+- **AI 生成**はサーバー常駐の `claude -p`（`adapters/claude-cli-topic-provider.ts`）で、お題の文脈が行います。
+  子プロセスのツールは起動引数で閉じています（[`docs/adr/0012`](../adr/0012-logging-secrets-and-disclosure.md) D10）。
+  解錠・縮退・濫用抑制の決定は [ADR-0008](./adr/0008-server-resident-ai-generation.md) とその追記（2026-09-25）、
+  クライアントへ生成を委ねる旧経路の廃止は [ADR-0005](./adr/0005-secret-zero-byok-problem.md) の改定（2026-09-25）にあります
+- **生成中はサーバーが持つ**（#283 の方針）点は変わっていません。いまはお題の状態（`TopicState.generating`）として
+  `topic` フレームで配られ、それを出すのはお題ツールの画面です。定型の選択で直前のお題を候補から外す規則も
+  `topic-core` の `pickTopicFallback` が引き継いでいます
 
 ## apps/web — フロントエンド
 
@@ -264,6 +204,7 @@ argv・ログ・snapshot に混入させません。失敗（タイムアウト�
   `room.create` 取りこぼしを防ぐ）。**初回接続と、切断後の再接続を区別**し（`hasConnectedOnce`）、
   後者の `onopen` でのみ `onReconnected` を呼びます（Issue #24）。
 - `sync/dispatch.ts`: 受信メッセージの純粋な振り分け（snapshot / error / signal / time.pong）。
+  **`topic` フレームは timer の契約より先に** `topic-core` の `TopicFrameSchema` で見分けます（#91。順を逆にすると未知のフレームとして捨て、「同期できていません」を出す）。
 - `sync/resume-identity.ts`: 自分の `resumeToken`/`participantId`/ルームコード/表示名を
   **`localStorage` にルームコード別の鍵（`tasuki:resume:<ルームコード>`）で保持します**
   （#95 S4b で `sessionStorage` から移しました。`sessionStorage` だとタブを閉じて
@@ -274,10 +215,9 @@ argv・ログ・snapshot に混入させません。失敗（タイムアウト�
   （`apps/tasuki-sync/src/application/command-handlers/room-join.ts`）は本 Issue 以前から実装済みでしたが、
   web クライアントから一度も使われていませんでした（Issue #24・詳細は
   [docs/plans/resume-token-wiring/](../../docs/plans/resume-token-wiring/)）。
-- `ai/`: `ProblemProvider`。現行は `NoAiProvider`（AI 生成はサーバー側 = ADR-0008）。
-  **BYOK 一式（`byok.ts` / `key-storage.ts` / `AiSettingsModal.tsx`）は Issue #28 で撤去した。**
-  「将来の再有効化に備えて残置」という休眠コードは持たない（US1・FR-087）。
-- `records/`: IndexedDB 永続化（`indexeddb.ts`）と完成記録の組み立て（`persist.ts`）。
+- `records/`: IndexedDB 永続化（`indexeddb.ts`）と保存の判断（`persist.ts`）。**完成記録は端末で組み立てません**（#91 PR 3）——
+  サーバーが作って snapshot の `sessionRecords` に足した 1 件をそのまま保存します。旧い形の記録（`problemTitle` を持つ）は
+  読むときに `stored-record.ts` が `topicTitle` へ畳みます。
 - `ui/`: 画面（Lobby / Session / Summary / History / SessionLost / Loading）。`screenForPhase` で `room.phase` に追従。
   `Loading` だけは `room.phase` に対応せず、**ルームの画面がまだ決まっていない間**（`mode === null`）の
   受け皿です。ここは `StatusStrip` が描かれないので、**接続状態を出すのも `Loading` の役目**です。
@@ -292,7 +232,7 @@ argv・ログ・snapshot に混入させません。失敗（タイムアウト�
   timer は URL（`?room=` / `?view=history`）とその端末に保存された同一性からしか入りません
   （#95 S5c・R9。`Setup.tsx` / `Join.tsx` と `room-param.ts` は同じ段で撤去しました）。
   **`App.tsx` から切り出した純粋な判定関数群**も同じ階層に置きます（`screen.ts` /
-  `connection-status.ts` / `problem-generation.ts` / `error-action.ts` / `entry.ts`）。
+  `connection-status.ts` / `error-action.ts` / `entry.ts`。`problem-generation.ts` は #91 PR 3 でお題の作成ごと削除しました）。
   `App.tsx` はそれらの結果を適用するだけにして、
   規則をテストの届く場所に置くのが方針です（`App.tsx` 自体の render テストは持たないため、
   判定を中に埋めると検証手段が無くなる）。**`host-change.ts` も同じ階層にありましたが、
@@ -312,15 +252,18 @@ argv・ログ・snapshot に混入させません。失敗（タイムアウト�
 `packages/timer-core/src/schemas.ts` の Valibot スキーマが front/server で共有される単一の契約です。
 
 **Command（クライアント→サーバー）**: `room.create` / `room.join` / `room.passphrase.set` /
-`config.set` / `phase.set` / `problem.request` / `problem.submit` / `problem.edit` / `problem.mode.set` /
-`ai.unlock`（AI 生成の解錠 = ADR-0008）/ `session.act`（START/SWITCH/PAUSE/RESUME/RESTART）/
+`config.set` / `phase.set` / `session.act`（START/SWITCH/PAUSE/RESUME/RESTART）/
 `session.complete` / `session.abort` / `session.reset` / `driver.skip|resume|assign` /
 `member.add|remove|move|shuffle` / `participant.addProxy|rename|remove` / `handoff.note.set` /
 `break.start|end`（**dormant**: v2.10 で休憩機能を撤去。スキーマは後方互換のため残置、受理されない）/
 `presence.ping` / `time.ping`。正本は `packages/timer-core/src/schemas.ts` の Command union。
 
 **Server→Client**: `snapshot`（唯一の状態同期）/ `signal`（演出専用: switch / celebration /
-need-problem）/ `error` / `time.pong` / `room.created` / `room.joined`。
+suggest-break / notice）/ `error` / `time.pong` / `room.created` / `room.joined`。これとは別に、お題の文脈の
+`topic` フレーム（契約は `packages/topic-core` の `TopicFrameSchema`）も届きます。
+
+お題のコマンド（旧 `problem.*` / `ai.unlock`）は #91 PR 3 で timer の契約から消えました。古い画面が送っても、
+境界で `INVALID_COMMAND` として弾かれ、状態も接続も変わりません。
 
 ### 退出した本人への通知（Issue #32）
 
@@ -413,7 +356,7 @@ S3 が外した 6 件は事象そのもの（可否判定・ホスト移譲・�
 - **ドメイン単体**: `decide`/`evolve` を純粋関数として網羅。`now` 引数で時刻依存を決定論的に検証。
 - **プロパティテスト**: fast-check で任意操作列の不変条件（`rotation.length === driverCounts.length`、
   `currentIndex` 妥当性、clock/session 整合）を検証（FR-008 / SC-010）。
-- **同期/結合**: full snapshot の冪等置き換え、resume、ドライバー不在の繰り上げ、代表生成の再委譲→縮退。
+- **同期/結合**: full snapshot の冪等置き換え、resume、ドライバー不在の繰り上げ。
 - **外部ブラックボックス検証**: 起動済みサーバーへ WS で接続するシナリオ検証、実ブラウザ（Playwright）
   での UI 検証を実施済み。
 

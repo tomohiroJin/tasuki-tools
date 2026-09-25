@@ -169,7 +169,7 @@ describe("ソロの部屋からの退出（Issue #79）", () => {
     expect(lastError(BOB)?.code).toBe("ROOM_NOT_FOUND");
   });
 
-  it("破棄は共通の後始末（destroy-room）へ委ね、タイマー・委譲・トークンを取りこぼさない", async () => {
+  it("破棄は共通の後始末（destroy-room）へ委ね、タイマー・お題の生成・トークンを取りこぼさない", async () => {
     // Given: 後始末の呼び出しを記録する破棄経路を注入した handlers
     const spyStore = new InMemoryRoomStore();
     const spyTimers = new InMemoryTimerStore();

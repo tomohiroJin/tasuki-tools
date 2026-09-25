@@ -3,7 +3,7 @@
 - **ステータス**: Accepted（2026-08-13、決定4・脅威表 S1/S7・データ分類表・影響を
   2026-08-14 改訂。[#103](https://github.com/tomohiroJin/tasuki-tools/issues/103) 実装に
   伴う実態への追随。決定4 の判定表・影響を 2026-08-30 改訂。
-  [#144](https://github.com/tomohiroJin/tasuki-tools/issues/144) 実装に伴う追随。[#95](https://github.com/tomohiroJin/tasuki-tools/issues/95) による役割廃止の決定に伴い、脅威表 S1・S9 と決定1 の注記を 2026-09-06 改訂。同 S3（[#244](https://github.com/tomohiroJin/tasuki-tools/issues/244)）の実施に伴い、脅威表 S1・S9・決定5 の見出し語・影響の持ち出し経路の記述を 2026-09-08 改訂）
+  [#144](https://github.com/tomohiroJin/tasuki-tools/issues/144) 実装に伴う追随。[#95](https://github.com/tomohiroJin/tasuki-tools/issues/95) による役割廃止の決定に伴い、脅威表 S1・S9 と決定1 の注記を 2026-09-06 改訂。同 S3（[#244](https://github.com/tomohiroJin/tasuki-tools/issues/244)）の実施に伴い、脅威表 S1・S9・決定5 の見出し語・影響の持ち出し経路の記述を 2026-09-08 改訂。[#91](https://github.com/tomohiroJin/tasuki-tools/issues/91) PR 3 による timer のお題の撤去に伴い、脅威表 S5・S9 と決定5 の定数の置き場を 2026-09-25 改訂（末尾の改定節））
 - **関連**: [#136](https://github.com/tomohiroJin/tasuki-tools/issues/136)（セキュリティの規範、
   親 epic [#67](https://github.com/tomohiroJin/tasuki-tools/issues/67)）/
   設計正本 [`docs/superpowers/specs/2026-08-13-security-norms-design.md`](../superpowers/specs/2026-08-13-security-norms-design.md) /
@@ -107,11 +107,11 @@ archive §7 の S1〜S11 を現行化し、S12・S13 を新設する（**MUST**�
 | S2 | Cross-Site WebSocket Hijacking | `Origin` を許可ドメインのみ検証。認可は Cookie でなく最初のメッセージのトークン。WSS 必須（Caddy）。現行が規範に一致し、変更なし |
 | S3 | 不正・巨大メッセージ・構造インジェクション | 境界で 1 度だけ Valibot 検証。未知 type・余剰フィールド・サイズ超過は即拒否。メッセージ最大長を設定。**AI へ補間される利用者由来の値（`language`/`difficulty`）の列挙検証**を規範として追加する。実装は提案 #91 に委ねる（3.4.1 参照） |
 | S4 | XSS（メンバー名・お題の描画） | React 既定エスケープ。AI/利用者由来テキストに `dangerouslySetInnerHTML` を使わない。**DOMPurify は不採用と明記する**（`Markdown.tsx` は文字列 HTML を生成せず `innerHTML` を使わない設計であるため不要。依存は削除する）。**CSP を追加する** |
-| S5 | AI 出力の取り違え（マークダウン誤読） | AI 応答は信頼しないデータとして `Problem` 形へ Valibot 構造検証してから使用する。生テキストを実行・レンダリング可能な形へ流さない。現行が規範に一致し、変更なし |
+| S5 | AI 出力の取り違え（マークダウン誤読） | AI 応答は信頼しないデータとしてお題（`Topic`）の形へ Valibot 構造検証してから使用する（#91 PR 3 で timer の `Problem` からお題の文脈へ移った。末尾の改定節）。生テキストを実行・レンダリング可能な形へ流さない。現行が規範に一致し、変更なし |
 | S6 | 秘密の漏洩 | **秘密ゼロの原則は放棄済み**（`docs/timer/adr/0008`）。サーバーは秘密を 3 つ保持する。中身をトークン衛生（env のみ・非ログ・argv 非混入）へ差し替える。**AI 子プロセスの権限を明示的に閉じる**規範を追加する。実装は `docs/adr/0012` の決定と提案 #91 に委ねる（3.4.1 参照） |
 | S7 | DoS（接続・ルーム濫造） | 入室失敗（`room.join` の `ROOM_NOT_FOUND`・パスフレーズ不一致、`ai.unlock` の失敗）に対する IP 単位のレート制限は **#103 が実装済み**（2026-08-14）。保持の規範は `docs/adr/0012` 決定 D3（2026-08-14 改訂）を参照。**同一 IP による同時接続枠の独占防止（connlimit）は IP 単位のレート制限とは別軸であり、#103 の対象外**。ufw の connlimit へ切り出す（#103 設計正本 §1、別 Issue・未起票）。同時接続上限（値の正本は `deploy/timer/env.example` の `MAX_CONNECTIONS`）自体は現行どおり**グローバル**であり、IP 単位ではない |
 | S8 | AI コスト濫用 | サーバー常駐生成（`docs/timer/adr/0008`）が同時 1・クールダウン・日次上限で運営者クレジットを保護する。現行が規範に一致し、変更なし |
-| S9 | 権限のなりすまし | **#95 で役割の概念を廃止した（決定 2026-09-06・実施 S3・#244・2026-09-08）。ルームに居る人は全員が同格であり、参加者に貼り付く恒常的な権限が無いため、「他人の権限を騙る」という脅威そのものが成立しない。** 残る守りは**参加者の同一性**のみで、サーバー発行の resumeToken（分類「資格情報」）で検証する。コマンドの受理はまず「在室しているか」を見る。段階（開始前 / 開始後）にも役割にも依存しない。ただし**在室だけで全コマンドが通るわけではない**。ドメイン側の事前条件（`PhaseConflict` / `InvalidInterval` / `BelowMinMembers` 等）が残るほか、**実行者で選別する関門が 1 つだけある**。**本 ADR はコマンド名を列挙しない**（列挙すると `docs/adr/0002` の二重正本の禁止に触れ、コマンドの増減のたびに ADR が腐る）が、**この 1 件だけは名指しする**。「実行者で選別する関門は存在しない」と読める書き方をすると脅威モデルの主張自体が嘘になるためで、コマンド語彙の列挙ではない: `problem.submit` は「いまお題の委譲がオファーしている参加者本人か」を照合し（`apps/tasuki-sync/src/application/problem-delegation.ts` の `submit`）、他の在室者からの投入は `STALE_SUBMISSION` で拒否する。これは役割ではなくその時点の委譲順の話であり、なりすましの利得も「自分の順番でないときにお題を差し込める」に限られる。可否判定モジュール（`packages/timer-core/src/permissions.ts`）・在室者の不変条件（同 `participants.ts`）・host 操作の認可基盤（`hostToken` の発行と検証）は、いずれも削除済みである。**archive 時点の「host 操作は一律 `hostToken` 必須」という記述は、対象を失った。** ルームへ入る段（合言葉・ルームコード）が唯一の境界であり、そこは S1 が守る |
+| S9 | 権限のなりすまし | **#95 で役割の概念を廃止した（決定 2026-09-06・実施 S3・#244・2026-09-08）。ルームに居る人は全員が同格であり、参加者に貼り付く恒常的な権限が無いため、「他人の権限を騙る」という脅威そのものが成立しない。** 残る守りは**参加者の同一性**のみで、サーバー発行の resumeToken（分類「資格情報」）で検証する。コマンドの受理はまず「在室しているか」を見る。段階（開始前 / 開始後）にも役割にも依存しない。ただし**在室だけで全コマンドが通るわけではない**。ドメイン側の事前条件（`PhaseConflict` / `InvalidInterval` / `BelowMinMembers` 等）が残る。**実行者で選別する関門は無い**（#91 PR 3・2026-09-25 に撤去後の同期サーバーを grep して確かめた。末尾の改定節）。受理はまず在室を見て、あとはドメインの事前条件だけが残る。**本 ADR はコマンド名を列挙しない**（列挙すると `docs/adr/0002` の二重正本の禁止に触れ、コマンドの増減のたびに ADR が腐る）。可否判定モジュール（`packages/timer-core/src/permissions.ts`）・在室者の不変条件（同 `participants.ts`）・host 操作の認可基盤（`hostToken` の発行と検証）は、いずれも削除済みである。**archive 時点の「host 操作は一律 `hostToken` 必須」という記述は、対象を失った。** ルームへ入る段（合言葉・ルームコード）が唯一の境界であり、そこは S1 が守る |
 | S10 | 状態汚染 | クライアントは状態を直接書けない。必ず `decide` を通す。現行が規範に一致し、変更なし |
 | S11 | ログ漏洩・PII | **決定1のデータ分類表へ置換する。** ルームコードのログ出力（3 箇所）を塞ぎ、制御されたロガ 1 本へ集約し、機械的に検査する。実装は `docs/adr/0012` に委ねる |
 | **S12** | **管理面の露出**（新設） | `/status` `/admin/rooms`。127.0.0.1 bind・定数時間トークン・未設定時は存在秘匿で守る。**`/admin/rooms` によるルームコードの返却は意図的な露出であり、マスクしない。** |
@@ -271,7 +271,7 @@ archive §7 の S1〜S11 を現行化し、S12・S13 を新設する（**MUST**�
 - **ASCII の印字可能文字（空白を除く）だけで構成しなければならない**（**MUST**）。
   env ファイル・systemd の `EnvironmentFile=`・シェルの引用規則で曖昧さを生まないため
 - **32 文字以上でなければならない**（**MUST**）
-- **`MAX_AI_UNLOCK_KEY`（`packages/timer-core`）を超えてはならない**（**MUST**）。
+- **`MAX_AI_UNLOCK_KEY`（`packages/topic-core`。#91 PR 3 までは `packages/timer-core`）を超えてはならない**（**MUST**）。
   **上限はプロトコル側の制約**であって総当たりの話ではない。超える鍵は env に設定できてしまうが、
   `ai.unlock` の受信スキーマが長さを弾くため**解錠が永久に失敗する**（実測で確認）。
   **上限の値は本決定へ転記しない。正本は当該定数である**
@@ -521,3 +521,62 @@ S4a 以降の範囲であり、**まだ実施していない**。合言葉（`ro
 `\p{Cc}` / `\p{Cf}` / `Default_Ignorable_Code_Point` のどれにも入らない文字
 （外字・未割当コードポイントの描画結果・フォント依存の空白字形）は、この基準では
 拾えない。**画素比較が上位の判定手段であり、そちらは本 ADR の射程外**である。
+
+## 改定（2026-09-25・#91 PR 3）
+
+[#91](https://github.com/tomohiroJin/tasuki-tools/issues/91) PR 3 で timer のお題（作成・生成・解錠・
+クライアントへ生成を委ねる経路）を撤去し、お題はお題の文脈（`packages/topic-core`・
+[`docs/adr/0021`](./0021-topic-as-shared-context.md)）へ移った。本文が現況として記述していた
+3 箇所が事実でなくなったので、[`docs/adr/0002`](./0002-document-system-three-layers.md) の
+「追記（2026-09-09・#258）」に従い、**本文を直したうえでここに差分を明記する。**
+
+### 脅威表 S9 —— 実行者で選別する関門は無くなった
+
+**旧い文面**: 「実行者で選別する関門が 1 つだけある」として、`problem.submit` を名指ししていた
+（いまお題の委譲がオファーしている参加者本人かを照合し、他の在室者からの投入は `STALE_SUBMISSION` で拒否する。
+照合していたのは `apps/tasuki-sync/src/application/problem-delegation.ts` の `submit`）。
+
+**新しい文面**: 「実行者で選別する関門は無い。受理はまず在室を見て、あとはドメインの事前条件だけが残る」。
+
+**確かめ方（2026-09-25）**: 撤去後の `apps/tasuki-sync/src` を、実行者と別の値を突き合わせる形
+（`actor.id` / `=== actor` / `STALE_SUBMISSION`）と、実行者の参加者 ID を比べる形
+（`.id ===` / `participantId ===`）で grep した。前者は 0 件である。後者に当たるのは、コマンドの**対象**を名簿から
+引く照合（`participant.remove` の対象・`driver.assign` の対象など）と、名簿・保管の内部の更新だけで、
+**実行者が誰かによって受理の可否を変えるものは無い**。`participant-remove.ts` の
+`removalNotificationFor` は実行者と対象を比べるが、本人へ送る通知の文言を分けるだけで受理の可否を決めない
+（計画の段・2026-09-25 の grep と同じ結論）。旧い文面で「なりすましの利得」として挙げていた
+「自分の順番でないときにお題を差し込める」も、経路ごと消えた。
+
+**S9 の結論（他人の権限を騙る脅威は成立しない・守りは参加者の同一性だけ）は変えていない。**
+名指しの例外を消したので、「本 ADR はコマンド名を列挙しない」の規律がそのまま成り立つ。
+
+### 脅威表 S5 —— AI の出力を検証する形
+
+「`Problem` 形へ Valibot 構造検証」を「お題（`Topic`）の形へ」に直した。検証は `topic-core` の
+`validateTopicDraft` が行う。**AI 応答を信頼しないデータとして検証してから使う規律は変えていない。**
+
+### 決定5 —— `MAX_AI_UNLOCK_KEY` の置き場
+
+`AI_UNLOCK_KEY` の上限の正本は、`packages/timer-core` から `packages/topic-core`
+（`src/limits.ts`）へ移った。受信スキーマ（お題ツールの `ai.unlock`）が長さを弾くのは同じで、
+**値も MUST の中身も変えていない。**
+
+### 影響（持ち出し経路）—— `docs/adr/0012` D10 の実装が入った
+
+「影響」の 2 項目目は、提案 #91 へ **AI 子プロセスの権限の明示的な指定**と
+**`language` / `difficulty` の列挙検証**（S3・S6）を送っていた。これが実装された（#91 PR 1・main `3cddcdc`）。
+
+- **権限を閉じる**: `apps/tasuki-sync/src/adapters/claude-cli-topic-provider.ts` が `claude -p` を
+  `--setting-sources "" --tools ""` で起動する。本番と同じ版の CLI で、子プロセスが使えるツールが 0 個に
+  なることを実測した（`--tools ""` だけでは利用者設定が足すツールが残る。実測の記録は設計正本
+  [`docs/superpowers/specs/2026-09-23-shared-topic-design.md`](../superpowers/specs/2026-09-23-shared-topic-design.md) §10）
+- **列挙検証**: `@tasuki/topic-core` のお題ツールのコマンドの境界スキーマが、`language` / `difficulty` を
+  `v.picklist` で検証する。許可リストに無い値はプロンプトへ届かない
+
+「影響」の段落が述べる経路（参加者としての入室 → 注入 → `claude -p` の Read 権限で秘密ファイルを読む →
+応答として全参加者へ配信）は、設計正本 3.4.1 節の**当時の観測の記録なので書き換えない**
+（注入先の `config.set` と応答の `problem.request` は timer ごと消え、いまの入口はお題ツールの `topic.generate` である）。
+
+**受容の判断は変えない。** 経路の成立条件（AI を解錠していること）は残る。変わったのは、
+**Read で秘密ファイルを読む段が閉じた**ことと、**注入の入口が列挙検証で閉じた**ことである。
+

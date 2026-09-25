@@ -158,8 +158,8 @@ export async function handleParticipantRemove(
   // ここで先に外しても輪の席の処理は下でそのまま行える。
   const membershipAfterRemoval = removeParticipant(membership, targetId);
   if (hasNoParticipants(membershipAfterRemoval)) {
-    // 後始末はアイドル回収と同じ共通経路へ委ねる（スケジューラ・委譲・presence タイマー・
-    // トークン・名簿・timer の状態・ラウンド。1 つでも取りこぼすと消えた部屋のタイマーが
+    // 後始末はアイドル回収と同じ共通経路へ委ねる（スケジューラ・お題の生成・presence タイマー・
+    // トークン・名簿・timer の状態・お題・ラウンド。1 つでも取りこぼすと消えた部屋のタイマーが
     // 生き残る。内訳と順序の正本は `application/destroy-room.ts`）。
     destroyRoom(timer.code);
     // 破棄した部屋へは snapshot も signal も配信しない（宛先がもう居ない）。

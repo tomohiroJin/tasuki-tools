@@ -6,7 +6,8 @@ import type { TopicErrorCode } from "./schemas.js";
  * **お題ツールが画面に出す文なので、書体の常用の層（base）に収める**
  * （`apps/topic-web/tests/copy-fits-font-base.test.ts` が守る）。PR 1 では「timer に同じコードが
  * あるものは timer と同じ文にする」としていたが、timer の `RATE_LIMITED` / `AI_UNLOCK_FAILED` は
- * base 層に無い字を含むので、#91 PR 2 で揃えるのをやめた（timer の同じコードは PR 3 で消える）。
+ * base 層に無い字を含むので、#91 PR 2 で揃えるのをやめた。timer の `AI_UNLOCK_FAILED` は #91 PR 3 で
+ * 解錠の経路ごと消えた。`RATE_LIMITED` は timer に残る（`room.join` の枠など）が、文は揃えない。
  * `MESSAGE_TOO_LARGE` / `INTERNAL_ERROR` は接続層（`ws-adapter.ts` の `MESSAGE_TOO_LARGE_TEXT` /
  * `INTERNAL_ERROR_TEXT`）と同じ文にする。
  */

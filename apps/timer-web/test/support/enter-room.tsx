@@ -7,8 +7,8 @@
  * `room.join` を送る（撤去前は「名前を入れて『ルームを作る』を押す」だった）。
  *
  * **お題の依頼には関与しない。** #271 で依頼はサーバーへ移り、クライアントから
- * 「代表」の概念が消えた（`apps/tasuki-sync/src/application/lobby-problem.ts`）。
- * 輪の先頭であるかどうかは、お題の振る舞いには効かない。
+ * 「代表」の概念が消えた（サーバー側の `lobby-problem.ts`。#91 PR 3 でロビーの自動用意ごと削除し、
+ * timer はお題を作らなくなった）。輪の先頭であるかどうかは、お題の振る舞いには効かない。
  */
 import { render, act } from "@testing-library/react";
 import React from "react";

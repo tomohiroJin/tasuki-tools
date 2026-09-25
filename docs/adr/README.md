@@ -47,3 +47,4 @@ Michael Nygard 形式（背景 / 決定 / 影響 / ステータス）に従い�
 | [0018](./0018-single-entry-and-url-scheme.md) | 入口を LP に一本化し、URL 体系を揃える | Accepted |
 | [0019](./0019-web-layer-scope-includes-landing.md) | web 層の規範の適用範囲に landing を含める | Accepted |
 | [0020](./0020-invite-browser-operations.md) | 招待のブラウザ操作を共有フックに集める | Accepted |
+| [0021](./0021-topic-as-shared-context.md) | お題を 4 つ目の文脈にし、ルームの全接続へ同じフレームで配る | Accepted |

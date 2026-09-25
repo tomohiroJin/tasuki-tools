@@ -43,6 +43,7 @@ S2〜S4a では poker 側の入れ子（src/poker 配下。**S4b で畳みまし
 | web の画面 | web アプリの `.tsx` | 同期フックと純粋判断のみ（同期クライアントを直接 import しない） |
 | UI 資産 | `packages/ui` | なし（CSS トークンと静的資産） |
 | 招待のブラウザ操作 | `packages/invite-ui` | React・ブラウザ API・既存の qrcode。ドメイン・同期クライアントには依存しない（[ADR-0020](../adr/0020-invite-browser-operations.md)） |
+| Markdown の解析 | `packages/markdown` | なし（純粋関数のみ。React を知らない）。描画は各 web アプリの `Markdown.tsx` が持つ（[ADR-0021](../adr/0021-topic-as-shared-context.md) 決定 7） |
 
 web の画面は、招待のコピー・QR 生成については `packages/invite-ui` のフックを使う。
 同期フックから受け取った URL を渡し、操作結果を描画する。URL の組み立てや
@@ -117,7 +118,7 @@ WebSocket の配線はこの共有先へ移さない。
 | ~~見学者~~ | **[#95](https://github.com/tomohiroJin/tasuki-tools/issues/95) S3（[#244](https://github.com/tomohiroJin/tasuki-tools/issues/244)・2026-09-08）で廃止した用語。** かつては役割 `viewer` を指し、閲覧はできるが操作を制限された参加者を意味した。役割ごと撤去したので、**制限という区別は存在しない**。生きている「見学」とは 1 文字違いだが、あちらは**ローテーションの層**、こちらは**廃止した役割の層**であり、まったくの別物である。実際に S3 の作業中、実画面の検証が両者を混同して偽の失敗を出した。旧い文書・コミット・Issue でどちらの意味かを取り違えないために、行を消さずに残す |
 | ラウンド（poker） | poker において、1 テーマに対する 1 回の投票 |
 | 公開（reveal） | poker において、伏せていた各参加者の見積り値を開示すること |
-| お題 | **[#91](https://github.com/tomohiroJin/tasuki-tools/issues/91) で 4 つ目の文脈 `packages/topic-core` が加わり、いま 3 つの独立した概念が同じ語を使う。** ①**共有お題**（`packages/topic-core` の `Topic` 型。タイトル＋本文）: ルームの持ち物として、玄関の 3 枚目の札（お題ツール・`apps/topic-web`、公開パス `/topic/`）で入力し、`topic` フレームで全接続へ配る。玄関はこれを読んで 1 行だけ表示するが、**timer・poker はまだこれを読まない**（配線は #91 の後続 PR）。②**timer 独自の旧概念**: 「TDD の練習課題」を指し、`packages/timer-core/src/problem.ts` の `Problem` 型として実装されている。①とは無関係で、撤去は #91 の後続 PR に予定されている（未撤去）。③**poker の提案**: 「見積り対象」を指す語として [#93](https://github.com/tomohiroJin/tasuki-tools/issues/93)（お題の入力と結果の書き出し）で提案中だが未実装（現行の poker 実装＝`packages/poker-core` `apps/poker-web` `packages/protocol` に`grep -rn "お題"` で 0 件を確認済み。poker の初回リリース範囲外であることは `docs/poker/specs/001-planning-poker-mvp/spec.md` の Assumptions にも明記）。**「お題」を使うときは、必ずどの概念かを文脈で明示すること** |
+| お題 | **ルームの持ち物としてのお題**（`packages/topic-core` の `Topic` 型。タイトル＋本文）。[#91](https://github.com/tomohiroJin/tasuki-tools/issues/91) で 4 つ目の文脈になった（[`docs/adr/0021`](../adr/0021-topic-as-shared-context.md)）。玄関の 3 枚目の札（お題ツール・`apps/topic-web`、公開パス `/topic/`）で作り（手入力・定型バンク・AI 生成）、`topic` フレームでルームの全接続へ配る。玄関はタイトルを 1 行、timer・poker はタイトルと本文を**読んで表示するだけ**で、お題を変えられるのはお題ツールの接続だけである。本文は Markdown として描き、解析は `packages/markdown`、描画は各アプリが持つ。timer の完成記録には、完了した時点のお題のタイトルだけを写す（`topicTitle`・お題なしなら `null`）。**かつての timer 独自の概念**（`packages/timer-core` の `Problem` 型。TDD の練習課題）は #91 PR 3 で撤去し、このお題へ統合した。旧い文書・コミットに出てくる `problem` はこちらを指す。**poker の提案**: 見積もり結果をお題へ反映する案は [#93](https://github.com/tomohiroJin/tasuki-tools/issues/93) で扱う（未実装） |
 
 ## 一般的な方法論との対応
 

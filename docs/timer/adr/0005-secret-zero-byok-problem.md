@@ -31,3 +31,27 @@
 - **代償**: 代表委譲・タイムアウト・再委譲という調停ロジックが必要（`application/problem-delegation.ts`）。
   代表外の参加者からの投入は拒否し、リロード後の stale なタイマー発火は requestId 照合で無効化する。
 - 将来枠: 運営鍵による代理（managed）やサブスク経由（subscription）は本実装のスコープ外。
+
+## 改定（2026-09-25・#91 PR 3） — クライアントへ生成を委ねる経路を廃止した
+
+本 ADR は [ADR-0008](./0008-server-resident-ai-generation.md) に置換されたが、決定の 2 項目目「代表生成」の
+経路（代表クライアントが生成して `problem.submit` で届ける・候補順・deadline・再委譲）と、その候補を選ぶための
+参加者の印（`hasAiKey`）・依頼の合図（signal の `need-problem`）は、置換の後も同期サーバーと timer に残っていた。
+実クライアントが常に `hasAiKey: false` を送るため、**この経路は一度も通っていなかった**
+（設計正本 [`docs/superpowers/specs/2026-09-23-shared-topic-design.md`](../../superpowers/specs/2026-09-23-shared-topic-design.md) §2・T7）。
+
+[#91](https://github.com/tomohiroJin/tasuki-tools/issues/91) PR 3 で、この経路をすべて撤去した。
+
+- 同期サーバー: 委譲の調停（`application/problem-delegation.ts`）・`problem.request` / `problem.submit` の
+  ハンドラ・`need-problem` の送信を削除した
+- timer の wire（`packages/timer-core`）: `room.join` の `hasAiKey`・参加者の印・`problem.*` のコマンド・
+  `need-problem` の signal・委譲のエラーコード（`DELEGATION_UNAVAILABLE` / `STALE_SUBMISSION`）を削除した
+
+お題の生成は、お題の文脈（`packages/topic-core`・同期サーバーの `application/topic-generation.ts`）の
+**サーバー生成と定型だけ**になった（[`docs/adr/0021`](../../adr/0021-topic-as-shared-context.md)）。
+「影響」の「代償: 代表委譲・タイムアウト・再委譲という調停ロジックが必要」は、その調停ごと無くなった。
+
+**本文は書き換えない**（置換済みの決定の記録である）。本 ADR のうち現行も有効としていた
+**定型バンクへの縮退と Valibot 検証**の原則は、お題の文脈がそのまま引き継いでいる
+（出所はお題の `source`（`manual` / `ai` / `fallback`）として持つ）。
+

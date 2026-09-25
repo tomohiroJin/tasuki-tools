@@ -290,3 +290,21 @@ Result のエラー型、`ParticipantIds` は `createRoom` の引数型…）。
 `findStaleSymbolExceptions` が「型だけの例外」を腐りとして落とす（実測: 型を 1 件載せると
 監査が exit 1 になる）。値が消えて同名の型だけが残った場合も落ちるので、後から値が
 復活したときに例外が本物の検出を静かに握り潰す経路も塞がる。
+
+## 追記（2026-09-25・#91 PR 3） — `packages/timer-core/src/problem.ts` を削除した
+
+「影響」の未達表（2026-08-17 実測）の項目 4 と、上の追記（2026-08-18・#166 / #72 E3）が名指ししている
+`packages/timer-core/src/problem.ts:70` は、**ファイルごと削除した**。
+[#91](https://github.com/tomohiroJin/tasuki-tools/issues/91) PR 3 で timer のお題を撤去し、お題の型・定型バンク・
+検証・プロンプトの組み立ては新しい文脈 `packages/topic-core` へ移ったためである
+（[`docs/adr/0021`](./0021-topic-as-shared-context.md)）。同じ段で `problem-bank.ts` も消え、
+上の追記（2026-09-02・#220）が名指しする `validateProblem` / `ProblemSchema` / `ProblemValidationError` /
+`FallbackProblemEntry` も残っていない。
+
+**表と追記は当時の実測・記録なので書き換えない**（`docs/adr/0002`）。
+
+- **項目 4 の規律はそのまま新しい置き場へ引き継いだ。** 定型の選択（`topic-core` の `pickTopicFallback`）は
+  時刻を引数で受け取り、`Date.now()` を呼ばない。`scripts/audit-domain-side-effects.mjs` の宣言に
+  `packages/topic-core` がある（宣言の正本は同スクリプト）
+- **決定 1 が MUST とする表現の記録**は、`topic-core` については `docs/adr/0021` 決定 5（直接遷移関数 ＋ `Result`）である
+

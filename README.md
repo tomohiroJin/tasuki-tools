@@ -8,10 +8,10 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 
 ### 1. TDD Mob Pro Timer
 
-モブプログラミングのドライバー交代タイマー＋お題出題ツール。**本番公開中。**
+モブプログラミングのドライバー交代タイマー。いまのお題を読んで表示する（お題はお題ツールで作る・#91）。**本番公開中。**
 
 - **構成**
-  - [`packages/timer-core`](packages/timer-core/) — ドメインロジック（集約・状態遷移・お題バンク・検証）
+  - [`packages/timer-core`](packages/timer-core/) — ドメインロジック（集約・状態遷移・完成記録・検証）
   - [`apps/timer-web`](apps/timer-web/) — フロントエンド（React + Vite・`base=/timer/`）
   - [`apps/tasuki-sync`](apps/tasuki-sync/) — リアルタイム同期サーバー（Bun + WebSocket・揮発インメモリ）。
     **poker と共用**（#95 S2 で 1 プロセスへ統合）
@@ -20,7 +20,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
   - モブ順ローテーション表示・「今は誰の番か」の明示
   - 現ドライバー不在時の次担当への自動繰上
   - 任意のルーム参加合言葉
-  - AI お題生成（任意・運営者の Claude サブスクで実行・未設定時は定型お題へ安全縮退）
+  - ルームのお題の表示（読むだけ。完成記録にはそのときのお題のタイトルを残す）
 - 概要: [`docs/timer/README.md`](docs/timer/README.md)
 - アーキテクチャ: [`docs/timer/ARCHITECTURE.md`](docs/timer/ARCHITECTURE.md)
 - 設計判断（ADR）: [`docs/timer/adr/`](docs/timer/adr/)
@@ -46,12 +46,17 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 
 ### 4. お題（Topic Board）
 
-お題を用意して全員に見せるツール。玄関の 3 枚目の札から開く。**状態は未公開**（[#91](https://github.com/tomohiroJin/tasuki-tools/issues/91) の PR 3 が main に入った後に配布）。
+お題を用意して、ルームの全員（玄関・timer・poker）に見せるツール。玄関の 3 枚目の札から開く。**未公開**（[#91](https://github.com/tomohiroJin/tasuki-tools/issues/91) の配布で公開する。手順は [`deploy/topic/NOTES.md`](deploy/topic/NOTES.md)）。
 
 - **構成**
-  - [`packages/topic-core`](packages/topic-core/) — ドメインロジック
+  - [`packages/topic-core`](packages/topic-core/) — ドメインロジック（お題・定型バンク・検証・AI 生成のプロンプト）
   - [`apps/topic-web`](apps/topic-web/) — フロントエンド（React + Vite・`base=/topic/`）
   - [`apps/tasuki-sync`](apps/tasuki-sync/) — リアルタイム同期サーバー（timer・poker と共用）
+  - [`packages/markdown`](packages/markdown/) — お題の本文の Markdown の解析（描画は各アプリ）
+- **特徴**
+  - 手入力・定型バンク・AI 生成（任意・運営者の Claude サブスクで実行・未設定時は定型お題へ安全縮退）の 3 つで作る
+  - お題はルームの持ち物で、timer のセッションをまたいで残る
+- 設計判断: [`docs/adr/0021`](docs/adr/0021-topic-as-shared-context.md)
 
 ## 🔗 ライブデモ
 

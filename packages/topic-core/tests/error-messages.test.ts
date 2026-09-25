@@ -7,7 +7,8 @@ import { TOPIC_ERROR_CODES, topicErrorMessageFor, type TopicErrorCode } from "..
  *
  * **`RATE_LIMITED` / `AI_UNLOCK_FAILED` は #91 PR 2 で timer と揃えるのをやめた。** timer の文は
  * 書体の常用の層に無い字（「多」「違」）を含み、お題ツールが出すたびに拡張の層を取りに行く。
- * timer の同じコードは、timer のお題の経路ごと PR 3 で消える（spec §9）。
+ * timer の `AI_UNLOCK_FAILED` は #91 PR 3 で timer のお題の経路ごと消えた。`RATE_LIMITED` は timer に残るが、
+ * 文は揃えないので、ここで比べる対象には入れない。
  */
 const TIMER_MESSAGES: Partial<Record<TopicErrorCode, string>> = {
   NOT_IN_ROOM: "ルームに参加していません",
