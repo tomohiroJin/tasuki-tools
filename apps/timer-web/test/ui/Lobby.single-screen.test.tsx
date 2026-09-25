@@ -6,7 +6,7 @@
  * timer 内でのお題の作成・生成は撤去し、お題ツール（別アプリ）が配る任意の札に
  * なったので、**お題の有無で開始を止めない**。タブも無くなり、画面は 1 つになる。
  *
- * @requirements #91 E17
+ * @requirements #91 E16
  */
 
 import { describe, it, expect, vi } from "vitest";
@@ -38,7 +38,7 @@ function makeRoom(overrides?: Partial<Room>): Room {
 const noop = vi.fn();
 
 describe("ロビーは 1 画面（#91 PR 3）", () => {
-  it("Given お題も画面を分けるタブも無い構成 / When ロビーを描く / Then タブは 1 つも出ない", () => {
+  it("Given 既定のロビー（お題なし） / When ロビーを描く / Then タブは 1 つも出ない", () => {
     // Given（既定の room はお題無し・topic 未指定）
     // When
     render(
