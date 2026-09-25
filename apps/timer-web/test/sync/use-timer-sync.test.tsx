@@ -803,3 +803,91 @@ describe("useTimerSync: 捨てた同期フレームの表出", () => {
     expect(redirectTo).toHaveBeenCalledWith("/");
   });
 });
+
+/**
+ * 配布中の窓 2（新しい timer の web × 旧い同期サーバー）から自動で抜け出せること（#91 PR 3）。
+ *
+ * 新しい timer は `room.join` に `hasAiKey` を載せない。旧いサーバーはそれを必須にしているので、
+ * 参加も復帰も `INVALID_COMMAND` で拒まれ、10 秒後に答えを待つ期限（#292）の画面になる。
+ * `deploy.sh timer` の再起動で接続が切れると、`handleReconnected` が復帰の `room.join` を
+ * 送り直す。**答えは 2 通りありうる**ので両方を見る: ルームが在れば snapshot で入り直し、
+ * 再起動でルームが消えていれば（揮発インメモリ・実際の配布はこちら）ルームを失った画面へ移る。
+ * どちらでも期限の画面には留まらない —— `deploy/timer/NOTES.md` の窓 2 の根拠はこのテストである。
+ *
+ * @requirements #91（配布中の窓 2・deploy/timer/NOTES.md）
+ */
+describe("useTimerSync: 答えを待つ期限が切れた後の再接続", () => {
+  /** 送信された `room.join` の一覧（本体ごと）。 */
+  function sentJoins(send: { mock: { calls: unknown[][] } }): Record<string, unknown>[] {
+    return send.mock.calls
+      .map(([raw]) => JSON.parse(String(raw)) as Record<string, unknown>)
+      .filter((c) => c.command === "room.join");
+  }
+
+  /**
+   * 参加を形の不正で拒まれて期限が切れた後、サーバーの再起動で切れて繋ぎ直したところまで進める。
+   * 新しい接続で送られたものを見る spy と、その接続へ届ける関数を返す。
+   */
+  function timedOutThenReconnected() {
+    const { result, ws, deliver } = enterRoom(fakeBanner(), { resumeToken: "rt-window2" });
+    deliver({ type: "error", code: "INVALID_COMMAND", message: "コマンドの形式が不正です" });
+    act(() => void vi.advanceTimersByTime(10_000));
+    expect(result.current.joinTimedOut).toBe(true);
+    const before = FakeWS.instances.length;
+    act(() => void ws.onclose?.());
+    // 再接続の待ち（1 回目は既定で 1 秒）を十分に越える
+    act(() => void vi.advanceTimersByTime(30_000));
+    const next = FakeWS.instances[FakeWS.instances.length - 1];
+    if (next === undefined || FakeWS.instances.length !== before + 1) {
+      throw new Error("再接続の接続が 1 本だけ張られていない");
+    }
+    const send = vi.spyOn(next, "send");
+    act(() => {
+      next.readyState = FakeWS.OPEN;
+      next.onopen?.();
+    });
+    const deliverNext = (msg: Record<string, unknown>) =>
+      act(() => void next.onmessage?.({ data: JSON.stringify(msg) } as MessageEvent));
+    return { result, send, deliverNext };
+  }
+
+  it("期限が切れた後に接続し直すと、復帰の room.join を送り直し、snapshot で期限の印が下りる", () => {
+    vi.useFakeTimers();
+    try {
+      // Given / When: 期限が切れた後、サーバーの再起動で切れて繋ぎ直した
+      const { result, send, deliverNext } = timedOutThenReconnected();
+
+      // Then: 保存済みの復帰の組で room.join を送り直している
+      expect(sentJoins(send)).toEqual([
+        expect.objectContaining({ code: ENTERED_ROOM_CODE, resumeToken: "rt-window2" }),
+      ]);
+
+      // When: サーバーが snapshot を返す
+      deliverNext({ type: "snapshot", room: aRoomView({ code: ENTERED_ROOM_CODE, phase: "setup" }) });
+
+      // Then: 入り直せて期限の印が下り、もう一度期限の長さが過ぎても立たない
+      expect(result.current.room?.code).toBe(ENTERED_ROOM_CODE);
+      expect(result.current.joinTimedOut).toBe(false);
+      act(() => void vi.advanceTimersByTime(10_000 * 3));
+      expect(result.current.joinTimedOut).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("再起動でルームが消えていれば、期限の画面に留まらずルームを失った画面へ移る", () => {
+    vi.useFakeTimers();
+    try {
+      // Given / When: 期限が切れた後に繋ぎ直し、送り直した room.join にルームが無いと返る
+      const { result, send, deliverNext } = timedOutThenReconnected();
+      expect(sentJoins(send)).toHaveLength(1);
+      deliverNext({ type: "error", code: "ROOM_NOT_FOUND", message: "no room" });
+
+      // Then: 行き止まりではなく、再起動の後の全員と同じルームを失った画面になる
+      expect(result.current.sessionLost).toBe(true);
+      expect(result.current.joinTimedOut).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
