@@ -183,15 +183,6 @@ describe("変数経由コードの整合性", () => {
 });
 
 /**
- * `SyncErrorCode`（`packages/timer-core/src/errors.ts`）の列挙と、実際のソースの突き合わせ。
- *
- * 型だけでは実行時に照合できないため、列挙は値（`SYNC_ERROR_CODES`）としても持たせてある。
- * 双方向に検査することで「ソースに足したのに列挙し忘れた」「列挙に残っているのに
- * ソースから消えた」の両方を検出する。
- *
- * @requirements FR-101, FR-114
- */
-/**
  * **送り手をサーバーから消したが、列挙（`packages/timer-core/src/errors.ts`）にはまだ残るコード。**
  *
  * timer のお題の経路（代表への委譲）を #91 PR 3 で同期サーバーから撤去した。列挙と型は
@@ -201,6 +192,15 @@ describe("変数経由コードの整合性", () => {
  */
 const AWAITING_ENUM_REMOVAL: ReadonlySet<string> = new Set(["DELEGATION_UNAVAILABLE", "STALE_SUBMISSION"]);
 
+/**
+ * `SyncErrorCode`（`packages/timer-core/src/errors.ts`）の列挙と、実際のソースの突き合わせ。
+ *
+ * 型だけでは実行時に照合できないため、列挙は値（`SYNC_ERROR_CODES`）としても持たせてある。
+ * 双方向に検査することで「ソースに足したのに列挙し忘れた」「列挙に残っているのに
+ * ソースから消えた」の両方を検出する。
+ *
+ * @requirements FR-101, FR-114
+ */
 describe("エラーコードの列挙", () => {
   it("ソースから見つかるコードは、すべて列挙に含まれている", () => {
     // Given（列挙側 SYNC_ERROR_CODES を集合として用意する）

@@ -241,7 +241,8 @@ export function makeHandlers(deps: HandlerDeps) {
   // 配線（`create-sync-server.ts`）へ移り、poker の入口とも同じ 1 本になった
   // （名簿が 1 つになった以上、コード空間も 1 つだから・ADR 0004 の追記）。
   // **入口をまたぐ共有（timer ↔ poker）はもう構造では保証されず、テストが受け持つ** ——
-  // `test/live-ws.rate-limit.test.ts`（実 WS で timer と poker の 3 経路）である。
+  // `test/live-ws.rate-limit.test.ts`（実 WS で timer の room.join・お題の ai.unlock・
+  // poker の join-room の 3 経路）である。
   const rateLimitGate = createRateLimitGate(deps.rateLimiter);
 
   // ルーム破棄の経路（Issue #79）。後始末の内容と順序は destroy-room.ts の 1 箇所に

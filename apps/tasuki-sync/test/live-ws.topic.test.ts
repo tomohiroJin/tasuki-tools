@@ -717,3 +717,39 @@ describe("ルームが破棄されたあとのお題の接続", () => {
     expect(reply.code).toBe("ROOM_NOT_FOUND");
   });
 });
+
+/**
+ * お題の `ai.unlock` の**成功**を実 WS で見る（本番で唯一の解錠の経路）。
+ *
+ * 単体（`topic-handlers.test.ts`）は合言葉をテストが直接渡すので、`create-sync-server.ts` が
+ * `makeTopicHandlers` へ `aiUnlockKey` を渡しているかは見ない。配線から外れると、どの合言葉でも
+ * `AI_UNLOCK_FAILED` になるが（存在の秘匿と同じ形）、失敗だけを見るテストは緑のままになる。
+ *
+ * @requirements #91 E21
+ */
+describe("お題の ai.unlock は、正しい合言葉で解錠する", () => {
+  it("正しい合言葉で ai.unlock すると aiUnlocked が届き、合言葉そのものはどのフレームにも載らない", async () => {
+    // Given: AI が有効な構成（トークンと合言葉が両方ある）でお題の接続が参加している
+    await server.close();
+    server = startLiveSyncServer({
+      AI_UNLOCK_KEY: "right",
+      CLAUDE_CODE_OAUTH_TOKEN: "sk-ant-oat01-dummy",
+    });
+    const hub = await server.connectHub("hub");
+    const created = await hubCreate(hub, "AI 部屋", "あや");
+    const topic = await server.connectTopic("topic");
+    await topicJoin(topic, created.code, "いろは");
+
+    // When
+    topic.send({ command: "ai.unlock", key: "right" });
+
+    // Then: 解錠済みのお題の状態が届く
+    const unlocked = await topic.take(
+      (m) => m.type === "topic" && m.state.aiUnlocked === true,
+      "解錠済みのお題の状態",
+    );
+    expect(unlocked.type).toBe("topic");
+    // 合言葉はサーバーの env にだけあり、wire へは解錠済みかどうかしか出ない
+    expect(topic.received.map((m) => JSON.stringify(m)).join("\n")).not.toContain("right");
+  });
+});

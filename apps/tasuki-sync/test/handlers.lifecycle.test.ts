@@ -302,6 +302,31 @@ describe("phase.set: ロビーへ戻っても、ルームに属するものは�
   });
 
   /**
+   * 2 本目の完成記録は 1 本目に**加わる**（置き換えない）。完了 → ロビー → 開始 → 完了の
+   * 通しで見る。Summary / 履歴は記録の列から作るので、置き換えると 1 本目が消える。
+   */
+  it("Given 1 本目を完了した / When ロビーへ戻して 2 本目を完了する / Then 記録は 2 件になり 1 件目はそのまま残る", async () => {
+    // Given: 1 本目を完成させる
+    const code = await setupRoom(handlers, store, timers);
+    await handlers.handleCommand("host-conn", { command: "session.act", action: "START" });
+    await handlers.handleCommand("host-conn", { command: "session.complete" });
+    const first = roomViewOf(store, timers, code).sessionRecords[0];
+    if (first === undefined) throw new Error("前提が崩れた: 1 本目の完成記録が無い");
+
+    // When: 「新しいセッション」でロビーへ戻し、2 本目を走らせて完成させる
+    clock.advance(60000);
+    await handlers.handleCommand("host-conn", { command: "phase.set", phase: "setup" });
+    await handlers.handleCommand("host-conn", { command: "phase.set", phase: "session" });
+    await handlers.handleCommand("host-conn", { command: "session.reset" });
+    await handlers.handleCommand("host-conn", { command: "session.complete" });
+
+    // Then
+    const records = roomViewOf(store, timers, code).sessionRecords;
+    expect(records).toHaveLength(2);
+    expect(records[0]).toEqual(first);
+  });
+
+  /**
    * **引き継ぎメモは意図して残している（#287）。**
    *
    * 引き継ぎメモは「次のドライバーへの申し送り」（FR-030）であり、**同じルーム・同じ顔ぶれで
