@@ -5,7 +5,7 @@
  * `language`・`difficulty`）と新しい形（`topicTitle`・null 可）が混ざって並ぶ。
  */
 import { describe, it, expect } from "vitest";
-import { normalizeStoredRecord } from "../../src/records/stored-record.js";
+import { normalizeStoredRecord, recordsFromStore } from "../../src/records/stored-record.js";
 
 /** 新しい形の最小の記録。 */
 function aStored(overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -65,7 +65,37 @@ describe("端末に保存された記録を読む", () => {
     expect(record).toBeNull();
   });
 
+  it.each([
+    ["members に文字列でない要素", { members: ["あや", 3], driverCounts: [1, 2] }],
+    ["driverCounts に数でない要素", { members: ["あや", "ボブ"], driverCounts: [1, "2"] }],
+  ])("Given %s / When 読む / Then 記録ごと null（要素だけ落とすと添字がずれる）", (_name, broken) => {
+    // Given
+    const raw = aStored(broken);
+    // When
+    const record = normalizeStoredRecord(raw);
+    // Then
+    expect(record).toBeNull();
+  });
+
   it.each([[null], [undefined], ["文字列"], [42]])("Given オブジェクトでない値（%s） / When 読む / Then null", (raw) => {
     expect(normalizeStoredRecord(raw)).toBeNull();
+  });
+});
+
+/**
+ * @requirements #91 E18
+ */
+describe("IndexedDB から読んだ値の列を畳む", () => {
+  it("Given 旧い形・新しい形・壊れた値が混ざった列 / When 畳む / Then 旧い形は topicTitle へ畳まれ、壊れた値は外れる", () => {
+    // Given
+    const raw = [
+      { id: "old", problemTitle: "FizzBuzz", language: "Go", difficulty: "easy", elapsedSeconds: 1, members: [], totalSwitches: 0, completedAt: 1 },
+      aStored({ id: "new", topicTitle: null }),
+      { id: "broken" },
+    ];
+    // When
+    const records = recordsFromStore(raw);
+    // Then
+    expect(records.map((r) => [r.id, r.topicTitle])).toEqual([["old", "FizzBuzz"], ["new", null]]);
   });
 });

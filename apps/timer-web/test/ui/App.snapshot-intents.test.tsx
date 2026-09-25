@@ -167,37 +167,29 @@ describe("persist-completion: 完成フェーズの snapshot でローカル記�
     expect(screen.getByRole("heading", { name: "セッション終了（中断）" })).toBeInTheDocument();
   });
 
-  it("中断（abort）後の celebration では saveRecord が呼ばれない（既存の否定側を壊さない）", () => {
-    // Given
+  it("前のセッションの記録が残るルームで別の人が中断しても、その記録を保存し直さず中断と出る", () => {
+    // Given: 1 本目の記録（サーバーのもの）が残ったルームで、2 本目のセッションが走っている。
+    // **記録が空でないのが要点である** —— 「完了へ入ったら末尾の記録を保存する」誤りは、
+    // 記録が空のルームでは何も保存しないので区別できない。
     const ws = enterRoomAsGuest();
     sendServer(ws, { type: "room.joined", resumeToken: "rt", participantId: CREATOR_ID });
-    sendServer(ws, {
-      type: "snapshot",
-      room: aRoomView({
+    const first = aRecord({ id: "first" });
+    const room = (phase: "session" | "celebration") =>
+      aRoomView({
         code: "ROOM01",
-        phase: "session",
+        phase,
         problem: problemA(),
         participants: [participant(CREATOR_ID, "Creator")],
-        clock: { running: true, runningSince: Date.now() },
-      }),
-    });
+        sessionRecords: [first],
+      });
+    sendServer(ws, { type: "snapshot", room: room("session") });
 
-    // When
-    fireEvent.click(screen.getByRole("button", { name: /途中で終える/ }));
-    fireEvent.click(screen.getByRole("button", { name: "終える（記録なし）" }));
-
-    sendServer(ws, {
-      type: "snapshot",
-      room: aRoomView({
-        code: "ROOM01",
-        phase: "celebration",
-        problem: problemA(),
-        participants: [participant(CREATOR_ID, "Creator")],
-      }),
-    });
+    // When: 別の人が中断した。サーバーは記録を足さずに完了へ移す（この端末は何も押さない）
+    sendServer(ws, { type: "snapshot", room: room("celebration") });
 
     // Then
     expect(saveRecordMock).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: "セッション終了（中断）" })).toBeInTheDocument();
   });
 });
 

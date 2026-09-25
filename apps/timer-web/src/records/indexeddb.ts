@@ -4,7 +4,7 @@
  */
 
 import type { CompletionRecord } from "@tasuki/timer-core";
-import { normalizeStoredRecord } from "./stored-record.js";
+import { recordsFromStore } from "./stored-record.js";
 
 const DB_NAME = "tdd-mob-pro-timer";
 const DB_VERSION = 1;
@@ -46,7 +46,7 @@ export async function saveRecord(record: CompletionRecord): Promise<void> {
 /**
  * 全完成記録を取得する
  *
- * 読んだ値は {@link normalizeStoredRecord} でいまの形へ畳み、読めない値は一覧から外す（#91・E18）。
+ * 読んだ値は {@link recordsFromStore} でいまの形へ畳み、読めない値は一覧から外す（#91・E18）。
  * **`DB_VERSION` は変えない** —— 形の移行は読むときに行い、保存し直さない。
  */
 export async function loadRecords(): Promise<CompletionRecord[]> {
@@ -56,12 +56,7 @@ export async function loadRecords(): Promise<CompletionRecord[]> {
     const store = tx.objectStore(STORE_NAME);
     const index = store.index("completedAt");
     const request = index.getAll();
-    request.onsuccess = () =>
-      resolve(
-        (request.result as unknown[])
-          .map(normalizeStoredRecord)
-          .filter((r): r is CompletionRecord => r !== null),
-      );
+    request.onsuccess = () => resolve(recordsFromStore(request.result as unknown[]));
     request.onerror = () => reject(request.error);
     tx.oncomplete = () => db.close();
   });

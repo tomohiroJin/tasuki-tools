@@ -6,7 +6,7 @@
  * 副作用は同期フックが意図を見て起こす。
  *
  * **配列の順が振る舞いである。** 現行 handleRoom の実行順をそのまま保つ:
- * resume 保存 → 完了状態の後片付け → 画面遷移 → 完成記録。
+ * resume 保存 → 完了状態の後片付け → 画面遷移 → 終わり方（`set-end`）→ 完成記録。
  *
  * **お題の生成中の解除（`clear-generating`）は #283 で消えた。** 生成中は
  * サーバーが持つ状態（`Room.problemGeneration`）になったので、画面は snapshot を
@@ -19,8 +19,9 @@
  * **完成記録は端末で組み立てない**（#91 PR 3）。サーバーが完了の時点で作った記録を
  * snapshot の `sessionRecords` から取り、終わり方（完成／中断）も「記録が増えたか」で決める。
  *
- * **現在時刻は ctx.now で注入する。** この module から `Date.now()` を呼ばない
- * （`docs/adr/0016`。#166 が timer-core の pickFallback に対して採った作法と同じ）。
+ * **この module から `Date.now()` を呼ばない**（`docs/adr/0016`）。かつては完成記録を
+ * 組み立てるために `ctx.now` で時刻を注入していた。#91 PR 3 で端末が記録を作らなくなり、
+ * 時刻に依存する判断は無くなったので注入口も落とした。要るようになったら同じ形で注入すること。
  */
 
 import type { CompletionRecord, Room } from "@tasuki/timer-core";
@@ -45,11 +46,6 @@ export interface SnapshotContext {
   pendingResume: { participantId: string; resumeToken: string } | null;
   /** 参加時に名乗った表示名（resumeToken 再送の room.join に必要）。 */
   resumeDisplayName: string;
-  /**
-   * 現在時刻。**いまこの関数の判断には効かない**（完成記録を端末で作らなくなった・#91 PR 3）。
-   * 時刻に依存する判断を足すときに `Date.now()` を直接呼ばないための注入口として残す（`docs/adr/0016`）。
-   */
-  now: number;
 }
 
 export function decideSnapshotIntents(

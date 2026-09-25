@@ -27,7 +27,6 @@ function baseCtx(overrides: Partial<SnapshotContext> = {}): SnapshotContext {
   return {
     pendingResume: null,
     resumeDisplayName: "",
-    now: 1_000,
     ...overrides,
   };
 }

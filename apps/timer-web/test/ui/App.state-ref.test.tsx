@@ -28,7 +28,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { screen, fireEvent, act } from "@testing-library/react";
 import { FakeWS } from "../support/fakes.js";
 import { enterRoomAndConnect } from "../support/enter-room.js";
-import { aRoomView } from "../support/room-view.js";
+import { aRecord, aRoomView } from "../support/room-view.js";
 import type { Problem } from "@tasuki/timer-core";
 
 vi.mock("../../src/records/indexeddb.js", () => ({
@@ -130,42 +130,32 @@ describe("App.tsx の state/ref 二重管理", () => {
     expect(screen.getByText("あなたがセッションを最初から始め直しました。")).toBeInTheDocument();
   });
 
-  it("endTypeRef: 中断（abort）後の celebration snapshot では完成記録を保存しない", async () => {
-    // Given: セッション画面まで進める（サーバー権威の phase で直接遷移させる）
+  it("直前の room: 前のセッションの記録が残るルームで別の人が中断すると、保存せず中断と出る", async () => {
+    // Given: 1 本目の記録（サーバーのもの）が残ったルームで、2 本目が走っている。
+    // 終わり方は「直前の描画の room と比べて記録が増えたか」で決まる（#91 PR 3）ので、
+    // ハンドラが最新の room を読んでいなければ（前 = null や古い room）ここは中断と出ない。
+    // **記録が空でないのが要点である** —— 空だと「末尾の記録を保存する」誤りと区別できない。
+    const { saveRecord } = await import("../../src/records/indexeddb.js");
+    vi.mocked(saveRecord).mockClear();
     const ws = createRoomAndConnect();
     sendServer(ws, { type: "room.joined", resumeToken: "rt", participantId: CREATOR_ID });
-    const sessionRoom = () =>
+    const room = (phase: "session" | "celebration") =>
       aRoomView({
         code: "ROOM01",
-        phase: "session",
+        phase,
         problem: problemA(),
         participants: [
           { participantId: CREATOR_ID, displayName: "Creator", presence: "online", hasAiKey: false, joinedAt: 0 },
         ],
-        clock: { running: true, runningSince: Date.now() },
+        sessionRecords: [aRecord({ id: "first" })],
       });
-    sendServer(ws, { type: "snapshot", room: sessionRoom() });
+    sendServer(ws, { type: "snapshot", room: room("session") });
 
-    // When: 「途中で終える」→確認 で endType が abort になる
-    fireEvent.click(screen.getByRole("button", { name: /途中で終える/ }));
-    fireEvent.click(screen.getByRole("button", { name: "終える（記録なし）" }));
+    // When: 別の人が中断した。サーバーは記録を足さずに完了へ移す（この端末は何も押さない）
+    sendServer(ws, { type: "snapshot", room: room("celebration") });
 
-    // その後に celebration snapshot が届く（サーバーは常にお題つきの room を返す）
-    sendServer(ws, {
-      type: "snapshot",
-      room: aRoomView({
-        code: "ROOM01",
-        phase: "celebration",
-        problem: problemA(),
-        participants: [
-          { participantId: CREATOR_ID, displayName: "Creator", presence: "online", hasAiKey: false, joinedAt: 0 },
-        ],
-      }),
-    });
-
-    // Then: サーバーは中断では記録を足さない。端末は「記録が増えていない」から中断と決め、
-    //       保存経路（saveRecord）を呼ばない（#91 PR 3。かつては押した端末の endType が守っていた）
-    const { saveRecord } = await import("../../src/records/indexeddb.js");
+    // Then
     expect(saveRecord).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: "セッション終了（中断）" })).toBeInTheDocument();
   });
 });

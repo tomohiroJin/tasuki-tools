@@ -392,7 +392,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
     const intents = decideSnapshotIntents(prevRoom, r, {
       pendingResume: pendingResumeRef.current,
       resumeDisplayName: resumeDisplayNameRef.current,
-      now: Date.now(),
     });
 
     for (const intent of intents) {
@@ -415,7 +414,11 @@ export function useTimerSync(banner: BannerController): TimerSync {
           setEndType(intent.endType);
           break;
         case "persist-completion":
-          // 完了へ入った瞬間にだけ届く（`snapshot-intents.ts` の手順 4）ので、二重保存を防ぐ印は要らない。
+          // 完了へ入った遷移（`snapshot-intents.ts` の手順 4）でだけ届く。ただし再描画の前に
+          // celebration の snapshot が 2 通続くと、2 通とも「前 = 直前の描画の snapshot（未完了）」で
+          // 判定されて 2 回届きうる。**それでも実害が無いのは、保存するのがサーバーの記録そのもので
+          // ID が同じだからである** —— IndexedDB の `put` は同じ鍵を上書きするので 1 件のまま残る。
+          // 端末が記録を組み立てていた頃は ID が毎回変わったので、印（`recordSavedRef`）で防いでいた。
           setRecord(intent.record);
           // 完成記録を端末ローカルに自動保存（押し忘れ防止・FR-020「達成を記録」）。
           persistRecordIfComplete("complete", intent.record, saveRecord).catch((e) =>
