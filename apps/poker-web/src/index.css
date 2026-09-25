@@ -69,7 +69,7 @@
 /* 節の見出し（「参加者」「あなたのカード」「結果」）に不透明な地（felt-900）を与える（#91 PR 3）。
  * `@tasuki/ui` の既定の h2 は地を持たない `--gold` の字で、body の羅紗グラデーションの
  * 最も明るい停止点（felt-700）の上では約 3.92:1 と AA を割る（`e2e/specs/poker-a11y.spec.ts` の
- * 初回の走査で実測。felt-900 の上では約 7.5:1）。お題の見出しは `.topic` の地に乗るので外す。 */
+ * 初回の走査で実測。felt-900 の上ではトークンの値からの計算で約 6.4:1）。お題の見出しは `.topic` の地に乗るので外す。 */
 .room > section:not(.topic) > h2 {
   width: fit-content;
   padding: var(--space-1) var(--space-3);

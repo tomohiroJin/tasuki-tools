@@ -519,7 +519,8 @@ main へは順に入れ、本番への配布は最後に 1 回行う。
 - **ハブの二重参加を拒むようにした。** 計画は「1 本のハブの接続が 2 つのルームへ参加したら何が起きるかを測り、両方の名簿に
   載るなら止まって利用者へ報告する」としていた。実測は「**A と B の両方の名簿に載り、A のお題も届き続ける**」（3 回とも同じ）。
   controller の裁定で、この PR の中で直した: ハブの接続が既にどこかのルームに居るときの 2 度目の `room.join` / `room.create` は
-  `INVALID_COMMAND`（文言はハブがコマンドの形の不正に返すものと同じ）で拒み、何も変えない。お題の接続（PR 1 の m86）と同じ判断で、
+  `INVALID_COMMAND`（文言はハブがコマンドの形の不正に返すものと同じ）で拒み、何も変えない。お題の接続が同じ判断をしている（`apps/tasuki-sync/src/application/topic-handlers.ts` の
+  `handleJoin` が `isInAnyRoom` で参加済みの接続を拒む。テストは `test/topic-handlers.test.ts` の describe「お題の接続でルームへ入る」）。
   玄関の正規の画面は 1 本の接続で 1 つのルームにしか参加・作成を送らない（`apps/landing/src/hub/use-hub-sync.ts`）ので、
   利用者の操作は変わらない。同じルームへの 2 度目も同じ理由で拒まれる。変異は m108（`room.join`）・m110（`room.create`）
 - **poker の本文は象牙の札（`.topic-body`）に載せた。** topic-web から写した Markdown の色（`.md*`）は明るい地を前提にしており、
@@ -532,8 +533,10 @@ main へは順に入れ、本番への配布は最後に 1 回行う。
   （`--gold` `#cfa14c` on `--felt-900` `#0a2b21`。走査は合格を返すだけで比の数値は出さない）。実装の報告と台帳は
   「約 7.5:1 の見込み」と書いていたが、計算し直すと 6.4:1 である（どちらでも AA の 4.5:1 は満たす）
 - **配布中の窓 3 で古い timer が送るお題のコマンドは、`INVALID_COMMAND` が返るだけ。** `ai.unlock` / `problem.request` /
-  `problem.submit` / `problem.edit` / `problem.mode.set` はいずれも timer のスキーマから消えたので、境界で弾かれ、状態も接続も変わらない
-  （`apps/tasuki-sync/test/live-ws.room-ops.test.ts` が並びごと固定する。`hasAiKey` を付けた旧い形の `room.join` も通る）
+  `problem.submit` / `problem.edit` / `problem.mode.set` はいずれも timer のスキーマから消えたので、境界で弾かれる。
+  **テスト（`apps/tasuki-sync/test/live-ws.room-ops.test.ts`）が並びごと固定しているのは `ai.unlock` / `problem.request` /
+  `problem.submit` の 3 つ**で、状態も接続も変わらないことまで見る（`hasAiKey` を付けた旧い形の `room.join` が通ることも固定する）。
+  `problem.edit` / `problem.mode.set` は実装時のプローブで同じ `INVALID_COMMAND` を観測したが、**テストでは固定していない**
 - **`e2e/specs/landing.spec.ts` の 3 枚目の札は本番の `e2e:prod` では走らない**（計画の前提の誤り）。その札の検査はタグの無い
   describe（local 専用）にある。本番で 3 つ目の画面へ届くことは、`topic.spec.ts` の `@core` の 2 本（お題ツールを開く）と
   `routing.spec.ts` の `@smoke`（`/topic/` の配信）が見る

@@ -118,8 +118,8 @@ timer に関わる窓は次の 3 つである（設計正本
    古い timer が送るお題のコマンド（`ai.unlock` / `problem.*`）は `INVALID_COMMAND` が返るだけで、状態も接続も変わらない。
    古い poker は未知の `topic` フレームを捨てて通知を出す（#212）。古い玄関は黙って捨てる
 
-⚠ **`pnpm e2e:prod` は 4 本を配り終えてから流す。** 先に流すと本番に `/topic/` が無く、5 本落ちる
-（`e2e/specs/routing.spec.ts` の `/topic/` の 3 本と `e2e/specs/topic.spec.ts` の `@core` の 2 本）。
+⚠ **`pnpm e2e:prod` は 4 本を配り終えてから流す。** 先に流すと本番に `/topic/` が無く、
+`/topic/` を見る `@smoke`・`@core` のテストが落ちる（`e2e/specs/routing.spec.ts` と `e2e/specs/topic.spec.ts`）。
 
 ## #95 S5c を配布するときに行うこと（3 系統を続けて配る）
 

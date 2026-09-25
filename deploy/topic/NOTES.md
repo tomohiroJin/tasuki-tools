@@ -55,7 +55,7 @@ curl -s "$HOST/topic/" | grep -o '/topic/assets/' | head -1   # 1 行出れば�
 ```
 
 ⚠ **`pnpm e2e:prod` は 4 本を配り終えてから流す。** 配る前の本番へ当てると、`/topic/` がまだ無いので
-**5 本落ちる**（`e2e/specs/routing.spec.ts` の `/topic/` の 3 本と、`e2e/specs/topic.spec.ts` の `@core` の 2 本）。
+**`/topic/` を見る `@smoke`・`@core` のテストが落ちる**（`e2e/specs/routing.spec.ts` と `e2e/specs/topic.spec.ts`）。
 
 ## 静的サイト
 
