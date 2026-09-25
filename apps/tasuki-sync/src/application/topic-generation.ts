@@ -22,8 +22,7 @@ import {
 } from "@tasuki/topic-core";
 import type { Clock } from "../ports/clock.js";
 import type { TopicStore } from "../ports/topic-store.js";
-import type { ServerTopicProvider } from "../ports/server-topic-provider.js";
-import { ProviderFailure } from "../ports/server-problem-provider.js";
+import { ProviderFailure, type ServerTopicProvider } from "../ports/server-topic-provider.js";
 import type { AiLimiter } from "./ai-limits.js";
 import type { Logger } from "./log/logger.js";
 import type { RefEncoder } from "./log/ref-encoder.js";

@@ -13,7 +13,7 @@ import { TopicGenerator } from "../src/application/topic-generation.js";
 import { InMemoryTopicStore } from "../src/adapters/in-memory-topic-store.js";
 import { AiLimiter } from "../src/application/ai-limits.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
-import { ProviderFailure } from "../src/ports/server-problem-provider.js";
+import { ProviderFailure } from "../src/ports/server-topic-provider.js";
 import type { ServerTopicProvider } from "../src/ports/server-topic-provider.js";
 import type { Logger } from "../src/application/log/logger.js";
 import type { LogField } from "../src/application/log/log-safe.js";

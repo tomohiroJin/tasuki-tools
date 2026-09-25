@@ -7,7 +7,8 @@
  */
 import { spawn } from "node:child_process";
 import { buildProblemPrompt } from "@tasuki/timer-core";
-import { ProviderFailure, type ServerProblemProvider } from "../ports/server-problem-provider.js";
+import type { ServerProblemProvider } from "../ports/server-problem-provider.js";
+import { ProviderFailure } from "../ports/server-topic-provider.js";
 
 /** spawn 互換の最小インターフェース（テストで差し替える） */
 export interface SpawnedProcess {

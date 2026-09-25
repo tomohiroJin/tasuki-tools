@@ -3,9 +3,40 @@ import type { Difficulty, Language } from "@tasuki/topic-core";
 /**
  * サーバー側の AI お題生成（#91）。戻り値は**未検証の値**であり、呼び出し側が
  * `validateTopicDraft` で検証する（AI 由来の値を信頼しない）。
- *
- * 失敗は `ProviderFailure`（`server-problem-provider.ts`）で投げる。PR 3 でこちらへ移す。
+ * 失敗は下の `ProviderFailure` で投げる。
  */
 export interface ServerTopicProvider {
   generate(language: Language, difficulty: Difficulty, signal: AbortSignal): Promise<unknown>;
+}
+
+/**
+ * `generate` が失敗したときの分類（ADR 0012 D5・D12）。
+ *
+ * 呼び出し側はこの分類だけをログへ出し、例外メッセージは出さない。
+ * 例外メッセージから正規表現で分類を**推測**すると、メッセージの文言が変わるたびに
+ * 静かに誤分類する（2026-08-13 のレビューで実測: 6 パターン中 3 パターンが
+ * 意図せず "other" に落ちていた）。そのため adapter 自身が分類を確定させ、
+ * 型で運ぶ。文字列一致に頼るのは adapter を書いていない側（呼び出し側）が
+ * 後から真似で当てるときだけであるべきで、ここではそれをやめる。
+ */
+export type ProviderFailureReason =
+  | "timeout"
+  | "invalid"
+  | "spawnFailed"
+  | "outputTooLarge"
+  | "processError";
+
+/**
+ * 分類つきの失敗。adapter はこれを reject し、呼び出し側は `instanceof` で判定する。
+ * 分類できない・分類しない adapter は素の `Error` を reject してよい
+ * （呼び出し側は "other" として扱う）。
+ */
+export class ProviderFailure extends Error {
+  constructor(
+    message: string,
+    public readonly reason: ProviderFailureReason,
+  ) {
+    super(message);
+    this.name = "ProviderFailure";
+  }
 }
