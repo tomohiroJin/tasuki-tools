@@ -140,7 +140,8 @@ export const ALLOWED_FILES = [
 
 /** 走査結果に必ず存在しなければならないファイル（走査対象の消失を検出する）。 */
 export const REQUIRED_FILES = [
-  "apps/tasuki-sync/src/application/problem-delegation.ts",
+  // #91 PR 3 で旧い委譲（problem-delegation.ts）を撤去した。AI の失敗をログへ出すのはいまこちら。
+  "apps/tasuki-sync/src/application/topic-generation.ts",
   "apps/tasuki-sync/src/adapters/console-log-sink.ts",
   "apps/tasuki-sync/src/server.ts",
   // #165 PR-2 の組み立て関数。**ここで見ているのは実在だけである。**

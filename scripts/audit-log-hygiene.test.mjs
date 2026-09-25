@@ -201,8 +201,8 @@ describe("ロガ呼び出しの第 1 引数（event）の形", () => {
 
   test("this.logger 経由のテンプレートリテラルも検出する", () => {
     const v = findViolations(
-      "apps/tasuki-sync/src/application/problem-delegation.ts",
-      "    this.logger.warn(`ai.fail ${roomCode}`);\n",
+      "apps/tasuki-sync/src/application/topic-generation.ts",
+      "    this.deps.logger.warn(`ai.fail ${roomCode}`);\n",
     );
     assert.equal(v.length, 1);
   });

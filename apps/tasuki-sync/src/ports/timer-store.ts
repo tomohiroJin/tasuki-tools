@@ -6,9 +6,8 @@
  * 作らない（作る・消すは必ず対で行う）。
  *
  * **保管と配信を束ねた経路は 1 本ではない。** `application/handlers.ts` の `commit` が
- * 名簿と timer の状態を両方書き、`application/presence.ts` は名簿だけ、
- * `application/problem-delegation.ts` は timer の状態だけを書く（一覧と理由はその `commit`
- * の docstring）。**どの経路も配信は `application/timer-snapshot-dto.ts` の
+ * 名簿と timer の状態を両方書き、`application/presence.ts` は名簿だけを書く
+ * （一覧と理由はその `commit` の docstring）。**どの経路も配信は `application/timer-snapshot-dto.ts` の
  * `buildTimerSnapshotRoom` を通る** —— ずれへの対策はその 1 つを通すことである。
  */
 

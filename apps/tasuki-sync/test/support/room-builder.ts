@@ -101,7 +101,7 @@ class RoomBuilder {
     return this;
   }
 
-  /** makeHandlers への依存を上書きする（scheduler/delegator 等、必要になったときだけ使う）。 */
+  /** makeHandlers への依存を上書きする（scheduler 等、必要になったときだけ使う）。 */
   withDeps(overrides: TestHandlerOverrides): this {
     this.depsOverrides = { ...this.depsOverrides, ...overrides };
     return this;
@@ -389,10 +389,9 @@ export function makeTestHandlers(overrides?: TestHandlerOverrides): TestHandlers
       // （お題の後始末の順序と中身は `destroy-room.test.ts` が見る）。
       topics,
       topicGenerator: { cancel: () => {} },
-      // scheduler / delegator は `withDeps` で渡されたときだけ後始末に加わる
+      // scheduler は `withDeps` で渡されたときだけ後始末に加わる
       // （渡されていなければ、そもそも予約を作る主体が居ない）。
       scheduler: overrides?.scheduler,
-      delegator: overrides?.delegator,
       presence,
       releaseRoom: handlers.releaseRoom,
     });

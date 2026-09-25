@@ -211,7 +211,6 @@ describe("ソロの部屋からの退出（Issue #79）", () => {
     result._unsafeUnwrap();
     expect(calls).toEqual([
       `scheduler.clear:${soloCode}`,
-      `delegator.cancel:${soloCode}`,
       `topicGenerator.cancel:${soloCode}`,
       `presence.clearRoomTimers:${soloCode}`,
       `releaseRoom:${soloCode}`,
@@ -450,7 +449,7 @@ describe("アイドル回収と在室者0人の退出は同じ後始末を通る
     const forRoom = (roomCode: string): string[] =>
       calls.filter((c) => c.endsWith(`:${roomCode}`)).map((c) => c.split(":")[0]!);
     expect(forRoom(leaveCode)).toEqual([
-      "scheduler.clear", "delegator.cancel", "topicGenerator.cancel", "presence.clearRoomTimers", "releaseRoom",
+      "scheduler.clear", "topicGenerator.cancel", "presence.clearRoomTimers", "releaseRoom",
     ]);
     expect(forRoom(idleCode)).toEqual(forRoom(leaveCode));
     expect(store.list()).toEqual([]);

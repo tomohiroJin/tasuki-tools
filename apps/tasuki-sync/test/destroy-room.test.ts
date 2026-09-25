@@ -22,7 +22,7 @@ import { INITIAL_TOPIC_STATE } from "@tasuki/topic-core";
 import { spyDestroyer } from "./support/spy-destroyer.js";
 
 describe("createRoomDestroyer", () => {
-  it("タイマー・委譲・お題の生成・presence・トークンを解放してからルームを消す", () => {
+  it("タイマー・お題の生成・presence・トークンを解放してからルームを消す", () => {
     // Given
     const store = new InMemoryRoomStore();
     const timers = new InMemoryTimerStore();
@@ -35,7 +35,6 @@ describe("createRoomDestroyer", () => {
     // （先に消すと停止処理中に発火したタイマーが参照先の無いルームを触りうる）
     expect(calls).toEqual([
       "scheduler.clear:AAA",
-      "delegator.cancel:AAA",
       "topicGenerator.cancel:AAA",
       "presence.clearRoomTimers:AAA",
       "releaseRoom:AAA",
@@ -64,8 +63,8 @@ describe("createRoomDestroyer", () => {
     expect(topics.get("BBB")).toBeUndefined();
   });
 
-  it("スケジューラ・委譲・presence を持たない構成でも解放とストア削除は行う", () => {
-    // Given: makeHandlers 単体（scheduler/delegator を省略できる）で組んだ場合
+  it("スケジューラ・presence を持たない構成でも解放とストア削除は行う", () => {
+    // Given: makeHandlers 単体（scheduler を省略できる）で組んだ場合
     const store = new InMemoryRoomStore();
     const timers = new InMemoryTimerStore();
     const rounds = new InMemoryRoundStore();
@@ -75,7 +74,7 @@ describe("createRoomDestroyer", () => {
     const topics = new InMemoryTopicStore();
     topics.put("CCC", INITIAL_TOPIC_STATE);
     const released: string[] = [];
-    // scheduler / delegator / presence は省略できるが、**保管とお題の生成は省略できない**
+    // scheduler / presence は省略できるが、**保管とお題の生成は省略できない**
     // （optional にすると本番の配線から落ちても緑のままになる。理由は destroy-room.ts）。
     const destroy = createRoomDestroyer({
       store,

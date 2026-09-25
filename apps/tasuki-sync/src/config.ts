@@ -56,7 +56,10 @@ export interface SyncConfig {
   aiUnlockKey: string | undefined;
   /** Claude サブスクの OAuth トークン（claude setup-token）。子プロセスの env にのみ渡す。 */
   claudeOauthToken: string | undefined;
-  /** claude -p --model に渡すモデル名 */
+  /**
+   * お題（topic）の AI 生成に使うモデル（`claude -p --model` に渡す）。
+   * 名前と env 名（`AI_PROBLEM_MODEL`）は #91 以前からのものを据え置く。
+   */
   aiProblemModel: string;
   /** AI 生成のタイムアウト（ms） */
   aiGenerationTimeoutMs: number;
@@ -104,7 +107,10 @@ const MAX_MESSAGE_BYTES_CEILING = 1024 * 1024;
  */
 const FRAME_BYTES_MULTIPLIER = 2;
 
-/** `AI_PROBLEM_MODEL` 未設定時の既定モデル。起動ログが「既定どおりか」を示す際にも使う。 */
+/**
+ * `AI_PROBLEM_MODEL` 未設定時の既定モデル。起動ログが「既定どおりか」を示す際にも使う。
+ * お題（topic）の AI 生成に使うモデル。env 名は #91 以前からのものを据え置く。
+ */
 export const DEFAULT_AI_PROBLEM_MODEL = "sonnet";
 
 /**

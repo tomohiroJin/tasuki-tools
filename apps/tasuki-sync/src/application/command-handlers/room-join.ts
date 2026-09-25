@@ -21,8 +21,6 @@ import { buildTimerSnapshotRoom } from "../timer-snapshot-dto.js";
 import type { RoomState } from "../apply-room-level-event.js";
 import { TOOL_TIMER } from "../tool-id.js";
 import { joinRoom, ROOM_NOT_FOUND_MESSAGE } from "../join-room.js";
-import { fillLobbyProblem } from "../lobby-problem.js";
-import type { ProblemDelegator } from "../problem-delegation.js";
 import type { TopicBroadcaster } from "../topic-broadcast.js";
 
 /** `room.join` が呼び出し元へ返す値。 */
@@ -41,10 +39,8 @@ export interface RoomJoinDeps {
   commit: (state: RoomState) => void;
   codeGen: RoomCodeGen;
   tokenStore: TokenStore;
-  /** room.join と ai.unlock が共有するバケツの上に立つゲート（`handlers.ts` が組む）。 */
+  /** 入室と合言葉の照合を行う入口が共有するゲート（`handlers.ts` が組む）。 */
   rateLimitGate: RateLimitGate;
-  /** ロビーのお題を用意する委譲（#271）。未構成なら依頼を起こさない。 */
-  delegator?: ProblemDelegator | undefined;
   sendError: (connId: string, code: ErrorCode, message: string) => void;
   /**
    * いまのお題を参加・復帰した本人へ 1 通送る（#91・E4）。
@@ -57,7 +53,7 @@ export interface RoomJoinDeps {
 }
 
 export function createRoomJoinHandler(deps: RoomJoinDeps) {
-  const { broadcaster, commit, sendError, delegator } = deps;
+  const { broadcaster, commit, sendError } = deps;
 
   /** ルーム参加 */
   return async function handleRoomJoin(
@@ -117,11 +113,6 @@ export function createRoomJoinHandler(deps: RoomJoinDeps) {
     // お題の状態を 1 通送る（#91・E4）。**名簿の保管のあとに呼ぶ**
     // （ルームの在否を名簿で見るため・ハブと同じ）。
     deps.topicBroadcaster.sendCurrent(connId, cmd.code);
-    // **ロビーのお題はサーバーが用意する**（#271）。遅延生成で timer の状態が
-    // 生まれた直後がここなので、未確定ならこの場で依頼を起こす。既にお題があるか、
-    // 委譲が走っていれば何もしない（参加のたびに張り直さない）。
-    // 時刻は依頼 ID を一意にするために渡す（#273。`fillLobbyProblem` の注記）。
-    fillLobbyProblem(delegator, timer, deps.clock.now());
 
     return ok({ code: cmd.code, participantId, resumeToken });
   };

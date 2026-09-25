@@ -102,15 +102,13 @@ describe("実 WS 越しの業務プロトコル", () => {
     );
     expect(assigned.room.session.currentIndex).toBe(1);
 
-    // When 6: お題を要求する。AI 鍵持ちの候補が誰も居ないので定型で確定する（FR-026 の末尾）
-    host.send({ command: "problem.request", requestId: "req-1" });
-    const withProblem = await host.take("snapshot", (m) => m.room.problem !== null);
-    expect(withProblem.room.problem!.title).toMatch(/\S/);
+    // お題の要求はここにあったが、#91 PR 3 で timer の経路ごと撤去した
+    // （お題はお題ツールの経路で扱う。実 WS は `live-ws.topic.test.ts` が見る）。
 
-    // When 7: 完成
+    // When 6: 完成
     host.send({ command: "session.complete" });
 
-    // Then 7: 完成フェーズの snapshot と、実行者を伝える notice シグナルが届く
+    // Then 6: 完成フェーズの snapshot と、実行者を伝える notice シグナルが届く
     await host.take("snapshot", (m) => m.room.phase === "celebration");
     const notice = await guest.take("signal", (m) => m.signal === "notice");
     expect(notice).toMatchObject({

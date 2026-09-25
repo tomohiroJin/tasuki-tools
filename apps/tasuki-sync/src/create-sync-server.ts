@@ -14,7 +14,7 @@
  * ツールの状態（`TimerStore` / `RoundStore`）・時計・ID 生成・配信はそれぞれ別のまま
  * であり、単一の巨大ストアにはしない（設計正本 §5.5 / D16）。
  *
- * store / clock / codeGen / scheduler / broadcaster / delegator / handlers /
+ * store / clock / codeGen / scheduler / broadcaster / handlers /
  * presenceManager / reclaimer / WsAdapter の相互参照は、順序と受け渡しに
  * 暗黙の前提がいくつもある（broadcaster が wsAdapter を前方参照する、
  * reclaimer を wsAdapter より先に宣言して TDZ を避ける、presence の
@@ -50,7 +50,6 @@ import { makeHandlers } from "./application/handlers.js";
 import { TOOL_TIMER } from "./application/tool-id.js";
 import { PresenceManager } from "./application/presence.js";
 import { Scheduler } from "./application/schedule.js";
-import { ProblemDelegator } from "./application/problem-delegation.js";
 import { WsAdapter } from "./adapters/ws-adapter.js";
 import { InMemoryRoomStore } from "./adapters/in-memory-room-store.js";
 import { InMemoryTimerStore } from "./adapters/in-memory-timer-store.js";
@@ -60,7 +59,6 @@ import { RoomReclaimer } from "./application/room-reclaimer.js";
 import { createRoomDestroyer } from "./application/destroy-room.js";
 import { buildAdminReport, handleAdminHttp } from "./application/admin.js";
 import { AiLimiter } from "./application/ai-limits.js";
-import { ClaudeCliProblemProvider } from "./adapters/claude-cli-problem-provider.js";
 import { createLogger } from "./application/log/logger.js";
 import { createTokenStore } from "./application/token-store.js";
 import { createRefEncoder } from "./application/log/ref-encoder.js";
@@ -193,12 +191,6 @@ export function createSyncServer(config: SyncConfig): SyncServer {
   const aiLimiter = aiReady
     ? new AiLimiter({ clock, dailyLimit: config.aiDailyLimit })
     : undefined;
-  const serverProvider = aiReady
-    ? new ClaudeCliProblemProvider({
-        token: config.claudeOauthToken!,
-        model: config.aiProblemModel,
-      })
-    : undefined;
 
   /**
    * お題の状態の配信（#91）。**ツールごとの broadcaster の外に 1 つ置く**（spec §5.3 の T3）。
@@ -212,10 +204,10 @@ export function createSyncServer(config: SyncConfig): SyncServer {
   });
 
   /**
-   * お題の生成（#91）。AI が使えるときだけ provider を渡す（timer の `serverProvider` と同じ条件）。
+   * お題の生成（#91）。AI が使えるとき（`aiReady`）だけ provider を渡す。
    *
-   * ⚠ **`aiLimiter` は timer の `delegator` と同じインスタンスを渡す。** 日次上限と同時実行数は
-   * サーバー全体で 1 つの予算であり、別に作るとお題ツールの分だけ予算が黙って増える。
+   * ⚠ **`aiLimiter` はサーバー全体で 1 つの予算である**（上で 1 個だけ作る）。日次上限と
+   * 同時実行数を AI を使う箇所ごとに作ると、その分だけ予算が黙って増える。
    */
   const topicGenerator = new TopicGenerator({
     topics,
@@ -233,17 +225,6 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     refEncoder,
   });
 
-  const delegator = new ProblemDelegator({
-    store,
-    timers,
-    clock,
-    broadcaster,
-    serverProvider,
-    aiLimiter,
-    aiTimeoutMs: config.aiGenerationTimeoutMs,
-    logger,
-    refEncoder,
-  });
   /**
    * ルーム破棄の共通経路（`destroy-room.ts`。Issue #79）。
    *
@@ -288,10 +269,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     broadcaster,
     codeGen,
     scheduler,
-    delegator,
     maxRooms: config.maxRooms,
-    // トークン未設定なら合言葉も渡さない＝解錠は常に失敗（存在秘匿）
-    aiUnlockKey: aiReady ? config.aiUnlockKey : undefined,
     destroyRoom: (roomCode) => destroyRoom(roomCode),
     // **退出した人の票を捨てる**（R8・#95 S5b）。timer の文脈は poker の保管を知らないので、
     // ここで繋ぐ。`pokerHandlers` はこの下で組み立てるが、呼ばれるのは要求が届いてからである。
@@ -326,7 +304,6 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     // **#91 でお題の状態と生成もここが解放・中断する**（寿命はルームごとに 1 つ）。
     topics,
     scheduler,
-    delegator,
     topicGenerator,
     presence: presenceManager,
     releaseRoom: handlers.releaseRoom,
@@ -414,7 +391,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     generator: topicGenerator,
     broadcaster: topicBroadcaster,
     send: (connId, msg) => wsAdapter.sendTopic(connId, msg),
-    // トークン未設定なら合言葉も渡さない＝解錠は常に失敗（存在秘匿。timer と同じ）
+    // トークン未設定なら合言葉も渡さない＝解錠は常に失敗（存在秘匿）
     aiUnlockKey: aiReady ? config.aiUnlockKey : undefined,
   });
 
@@ -488,7 +465,6 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     close: async () => {
       reclaimer.stop();
       scheduler.clearAll();
-      delegator.cancelAll();
       // お題の生成も止める（子プロセスを残さない。#91）。
       topicGenerator.cancelAll();
       // 不在猶予タイマー（ドライバー繰り上げ）も解放する。

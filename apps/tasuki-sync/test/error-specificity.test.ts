@@ -184,28 +184,5 @@ describe("拒否箇所が返すコード（現状の記録）", () => {
       // Then
       expect(broadcaster.errorsTo(conn).at(-1)?.code).toBe("JOIN_RATE_LIMITED");
     });
-
-    it("⑨ 試行過多の ai.unlock は RATE_LIMITED を返す（room.join とは異なり維持する）", async () => {
-      // Given
-      const broadcaster = new SpyBroadcaster();
-      const handlers = makeTestHandlers({
-        store: new InMemoryRoomStore(),
-        clock: new FakeClock(1_000_000),
-        broadcaster,
-        codeGen: new FakeCodeGen(),
-        aiUnlockKey: "himitsu",
-      });
-      const conn = "rl-unlock-conn";
-      await handlers.handleCommand(conn, { command: "room.create", displayName: "Alice" });
-      for (let i = 0; i < DEFAULT_CAPACITY; i++) {
-        await handlers.handleCommand(conn, { command: "ai.unlock", key: `wrong-${i}` });
-      }
-
-      // When（使い切った次は、正しい合言葉でも RATE_LIMITED になるはず）
-      await handlers.handleCommand(conn, { command: "ai.unlock", key: "himitsu" });
-
-      // Then
-      expect(broadcaster.errorsTo(conn).at(-1)?.code).toBe("RATE_LIMITED");
-    });
   });
 });

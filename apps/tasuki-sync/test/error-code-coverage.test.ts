@@ -191,6 +191,16 @@ describe("変数経由コードの整合性", () => {
  *
  * @requirements FR-101, FR-114
  */
+/**
+ * **送り手をサーバーから消したが、列挙（`packages/timer-core/src/errors.ts`）にはまだ残るコード。**
+ *
+ * timer のお題の経路（代表への委譲）を #91 PR 3 で同期サーバーから撤去した。列挙と型は
+ * timer-core にあり、次の課題（#91 PR 3 の timer-core の撤去）で消す。**それまでの間だけ**
+ * 「列挙にあるのにソースに無い」の検査から外す。列挙から消したら、この集合も消すこと
+ * （残すと、同じ名前のコードを後で足したときに検査が黙って甘くなる）。
+ */
+const AWAITING_ENUM_REMOVAL: ReadonlySet<string> = new Set(["DELEGATION_UNAVAILABLE", "STALE_SUBMISSION"]);
+
 describe("エラーコードの列挙", () => {
   it("ソースから見つかるコードは、すべて列挙に含まれている", () => {
     // Given（列挙側 SYNC_ERROR_CODES を集合として用意する）
@@ -204,7 +214,9 @@ describe("エラーコードの列挙", () => {
     // Given（apps/tasuki-sync/src 配下の全ソースを走査対象にする）
     const sources = readAllTsFiles(SRC_DIR).join("\n");
     // When（列挙側 SYNC_ERROR_CODES の各コードがソース中に実在するか調べる）
-    const absent = SYNC_ERROR_CODES.filter((code) => !sources.includes(`"${code}"`));
+    const absent = SYNC_ERROR_CODES.filter(
+      (code) => !sources.includes(`"${code}"`) && !AWAITING_ENUM_REMOVAL.has(code),
+    );
     expect(absent).toEqual([]);
   });
 

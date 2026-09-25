@@ -1,7 +1,7 @@
 /**
  * テスト用の Logger / RefEncoder（apps/tasuki-sync 共有）
  *
- * `Logger` / `RefEncoder` を要求するコンストラクタ（`ProblemDelegator` /
+ * `Logger` / `RefEncoder` を要求するコンストラクタ（`TopicGenerator` /
  * `WsAdapter` 等）はテストでも本物の型を満たす必要がある。ログの中身を
  * 検証しないテストでは `testLogger`（何もしない sink）を渡せば足り、
  * 検証したいテストは `collectingLogger()` で行を配列に貯めて読む。

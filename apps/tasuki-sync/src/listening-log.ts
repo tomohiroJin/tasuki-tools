@@ -10,7 +10,8 @@ import type { LogField } from "./application/log/log-safe.js";
 import { isLoopbackHost, type SyncConfig } from "./config.js";
 
 /**
- * host / aiProblemModel は運用者が env で設定する自由文字列（利用者由来ではない）。
+ * host / aiProblemModel（お題（topic）の AI 生成に使うモデル。env 名は #91 以前からのものを
+ * 据え置く）は運用者が env で設定する自由文字列（利用者由来ではない）。
  * とはいえ `LogField` は string を受け付けないため（ADR 0012 D1）、値そのものではなく
  * 「既定値どおりか」を真偽値で出す。既定から外れていれば運用者は自分で設定した env を
  * 見に行けば実値が分かるので、journal だけでの気づき（deploy/README.md ⑤の確認）は保てる。

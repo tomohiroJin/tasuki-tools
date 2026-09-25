@@ -75,7 +75,6 @@ describe("ルームに居る全員が同格である（開始前）", () => {
       clock: new FakeClock(1000000),
       broadcaster,
       codeGen: new FakeCodeGen(),
-      aiUnlockKey: "secret",
     });
 
     const created = await handlers.handleCommand(CREATOR_CONN, {
@@ -137,7 +136,6 @@ describe("ルームに居る全員が同格である（開始前）", () => {
       ["room.passphrase.set", () => ({ command: "room.passphrase.set", passphrase: "ひらけごま2026" })],
       ["member.shuffle", () => ({ command: "member.shuffle" })],
       ["member.move", () => ({ command: "member.move", fromIndex: 0, toIndex: 2 })],
-      ["ai.unlock", () => ({ command: "ai.unlock", key: "secret" })],
       ["participant.remove（他人）", () => ({ command: "participant.remove", participantId: bobPid })],
       ["participant.rename（他人）", () => ({ command: "participant.rename", participantId: bobPid, displayName: "Renamed" })],
       ["member.add（他人）", () => ({ command: "member.add", participantId: carolPid })],

@@ -50,7 +50,6 @@ export function spyDestroyer(
     rounds,
     topics,
     scheduler: { clear: (c) => calls.push(`scheduler.clear:${c}`) },
-    delegator: { cancel: (c) => calls.push(`delegator.cancel:${c}`) },
     topicGenerator: { cancel: (c) => calls.push(`topicGenerator.cancel:${c}`) },
     presence: { clearRoomTimers: (c) => calls.push(`presence.clearRoomTimers:${c}`) },
     releaseRoom: (c) => calls.push(`releaseRoom:${c}`),

@@ -59,7 +59,9 @@
  *    「新しい画面 × 旧サーバー」の窓は順序では避けられず、必須にするとその窓で
  *    snapshot 全体が契約検査に落ちる。この項目は**欠けていたら「生成していない」**と
  *    読めばよいだけなので、同じ代償を払う理由が無い。
- *    値を作るのは `ProblemDelegator` ただ 1 つで、ここはそれをそのまま載せる。
+ *    値を作っていたのは代表への委譲（`ProblemDelegator`）ただ 1 つだった。**#91 PR 3 で
+ *    委譲ごと同期サーバーから撤去したので、いまは書き手が居ない**（項目は timer-core の型と
+ *    ともに撤去する）。
  *
  * ★ **#294 で wire が変わった点も、この台帳に続けて書く。**
  *
@@ -361,9 +363,8 @@ export function buildTimerSnapshotRoom(membership: MembershipRoom, timer: TimerS
       ? { passphraseProtected: timer.passphraseProtected }
       : {}),
     ...(timer.aiUnlocked !== undefined ? { aiUnlocked: timer.aiUnlocked } : {}),
-    // お題の生成の状態（#283）。**ここで作らない** —— `ProblemDelegator` が
-    // 委譲の開始と終了で書いた帳簿をそのまま載せるだけである。ここで
-    // 「お題が null なら生成中」のように推測すると、書き手が 2 つになる。
+    // お題の生成の状態（#283）。**ここで作らない**（推測すると書き手が 2 つになる）。
+    // 書き手だった代表への委譲は #91 PR 3 で撤去した。項目は timer-core の型とともに消す。
     ...(timer.problemGeneration !== undefined
       ? { problemGeneration: timer.problemGeneration }
       : {}),

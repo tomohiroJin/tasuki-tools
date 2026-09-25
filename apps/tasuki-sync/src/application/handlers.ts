@@ -18,7 +18,6 @@ import {
   errorMessageFor,
   type SessionConfig,
   type TimerState,
-  type Problem,
   type ErrorCode,
   type RemovalNotification,
   type Command,
@@ -34,7 +33,6 @@ import type { RoomStore } from "../ports/room-store.js";
 import type { TimerStore } from "../ports/timer-store.js";
 import type { RoomCodeGen } from "../ports/code-gen.js";
 import type { Scheduler } from "./schedule.js";
-import type { ProblemDelegator } from "./problem-delegation.js";
 import { createRateLimitGate } from "./rate-limit-gate.js";
 import { saveRoster } from "./save-roster.js";
 import type { HubBroadcaster } from "../ports/hub-broadcaster.js";
@@ -55,11 +53,7 @@ export type { CreateResult } from "./command-handlers/room-create.js";
 export type { JoinResult } from "./command-handlers/room-join.js";
 import { createTimePingHandler } from "./command-handlers/time-ping.js";
 import { createRoomPassphraseSetHandler } from "./command-handlers/room-passphrase-set.js";
-import { createAiUnlockHandler } from "./command-handlers/ai-unlock.js";
-import { createProblemRequestHandler } from "./command-handlers/problem-request.js";
-import { createProblemSubmitHandler } from "./command-handlers/problem-submit.js";
 import { handleParticipantRemove } from "./command-handlers/participant-remove.js";
-import { fillLobbyProblem, regenerateLobbyProblem } from "./lobby-problem.js";
 
 /**
  * 在室を前提としないコマンド（FR-151）。
@@ -99,8 +93,6 @@ export interface HandlerDeps {
   codeGen: RoomCodeGen;
   /** サーバー権威タイマー（省略時は自動交代をスケジュールしない＝テスト用） */
   scheduler?: Scheduler | undefined;
-  /** お題代表生成（省略時は problem.request/submit を受け付けない） */
-  delegator?: ProblemDelegator | undefined;
   /**
    * サーバー全体のルーム数上限（DoS 緩和用）。**名簿の件数を数えるので timer と poker で
    * 共通の枠である**（#95 S4a）。
@@ -135,10 +127,8 @@ export interface HandlerDeps {
    *   （timer ↔ poker）だけが構造から出て、テストが受け持つようになった** ——
    *   実 WS で 3 経路をまたぐ `test/live-ws.rate-limit.test.ts` の「1 IP 1 バケツ」である
    * - **ゲートは `makeHandlers` がそのバケツを 1 度だけ包む**（下の `rateLimitGate`）。
-   *   したがって **`room.join` と `ai.unlock` が同じバケツを見ることは、いまも
-   *   構造が保証している**（同じゲートのインスタンスを両ハンドラへ渡している）。
-   *   `test/join-rate-limit.test.ts` の「room.join と ai.unlock のレート制限バケツの共有」は
-   *   その構造を裏から確かめるもので、構造の**代わり**ではない
+   *   **入室と合言葉の照合を行う入口は、すべてこの 1 個のゲートを通す**
+   *   （返り値の `rateLimitGate` を配線がほかの入口へ渡す）
    *
    * **必須にしてある**（理由は {@link HandlerDeps.tokens} と同じ）。
    * 既定を持たせると、注入を忘れた瞬間に 1 IP あたりの実効予算が黙って 2 倍になる。
@@ -152,9 +142,6 @@ export interface HandlerDeps {
    * 誰も気づかない。
    */
   hub: HubBroadcaster;
-  /** AI 解錠合言葉。undefined なら AI 機能は無効（解錠は常に失敗＝存在秘匿）。
-   *  createSyncServer はトークン未設定時にもここを undefined にする。 */
-  aiUnlockKey?: string | undefined;
   /**
    * ルームごと破棄する経路（Issue #79）。在室者が 0 人になる退出で使う。
    *
@@ -228,8 +215,7 @@ export interface HandlerDeps {
 export type CommandResult = Result<CreateResult | JoinResult | undefined, ErrorCode>;
 
 export function makeHandlers(deps: HandlerDeps) {
-  const { store, timers, clock, broadcaster, codeGen, scheduler, delegator, maxRooms, topicBroadcaster } = deps;
-  const aiUnlockKey = deps.aiUnlockKey;
+  const { store, timers, clock, broadcaster, codeGen, scheduler, maxRooms, topicBroadcaster } = deps;
 
   // トークン保持（リジュームトークン・ルームパスフレーズ）は
   // `token-store.ts` の `createTokenStore()` へ切り出した（フェーズ2・純粋な移動）。
@@ -244,13 +230,12 @@ export function makeHandlers(deps: HandlerDeps) {
   // **数える単位は接続ではなくクライアント（IP の HMAC）である**（#103・ADR 0011 S1）。
   // 接続単位だと再接続で窓がリセットされ、総当たりを止められなかった。
   //
-  // ★ room.join と ai.unlock は「総当たりの緩和」という同じ目的のため、
-  // 同一インスタンスのバケツを共有する。**この共有はいまも構造の帰結である** ——
-  // ゲートをここで 1 度だけ包み、その 1 個を `handleRoomJoin` と `handleAiUnlock` の
-  // 両方へ渡しているので、片方だけ別のバケツを見る書き方ができない。
-  // コマンドごとに `createRateLimitGate` を呼ぶ形へ崩すと、ai.unlock の総当たり対策が
-  // 黙って弱まる。（裏取りは `test/join-rate-limit.test.ts` の
-  // 「room.join と ai.unlock のレート制限バケツの共有」。構造の代わりではなく裏付けである。）
+  // ★ **入室と合言葉の照合を行う入口は、すべてこのゲートを通す。** どれも
+  // 「総当たりの緩和」という同じ目的なので、同じバケツを見ていなければならない。
+  // ゲートはここで 1 度だけ包み、その 1 個を `handleRoomJoin` へ渡し、返り値の
+  // `rateLimitGate` として配線（`create-sync-server.ts`）がほかの入口へ渡す。
+  // 入口ごとに `createRateLimitGate` を呼ぶ形へ崩すと、`connId → クライアント鍵` の
+  // 対応が空のゲートができ、その入口の総当たり対策が黙って弱まる。
   //
   // ⚠ **#95 S4a で構造から出たのは「どのバケツか」だけである。** バケツそのものの生成は
   // 配線（`create-sync-server.ts`）へ移り、poker の入口とも同じ 1 本になった
@@ -316,9 +301,8 @@ export function makeHandlers(deps: HandlerDeps) {
    * **両方**書くので、両方を変えるコマンドはここを通す。片方しか変えない経路が別にある ——
    *
    * - `application/presence.ts`（`handlePing` / `handleDisconnect`）…… 名簿だけ
-   * - `application/problem-delegation.ts`（`finalize`）…… timer の状態だけ（`timers.put`）
    *
-   * **ここを「1 箇所」と書くと、次に presence か delegation を触る人は `commit` を探さず、
+   * **ここを「1 箇所」と書くと、次に presence を触る人は `commit` を探さず、
    * その場で 2 行書き足す。** 足すなら DTO を通すことだけは外さないこと。
    *
    * **名簿を書くときは `saveRoster` を通す**（#95 S5a）。素の `store.put` を書くと
@@ -430,7 +414,6 @@ export function makeHandlers(deps: HandlerDeps) {
     codeGen,
     tokenStore,
     maxRooms,
-    delegator,
     sendError,
     topicBroadcaster,
   });
@@ -444,7 +427,6 @@ export function makeHandlers(deps: HandlerDeps) {
     codeGen,
     tokenStore,
     rateLimitGate,
-    delegator,
     sendError,
     topicBroadcaster,
   });
@@ -503,39 +485,6 @@ export function makeHandlers(deps: HandlerDeps) {
         connId,
         { state, actor: participant },
         cmd as { command: "room.passphrase.set"; passphrase: string },
-      );
-    }
-
-    // ai.unlock も decide/evolve を通らない Room レベルの専用処理（フェーズ7合流）。
-    if (cmd.command === "ai.unlock") {
-      return handleAiUnlock(
-        connId,
-        { state, actor: participant },
-        cmd as { command: "ai.unlock"; key: string },
-      );
-    }
-
-    // problem.request/problem.submit も decide/evolve を通らない Room レベルの
-    // 専用処理（フェーズ7合流）。旧 requireEditor（在室確認・アクター解決・
-    // 可否判定を束ねたヘルパ）は、その3つを共通パイプラインが既に済ませたため
-    // 不要になり撤去した。可否判定はさらに #95 S3 で概念ごと消えている。
-    if (cmd.command === "problem.request") {
-      return handleProblemRequest(
-        connId,
-        { state, actor: participant },
-        cmd as { command: "problem.request"; requestId: string },
-      );
-    }
-    if (cmd.command === "problem.submit") {
-      return handleProblemSubmit(
-        connId,
-        { state, actor: participant },
-        cmd as {
-          command: "problem.submit";
-          requestId: string;
-          problem: Problem;
-          usedFallback: boolean;
-        },
       );
     }
 
@@ -652,9 +601,6 @@ export function makeHandlers(deps: HandlerDeps) {
     }
 
     const now = clock.now();
-    // 設定変更でお題を作り直すかを決めるための「変更前」（#271）。`applyEvents` を
-    // 通した後では取れないので、ここで控える。
-    const configBefore = state.timer.config;
     const agg = { session: state.timer.session, clock: state.timer.clock };
     const result = decide(domainCmd, agg, now);
 
@@ -672,7 +618,7 @@ export function makeHandlers(deps: HandlerDeps) {
     }
 
     // 集約の反映 → Room レベルイベントの適用（順序は applyEvents が保証する・FR-103）。
-    // PhaseSet/ProblemSet/ConfigSet/SessionCompleted 等はルームレベルで処理される。
+    // PhaseSet/ConfigSet/SessionCompleted 等はルームレベルで処理される。
     state = applyEvents(state, newAgg, result.value, now);
 
     // 現ドライバーが driver.skip で ineligible になり、かつ稼働中なら即座に次の eligible へ
@@ -716,39 +662,6 @@ export function makeHandlers(deps: HandlerDeps) {
     // clock 状態が変わった可能性があるので自動交代を調停する（FR-003）
     reconcileSchedule(state.timer);
 
-    // **ロビーでお題を使うルームには、お題がある**（#271）。
-    //
-    // かつてはクライアントの「代表」（輪の先頭）がこの 2 つを送っていた。
-    // 先頭が timer に居ないと誰も送らず、**お題が永久に出ない**か、
-    // **バッジだけが新しい難易度になり中身は古いまま**になっていた。
-    //
-    // **引き金を並べずに、commit のたびに不変条件を見る。** 引き金の列挙は
-    // 必ず取りこぼす —— 実際に「お題なし → お題あり」は、難易度の変更だけを
-    // 見ていたときに漏れていた。
-    // **作り直すのは、お題の中身を決める入力が変わったときだけである。**
-    // `pickFallback` と `ServerProblemProvider` が受け取るのは language と difficulty の
-    // 2 つだけなので、この 2 つが変わったお題は古い。
-    //
-    // ⚠ **ここに引き金を足す前に `regenerateLobbyProblem` の代償を見ること。**
-    // あれは `problem !== null` も `isRequesting` も見ずに張り直すので、呼べば
-    // **利用者が手編集した／貼り付けたお題を捨てる**。AI 解錠ルームでは日次枠を
-    // 1 消費し、クールダウン中なら定型へ格下げされる（`ai-limits.ts`・#283 の 3 点目）。
-    // 「載っているお題が古いかどうか」を安全に判定するには、お題自身に
-    // **どの設定のために作られたか**を持たせるしかない。**#283 はここに手を付けて
-    // いない** —— あちらが足した `Room.problemGeneration` は「いま作り直しているか」
-    // という生成側の状態で、お題の来歴ではない。それが無いまま引き金を並べると、古さを直すたびに
-    // **正当なお題を巻き添えにする**。実際に `problemEnabled` の off → on を
-    // 足して踏んだ（取り下げ済み。残存は `docs/timer/ARCHITECTURE.md` に記録）。
-    if (
-      state.timer.config.language !== configBefore.language ||
-      state.timer.config.difficulty !== configBefore.difficulty
-    ) {
-      // 設定が変わったなら、走っている委譲を畳んで選び直す（リロールと同じ・FR-027）。
-      regenerateLobbyProblem(delegator, state.timer, now);
-    } else {
-      fillLobbyProblem(delegator, state.timer, now);
-    }
-
     // セッションを畳む操作は在室者なら誰でも実行できる（#95 S3）。
     // 誰が実行したか分からないと画面が突然変わった理由を追えないため全員へ伝える（FR-077）。
     const noticeAction = SESSION_NOTICE_ACTIONS[domainCmd.command];
@@ -767,8 +680,7 @@ export function makeHandlers(deps: HandlerDeps) {
 
   // ─── 専用ハンドラの合成（フェーズ7・パイプライン統合済み）───────────────────
   //
-  // room.passphrase.set/ai.unlock/problem.request/problem.submit は、いずれも
-  // handleCommand の switch から専用ケースを削除し、default（handleRoomCommand・
+  // room.passphrase.set は handleCommand の switch から専用ケースを削除し、default（handleRoomCommand・
   // 共通パイプライン）経由へ合流させた。在室確認とアクター解決は handleRoomCommand
   // 側で1度だけ行い、その結果（{ room, actor }）を各ハンドラへ ctx として渡す。
   // 各ハンドラはドメイン処理のみを持つ関数へ縮退済み（FR-152〜154）。
@@ -776,23 +688,6 @@ export function makeHandlers(deps: HandlerDeps) {
   const handleRoomPassphraseSet = createRoomPassphraseSetHandler({
     commit,
     tokenStore,
-  });
-
-  const handleAiUnlock = createAiUnlockHandler({
-    commit,
-    rateLimitGate,
-    aiUnlockKey,
-    sendError,
-  });
-
-  const handleProblemRequest = createProblemRequestHandler({
-    delegator,
-    sendError,
-  });
-
-  const handleProblemSubmit = createProblemSubmitHandler({
-    delegator,
-    sendError,
   });
 
   /** connId からルームの状態一式を特定する（参加者として在室しているルーム） */
