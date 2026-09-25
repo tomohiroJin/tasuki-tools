@@ -39,6 +39,7 @@ import { createRateLimitGate } from "./rate-limit-gate.js";
 import { saveRoster } from "./save-roster.js";
 import type { HubBroadcaster } from "../ports/hub-broadcaster.js";
 import type { TopicBroadcaster } from "./topic-broadcast.js";
+import type { TopicStore } from "../ports/topic-store.js";
 import type { TokenStore } from "./token-store.js";
 import { applyEvents, type RoomState } from "./apply-room-level-event.js";
 import {
@@ -198,6 +199,11 @@ export interface HandlerDeps {
    * お題ツールでは正しく出るので誰も気づかない。
    */
   topicBroadcaster: Pick<TopicBroadcaster, "sendCurrent">;
+  /**
+   * お題の状態の保管（#91）。**完成記録にタイトルを写すためだけに読む**（spec T9）。
+   * timer の文脈はお題を変えない（T4）ので `get` だけに絞る。
+   */
+  topics: Pick<TopicStore, "get">;
 }
 
 // `CreateResult`/`JoinResult`（`room.create`/`room.join` が呼び出し元へ返す値）の
@@ -622,6 +628,11 @@ export function makeHandlers(deps: HandlerDeps) {
         return err("DRIVER_ASSIGN_OFFLINE");
       }
       domainCmd.index = index;
+    }
+    // 完成記録に写すお題のタイトル（#91・spec T9）。**完了した時点**の保管から引く。
+    // wire では受け取らない —— 利用者が好きなタイトルを記録へ差し込めてしまう。
+    if (domainCmd && domainCmd.command === "session.complete") {
+      domainCmd.topicTitle = deps.topics.get(state.timer.code)?.topic?.title ?? null;
     }
     // 代理参加者の participantId は client 供給（信頼境界外）。既存参加者との衝突で
     // participantId 突合（skip/rename 等）が誤動作するのを防ぐため、サーバーで一意に再生成する。

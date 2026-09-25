@@ -27,7 +27,7 @@ describe("decide: session.abort", () => {
   it("SessionAborted は SessionCompleted とは異なるイベント型である", () => {
     // Given
     const abortResult = decide({ command: "session.abort" }, baseAgg, NOW);
-    const completeResult = decide({ command: "session.complete" }, baseAgg, NOW);
+    const completeResult = decide({ command: "session.complete", topicTitle: null }, baseAgg, NOW);
     // When
     const abortEvents = abortResult._unsafeUnwrap();
     const completeEvents = completeResult._unsafeUnwrap();
@@ -42,8 +42,31 @@ describe("decide: session.abort", () => {
 
 describe("decide: session.complete（回帰テスト）", () => {
   it("session.complete は SessionCompleted イベントを発行し変わらない", () => {
-    const result = decide({ command: "session.complete" }, baseAgg, NOW);
+    const result = decide({ command: "session.complete", topicTitle: null }, baseAgg, NOW);
     expect(result._unsafeUnwrap()[0]?.type).toBe("SessionCompleted");
+  });
+});
+
+/**
+ * @requirements #91 E17（完了の時点のお題のタイトルをイベントが運ぶ）
+ */
+describe("decide: session.complete がお題のタイトルを運ぶ", () => {
+  it("Given お題のタイトル / When session.complete / Then SessionCompleted がタイトルを運ぶ", () => {
+    // Given
+    const command = { command: "session.complete", topicTitle: "FizzBuzz" } as const;
+    // When
+    const result = decide(command, baseAgg, NOW);
+    // Then
+    expect(result._unsafeUnwrap()).toEqual([{ type: "SessionCompleted", now: NOW, topicTitle: "FizzBuzz" }]);
+  });
+
+  it("Given お題なし / When session.complete / Then SessionCompleted は null を運ぶ", () => {
+    // Given
+    const command = { command: "session.complete", topicTitle: null } as const;
+    // When
+    const result = decide(command, baseAgg, NOW);
+    // Then
+    expect(result._unsafeUnwrap()).toEqual([{ type: "SessionCompleted", now: NOW, topicTitle: null }]);
   });
 });
 

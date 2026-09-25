@@ -362,9 +362,9 @@ const SessionStateSchema = v.object({
 const CompletionRecordSchema = v.object({
   id: nonEmptyString,
   roomId: v.optional(v.string()),
-  problemTitle: nonEmptyString,
-  language: nonEmptyString,
-  difficulty: nonEmptyString,
+  // お題なしで完了した記録は null（#91・spec T9）。**`nonEmptyString` にしない** ——
+  // 1 件の値で snapshot 全体が落ちる型の欠陥は #276 D2 で直している。
+  topicTitle: v.nullable(v.string()),
   elapsedSeconds: v.pipe(v.number(), v.minValue(0)),
   members: v.array(nonEmptyString),
   totalSwitches: v.pipe(v.number(), v.integer(), v.minValue(0)),

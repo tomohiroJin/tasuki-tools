@@ -299,6 +299,8 @@ export function createSyncServer(config: SyncConfig): SyncServer {
       pokerHandlers.handleParticipantRemoved(roomCode, participantId),
     // お題の状態を参加・作成した本人へ 1 通送る（#91・E4）。配信先はルームの全接続。
     topicBroadcaster,
+    // 完成記録にお題のタイトルを写すために読む（#91・spec T9）。お題の配信・破棄と同じ 1 個。
+    topics,
   });
   const presenceManager = new PresenceManager({
     store,

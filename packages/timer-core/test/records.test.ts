@@ -7,15 +7,9 @@ import { describe, it, expect } from "vitest";
 import { buildCompletionRecord } from "../src/records.js";
 import { elapsedMs } from "../src/aggregate.js";
 import { evolve } from "../src/evolve.js";
-import type { TimerConfig, Problem, Aggregate } from "../src/aggregate.js";
+import type { Aggregate } from "../src/aggregate.js";
 import type { DomainEvent } from "../src/events.js";
 import { anAggregate } from "./support/aggregate-builder.js";
-
-const baseConfig: TimerConfig = {
-  language: "TypeScript",
-  difficulty: "easy",
-  intervalMinutes: 5,
-};
 
 /**
  * ローテーション順の表示名。#95 S4a で `config.members` が消えたため、
@@ -23,13 +17,8 @@ const baseConfig: TimerConfig = {
  */
 const memberNames = ["Alice", "Bob", "Charlie"];
 
-const problem: Problem = {
-  title: "FizzBuzz",
-  description: "実装してください",
-  requirements: ["3の倍数はFizz", "5の倍数はBuzz"],
-  exampleTest: "expect(fizzBuzz(3)).toBe('Fizz')",
-  hints: [],
-};
+/** 完了した時点で掲げていたお題のタイトル（#91・同期サーバーのアプリ層が値として渡す）。 */
+const topicTitle = "FizzBuzz";
 
 describe("buildCompletionRecord", () => {
   it("必要なフィールドが全て含まれる", () => {
@@ -37,11 +26,9 @@ describe("buildCompletionRecord", () => {
     const agg = anAggregate().build();
     const completedAt = 1000000 + 300000;
     // When
-    const record = buildCompletionRecord(agg, problem, baseConfig, memberNames, completedAt);
+    const record = buildCompletionRecord(agg, topicTitle, memberNames, completedAt);
     // Then
-    expect(record.problemTitle).toBe(problem.title);
-    expect(record.language).toBe(baseConfig.language);
-    expect(record.difficulty).toBe(baseConfig.difficulty);
+    expect(record.topicTitle).toBe(topicTitle);
     expect(record.members).toEqual(memberNames);
     expect(record.completedAt).toBe(completedAt);
     expect(record.id).toBeTruthy();
@@ -62,7 +49,7 @@ describe("buildCompletionRecord", () => {
     const completeTime = resumeTime + 40000;
     // When
     const totalElapsed = elapsedMs(agg.clock, completeTime);
-    const record = buildCompletionRecord(agg, problem, baseConfig, memberNames, completeTime);
+    const record = buildCompletionRecord(agg, topicTitle, memberNames, completeTime);
     // Then（60秒 + 40秒 = 100秒。停止30秒は含まない）
     expect(totalElapsed).toBe(100000);
     expect(record.elapsedSeconds).toBe(100); // ms → seconds
@@ -84,7 +71,7 @@ describe("buildCompletionRecord", () => {
       startTime + 20000,
     );
     // When
-    const record = buildCompletionRecord(agg, problem, baseConfig, memberNames, startTime + 20000);
+    const record = buildCompletionRecord(agg, topicTitle, memberNames, startTime + 20000);
     // Then
     expect(record.totalSwitches).toBe(2);
   });
@@ -93,8 +80,8 @@ describe("buildCompletionRecord", () => {
     // Given
     const agg = anAggregate().build();
     // When
-    const r1 = buildCompletionRecord(agg, problem, baseConfig, memberNames, 1000000);
-    const r2 = buildCompletionRecord(agg, problem, baseConfig, memberNames, 1000001);
+    const r1 = buildCompletionRecord(agg, topicTitle, memberNames, 1000000);
+    const r2 = buildCompletionRecord(agg, topicTitle, memberNames, 1000001);
     // Then
     expect(r1.id).not.toBe(r2.id);
   });
@@ -104,7 +91,7 @@ describe("buildCompletionRecord", () => {
  * @requirements T008
  */
 describe("中断（SessionAborted）の記録扱い", () => {
-  it("SessionAborted イベント自体には CompletionRecord に必要な problemTitle / members が存在しない", () => {
+  it("SessionAborted イベント自体には CompletionRecord に必要な topicTitle / members が存在しない", () => {
     // Given（実際の「保存を呼ばない」制御は handlers/App.tsx 層で行う。ここではドメインイベント型の設計確認）
     const rawEvent = { type: "SessionAborted", now: 1000000 } as const;
     // When（rawEvent が SessionAborted 型として受理されることを確認する）
@@ -113,7 +100,7 @@ describe("中断（SessionAborted）の記録扱い", () => {
     const abortedEvent: Extract<DomainEvent, { type: "SessionAborted" }> = rawEvent;
     // Then
     expect(abortedEvent.type).toBe("SessionAborted");
-    expect("problemTitle" in abortedEvent).toBe(false);
+    expect("topicTitle" in abortedEvent).toBe(false);
     expect("members" in abortedEvent).toBe(false);
   });
 
@@ -121,26 +108,43 @@ describe("中断（SessionAborted）の記録扱い", () => {
     // Given（完成時のみ記録を生成することを確認する。abort とは対照的）
     const agg = anAggregate().build();
     // When
-    const record = buildCompletionRecord(agg, problem, baseConfig, memberNames, 1000000);
+    const record = buildCompletionRecord(agg, topicTitle, memberNames, 1000000);
     // Then
-    expect(record.problemTitle).toBe(problem.title);
+    expect(record.topicTitle).toBe(topicTitle);
     expect(record.completedAt).toBe(1000000);
+  });
+});
+
+/**
+ * @requirements #91 E17（お題の有無にかかわらず記録を作り、お題があればタイトルを写す）
+ */
+describe("完成記録にお題のタイトルを写す", () => {
+  it("Given お題のタイトル / When 記録を作る / Then topicTitle に写り、言語と難易度は持たない", () => {
+    // Given
+    const agg = anAggregate().build();
+    // When
+    const record = buildCompletionRecord(agg, "FizzBuzz", ["あや"], 1_000);
+    // Then
+    expect(record.topicTitle).toBe("FizzBuzz");
+    expect(record).not.toHaveProperty("language");
+    expect(record).not.toHaveProperty("difficulty");
+    expect(record).not.toHaveProperty("problemTitle");
+  });
+
+  it("Given お題なし / When 記録を作る / Then topicTitle は null で記録はできる", () => {
+    expect(buildCompletionRecord(anAggregate().build(), null, ["あや"], 1_000).topicTitle).toBeNull();
   });
 });
 
 // ─── buildCompletionRecord: 周回数とドライバー回数（coverage-supplement.test.ts より移動・T036） ──
 
 describe("buildCompletionRecord: 周回数とドライバー回数", () => {
-  const shortProblem: Problem = {
-    title: "T", description: "d", requirements: [], exampleTest: "", hints: [],
-  };
-
   it("rotation 長で割った周回数を記録する", () => {
     // Given
     let agg = anAggregate().build();
     agg = { ...agg, session: { ...agg.session, totalSwitches: 6, driverCounts: [2, 2, 2] } };
     // When
-    const rec = buildCompletionRecord(agg, shortProblem, baseConfig, memberNames, 1000000);
+    const rec = buildCompletionRecord(agg, "T", memberNames, 1000000);
     // Then（6 / 3 = 2）
     expect(rec.rounds).toBe(2);
     expect(rec.driverCounts).toEqual([2, 2, 2]);
@@ -151,7 +155,7 @@ describe("buildCompletionRecord: 周回数とドライバー回数", () => {
     const agg = anAggregate().build();
     const roomId = "ROOM-1";
     // When
-    const rec = buildCompletionRecord(agg, shortProblem, baseConfig, memberNames, 1000000, roomId);
+    const rec = buildCompletionRecord(agg, "T", memberNames, 1000000, roomId);
     // Then
     expect(rec.roomId).toBe("ROOM-1");
   });
@@ -163,7 +167,7 @@ describe("buildCompletionRecord: 周回数とドライバー回数", () => {
       clock: { running: false, intervalSeconds: 300, anchorServerTime: 0, secondsLeftAtAnchor: 300, accumulatedElapsedMs: 0, runningSince: null },
     };
     // When
-    const rec = buildCompletionRecord(agg, shortProblem, baseConfig, memberNames, 1000000);
+    const rec = buildCompletionRecord(agg, "T", memberNames, 1000000);
     // Then
     expect(rec.rounds).toBe(0);
   });

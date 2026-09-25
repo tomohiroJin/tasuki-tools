@@ -28,7 +28,7 @@ type DecideCommand =
       // ための任意フィールド。省略時（既存呼び出し）は空集合扱いで従来通り隣を返す（後方互換）。
       ineligible?: ReadonlySet<number> | undefined;
     }
-  | { command: "session.complete" }
+  | { command: "session.complete"; topicTitle: string | null }
   | { command: "session.abort" }
   | { command: "session.reset"; config?: TimerConfig }
   | { command: "member.add"; participantId: string }
@@ -62,7 +62,7 @@ export function decide(
       return decideSessionAct(cmd.action, agg, now, cmd.ineligible);
 
     case "session.complete":
-      return ok([{ type: "SessionCompleted", now }]);
+      return ok([{ type: "SessionCompleted", now, topicTitle: cmd.topicTitle }]);
 
     case "session.abort":
       return ok([{ type: "SessionAborted", now }]);

@@ -232,8 +232,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
   // 局所のフラグにすると、降ろす契機を画面側で作らなければならず、内容差分にも
   // タイマーにも穴がある（`ui/problem-generation.ts` の注記）。
 
-  // 完成記録の二重保存を防ぐガード（celebration の snapshot が複数回来ても1回だけ保存）。
-  const recordSavedRef = useRef(false);
   // 参加直後の resumeToken を、次に来る snapshot（room.code を含む）と組み合わせて
   // 復帰の組を保存するための一時保持（Issue #24）。onIdentity では room.code が
   // まだ分からない（room.joined メッセージに code が含まれない）ため、onRoom まで持ち越す。
@@ -394,8 +392,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
     const intents = decideSnapshotIntents(prevRoom, r, {
       pendingResume: pendingResumeRef.current,
       resumeDisplayName: resumeDisplayNameRef.current,
-      recordSaved: recordSavedRef.current,
-      endType,
       now: Date.now(),
     });
 
@@ -406,18 +402,21 @@ export function useTimerSync(banner: BannerController): TimerSync {
           pendingResumeRef.current = null;
           break;
         case "clear-completion":
-          // 完了から抜けた。前のセッションの記録・終了種別・保存済みの印を畳む
+          // 完了から抜けた。前のセッションの記録・終了種別を畳む
           // （#95 S5c・レビュー ②）。**押した人の端末だけでなく全端末で降りる。**
-          recordSavedRef.current = false;
           setRecord(null);
           setEndType("complete");
           break;
         case "set-screen":
           setMode(intent.screen);
           break;
+        case "set-end":
+          // 終わり方は snapshot が決める（#91 PR 3）。押した本人も、押していない端末も同じ値になる。
+          setEndType(intent.endType);
+          break;
         case "persist-completion":
-          recordSavedRef.current = true;
-          setRecord((prev) => prev ?? intent.record);
+          // 完了へ入った瞬間にだけ届く（`snapshot-intents.ts` の手順 4）ので、二重保存を防ぐ印は要らない。
+          setRecord(intent.record);
           // 完成記録を端末ローカルに自動保存（押し忘れ防止・FR-020「達成を記録」）。
           persistRecordIfComplete("complete", intent.record, saveRecord).catch((e) =>
             console.error("完成記録の保存に失敗しました:", e), // log-hygiene:allow ブラウザの devtools 向け
@@ -511,7 +510,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
         roomCodeRef.current = null;
         setClient(null);
         setParticipantId("");
-        recordSavedRef.current = false;
         setSessionLost(false);
         setRecord(null);
         // 捨てた同期フレームの警告もルーム由来なので畳む（#209）。
@@ -737,17 +735,15 @@ export function useTimerSync(banner: BannerController): TimerSync {
   };
 
   const complete = () => {
-    setEndType("complete");
-    // サーバーへ完成を通知。画面遷移と記録生成・保存は snapshot 受信（onRoom の celebration
-    // 処理）で全参加者一斉に行う。押した人だけ先行しない。
+    // サーバーへ完成を通知。画面遷移・終わり方・記録の保存は snapshot 受信（onRoom の
+    // celebration 処理）で全参加者一斉に行う。押した人だけ先行しない。
+    // **終わり方をここで変えない**（#91 PR 3）—— 押した本人だけ先に変えると、押していない端末と食い違う。
     commands.completeSession();
   };
 
   /** 途中で終える（中断）。完成と異なり記録は残さない（FR-020）。
-   *  画面遷移は snapshot（celebration）受信で全員一斉。 */
+   *  画面遷移と終わり方は snapshot（celebration）受信で全員一斉（#91 PR 3）。 */
   const abort = () => {
-    setEndType("abort");
-    setRecord(null);
     commands.abortSession();
   };
 

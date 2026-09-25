@@ -192,9 +192,9 @@ export function corruptSnapshotFrame(payload: string): string {
       sessionRecords: [
         {
           id: 'rec-corrupt',
-          problemTitle: 'FizzBuzz',
-          language: 'TypeScript',
-          difficulty: 'easy',
+          // 題名はいまの形（#91 PR 3）。**壊しているのは下の `members: ['']` だけ**で、
+          // 旧い形の題名を残すと、壊し方と無関係な理由（配布中の窓 2 と同じ形の不一致）で落ちる。
+          topicTitle: 'FizzBuzz',
           elapsedSeconds: 1,
           members: [''],
           totalSwitches: 0,

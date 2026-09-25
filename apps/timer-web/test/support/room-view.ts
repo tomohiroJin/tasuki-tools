@@ -13,7 +13,7 @@
  * @requirements FR-096, FR-097, FR-118, US2
  */
 
-import type { Participant, Room, Seat, ServerClock, SessionConfig } from "@tasuki/timer-core";
+import type { CompletionRecord, Participant, Room, Seat, ServerClock, SessionConfig } from "@tasuki/timer-core";
 
 // SessionState は T057 で自ファイル内専用の内部型として export を外した（FR-119③・SC-039）。
 // 公開されている Room 型から同じ形を導出する（インデックスアクセス型）。verification 内容は変えない。
@@ -98,13 +98,32 @@ function defaultParticipants(): Participant[] {
 export function aRecordWithUnresolvableName(): Record<string, unknown> {
   return {
     id: "rec-1",
-    problemTitle: "FizzBuzz",
-    language: "TypeScript",
-    difficulty: "easy",
+    topicTitle: "FizzBuzz",
     elapsedSeconds: 300,
     members: [""],
     totalSwitches: 2,
     completedAt: 1_000_000,
+  };
+}
+
+/**
+ * サーバーが作った完成記録（#91 PR 3 の形）。渡した項目だけが変わる。
+ *
+ * 端末は記録を組み立てず、snapshot の `sessionRecords` に増えた 1 件をそのまま保存する
+ * （`src/sync/snapshot-intents.ts`）。その「増えた 1 件」を作るための造作である。
+ */
+export function aRecord(overrides: Partial<CompletionRecord> = {}): CompletionRecord {
+  return {
+    id: "rec-1",
+    roomId: "TEST01",
+    topicTitle: "FizzBuzz",
+    elapsedSeconds: 300,
+    members: ["Creator"],
+    totalSwitches: 2,
+    completedAt: 1_000_000,
+    driverCounts: [2],
+    rounds: 2,
+    ...overrides,
   };
 }
 

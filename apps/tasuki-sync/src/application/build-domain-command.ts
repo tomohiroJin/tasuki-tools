@@ -29,7 +29,8 @@ export function buildDomainCommand(cmd: { command: string; [key: string]: unknow
       };
     }
     case "session.complete":
-      return { command: "session.complete" as const };
+      // タイトルは handleRoomCommand が保管から埋める。wire からは受け取らない（#91・spec T9）。
+      return { command: "session.complete" as const, topicTitle: null as string | null };
     case "session.reset":
       return { command: "session.reset" as const };
     case "config.set": {

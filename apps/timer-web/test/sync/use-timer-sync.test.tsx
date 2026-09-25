@@ -108,9 +108,7 @@ function enterRoom(
 /** テスト用の完成記録（永続化ポリシーの判断には使わないので中身は任意）。 */
 const A_RECORD: CompletionRecord = {
   id: "rec-1",
-  problemTitle: "FizzBuzz",
-  language: "TypeScript",
-  difficulty: "easy",
+  topicTitle: "FizzBuzz",
   elapsedSeconds: 300,
   members: ["Creator"],
   totalSwitches: 0,

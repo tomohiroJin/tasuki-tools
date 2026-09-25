@@ -361,6 +361,54 @@ describe("RoomSchema の seats / nextIndex（#276 D7）", () => {
 });
 
 /**
+ * 完成記録の形（#91・spec T9 / §6）。
+ *
+ * `topicTitle` は `nonEmptyString` にしない —— お題なしで完了した記録は `null` を持ち、
+ * 1 件の値で snapshot 全体が落ちる型の欠陥は #276 D2 で直している。
+ *
+ * 旧い形（`problemTitle` だけ）が**落ちる**ことも固定する。配布中の窓 2（新しい timer の web ×
+ * 旧い同期サーバー）で、完成記録を持つルームの snapshot は丸ごと検証に落ちる —— spec §6 が
+ * 受容した窓の実在を、ここが契約として持つ。
+ *
+ * @requirements #91 E17
+ */
+describe("RoomSchema: 完成記録はお題のタイトルを持つ", () => {
+  /** 完成記録の最小の新しい形。 */
+  function aRecord(overrides: Record<string, unknown> = {}) {
+    return {
+      id: "r1",
+      topicTitle: "FizzBuzz" as string | null,
+      elapsedSeconds: 60,
+      members: ["アリス"],
+      totalSwitches: 1,
+      completedAt: 1,
+      ...overrides,
+    };
+  }
+
+  it("Given topicTitle が null の記録を持つ snapshot / When 検証する / Then 通る", () => {
+    // Given
+    const room = { ...validRoom(), sessionRecords: [aRecord({ topicTitle: null })] };
+    // When
+    const parsed = v.safeParse(RoomSchema, room);
+    // Then
+    expect(parsed.success).toBe(true);
+    if (parsed.success) expect(parsed.output.sessionRecords[0]?.topicTitle).toBeNull();
+  });
+
+  it("Given 旧い形（problemTitle だけ）の記録を持つ snapshot / When 検証する / Then 落ちる", () => {
+    // Given: 旧い同期サーバーが送る形（配布中の窓 2）
+    const { topicTitle: _dropped, ...withoutTopic } = aRecord();
+    const legacy = { ...withoutTopic, problemTitle: "FizzBuzz", language: "TypeScript", difficulty: "easy" };
+    const room = { ...validRoom(), sessionRecords: [legacy] };
+    // When
+    const parsed = v.safeParse(RoomSchema, room);
+    // Then
+    expect(parsed.success).toBe(false);
+  });
+});
+
+/**
  * お題の生成の状態（#283）。**任意項目である**ことがこの契約の要点である。
  *
  * `deploy.sh timer` は画面を先に配ってからサーバーを再起動するので、

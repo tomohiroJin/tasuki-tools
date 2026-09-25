@@ -121,6 +121,11 @@ interface BreakEnded {
 interface SessionCompleted {
   type: "SessionCompleted";
   now: number;
+  /**
+   * 完了した時点のお題のタイトル（お題なしなら null・#91）。
+   * アプリ層が値として渡す。timer-core は topic-core を知らない（spec T1・T9）。
+   */
+  topicTitle: string | null;
 }
 
 /**

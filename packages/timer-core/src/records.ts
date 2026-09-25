@@ -3,7 +3,7 @@
  * T021: FR-028
  */
 
-import type { CompletionRecord, Problem, ServerClock, TimerConfig } from "./aggregate.js";
+import type { CompletionRecord, ServerClock } from "./aggregate.js";
 import { elapsedMs } from "./aggregate.js";
 
 /** ランダムではなく単調増加 ID を生成する（テスト可能性のため now + counter） */
@@ -13,8 +13,9 @@ let counter = 0;
  * 完成記録の材料になる集約の断面。
  *
  * `rotation` は**長さしか見ない**ので要素の型を問わない。サーバー側の集約
- * （`RotationEntry[]`）と wire の投影（`string[]`・`apps/timer-web` が渡す）の
- * どちらでも受けるためである。ここを `Aggregate` で受けると wire 側が渡せない。
+ * （`RotationEntry[]`）と wire の投影（`string[]`）のどちらでも受けるためである。
+ * （#91 PR 3 より前は `apps/timer-web` も wire の投影を渡して端末で記録を組み立てていた。
+ * いまは端末はサーバーの記録をそのまま保存し、呼び出し元は同期サーバーだけである。）
  */
 interface RecordSource {
   session: {
@@ -31,8 +32,11 @@ interface RecordSource {
  */
 export function buildCompletionRecord(
   agg: RecordSource,
-  problem: Problem,
-  config: TimerConfig,
+  /**
+   * 完了した時点のお題のタイトル。お題なしなら null（#91・spec T9）。
+   * timer-core はお題の文脈を知らないので、呼び出し側（同期サーバーのアプリ層）が値として渡す。
+   */
+  topicTitle: string | null,
   /** ローテーション順の表示名。名簿は timer-core の外にあるので呼び出し側が解決して渡す（#95 D15） */
   memberNames: readonly string[],
   now: number,
@@ -44,9 +48,7 @@ export function buildCompletionRecord(
   return {
     id: generateId(now),
     ...(roomId !== undefined && { roomId }),
-    problemTitle: problem.title,
-    language: config.language,
-    difficulty: config.difficulty,
+    topicTitle,
     elapsedSeconds: Math.round(totalElapsedMs / 1000),
     members: [...memberNames],
     totalSwitches: agg.session.totalSwitches,

@@ -192,9 +192,11 @@ export interface TimerState {
 export interface CompletionRecord {
   id: string;
   roomId?: string;
-  problemTitle: string;
-  language: string;
-  difficulty: string;
+  /**
+   * 完了した時点で掲げていたお題のタイトル（#91・spec T9）。お題なしで完了したら null。
+   * **本文は持たない**（`sessionRecords` は件数の上限が無く、毎回の snapshot で配られる）。
+   */
+  topicTitle: string | null;
   elapsedSeconds: number;
   members: string[];
   totalSwitches: number;

@@ -367,6 +367,8 @@ export function makeTestHandlers(overrides?: TestHandlerOverrides): TestHandlers
     // **票の破棄も本番と同じ形で組む**（#95 S5b・R8）。同じ保管の上で票を落とす。
     discardPokerVote: overrides?.discardPokerVote ?? testVoteDiscarder(rounds),
     topicBroadcaster,
+    // 完成記録にお題のタイトルを写すための読み取り（#91・spec T9）。**同じ 1 個の保管**。
+    topics,
   });
   const presence = new PresenceManager({
     store,

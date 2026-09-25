@@ -11,7 +11,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { decideSnapshotIntents, type SnapshotContext } from "../../src/sync/snapshot-intents.js";
-import { aRoomView } from "../support/room-view.js";
+import { aRecord, aRoomView } from "../support/room-view.js";
 import type { Room } from "@tasuki/timer-core";
 
 /**
@@ -27,8 +27,6 @@ function baseCtx(overrides: Partial<SnapshotContext> = {}): SnapshotContext {
   return {
     pendingResume: null,
     resumeDisplayName: "",
-    recordSaved: false,
-    endType: "complete",
     now: 1_000,
     ...overrides,
   };
@@ -219,63 +217,58 @@ describe("decideSnapshotIntents: お題", () => {
   });
 });
 
-describe("decideSnapshotIntents: 完成記録", () => {
-  it("完成フェーズなら記録を作る", () => {
+/**
+ * @requirements #91 E17（端末はサーバーが作った記録をそのまま保存する）
+ */
+describe("完了の snapshot から終わり方と記録を決める", () => {
+  it("Given 記録が 1 件増えて完了へ入った / When 意図を決める / Then その記録を保存し、完成と出す", () => {
     // Given
-    const room = aRoomView({ code: "ROOM01", phase: "celebration", problem });
+    const record = aRecord({ id: "r1", topicTitle: null });
+    const prev = aRoomView({ phase: "session", sessionRecords: [] });
+    const next = aRoomView({ phase: "celebration", sessionRecords: [record] });
     // When
-    const intents = decideSnapshotIntents(null, room, baseCtx());
-    const persist = intents.find((i) => i.kind === "persist-completion");
+    const intents = decideSnapshotIntents(prev, next, baseCtx());
     // Then
-    expect(persist).toBeDefined();
+    expect(intents).toContainEqual({ kind: "persist-completion", record });
+    expect(intents).toContainEqual({ kind: "set-end", endType: "complete" });
   });
 
-  it("中断なら記録を作らない", () => {
-    const room = aRoomView({ phase: "celebration", problem });
-    expect(kinds(room, baseCtx({ endType: "abort" }))).not.toContain("persist-completion");
-  });
-
-  it("保存済みなら二度作らない", () => {
-    const room = aRoomView({ phase: "celebration", problem });
-    expect(kinds(room, baseCtx({ recordSaved: true }))).not.toContain("persist-completion");
-  });
-
-  it("お題が無ければ作らない", () => {
-    const room = aRoomView({ phase: "celebration", problem: null });
-    expect(kinds(room, baseCtx())).not.toContain("persist-completion");
-  });
-
-  it("記録に載る表示名は席から引く（名簿の並びには従わない）", () => {
-    // Given: 席の並びと表示名が、**名簿の並びと食い違う**ルーム。
-    // **食い違わせるのが要点である** —— 実物ではどちらも同じ名簿から組まれるため、
-    // 一致させた造作では「どこから引いたか」が区別できず、検査が恒真になる。
-    const room = aRoomView({
-      phase: "celebration",
-      problem,
-      session: {
-        rotation: ["p-bob", "p-aya"],
-        driverCounts: [2, 1],
-        seats: [
-          { id: "p-bob", displayName: "ボブ", isProxy: false, skipReason: null },
-          { id: "p-aya", displayName: "あや", isProxy: false, skipReason: null },
-        ],
-      },
-      // 名簿は席と**逆順**（`participants` から引く実装なら並びが入れ替わる）。
-      participants: [
-        { participantId: "p-aya", displayName: "あや", presence: "online", hasAiKey: false, joinedAt: 0 },
-        { participantId: "p-bob", displayName: "ボブ", presence: "online", hasAiKey: false, joinedAt: 0 },
-      ],
-    });
-
+  it("Given 記録が増えずに完了へ入った（別の人が中断した） / When 意図を決める / Then 保存せず、中断と出す", () => {
+    // Given: 押していない端末に届く中断の snapshot。**お題はある**（旧実装はお題があると
+    // この端末で記録を組み立てて保存していた）
+    const prev = aRoomView({ phase: "session", problem, sessionRecords: [aRecord({ id: "old" })] });
+    const next = aRoomView({ phase: "celebration", problem, sessionRecords: [aRecord({ id: "old" })] });
     // When
-    const intents = decideSnapshotIntents(null, room, baseCtx());
-    const persist = intents.find((i) => i.kind === "persist-completion");
+    const intents = decideSnapshotIntents(prev, next, baseCtx());
+    // Then
+    expect(intents.map((i) => i.kind)).not.toContain("persist-completion");
+    expect(intents).toContainEqual({ kind: "set-end", endType: "abort" });
+  });
 
-    // Then: 席と同じ順の表示名が載る（`driverCounts` と添字で対になる・`Summary.tsx`）
-    expect(persist?.kind === "persist-completion" ? persist.record.members : null).toEqual([
-      "ボブ",
-      "あや",
-    ]);
+  it("Given 前の snapshot を持たずに完了画面へ入った / When 意図を決める / Then 記録を保存せず、終わり方も決めない", () => {
+    // Given: 再読込・完了の後に入ってきた端末（比べる相手が無い）
+    const next = aRoomView({ phase: "celebration", problem, sessionRecords: [aRecord()] });
+    // When / Then: 立つのは画面追従だけ（並びごと見る）
+    expect(kinds(next, baseCtx(), null)).toEqual(["set-screen"]);
+  });
+
+  it("Given 完了画面のまま次の snapshot が届いた / When 意図を決める / Then もう一度は保存しない", () => {
+    // Given: 完了画面に居る間に、在席の変化などでもう 1 通届く
+    const prev = aRoomView({ phase: "celebration", sessionRecords: [aRecord()] });
+    const next = aRoomView({ phase: "celebration", sessionRecords: [aRecord()] });
+    // When / Then
+    expect(kinds(next, baseCtx(), prev)).toEqual(["set-screen"]);
+  });
+
+  it("Given 記録が複数増えて完了へ入った / When 意図を決める / Then 末尾の 1 件を保存する", () => {
+    // Given: 保存するのはサーバーが最後に足した 1 件（完了は 1 回につき 1 件しか足さない）
+    const prev = aRoomView({ phase: "session", sessionRecords: [aRecord({ id: "a" })] });
+    const latest = aRecord({ id: "b", topicTitle: "FizzBuzz" });
+    const next = aRoomView({ phase: "celebration", sessionRecords: [aRecord({ id: "a" }), latest] });
+    // When
+    const intents = decideSnapshotIntents(prev, next, baseCtx());
+    // Then
+    expect(intents).toContainEqual({ kind: "persist-completion", record: latest });
   });
 });
 
@@ -284,9 +277,10 @@ describe("decideSnapshotIntents: 順序（振る舞いそのもの）", () => {
     // Given
     const prev = aRoomView({
       code: "ROOM01",
-      phase: "ready",
+      phase: "session",
       problem,
       config: { difficulty: "easy" },
+      sessionRecords: [],
     });
     const next = aRoomView({
       code: "ROOM01",
@@ -294,6 +288,7 @@ describe("decideSnapshotIntents: 順序（振る舞いそのもの）", () => {
       problem: { ...problem, title: "新しいお題" },
       config: { difficulty: "hard" },
       session: { rotation: ["other"], currentIndex: 0 },
+      sessionRecords: [aRecord()],
     });
     const ctx = baseCtx({
       pendingResume: { participantId: SELF, resumeToken: "rt" },
@@ -303,6 +298,7 @@ describe("decideSnapshotIntents: 順序（振る舞いそのもの）", () => {
     expect(decideSnapshotIntents(prev, next, ctx).map((i) => i.kind)).toEqual([
       "save-resume",
       "set-screen",
+      "set-end",
       "persist-completion",
     ]);
     // 注: お題系の意図はもう無い（依頼も待ちの表示もサーバー側・#271 / #283）。

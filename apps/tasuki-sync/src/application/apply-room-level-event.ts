@@ -183,22 +183,17 @@ function applyRoomLevelEvent(
     case "SessionCompleted": {
       // 既に完成済みなら二重計上しない（complete の冪等性）
       if (room.phase === "celebration") return state;
-      // 完成フェーズへ遷移し、揮発な完成記録を追加（FR-028）
-      const next: TimerState = { ...room, phase: "celebration" };
-      if (room.problem) {
-        const agg = { session: room.session, clock: room.clock };
-        // 名簿は timer-core の外にあるので、表示名はここで解決して渡す（#95 D15）。
-        const record = buildCompletionRecord(
-          agg,
-          room.problem,
-          room.config,
-          rotationDisplayNames(state.membership, room),
-          event.now,
-          room.code,
-        );
-        next.sessionRecords = [...room.sessionRecords, record];
-      }
-      return withTimer(state, next);
+      // **お題の有無にかかわらず記録を作る**（#91・spec T9・E17）。お題なしが既定になったので、
+      // 「お題があるときだけ」を残すと大半のセッションで記録が消える（#273 の欠陥の拡大版）。
+      // 名簿は timer-core の外にあるので、表示名はここで解決して渡す（#95 D15）。
+      const record = buildCompletionRecord(
+        { session: room.session, clock: room.clock },
+        event.topicTitle,
+        rotationDisplayNames(state.membership, room),
+        event.now,
+        room.code,
+      );
+      return withTimer(state, { ...room, phase: "celebration", sessionRecords: [...room.sessionRecords, record] });
     }
     // ─── v2 イベント ──────────────────────────────────────────────────────
     case "SessionAborted":

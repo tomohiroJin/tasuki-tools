@@ -9,9 +9,7 @@ import type { CompletionRecord } from "@tasuki/timer-core";
 
 const rec: CompletionRecord = {
   id: "rec-1",
-  problemTitle: "FizzBuzz",
-  language: "TypeScript",
-  difficulty: "easy",
+  topicTitle: "FizzBuzz",
   elapsedSeconds: 300,
   members: ["Alice", "Bob"],
   totalSwitches: 2,

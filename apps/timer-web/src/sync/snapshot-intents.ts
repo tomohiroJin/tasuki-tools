@@ -16,22 +16,28 @@
  * 宣言を立てていたのは timer の旧入口（`Join`）だけで、#95 S5c（#249）の撤去で
  * 立てる者が居なくなった（名乗りは玄関に 1 つ）。
  *
+ * **完成記録は端末で組み立てない**（#91 PR 3）。サーバーが完了の時点で作った記録を
+ * snapshot の `sessionRecords` から取り、終わり方（完成／中断）も「記録が増えたか」で決める。
+ *
  * **現在時刻は ctx.now で注入する。** この module から `Date.now()` を呼ばない
  * （`docs/adr/0016`。#166 が timer-core の pickFallback に対して採った作法と同じ）。
  */
 
-import { buildCompletionRecord, type CompletionRecord, type Room } from "@tasuki/timer-core";
+import type { CompletionRecord, Room } from "@tasuki/timer-core";
 import { screenForPhase, type Screen } from "../ui/screen.js";
+import type { EndType } from "../ui/Summary.js";
 import type { ResumeIdentity } from "@tasuki/sync-client";
 
 export type SnapshotIntent =
   /** 復帰情報を保存する（room.code が分かるのは snapshot の時点だけ）。 */
   | { kind: "save-resume"; identity: ResumeIdentity }
-  /** 前のセッションの完了状態（記録・終了種別・保存済みの印）を畳む。 */
+  /** 前のセッションの完了状態（記録・終了種別）を畳む。 */
   | { kind: "clear-completion" }
   /** サーバー権威の phase に画面を追従させる。 */
   | { kind: "set-screen"; screen: Screen }
-  /** 完成記録を作って保存する。 */
+  /** 終わり方（完成／中断）を決める。snapshot から導く（#91 PR 3）。 */
+  | { kind: "set-end"; endType: EndType }
+  /** サーバーが作った完成記録を端末に保存する（組み立てはしない・#91 PR 3）。 */
   | { kind: "persist-completion"; record: CompletionRecord };
 
 export interface SnapshotContext {
@@ -39,11 +45,10 @@ export interface SnapshotContext {
   pendingResume: { participantId: string; resumeToken: string } | null;
   /** 参加時に名乗った表示名（resumeToken 再送の room.join に必要）。 */
   resumeDisplayName: string;
-  /** 完成記録を既に保存したか。 */
-  recordSaved: boolean;
-  /** 終了種別。中断のときは完成記録を作らない。 */
-  endType: "complete" | "abort";
-  /** 現在時刻。完成記録に使う。 */
+  /**
+   * 現在時刻。**いまこの関数の判断には効かない**（完成記録を端末で作らなくなった・#91 PR 3）。
+   * 時刻に依存する判断を足すときに `Date.now()` を直接呼ばないための注入口として残す（`docs/adr/0016`）。
+   */
   now: number;
 }
 
@@ -71,10 +76,10 @@ export function decideSnapshotIntents(
 
   // 2. 完了から抜けたら、前のセッションの完了状態を畳む（#95 S5c・レビュー ②）。
   //
-  //    **全端末で降ろす必要がある。** 押した人の操作の中だけで降ろすと、**押していない
-  //    端末は `recordSaved` が立ったまま**になり、2 本目の完成で自分の端末に記録が
-  //    保存されない（FR-020 の自動保存）。`record` も前回のままなので、2 本目の完了画面に
-  //    **1 本目の記録**が出る。
+  //    **全端末で降ろす必要がある。** 押した人の操作の中だけで降ろすと、押していない
+  //    端末の `record` が前回のままになり、2 本目の完了画面に **1 本目の記録**が出る。
+  //    （#91 PR 3 までは「保存済みの印」も畳んでいた。保存は完了へ入った瞬間にだけ
+  //    起きる形になり、印は要らなくなった。）
   //
   //    （かつて「新しいセッション」を押した人はそのまま玄関へ去る前提だったが、
   //    #290・D5 でルームが生きていれば全員が同じ snapshot でロビーへ戻るようになり、
@@ -106,25 +111,27 @@ export function decideSnapshotIntents(
   //    ここに待ちの表示を足す理由はもう無い —— 待ちを見せたいなら、それを知っている
   //    サーバー側（`ProblemDelegator`）が帳簿に書くこと。
 
-  // 4. 完成フェーズかつ「完成（中断でない）」のとき、各端末でローカル記録を生成する
-  //    （FR-020/028/059）。中断（abort）では記録を作らない。
-  if (next.phase === "celebration" && next.problem && ctx.endType !== "abort" && !ctx.recordSaved) {
-    intents.push({
-      kind: "persist-completion",
-      record: buildCompletionRecord(
-        { session: next.session, clock: next.clock },
-        next.problem,
-        next.config,
-        // 名簿は timer-core の外（#95 S4a・D15）なので、表示名は呼び出し側が渡す。
-        // **席から引く**（#294）—— 記録の `members` は `driverCounts` と添字で対に
-        // なっており（`ui/Summary.tsx`）、対応が付く並びは輪の順だけである。
-        // `session.seats` は輪と同じ順・同じ長さで、席ごとに識別子を持つ
-        // （かつてここが読んでいた `config.members` は添字でしか対応が付かなかった）。
-        next.session.seats.map((seat) => seat.displayName),
-        ctx.now,
-        next.code,
-      ),
-    });
+  // 4. 完了へ**入った瞬間**に、終わり方と記録を決める（#91 PR 3）。
+  //
+  //    **記録は端末で作らない。** サーバーが完了の時点で作った記録（お題のタイトルを写したもの・
+  //    spec T9）が `sessionRecords` に 1 件増えている。それをそのまま保存するので、タイトルは
+  //    必ずサーバーの写しと一致し、ID もサーバーのものになる（再読込で二重に保存しない）。
+  //
+  //    **終わり方も snapshot から導く。** 完成ならサーバーが記録を 1 件足し、中断なら足さない。
+  //    かつては押した人の端末だけが「中断」を知っており、押していない端末は中断でも記録を作っていた。
+  //
+  //    **前の snapshot が無い端末（再読込・完了の後に入ってきた人）は判定しない。** 増えたかどうかを
+  //    比べる相手が無い。記録も出さず、保存もしない（受容・spec §10）。
+  if (prev !== null && prev.phase !== "celebration" && next.phase === "celebration") {
+    const added = next.sessionRecords.length > prev.sessionRecords.length
+      ? next.sessionRecords[next.sessionRecords.length - 1]
+      : undefined;
+    if (added !== undefined) {
+      intents.push({ kind: "set-end", endType: "complete" });
+      intents.push({ kind: "persist-completion", record: added });
+    } else {
+      intents.push({ kind: "set-end", endType: "abort" });
+    }
   }
 
   return intents;

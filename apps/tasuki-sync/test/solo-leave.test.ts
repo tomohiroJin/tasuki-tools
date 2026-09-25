@@ -80,6 +80,8 @@ describe("ソロの部屋からの退出（Issue #79）", () => {
       discardPokerVote: testVoteDiscarder(rounds),
       // お題の配信はこのテストの対象外（timer の退出だけを見る）。
       topicBroadcaster: { sendCurrent: () => {} },
+      // 完成記録のタイトルの読み取り（#91）。このテストはお題を掲げない。
+      topics: { get: () => undefined },
     });
     destroyRoom = createRoomDestroyer({
       store,
@@ -189,6 +191,8 @@ describe("ソロの部屋からの退出（Issue #79）", () => {
       discardPokerVote: testVoteDiscarder(new InMemoryRoundStore()),
       // お題の配信はこのテストの対象外（後始末の呼び出し順序だけを見る）。
       topicBroadcaster: { sendCurrent: () => {} },
+      // 完成記録のタイトルの読み取り（#91）。このテストはお題を掲げない。
+      topics: { get: () => undefined },
     });
     const created = await spyHandlers.handleCommand(HOST, {
       command: "room.create", displayName: "Alice", config: soloConfig,
@@ -267,6 +271,8 @@ describe("ソロ以外は挙動が変わらない（Issue #79）", () => {
       discardPokerVote: testVoteDiscarder(rounds),
       // お題の配信はこのテストの対象外（timer の退出だけを見る）。
       topicBroadcaster: { sendCurrent: () => {} },
+      // 完成記録のタイトルの読み取り（#91）。このテストはお題を掲げない。
+      topics: { get: () => undefined },
     });
     destroyRoom = createRoomDestroyer({
       store,
@@ -405,6 +411,8 @@ describe("アイドル回収と在室者0人の退出は同じ後始末を通る
       discardPokerVote: testVoteDiscarder(new InMemoryRoundStore()),
       // お題の配信はこのテストの対象外（後始末の呼び出し順序だけを見る）。
       topicBroadcaster: { sendCurrent: () => {} },
+      // 完成記録のタイトルの読み取り（#91）。このテストはお題を掲げない。
+      topics: { get: () => undefined },
     });
     const reclaimer = new RoomReclaimer({
       store,

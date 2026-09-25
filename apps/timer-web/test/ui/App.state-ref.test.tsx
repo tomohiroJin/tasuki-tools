@@ -163,7 +163,8 @@ describe("App.tsx の state/ref 二重管理", () => {
       }),
     });
 
-    // Then: endTypeRef.current === "abort" のガードで完成記録の保存経路（saveRecord）が呼ばれない
+    // Then: サーバーは中断では記録を足さない。端末は「記録が増えていない」から中断と決め、
+    //       保存経路（saveRecord）を呼ばない（#91 PR 3。かつては押した端末の endType が守っていた）
     const { saveRecord } = await import("../../src/records/indexeddb.js");
     expect(saveRecord).not.toHaveBeenCalled();
   });

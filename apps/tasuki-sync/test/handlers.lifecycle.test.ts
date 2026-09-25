@@ -16,6 +16,7 @@ import type { SessionConfig } from "@tasuki/timer-core";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 import { roomViewOf, putRoomView, participantIdOfConn } from "./support/room-view.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
+import { INITIAL_TOPIC_STATE } from "@tasuki/topic-core";
 
 const config: SessionConfig = {
   language: "TypeScript",
@@ -74,20 +75,9 @@ describe("session.complete: 記録と phase 遷移", () => {
     handlers = makeTestHandlers({ store, timers, clock, broadcaster, codeGen: new FakeCodeGen() });
   });
 
-  it("お題確定後の完成で sessionRecords に記録が追加され phase=celebration になる", async () => {
+  it("完成で sessionRecords に記録が追加され phase=celebration になる", async () => {
     // Given
     const code = await setupRoom(handlers, store, timers);
-    const room = roomViewOf(store, timers, code);
-    putRoomView(store, timers, {
-      ...room,
-      problem: {
-        title: "FizzBuzz",
-        description: "d",
-        requirements: ["r"],
-        exampleTest: "t",
-        hints: [],
-      },
-    });
 
     // When
     await handlers.handleCommand("host-conn", { command: "session.act", action: "START" });
@@ -98,17 +88,12 @@ describe("session.complete: 記録と phase 遷移", () => {
     const after = roomViewOf(store, timers, code);
     expect(after.phase).toBe("celebration");
     expect(after.sessionRecords).toHaveLength(1);
-    expect(after.sessionRecords[0]?.problemTitle).toBe("FizzBuzz");
+    expect(after.sessionRecords[0]?.elapsedSeconds).toBe(120);
   });
 
   it("session.complete を二度呼んでも記録は重複しない（冪等）", async () => {
     // Given
     const code = await setupRoom(handlers, store, timers);
-    const room = roomViewOf(store, timers, code);
-    putRoomView(store, timers, {
-      ...room,
-      problem: { title: "FizzBuzz", description: "d", requirements: ["r"], exampleTest: "t", hints: [] },
-    });
 
     // When
     await handlers.handleCommand("host-conn", { command: "session.act", action: "START" });
@@ -117,6 +102,89 @@ describe("session.complete: 記録と phase 遷移", () => {
 
     // Then
     expect(roomViewOf(store, timers, code).sessionRecords).toHaveLength(1);
+  });
+});
+
+/**
+ * @requirements #91 E17 E19
+ */
+describe("完成記録とお題", () => {
+  let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
+  let clock: FakeClock;
+  let handlers: ReturnType<typeof makeTestHandlers>;
+
+  beforeEach(() => {
+    store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
+    clock = new FakeClock(1000000);
+    handlers = makeTestHandlers({
+      store, timers, clock, broadcaster: new SpyBroadcaster(), codeGen: new FakeCodeGen(),
+    });
+  });
+
+  it("お題を掲げずに完了しても、完成記録ができてお題のタイトルは null になる", async () => {
+    // **お題なしで見る**（お題ありで見ると、「お題があるときだけ記録を作る」誤りと区別できない・spec §7.3）
+    // Given: お題の保管も timer の `problem` も空のまま
+    const code = await setupRoom(handlers, store, timers);
+    if (handlers.topics.get(code)?.topic != null || roomViewOf(store, timers, code).problem !== null) {
+      throw new Error("前提が崩れた: お題が既に掲げられている");
+    }
+    // When
+    await handlers.handleCommand("host-conn", { command: "session.act", action: "START" });
+    await handlers.handleCommand("host-conn", { command: "session.complete" });
+    // Then
+    const records = roomViewOf(store, timers, code).sessionRecords;
+    expect(records).toHaveLength(1);
+    expect(records[0]?.topicTitle).toBeNull();
+  });
+
+  it("お題を掲げて完了すると、そのときのタイトルが記録に写り、本文は写らない", async () => {
+    // Given
+    const code = await setupRoom(handlers, store, timers);
+    handlers.topics.put(code, {
+      ...INITIAL_TOPIC_STATE,
+      topic: { title: "FizzBuzz", body: "長い本文", source: "manual" },
+    });
+    // When
+    await handlers.handleCommand("host-conn", { command: "session.act", action: "START" });
+    await handlers.handleCommand("host-conn", { command: "session.complete" });
+    // Then
+    const record = roomViewOf(store, timers, code).sessionRecords[0];
+    expect(record?.topicTitle).toBe("FizzBuzz");
+    expect(JSON.stringify(record)).not.toContain("長い本文");
+  });
+
+  it("タイトルは wire から受け取らず、完了した時点の保管から引く", async () => {
+    // Given: 保管にはお題があり、完了の要求は別のタイトルを名乗る
+    const code = await setupRoom(handlers, store, timers);
+    handlers.topics.put(code, {
+      ...INITIAL_TOPIC_STATE,
+      topic: { title: "FizzBuzz", body: "b", source: "manual" },
+    });
+    // When
+    await handlers.handleCommand("host-conn", { command: "session.act", action: "START" });
+    // （wire の完了コマンドはタイトルを持たない。持ち込まれた場合を型の外から作る）
+    await handlers.handleCommand("host-conn", {
+      command: "session.complete",
+      topicTitle: "差し込み",
+    } as { command: "session.complete" });
+    // Then
+    expect(roomViewOf(store, timers, code).sessionRecords[0]?.topicTitle).toBe("FizzBuzz");
+  });
+
+  it("完了してロビーへ戻っても、お題は変わらない", async () => {
+    // Given
+    const code = await setupRoom(handlers, store, timers);
+    const state = { ...INITIAL_TOPIC_STATE, topic: { title: "FizzBuzz", body: "b", source: "manual" as const } };
+    handlers.topics.put(code, state);
+    // When
+    await handlers.handleCommand("host-conn", { command: "session.act", action: "START" });
+    await handlers.handleCommand("host-conn", { command: "session.complete" });
+    await handlers.handleCommand("host-conn", { command: "phase.set", phase: "setup" });
+    // Then
+    if (roomViewOf(store, timers, code).phase !== "setup") throw new Error("前提が崩れた: ロビーへ戻っていない");
+    expect(handlers.topics.get(code)).toEqual(state);
   });
 });
 
@@ -177,9 +245,7 @@ describe("session.reset: 最初から再スタート（v2.3 #3）", () => {
       sessionRecords: [
         {
           id: "rec-1",
-          problemTitle: "Old",
-          language: "TypeScript",
-          difficulty: "easy",
+          topicTitle: "Old",
           elapsedSeconds: 60,
           members: ["Alice"],
           totalSwitches: 1,
@@ -242,15 +308,14 @@ describe("phase.set: ロビーへ戻るとお題は持ち越さない（#273）"
    * **落としたきり誰も埋めないロビー**ができる —— `usesLobbyProblem` の注記が言う
    * 対称性を、phase で取って 2 つ目の条件で崩していた。
    *
-   * 下流への実害は `SessionCompleted` の `if (room.problem)` である。お題が
-   * null のままだと**完成記録が作られなくなる**（実測: main では 2 本、
-   * 落とす側が `problemEnabled` を見ないと 1 本になる）。
+   * かつての下流への実害は `SessionCompleted` の `if (room.problem)` だった。お題が
+   * null のままだと完成記録が作られなくなっていた。**#91 PR 3 で完成記録はお題の有無に
+   * かかわらず作る形になり（spec T9）、この実害は消えた**。記録の本数は下の「完成記録と
+   * お題」が見る。
    *
    * **正は「落とさない」と判断した。** #273 の EARS は「2 本目のために新しい
    * お題を用意すること」であり、お題を使わないルームには用意すべき「新しいお題」が
-   * 無い。落としても誰も得をせず、記録だけが消える。
-   * （お題を使わないルームが完成記録を持てないこと自体は `buildCompletionRecord` の
-   * 前提であり、#273 の射程外である。）
+   * 無い。落としても誰も得をしない。
    */
   it("Given お題を使わない設定へ切り替えて完了した / When ロビーへ戻す / Then お題を落とさず、2 本目の完成記録も残る", async () => {
     // Given: お題ありで 1 本目を走らせ、途中で「お題を使わない」へ切り替えて完成する
@@ -273,7 +338,7 @@ describe("phase.set: ロビーへ戻るとお題は持ち越さない（#273）"
     // Then: 埋め直す気が無いルームのお題は落とさない（落とすと誰も埋めない）
     expect(roomViewOf(store, timers, code).problem).not.toBeNull();
 
-    // Then: 2 本目も完成記録が残る（`SessionCompleted` はお題が無いと記録を作らない）
+    // Then: 2 本目も完成記録が残る
     for (const command of [
       { command: "phase.set", phase: "session" },
       { command: "session.reset" },
@@ -281,18 +346,11 @@ describe("phase.set: ロビーへ戻るとお題は持ち越さない（#273）"
     ] as const) {
       await handlers.handleCommand("host-conn", command);
     }
-    // **見ているのは本数だけである。射程はここまで。**
+    // **見ているのは本数だけである。**
     //
-    // 中身（`problemTitle`）は 2 本とも 1 本目のお題の名前になる。お題を使わない
-    // ルームのお題は落とさないので、`buildCompletionRecord` が受け取るのは
-    // ずっと 1 本目のお題だからである。**実際には取り組んでいないお題名が履歴に
-    // 残る**が、**これは main からの既存の振る舞いで、この PR の退行ではない**
-    // （実測: main `0d37d44` の src でも branch でも `["FizzBuzz","FizzBuzz"]`）。
-    //
-    // 直すには「無条件に落とす」＋「お題を使わないルームでは
-    // `SessionCompleted` がタイトルを捏造しない」の 2 つが要る。後者は完成記録の
-    // 作り方そのものの変更で、#273 の EARS（2 本目のために新しいお題を用意する）の
-    // 外側にある。**本数しか見ていないのは手落ちではなく線引きである。**
+    // #91 PR 3 まで、記録の題名は 2 本とも 1 本目のお題の名前に
+    // なっていた（取り組んでいないお題名が履歴に残る）。いまの記録のタイトルは
+    // timer の `problem` ではなくお題の保管から写す（spec T9）ので、この経路は無くなった。
     expect(roomViewOf(store, timers, code).sessionRecords).toHaveLength(2);
   });
 
@@ -478,11 +536,6 @@ describe("メンバー編集と席の表示名の同期", () => {
   it("メンバー編集後の完成記録は最新メンバーを反映する", async () => {
     // Given
     const code = await setupRoom(handlers, store, timers);
-    const room = roomViewOf(store, timers, code);
-    putRoomView(store, timers, {
-      ...room,
-      problem: { title: "FizzBuzz", description: "d", requirements: ["r"], exampleTest: "t", hints: [] },
-    });
 
     // When
     await handlers.handleCommand("host-conn", {
@@ -494,6 +547,22 @@ describe("メンバー編集と席の表示名の同期", () => {
     // Then
     const record = roomViewOf(store, timers, code).sessionRecords[0];
     expect(record?.members).toContain("Dave");
+  });
+
+  it("完成記録の表示名は輪の順に並ぶ（名簿の並びには従わない）", async () => {
+    // Given: 輪を並べ替え、**名簿の並び（Alice・Bob・Charlie）と食い違わせる**。
+    // 食い違わせるのが要点である —— 一致させた造作では「どこから引いたか」が区別できない。
+    // 記録の `members` は `driverCounts` と添字で対になって描かれる（timer-web の `ui/Summary.tsx`）。
+    // #91 PR 3 で端末は記録を組み立てなくなり、この性質を守る場所はサーバーだけになった。
+    const code = await setupRoom(handlers, store, timers);
+    await handlers.handleCommand("host-conn", { command: "member.move", fromIndex: 0, toIndex: 2 });
+    const seats = roomViewOf(store, timers, code).session.seats.map((seat) => seat.displayName);
+    if (seats.join() !== "Bob,Charlie,Alice") throw new Error(`前提が崩れた: 輪が ${seats.join()}`);
+    // When
+    await handlers.handleCommand("host-conn", { command: "session.act", action: "START" });
+    await handlers.handleCommand("host-conn", { command: "session.complete" });
+    // Then
+    expect(roomViewOf(store, timers, code).sessionRecords[0]?.members).toEqual(["Bob", "Charlie", "Alice"]);
   });
 });
 
