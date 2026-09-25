@@ -1,0 +1,30 @@
+# 変異 108: hub-join-allows-double
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/live-ws.hub.test.ts
+#     describe「ハブの二重参加を拒む」の
+#     「Given ルーム A に入ったハブ接続 / When 別のルーム B へ room.join / Then INVALID_COMMAND が返り、…」
+#     「Given ルーム A に入ったハブ接続 / When 同じルーム A へもう一度 room.join / Then INVALID_COMMAND が返り、…」
+#
+# #91 PR 3（Task 5 のレビュー）。`hub-handlers.ts` の `room.join` から `isInAnyRoom` に
+# よる拒否を外す。1 本のハブ接続が 2 つのルームの名簿に載り（同じルームなら人数が増え）、
+# お題の配信先の数え上げと在席がずれる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m108-*.patch
+# 復元: git apply -R scripts/mutations/m108-*.patch
+diff --git a/apps/tasuki-sync/src/application/hub-handlers.ts b/apps/tasuki-sync/src/application/hub-handlers.ts
+index 4ce02aa..7dc1510 100644
+--- a/apps/tasuki-sync/src/application/hub-handlers.ts
++++ b/apps/tasuki-sync/src/application/hub-handlers.ts
+@@ -178,10 +178,6 @@ export function makeHubHandlers(deps: HubHandlerDeps): HubHandlers {
+     // 参加しないので、正規の画面からは 2 度目の参加は届かない —— 届くのは
+     // 改造したクライアントだけであり、`topic-handlers.ts` の `isInAnyRoom` と
+     // 同じ判断・同じ失敗の形で返す。
+-    if (isInAnyRoom(connId)) {
+-      fail(connId, "INVALID_COMMAND", INVALID_COMMAND_MESSAGE);
+-      return;
+-    }
+ 
+     const displayName = normalized(connId, cmd.displayName);
+     if (displayName === null) return;

@@ -1,0 +1,27 @@
+# 変異 101: stored-record-ignores-problem-title
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/records/stored-record.test.ts
+#     describe「端末に保存された記録を読む」の
+#     「Given 旧い形（problemTitle・language・difficulty） / When 読む / Then topicTitle に畳まれる」（#91・E18）
+#
+# #91 PR 3・E18。`normalizeStoredRecord` が旧い記録の `problemTitle` を読まず、
+# `topicTitle` を null にする。#91 PR 3 より前に端末へ保存した記録が、履歴で
+# すべて「お題なし」に化ける（取り返しがつかないのは、端末の記録は他所に写しが無いため）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m101-*.patch
+# 復元: git apply -R scripts/mutations/m101-*.patch
+diff --git a/apps/timer-web/src/records/stored-record.ts b/apps/timer-web/src/records/stored-record.ts
+index 45016ac..9815005 100644
+--- a/apps/timer-web/src/records/stored-record.ts
++++ b/apps/timer-web/src/records/stored-record.ts
+@@ -19,7 +19,7 @@ export function normalizeStoredRecord(raw: unknown): CompletionRecord | null {
+   const topicTitle =
+     "topicTitle" in r
+       ? (typeof r.topicTitle === "string" ? r.topicTitle : null)
+-      : (typeof r.problemTitle === "string" ? r.problemTitle : null);
++      : null;
+   return {
+     id: r.id,
+     ...(typeof r.roomId === "string" ? { roomId: r.roomId } : {}),

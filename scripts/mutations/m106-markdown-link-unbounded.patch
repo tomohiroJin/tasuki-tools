@@ -1,0 +1,28 @@
+# 変異 106: markdown-link-unbounded
+#
+# 検出を期待するテスト:
+#   - packages/markdown/tests/performance.test.ts
+#     describe「病的な入力でも解析が詰まらない」の
+#     「Given [ の羅列 / When 解析する / Then 1 秒以内に終わる」（spec §5.4）
+#
+# #91 PR 3・spec §5.4（PR #311 の申し送り）。`@tasuki/markdown` の `INLINE_RE` から
+# リンクの表示と URL の長さの上限（`{0,200}` / `{0,2000}`）を外して `*` に戻す。
+# `[` を並べた本文の解析が O(N²) になり、10 万字で手元 5 秒強かかる。本文はサーバーが
+# 長さしか見ずに配るので、そのルームでお題を表示する全員のタブが固まる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m106-*.patch
+# 復元: git apply -R scripts/mutations/m106-*.patch
+diff --git a/packages/markdown/src/inline.ts b/packages/markdown/src/inline.ts
+index fd44a29..de530eb 100644
+--- a/packages/markdown/src/inline.ts
++++ b/packages/markdown/src/inline.ts
+@@ -35,7 +35,7 @@ const INLINE_RE = new RegExp(
+     '(`[^`]+`)',
+     '(\\*\\*[^*]+?\\*\\*)',
+     '(\\*[^*]+?\\*)',
+-    `(\\[[^\\]\\n]{0,${MAX_LINK_TEXT}}\\]\\([^)\\s]{0,${MAX_URL}}\\))`,
++    `(\\[[^\\]\\n]*\\]\\([^)\\s]*\\))`,
+     `((?:https?:\\/\\/|mailto:)[^\\s)]{0,${MAX_URL}}[^\\s).,;:。、）])`,
+   ].join('|'),
+   'g',

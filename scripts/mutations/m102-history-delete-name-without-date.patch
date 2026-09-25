@@ -1,0 +1,27 @@
+# 変異 102: history-delete-name-without-date
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/ui/History.test.tsx
+#     describe「History: お題なしの記録と削除ボタンの名前」の
+#     「Given 同じタイトルの記録が 2 件 / When 履歴を描く / Then 2 つの削除ボタンの名前が違う」（#91・E23）
+#
+# #91 PR 3・E23。履歴の削除ボタンのアクセシブルネームから完了日時を落とす。
+# お題なしが既定になったので「お題なし」の記録が並びやすく、支援技術から
+# どの記録の削除ボタンかを区別できなくなる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m102-*.patch
+# 復元: git apply -R scripts/mutations/m102-*.patch
+diff --git a/apps/timer-web/src/ui/History.tsx b/apps/timer-web/src/ui/History.tsx
+index 49cd453..d0d2ce9 100644
+--- a/apps/timer-web/src/ui/History.tsx
++++ b/apps/timer-web/src/ui/History.tsx
+@@ -112,7 +112,7 @@ export function History({ onBack }: HistoryProps) {
+                       onClick={() => handleDelete(record.id)}
+                       // **完了日時を名前に入れる**（E23）。タイトルだけだと、お題なしの記録や同じお題の記録が
+                       // 並んだとき、支援技術から削除ボタンを区別できない。
+-                      aria-label={`${formatCompletedAt(record.completedAt)} に完了した「${record.topicTitle ?? NO_TOPIC_LABEL}」の記録を削除`}
++                      aria-label={`「${record.topicTitle ?? NO_TOPIC_LABEL}」の記録を削除`}
+                       className="shrink-0"
+                     >
+                       <span className="flex items-center gap-1.5">

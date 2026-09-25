@@ -2,22 +2,24 @@
 #
 # 検出を期待するテスト:
 #   - apps/tasuki-sync/test/destroy-room.test.ts
-#     「タイマー・委譲・お題の生成・presence・トークンを解放してからルームを消す」（#91・E6）
+#     describe「createRoomDestroyer」の
+#     「タイマー・お題の生成・presence・トークンを解放してからルームを消す」（#91・E6）
+#
+# #91・E6。ルーム破棄から `topicGenerator.cancel(roomCode)`（と直前の注釈）を消す。
+# 破棄されたルームの進行中のお題生成（子プロセス・AI の枠）が止まらないまま
+# 走り続ける欠陥。#91 PR 3 で隣の `delegator?.cancel` が消えたので作り直した。
 #
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m80-*.patch
 # 復元: git apply -R scripts/mutations/m80-*.patch
-#
-# #91・E6。ルーム破棄から `topicGenerator.cancel(roomCode)` を消す。
-# 破棄されたルームの進行中のお題生成（子プロセス・AI の枠）が止まらないまま
-# 走り続ける欠陥。
 diff --git a/apps/tasuki-sync/src/application/destroy-room.ts b/apps/tasuki-sync/src/application/destroy-room.ts
+index 4f151cc..64c4b24 100644
 --- a/apps/tasuki-sync/src/application/destroy-room.ts
 +++ b/apps/tasuki-sync/src/application/destroy-room.ts
-@@ -78,9 +78,6 @@ export function createRoomDestroyer(deps: RoomDestroyerDeps): (roomCode: string) => void {
+@@ -75,9 +75,6 @@ export function createRoomDestroyer(deps: RoomDestroyerDeps): (roomCode: string)
+ 
    return (roomCode: string): void => {
      scheduler?.clear(roomCode);
-     delegator?.cancel(roomCode);
 -    // 生成の中断は保管の解放より先。中断した生成が消えたルームへ書き戻さないため
 -    // （`TopicGenerator#write` は状態が無ければ書かないが、子プロセスは止まらない）。
 -    topicGenerator.cancel(roomCode);

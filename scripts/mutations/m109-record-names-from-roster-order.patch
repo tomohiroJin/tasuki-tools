@@ -1,0 +1,30 @@
+# 変異 109: record-names-from-roster-order
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/handlers.lifecycle.test.ts
+#     describe「メンバー編集と席の表示名の同期」の
+#     「完成記録の表示名は輪の順に並ぶ（名簿の並びには従わない）」
+#     （同じ describe の「メンバー編集後の完成記録は最新メンバーを反映する」も赤になる）
+#
+# #294 → #91 PR 3（Task 6）。m72 の引き継ぎ。端末が記録を組み立てなくなり、この性質を
+# 守る場所はサーバーだけになった。`apply-room-level-event.ts` の `SessionCompleted` で
+# `rotationDisplayNames(...)` の代わりに名簿の並びの表示名を渡す。記録の `members` は
+# `driverCounts` と添字で対になって描かれる（timer-web の `ui/Summary.tsx`）ので、
+# **別人の回数が別人の名前の横に並ぶ**。名簿は輪の外の人も含み、代理を含まないので長さも合わない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m109-*.patch
+# 復元: git apply -R scripts/mutations/m109-*.patch
+diff --git a/apps/tasuki-sync/src/application/apply-room-level-event.ts b/apps/tasuki-sync/src/application/apply-room-level-event.ts
+index c9fdefc..ac39ff9 100644
+--- a/apps/tasuki-sync/src/application/apply-room-level-event.ts
++++ b/apps/tasuki-sync/src/application/apply-room-level-event.ts
+@@ -143,7 +143,7 @@ function applyRoomLevelEvent(
+       const record = buildCompletionRecord(
+         { session: room.session, clock: room.clock },
+         event.topicTitle,
+-        rotationDisplayNames(state.membership, room),
++        state.membership.participants.map((p) => p.displayName),
+         event.now,
+         room.code,
+       );

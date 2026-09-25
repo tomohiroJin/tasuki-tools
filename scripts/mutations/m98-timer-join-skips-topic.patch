@@ -1,0 +1,27 @@
+# 変異 98: timer-join-skips-topic
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/live-ws.topic.test.ts
+#     describe「timer・poker の接続がルームへ入ると、いまのお題が 1 通届く」の
+#     「お題を掲げたルームに timer で参加すると、参加の直後にそのお題が届く」
+#     「timer で復帰（resumeToken）しても、そのお題が届く」（#91・E4）
+#
+# #91 PR 3・E4。timer の `room.join`（`command-handlers/room-join.ts`）から
+# `topicBroadcaster.sendCurrent` を消す。後から timer を開いた人・再読込した人は、
+# 次にお題が掲げ直されるまで、いま掲げられているお題を読めない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m98-*.patch
+# 復元: git apply -R scripts/mutations/m98-*.patch
+diff --git a/apps/tasuki-sync/src/application/command-handlers/room-join.ts b/apps/tasuki-sync/src/application/command-handlers/room-join.ts
+index 24e8ecc..c2260f6 100644
+--- a/apps/tasuki-sync/src/application/command-handlers/room-join.ts
++++ b/apps/tasuki-sync/src/application/command-handlers/room-join.ts
+@@ -110,7 +110,6 @@ export function createRoomJoinHandler(deps: RoomJoinDeps) {
+     commit({ membership, timer });
+     // お題の状態を 1 通送る（#91・E4）。**名簿の保管のあとに呼ぶ**
+     // （ルームの在否を名簿で見るため・ハブと同じ）。
+-    deps.topicBroadcaster.sendCurrent(connId, cmd.code);
+ 
+     return ok({ code: cmd.code, participantId, resumeToken });
+   };

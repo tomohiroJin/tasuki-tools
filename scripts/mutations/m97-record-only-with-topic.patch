@@ -1,0 +1,27 @@
+# 変異 97: record-only-with-topic
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/handlers.lifecycle.test.ts
+#     describe「完成記録とお題」の
+#     「お題を掲げずに完了しても、完成記録ができてお題のタイトルは null になる」（#91・E17）
+#     （同じファイルの「完成で sessionRecords に記録が追加され…」ほか 5 件も赤になる）
+#
+# #91 PR 3・spec T9・E17。`SessionCompleted` で `event.topicTitle === null` なら
+# 記録を作らずに celebration へ移す（「お題があるときだけ記録を作る」への後退）。
+# お題なしが既定なので、大半のセッションで完成記録が消える（#273 の欠陥の拡大版）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m97-*.patch
+# 復元: git apply -R scripts/mutations/m97-*.patch
+diff --git a/apps/tasuki-sync/src/application/apply-room-level-event.ts b/apps/tasuki-sync/src/application/apply-room-level-event.ts
+index c9fdefc..91f177a 100644
+--- a/apps/tasuki-sync/src/application/apply-room-level-event.ts
++++ b/apps/tasuki-sync/src/application/apply-room-level-event.ts
+@@ -137,6 +137,7 @@ function applyRoomLevelEvent(
+     case "SessionCompleted": {
+       // 既に完成済みなら二重計上しない（complete の冪等性）
+       if (room.phase === "celebration") return state;
++      if (event.topicTitle === null) return withTimer(state, { ...room, phase: "celebration" });
+       // **お題の有無にかかわらず記録を作る**（#91・spec T9・E17）。お題なしが既定になったので、
+       // 「お題があるときだけ」を残すと大半のセッションで記録が消える（#273 の欠陥の拡大版）。
+       // 名簿は timer-core の外にあるので、表示名はここで解決して渡す（#95 D15）。

@@ -1,0 +1,29 @@
+# 変異 104: intents-decide-without-prev
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/sync/snapshot-intents.test.ts
+#     describe「完了の snapshot から終わり方と記録を決める」の
+#     「Given 前の snapshot を持たずに完了画面へ入った / When 意図を決める / Then 記録を保存せず、終わり方も決めない」（spec §10）
+#
+# #91 PR 3（Task 6）・spec §10。前の snapshot が無い端末（再読込・完了の後に入ってきた人）
+# でも判定する。比べる相手が無いので「前は 0 件」とみなし、完了画面へ入り直すたびに
+# その回に居なかった人の端末へも記録を保存し、終わり方を決めてしまう。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m104-*.patch
+# 復元: git apply -R scripts/mutations/m104-*.patch
+diff --git a/apps/timer-web/src/sync/snapshot-intents.ts b/apps/timer-web/src/sync/snapshot-intents.ts
+index 36d9328..9c5c302 100644
+--- a/apps/timer-web/src/sync/snapshot-intents.ts
++++ b/apps/timer-web/src/sync/snapshot-intents.ts
+@@ -118,8 +118,8 @@ export function decideSnapshotIntents(
+   //
+   //    **前の snapshot が無い端末（再読込・完了の後に入ってきた人）は判定しない。** 増えたかどうかを
+   //    比べる相手が無い。記録も出さず、保存もしない（受容・spec §10）。
+-  if (prev !== null && prev.phase !== "celebration" && next.phase === "celebration") {
+-    const added = next.sessionRecords.length > prev.sessionRecords.length
++  if (prev?.phase !== "celebration" && next.phase === "celebration") {
++    const added = next.sessionRecords.length > (prev?.sessionRecords.length ?? 0)
+       ? next.sessionRecords[next.sessionRecords.length - 1]
+       : undefined;
+     if (added !== undefined) {

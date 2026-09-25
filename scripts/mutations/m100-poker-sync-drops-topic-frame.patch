@@ -1,0 +1,31 @@
+# 変異 100: poker-sync-drops-topic-frame
+#
+# 検出を期待するテスト:
+#   - apps/poker-web/tests/topic-sync.test.tsx
+#     describe「poker が topic フレームを読む(#91)」の
+#     「Given 接続済み / When お題のフレームが届く / Then topic にタイトルと本文が入り、syncStale は立たない」
+#     「Given お題がある / When お題なしのフレームが届く / Then topic が null に戻る」（#91・E15）
+#
+# #91 PR 3・spec §5.5・E15。poker-web の `useSync.ts` から `TopicFrameSchema` で
+# 先に見分ける分岐を消す。`topic` フレームが poker の契約で落ち、お題が画面に出ないうえ、
+# 届くたびに #212 の告知（同期できていません）が立つ。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m100-*.patch
+# 復元: git apply -R scripts/mutations/m100-*.patch
+diff --git a/apps/poker-web/src/hooks/useSync.ts b/apps/poker-web/src/hooks/useSync.ts
+index 7f40b96..44417f1 100644
+--- a/apps/poker-web/src/hooks/useSync.ts
++++ b/apps/poker-web/src/hooks/useSync.ts
+@@ -161,11 +161,6 @@ export function usePokerSync(): PokerSync {
+   function handleMessage(raw: string): void {
+     // **お題のフレームは poker の契約より先に見分ける**（#91・spec §5.5）。
+     // 順を逆にすると `parseServerMessage` が落とし、#212 の告知（同期できていません）が立つ。
+-    const topicFrame = parseBoundaryMessage(TopicFrameSchema, raw);
+-    if (topicFrame.isOk()) {
+-      setTopic(topicFrame.value.state.topic);
+-      return;
+-    }
+ 
+     const result = parseServerMessage(raw);
+     if (result.isErr()) {
