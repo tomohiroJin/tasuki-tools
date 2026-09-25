@@ -17,6 +17,27 @@ describe("定型バンク", () => {
     }
   });
 
+  /**
+   * `topic-core` は依存を持たない（`scripts/audit-dependency-direction.mjs` の許可表が空）ので、
+   * `@tasuki/markdown` の解析には通さず、本文の文字列で囲みの開きと閉じを見る。
+   * 閉じが「ヒント:」より前にあることまで見る —— 開きだけを見ると、閉じ忘れで
+   * 以降の本文が全部コードになる誤りを通してしまう。
+   */
+  it("すべての本文で、最初のテストの例がコードの囲みの中にあり、ヒントより前で閉じる", () => {
+    const OPEN = "最初のテストの例:\n```\n";
+    for (const e of TOPIC_BANK) {
+      // Given: 本文の中の、最初のテストの例の開き
+      const at = e.body.indexOf(OPEN);
+      // When: 開きの後ろで、囲みの閉じとヒントを探す
+      const close = at < 0 ? -1 : e.body.indexOf("\n```", at + OPEN.length);
+      const hint = e.body.indexOf("ヒント:");
+      // Then: 開きがあり、テストのコードを挟んでヒントより前で閉じている
+      expect({ title: e.title, opened: at >= 0 }).toEqual({ title: e.title, opened: true });
+      expect(e.body.slice(at + OPEN.length, close)).toMatch(/^test\(/);
+      expect(close).toBeLessThan(hint < 0 ? e.body.length : hint);
+    }
+  });
+
   it("どの言語×難易度でも候補が 2 件以上ある（直前を外しても空にならない）", () => {
     for (const language of LANGUAGES) {
       for (const difficulty of DIFFICULTIES) {
