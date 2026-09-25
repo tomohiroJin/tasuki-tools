@@ -236,9 +236,9 @@ describe("ハブの入口（#95 S5a）", () => {
  * URL の `?room=` のルームにしか参加せず、作成は `?room=` の無いページだけなので、
  * 正規の画面からは 2 度目の参加・作成は届かない（届くのは改造したクライアントだけ）。
  *
- * @requirements #91 PR 3 Task 5
+ * @requirements #91 spec §5.3
  */
-describe("ハブの二重参加を拒む（#91 PR 3 Task 5）", () => {
+describe("ハブの二重参加を拒む", () => {
   it("Given ルーム A に入ったハブ接続 / When 別のルーム B へ room.join / Then INVALID_COMMAND が返り、A にだけ載ったままで B の名簿には載らない", async () => {
     // Given
     const ownerA = await server.connectHub("ownerA");

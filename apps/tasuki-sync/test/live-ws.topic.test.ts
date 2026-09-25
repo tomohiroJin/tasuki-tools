@@ -372,6 +372,88 @@ describe("timer・poker の接続がルームへ入ると、いまのお題が 1
 });
 
 /**
+ * ルームの作成・token 復帰の経路でも、いまのお題が 1 通届く（#91 PR 3・レビュー指摘）。
+ *
+ * `sendCurrent` の呼び出しは、上の describe（timer/poker の `room.join`）が通る
+ * `join-room.ts` とは別の経路にもある —— timer の `room.create`
+ * （`command-handlers/room-create.ts`）と、poker の `completeJoin`
+ * （`create-room` と token 復帰の `attachConnection` 分岐の両方が通る・
+ * `poker-handlers.ts`）。in-process のレビューでは、これら 3 箇所の
+ * `sendCurrent` 呼び出しを消しても赤くならないテストしか無かった
+ * （on-join のテストは全部 `room.join` 経由で、`room.create` と poker の
+ * 「別接続での token 復帰」を一度も実 WS で通していなかったため）。
+ *
+ * @requirements #91 E4
+ */
+describe("ルームの作成・token 復帰でも、いまのお題が 1 通届く", () => {
+  it("timer でルームを作ると、作った直後にお題（お題なし）のフレームが 1 通届く", async () => {
+    // Given/When: timer でルームを作る（command-handlers/room-create.ts の経路）
+    const timer = await server.connect("timer");
+    await createRoom(timer, "かえで");
+
+    // Then: 作成直後にお題なしの状態が 1 通届く
+    const received = await timer.takeMatching(
+      (m) => (m as { type: string }).type === "topic",
+      "作成直後のお題",
+    );
+    const frame = received as unknown as { state: unknown };
+    expect(frame.state).toEqual(INITIAL_TOPIC_STATE);
+  });
+
+  it("poker でルームを作ると、同じく届く", async () => {
+    // Given/When: poker でルームを作る（poker-handlers.ts の create-room 経路）
+    const host = await server.connectPoker("host");
+    host.send({ type: "create-room", name: "たろう" });
+    await host.take((m) => (m as { type: string }).type === "joined", "作成直後の joined");
+    await host.take((m) => m.type === "room-state", "作成直後の room-state");
+
+    // Then: 作成直後にお題なしの状態が 1 通届く
+    const received = await host.take(
+      (m) => (m as { type: string }).type === "topic",
+      "作成直後のお題",
+    );
+    const frame = received as unknown as { state: unknown };
+    expect(frame.state).toEqual(INITIAL_TOPIC_STATE);
+  });
+
+  it("お題を掲げたルームに poker で token 復帰すると、そのお題が届く", async () => {
+    // Given: poker でルームを作り、お題を掲げておく
+    const host = await server.connectPoker("host");
+    host.send({ type: "create-room", name: "たろう" });
+    const joined = await host.take(
+      (m) => (m as { type: string }).type === "joined",
+      "作成直後の joined",
+    );
+    const { roomId, token } = joined as unknown as { roomId: string; token: string };
+    await host.take((m) => m.type === "room-state", "作成直後の room-state");
+    await host.take((m) => (m as { type: string }).type === "topic", "作成直後の初期お題");
+
+    const topic = await server.connectTopic("topic");
+    await topicJoin(topic, roomId, "いずみ");
+    await topic.take((m) => m.type === "topic", "参加直後の初期お題");
+    topic.send({ command: "topic.set", title: "決めた", body: "本文" });
+    await topic.take(
+      (m) => m.type === "topic" && m.state.topic?.title === "決めた",
+      "掲げた直後のお題",
+    );
+
+    // When: 別の接続として token 復帰する（poker-handlers.ts の attachConnection 分岐）
+    const resumed = await server.connectPoker("resumed");
+    resumed.send({ type: "join-room", roomId, name: "たろう", token });
+
+    // Then: 復帰の直後にそのお題が届く
+    const received = await resumed.take(
+      (m) =>
+        (m as { type: string }).type === "topic" &&
+        (m as unknown as { state: { topic?: { title?: string } } }).state.topic?.title === "決めた",
+      "復帰直後のお題",
+    );
+    const frame = received as unknown as { state: { topic?: { body?: string } } };
+    expect(frame.state.topic?.body).toBe("本文");
+  });
+});
+
+/**
  * お題ツールの接続以外からの topic.set は拒まれ、お題は変わらない。
  *
  * ブリーフはエラーコードを推測している（timer は INVALID_COMMAND）が、
