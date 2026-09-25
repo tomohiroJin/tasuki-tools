@@ -1,8 +1,8 @@
 /**
- * 行内要素の解析(#91 PR 3)。timer-web と topic-web に逐語で同じ写しがあったものを 1 つにした。
+ * 行内要素の解析（#91 PR 3）。timer-web と topic-web に逐語で同じ写しがあったものを 1 つにした。
  *
  * **HTML を作らない。** 返すのはデータの木で、描画は各アプリが React 要素として組む
- * (innerHTML を使わないので、利用者の入力をそのまま渡しても XSS にならない)。
+ * （innerHTML を使わないので、利用者の入力をそのまま渡しても XSS にならない）。
  */
 
 export type MdInline =
@@ -13,23 +13,28 @@ export type MdInline =
   /** `href` が null なら安全でない行き先。描画側は `<a>` にせず `text` を素の文字で出す。 */
   | { kind: 'link'; href: string | null; text: string };
 
-/** 許可するリンクスキームだけを通す(javascript: 等を無効化)。 */
-export function safeHref(url: string): string | null {
+/**
+ * 許可するリンクスキームだけを通す（javascript: 等を無効化）。
+ *
+ * **公開しない**（ADR-0016 決定 2・SC-039③）。使うのはこのファイルの `toNode` だけで、
+ * テストは `parseInline` のリンクの `href` を通して判定を見る。
+ */
+function safeHref(url: string): string | null {
   return /^(https?:\/\/|mailto:)/i.test(url) ? url : null;
 }
 
 /**
  * リンクの表示と URL の長さの上限。
  *
- * **上限が無いと解析は O(N²) になる**(PR #311 の申し送り)。`[` を並べた入力では、
+ * **上限が無いと解析は O(N²) になる**（PR #311 の申し送り）。`[` を並べた入力では、
  * 各位置から `[^\]\n]*` が行末まで読んで失敗するのを N 回繰り返す。上限を置くと 1 位置あたりの
  * 読みが定数で止まる。お題の本文は 4000 字が上限なので、正当なリンクはこの中に収まる。
  */
 const MAX_LINK_TEXT = 200;
 const MAX_URL = 2000;
 
-// コード→太字→斜体→リンク→生 URL の順で評価する(元の timer-web の順序のまま)。
-// 生 URL は末尾の約物(. , ; : 。 、 ) を含めない。
+// コード→太字→斜体→リンク→生 URL の順で評価する（元の timer-web の順序のまま）。
+// 生 URL は末尾の約物（`.` `,` `;` `:` `。` `、` `)` `）`）を含めない。
 const INLINE_RE = new RegExp(
   [
     '(`[^`]+`)',
@@ -44,8 +49,8 @@ const INLINE_RE = new RegExp(
 /**
  * 1 行を行内要素に分ける。
  *
- * **`lastIndex` で進める**(元の実装は一致のたびに `rest.slice` で残りを切り出しており、
- * 一致の数だけ文字列を複製していた)。
+ * **`lastIndex` で進める**（元の実装は一致のたびに `rest.slice` で残りを切り出しており、
+ * 一致の数だけ文字列を複製していた）。
  */
 export function parseInline(text: string): MdInline[] {
   const nodes: MdInline[] = [];

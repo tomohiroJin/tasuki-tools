@@ -22,8 +22,8 @@ index 316916b..9f053ff 100644
 +++ b/packages/markdown/src/blocks.ts
 @@ -68,7 +68,7 @@ function endsParagraph(line: string): boolean {
  function parseRawBlocks(src: string): RawBlock[] {
-   // U+2028 / U+2029(行区切り・段落区切り)も改行として扱う。正規表現の `.` はこれらに
-   // 一致しないので、残すと見出しの判定と段落の停止条件が食い違う(下の前進の保証を参照)。
+   // U+2028 / U+2029（行区切り・段落区切り）も改行として扱う。正規表現の `.` はこれらに
+   // 一致しないので、残すと見出しの判定と段落の停止条件が食い違う（下の前進の保証を参照）。
 -  const lines = src.replace(/\r\n?|[\u2028\u2029]/g, '\n').split('\n');
 +  const lines = src.replace(/\r\n?/g, '\n').split('\n');
    const blocks: RawBlock[] = [];
@@ -31,7 +31,7 @@ index 316916b..9f053ff 100644
    while (i < lines.length) {
 @@ -109,10 +109,6 @@ function parseRawBlocks(src: string): RawBlock[] {
      }
-     // 前進の保証: どの規則にも当たらずに止まった(段落が空の)ときは、その 1 行を段落として
+     // 前進の保証: どの規則にも当たらずに止まった（段落が空の）ときは、その 1 行を段落として
      // 取り込んで進める。規則の片方だけが変わっても、空の段落を積み続けて止まらなくならない。
 -    if (para.length === 0) {
 -      para.push(lines[i] ?? '');

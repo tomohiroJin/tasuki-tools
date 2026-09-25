@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseInline, safeHref } from '../src/index';
+import { parseInline } from '../src/inline';
 
 /**
  * @requirements #91 spec §5.4（お題の本文を Markdown として描く・PR 2 §10.1）
@@ -67,14 +67,16 @@ describe('リンクの行き先の安全判定', () => {
     ['https://a.example', 'https://a.example'],
     ['http://a.example', 'http://a.example'],
     ['mailto:x@example.com', 'mailto:x@example.com'],
-    ['javascript:alert(1)', null],
+    // 行き先に `)` を書くとリンクの形がそこで閉じるので、同じ意味の百分率符号化で書く
+    ['javascript:alert%281%29', null],
     ['data:text/html,x', null],
     ['//a.example', null],
   ])('Given %s / When 判定する / Then %s', (url, expected) => {
-    // Given: 行き先（url）と、期待する判定（expected）
+    // Given: 行き先（url）と、期待する判定（expected）。判定は公開しないので、リンクの形で通す
+    const src = `[行き先](${url})`;
     // When
-    const href = safeHref(url);
-    // Then
-    expect(href).toBe(expected);
+    const nodes = parseInline(src);
+    // Then: リンク 1 つとして解析され、行き先だけが判定される
+    expect(nodes).toEqual([{ kind: 'link', href: expected, text: '行き先' }]);
   });
 });
