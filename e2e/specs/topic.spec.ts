@@ -1,20 +1,28 @@
 /**
- * お題ツール（#91 PR 2）。
+ * お題ツール（#91 PR 2・PR 3）。
  *
- * **タグを付けない（`local` 専用）。** 本番にはまだ `/topic/` が無い（配布は #91 の PR 3 の後に 1 回）。
- * `@core` を付けると `pnpm e2e:prod` が現行の本番に対して落ちる。付けるかどうかは配布の段で決める。
+ * - `@core` — お題が玄関へ届くことと、timer・poker へ届くこと（#91 PR 3 で付けた）。
+ *   **本番にお題ツールが入った後の `pnpm e2e:prod` が見る前提**で、配布の前の本番に当てると落ちる。
+ *   タグは describe のタイトルの先頭に置く（`e2e/tests/spec-tags.test.ts` が describe の先頭だけを
+ *   「タグ付き」と数えるので、テスト名の末尾に置くと「本番へ漏れる local 専用シナリオ」として赤になる）
+ * - タグ無し — それ以外（`local` 専用）
  *
  * お題の文面は**書体の常用の層に収まるもの**を使う（`3 のときは Fizz を出す`。`倍`・`返` は外れる）。
  * 利用者の内容で拡張の層を引くのは正しい振る舞いだが、書体の検査が UI の劣化と区別できなくなる。
  */
 import { expect, test } from '../fixtures/test';
 import { expectFocusVisibleOnTab, expectReadable, pairKey, resolveColors, scanContrast } from '../support/a11y';
+import { joinRoom as joinPoker } from '../support/poker';
+import { joinViaHubAt as joinTimer } from '../support/timer';
 import { currentTopic, openTopicTool, setTopic } from '../support/topic';
 
 const TITLE = 'FizzBuzz';
 const BODY = '3 のときは Fizz を出す';
 
-test.describe('お題を玄関へ配る', () => {
+/**
+ * @requirements #91 E2 E3 E4
+ */
+test.describe('@core お題を玄関へ配る', () => {
   test('Given 2 人が同じルームに居る / When 片方がお題ツールでお題にする / Then もう片方の玄関にタイトルが出て、下ろすと消える', async ({ page, openPeer, consoleWatcher }) => {
     // Given: 2 人目は玄関の選択画面に居る（別の文脈で開く。同じ文脈だと 1 人目として復帰する）
     const inviteUrl = await openTopicTool(page, 'e2e-topic-a');
@@ -60,7 +68,62 @@ test.describe('お題を玄関へ配る', () => {
     expect(guest.console.errors).toEqual([]);
     expect(newcomer.console.errors).toEqual([]);
   });
+});
 
+/**
+ * @requirements #91 E2 E3 E4
+ *
+ * timer・poker は**読むだけ**（spec T4）。お題ツールで掲げたものが、別の文脈の別のページに出る。
+ */
+test.describe('@core お題をツールへ配る', () => {
+  test('Given 3 人が同じルームの timer・poker・お題ツールに居る / When お題ツールでお題にする・下ろす / Then timer と poker に出て、消える', async ({ page, openPeer, consoleWatcher }) => {
+    // Given: 1 人目がお題ツール、2 人目が timer、3 人目が poker（別の文脈。同じ文脈だと 1 人目として復帰する）
+    const inviteUrl = await openTopicTool(page, 'e2e-topic-a');
+    const timer = await openPeer('topic-timer');
+    await joinTimer(timer.page, inviteUrl, 'e2e-topic-b');
+    await expect(timer.page.getByRole('button', { name: 'セッションを開始' })).toBeVisible();
+    const poker = await openPeer('topic-poker');
+    await joinPoker(poker.page, inviteUrl, 'e2e-topic-c');
+    //   **掲げる前は出ていない**（下の「出た」が最初から真ではないこと。画面が描けたことは上で見た）
+    const timerTopic = timer.page.getByRole('region', { name: 'お題', exact: true });
+    const pokerTopic = poker.page.getByRole('region', { name: 'お題', exact: true });
+    await expect(timerTopic).toHaveCount(0);
+    await expect(pokerTopic).toHaveCount(0);
+
+    // When その1: お題にする
+    await setTopic(page, TITLE, BODY);
+
+    // Then その1: timer の札にタイトルと本文が出る
+    await expect(timerTopic.getByRole('heading', { level: 3, name: TITLE, exact: true })).toBeVisible();
+    await expect(timerTopic.getByText(BODY, { exact: true })).toBeVisible();
+    //   poker は見出しとタイトルが出て、説明は畳まれている（開くと読める）
+    await expect(pokerTopic.getByRole('heading', { level: 2, name: 'お題', exact: true })).toBeVisible();
+    await expect(pokerTopic.getByRole('heading', { level: 3, name: TITLE, exact: true })).toBeVisible();
+    await expect(pokerTopic.getByText(BODY, { exact: true })).toBeHidden();
+    await pokerTopic.getByText('説明を見る', { exact: true }).click();
+    await expect(pokerTopic.getByText(BODY, { exact: true })).toBeVisible();
+
+    // When その2: お題を下ろす
+    await page.getByRole('button', { name: 'お題を下ろす' }).click();
+
+    // Then その2: どちらの画面からもお題の領域が消える（**出ていたことを上で確かめてから**消えたことを見る。
+    //   画面ごと消えても否定は通るので、それぞれの画面が残っていることも合わせて見る）
+    await expect(timerTopic).toHaveCount(0);
+    await expect(pokerTopic).toHaveCount(0);
+    await expect(timer.page.getByRole('button', { name: 'セッションを開始' })).toBeVisible();
+    await expect(poker.page.getByRole('heading', { name: 'プランニングポーカー' })).toBeVisible();
+
+    // Then その3: どちらの画面も `topic` フレームを捨てていない（捨てると「同期できていません」を出す・#209・#212）
+    await expect(timer.page.getByText(/同期できていません/)).toHaveCount(0);
+    await expect(poker.page.getByText(/同期できていません/)).toHaveCount(0);
+    //   どの画面も例外を出していない
+    expect(consoleWatcher.errors).toEqual([]);
+    expect(timer.console.errors).toEqual([]);
+    expect(poker.console.errors).toEqual([]);
+  });
+});
+
+test.describe('お題ツールに居る人の居場所', () => {
   test('Given お題ツールに居る人 / When 玄関の参加者を見る / Then 札の名前で居場所が出る', async ({ page, openPeer }) => {
     // Given: お題ツールに 1 人目が居る
     const inviteUrl = await openTopicTool(page, 'e2e-topic-a');

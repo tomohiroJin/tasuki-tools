@@ -18,19 +18,30 @@ import type { Page } from '@playwright/test';
 import { expect, test, type Peer } from '../fixtures/test';
 import { createRoom, joinAsDriver, lobbyRotationRow } from '../support/timer';
 import { expectFocusVisibleOnTab, expectReadable, pairKey, resolveColors, scanContrast } from '../support/a11y';
+import { joinTopicTool, setTopic } from '../support/topic';
 
 const HOST = 'a11y-a';
 /** 輪の 2 人目以降。周回アバターが**最も薄い字を felt-700 の面に置くのは 3 人目から**（#297）。 */
 const GUESTS = ['a11y-b', 'a11y-c'] as const;
 
 /** 3 人のドライバーが輪に並んだロビーを作る。**並んだことまで待つ。** */
-async function createRoomOfThree(page: Page, openPeer: (label: string) => Promise<Peer>): Promise<void> {
+async function createRoomOfThree(page: Page, openPeer: (label: string) => Promise<Peer>): Promise<string> {
   const code = await createRoom(page, HOST);
   for (const [i, name] of GUESTS.entries()) {
     const guest = await openPeer(name);
     await joinAsDriver(guest.page, code, name);
     await expect(lobbyRotationRow(page, name, i + 2)).toBeVisible();
   }
+  return code;
+}
+
+/** 同じルームのお題ツールでお題を掲げ、**timer の画面に札が出るまで待つ**（#91 PR 3）。 */
+async function raiseTopic(page: Page, openPeer: (label: string) => Promise<Peer>, code: string): Promise<void> {
+  const topicTool = await openPeer('a11y-topic');
+  await joinTopicTool(topicTool.page, `/?room=${encodeURIComponent(code)}`, 'a11y-d');
+  // 文面は書体の常用の層に収まるもの（`topic.spec.ts` と同じ）
+  await setTopic(topicTool.page, 'FizzBuzz', '3 のときは Fizz を出す');
+  await expect(page.getByRole('region', { name: 'お題', exact: true })).toContainText('3 のときは Fizz を出す');
 }
 
 test.describe('動きを抑える設定に追従する', () => {
@@ -92,21 +103,24 @@ test.describe('キーボードのフォーカスが必ず見える', () => {
 });
 
 test.describe('文字が背景に対して読める（WCAG AA）', () => {
-  test('Given 3 人のロビー / When ルームとお題のタブを測る / Then すべて AA を満たす', async ({
+  test('Given 3 人のロビー / When ロビーを測る / Then すべて AA を満たす', async ({
     page,
     openPeer,
   }) => {
     // Given: **ロビーも測る**（#297）。真鍮の「ドライバーN」（`--signal` を `--signal-tint`
     //   越しに felt-700 に置く・4.62:1）はロビーにしか出ず、セッションだけの走査では
-    //   誰も見ていなかった
-    await createRoomOfThree(page, openPeer);
+    //   誰も見ていなかった。
+    //   **お題を掲げてから測る**（#91 PR 3）。ロビーはタブの無い 1 画面になり、お題の札
+    //   （見出し・タイトル・Markdown の本文）が最上部に出る。その色の組も測る対象に入れる
+    const code = await createRoomOfThree(page, openPeer);
+    await raiseTopic(page, openPeer, code);
     const [signal, signalTint, panel2] = await resolveColors(page, ['--signal', '--signal-tint', '--panel-2']);
 
-    // When / Then（タブごとに見えるものが違うので、それぞれ測る）
-    await page.getByRole('tab', { name: 'ルーム', exact: true }).click();
-    expectReadable(await scanContrast(page), 10, [pairKey(signal!, `${signalTint!} ← ${panel2!}`)]);
-    await page.getByRole('tab', { name: 'お題', exact: true }).click();
-    expectReadable(await scanContrast(page), 10, []);
+    // When
+    const scan = await scanContrast(page);
+
+    // Then
+    expectReadable(scan, 10, [pairKey(signal!, `${signalTint!} ← ${panel2!}`)]);
   });
 
   test('Given 3 人のセッション中の画面 / When 主要な文字を測る / Then すべて AA を満たす', async ({
@@ -121,17 +135,16 @@ test.describe('文字が背景に対して読める（WCAG AA）', () => {
     await createRoomOfThree(page, openPeer);
     await page.getByRole('button', { name: 'セッションを開始' }).click();
     await expect(page.getByRole('timer')).toBeVisible();
-    // 余裕の薄い 2 組: 最も薄い字 × 最も明るい面（4.52:1）と、
-    // 翡翠の「初級」（`--ok` を `--ok-tint` 越しに felt-800 に置く・4.61:1）
-    const [subtle, panel2, ok, okTint, panel] = await resolveColors(page, [
-      '--bone-subtle', '--panel-2', '--ok', '--ok-tint', '--panel',
-    ]);
+    // 余裕の薄い組: 最も薄い字 × 最も明るい面（4.52:1）。
+    //   翡翠の「初級」（`--ok` を `--ok-tint` 越しに felt-800 に置く・4.61:1）は固定から外した。
+    //   #91 PR 3 で難易度バッジごと撤去した。この色の組はもう timer に出ない
+    const [subtle, panel2] = await resolveColors(page, ['--bone-subtle', '--panel-2']);
 
     // When
     const scan = await scanContrast(page);
 
     // Then
-    expectReadable(scan, 15, [pairKey(subtle!, panel2!), pairKey(ok!, `${okTint!} ← ${panel!}`)]);
+    expectReadable(scan, 15, [pairKey(subtle!, panel2!)]);
   });
 });
 

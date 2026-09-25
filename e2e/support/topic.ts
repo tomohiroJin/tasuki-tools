@@ -22,6 +22,20 @@ export async function openTopicTool(page: Page, name: string): Promise<string> {
   return inviteUrl;
 }
 
+/**
+ * 渡された参加用 URL を玄関で開いて名乗り、お題ツールを開く（#91 PR 3）。
+ *
+ * **呼び出し側は必ず別の `BrowserContext` の page を渡すこと**（同じ文脈だと 1 人目として復帰する）。
+ * timer・poker の画面を測る前に、同じルームでお題を掲げるために使う。
+ */
+export async function joinTopicTool(page: Page, url: string, name: string): Promise<void> {
+  await page.goto(url);
+  await page.getByLabel('あなたの名前').fill(name);
+  await page.getByRole('button', { name: '参加する' }).click();
+  await toolCard(page, 'Topic Board').click();
+  await expect(page.getByRole('heading', { level: 1, name: 'お題', exact: true })).toBeVisible();
+}
+
 /** いまのお題の領域。 */
 export function currentTopic(page: Page): Locator {
   return page.getByRole('region', { name: 'いまのお題' });
