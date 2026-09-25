@@ -854,7 +854,8 @@ describe("useTimerSync: 答えを待つ期限が切れた後の再接続", () =>
   it("期限が切れた後に接続し直すと、復帰の room.join を送り直し、snapshot で期限の印が下りる", () => {
     vi.useFakeTimers();
     try {
-      // Given / When: 期限が切れた後、サーバーの再起動で切れて繋ぎ直した
+      // Given: 参加を形の不正で拒まれ、答えを待つ期限が切れている
+      // When: サーバーの再起動で切れて繋ぎ直した
       const { result, send, deliverNext } = timedOutThenReconnected();
 
       // Then: 保存済みの復帰の組で room.join を送り直している
@@ -878,9 +879,11 @@ describe("useTimerSync: 答えを待つ期限が切れた後の再接続", () =>
   it("再起動でルームが消えていれば、期限の画面に留まらずルームを失った画面へ移る", () => {
     vi.useFakeTimers();
     try {
-      // Given / When: 期限が切れた後に繋ぎ直し、送り直した room.join にルームが無いと返る
+      // Given: 期限が切れた後に繋ぎ直し、復帰の room.join を送り直した
       const { result, send, deliverNext } = timedOutThenReconnected();
       expect(sentJoins(send)).toHaveLength(1);
+
+      // When: 再起動でルームが消えているので、ルームが無いと返る
       deliverNext({ type: "error", code: "ROOM_NOT_FOUND", message: "no room" });
 
       // Then: 行き止まりではなく、再起動の後の全員と同じルームを失った画面になる
