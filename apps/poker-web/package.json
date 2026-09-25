@@ -13,9 +13,12 @@
   },
   "dependencies": {
     "@tasuki/invite-ui": "workspace:*",
+    "@tasuki/markdown": "workspace:*",
     "@tasuki/poker-core": "workspace:*",
+    "@tasuki/protocol": "workspace:*",
     "@tasuki/room-core": "workspace:*",
     "@tasuki/sync-client": "workspace:*",
+    "@tasuki/topic-core": "workspace:*",
     "@tasuki/ui": "workspace:*",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"

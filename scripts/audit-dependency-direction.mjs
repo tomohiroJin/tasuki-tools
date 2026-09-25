@@ -140,12 +140,17 @@ export const ALLOWED = {
   // #95 S5b: 表示名の上限（`MAX_DISPLAY_NAME`）を room-core から取る。web アプリが
   // room-core に依存することは `docs/adr/0017` 決定 2 の対象外であり、timer-web も同じ
   // （規約の写しを画面に持たせないための依存である）。
+  // #91 PR 3: `topic` フレームを topic-core のスキーマで検め、お題を読むだけで出す。
+  // poker-core は topic-core を知らない（T1）。
   "apps/poker-web": [
     "@tasuki/invite-ui",
     "@tasuki/dev-hub-redirect",
+    "@tasuki/markdown",
     "@tasuki/poker-core",
+    "@tasuki/protocol",
     "@tasuki/room-core",
     "@tasuki/sync-client",
+    "@tasuki/topic-core",
     "@tasuki/ui",
   ],
   // #91 PR 2: お題ツール。お題を変えられる唯一の画面（spec T4）。

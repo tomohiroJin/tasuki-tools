@@ -254,6 +254,95 @@
   font-weight: 700;
 }
 
+/* ---------- いまのお題（#91 PR 3・spec §5.5。poker は読むだけ） ---------- */
+
+/* body の羅紗グラデーション（felt-700〜felt-950）へ直接乗せない。地を持たない h2（`--gold`）は
+ * 最も明るい停止点（felt-700）の上で約 3.92:1 と AA を割る（PR 2 の topic-web の実測）。
+ * `.topic-current` と同じ不透明な地（felt-900）を与える。 */
+.topic {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  background: var(--felt-900);
+}
+
+.topic-title {
+  margin: 0;
+  /* 区切りの無い長いタイトルでも画面の幅を超えない（topic-web の実画面で発見）。 */
+  overflow-wrap: anywhere;
+}
+
+/* ---------- 説明の Markdown サブセット（`src/components/Markdown.tsx`。topic-web からの写し）
+   ---------- */
+
+.md > * + * {
+  margin-top: var(--space-2);
+}
+
+.md-h {
+  margin: 0;
+  font-weight: 700;
+}
+/* 要素は h4/h5/h6（札のタイトルの h3 の下へ 1 段下げる）だが、大きさの見た目は変えない。 */
+h4.md-h {
+  font-size: var(--font-size-base);
+}
+h5.md-h {
+  font-size: var(--font-size-sm);
+}
+h6.md-h {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.md-p {
+  margin: 0;
+}
+
+.md-ul,
+.md-ol {
+  margin: 0;
+  padding-left: var(--space-5);
+}
+
+.md-quote {
+  margin: 0;
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--coal-soft);
+}
+
+/* インラインコード。地は変えず、`--coal-soft` の枠（α を書かない）と等幅体で区別する。
+   長い連続文字列（URL 等）も画面幅を超えない。 */
+.md-code {
+  padding: 0 0.2em;
+  border: 1px solid var(--coal-soft);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  overflow-wrap: anywhere;
+}
+
+/* コードブロックは折り返さず横スクロールで逃がす（整形済みの中身を保つ）。 */
+.md-pre {
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--coal-soft);
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* `--gold-deep` は本文サイズの AA（4.5:1）を割るため、下線付きの `--coal` で区別する。 */
+.md-link {
+  color: var(--coal);
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+}
+
 /* ---------- モバイル ---------- */
 
 @media (max-width: 420px) {

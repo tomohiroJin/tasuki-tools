@@ -99,15 +99,24 @@ importers:
       '@tasuki/invite-ui':
         specifier: workspace:*
         version: link:../../packages/invite-ui
+      '@tasuki/markdown':
+        specifier: workspace:*
+        version: link:../../packages/markdown
       '@tasuki/poker-core':
         specifier: workspace:*
         version: link:../../packages/poker-core
+      '@tasuki/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
       '@tasuki/room-core':
         specifier: workspace:*
         version: link:../../packages/room-core
       '@tasuki/sync-client':
         specifier: workspace:*
         version: link:../../packages/sync-client
+      '@tasuki/topic-core':
+        specifier: workspace:*
+        version: link:../../packages/topic-core
       '@tasuki/ui':
         specifier: workspace:*
         version: link:../../packages/ui
