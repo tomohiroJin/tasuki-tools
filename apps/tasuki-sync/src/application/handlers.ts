@@ -38,6 +38,7 @@ import type { ProblemDelegator } from "./problem-delegation.js";
 import { createRateLimitGate } from "./rate-limit-gate.js";
 import { saveRoster } from "./save-roster.js";
 import type { HubBroadcaster } from "../ports/hub-broadcaster.js";
+import type { TopicBroadcaster } from "./topic-broadcast.js";
 import type { TokenStore } from "./token-store.js";
 import { applyEvents, type RoomState } from "./apply-room-level-event.js";
 import {
@@ -189,6 +190,14 @@ export interface HandlerDeps {
    * 既定値が代わりに動くと、名簿に居ない人の票が公開時の集計へ混ざる。
    */
   discardPokerVote: (roomCode: string, participantId: string) => void;
+  /**
+   * いまのお題を参加・復帰した本人へ 1 通送る（#91・E4）。
+   *
+   * **必須にしてある**（理由は {@link HandlerDeps.tokens} と同じ）。既定を持たせると、
+   * 注入を忘れた瞬間に timer で入った人にだけお題が出なくなり、しかもハブと
+   * お題ツールでは正しく出るので誰も気づかない。
+   */
+  topicBroadcaster: Pick<TopicBroadcaster, "sendCurrent">;
 }
 
 // `CreateResult`/`JoinResult`（`room.create`/`room.join` が呼び出し元へ返す値）の
@@ -213,7 +222,7 @@ export interface HandlerDeps {
 export type CommandResult = Result<CreateResult | JoinResult | undefined, ErrorCode>;
 
 export function makeHandlers(deps: HandlerDeps) {
-  const { store, timers, clock, broadcaster, codeGen, scheduler, delegator, maxRooms } = deps;
+  const { store, timers, clock, broadcaster, codeGen, scheduler, delegator, maxRooms, topicBroadcaster } = deps;
   const aiUnlockKey = deps.aiUnlockKey;
 
   // トークン保持（リジュームトークン・ルームパスフレーズ）は
@@ -417,6 +426,7 @@ export function makeHandlers(deps: HandlerDeps) {
     maxRooms,
     delegator,
     sendError,
+    topicBroadcaster,
   });
 
   const handleRoomJoin = createRoomJoinHandler({
@@ -430,6 +440,7 @@ export function makeHandlers(deps: HandlerDeps) {
     rateLimitGate,
     delegator,
     sendError,
+    topicBroadcaster,
   });
 
   const handleTimePing = createTimePingHandler({ clock, broadcaster });

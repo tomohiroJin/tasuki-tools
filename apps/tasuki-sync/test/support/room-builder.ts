@@ -22,6 +22,8 @@ import { InMemoryRoundStore } from "../../src/adapters/poker-in-memory-round-sto
 import { InMemoryTopicStore } from "../../src/adapters/in-memory-topic-store.js";
 import { createTokenStore } from "../../src/application/token-store.js";
 import { createRoomDestroyer } from "../../src/application/destroy-room.js";
+import { makeTopicBroadcaster } from "../../src/application/topic-broadcast.js";
+import type { TopicServerMsg } from "../../src/ports/topic-server-msg.js";
 import {
   createTokenBucketLimiter,
   DEFAULT_CAPACITY,
@@ -223,6 +225,12 @@ export interface TestHandlerOverrides extends Partial<HandlerDeps> {
    * （理由は {@link TestHandlers.rounds}）。
    */
   rounds?: InMemoryRoundStore;
+  /**
+   * お題の状態の保管（#91）。省略時は空の `InMemoryTopicStore`。
+   * 渡したインスタンスは、既定の `topicBroadcaster` と `createRoomDestroyer` の
+   * 解放対象の**両方**へ同じ 1 個が配線される（本番の `create-sync-server.ts` と同じ形）。
+   */
+  topics?: InMemoryTopicStore;
 }
 
 export interface TestHandlers extends ReturnType<typeof makeHandlers> {
@@ -264,6 +272,19 @@ export interface TestHandlers extends ReturnType<typeof makeHandlers> {
    * 組み立てた 1 個のインスタンスを使う。
    */
   handleDisconnect: (connId: string) => void;
+  /**
+   * お題の状態の保管（#91）。既定の `topicBroadcaster` と `createRoomDestroyer` の
+   * 両方が同じ 1 個を指す（{@link TestHandlerOverrides.topics}）。
+   */
+  topics: InMemoryTopicStore;
+  /**
+   * 既定の `topicBroadcaster` が実際に送った `topic` フレームの記録（#91）。
+   *
+   * `broadcaster`（`SpyBroadcaster`）は timer/poker 独自の型付きメッセージしか
+   * 受け付けないため、`topic` フレームの配信先・中身はここで見る。
+   * `topicBroadcaster` を `withDeps` で上書きした場合は積まれない。
+   */
+  topicFrames: Array<{ connIds: string[]; msg: TopicServerMsg }>;
 }
 
 /**
@@ -319,6 +340,18 @@ export function makeTestHandlers(overrides?: TestHandlerOverrides): TestHandlers
   // クロージャで解く（本番も同じ解き方をしている）。
   let destroyRoom: (roomCode: string) => void;
   const hub = overrides?.hub ?? spyHub();
+  // お題の状態と配信（#91）。既定は `createRoomDestroyer` と**同じ 1 個の保管**を指す
+  // （本番の `create-sync-server.ts` と同じ形。別々に作ると、破棄で消えたはずの状態が
+  // 配信側にだけ残る/その逆が起きる）。
+  const topics = overrides?.topics ?? new InMemoryTopicStore();
+  const topicFrames: Array<{ connIds: string[]; msg: TopicServerMsg }> = [];
+  const topicBroadcaster =
+    overrides?.topicBroadcaster ??
+    makeTopicBroadcaster({
+      store,
+      topics,
+      send: (connIds, msg) => topicFrames.push({ connIds, msg }),
+    });
   const handlers = makeHandlers({
     ...overrides,
     store,
@@ -333,6 +366,7 @@ export function makeTestHandlers(overrides?: TestHandlerOverrides): TestHandlers
     destroyRoom: (roomCode) => destroyRoom(roomCode),
     // **票の破棄も本番と同じ形で組む**（#95 S5b・R8）。同じ保管の上で票を落とす。
     discardPokerVote: overrides?.discardPokerVote ?? testVoteDiscarder(rounds),
+    topicBroadcaster,
   });
   const presence = new PresenceManager({
     store,
@@ -348,9 +382,10 @@ export function makeTestHandlers(overrides?: TestHandlerOverrides): TestHandlers
       store,
       timers,
       rounds,
-      // お題の状態と生成は timer のハンドラが持たない（#91）。空の保管と、中断するものが
-      // 無い生成を差す（お題の後始末の順序と中身は `destroy-room.test.ts` が見る）。
-      topics: new InMemoryTopicStore(),
+      // お題の状態は上の `topicBroadcaster` と**同じ保管**を渡す（本番と同じ配線）。
+      // 生成は timer のハンドラが持たない（#91）ので、中断するものが無い生成を差す
+      // （お題の後始末の順序と中身は `destroy-room.test.ts` が見る）。
+      topics,
       topicGenerator: { cancel: () => {} },
       // scheduler / delegator は `withDeps` で渡されたときだけ後始末に加わる
       // （渡されていなければ、そもそも予約を作る主体が居ない）。
@@ -364,5 +399,7 @@ export function makeTestHandlers(overrides?: TestHandlerOverrides): TestHandlers
     rounds,
     destroyRoom: (roomCode: string) => destroyRoom(roomCode),
     handleDisconnect: (connId: string) => presence.handleDisconnect(connId),
+    topics,
+    topicFrames,
   };
 }

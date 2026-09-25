@@ -519,8 +519,8 @@ export class WsAdapter {
   /**
    * お題（topic）の接続へ送る（#91）。
    *
-   * **`TopicServerMsg` はハブの接続へ送るときも使う**（この PR の配信先はお題の接続と
-   * ハブの接続だけ・spec §9）。{@link sendHub} と分けてあるのは、`sendHub` の型
+   * **`TopicServerMsg` はハブ・timer・poker の接続へ送るときも使う**
+   * （配信先はルームの全接続・spec §9）。{@link sendHub} と分けてあるのは、`sendHub` の型
    * （`HubServerMsg`）ではお題のフレーム（`topic` / `error`（お題のコード体系））を
    * 型検査が拒むためである。
    */
@@ -798,6 +798,17 @@ export class WsAdapter {
    * **境界のパースはメッセージ層が持つ**（`application/hub-handlers.ts` が
    * `HubCommandSchema` で検める）。ここはサイズ制限だけを掛ける —— 大きすぎるフレームを
    * パーサへ渡さないのは timer / poker と同じ規律である。
+   *
+   * **本体を `try/catch` で隔離する**（#91 PR 3 Task 5・`handleTopicMessage` と同じ形）。
+   * `onHubMessage` は型上 `Promise<void>` を返す契約だが、実装が async でなければ
+   * 同期的に throw しうる（型は実行時の保証にはならない。`.catch` は reject しか拾わない）。
+   * 呼び出し自体を try/catch で囲んで別途隔離しないと、ここでの同期 throw が Bun の
+   * websocket ハンドラを抜けて `uncaughtException` に達し、`server.ts` が
+   * `process.exit(1)` して**同じプロセスに載る timer / poker / お題のルームも
+   * 道連れで消える**（揮発インメモリ）。
+   *
+   * ⚠ 以前はここが `.catch()` だけで、同期 throw を隔離していなかった
+   * （既知の差分として `handleTopicMessage` の docstring に記されていた）。
    */
   private handleHubMessage(ws: Socket, raw: string | Buffer, bytes: number): void {
     if (bytes > this.options.maxMessageBytes) {
@@ -808,15 +819,23 @@ export class WsAdapter {
       });
       return;
     }
-    // メッセージ層の失敗でプロセス全体を落とさない（timer / poker の onMessage と同じ隔離）。
-    void this.options.onHubMessage(ws.data.connId, raw.toString()).catch((err: unknown) => {
+    try {
+      void this.options.onHubMessage(ws.data.connId, raw.toString()).catch((err: unknown) => {
+        this.options.logger.error("on-message-error", { name: classifyError(err) });
+        this.sendHubFrame(ws, {
+          type: "error",
+          code: "INTERNAL_ERROR",
+          message: INTERNAL_ERROR_TEXT,
+        });
+      });
+    } catch (err) {
       this.options.logger.error("on-message-error", { name: classifyError(err) });
       this.sendHubFrame(ws, {
         type: "error",
         code: "INTERNAL_ERROR",
         message: INTERNAL_ERROR_TEXT,
       });
-    });
+    }
   }
 
   /** ハブの接続へ 1 通送る（OPEN のときだけ）。 */
@@ -840,8 +859,7 @@ export class WsAdapter {
    * 達し、`server.ts` が `process.exit(1)` して**同じプロセスに載る timer / poker /
    * ハブのルームも道連れで消える**（揮発インメモリ）。
    *
-   * ⚠ **`handleHubMessage` は同じ隔離を持たない（`.catch()` のみ）。** これは
-   * 既知の差分であり、本タスク（fix round 1）では変更しない —— 対象は topic の経路のみ。
+   * `handleHubMessage` も同じ理由で同じ形の隔離を持つ（#91 PR 3 Task 5）。
    */
   private handleTopicMessage(ws: Socket, raw: string | Buffer, bytes: number): void {
     if (bytes > this.options.maxMessageBytes) {

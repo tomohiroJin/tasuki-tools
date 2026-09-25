@@ -17,6 +17,7 @@
 import { describe, it, expect, afterEach } from "bun:test";
 import * as v from "valibot";
 import { ServerMsgSchema } from "@tasuki/timer-core";
+import { TopicFrameSchema } from "@tasuki/topic-core";
 import {
   startLiveSyncServer,
   createRoom,
@@ -141,14 +142,24 @@ describe("実 WS 越しの業務プロトコル", () => {
     await host.take("snapshot", (m) => m.room.phase === "celebration");
 
     // When: 生テキストをそのままスキーマに通す（配信側の型注釈ではなく wire の実物を見る）
-    const frames = [...host.rawFrames, ...guest.rawFrames];
-    const invalid = frames.filter(
-      (raw) => !v.safeParse(ServerMsgSchema, JSON.parse(raw)).success,
+    //
+    // **timer の接続は `topic` フレームも受け取る**（#91 PR 3・E4：参加直後にいまの
+    // お題が 1 通届く。配信先はルームの全接続 —— `topic-broadcast.ts` の
+    // `TOPIC_RECIPIENT_TOOLS`）。`topic` は `ServerMsgSchema`（timer 固有のコマンド応答）
+    // の外側にある別の契約なので、ここでは `type` で振り分けて**それぞれの契約**に通す。
+    // 素通しで除外するだけだと「timer の wire に何を流しても構わない」に緩んでしまう。
+    const parsed = [...host.rawFrames, ...guest.rawFrames].map(
+      (raw) => JSON.parse(raw) as { type?: unknown },
     );
+    const topicFrames = parsed.filter((f) => f.type === "topic");
+    const serverMsgFrames = parsed.filter((f) => f.type !== "topic");
+    const invalid = serverMsgFrames.filter((f) => !v.safeParse(ServerMsgSchema, f).success);
+    const invalidTopic = topicFrames.filter((f) => !v.safeParse(TopicFrameSchema, f).success);
 
     // Then
-    expect(frames.length).toBeGreaterThan(0);
+    expect(parsed.length).toBeGreaterThan(0);
     expect(invalid).toEqual([]);
+    expect(invalidTopic).toEqual([]);
   });
 
   it("time.ping には time.pong がそのソケットへ返る", async () => {

@@ -71,6 +71,8 @@ function setup(data: Partial<HandlerConnection['data']> = {}) {
     wallClock: { now: () => 0 },
     rateLimiter: alwaysAllowLimiter,
     maxRooms: 50,
+    // お題の配信はこのテストの対象外。
+    topicBroadcaster: { sendCurrent: () => {} },
   });
   const ws: HandlerConnection = {
     ...socket,

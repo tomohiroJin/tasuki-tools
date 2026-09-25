@@ -348,6 +348,79 @@ describe("WsAdapter お題（topic）のメッセージ経路", () => {
 });
 
 /**
+ * ハブ（選択画面）のメッセージ層が同期 throw しても隔離される（#91 PR 3 Task 5）。
+ *
+ * `onHubMessage` は型上 `Promise<void>` を返す契約だが、実装が async でなければ
+ * 同期的に throw しうる（型は実行時の保証にはならない。`.catch` は reject しか拾わない）。
+ * `handleHubMessage` はこの呼び出しを `.catch()` でしか包んでおらず、**同期 throw を
+ * 隔離する try/catch を持たない**（`handleTopicMessage` の docstring に既知の差分として
+ * 記されていた）。隔離が無いと、ここでの同期 throw が Bun の websocket ハンドラを抜けて
+ * `uncaughtException` に達し、`server.ts` の `process.exit(1)` で**同じプロセスに載る
+ * timer / poker / お題のルームも道連れで消える**（揮発インメモリ）。
+ *
+ * ハブは poker（1011 で接続を閉じる）と違い、お題と同じくエラーフレーム
+ * （`INTERNAL_ERROR`）を返して**接続を保つ**契約なので、ここではそれを確かめたうえで、
+ * 同じ接続で次のメッセージが実際にハンドラへ届くこと・同じアダプタで新しい接続も
+ * 張れること（＝サーバーが生きていること）まで確認する。
+ *
+ * @requirements #91 PR 3 Task 5
+ */
+describe("ハブ（選択画面）のメッセージ層が同期 throw しても隔離される", () => {
+  it("throw は on-message-error として記録され、INTERNAL_ERROR フレームを返して接続もサーバーも生き残る", async () => {
+    // Given: 最初の呼び出しだけ同期 throw する onHubMessage
+    const { logger, lines } = collectingLogger();
+    let calls = 0;
+    adapter = newTestWsAdapter({
+      port: 0,
+      host: "127.0.0.1",
+      allowedOrigins: [],
+      onMessage: async () => {},
+      onHubMessage: (_connId: string, _raw: string): Promise<void> => {
+        calls++;
+        if (calls === 1) {
+          throw new Error("boom in onHubMessage");
+        }
+        return Promise.resolve();
+      },
+      onDisconnect: () => {},
+      logger,
+    });
+    const ws = new WebSocket(`ws://127.0.0.1:${adapter.port}/ws`);
+    await waitOpen(ws);
+
+    try {
+      // When: 1 通目を送る（onHubMessage が同期 throw する）
+      ws.send("1通目");
+      const msg = await waitMessage(ws);
+
+      // Then: エラーフレームが返る（poker と違い接続は切らない）
+      expect(msg).toMatchObject({ type: "error", code: "INTERNAL_ERROR" });
+      // Then: 例外の分類だけが記録される（例外メッセージは載せない・ADR 0012 D3）
+      await waitFor(() => lines.some((l) => l.startsWith("on-message-error ")));
+      const line = lines.find((l) => l.startsWith("on-message-error "))!;
+      expect(line).toContain("name=");
+      expect(line).not.toContain("boom in onHubMessage");
+
+      // Then: 接続は保たれる
+      expect(ws.readyState).toBe(WebSocket.OPEN);
+
+      // Then: 同じ接続で 2 通目を送るとハンドラへ実際に届く（サーバーが生きて動き続ける）
+      ws.send("2通目");
+      await waitFor(() => calls === 2);
+      expect(calls).toBe(2);
+
+      // Then: 同じアダプタで新しい接続も張れる（プロセス全体は落ちていない）
+      const second = new WebSocket(`ws://127.0.0.1:${adapter.port}/ws`);
+      await waitOpen(second);
+      expect(second.readyState).toBe(WebSocket.OPEN);
+      second.close();
+    } finally {
+      ws.close();
+    }
+  });
+});
+
+/**
  * お題（topic）のメッセージ層が同期 throw しても隔離される（#91 fix round 1）。
  *
  * `onTopicMessage` は型上 `Promise<void>` を返す契約だが、実装が async でなければ

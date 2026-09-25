@@ -202,7 +202,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
 
   /**
    * お題の状態の配信（#91）。**ツールごとの broadcaster の外に 1 つ置く**（spec §5.3 の T3）。
-   * 宛先の選別（いまはお題とハブの接続だけ）は `topic-broadcast.ts` が持つ。
+   * 宛先の選別（ルームの全接続 —— お題・ハブ・timer・poker）は `topic-broadcast.ts` が持つ。
    * `wsAdapter` は下で代入する（上の broadcaster と同じ前方参照）。
    */
   const topicBroadcaster = makeTopicBroadcaster({
@@ -297,6 +297,8 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     // ここで繋ぐ。`pokerHandlers` はこの下で組み立てるが、呼ばれるのは要求が届いてからである。
     discardPokerVote: (roomCode, participantId) =>
       pokerHandlers.handleParticipantRemoved(roomCode, participantId),
+    // お題の状態を参加・作成した本人へ 1 通送る（#91・E4）。配信先はルームの全接続。
+    topicBroadcaster,
   });
   const presenceManager = new PresenceManager({
     store,
@@ -363,6 +365,8 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     wallClock: clock,
     rateLimiter,
     maxRooms: config.maxRooms,
+    // お題の状態を参加した本人へ 1 通送る（#91・E4）。配信先はルームの全接続。
+    topicBroadcaster,
   });
 
   /**
