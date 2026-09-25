@@ -274,6 +274,26 @@
   overflow-wrap: anywhere;
 }
 
+/* 本文（Markdown）だけを象牙の札に載せる（#91 PR 3 Task 4・修正 1 回目）。
+ *
+ * `.md-link`/`.md-code`/`.md-quote` の色（`--coal`/`--coal-soft`）は、写し元の
+ * topic-web の `.topic-card`（象牙地）を前提に決めてある。`.topic` の暗い地
+ * （`--felt-900`）へ本文をそのまま乗せると、`.md-link` は約 1.03:1、
+ * `.md-code`/`.md-quote` の枠線は約 2.07:1 まで落ち、読めない（レビュー指摘）。
+ * 色を個別に直さず、**topic-web の `.topic-card` と同じ地・字の色・内側の余白・
+ * 角丸・`min-width: 0` をそのまま写す**（topic-web `apps/topic-web/src/index.css`
+ * の `.topic-card`）。タイトルと「説明を見る」は暗い地のまま —— 既定の文字色
+ * （`--ivory`）のままで読める（felt-900 上で約 13.24:1）。 */
+.topic-body {
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--ivory);
+  color: var(--coal);
+  /* 区切りの無い長い文字列（URL 等）でも `.topic-details`（グリッドの子）ごと
+     横にはみ出さない（topic-web の `.topic-card` と同じ理由・実画面で発見）。 */
+  min-width: 0;
+}
+
 /* ---------- 説明の Markdown サブセット（`src/components/Markdown.tsx`。topic-web からの写し）
    ---------- */
 
