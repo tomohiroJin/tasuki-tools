@@ -8,7 +8,12 @@ const text = (t: string) => [{ kind: 'text', text: t }];
  */
 describe('ブロックを解析する', () => {
   it('Given 見出し 3 段 / When 解析する / Then 段の数が level になる', () => {
-    expect(parseMarkdown('# 一\n## 二\n### 三')).toEqual([
+    // Given
+    const src = '# 一\n## 二\n### 三';
+    // When
+    const blocks = parseMarkdown(src);
+    // Then
+    expect(blocks).toEqual([
       { kind: 'heading', level: 1, inline: text('一') },
       { kind: 'heading', level: 2, inline: text('二') },
       { kind: 'heading', level: 3, inline: text('三') },
@@ -33,7 +38,12 @@ describe('ブロックを解析する', () => {
   });
 
   it('Given 空行で区切った段落 / When 解析する / Then 段落が 2 つになり行内の改行は行として残る', () => {
-    expect(parseMarkdown('a\nb\n\nc')).toEqual([
+    // Given
+    const src = 'a\nb\n\nc';
+    // When
+    const blocks = parseMarkdown(src);
+    // Then
+    expect(blocks).toEqual([
       { kind: 'p', lines: [text('a'), text('b')] },
       { kind: 'p', lines: [text('c')] },
     ]);
@@ -56,6 +66,7 @@ describe('行区切りの文字を含む本文', () => {
   it.each([' ', ' ', '# 見出し 続き', 'a  b'])(
     'Given %j / When 解析する / Then 終わって段落か見出しが返る',
     (src) => {
+      // Given: 行区切りの文字を含む本文（src）
       // When
       const blocks = parseMarkdown(src);
       // Then: 終わること自体が主張。中身は改行と同じに扱われる

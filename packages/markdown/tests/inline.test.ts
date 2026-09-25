@@ -25,7 +25,12 @@ describe('行内要素を解析する', () => {
   });
 
   it('Given 太字の中のコード / When 解析する / Then 太字の子として解析される', () => {
-    expect(parseInline('**`a` b**')).toEqual([
+    // Given
+    const src = '**`a` b**';
+    // When
+    const nodes = parseInline(src);
+    // Then
+    expect(nodes).toEqual([
       { kind: 'strong', children: [{ kind: 'code', text: 'a' }, { kind: 'text', text: ' b' }] },
     ]);
   });
@@ -45,7 +50,12 @@ describe('行内要素を解析する', () => {
   });
 
   it('Given 文末の句点が付いた生 URL / When 解析する / Then 句点は URL に含まれない', () => {
-    expect(parseInline('https://example.com。')).toEqual([
+    // Given
+    const src = 'https://example.com。';
+    // When
+    const nodes = parseInline(src);
+    // Then
+    expect(nodes).toEqual([
       { kind: 'link', href: 'https://example.com', text: 'https://example.com' },
       { kind: 'text', text: '。' },
     ]);
@@ -61,6 +71,10 @@ describe('リンクの行き先の安全判定', () => {
     ['data:text/html,x', null],
     ['//a.example', null],
   ])('Given %s / When 判定する / Then %s', (url, expected) => {
-    expect(safeHref(url)).toBe(expected);
+    // Given: 行き先（url）と、期待する判定（expected）
+    // When
+    const href = safeHref(url);
+    // Then
+    expect(href).toBe(expected);
   });
 });

@@ -54,7 +54,8 @@ describe("Lobby のお題の札", () => {
   });
 
   it("Given お題が無い / When ロビーを描く / Then お題の札は出ない", () => {
-    // Given / When
+    // Given: 既定のルーム（お題なし）
+    // When: 描く
     render(
       <Lobby
         inviteUrl={INVITE_URL_FOR_TEST}

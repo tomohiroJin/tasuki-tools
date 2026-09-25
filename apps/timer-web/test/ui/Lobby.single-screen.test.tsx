@@ -55,7 +55,8 @@ describe("ロビーは 1 画面（#91 PR 3）", () => {
   });
 
   it("Given 開始ボタンと参加者一覧 / When ロビーを描く / Then 両方が同じ画面に出る", () => {
-    // Given / When
+    // Given: 既定のルーム（お題なし）
+    // When: 描く
     render(
       <Lobby
         inviteUrl={INVITE_URL_FOR_TEST}

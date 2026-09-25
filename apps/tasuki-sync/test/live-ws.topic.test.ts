@@ -386,8 +386,10 @@ describe("timer・poker の接続がルームへ入ると、いまのお題が 1
  */
 describe("ルームの作成・token 復帰でも、いまのお題が 1 通届く", () => {
   it("timer でルームを作ると、作った直後にお題（お題なし）のフレームが 1 通届く", async () => {
-    // Given/When: timer でルームを作る（command-handlers/room-create.ts の経路）
+    // Given: timer の接続
     const timer = await server.connect("timer");
+
+    // When: timer でルームを作る（command-handlers/room-create.ts の経路）
     await createRoom(timer, "かえで");
 
     // Then: 作成直後にお題なしの状態が 1 通届く
@@ -400,8 +402,10 @@ describe("ルームの作成・token 復帰でも、いまのお題が 1 通届�
   });
 
   it("poker でルームを作ると、同じく届く", async () => {
-    // Given/When: poker でルームを作る（poker-handlers.ts の create-room 経路）
+    // Given: poker の接続
     const host = await server.connectPoker("host");
+
+    // When: poker でルームを作る（poker-handlers.ts の create-room 経路）
     host.send({ type: "create-room", name: "たろう" });
     await host.take((m) => (m as { type: string }).type === "joined", "作成直後の joined");
     await host.take((m) => m.type === "room-state", "作成直後の room-state");
