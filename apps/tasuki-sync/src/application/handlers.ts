@@ -127,8 +127,11 @@ export interface HandlerDeps {
    *   （timer ↔ poker）だけが構造から出て、テストが受け持つようになった** ——
    *   実 WS で 3 経路をまたぐ `test/live-ws.rate-limit.test.ts` の「1 IP 1 バケツ」である
    * - **ゲートは `makeHandlers` がそのバケツを 1 度だけ包む**（下の `rateLimitGate`）。
-   *   **入室と合言葉の照合を行う入口は、すべてこの 1 個のゲートを通す**
-   *   （返り値の `rateLimitGate` を配線がほかの入口へ渡す）
+   *   **timer の `room.join`・ハブの参加・お題の参加と `ai.unlock` は、この 1 個のゲートを通す**
+   *   （返り値の `rateLimitGate` を配線がハブとお題の入口へ渡す）。
+   *   **poker の入口は通らない** —— `poker-handlers.ts` は同じバケツの上に自分のゲートを包む
+   *   （接続の鍵を `ws.data.rateKey` から直接読むので、`connId → 鍵` の対応を要らない）。
+   *   共有しているのはバケツであってゲートではない
    *
    * **必須にしてある**（理由は {@link HandlerDeps.tokens} と同じ）。
    * 既定を持たせると、注入を忘れた瞬間に 1 IP あたりの実効予算が黙って 2 倍になる。
@@ -230,10 +233,12 @@ export function makeHandlers(deps: HandlerDeps) {
   // **数える単位は接続ではなくクライアント（IP の HMAC）である**（#103・ADR 0011 S1）。
   // 接続単位だと再接続で窓がリセットされ、総当たりを止められなかった。
   //
-  // ★ **入室と合言葉の照合を行う入口は、すべてこのゲートを通す。** どれも
-  // 「総当たりの緩和」という同じ目的なので、同じバケツを見ていなければならない。
+  // ★ **timer の `room.join`・ハブの参加・お題の参加と `ai.unlock` は、このゲートを通す。**
+  // どれも「総当たりの緩和」という同じ目的なので、同じバケツを見ていなければならない。
   // ゲートはここで 1 度だけ包み、その 1 個を `handleRoomJoin` へ渡し、返り値の
-  // `rateLimitGate` として配線（`create-sync-server.ts`）がほかの入口へ渡す。
+  // `rateLimitGate` として配線（`create-sync-server.ts`）がハブとお題の入口へ渡す。
+  // **poker の入口はこのゲートを通らない**（`poker-handlers.ts` が同じバケツの上に
+  // 自分のゲートを包む。鍵を `ws.data.rateKey` から直接読むので `connId → 鍵` の対応が要らない）。
   // 入口ごとに `createRateLimitGate` を呼ぶ形へ崩すと、`connId → クライアント鍵` の
   // 対応が空のゲートができ、その入口の総当たり対策が黙って弱まる。
   //

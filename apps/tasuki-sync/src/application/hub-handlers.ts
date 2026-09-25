@@ -221,8 +221,9 @@ export function makeHubHandlers(deps: HubHandlerDeps): HubHandlers {
     // ので、復帰のときに返さないと次の読み込みで組が空になる（D12）。
     hub.sendTo(connId, { type: "room.joined", code: cmd.code, participantId, resumeToken });
 
-    // AI 鍵の欄は timer の状態にある。ハブからの参加では変わらないが、
-    // `joinRoom` が返した状態をそのまま保管して取りこぼしを防ぐ。
+    // ハブからの参加（ツールを宣言しない）では、`joinRoom` は既存の timer の状態を
+    // そのまま返すので、この保管は何も変えない。#91 PR 3 までは AI 鍵の欄（`aiKeyHolders`）が
+    // ここで変わりえたので保管していた。`joinRoom` の返り値の扱いを入口の間で揃えるために残す。
     if (timer !== undefined) timers.put(timer);
     saveRoster(deps, membership);
     // いまのお題を本人へ 1 通（E4）。**名簿の保管のあとに呼ぶ**（ルームの在否を名簿で見るため）。

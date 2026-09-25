@@ -15,8 +15,9 @@
  * ## 守りは入室の入口と共有する
  *
  * `ai.unlock` の総当たり対策は、`room.join` と**同じゲートのインスタンス**に積算する
- * （配線が `handlers.rateLimitGate` を渡す）。入室と合言葉の照合を行う入口は、すべて
- * このゲートを通す。手順は下の `handleAiUnlock` の docstring に書き下ろしてある。
+ * （配線が `handlers.rateLimitGate` を渡す）。このゲートを通るのは timer・ハブ・お題の入口で、
+ * poker の入口は同じバケツの上に自分のゲートを持つ（`handlers.ts` の `rateLimiter` の注記）。
+ * 手順は下の `handleAiUnlock` の docstring に書き下ろしてある。
  *
  * ## お題のタイトル・本文をログへ出さない
  *
