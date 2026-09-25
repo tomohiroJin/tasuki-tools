@@ -19,8 +19,6 @@ import { FakeCodeGen } from "./support/fake-code-gen.js";
 import { INITIAL_TOPIC_STATE } from "@tasuki/topic-core";
 
 const config: SessionConfig = {
-  language: "TypeScript",
-  difficulty: "easy",
   intervalMinutes: 5,
 };
 
@@ -45,7 +43,7 @@ async function setupRoom(
   const code = store.list().at(-1)!.code;
   for (const [connId, displayName] of [["bob-conn", "Bob"], ["charlie-conn", "Charlie"]] as const) {
     const join = await handlers.handleCommand(connId, {
-      command: "room.join", code, displayName, hasAiKey: false,
+      command: "room.join", code, displayName,
     });
     if (!join.isOk()) throw new Error(`join failed: ${displayName}`);
     const joinedId = roomViewOf(store, timers, code).participants.find((p) => p.participantId === participantIdOfConn(store, connId))!.participantId;
@@ -125,9 +123,9 @@ describe("完成記録とお題", () => {
 
   it("お題を掲げずに完了しても、完成記録ができてお題のタイトルは null になる", async () => {
     // **お題なしで見る**（お題ありで見ると、「お題があるときだけ記録を作る」誤りと区別できない・spec §7.3）
-    // Given: お題の保管も timer の `problem` も空のまま
+    // Given: お題の保管が空のまま
     const code = await setupRoom(handlers, store, timers);
-    if (handlers.topics.get(code)?.topic != null || roomViewOf(store, timers, code).problem !== null) {
+    if (handlers.topics.get(code)?.topic != null) {
       throw new Error("前提が崩れた: お題が既に掲げられている");
     }
     // When
@@ -204,17 +202,14 @@ describe("session.reset: 最初から再スタート（v2.3 #3）", () => {
   });
 
   // v2.3 #3: リセットは「最初から再スタート」になった。session 画面に留まり
-  // （phase=session 維持）、お題・メンバー・設定は保持したまま、集約だけ先頭・満タン・
+  // （phase=session 維持）、メンバー・設定は保持したまま、集約だけ先頭・満タン・
   // 走行に初期化される（旧仕様は phase=setup・お題クリアでロビーに飛ばされ、かつ
   // running=false でリセット後に開始できず詰んでいた）。
-  it("reset で phase は session のまま・お題は保持され、ローテーションが初期化され clock は走行で再スタートする", async () => {
+  // かつてはここで timer のお題が保持されることも見ていた。お題は #91 PR 3 で timer の
+  // 状態から消え、ルームの共有資産（topic の保管）になったので、timer のリセットは触れない。
+  it("reset で phase は session のまま・ローテーションが初期化され clock は走行で再スタートする", async () => {
     // Given
     const code = await setupRoom(handlers, store, timers);
-    const room = roomViewOf(store, timers, code);
-    putRoomView(store, timers, {
-      ...room,
-      problem: { title: "FizzBuzz", description: "d", requirements: ["r"], exampleTest: "t", hints: [] },
-    });
 
     // When（進行させてから session フェーズへ、その後リセット）
     await handlers.handleCommand("host-conn", { command: "phase.set", phase: "session" });
@@ -226,9 +221,6 @@ describe("session.reset: 最初から再スタート（v2.3 #3）", () => {
     const after = roomViewOf(store, timers, code);
     // session 画面に留まる（その場で走り直す）
     expect(after.phase).toBe("session");
-    // お題は保持される（null クリアされない）
-    expect(after.problem).not.toBeNull();
-    expect(after.problem?.title).toBe("FizzBuzz");
     // 集約は先頭・満タン・走行で再スタート
     expect(after.clock.running).toBe(true);
     expect(after.session.totalSwitches).toBe(0);
@@ -241,7 +233,6 @@ describe("session.reset: 最初から再スタート（v2.3 #3）", () => {
     const room = roomViewOf(store, timers, code);
     putRoomView(store, timers, {
       ...room,
-      problem: { title: "FizzBuzz", description: "d", requirements: ["r"], exampleTest: "t", hints: [] },
       sessionRecords: [
         {
           id: "rec-1",
@@ -437,21 +428,20 @@ describe("config.set: Room.config への反映", () => {
     handlers = makeTestHandlers({ store, timers, clock: new FakeClock(1000000), broadcaster, codeGen: new FakeCodeGen() });
   });
 
-  it("language/difficulty を変更すると Room.config が更新される（メンバー名に汚染されない）", async () => {
-    // Given
+  it("古い画面が config.set に言語・難易度を載せてきても、Room.config には残らない", async () => {
+    // Given: #91 PR 3 で設定から消えた項目。境界（スキーマ）をすり抜けた場合を作るため型を外す
     const code = await setupRoom(handlers, store, timers);
+    const before = roomViewOf(store, timers, code).config;
 
     // When
     await handlers.handleCommand("host-conn", {
       command: "config.set",
-      config: { language: "Python", difficulty: "hard" },
+      config: { language: "Python", difficulty: "hard" } as never,
     });
 
-    // Then
+    // Then: 設定は変わらず、メンバーも維持（decide の許可リストが表に無い項目を落とす）
     const after = roomViewOf(store, timers, code);
-    expect(after.config.language).toBe("Python");
-    expect(after.config.difficulty).toBe("hard");
-    // メンバーは変更していないので維持
+    expect(after.config).toEqual(before);
     expect(after.session.seats.map((s) => s.displayName)).toEqual(["Alice", "Bob", "Charlie"]);
   });
 
@@ -469,21 +459,6 @@ describe("config.set: Room.config への反映", () => {
     const after = roomViewOf(store, timers, code);
     expect(after.config.intervalMinutes).toBe(10);
     expect(after.clock.intervalSeconds).toBe(600);
-  });
-
-  it("problemEnabled=false を変更すると Room.config に反映される（お題なし開始・実機で発覚した退行の回帰）", async () => {
-    // Given
-    const code = await setupRoom(handlers, store, timers);
-
-    // When
-    await handlers.handleCommand("host-conn", {
-      command: "config.set",
-      config: { problemEnabled: false },
-    });
-
-    // Then
-    const after = roomViewOf(store, timers, code);
-    expect(after.config.problemEnabled).toBe(false);
   });
 });
 
@@ -637,7 +612,7 @@ describe("ドライバー一時離脱と現ドライバー skip の繰り上げ�
     await handlers.handleCommand("solo-conn", {
       command: "room.create",
       displayName: "Onlyone",
-      config: { language: "TypeScript", difficulty: "easy", intervalMinutes: 5 },
+      config: { intervalMinutes: 5 },
     });
     const code = broadcaster.createdFor("solo-conn").code;
     await handlers.handleCommand("solo-conn", { command: "session.act", action: "START" });

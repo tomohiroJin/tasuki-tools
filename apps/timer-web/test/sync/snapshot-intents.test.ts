@@ -31,15 +31,6 @@ function baseCtx(overrides: Partial<SnapshotContext> = {}): SnapshotContext {
   };
 }
 
-const problem = {
-  title: "お題",
-  description: "説明",
-  requirements: [],
-  exampleTest: "",
-  hints: [],
-  source: "fallback" as const,
-};
-
 function kinds(room: Room, ctx: SnapshotContext, prev: Room | null = null): string[] {
   return decideSnapshotIntents(prev, room, ctx).map((i) => i.kind);
 }
@@ -109,8 +100,8 @@ describe("decideSnapshotIntents: 輪への自動加入は無い（#272）", () =
 describe("decideSnapshotIntents: 完了状態の後片付け", () => {
   it("完了から抜けたら前のセッションの完了状態を畳む", () => {
     // Given: 完成フェーズから、誰かがロビーへ戻した
-    const prev = aRoomView({ code: "ROOM01", phase: "celebration", problem });
-    const next = aRoomView({ code: "ROOM01", phase: "setup", problem });
+    const prev = aRoomView({ code: "ROOM01", phase: "celebration" });
+    const next = aRoomView({ code: "ROOM01", phase: "setup" });
 
     // When / Then（kinds の戻り値をそのまま検証するため操作と検証が同じ式になる）
     expect(kinds(next, baseCtx(), prev)).toContain("clear-completion");
@@ -118,8 +109,8 @@ describe("decideSnapshotIntents: 完了状態の後片付け", () => {
 
   it("完了に留まっている間は畳まない（同じ完成の snapshot が続いても二重保存しない）", () => {
     // Given: 完成フェーズのまま、在席の変化などで snapshot がもう一度届く
-    const prev = aRoomView({ code: "ROOM01", phase: "celebration", problem });
-    const next = aRoomView({ code: "ROOM01", phase: "celebration", problem });
+    const prev = aRoomView({ code: "ROOM01", phase: "celebration" });
+    const next = aRoomView({ code: "ROOM01", phase: "celebration" });
 
     // When / Then
     expect(kinds(next, baseCtx(), prev)).not.toContain("clear-completion");
@@ -127,8 +118,8 @@ describe("decideSnapshotIntents: 完了状態の後片付け", () => {
 
   it("完了を経ていない遷移では畳まない（ロビー→セッション）", () => {
     // Given: 一度も完成していないルームの通常の開始
-    const prev = aRoomView({ code: "ROOM01", phase: "ready", problem });
-    const next = aRoomView({ code: "ROOM01", phase: "session", problem });
+    const prev = aRoomView({ code: "ROOM01", phase: "ready" });
+    const next = aRoomView({ code: "ROOM01", phase: "session" });
 
     // When / Then
     expect(kinds(next, baseCtx(), prev)).not.toContain("clear-completion");
@@ -136,8 +127,8 @@ describe("decideSnapshotIntents: 完了状態の後片付け", () => {
 
   it("畳むのは画面遷移より先（set-screen より前に積まれる）", () => {
     // Given: 完成からロビーへ
-    const prev = aRoomView({ code: "ROOM01", phase: "celebration", problem });
-    const next = aRoomView({ code: "ROOM01", phase: "setup", problem });
+    const prev = aRoomView({ code: "ROOM01", phase: "celebration" });
+    const next = aRoomView({ code: "ROOM01", phase: "setup" });
 
     // When
     const order = kinds(next, baseCtx(), prev);
@@ -147,72 +138,20 @@ describe("decideSnapshotIntents: 完了状態の後片付け", () => {
   });
 });
 
-describe("decideSnapshotIntents: お題", () => {
-  it("ロビーでお題が無くても、クライアントは依頼を送らない（サーバーが用意する・#271）", () => {
-    // Given: ロビーでお題が未確定。**自分は輪の先頭である**（旧実装ならここで依頼していた）
-    const room = aRoomView({ code: "ROOM01", phase: "ready", problem: null });
+/**
+ * ⚠ かつてここには「お題」の describe があった（依頼を送らない・生成中を立てない・
+ * お題の確定を判断しない）。#91 PR 3 で timer の snapshot からお題も設定の言語・難易度も
+ * 消えたので、判断の材料そのものが無い。残る性質は「ロビーで自分が輪の先頭でも、
+ * 立つのは画面追従だけ」で、これは下の 1 本が見る。
+ */
+describe("decideSnapshotIntents: ロビーでクライアントは何も依頼しない（#271）", () => {
+  it("輪の先頭が自分のロビーでも、立つのは画面追従だけ", () => {
+    // Given: ロビー。**自分は輪の先頭である**（#271 より前ならここでお題を依頼していた）
+    const room = aRoomView({ code: "ROOM01", phase: "ready" });
 
-    // When / Then: 立つのは画面追従だけ。
-    // **`not.toContain("request-problem")` では見張れない** —— その意図は型から
-    // 消えたので、その検査は永久に成立する（恒真）。意図の並びを丸ごと突き合わせる。
+    // When / Then: 立つのは画面追従だけ。意図の並びを丸ごと突き合わせる
+    // （消えた意図の `not.toContain` は型から消えた以上、永久に成立する恒真検査になる）。
     expect(kinds(room, baseCtx())).toEqual(["set-screen"]);
-  });
-
-  it("輪の先頭でなくても、クライアントは依頼を送らない（#271）", () => {
-    // Given: 輪の先頭は自分ではない
-    const room = aRoomView({
-      code: "ROOM01",
-      phase: "ready",
-      problem: null,
-      session: { rotation: ["someone-else", SELF], currentIndex: 0, driverCounts: [0, 0] },
-    });
-
-    // When / Then: 立つのは画面追従だけ（恒真にならないよう並びごと見る）
-    expect(kinds(room, baseCtx())).toEqual(["set-screen"]);
-  });
-
-  it("難易度が変わっても、クライアントは生成中の表示を立てない（#271 レビュー）", () => {
-    // Given: 難易度が変わった
-    const prev = aRoomView({ code: "ROOM01", phase: "ready", problem, config: { difficulty: "easy" } });
-    const next = aRoomView({ code: "ROOM01", phase: "ready", problem, config: { difficulty: "hard" } });
-
-    // When / Then: 作り直すのはサーバーで、待ちの表示も立てない。
-    // **立てると降ろせなくなる** —— サーバーは設定変更とお題確定の snapshot を
-    // 同じ tick で送るので、2 本目を処理する時点でも「生成中ではない」ままになり、
-    // 内容差分で降ろす clear-generating が成立しない（実測で 65 秒固まった）。
-    expect(kinds(next, baseCtx(), prev)).toEqual(["set-screen"]);
-  });
-
-  it("別のルームの snapshot なら設定変更とみなさない", () => {
-    // Given
-    const prev = aRoomView({ code: "OTHER", phase: "ready", problem, config: { difficulty: "easy" } });
-    const next = aRoomView({ code: "ROOM01", phase: "ready", problem, config: { difficulty: "hard" } });
-    // When / Then（kinds の戻り値をそのまま検証するため操作と検証が同じ式になる）
-    expect(kinds(next, baseCtx(), prev)).toEqual(["set-screen"]);
-  });
-
-  it("お題を使わないルームでは、設定が変わっても生成中の表示を出さない（#271）", () => {
-    // Given: お題なしのルームで難易度だけが変わった
-    const cfg = { problemEnabled: false };
-    const prev = aRoomView({ code: "ROOM01", phase: "ready", problem, config: { ...cfg, difficulty: "easy" } });
-    const next = aRoomView({ code: "ROOM01", phase: "ready", problem, config: { ...cfg, difficulty: "hard" } });
-
-    // When / Then
-    expect(kinds(next, baseCtx(), prev)).toEqual(["set-screen"]);
-  });
-
-  it("お題が確定しても、ここは何も判断しない（#283）", () => {
-    // Given: お題が null から確定へ変わった
-    const prev = aRoomView({ problem: null });
-    const next = aRoomView({ problem });
-
-    // When / Then: 立つのは画面追従だけ。**生成中の解除はもうここに無い** ——
-    // 生成中はサーバーの状態（`Room.problemGeneration`）になったので、画面は
-    // snapshot をそのまま読む。お題の内容差分で「終わった」を推測する経路は
-    // 同じお題が選び直されると成立せず、押した人だけが 65 秒固まっていた。
-    // **並びごと見る**（`not.toContain("clear-generating")` は意図が型から消えた以上
-    // 永久に成立する恒真検査になる）。
-    expect(kinds(next, baseCtx(), prev)).toEqual(["set-screen"]);
   });
 });
 
@@ -233,10 +172,10 @@ describe("完了の snapshot から終わり方と記録を決める", () => {
   });
 
   it("Given 記録が増えずに完了へ入った（別の人が中断した） / When 意図を決める / Then 保存せず、中断と出す", () => {
-    // Given: 押していない端末に届く中断の snapshot。**お題はある**（旧実装はお題があると
-    // この端末で記録を組み立てて保存していた）
-    const prev = aRoomView({ phase: "session", problem, sessionRecords: [aRecord({ id: "old" })] });
-    const next = aRoomView({ phase: "celebration", problem, sessionRecords: [aRecord({ id: "old" })] });
+    // Given: 押していない端末に届く中断の snapshot（旧実装はお題があると
+    // この端末で記録を組み立てて保存していた。#91 で記録はサーバーが作る）
+    const prev = aRoomView({ phase: "session", sessionRecords: [aRecord({ id: "old" })] });
+    const next = aRoomView({ phase: "celebration", sessionRecords: [aRecord({ id: "old" })] });
     // When
     const intents = decideSnapshotIntents(prev, next, baseCtx());
     // Then
@@ -246,7 +185,7 @@ describe("完了の snapshot から終わり方と記録を決める", () => {
 
   it("Given 前の snapshot を持たずに完了画面へ入った / When 意図を決める / Then 記録を保存せず、終わり方も決めない", () => {
     // Given: 再読込・完了の後に入ってきた端末（比べる相手が無い）
-    const next = aRoomView({ phase: "celebration", problem, sessionRecords: [aRecord()] });
+    const next = aRoomView({ phase: "celebration", sessionRecords: [aRecord()] });
     // When / Then: 立つのは画面追従だけ（並びごと見る）
     expect(kinds(next, baseCtx(), null)).toEqual(["set-screen"]);
   });
@@ -277,15 +216,11 @@ describe("decideSnapshotIntents: 順序（振る舞いそのもの）", () => {
     const prev = aRoomView({
       code: "ROOM01",
       phase: "session",
-      problem,
-      config: { difficulty: "easy" },
       sessionRecords: [],
     });
     const next = aRoomView({
       code: "ROOM01",
       phase: "celebration",
-      problem: { ...problem, title: "新しいお題" },
-      config: { difficulty: "hard" },
       session: { rotation: ["other"], currentIndex: 0 },
       sessionRecords: [aRecord()],
     });

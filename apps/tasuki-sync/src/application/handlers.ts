@@ -383,7 +383,6 @@ export function makeHandlers(deps: HandlerDeps) {
             command: "room.join";
             code: string;
             displayName: string;
-            hasAiKey: boolean;
             resumeToken?: string;
             passphrase?: string;
           },

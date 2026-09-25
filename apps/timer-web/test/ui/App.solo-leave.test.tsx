@@ -73,7 +73,6 @@ function soloSnapshot() {
         participantId: ME_ID,
         displayName: "アリス",
         presence: "online",
-        hasAiKey: false,
         joinedAt: 0,
       },
     ],

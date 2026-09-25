@@ -11,13 +11,14 @@
  * - **型**は、載せた値の**署名から到達できる**なら載せる。取り込まれていなくても
  *   契約の一部である —— `decide(…): Result<DomainEvent[], DomainError>` は型推論が
  *   効くので誰も `DomainError` を書かないが、注釈を書きたい利用者は名前を要求する。
- *   **下の型はすべてこの理由で残している**（到達しなくなった `FallbackProblemEntry` は
- *   2026-09-02 に落とした。参照していた唯一の値 `FALLBACK_PROBLEMS` を落としたため）。
+ *   **下の型はすべてこの理由で残している**（署名から到達しなくなった型は落とす。
+ *   2026-09-02 に定型のお題の型を、参照していた唯一の値を落としたときに落とした）。
  *
  * **値を落とすと、その値を型の位置で使う署名が書けなくなることがある。**
- * `validateProblem` の失敗型は `v.ValiError<typeof ProblemSchema>` だったので、
- * `ProblemSchema`（値）を落とすと外から名前で書けなくなった。`ProblemValidationError`
- * という型別名を与えて解いてある。**値を落とす前に、その値が型の位置に現れないか見ること。**
+ * かつてのお題の検証関数は、失敗型が `v.ValiError<typeof （お題のスキーマ）>` だったので、
+ * スキーマ（値）を落とすと外から名前で書けなくなり、型別名を与えて解いていた
+ * （お題ごと #91 PR 3 で timer-core から撤去した）。**値を落とす前に、その値が型の位置に
+ * 現れないか見ること。**
  *
  * 値の側は `scripts/audit-structure.mjs` の SC-039④ が見張る（型は数えない）。
  *
@@ -31,8 +32,8 @@
  *
  * ⚠ **サブパスの配線は app ごとに違い、モジュールごとに揃ってもいない。**
  * `apps/timer-web` は `vite.config.ts` / `vitest.config.ts` の alias で解決するが、
- * **並んでいるのは alias に載っているモジュールだけ**（`problem` は #91 PR 3 で
- * timer-web 側の取り込みが無くなり、alias からも落ちた）。一方 `tsconfig.json` の `paths` は
+ * **並んでいるのは alias に載っているモジュールだけ**（お題のモジュールは #91 PR 3 で
+ * timer-web 側の取り込みが無くなって alias から落ち、その後モジュールごと消えた）。一方 `tsconfig.json` の `paths` は
  * `@tasuki/timer-core/*` のワイルドカードなので、**alias の無いモジュールを
  * timer-web から取り込むと typecheck は緑のまま build と vitest だけが落ちる。**
  * 新しいサブパスを timer-web で使うときは、alias を 2 つの設定へ足すこと。
@@ -50,12 +51,6 @@ export type {
   TimerConfig,
   TimerState,
   RotationEntry,
-  ProblemSource,
-  Problem,
-  ProblemMode,
-  // #283 で追加。wire の `Room.problemGeneration` の型なので、`Room` を載せている以上
-  // 署名から到達する（ADR-0016 追記「型は署名から到達できるなら載せる」）。
-  ProblemGeneration,
   RoomPhase,
   CompletionRecord,
   IntervalMinutes,
@@ -86,9 +81,8 @@ export { evolve, advanceDriver } from "./evolve.js";
 // スキーマ
 export type { ServerMsg, Command } from "./schemas.js";
 export { CommandSchema, ServerMsgSchema } from "./schemas.js";
-// お題
-export type { ProblemWithSource, ProblemValidationError } from "./problem.js";
-export { validateProblem, pickFallback, buildProblemPrompt } from "./problem.js";
+// ⚠ お題（型・検証・定型の選択・プロンプトの組み立て）は #91 PR 3 で timer-core から
+// 撤去した。お題はルームの共有資産になり、`@tasuki/topic-core` が持つ。
 // 記録
 export { buildCompletionRecord } from "./records.js";
 export type { RemovalNotification } from "./removal-notification.js";

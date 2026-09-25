@@ -33,15 +33,12 @@ function makeParticipant(overrides: Partial<Participant>): Participant {
     participantId: "p1",
     displayName: "Alice",
     presence: "online",
-    hasAiKey: false,
     joinedAt: 1000,
     ...overrides,
   };
 }
 
 const config: SessionConfig = {
-  language: "TypeScript",
-  difficulty: "easy",
   intervalMinutes: 5,
 };
 

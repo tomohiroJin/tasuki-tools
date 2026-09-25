@@ -27,7 +27,6 @@ function participant(participantId: string, displayName: string) {
     participantId,
     displayName,
     presence: "online" as const,
-    hasAiKey: false,
     joinedAt: 0,
   };
 }

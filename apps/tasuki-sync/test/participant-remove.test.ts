@@ -40,11 +40,11 @@ describe("participant.remove（⑪）", () => {
     await handlers.handleCommand(creatorConn, {
       command: "room.create",
       displayName: "Alice",
-      config: { language: "TypeScript", difficulty: "easy", intervalMinutes: 5 },
+      config: { intervalMinutes: 5 },
     });
     creatorId = broadcaster.createdFor(creatorConn).participantId;
     code = broadcaster.createdFor(creatorConn).code;
-    await handlers.handleCommand(guestConn, { command: "room.join", code, displayName: "Bob", hasAiKey: false });
+    await handlers.handleCommand(guestConn, { command: "room.join", code, displayName: "Bob" });
     guestId = roomViewOf(store, timers, code).participants.find((p) => p.displayName === "Bob")!.participantId;
     // Bob をローテーションに加える → rotation = [Alice, Bob] の各ID
     await handlers.handleCommand(creatorConn, { command: "member.add", participantId: guestId });
@@ -227,7 +227,7 @@ describe("participant.remove（G3: 自己退出と他者退出）", () => {
     const created = await handlers.handleCommand(CREATOR, {
       command: "room.create",
       displayName: "Alice",
-      config: { language: "TypeScript", difficulty: "easy", intervalMinutes: 5 },
+      config: { intervalMinutes: 5 },
     });
     if (!created.isOk()) throw new Error("room.create failed");
     code = broadcaster.createdFor(CREATOR).code;
@@ -235,7 +235,7 @@ describe("participant.remove（G3: 自己退出と他者退出）", () => {
     // 本人が自分を輪に加える（Web の実フローと同じ）。
     for (const [connId, displayName] of [[BOB, "Bob"], [CAROL, "Carol"]] as const) {
       const join = await handlers.handleCommand(connId, {
-        command: "room.join", code, displayName, hasAiKey: false,
+        command: "room.join", code, displayName,
       });
       if (!join.isOk()) throw new Error(`room.join failed: ${displayName}`);
       const add = await handlers.handleCommand(connId, {
@@ -334,7 +334,7 @@ describe("participant.remove（G7: 同名参加者を識別子で区別する）
     const ids: Record<string, string> = {};
     for (const [connId, kind] of order) {
       const join = await handlers.handleCommand(connId, {
-        command: "room.join", code, displayName: "Bob", hasAiKey: false,
+        command: "room.join", code, displayName: "Bob",
       });
       if (!join.isOk()) throw new Error(`room.join failed: ${kind}`);
       ids[kind] = broadcaster.joinedFor(connId).participantId;
@@ -359,7 +359,7 @@ describe("participant.remove（G7: 同名参加者を識別子で区別する）
     const created = await handlers.handleCommand(CREATOR, {
       command: "room.create",
       displayName: "Alice",
-      config: { language: "TypeScript", difficulty: "easy", intervalMinutes: 5 },
+      config: { intervalMinutes: 5 },
     });
     if (!created.isOk()) throw new Error("room.create failed");
     code = broadcaster.createdFor(CREATOR).code;

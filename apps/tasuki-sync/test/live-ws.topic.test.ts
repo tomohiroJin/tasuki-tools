@@ -110,7 +110,7 @@ async function drainTopicBadUnlocks(client: LiveTopicClient, count: number): Pro
 
 /** 存在しないコードで入室を試みる（timer の入口。逆方向のバケツ共有の確認に使う）。 */
 function badTimerJoin(client: LiveClient): void {
-  client.send({ command: "room.join", code: "NOPE99", displayName: "Bob", hasAiKey: false });
+  client.send({ command: "room.join", code: "NOPE99", displayName: "Bob" });
 }
 
 /** `count` 回失敗させ、その回数ぶんのエラー応答コードを集める（timer の入口）。 */
@@ -353,7 +353,6 @@ describe("timer・poker の接続がルームへ入ると、いまのお題が 1
       command: "room.join",
       code: created.code,
       displayName: "かえで",
-      hasAiKey: false,
       resumeToken: joined.resumeToken,
     });
     // 復帰では「room.joined」は送られない（新規参加のときだけ・room-join.ts の

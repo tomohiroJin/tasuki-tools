@@ -55,8 +55,9 @@ const SRC_DIR = join(import.meta.dirname, "../src");
  */
 const INTENTIONALLY_NOT_SHOWN = new Set([
   "NOT_IN_ROOM",
-  "DELEGATION_UNAVAILABLE",
-  // ↓ 以下 9 件。**いずれも現状は既定文言が表示されている。**ここに列挙するのは
+  // ⚠ かつてはお題の委譲の 2 件もここにあった。#91 PR 3 で発行元ごと消えたため、
+  // 列挙（`SYNC_ERROR_CODES`）と一緒に落とした。
+  // ↓ 以下の各件。**いずれも現状は既定文言が表示されている。**ここに列挙するのは
   //   「今そうなっている」という現状の固定であって、「そのままでよい」という是認ではない。
   //   利用者向けに具体的な文言を与えるのは**挙動の変更**であり、
   //   本仕様（Issue #28・挙動不変）ではなく Issue #29 が扱う。
@@ -68,7 +69,6 @@ const INTENTIONALLY_NOT_SHOWN = new Set([
   "MESSAGE_TOO_LARGE",
   "ROOM_LIMIT_EXCEEDED",
   "ROOM_NOT_FOUND",
-  "STALE_SUBMISSION",
   "UNKNOWN_COMMAND",
 ]);
 
@@ -183,16 +183,6 @@ describe("変数経由コードの整合性", () => {
 });
 
 /**
- * **送り手をサーバーから消したが、列挙（`packages/timer-core/src/errors.ts`）にはまだ残るコード。**
- *
- * timer のお題の経路（代表への委譲）を #91 PR 3 で同期サーバーから撤去した。列挙と型は
- * timer-core にあり、次の課題（#91 PR 3 の timer-core の撤去）で消す。**それまでの間だけ**
- * 「列挙にあるのにソースに無い」の検査から外す。列挙から消したら、この集合も消すこと
- * （残すと、同じ名前のコードを後で足したときに検査が黙って甘くなる）。
- */
-const AWAITING_ENUM_REMOVAL: ReadonlySet<string> = new Set(["DELEGATION_UNAVAILABLE", "STALE_SUBMISSION"]);
-
-/**
  * `SyncErrorCode`（`packages/timer-core/src/errors.ts`）の列挙と、実際のソースの突き合わせ。
  *
  * 型だけでは実行時に照合できないため、列挙は値（`SYNC_ERROR_CODES`）としても持たせてある。
@@ -214,9 +204,7 @@ describe("エラーコードの列挙", () => {
     // Given（apps/tasuki-sync/src 配下の全ソースを走査対象にする）
     const sources = readAllTsFiles(SRC_DIR).join("\n");
     // When（列挙側 SYNC_ERROR_CODES の各コードがソース中に実在するか調べる）
-    const absent = SYNC_ERROR_CODES.filter(
-      (code) => !sources.includes(`"${code}"`) && !AWAITING_ENUM_REMOVAL.has(code),
-    );
+    const absent = SYNC_ERROR_CODES.filter((code) => !sources.includes(`"${code}"`));
     expect(absent).toEqual([]);
   });
 

@@ -30,7 +30,6 @@ function makeRoom(overrides?: Partial<Room>): Room {
         participantId: "creator-p",
         displayName: "Alice",
         presence: "online",
-        hasAiKey: false,
         joinedAt: 1000000,
       },
     ],
@@ -101,19 +100,9 @@ describe("Lobby 招待 1 操作", () => {
     expect(screen.getByRole("button", { name: /開始|start/i })).toBeTruthy();
   });
 
-  it("お題・設定タブを開かなくても（既定お題のまま）開始できる", async () => {
-    // Given（お題が確定済みの room を用意。既定お題のまま開始できるケース）
-    const roomWithProblem = makeRoom({
-      problem: {
-        title: "FizzBuzz",
-        description: "1から100までの整数を出力する",
-        requirements: ["1から100まで出力する"],
-        exampleTest: "expect(fizzBuzz(3)).toBe('Fizz')",
-        hints: [],
-        source: "fallback",
-        edited: false,
-      },
-    });
+  it("設定タブを開かなくても（既定のまま）開始できる", async () => {
+    // Given（既定のルーム。#91 PR 3 でお題は timer の snapshot から消えた）
+    const roomWithProblem = makeRoom({});
     const user = userEvent.setup();
     const onStart = vi.fn();
     render(

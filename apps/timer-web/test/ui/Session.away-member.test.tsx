@@ -19,7 +19,7 @@ import { aRoomView } from "../support/room-view.js";
 const INVITE_URL_FOR_TEST = "https://tasuki.example/?room=TEST";
 
 function p(participantId: string, displayName: string): Participant {
-  return { participantId, displayName, presence: "online", hasAiKey: false, joinedAt: 1 };
+  return { participantId, displayName, presence: "online", joinedAt: 1 };
 }
 
 const noop = () => {};

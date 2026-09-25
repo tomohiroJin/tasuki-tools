@@ -17,8 +17,6 @@ import { roomViewOf, putRoomView } from "./support/room-view.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 const config: SessionConfig = {
-  language: "TypeScript",
-  difficulty: "easy",
   intervalMinutes: 5,
 };
 

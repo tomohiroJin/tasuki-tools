@@ -1,9 +1,9 @@
 /**
  * 定型バンク（#91）。**生成物である。手で直さない。**
  *
- * timer-core の `problem-bank.ts`（生成時点で 33 件）の要件・テスト例・ヒントを本文 1 本へ畳んだもの
- * （spec §5.1 T2）。topic-core は timer-core に依存できない（spec T1）ので、データとして置く。
- * 旧バンクは PR 3 で timer-core から消える。以後の正本はこのファイルである。
+ * かつて timer-core にあった定型のお題のバンク（生成時点で 33 件）の要件・テスト例・ヒントを
+ * 本文 1 本へ畳んだもの（spec §5.1 T2）。topic-core は timer-core に依存できない（spec T1）ので、
+ * データとして置く。旧バンクは #91 PR 3 で timer-core から消えた。正本はこのファイルである。
  */
 import type { Difficulty, Language } from "./limits.js";
 

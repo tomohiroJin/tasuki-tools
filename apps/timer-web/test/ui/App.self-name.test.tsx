@@ -58,7 +58,6 @@ function enterRoomWhereIAmNotListed(): void {
           participantId: OTHER_ID,
           displayName: "あや",
           presence: "online",
-          hasAiKey: false,
           joinedAt: 0,
         },
       ],

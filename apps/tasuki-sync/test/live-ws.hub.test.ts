@@ -139,7 +139,6 @@ describe("ハブの入口（#95 S5a）", () => {
       command: "room.join",
       code: created.code,
       displayName: "あや",
-      hasAiKey: false,
     });
 
     // Then: snapshot が届く（門が閉じていれば ROOM_NOT_FOUND になる）

@@ -327,18 +327,6 @@ describe("decide: config.set", () => {
     const result = decide({ command: "config.set", config: { intervalMinutes: 4 as never } }, baseAgg, NOW);
     expect(result._unsafeUnwrapErr().type).toBe("InvalidInterval");
   });
-
-  it("言語・難易度のみの変更は成功する", () => {
-    // Given
-    const command = {
-      command: "config.set",
-      config: { language: "Go", difficulty: "hard" },
-    } as const;
-    // When
-    const result = decide(command, baseAgg, NOW);
-    // Then
-    expect(result.isOk()).toBe(true);
-  });
 });
 
 // ─── T009/T011/T013: 在席の柔軟化（v2） ─────────────────────────────────────
@@ -460,70 +448,6 @@ describe("decide: driver.skip / driver.resume", () => {
     const result = decide(command, baseAgg, NOW);
     // Then
     expect(result._unsafeUnwrap()[0]?.type).toBe("DriverResumed");
-  });
-});
-
-// ─── T015/T017/T019: お題の出所・編集・出題モード（v2） ─────────────────────
-
-/**
- * @requirements T015
- */
-describe("decide: problem.edit", () => {
-  it("フィールドパッチで ProblemEdited イベントを発行する", () => {
-    // Given
-    const command = { command: "problem.edit", patch: { title: "新タイトル" } } as const;
-    // When
-    const result = decide(command, baseAgg, NOW);
-    // Then
-    expect(result._unsafeUnwrap()[0]?.type).toBe("ProblemEdited");
-  });
-
-  it("requirements が上限を超えると InputLimitExceeded で拒否される（メンバー上限とは別エラー）", () => {
-    // Given（メンバー数上限 MemberLimitExceeded の流用ではなく、入力サイズ専用のエラー型を使う）
-    const tooMany = Array.from({ length: 21 }, (_, i) => `要件${i}`);
-    // When / Then
-    const result = decide(
-      { command: "problem.edit", patch: { requirements: tooMany } },
-      baseAgg,
-      NOW,
-    );
-    expect(result._unsafeUnwrapErr().type).toBe("InputLimitExceeded");
-  });
-
-  it("requirements が上限ちょうど（20件）なら許可される", () => {
-    // Given
-    const exactly = Array.from({ length: 20 }, (_, i) => `要件${i}`);
-    const command = { command: "problem.edit", patch: { requirements: exactly } } as const;
-    // When
-    const result = decide(command, baseAgg, NOW);
-    // Then
-    expect(result.isOk()).toBe(true);
-  });
-});
-
-/**
- * @requirements T019
- */
-describe("decide: problem.mode.set", () => {
-  it("AI モードへの切り替えで ProblemModeSet を発行する", () => {
-    // Given
-    const command = { command: "problem.mode.set", mode: "ai" } as const;
-    // When
-    const result = decide(command, baseAgg, NOW);
-    // Then
-    expect(result._unsafeUnwrap()[0]?.type).toBe("ProblemModeSet");
-  });
-
-  it("定型モードへの切り替えで ProblemModeSet の mode が fallback になる", () => {
-    // Given
-    const command = { command: "problem.mode.set", mode: "fallback" } as const;
-    // When
-    const result = decide(command, baseAgg, NOW);
-    // Then
-    const evt = result._unsafeUnwrap()[0];
-    if (evt?.type === "ProblemModeSet") {
-      expect(evt.mode).toBe("fallback");
-    }
   });
 });
 

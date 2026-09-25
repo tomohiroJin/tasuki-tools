@@ -62,7 +62,6 @@ export function createRoomJoinHandler(deps: RoomJoinDeps) {
       command: "room.join";
       code: string;
       displayName: string;
-      hasAiKey: boolean;
       resumeToken?: string;
       passphrase?: string;
     },
@@ -71,7 +70,6 @@ export function createRoomJoinHandler(deps: RoomJoinDeps) {
       connId,
       code: cmd.code,
       displayName: cmd.displayName,
-      hasAiKey: cmd.hasAiKey,
       // timer の入口から来た接続は、定義上 timer に居る（設計正本 D14 の S4b 追記）。
       tool: TOOL_TIMER,
       ...(cmd.resumeToken !== undefined ? { resumeToken: cmd.resumeToken } : {}),

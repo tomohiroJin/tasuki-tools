@@ -39,7 +39,7 @@ afterEach(async () => {
 
 /** 存在しないコードで入室を試みる。 */
 function badJoin(client: LiveClient): void {
-  client.send({ command: "room.join", code: "NOPE99", displayName: "Bob", hasAiKey: false });
+  client.send({ command: "room.join", code: "NOPE99", displayName: "Bob" });
 }
 
 /** `count` 回失敗させ、その回数ぶんのエラーが届くまで待つ。 */
@@ -234,7 +234,6 @@ describe("実 WS 越しの入室レート制限", () => {
       command: "room.join",
       code: created.code,
       displayName: "侵入者",
-      hasAiKey: false,
     });
     await attacker.until(
       (received) => received.filter((m) => m.type === "error").length >= DEFAULT_CAPACITY + 2,

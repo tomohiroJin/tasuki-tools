@@ -97,7 +97,6 @@ export function evolve(agg: Aggregate, event: DomainEvent, _now: number): Aggreg
     case "BreakEnded":
       return evolveBreakEnded(agg, event.now);
 
-    case "ProblemSet":
     case "HandoffNoteSet":
     case "SessionCompleted":
     case "SessionAborted":
@@ -105,8 +104,6 @@ export function evolve(agg: Aggregate, event: DomainEvent, _now: number): Aggreg
     case "ParticipantRenamed":
     case "DriverSkipped":
     case "DriverResumed":
-    case "ProblemEdited":
-    case "ProblemModeSet":
       // **これらを集約の畳み込みでは扱わない**、という意味である。
       // 「集約が変わらない」という意味ではない —— #95 S4a で `eligible` が
       // `SessionState.rotation` の席に入り、代理も席になったので、
@@ -417,15 +414,14 @@ function evolveMembersShuffled(agg: Aggregate, order: number[]): Aggregate {
 /**
  * リセット時に `initialAggregate` へ渡す一時的な設定を組む。
  *
- * `initialAggregate` が見るのは `intervalMinutes` だけで、language/difficulty は
- * 使われない（設定の真実源は `TimerState.config` であって集約ではない）。
+ * `initialAggregate` が見るのは `intervalMinutes` だけである（設定の真実源は
+ * `TimerState.config` であって集約ではない）。
  * かつてここにあった `members: []` は、`TimerConfig` から `members` が消えた
- * #95 S4a で不要になった。
+ * #95 S4a で不要になった。同じく `language` / `difficulty`（使われない仮の値）は、
+ * `TimerConfig` からお題の設定が消えた #91 PR 3 で落とした。
  */
 function buildConfigFromReset(agg: Aggregate): TimerConfig {
   return {
-    language: "TypeScript",
-    difficulty: "easy",
     intervalMinutes:
       (agg.clock.intervalSeconds / 60) as IntervalMinutes,
   };

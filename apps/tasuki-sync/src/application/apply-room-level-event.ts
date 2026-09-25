@@ -124,10 +124,8 @@ function applyRoomLevelEvent(
       // 先頭・満タン・走行に初期化済み。お題・メンバー・設定・引き継ぎは維持し、
       // phase は session のまま（その場で走り直す）。休憩フラグのみ解除する。
       return withTimer(state, { ...room, onBreak: false });
-    case "ProblemSet":
-      return withTimer(state, { ...room, problem: event.problem });
     case "ConfigSet":
-      // 検証済み部分設定を config にマージ（言語/難易度/間隔を反映）。
+      // 検証済み部分設定を config にマージ（間隔と進め方のトグルを反映）。
       // 名簿はここを通らない（#95 S4a・D15。`members` は wire の境界で落ちる）。
       return withTimer(state, { ...room, config: { ...room.config, ...event.config } });
     case "HandoffNoteSet":
@@ -195,15 +193,6 @@ function applyRoomLevelEvent(
       return setEligible(state, event.participantId, false);
     case "DriverResumed":
       return setEligible(state, event.participantId, true);
-    case "ProblemEdited": {
-      if (!room.problem) return state;
-      return withTimer(state, {
-        ...room,
-        problem: { ...room.problem, ...event.patch, edited: true },
-      });
-    }
-    case "ProblemModeSet":
-      return withTimer(state, { ...room, problemMode: event.mode });
     default:
       return state;
   }

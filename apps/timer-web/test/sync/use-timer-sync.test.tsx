@@ -388,12 +388,34 @@ describe("useTimerSync: 明示保存の失敗経路", () => {
 });
 
 /**
- * かつてここには「お題が無いと problem.request を先に送る」検査があった。
- * timer 内でのお題の作成・依頼は撤去し、お題ツール（別アプリ）が配る任意の札に
- * なったので、`startSession()` はお題の有無を見ずに phase.set → 開始だけを送る
- * （#91 PR 3）。代わりの検査は `Lobby.single-screen.test.tsx` の
- * 「お題が無いロビーでも開始ボタンが押せる」が担う。
+ * 開始の送信順を固定する（#91 PR 3）。
+ *
+ * かつて `startSession()` はお題が無いと `problem.request` を先に送っていた。お題は
+ * お題ツール（別アプリ）が配る任意の札になり、timer はお題の有無を見ずに開始する。
+ * **お題の無いルームで見るのが要点である** —— お題があるルームだけで見ると、
+ * 「お題が無いときだけ依頼を差し込む」誤りと区別できない。
+ *
+ * @requirements #91
  */
+describe("useTimerSync: 開始（お題なし）", () => {
+  it("お題の無いルームでロビーから開始すると phase.set → session.act の順で送る", () => {
+    // Given: お題の無いロビー（お題のフレームは届いていない）
+    const { result, ws, deliver } = enterRoom(fakeBanner(), { displayName: "Guest" });
+    deliver({ type: "room.joined", code: "ROOM01", resumeToken: "rt", participantId: "p-1" });
+    deliver({ type: "snapshot", room: aRoomView({ code: "ROOM01", phase: "ready" }) });
+    expect(result.current.mode).toBe("lobby");
+    const sendSpy = vi.spyOn(ws, "send");
+
+    // When
+    act(() => result.current.startSession());
+
+    // Then: 送るのは 2 本だけで、依頼は差し込まれない
+    const sent = sendSpy.mock.calls.map((c) => JSON.parse(String(c[0])) as Record<string, unknown>);
+    expect(sent.map((m) => m.command)).toEqual(["phase.set", "session.act"]);
+    expect(sent[0]!.phase).toBe("session");
+    expect(sent[1]!.action).toBe("START");
+  });
+});
 
 describe("useTimerSync: 後始末", () => {
   it("unmount で WebSocket を閉じる", () => {

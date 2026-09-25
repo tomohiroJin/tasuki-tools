@@ -56,7 +56,6 @@ describe("実 WS・複数接続", () => {
       command: "room.join",
       code: created.code,
       displayName: "ゲスト",
-      hasAiKey: false,
       resumeToken: joined.resumeToken,
     });
 
@@ -94,7 +93,6 @@ describe("実 WS・複数接続", () => {
       command: "room.join",
       code: created.code,
       displayName: "ゲスト",
-      hasAiKey: false,
       resumeToken: joined.resumeToken,
     });
     const restored = await revived.take("snapshot");
@@ -135,7 +133,6 @@ describe("実 WS・複数接続", () => {
       command: "room.join",
       code: created.code,
       displayName: "ゲスト",
-      hasAiKey: false,
       resumeToken: joined.resumeToken,
     });
     await tab2.take("snapshot");

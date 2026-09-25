@@ -175,11 +175,10 @@ export async function handleParticipantRemove(
   // 同名の二重参加や再接続で実態とずれたため撤去した。
   const idx = timer.session.rotation.findIndex((e) => rotationEntryId(e) === targetId);
   // 名簿から外す（代理は名簿に居ないので何も起きない。輪の席だけが下で外れる）。
-  // AI 鍵の持ち主からも落とす —— 名簿から消えた人の鍵を持ち越すと、宛先の無い
-  // 候補が残り続ける（wire には出ないので観測はできないが、参照は残る）。
+  // かつてはここで AI の鍵の持ち主の一覧からも落としていた。#91 PR 3 でその一覧ごと消えた。
   let next: RoomState = {
     membership: membershipAfterRemoval,
-    timer: { ...timer, aiKeyHolders: timer.aiKeyHolders.filter((id) => id !== targetId) },
+    timer,
   };
   if (idx >= 0) {
     // 数えるのは**席（`RotationEntry`）**であって名簿の人数ではない。守っているのは

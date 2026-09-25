@@ -18,7 +18,7 @@
  * 完全一致にできないため、command と接頭辞だけを見る個別テストに分けている。
  *
  * **timer 内でのお題の作成・編集・AI 解錠は #91 PR 3 で撤去した**（お題ツールへ移管）。
- * それらの prop（onEditProblem・onAiUnlock・onProblemModeSet・onRegenerateProblem）は
+ * それらの prop（お題の編集・AI 解錠・出題モードの切り替え・作り直し）は
  * もう存在しないため、対応するケースをこのファイルから落とした。
  *
  * @requirements #167（#72 E4）
@@ -54,7 +54,7 @@ function propHarness(prefix: string) {
 
 /** 各コールバックへ渡す引数。ここに無いものは引数なしで呼ばれる。 */
 const ARGS: Record<string, unknown[]> = {
-  onConfigSet: [{ difficulty: "hard" }],
+  onConfigSet: [{ navigatorEnabled: true }],
   onJoinRotation: ["p-2"],
   onLeaveRotation: ["p-2"],
   onRemoveParticipant: ["p-2"],
@@ -79,7 +79,6 @@ function participant(participantId: string, displayName: string) {
     participantId,
     displayName,
     presence: "online" as const,
-    hasAiKey: false,
     joinedAt: 0,
   };
 }
@@ -117,14 +116,6 @@ function enterRoom(phase: "ready" | "session"): FakeWS {
       phase,
       participants: [participant(CREATOR_ID, "Creator"), participant(OTHER_ID, "Other")],
       session: { rotation: [CREATOR_ID, OTHER_ID], currentIndex: 0 },
-      problem: {
-        title: "お題",
-        description: "説明",
-        requirements: [],
-        exampleTest: "expect(add(1, 2)).toBe(3)",
-        hints: [],
-        source: "fallback",
-      },
     }),
   });
   return ws;
@@ -146,7 +137,7 @@ function sentFrames(sendSpy: SendSpy): Array<Record<string, unknown>> {
 // requestId/participantId に乱数・現在時刻を含む onAddProxy は
 // 完全一致にできないため、この表には含めず個別テストで command と接頭辞だけを見る。
 const LOBBY_CASES: Array<[string, Record<string, unknown>]> = [
-  ["onConfigSet", { command: "config.set", config: { difficulty: "hard" } }],
+  ["onConfigSet", { command: "config.set", config: { navigatorEnabled: true } }],
   ["onJoinRotation", { command: "member.add", participantId: "p-2" }],
   ["onLeaveRotation", { command: "member.remove", index: 1 }],
   ["onRemoveParticipant", { command: "participant.remove", participantId: "p-2" }],

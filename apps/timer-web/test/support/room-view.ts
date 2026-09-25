@@ -7,7 +7,7 @@
  * 上書き分だけがテストに残るので「そのテストが何を前提にしているか」が差分として読める（FR-091）。
  *
  * 既定値は App.tsx（handleCreateRoom）が room.create で実際に送る config に合わせる
- * （language: "TypeScript" / difficulty: "easy" / intervalMinutes: 7）。
+ * （intervalMinutes: 7。言語・難易度は #91 PR 3 で設定から消えた）。
  * テスト専用の都合のよい既定値を作ると、テストが通っても実画面で動かない状態を招くため避ける。
  *
  * @requirements FR-096, FR-097, FR-118, US2
@@ -23,7 +23,7 @@ const CREATOR_ID = "creator-p";
 
 function defaultConfig(): SessionConfig {
   // App.tsx handleCreateRoom の既定値（intervalMinutes: 7 が実際の既定）。
-  return { language: "TypeScript", difficulty: "easy", intervalMinutes: 7 };
+  return { intervalMinutes: 7 };
 }
 
 /** 既定の席の表示名（既定の輪は作成者 1 人）。 */
@@ -80,7 +80,6 @@ function defaultParticipants(): Participant[] {
       participantId: CREATOR_ID,
       displayName: "Creator",
       presence: "online",
-      hasAiKey: false,
       joinedAt: 0,
     },
   ];
@@ -165,7 +164,6 @@ export function aRoomView(overrides: RoomViewOverrides = {}): Room {
     code: "TEST01",
     createdAt: 0,
     config,
-    problem: null,
     session: merged,
     clock,
     phase: "setup",

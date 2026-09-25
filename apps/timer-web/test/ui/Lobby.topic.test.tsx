@@ -23,7 +23,6 @@ function makeRoom(overrides?: Partial<Room>): Room {
         participantId: "creator-p",
         displayName: "Alice",
         presence: "online",
-        hasAiKey: false,
         joinedAt: 1000000,
       },
     ],

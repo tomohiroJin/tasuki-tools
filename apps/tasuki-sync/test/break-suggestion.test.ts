@@ -50,8 +50,6 @@ describe("休憩提案シグナル撤去（v2.10・§9.1）", () => {
       command: "room.create",
       displayName: "Alice",
       config: {
-        language: "TypeScript",
-        difficulty: "easy",
         intervalMinutes: 5,
         ...config,
       },

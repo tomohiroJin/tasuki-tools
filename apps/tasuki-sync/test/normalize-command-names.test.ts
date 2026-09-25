@@ -26,7 +26,7 @@ import { normalizeCommandNames } from "../src/application/normalize-command-name
 
 /** 表示名だけを差し替えた `room.join`。 */
 function join(displayName: string): Command {
-  return { command: "room.join", code: "AB0001", displayName, hasAiKey: false };
+  return { command: "room.join", code: "AB0001", displayName };
 }
 
 /** 正規化に成功した表示名を取り出す（失敗なら throw して前提の壊れを知らせる）。 */

@@ -35,8 +35,7 @@ const membership: MembershipRoom = {
 const timer: TimerState = {
   code: "mob-a1b2c3d4",
   createdAt: 500,
-  config: { language: "TypeScript", difficulty: "easy", intervalMinutes: 5 },
-  problem: null,
+  config: { intervalMinutes: 5 },
   session: {
     rotation: [
       { kind: "member", participantId: "p_alice", eligible: true },
@@ -59,7 +58,6 @@ const timer: TimerState = {
   sessionRecords: [],
   handoffNote: "",
   onBreak: false,
-  aiKeyHolders: [],
 };
 
 describe("timer の参加者一覧は在席で絞る（#95 S5a）", () => {
@@ -125,7 +123,7 @@ describe("timer のスナップショット DTO（wire の同形性）", () => {
     const room = buildTimerSnapshotRoom(membership, timer);
     // Then
     expect(room.participants.map((p) => p.participantId)).toEqual(["p_alice", "p_bob", "p_proxy1"]);
-    expect(room.participants[0]).toMatchObject({ displayName: "アリス", presence: "online", hasAiKey: false });
+    expect(room.participants[0]).toMatchObject({ displayName: "アリス", presence: "online" });
   });
 
   it("代理はローテーションから合成され、isPlaceholder が立つ", () => {
@@ -180,10 +178,8 @@ describe("timer のスナップショット DTO（wire の同形性）", () => {
     expect(alice?.driverEligible).toBe(false);
   });
 
-  it("AI 鍵の持ち主は hasAiKey=true として出る", () => {
-    const room = buildTimerSnapshotRoom(membership, { ...timer, aiKeyHolders: ["p_bob"] });
-    expect(room.participants.find((p) => p.participantId === "p_bob")?.hasAiKey).toBe(true);
-  });
+  // かつてここには「AI 鍵の持ち主が参加者の印として出る」があった。#91 PR 3 で
+  // 印ごと wire から落ちた（お題はルームの共有資産になり、timer は鍵を扱わない）。
 
   // #95 S4b・裁定 1。**多接続では「接続 1 本」が wire に載せられない。**
   // 読み手は S4a 時点で製品コードに 0 件（テストの造作にだけ現れていた）。

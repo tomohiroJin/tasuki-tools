@@ -32,7 +32,6 @@ const badJoin = (handlers: ReturnType<typeof makeHandlers>, conn: string) =>
     command: "room.join",
     code: "NOPE99",
     displayName: "Bob",
-    hasAiKey: false,
   });
 
 describe("入室失敗のレート制限", () => {
@@ -152,7 +151,6 @@ describe("入室失敗のレート制限", () => {
       command: "room.join",
       code,
       displayName: "侵入者",
-      hasAiKey: false,
     });
 
     // Then
@@ -169,7 +167,6 @@ describe("入室失敗のレート制限", () => {
       command: "room.join",
       code: "ないルーム-0000",
       displayName: "侵入者",
-      hasAiKey: false,
     });
 
     // Then: **ROOM_NOT_FOUND を返してはならない**（設計正本 D3）。

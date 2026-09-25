@@ -632,13 +632,12 @@ export async function joinRoom(
   client: LiveClient,
   code: string,
   displayName: string,
-  extra: { passphrase?: string; hasAiKey?: boolean } = {},
+  extra: { passphrase?: string } = {},
 ): Promise<MsgOf<"room.joined">> {
   client.send({
     command: "room.join",
     code,
     displayName,
-    hasAiKey: extra.hasAiKey ?? false,
     ...(extra.passphrase !== undefined ? { passphrase: extra.passphrase } : {}),
   });
   const msg = await client.takeMatching(

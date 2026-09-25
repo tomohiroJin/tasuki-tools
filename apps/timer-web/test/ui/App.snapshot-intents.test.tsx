@@ -32,7 +32,6 @@ import { FakeWS } from "../support/fakes.js";
 import { enterRoomAndConnect } from "../support/enter-room.js";
 import { aRecord, aRoomView } from "../support/room-view.js";
 import { saveRecord as saveRecordMock } from "../../src/records/indexeddb.js";
-import type { Problem } from "@tasuki/timer-core";
 
 vi.mock("../../src/records/indexeddb.js", () => ({
   saveRecord: vi.fn().mockResolvedValue(undefined),
@@ -41,23 +40,11 @@ vi.mock("../../src/records/indexeddb.js", () => ({
 const CREATOR_ID = "p-alice";
 const OTHER_ID = "other-1";
 
-function problemA(): Problem {
-  return {
-    title: "FizzBuzz",
-    description: "3の倍数でFizz",
-    requirements: ["3の倍数はFizz"],
-    exampleTest: "expect(add(1, 2)).toBe(3)",
-    hints: [],
-    source: "fallback",
-  };
-}
-
 function participant(participantId: string, displayName: string) {
   return {
     participantId,
     displayName,
     presence: "online" as const,
-    hasAiKey: false,
     joinedAt: 0,
   };
 }
@@ -150,7 +137,6 @@ describe("persist-completion: 完成フェーズの snapshot でローカル記�
       aRoomView({
         code: "ROOM01",
         phase,
-        problem: problemA(),
         participants: [participant(CREATOR_ID, "Creator")],
         sessionRecords: [],
       });
@@ -175,7 +161,6 @@ describe("persist-completion: 完成フェーズの snapshot でローカル記�
       aRoomView({
         code: "ROOM01",
         phase,
-        problem: problemA(),
         participants: [participant(CREATOR_ID, "Creator")],
         sessionRecords: [first],
       });
@@ -246,7 +231,6 @@ describe("clear-completion: 開始を押していない端末でも、2 本目�
       room: aRoomView({
         code: "ROOM01",
         phase,
-        problem: problemA(),
         participants: PARTICIPANTS,
         session: ROTATION,
         sessionRecords,

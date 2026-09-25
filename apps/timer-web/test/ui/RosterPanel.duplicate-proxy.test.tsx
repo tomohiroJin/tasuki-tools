@@ -36,7 +36,6 @@ const mk = (id: string, name: string, over: Partial<Participant> = {}): Particip
   participantId: id,
   displayName: name,
   presence: "online",
-  hasAiKey: false,
   joinedAt: 1_000_000,
   ...over,
 });

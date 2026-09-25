@@ -570,7 +570,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
       command: "room.join",
       code: saved.code,
       displayName: saved.displayName,
-      hasAiKey: false,
       resumeToken: saved.resumeToken,
     });
     // 送ったところから、また答えを待つ（#292）。**送れたときだけ張る** ——
@@ -796,7 +795,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
       command: "room.join",
       code: saved.code,
       displayName: saved.displayName,
-      hasAiKey: false,
       resumeToken: saved.resumeToken,
     });
     // 送ったところから答えを待つ期限を測る（#292）。**ここが本来の入口である** ——

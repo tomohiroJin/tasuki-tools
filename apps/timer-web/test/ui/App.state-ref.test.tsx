@@ -31,24 +31,12 @@ import { screen, act } from "@testing-library/react";
 import { FakeWS } from "../support/fakes.js";
 import { enterRoomAndConnect } from "../support/enter-room.js";
 import { aRecord, aRoomView } from "../support/room-view.js";
-import type { Problem } from "@tasuki/timer-core";
 
 vi.mock("../../src/records/indexeddb.js", () => ({
   saveRecord: vi.fn().mockResolvedValue(undefined),
 }));
 
 const CREATOR_ID = "p-alice";
-
-function problemA(): Problem {
-  return {
-    title: "FizzBuzz",
-    description: "3の倍数でFizz",
-    requirements: ["3の倍数はFizz"],
-    exampleTest: "expect(add(1, 2)).toBe(3)",
-    hints: [],
-    source: "fallback",
-  };
-}
 
 function sendServer(ws: FakeWS, msg: Record<string, unknown>): void {
   act(() => {
@@ -82,9 +70,8 @@ describe("App.tsx の state/ref 二重管理", () => {
       type: "snapshot",
       room: aRoomView({
         code: "ROOM01",
-        problem: problemA(),
         participants: [
-          { participantId: CREATOR_ID, displayName: "Creator", presence: "online", hasAiKey: false, joinedAt: 0 },
+          { participantId: CREATOR_ID, displayName: "Creator", presence: "online", joinedAt: 0 },
         ],
       }),
     });
@@ -115,9 +102,8 @@ describe("App.tsx の state/ref 二重管理", () => {
       aRoomView({
         code: "ROOM01",
         phase,
-        problem: problemA(),
         participants: [
-          { participantId: CREATOR_ID, displayName: "Creator", presence: "online", hasAiKey: false, joinedAt: 0 },
+          { participantId: CREATOR_ID, displayName: "Creator", presence: "online", joinedAt: 0 },
         ],
         sessionRecords: [aRecord({ id: "first" })],
       });

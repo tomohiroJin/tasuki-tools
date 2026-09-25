@@ -31,11 +31,8 @@ function makeRunningRoom(code: string): Room {
     code,
     createdAt: 1000000,
     config: {
-      language: "TypeScript",
-      difficulty: "easy",
       intervalMinutes: 5,
     },
-    problem: null,
     session: {
       rotation,
       currentIndex: 0,
@@ -65,14 +62,12 @@ function makeRunningRoom(code: string): Room {
         participantId: "driver-p01",
         displayName: "Driver",
         presence: "online",
-        hasAiKey: false,
         joinedAt: 1000000,
       },
       {
         participantId: "other-p02",
         displayName: "Other",
         presence: "online",
-        hasAiKey: false,
         joinedAt: 1000100,
       },
     ],

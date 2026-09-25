@@ -40,7 +40,7 @@ describe("createCommands: 引数をそのまま載せる操作", () => {
     ["driverAssign", (c) => c.driverAssign("p-2"), { command: "driver.assign", participantId: "p-2" }],
     ["addProxy", (c) => c.addProxy("proxy-x", "代理"), { command: "participant.addProxy", participantId: "proxy-x", displayName: "代理" }],
     ["setPhase", (c) => c.setPhase("session"), { command: "phase.set", phase: "session" }],
-    ["setConfig", (c) => c.setConfig({ difficulty: "hard" }), { command: "config.set", config: { difficulty: "hard" } }],
+    ["setConfig", (c) => c.setConfig({ navigatorEnabled: true }), { command: "config.set", config: { navigatorEnabled: true } }],
     ["resetSession", (c) => c.resetSession(), { command: "session.reset" }],
     ["setHandoffNote", (c) => c.setHandoffNote("メモ"), { command: "handoff.note.set", text: "メモ" }],
   ];

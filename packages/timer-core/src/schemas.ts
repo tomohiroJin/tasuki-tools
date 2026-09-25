@@ -1,22 +1,14 @@
 /**
- * Valibot スキーマ（Command / ServerMsg / Problem / SessionConfig）
+ * Valibot スキーマ（Command / ServerMsg / SessionConfig）
  * FR-021, FR-023, NFRセキュリティ(S3)
  */
 
 import * as v from "valibot";
 import {
   VALID_INTERVAL_MINUTES,
-  MAX_PROBLEM_REQUIREMENTS,
   MAX_ROOM_NAME,
   MAX_HANDOFF_NOTE,
-  MAX_PROBLEM_TITLE,
-  MAX_PROBLEM_TEXT,
-  MAX_PROBLEM_HINT,
-  MAX_PROBLEM_HINTS,
   MAX_PASSPHRASE,
-  MAX_AI_UNLOCK_KEY,
-  MAX_CONFIG_LANGUAGE,
-  MAX_CONFIG_DIFFICULTY,
 } from "./aggregate.js";
 // ─── 共通 ───────────────────────────────────────────────────────────────────
 
@@ -40,15 +32,8 @@ const participantId = nonEmptyString;
 // `MAX_DISPLAY_NAME` を動かす段（S5b・#248 で poker の 24 と統合する）で片方が取り残される。
 // 巨大入力そのものは接続層のフレーム上限（`maxMessageBytes`）が先に弾く。
 const displayNameStr = v.string();
-const problemTitleStr = v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_PROBLEM_TITLE));
-const problemTextStr = v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_PROBLEM_TEXT));
-const requirementStr = v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_PROBLEM_TEXT));
-const hintStr = v.pipe(v.string(), v.maxLength(MAX_PROBLEM_HINT));
 // パスフレーズ（空文字=解除を許すため minLength なし。最大長のみ課す）。
 const passphraseStr = v.pipe(v.string(), v.maxLength(MAX_PASSPHRASE));
-// 言語・難易度は AI お題生成のプロンプトへ渡るため境界で最大長を課す（A04・注入/浪費抑制）。
-const languageStr = v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_CONFIG_LANGUAGE));
-const difficultyStr = v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_CONFIG_DIFFICULTY));
 
 // ─── SessionConfig スキーマ ─────────────────────────────────────────────────
 
@@ -64,29 +49,18 @@ const difficultyStr = v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_CONFIG_
 // 2. **出ていく空文字で snapshot 全体が落ちなくなった。** 要素が `nonEmptyString` だった
 //    ため、名簿から引けない席の空文字が 1 つ載るだけで画面は全フレームを捨てていた
 //    （`docs/adr/0005`）。席の `displayName` は #276 D2 で `v.string()` にしてある
+//
+// ⚠ 同じく `language` / `difficulty` とお題機能を使うかの切り替えも **#91 PR 3 で落とした**
+// （お題はルームの共有資産 `@tasuki/topic-core` へ移った）。上の 1 と同じ理由で、
+// 古い画面が `config.set` / `room.create` に載せて送ってきても出力に残らない。
+// 必須だった 2 つを落としたので、**古い画面の `config.set` はそのまま受理される**
+// （必須を足す向きではないので、窓 3 = 古い画面 × 新しいサーバーでも落ちない）。
 const SessionConfigSchema = v.object({
-  language: languageStr,
-  difficulty: difficultyStr,
   intervalMinutes: v.picklist(VALID_INTERVAL_MINUTES),
   navigatorEnabled: v.optional(v.boolean()),
   // 0 は「休憩提案オフ」を表す（ロビーでトグルを外したときに送る）。1 以上で N 巡ごと。
   breakEveryRotations: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
   assertiveSwitch: v.optional(v.boolean()),
-  /** お題機能を使うか（false なら言語/お題を要求せず開始できる）。既定 true 相当。 */
-  problemEnabled: v.optional(v.boolean()),
-});
-
-// ─── Problem スキーマ ────────────────────────────────────────────────────────
-
-export const ProblemSchema = v.object({
-  title: problemTitleStr,
-  description: problemTextStr,
-  requirements: v.pipe(v.array(requirementStr), v.maxLength(MAX_PROBLEM_REQUIREMENTS)),
-  exampleTest: problemTextStr,
-  hints: v.pipe(v.array(hintStr), v.maxLength(MAX_PROBLEM_HINTS)),
-  // v2 追加フィールド（任意化で後方互換）
-  source: v.optional(v.picklist(["ai", "fallback", "custom"])),
-  edited: v.optional(v.boolean()),
 });
 
 // ─── Command スキーマ ────────────────────────────────────────────────────────
@@ -103,7 +77,9 @@ const RoomJoinCommand = v.object({
   command: v.literal("room.join"),
   code: nonEmptyString,
   displayName: displayNameStr,
-  hasAiKey: v.boolean(),
+  // ⚠ かつてここには AI の鍵を持つかの印（必須の boolean）があった。#91 PR 3 で落とした。
+  // 古い画面はまだ載せて送ってくるが、v.object は未知のキーを出力に残さないので参加できる
+  // （窓 3 = 古い画面 × 新しいサーバー。`apps/tasuki-sync/test/live-ws.room-ops.test.ts` が固定）。
   resumeToken: v.optional(v.string()),
   passphrase: v.optional(passphraseStr),
 });
@@ -116,18 +92,6 @@ const ConfigSetCommand = v.object({
 const PhaseSetCommand = v.object({
   command: v.literal("phase.set"),
   phase: v.picklist(["setup", "ready", "session", "celebration"]),
-});
-
-const ProblemRequestCommand = v.object({
-  command: v.literal("problem.request"),
-  requestId: nonEmptyString,
-});
-
-const ProblemSubmitCommand = v.object({
-  command: v.literal("problem.submit"),
-  requestId: nonEmptyString,
-  problem: ProblemSchema,
-  usedFallback: v.boolean(),
 });
 
 // T057: 自ファイル内でのみ使われるため export を外した（FR-119③・SC-039）。
@@ -228,33 +192,9 @@ const DriverAssignCommand = v.object({
   participantId,
 });
 
-const ProblemPatchSchema = v.partial(v.object({
-  title: problemTitleStr,
-  description: problemTextStr,
-  requirements: v.pipe(v.array(requirementStr), v.maxLength(MAX_PROBLEM_REQUIREMENTS)),
-  exampleTest: problemTextStr,
-  hints: v.pipe(v.array(hintStr), v.maxLength(MAX_PROBLEM_HINTS)),
-}));
-
-const ProblemEditCommand = v.object({
-  command: v.literal("problem.edit"),
-  patch: ProblemPatchSchema,
-});
-
-const ProblemModeSetCommand = v.object({
-  command: v.literal("problem.mode.set"),
-  mode: v.picklist(["ai", "fallback"]),
-});
-
 const RoomPassphraseSetCommand = v.object({
   command: v.literal("room.passphrase.set"),
   passphrase: passphraseStr,
-});
-
-const AiUnlockCommand = v.object({
-  command: v.literal("ai.unlock"),
-  // 合言葉は必ず 1 文字以上（空文字は合言葉として無効）。
-  key: v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_AI_UNLOCK_KEY)),
 });
 
 const PresencePingCommand = v.object({
@@ -266,14 +206,19 @@ const TimePingCommand = v.object({
   clientTime: v.number(),
 });
 
-/** クライアント→サーバー コマンドの合併スキーマ */
+/**
+ * クライアント→サーバー コマンドの合併スキーマ。
+ *
+ * ⚠ かつてはお題のコマンド（`problem.request` / `problem.submit` / `problem.edit` /
+ * `problem.mode.set` / `ai.unlock`）も並んでいた。**#91 PR 3 で落とした。** 古い画面が
+ * 送ってきても、ここで `INVALID_COMMAND` になり状態は変わらない（接続も切れない。
+ * `apps/tasuki-sync/test/live-ws.room-ops.test.ts` が固定）。
+ */
 export const CommandSchema = v.variant("command", [
   RoomCreateCommand,
   RoomJoinCommand,
   ConfigSetCommand,
   PhaseSetCommand,
-  ProblemRequestCommand,
-  ProblemSubmitCommand,
   SessionActCommand,
   SessionCompleteCommand,
   SessionAbortCommand,
@@ -291,10 +236,7 @@ export const CommandSchema = v.variant("command", [
   DriverSkipCommand,
   DriverResumeCommand,
   DriverAssignCommand,
-  ProblemEditCommand,
-  ProblemModeSetCommand,
   RoomPassphraseSetCommand,
-  AiUnlockCommand,
   PresencePingCommand,
   TimePingCommand,
 ]);
@@ -314,7 +256,6 @@ const ParticipantSchema = v.object({
   // ⚠ `connId` は #95 S4b で落とした（多接続では「接続 1 本」が嘘になる。`wire.ts` の注記）。
   displayName: nonEmptyString,
   presence: v.picklist(["online", "idle", "offline"]),
-  hasAiKey: v.boolean(),
   joinedAt: v.number(),
   // v2 追加フィールド（任意化で後方互換）
   isPlaceholder: v.optional(v.boolean()),
@@ -373,19 +314,10 @@ const CompletionRecordSchema = v.object({
   rounds: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
 });
 
-// お題の生成の状態（#283）。**任意項目にしてある**（`wire.ts` の `problemGeneration` の注記）。
-// 配布は画面が先なので、旧サーバーの snapshot（この項目を持たない）も通らなければならない。
-// T057 と同じ理由で自ファイル内専用（FR-119③・SC-039）。
-const ProblemGenerationSchema = v.object({
-  active: v.boolean(),
-  degraded: v.boolean(),
-});
-
 export const RoomSchema = v.object({
   code: nonEmptyString,
   createdAt: v.number(),
   config: SessionConfigSchema,
-  problem: v.nullable(ProblemSchema),
   session: SessionStateSchema,
   clock: ServerClockSchema,
   phase: v.picklist(["setup", "ready", "session", "celebration"]),
@@ -394,11 +326,10 @@ export const RoomSchema = v.object({
   handoffNote: v.string(),
   onBreak: v.boolean(),
   // v2 追加フィールド（任意化で後方互換）
-  problemMode: v.optional(v.picklist(["ai", "fallback"])),
   passphraseProtected: v.optional(v.boolean()),
-  aiUnlocked: v.optional(v.boolean()),
-  // お題の生成の状態（#283）。サーバー権威。
-  problemGeneration: v.optional(ProblemGenerationSchema),
+  // お題の 4 項目（`problem`・`problemMode`・`aiUnlocked`・`problemGeneration`）は
+  // #91 PR 3 で落とした（`wire.ts` 末尾の注記）。**`problem` は必須だった**が、落とす向きなので
+  // 旧いサーバーの snapshot（これらを載せている）は今までどおり通る。
   // `startedAt` は #95 S4a で落とした（読み手 0 件・書き手 0 件）。非 strict の
   // `v.object` なので、この項目を載せた古い snapshot も従来どおりパースできる。
 });
@@ -423,13 +354,6 @@ const SignalSwitchMsg = v.object({
 const SignalCelebrationMsg = v.object({
   type: v.literal("signal"),
   signal: v.literal("celebration"),
-});
-
-const SignalNeedProblemMsg = v.object({
-  type: v.literal("signal"),
-  signal: v.literal("need-problem"),
-  requestId: nonEmptyString,
-  deadlineMs: v.number(),
 });
 
 const SignalSuggestBreakMsg = v.object({
@@ -497,7 +421,6 @@ export const ServerMsgSchema = v.variant("type", [
   ErrorMsg,
   SignalSwitchMsg,
   SignalCelebrationMsg,
-  SignalNeedProblemMsg,
   SignalSuggestBreakMsg,
   SignalNoticeMsg,
   TimePongMsg,

@@ -28,18 +28,17 @@ const INVITE_URL_FOR_TEST = 'https://tasuki.example/?room=TEST';
 
 function p(overrides: Partial<Participant>): Participant {
   return {
-    participantId: "x", displayName: "X", presence: "online", hasAiKey: false, joinedAt: 1, ...overrides,
+    participantId: "x", displayName: "X", presence: "online", joinedAt: 1, ...overrides,
   };
 }
 
 /**
  * Alice（部屋を作った人）と Bob の 2 名。視点はつねに Bob（作った人ではない側）に置く。
- * `problemEnabled: false` にして、お題待ちによる開始ボタンの無効化と混ざらないようにする。
  */
 function makeRoom(overrides?: RoomViewOverrides): Room {
   return aRoomView({
     memberNames: ["Alice"],
-    config: { intervalMinutes: 5, problemEnabled: false },
+    config: { intervalMinutes: 5 },
     session: { rotation: ["creator-p"], driverCounts: [0] },
     participants: [
       p({ participantId: "creator-p", displayName: "Alice" }),

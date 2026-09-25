@@ -1,8 +1,8 @@
 /**
  * ロビーは 1 画面（#91 PR 3）。
  *
- * かつては「ルーム」「お題」のタブで画面を分け、お題が無い（`problemEnabled: true`
- * かつ `room.problem` が無い）ときは開始ボタンを無効化してお題を待たせていた。
+ * かつては「ルーム」「お題」のタブで画面を分け、お題が無い（お題機能が有効で
+ * `room.problem` が無い）ときは開始ボタンを無効化してお題を待たせていた。
  * timer 内でのお題の作成・生成は撤去し、お題ツール（別アプリ）が配る任意の札に
  * なったので、**お題の有無で開始を止めない**。タブも無くなり、画面は 1 つになる。
  *
@@ -28,7 +28,6 @@ function makeRoom(overrides?: Partial<Room>): Room {
         participantId: "creator-p",
         displayName: "Alice",
         presence: "online",
-        hasAiKey: false,
         joinedAt: 0,
       },
     ],

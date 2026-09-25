@@ -108,8 +108,11 @@ export const ERROR_MESSAGES: Record<string, string> = {
   // （REMOVED_BY_HOST）を受け取りうるため、両方を受理し続ける必要がある。
   REMOVED_FROM_ROOM: "ルームから退出しました。再参加するには名前を入力してください。",
   REMOVED_BY_HOST: "ルームから退出しました。再参加するには名前を入力してください。",
-  // AI お題生成の解錠（合言葉不一致・未設定サーバ共通）。
-  AI_UNLOCK_FAILED: "合言葉が違います。",
+  // ⚠ かつてここには AI お題生成の解錠の失敗（合言葉の不一致）の文言があった。
+  // #91 PR 3 で timer の解錠の経路が発行元ごと消えたため落とした。新しい timer は
+  // `ai.unlock` を送らないので、旧いサーバーの応答として届く経路も無い（FR-137・SC-047 の
+  // 対象外。`errors.ts` の `SYNC_ERROR_CODES` の注記）。お題の解錠の失敗の文言は
+  // いま `@tasuki/topic-core` の `error-messages.ts` が持つ。
   // 「進行できる人が1名以上残る」不変条件（Issue #22・FR-072/073）。
   // 退出と降格の両方から返るため、どちらでも通じる文言にする。
   // ⚠ Issue #29 で LAST_MANAGER_LEAVE / LAST_MANAGER_DEMOTE へ操作ごとに
@@ -168,7 +171,8 @@ export const DEFAULT_ERROR_MESSAGE = "操作を完了できませんでした。
  */
 const SERVER_ONLY_ERROR_MESSAGES: Record<string, string> = {
   NOT_IN_ROOM: "ルームに参加していません",
-  DELEGATION_UNAVAILABLE: "お題生成が利用できません",
+  // ⚠ かつてここには「お題の委譲が使えない」の文言があった。#91 PR 3 で発行元ごと
+  // 消えたため落とした（`errors.ts` の `SYNC_ERROR_CODES` の注記）。
 };
 
 /**

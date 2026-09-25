@@ -50,7 +50,6 @@ describe("resume: 再接続・復帰", () => {
       command: "room.join",
       code,
       displayName: "Alice",
-      hasAiKey: false,
       resumeToken,
     });
 
@@ -91,7 +90,6 @@ describe("resume: 再接続・復帰", () => {
       command: "room.join",
       code,
       displayName: "Alice",
-      hasAiKey: false,
       resumeToken,
     });
 
@@ -117,7 +115,6 @@ describe("resume: 再接続・復帰", () => {
       command: "room.join",
       code,
       displayName: "Charlie",
-      hasAiKey: false,
       resumeToken: "invalid-token-xyz",
     });
 

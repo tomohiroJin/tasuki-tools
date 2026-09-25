@@ -141,7 +141,6 @@ class RoomBuilder {
         command: "room.join",
         code,
         displayName: name,
-        hasAiKey: false,
       });
       if (!joined.isOk()) {
         throw new RoomBuildError(`room.join("${name}") に失敗した（${joined.error}）`);

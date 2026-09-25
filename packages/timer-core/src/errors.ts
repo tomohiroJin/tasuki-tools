@@ -47,13 +47,9 @@ interface InvalidIndex {
   max: number;
 }
 
-/** 入力サイズが上限超過（メンバー数とは別。お題の要件数などの配列長制限に使う） */
-interface InputLimitExceeded {
-  type: "InputLimitExceeded";
-  /** どの入力か（例: "requirements"） */
-  field: string;
-  limit: number;
-}
+// ⚠ かつてここには入力の配列長の上限超過を表すエラーがあった。
+// 使っていたのは `problem.edit`（お題の要件の件数）だけで、#91 PR 3 でお題が
+// timer-core から消えたときに発行元ごと落とした。
 
 /** ドメインエラーの合併型 */
 export type DomainError =
@@ -63,8 +59,7 @@ export type DomainError =
   | BelowMinMembers
   | PhaseConflict
   | InvalidInterval
-  | InvalidIndex
-  | InputLimitExceeded;
+  | InvalidIndex;
 
 /**
  * **同期サーバー層（`apps/sync`）が固有に発行する失敗の種類**（FR-101）。
@@ -130,11 +125,14 @@ export const SYNC_ERROR_CODES = [
   // 落とすかどうかの判断は同ファイルの該当コメントに預けてある。
   // なお #95 S3 は ServerMsg から必須フィールドも落としており、その非互換を
   // 受容した記録は error-messages.ts の「wire の後方互換について」にある。
-  // ─── お題の委譲 ───
-  "DELEGATION_UNAVAILABLE",
-  "STALE_SUBMISSION",
-  // ─── AI 解錠 ───
-  "AI_UNLOCK_FAILED",
+  // ⚠ かつてここには「お題の委譲」の 2 件（委譲が使えない・投入が古い）と
+  // 「AI 解錠」の 1 件（合言葉の不一致）があった。**#91 PR 3 で発行元ごと消えたため、
+  // 見出しごと削除した。** 旧いサーバーの応答として届く経路も無い —— 新しい timer は
+  // これらを起こすコマンド（`problem.request` / `problem.submit` / `ai.unlock`）を送らない。
+  // そのため、上の PARTICIPANT_OFFLINE などと違って文言も error-messages.ts に残さない
+  // （FR-137・SC-047 の「旧いサーバーの応答を引ける」の対象外である根拠）。
+  // お題の AI 解錠は topic の文脈へ移り、合言葉の不一致のコードはいま
+  // `@tasuki/topic-core` の `TOPIC_ERROR_CODES` と文言表が持つ（別の列挙・別の文言）。
   // ─── ルームへの参加 ───
   "JOIN_RATE_LIMITED",
   // ─── コマンドの解釈 ───

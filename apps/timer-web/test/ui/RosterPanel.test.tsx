@@ -15,7 +15,6 @@ function makeParticipant(overrides?: Partial<Participant>): Participant {
     participantId: "p1",
     displayName: "Alice",
     presence: "online",
-    hasAiKey: false,
     joinedAt: 1000000,
     ...overrides,
   };
@@ -28,7 +27,6 @@ const mk = (id: string, name: string, over: Partial<Participant> = {}): Particip
   presence: "online",
   driverEligible: true,
   isPlaceholder: false,
-  hasAiKey: false,
   joinedAt: 1000000,
   ...over,
 });
@@ -468,7 +466,6 @@ describe("RosterPanel セクション分割", () => {
       presence: "online" as const,
       driverEligible: true,
       isPlaceholder: false,
-      hasAiKey: false,
       joinedAt: 1000000,
     }));
     // When

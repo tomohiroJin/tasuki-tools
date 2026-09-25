@@ -27,8 +27,6 @@ import { roomViewOf, putRoomView } from "./support/room-view.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 const config: SessionConfig = {
-  language: "TypeScript",
-  difficulty: "easy",
   intervalMinutes: 5,
 };
 
@@ -73,8 +71,8 @@ describe("拒否箇所が返すコード（現状の記録）", () => {
       code = broadcaster.createdFor(CREATOR).code;
       // Bob・Carol は join だけでなく member.add まで行い、輪（rotation）に加わった
       // 進行メンバーにする（⑤の「輪に居ない」ケースだけは join のみに留める別セットアップを使う）。
-      await handlers.handleCommand(BOB, { command: "room.join", code, displayName: "Bob", hasAiKey: false });
-      await handlers.handleCommand(CAROL, { command: "room.join", code, displayName: "Carol", hasAiKey: false });
+      await handlers.handleCommand(BOB, { command: "room.join", code, displayName: "Bob" });
+      await handlers.handleCommand(CAROL, { command: "room.join", code, displayName: "Carol" });
       await handlers.handleCommand(BOB, { command: "member.add", participantId: pidOf("Bob") });
       await handlers.handleCommand(CAROL, { command: "member.add", participantId: pidOf("Carol") });
       // 稼働中にする（driver.assign はクロックが running でなければ受理されない）。
@@ -135,7 +133,7 @@ describe("拒否箇所が返すコード（現状の記録）", () => {
       if (!created.isOk()) throw new Error("room.create failed");
       code = broadcaster.createdFor(CREATOR).code;
       // Bob は join のみ（member.add を呼ばない）ため、輪（rotation）には居ない参加者になる。
-      await handlers.handleCommand(BOB, { command: "room.join", code, displayName: "Bob", hasAiKey: false });
+      await handlers.handleCommand(BOB, { command: "room.join", code, displayName: "Bob" });
       await handlers.handleCommand(CREATOR, { command: "phase.set", phase: "session" });
       await handlers.handleCommand(CREATOR, { command: "session.act", action: "START" });
       broadcaster.sent.length = 0;
@@ -174,7 +172,7 @@ describe("拒否箇所が返すコード（現状の記録）", () => {
       const conn = "rl-join-conn";
       const badJoin = () =>
         handlers.handleCommand(conn, {
-          command: "room.join", code: "NOPE99", displayName: "Bob", hasAiKey: false,
+          command: "room.join", code: "NOPE99", displayName: "Bob",
         });
       for (let i = 0; i < DEFAULT_CAPACITY; i++) await badJoin();
 

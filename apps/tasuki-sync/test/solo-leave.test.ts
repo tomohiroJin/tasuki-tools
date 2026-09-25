@@ -33,8 +33,6 @@ import type { SessionConfig } from "@tasuki/timer-core";
 import { spyHub } from "./support/hub.js";
 
 const soloConfig: SessionConfig = {
-  language: "TypeScript",
-  difficulty: "easy",
   intervalMinutes: 5,
 };
 
@@ -163,7 +161,7 @@ describe("ソロの部屋からの退出（Issue #79）", () => {
 
     // When: 退出直前まで開いていた招待リンクから入り直そうとする
     const result = await handlers.handleCommand(BOB, {
-      command: "room.join", code, displayName: "Bob", hasAiKey: false,
+      command: "room.join", code, displayName: "Bob",
     });
 
     // Then
@@ -291,7 +289,7 @@ describe("ソロ以外は挙動が変わらない（Issue #79）", () => {
 
   it("実在の在室者が残るなら、rotation 最後の 1 人の退出は見学者を繰り上げて成立する", async () => {
     // Given: Alice を輪から外し rotation=[Bob]・在室は Alice と Bob の 2 名にする
-    await handlers.handleCommand(BOB, { command: "room.join", code, displayName: "Bob", hasAiKey: false });
+    await handlers.handleCommand(BOB, { command: "room.join", code, displayName: "Bob" });
     await handlers.handleCommand(BOB, { command: "member.add", participantId: pidOf("Bob") });
     await handlers.handleCommand(HOST, { command: "member.remove", index: 0 });
     expect(roomViewOf(store, timers, code).session.rotation).toEqual([pidOf("Bob")]);
@@ -314,7 +312,7 @@ describe("ソロ以外は挙動が変わらない（Issue #79）", () => {
   it("作成者と参加者だけのルームで、作成者が抜けられる", async () => {
     // Given: Alice が作ったルーム（rotation=[Alice]）へ Bob が参加しただけの状態。
     // **Bob は輪に入っていない（見学）** —— これが既定であり、報告された場面である。
-    await handlers.handleCommand(BOB, { command: "room.join", code, displayName: "Bob", hasAiKey: false });
+    await handlers.handleCommand(BOB, { command: "room.join", code, displayName: "Bob" });
     expect(roomViewOf(store, timers, code).session.rotation).toEqual([pidOf("Alice")]);
     broadcaster.sent.length = 0;
 
@@ -362,7 +360,7 @@ describe("ソロ以外は挙動が変わらない（Issue #79）", () => {
 
   it("他人を退出させて自分が残る通常の退出は、ルームを破棄しない", async () => {
     // Given
-    await handlers.handleCommand(BOB, { command: "room.join", code, displayName: "Bob", hasAiKey: false });
+    await handlers.handleCommand(BOB, { command: "room.join", code, displayName: "Bob" });
     const bobId = pidOf("Bob");
     broadcaster.sent.length = 0;
     broadcaster.snapshots.length = 0;

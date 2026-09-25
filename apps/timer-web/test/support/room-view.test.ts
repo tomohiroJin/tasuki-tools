@@ -6,8 +6,8 @@
  * aRoomView() は既定値の Room を返し、渡した項目だけを上書きできるようにする。
  *
  * 既定値は「テスト専用の都合のよい値」ではなく、実際に App.tsx が room.create で
- * 送る config（language: "TypeScript" / difficulty: "easy" / intervalMinutes: 7 —
- * handleCreateRoom 参照）に合わせる。
+ * 送る config（intervalMinutes: 7 — handleCreateRoom 参照。言語・難易度は #91 PR 3 で
+ * 設定から消えた）に合わせる。
  *
  * @requirements FR-096, FR-097, US2
  */
@@ -22,11 +22,8 @@ describe("aRoomView()", () => {
     const room = aRoomView();
 
     // Then
-    expect(room.config.language).toBe("TypeScript");
-    expect(room.config.difficulty).toBe("easy");
-    expect(room.config.intervalMinutes).toBe(7);
+    expect(room.config).toEqual({ intervalMinutes: 7 });
     expect(room.phase).toBe("setup");
-    expect(room.problem).toBeNull();
     expect(room.sessionRecords).toEqual([]);
     expect(room.handoffNote).toBe("");
     expect(room.onBreak).toBe(false);
@@ -51,20 +48,19 @@ describe("aRoomView()", () => {
     expect(room.phase).toBe("session");
     expect(room.handoffNote).toBe("引き継ぎメモ");
     // 上書きしていない項目は既定のまま
-    expect(room.config.language).toBe("TypeScript");
+    expect(room.config.intervalMinutes).toBe(7);
     expect(room.onBreak).toBe(false);
   });
 
   it("config の部分上書きは、渡した項目だけが変わり残りは既定のまま", () => {
     // Given
-    const overrides = { config: { difficulty: "hard" as const } };
+    const overrides = { config: { navigatorEnabled: true } };
     // When
     const room = aRoomView(overrides);
 
     // Then
-    expect(room.config.difficulty).toBe("hard");
+    expect(room.config.navigatorEnabled).toBe(true);
     // 渡していない config の項目は既定のまま
-    expect(room.config.language).toBe("TypeScript");
     expect(room.config.intervalMinutes).toBe(7);
   });
 
@@ -91,7 +87,6 @@ describe("aRoomView()", () => {
         participantId: "p1",
         displayName: "Alice",
         presence: "online" as const,
-        hasAiKey: false,
         joinedAt: 0,
       },
     ];
