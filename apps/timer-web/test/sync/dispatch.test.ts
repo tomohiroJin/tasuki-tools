@@ -105,35 +105,6 @@ describe("dispatchServerMessage", () => {
     });
   });
 
-  it("signal need-problem は requestId と deadlineMs を onNeedProblem へ渡す", () => {
-    // Given
-    const onNeedProblem = vi.fn();
-    // When
-    dispatchServerMessage(
-      JSON.stringify({
-        type: "signal",
-        signal: "need-problem",
-        requestId: "req-1",
-        deadlineMs: 20000,
-      }),
-      { onNeedProblem },
-    );
-    // Then
-    expect(onNeedProblem).toHaveBeenCalledWith("req-1", 20000);
-  });
-
-  it("signal switch では onNeedProblem を発火しない", () => {
-    // Given
-    const onNeedProblem = vi.fn();
-    // When
-    dispatchServerMessage(
-      JSON.stringify({ type: "signal", signal: "switch", nextDriverName: "Bob" }),
-      { onNeedProblem },
-    );
-    // Then
-    expect(onNeedProblem).not.toHaveBeenCalled();
-  });
-
   it("time.pong は serverTime を onTimePong へ渡す", () => {
     // Given
     const onTimePong = vi.fn();
@@ -156,6 +127,34 @@ describe("dispatchServerMessage", () => {
     ).not.toThrow();
     expect(onRoom).not.toHaveBeenCalled();
     expect(onError).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * @requirements #91 E2 E15 E16（timer はお題を読んで表示するだけ・spec T3）
+ */
+describe("お題のフレームを振り分ける", () => {
+  it("Given お題のフレーム / When 振り分ける / Then onTopic に状態が渡り、捨てたとは言わない", () => {
+    // Given
+    const state = { topic: { title: "FizzBuzz", body: "", source: "manual" }, generating: false, degraded: false, aiUnlocked: false };
+    const onTopic = vi.fn();
+    const onInvalidFrame = vi.fn();
+    // When
+    dispatchServerMessage(JSON.stringify({ type: "topic", state }), { onTopic, onInvalidFrame });
+    // Then
+    expect(onTopic).toHaveBeenCalledWith(state);
+    expect(onInvalidFrame).not.toHaveBeenCalled();
+  });
+
+  it("Given 形の崩れたお題のフレーム / When 振り分ける / Then 捨てたことを知らせる", () => {
+    // Given
+    const onTopic = vi.fn();
+    const onInvalidFrame = vi.fn();
+    // When
+    dispatchServerMessage(JSON.stringify({ type: "topic", state: { topic: 1 } }), { onTopic, onInvalidFrame });
+    // Then
+    expect(onTopic).not.toHaveBeenCalled();
+    expect(onInvalidFrame).toHaveBeenCalled();
   });
 });
 

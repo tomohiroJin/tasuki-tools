@@ -12,11 +12,12 @@
  * 片方だけが直ると、合言葉を知らない人が保護ルームへ入れる）。
  * ルームは作らない（`room.create` は拒む）。ルームを作るのは玄関である。
  *
- * ## 守りは timer と共有する
+ * ## 守りは入室の入口と共有する
  *
  * `ai.unlock` の総当たり対策は、`room.join` と**同じゲートのインスタンス**に積算する
- * （配線が `handlers.rateLimitGate` を渡す）。手順は `command-handlers/ai-unlock.ts` を写す ——
- * 照合の前にレート判定・失敗だけを積算・時刻は単調時計。
+ * （配線が `handlers.rateLimitGate` を渡す）。このゲートを通るのは timer・ハブ・お題の入口で、
+ * poker の入口は同じバケツの上に自分のゲートを持つ（`handlers.ts` の `rateLimiter` の注記）。
+ * 手順は下の `handleAiUnlock` の docstring に書き下ろしてある。
  *
  * ## お題のタイトル・本文をログへ出さない
  *
@@ -168,12 +169,19 @@ export function makeTopicHandlers(deps: TopicHandlerDeps): TopicHandlers {
   }
 
   /**
-   * AI を合言葉で解錠する。**手順は `command-handlers/ai-unlock.ts` を写す**:
+   * AI を合言葉で解錠する（在室者なら誰でも）。合言葉はサーバーの env（`AI_UNLOCK_KEY`）にだけあり、
+   * お題の状態には解錠済みかどうかだけを載せる。手順:
    *
-   * - 照合より前にレート判定する（`room.join` と同じゲート・同じバケツ）
-   * - 失敗だけを積算する（成功を積算すると、正しい合言葉を知る人の操作で枠が減る）
-   * - 時刻は単調時計（設計正本 D8）。ルームの会計の壁時計を渡してはいけない
-   * - 合言葉が未設定（AI 無効）でも不一致と同じ `AI_UNLOCK_FAILED` を返す（機能の存在の秘匿）
+   * - **照合より前にレート判定する**（`room.join` と同じゲート・同じバケツ）。判定を後ろへ回すと、
+   *   枠を使い切った後も照合の結果が返り、総当たりが止まらない
+   * - **照合は定数時間で行う**（`secure-compare.ts` の `constantTimeEqual`）。`===` で比べると、
+   *   一致した先頭の長さが応答時間に漏れ、1 文字ずつ当てられる
+   * - 前後の空白は落としてから比べ、空の入力は照合せず不一致とする
+   * - **失敗だけを積算する**（成功を積算すると、正しい合言葉を知る人の操作で枠が減る）。
+   *   判定と積算を 1 つの分岐にまとめておくのは、この「失敗のときだけ」を崩さないため
+   * - 時刻は単調時計（`performance.now()`・設計正本 D8）。ルームの会計の壁時計を渡してはいけない
+   * - **存在を秘匿する**: 合言葉が未設定（AI 無効）でも、不一致と同じ `AI_UNLOCK_FAILED` を返す。
+   *   区別できると、サーバーが AI を持っているかどうかを外から探れる
    */
   function handleAiUnlock(connId: string, roomCode: string, key: string): void {
     const rateNow = performance.now();

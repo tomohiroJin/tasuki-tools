@@ -14,12 +14,12 @@ Tasuki の各アプリは「自分の systemd ユニット + 固有ポート + C
 | `landing` | （無し・静的） | — | `/var/www/tasuki-home` | `/`（玄関） | 公開中 |
 | `timer` | `tasuki-sync` | 8787 | `/opt/tasuki` / `/var/www/tasuki` | `/timer/` | 公開中 |
 | `poker` | （無し・静的） | — | `/var/www/tasuki-poker` | `/poker/` | 公開中 |
-| `topic` | （無し・静的） | — | `/var/www/tasuki-topic` | `/topic/` | 未公開（#91 の PR 3 の後に配布） |
+| `topic` | （無し・静的） | — | `/var/www/tasuki-topic` | `/topic/` | 未公開（#91 の配布で公開する。手順は [`topic/NOTES.md`](topic/NOTES.md)） |
 
-> ⚠ **いまの main は #91 の途中にある（PR 2 まで入り、PR 3 がまだ）。PR 3 が入るまで、
-> landing・timer・poker を含めてどのアプリも配らない。** `deploy.sh landing` を流すだけで
-> 玄関に 3 枚目の札が出るが、`/topic/` の断片は置かれていないので、札を押すと玄関が
-> 描き直されるだけになる。PR 3 でこの注記を消す。
+> **#91（お題）は 4 本をまとめて 1 回で配る。** 順序は topic → poker → landing → timer で、
+> `/topic/` の断片を先に置き、間を空けずに続けて流す。配布中の窓と手順は
+> [`topic/NOTES.md`](topic/NOTES.md) の「配布の手順」にある。**`topic` だけ・`landing` だけを配らないこと** ——
+> 玄関に 3 枚目の札が出るのに、同期サーバーがまだお題を知らない状態になる。
 
 > **3 系統は 2026-08-28 に本番へ出た（#66）。** Planning Poker と玄関 LP はこのときが初回公開。
 > 再起動でルームが全消滅するため、デプロイは指示を得てまとめて 1 回行う方針は変わらない。
@@ -35,10 +35,11 @@ Tasuki の各アプリは「自分の systemd ユニット + 固有ポート + C
 
 ### 公開範囲の方針
 
-**3 系統（timer / poker / landing）はいずれも公開中である**（2026-08-28・#66）。
+**4 本のうち timer / poker / landing の 3 本が公開中である**（2026-08-28・#66）。`topic` は #91 の配布で公開する。
+同期サーバーは 4 本で共用の 1 本（`tasuki-sync`）のままで、`topic` は `poker` / `landing` と同じ静的アプリである。
 デプロイはアプリ単位（`./deploy/deploy.sh <app>`）で、指定したアプリだけが転送される。
 
-`landing` は **sync サーバーを持たない静的サイト**で、Caddy が直接配信する。`app.env` に
+`landing`・`poker`・`topic` は **sync サーバーを持たない静的サイト**で、Caddy が直接配信する。`app.env` に
 `STATIC_ONLY=1` を置くと、`deploy.sh` はバンドルとサービス再起動の段を飛ばし、
 `setup.sh`（systemd ユニット・sudoers）も不要になる。
 
@@ -360,9 +361,9 @@ CI から自動デプロイもしません。
 | 反映前の検証 | `caddy validate` を通してから reload する |
 | 全アプリの一括切替 | 一括の手段は無い。`deploy.sh` をアプリごとに叩く |
 | 切り戻し | スクリプト化していない。本 README の手順を手でたどる（**退避だけは `deploy.sh` が行う**・#146） |
-| デプロイ後の検証 | 配信ハッシュの一致・`/ws` の応答（唯一の WS 入口。#95 S5c）・3 系統の応答を手で確認する（`deploy.sh` は確認コマンドを案内するだけで実行しない）。**起動の確認（`is-active` 2 回と `NRestarts`）だけは `deploy.sh` が実行する**（#146） |
+| デプロイ後の検証 | 配信ハッシュの一致・`/ws` の応答（唯一の WS 入口。#95 S5c）・各アプリの公開パスの応答を手で確認する（`deploy.sh` は確認コマンドを案内するだけで実行しない）。**起動の確認（`is-active` 2 回と `NRestarts`）だけは `deploy.sh` が実行する**（#146） |
 
-（3 系統とも #66 で公開済み）
+（timer / poker / landing は #66 で公開済み。`topic` は #91 の配布で公開する）
 
 最後に、サイト全体を外から通しで確認します。
 

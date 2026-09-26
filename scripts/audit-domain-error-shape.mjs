@@ -55,7 +55,7 @@
  * 「深さ 0 かつ末尾が `}`」で終えると `RoundError` の合併型が 1 メンバー目で切れる
  * （`  | { code: 'not-voting'; op: ... }` が終端に見える）。実物 4 形すべてで確かめた:
  * 1 行の `type`（`RoomError`）、複数行の合併 `type`（`RoundError`）、
- * 複数行の `interface`（timer-core の 8 個）、名前の合併 `type`（timer-core の `DomainError`）。
+ * 複数行の `interface`（timer-core の合併メンバー）、名前の合併 `type`（timer-core の `DomainError`）。
  *
  * 終端が見つからないまま EOF に達したら**問題として報告する**（黙って全文を読まない）。
  *
@@ -72,18 +72,18 @@
  *   語境界を潰す。2026-08-18 にプローブで両方とも不一致になることを確認）。
  *   ADR-0016 の逐語が名指ししているのは `message` なので、それに合わせている。
  * - **別ファイルに置いた型を合併しただけの場合**。合併先の型を宣言に足さない限り読まない
- *   （だから timer-core は合併の `DomainError` ではなく**メンバーの 8 個を個別に宣言**している）。
+ *   （だから timer-core は合併の `DomainError` ではなく**メンバーを個別に宣言**している）。
  *
  * ## コメント行の扱い — **読み飛ばさない**
  *
  * これは「**無いこと**」を求める検査なので、読み飛ばすと緑に倒れる。
  * `audit-assembly-wiring.mjs` の `FORBIDDEN_IN_ENTRY` と同じ向きに倒し、
  * **範囲内のコメント行も読む**。宣言の中に `message:` と書いたコメントを置くと赤くなる。
- * **「範囲内にコメントは無い」ではない** — 対象 11 型の範囲を全件書き出して数えたところ、
- * `packages/timer-core/src/errors.ts:53`（`InputLimitExceeded` の `field` に付いた
- * `/** どの入力か（例: "requirements"） *\/`）の 1 行が範囲内にある
- * （2026-08-18 実測。#95 S3 で `Unauthorized` を落としたあと 2026-09-09 に再測）。
- * その 1 行は `message:` を含まないので緑のままである。
+ * **「範囲内にコメントは置けない」ではない** — 2026-08-18 の実測（#95 S3 で `Unauthorized` を
+ * 落としたあと 2026-09-09 に再測）では、timer-core の入力長の上限超過の型の `field` に付いた
+ * doc コメント 1 行が範囲内にあり、`message:` を含まないので緑のままだった。
+ * その型は #91 PR 3 でお題ごと落としたので、2026-09-25 の再測（対象の宣言を目で全件確認）では
+ * 範囲内のコメントは 0 行である。**置いてよいが、置けば読まれる。**
  * 宣言の**手前**にある doc コメントは範囲外（範囲は `export` の行から始まる）。
  *
  * ## 既知の限界（意図して受け入れる）
@@ -92,7 +92,7 @@
  * **赤になる向き**（余計に落ちる側。安全なので放置する）: 範囲内のコメント・文字列リテラルに
  * `message:` と書いた場合。
  *
- * これらを塞ぐには TypeScript の構文解析器が要る（追加依存は禁止）。対象は 11 個の短い型宣言で、
+ * これらを塞ぐには TypeScript の構文解析器が要る（追加依存は禁止）。対象は少数の短い型宣言で、
  * どれもレビューで目に入る。**精緻にすると「賢い検査ほど穴が増える」を踏む**と判断し、踏み込まない。
  *
  * 設計方針: 判定は純粋関数（{@link findDomainErrorProblems} / {@link findDeclarationSpan}）にし、
@@ -116,7 +116,7 @@ const REPO_ROOT = path.resolve(SCRIPT_DIR, "..");
  * poker / timer の**両方**に同じ規範を課しており、項目 3 の表で timer は「準拠」と
  * 記録されている。準拠している側を宣言に入れておけば、後から崩れたときに落ちる。
  *
- * timer-core は合併の `DomainError` ではなく**メンバーの 8 interface を個別に**並べる。
+ * timer-core は合併の `DomainError` ではなく**メンバーの interface を個別に**並べる。
  * 合併の別名だけを見てもフィールドは 1 つも読めない（名前が並んでいるだけ）。
  * 実在しない型・ファイルを宣言したら `findDomainErrorProblems` が赤にする。
  */
@@ -134,7 +134,8 @@ export const DOMAIN_ERROR_TARGETS = [
   { file: "packages/timer-core/src/errors.ts", type: "PhaseConflict" },
   { file: "packages/timer-core/src/errors.ts", type: "InvalidInterval" },
   { file: "packages/timer-core/src/errors.ts", type: "InvalidIndex" },
-  { file: "packages/timer-core/src/errors.ts", type: "InputLimitExceeded" },
+  // ⚠ 入力長の上限超過の型は #91 PR 3 でお題ごと落とした（宣言からも落とす。
+  // 実在しない型を残すと検査自体が赤くなる）。
   { file: "packages/timer-core/src/errors.ts", type: "DomainError" },
 ];
 

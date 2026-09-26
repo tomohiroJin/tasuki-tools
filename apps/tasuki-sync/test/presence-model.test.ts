@@ -27,8 +27,6 @@ import { putRoomView, roomViewOf } from "./support/room-view.js";
 import { spyHub } from "./support/hub.js";
 
 const config: SessionConfig = {
-  language: "TypeScript",
-  difficulty: "easy",
   intervalMinutes: 5,
 };
 
@@ -73,7 +71,6 @@ describe("多接続模型（#95 S4b）", () => {
       command: "room.join",
       code,
       displayName: "A",
-      hasAiKey: false,
       resumeToken,
     });
 
@@ -91,7 +88,6 @@ describe("多接続模型（#95 S4b）", () => {
       command: "room.join",
       code,
       displayName: "A",
-      hasAiKey: false,
       resumeToken,
     });
     const presence = new PresenceManager({

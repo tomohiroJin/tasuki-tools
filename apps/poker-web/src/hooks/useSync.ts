@@ -25,6 +25,8 @@ import {
   type ErrorCode,
   type RoomStateMessage,
 } from '@tasuki/poker-core';
+import { parseBoundaryMessage } from '@tasuki/protocol';
+import { TopicFrameSchema, type Topic } from '@tasuki/topic-core';
 
 export type ConnectionStatus = 'connecting' | 'open' | 'closed';
 
@@ -61,6 +63,13 @@ export interface PokerSync {
   failedAttempts: number;
   /** 最新の受信者別ルーム状態（受信スナップショットで丸ごと置換。research R1） */
   snapshot: RoomStateMessage | null;
+  /**
+   * いまのお題（#91・spec §5.5）。**poker は読むだけ**（spec T4）。
+   *
+   * `topic` フレームは poker の契約をまたぐ（`@tasuki/topic-core` のスキーマで検める）ので、
+   * `snapshot` とは別に持つ。null = お題なし（既定）。
+   */
+  topic: Topic | null;
   /**
    * 現在の WS 接続で joined を受信済みか。再接続するとサーバー側は未 join に戻るため、
    * 自動再入室の判定はこのフラグで行う（古い snapshot では判定しない）
@@ -103,6 +112,7 @@ export interface PokerSync {
 export function usePokerSync(): PokerSync {
   const [status, setStatus] = useState<ConnectionStatus>('connecting');
   const [snapshot, setSnapshot] = useState<RoomStateMessage | null>(null);
+  const [topic, setTopic] = useState<Topic | null>(null);
   const [joinedThisConnection, setJoinedThisConnection] = useState(false);
   const [error, setError] = useState<SyncError | null>(null);
   // 契約に合わないフレームを捨てて以降、契約を満たすフレームを受け取っていない（#212）。
@@ -149,6 +159,14 @@ export function usePokerSync(): PokerSync {
   }, []);
 
   function handleMessage(raw: string): void {
+    // **お題のフレームは poker の契約より先に見分ける**（#91・spec §5.5）。
+    // 順を逆にすると `parseServerMessage` が落とし、#212 の告知（同期できていません）が立つ。
+    const topicFrame = parseBoundaryMessage(TopicFrameSchema, raw);
+    if (topicFrame.isOk()) {
+      setTopic(topicFrame.value.state.topic);
+      return;
+    }
+
     const result = parseServerMessage(raw);
     if (result.isErr()) {
       // 境界検証に失敗したフレームは画面へ渡さない（憲法原則 IV）。
@@ -229,6 +247,7 @@ export function usePokerSync(): PokerSync {
       everConnected,
       failedAttempts,
       snapshot,
+      topic,
       joinedThisConnection,
       error,
       syncStale,
@@ -239,6 +258,7 @@ export function usePokerSync(): PokerSync {
       everConnected,
       failedAttempts,
       snapshot,
+      topic,
       joinedThisConnection,
       error,
       syncStale,

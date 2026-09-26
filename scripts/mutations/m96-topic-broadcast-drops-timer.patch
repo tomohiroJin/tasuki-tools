@@ -1,0 +1,27 @@
+# 変異 96: topic-broadcast-drops-timer
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/live-ws.topic.test.ts
+#     describe「お題を掲げる・下ろすと、ルームの全接続へ届く」の
+#     「topic.set の結果が、お題・ハブに加えて timer と poker の接続にも届く」
+#     「topic.clear の結果（お題なし）も、timer と poker の接続に届く」（#91・E2）
+#
+# #91 PR 3・spec T3・E2。`TOPIC_RECIPIENT_TOOLS` から `TOOL_TIMER` を落とす。
+# timer を開いている人には、お題の掲げ直しも取り下げも届かなくなる
+# （参加の直後の 1 通だけが届き、そのあと古いお題を読み続ける）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m96-*.patch
+# 復元: git apply -R scripts/mutations/m96-*.patch
+diff --git a/apps/tasuki-sync/src/application/topic-broadcast.ts b/apps/tasuki-sync/src/application/topic-broadcast.ts
+index 30b5a59..7cf9cc9 100644
+--- a/apps/tasuki-sync/src/application/topic-broadcast.ts
++++ b/apps/tasuki-sync/src/application/topic-broadcast.ts
+@@ -24,7 +24,6 @@ import { TOOL_TOPIC, TOOL_TIMER, TOOL_POKER } from "./tool-id.js";
+ export const TOPIC_RECIPIENT_TOOLS: readonly (ToolId | null)[] = [
+   TOOL_TOPIC,
+   TOOL_HUB,
+-  TOOL_TIMER,
+   TOOL_POKER,
+ ];
+ 

@@ -606,7 +606,7 @@ function broadcasterOn(room: Room, topics: TopicStore = new InMemoryTopicStore()
  * @requirements #91 E2, E4
  */
 describe("お題の配信先", () => {
-  it("お題の状態は、お題の接続とハブの接続にだけ届き、timer・poker の接続には届かない", () => {
+  it("お題の状態は、ルームの全接続（お題・ハブ・timer・poker）へ届く", () => {
     // Given
     const { broadcaster, sent, topics } = broadcasterOn(mixedRoom());
     topics.put(ROOM, INITIAL_TOPIC_STATE);
@@ -615,7 +615,9 @@ describe("お題の配信先", () => {
     broadcaster.publish(ROOM);
 
     // Then
-    expect(sent.map((s) => s.connId).sort()).toEqual(["hub-1", "hub-2", "topic-1", "topic-2"]);
+    expect(sent.map((s) => s.connId).sort()).toEqual([
+      "hub-1", "hub-2", "poker-1", "timer-1", "topic-1", "topic-2",
+    ]);
   });
 
   it("同じ人が 2 本のお題の接続を持つと、両方に 1 通ずつ届く", () => {

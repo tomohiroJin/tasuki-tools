@@ -3,7 +3,7 @@
  *
  * ⚠ **このファイルは退行を受けて書き足された。**
  * T066 でサーバー側の文言リテラルを 1 箇所へ集約した際、サーバー専用のコード
- * （`NOT_IN_ROOM` / `DELEGATION_UNAVAILABLE`）を画面表示用の `ERROR_MESSAGES` へ
+ * （`NOT_IN_ROOM` と、#91 PR 3 で消えたお題の委譲のコード）を画面表示用の `ERROR_MESSAGES` へ
  * **追記してしまい**、これらの画面表示が既定文言から変わる退行を作った（FR-114 違反）。
  *
  * **型検査もテストも通ってしまった。** 原因は 2 つあり、どちらもテスト側の不足である。
@@ -38,7 +38,6 @@ const CODES_SHOWN_TO_USER = [
   "PARTICIPANT_NOT_FOUND",
   "PASSPHRASE_REQUIRED",
   "PASSPHRASE_MISMATCH",
-  "AI_UNLOCK_FAILED",
   "LAST_MANAGER",
   "LEFT_ROOM",
   "REMOVED_FROM_ROOM",
@@ -53,7 +52,7 @@ const CODES_SHOWN_TO_USER = [
 ] as const;
 
 /** サーバーが wire の `message` に載せるだけで、画面には出さないコード。 */
-const SERVER_ONLY_CODES = ["NOT_IN_ROOM", "DELEGATION_UNAVAILABLE"] as const;
+const SERVER_ONLY_CODES = ["NOT_IN_ROOM"] as const;
 
 describe("画面に表示される文言の表", () => {
   it("表示対象のコードの集合は固定されている", () => {

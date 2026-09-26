@@ -373,10 +373,10 @@ describe("SC-039: 生きたモジュール内部の到達不能な要素", () =>
 
   test("②: 製品コードから参照されている公開データは計上しない", () => {
     const packageSrcFiles = new Map([
-      ["packages/timer-core/src/problem.ts", "export const FALLBACK_PROBLEMS = [1, 2, 3];"],
+      ["packages/timer-core/src/bank.ts", "export const FALLBACK_ENTRIES = [1, 2, 3];"],
     ]);
     const productSources = new Map([
-      ["apps/web/src/App.tsx", "import { FALLBACK_PROBLEMS } from '@tasuki/timer-core';"],
+      ["apps/web/src/App.tsx", "import { FALLBACK_ENTRIES } from '@tasuki/timer-core';"],
     ]);
     assert.equal(sc039bUnusedPublicData(packageSrcFiles, productSources), 0);
   });
@@ -482,21 +482,21 @@ describe("SC-039: 生きたモジュール内部の到達不能な要素", () =>
   });
 
   test("生きた公開関数から参照される公開データは②に数えない（関数ルートからの推移的生存）", () => {
-    // pickFallback は他ファイルから参照される「生きた根」。FALLBACK_PROBLEMS は他ファイルからは
-    // 参照されないが、生きた根 pickFallback の本体内で参照されているため生きている。
+    // pickEntry は他ファイルから参照される「生きた根」。FALLBACK_ENTRIES は他ファイルからは
+    // 参照されないが、生きた根 pickEntry の本体内で参照されているため生きている。
     const packageSrcFiles = new Map([
       [
-        "packages/timer-core/src/problem.ts",
+        "packages/timer-core/src/bank.ts",
         [
-          "export const FALLBACK_PROBLEMS = [1, 2, 3];",
-          "export function pickFallback() { return FALLBACK_PROBLEMS[0]; }",
+          "export const FALLBACK_ENTRIES = [1, 2, 3];",
+          "export function pickEntry() { return FALLBACK_ENTRIES[0]; }",
         ].join("\n"),
       ],
     ]);
     const productSources = new Map([
       [
         "apps/web/src/App.tsx",
-        "import { pickFallback } from '@tasuki/timer-core'; pickFallback();",
+        "import { pickEntry } from '@tasuki/timer-core'; pickEntry();",
       ],
     ]);
     assert.equal(sc039bUnusedPublicData(packageSrcFiles, productSources), 0);
@@ -829,7 +829,7 @@ describe("findStaleSymbolExceptions: 例外表は両方向に腐らせない", (
   /**
    * **サブパスで取り込む形もある。**（#214 の敵対的検証が実測で見つけた）
    *
-   * `apps/timer-web` は `@tasuki/timer-core/aggregate` や `@tasuki/timer-core/problem`
+   * `apps/timer-web` は `@tasuki/timer-core/aggregate` などのサブパス
    * からしか取り込まないファイルを多数持つ。取り込みの判定を「指定子の直後がクォート」に
    * 限ると、**これらのファイルからの参照が生存の根拠として数えられなくなる**。
    */

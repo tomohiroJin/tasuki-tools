@@ -7,6 +7,7 @@
  * ここで見るのは**その守りがハブの入口でも通ること**である。
  */
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { findParticipantByConnId } from "@tasuki/room-core";
 import {
   createRoom,
   startLiveSyncServer,
@@ -138,7 +139,6 @@ describe("ハブの入口（#95 S5a）", () => {
       command: "room.join",
       code: created.code,
       displayName: "あや",
-      hasAiKey: false,
     });
 
     // Then: snapshot が届く（門が閉じていれば ROOM_NOT_FOUND になる）
@@ -217,5 +217,139 @@ describe("ハブの入口（#95 S5a）", () => {
     // Then: 届いたエラーは 1 通だけ（在らぬコードへの応答）。保護ルームへの照会は無音。
     const errors = hub.received.filter((m) => m.type === "error");
     expect(errors.length, "届いたエラーの通数").toBe(1);
+  });
+});
+
+/**
+ * ハブの二重参加を拒む（#91 PR 3 Task 5）。
+ *
+ * PR 1 の申し送り「ハブの二重参加も未確認」を実測したところ、1 本のハブ接続が
+ * 離脱の操作無しにルーム A → ルーム B の順で `room.join` すると、**A と B の
+ * 両方の名簿に載ったままになり、A のお題フレームまでその接続へ届いていた**
+ * （2026-09-25 の特徴づけで確認・controller の裁定で記録）。
+ *
+ * controller の裁定（2026-09-25）により、この PR で直す: 既にどこかのルームに
+ * 居る接続からの 2 度目の `room.join` / `room.create` は、お題の接続
+ * （`topic-handlers.ts` の `isInAnyRoom`・PR 1 の変異 m86）と同じく拒み、
+ * 何も変えない。玄関（`apps/landing/src/hub/use-hub-sync.ts`）は 1 本の接続で
+ * URL の `?room=` のルームにしか参加せず、作成は `?room=` の無いページだけなので、
+ * 正規の画面からは 2 度目の参加・作成は届かない（届くのは改造したクライアントだけ）。
+ *
+ * @requirements #91 spec §5.3
+ */
+describe("ハブの二重参加を拒む", () => {
+  it("Given ルーム A に入ったハブ接続 / When 別のルーム B へ room.join / Then INVALID_COMMAND が返り、A にだけ載ったままで B の名簿には載らない", async () => {
+    // Given
+    const ownerA = await server.connectHub("ownerA");
+    const roomA = await hubCreate(ownerA, "ルームA", "ぬしA");
+    await ownerA.take((m) => m.type === "roster", "A 作成直後の roster");
+
+    const ownerB = await server.connectHub("ownerB");
+    const roomB = await hubCreate(ownerB, "ルームB", "ぬしB");
+    await ownerB.take((m) => m.type === "roster", "B 作成直後の roster");
+
+    const wanderer = await server.connectHub("wanderer");
+    wanderer.send({ command: "room.join", code: roomA.code, displayName: "さすらい" });
+    const joinedA = await wanderer.take(
+      (m) => m.type === "room.joined" || m.type === "error",
+      "A への参加の応答",
+    );
+    if (joinedA.type !== "room.joined") {
+      throw new Error(`A への参加が前提の構築で失敗した（${joinedA.type}）`);
+    }
+    await wanderer.take((m) => m.type === "roster", "A 参加後の roster");
+
+    // 接続 ID は wire に出ない（S4b）ので、A の名簿から「さすらい」を引いて取り出す。
+    const roomAAfterFirstJoin = server.store.get(roomA.code);
+    if (!roomAAfterFirstJoin) throw new Error("A が保管に無い（前提の構築の失敗）");
+    const wandererInA = roomAAfterFirstJoin.participants.find((p) => p.displayName === "さすらい");
+    if (!wandererInA) throw new Error("A の名簿に「さすらい」が居ない（前提の構築の失敗）");
+    const [wandererConnId] = [...wandererInA.connections.keys()];
+    if (wandererConnId === undefined) throw new Error("さすらいの接続 ID が取れない");
+
+    // When: 離脱の操作は無いまま、同じ接続で B へも参加を試みる
+    wanderer.send({ command: "room.join", code: roomB.code, displayName: "さすらい" });
+    const joinedB = await wanderer.take(
+      (m) => m.type === "room.joined" || m.type === "error",
+      "B への参加の応答",
+    );
+
+    // Then: 拒まれる
+    if (joinedB.type !== "error") throw new Error(`拒まれるはずが ${joinedB.type} だった`);
+    expect(joinedB.code, "拒む理由のコード").toBe("INVALID_COMMAND");
+    expect(joinedB.message, "拒む理由の文言（ハブがコマンドの形の不正に返すものと同じ）").toBe(
+      "コマンドの形式が不正です",
+    );
+
+    // A にだけ載ったままで、B の名簿には載らない
+    const roomAAfterAttempt = server.store.get(roomA.code);
+    if (!roomAAfterAttempt) throw new Error("A が保管に無い");
+    expect(
+      findParticipantByConnId(roomAAfterAttempt, wandererConnId) !== undefined,
+      "A の名簿に載ったままか",
+    ).toBe(true);
+
+    const roomBAfterAttempt = server.store.get(roomB.code);
+    if (!roomBAfterAttempt) throw new Error("B が保管に無い");
+    expect(
+      findParticipantByConnId(roomBAfterAttempt, wandererConnId) !== undefined,
+      "B の名簿に載っていないか",
+    ).toBe(false);
+  });
+
+  it("Given ルーム A に入ったハブ接続 / When 同じルーム A へもう一度 room.join / Then INVALID_COMMAND が返り、A の人数は増えない", async () => {
+    // Given
+    const ownerA = await server.connectHub("ownerA");
+    const roomA = await hubCreate(ownerA, "ルームA", "ぬしA");
+    await ownerA.take((m) => m.type === "roster", "A 作成直後の roster");
+
+    const wanderer = await server.connectHub("wanderer");
+    wanderer.send({ command: "room.join", code: roomA.code, displayName: "さすらい" });
+    const joinedA = await wanderer.take(
+      (m) => m.type === "room.joined" || m.type === "error",
+      "A への 1 度目の参加の応答",
+    );
+    if (joinedA.type !== "room.joined") {
+      throw new Error(`A への参加が前提の構築で失敗した（${joinedA.type}）`);
+    }
+    await wanderer.take((m) => m.type === "roster", "A 参加後の roster");
+    const participantCountBefore = server.store.get(roomA.code)?.participants.length;
+
+    // When: 離脱の操作は無いまま、同じ接続で同じ A へもう一度 room.join
+    wanderer.send({ command: "room.join", code: roomA.code, displayName: "さすらい" });
+    const joinedAgain = await wanderer.take(
+      (m) => m.type === "room.joined" || m.type === "error",
+      "A への 2 度目の参加の応答",
+    );
+
+    // Then: 拒まれ、人数は増えない
+    if (joinedAgain.type !== "error") throw new Error(`拒まれるはずが ${joinedAgain.type} だった`);
+    expect(joinedAgain.code, "拒む理由のコード").toBe("INVALID_COMMAND");
+    expect(joinedAgain.message, "拒む理由の文言").toBe("コマンドの形式が不正です");
+    expect(server.store.get(roomA.code)?.participants.length, "A の人数").toBe(
+      participantCountBefore,
+    );
+  });
+
+  it("Given ルーム A に入ったハブ接続 / When room.create / Then INVALID_COMMAND が返り、新しいルームは作られない", async () => {
+    // Given
+    const ownerA = await server.connectHub("ownerA");
+    const roomA = await hubCreate(ownerA, "ルームA", "ぬしA");
+    await ownerA.take((m) => m.type === "roster", "A 作成直後の roster");
+
+    // When
+    ownerA.send({ command: "room.create", roomName: "2 個目のルーム", displayName: "ぬしA" });
+    const created = await ownerA.take(
+      (m) => m.type === "room.created" || m.type === "error",
+      "作成の応答",
+    );
+
+    // Then: 拒まれる
+    if (created.type !== "error") throw new Error(`拒まれるはずが ${created.type} だった`);
+    expect(created.code, "拒む理由のコード").toBe("INVALID_COMMAND");
+    expect(created.message, "拒む理由の文言").toBe("コマンドの形式が不正です");
+
+    // A の名簿は変わらない（1 人のまま）
+    expect(server.store.get(roomA.code)?.participants.length, "A の人数").toBe(1);
   });
 });

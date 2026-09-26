@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useCopyText } from '@tasuki/invite-ui';
 import type { RoomStateMessage } from '@tasuki/poker-core';
 import { CardHand } from '../components/CardHand';
+import { CurrentTopic } from '../components/CurrentTopic';
 import { ErrorNote } from '../components/ErrorNote';
 import { ParticipantList } from '../components/ParticipantList';
 import { Results } from '../components/Results';
@@ -213,6 +214,7 @@ export function RoomPage({ roomId, sync }: Props) {
         </div>
         <InviteLink url={inviteUrl} />
       </header>
+      {sync.topic && <CurrentTopic topic={sync.topic} />}
       <ErrorNote error={sync.error} onClose={sync.clearError} />
       <section>
         <h2>参加者（{snapshot.participants.length}人）</h2>

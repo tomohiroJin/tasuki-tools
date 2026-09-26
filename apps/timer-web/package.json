@@ -15,9 +15,11 @@
   },
   "dependencies": {
     "@tasuki/invite-ui": "workspace:*",
+    "@tasuki/markdown": "workspace:*",
     "@tasuki/room-core": "workspace:*",
     "@tasuki/sync-client": "workspace:*",
     "@tasuki/timer-core": "workspace:*",
+    "@tasuki/topic-core": "workspace:*",
     "@tasuki/ui": "workspace:*",
     "lucide-react": "^1.28.0",
     "neverthrow": "^8.2.0",

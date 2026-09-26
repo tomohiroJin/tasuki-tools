@@ -25,9 +25,6 @@ import {
   type LiveSyncServer,
 } from "./support/live-sync-server.js";
 
-/** テスト用の AI 解錠合言葉（本物の秘密ではない。ここでしか使わない）。 */
-const TEST_AI_KEY = "テスト用-解錠合言葉";
-
 let server: LiveSyncServer | undefined;
 afterEach(async () => {
   await server?.close();
@@ -144,7 +141,6 @@ describe("実 WS 越しの合言葉（room.passphrase.set と join の検証）"
       command: "room.join",
       code: created.code,
       displayName: "無指定",
-      hasAiKey: false,
     });
     // Then 1
     expect((await noPass.take("error")).code).toBe("PASSPHRASE_REQUIRED");
@@ -155,7 +151,6 @@ describe("実 WS 越しの合言葉（room.passphrase.set と join の検証）"
       command: "room.join",
       code: created.code,
       displayName: "誤り",
-      hasAiKey: false,
       passphrase: "ちがう",
     });
     // Then 2
@@ -185,46 +180,6 @@ describe("実 WS 越しの合言葉（room.passphrase.set と join の検証）"
     const guest = await server.connect("guest");
     const joined = await joinRoom(guest, created.code, "ゲスト");
     expect(joined.participantId).toMatch(/\S/);
-  });
-});
-
-describe("実 WS 越しの ai.unlock", () => {
-  it("合言葉が一致すれば aiUnlocked が snapshot に載り、不一致なら AI_UNLOCK_FAILED が返る", async () => {
-    // Given: AI 機能が有効な構成（トークンと合言葉が両方ある）で起動する
-    server = startLiveSyncServer({
-      AI_UNLOCK_KEY: TEST_AI_KEY,
-      CLAUDE_CODE_OAUTH_TOKEN: "テスト用ダミートークン",
-    });
-    const creator = await server.connect("creator");
-    await createRoom(creator, "作成者");
-    const initial = await creator.take("snapshot");
-    expect(initial.room.aiUnlocked).toBeUndefined();
-
-    // When 1: 誤った合言葉
-    creator.send({ command: "ai.unlock", key: "ちがう合言葉" });
-    // Then 1
-    expect((await creator.take("error")).code).toBe("AI_UNLOCK_FAILED");
-
-    // When 2: 正しい合言葉
-    creator.send({ command: "ai.unlock", key: TEST_AI_KEY });
-    // Then 2: 解錠済みが配信される。合言葉そのものは wire に載らない
-    const unlocked = await creator.take("snapshot", (m) => m.room.aiUnlocked === true);
-    expect(unlocked.room.problemMode).toBe("ai");
-    expect(JSON.stringify(unlocked)).not.toContain(TEST_AI_KEY);
-  });
-
-  it("AI 機能が無効な構成では、どんな合言葉でも AI_UNLOCK_FAILED が返る（存在秘匿）", async () => {
-    // Given: トークンも合言葉も無い既定構成
-    server = startLiveSyncServer();
-    const creator = await server.connect("creator");
-    await createRoom(creator, "作成者");
-    await creator.take("snapshot");
-
-    // When
-    creator.send({ command: "ai.unlock", key: TEST_AI_KEY });
-
-    // Then: 「未設定」ではなく不一致と同じコードを返す
-    expect((await creator.take("error")).code).toBe("AI_UNLOCK_FAILED");
   });
 });
 
@@ -263,5 +218,91 @@ describe("実 WS 越しの member.move", () => {
     // Then
     const moved = await guest.take("snapshot", (m) => m.room.session.rotation[0] === guestId);
     expect(moved.room.session.rotation).toEqual([guestId, creatorId]);
+  });
+});
+
+/**
+ * 配布中の窓 3（古い web × 新しい同期サーバー）で、古い timer が送ってくるもの（spec §6）。
+ *
+ * #91 PR 3 で timer のお題（コマンド・`room.join` の AI 鍵の印・snapshot のお題）を
+ * 撤去した。再起動の後も開いたままの古い画面は、撤去した形でまだ送ってくる。
+ * 古い画面は新しい snapshot を読めず通知を出し続ける（spec §6 が受容した窓）が、
+ * **サーバーの側は、古い形を受けても状態を壊さず接続も切らない**ことをここで固定する。
+ *
+ * @requirements #91
+ */
+describe("実 WS 越しの、古い timer が送るお題の形（配布中の窓 3）", () => {
+  // 配布中の窓 3（古い web × 新しいサーバー）で古い timer が送るもの（spec §6）:
+  // AI の鍵の印を付けた旧い形の room.join。
+  it("hasAiKey を付けた旧い形の room.join でも参加できる", async () => {
+    // Given: ルームがある
+    server = startLiveSyncServer();
+    const creator = await server.connect("creator");
+    const created = await createRoom(creator, "作成者");
+    const old = await server.connect("old");
+
+    // When: 古い画面の形（`hasAiKey` はもうスキーマに無い）で参加する。型で守られた
+    // `send` では書けない形なので、生のテキストで送る
+    old.sendRaw(
+      JSON.stringify({ command: "room.join", code: created.code, displayName: "古い画面", hasAiKey: true }),
+    );
+
+    // Then: 参加でき（スキーマは未知の項目を出力に残さない）、snapshot にもその印は載らない
+    const joined = await old.takeMatching(
+      (m) => m.type === "room.joined" || m.type === "error",
+      "room.join の応答",
+    );
+    expect(joined.type).toBe("room.joined");
+    const snapshot = await old.take("snapshot", (m) =>
+      m.room.participants.some((p) => p.displayName === "古い画面"),
+    );
+    const me = snapshot.room.participants.find((p) => p.displayName === "古い画面")!;
+    expect("hasAiKey" in me).toBe(false);
+  });
+
+  // 配布中の窓 3（古い web × 新しいサーバー）で古い timer が送るもの（spec §6）:
+  // 在室中の timer から、撤去したお題のコマンド。
+  it("在室中の timer が旧い ai.unlock / problem.request / problem.submit を送っても、状態は変わらず接続も切れない", async () => {
+    // Given: 作成者とゲストが在室し、参加時の snapshot とお題（`topic` フレーム）を受け取り終えている
+    server = startLiveSyncServer();
+    const { creator, guest } = await aLiveRoom(server);
+    await creator.take("snapshot", (m) => m.room.participants.length === 2);
+    await creator.until(
+      (received) => received.some((m) => (m as { type: string }).type === "topic"),
+      "参加時のお題",
+    );
+    const roomBefore = JSON.stringify(creator.latestRoom());
+    const seenBefore = creator.received.length;
+    const legacyCommands = [
+      { command: "ai.unlock", key: "あいことば" },
+      { command: "problem.request", requestId: "req-1" },
+      {
+        command: "problem.submit",
+        requestId: "req-1",
+        problem: { title: "FizzBuzz", description: "d", requirements: [], exampleTest: "e", hints: [] },
+        usedFallback: true,
+      },
+    ];
+
+    // When: 古い画面の形で送り（型で守られた `send` では書けないので生のテキストで）、
+    // 続けて正しいコマンドを 1 つ送る
+    for (const cmd of legacyCommands) creator.sendRaw(JSON.stringify(cmd));
+    creator.send({ command: "handoff.note.set", text: "続けて使える" });
+
+    // Then: 接続は切れていない —— 続けて送った正しいコマンドが通り、全員へ届く
+    await creator.take("snapshot", (m) => m.room.handoffNote === "続けて使える");
+    const after = await guest.take("snapshot", (m) => m.room.handoffNote === "続けて使える");
+    expect(after.room.handoffNote).toBe("続けて使える");
+    // 古いコマンドにはそれぞれ INVALID_COMMAND が返り（実測した応答）、その間に状態の配信
+    // （snapshot・お題の `topic` フレーム）は 1 つも起きていない
+    const between = creator.received.slice(seenBefore);
+    expect(between.map((m) => (m.type === "error" ? `error:${m.code}` : m.type))).toEqual([
+      "error:INVALID_COMMAND",
+      "error:INVALID_COMMAND",
+      "error:INVALID_COMMAND",
+      "snapshot",
+    ]);
+    // 正しいコマンドが変えたのは引き継ぎメモだけ（お題の撤去した項目が戻っていない）
+    expect(JSON.stringify({ ...creator.latestRoom(), handoffNote: "" })).toBe(roomBefore);
   });
 });

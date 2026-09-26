@@ -327,7 +327,7 @@ export const MUTATIONS = [
     note:
       "#91・E6。ルーム破棄から `topicGenerator.cancel(roomCode)` を消す。" +
       "破棄されたルームの進行中のお題生成（子プロセス・AI の枠）が止まらないまま" +
-      "走り続ける欠陥。",
+      "走り続ける欠陥。#91 PR 3 で隣の `delegator?.cancel` が消えたので作り直した。",
   },
   {
     id: 81,
@@ -390,7 +390,9 @@ export const MUTATIONS = [
     note:
       "R9・spec §9。`TOPIC_RECIPIENT_TOOLS` からハブ（`TOOL_HUB`）を落とし、" +
       "お題の接続だけへ配る。ハブ（玄関の選択画面）はお題の掲げ直しを見られなくなり、" +
-      "「玄関で待っている間もお題が読める」という契約（spec §9・E2・E4）が壊れる。",
+      "「玄関で待っている間もお題が読める」という契約（spec §9・E2・E4）が壊れる。" +
+      "#91 PR 3 で配信先に timer・poker が加わり行が変わったので作り直した" +
+      "（timer を落とす形は m96）。",
   },
   {
     id: 86,
@@ -410,19 +412,10 @@ export const MUTATIONS = [
     pkg: "packages/timer-core",
     tests: ["test/pause-freeze.test.ts", "test/break-freeze.test.ts"],
   },
-  {
-    id: 7,
-    label: "帳簿を持たない snapshot を生成中側へ倒す（旧サーバーで画面が固まる）",
-    patch: "m07-generating-guesses-when-ledger-missing.patch",
-    pkg: "apps/timer-web",
-    tests: ["test/ui/problem-generation.test.ts"],
-    note:
-      "#283。**かつては `shouldClearGenerating` の内容比較を参照比較に変える変異だった** —— " +
-      "生成中をクライアントが内容差分で降ろしていた頃の対象で、その関数ごと消えたので" +
-      "同じ欠陥の新しい住所へ移した。塞いだ形は**「無い情報を推測で埋める」**である。" +
-      "配布の窓（新しい画面 × 旧サーバー）では帳簿そのものが来ないので、" +
-      "推測すると**降ろす者が誰も居ない生成中**がお題パネルを固める。",
-  },
+  // id 7（帳簿を持たない snapshot を生成中側へ倒す）は #91 PR 3 で削除した。
+  // お題の生成中の帳簿（`Room.problemGeneration`）と timer-web の生成中の表示
+  // （`ui/problem-generation.ts`）が実装ごと消えた —— お題はお題ツールが作り、timer は配られた
+  // お題を読むだけになった（spec T11）。番号は詰めない —— 過去の記録が id で変異を指しているため。
   {
     id: 8,
     label: "deriveConnectionStatus の sessionLost 分岐を反転",
@@ -647,7 +640,8 @@ export const MUTATIONS = [
     tests: ["test/timer-snapshot-dto.test.ts"],
     note:
       "#95 S5a（R5 / R6）。選択画面へ戻った人が timer の一覧に残り続ける欠陥。" +
-      "**名簿からは消えないので、サーバーの状態を見ても気づけない** —— wire の形だけが違う。",
+      "**名簿からは消えないので、サーバーの状態を見ても気づけない** —— wire の形だけが違う。" +
+      "#91 PR 3 で直前の行（AI の鍵を持つ人の集合）が消えたので、同じ壊し方で作り直した。",
   },
   {
     id: 28,
@@ -793,34 +787,9 @@ export const MUTATIONS = [
       "**名乗る場所の無い画面に取り残される**（撤去前はそこに `Setup` が居た）。" +
       "この段の前提そのものなので、退化を無言で許さないように置く。",
   },
-  {
-    id: 39,
-    label: "「新しいセッション」でロビーへ戻っても前のお題を落とさない",
-    patch: "m39-new-session-keeps-old-problem.patch",
-    pkg: "apps/tasuki-sync",
-    tests: ["test/handlers.lifecycle.test.ts", "test/lobby-problem-autorequest.test.ts"],
-    note:
-      "#273。#249（#95 S5c）が「新しいセッション」をロビーへ戻す形にしたことで、" +
-      "**同じルームで 2 本目を始める経路が初めてできた**。落とさないと 2 本目が " +
-      "1 本目と同じお題で始まる。**埋め直しは `lobby-problem.ts` の不変条件が勝手に " +
-      "やる**ので、落とす側を消しても例外は出ず、ロビーは普通に描画される —— " +
-      "お題の中身を見て初めて殺せる。",
-  },
-  {
-    id: 40,
-    label: "落とすときに「ロビーでお題を扱う範囲」を見ない（`celebration` を出たら常に落とす）",
-    patch: "m40-drop-ignores-lobby-scope.patch",
-    pkg: "apps/tasuki-sync",
-    tests: ["test/handlers.lifecycle.test.ts"],
-    note:
-      "#273 のレビュー 2 巡目。落とす条件は「`celebration` 発」と「行き先が " +
-      "`usesLobbyProblem` の範囲」の 2 つでできており、**後者を外しても #273 の検査は " +
-      "全部緑のままだった**（実測。全パッケージで落ちたのは別の性質を見ている " +
-      "`live-ws.multi-connection.test.ts` の 1 本だけ）。恒真化していた側なので " +
-      "恒久的に塞ぐ。殺すのは 2 つの経路である —— 遅れて届いた `phase.set session` で " +
-      "**始まったばかりのセッションがお題を失う**ことと、お題を使わない設定のルームで " +
-      "**落としたきり誰も埋めず完成記録が消える**こと。",
-  },
+  // id 39・40（「新しいセッション」でロビーへ戻るときに前のお題を落とす規則を壊す。#273）は
+  // #91 PR 3 で削除した。お題は timer のルームの状態ではなくなり、落とす規則ごと廃止した
+  // （spec T11。お題は掲げた人が下ろすまで残る）。番号は詰めない。
   {
     id: 41,
     label: "seatSkipReason から一時離脱の優先を削る",
@@ -843,65 +812,9 @@ export const MUTATIONS = [
       "#276 が直した欠陥そのもの。飛ばされる席を数に入れるため、画面が出す「次」と" +
       "実際の交代先が食い違う。殺せないなら、直したことの証拠が無い。",
   },
-  {
-    id: 43,
-    label: "確定時に生成中を降ろす条件へ「お題が変わったなら」を足す",
-    patch: "m43-finalize-clears-only-on-change.patch",
-    pkg: "apps/tasuki-sync",
-    tests: ["test/problem-generation-state.test.ts"],
-    note:
-      "#283 の穴 1。**これは #283 より前のクライアント実装（内容差分で降ろす）を" +
-      "サーバーへ移した形である** —— `pickFallback` は候補の中から選ぶので、" +
-      "「別のお題にする」で同じ候補に当たると降りない。殺せないなら、" +
-      "サーバー権威にした意味（内容に依存せず降りる）の証拠が無い。",
-  },
-  {
-    id: 44,
-    label: "依頼の冒頭の配信を「待ちが残る依頼だけ」に絞る（押下が画面に出ない）",
-    patch: "m44-request-skips-pending-announcement.patch",
-    pkg: "apps/tasuki-sync",
-    tests: ["test/problem-generation-state.test.ts"],
-    note:
-      "#283 のレビュー指摘 3（当初実装そのもの）。**本番のロビーがこの絞り込みに落ちる** —— " +
-      "実クライアントは常に `hasAiKey: false` を送るので候補が定型センチネルだけになり、" +
-      "依頼と確定が同じ tick で終わる。帳簿として「いま作り直している」と言える瞬間が" +
-      "1 本も残らず、途中から繋いだ端末はその依頼を知る術が無い。" +
-      "**押下の手応えのほうは m46 / m47 が守っている**（送信元では生成中の snapshot が" +
-      "確定と同じ描画に畳まれるため、この 1 本目では見えない・実測 10 回中 0 回）。",
-  },
-  {
-    id: 45,
-    label: "委譲の行き止まりで帳簿を整えない（降ろせない生成中が残る）",
-    patch: "m45-dead-end-leaves-generating-on.patch",
-    pkg: "apps/tasuki-sync",
-    tests: ["test/problem-generation-state.test.ts"],
-    note:
-      "#283 のレビュー指摘 4。`offerToCurrent` の行き止まりへは **`onDeadline` の " +
-      "setTimeout からも入る**ので、降ろしてくれる呼び出し側が居ない。" +
-      "**65 秒の安全弁を落とした以上、画面側に逃げ道が無い** —— " +
-      "以後どの snapshot を受け取ってもお題パネルは操作不能のままになる。",
-  },
-  {
-    id: 46,
-    label: "直前のお題の同一性を title 比較から参照比較へ変える（除外が空振りする）",
-    patch: "m46-pickfallback-excludes-by-reference.patch",
-    pkg: "packages/timer-core",
-    tests: ["test/problem.test.ts"],
-    note:
-      "#283 のレビュー。確定時に写しを作るので参照は決して一致せず、**除外が何も外さなくなる**。" +
-      "生成中の snapshot は送信元の端末では確定と同じ描画に畳まれる（実測で押した本人は " +
-      "10 回中 0 回）ので、**結果が変わること以外に押下の手応えが無い**。",
-  },
-  {
-    id: 47,
-    label: "サーバーが pickFallback へ直前のお題を渡さない（配線だけが切れる）",
-    patch: "m47-delegator-forgets-previous-problem.patch",
-    pkg: "apps/tasuki-sync",
-    tests: ["test/problem-generation-state.test.ts"],
-    note:
-      "#283 のレビュー。除外そのものは生きているので **pickFallback 単体の検査では気づけない**。" +
-      "「別のお題にする」が同じお題を返しうる状態へ戻る。",
-  },
+  // id 43〜47（お題の生成の帳簿 `ProblemDelegator` と `pickFallback` を壊す。#283）は
+  // #91 PR 3 で削除した。`problem-delegation.ts` と timer-core の `problem.ts` が実装ごと消えた
+  // （お題の生成はお題ツールの `TopicGenerator` が担う。そちらは m80 などが守る）。番号は詰めない。
   {
     id: 60,
     label: "room.join の答えを待つ期限を張らない（無言で永久に待つ状態へ戻る）",
@@ -1039,17 +952,9 @@ export const MUTATIONS = [
       "戻す変異。輪は並べ替えられるので、出るのは自分でも作成者でもない他人である。" +
       "**復帰トークンが拒まれてから新しい participantId が届くまでの窓**で実際に効く。",
   },
-  {
-    id: 72,
-    label: "完成記録の表示名を席ではなく名簿の並びから引く",
-    patch: "m72-record-names-from-roster-order.patch",
-    pkg: "apps/timer-web",
-    tests: ["test/sync/snapshot-intents.test.ts"],
-    note:
-      "#294。記録の `members` は `driverCounts` と添字で対になって描かれる" +
-      "（`ui/Summary.tsx`）ので、輪と違う並びを渡すと**別人の回数が別人の名前の横に" +
-      "並ぶ**。名簿は輪の外の人も含むため長さも一致しない。",
-  },
+  // id 72（端末が完成記録の表示名を席ではなく名簿の並びから引く。#294）は #91 PR 3 で削除した。
+  // 端末は完成記録を組み立てなくなり（Task 6）、サーバーが作った記録をそのまま保存する。
+  // 同じ性質（記録の表示名は輪の順）を守る場所はサーバーへ移ったので、m109 が引き継ぐ。
   {
     id: 87,
     label: "玄関の whereLabel が ID ではなく並び順で名前を引く",
@@ -1135,31 +1040,171 @@ export const MUTATIONS = [
       "文を伝える」`show` へ落ちる。本人は玄関へ戻らず、お題の画面にエラー文だけが" +
       "出た状態に取り残される。",
   },
+  // id 94・95（topic-web・timer-web の Markdown の写しを行区切りで止まらなくする）は #91 PR 3 で
+  // 削除した。解析は `@tasuki/markdown` の 1 か所へ移り、両アプリの写しは消えた。m107 が引き継ぐ。
   {
-    id: 94,
-    label: "お題ツールの Markdown が行区切り U+2028 で止まらなくなる",
-    patch: "m94-topic-markdown-line-separator-loop.patch",
-    pkg: "apps/topic-web",
-    tests: ["tests/markdown.test.tsx"],
+    id: 96,
+    label: "お題の配信先から timer を落とす",
+    patch: "m96-topic-broadcast-drops-timer.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/live-ws.topic.test.ts"],
     note:
-      "#91 PR 2・最終レビューの指摘（C1）。改行の正規化から U+2028 / U+2029 を外し、" +
-      "かつ段落の前進の保証を外す。見出しの判定の `.` がその字に一致せず、段落の停止条件" +
-      "だけが止まるので、空の段落を積み続けて解析が返らない。本文はサーバーが長さしか" +
-      "見ずに配るので、そのルームでお題ツールを開いた全員のタブが固まる。同期の関数が" +
-      "返らないのでテストの timeout では止まらず、ワーカーがメモリを使い切って落ちる" +
-      "（手元で約 40 秒・exit 1。検査はハングしない）。",
+      "#91 PR 3・spec T3・E2。`TOPIC_RECIPIENT_TOOLS` から `TOOL_TIMER` を落とす。" +
+      "timer を開いている人には、お題の掲げ直しも取り下げも届かなくなる" +
+      "（参加の直後の 1 通だけが届き、そのあと古いお題を読み続ける）。",
   },
   {
-    id: 95,
-    label: "timer の Markdown が行区切り U+2028 で止まらなくなる",
-    patch: "m95-timer-markdown-line-separator-loop.patch",
-    pkg: "apps/timer-web",
-    tests: ["test/ui/Markdown.test.tsx"],
+    id: 97,
+    label: "お題を掲げて完了したときだけ完成記録を作る",
+    patch: "m97-record-only-with-topic.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/handlers.lifecycle.test.ts"],
     note:
-      "#91 PR 2・最終レビューの指摘（C1）。m94 と同じ変異を timer-web の Markdown に" +
-      "当てる（main から同じ正規表現を持っていた）。共有メモのプレビューとお題の説明が" +
-      "同じ部品を使うので、本番の timer でも起こりうる。ワーカーがメモリを使い切って" +
-      "落ちる（手元で約 40 秒・exit 1）。",
+      "#91 PR 3・spec T9・E17。`SessionCompleted` で `event.topicTitle === null` なら記録を作らずに" +
+      "celebration へ移す。お題なしが既定なので、大半のセッションで完成記録が消える" +
+      "（#273 の欠陥の拡大版）。",
+  },
+  {
+    id: 98,
+    label: "timer の参加でいまのお題を送らない",
+    patch: "m98-timer-join-skips-topic.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/live-ws.topic.test.ts"],
+    note:
+      "#91 PR 3・E4。timer の `room.join`（`command-handlers/room-join.ts`）から" +
+      "`topicBroadcaster.sendCurrent` を消す。後から timer を開いた人・再読込した人は、" +
+      "次にお題が掲げ直されるまで、いま掲げられているお題を読めない。",
+  },
+  {
+    id: 99,
+    label: "timer-web の dispatch がお題のフレームを先に見分けない",
+    patch: "m99-timer-dispatch-drops-topic-frame.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/sync/dispatch.test.ts"],
+    note:
+      "#91 PR 3・spec §5.5・E15。`TopicFrameSchema` で先に見分ける分岐を消す。`topic` フレームが" +
+      "timer の契約で落ち、お題が画面に出ないうえ、届くたびに「同期できていません」（#209）が立つ。",
+  },
+  {
+    id: 100,
+    label: "poker-web の useSync がお題のフレームを先に見分けない",
+    patch: "m100-poker-sync-drops-topic-frame.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/topic-sync.test.tsx"],
+    note:
+      "#91 PR 3・spec §5.5・E15。`TopicFrameSchema` で先に見分ける分岐を消す。`topic` フレームが" +
+      "poker の契約で落ち、お題が画面に出ないうえ、届くたびに #212 の告知（同期できていません）が立つ。",
+  },
+  {
+    id: 101,
+    label: "端末の旧い記録の problemTitle を読まない",
+    patch: "m101-stored-record-ignores-problem-title.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/records/stored-record.test.ts"],
+    note:
+      "#91 PR 3・E18。`normalizeStoredRecord` が旧い記録の `problemTitle` を読まず null にする。" +
+      "#91 PR 3 より前に端末へ保存した記録が、履歴ですべて「お題なし」に化ける" +
+      "（端末の記録には他所に写しが無いので取り返せない）。",
+  },
+  {
+    id: 102,
+    label: "履歴の削除ボタンの名前から完了日時を落とす",
+    patch: "m102-history-delete-name-without-date.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/History.test.tsx"],
+    note:
+      "#91 PR 3・E23。お題なしが既定になったので「お題なし」の記録が並びやすく、" +
+      "支援技術からどの記録の削除ボタンかを区別できなくなる。",
+  },
+  {
+    id: 103,
+    label: "完了へ入ったとき、記録が増えたかを見ずに保存する",
+    patch: "m103-intents-persist-without-new-record.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/sync/snapshot-intents.test.ts"],
+    note:
+      "#91 PR 3（Task 6）・E17。記録が 1 件でもあれば末尾を保存して「完成」と出す。" +
+      "別の人が中断した回でも、押していない端末は前の回の記録をもう一度保存し、" +
+      "画面は「完成」と言う（終わり方は記録が増えたかでしか分からない）。",
+  },
+  {
+    id: 104,
+    label: "前の snapshot が無くても完了の判定をする",
+    patch: "m104-intents-decide-without-prev.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/sync/snapshot-intents.test.ts"],
+    note:
+      "#91 PR 3（Task 6）・spec §10。比べる相手が無いのに「前は 0 件」とみなす。" +
+      "再読込や完了の後に入ってきた端末が、その回に居なかった人の端末にも記録を保存し、" +
+      "終わり方を決めてしまう。",
+  },
+  {
+    id: 105,
+    label: "完了の topicTitle をお題の保管から埋めない（常に null）",
+    patch: "m105-complete-skips-topic-title.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/handlers.lifecycle.test.ts"],
+    note:
+      "#91 PR 3・spec T9・E17。`handleRoomCommand` で `session.complete` の `topicTitle` を埋める" +
+      "3 行を消す。お題を掲げて完了しても、完成記録はすべて「お題なし」になる。",
+  },
+  {
+    id: 106,
+    label: "@tasuki/markdown のリンクの表示と URL の上限を外す",
+    patch: "m106-markdown-link-unbounded.patch",
+    pkg: "packages/markdown",
+    tests: ["tests/performance.test.ts"],
+    note:
+      "#91 PR 3・spec §5.4（PR #311 の申し送り）。`INLINE_RE` の `{0,200}` / `{0,2000}` を `*` に戻す。" +
+      "`[` を並べた本文の解析が O(N²) になる（10 万字で手元 5 秒強）。本文はサーバーが長さしか" +
+      "見ずに配るので、そのルームでお題を表示する全員のタブが固まる。",
+  },
+  {
+    id: 107,
+    label: "@tasuki/markdown の改行の正規化から U+2028 / U+2029 を外し、前進の保証を消す",
+    patch: "m107-markdown-line-separator.patch",
+    pkg: "packages/markdown",
+    tests: ["tests/blocks.test.ts"],
+    note:
+      "#91 PR 3・spec §5.4。m94 / m95 の引き継ぎ。**m94 / m95 と違い、無限ループにはならない**" +
+      "（実測。ワーカーのメモリ切れではなくアサーションで落ち、手元で数秒）。`@tasuki/markdown` は" +
+      "見出しの判定と段落の停止条件が同じ `HEADING_RE` を使うので両者が食い違わず、前進の保証は" +
+      "いま到達しない（保証だけを外す変異は等価）。殺すのは「行区切りを改行と同じに扱う」ことを" +
+      "見る等値のアサーションで、行区切りを含む本文が 1 行の段落として解析されるため赤になる。",
+  },
+  {
+    id: 108,
+    label: "ハブの room.join が二重参加を拒まない",
+    patch: "m108-hub-join-allows-double.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/live-ws.hub.test.ts"],
+    note:
+      "#91 PR 3（Task 5 のレビュー）。`hub-handlers.ts` の `room.join` から `isInAnyRoom` による" +
+      "拒否を外す。1 本のハブ接続が 2 つのルームの名簿に載り（同じルームなら人数が増え）、" +
+      "お題の配信先と在席の数え上げがずれる。",
+  },
+  {
+    id: 109,
+    label: "サーバーの完成記録の表示名を輪ではなく名簿の並びから引く",
+    patch: "m109-record-names-from-roster-order.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/handlers.lifecycle.test.ts"],
+    note:
+      "#294 → #91 PR 3（Task 6）。m72 の引き継ぎ（端末が記録を組み立てなくなり、性質の住所が" +
+      "サーバーへ移った）。記録の `members` は `driverCounts` と添字で対になって描かれる" +
+      "（timer-web の `ui/Summary.tsx`）ので、**別人の回数が別人の名前の横に並ぶ**。" +
+      "名簿は輪の外の人も含み、代理を含まないので長さも合わない。",
+  },
+  {
+    id: 110,
+    label: "ハブの room.create が二重参加を拒まない",
+    patch: "m110-hub-create-allows-double.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/live-ws.hub.test.ts"],
+    note:
+      "#91 PR 3（Task 5 のレビュー）。m108 の片割れ。既にルームに居るハブ接続が新しいルームを" +
+      "作れてしまい、1 本の接続が 2 つのルームの名簿に載る。1 本の変異で両方を外すと" +
+      "片方のテストだけで殺せてしまうので、入口ごとに分けた。",
   },
 ];
 

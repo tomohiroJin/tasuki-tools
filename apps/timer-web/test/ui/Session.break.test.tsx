@@ -17,12 +17,12 @@ const INVITE_URL_FOR_TEST = 'https://tasuki.example/?room=TEST';
 
 function makeParticipant(overrides: Partial<Participant>): Participant {
   return {
-    participantId: "p1", displayName: "Alice", presence: "online", hasAiKey: false, joinedAt: 1000, ...overrides,
+    participantId: "p1", displayName: "Alice", presence: "online", joinedAt: 1000, ...overrides,
   };
 }
 
 const config: SessionConfig = {
-  language: "TypeScript", difficulty: "easy", intervalMinutes: 5,
+  intervalMinutes: 5,
 };
 
 /** 席に付ける表示名（輪と同じ順）。wire の項目ではない（#294・造作だけの入口）。 */

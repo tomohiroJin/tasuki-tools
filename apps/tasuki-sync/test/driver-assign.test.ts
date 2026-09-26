@@ -14,7 +14,7 @@ import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 import { roomViewOf, putRoomView } from "./support/room-view.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 
-const config: SessionConfig = { language: "TypeScript", difficulty: "easy", intervalMinutes: 5 };
+const config: SessionConfig = { intervalMinutes: 5 };
 
 /** 作成者 A（rotation[0]）を作り、rotation [A,B,C] を稼働中にして B の eligibility を上書きした room を置く。
  *  B=pid-b/conn-b・C=pid-c/conn-c。 */

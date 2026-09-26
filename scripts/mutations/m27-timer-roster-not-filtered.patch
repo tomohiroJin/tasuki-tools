@@ -1,11 +1,26 @@
+# 変異 27: timer-roster-not-filtered
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/timer-snapshot-dto.test.ts
+#     describe「timer の参加者一覧は在席で絞る（#95 S5a）」の
+#     「Given 選択画面だけに居る人 / When snapshot を組む / Then timer の一覧に出ない」
+#     「Given 輪に席を持つ人が選択画面へ戻った / When snapshot を組む / Then 輪の表示名は残る」
+#
+# #95 S5a（R5 / R6）。`buildTimerSnapshotRoom` の `.filter(showsInTimer)` を外す。
+# 選択画面へ戻った人が timer の一覧に残り続ける。#91 PR 3 で直前の行
+# （AI の鍵を持つ人の集合）が消えたので、同じ壊し方でいまのコードへ作り直した。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m27-*.patch
+# 復元: git apply -R scripts/mutations/m27-*.patch
 diff --git a/apps/tasuki-sync/src/application/timer-snapshot-dto.ts b/apps/tasuki-sync/src/application/timer-snapshot-dto.ts
-index f52ec0a..899e032 100644
+index 4345bb1..5129dae 100644
 --- a/apps/tasuki-sync/src/application/timer-snapshot-dto.ts
 +++ b/apps/tasuki-sync/src/application/timer-snapshot-dto.ts
-@@ -137,7 +137,7 @@ function showsInTimer(participant: MembershipParticipant): boolean {
+@@ -251,7 +251,7 @@ export function computeIneligibleIndices(
+ }
  
  export function buildTimerSnapshotRoom(membership: MembershipRoom, timer: TimerState): Room {
-   const aiKeys = new Set(timer.aiKeyHolders);
 -  const members: Participant[] = membership.participants.filter(showsInTimer).map((p) => {
 +  const members: Participant[] = membership.participants.map((p) => {
      // 適格は**席の属性**なので、輪に席がある人だけが値を持つ（輪の外の人は省略）。

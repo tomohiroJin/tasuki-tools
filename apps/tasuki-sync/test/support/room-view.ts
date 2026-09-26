@@ -71,7 +71,7 @@ export function maybeRoomViewOf(
  * S4a 以前のテストは `store.put({ ...room, session: … })` のように「利用者が見る形」で
  * 前提を組んでいた。保管が 2 つに割れてもその書き方を保てるように、ここで逆写像を行う。
  * `buildTimerSnapshotRoom` の逆であり、**往復して同じ形に戻ることが前提**である
- * （代理は `isPlaceholder` から、適格は `driverEligible` から、AI 鍵は `hasAiKey` から復元する）。
+ * （代理は `isPlaceholder` から、適格は `driverEligible` から復元する）。
  */
 /**
  * wire の presence から接続の集まりを復元する（#95 S4b）。
@@ -137,7 +137,6 @@ export function putRoomView(
     createdAt: room.createdAt,
     // wire の設定は保管する設定と同じ形である（#294 で `members` が落ちた）。
     config: room.config,
-    problem: room.problem,
     session: {
       ...room.session,
       rotation: room.session.rotation.map((id) => {
@@ -153,14 +152,8 @@ export function putRoomView(
     sessionRecords: room.sessionRecords,
     handoffNote: room.handoffNote,
     onBreak: room.onBreak,
-    ...(room.problemMode !== undefined ? { problemMode: room.problemMode } : {}),
     ...(room.passphraseProtected !== undefined
       ? { passphraseProtected: room.passphraseProtected }
       : {}),
-    ...(room.aiUnlocked !== undefined ? { aiUnlocked: room.aiUnlocked } : {}),
-    ...(room.problemGeneration !== undefined
-      ? { problemGeneration: room.problemGeneration }
-      : {}),
-    aiKeyHolders: room.participants.filter((p) => p.hasAiKey).map((p) => p.participantId),
   });
 }

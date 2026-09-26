@@ -22,8 +22,7 @@ import {
 } from "@tasuki/topic-core";
 import type { Clock } from "../ports/clock.js";
 import type { TopicStore } from "../ports/topic-store.js";
-import type { ServerTopicProvider } from "../ports/server-topic-provider.js";
-import { ProviderFailure } from "../ports/server-problem-provider.js";
+import { ProviderFailure, type ServerTopicProvider } from "../ports/server-topic-provider.js";
 import type { AiLimiter } from "./ai-limits.js";
 import type { Logger } from "./log/logger.js";
 import type { RefEncoder } from "./log/ref-encoder.js";
@@ -44,7 +43,7 @@ export interface TopicGeneratorDeps {
   publish: (roomCode: string) => void;
   /** 省略時は AI 無効（トークンか合言葉が無い） */
   provider?: ServerTopicProvider | undefined;
-  /** provider とセットで渡す。**timer の delegator と同じインスタンス**（上限はサーバー全体で 1 つ） */
+  /** provider とセットで渡す。**サーバー全体で 1 つの予算**（配線が 1 個だけ作る） */
   aiLimiter?: AiLimiter | undefined;
   /** 既定 60 秒 */
   aiTimeoutMs?: number | undefined;
@@ -76,7 +75,7 @@ export class TopicGenerator {
     const state = this.deps.topics.get(roomCode);
     if (state === undefined) return "started"; // ルームが無い。何もしない
     const { provider, aiLimiter } = this.deps;
-    // provider と aiLimiter は**両方揃って**初めて AI を使う（problem-delegation.ts と同じ）。
+    // provider と aiLimiter は**両方揃って**初めて AI を使う。
     // 片方だけだと、あとで `aiLimiter.tryAcquire` 等が呼べず、中断済みの生成を持ったまま
     // 例外で抜けることになる。
     const wantsAi = req.mode === "ai" && state.aiUnlocked && provider !== undefined && aiLimiter !== undefined;

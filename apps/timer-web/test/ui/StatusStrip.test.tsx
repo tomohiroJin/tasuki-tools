@@ -13,7 +13,6 @@ describe("StatusStrip", () => {
     phase: "session" as const,
     displayName: "Alice",
     connectionStatus: "online" as const,
-    problemMode: undefined as "ai" | "fallback" | undefined,
     roomCode: "ABCD01",
   };
 

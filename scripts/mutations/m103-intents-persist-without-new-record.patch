@@ -1,0 +1,27 @@
+# 変異 103: intents-persist-without-new-record
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/sync/snapshot-intents.test.ts
+#     describe「完了の snapshot から終わり方と記録を決める」の
+#     「Given 記録が増えずに完了へ入った（別の人が中断した） / When 意図を決める / Then 保存せず、中断と出す」（#91・E17）
+#
+# #91 PR 3（Task 6）。完了へ入った瞬間に「記録が増えたか」を見ず、記録が 1 件でも
+# あれば末尾を保存して「完成」と出す。別の人が中断した回でも、押していない端末は
+# 前の回の記録をもう一度保存し（ID が同じなので上書き）、画面は「完成」と言う。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m103-*.patch
+# 復元: git apply -R scripts/mutations/m103-*.patch
+diff --git a/apps/timer-web/src/sync/snapshot-intents.ts b/apps/timer-web/src/sync/snapshot-intents.ts
+index 36d9328..4907aa6 100644
+--- a/apps/timer-web/src/sync/snapshot-intents.ts
++++ b/apps/timer-web/src/sync/snapshot-intents.ts
+@@ -119,7 +119,7 @@ export function decideSnapshotIntents(
+   //    **前の snapshot が無い端末（再読込・完了の後に入ってきた人）は判定しない。** 増えたかどうかを
+   //    比べる相手が無い。記録も出さず、保存もしない（受容・spec §10）。
+   if (prev !== null && prev.phase !== "celebration" && next.phase === "celebration") {
+-    const added = next.sessionRecords.length > prev.sessionRecords.length
++    const added = next.sessionRecords.length > 0
+       ? next.sessionRecords[next.sessionRecords.length - 1]
+       : undefined;
+     if (added !== undefined) {

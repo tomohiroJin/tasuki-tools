@@ -23,6 +23,9 @@ interface HistoryProps {
   onBack: () => void;
 }
 
+/** お題なしで完了した記録の見出し（#91・E23）。 */
+const NO_TOPIC_LABEL = "お題なし";
+
 /** 所要時間（秒）を「○分○秒」へ整形する（Summary と同じ体裁）。 */
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -102,15 +105,14 @@ export function History({ onBack }: HistoryProps) {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate font-bold text-[var(--bone)]">
-                        {record.problemTitle}
-                      </p>
-                      <p className="mt-0.5 text-xs text-[var(--bone-muted)]">
-                        {record.language}・{record.difficulty}
+                        {record.topicTitle ?? NO_TOPIC_LABEL}
                       </p>
                     </div>
                     <GhostButton
                       onClick={() => handleDelete(record.id)}
-                      aria-label={`「${record.problemTitle}」の記録を削除`}
+                      // **完了日時を名前に入れる**（E23）。タイトルだけだと、お題なしの記録や同じお題の記録が
+                      // 並んだとき、支援技術から削除ボタンを区別できない。
+                      aria-label={`${formatCompletedAt(record.completedAt)} に完了した「${record.topicTitle ?? NO_TOPIC_LABEL}」の記録を削除`}
                       className="shrink-0"
                     >
                       <span className="flex items-center gap-1.5">

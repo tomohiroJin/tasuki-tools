@@ -13,7 +13,7 @@ import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 import { roomViewOf, putRoomView } from "./support/room-view.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 
-const config: SessionConfig = { language: "TypeScript", difficulty: "easy", intervalMinutes: 5 };
+const config: SessionConfig = { intervalMinutes: 5 };
 
 /** host A を作り、rotation [A,B,C] を稼働中にして B/C の eligibility を上書きした room を置く。 */
 async function setup(

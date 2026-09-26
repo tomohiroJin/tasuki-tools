@@ -39,8 +39,6 @@ import { roomViewOf } from "./support/room-view.js";
 import type { RoomScopedCommand } from "../src/application/handlers.js";
 
 const config: SessionConfig = {
-  language: "TypeScript",
-  difficulty: "easy",
   intervalMinutes: 5,
 };
 
@@ -75,7 +73,6 @@ describe("ルームに居る全員が同格である（開始前）", () => {
       clock: new FakeClock(1000000),
       broadcaster,
       codeGen: new FakeCodeGen(),
-      aiUnlockKey: "secret",
     });
 
     const created = await handlers.handleCommand(CREATOR_CONN, {
@@ -94,7 +91,7 @@ describe("ルームに居る全員が同格である（開始前）", () => {
       [BOB_CONN, "Bob"],
     ] as const) {
       const joinResult = await handlers.handleCommand(connId, {
-        command: "room.join", code: roomCode, displayName, hasAiKey: false,
+        command: "room.join", code: roomCode, displayName,
       });
       if (!joinResult.isOk()) throw new Error(`room.join failed: ${displayName}`);
       const addResult = await handlers.handleCommand(connId, {
@@ -105,7 +102,7 @@ describe("ルームに居る全員が同格である（開始前）", () => {
 
     // Carol は join だけして輪には入らない（`member.add` で「他人を輪へ加える」対象になる）。
     const carolJoined = await handlers.handleCommand(CAROL_CONN, {
-      command: "room.join", code: roomCode, displayName: "Carol", hasAiKey: false,
+      command: "room.join", code: roomCode, displayName: "Carol",
     });
     if (!carolJoined.isOk()) throw new Error("room.join failed: Carol");
 
@@ -137,7 +134,6 @@ describe("ルームに居る全員が同格である（開始前）", () => {
       ["room.passphrase.set", () => ({ command: "room.passphrase.set", passphrase: "ひらけごま2026" })],
       ["member.shuffle", () => ({ command: "member.shuffle" })],
       ["member.move", () => ({ command: "member.move", fromIndex: 0, toIndex: 2 })],
-      ["ai.unlock", () => ({ command: "ai.unlock", key: "secret" })],
       ["participant.remove（他人）", () => ({ command: "participant.remove", participantId: bobPid })],
       ["participant.rename（他人）", () => ({ command: "participant.rename", participantId: bobPid, displayName: "Renamed" })],
       ["member.add（他人）", () => ({ command: "member.add", participantId: carolPid })],

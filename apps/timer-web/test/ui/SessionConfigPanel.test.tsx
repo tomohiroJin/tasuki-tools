@@ -7,7 +7,7 @@ import React from "react";
 import { SessionConfigPanel } from "../../src/ui/components/SessionConfigPanel.js";
 import type { SessionConfig } from "@tasuki/timer-core";
 
-const config: SessionConfig = { language: "TypeScript", difficulty: "easy", intervalMinutes: 7 };
+const config: SessionConfig = { intervalMinutes: 7 };
 
 describe("SessionConfigPanel", () => {
   it("交代間隔グループが表示される", () => {

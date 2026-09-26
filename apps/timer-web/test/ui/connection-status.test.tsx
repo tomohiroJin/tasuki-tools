@@ -13,7 +13,6 @@ describe("接続状態の提示", () => {
     phase: "session" as const,
     displayName: "Alice",
     roomCode: "CONN01",
-    problemMode: undefined as "ai" | "fallback" | undefined,
   };
 
   it("接続中のとき ● オンライン を表示する", () => {

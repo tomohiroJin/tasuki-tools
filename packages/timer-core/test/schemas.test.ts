@@ -19,12 +19,10 @@ function baseRoom(): Record<string, unknown> {
     code: "ROOM-1",
     createdAt: 0,
     config: {
-      language: "TypeScript",
-      difficulty: "easy",
+      // `members` は #294 で落とした項目。旧サーバーの形として残してある（下の #294 の describe）
       members: ["A", "B", "C"],
       intervalMinutes: 5,
     },
-    problem: null,
     session: {
       rotation: ["A", "B", "C"],
       currentIndex: 0,
@@ -54,7 +52,6 @@ function baseRoom(): Record<string, unknown> {
         participantId: "p1",
         displayName: "A",
         presence: "online",
-        hasAiKey: false,
         joinedAt: 1,
       },
     ],
@@ -125,58 +122,76 @@ describe("役割とホストの廃止", () => {
   });
 });
 
-describe("SessionConfigSchema 言語・難易度の境界", () => {
-  const baseConfig = {
-    members: ["Alice"],
-    intervalMinutes: 5,
-  };
-
-  it("正常な言語・難易度の config.set を受理する", () => {
-    // Given
-    const command = {
-      command: "config.set",
-      config: { ...baseConfig, language: "TypeScript", difficulty: "easy" },
+/**
+ * timer のお題を撤去した（#91 PR 3・spec §5.2 / §6）。
+ *
+ * お題はルームの共有資産（`@tasuki/topic-core`）になり、timer の wire から落ちた。
+ * ここで守るのは、**配布中の窓で古い相手が送ってくる形**を境界がどう扱うかである ——
+ *
+ * - 窓 2（新しい画面 × 旧いサーバー）: お題を載せた旧い snapshot も通り、お題は出力に残らない
+ * - 窓 3（古い画面 × 新しいサーバー）: 古い画面のお題の設定は出力から落ち、
+ *   お題のコマンドは境界で拒む（サーバーの応答の実測は `apps/tasuki-sync/test/live-ws.room-ops.test.ts`）
+ *
+ * @requirements #91
+ */
+describe("timer のお題を撤去した", () => {
+  it("お題を載せた旧いサーバーの snapshot も通り、お題は出力に残らない", () => {
+    // Given: 旧いサーバーが送っていた形（お題の 4 項目と、設定の言語・難易度）
+    const room = baseRoom();
+    const legacy = {
+      ...room,
+      config: { ...(room["config"] as Record<string, unknown>), language: "TypeScript", difficulty: "easy" },
+      problem: null,
+      problemMode: "fallback",
+      aiUnlocked: false,
+      problemGeneration: { active: false, degraded: false },
     };
     // When
-    const result = v.safeParse(CommandSchema, command);
+    const parsed = v.safeParse(RoomSchema, legacy);
     // Then
-    expect(result.success).toBe(true);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      for (const key of ["problem", "problemMode", "aiUnlocked", "problemGeneration"]) {
+        expect(key in parsed.output, key).toBe(false);
+      }
+      expect("language" in parsed.output.config).toBe(false);
+      expect("difficulty" in parsed.output.config).toBe(false);
+    }
   });
 
-  it("言語が上限超過（41 字）の config.set を拒否する", () => {
-    // Given
+  it("古い画面が config.set に言語・難易度を載せても受理し、その 2 つは出力に残らない", () => {
+    // Given: 古い画面の形（かつて上限を超えると拒んでいた長さも含める。もう境界の関心ではない）
     const command = {
       command: "config.set",
-      config: { ...baseConfig, language: "x".repeat(41), difficulty: "easy" },
+      config: { intervalMinutes: 5, language: "x".repeat(100_000), difficulty: "easy" },
     };
     // When
-    const result = v.safeParse(CommandSchema, command);
+    const parsed = v.safeParse(CommandSchema, command);
     // Then
-    expect(result.success).toBe(false);
+    expect(parsed.success).toBe(true);
+    if (parsed.success && parsed.output.command === "config.set") {
+      expect(parsed.output.config).toEqual({ intervalMinutes: 5 });
+    }
   });
 
-  it("難易度が上限超過（21 字）の config.set を拒否する", () => {
-    // Given
-    const command = {
-      command: "config.set",
-      config: { ...baseConfig, language: "TypeScript", difficulty: "x".repeat(21) },
-    };
+  it("お題のコマンドは境界で拒む", () => {
+    // Given: 古い timer が送っていたお題のコマンド
+    const legacyCommands = [
+      { command: "problem.request", requestId: "r1" },
+      {
+        command: "problem.submit",
+        requestId: "r1",
+        problem: { title: "t", description: "d", requirements: [], exampleTest: "e", hints: [] },
+        usedFallback: true,
+      },
+      { command: "problem.edit", patch: { title: "t" } },
+      { command: "problem.mode.set", mode: "ai" },
+      { command: "ai.unlock", key: "k" },
+    ];
     // When
-    const result = v.safeParse(CommandSchema, command);
+    const accepted = legacyCommands.filter((c) => v.safeParse(CommandSchema, c).success);
     // Then
-    expect(result.success).toBe(false);
-  });
-
-  it("巨大な言語文字列（プロンプト膨張狙い）を拒否する", () => {
-    // Given
-    const command = {
-      command: "config.set",
-      config: { ...baseConfig, language: "x".repeat(100_000), difficulty: "easy" },
-    };
-    // When
-    const result = v.safeParse(CommandSchema, command);
-    // Then
-    expect(result.success).toBe(false);
+    expect(accepted).toEqual([]);
   });
 });
 
@@ -292,8 +307,7 @@ function validRoom() {
   return {
     code: "mob-a1b2c3d4",
     createdAt: 0,
-    config: { language: "TypeScript", difficulty: "easy", intervalMinutes: 5, members: ["アリス"] },
-    problem: null,
+    config: { intervalMinutes: 5 },
     session: {
       rotation: ["p_alice"],
       currentIndex: 0,
@@ -361,51 +375,50 @@ describe("RoomSchema の seats / nextIndex（#276 D7）", () => {
 });
 
 /**
- * お題の生成の状態（#283）。**任意項目である**ことがこの契約の要点である。
+ * 完成記録の形（#91・spec T9 / §6）。
  *
- * `deploy.sh timer` は画面を先に配ってからサーバーを再起動するので、
- * 「新しい画面 × 旧サーバー」の窓は順序では避けられない（#276 の実測）。
- * 必須にすると、その窓で snapshot 全体が契約検査に落ち、画面は
- * 「最新ではありません」側へ倒れる（#276 の `session.seats` がそうした）。
+ * `topicTitle` は `nonEmptyString` にしない —— お題なしで完了した記録は `null` を持ち、
+ * 1 件の値で snapshot 全体が落ちる型の欠陥は #276 D2 で直している。
  *
- * @requirements #283
+ * 旧い形（`problemTitle` だけ）が**落ちる**ことも固定する。配布中の窓 2（新しい timer の web ×
+ * 旧い同期サーバー）で、完成記録を持つルームの snapshot は丸ごと検証に落ちる —— spec §6 が
+ * 受容した窓の実在を、ここが契約として持つ。
+ *
+ * @requirements #91 E17
  */
-describe("RoomSchema: お題の生成の状態", () => {
-  it("項目を持たない snapshot（旧サーバー）も通る", () => {
-    // Given: この項目を知らないサーバーが送る形
-    const room = baseRoom();
-    // When
-    const parsed = v.safeParse(RoomSchema, room);
-    // Then
-    expect(parsed.success).toBe(true);
-    if (parsed.success) expect(parsed.output.problemGeneration).toBeUndefined();
-  });
+describe("RoomSchema: 完成記録はお題のタイトルを持つ", () => {
+  /** 完成記録の最小の新しい形。 */
+  function aRecord(overrides: Record<string, unknown> = {}) {
+    return {
+      id: "r1",
+      topicTitle: "FizzBuzz" as string | null,
+      elapsedSeconds: 60,
+      members: ["アリス"],
+      totalSwitches: 1,
+      completedAt: 1,
+      ...overrides,
+    };
+  }
 
-  it("生成中と縮退の印を載せた snapshot は、そのまま通る", () => {
+  it("Given topicTitle が null の記録を持つ snapshot / When 検証する / Then 通る", () => {
     // Given
-    const room = { ...baseRoom(), problemGeneration: { active: true, degraded: true } };
+    const room = { ...validRoom(), sessionRecords: [aRecord({ topicTitle: null })] };
     // When
     const parsed = v.safeParse(RoomSchema, room);
     // Then
     expect(parsed.success).toBe(true);
-    if (parsed.success) {
-      expect(parsed.output.problemGeneration).toEqual({ active: true, degraded: true });
-    }
+    if (parsed.success) expect(parsed.output.sessionRecords[0]?.topicTitle).toBeNull();
   });
 
-  it("形が違えば落とす（壊れた値を画面へ通さない）", () => {
-    // Given: active が真偽値でない
-    const room = { ...baseRoom(), problemGeneration: { active: "yes", degraded: false } };
-    // When / Then
-    expect(v.safeParse(RoomSchema, room).success).toBe(false);
-  });
-
-  it("片方だけの帳簿は落とす（既定で埋めない）", () => {
-    // Given: degraded が無い。**ここを任意にすると「印が無い＝縮退していない」と
-    // 「印を送れないサーバー」が区別できなくなる。** 項目ごと有るか無いかで分ける。
-    const room = { ...baseRoom(), problemGeneration: { active: true } };
-    // When / Then
-    expect(v.safeParse(RoomSchema, room).success).toBe(false);
+  it("Given 旧い形（problemTitle だけ）の記録を持つ snapshot / When 検証する / Then 落ちる", () => {
+    // Given: 旧い同期サーバーが送る形（配布中の窓 2）
+    const { topicTitle: _dropped, ...withoutTopic } = aRecord();
+    const legacy = { ...withoutTopic, problemTitle: "FizzBuzz", language: "TypeScript", difficulty: "easy" };
+    const room = { ...validRoom(), sessionRecords: [legacy] };
+    // When
+    const parsed = v.safeParse(RoomSchema, room);
+    // Then
+    expect(parsed.success).toBe(false);
   });
 });
 
@@ -462,7 +475,7 @@ describe("RoomSchema: config.members を落とした（#294）", () => {
     // Given: 旧い画面（または細工した接続）が送る形
     const command = {
       command: "config.set",
-      config: { language: "TypeScript", difficulty: "easy", intervalMinutes: 5, members: ["X"] },
+      config: { intervalMinutes: 5, members: ["X"] },
     };
     // When
     const parsed = v.safeParse(CommandSchema, command);

@@ -80,10 +80,6 @@ export interface Aggregate {
  * 席（`session.seats`）へ移ったので落とした。
  */
 export interface TimerConfig {
-  /** プログラミング言語 */
-  language: string;
-  /** 難易度 */
-  difficulty: string;
   /** 交代間隔（分）: 3/5/7/10/15 のみ */
   intervalMinutes: IntervalMinutes;
   /** ナビゲーター役を明示するか */
@@ -92,55 +88,11 @@ export interface TimerConfig {
   breakEveryRotations?: number;
   /** 強い全画面交代通知を使うか */
   assertiveSwitch?: boolean;
-  /** お題機能を使うか（false なら言語/お題を要求せず開始できる）。既定 true 相当。 */
-  problemEnabled?: boolean;
-}
-
-/** お題の出所 */
-export type ProblemSource = "ai" | "fallback" | "custom";
-
-/** お題 */
-export interface Problem {
-  title: string;
-  description: string;
-  requirements: string[];
-  exampleTest: string;
-  hints: string[];
-  /** 出所（v2追加・省略時は undefined = 出所不明） */
-  source?: ProblemSource | undefined;
-  /** 利用者が編集済みか（v2追加） */
-  edited?: boolean | undefined;
-}
-
-/** 出題モード（v2追加） */
-export type ProblemMode = "ai" | "fallback";
-
-/**
- * お題の生成の状態（#283）。**サーバーが権威で、書き手は `ProblemDelegator` ただ 1 つ。**
- *
- * これが無かった頃、「生成中」はクライアント局所のフラグ＋お題の内容差分＋65 秒の
- * 安全弁で持っていた。その組み合わせは**「降りない」側へ倒れる欠陥を構造として持つ** ——
- *
- * - 同じお題が選び直されると内容が変わらないので、差分で降ろす経路が成立しない
- *   （当時の `pickFallback` は候補の中から選ぶだけで、同じ候補に当たりえた。
- *   いまは直前のお題を候補から外すが、**それは降ろす根拠にならない** ——
- *   代表が投入したお題は内容を選べるので、同じお題での確定は今も起こりうる）
- * - 途中から繋ぎ直した端末は前の snapshot を持たない。差分では
- *   「いま作り直している最中か」を**そもそも問えない**
- *
- * 状態そのものをサーバーが持てば、どちらも差分に依存しなくなる。
- */
-export interface ProblemGeneration {
-  /** サーバーがいまお題を作り直しているか。 */
-  active: boolean;
-  /**
-   * AI で作るつもりだったのに作れず、定型へ落ちた（落ちることが決まった）か。
-   *
-   * **立つのは「AI を試みて、できなかった」ときだけである。** 最初から定型モードの
-   * ルームでは立たない —— そこで立てると「AI での生成ができませんでした」が
-   * 常時出っぱなしになる。印は依頼のたびに降り、次の確定まで持ち越される。
-   */
-  degraded: boolean;
+  // ⚠ かつてここには `language` / `difficulty`（お題を作るときの言語と難易度）と
+  // お題機能を使うかの切り替えがあった。**#91 PR 3 で落とした。** お題は
+  // ルームの共有資産（`@tasuki/topic-core`）になり、timer はお題を作らず、お題の有無で
+  // 開始を止めることもない。`SessionConfigSchema` に項目が無いので、古い画面が
+  // `config.set` に載せて送ってきてもパーサの出力に残らない。
 }
 
 /** ルームフェーズ */
@@ -159,42 +111,29 @@ export interface TimerState {
   code: string;
   createdAt: number;
   config: TimerConfig;
-  problem: Problem | null;
   session: SessionState;
   clock: ServerClock;
   phase: RoomPhase;
   sessionRecords: CompletionRecord[];
   handoffNote: string;
   onBreak: boolean;
-  /** 出題モード（v2追加。既定 "fallback"） */
-  problemMode?: ProblemMode;
   /** パスフレーズ保護中か（平文は載せない・サーバ側 Map で保持・R4-2）。 */
   passphraseProtected?: boolean;
-  /** AI お題生成の解錠状態（合言葉照合済み・平文はサーバ専用 = snapshot 非混入）。 */
-  aiUnlocked?: boolean;
-  /**
-   * お題の生成の状態（#283）。**書き手は `ProblemDelegator` ただ 1 つである。**
-   *
-   * 他の場所が書くと、委譲の実態（進行中の依頼）と帳簿が食い違い、
-   * **誰も降ろさない生成中**が生まれる。省略は「生成していない・縮退していない」と同義。
-   */
-  problemGeneration?: ProblemGeneration;
-  /**
-   * AI お題生成の鍵を持つ参加者の ID。wire の `Participant.hasAiKey` の出所（#95 S4a）。
-   *
-   * 鍵の有無は「その人が誰か」ではなく「その人が timer で何をできるか」なので、
-   * 名簿ではなくここが持つ（`@tasuki/room-core` はツールを知らない）。
-   */
-  aiKeyHolders: string[];
+  // ⚠ かつてここには timer のお題（`problem`・`problemMode`・`aiUnlocked`・
+  // `problemGeneration`・AI の鍵を持つ参加者の一覧）があった。**#91 PR 3 で落とした。** お題は
+  // ルームの共有資産になり、状態は `@tasuki/topic-core` の文脈が持つ（timer-core は
+  // topic-core を知らない。完成記録のタイトルはアプリ層が値として渡す）。
 }
 
 /** 完成記録 */
 export interface CompletionRecord {
   id: string;
   roomId?: string;
-  problemTitle: string;
-  language: string;
-  difficulty: string;
+  /**
+   * 完了した時点で掲げていたお題のタイトル（#91・spec T9）。お題なしで完了したら null。
+   * **本文は持たない**（`sessionRecords` は件数の上限が無く、毎回の snapshot で配られる）。
+   */
+  topicTitle: string | null;
   elapsedSeconds: number;
   members: string[];
   totalSwitches: number;
@@ -309,10 +248,6 @@ export type IntervalMinutes = (typeof VALID_INTERVAL_MINUTES)[number];
  *  #95 S4a で概念ごと消えたため落とした（`decide.ts` の削除箇所を参照）。 */
 export const MAX_MEMBERS = 10;
 
-/** お題の要件（requirements）配列の最大件数。巨大入力を拒否するための上限。
- *  decide（ドメイン検証）と schemas（Valibot 境界検証）の両方から参照し、値を一元化する。 */
-export const MAX_PROBLEM_REQUIREMENTS = 20;
-
 // ⚠ かつてここには `MAX_DISPLAY_NAME` と `MAX_NFKC_EXPANSION` があった。
 // **#95 S4b で `@tasuki/room-core` の `display-name.ts` へ移した。** 表示名の規約は
 // メンバーシップ文脈のものであり、その上限をモブタイマーのドメインが持っていたのは、
@@ -321,17 +256,9 @@ export const MAX_PROBLEM_REQUIREMENTS = 20;
 // **これで `timer-core → room-core` の期限つき一時依存が消えた**（`docs/adr/0017` 決定 4）。
 export const MAX_ROOM_NAME = 60;
 export const MAX_HANDOFF_NOTE = 2000;
-export const MAX_PROBLEM_TITLE = 200;
-export const MAX_PROBLEM_TEXT = 4000; // description / exampleTest
-export const MAX_PROBLEM_HINT = 500; // ヒント 1 件あたり
-export const MAX_PROBLEM_HINTS = 20; // ヒント配列の件数
-/** セッション設定の言語・難易度の最大長。AI お題生成では buildProblemPrompt 経由で
- *  claude -p のプロンプトへ生で渡るため、境界で上限を課しプロンプト膨張による
- *  クレジット浪費・注入の余地を抑える（UI は固定ドロップダウンだが境界は緩いと無防備）。 */
-export const MAX_CONFIG_LANGUAGE = 40;
-export const MAX_CONFIG_DIFFICULTY = 20;
+// ⚠ かつてここにはお題の上限（要件・タイトル・本文・ヒント）・設定の言語と難易度の
+// 上限・AI 解錠の合言葉の上限があった。**#91 PR 3 でお題ごと timer-core から落とした。**
+// お題の上限はいま `@tasuki/topic-core` の `limits.ts` が持つ。
 
 /** ルームパスフレーズの最大長（巨大入力 DoS 対策・R4-2）。 */
 export const MAX_PASSPHRASE = 128;
-/** AI 解錠合言葉の最大長（巨大入力 DoS 対策）。 */
-export const MAX_AI_UNLOCK_KEY = 64;

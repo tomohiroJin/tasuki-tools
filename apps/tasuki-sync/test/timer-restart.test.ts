@@ -10,7 +10,7 @@ import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { Scheduler } from "../src/application/schedule.js";
-import type { SessionConfig, Room, Problem } from "@tasuki/timer-core";
+import type { SessionConfig, Room } from "@tasuki/timer-core";
 import { secondsLeft } from "@tasuki/timer-core";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 import { roomViewOf, putRoomView } from "./support/room-view.js";
@@ -30,17 +30,7 @@ const INTERVAL_SECONDS = INTERVAL_MINUTES * 60;
 const START = 1_000_000;
 
 const config: SessionConfig = {
-  language: "TypeScript",
-  difficulty: "easy",
   intervalMinutes: INTERVAL_MINUTES,
-};
-
-const problem: Problem = {
-  title: "FizzBuzz",
-  description: "説明",
-  requirements: ["要件1"],
-  exampleTest: "test",
-  hints: [],
 };
 
 /**
@@ -71,7 +61,6 @@ async function setupRunningRoom(
   putRoomView(store, timers, {
     ...room,
     phase: "session",
-    problem,
     handoffNote: "引き継ぎメモ",
     participants: [host, mk("pid-b", "B"), mk("pid-c", "C")],
     config: { ...room.config },
@@ -153,7 +142,8 @@ describe("session.act RESTART（Issue #14 持ち時間のやり直し）", () =>
     expect(room.session.rotation).toEqual([room.participants[0]!.participantId, "pid-b", "pid-c"]);
   });
 
-  it("お題・共有メモ・メンバー・設定・参加者が維持される", async () => {
+  // お題は #91 PR 3 で timer の状態から消えた（ルームの共有資産）ので、ここでは見ない。
+  it("共有メモ・メンバー・設定・参加者が維持される", async () => {
     // Given
     const code = await setupRunningRoom(handlers, store, timers, START);
 
@@ -162,7 +152,6 @@ describe("session.act RESTART（Issue #14 持ち時間のやり直し）", () =>
 
     // Then
     const room = roomViewOf(store, timers, code);
-    expect(room.problem?.title).toBe("FizzBuzz");
     expect(room.handoffNote).toBe("引き継ぎメモ");
     expect(room.session.seats.map((s) => s.displayName)).toEqual(["A", "B", "C"]);
     expect(room.config.intervalMinutes).toBe(INTERVAL_MINUTES);

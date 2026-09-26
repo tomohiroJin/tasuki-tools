@@ -39,19 +39,6 @@ import App from "../../src/App.js";
 import { navigateTo, redirectTo } from "../../src/platform/location.js";
 import { FakeWS } from "../support/fakes.js";
 import { aRoomView } from "../support/room-view.js";
-import type { Problem } from "@tasuki/timer-core";
-
-/** 完了記録が作られる条件を満たす最小のお題（お題が無いと Summary に記録が出ない）。 */
-function problemA(): Problem {
-  return {
-    title: "FizzBuzz",
-    description: "3 の倍数で Fizz",
-    requirements: ["3 の倍数は Fizz"],
-    exampleTest: "expect(add(1, 2)).toBe(3)",
-    hints: [],
-    source: "fallback",
-  };
-}
 
 beforeEach(() => {
   FakeWS.instances = [];
@@ -154,7 +141,6 @@ describe("App の入口配線（?view=history）", () => {
       command: "room.join",
       code: "ROOM-HIST",
       displayName: "ボブ",
-      hasAiKey: false,
       resumeToken: "rt_1",
     });
   });
@@ -222,7 +208,6 @@ describe("App の入口配線（旧入口の撤去・R9）", () => {
     const celebration = aRoomView({
       code: "ROOM01",
       phase: "celebration",
-      problem: problemA(),
       clock: { running: true, runningSince: 1000, secondsLeftAtAnchor: 0 },
     });
     deliver(celebration);
@@ -274,7 +259,6 @@ describe("App の入口配線（旧入口の撤去・R9）", () => {
           room: aRoomView({
             code: "ROOM01",
             phase: "setup",
-            problem: problemA(),
             clock: { running: true, runningSince: 1000, secondsLeftAtAnchor: 0 },
           }),
         }),

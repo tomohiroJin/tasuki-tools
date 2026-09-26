@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  // "types": ["node"] が要る理由: "moduleResolution": "bundler" では、@types/node を
+  // devDependencies に足すだけでは自動包含されない(実測。他パッケージがこの穴を踏んでいない
+  // のは Node のグローバル(performance 等)を使っていないため)。DOM は増えない
+  // (lib は ES2022 のまま)。performance.test.ts の `performance.now()` の型解決に要る。
+  "compilerOptions": { "lib": ["ES2022"], "types": ["node"] },
+  "include": ["src", "tests"]
+}

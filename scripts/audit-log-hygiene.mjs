@@ -65,6 +65,8 @@ export const SCANNED_PACKAGES = [
   // #95 S5a で新設（同期クライアントの接続部分）。
   "packages/sync-client",
   "packages/invite-ui",
+  // #91 PR 3 で新設(Markdown サブセットの解析・純粋な関数)。
+  "packages/markdown",
   "packages/timer-core",
   // お題の文脈（#91）で新設。
   "packages/topic-core",
@@ -138,7 +140,8 @@ export const ALLOWED_FILES = [
 
 /** 走査結果に必ず存在しなければならないファイル（走査対象の消失を検出する）。 */
 export const REQUIRED_FILES = [
-  "apps/tasuki-sync/src/application/problem-delegation.ts",
+  // #91 PR 3 で旧い委譲（problem-delegation.ts）を撤去した。AI の失敗をログへ出すのはいまこちら。
+  "apps/tasuki-sync/src/application/topic-generation.ts",
   "apps/tasuki-sync/src/adapters/console-log-sink.ts",
   "apps/tasuki-sync/src/server.ts",
   // #165 PR-2 の組み立て関数。**ここで見ているのは実在だけである。**

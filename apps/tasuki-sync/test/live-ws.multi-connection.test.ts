@@ -56,7 +56,6 @@ describe("実 WS・複数接続", () => {
       command: "room.join",
       code: created.code,
       displayName: "ゲスト",
-      hasAiKey: false,
       resumeToken: joined.resumeToken,
     });
 
@@ -94,7 +93,6 @@ describe("実 WS・複数接続", () => {
       command: "room.join",
       code: created.code,
       displayName: "ゲスト",
-      hasAiKey: false,
       resumeToken: joined.resumeToken,
     });
     const restored = await revived.take("snapshot");
@@ -135,7 +133,6 @@ describe("実 WS・複数接続", () => {
       command: "room.join",
       code: created.code,
       displayName: "ゲスト",
-      hasAiKey: false,
       resumeToken: joined.resumeToken,
     });
     await tab2.take("snapshot");
@@ -218,50 +215,6 @@ describe("実 WS・複数接続", () => {
     expect([...host.all("error"), ...a.all("error"), ...b.all("error"), ...c.all("error")]).toEqual(
       [],
     );
-  });
-
-  it("AI 鍵を持つ別接続へ need-problem が届き、その接続からの problem.submit が確定する", async () => {
-    // Given: AI 鍵を持つと申告したゲストが在室している（お題生成の代表候補・FR-026）
-    server = startLiveSyncServer();
-    const host = await server.connect("host");
-    const guest = await server.connect("guest");
-    const created = await createRoom(host, "ホスト");
-    await joinRoom(guest, created.code, "ゲスト", { hasAiKey: true });
-
-    // When: ホストがお題を要求する
-    host.send({ command: "problem.request", requestId: "req-1" });
-
-    // Then 1: 依頼は**ホストではなく代表候補のソケットへ**届く
-    const needProblem = await guest.take("signal", (m) => m.signal === "need-problem");
-    expect(needProblem).toMatchObject({ signal: "need-problem", requestId: "req-1" });
-    // deadlineMs を持つのは need-problem の枝だけなので、判別子で絞ってから読む
-    if (needProblem.signal !== "need-problem") {
-      throw new Error(`need-problem が来ていない: ${needProblem.signal}`);
-    }
-    expect(needProblem.deadlineMs).toBeGreaterThan(0);
-
-    // When: 代表が生成結果を投入する
-    guest.send({
-      command: "problem.submit",
-      requestId: "req-1",
-      usedFallback: false,
-      problem: {
-        title: "FizzBuzz",
-        description: "3 の倍数と 5 の倍数を置き換える",
-        requirements: ["1 から 15 まで出力する"],
-        exampleTest: "fizzbuzz(3) === 'Fizz'",
-        hints: [],
-      },
-    });
-
-    // Then 2: 投入したお題が全員へ配信される（投入した本人にも、依頼したホストにも）
-    for (const client of [host, guest]) {
-      await client.until(
-        (msgs) => msgs.some((m) => m.type === "snapshot" && m.room.problem?.title === "FizzBuzz"),
-        `${client.label} へ投入されたお題が配信される`,
-      );
-    }
-    expect(host.latestRoom().problem?.description).toBe("3 の倍数と 5 の倍数を置き換える");
   });
 
   it("presence.ping は handlers へ渡らず、エラーを返さない（アダプタ手前で横取りされる配線）", async () => {

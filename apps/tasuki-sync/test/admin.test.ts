@@ -32,11 +32,8 @@ function timerState(code: string, hasDriver: boolean): TimerState {
     code,
     createdAt: 1000,
     config: {
-      language: "TypeScript",
-      difficulty: "easy",
       intervalMinutes: 5,
     },
-    problem: null,
     session: {
       rotation: hasDriver ? [{ kind: "member", participantId: `${code}-p0`, eligible: true }] : [],
       currentIndex: 0,
@@ -56,7 +53,6 @@ function timerState(code: string, hasDriver: boolean): TimerState {
     sessionRecords: [],
     handoffNote: "",
     onBreak: false,
-    aiKeyHolders: [],
   };
 }
 

@@ -10,9 +10,7 @@ import { Summary } from "../../src/ui/Summary.js";
 
 const baseRecord = {
   id: "rec-1",
-  problemTitle: "FizzBuzz",
-  language: "TypeScript",
-  difficulty: "easy",
+  topicTitle: "FizzBuzz",
   elapsedSeconds: 300,
   members: ["Alice", "Bob"],
   totalSwitches: 2,

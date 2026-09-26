@@ -16,16 +16,14 @@
  * 「振る舞いを変えていない」ことの証拠にしていた（`apps/timer-web` のテストを 1 行も
  * 書き換えずに通せた）。**S4b は利用者から見える変更の段なので、多接続模型が要求する
  * 分だけ変えた。**
- * **ここで言うのは型の話だけである。型から落としたのは `startedAt`（S4a）・
- * `connId`（S4b）・`config.members`（#294）の 3 つ**（このファイル末尾の注記を読むこと）。**合成の例外**
+ * **ここで言うのは型の話だけである。型から落としたもの**（`startedAt`（S4a）・
+ * `connId`（S4b）・`config.members`（#294）・お題（#91 PR 3）など）は**このファイル末尾の
+ * 注記に並べてある**（数はここに書かない。落とすたびに腐る）。**合成の例外**
  * （`participants` の並び・`driverEligible` の出し方・`presence` の導出）は
  * `apps/tasuki-sync/src/application/timer-snapshot-dto.ts` の台帳にある。
  */
 import type {
   CompletionRecord,
-  Problem,
-  ProblemGeneration,
-  ProblemMode,
   RoomPhase,
   ServerClock,
   TimerConfig,
@@ -49,7 +47,6 @@ export interface Participant {
   participantId: string;
   displayName: string;
   presence: "online" | "idle" | "offline";
-  hasAiKey: boolean;
   joinedAt: number;
   /** Web 非接続の代理参加者か（v2追加。既定 false 相当） */
   isPlaceholder?: boolean;
@@ -84,7 +81,6 @@ export interface Room {
   code: string;
   createdAt: number;
   config: SessionConfig;
-  problem: Problem | null;
   session: {
     /** ローテーション順の識別子（代理は自分の ID） */
     rotation: string[];
@@ -109,25 +105,8 @@ export interface Room {
   sessionRecords: CompletionRecord[];
   handoffNote: string;
   onBreak: boolean;
-  /** 出題モード（v2追加。既定 "fallback"） */
-  problemMode?: ProblemMode;
   /** パスフレーズ保護中か（平文は載せない・サーバ側 Map で保持・R4-2）。 */
   passphraseProtected?: boolean;
-  /** AI お題生成の解錠状態（合言葉照合済み・平文はサーバ専用 = snapshot 非混入）。 */
-  aiUnlocked?: boolean;
-  /**
-   * お題の生成の状態（#283）。**任意項目である。**
-   *
-   * `deploy.sh timer` は画面を先に配ってからサーバーを再起動するので、
-   * 「新しい画面 × 旧サーバー」の窓は**順序では避けられない**（#276 の実測）。
-   * #276 の `session.seats` は必須にしたため、その窓では snapshot 全体が契約検査に
-   * 落ちる（画面は「最新ではありません」へ倒れる）。ここは**欠けていたら
-   * 「生成していない」と読めばよいだけ**なので、同じ代償を払う理由が無い。
-   *
-   * ⚠ **画面はこの項目に「無ければ推測する」経路を作ってはならない。** 推測の正体は
-   * お題の内容差分で、それを落とすことが #283 の目的である。無いなら出さない。
-   */
-  problemGeneration?: ProblemGeneration;
 }
 
 // ⚠ かつてここには `connId`（在席中の接続 1 本）があった。**#95 S4b で落とした。**
@@ -152,3 +131,13 @@ export interface Room {
 // `RoomSchema` は非 strict の `v.object` なので、この項目を載せた古い snapshot の
 // パースは今までどおり通る（`deploy.sh timer` は画面を先に配るため、
 // 「新しい画面 × 旧サーバー」の窓でこれが効く）。
+//
+// ⚠ かつて `Room` には timer のお題（`problem`・`problemMode`・`aiUnlocked`・
+// `problemGeneration`）が、`Participant` には AI の鍵を持つかの印が、`SessionConfig` には
+// お題の設定（`language`・`difficulty`・お題機能を使うかの切り替え）があった。
+// **#91 PR 3 で落とした。** お題はルームの共有資産になり、`topic` フレームで配られる
+// （`@tasuki/topic-core`）。timer の snapshot はお題を運ばない。
+// `RoomSchema` は非 strict の `v.object` なので、**これらを載せた古い snapshot の
+// パースは今までどおり通る**（窓 2 = 新しい画面 × 旧いサーバー。`deploy.sh timer` は
+// 画面を先に配るため、この窓は順序では避けられない）。載っていた値は出力に残らず、
+// 新しい画面はそれを読まない。

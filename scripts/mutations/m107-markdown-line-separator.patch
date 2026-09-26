@@ -1,0 +1,42 @@
+# 変異 107: markdown-line-separator
+#
+# 検出を期待するテスト:
+#   - packages/markdown/tests/blocks.test.ts
+#     describe「行区切りの文字を含む本文」の
+#     「Given "# 見出し\u2028続き" …」「Given "a\u2028\u2029b" …」（spec §5.4）
+#
+# #91 PR 3・spec §5.4。m94 / m95 の引き継ぎ。`@tasuki/markdown` の改行の正規化から
+# U+2028 / U+2029 を外し、かつ段落の前進の保証を消す。
+# **m94 / m95 と違い、無限ループにはならない**（実測）。`@tasuki/markdown` では見出しの
+# 判定と段落の停止条件が同じ `HEADING_RE` を使うよう揃えたので、両者が食い違う行が無く、
+# 前進の保証はいま到達しない（保証だけを外す変異は等価になる）。この変異を殺すのは
+# 「改行と同じに扱う」ことを見る等値のアサーションで、行区切りを含む本文が 1 行の段落
+# （見出しにならない）として解析されるため赤になる（手元で数秒・exit 1）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m107-*.patch
+# 復元: git apply -R scripts/mutations/m107-*.patch
+diff --git a/packages/markdown/src/blocks.ts b/packages/markdown/src/blocks.ts
+index 316916b..9f053ff 100644
+--- a/packages/markdown/src/blocks.ts
++++ b/packages/markdown/src/blocks.ts
+@@ -68,7 +68,7 @@ function endsParagraph(line: string): boolean {
+ function parseRawBlocks(src: string): RawBlock[] {
+   // U+2028 / U+2029（行区切り・段落区切り）も改行として扱う。正規表現の `.` はこれらに
+   // 一致しないので、残すと見出しの判定と段落の停止条件が食い違う（下の前進の保証を参照）。
+-  const lines = src.replace(/\r\n?|[\u2028\u2029]/g, '\n').split('\n');
++  const lines = src.replace(/\r\n?/g, '\n').split('\n');
+   const blocks: RawBlock[] = [];
+   let i = 0;
+   while (i < lines.length) {
+@@ -109,10 +109,6 @@ function parseRawBlocks(src: string): RawBlock[] {
+     }
+     // 前進の保証: どの規則にも当たらずに止まった（段落が空の）ときは、その 1 行を段落として
+     // 取り込んで進める。規則の片方だけが変わっても、空の段落を積み続けて止まらなくならない。
+-    if (para.length === 0) {
+-      para.push(lines[i] ?? '');
+-      i++;
+-    }
+     blocks.push({ kind: 'p', lines: para });
+   }
+   return blocks;

@@ -53,13 +53,9 @@
  *
  * ★ **#283 で wire が変わった点も、この台帳に続けて書く。**
  *
- * 8. **`problemGeneration`（お題の生成の状態）が任意項目として増えた**
- *    （`wire.ts` の `Room.problemGeneration` の注記）。**#276 の `seats` とは逆に、
- *    わざと任意にしてある** —— `deploy.sh timer` は画面を先に配るので
- *    「新しい画面 × 旧サーバー」の窓は順序では避けられず、必須にするとその窓で
- *    snapshot 全体が契約検査に落ちる。この項目は**欠けていたら「生成していない」**と
- *    読めばよいだけなので、同じ代償を払う理由が無い。
- *    値を作るのは `ProblemDelegator` ただ 1 つで、ここはそれをそのまま載せる。
+ * 8. （**#91 PR 3 で落とした。** お題の生成の状態を任意項目として足した項目だったが、お題が
+ *    ルームの共有資産になり、timer の snapshot はお題の 4 項目も参加者の AI 鍵の印も運ばなくなった
+ *    —— `wire.ts` 末尾の注記。番号は後続の参照のために欠番で残す。）
  *
  * ★ **#294 で wire が変わった点も、この台帳に続けて書く。**
  *
@@ -255,7 +251,6 @@ export function computeIneligibleIndices(
 }
 
 export function buildTimerSnapshotRoom(membership: MembershipRoom, timer: TimerState): Room {
-  const aiKeys = new Set(timer.aiKeyHolders);
   const members: Participant[] = membership.participants.filter(showsInTimer).map((p) => {
     // 適格は**席の属性**なので、輪に席がある人だけが値を持つ（輪の外の人は省略）。
     // S4a 以前は「一度でも見送り／復帰を押した人」だけが値を持っていたが、`false` と
@@ -266,7 +261,6 @@ export function buildTimerSnapshotRoom(membership: MembershipRoom, timer: TimerS
       participantId: p.id,
       displayName: p.displayName,
       presence: presenceOf(p),
-      hasAiKey: aiKeys.has(p.id),
       joinedAt: p.joinedAt,
       ...(eligible !== undefined ? { driverEligible: eligible } : {}),
     };
@@ -311,12 +305,11 @@ export function buildTimerSnapshotRoom(membership: MembershipRoom, timer: TimerS
       ? null
       : candidate;
   // 代理の `joinedAt` は名簿の作成時刻で埋める。席は追加時刻を持たないが、
-  // この値を読む処理は無い（候補列の並べ替えは `hasAiKey` の人だけを見る）。
+  // この値を読む処理は無い（読み手だったお題の委譲の候補列は #91 PR 3 で消えた）。
   const proxies: Participant[] = proxyEntries(timer).map((e) => ({
     participantId: e.id,
     displayName: e.label,
     presence: "offline" as const,
-    hasAiKey: false,
     joinedAt: membership.createdAt,
     isPlaceholder: true,
     driverEligible: e.eligible,
@@ -328,7 +321,6 @@ export function buildTimerSnapshotRoom(membership: MembershipRoom, timer: TimerS
     // **写しを渡す。** 保管している実体をそのまま配ると、wire の投影と集約が同じ
     // オブジェクトを指す（この関数の外で配信前に触られたら、集約ごと変わる）。
     config: { ...timer.config },
-    problem: timer.problem,
     // **明示列挙にする。** スプレッド（`...timer.session`）だと、サーバー側の
     // `SessionState` に足したフィールドが**黙って wire に載る**。ここに
     // **明示列挙されている項目だけ**が載る書き方にしておけば、増えた項目は
@@ -356,16 +348,8 @@ export function buildTimerSnapshotRoom(membership: MembershipRoom, timer: TimerS
     sessionRecords: timer.sessionRecords,
     handoffNote: timer.handoffNote,
     onBreak: timer.onBreak,
-    ...(timer.problemMode !== undefined ? { problemMode: timer.problemMode } : {}),
     ...(timer.passphraseProtected !== undefined
       ? { passphraseProtected: timer.passphraseProtected }
-      : {}),
-    ...(timer.aiUnlocked !== undefined ? { aiUnlocked: timer.aiUnlocked } : {}),
-    // お題の生成の状態（#283）。**ここで作らない** —— `ProblemDelegator` が
-    // 委譲の開始と終了で書いた帳簿をそのまま載せるだけである。ここで
-    // 「お題が null なら生成中」のように推測すると、書き手が 2 つになる。
-    ...(timer.problemGeneration !== undefined
-      ? { problemGeneration: timer.problemGeneration }
       : {}),
   };
 }

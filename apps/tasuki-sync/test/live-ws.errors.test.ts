@@ -84,7 +84,6 @@ describe("実 WS 越しのエラー応答", () => {
       command: "room.join",
       code: "存在しないコード",
       displayName: "だれか",
-      hasAiKey: false,
     });
 
     // Then

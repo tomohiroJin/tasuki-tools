@@ -87,7 +87,6 @@ describe("room.passphrase.set", () => {
       command: "room.join",
       code: roomCode,
       displayName: "Guest",
-      hasAiKey: false,
     });
 
     // When
@@ -149,7 +148,6 @@ describe("room.join のパスフレーズ検証", () => {
       command: "room.join",
       code: roomCode,
       displayName: "Joiner",
-      hasAiKey: false,
       passphrase: "secret",
     });
 
@@ -171,7 +169,6 @@ describe("room.join のパスフレーズ検証", () => {
       command: "room.join",
       code: roomCode,
       displayName: "Joiner",
-      hasAiKey: false,
     });
 
     // Then
@@ -193,7 +190,6 @@ describe("room.join のパスフレーズ検証", () => {
       command: "room.join",
       code: roomCode,
       displayName: "Joiner",
-      hasAiKey: false,
       passphrase: "wrong",
     });
 
@@ -212,7 +208,6 @@ describe("room.join のパスフレーズ検証", () => {
       command: "room.join",
       code: roomCode,
       displayName: "Joiner",
-      hasAiKey: false,
     });
 
     // Then
@@ -233,7 +228,6 @@ describe("room.join のパスフレーズ検証", () => {
       command: "room.join",
       code: roomCode,
       displayName: "Joiner",
-      hasAiKey: false,
       passphrase: "secret",
     });
 
@@ -252,7 +246,6 @@ describe("room.join のパスフレーズ検証", () => {
       command: "room.join",
       code: roomCode,
       displayName: "Joiner",
-      hasAiKey: false,
       passphrase: "secret",
     });
     const joinedMsg = broadcaster.sent.find((s) => s.msg.type === "room.joined");
@@ -267,7 +260,6 @@ describe("room.join のパスフレーズ検証", () => {
       command: "room.join",
       code: roomCode,
       displayName: "Joiner",
-      hasAiKey: false,
       resumeToken: resumeToken!,
     });
 

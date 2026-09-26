@@ -89,13 +89,6 @@ async function topicJoin(
   return { participantId: joined.participantId, resumeToken: joined.resumeToken };
 }
 
-/**
- * 「配信が届くだけの猶予」として置く待ち時間（ms）。
- * `expectSilence` 系のように「呼んだ時点からの沈黙」ではなく、**When より前に記録した
- * 位置**から数えるので、ここでは待つこと自体が目的（届くはずのものが届く時間を確保する）。
- */
-const SILENCE_MARGIN_MS = 200;
-
 /** 直近 `count` 件のお題エラーコード。 */
 function lastTopicErrorCodes(client: LiveTopicClient, count: number): string[] {
   return client.received
@@ -117,7 +110,7 @@ async function drainTopicBadUnlocks(client: LiveTopicClient, count: number): Pro
 
 /** 存在しないコードで入室を試みる（timer の入口。逆方向のバケツ共有の確認に使う）。 */
 function badTimerJoin(client: LiveClient): void {
-  client.send({ command: "room.join", code: "NOPE99", displayName: "Bob", hasAiKey: false });
+  client.send({ command: "room.join", code: "NOPE99", displayName: "Bob" });
 }
 
 /** `count` 回失敗させ、その回数ぶんのエラー応答コードを集める（timer の入口）。 */
@@ -180,37 +173,15 @@ describe("お題の接続に参加すると、いまのお題の状態が届く"
 });
 
 /**
- * お題を掲げると、お題の接続とハブへ配信される。timer・poker はこの PR の配信先ではない。
+ * お題を掲げると、ルームの全接続（ハブ・timer・poker・お題）へ同じ状態が届く。
  *
- * @requirements #91 E2
+ * **timer・poker の接続で見る**（お題の接続だけで見ると、配信先を狭める誤りと
+ * 区別できない・spec §7.3）。
+ *
+ * @requirements #91 E2 E3
  */
-describe("お題を掲げると、お題の接続とハブへ配信される", () => {
-  it("topic.set の結果が、お題の接続とハブの接続の双方へ届く", async () => {
-    // Given
-    const hub = await server.connectHub();
-    const created = await hubCreate(hub, "モブ", "あや");
-    const topic = await server.connectTopic();
-    await topicJoin(topic, created.code, "いずみ");
-    await topic.take((m) => m.type === "topic", "参加直後の初期お題");
-
-    // When
-    topic.send({ command: "topic.set", title: "決めた", body: "本文" });
-
-    // Then（両方へ届く）
-    const onHub = await hub.take(
-      (m) => m.type === "topic" && m.state.topic?.title === "決めた",
-      "ハブへの配信",
-    );
-    const onTopic = await topic.take(
-      (m) => m.type === "topic" && m.state.topic?.title === "決めた",
-      "お題の接続への配信",
-    );
-    if (onHub.type !== "topic" || onTopic.type !== "topic") throw new Error("topic ではない");
-    expect(onHub.state.topic?.body).toBe("本文");
-    expect(onTopic.state.topic?.body).toBe("本文");
-  });
-
-  it("timer・poker の接続は、お題の配信を受け取らない（この PR の配信先ではない）", async () => {
+describe("お題を掲げる・下ろすと、ルームの全接続へ届く", () => {
+  it("topic.set の結果が、お題・ハブに加えて timer と poker の接続にも届く", async () => {
     // Given: 同じルームに、お題・ハブ・timer・poker の 4 接続を揃える
     const hub = await server.connectHub("hub");
     const created = await hubCreate(hub, "モブ", "あや");
@@ -223,30 +194,265 @@ describe("お題を掲げると、お題の接続とハブへ配信される", (
     poker.send({ type: "join-room", roomId: created.code, name: "こう" });
     await poker.take((m) => m.type === "room-state", "参加後の room-state");
 
-    // Given（続き）: When の直前の位置を記録する。**ハブ受信を待つ間に届いた分**を
-    // 基準に含めてしまうと、「呼んだ時点で沈黙」を確かめるだけの恒真テストになる
-    // （呼ぶより前に届いていても、呼んだ瞬間から見れば「増えていない」ため）。
-    const timerBefore = timer.received.length;
-    const pokerBefore = poker.received.length;
-
     // When
     topic.send({ command: "topic.set", title: "決めた", body: "本文" });
 
-    // Then: **ハブへ届いたことをもって配信が発生した事実を先に確定させてから**、
-    //       記録した位置より後に timer・poker へ topic フレームが無いことを見る。
-    await hub.take(
+    // Then: 4 接続すべてへ届く
+    const onHub = await hub.take(
       (m) => m.type === "topic" && m.state.topic?.title === "決めた",
-      "配信の発生（ハブ側で確定させる）",
+      "ハブへの配信",
     );
-    await Bun.sleep(SILENCE_MARGIN_MS);
-    const timerTopicFrames = timer.received
-      .slice(timerBefore)
-      .filter((m) => (m as { type: string }).type === "topic");
-    expect(timerTopicFrames).toHaveLength(0);
-    const pokerTopicFrames = poker.received
-      .slice(pokerBefore)
-      .filter((m) => (m as { type: string }).type === "topic");
-    expect(pokerTopicFrames).toHaveLength(0);
+    const onTopic = await topic.take(
+      (m) => m.type === "topic" && m.state.topic?.title === "決めた",
+      "お題の接続への配信",
+    );
+    const onTimer = await timer.takeMatching(
+      (m) => (m as { type: string }).type === "topic" &&
+        (m as unknown as { state: { topic?: { title?: string } } }).state.topic?.title === "決めた",
+      "timer への配信",
+    );
+    const onPoker = await poker.take(
+      (m) => (m as { type: string }).type === "topic" &&
+        (m as unknown as { state: { topic?: { title?: string } } }).state.topic?.title === "決めた",
+      "poker への配信",
+    );
+    if (onHub.type !== "topic" || onTopic.type !== "topic") throw new Error("topic ではない");
+    expect(onHub.state.topic?.body).toBe("本文");
+    expect(onTopic.state.topic?.body).toBe("本文");
+    const timerFrame = onTimer as unknown as { state: { topic?: { body?: string } } };
+    const pokerFrame = onPoker as unknown as { state: { topic?: { body?: string } } };
+    expect(timerFrame.state.topic?.body).toBe("本文");
+    expect(pokerFrame.state.topic?.body).toBe("本文");
+  });
+
+  it("topic.clear の結果（お題なし）も、timer と poker の接続に届く", async () => {
+    // Given: お題を掲げてから、同じルームへ timer・poker を揃える
+    const hub = await server.connectHub("hub");
+    const created = await hubCreate(hub, "モブ", "あや");
+    const topic = await server.connectTopic("topic");
+    await topicJoin(topic, created.code, "いずみ");
+    await topic.take((m) => m.type === "topic", "参加直後の初期お題");
+    topic.send({ command: "topic.set", title: "決めた", body: "本文" });
+    await topic.take(
+      (m) => m.type === "topic" && m.state.topic?.title === "決めた",
+      "掲げた直後のお題",
+    );
+    const timer = await server.connect("timer");
+    await joinRoom(timer, created.code, "かえで");
+    await timer.takeMatching((m) => (m as { type: string }).type === "topic", "timer 参加直後のお題");
+    const poker = await server.connectPoker("poker");
+    poker.send({ type: "join-room", roomId: created.code, name: "こう" });
+    await poker.take((m) => m.type === "room-state", "参加後の room-state");
+    await poker.take((m) => (m as { type: string }).type === "topic", "poker 参加直後のお題");
+
+    // When
+    topic.send({ command: "topic.clear" });
+
+    // Then: 4 接続すべてで「お題なし」へ戻る
+    const onHub = await hub.take(
+      (m) => m.type === "topic" && m.state.topic === null,
+      "ハブへの配信（クリア）",
+    );
+    const onTopic = await topic.take(
+      (m) => m.type === "topic" && m.state.topic === null,
+      "お題の接続への配信（クリア）",
+    );
+    if (onHub.type !== "topic" || onTopic.type !== "topic") throw new Error("topic ではない");
+    await timer.takeMatching(
+      (m) => (m as { type: string }).type === "topic" &&
+        (m as unknown as { state: { topic: unknown } }).state.topic === null,
+      "timer への配信（クリア）",
+    );
+    await poker.take(
+      (m) => (m as { type: string }).type === "topic" &&
+        (m as unknown as { state: { topic: unknown } }).state.topic === null,
+      "poker への配信（クリア）",
+    );
+  });
+});
+
+/**
+ * timer・poker の接続がルームへ入ると、いまのお題が 1 通届く（ハブ・お題の接続と同じ E4）。
+ *
+ * @requirements #91 E4
+ */
+describe("timer・poker の接続がルームへ入ると、いまのお題が 1 通届く", () => {
+  it("お題を掲げたルームに timer で参加すると、参加の直後にそのお題が届く", async () => {
+    // Given: お題を掲げておく
+    const hub = await server.connectHub("hub");
+    const created = await hubCreate(hub, "モブ", "あや");
+    const topic = await server.connectTopic("topic");
+    await topicJoin(topic, created.code, "いずみ");
+    await topic.take((m) => m.type === "topic", "参加直後の初期お題");
+    topic.send({ command: "topic.set", title: "決めた", body: "本文" });
+    await topic.take(
+      (m) => m.type === "topic" && m.state.topic?.title === "決めた",
+      "掲げた直後のお題",
+    );
+
+    // When: timer で参加する
+    const timer = await server.connect("timer");
+    await joinRoom(timer, created.code, "かえで");
+
+    // Then: 参加の直後にそのお題が届く
+    const received = await timer.takeMatching(
+      (m) => (m as { type: string }).type === "topic" &&
+        (m as unknown as { state: { topic?: { title?: string } } }).state.topic?.title === "決めた",
+      "参加直後のお題",
+    );
+    const frame = received as unknown as { state: { topic?: { body?: string } } };
+    expect(frame.state.topic?.body).toBe("本文");
+  });
+
+  it("お題を掲げたルームに poker で参加すると、参加の直後にそのお題が届く", async () => {
+    // Given: お題を掲げておく
+    const hub = await server.connectHub("hub");
+    const created = await hubCreate(hub, "モブ", "あや");
+    const topic = await server.connectTopic("topic");
+    await topicJoin(topic, created.code, "いずみ");
+    await topic.take((m) => m.type === "topic", "参加直後の初期お題");
+    topic.send({ command: "topic.set", title: "決めた", body: "本文" });
+    await topic.take(
+      (m) => m.type === "topic" && m.state.topic?.title === "決めた",
+      "掲げた直後のお題",
+    );
+
+    // When: poker で参加する
+    const poker = await server.connectPoker("poker");
+    poker.send({ type: "join-room", roomId: created.code, name: "こう" });
+    await poker.take((m) => m.type === "room-state", "参加後の room-state");
+
+    // Then: 参加の直後にそのお題が届く
+    const received = await poker.take(
+      (m) => (m as { type: string }).type === "topic" &&
+        (m as unknown as { state: { topic?: { title?: string } } }).state.topic?.title === "決めた",
+      "参加直後のお題",
+    );
+    const frame = received as unknown as { state: { topic?: { body?: string } } };
+    expect(frame.state.topic?.body).toBe("本文");
+  });
+
+  it("timer で復帰（resumeToken）しても、そのお題が届く", async () => {
+    // Given: timer で参加してから、お題を掲げる
+    const hub = await server.connectHub("hub");
+    const created = await hubCreate(hub, "モブ", "あや");
+    const timer = await server.connect("timer");
+    const joined = await joinRoom(timer, created.code, "かえで");
+    const topic = await server.connectTopic("topic");
+    await topicJoin(topic, created.code, "いずみ");
+    await topic.take((m) => m.type === "topic", "参加直後の初期お題");
+    topic.send({ command: "topic.set", title: "決めた", body: "本文" });
+    await topic.take(
+      (m) => m.type === "topic" && m.state.topic?.title === "決めた",
+      "掲げた直後のお題",
+    );
+
+    // When: 別の接続として resumeToken で復帰する
+    const resumed = await server.connect("resumed");
+    resumed.send({
+      command: "room.join",
+      code: created.code,
+      displayName: "かえで",
+      resumeToken: joined.resumeToken,
+    });
+    // 復帰では「room.joined」は送られない（新規参加のときだけ・room-join.ts の
+    // `if (kind === "joined")` 分岐）。復帰の応答は snapshot だけである。
+    await resumed.take("snapshot");
+
+    // Then: 復帰の直後にそのお題が届く
+    const received = await resumed.takeMatching(
+      (m) => (m as { type: string }).type === "topic" &&
+        (m as unknown as { state: { topic?: { title?: string } } }).state.topic?.title === "決めた",
+      "復帰直後のお題",
+    );
+    const frame = received as unknown as { state: { topic?: { body?: string } } };
+    expect(frame.state.topic?.body).toBe("本文");
+  });
+});
+
+/**
+ * ルームの作成・token 復帰の経路でも、いまのお題が 1 通届く（#91 PR 3・レビュー指摘）。
+ *
+ * `sendCurrent` の呼び出しは、上の describe（timer/poker の `room.join`）が通る
+ * `join-room.ts` とは別の経路にもある —— timer の `room.create`
+ * （`command-handlers/room-create.ts`）と、poker の `completeJoin`
+ * （`create-room` と token 復帰の `attachConnection` 分岐の両方が通る・
+ * `poker-handlers.ts`）。in-process のレビューでは、これら 3 箇所の
+ * `sendCurrent` 呼び出しを消しても赤くならないテストしか無かった
+ * （on-join のテストは全部 `room.join` 経由で、`room.create` と poker の
+ * 「別接続での token 復帰」を一度も実 WS で通していなかったため）。
+ *
+ * @requirements #91 E4
+ */
+describe("ルームの作成・token 復帰でも、いまのお題が 1 通届く", () => {
+  it("timer でルームを作ると、作った直後にお題（お題なし）のフレームが 1 通届く", async () => {
+    // Given: timer の接続
+    const timer = await server.connect("timer");
+
+    // When: timer でルームを作る（command-handlers/room-create.ts の経路）
+    await createRoom(timer, "かえで");
+
+    // Then: 作成直後にお題なしの状態が 1 通届く
+    const received = await timer.takeMatching(
+      (m) => (m as { type: string }).type === "topic",
+      "作成直後のお題",
+    );
+    const frame = received as unknown as { state: unknown };
+    expect(frame.state).toEqual(INITIAL_TOPIC_STATE);
+  });
+
+  it("poker でルームを作ると、同じく届く", async () => {
+    // Given: poker の接続
+    const host = await server.connectPoker("host");
+
+    // When: poker でルームを作る（poker-handlers.ts の create-room 経路）
+    host.send({ type: "create-room", name: "たろう" });
+    await host.take((m) => (m as { type: string }).type === "joined", "作成直後の joined");
+    await host.take((m) => m.type === "room-state", "作成直後の room-state");
+
+    // Then: 作成直後にお題なしの状態が 1 通届く
+    const received = await host.take(
+      (m) => (m as { type: string }).type === "topic",
+      "作成直後のお題",
+    );
+    const frame = received as unknown as { state: unknown };
+    expect(frame.state).toEqual(INITIAL_TOPIC_STATE);
+  });
+
+  it("お題を掲げたルームに poker で token 復帰すると、そのお題が届く", async () => {
+    // Given: poker でルームを作り、お題を掲げておく
+    const host = await server.connectPoker("host");
+    host.send({ type: "create-room", name: "たろう" });
+    const joined = await host.take(
+      (m) => (m as { type: string }).type === "joined",
+      "作成直後の joined",
+    );
+    const { roomId, token } = joined as unknown as { roomId: string; token: string };
+    await host.take((m) => m.type === "room-state", "作成直後の room-state");
+    await host.take((m) => (m as { type: string }).type === "topic", "作成直後の初期お題");
+
+    const topic = await server.connectTopic("topic");
+    await topicJoin(topic, roomId, "いずみ");
+    await topic.take((m) => m.type === "topic", "参加直後の初期お題");
+    topic.send({ command: "topic.set", title: "決めた", body: "本文" });
+    await topic.take(
+      (m) => m.type === "topic" && m.state.topic?.title === "決めた",
+      "掲げた直後のお題",
+    );
+
+    // When: 別の接続として token 復帰する（poker-handlers.ts の attachConnection 分岐）
+    const resumed = await server.connectPoker("resumed");
+    resumed.send({ type: "join-room", roomId, name: "たろう", token });
+
+    // Then: 復帰の直後にそのお題が届く
+    const received = await resumed.take(
+      (m) =>
+        (m as { type: string }).type === "topic" &&
+        (m as unknown as { state: { topic?: { title?: string } } }).state.topic?.title === "決めた",
+      "復帰直後のお題",
+    );
+    const frame = received as unknown as { state: { topic?: { body?: string } } };
+    expect(frame.state.topic?.body).toBe("本文");
   });
 });
 
@@ -512,5 +718,41 @@ describe("ルームが破棄されたあとのお題の接続", () => {
     );
     if (reply.type !== "error") throw new Error("error ではない");
     expect(reply.code).toBe("ROOM_NOT_FOUND");
+  });
+});
+
+/**
+ * お題の `ai.unlock` の**成功**を実 WS で見る（本番で唯一の解錠の経路）。
+ *
+ * 単体（`topic-handlers.test.ts`）は合言葉をテストが直接渡すので、`create-sync-server.ts` が
+ * `makeTopicHandlers` へ `aiUnlockKey` を渡しているかは見ない。配線から外れると、どの合言葉でも
+ * `AI_UNLOCK_FAILED` になるが（存在の秘匿と同じ形）、失敗だけを見るテストは緑のままになる。
+ *
+ * @requirements #91 E21
+ */
+describe("お題の ai.unlock は、正しい合言葉で解錠する", () => {
+  it("正しい合言葉で ai.unlock すると aiUnlocked が届き、合言葉そのものはどのフレームにも載らない", async () => {
+    // Given: AI が有効な構成（トークンと合言葉が両方ある）でお題の接続が参加している
+    await server.close();
+    server = startLiveSyncServer({
+      AI_UNLOCK_KEY: "right",
+      CLAUDE_CODE_OAUTH_TOKEN: "sk-ant-oat01-dummy",
+    });
+    const hub = await server.connectHub("hub");
+    const created = await hubCreate(hub, "AI 部屋", "あや");
+    const topic = await server.connectTopic("topic");
+    await topicJoin(topic, created.code, "いろは");
+
+    // When
+    topic.send({ command: "ai.unlock", key: "right" });
+
+    // Then: 解錠済みのお題の状態が届く
+    const unlocked = await topic.take(
+      (m) => m.type === "topic" && m.state.aiUnlocked === true,
+      "解錠済みのお題の状態",
+    );
+    expect(unlocked.type).toBe("topic");
+    // 合言葉はサーバーの env にだけあり、wire へは解錠済みかどうかしか出ない
+    expect(topic.received.map((m) => JSON.stringify(m)).join("\n")).not.toContain("right");
   });
 });

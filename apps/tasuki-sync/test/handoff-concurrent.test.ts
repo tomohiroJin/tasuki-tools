@@ -33,10 +33,10 @@ describe("共有メモの同時書き込み（⑧ last-write-wins）", () => {
     await handlers.handleCommand(hostConn, {
       command: "room.create",
       displayName: "Alice",
-      config: { language: "TypeScript", difficulty: "easy", intervalMinutes: 5 },
+      config: { intervalMinutes: 5 },
     });
     code = broadcaster.createdFor(hostConn).code;
-    await handlers.handleCommand(guestConn, { command: "room.join", code, displayName: "Bob", hasAiKey: false });
+    await handlers.handleCommand(guestConn, { command: "room.join", code, displayName: "Bob" });
   });
 
   it("2人が続けて書くと最後の値に収束し、全員へ同じ snapshot が配信される", async () => {

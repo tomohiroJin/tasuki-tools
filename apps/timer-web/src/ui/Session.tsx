@@ -8,14 +8,15 @@ import {
   Crown, ArrowRight, Play, Pause, SkipForward, Shuffle, TimerReset,
 } from "lucide-react";
 import { secondsLeft, elapsedMs } from "@tasuki/timer-core/aggregate";
-import type { Room, Problem } from "@tasuki/timer-core";
+import type { Room } from "@tasuki/timer-core";
+import type { Topic } from "@tasuki/topic-core";
 import { Card, GhostButton, PrimaryButton } from "./primitives.js";
+import { TopicCard } from "./components/TopicCard.js";
 import { CircularProgress } from "./components/CircularProgress.js";
 import { TeamOrbit } from "./components/TeamOrbit.js";
 import { RotationLineup } from "./components/RotationLineup.js";
 import { rotationMembers } from "./rotation-names.js";
 import { RosterPanel } from "./components/RosterPanel.js";
-import { ProblemEditor } from "./components/ProblemEditor.js";
 import { EndSessionZone } from "./components/EndSessionZone.js";
 import { SelfDriverToggle } from "./components/SelfDriverToggle.js";
 import { SwitchAlert } from "./components/SwitchAlert.js";
@@ -40,16 +41,6 @@ interface SessionProps {
   inviteUrl: string;
   participantId: string;
   clockOffset?: number;
-  /** お題の代表生成を待っている間 true（共有時のみ）。生成中表示に使う */
-  awaitingProblem?: boolean;
-  /** AI/定型のお題を生成中（regenerate 中）。ProblemEditor のスピナー＋減光に使う。 */
-  generatingProblem?: boolean;
-  /** AI で作れずに定型へ落ちたことを断る（#283・EARS 3）。 */
-  showsFallbackNotice?: boolean;
-  /** AI 解錠ルームか（生成中文言の出し分けに使う）。 */
-  aiUnlocked?: boolean;
-  /** AI モードか（problemMode === "ai"）。生成中文言の出し分けに使う。 */
-  aiMode?: boolean;
   onSkip: () => void;
   onPause: () => void;
   onResume: () => void;
@@ -79,14 +70,13 @@ interface SessionProps {
   onMoveRotation?: (fromIndex: number, toIndex: number) => void;
   /** ドライバー順をランダムに並べ替える（v2.3 #1）。member.shuffle を送る。 */
   onShuffle?: () => void;
-  /** お題編集まわり。お題が確定している間のみ ProblemEditor から呼ばれる（US3）。
-   *  共有時は problem.edit/submit/request、ソロ時は LocalEngine 経由で App が処理する。 */
-  onEditProblem?: (patch: Partial<Omit<Problem, "source" | "edited">>) => void;
-  onCopyProblem?: () => void;
-  onRegenerateProblem?: () => void;
-  onPasteProblem?: () => void;
   /** ルームのパスフレーズ設定/解除（R4-2）。空文字で解除。 */
   onSetPassphrase?: (passphrase: string) => void;
+  /**
+   * ルームのいまのお題（#91）。**読むだけ**（作る/直すのはお題ツールの仕事・spec T4）。
+   * 未接続や `topic` フレーム未到達では無いので、無ければ描かない。
+   */
+  topic?: Topic | null;
 }
 
 /** 残り時間がこの秒数以下で緊急表示にする */
@@ -97,11 +87,6 @@ export function Session({
   inviteUrl,
   participantId,
   clockOffset = 0,
-  awaitingProblem = false,
-  generatingProblem = false,
-  showsFallbackNotice = false,
-  aiUnlocked = false,
-  aiMode = false,
   onSkip,
   onPause,
   onResume,
@@ -120,11 +105,8 @@ export function Session({
   onRemoveParticipant,
   onMoveRotation,
   onShuffle,
-  onEditProblem,
-  onCopyProblem,
-  onRegenerateProblem,
-  onPasteProblem,
   onSetPassphrase,
+  topic = null,
 }: SessionProps) {
   // 初回ヒントを閉じたか（手動 dismiss で永続化）。実際の表示可否は下の notifyPrefs.enabled と
   // 組み合わせて派生で判定し、セッション中に通知を ON にしたら自動的に消えるようにする。
@@ -231,40 +213,10 @@ export function Session({
   // 「セッション」タブのコンテンツ（既存 UI をそのまま移動）。
   const sessionPanel = (
     <div className="space-y-6">
+      {/* いまのお題（#91）。timer は読むだけで、変えるのはお題ツールの仕事（spec T4）。 */}
+      {topic && <TopicCard topic={topic} />}
       {/* 初回ヒント（未読かつ通知 OFF のときのみ）。閉じる or 通知 ON で消える。 */}
       {!hintDismissed && !notifyPrefs.enabled && <NotifyHint onDismiss={dismissHint} />}
-      {/* お題（確定後）。ProblemEditor で各フィールドを編集できる
-          （FR-009/013/038/040/041）。未確定で生成待ちなら生成中表示（FR-003, US3-AC5）。
-          problemEnabled=false のときはお題ブロック自体を表示しない。 */}
-      {room.config.problemEnabled !== false && (room.problem ? (
-        <Card>
-          <ProblemEditor
-            problem={room.problem}
-            difficulty={room.config.difficulty}
-            language={room.config.language}
-            compact
-            onEdit={(patch) => onEditProblem?.(patch)}
-            onCopy={() => onCopyProblem?.()}
-            onRegenerate={() => onRegenerateProblem?.()}
-            onPaste={() => onPasteProblem?.()}
-            generating={generatingProblem}
-            fallbackNotice={showsFallbackNotice}
-          />
-        </Card>
-      ) : (
-        awaitingProblem && (
-          <Card>
-            <div className="py-8 text-center text-[var(--bone-subtle)]" aria-live="polite">
-              <span className="inline-block h-4 w-4 animate-pulse rounded-full bg-[var(--signal)] mb-2" aria-hidden="true" />
-              <p>
-                {aiUnlocked && aiMode
-                  ? "AI がお題を作成中です…（1 分以上かかることがあります）"
-                  : "お題を生成中…"}
-              </p>
-            </div>
-          </Card>
-        )
-      ))}
 
       {/* PC（lg+）は「左＝タイマー主役＋進行の操作 / 右＝参加者・引き継ぎ」の2カラム。
           モバイルは素直に縦積み（space-y-6）になる。 */}

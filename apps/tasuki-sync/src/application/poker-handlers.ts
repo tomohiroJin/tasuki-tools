@@ -67,6 +67,7 @@ import type { RateLimiter } from '@tasuki/rate-limit';
 import type { Clock } from '../ports/clock.js';
 import type { RoomStore } from '../ports/room-store.js';
 import type { HubBroadcaster } from '../ports/hub-broadcaster.js';
+import type { TopicBroadcaster } from './topic-broadcast.js';
 import { saveRoster } from './save-roster.js';
 import { applyDisplayNameRule, INVALID_DISPLAY_NAME_MESSAGE } from './display-name-rule.js';
 import type { TokenStore } from './token-store.js';
@@ -133,6 +134,14 @@ export interface HandlerDeps {
   wallClock: Clock;
   rateLimiter: RateLimiter;
   maxRooms: number;
+  /**
+   * いまのお題を参加・復帰した本人へ 1 通送る（#91・E4）。
+   *
+   * **必須にしてある**（理由は {@link HandlerDeps.hub} と同じ）。既定を持たせると、
+   * 注入を忘れた瞬間に poker で入った人にだけお題が出なくなり、しかもハブと
+   * お題ツールでは正しく出るので誰も気づかない。
+   */
+  topicBroadcaster: Pick<TopicBroadcaster, "sendCurrent">;
 }
 
 /** 組み立て済みのユースケース群。WS アダプタと死活監視以外の入口はここに集まる。 */
@@ -176,6 +185,7 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
     wallClock,
     rateLimiter,
     maxRooms,
+    topicBroadcaster,
   } = deps;
 
   /**
@@ -376,9 +386,12 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
     sendJoined(ws, roomId, participantId, token);
     if (persist) {
       commit(state);
-      return;
+    } else {
+      broadcaster.broadcastSnapshot(roomId, state.round, fragmentsOf(state.room));
     }
-    broadcaster.broadcastSnapshot(roomId, state.round, fragmentsOf(state.room));
+    // お題の状態を 1 通送る（#91・E4）。`persist` のどちらの枝でも呼ぶ ——
+    // 保管の有無にかかわらず、この接続はルームへ入った本人だから。
+    topicBroadcaster.sendCurrent(ws.data.connId, roomId);
   }
 
   /** 名簿へ新しい参加者を足し、復帰トークンを発行する（create / join で共用）。 */

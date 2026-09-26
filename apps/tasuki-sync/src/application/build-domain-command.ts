@@ -7,7 +7,7 @@
  * （フェーズ4・純粋な移動）。
  */
 
-import type { SessionConfig, ProblemMode } from "@tasuki/timer-core";
+import type { SessionConfig } from "@tasuki/timer-core";
 
 // RESTART は「現ドライバーのまま持ち時間をやり直す」（Issue #14）。session.act として
 // 受理するため、wire スキーマも扱いも既存の session.act と同一になる。
@@ -29,7 +29,8 @@ export function buildDomainCommand(cmd: { command: string; [key: string]: unknow
       };
     }
     case "session.complete":
-      return { command: "session.complete" as const };
+      // タイトルは handleRoomCommand が保管から埋める。wire からは受け取らない（#91・spec T9）。
+      return { command: "session.complete" as const, topicTitle: null as string | null };
     case "session.reset":
       return { command: "session.reset" as const };
     case "config.set": {
@@ -79,12 +80,6 @@ export function buildDomainCommand(cmd: { command: string; [key: string]: unknow
       if (typeof cmd.participantId !== "string") return null;
       // index は handleRoomCommand が participantId から解決して埋める（-1 はプレースホルダ）。
       return { command: "driver.assign" as const, index: -1 };
-    case "problem.edit":
-      if (typeof cmd.patch !== "object" || cmd.patch === null) return null;
-      return { command: "problem.edit" as const, patch: cmd.patch as { title?: string; description?: string; requirements?: string[]; exampleTest?: string; hints?: string[] } };
-    case "problem.mode.set":
-      if (cmd.mode !== "ai" && cmd.mode !== "fallback") return null;
-      return { command: "problem.mode.set" as const, mode: cmd.mode as ProblemMode };
     default:
       return null;
   }

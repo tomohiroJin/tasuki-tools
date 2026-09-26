@@ -9,7 +9,7 @@ import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
-import { roomViewOf, putRoomView, maybeRoomViewOf, participantIdOfConn } from "./support/room-view.js";
+import { maybeRoomViewOf, participantIdOfConn } from "./support/room-view.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 /**
@@ -224,7 +224,7 @@ describe("v2 コマンドの結合テスト", () => {
     // Given（検査対象が rotation から participants へ移ったことで、輪に並んでいない在室者の
     // 名前も衝突として扱えるようになった。旧実装は rotation しか見ておらず素通りしていた）
     const joined = await handlers.handleCommand("guest-conn", {
-      command: "room.join", code: roomCode, displayName: "Spectator", hasAiKey: false,
+      command: "room.join", code: roomCode, displayName: "Spectator",
     });
     joined._unsafeUnwrap();
     const room = maybeRoomViewOf(store, timers, roomCode);
@@ -327,48 +327,8 @@ describe("v2 コマンドの結合テスト", () => {
     expect(resumed?.driverEligible).toBe(true);
   });
 
-  // ─── problem.edit ─────────────────────────────────────────────────────────
-
-  it("problem.edit でルームの problem フィールドが更新される", async () => {
-    // Given（まずお題を設定）
-    const initialRoom = roomViewOf(store, timers, roomCode);
-    putRoomView(store, timers, {
-      ...initialRoom,
-      problem: {
-        title: "旧タイトル",
-        description: "旧説明",
-        requirements: ["要件1"],
-        exampleTest: "test",
-        hints: [],
-      },
-    });
-    broadcaster.snapshots.length = 0;
-
-    // When
-    await handlers.handleCommand(hostConn, {
-      command: "problem.edit",
-      patch: { title: "新タイトル" },
-    });
-
-    // Then
-    const updated = broadcaster.latestSnapshot();
-    expect(updated?.problem?.title).toBe("新タイトル");
-    expect(updated?.problem?.edited).toBe(true);
-    // 他のフィールドは変更されない
-    expect(updated?.problem?.description).toBe("旧説明");
-  });
-
-  // ─── problem.mode.set ────────────────────────────────────────────────────
-
-  it("problem.mode.set で Room の problemMode が更新される", async () => {
-    // Given
-    const command = { command: "problem.mode.set", mode: "ai" } as const;
-    // When
-    await handlers.handleCommand(hostConn, command);
-    // Then
-    const updated = broadcaster.latestSnapshot();
-    expect(updated?.problemMode).toBe("ai");
-  });
+  // かつてここには problem.edit / problem.mode.set の 2 本があった。#91 PR 3 でお題の
+  // コマンドごと消えた（古い画面が送ったときの応答は live-ws.room-ops.test.ts が固定する）。
 
   // ─── snapshot 全員反映の確認 ─────────────────────────────────────────────
 
@@ -422,7 +382,6 @@ describe("participant.rename の対象解決", () => {
       command: "room.join",
       code: roomCode,
       displayName: "Guest",
-      hasAiKey: false,
     });
     guestPid = broadcaster.joinedFor(guestConn).participantId;
 
@@ -530,7 +489,6 @@ describe("room-not-found 応答", () => {
       command: "room.join",
       code: "INVALID",
       displayName: "Guest",
-      hasAiKey: false,
     } as const;
     // When
     await handlers.handleCommand("guest-conn", command);

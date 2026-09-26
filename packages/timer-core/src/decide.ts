@@ -4,11 +4,10 @@
  */
 
 import { ok, err, type Result } from "neverthrow";
-import type { Aggregate, TimerConfig, ProblemMode } from "./aggregate.js";
+import type { Aggregate, TimerConfig } from "./aggregate.js";
 import {
   VALID_INTERVAL_MINUTES,
   MAX_MEMBERS,
-  MAX_PROBLEM_REQUIREMENTS,
   nextEligibleIndex,
   rotationEntryId,
 } from "./aggregate.js";
@@ -28,7 +27,7 @@ type DecideCommand =
       // ための任意フィールド。省略時（既存呼び出し）は空集合扱いで従来通り隣を返す（後方互換）。
       ineligible?: ReadonlySet<number> | undefined;
     }
-  | { command: "session.complete" }
+  | { command: "session.complete"; topicTitle: string | null }
   | { command: "session.abort" }
   | { command: "session.reset"; config?: TimerConfig }
   | { command: "member.add"; participantId: string }
@@ -45,9 +44,7 @@ type DecideCommand =
   | { command: "participant.rename"; participantId: string; displayName: string }
   | { command: "driver.skip"; participantId: string }
   | { command: "driver.resume"; participantId: string }
-  | { command: "driver.assign"; index: number }
-  | { command: "problem.edit"; patch: { title?: string; description?: string; requirements?: string[]; exampleTest?: string; hints?: string[] } }
-  | { command: "problem.mode.set"; mode: ProblemMode };
+  | { command: "driver.assign"; index: number };
 
 /**
  * コマンドを受け取り、DomainEvent[] または DomainError を返す純粋関数
@@ -62,7 +59,7 @@ export function decide(
       return decideSessionAct(cmd.action, agg, now, cmd.ineligible);
 
     case "session.complete":
-      return ok([{ type: "SessionCompleted", now }]);
+      return ok([{ type: "SessionCompleted", now, topicTitle: cmd.topicTitle }]);
 
     case "session.abort":
       return ok([{ type: "SessionAborted", now }]);
@@ -111,12 +108,6 @@ export function decide(
 
     case "driver.assign":
       return decideDriverAssign(cmd.index, agg, now);
-
-    case "problem.edit":
-      return decideProblemEdit(cmd.patch, now);
-
-    case "problem.mode.set":
-      return ok([{ type: "ProblemModeSet", mode: cmd.mode, now }]);
   }
 }
 
@@ -155,18 +146,6 @@ function decideRename(
   // rotation は参加者IDの配列になったので、ここから名前の重複は判定できない。
   // decide は集約（session/clock）しか見ないため、participants を持つ層へ移した。
   return ok([{ type: "ParticipantRenamed", participantId, displayName: trimmed, now }]);
-}
-
-function decideProblemEdit(
-  patch: { title?: string; description?: string; requirements?: string[]; exampleTest?: string; hints?: string[] },
-  now: number,
-): Result<DomainEvent[], DomainError> {
-  // requirements のサイズ上限チェック。メンバー数上限（MemberLimitExceeded）の流用ではなく、
-  // 入力サイズ専用の InputLimitExceeded を返す（クライアント/ログでの誤解を避ける）。
-  if (patch.requirements !== undefined && patch.requirements.length > MAX_PROBLEM_REQUIREMENTS) {
-    return err({ type: "InputLimitExceeded", field: "requirements", limit: MAX_PROBLEM_REQUIREMENTS });
-  }
-  return ok([{ type: "ProblemEdited", patch, now }]);
 }
 
 // ─── セッション操作 ──────────────────────────────────────────────────────────
@@ -397,15 +376,11 @@ function decideConfigSet(
   }
 
   // 検証済みの部分設定のみをイベントに載せる（未指定フィールドは適用側で現状維持）。
-  // language/difficulty を集約から捏造しない（集約は設定の真実源ではない）。
   const validatedPartial: Partial<TimerConfig> = {
-    ...(partial.language !== undefined && { language: partial.language }),
-    ...(partial.difficulty !== undefined && { difficulty: partial.difficulty }),
     ...(partial.intervalMinutes !== undefined && { intervalMinutes: partial.intervalMinutes }),
     ...(partial.navigatorEnabled !== undefined && { navigatorEnabled: partial.navigatorEnabled }),
     ...(partial.breakEveryRotations !== undefined && { breakEveryRotations: partial.breakEveryRotations }),
     ...(partial.assertiveSwitch !== undefined && { assertiveSwitch: partial.assertiveSwitch }),
-    ...(partial.problemEnabled !== undefined && { problemEnabled: partial.problemEnabled }),
   };
 
   return ok([{ type: "ConfigSet", config: validatedPartial, now }]);

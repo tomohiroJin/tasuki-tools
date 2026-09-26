@@ -10,7 +10,7 @@
  *   2. 在室者が 0 人になる退出 — 名簿の最後の 1 人が抜けた（`command-handlers/participant-remove.ts`）
  *
  * どちらの契機でも、`store` からルームを消すだけでは足りない。自動交代の予約（`Scheduler`）・
- * お題生成の委譲（`ProblemDelegator`）・お題の生成（`TopicGenerator`・#91）・
+ * お題の生成（`TopicGenerator`・#91）・
  * 不在検知のタイマー（`PresenceManager`）・リジュームトークンとパスフレーズ（`token-store`）・
  * timer の状態（`TimerStore`）・poker のラウンド（`RoundStore`）・お題の状態（`TopicStore`）は、
  * いずれも roomCode をキーにした**別々の Map** で生きている。1 つでも取りこぼすと、既に存在しないルームに対してタイマーが発火し続け、
@@ -55,15 +55,13 @@ export interface RoomDestroyerDeps {
   /**
    * お題の生成（#91・`TopicGenerator`）。破棄で進行中の生成を中断する（子プロセスを止める）。
    *
-   * ⚠ **optional にしてはならない。** `delegator` と違い省略時の構成を持たない ——
+   * ⚠ **optional にしてはならない。** 省略時の構成を持たない ——
    * 省略可にすると、本番の配線から落ちても全テストが緑のまま、消えたルームの生成が
    * 走り続ける（子プロセスと AI の枠を握ったまま）。
    */
   topicGenerator: { cancel(roomCode: string): void };
   /** サーバー権威タイマー。省略時は予約を持たない構成（テスト用の `makeHandlers` 単体など）。 */
   scheduler?: { clear(roomCode: string): void } | undefined;
-  /** お題代表生成。省略時は委譲を持たない構成。 */
-  delegator?: { cancel(roomCode: string): void } | undefined;
   /** 不在検知タイマー。`makeHandlers` は `PresenceManager` を知らないため省略可能にしてある。 */
   presence?: { clearRoomTimers(roomCode: string): void } | undefined;
   /** リジュームトークンとパスフレーズの解放（`makeHandlers` の `releaseRoom`）。 */
@@ -72,12 +70,11 @@ export interface RoomDestroyerDeps {
 
 /** ルームを破棄する関数を組み立てる。返す関数は何度呼んでも安全（各解放は不在なら no-op）。 */
 export function createRoomDestroyer(deps: RoomDestroyerDeps): (roomCode: string) => void {
-  const { store, timers, rounds, topics, scheduler, delegator, topicGenerator, presence, releaseRoom } =
+  const { store, timers, rounds, topics, scheduler, topicGenerator, presence, releaseRoom } =
     deps;
 
   return (roomCode: string): void => {
     scheduler?.clear(roomCode);
-    delegator?.cancel(roomCode);
     // 生成の中断は保管の解放より先。中断した生成が消えたルームへ書き戻さないため
     // （`TopicGenerator#write` は状態が無ければ書かないが、子プロセスは止まらない）。
     topicGenerator.cancel(roomCode);

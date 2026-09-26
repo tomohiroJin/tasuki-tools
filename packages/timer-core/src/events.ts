@@ -2,7 +2,7 @@
  * ドメインイベント定義
  */
 
-import type { TimerConfig, Problem, RoomPhase, ProblemMode } from "./aggregate.js";
+import type { TimerConfig, RoomPhase } from "./aggregate.js";
 
 /** セッション開始 */
 interface SessionStarted {
@@ -90,14 +90,6 @@ interface MembersShuffled {
   now: number;
 }
 
-/** お題確定 */
-interface ProblemSet {
-  type: "ProblemSet";
-  problem: Problem;
-  usedFallback: boolean;
-  now: number;
-}
-
 /** 引き継ぎメモ更新 */
 interface HandoffNoteSet {
   type: "HandoffNoteSet";
@@ -121,6 +113,11 @@ interface BreakEnded {
 interface SessionCompleted {
   type: "SessionCompleted";
   now: number;
+  /**
+   * 完了した時点のお題のタイトル（お題なしなら null・#91）。
+   * アプリ層が値として渡す。timer-core は topic-core を知らない（spec T1・T9）。
+   */
+  topicTitle: string | null;
 }
 
 /**
@@ -162,26 +159,6 @@ interface DriverResumed {
   now: number;
 }
 
-/** お題の内容を編集（フィールド単位のパッチ） */
-interface ProblemEdited {
-  type: "ProblemEdited";
-  patch: {
-    title?: string;
-    description?: string;
-    requirements?: string[];
-    exampleTest?: string;
-    hints?: string[];
-  };
-  now: number;
-}
-
-/** 出題モード変更（AI/定型） */
-interface ProblemModeSet {
-  type: "ProblemModeSet";
-  mode: ProblemMode;
-  now: number;
-}
-
 /** ドメインイベントの合併型 */
 export type DomainEvent =
   | SessionStarted
@@ -196,7 +173,6 @@ export type DomainEvent =
   | MemberRemoved
   | MemberMoved
   | MembersShuffled
-  | ProblemSet
   | HandoffNoteSet
   | BreakStarted
   | BreakEnded
@@ -205,6 +181,4 @@ export type DomainEvent =
   | ProxyMemberAdded
   | ParticipantRenamed
   | DriverSkipped
-  | DriverResumed
-  | ProblemEdited
-  | ProblemModeSet;
+  | DriverResumed;

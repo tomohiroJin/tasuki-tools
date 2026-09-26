@@ -76,7 +76,6 @@ describe("Participant 型の v2 フィールド", () => {
       participantId: "p1",
       displayName: "Alice",
       presence: "online",
-      hasAiKey: false,
       joinedAt: 1000,
     } as const;
     // When（isPlaceholder なしでも Participant 型として受理されることを確認する）
@@ -92,47 +91,11 @@ describe("Participant 型の v2 フィールド", () => {
       participantId: "p2",
       displayName: "Bob",
       presence: "online",
-      hasAiKey: false,
       joinedAt: 1000,
     } as const;
     // When（driverEligible なしでも Participant 型として受理されることを確認する）
     const participant: import("../src/wire.js").Participant = requiredFields;
     // Then
     expect(participant.driverEligible).toBeUndefined();
-  });
-});
-
-// ─── Problem 型の v2 フィールド確認 ─────────────────────────────────────────
-
-describe("Problem 型の v2 フィールド", () => {
-  it("source フィールドが省略可能であること（型チェックのみ）", () => {
-    // Given（source/edited を含めない必須フィールドのみ）
-    const requiredFields = {
-      title: "FizzBuzz",
-      description: "...",
-      requirements: ["3の倍数でFizz"],
-      exampleTest: "assert fizzbuzz(3) == 'Fizz'",
-      hints: ["剰余を使う"],
-    };
-    // When（source/edited なしでも Problem 型として受理されることを確認する）
-    const problem: import("../src/aggregate.js").Problem = requiredFields;
-    // Then
-    expect(problem.source).toBeUndefined();
-    expect(problem.edited).toBeUndefined();
-  });
-});
-
-// ─── Room の problemMode フィールド確認 ──────────────────────────────────────
-
-describe("Room 型の v2 フィールド", () => {
-  it("problemMode フィールドが省略可能であること（型チェックのみ）", () => {
-    // Given（Room は aggregate.ts ではなく実際の handlers.ts 側で構築されるため、
-    // ここでは型が通ることだけを確認する）
-    const rawMode = "ai";
-    // When（rawMode が ProblemMode 型として受理されることを確認する）
-    type ProblemMode = import("../src/aggregate.js").ProblemMode;
-    const mode: ProblemMode = rawMode;
-    // Then
-    expect(["ai", "fallback"]).toContain(mode);
   });
 });

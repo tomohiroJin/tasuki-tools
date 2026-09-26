@@ -97,6 +97,36 @@ S4（#19）から S5a までは `caddy/40-timer-legacy-room.conf` が **`/` か�
   接続を検出し、最大 `interval × (missMax + 1)`（既定で約45秒）以内に `terminate` して
   presence を `offline` に収束させる。一時的な通信の揺れでは切断しない（連続欠落のみ判定）。
 
+## #91（お題）を配布するときに行うこと（4 本を続けて配る）
+
+**手順の正本は [`../topic/NOTES.md`](../topic/NOTES.md) の「配布の手順」である。** 順序は
+**topic → poker → landing → timer** で、`/topic/` の断片（`../topic/caddy/40-topic.conf`）を先に設置し、
+静的な 3 本と timer を**間を空けずに続けて流す**。**同期サーバーを再起動するのは最後の `deploy.sh timer` だけ**で、
+そこで timer・poker・お題のルームがすべて消える。
+
+timer に関わる窓は次の 3 つである（設計正本
+[`../../docs/superpowers/specs/2026-09-23-shared-topic-design.md`](../../docs/superpowers/specs/2026-09-23-shared-topic-design.md) §6。
+いずれも画面の再読込で閉じる）。
+
+1. **新しい静的 web × 旧い同期サーバー**（topic・poker・landing を配ってから、`deploy.sh timer` の再起動までの間）:
+   新しいお題ツールは旧いサーバーに 1008 で閉じられて再接続を繰り返し、新しい玄関と poker にはお題が出ない
+2. **新しい timer の web × 旧い同期サーバー**（`deploy.sh timer` の内側の数十秒。下の #276 の窓と同じ仕組みで、
+   順序は選べない）: 新しい timer は `room.join` に `hasAiKey` を載せないが、旧いサーバーはそれを必須にしている。
+   **この間に新しい timer を開いた人は、参加も復帰も `INVALID_COMMAND`（「コマンドの形式が不正です」）で拒まれ**、
+   10 秒後に答えを待つ期限の画面（「ルームの情報を読み込めませんでした」・#292）になる。サーバーが再起動すると接続が切れ、
+   再接続のときに復帰の `room.join` が送り直されるので、**操作しなくても期限の画面から抜ける**。再起動でルームはどのみち
+   消えているので、行き着く先は再起動の後の全員と同じ「ルームを失った画面」である（端末の記録は失われない。テストは
+   `apps/timer-web/test/sync/use-timer-sync.test.tsx` の describe「答えを待つ期限が切れた後の再接続」）。
+   設計の段では「完成記録を持つルームのスナップショットが検証に落ちる」と見込んでいたが、参加が先に拒まれるので
+   スナップショットまで届かない（設計正本 §10.2）
+3. **古い web × 新しい同期サーバー**（再起動の後、開いたままの画面）: 古い timer は、`problem` / `config.language` などを
+   必須とする旧い契約で新しいスナップショットを読むため、**スナップショットがすべて落ち**、再読込するまで通知を出し続ける（#209）。
+   古い timer が送るお題のコマンド（`ai.unlock` / `problem.*`）は `INVALID_COMMAND` が返るだけで、状態も接続も変わらない。
+   古い poker は未知の `topic` フレームを捨てて通知を出す（#212）。古い玄関は黙って捨てる
+
+⚠ **`pnpm e2e:prod` は 4 本を配り終えてから流す。** 先に流すと本番に `/topic/` が無く、
+`/topic/` を見る `@smoke`・`@core` のテストが落ちる（`e2e/specs/routing.spec.ts` と `e2e/specs/topic.spec.ts`）。
+
 ## #95 S5c を配布するときに行うこと（3 系統を続けて配る）
 
 > ⚠ **この節が扱うのは配信物だけである。Caddy 断片の入れ替え（上の
@@ -216,6 +246,10 @@ curl -H "x-admin-token: $ADMIN_TOKEN" http://127.0.0.1:8787/admin/rooms
 ## AI お題生成（任意機能）
 
 設計: [`../../docs/superpowers/specs/2026-06-12-ai-problem-generation-design.md`](../../docs/superpowers/specs/2026-06-12-ai-problem-generation-design.md)
+
+> **#91 で、お題の AI 生成はお題ツール（`/topic/`）の機能になった。** timer はお題を作らず、読んで表示するだけである。
+> 生成は同じ同期サーバー（`tasuki-sync`）が行うので、下の env・セットアップ・運用はそのまま効く。
+> 解錠（`AI_UNLOCK_KEY`）はお題ツールの画面から行う（[`docs/adr/0021`](../../docs/adr/0021-topic-as-shared-context.md)）。
 
 ### 初回セットアップ（VPS）
 

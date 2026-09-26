@@ -1,0 +1,30 @@
+# 変異 99: timer-dispatch-drops-topic-frame
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/sync/dispatch.test.ts
+#     describe「お題のフレームを振り分ける」の
+#     「Given お題のフレーム / When 振り分ける / Then onTopic に状態が渡り、捨てたとは言わない」（#91・E15）
+#
+# #91 PR 3・spec §5.5・E15。timer-web の `dispatch.ts` から `TopicFrameSchema` で
+# 先に見分ける分岐を消す。`topic` フレームが timer の契約（`ServerMsgSchema`）で落ち、
+# お題が画面に出ないうえ、届くたびに「同期できていません」（#209）が立つ。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m99-*.patch
+# 復元: git apply -R scripts/mutations/m99-*.patch
+diff --git a/apps/timer-web/src/sync/dispatch.ts b/apps/timer-web/src/sync/dispatch.ts
+index 06ebc56..1baad98 100644
+--- a/apps/timer-web/src/sync/dispatch.ts
++++ b/apps/timer-web/src/sync/dispatch.ts
+@@ -68,11 +68,6 @@ export function dispatchServerMessage(
+   // **お題のフレームは timer の契約より先に見分ける**（#91・spec §5.5）。順を逆にすると
+   // `ServerMsgSchema` が未知の type として落とし、「同期できていません」（#209）を出す。
+   // `type` が "topic" なのに形が崩れているものは、ここで拾わず下の検証に落として知らせる。
+-  const topic = v.safeParse(TopicFrameSchema, json);
+-  if (topic.success) {
+-    cb.onTopic?.(topic.output.state);
+-    return;
+-  }
+ 
+   const parsed = v.safeParse(ServerMsgSchema, json);
+   if (!parsed.success) {

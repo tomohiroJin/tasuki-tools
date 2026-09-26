@@ -33,7 +33,6 @@ function participant(participantId: string, displayName: string) {
     participantId,
     displayName,
     presence: "online" as const,
-    hasAiKey: false,
     joinedAt: 0,
   };
 }
@@ -123,7 +122,6 @@ describe("再読込での復帰（#76 F-3）", () => {
       command: "room.join",
       code: "ROOM01",
       displayName: "ボブ",
-      hasAiKey: false,
       resumeToken: "rt_1",
     });
   });

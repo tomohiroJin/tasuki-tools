@@ -22,7 +22,12 @@
  * あの関数は `string` しか返さない —— 空文字も 1000 文字も素通りしていた。
  * 入口ごとに適用を書くと、この形の抜けは何度でも起きる。
  */
-import { HubCommandSchema, type HubCommand, type ToolId } from "@tasuki/room-core";
+import {
+  HubCommandSchema,
+  findParticipantByConnId,
+  type HubCommand,
+  type ToolId,
+} from "@tasuki/room-core";
 import { parseBoundaryMessage } from "@tasuki/protocol";
 import { errorMessageFor } from "@tasuki/timer-core";
 import type { TimerStore } from "../ports/timer-store.js";
@@ -41,6 +46,17 @@ import type { TopicBroadcaster } from "./topic-broadcast.js";
  * 生の `null` が配線のあちこちに散ると、「宣言し忘れ」と「ハブである」の区別がつかない。
  */
 export const TOOL_HUB: ToolId | null = null;
+
+/**
+ * コマンドの形が不正なときの文言（#91 PR 3 Task 5）。
+ *
+ * `handleMessage` の JSON パース失敗時と、**既にどこかのルームに居る接続からの
+ * 2 度目の `room.join` / `room.create`**（`isInAnyRoom` 参照）の、両方で使う。
+ * 後者は形は正しいコマンドだが、正規の画面（玄関）からは絶対に届かない組み合わせ
+ * なので、届いたら「壊れたクライアント」として同じ失敗の形で突き返す。
+ * 文言を 2 か所に書くと片方だけが直る（過去に何度も踏んだ型）ので定数にする。
+ */
+const INVALID_COMMAND_MESSAGE = "コマンドの形式が不正です";
 
 export interface HubHandlerDeps extends CreateRoomDeps, JoinRoomDeps, SaveRosterDeps {
   timers: TimerStore;
@@ -81,7 +97,32 @@ export function makeHubHandlers(deps: HubHandlerDeps): HubHandlers {
     return applied.value;
   }
 
+  /**
+   * この接続がどれかのルームに（ツールを問わず）在席しているか。
+   *
+   * 2 度目の `room.join` / `room.create` を拒むために引く（#91 PR 3 Task 5）。
+   * `topic-handlers.ts` の同名関数と同じ作り —— 店（`store`）の全ルームを走査し、
+   * `connId` を持つ参加者が居るかで判定する。ここを名簿の保管と噛み合わない
+   * 別の判定（例えば「最後に作った/入ったルーム」を覚えておく）にすると、
+   * 復帰やタブの多重化で簡単にずれる。
+   */
+  function isInAnyRoom(connId: string): boolean {
+    return deps.store.list().some((r) => findParticipantByConnId(r, connId) !== undefined);
+  }
+
   function handleCreate(connId: string, cmd: Extract<HubCommand, { command: "room.create" }>): void {
+    // 既にどこかのルームに居る接続からの作成は拒み、何も変えない。
+    //
+    // 玄関（`apps/landing/src/hub/use-hub-sync.ts`）は 1 本の接続につき、
+    // URL に `?room=` が無いページでしか `room.create` を送らない —— そのページでは
+    // まだどのルームにも入っていない。したがって正規の画面からは「既に入っている
+    // 接続からの作成」は届かない。届くのは改造したクライアントだけであり、
+    // お題の接続（`topic-handlers.ts`）で PR 1 が下した判断（変異 m86）と揃える。
+    if (isInAnyRoom(connId)) {
+      fail(connId, "INVALID_COMMAND", INVALID_COMMAND_MESSAGE);
+      return;
+    }
+
     const displayName = normalized(connId, cmd.displayName);
     if (displayName === null) return;
 
@@ -128,6 +169,20 @@ export function makeHubHandlers(deps: HubHandlerDeps): HubHandlers {
   }
 
   function handleJoin(connId: string, cmd: Extract<HubCommand, { command: "room.join" }>): void {
+    // 既にどこかのルームに居る接続からの 2 度目の参加は拒み、何も変えない
+    // （同じルームへの 2 度目でも、別のルームへの参加でも）。
+    //
+    // 通すと 1 本のソケットが 2 つのルームの名簿に載り、切断の片付けが片方しか
+    // 外さず、幽霊の参加者が残ってルームが回収されなくなる（#91 PR 3 Task 5 の
+    // 特徴づけで実測）。玄関は 1 本の接続で URL の `?room=` のルームにしか
+    // 参加しないので、正規の画面からは 2 度目の参加は届かない —— 届くのは
+    // 改造したクライアントだけであり、`topic-handlers.ts` の `isInAnyRoom` と
+    // 同じ判断・同じ失敗の形で返す。
+    if (isInAnyRoom(connId)) {
+      fail(connId, "INVALID_COMMAND", INVALID_COMMAND_MESSAGE);
+      return;
+    }
+
     const displayName = normalized(connId, cmd.displayName);
     if (displayName === null) return;
 
@@ -166,8 +221,9 @@ export function makeHubHandlers(deps: HubHandlerDeps): HubHandlers {
     // ので、復帰のときに返さないと次の読み込みで組が空になる（D12）。
     hub.sendTo(connId, { type: "room.joined", code: cmd.code, participantId, resumeToken });
 
-    // AI 鍵の欄は timer の状態にある。ハブからの参加では変わらないが、
-    // `joinRoom` が返した状態をそのまま保管して取りこぼしを防ぐ。
+    // ハブからの参加（ツールを宣言しない）では、`joinRoom` は既存の timer の状態を
+    // そのまま返すので、この保管は何も変えない。#91 PR 3 までは AI 鍵の欄（`aiKeyHolders`）が
+    // ここで変わりえたので保管していた。`joinRoom` の返り値の扱いを入口の間で揃えるために残す。
     if (timer !== undefined) timers.put(timer);
     saveRoster(deps, membership);
     // いまのお題を本人へ 1 通（E4）。**名簿の保管のあとに呼ぶ**（ルームの在否を名簿で見るため）。
@@ -181,7 +237,7 @@ export function makeHubHandlers(deps: HubHandlerDeps): HubHandlers {
       if (parsed.isErr()) {
         const code = parsed.error.stage === "json" ? "INVALID_JSON" : "INVALID_COMMAND";
         const message =
-          parsed.error.stage === "json" ? "JSON の形式が不正です" : "コマンドの形式が不正です";
+          parsed.error.stage === "json" ? "JSON の形式が不正です" : INVALID_COMMAND_MESSAGE;
         fail(connId, code, message);
         return;
       }

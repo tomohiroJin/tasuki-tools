@@ -83,7 +83,7 @@ describe("ツール状態の遅延生成（#95 S5b）", () => {
 
     // When: 同じコードへ timer の入口から入る
     const timer = await server.connect("timer");
-    timer.send({ command: "room.join", code: room.roomId, displayName: "いずみ", hasAiKey: false });
+    timer.send({ command: "room.join", code: room.roomId, displayName: "いずみ" });
 
     // Then: snapshot が届く（門が閉じていれば ROOM_NOT_FOUND になっていた）
     const reply = await timer.takeMatching(
@@ -215,7 +215,6 @@ describe("退出で票を捨てる（R8・#95 S5b）", () => {
       command: "room.join",
       code: created.code,
       displayName: "あや",
-      hasAiKey: false,
       resumeToken: created.resumeToken,
     });
     await timer.take("snapshot");
@@ -262,7 +261,6 @@ describe("退出で票を捨てる（R8・#95 S5b）", () => {
       command: "room.join",
       code: created.code,
       displayName: "あや",
-      hasAiKey: false,
       resumeToken: created.resumeToken,
     });
     await timer.take("snapshot");

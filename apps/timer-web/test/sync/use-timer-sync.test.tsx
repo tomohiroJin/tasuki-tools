@@ -108,9 +108,7 @@ function enterRoom(
 /** テスト用の完成記録（永続化ポリシーの判断には使わないので中身は任意）。 */
 const A_RECORD: CompletionRecord = {
   id: "rec-1",
-  problemTitle: "FizzBuzz",
-  language: "TypeScript",
-  difficulty: "easy",
+  topicTitle: "FizzBuzz",
   elapsedSeconds: 300,
   members: ["Creator"],
   totalSwitches: 0,
@@ -266,6 +264,86 @@ describe("useTimerSync: メッセージの配線", () => {
   });
 });
 
+/**
+ * @requirements #91 E2 E15 E16（timer はお題を読んで表示するだけ・spec T3）
+ */
+describe("useTimerSync: お題のフレーム", () => {
+  it("Given ルームに入った timer / When お題のフレームが届く / Then topic にタイトルと本文が入る", () => {
+    // Given
+    const { result, deliver } = enterRoom(fakeBanner());
+    // When
+    deliver({
+      type: "topic",
+      state: {
+        topic: { title: "FizzBuzz", body: "本文", source: "manual" },
+        generating: false,
+        degraded: false,
+        aiUnlocked: false,
+      },
+    });
+    // Then
+    expect(result.current.topic).toEqual({ title: "FizzBuzz", body: "本文", source: "manual" });
+  });
+
+  it("Given お題がある / When お題なしのフレームが届く / Then topic が null に戻る", () => {
+    // Given
+    const { result, deliver } = enterRoom(fakeBanner());
+    deliver({
+      type: "topic",
+      state: {
+        topic: { title: "FizzBuzz", body: "", source: "manual" },
+        generating: false,
+        degraded: false,
+        aiUnlocked: false,
+      },
+    });
+    expect(result.current.topic).not.toBeNull();
+    // When
+    deliver({
+      type: "topic",
+      state: { topic: null, generating: false, degraded: false, aiUnlocked: false },
+    });
+    // Then
+    expect(result.current.topic).toBeNull();
+  });
+
+  it("Given お題がある / When ルームから抜けた知らせが届く / Then topic が null に戻る（抜けたルームのお題を次のルームへ持ち越さない）", () => {
+    // Given
+    const { result, deliver } = enterRoom(fakeBanner());
+    deliver({
+      type: "topic",
+      state: {
+        topic: { title: "FizzBuzz", body: "", source: "manual" },
+        generating: false,
+        degraded: false,
+        aiUnlocked: false,
+      },
+    });
+    expect(result.current.topic).not.toBeNull();
+    // When
+    deliver({ type: "error", code: "LEFT_ROOM", message: "退出しました" });
+    // Then
+    expect(result.current.topic).toBeNull();
+  });
+
+  it("Given ルームに入った timer / When お題のフレームが届く / Then syncStale は立たない", () => {
+    // Given
+    const { result, deliver } = enterRoom(fakeBanner());
+    // When
+    deliver({
+      type: "topic",
+      state: {
+        topic: { title: "FizzBuzz", body: "", source: "manual" },
+        generating: false,
+        degraded: false,
+        aiUnlocked: false,
+      },
+    });
+    // Then
+    expect(result.current.syncStale).toBe(false);
+  });
+});
+
 describe("useTimerSync: 明示保存の失敗経路", () => {
   it("saveRecordManually が失敗すると、文言・種別・自動消去なしでバナーを出す", async () => {
     // Given
@@ -309,28 +387,33 @@ describe("useTimerSync: 明示保存の失敗経路", () => {
   });
 });
 
+/**
+ * 開始の送信順を固定する（#91 PR 3）。
+ *
+ * かつて `startSession()` はお題が無いと `problem.request` を先に送っていた。お題は
+ * お題ツール（別アプリ）が配る任意の札になり、timer はお題の有無を見ずに開始する。
+ * **お題の無いルームで見るのが要点である** —— お題があるルームだけで見ると、
+ * 「お題が無いときだけ依頼を差し込む」誤りと区別できない。
+ *
+ * @requirements #91
+ */
 describe("useTimerSync: 開始（お題なし）", () => {
-  it("お題が無い状態でロビーから開始すると problem.request → phase.set → session.act の順で送る", () => {
-    // Given
-    // 見るのは startSession() が送る 3 本の順序である。#271 でロビーの snapshot から
-    // お題の自動依頼が消えたので、輪の先頭かどうかはこの順序に影響しない
-    // （かつては代表だと自動依頼が混ざり、順序を確かめにくかった）。
+  it("お題の無いルームでロビーから開始すると phase.set → session.act の順で送る", () => {
+    // Given: お題の無いロビー（お題のフレームは届いていない）
     const { result, ws, deliver } = enterRoom(fakeBanner(), { displayName: "Guest" });
     deliver({ type: "room.joined", code: "ROOM01", resumeToken: "rt", participantId: "p-1" });
     deliver({ type: "snapshot", room: aRoomView({ code: "ROOM01", phase: "ready" }) });
     expect(result.current.mode).toBe("lobby");
-    expect(result.current.room?.problem).toBeNull();
+    const sendSpy = vi.spyOn(ws, "send");
 
     // When
-    const sendSpy = vi.spyOn(ws, "send");
     act(() => result.current.startSession());
 
-    // Then
+    // Then: 送るのは 2 本だけで、依頼は差し込まれない
     const sent = sendSpy.mock.calls.map((c) => JSON.parse(String(c[0])) as Record<string, unknown>);
-    expect(sent.map((m) => m.command)).toEqual(["problem.request", "phase.set", "session.act"]);
-    expect(sent[0]!.requestId).toBe("req-ROOM01");
-    expect(sent[1]!.phase).toBe("session");
-    expect(sent[2]!.action).toBe("START");
+    expect(sent.map((m) => m.command)).toEqual(["phase.set", "session.act"]);
+    expect(sent[0]!.phase).toBe("session");
+    expect(sent[1]!.action).toBe("START");
   });
 });
 
@@ -718,5 +801,96 @@ describe("useTimerSync: 捨てた同期フレームの表出", () => {
 
     // Then: 宛先が無いので `phase.set` は送らず、玄関へ送る
     expect(redirectTo).toHaveBeenCalledWith("/");
+  });
+});
+
+/**
+ * 配布中の窓 2（新しい timer の web × 旧い同期サーバー）から自動で抜け出せること（#91 PR 3）。
+ *
+ * 新しい timer は `room.join` に `hasAiKey` を載せない。旧いサーバーはそれを必須にしているので、
+ * 参加も復帰も `INVALID_COMMAND` で拒まれ、10 秒後に答えを待つ期限（#292）の画面になる。
+ * `deploy.sh timer` の再起動で接続が切れると、`handleReconnected` が復帰の `room.join` を
+ * 送り直す。**答えは 2 通りありうる**ので両方を見る: ルームが在れば snapshot で入り直し、
+ * 再起動でルームが消えていれば（揮発インメモリ・実際の配布はこちら）ルームを失った画面へ移る。
+ * どちらでも期限の画面には留まらない —— `deploy/timer/NOTES.md` の窓 2 の根拠はこのテストである。
+ *
+ * @requirements #91（配布中の窓 2・deploy/timer/NOTES.md）
+ */
+describe("useTimerSync: 答えを待つ期限が切れた後の再接続", () => {
+  /** 送信された `room.join` の一覧（本体ごと）。 */
+  function sentJoins(send: { mock: { calls: unknown[][] } }): Record<string, unknown>[] {
+    return send.mock.calls
+      .map(([raw]) => JSON.parse(String(raw)) as Record<string, unknown>)
+      .filter((c) => c.command === "room.join");
+  }
+
+  /**
+   * 参加を形の不正で拒まれて期限が切れた後、サーバーの再起動で切れて繋ぎ直したところまで進める。
+   * 新しい接続で送られたものを見る spy と、その接続へ届ける関数を返す。
+   */
+  function timedOutThenReconnected() {
+    const { result, ws, deliver } = enterRoom(fakeBanner(), { resumeToken: "rt-window2" });
+    deliver({ type: "error", code: "INVALID_COMMAND", message: "コマンドの形式が不正です" });
+    act(() => void vi.advanceTimersByTime(10_000));
+    expect(result.current.joinTimedOut).toBe(true);
+    const before = FakeWS.instances.length;
+    act(() => void ws.onclose?.());
+    // 再接続の待ち（1 回目は既定で 1 秒）を十分に越える
+    act(() => void vi.advanceTimersByTime(30_000));
+    const next = FakeWS.instances[FakeWS.instances.length - 1];
+    if (next === undefined || FakeWS.instances.length !== before + 1) {
+      throw new Error("再接続の接続が 1 本だけ張られていない");
+    }
+    const send = vi.spyOn(next, "send");
+    act(() => {
+      next.readyState = FakeWS.OPEN;
+      next.onopen?.();
+    });
+    const deliverNext = (msg: Record<string, unknown>) =>
+      act(() => void next.onmessage?.({ data: JSON.stringify(msg) } as MessageEvent));
+    return { result, send, deliverNext };
+  }
+
+  it("期限が切れた後に接続し直すと、復帰の room.join を送り直し、snapshot で期限の印が下りる", () => {
+    vi.useFakeTimers();
+    try {
+      // Given: 参加を形の不正で拒まれ、答えを待つ期限が切れている
+      // When: サーバーの再起動で切れて繋ぎ直した
+      const { result, send, deliverNext } = timedOutThenReconnected();
+
+      // Then: 保存済みの復帰の組で room.join を送り直している
+      expect(sentJoins(send)).toEqual([
+        expect.objectContaining({ code: ENTERED_ROOM_CODE, resumeToken: "rt-window2" }),
+      ]);
+
+      // When: サーバーが snapshot を返す
+      deliverNext({ type: "snapshot", room: aRoomView({ code: ENTERED_ROOM_CODE, phase: "setup" }) });
+
+      // Then: 入り直せて期限の印が下り、もう一度期限の長さが過ぎても立たない
+      expect(result.current.room?.code).toBe(ENTERED_ROOM_CODE);
+      expect(result.current.joinTimedOut).toBe(false);
+      act(() => void vi.advanceTimersByTime(10_000 * 3));
+      expect(result.current.joinTimedOut).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("再起動でルームが消えていれば、期限の画面に留まらずルームを失った画面へ移る", () => {
+    vi.useFakeTimers();
+    try {
+      // Given: 期限が切れた後に繋ぎ直し、復帰の room.join を送り直した
+      const { result, send, deliverNext } = timedOutThenReconnected();
+      expect(sentJoins(send)).toHaveLength(1);
+
+      // When: 再起動でルームが消えているので、ルームが無いと返る
+      deliverNext({ type: "error", code: "ROOM_NOT_FOUND", message: "no room" });
+
+      // Then: 行き止まりではなく、再起動の後の全員と同じルームを失った画面になる
+      expect(result.current.sessionLost).toBe(true);
+      expect(result.current.joinTimedOut).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

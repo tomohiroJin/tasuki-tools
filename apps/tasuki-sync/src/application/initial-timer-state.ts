@@ -48,16 +48,12 @@ export interface InitialTimerStateInput {
 }
 
 /** ルームを作らずに開いた timer の既定設定。 */
-const DEFAULT_LANGUAGE = "TypeScript";
-const DEFAULT_DIFFICULTY = "easy";
 const DEFAULT_INTERVAL_MINUTES = 5 as IntervalMinutes;
 
 export function createInitialTimerState(input: InitialTimerStateInput): TimerState {
   const { code, createdAt, participantId } = input;
 
   const config: TimerConfig = input.config ?? {
-    language: DEFAULT_LANGUAGE,
-    difficulty: DEFAULT_DIFFICULTY,
     intervalMinutes: DEFAULT_INTERVAL_MINUTES,
   };
 
@@ -68,13 +64,11 @@ export function createInitialTimerState(input: InitialTimerStateInput): TimerSta
     code,
     createdAt,
     config,
-    problem: null,
     session: agg.session,
     clock: agg.clock,
     phase: "setup",
     sessionRecords: [],
     handoffNote: "",
     onBreak: false,
-    aiKeyHolders: [],
   };
 }

@@ -50,7 +50,7 @@ describe("handlers: full snapshot 配信フロー", () => {
   it("コマンドエラー時は snapshot を配信せず error を返す", async () => {
     // Given（存在しないルームコードを対象にする）
     const command = {
-      command: "room.join", code: "INVALID", displayName: "Bob", hasAiKey: false,
+      command: "room.join", code: "INVALID", displayName: "Bob",
     } as const;
 
     // When
@@ -78,13 +78,11 @@ describe("handlers: full snapshot 配信フロー", () => {
       command: "room.join",
       code,
       displayName: "Bob",
-      hasAiKey: false,
     });
     await handlers.handleCommand("conn-002", {
       command: "room.join",
       code,
       displayName: "Charlie",
-      hasAiKey: false,
     });
 
     // Then（ルーム自体は変化しているが、不変条件は保たれている）

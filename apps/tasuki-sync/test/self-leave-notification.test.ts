@@ -22,8 +22,6 @@ import { roomViewOf } from "./support/room-view.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 
 const config: SessionConfig = {
-  language: "TypeScript",
-  difficulty: "easy",
   intervalMinutes: 5,
 };
 
@@ -57,8 +55,8 @@ describe("自己退出した本人への通知", () => {
     });
     if (!created.isOk()) throw new Error("room.create failed");
     code = broadcaster.createdFor(HOST).code;
-    await handlers.handleCommand(BOB, { command: "room.join", code, displayName: "Bob", hasAiKey: false });
-    await handlers.handleCommand(CAROL, { command: "room.join", code, displayName: "Carol", hasAiKey: false });
+    await handlers.handleCommand(BOB, { command: "room.join", code, displayName: "Bob" });
+    await handlers.handleCommand(CAROL, { command: "room.join", code, displayName: "Carol" });
     await handlers.handleCommand(HOST, { command: "phase.set", phase: "session" });
     broadcaster.sent.length = 0;
   });

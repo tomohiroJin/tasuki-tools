@@ -25,7 +25,6 @@ export default defineConfig({
       { find: "@tasuki/timer-core/decide", replacement: path.join(coreRoot, "decide.ts") },
       { find: "@tasuki/timer-core/evolve", replacement: path.join(coreRoot, "evolve.ts") },
       { find: "@tasuki/timer-core/schemas", replacement: path.join(coreRoot, "schemas.ts") },
-      { find: "@tasuki/timer-core/problem", replacement: path.join(coreRoot, "problem.ts") },
       { find: "@tasuki/timer-core/records", replacement: path.join(coreRoot, "records.ts") },
       { find: "@tasuki/timer-core", replacement: path.join(coreRoot, "index.ts") },
     ],

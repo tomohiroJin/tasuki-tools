@@ -22,7 +22,7 @@ const INVITE_URL_FOR_TEST = 'https://tasuki.example/?room=TEST';
 
 function makeParticipant(overrides: Partial<Participant>): Participant {
   return {
-    participantId: "p1", displayName: "Alice", presence: "online", hasAiKey: false, joinedAt: 1000, ...overrides,
+    participantId: "p1", displayName: "Alice", presence: "online", joinedAt: 1000, ...overrides,
   };
 }
 

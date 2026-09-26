@@ -2,7 +2,7 @@
  * spyDestroyer — 後始末の呼び出しを記録するルーム破棄経路（Issue #79）
  *
  * `server.ts` が本番で組み立てるのと同じ `createRoomDestroyer` に、記録だけを行う
- * スケジューラ・委譲・お題の生成・presence・トークン解放を差した破棄経路を返す。
+ * スケジューラ・お題の生成・presence・トークン解放を差した破棄経路を返す。
  * ストア（名簿と、各ツール・お題の状態・#95 S4a・#91）だけは本物を渡すので、
  * 「後始末が全部呼ばれたか」と「ルームが実際に消えたか」を同じ 1 つの経路で観測できる。
  *
@@ -50,7 +50,6 @@ export function spyDestroyer(
     rounds,
     topics,
     scheduler: { clear: (c) => calls.push(`scheduler.clear:${c}`) },
-    delegator: { cancel: (c) => calls.push(`delegator.cancel:${c}`) },
     topicGenerator: { cancel: (c) => calls.push(`topicGenerator.cancel:${c}`) },
     presence: { clearRoomTimers: (c) => calls.push(`presence.clearRoomTimers:${c}`) },
     releaseRoom: (c) => calls.push(`releaseRoom:${c}`),

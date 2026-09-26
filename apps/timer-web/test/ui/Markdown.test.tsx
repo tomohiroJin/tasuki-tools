@@ -84,3 +84,19 @@ describe("Markdown（安全な MD サブセット）", () => {
     expect(container.textContent).toContain("二行目");
   }, 2000);
 });
+/**
+ * @requirements #91 spec §5.5（timer のお題の札は h2「お題」・h3 タイトルの下に本文を置く）
+ */
+describe("見出しの段を下げる", () => {
+  it("Given headingBase が 4 / When # 見出しを描く / Then h4 になる", () => {
+    // Given / When
+    render(<Markdown source={"# 見出し"} headingBase={4} />);
+    // Then
+    expect(screen.getByRole("heading", { level: 4, name: "見出し" })).toBeInTheDocument();
+  });
+
+  it("Given 指定なし / When # 見出しを描く / Then 従来どおり h3 になる", () => {
+    render(<Markdown source={"# 見出し"} />);
+    expect(screen.getByRole("heading", { level: 3, name: "見出し" })).toBeInTheDocument();
+  });
+});

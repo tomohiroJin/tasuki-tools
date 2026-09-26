@@ -3,7 +3,7 @@
  *
  * サーバー生成と定型の確定・クールダウン・中断・タイムアウトを検証する。
  * フェイクの provider は「呼ばれたら、外から解決・失敗させられる Promise を返す」もの
- * （`problem-delegation.ai.test.ts` の組み立てに揃える）。
+ * （#91 PR 3 で撤去した旧い委譲のテストの組み立てに揃えてある）。
  *
  * @requirements #91 E7・E8・E9・E10・E11・E14・E22
  */
@@ -13,7 +13,7 @@ import { TopicGenerator } from "../src/application/topic-generation.js";
 import { InMemoryTopicStore } from "../src/adapters/in-memory-topic-store.js";
 import { AiLimiter } from "../src/application/ai-limits.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
-import { ProviderFailure } from "../src/ports/server-problem-provider.js";
+import { ProviderFailure } from "../src/ports/server-topic-provider.js";
 import type { ServerTopicProvider } from "../src/ports/server-topic-provider.js";
 import type { Logger } from "../src/application/log/logger.js";
 import type { LogField } from "../src/application/log/log-safe.js";
@@ -68,7 +68,7 @@ function makeControllableProvider(): {
 
 /**
  * `publish` の呼び出しをイベント駆動で待つ（ポーリング・sleep をしない）。
- * `problem-delegation.ai.test.ts` の `runAllTimersAsync` に相当するものを
+ * 旧い委譲のテスト（#91 PR 3 で撤去）の `runAllTimersAsync` に相当するものを
  * 「フェイクタイマーを使わない」このテストファイル向けに書き直したもの。
  */
 function makePublishTracker(): {
@@ -294,7 +294,7 @@ describe("TopicGenerator", () => {
   });
 
   it("provider はあっても aiLimiter が無ければ、provider を呼ばずに定型へ落とす", () => {
-    // Given（aiLimiter を渡さない。problem-delegation.ts と同じく provider と aiLimiter は両方揃って初めて AI を使う）
+    // Given（aiLimiter を渡さない。provider と aiLimiter は両方揃って初めて AI を使う）
     const clock = new FakeClock();
     const provider: ServerTopicProvider = { generate: jest.fn() };
     const tracker = makePublishTracker();

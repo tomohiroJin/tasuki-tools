@@ -72,6 +72,7 @@ function makeSync(over: Partial<PokerSync> = {}): PokerSync {
     everConnected: true,
     failedAttempts: 0,
     snapshot: null,
+    topic: null,
     joinedThisConnection: false,
     syncStale: false,
     error: null,

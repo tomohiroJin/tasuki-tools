@@ -73,8 +73,6 @@ export interface JoinRoomInput {
   tool: ToolId | null;
   resumeToken?: string;
   passphrase?: string;
-  /** timer 固有。AI 鍵を持って入ったか（ハブは持たない）。 */
-  hasAiKey?: boolean;
 }
 
 export interface JoinRoomOutcome {
@@ -166,13 +164,9 @@ export function joinRoom(
     joinedAt: now,
   };
 
-  // AI 鍵の有無は**名簿ではなく timer の状態**が持つ（#95 S4a）。
-  // 「その人が誰か」ではなく「その人が timer で何をできるか」だからである。
+  // かつてはここで AI の鍵を持って入った人を timer の状態へ書いていた。
+  // #91 PR 3 で timer のお題ごと消えた（お題はルームの共有資産になった）。
   const timer = timerFor(participantId);
-  const updatedTimer =
-    input.hasAiKey === true && timer !== undefined
-      ? { ...timer, aiKeyHolders: [...timer.aiKeyHolders, participantId] }
-      : timer;
 
   tokenStore.issueResume(resumeToken, { participantId, roomCode: input.code });
 
@@ -181,6 +175,6 @@ export function joinRoom(
     participantId,
     resumeToken,
     membership: addParticipant(room, newParticipant),
-    timer: updatedTimer,
+    timer,
   });
 }

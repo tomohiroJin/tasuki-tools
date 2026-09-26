@@ -158,8 +158,8 @@ export async function handleParticipantRemove(
   // ここで先に外しても輪の席の処理は下でそのまま行える。
   const membershipAfterRemoval = removeParticipant(membership, targetId);
   if (hasNoParticipants(membershipAfterRemoval)) {
-    // 後始末はアイドル回収と同じ共通経路へ委ねる（スケジューラ・委譲・presence タイマー・
-    // トークン・名簿・timer の状態・ラウンド。1 つでも取りこぼすと消えた部屋のタイマーが
+    // 後始末はアイドル回収と同じ共通経路へ委ねる（スケジューラ・お題の生成・presence タイマー・
+    // トークン・名簿・timer の状態・お題・ラウンド。1 つでも取りこぼすと消えた部屋のタイマーが
     // 生き残る。内訳と順序の正本は `application/destroy-room.ts`）。
     destroyRoom(timer.code);
     // 破棄した部屋へは snapshot も signal も配信しない（宛先がもう居ない）。
@@ -175,11 +175,10 @@ export async function handleParticipantRemove(
   // 同名の二重参加や再接続で実態とずれたため撤去した。
   const idx = timer.session.rotation.findIndex((e) => rotationEntryId(e) === targetId);
   // 名簿から外す（代理は名簿に居ないので何も起きない。輪の席だけが下で外れる）。
-  // AI 鍵の持ち主からも落とす —— 名簿から消えた人の鍵を持ち越すと、宛先の無い
-  // 候補が残り続ける（wire には出ないので観測はできないが、参照は残る）。
+  // かつてはここで AI の鍵の持ち主の一覧からも落としていた。#91 PR 3 でその一覧ごと消えた。
   let next: RoomState = {
     membership: membershipAfterRemoval,
-    timer: { ...timer, aiKeyHolders: timer.aiKeyHolders.filter((id) => id !== targetId) },
+    timer,
   };
   if (idx >= 0) {
     // 数えるのは**席（`RotationEntry`）**であって名簿の人数ではない。守っているのは

@@ -21,7 +21,7 @@ export const AI_SKIP_REASONS = {
 /**
  * AI 生成が失敗した理由の分類。自由文（例外メッセージ）は載せない。
  *
- * `ProviderFailureReason`（`ports/server-problem-provider.ts`）と 1 対 1。
+ * `ProviderFailureReason`（`ports/server-topic-provider.ts`）と 1 対 1。
  * `outputTooLarge` / `processError` は 2026-08-13 のレビューで追加。実際の
  * 失敗理由を洗い出したところ「出力サイズ超過」と「claude -p の非 0 終了」が
  * timeout/invalid/spawnFailed のどれとも異なる固有の失敗モードだったため、

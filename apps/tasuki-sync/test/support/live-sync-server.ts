@@ -289,7 +289,7 @@ export class LiveHubClient {
   /**
    * 届いたフレームをパースした値（順序つき）。**型は `HubServerMsg` ではなく
    * `TopicServerMsg`（`HubServerMsg` を合併した広い型）にしてある**（#91）——
-   * この PR でハブの接続もお題の配信先になり（`topic-broadcast.ts` の
+   * ハブの接続もルームの全接続と同じくお題の配信先であり（`topic-broadcast.ts` の
    * `TOPIC_RECIPIENT_TOOLS`）、実際に `type: "topic"` のフレームが届くため。
    * `HubServerMsg` のままだと `m.type === "topic"` の比較が型検査で弾かれ、
    * E2（お題がハブへも届く）のテストが書けない。
@@ -632,13 +632,12 @@ export async function joinRoom(
   client: LiveClient,
   code: string,
   displayName: string,
-  extra: { passphrase?: string; hasAiKey?: boolean } = {},
+  extra: { passphrase?: string } = {},
 ): Promise<MsgOf<"room.joined">> {
   client.send({
     command: "room.join",
     code,
     displayName,
-    hasAiKey: extra.hasAiKey ?? false,
     ...(extra.passphrase !== undefined ? { passphrase: extra.passphrase } : {}),
   });
   const msg = await client.takeMatching(

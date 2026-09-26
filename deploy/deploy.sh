@@ -110,5 +110,7 @@ if [ -z "$STATIC" ]; then
 	echo "  時間をおいてから改めて見るとき（ActiveState と NRestarts）"
 	echo "    ssh $SSH_HOST 'systemctl --no-pager show $SERVICE -p ActiveState -p NRestarts -p MainPID'"
 fi
-echo "  3 アプリすべてを出し終えたら、外から通しで確認する（アプリ単位ではなくサイト全体）"
+# 配るアプリは 4 本（landing / timer / poker / topic）。#91 のように複数を続けて配るときは、
+# 最後の 1 本を出してから流す（途中で流すと、まだ配っていない側の検査が落ちる）。
+echo "  配るアプリをすべて出し終えたら、外から通しで確認する（アプリ単位ではなくサイト全体）"
 echo "    TASUKI_E2E_BASE_URL=https://<公開ドメイン> pnpm e2e:prod"

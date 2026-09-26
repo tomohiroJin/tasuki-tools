@@ -81,3 +81,28 @@ Claude サブスク月次 Agent SDK クレジットにより、運営者負担�
 決定を覆していないという点は正しい。作法としては
 [`docs/adr/0002`](../../adr/0002-document-system-three-layers.md) の「追記（2026-09-09・#258）」が
 定めた**改定節つきの本文訂正**に当たる。**この訂正自体は追記であり、上の記録は書き換えていない。**
+
+## 追記（2026-09-25・#91 PR 3） — AI 生成の置き場がお題の文脈へ移った
+
+[#91](https://github.com/tomohiroJin/tasuki-tools/issues/91) でお題は timer の持ち物ではなくなり、
+ルームの持ち物（お題の文脈 `packages/topic-core`）になった
+（[`docs/adr/0021`](../../adr/0021-topic-as-shared-context.md)）。AI 生成もそこへ移った。
+
+| 旧（timer のお題） | いま（お題の文脈） |
+|---|---|
+| `apps/tasuki-sync/src/adapters/claude-cli-problem-provider.ts` | `apps/tasuki-sync/src/adapters/claude-cli-topic-provider.ts` |
+| `apps/tasuki-sync/src/application/problem-delegation.ts`（委譲・縮退の調停） | `apps/tasuki-sync/src/application/topic-generation.ts`（サーバー生成と定型だけ） |
+| 解錠は timer の `ai.unlock` | 解錠はお題ツールの接続の `ai.unlock`（`application/topic-handlers.ts`） |
+
+旧いファイルは #91 PR 3 で削除した。上の 2026-08-17 の追記と 2026-09-08 の追記が名指しする
+`claude-cli-problem-provider.ts`・`command-handlers/ai-unlock.ts`・`AiUnlockPanel` は、**当時の記録なので書き換えない。**
+
+**決定の本体は変えていない。** 生成はサーバー常駐の `claude -p` が行い、OAuth トークンは env のみに置く。
+解錠は `AI_UNLOCK_KEY` を知る在室者なら誰でもでき、未設定なら AI は無効で存在を秘匿する。
+失敗は定型バンクへ縮退し、同時 1・クールダウン・日次上限（`application/ai-limits.ts`）で濫用を抑える。
+変わった点は次の 2 つである。
+
+- **クールダウン中の作り直しは定型へ落とさず拒否する**（設計正本 [`docs/superpowers/specs/2026-09-23-shared-topic-design.md`](../../superpowers/specs/2026-09-23-shared-topic-design.md) §5.3）。
+  日次上限・同時実行数の超過は従来どおり定型へ落とす
+- **子プロセスのツールを起動引数で閉じた**（`docs/adr/0012` D10。同 ADR の追記 2026-09-25）
+

@@ -846,8 +846,9 @@ export function sc039cSelfOnlyPublicSymbols(packageSrcFiles, productSources, exc
   // 他ファイルが export された名前そのものを直接使っているかだけが判定材料になる。
   // 同一ファイル内でしか使われていない（＝直接 import されていない）なら、
   // その関数経由で内部的に使われていても export は不要である
-  // （実例: problem.ts の FALLBACK_PROBLEMS は pickFallback から内部参照されるが、
-  // 他ファイルは FALLBACK_PROBLEMS を直接 import していないため export 不要＝③対象）。
+  // （実例: かつての timer-core の定型のお題のバンク定数は、同じファイルの選択関数から
+  // 内部参照されるが、他ファイルは直接 import していないため export 不要＝③対象だった。
+  // そのファイルは #91 PR 3 でお題ごと消えた。形は `audit-structure.test.mjs` の造作が持つ）。
   const excepted = new Set(exceptions.map((e) => `${e.file}::${e.name}`));
   let count = 0;
   for (const [file, content] of packageSrcFiles) {
@@ -1089,6 +1090,8 @@ export const SCANNED_PACKAGES = [
   // #95 S5a で新設（同期クライアントの接続部分・D18）。
   { pkg: "packages/sync-client", src: "src", test: "tests", entry: "index.ts" },
   { pkg: "packages/invite-ui", src: "src", test: "tests", entry: "index.ts" },
+  // #91 PR 3: Markdown サブセットの解析(純粋な関数)を timer-web/topic-web から出す。
+  { pkg: "packages/markdown", src: "src", test: "tests", entry: "index.ts" },
   // #95 S5c 追補で新設（dev サーバー専用の Vite プラグインと玄関のポートの正本）。
   { pkg: "packages/dev-hub-redirect", src: "src", test: "tests", entry: "index.ts" },
   // #95 S2 で apps/timer-sync と apps/poker-sync がここへ統合された（1 パッケージ）。
@@ -1163,7 +1166,7 @@ export const SC039C_EXCEPTIONS = [
     file: "packages/timer-core/src/schemas.ts",
     name: "RoomSchema",
     reason:
-      "packages/timer-core/test/ai-unlock.test.ts がスキーマの entries を直接検査している（公開 API 経由では書けない）",
+      "サーバーが組む snapshot.room が wire の契約を満たすことの錨。apps/tasuki-sync/test/timer-snapshot-dto.test.ts が組み立てた room をこのスキーマに直接通し、packages/timer-core/test/schemas.test.ts が旧いサーバーの snapshot（落とした項目を載せた形）が通ることを固定している。公開入口の ServerMsgSchema は snapshot フレームの外枠ごと検査するので、room 単体の契約を切り分けられない（#91 PR 3 で旧い理由の ai-unlock.test.ts は消えた）",
   },
   {
     file: "packages/timer-core/src/error-messages.ts",

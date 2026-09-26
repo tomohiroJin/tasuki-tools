@@ -177,7 +177,6 @@ describe("handlers: releaseRoom", () => {
       command: "room.join",
       code,
       displayName: "Alice",
-      hasAiKey: false,
       resumeToken,
     });
 
@@ -196,7 +195,6 @@ describe("handlers: room.join", () => {
       command: "room.join",
       code: room.code,
       displayName: "Bob",
-      hasAiKey: false,
     });
 
     // Then
@@ -212,7 +210,6 @@ describe("handlers: room.join", () => {
       command: "room.join",
       code: room.code,
       displayName: "Bob",
-      hasAiKey: false,
     });
 
     // Then
@@ -230,7 +227,6 @@ describe("handlers: room.join", () => {
       command: "room.join",
       code: "INVALID",
       displayName: "Bob",
-      hasAiKey: false,
     });
 
     // Then
@@ -247,7 +243,6 @@ describe("handlers: room.join", () => {
       command: "room.join",
       code: room.code,
       displayName: "Bob",
-      hasAiKey: false,
     });
 
     // Then

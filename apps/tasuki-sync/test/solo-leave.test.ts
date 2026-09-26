@@ -33,8 +33,6 @@ import type { SessionConfig } from "@tasuki/timer-core";
 import { spyHub } from "./support/hub.js";
 
 const soloConfig: SessionConfig = {
-  language: "TypeScript",
-  difficulty: "easy",
   intervalMinutes: 5,
 };
 
@@ -78,6 +76,10 @@ describe("ソロの部屋からの退出（Issue #79）", () => {
       maxRooms: TEST_MAX_ROOMS,
       destroyRoom: (roomCode) => destroyRoom(roomCode),
       discardPokerVote: testVoteDiscarder(rounds),
+      // お題の配信はこのテストの対象外（timer の退出だけを見る）。
+      topicBroadcaster: { sendCurrent: () => {} },
+      // 完成記録のタイトルの読み取り（#91）。このテストはお題を掲げない。
+      topics: { get: () => undefined },
     });
     destroyRoom = createRoomDestroyer({
       store,
@@ -159,7 +161,7 @@ describe("ソロの部屋からの退出（Issue #79）", () => {
 
     // When: 退出直前まで開いていた招待リンクから入り直そうとする
     const result = await handlers.handleCommand(BOB, {
-      command: "room.join", code, displayName: "Bob", hasAiKey: false,
+      command: "room.join", code, displayName: "Bob",
     });
 
     // Then
@@ -167,7 +169,7 @@ describe("ソロの部屋からの退出（Issue #79）", () => {
     expect(lastError(BOB)?.code).toBe("ROOM_NOT_FOUND");
   });
 
-  it("破棄は共通の後始末（destroy-room）へ委ね、タイマー・委譲・トークンを取りこぼさない", async () => {
+  it("破棄は共通の後始末（destroy-room）へ委ね、タイマー・お題の生成・トークンを取りこぼさない", async () => {
     // Given: 後始末の呼び出しを記録する破棄経路を注入した handlers
     const spyStore = new InMemoryRoomStore();
     const spyTimers = new InMemoryTimerStore();
@@ -185,6 +187,10 @@ describe("ソロの部屋からの退出（Issue #79）", () => {
       maxRooms: TEST_MAX_ROOMS,
       destroyRoom: destroy,
       discardPokerVote: testVoteDiscarder(new InMemoryRoundStore()),
+      // お題の配信はこのテストの対象外（後始末の呼び出し順序だけを見る）。
+      topicBroadcaster: { sendCurrent: () => {} },
+      // 完成記録のタイトルの読み取り（#91）。このテストはお題を掲げない。
+      topics: { get: () => undefined },
     });
     const created = await spyHandlers.handleCommand(HOST, {
       command: "room.create", displayName: "Alice", config: soloConfig,
@@ -203,7 +209,6 @@ describe("ソロの部屋からの退出（Issue #79）", () => {
     result._unsafeUnwrap();
     expect(calls).toEqual([
       `scheduler.clear:${soloCode}`,
-      `delegator.cancel:${soloCode}`,
       `topicGenerator.cancel:${soloCode}`,
       `presence.clearRoomTimers:${soloCode}`,
       `releaseRoom:${soloCode}`,
@@ -261,6 +266,10 @@ describe("ソロ以外は挙動が変わらない（Issue #79）", () => {
       maxRooms: TEST_MAX_ROOMS,
       destroyRoom: (roomCode) => destroyRoom(roomCode),
       discardPokerVote: testVoteDiscarder(rounds),
+      // お題の配信はこのテストの対象外（timer の退出だけを見る）。
+      topicBroadcaster: { sendCurrent: () => {} },
+      // 完成記録のタイトルの読み取り（#91）。このテストはお題を掲げない。
+      topics: { get: () => undefined },
     });
     destroyRoom = createRoomDestroyer({
       store,
@@ -280,7 +289,7 @@ describe("ソロ以外は挙動が変わらない（Issue #79）", () => {
 
   it("実在の在室者が残るなら、rotation 最後の 1 人の退出は見学者を繰り上げて成立する", async () => {
     // Given: Alice を輪から外し rotation=[Bob]・在室は Alice と Bob の 2 名にする
-    await handlers.handleCommand(BOB, { command: "room.join", code, displayName: "Bob", hasAiKey: false });
+    await handlers.handleCommand(BOB, { command: "room.join", code, displayName: "Bob" });
     await handlers.handleCommand(BOB, { command: "member.add", participantId: pidOf("Bob") });
     await handlers.handleCommand(HOST, { command: "member.remove", index: 0 });
     expect(roomViewOf(store, timers, code).session.rotation).toEqual([pidOf("Bob")]);
@@ -303,7 +312,7 @@ describe("ソロ以外は挙動が変わらない（Issue #79）", () => {
   it("作成者と参加者だけのルームで、作成者が抜けられる", async () => {
     // Given: Alice が作ったルーム（rotation=[Alice]）へ Bob が参加しただけの状態。
     // **Bob は輪に入っていない（見学）** —— これが既定であり、報告された場面である。
-    await handlers.handleCommand(BOB, { command: "room.join", code, displayName: "Bob", hasAiKey: false });
+    await handlers.handleCommand(BOB, { command: "room.join", code, displayName: "Bob" });
     expect(roomViewOf(store, timers, code).session.rotation).toEqual([pidOf("Alice")]);
     broadcaster.sent.length = 0;
 
@@ -351,7 +360,7 @@ describe("ソロ以外は挙動が変わらない（Issue #79）", () => {
 
   it("他人を退出させて自分が残る通常の退出は、ルームを破棄しない", async () => {
     // Given
-    await handlers.handleCommand(BOB, { command: "room.join", code, displayName: "Bob", hasAiKey: false });
+    await handlers.handleCommand(BOB, { command: "room.join", code, displayName: "Bob" });
     const bobId = pidOf("Bob");
     broadcaster.sent.length = 0;
     broadcaster.snapshots.length = 0;
@@ -397,6 +406,10 @@ describe("アイドル回収と在室者0人の退出は同じ後始末を通る
       maxRooms: TEST_MAX_ROOMS,
       destroyRoom: destroy,
       discardPokerVote: testVoteDiscarder(new InMemoryRoundStore()),
+      // お題の配信はこのテストの対象外（後始末の呼び出し順序だけを見る）。
+      topicBroadcaster: { sendCurrent: () => {} },
+      // 完成記録のタイトルの読み取り（#91）。このテストはお題を掲げない。
+      topics: { get: () => undefined },
     });
     const reclaimer = new RoomReclaimer({
       store,
@@ -434,7 +447,7 @@ describe("アイドル回収と在室者0人の退出は同じ後始末を通る
     const forRoom = (roomCode: string): string[] =>
       calls.filter((c) => c.endsWith(`:${roomCode}`)).map((c) => c.split(":")[0]!);
     expect(forRoom(leaveCode)).toEqual([
-      "scheduler.clear", "delegator.cancel", "topicGenerator.cancel", "presence.clearRoomTimers", "releaseRoom",
+      "scheduler.clear", "topicGenerator.cancel", "presence.clearRoomTimers", "releaseRoom",
     ]);
     expect(forRoom(idleCode)).toEqual(forRoom(leaveCode));
     expect(store.list()).toEqual([]);

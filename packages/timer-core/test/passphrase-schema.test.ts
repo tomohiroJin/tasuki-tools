@@ -5,8 +5,8 @@ import { MAX_PASSPHRASE } from "../src/aggregate.js";
 
 describe("passphrase スキーマ", () => {
   it("room.join は任意の passphrase を受け付ける", () => {
-    expect(v.safeParse(CommandSchema, { command: "room.join", code: "AA", displayName: "x", hasAiKey: false }).success).toBe(true);
-    expect(v.safeParse(CommandSchema, { command: "room.join", code: "AA", displayName: "x", hasAiKey: false, passphrase: "pw" }).success).toBe(true);
+    expect(v.safeParse(CommandSchema, { command: "room.join", code: "AA", displayName: "x" }).success).toBe(true);
+    expect(v.safeParse(CommandSchema, { command: "room.join", code: "AA", displayName: "x", passphrase: "pw" }).success).toBe(true);
   });
   it("room.passphrase.set は passphrase 必須（空文字＝解除も可）", () => {
     // Given（入力と期待値の組をそれぞれ1行で示す）
@@ -20,6 +20,6 @@ describe("passphrase スキーマ", () => {
     const tooLong = "a".repeat(MAX_PASSPHRASE + 1);
     // When / Then
     expect(v.safeParse(CommandSchema, { command: "room.passphrase.set", passphrase: tooLong }).success).toBe(false);
-    expect(v.safeParse(CommandSchema, { command: "room.join", code: "AA", displayName: "x", hasAiKey: false, passphrase: tooLong }).success).toBe(false);
+    expect(v.safeParse(CommandSchema, { command: "room.join", code: "AA", displayName: "x", passphrase: tooLong }).success).toBe(false);
   });
 });

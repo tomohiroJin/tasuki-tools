@@ -239,6 +239,7 @@ export const LIVE_DOCS = [
   "docs/constitution.md",
   "docs/poker/adr/",
   "packages/invite-ui/README.md", // ADR-0020 の現行 API 案内。コードパスも検査する。
+  "packages/markdown/README.md", // #91 PR 3: Markdown サブセットの解析の API 案内。
 ];
 
 /**
@@ -414,6 +415,39 @@ export const MISSING_PATH_EXCEPTIONS = [
       "同じ 9 本の 1 つ。#272 で削除した。参加時ドライバー宣言を立てるのは旧入口（Join）だけで、" +
       "#95 S5c（#249）の撤去で宣言を立てる者が消えたため呼び手が 0 になった。" +
       "背景の実測は書き換えず、追記（2026-09-17）が削除を記録している",
+  },
+  {
+    doc: "docs/adr/0011-threat-model-and-data-classification.md",
+    path: "apps/tasuki-sync/src/application/problem-delegation.ts",
+    reason:
+      "#91 PR 3 で削除したお題の委譲の調停。脅威表 S9 がかつて「実行者で選別する唯一の関門」として" +
+      "名指ししていたファイルで、改定（2026-09-25・#91 PR 3）が本文の旧い文面と何を消したかを" +
+      "記録するために同じ名前を再掲している。実在しないことが正しい",
+  },
+  {
+    doc: "docs/adr/0015-web-layer-structure.md",
+    path: "apps/timer-web/src/ui/problem-generation.ts",
+    reason:
+      "2026-08-17 実測時点で存在した純粋ロジック 9 本の 1 つ。#91 PR 3 で timer のお題作成ごと" +
+      "削除した。背景の実測は書き換えず、追記（2026-09-25）が削除を記録している",
+  },
+  {
+    doc: "docs/adr/0016-core-domain-representation.md",
+    path: "packages/timer-core/src/problem.ts",
+    reason:
+      "2026-08-17 実測の未達表（項目 4）と追記（2026-08-18・#166）が名指しした当時のパス。" +
+      "#91 PR 3 で timer のお題ごと削除し、お題は packages/topic-core へ移った。当時の実測は" +
+      "書き換えず、追記（2026-09-25・#91 PR 3）が削除を記録している。" +
+      "行番号つきの参照（:70）も、行番号を落としたパスで判定されるのでこの 1 件が免じる",
+  },
+  {
+    doc: "docs/constitution.md",
+    path: "packages/timer-core/src/problem.ts",
+    reason:
+      "憲法 2.0.0 の Sync Impact Report（HTML コメント）の Follow-up TODOs が、改版当時の既知の逸脱" +
+      "（problem.ts:70 の Date.now()）として挙げた時点つきの記録。逸脱は #166（#72 E3）で解消し" +
+      "（docs/adr/0016 の追記 2026-08-18）、ファイルは #91 PR 3 で timer のお題ごと削除した。" +
+      "現況の規範ではなく改版の記録なので書き換えない。実在しないことが正しい",
   },
   {
     doc: "docs/constitution.md",

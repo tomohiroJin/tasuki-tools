@@ -281,6 +281,8 @@ trustPolicy（信頼証跡の降格を拒否する考え方）を、依存パッ
 補間する利用者由来の値（`language` / `difficulty`）は、境界で許可リストに対する
 列挙検証を行う（**MUST**）。実装は提案 #91 へ送る（ADR 0011 決定2 S3・S6 を参照）。
 
+> **→ 実装は #91 で入った。** どこで満たしたかは本 ADR 末尾の追記（2026-09-25・#91 PR 3）にある。
+
 ### 決定 D12: ログ行への注入を防ぐ（2026-08-13 の計画時に判明）
 
 利用者由来の文字列を、ロガのフィールドへ生のまま渡さない（**MUST NOT**）。整形の側で
@@ -403,4 +405,17 @@ D1 の整形（`event k=v`）から `port=` を読む形へ合わせてある。
 本改定は [`docs/adr/0002`](./0002-document-system-three-layers.md) の
 「追記（2026-09-09・#258）」が定めた**改定節つきの本文訂正**に当たる
 （決定を覆さず、本文が記述している現況が事実でなくなった場合）。
+
+## 追記（2026-09-25・#91 PR 3） — D10 の実装が入った
+
+決定 D10 は「実装は提案 #91 へ送る」としていた。[#91](https://github.com/tomohiroJin/tasuki-tools/issues/91) の
+PR 1（main `3cddcdc`）で実装が入り、PR 3 で timer の旧い生成の経路（旧 provider とクライアントへ委ねる経路）を
+撤去したので、**`claude -p` を起動する経路はお題の文脈の 1 本だけになった。** どこで満たしたかを記録する。
+
+| D10 の MUST | 満たしている場所 |
+|---|---|
+| `claude -p` へ渡す権限を明示的に閉じる | `apps/tasuki-sync/src/adapters/claude-cli-topic-provider.ts` の起動引数 `--setting-sources "" --tools ""`。`--tools ""` だけでは利用者設定（プラグイン）が足すツールが残ることを本番と同じ版の CLI で実測し、`--setting-sources ""` を併せた（実測の記録は設計正本 [`docs/superpowers/specs/2026-09-23-shared-topic-design.md`](../superpowers/specs/2026-09-23-shared-topic-design.md) §10）。外すと赤になる変異は m77・m84 |
+| `language` / `difficulty` を境界で列挙検証する | `@tasuki/topic-core` の境界スキーマ（`packages/topic-core/src/schemas.ts` の `topic.generate`）が `v.picklist` で検証する。許可リストの正本は同パッケージの `LANGUAGES` / `DIFFICULTIES` |
+
+**決定 D10 そのものは変えていない。** 経路の受容の判断は `docs/adr/0011` の改定（2026-09-25・#91 PR 3）に記録した。
 

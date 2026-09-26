@@ -1,0 +1,29 @@
+# 変異 110: hub-create-allows-double
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/live-ws.hub.test.ts
+#     describe「ハブの二重参加を拒む」の
+#     「Given ルーム A に入ったハブ接続 / When room.create / Then INVALID_COMMAND が返り、新しいルームは作られない」
+#
+# #91 PR 3（Task 5 のレビュー）。m108 の片割れ。`hub-handlers.ts` の `room.create` から
+# `isInAnyRoom` による拒否を外す。既にルームに居るハブ接続が新しいルームを作れてしまい、
+# 1 本の接続が 2 つのルームの名簿に載る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m110-*.patch
+# 復元: git apply -R scripts/mutations/m110-*.patch
+diff --git a/apps/tasuki-sync/src/application/hub-handlers.ts b/apps/tasuki-sync/src/application/hub-handlers.ts
+index 4ce02aa..8522fa6 100644
+--- a/apps/tasuki-sync/src/application/hub-handlers.ts
++++ b/apps/tasuki-sync/src/application/hub-handlers.ts
+@@ -118,10 +118,6 @@ export function makeHubHandlers(deps: HubHandlerDeps): HubHandlers {
+     // まだどのルームにも入っていない。したがって正規の画面からは「既に入っている
+     // 接続からの作成」は届かない。届くのは改造したクライアントだけであり、
+     // お題の接続（`topic-handlers.ts`）で PR 1 が下した判断（変異 m86）と揃える。
+-    if (isInAnyRoom(connId)) {
+-      fail(connId, "INVALID_COMMAND", INVALID_COMMAND_MESSAGE);
+-      return;
+-    }
+ 
+     const displayName = normalized(connId, cmd.displayName);
+     if (displayName === null) return;

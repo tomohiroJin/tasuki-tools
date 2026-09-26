@@ -17,36 +17,26 @@
  *
  * **#283 で `generatingProblem` の組そのものが消えた。** 生成中はサーバーが持つ
  * 状態（`Room.problemGeneration`）になり、画面は snapshot をそのまま読むだけに
- * なったので、state も ref も要らない。**ここにあった 1 件は移設ではなく削除である** ——
- * 代わりの検査は `App.problem-generation.test.tsx` にあり、そちらは
- * 「同じお題でも降りる」「押していない端末でも立つ」という**旧実装では作れない
- * 前提**を見ている（ここへ残すと、消えた仕組みの名前だけが生き続ける）。
+ * なったので、state も ref も要らない。**ここにあった 1 件は移設ではなく削除である。**
+ *
+ * **#91 PR 3 で roomRef の組（お題の再依頼リクエスト）も消えた。** timer 内でのお題の
+ * 作成・生成は撤去し、お題ツール（別アプリ）へ移った。`regenerateProblem` も
+ * `App.problem-generation.test.tsx` もこの PR で削除したので、代わりの検査は無い
+ * （生成中の演出ごと無くなったため、検査すべき振る舞いも残っていない）。
  *
  * @requirements Issue #41（#28 D-2）
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { screen, fireEvent, act } from "@testing-library/react";
+import { screen, act } from "@testing-library/react";
 import { FakeWS } from "../support/fakes.js";
 import { enterRoomAndConnect } from "../support/enter-room.js";
-import { aRoomView } from "../support/room-view.js";
-import type { Problem } from "@tasuki/timer-core";
+import { aRecord, aRoomView } from "../support/room-view.js";
 
 vi.mock("../../src/records/indexeddb.js", () => ({
   saveRecord: vi.fn().mockResolvedValue(undefined),
 }));
 
 const CREATOR_ID = "p-alice";
-
-function problemA(): Problem {
-  return {
-    title: "FizzBuzz",
-    description: "3の倍数でFizz",
-    requirements: ["3の倍数はFizz"],
-    exampleTest: "expect(add(1, 2)).toBe(3)",
-    hints: [],
-    source: "fallback",
-  };
-}
 
 function sendServer(ws: FakeWS, msg: Record<string, unknown>): void {
   act(() => {
@@ -72,36 +62,6 @@ function createRoomAndConnect(): FakeWS {
 }
 
 describe("App.tsx の state/ref 二重管理", () => {
-  it("roomRef: 生成中お題の再依頼リクエストが最新の room.code を参照する", () => {
-    // Given: ロビーに到達し、お題Aが確定している
-    const ws = createRoomAndConnect();
-    sendServer(ws, { type: "room.joined", resumeToken: "rt", participantId: CREATOR_ID });
-    sendServer(ws, {
-      type: "snapshot",
-      room: aRoomView({
-        code: "ROOM01",
-        problem: problemA(),
-        participants: [
-          { participantId: CREATOR_ID, displayName: "Creator", presence: "online", hasAiKey: false, joinedAt: 0 },
-        ],
-      }),
-    });
-
-    // When: 「お題」タブへ切り替え、「別のお題にする」を押す
-    // （regenerateProblem は roomRef.current?.code を参照する）
-    fireEvent.click(screen.getByRole("tab", { name: "お題" }));
-    const sendSpy = vi.spyOn(ws, "send");
-    fireEvent.click(screen.getByRole("button", { name: "別のお題にする" }));
-
-    // Then: 送信された requestId に現在の room.code（ROOM01）が含まれる
-    expect(sendSpy).toHaveBeenCalledWith(
-      expect.stringContaining('"command":"problem.request"'),
-    );
-    const [rawSent] = sendSpy.mock.calls[0] as unknown as [string];
-    const sent = JSON.parse(rawSent);
-    expect(sent.requestId).toContain("ROOM01");
-  });
-
   it("participantIdRef + roomRef: notice の実行者が自分のとき「あなた」と表示する", () => {
     // Given: ロビーで自分の participantId が確定している
     const ws = createRoomAndConnect();
@@ -110,9 +70,8 @@ describe("App.tsx の state/ref 二重管理", () => {
       type: "snapshot",
       room: aRoomView({
         code: "ROOM01",
-        problem: problemA(),
         participants: [
-          { participantId: CREATOR_ID, displayName: "Creator", presence: "online", hasAiKey: false, joinedAt: 0 },
+          { participantId: CREATOR_ID, displayName: "Creator", presence: "online", joinedAt: 0 },
         ],
       }),
     });
@@ -130,41 +89,31 @@ describe("App.tsx の state/ref 二重管理", () => {
     expect(screen.getByText("あなたがセッションを最初から始め直しました。")).toBeInTheDocument();
   });
 
-  it("endTypeRef: 中断（abort）後の celebration snapshot では完成記録を保存しない", async () => {
-    // Given: セッション画面まで進める（サーバー権威の phase で直接遷移させる）
+  it("直前の room: 前のセッションの記録が残るルームで別の人が中断すると、保存せず中断と出る", async () => {
+    // Given: 1 本目の記録（サーバーのもの）が残ったルームで、2 本目が走っている。
+    // 終わり方は「直前の描画の room と比べて記録が増えたか」で決まる（#91 PR 3）ので、
+    // ハンドラが最新の room を読んでいなければ（前 = null や古い room）ここは中断と出ない。
+    // **記録が空でないのが要点である** —— 空だと「末尾の記録を保存する」誤りと区別できない。
+    const { saveRecord } = await import("../../src/records/indexeddb.js");
+    vi.mocked(saveRecord).mockClear();
     const ws = createRoomAndConnect();
     sendServer(ws, { type: "room.joined", resumeToken: "rt", participantId: CREATOR_ID });
-    const sessionRoom = () =>
+    const room = (phase: "session" | "celebration") =>
       aRoomView({
         code: "ROOM01",
-        phase: "session",
-        problem: problemA(),
+        phase,
         participants: [
-          { participantId: CREATOR_ID, displayName: "Creator", presence: "online", hasAiKey: false, joinedAt: 0 },
+          { participantId: CREATOR_ID, displayName: "Creator", presence: "online", joinedAt: 0 },
         ],
-        clock: { running: true, runningSince: Date.now() },
+        sessionRecords: [aRecord({ id: "first" })],
       });
-    sendServer(ws, { type: "snapshot", room: sessionRoom() });
+    sendServer(ws, { type: "snapshot", room: room("session") });
 
-    // When: 「途中で終える」→確認 で endType が abort になる
-    fireEvent.click(screen.getByRole("button", { name: /途中で終える/ }));
-    fireEvent.click(screen.getByRole("button", { name: "終える（記録なし）" }));
+    // When: 別の人が中断した。サーバーは記録を足さずに完了へ移す（この端末は何も押さない）
+    sendServer(ws, { type: "snapshot", room: room("celebration") });
 
-    // その後に celebration snapshot が届く（サーバーは常にお題つきの room を返す）
-    sendServer(ws, {
-      type: "snapshot",
-      room: aRoomView({
-        code: "ROOM01",
-        phase: "celebration",
-        problem: problemA(),
-        participants: [
-          { participantId: CREATOR_ID, displayName: "Creator", presence: "online", hasAiKey: false, joinedAt: 0 },
-        ],
-      }),
-    });
-
-    // Then: endTypeRef.current === "abort" のガードで完成記録の保存経路（saveRecord）が呼ばれない
-    const { saveRecord } = await import("../../src/records/indexeddb.js");
+    // Then
     expect(saveRecord).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: "セッション終了（中断）" })).toBeInTheDocument();
   });
 });

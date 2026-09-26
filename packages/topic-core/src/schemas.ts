@@ -59,7 +59,7 @@ export const TopicCommandSchema = v.variant("command", [
   }),
   v.strictObject({
     command: v.literal("ai.unlock"),
-    // 空文字は合言葉として無効(timer-core の AiUnlockCommand と同じ)。
+    // 空文字は合言葉として無効(かつての timer-core の AiUnlockCommand と同じ。あちらは #91 PR 3 で撤去)。
     key: v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_AI_UNLOCK_KEY)),
   }),
 ]);

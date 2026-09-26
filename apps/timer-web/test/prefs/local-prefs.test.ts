@@ -8,40 +8,10 @@
 
 import { describe, it, expect, beforeEach } from "vitest";
 import {
-  loadRandomLanguagePool,
-  saveRandomLanguagePool,
-  DEFAULT_RANDOM_LANGUAGE_POOL,
   loadNotifyPreferences,
   saveNotifyPreferences,
   DEFAULT_NOTIFY_PREFERENCES,
 } from "../../src/prefs/local-prefs.js";
-
-describe("randomLanguagePool", () => {
-  beforeEach(() => localStorage.clear());
-
-  it("未保存なら既定プール（常用5言語）を返す", () => {
-    // Given（beforeEach で保存なしの状態）
-    // When
-    const pool = loadRandomLanguagePool();
-    // Then
-    expect(pool).toEqual(DEFAULT_RANDOM_LANGUAGE_POOL);
-    expect(DEFAULT_RANDOM_LANGUAGE_POOL).toEqual([
-      "TypeScript", "JavaScript", "Python", "Go", "Java",
-    ]);
-  });
-  it("保存した内容を読み戻せる", () => {
-    saveRandomLanguagePool(["Go", "Rust"]);
-    expect(loadRandomLanguagePool()).toEqual(["Go", "Rust"]);
-  });
-  it("空配列も保存・読込できる", () => {
-    saveRandomLanguagePool([]);
-    expect(loadRandomLanguagePool()).toEqual([]);
-  });
-  it("壊れた JSON は既定プールにフォールバック", () => {
-    localStorage.setItem("tdd-mob:random-language-pool:v1", "{not json");
-    expect(loadRandomLanguagePool()).toEqual(DEFAULT_RANDOM_LANGUAGE_POOL);
-  });
-});
 
 /**
  * @requirements Issue #5

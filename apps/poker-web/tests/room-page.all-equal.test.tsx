@@ -46,6 +46,7 @@ function makeSync(snapshot: RoomStateMessage | null): PokerSync {
     forgetIdentity: clearResumeIdentity,
     inviteUrl: (roomId: string) => `https://example.test/?room=${roomId}`,
     snapshot,
+    topic: null,
     joinedThisConnection: true,
     error: null,
     syncStale: false,

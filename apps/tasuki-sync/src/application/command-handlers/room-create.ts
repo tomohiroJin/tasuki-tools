@@ -19,8 +19,7 @@ import type { RoomState } from "../apply-room-level-event.js";
 import { TOOL_TIMER } from "../tool-id.js";
 import { createRoom } from "../create-room.js";
 import { createInitialTimerState } from "../initial-timer-state.js";
-import { fillLobbyProblem } from "../lobby-problem.js";
-import type { ProblemDelegator } from "../problem-delegation.js";
+import type { TopicBroadcaster } from "../topic-broadcast.js";
 
 /** `room.create` が呼び出し元へ返す値。 */
 export interface CreateResult {
@@ -40,13 +39,19 @@ export interface RoomCreateDeps {
   tokenStore: TokenStore;
   /** サーバー全体のルーム数上限（DoS 緩和）。 */
   maxRooms: number;
-  /** ロビーのお題を用意する委譲（#271）。未構成なら依頼を起こさない。 */
-  delegator?: ProblemDelegator | undefined;
   sendError: (connId: string, code: ErrorCode, message: string) => void;
+  /**
+   * いまのお題を作成した本人へ 1 通送る（#91・E4）。
+   *
+   * **必須にしてある**（理由は {@link HandlerDeps.tokens} と同じ）。既定を持たせると、
+   * 注入を忘れた瞬間に timer で作った人にだけお題が出なくなり、しかもハブと
+   * お題ツールでは正しく出るので誰も気づかない。
+   */
+  topicBroadcaster: Pick<TopicBroadcaster, "sendCurrent">;
 }
 
 export function createRoomCreateHandler(deps: RoomCreateDeps) {
-  const { broadcaster, commit, delegator } = deps;
+  const { broadcaster, commit } = deps;
 
   /** ルーム作成 */
   return async function handleRoomCreate(
@@ -84,10 +89,9 @@ export function createRoomCreateHandler(deps: RoomCreateDeps) {
 
     broadcaster.sendTo(connId, { type: "room.created", code, resumeToken, participantId });
     commit({ membership, timer });
-    // **ロビーのお題はサーバーが用意する**（#271）。保管した後に呼ぶ ——
-    // 委譲は保管を引いてお題を確定し、その場で snapshot を配信する。
-    // 時刻は依頼 ID を一意にするために渡す（#273。`fillLobbyProblem` の注記）。
-    fillLobbyProblem(delegator, timer, deps.clock.now());
+    // お題の状態を 1 通送る（#91・E4）。**名簿の保管のあとに呼ぶ**
+    // （ルームの在否を名簿で見るため・ハブと同じ）。
+    deps.topicBroadcaster.sendCurrent(connId, code);
 
     return ok({ code, participantId, resumeToken });
   };

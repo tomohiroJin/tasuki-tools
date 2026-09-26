@@ -26,7 +26,6 @@ function participant(overrides: Partial<Participant> & Pick<Participant, "partic
   return {
     displayName: "だれか",
     presence: "online",
-    hasAiKey: false,
     joinedAt: 1000,
     ...overrides,
   };

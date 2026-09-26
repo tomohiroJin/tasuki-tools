@@ -1,10 +1,7 @@
 /**
  * お題の状態を配る（#91・spec T3）。
  *
- * **配信先は PR ごとに広げる**（spec §9）。いまはお題の接続とハブの接続だけ ——
- * 玄関は契約に合わないフレームを黙って捨てるので、まだ読めなくても害が無い。
- * timer と poker は捨てたことを利用者へ通知する（#209・#212）ので、PR 3 で両者が
- * `topic` フレームを読めるようになってから足す。
+ * 配信先は**ルームの全接続**（お題・ハブ・timer・poker）。
  *
  * 宛先は**呼び出し時点の名簿**から決まる（`create-sync-server.ts` の `recipientsOf` と同じ規則）。
  * 保管より先に配ると 1 つ前の名簿に送ることになるので、**保管のあとに呼ぶ**。
@@ -15,10 +12,21 @@ import type { RoomStore } from "../ports/room-store.js";
 import type { TopicStore } from "../ports/topic-store.js";
 import type { TopicServerMsg } from "../ports/topic-server-msg.js";
 import { TOOL_HUB } from "./hub-handlers.js";
-import { TOOL_TOPIC } from "./tool-id.js";
+import { TOOL_TOPIC, TOOL_TIMER, TOOL_POKER } from "./tool-id.js";
 
-/** お題の状態を受け取る接続のツール（**PR 3 で timer・poker を足す**）。 */
-export const TOPIC_RECIPIENT_TOOLS: readonly (ToolId | null)[] = [TOOL_TOPIC, TOOL_HUB];
+/**
+ * お題の状態を受け取る接続のツール。**ルームの全接続である**（spec T3・E2）。
+ *
+ * PR 1・2 の間はお題とハブだけだった —— 玄関は契約に合わないフレームを黙って捨てるので
+ * 害が無かったが、timer と poker は捨てたことを利用者へ通知する（#209・#212）ため、
+ * 両者が `topic` フレームを先に見分けるようになった PR 3 で足した。
+ */
+export const TOPIC_RECIPIENT_TOOLS: readonly (ToolId | null)[] = [
+  TOOL_TOPIC,
+  TOOL_HUB,
+  TOOL_TIMER,
+  TOOL_POKER,
+];
 
 export interface TopicBroadcasterDeps {
   store: Pick<RoomStore, "get">;

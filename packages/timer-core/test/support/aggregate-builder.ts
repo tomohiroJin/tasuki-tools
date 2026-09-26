@@ -121,8 +121,6 @@ class AggregateBuilder {
     }
 
     const config: TimerConfig = {
-      language: "TypeScript",
-      difficulty: "easy",
       intervalMinutes: this.intervalMinutes,
     };
 

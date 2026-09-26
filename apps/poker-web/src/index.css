@@ -64,6 +64,19 @@
   padding: 0.45rem 0.95rem;
 }
 
+/* ---------- 節の見出し ---------- */
+
+/* 節の見出し（「参加者」「あなたのカード」「結果」）に不透明な地（felt-900）を与える（#91 PR 3）。
+ * `@tasuki/ui` の既定の h2 は地を持たない `--gold` の字で、body の羅紗グラデーションの
+ * 最も明るい停止点（felt-700）の上では約 3.92:1 と AA を割る（`e2e/specs/poker-a11y.spec.ts` の
+ * 初回の走査で実測。felt-900 の上ではトークンの値からの計算で約 6.4:1）。お題の見出しは `.topic` の地に乗るので外す。 */
+.room > section:not(.topic) > h2 {
+  width: fit-content;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--felt-900);
+}
+
 /* ---------- 参加者（席） ---------- */
 
 .participants {
@@ -252,6 +265,115 @@
   border-bottom-color: rgba(220, 80, 80, 0.6);
   color: #f5c2c2;
   font-weight: 700;
+}
+
+/* ---------- いまのお題（#91 PR 3・spec §5.5。poker は読むだけ） ---------- */
+
+/* body の羅紗グラデーション（felt-700〜felt-950）へ直接乗せない。地を持たない h2（`--gold`）は
+ * 最も明るい停止点（felt-700）の上で約 3.92:1 と AA を割る（PR 2 の topic-web の実測）。
+ * `.topic-current` と同じ不透明な地（felt-900）を与える。 */
+.topic {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  background: var(--felt-900);
+}
+
+.topic-title {
+  margin: 0;
+  /* 区切りの無い長いタイトルでも画面の幅を超えない（topic-web の実画面で発見）。 */
+  overflow-wrap: anywhere;
+}
+
+/* 本文（Markdown）だけを象牙の札に載せる（#91 PR 3 Task 4・修正 1 回目）。
+ *
+ * `.md-link`/`.md-code`/`.md-quote` の色（`--coal`/`--coal-soft`）は、写し元の
+ * topic-web の `.topic-card`（象牙地）を前提に決めてある。`.topic` の暗い地
+ * （`--felt-900`）へ本文をそのまま乗せると、`.md-link` は約 1.03:1、
+ * `.md-code`/`.md-quote` の枠線は約 2.07:1 まで落ち、読めない（レビュー指摘）。
+ * 色を個別に直さず、**topic-web の `.topic-card` と同じ地・字の色・内側の余白・
+ * 角丸・`min-width: 0` をそのまま写す**（topic-web `apps/topic-web/src/index.css`
+ * の `.topic-card`）。タイトルと「説明を見る」は暗い地のまま —— 既定の文字色
+ * （`--ivory`）のままで読める（felt-900 上で約 13.24:1）。 */
+.topic-body {
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--ivory);
+  color: var(--coal);
+  /* 区切りの無い長い文字列（URL 等）でも `.topic-details`（グリッドの子）ごと
+     横にはみ出さない（topic-web の `.topic-card` と同じ理由・実画面で発見）。 */
+  min-width: 0;
+}
+
+/* ---------- 説明の Markdown サブセット（`src/components/Markdown.tsx`。topic-web からの写し）
+   ---------- */
+
+.md > * + * {
+  margin-top: var(--space-2);
+}
+
+.md-h {
+  margin: 0;
+  font-weight: 700;
+}
+/* 要素は h4/h5/h6（札のタイトルの h3 の下へ 1 段下げる）だが、大きさの見た目は変えない。 */
+h4.md-h {
+  font-size: var(--font-size-base);
+}
+h5.md-h {
+  font-size: var(--font-size-sm);
+}
+h6.md-h {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.md-p {
+  margin: 0;
+}
+
+.md-ul,
+.md-ol {
+  margin: 0;
+  padding-left: var(--space-5);
+}
+
+.md-quote {
+  margin: 0;
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--coal-soft);
+}
+
+/* インラインコード。地は変えず、`--coal-soft` の枠（α を書かない）と等幅体で区別する。
+   長い連続文字列（URL 等）も画面幅を超えない。 */
+.md-code {
+  padding: 0 0.2em;
+  border: 1px solid var(--coal-soft);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  overflow-wrap: anywhere;
+}
+
+/* コードブロックは折り返さず横スクロールで逃がす（整形済みの中身を保つ）。 */
+.md-pre {
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--coal-soft);
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* `--gold-deep` は本文サイズの AA（4.5:1）を割るため、下線付きの `--coal` で区別する。 */
+.md-link {
+  color: var(--coal);
+  text-decoration: underline;
+  overflow-wrap: anywhere;
 }
 
 /* ---------- モバイル ---------- */

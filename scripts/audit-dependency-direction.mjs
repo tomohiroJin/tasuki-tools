@@ -105,6 +105,8 @@ export const ALLOWED = {
   "packages/rate-limit": [],
   "packages/ui": [],
   "packages/invite-ui": [], // ADR-0020: ブラウザ操作のみ。ドメイン・同期への依存なし。
+  // #91 PR 3: Markdown サブセットの解析（純粋な関数・描画は各アプリ）。依存 0。
+  "packages/markdown": [],
   // dev サーバー専用の Vite プラグインと玄関のポートの正本（#95 S5c 追補・#249）。
   // **@tasuki/* に依存しない** —— ツールの語彙を持たず、4 つの vite.config.ts から
   // 同じものを参照できることが存在理由である。ルート直下に置いていた頃は、どの
@@ -123,23 +125,32 @@ export const ALLOWED = {
     "@tasuki/topic-core",
     "@tasuki/ui",
   ],
+  // #91 PR 3: `topic` フレームを topic-core のスキーマで検め、お題を読むだけで出す（spec §5.5）。
+  // timer-core は topic-core を知らない（T1）。
   "apps/timer-web": [
     "@tasuki/invite-ui",
     "@tasuki/dev-hub-redirect",
+    "@tasuki/markdown",
     "@tasuki/room-core",
     "@tasuki/sync-client",
     "@tasuki/timer-core",
+    "@tasuki/topic-core",
     "@tasuki/ui",
   ],
   // #95 S5b: 表示名の上限（`MAX_DISPLAY_NAME`）を room-core から取る。web アプリが
   // room-core に依存することは `docs/adr/0017` 決定 2 の対象外であり、timer-web も同じ
   // （規約の写しを画面に持たせないための依存である）。
+  // #91 PR 3: `topic` フレームを topic-core のスキーマで検め、お題を読むだけで出す。
+  // poker-core は topic-core を知らない（T1）。
   "apps/poker-web": [
     "@tasuki/invite-ui",
     "@tasuki/dev-hub-redirect",
+    "@tasuki/markdown",
     "@tasuki/poker-core",
+    "@tasuki/protocol",
     "@tasuki/room-core",
     "@tasuki/sync-client",
+    "@tasuki/topic-core",
     "@tasuki/ui",
   ],
   // #91 PR 2: お題ツール。お題を変えられる唯一の画面（spec T4）。
@@ -148,6 +159,7 @@ export const ALLOWED = {
   "apps/topic-web": [
     "@tasuki/dev-hub-redirect",
     "@tasuki/invite-ui",
+    "@tasuki/markdown",
     "@tasuki/protocol",
     "@tasuki/room-core",
     "@tasuki/sync-client",

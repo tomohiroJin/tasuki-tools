@@ -84,16 +84,13 @@ describe("decide: config.set の v3.0 トグル（§16）", () => {
     });
   });
 
-  it("problemEnabled を検証済み config に載せる（お題なし開始・ルーム単位）", () => {
-    // Given
-    const command = { command: "config.set", config: { problemEnabled: false } } as const;
+  it("お題の設定（言語・難易度）を載せても、ConfigSet には現れない", () => {
+    // Given（#91 PR 3 で TimerConfig から消えた項目。型を外して、境界をすり抜けた場合を作る）
+    const config = { intervalMinutes: 5, language: "Go", difficulty: "hard" };
     // When
-    const result = decide(command, baseAgg, NOW);
-    // Then
-    expect(result._unsafeUnwrap()[0]).toMatchObject({
-      type: "ConfigSet",
-      config: { problemEnabled: false },
-    });
+    const result = decide({ command: "config.set", config: config as never }, baseAgg, NOW);
+    // Then（decideConfigSet は許可リストなので、表に無い項目は載らない）
+    expect(result._unsafeUnwrap()[0]).toEqual({ type: "ConfigSet", config: { intervalMinutes: 5 }, now: NOW });
   });
 
   it("指定しないトグルは config に含めない（未指定は現状維持）", () => {

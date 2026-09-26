@@ -739,7 +739,7 @@ find node_modules -type f | wc -l       # 桁違いに減っていれば実体�
 ## E2E
 
 本番と同一の Caddy 断片・実ビルド成果物・実 sync サーバーをローカルに立ち上げ、
-`/`・`/timer/`・`/poker/` の 3 系統が外から見て正しく振る舞うことを確認します。
+`/`・`/timer/`・`/poker/`・`/topic/` の 4 系統が外から見て正しく振る舞うことを確認します。
 
 ```bash
 pnpm build            # web アプリのビルドが必要（^build として依存）

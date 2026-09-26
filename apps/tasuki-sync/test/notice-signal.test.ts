@@ -42,8 +42,6 @@ class NoticeSpyBroadcaster extends SharedSpyBroadcaster {
 }
 
 const config: SessionConfig = {
-  language: "TypeScript",
-  difficulty: "easy",
   intervalMinutes: 5,
 };
 
@@ -92,8 +90,8 @@ describe("signal: notice（実行者の通知）", () => {
     if (!created.isOk()) throw new Error("room.create failed");
     code = broadcaster.createdFor(HOST).code;
     broadcaster.bindStore(() => maybeRoomViewOf(store, timers, code)?.participants.map((p) => p.participantId) ?? []);
-    await handlers.handleCommand(BOB, { command: "room.join", code, displayName: "Bob", hasAiKey: false });
-    await handlers.handleCommand(CAROL, { command: "room.join", code, displayName: "Carol", hasAiKey: false });
+    await handlers.handleCommand(BOB, { command: "room.join", code, displayName: "Bob" });
+    await handlers.handleCommand(CAROL, { command: "room.join", code, displayName: "Carol" });
     // 開始後は誰でも破壊的操作を実行できる。Bob（host でない editor）を実行者にする。
     await handlers.handleCommand(HOST, { command: "phase.set", phase: "session" });
     broadcaster.sent.length = 0;
@@ -288,8 +286,8 @@ describe("退出させられた本人への通知", () => {
     });
     if (!created.isOk()) throw new Error("room.create failed");
     code = broadcaster.createdFor(HOST).code;
-    await handlers.handleCommand(BOB, { command: "room.join", code, displayName: "Bob", hasAiKey: false });
-    await handlers.handleCommand(CAROL, { command: "room.join", code, displayName: "Carol", hasAiKey: false });
+    await handlers.handleCommand(BOB, { command: "room.join", code, displayName: "Bob" });
+    await handlers.handleCommand(CAROL, { command: "room.join", code, displayName: "Carol" });
     await handlers.handleCommand(HOST, { command: "phase.set", phase: "session" });
     broadcaster.sent.length = 0;
   });

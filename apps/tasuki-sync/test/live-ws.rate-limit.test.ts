@@ -27,6 +27,7 @@ import {
   startLiveSyncServer,
   type LiveClient,
   type LivePokerClient,
+  type LiveTopicClient,
   type LiveSyncServer,
 } from "./support/live-sync-server.js";
 
@@ -38,7 +39,7 @@ afterEach(async () => {
 
 /** 存在しないコードで入室を試みる。 */
 function badJoin(client: LiveClient): void {
-  client.send({ command: "room.join", code: "NOPE99", displayName: "Bob", hasAiKey: false });
+  client.send({ command: "room.join", code: "NOPE99", displayName: "Bob" });
 }
 
 /** `count` 回失敗させ、その回数ぶんのエラーが届くまで待つ。 */
@@ -70,15 +71,29 @@ async function drainPokerBadJoins(poker: LivePokerClient, count: number): Promis
   return codes;
 }
 
-/** timer の `ai.unlock` を誤った合言葉で `count` 回叩き、その応答コードを集める。 */
-async function drainBadUnlocks(client: LiveClient, count: number): Promise<string[]> {
-  const before = client.all("error").length;
+/**
+ * お題の接続でルームへ入り、`ai.unlock` を誤った合言葉で `count` 回叩いて応答コードを集める。
+ *
+ * #91 PR 3 まではここで timer の `ai.unlock` を叩いていた。timer の経路は撤去したので、
+ * 合言葉の照合を行う入口として残るお題の接続を使う（AI が無効な構成でも照合の失敗は積算される）。
+ */
+async function drainTopicBadUnlocks(
+  client: LiveTopicClient,
+  roomCode: string,
+  count: number,
+): Promise<string[]> {
+  client.send({ command: "room.join", code: roomCode, displayName: "ボブ" });
+  const joined = await client.take((m) => m.type === "room.joined" || m.type === "error", "参加の応答");
+  if (joined.type !== "room.joined") throw new Error("前提が崩れた: お題の接続で参加できない");
+  const errorCodes = (): string[] =>
+    client.received.flatMap((m) => (m.type === "error" ? [m.code] : []));
+  const before = errorCodes().length;
   for (let i = 0; i < count; i++) client.send({ command: "ai.unlock", key: "wrong" });
   await client.until(
     (received) => received.filter((m) => m.type === "error").length >= before + count,
     `${count} 件のエラー応答`,
   );
-  return lastErrorCodes(client, count);
+  return errorCodes().slice(-count);
 }
 
 describe("実 WS 越しの入室レート制限", () => {
@@ -143,7 +158,7 @@ describe("実 WS 越しの入室レート制限", () => {
   });
 
   /**
-   * **1 IP 1 バケツ**（#95 S4a）。timer の `room.join` / `ai.unlock` と poker の
+   * **1 IP 1 バケツ**（#95 S4a）。timer の `room.join`・お題の `ai.unlock`・poker の
    * `join-room` が、**同じ 1 本のバケツ**を消費することを実 WS で固定する。
    *
    * ## なぜここでしか見られないか
@@ -157,28 +172,28 @@ describe("実 WS 越しの入室レート制限", () => {
    * ⚠ **入口をまたぐ共有（timer ↔ poker）は構造では保証されない。** バケツの生成が
    * `makeHandlers` の内側から配線へ出たためで、**その保証を引き受けているのがこのテストである。**
    *
-   * **`room.join` と `ai.unlock` の共有はこれとは別で、いまも構造の帰結である** ——
-   * `makeHandlers` がバケツを 1 度だけゲートに包み、その 1 個を両ハンドラへ渡している。
-   * こちらを裏から確かめるのは `join-rate-limit.test.ts` の
-   * 「room.join と ai.unlock のバケツの共有」で、あれは in-process なので poker の入口は見ない。
+   * **ゲート**（`connId → クライアント鍵`）の共有は、`makeHandlers` が 1 度だけ包んだ
+   * `rateLimitGate` を配線がお題の入口へ渡すことで成り立つ。お題の `ai.unlock` と
+   * timer の `room.join` の共有は `live-ws.topic.test.ts` も両方向で見ている。
    *
    * 3 経路へ `DEFAULT_CAPACITY` を**分けて**消費させる。バケツが別々なら、どの経路も
    * 自分の容量の 1/3 しか使っておらず、最後の追い打ちは拒否されない。
    */
-  it("timer の room.join・ai.unlock と poker の join-room が同じバケツを消費する（1 IP 1 バケツ）", async () => {
-    // Given（同じ X-Forwarded-For を名乗る timer と poker の接続）
+  it("timer の room.join・お題の ai.unlock・poker の join-room が同じバケツを消費する（1 IP 1 バケツ）", async () => {
+    // Given（同じ X-Forwarded-For を名乗る timer・お題・poker の接続）
     server = startLiveSyncServer();
     const xff = "203.0.113.7";
     const timer = await server.connect("timer", { "x-forwarded-for": xff });
+    const topic = await server.connectTopic("topic", { "x-forwarded-for": xff });
     const poker = await server.connectPoker("poker", { "x-forwarded-for": xff });
-    // ai.unlock は在室者のコマンドなので、まずルームを 1 つ作って入っておく
-    // （room.create はバケツを消費しない）。
-    await createRoom(timer, "アリス");
+    // ai.unlock は在室者のコマンドなので、まずルームを 1 つ作っておく
+    // （room.create と成功した参加はバケツを消費しない）。
+    const created = await createRoom(timer, "アリス");
 
     // When（容量を 3 経路へ 3 等分して使い切る）
     const share = DEFAULT_CAPACITY / 3;
     expect(Number.isInteger(share)).toBe(true); // 分け方が崩れたら前提から気づけるようにする
-    expect(await drainBadUnlocks(timer, share)).not.toContain("RATE_LIMITED");
+    expect(await drainTopicBadUnlocks(topic, created.code, share)).not.toContain("RATE_LIMITED");
     expect(await drainPokerBadJoins(poker, share)).not.toContain("rate-limited");
     await drainBadJoins(timer, share);
     expect(lastErrorCodes(timer, share)).not.toContain("JOIN_RATE_LIMITED");
@@ -219,7 +234,6 @@ describe("実 WS 越しの入室レート制限", () => {
       command: "room.join",
       code: created.code,
       displayName: "侵入者",
-      hasAiKey: false,
     });
     await attacker.until(
       (received) => received.filter((m) => m.type === "error").length >= DEFAULT_CAPACITY + 2,

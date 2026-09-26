@@ -5,7 +5,8 @@
 // 出力: /tmp/tasuki-quality-results.json（採点は quality-judge.mjs で実施）
 import { spawn } from "node:child_process";
 import { writeFileSync } from "node:fs";
-import { buildProblemPrompt, validateProblem } from "@tasuki/timer-core";
+// #91 PR 3 でお題の生成は topic-core（title / body の 2 項目）へ移った。
+import { buildTopicPrompt, validateTopicDraft } from "@tasuki/topic-core";
 
 const TOKEN = process.env.CLAUDE_CODE_OAUTH_TOKEN;
 if (!TOKEN) {
@@ -26,7 +27,7 @@ const CONCURRENCY = 1; // claude -p の並列起動は認証/設定競合で落�
 
 // アダプタと同じ起動方法で claude -p を呼ぶ。
 function generate(model, language, difficulty) {
-  const prompt = buildProblemPrompt(language, difficulty);
+  const prompt = buildTopicPrompt(language, difficulty);
   return new Promise((resolve) => {
     const started = Date.now();
     const args = [
@@ -54,13 +55,13 @@ function generate(model, language, difficulty) {
         const resultStr = outer.result;
         const s = resultStr.indexOf("{"), e = resultStr.lastIndexOf("}");
         const raw = JSON.parse(resultStr.slice(s, e + 1));
-        const validated = validateProblem(raw); // neverthrow Result
+        const validated = validateTopicDraft(raw); // neverthrow Result（失敗は valibot の issues）
         const isValid = validated.isOk();
         resolve({
           ok: true, ms,
           valid: isValid,
           validationError: isValid ? null : JSON.stringify(validated.error).slice(0, 400),
-          problem: raw,
+          topic: raw,
           usage: { cost_usd: outer.total_cost_usd, num_turns: outer.num_turns },
         });
       } catch (err) {
@@ -111,7 +112,7 @@ for (const model of MODELS) {
   const ok = rs.filter((r) => r.result.ok);
   const valid = ok.filter((r) => r.result.valid);
   const avgMs = ok.length ? Math.round(ok.reduce((a, r) => a + r.result.ms, 0) / ok.length) : 0;
-  const titles = valid.map((r) => r.result.problem.title);
+  const titles = valid.map((r) => r.result.topic.title);
   const uniq = new Set(titles.map((t) => String(t).toLowerCase().trim())).size;
   console.error(
     `\n[${model}] 生成成功 ${ok.length}/${rs.length}・スキーマ妥当 ${valid.length}/${ok.length}・` +

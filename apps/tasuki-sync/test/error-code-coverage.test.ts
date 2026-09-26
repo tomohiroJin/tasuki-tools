@@ -55,8 +55,9 @@ const SRC_DIR = join(import.meta.dirname, "../src");
  */
 const INTENTIONALLY_NOT_SHOWN = new Set([
   "NOT_IN_ROOM",
-  "DELEGATION_UNAVAILABLE",
-  // ↓ 以下 9 件。**いずれも現状は既定文言が表示されている。**ここに列挙するのは
+  // ⚠ かつてはお題の委譲の 2 件もここにあった。#91 PR 3 で発行元ごと消えたため、
+  // 列挙（`SYNC_ERROR_CODES`）と一緒に落とした。
+  // ↓ 以下の各件。**いずれも現状は既定文言が表示されている。**ここに列挙するのは
   //   「今そうなっている」という現状の固定であって、「そのままでよい」という是認ではない。
   //   利用者向けに具体的な文言を与えるのは**挙動の変更**であり、
   //   本仕様（Issue #28・挙動不変）ではなく Issue #29 が扱う。
@@ -68,7 +69,6 @@ const INTENTIONALLY_NOT_SHOWN = new Set([
   "MESSAGE_TOO_LARGE",
   "ROOM_LIMIT_EXCEEDED",
   "ROOM_NOT_FOUND",
-  "STALE_SUBMISSION",
   "UNKNOWN_COMMAND",
 ]);
 
