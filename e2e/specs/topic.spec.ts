@@ -11,7 +11,7 @@
  * 利用者の内容で拡張の層を引くのは正しい振る舞いだが、書体の検査が UI の劣化と区別できなくなる。
  */
 import { expect, test } from '../fixtures/test';
-import { expectFocusVisibleOnTab, expectReadable, pairKey, resolveColors, scanContrast } from '../support/a11y';
+import { expectFocusVisibleOnTab, expectPickerInPage, expectReadable, pairKey, resolveColors, scanContrast } from '../support/a11y';
 import { joinRoom as joinPoker } from '../support/poker';
 import { joinViaHubAt as joinTimer } from '../support/timer';
 import { currentTopic, openTopicTool, setTopic } from '../support/topic';
@@ -195,6 +195,17 @@ test.describe('お題ツールの文字と書体', () => {
   test('Given お題ツール / When Tab で送る / Then 当たった操作要素に輪郭が出る', async ({ page, consoleWatcher }) => {
     await openTopicTool(page, 'focus-topic');
     await expectFocusVisibleOnTab(page);
+    // 画面は例外を出していない
+    expect(consoleWatcher.errors).toEqual([]);
+  });
+
+  test('Given お題ツール / When 言語と難易度のプルダウンを開く / Then 一覧がページの中に卓の地で開く', async ({ page, consoleWatcher }) => {
+    // Given
+    await openTopicTool(page, 'picker-topic');
+    // When / Then（#317：別の窓で開くと、開いた一瞬が白く光る）
+    for (const label of ['言語', '難易度']) {
+      await expectPickerInPage(page.getByLabel(label, { exact: true }), '--felt-950');
+    }
     // 画面は例外を出していない
     expect(consoleWatcher.errors).toEqual([]);
   });

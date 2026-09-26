@@ -17,7 +17,7 @@
 import type { Page } from '@playwright/test';
 import { expect, test, type Peer } from '../fixtures/test';
 import { createRoom, joinAsDriver, lobbyRotationRow } from '../support/timer';
-import { expectFocusVisibleOnTab, expectReadable, pairKey, resolveColors, scanContrast } from '../support/a11y';
+import { expectFocusVisibleOnTab, expectPickerInPage, expectReadable, pairKey, resolveColors, scanContrast } from '../support/a11y';
 import { joinTopicTool, setTopic } from '../support/topic';
 
 const HOST = 'a11y-a';
@@ -99,6 +99,15 @@ test.describe('キーボードのフォーカスが必ず見える', () => {
     // 置かない）では実際に落ちることを変異で確認してある。
     // 「うちのリングであること」まで縛りたくなったら、色まで比べる形へ広げる。
     await expectFocusVisibleOnTab(page);
+  });
+});
+
+test.describe('プルダウンが白く光らない', () => {
+  test('Given ロビー / When 通知音のプルダウンを開く / Then 一覧がページの中に卓の地で開く', async ({ page }) => {
+    // Given
+    await createRoom(page, HOST);
+    // When / Then（#317：別の窓で開くと、開いた一瞬が白く光る）
+    await expectPickerInPage(page.getByLabel('通知音', { exact: true }), '--panel-2');
   });
 });
 

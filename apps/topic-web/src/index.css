@@ -220,6 +220,36 @@ h6.md-h {
   resize: vertical;
 }
 
+/* 素の <select> の一覧を、Chrome はページと別の窓で描き、開いた最初の一瞬を白で塗る（#317）。
+   `base-select` にすると一覧はページの中に描かれ、白い一瞬が出ない。
+   解さないブラウザは素の <select> のまま（上の規則だけが効く）。 */
+.topic-panel select,
+.topic-panel select::picker(select) {
+  appearance: base-select;
+}
+
+.topic-panel select::picker(select) {
+  margin-top: var(--space-1);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--felt-950);
+  color: var(--ivory);
+  box-shadow: var(--shadow-popover);
+  /* 一覧が長いと出るスクロールバーを、既定の灰色から卓の色へ寄せる（つまみ・溝の順）。 */
+  scrollbar-width: thin;
+  scrollbar-color: var(--gold-edge) var(--felt-900);
+}
+
+.topic-panel option {
+  padding: var(--space-2) var(--space-4);
+}
+
+.topic-panel option:hover,
+.topic-panel option:focus-visible {
+  background: var(--felt-700);
+  outline: none;
+}
+
 .topic-panel input:focus-visible,
 .topic-panel textarea:focus-visible,
 .topic-panel select:focus-visible {

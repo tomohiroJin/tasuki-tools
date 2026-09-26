@@ -4,7 +4,7 @@
  * 元は `timer-a11y.spec.ts` に直書きしていたものを、お題ツールの E2E からも
  * 使えるように移した（振る舞いは変えていない）。
  */
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 import { describePaint, groundLayers, measureSample, sampleInPage } from './contrast';
 
 /** 走査の結果。`pairs` は測った字の「文字色 on 地」の集合で、特定の組を測ったかの固定に使う。 */
@@ -173,4 +173,33 @@ export async function expectFocusVisibleOnTab(page: Page, presses = 6): Promise<
   // **実際に操作要素を通ったことを固定する。** 何にも当たらないまま
   // ループが空回りすると、上の判定は 1 度も走らずに緑になる
   expect(seen.length, `Tab で操作要素に当たらなかった（${seen.join(', ')}）`).toBeGreaterThan(1);
+}
+
+/**
+ * プルダウンを開き、**一覧がページの中に、画面の地の色で描かれる**ことを確かめる（#317）。
+ *
+ * 素の `<select>` の一覧を Chrome は別の窓で描き、開いた最初の一瞬を白で塗る。
+ * `appearance: base-select` を外すと、一覧の地は白（`rgb(255, 255, 255)`）・選択肢の高さは 0
+ * （ページに並ばない）と測れる（実測）。白い一瞬そのものは撮れないので、原因の側を見る。
+ */
+export async function expectPickerInPage(select: Locator, groundToken: string): Promise<void> {
+  const [ground] = await resolveColors(select.page(), [groundToken]);
+  await select.click();
+  const picker = await select.evaluate((el) => {
+    const s = el as HTMLSelectElement;
+    const style = getComputedStyle(s, '::picker(select)');
+    return {
+      open: s.matches(':open'),
+      appearance: style.appearance,
+      background: style.backgroundColor,
+      optionHeights: Array.from(s.options).map((o) => o.getBoundingClientRect().height),
+    };
+  });
+  // 開いていないと、下の値は閉じた一覧のものになって判定が空振りする
+  expect(picker.open, 'プルダウンが開いていない').toBe(true);
+  expect(picker.appearance, '一覧がページの外（別の窓）で描かれる').toBe('base-select');
+  expect(picker.background, '一覧の地が画面の地と違う').toBe(ground);
+  expect(picker.optionHeights.length, '選択肢が無い（判定が空振りする）').toBeGreaterThan(0);
+  expect(picker.optionHeights.every((h) => h > 0), `選択肢がページに並んでいない（${picker.optionHeights.join(', ')}）`).toBe(true);
+  await select.page().keyboard.press('Escape');
 }
