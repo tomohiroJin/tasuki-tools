@@ -21,8 +21,8 @@ Return ONLY a valid JSON object with this exact structure (no code fence around 
 }
 
 Rules for "body":
-- Write in NATURAL, CLEAR JAPANESE.
-- Include: what to build (1-2 sentences), 4-6 testable behaviors as a "- " list, and one example of the first test to write in ${language} syntax with ENGLISH identifiers.
+- Write in natural, clear Japanese.
+- Include: what to build (1-2 sentences), 4-6 testable behaviors as a "- " list, and one example of the first test to write in ${language} syntax with English identifiers.
 - Put the example of the first test inside a Markdown code fence: a line of \`\`\` before the code and a line of \`\`\` after it.
 - Keep the whole body under 3000 characters.
 - Difficulty: ${difficulty} (easy=beginner/30min, medium=intermediate/60min, hard=advanced/90min+)
