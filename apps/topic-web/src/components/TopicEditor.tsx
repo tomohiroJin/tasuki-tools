@@ -35,9 +35,9 @@ export function TopicEditor({ current, enabled, onSubmit }: Props) {
         }}
       >
         <label htmlFor={titleId}>{TITLE_LABEL}</label>
-        <input id={titleId} value={title} maxLength={MAX_TOPIC_TITLE} onChange={(e) => setTitle(e.target.value)} />
+        <input id={titleId} className="ui-input" value={title} maxLength={MAX_TOPIC_TITLE} onChange={(e) => setTitle(e.target.value)} />
         <label htmlFor={bodyId}>{BODY_LABEL}</label>
-        <textarea id={bodyId} value={body} rows={6} maxLength={MAX_TOPIC_BODY} onChange={(e) => setBody(e.target.value)} />
+        <textarea id={bodyId} className="ui-input" value={body} rows={6} maxLength={MAX_TOPIC_BODY} onChange={(e) => setBody(e.target.value)} />
         <div className="topic-actions">
           <button type="submit" disabled={!canSubmit}>
             {SET_BUTTON}

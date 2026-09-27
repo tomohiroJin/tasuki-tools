@@ -20,7 +20,7 @@
   background: var(--ui-field-bg, var(--felt-950));
   color: var(--ivory);
   /* 一括指定の `font` プロパティ（`inherit` をまとめて書く形）は使わない。親の `label`（要素層）の
-     小さい字まで継承し、後ろの `font-size` と順序で競う（玄関の `.hub-input` の注釈）。字の大きさ以外だけを継承する。 */
+     小さい字まで継承し、下の `font-size: 1rem` と一括指定内で順序を競ってしまう。字の大きさ以外だけを継承する。 */
   font-family: inherit;
   font-weight: inherit;
   line-height: inherit;

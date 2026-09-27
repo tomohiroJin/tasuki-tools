@@ -93,7 +93,7 @@ export function RoomChoice({ code, inviteUrl, roster, connection, topicTitle }: 
           </section>
           <section className="hub-panel" aria-labelledby="hub-invite-heading">
             <h2 className="hub-heading" id="hub-invite-heading">仲間を招く</h2>
-            <input className="hub-invite" readOnly value={inviteUrl} aria-label="参加用 URL" />
+            <input className="ui-input hub-invite" readOnly value={inviteUrl} aria-label="参加用 URL" />
             <div className="hub-invite-actions">
               <button type="button" onClick={copy.copy}>参加用 URL をコピー</button>
               <button type="button" aria-expanded={showQr} aria-controls={qrId} onClick={() => setShowQr(!showQr)}>

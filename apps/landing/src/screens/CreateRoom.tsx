@@ -70,7 +70,7 @@ export function CreateRoom({
         <label className="hub-field">
           <span className="hub-label">ルーム名</span>
           <input
-            className="hub-input"
+            className="ui-input"
             value={roomName}
             onChange={(e) => setRoomName(e.target.value)}
             placeholder="朝会モブ"
@@ -86,7 +86,7 @@ export function CreateRoom({
               （`apps/tasuki-sync/src/application/display-name-rule.ts`）、
               利用者は長すぎることを知る手段が無い。 */}
           <input
-            className="hub-input"
+            className="ui-input"
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
             placeholder="あや"
