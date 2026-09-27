@@ -28,6 +28,8 @@ describe("touchesFieldElement: 入力欄の型か ::picker( を含むセレク�
     ["select::picker(select)", "型と擬似要素"],
     [".x::picker(select)", "擬似要素だけ"],
     [".ui-select option", "部品の内側を画面が飾る"],
+    [":not(select)", ":not の引数"],
+    [":has(> textarea)", ":has の引数"],
   ];
   for (const [selector, why] of hits) {
     test(`${why}: ${selector} は当たる`, () => {
@@ -66,8 +68,8 @@ describe("checkScreenCss: 写しの検出", () => {
   test("入れ子の子の規則も落とす", () => {
     assert.equal(messagesOf(".a { & select { color: var(--x); } }").length, 1);
   });
-  test("入れ子の親が入力欄なら親を落とす", () => {
-    assert.ok(messagesOf("select { &:hover { color: var(--x); } }").length >= 1);
+  test("入れ子の親が入力欄なら親を落とす（解決済みの子も別に落ちるのでちょうど 2 件）", () => {
+    assert.equal(messagesOf("select { &:hover { color: var(--x); } }").length, 2);
   });
   test("クラス名だけの規則は落とさない", () => {
     assert.deepEqual(messagesOf(".hub-input { color: var(--x); }"), []);
@@ -111,6 +113,29 @@ describe("checkScreenCss: 部品の入力欄の字の大きさ（16px の下限�
   });
   test("字の大きさ以外は落とさない", () => {
     assert.deepEqual(messagesOf(".hub-invite.ui-input { font-family: var(--font-mono); }"), []);
+  });
+});
+
+describe("checkScreenCss: 入れ子は & を解いてから判定する（設計正本 D10 の 1・レビュー指摘）", () => {
+  test("親のクラスを継いだ子（&）に font-size を書いたら落とす", () => {
+    const ms = messagesOf(".ui-input { &:focus { font-size: 1px } }");
+    assert.equal(ms.filter((m) => /16px/.test(m)).length, 1);
+  });
+  test("申告は直後の規則だけを免除する。子（解決すると入力欄）には別に申告が要る", () => {
+    assert.equal(messagesOf("/* ui-exempt: r */\nselect { &:hover { color: red } }").length, 1);
+  });
+  test("親が入力欄なら、親自身と解決済みの子の両方が落ちる（ちょうど 2 件）", () => {
+    assert.equal(messagesOf("select { &:hover { color: red } }").length, 2);
+  });
+  test("@scope の開始引数が入力欄の型に当たれば、中の規則を落とす", () => {
+    assert.equal(messagesOf("@scope (select) { :scope { color: red } }").length, 1);
+  });
+  test("@scope の終了引数（to）が入力欄の型に当たれば、中の規則を落とす", () => {
+    assert.equal(messagesOf("@scope (.x) to (input) { .y { color: red } }").length, 1);
+  });
+  test("親の位置に & を書いた子（.ui-input &）に font-size を書いたら落とす", () => {
+    const ms = messagesOf(".x { .ui-input & { font-size: 1px } }");
+    assert.equal(ms.filter((m) => /16px/.test(m)).length, 1);
   });
 });
 

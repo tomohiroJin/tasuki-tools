@@ -19,6 +19,8 @@
  *   どの要素に当てるか分からない。レビューと `packages/ui/README.md` が担う（ADR 0022 決定 6）
  * - `index.html` の `<style>` と `style` 属性、TSX の `style={{}}`、Tailwind のクラス（設計正本 D8 の残る穴）
  * - 属性だけのセレクタ（`[type='text']`）。型を名指ししない書き方は、画面の CSS では見逃す
+ * - **属性セレクタで部品を名指しする書き方**（`[class~=ui-input] { font-size: … }`）は D10 の 2 を素通りする
+ *   （{@link screenRuleViolations} の `onPart` はクラス選択子だけを見る）
  *
  * 設計方針: 判定は純粋関数、実 I/O と `process.exit` は `main()` の薄い配線だけに置く。
  * **依存は postcss と postcss-selector-parser だけ**（ADR 0022 決定 7。scripts の「追加依存は禁止」の例外）。
@@ -48,7 +50,7 @@ const FIELD_TYPES = new Set(["select", "input", "textarea", "option"]);
 const FIELD_PART_CLASSES = new Set(["ui-input", "ui-select"]);
 
 /** `.css` 以外のスタイルの拡張子。Vite はこれらもそのまま扱うので、見えないまま写しが入る。 */
-const FOREIGN_STYLE = /\.(pcss|postcss|scss|sass|less|styl)$/i;
+const FOREIGN_STYLE = /\.(pcss|postcss|scss|sass|less|styl|stylus|sss)$/i;
 
 /**
  * 識別子の CSS エスケープを解く。`s\65lect` は `select` と同じ型を選ぶ。
@@ -87,6 +89,62 @@ export function classesOf(selector) {
   return out;
 }
 
+/**
+ * 直近の祖先 rule。`@media` 等のアットルールは飾りなので飛ばして辿る（設計正本 D10 の 1）。
+ * 祖先が rule を挟まずに root へ着けば `null`（`&` を解決する相手が無い＝トップレベル）。
+ */
+function parentRuleOf(node) {
+  const p = node.parent;
+  if (!p || p.type === "root") return null;
+  if (p.type === "rule") return p;
+  return parentRuleOf(p);
+}
+
+/**
+ * rule の解決済みセレクタ一覧。
+ *
+ * **`&` を祖先の解決済みセレクタへ置換してから判定する**（設計正本 D10 の 1）。`&` を持たない子は
+ * 子孫結合（`親 子`）として繋ぐ。祖先が無ければ自分のセレクタそのまま。**親のセレクタが一覧
+ * （`a, b { … }`）なら、組み合わせを全部作る**（`.a, .b { & x {} }` は `.a x` と `.b x` の両方）。
+ */
+function resolvedSelectorsOf(rule) {
+  const parent = parentRuleOf(rule);
+  if (!parent) return rule.selectors;
+  const parentResolved = resolvedSelectorsOf(parent);
+  const out = [];
+  for (const own of rule.selectors) {
+    for (const p of parentResolved) {
+      out.push(own.includes("&") ? own.split("&").join(p) : `${p} ${own}`);
+    }
+  }
+  return out;
+}
+
+/**
+ * 祖先に `@scope` があり、その引数（`(…)` の中身。`to (…)` を含む全部）のどれかが入力欄の型に
+ * 当たるか（設計正本 D10 の 1・レビュー指摘）。当たった引数を返す（無ければ `undefined`）。
+ *
+ * `@scope (select) { :scope { … } }` は `:scope` 自身が `select` を指す。`@scope (.x) to (input) { … }`
+ * のような終端の引数も同じ仕組みで見る（終端は範囲を狭める側だが、過小検出より過剰検出を選ぶ）。
+ */
+function scopeTouchOf(node) {
+  let p = node.parent;
+  while (p) {
+    if (p.type === "atrule" && /^scope$/i.test(p.name)) {
+      const args = [...p.params.matchAll(/\(([^()]*)\)/g)].map((m) => m[1]);
+      for (const arg of args) {
+        try {
+          if (touchesFieldElement(arg)) return arg.trim();
+        } catch {
+          // 解析できない引数（構文が読めない）は無視する。落とすのは検出できた側だけ。
+        }
+      }
+    }
+    p = p.parent;
+  }
+  return undefined;
+}
+
 /** 追跡下のスタイルのファイルを、画面の CSS・部品の CSS・`.css` 以外に仕分ける。 */
 export function classifyStyleFiles(rels) {
   const screen = [];
@@ -120,14 +178,25 @@ function inKeyframes(rule) {
   return rule.parent?.type === "atrule" && /keyframes$/i.test(rule.parent.name);
 }
 
-/** 画面の CSS の 1 つの規則が破っている事柄（申告を見る前）。 */
+/**
+ * 画面の CSS の 1 つの規則が破っている事柄（申告を見る前）。
+ *
+ * **判定は解決済みセレクタ（{@link resolvedSelectorsOf}）で行う**（設計正本 D10 の 1）。
+ * `rule.selectors`（自分自身の綴りだけ）で見ると、`.ui-input { &:focus { font-size: … } }` や
+ * `select { &:hover { … } }` のような入れ子が、`&` の中身を子自身が持たないという理由だけで
+ * 素通りする（レビュー指摘・重要 1・2）。
+ */
 function screenRuleViolations(rule) {
   const found = [];
-  const touched = rule.selectors.find(touchesFieldElement);
+  const resolved = resolvedSelectorsOf(rule);
+  const touched = resolved.find(touchesFieldElement);
+  const scopeTouch = touched === undefined ? scopeTouchOf(rule) : undefined;
   if (touched !== undefined) {
     found.push(`入力欄の型か ::picker( を含むセレクタで見た目を書いています: ${touched}    ← 部品（.ui-input / .ui-select）を当てるか、直前に /* ui-exempt: 理由 */ を書く`);
+  } else if (scopeTouch !== undefined) {
+    found.push(`祖先の @scope (${scopeTouch}) が入力欄の型に当たるので、この中の規則も見た目を書いています: ${rule.selector}    ← 部品を当てるか、直前に /* ui-exempt: 理由 */ を書く`);
   }
-  const onPart = rule.selectors.some((s) => [...classesOf(s)].some((c) => FIELD_PART_CLASSES.has(c)));
+  const onPart = resolved.some((s) => [...classesOf(s)].some((c) => FIELD_PART_CLASSES.has(c)));
   const setsSize = rule.nodes?.some((n) => n.type === "decl" && /^font(-size)?$/i.test(n.prop));
   if (onPart && setsSize) {
     found.push(`部品の入力欄の字の大きさを上書きしています（16px の下限を崩す）: ${rule.selector}`);
@@ -158,10 +227,18 @@ export function checkScreenCss(file, css) {
   return problems;
 }
 
-/** 追跡下（と未追跡かつ gitignore 対象外）のスタイルのファイル。`**` は使わない（`*` が `/` を跨ぐ）。 */
+/**
+ * 追跡下（と未追跡かつ gitignore 対象外）のスタイルのファイル。`**` は使わない（`*` が `/` を跨ぐ）。
+ *
+ * pathspec に `:(icase)` を付け、大文字の拡張子（`c.SCSS` など）も列挙に乗せる
+ * （`listRepoFiles` は pathspec をそのまま `git ls-files` へ渡すので、ここで付けるだけで効く）。
+ */
 function listStyleFiles() {
-  const exts = ["css", "pcss", "postcss", "scss", "sass", "less", "styl"];
-  return listRepoFiles(REPO_ROOT, ["apps", "packages"].flatMap((dir) => exts.map((ext) => `${dir}/*.${ext}`)));
+  const exts = ["css", "pcss", "postcss", "scss", "sass", "less", "styl", "stylus", "sss"];
+  return listRepoFiles(
+    REPO_ROOT,
+    ["apps", "packages"].flatMap((dir) => exts.map((ext) => `:(icase)${dir}/*.${ext}`)),
+  );
 }
 
 function readExisting(rels, problems) {
