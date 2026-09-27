@@ -253,6 +253,11 @@ jobs:
       - run: node scripts/audit-web-sync-boundary.mjs
         if: steps.scope.outputs.code == 'true'
 
+      # 部品層の写しと規則。画面の CSS が入力欄の型で見た目を書いていないこと・部品の CSS の約束・
+      # 死んだ部品を見る（ADR 0022 決定 6・#320）。postcss をルートの依存から読むので install の後ろに置く。
+      - run: node scripts/audit-ui-components.mjs
+        if: steps.scope.outputs.code == 'true'
+
       # 公開面。エントリが export * を使わず公開記号を明示列挙していることを見る
       # （ADR 0016 決定 2 項目 2 が #72 E6 へ割り当てた機械検査・#168）。
       - run: node scripts/audit-public-surface.mjs
