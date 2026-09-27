@@ -61,7 +61,7 @@
 
 | 部品（仮の名前） | いまの写し | 写っている知識 |
 |---|---|---|
-| **入力欄の系**（`.ui-field` `.ui-label` `.ui-input` `.ui-textarea` `.ui-select`） | 玄関 `.hub-field` / `.hub-label` / `.hub-input` / `.hub-invite`（`<input readOnly>`）・お題ツール `.topic-panel input / textarea / select / option` と素の `<label>`・timer の `index.css` の `select` / `option`（全体） | 16px の下限（iOS の自動拡大）・`font: inherit` が `label` の小さい字を引き継ぐ罠・`base-select` による白い一瞬の回避（#317）・一覧の地とスクロールバー・プレースホルダの色 |
+| **入力欄の系**（`.ui-input`：`<input>` と `<textarea>`・`.ui-select`） | 玄関 `.hub-input` / `.hub-invite`（`<input readOnly>`）・お題ツール `.topic-panel input / textarea / select / option`・timer の `index.css` の `select` / `option`（全体） | 16px の下限（iOS の自動拡大）・`font: inherit` が `label` の小さい字を引き継ぐ罠・`base-select` による白い一瞬の回避（#317）・一覧の地とスクロールバー・プレースホルダの色 |
 | **接続の告知の帯**（`.ui-banner`） | poker・お題ツールの `.connection-banner` | sticky で下が透けるので地を不透明にする・unreachable を色だけでなく太さで区別する |
 | **一言**（`.ui-note`：待ち・知らせ・エラー） | `.loading-note`（poker・お題ツール）・`.hub-notice` / `.topic-notice` / `.topic-empty` / `.hub-invite-status`・`.hub-error` / `.topic-error`・お題ツールの参加中画面のクラスの無い `<p role="status">` | エラーの色が felt-700 の上で AA を割る問題 |
 | **パネルの面**（`.ui-panel`） | 玄関 `.hub-panel` / `.hub-form`・お題ツール `.topic-panel` / `.topic-current`・poker `.topic` | 地を持たない h2 の金が felt-700 の上で AA を割るので不透明な地を敷く |
@@ -69,6 +69,10 @@
 | **招待リンクの表示**（`.ui-invite`） | poker `.invite` / `.invite-url`・お題ツール `.topic-invite` / `.topic-invite-url` | 点線の枠・等幅・折り返し。注釈が「同じ組み方」と明言。玄関の `.hub-invite` は `<input>` なので入力欄の系に入る |
 | **象牙の札**（`.ui-sheet`） | お題ツール `.topic-card`・poker `.topic-body`（注釈が「そのまま写す」と明言） | 象牙の地の上では `.md-link` が約 1.03:1 まで落ちるので、札の上の字の色を札が決める |
 | **Markdown の見た目**（`.ui-md-*`） | poker・お題ツールの `.md-*`（注釈以外が同一） | 見出しの段・コードの地・引用の枠 |
+
+**入力欄の系に部品を作らないもの**（計画の段で D1 に照らして外した）: 欄を包む箱（玄関 `.hub-field`）は配置なので画面が持つ（D4）。
+ラベルの見た目は要素層の `label` が既に持つ（お題ツールは素の `<label>` のまま）。複数行の欄の専用の部品（`.ui-textarea`）は
+利用者がお題ツールだけ（timer の共有メモは #321）なので作らず、`.ui-input` を `<textarea>` にも当てる。
 
 poker の `.room > section:not(.topic) > h2` も「h2 に地を敷く」の写しだが、パネルではなく見出し単独に地を敷いている。PR 3 でパネルに寄せられるかを実画面で判断する。
 poker の `.error-note` はボタンを持つ枠つきの帯で、一言とは形が違う。PR 2 では一言の色だけを揃え、枠は poker 固有に残す。
@@ -178,7 +182,6 @@ packages/ui/src/
 |---|---|---|
 | 1 | timer の通知音・声のプルダウン | 14px → 16px（iOS の自動拡大の修正を兼ねる）。欄の余白と高さが増える（計算で約 34px → 約 53px）。選択肢の余白・溝の色が変わる。通知音は `h-8` の試聴ボタンと高さが揃わなくなるので、並びの側（timer の配置）で整える |
 | 1 | 玄関・お題ツールの入力欄 | フォーカスのリングの offset が 2px → 3px（要素層に揃う） |
-| 1 | お題ツールのラベル | 素の `<label>` から `.ui-label` へ。玄関のラベルと同じ色・間隔になる |
 | 2 | 玄関のエラー | `--rose-bright` → `--rose-pale`（淡くなる） |
 | 2 | poker の接続の帯・エラーの文字 | 半透明の生の色 → 不透明なトークン |
 | 3〜4 | poker・お題ツール・玄関 | 余白の揃え（小さい）。実画面で確かめる |
