@@ -1206,6 +1206,36 @@ export const MUTATIONS = [
       "作れてしまい、1 本の接続が 2 つのルームの名簿に載る。1 本の変異で両方を外すと" +
       "片方のテストだけで殺せてしまうので、入口ごとに分けた。",
   },
+  {
+    id: 111,
+    label: "audit-ui-components の型の照合で大文字小文字を区別する",
+    patch: "m111-ui-components-type-case-sensitive.patch",
+    pkg: "scripts",
+    tests: ["audit-ui-components.test.mjs"],
+    note:
+      "#320 PR 1・設計正本 D10 の 1。HTML の型名は大文字小文字を区別しないので、`SELECT {}` と書けば" +
+      "写しが検査を素通りする（#280 の検査が大文字を見逃したのと同じ型）。",
+  },
+  {
+    id: 112,
+    label: "audit-ui-components が何も免除していない ui-exempt: を見逃す",
+    patch: "m112-ui-components-dead-exempt-ignored.patch",
+    pkg: "scripts",
+    tests: ["audit-ui-components.test.mjs"],
+    note:
+      "#320 PR 1・設計正本 D9。写しを直したのに申告だけが残り、`git grep ui-exempt` の台帳が" +
+      "「外れている箇所」について嘘をつく。",
+  },
+  {
+    id: 113,
+    label: "audit-ui-components が var() の第 2 引数の生の色を隠す",
+    patch: "m113-ui-components-var-fallback-hidden.patch",
+    pkg: "scripts",
+    tests: ["audit-ui-components.test.mjs"],
+    note:
+      "#320 PR 1・設計正本 D10 の 3。カスタムプロパティの名前を消す代わりに `var()` ごと消すと、" +
+      "`var(--a, #fff)` の `#fff` が見えなくなる。赤を消す最短の書き方がそのまま穴になる型。",
+  },
 ];
 
 /**

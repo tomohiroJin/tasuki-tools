@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-ui-components.mjs b/scripts/audit-ui-components.mjs
+index d16409a..15ec1e7 100644
+--- a/scripts/audit-ui-components.mjs
++++ b/scripts/audit-ui-components.mjs
+@@ -288,7 +288,7 @@ export function findRawColors(value) {
+   const v = unescapeIdent(value)
+     .replace(/"[^"]*"|'[^']*'/g, " ")
+     .replace(/url\([^)]*\)/gi, " ")
+-    .replace(/--[A-Za-z0-9_-]+/g, " ");
++    .replace(/var\([^()]*\)/gi, " ");
+   const found = [];
+   for (const m of v.matchAll(/#[0-9a-f]{3,8}(?![0-9a-z_-])/gi)) found.push(m[0]);
+   for (const m of v.matchAll(/(?<![\w-])(rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\s*\(/gi)) found.push(`${m[1]}(`);
