@@ -11,7 +11,10 @@
  *      - 入力欄の型（`select` / `input` / `textarea` / `option`）か `::picker(` を含むセレクタの規則は落とす
  *      - 部品の入力欄（`.ui-input` / `.ui-select`）に字の大きさを書いたら落とす（16px の下限）
  *      - どちらも直前の `/* ui-exempt: 理由 *\/` で外せる。理由が空・何も免除していない申告は落とす
- *   2. **部品の CSS**: {@link checkComponentCss}（Task 4）
+ *   2. **部品の CSS**（`packages/ui/src/components/`）: セレクタは `.ui-` のクラスから始める・入れ子と
+ *      `@scope` / `@layer` を使わない・`::picker(` を一覧に同居させない・`outline` は選択肢だけ・
+ *      つまみ（`--*`）を宣言しない・生の色を書かない。**申告では外せない**
+ *   3. **死んだ部品**: 部品の CSS に定義した `.ui-*` を、2 つ以上のアプリの `src` 配下の `.tsx` が使う
  *
  * ## 何を見ていないか —— 「足りる」とは言わない
  *
@@ -242,6 +245,127 @@ export function checkScreenCss(file, css) {
 }
 
 /**
+ * CSS の名前の色（CSS Color 4 の 148 語）とシステムの色。**生の色を列挙で禁じるのではなく、
+ * 色の直書きの綴りを全部拾うための辞書**である。仕様が固定しているので腐らない。
+ */
+const NAMED_COLORS = new Set(
+  `aliceblue antiquewhite aqua aquamarine azure beige bisque black blanchedalmond blue blueviolet brown burlywood
+  cadetblue chartreuse chocolate coral cornflowerblue cornsilk crimson cyan darkblue darkcyan darkgoldenrod darkgray
+  darkgreen darkgrey darkkhaki darkmagenta darkolivegreen darkorange darkorchid darkred darksalmon darkseagreen
+  darkslateblue darkslategray darkslategrey darkturquoise darkviolet deeppink deepskyblue dimgray dimgrey dodgerblue
+  firebrick floralwhite forestgreen fuchsia gainsboro ghostwhite gold goldenrod gray green greenyellow grey honeydew
+  hotpink indianred indigo ivory khaki lavender lavenderblush lawngreen lemonchiffon lightblue lightcoral lightcyan
+  lightgoldenrodyellow lightgray lightgreen lightgrey lightpink lightsalmon lightseagreen lightskyblue lightslategray
+  lightslategrey lightsteelblue lightyellow lime limegreen linen magenta maroon mediumaquamarine mediumblue
+  mediumorchid mediumpurple mediumseagreen mediumslateblue mediumspringgreen mediumturquoise mediumvioletred
+  midnightblue mintcream mistyrose moccasin navajowhite navy oldlace olive olivedrab orange orangered orchid
+  palegoldenrod palegreen paleturquoise palevioletred papayawhip peachpuff peru pink plum powderblue purple
+  rebeccapurple red rosybrown royalblue saddlebrown salmon sandybrown seagreen seashell sienna silver skyblue
+  slateblue slategray slategrey snow springgreen steelblue tan teal thistle tomato turquoise violet wheat white
+  whitesmoke yellow yellowgreen
+  canvas canvastext linktext visitedtext activetext buttonface buttontext buttonborder field fieldtext highlight
+  highlighttext selecteditem selecteditemtext mark marktext graytext accentcolor accentcolortext`
+    .split(/\s+/)
+    .filter(Boolean),
+);
+
+/**
+ * 値に含まれる色の直書き。**書いてよいのは `var(--…)`・`transparent`・`currentColor`・`inherit` などと、
+ * それらを引数にした `color-mix()` だけ**（設計正本 D10 の 3）。
+ *
+ * カスタムプロパティの名前（`--gold` など）は色の名前と綴りが重なるので先に消す。**`var()` ごと消しては
+ * ならない** —— 第 2 引数に書いた生の色（`var(--a, #fff)`）まで消えてしまう。
+ */
+export function findRawColors(value) {
+  const v = value
+    .replace(/"[^"]*"|'[^']*'/g, " ")
+    .replace(/url\([^)]*\)/gi, " ")
+    .replace(/--[A-Za-z0-9_-]+/g, " ");
+  const found = [];
+  for (const m of v.matchAll(/#[0-9a-f]{3,8}(?![0-9a-z_-])/gi)) found.push(m[0]);
+  for (const m of v.matchAll(/(?<![\w-])(rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\s*\(/gi)) found.push(`${m[1]}(`);
+  for (const m of v.matchAll(/(?<![\w-])[a-z]+(?![\w-])/gi)) {
+    if (NAMED_COLORS.has(m[0].toLowerCase())) found.push(m[0]);
+  }
+  return found;
+}
+
+/** セレクタの先頭の複合セレクタ（最初の結合子の手前まで）に `.ui-` のクラスがあるか。 */
+function firstCompoundHasPart(selector) {
+  const [sel] = parseSelector(selector).nodes;
+  for (const node of sel.nodes) {
+    if (node.type === "combinator") return false;
+    if (node.type === "class" && unescapeIdent(node.value).startsWith("ui-")) return true;
+  }
+  return false;
+}
+
+/** セレクタの最後の複合セレクタに `option` の型があるか。 */
+function lastCompoundIsOption(selector) {
+  const [sel] = parseSelector(selector).nodes;
+  let isOption = false;
+  for (const node of sel.nodes) {
+    if (node.type === "combinator") isOption = false;
+    if (node.type === "tag" && unescapeIdent(node.value).toLowerCase() === "option") isOption = true;
+  }
+  return isOption;
+}
+
+/** 部品の CSS を見る。返り値が空なら違反なし。**申告（ui-exempt）は部品の CSS では効かない。** */
+export function checkComponentCss(file, css) {
+  const root = postcss.parse(css, { from: file });
+  const problems = [];
+  const report = (node, message) => problems.push({ ...where(file, node), message });
+  root.walkAtRules((at) => {
+    if (/^(scope|layer)$/i.test(at.name)) report(at, `@${at.name} を使わない（設計正本 D5・D11）`);
+  });
+  root.walkRules((rule) => {
+    if (inKeyframes(rule)) return;
+    if (rule.parent?.type === "rule") {
+      report(rule, `入れ子にしない（セレクタの先頭を検査できない）: ${rule.selector}`);
+      return;
+    }
+    for (const s of rule.selectors) {
+      if (!firstCompoundHasPart(s)) report(rule, `セレクタの先頭が .ui- のクラスではありません（全アプリへ漏れる）: ${s}`);
+    }
+    if (rule.selectors.length > 1 && rule.selectors.some((s) => /::picker\(/i.test(s))) {
+      report(rule, `::picker( を含むセレクタを一覧に同居させない（知らないブラウザが規則ごと捨てる）: ${rule.selector}`);
+    }
+    const optionOnly = rule.selectors.every(lastCompoundIsOption);
+    // walkDecls ではなく ownDeclarationsOf を使う（子の規則は入れ子として別に落ちるので、
+    // ここでその宣言まで拾うと二重に数える）。
+    for (const d of ownDeclarationsOf(rule)) {
+      if (d.prop.startsWith("--")) report(d, `部品の中でつまみを宣言しない（画面の上書きが継承に負ける）: ${d.prop}`);
+      if (/^outline/i.test(d.prop) && !optionOnly) report(d, `部品に outline を書かない（要素層のリングを打ち消す）: ${rule.selector}`);
+      const raw = findRawColors(d.value);
+      if (raw.length > 0) report(d, `生の色を書かない（トークンを使う）: ${d.prop}: ${d.value}`);
+    }
+  });
+  return problems;
+}
+
+/** 部品の CSS に定義した `.ui-` のクラス。 */
+export function definedPartClasses(css) {
+  const out = new Set();
+  postcss.parse(css).walkRules((rule) => {
+    if (inKeyframes(rule)) return;
+    for (const s of rule.selectors) for (const c of classesOf(s)) if (c.startsWith("ui-")) out.add(c);
+  });
+  return out;
+}
+
+/** TSX の本文に現れる `ui-` で始まる語。`x-ui-input` のような語の途中は拾わない。 */
+export function uiTokensIn(text) {
+  return new Set([...text.matchAll(/(?<![\w-])ui-[a-z0-9]+(?:-{1,2}[a-z0-9]+)*/g)].map((m) => m[0]));
+}
+
+/** 2 つ以上のアプリが使っていない部品のクラス（ADR 0022 決定 2・#280 の死んだ CSS の経緯）。 */
+export function findDeadParts(defined, usageByApp) {
+  const users = (c) => [...usageByApp.values()].filter((s) => s.has(c)).length;
+  return [...defined].filter((c) => users(c) < 2).sort();
+}
+
+/**
  * 追跡下（と未追跡かつ gitignore 対象外）のスタイルのファイル。`**` は使わない（`*` が `/` を跨ぐ）。
  *
  * pathspec に `:(icase)` を付け、大文字の拡張子（`c.SCSS` など）も列挙に乗せる
@@ -299,6 +423,28 @@ function main() {
     for (const p of parseOrReport(checkScreenCss, f.rel, f.text, problems)) {
       problems.push(`[画面の CSS] ${p.file}:${p.line} ${p.message}`);
     }
+  }
+
+  // 部品の CSS。index.css（まとめ読み）も走査するので、0 件なら部品層が消えている。
+  const componentFiles = readExisting(components, problems);
+  volume.push({ label: "部品の CSS", count: componentFiles.length });
+  const defined = new Set();
+  for (const f of componentFiles) {
+    for (const p of parseOrReport(checkComponentCss, f.rel, f.text, problems)) {
+      problems.push(`[部品の CSS] ${p.file}:${p.line} ${p.message}`);
+    }
+    for (const c of parseOrReport((_, t) => [...definedPartClasses(t)], f.rel, f.text, problems)) defined.add(c);
+  }
+
+  // 死んだ部品。各アプリの src 配下の .tsx に現れる ui- の語を数える。
+  const usageByApp = new Map();
+  for (const app of WEB_APPS) {
+    const tsx = readExisting(listRepoFiles(REPO_ROOT, [`${app}/src/*.tsx`]), problems);
+    volume.push({ label: `${app} の TSX`, count: tsx.length });
+    usageByApp.set(app, new Set(tsx.flatMap((f) => [...uiTokensIn(f.text)])));
+  }
+  for (const c of findDeadParts(defined, usageByApp)) {
+    problems.push(`[死んだ部品] .${c} を使うアプリが 2 つ未満です    ← 2 画面以上に当てるか、部品層から消す（ADR 0022 決定 2）`);
   }
 
   console.log(`[audit-ui-components] 走査対象: ${volume.map((v) => `${v.label} ${v.count} 件`).join(" / ")}`);

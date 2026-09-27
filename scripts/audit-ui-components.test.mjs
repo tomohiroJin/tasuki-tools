@@ -8,9 +8,14 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  checkComponentCss,
   checkScreenCss,
   classifyStyleFiles,
+  definedPartClasses,
+  findDeadParts,
+  findRawColors,
   touchesFieldElement,
+  uiTokensIn,
   unescapeIdent,
 } from "./audit-ui-components.mjs";
 
@@ -196,5 +201,105 @@ describe("classifyStyleFiles: 走査対象の仕分け", () => {
   });
   test(".module.css は画面の CSS として数える", () => {
     assert.deepEqual(classifyStyleFiles(["apps/x/src/a.module.css"]).screen, ["apps/x/src/a.module.css"]);
+  });
+});
+
+const partMessagesOf = (css) => checkComponentCss("packages/ui/src/components/x.css", css).map((p) => p.message);
+
+describe("checkComponentCss: セレクタは .ui- のクラスから始める", () => {
+  const ok = [".ui-select", ".ui-select option", "textarea.ui-input", ".ui-select::picker(select)", ".ui-select option:hover"];
+  for (const selector of ok) {
+    test(`${selector} は通す`, () => {
+      assert.deepEqual(partMessagesOf(`${selector} { color: var(--ivory); }`), []);
+    });
+  }
+  const bad = ["select", ":focus-visible", "*", "[type='text']", ":root", ".a .ui-b", "body .ui-select"];
+  for (const selector of bad) {
+    test(`${selector} は落とす（全アプリへ漏れる）`, () => {
+      assert.ok(partMessagesOf(`${selector} { color: var(--ivory); }`).some((m) => /\.ui- のクラス/.test(m)));
+    });
+  }
+  test("一覧の片側だけが外れていても落とす", () => {
+    assert.ok(partMessagesOf(".ui-select, select { color: var(--ivory); }").some((m) => /\.ui- のクラス/.test(m)));
+  });
+  test("入れ子を落とす", () => {
+    assert.ok(partMessagesOf(".ui-a { & .ui-b { color: var(--ivory); } }").some((m) => /入れ子/.test(m)));
+  });
+  test("@scope と @layer を落とす", () => {
+    assert.ok(partMessagesOf("@scope (.ui-a) { .ui-b { color: var(--ivory); } }").some((m) => /@scope/.test(m)));
+    assert.ok(partMessagesOf("@layer x { .ui-b { color: var(--ivory); } }").some((m) => /@layer/.test(m)));
+  });
+});
+
+describe("checkComponentCss: ::picker を一覧に同居させない", () => {
+  test("同居は落とす（::picker を知らないブラウザが一覧ごと捨てる）", () => {
+    assert.ok(partMessagesOf(".ui-select, .ui-select::picker(select) { appearance: base-select; }").some((m) => /同居/.test(m)));
+  });
+  test("単独なら通す", () => {
+    assert.deepEqual(partMessagesOf(".ui-select::picker(select) { appearance: base-select; }"), []);
+  });
+});
+
+describe("checkComponentCss: outline は選択肢だけ", () => {
+  test("部品に outline を書いたら落とす（要素層のリングを打ち消す）", () => {
+    assert.ok(partMessagesOf(".ui-input { outline: 0; }").some((m) => /outline/.test(m)));
+    assert.ok(partMessagesOf(".ui-input:focus-visible { outline-offset: 2px; }").some((m) => /outline/.test(m)));
+  });
+  test("選択肢の outline: none は通す", () => {
+    assert.deepEqual(partMessagesOf(".ui-select option:hover, .ui-select option:focus-visible { outline: none; }"), []);
+  });
+  test("一覧に選択肢以外が混ざれば落とす", () => {
+    assert.ok(partMessagesOf(".ui-select option, .ui-select { outline: none; }").some((m) => /outline/.test(m)));
+  });
+});
+
+describe("checkComponentCss: つまみを宣言しない", () => {
+  test("カスタムプロパティの宣言を落とす（画面の上書きが継承に負ける）", () => {
+    assert.ok(partMessagesOf(".ui-select { --ui-field-bg: var(--felt-950); }").some((m) => /つまみ/.test(m)));
+  });
+  test("var() の第 2 引数で既定値を持つのは通す", () => {
+    assert.deepEqual(partMessagesOf(".ui-select { background: var(--ui-field-bg, var(--felt-950)); }"), []);
+  });
+});
+
+describe("findRawColors: 生の色", () => {
+  const raw = [
+    ["#fff", "3 桁"], ["#FFFF", "4 桁"], ["#071f18", "6 桁"], ["#071f18cc", "8 桁"],
+    ["rgba(0, 0, 0, 0.45)", "rgba"], ["RGBA(0,0,0,.1)", "大文字"], ["hsl(10 20% 30%)", "hsl"],
+    ["oklch(0.7 0.1 80)", "oklch"], ["color(srgb 1 0 0)", "color()"], ["white", "名前の色"],
+    ["var(--a, #fff)", "var の第 2 引数の中"], ["0 10px 15px rgba(0,0,0,.45)", "影の中"],
+  ];
+  for (const [value, why] of raw) {
+    test(`${why}: ${value} を見つける`, () => {
+      assert.ok(findRawColors(value).length > 0);
+    });
+  }
+  const clean = [
+    "var(--gold)", "var(--ui-field-bg, var(--felt-950))", "transparent", "currentColor", "inherit",
+    "color-mix(in srgb, var(--gold) 50%, transparent)", "1px solid var(--line-strong)", "thin", "base-select",
+  ];
+  for (const value of clean) {
+    test(`${value} は生の色ではない`, () => {
+      assert.deepEqual(findRawColors(value), []);
+    });
+  }
+  test("部品の CSS の生の色を落とす", () => {
+    assert.ok(partMessagesOf(".ui-a { color: #fff; }").some((m) => /生の色/.test(m)));
+  });
+});
+
+describe("死んだ部品", () => {
+  test("uiTokensIn は ui- で始まる語だけを拾う", () => {
+    assert.deepEqual([...uiTokensIn('className="ui-select x-ui-input ui-banner--unreachable"')].sort(), ["ui-banner--unreachable", "ui-select"]);
+  });
+  test("definedPartClasses は部品の CSS に定義したクラスを拾う", () => {
+    assert.deepEqual([...definedPartClasses(".ui-select option:hover {} textarea.ui-input {}")].sort(), ["ui-input", "ui-select"]);
+  });
+  test("2 つ以上のアプリが使っていないクラスを返す", () => {
+    const usage = new Map([
+      ["apps/a", new Set(["ui-input", "ui-select"])],
+      ["apps/b", new Set(["ui-input"])],
+    ]);
+    assert.deepEqual(findDeadParts(new Set(["ui-input", "ui-select"]), usage), ["ui-select"]);
   });
 });
