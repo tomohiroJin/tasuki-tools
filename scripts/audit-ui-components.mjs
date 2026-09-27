@@ -1,0 +1,225 @@
+#!/usr/bin/env node
+/**
+ * 部品層の写しと規則を見る検査（#320・設計正本 §5・`docs/adr/0022` 決定 6）。
+ *
+ * ## 何を見るか
+ *
+ *   0. **走査対象の健全性**（`docs/adr/0014` 決定 1・8）: web アプリの宣言（{@link WEB_APPS}）と
+ *      `vite.config.ts` の実在から導いた実体を照合する。スタイルのファイルは `apps/*` と `packages/*` の
+ *      追跡下から導出し、`.css` 以外の拡張子があれば落とす。アプリごと・部品層の件数が 0 なら落とす
+ *   1. **画面の CSS**（トークン層と部品層を除く全部。要素層を含む）:
+ *      - 入力欄の型（`select` / `input` / `textarea` / `option`）か `::picker(` を含むセレクタの規則は落とす
+ *      - 部品の入力欄（`.ui-input` / `.ui-select`）に字の大きさを書いたら落とす（16px の下限）
+ *      - どちらも直前の `/* ui-exempt: 理由 *\/` で外せる。理由が空・何も免除していない申告は落とす
+ *   2. **部品の CSS**: {@link checkComponentCss}（Task 4）
+ *
+ * ## 何を見ていないか —— 「足りる」とは言わない
+ *
+ * - **クラス名で書いた写し**（`.hub-input` の形・帯・一言・パネルなど）。CSS だけからは、そのクラスを
+ *   どの要素に当てるか分からない。レビューと `packages/ui/README.md` が担う（ADR 0022 決定 6）
+ * - `index.html` の `<style>` と `style` 属性、TSX の `style={{}}`、Tailwind のクラス（設計正本 D8 の残る穴）
+ * - 属性だけのセレクタ（`[type='text']`）。型を名指ししない書き方は、画面の CSS では見逃す
+ *
+ * 設計方針: 判定は純粋関数、実 I/O と `process.exit` は `main()` の薄い配線だけに置く。
+ * **依存は postcss と postcss-selector-parser だけ**（ADR 0022 決定 7。scripts の「追加依存は禁止」の例外）。
+ */
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import postcss from "postcss";
+import selectorParser from "postcss-selector-parser";
+import { diffTargets, findEmptyScanDimensions, listRepoFiles } from "./lib/scan-targets.mjs";
+import { isDirectRun } from "./lib/direct-run.mjs";
+import { listWebAppDirs } from "./audit-web-sync-boundary.mjs";
+
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+
+/** web アプリの宣言。実体（`vite.config.ts` の実在）と全単射で照合する。 */
+export const WEB_APPS = ["apps/landing", "apps/poker-web", "apps/timer-web", "apps/topic-web"];
+
+/** 部品層。ここは「画面の CSS」から外し、部品の規則で見る。 */
+export const COMPONENTS_DIR = "packages/ui/src/components/";
+/** トークン層。変数と `@font-face` だけなので、どちらの規則でも見ない（stylelint が要素・クラスを禁じている）。 */
+const TOKENS_DIR = "packages/ui/src/tokens/";
+
+/** 共有部品のある要素の型。`label` は入れない（要素層の `label` があり、画面ごとの配置で触る）。 */
+const FIELD_TYPES = new Set(["select", "input", "textarea", "option"]);
+/** 字の大きさを画面に上書きさせない部品のクラス（16px の下限）。 */
+const FIELD_PART_CLASSES = new Set(["ui-input", "ui-select"]);
+
+/** `.css` 以外のスタイルの拡張子。Vite はこれらもそのまま扱うので、見えないまま写しが入る。 */
+const FOREIGN_STYLE = /\.(pcss|postcss|scss|sass|less|styl)$/i;
+
+/**
+ * 識別子の CSS エスケープを解く。`s\65lect` は `select` と同じ型を選ぶ。
+ * postcss-selector-parser が解いた値を返す版もあるので、2 度通しても変わらない形にしてある。
+ */
+export function unescapeIdent(s) {
+  return s.replace(/\\([0-9a-fA-F]{1,6})\s?|\\([^\n])/g, (_, hex, ch) =>
+    hex ? String.fromCodePoint(parseInt(hex, 16)) : ch,
+  );
+}
+
+function parseSelector(selector) {
+  return selectorParser().astSync(selector);
+}
+
+/**
+ * セレクタのどこかに入力欄の型か `::picker(` があるか。
+ *
+ * **`walk` は擬似クラスの引数の中まで降りる**ので、`:is(select)`・`:where()`・`:not()`・`:has()`・
+ * `:global()` を 1 つの仕組みで拾える。型は大文字小文字を区別せず、エスケープを解いて比べる
+ * （HTML の型名は大文字小文字を区別しない）。
+ */
+export function touchesFieldElement(selector) {
+  let hit = false;
+  parseSelector(selector).walk((node) => {
+    if (node.type === "tag" && FIELD_TYPES.has(unescapeIdent(node.value).toLowerCase())) hit = true;
+    if (node.type === "pseudo" && node.value.toLowerCase().startsWith("::picker")) hit = true;
+  });
+  return hit;
+}
+
+/** セレクタに現れるクラス名（エスケープを解いたもの）。 */
+export function classesOf(selector) {
+  const out = new Set();
+  parseSelector(selector).walkClasses((c) => out.add(unescapeIdent(c.value)));
+  return out;
+}
+
+/** 追跡下のスタイルのファイルを、画面の CSS・部品の CSS・`.css` 以外に仕分ける。 */
+export function classifyStyleFiles(rels) {
+  const screen = [];
+  const components = [];
+  const foreign = [];
+  for (const rel of [...rels].sort()) {
+    if (FOREIGN_STYLE.test(rel)) foreign.push(rel);
+    else if (!rel.endsWith(".css")) continue;
+    else if (rel.startsWith(COMPONENTS_DIR)) components.push(rel);
+    else if (!rel.startsWith(TOKENS_DIR)) screen.push(rel);
+  }
+  return { screen, components, foreign };
+}
+
+const EXEMPT_RE = /^ui-exempt:([\s\S]*)$/;
+
+/** 規則の直前の申告の理由。申告が無ければ `undefined`、理由が空なら `""`。 */
+function exemptReasonOf(rule) {
+  const prev = rule.prev();
+  if (!prev || prev.type !== "comment") return undefined;
+  const m = EXEMPT_RE.exec(prev.text.trim());
+  return m ? m[1].trim() : undefined;
+}
+
+function where(file, node) {
+  return { file, line: node.source?.start?.line ?? 0 };
+}
+
+/** `@keyframes` の中の規則か。`from` / `50%` はセレクタではないので、セレクタの解析器へ渡さない。 */
+function inKeyframes(rule) {
+  return rule.parent?.type === "atrule" && /keyframes$/i.test(rule.parent.name);
+}
+
+/** 画面の CSS の 1 つの規則が破っている事柄（申告を見る前）。 */
+function screenRuleViolations(rule) {
+  const found = [];
+  const touched = rule.selectors.find(touchesFieldElement);
+  if (touched !== undefined) {
+    found.push(`入力欄の型か ::picker( を含むセレクタで見た目を書いています: ${touched}    ← 部品（.ui-input / .ui-select）を当てるか、直前に /* ui-exempt: 理由 */ を書く`);
+  }
+  const onPart = rule.selectors.some((s) => [...classesOf(s)].some((c) => FIELD_PART_CLASSES.has(c)));
+  const setsSize = rule.nodes?.some((n) => n.type === "decl" && /^font(-size)?$/i.test(n.prop));
+  if (onPart && setsSize) {
+    found.push(`部品の入力欄の字の大きさを上書きしています（16px の下限を崩す）: ${rule.selector}`);
+  }
+  return found;
+}
+
+/** 画面の CSS を見る。返り値が空なら違反なし。 */
+export function checkScreenCss(file, css) {
+  const root = postcss.parse(css, { from: file });
+  const problems = [];
+  const usedExempts = new Set();
+  root.walkRules((rule) => {
+    if (inKeyframes(rule)) return;
+    const violations = screenRuleViolations(rule);
+    if (violations.length === 0) return;
+    const reason = exemptReasonOf(rule);
+    if (reason === undefined || reason === "") {
+      for (const message of violations) problems.push({ ...where(file, rule), message });
+    }
+    if (reason !== undefined) usedExempts.add(rule.prev());
+    if (reason === "") problems.push({ ...where(file, rule), message: "ui-exempt: の理由が空です" });
+  });
+  root.walkComments((comment) => {
+    if (!EXEMPT_RE.test(comment.text.trim()) || usedExempts.has(comment)) return;
+    problems.push({ ...where(file, comment), message: "何も免除していない ui-exempt: です    ← 直したなら消す" });
+  });
+  return problems;
+}
+
+/** 追跡下（と未追跡かつ gitignore 対象外）のスタイルのファイル。`**` は使わない（`*` が `/` を跨ぐ）。 */
+function listStyleFiles() {
+  const exts = ["css", "pcss", "postcss", "scss", "sass", "less", "styl"];
+  return listRepoFiles(REPO_ROOT, ["apps", "packages"].flatMap((dir) => exts.map((ext) => `${dir}/*.${ext}`)));
+}
+
+function readExisting(rels, problems) {
+  const out = [];
+  for (const rel of rels) {
+    const abs = path.join(REPO_ROOT, rel);
+    if (!fs.existsSync(abs)) {
+      problems.push(`[走査対象の実体] ${rel} が見つかりません（git の追跡下だが作業ツリーに無い）    ← 復元するか git rm する`);
+      continue;
+    }
+    out.push({ rel, text: fs.readFileSync(abs, "utf8") });
+  }
+  return out;
+}
+
+function parseOrReport(fn, file, text, problems) {
+  try {
+    return fn(file, text);
+  } catch (e) {
+    // 読めないファイルを飛ばすと、そこに書いた写しは永久に見えない。落とす。
+    problems.push(`[構文] ${file} を解析できません: ${e.message}`);
+    return [];
+  }
+}
+
+function main() {
+  const problems = [];
+  const volume = [];
+
+  const drift = diffTargets(WEB_APPS, listWebAppDirs());
+  for (const m of drift.missing) problems.push(`[宣言と実体のずれ] 宣言した web アプリが見つかりません: ${m}`);
+  for (const u of drift.unexpected) problems.push(`[宣言と実体のずれ] 実在する web アプリが WEB_APPS に宣言されていません: ${u}`);
+
+  const { screen, components, foreign } = classifyStyleFiles(listStyleFiles());
+  for (const f of foreign) problems.push(`[拡張子] ${f} は .css ではありません。この検査が読めないので .css にする`);
+
+  const screenFiles = readExisting(screen, problems);
+  for (const app of WEB_APPS) {
+    volume.push({ label: `${app} の CSS`, count: screenFiles.filter((f) => f.rel.startsWith(`${app}/`)).length });
+  }
+  volume.push({ label: "packages の画面の CSS", count: screenFiles.filter((f) => f.rel.startsWith("packages/")).length });
+
+  for (const f of screenFiles) {
+    for (const p of parseOrReport(checkScreenCss, f.rel, f.text, problems)) {
+      problems.push(`[画面の CSS] ${p.file}:${p.line} ${p.message}`);
+    }
+  }
+
+  console.log(`[audit-ui-components] 走査対象: ${volume.map((v) => `${v.label} ${v.count} 件`).join(" / ")}`);
+  const empty = findEmptyScanDimensions(volume);
+  if (empty.length > 0) problems.push(`[走査対象] 走査対象が 0 件です（${empty.join(" / ")}）。検査が空振りしています`);
+
+  if (problems.length > 0) {
+    console.error("[audit-ui-components] NG");
+    for (const p of problems) console.error(`  - ${p}`);
+    process.exit(1);
+  }
+  console.log("[audit-ui-components] OK（違反 0 件）");
+}
+
+if (isDirectRun(import.meta.url, process.argv[1])) main();

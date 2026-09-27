@@ -470,13 +470,6 @@ export const MISSING_PATH_EXCEPTIONS = [
       "#320 の実装計画における部品層の置き場。ADR 0022 は決定を記録するものであり、" +
       "実装未了の時点で采配と配置を定めるため、実在しないことが正しい。#320 で実装される",
   },
-  {
-    doc: "docs/adr/0022-ui-components-layer.md",
-    path: "scripts/audit-ui-components.mjs",
-    reason:
-      "#320 の実装計画における部品層の監査スクリプト。ADR 0022 が決定 6 で責務を定める未実装スクリプト。" +
-      "#320 PR 1 で実装される",
-  },
 ];
 
 /**
