@@ -24,6 +24,12 @@
  * - 属性だけのセレクタ（`[type='text']`）。型を名指ししない書き方は、画面の CSS では見逃す
  * - **属性セレクタで部品を名指しする書き方**（`[class~=ui-input] { font-size: … }`）は D10 の 2 を素通りする
  *   （{@link screenRuleViolations} の `onPart` はクラス選択子だけを見る）
+ * - `url()` の中の色（SVG のデータ URI に埋め込んだ生の色）は {@link findRawColors} が `url(...)` を丸ごと消すので見ない
+ * - 旧来のシステムの色（`ActiveBorder` 等）は {@link findRawColors} の辞書（{@link NAMED_COLORS}）に無い
+ * - `@property` の記述子（`syntax` の `<color>` など）・`@import … layer(…)` は見ていない
+ * - {@link uiTokensIn} は TSX のコメントやテンプレート文字列の前半に書いた `ui-` も使用として数える（字面だけを見る）
+ * - {@link findDeadParts} は `.ts`（`.tsx` ではない）の定数に書いた部品名を使用として数えない。
+ *   実際は使われていても死んでいると誤報しうる（安全側 —— 見逃すより過検出を選ぶ）
  *
  * 設計方針: 判定は純粋関数、実 I/O と `process.exit` は `main()` の薄い配線だけに置く。
  * **依存は postcss と postcss-selector-parser だけ**（ADR 0022 決定 7。scripts の「追加依存は禁止」の例外）。
@@ -277,14 +283,17 @@ const NAMED_COLORS = new Set(
  * ならない** —— 第 2 引数に書いた生の色（`var(--a, #fff)`）まで消えてしまう。
  */
 export function findRawColors(value) {
-  const v = value
+  // 先にエスケープを解く（`wh\69te` → `white`・`r\67 b(…)` → `rgb(…)`）。エスケープの綴りのまま
+  // 文字列やカスタムプロパティ名を取り除くと、解けば現れる生の色を見落とす。
+  const v = unescapeIdent(value)
     .replace(/"[^"]*"|'[^']*'/g, " ")
     .replace(/url\([^)]*\)/gi, " ")
     .replace(/--[A-Za-z0-9_-]+/g, " ");
   const found = [];
   for (const m of v.matchAll(/#[0-9a-f]{3,8}(?![0-9a-z_-])/gi)) found.push(m[0]);
   for (const m of v.matchAll(/(?<![\w-])(rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\s*\(/gi)) found.push(`${m[1]}(`);
-  for (const m of v.matchAll(/(?<![\w-])[a-z]+(?![\w-])/gi)) {
+  // 直後が `(` の語は関数呼び出し（`tan(45deg)` の `tan` など）なので、名前の色として誤認しない。
+  for (const m of v.matchAll(/(?<![\w-])[a-z]+(?![\w-])(?!\s*\()/gi)) {
     if (NAMED_COLORS.has(m[0].toLowerCase())) found.push(m[0]);
   }
   return found;
@@ -311,6 +320,55 @@ function lastCompoundIsOption(selector) {
   return isOption;
 }
 
+/**
+ * セレクタの `::picker(` が、結合子を挟まず同じ複合セレクタに `.ui-select` のクラスを持たずに
+ * 現れているか（fix round 1 Important 2・D11-1 後段）。`.ui-input::picker(select)` や
+ * `.ui-a ::picker(select)` は他の部品・祖先セレクタへ化けるので落とす。`.ui-select::picker(select)`
+ * だけを許す。
+ */
+function pickerWithoutUiSelectHost(selector) {
+  const [sel] = parseSelector(selector).nodes;
+  let compoundHasUiSelect = false;
+  for (const node of sel.nodes) {
+    if (node.type === "combinator") {
+      compoundHasUiSelect = false;
+      continue;
+    }
+    if (node.type === "class" && unescapeIdent(node.value) === "ui-select") compoundHasUiSelect = true;
+    if (node.type === "pseudo" && node.value.toLowerCase().startsWith("::picker") && !compoundHasUiSelect) return true;
+  }
+  return false;
+}
+
+/**
+ * `outline` / `all` の宣言を、選択肢の `outline: none` だけ許す例外（fix round 1 Important 3）。
+ * **性質が `outline` に完全一致・値が `none`・規則の全セレクタが `.ui-select` を含み最後の複合が
+ * `option`** のときだけ例外にする。`outline-offset` や `all` はこの例外に入らない
+ * （`all: unset` は outline のリセットを迂回できるので、外側の呼び出し側で対象にする）。
+ */
+function isOptionOutlineNoneException(prop, value, rule) {
+  if (prop.toLowerCase() !== "outline") return false;
+  if (value.trim().toLowerCase() !== "none") return false;
+  return rule.selectors.every((s) => classesOf(s).has("ui-select") && lastCompoundIsOption(s));
+}
+
+/**
+ * rule 自身の宣言（{@link ownDeclarationsOf}）を見る。**`@keyframes` の中でも呼ぶ**
+ * （fix round 1 Important 1）——セレクタの判定（先頭のクラス・::picker の宿主）はキーフレームの
+ * セレクタ（`from` / `50%`）には当てはまらないが、宣言（つまみ・outline・生の色）はここでも破れる。
+ */
+function checkDeclarations(rule, report) {
+  for (const d of ownDeclarationsOf(rule)) {
+    if (d.prop.startsWith("--")) report(d, `部品の中でつまみを宣言しない（画面の上書きが継承に負ける）: ${d.prop}`);
+    const isOutlineOrAll = /^outline/i.test(d.prop) || d.prop.toLowerCase() === "all";
+    if (isOutlineOrAll && !isOptionOutlineNoneException(d.prop, d.value, rule)) {
+      report(d, `部品に outline / all を書かない（要素層のリングを打ち消す・迂回する。選択肢の outline: none だけ許す）: ${rule.selector} ${d.prop}: ${d.value}`);
+    }
+    const raw = findRawColors(d.value);
+    if (raw.length > 0) report(d, `生の色を書かない（トークンを使う）: ${d.prop}: ${d.value}`);
+  }
+}
+
 /** 部品の CSS を見る。返り値が空なら違反なし。**申告（ui-exempt）は部品の CSS では効かない。** */
 export function checkComponentCss(file, css) {
   const root = postcss.parse(css, { from: file });
@@ -320,26 +378,22 @@ export function checkComponentCss(file, css) {
     if (/^(scope|layer)$/i.test(at.name)) report(at, `@${at.name} を使わない（設計正本 D5・D11）`);
   });
   root.walkRules((rule) => {
-    if (inKeyframes(rule)) return;
+    if (inKeyframes(rule)) {
+      checkDeclarations(rule, report);
+      return;
+    }
     if (rule.parent?.type === "rule") {
       report(rule, `入れ子にしない（セレクタの先頭を検査できない）: ${rule.selector}`);
       return;
     }
     for (const s of rule.selectors) {
       if (!firstCompoundHasPart(s)) report(rule, `セレクタの先頭が .ui- のクラスではありません（全アプリへ漏れる）: ${s}`);
+      if (pickerWithoutUiSelectHost(s)) report(rule, `::picker( は同じ複合セレクタで .ui-select に続く形でだけ許す（他の部品や祖先へ化ける）: ${s}`);
     }
     if (rule.selectors.length > 1 && rule.selectors.some((s) => /::picker\(/i.test(s))) {
       report(rule, `::picker( を含むセレクタを一覧に同居させない（知らないブラウザが規則ごと捨てる）: ${rule.selector}`);
     }
-    const optionOnly = rule.selectors.every(lastCompoundIsOption);
-    // walkDecls ではなく ownDeclarationsOf を使う（子の規則は入れ子として別に落ちるので、
-    // ここでその宣言まで拾うと二重に数える）。
-    for (const d of ownDeclarationsOf(rule)) {
-      if (d.prop.startsWith("--")) report(d, `部品の中でつまみを宣言しない（画面の上書きが継承に負ける）: ${d.prop}`);
-      if (/^outline/i.test(d.prop) && !optionOnly) report(d, `部品に outline を書かない（要素層のリングを打ち消す）: ${rule.selector}`);
-      const raw = findRawColors(d.value);
-      if (raw.length > 0) report(d, `生の色を書かない（トークンを使う）: ${d.prop}: ${d.value}`);
-    }
+    checkDeclarations(rule, report);
   });
   return problems;
 }
@@ -354,9 +408,16 @@ export function definedPartClasses(css) {
   return out;
 }
 
-/** TSX の本文に現れる `ui-` で始まる語。`x-ui-input` のような語の途中は拾わない。 */
+/**
+ * TSX の本文に現れる `ui-` で始まる語。`x-ui-input` のような語の途中は拾わない。
+ * **末尾にも境界を付ける**（fix round 1 Minor 6）——`ui-inputX`・`ui-banner__title`・`ui-a_b` は、
+ * 境界が無いと先頭部分（`ui-input`・`ui-banner`・`ui-a`）だけを部品の使用として誤って数える。
+ * 境界は「英数・`_`・`-` 以外、または終端」。
+ */
 export function uiTokensIn(text) {
-  return new Set([...text.matchAll(/(?<![\w-])ui-[a-z0-9]+(?:-{1,2}[a-z0-9]+)*/g)].map((m) => m[0]));
+  return new Set(
+    [...text.matchAll(/(?<![\w-])ui-[a-z0-9]+(?:-{1,2}[a-z0-9]+)*(?![A-Za-z0-9_-])/g)].map((m) => m[0]),
+  );
 }
 
 /** 2 つ以上のアプリが使っていない部品のクラス（ADR 0022 決定 2・#280 の死んだ CSS の経緯）。 */

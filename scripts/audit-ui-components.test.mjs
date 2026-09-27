@@ -303,3 +303,66 @@ describe("死んだ部品", () => {
     assert.deepEqual(findDeadParts(new Set(["ui-input", "ui-select"]), usage), ["ui-select"]);
   });
 });
+
+describe("checkComponentCss: @keyframes の中の宣言も見る（fix round 1 Important 1）", () => {
+  test("生の色・つまみの宣言を落とす（セレクタの判定は飛ばす）", () => {
+    const ms = partMessagesOf("@keyframes k { from { color: #fff; background: red; --ui-a: 1; } }");
+    assert.ok(ms.some((m) => /生の色/.test(m) && /color/.test(m)));
+    assert.ok(ms.some((m) => /生の色/.test(m) && /background/.test(m)));
+    assert.ok(ms.some((m) => /つまみ/.test(m)));
+  });
+});
+
+describe("checkComponentCss: ::picker は .ui-select と同じ複合セレクタでだけ許す（fix round 1 Important 2）", () => {
+  test(".ui-input::picker(select) は落とす（.ui-select ではない）", () => {
+    assert.ok(partMessagesOf(".ui-input::picker(select) { appearance: base-select; }").some((m) => /続く/.test(m)));
+  });
+  test(".ui-a ::picker(select) は落とす（結合子を挟む）", () => {
+    assert.ok(partMessagesOf(".ui-a ::picker(select) { appearance: base-select; }").some((m) => /続く/.test(m)));
+  });
+  test(".ui-select::picker(select) は通す", () => {
+    assert.deepEqual(partMessagesOf(".ui-select::picker(select) { appearance: base-select; }"), []);
+  });
+});
+
+describe("checkComponentCss: outline* と all を対象にし、例外は選択肢の outline: none だけ（fix round 1 Important 3）", () => {
+  test("all: unset は落とす（outline のリセットを迂回できる）", () => {
+    assert.ok(partMessagesOf(".ui-input { all: unset; }").some((m) => /outline/.test(m)));
+  });
+  test("option の outline でも値が none 以外なら落とす", () => {
+    assert.ok(partMessagesOf(".ui-input option { outline: 3px solid var(--gold) }").some((m) => /outline/.test(m)));
+  });
+  test("option の outline-offset は例外に入らない（性質が outline 完全一致ではない）", () => {
+    assert.ok(partMessagesOf(".ui-select option { outline-offset: 4px }").some((m) => /outline/.test(m)));
+  });
+});
+
+describe("checkComponentCss: ownDeclarationsOf を使う（fix round 1 Important 4・変異検査で確かめる）", () => {
+  test("規則を挟まない @media の中の outline と生の色を拾う", () => {
+    const ms = partMessagesOf(".ui-a { @media (x) { outline: 0; color: #fff; } }");
+    assert.ok(ms.some((m) => /outline/.test(m)));
+    assert.ok(ms.some((m) => /生の色/.test(m)));
+  });
+  test("@media の中の規則（規則を挟む）はセレクタの先頭でちょうど 1 件落ちる", () => {
+    const ms = partMessagesOf("@media (x) { select { color: var(--a); } }");
+    assert.equal(ms.filter((m) => /\.ui- のクラス/.test(m)).length, 1);
+  });
+});
+
+describe("findRawColors: エスケープを解いてから照合し、直後が ( の語は除く（fix round 1 Minor 5）", () => {
+  test("wh\\69te はエスケープを解いて white と分かる", () => {
+    assert.ok(findRawColors("wh\\69te").length > 0);
+  });
+  test("r\\67 b(0 0 0) はエスケープを解いて rgb( と分かる", () => {
+    assert.ok(findRawColors("r\\67 b(0 0 0)").length > 0);
+  });
+  test("tan(45deg) は名前の色 tan と誤認しない", () => {
+    assert.deepEqual(findRawColors("tan(45deg)"), []);
+  });
+});
+
+describe("uiTokensIn: 語の終わりの境界（fix round 1 Minor 6）", () => {
+  test("ui-inputX・ui-banner__title・ui-a_b は部品の使用として数えない", () => {
+    assert.deepEqual([...uiTokensIn("ui-inputX ui-banner__title ui-a_b")], []);
+  });
+});
