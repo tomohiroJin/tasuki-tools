@@ -201,5 +201,33 @@ export async function expectPickerInPage(select: Locator, groundToken: string): 
   expect(picker.background, '一覧の地が画面の地と違う').toBe(ground);
   expect(picker.optionHeights.length, '選択肢が無い（判定が空振りする）').toBeGreaterThan(0);
   expect(picker.optionHeights.every((h) => h > 0), `選択肢がページに並んでいない（${picker.optionHeights.join(', ')}）`).toBe(true);
+
+  // **ホバーした選択肢が一覧の地から浮くこと**（#320・E7）。欄の地を変える画面がホバーの地を
+  // 変え忘れると、両方が同じ色になって選択の目印が消える（timer は --panel-2 = felt-700 で実際にそうなる）。
+  const option = select.locator('option:not(:disabled)').first();
+  await option.hover();
+  const hovered = await option.evaluate((o) => getComputedStyle(o).backgroundColor);
+  expect(hovered, '選択肢のホバーの地が一覧の地と同じ（選択の目印が見えない）').not.toBe(picker.background);
+
   await select.page().keyboard.press('Escape');
+}
+
+/**
+ * 部品を当てた入力欄の字が 16px を下回らないこと（#320・E6）。
+ *
+ * 16px 未満の入力欄は iOS Safari がフォーカス時に画面を拡大する。部品は 1rem で持つが、画面の CSS が
+ * 後から字の大きさを当てると同じ詳細度の後勝ちで潰れる。**計算後の値で見る**（CSS の検査より広いオラクル）。
+ */
+export async function expectFieldsAtLeast16px(page: Page): Promise<void> {
+  const sizes = await page.locator('.ui-input, .ui-select').evaluateAll((els) =>
+    els
+      .filter((el) => (el as HTMLElement).offsetParent !== null)
+      .map((el) => ({
+        name: el.getAttribute('aria-label') ?? el.id,
+        px: Number.parseFloat(getComputedStyle(el).fontSize),
+      })),
+  );
+  // 当たる欄が無いまま空回りすると、下の判定は 1 度も走らずに緑になる
+  expect(sizes.length, '部品を当てた入力欄が画面に無い（判定が空振りする）').toBeGreaterThan(0);
+  for (const s of sizes) expect(s.px, `${s.name} の字が 16px を下回る`).toBeGreaterThanOrEqual(16);
 }

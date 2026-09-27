@@ -1,6 +1,7 @@
 import { test, expect } from '../fixtures/test';
 import type { Page, Request } from '@playwright/test';
 import { describePaint, groundLayers, measureSample, sampleInPage } from '../support/contrast';
+import { expectFieldsAtLeast16px } from '../support/a11y';
 
 /**
  * 札の文字は 1 行に収まっていること。
@@ -97,6 +98,7 @@ for (const width of [1280, 1024, 768, 320]) {
     // When
     await page.getByLabel('ルーム名').fill('朝会');
     await page.getByLabel('あなたの名前').fill('あや');
+    await expectFieldsAtLeast16px(page);
     await page.getByRole('button', { name: 'ルームを作る' }).click();
     const invite = page.getByLabel('参加用 URL');
     await expect(invite).toBeVisible();

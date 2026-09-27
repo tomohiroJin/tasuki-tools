@@ -2,7 +2,8 @@
  * ここで `@import` してはいけない —— Tailwind が展開すると書体の `url()` が解決されず、
  * 書体が 1 本も読めなくなる（#297。理由は `main.tsx` の注釈）。要素層
  * （`@tasuki/ui/elements.css`）は `button` や `h2` を直接飾るため **読まない** ——
- * Tailwind のユーティリティと衝突する（ADR-0001）。 */
+ * Tailwind のユーティリティと衝突する（ADR-0001）。
+ * 部品層（`@tasuki/ui/components.css`）は `main.tsx` が読む（`.ui-` のクラスだけなので衝突しない・ADR-0022）。 */
 
 /* Tailwind 4 は `@tailwind` の 3 行を 1 本の `@import` に置き換えた。 */
 @import 'tailwindcss';
@@ -93,6 +94,13 @@
   --inset-highlight: var(--ivory-inset); /* 面の上端の僅かな立ち上がり */
   --scrim: var(--felt-scrim); /* 全画面を覆う暗幕 */
   --shade: var(--felt-shade); /* 背後を残す幕（ダイアログの下敷き） */
+
+  /* --- 部品層のつまみ（ADR-0022） -----------------------------------------
+   * 欄と一覧の地は、同じ画面のほかの入力欄（Tailwind・#321 まで）と揃えてサブ面に置く。
+   * **地を変えたのでホバーも変える** —— 部品の既定のホバー（felt-700）は --panel-2 と同じ色で、
+   * 選択の目印が消える（E2E の expectPickerInPage が見る）。 */
+  --ui-field-bg: var(--panel-2);
+  --ui-field-hover: var(--panel-hover);
 }
 
 /* **P3 の上書きは置かない。** 旧パレットは朱を一段鮮やかにするために使っていたが、
@@ -142,35 +150,7 @@ body {
   outline-offset: 2px;
 }
 
-/* 素の <select> の一覧を、Chrome はページと別の窓で描き、開いた最初の一瞬を白で塗る（#317）。
- * `base-select` にすると一覧はページの中に描かれ、白い一瞬が出ない。
- * 解さないブラウザは素の <select> のまま。欄そのものの地と文字は各所のユーティリティが持つ。 */
-select,
-select::picker(select) {
-  appearance: base-select;
-}
-
-select::picker(select) {
-  margin-top: 0.25rem;
-  border: 1px solid var(--hairline-strong);
-  border-radius: var(--radius-md);
-  background: var(--panel-2);
-  color: var(--bone);
-  box-shadow: var(--shadow-popover);
-  /* 一覧が長いと出るスクロールバーを、既定の灰色から卓の色へ寄せる（つまみ・溝の順）。 */
-  scrollbar-width: thin;
-  scrollbar-color: var(--signal-edge) var(--panel);
-}
-
-option {
-  padding: 0.375rem 0.5rem;
-}
-
-option:hover,
-option:focus-visible {
-  background: var(--panel-hover);
-  outline: none;
-}
+/* プルダウン（`<select>`）の見た目は部品層の `.ui-select` が持つ（#317 の白い一瞬の回避を含む・ADR 0022）。 */
 
 /* スクリーンリーダー専用 */
 .sr-only {

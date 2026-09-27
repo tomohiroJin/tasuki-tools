@@ -11,7 +11,7 @@
  * 利用者の内容で拡張の層を引くのは正しい振る舞いだが、書体の検査が UI の劣化と区別できなくなる。
  */
 import { expect, test } from '../fixtures/test';
-import { expectFocusVisibleOnTab, expectPickerInPage, expectReadable, pairKey, resolveColors, scanContrast } from '../support/a11y';
+import { expectFieldsAtLeast16px, expectFocusVisibleOnTab, expectPickerInPage, expectReadable, pairKey, resolveColors, scanContrast } from '../support/a11y';
 import { joinRoom as joinPoker } from '../support/poker';
 import { joinViaHubAt as joinTimer } from '../support/timer';
 import { currentTopic, openTopicTool, setTopic } from '../support/topic';
@@ -206,6 +206,7 @@ test.describe('お題ツールの文字と書体', () => {
     for (const label of ['言語', '難易度']) {
       await expectPickerInPage(page.getByLabel(label, { exact: true }), '--felt-950');
     }
+    await expectFieldsAtLeast16px(page);
     // 画面は例外を出していない
     expect(consoleWatcher.errors).toEqual([]);
   });

@@ -58,13 +58,13 @@ export function NotifySettingsPanel({ prefs, onChange, onPreview }: NotifySettin
         <label htmlFor={soundFieldId} className="instrument-label">
           通知音
         </label>
-        <div className="mt-1 flex gap-2">
+        <div className="mt-1 flex items-center gap-2">
           <select
             id={soundFieldId}
             aria-label="通知音"
             value={prefs.soundId}
             onChange={(e) => onChange({ soundId: e.target.value })}
-            className="flex-1 rounded-md border border-[var(--hairline-strong)] bg-[var(--panel-2)] px-2 py-1.5 text-sm text-[var(--bone)]"
+            className="ui-select flex-1"
           >
             {CHIMES.map((c) => (
               <option key={c.id} value={c.id} disabled={!c.isReady}>
@@ -174,7 +174,7 @@ export function NotifySettingsPanel({ prefs, onChange, onPreview }: NotifySettin
                 aria-label="読み上げ話者"
                 value={prefs.countdownVoiceId}
                 onChange={(e) => onChange({ countdownVoiceId: e.target.value as "voice-male" | "voice-female" })}
-                className="mt-1 w-full rounded-md border border-[var(--hairline-strong)] bg-[var(--panel-2)] px-2 py-1.5 text-sm text-[var(--bone)]"
+                className="ui-select mt-1"
               >
                 <option value="voice-male">男声</option>
                 <option value="voice-female">女声</option>

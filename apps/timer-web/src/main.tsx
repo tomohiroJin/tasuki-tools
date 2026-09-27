@@ -7,8 +7,10 @@ import { installAudioUnlock } from "./platform/sound.js";
 // `url('../fonts/…')` の基準を付け替えない。Vite は解決できずに素通しし、配信時は
 // `/timer/fonts/…` に SPA の HTML が返って**書体が 1 本も読めていなかった**（本番も同じ）。
 // ここで読めば Vite 自身が解決して `assets/` へ出す。**`./index.css` より先に置く**
-// （トークンを先に、画面固有の上書きを後に —— 同じ詳細度なら後勝ち）。
+// （トークン → 部品 → 画面固有の上書きの順 —— 同じ詳細度なら後勝ち）。部品層（`.ui-` のクラスだけ）は
+// 要素層と違って素の要素を飾らないので、Tailwind のユーティリティと衝突しない（ADR 0022 決定 5）。
 import "@tasuki/ui/tokens.css";
+import "@tasuki/ui/components.css";
 import "./index.css";
 
 const root = document.getElementById("root");

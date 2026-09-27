@@ -17,7 +17,7 @@
 import type { Page } from '@playwright/test';
 import { expect, test, type Peer } from '../fixtures/test';
 import { createRoom, joinAsDriver, lobbyRotationRow } from '../support/timer';
-import { expectFocusVisibleOnTab, expectPickerInPage, expectReadable, pairKey, resolveColors, scanContrast } from '../support/a11y';
+import { expectFieldsAtLeast16px, expectFocusVisibleOnTab, expectPickerInPage, expectReadable, pairKey, resolveColors, scanContrast } from '../support/a11y';
 import { joinTopicTool, setTopic } from '../support/topic';
 
 const HOST = 'a11y-a';
@@ -108,6 +108,7 @@ test.describe('プルダウンが白く光らない', () => {
     await createRoom(page, HOST);
     // When / Then（#317：別の窓で開くと、開いた一瞬が白く光る）
     await expectPickerInPage(page.getByLabel('通知音', { exact: true }), '--panel-2');
+    await expectFieldsAtLeast16px(page);
   });
 });
 
