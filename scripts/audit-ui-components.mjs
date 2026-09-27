@@ -152,7 +152,7 @@ export function classifyStyleFiles(rels) {
   const foreign = [];
   for (const rel of [...rels].sort()) {
     if (FOREIGN_STYLE.test(rel)) foreign.push(rel);
-    else if (!rel.endsWith(".css")) continue;
+    else if (!/\.css$/i.test(rel)) continue;
     else if (rel.startsWith(COMPONENTS_DIR)) components.push(rel);
     else if (!rel.startsWith(TOKENS_DIR)) screen.push(rel);
   }
@@ -179,6 +179,20 @@ function inKeyframes(rule) {
 }
 
 /**
+ * rule 自身の宣言。**別の規則を挟まずにアットルール（`@media` / `@supports` 等）の中にある宣言も、
+ * その規則自身の宣言として数える**（fix round 2・重要 1）。子の規則（`rule` 型）は自分自身で
+ * 判定するので、そこへは降りない（二重に数えない）。
+ */
+function ownDeclarationsOf(node) {
+  const out = [];
+  for (const child of node.nodes ?? []) {
+    if (child.type === "decl") out.push(child);
+    else if (child.type === "atrule") out.push(...ownDeclarationsOf(child));
+  }
+  return out;
+}
+
+/**
  * 画面の CSS の 1 つの規則が破っている事柄（申告を見る前）。
  *
  * **判定は解決済みセレクタ（{@link resolvedSelectorsOf}）で行う**（設計正本 D10 の 1）。
@@ -197,7 +211,7 @@ function screenRuleViolations(rule) {
     found.push(`祖先の @scope (${scopeTouch}) が入力欄の型に当たるので、この中の規則も見た目を書いています: ${rule.selector}    ← 部品を当てるか、直前に /* ui-exempt: 理由 */ を書く`);
   }
   const onPart = resolved.some((s) => [...classesOf(s)].some((c) => FIELD_PART_CLASSES.has(c)));
-  const setsSize = rule.nodes?.some((n) => n.type === "decl" && /^font(-size)?$/i.test(n.prop));
+  const setsSize = ownDeclarationsOf(rule).some((n) => /^font(-size)?$/i.test(n.prop));
   if (onPart && setsSize) {
     found.push(`部品の入力欄の字の大きさを上書きしています（16px の下限を崩す）: ${rule.selector}`);
   }

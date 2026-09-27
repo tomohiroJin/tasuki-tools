@@ -139,7 +139,46 @@ describe("checkScreenCss: 入れ子は & を解いてから判定する（設計
   });
 });
 
+describe("checkScreenCss: 入れ子のアットルールの中の宣言も自分の規則の宣言として数える（fix round 2・重要 1）", () => {
+  test("規則の直下の @media の中の font-size を落とす（規則を挟まない）", () => {
+    const ms = messagesOf(".ui-input { @media (x) { font-size: 1px } }");
+    assert.equal(ms.filter((m) => /16px/.test(m)).length, 1);
+  });
+  test("入れ子の子（&）の中の @media の font-size は子の規則が落とす", () => {
+    const ms = messagesOf(".ui-input { &:focus { @media (x) { font-size: 1px } } }");
+    assert.equal(ms.filter((m) => /16px/.test(m)).length, 1);
+  });
+  test("@supports の中の @media の font-size も、規則を挟まなければ落とす（2 段のアットルール）", () => {
+    const ms = messagesOf(".ui-input { @supports (x) { @media (y) { font-size: 1px } } }");
+    assert.equal(ms.filter((m) => /16px/.test(m)).length, 1);
+  });
+});
+
+describe("checkScreenCss: 解決処理の振る舞い（fix round 2・重要 3・変異を殺す）", () => {
+  test("親の一覧は組み合わせを全部見る（直積を先頭 1 つに縮めると見逃す）", () => {
+    const ms = messagesOf(".a, .ui-input { &:focus { font-size: 1px } }");
+    assert.equal(ms.filter((m) => /16px/.test(m)).length, 1);
+  });
+  test("祖先を辿るとき @media を飛ばして規則まで届く（1 段で null にすると見逃す）", () => {
+    const ms = messagesOf(".ui-input { @media (x) { &:focus { font-size: 1px } } }");
+    assert.equal(ms.filter((m) => /16px/.test(m)).length, 1);
+  });
+  test("祖先は 1 段では終わらず、根まで再帰的に解決する（3 段）", () => {
+    const ms = messagesOf(".ui-input { .b { &:hover { &:focus { font-size: 1px } } } }");
+    assert.equal(ms.filter((m) => /16px/.test(m)).length, 1);
+  });
+  test("& は置換して初めて部品のクラスが現れる形（子孫結合のままでは現れない）", () => {
+    // ".ui-inp" + "ut" を & で継ぐと ".ui-input" という 1 つのクラスになる。
+    // 子孫結合（".ui-inp &ut"）のままでは、そのクラス名はどこにも現れない。
+    const ms = messagesOf(".ui-inp { &ut { font-size: 1px } }");
+    assert.equal(ms.filter((m) => /16px/.test(m)).length, 1);
+  });
+});
+
 describe("classifyStyleFiles: 走査対象の仕分け", () => {
+  test("大文字の拡張子（.CSS）も画面の CSS として数える（fix round 2・軽微 2）", () => {
+    assert.deepEqual(classifyStyleFiles(["apps/x/a.CSS"]).screen, ["apps/x/a.CSS"]);
+  });
   test("トークン層と部品層を画面の CSS から外し、部品層は別に数える", () => {
     const r = classifyStyleFiles([
       "apps/landing/src/index.css",
