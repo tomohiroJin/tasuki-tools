@@ -1,0 +1,68 @@
+/* ============================================================
+   Tasuki UI — 入力欄の系（#320・ADR 0022）
+   1 行の欄と複数行の欄は `.ui-input`、プルダウンは `.ui-select`。
+   **クラスを当てたときだけ効く。** 配置（幅の割り付け・並び・外側の余白）は画面が持つ。
+
+   つまみ（画面が `:root` か容器で宣言する。**ここでは宣言しない** —— 宣言すると画面の
+   上書きが継承に負けて黙って効かない）:
+     --ui-field-bg     欄と一覧の地。既定は面より沈める felt-950
+     --ui-field-hover  一覧の選択肢のホバーの地。地を変える画面は、地と同じ色にならないよう必ずこれも変える
+   ============================================================ */
+
+.ui-input,
+.ui-select {
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--ui-field-bg, var(--felt-950));
+  color: var(--ivory);
+  /* 一括指定の `font` プロパティ（`inherit` をまとめて書く形）は使わない。親の `label`（要素層）の
+     小さい字まで継承し、後ろの `font-size` と順序で競う（玄関の `.hub-input` の注釈）。字の大きさ以外だけを継承する。 */
+  font-family: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+  font-size: 1rem; /* scale-exempt: 16px を下回る入力欄は iOS Safari がフォーカス時に画面を拡大する。1rem は利用者の既定の文字サイズを尊重する */
+}
+
+textarea.ui-input {
+  resize: vertical;
+}
+
+.ui-input::placeholder {
+  color: var(--ivory-faint);
+}
+
+/* 素の <select> の一覧を、Chrome はページと別の窓で描き、開いた最初の一瞬を白で塗る（#317）。
+   `base-select` にすると一覧はページの中に描かれる。解さないブラウザは素の <select> に上の規則だけが効く。
+   **`::picker(select)` を下の一覧に混ぜない** —— 知らないブラウザは一覧ごと規則を捨て、欄の地まで消える。 */
+.ui-select {
+  appearance: base-select;
+}
+
+.ui-select::picker(select) {
+  appearance: base-select;
+  margin-top: var(--space-1);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--ui-field-bg, var(--felt-950));
+  color: var(--ivory);
+  box-shadow: var(--shadow-popover);
+  /* 一覧が長いと出るスクロールバーを、既定の灰色から卓の色へ寄せる（つまみ・溝の順）。 */
+  scrollbar-width: thin;
+  scrollbar-color: var(--gold-edge) var(--felt-900);
+}
+
+.ui-select option {
+  padding: var(--space-2) var(--space-4);
+}
+
+/* 選択の目印はホバーの地が担う。フォーカスの枠は選択肢にだけ消す（部品層で outline を書いてよい唯一の場所）。 */
+.ui-select option:focus-visible,
+.ui-select option:hover:not(:disabled) {
+  background: var(--ui-field-hover, var(--felt-700));
+  outline: none;
+}

@@ -463,13 +463,6 @@ export const MISSING_PATH_EXCEPTIONS = [
       "憲法 2.0.0 の Sync Impact Report が「原則 V の `apps/web` 限定を撤廃した」と" +
       "書くための旧名の引用。撤廃された名前なので実在しないことが正しい",
   },
-  {
-    doc: "docs/adr/0022-ui-components-layer.md",
-    path: "packages/ui/src/components/",
-    reason:
-      "#320 の実装計画における部品層の置き場。ADR 0022 は決定を記録するものであり、" +
-      "実装未了の時点で采配と配置を定めるため、実在しないことが正しい。#320 で実装される",
-  },
 ];
 
 /**
