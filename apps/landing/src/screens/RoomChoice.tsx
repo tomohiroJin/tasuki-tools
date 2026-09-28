@@ -76,7 +76,7 @@ export function RoomChoice({ code, inviteUrl, roster, connection, topicTitle }: 
           )}
         </section>
         <div className="hub-room">
-          <section className="hub-panel" aria-labelledby="hub-roster-heading">
+          <section className="hub-panel ui-panel" aria-labelledby="hub-roster-heading">
             <h2 className="hub-heading" id="hub-roster-heading">参加者</h2>
             <ul className="hub-roster" aria-label="参加者">
               {participants.map((p) => (
@@ -91,7 +91,7 @@ export function RoomChoice({ code, inviteUrl, roster, connection, topicTitle }: 
             </ul>
 
           </section>
-          <section className="hub-panel" aria-labelledby="hub-invite-heading">
+          <section className="hub-panel ui-panel" aria-labelledby="hub-invite-heading">
             <h2 className="hub-heading" id="hub-invite-heading">仲間を招く</h2>
             <input className="ui-input hub-invite" readOnly value={inviteUrl} aria-label="参加用 URL" />
             <div className="hub-invite-actions">

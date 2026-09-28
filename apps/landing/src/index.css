@@ -203,15 +203,13 @@
 }
 /* ---------- 玄関の共通部品（`.hub-*` は玄関配下のどの画面でも共有する。
               画面名で節を切ると使用箇所とずれるので、役割で切っている） ---------- */
+/* 面は部品（`.ui-panel`）が持つ。フォームは卓の上に浮かせる札なので、内側の余白を広く取り影を落とす。 */
 .hub-form {
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
   width: min(100%, 26rem);
   padding: var(--space-6);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-lg);
-  background: var(--felt-900);
   box-shadow: var(--shadow-popover);
 }
 
@@ -360,12 +358,9 @@
   gap: var(--space-4);
   min-width: 0;
 }
+/* 面は部品（`.ui-panel`）が持つ。 */
 .hub-panel {
   min-width: 0;
-  padding: var(--space-5);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-lg);
-  background: var(--felt-900);
 }
 .hub-heading {
   margin: 0 0 var(--space-4);
