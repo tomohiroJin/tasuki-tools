@@ -1,0 +1,16 @@
+diff --git a/scripts/audit-ui-components.mjs b/scripts/audit-ui-components.mjs
+index d16409a..b5ffc3e 100644
+--- a/scripts/audit-ui-components.mjs
++++ b/scripts/audit-ui-components.mjs
+@@ -243,10 +243,7 @@ export function checkScreenCss(file, css) {
+     if (reason !== undefined) usedExempts.add(rule.prev());
+     if (reason === "") problems.push({ ...where(file, rule), message: "ui-exempt: の理由が空です" });
+   });
+-  root.walkComments((comment) => {
+-    if (!EXEMPT_RE.test(comment.text.trim()) || usedExempts.has(comment)) return;
+-    problems.push({ ...where(file, comment), message: "何も免除していない ui-exempt: です    ← 直したなら消す" });
+-  });
++  root.walkComments(() => {});
+   return problems;
+ }
+ 

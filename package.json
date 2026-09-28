@@ -18,6 +18,8 @@
     "eslint": "^10.8.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.8.0",
+    "postcss": "^8.5.25",
+    "postcss-selector-parser": "^7.1.5",
     "turbo": "^2.10.8",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.66.0"

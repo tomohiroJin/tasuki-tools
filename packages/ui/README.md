@@ -9,22 +9,58 @@ Tasuki の共通ビジュアル「**夜のカードテーブル**」。深緑の
 > #19 で 3 アプリが 1 つの玄関 LP の下に並び、timer だけ別世界に見えることが
 > 問題になったため、#78 でこの判断を見直した。
 
-## 2 層構造
+## 3 層構造
 
 ```
 src/
-  tokens/    変数と @font-face だけ。**素の要素セレクタを置かない**
-  elements/  html / body / h1 / button / label / .card を直接飾る
-  fonts/     自己ホストの woff2 と OFL
+  tokens/     変数と @font-face だけ。**素の要素セレクタを置かない**
+  elements/   html / body / h1 / button / label / .card を直接飾る
+  components/ `.ui-` で始まるクラスだけを定義する部品（下記「部品層」）
+  fonts/      自己ホストの woff2 と OFL
 ```
 
 | 利用側 | 読むもの | 理由 |
 |---|---|---|
-| `apps/poker-web` / `apps/landing` / `apps/topic-web` | `@import '@tasuki/ui';`（両層） | 素の CSS で組んでいるので要素層がそのまま効く |
-| `apps/timer-web` | `import '@tasuki/ui/tokens.css';`（トークン層だけ・`main.tsx` から） | Tailwind のユーティリティで全操作要素を組んでいる。要素層を読むと `button { 真鍮のグラデーション }` が下地に敷かれ、両者が部分的に上書きし合う |
+| `apps/poker-web` / `apps/landing` / `apps/topic-web` | `@import '@tasuki/ui';`（3 層とも） | 素の CSS で組んでいるので要素層がそのまま効く |
+| `apps/timer-web` | `import '@tasuki/ui/tokens.css';` の次に `import '@tasuki/ui/components.css';`（トークン層と部品層・`main.tsx` から。要素層は読まない） | Tailwind のユーティリティで全操作要素を組んでいる。要素層を読むと `button { 真鍮のグラデーション }` が下地に敷かれ、両者が部分的に上書きし合う。部品層はクラスを当てたときだけ効くので衝突しない |
 
 **この境界は stylelint が機械的に守る。** `src/tokens/` では `selector-max-type` /
 `-class` / `-id` を 0 にしてあるので、うっかり `h2 {}` を足すと lint が落ちる。
+
+### 部品層（`components/`・ADR 0022）
+
+`.ui-` で始まるクラスだけを定義する層です。**クラスを当てたときだけ効く**ので、timer-web を含む全アプリが読めます。
+
+| 部品 | 当てる要素 | つまみ |
+|---|---|---|
+| `.ui-input` | `<input>`・`<textarea>`（1 行・複数行の欄） | `--ui-field-bg` |
+| `.ui-select` | `<select>`（一覧は `base-select` でページの中に描く） | `--ui-field-bg`・`--ui-field-hover` |
+
+**使い方**
+
+- 読み込み: poker-web / landing / topic-web は `@import '@tasuki/ui';` に含まれます。timer-web は `main.tsx` で
+  `@tasuki/ui/tokens.css` の次・`./index.css` の前に `import '@tasuki/ui/components.css';` を置きます
+- 画面が持つのは配置（幅の割り付け・並び・外側の余白）と画面固有の上書きです。**配置もクラスで書きます**
+  （画面の CSS で `select` / `input` / `textarea` / `option` の型を含むセレクタを書くと、検査が落とします）
+- つまみは画面の `:root` か容器で宣言します。**欄の地を変える画面は、ホバーの地も変えます**（同じ色だと選択の目印が消えます）
+- 部品の入力欄の字の大きさは上書きしません（16px の下限）。**部品（`.ui-input` / `.ui-select`）を名指しして字の大きさを書くと検査が落とします。
+  画面のクラスで書いた上書きは検査に掛からず、計算後の値を E2E（`expectFieldsAtLeast16px`）が測ります** —— 入力欄を置く画面は E2E で
+  `expectFieldsAtLeast16px` を呼んでください
+
+**部品を足す条件**（ADR 0022 決定 2）: 同じ見た目の知識を持つこと・2 画面以上が使うこと。
+20 行に満たない重複でも足します。どのアプリも使わない部品は検査が落とします。
+
+**共有部品を使わないとき**（ADR 0022 決定 3）: その規則の直前に `/* ui-exempt: 理由 */` と書きます。
+理由の中身は問いません。理由が空の申告と、何も免除していない申告は検査が落とします。
+外している箇所の一覧は `git grep ui-exempt` で引けます。
+
+**部品の CSS の約束**（`scripts/audit-ui-components.mjs` が見る）: セレクタは `.ui-` のクラスから始める・
+入れ子と `@scope` / `@layer` を使わない・`::picker(select)` を一覧に同居させない・`outline` を書かない
+（例外は選択肢の `outline: none`）・つまみを宣言しない（既定値は `var()` の第 2 引数）・生の色を書かない。
+字の大きさは同じ行の `/* scale-exempt: 理由 */` つきで書きます。
+
+**機械で止めていないもの**: クラス名で書いた写し（例: 入力欄に独自のクラスを当てて同じ見た目を書く）。
+新しい画面を作るときは、まずこの表を見てください。
 
 ## 使い方
 
@@ -39,9 +75,10 @@ src/
 必要な部分だけ読むこともできる。
 
 ```css
-@import '@tasuki/ui/tokens.css';    /* 色・書体・角丸・影の変数と @font-face */
-@import '@tasuki/ui/elements.css';  /* 素の要素の見た目だけ */
-@import '@tasuki/ui/card.css';      /* カード表現だけ */
+@import '@tasuki/ui/tokens.css';      /* 色・書体・角丸・影の変数と @font-face */
+@import '@tasuki/ui/elements.css';    /* 素の要素の見た目だけ */
+@import '@tasuki/ui/card.css';        /* カード表現だけ */
+@import '@tasuki/ui/components.css';  /* `.ui-` の部品だけ */
 ```
 
 **Tailwind 4（`@tailwindcss/postcss`）と併用する場合は、CSS から `@import` しない。**
@@ -120,13 +157,14 @@ Tailwind が `@import` を展開すると、入れ子の `fonts.css` の `url('.
 - `.card.small` はめくり演出（`flip-in`）を持つが、**遅延は利用側で指定する**
 - 動きを抑える設定（`prefers-reduced-motion`）は `elements/reset.css` が一括で面倒を見る
 - **フォーカス可視化は `elements/reset.css` のグローバル `:focus-visible` が担う。**
-  トークン層だけを読む timer-web は自前で持つ
+  要素層を読まない timer-web は自前で持つ（部品層もリングを持たない・ADR 0022 決定 4）
 
 ## 検査
 
 ```bash
-pnpm --filter @tasuki/ui lint   # stylelint（層の境界と本物の誤り）
-pnpm --filter @tasuki/ui test   # node:test（トークンの契約・書体の実在・層の純度）
+pnpm --filter @tasuki/ui lint       # stylelint（層の境界と本物の誤り）
+pnpm --filter @tasuki/ui test       # node:test（トークンの契約・書体の実在・層の純度）
+node scripts/audit-ui-components.mjs  # 部品層の写しと規則（リポジトリのルートから実行）
 ```
 
 `build` と `typecheck` は持たない（TS を足すまで不要）。

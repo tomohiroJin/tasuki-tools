@@ -197,65 +197,7 @@ h6.md-h {
   word-break: break-all;
 }
 
-/* ---------- 入力欄（玄関の `.hub-input` と同じ組み方） ---------- */
-
-/* `@tasuki/ui` は入力欄の規則を持たない（#280 で要素層から外した）。書かないと、フェルトの上に
-   ブラウザ既定の白い欄が出る。字の大きさは玄関と同じく `1rem` —— 16px を下回ると iOS Safari が
-   フォーカス時に画面を拡大する（`apps/landing/src/index.css` の `.hub-input` の注記）。 */
-.topic-panel input,
-.topic-panel textarea,
-.topic-panel select {
-  min-width: 0;
-  width: 100%;
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-md);
-  background: var(--felt-950);
-  color: var(--ivory);
-  font: inherit;
-  font-size: 1rem;
-}
-
-.topic-panel textarea {
-  resize: vertical;
-}
-
-/* 素の <select> の一覧を、Chrome はページと別の窓で描き、開いた最初の一瞬を白で塗る（#317）。
-   `base-select` にすると一覧はページの中に描かれ、白い一瞬が出ない。
-   解さないブラウザは素の <select> のまま（上の規則だけが効く）。 */
-.topic-panel select,
-.topic-panel select::picker(select) {
-  appearance: base-select;
-}
-
-.topic-panel select::picker(select) {
-  margin-top: var(--space-1);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-md);
-  background: var(--felt-950);
-  color: var(--ivory);
-  box-shadow: var(--shadow-popover);
-  /* 一覧が長いと出るスクロールバーを、既定の灰色から卓の色へ寄せる（つまみ・溝の順）。 */
-  scrollbar-width: thin;
-  scrollbar-color: var(--gold-edge) var(--felt-900);
-}
-
-.topic-panel option {
-  padding: var(--space-2) var(--space-4);
-}
-
-.topic-panel option:hover,
-.topic-panel option:focus-visible {
-  background: var(--felt-700);
-  outline: none;
-}
-
-.topic-panel input:focus-visible,
-.topic-panel textarea:focus-visible,
-.topic-panel select:focus-visible {
-  outline: 2px solid var(--gold);
-  outline-offset: 2px;
-}
+/* ---------- 入力欄は `@tasuki/ui` の部品層（`.ui-input` / `.ui-select`・ADR 0022）が持つ ---------- */
 
 /* ---------- 書く・作る ---------- */
 

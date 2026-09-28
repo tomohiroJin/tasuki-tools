@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-ui-components.mjs b/scripts/audit-ui-components.mjs
+index d16409a..1ee6860 100644
+--- a/scripts/audit-ui-components.mjs
++++ b/scripts/audit-ui-components.mjs
+@@ -85,7 +85,7 @@ function parseSelector(selector) {
+ export function touchesFieldElement(selector) {
+   let hit = false;
+   parseSelector(selector).walk((node) => {
+-    if (node.type === "tag" && FIELD_TYPES.has(unescapeIdent(node.value).toLowerCase())) hit = true;
++    if (node.type === "tag" && FIELD_TYPES.has(unescapeIdent(node.value))) hit = true;
+     if (node.type === "pseudo" && node.value.toLowerCase().startsWith("::picker")) hit = true;
+   });
+   return hit;

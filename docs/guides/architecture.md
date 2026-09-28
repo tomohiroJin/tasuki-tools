@@ -41,7 +41,7 @@ S2〜S4a では poker 側の入れ子（src/poker 配下。**S4b で畳みまし
 | web の純粋判断 | web アプリ配下で React・I/O に依存しない `.ts`（例: `apps/timer-web/src/ui/screen.ts`・`apps/poker-web/src/router.ts` の `parseRoute` / `hubPathFor`・`apps/landing/src/hub/hub-state.ts`） | ドメインの型のみ（React・I/O に依存しない） |
 | web の同期フック | web アプリの同期フック 1 本（例: `apps/poker-web/src/hooks/useSync.ts`・`apps/landing/src/hub/use-hub-sync.ts`） | 上のすべて ＋ WebSocket |
 | web の画面 | web アプリの `.tsx` | 同期フックと純粋判断のみ（同期クライアントを直接 import しない） |
-| UI 資産 | `packages/ui` | なし（CSS トークンと静的資産） |
+| UI 資産 | `packages/ui` | なし（CSS のトークン・要素・部品と静的資産。ADR 0022） |
 | 招待のブラウザ操作 | `packages/invite-ui` | React・ブラウザ API・既存の qrcode。ドメイン・同期クライアントには依存しない（[ADR-0020](../adr/0020-invite-browser-operations.md)） |
 | Markdown の解析 | `packages/markdown` | なし（純粋関数のみ。React を知らない）。描画は各 web アプリの `Markdown.tsx` が持つ（[ADR-0021](../adr/0021-topic-as-shared-context.md) 決定 7） |
 

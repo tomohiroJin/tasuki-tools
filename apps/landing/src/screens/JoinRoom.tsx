@@ -76,7 +76,7 @@ export function JoinRoom({
               （`apps/tasuki-sync/src/application/display-name-rule.ts`）、
               利用者は長すぎることを知る手段が無い。 */}
           <input
-            className="hub-input"
+            className="ui-input"
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
             placeholder="いずみ"
@@ -90,7 +90,7 @@ export function JoinRoom({
           <label className="hub-field">
             <span className="hub-label">合言葉</span>
             <input
-              className="hub-input"
+              className="ui-input"
               type="password"
               value={passphrase}
               onChange={(e) => setPassphrase(e.target.value)}

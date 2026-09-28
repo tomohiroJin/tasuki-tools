@@ -3,14 +3,15 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "//": "CSS と書体だけのパッケージ。build / typecheck は持たない（TS を足すまで不要）。lint（stylelint: 構文と、トークン層に要素セレクタを置かせない境界の検査）と test（node:test: トークンの契約と書体ファイルの実在の検査）は持つ。",
+  "//": "CSS と書体だけのパッケージ。build / typecheck は持たない（TS を足すまで不要）。層はトークン・要素・部品の 3 つ（ADR 0001・ADR 0022）。lint（stylelint: 構文と、トークン層に要素セレクタを置かせない境界の検査）と test（node:test: トークンの契約と書体ファイルの実在と文字の大きさ 5 段の検査）は持つ。部品層の規則は scripts/audit-ui-components.mjs が見る。",
   "exports": {
     ".": "./src/index.css",
     "./tokens.css": "./src/tokens/index.css",
     "./elements.css": "./src/elements/index.css",
     "./base.css": "./src/elements/reset.css",
     "./controls.css": "./src/elements/controls.css",
-    "./card.css": "./src/elements/card.css"
+    "./card.css": "./src/elements/card.css",
+    "./components.css": "./src/components/index.css"
   },
   "scripts": {
     "lint": "stylelint \"src/**/*.css\"",

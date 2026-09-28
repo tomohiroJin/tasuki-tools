@@ -1597,3 +1597,28 @@ describe("照合より後段での間引き: scripts/audit-structure.mjs", () =>
     assert.equal(r.status, 0, `素通りしません。stderr:\n${r.stderr}`);
   });
 });
+
+/**
+ * CI への配線: すべての `audit-*.mjs` が ci.yml から呼ばれる（#320・設計正本 D12）。
+ *
+ * 上の「走査量の出力」は検査が**走れば**名乗ることを見るが、**CI が走らせているか**は見ない。
+ * ci.yml の行は 1 本ずつ手で足しており、書き忘れると自己テストだけが CI で緑になって、実リポジトリの
+ * 走査は一度も走らない。列挙ではなく導出で見る。
+ */
+describe("CI への配線: すべての audit-*.mjs が ci.yml から呼ばれる（導出で見る）", () => {
+  const audits = listTrackedFiles(REPO_ROOT, ["scripts/audit-*.mjs"])
+    .map((rel) => path.basename(rel))
+    .filter((name) => !name.endsWith(".test.mjs"));
+  const ci = fs.readFileSync(path.join(REPO_ROOT, ".github/workflows/ci.yml"), "utf8");
+
+  test("検査スクリプトが 0 件でない（このガード自身の空振り検出）", () => {
+    assert.ok(audits.length > 0, "audit-*.mjs が 0 件（このガードが空振りしている）");
+  });
+
+  for (const name of audits) {
+    test(`${name} を ci.yml が呼ぶ`, () => {
+      const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      assert.match(ci, new RegExp(`^\\s*- run: node scripts/${escaped}\\s*$`, "m"), `${name} が ci.yml から呼ばれていない`);
+    });
+  }
+});

@@ -38,6 +38,7 @@ export function TopicMaker({ aiUnlocked, enabled, onGenerate, onUnlock }: Props)
       <label htmlFor={`${id}-language`}>{LANGUAGE_LABEL}</label>
       <select
         id={`${id}-language`}
+        className="ui-select"
         value={language}
         onChange={(e) => {
           const next = LANGUAGES.find((l) => l === e.target.value);
@@ -53,6 +54,7 @@ export function TopicMaker({ aiUnlocked, enabled, onGenerate, onUnlock }: Props)
       <label htmlFor={`${id}-difficulty`}>{DIFFICULTY_LABEL}</label>
       <select
         id={`${id}-difficulty`}
+        className="ui-select"
         value={difficulty}
         onChange={(e) => {
           const next = DIFFICULTIES.find((d) => d === e.target.value);
@@ -88,6 +90,7 @@ export function TopicMaker({ aiUnlocked, enabled, onGenerate, onUnlock }: Props)
           <label htmlFor={`${id}-key`}>{UNLOCK_LABEL}</label>
           <input
             id={`${id}-key`}
+            className="ui-input"
             type="password"
             autoComplete="off"
             maxLength={MAX_AI_UNLOCK_KEY}
