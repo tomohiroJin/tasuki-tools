@@ -411,7 +411,9 @@
      percent-encode の並びが締まって、記号の連なりが読めるようになる。 */
   font-family: var(--font-mono);
   /* `font-size` はここに置かない。字の大きさは部品（`.ui-input`）が 16px の下限で持ち、
-     画面から上書きすると iOS Safari の自動拡大対策を踏みつぶす（検査が落とす）。 */
+     画面から上書きすると iOS Safari の自動拡大対策を踏みつぶす。**部品を名指しして字の
+     大きさを書くと検査（scripts/audit-ui-components.mjs）が落とす。画面のクラス（`.hub-invite`
+     自身）で書いた上書きは検査に掛からず、計算後の値を E2E（`expectFieldsAtLeast16px`）が測る。** */
 }
 .hub-invite-actions {
   display: flex;
