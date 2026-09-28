@@ -26,7 +26,7 @@ function useRoute() {
 function RedirectingView() {
   return (
     <main className="page">
-      <p className="loading-note" role="status">
+      <p className="loading-note ui-note" role="status">
         読み込んでいます…
       </p>
     </main>
@@ -54,12 +54,12 @@ export function App() {
     syncStale: sync.syncStale,
   });
   const banner = notice.kind !== 'none' && (
-    <div
-      className={`connection-banner${notice.kind === 'unreachable' ? ' unreachable' : ''}`}
+    <p
+      className={`ui-banner${notice.kind === 'unreachable' ? ' ui-banner--unreachable' : ''}`}
       role={notice.kind === 'unreachable' ? 'alert' : 'status'}
     >
       {notice.text}
-    </div>
+    </p>
   );
 
   // **送り返している間も白いままにしない**（#95 S5c 追補・利用者の実画面フィードバック）。

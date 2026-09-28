@@ -32,7 +32,7 @@ interface Props {
 export function ErrorNote({ error, onClose }: Props) {
   if (error === null || hasDedicatedDisplay(error.code)) return null;
   return (
-    <p className="error-note" role="alert">
+    <p className="error-note ui-note ui-note--error" role="alert">
       {error.message}
       <button type="button" className="secondary" onClick={onClose}>
         閉じる
