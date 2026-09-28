@@ -17,27 +17,12 @@
 
 /* ---------- ルームヘッダー・招待リンク ---------- */
 
-/* 見出しと「選択画面へ戻る」を 1 行に組む（#95 S5c 追補）。
-   ヘッダの中で招待リンクの上に素のリンクが浮いていたのを、見出しの相方にする。 */
-.room-title {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
+/* 見出しと「選択画面へ戻る」を 1 行に組む並びは部品（`.ui-page-header`・ADR 0022）が持つ（#95 S5c 追補）。
+   ここには poker の見出し自身の大きさと余白だけを置く。 */
 .room header h1 {
   margin: 0 0 0.4rem;
   font-style: italic;
   font-size: 1.6rem;
-}
-
-/* 戻る導線は見出しより一段小さく、折り返させない（行の右端に置く）。
-   色は `@tasuki/ui` の素の `a`（真鍮の明色）をそのまま継ぐ。 */
-.room-back {
-  flex: none;
-  font-size: 0.8rem;
 }
 
 .invite {
@@ -68,7 +53,8 @@
 /* 節の見出し（「参加者」「あなたのカード」「結果」）に不透明な地（felt-900）を与える（#91 PR 3）。
  * `@tasuki/ui` の既定の h2 は地を持たない `--gold` の字で、body の羅紗グラデーションの
  * 最も明るい停止点（felt-700）の上では約 3.92:1 と AA を割る（`e2e/specs/poker-a11y.spec.ts` の
- * 初回の走査で実測。felt-900 の上ではトークンの値からの計算で約 6.4:1）。お題の見出しは `.topic` の地に乗るので外す。 */
+ * 初回の走査で実測。felt-900 の上ではトークンの値からの計算で約 6.4:1）。お題の見出しは `.topic` の地に乗るので外す。
+ * 見出しだけに地を敷く形は poker にしか無いので、部品（`.ui-panel`）へは寄せない（#320 PR 3）。 */
 .room > section:not(.topic) > h2 {
   width: fit-content;
   padding: var(--space-1) var(--space-3);
@@ -245,16 +231,11 @@
 
 /* ---------- いまのお題（#91 PR 3・spec §5.5。poker は読むだけ） ---------- */
 
-/* body の羅紗グラデーション（felt-700〜felt-950）へ直接乗せない。地を持たない h2（`--gold`）は
- * 最も明るい停止点（felt-700）の上で約 3.92:1 と AA を割る（PR 2 の topic-web の実測）。
- * `.topic-current` と同じ不透明な地（felt-900）を与える。 */
+/* 面（不透明な地・枠・角丸・内側の余白）は部品（`.ui-panel`）が持つ。地を持たない h2（`--gold`）は
+ * 羅紗の最も明るい停止点（felt-700）の上で AA を割るので、お題はパネルに載せる。ここには並びだけを置く。 */
 .topic {
   display: grid;
   gap: var(--space-3);
-  padding: var(--space-5);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-lg);
-  background: var(--felt-900);
 }
 
 .topic-title {

@@ -19,7 +19,7 @@ export const TOPIC_BODY_TOGGLE = '説明を見る';
 
 export function CurrentTopic({ topic }: { topic: Topic }) {
   return (
-    <section className="topic" aria-labelledby="poker-topic-heading">
+    <section className="topic ui-panel" aria-labelledby="poker-topic-heading">
       <h2 id="poker-topic-heading">{TOPIC_HEADING}</h2>
       <h3 className="topic-title">{topic.title}</h3>
       {topic.body !== '' && (
