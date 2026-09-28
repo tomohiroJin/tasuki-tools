@@ -22,14 +22,14 @@ export function CurrentTopic({ state, notice, enabled, onClear }: Props) {
   return (
     <>
       {notice && (
-        <p className="topic-notice" role="status">
+        <p className="topic-notice ui-note" role="status">
           {notice}
         </p>
       )}
       <section className="topic-current" aria-labelledby="topic-current-heading" aria-busy={state?.generating ?? false}>
         <h2 id="topic-current-heading">{CURRENT_HEADING}</h2>
         {topic === null ? (
-          <p className="topic-empty">{EMPTY_TEXT}</p>
+          <p className="topic-empty ui-note">{EMPTY_TEXT}</p>
         ) : (
           <article className="topic-card">
             <h3 className="topic-title">{topic.title}</h3>

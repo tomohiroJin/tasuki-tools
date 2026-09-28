@@ -7,11 +7,10 @@
 
 @import '@tasuki/ui';
 
-/* 遷移中・参加中の一言。卓の上で控えめに置く（poker-web と同じ役割）。 */
+/* 遷移中・参加中の一言。卓の上で控えめに置く（poker-web と同じ置き方）。色は部品（`.ui-note`）が持つ。 */
 .loading-note {
   margin: 0;
   padding: var(--space-6) 0;
-  color: var(--ivory-dim);
   text-align: center;
 }
 
@@ -143,39 +142,6 @@ h6.md-h {
 .topic-empty,
 .topic-notice {
   margin: 0;
-  color: var(--ivory-dim);
-}
-
-/* `.topic-error` も `<main>` 直下で不透明な地を持たない。`--rose-bright` は
- * felt-700 上で約 3.55:1 と AA を割り、E2E のどのシナリオでも表示条件（同期エラー）
- * に当たらないため走査に入らず気づけなかった（レビュー指摘）。より明るい
- * `--rose-pale`（felt-700 上でも約 5.91:1）へ替える。 */
-.topic-error {
-  color: var(--rose-pale);
-}
-
-/* ---------- 接続の告知（poker-web と同じ役割。色は @tasuki/ui の警告の語彙で表す） ---------- */
-
-/* `position: sticky` で下の内容が透けるため、地は不透明にする（レビュー指摘・#297 と同じ理由）。
-   `--rose-tint`/`--rose-veil` は半透明で unreachable が約 4.2:1 まで落ち AA を割った。
-   区別は下線の色（既定 `--rose-edge`／unreachable は太い `--rose-bright`）と太字で出す。 */
-.connection-banner {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  padding: var(--space-2) var(--space-4);
-  background: var(--felt-950);
-  border-bottom: 1px solid var(--rose-edge);
-  color: var(--rose-pale);
-  font-size: var(--font-size-sm);
-  text-align: center;
-}
-
-/* 繋がらない状態は「切れて戻る途中」より強く出す（色だけに頼らず文言でも区別している）。 */
-.connection-banner.unreachable {
-  border-bottom-color: var(--rose-bright);
-  border-bottom-width: 2px;
-  font-weight: 700;
 }
 
 /* ---------- 招待リンク（poker-web の `.invite` と同じ組み方） ---------- */

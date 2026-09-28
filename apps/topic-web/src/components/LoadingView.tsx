@@ -4,7 +4,7 @@ import { LOADING_TEXT } from '../copy';
 export function LoadingView() {
   return (
     <main className="page">
-      <p className="loading-note" role="status">
+      <p className="loading-note ui-note" role="status">
         {LOADING_TEXT}
       </p>
     </main>
