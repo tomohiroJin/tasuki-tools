@@ -157,7 +157,7 @@ Tailwind が `@import` を展開すると、入れ子の `fonts.css` の `url('.
 - `.card.small` はめくり演出（`flip-in`）を持つが、**遅延は利用側で指定する**
 - 動きを抑える設定（`prefers-reduced-motion`）は `elements/reset.css` が一括で面倒を見る
 - **フォーカス可視化は `elements/reset.css` のグローバル `:focus-visible` が担う。**
-  トークン層だけを読む timer-web は自前で持つ
+  要素層を読まない timer-web は自前で持つ（部品層もリングを持たない・ADR 0022 決定 4）
 
 ## 検査
 
