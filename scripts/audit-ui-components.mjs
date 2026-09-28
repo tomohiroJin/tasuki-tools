@@ -13,7 +13,8 @@
  *      - どちらも直前の `/* ui-exempt: 理由 *\/` で外せる。理由が空・何も免除していない申告は落とす
  *   2. **部品の CSS**（`packages/ui/src/components/`）: セレクタは `.ui-` のクラスから始める・入れ子と
  *      `@scope` / `@layer` を使わない・`::picker(` を一覧に同居させない・`outline` は選択肢だけ・
- *      つまみ（`--*`）を宣言しない・生の色を書かない。**申告では外せない**
+ *      つまみ（`--*`）を宣言しない・生の色を書かない・`@import` は同じディレクトリの部品ファイルだけ許す
+ *      （`../elements/index.css` のような他層への `@import` は落とす）。**申告では外せない**
  *   3. **死んだ部品**: 部品の CSS に定義した `.ui-*` を、2 つ以上のアプリの `src` 配下の `.tsx` が使う
  *
  * ## 何を見ていないか —— 「足りる」とは言わない
@@ -24,6 +25,11 @@
  * - 属性だけのセレクタ（`[type='text']`）。型を名指ししない書き方は、画面の CSS では見逃す
  * - **属性セレクタで部品を名指しする書き方**（`[class~=ui-input] { font-size: … }`）は D10 の 2 を素通りする
  *   （{@link screenRuleViolations} の `onPart` はクラス選択子だけを見る）
+ * - **部品を名指ししないセレクタでの字の大きさの上書き**（画面のクラス `.hub-invite { … }`・
+ *   `.hub-field > * { … }`・`@scope (.ui-input) { :scope { … } }` など）は D10 の 2 を素通りする
+ *   （`onPart` は解決済みセレクタに `.ui-input` / `.ui-select` のクラスが現れる規則しか見ず、
+ *   {@link scopeTouchOf} も `@scope` の引数を入力欄の「型」でしか照合しない）。計算後の値を
+ *   E2E（`expectFieldsAtLeast16px`）が測る
  * - `url()` の中の色（SVG のデータ URI に埋め込んだ生の色）は {@link findRawColors} が `url(...)` を丸ごと消すので見ない
  * - 旧来のシステムの色（`ActiveBorder` 等）は {@link findRawColors} の辞書（{@link NAMED_COLORS}）に無い
  * - `@property` の記述子（`syntax` の `<color>` など）・`@import … layer(…)` は見ていない
@@ -369,6 +375,24 @@ function checkDeclarations(rule, report) {
   }
 }
 
+/** `@import` の引数から相対パスを取り出す。`url(...)` に包んだ形・生の文字列のどちらも見る。 */
+function importTargetOf(params) {
+  const m = /^\s*(?:url\(\s*)?['"]([^'"]+)['"]\s*\)?/i.exec(params);
+  return m ? m[1] : undefined;
+}
+
+/**
+ * 部品の CSS の `@import` が同じディレクトリのファイルだけを指しているか（fix round 3・重要 8）。
+ * `./field.css` のような同じ階層の相対パスだけを許す。`../elements/index.css`（上の階層）・
+ * `./sub/x.css`（下の階層）・`@tasuki/ui/…`（裸の指定子）は、部品層のつもりの読み込みへ
+ * 要素層などの見た目が紛れ込む経路になるので落とす。
+ */
+export function isSameDirComponentImport(target) {
+  if (typeof target !== "string" || !target.startsWith("./")) return false;
+  const rest = target.slice(2);
+  return rest.length > 0 && !rest.includes("/") && !rest.startsWith(".");
+}
+
 /** 部品の CSS を見る。返り値が空なら違反なし。**申告（ui-exempt）は部品の CSS では効かない。** */
 export function checkComponentCss(file, css) {
   const root = postcss.parse(css, { from: file });
@@ -376,6 +400,12 @@ export function checkComponentCss(file, css) {
   const report = (node, message) => problems.push({ ...where(file, node), message });
   root.walkAtRules((at) => {
     if (/^(scope|layer)$/i.test(at.name)) report(at, `@${at.name} を使わない（設計正本 D5・D11）`);
+    if (/^import$/i.test(at.name)) {
+      const target = importTargetOf(at.params);
+      if (!isSameDirComponentImport(target)) {
+        report(at, `部品の CSS の @import は同じディレクトリの部品ファイルだけを許します（それ以外は要素層などが紛れ込む経路になる）: ${at.params}`);
+      }
+    }
   });
   root.walkRules((rule) => {
     if (inKeyframes(rule)) {

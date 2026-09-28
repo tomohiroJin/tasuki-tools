@@ -102,6 +102,7 @@ for (const width of [1280, 1024, 768, 320]) {
     await page.getByRole('button', { name: 'ルームを作る' }).click();
     const invite = page.getByLabel('参加用 URL');
     await expect(invite).toBeVisible();
+    await expectFieldsAtLeast16px(page);
     const guest = await openPeer('design-guest');
     const trackGuestFonts = (request: Request): void => { if (request.url().endsWith('.woff2')) fonts.push(request.url()); };
     guest.page.on('request', trackGuestFonts);
@@ -113,6 +114,7 @@ for (const width of [1280, 1024, 768, 320]) {
     await checkText(guest.page, 0);
     expect(await guest.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await guest.page.getByLabel('あなたの名前').fill('いずみ');
+    await expectFieldsAtLeast16px(guest.page);
     await guest.page.getByRole('button', { name: '参加する' }).click();
     await expect(guest.page.getByRole('list', { name: 'ツール' })).toBeVisible();
     await guest.page.evaluate(() => document.fonts.ready);

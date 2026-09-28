@@ -109,6 +109,13 @@ test.describe('プルダウンが白く光らない', () => {
     // When / Then（#317：別の窓で開くと、開いた一瞬が白く光る）
     await expectPickerInPage(page.getByLabel('通知音', { exact: true }), '--panel-2');
     await expectFieldsAtLeast16px(page);
+
+    // When / Then: 話者のプルダウン（カウントダウン方式を「音声読み上げ」にしたときだけ出る）も同じ
+    //   （NotifySettingsPanel.tsx: countdownEnabled → countdownMode='voice' の順で出す）
+    await page.getByRole('switch', { name: '交代前にカウントダウン音を鳴らす' }).click();
+    await page.getByLabel('音声読み上げ').check();
+    await expectPickerInPage(page.getByLabel('読み上げ話者', { exact: true }), '--panel-2');
+    await expectFieldsAtLeast16px(page);
   });
 });
 

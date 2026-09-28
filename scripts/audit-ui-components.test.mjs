@@ -231,6 +231,28 @@ describe("checkComponentCss: セレクタは .ui- のクラスから始める", 
   });
 });
 
+describe("checkComponentCss: @import は同じディレクトリの部品ファイルだけ許す（fix round 3・重要 8）", () => {
+  test("同じディレクトリの相対パスは通す", () => {
+    assert.deepEqual(partMessagesOf("@import './field.css';"), []);
+  });
+  test("上の階層（要素層など）への @import は落とす", () => {
+    assert.ok(partMessagesOf("@import '../elements/index.css';").some((m) => /@import/.test(m)));
+  });
+  test("さらに上の階層への @import も落とす", () => {
+    assert.ok(partMessagesOf("@import '../../tokens/index.css';").some((m) => /@import/.test(m)));
+  });
+  test("サブディレクトリへの @import も落とす（同じディレクトリではない）", () => {
+    assert.ok(partMessagesOf("@import './sub/x.css';").some((m) => /@import/.test(m)));
+  });
+  test("裸の指定子（パッケージ名）も落とす", () => {
+    assert.ok(partMessagesOf("@import '@tasuki/ui/tokens.css';").some((m) => /@import/.test(m)));
+  });
+  test("url() で包んだ形も同じ規則で見る", () => {
+    assert.deepEqual(partMessagesOf("@import url('./field.css');"), []);
+    assert.ok(partMessagesOf("@import url('../elements/index.css');").some((m) => /@import/.test(m)));
+  });
+});
+
 describe("checkComponentCss: ::picker を一覧に同居させない", () => {
   test("同居は落とす（::picker を知らないブラウザが一覧ごと捨てる）", () => {
     assert.ok(partMessagesOf(".ui-select, .ui-select::picker(select) { appearance: base-select; }").some((m) => /同居/.test(m)));
