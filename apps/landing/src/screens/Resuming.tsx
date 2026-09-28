@@ -30,11 +30,11 @@ export function Resuming({ code, connection }: ResumingProps) {
       </header>
 
       {connection === 'reconnecting' ? (
-        <p className="hub-error" role="alert">
+        <p className="hub-error ui-note ui-note--error" role="alert">
           同期サーバーに接続できません。復旧するまで、ルームの作成と参加はできません。
         </p>
       ) : (
-        <p className="hub-notice" role="status">
+        <p className="hub-notice ui-note" role="status">
           読み込んでいます…
         </p>
       )}

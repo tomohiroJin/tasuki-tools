@@ -262,12 +262,11 @@
 .hub-submit:focus-visible:not(:disabled) {
   background: var(--gold-bright);
 }
+/* 一言の色は部品（`.ui-note` / `.ui-note--error`）が持つ。ここに色を書くと、後に読まれるこちらが勝って部品の色を潰す。 */
 .hub-error {
-  color: var(--rose-bright);
   font-size: var(--font-size-sm);
 }
 .hub-notice {
-  color: var(--ivory-dim);
   font-size: var(--font-size-sm);
 }
 
@@ -447,7 +446,6 @@
 .hub-invite-status {
   min-height: calc(1em * var(--line-normal));
   margin: var(--space-3) 0 0;
-  color: var(--ivory-dim);
   font-size: var(--font-size-sm);
 }
 .hub-invite-qr {
