@@ -44,7 +44,7 @@ export function RoomChoice({ code, inviteUrl, roster, connection, topicTitle }: 
           <p className="hub-room-code">{code}</p>
         </div>
         {connection === 'reconnecting' && (
-          <p className="hub-notice" role="status">
+          <p className="hub-notice ui-note" role="status">
             接続が切れました。再接続しています…
           </p>
         )}
@@ -100,14 +100,14 @@ export function RoomChoice({ code, inviteUrl, roster, connection, topicTitle }: 
                 {showQr ? 'QR コードを閉じる' : 'QR コードを表示'}
               </button>
             </div>
-            <p className="hub-invite-status" role="status">
+            <p className="hub-invite-status ui-note" role="status">
               {copy.state === 'done' && 'コピーしました。'}
               {copy.state === 'failed' && 'コピーできません。URL を選んでコピーしてください。'}
             </p>
             <div id={qrId} hidden={!showQr} className="hub-invite-qr">
               {qr.dataUrl && <img src={qr.dataUrl} width={200} height={200} alt="参加用 URL の QR コード" />}
               {showQr && !qr.dataUrl && (
-                <p role="status">{qr.failed ? 'QR コードを表示できません。URL を選んでコピーしてください。' : 'QR コードを準備しています…'}</p>
+                <p className="ui-note" role="status">{qr.failed ? 'QR コードを表示できません。URL を選んでコピーしてください。' : 'QR コードを準備しています…'}</p>
               )}
             </div>
           </section>

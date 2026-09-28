@@ -26,9 +26,9 @@ export function TopicRoom({ roomCode }: { roomCode: string }) {
 
   const notice = connectionNotice(sync);
   const banner = notice.kind !== 'none' && (
-    <div className={`connection-banner${notice.kind === 'unreachable' ? ' unreachable' : ''}`} role={notice.kind === 'unreachable' ? 'alert' : 'status'}>
+    <p className={`ui-banner${notice.kind === 'unreachable' ? ' ui-banner--unreachable' : ''}`} role={notice.kind === 'unreachable' ? 'alert' : 'status'}>
       {notice.text}
-    </div>
+    </p>
   );
 
   if (sync.gone) {
@@ -53,8 +53,8 @@ export function TopicRoom({ roomCode }: { roomCode: string }) {
           <a className="topic-back" href={hubPathFor(roomCode)}>
             {BACK_LINK}
           </a>
-          {sync.retryNotice && <p role="status">{sync.retryNotice}</p>}
-          {sync.error && <p className="topic-error" role="alert">{sync.error}</p>}
+          {sync.retryNotice && <p className="ui-note" role="status">{sync.retryNotice}</p>}
+          {sync.error && <p className="ui-note ui-note--error" role="alert">{sync.error}</p>}
         </main>
       </>
     );
@@ -73,8 +73,8 @@ export function TopicRoom({ roomCode }: { roomCode: string }) {
         </header>
         <InviteLink url={sync.inviteUrl} />
         {/* 入り直しの途中の混雑も、この画面で伝える（伝えないと、ボタンが黙って押せなくなる） */}
-        {sync.retryNotice && <p className="topic-notice" role="status">{sync.retryNotice}</p>}
-        {sync.error && <p className="topic-error" role="alert">{sync.error}</p>}
+        {sync.retryNotice && <p className="topic-notice ui-note" role="status">{sync.retryNotice}</p>}
+        {sync.error && <p className="ui-note ui-note--error" role="alert">{sync.error}</p>}
         <CurrentTopic state={sync.topicState} notice={generationNotice(sync.topicState)} enabled={enabled} onClear={sync.clearTopic} />
         <div className="topic-tools">
           <TopicEditor current={sync.topicState?.topic ?? null} enabled={enabled} onSubmit={sync.setTopic} />

@@ -54,13 +54,13 @@ export function CreateRoom({
           `role="alert"` にしない —— 接続の告知（下）と読み上げが重なるうえ、
           これは「いま起きたこと」の報告であって行動を促す警告ではない。 */}
       {departure !== null && (
-        <p className="hub-notice" role="status">
+        <p className="hub-notice ui-note" role="status">
           {departure}
         </p>
       )}
 
       {connection === 'reconnecting' && (
-        <p className="hub-error" role="alert">
+        <p className="hub-error ui-note ui-note--error" role="alert">
           同期サーバーに接続できません。復旧するまで、ルームの作成と参加はできません。
         </p>
       )}
@@ -99,7 +99,7 @@ export function CreateRoom({
         {/* 接続の告知が出ている間は error を出さない（二重表示の回避・poker の
             RoomPage.tsx が持っていた扱いを移した）。切れている以上 error は古い情報である。 */}
         {error !== null && connection === 'online' && (
-          <p className="hub-error" role="alert">
+          <p className="hub-error ui-note ui-note--error" role="alert">
             {error}
           </p>
         )}

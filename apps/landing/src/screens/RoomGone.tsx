@@ -37,7 +37,7 @@ export function RoomGone({ code }: RoomGoneProps) {
 
       {/* `role="alert"` にしない —— 画面そのものが替わっており、これは
           「いま起きたこと」の割り込みではなく、この画面の主題である。 */}
-      <p className="hub-notice" role="status">
+      <p className="hub-notice ui-note" role="status">
         終了したか、URL が正しくない可能性があります。
       </p>
 

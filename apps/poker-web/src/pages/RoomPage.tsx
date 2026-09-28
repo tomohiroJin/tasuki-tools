@@ -35,7 +35,7 @@ function JoiningView({ sync, notice }: { sync: PokerSync; notice: string | null 
       <h1>ルームに参加しています</h1>
       {/* 混雑で弾かれている間、この画面には何の手がかりも出ていなかった（#147）。 */}
       {notice && (
-        <p className="error-note" role="status">
+        <p className="error-note ui-note ui-note--error" role="status">
           {notice}
         </p>
       )}

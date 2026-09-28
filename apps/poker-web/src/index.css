@@ -1,18 +1,17 @@
 /* ============================================================
    Tasuki Planning Poker
    共通の世界観「夜のカードテーブル」は @tasuki/ui が持つ。
-   ここには poker 固有のもの（席・投票・結果・接続バナー）だけを置く。
+   ここには poker 固有のもの（席・投票・結果）だけを置く。接続の告知の帯と一言の色は部品層（ADR 0022）が持つ。
    ============================================================ */
 
 @import '@tasuki/ui';
 
 /* ---------- 遷移中の待ち表示 ---------- */
 
-/* 玄関へ送り返している間の一言（#95 S5c 追補）。卓の上で控えめに置く。 */
+/* 玄関へ送り返している間の一言（#95 S5c 追補）。卓の上で控えめに置く。色は部品（`.ui-note`）が持つ。 */
 .loading-note {
   margin: 0;
   padding: var(--space-6) 0;
-  color: var(--ivory-dim);
   text-align: center;
 }
 
@@ -225,7 +224,7 @@
   margin-top: 1.6rem;
 }
 
-/* ---------- 接続バナー ---------- */
+/* ---------- エラーの一言の枠（色は部品の .ui-note--error が持つ） ---------- */
 
 .error-note {
   display: flex;
@@ -236,35 +235,12 @@
   background: rgba(198, 95, 69, 0.14);
   border: 1px solid rgba(198, 95, 69, 0.45);
   border-radius: 8px;
-  color: #f0b5a4;
   font-size: 0.85rem;
 }
 
 .error-note button {
   font-size: 0.72rem;
   padding: 0.25rem 0.7rem;
-}
-
-.connection-banner {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  padding: 0.45rem 1rem;
-  background: rgba(198, 95, 69, 0.16);
-  border-bottom: 1px solid rgba(198, 95, 69, 0.45);
-  color: #f0b5a4;
-  font-size: 0.8rem;
-  text-align: center;
-  backdrop-filter: blur(4px);
-}
-
-/* 繋がらない状態は「切れて戻る途中」より強く出す（#76 F-2）。
-   色だけに頼らず文言でも区別しているので、ここは注意を引く役に徹する。 */
-.connection-banner.unreachable {
-  background: rgba(198, 69, 69, 0.22);
-  border-bottom-color: rgba(220, 80, 80, 0.6);
-  color: #f5c2c2;
-  font-weight: 700;
 }
 
 /* ---------- いまのお題（#91 PR 3・spec §5.5。poker は読むだけ） ---------- */

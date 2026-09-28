@@ -1,0 +1,34 @@
+/* ============================================================
+   Tasuki UI — 接続の告知の帯（#320・ADR 0022）
+   画面の上端に貼りつき、同期サーバーとの接続の具合を 1 行で知らせる。`<p>` に当てる
+   （文字の走査の対象に入れるため。`<div>` は走査されない）。
+   繋がらない（戻る見込みが無い）ときは `.ui-banner--unreachable` を重ねる。
+
+   **上端に貼りつく位置も部品が持つ**（配置は画面が持つ、の例外）。地を不透明にする理由が
+   「貼りついた帯の下を内容が通る」ことそのものなので、位置と地を別の場所に置くと、
+   片方だけ直ったときに帯が透けて読めなくなる。
+   ============================================================ */
+
+.ui-banner {
+  box-sizing: border-box;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  /* `<p>` の既定の余白を消す。残すと帯が上端から浮き、上に内容が覗く。 */
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+  /* 地は不透明にする。半透明の赤（`--rose-tint` / `--rose-veil`）では、下を象牙の札が通ると読めず、
+     卓の上でも繋がらない側が約 4.2:1 まで落ちて AA を割った（お題ツールで実測）。 */
+  background: var(--felt-950);
+  border-bottom: 1px solid var(--rose-edge);
+  color: var(--rose-pale);
+  font-size: var(--font-size-sm);
+  text-align: center;
+}
+
+/* 繋がらないことは「切れて戻る途中」より強く出す（#76 F-2）。色だけに頼らず、下線と字の太さでも区別する。 */
+.ui-banner--unreachable {
+  border-bottom-color: var(--rose-bright);
+  border-bottom-width: 2px;
+  font-weight: 700;
+}
