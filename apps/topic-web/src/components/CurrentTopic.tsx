@@ -26,7 +26,7 @@ export function CurrentTopic({ state, notice, enabled, onClear }: Props) {
           {notice}
         </p>
       )}
-      <section className="topic-current" aria-labelledby="topic-current-heading" aria-busy={state?.generating ?? false}>
+      <section className="topic-current ui-panel" aria-labelledby="topic-current-heading" aria-busy={state?.generating ?? false}>
         <h2 id="topic-current-heading">{CURRENT_HEADING}</h2>
         {topic === null ? (
           <p className="topic-empty ui-note">{EMPTY_TEXT}</p>
