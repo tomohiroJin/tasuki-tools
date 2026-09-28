@@ -107,7 +107,7 @@ export function RoomChoice({ code, inviteUrl, roster, connection, topicTitle }: 
             <div id={qrId} hidden={!showQr} className="hub-invite-qr">
               {qr.dataUrl && <img src={qr.dataUrl} width={200} height={200} alt="参加用 URL の QR コード" />}
               {showQr && !qr.dataUrl && (
-                <p role="status">{qr.failed ? 'QR コードを表示できません。URL を選んでコピーしてください。' : 'QR コードを準備しています…'}</p>
+                <p className="ui-note" role="status">{qr.failed ? 'QR コードを表示できません。URL を選んでコピーしてください。' : 'QR コードを準備しています…'}</p>
               )}
             </div>
           </section>

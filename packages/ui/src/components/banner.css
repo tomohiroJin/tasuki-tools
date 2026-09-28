@@ -26,7 +26,7 @@
   text-align: center;
 }
 
-/* 繋がらないことは「切れて戻る途中」より強く出す。色だけに頼らず、下線と字の太さでも区別する。 */
+/* 繋がらないことは「切れて戻る途中」より強く出す（#76 F-2）。色だけに頼らず、下線と字の太さでも区別する。 */
 .ui-banner--unreachable {
   border-bottom-color: var(--rose-bright);
   border-bottom-width: 2px;
