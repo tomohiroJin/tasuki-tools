@@ -59,3 +59,6 @@ Thumbs.db
 # （#95 S2 で、当たったままの変異を add -A で取り込みかけた）。
 scripts/mutations/.lock
 scripts/mutations/.applied
+
+# 基準と並べる比較（#321）の書き出し。台帳（docs/superpowers/specs/…-parity-ledger.md）が正本
+e2e/parity/out/
