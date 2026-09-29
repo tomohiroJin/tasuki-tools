@@ -31,7 +31,7 @@ export function CurrentTopic({ state, notice, enabled, onClear }: Props) {
         {topic === null ? (
           <p className="topic-empty ui-note">{EMPTY_TEXT}</p>
         ) : (
-          <article className="topic-card">
+          <article className="ui-sheet">
             <h3 className="topic-title">{topic.title}</h3>
             {topic.body !== '' && <Markdown source={topic.body} className="topic-body" />}
           </article>

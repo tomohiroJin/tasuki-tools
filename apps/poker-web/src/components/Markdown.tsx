@@ -16,7 +16,7 @@ function Inline({ nodes, keyBase }: { nodes: readonly MdInline[]; keyBase: strin
           case 'text':
             return <React.Fragment key={key}>{n.text}</React.Fragment>;
           case 'code':
-            return <code key={key} className="md-code">{n.text}</code>;
+            return <code key={key} className="ui-md-code">{n.text}</code>;
           case 'strong':
             return <strong key={key}><Inline nodes={n.children} keyBase={key} /></strong>;
           case 'em':
@@ -25,7 +25,7 @@ function Inline({ nodes, keyBase }: { nodes: readonly MdInline[]; keyBase: strin
             return n.href === null ? (
               <React.Fragment key={key}>{n.text}</React.Fragment>
             ) : (
-              <a key={key} href={n.href} target="_blank" rel="noopener noreferrer nofollow" className="md-link">
+              <a key={key} href={n.href} target="_blank" rel="noopener noreferrer nofollow" className="ui-md-link">
                 {n.text}
               </a>
             );
@@ -54,18 +54,19 @@ function Block({ block, keyBase }: { block: MdBlock; keyBase: string }) {
   switch (block.kind) {
     case 'heading': {
       const Tag = HEADING_TAG[block.level];
-      return <Tag className="md-h"><Inline nodes={block.inline} keyBase={keyBase} /></Tag>;
+      return <Tag className="ui-md-h"><Inline nodes={block.inline} keyBase={keyBase} /></Tag>;
     }
     case 'code':
       // 横にスクロールするコードへキーボードでも届くように、フォーカスを受けさせる。
-      return <pre className="md-pre" tabIndex={0}>{block.text}</pre>;
+      return <pre className="ui-md-pre" tabIndex={0}>{block.text}</pre>;
     case 'quote':
-      return <blockquote className="md-quote"><Lines lines={block.lines} keyBase={keyBase} /></blockquote>;
+      return <blockquote className="ui-md-quote"><Lines lines={block.lines} keyBase={keyBase} /></blockquote>;
     case 'ul':
     case 'ol': {
       const List = block.kind;
+      // クラス名は字面で書く（部品の使用を検査が .tsx の字面で数えるため）。
       return (
-        <List className={`md-${block.kind}`}>
+        <List className={block.kind === 'ul' ? 'ui-md-ul' : 'ui-md-ol'}>
           {block.items.map((item, j) => (
             <li key={`${keyBase}-${j}`}><Inline nodes={item} keyBase={`${keyBase}-${j}`} /></li>
           ))}
@@ -73,7 +74,7 @@ function Block({ block, keyBase }: { block: MdBlock; keyBase: string }) {
       );
     }
     case 'p':
-      return <p className="md-p"><Lines lines={block.lines} keyBase={keyBase} /></p>;
+      return <p className="ui-md-p"><Lines lines={block.lines} keyBase={keyBase} /></p>;
   }
 }
 
@@ -85,7 +86,7 @@ interface MarkdownProps {
 /** Markdown サブセットを描画する。空文字なら何も描かない。 */
 export function Markdown({ source, className = '' }: MarkdownProps) {
   return (
-    <div className={`md ${className}`}>
+    <div className={`ui-md ${className}`}>
       {parseMarkdown(source).map((b, i) => <Block key={`b${i}`} block={b} keyBase={`b${i}`} />)}
     </div>
   );
