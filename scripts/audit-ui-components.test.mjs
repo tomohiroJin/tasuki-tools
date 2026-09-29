@@ -127,16 +127,16 @@ describe("checkScreenCss: 入れ子は & を解いてから判定する（設計
     assert.equal(ms.filter((m) => /16px/.test(m)).length, 1);
   });
   test("申告は直後の規則だけを免除する。子（解決すると入力欄）には別に申告が要る", () => {
-    assert.equal(messagesOf("/* ui-exempt: r */\nselect { &:hover { color: red } }").length, 1);
+    assert.equal(messagesOf("/* ui-exempt: r */\nselect { &:hover { color: var(--x) } }").length, 1);
   });
   test("親が入力欄なら、親自身と解決済みの子の両方が落ちる（ちょうど 2 件）", () => {
-    assert.equal(messagesOf("select { &:hover { color: red } }").length, 2);
+    assert.equal(messagesOf("select { &:hover { color: var(--x) } }").length, 2);
   });
   test("@scope の開始引数が入力欄の型に当たれば、中の規則を落とす", () => {
-    assert.equal(messagesOf("@scope (select) { :scope { color: red } }").length, 1);
+    assert.equal(messagesOf("@scope (select) { :scope { color: var(--x) } }").length, 1);
   });
   test("@scope の終了引数（to）が入力欄の型に当たれば、中の規則を落とす", () => {
-    assert.equal(messagesOf("@scope (.x) to (input) { .y { color: red } }").length, 1);
+    assert.equal(messagesOf("@scope (.x) to (input) { .y { color: var(--x) } }").length, 1);
   });
   test("親の位置に & を書いた子（.ui-input &）に font-size を書いたら落とす", () => {
     const ms = messagesOf(".x { .ui-input & { font-size: 1px } }");
@@ -386,5 +386,45 @@ describe("findRawColors: エスケープを解いてから照合し、直後が 
 describe("uiTokensIn: 語の終わりの境界（fix round 1 Minor 6）", () => {
   test("ui-inputX・ui-banner__title・ui-a_b は部品の使用として数えない", () => {
     assert.deepEqual([...uiTokensIn("ui-inputX ui-banner__title ui-a_b")], []);
+  });
+});
+
+describe("checkScreenCss: 生の色（設計正本 D10 の 3・#320 PR 5）", () => {
+  const rawOf = (css) => messagesOf(css).filter((m) => /生の色/.test(m));
+  test("画面の CSS の生の色を落とす", () => {
+    assert.equal(rawOf(".a { color: #fff; }").length, 1);
+  });
+  test("宣言ごとに数える（1 つの規則に 2 つなら 2 件）", () => {
+    assert.equal(rawOf(".a { color: #fff; background: rgba(0, 0, 0, 0.2); }").length, 2);
+  });
+  test(":root のカスタムプロパティの値も落とす", () => {
+    assert.equal(rawOf(":root { --presence: #16a34a; }").length, 1);
+  });
+  test("@media / @supports の中も落とす", () => {
+    assert.equal(rawOf("@media (min-width: 1px) { .a { color: red; } }").length, 1);
+    assert.equal(rawOf("@supports (color: color(display-p3 1 1 1)) { :root { --x: color(display-p3 0 1 0); } }").length, 1);
+  });
+  test("@keyframes の中の宣言も落とす（セレクタの判定は飛ばしたまま）", () => {
+    assert.equal(rawOf("@keyframes k { from { color: #000; } 50% { opacity: 1; } }").length, 1);
+  });
+  test("一覧のセレクタでも宣言ごとに 1 件", () => {
+    assert.equal(rawOf(".a, .b { color: #fff; }").length, 1);
+  });
+  test("大文字の関数・名前の色・var() の第 2 引数も落とす", () => {
+    assert.equal(rawOf(".a { color: RGBA(0, 0, 0, 0.5); }").length, 1);
+    assert.equal(rawOf(".a { color: White; }").length, 1);
+    assert.equal(rawOf(".a { color: var(--x, #fff); }").length, 1);
+  });
+  test("トークン・transparent・currentColor・トークンの color-mix() は通す", () => {
+    assert.deepEqual(
+      rawOf(".a { color: var(--x); background: transparent; border-color: currentColor; box-shadow: 0 0 0 1px color-mix(in srgb, var(--x) 50%, transparent); }"),
+      [],
+    );
+  });
+  test("直前の ui-exempt: で外せる", () => {
+    assert.deepEqual(messagesOf("/* ui-exempt: 計器の文字盤の色 */\n.a { color: #fff; }"), []);
+  });
+  test("@keyframes の段も直前の ui-exempt: で外せる", () => {
+    assert.deepEqual(messagesOf("@keyframes k { /* ui-exempt: 光の明滅 */\n from { color: #fff; } }"), []);
   });
 });

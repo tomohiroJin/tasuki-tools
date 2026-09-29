@@ -35,9 +35,9 @@
   --font-sans: var(--font-body);
 
   /* --- 在室状況（色 + テキスト/アイコン併記で色のみ依存を回避） --------- */
-  --color-presence-online: #16a34a;
-  --color-presence-idle: #d97706;
-  --color-presence-offline: #94a3b8;
+  --color-presence-online: var(--presence-online);
+  --color-presence-idle: var(--presence-idle);
+  --color-presence-offline: var(--presence-offline);
 
   /* --- 計器の語彙を「夜のカードテーブル」の色で鳴らす --------------------
    * 名前は計器のまま、値はフェルト緑・象牙・真鍮に置き換える。
@@ -52,7 +52,7 @@
   --bone-muted: var(--ivory-dim); /* 副次テキスト。最小 6.02:1 */
   --bone-subtle: var(--ivory-faint); /* 補足・ラベル。最小 4.52:1（12px の本文でも AA） */
   --signal: var(--gold-bright); /* 真鍮の光（針/弧・主操作）。--ink 上で 10.76:1 */
-  --signal-glow: rgba(236, 200, 121, 0.35);
+  --signal-glow: var(--gold-glow);
   --urgent: var(--rose-bright); /* 残りわずか。--ink 上で 6.58:1 */
   --ok: var(--jade); /* 正常/オンライン。--panel 上で 6.20:1 */
 
@@ -105,20 +105,9 @@
 
 /* **P3 の上書きは置かない。** 旧パレットは朱を一段鮮やかにするために使っていたが、
  * 真鍮・フェルト・翡翠はいずれも落ち着いた色で、彩度を上げると卓の質感が壊れる。
- * 在室状況の 3 色だけは従来どおり下の @supports で強化する。 */
+ * 在室状況の 2 色だけはトークン層の @supports で強化する。 */
 
-/* =============================================================================
- * P3 色域（対応ディスプレイで彩度を強化）
- * @supports で分岐し、非対応環境では上の sRGB 値が必ず残る（フォールバック保証）。
- * 明度は sRGB に近く保ち、コントラスト（AA）を維持する。
- * ========================================================================== */
-
-@supports (color: color(display-p3 1 1 1)) {
-  :root {
-    --color-presence-online: color(display-p3 0.18 0.62 0.32);
-    --color-presence-idle: color(display-p3 0.82 0.49 0.08);
-  }
-}
+/* 在室状況の P3 の強化はトークン層（`@tasuki/ui` の `palette.css`）が持つ。上の別名がそれを継ぐ。 */
 
 /* =============================================================================
  * ベーススタイル
@@ -208,9 +197,9 @@ body {
     linear-gradient(90deg, var(--inset-highlight) 1px, transparent 1px),
     radial-gradient(
       circle at 50% 38%,
-      rgba(7, 31, 24, 0) 0%,
-      rgba(7, 31, 24, 0.55) 70%,
-      rgba(4, 20, 15, 0.9) 100%
+      transparent 0%,
+      var(--felt-vignette) 70%,
+      var(--felt-vignette-deep) 100%
     );
   background-size: 40px 40px, 40px 40px, 100% 100%;
 }

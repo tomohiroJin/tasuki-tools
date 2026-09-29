@@ -10,7 +10,8 @@
  *   1. **画面の CSS**（トークン層と部品層を除く全部。要素層を含む）:
  *      - 入力欄の型（`select` / `input` / `textarea` / `option`）か `::picker(` を含むセレクタの規則は落とす
  *      - 部品の入力欄（`.ui-input` / `.ui-select`）に字の大きさを書いたら落とす（16px の下限）
- *      - どちらも直前の `/* ui-exempt: 理由 *\/` で外せる。理由が空・何も免除していない申告は落とす
+ *      - 生の色（`#…`・`rgb()` などの関数・名前の色）を値に書いた宣言は落とす。`@keyframes` の段も見る（設計正本 D10 の 3）
+ *      - いずれも直前の `/* ui-exempt: 理由 *\/` で外せる。理由が空・何も免除していない申告は落とす
  *   2. **部品の CSS**（`packages/ui/src/components/`）: セレクタは `.ui-` のクラスから始める・入れ子と
  *      `@scope` / `@layer` を使わない・`::picker(` を一覧に同居させない・`outline` は選択肢だけ・
  *      つまみ（`--*`）を宣言しない・生の色を書かない・`@import` は同じディレクトリの部品ファイルだけ許す
@@ -32,6 +33,7 @@
  *   E2E（`expectFieldsAtLeast16px`）が測る
  * - `url()` の中の色（SVG のデータ URI に埋め込んだ生の色）は {@link findRawColors} が `url(...)` を丸ごと消すので見ない
  * - 旧来のシステムの色（`ActiveBorder` 等）は {@link findRawColors} の辞書（{@link NAMED_COLORS}）に無い
+ * - 規則の外にある宣言（`@font-face` / `@page` の記述子）の生の色は見ない（画面の CSS にはいま無い）
  * - `@property` の記述子（`syntax` の `<color>` など）・`@import … layer(…)` は見ていない
  * - {@link uiTokensIn} は TSX のコメントやテンプレート文字列の前半に書いた `ui-` も使用として数える（字面だけを見る）
  * - {@link findDeadParts} は `.ts`（`.tsx` ではない）の定数に書いた部品名を使用として数えない。
@@ -233,14 +235,25 @@ function screenRuleViolations(rule) {
   return found;
 }
 
+/**
+ * 画面の CSS の規則が書いた生の色（設計正本 D10 の 3）。宣言ごとに 1 件。
+ * **`@keyframes` の段にも当てる** —— セレクタの判定は `from` / `50%` に当てはまらないが、色は破れる。
+ */
+function rawColorViolations(rule) {
+  return ownDeclarationsOf(rule)
+    .filter((d) => findRawColors(d.value).length > 0)
+    .map((d) => `生の色を書いています: ${d.prop}: ${d.value.replace(/\s+/g, " ")}    ← packages/ui/src/tokens/ のトークンにするか、直前に /* ui-exempt: 理由 */ を書く`);
+}
+
 /** 画面の CSS を見る。返り値が空なら違反なし。 */
 export function checkScreenCss(file, css) {
   const root = postcss.parse(css, { from: file });
   const problems = [];
   const usedExempts = new Set();
   root.walkRules((rule) => {
-    if (inKeyframes(rule)) return;
-    const violations = screenRuleViolations(rule);
+    const violations = inKeyframes(rule)
+      ? rawColorViolations(rule)
+      : [...screenRuleViolations(rule), ...rawColorViolations(rule)];
     if (violations.length === 0) return;
     const reason = exemptReasonOf(rule);
     if (reason === undefined || reason === "") {

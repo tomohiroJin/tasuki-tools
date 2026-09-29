@@ -60,8 +60,11 @@ test('トークン層が素の要素セレクタを持たない（timer の Tail
     .replace(/\/\*[\s\S]*?\*\//g, '') // コメントを落とす
     .replace(/@font-face\s*\{[^}]*\}/g, '') // @font-face は要素を選ばない
     .replace(/@import[^;]*;/g, '');
-  // Then（残るセレクタは :root だけであること）
-  const selectors = [...css.matchAll(/([^{}]+)\{/g)].map((m) => m[1].trim());
+  // Then（残るセレクタは :root だけであること）。`@supports` / `@media` は要素を選ばない条件の囲みなので
+  // 前置きは数えず、囲みの中のセレクタを同じく :root に限る（在室の色の P3 の強化・#320 PR 5）
+  const selectors = [...css.matchAll(/([^{}]+)\{/g)]
+    .map((m) => m[1].trim())
+    .filter((s) => !/^@(supports|media)\b/.test(s));
   for (const s of selectors) {
     assert.equal(s, ':root', `トークン層に :root 以外のセレクタがある: ${s}`);
   }

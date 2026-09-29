@@ -25,7 +25,7 @@ button {
   border: 1px solid var(--gold-deep);
   color: var(--coal);
   background: linear-gradient(180deg, var(--gold-bright), var(--gold));
-  box-shadow: 0 2px 0 var(--gold-deep), 0 6px 14px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 2px 0 var(--gold-deep), var(--shadow-button);
   cursor: pointer;
   transition: transform 0.12s, box-shadow 0.12s, filter 0.2s;
 }
@@ -42,7 +42,7 @@ button:hover:not(:disabled) {
 /* 押し込みは影の厚みを削って表現する（チップを卓へ押す感じ） */
 button:active:not(:disabled) {
   transform: translateY(2px);
-  box-shadow: 0 0 0 var(--gold-deep), 0 3px 8px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 0 0 var(--gold-deep), var(--shadow-button-pressed);
 }
 
 button.secondary {
@@ -53,7 +53,7 @@ button.secondary {
 }
 
 button.secondary:hover:not(:disabled) {
-  background: rgba(207, 161, 76, 0.12);
+  background: var(--gold-tint);
 }
 
 .badge {
