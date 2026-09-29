@@ -62,6 +62,13 @@ test.describe('poker の文字が背景に対して読める（WCAG AA）', () =
     await expect(resultsSection(page).getByText('未投票', { exact: true })).toBeVisible();
 
     // Then: 未投票の印（`.no-vote`）を含めて、画面の字がすべて AA を満たす
-    expectReadable(await scanContrast(page, 8), 6, []);
+    const scan = await scanContrast(page, 8);
+    expectReadable(scan, 6, []);
+    //   未投票の印（`--ivory-faint` on 票の行の沈んだ敷き `--felt-sink`）を測ったことも固定する。
+    //   地の記述は羅紗の重なりまで続くので、先頭の組で照合する。印が走査の外の要素（`<div>` など）に
+    //   変わると AA の判定は緑のまま、印を誰も測らなくなる（#320 PR 5 の最終レビュー）
+    const [faint, sink] = await resolveColors(page, ['--ivory-faint', '--felt-sink']);
+    const noVote = pairKey(faint!, sink!);
+    expect([...scan.pairs].some((p) => p.startsWith(noVote)), `未投票の印（${noVote}）を測っていない`).toBe(true);
   });
 });
