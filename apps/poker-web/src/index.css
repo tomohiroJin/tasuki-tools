@@ -61,7 +61,7 @@
   align-items: center;
   gap: 0.7rem;
   padding: 0.55rem 0.8rem;
-  background: rgba(0, 0, 0, 0.22);
+  background: var(--felt-sink);
   border: 1px solid var(--line);
   border-radius: 10px;
   transition: opacity 0.3s;
@@ -87,17 +87,17 @@
   width: 22px;
   height: 30px;
   border-radius: 4px;
-  border: 1.5px dashed rgba(245, 239, 221, 0.3);
+  border: 1.5px dashed var(--line-strong);
   transition: all 0.25s ease;
 }
 
 .seat-card.facedown {
   border: 1px solid var(--gold-deep);
   background:
-    repeating-linear-gradient(45deg, rgba(236, 200, 121, 0.55) 0 2px, transparent 2px 5px),
-    repeating-linear-gradient(-45deg, rgba(236, 200, 121, 0.35) 0 2px, transparent 2px 5px),
-    #7d3c2b;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.45);
+    repeating-linear-gradient(45deg, var(--gold-edge) 0 2px, transparent 2px 5px),
+    repeating-linear-gradient(-45deg, var(--gold-glow) 0 2px, transparent 2px 5px),
+    var(--card-back);
+  box-shadow: var(--shadow-chip);
   animation: flip-down 0.3s ease;
 }
 
@@ -111,8 +111,8 @@
 }
 
 .badge.voted {
-  color: #b7dcc4;
-  border-color: rgba(140, 200, 160, 0.4);
+  color: var(--jade-pale);
+  border-color: var(--jade-edge);
 }
 
 /* ---------- 手札 ---------- */
@@ -149,15 +149,17 @@
   justify-content: space-between;
   gap: 0.5rem;
   padding: 0.4rem 0.8rem;
-  background: rgba(0, 0, 0, 0.22);
+  background: var(--felt-sink);
   border: 1px solid var(--line);
   border-radius: 10px;
 }
 
+/* 未投票の印。字は `--ivory-faint`（12px の本文で AA を満たす最も淡い段）。α 0.4 では最も明るい卓の面で
+   2.65:1（計算）・票の行の上で 2.98:1（E2E の実測）と AA を割っていた（#320 PR 5 で発見。それまで E2E は未投票を出していなかった）。 */
 .no-vote {
   font-size: 0.78rem;
-  color: rgba(245, 239, 221, 0.4);
-  border: 1.5px dashed rgba(245, 239, 221, 0.25);
+  color: var(--ivory-faint);
+  border: 1.5px dashed var(--line-strong);
   border-radius: 6px;
   padding: 0.3rem 0.6rem;
 }
@@ -183,7 +185,7 @@
   font-weight: 600;
   line-height: 1.2;
   color: var(--gold-bright);
-  text-shadow: 0 0 24px rgba(236, 200, 121, 0.35);
+  text-shadow: 0 0 24px var(--gold-glow);
 }
 
 .round-actions {
@@ -201,8 +203,8 @@
   justify-content: space-between;
   gap: 0.6rem;
   padding: 0.5rem 0.8rem;
-  background: rgba(198, 95, 69, 0.14);
-  border: 1px solid rgba(198, 95, 69, 0.45);
+  background: var(--rose-tint);
+  border: 1px solid var(--rose-edge);
   border-radius: 8px;
   font-size: 0.85rem;
 }
