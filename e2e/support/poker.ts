@@ -53,7 +53,7 @@ export async function joinRoom(page: Page, roomUrl: string, name: string): Promi
 /**
  * 招待パネルが画面に出している参加 URL。
  *
- * この要素（`RoomPage.tsx` の `.invite-url`）は素の `<span>` でアクセシブル名を
+ * この要素（`RoomPage.tsx` の `.ui-invite-url`）は素の `<span>` でアクセシブル名を
  * 持たないため、**可視テキストの形で掴む**しかない（timer の `invitedUrlText` と同じ）。
  * 範囲を狭めるために「`http` で始まる文字列」という形そのものを条件にしている。
  */
