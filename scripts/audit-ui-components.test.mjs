@@ -127,16 +127,16 @@ describe("checkScreenCss: 入れ子は & を解いてから判定する（設計
     assert.equal(ms.filter((m) => /16px/.test(m)).length, 1);
   });
   test("申告は直後の規則だけを免除する。子（解決すると入力欄）には別に申告が要る", () => {
-    assert.equal(messagesOf("/* ui-exempt: r */\nselect { &:hover { color: red } }").length, 1);
+    assert.equal(messagesOf("/* ui-exempt: r */\nselect { &:hover { color: var(--x) } }").length, 1);
   });
   test("親が入力欄なら、親自身と解決済みの子の両方が落ちる（ちょうど 2 件）", () => {
-    assert.equal(messagesOf("select { &:hover { color: red } }").length, 2);
+    assert.equal(messagesOf("select { &:hover { color: var(--x) } }").length, 2);
   });
   test("@scope の開始引数が入力欄の型に当たれば、中の規則を落とす", () => {
-    assert.equal(messagesOf("@scope (select) { :scope { color: red } }").length, 1);
+    assert.equal(messagesOf("@scope (select) { :scope { color: var(--x) } }").length, 1);
   });
   test("@scope の終了引数（to）が入力欄の型に当たれば、中の規則を落とす", () => {
-    assert.equal(messagesOf("@scope (.x) to (input) { .y { color: red } }").length, 1);
+    assert.equal(messagesOf("@scope (.x) to (input) { .y { color: var(--x) } }").length, 1);
   });
   test("親の位置に & を書いた子（.ui-input &）に font-size を書いたら落とす", () => {
     const ms = messagesOf(".x { .ui-input & { font-size: 1px } }");
