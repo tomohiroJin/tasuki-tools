@@ -59,8 +59,8 @@ function InviteLink({ url }: { url: string }) {
   const { state: copyState, copy } = useCopyText(url);
 
   return (
-    <div className="invite">
-      <span className="invite-url">{url}</span>
+    <div className="invite ui-invite">
+      <span className="ui-invite-url">{url}</span>
       <button type="button" onClick={copy}>
         {copyState === 'done' && 'コピーしました'}
         {copyState === 'failed' && 'コピーできません（URL を選択してください）'}
