@@ -14,7 +14,7 @@
  */
 import { expect, test } from '../fixtures/test';
 import { expectReadable, pairKey, resolveColors, scanContrast } from '../support/a11y';
-import { chooseCard, joinRoom, resultsSection } from '../support/poker';
+import { chooseCard, createRoom, joinRoom, resultsSection } from '../support/poker';
 import { openTopicTool, setTopic } from '../support/topic';
 
 /** 文面は書体の常用の層に収まるもの（`topic.spec.ts` と同じ）。 */
@@ -47,5 +47,21 @@ test.describe('poker の文字が背景に対して読める（WCAG AA）', () =
     await chooseCard(poker.page, '5');
     await expect(resultsSection(poker.page)).toBeVisible();
     expectReadable(await scanContrast(poker.page, 10), 8, [pairKey(gold!, felt900!)]);
+  });
+
+  test('Given 2 人のルームで 1 人だけが投票 / When 票を公開する / Then 未投票の印も AA を満たす', async ({ page, openPeer }) => {
+    // Given: 2 人目が居るので、1 人が投票しても自動では公開されない
+    const inviteUrl = await createRoom(page, 'a11y-voter');
+    const idle = await openPeer('a11y-idle');
+    await joinRoom(idle.page, inviteUrl, 'a11y-idle');
+    await chooseCard(page, '5');
+
+    // When: 投票した側が票を公開する
+    await page.getByRole('button', { name: '票を公開する' }).click();
+    await expect(resultsSection(page)).toBeVisible();
+    await expect(resultsSection(page).getByText('未投票', { exact: true })).toBeVisible();
+
+    // Then: 未投票の印（`.no-vote`）を含めて、画面の字がすべて AA を満たす
+    expectReadable(await scanContrast(page, 8), 6, []);
   });
 });
