@@ -1,0 +1,28 @@
+/* ============================================================
+   Tasuki UI — 招待リンクの表示（#320・ADR 0022）
+   参加用 URL と、それをコピーするボタンを 1 行に組む容器。URL の `<span>` には `.ui-invite-url` を当てる。
+   **行の中の並びと字の大きさまで部品が持つ**（配置は画面が持つ、の例外）。写しが持っていた知識が
+   「同じ組み方」そのものなので、並びを画面に残すと片方だけ直ったときに画面ごとにずれる。
+   ボタンの見た目は画面が持つ（ボタンの形・大きさの段は #316）。
+   ============================================================ */
+
+.ui-invite {
+  box-sizing: border-box;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--font-size-sm);
+}
+
+/* URL は桁を揃えたいものなので等幅に置き、点線の枠で「写し取るもの」と分かるようにする。
+   区切りの無い長い URL でも画面の幅を超えないよう、どこででも折り返す。 */
+.ui-invite-url {
+  box-sizing: border-box;
+  padding: var(--space-2) var(--space-3);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-md);
+  color: var(--ivory-dim);
+  font-family: var(--font-mono);
+  word-break: break-all;
+}

@@ -1,0 +1,75 @@
+/* ============================================================
+   Tasuki UI — Markdown の見た目（#320・ADR 0022）
+   お題の説明の Markdown サブセット（`@tasuki/markdown` が解析し、各アプリの `Markdown.tsx` が描く）の見た目。
+   根に `.ui-md`、各ブロックと行内の要素に `.ui-md-*` を当てる。**描画（React）は各アプリが持つ**（#315 が判断する）。
+   **象牙の札（`.ui-sheet`）の上に置く。** 枠の色（`--coal-soft`）は象牙の上でしか読めない。
+   ============================================================ */
+
+/* ブロックの間隔は margin で作る。`white-space: pre-wrap` は Markdown 自身の段落・改行の扱い
+   （空行区切り・行内の改行）と二重になり、連続する空行が段落の間隔と別に隙間を作る。 */
+.ui-md > * + * {
+  margin-top: var(--space-2);
+}
+
+.ui-md-h {
+  margin: 0;
+  font-weight: 700;
+}
+/* 要素は h4〜h6（札のタイトルの h3 の下へ段を下げる）だが、大きさの見た目は本文に近く保つ。 */
+h4.ui-md-h {
+  font-size: var(--font-size-base);
+}
+h5.ui-md-h {
+  font-size: var(--font-size-sm);
+}
+h6.ui-md-h {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.ui-md-p {
+  margin: 0;
+}
+
+.ui-md-ul,
+.ui-md-ol {
+  margin: 0;
+  padding-left: var(--space-5);
+}
+
+.ui-md-quote {
+  margin: 0;
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--coal-soft);
+}
+
+/* インラインコード。地は変えず、`--coal-soft` の枠と等幅体で区別する（半透明の地を書かない）。
+   長い連続文字列（URL など）も画面の幅を超えない。 */
+.ui-md-code {
+  padding: 0 0.2em;
+  border: 1px solid var(--coal-soft);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  overflow-wrap: anywhere;
+}
+
+/* コードブロックは折り返さず横スクロールで逃がす（整形済みの中身を保つ）。 */
+.ui-md-pre {
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--coal-soft);
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* リンクは札の字の色を継ぎ、下線で区別する。`--gold-deep`（象牙の上で約 3.75:1）は本文の大きさの
+   AA（4.5:1）を割る。色を直書きすると札と別々に直せてしまうので、札が決めた色を継ぐ。 */
+.ui-md-link {
+  color: inherit;
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+}
