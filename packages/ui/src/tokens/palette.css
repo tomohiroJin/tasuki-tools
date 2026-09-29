@@ -99,5 +99,37 @@
   --ivory-inset: rgba(245, 239, 221, 0.05); /* 最も淡い象牙。面の立ち上がりと、目盛りの下地 */
   --felt-scrim: rgba(7, 31, 24, 0.92); /* 全画面を覆う暗幕（交代アラートなど） */
   --felt-shade: rgba(7, 31, 24, 0.7); /* 背後を残す幕（ダイアログの下敷き） */
+
+  /* --- 語彙に畳めない色（#320 PR 5・設計正本 D10 の 3） -------------------
+   * 画面の CSS に直書きされていた色のうち、上の語彙（tint / veil / edge など）に相当が無いものを、
+   * **値を変えずに**役割の名前で置く。語彙に近い値は語彙へ畳んだ。 */
+  --gold-glow: rgba(236, 200, 121, 0.35); /* 真鍮の発光（集計の数字・計器の針。text-shadow / drop-shadow 用） */
+  --jade-pale: #b7dcc4; /* 「投票済み」の札の字。felt-700 上 6.22:1 */
+  --felt-sink: rgba(0, 0, 0, 0.22); /* 卓より一段沈んだ敷き（席の行・票の行・手札） */
+  --felt-grain: rgba(0, 0, 0, 0.05); /* 羅紗の織り目の影（body::after のマスクの地） */
+  --felt-vignette: rgba(7, 31, 24, 0.55); /* 計器の周辺減光の中ほど */
+  --felt-vignette-deep: rgba(4, 20, 15, 0.9); /* 計器の周辺減光の外縁 */
+
+  /* 象牙の札（トランプ）の地 */
+  --card-edge: #cdc4a8; /* 札の縁 */
+  --card-sheen: #fffdf4; /* 札の地のグラデーションの明るい端 */
+  --card-shade: #eae1c6; /* 札の地のグラデーションの暗い端 */
+  --card-inline: rgba(38, 35, 28, 0.18); /* 札の内枠（coal の淡い線） */
+  --card-back: #7d3c2b; /* 伏せた札の裏の地 */
+
+  /* 在室状況（色 + テキスト/アイコン併記で色のみに頼らない。timer が `--color-presence-*` で使う） */
+  --presence-online: #16a34a;
+  --presence-idle: #d97706;
+  --presence-offline: #94a3b8;
+}
+
+/* P3 色域（対応ディスプレイで彩度を強化）。@supports で分岐し、非対応環境では上の sRGB 値が必ず残る。
+ * 明度は sRGB に近く保ち、コントラスト（AA）を維持する。在室状況の 2 色だけを強化する
+ * （真鍮・フェルト・翡翠は彩度を上げると卓の質感が壊れる）。 */
+@supports (color: color(display-p3 1 1 1)) {
+  :root {
+    --presence-online: color(display-p3 0.18 0.62 0.32);
+    --presence-idle: color(display-p3 0.82 0.49 0.08);
+  }
 }
 

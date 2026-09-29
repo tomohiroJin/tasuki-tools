@@ -21,4 +21,9 @@
   /* 影。夜の卓に載るため黒基調で固定する（配色の切替は行わない） */
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35), 0 6px 16px rgba(0, 0, 0, 0.35);
   --shadow-popover: 0 10px 15px rgba(0, 0, 0, 0.45);
+  --shadow-chip: 0 2px 5px rgba(0, 0, 0, 0.45); /* 小さな札（poker の伏せた席のカード） */
+  --shadow-lift-near: 0 2px 3px rgba(0, 0, 0, 0.3); /* 持ち上げた札の足元の影 */
+  --shadow-lift-far: 0 14px 24px rgba(0, 0, 0, 0.45); /* 持ち上げた札の遠い影 */
+  --shadow-button: 0 6px 14px rgba(0, 0, 0, 0.35); /* ボタンの落ち影 */
+  --shadow-button-pressed: 0 3px 8px rgba(0, 0, 0, 0.35); /* 押し込んだボタンの落ち影 */
 }
