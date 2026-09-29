@@ -1,0 +1,26 @@
+# 変異 114: ui-components-screen-raw-colors-ignored
+#
+# 検出を期待するテスト:
+#   - scripts/audit-ui-components.test.mjs
+#     describe「checkScreenCss: 生の色（設計正本 D10 の 3・#320 PR 5）」
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m114-*.patch
+# 復元: git apply -R scripts/mutations/m114-*.patch
+#
+# #320 PR 5・設計正本 D10 の 3。画面の CSS の規則から生の色の判定を外す（@keyframes の段は
+# 空の違反になり、通常の規則は入力欄の写しだけを見る）。部品の CSS の側は生の色を落とし続けるので、
+# 部品の自己テストは緑のまま。画面の側の族だけが赤になるべき。
+diff --git a/scripts/audit-ui-components.mjs b/scripts/audit-ui-components.mjs
+index c77bce5..d308192 100644
+--- a/scripts/audit-ui-components.mjs
++++ b/scripts/audit-ui-components.mjs
+@@ -253,7 +253,7 @@ export function checkScreenCss(file, css) {
+   root.walkRules((rule) => {
+     const violations = inKeyframes(rule)
+       ? rawColorViolations(rule)
+-      : [...screenRuleViolations(rule), ...rawColorViolations(rule)];
++      : screenRuleViolations(rule);
+     if (violations.length === 0) return;
+     const reason = exemptReasonOf(rule);
+     if (reason === undefined || reason === "") {
