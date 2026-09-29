@@ -1243,8 +1243,8 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["audit-ui-components.test.mjs"],
     note:
-      "#320 PR 5・設計正本 D10 の 3。画面の CSS の規則から生の色の判定を外す。部品の CSS の側は" +
-      "落とし続けるので、部品の自己テストは緑のまま画面の側の族だけが赤になる。",
+      "#320 PR 5・設計正本 D10 の 3。画面の CSS の通常の規則から生の色の判定を外す。@keyframes の段と" +
+      "部品の CSS の側は落とし続けるので、画面の通常の規則の族だけが赤になる。",
   },
 ];
 

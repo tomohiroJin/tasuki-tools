@@ -8,9 +8,9 @@
 #       git apply scripts/mutations/m114-*.patch
 # 復元: git apply -R scripts/mutations/m114-*.patch
 #
-# #320 PR 5・設計正本 D10 の 3。画面の CSS の規則から生の色の判定を外す（@keyframes の段は
-# 空の違反になり、通常の規則は入力欄の写しだけを見る）。部品の CSS の側は生の色を落とし続けるので、
-# 部品の自己テストは緑のまま。画面の側の族だけが赤になるべき。
+# #320 PR 5・設計正本 D10 の 3。画面の CSS の通常の規則から生の色の判定を外す（入力欄の写しだけを
+# 見る形に戻す）。@keyframes の段の判定は別の分岐なので残り、その 2 件のテストは緑のまま。
+# 部品の CSS の側も生の色を落とし続ける。画面の通常の規則の族だけが赤になるべき。
 diff --git a/scripts/audit-ui-components.mjs b/scripts/audit-ui-components.mjs
 index c77bce5..d308192 100644
 --- a/scripts/audit-ui-components.mjs
