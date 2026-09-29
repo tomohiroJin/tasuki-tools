@@ -80,6 +80,10 @@ src/
 （例外は選択肢の `outline: none`）・つまみを宣言しない（既定値は `var()` の第 2 引数）・生の色を書かない。
 字の大きさは同じ行の `/* scale-exempt: 理由 */` つきで書きます。
 
+**画面の CSS の約束**（同じ検査が見る）: アプリの CSS と要素層（`elements/`）にも生の色を書きません。色は
+`tokens/` のトークンで書き、語彙（tint / veil / edge など）に近い値は語彙を使います。語彙に相当が無い色は、
+役割の名前でトークン層に足します。外すときは規則の直前に `/* ui-exempt: 理由 */` を書きます。
+
 **機械で止めていないもの**: クラス名で書いた写し（例: 入力欄に独自のクラスを当てて同じ見た目を書く）。
 新しい画面を作るときは、まずこの表を見てください。
 
@@ -185,7 +189,7 @@ Tailwind が `@import` を展開すると、入れ子の `fonts.css` の `url('.
 ```bash
 pnpm --filter @tasuki/ui lint       # stylelint（層の境界と本物の誤り）
 pnpm --filter @tasuki/ui test       # node:test（トークンの契約・書体の実在・層の純度）
-node scripts/audit-ui-components.mjs  # 部品層の写しと規則（リポジトリのルートから実行）
+node scripts/audit-ui-components.mjs  # 部品層の写しと規則・画面の CSS の生の色（リポジトリのルートから実行）
 ```
 
 `build` と `typecheck` は持たない（TS を足すまで不要）。
