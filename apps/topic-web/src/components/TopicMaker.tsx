@@ -33,7 +33,7 @@ export function TopicMaker({ aiUnlocked, enabled, onGenerate, onUnlock }: Props)
   const id = useId();
 
   return (
-    <section className="topic-panel" aria-labelledby={`${id}-heading`}>
+    <section className="topic-panel ui-panel" aria-labelledby={`${id}-heading`}>
       <h2 id={`${id}-heading`}>{MAKE_HEADING}</h2>
       <label htmlFor={`${id}-language`}>{LANGUAGE_LABEL}</label>
       <select

@@ -48,11 +48,13 @@ export function TopicRoom({ roomCode }: { roomCode: string }) {
       <>
         {banner}
         <main className="page">
-          <h1>{JOINING_HEADING}</h1>
-          {/* 参加の返事が来ないまま待つ期限は無い（spec §10.1）。待たされた人が自分で戻れるように。 */}
-          <a className="topic-back" href={hubPathFor(roomCode)}>
-            {BACK_LINK}
-          </a>
+          <header className="ui-page-header">
+            <h1>{JOINING_HEADING}</h1>
+            {/* 参加の返事が来ないまま待つ期限は無い（spec §10.1）。待たされた人が自分で戻れるように。 */}
+            <a className="ui-page-header-back" href={hubPathFor(roomCode)}>
+              {BACK_LINK}
+            </a>
+          </header>
           {sync.retryNotice && <p className="ui-note" role="status">{sync.retryNotice}</p>}
           {sync.error && <p className="ui-note ui-note--error" role="alert">{sync.error}</p>}
         </main>
@@ -65,9 +67,9 @@ export function TopicRoom({ roomCode }: { roomCode: string }) {
     <>
       {banner}
       <main className="page topic-page">
-        <header className="topic-header">
+        <header className="ui-page-header">
           <h1>{PAGE_HEADING}</h1>
-          <a className="topic-back" href={hubPathFor(roomCode)}>
+          <a className="ui-page-header-back" href={hubPathFor(roomCode)}>
             {BACK_LINK}
           </a>
         </header>

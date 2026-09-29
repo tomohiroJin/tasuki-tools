@@ -66,7 +66,7 @@ export function JoinRoom({
         </p>
       )}
 
-      <form className="hub-form" aria-labelledby="hub-form-heading" onSubmit={submit}>
+      <form className="hub-form ui-panel" aria-labelledby="hub-form-heading" onSubmit={submit}>
         <h2 className="hub-section-title" id="hub-form-heading">参加する</h2>
         <label className="hub-field">
           <span className="hub-label">あなたの名前</span>

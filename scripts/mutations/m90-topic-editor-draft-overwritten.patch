@@ -34,4 +34,4 @@ diff --git a/apps/topic-web/src/components/TopicEditor.tsx b/apps/topic-web/src/
 +  }, [current]);
 
    return (
-     <section className="topic-panel" aria-labelledby={`${titleId}-heading`}>
+     <section className="topic-panel ui-panel" aria-labelledby={`${titleId}-heading`}>

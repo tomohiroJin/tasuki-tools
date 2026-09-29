@@ -23,7 +23,7 @@ export function TopicEditor({ current, enabled, onSubmit }: Props) {
   const canSubmit = canSubmitTopic(title, enabled);
 
   return (
-    <section className="topic-panel" aria-labelledby={`${titleId}-heading`}>
+    <section className="topic-panel ui-panel" aria-labelledby={`${titleId}-heading`}>
       <h2 id={`${titleId}-heading`}>{WRITE_HEADING}</h2>
       <form
         onSubmit={(event) => {
