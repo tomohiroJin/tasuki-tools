@@ -14,16 +14,16 @@
 # 黙って消える —— コンポーネント冒頭のコメントが禁じている性質そのもの
 # （「届いたお題で上書きしない」）。
 diff --git a/apps/topic-web/src/components/TopicEditor.tsx b/apps/topic-web/src/components/TopicEditor.tsx
-index 2746611..ad603b5 100644
+index 204da4c..6534f3f 100644
 --- a/apps/topic-web/src/components/TopicEditor.tsx
 +++ b/apps/topic-web/src/components/TopicEditor.tsx
 @@ -1,4 +1,4 @@
--import { useDeferredValue, useId, useState } from 'react';
-+import { useDeferredValue, useEffect, useId, useState } from 'react';
+-import { useDeferredValue, useId, useLayoutEffect, useRef, useState } from 'react';
++import { useDeferredValue, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
  import { MAX_TOPIC_BODY, MAX_TOPIC_TITLE, type Topic } from '@tasuki/topic-core';
  import {
    BODY_HINT,
-@@ -45,6 +45,12 @@ export function TopicEditor({ current, enabled, onSubmit }: Props) {
+@@ -48,6 +48,12 @@ export function TopicEditor({ current, enabled, onSubmit }: Props) {
    const bodyId = useId();
    const previewId = useId();
    const canSubmit = canSubmitTopic(title, enabled);
