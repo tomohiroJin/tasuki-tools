@@ -33,6 +33,11 @@ export const TITLE_LABEL = 'タイトル';
 export const BODY_LABEL = '説明（なくてもよい）';
 /** 説明の欄の下の添え書き（#313）。「字」「文」は base 層の外なので使わない。 */
 export const BODY_HINT = 'Markdown で書けます';
+// 説明の出し方の切り替え（#313 PR 2）。並べる幅では切り替えを出さず、プレビューの列の名前だけを出す
+export const COMPOSE_MODE_LABEL = '説明の出し方';
+export const WRITE_MODE_BUTTON = '書く';
+export const PREVIEW_BUTTON = 'プレビュー';
+export const PREVIEW_EMPTY = '説明を書くと、ここに見え方が出ます';
 export const SET_BUTTON = 'このお題にする';
 export const REWRITE_BUTTON = '書き直す';
 
