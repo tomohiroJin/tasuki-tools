@@ -25,7 +25,7 @@
 | P4 | 変換中の判定は `event.nativeEvent.isComposing \|\| event.keyCode === 229` | Safari は確定の Enter で `isComposing` が偽になり `keyCode` が 229 になる（既知の差）。どちらかが真なら送らない |
 | P5 | `toSingleLine` は `\r\n` を先に 1 つの改行として扱い、改行 1 つを空白 1 つにする。**連続する空白は畳まない**（利用者が書いた空白を消さない） | `\r\n` を 2 つの空白にすると、Windows から貼った文だけ空白が増える |
 | P6 | タイトルの欄の `rows={2}`・説明の欄の `rows={8}` | 正本 D3・D5 |
-| P7 | 変異は `mutation-check.mjs` に**登録しない**。Task 6 で手で壊して赤を見る | #320 PR 2〜4 と同じ扱い |
+| P7 | 変異は `mutation-check.mjs` に**登録しない**。Task 6 で手で壊して赤を見る。**既存の変異 m90（`TopicEditor.tsx` の下書きの上書き）はパッチの文脈がずれるので作り直す**（変異そのものは変えない） | #320 PR 2〜4 と同じ扱い。当初「触るファイルを持つ変異は無い」と見ていたが誤りで、CI の `quality`（`mutation-check.test.mjs`）で分かった |
 
 ## Constitution Check
 

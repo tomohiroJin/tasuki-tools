@@ -26,7 +26,7 @@
 | P4 | プレビューの札は `useDeferredValue` を通した `title`・`body` で描く | 正本 D6。打つたびに Markdown の解析で入力が止まらない |
 | P5 | 切り替えの文言は `copy.ts` に 4 つ足す: `COMPOSE_MODE_LABEL = '説明の出し方'`・`WRITE_MODE_BUTTON = '書く'`・`PREVIEW_BUTTON = 'プレビュー'`・`PREVIEW_EMPTY = '説明を書くと、ここに見え方が出ます'` | いずれも base 層に収まる（正本 §3 の実測）。`WRITE_HEADING` と同じ字でも役割が違うので別の名にする |
 | P6 | 押している方は素の `<button>`、押していない方は `className="secondary"`（正本 D8） | 要素層の見た目だけで組む |
-| P7 | 変異は `mutation-check.mjs` に**登録しない**。Task 7 で手で壊して赤を見る | PR 1 と同じ |
+| P7 | 変異は `mutation-check.mjs` に**登録しない**。Task 7 で手で壊して赤を見る。`TopicEditor.tsx` を変えるので、**既存の変異 m90 のパッチを最後に作り直す** | PR 1 と同じ（PR 1 で m90 のずれを CI が捕まえた） |
 
 ## Constitution Check
 
@@ -347,7 +347,7 @@ const [mode, setMode] = useState<'write' | 'preview'>('write');
 }
 ```
 
-`.topic-compose-caption` の字の大きさ・太さは要素層の `label` に揃える（`label` と同じトークンを書く。値は実装時に `controls.css` の `label` を見て写す）。色は書かない（本文の色を継ぐ）。
+`.topic-compose-caption` の字の大きさと色は要素層の `label` に揃える（`--font-size-sm`・`--ivory-dim`。隣の列の「説明」のラベルと並ぶので、同じ見え方にした。トークンなので生の色の検査には掛からない）。
 
 **詳細度に注意**: 広いときの `.topic-compose[data-mode] .topic-compose-write` は、狭いときの `.topic-compose[data-mode='preview'] .topic-compose-write` と同じ詳細度（クラス 2・属性 1）で、後に書いてあるので勝つ。順序を入れ替えないこと。
 
