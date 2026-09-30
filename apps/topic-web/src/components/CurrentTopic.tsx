@@ -1,6 +1,6 @@
 import type { TopicState } from '@tasuki/topic-core';
 import { CLEAR_BUTTON, CURRENT_HEADING, EMPTY_TEXT } from '../copy';
-import { Markdown } from './Markdown';
+import { TopicSheet } from './TopicSheet';
 
 interface Props {
   readonly state: TopicState | null;
@@ -31,10 +31,7 @@ export function CurrentTopic({ state, notice, enabled, onClear }: Props) {
         {topic === null ? (
           <p className="topic-empty ui-note">{EMPTY_TEXT}</p>
         ) : (
-          <article className="ui-sheet">
-            <h3 className="topic-title">{topic.title}</h3>
-            {topic.body !== '' && <Markdown source={topic.body} className="topic-body" />}
-          </article>
+          <TopicSheet title={topic.title} body={topic.body} />
         )}
         {topic !== null && (
           <button type="button" className="secondary" onClick={onClear} disabled={!enabled}>
