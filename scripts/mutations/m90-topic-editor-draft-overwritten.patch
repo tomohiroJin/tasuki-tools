@@ -14,18 +14,18 @@
 # 黙って消える —— コンポーネント冒頭のコメントが禁じている性質そのもの
 # （「届いたお題で上書きしない」）。
 diff --git a/apps/topic-web/src/components/TopicEditor.tsx b/apps/topic-web/src/components/TopicEditor.tsx
-index b813022..3c2303f 100644
+index 2746611..ad603b5 100644
 --- a/apps/topic-web/src/components/TopicEditor.tsx
 +++ b/apps/topic-web/src/components/TopicEditor.tsx
 @@ -1,4 +1,4 @@
--import { useId, useState } from 'react';
-+import { useEffect, useId, useState } from 'react';
+-import { useDeferredValue, useId, useState } from 'react';
++import { useDeferredValue, useEffect, useId, useState } from 'react';
  import { MAX_TOPIC_BODY, MAX_TOPIC_TITLE, type Topic } from '@tasuki/topic-core';
- import { BODY_HINT, BODY_LABEL, REWRITE_BUTTON, SET_BUTTON, TITLE_LABEL, WRITE_HEADING } from '../copy';
- import { canSubmitTopic, toSingleLine } from '../topic-view';
-@@ -24,6 +24,12 @@ export function TopicEditor({ current, enabled, onSubmit }: Props) {
-   const titleId = useId();
+ import {
+   BODY_HINT,
+@@ -45,6 +45,12 @@ export function TopicEditor({ current, enabled, onSubmit }: Props) {
    const bodyId = useId();
+   const previewId = useId();
    const canSubmit = canSubmitTopic(title, enabled);
 +  useEffect(() => {
 +    if (current) {
@@ -33,6 +33,6 @@ index b813022..3c2303f 100644
 +      setBody(current.body);
 +    }
 +  }, [current]);
- 
-   return (
-     <section className="topic-panel topic-write ui-panel" aria-labelledby={`${titleId}-heading`}>
+   const previewTitle = useDeferredValue(title);
+   const previewBody = useDeferredValue(body);
+   const previewBlank = previewTitle.trim() === '' && previewBody.trim() === '';
