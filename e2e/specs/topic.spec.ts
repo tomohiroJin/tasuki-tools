@@ -230,3 +230,80 @@ test.describe('お題ツールの文字と書体', () => {
     });
   }
 });
+
+/** ユーザーストーリーの形のタイトル（#313 正本 §3 の例。68）。入力欄の値は画面の文言ではないので、書体の層の検査に掛からない。 */
+const STORY_TITLE =
+  'チームの一員として、スプリントの終わりにふりかえりの結果を一目で見たい。なぜなら、次のスプリントで何を変えるかをその場で決めたいからだ';
+
+test.describe('長いタイトルと広いページ（#313 PR 1）', () => {
+  for (const width of [390, 1280]) {
+    test(`Given ユーザーストーリーの形のタイトル / When 幅 ${width} で書く / Then 欄の中に隠れず全体が見える`, async ({ page, consoleWatcher }) => {
+      // Given
+      await page.setViewportSize({ width, height: 900 });
+      await openTopicTool(page, `story-topic-${width}`);
+      const field = page.getByLabel('タイトル', { exact: true });
+      // When
+      await field.fill(STORY_TITLE);
+      // Then その1: 欄の中にスクロールで隠れた部分が無い（1 行の欄は横に、伸びない欄は縦に隠れる）
+      const hidden = await field.evaluate((el) => ({
+        x: el.scrollWidth - el.clientWidth,
+        y: el.scrollHeight - el.clientHeight,
+      }));
+      expect(hidden, '欄の中に隠れた部分がある').toEqual({ x: 0, y: 0 });
+      // Then その2: 書いた量が数字で出る
+      await expect(page.getByText(`${STORY_TITLE.length} / 200`, { exact: true })).toBeVisible();
+      // Then その3: 入力欄の字は 16px 以上で、画面は横にはみ出さない
+      await expectFieldsAtLeast16px(page);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      // 画面は例外を出していない
+      expect(consoleWatcher.errors).toEqual([]);
+    });
+  }
+
+  test('Given 空のタイトルの欄 / When 見る / Then 2 行ぶんの高さがある', async ({ page }) => {
+    // Given
+    await openTopicTool(page, 'empty-title-topic');
+    const field = page.getByLabel('タイトル', { exact: true });
+    // When
+    const size = await field.evaluate((el) => ({
+      height: el.clientHeight,
+      line: parseFloat(getComputedStyle(el).lineHeight),
+    }));
+    // Then: 内容に合わせて伸ばしても、空の欄が 1 行に潰れない（複数行の欄だと分かる）
+    expect(size.height).toBeGreaterThanOrEqual(size.line * 2);
+  });
+
+  test('Given 幅 1920 / When お題ツールを開く / Then ページは 1120px で、書くは中身の幅いっぱい', async ({ page, consoleWatcher }) => {
+    // Given
+    await page.setViewportSize({ width: 1920, height: 900 });
+    // When
+    await openTopicTool(page, 'wide-topic');
+    // Then
+    const main = await page.getByRole('main').evaluate((el) => {
+      const s = getComputedStyle(el);
+      return {
+        width: el.getBoundingClientRect().width,
+        inner: el.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight),
+      };
+    });
+    expect(main.width).toBe(1120);
+    const write = await page.getByRole('region', { name: '書く' }).boundingBox();
+    expect(write?.width).toBeCloseTo(main.inner, 0);
+    // 画面は例外を出していない
+    expect(consoleWatcher.errors).toEqual([]);
+  });
+
+  test('Given タイトルを書いた / When タイトルの欄で Enter / Then このお題になる', async ({ page, consoleWatcher }) => {
+    // Given
+    await openTopicTool(page, 'enter-topic');
+    const field = page.getByLabel('タイトル', { exact: true });
+    await field.fill(TITLE);
+    // When
+    await field.press('Enter');
+    // Then
+    await expect(currentTopic(page).getByRole('heading', { name: TITLE })).toBeVisible();
+    await expect(field).toHaveValue('');
+    // 画面は例外を出していない
+    expect(consoleWatcher.errors).toEqual([]);
+  });
+});
