@@ -4,8 +4,10 @@
  * **状態ごとに、その状態にしか無い目印を書き出しの前に断定する。** 状態を作り損ねて両側が玄関へ
  * 飛ぶと、同じ玄関を比べて差 0 件になる。目印は役割と名前で掴む（クラス名で掴まない）。
  *
- * 状態は既存 spec の作り方で作る。`routeWebSocket` は「繋がらない」（接続を閉じるだけ）にしか使わない
- * —— フレームを中継するページは同期を取りこぼす（`e2e/README.md`）。
+ * 状態は既存 spec の作り方で作る。**`routeWebSocket` は使わない** —— フレームを中継するページは同期を
+ * 取りこぼす（`e2e/README.md`）うえ、閉じるだけの形でもページから見ると接続がいったん開く（実測・`trackSockets`）。
+ * 接続を落とす・受け取らない・行き先を変える状態は、`addInitScript` で `WebSocket` を包んで作る
+ * （`timer.spec.ts` の `armRoomLoss` と同じ差し込み方）。
  *
  * **網羅は規則の使用状況（E8・PR 2 から）で確かめる。** ここに足りない状態は、PR 2 以降で
  * 「一度も当たらない規則」として見つかる。
@@ -40,10 +42,31 @@ export const WIDTHS = [360, 640, 768, 1024, 1280] as const;
 const HOST = 'ホスト';
 const GUEST = 'ゲスト';
 
-/** ルームコード・QR・招待 URL・残り時間は、部屋ごと・時刻ごとに変わる。 */
+/**
+ * ルームコードの形（`apps/tasuki-sync` の `NanoidCodeGen`: `ABCDEFGHJKMNPQRSTUVWXYZ23456789` から 6 文字）。
+ *
+ * 招待パネルの大きいコード（`InvitePanel.tsx`）と喪失画面の「ルーム XXXXXX」（`SessionLost.tsx`）は、どちらも
+ * 素の `<span>` で役割も名前も持たない。**テキストがコードの形そのものである要素**を掴むのが最小の手段。
+ * 画面の他の文字にこの形（大文字と数字だけの 6 文字）は無い。
+ */
+const ROOM_CODE_TEXT = /^[A-HJKMNP-Z2-9]{6}$/;
+
+/**
+ * ルームコード・QR・招待 URL・残り時間・経過時間は、部屋ごと・時刻ごとに変わる（設計正本 §5.3）。
+ *
+ * - ルームコードは、コードの要素ではなく**その親**（コードとコピーのボタンの行・喪失画面の「ルーム XXXXXX」）を
+ *   隠す。コードの字は等幅ではないので、コードの箱の幅が部屋ごとに変わり、中央に寄せた行の中でコピーのボタンの
+ *   位置も端数だけ動く。コードの要素だけを隠すと、その縁で 1px の差が出た（実測・lobby-notify-open）。
+ *   隠れたコピーのボタンは、スタイルの比較では比べている
+ * - 経過時間（`Session.tsx` の「経過 00:00」・`Summary.tsx` の「所要時間」の値）も役割と名前を持たないので、
+ *   札の文字から辿る（残り時間は `timer` の役割で掴める）
+ */
 function roomMask(page: Page): Locator[] {
   return [
     page.getByRole('img', { name: /QR コード$/ }),
+    page.getByText(ROOM_CODE_TEXT).locator('xpath=..'),
+    page.locator('span', { hasText: /^経過 / }).getByText(/^\d+:\d{2}$/),
+    page.locator('p', { hasText: /^所要時間$/ }).locator('xpath=following-sibling::p[1]'),
     page.getByRole('timer'),
     page.getByLabel('ステータス情報'),
     page.locator('text=/\\/\\?room=/'),
@@ -118,6 +141,23 @@ async function lobbyWithGuest(
   await joinAsDriver(guest, code, GUEST);
   await expect(lobbyRotationRow(host, GUEST, 2)).toHaveCount(1);
   return { host, guest };
+}
+
+/**
+ * 確認のダイアログを、開くボタンに**フォーカスを載せずに**開く（`click()` ではなく click の事象だけを送る）。
+ *
+ * **フォーカスを載せて開くと、撮る間にページがそのボタンまでスクロールして戻る。** 確認のダイアログ
+ * （`ConfirmDialog`）のフォーカストラップ（`useFocusTrap`）は `onClose` を依存に持ち、呼ぶ側は毎回新しい関数を
+ * 渡す（`EndSessionZone.tsx`・`RosterPanel.tsx` の `onCancel={() => …}`）。再描画のたびに後始末が走り、開く前に
+ * フォーカスしていた要素へ `focus()` を戻す。それが押したボタンだと、そのたびにページがボタンまでスクロールする
+ * （実測: 先頭へ戻して 300ms 後に 1280 で 388px・640 で 574px へ戻った）。再描画は残り時間の刻みのほか、幅の変更・
+ * 書き出しの `relayout`・全画面の撮影でも起きるので、時計を止めても撮影の時点で片側だけ戻っていた（実測）。
+ * `fixed` のダイアログは全画面の撮影でもスクロールの位置に描かれるので、ダイアログの高さが両側でずれて写る。
+ * 戻し先が `body` なら `focus()` はスクロールしない。ダイアログの姿（取消ボタンに初期フォーカス）は変わらない。
+ */
+async function openDialogWithoutFocus(button: Locator): Promise<void> {
+  await expect(button).toBeEnabled();
+  await button.dispatchEvent('click');
 }
 
 async function startSession(host: Page): Promise<void> {
@@ -416,13 +456,19 @@ export const STATES: readonly ParityState[] = [
       await startSession(host);
       // 残り 10 秒以下で、**計測中のときだけ**緊急表示になる（Session.tsx の `isUrgent`）。
       // 一時停止すると消えるので、止めるのは時計（表示の刻み）だけにする。最短の間隔でも約 3 分待つ。
-      // 交代はサーバーが実時間で起こす（残り 0 秒）。時計を止めるのと同時に受け取りも止め、届かせない
+      // 交代はサーバーが実時間で起こす（残り 0 秒）。受け取りを止めて届かせない
       // （止めずに撮ると、5 つの幅を撮り終える前に交代が届いて緊急表示が消えた・実測）。
-      await expect(host.getByRole('timer')).toHaveAttribute('aria-label', /残り時間 00:(09|10)$/, {
+      // **受け取りは残り 40 秒の手前で止める。** 表示が 00:13 のときにサーバーの交代が届いて 03:00 へ戻ったことが
+      // 2 回続いた（実測・修正ラウンド 1）。ページの時計（`page.clock`）が負荷で実時間より遅れたと見ている（推測）。
+      // timer の画面は受け取りが途絶えても時間切れを持たないので、表示は手元の時計で 00:10 まで進む。
+      await expect(host.getByRole('timer')).toHaveAttribute('aria-label', /残り時間 00:[0-3]\d$/, {
         timeout: 200_000,
       });
       await host.evaluate(() => {
         (window as unknown as DeafWindow).__parityDeaf.deaf = true;
+      });
+      await expect(host.getByRole('timer')).toHaveAttribute('aria-label', /残り時間 00:(09|10)$/, {
+        timeout: 60_000,
       });
       await freezeClock(host);
       return host;
@@ -437,14 +483,14 @@ export const STATES: readonly ParityState[] = [
       const { host } = await lobbyWithGuest(open);
       await startSession(host);
       const remove = host.getByRole('button', { name: `${GUEST} を退出させる` });
-      await remove.click();
+      await openDialogWithoutFocus(remove);
       await expect(host.getByRole('dialog')).toBeVisible();
       // 行の操作ボタンは押した後 450ms だけ送信中（半透明・待ちカーソル）になる（`RosterPanel.tsx` の
       // `MiniButton`）。明けるのを待たないと、撮った時刻で片側だけ送信中の姿になる（実測）
       await expect(remove).not.toHaveAttribute('aria-busy', 'true');
       return host;
     },
-    marker: (p) => p.getByRole('dialog'),
+    marker: (p) => p.getByRole('dialog', { name: `${GUEST} さんを退出させますか？` }),
     minElements: 60,
     mask: roomMask,
   },
@@ -484,10 +530,11 @@ export const STATES: readonly ParityState[] = [
     async setup(open) {
       const { host } = await lobbyWithGuest(open);
       await startSession(host);
-      await host.getByRole('button', { name: '完成!', exact: true }).click();
+      await openDialogWithoutFocus(host.getByRole('button', { name: '完成!', exact: true }));
+      await expect(host.getByRole('dialog')).toBeVisible();
       return host;
     },
-    marker: (p) => p.getByRole('dialog'),
+    marker: (p) => p.getByRole('dialog', { name: 'このセッションを完成として記録しますか？' }),
     minElements: 60,
     mask: roomMask,
   },
@@ -571,9 +618,15 @@ export const STATES: readonly ParityState[] = [
       await host.goto('/timer/?view=history');
       return host;
     },
-    marker: (p) => p.getByRole('heading', { name: '完了記録の履歴' }),
-    minElements: 20,
-    mask: (p) => [p.locator('time')],
+    // 見出しは空の履歴にもある（恒真になる）。**記録の行そのもの**を目印にする
+    marker: (p) => p.getByRole('list', { name: '完了記録の一覧' }).getByRole('listitem'),
+    // 空の履歴は 38 要素（実測）。記録 1 行で 64 要素（実測）になる。その間に置き、空の履歴では落ちるようにする
+    minElements: 50,
+    // 所要時間と日時は撮るたびに変わる（`History.tsx` の `<dd>`。役割も名前も無いので、見出しの `<dt>` から辿る）
+    mask: (p) => [
+      p.locator('dt', { hasText: '所要時間' }).locator('xpath=following-sibling::dd[1]'),
+      p.locator('dt', { hasText: '日時' }).locator('xpath=following-sibling::dd[1]'),
+    ],
   },
   {
     name: 'loading-unreachable',

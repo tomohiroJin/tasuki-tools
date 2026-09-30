@@ -33,10 +33,34 @@ interface WalkOptions {
   readonly only: readonly string[] | null;
   /** true なら root の要素だけ（子孫を歩かない）。 */
   readonly single: boolean;
+  /**
+   * true なら、読む前に文書全体のレイアウトを作り直す（ルートの `display` を一瞬 `none` にして戻す）。
+   *
+   * **auto の余白（`mx-auto`）の読み値が決定的でないため。** flex の子の `margin-left` は、位置
+   * （`getBoundingClientRect().left`）が動いていないのに、1 秒ごとの再描画の後に `109px` から `0px` へ
+   * 変わって戻らなかった。`offsetWidth` でレイアウトを強制しても戻らず、全体を作り直すと位置と合う値
+   * （`109px`）に戻った（実測・Chromium）。計器（`TeamOrbit`）で 5 幅とも、基準・ブランチの両側で同じく起きた。
+   * `left` から親の `left` を引いた値は常に作り直した後の読み値と一致し、`clientWidth` は `innerWidth` と
+   * 等しいまま（スクロールバーの出入りは無い）。**配置は動いておらず、読み値だけが揺れる。**作り直すと CSS アニメーションが最初からやり直しになるので、
+   * 同じ評価の中で終わらせてから読む（`reduce` の下では回数 1・0.01ms なので、終えた姿が本来の姿）。
+   * フォーカスは保たれる（実測）。
+   */
+  readonly relayout?: boolean;
 }
 
 /** ブラウザ側で動く本体。**自己完結させる**（外の識別子を参照しない）。 */
 function walkInPage(options: WalkOptions): StyleEntry[] {
+  if (options.relayout === true) {
+    const html = document.documentElement;
+    html.style.display = 'none';
+    void html.offsetWidth;
+    html.style.removeProperty('display');
+    if (html.getAttribute('style') === '') html.removeAttribute('style');
+    void html.offsetWidth;
+    for (const animation of document.getAnimations()) {
+      if (animation.effect?.getComputedTiming().endTime !== Infinity) animation.finish();
+    }
+  }
   const root = document.querySelector(options.rootSelector);
   if (root === null) throw new Error(`書き出しの根が見つかりません: ${options.rootSelector}`);
 
@@ -101,8 +125,15 @@ function walkInPage(options: WalkOptions): StyleEntry[] {
   return out;
 }
 
-export async function captureStyles(page: Page, rootSelector = 'html'): Promise<StyleEntry[]> {
-  return page.evaluate(walkInPage, { rootSelector, only: null, single: false });
+/**
+ * 全要素・全プロパティの書き出し。`relayout` は {@link WalkOptions.relayout}（`reduce` の下でだけ使う）。
+ */
+export async function captureStyles(
+  page: Page,
+  rootSelector = 'html',
+  options: { readonly relayout?: boolean } = {},
+): Promise<StyleEntry[]> {
+  return page.evaluate(walkInPage, { rootSelector, only: null, single: false, relayout: options.relayout === true });
 }
 
 export async function captureMotion(page: Page): Promise<StyleEntry[]> {

@@ -7,16 +7,15 @@
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test, type Browser, type BrowserContext, type Locator, type Page } from '@playwright/test';
-import { BASE_DIST, serveBaseDist, type BaseServing } from './base-dist';
+import { BASE_DIST, type BaseServing } from './base-dist';
 import { captureKeyframes, captureMotion, captureStyles } from './capture';
+import { newParityContext, type ParitySide, type RafWindow } from './context';
 import { diffEntries, diffKeyframes, themeVarNamesFromCss, type StyleDiff, type StyleEntry } from './compare-lib';
 import { NOISE } from './noise';
 import { STATES, WIDTHS, type ParityState } from './states';
 
 const OUT = path.join(path.dirname(new URL(import.meta.url).pathname), 'out');
 const HEIGHT = 900;
-
-type Side = 'base' | 'branch';
 
 interface Capture {
   readonly styles: Map<number, StyleEntry[]>;
@@ -37,18 +36,18 @@ function tailwindThemeVars(): Set<string> {
   return names;
 }
 
-/** 文脈を作った時点で退避した本物の `requestAnimationFrame`（`page.clock` に差し替えられる前のもの）。 */
-interface RafWindow {
-  __parityRaf: (callback: FrameRequestCallback) => number;
-}
-
 /**
  * 幅を変えた後、レイアウトと計算済みスタイルが新しい幅に落ち着くまで待つ。
  *
  * **待たずに読むと、前の幅の値を読む**（実測: history-empty の 640 で、片側だけ 360 の `font-size` が出た）。
  * 条件は 3 つ: (a) `clientWidth` が目的の幅と一致する、(b) 走っている CSS の遷移が無い、(c) 本物の rAF を 2 回
  * 待ってから、ルート要素と目印の要素の `font-size` と `width`、ページ全体の配置の指紋を読み、続けてもう一度
- * 読んで同じ値である。
+ * 読んで同じ値である。指紋は全要素の外接矩形の left・top・width・height の和。
+ *
+ * 撮る前に先頭へスクロールを戻す（`scrollToTop`）。確認のダイアログ（`fixed inset-0`）は、全画面の撮影でも
+ * スクロールの位置に描かれるので、スクロールの量が両側で違うと、ダイアログの高さがずれて写った（実測）。
+ * ダイアログを開いた状態は、開くボタンにフォーカスを載せずに開く（ページ自身がスクロールを戻すため・`states.ts` の
+ * `openDialogWithoutFocus`）。
  *
  * **rAF は退避した本物を使う。** `page.clock` を止めた状態ではページの rAF も止まる（実測）。
  */
@@ -80,10 +79,12 @@ async function settleAtWidth(page: Page, width: number, marker: Locator): Promis
       const own = getComputedStyle(el);
       // 配置の指紋: 幅で変わる寸法を JS の状態で決める要素がある（計器の `useViewportWidth`・`useIsWide`）。
       // 目印だけを見ると、その再描画の前に読んでしまう（実測: 計器の `margin` が片側だけ前の幅の値だった）
+      // 大きさだけでなく位置（left / top）も足す。大きさが同じまま位置だけ動く変化（中央寄せの余白など）を見逃さない
       let extent = 0;
       for (const node of Array.from(document.querySelectorAll('body *'))) {
         const rect = node.getBoundingClientRect();
-        extent += rect.width + rect.height;
+        // 位置は文書に対する座標で足す（スクロールの量で指紋が変わらないように）
+        extent += rect.width + rect.height + rect.left + window.scrollX + rect.top + window.scrollY;
       }
       return [root.fontSize, root.width, own.fontSize, own.width, document.documentElement.scrollHeight, extent.toFixed(2)].join(
         ' | ',
@@ -101,23 +102,35 @@ async function settleAtWidth(page: Page, width: number, marker: Locator): Promis
     .toBe('stable');
 }
 
-async function captureSide(browser: Browser, state: ParityState, side: Side): Promise<Capture> {
+/**
+ * 先頭へスクロールを戻す（`settleAtWidth` の注記）。戻したことを確かめる。
+ *
+ * 幅を変えた直後の再描画がスクロールを動かしうる（`states.ts` の `openDialogWithoutFocus`）。そのため落ち着いた後に呼び、戻すことと確かめることを 1 回の読みで行う。
+ */
+async function scrollToTop(page: Page): Promise<void> {
+  await expect
+    .poll(
+      () =>
+        page.evaluate(async () => {
+          window.scrollTo(0, 0);
+          const raf = (window as unknown as RafWindow).__parityRaf;
+          await new Promise<void>((resolve) => raf(() => raf(() => resolve())));
+          return window.scrollY;
+        }),
+      { message: '先頭へ戻らない' },
+    )
+    .toBe(0);
+}
+
+async function captureSide(browser: Browser, state: ParityState, side: ParitySide): Promise<Capture> {
   const contexts: BrowserContext[] = [];
   const servings: BaseServing[] = [];
   const open = async (): Promise<Page> => {
-    // `local-network-access`: 基準の側は `/timer/` を `route.fulfill` で返すので、Chrome はその文書の
-    // アドレス空間を loopback と見なさず、`ws://127.0.0.1` への同期の接続を Local Network Access の
-    // 検査で弾く（`ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS`・実測）。両側を揃えるため、どちらにも付与する。
-    const context = await browser.newContext({
+    const { context, serving } = await newParityContext(browser, side, {
       viewport: { width: 1280, height: HEIGHT },
       reducedMotion: 'no-preference',
-      permissions: ['local-network-access'],
     });
-    // `page.clock` が rAF を差し替える前に本物を退避する（`settleAtWidth` が使う）
-    await context.addInitScript(() => {
-      Object.defineProperty(window, '__parityRaf', { value: window.requestAnimationFrame.bind(window) });
-    });
-    if (side === 'base') servings.push(await serveBaseDist(context, BASE_DIST));
+    if (serving !== null) servings.push(serving);
     contexts.push(context);
     return context.newPage();
   };
@@ -142,7 +155,9 @@ async function captureSide(browser: Browser, state: ParityState, side: Side): Pr
       await page.setViewportSize({ width, height: HEIGHT });
       await expect(state.marker(page)).toBeVisible();
       await settleAtWidth(page, width, state.marker(page));
-      const entries = await captureStyles(page);
+      await scrollToTop(page);
+      // 読む直前に文書全体のレイアウトを作り直す（auto の余白の読み値を決定的にする・`capture.ts` の `relayout`）
+      const entries = await captureStyles(page, 'html', { relayout: true });
       expect(entries.length, `${state.name}@${width}（${side}）の要素数`).toBeGreaterThanOrEqual(state.minElements);
       styles.set(width, entries);
       screenshots.set(
