@@ -1,6 +1,17 @@
 import { useDeferredValue, useId, useState } from 'react';
 import { MAX_TOPIC_BODY, MAX_TOPIC_TITLE, type Topic } from '@tasuki/topic-core';
-import { BODY_HINT, BODY_LABEL, PREVIEW_BUTTON, PREVIEW_EMPTY, REWRITE_BUTTON, SET_BUTTON, TITLE_LABEL, WRITE_HEADING } from '../copy';
+import {
+  BODY_HINT,
+  BODY_LABEL,
+  COMPOSE_MODE_LABEL,
+  PREVIEW_BUTTON,
+  PREVIEW_EMPTY,
+  REWRITE_BUTTON,
+  SET_BUTTON,
+  TITLE_LABEL,
+  WRITE_HEADING,
+  WRITE_MODE_BUTTON,
+} from '../copy';
 import { canSubmitTopic, toSingleLine } from '../topic-view';
 import { TopicSheet } from './TopicSheet';
 
@@ -21,10 +32,15 @@ interface Props {
  *
  * **プレビューはいまのお題と同じ札（`TopicSheet`）で描く**（#313 正本 D6）。打つたびの Markdown の解析で
  * 入力が止まらないよう、描く値は `useDeferredValue` を通す。打つたびに読み上げないよう `aria-live` にしない。
+ *
+ * **並べるか切り替えるかは CSS が決める**（#313 正本 D7）。「書く」の容器が広ければ説明の欄とプレビューを並べ、
+ * 切り替えのボタンを隠す。React の木は幅によらず同じで、ここが持つのは狭いときにどちらを出すか（`mode`）だけ。
+ * 切り替えのボタンは要素層のボタン（押している方）と `.secondary`（押していない方）で組み、部品層に置かない（D8）。
  */
 export function TopicEditor({ current, enabled, onSubmit }: Props) {
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
+  const [mode, setMode] = useState<'write' | 'preview'>('write');
   const titleId = useId();
   const bodyId = useId();
   const previewId = useId();
@@ -43,6 +59,8 @@ export function TopicEditor({ current, enabled, onSubmit }: Props) {
           onSubmit(title.trim(), body);
           setTitle('');
           setBody('');
+          // 送ったら次に書く欄を出す（正本 D9。狭い画面でプレビューのまま欄が隠れているのを防ぐ）
+          setMode('write');
         }}
       >
         <label htmlFor={titleId}>{TITLE_LABEL}</label>
@@ -66,7 +84,25 @@ export function TopicEditor({ current, enabled, onSubmit }: Props) {
         <p className="topic-field-meta ui-note">
           <span id={`${titleId}-count`}>{`${title.length} / ${MAX_TOPIC_TITLE}`}</span>
         </p>
-        <div className="topic-compose" data-mode="write">
+        <div className="topic-compose" data-mode={mode}>
+          <div className="topic-compose-toggle" role="group" aria-label={COMPOSE_MODE_LABEL}>
+            <button
+              type="button"
+              className={mode === 'write' ? undefined : 'secondary'}
+              aria-pressed={mode === 'write'}
+              onClick={() => setMode('write')}
+            >
+              {WRITE_MODE_BUTTON}
+            </button>
+            <button
+              type="button"
+              className={mode === 'preview' ? undefined : 'secondary'}
+              aria-pressed={mode === 'preview'}
+              onClick={() => setMode('preview')}
+            >
+              {PREVIEW_BUTTON}
+            </button>
+          </div>
           <div className="topic-compose-panes">
             <div className="topic-compose-write">
               <label htmlFor={bodyId}>{BODY_LABEL}</label>

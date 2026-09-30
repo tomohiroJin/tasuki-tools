@@ -549,3 +549,79 @@ describe('プレビュー', () => {
     expect(preview()).not.toHaveAttribute('aria-live');
   });
 });
+
+const modeGroup = () => screen.getByRole('group', { name: copy.COMPOSE_MODE_LABEL });
+const modeButton = (name: string) => within(modeGroup()).getByRole('button', { name });
+/** 並べるか切り替えるかは CSS（容器クエリと `data-mode`）が決める。jsdom は CSS を読まないので、ここでは印までを見る。 */
+const compose = () => bodyField().closest('.topic-compose');
+
+/**
+ * 狭い「書く」では、説明の欄とプレビューを切り替える（並ぶことは E2E が見る）。
+ *
+ * @requirements #313 正本 D7・D8・D9・FR-011〜FR-013・NFR-003
+ */
+describe('説明の出し方の切り替え', () => {
+  it('Given 画面 / When 切り替えを見る / Then 書くが押されている', () => {
+    // Given / When
+    enterWith();
+    // Then
+    expect(modeButton(copy.WRITE_MODE_BUTTON)).toHaveAttribute('aria-pressed', 'true');
+    expect(modeButton(copy.PREVIEW_BUTTON)).toHaveAttribute('aria-pressed', 'false');
+    expect(compose()).toHaveAttribute('data-mode', 'write');
+  });
+
+  it('Given 書く / When プレビューを押す / Then プレビューが押され、出し方がプレビューになる', () => {
+    // Given
+    enterWith();
+    // When
+    fireEvent.click(modeButton(copy.PREVIEW_BUTTON));
+    // Then
+    expect(modeButton(copy.PREVIEW_BUTTON)).toHaveAttribute('aria-pressed', 'true');
+    expect(modeButton(copy.WRITE_MODE_BUTTON)).toHaveAttribute('aria-pressed', 'false');
+    expect(compose()).toHaveAttribute('data-mode', 'preview');
+  });
+
+  it('Given プレビューを出している / When 書くを押す / Then 書くへ戻る', () => {
+    // Given
+    enterWith();
+    fireEvent.click(modeButton(copy.PREVIEW_BUTTON));
+    // When
+    fireEvent.click(modeButton(copy.WRITE_MODE_BUTTON));
+    // Then
+    expect(compose()).toHaveAttribute('data-mode', 'write');
+  });
+
+  it('Given プレビューを出している / When このお題にする / Then 書くへ戻る', () => {
+    // Given
+    enterWith();
+    fireEvent.change(titleField(), { target: { value: 'FizzBuzz' } });
+    fireEvent.click(modeButton(copy.PREVIEW_BUTTON));
+    // When
+    fireEvent.click(setButton());
+    // Then
+    expect(compose()).toHaveAttribute('data-mode', 'write');
+  });
+
+  it('Given プレビューを出している / When 書き直す / Then プレビューのまま、いまのお題が出る', () => {
+    // Given
+    enterWith({ ...IDLE_STATE, topic: FIZZ });
+    fireEvent.click(modeButton(copy.PREVIEW_BUTTON));
+    // When
+    fireEvent.click(screen.getByRole('button', { name: copy.REWRITE_BUTTON }));
+    // Then
+    expect(compose()).toHaveAttribute('data-mode', 'preview');
+    expect(within(preview()).getByRole('heading', { level: 3, name: 'FizzBuzz' })).toBeInTheDocument();
+  });
+
+  it('Given タイトルを書いた / When 切り替えのボタンを押す / Then フォームを送らない', () => {
+    // Given
+    enterWith();
+    fireEvent.change(titleField(), { target: { value: 'FizzBuzz' } });
+    const before = latestSocket().sentJson().length;
+    // When
+    fireEvent.click(modeButton(copy.PREVIEW_BUTTON));
+    fireEvent.click(modeButton(copy.WRITE_MODE_BUTTON));
+    // Then
+    expect(latestSocket().sentJson()).toHaveLength(before);
+  });
+});
