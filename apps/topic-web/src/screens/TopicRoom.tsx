@@ -79,8 +79,9 @@ export function TopicRoom({ roomCode }: { roomCode: string }) {
         {sync.error && <p className="ui-note ui-note--error" role="alert">{sync.error}</p>}
         <CurrentTopic state={sync.topicState} notice={generationNotice(sync.topicState)} enabled={enabled} onClear={sync.clearTopic} />
         <div className="topic-tools">
-          <TopicEditor current={sync.topicState?.topic ?? null} enabled={enabled} onSubmit={sync.setTopic} />
+          {/* 作るはボタン 1 つで済む操作なので、長く書く「書く」より先に置く（#313 構成案 1） */}
           <TopicMaker aiUnlocked={sync.topicState?.aiUnlocked ?? false} enabled={enabled} onGenerate={sync.generate} onUnlock={sync.unlock} />
+          <TopicEditor current={sync.topicState?.topic ?? null} enabled={enabled} onSubmit={sync.setTopic} />
         </div>
       </main>
     </>
