@@ -232,6 +232,38 @@ async function armStorageFailure(page: Page): Promise<void> {
   });
 }
 
+/**
+ * 完了記録を保存するときに、完了日時と所要時間を決まった値へ差し替える（読み込みの前に呼ぶ）。
+ *
+ * **ページの時計（`page.clock`）では固定できない。** 記録はサーバーが完了の時点で作り、snapshot の
+ * `sessionRecords` で配る（`snapshot-intents.ts`・`timer-core` の `records.ts` の `completedAt: now`）。
+ * 端末はそれを IndexedDB へ `put` するだけなので、`put` に渡る値を差し替える。
+ *
+ * 履歴の「日時」（`History.tsx` の `toLocaleString`）は数字が等幅でなく、記録した時刻の字面で幅が変わって
+ * 片側だけ 2 行に折れた（Task 5 の実測）。所要時間も撮るたびに変わる。どちらも両側で同じ値にする。
+ */
+async function armFixedRecordTime(page: Page): Promise<void> {
+  await page.addInitScript(
+    ({ completedAt, elapsedSeconds }: { completedAt: number; elapsedSeconds: number }) => {
+      const original = IDBObjectStore.prototype.put;
+      IDBObjectStore.prototype.put = function (
+        this: IDBObjectStore,
+        value: unknown,
+        key?: IDBValidKey,
+      ): IDBRequest<IDBValidKey> {
+        const isRecord = typeof value === 'object' && value !== null && 'completedAt' in value;
+        const next = isRecord ? { ...value, completedAt, elapsedSeconds } : value;
+        return key === undefined ? original.call(this, next) : original.call(this, next, key);
+      };
+    },
+    { completedAt: FIXED_COMPLETED_AT, elapsedSeconds: FIXED_ELAPSED_SECONDS },
+  );
+}
+
+/** 両側で同じにする完了日時（epoch ms）と所要時間（秒）。値そのものに意味は無い。 */
+const FIXED_COMPLETED_AT = Date.UTC(2026, 8, 30, 3, 4, 5);
+const FIXED_ELAPSED_SECONDS = 83;
+
 /** ルーム喪失の仕掛けの状態（`timer.spec.ts` の `RoomLossState` と同じ形）。 */
 interface RoomLossState {
   /** これが立って以降の `room.join` を、消えたルームへ向ける */
@@ -336,6 +368,20 @@ async function completeSession(host: Page): Promise<void> {
   await expect(host.getByRole('button', { name: /新しいセッション/ })).toBeVisible();
 }
 
+/**
+ * 終わった直後に出る知らせの帯（「あなたがセッションを…しました。」）が見えたところで時計を止める。
+ *
+ * 帯は 4 秒で消える（`use-banner.ts` の `AUTO_DISMISS_MS`）。止めないと、撮り終えるまでの時間次第で片側だけ
+ * 帯が消え、下の要素が上へ詰まって差になった（Task 5 の実測: summary-complete の 1280 で 192 件）。
+ * 時計は {@link installClock} で読み込みの前に差し替えておく。
+ */
+async function holdEndNotice(host: Page, text: RegExp): Promise<void> {
+  const notice = host.getByRole('status').filter({ hasText: text });
+  await expect(notice).toBeVisible();
+  await freezeClock(host);
+  await expect(notice).toBeVisible();
+}
+
 export const STATES: readonly ParityState[] = [
   {
     name: 'lobby-alone',
@@ -380,6 +426,21 @@ export const STATES: readonly ParityState[] = [
       return host;
     },
     marker: (p) => p.getByText('パスフレーズ設定中'),
+    minElements: 60,
+    mask: roomMask,
+  },
+  {
+    name: 'lobby-advanced-open',
+    async setup(open) {
+      const { host } = await lobbyWithGuest(open);
+      // 詳細設定（`SessionConfigPanel.tsx` の `<details>`）は既定で閉じていて、中のチェックボックス 2 つ
+      // （「ナビゲーター役を明示する」「強い交代通知」）は他のどの状態でも見えない（Task 5 の報告）。開いて撮る
+      await host.getByText('詳細設定', { exact: true }).click();
+      await expect(host.getByRole('checkbox', { name: /ナビゲーター役を明示する/ })).toBeVisible();
+      return host;
+    },
+    // 閉じた `<details>` の中身は見えない（`toBeVisible` が偽）ので、開いた状態にしか無い目印になる
+    marker: (p) => p.getByRole('checkbox', { name: /強い交代通知/ }),
     minElements: 60,
     mask: roomMask,
   },
@@ -574,9 +635,10 @@ export const STATES: readonly ParityState[] = [
   {
     name: 'summary-complete',
     async setup(open) {
-      const { host } = await lobbyWithGuest(open);
+      const { host } = await lobbyWithGuest(open, { clock: true });
       await startSession(host);
       await completeSession(host);
+      await holdEndNotice(host, /^あなたがセッションを完成として記録しました。$/);
       return host;
     },
     marker: (p) => p.getByLabel('達成'),
@@ -586,10 +648,11 @@ export const STATES: readonly ParityState[] = [
   {
     name: 'summary-abort',
     async setup(open) {
-      const { host } = await lobbyWithGuest(open);
+      const { host } = await lobbyWithGuest(open, { clock: true });
       await startSession(host);
       await host.getByRole('button', { name: /途中で終える/ }).click();
       await host.getByRole('button', { name: '終える（記録なし）' }).click();
+      await holdEndNotice(host, /^あなたがセッションを中断しました。$/);
       return host;
     },
     marker: (p) => p.getByRole('heading', { name: 'セッション終了（中断）' }),
@@ -611,22 +674,26 @@ export const STATES: readonly ParityState[] = [
     name: 'history-with-record',
     async setup(open) {
       const host = await open('host');
+      await armFixedRecordTime(host);
       await createRoom(host, HOST);
       await startSession(host);
       await completeSession(host);
       await host.getByRole('button', { name: /記録を保存/ }).click();
       await host.goto('/timer/?view=history');
+      // 差し替えが効いたことを確かめる（効かなければ日時が撮るたびに変わり、片側だけ折り返す）
+      const expected = await host.evaluate((t) => new Date(t).toLocaleString('ja-JP'), FIXED_COMPLETED_AT);
+      await expect(host.locator('dt', { hasText: '日時' }).locator('xpath=following-sibling::dd[1]')).toHaveText(expected);
+      await expect(host.locator('dt', { hasText: '所要時間' }).locator('xpath=following-sibling::dd[1]')).toHaveText(
+        `${Math.floor(FIXED_ELAPSED_SECONDS / 60)}分${String(FIXED_ELAPSED_SECONDS % 60).padStart(2, '0')}秒`,
+      );
       return host;
     },
     // 見出しは空の履歴にもある（恒真になる）。**記録の行そのもの**を目印にする
     marker: (p) => p.getByRole('list', { name: '完了記録の一覧' }).getByRole('listitem'),
     // 空の履歴は 38 要素（実測）。記録 1 行で 64 要素（実測）になる。その間に置き、空の履歴では落ちるようにする
     minElements: 50,
-    // 所要時間と日時は撮るたびに変わる（`History.tsx` の `<dd>`。役割も名前も無いので、見出しの `<dt>` から辿る）
-    mask: (p) => [
-      p.locator('dt', { hasText: '所要時間' }).locator('xpath=following-sibling::dd[1]'),
-      p.locator('dt', { hasText: '日時' }).locator('xpath=following-sibling::dd[1]'),
-    ],
+    // 所要時間と日時は `armFixedRecordTime` で両側同じ値にしたので隠さない（画素でも比べる）
+    mask: () => [],
   },
   {
     name: 'loading-unreachable',

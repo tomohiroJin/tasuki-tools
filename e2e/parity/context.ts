@@ -8,6 +8,16 @@ import { BASE_DIST, serveBaseDist, type BaseServing } from './base-dist';
 
 export type ParitySide = 'base' | 'branch';
 
+/**
+ * その側で `/timer/` を基準の dist から返すか。
+ *
+ * **対照実行（`TASUKI_PARITY_CONTROL=1`）ではブランチの側にも基準の dist を配る**（基準同士を比べ、状態の作り方と
+ * 読み方の揺れだけを浮かび上がらせる・計画 Task 6）。PR 2〜4 の対照実行でも使うので残す。
+ */
+export function servesBaseDist(side: ParitySide): boolean {
+  return side === 'base' || process.env['TASUKI_PARITY_CONTROL'] === '1';
+}
+
 /** 文脈を作った時点で退避した本物の `requestAnimationFrame`（`page.clock` に差し替えられる前のもの）。 */
 export interface RafWindow {
   __parityRaf: (callback: FrameRequestCallback) => number;
@@ -15,7 +25,7 @@ export interface RafWindow {
 
 export interface ParityContext {
   readonly context: BrowserContext;
-  /** 基準の側だけ持つ。ブランチの側は null。 */
+  /** 基準の dist を配る側だけ持つ（{@link servesBaseDist}）。それ以外は null。 */
   readonly serving: BaseServing | null;
 }
 
@@ -41,6 +51,6 @@ export async function newParityContext(
   await context.addInitScript(() => {
     Object.defineProperty(window, '__parityRaf', { value: window.requestAnimationFrame.bind(window) });
   });
-  const serving = side === 'base' ? await serveBaseDist(context, BASE_DIST) : null;
+  const serving = servesBaseDist(side) ? await serveBaseDist(context, BASE_DIST) : null;
   return { context, serving };
 }

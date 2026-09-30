@@ -11,7 +11,7 @@ import path from 'node:path';
 import { expect, test, type Browser, type BrowserContext, type Locator, type Page } from '@playwright/test';
 import { BASE_DIST, type BaseServing } from './base-dist';
 import { captureKeyframes, captureMotion, captureStyles } from './capture';
-import { newParityContext, type ParitySide, type RafWindow } from './context';
+import { newParityContext, servesBaseDist, type ParitySide, type RafWindow } from './context';
 import { diffEntries, diffKeyframes, themeVarNamesFromCss, type StyleDiff, type StyleEntry } from './compare-lib';
 import { captureInteractions, type InteractionCapture } from './interaction';
 import { NOISE } from './noise';
@@ -175,7 +175,7 @@ async function captureSide(browser: Browser, state: ParityState, side: ParitySid
   try {
     const page = await state.setup(open);
     await expect(state.marker(page), `${state.name}（${side}）の目印`).toBeVisible();
-    if (side === 'base') {
+    if (servesBaseDist(side)) {
       const served = servings.reduce((n, s) => n + s.served(), 0);
       expect(served, `${state.name}: 基準の dist から 1 件も返していない`).toBeGreaterThan(0);
       expect(servings.flatMap((s) => s.missing()), `${state.name}: 基準の dist に無い資産を読もうとした`).toEqual([]);
@@ -302,7 +302,7 @@ async function captureTouchSide(browser: Browser, state: ParityState, side: Pari
   try {
     const page = await state.setup(open);
     await expect(state.marker(page), `${state.name}（タッチ・${side}）の目印`).toBeVisible();
-    if (side === 'base') {
+    if (servesBaseDist(side)) {
       expect(servings.reduce((n, s) => n + s.served(), 0), `${state.name}（タッチ）: 基準の dist から 1 件も返していない`).toBeGreaterThan(0);
       expect(servings.flatMap((s) => s.missing()), `${state.name}（タッチ）: 基準の dist に無い資産を読もうとした`).toEqual([]);
     }
