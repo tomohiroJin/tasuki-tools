@@ -1,7 +1,7 @@
 import { useId, useState } from 'react';
 import { MAX_TOPIC_BODY, MAX_TOPIC_TITLE, type Topic } from '@tasuki/topic-core';
-import { BODY_LABEL, REWRITE_BUTTON, SET_BUTTON, TITLE_LABEL, WRITE_HEADING } from '../copy';
-import { canSubmitTopic } from '../topic-view';
+import { BODY_HINT, BODY_LABEL, REWRITE_BUTTON, SET_BUTTON, TITLE_LABEL, WRITE_HEADING } from '../copy';
+import { canSubmitTopic, toSingleLine } from '../topic-view';
 
 interface Props {
   readonly current: Topic | null;
@@ -14,6 +14,9 @@ interface Props {
  *
  * **下書きはこの部品だけが持ち、届いたお題で上書きしない。** 書いている途中に別の人がお題を
  * 変えても、入力は消さない。いまのお題を下書きへ写すのは「書き直す」を押したときだけ。
+ *
+ * **タイトルは複数行の欄だが、改行は持たせない**（#313 正本 D3）。長い文を折り返して全体を見せるための
+ * 欄で、タイトル自体は各画面で見出しの素の文字として出る。Enter は 1 行の欄のときと同じく送信にする。
  */
 export function TopicEditor({ current, enabled, onSubmit }: Props) {
   const [title, setTitle] = useState('');
@@ -23,7 +26,7 @@ export function TopicEditor({ current, enabled, onSubmit }: Props) {
   const canSubmit = canSubmitTopic(title, enabled);
 
   return (
-    <section className="topic-panel ui-panel" aria-labelledby={`${titleId}-heading`}>
+    <section className="topic-panel topic-write ui-panel" aria-labelledby={`${titleId}-heading`}>
       <h2 id={`${titleId}-heading`}>{WRITE_HEADING}</h2>
       <form
         onSubmit={(event) => {
@@ -35,9 +38,40 @@ export function TopicEditor({ current, enabled, onSubmit }: Props) {
         }}
       >
         <label htmlFor={titleId}>{TITLE_LABEL}</label>
-        <input id={titleId} className="ui-input" value={title} maxLength={MAX_TOPIC_TITLE} onChange={(e) => setTitle(e.target.value)} />
+        <textarea
+          id={titleId}
+          className="ui-input topic-title-field"
+          rows={2}
+          value={title}
+          maxLength={MAX_TOPIC_TITLE}
+          aria-describedby={`${titleId}-count`}
+          onChange={(e) => setTitle(toSingleLine(e.target.value))}
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter') return;
+            // 変換の確定の Enter では送らない（Safari は確定の Enter で isComposing が偽になり、keyCode が 229 になる）
+            if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+            // Shift+Enter でも改行を入れない。送れるかどうかは onSubmit の 1 か所で決める
+            e.preventDefault();
+            if (!e.shiftKey) e.currentTarget.form?.requestSubmit();
+          }}
+        />
+        <p className="topic-field-meta ui-note">
+          <span id={`${titleId}-count`}>{`${title.length} / ${MAX_TOPIC_TITLE}`}</span>
+        </p>
         <label htmlFor={bodyId}>{BODY_LABEL}</label>
-        <textarea id={bodyId} className="ui-input" value={body} rows={6} maxLength={MAX_TOPIC_BODY} onChange={(e) => setBody(e.target.value)} />
+        <textarea
+          id={bodyId}
+          className="ui-input topic-body-field"
+          rows={8}
+          value={body}
+          maxLength={MAX_TOPIC_BODY}
+          aria-describedby={`${bodyId}-count`}
+          onChange={(e) => setBody(e.target.value)}
+        />
+        <p className="topic-field-meta ui-note">
+          <span>{BODY_HINT}</span>
+          <span id={`${bodyId}-count`}>{`${body.length} / ${MAX_TOPIC_BODY}`}</span>
+        </p>
         <div className="topic-actions">
           <button type="submit" disabled={!canSubmit}>
             {SET_BUTTON}

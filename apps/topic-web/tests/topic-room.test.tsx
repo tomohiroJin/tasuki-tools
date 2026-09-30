@@ -187,6 +187,113 @@ describe('書く', () => {
   });
 });
 
+const titleField = () => screen.getByLabelText(copy.TITLE_LABEL);
+const bodyField = () => screen.getByLabelText(copy.BODY_LABEL);
+
+/**
+ * 長いタイトル（ユーザーストーリーの形）を全体を見ながら書ける。
+ *
+ * @requirements #313 正本 D3・D4・D5・FR-001〜FR-006
+ */
+describe('書く（長いタイトル）', () => {
+  it('Given 画面 / When 欄を見る / Then タイトルは複数行の欄で、説明は 8 行の欄である', () => {
+    // Given / When
+    enterWith();
+    // Then
+    expect(titleField().tagName).toBe('TEXTAREA');
+    expect(titleField()).toHaveAttribute('rows', '2');
+    expect(bodyField()).toHaveAttribute('rows', '8');
+  });
+
+  it('Given タイトルと説明を書いた / When 欄の下を見る / Then 長さと上限が数字で出て、欄から指されている', () => {
+    // Given
+    enterWith();
+    // When
+    fireEvent.change(titleField(), { target: { value: 'FizzBuzz' } });
+    fireEvent.change(bodyField(), { target: { value: 'fizz' } });
+    // Then
+    expect(titleField()).toHaveAccessibleDescription(`8 / ${MAX_TOPIC_TITLE}`);
+    expect(bodyField()).toHaveAccessibleDescription(`4 / ${MAX_TOPIC_BODY}`);
+  });
+
+  it('Given 説明の欄 / When 欄の下を見る / Then Markdown で書けると添えてある', () => {
+    // Given / When
+    enterWith();
+    // Then
+    expect(screen.getByText(copy.BODY_HINT)).toBeInTheDocument();
+  });
+
+  it('Given 改行を含む文を貼った / When このお題にする / Then 改行は空白になって送られる', () => {
+    // Given
+    enterWith();
+    fireEvent.change(titleField(), { target: { value: 'Fizz\r\nBuzz' } });
+    expect(titleField()).toHaveValue('Fizz Buzz');
+    // When
+    fireEvent.click(setButton());
+    // Then
+    expect(lastSent()).toEqual({ command: 'topic.set', title: 'Fizz Buzz', body: '' });
+  });
+
+  it('Given タイトルを書いた / When タイトルの欄で Enter / Then 送られる', () => {
+    // Given
+    enterWith();
+    fireEvent.change(titleField(), { target: { value: 'FizzBuzz' } });
+    // When
+    fireEvent.keyDown(titleField(), { key: 'Enter' });
+    // Then
+    expect(lastSent()).toEqual({ command: 'topic.set', title: 'FizzBuzz', body: '' });
+  });
+
+  it.each([
+    ['変換中', { isComposing: true }],
+    ['Safari の確定', { keyCode: 229 }],
+  ])('Given タイトルを書いた / When %s の Enter / Then 送らない', (_label, init) => {
+    // Given
+    enterWith();
+    fireEvent.change(titleField(), { target: { value: 'FizzBuzz' } });
+    const before = latestSocket().sentJson().length;
+    // When
+    fireEvent.keyDown(titleField(), { key: 'Enter', ...init });
+    // Then
+    expect(latestSocket().sentJson()).toHaveLength(before);
+  });
+
+  it('Given タイトルを書いた / When Shift+Enter / Then 送らず、既定の改行も止める', () => {
+    // Given
+    enterWith();
+    fireEvent.change(titleField(), { target: { value: 'FizzBuzz' } });
+    const before = latestSocket().sentJson().length;
+    // When
+    const notCancelled = fireEvent.keyDown(titleField(), { key: 'Enter', shiftKey: true });
+    // Then
+    expect(notCancelled).toBe(false);
+    expect(latestSocket().sentJson()).toHaveLength(before);
+  });
+
+  it('Given タイトルが空白だけ / When タイトルの欄で Enter / Then 送らない', () => {
+    // Given
+    enterWith();
+    fireEvent.change(titleField(), { target: { value: '   ' } });
+    const before = latestSocket().sentJson().length;
+    // When
+    fireEvent.keyDown(titleField(), { key: 'Enter' });
+    // Then
+    expect(latestSocket().sentJson()).toHaveLength(before);
+  });
+
+  it('Given 説明の欄 / When Enter / Then 送らない（説明は改行を書ける）', () => {
+    // Given
+    enterWith();
+    fireEvent.change(titleField(), { target: { value: 'FizzBuzz' } });
+    const before = latestSocket().sentJson().length;
+    // When
+    const notCancelled = fireEvent.keyDown(bodyField(), { key: 'Enter' });
+    // Then
+    expect(notCancelled).toBe(true);
+    expect(latestSocket().sentJson()).toHaveLength(before);
+  });
+});
+
 /**
  * @requirements #91 spec §5.4
  */
