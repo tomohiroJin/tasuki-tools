@@ -487,3 +487,65 @@ describe('操作できない間', () => {
     expect(screen.getByRole('button', { name: copy.INVITE_COPY_BUTTON })).toBeInTheDocument();
   });
 });
+
+const preview = () => screen.getByRole('region', { name: copy.PREVIEW_BUTTON });
+
+/**
+ * 説明がどう見えるかを、このお題にする前に確かめられる。
+ *
+ * @requirements #313 正本 D6・FR-007・FR-008・SC-004
+ */
+describe('プレビュー', () => {
+  it('Given 何も書いていない / When プレビューを見る / Then 書くと見え方が出ると伝える', () => {
+    // Given / When
+    enterWith();
+    // Then
+    expect(within(preview()).getByText(copy.PREVIEW_EMPTY)).toBeInTheDocument();
+  });
+
+  it('Given タイトルと Markdown の説明を書いた / When プレビューを見る / Then 見出しと箇条書きとして出る', () => {
+    // Given
+    enterWith();
+    // When
+    fireEvent.change(titleField(), { target: { value: 'FizzBuzz' } });
+    fireEvent.change(bodyField(), { target: { value: '# Rules\n\n- fizz\n- buzz' } });
+    // Then
+    expect(within(preview()).getByRole('heading', { level: 3, name: 'FizzBuzz' })).toBeInTheDocument();
+    expect(within(preview()).getByRole('heading', { level: 4, name: 'Rules' })).toBeInTheDocument();
+    expect(within(preview()).getAllByRole('listitem')).toHaveLength(2);
+    expect(within(preview()).queryByText(copy.PREVIEW_EMPTY)).toBeNull();
+  });
+
+  it('Given タイトルが空白だけで説明を書いた / When プレビューを見る / Then 空の見出しは描かず、説明だけが出る', () => {
+    // Given
+    enterWith();
+    // When
+    fireEvent.change(titleField(), { target: { value: '   ' } });
+    fireEvent.change(bodyField(), { target: { value: 'fizz' } });
+    // Then
+    expect(within(preview()).queryByRole('heading', { level: 3 })).toBeNull();
+    expect(within(preview()).getByText('fizz')).toBeInTheDocument();
+  });
+
+  it('Given 書いた / When このお題にして、いまのお題に出る / Then プレビューの札と同じ中身で出る', () => {
+    // Given
+    const body = '# Rules\n\n- **fizz**\n\n> note';
+    enterWith();
+    fireEvent.change(titleField(), { target: { value: 'FizzBuzz' } });
+    fireEvent.change(bodyField(), { target: { value: body } });
+    const previewed = within(preview()).getByRole('article').outerHTML;
+    // When
+    fireEvent.click(setButton());
+    act(() => latestSocket().deliver({ type: 'topic', state: { ...IDLE_STATE, topic: { title: 'FizzBuzz', body, source: 'manual' } } }));
+    // Then
+    const current = screen.getByRole('region', { name: copy.CURRENT_HEADING });
+    expect(within(current).getByRole('article').outerHTML).toBe(previewed);
+  });
+
+  it('Given プレビュー / When 領域を見る / Then 打つたびに読み上げる印を持たない', () => {
+    // Given / When
+    enterWith();
+    // Then
+    expect(preview()).not.toHaveAttribute('aria-live');
+  });
+});

@@ -1,7 +1,8 @@
-import { useId, useState } from 'react';
+import { useDeferredValue, useId, useState } from 'react';
 import { MAX_TOPIC_BODY, MAX_TOPIC_TITLE, type Topic } from '@tasuki/topic-core';
-import { BODY_HINT, BODY_LABEL, REWRITE_BUTTON, SET_BUTTON, TITLE_LABEL, WRITE_HEADING } from '../copy';
+import { BODY_HINT, BODY_LABEL, PREVIEW_BUTTON, PREVIEW_EMPTY, REWRITE_BUTTON, SET_BUTTON, TITLE_LABEL, WRITE_HEADING } from '../copy';
 import { canSubmitTopic, toSingleLine } from '../topic-view';
+import { TopicSheet } from './TopicSheet';
 
 interface Props {
   readonly current: Topic | null;
@@ -17,13 +18,20 @@ interface Props {
  *
  * **タイトルは複数行の欄だが、改行は持たせない**（#313 正本 D3）。長い文を折り返して全体を見せるための
  * 欄で、タイトル自体は各画面で見出しの素の文字として出る。Enter は 1 行の欄のときと同じく送信にする。
+ *
+ * **プレビューはいまのお題と同じ札（`TopicSheet`）で描く**（#313 正本 D6）。打つたびの Markdown の解析で
+ * 入力が止まらないよう、描く値は `useDeferredValue` を通す。打つたびに読み上げないよう `aria-live` にしない。
  */
 export function TopicEditor({ current, enabled, onSubmit }: Props) {
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const titleId = useId();
   const bodyId = useId();
+  const previewId = useId();
   const canSubmit = canSubmitTopic(title, enabled);
+  const previewTitle = useDeferredValue(title);
+  const previewBody = useDeferredValue(body);
+  const previewBlank = previewTitle.trim() === '' && previewBody.trim() === '';
 
   return (
     <section className="topic-panel topic-write ui-panel" aria-labelledby={`${titleId}-heading`}>
@@ -58,20 +66,32 @@ export function TopicEditor({ current, enabled, onSubmit }: Props) {
         <p className="topic-field-meta ui-note">
           <span id={`${titleId}-count`}>{`${title.length} / ${MAX_TOPIC_TITLE}`}</span>
         </p>
-        <label htmlFor={bodyId}>{BODY_LABEL}</label>
-        <textarea
-          id={bodyId}
-          className="ui-input topic-body-field"
-          rows={8}
-          value={body}
-          maxLength={MAX_TOPIC_BODY}
-          aria-describedby={`${bodyId}-count`}
-          onChange={(e) => setBody(e.target.value)}
-        />
-        <p className="topic-field-meta ui-note">
-          <span>{BODY_HINT}</span>
-          <span id={`${bodyId}-count`}>{`${body.length} / ${MAX_TOPIC_BODY}`}</span>
-        </p>
+        <div className="topic-compose" data-mode="write">
+          <div className="topic-compose-panes">
+            <div className="topic-compose-write">
+              <label htmlFor={bodyId}>{BODY_LABEL}</label>
+              <textarea
+                id={bodyId}
+                className="ui-input topic-body-field"
+                rows={8}
+                value={body}
+                maxLength={MAX_TOPIC_BODY}
+                aria-describedby={`${bodyId}-count`}
+                onChange={(e) => setBody(e.target.value)}
+              />
+              <p className="topic-field-meta ui-note">
+                <span>{BODY_HINT}</span>
+                <span id={`${bodyId}-count`}>{`${body.length} / ${MAX_TOPIC_BODY}`}</span>
+              </p>
+            </div>
+            <section className="topic-compose-preview" aria-labelledby={previewId}>
+              <p id={previewId} className="topic-compose-caption">
+                {PREVIEW_BUTTON}
+              </p>
+              {previewBlank ? <p className="ui-note">{PREVIEW_EMPTY}</p> : <TopicSheet title={previewTitle} body={previewBody} />}
+            </section>
+          </div>
+        </div>
         <div className="topic-actions">
           <button type="submit" disabled={!canSubmit}>
             {SET_BUTTON}
