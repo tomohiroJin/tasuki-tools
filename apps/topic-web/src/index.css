@@ -106,6 +106,68 @@
   margin-inline-start: auto;
 }
 
+/* ---------- 説明の出し方（#313 正本 D7） ----------
+   並べるか切り替えるかは「書く」の容器の幅で決める（ページの幅ではない）。React の木は幅によらず同じ。 */
+.topic-compose {
+  container: compose / inline-size;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.topic-compose-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.topic-compose-panes {
+  display: grid;
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.topic-compose-write,
+.topic-compose-preview {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+/* 並べたときだけ出す、プレビューの列の名前。字は要素層の `label` に揃える（隣の列の「説明」のラベルと並ぶ）。 */
+.topic-compose-caption {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--ivory-dim);
+}
+
+/* 狭いときは選んだ方だけを出す。列の名前も隠す（切り替えのボタンが名前を示す）。 */
+.topic-compose[data-mode='preview'] .topic-compose-write,
+.topic-compose[data-mode='write'] .topic-compose-preview,
+.topic-compose .topic-compose-caption {
+  display: none;
+}
+
+/* 並べる。閾値 48rem は正本 D7（1120px のページで各列 約 500px、768px の画面では切り替え）。
+   **上の規則と同じ詳細度で、後に書いてあるので勝つ。順序を入れ替えないこと。** */
+@container compose (width >= 48rem) {
+  .topic-compose .topic-compose-toggle {
+    display: none;
+  }
+
+  .topic-compose-panes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .topic-compose[data-mode] .topic-compose-write,
+  .topic-compose[data-mode] .topic-compose-preview {
+    display: grid;
+  }
+
+  .topic-compose .topic-compose-caption {
+    display: block;
+  }
+}
+
 .topic-actions {
   display: flex;
   flex-wrap: wrap;
