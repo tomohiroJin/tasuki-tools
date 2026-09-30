@@ -393,3 +393,47 @@ test.describe('説明のプレビュー（#313 PR 2）', () => {
     });
   }
 });
+
+test.describe('作るを横帯に（#313 構成案 1）', () => {
+  test('Given 幅 1280 / When お題ツールを開く / Then 作るは書くの上で行いっぱいに広がり、言語・難易度・ボタンが 1 行に並ぶ', async ({ page, consoleWatcher }) => {
+    // Given
+    await page.setViewportSize({ width: 1280, height: 900 });
+    // When
+    await openTopicTool(page, 'band-topic');
+    // Then その1: 作るは書くの上にあり、どちらも中身の幅いっぱい
+    const make = await page.getByRole('region', { name: '作る' }).boundingBox();
+    const write = await page.getByRole('region', { name: '書く' }).boundingBox();
+    expect(make!.y + make!.height, '作るが書くの上に無い').toBeLessThanOrEqual(write!.y);
+    expect(make!.width).toBeCloseTo(write!.width, 0);
+    // Then その2: 言語・難易度・定型から選ぶが同じ行にある（下端がそろう）
+    const bottoms = await Promise.all(
+      [page.getByLabel('言語', { exact: true }), page.getByLabel('難易度', { exact: true }), page.getByRole('button', { name: '定型から選ぶ' })].map(
+        async (l) => {
+          const b = await l.boundingBox();
+          return b!.y + b!.height;
+        },
+      ),
+    );
+    expect(Math.max(...bottoms) - Math.min(...bottoms), '作るの操作が 1 行に並んでいない').toBeLessThan(8);
+    // Then その3: 帯に詰めても、ボタンは潰れて折り返さない（「解錠する」が 2 行になった・実画面で発見）
+    const fallback = await page.getByRole('button', { name: '定型から選ぶ' }).boundingBox();
+    const unlock = await page.getByRole('button', { name: '解錠する' }).boundingBox();
+    expect(unlock!.height, '解錠するが折り返している').toBeCloseTo(fallback!.height, 0);
+    // 画面は例外を出していない
+    expect(consoleWatcher.errors).toEqual([]);
+  });
+
+  test('Given 幅 390 / When お題ツールを開く / Then 作るの言語と難易度は縦に積む', async ({ page, consoleWatcher }) => {
+    // Given
+    await page.setViewportSize({ width: 390, height: 900 });
+    // When
+    await openTopicTool(page, 'band-narrow-topic');
+    // Then
+    const language = await page.getByLabel('言語', { exact: true }).boundingBox();
+    const difficulty = await page.getByLabel('難易度', { exact: true }).boundingBox();
+    expect(difficulty!.y).toBeGreaterThanOrEqual(language!.y + language!.height);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    // 画面は例外を出していない
+    expect(consoleWatcher.errors).toEqual([]);
+  });
+});

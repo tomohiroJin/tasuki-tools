@@ -323,6 +323,22 @@ describe('書く（長いタイトル）', () => {
 });
 
 /**
+ * 「作る」はボタン 1 つで済む操作なので、長く書く「書く」より先に置く（読み上げと Tab の順も画面の順と同じ）。
+ *
+ * @requirements #313 構成案 1（正本 D2）
+ */
+describe('作ると書くの順', () => {
+  it('Given 画面 / When 並びを見る / Then 作るは書くより前にある', () => {
+    // Given / When
+    enterWith();
+    const make = screen.getByRole('region', { name: copy.MAKE_HEADING });
+    const write = screen.getByRole('region', { name: copy.WRITE_HEADING });
+    // Then
+    expect(make.compareDocumentPosition(write) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
+/**
  * @requirements #91 spec §5.4
  */
 describe('作る', () => {
