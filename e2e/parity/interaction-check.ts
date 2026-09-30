@@ -31,15 +31,12 @@ const CHECKS = '[role="switch"], input[type="checkbox"], input[type="radio"], [a
 const SETTLE_TIMEOUT_MS = 10_000;
 
 /**
- * 切り替えない要素（名前で指す）と理由。
+ * 切り替えない要素（名前で指す）と理由。**いまは無い。**
  *
- * - 「交代を音で知らせる」: 切から入にすると、OS 通知が有効なら OS 通知の許可を求める（`platform/notify.ts` の
- *   `requestPermissionIfEnabling`）。自動操作のブラウザでは許可されず、「OS 通知は許可されていません」の文が出て、
- *   切に戻しても消えない（`NotifySettings.tsx` の `osDenied`・実測）。以後の読みがすべて別の状態になる
+ * 「交代を音で知らせる」は、入にすると OS 通知の許可を求め、拒否されると戻せなかった。文脈に `notifications` の許可を
+ * 与えて（`context.ts`）外した。足すときは、除外を外して流したときに戻らないことを実測してから、理由と一緒に書く。
  */
-const CHECK_EXCLUDED: ReadonlyMap<string, string> = new Map([
-  ['交代を音で知らせる', '入にすると OS 通知の許可を求め、拒否の文が残って戻せない'],
-]);
+const CHECK_EXCLUDED: ReadonlyMap<string, string> = new Map();
 
 /** 文書のチェックの状態すべてと要素の数（戻したことの断定に使う）。 */
 function snapshotOf(page: Page): Promise<string> {

@@ -30,7 +30,9 @@ export interface InteractionCapture {
   readonly counts: Record<string, number>;
 }
 
-export const TARGETS = 'button, a[href], [role="tab"], input, textarea, select, [tabindex]:not([tabindex="-1"])';
+/** 操作の対象。`summary` は詳細設定の開閉（`SessionConfigPanel.tsx` の `<details>`）で、ホバーと押下の見た目を持つ。 */
+export const TARGETS =
+  'button, a[href], [role="tab"], summary, input, textarea, select, [tabindex]:not([tabindex="-1"])';
 
 /** ホバーの上限。覆いの下の要素は Playwright が待ち続けるので、既定（テストの上限）まで待たない。 */
 export const HOVER_TIMEOUT_MS = 5_000;
@@ -53,8 +55,25 @@ function tag(entries: readonly StyleEntry[], kind: string): StyleEntry[] {
   return entries.map((e) => ({ ...e, path: `${e.path}#${kind}` }));
 }
 
-/** 書き出した部分木を、道筋に `#<種類>` を付けて積み、種類ごとの要素の数を数える。 */
+/** 種類ごとに、書き出した道筋と擬似要素の組（重なりの検出に使う）。 */
+const recorded = new WeakMap<InteractionCapture, Map<string, Set<string>>>();
+
+/**
+ * 書き出した部分木を、道筋に `#<種類>` を付けて積み、種類ごとの要素の数を数える。
+ *
+ * **同じ種類の中で道筋が重なったら例外にする。** 部分木で読むので、対象が入れ子だと子の道筋が 2 度出る。
+ * `diffEntries` は道筋で突き合わせる Map なので、後から積んだ方が黙って前を潰す。
+ */
 export function record(out: InteractionCapture, kind: string, entries: readonly StyleEntry[]): void {
+  const byKind = recorded.get(out) ?? new Map<string, Set<string>>();
+  recorded.set(out, byKind);
+  const seen = byKind.get(kind) ?? new Set<string>();
+  byKind.set(kind, seen);
+  for (const e of entries) {
+    const key = `${e.path}\u0000${e.pseudo}`;
+    if (seen.has(key)) throw new Error(`#${kind} の書き出しで道筋が重なった（入れ子の対象）: ${e.path}${e.pseudo}`);
+    seen.add(key);
+  }
   out.entries.push(...tag(entries, kind));
   out.counts[kind] = (out.counts[kind] ?? 0) + 1;
 }
