@@ -14,7 +14,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
   - [`packages/timer-core`](packages/timer-core/) — ドメインロジック（集約・状態遷移・完成記録・検証）
   - [`apps/timer-web`](apps/timer-web/) — フロントエンド（React + Vite・`base=/timer/`）
   - [`apps/tasuki-sync`](apps/tasuki-sync/) — リアルタイム同期サーバー（Bun + WebSocket・揮発インメモリ）。
-    **poker と共用**（#95 S2 で 1 プロセスへ統合）
+    **poker・お題と共用**（#95 S2 で 1 プロセスへ統合・#91 でお題の経路を追加）
 - **特徴**
   - WebSocket による全参加者リアルタイム同期（サーバープッシュ）
   - モブ順ローテーション表示・「今は誰の番か」の明示
@@ -32,7 +32,9 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 - **構成**
   - [`packages/poker-core`](packages/poker-core/) — ドメインロジック（デッキ・ラウンド・集計）
   - [`apps/poker-web`](apps/poker-web/) — フロントエンド（React + Vite・`base=/poker/`）
-  - [`apps/tasuki-sync`](apps/tasuki-sync/) — リアルタイム同期サーバー（timer と共用）
+  - [`apps/tasuki-sync`](apps/tasuki-sync/) — リアルタイム同期サーバー（timer・お題と共用）
+- **特徴**
+  - ルームのお題の表示（読むだけ・#91）
 - 概要: [`docs/poker/README.md`](docs/poker/README.md)
 - SDD 成果物: [`docs/poker/specs/`](docs/poker/specs/)
 
@@ -46,7 +48,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 
 ### 4. お題（Topic Board）
 
-お題を用意して、ルームの全員（玄関・timer・poker）に見せるツール。玄関の 3 枚目の札から開く。**未公開**（[#91](https://github.com/tomohiroJin/tasuki-tools/issues/91) の配布で公開する。手順は [`deploy/topic/NOTES.md`](deploy/topic/NOTES.md)）。
+お題を用意して、ルームの全員（玄関・timer・poker）に見せるツール。玄関の 3 枚目の札から開く。**本番公開中**（初回公開は 2026-09-27・[#91](https://github.com/tomohiroJin/tasuki-tools/issues/91)。配布の手順は [`deploy/topic/NOTES.md`](deploy/topic/NOTES.md)）。
 
 - **構成**
   - [`packages/topic-core`](packages/topic-core/) — ドメインロジック（お題・定型バンク・検証・AI 生成のプロンプト）
@@ -60,16 +62,24 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 
 ## 🔗 ライブデモ
 
-**<https://tasuki.niku9.click/>** — TDD Mob Pro Timer を実際に試せます（ルーム作成 → 招待リンクで参加 → リアルタイム同期）。
+**<https://tasuki.niku9.click/>** — 玄関（ツール選択 LP）が開きます。玄関でルームを作り、札からツールを選んでください
+（ルーム作成 → 招待リンクで参加 → リアルタイム同期）。
 
-> 現在この URL は timer を直接開きます。[#66](https://github.com/tomohiroJin/tasuki-tools/issues/66) のデプロイ後は
-> **`/` が玄関 LP、timer は `/timer/`** になります（旧 `/?room=...` の共有リンクは `/timer/` へ転送されます）。
+| ツール | URL |
+|---|---|
+| 玄関 LP | <https://tasuki.niku9.click/> |
+| TDD Mob Pro Timer | <https://tasuki.niku9.click/timer/> |
+| Planning Poker | <https://tasuki.niku9.click/poker/> |
+| お題（Topic Board） | <https://tasuki.niku9.click/topic/> |
+
+> ルームを作るのも名乗るのも**玄関 1 つだけ**です（#95 S5c）。ルームコードを伴わずに各ツールの URL を開くと、
+> 玄関へ送られます。
 
 ## クイックスタート
 
 ### 前提
 
-- **Node.js 22 以上**（pnpm 11.5.0 が `node:sqlite` を使うため、20 では起動しません）
+- **Node.js 22.22.2 以上**（`package.json` の `engines`。pnpm 11.5.0 が `node:sqlite` を使うため、20 では起動しません）
 - pnpm 11.5.0（`packageManager` 宣言に従うので `corepack enable` でよい）
 - **Bun** — 同期サーバー（`apps/tasuki-sync`）の起動とテストに必要
 
@@ -101,7 +111,7 @@ pnpm test    # 全パッケージのテストを実行する
 
 ## 技術スタック
 
-TypeScript / React 19 + Vite / Bun / WebSocket / Valibot / neverthrow / Vitest / bun:test / turbo
+TypeScript / React 19 + Vite / Tailwind CSS（timer） / Bun / WebSocket / Valibot / neverthrow / Vitest / bun:test / Playwright（E2E） / turbo
 
 ## ステータス
 
@@ -110,12 +120,16 @@ TypeScript / React 19 + Vite / Bun / WebSocket / Valibot / neverthrow / Vitest /
 | TDD Mob Pro Timer | `/timer/` | 本番公開中 |
 | Planning Poker | `/poker/` | 本番公開中 |
 | 玄関 LP | `/` | 本番公開中 |
-| Topic Board | `/topic/` | 未公開（#91 の配布で公開） |
+| Topic Board | `/topic/` | 本番公開中 |
 
-単一 monorepo への統合は [epic #15](https://github.com/tomohiroJin/tasuki-tools/issues/15) で**実装完了**しました
-（設計: [`docs/superpowers/specs/2026-08-04-monorepo-unification-design.md`](docs/superpowers/specs/2026-08-04-monorepo-unification-design.md)）。
-**残るのは本番への反映 1 回だけ**で、[#66](https://github.com/tomohiroJin/tasuki-tools/issues/66) が引き継いでいます。
-そこで poker と玄関 LP が初めて公開されます。
+公開の履歴は次のとおりです（GitHub Releases は使っておらず、配布の記録は各 Issue にあります）。
 
-続く整備は [epic #67](https://github.com/tomohiroJin/tasuki-tools/issues/67)（規範・依存・CI/CD・ADR に沿った作り直し）と
-[#73](https://github.com/tomohiroJin/tasuki-tools/issues/73)（E2E テスト新設）で進めます。
+| 日付 | 内容 | Issue |
+|---|---|---|
+| 2026-08-28 | 単一 monorepo への統合を本番へ反映。玄関 LP と Planning Poker を初回公開し、timer を `/timer/` へ移設 | [#66](https://github.com/tomohiroJin/tasuki-tools/issues/66) |
+| 2026-09-27 | お題（Topic Board）を初回公開し、timer・poker・玄関にお題を表示 | [#91](https://github.com/tomohiroJin/tasuki-tools/issues/91) |
+
+単一 monorepo への統合（[epic #15](https://github.com/tomohiroJin/tasuki-tools/issues/15)・
+設計: [`docs/superpowers/specs/2026-08-04-monorepo-unification-design.md`](docs/superpowers/specs/2026-08-04-monorepo-unification-design.md)）、
+基盤整備（[epic #67](https://github.com/tomohiroJin/tasuki-tools/issues/67)）、
+E2E テストの新設（[#73](https://github.com/tomohiroJin/tasuki-tools/issues/73)）はいずれも完了しています。
