@@ -31,6 +31,8 @@ export const DEGRADED_TEXT = 'AI で作れなかったため、定型のお題�
 export const WRITE_HEADING = '書く';
 export const TITLE_LABEL = 'タイトル';
 export const BODY_LABEL = '説明（なくてもよい）';
+/** 説明の欄の下の添え書き（#313）。「字」「文」は base 層の外なので使わない。 */
+export const BODY_HINT = 'Markdown で書けます';
 export const SET_BUTTON = 'このお題にする';
 export const REWRITE_BUTTON = '書き直す';
 
