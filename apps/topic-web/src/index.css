@@ -55,9 +55,9 @@
 
 /* ---------- 書く・作る ---------- */
 
+/* 作る → 書くの順に縦に積む（#313 構成案 1）。どちらも中身の幅いっぱいに置き、横の並びは各面の中で決める。 */
 .topic-tools {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
   gap: var(--space-5);
 }
 
@@ -73,9 +73,56 @@
   gap: var(--space-2);
 }
 
-/* 「書く」は行いっぱい（#313 正本 D2）。「作る」は 2 行目に 1 つ残り、auto-fit が空の列を畳んで広がる。 */
-.topic-write {
-  grid-column: 1 / -1;
+/* ---------- 作る（#313 構成案 1） ----------
+   ボタン 1 つで済む操作なので、広いときは 1 行の帯に並べる。狭いときはこれまでどおり縦に積む。
+   帯にするかは「作る」の面の幅で決める（閾値は「書く」の並べる幅と同じ 48rem）。 */
+.topic-make {
+  container: make / inline-size;
+}
+
+.topic-make-row,
+.topic-make-field,
+.topic-unlock-row {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+@container make (width >= 48rem) {
+  .topic-make .topic-make-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--space-4);
+  }
+
+  .topic-make-language {
+    inline-size: 14rem;
+  }
+
+  .topic-make-difficulty {
+    inline-size: 10rem;
+  }
+
+  /* 合言葉は帯の右端に寄せ、欄と「解錠する」を横に並べる */
+  .topic-make .topic-unlock {
+    margin-inline-start: auto;
+    inline-size: 22rem;
+  }
+
+  .topic-make .topic-unlock-row {
+    display: flex;
+    align-items: center;
+  }
+
+  /* 欄だけが縮む。ボタンは潰すと字が折り返す（「解錠する」が 2 行になった・実画面で発見） */
+  .topic-unlock-row > :first-child {
+    flex: 1 1 auto;
+  }
+
+  .topic-unlock-row > :last-child {
+    flex: none;
+  }
 }
 
 /* タイトルは書いた量に合わせて伸ばす（#313 正本 D3）。効かないブラウザは rows の高さのまま縦に伸ばせる。
