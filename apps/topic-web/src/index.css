@@ -7,6 +7,12 @@
 
 @import '@tasuki/ui';
 
+/* ページの最大幅（#313 正本 D1）。玄関の選択画面（1120px）に揃える。`@tasuki/ui` の `.page` は
+   poker も使うので変えない。幅の揃え方は #316 が決める（写し元は玄関とお題ツールの 2 つ）。 */
+.topic-page {
+  max-width: 1120px;
+}
+
 /* 遷移中・参加中の一言。卓の上で控えめに置く（poker-web と同じ置き方）。色は部品（`.ui-note`）が持つ。 */
 .loading-note {
   margin: 0;
@@ -65,6 +71,39 @@
 .topic-panel form {
   display: grid;
   gap: var(--space-2);
+}
+
+/* 「書く」は行いっぱい（#313 正本 D2）。「作る」は 2 行目に 1 つ残り、auto-fit が空の列を畳んで広がる。 */
+.topic-write {
+  grid-column: 1 / -1;
+}
+
+/* タイトルは書いた量に合わせて伸ばす（#313 正本 D3）。効かないブラウザは rows の高さのまま縦に伸ばせる。
+   `field-sizing` は rows を下限にしないので、空の欄が 1 行に潰れないよう 2 行ぶんを下限に置く。 */
+.topic-title-field {
+  field-sizing: content;
+  min-block-size: calc(2lh + 2 * var(--space-3) + 2px);
+}
+
+/* 説明も伸ばすが、32rem を超えたら欄の中でスクロールする（#313 正本 D5）。 */
+.topic-body-field {
+  field-sizing: content;
+  min-block-size: 12rem;
+  max-block-size: 32rem;
+}
+
+/* 欄の下の添え書きと数字。色は部品（`.ui-note`）が持つので、ここには並びと大きさだけを書く。 */
+.topic-field-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin: 0;
+  font-size: var(--font-size-sm);
+}
+
+/* 数字は添え書きが無い行（タイトル）でも右に寄せる。 */
+.topic-field-meta > :last-child {
+  margin-inline-start: auto;
 }
 
 .topic-actions {
