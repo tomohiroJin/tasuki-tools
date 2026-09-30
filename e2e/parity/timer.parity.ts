@@ -6,7 +6,7 @@
  */
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
+import { expect, test, type Browser, type BrowserContext, type Locator, type Page } from '@playwright/test';
 import { BASE_DIST, serveBaseDist, type BaseServing } from './base-dist';
 import { captureKeyframes, captureMotion, captureStyles } from './capture';
 import { diffEntries, diffKeyframes, themeVarNamesFromCss, type StyleDiff, type StyleEntry } from './compare-lib';
@@ -37,6 +37,70 @@ function tailwindThemeVars(): Set<string> {
   return names;
 }
 
+/** 文脈を作った時点で退避した本物の `requestAnimationFrame`（`page.clock` に差し替えられる前のもの）。 */
+interface RafWindow {
+  __parityRaf: (callback: FrameRequestCallback) => number;
+}
+
+/**
+ * 幅を変えた後、レイアウトと計算済みスタイルが新しい幅に落ち着くまで待つ。
+ *
+ * **待たずに読むと、前の幅の値を読む**（実測: history-empty の 640 で、片側だけ 360 の `font-size` が出た）。
+ * 条件は 3 つ: (a) `clientWidth` が目的の幅と一致する、(b) 走っている CSS の遷移が無い、(c) 本物の rAF を 2 回
+ * 待ってから、ルート要素と目印の要素の `font-size` と `width`、ページ全体の配置の指紋を読み、続けてもう一度
+ * 読んで同じ値である。
+ *
+ * **rAF は退避した本物を使う。** `page.clock` を止めた状態ではページの rAF も止まる（実測）。
+ */
+async function settleAtWidth(page: Page, width: number, marker: Locator): Promise<void> {
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.clientWidth), { message: `clientWidth が ${width} にならない` })
+    .toBe(width);
+  // **走っている CSS の遷移を終わらせる。** `transition-all` を持つ要素は、幅で変わる `font-size` を遷移させる。
+  // `reduce` の下でも 0.01ms の遷移は残り、描画を飛ばされる部分木（閉じた `<details>` の中身）では
+  // それが進まず、前の幅の値のまま読めた（実測）。しかもその部分木ではスタイルが読まれた瞬間に初めて遷移が
+  // 始まるので、先に全要素のスタイルを読ませてから終わらせる。終えるたびに次が始まりうるので、無くなるまで繰り返す
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          for (const el of Array.from(document.querySelectorAll('*'))) void getComputedStyle(el).fontSize;
+          const running = document.getAnimations().filter((a) => a instanceof CSSTransition);
+          for (const transition of running) transition.finish();
+          return running.length;
+        }),
+      { message: `${width}px で CSS の遷移が終わらない` },
+    )
+    .toBe(0);
+  const read = (): Promise<string> =>
+    marker.evaluate(async (el) => {
+      const raf = (window as unknown as RafWindow).__parityRaf;
+      await new Promise<void>((resolve) => raf(() => raf(() => resolve())));
+      const root = getComputedStyle(document.documentElement);
+      const own = getComputedStyle(el);
+      // 配置の指紋: 幅で変わる寸法を JS の状態で決める要素がある（計器の `useViewportWidth`・`useIsWide`）。
+      // 目印だけを見ると、その再描画の前に読んでしまう（実測: 計器の `margin` が片側だけ前の幅の値だった）
+      let extent = 0;
+      for (const node of Array.from(document.querySelectorAll('body *'))) {
+        const rect = node.getBoundingClientRect();
+        extent += rect.width + rect.height;
+      }
+      return [root.fontSize, root.width, own.fontSize, own.width, document.documentElement.scrollHeight, extent.toFixed(2)].join(
+        ' | ',
+      );
+    });
+  await expect
+    .poll(
+      async () => {
+        const first = await read();
+        const second = await read();
+        return first === second ? 'stable' : `${first} → ${second}`;
+      },
+      { message: `${width}px でスタイルが落ち着かない` },
+    )
+    .toBe('stable');
+}
+
 async function captureSide(browser: Browser, state: ParityState, side: Side): Promise<Capture> {
   const contexts: BrowserContext[] = [];
   const servings: BaseServing[] = [];
@@ -48,6 +112,10 @@ async function captureSide(browser: Browser, state: ParityState, side: Side): Pr
       viewport: { width: 1280, height: HEIGHT },
       reducedMotion: 'no-preference',
       permissions: ['local-network-access'],
+    });
+    // `page.clock` が rAF を差し替える前に本物を退避する（`settleAtWidth` が使う）
+    await context.addInitScript(() => {
+      Object.defineProperty(window, '__parityRaf', { value: window.requestAnimationFrame.bind(window) });
     });
     if (side === 'base') servings.push(await serveBaseDist(context, BASE_DIST));
     contexts.push(context);
@@ -73,6 +141,7 @@ async function captureSide(browser: Browser, state: ParityState, side: Side): Pr
     for (const width of WIDTHS) {
       await page.setViewportSize({ width, height: HEIGHT });
       await expect(state.marker(page)).toBeVisible();
+      await settleAtWidth(page, width, state.marker(page));
       const entries = await captureStyles(page);
       expect(entries.length, `${state.name}@${width}（${side}）の要素数`).toBeGreaterThanOrEqual(state.minElements);
       styles.set(width, entries);

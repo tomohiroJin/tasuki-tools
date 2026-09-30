@@ -265,6 +265,31 @@ async function loseRoom(page: Page): Promise<void> {
     .toBeGreaterThan(0);
 }
 
+/** timer の `JOIN_RESPONSE_DEADLINE_MS`（`use-timer-sync.ts`）と同じ値。 */
+const JOIN_RESPONSE_DEADLINE_MS = 10_000;
+
+/**
+ * 読み込み中（Loading）で待っている画面を作る。時計は差し替え済みで、まだ止めていない。
+ *
+ * ルームの無い `?room=` は玄関へ送られる（実測）。実在のルームを作ってから、同期の接続を最初から
+ * 閉じさせて開き直す。復帰の snapshot が来ないので Loading に留まる。
+ */
+async function loadingWithSyncDown(open: OpenPage): Promise<Page> {
+  const page = await open('host');
+  await installClock(page);
+  await trackSockets(page);
+  await createRoom(page, HOST);
+  await page.addInitScript(() => {
+    (window as unknown as SocketsWindow).__paritySyncDown.down = true;
+  });
+  await page.reload();
+  const waiting = page.getByRole('status').filter({ hasText: '読み込んでいます' });
+  await expect(waiting).toBeVisible();
+  // 最初の拒否が届くまでは「つないでいます」。「再接続中」に落ち着くまで待つ
+  await expect(waiting.getByLabel('接続状態')).toContainText('再接続中');
+  return page;
+}
+
 async function completeSession(host: Page): Promise<void> {
   await host.getByRole('button', { name: '完成!', exact: true }).click();
   await host.getByRole('button', { name: '完成として記録する' }).click();
@@ -300,6 +325,21 @@ export const STATES: readonly ParityState[] = [
       return host;
     },
     marker: (p) => p.getByLabel('交代通知の設定'),
+    minElements: 60,
+    mask: roomMask,
+  },
+  {
+    name: 'lobby-passphrase',
+    async setup(open) {
+      const { host } = await lobbyWithGuest(open);
+      // 合言葉のパネル（`PassphrasePanel`）はロビーに常に出ている（開閉は無い）。入力欄だけの姿は
+      // lobby-alone が撮るので、ここは設定した後の「パスフレーズ設定中」と「解除」の姿を撮る
+      await host.getByRole('textbox', { name: 'パスフレーズ' }).fill('parity-passphrase');
+      await host.getByRole('button', { name: '設定', exact: true }).click();
+      await expect(host.getByText('パスフレーズ設定中')).toBeVisible();
+      return host;
+    },
+    marker: (p) => p.getByText('パスフレーズ設定中'),
     minElements: 60,
     mask: roomMask,
   },
@@ -396,7 +436,12 @@ export const STATES: readonly ParityState[] = [
     async setup(open) {
       const { host } = await lobbyWithGuest(open);
       await startSession(host);
-      await host.getByRole('button', { name: `${GUEST} を退出させる` }).click();
+      const remove = host.getByRole('button', { name: `${GUEST} を退出させる` });
+      await remove.click();
+      await expect(host.getByRole('dialog')).toBeVisible();
+      // 行の操作ボタンは押した後 450ms だけ送信中（半透明・待ちカーソル）になる（`RosterPanel.tsx` の
+      // `MiniButton`）。明けるのを待たないと、撮った時刻で片側だけ送信中の姿になる（実測）
+      await expect(remove).not.toHaveAttribute('aria-busy', 'true');
       return host;
     },
     marker: (p) => p.getByRole('dialog'),
@@ -533,26 +578,28 @@ export const STATES: readonly ParityState[] = [
   {
     name: 'loading-unreachable',
     async setup(open) {
-      // ルームの無い `?room=` は玄関へ送られる（実測）。実在のルームを作ってから、
-      // 同期の接続を最初から拒否させて開き直す。復帰の snapshot が来ないので Loading に留まる
-      const page = await open('host');
-      await installClock(page);
-      await trackSockets(page);
-      await createRoom(page, HOST);
-      await page.addInitScript(() => {
-        (window as unknown as SocketsWindow).__paritySyncDown.down = true;
-      });
-      await page.reload();
-      const waiting = page.getByRole('status').filter({ hasText: '読み込んでいます' });
-      await expect(waiting).toBeVisible();
-      // 最初の拒否が届くまでは「つないでいます」。落ち着いてから時計を止める ——
-      // 10 秒で「読み込めませんでした」へ移る（`JOIN_RESPONSE_DEADLINE_MS`）ので留める
-      await expect(waiting.getByLabel('接続状態')).toContainText('再接続中');
+      const page = await loadingWithSyncDown(open);
+      // 10 秒で「読み込めませんでした」へ移る（`JOIN_RESPONSE_DEADLINE_MS`）ので、時計を止めて留める
       await freezeClock(page);
       return page;
     },
     marker: (p) => p.getByRole('status').filter({ hasText: '読み込んでいます' }),
     minElements: 10,
+    mask: () => [],
+  },
+  {
+    name: 'loading-timed-out',
+    async setup(open) {
+      const page = await loadingWithSyncDown(open);
+      // 入室の要求を送ってから 10 秒（`JOIN_RESPONSE_DEADLINE_MS`・`use-timer-sync.ts` の `armJoinDeadline`）
+      // 答えが無いと時間切れの表示へ移る。時計を進めて起こし、表示が出たら止める
+      await page.clock.fastForward(JOIN_RESPONSE_DEADLINE_MS);
+      await expect(page.getByRole('heading', { name: 'ルームの情報を読み込めませんでした' })).toBeVisible();
+      await freezeClock(page);
+      return page;
+    },
+    marker: (p) => p.getByRole('alert').filter({ hasText: 'ルームの情報を読み込めませんでした' }),
+    minElements: 15,
     mask: () => [],
   },
   {
