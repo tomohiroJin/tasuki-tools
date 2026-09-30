@@ -1,4 +1,4 @@
-import { useDeferredValue, useId, useState } from 'react';
+import { useDeferredValue, useId, useLayoutEffect, useRef, useState } from 'react';
 import { MAX_TOPIC_BODY, MAX_TOPIC_TITLE, type Topic } from '@tasuki/topic-core';
 import {
   BODY_HINT,
@@ -41,6 +41,9 @@ export function TopicEditor({ current, enabled, onSubmit }: Props) {
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [mode, setMode] = useState<'write' | 'preview'>('write');
+  const titleRef = useRef<HTMLTextAreaElement>(null);
+  // 改行を空白にして値を書き直すと、ブラウザはカーソルを末尾へ移す。書き直した直後に戻す位置
+  const titleCaret = useRef<number | null>(null);
   const titleId = useId();
   const bodyId = useId();
   const previewId = useId();
@@ -48,6 +51,13 @@ export function TopicEditor({ current, enabled, onSubmit }: Props) {
   const previewTitle = useDeferredValue(title);
   const previewBody = useDeferredValue(body);
   const previewBlank = previewTitle.trim() === '' && previewBody.trim() === '';
+
+  useLayoutEffect(() => {
+    const caret = titleCaret.current;
+    if (caret === null) return;
+    titleCaret.current = null;
+    titleRef.current?.setSelectionRange(caret, caret);
+  }, [title]);
 
   return (
     <section className="topic-panel topic-write ui-panel" aria-labelledby={`${titleId}-heading`}>
@@ -71,7 +81,15 @@ export function TopicEditor({ current, enabled, onSubmit }: Props) {
           value={title}
           maxLength={MAX_TOPIC_TITLE}
           aria-describedby={`${titleId}-count`}
-          onChange={(e) => setTitle(toSingleLine(e.target.value))}
+          ref={titleRef}
+          onChange={(e) => {
+            const raw = e.target.value;
+            const next = toSingleLine(raw);
+            // 改行を含む文を途中に貼ったとき、カーソルを差し込んだ文の後ろに残す。欄の値の改行は常に \n の
+            // 1 字（textarea は \r\n をそろえて持つ）で、空白 1 字に置き換えても位置は変わらない
+            if (next !== raw) titleCaret.current = e.target.selectionStart;
+            setTitle(next);
+          }}
           onKeyDown={(e) => {
             if (e.key !== 'Enter') return;
             // 変換の確定の Enter では送らない（Safari は確定の Enter で isComposing が偽になり、keyCode が 229 になる）
@@ -137,7 +155,8 @@ export function TopicEditor({ current, enabled, onSubmit }: Props) {
               type="button"
               className="secondary"
               onClick={() => {
-                setTitle(current.title);
+                // 境界スキーマは改行を拒まないので、AI や別の接続から届いたタイトルも 1 行にして写す（正本 D3）
+                setTitle(toSingleLine(current.title));
                 setBody(current.body);
               }}
             >

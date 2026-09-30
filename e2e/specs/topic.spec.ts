@@ -293,6 +293,21 @@ test.describe('長いタイトルと広いページ（#313 PR 1）', () => {
     expect(consoleWatcher.errors).toEqual([]);
   });
 
+  test('Given タイトルの途中にカーソル / When 改行を含む文を差し込んで続けて打つ / Then 打った字は差し込んだ位置に入る', async ({ page, consoleWatcher }) => {
+    // Given
+    await openTopicTool(page, 'caret-topic');
+    const field = page.getByLabel('タイトル', { exact: true });
+    await field.fill('AAA BBB');
+    await field.evaluate((el: HTMLTextAreaElement) => el.setSelectionRange(3, 3));
+    // When: 貼り付けと同じく、改行を含む文を 1 度に差し込む
+    await page.keyboard.insertText('x\ny');
+    await page.keyboard.type('Z');
+    // Then: 改行は空白になり、カーソルは末尾へ飛んでいない
+    await expect(field).toHaveValue('AAAx yZ BBB');
+    // 画面は例外を出していない
+    expect(consoleWatcher.errors).toEqual([]);
+  });
+
   test('Given タイトルを書いた / When タイトルの欄で Enter / Then このお題になる', async ({ page, consoleWatcher }) => {
     // Given
     await openTopicTool(page, 'enter-topic');

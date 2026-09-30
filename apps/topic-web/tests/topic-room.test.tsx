@@ -281,6 +281,34 @@ describe('書く（長いタイトル）', () => {
     expect(latestSocket().sentJson()).toHaveLength(before);
   });
 
+  it('Given タイトルの途中にカーソル / When 改行を含む文を差し込む / Then 改行は空白になり、カーソルは差し込んだ文の後ろに残る', () => {
+    // Given: 「AAA BBB」の AAA の後ろに「x\ny」を差し込んだ直後の欄（カーソルは y の後ろ）
+    enterWith();
+    const field = titleField() as HTMLTextAreaElement;
+    const setValue = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!;
+    // When: React の値の追跡を通らない形で DOM の値を変え、カーソルを置いてから input を送る（貼り付けと同じ順）
+    act(() => {
+      setValue.call(field, 'AAAx\ny BBB');
+      field.setSelectionRange(6, 6);
+      fireEvent.input(field);
+    });
+    // Then: 値を書き直しても、カーソルは末尾へ飛ばない（続けて打つ字が差し込んだ位置に入る）
+    expect(field).toHaveValue('AAAx y BBB');
+    expect(field.selectionStart).toBe(6);
+    expect(field.selectionEnd).toBe(6);
+  });
+
+  it('Given いまのお題のタイトルが改行を含む / When 書き直す / Then 欄には改行を空白にして写す', () => {
+    // Given: 境界スキーマは改行を拒まないので、AI や別の接続から改行入りのタイトルが届きうる
+    enterWith({ ...IDLE_STATE, topic: { ...FIZZ, title: 'Fizz\nBuzz' } });
+    // When
+    fireEvent.click(screen.getByRole('button', { name: copy.REWRITE_BUTTON }));
+    // Then
+    expect(titleField()).toHaveValue('Fizz Buzz');
+    fireEvent.click(setButton());
+    expect(lastSent()).toEqual({ command: 'topic.set', title: 'Fizz Buzz', body: FIZZ.body });
+  });
+
   it('Given 説明の欄 / When Enter / Then 送らない（説明は改行を書ける）', () => {
     // Given
     enterWith();
