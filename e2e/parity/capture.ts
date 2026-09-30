@@ -29,7 +29,7 @@ export const MOTION_PROPS = [
 
 interface WalkOptions {
   readonly rootSelector: string;
-  /** null なら全プロパティ。配列ならそのプロパティだけ（擬似要素は読まない）。 */
+  /** null なら全プロパティ。配列ならそのプロパティだけ（`::before` / `::after` は読む）。 */
   readonly only: readonly string[] | null;
   /** true なら root の要素だけ（子孫を歩かない）。 */
   readonly single: boolean;
@@ -79,11 +79,12 @@ function walkInPage(options: WalkOptions): StyleEntry[] {
     const parent = el.parentElement === null ? null : getComputedStyle(el.parentElement);
     const path = pathOf(el);
     out.push({ path, pseudo: '', props: read(cs, parent) });
+    // ::before / ::after は only 指定（動きの書き出し）でも読む。擬似要素だけの animation / transition を落とさない。
+    for (const pseudo of ['::before', '::after']) {
+      const ps = getComputedStyle(el, pseudo);
+      if (ps.content !== 'none' && ps.content !== 'normal') out.push({ path, pseudo, props: read(ps, cs) });
+    }
     if (options.only === null) {
-      for (const pseudo of ['::before', '::after']) {
-        const ps = getComputedStyle(el, pseudo);
-        if (ps.content !== 'none' && ps.content !== 'normal') out.push({ path, pseudo, props: read(ps, cs) });
-      }
       if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
         out.push({ path, pseudo: '::placeholder', props: read(getComputedStyle(el, '::placeholder'), cs) });
       }
@@ -128,9 +129,11 @@ export async function captureKeyframes(page: Page): Promise<Record<string, strin
   return page.evaluate(() => {
     const used = new Set<string>();
     for (const el of Array.from(document.querySelectorAll('*'))) {
-      for (const n of getComputedStyle(el).animationName.split(',')) {
-        const name = n.trim();
-        if (name !== '' && name !== 'none') used.add(name);
+      for (const pseudo of [null, '::before', '::after']) {
+        for (const n of getComputedStyle(el, pseudo).animationName.split(',')) {
+          const name = n.trim();
+          if (name !== '' && name !== 'none') used.add(name);
+        }
       }
     }
     const out: Record<string, string> = {};

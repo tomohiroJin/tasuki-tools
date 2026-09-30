@@ -49,20 +49,30 @@ export interface BaseServing {
 export async function serveBaseDist(context: BrowserContext, distDir: string): Promise<BaseServing> {
   let served = 0;
   const missing: string[] = [];
-  await context.route(/\/timer\//, async (route) => {
-    const url = new URL(route.request().url());
-    const rel = decodeURIComponent(url.pathname.replace(/^\/timer\//, ''));
-    const candidate = path.join(distDir, rel);
-    const inside = candidate.startsWith(distDir + path.sep);
-    const isFile = inside && existsSync(candidate) && statSync(candidate).isFile();
-    if (!isFile && path.extname(rel) !== '') missing.push(url.pathname);
-    const file = isFile ? candidate : path.join(distDir, 'index.html');
-    served += 1;
-    await route.fulfill({
-      status: 200,
-      contentType: TYPES[path.extname(file)] ?? 'application/octet-stream',
-      body: readFileSync(file),
-    });
-  });
+  await context.route(
+    (url) => url.pathname.startsWith('/timer/'),
+    async (route) => {
+      const url = new URL(route.request().url());
+      let rel = '';
+      let malformed = false;
+      try {
+        rel = decodeURIComponent(url.pathname.replace(/^\/timer\//, ''));
+      } catch {
+        malformed = true;
+        missing.push(url.pathname);
+      }
+      const candidate = path.join(distDir, rel);
+      const inside = candidate.startsWith(distDir + path.sep);
+      const isFile = !malformed && inside && existsSync(candidate) && statSync(candidate).isFile();
+      if (!malformed && !isFile && path.extname(rel) !== '') missing.push(url.pathname);
+      const file = isFile ? candidate : path.join(distDir, 'index.html');
+      served += 1;
+      await route.fulfill({
+        status: 200,
+        contentType: TYPES[path.extname(file)] ?? 'application/octet-stream',
+        body: readFileSync(file),
+      });
+    },
+  );
   return { served: () => served, missing: () => [...missing] };
 }
