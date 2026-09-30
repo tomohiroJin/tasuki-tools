@@ -14,9 +14,9 @@ Tasuki の各アプリは「自分の systemd ユニット + 固有ポート + C
 | `landing` | （無し・静的） | — | `/var/www/tasuki-home` | `/`（玄関） | 公開中 |
 | `timer` | `tasuki-sync` | 8787 | `/opt/tasuki` / `/var/www/tasuki` | `/timer/` | 公開中 |
 | `poker` | （無し・静的） | — | `/var/www/tasuki-poker` | `/poker/` | 公開中 |
-| `topic` | （無し・静的） | — | `/var/www/tasuki-topic` | `/topic/` | 未公開（#91 の配布で公開する。手順は [`topic/NOTES.md`](topic/NOTES.md)） |
+| `topic` | （無し・静的） | — | `/var/www/tasuki-topic` | `/topic/` | 公開中 |
 
-> **#91（お題）は 4 本をまとめて 1 回で配る。** 順序は topic → poker → landing → timer で、
+> **#91（お題）は 4 本をまとめて 1 回で配った**（2026-09-27）。順序は topic → poker → landing → timer で、
 > `/topic/` の断片を先に置き、間を空けずに続けて流す。配布中の窓と手順は
 > [`topic/NOTES.md`](topic/NOTES.md) の「配布の手順」にある。**`topic` だけ・`landing` だけを配らないこと** ——
 > 玄関に 3 枚目の札が出るのに、同期サーバーがまだお題を知らない状態になる。
@@ -35,7 +35,7 @@ Tasuki の各アプリは「自分の systemd ユニット + 固有ポート + C
 
 ### 公開範囲の方針
 
-**4 本のうち timer / poker / landing の 3 本が公開中である**（2026-08-28・#66）。`topic` は #91 の配布で公開する。
+**4 本すべてが公開中である**（timer / poker / landing は 2026-08-28・#66、`topic` は 2026-09-27・#91）。
 同期サーバーは 4 本で共用の 1 本（`tasuki-sync`）のままで、`topic` は `poker` / `landing` と同じ静的アプリである。
 デプロイはアプリ単位（`./deploy/deploy.sh <app>`）で、指定したアプリだけが転送される。
 
