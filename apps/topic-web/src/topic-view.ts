@@ -21,6 +21,14 @@ export function canSubmitTopic(title: string, enabled: boolean): boolean {
   return enabled && title.trim() !== '';
 }
 
+/**
+ * タイトルを 1 行にする（#313 正本 D3）。タイトルは各画面で見出しの素の文字として出るので、改行を持たせない。
+ * `\r\n` は 1 つの改行として扱う（Windows から貼った文だけ空白が増えないように）。連続する空白は畳まない。
+ */
+export function toSingleLine(text: string): string {
+  return text.replace(/\r\n|\r|\n/g, ' ');
+}
+
 /** 合言葉を書いてあれば「解錠する」を押せる。 */
 export function canUnlock(key: string, enabled: boolean): boolean {
   return enabled && key.trim() !== '';
