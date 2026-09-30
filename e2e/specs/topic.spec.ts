@@ -307,3 +307,74 @@ test.describe('長いタイトルと広いページ（#313 PR 1）', () => {
     expect(consoleWatcher.errors).toEqual([]);
   });
 });
+
+/** 見出しと箇条書きを持つ説明。書体の層の検査に掛かるので英数字で書く。 */
+const MD_BODY = ['# Rules', '', '- fizz', '- buzz'].join('\n');
+
+test.describe('説明のプレビュー（#313 PR 2）', () => {
+  test('Given 幅 1280 / When 説明を書く / Then 説明の欄とプレビューが並び、切り替えは出ない', async ({ page, consoleWatcher }) => {
+    // Given
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await openTopicTool(page, 'side-topic');
+    await page.getByLabel('タイトル', { exact: true }).fill(TITLE);
+    const field = page.getByLabel('説明（なくてもよい）');
+    const preview = page.getByRole('region', { name: 'プレビュー' });
+    // When
+    await field.fill(MD_BODY);
+    // Then その1: 両方が見える
+    await expect(preview.getByRole('heading', { level: 4, name: 'Rules' })).toBeVisible();
+    await expect(field).toBeVisible();
+    // Then その2: プレビューは説明の欄の右の、同じ行にある
+    const f = await field.boundingBox();
+    const p = await preview.boundingBox();
+    expect(p!.x, 'プレビューが説明の欄の右に無い').toBeGreaterThanOrEqual(f!.x + f!.width);
+    expect(Math.abs(p!.y - f!.y), 'プレビューが説明の欄と同じ行に無い').toBeLessThan(40);
+    // Then その3: 切り替えは出ない
+    await expect(page.getByRole('group', { name: '説明の出し方' })).toBeHidden();
+    // 画面は例外を出していない
+    expect(consoleWatcher.errors).toEqual([]);
+  });
+
+  for (const width of [390, 768]) {
+    test(`Given 幅 ${width} / When プレビューを押す / Then 札が出て説明の欄が隠れ、送ると書くへ戻る`, async ({ page, consoleWatcher }) => {
+      // Given
+      await page.setViewportSize({ width, height: 900 });
+      await openTopicTool(page, `toggle-topic-${width}`);
+      const field = page.getByLabel('説明（なくてもよい）');
+      const preview = page.getByRole('region', { name: 'プレビュー' });
+      await page.getByLabel('タイトル', { exact: true }).fill(TITLE);
+      await field.fill(MD_BODY);
+      await expect(preview).toBeHidden();
+      // When
+      await page.getByRole('button', { name: 'プレビュー', exact: true }).click();
+      // Then その1: 札が出て、説明の欄は隠れる
+      await expect(preview.getByRole('heading', { level: 4, name: 'Rules' })).toBeVisible();
+      await expect(field).toBeHidden();
+      // Then その2: 送ると、次に書く欄が出る
+      await page.getByRole('button', { name: 'このお題にする' }).click();
+      await expect(currentTopic(page).getByRole('heading', { name: TITLE })).toBeVisible();
+      await expect(field).toBeVisible();
+      // Then その3: 画面は横にはみ出さない
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      // 画面は例外を出していない
+      expect(consoleWatcher.errors).toEqual([]);
+    });
+  }
+
+  for (const width of [390, 1280]) {
+    test(`Given 幅 ${width} でプレビューを出す / When 文字を測る / Then 切り替えと札の字はすべて AA を満たす`, async ({ page, consoleWatcher }) => {
+      // Given
+      await page.setViewportSize({ width, height: 900 });
+      await openTopicTool(page, `preview-a11y-${width}`);
+      await page.getByLabel('タイトル', { exact: true }).fill(TITLE);
+      await page.getByLabel('説明（なくてもよい）').fill(MD_BODY);
+      if (width === 390) await page.getByRole('button', { name: 'プレビュー', exact: true }).click();
+      await expect(page.getByRole('region', { name: 'プレビュー' }).getByRole('heading', { level: 4, name: 'Rules' })).toBeVisible();
+      // When / Then: 札の字（coal on ivory）を測ったことを固定する
+      const [coal, ivory] = await resolveColors(page, ['--coal', '--ivory']);
+      expectReadable(await scanContrast(page, 10), 8, [pairKey(coal!, ivory!)]);
+      // 画面は例外を出していない
+      expect(consoleWatcher.errors).toEqual([]);
+    });
+  }
+});
