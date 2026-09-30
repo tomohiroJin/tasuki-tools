@@ -3,7 +3,11 @@
  *
  * - ホバー: `locator.hover()` の後に `:hover` を確かめる
  * - 押下: `mouse.down()` → `:active` を確かめて書き出す → **要素の外へ動かしてから** `mouse.up()`（クリックを起こさない）
- * - フォーカス: Tab で順に送り、`:focus-visible` の要素を書き出す（キーボードで送るので `:focus-visible` の条件を満たす）
+ * - フォーカス: Tab で順に送り、`:focus-visible` の要素を書き出す（キーボードで送るので `:focus-visible` の条件を満たす）。
+ *   一巡した後、届かなかった対象を理由つきで出す
+ * - チェック: `interaction-check.ts`（いまと逆の状態に切り替えて書き出し、元に戻す）
+ *
+ * **書き出しは対象の要素を根にした部分木で読む**（`captureElement` の `subtree`）。操作の状態は子にも効く。
  *
  * **書き出す前に遷移を終える。** `reduce` の下でも 0.01ms の遷移は残り、ホバーや押下で始まった遷移の途中を読みうる
  * （`timer.parity.ts` の `settleAtWidth` と同じ理由）。
@@ -14,6 +18,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { captureElement } from './capture';
 import type { StyleEntry } from './compare-lib';
+import { captureChecks } from './interaction-check';
 
 export interface InteractionCapture {
   readonly entries: StyleEntry[];
@@ -21,12 +26,20 @@ export interface InteractionCapture {
   readonly notEntered: string[];
   /** 理由があって状態に入れなかった要素（`active: <名前>（理由）`）。両側で同じなら差にしない。 */
   readonly skipped: string[];
+  /** 書き出した要素の数（部分木の根の数）を種類ごとに。 */
+  readonly counts: Record<string, number>;
 }
 
-const TARGETS = 'button, a[href], [role="tab"], input, textarea, select, [tabindex]:not([tabindex="-1"])';
+export const TARGETS = 'button, a[href], [role="tab"], input, textarea, select, [tabindex]:not([tabindex="-1"])';
 
 /** ホバーの上限。覆いの下の要素は Playwright が待ち続けるので、既定（テストの上限）まで待たない。 */
-const HOVER_TIMEOUT_MS = 5_000;
+export const HOVER_TIMEOUT_MS = 5_000;
+
+/**
+ * ポインタを逃がす先（ページの外）。**(0, 0) はページの左上の要素に当たりうる**ので、操作できる要素の上に
+ * ポインタを残さないためにビューポートの外へ出す。逃がした後に対象がどれも `:hover` でないことを確かめる。
+ */
+const AWAY = { x: -10, y: -10 } as const;
 
 /**
  * 押すと値が変わる・一覧が開く要素（押下の書き出しから外す）。
@@ -40,8 +53,19 @@ function tag(entries: readonly StyleEntry[], kind: string): StyleEntry[] {
   return entries.map((e) => ({ ...e, path: `${e.path}#${kind}` }));
 }
 
+/** 書き出した部分木を、道筋に `#<種類>` を付けて積み、種類ごとの要素の数を数える。 */
+export function record(out: InteractionCapture, kind: string, entries: readonly StyleEntry[]): void {
+  out.entries.push(...tag(entries, kind));
+  out.counts[kind] = (out.counts[kind] ?? 0) + 1;
+}
+
+/** 対象の要素を根にした部分木を読む。 */
+export function captureSubtree(el: Locator): Promise<StyleEntry[]> {
+  return captureElement(el, { subtree: true });
+}
+
 /** 走っている CSS の遷移を、無くなるまで終わらせる（終えるたびに次が始まりうる）。 */
-async function finishTransitions(page: Page): Promise<void> {
+export async function finishTransitions(page: Page): Promise<void> {
   for (let round = 0; round < 20; round += 1) {
     const running = await page.evaluate(() => {
       for (const el of Array.from(document.querySelectorAll('*'))) void getComputedStyle(el).fontSize;
@@ -54,11 +78,21 @@ async function finishTransitions(page: Page): Promise<void> {
   throw new Error('操作の後の CSS の遷移が終わらない');
 }
 
+/** ポインタをページの外へ逃がし、対象がどれも `:hover` でないことを確かめる。 */
+export async function moveAway(page: Page): Promise<void> {
+  await page.mouse.move(AWAY.x, AWAY.y);
+  const hovered = await page.evaluate(
+    (selector) => Array.from(document.querySelectorAll(selector)).filter((e) => e.matches(':hover')).length,
+    TARGETS,
+  );
+  if (hovered !== 0) throw new Error(`ポインタを逃がしても対象が ${hovered} 件 :hover のまま`);
+}
+
 /** 状態を読み直す回数の上限（読む間に状態が外れたとき）。 */
 const CAPTURE_ATTEMPTS = 5;
 
 /**
- * 要素が `pseudo` の状態にあることを**読む直前と直後の両方で**確かめて書き出す。外れていたら読み直す。
+ * 要素が `pseudo` の状態にあることを**読む直前と直後の両方で**確かめて書き出す。外れていたら戻して読み直す。
  *
  * **確かめてから読むまでの間に状態が外れうる。** 確認のダイアログのフォーカストラップ（`useFocusTrap`）は、残り時間の
  * 刻みの再描画のたびに取消ボタンへフォーカスを戻す（`states.ts` の `openDialogWithoutFocus`）。確かめた後・読む前に
@@ -72,14 +106,14 @@ async function captureInState(
   for (let attempt = 0; attempt < CAPTURE_ATTEMPTS; attempt += 1) {
     if (attempt > 0 && restore !== undefined) await restore();
     if (!(await el.evaluate((e, p) => e.matches(p), pseudo))) continue;
-    const entries = await captureElement(el);
+    const entries = await captureSubtree(el);
     if (await el.evaluate((e, p) => e.matches(p), pseudo)) return entries;
   }
   return null;
 }
 
 /** 報告で要素を見分ける名前（`aria-label`・中身の文字・タグの順）。 */
-async function labelOf(el: Locator): Promise<string> {
+export async function labelOf(el: Locator): Promise<string> {
   return el.evaluate((e) => {
     const aria = e.getAttribute('aria-label');
     if (aria !== null && aria !== '') return aria;
@@ -96,7 +130,7 @@ async function labelOf(el: Locator): Promise<string> {
  * 全要素の `hover()` が 5 秒の上限に達した）。覆いの下の要素は差にせず `skipped` に出す。覆われ方が両側で違えば、
  * 呼ぶ側が `skipped` の食い違いとして差にする。
  */
-async function coverOf(el: Locator): Promise<string | null> {
+export async function coverOf(el: Locator): Promise<string | null> {
   await el.scrollIntoViewIfNeeded({ timeout: HOVER_TIMEOUT_MS });
   return el.evaluate((e) => {
     const rect = e.getBoundingClientRect();
@@ -131,7 +165,7 @@ async function captureHover(page: Page, el: Locator, label: string, out: Interac
     await el.hover({ timeout: HOVER_TIMEOUT_MS });
     await finishTransitions(page);
   });
-  if (entries !== null) out.entries.push(...tag(entries, 'hover'));
+  if (entries !== null) record(out, 'hover', entries);
   else out.notEntered.push(`hover: ${label}`);
   return true;
 }
@@ -170,14 +204,24 @@ async function guardPress(page: Page, on: boolean): Promise<void> {
   }, on);
 }
 
-/** ホバーした位置のまま押し、`:active` を読んでから、外へ動かして離す。 */
+/** 押した後、外へ動かして離し、押下で載ったフォーカスを外す（マウスなので :focus-visible ではない）。 */
+async function releaseAway(page: Page): Promise<void> {
+  await page.mouse.move(AWAY.x, AWAY.y);
+  await page.mouse.up();
+  await guardPress(page, false);
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+}
+
+/**
+ * ホバーした位置のまま押し、`:active` を読んでから、外へ動かして離す。
+ *
+ * **無効の要素も押して書き出す。** Chromium では無効のボタンも押すと `:active` に入る（実測: lobby-alone の「設定」・
+ * lobby-two の「前の順番へ／後の順番へ」の端が、基準・ブランチの両側で入った）。`active:scale-95` のような押下の見た目は
+ * 無効の要素にも効くので、差の対象にする。
+ */
 async function capturePress(page: Page, el: Locator, label: string, out: InteractionCapture): Promise<void> {
   if (await el.evaluate((e, s) => e.matches(s), PRESS_CHANGES_STATE)) {
     out.skipped.push(`active: ${label}（押すと値が変わるか一覧が開く）`);
-    return;
-  }
-  if (!(await el.isEnabled())) {
-    out.skipped.push(`active: ${label}（無効）`);
     return;
   }
   await guardPress(page, true);
@@ -188,26 +232,29 @@ async function capturePress(page: Page, el: Locator, label: string, out: Interac
     // 確認のダイアログでは、フォーカストラップが刻みごとに取消ボタンへフォーカスを移し、押している確定ボタンの
     // `:active` が外れた（実測: session-remove-confirm の「退出させる」が両側で、session-end-confirm の確定が片側で入れなかった）
     const entries = await captureInState(el, ':active', async () => {
-      await page.mouse.move(0, 0);
+      await page.mouse.move(AWAY.x, AWAY.y);
       await page.mouse.up();
       await el.hover({ timeout: HOVER_TIMEOUT_MS });
       await page.mouse.down();
       // 押し直しで始まった遷移（`active:scale-95` と `transition-all`）を終えてから読む（実測: 片側だけ `scale: 1` を読んだ）
       await finishTransitions(page);
     });
-    if (entries !== null) out.entries.push(...tag(entries, 'active'));
+    if (entries !== null) record(out, 'active', entries);
     else out.notEntered.push(`active: ${label}`);
   } finally {
-    await page.mouse.move(0, 0);
-    await page.mouse.up();
-    await guardPress(page, false);
-    // 押下で載ったフォーカス（マウスなので :focus-visible ではない）を外し、次の要素の読みへ持ち越さない
-    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await releaseAway(page);
   }
 }
 
 /** Tab で送った先の要素を留める属性（書き出しの前に外す。CSS はこの属性を見ない）。 */
 const FOCUS_PIN = 'data-parity-focus';
+/** Tab で一度でも届いた要素に付ける属性（一巡した後、届かなかった対象を見分ける。最後に外す）。 */
+const REACHED = 'data-parity-reached';
+/**
+ * Tab を送り終えた時点でフォーカスを抱えている開いたダイアログに付ける属性（フォーカストラップの囲い）。
+ * `useFocusTrap` は Tab をダイアログの中で巡回させる（通知設定のポップオーバー `NotifySettings.tsx:27`・確認のダイアログ）。
+ */
+const TRAP = 'data-parity-trap';
 
 /** 同じ要素を 2 度書き出さないための鍵（文書の中の位置）。 */
 function pathKey(el: Element): string {
@@ -218,46 +265,108 @@ function pathKey(el: Element): string {
   return parts.join('>');
 }
 
+/** Tab で送った先を 1 件読む。新しい要素なら書き出す。 */
+async function captureFocused(page: Page, seen: Set<string>, out: InteractionCapture): Promise<void> {
+  // `:focus` は引くたびに解き直すので、フォーカストラップが動かすと別の要素を指す。いまの要素を目印で留める
+  const pinned = await page.evaluate(
+    ([pin, reached]) => {
+      const active = document.activeElement;
+      if (active === null || active === document.body) return false;
+      active.setAttribute(pin, '');
+      active.setAttribute(reached, '');
+      return true;
+    },
+    [FOCUS_PIN, REACHED] as const,
+  );
+  if (!pinned) return;
+  const focused = page.locator(`[${FOCUS_PIN}]`);
+  try {
+    await finishTransitions(page);
+    const key = await focused.evaluate(pathKey);
+    if (seen.has(key)) return;
+    seen.add(key);
+    // 外れたら同じ要素へ戻す（キーボードで送った後のスクリプトのフォーカスは :focus-visible を保つ）
+    const entries = await captureInState(focused, ':focus-visible', async () => {
+      await focused.focus();
+      await finishTransitions(page);
+    });
+    if (entries !== null) record(out, 'focus-visible', entries);
+    else out.notEntered.push(`focus-visible: ${await labelOf(focused)}`);
+  } finally {
+    await page.evaluate((pin) => document.querySelector(`[${pin}]`)?.removeAttribute(pin), FOCUS_PIN);
+  }
+}
+
+/**
+ * Tab で届かなかった対象の理由（届いていれば null）。
+ *
+ * - 無効: 無効の要素は Tab の順に入らない
+ * - `tabindex="-1"`: 選ばれていないタブ（`Tabs.tsx` は選択中のタブだけ `tabIndex=0`・矢印で移る）
+ * - フォーカストラップの外: Tab を送り終えた時点でフォーカスが開いたダイアログ（`role="dialog"` / `alertdialog`）の中にあり、
+ *   対象がその外にある。通知設定のポップオーバー（`NotifySettings.tsx:27` の `useFocusTrap`）と確認のダイアログ
+ *   （`ConfirmDialog.tsx`）が Tab を中で巡回させる。ダイアログに入る前に文書の順で通った要素は届いた側に入る
+ * - 上のどれでもなければ「理由不明」（呼ぶ側が notEntered にする）
+ */
+async function unreachedReason(el: Locator): Promise<string | null> {
+  return el.evaluate(
+    (e, [reached, trapAttr]) => {
+      if (e.hasAttribute(reached)) return null;
+      if ((e as HTMLButtonElement).disabled === true) return '無効';
+      if ((e as HTMLElement).tabIndex < 0) return 'tabindex="-1"（Tab の順に入らない）';
+      const trap = document.querySelector(`[${trapAttr}]`);
+      if (trap !== null && !trap.contains(e)) {
+        const role = trap.getAttribute('role') ?? trap.tagName.toLowerCase();
+        // 名前は aria-label か、aria-labelledby が指す見出しの文字
+        const labelledBy = trap.getAttribute('aria-labelledby');
+        const name =
+          trap.getAttribute('aria-label') ??
+          (labelledBy === null ? '' : (document.getElementById(labelledBy)?.textContent ?? '').trim());
+        return `フォーカストラップの外（Tab が ${role}${name === '' ? '' : ` "${name}"`} の中で巡回した）`;
+      }
+      return '理由不明';
+    },
+    [REACHED, TRAP] as const,
+  );
+}
+
 /**
  * Tab で送り、`:focus-visible` の要素を書き出す。同じ要素は 1 度だけ（フォーカストラップの中では巡回する）。
  *
  * 送る回数の上限は対象の数の 2 倍＋5（開始点が文書の途中にあると、末尾で一度フォーカスが外れてから先頭へ戻る）。
+ * 一巡した後、**届かなかった対象を理由つきで出す**（両側で同じく届かないと、黙って範囲が縮むため）。
  */
-async function captureFocus(page: Page, limit: number, out: InteractionCapture): Promise<void> {
+async function captureFocus(page: Page, targets: Locator, count: number, out: InteractionCapture): Promise<void> {
+  await moveAway(page);
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   const seen = new Set<string>();
-  for (let i = 0; i < limit; i += 1) {
+  for (let i = 0; i < count * 2 + 5; i += 1) {
     await page.keyboard.press('Tab');
-    // `:focus` は引くたびに解き直すので、フォーカストラップが動かすと別の要素を指す。いまの要素を目印で留める
-    const pinned = await page.evaluate((attr) => {
-      const active = document.activeElement;
-      if (active === null || active === document.body) return false;
-      active.setAttribute(attr, '');
-      return true;
-    }, FOCUS_PIN);
-    if (!pinned) continue;
-    const focused = page.locator(`[${FOCUS_PIN}]`);
-    try {
-      await finishTransitions(page);
-      const key = await focused.evaluate(pathKey);
-      if (seen.has(key)) continue;
-      seen.add(key);
-      // 外れたら同じ要素へ戻す（キーボードで送った後のスクリプトのフォーカスは :focus-visible を保つ）
-      const entries = await captureInState(focused, ':focus-visible', async () => {
-        await focused.focus();
-        await finishTransitions(page);
-      });
-      if (entries !== null) out.entries.push(...tag(entries, 'focus-visible'));
-      else out.notEntered.push(`focus-visible: ${await labelOf(focused)}`);
-    } finally {
-      await page.evaluate((attr) => document.querySelector(`[${attr}]`)?.removeAttribute(attr), FOCUS_PIN);
-    }
+    await captureFocused(page, seen, out);
   }
+  // 送り終えた時点でフォーカスが開いたダイアログの中にあれば、そこが Tab の巡回する囲い
+  await page.evaluate(
+    (a) => document.activeElement?.closest('[role="dialog"], [role="alertdialog"]')?.setAttribute(a, ''),
+    TRAP,
+  );
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  for (let i = 0; i < count; i += 1) {
+    const el = targets.nth(i);
+    const reason = await unreachedReason(el);
+    if (reason === null) continue;
+    const line = `focus-visible: ${await labelOf(el)}（Tab で届かない: ${reason}）`;
+    if (reason === '理由不明') out.notEntered.push(line);
+    else out.skipped.push(line);
+  }
+  await page.evaluate(
+    (attrs) => {
+      for (const a of attrs) for (const e of Array.from(document.querySelectorAll(`[${a}]`))) e.removeAttribute(a);
+    },
+    [REACHED, TRAP],
+  );
 }
 
 export async function captureInteractions(page: Page): Promise<InteractionCapture> {
-  const out: InteractionCapture = { entries: [], notEntered: [], skipped: [] };
+  const out: InteractionCapture = { entries: [], notEntered: [], skipped: [], counts: {} };
   const targets = page.locator(TARGETS).filter({ visible: true });
   const count = await targets.count();
 
@@ -270,9 +379,11 @@ export async function captureInteractions(page: Page): Promise<InteractionCaptur
     const now = await targets.count();
     if (now !== count) throw new Error(`「${label}」の操作の後に対象の数が ${count} から ${now} へ変わった（状態が変わった）`);
   }
-  await page.mouse.move(0, 0);
   await finishTransitions(page);
-  await captureFocus(page, count * 2 + 5, out);
+  await captureFocus(page, targets, count, out);
+  await finishTransitions(page);
+  await captureChecks(page, out);
+  await moveAway(page);
   await finishTransitions(page);
   return out;
 }

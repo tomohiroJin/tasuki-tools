@@ -140,15 +140,22 @@ export async function captureMotion(page: Page): Promise<StyleEntry[]> {
   return page.evaluate(walkInPage, { rootSelector: 'html', only: [...MOTION_PROPS], single: false });
 }
 
-/** その要素と擬似要素だけ。操作の状態（ホバー・フォーカス・押下）の書き出しに使う。 */
-export async function captureElement(locator: Locator): Promise<StyleEntry[]> {
+/**
+ * その要素と擬似要素（`subtree: true` なら、その要素を根にした部分木）。操作の状態（ホバー・フォーカス・押下・チェック）の
+ * 書き出しに使う。**操作の状態は子にも効く**（`currentColor` の SVG・タブの中の文字・スイッチのつまみ）ので、操作の
+ * 書き出しは部分木で読む。
+ */
+export async function captureElement(
+  locator: Locator,
+  options: { readonly subtree?: boolean } = {},
+): Promise<StyleEntry[]> {
   const marker = `parity-${Math.random().toString(36).slice(2)}`;
   await locator.evaluate((el, m) => el.setAttribute('data-parity-target', m), marker);
   try {
     return await locator.page().evaluate(walkInPage, {
       rootSelector: `[data-parity-target="${marker}"]`,
       only: null,
-      single: true,
+      single: options.subtree !== true,
     });
   } finally {
     await locator.evaluate((el) => el.removeAttribute('data-parity-target'));

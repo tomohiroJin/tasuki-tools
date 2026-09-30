@@ -217,8 +217,7 @@ const themeVars = tailwindThemeVars();
 
 /** 操作の書き出しの件数（種類ごと）と、外した要素。 */
 function interactionSummary(c: InteractionCapture): Record<string, unknown> {
-  const count = (kind: string): number => c.entries.filter((e) => e.path.endsWith(`#${kind}`) && e.pseudo === '').length;
-  return { hover: count('hover'), active: count('active'), focusVisible: count('focus-visible'), notEntered: c.notEntered, skipped: c.skipped };
+  return { counts: c.counts, entries: c.entries.length, notEntered: c.notEntered, skipped: c.skipped };
 }
 
 for (const state of STATES) {
@@ -277,9 +276,16 @@ const TOUCH_STATES = new Set(['lobby-two', 'session-driver']);
 
 interface TouchCapture {
   readonly styles: StyleEntry[];
+  readonly screenshot: Buffer;
+  readonly motion: StyleEntry[];
+  readonly keyframes: Record<string, string>;
   readonly interactions: InteractionCapture;
 }
 
+/**
+ * タッチの文脈で 1 側を撮る。本体と同じ 2 通りの読み方をする（`no-preference` で動きのプロパティとキーフレーム、
+ * `reduce` で全プロパティと画素）。その後に操作の状態を書き出す。
+ */
 async function captureTouchSide(browser: Browser, state: ParityState, side: ParitySide): Promise<TouchCapture> {
   const contexts: BrowserContext[] = [];
   const servings: BaseServing[] = [];
@@ -287,7 +293,7 @@ async function captureTouchSide(browser: Browser, state: ParityState, side: Pari
     const { context, serving } = await newParityContext(browser, side, {
       viewport: { width: TOUCH_WIDTH, height: HEIGHT },
       hasTouch: true,
-      reducedMotion: 'reduce',
+      reducedMotion: 'no-preference',
     });
     if (serving !== null) servings.push(serving);
     contexts.push(context);
@@ -301,23 +307,35 @@ async function captureTouchSide(browser: Browser, state: ParityState, side: Pari
       expect(servings.flatMap((s) => s.missing()), `${state.name}（タッチ）: 基準の dist に無い資産を読もうとした`).toEqual([]);
     }
     expect(await page.evaluate(() => matchMedia('(hover: hover)').matches), 'タッチの文脈で (hover: hover) が真').toBe(false);
+
+    // 1. no-preference: 動きのプロパティとキーフレーム
+    const motion = await captureMotion(page);
+    const keyframes = await captureKeyframes(page);
+
+    // 2. reduce: 全プロパティと画素
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     await settleAtWidth(page, TOUCH_WIDTH, state.marker(page));
     await scrollToTop(page);
     const styles = await captureStyles(page, 'html', { relayout: true });
     expect(styles.length, `${state.name}（タッチ・${side}）の要素数`).toBeGreaterThanOrEqual(state.minElements);
+    const screenshot = await page.screenshot({ fullPage: true, animations: 'disabled', mask: state.mask(page) });
+
+    // 3. 操作の状態
     const interactions = await captureInteractionsAt(page, state, TOUCH_WIDTH);
-    return { styles, interactions };
+    return { styles, screenshot, motion, keyframes, interactions };
   } finally {
     for (const c of contexts) await c.close();
   }
 }
 
 for (const state of STATES.filter((s) => TOUCH_STATES.has(s.name))) {
-  test(`${state.name}（タッチ・${TOUCH_WIDTH}px）: 基準とブランチが一致する`, async ({ browser }) => {
+  test(`${state.name}（タッチ・${TOUCH_WIDTH}px）: 基準とブランチが一致する`, async ({ browser }, testInfo) => {
     const base = await captureTouchSide(browser, state, 'base');
     const branch = await captureTouchSide(browser, state, 'branch');
     const options = { tailwindThemeVars: themeVars, ignore: NOISE };
     const report: Record<string, StyleDiff[] | string[]> = {
+      motion: diffEntries(base.motion, branch.motion, options),
+      keyframes: diffKeyframes(base.keyframes, branch.keyframes),
       [`styles@${TOUCH_WIDTH}`]: diffEntries(base.styles, branch.styles, options),
       interactions: diffEntries(base.interactions.entries, branch.interactions.entries, options),
       notEntered: [
@@ -326,20 +344,26 @@ for (const state of STATES.filter((s) => TOUCH_STATES.has(s.name))) {
       ],
       skipped: onlyOnOneSide(base.interactions.skipped, branch.interactions.skipped),
     };
-    const dir = path.join(OUT, `${state.name}-touch`);
+    // `--repeat-each` の 2 回目以降は別の置き場へ書く（本体と同じ）
+    const name = `${state.name}-touch`;
+    const dir = path.join(OUT, testInfo.repeatEachIndex === 0 ? name : `${name}-r${testInfo.repeatEachIndex}`);
     mkdirSync(dir, { recursive: true });
     writeFileSync(path.join(dir, 'diff.json'), JSON.stringify(report, null, 2));
-    writeFileSync(
-      path.join(dir, 'summary.json'),
-      JSON.stringify(
-        {
-          base: { elements: base.styles.length, interactions: interactionSummary(base.interactions) },
-          branch: { elements: branch.styles.length, interactions: interactionSummary(branch.interactions) },
-        },
-        null,
-        2,
-      ),
-    );
+    const summary = (c: TouchCapture): Record<string, unknown> => ({
+      elements: c.styles.length,
+      motionEntries: c.motion.length,
+      keyframes: Object.keys(c.keyframes).sort(),
+      interactions: interactionSummary(c.interactions),
+    });
+    writeFileSync(path.join(dir, 'summary.json'), JSON.stringify({ base: summary(base), branch: summary(branch) }, null, 2));
+
+    // 画素: 本体と同じく、基準の画像を snapshot の置き場へ書き、ブランチの画像を照合する（maxDiffPixels: 0）
+    const png = `${name}-${TOUCH_WIDTH}.png`;
+    const snapshot = testInfo.snapshotPath(png);
+    mkdirSync(path.dirname(snapshot), { recursive: true });
+    writeFileSync(snapshot, base.screenshot);
+    expect.soft(branch.screenshot, `画素 ${png}`).toMatchSnapshot(png, { maxDiffPixels: 0 });
+
     const total = Object.values(report).reduce((n, list) => n + list.length, 0);
     expect(total, `${state.name}（タッチ）の差（${path.join(dir, 'diff.json')}）`).toBe(0);
   });
