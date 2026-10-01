@@ -36,6 +36,18 @@ pnpm exec playwright test -c parity/parity.control.config.ts
 - 8787・18080 を使う。終わったら `ss -tlnp | grep -E ':(8787|18080)\b'` が空であることを見る
 - 結果は `e2e/parity/out/`（無視している）。**正本は台帳**（`docs/superpowers/specs/2026-09-29-timer-without-tailwind-parity-ledger.md`）
 
+## 除去検査（基準で効いていないクラス）
+
+```bash
+cd e2e
+TASUKI_E2E_TARGET=local \
+TASUKI_PARITY_BASE_DIST=$HOME/.cache/tasuki-parity/base-ba9249d/apps/timer-web/dist \
+pnpm exec playwright test -c parity/parity.config.ts removal
+```
+
+- 基準のページでクラスを 1 つずつ外し、計算済みスタイルが変わらないものを `out/removal-probe.json` の `dead` に出す（`removal.parity.ts`）。PR 2・3 で「写さないクラス」を決めるのに使う
+- 引数なしで流す比較（上の「流す」）にも含まれる。対照実行では飛ばす
+
 ## 何を比べるか
 
 設計正本 §5 を読むこと。ここに写さない。

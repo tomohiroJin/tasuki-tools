@@ -49,7 +49,7 @@ const AWAY = { x: -10, y: -10 } as const;
  * - `input[type="range"]`: 押した位置へつまみが跳び、外へ動かすとつまみを引きずる（値が変わり、`onChange` が走る）
  * - `select`: 押すと一覧が開く（開いた一覧は別の状態で、閉じる操作が要る）
  */
-const PRESS_CHANGES_STATE = 'input[type="range"], select';
+export const PRESS_CHANGES_STATE = 'input[type="range"], select';
 
 function tag(entries: readonly StyleEntry[], kind: string): StyleEntry[] {
   return entries.map((e) => ({ ...e, path: `${e.path}#${kind}` }));
@@ -206,7 +206,7 @@ interface PressGuardWindow {
  * 覆いへ `click` が届いてダイアログが閉じた（実測: session-remove-confirm で「キャンセル」の後に対象が 28 から 26 へ減った）。
  * そのため離す・クリックの事象も止める。
  */
-async function guardPress(page: Page, on: boolean): Promise<void> {
+export async function guardPress(page: Page, on: boolean): Promise<void> {
   await page.evaluate((enable) => {
     const w = window as unknown as PressGuardWindow;
     const types = ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click', 'auxclick'];
@@ -224,7 +224,7 @@ async function guardPress(page: Page, on: boolean): Promise<void> {
 }
 
 /** 押した後、外へ動かして離し、押下で載ったフォーカスを外す（マウスなので :focus-visible ではない）。 */
-async function releaseAway(page: Page): Promise<void> {
+export async function releaseAway(page: Page): Promise<void> {
   await page.mouse.move(AWAY.x, AWAY.y);
   await page.mouse.up();
   await guardPress(page, false);
