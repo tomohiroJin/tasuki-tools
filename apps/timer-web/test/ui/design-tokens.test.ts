@@ -92,4 +92,23 @@ describe("画面のコードに生の色を書かない（#78 デザインシス
     // Then
     expect(offenders).toEqual([]);
   });
+
+  it("ALLOW の各項目は 1 度以上使われている（直した後に例外だけが残らない）", () => {
+    // Given（走査対象の全 .tsx）
+    const files = tsxFiles(ROOT);
+    // When（項目ごとに当たった回数を数える）
+    const used = new Map(ALLOW.map((a) => [a, 0]));
+    for (const full of files) {
+      const relative = full.slice(ROOT.length + 1);
+      const body = stripComments(readFileSync(full, "utf8"));
+      for (const hit of body.match(RAW_COLOR) ?? []) {
+        for (const a of ALLOW) {
+          if ((a.file === "*" || a.file === relative) && a.pattern.test(hit)) used.set(a, (used.get(a) ?? 0) + 1);
+        }
+      }
+    }
+    // Then
+    const unused = [...used].filter(([, n]) => n === 0).map(([a]) => `${a.file}: ${a.pattern}`);
+    expect(unused).toEqual([]);
+  });
 });

@@ -1277,6 +1277,15 @@ export const MUTATIONS = [
       "その要素に Tailwind の値がたまたま一致すると見えない。",
   },
   {
+    id: 118,
+    label: "design-tokens.test の ALLOW に使われない項目が残る",
+    patch: "m118-design-tokens-unused-allow.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/design-tokens.test.ts"],
+    note:
+      "#321 PR 1・設計正本 D10。生の色を直した後に例外だけが残ると、同じ場所に生の色を書き戻しても通る。",
+  },
+  {
     id: 119,
     label: "audit-timer-classes が移したファイルに残った Tailwind のクラスを見逃す",
     patch: "m119-timer-classes-undefined-class-accepted.patch",
