@@ -34,7 +34,7 @@ pnpm exec playwright test -c parity/parity.control.config.ts
 
 - turbo を経由しない（strict env に阻まれる）。WSLg では `WAYLAND_DISPLAY` が要る
 - 8787・18080 を使う。終わったら `ss -tlnp | grep -E ':(8787|18080)\b'` が空であることを見る
-- 結果は `e2e/parity/out/`（無視している）。**正本は台帳**（`docs/superpowers/specs/2026-09-29-timer-without-tailwind-parity-ledger.md`）
+- 結果は比較の出力置き場 out/（このディレクトリの中・無視している）。**正本は台帳**（`docs/superpowers/specs/2026-09-29-timer-without-tailwind-parity-ledger.md`）
 
 ## 除去検査（基準で効いていないクラス）
 
