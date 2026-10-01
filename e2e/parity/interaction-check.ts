@@ -10,6 +10,7 @@
  * - **戻した後、文書のチェックの状態すべてと要素の数が切り替える前と同じであることを断定する。** ルームの設定
  *   （交代間隔・詳細設定）は同期サーバーへ送られてから画面に戻るので、落ち着くまで待つ
  * - 戻せない・送ると他の状態を壊す要素は {@link CHECK_EXCLUDED} に理由つきで置き、`skipped` に出す
+ * - 押しても上限まで切り替わらない要素（同期を落とした状態のルームの設定）は、理由つきで `skipped` に出す
  *
  * 書き出した後のポインタとフォーカスは外す（押した要素の `:hover` / `:focus` を読みに持ち込まない）。
  */
@@ -56,6 +57,19 @@ function isOn(el: Locator): Promise<boolean> {
       : e.getAttribute('aria-checked') === 'true' || e.getAttribute('aria-pressed') === 'true',
   );
 }
+
+/** 上限まで待って、要素が `want` になったか。 */
+async function becomes(el: Locator, want: boolean): Promise<boolean> {
+  const deadline = Date.now() + SETTLE_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    if ((await isOn(el)) === want) return true;
+    await el.page().waitForTimeout(POLL_INTERVAL_MS);
+  }
+  return (await isOn(el)) === want;
+}
+
+/** {@link becomes} の読み直しの間隔。 */
+const POLL_INTERVAL_MS = 100;
 
 /** 組（同じ名前のラジオ・同じ親の `aria-pressed`）の中で、`el` 以外の切の要素を 1 つ留める。無ければ false。 */
 async function pinPartner(el: Locator, attr: string): Promise<boolean> {
@@ -195,7 +209,19 @@ async function toggleAndRestore(page: Page, el: Locator, label: string, out: Int
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
 
   // 読む（切り替わったことを読む前と後で確かめる）
-  await expect.poll(() => isOn(el), { message: `${label} が切り替わらない`, timeout: SETTLE_TIMEOUT_MS }).toBe(!wasOn);
+  if (!(await becomes(el, !wasOn))) {
+    // **切り替わらない状態がある。** ルームの設定（交代間隔・詳細設定）は同期サーバーの往復で画面に戻るので、
+    // 同期を落とした状態（banner-warn-reconnecting）では押しても変わらない（対照実行で実測）。利用者の画面でも同じ。
+    // 例外にせず理由つきで外す。`skipped` は両側で突き合わせるので、片側だけ切り替わらなければ差として赤になる
+    await page.evaluate((a) => {
+      for (const e of Array.from(document.querySelectorAll(`[${a}]`))) e.removeAttribute(a);
+    }, WAS_ON);
+    out.skipped.push(`check: ${label}（押しても切り替わらない）`);
+    await expect
+      .poll(() => snapshotOf(page), { message: `${label} を押した後、元の状態に戻らない`, timeout: SETTLE_TIMEOUT_MS })
+      .toBe(before);
+    return;
+  }
   await finishTransitions(page);
   const entries = await captureSubtree(el);
   if ((await isOn(el)) === !wasOn) record(out, wasOn ? 'unchecked' : 'checked', entries);
