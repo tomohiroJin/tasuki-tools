@@ -18,6 +18,7 @@ import {
   currentDriverRow,
   intervalButton,
   joinAsDriver,
+  joinViaHub,
   lobbyRotationRow,
   MISSING_ROOM_CODE,
   statusStrip,
@@ -771,6 +772,40 @@ export const STATES: readonly ParityState[] = [
     },
     marker: (p) => p.getByRole('heading', { name: 'セッションが見つかりません' }),
     minElements: 10,
+    mask: roomMask,
+  },
+  {
+    name: 'lobby-guest-outside',
+    // ゲストが名乗って入り、**まだ交代の輪に加わっていない**ロビー（ゲストの画面）。自分の行の「ドライバーに加わる」は
+    // `PrimaryButton` に `text-xs px-3 py-1.5` を渡す（`Lobby.tsx`）。他の状態はどれもゲストを輪に加えてから撮るので、
+    // このボタンと輪の外の行の姿は 1 度も出なかった（Task 8 の除去検査で発見）
+    async setup(open) {
+      const host = await open('host');
+      const code = await createRoom(host, HOST);
+      const guest = await open('guest');
+      await joinViaHub(guest, code, GUEST);
+      return guest;
+    },
+    marker: (p) => p.getByRole('button', { name: 'ドライバーに加わる' }),
+    minElements: 60,
+    mask: roomMask,
+  },
+  {
+    name: 'session-guest-skipping',
+    // セッション中にホストがゲストを一時離脱させた、ゲストの画面。自分の札（`SelfDriverToggle.tsx`）に「離脱中」と
+    // 「復帰」（`PrimaryButton` に `text-xs px-3 py-1.5`）が出る。他の状態には離脱中の姿が無かった（Task 8 の除去検査で発見）
+    async setup(open) {
+      const { host, guest } = await lobbyWithGuest(open);
+      await startSession(host);
+      await host.getByRole('button', { name: `${GUEST} を一時離脱させる` }).click();
+      await expect(guest.getByRole('button', { name: '復帰', exact: true })).toBeVisible();
+      // 押した側の行の操作ボタンは 450ms だけ送信中になる（session-remove-confirm の注記）。撮るのはゲストの画面だが、
+      // ホストの往復が終わったことも待つ
+      await expect(host.getByRole('button', { name: `${GUEST} を復帰させる` })).not.toHaveAttribute('aria-busy', 'true');
+      return guest;
+    },
+    marker: (p) => p.getByRole('button', { name: '復帰', exact: true }),
+    minElements: 60,
     mask: roomMask,
   },
 ];
