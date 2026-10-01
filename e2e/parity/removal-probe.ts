@@ -23,10 +23,20 @@ import { MOTION_PROPS } from './capture';
 
 /**
  * 状態の変種。これを含むクラスは、要素をその状態に入れたときだけ判定する（計画 P6）。
- * 捕まえる組は変種の名前（`hover` / `focus-visible` など）。`group-` / `peer-` は基準で使われていないが、付いていれば
- * 静止の判定へ回さないためにここで拾う（拾った後は入れられず「未判定」になる）。
+ * 捕まえる組は変種の名前（`hover` / `focus-visible` など）。`group-` / `peer-` 付きは、静止の判定へ回さないためにここで拾い、
+ * **判定せずに理由つきで未判定にする**（効くかは祖先・兄弟の状態で決まり、その要素を状態に入れても確かめられない。
+ * 基準では使われていない・{@link RELATIONAL_VARIANT}）。
  */
 export const STATE_VARIANT = /(?:^|:)(?:group-|peer-)?(hover|focus|focus-visible|focus-within|active|disabled|checked|open):/;
+
+/** 祖先・兄弟の状態で効く変種（`group-hover:` など）。判定しない（{@link STATE_VARIANT}）。 */
+export const RELATIONAL_VARIANT = /(?:^|:)(?:group-|peer-)/;
+
+/**
+ * `no-preference` の下で比べる動きのプロパティ。`scroll-behavior` も `reduce` の下で `!important` で固定される（`index.css`）ので、
+ * `scroll-smooth` のようなクラスは `reduce` の読みでは必ず死んで見える。
+ */
+export const MOTION_PROBE_PROPS: readonly string[] = [...MOTION_PROPS, 'scroll-behavior'];
 
 /**
  * 1 つのクラスを外したときの結果。`unstable` は外して戻した後の読みが外す前と違った（判定しない）。
@@ -49,8 +59,13 @@ export interface ProbeArgs {
   readonly relayout: boolean;
   /** 判定する要素を絞る属性（null なら `body` の中の全要素）。状態の変種の判定で、状態に入れた 1 要素だけを見る。 */
   readonly targetAttr: string | null;
-  /** `targetAttr` を使うときに外すクラス（状態の変種のクラス 1 つ）。 */
-  readonly token: string | null;
+  /** `targetAttr` を使うときに**まとめて**外すクラス（状態の変種のクラス。組の確かめでは複数）。 */
+  readonly tokens: readonly string[] | null;
+  /**
+   * 組の確かめ（`targetAttr` が null のとき）: 要素の道筋ごとに、まとめて外すクラスの組。null なら全要素の全クラスを
+   * 1 つずつ外す。組を渡すと、その要素だけを、組をまとめて外して判定する（結果の `token` は組を ` + ` で繋いだもの）。
+   */
+  readonly groups: Readonly<Record<string, readonly string[]>> | null;
   /**
    * `targetAttr` の要素が、判定の前と後の両方で満たすべきセレクタ（`:focus-visible` など）。null なら確かめない。
    * **同じ評価の中で確かめる**（評価の外で確かめると、確かめてから外すまでの間にフォーカストラップが状態を外しうる）。
@@ -189,9 +204,10 @@ export function probeInPage(args: ProbeArgs): ProbeResult[] {
     return unstable ? 'unstable' : 'same';
   };
 
-  const judge = (el: Element, className: string, token: string): ProbeResult => {
+  const judge = (el: Element, className: string, tokens: readonly string[]): ProbeResult => {
+    const token = tokens.join(' + ');
     const before = signature(el);
-    el.classList.remove(token);
+    el.classList.remove(...tokens);
     const after = signature(el);
     el.setAttribute('class', className);
     const restored = signature(el);
@@ -201,19 +217,26 @@ export function probeInPage(args: ProbeArgs): ProbeResult[] {
   const results: ProbeResult[] = [];
   if (args.targetAttr !== null) {
     const el = document.querySelector(`[${args.targetAttr}]`);
-    if (el === null || args.token === null) throw new Error(`判定する要素が見つからない: [${args.targetAttr}]`);
+    if (el === null || args.tokens === null) throw new Error(`判定する要素が見つからない: [${args.targetAttr}]`);
     const className = el.getAttribute('class') ?? '';
     const match = args.requireMatch;
-    if (match !== null && !el.matches(match)) return [{ path: pathOf(el), className, token: args.token, status: 'out-of-state' }];
-    const result = judge(el, className, args.token);
+    const token = args.tokens.join(' + ');
+    if (match !== null && !el.matches(match)) return [{ path: pathOf(el), className, token, status: 'out-of-state' }];
+    const result = judge(el, className, args.tokens);
     if (match !== null && !el.matches(match)) return [{ ...result, status: 'out-of-state' }];
     return [result];
   }
+  const groups = args.groups;
   for (const el of Array.from(document.body.querySelectorAll('[class]'))) {
     const className = el.getAttribute('class') ?? '';
+    if (groups !== null) {
+      const group = groups[pathOf(el)];
+      if (group !== undefined) results.push(judge(el, className, group));
+      continue;
+    }
     for (const token of Array.from(el.classList)) {
       if (stateVariant.test(token)) continue;
-      results.push(judge(el, className, token));
+      results.push(judge(el, className, [token]));
     }
   }
   return results;
@@ -226,7 +249,8 @@ export async function probeRest(page: Page): Promise<ProbeResult[]> {
     only: null,
     relayout: true,
     targetAttr: null,
-    token: null,
+    tokens: null,
+    groups: null,
     requireMatch: null,
   });
 }
@@ -240,10 +264,45 @@ export async function probeRest(page: Page): Promise<ProbeResult[]> {
 export async function probeMotion(page: Page): Promise<ProbeResult[]> {
   return page.evaluate(probeInPage, {
     stateVariantSource: STATE_VARIANT.source,
-    only: [...MOTION_PROPS],
+    only: [...MOTION_PROBE_PROPS],
     relayout: false,
     targetAttr: null,
-    token: null,
+    tokens: null,
+    groups: null,
+    requireMatch: null,
+  });
+}
+
+/**
+ * 組の確かめ: 要素ごとに、単独で死んでいると判定したクラスを**まとめて**外して判定する（`reduce`・全プロパティ）。
+ *
+ * **互いに代わりになる宣言は、片方ずつ外しても変わらない。** QR の `<img class="h-52 w-52 …">` は、元画像の縦横比で
+ * 片方を外しても残りが 208px を保つので、`h-52` と `w-52` のどちらも単独では死んで見える（両方外すと元画像の 200px）。
+ */
+export async function probeGroups(page: Page, groups: Readonly<Record<string, readonly string[]>>): Promise<ProbeResult[]> {
+  return page.evaluate(probeInPage, {
+    stateVariantSource: STATE_VARIANT.source,
+    only: null,
+    relayout: true,
+    targetAttr: null,
+    tokens: null,
+    groups,
+    requireMatch: null,
+  });
+}
+
+/** 組の確かめの動きの版（`no-preference` の下で呼ぶ）。 */
+export async function probeGroupsMotion(
+  page: Page,
+  groups: Readonly<Record<string, readonly string[]>>,
+): Promise<ProbeResult[]> {
+  return page.evaluate(probeInPage, {
+    stateVariantSource: STATE_VARIANT.source,
+    only: [...MOTION_PROBE_PROPS],
+    relayout: false,
+    targetAttr: null,
+    tokens: null,
+    groups,
     requireMatch: null,
   });
 }
@@ -270,10 +329,10 @@ export function elementPath(el: Element): string {
 const PROBE_TARGET = 'data-parity-probe';
 
 /**
- * 状態に入れた要素から、状態の変種のクラスを 1 つ外して判定する（静止と同じ範囲で比べる）。
- * `requireMatch` は判定の前後で要素が満たすべきセレクタ（{@link ProbeArgs.requireMatch}）。
+ * 状態に入れた要素から、状態の変種のクラスを外して判定する（静止と同じ範囲で比べる）。`tokens` はまとめて外す
+ * （ふつうは 1 つ。組の確かめでは複数）。`requireMatch` は判定の前後で要素が満たすべきセレクタ（{@link ProbeArgs.requireMatch}）。
  */
-export async function probeToken(el: Locator, token: string, requireMatch: string): Promise<ProbeResult> {
+export async function probeTokens(el: Locator, tokens: readonly string[], requireMatch: string): Promise<ProbeResult> {
   await el.evaluate((e, attr) => e.setAttribute(attr, ''), PROBE_TARGET);
   try {
     const [result] = await el.page().evaluate(probeInPage, {
@@ -281,7 +340,8 @@ export async function probeToken(el: Locator, token: string, requireMatch: strin
       only: null,
       relayout: false,
       targetAttr: PROBE_TARGET,
-      token,
+      tokens: [...tokens],
+      groups: null,
       requireMatch,
     });
     if (result === undefined) throw new Error('判定の結果が返らない');

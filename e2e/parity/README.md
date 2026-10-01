@@ -42,11 +42,12 @@ pnpm exec playwright test -c parity/parity.control.config.ts
 cd e2e
 TASUKI_E2E_TARGET=local \
 TASUKI_PARITY_BASE_DIST=$HOME/.cache/tasuki-parity/base-ba9249d/apps/timer-web/dist \
-pnpm exec playwright test -c parity/parity.config.ts removal
+pnpm exec playwright test -c parity/parity.removal.config.ts
 ```
 
-- 基準のページでクラスを 1 つずつ外し、計算済みスタイルが変わらないものを `out/removal-probe.json` の `dead` に出す（`removal.parity.ts`）。PR 2・3 で「写さないクラス」を決めるのに使う
-- 引数なしで流す比較（上の「流す」）にも含まれる。対照実行では飛ばす
+- 基準のページでクラスを 1 つずつ外し、計算済みスタイルが変わらないものを dead とする（`removal.parity.ts`）。PR 2・3 で「写さないクラス」を決めるのに使う
+- **既定の比較（上の「流す」）には含めない**（約 25 分かかる）。この設定でだけ流す
+- 結果は状態ごとに `out/removal/<状態>.json`。**読むときは `removal-summary.ts` の `loadRemovalProbe` を通す**（目録の状態が欠けていれば止まる。写さないのは、どの状態でも alive にも undecided にも出ない組だけ）
 
 ## 何を比べるか
 
