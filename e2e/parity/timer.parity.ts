@@ -11,7 +11,7 @@ import path from 'node:path';
 import { expect, test, type Browser, type BrowserContext, type Locator, type Page, type TestInfo } from '@playwright/test';
 import { BASE_DIST, type BaseServing } from './base-dist';
 import { captureKeyframes, captureMotion, captureStyles } from './capture';
-import { newParityContext, servesBaseDist, type ParityRole, type RafWindow } from './context';
+import { newParityContext, type ParityRole, type RafWindow } from './context';
 import { diffEntries, diffKeyframes, themeVarNamesFromCss, type StyleDiff, type StyleEntry } from './compare-lib';
 import { captureInteractions, type InteractionCapture } from './interaction';
 import { NOISE } from './noise';
@@ -182,7 +182,10 @@ function isControlRun(testInfo: TestInfo): boolean {
  * - 通常の比較のブランチ: 文脈に基準の dist の経路が 1 つも掛かっていない（ブランチのビルドを撮っている）
  */
 function assertServing(name: string, role: ParityRole, servings: readonly BaseServing[]): void {
-  if (!servesBaseDist(role)) {
+  // **`servesBaseDist` を呼ばずに独立に書く。** 実装（`newParityContext`）と同じ述語で正解を決めると、述語が壊れたとき
+  // （常に true など）ブランチの側が基準を配っても「配る側」の分岐に入って緑になる（オラクルが実装と同じ）
+  const shouldServe = role.side === 'base' || role.control;
+  if (!shouldServe) {
     expect(servings.length, `${name}（${role.side}）: 通常の比較なのに基準の dist の経路が掛かっている`).toBe(0);
     return;
   }
