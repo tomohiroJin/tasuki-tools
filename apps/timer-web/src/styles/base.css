@@ -250,28 +250,9 @@ body {
 
 /* =============================================================================
  * 没入型ステージ演出（参考デザイン準拠）
- * 交代の shake/pulse・要素の fade-up/pop-in・confetti。
+ * 要素の fade-up/pop-in。
  * すべて下の prefers-reduced-motion ブロックで抑制される。
  * ========================================================================== */
-
-@keyframes confetti-fall {
-  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
-  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
-}
-.animate-confetti { animation: confetti-fall linear forwards; }
-
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-8px); }
-  75% { transform: translateX(8px); }
-}
-.animate-shake { animation: shake 0.4s ease-in-out; }
-
-@keyframes pulse-fast {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.08); }
-}
-.animate-pulse-fast { animation: pulse-fast 0.5s ease-in-out; }
 
 @keyframes fade-up {
   0% { transform: translateY(20px); opacity: 0; }
