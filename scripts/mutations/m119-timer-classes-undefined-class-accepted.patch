@@ -1,0 +1,27 @@
+# 変異 119: timer-classes-undefined-class-accepted
+#
+# 検出を期待するテスト:
+#   - scripts/audit-timer-classes.test.mjs
+#     describe「checkTimerClasses: 定義・一覧・衝突（設計正本 D10）」の「移したファイルに Tailwind のクラスが残っていたら落とす」
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m119-*.patch
+# 復元: git apply -R scripts/mutations/m119-*.patch
+#
+# #321 PR 1・設計正本 D1・計画 P8。字面のクラス名が timer の CSS にも部品層にも定義されていなくても落とさない（定義の族）。
+# Tailwind のクラスはどちらにも定義されないので、移したファイルに取り残した Tailwind のクラスが黙って通る。
+# 一覧の「外して通るか」も同じ判定を使うので、「Tailwind のクラスが 1 つ残れば古いと判定しない」も赤になる。
+# m118 は Task 11 が予約済み。
+diff --git a/scripts/audit-timer-classes.mjs b/scripts/audit-timer-classes.mjs
+index 9a5df3f7..b7df42b0 100644
+--- a/scripts/audit-timer-classes.mjs
++++ b/scripts/audit-timer-classes.mjs
+@@ -283,7 +283,7 @@ export function checkTimerClasses({ sources, timerCss, componentCss, elementCss,
+       }
+     }
+     for (const c of usage.classes) {
+-      if (!defined.has(c.name) && !parts.has(c.name)) {
++      if (false && !defined.has(c.name) && !parts.has(c.name)) {
+         out.push(`[定義] ${rel}:${c.line} .${c.name} は timer の CSS にも部品層にも定義されていません`);
+       }
+     }

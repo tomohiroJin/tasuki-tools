@@ -6,7 +6,7 @@
  */
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { checkTimerClasses, classUsagesIn, cssClassNames } from "./audit-timer-classes.mjs";
+import { checkTimerClasses, classUsagesIn, cssClassNames, loadTailwindDetector } from "./audit-timer-classes.mjs";
 
 const messages = (text, file = "apps/timer-web/src/ui/X.tsx") => classUsagesIn(file, text).problems.map((p) => p.message);
 const names = (text, file = "apps/timer-web/src/ui/X.tsx") => classUsagesIn(file, text).classes.map((c) => c.name);
@@ -18,11 +18,20 @@ describe("classUsagesIn: 許した書き方（設計正本 D1）", () => {
     ["<p className={`a b`} />", ["a", "b"], "置換の無いテンプレート"],
     ['<p className={on ? "a" : "b c"} />', ["a", "b", "c"], "字面の分岐"],
     ['<p className={on ? (x ? "a" : "b") : "c"} />', ["a", "b", "c"], "入れ子の分岐"],
-    ["<p className={TONE_CLASS[kind]} />", [], "_CLASS の表を引く"],
-    ["<p className={TONE_CLASS.online} />", [], "_CLASS の表のプロパティ"],
+    ['const TONE_CLASS = { online: "ok" } as const; <p className={TONE_CLASS[kind]} />', ["ok"], "_CLASS の表を引く"],
+    ['const TONE_CLASS = { online: "ok" }; <p className={TONE_CLASS.online} />', ["ok"], "_CLASS の表のプロパティ"],
+    ['export const TONE_CLASS: Record<string, string> = { online: "ok" }; <p className={TONE_CLASS[k]} />', ["ok"], "型注釈つきで export した _CLASS の表"],
     ["<p className={className} />", [], "部品の受け渡し"],
     ["<p className={`card ${className}`} />", ["card"], "部品の受け渡しと字面の組み合わせ"],
     ['const TONE_CLASS = { online: "ok", lost: "ng x" } as const;', ["ok", "ng", "x"], "_CLASS の表の値"],
+    ['const p = { className: "a b" };', ["a", "b"], "オブジェクトの className キーに字面"],
+    ['<p {...{ className: on ? "a" : "b" }} />', ["a", "b"], "スプレッドの className キーに字面の分岐"],
+    ['createElement("p", { "className": "a" });', ["a"], "createElement の props の className（文字列のキー）"],
+    ["function Card({ className }) { return <div className={className} />; }", [], "引数の分割代入の className"],
+    ['function Card({ className = "a" }) { return <div className={className} />; }', ["a"], "引数の分割代入の既定値は字面"],
+    ["function Card(className) { return <div className={className} />; }", [], "引数の className"],
+    ["const Card = ({ className }) => <div {...{ className }} />;", [], "省略記法の className キー"],
+    ['import { TONE_CLASS } from "./tone"; <p className={TONE_CLASS[k]} />', [], "import した _CLASS の表（宣言した側は checkTimerClasses が見る）"],
   ];
   for (const [src, expected, why] of allowed) {
     test(`${why}: ${src}`, () => {
@@ -42,12 +51,32 @@ describe("classUsagesIn: 許さない書き方", () => {
     ['<p className={on && "a"} />', "論理式"],
     ['const TONE_CLASS = { online: `a ${x}` } as const;', "_CLASS の表の値に置換"],
     ["const TONE_CLASS = { online: pick() } as const;", "_CLASS の表の値に呼び出し"],
+    ["const p = { className: tone };", "オブジェクトの className キーに変数"],
+    ["<p {...{ className: `a ${tone}` }} />", "スプレッドの className キーに置換"],
+    ['createElement("p", { className: cls(x) });', "createElement の props の className に呼び出し"],
+    ["const className = tone; <p className={className} />", "className という名前のローカル変数"],
+    ["let className = tone;", "let の className"],
+    ["function Card({ className }) { className = tone; return <p className={className} />; }", "引数の className への再代入"],
+    ["const { className } = props; <p className={className} />", "本文での className の分割代入"],
+    ["function Card({ className = tone }) { return <div className={className} />; }", "引数の既定値に変数"],
+    ["<p className={TONE_CLASS[kind]} />", "宣言の無い _CLASS の表"],
+    ['let TONE_CLASS = { online: "ok" }; <p className={TONE_CLASS[k]} />', "let で作る _CLASS の表"],
+    ['const { TONE_CLASS } = tables; <p className={TONE_CLASS[k]} />', "分割代入で作る _CLASS の表"],
+    ["function f(TONE_CLASS) { return <p className={TONE_CLASS[k]} />; }", "引数の _CLASS の表"],
+    ["import TONE_CLASS from \"./tone\"; <p className={TONE_CLASS[k]} />", "既定の import の _CLASS の表"],
+    ["import * as TONE_CLASS from \"./tone\"; <p className={TONE_CLASS.a} />", "名前空間の import の _CLASS の表"],
   ];
   for (const [src, why] of rejected) {
     test(`${why}: ${src}`, () => {
       assert.equal(messages(src).length, 1, `${why} を見逃した`);
     });
   }
+  test("_CLASS の表への再代入は落とす（宣言の値とは別に 1 件）", () => {
+    assert.deepEqual(
+      messages('const TONE_CLASS = { a: "x" }; TONE_CLASS = other;').filter((m) => m.includes("再代入")).length,
+      1,
+    );
+  });
   test(".ts の _CLASS の表も見る", () => {
     assert.equal(messages('const A_CLASS = { x: `a ${y}` } as const;', "apps/timer-web/src/ui/presence.ts").length, 1);
   });
@@ -97,6 +126,28 @@ describe("checkTimerClasses: 定義・一覧・衝突（設計正本 D10）", ()
     const text = 'export function presenceDot(p) { return { online: "bg-presence-online" }[p]; }';
     assert.equal(checkTimerClasses({ ...base, sources: [{ rel, text }], unmigrated: [rel] }).length, 1);
   });
+  test("一覧に載っていても、外して通るなら（字面のクラス名が全部定義済み）古いと判定する", () => {
+    const rel = "apps/timer-web/src/ui/A.tsx";
+    const sources = [{ rel, text: '<p className="tabular ui-panel" />' }];
+    const problems = checkTimerClasses({ ...base, sources, unmigrated: [rel] });
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /外しても検査を通ります/);
+  });
+  test("一覧に載っていて、部品の受け渡しだけのファイルも古いと判定する", () => {
+    const rel = "apps/timer-web/src/ui/A.tsx";
+    const sources = [{ rel, text: "export const A = ({ className }) => <p className={className} />;" }];
+    assert.equal(checkTimerClasses({ ...base, sources, unmigrated: [rel] }).length, 1);
+  });
+  test("一覧に載っていて、Tailwind のクラスが 1 つ残っているファイルは古いと判定しない", () => {
+    const rel = "apps/timer-web/src/ui/A.tsx";
+    const sources = [{ rel, text: '<p className="tabular px-3" />' }];
+    assert.deepEqual(checkTimerClasses({ ...base, sources, unmigrated: [rel] }), []);
+  });
+  test("一覧に載っていて、書き方の違反が残っているファイルは古いと判定しない", () => {
+    const rel = "apps/timer-web/src/ui/A.tsx";
+    const sources = [{ rel, text: '<p className={"tabular " + x} />' }];
+    assert.deepEqual(checkTimerClasses({ ...base, sources, unmigrated: [rel] }), []);
+  });
   test("一覧に実在しないファイルがあれば落とす", () => {
     assert.equal(checkTimerClasses({ ...base, unmigrated: ["apps/timer-web/src/ui/Gone.tsx"] }).length, 1);
   });
@@ -113,5 +164,49 @@ describe("checkTimerClasses: 定義・一覧・衝突（設計正本 D10）", ()
   test("使われていない衝突の例外は落とす", () => {
     const timerCss = [{ rel: "apps/timer-web/src/styles/x.css", text: ".tabular{}" }];
     assert.equal(checkTimerClasses({ ...base, timerCss }).length, 1);
+  });
+});
+
+describe("checkTimerClasses: import した _CLASS の表", () => {
+  const tone = { rel: "apps/timer-web/src/ui/tone.ts", text: 'export const TONE_CLASS = { a: "tabular" } as const;' };
+  const user = (spec = "./tone") => ({ rel: "apps/timer-web/src/ui/A.tsx", text: `import { TONE_CLASS } from "${spec}"; <p className={TONE_CLASS[k]} />` });
+  test("対照: 一覧に無い timer のファイルが const で宣言した表は許す", () => {
+    assert.deepEqual(checkTimerClasses({ ...base, sources: [tone, user()] }), []);
+  });
+  test("拡張子つきの指定子でも同じ", () => {
+    assert.deepEqual(checkTimerClasses({ ...base, sources: [tone, user("./tone.ts")] }), []);
+  });
+  test("宣言した側が一覧に載っていたら落とす（値を検査していない）", () => {
+    const problems = checkTimerClasses({ ...base, sources: [tone, user()], unmigrated: [tone.rel] });
+    assert.equal(problems.filter((p) => p.includes("TONE_CLASS")).length, 1);
+  });
+  test("timer の外（パッケージ）から import した表は落とす", () => {
+    const sources = [tone, { rel: "apps/timer-web/src/ui/A.tsx", text: 'import { TONE_CLASS } from "@tasuki/ui"; <p className={TONE_CLASS[k]} />' }];
+    assert.equal(checkTimerClasses({ ...base, sources }).length, 1);
+  });
+  test("宣言した側にその名前の const の表が無ければ落とす（別名の import を含む）", () => {
+    const other = { rel: "apps/timer-web/src/ui/tone.ts", text: 'export const TONE = { a: "tabular" };' };
+    const aliased = { rel: "apps/timer-web/src/ui/A.tsx", text: 'import { TONE as TONE_CLASS } from "./tone"; <p className={TONE_CLASS[k]} />' };
+    assert.equal(checkTimerClasses({ ...base, sources: [other, aliased] }).length, 1);
+  });
+});
+
+describe("loadTailwindDetector: timer の Tailwind と同じテーマで判定する（結合・apps/timer-web の tailwindcss を読む）", () => {
+  test("timer の tailwind.config.js で足したユーティリティを Tailwind と判定する", async () => {
+    const isTailwind = await loadTailwindDetector();
+    // Given/When/Then: 設定で足した色・既定のユーティリティは真、timer 独自の名前は偽
+    assert.equal(isTailwind("bg-presence-online"), true, "設定の colors で足したユーティリティを見逃した");
+    assert.equal(isTailwind("text-presence-idle"), true);
+    assert.equal(isTailwind("container"), true);
+    assert.equal(isTailwind("tabular"), false);
+  });
+  test("出力が累積しても、前に判定した名前の字面に引きずられない", async () => {
+    const isTailwind = await loadTailwindDetector();
+    // Given: 先に hover:underline を判定する（出力に `.hover\:underline` が残る）
+    assert.equal(isTailwind("hover:underline"), true);
+    // When/Then: hover は単独ではユーティリティではない
+    assert.equal(isTailwind("hover"), false);
+    assert.equal(isTailwind("px-3"), true);
+    assert.equal(isTailwind("px"), false);
   });
 });

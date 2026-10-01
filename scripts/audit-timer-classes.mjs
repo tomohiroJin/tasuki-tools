@@ -5,24 +5,33 @@
  * ## 何を見るか
  *
  *   0. **走査対象の健全性**（`docs/adr/0014`）: timer の `.tsx` / `.ts`・timer の CSS・部品層と要素層の CSS の件数が 0 なら落とす。
- *      「まだ移していないファイル」の一覧（{@link UNMIGRATED}）に、実在しないファイルと、クラス名を 1 つも書いていない
- *      ファイル（許した形のクラス名も許さない形の書き込みも 0 件で、かつ本文に `className` / `_CLASS` / 語末の `Class`
- *      の字面も無いもの）があれば落とす（古い一覧が、移したファイルを免除し続けるのを止める）
- *   1. **書き方**（一覧に無いファイルだけ）: `className` に渡してよいのは、文字列リテラル・置換の無いテンプレート・
- *      それらを枝に持つ条件式・名前が `_CLASS` で終わる表の要素・`className` という名前の値（部品の受け渡し）と、
- *      それを置換に持つテンプレートだけ。`_CLASS` で終わる表の値は文字列リテラルだけ
+ *      「まだ移していないファイル」の一覧（{@link UNMIGRATED}）に、実在しないファイルと、**一覧から外しても 1 と 2 を通る
+ *      ファイル**があれば落とす（古い一覧が、移したファイルを免除し続けるのを止める）。ただし、クラス名を書く場所
+ *      （`className` の属性・キー）も字面のクラス名も無く、本文に `className` / `_CLASS` / 語末の `Class` の字面だけがある
+ *      ファイル（関数でクラス名を返す `presence.ts`）は、中身を検査できないので落とさない
+ *   1. **書き方**（一覧に無いファイルだけ）: `className` の属性と、オブジェクトの `className` キー（スプレッドや
+ *      `createElement` の props）に渡してよいのは、文字列リテラル・置換の無いテンプレート・それらを枝に持つ条件式・
+ *      名前が `_CLASS` で終わる表の要素・`className` という名前の値（部品の受け渡し）と、それを置換に持つテンプレートだけ。
+ *      - `className` という名前の束縛は、関数の引数（と引数の分割代入）だけ。ローカル変数の宣言・再代入は落とす
+ *      - `_CLASS` の表は、同じファイルの `const` の宣言（値は字面だけ）か、一覧に無い timer のファイルが `const` で
+ *        宣言したものの import だけ。`let`・引数・分割代入・再代入で作る `_CLASS` と、宣言の見えない `_CLASS` は落とす
  *   2. **定義**（一覧に無いファイルだけ）: 1 の形から字面で取り出したクラス名は、timer の CSS か部品層に定義されている。
  *      Tailwind のクラスはどちらにも定義されないので、移したファイルに残った Tailwind のクラスもここで落ちる（計画 P8）
- *   3. **衝突**: timer の CSS が定義したクラス名は、要素層のクラス名・Tailwind のユーティリティ名と重ならない
+ *   3. **衝突**: timer の CSS が定義したクラス名は、要素層のクラス名・Tailwind のユーティリティ名（timer の
+ *      `tailwind.config.js` で足したものを含む）と重ならない
  *      （{@link KNOWN_COLLISIONS} に理由つきで載せたものを除く。使われていない例外は落とす）
  *
  * ## 何を見ていないか —— 「足りる」とは言わない
  *
  * - `data-*` 属性の値と CSS の対応（比較の仕組みと E2E が見る・設計正本 D10）
  * - `style={{}}`
- * - 一覧に載ったファイル（移行中の免除。PR 4 で一覧は空になる）
+ * - 一覧に載ったファイルの書き方と定義（移行中の免除。PR 4 で一覧は空になる）
  * - timer の画面の CSS が部品層（`.ui-*`）を持つ要素のプロパティを上書きしていないか（設計正本 D3。PR ごとに人が見る）
- * - `className` 以外の名前の属性でクラス名を渡す書き方（`class=` は React では使わない）
+ * - `className` 以外の名前の属性・props でクラス名を渡す書き方（`cls={x}` を部品の中で `className` へ渡す形。
+ *   部品の中の `className={cls}` は落ちるが、部品の外の `cls={x}` の値は見ない）
+ * - `.ts` の関数がクラス名を返す形（`presence.ts`）。一覧に載っている間は「古い一覧」の判定からも外れ、一覧から外した後は
+ *   書き方の検査にも掛からない（`className` の場所が無いため）。外すときに人が見る
+ * - `{...props}` のスプレッドの中身（`className` キーを字面で持つオブジェクトリテラルだけを見る）
  *
  * 依存: postcss・postcss-selector-parser（ADR 0022 決定 7）と typescript（ルートの devDependencies）。
  * Tailwind のユーティリティ名の判定は `apps/timer-web` の `tailwindcss` を解決して使う（移行中だけ。ADR 0023・計画 P7）。
@@ -42,7 +51,7 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..
 
 /**
  * まだ移していないファイル（設計正本 D10 の 3）。**PR 2・3 で移したら消す。PR 4 で空にして、この一覧ごと消す。**
- * 一覧に載っているのにクラス名を 1 つも書いていないファイル（`className` / `_CLASS` / 語末の `Class` の字面も無いもの）は、検査が落とす。
+ * 一覧に載っているのに、外しても書き方と定義の検査を通るファイルは、検査が「古い一覧」として落とす。
  */
 export const UNMIGRATED = [
   "apps/timer-web/src/App.tsx",
@@ -99,13 +108,42 @@ export function cssClassNames(text) {
 
 const isClassTable = (name) => /_CLASS$/.test(name);
 const tokensOf = (s) => s.split(/\s+/).filter((t) => t !== "");
+/** プロパティ名・属性名の字面（識別子か文字列）。計算されたキーは undefined。 */
+const propNameOf = (name) => (name !== undefined && (ts.isIdentifier(name) || ts.isStringLiteral(name)) ? name.text : undefined);
+const unwrapTyped = (e) => {
+  let cur = e;
+  while (ts.isAsExpression(cur) || ts.isSatisfiesExpression(cur) || ts.isParenthesizedExpression(cur)) cur = cur.expression;
+  return cur;
+};
+/** 束縛（引数・分割代入の要素）が関数の引数の中にあるか。 */
+const isInsideParameter = (node) => {
+  for (let cur = node; cur !== undefined; cur = cur.parent) {
+    if (ts.isParameter(cur)) return true;
+    if (ts.isVariableDeclaration(cur) || ts.isBlock(cur) || ts.isSourceFile(cur)) return false;
+  }
+  return false;
+};
 
-/** `.tsx` / `.ts` から、許した形のクラス名と、許さない形の書き込みを取り出す。 */
+/**
+ * `.tsx` / `.ts` から、許した形のクラス名と、許さない形の書き込みを取り出す。
+ *
+ * - `classes`: 字面で取り出したクラス名（定義の検査に回す）
+ * - `problems`: 許さない書き方
+ * - `classNameSites`: `className` の属性とオブジェクトの `className` キーの数（クラス名を書く場所の数）
+ * - `tableImports`: import した `_CLASS` の表（`{ local, imported, from, line }`）。宣言した側の検査は {@link checkTimerClasses} が引く
+ * - `tableExports`: このファイルが `const` で宣言した `_CLASS` の表の名前
+ */
 export function classUsagesIn(fileName, text) {
   const kind = fileName.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
   const sf = ts.createSourceFile(fileName, text, ts.ScriptTarget.Latest, true, kind);
   const classes = [];
   const problems = [];
+  const tableImports = [];
+  const tableExports = new Set();
+  const tableRefs = [];
+  // 名前が _CLASS の束縛（許さない形も含む）。許さない束縛は宣言の側で 1 度だけ落とし、引く側では重ねない
+  const tableBindings = new Set();
+  let classNameSites = 0;
   const lineOf = (node) => sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
   const addLiteral = (node, value) => {
     for (const name of tokensOf(value)) classes.push({ name, line: lineOf(node) });
@@ -121,7 +159,10 @@ export function classUsagesIn(fileName, text) {
       checkExpr(e.whenFalse);
       return;
     }
-    if ((ts.isElementAccessExpression(e) || ts.isPropertyAccessExpression(e)) && ts.isIdentifier(e.expression) && isClassTable(e.expression.text)) return;
+    if ((ts.isElementAccessExpression(e) || ts.isPropertyAccessExpression(e)) && ts.isIdentifier(e.expression) && isClassTable(e.expression.text)) {
+      tableRefs.push(e.expression);
+      return;
+    }
     if (ts.isIdentifier(e) && e.text === "className") return;
     if (ts.isTemplateExpression(e)) {
       addLiteral(e, e.head.text);
@@ -134,32 +175,76 @@ export function classUsagesIn(fileName, text) {
     reject(e, "className に渡す式");
   };
 
+  /** `const X_CLASS = { … }` の値は字面だけ。 */
+  const checkTable = (decl) => {
+    const init = decl.initializer === undefined ? undefined : unwrapTyped(decl.initializer);
+    if (init === undefined || !ts.isObjectLiteralExpression(init)) return reject(init ?? decl, "_CLASS の表");
+    for (const prop of init.properties) {
+      if (ts.isPropertyAssignment(prop) && (ts.isStringLiteral(prop.initializer) || ts.isNoSubstitutionTemplateLiteral(prop.initializer))) {
+        addLiteral(prop.initializer, prop.initializer.text);
+      } else {
+        reject(prop, "_CLASS の表の値");
+      }
+    }
+  };
+
+  /** 名前が `className` / `_CLASS` の束縛（宣言・引数・分割代入）。 */
+  const checkBinding = (node, name) => {
+    if (name === "className") {
+      // 部品の受け渡し（引数と、引数の分割代入）だけを許す。既定値は字面に限る
+      if (!isInsideParameter(node)) return reject(node, "className という名前の変数の宣言");
+      if (node.initializer !== undefined) checkExpr(node.initializer);
+      return;
+    }
+    if (!isClassTable(name)) return;
+    tableBindings.add(name);
+    const isConstDecl =
+      ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && ts.isVariableDeclarationList(node.parent) && (node.parent.flags & ts.NodeFlags.Const) !== 0;
+    if (!isConstDecl) return reject(node, "_CLASS の表を const の宣言以外で作る書き方");
+    tableExports.add(name);
+    checkTable(node);
+  };
+
   const visit = (node) => {
     if (ts.isJsxAttribute(node) && node.name.getText(sf) === "className") {
+      classNameSites += 1;
       const init = node.initializer;
       if (init === undefined) reject(node, "値の無い className");
       else if (ts.isStringLiteral(init)) addLiteral(init, init.text);
       else if (ts.isJsxExpression(init) && init.expression !== undefined) checkExpr(init.expression);
       else reject(init, "className の値");
     }
-    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && isClassTable(node.name.text) && node.initializer !== undefined) {
-      let init = node.initializer;
-      while (ts.isAsExpression(init) || ts.isSatisfiesExpression(init) || ts.isParenthesizedExpression(init)) init = init.expression;
-      if (!ts.isObjectLiteralExpression(init)) reject(init, "_CLASS の表");
-      else {
-        for (const prop of init.properties) {
-          if (ts.isPropertyAssignment(prop) && (ts.isStringLiteral(prop.initializer) || ts.isNoSubstitutionTemplateLiteral(prop.initializer))) {
-            addLiteral(prop.initializer, prop.initializer.text);
-          } else {
-            reject(prop, "_CLASS の表の値");
-          }
-        }
-      }
+    // オブジェクトの className キー（スプレッドの `{...{ className: x }}`・createElement の props）も同じ形に限る
+    if (ts.isPropertyAssignment(node) && propNameOf(node.name) === "className") {
+      classNameSites += 1;
+      checkExpr(node.initializer);
+    }
+    if (ts.isShorthandPropertyAssignment(node) && node.name.text === "className") classNameSites += 1;
+    if ((ts.isVariableDeclaration(node) || ts.isParameter(node)) && ts.isIdentifier(node.name)) checkBinding(node, node.name.text);
+    if (ts.isBindingElement(node) && ts.isIdentifier(node.name)) checkBinding(node, node.name.text);
+    // 再代入（`className = x`・`X_CLASS = …`）
+    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken && ts.isIdentifier(node.left)) {
+      const name = node.left.text;
+      if (name === "className" || isClassTable(name)) reject(node, `${name} への再代入`);
+    }
+    if (ts.isImportSpecifier(node) && isClassTable(node.name.text) && ts.isStringLiteral(node.parent.parent.parent.moduleSpecifier)) {
+      tableImports.push({
+        local: node.name.text,
+        imported: (node.propertyName ?? node.name).text,
+        from: node.parent.parent.parent.moduleSpecifier.text,
+        line: lineOf(node),
+      });
     }
     ts.forEachChild(node, visit);
   };
   visit(sf);
-  return { classes, problems };
+
+  // 引いた _CLASS の表は、同じファイルの const の宣言か import に限る
+  const imported = new Set(tableImports.map((i) => i.local));
+  for (const ref of tableRefs) {
+    if (!tableBindings.has(ref.text) && !imported.has(ref.text)) reject(ref, `宣言の無い _CLASS の表（${ref.text}）を引く書き方`);
+  }
+  return { classes, problems, classNameSites, tableImports, tableExports };
 }
 
 /**
@@ -167,6 +252,14 @@ export function classUsagesIn(fileName, text) {
  * 一覧の「古い」判定で、関数でクラス名を返すファイル（`presenceDotClass` など）を誤って落とさないために使う。
  */
 const mentionsClasses = (text) => /className|_CLASS|Class\b/.test(text);
+
+/** import の指定子を timer のファイルへ解く（相対パスだけ。拡張子は省略・明示の両方）。 */
+function resolveImport(fromRel, specifier, byRel) {
+  if (!specifier.startsWith(".")) return undefined;
+  const base = path.posix.join(path.posix.dirname(fromRel), specifier);
+  const stem = base.replace(/\.(js|jsx|ts|tsx)$/, "");
+  return [base, `${stem}.ts`, `${stem}.tsx`, `${stem}/index.ts`, `${stem}/index.tsx`].find((rel) => byRel.has(rel));
+}
 
 /** 判定の本体（純粋関数）。 */
 export function checkTimerClasses({ sources, timerCss, componentCss, elementCss, unmigrated, collisions, isTailwindUtility }) {
@@ -176,29 +269,45 @@ export function checkTimerClasses({ sources, timerCss, componentCss, elementCss,
   const elementNames = new Set(elementCss.flatMap((f) => [...cssClassNames(f.text)]));
   const listed = new Set(unmigrated);
   const byRel = new Map(sources.map((s) => [s.rel, s]));
+  const usages = new Map(sources.map((s) => [s.rel, classUsagesIn(s.rel, s.text)]));
+
+  /** 書き方と定義の違反（一覧に無いファイルとして見たとき）。 */
+  const fileProblems = (rel) => {
+    const usage = usages.get(rel);
+    const out = usage.problems.map((p) => `[書き方] ${rel}:${p.line} ${p.message}`);
+    // import した _CLASS の表は、宣言した側が一覧に無い timer のファイルなら値を検査済みなので許す
+    for (const imp of usage.tableImports) {
+      const target = resolveImport(rel, imp.from, byRel);
+      if (target === undefined || listed.has(target) || !usages.get(target).tableExports.has(imp.imported)) {
+        out.push(`[書き方] ${rel}:${imp.line} import した ${imp.local} は、一覧に無い timer のファイルが const で宣言した _CLASS の表ではありません（値を検査できない）`);
+      }
+    }
+    for (const c of usage.classes) {
+      if (!defined.has(c.name) && !parts.has(c.name)) {
+        out.push(`[定義] ${rel}:${c.line} .${c.name} は timer の CSS にも部品層にも定義されていません`);
+      }
+    }
+    return out;
+  };
 
   for (const rel of unmigrated) {
-    const source = byRel.get(rel);
-    if (source === undefined) {
+    if (!byRel.has(rel)) {
       problems.push(`[移行の一覧] ${rel} は実在しません。一覧から外す`);
       continue;
     }
-    const usage = classUsagesIn(rel, source.text);
-    // 関数の戻り値でクラス名を返すファイル（presence.ts）は classUsagesIn が数えないので、字面でも見る
-    if (usage.classes.length === 0 && usage.problems.length === 0 && !mentionsClasses(source.text)) {
-      problems.push(`[移行の一覧] ${rel} はクラス名を 1 つも書いていません。移し終えたなら一覧から外す`);
+    // 一覧に載ったファイルにも検査を試しに当て、外しても通るなら「古い」と落とす。
+    // クラス名を書く場所が無く `Class` の字面だけがあるファイル（関数でクラス名を返す presence.ts）は、
+    // 検査が中身を見られないので外せない —— 落とさない
+    const usage = usages.get(rel);
+    const writesClasses = usage.classes.length > 0 || usage.classNameSites > 0;
+    if (fileProblems(rel).length === 0 && (writesClasses || !mentionsClasses(byRel.get(rel).text))) {
+      problems.push(`[移行の一覧] ${rel} は一覧から外しても検査を通ります。移し終えたなら一覧から外す`);
     }
   }
 
   for (const source of sources) {
     if (listed.has(source.rel)) continue;
-    const usage = classUsagesIn(source.rel, source.text);
-    for (const p of usage.problems) problems.push(`[書き方] ${source.rel}:${p.line} ${p.message}`);
-    for (const c of usage.classes) {
-      if (!defined.has(c.name) && !parts.has(c.name)) {
-        problems.push(`[定義] ${source.rel}:${c.line} .${c.name} は timer の CSS にも部品層にも定義されていません`);
-      }
-    }
+    problems.push(...fileProblems(source.rel));
   }
 
   for (const name of defined) {
@@ -213,21 +322,48 @@ export function checkTimerClasses({ sources, timerCss, componentCss, elementCss,
   return problems;
 }
 
-/** Tailwind のユーティリティ名か（`apps/timer-web` の tailwindcss の compile() で判定する・計画 P7）。 */
+/**
+ * Tailwind のユーティリティ名か（`apps/timer-web` の tailwindcss の compile() で判定する・計画 P7）。
+ *
+ * timer の `index.css` と同じテーマで判定するため、`apps/timer-web` を基点に `@config '../tailwind.config.js'` 相当
+ * （`@config "./tailwind.config.js"`）を読む。読まないと設定で足したユーティリティ（`bg-presence-online` など）を
+ * 「Tailwind ではない」と返し、timer の CSS が同名のクラスを定義しても衝突を見逃す。
+ *
+ * `compiler.build()` は呼ぶたびに候補が溜まり、出力は累積になる（`hover:underline` の後では `.hover` が字面に現れる）。
+ * そのため「この名前を足して出力が増え、かつその名前のセレクタが増えたか」で判定し、結果は名前ごとに覚える。
+ */
 export async function loadTailwindDetector(repoRoot = REPO_ROOT) {
-  const require = createRequire(path.join(repoRoot, "apps/timer-web/package.json"));
+  const appDir = path.join(repoRoot, "apps/timer-web");
+  const require = createRequire(path.join(appDir, "package.json"));
   const mod = await import(pathToFileURL(require.resolve("tailwindcss")).href);
   const tw = typeof mod.compile === "function" ? mod : mod.default;
-  const compiler = await tw.compile('@import "tailwindcss";', {
-    base: repoRoot,
-    async loadStylesheet(id) {
-      const file = require.resolve(id === "tailwindcss" ? "tailwindcss/index.css" : id);
+  const resolveFrom = (id, base) => (id.startsWith(".") ? path.resolve(base, id) : require.resolve(id === "tailwindcss" ? "tailwindcss/index.css" : id));
+  const compiler = await tw.compile('@import "tailwindcss";\n@config "./tailwind.config.js";\n', {
+    base: appDir,
+    async loadStylesheet(id, base) {
+      const file = resolveFrom(id, base);
       return { path: file, base: path.dirname(file), content: fs.readFileSync(file, "utf8") };
+    },
+    async loadModule(id, base) {
+      const file = resolveFrom(id, base);
+      const loaded = await import(pathToFileURL(file).href);
+      return { path: file, base: path.dirname(file), module: loaded.default ?? loaded };
     },
   });
   const escapeCss = (n) => n.replace(/[^a-zA-Z0-9_-]/g, (ch) => `\\${ch}`);
   const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return (name) => new RegExp(`\\.${escapeRe(escapeCss(name))}(?![\\w-])`).test(compiler.build([name]));
+  const memo = new Map();
+  let previous = compiler.build([]);
+  return (name) => {
+    if (memo.has(name)) return memo.get(name);
+    const selector = new RegExp(`\\.${escapeRe(escapeCss(name))}(?![\\w-])`, "g");
+    const before = (previous.match(selector) ?? []).length;
+    const next = compiler.build([name]);
+    const isUtility = next !== previous && (next.match(selector) ?? []).length > before;
+    previous = next;
+    memo.set(name, isUtility);
+    return isUtility;
+  };
 }
 
 function readAll(rels) {
