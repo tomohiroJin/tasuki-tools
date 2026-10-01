@@ -15,7 +15,15 @@ export type ParitySide = 'base' | 'branch';
  * 読み方の揺れだけを浮かび上がらせる・計画 Task 6）。PR 2〜4 の対照実行でも使うので残す。
  */
 export function servesBaseDist(side: ParitySide): boolean {
-  return side === 'base' || process.env['TASUKI_PARITY_CONTROL'] === '1';
+  return side === 'base' || isControlRun();
+}
+
+/**
+ * 対照実行か。**シェルに残った `TASUKI_PARITY_CONTROL=1` で通常の比較が基準同士の比較になる**（偽の緑）ので、
+ * 対照実行のときはテストのタイトルと書き出しに明記し、そうでないときはブランチの側が基準の dist から 1 件も返していないことを断定する。
+ */
+export function isControlRun(): boolean {
+  return process.env['TASUKI_PARITY_CONTROL'] === '1';
 }
 
 /** 文脈を作った時点で退避した本物の `requestAnimationFrame`（`page.clock` に差し替えられる前のもの）。 */

@@ -16,6 +16,6 @@ export const NOISE: readonly IgnoreRule[] = [
     prop: /^stroke-dashoffset$/,
     reason:
       '計測弧の長さは経過率（サーバーが決めた開始時刻と端末の時計の補正から求める）で決まり、両側は別のセッションを別の時刻に撮るので揃わない。' +
-      '対照実行 1 回目でセッションの 10 状態の全 5 幅とタッチの 1 本に各 1 件（例: 442.61px と 442.628px）。画素は states.ts の meterArc でマスクする',
+      '画素は撮るときだけ長さを固定して比べる（states.ts の SCREENSHOT_STYLE）',
   },
 ];

@@ -11,11 +11,11 @@ import path from 'node:path';
 import { expect, test, type Browser, type BrowserContext, type Locator, type Page } from '@playwright/test';
 import { BASE_DIST, type BaseServing } from './base-dist';
 import { captureKeyframes, captureMotion, captureStyles } from './capture';
-import { newParityContext, servesBaseDist, type ParitySide, type RafWindow } from './context';
+import { isControlRun, newParityContext, servesBaseDist, type ParitySide, type RafWindow } from './context';
 import { diffEntries, diffKeyframes, themeVarNamesFromCss, type StyleDiff, type StyleEntry } from './compare-lib';
 import { captureInteractions, type InteractionCapture } from './interaction';
 import { NOISE } from './noise';
-import { STATES, WIDTHS, type ParityState } from './states';
+import { METER_ARC_SELECTOR, SCREENSHOT_STYLE, STATES, WIDTHS, type ParityState } from './states';
 
 const OUT = path.join(path.dirname(new URL(import.meta.url).pathname), 'out');
 const HEIGHT = 900;
@@ -160,6 +160,45 @@ function onlyOnOneSide(base: readonly string[], branch: readonly string[]): stri
   return extra;
 }
 
+/**
+ * 側ごとに、基準の dist を配ったかを断定する。
+ *
+ * - 基準の dist を配る側（基準・対照実行のブランチ）: 1 件以上返し、dist に無い資産を読もうとしていない
+ * - それ以外（通常の比較のブランチ）: **1 件も返していない**。返していたら基準同士を比べている（偽の緑）
+ */
+function assertServing(name: string, side: ParitySide, servings: readonly BaseServing[]): void {
+  const served = servings.reduce((n, s) => n + s.served(), 0);
+  if (!servesBaseDist(side)) {
+    expect(served, `${name}（${side}）: 通常の比較なのに基準の dist から返している`).toBe(0);
+    return;
+  }
+  expect(served, `${name}（${side}）: 基準の dist から 1 件も返していない`).toBeGreaterThan(0);
+  expect(servings.flatMap((s) => s.missing()), `${name}（${side}）: 基準の dist に無い資産を読もうとした`).toEqual([]);
+}
+
+/**
+ * 画素を撮る。計測弧の長さは撮るときだけ固定する（`states.ts` の `SCREENSHOT_STYLE`）。
+ *
+ * **上書きが弧の円にだけ当たることを断定する。** セレクタが何にも当たらないと上書きが黙って効かず、当たりすぎると
+ * 別の要素の画素を変える。残り時間（`timer`）の数と同じ数の、`stroke-dasharray` を持つ `<circle>` に当たること。
+ */
+async function screenshotOf(page: Page, state: ParityState): Promise<Buffer> {
+  const hits = await page.evaluate((selector) => {
+    const found = Array.from(document.querySelectorAll(selector));
+    return {
+      count: found.length,
+      arcs: found.filter((e) => e.localName === 'circle' && e.hasAttribute('stroke-dasharray')).length,
+      timers: document.querySelectorAll('[role="timer"]').length,
+    };
+  }, METER_ARC_SELECTOR);
+  expect(hits, `${state.name}: 計測弧の上書きが弧の円にだけ当たらない`).toEqual({
+    count: hits.timers,
+    arcs: hits.timers,
+    timers: hits.timers,
+  });
+  return page.screenshot({ fullPage: true, animations: 'disabled', mask: state.mask(page), style: SCREENSHOT_STYLE });
+}
+
 async function captureSide(browser: Browser, state: ParityState, side: ParitySide): Promise<Capture> {
   const contexts: BrowserContext[] = [];
   const servings: BaseServing[] = [];
@@ -175,11 +214,7 @@ async function captureSide(browser: Browser, state: ParityState, side: ParitySid
   try {
     const page = await state.setup(open);
     await expect(state.marker(page), `${state.name}（${side}）の目印`).toBeVisible();
-    if (servesBaseDist(side)) {
-      const served = servings.reduce((n, s) => n + s.served(), 0);
-      expect(served, `${state.name}: 基準の dist から 1 件も返していない`).toBeGreaterThan(0);
-      expect(servings.flatMap((s) => s.missing()), `${state.name}: 基準の dist に無い資産を読もうとした`).toEqual([]);
-    }
+    assertServing(state.name, side, servings);
 
     // 1. no-preference: 動きのプロパティとキーフレーム（静的な値なので揺れない）
     const motion = await captureMotion(page);
@@ -198,10 +233,7 @@ async function captureSide(browser: Browser, state: ParityState, side: ParitySid
       const entries = await captureStyles(page, 'html', { relayout: true });
       expect(entries.length, `${state.name}@${width}（${side}）の要素数`).toBeGreaterThanOrEqual(state.minElements);
       styles.set(width, entries);
-      screenshots.set(
-        width,
-        await page.screenshot({ fullPage: true, animations: 'disabled', mask: state.mask(page) }),
-      );
+      screenshots.set(width, await screenshotOf(page, state));
     }
 
     // 3. 操作の状態: 静止の読みを全部終えてから行う（押下や Tab で残るフォーカス・スクロールを、静止の読みへ持ち込まない）
@@ -215,13 +247,19 @@ async function captureSide(browser: Browser, state: ParityState, side: ParitySid
 
 const themeVars = tailwindThemeVars();
 
+/**
+ * テストのタイトルの比べる相手。対照実行ではブランチの側にも基準の dist を配るので、それと分かるように書く
+ * （シェルに残った `TASUKI_PARITY_CONTROL=1` で通常の比較のつもりが基準同士になっても、タイトルで気づける）。
+ */
+const VERDICT = isControlRun() ? '基準と基準が一致する（対照実行）' : '基準とブランチが一致する';
+
 /** 操作の書き出しの件数（種類ごと）と、外した要素。 */
 function interactionSummary(c: InteractionCapture): Record<string, unknown> {
   return { counts: c.counts, entries: c.entries.length, notEntered: c.notEntered, skipped: c.skipped };
 }
 
 for (const state of STATES) {
-  test(`${state.name}: 基準とブランチが一致する`, async ({ browser }, testInfo) => {
+  test(`${state.name}: ${VERDICT}`, async ({ browser }, testInfo) => {
     const base = await captureSide(browser, state, 'base');
     const branch = await captureSide(browser, state, 'branch');
 
@@ -254,7 +292,7 @@ for (const state of STATES) {
     });
     writeFileSync(
       path.join(dir, 'summary.json'),
-      JSON.stringify({ base: summary(base), branch: summary(branch) }, null, 2),
+      JSON.stringify({ control: isControlRun(), base: summary(base), branch: summary(branch) }, null, 2),
     );
 
     // 画素: 基準の画像を snapshot の置き場へ書き、ブランチの画像を照合する（maxDiffPixels: 0）
@@ -302,10 +340,7 @@ async function captureTouchSide(browser: Browser, state: ParityState, side: Pari
   try {
     const page = await state.setup(open);
     await expect(state.marker(page), `${state.name}（タッチ・${side}）の目印`).toBeVisible();
-    if (servesBaseDist(side)) {
-      expect(servings.reduce((n, s) => n + s.served(), 0), `${state.name}（タッチ）: 基準の dist から 1 件も返していない`).toBeGreaterThan(0);
-      expect(servings.flatMap((s) => s.missing()), `${state.name}（タッチ）: 基準の dist に無い資産を読もうとした`).toEqual([]);
-    }
+    assertServing(`${state.name}（タッチ）`, side, servings);
     expect(await page.evaluate(() => matchMedia('(hover: hover)').matches), 'タッチの文脈で (hover: hover) が真').toBe(false);
 
     // 1. no-preference: 動きのプロパティとキーフレーム
@@ -318,7 +353,7 @@ async function captureTouchSide(browser: Browser, state: ParityState, side: Pari
     await scrollToTop(page);
     const styles = await captureStyles(page, 'html', { relayout: true });
     expect(styles.length, `${state.name}（タッチ・${side}）の要素数`).toBeGreaterThanOrEqual(state.minElements);
-    const screenshot = await page.screenshot({ fullPage: true, animations: 'disabled', mask: state.mask(page) });
+    const screenshot = await screenshotOf(page, state);
 
     // 3. 操作の状態
     const interactions = await captureInteractionsAt(page, state, TOUCH_WIDTH);
@@ -329,7 +364,7 @@ async function captureTouchSide(browser: Browser, state: ParityState, side: Pari
 }
 
 for (const state of STATES.filter((s) => TOUCH_STATES.has(s.name))) {
-  test(`${state.name}（タッチ・${TOUCH_WIDTH}px）: 基準とブランチが一致する`, async ({ browser }, testInfo) => {
+  test(`${state.name}（タッチ・${TOUCH_WIDTH}px）: ${VERDICT}`, async ({ browser }, testInfo) => {
     const base = await captureTouchSide(browser, state, 'base');
     const branch = await captureTouchSide(browser, state, 'branch');
     const options = { tailwindThemeVars: themeVars, ignore: NOISE };
@@ -355,7 +390,10 @@ for (const state of STATES.filter((s) => TOUCH_STATES.has(s.name))) {
       keyframes: Object.keys(c.keyframes).sort(),
       interactions: interactionSummary(c.interactions),
     });
-    writeFileSync(path.join(dir, 'summary.json'), JSON.stringify({ base: summary(base), branch: summary(branch) }, null, 2));
+    writeFileSync(
+      path.join(dir, 'summary.json'),
+      JSON.stringify({ control: isControlRun(), base: summary(base), branch: summary(branch) }, null, 2),
+    );
 
     // 画素: 本体と同じく、基準の画像を snapshot の置き場へ書き、ブランチの画像を照合する（maxDiffPixels: 0）
     const png = `${name}-${TOUCH_WIDTH}.png`;

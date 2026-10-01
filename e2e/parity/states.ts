@@ -52,7 +52,8 @@ const GUEST = 'ゲスト';
 const ROOM_CODE_TEXT = /^[A-HJKMNP-Z2-9]{6}$/;
 
 /**
- * ルームコード・QR・招待 URL・残り時間・経過時間・計測弧は、部屋ごと・時刻ごとに変わる（設計正本 §5.3）。
+ * ルームコード・QR・招待 URL・残り時間・経過時間は、部屋ごと・時刻ごとに変わる（設計正本 §5.3）。
+ * 計測弧は隠さず、撮るときに長さを固定する（{@link SCREENSHOT_STYLE}）。
  *
  * - ルームコードは、コードの要素ではなく**その親**（コードとコピーのボタンの行・喪失画面の「ルーム XXXXXX」）を
  *   隠す。コードの字は等幅ではないので、コードの箱の幅が部屋ごとに変わり、中央に寄せた行の中でコピーのボタンの
@@ -68,26 +69,29 @@ function roomMask(page: Page): Locator[] {
     page.locator('span', { hasText: /^経過 / }).getByText(/^\d+:\d{2}$/),
     page.locator('p', { hasText: /^所要時間$/ }).locator('xpath=following-sibling::p[1]'),
     page.getByRole('timer'),
-    meterArc(page),
     page.getByLabel('ステータス情報'),
     page.locator('text=/\\/\\?room=/'),
   ];
 }
 
 /**
- * 計測弧を描く `<svg>`（`CircularProgress.tsx` の 2 つ目の `<svg>`。2 つ目の `<circle>` が進んだ分を描く弧）。
+ * 計測弧の円（`CircularProgress.tsx` の根の 2 つ目の `<svg>` の 2 つ目の `<circle>`・進んだ分を描く弧）の CSS セレクタ。
+ * 根は `relative inline-flex` の `<div>` で、子は目盛りの `<svg>`・弧の `<svg>`・運針の `<svg>`・残り時間を包む `<div>` の順。
+ * 役割も名前も無いので、残り時間（`role="timer"`）を包む `<div>` を持つ根から構造で辿る（クラス名は PR 2 以降で変わるので使わない）。
+ */
+export const METER_ARC_SELECTOR = 'div:has(> div > [role="timer"]) > svg:nth-of-type(2) > circle:nth-of-type(2)';
+
+/**
+ * 撮るときだけ計測弧の長さを固定値にする CSS（`page.screenshot` の `style`）。
  *
  * 弧の長さは経過率で決まり、経過率はサーバーが決めた開始時刻と端末の時計の補正から求める。両側は別のセッションを
  * 別の時刻に撮るので、**状態の作り方では揃えられない**（時計を止めても、止めた時点の経過率が両側で違う）。
- * 対照実行で弧の先端が 2〜109px 揺れた（session-driver / navigator / proxy-form）。スタイルの
- * `stroke-dashoffset` は `noise.ts` で名指しし、画素は弧を描く `<svg>` の箱ごと隠す（弧のそれ以外のプロパティは比べている）。
- * **円そのものを隠すと足りない。** 円の外接矩形は幾何だけで、線幅（14px）と発光（`drop-shadow`）の分が外に出る。
- * 弧の先端がその外で 2〜23px 揺れた（実測）。`<svg>` は `size` の正方形で、線と発光はその内側に収まる。
- * 役割も名前も無いので、残り時間（`timer` の役割）から構造で辿る（クラス名は PR 2 以降で変わるので使わない）。
+ * そこで撮るときだけ `stroke-dashoffset` を両側同じ値に上書きする。**マスクにはしない** —— 弧の `<svg>` はダイヤル全体を
+ * 覆う正方形で、隠すと目盛り（`<line>` の座標は CSS ではないのでスタイルの比較でも守れない）・下地の円・「Paused」まで
+ * 画素で比べなくなる。上書きなら弧の色・線幅・発光・先端の形・目盛りは画素で比べたまま残る。
+ * スタイルの比較の `stroke-dashoffset` は `noise.ts` で名指しする。値は先端が見える長さなら何でもよい。
  */
-function meterArc(page: Page): Locator {
-  return page.getByRole('timer').locator('xpath=../../*[local-name()="svg"][2]');
-}
+export const SCREENSHOT_STYLE = `${METER_ARC_SELECTOR} { stroke-dashoffset: 120px !important; }`;
 
 /**
  * ページの時計を差し替える（時間は普段どおり流れる）。**読み込みの前に呼ぶ。**
