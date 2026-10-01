@@ -8,10 +8,10 @@
  */
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { expect, test, type Browser, type BrowserContext, type Locator, type Page } from '@playwright/test';
+import { expect, test, type Browser, type BrowserContext, type Locator, type Page, type TestInfo } from '@playwright/test';
 import { BASE_DIST, type BaseServing } from './base-dist';
 import { captureKeyframes, captureMotion, captureStyles } from './capture';
-import { isControlRun, newParityContext, servesBaseDist, type ParitySide, type RafWindow } from './context';
+import { newParityContext, servesBaseDist, type ParityRole, type RafWindow } from './context';
 import { diffEntries, diffKeyframes, themeVarNamesFromCss, type StyleDiff, type StyleEntry } from './compare-lib';
 import { captureInteractions, type InteractionCapture } from './interaction';
 import { NOISE } from './noise';
@@ -160,20 +160,35 @@ function onlyOnOneSide(base: readonly string[], branch: readonly string[]): stri
   return extra;
 }
 
+/** 対照実行の設定（`parity.control.config.ts`）が付ける project の名前。list の行頭に `[対照実行]` と出る。 */
+const CONTROL_PROJECT = '対照実行';
+
+/**
+ * 対照実行かを設定ファイルから読む（`metadata.parityControl`・環境変数は読まない・`context.ts`）。
+ * project の名前（行頭の明記）と食い違ったら止める（片方だけ書き換えた設定で、明記と中身がずれないように）。
+ */
+function isControlRun(testInfo: TestInfo): boolean {
+  const control = testInfo.config.metadata['parityControl'] === true;
+  if (control !== (testInfo.project.name === CONTROL_PROJECT)) {
+    throw new Error(`metadata.parityControl（${String(control)}）と project の名前（${testInfo.project.name}）が食い違う`);
+  }
+  return control;
+}
+
 /**
  * 側ごとに、基準の dist を配ったかを断定する。
  *
  * - 基準の dist を配る側（基準・対照実行のブランチ）: 1 件以上返し、dist に無い資産を読もうとしていない
- * - それ以外（通常の比較のブランチ）: **1 件も返していない**。返していたら基準同士を比べている（偽の緑）
+ * - 通常の比較のブランチ: 文脈に基準の dist の経路が 1 つも掛かっていない（ブランチのビルドを撮っている）
  */
-function assertServing(name: string, side: ParitySide, servings: readonly BaseServing[]): void {
-  const served = servings.reduce((n, s) => n + s.served(), 0);
-  if (!servesBaseDist(side)) {
-    expect(served, `${name}（${side}）: 通常の比較なのに基準の dist から返している`).toBe(0);
+function assertServing(name: string, role: ParityRole, servings: readonly BaseServing[]): void {
+  if (!servesBaseDist(role)) {
+    expect(servings.length, `${name}（${role.side}）: 通常の比較なのに基準の dist の経路が掛かっている`).toBe(0);
     return;
   }
-  expect(served, `${name}（${side}）: 基準の dist から 1 件も返していない`).toBeGreaterThan(0);
-  expect(servings.flatMap((s) => s.missing()), `${name}（${side}）: 基準の dist に無い資産を読もうとした`).toEqual([]);
+  const served = servings.reduce((n, s) => n + s.served(), 0);
+  expect(served, `${name}（${role.side}）: 基準の dist から 1 件も返していない`).toBeGreaterThan(0);
+  expect(servings.flatMap((s) => s.missing()), `${name}（${role.side}）: 基準の dist に無い資産を読もうとした`).toEqual([]);
 }
 
 /**
@@ -199,11 +214,12 @@ async function screenshotOf(page: Page, state: ParityState): Promise<Buffer> {
   return page.screenshot({ fullPage: true, animations: 'disabled', mask: state.mask(page), style: SCREENSHOT_STYLE });
 }
 
-async function captureSide(browser: Browser, state: ParityState, side: ParitySide): Promise<Capture> {
+async function captureSide(browser: Browser, state: ParityState, role: ParityRole): Promise<Capture> {
+  const { side } = role;
   const contexts: BrowserContext[] = [];
   const servings: BaseServing[] = [];
   const open = async (): Promise<Page> => {
-    const { context, serving } = await newParityContext(browser, side, {
+    const { context, serving } = await newParityContext(browser, role, {
       viewport: { width: 1280, height: HEIGHT },
       reducedMotion: 'no-preference',
     });
@@ -214,7 +230,7 @@ async function captureSide(browser: Browser, state: ParityState, side: ParitySid
   try {
     const page = await state.setup(open);
     await expect(state.marker(page), `${state.name}（${side}）の目印`).toBeVisible();
-    assertServing(state.name, side, servings);
+    assertServing(state.name, role, servings);
 
     // 1. no-preference: 動きのプロパティとキーフレーム（静的な値なので揺れない）
     const motion = await captureMotion(page);
@@ -248,10 +264,10 @@ async function captureSide(browser: Browser, state: ParityState, side: ParitySid
 const themeVars = tailwindThemeVars();
 
 /**
- * テストのタイトルの比べる相手。対照実行ではブランチの側にも基準の dist を配るので、それと分かるように書く
- * （シェルに残った `TASUKI_PARITY_CONTROL=1` で通常の比較のつもりが基準同士になっても、タイトルで気づける）。
+ * テストのタイトル。通常の比較でも対照実行でも正しい言い方にする（対照実行は list の行頭の `[対照実行]` と
+ * summary.json の `control` で明記する・`parity.control.config.ts`）。
  */
-const VERDICT = isControlRun() ? '基準と基準が一致する（対照実行）' : '基準とブランチが一致する';
+const VERDICT = '基準と並べて一致する';
 
 /** 操作の書き出しの件数（種類ごと）と、外した要素。 */
 function interactionSummary(c: InteractionCapture): Record<string, unknown> {
@@ -260,8 +276,9 @@ function interactionSummary(c: InteractionCapture): Record<string, unknown> {
 
 for (const state of STATES) {
   test(`${state.name}: ${VERDICT}`, async ({ browser }, testInfo) => {
-    const base = await captureSide(browser, state, 'base');
-    const branch = await captureSide(browser, state, 'branch');
+    const control = isControlRun(testInfo);
+    const base = await captureSide(browser, state, { side: 'base', control });
+    const branch = await captureSide(browser, state, { side: 'branch', control });
 
     const options = { tailwindThemeVars: themeVars, ignore: NOISE };
     const report: Record<string, StyleDiff[] | string[]> = {
@@ -292,7 +309,7 @@ for (const state of STATES) {
     });
     writeFileSync(
       path.join(dir, 'summary.json'),
-      JSON.stringify({ control: isControlRun(), base: summary(base), branch: summary(branch) }, null, 2),
+      JSON.stringify({ control, base: summary(base), branch: summary(branch) }, null, 2),
     );
 
     // 画素: 基準の画像を snapshot の置き場へ書き、ブランチの画像を照合する（maxDiffPixels: 0）
@@ -324,11 +341,12 @@ interface TouchCapture {
  * タッチの文脈で 1 側を撮る。本体と同じ 2 通りの読み方をする（`no-preference` で動きのプロパティとキーフレーム、
  * `reduce` で全プロパティと画素）。その後に操作の状態を書き出す。
  */
-async function captureTouchSide(browser: Browser, state: ParityState, side: ParitySide): Promise<TouchCapture> {
+async function captureTouchSide(browser: Browser, state: ParityState, role: ParityRole): Promise<TouchCapture> {
+  const { side } = role;
   const contexts: BrowserContext[] = [];
   const servings: BaseServing[] = [];
   const open = async (): Promise<Page> => {
-    const { context, serving } = await newParityContext(browser, side, {
+    const { context, serving } = await newParityContext(browser, role, {
       viewport: { width: TOUCH_WIDTH, height: HEIGHT },
       hasTouch: true,
       reducedMotion: 'no-preference',
@@ -340,7 +358,7 @@ async function captureTouchSide(browser: Browser, state: ParityState, side: Pari
   try {
     const page = await state.setup(open);
     await expect(state.marker(page), `${state.name}（タッチ・${side}）の目印`).toBeVisible();
-    assertServing(`${state.name}（タッチ）`, side, servings);
+    assertServing(`${state.name}（タッチ）`, role, servings);
     expect(await page.evaluate(() => matchMedia('(hover: hover)').matches), 'タッチの文脈で (hover: hover) が真').toBe(false);
 
     // 1. no-preference: 動きのプロパティとキーフレーム
@@ -365,8 +383,9 @@ async function captureTouchSide(browser: Browser, state: ParityState, side: Pari
 
 for (const state of STATES.filter((s) => TOUCH_STATES.has(s.name))) {
   test(`${state.name}（タッチ・${TOUCH_WIDTH}px）: ${VERDICT}`, async ({ browser }, testInfo) => {
-    const base = await captureTouchSide(browser, state, 'base');
-    const branch = await captureTouchSide(browser, state, 'branch');
+    const control = isControlRun(testInfo);
+    const base = await captureTouchSide(browser, state, { side: 'base', control });
+    const branch = await captureTouchSide(browser, state, { side: 'branch', control });
     const options = { tailwindThemeVars: themeVars, ignore: NOISE };
     const report: Record<string, StyleDiff[] | string[]> = {
       motion: diffEntries(base.motion, branch.motion, options),
@@ -392,7 +411,7 @@ for (const state of STATES.filter((s) => TOUCH_STATES.has(s.name))) {
     });
     writeFileSync(
       path.join(dir, 'summary.json'),
-      JSON.stringify({ control: isControlRun(), base: summary(base), branch: summary(branch) }, null, 2),
+      JSON.stringify({ control, base: summary(base), branch: summary(branch) }, null, 2),
     );
 
     // 画素: 本体と同じく、基準の画像を snapshot の置き場へ書き、ブランチの画像を照合する（maxDiffPixels: 0）

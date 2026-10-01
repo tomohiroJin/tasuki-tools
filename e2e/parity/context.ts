@@ -1,7 +1,8 @@
 /**
  * 比較で使うブラウザの文脈の作り方（#321・計画 P1）。状態を作る文脈も、タッチの文脈（Task 5）も、ここから作る。
  *
- * 側（基準・ブランチ）で違うのは、基準の側だけ `/timer/` を基準の dist から返すことだけ。それ以外は両側で揃える。
+ * 側（基準・ブランチ）で違うのは、基準の側だけ `/timer/` を基準の dist から返すことだけ（対照実行ではブランチの側も返す）。
+ * それ以外は両側で揃える。
  */
 import type { Browser, BrowserContext, BrowserContextOptions } from '@playwright/test';
 import { BASE_DIST, serveBaseDist, type BaseServing } from './base-dist';
@@ -9,21 +10,26 @@ import { BASE_DIST, serveBaseDist, type BaseServing } from './base-dist';
 export type ParitySide = 'base' | 'branch';
 
 /**
- * その側で `/timer/` を基準の dist から返すか。
- *
- * **対照実行（`TASUKI_PARITY_CONTROL=1`）ではブランチの側にも基準の dist を配る**（基準同士を比べ、状態の作り方と
- * 読み方の揺れだけを浮かび上がらせる・計画 Task 6）。PR 2〜4 の対照実行でも使うので残す。
+ * 対照実行（基準同士の比較）は**設定ファイルで選ぶ**（`parity.control.config.ts` の `metadata.parityControl`）。
+ * 環境変数では選ばない —— シェルに取り残すと、通常の比較のつもりが基準同士の比較になって緑になる（偽の緑）。
+ * 古い手順の `TASUKI_PARITY_CONTROL` が環境に立っていたら、取り残しとみなして読み込みの時点で止める。
  */
-export function servesBaseDist(side: ParitySide): boolean {
-  return side === 'base' || isControlRun();
+if (process.env['TASUKI_PARITY_CONTROL'] !== undefined) {
+  throw new Error(
+    'TASUKI_PARITY_CONTROL は使わなくなった（取り残しの疑い）。unset してから流す。' +
+      '対照実行は -c parity/parity.control.config.ts で選ぶ（e2e/parity/README.md）。',
+  );
 }
 
-/**
- * 対照実行か。**シェルに残った `TASUKI_PARITY_CONTROL=1` で通常の比較が基準同士の比較になる**（偽の緑）ので、
- * 対照実行のときはテストのタイトルと書き出しに明記し、そうでないときはブランチの側が基準の dist から 1 件も返していないことを断定する。
- */
-export function isControlRun(): boolean {
-  return process.env['TASUKI_PARITY_CONTROL'] === '1';
+/** 文脈を作る側と、対照実行か（対照実行ではブランチの側にも基準の dist を配る）。 */
+export interface ParityRole {
+  readonly side: ParitySide;
+  readonly control: boolean;
+}
+
+/** その側で `/timer/` を基準の dist から返すか。基準の側と、対照実行のブランチの側。 */
+export function servesBaseDist(role: ParityRole): boolean {
+  return role.side === 'base' || role.control;
 }
 
 /** 文脈を作った時点で退避した本物の `requestAnimationFrame`（`page.clock` に差し替えられる前のもの）。 */
@@ -51,7 +57,7 @@ export interface ParityContext {
  */
 export async function newParityContext(
   browser: Browser,
-  side: ParitySide,
+  role: ParityRole,
   options: BrowserContextOptions = {},
 ): Promise<ParityContext> {
   const permissions = [...(options.permissions ?? []), 'local-network-access', 'notifications'];
@@ -59,6 +65,6 @@ export async function newParityContext(
   await context.addInitScript(() => {
     Object.defineProperty(window, '__parityRaf', { value: window.requestAnimationFrame.bind(window) });
   });
-  const serving = servesBaseDist(side) ? await serveBaseDist(context, BASE_DIST) : null;
+  const serving = servesBaseDist(role) ? await serveBaseDist(context, BASE_DIST) : null;
   return { context, serving };
 }

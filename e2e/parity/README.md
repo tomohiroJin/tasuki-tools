@@ -20,6 +20,18 @@ TASUKI_PARITY_BASE_DIST=$HOME/.cache/tasuki-parity/base-ba9249d/apps/timer-web/d
 pnpm exec playwright test -c parity/parity.config.ts
 ```
 
+### 対照実行（基準同士）
+
+```bash
+cd e2e
+TASUKI_E2E_TARGET=local \
+TASUKI_PARITY_BASE_DIST=$HOME/.cache/tasuki-parity/base-ba9249d/apps/timer-web/dist \
+pnpm exec playwright test -c parity/parity.control.config.ts
+```
+
+- ブランチの側にも基準の dist を配り、基準同士を比べる。差が出たら状態の作り方か読み方の揺れ（`noise.ts` に理由つきで名指しするか、状態を決定的にする）
+- 行頭に `[対照実行]` と出て、`out/<状態>/summary.json` の `control` が `true` になる。**対照実行は設定ファイルで選ぶ。** 環境変数では切り替えない（以前の `TASUKI_PARITY_CONTROL` が立っていると、取り残しとみなして止まる）
+
 - turbo を経由しない（strict env に阻まれる）。WSLg では `WAYLAND_DISPLAY` が要る
 - 8787・18080 を使う。終わったら `ss -tlnp | grep -E ':(8787|18080)\b'` が空であることを見る
 - 結果は `e2e/parity/out/`（無視している）。**正本は台帳**（`docs/superpowers/specs/2026-09-29-timer-without-tailwind-parity-ledger.md`）
