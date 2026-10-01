@@ -12,7 +12,10 @@
  *   1. **書き方**（一覧に無いファイルだけ）: `className` の属性と、オブジェクトの `className` キー（スプレッドや
  *      `createElement` の props）に渡してよいのは、文字列リテラル・置換の無いテンプレート・それらを枝に持つ条件式・
  *      名前が `_CLASS` で終わる表の要素・`className` という名前の値（部品の受け渡し）と、それを置換に持つテンプレートだけ。
- *      - `className` という名前の束縛は、関数の引数（と引数の分割代入）だけ。ローカル変数の宣言・再代入は落とす
+ *      - `className` という名前の束縛は、関数の最初の引数のオブジェクトの分割代入で、プロパティ名も `className` のもの
+ *        （`({ className })` / `({ className = "" })` / `({ className, ...rest })`）だけ。素の引数・別名・ローカル変数は落とす
+ *      - `className` と `_CLASS` への書き込みは、代入（複合代入を含む）・分割代入・`X_CLASS.y = …`・`++` / `--`・
+ *        `for (… of …)` の左辺のどれでも落とす
  *      - `_CLASS` の表は、同じファイルの `const` の宣言（値は字面だけ）か、一覧に無い timer のファイルが `const` で
  *        宣言したものの import だけ。`let`・引数・分割代入・再代入で作る `_CLASS` と、宣言の見えない `_CLASS` は落とす
  *   2. **定義**（一覧に無いファイルだけ）: 1 の形から字面で取り出したクラス名は、timer の CSS か部品層に定義されている。
@@ -115,14 +118,43 @@ const unwrapTyped = (e) => {
   while (ts.isAsExpression(cur) || ts.isSatisfiesExpression(cur) || ts.isParenthesizedExpression(cur)) cur = cur.expression;
   return cur;
 };
-/** 束縛（引数・分割代入の要素）が関数の引数の中にあるか。 */
-const isInsideParameter = (node) => {
-  for (let cur = node; cur !== undefined; cur = cur.parent) {
-    if (ts.isParameter(cur)) return true;
-    if (ts.isVariableDeclaration(cur) || ts.isBlock(cur) || ts.isSourceFile(cur)) return false;
-  }
-  return false;
+/**
+ * 部品の受け渡しとして許す `className` の束縛か。関数の**最初の引数のオブジェクトの分割代入**で、プロパティ名も
+ * `className` のもの（`({ className })` / `({ className = "" })` / `({ className, ...rest })`）だけ。
+ * 素の引数（`.map((className) => …)`）・別名（`({ cls: className })`）・入れ子の分割代入は、部品の props 以外から
+ * 値を受け取れるので許さない。
+ */
+const isComponentClassNameProp = (node) => {
+  if (!ts.isBindingElement(node) || node.dotDotDotToken !== undefined) return false;
+  if (node.propertyName !== undefined && propNameOf(node.propertyName) !== "className") return false;
+  const pattern = node.parent;
+  if (!ts.isObjectBindingPattern(pattern) || !ts.isParameter(pattern.parent)) return false;
+  const param = pattern.parent;
+  return ts.isFunctionLike(param.parent) && param.parent.parameters.indexOf(param) === 0;
 };
+
+/** 代入の左辺（分割代入のパターンを含む）が書き込む名前と、`X.y` / `X[...]` の根の名前を集める。 */
+function assignedNames(target, out = []) {
+  const t = unwrapTyped(target);
+  if (ts.isIdentifier(t)) out.push(t.text);
+  else if (ts.isPropertyAccessExpression(t) || ts.isElementAccessExpression(t)) {
+    let root = t.expression;
+    while (ts.isPropertyAccessExpression(root) || ts.isElementAccessExpression(root) || ts.isParenthesizedExpression(root)) root = root.expression;
+    if (ts.isIdentifier(root)) out.push(root.text);
+  } else if (ts.isArrayLiteralExpression(t)) {
+    for (const el of t.elements) assignedNames(el, out);
+  } else if (ts.isObjectLiteralExpression(t)) {
+    for (const prop of t.properties) {
+      if (ts.isShorthandPropertyAssignment(prop)) out.push(prop.name.text);
+      else if (ts.isPropertyAssignment(prop)) assignedNames(prop.initializer, out);
+      else if (ts.isSpreadAssignment(prop)) assignedNames(prop.expression, out);
+    }
+  } else if (ts.isSpreadElement(t)) assignedNames(t.expression, out);
+  else if (ts.isBinaryExpression(t) && t.operatorToken.kind === ts.SyntaxKind.EqualsToken) assignedNames(t.left, out); // 既定値つきの要素
+  return out;
+}
+const isGuardedName = (name) => name === "className" || isClassTable(name);
+const isAssignmentOperator = (kind) => kind >= ts.SyntaxKind.FirstAssignment && kind <= ts.SyntaxKind.LastAssignment;
 
 /**
  * `.tsx` / `.ts` から、許した形のクラス名と、許さない形の書き込みを取り出す。
@@ -143,6 +175,7 @@ export function classUsagesIn(fileName, text) {
   const tableRefs = [];
   // 名前が _CLASS の束縛（許さない形も含む）。許さない束縛は宣言の側で 1 度だけ落とし、引く側では重ねない
   const tableBindings = new Set();
+  const reportedWrites = new Set();
   let classNameSites = 0;
   const lineOf = (node) => sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
   const addLiteral = (node, value) => {
@@ -191,8 +224,8 @@ export function classUsagesIn(fileName, text) {
   /** 名前が `className` / `_CLASS` の束縛（宣言・引数・分割代入）。 */
   const checkBinding = (node, name) => {
     if (name === "className") {
-      // 部品の受け渡し（引数と、引数の分割代入）だけを許す。既定値は字面に限る
-      if (!isInsideParameter(node)) return reject(node, "className という名前の変数の宣言");
+      // 部品の受け渡し（最初の引数のオブジェクトの分割代入）だけを許す。既定値は字面に限る
+      if (!isComponentClassNameProp(node)) return reject(node, "部品の props の分割代入以外で className を束縛する書き方");
       if (node.initializer !== undefined) checkExpr(node.initializer);
       return;
     }
@@ -222,10 +255,24 @@ export function classUsagesIn(fileName, text) {
     if (ts.isShorthandPropertyAssignment(node) && node.name.text === "className") classNameSites += 1;
     if ((ts.isVariableDeclaration(node) || ts.isParameter(node)) && ts.isIdentifier(node.name)) checkBinding(node, node.name.text);
     if (ts.isBindingElement(node) && ts.isIdentifier(node.name)) checkBinding(node, node.name.text);
-    // 再代入（`className = x`・`X_CLASS = …`）
-    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken && ts.isIdentifier(node.left)) {
-      const name = node.left.text;
-      if (name === "className" || isClassTable(name)) reject(node, `${name} への再代入`);
+    // 書き込み（複合代入・分割代入・`X_CLASS.y = …`・`++` / `--`・`for (x of …)` の左辺）
+    const writeTarget =
+      ts.isBinaryExpression(node) && isAssignmentOperator(node.operatorToken.kind)
+        ? node.left
+        : (ts.isPrefixUnaryExpression(node) || ts.isPostfixUnaryExpression(node)) &&
+            (node.operator === ts.SyntaxKind.PlusPlusToken || node.operator === ts.SyntaxKind.MinusMinusToken)
+          ? node.operand
+          : (ts.isForOfStatement(node) || ts.isForInStatement(node)) && !ts.isVariableDeclarationList(node.initializer)
+            ? node.initializer
+            : undefined;
+    if (writeTarget !== undefined) {
+      // 分割代入の既定値（`[className = x] = …`）は内側の `=` でも拾うので、同じ書き込みを 1 度だけ数える
+      for (const name of new Set(assignedNames(writeTarget).filter(isGuardedName))) {
+        const key = `${lineOf(node)}:${name}`;
+        if (reportedWrites.has(key)) continue;
+        reportedWrites.add(key);
+        reject(node, `${name} への書き込み`);
+      }
     }
     if (ts.isImportSpecifier(node) && isClassTable(node.name.text) && ts.isStringLiteral(node.parent.parent.parent.moduleSpecifier)) {
       tableImports.push({
