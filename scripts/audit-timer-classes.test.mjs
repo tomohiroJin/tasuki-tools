@@ -91,6 +91,13 @@ describe("classUsagesIn: 許さない書き方", () => {
     ["function f(TONE_CLASS) { return <p className={TONE_CLASS[k]} />; }", "引数の _CLASS の表"],
     ["import TONE_CLASS from \"./tone\"; <p className={TONE_CLASS[k]} />", "既定の import の _CLASS の表"],
     ["import * as TONE_CLASS from \"./tone\"; <p className={TONE_CLASS.a} />", "名前空間の import の _CLASS の表"],
+    ['import { className } from "./x"; <p className={className} />', "import した className"],
+    ['import { cls as className } from "./x"; <p className={className} />', "別名で import した className"],
+    ['import className from "./x"; <p className={className} />', "既定の import の className"],
+    ['import * as className from "./x"; <p className={className} />', "名前空間の import の className"],
+    ["function className() { return tone; } <p className={className} />", "className という名前の関数の宣言"],
+    ["const f = function className() { return tone; };", "className という名前の関数式"],
+    ["class className {}", "className という名前のクラスの宣言"],
   ];
   for (const [src, why] of rejected) {
     test(`${why}: ${src}`, () => {
@@ -186,6 +193,20 @@ describe("checkTimerClasses: 定義・一覧・衝突（設計正本 D10）", ()
   test("timer の CSS が要素層と同名のクラスを定義したら落とす", () => {
     const timerCss = [{ rel: "apps/timer-web/src/styles/x.css", text: ".card{} .sr-only{}" }];
     assert.equal(checkTimerClasses({ ...base, timerCss }).length, 1);
+  });
+  test("timer の CSS が部品層の接頭辞 ui- のクラスを定義したら落とす（部品の定義し直し）", () => {
+    const timerCss = [{ rel: "apps/timer-web/src/styles/x.css", text: ".tabular{} .sr-only{} .ui-panel{}" }];
+    const problems = checkTimerClasses({ ...base, timerCss });
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /ui-panel/);
+  });
+  test("timer の CSS が部品層に無い ui- のクラスを定義しても落とす（接頭辞は部品層のもの）", () => {
+    const timerCss = [{ rel: "apps/timer-web/src/styles/x.css", text: ".tabular{} .sr-only{} .ui-new{}" }];
+    assert.equal(checkTimerClasses({ ...base, timerCss }).length, 1);
+  });
+  test("対照: ui- を語中に含むだけのクラスは落とさない", () => {
+    const timerCss = [{ rel: "apps/timer-web/src/styles/x.css", text: ".tabular{} .sr-only{} .gui-x{}" }];
+    assert.deepEqual(checkTimerClasses({ ...base, timerCss }), []);
   });
   test("使われていない衝突の例外は落とす", () => {
     const timerCss = [{ rel: "apps/timer-web/src/styles/x.css", text: ".tabular{}" }];

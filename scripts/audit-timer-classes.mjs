@@ -13,7 +13,8 @@
  *      `createElement` の props）に渡してよいのは、文字列リテラル・置換の無いテンプレート・それらを枝に持つ条件式・
  *      名前が `_CLASS` で終わる表の要素・`className` という名前の値（部品の受け渡し）と、それを置換に持つテンプレートだけ。
  *      - `className` という名前の束縛は、関数の最初の引数のオブジェクトの分割代入で、プロパティ名も `className` のもの
- *        （`({ className })` / `({ className = "" })` / `({ className, ...rest })`）だけ。素の引数・別名・ローカル変数は落とす
+ *        （`({ className })` / `({ className = "" })` / `({ className, ...rest })`）だけ。素の引数・別名・ローカル変数・
+ *        import（別名・既定・名前空間を含む）・関数の宣言と関数式の名前・クラスの名前は落とす
  *      - `className` と `_CLASS` への書き込みは、代入（複合代入を含む）・分割代入・`X_CLASS.y = …`・`++` / `--`・
  *        `for (… of …)` の左辺のどれでも落とす
  *      - `_CLASS` の表は、同じファイルの `const` の宣言（値は字面だけ）か、一覧に無い timer のファイルが `const` で
@@ -22,7 +23,8 @@
  *      Tailwind のクラスはどちらにも定義されないので、移したファイルに残った Tailwind のクラスもここで落ちる（計画 P8）
  *   3. **衝突**: timer の CSS が定義したクラス名は、要素層のクラス名・Tailwind のユーティリティ名（timer の
  *      `tailwind.config.js` で足したものを含む）と重ならない
- *      （{@link KNOWN_COLLISIONS} に理由つきで載せたものを除く。使われていない例外は落とす）
+ *      （{@link KNOWN_COLLISIONS} に理由つきで載せたものを除く。使われていない例外は落とす）。
+ *      部品層の接頭辞 `ui-` で始まるクラスも定義しない（部品層に在るか無いかを問わない）
  *
  * ## 何を見ていないか —— 「足りる」とは言わない
  *
@@ -35,6 +37,9 @@
  * - `.ts` の関数がクラス名を返す形（`presence.ts`）。一覧に載っている間は「古い一覧」の判定からも外れ、一覧から外した後は
  *   書き方の検査にも掛からない（`className` の場所が無いため）。外すときに人が見る
  * - `{...props}` のスプレッドの中身（`className` キーを字面で持つオブジェクトリテラルだけを見る）
+ * - 宣言の無い `className`（ファイルのどこにも束縛が無いまま `className={className}` と書く形。型検査が落とす）
+ * - `Object.assign(T_CLASS, …)` など、関数の呼び出しを通した `_CLASS` の表への書き込み
+ * - `xs.map(({ className }) => …)`。コールバックの最初の引数のオブジェクトの分割代入は、部品の props と形が同じなので許してしまう
  *
  * 依存: postcss・postcss-selector-parser（ADR 0022 決定 7）と typescript（ルートの devDependencies）。
  * Tailwind のユーティリティ名の判定は `apps/timer-web` の `tailwindcss` を解決して使う（移行中だけ。ADR 0023・計画 P7）。
@@ -255,6 +260,14 @@ export function classUsagesIn(fileName, text) {
     if (ts.isShorthandPropertyAssignment(node) && node.name.text === "className") classNameSites += 1;
     if ((ts.isVariableDeclaration(node) || ts.isParameter(node)) && ts.isIdentifier(node.name)) checkBinding(node, node.name.text);
     if (ts.isBindingElement(node) && ts.isIdentifier(node.name)) checkBinding(node, node.name.text);
+    // className という名前を import・関数・クラスで作る形（部品の props 以外から値が来る）。`_CLASS` の import は下で引く
+    if (
+      (ts.isImportSpecifier(node) || ts.isImportClause(node) || ts.isNamespaceImport(node) ||
+        ts.isFunctionDeclaration(node) || ts.isFunctionExpression(node) || ts.isClassDeclaration(node) || ts.isClassExpression(node)) &&
+      node.name !== undefined && node.name.text === "className"
+    ) {
+      reject(node, "import・関数・クラスで className という名前を作る書き方");
+    }
     // 書き込み（複合代入・分割代入・`X_CLASS.y = …`・`++` / `--`・`for (x of …)` の左辺）
     const writeTarget =
       ts.isBinaryExpression(node) && isAssignmentOperator(node.operatorToken.kind)
@@ -365,6 +378,10 @@ export function checkTimerClasses({ sources, timerCss, componentCss, elementCss,
   }
   for (const name of collisions.keys()) {
     if (!defined.has(name)) problems.push(`[衝突の例外] .${name} は timer の CSS に定義されていません。例外から外す`);
+  }
+  // 接頭辞 `ui-` は部品層のもの。timer の CSS が定義すると、部品を定義し直す（読み込み順で部品に勝つ・設計正本 D3）
+  for (const name of defined) {
+    if (name.startsWith("ui-")) problems.push(`[衝突] timer の CSS の .${name} は部品層の接頭辞 ui- のクラスです。部品を定義し直さない（設計正本 D3）`);
   }
   return problems;
 }
