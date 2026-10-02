@@ -3,11 +3,9 @@
 スクラムのストーリーポイント見積もりを、ルーム同期でリアルタイムに行うプランニングポーカー。
 GitHub spec-kit（specify CLI）のフルワークフロー実践を兼ねた Tasuki ツール2号です。
 
-- 公開 URL（**予定・未公開**）: `https://tasuki.niku9.click/poker`
-  - ⚠ **現在このパスはタイマーの SPA フォールバックが返るだけで、Planning Poker は未公開。**
-  - **公開は Issue #15〜#20（monorepo 統合）の完了後**に行う。サブパス公開には
-    Caddy のルーティング・別ポート・別 systemd ユニットが必要で、それらは monorepo 統合の
-    設計に含まれるため、先に個別対応すると二度手間になる
+- 公開 URL: `https://tasuki.niku9.click/poker/`（**本番公開中**。初回公開は 2026-08-28・
+  [#66](https://github.com/tomohiroJin/tasuki-tools/issues/66)。monorepo 統合 #15 の本番反映で公開した）
+  - ルームを作るのは玄関（`/`）で、ルームコードの無い `/poker/` は玄関へ送られる（#95 S5c）
 - 仕様・設計: [`specs/001-planning-poker-mvp/`](./specs/001-planning-poker-mvp/)（spec / plan / research / data-model / contracts / quickstart / tasks）
 - プロジェクト憲法: [`docs/constitution.md`](../constitution.md)
 

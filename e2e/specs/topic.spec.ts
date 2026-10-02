@@ -230,3 +230,210 @@ test.describe('お題ツールの文字と書体', () => {
     });
   }
 });
+
+/** ユーザーストーリーの形のタイトル（#313 正本 §3 の例。67）。入力欄の値は画面の文言ではないので、書体の層の検査に掛からない。 */
+const STORY_TITLE =
+  'チームの一員として、スプリントの終わりにふりかえりの結果を一目で見たい。なぜなら、次のスプリントで何を変えるかをその場で決めたいからだ';
+
+test.describe('長いタイトルと広いページ（#313 PR 1）', () => {
+  for (const width of [390, 1280]) {
+    test(`Given ユーザーストーリーの形のタイトル / When 幅 ${width} で書く / Then 欄の中に隠れず全体が見える`, async ({ page, consoleWatcher }) => {
+      // Given
+      await page.setViewportSize({ width, height: 900 });
+      await openTopicTool(page, `story-topic-${width}`);
+      const field = page.getByLabel('タイトル', { exact: true });
+      // When
+      await field.fill(STORY_TITLE);
+      // Then その1: 欄の中にスクロールで隠れた部分が無い（1 行の欄は横に、伸びない欄は縦に隠れる）
+      const hidden = await field.evaluate((el) => ({
+        x: el.scrollWidth - el.clientWidth,
+        y: el.scrollHeight - el.clientHeight,
+      }));
+      expect(hidden, '欄の中に隠れた部分がある').toEqual({ x: 0, y: 0 });
+      // Then その2: 書いた量が数字で出る
+      await expect(page.getByText(`${STORY_TITLE.length} / 200`, { exact: true })).toBeVisible();
+      // Then その3: 入力欄の字は 16px 以上で、画面は横にはみ出さない
+      await expectFieldsAtLeast16px(page);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      // 画面は例外を出していない
+      expect(consoleWatcher.errors).toEqual([]);
+    });
+  }
+
+  test('Given 空のタイトルの欄 / When 見る / Then 2 行ぶんの高さがある', async ({ page }) => {
+    // Given
+    await openTopicTool(page, 'empty-title-topic');
+    const field = page.getByLabel('タイトル', { exact: true });
+    // When
+    const size = await field.evaluate((el) => ({
+      height: el.clientHeight,
+      line: parseFloat(getComputedStyle(el).lineHeight),
+    }));
+    // Then: 内容に合わせて伸ばしても、空の欄が 1 行に潰れない（複数行の欄だと分かる）
+    expect(size.height).toBeGreaterThanOrEqual(size.line * 2);
+  });
+
+  test('Given 幅 1920 / When お題ツールを開く / Then ページは 1120px で、書くは中身の幅いっぱい', async ({ page, consoleWatcher }) => {
+    // Given
+    await page.setViewportSize({ width: 1920, height: 900 });
+    // When
+    await openTopicTool(page, 'wide-topic');
+    // Then
+    const main = await page.getByRole('main').evaluate((el) => {
+      const s = getComputedStyle(el);
+      return {
+        width: el.getBoundingClientRect().width,
+        inner: el.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight),
+      };
+    });
+    expect(main.width).toBe(1120);
+    const write = await page.getByRole('region', { name: '書く' }).boundingBox();
+    expect(write?.width).toBeCloseTo(main.inner, 0);
+    // 画面は例外を出していない
+    expect(consoleWatcher.errors).toEqual([]);
+  });
+
+  test('Given タイトルの途中にカーソル / When 改行を含む文を差し込んで続けて打つ / Then 打った字は差し込んだ位置に入る', async ({ page, consoleWatcher }) => {
+    // Given
+    await openTopicTool(page, 'caret-topic');
+    const field = page.getByLabel('タイトル', { exact: true });
+    await field.fill('AAA BBB');
+    await field.evaluate((el: HTMLTextAreaElement) => el.setSelectionRange(3, 3));
+    // When: 貼り付けと同じく、改行を含む文を 1 度に差し込む
+    await page.keyboard.insertText('x\ny');
+    await page.keyboard.type('Z');
+    // Then: 改行は空白になり、カーソルは末尾へ飛んでいない
+    await expect(field).toHaveValue('AAAx yZ BBB');
+    // 画面は例外を出していない
+    expect(consoleWatcher.errors).toEqual([]);
+  });
+
+  test('Given タイトルを書いた / When タイトルの欄で Enter / Then このお題になる', async ({ page, consoleWatcher }) => {
+    // Given
+    await openTopicTool(page, 'enter-topic');
+    const field = page.getByLabel('タイトル', { exact: true });
+    await field.fill(TITLE);
+    // When
+    await field.press('Enter');
+    // Then
+    await expect(currentTopic(page).getByRole('heading', { name: TITLE })).toBeVisible();
+    await expect(field).toHaveValue('');
+    // 画面は例外を出していない
+    expect(consoleWatcher.errors).toEqual([]);
+  });
+});
+
+/** 見出しと箇条書きを持つ説明。書体の層の検査に掛かるので英数字で書く。 */
+const MD_BODY = ['# Rules', '', '- fizz', '- buzz'].join('\n');
+
+test.describe('説明のプレビュー（#313 PR 2）', () => {
+  test('Given 幅 1280 / When 説明を書く / Then 説明の欄とプレビューが並び、切り替えは出ない', async ({ page, consoleWatcher }) => {
+    // Given
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await openTopicTool(page, 'side-topic');
+    await page.getByLabel('タイトル', { exact: true }).fill(TITLE);
+    const field = page.getByLabel('説明（なくてもよい）');
+    const preview = page.getByRole('region', { name: 'プレビュー' });
+    // When
+    await field.fill(MD_BODY);
+    // Then その1: 両方が見える
+    await expect(preview.getByRole('heading', { level: 4, name: 'Rules' })).toBeVisible();
+    await expect(field).toBeVisible();
+    // Then その2: プレビューは説明の欄の右の、同じ行にある
+    const f = await field.boundingBox();
+    const p = await preview.boundingBox();
+    expect(p!.x, 'プレビューが説明の欄の右に無い').toBeGreaterThanOrEqual(f!.x + f!.width);
+    expect(Math.abs(p!.y - f!.y), 'プレビューが説明の欄と同じ行に無い').toBeLessThan(40);
+    // Then その3: 切り替えは出ない
+    await expect(page.getByRole('group', { name: '説明の出し方' })).toBeHidden();
+    // 画面は例外を出していない
+    expect(consoleWatcher.errors).toEqual([]);
+  });
+
+  for (const width of [390, 768]) {
+    test(`Given 幅 ${width} / When プレビューを押す / Then 札が出て説明の欄が隠れ、送ると書くへ戻る`, async ({ page, consoleWatcher }) => {
+      // Given
+      await page.setViewportSize({ width, height: 900 });
+      await openTopicTool(page, `toggle-topic-${width}`);
+      const field = page.getByLabel('説明（なくてもよい）');
+      const preview = page.getByRole('region', { name: 'プレビュー' });
+      await page.getByLabel('タイトル', { exact: true }).fill(TITLE);
+      await field.fill(MD_BODY);
+      await expect(preview).toBeHidden();
+      // When
+      await page.getByRole('button', { name: 'プレビュー', exact: true }).click();
+      // Then その1: 札が出て、説明の欄は隠れる
+      await expect(preview.getByRole('heading', { level: 4, name: 'Rules' })).toBeVisible();
+      await expect(field).toBeHidden();
+      // Then その2: 送ると、次に書く欄が出る
+      await page.getByRole('button', { name: 'このお題にする' }).click();
+      await expect(currentTopic(page).getByRole('heading', { name: TITLE })).toBeVisible();
+      await expect(field).toBeVisible();
+      // Then その3: 画面は横にはみ出さない
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      // 画面は例外を出していない
+      expect(consoleWatcher.errors).toEqual([]);
+    });
+  }
+
+  for (const width of [390, 1280]) {
+    test(`Given 幅 ${width} でプレビューを出す / When 文字を測る / Then 切り替えと札の字はすべて AA を満たす`, async ({ page, consoleWatcher }) => {
+      // Given
+      await page.setViewportSize({ width, height: 900 });
+      await openTopicTool(page, `preview-a11y-${width}`);
+      await page.getByLabel('タイトル', { exact: true }).fill(TITLE);
+      await page.getByLabel('説明（なくてもよい）').fill(MD_BODY);
+      if (width === 390) await page.getByRole('button', { name: 'プレビュー', exact: true }).click();
+      await expect(page.getByRole('region', { name: 'プレビュー' }).getByRole('heading', { level: 4, name: 'Rules' })).toBeVisible();
+      // When / Then: 札の字（coal on ivory）を測ったことを固定する
+      const [coal, ivory] = await resolveColors(page, ['--coal', '--ivory']);
+      expectReadable(await scanContrast(page, 10), 8, [pairKey(coal!, ivory!)]);
+      // 画面は例外を出していない
+      expect(consoleWatcher.errors).toEqual([]);
+    });
+  }
+});
+
+test.describe('作るを横帯に（#313 構成案 1）', () => {
+  test('Given 幅 1280 / When お題ツールを開く / Then 作るは書くの上で行いっぱいに広がり、言語・難易度・ボタンが 1 行に並ぶ', async ({ page, consoleWatcher }) => {
+    // Given
+    await page.setViewportSize({ width: 1280, height: 900 });
+    // When
+    await openTopicTool(page, 'band-topic');
+    // Then その1: 作るは書くの上にあり、どちらも中身の幅いっぱい
+    const make = await page.getByRole('region', { name: '作る' }).boundingBox();
+    const write = await page.getByRole('region', { name: '書く' }).boundingBox();
+    expect(make!.y + make!.height, '作るが書くの上に無い').toBeLessThanOrEqual(write!.y);
+    expect(make!.width).toBeCloseTo(write!.width, 0);
+    // Then その2: 言語・難易度・定型から選ぶが同じ行にある（下端がそろう）
+    const bottoms = await Promise.all(
+      [page.getByLabel('言語', { exact: true }), page.getByLabel('難易度', { exact: true }), page.getByRole('button', { name: '定型から選ぶ' })].map(
+        async (l) => {
+          const b = await l.boundingBox();
+          return b!.y + b!.height;
+        },
+      ),
+    );
+    expect(Math.max(...bottoms) - Math.min(...bottoms), '作るの操作が 1 行に並んでいない').toBeLessThan(8);
+    // Then その3: 帯に詰めても、ボタンは潰れて折り返さない（「解錠する」が 2 行になった・実画面で発見）
+    const fallback = await page.getByRole('button', { name: '定型から選ぶ' }).boundingBox();
+    const unlock = await page.getByRole('button', { name: '解錠する' }).boundingBox();
+    expect(unlock!.height, '解錠するが折り返している').toBeCloseTo(fallback!.height, 0);
+    // 画面は例外を出していない
+    expect(consoleWatcher.errors).toEqual([]);
+  });
+
+  test('Given 幅 390 / When お題ツールを開く / Then 作るの言語と難易度は縦に積む', async ({ page, consoleWatcher }) => {
+    // Given
+    await page.setViewportSize({ width: 390, height: 900 });
+    // When
+    await openTopicTool(page, 'band-narrow-topic');
+    // Then
+    const language = await page.getByLabel('言語', { exact: true }).boundingBox();
+    const difficulty = await page.getByLabel('難易度', { exact: true }).boundingBox();
+    expect(difficulty!.y).toBeGreaterThanOrEqual(language!.y + language!.height);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    // 画面は例外を出していない
+    expect(consoleWatcher.errors).toEqual([]);
+  });
+});

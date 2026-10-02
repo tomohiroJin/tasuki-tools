@@ -187,6 +187,157 @@ describe('書く', () => {
   });
 });
 
+const titleField = () => screen.getByLabelText(copy.TITLE_LABEL);
+const bodyField = () => screen.getByLabelText(copy.BODY_LABEL);
+
+/**
+ * 長いタイトル（ユーザーストーリーの形）を全体を見ながら書ける。
+ *
+ * @requirements #313 正本 D3・D4・D5・FR-001〜FR-006
+ */
+describe('書く（長いタイトル）', () => {
+  it('Given 画面 / When 欄を見る / Then タイトルは複数行の欄で、説明は 8 行の欄である', () => {
+    // Given / When
+    enterWith();
+    // Then
+    expect(titleField().tagName).toBe('TEXTAREA');
+    expect(titleField()).toHaveAttribute('rows', '2');
+    expect(bodyField()).toHaveAttribute('rows', '8');
+  });
+
+  it('Given タイトルと説明を書いた / When 欄の下を見る / Then 長さと上限が数字で出て、欄から指されている', () => {
+    // Given
+    enterWith();
+    // When
+    fireEvent.change(titleField(), { target: { value: 'FizzBuzz' } });
+    fireEvent.change(bodyField(), { target: { value: 'fizz' } });
+    // Then
+    expect(titleField()).toHaveAccessibleDescription(`8 / ${MAX_TOPIC_TITLE}`);
+    expect(bodyField()).toHaveAccessibleDescription(`4 / ${MAX_TOPIC_BODY}`);
+  });
+
+  it('Given 説明の欄 / When 欄の下を見る / Then Markdown で書けると添えてある', () => {
+    // Given / When
+    enterWith();
+    // Then
+    expect(screen.getByText(copy.BODY_HINT)).toBeInTheDocument();
+  });
+
+  it('Given 改行を含む文を貼った / When このお題にする / Then 改行は空白になって送られる', () => {
+    // Given
+    enterWith();
+    fireEvent.change(titleField(), { target: { value: 'Fizz\r\nBuzz' } });
+    expect(titleField()).toHaveValue('Fizz Buzz');
+    // When
+    fireEvent.click(setButton());
+    // Then
+    expect(lastSent()).toEqual({ command: 'topic.set', title: 'Fizz Buzz', body: '' });
+  });
+
+  it('Given タイトルを書いた / When タイトルの欄で Enter / Then 送られる', () => {
+    // Given
+    enterWith();
+    fireEvent.change(titleField(), { target: { value: 'FizzBuzz' } });
+    // When
+    fireEvent.keyDown(titleField(), { key: 'Enter' });
+    // Then
+    expect(lastSent()).toEqual({ command: 'topic.set', title: 'FizzBuzz', body: '' });
+  });
+
+  it.each([
+    ['変換中', { isComposing: true }],
+    ['Safari の確定', { keyCode: 229 }],
+  ])('Given タイトルを書いた / When %s の Enter / Then 送らない', (_label, init) => {
+    // Given
+    enterWith();
+    fireEvent.change(titleField(), { target: { value: 'FizzBuzz' } });
+    const before = latestSocket().sentJson().length;
+    // When
+    fireEvent.keyDown(titleField(), { key: 'Enter', ...init });
+    // Then
+    expect(latestSocket().sentJson()).toHaveLength(before);
+  });
+
+  it('Given タイトルを書いた / When Shift+Enter / Then 送らず、既定の改行も止める', () => {
+    // Given
+    enterWith();
+    fireEvent.change(titleField(), { target: { value: 'FizzBuzz' } });
+    const before = latestSocket().sentJson().length;
+    // When
+    const notCancelled = fireEvent.keyDown(titleField(), { key: 'Enter', shiftKey: true });
+    // Then
+    expect(notCancelled).toBe(false);
+    expect(latestSocket().sentJson()).toHaveLength(before);
+  });
+
+  it('Given タイトルが空白だけ / When タイトルの欄で Enter / Then 送らない', () => {
+    // Given
+    enterWith();
+    fireEvent.change(titleField(), { target: { value: '   ' } });
+    const before = latestSocket().sentJson().length;
+    // When
+    fireEvent.keyDown(titleField(), { key: 'Enter' });
+    // Then
+    expect(latestSocket().sentJson()).toHaveLength(before);
+  });
+
+  it('Given タイトルの途中にカーソル / When 改行を含む文を差し込む / Then 改行は空白になり、カーソルは差し込んだ文の後ろに残る', () => {
+    // Given: 「AAA BBB」の AAA の後ろに「x\ny」を差し込んだ直後の欄（カーソルは y の後ろ）
+    enterWith();
+    const field = titleField() as HTMLTextAreaElement;
+    const setValue = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!;
+    // When: React の値の追跡を通らない形で DOM の値を変え、カーソルを置いてから input を送る（貼り付けと同じ順）
+    act(() => {
+      setValue.call(field, 'AAAx\ny BBB');
+      field.setSelectionRange(6, 6);
+      fireEvent.input(field);
+    });
+    // Then: 値を書き直しても、カーソルは末尾へ飛ばない（続けて打つ字が差し込んだ位置に入る）
+    expect(field).toHaveValue('AAAx y BBB');
+    expect(field.selectionStart).toBe(6);
+    expect(field.selectionEnd).toBe(6);
+  });
+
+  it('Given いまのお題のタイトルが改行を含む / When 書き直す / Then 欄には改行を空白にして写す', () => {
+    // Given: 境界スキーマは改行を拒まないので、AI や別の接続から改行入りのタイトルが届きうる
+    enterWith({ ...IDLE_STATE, topic: { ...FIZZ, title: 'Fizz\nBuzz' } });
+    // When
+    fireEvent.click(screen.getByRole('button', { name: copy.REWRITE_BUTTON }));
+    // Then
+    expect(titleField()).toHaveValue('Fizz Buzz');
+    fireEvent.click(setButton());
+    expect(lastSent()).toEqual({ command: 'topic.set', title: 'Fizz Buzz', body: FIZZ.body });
+  });
+
+  it('Given 説明の欄 / When Enter / Then 送らない（説明は改行を書ける）', () => {
+    // Given
+    enterWith();
+    fireEvent.change(titleField(), { target: { value: 'FizzBuzz' } });
+    const before = latestSocket().sentJson().length;
+    // When
+    const notCancelled = fireEvent.keyDown(bodyField(), { key: 'Enter' });
+    // Then
+    expect(notCancelled).toBe(true);
+    expect(latestSocket().sentJson()).toHaveLength(before);
+  });
+});
+
+/**
+ * 「作る」はボタン 1 つで済む操作なので、長く書く「書く」より先に置く（読み上げと Tab の順も画面の順と同じ）。
+ *
+ * @requirements #313 構成案 1（正本 D2）
+ */
+describe('作ると書くの順', () => {
+  it('Given 画面 / When 並びを見る / Then 作るは書くより前にある', () => {
+    // Given / When
+    enterWith();
+    const make = screen.getByRole('region', { name: copy.MAKE_HEADING });
+    const write = screen.getByRole('region', { name: copy.WRITE_HEADING });
+    // Then
+    expect(make.compareDocumentPosition(write) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
 /**
  * @requirements #91 spec §5.4
  */
@@ -378,5 +529,143 @@ describe('操作できない間', () => {
     // Then
     expect(screen.getByText(`${location.origin}/?room=R1`)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: copy.INVITE_COPY_BUTTON })).toBeInTheDocument();
+  });
+});
+
+const preview = () => screen.getByRole('region', { name: copy.PREVIEW_BUTTON });
+
+/**
+ * 説明がどう見えるかを、このお題にする前に確かめられる。
+ *
+ * @requirements #313 正本 D6・FR-007・FR-008・SC-004
+ */
+describe('プレビュー', () => {
+  it('Given 何も書いていない / When プレビューを見る / Then 書くと見え方が出ると伝える', () => {
+    // Given / When
+    enterWith();
+    // Then
+    expect(within(preview()).getByText(copy.PREVIEW_EMPTY)).toBeInTheDocument();
+  });
+
+  it('Given タイトルと Markdown の説明を書いた / When プレビューを見る / Then 見出しと箇条書きとして出る', () => {
+    // Given
+    enterWith();
+    // When
+    fireEvent.change(titleField(), { target: { value: 'FizzBuzz' } });
+    fireEvent.change(bodyField(), { target: { value: '# Rules\n\n- fizz\n- buzz' } });
+    // Then
+    expect(within(preview()).getByRole('heading', { level: 3, name: 'FizzBuzz' })).toBeInTheDocument();
+    expect(within(preview()).getByRole('heading', { level: 4, name: 'Rules' })).toBeInTheDocument();
+    expect(within(preview()).getAllByRole('listitem')).toHaveLength(2);
+    expect(within(preview()).queryByText(copy.PREVIEW_EMPTY)).toBeNull();
+  });
+
+  it('Given タイトルが空白だけで説明を書いた / When プレビューを見る / Then 空の見出しは描かず、説明だけが出る', () => {
+    // Given
+    enterWith();
+    // When
+    fireEvent.change(titleField(), { target: { value: '   ' } });
+    fireEvent.change(bodyField(), { target: { value: 'fizz' } });
+    // Then
+    expect(within(preview()).queryByRole('heading', { level: 3 })).toBeNull();
+    expect(within(preview()).getByText('fizz')).toBeInTheDocument();
+  });
+
+  it('Given 書いた / When このお題にして、いまのお題に出る / Then プレビューの札と同じ中身で出る', () => {
+    // Given
+    const body = '# Rules\n\n- **fizz**\n\n> note';
+    enterWith();
+    fireEvent.change(titleField(), { target: { value: 'FizzBuzz' } });
+    fireEvent.change(bodyField(), { target: { value: body } });
+    const previewed = within(preview()).getByRole('article').outerHTML;
+    // When
+    fireEvent.click(setButton());
+    act(() => latestSocket().deliver({ type: 'topic', state: { ...IDLE_STATE, topic: { title: 'FizzBuzz', body, source: 'manual' } } }));
+    // Then
+    const current = screen.getByRole('region', { name: copy.CURRENT_HEADING });
+    expect(within(current).getByRole('article').outerHTML).toBe(previewed);
+  });
+
+  it('Given プレビュー / When 領域を見る / Then 打つたびに読み上げる印を持たない', () => {
+    // Given / When
+    enterWith();
+    // Then
+    expect(preview()).not.toHaveAttribute('aria-live');
+  });
+});
+
+const modeGroup = () => screen.getByRole('group', { name: copy.COMPOSE_MODE_LABEL });
+const modeButton = (name: string) => within(modeGroup()).getByRole('button', { name });
+/** 並べるか切り替えるかは CSS（容器クエリと `data-mode`）が決める。jsdom は CSS を読まないので、ここでは印までを見る。 */
+const compose = () => bodyField().closest('.topic-compose');
+
+/**
+ * 狭い「書く」では、説明の欄とプレビューを切り替える（並ぶことは E2E が見る）。
+ *
+ * @requirements #313 正本 D7・D8・D9・FR-011〜FR-013・NFR-003
+ */
+describe('説明の出し方の切り替え', () => {
+  it('Given 画面 / When 切り替えを見る / Then 書くが押されている', () => {
+    // Given / When
+    enterWith();
+    // Then
+    expect(modeButton(copy.WRITE_MODE_BUTTON)).toHaveAttribute('aria-pressed', 'true');
+    expect(modeButton(copy.PREVIEW_BUTTON)).toHaveAttribute('aria-pressed', 'false');
+    expect(compose()).toHaveAttribute('data-mode', 'write');
+  });
+
+  it('Given 書く / When プレビューを押す / Then プレビューが押され、出し方がプレビューになる', () => {
+    // Given
+    enterWith();
+    // When
+    fireEvent.click(modeButton(copy.PREVIEW_BUTTON));
+    // Then
+    expect(modeButton(copy.PREVIEW_BUTTON)).toHaveAttribute('aria-pressed', 'true');
+    expect(modeButton(copy.WRITE_MODE_BUTTON)).toHaveAttribute('aria-pressed', 'false');
+    expect(compose()).toHaveAttribute('data-mode', 'preview');
+  });
+
+  it('Given プレビューを出している / When 書くを押す / Then 書くへ戻る', () => {
+    // Given
+    enterWith();
+    fireEvent.click(modeButton(copy.PREVIEW_BUTTON));
+    // When
+    fireEvent.click(modeButton(copy.WRITE_MODE_BUTTON));
+    // Then
+    expect(compose()).toHaveAttribute('data-mode', 'write');
+  });
+
+  it('Given プレビューを出している / When このお題にする / Then 書くへ戻る', () => {
+    // Given
+    enterWith();
+    fireEvent.change(titleField(), { target: { value: 'FizzBuzz' } });
+    fireEvent.click(modeButton(copy.PREVIEW_BUTTON));
+    // When
+    fireEvent.click(setButton());
+    // Then
+    expect(compose()).toHaveAttribute('data-mode', 'write');
+  });
+
+  it('Given プレビューを出している / When 書き直す / Then プレビューのまま、いまのお題が出る', () => {
+    // Given
+    enterWith({ ...IDLE_STATE, topic: FIZZ });
+    fireEvent.click(modeButton(copy.PREVIEW_BUTTON));
+    // When
+    fireEvent.click(screen.getByRole('button', { name: copy.REWRITE_BUTTON }));
+    // Then
+    expect(compose()).toHaveAttribute('data-mode', 'preview');
+    expect(within(preview()).getByRole('heading', { level: 3, name: 'FizzBuzz' })).toBeInTheDocument();
+  });
+
+  it('Given タイトルを書いた / When 切り替えのボタンを押す / Then フォームを送らない', () => {
+    // Given
+    enterWith();
+    fireEvent.change(titleField(), { target: { value: 'FizzBuzz' } });
+    const before = latestSocket().sentJson().length;
+    // When
+    fireEvent.click(modeButton(copy.PREVIEW_BUTTON));
+    fireEvent.click(modeButton(copy.WRITE_MODE_BUTTON));
+    // Then
+    expect(latestSocket().sentJson()).toHaveLength(before);
   });
 });
