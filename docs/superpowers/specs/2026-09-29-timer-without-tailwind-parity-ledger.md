@@ -22,14 +22,45 @@
 
 ## PR 1（見た目を移さない土台）
 
-- ブランチの SHA: （Task 14 で記入）
-- 比較の仕組みの SHA: （Task 14 で記入）
-- 比較: 状態数・幅・差の件数: （Task 14 で記入）。目録は 26 状態（輪の外のゲストのロビー・離脱中のセッションのゲスト画面・詳細設定を開いたロビーを含む）。静止は 5 幅（360・640・768・1024・1280）、動きとキーフレームと画素と操作（ホバー・押下・フォーカス・チェック）を比べ、タッチ 2 本（360px）を足す
+- ブランチの SHA（比較を流した時点の HEAD。作業ツリーは clean）: `969e350a3e3e89c9cc7d2284b738a4c02e604758`
+- 比較の仕組みの SHA: `969e350a3e3e89c9cc7d2284b738a4c02e604758`（`e2e/parity` の最後の変更は `7709fd0f`。再現は `git checkout 969e350a3e3e89c9cc7d2284b738a4c02e604758 -- e2e/parity`）
+- 比較: 状態数・幅・差の件数: 全 26 状態 × 静止 5 幅 ＋ タッチ 2 本 ＝ 28 テスト。通常の比較は初回 27 緑 / 1 赤（`lobby-guest-outside` の動きに 1 件。基準側にだけ `img` の動き（`*`）が 1 件多い。基準 201・ブランチ 200 件）。**同じ状態だけを 3 回流し直したら 3 回とも緑（差 0）**。基準側の揺れとみなすが、原因は未調査（雑音として名指しはしていない）。再流し後の差は 0 件・画素一致・notEntered 0・skipped 両側一致。目録は 26 状態（輪の外のゲストのロビー・離脱中のセッションのゲスト画面・詳細設定を開いたロビーを含む）。静止は 5 幅（360・640・768・1024・1280）、動きとキーフレームと画素と操作（ホバー・押下・フォーカス・チェック）を比べ、タッチ 2 本（360px）を足す
 - 対照実行（基準同士）: 順序は「状態の作り方の揺れを固定 → 雑音の名指しと切り替わらないチェックの skipped 化 → 26 / 26」。
   - 揺れを固定した後・雑音が空の実行: 15 緑 / 11 赤。赤の中身は計測弧の `stroke-dashoffset`（と一部の画素）と、同期を落とした状態（banner-warn-reconnecting）で交代間隔が切り替わらないチェックの例外（時刻の揺れではない）
-  - 名指しと skipped 化の後: 26 / 26 緑（差 0・画素一致・notEntered 0・skipped 両側一致）。**ただしこれは計測弧の画素の扱いを撮影時の長さの固定（`SCREENSHOT_STYLE`）へ変える前の実行**。最終のコードでの通しの結果は Task 14 で記入
+  - 名指しと skipped 化の後: 26 / 26 緑（差 0・画素一致・notEntered 0・skipped 両側一致）。**ただしこれは計測弧の画素の扱いを撮影時の長さの固定（`SCREENSHOT_STYLE`）へ変える前の実行**。**最終のコード（計測弧を `SCREENSHOT_STYLE` で扱う形）での対照実行は 28 テスト（26 状態 ＋ タッチ 2 本）が 28 緑**（差 0・画素一致・notEntered 0・skipped 両側一致。所要 23.2 分）
   - 以後の対照実行は設定ファイルで選ぶ（`parity.control.config.ts`・README 参照）
-- 状態ごとの比較要素数・操作の書き出し件数: （Task 14 で記入）
+- 状態ごとの比較要素数・操作の書き出し件数（通常の比較の `out/<状態>/summary.json`。基準とブランチで全件一致。要素数は 1 幅あたり（5 幅とも同数。タッチは 360px の 1 本）。`lobby-guest-outside` は再流し後の値）:
+
+| 状態 | 要素数 | 動きの件数 | 操作の書き出し | うち skipped |
+|---|---|---|---|---|
+| banner-error-save-failed | 91 | 91 | 48 | 0 |
+| banner-warn-reconnecting | 200 | 194 | 178 | 10 |
+| history-empty | 38 | 38 | 15 | 0 |
+| history-with-record | 64 | 63 | 39 | 0 |
+| loading-timed-out | 45 | 45 | 30 | 0 |
+| loading-unreachable | 22 | 22 | 0 | 0 |
+| lobby-advanced-open | 227 | 221 | 281 | 6 |
+| lobby-alone | 199 | 193 | 183 | 5 |
+| lobby-guest-outside | 207 | 201 | 206 | 5 |
+| lobby-notify-open | 271 | 262 | 254 | 33 |
+| lobby-passphrase | 226 | 221 | 260 | 5 |
+| lobby-two | 227 | 221 | 265 | 6 |
+| lobby-two-touch | 227 | 221 | 265 | 6 |
+| session-driver | 293 | 291 | 221 | 3 |
+| session-driver-touch | 293 | 291 | 221 | 3 |
+| session-end-confirm | 300 | 298 | 6 | 52 |
+| session-guest-skipping | 295 | 293 | 221 | 3 |
+| session-lost | 46 | 46 | 39 | 0 |
+| session-memo | 294 | 292 | 221 | 3 |
+| session-navigator | 293 | 291 | 221 | 3 |
+| session-paused | 293 | 291 | 213 | 4 |
+| session-proxy-form | 298 | 295 | 230 | 3 |
+| session-remove-confirm | 300 | 298 | 6 | 52 |
+| session-switched | 300 | 298 | 69 | 29 |
+| session-urgent | 293 | 291 | 221 | 3 |
+| status-strip-lobby | 199 | 193 | 183 | 5 |
+| summary-abort | 41 | 41 | 36 | 0 |
+| summary-complete | 94 | 94 | 42 | 0 |
 - 雑音として名指ししたもの（`noise.ts`）: 計測弧の円の `stroke-dashoffset` の 1 件だけ（弧の長さは経過率で決まり、両側は別の時刻に撮るので揃わない）。画素は撮影のときだけ弧の長さを固定して比べる（`SCREENSHOT_STYLE`）。**代償**: 弧の長さの画素は見ない（弧の発光・線幅はスタイルの比較で見ている）
 - 状態の作り方で決定的にしたもの: 知らせの帯が 4 秒で消える揺れ（summary 系は時計を止めて留める）、履歴の日時（記録の `completedAt` と所要時間を固定）
 - 破壊検証（壊し方 7 つ。すべて赤を確かめて戻した）:
@@ -59,7 +90,7 @@
   「交代を音で知らせる」は通知の許可を両側の文脈へ与えて対象に戻した（除外なし）。
 
 - 状態に入れなかった要素の注意: `loading-unreachable` は操作できる要素が 0。`lobby-notify-open` の `focus-visible` が少ないのは、ポップオーバーのフォーカストラップで Tab が巡回するため（確認済み）
-- 除去検査: **正本は `loadRemovalProbe`（`e2e/parity/removal-summary.ts`）の出力**（状態ごとの `out/removal/<状態>.json` を束ねる。目録の状態が欠けていれば止まる）。PR 2・3 の着手時に取り直す（約 26 分）。「写さない」組の定義は README が正本。出力（`out/removal/`）は無視していて PR 4 の撤去で消える。PR 2・3 で消した分はこの文書に書く
+- 除去検査: **正本は `loadRemovalProbe`（`e2e/parity/removal-summary.ts`）の出力**（状態ごとの `out/removal/<状態>.json` を束ねる。目録の状態が欠けていれば止まる）。PR 2・3 の着手時に取り直す（約 26 分。今回は 22.8 分で 26 状態すべて通った）。「写さない」組の定義は README が正本。出力（`out/removal/`）は無視していて PR 4 の撤去で消える。PR 2・3 で消した分はこの文書に書く
   - 全 26 状態の延べ: dead 1716・alive 18959・undecided 813（束ねた「写さない」組は 164）。揺れによる未判定は 0
   - 既知の答え 5 つとの突き合わせはすべて一致: `instrument-label` と同じ要素の `text-[var(--signal)]`・`PrimaryButton`（`px-6`）への `px-3`・`py-1.5` は dead、`Card`（`p-6`）への `sm:p-4`（640px で変わる）と `instrument-label` 自身は alive
   - 組で外すと変わるもの: QR の `h-52` + `w-52`（単独では dead に見えるが、組では効いている）。写す側へ倒した
