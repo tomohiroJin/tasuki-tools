@@ -34,7 +34,7 @@ export interface ParityState {
   readonly marker: (page: Page) => Locator;
   /** 比べる要素数の下限。これを下回ったら状態を作り損ねている。 */
   readonly minElements: number;
-  /** 画素の比較で隠す要素（ルームコード・QR・招待 URL・経過時間）。 */
+  /** 画素の比較で隠す要素（ルームコード・QR・招待 URL・経過時間・残り時間。理由と代償は台帳の「画素のマスク」）。 */
   readonly mask: (page: Page) => Locator[];
 }
 
@@ -52,6 +52,9 @@ const GUEST = 'ゲスト';
  */
 const ROOM_CODE_TEXT = /^[A-HJKMNP-Z2-9]{6}$/;
 
+/** ステータスの帯のルームコード（`StatusStrip.tsx` の `(XXXXXX)`）。 */
+const STRIP_ROOM_CODE_TEXT = /^\([A-HJKMNP-Z2-9]{6}\)$/;
+
 /**
  * ルームコード・QR・招待 URL・残り時間・経過時間は、部屋ごと・時刻ごとに変わる（設計正本 §5.3）。
  * 計測弧は隠さず、撮るときに長さを固定する（{@link SCREENSHOT_STYLE}）。
@@ -62,6 +65,8 @@ const ROOM_CODE_TEXT = /^[A-HJKMNP-Z2-9]{6}$/;
  *   隠れたコピーのボタンは、スタイルの比較では比べている
  * - 経過時間（`Session.tsx` の「経過 00:00」・`Summary.tsx` の「所要時間」の値）も役割と名前を持たないので、
  *   札の文字から辿る（残り時間は `timer` の役割で掴める）
+ * - ステータスの帯は、ルームコードの `(XXXXXX)` だけを隠す（帯の残り —— 画面の名前・戻る導線・名前・接続状態・
+ *   通知設定 —— は画素で比べる。狭めた後の通しの比較で画素の差 0 を確かめた・台帳）
  */
 function roomMask(page: Page): Locator[] {
   return [
@@ -70,7 +75,7 @@ function roomMask(page: Page): Locator[] {
     page.locator('span', { hasText: /^経過 / }).getByText(/^\d+:\d{2}$/),
     page.locator('p', { hasText: /^所要時間$/ }).locator('xpath=following-sibling::p[1]'),
     page.getByRole('timer'),
-    page.getByLabel('ステータス情報'),
+    page.getByLabel('ステータス情報').getByText(STRIP_ROOM_CODE_TEXT),
     page.locator('text=/\\/\\?room=/'),
   ];
 }

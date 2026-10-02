@@ -18,7 +18,7 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { expect, test, type Browser, type BrowserContext, type Locator, type Page } from '@playwright/test';
 import type { BaseServing } from './base-dist';
-import { newParityContext, type RafWindow } from './context';
+import { assertSnapshotsNotUpdated, newParityContext, type RafWindow } from './context';
 import {
   coverOf,
   finishTransitions,
@@ -131,12 +131,17 @@ async function settleAt(page: Page, state: ParityState, width: number): Promise<
   await scrollToTop(page);
 }
 
+/** 組の確かめで dead から外す理由（判定の結果か、状態に入れられなかった理由）。 */
+function groupReason(status: ProbeStatus): string {
+  return status === 'changed' ? '組で外すと変わる' : '組で外すと揺れる';
+}
+
 /**
- * 組で外すと変わった（または揺れた）要素の dead を undecided へ移す。`dead` のうち、道筋と className が一致し、
- * クラスが組に入っているものを移す。
+ * 組の確かめで dead から外す要素の dead を undecided へ移す（組で外すと変わった・揺れた・状態に入れられなかった）。
+ * `dead` のうち、道筋と className が一致し、クラスが組に入っているものを移す。`why` は理由の頭（組のクラスを後ろに足す）。
  */
-function demoteGroup(out: Collector, path: string, className: string, tokens: readonly string[], status: ProbeStatus): void {
-  const reason = `${status === 'changed' ? '組で外すと変わる' : '組で外すと揺れる'}: ${tokens.join(' + ')}`;
+function demoteGroup(out: Collector, path: string, className: string, tokens: readonly string[], why: string): void {
+  const reason = `${why}: ${tokens.join(' + ')}`;
   const keep: ProbeHit[] = [];
   for (const h of out.dead) {
     if (h.path === path && h.className === className && tokens.includes(h.token)) out.undecided.push({ ...h, reason });
@@ -172,7 +177,7 @@ async function checkRestGroups(page: Page, state: ParityState, out: Collector): 
   }
   for (const [p, status] of worst) {
     const g = groups.get(p);
-    if (g !== undefined) demoteGroup(out, p, g.className, g.tokens, status);
+    if (g !== undefined) demoteGroup(out, p, g.className, g.tokens, groupReason(status));
   }
 }
 
@@ -320,8 +325,9 @@ async function checkVariantGroups(page: Page, out: Collector, groups: Iterable<V
     if (g.hits.length < 2 || first === undefined) continue;
     const tokens = g.hits.map((h) => h.token);
     const judged = await judgeInState(page, page.locator(`[${VARIANT_MARK}="${g.index}"]`), g.variant, tokens);
-    if ('reason' in judged) demoteGroup(out, first.path, first.className, tokens, 'unstable');
-    else if (judged.result.status !== 'same') demoteGroup(out, first.path, first.className, tokens, judged.result.status);
+    // 組では状態に入れられなかった（判定していない）ので dead のままにしない。理由は揺れではなく入れられなかったこと
+    if ('reason' in judged) demoteGroup(out, first.path, first.className, tokens, `組の確かめで状態に入れられない（${judged.reason}）`);
+    else if (judged.result.status !== 'same') demoteGroup(out, first.path, first.className, tokens, groupReason(judged.result.status));
   }
 }
 
@@ -386,7 +392,8 @@ async function probeState(browser: Browser, state: ParityState): Promise<Collect
 }
 
 for (const state of STATES) {
-  test(`${state.name}: 基準で効いていないクラスを書き出す`, async ({ browser }) => {
+  test(`${state.name}: 基準で効いていないクラスを書き出す`, async ({ browser }, testInfo) => {
+    assertSnapshotsNotUpdated(testInfo);
     // 前回の結果を先に消す。落ちた状態のファイルが残ると、束ねる側（loadRemovalProbe）が欠けに気づかない
     const file = removalFile(state.name);
     rmSync(file, { force: true });

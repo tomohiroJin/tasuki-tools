@@ -112,6 +112,14 @@ describe('diffEntries: 基準とブランチの計算済みスタイルを突き
     );
     expect(d).toEqual([]);
   });
+  it('Given box-shadow の透明な 0 層を除いても実の影が違う / When 比べる / Then 差として出る（類 2 は実の影を飲み込まない）', () => {
+    const d = diffEntries(
+      [entry('p', { 'box-shadow': 'rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgb(0, 0, 0) 0px 1px 2px 0px' })],
+      [entry('p', { 'box-shadow': 'rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgb(0, 0, 0) 0px 1px 3px 0px' })],
+      NO_IGNORE,
+    );
+    expect(d.map((x) => x.prop)).toEqual(['box-shadow']);
+  });
   it('Given 除く規則に当たる差 / When 比べる / Then 差にしない。当たらない差は残る', () => {
     const options: CompareOptions = {
       tailwindThemeVars: new Set(),

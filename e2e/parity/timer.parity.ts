@@ -5,14 +5,18 @@
  * 読み方は 2 通り: `no-preference` で動きのプロパティとキーフレーム、`reduce` で全プロパティと画素。
  * `reduce` の読みの後、1280px で操作の状態（ホバー・押下・フォーカス）を書き出す（`interaction.ts`）。
  * 加えて、タッチの文脈（`hasTouch`・360px）の 1 本を撮る（設計正本 §5.5）。
+ *
+ * 差のほかに、基準側の要約を期待値（`expected/base-summary.json`・`expected.ts`）と突き合わせる（両側で同じように
+ * 空になっても緑にしないため）。各テストの先頭で、`-u` で流していないことを断定する（`context.ts`）。
  */
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test, type Browser, type BrowserContext, type Page, type TestInfo } from '@playwright/test';
 import { BASE_DIST, type BaseServing } from './base-dist';
 import { captureKeyframes, captureMotion, captureStyles } from './capture';
-import { newParityContext, type ParityRole } from './context';
+import { assertSnapshotsNotUpdated, newParityContext, type ParityRole } from './context';
 import { diffEntries, diffKeyframes, themeVarNamesFromCss, type StyleDiff, type StyleEntry } from './compare-lib';
+import { BASE_EXPECTATION_FILE, checkExpectation, expectedKeyProblems, loadExpected } from './expected';
 import { captureInteractions, type InteractionCapture } from './interaction';
 import { NOISE } from './noise';
 import { scrollToTop, settleAtWidth, waitForInviteQr } from './settle';
@@ -193,8 +197,38 @@ function interactionSummary(c: InteractionCapture): Record<string, unknown> {
   return { counts: c.counts, entries: c.entries.length, notEntered: c.notEntered, skipped: c.skipped };
 }
 
+/**
+ * 基準側の要約のうち、期待値として固定する部分（`expected.ts`）。基準の dist から返した件数（`served`）は
+ * 読み込みの回数で揺れうるので入れない。キーフレームと skipped は名前の並びで揺れないよう整列する。
+ */
+function expectationOf(
+  elements: Readonly<Record<number, number>> | number,
+  motion: readonly StyleEntry[],
+  keyframes: Readonly<Record<string, string>>,
+  interactions: InteractionCapture,
+): Record<string, unknown> {
+  return {
+    elements,
+    motionEntries: motion.length,
+    keyframes: Object.keys(keyframes).sort(),
+    interactions: {
+      counts: interactions.counts,
+      entries: interactions.entries.length,
+      notEntered: [...interactions.notEntered].sort(),
+      skipped: [...interactions.skipped].sort(),
+    },
+  };
+}
+
+/** 期待値を突き合わせ、基準側の要約をその置き場へ書く（期待値の作り直しはこれを束ねる・README）。 */
+function checkBaseExpectation(dir: string, key: string, expectation: Record<string, unknown>): string[] {
+  writeFileSync(path.join(dir, BASE_EXPECTATION_FILE), JSON.stringify(expectation, null, 2));
+  return checkExpectation(EXPECTED, key, expectation);
+}
+
 for (const state of STATES) {
   test(`${state.name}: ${VERDICT}`, async ({ browser }, testInfo) => {
+    assertSnapshotsNotUpdated(testInfo);
     const control = isControlRun(testInfo);
     const base = await captureSide(browser, state, { side: 'base', control });
     const branch = await captureSide(browser, state, { side: 'branch', control });
@@ -217,7 +251,6 @@ for (const state of STATES) {
     // `--repeat-each` の 2 回目以降は別の置き場へ書く（上書きすると、揺れた回の中身が残らない）
     const dir = path.join(OUT, testInfo.repeatEachIndex === 0 ? state.name : `${state.name}-r${testInfo.repeatEachIndex}`);
     mkdirSync(dir, { recursive: true });
-    writeFileSync(path.join(dir, 'diff.json'), JSON.stringify(report, null, 2));
     // 撮れた中身の要約（状態を作り損ねていないか・キーフレームを実際に拾えたかを後から読む）
     const summary = (c: Capture): Record<string, unknown> => ({
       served: c.served,
@@ -230,6 +263,10 @@ for (const state of STATES) {
       path.join(dir, 'summary.json'),
       JSON.stringify({ control, base: summary(base), branch: summary(branch) }, null, 2),
     );
+    // 基準側の要約を期待値と突き合わせる（両側で同じように空でも緑にしない）
+    const elements = Object.fromEntries(WIDTHS.map((w) => [w, base.styles.get(w)?.length ?? 0]));
+    report['expected'] = checkBaseExpectation(dir, state.name, expectationOf(elements, base.motion, base.keyframes, base.interactions));
+    writeFileSync(path.join(dir, 'diff.json'), JSON.stringify(report, null, 2));
 
     // 画素: 基準の画像を snapshot の置き場へ書き、ブランチの画像を照合する（maxDiffPixels: 0）
     for (const width of WIDTHS) {
@@ -247,6 +284,22 @@ for (const state of STATES) {
 
 /** タッチの文脈で撮る状態（設計正本 §5.5。`(hover: hover)` が偽になり、`hover:` の規則が効かなくなる）。 */
 const TOUCH_STATES = new Set(['lobby-two', 'session-driver']);
+// 名前を打ち違えると、タッチの比較が黙って 1 本減る（filter が当たらない）。目録に在ることを読み込みの時点で断定する
+const unknownTouch = [...TOUCH_STATES].filter((n) => !STATES.some((s) => s.name === n));
+if (unknownTouch.length > 0) throw new Error(`TOUCH_STATES に目録に無い状態がある: ${unknownTouch.join(', ')}`);
+
+/** タッチの比較の出力の置き場の名前（期待値のキーも同じ）。 */
+const touchKey = (name: string): string => `${name}-touch`;
+
+/**
+ * 基準側の要約の期待値（`expected.ts`）。キーがテストと食い違えば読み込みの時点で止める（古い期待値・目録の変更）。
+ * 無ければ各テストが赤になる（README の「期待値を作り直す」）。
+ */
+const EXPECTED = loadExpected();
+if (EXPECTED !== null) {
+  const problems = expectedKeyProblems(EXPECTED, [...STATES.map((s) => s.name), ...[...TOUCH_STATES].map(touchKey)]);
+  if (problems.length > 0) throw new Error(`期待値の JSON が目録と食い違う（README の「期待値を作り直す」）: ${problems.join(' / ')}`);
+}
 
 interface TouchCapture {
   readonly styles: StyleEntry[];
@@ -254,6 +307,8 @@ interface TouchCapture {
   readonly motion: StyleEntry[];
   readonly keyframes: Record<string, string>;
   readonly interactions: InteractionCapture;
+  /** 基準の dist から返した件数（ブランチの側は 0）。 */
+  readonly served: number;
 }
 
 /**
@@ -295,7 +350,8 @@ async function captureTouchSide(browser: Browser, state: ParityState, role: Pari
 
     // 3. 操作の状態
     const interactions = await captureInteractionsAt(page, state, TOUCH_WIDTH);
-    return { styles, screenshot, motion, keyframes, interactions };
+    const served = servings.reduce((n, s) => n + s.served(), 0);
+    return { styles, screenshot, motion, keyframes, interactions, served };
   } finally {
     for (const c of contexts) await c.close();
   }
@@ -303,6 +359,7 @@ async function captureTouchSide(browser: Browser, state: ParityState, role: Pari
 
 for (const state of STATES.filter((s) => TOUCH_STATES.has(s.name))) {
   test(`${state.name}（タッチ・${TOUCH_WIDTH}px）: ${VERDICT}`, async ({ browser }, testInfo) => {
+    assertSnapshotsNotUpdated(testInfo);
     const control = isControlRun(testInfo);
     const base = await captureTouchSide(browser, state, { side: 'base', control });
     const branch = await captureTouchSide(browser, state, { side: 'branch', control });
@@ -319,11 +376,11 @@ for (const state of STATES.filter((s) => TOUCH_STATES.has(s.name))) {
       skipped: onlyOnOneSide(base.interactions.skipped, branch.interactions.skipped),
     };
     // `--repeat-each` の 2 回目以降は別の置き場へ書く（本体と同じ）
-    const name = `${state.name}-touch`;
+    const name = touchKey(state.name);
     const dir = path.join(OUT, testInfo.repeatEachIndex === 0 ? name : `${name}-r${testInfo.repeatEachIndex}`);
     mkdirSync(dir, { recursive: true });
-    writeFileSync(path.join(dir, 'diff.json'), JSON.stringify(report, null, 2));
     const summary = (c: TouchCapture): Record<string, unknown> => ({
+      served: c.served,
       elements: c.styles.length,
       motionEntries: c.motion.length,
       keyframes: Object.keys(c.keyframes).sort(),
@@ -333,6 +390,9 @@ for (const state of STATES.filter((s) => TOUCH_STATES.has(s.name))) {
       path.join(dir, 'summary.json'),
       JSON.stringify({ control, base: summary(base), branch: summary(branch) }, null, 2),
     );
+    // 基準側の要約を期待値と突き合わせる（本体と同じ）
+    report['expected'] = checkBaseExpectation(dir, name, expectationOf(base.styles.length, base.motion, base.keyframes, base.interactions));
+    writeFileSync(path.join(dir, 'diff.json'), JSON.stringify(report, null, 2));
 
     // 画素: 本体と同じく、基準の画像を snapshot の置き場へ書き、ブランチの画像を照合する（maxDiffPixels: 0）
     const png = `${name}-${TOUCH_WIDTH}.png`;

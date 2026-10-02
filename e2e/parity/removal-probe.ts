@@ -291,22 +291,6 @@ export async function probeGroups(page: Page, groups: Readonly<Record<string, re
   });
 }
 
-/** 組の確かめの動きの版（`no-preference` の下で呼ぶ）。 */
-export async function probeGroupsMotion(
-  page: Page,
-  groups: Readonly<Record<string, readonly string[]>>,
-): Promise<ProbeResult[]> {
-  return page.evaluate(probeInPage, {
-    stateVariantSource: STATE_VARIANT.source,
-    only: [...MOTION_PROBE_PROPS],
-    relayout: false,
-    targetAttr: null,
-    tokens: null,
-    groups,
-    requireMatch: null,
-  });
-}
-
 /** 要素の道筋（`probeInPage` の中の `pathOf` と同じ形）。`locator.evaluate` に渡す。**自己完結させる**。 */
 export function elementPath(el: Element): string {
   const parts: string[] = [];

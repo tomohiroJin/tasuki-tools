@@ -33,6 +33,12 @@ export interface StateRemoval {
   readonly undecided: ProbeHit[];
 }
 
+/** {@link loadRemovalProbe} の結果。 */
+export interface RemovalProbe {
+  readonly states: StateRemoval[];
+  readonly dead: DeadClass[];
+}
+
 /** 写さないクラス（className とクラスの組）と、それが dead と判定された状態。 */
 export interface DeadClass {
   readonly className: string;
@@ -57,9 +63,12 @@ export function removalFile(state: string, dir = REMOVAL_DIR): string {
  *
  * **目録の状態が 1 つでも欠けていれば throw する**（欠けた状態で alive だったものを dead と読み違えないため）。
  * 目録に無い状態のファイルがあっても throw する（古い目録の残り。消してから流し直す）。
+ * `expected` は期待する状態の名前（既定は目録 `STATES` の全状態。自己テストが fixture の名前を渡す）。
  */
-export function loadRemovalProbe(dir = REMOVAL_DIR): { readonly states: StateRemoval[]; readonly dead: DeadClass[] } {
-  const expected = STATES.map((s) => s.name);
+export function loadRemovalProbe(
+  dir = REMOVAL_DIR,
+  expected: readonly string[] = STATES.map((s) => s.name),
+): RemovalProbe {
   const missing = expected.filter((name) => !existsSync(removalFile(name, dir)));
   if (missing.length > 0) {
     throw new Error(`除去検査の結果が欠けている状態: ${missing.join(', ')}（-c parity/parity.removal.config.ts で全状態を流し直す）`);
@@ -85,4 +94,50 @@ export function loadRemovalProbe(dir = REMOVAL_DIR): { readonly states: StateRem
     }
   }
   return { states, dead: [...dead.values()] };
+}
+
+/** 既知の答え（設計正本 §2 の 4・5）。`className` の語に `owner` を持つ要素の `token` が、`expect` の判定になるはず。 */
+export interface KnownAnswer {
+  readonly expect: 'dead' | 'alive';
+  readonly owner: string;
+  readonly token: string;
+  readonly why: string;
+}
+
+export const KNOWN_ANSWERS: readonly KnownAnswer[] = [
+  { expect: 'dead', owner: 'instrument-label', token: 'text-[var(--signal)]', why: '.instrument-label の色に負ける' },
+  { expect: 'dead', owner: 'px-6', token: 'px-3', why: 'PrimaryButton の px-6 に負ける' },
+  { expect: 'dead', owner: 'px-6', token: 'py-1.5', why: 'PrimaryButton の py-3 に負ける' },
+  { expect: 'alive', owner: 'p-6', token: 'sm:p-4', why: 'Card の sm:p-4 は 640〜767px で効く' },
+  { expect: 'alive', owner: 'instrument-label', token: 'instrument-label', why: '計器ラベル自身' },
+];
+
+export interface KnownAnswerResult {
+  readonly answer: KnownAnswer;
+  readonly ok: boolean;
+  /** 該当した判定の件数（dead・alive・undecided）と、束ねた「写さない」に入ったか。 */
+  readonly detail: string;
+}
+
+/**
+ * 束ねた除去検査の結果に既知の答えを当てる（README の「除去検査」）。該当する要素が 1 つも無ければ ng（空振りを ok にしない）。
+ *
+ * - dead のはず: どの状態でも alive にも undecided にも出ず、dead に 1 件以上あり、束ねた `dead` に入っている
+ * - alive のはず: alive に 1 件以上あり、束ねた `dead` に入っていない
+ *
+ * `owner` は className を空白で分けた語と完全一致で見る（`md:p-6` を `p-6` と取り違えない）。
+ */
+export function checkKnownAnswers(probe: RemovalProbe): KnownAnswerResult[] {
+  return KNOWN_ANSWERS.map((answer) => {
+    const matches = (h: { className: string; token: string }): boolean =>
+      h.token === answer.token && h.className.split(/\s+/).includes(answer.owner);
+    const count = (pick: (s: StateRemoval) => ProbeHit[]): number =>
+      probe.states.reduce((n, s) => n + pick(s).filter(matches).length, 0);
+    const dead = count((s) => s.dead);
+    const alive = count((s) => s.alive);
+    const undecided = count((s) => s.undecided);
+    const bundled = probe.dead.some(matches);
+    const ok = answer.expect === 'dead' ? dead > 0 && alive === 0 && undecided === 0 && bundled : alive > 0 && !bundled;
+    return { answer, ok, detail: `dead ${dead}・alive ${alive}・undecided ${undecided}・写さない ${bundled ? 'に入る' : 'に入らない'}` };
+  });
 }

@@ -20,7 +20,7 @@ if (target.kind === 'production') {
 export default defineConfig({
   testDir: '.',
   testMatch: '**/*.parity.ts',
-  // 除去検査（約 25 分）は既定の比較に含めない。`parity.removal.config.ts` で流す
+  // 除去検査は既定の比較に含めない。`parity.removal.config.ts` で流す
   testIgnore: '**/removal.parity.ts',
   globalSetup: '../harness/global-setup.ts',
   outputDir: './out/artifacts',
