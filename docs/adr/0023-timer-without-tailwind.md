@@ -4,7 +4,7 @@
 - **関連**: [#321](https://github.com/tomohiroJin/tasuki-tools/issues/321) /
   設計正本 [`docs/superpowers/specs/2026-09-29-timer-without-tailwind-design.md`](../superpowers/specs/2026-09-29-timer-without-tailwind-design.md)
 - **置き換えるもの**: [ADR-0001](./0001-design-system-scope.md) 決定 1 の「Tailwind のまま維持します」と
-  2026-08-11 の追記 / [ADR-0022](./0022-ui-components-layer.md) 決定 1 の理由・決定 5 の理由・実施状況の #321 の行き先
+  2026-08-11 の追記・2026-09-27 の追記の「要素層を読まない理由は変わらない」 / [ADR-0022](./0022-ui-components-layer.md) 決定 1 の理由・決定 5 の理由・実施状況の #321 の行き先
 
 ## 背景
 
@@ -41,7 +41,7 @@ ADR-0022 決定 1 の「部品層は `@layer` を使わない」は維持する�
 
 ### 6. 検査の依存の例外
 
-`scripts/audit-timer-classes.mjs` は、ルートの devDependencies の `typescript` で `.tsx` を読む
+`scripts/audit-timer-classes.mjs` は、ルートの devDependencies の `typescript` で `.tsx` / `.ts` を読む
 （`scripts/` の「追加依存は禁止」の慣行の例外。ADR-0022 決定 7 と同じ扱い）。
 移行中は、Tailwind のユーティリティ名の判定に `apps/timer-web` の `tailwindcss` を、`tailwind.config.js` を `@config` で
 読ませた形で解決して使う。**この判定は PR 4 で Tailwind と一緒に消す。**

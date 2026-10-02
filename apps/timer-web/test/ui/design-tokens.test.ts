@@ -53,11 +53,12 @@ const RAW_COLOR = new RegExp(
   "g",
 );
 
-function tsxFiles(dir: string, acc: string[] = []): string[] {
+/** 走査対象の `.tsx` と `.ts`（設計正本 D10・E5。関数でクラス名を返す `.ts` も色を書きうる）。 */
+function sourceFiles(dir: string, acc: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
     const full = join(dir, name);
-    if (statSync(full).isDirectory()) tsxFiles(full, acc);
-    else if (name.endsWith(".tsx")) acc.push(full);
+    if (statSync(full).isDirectory()) sourceFiles(full, acc);
+    else if (/\.tsx?$/.test(name)) acc.push(full);
   }
   return acc;
 }
@@ -74,10 +75,12 @@ function isAllowed(relative: string, hit: string): boolean {
 }
 
 describe("画面のコードに生の色を書かない（#78 デザインシステム）", () => {
-  it("src 配下の .tsx が、トークンを経由しない色を持たない", () => {
-    // Given（走査対象の全 .tsx）
-    const files = tsxFiles(ROOT);
+  it("src 配下の .tsx / .ts が、トークンを経由しない色を持たない", () => {
+    // Given（走査対象の全 .tsx / .ts）
+    const files = sourceFiles(ROOT);
     expect(files.length).toBeGreaterThan(20); // 走査対象が消えて空振りするのを防ぐ
+    // .ts も走査に入っている（設計正本 D10・E5。関数でクラス名を返す presence.ts など）
+    expect(files.some((f) => f.endsWith(".ts"))).toBe(true);
 
     // When（コメントを除いた本文から生の色を集める）
     const offenders: string[] = [];
@@ -94,8 +97,8 @@ describe("画面のコードに生の色を書かない（#78 デザインシス
   });
 
   it("ALLOW の各項目は 1 度以上使われている（直した後に例外だけが残らない）", () => {
-    // Given（走査対象の全 .tsx）
-    const files = tsxFiles(ROOT);
+    // Given（走査対象の全 .tsx / .ts）
+    const files = sourceFiles(ROOT);
     // When（項目ごとに当たった回数を数える）
     const used = new Map(ALLOW.map((a) => [a, 0]));
     for (const full of files) {

@@ -1,11 +1,10 @@
 /* 共通のトークン層（`@tasuki/ui/tokens.css`）は **`main.tsx` がこのファイルより先に読む**。
  * ここで `@import` してはいけない —— Tailwind が展開すると書体の `url()` が解決されず、
  * 書体が 1 本も読めなくなる（#297。理由は `main.tsx` の注釈）。要素層
- * （`@tasuki/ui/elements.css`）は `button` や `h2` を直接飾るため **読まない** ——
- * Tailwind のユーティリティと衝突する（ADR-0001）。
+ * （`@tasuki/ui/elements.css`）は **読まない**（読ませると timer のボタンや見出しの一つひとつに
+ * 要素層を打ち消す規則が要る。ADR-0023 決定 4）。
  * 部品層（`@tasuki/ui/components.css`）は `main.tsx` が読む（`.ui-` のクラスだけなので衝突しない・ADR-0022）。
- * 中身は `styles/base.css`（土台）と、PR 2 以降の画面の CSS に分けた（#321）。 */
-
+ * 土台は `styles/base.css`。画面の CSS は PR 2 以降に `styles/` へ足す（#321）。 */
 
 /* レイヤーの順序（#321・設計正本 D3）。**`@import 'tailwindcss'` より前に置く** —— 後ろに置くと、
  * Tailwind が出す宣言が先に現れ、`timer` が `utilities` の後ろへ回って Tailwind に勝ってしまう。

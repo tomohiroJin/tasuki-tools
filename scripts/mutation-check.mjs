@@ -1293,8 +1293,7 @@ export const MUTATIONS = [
     tests: ["audit-timer-classes.test.mjs"],
     note:
       "#321 PR 1・設計正本 D1・計画 P8。字面のクラス名が timer の CSS にも部品層にも無くても落とさない。" +
-      "Tailwind のクラスはどちらにも定義されないので、移したファイルに取り残した Tailwind のクラスが黙って通る" +
-      "（m118 は Task 11 が予約済み）。",
+      "Tailwind のクラスはどちらにも定義されないので、移したファイルに取り残した Tailwind のクラスが黙って通る。",
   },
 ];
 
