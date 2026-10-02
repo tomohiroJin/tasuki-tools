@@ -75,6 +75,35 @@ export async function settleAtWidth(page: Page, width: number, marker: Locator):
 }
 
 /**
+ * 招待パネル（`InvitePanel.tsx`）の QR の `<img>` が、描かれ、読み込み終わるまで待つ。**目印の直後・最初の読みの前に呼ぶ。**
+ *
+ * QR は `useInviteQr` が `qrcode` を動的に読み込んで非同期に作り、できるまで `<img>` そのものが DOM に無い。
+ * 目印（ボタンなど）が見えた時点ではまだ無いことがあり、最初に読む動きの書き出し（`no-preference`）で
+ * **片側にだけ `img` の項目が 1 件多い**差が出た（Task 14 の通しの比較・lobby-guest-outside の 1 回: 基準 201・ブランチ 200）。
+ * 後の `reduce` の読みでは両側とも揃っていた（要素数 207 で一致）ので、描かれる前に読んだだけ。
+ *
+ * 条件は「描かれている招待パネルの数 = 読み込み済み（`complete` かつ `naturalWidth > 0`）の QR の数」。
+ * パネルは「ルームコードをコピー」のボタンで数える（パネルにしか無い）。セッション画面ではルームのタブを開くまで
+ * パネルが描かれない（`Tabs.tsx`）ので、パネルの無い状態では 0 = 0 で即座に通る。QR の生成に失敗すると
+ * `<img>` は出ないので、ここで落ちる（失敗の姿を比べる状態は無い）。
+ */
+export async function waitForInviteQr(page: Page): Promise<void> {
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const panels = document.querySelectorAll('button[aria-label="ルームコードをコピー"]').length;
+          const loaded = Array.from(document.querySelectorAll<HTMLImageElement>('img[alt$="QR コード"]')).filter(
+            (img) => img.complete && img.naturalWidth > 0,
+          ).length;
+          return panels === loaded ? 'loaded' : `パネル ${panels} / 読み込み済みの QR ${loaded}`;
+        }),
+      { message: '招待パネルの QR が描かれない' },
+    )
+    .toBe('loaded');
+}
+
+/**
  * 先頭へスクロールを戻す（`settleAtWidth` の注記）。戻したことを確かめる。
  *
  * 幅を変えた直後の再描画がスクロールを動かしうる（`states.ts` の `openDialogWithoutFocus`）。そのため落ち着いた後に呼び、戻すことと確かめることを 1 回の読みで行う。

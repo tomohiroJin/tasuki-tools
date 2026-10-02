@@ -15,7 +15,7 @@ import { newParityContext, type ParityRole } from './context';
 import { diffEntries, diffKeyframes, themeVarNamesFromCss, type StyleDiff, type StyleEntry } from './compare-lib';
 import { captureInteractions, type InteractionCapture } from './interaction';
 import { NOISE } from './noise';
-import { scrollToTop, settleAtWidth } from './settle';
+import { scrollToTop, settleAtWidth, waitForInviteQr } from './settle';
 import { METER_ARC_SELECTOR, SCREENSHOT_STYLE, STATES, WIDTHS, type ParityState } from './states';
 
 const OUT = path.join(path.dirname(new URL(import.meta.url).pathname), 'out');
@@ -148,6 +148,7 @@ async function captureSide(browser: Browser, state: ParityState, role: ParityRol
   try {
     const page = await state.setup(open);
     await expect(state.marker(page), `${state.name}（${side}）の目印`).toBeVisible();
+    await waitForInviteQr(page);
     assertServing(state.name, role, servings);
 
     // 1. no-preference: 動きのプロパティとキーフレーム（静的な値なので揺れない）
@@ -276,6 +277,7 @@ async function captureTouchSide(browser: Browser, state: ParityState, role: Pari
   try {
     const page = await state.setup(open);
     await expect(state.marker(page), `${state.name}（タッチ・${side}）の目印`).toBeVisible();
+    await waitForInviteQr(page);
     assertServing(`${state.name}（タッチ）`, role, servings);
     expect(await page.evaluate(() => matchMedia('(hover: hover)').matches), 'タッチの文脈で (hover: hover) が真').toBe(false);
 

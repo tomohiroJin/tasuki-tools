@@ -40,7 +40,7 @@ import {
   type ProbeStatus,
 } from './removal-probe';
 import { REMOVAL_DIR, removalFile, type ProbeHit, type StateRemoval } from './removal-summary';
-import { scrollToTop, settleAtWidth } from './settle';
+import { scrollToTop, settleAtWidth, waitForInviteQr } from './settle';
 import { STATES, WIDTHS, type ParityState } from './states';
 
 const HEIGHT = 900;
@@ -374,6 +374,7 @@ async function probeState(browser: Browser, state: ParityState): Promise<Collect
   try {
     const page = await state.setup(open);
     await expect(state.marker(page), `${state.name}（基準）の目印`).toBeVisible();
+    await waitForInviteQr(page);
     assertServedBase(state.name, servings);
     await probeRestAllWidths(page, state, out);
     await probeVariantsAt1280(page, state, out);
