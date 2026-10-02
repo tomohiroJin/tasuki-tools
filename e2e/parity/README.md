@@ -8,7 +8,7 @@ timer から Tailwind を外す間だけ置く比較の仕組み。**PR 4 の通
 ## 基準の dist を作る（1 回だけ）
 
 基準の SHA は `base-dist.ts` の `BASE_SHA` の 1 か所に置く。読み込みの時点で、渡した dist がブランチの
-`apps/timer-web/dist` でないこと・dist を含む作業ツリーの HEAD が基準であること・`index.html` が参照する資産が
+timer-web の dist でないこと・dist を含む作業ツリーの HEAD が基準であること・`index.html` が参照する資産が
 基準のものであることを確かめ、違えば止まる。
 
 ```bash
