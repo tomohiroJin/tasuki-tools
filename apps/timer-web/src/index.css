@@ -18,6 +18,7 @@
 @import './styles/base.css';
 
 /* 移した画面・部品の CSS（`timer` レイヤー。移行中は Tailwind のユーティリティに負ける）。 */
+@import './styles/primitives.css' layer(timer);
 @import './styles/presence-dot.css' layer(timer);
 
 /* 既存の JS 設定（tailwind.config.js）を読み込む。**振る舞い不変を最優先し、

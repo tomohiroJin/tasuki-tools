@@ -1,0 +1,204 @@
+/* 計器 UI の共通プリミティブ（`primitives.tsx`・#321）。Tailwind のユーティリティの写し。
+ * 値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。
+ * `focus-visible:outline-none` は写さない（レイヤー外のグローバルな `:focus-visible` に負けて、いまも効いていない・設計正本 §2 の 5）。 */
+
+/* 舞台。地は `base.css` の `.instrument-stage`。 */
+.stage {
+  color: var(--bone);
+}
+
+.stage-inner {
+  position: relative;
+  max-width: 72rem;
+  margin-inline: auto;
+  padding-inline: 1rem;
+  padding-block: 2.5rem;
+}
+
+@media (width >= 48rem) {
+  .stage-inner {
+    padding-block: 3rem;
+  }
+}
+
+/* 計器パネル。ヘアライン枠＋四隅ティック＋上端の僅かな立ち上がり。 */
+.meter-panel {
+  position: relative;
+  border-radius: var(--radius-lg);
+  border-width: 1px;
+  border-color: var(--hairline);
+  background-color: var(--panel);
+  padding: 1.5rem;
+  box-shadow:
+    inset 0 1px 0 var(--inset-highlight),
+    var(--shadow-panel);
+}
+
+@media (width >= 48rem) {
+  .meter-panel {
+    padding: 1.75rem;
+  }
+}
+
+/* 更新を知らせる細い輪（`SharedMemo`）。Tailwind の `ring-1` は影を合成するので、輪＋パネルの影の順に書く。 */
+.meter-panel-highlight {
+  box-shadow:
+    0 0 0 1px var(--signal),
+    inset 0 1px 0 var(--inset-highlight),
+    var(--shadow-panel);
+}
+
+/* 四隅のティック。枠の色は 4 辺すべてに塗る（Tailwind の `border-[…]` と同じ）。 */
+.corner-tick {
+  pointer-events: none;
+  position: absolute;
+  width: 0.625rem;
+  height: 0.625rem;
+  border-color: var(--hairline-strong);
+}
+
+.corner-tick-tl {
+  left: 0.5rem;
+  top: 0.5rem;
+  border-left-width: 1px;
+  border-top-width: 1px;
+}
+
+.corner-tick-tr {
+  right: 0.5rem;
+  top: 0.5rem;
+  border-right-width: 1px;
+  border-top-width: 1px;
+}
+
+.corner-tick-bl {
+  left: 0.5rem;
+  bottom: 0.5rem;
+  border-left-width: 1px;
+  border-bottom-width: 1px;
+}
+
+.corner-tick-br {
+  right: 0.5rem;
+  bottom: 0.5rem;
+  border-right-width: 1px;
+  border-bottom-width: 1px;
+}
+
+/* 主操作（シグナル朱）。 */
+.signal-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding-inline: 1.5rem;
+  padding-block: 0.75rem;
+  border-radius: var(--radius-md);
+  font-weight: 700;
+  letter-spacing: 0.025em;
+  color: var(--on-signal);
+  background-color: var(--signal);
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+  box-shadow:
+    0 0 0 1px var(--signal-edge),
+    0 6px 20px var(--signal-glow);
+}
+
+@media (hover: hover) {
+  .signal-button:hover {
+    background-color: var(--signal-hover);
+  }
+}
+
+.signal-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.signal-button:active {
+  scale: 95% 95%;
+}
+
+/* ring-offset → ring → 自前の影の順に合成する（Tailwind の `box-shadow` の並び） */
+.signal-button:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--ink),
+    0 0 0 4px var(--signal),
+    0 0 0 1px var(--signal-edge),
+    0 6px 20px var(--signal-glow);
+}
+
+/* 副操作（スチール枠のゴースト）。 */
+.ghost-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding-inline: 1rem;
+  padding-block: 0.5rem;
+  min-height: 44px;
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  color: var(--bone);
+  background-color: var(--panel-2);
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+  border-width: 1px;
+  border-color: var(--hairline-strong);
+}
+
+@media (width >= 40rem) {
+  .ghost-button {
+    min-height: 0;
+  }
+}
+
+@media (hover: hover) {
+  .ghost-button:hover {
+    background-color: var(--panel-hover);
+  }
+}
+
+.ghost-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ghost-button:active {
+  scale: 95% 95%;
+}
+
+.ghost-button:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--ink),
+    0 0 0 4px var(--signal);
+}
+
+/* カード見出し。 */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.section-header-lead {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.section-header-icon {
+  width: 1rem;
+  height: 1rem;
+  color: var(--signal);
+}
+
+.section-header-title {
+  font-weight: 700;
+  font-size: 1rem; /* scale-exempt: Tailwind の text-base の写し（#316 で段へ寄せる） */
+  line-height: 1.5;
+  letter-spacing: 0.025em;
+  color: var(--bone);
+}

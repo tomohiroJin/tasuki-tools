@@ -8,7 +8,7 @@
  *      「まだ移していないファイル」の一覧（{@link UNMIGRATED}）に、実在しないファイルと、**一覧から外しても 1 と 2 を通る
  *      ファイル**があれば落とす（古い一覧が、移したファイルを免除し続けるのを止める）。ただし、クラス名を書く場所
  *      （`className` の属性・キー）も字面のクラス名も無く、本文に `className` / `_CLASS` / 語末の `Class` の字面だけがある
- *      ファイル（関数でクラス名を返す `presence.ts`）は、中身を検査できないので落とさない
+ *      ファイル（関数でクラス名を返す `.ts`）は、中身を検査できないので落とさない
  *   1. **書き方**（一覧に無いファイルだけ）: `className` の属性と、オブジェクトの `className` キー（スプレッドや
  *      `createElement` の props）に渡してよいのは、文字列リテラル・置換の無いテンプレート・それらを枝に持つ条件式・
  *      名前が `_CLASS` で終わる表の要素・`className` という名前の値（部品の受け渡し）と、それを置換に持つテンプレートだけ。
@@ -34,7 +34,7 @@
  * - timer の画面の CSS が部品層（`.ui-*`）を持つ要素のプロパティを上書きしていないか（設計正本 D3。PR ごとに人が見る）
  * - `className` 以外の名前の属性・props でクラス名を渡す書き方（`cls={x}` を部品の中で `className` へ渡す形。
  *   部品の中の `className={cls}` は落ちるが、部品の外の `cls={x}` の値は見ない）
- * - `.ts` の関数がクラス名を返す形（`presence.ts`）。一覧に載っている間は「古い一覧」の判定からも外れ、一覧から外した後は
+ * - `.ts` の関数がクラス名を返す形。一覧に載っている間は「古い一覧」の判定からも外れ、一覧から外した後は
  *   書き方の検査にも掛からない（`className` の場所が無いため）。外すときに人が見る
  * - `{...props}` のスプレッドの中身（`className` キーを字面で持つオブジェクトリテラルだけを見る）
  * - 宣言の無い `className`（ファイルのどこにも束縛が無いまま `className={className}` と書く形。型検査が落とす）
@@ -69,7 +69,6 @@ export const UNMIGRATED = [
   "apps/timer-web/src/ui/Session.tsx",
   "apps/timer-web/src/ui/SessionLost.tsx",
   "apps/timer-web/src/ui/Summary.tsx",
-  "apps/timer-web/src/ui/primitives.tsx",
   "apps/timer-web/src/ui/components/CircularProgress.tsx",
   "apps/timer-web/src/ui/components/ConfirmDialog.tsx",
   "apps/timer-web/src/ui/components/EmptyHint.tsx",
@@ -307,7 +306,7 @@ export function classUsagesIn(fileName, text) {
 
 /**
  * クラス名を扱う字面があるか（`className` / `_CLASS` / 語末の `Class`）。
- * 一覧の「古い」判定で、関数でクラス名を返すファイル（`presenceDotClass` など）を誤って落とさないために使う。
+ * 一覧の「古い」判定で、関数でクラス名を返すファイルを誤って落とさないために使う。
  */
 const mentionsClasses = (text) => /className|_CLASS|Class\b/.test(text);
 
@@ -354,7 +353,7 @@ export function checkTimerClasses({ sources, timerCss, componentCss, elementCss,
       continue;
     }
     // 一覧に載ったファイルにも検査を試しに当て、外しても通るなら「古い」と落とす。
-    // クラス名を書く場所が無く `Class` の字面だけがあるファイル（関数でクラス名を返す presence.ts）は、
+    // クラス名を書く場所が無く `Class` の字面だけがあるファイル（関数でクラス名を返す `.ts`）は、
     // 検査が中身を見られないので外せない —— 落とさない
     const usage = usages.get(rel);
     const writesClasses = usage.classes.length > 0 || usage.classNameSites > 0;

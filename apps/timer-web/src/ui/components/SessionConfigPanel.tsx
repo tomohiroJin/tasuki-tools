@@ -19,8 +19,10 @@ export function SessionConfigPanel({ config, onChange }: SessionConfigPanelProps
   const assertiveSwitch = config.assertiveSwitch === true;
 
   return (
-    <div className="space-y-5">
-      <SectionHeader icon={Settings2} color="text-[var(--signal)]" title="セッション設定" />
+    // 先頭の SectionHeader は自分の margin-bottom（1rem）を持つ。親の space-y-5 を掛けると、
+    // @layer timer の部品の margin が Tailwind のユーティリティに負けるので、先頭以外の子にだけ 1.25rem を足す。
+    <div className="[&>:not(:first-child):not(:last-child)]:mb-5">
+      <SectionHeader icon={Settings2} title="セッション設定" />
       <div>
         <p className="instrument-label mb-2">交代間隔</p>
         <div className="flex flex-wrap gap-2" role="group" aria-label="交代間隔">

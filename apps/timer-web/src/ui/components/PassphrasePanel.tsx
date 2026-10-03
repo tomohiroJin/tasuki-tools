@@ -25,7 +25,7 @@ export function PassphrasePanel({ protectedNow, onSet }: PassphrasePanelProps) {
   };
   return (
     <div className="w-full">
-      <SectionHeader icon={Lock} color="text-[var(--signal)]" title="パスフレーズ" />
+      <SectionHeader icon={Lock} title="パスフレーズ" />
       {protectedNow ? (
         <div className="flex items-center justify-between gap-2 text-sm">
           {/* 状態は色ではなくテキストで明示（アイコンは SectionHeader の Lock に統一）。 */}

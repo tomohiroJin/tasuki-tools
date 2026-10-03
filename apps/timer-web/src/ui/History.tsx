@@ -79,7 +79,6 @@ export function History({ onBack }: HistoryProps) {
       <Card>
         <SectionHeader
           icon={HistoryIcon}
-          color="text-[var(--signal)]"
           title="完了記録の履歴"
           right={
             <GhostButton onClick={onBack}>

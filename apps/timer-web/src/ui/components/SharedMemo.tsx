@@ -65,7 +65,7 @@ export function SharedMemo({ note, onCommit }: SharedMemoProps) {
   const [mode, setMode] = useState<"edit" | "preview">("preview");
 
   // 更新時のハイライトクラス
-  const highlightClass = updated ? "ring-1 ring-[var(--signal)]" : "";
+  const highlightClass = updated ? "meter-panel-highlight" : "";
 
   // 外部更新アナウンス（aria-live）。両分岐で共通利用する sr-only スパン。
   const updateAnnouncement = (

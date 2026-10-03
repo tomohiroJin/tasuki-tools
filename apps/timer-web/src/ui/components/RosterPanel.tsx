@@ -554,7 +554,6 @@ export function RosterPanel({
       )}
       <SectionHeader
         icon={Users}
-        color="text-[var(--signal)]"
         title="参加者"
         right={
           <GhostButton

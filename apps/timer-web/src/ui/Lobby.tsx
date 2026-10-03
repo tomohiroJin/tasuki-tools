@@ -174,7 +174,6 @@ export function Lobby({
         <Card>
           <SectionHeader
             icon={Users}
-            color="text-[var(--signal)]"
             title={`参加者 (${room.participants.length}人)`}
             right={
               /* ドライバー順をランダムに（v2.3 #1）。2人以上で意味を持つ。 */
