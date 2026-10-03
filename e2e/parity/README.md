@@ -69,10 +69,25 @@ TASUKI_PARITY_BASE_DIST=$HOME/.cache/tasuki-parity/base-ba9249d/apps/timer-web/d
 pnpm exec playwright test -c parity/parity.usage.config.ts
 ```
 
-- ブランチの timer を、CSS の最小化（Vite の `build.cssMinify`）と Tailwind の最適化（`@tailwindcss/postcss` の `optimize`）を止めてビルドする。足した CSS の規則が実行中に当たるかを、ソースの規則と鍵で突き合わせる（E8・照合は Task 3 で足す）
+流した**直後に**（dist が最小化しないビルドのうちに）、当たりを束ねて照合する:
+
+```bash
+cd e2e
+TASUKI_PARITY_USAGE_CHECK=1 pnpm exec vitest run tests/usage-summary.test.ts
+```
+
+- ブランチの timer を、CSS の最小化（Vite の `build.cssMinify`）と Tailwind の最適化（`@tailwindcss/postcss` の `optimize`）を止めてビルドする。足した CSS の規則が実行中に 1 回以上当たるかを、ソースの規則と鍵で突き合わせる（E8）
 - 設定ファイルが `TASUKI_TIMER_CSS_UNMINIFIED=1` を立てる。渡り方は上と同じ
-- 行頭に `[規則の使用状況]` と出る
-- **dist の CSS は `assets/index-*.css` の glob ではなく `index.html` が参照するものを読む。** turbo はキャッシュから dist を戻すとき古い資産を消さないので、切り替えを行き来すると別のビルドの CSS が同じ場所に残る（実測）
+- 行頭に `[規則の使用状況]` と出る。ブランチの側で、目印が見えた直後から操作の書き出しの後まで CDP の規則の使用状況を取り（`usage.ts`）、`out/<キー>/usage.json` に当たった規則の鍵と世代を書く
+- **全件を流す**（`-g` で絞らない）。照合（`usage-summary.ts` の `collectUsage`）は、期待値の JSON の全キーの `usage.json` が揃い、世代が揃い、`-dirty` でなく、いまの HEAD と同じであることを断定してから束ねる
+- **分母**は `git ls-files 'apps/timer-web/src/styles/*.css'` のうち `base.css`（PR 1 で移しただけ）と `reset.css`（PR 4）を除いたもの。`@keyframes` の中の段は数えない（キーフレームは比較の本体が突き合わせる）。分母が空なら赤（空振りを緑にしない）
+- **鍵**は `@layer` を除いた祖先の at-rule とセレクタ（空白を畳む）。ビルドは `@layer timer` の囲いを足すがソースには無いので、`@layer` は鍵に入れない。分母の鍵がビルドの CSS にちょうど 1 回ずつ現れること（0 回なら写し損ね、2 回以上なら鍵で見分けられない）も断定する。ソースの中で鍵が重複したら止まる
+- 「当たった」はセレクタが一致したことで、宣言が勝ったことではない（効いているかは比較と除去検査が見る）
+- **当たらなかった規則の扱い**:
+  - 撮っていない状態で当たる規則なら、目録（`states.ts`）に状態を足す（期待値の作り直しが要る）
+  - どの状態でも当たらない「死んだ CSS」なら、規則を消す
+  - 状態を作れない（ハーネスで再現できない）なら、勝手に除外せず利用者に報告する
+- **dist の CSS は `assets/index-*.css` の glob ではなく `index.html` が参照するものを読む。** turbo はキャッシュから dist を戻すとき古い資産を消さないので、切り替えを行き来すると別のビルドの CSS が同じ場所に残る（実測）。参照が 1 本でなければ、最小化されていれば（100 行未満）止まる
 
 ## 除去検査（基準で効いていないクラス）
 

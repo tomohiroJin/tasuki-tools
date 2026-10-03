@@ -8,6 +8,9 @@
  *
  * 差のほかに、基準側の要約を期待値（`expected/base-summary.json`・`expected.ts`）と突き合わせる（両側で同じように
  * 空になっても緑にしないため）。各テストの先頭で、`-u` で流していないことを断定する（`context.ts`）。
+ *
+ * 規則の使用状況（E8）の設定（`parity.usage.config.ts`）で流したときだけ、ブランチの側で当たった CSS の規則を
+ * `out/<キー>/usage.json` に書く（`usage.ts`・照合は `e2e/tests/usage-summary.test.ts`）。
  */
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -29,6 +32,8 @@ import { captureInteractions, type InteractionCapture } from './interaction';
 import { NOISE } from './noise';
 import { scrollToTop, settleAtWidth, waitForInviteQr } from './settle';
 import { METER_ARC_SELECTOR, SCREENSHOT_STYLE, STATES, WIDTHS, type ParityState } from './states';
+import { startRuleUsage, stopRuleUsage, type RuleUsageSession } from './usage';
+import { USAGE_FILE, type UsageRecord } from './usage-summary';
 
 const OUT = path.join(path.dirname(new URL(import.meta.url).pathname), 'out');
 /** 作業ツリーの世代（基準側の要約の控えに書き、期待値の作り直しが揃いを断定する・`expected.ts`）。 */
@@ -48,6 +53,8 @@ interface Capture {
   readonly interactions: InteractionCapture;
   /** 基準の dist から返した件数（ブランチの側は 0）。 */
   readonly served: number;
+  /** 当たった CSS の規則の鍵（規則の使用状況の設定で流したときの、ブランチの側だけ・`usage.ts`）。 */
+  readonly used?: string[];
 }
 
 /** 基準の dist の CSS から、Tailwind の theme 層の変数の名簿を導く（§5.4 の類 1）。 */
@@ -89,19 +96,44 @@ function onlyOnOneSide(base: readonly string[], branch: readonly string[]): stri
   return extra;
 }
 
-/** 対照実行の設定（`parity.control.config.ts`）が付ける project の名前。list の行頭に `[対照実行]` と出る。 */
-const CONTROL_PROJECT = '対照実行';
+/**
+ * 実行の種類ごとの、設定ファイルの `metadata` の鍵と project の名前（list の行頭に `[対照実行]` などと出る）。
+ * 対照実行は `parity.control.config.ts`、規則の使用状況は `parity.usage.config.ts`。
+ */
+const RUN_KINDS = {
+  control: { metadata: 'parityControl', project: '対照実行' },
+  usage: { metadata: 'parityUsage', project: '規則の使用状況' },
+} as const;
+
+/** 実行の種類。 */
+type RunMode = Record<keyof typeof RUN_KINDS, boolean>;
 
 /**
- * 対照実行かを設定ファイルから読む（`metadata.parityControl`・環境変数は読まない・`context.ts`）。
+ * 実行の種類を設定ファイルから読む（`metadata`・環境変数は読まない・`context.ts`）。
  * project の名前（行頭の明記）と食い違ったら止める（片方だけ書き換えた設定で、明記と中身がずれないように）。
  */
-function isControlRun(testInfo: TestInfo): boolean {
-  const control = testInfo.config.metadata['parityControl'] === true;
-  if (control !== (testInfo.project.name === CONTROL_PROJECT)) {
-    throw new Error(`metadata.parityControl（${String(control)}）と project の名前（${testInfo.project.name}）が食い違う`);
-  }
-  return control;
+function runMode(testInfo: TestInfo): RunMode {
+  const read = (kind: keyof typeof RUN_KINDS): boolean => {
+    const { metadata, project } = RUN_KINDS[kind];
+    const on = testInfo.config.metadata[metadata] === true;
+    if (on !== (testInfo.project.name === project)) {
+      throw new Error(`metadata.${metadata}（${String(on)}）と project の名前（${testInfo.project.name}）が食い違う`);
+    }
+    return on;
+  };
+  return { control: read('control'), usage: read('usage') };
+}
+
+/** ブランチの側で、規則の使用状況の設定で流したときだけ追跡を始める。 */
+async function startUsageIfNeeded(page: Page, role: ParityRole, usage: boolean): Promise<RuleUsageSession | null> {
+  return usage && role.side === 'branch' ? startRuleUsage(page) : null;
+}
+
+/** 当たった規則の鍵を `usage.json` に書く（規則の使用状況の設定で流したときだけ・`usage-summary.ts` が束ねる）。 */
+function writeUsage(dir: string, used: readonly string[] | undefined): void {
+  if (used === undefined) return;
+  const record: UsageRecord = { generation: GENERATION, used: [...used] };
+  writeFileSync(path.join(dir, USAGE_FILE), JSON.stringify(record, null, 2));
 }
 
 /**
@@ -146,7 +178,7 @@ async function screenshotOf(page: Page, state: ParityState): Promise<Buffer> {
   return page.screenshot({ fullPage: true, animations: 'disabled', mask: state.mask(page), style: SCREENSHOT_STYLE });
 }
 
-async function captureSide(browser: Browser, state: ParityState, role: ParityRole): Promise<Capture> {
+async function captureSide(browser: Browser, state: ParityState, role: ParityRole, usage: boolean): Promise<Capture> {
   const { side } = role;
   const contexts: BrowserContext[] = [];
   const servings: BaseServing[] = [];
@@ -162,6 +194,7 @@ async function captureSide(browser: Browser, state: ParityState, role: ParityRol
   try {
     const page = await state.setup(open);
     await expect(state.marker(page), `${state.name}（${side}）の目印`).toBeVisible();
+    const tracking = await startUsageIfNeeded(page, role, usage);
     await waitForInviteQr(page);
     assertServing(state.name, role, servings);
 
@@ -188,7 +221,8 @@ async function captureSide(browser: Browser, state: ParityState, role: ParityRol
     // 3. 操作の状態: 静止の読みを全部終えてから行う（押下や Tab で残るフォーカス・スクロールを、静止の読みへ持ち込まない）
     const interactions = await captureInteractionsAt(page, state, INTERACTION_WIDTH);
     const served = servings.reduce((n, s) => n + s.served(), 0);
-    return { styles, screenshots, motion, keyframes, interactions, served };
+    const captured = { styles, screenshots, motion, keyframes, interactions, served };
+    return tracking === null ? captured : { ...captured, used: await stopRuleUsage(tracking) };
   } finally {
     for (const c of contexts) await c.close();
   }
@@ -244,9 +278,10 @@ function checkBaseExpectation(dir: string, key: string, expectation: Record<stri
 for (const state of STATES) {
   test(`${state.name}: ${VERDICT}`, async ({ browser }, testInfo) => {
     assertSnapshotsNotUpdated(testInfo);
-    const control = isControlRun(testInfo);
-    const base = await captureSide(browser, state, { side: 'base', control });
-    const branch = await captureSide(browser, state, { side: 'branch', control });
+    const mode = runMode(testInfo);
+    const { control } = mode;
+    const base = await captureSide(browser, state, { side: 'base', control }, mode.usage);
+    const branch = await captureSide(browser, state, { side: 'branch', control }, mode.usage);
 
     const options = { tailwindThemeVars: themeVars, ignore: NOISE };
     const report: Record<string, StyleDiff[] | string[]> = {
@@ -266,6 +301,7 @@ for (const state of STATES) {
     // `--repeat-each` の 2 回目以降は別の置き場へ書く（上書きすると、揺れた回の中身が残らない）
     const dir = path.join(OUT, testInfo.repeatEachIndex === 0 ? state.name : `${state.name}-r${testInfo.repeatEachIndex}`);
     mkdirSync(dir, { recursive: true });
+    writeUsage(dir, branch.used);
     // 撮れた中身の要約（状態を作り損ねていないか・キーフレームを実際に拾えたかを後から読む）
     const summary = (c: Capture): Record<string, unknown> => ({
       served: c.served,
@@ -329,13 +365,15 @@ interface TouchCapture {
   readonly interactions: InteractionCapture;
   /** 基準の dist から返した件数（ブランチの側は 0）。 */
   readonly served: number;
+  /** 当たった CSS の規則の鍵（本体の `Capture` と同じ）。 */
+  readonly used?: string[];
 }
 
 /**
  * タッチの文脈で 1 側を撮る。本体と同じ 2 通りの読み方をする（`no-preference` で動きのプロパティとキーフレーム、
  * `reduce` で全プロパティと画素）。その後に操作の状態を書き出す。
  */
-async function captureTouchSide(browser: Browser, state: ParityState, role: ParityRole): Promise<TouchCapture> {
+async function captureTouchSide(browser: Browser, state: ParityState, role: ParityRole, usage: boolean): Promise<TouchCapture> {
   const { side } = role;
   const contexts: BrowserContext[] = [];
   const servings: BaseServing[] = [];
@@ -352,6 +390,7 @@ async function captureTouchSide(browser: Browser, state: ParityState, role: Pari
   try {
     const page = await state.setup(open);
     await expect(state.marker(page), `${state.name}（タッチ・${side}）の目印`).toBeVisible();
+    const tracking = await startUsageIfNeeded(page, role, usage);
     await waitForInviteQr(page);
     assertServing(`${state.name}（タッチ）`, role, servings);
     expect(await page.evaluate(() => matchMedia('(hover: hover)').matches), 'タッチの文脈で (hover: hover) が真').toBe(false);
@@ -371,7 +410,8 @@ async function captureTouchSide(browser: Browser, state: ParityState, role: Pari
     // 3. 操作の状態
     const interactions = await captureInteractionsAt(page, state, TOUCH_WIDTH);
     const served = servings.reduce((n, s) => n + s.served(), 0);
-    return { styles, screenshot, motion, keyframes, interactions, served };
+    const captured = { styles, screenshot, motion, keyframes, interactions, served };
+    return tracking === null ? captured : { ...captured, used: await stopRuleUsage(tracking) };
   } finally {
     for (const c of contexts) await c.close();
   }
@@ -380,9 +420,10 @@ async function captureTouchSide(browser: Browser, state: ParityState, role: Pari
 for (const state of STATES.filter((s) => TOUCH_STATES.has(s.name))) {
   test(`${state.name}（タッチ・${TOUCH_WIDTH}px）: ${VERDICT}`, async ({ browser }, testInfo) => {
     assertSnapshotsNotUpdated(testInfo);
-    const control = isControlRun(testInfo);
-    const base = await captureTouchSide(browser, state, { side: 'base', control });
-    const branch = await captureTouchSide(browser, state, { side: 'branch', control });
+    const mode = runMode(testInfo);
+    const { control } = mode;
+    const base = await captureTouchSide(browser, state, { side: 'base', control }, mode.usage);
+    const branch = await captureTouchSide(browser, state, { side: 'branch', control }, mode.usage);
     const options = { tailwindThemeVars: themeVars, ignore: NOISE };
     const report: Record<string, StyleDiff[] | string[]> = {
       motion: diffEntries(base.motion, branch.motion, options),
@@ -399,6 +440,7 @@ for (const state of STATES.filter((s) => TOUCH_STATES.has(s.name))) {
     const name = touchKey(state.name);
     const dir = path.join(OUT, testInfo.repeatEachIndex === 0 ? name : `${name}-r${testInfo.repeatEachIndex}`);
     mkdirSync(dir, { recursive: true });
+    writeUsage(dir, branch.used);
     const summary = (c: TouchCapture): Record<string, unknown> => ({
       served: c.served,
       elements: c.styles.length,
