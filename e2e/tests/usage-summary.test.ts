@@ -15,6 +15,9 @@ import { repoGeneration } from '../parity/git-head';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   collectUsage,
+  isTimerBuildSheet,
+  timerSheetId,
+  usageGateProblems,
   listUsageSources,
   readBuiltTimerCss,
   REPO_ROOT,
@@ -72,6 +75,58 @@ describe('rulesInBuiltCss と usageProblems', () => {
   });
   it('Given 当たりが空 / Then 全件を返す（空振りを緑にしない）', () => {
     expect(usageProblems([{ key: '.a', file: 'x.css', line: 1 }], new Set())).toHaveLength(1);
+  });
+});
+
+describe('isTimerBuildSheet: timer のビルドの CSS のシートだけを対象にする', () => {
+  it.each([
+    ['http://127.0.0.1:18080/timer/assets/index-CKs04cYd.css', true],
+    ['http://127.0.0.1:18080/timer/assets/index-CKs04cYd.css?v=1', true],
+    ['', false],
+    ['http://127.0.0.1:18080/timer/', false],
+    ['http://127.0.0.1:18080/assets/index-x.css', false],
+    ['http://127.0.0.1:18080/timer/assets/sub/x.css', false],
+    ['http://127.0.0.1:18080/timer/assets/index-x.js', false],
+    ['not a url', false],
+  ])('Given sourceURL %j / Then %s', (url, expected) => {
+    expect(isTimerBuildSheet(url)).toBe(expected);
+  });
+});
+
+describe('timerSheetId: 対象のシートはちょうど 1 本', () => {
+  const css = 'http://127.0.0.1:18080/timer/assets/index-a.css';
+  it('Given 撮影が差し込む <style>（sourceURL が空）と timer の CSS / Then timer の CSS の id だけを返す', () => {
+    expect(timerSheetId([{ styleSheetId: 's1', sourceURL: '' }, { styleSheetId: 's2', sourceURL: css }])).toBe('s2');
+  });
+  it('Given 同じシートの通知が 2 回 / Then 1 本と数える', () => {
+    expect(timerSheetId([{ styleSheetId: 's2', sourceURL: css }, { styleSheetId: 's2', sourceURL: css }])).toBe('s2');
+  });
+  it('Given timer の CSS が無い / Then 止める', () => {
+    expect(() => timerSheetId([{ styleSheetId: 's1', sourceURL: '' }])).toThrow(/1 本でない/);
+  });
+  it('Given timer の CSS が 2 本 / Then 止める', () => {
+    expect(() => timerSheetId([{ styleSheetId: 's1', sourceURL: css }, { styleSheetId: 's2', sourceURL: css }])).toThrow(/1 本でない/);
+  });
+});
+
+describe('usageGateProblems: ゲートの断定', () => {
+  it('Given 分母が空 / Then 「分母が空」で赤（空振りを緑にしない）', () => {
+    expect(usageGateProblems(sourceRules([]), new Map(), new Set())).toEqual([expect.stringMatching(/分母が空/)]);
+  });
+  it('Given 分母の鍵がビルドに 0 回・2 回 / Then 回数つきで返す', () => {
+    const source = [{ key: '.a', file: 'x.css', line: 1 }, { key: '.b', file: 'x.css', line: 2 }];
+    expect(usageGateProblems(source, new Map([['.b', 2]]), new Set(['.a', '.b']))).toEqual([
+      'ビルドの CSS に 1 回ずつ現れない: x.css:1 .a → 0 回',
+      'ビルドの CSS に 1 回ずつ現れない: x.css:2 .b → 2 回',
+    ]);
+  });
+  it('Given 当たらなかった規則 / Then 場所つきで返す', () => {
+    const source = [{ key: '.a', file: 'x.css', line: 1 }];
+    expect(usageGateProblems(source, new Map([['.a', 1]]), new Set())).toEqual(['当たらなかった: x.css:1 .a']);
+  });
+  it('対照: 分母が 1 回ずつ現れ、全部当たっていれば空', () => {
+    const source = [{ key: '.a', file: 'x.css', line: 1 }];
+    expect(usageGateProblems(source, new Map([['.a', 1]]), new Set(['.a']))).toEqual([]);
   });
 });
 
@@ -150,12 +205,7 @@ describe.runIf(process.env['TASUKI_PARITY_USAGE_CHECK'] === '1')('E8: 足した�
     // ソースは作業ツリーのいまを読むので、束ねた当たりもいまの世代で流したものでなければ突き合わせられない
     expect(result.generation, 'usage.json の世代がいまの HEAD と違う（流し直す）').toBe(repoGeneration(REPO_ROOT));
     const source = sourceRules(listUsageSources(REPO_ROOT));
-    expect(source.length, '分母が空（ソースの CSS を 1 つも読めていない）').toBeGreaterThan(0);
     const built = rulesInBuiltCss(readBuiltTimerCss(REPO_ROOT));
-    expect(
-      source.filter((r) => built.get(r.key) !== 1).map((r) => `${r.file}:${r.line} ${r.key} → ${built.get(r.key) ?? 0} 回`),
-      '分母の鍵がビルドの CSS にちょうど 1 回ずつ現れない',
-    ).toEqual([]);
-    expect(usageProblems(source, result.used)).toEqual([]);
+    expect(usageGateProblems(source, built, result.used)).toEqual([]);
   });
 });

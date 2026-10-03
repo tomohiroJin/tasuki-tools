@@ -10,9 +10,10 @@
  * 空になっても緑にしないため）。各テストの先頭で、`-u` で流していないことを断定する（`context.ts`）。
  *
  * 規則の使用状況（E8）の設定（`parity.usage.config.ts`）で流したときだけ、ブランチの側で当たった CSS の規則を
- * `out/<キー>/usage.json` に書く（`usage.ts`・照合は `e2e/tests/usage-summary.test.ts`）。
+ * `out/<キー>/usage.json` に書く（`usage.ts`・照合は `e2e/tests/usage-summary.test.ts`）。前の実行の `usage.json` は
+ * テストの先頭で消す。
  */
-import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test, type Browser, type BrowserContext, type Page, type TestInfo } from '@playwright/test';
 import { BASE_DIST, type BaseServing } from './base-dist';
@@ -102,9 +103,31 @@ function runMode(testInfo: TestInfo): RunMode {
   return runModeOf(testInfo.config.metadata, testInfo.project.name);
 }
 
-/** ブランチの側で、規則の使用状況の設定で流したときだけ追跡を始める。 */
-async function startUsageIfNeeded(page: Page, role: ParityRole, usage: boolean): Promise<RuleUsageSession | null> {
-  return usage && role.side === 'branch' ? startRuleUsage(page) : null;
+/**
+ * 規則の使用状況の追跡（ブランチの側で、規則の使用状況の設定で流したときだけ）。**ページを開いた直後（最初の遷移より前）に
+ * 始める**（`usage.ts`。追跡より前に読み込んだ `<link>` の CSS の当たりは返らない）。状態の作り方は参加者ごとにページを
+ * 開くので、開いたページの全部で始め、目印のあるページ（`setup` が返したページ）の分だけを止めて読む。
+ */
+class UsageTracker {
+  private readonly sessions = new Map<Page, RuleUsageSession>();
+  constructor(private readonly enabled: boolean) {}
+
+  async opened(page: Page): Promise<void> {
+    if (this.enabled) this.sessions.set(page, await startRuleUsage(page));
+  }
+
+  /** 目印のあるページの当たり。追跡していなければ undefined。 */
+  async stop(page: Page): Promise<string[] | undefined> {
+    if (!this.enabled) return undefined;
+    const session = this.sessions.get(page);
+    if (session === undefined) throw new Error('目印のあるページで規則の使用状況を追跡していない（open を通さずに開いた）');
+    return stopRuleUsage(session);
+  }
+}
+
+/** 前の実行の `usage.json` を消す（流し損ねた回の古い当たりを束ねない。書くのは `stopRuleUsage` の後）。 */
+function removeUsage(dir: string): void {
+  rmSync(path.join(dir, USAGE_FILE), { force: true });
 }
 
 /** 当たった規則の鍵を `usage.json` に書く（規則の使用状況の設定で流したときだけ・`usage-summary.ts` が束ねる）。 */
@@ -160,6 +183,7 @@ async function captureSide(browser: Browser, state: ParityState, role: ParityRol
   const { side } = role;
   const contexts: BrowserContext[] = [];
   const servings: BaseServing[] = [];
+  const tracker = new UsageTracker(usage && role.side === 'branch');
   const open = async (): Promise<Page> => {
     const { context, serving } = await newParityContext(browser, role, {
       viewport: { width: 1280, height: HEIGHT },
@@ -167,12 +191,13 @@ async function captureSide(browser: Browser, state: ParityState, role: ParityRol
     });
     if (serving !== null) servings.push(serving);
     contexts.push(context);
-    return context.newPage();
+    const page = await context.newPage();
+    await tracker.opened(page);
+    return page;
   };
   try {
     const page = await state.setup(open);
     await expect(state.marker(page), `${state.name}（${side}）の目印`).toBeVisible();
-    const tracking = await startUsageIfNeeded(page, role, usage);
     await waitForInviteQr(page);
     assertServing(state.name, role, servings);
 
@@ -200,7 +225,8 @@ async function captureSide(browser: Browser, state: ParityState, role: ParityRol
     const interactions = await captureInteractionsAt(page, state, INTERACTION_WIDTH);
     const served = servings.reduce((n, s) => n + s.served(), 0);
     const captured = { styles, screenshots, motion, keyframes, interactions, served };
-    return tracking === null ? captured : { ...captured, used: await stopRuleUsage(tracking) };
+    const used = await tracker.stop(page);
+    return used === undefined ? captured : { ...captured, used };
   } finally {
     for (const c of contexts) await c.close();
   }
@@ -258,6 +284,8 @@ for (const state of STATES) {
     assertSnapshotsNotUpdated(testInfo);
     const mode = runMode(testInfo);
     const { control } = mode;
+    const dir = path.join(OUT, testInfo.repeatEachIndex === 0 ? state.name : `${state.name}-r${testInfo.repeatEachIndex}`);
+    removeUsage(dir);
     const base = await captureSide(browser, state, { side: 'base', control }, mode.usage);
     const branch = await captureSide(browser, state, { side: 'branch', control }, mode.usage);
 
@@ -276,8 +304,7 @@ for (const state of STATES) {
       ...branch.interactions.notEntered.map((s) => `branch ${s}`),
     ];
     report['skipped'] = onlyOnOneSide(base.interactions.skipped, branch.interactions.skipped);
-    // `--repeat-each` の 2 回目以降は別の置き場へ書く（上書きすると、揺れた回の中身が残らない）
-    const dir = path.join(OUT, testInfo.repeatEachIndex === 0 ? state.name : `${state.name}-r${testInfo.repeatEachIndex}`);
+    // `--repeat-each` の 2 回目以降は別の置き場へ書く（上書きすると、揺れた回の中身が残らない。置き場はテストの先頭で決めた）
     mkdirSync(dir, { recursive: true });
     writeUsage(dir, branch.used);
     // 撮れた中身の要約（状態を作り損ねていないか・キーフレームを実際に拾えたかを後から読む）
@@ -355,6 +382,7 @@ async function captureTouchSide(browser: Browser, state: ParityState, role: Pari
   const { side } = role;
   const contexts: BrowserContext[] = [];
   const servings: BaseServing[] = [];
+  const tracker = new UsageTracker(usage && role.side === 'branch');
   const open = async (): Promise<Page> => {
     const { context, serving } = await newParityContext(browser, role, {
       viewport: { width: TOUCH_WIDTH, height: HEIGHT },
@@ -363,12 +391,13 @@ async function captureTouchSide(browser: Browser, state: ParityState, role: Pari
     });
     if (serving !== null) servings.push(serving);
     contexts.push(context);
-    return context.newPage();
+    const page = await context.newPage();
+    await tracker.opened(page);
+    return page;
   };
   try {
     const page = await state.setup(open);
     await expect(state.marker(page), `${state.name}（タッチ・${side}）の目印`).toBeVisible();
-    const tracking = await startUsageIfNeeded(page, role, usage);
     await waitForInviteQr(page);
     assertServing(`${state.name}（タッチ）`, role, servings);
     expect(await page.evaluate(() => matchMedia('(hover: hover)').matches), 'タッチの文脈で (hover: hover) が真').toBe(false);
@@ -389,7 +418,8 @@ async function captureTouchSide(browser: Browser, state: ParityState, role: Pari
     const interactions = await captureInteractionsAt(page, state, TOUCH_WIDTH);
     const served = servings.reduce((n, s) => n + s.served(), 0);
     const captured = { styles, screenshot, motion, keyframes, interactions, served };
-    return tracking === null ? captured : { ...captured, used: await stopRuleUsage(tracking) };
+    const used = await tracker.stop(page);
+    return used === undefined ? captured : { ...captured, used };
   } finally {
     for (const c of contexts) await c.close();
   }
@@ -400,6 +430,9 @@ for (const state of STATES.filter((s) => TOUCH_STATES.has(s.name))) {
     assertSnapshotsNotUpdated(testInfo);
     const mode = runMode(testInfo);
     const { control } = mode;
+    const name = touchKey(state.name);
+    const dir = path.join(OUT, testInfo.repeatEachIndex === 0 ? name : `${name}-r${testInfo.repeatEachIndex}`);
+    removeUsage(dir);
     const base = await captureTouchSide(browser, state, { side: 'base', control }, mode.usage);
     const branch = await captureTouchSide(browser, state, { side: 'branch', control }, mode.usage);
     const options = { tailwindThemeVars: themeVars, ignore: NOISE };
@@ -414,9 +447,7 @@ for (const state of STATES.filter((s) => TOUCH_STATES.has(s.name))) {
       ],
       skipped: onlyOnOneSide(base.interactions.skipped, branch.interactions.skipped),
     };
-    // `--repeat-each` の 2 回目以降は別の置き場へ書く（本体と同じ）
-    const name = touchKey(state.name);
-    const dir = path.join(OUT, testInfo.repeatEachIndex === 0 ? name : `${name}-r${testInfo.repeatEachIndex}`);
+    // `--repeat-each` の 2 回目以降は別の置き場へ書く（本体と同じ。置き場はテストの先頭で決めた）
     mkdirSync(dir, { recursive: true });
     writeUsage(dir, branch.used);
     const summary = (c: TouchCapture): Record<string, unknown> => ({

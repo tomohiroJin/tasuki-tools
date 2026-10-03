@@ -119,6 +119,46 @@ export function usageProblems(source: readonly SourceRule[], used: ReadonlySet<s
   return source.filter((r) => !used.has(r.key)).map((r) => `${r.file}:${r.line} ${r.key}`);
 }
 
+/** timer のビルドの CSS の置き場（`vite.config.ts` の `base: "/timer/"` と Vite の `assets/`）。 */
+const TIMER_BUILD_CSS = /^\/timer\/assets\/[^/]+\.css$/;
+
+/**
+ * CDP のシートの `sourceURL` が、timer のビルドの CSS（`/timer/assets/*.css`）か。撮影の `style` や
+ * `animations: 'disabled'` が差し込む一時の `<style>`（`sourceURL` が空）・ほかのパッケージの CSS は対象にしない。
+ */
+export function isTimerBuildSheet(sourceURL: string): boolean {
+  if (!URL.canParse(sourceURL)) return false;
+  return TIMER_BUILD_CSS.test(new URL(sourceURL).pathname);
+}
+
+/** 追加されたシートのうち、timer のビルドの CSS のシートの id。**ちょうど 1 本でなければ止める**（同じ id の重複通知は 1 本）。 */
+export function timerSheetId(headers: readonly { styleSheetId: string; sourceURL: string }[]): string {
+  const ids = [...new Set(headers.filter((h) => isTimerBuildSheet(h.sourceURL)).map((h) => h.styleSheetId))];
+  if (ids.length !== 1) {
+    const urls = headers.map((h) => `${h.styleSheetId}=${h.sourceURL === '' ? '(空)' : h.sourceURL}`).join(', ');
+    throw new Error(`timer のビルドの CSS のシートが 1 本でない（${ids.length} 本・追加されたシート: ${urls}）`);
+  }
+  return ids[0] ?? '';
+}
+
+/**
+ * E8 のゲートの断定（`e2e/tests/usage-summary.test.ts`）。空なら緑。分母が空・分母の鍵がビルドの CSS にちょうど 1 回ずつ
+ * 現れない（0 回なら写し損ね、2 回以上なら鍵で見分けられない）・当たらなかった規則、を返す。
+ */
+export function usageGateProblems(
+  source: readonly SourceRule[],
+  built: ReadonlyMap<string, number>,
+  used: ReadonlySet<string>,
+): string[] {
+  if (source.length === 0) return ['分母が空（ソースの CSS から規則を 1 つも読めていない）'];
+  return [
+    ...source
+      .filter((r) => built.get(r.key) !== 1)
+      .map((r) => `ビルドの CSS に 1 回ずつ現れない: ${r.file}:${r.line} ${r.key} → ${built.get(r.key) ?? 0} 回`),
+    ...usageProblems(source, used).map((p) => `当たらなかった: ${p}`),
+  ];
+}
+
 /** 分母のソース（`git ls-files` で追跡下のものだけを引き、`base.css` と `reset.css` を除く）。 */
 export function listUsageSources(repoRoot: string): { path: string; css: string }[] {
   const listed = execFileSync('git', ['-C', repoRoot, 'ls-files', '--', 'apps/timer-web/src/styles/*.css'], { encoding: 'utf8' });

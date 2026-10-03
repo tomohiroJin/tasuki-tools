@@ -31,6 +31,11 @@ export function leftoverParityBuildSwitches(env: NodeJS.ProcessEnv): ParityBuild
 
 /** 取り残しがあれば止める（`where` は止めた設定の名前）。 */
 export function assertNoLeftoverParityBuildSwitches(env: NodeJS.ProcessEnv, where: string): void {
+  // 控えごとシェルに残すと、上の見分けをすり抜ける。基底の設定は派生の設定が立てる前に読まれるので、main のプロセスで
+  // 控えが既に立っていたら取り残し。worker（Playwright が `TEST_WORKER_INDEX` を立ててから設定を読み直す）は main の控えを継ぐので見ない
+  if (env['TEST_WORKER_INDEX'] === undefined && (env[OWNED] ?? '') !== '') {
+    throw new Error(`${where}: 控えの ${OWNED}（${env[OWNED] ?? ''}）がシェルに残っている（取り残しの疑い）。unset してから流す。`);
+  }
   const leftovers = leftoverParityBuildSwitches(env);
   if (leftovers.length === 0) return;
   throw new Error(

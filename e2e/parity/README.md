@@ -83,7 +83,8 @@ TASUKI_PARITY_USAGE_CHECK=1 pnpm exec vitest run tests/usage-summary.test.ts
 
 - ブランチの timer を、CSS の最小化（Vite の `build.cssMinify`）と Tailwind の最適化（`@tailwindcss/postcss` の `optimize`）を止めてビルドする。足した CSS の規則が実行中に 1 回以上当たるかを、ソースの規則と鍵で突き合わせる（E8）
 - 設定ファイルが `TASUKI_TIMER_CSS_UNMINIFIED=1` を立てる。渡り方は上と同じ
-- 行頭に `[規則の使用状況]` と出て、`summary.json` の `usage` が `true` になる。ブランチの側で、目印が見えた直後から操作の書き出しの後まで CDP の規則の使用状況を取り（`usage.ts`）、`out/<キー>/usage.json` に当たった規則の鍵と世代を書く
+- 行頭に `[規則の使用状況]` と出て、`summary.json` の `usage` が `true` になる。ブランチの側で、ページを開いた直後（最初の遷移より前）から操作の書き出しの後まで CDP の規則の使用状況を取り（`usage.ts`）、`out/<キー>/usage.json` に当たった規則の鍵と世代を書く。**追跡より前に読み込んだ `<link>` の CSS の当たりは返らない**（実測）ので、目印が見えてから始めると全部「当たらなかった」になる。前の実行の `usage.json` はテストの先頭で消す
+- 数えるのは timer のビルドの CSS（`/timer/assets/*.css`）のシートの当たりだけ。撮影が差し込む一時の `<style>` など別のシートで同じ鍵が当たっても数えない。対象のシートが 1 本でなければ止まる（遷移・再読み込みの前の文書のシートは数えない）
 - **全件を流す**（`-g` で絞らない）。照合（`usage-summary.ts` の `collectUsage`）は、期待値の JSON の全キーの `usage.json` が揃い、世代が揃い、`-dirty` でなく、いまの HEAD と同じであることを断定してから束ねる
 - **分母**は `git ls-files 'apps/timer-web/src/styles/*.css'` のうち `base.css`（PR 1 で移しただけ）と `reset.css`（PR 4）を除いたもの。`@keyframes` の中の段は数えない（キーフレームは比較の本体が突き合わせる）。分母が空なら赤（空振りを緑にしない）
 - **鍵**は `@layer` を除いた祖先の at-rule とセレクタ（空白を畳む）。ビルドは `@layer timer` の囲いを足すがソースには無いので、`@layer` は鍵に入れない。分母の鍵がビルドの CSS にちょうど 1 回ずつ現れること（0 回なら写し損ね、2 回以上なら鍵で見分けられない）も断定する。ソースの中で鍵が重複したら止まる

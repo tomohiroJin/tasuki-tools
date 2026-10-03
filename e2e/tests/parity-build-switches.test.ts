@@ -9,7 +9,11 @@ import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { leftoverParityBuildSwitches, setParityBuildSwitch } from '../harness/parity-build-switches';
+import {
+  assertNoLeftoverParityBuildSwitches,
+  leftoverParityBuildSwitches,
+  setParityBuildSwitch,
+} from '../harness/parity-build-switches';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -36,6 +40,22 @@ describe('leftoverParityBuildSwitches', () => {
     const env: NodeJS.ProcessEnv = { TASUKI_TIMER_UNLAYERED: '1' };
     setParityBuildSwitch(env, 'TASUKI_TIMER_CSS_UNMINIFIED');
     expect(leftoverParityBuildSwitches(env)).toEqual(['TASUKI_TIMER_UNLAYERED']);
+  });
+});
+
+describe('assertNoLeftoverParityBuildSwitches: 控えの取り残し', () => {
+  it('Given main のプロセスで、設定が立てる前から控えが立っている / Then 止める（控えごとシェルに残すと検査をすり抜ける）', () => {
+    expect(() =>
+      assertNoLeftoverParityBuildSwitches({ TASUKI_PARITY_BUILD_SWITCH_OWNED: 'TASUKI_TIMER_UNLAYERED', TASUKI_TIMER_UNLAYERED: '1' }, 'x'),
+    ).toThrow(/TASUKI_PARITY_BUILD_SWITCH_OWNED/);
+  });
+  it('対照: worker（TEST_WORKER_INDEX あり）では、main が立てた控えを継いでいるので止めない', () => {
+    const env: NodeJS.ProcessEnv = { TEST_WORKER_INDEX: '0' };
+    setParityBuildSwitch(env, 'TASUKI_TIMER_CSS_UNMINIFIED');
+    expect(() => assertNoLeftoverParityBuildSwitches(env, 'x')).not.toThrow();
+  });
+  it('対照: 何も立っていなければ止めない', () => {
+    expect(() => assertNoLeftoverParityBuildSwitches({}, 'x')).not.toThrow();
   });
 });
 

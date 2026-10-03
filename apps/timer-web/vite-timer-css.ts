@@ -20,6 +20,7 @@ const COMMENT = /\/\*[\s\S]*?(?:\*\/|$)/g;
 /**
  * `@import` の行の末尾の ` layer(timer)` だけを外す（順序宣言の `@layer …, timer, …;` は触らない）。
  * **コメントの中は数えも書き換えもしない**（注釈に例を書くと、本物を外し損ねても件数が 1 以上になり 0 件の停止が黙る）。
+ * コメントの判定は文字列を見分けないので、文字列の中の `/*` もコメントの始まりと読む（入口の `@import` に `/*` は書かない前提）。
  */
 export function stripTimerLayer(code: string): { code: string; count: number } {
   let count = 0;
