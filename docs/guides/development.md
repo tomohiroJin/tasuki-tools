@@ -635,6 +635,10 @@ major は Dependency Dashboard の Issue に提示。決定は ADR 0008）。脆
 - **降格判定（`ERR_PNPM_TRUST_DOWNGRADE`）で赤くなった場合の扱いは別です。**
   Renovate 側に `trustPolicy` に対応する設定は無く、bot は降格を予見できません。
   上の「信頼証跡の降格拒否」の「Renovate の PR が赤くなったとき」を参照してください
+- **`groupName` を日本語にするときは `groupSlug` を英数字で添えてください。** Renovate はブランチ名を
+  `groupName` から作り、日本語は空に潰れてブランチ名が `renovate` だけになります。git は `renovate` と
+  `renovate/…` を同時に持てないため、他の更新や脆弱性の PR のブランチが作れなくなります
+  （2026-10-03 の実行ログで確認。「非破壊的な更新」は `non-breaking` を添えてある）
 - **Renovate の有効化にはリポジトリ管理者による GitHub App の許可が別途必要です。**
   `renovate.json` をコミットするだけでは動きません。脆弱性の PR は、加えて GitHub の
   Dependabot alerts が有効であることを要します（Renovate はそこから勧告を読みます）

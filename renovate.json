@@ -9,7 +9,7 @@
     "labels": ["dependencies", "security"]
   },
   "packageRules": [
-    { "matchUpdateTypes": ["minor", "patch"], "groupName": "非破壊的な更新" },
+    { "matchUpdateTypes": ["minor", "patch"], "groupName": "非破壊的な更新", "groupSlug": "non-breaking" },
     { "matchUpdateTypes": ["major"], "dependencyDashboardApproval": true }
   ]
 }
