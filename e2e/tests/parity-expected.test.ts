@@ -122,13 +122,13 @@ describe('writeExpectedFromOut の下限と世代', () => {
     const thin = { ...good, elements: { ...good.elements, 768: 0 } };
     const dir = outWith({ a: { exp: thin, meta: meta('abc') } });
     const file = path.join(dir, 'expected.json');
-    expect(() => writeExpectedFromOut(dir, file, 'abc')).toThrow(/a.*768/);
+    expect(() => writeExpectedFromOut(dir, file, 'abc')).toThrow(/a@768: .*下限/);
     expect(existsSync(file)).toBe(false);
   });
 
   it('Given タッチの要約（elements が数）が minElements 未満 / Then 止める', () => {
     const dir = outWith({ 'a-touch': { exp: { ...good, elements: 3 }, meta: meta('abc') } });
-    expect(() => writeExpectedFromOut(dir, path.join(dir, 'expected.json'), 'abc')).toThrow(/a-touch/);
+    expect(() => writeExpectedFromOut(dir, path.join(dir, 'expected.json'), 'abc')).toThrow(/a-touch@touch: .*下限/);
   });
 
   it('Given 動きの件数が 0 / Then 止める', () => {

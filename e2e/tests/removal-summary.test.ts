@@ -75,6 +75,11 @@ describe('loadRemovalProbe: 止まるべき所で止まる', () => {
     write('s2', { generation: 'g2' });
     expect(() => loadRemovalProbe(dir, ['s1', 's2'])).toThrow(/世代/);
   });
+  it('Given 全状態の世代が揃っていても -dirty / Then 止める（未コミットの別々の変更を見分けられない）', () => {
+    write('s1', { generation: 'abc-dirty' });
+    write('s2', { generation: 'abc-dirty' });
+    expect(() => loadRemovalProbe(dir, ['s1', 's2'])).toThrow(/汚れたまま流した結果: s1=abc-dirty s2=abc-dirty.*コミットしてから全状態を流し直す/);
+  });
   it('Given 世代の無い結果 / Then 止める（PR 1 の形式の残り）', () => {
     write('s1', { generation: undefined });
     expect(() => loadRemovalProbe(dir, ['s1'])).toThrow(/世代/);

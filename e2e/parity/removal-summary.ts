@@ -67,6 +67,8 @@ export function removalFile(state: string, dir = REMOVAL_DIR): string {
  * **目録の状態が 1 つでも欠けていれば throw する**（欠けた状態で alive だったものを dead と読み違えないため）。
  * 目録に無い状態のファイルがあっても throw する（古い目録の残り。消してから流し直す）。
  * **全状態の世代（`generation`）が揃っていなければ throw する**（`-g` で一部だけ流し直すと、別の世代の結果が混ざる）。
+ * 世代が `-dirty`（作業ツリーが汚れたまま流した）の結果も throw する（未コミットの別々の変更で流した結果は、どちらも
+ * `<SHA>-dirty` になり、揃っているように見えても同じ世代とは限らない）。
  * `expected` は期待する状態の名前（既定は目録 `STATES` の全状態。自己テストが fixture の名前を渡す）。
  */
 export function loadRemovalProbe(
@@ -101,11 +103,15 @@ export function loadRemovalProbe(
   return { generation, states, dead: [...dead.values()] };
 }
 
-/** 全状態の世代が文字列で、全部同じであることを断定し、その世代を返す（状態が 0 件なら空文字）。 */
+/** 全状態の世代が文字列で、`-dirty` でなく、全部同じであることを断定し、その世代を返す（状態が 0 件なら空文字）。 */
 function assertSameGeneration(states: readonly StateRemoval[]): string {
   // JSON から読んだ値なので、型の上では string でも実際には欠けうる（PR 1 の形式）
   const missing = states.filter((s) => typeof (s.generation as unknown) !== 'string').map((s) => s.state);
   if (missing.length > 0) throw new Error(`世代の無い結果: ${missing.join(', ')}（PR 1 の形式の残り。全状態を流し直す）`);
+  const dirty = states.filter((s) => s.generation.endsWith('-dirty')).map((s) => `${s.state}=${s.generation}`);
+  if (dirty.length > 0) {
+    throw new Error(`作業ツリーが汚れたまま流した結果: ${dirty.join(' ')}（-dirty の世代は見分けられない。コミットしてから全状態を流し直す）`);
+  }
   const generations = new Set(states.map((s) => s.generation));
   if (generations.size > 1) {
     const listing = states.map((s) => `${s.state}=${s.generation}`).join(' ');

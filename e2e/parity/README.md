@@ -59,6 +59,7 @@ pnpm exec playwright test -c parity/parity.removal.config.ts
 - **既定の比較（上の「流す」）には含めない**（所要時間は台帳）。この設定でだけ流す
 - 結果は状態ごとに `out/removal/<状態>.json`。**読むときは `removal-summary.ts` の `loadRemovalProbe` を通す**（目録の状態が欠けていれば止まる。写さないのは、どの状態でも alive にも undecided にも出ない組だけ）
 - 結果には世代（HEAD の SHA。作業ツリーが汚れていれば `-dirty` つき）が入り、`loadRemovalProbe` は全状態の世代が揃っていなければ止まる（`-g` で一部だけ流し直したら、全状態を流し直す）
+- 作業ツリーが汚れたまま（世代が `-dirty`）流した結果も、`loadRemovalProbe` は止める（未コミットの別々の変更で流した結果は、どちらも `<SHA>-dirty` になって見分けられない）。コミットしてから全状態を流し直す
 - 流した後に、既知の答え 5 件（`removal-summary.ts` の `KNOWN_ANSWERS`）を出力に当てる。5 行とも `OK` であること:
 
 ```bash
@@ -75,7 +76,8 @@ TASUKI_PARITY_REMOVAL_CHECK=1 pnpm exec vitest run tests/removal-summary.test.ts
 2. **`cd e2e && rm -rf parity/out` で前の出力を消す**（前の世代の要約が残っていると 4 が止まる）
 3. 上の「流す」を全件流す（各テストが `out/<状態>/base-expectation.json` に基準側の要約を、隣の
    `base-expectation.meta.json` に世代と下限を書く。期待値と食い違う・期待値が無いテストは赤になるが、要約は書かれる）。
-   目録を変えた後で読み込みが止まるときは、先に `expected/base-summary.json` を消してから流す
+   目録を変えた後で読み込みが止まるときは、`git rm e2e/parity/expected/base-summary.json` で消し、**その削除（と目録の変更）を
+   コミットしてから 1 からやり直す**（消しただけでは作業ツリーが dirty になり、4 が必ず止まる）
 4. `cd e2e && node --experimental-strip-types parity/expected.ts`（`out/` の要約を束ねて `expected/base-summary.json` を書く。
    `--repeat-each` の置き場 `-r<n>` は読まない）。世代が揃わない・下限（どの幅でも要素数が目録の `minElements` 以上・
    動きの件数が 1 以上）を下回る・dirty なら、何も書かずに止まる
