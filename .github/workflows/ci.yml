@@ -33,7 +33,7 @@ jobs:
           # 差分の取得に必要。.git は 17MB / 713 コミットで数秒。
           fetch-depth: 0
 
-      # Node 22 必須。ルートが宣言する pnpm 11.5.0 は node:sqlite（Node 22.5 以降）を
+      # Node 22 必須。ルートが宣言する pnpm（11 系）は node:sqlite（Node 22.5 以降）を
       # 使うため、Node 20 では ERR_UNKNOWN_BUILTIN_MODULE で起動すらしない。
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
