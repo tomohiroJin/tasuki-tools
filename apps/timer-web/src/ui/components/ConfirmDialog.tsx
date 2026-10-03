@@ -37,6 +37,7 @@ export function ConfirmDialog({
     containerRef: dialogRef,
     onClose: onCancel,
     initialFocusRef: cancelRef,
+    modal: true,
   });
 
   if (!open) return null;
