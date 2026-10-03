@@ -16,13 +16,14 @@ interface HarnessProps {
   onClose: () => void;
   /** 再描画を起こすためだけの値（中身は使わない） */
   tick: number;
+  modal?: boolean;
 }
 
-function Harness({ open, onClose, tick }: HarnessProps) {
+function Harness({ open, onClose, tick, modal = true }: HarnessProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
   // 呼び出し側と同じく、描画のたびに新しい関数を渡す
-  useFocusTrap({ open, containerRef: dialogRef, onClose: () => onClose(), initialFocusRef: cancelRef });
+  useFocusTrap({ open, containerRef: dialogRef, onClose: () => onClose(), initialFocusRef: cancelRef, modal });
   return (
     <div data-tick={tick}>
       <button type="button">開く</button>
@@ -72,6 +73,19 @@ describe("useFocusTrap", () => {
 
     // Then: モーダルなので外へは出さない。ダイアログの初期フォーカスへ戻す
     expect(document.activeElement).toBe(cancel);
+  });
+
+  it("Given 開いたモーダルでないポップオーバー / When フォーカスが外へ移る / Then 引き戻さない（外の操作を奪わない）", () => {
+    // Given
+    const onClose = vi.fn();
+    render(<Harness open onClose={onClose} tick={0} modal={false} />);
+
+    // When
+    const opener = screen.getByRole("button", { name: "開く" });
+    opener.focus();
+
+    // Then
+    expect(document.activeElement).toBe(opener);
   });
 
   it("Given 閉じたダイアログ / When 外の要素へフォーカスする / Then 引き戻さない", () => {

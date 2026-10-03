@@ -1,6 +1,6 @@
 /**
  * モーダル用フォーカストラップフック
- * a11y(WCAG 2.4.3): 開いている間は Tab/Shift+Tab をコンテナ内で循環させ、外へ移ったフォーカスは中へ戻し、
+ * a11y(WCAG 2.4.3): 開いている間は Tab/Shift+Tab をコンテナ内で循環させ、外へ移ったフォーカスは（モーダルなら）中へ戻し、
  * Esc で閉じ、開く前のフォーカス位置を閉じたとき復帰させる。
  *
  * ConfirmDialog と AiSettingsModal で同一ロジックを共用するために切り出す（DRY）。
@@ -21,6 +21,11 @@ interface UseFocusTrapParams {
   onClose: () => void;
   /** 開いたときに最初にフォーカスする要素（省略時はコンテナ内の先頭 focusable） */
   initialFocusRef?: RefObject<HTMLElement | null>;
+  /**
+   * モーダル（`aria-modal="true"`）か。真なら、外へ移ったフォーカスを中へ戻す。
+   * 外側のクリックで閉じるポップオーバー（通知設定）は偽のまま —— 引き戻すと、外の操作を奪う。
+   */
+  modal?: boolean;
 }
 
 export function useFocusTrap({
@@ -28,6 +33,7 @@ export function useFocusTrap({
   containerRef,
   onClose,
   initialFocusRef,
+  modal = false,
 }: UseFocusTrapParams): void {
   // onClose は ref で持ち、effect の依存に入れない。呼び出し側は描画のたびに新しい関数を渡すので、
   // 依存に入れると開いている間の再描画のたびに effect が作り直され、後始末が「開く前のボタン」へ
@@ -77,7 +83,7 @@ export function useFocusTrap({
       }
     };
 
-    // フォーカスがコンテナの外へ移ったら中へ戻す。Tab の折り返しだけでは、背景をクリックしてから
+    // モーダルのとき、フォーカスがコンテナの外へ移ったら中へ戻す。Tab の折り返しだけでは、背景をクリックしてから
     // Tab を押すと外の要素へ進めてしまう（onClose の再生成でフォーカスが引き戻されていた間は隠れていた）。
     const onFocusIn = (e: FocusEvent) => {
       const container = containerRef.current;
@@ -86,11 +92,11 @@ export function useFocusTrap({
     };
 
     document.addEventListener("keydown", onKey);
-    document.addEventListener("focusin", onFocusIn);
+    if (modal) document.addEventListener("focusin", onFocusIn);
     return () => {
       document.removeEventListener("keydown", onKey);
-      document.removeEventListener("focusin", onFocusIn);
+      if (modal) document.removeEventListener("focusin", onFocusIn);
       previouslyFocused?.focus?.();
     };
-  }, [open, containerRef, initialFocusRef]);
+  }, [open, containerRef, initialFocusRef, modal]);
 }
