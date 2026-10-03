@@ -1,0 +1,25 @@
+# 変異 118: design-tokens-unused-allow
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/ui/design-tokens.test.ts
+#     「ALLOW の各項目は 1 度以上使われている（直した後に例外だけが残らない）」
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m118-*.patch
+# 復元: git apply -R scripts/mutations/m118-*.patch
+#
+# #321 PR 1・設計正本 D10。ALLOW に、どのファイルにも当たらない項目を足す（生の色を直した後に
+# 例外だけが残った状態）。残った例外は、同じ場所へ生の色を書き戻しても通してしまう。
+# 生の色を走査する側のテストは緑のまま、「使われていない例外」の族だけが赤になるべき。
+diff --git a/apps/timer-web/test/ui/design-tokens.test.ts b/apps/timer-web/test/ui/design-tokens.test.ts
+index 01ec483f..5fb7632c 100644
+--- a/apps/timer-web/test/ui/design-tokens.test.ts
++++ b/apps/timer-web/test/ui/design-tokens.test.ts
+@@ -30,6 +30,7 @@ const ALLOW = [
+   { file: "ui/components/InvitePanel.tsx", pattern: /bg-white/ },
+   // 影は黒。パレットを変えても黒のままなので、トークン化しても追従する先が無い
+   { file: "*", pattern: /rgba\(0,\s*0,\s*0,[^)]*\)/ },
++  { file: "ui/Nope.tsx", pattern: /bg-black/ },
+ ];
+ 
+ /** Tailwind に同梱の色（卓のパレットの外にある色相）。 */

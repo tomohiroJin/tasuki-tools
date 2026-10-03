@@ -167,3 +167,9 @@ timer と違い Tailwind を使わず素の CSS で組むため、poker-web / la
 
 決定 1 の「timer はトークン層だけを読み」は [ADR-0022](./0022-ui-components-layer.md) 決定 5 が置き換えた。
 timer はトークン層と部品層を読み、要素層は読まない。**現行の正本は ADR-0022。** 要素層を読まない理由は変わらない。
+
+## 追記（2026-10-02・#321）
+
+決定 1 の「Tailwind のまま維持します」と、2026-08-11 の追記（`@tailwindcss/postcss` の位置づけ・CSS-first の見送り・
+`autoprefixer` の申し送り）、および 2026-09-27 の追記の「要素層を読まない理由は変わらない」は
+[ADR-0023](./0023-timer-without-tailwind.md) が置き換えた。**現行の正本は ADR-0023。**

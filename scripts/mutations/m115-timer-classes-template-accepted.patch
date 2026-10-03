@@ -1,0 +1,24 @@
+# 変異 115: timer-classes-template-accepted
+#
+# 検出を期待するテスト:
+#   - scripts/audit-timer-classes.test.mjs
+#     describe「classUsagesIn: 許さない書き方」の「className 以外の置換」
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m115-*.patch
+# 復元: git apply -R scripts/mutations/m115-*.patch
+#
+# #321 PR 1・設計正本 D1。className に渡すテンプレートの置換が className でなくても reject しない。
+# `${tone}` のような置換が通り、クラス名を組み立てる書き方が戻る。書き方の族（置換）だけが赤になるべき。
+diff --git a/scripts/audit-timer-classes.mjs b/scripts/audit-timer-classes.mjs
+index 9a5df3f7..2b448e16 100644
+--- a/scripts/audit-timer-classes.mjs
++++ b/scripts/audit-timer-classes.mjs
+@@ -167,7 +167,6 @@ export function classUsagesIn(fileName, text) {
+     if (ts.isTemplateExpression(e)) {
+       addLiteral(e, e.head.text);
+       for (const span of e.templateSpans) {
+-        if (!(ts.isIdentifier(span.expression) && span.expression.text === "className")) reject(span.expression, "className に渡すテンプレートの置換");
+         addLiteral(span, span.literal.text);
+       }
+       return;

@@ -773,6 +773,7 @@ node scripts/audit-web-sync-boundary.mjs         # web 層の同期境界（画�
 node scripts/audit-dependency-direction.mjs      # 依存の向き（パッケージ間の依存が許可表の内側か。憲法 原則 VI・ADR-0017 決定 4）
 node scripts/audit-public-surface.mjs            # 公開面（エントリが export * を使っていないか。ADR-0016 決定 2 項目 2）
 node scripts/audit-ui-components.mjs             # 部品層の写しと規則（ADR-0022 決定 6）
+node scripts/audit-timer-classes.mjs             # timer のクラス名の書き方と定義（ADR-0023）
 node scripts/audit-supply-chain-config.mjs       # pnpm 供給網設定の退化（除外の版指定・死んだ除外行・未知のキーと値。ADR-0008 / ADR-0010）
 node scripts/audit-plan-gate.mjs                 # 実装計画の Constitution Check ゲート（境界日以降の plan が全原則の判定表と逸脱の結論を持つか。憲法 Governance / ADR-0003）
 node scripts/mutation-check.mjs                  # 変異検査

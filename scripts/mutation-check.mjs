@@ -1246,6 +1246,55 @@ export const MUTATIONS = [
       "#320 PR 5・設計正本 D10 の 3。画面の CSS の通常の規則から生の色の判定を外す。@keyframes の段と" +
       "部品の CSS の側は落とし続けるので、画面の通常の規則の族だけが赤になる。",
   },
+  {
+    id: 115,
+    label: "audit-timer-classes が className の置換を見逃す",
+    patch: "m115-timer-classes-template-accepted.patch",
+    pkg: "scripts",
+    tests: ["audit-timer-classes.test.mjs"],
+    note:
+      "#321 PR 1・設計正本 D1。`${tone}` のような置換を許すと、クラス名を組み立てる書き方が戻り、" +
+      "取り残したクラスを字面で数えられなくなる。",
+  },
+  {
+    id: 116,
+    label: "audit-timer-classes が古い移行の一覧を見逃す",
+    patch: "m116-timer-classes-stale-unmigrated.patch",
+    pkg: "scripts",
+    tests: ["audit-timer-classes.test.mjs"],
+    note:
+      "#321 PR 1・設計正本 D10 の 3。一覧に載ったファイルが外しても検査を通る（移し終えた）のに落とさない。" +
+      "移し終えたファイルが一覧に残ると、書き方と定義の検査を免除され続ける。",
+  },
+  {
+    id: 117,
+    label: "audit-timer-classes が Tailwind と同名のクラスを見逃す",
+    patch: "m117-timer-classes-tailwind-collision.patch",
+    pkg: "scripts",
+    tests: ["audit-timer-classes.test.mjs"],
+    note:
+      "#321 PR 1・設計正本 D1。移行中は同名のユーティリティが生成されて @layer timer に勝つ。見た目の比較では、" +
+      "その要素に Tailwind の値がたまたま一致すると見えない。",
+  },
+  {
+    id: 118,
+    label: "design-tokens.test の ALLOW に使われない項目が残る",
+    patch: "m118-design-tokens-unused-allow.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/design-tokens.test.ts"],
+    note:
+      "#321 PR 1・設計正本 D10。生の色を直した後に例外だけが残ると、同じ場所に生の色を書き戻しても通る。",
+  },
+  {
+    id: 119,
+    label: "audit-timer-classes が移したファイルに残った Tailwind のクラスを見逃す",
+    patch: "m119-timer-classes-undefined-class-accepted.patch",
+    pkg: "scripts",
+    tests: ["audit-timer-classes.test.mjs"],
+    note:
+      "#321 PR 1・設計正本 D1・計画 P8。字面のクラス名が timer の CSS にも部品層にも無くても落とさない。" +
+      "Tailwind のクラスはどちらにも定義されないので、移したファイルに取り残した Tailwind のクラスが黙って通る。",
+  },
 ];
 
 /**
