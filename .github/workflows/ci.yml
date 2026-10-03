@@ -117,13 +117,18 @@ jobs:
 
       # Playwright の版は package.json で完全固定している。
       # revision は版に 1 対 1 で紐づくので、版をそのまま鍵にする。
+      # **鍵に版を直書きしない。** Renovate が版を上げても鍵が変わらず、古い版の
+      # ブラウザがキャッシュから戻って E2E が全件落ちる（#334・Renovate の PR #338 で実際に起きた）。
+      - id: playwright-version
+        if: steps.scope.outputs.code == 'true'
+        run: echo "version=$(node -p "require('./e2e/package.json').devDependencies['@playwright/test']")" >> "$GITHUB_OUTPUT"
       - name: Cache Playwright browsers
         id: playwright-cache
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         if: steps.scope.outputs.code == 'true'
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-1.62.1-chromium
+          key: playwright-${{ steps.playwright-version.outputs.version }}-chromium
       - run: pnpm --filter @tasuki/e2e exec playwright install --with-deps chromium
         if: steps.scope.outputs.code == 'true' && steps.playwright-cache.outputs.cache-hit != 'true'
       - run: pnpm --filter @tasuki/e2e exec playwright install-deps chromium
