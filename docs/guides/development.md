@@ -105,6 +105,27 @@ pnpm outdated -r   # 全プロジェクトを見る。ルートのみの pnpm ou
 pnpm update <pkg>  # 宣言済み semver 範囲内で更新
 ```
 
+### 脆弱性の勧告に気づいたとき
+
+勧告の検知は CI ではなく GitHub が担います（決定は
+[`docs/adr/0024`](../adr/0024-vulnerability-detection-outside-ci.md)）。CI は勧告の公開では赤くなりません。
+
+- **気づく経路**: GitHub の Dependabot alerts（リポジトリの **Security** タブと、管理者への通知）。
+  直る版が公開から 7 日を過ぎると、Renovate が `security` ラベルつきの PR を立てます
+- **直る版があり、Renovate の PR が立った**: 通常の Renovate の PR と同じく、CI が緑であることを
+  確かめて人がマージします（自動マージはしません）
+- **直る版があるが、Renovate の PR が版を上げきれない**（推移依存が lockfile 上で据え置かれる など）:
+  下の[推移依存の脆弱性を overrides で塞ぐ](#推移依存の脆弱性を-overrides-で塞ぐ)の手順で直し、
+  手元の `pnpm audit` で勧告が消えたことを確かめます
+- **直る版が公開から 7 日未満で、待てない**: 下の例外手順を使います。Renovate の設定で待機期間を外しません
+- **直る版がまだ公開されていない**: アラートを開いたまま待ちます。**「直る版が無い」だけを理由に
+  却下（Dismiss）しないでください**（却下すると、直る版が出ても知らせが来ません）
+- **直る版が出ても取り込まないと判断した**（開発時だけの依存で配布されない・脆弱な関数を使っていない など）:
+  アラートを却下し、**経路・配布されるか・判断の理由をコメントに書きます**
+
+Dependabot security updates（Dependabot が修正の PR を立てる機能）は使いません。修正の提案は
+Renovate に一本化しています。
+
 ### 緊急の脆弱性修正を待機期間中に取り込む例外手順
 
 7 日未満の版をどうしても取り込む必要がある場合のみ、対象パッケージだけを
@@ -602,17 +623,21 @@ lockfile の検証を常に効かせるためです（決定は ADR 0008）。
 ### Renovate が立てた PR の扱い
 
 `renovate.json` により、Renovate が更新を提案します（minor/patch は PR を自動作成、
-major は Dependency Dashboard の Issue に提示。決定は ADR 0008）。
+major は Dependency Dashboard の Issue に提示。決定は ADR 0008）。脆弱性を直す更新は
+`security` ラベルつきの別の PR になります（決定は ADR 0024）。
 
 - **自動マージはしません。** 取り込みは人が判断します。CI が緑であることを
   確認してからマージしてください
 - Renovate 側の待機期間は pnpm 側（7 日）以上に設定してあります。下回らせると
-  bot の PR が pnpm の検証で常に赤くなります
+  bot の PR が pnpm の検証で常に赤くなります。**脆弱性の PR（`vulnerabilityAlerts`）は
+  Renovate の既定で待機期間が `null` になるため、`renovate.json` に別に書いてあります。**
+  どちらも `scripts/audit-supply-chain-config.mjs` が機械で見ています
 - **降格判定（`ERR_PNPM_TRUST_DOWNGRADE`）で赤くなった場合の扱いは別です。**
   Renovate 側に `trustPolicy` に対応する設定は無く、bot は降格を予見できません。
   上の「信頼証跡の降格拒否」の「Renovate の PR が赤くなったとき」を参照してください
 - **Renovate の有効化にはリポジトリ管理者による GitHub App の許可が別途必要です。**
-  `renovate.json` をコミットするだけでは動きません
+  `renovate.json` をコミットするだけでは動きません。脆弱性の PR は、加えて GitHub の
+  Dependabot alerts が有効であることを要します（Renovate はそこから勧告を読みます）
 
 ## テスト
 
@@ -774,7 +799,7 @@ node scripts/audit-dependency-direction.mjs      # 依存の向き（パッケ�
 node scripts/audit-public-surface.mjs            # 公開面（エントリが export * を使っていないか。ADR-0016 決定 2 項目 2）
 node scripts/audit-ui-components.mjs             # 部品層の写しと規則（ADR-0022 決定 6）
 node scripts/audit-timer-classes.mjs             # timer のクラス名の書き方と定義（ADR-0023）
-node scripts/audit-supply-chain-config.mjs       # pnpm 供給網設定の退化（除外の版指定・死んだ除外行・未知のキーと値。ADR-0008 / ADR-0010）
+node scripts/audit-supply-chain-config.mjs       # pnpm 供給網設定の退化（除外の版指定・死んだ除外行・未知のキーと値。ADR-0008 / ADR-0010）と Renovate の待機期間（ADR-0024）
 node scripts/audit-plan-gate.mjs                 # 実装計画の Constitution Check ゲート（境界日以降の plan が全原則の判定表と逸脱の結論を持つか。憲法 Governance / ADR-0003）
 node scripts/mutation-check.mjs                  # 変異検査
 node scripts/check-links.mjs                     # リンク検査
@@ -812,6 +837,8 @@ bash -c 'set -euo pipefail; targets="$(node scripts/list-scan-targets.mjs shell)
 **`node_modules` は要らず、`pnpm-lock.yaml` があれば動きます**（新規 worktree で実測）。
 `pnpm -r list` が install 済みを要求するのとは事情が違います。CI では `quality` ジョブの
 install の後ろに置いていますが、これは順序を保証する側を 1 つで済ませるためです。
+**`renovate.json` だけは自前で読みます**（JSON なので字句解析の自作にならない）。全体・
+`vulnerabilityAlerts`・`packageRules` の待機期間が pnpm 側を下回らないことを見ます（#334）。
 
 **供給網ポリシーの検証が実際に走ったことは、CI の install 自体が確かめます。**
 `quality` ジョブの install は `node scripts/install-with-supply-chain-check.mjs` 経由で走り、
@@ -819,10 +846,11 @@ install の後ろに置いていますが、これは順序を保証する側を
 このラッパを手元で直接叩くと、`node_modules` が温まっている限り**落ちるのが正常**です
 （下の[ローカル確認時の注意](#ローカル確認時の注意)を参照）。
 
-**依存の脆弱性検査（`pnpm audit`）は上記に含まれません。** CI の独立ジョブ
-（`audit`）で自動実行され、high 以上の脆弱性で落ちます（決定は
-[`docs/adr/0008`](../adr/0008-dependency-supply-chain.md)）。手動での実行は
-確認したいときのみで構いません（`pnpm audit`）。
+**依存の脆弱性検査（`pnpm audit`）は上記に含まれず、CI でも走りません。** 検知は
+GitHub の Dependabot alerts、修正の提案は Renovate が担います（決定は
+[`docs/adr/0024`](../adr/0024-vulnerability-detection-outside-ci.md)。手順は
+[脆弱性の勧告に気づいたとき](#脆弱性の勧告に気づいたとき)）。手動での実行は
+勧告が消えたことを確かめたいときに使います（`pnpm audit`）。
 
 **変異検査は作業ツリーが汚れていると実行できません。** `mutation-check.mjs` は
 対象箇所を意図的に壊して既存テストが赤くなるかを確認する仕組みのため、
@@ -1031,15 +1059,17 @@ shellcheck・自己テスト（`node --test`）の対象は宣言ではなく `g
 | `ci` | typecheck / lint / test / build | コードに関わる変更（`*.md` 以外が 1 つでもある） |
 | `quality` | [検査系](#検査系)の全項目 | 同上 |
 | `docs` | リンク検査 | **常時** |
-| `audit` | `pnpm audit` | 依存の変更（`pnpm-lock.yaml` / `pnpm-workspace.yaml` / `package.json`） |
 | `e2e` | E2E | コードに関わる変更 |
+
+**依存の脆弱性検査（`audit`）のジョブはありません**（#334 で外した。
+[`docs/adr/0024`](../adr/0024-vulnerability-detection-outside-ci.md)）。
 
 **`docs` 行は列挙のままにしています。** `docs` ジョブが走らせるのはリンク検査 1 本だけで、
 「検査系」節には `quality` が走らせないもの（リンク検査自身を含む）も並んでいます。
 `docs` 行を `quality` と同じ形へ倒すと実態より広い範囲を指してしまい、かえって誤りに
 なるためです（#175）。
 
-判定は `scripts/ci-scope.mjs` が行い、`$GITHUB_OUTPUT` へ `code` と `deps` を書きます。
+判定は `scripts/ci-scope.mjs` が行い、`$GITHUB_OUTPUT` へ `code` を書きます。
 **判定できないときは全部走らせます（fail-open）。**
 
 ### 必須チェックが永久待ちにならない理由
