@@ -50,7 +50,7 @@ export function SelfDriverToggle({
   const leaveRoomButton = onLeaveRoom ? (
     <GhostButton
       onClick={() => onLeaveRoom(participantId)}
-      className="text-xs px-3 py-1.5"
+      className="text-xs"
       title="この端末をルームから外します。招待から再参加できます。"
     >
       ルームから抜ける
@@ -68,7 +68,7 @@ export function SelfDriverToggle({
           進行の操作はできます。交代の輪に入ると、ドライバーとして順番が回ってきます。
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <PrimaryButton onClick={() => onJoin?.(participantId)} className="text-sm px-4 py-2">
+          <PrimaryButton onClick={() => onJoin?.(participantId)} className="text-sm">
             ドライバーに加わる
           </PrimaryButton>
           {/* 輪の外でも部屋からは抜けられる。ここに導線が無いと取り残される。 */}
@@ -89,12 +89,12 @@ export function SelfDriverToggle({
       <span className="text-sm">あなた: {status}</span>
       <span className="flex flex-wrap items-center gap-1.5">
         {isSkipping && (
-          <PrimaryButton onClick={() => onResume?.(participantId)} className="text-xs px-3 py-1.5">
+          <PrimaryButton onClick={() => onResume?.(participantId)} className="text-xs">
             復帰
           </PrimaryButton>
         )}
         {!isSkipping && (
-          <GhostButton onClick={() => onSkip?.(participantId)} className="text-xs px-3 py-1.5">
+          <GhostButton onClick={() => onSkip?.(participantId)} className="text-xs">
             一時離脱
           </GhostButton>
         )}
@@ -102,7 +102,7 @@ export function SelfDriverToggle({
           onClick={() => onLeave?.(participantId)}
           disabled={!canLeave}
           title={canLeave ? undefined : "最後のドライバーは外れられません"}
-          className="text-xs px-3 py-1.5"
+          className="text-xs"
         >
           列から外れる
         </GhostButton>

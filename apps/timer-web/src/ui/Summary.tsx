@@ -68,15 +68,15 @@ export function Summary({ endType, record, onNewSession, onSaveRecord }: Summary
               所要時間（「120分00秒」等）が whitespace-nowrap ではみ出さないよう、
               モバイルは text-lg、sm 以上で text-xl に上げる（R5-3）。 */}
           <div className="grid w-full grid-cols-3 gap-3">
-            <Card className="p-3 sm:p-4">
+            <Card className="sm:p-4">
               <p className="instrument-label">所要時間</p>
               <p className="whitespace-nowrap text-lg sm:text-xl font-bold tabular text-[var(--bone)]">{formatTime(record.elapsedSeconds)}</p>
             </Card>
-            <Card className="p-3 sm:p-4">
+            <Card className="sm:p-4">
               <p className="instrument-label">交代回数</p>
               <p className="whitespace-nowrap text-lg sm:text-xl font-bold tabular text-[var(--bone)]">{record.totalSwitches}回</p>
             </Card>
-            <Card className="p-3 sm:p-4">
+            <Card className="sm:p-4">
               <p className="instrument-label">周回数</p>
               <p className="whitespace-nowrap text-lg sm:text-xl font-bold tabular text-[var(--bone)]">{record.rounds ?? 0}周</p>
             </Card>
@@ -84,7 +84,7 @@ export function Summary({ endType, record, onNewSession, onSaveRecord }: Summary
 
           {/* 個人別ドライバー回数（偏りが一目で分かるバー・UX 再設計の振り返り） */}
           {record.driverCounts && record.driverCounts.length > 0 && (
-            <Card className="w-full p-4 text-left">
+            <Card className="w-full text-left">
               <p className="instrument-label mb-3">ドライバー別の回数</p>
               <ul className="space-y-2">
                 {record.members.map((name, i) => {

@@ -101,7 +101,7 @@ export function History({ onBack }: HistoryProps) {
           <ul className="flex flex-col gap-3" aria-label="完了記録の一覧">
             {records.map((record) => (
               <li key={record.id}>
-                <Card className="p-4">
+                <Card>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate font-bold text-[var(--bone)]">

@@ -226,12 +226,12 @@ export function Lobby({
                           onClick={() => onLeaveRotation?.(p.participantId)}
                           disabled={isLastDriver}
                           title={isLastDriver ? "最後のドライバーは外れられません" : undefined}
-                          className="text-xs px-3 py-1.5"
+                          className="text-xs"
                         >
                           列から外れる
                         </GhostButton>
                       ) : (
-                        <PrimaryButton onClick={() => onJoinRotation?.(p.participantId)} className="text-xs px-3 py-1.5 min-h-[44px] sm:min-h-0">
+                        <PrimaryButton onClick={() => onJoinRotation?.(p.participantId)} className="text-xs min-h-[44px] sm:min-h-0">
                           ドライバーに加わる
                         </PrimaryButton>
                       )
@@ -243,7 +243,7 @@ export function Lobby({
                       <GhostButton
                         onClick={() => onRemoveParticipant(p.participantId)}
                         title="この端末をルームから外します。招待から再参加できます。"
-                        className="text-xs px-3 py-1.5"
+                        className="text-xs"
                       >
                         ルームから抜ける
                       </GhostButton>
