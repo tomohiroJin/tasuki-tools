@@ -3,7 +3,10 @@ export default {
     // Tailwind 4 は PostCSS プラグインを本体から `@tailwindcss/postcss` へ分離した。
     // 新しいライブラリの採用ではなく、同一エコシステム内の構成変更である
     // （技術選定は Tailwind のまま。ADR は要さないと判断した — #113 PR-5）。
-    '@tailwindcss/postcss': {},
+    //
+    // 比較の仕組みの E8 のためだけに、Tailwind の最適化（Lightning CSS）を止める（#321 計画 P4・`vite-timer-css.ts`）。
+    // `undefined` なら Tailwind の既定（`NODE_ENV === 'production'` で最適化）のまま。既定は変えない
+    '@tailwindcss/postcss': { optimize: process.env.TASUKI_TIMER_CSS_UNMINIFIED === '1' ? false : undefined },
     // autoprefixer は残置する（依存の削除は #113 の非目標。判断は #71 へ申し送り）。
     //
     // **「Tailwind 4 が自前で prefix を付けるので不要」は実測で成り立たなかった**

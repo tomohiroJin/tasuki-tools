@@ -46,6 +46,34 @@ pnpm exec playwright test -c parity/parity.control.config.ts
 - 8787・18080 を使う。終わったら `ss -tlnp | grep -E ':(8787|18080)\b'` が空であることを見る
 - 結果は比較の出力置き場 out/（このディレクトリの中・無視している）。**正本は台帳**（`docs/superpowers/specs/2026-09-29-timer-without-tailwind-parity-ledger.md`）
 
+### 囲いを外した一時ビルド
+
+```bash
+cd e2e
+TASUKI_E2E_TARGET=local \
+TASUKI_PARITY_BASE_DIST=$HOME/.cache/tasuki-parity/base-ba9249d/apps/timer-web/dist \
+pnpm exec playwright test -c parity/parity.unlayered.config.ts
+```
+
+- ブランチの timer を、入口（`apps/timer-web/src/index.css`）の `@import … layer(timer)` から `layer(timer)` を外してビルドし、基準と比べる（設計正本 D3）。レイヤーを外しても見た目が変わらないことを PR 4 より前に確かめる
+- 残してよい差は、親を先に移したとき、レイヤー外になった親の `:where(.x > :not(:last-child))` が、まだ Tailwind のままの子の margin に勝つ型だけ（既知の偽陽性）。ほかの差は直す
+- 設定ファイルが `TASUKI_TIMER_UNLAYERED=1` を立て、`globalSetup` のビルドが turbo 経由で受け取る（`turbo.json` の `@tasuki/timer-web#build` の `env`）。切り替えの本体は `apps/timer-web/vite-timer-css.ts`。**`layer(timer)` の `@import` が 0 本ならビルドが止まる**（外し損ねた普通のビルドを比べて緑にしない）
+- 行頭に `[囲いを外した一時ビルド]` と出る。**流した後は dist が一時ビルドのまま残る**ので、次の比較の `globalSetup` が既定のビルドへ戻す（turbo のキャッシュは環境変数で鍵が分かれている）
+
+### 規則の使用状況（E8）
+
+```bash
+cd e2e
+TASUKI_E2E_TARGET=local \
+TASUKI_PARITY_BASE_DIST=$HOME/.cache/tasuki-parity/base-ba9249d/apps/timer-web/dist \
+pnpm exec playwright test -c parity/parity.usage.config.ts
+```
+
+- ブランチの timer を、CSS の最小化（Vite の `build.cssMinify`）と Tailwind の最適化（`@tailwindcss/postcss` の `optimize`）を止めてビルドする。足した CSS の規則が実行中に当たるかを、ソースの規則と鍵で突き合わせる（E8・照合は Task 3 で足す）
+- 設定ファイルが `TASUKI_TIMER_CSS_UNMINIFIED=1` を立てる。渡り方は上と同じ
+- 行頭に `[規則の使用状況]` と出る
+- **dist の CSS は `assets/index-*.css` の glob ではなく `index.html` が参照するものを読む。** turbo はキャッシュから dist を戻すとき古い資産を消さないので、切り替えを行き来すると別のビルドの CSS が同じ場所に残る（実測）
+
 ## 除去検査（基準で効いていないクラス）
 
 ```bash
