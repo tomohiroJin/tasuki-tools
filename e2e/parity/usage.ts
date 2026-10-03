@@ -27,6 +27,9 @@ interface RuleUsage {
  * **`CSS.enable` より前に `CSS.styleSheetAdded` を購読する**（enable が既存のシートの分を通知するので、後から購読すると
  * 取りこぼす）。遷移・再読み込みでは `styleSheetRemoved` が来ず、`DOM.documentUpdated` の後に新しい id で追加し直される。
  * 前の文書のシートの当たりは返らない（実測）ので、`documentUpdated` で控えを空にし、いまの文書のシートだけを持つ。
+ *
+ * 状態を作る途中の画面の当たりも数える（README の E8 の限界）。目印の時点で `CSS.takeCoverageDelta` を呼んで捨てる形は使えない:
+ * delta で一度返した規則は、その後に当たり続けても当て直しても stop で二度と返らない（素の Chromium で実測・2026-10-03）。
  */
 export async function startRuleUsage(page: Page): Promise<RuleUsageSession> {
   const cdp = await page.context().newCDPSession(page);
