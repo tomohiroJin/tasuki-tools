@@ -14,16 +14,6 @@ import fs from "node:fs";
 import { execFileSync } from "node:child_process";
 import { isDirectRun } from "./lib/direct-run.mjs";
 
-/** 依存を変えるファイルか。 */
-function isDependencyFile(file) {
-  return (
-    file === "pnpm-lock.yaml" ||
-    file === "pnpm-workspace.yaml" ||
-    file === "package.json" ||
-    file.endsWith("/package.json")
-  );
-}
-
 /**
  * 変更ファイル一覧から走らせる範囲を決める。
  *
@@ -33,15 +23,15 @@ function isDependencyFile(file) {
  * `e2e` に独立したフラグは持たせない（条件は `code` と同じ）。turbo.json・
  * ルート設定・.github/workflows/** はいずれも E2E の挙動を変えうるため、
  * 「利用者の通る経路」を狭く列挙すると必ず取りこぼす。
+ *
+ * かつては依存の変更を見る `deps` も持っていたが、それを読む `audit` ジョブを
+ * CI から外したので消した（#334・`docs/adr/0024`）。
  */
 export function decideScope(changedFiles) {
   if (!Array.isArray(changedFiles) || changedFiles.length === 0) {
-    return { code: true, deps: true };
+    return { code: true };
   }
-  return {
-    code: changedFiles.some((f) => !f.endsWith(".md")),
-    deps: changedFiles.some(isDependencyFile),
-  };
+  return { code: changedFiles.some((f) => !f.endsWith(".md")) };
 }
 
 export function parseDiffOutput(stdout) {
@@ -52,7 +42,7 @@ export function parseDiffOutput(stdout) {
 }
 
 export function formatOutputs(scope) {
-  return `code=${scope.code}\ndeps=${scope.deps}\n`;
+  return `code=${scope.code}\n`;
 }
 
 function git(args) {
@@ -91,11 +81,11 @@ function main() {
   try {
     const files = changedFiles();
     scope = decideScope(files);
-    console.log(`変更 ${files.length} ファイル → code=${scope.code} deps=${scope.deps}`);
+    console.log(`変更 ${files.length} ファイル → code=${scope.code}`);
     for (const f of files) console.log(`  ${f}`);
   } catch (error) {
     // **fail-open**: 判定できなければ全部走らせる
-    scope = { code: true, deps: true };
+    scope = { code: true };
     console.log(`判定できないため全ジョブを走らせます: ${error.message}`);
   }
   const out = process.env.GITHUB_OUTPUT;

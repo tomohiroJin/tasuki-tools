@@ -270,3 +270,12 @@ CI キャッシュへ載せる・`--trust-lockfile` が紛れ込む・pnpm の�
 **親の更新が効くのは「その親の直下」までである。** 2 段以上下は、親を上げても lockfile の
 部分木が据え置かれる。今回の `colord`（直下・動いた）と `js-yaml`（2 段下・動かなかった）の
 対比がその実例である。
+
+## 追記（2026-10-03・#334）
+
+決定の「`pnpm audit` を CI へ独立ジョブとして組み込み、深刻度 high 以上でビルドを落とす」と、
+2026-08-30 の追記（#199）の「削除後の防御は `pnpm audit --audit-level high` の CI ジョブが担う」は
+[ADR-0024](./0024-vulnerability-detection-outside-ci.md) が置き換えた。**現行の正本は ADR-0024。**
+検知は GitHub の Dependabot alerts、修正の提案は Renovate が担い、CI の `audit` ジョブは外した。
+「仕組みと検知を同時に入れる」という方針と、残りの決定（待機期間・置き場・自動更新 bot は Renovate・
+Renovate の待機期間は pnpm 側以上・自動マージしない）はそのまま有効である。

@@ -1295,6 +1295,17 @@ export const MUTATIONS = [
       "#321 PR 1・設計正本 D1・計画 P8。字面のクラス名が timer の CSS にも部品層にも無くても落とさない。" +
       "Tailwind のクラスはどちらにも定義されないので、移したファイルに取り残した Tailwind のクラスが黙って通る。",
   },
+  {
+    id: 120,
+    label: "audit-supply-chain-config が Renovate の脆弱性の PR の待機期間を見ない",
+    patch: "m120-renovate-vulnerability-age-unchecked.patch",
+    pkg: "scripts",
+    tests: ["audit-supply-chain-config.test.mjs"],
+    note:
+      "#334・docs/adr/0024。Renovate の既定は vulnerabilityAlerts.minimumReleaseAge: null で、" +
+      "書かなければ脆弱性の PR だけが待機期間を素通りする。本番の renovate.json は正しく書いてあるので、" +
+      "この検出が消えても検査結果は変わらない（id 20 と同じ型）。",
+  },
 ];
 
 /**

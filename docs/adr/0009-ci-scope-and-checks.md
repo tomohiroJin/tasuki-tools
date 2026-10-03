@@ -209,3 +209,9 @@ Sync Impact Report が撤廃済みの旧名（monorepo 統合前の core パッ�
 （`STALE_LINE_REF_EXCEPTIONS`）を新設した。ADR は追記のみで書き換えないという
 `docs/adr/0002` の決定と両立させるための表であり、`MISSING_PATH_EXCEPTIONS` と同じく
 **一度も赤を抑えなかったエントリは検査が落とす。**
+
+## 追記（2026-10-03・#334）
+
+CI の `audit` ジョブを外した（[ADR-0024](./0024-vulnerability-detection-outside-ci.md)）。現在のジョブは
+`ci` / `quality` / `docs` / `e2e` の 4 本である。`scripts/ci-scope.mjs` の出力も、`audit` だけが読んでいた
+`deps` を消して `code` の 1 つになった。上の本文と追記にある 5 本の構成・所要時間は当時の実測であり、書き換えない。

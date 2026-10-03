@@ -4,6 +4,10 @@
   "minimumReleaseAge": "7 days",
   "automerge": false,
   "labels": ["dependencies"],
+  "vulnerabilityAlerts": {
+    "minimumReleaseAge": "7 days",
+    "labels": ["dependencies", "security"]
+  },
   "packageRules": [
     { "matchUpdateTypes": ["minor", "patch"], "groupName": "非破壊的な更新" },
     { "matchUpdateTypes": ["major"], "dependencyDashboardApproval": true }

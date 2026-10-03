@@ -10,6 +10,8 @@ import {
   checkExclusionFormat,
   checkOverrideFormat,
   findDeadExclusions,
+  parseRenovateAge,
+  checkRenovateReleaseAge,
 } from "./audit-supply-chain-config.mjs";
 
 /**
@@ -363,5 +365,101 @@ describe("findDeadExclusions: 死んだ除外行（経路⑥）", () => {
     //                      （あちらは「名前@版 で書いてください」、ここは「行を消してください」）
     assert.deepEqual(findDeadExclusions("trustPolicyExclude", ["semver"], new Map()), []);
     assert.deepEqual(findDeadExclusions("trustPolicyExclude", ["semver-*@6.3.1"], new Map()), []);
+  });
+});
+
+describe("parseRenovateAge: Renovate の待機期間を分へ直す", () => {
+  test("日・週の表記を分にする", () => {
+    // Given / When / Then
+    assert.equal(parseRenovateAge("7 days"), 10080);
+    assert.equal(parseRenovateAge("1 day"), 1440);
+    assert.equal(parseRenovateAge("14d"), 20160);
+    assert.equal(parseRenovateAge("2 weeks"), 20160);
+  });
+
+  test("読めない形は null（推測で通さない）", () => {
+    // Given: 時間単位・空・文字列でない値
+    // When / Then
+    assert.equal(parseRenovateAge("168 hours"), null);
+    assert.equal(parseRenovateAge(""), null);
+    assert.equal(parseRenovateAge(null), null);
+    assert.equal(parseRenovateAge(7), null);
+  });
+});
+
+describe("checkRenovateReleaseAge: Renovate の待機期間が pnpm 側を下回らない", () => {
+  /** 規範どおりの設定（renovate.json の写し）。 */
+  const valid = () => ({
+    minimumReleaseAge: "7 days",
+    vulnerabilityAlerts: { minimumReleaseAge: "7 days" },
+    packageRules: [{ matchUpdateTypes: ["major"], dependencyDashboardApproval: true }],
+  });
+
+  test("全体と脆弱性の PR がどちらも 7 日以上なら問題なし", () => {
+    // Given / When / Then
+    assert.deepEqual(checkRenovateReleaseAge(valid(), MINIMUM_RELEASE_AGE_FLOOR), []);
+  });
+
+  test("引き上げは通す（14 日）", () => {
+    // Given
+    const config = { ...valid(), minimumReleaseAge: "14 days" };
+    // When / Then
+    assert.deepEqual(checkRenovateReleaseAge(config, MINIMUM_RELEASE_AGE_FLOOR), []);
+  });
+
+  test("全体の待機期間が欠けていたら落とす", () => {
+    // Given
+    const { minimumReleaseAge: _, ...config } = valid();
+    // When
+    const problems = checkRenovateReleaseAge(config, MINIMUM_RELEASE_AGE_FLOOR);
+    // Then
+    assert.deepEqual(problems.map((p) => p.key), ["minimumReleaseAge"]);
+  });
+
+  test("脆弱性の PR の待機期間が欠けていたら落とす（Renovate の既定は null で待たない）", () => {
+    // Given: vulnerabilityAlerts を書かない形 ＝ 既定の minimumReleaseAge: null が効く
+    const { vulnerabilityAlerts: _, ...config } = valid();
+    // When
+    const problems = checkRenovateReleaseAge(config, MINIMUM_RELEASE_AGE_FLOOR);
+    // Then
+    assert.deepEqual(problems.map((p) => p.key), ["vulnerabilityAlerts.minimumReleaseAge"]);
+    assert.match(problems[0].message, /既定/);
+  });
+
+  test("7 日を下回る値を落とす", () => {
+    // Given
+    const config = { ...valid(), vulnerabilityAlerts: { minimumReleaseAge: "3 days" } };
+    // When
+    const problems = checkRenovateReleaseAge(config, MINIMUM_RELEASE_AGE_FLOOR);
+    // Then
+    assert.deepEqual(problems.map((p) => p.key), ["vulnerabilityAlerts.minimumReleaseAge"]);
+  });
+
+  test("packageRules で下げた値を落とす（null で待機を外す形も）", () => {
+    // Given: 一部のパッケージだけ待機期間を縮める・外す
+    const config = {
+      ...valid(),
+      packageRules: [
+        { matchPackageNames: ["a"], minimumReleaseAge: "1 day" },
+        { matchPackageNames: ["b"], minimumReleaseAge: null },
+        { matchPackageNames: ["c"], minimumReleaseAge: "7 days" },
+      ],
+    };
+    // When
+    const problems = checkRenovateReleaseAge(config, MINIMUM_RELEASE_AGE_FLOOR);
+    // Then: 下げた 2 件だけを名指しする
+    assert.deepEqual(problems.map((p) => p.key), [
+      "packageRules[0].minimumReleaseAge",
+      "packageRules[1].minimumReleaseAge",
+    ]);
+  });
+
+  test("読めない形は落とす", () => {
+    // Given
+    const config = { ...valid(), minimumReleaseAge: "168 hours" };
+    // When
+    const problems = checkRenovateReleaseAge(config, MINIMUM_RELEASE_AGE_FLOOR);
+    // Then
+    assert.deepEqual(problems.map((p) => p.key), ["minimumReleaseAge"]);
   });
 });

@@ -9,6 +9,7 @@
  * | ⑤ | `trustPolicyExclude` / `minimumReleaseAgeExclude` の各エントリが**版を持つ**こと |
  * | ⑥ | 除外が指す版が**依存木に実在する**こと（死んだ除外行を残さない） |
  * | ⑦ | 設定の**キーが宣言と一致**し、**既知キーの値が規範どおり**であること |
+ * | — | `renovate.json` の待機期間が pnpm 側を**下回らない**こと（#334） |
  *
  * ## 権威は pnpm 自身（`docs/adr/0014` D2）
  *
@@ -268,6 +269,69 @@ export function checkOverrideFormat(overrides) {
   return problems;
 }
 
+/** Renovate の期間表記の単位を分へ直す表。時間・分の単位は待機期間に使わないので持たない。 */
+const RENOVATE_AGE_UNITS = { d: 1440, day: 1440, days: 1440, w: 10080, week: 10080, weeks: 10080 };
+
+/**
+ * Renovate の期間表記（`"7 days"` など）を分に直す。読めない形は `null`。
+ *
+ * Renovate 自身は `ms` 系の緩い解釈をするが、ここで全部を再実装はしない。
+ * **読めない形は推測で通さず落とす**（下限を確かめられない値を緑にしない）。
+ */
+export function parseRenovateAge(value) {
+  if (typeof value !== "string") return null;
+  const match = /^(\d+)\s*([a-z]+)$/.exec(value.trim());
+  if (!match) return null;
+  const unit = RENOVATE_AGE_UNITS[match[2]];
+  return unit ? Number(match[1]) * unit : null;
+}
+
+/**
+ * Renovate の待機期間が pnpm 側（`floor` 分）を下回らないかを見る（`docs/adr/0008` /
+ * `docs/adr/0024`）。
+ *
+ * 見るのは 3 か所 —— 全体の `minimumReleaseAge`、脆弱性の PR に掛かる
+ * `vulnerabilityAlerts.minimumReleaseAge`、`packageRules` が個別に書いた値。
+ *
+ * **`vulnerabilityAlerts` は書かないと待たない。** Renovate の既定は
+ * `vulnerabilityAlerts.minimumReleaseAge: null` で、全体の値を引き継がない（44.132.2 の
+ * 設定定義で確認）。下回った PR は pnpm の検証で必ず赤くなり、その赤を消そうとして
+ * pnpm 側の待機期間を緩める動機になる。
+ */
+export function checkRenovateReleaseAge(config, floor) {
+  const problems = [];
+  const check = (key, value, { required }) => {
+    if (value === undefined && !required) return;
+    if (value === undefined || value === null) {
+      problems.push({
+        key,
+        message:
+          key === "vulnerabilityAlerts.minimumReleaseAge"
+            ? "待機期間がありません    ← Renovate の既定は null で、脆弱性の PR は公開直後の版を提案します"
+            : "待機期間がありません",
+      });
+      return;
+    }
+    const minutes = parseRenovateAge(value);
+    if (minutes === null) {
+      problems.push({ key, message: `読めない形です: ${JSON.stringify(value)}    ← "7 days" の形で書いてください` });
+    } else if (minutes < floor) {
+      problems.push({
+        key,
+        message: `pnpm 側の待機期間（${floor} 分）を下回っています: ${JSON.stringify(value)}    ← bot の PR が pnpm の検証で必ず赤くなります`,
+      });
+    }
+  };
+  check("minimumReleaseAge", config?.minimumReleaseAge, { required: true });
+  check("vulnerabilityAlerts.minimumReleaseAge", config?.vulnerabilityAlerts?.minimumReleaseAge, {
+    required: true,
+  });
+  for (const [i, rule] of (config?.packageRules ?? []).entries()) {
+    check(`packageRules[${i}].minimumReleaseAge`, rule?.minimumReleaseAge, { required: false });
+  }
+  return problems;
+}
+
 /**
  * 依存木から消えた除外を見る（経路⑥）。
  *
@@ -386,6 +450,8 @@ function resolveVersions(repoRoot, name) {
 
 function main() {
   const config = readPnpmConfig(REPO_ROOT);
+  // renovate.json は JSON なので自前で読む（pnpm-workspace.yaml を手で解析しない規範とは別の話）
+  const renovateConfig = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, "renovate.json"), "utf8"));
   const keys = deriveOwnKeys(config, readAmbientConfig(REPO_ROOT));
 
   const exclusions = new Map(
@@ -414,6 +480,10 @@ function main() {
     ...checkKeyMembership(keys, Object.keys(config)),
     ...checkValues(config, keys),
     ...checkOverrideFormat(config.overrides),
+    ...checkRenovateReleaseAge(renovateConfig, MINIMUM_RELEASE_AGE_FLOOR).map((p) => ({
+      ...p,
+      key: `renovate.json ${p.key}`,
+    })),
   ];
   for (const [key, entries] of exclusions) {
     problems.push(...checkExclusionFormat(key, entries));
@@ -440,7 +510,7 @@ function main() {
     );
     for (const p of problems) console.error(`  ${p.key}: ${p.message}`);
     console.error("  設定の置き場は pnpm-workspace.yaml の 1 箇所のみです（docs/adr/0008）");
-    console.error("  根拠: docs/adr/0008 / docs/adr/0010 / docs/adr/0014 決定 1");
+    console.error("  根拠: docs/adr/0008 / docs/adr/0010 / docs/adr/0014 決定 1 / docs/adr/0024（renovate.json）");
     process.exit(1);
   }
 

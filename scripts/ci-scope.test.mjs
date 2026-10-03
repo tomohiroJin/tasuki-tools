@@ -3,11 +3,11 @@ import assert from "node:assert/strict";
 import { decideScope, parseDiffOutput, formatOutputs } from "./ci-scope.mjs";
 
 describe("decideScope", () => {
-  test("文書だけの変更では code も deps も false", () => {
+  test("文書だけの変更では code が false", () => {
     // Given
     const files = ["docs/adr/0009-ci-scope-and-checks.md", "README.md"];
     // When / Then
-    assert.deepEqual(decideScope(files), { code: false, deps: false });
+    assert.deepEqual(decideScope(files), { code: false });
   });
 
   test("コードが 1 行でも混ざれば code は true", () => {
@@ -17,21 +17,12 @@ describe("decideScope", () => {
     assert.equal(decideScope(files).code, true);
   });
 
-  test("lockfile の変更で deps が true", () => {
-    assert.deepEqual(decideScope(["pnpm-lock.yaml"]), { code: true, deps: true });
-  });
-
-  test("どの階層の package.json でも deps が true", () => {
-    assert.equal(decideScope(["apps/timer-web/package.json"]).deps, true);
-    assert.equal(decideScope(["package.json"]).deps, true);
-    assert.equal(decideScope(["pnpm-workspace.yaml"]).deps, true);
-  });
-
-  test("package.json に似た別名を deps と誤認しない", () => {
-    // Given: package.json ではないファイル
+  test("依存の変更も code として走らせる", () => {
+    // Given: 依存だけを変える PR（Renovate の PR がこの形）
     // When / Then
-    assert.equal(decideScope(["docs/my-package.json.md"]).deps, false);
-    assert.equal(decideScope(["scripts/not-package.json"]).deps, false);
+    assert.deepEqual(decideScope(["pnpm-lock.yaml"]), { code: true });
+    assert.deepEqual(decideScope(["pnpm-workspace.yaml"]), { code: true });
+    assert.deepEqual(decideScope(["apps/timer-web/package.json"]), { code: true });
   });
 
   test("未知の拡張子は走らせる側へ倒す", () => {
@@ -43,12 +34,12 @@ describe("decideScope", () => {
   });
 
   test("差分が空なら全部走らせる（fail-open）", () => {
-    assert.deepEqual(decideScope([]), { code: true, deps: true });
+    assert.deepEqual(decideScope([]), { code: true });
   });
 
   test("配列でない入力でも全部走らせる（fail-open）", () => {
-    assert.deepEqual(decideScope(null), { code: true, deps: true });
-    assert.deepEqual(decideScope(undefined), { code: true, deps: true });
+    assert.deepEqual(decideScope(null), { code: true });
+    assert.deepEqual(decideScope(undefined), { code: true });
   });
 });
 
@@ -69,8 +60,8 @@ describe("parseDiffOutput", () => {
 describe("formatOutputs", () => {
   test("GITHUB_OUTPUT の形式で書き出す", () => {
     // Given
-    const scope = { code: true, deps: false };
+    const scope = { code: false };
     // When / Then
-    assert.equal(formatOutputs(scope), "code=true\ndeps=false\n");
+    assert.equal(formatOutputs(scope), "code=false\n");
   });
 });
