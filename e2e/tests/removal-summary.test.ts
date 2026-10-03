@@ -31,8 +31,18 @@ function hit(state: string, className: string, token: string, p = 'html>body>p:n
   return { state, path: p, className, token };
 }
 
-function write(state: string, parts: Partial<Omit<StateRemoval, 'state'>> & { state?: string } = {}): void {
-  const body: StateRemoval = { state: parts.state ?? state, dead: parts.dead ?? [], alive: parts.alive ?? [], undecided: parts.undecided ?? [] };
+/** 状態の結果を書く。世代は既定で `g1`（`'generation' in parts` で `undefined` を渡すと、世代の無い PR 1 の形式を書く）。 */
+function write(
+  state: string,
+  parts: Partial<Omit<StateRemoval, 'state' | 'generation'>> & { state?: string; generation?: string | undefined } = {},
+): void {
+  const body = {
+    state: parts.state ?? state,
+    generation: 'generation' in parts ? parts.generation : 'g1',
+    dead: parts.dead ?? [],
+    alive: parts.alive ?? [],
+    undecided: parts.undecided ?? [],
+  };
   writeFileSync(path.join(dir, `${state}.json`), JSON.stringify(body));
 }
 
@@ -54,6 +64,20 @@ describe('loadRemovalProbe: 止まるべき所で止まる', () => {
     write('a');
     write('b');
     expect(loadRemovalProbe(dir, ['a', 'b']).states.map((s) => s.state)).toEqual(['a', 'b']);
+  });
+  it('対照: 全状態の世代が揃っていれば、束ねた結果にその世代を返す', () => {
+    write('a');
+    write('b');
+    expect(loadRemovalProbe(dir, ['a', 'b']).generation).toBe('g1');
+  });
+  it('Given 状態ごとの結果の世代が食い違う / Then 止める（-g で一部だけ流し直した）', () => {
+    write('s1', { generation: 'g1' });
+    write('s2', { generation: 'g2' });
+    expect(() => loadRemovalProbe(dir, ['s1', 's2'])).toThrow(/世代/);
+  });
+  it('Given 世代の無い結果 / Then 止める（PR 1 の形式の残り）', () => {
+    write('s1', { generation: undefined });
+    expect(() => loadRemovalProbe(dir, ['s1'])).toThrow(/世代/);
   });
 });
 

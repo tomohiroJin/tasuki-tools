@@ -16,13 +16,23 @@ import { BASE_DIST, type BaseServing } from './base-dist';
 import { captureKeyframes, captureMotion, captureStyles } from './capture';
 import { assertSnapshotsNotUpdated, newParityContext, type ParityRole } from './context';
 import { diffEntries, diffKeyframes, themeVarNamesFromCss, type StyleDiff, type StyleEntry } from './compare-lib';
-import { BASE_EXPECTATION_FILE, checkExpectation, expectedKeyProblems, loadExpected } from './expected';
+import {
+  BASE_EXPECTATION_FILE,
+  BASE_EXPECTATION_META_FILE,
+  checkExpectation,
+  expectedKeyProblems,
+  loadExpected,
+  type ExpectationMeta,
+} from './expected';
+import { repoGeneration } from './git-head';
 import { captureInteractions, type InteractionCapture } from './interaction';
 import { NOISE } from './noise';
 import { scrollToTop, settleAtWidth, waitForInviteQr } from './settle';
 import { METER_ARC_SELECTOR, SCREENSHOT_STYLE, STATES, WIDTHS, type ParityState } from './states';
 
 const OUT = path.join(path.dirname(new URL(import.meta.url).pathname), 'out');
+/** 作業ツリーの世代（基準側の要約の控えに書き、期待値の作り直しが揃いを断定する・`expected.ts`）。 */
+const GENERATION = repoGeneration();
 const HEIGHT = 900;
 /** 操作の状態を書き出す幅。 */
 const INTERACTION_WIDTH = 1280;
@@ -220,9 +230,14 @@ function expectationOf(
   };
 }
 
-/** 期待値を突き合わせ、基準側の要約をその置き場へ書く（期待値の作り直しはこれを束ねる・README）。 */
-function checkBaseExpectation(dir: string, key: string, expectation: Record<string, unknown>): string[] {
+/**
+ * 期待値を突き合わせ、基準側の要約をその置き場へ書く（期待値の作り直しはこれを束ねる・README）。
+ * 隣に世代と下限の控えを書く（束ねるときに、前の世代の要約の混在と 0 や空の要約を止めるため）。
+ */
+function checkBaseExpectation(dir: string, key: string, expectation: Record<string, unknown>, minElements: number): string[] {
   writeFileSync(path.join(dir, BASE_EXPECTATION_FILE), JSON.stringify(expectation, null, 2));
+  const meta: ExpectationMeta = { generation: GENERATION, minElements };
+  writeFileSync(path.join(dir, BASE_EXPECTATION_META_FILE), JSON.stringify(meta, null, 2));
   return checkExpectation(EXPECTED, key, expectation);
 }
 
@@ -265,7 +280,12 @@ for (const state of STATES) {
     );
     // 基準側の要約を期待値と突き合わせる（両側で同じように空でも緑にしない）
     const elements = Object.fromEntries(WIDTHS.map((w) => [w, base.styles.get(w)?.length ?? 0]));
-    report['expected'] = checkBaseExpectation(dir, state.name, expectationOf(elements, base.motion, base.keyframes, base.interactions));
+    report['expected'] = checkBaseExpectation(
+      dir,
+      state.name,
+      expectationOf(elements, base.motion, base.keyframes, base.interactions),
+      state.minElements,
+    );
     writeFileSync(path.join(dir, 'diff.json'), JSON.stringify(report, null, 2));
 
     // 画素: 基準の画像を snapshot の置き場へ書き、ブランチの画像を照合する（maxDiffPixels: 0）
@@ -391,7 +411,12 @@ for (const state of STATES.filter((s) => TOUCH_STATES.has(s.name))) {
       JSON.stringify({ control, base: summary(base), branch: summary(branch) }, null, 2),
     );
     // 基準側の要約を期待値と突き合わせる（本体と同じ）
-    report['expected'] = checkBaseExpectation(dir, name, expectationOf(base.styles.length, base.motion, base.keyframes, base.interactions));
+    report['expected'] = checkBaseExpectation(
+      dir,
+      name,
+      expectationOf(base.styles.length, base.motion, base.keyframes, base.interactions),
+      state.minElements,
+    );
     writeFileSync(path.join(dir, 'diff.json'), JSON.stringify(report, null, 2));
 
     // 画素: 本体と同じく、基準の画像を snapshot の置き場へ書き、ブランチの画像を照合する（maxDiffPixels: 0）

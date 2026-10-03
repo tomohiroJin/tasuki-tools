@@ -6,6 +6,7 @@
  */
 import type { Browser, BrowserContext, BrowserContextOptions, TestInfo } from '@playwright/test';
 import { BASE_DIST, serveBaseDist, type BaseServing } from './base-dist';
+import { snapshotGuardProblem } from './guard';
 
 export type ParitySide = 'base' | 'branch';
 
@@ -70,15 +71,18 @@ export async function newParityContext(
 }
 
 /**
- * 画素の基準（snapshot）を書き換える指定（`-u` / `--update-snapshots`）で流していないことを断定する。各テストの先頭で呼ぶ。
+ * 画素の基準（snapshot）を書き換える指定（`-u` / `--update-snapshots`）や、照合を飛ばす指定（`--ignore-snapshots`）で
+ * 流していないことを断定する。各テストの先頭で呼ぶ。
  *
  * 比較は基準の画像を snapshot の置き場へ書いてからブランチの画像を照合する。`-u` を付けるとブランチの画像で
- * 基準の画像を上書きして、画素を比べずに通る（偽の緑）。許すのは既定の `missing` と `none` だけ。
+ * 基準の画像を上書きして、`--ignore-snapshots` を付けると照合そのものを飛ばして、どちらも画素を比べずに通る（偽の緑）。
+ * 判定は {@link snapshotGuardProblem}（`guard.ts`・自己テストあり）。
  * 除去検査は画素を撮らないが、流し方を揃えるため同じく止める。
  */
 export function assertSnapshotsNotUpdated(testInfo: TestInfo): void {
-  const mode = testInfo.config.updateSnapshots;
-  if (mode !== 'missing' && mode !== 'none') {
-    throw new Error(`updateSnapshots が ${mode}（-u / --update-snapshots で流している）。基準の画像がブランチの画像で上書きされるので止める`);
-  }
+  const problem = snapshotGuardProblem({
+    updateSnapshots: testInfo.config.updateSnapshots,
+    ignoreSnapshots: testInfo.project.ignoreSnapshots,
+  });
+  if (problem !== null) throw new Error(problem);
 }

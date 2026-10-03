@@ -25,9 +25,10 @@ export interface ProbeHit {
   readonly reason?: string;
 }
 
-/** 1 状態の判定。 */
+/** 1 状態の判定。`generation` は流したときの作業ツリーの世代（`git-head.ts`）。 */
 export interface StateRemoval {
   readonly state: string;
+  readonly generation: string;
   readonly dead: ProbeHit[];
   readonly alive: ProbeHit[];
   readonly undecided: ProbeHit[];
@@ -35,6 +36,8 @@ export interface StateRemoval {
 
 /** {@link loadRemovalProbe} の結果。 */
 export interface RemovalProbe {
+  /** 全状態で揃った世代。 */
+  readonly generation: string;
   readonly states: StateRemoval[];
   readonly dead: DeadClass[];
 }
@@ -63,6 +66,7 @@ export function removalFile(state: string, dir = REMOVAL_DIR): string {
  *
  * **目録の状態が 1 つでも欠けていれば throw する**（欠けた状態で alive だったものを dead と読み違えないため）。
  * 目録に無い状態のファイルがあっても throw する（古い目録の残り。消してから流し直す）。
+ * **全状態の世代（`generation`）が揃っていなければ throw する**（`-g` で一部だけ流し直すと、別の世代の結果が混ざる）。
  * `expected` は期待する状態の名前（既定は目録 `STATES` の全状態。自己テストが fixture の名前を渡す）。
  */
 export function loadRemovalProbe(
@@ -82,6 +86,7 @@ export function loadRemovalProbe(
     if (parsed.state !== name) throw new Error(`${removalFile(name, dir)} の state が ${parsed.state}`);
     return parsed;
   });
+  const generation = assertSameGeneration(states);
   const key = (h: ProbeHit): string => `${h.className}\u0000${h.token}`;
   const notDead = new Set(states.flatMap((s) => [...s.alive, ...s.undecided].map(key)));
   const dead = new Map<string, DeadClass>();
@@ -93,7 +98,20 @@ export function loadRemovalProbe(
       dead.set(key(h), entry);
     }
   }
-  return { states, dead: [...dead.values()] };
+  return { generation, states, dead: [...dead.values()] };
+}
+
+/** 全状態の世代が文字列で、全部同じであることを断定し、その世代を返す（状態が 0 件なら空文字）。 */
+function assertSameGeneration(states: readonly StateRemoval[]): string {
+  // JSON から読んだ値なので、型の上では string でも実際には欠けうる（PR 1 の形式）
+  const missing = states.filter((s) => typeof (s.generation as unknown) !== 'string').map((s) => s.state);
+  if (missing.length > 0) throw new Error(`世代の無い結果: ${missing.join(', ')}（PR 1 の形式の残り。全状態を流し直す）`);
+  const generations = new Set(states.map((s) => s.generation));
+  if (generations.size > 1) {
+    const listing = states.map((s) => `${s.state}=${s.generation}`).join(' ');
+    throw new Error(`除去検査の結果の世代が揃わない: ${listing}（-g で一部だけ流し直した。全状態を流し直す）`);
+  }
+  return states[0]?.generation ?? '';
 }
 
 /** 既知の答え（設計正本 §2 の 4・5）。`className` の語に `owner` を持つ要素の `token` が、`expect` の判定になるはず。 */
