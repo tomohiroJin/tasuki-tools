@@ -6,7 +6,7 @@
  * ConfirmDialog と AiSettingsModal で同一ロジックを共用するために切り出す（DRY）。
  */
 
-import { useEffect, type RefObject } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 
 /** コンテナ内の focusable 要素を取得するセレクタ */
 const FOCUSABLE_SELECTOR =
@@ -29,6 +29,14 @@ export function useFocusTrap({
   onClose,
   initialFocusRef,
 }: UseFocusTrapParams): void {
+  // onClose は ref で持ち、effect の依存に入れない。呼び出し側は描画のたびに新しい関数を渡すので、
+  // 依存に入れると開いている間の再描画のたびに effect が作り直され、後始末が「開く前のボタン」へ
+  // フォーカスを戻して背後のページがスクロールし直す（#321 の比較の仕組みで見つけた）。
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+
   useEffect(() => {
     if (!open) return;
 
@@ -49,7 +57,7 @@ export function useFocusTrap({
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key !== "Tab" || !containerRef.current) return;
@@ -74,5 +82,5 @@ export function useFocusTrap({
       document.removeEventListener("keydown", onKey);
       previouslyFocused?.focus?.();
     };
-  }, [open, containerRef, onClose, initialFocusRef]);
+  }, [open, containerRef, initialFocusRef]);
 }
