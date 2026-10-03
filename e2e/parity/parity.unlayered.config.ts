@@ -11,9 +11,11 @@
  * **このファイルの export は規約（名前付きエクスポート優先）の例外。** Playwright が default export を要求するため。
  */
 import { defineConfig } from '@playwright/test';
+import { setParityBuildSwitch } from '../harness/parity-build-switches';
 import base from './parity.config';
 
-process.env['TASUKI_TIMER_UNLAYERED'] = '1';
+// 自分で立てたことを控えに残す（Playwright の worker が設定を読み直したとき、基底の取り残しの断定に止められない）
+setParityBuildSwitch(process.env, 'TASUKI_TIMER_UNLAYERED');
 
 export default defineConfig({
   ...base,

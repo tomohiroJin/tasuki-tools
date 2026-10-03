@@ -14,13 +14,27 @@ export function timerCssSwitches(env: NodeJS.ProcessEnv): { unlayered: boolean; 
   return { unlayered: env["TASUKI_TIMER_UNLAYERED"] === "1", unminified: env["TASUKI_TIMER_CSS_UNMINIFIED"] === "1" };
 }
 
-/** `@import` の行の末尾の ` layer(timer)` だけを外す（順序宣言の `@layer …, timer, …;` は触らない）。 */
+/** CSS のコメント。閉じないコメントはファイルの終わりまで（CSS の読み方と同じ）。 */
+const COMMENT = /\/\*[\s\S]*?(?:\*\/|$)/g;
+
+/**
+ * `@import` の行の末尾の ` layer(timer)` だけを外す（順序宣言の `@layer …, timer, …;` は触らない）。
+ * **コメントの中は数えも書き換えもしない**（注釈に例を書くと、本物を外し損ねても件数が 1 以上になり 0 件の停止が黙る）。
+ */
 export function stripTimerLayer(code: string): { code: string; count: number } {
   let count = 0;
-  const out = code.replace(/(@import\s+(['"])[^'"]+\2)\s+layer\(timer\)/g, (_m, head: string) => {
-    count += 1;
-    return head;
-  });
+  const strip = (segment: string): string =>
+    segment.replace(/(@import\s+(['"])[^'"]+\2)\s+layer\(timer\)/g, (_m, head: string) => {
+      count += 1;
+      return head;
+    });
+  let out = "";
+  let last = 0;
+  for (const m of code.matchAll(COMMENT)) {
+    out += strip(code.slice(last, m.index)) + m[0];
+    last = m.index + m[0].length;
+  }
+  out += strip(code.slice(last));
   return { code: out, count };
 }
 

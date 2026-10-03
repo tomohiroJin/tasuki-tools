@@ -28,6 +28,7 @@ import {
   type ExpectationMeta,
 } from './expected';
 import { repoGeneration } from './git-head';
+import { runModeOf, type RunMode } from './run-mode';
 import { captureInteractions, type InteractionCapture } from './interaction';
 import { NOISE } from './noise';
 import { scrollToTop, settleAtWidth, waitForInviteQr } from './settle';
@@ -96,32 +97,9 @@ function onlyOnOneSide(base: readonly string[], branch: readonly string[]): stri
   return extra;
 }
 
-/**
- * 実行の種類ごとの、設定ファイルの `metadata` の鍵と project の名前（list の行頭に `[対照実行]` などと出る）。
- * 対照実行は `parity.control.config.ts`、規則の使用状況は `parity.usage.config.ts`。
- */
-const RUN_KINDS = {
-  control: { metadata: 'parityControl', project: '対照実行' },
-  usage: { metadata: 'parityUsage', project: '規則の使用状況' },
-} as const;
-
-/** 実行の種類。 */
-type RunMode = Record<keyof typeof RUN_KINDS, boolean>;
-
-/**
- * 実行の種類を設定ファイルから読む（`metadata`・環境変数は読まない・`context.ts`）。
- * project の名前（行頭の明記）と食い違ったら止める（片方だけ書き換えた設定で、明記と中身がずれないように）。
- */
+/** 実行の種類を設定ファイルから読む（`run-mode.ts`。`metadata` と project の名前が食い違ったら止める）。 */
 function runMode(testInfo: TestInfo): RunMode {
-  const read = (kind: keyof typeof RUN_KINDS): boolean => {
-    const { metadata, project } = RUN_KINDS[kind];
-    const on = testInfo.config.metadata[metadata] === true;
-    if (on !== (testInfo.project.name === project)) {
-      throw new Error(`metadata.${metadata}（${String(on)}）と project の名前（${testInfo.project.name}）が食い違う`);
-    }
-    return on;
-  };
-  return { control: read('control'), usage: read('usage') };
+  return runModeOf(testInfo.config.metadata, testInfo.project.name);
 }
 
 /** ブランチの側で、規則の使用状況の設定で流したときだけ追跡を始める。 */
@@ -231,8 +209,8 @@ async function captureSide(browser: Browser, state: ParityState, role: ParityRol
 const themeVars = tailwindThemeVars();
 
 /**
- * テストのタイトル。通常の比較でも対照実行でも正しい言い方にする（対照実行は list の行頭の `[対照実行]` と
- * summary.json の `control` で明記する・`parity.control.config.ts`）。
+ * テストのタイトル。通常の比較でも対照実行でも正しい言い方にする（実行の種類は list の行頭の `[対照実行]` などと
+ * summary.json の `control` / `unlayered` / `usage` で明記する・`run-mode.ts`）。
  */
 const VERDICT = '基準と並べて一致する';
 
@@ -312,7 +290,7 @@ for (const state of STATES) {
     });
     writeFileSync(
       path.join(dir, 'summary.json'),
-      JSON.stringify({ control, base: summary(base), branch: summary(branch) }, null, 2),
+      JSON.stringify({ ...mode, base: summary(base), branch: summary(branch) }, null, 2),
     );
     // 基準側の要約を期待値と突き合わせる（両側で同じように空でも緑にしない）
     const elements = Object.fromEntries(WIDTHS.map((w) => [w, base.styles.get(w)?.length ?? 0]));
@@ -450,7 +428,7 @@ for (const state of STATES.filter((s) => TOUCH_STATES.has(s.name))) {
     });
     writeFileSync(
       path.join(dir, 'summary.json'),
-      JSON.stringify({ control, base: summary(base), branch: summary(branch) }, null, 2),
+      JSON.stringify({ ...mode, base: summary(base), branch: summary(branch) }, null, 2),
     );
     // 基準側の要約を期待値と突き合わせる（本体と同じ）
     report['expected'] = checkBaseExpectation(

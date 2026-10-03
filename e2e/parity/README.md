@@ -46,6 +46,11 @@ pnpm exec playwright test -c parity/parity.control.config.ts
 - 8787・18080 を使う。終わったら `ss -tlnp | grep -E ':(8787|18080)\b'` が空であることを見る
 - 結果は比較の出力置き場 out/（このディレクトリの中・無視している）。**正本は台帳**（`docs/superpowers/specs/2026-09-29-timer-without-tailwind-parity-ledger.md`）
 
+**ビルドの切り替え（`TASUKI_TIMER_UNLAYERED` / `TASUKI_TIMER_CSS_UNMINIFIED`）は下の 2 つの設定ファイルが自分で立てる。**
+シェルに残っていると、通常の比較・対照実行（`parity.config.ts`）・`pnpm e2e`（`e2e/playwright.config.ts`）・`deploy/deploy.sh` は
+取り残しとみなして止まる（`harness/parity-build-switches.ts`。囲い無し・最小化しない CSS を通常の比較で緑にしない・本番へ配らない）。
+`summary.json` の `control` / `unlayered` / `usage` で、どの種類で流した出力かを見分ける（`run-mode.ts`。`metadata` と project の名前が食い違えば止まる）。
+
 ### 囲いを外した一時ビルド
 
 ```bash
@@ -58,7 +63,7 @@ pnpm exec playwright test -c parity/parity.unlayered.config.ts
 - ブランチの timer を、入口（`apps/timer-web/src/index.css`）の `@import … layer(timer)` から `layer(timer)` を外してビルドし、基準と比べる（設計正本 D3）。レイヤーを外しても見た目が変わらないことを PR 4 より前に確かめる
 - 残してよい差は、親を先に移したとき、レイヤー外になった親の `:where(.x > :not(:last-child))` が、まだ Tailwind のままの子の margin に勝つ型だけ（既知の偽陽性）。ほかの差は直す
 - 設定ファイルが `TASUKI_TIMER_UNLAYERED=1` を立て、`globalSetup` のビルドが turbo 経由で受け取る（`turbo.json` の `@tasuki/timer-web#build` の `env`）。切り替えの本体は `apps/timer-web/vite-timer-css.ts`。**`layer(timer)` の `@import` が 0 本ならビルドが止まる**（外し損ねた普通のビルドを比べて緑にしない）
-- 行頭に `[囲いを外した一時ビルド]` と出る。**流した後は dist が一時ビルドのまま残る**ので、次の比較の `globalSetup` が既定のビルドへ戻す（turbo のキャッシュは環境変数で鍵が分かれている）
+- 行頭に `[囲いを外した一時ビルド]` と出て、`out/<状態>/summary.json` の `unlayered` が `true` になる。**流した後は dist が一時ビルドのまま残る**ので、次の比較の `globalSetup` が既定のビルドへ戻す（turbo のキャッシュは環境変数で鍵が分かれている）
 
 ### 規則の使用状況（E8）
 
@@ -78,7 +83,7 @@ TASUKI_PARITY_USAGE_CHECK=1 pnpm exec vitest run tests/usage-summary.test.ts
 
 - ブランチの timer を、CSS の最小化（Vite の `build.cssMinify`）と Tailwind の最適化（`@tailwindcss/postcss` の `optimize`）を止めてビルドする。足した CSS の規則が実行中に 1 回以上当たるかを、ソースの規則と鍵で突き合わせる（E8）
 - 設定ファイルが `TASUKI_TIMER_CSS_UNMINIFIED=1` を立てる。渡り方は上と同じ
-- 行頭に `[規則の使用状況]` と出る。ブランチの側で、目印が見えた直後から操作の書き出しの後まで CDP の規則の使用状況を取り（`usage.ts`）、`out/<キー>/usage.json` に当たった規則の鍵と世代を書く
+- 行頭に `[規則の使用状況]` と出て、`summary.json` の `usage` が `true` になる。ブランチの側で、目印が見えた直後から操作の書き出しの後まで CDP の規則の使用状況を取り（`usage.ts`）、`out/<キー>/usage.json` に当たった規則の鍵と世代を書く
 - **全件を流す**（`-g` で絞らない）。照合（`usage-summary.ts` の `collectUsage`）は、期待値の JSON の全キーの `usage.json` が揃い、世代が揃い、`-dirty` でなく、いまの HEAD と同じであることを断定してから束ねる
 - **分母**は `git ls-files 'apps/timer-web/src/styles/*.css'` のうち `base.css`（PR 1 で移しただけ）と `reset.css`（PR 4）を除いたもの。`@keyframes` の中の段は数えない（キーフレームは比較の本体が突き合わせる）。分母が空なら赤（空振りを緑にしない）
 - **鍵**は `@layer` を除いた祖先の at-rule とセレクタ（空白を畳む）。ビルドは `@layer timer` の囲いを足すがソースには無いので、`@layer` は鍵に入れない。分母の鍵がビルドの CSS にちょうど 1 回ずつ現れること（0 回なら写し損ね、2 回以上なら鍵で見分けられない）も断定する。ソースの中で鍵が重複したら止まる
