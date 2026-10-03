@@ -31,6 +31,7 @@ import {
 import { repoGeneration } from './git-head';
 import { runModeOf, type RunMode } from './run-mode';
 import { captureInteractions, type InteractionCapture } from './interaction';
+import { APPROVED } from './approved';
 import { NOISE } from './noise';
 import { scrollToTop, settleAtWidth, waitForInviteQr } from './settle';
 import { METER_ARC_SELECTOR, SCREENSHOT_STYLE, STATES, WIDTHS, type ParityState } from './states';
@@ -289,7 +290,7 @@ for (const state of STATES) {
     const base = await captureSide(browser, state, { side: 'base', control }, mode.usage);
     const branch = await captureSide(browser, state, { side: 'branch', control }, mode.usage);
 
-    const options = { tailwindThemeVars: themeVars, ignore: NOISE };
+    const options = { tailwindThemeVars: themeVars, ignore: [...NOISE, ...APPROVED] };
     const report: Record<string, StyleDiff[] | string[]> = {
       motion: diffEntries(base.motion, branch.motion, options),
       keyframes: diffKeyframes(base.keyframes, branch.keyframes),
@@ -435,7 +436,7 @@ for (const state of STATES.filter((s) => TOUCH_STATES.has(s.name))) {
     removeUsage(dir);
     const base = await captureTouchSide(browser, state, { side: 'base', control }, mode.usage);
     const branch = await captureTouchSide(browser, state, { side: 'branch', control }, mode.usage);
-    const options = { tailwindThemeVars: themeVars, ignore: NOISE };
+    const options = { tailwindThemeVars: themeVars, ignore: [...NOISE, ...APPROVED] };
     const report: Record<string, StyleDiff[] | string[]> = {
       motion: diffEntries(base.motion, branch.motion, options),
       keyframes: diffKeyframes(base.keyframes, branch.keyframes),

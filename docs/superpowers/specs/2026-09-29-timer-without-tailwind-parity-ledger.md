@@ -14,6 +14,7 @@
 | 差 | 承認 | PR |
 |---|---|---|
 | autoprefixer を外すと `-moz-column-gap` 2 件が消える（Firefox は 63 以降、前置詞なしの `gap` で効く） | 2026-09-29 | 4 |
+| トークン層に新しく足したトークン `--shadow-panel`・`--shadow-dialog` が `html` のカスタムプロパティとして増える（使う側の `box-shadow` は比べ続ける。除外は `e2e/parity/approved.ts`） | 2026-10-04 | 2 |
 
 ## 利用者が認めた例外
 

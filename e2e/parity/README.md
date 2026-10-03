@@ -137,3 +137,4 @@ TASUKI_PARITY_REMOVAL_CHECK=1 pnpm exec vitest run tests/removal-summary.test.ts
 ## 何を比べるか
 
 設計正本 §5 を読むこと。ここに写さない。
+利用者が個別に承認した差の除外は `approved.ts`（対照実行の揺れの `noise.ts` とは分ける）。
