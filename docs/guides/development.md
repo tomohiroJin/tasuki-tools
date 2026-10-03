@@ -8,8 +8,9 @@
 
 ## 前提
 
-- **Node.js 22 以上**（pnpm 11.5.0 が `node:sqlite` を使うため、20 では起動しません）
-- pnpm 11.5.0（`packageManager` 宣言に従うので `corepack enable` でよい）
+- **Node.js 22.22.2 以上**（`package.json` の `engines`。pnpm 11 系が `node:sqlite` を使うため、20 では起動しません）
+- pnpm（版は `package.json` の `packageManager` が決める。`corepack enable` すればその版が使われる。
+  Renovate が版を上げるので、ここには版を書かない）
 - **Bun** — 同期サーバー（`apps/tasuki-sync`）の起動とテストに必要
 
 ```bash
