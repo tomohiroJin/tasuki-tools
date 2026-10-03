@@ -60,6 +60,34 @@ describe("useFocusTrap", () => {
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "取消" }));
   });
 
+  it("Given 開いたダイアログ / When フォーカスがダイアログの外へ移る / Then ダイアログの中へ戻る", () => {
+    // Given: 外の「開く」ボタンを残したままダイアログを開く
+    const onClose = vi.fn();
+    render(<Harness open onClose={onClose} tick={0} />);
+    const cancel = screen.getByRole("button", { name: "取消" });
+    expect(document.activeElement).toBe(cancel);
+
+    // When: 背景のボタンへフォーカスが移る（外をクリックしてから Tab を押した場合など）
+    screen.getByRole("button", { name: "開く" }).focus();
+
+    // Then: モーダルなので外へは出さない。ダイアログの初期フォーカスへ戻す
+    expect(document.activeElement).toBe(cancel);
+  });
+
+  it("Given 閉じたダイアログ / When 外の要素へフォーカスする / Then 引き戻さない", () => {
+    // Given: 開いてから閉じる
+    const onClose = vi.fn();
+    const { rerender } = render(<Harness open onClose={onClose} tick={0} />);
+    rerender(<Harness open={false} onClose={onClose} tick={1} />);
+
+    // When
+    const opener = screen.getByRole("button", { name: "開く" });
+    opener.focus();
+
+    // Then: 閉じた後は見張りが外れている
+    expect(document.activeElement).toBe(opener);
+  });
+
   it("Given 開いたダイアログが再描画された後 / When Esc を押す / Then 最新の onClose が呼ばれる", () => {
     // Given
     const first = vi.fn();

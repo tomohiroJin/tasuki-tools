@@ -1,6 +1,6 @@
 /**
  * モーダル用フォーカストラップフック
- * a11y(WCAG 2.4.3): 開いている間は Tab/Shift+Tab をコンテナ内で循環させ、
+ * a11y(WCAG 2.4.3): 開いている間は Tab/Shift+Tab をコンテナ内で循環させ、外へ移ったフォーカスは中へ戻し、
  * Esc で閉じ、開く前のフォーカス位置を閉じたとき復帰させる。
  *
  * ConfirmDialog と AiSettingsModal で同一ロジックを共用するために切り出す（DRY）。
@@ -77,9 +77,19 @@ export function useFocusTrap({
       }
     };
 
+    // フォーカスがコンテナの外へ移ったら中へ戻す。Tab の折り返しだけでは、背景をクリックしてから
+    // Tab を押すと外の要素へ進めてしまう（onClose の再生成でフォーカスが引き戻されていた間は隠れていた）。
+    const onFocusIn = (e: FocusEvent) => {
+      const container = containerRef.current;
+      if (!container || !(e.target instanceof Node) || container.contains(e.target)) return;
+      focusInitial();
+    };
+
     document.addEventListener("keydown", onKey);
+    document.addEventListener("focusin", onFocusIn);
     return () => {
       document.removeEventListener("keydown", onKey);
+      document.removeEventListener("focusin", onFocusIn);
       previouslyFocused?.focus?.();
     };
   }, [open, containerRef, initialFocusRef]);
