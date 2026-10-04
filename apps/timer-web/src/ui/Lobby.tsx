@@ -113,7 +113,7 @@ export function Lobby({
   // **お題の有無では止めない**（#91 PR 3）。お題はお題ツールが配る任意の札になり、
   // 無いのが既定になったので、待つと誰も始められなくなる。
   const startButton = (
-    <PrimaryButton onClick={onStartSession}>
+    <PrimaryButton className="lobby-start" onClick={onStartSession}>
       <span className="lobby-start-label"><Play className="lobby-start-icon" aria-hidden="true" /> セッションを開始</span>
     </PrimaryButton>
   );
@@ -208,9 +208,11 @@ export function Lobby({
                   <span className="lobby-participant-name">{label}</span>
                   {/* ドライバー（順番つき）/ 見学 の区別（§9.2・④ 順番可視化） */}
                   <span
-                    className={`tabular lobby-participant-badge ${
-                      inRotation ? "lobby-participant-badge-driver" : "lobby-participant-badge-spectator"
-                    }`}
+                    className={
+                      inRotation
+                        ? "tabular lobby-participant-badge lobby-participant-badge-driver"
+                        : "tabular lobby-participant-badge lobby-participant-badge-spectator"
+                    }
                   >
                     {inRotation ? `ドライバー${rotationIndex + 1}` : "見学"}
                   </span>

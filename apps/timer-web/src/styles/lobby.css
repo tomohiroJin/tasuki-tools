@@ -1,6 +1,6 @@
 /* ロビーの画面（`Lobby.tsx`・#321）。Tailwind のユーティリティの写し。
  * 値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。
- * 写さなかった宣言（除去検査で dead）: 開始ボタンの `w-full`、通知見出しと参加者行の `text-[var(--bone)]`（親から継ぐので不要）、
+ * 写さなかった宣言（除去検査で dead）: 通知見出しと参加者行の `text-[var(--bone)]`（親から継ぐので不要）、
  * 輪の外の「ドライバーに加わる」の上書き（Task 6 で消し済み）。
  * `focus-visible:outline-none` は写さない（レイヤー外のグローバルな `:focus-visible` に負けて、いまも効いていない・設計正本 §2 の 5）。
  * 行の高さ（`var(--timer-never-defined, calc(…))`）は status-strip.css 冒頭の注釈。 */
@@ -24,6 +24,10 @@
   width: 1rem;
   height: 1rem;
   color: var(--signal);
+}
+
+.lobby-start {
+  width: 100%;
 }
 
 .lobby-start-label {
