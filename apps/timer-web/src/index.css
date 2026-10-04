@@ -24,6 +24,8 @@
 @import './styles/notify-settings.css' layer(timer);
 @import './styles/loading.css' layer(timer);
 @import './styles/session-lost.css' layer(timer);
+@import './styles/empty-hint.css' layer(timer);
+@import './styles/history.css' layer(timer);
 @import './styles/app.css' layer(timer);
 
 /* 既存の JS 設定（tailwind.config.js）を読み込む。**振る舞い不変を最優先し、

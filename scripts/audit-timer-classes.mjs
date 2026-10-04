@@ -67,13 +67,11 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..
  * 一覧に載っているのに、外しても書き方と定義の検査を通るファイルは、検査が「古い一覧」として落とす。
  */
 export const UNMIGRATED = [
-  "apps/timer-web/src/ui/History.tsx",
   "apps/timer-web/src/ui/Lobby.tsx",
   "apps/timer-web/src/ui/Session.tsx",
   "apps/timer-web/src/ui/Summary.tsx",
   "apps/timer-web/src/ui/components/CircularProgress.tsx",
   "apps/timer-web/src/ui/components/ConfirmDialog.tsx",
-  "apps/timer-web/src/ui/components/EmptyHint.tsx",
   "apps/timer-web/src/ui/components/EndSessionZone.tsx",
   "apps/timer-web/src/ui/components/InvitePanel.tsx",
   "apps/timer-web/src/ui/components/Markdown.tsx",
@@ -317,7 +315,6 @@ function resolveImport(fromRel, specifier, byRel) {
   return [base, `${stem}.ts`, `${stem}.tsx`, `${stem}/index.ts`, `${stem}/index.tsx`].find((rel) => byRel.has(rel));
 }
 
-/** 判定の本体（純粋関数）。 */
 /** CSS 全域キーワード。名前ではない。 */
 const CSS_WIDE_KEYWORDS = new Set(["inherit", "initial", "unset", "revert", "revert-layer"]);
 /** `animation` の短縮形で名前以外の語（時間・イージング・回数・向き・fill・再生状態）。 */
@@ -363,6 +360,7 @@ export function animationNamesOf(prop, value) {
   return names;
 }
 
+/** 判定の本体（純粋関数）。 */
 export function checkTimerClasses({ sources, timerCss, componentCss, elementCss, unmigrated, collisions, isTailwindUtility }) {
   const problems = [];
   const defined = new Set(timerCss.flatMap((f) => [...cssClassNames(f.text)]));
