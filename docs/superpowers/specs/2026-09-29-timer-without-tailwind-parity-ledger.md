@@ -94,7 +94,104 @@
 - 消した死んだ規則: `.animate-confetti`・`.animate-shake`・`.animate-pulse-fast` とそのキーフレーム（使い手 0 件を確かめて削除）
 - #316 への申し送り: 2026-10-02 に利用者の承認を得て投稿した（https://github.com/tomohiroJin/tasuki-tools/issues/316#issuecomment-5954420246）
 
-## PR 2（記入は PR 2 で）
+## PR 2（primitives と呼び出し側・5 画面と共有部品）
+
+- ブランチの SHA（比較を流した時点の HEAD）: `c121757aa92d38aaad607edaed1af2c0094d387e`（4 設定とも作業ツリーは clean）
+- 比較の仕組みの SHA: `c121757aa92d38aaad607edaed1af2c0094d387e`（`e2e/parity` の最後の変更も同じ。再現は `git checkout c121757aa92d38aaad607edaed1af2c0094d387e -- e2e/parity`）
+- 目録: 29 テスト（PR 1 の 28 に `session-memo-markdown` を足した。Markdown の全要素を描く共有メモ）。期待値の JSON は README の手順で作り直した。既存の 28 キーは前の期待値と同一で、増えたのは 1 キーだけ。**数の正本は [`e2e/parity/expected/base-summary.json`](../../../e2e/parity/expected/base-summary.json)**
+- 比較の結果（HEAD `c121757`）:
+
+| 設定 | 結果 | 所要 |
+|---|---|---|
+| 通常の比較 | 29 / 29 緑（差 0・画素一致・期待値と一致） | 27.8 分 |
+| 対照実行 | 29 / 29 緑 | 25.5 分 |
+| 囲いを外した一時ビルド | 29 / 29 緑（差 0。正本 D3 の既知の偽陽性の型も出なかった） | 26.5 分 |
+| 規則の使用状況（E8） | 書き出しは 29 / 29 緑。**照合は赤（当たらなかった規則 9 件・下の表）** | 29.7 分 |
+
+- 一時ビルドは、ビルドの CSS に `@layer timer{` の囲いが 0 であること（順序宣言 `@layer timer,components;` だけが残る）を確かめてから流した
+- 除去検査: HEAD `0e87abb` で取り直した（26 / 26・34.6 分。既知の答え 5 件 OK・判定の延べは PR 1 と同じ）。途中で出力を消してしまったため、以後は取り直した時点の全件の書き出し（作業ツリーの外の控え）を読んだ
+- 利用者が個別に承認した差: `--shadow-panel`・`--shadow-dialog`（上の表）。除外は `e2e/parity/approved.ts`
+
+### E8 で当たらなかった規則（2026-10-04 の利用者の判断で状態を足さずに記録）
+
+E8 は網羅の確認で、効いているかは比較が見る（正本 §5.5）。目録に状態を足すと、期待値の作り直しと 4 設定の比較のやり直しが要り、時間に見合わないため、PR 2 では状態を足さない。PR 4 の通しの比較の前に扱いを決める。
+
+| 規則 | 描かれる条件 |
+|---|---|
+| `invite-panel.css` `.invite-panel-icon-done` | 招待のルームコードの「コピー」を押した直後 |
+| `loading.css` `.loading-connection-urgent` | 読み込み画面で接続状態が `lost` |
+| `status-strip.css` `.status-strip-connection-urgent` | ステータスの帯で接続状態が `lost` |
+| `notify-settings.css` `.notify-settings-warning` | 通知設定を開いたとき、OS の通知が拒否されている |
+| `notify-settings.css` `.notify-settings-voice`・`.notify-settings-voice-select` | 通知設定で予告の方式に「声」を選んだとき |
+| `topic-card.css` `.topic-card-title`・`.topic-card-body` | お題が設定されたルームのロビー |
+| `presence-dot.css` `.presence-dot[data-presence='idle']` | **作れない**（離席を代入する経路が無い・正本 §2 の 13）。色の対応は `e2e/specs/timer.spec.ts` の在室の点の E2E が属性の書き換えで測る（E7） |
+
+### 消した効いていない宣言（#316 への申し送りの一覧）
+
+基準の除去検査で dead と判定し、写さず、呼び出し側からも消したもの。
+
+| ファイル | 要素 | 呼び出し側の className（消す前） | 消した token |
+|---|---|---|---|
+| `src/ui/History.tsx` | Card | `p-4` | `p-4` |
+| `src/ui/Summary.tsx` | Card | `p-3 sm:p-4` | `p-3` |
+| `src/ui/Summary.tsx` | Card | `w-full p-4 text-left` | `p-4` |
+| `src/ui/Lobby.tsx` | GhostButton | `text-xs px-3 py-1.5` | `px-3` |
+| `src/ui/Lobby.tsx` | GhostButton | `text-xs px-3 py-1.5` | `py-1.5` |
+| `src/ui/Lobby.tsx` | PrimaryButton | `text-xs px-3 py-1.5 min-h-[44px] sm:min-h-0` | `px-3` |
+| `src/ui/Lobby.tsx` | PrimaryButton | `text-xs px-3 py-1.5 min-h-[44px] sm:min-h-0` | `py-1.5` |
+| `src/ui/Session.tsx` | GhostButton | `text-xs px-3 py-1.5` | `px-3` |
+| `src/ui/Session.tsx` | GhostButton | `text-xs px-3 py-1.5` | `py-1.5` |
+| `src/ui/components/PassphrasePanel.tsx` | PrimaryButton | `px-4 py-2 text-sm` | `px-4` |
+| `src/ui/components/PassphrasePanel.tsx` | PrimaryButton | `px-4 py-2 text-sm` | `py-2` |
+| `src/ui/components/RosterPanel.tsx` | PrimaryButton | `px-4 py-2 text-sm` | `px-4` |
+| `src/ui/components/RosterPanel.tsx` | PrimaryButton | `px-4 py-2 text-sm` | `py-2` |
+| `src/ui/components/SelfDriverToggle.tsx` | GhostButton | `text-xs px-3 py-1.5` | `px-3` |
+| `src/ui/components/SelfDriverToggle.tsx` | GhostButton | `text-xs px-3 py-1.5` | `py-1.5` |
+| `src/ui/components/SelfDriverToggle.tsx` | PrimaryButton | `text-sm px-4 py-2` | `px-4` |
+| `src/ui/components/SelfDriverToggle.tsx` | PrimaryButton | `text-sm px-4 py-2` | `py-2` |
+| `src/ui/components/NotifySettings.tsx` | トリガーのボタン | `inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-[var(--bone-muted)] hover:bg-[var(--panel-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--signal)]` | `text-xs` |
+| `src/ui/components/NotifySettings.tsx` | トリガーのボタン | `inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-[var(--bone-muted)] hover:bg-[var(--panel-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--signal)]` | `focus-visible:outline-none` |
+| `src/ui/components/StatusStrip.tsx` | 選択画面へ戻るリンク | `text-[var(--bone-subtle)] underline hover:text-[var(--bone)]` | `text-[var(--bone-subtle)]` |
+| `src/ui/components/NotifySettingsPanel.tsx` | パネルの根 | `text-sm text-[var(--bone)]` | `text-[var(--bone)]` |
+| `src/ui/Loading.tsx` | p（instrument-label） | `instrument-label mb-2 text-[var(--caution)]` | `text-[var(--caution)]` |
+| `src/ui/Loading.tsx` | h1（brand-title） | `brand-title font-black text-[var(--bone)]` | `text-[var(--bone)]` |
+| `src/ui/SessionLost.tsx` | p（instrument-label） | `instrument-label mb-2 text-[var(--urgent)]` | `text-[var(--urgent)]` |
+| `src/ui/SessionLost.tsx` | h1（brand-title） | `brand-title font-black text-[var(--bone)]` | `text-[var(--bone)]` |
+| `src/ui/History.tsx` | p（記録のタイトル） | `truncate font-bold text-[var(--bone)]` | `text-[var(--bone)]` |
+| `src/ui/History.tsx` | dd（tabular） | `tabular text-[var(--bone)]` | `text-[var(--bone)]` |
+| `src/ui/Summary.tsx` | h2（セッション完了） | `text-3xl font-black text-[var(--bone)]` | `text-[var(--bone)]` |
+| `src/ui/Summary.tsx` | p（instrument-label） | `instrument-label text-[var(--signal)]` | `text-[var(--signal)]` |
+| `src/ui/Summary.tsx` | p（統計値） | `whitespace-nowrap text-lg sm:text-xl font-bold tabular text-[var(--bone)]` | `text-[var(--bone)]` |
+| `src/ui/Summary.tsx` | Card（ドライバー別） | `w-full p-4 text-left` | `p-4` |
+| `src/ui/components/InvitePanel.tsx` | span（ルームコード） | `tabular text-4xl md:text-5xl font-black tracking-wider break-all text-[var(--signal)]` | `tracking-wider` |
+| `src/ui/components/PassphrasePanel.tsx` | div（根） | `w-full` | `w-full` |
+| `src/ui/components/PassphrasePanel.tsx` | input | `flex-1 rounded-md border border-[var(--hairline-strong)] bg-[var(--panel-2)] px-3 py-2 text-sm text-[var(--bone)] outline-none focus:border-[var(--signal)] focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]` | `text-[var(--bone)] outline-none` |
+| `src/ui/components/TopicCard.tsx` | h3（タイトル） | `text-lg font-bold text-[var(--bone)] [overflow-wrap:anywhere]` | `text-[var(--bone)]` |
+| `src/ui/components/ConfirmDialog.tsx` | div（ダイアログ） | `relative w-full max-w-sm rounded-lg … text-[var(--bone)]` | `text-[var(--bone)]` |
+| `src/ui/components/ConfirmDialog.tsx` | h2（タイトル） | `text-lg font-bold text-[var(--bone)]` | `text-[var(--bone)]` |
+| `src/ui/components/ConfirmDialog.tsx` | button（取消） | `px-4 py-2 rounded-md font-medium text-[var(--bone)] … focus-visible:outline-none …` | `text-[var(--bone)] focus-visible:outline-none` |
+| `src/ui/components/ConfirmDialog.tsx` | button（確認） | `px-5 py-2 rounded-md font-bold … focus-visible:outline-none …` | `focus-visible:outline-none` |
+| `src/ui/components/SessionConfigPanel.tsx` | summary | `flex items-center gap-2 cursor-pointer select-none px-4 py-3 text-sm font-medium text-[var(--bone)]` | `text-[var(--bone)]` |
+| `src/ui/components/SessionConfigPanel.tsx` | span（トグルのラベル） | `block text-sm font-medium text-[var(--bone)]` | `text-[var(--bone)]` |
+| `src/ui/components/SessionConfigPanel.tsx` | input（チェックボックス） | `mt-1 h-5 w-5 shrink-0 accent-[var(--signal)]` | `accent-[var(--signal)]` |
+| `src/ui/Lobby.tsx` | div（通知の見出し） | `mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--bone)]` | `text-[var(--bone)]` |
+| `src/ui/Lobby.tsx` | li（参加者の行） | `flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-md bg-[var(--panel-2)] border border-[var(--hairline)] px-3 py-2 text-sm text-[var(--bone)]` | `text-[var(--bone)]` |
+| `src/ui/Lobby.tsx` | RowIconButton | `grid h-11 w-11 sm:h-8 sm:w-8 shrink-0 place-items-center rounded-md bg-[var(--panel)] hover:bg-[var(--panel-hover)] disabled:opacity-30 disabled:cursor-not-allowed border border-[var(--hairline)] text-[var(--bone-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]` | `focus-visible:outline-none` |
+
+### dead だが写したもの
+
+- `ConfirmDialog` の `w-full`・`Markdown` の根の `space-y-2`: 目録の状態では dead だが、本文の長さやブロックの数しだいで効く（除去検査の dead は目録の状態の中の判定に限られる）
+- `Lobby` の開始ボタンの `w-full`: 除去検査の読み違いで一度消し、比較で幅が変わって alive と分かったので写し直した
+
+### その他の記録
+
+- **行の高さの写し方**: 割り切れない比率（`text-xs`・`text-sm`・`text-lg`・`text-2xl` など）は `var(--timer-never-defined, calc(…))` で書く。直書きの calc は最小化で 5 桁に畳まれ、16px が 15.984px になる。`--timer-never-defined` を宣言すると検査（`audit-timer-classes.mjs`）が落とす。理由の注釈は `apps/timer-web/src/styles/status-strip.css` の冒頭
+- **借り物のキーフレーム**: `loading.css` の `pulse` は、まだ Tailwind のままの `Session.tsx` の `animate-pulse` が出す `@keyframes pulse` を使う。出どころが消えたら検査が落とす（PR 3 で `Session.tsx` を移すとき、timer の CSS に `@keyframes pulse` を置く）
+- `SessionConfigPanel` の親の余白は、Task の途中で任意値の変種を挟んだが、最終形は `:where(.session-config-panel > :not(:last-child))`
+- `RosterPanel.test.tsx` のクラス名で書いたアサーションの書き直しは PR 3 へ送った（計画 P6）
+- E8 の測り方は正本 §5.5（dev ＋ ソースマップ）から変え、最小化しないビルドと「`@layer` を除いた at-rule の並び＋セレクタ」の鍵で突き合わせた（計画 P4・利用者承認 2026-10-03）
+- 変異: 当たらなくなった m63・m102・m118 を作り直した（壊し方は元と同じ）。`mutation-check` 全 106 件が検出
+
 
 ## PR 3（記入は PR 3 で）
 
