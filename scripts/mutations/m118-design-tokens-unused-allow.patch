@@ -11,14 +11,15 @@
 # #321 PR 1・設計正本 D10。ALLOW に、どのファイルにも当たらない項目を足す（生の色を直した後に
 # 例外だけが残った状態）。残った例外は、同じ場所へ生の色を書き戻しても通してしまう。
 # 生の色を走査する側のテストは緑のまま、「使われていない例外」の族だけが赤になるべき。
+# PR 2 で ALLOW は空になった（QR の白地と影の黒を素の CSS へ移した）ので、空の配列へ 1 件足す形にした。
 diff --git a/apps/timer-web/test/ui/design-tokens.test.ts b/apps/timer-web/test/ui/design-tokens.test.ts
-index 01ec483f..5fb7632c 100644
+index a228fcba..b48c3971 100644
 --- a/apps/timer-web/test/ui/design-tokens.test.ts
 +++ b/apps/timer-web/test/ui/design-tokens.test.ts
-@@ -30,6 +30,7 @@ const ALLOW = [
-   { file: "ui/components/InvitePanel.tsx", pattern: /bg-white/ },
-   // 影は黒。パレットを変えても黒のままなので、トークン化しても追従する先が無い
-   { file: "*", pattern: /rgba\(0,\s*0,\s*0,[^)]*\)/ },
+@@ -28,6 +28,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../src");
+ const ALLOW: { file: string; pattern: RegExp }[] = [
+   // いまは無い。QR の白地と影の黒は、素の CSS へ移した（`.invite-panel-qr` は `ui-exempt:` つき・影は `--shadow-dialog`）。
+   // 移していない画面に残る生の色の例外を足すなら、ここへ理由つきで書く。
 +  { file: "ui/Nope.tsx", pattern: /bg-black/ },
  ];
  
