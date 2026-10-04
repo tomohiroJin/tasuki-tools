@@ -106,10 +106,11 @@
   }
 }
 
+/* ring の色は `ring-2` に色を渡していないので文字色（`currentColor` = `--on-signal`）になる */
 .confirm-dialog-confirm-primary:focus-visible {
   box-shadow:
     0 0 0 2px var(--ink),
-    0 0 0 4px var(--signal),
+    0 0 0 4px var(--on-signal),
     0 0 0 1px var(--signal-edge),
     0 6px 20px var(--signal-glow);
 }
