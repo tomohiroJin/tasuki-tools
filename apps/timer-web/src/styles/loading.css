@@ -2,7 +2,9 @@
  * 値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。
  * 見出し・ラベルの文字色は書かない（`.brand-title` / `.instrument-label` の色が勝っていて、Tailwind の色は効いていなかった）。
  * 行の高さ（`var(--timer-never-defined, calc(…))`）は status-strip.css 冒頭の注釈。
- * 点滅の `@keyframes pulse` は Tailwind の `animate-pulse` の写し（動きの名前も基準と揃える）。 */
+ * 点滅（`animation: pulse …`）は Tailwind の `animate-pulse` の写し。**`@keyframes pulse` はここに書かない**: Session.tsx（PR 3 で移す）がまだ
+ * `animate-pulse` を使い、Tailwind が同じ名前を出している。ここにも書くと同名が 2 つ連なり、比較が「キーフレームの差」を出す
+ * （実測）。Session.tsx を移す PR 3 で、このファイルか Session の CSS に `@keyframes pulse { 50% { opacity: 0.5; } }` を 1 つだけ置く。 */
 
 /* 待ち表示 */
 .loading-waiting {
@@ -19,12 +21,6 @@
   background-color: var(--signal);
   margin-bottom: 0.5rem;
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-@keyframes pulse {
-  50% {
-    opacity: 0.5;
-  }
 }
 
 .loading-waiting-connection {
