@@ -51,22 +51,22 @@ export function NotifySettings() {
   };
 
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={containerRef} className="notify-settings-container">
       {/* ラベル付きトリガーボタン（Bell アイコン + 「通知」テキスト） */}
       <button
         type="button"
         aria-label="通知設定"
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-[var(--bone-muted)] hover:bg-[var(--panel-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--signal)]"
+        className="notify-settings-trigger"
       >
-        <Bell className="h-4 w-4" aria-hidden="true" /> 通知
+        <Bell className="notify-settings-icon" aria-hidden="true" /> 通知
       </button>
       {open && (
         <div
           ref={panelRef}
           role="dialog"
           aria-label="交代通知の設定"
-          className="absolute right-0 z-20 mt-2 w-80 rounded-md border border-[var(--hairline-strong)] bg-[var(--panel)] p-3 text-sm text-[var(--bone)] shadow-lg"
+          className="notify-settings-popover"
         >
           <NotifySettingsPanel
             prefs={prefs}
@@ -74,7 +74,7 @@ export function NotifySettings() {
             onPreview={() => playChime(prefs.soundId, prefs.volume)}
           />
           {osDenied && (
-            <p className="mt-2 text-xs text-[var(--caution)]">
+            <p className="notify-settings-warning">
               OS 通知は許可されていません（音と振動は有効）。
             </p>
           )}

@@ -46,18 +46,30 @@ const PHASE_LABEL: Record<AppMode, string> = {
 // 抽出したもので、外れる字を 1 つ足すと ext 層（約 210 KB）を追加取得する
 // （`packages/ui/README.md`）。「同期不整合」の「整」がまさに base 層外だったため
 // 「同期できていません」にした（2026-08-31・`fonts.css` の unicode-range を実測）。
-const CONNECTION_CONFIG: Record<ConnectionStatus, { label: string; className: string }> = {
+const CONNECTION_LABEL: Record<ConnectionStatus, string> = {
   // `connecting` は「まだ一度も確立していない」（#292）。**この帯には実際には出ない** ——
   // 帯が描かれるのは `mode !== null`、つまり snapshot を受け取った後だからである。
   // それでも行を持つのは `Record<ConnectionStatus, …>` が**状態の増減を型検査に
   // 拾わせる**ためで、抜けを作ると「名前の無い状態」が黙って通る。
   // 文言は `ui/Loading.tsx` と揃える（`test/ui/Loading.test.tsx` が突き合わせる）。
-  connecting: { label: "つないでいます… (Connecting)", className: "text-[var(--caution)]" },
-  online: { label: "接続中 (Connected)", className: "text-[var(--ok)]" },
-  reconnecting: { label: "再接続中… (Reconnecting)", className: "text-[var(--caution)]" },
-  lost: { label: "セッション喪失 (Session Lost)", className: "text-[var(--urgent)]" },
-  stale: { label: "同期できていません (Out of Sync)", className: "text-[var(--caution)]" },
+  connecting: "つないでいます… (Connecting)",
+  online: "接続中 (Connected)",
+  reconnecting: "再接続中… (Reconnecting)",
+  lost: "セッション喪失 (Session Lost)",
+  stale: "同期できていません (Out of Sync)",
 };
+
+/**
+ * 接続状態の表示のクラス（`styles/status-strip.css`。並びと色）。ラベルの表とは分ける。
+ * キーは `ConnectionStatus` と 1 対 1（漏れは型検査が拾う）。
+ */
+const CONNECTION_CLASS = {
+  connecting: "status-strip-connection status-strip-connection-caution",
+  online: "status-strip-connection status-strip-connection-ok",
+  reconnecting: "status-strip-connection status-strip-connection-caution",
+  lost: "status-strip-connection status-strip-connection-urgent",
+  stale: "status-strip-connection status-strip-connection-caution",
+} as const satisfies Record<ConnectionStatus, string>;
 
 export function StatusStrip({
   phase,
@@ -65,19 +77,19 @@ export function StatusStrip({
   connectionStatus,
   roomCode,
 }: StatusStripProps) {
-  const conn = CONNECTION_CONFIG[connectionStatus];
+  const connectionLabel = CONNECTION_LABEL[connectionStatus];
 
   return (
     <div
       role="status"
       aria-label="ステータス情報"
-      className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-md bg-[var(--panel)] border border-[var(--hairline)] px-4 py-2 text-xs text-[var(--bone-subtle)]"
+      className="status-strip"
     >
       {/* フェーズ + ルームコード */}
-      <span className="flex items-center gap-1">
+      <span className="status-strip-group">
         <span aria-label="フェーズ">{PHASE_LABEL[phase]}</span>
         {roomCode && (
-          <span className="tabular text-[var(--signal)]">({roomCode})</span>
+          <span className="tabular status-strip-room-code">({roomCode})</span>
         )}
       </span>
 
@@ -87,7 +99,7 @@ export function StatusStrip({
           なので SPA 内遷移ではなく素直な <a href> にする。 */}
       {roomCode !== undefined && (
         <a
-          className="text-[var(--bone-subtle)] underline hover:text-[var(--bone)]"
+          className="status-strip-back-link"
           href={`/?room=${encodeURIComponent(roomCode)}`}
         >
           選択画面へ戻る
@@ -95,14 +107,14 @@ export function StatusStrip({
       )}
 
       {/* 自分の名前 */}
-      <span className="flex items-center gap-1">
-        <span className="text-[var(--bone)]">{displayName}</span>
+      <span className="status-strip-group">
+        <span className="status-strip-name">{displayName}</span>
       </span>
 
       {/* 接続状態（色＋テキスト併記） */}
-      <span className={`flex items-center gap-1 ${conn.className}`} aria-label="接続状態">
+      <span className={CONNECTION_CLASS[connectionStatus]} aria-label="接続状態">
         <span aria-hidden="true">●</span>
-        <span>{conn.label}</span>
+        <span>{connectionLabel}</span>
       </span>
 
       {/* 個人通知設定（音/OS通知）。ルーム設定 assertiveSwitch とは独立。 */}
