@@ -27,6 +27,9 @@
  *      部品層の接頭辞 `ui-` で始まるクラスも定義しない（部品層に在るか無いかを問わない）
  *   4. **宣言禁止の変数**: `--timer-never-defined` は、timer の CSS・部品層・要素層のどこでも宣言しない（参照だけ許す。
  *      宣言すると、行の高さの `var(--timer-never-defined, calc(…))` を使う全箇所が黙って入れ替わる）
+ *   5. **借り物のキーフレームの出どころ**: timer の CSS の `animation` / `animation-name` が名指しするキーフレームは、
+ *      timer の CSS が `@keyframes` で定義するか、`UNMIGRATED` のファイルに `animate-<名前>` の字面があるか（Tailwind が出す）
+ *      のどちらかでなければ落とす（出どころの `animate-*` を消した瞬間にアニメーションが黙って止まるのを防ぐ）
  *
  * ## 何を見ていないか —— 「足りる」とは言わない
  *
@@ -315,6 +318,51 @@ function resolveImport(fromRel, specifier, byRel) {
 }
 
 /** 判定の本体（純粋関数）。 */
+/** CSS 全域キーワード。名前ではない。 */
+const CSS_WIDE_KEYWORDS = new Set(["inherit", "initial", "unset", "revert", "revert-layer"]);
+/** `animation` の短縮形で名前以外の語（時間・イージング・回数・向き・fill・再生状態）。 */
+const ANIMATION_NON_NAME = new Set([
+  "ease", "ease-in", "ease-out", "ease-in-out", "linear", "step-start", "step-end",
+  "infinite", "normal", "reverse", "alternate", "alternate-reverse",
+  "none", "forwards", "backwards", "both", "running", "paused",
+]);
+
+/** 括弧の外のカンマ（または空白）で分ける。 */
+function splitTopLevel(text, sep) {
+  const out = [];
+  let depth = 0;
+  let cur = "";
+  for (const ch of text) {
+    if (ch === "(") depth += 1;
+    if (ch === ")") depth -= 1;
+    const isSep = depth === 0 && (sep === "," ? ch === "," : /\s/.test(ch));
+    if (isSep) {
+      if (cur.trim() !== "") out.push(cur.trim());
+      cur = "";
+    } else {
+      cur += ch;
+    }
+  }
+  if (cur.trim() !== "") out.push(cur.trim());
+  return out;
+}
+
+/** `animation` / `animation-name` の値が名指しするキーフレームの名前（`none`・全域キーワード・`var()` は除く）。 */
+export function animationNamesOf(prop, value) {
+  const names = [];
+  for (const layer of splitTopLevel(value, ",")) {
+    const tokens = prop === "animation-name" ? [layer] : splitTopLevel(layer, " ");
+    for (const t of tokens) {
+      const lower = t.toLowerCase();
+      if (CSS_WIDE_KEYWORDS.has(lower) || ANIMATION_NON_NAME.has(lower)) continue;
+      if (t.includes("(")) continue; // cubic-bezier() / steps() / var() など
+      if (/^[+-]?(\d|\.\d)/.test(t)) continue; // 時間・回数
+      names.push(t);
+    }
+  }
+  return names;
+}
+
 export function checkTimerClasses({ sources, timerCss, componentCss, elementCss, unmigrated, collisions, isTailwindUtility }) {
   const problems = [];
   const defined = new Set(timerCss.flatMap((f) => [...cssClassNames(f.text)]));
@@ -381,10 +429,36 @@ export function checkTimerClasses({ sources, timerCss, componentCss, elementCss,
       if (d.prop === "--timer-never-defined") declared = true;
     });
     // `@property --timer-never-defined { … }` の登録も宣言と同じ（initial-value が var の代替値より勝つ）
-    root.walkAtRules("property", (r) => {
-      if (r.params.trim() === "--timer-never-defined") declared = true;
+    // at-rule の名前は大文字小文字を区別しない（`@PROPERTY` でもブラウザは登録する）。変数名は区別する
+    root.walkAtRules((r) => {
+      if (r.name.toLowerCase() === "property" && r.params.trim() === "--timer-never-defined") declared = true;
     });
     if (declared) problems.push(`[宣言禁止] ${f.rel} が --timer-never-defined を宣言しています。参照（var の代替値）だけ許します`);
+  }
+  // 借り物のキーフレームの出どころ。`animation` / `animation-name` が名指しするキーフレームは、timer の CSS が
+  // `@keyframes` を持つか、まだ移していないファイルの `animate-<名前>`（Tailwind が `@keyframes` を出す）が出どころでなければならない。
+  // 後者だけが出どころのとき、そのファイルを移して `animate-<名前>` が消えると、アニメーションが黙って止まる
+  const keyframesDefined = new Set();
+  for (const f of timerCss) {
+    postcss.parse(f.text).walkAtRules((r) => {
+      if (r.name.toLowerCase().endsWith("keyframes")) keyframesDefined.add(r.params.trim());
+    });
+  }
+  const borrowed = new Map();
+  for (const f of timerCss) {
+    postcss.parse(f.text).walkDecls((d) => {
+      const prop = d.prop.toLowerCase();
+      if (prop !== "animation" && prop !== "animation-name") return;
+      for (const name of animationNamesOf(prop, d.value)) if (!borrowed.has(name)) borrowed.set(name, f.rel);
+    });
+  }
+  for (const [name, rel] of borrowed) {
+    if (keyframesDefined.has(name)) continue;
+    const re = new RegExp(`(?<![\\w-])animate-${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w-])`);
+    const origin = sources.some((src) => listed.has(src.rel) && re.test(src.text));
+    if (!origin) {
+      problems.push(`[キーフレーム] 借り物のキーフレームの出どころが消えた: ${name}（${rel} が使っています。timer の CSS に @keyframes を置く）`);
+    }
   }
   // 接頭辞 `ui-` は部品層のもの。timer の CSS が定義すると、部品を定義し直す（読み込み順で部品に勝つ・設計正本 D3）
   for (const name of defined) {

@@ -57,6 +57,7 @@ const CONNECTION_TEXT: Record<ConnectionStatus, string> = {
   stale: "同期できていません",
 };
 
+// 値は色（tone）だけでなく、基準の `loading-connection`（配置・字の大きさ）も含む。監査が className のテンプレートの置換を許さないため、表 1 つで完結させた
 const CONNECTION_TONE_CLASS = {
   connecting: "loading-connection loading-connection-caution",
   online: "loading-connection loading-connection-ok",

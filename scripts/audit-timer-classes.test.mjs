@@ -216,6 +216,35 @@ describe("checkTimerClasses: 定義・一覧・衝突（設計正本 D10）", ()
       assert.match(problems[0], /timer-never-defined/);
     }
   });
+  test("`@PROPERTY`（大文字）で登録しても落とす（at-rule の名前は大文字小文字を区別しない）", () => {
+    const reg = "@PROPERTY --timer-never-defined { syntax: '<number>'; inherits: false; initial-value: 1.5; }";
+    const problems = checkTimerClasses({ ...base, timerCss: [...base.timerCss, { rel: "x/y.css", text: reg }] });
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /timer-never-defined/);
+  });
+  test("対照: 借りたキーフレームの出どころが、移していないファイルの animate-<名前> なら 0 件", () => {
+    const timerCss = [...base.timerCss, { rel: "apps/timer-web/src/styles/l.css", text: ".l{animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite}" }];
+    const rel = "apps/timer-web/src/ui/S.tsx";
+    const sources = [{ rel, text: '<p className="px-3 animate-pulse" />' }];
+    assert.deepEqual(checkTimerClasses({ ...base, timerCss, sources, unmigrated: [rel] }), []);
+  });
+  test("対照: timer の CSS が @keyframes を持つなら 0 件（animation-name・短縮形とも）", () => {
+    const timerCss = [...base.timerCss, { rel: "apps/timer-web/src/styles/l.css", text: "@keyframes spin{to{opacity:1}} .a{animation-name: spin, none} .b{animation: 1s ease-in spin both; animation: inherit}" }];
+    assert.deepEqual(checkTimerClasses({ ...base, timerCss }), []);
+  });
+  test("借りたキーフレームの出どころがどこにも無ければ落とす（短縮形の名前を取り出す）", () => {
+    const timerCss = [...base.timerCss, { rel: "apps/timer-web/src/styles/l.css", text: ".l{animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite}" }];
+    const problems = checkTimerClasses({ ...base, timerCss });
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /借り物のキーフレームの出どころが消えた: pulse/);
+  });
+  test("借りたキーフレームの出どころが、一覧に載っていないファイルの animate-<名前> だけなら落とす（移したのに残った字面は出どころではない）", () => {
+    const timerCss = [...base.timerCss, { rel: "apps/timer-web/src/styles/l.css", text: ".l{animation-name: pulse}" }];
+    const sources = [{ rel: "apps/timer-web/src/ui/S.tsx", text: "// animate-pulse は消えた\nconst x = 1;" }];
+    const problems = checkTimerClasses({ ...base, timerCss, sources });
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /pulse/);
+  });
   test("timer の CSS が部品層の接頭辞 ui- のクラスを定義したら落とす（部品の定義し直し）", () => {
     const timerCss = [{ rel: "apps/timer-web/src/styles/x.css", text: ".tabular{} .sr-only{} .ui-panel{}" }];
     const problems = checkTimerClasses({ ...base, timerCss });
