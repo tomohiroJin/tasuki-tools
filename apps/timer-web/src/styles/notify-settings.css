@@ -44,7 +44,7 @@
   background-color: var(--panel);
   padding: 0.75rem;
   font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 で段へ寄せる） */
-  line-height: calc(1.25 / 0.875);
+  line-height: 1.25rem; /* calc(1.25 / 0.875) は 19.984px になり、基準の 20px と合わない（実測） */
   color: var(--bone);
   box-shadow: var(--shadow-popover);
 }
@@ -59,7 +59,7 @@
 /* --- パネル（`NotifySettingsPanel.tsx`。ポップオーバーとロビーのカードで共用） --- */
 .notify-settings {
   font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 で段へ寄せる） */
-  line-height: calc(1.25 / 0.875);
+  line-height: 1.25rem; /* calc(1.25 / 0.875) は 19.984px になり、基準の 20px と合わない（実測） */
 }
 
 .notify-settings-heading {
