@@ -25,11 +25,9 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../src");
  * 許すもの。**「卓の色に属さない」ことが理由になるものだけ。**
  * 「直すのが面倒」は理由にしない。
  */
-const ALLOW = [
-  // QR は明暗のコントラストで読むため、地は白でなければ読み取り率が落ちる（機能上の要請）
-  { file: "ui/components/InvitePanel.tsx", pattern: /bg-white/ },
-  // 影は黒。パレットを変えても黒のままなので、トークン化しても追従する先が無い
-  { file: "*", pattern: /rgba\(0,\s*0,\s*0,[^)]*\)/ },
+const ALLOW: { file: string; pattern: RegExp }[] = [
+  // いまは無い。QR の白地と影の黒は、素の CSS へ移した（`.invite-panel-qr` は `ui-exempt:` つき・影は `--shadow-dialog`）。
+  // 移していない画面に残る生の色の例外を足すなら、ここへ理由つきで書く。
 ];
 
 /** Tailwind に同梱の色（卓のパレットの外にある色相）。 */

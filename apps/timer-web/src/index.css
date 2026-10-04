@@ -27,6 +27,12 @@
 @import './styles/empty-hint.css' layer(timer);
 @import './styles/history.css' layer(timer);
 @import './styles/summary.css' layer(timer);
+@import './styles/invite-panel.css' layer(timer);
+@import './styles/passphrase-panel.css' layer(timer);
+@import './styles/topic-card.css' layer(timer);
+@import './styles/markdown.css' layer(timer);
+@import './styles/confirm-dialog.css' layer(timer);
+@import './styles/session-config-panel.css' layer(timer);
 @import './styles/app.css' layer(timer);
 
 /* 既存の JS 設定（tailwind.config.js）を読み込む。**振る舞い不変を最優先し、

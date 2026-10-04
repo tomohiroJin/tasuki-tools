@@ -42,14 +42,9 @@ export function ConfirmDialog({
 
   if (!open) return null;
 
-  const confirmClass =
-    confirmIntent === "primary"
-      ? "bg-[var(--signal)] hover:bg-[var(--signal-hover)] text-[var(--on-signal)] shadow-[0_0_0_1px_var(--signal-edge),0_6px_20px_var(--signal-glow)]"
-      : "bg-[var(--urgent)] hover:bg-[var(--urgent-hover)] text-[var(--on-urgent)] shadow-[0_4px_16px_var(--urgent-veil)] ring-1 ring-[var(--urgent-edge)]";
-
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--shade)] backdrop-blur-sm"
+      className="confirm-dialog-backdrop"
       onClick={onCancel}
     >
       <div
@@ -57,28 +52,32 @@ export function ConfirmDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="confirm-title"
-        className="relative w-full max-w-sm rounded-lg border border-[var(--hairline-strong)] bg-[var(--panel)] p-5 shadow-[inset_0_1px_0_var(--inset-highlight),0_20px_50px_rgba(0,0,0,0.6)] text-[var(--bone)]"
+        className="confirm-dialog"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 id="confirm-title" className="text-lg font-bold text-[var(--bone)]">
+        <h2 id="confirm-title" className="confirm-dialog-title">
           {title}
         </h2>
         {description && (
-          <p className="mt-2 text-sm text-[var(--bone-muted)]">{description}</p>
+          <p className="confirm-dialog-description">{description}</p>
         )}
-        <div className="mt-5 flex justify-end gap-3">
+        <div className="confirm-dialog-actions">
           <button
             ref={cancelRef}
             type="button"
             onClick={onCancel}
-            className="px-4 py-2 rounded-md font-medium text-[var(--bone)] bg-[var(--panel-2)] hover:bg-[var(--panel-hover)] border border-[var(--hairline-strong)] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]"
+            className="confirm-dialog-cancel"
           >
             {cancelLabel}
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className={`px-5 py-2 rounded-md font-bold transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)] ${confirmClass}`}
+            className={
+              confirmIntent === "primary"
+                ? "confirm-dialog-confirm confirm-dialog-confirm-primary"
+                : "confirm-dialog-confirm confirm-dialog-confirm-danger"
+            }
           >
             {confirmLabel}
           </button>
