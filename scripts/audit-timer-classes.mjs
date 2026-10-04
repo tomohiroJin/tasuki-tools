@@ -67,7 +67,6 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..
  * 一覧に載っているのに、外しても書き方と定義の検査を通るファイルは、検査が「古い一覧」として落とす。
  */
 export const UNMIGRATED = [
-  "apps/timer-web/src/ui/Lobby.tsx",
   "apps/timer-web/src/ui/Session.tsx",
   "apps/timer-web/src/ui/components/CircularProgress.tsx",
   "apps/timer-web/src/ui/components/EndSessionZone.tsx",

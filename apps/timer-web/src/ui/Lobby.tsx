@@ -66,9 +66,9 @@ function RowIconButton({
       disabled={disabled}
       aria-label={label}
       title={label}
-      className="grid h-11 w-11 sm:h-8 sm:w-8 shrink-0 place-items-center rounded-md bg-[var(--panel)] hover:bg-[var(--panel-hover)] disabled:opacity-30 disabled:cursor-not-allowed border border-[var(--hairline)] text-[var(--bone-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]"
+      className="lobby-row-icon-button"
     >
-      <Icon className="w-4 h-4" />
+      <Icon className="lobby-row-icon" />
     </button>
   );
 }
@@ -113,8 +113,8 @@ export function Lobby({
   // **お題の有無では止めない**（#91 PR 3）。お題はお題ツールが配る任意の札になり、
   // 無いのが既定になったので、待つと誰も始められなくなる。
   const startButton = (
-    <PrimaryButton className="w-full" onClick={onStartSession}>
-      <span className="flex items-center justify-center gap-2"><Play className="w-5 h-5" aria-hidden="true" /> セッションを開始</span>
+    <PrimaryButton onClick={onStartSession}>
+      <span className="lobby-start-label"><Play className="lobby-start-icon" aria-hidden="true" /> セッションを開始</span>
     </PrimaryButton>
   );
 
@@ -134,7 +134,7 @@ export function Lobby({
           onCancel={() => setPendingRemovalId(null)}
         />
       )}
-      <div className="space-y-6">
+      <div className="lobby">
         {/* いまのお題（#91）。timer は読むだけで、変えるのはお題ツールの仕事（spec T4）。 */}
         {topic && <TopicCard topic={topic} />}
         {startButton}
@@ -157,8 +157,8 @@ export function Lobby({
         )}
         {/* 通知設定カード。セッション開始前に音通知を整えておける。 */}
         <Card>
-          <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--bone)]">
-            <Bell className="w-4 h-4 text-[var(--signal)]" aria-hidden="true" /> 交代通知
+          <div className="lobby-notify-heading">
+            <Bell className="lobby-notify-icon" aria-hidden="true" /> 交代通知
           </div>
           <NotifySettingsPanel
             prefs={notifyPrefs}
@@ -178,13 +178,13 @@ export function Lobby({
             right={
               /* ドライバー順をランダムに（v2.3 #1）。2人以上で意味を持つ。 */
               onShuffle && room.session.rotation.length > 1 ? (
-                <GhostButton onClick={onShuffle} aria-label="ドライバー順をランダムに並べ替える" className="text-sm">
-                  <span className="flex items-center gap-1.5"><Shuffle className="w-4 h-4" aria-hidden="true" /> ランダム</span>
+                <GhostButton onClick={onShuffle} aria-label="ドライバー順をランダムに並べ替える" className="lobby-shuffle">
+                  <span className="lobby-shuffle-label"><Shuffle className="lobby-shuffle-icon" aria-hidden="true" /> ランダム</span>
                 </GhostButton>
               ) : undefined
             }
           />
-          <ul className="space-y-1.5">
+          <ul className="lobby-participants">
             {room.participants.map((p) => {
               // rotation は参加者IDの配列（D6b）
               const rotationIndex = room.session.rotation.indexOf(p.participantId);
@@ -199,38 +199,36 @@ export function Lobby({
               return (
                 <li
                   key={p.participantId}
-                  className="flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-md bg-[var(--panel-2)] border border-[var(--hairline)] px-3 py-2 text-sm text-[var(--bone)]"
+                  className="lobby-participant"
                 >
                   <PresenceDot presence={p.presence} />
                   {/* 在席状態はドットの色だけで伝えていた（WCAG 1.4.1違反・Issue #42）。
                       RosterPanel と同じく sr-only テキストを呼び出し元に置く（PresenceDot 自体は変更しない）。 */}
                   <span className="sr-only">{presenceLabel(p.presence)}</span>
-                  <span className="min-w-0 flex-1 truncate font-medium">{label}</span>
+                  <span className="lobby-participant-name">{label}</span>
                   {/* ドライバー（順番つき）/ 見学 の区別（§9.2・④ 順番可視化） */}
                   <span
-                    className={`shrink-0 rounded-sm px-2 py-0.5 text-xs font-semibold tabular ${
-                      inRotation
-                        ? "bg-[var(--signal-tint)] text-[var(--signal)] border border-[var(--signal-veil)]"
-                        : "bg-[var(--panel)] text-[var(--bone-subtle)] border border-[var(--hairline)]"
+                    className={`tabular lobby-participant-badge ${
+                      inRotation ? "lobby-participant-badge-driver" : "lobby-participant-badge-spectator"
                     }`}
                   >
                     {inRotation ? `ドライバー${rotationIndex + 1}` : "見学"}
                   </span>
                   {/* 操作エリア（本人＝加入/離脱・退出、他人＝加入/離脱・並び替え・退出）。
                       かつては他人への操作を主催者にだけ出していた（#95 S3 で全員に開いた）。 */}
-                  <span className="ml-auto flex shrink-0 items-center gap-1">
+                  <span className="lobby-participant-actions">
                     {isMe && (
                       inRotation ? (
                         <GhostButton
                           onClick={() => onLeaveRotation?.(p.participantId)}
                           disabled={isLastDriver}
                           title={isLastDriver ? "最後のドライバーは外れられません" : undefined}
-                          className="text-xs"
+                          className="lobby-row-action"
                         >
                           列から外れる
                         </GhostButton>
                       ) : (
-                        <PrimaryButton onClick={() => onJoinRotation?.(p.participantId)} className="text-xs min-h-[44px] sm:min-h-0">
+                        <PrimaryButton onClick={() => onJoinRotation?.(p.participantId)} className="lobby-row-action lobby-row-join">
                           ドライバーに加わる
                         </PrimaryButton>
                       )
@@ -242,7 +240,7 @@ export function Lobby({
                       <GhostButton
                         onClick={() => onRemoveParticipant(p.participantId)}
                         title="この端末をルームから外します。招待から再参加できます。"
-                        className="text-xs"
+                        className="lobby-row-action"
                       >
                         ルームから抜ける
                       </GhostButton>
@@ -296,7 +294,7 @@ export function Lobby({
           </ul>
           {/* まだ自分1人のとき、招待を促す控えめなヒント（R5-2）。 */}
           {room.participants.length === 1 && (
-            <div className="mt-3">
+            <div className="lobby-empty-hint">
               <EmptyHint>
                 まだあなただけです。上の招待リンクで仲間を呼び、揃ったら「開始」しましょう。
               </EmptyHint>

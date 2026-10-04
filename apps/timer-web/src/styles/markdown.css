@@ -80,10 +80,6 @@
   color: var(--bone-muted);
 }
 
-.markdown-heading-3:first-child {
-  margin-top: 0;
-}
-
 .markdown-pre {
   overflow-x: auto;
   white-space: pre-wrap;
