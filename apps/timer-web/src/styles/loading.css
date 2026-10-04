@@ -1,0 +1,126 @@
+/* 読み込み画面（`Loading.tsx`・#321）。Tailwind のユーティリティの写し。
+ * 値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。
+ * 見出し・ラベルの文字色は書かない（`.brand-title` / `.instrument-label` の色が勝っていて、Tailwind の色は効いていなかった）。
+ * 行の高さ（`var(--timer-never-defined, calc(…))`）は status-strip.css 冒頭の注釈。
+ * 点滅の `@keyframes pulse` は Tailwind の `animate-pulse` の写し（動きの名前も基準と揃える）。 */
+
+/* 待ち表示 */
+.loading-waiting {
+  padding-block: 4rem;
+  text-align: center;
+  color: var(--bone-subtle);
+}
+
+.loading-waiting-dot {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  border-radius: calc(infinity * 1px);
+  background-color: var(--signal);
+  margin-bottom: 0.5rem;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.loading-waiting-connection {
+  margin-top: 0.5rem;
+}
+
+/* 接続状態の一行。色は `Loading.tsx` の `CONNECTION_TONE_CLASS` が選ぶ（文字を併記する）。 */
+.loading-connection {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem; /* scale-exempt: Tailwind の text-xs の写し（#316 で段へ寄せる） */
+  line-height: var(--timer-never-defined, calc(1 / 0.75)); /* 行の高さは status-strip.css 冒頭の注釈 */
+}
+
+.loading-connection-ok {
+  color: var(--ok);
+}
+
+.loading-connection-caution {
+  color: var(--caution);
+}
+
+.loading-connection-urgent {
+  color: var(--urgent);
+}
+
+/* 時間切れ（行き止まり） */
+.loading-timed-out {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-inline: auto;
+  max-width: 32rem;
+  padding-block: 2.5rem;
+}
+
+.loading-header {
+  text-align: center;
+}
+
+.loading-label {
+  margin-bottom: 0.5rem;
+}
+
+.loading-title {
+  font-weight: 900;
+}
+
+.loading-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 で段へ寄せる） */
+  line-height: var(--timer-never-defined, calc(1.25 / 0.875)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  color: var(--bone-muted);
+}
+
+.loading-notice-icon {
+  margin-top: 0.125rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+  color: var(--caution);
+}
+
+.loading-connection-row {
+  margin-top: 0.75rem;
+  text-align: center;
+}
+
+.loading-next-hint {
+  margin-top: 1.25rem;
+  font-size: 0.75rem; /* scale-exempt: Tailwind の text-xs の写し（#316 で段へ寄せる） */
+  line-height: var(--timer-never-defined, calc(1 / 0.75)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  color: var(--bone-subtle);
+}
+
+.loading-reload {
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+.loading-leave {
+  width: 100%;
+  margin-top: 0.75rem;
+}
+
+.loading-button-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.loading-button-icon {
+  width: 1rem;
+  height: 1rem;
+}

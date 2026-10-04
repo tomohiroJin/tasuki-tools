@@ -57,13 +57,13 @@ const CONNECTION_TEXT: Record<ConnectionStatus, string> = {
   stale: "同期できていません",
 };
 
-const CONNECTION_TONE: Record<ConnectionStatus, string> = {
-  connecting: "text-[var(--caution)]",
-  online: "text-[var(--ok)]",
-  reconnecting: "text-[var(--caution)]",
-  lost: "text-[var(--urgent)]",
-  stale: "text-[var(--caution)]",
-};
+const CONNECTION_TONE_CLASS = {
+  connecting: "loading-connection loading-connection-caution",
+  online: "loading-connection loading-connection-ok",
+  reconnecting: "loading-connection loading-connection-caution",
+  lost: "loading-connection loading-connection-urgent",
+  stale: "loading-connection loading-connection-caution",
+} as const satisfies Record<ConnectionStatus, string>;
 
 interface LoadingProps {
   /** いまの接続状態（#292 EARS 2）。ルームの画面が決まる前はここだけが出す。 */
@@ -86,7 +86,7 @@ interface LoadingProps {
 function ConnectionLine({ status }: { status: ConnectionStatus }) {
   return (
     <span
-      className={`inline-flex items-center gap-1 text-xs ${CONNECTION_TONE[status]}`}
+      className={CONNECTION_TONE_CLASS[status]}
       aria-label="接続状態"
     >
       <span aria-hidden="true">●</span>
@@ -101,21 +101,21 @@ export function Loading({ connectionStatus, timedOut, onReload, onLeave }: Loadi
     // 読み上げが「新しく現れたもの」として扱わず、気づけないことがある。
     return (
       <div
-        className="mx-auto flex max-w-lg flex-col gap-6 py-10"
+        className="loading-timed-out"
         role="alert"
         aria-live="assertive"
       >
-        <header className="text-center">
-          <p className="instrument-label mb-2 text-[var(--caution)]">Timed Out</p>
-          <h1 className="brand-title font-black text-[var(--bone)]">
+        <header className="loading-header">
+          <p className="instrument-label loading-label">Timed Out</p>
+          <h1 className="brand-title loading-title">
             ルームの情報を読み込めませんでした
           </h1>
         </header>
 
         <Card>
-          <p className="flex items-start gap-3 text-sm text-[var(--bone-muted)]">
+          <p className="loading-notice">
             <CloudOff
-              className="mt-0.5 w-5 h-5 shrink-0 text-[var(--caution)]"
+              className="loading-notice-icon"
               aria-hidden="true"
             />
             <span>
@@ -124,20 +124,20 @@ export function Loading({ connectionStatus, timedOut, onReload, onLeave }: Loadi
             </span>
           </p>
 
-          <p className="mt-3 text-center">
+          <p className="loading-connection-row">
             <ConnectionLine status={connectionStatus} />
           </p>
 
-          <p className="mt-5 text-xs text-[var(--bone-subtle)]">次にできること</p>
-          <PrimaryButton onClick={onReload} className="w-full mt-2">
-            <span className="flex items-center justify-center gap-2">
-              <RotateCcw className="w-4 h-4" aria-hidden="true" />
+          <p className="loading-next-hint">次にできること</p>
+          <PrimaryButton onClick={onReload} className="loading-reload">
+            <span className="loading-button-label">
+              <RotateCcw className="loading-button-icon" aria-hidden="true" />
               この画面を再読み込みする
             </span>
           </PrimaryButton>
-          <GhostButton onClick={onLeave} className="w-full mt-3">
-            <span className="flex items-center justify-center gap-2">
-              <ArrowLeft className="w-4 h-4" aria-hidden="true" />
+          <GhostButton onClick={onLeave} className="loading-leave">
+            <span className="loading-button-label">
+              <ArrowLeft className="loading-button-icon" aria-hidden="true" />
               最初の画面へ戻る
             </span>
           </GhostButton>
@@ -147,14 +147,14 @@ export function Loading({ connectionStatus, timedOut, onReload, onLeave }: Loadi
   }
 
   return (
-    <div className="py-16 text-center text-[var(--bone-subtle)]" role="status" aria-live="polite">
+    <div className="loading-waiting" role="status" aria-live="polite">
       {/* 点滅する点は装飾。読み上げは下の文言だけで足りる */}
       <span
-        className="inline-block h-4 w-4 animate-pulse rounded-full bg-[var(--signal)] mb-2"
+        className="loading-waiting-dot"
         aria-hidden="true"
       />
       <p>読み込んでいます…</p>
-      <p className="mt-2">
+      <p className="loading-waiting-connection">
         <ConnectionLine status={connectionStatus} />
       </p>
     </div>
