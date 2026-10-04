@@ -131,14 +131,102 @@ export function isTimerBuildSheet(sourceURL: string): boolean {
   return TIMER_BUILD_CSS.test(new URL(sourceURL).pathname);
 }
 
-/** 追加されたシートのうち、timer のビルドの CSS のシートの id。**ちょうど 1 本でなければ止める**（同じ id の重複通知は 1 本）。 */
-export function timerSheetId(headers: readonly { styleSheetId: string; sourceURL: string }[]): string {
+/** CDP のシートの見出し（`CSS.styleSheetAdded` の `header` のうち使う所）。 */
+export interface SheetHeader {
+  readonly styleSheetId: string;
+  readonly sourceURL: string;
+}
+
+/**
+ * 追加されたシートのうち、**止めた時点で生きている** timer のビルドの CSS のシートの id と本文。**ちょうど 1 本でなければ止める**
+ * （同じ id の重複通知は 1 本）。
+ *
+ * 生きているかは `readText`（`CSS.getStyleSheetText`）が読めるかで決める。遷移・再読み込みの前の文書のシートは
+ * `styleSheetRemoved` が来ないまま、id で読むと「No style sheet with given id found」で失敗する（素の Chromium で実測・
+ * 2026-10-04）。**`DOM.documentUpdated` で控えを空にする形は使わない**: `documentUpdated` は 1 回の遷移で 2 度来て、
+ * 2 度目が新しい文書の `styleSheetAdded` より後に届くことがあり、いまのシートまで消して「0 本」で止まった
+ * （比較のハーネスで 6 回中 4 回・同じ文書のまま 2 度目が来ていた。2026-10-04 実測）。
+ */
+export async function liveTimerSheet(
+  headers: readonly SheetHeader[],
+  readText: (styleSheetId: string) => Promise<string>,
+): Promise<{ styleSheetId: string; text: string }> {
   const ids = [...new Set(headers.filter((h) => isTimerBuildSheet(h.sourceURL)).map((h) => h.styleSheetId))];
-  if (ids.length !== 1) {
-    const urls = headers.map((h) => `${h.styleSheetId}=${h.sourceURL === '' ? '(空)' : h.sourceURL}`).join(', ');
-    throw new Error(`timer のビルドの CSS のシートが 1 本でない（${ids.length} 本・追加されたシート: ${urls}）`);
+  const alive: { styleSheetId: string; text: string }[] = [];
+  const dead: string[] = [];
+  for (const id of ids) {
+    try {
+      alive.push({ styleSheetId: id, text: await readText(id) });
+    } catch (e) {
+      dead.push(`${id}: ${e instanceof Error ? e.message : String(e)}`);
+    }
   }
-  return ids[0] ?? '';
+  const only = alive[0];
+  if (alive.length !== 1 || only === undefined) {
+    const urls = headers.map((h) => `${h.styleSheetId}=${h.sourceURL === '' ? '(空)' : h.sourceURL}`).join(', ');
+    throw new Error(
+      `timer のビルドの CSS のシートが 1 本でない（生きているのは ${alive.length} 本・読めなかったシート: ${dead.join(' / ') || 'なし'}・追加されたシート: ${urls}）`,
+    );
+  }
+  return only;
+}
+
+/** `node` の最も近い祖先の規則（無ければ undefined）。 */
+function closestRule(node: postcss.ChildNode): postcss.Rule | undefined {
+  for (let p: postcss.Node | undefined = node.parent; p !== undefined; p = p.parent) {
+    if (p.type === 'rule') return p as postcss.Rule;
+  }
+  return undefined;
+}
+
+/**
+ * 宣言が、Chromium の暗黙の規則（CSSNestedDeclarations）の塊の最初の宣言か。塊になるのは、規則の中の入れ子の at-rule の
+ * 中の宣言の並びと、入れ子の at-rule / 規則の後ろに続く宣言の並び（コメントは飛ばす）。規則の直下の最初の宣言の並びは、
+ * 規則そのものの当たりに含まれるので塊にならない。
+ */
+function startsNestedDeclarations(decl: postcss.Declaration): boolean {
+  let prev = decl.prev();
+  while (prev !== undefined && prev.type === 'comment') prev = prev.prev();
+  if (prev !== undefined) return prev.type === 'atrule' || prev.type === 'rule';
+  return decl.parent?.type === 'atrule';
+}
+
+/**
+ * CDP の規則の使用状況の当たり（`startOffset`）を、シートの本文 `css` の規則の鍵（{@link ruleKey}）へ引き当てる。
+ *
+ * - **規則の始まり（セレクタの先頭）**: その規則の鍵。CDP の `startOffset` は postcss の `rule.source.start.offset` と等しい
+ *   （実測・`usage.ts`）。包含では引かない（入れ子の外側の規則まで拾う）
+ * - **条件つきの at-rule の条件の先頭**（`@media (…) {` なら `(`）: 規則ではないので数えずに読み飛ばす
+ * - **暗黙の規則（CSSNestedDeclarations）の塊の最初の宣言の先頭**: 最も近い祖先の規則の鍵として数える。最小化しない
+ *   ビルドは、規則の中に入れ子の `@supports` を残す（Tailwind の preflight の `::placeholder`・`color-mix()` のフォールバック）。
+ *   Chromium はその中の宣言と、その後ろに続く宣言を、塊の最初の宣言の先頭で返す（2026-10-04 実測）
+ * - **どれにも当たらない**: `unmatched` に返す（呼び出し側が止める。オフセットの食い違いで当たりが黙って落ちると、
+ *   当たった規則を「当たらなかった」と読み違える）
+ *
+ * `keys` は重複なし・整列。
+ */
+export function resolveUsedKeys(css: string, offsets: readonly number[]): { keys: string[]; unmatched: number[] } {
+  const byOffset = new Map<number, string>();
+  const groups = new Set<number>();
+  postcss.parse(css).walk((node) => {
+    const start = node.source?.start?.offset;
+    if (start === undefined) return;
+    if (node.type === 'rule') byOffset.set(start, ruleKey(node));
+    // `@media (…) {` は `(` の位置で返る（`@` + 名前 + 名前の後の空白の後ろ）
+    if (node.type === 'atrule') groups.add(start + 1 + node.name.length + (node.raws.afterName?.length ?? 0));
+    if (node.type === 'decl' && startsNestedDeclarations(node)) {
+      const owner = closestRule(node);
+      if (owner !== undefined) byOffset.set(start, ruleKey(owner));
+    }
+  });
+  const keys = new Set<string>();
+  const unmatched: number[] = [];
+  for (const offset of offsets) {
+    const key = byOffset.get(offset);
+    if (key !== undefined) keys.add(key);
+    else if (!groups.has(offset)) unmatched.push(offset);
+  }
+  return { keys: [...keys].sort(), unmatched };
 }
 
 /**

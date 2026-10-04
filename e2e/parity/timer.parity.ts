@@ -11,7 +11,8 @@
  *
  * 規則の使用状況（E8）の設定（`parity.usage.config.ts`）で流したときだけ、ブランチの側で当たった CSS の規則を
  * `out/<キー>/usage.json` に書く（`usage.ts`・照合は `e2e/tests/usage-summary.test.ts`）。前の実行の `usage.json` は
- * テストの先頭で消す。
+ * テストの先頭で消す。この設定では、最小化しないビルドの見た目の差（差の件数と画素）を合否に数えず、`usage.json` を
+ * 書けたことと基準側の期待値の突き合わせだけを合否にする（`run-mode.ts` の `gatedDiff` / `gatesPixels`）。
  */
 import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -29,7 +30,7 @@ import {
   type ExpectationMeta,
 } from './expected';
 import { repoGeneration } from './git-head';
-import { runModeOf, type RunMode } from './run-mode';
+import { gatedDiff, gatesPixels, runModeOf, type RunMode } from './run-mode';
 import { captureInteractions, type InteractionCapture } from './interaction';
 import { APPROVED } from './approved';
 import { NOISE } from './noise';
@@ -131,8 +132,13 @@ function removeUsage(dir: string): void {
   rmSync(path.join(dir, USAGE_FILE), { force: true });
 }
 
-/** 当たった規則の鍵を `usage.json` に書く（規則の使用状況の設定で流したときだけ・`usage-summary.ts` が束ねる）。 */
-function writeUsage(dir: string, used: readonly string[] | undefined): void {
+/**
+ * 当たった規則の鍵を `usage.json` に書く（規則の使用状況の設定で流したときだけ・`usage-summary.ts` が束ねる）。
+ * 規則の使用状況の実行では、当たりが取れていない（undefined・0 件）なら止める（この実行の合否の 1 つ）。
+ */
+function writeUsage(dir: string, usage: boolean, used: readonly string[] | undefined): void {
+  if (!usage) return;
+  expect(used?.length ?? 0, `規則の使用状況の当たりが取れていない（${path.join(dir, USAGE_FILE)} を書けない）`).toBeGreaterThan(0);
   if (used === undefined) return;
   const record: UsageRecord = { generation: GENERATION, used: [...used] };
   writeFileSync(path.join(dir, USAGE_FILE), JSON.stringify(record, null, 2));
@@ -307,7 +313,7 @@ for (const state of STATES) {
     report['skipped'] = onlyOnOneSide(base.interactions.skipped, branch.interactions.skipped);
     // `--repeat-each` の 2 回目以降は別の置き場へ書く（上書きすると、揺れた回の中身が残らない。置き場はテストの先頭で決めた）
     mkdirSync(dir, { recursive: true });
-    writeUsage(dir, branch.used);
+    writeUsage(dir, mode.usage, branch.used);
     // 撮れた中身の要約（状態を作り損ねていないか・キーフレームを実際に拾えたかを後から読む）
     const summary = (c: Capture): Record<string, unknown> => ({
       served: c.served,
@@ -336,10 +342,11 @@ for (const state of STATES) {
       const snapshot = testInfo.snapshotPath(name);
       mkdirSync(path.dirname(snapshot), { recursive: true });
       writeFileSync(snapshot, base.screenshots.get(width) ?? Buffer.alloc(0));
-      expect.soft(branch.screenshots.get(width), `画素 ${name}`).toMatchSnapshot(name, { maxDiffPixels: 0 });
+      if (gatesPixels(mode)) expect.soft(branch.screenshots.get(width), `画素 ${name}`).toMatchSnapshot(name, { maxDiffPixels: 0 });
     }
 
-    const total = Object.values(report).reduce((n, list) => n + list.length, 0);
+    // 規則の使用状況では、基準側の期待値の突き合わせだけを数える（`run-mode.ts`。差は diff.json に書いてある）
+    const total = Object.values(gatedDiff(mode, report)).reduce((n, list) => n + list.length, 0);
     expect(total, `${state.name} の差（${path.join(dir, 'diff.json')}）`).toBe(0);
   });
 }
@@ -450,7 +457,7 @@ for (const state of STATES.filter((s) => TOUCH_STATES.has(s.name))) {
     };
     // `--repeat-each` の 2 回目以降は別の置き場へ書く（本体と同じ。置き場はテストの先頭で決めた）
     mkdirSync(dir, { recursive: true });
-    writeUsage(dir, branch.used);
+    writeUsage(dir, mode.usage, branch.used);
     const summary = (c: TouchCapture): Record<string, unknown> => ({
       served: c.served,
       elements: c.styles.length,
@@ -476,9 +483,10 @@ for (const state of STATES.filter((s) => TOUCH_STATES.has(s.name))) {
     const snapshot = testInfo.snapshotPath(png);
     mkdirSync(path.dirname(snapshot), { recursive: true });
     writeFileSync(snapshot, base.screenshot);
-    expect.soft(branch.screenshot, `画素 ${png}`).toMatchSnapshot(png, { maxDiffPixels: 0 });
+    if (gatesPixels(mode)) expect.soft(branch.screenshot, `画素 ${png}`).toMatchSnapshot(png, { maxDiffPixels: 0 });
 
-    const total = Object.values(report).reduce((n, list) => n + list.length, 0);
+    // 本体と同じく、規則の使用状況では基準側の期待値の突き合わせだけを数える
+    const total = Object.values(gatedDiff(mode, report)).reduce((n, list) => n + list.length, 0);
     expect(total, `${state.name}（タッチ）の差（${path.join(dir, 'diff.json')}）`).toBe(0);
   });
 }

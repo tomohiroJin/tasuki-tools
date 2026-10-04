@@ -30,3 +30,25 @@ export function runModeOf(metadata: Readonly<Record<string, unknown>>, projectNa
   };
   return { control: read('control'), unlayered: read('unlayered'), usage: read('usage') };
 }
+
+/** 規則の使用状況（E8）の実行で合否に数える、差の欄（基準側の期待値の突き合わせ・`timer.parity.ts` の `report`）。 */
+const USAGE_GATED_KEY = 'expected';
+
+/**
+ * 差の欄のうち、合否（件数が 0 であること）に数えるもの。通常の比較・対照実行・囲いを外した一時ビルドは全欄を数える。
+ *
+ * **規則の使用状況（E8）は基準側の期待値の突き合わせだけを数える。** 最小化と最適化をしないビルドは、計算済みスタイルが
+ * 基準と必ず違う（`session-memo` で styles@各幅 72 件・keyframes 2 件。2026-10-03 実測）。E8 は網羅の確認であって
+ * 効いているかの確認ではない（正本 §5.5）ので、見た目の合否は通常の比較に任せる。差は `diff.json` に書いたままにする。
+ */
+export function gatedDiff<T>(mode: RunMode, report: Readonly<Record<string, T>>): Record<string, T> {
+  if (!mode.usage) return { ...report };
+  const expected = report[USAGE_GATED_KEY];
+  if (expected === undefined) throw new Error(`差の欄に ${USAGE_GATED_KEY} が無い（規則の使用状況で数える欄が空になる）`);
+  return { [USAGE_GATED_KEY]: expected };
+}
+
+/** 画素の照合を合否に数えるか（規則の使用状況では数えない・{@link gatedDiff} と同じ理由）。 */
+export function gatesPixels(mode: RunMode): boolean {
+  return !mode.usage;
+}

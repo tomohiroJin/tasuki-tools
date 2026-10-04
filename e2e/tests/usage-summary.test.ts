@@ -16,7 +16,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   collectUsage,
   isTimerBuildSheet,
-  timerSheetId,
+  liveTimerSheet,
+  resolveUsedKeys,
   usageGateProblems,
   listUsageSources,
   readBuiltTimerCss,
@@ -93,19 +94,82 @@ describe('isTimerBuildSheet: timer のビルドの CSS のシートだけを対�
   });
 });
 
-describe('timerSheetId: 対象のシートはちょうど 1 本', () => {
+describe('liveTimerSheet: いま生きている timer の CSS のシートはちょうど 1 本', () => {
   const css = 'http://127.0.0.1:18080/timer/assets/index-a.css';
-  it('Given 撮影が差し込む <style>（sourceURL が空）と timer の CSS / Then timer の CSS の id だけを返す', () => {
-    expect(timerSheetId([{ styleSheetId: 's1', sourceURL: '' }, { styleSheetId: 's2', sourceURL: css }])).toBe('s2');
+  // 遷移の前の文書のシートの id は、CDP の `getStyleSheetText` が「No style sheet with given id found」で失敗する（実測）
+  const reader = (alive: Record<string, string>) => async (id: string): Promise<string> => {
+    const text = alive[id];
+    if (text === undefined) throw new Error('Protocol error (CSS.getStyleSheetText): No style sheet with given id found');
+    return text;
+  };
+  it('Given 撮影が差し込む <style>（sourceURL が空）と timer の CSS / Then timer の CSS の id と本文を返す', async () => {
+    const headers = [{ styleSheetId: 's1', sourceURL: '' }, { styleSheetId: 's2', sourceURL: css }];
+    await expect(liveTimerSheet(headers, reader({ s1: '', s2: '.a{}' }))).resolves.toEqual({ styleSheetId: 's2', text: '.a{}' });
   });
-  it('Given 同じシートの通知が 2 回 / Then 1 本と数える', () => {
-    expect(timerSheetId([{ styleSheetId: 's2', sourceURL: css }, { styleSheetId: 's2', sourceURL: css }])).toBe('s2');
+  it('Given 同じシートの通知が 2 回 / Then 1 本と数える', async () => {
+    const headers = [{ styleSheetId: 's2', sourceURL: css }, { styleSheetId: 's2', sourceURL: css }];
+    await expect(liveTimerSheet(headers, reader({ s2: '.a{}' }))).resolves.toEqual({ styleSheetId: 's2', text: '.a{}' });
   });
-  it('Given timer の CSS が無い / Then 止める', () => {
-    expect(() => timerSheetId([{ styleSheetId: 's1', sourceURL: '' }])).toThrow(/1 本でない/);
+  it('Given 遷移の前の文書のシート（もう無い）といまのシート / Then いまのシートだけを返す（DOM.documentUpdated の順序に頼らない）', async () => {
+    const headers = [{ styleSheetId: 'old', sourceURL: css }, { styleSheetId: 'now', sourceURL: css }];
+    await expect(liveTimerSheet(headers, reader({ now: '.b{}' }))).resolves.toEqual({ styleSheetId: 'now', text: '.b{}' });
   });
-  it('Given timer の CSS が 2 本 / Then 止める', () => {
-    expect(() => timerSheetId([{ styleSheetId: 's1', sourceURL: css }, { styleSheetId: 's2', sourceURL: css }])).toThrow(/1 本でない/);
+  it('Given timer の CSS が無い / Then 止める', async () => {
+    await expect(liveTimerSheet([{ styleSheetId: 's1', sourceURL: '' }], reader({ s1: '' }))).rejects.toThrow(/1 本でない/);
+  });
+  it('Given timer の CSS が全部もう無い / Then 止める（理由つき）', async () => {
+    await expect(liveTimerSheet([{ styleSheetId: 'old', sourceURL: css }], reader({}))).rejects.toThrow(/1 本でない.*No style sheet/);
+  });
+  it('Given 生きている timer の CSS が 2 本 / Then 止める', async () => {
+    const headers = [{ styleSheetId: 's1', sourceURL: css }, { styleSheetId: 's2', sourceURL: css }];
+    await expect(liveTimerSheet(headers, reader({ s1: '', s2: '' }))).rejects.toThrow(/1 本でない/);
+  });
+});
+
+describe('resolveUsedKeys: CDP の当たりのオフセットを規則の鍵へ引き当てる', () => {
+  // 素の Chromium（`<style>`）で CDP の `stopRuleUsageTracking` が返したオフセットをそのまま使う（2026-10-04 実測）。
+  // 入れ子の at-rule の中の宣言と、その後ろに続く宣言は、暗黙の規則（CSSNestedDeclarations）として、
+  // 塊の最初の宣言の先頭（前のコメントは飛ばす）で返る
+  const css = [
+    '.a {',
+    '  color: red;',
+    '  @supports (color: color-mix(in lab, red, red)) {',
+    '    /* c */ color: color-mix(in oklab, red 50%, blue);',
+    '  }',
+    '  margin: 0;',
+    '  /* x */  padding: 1px;',
+    '}',
+    '.b { @media (width >= 1px) { color: blue; } }',
+    '.c { color: red; .d & { color: blue } border: 0; }',
+    '',
+  ].join('\n');
+  it('前提: 実測のオフセットが宣言の先頭を指している', () => {
+    expect([82, 131, 198, 253].map((o) => css.slice(o, o + 6))).toEqual(['color:', 'margin', 'color:', 'border']);
+  });
+  it('Given 規則の先頭と at-rule の条件の先頭 / Then 規則だけを鍵にし、条件は読み飛ばす', () => {
+    expect(resolveUsedKeys(css, [0, 31, 169, 181, 215, 232])).toEqual({ keys: ['.a', '.b', '.c', '.d &'], unmatched: [] });
+  });
+  it('Given 入れ子の @supports の中の宣言の塊 / Then 最も近い祖先の規則の鍵として数える', () => {
+    expect(resolveUsedKeys(css, [82])).toEqual({ keys: ['.a'], unmatched: [] });
+  });
+  it('Given 入れ子の at-rule の後ろに続く宣言の塊・入れ子の規則の後ろの宣言の塊・@media の中の宣言 / Then 祖先の規則の鍵', () => {
+    expect(resolveUsedKeys(css, [131, 253, 198])).toEqual({ keys: ['.a', '.b', '.c'], unmatched: [] });
+  });
+  it('Given 塊の先頭でない宣言（規則の最初の宣言・塊の 2 つ目の宣言） / Then 引き当てない（止める側へ倒す）', () => {
+    const plain = css.indexOf('color: red;');
+    const second = css.indexOf('padding');
+    expect(resolveUsedKeys(css, [plain, second])).toEqual({ keys: [], unmatched: [plain, second] });
+  });
+  it('Given どこにも当たらないオフセット / Then unmatched に返す', () => {
+    expect(resolveUsedKeys(css, [1, 0])).toEqual({ keys: ['.a'], unmatched: [1] });
+  });
+  it('Given 祖先に規則の無い at-rule の中の宣言（@font-face） / Then 引き当てない', () => {
+    const face = '@font-face { font-family: x; src: url(a.woff2) }';
+    expect(resolveUsedKeys(face, [face.indexOf('font-family')])).toEqual({ keys: [], unmatched: [face.indexOf('font-family')] });
+  });
+  it('Given @layer の中の入れ子の @supports / Then 祖先の規則の鍵は @layer を除く', () => {
+    const layered = '@layer timer { @media (hover: hover) { .l:hover { color: red; @supports (x: y) { color: blue } } } }';
+    expect(resolveUsedKeys(layered, [layered.indexOf('color: blue')])).toEqual({ keys: ['@media (hover: hover)\u0000.l:hover'], unmatched: [] });
   });
 });
 
