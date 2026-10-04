@@ -15,7 +15,7 @@
   padding-inline: 1rem;
   padding-block: 0.5rem;
   font-size: 0.75rem; /* scale-exempt: Tailwind の text-xs の写し（#316 で段へ寄せる） */
-  line-height: calc(1 / 0.75);
+  line-height: 1rem; /* Tailwind の calc(1 / 0.75) は 12px × 1.33333 で 15.984px になり、基準の 16px と合わない（実測） */
   color: var(--bone-subtle);
 }
 
