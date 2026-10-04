@@ -69,7 +69,6 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..
 export const UNMIGRATED = [
   "apps/timer-web/src/ui/Lobby.tsx",
   "apps/timer-web/src/ui/Session.tsx",
-  "apps/timer-web/src/ui/Summary.tsx",
   "apps/timer-web/src/ui/components/CircularProgress.tsx",
   "apps/timer-web/src/ui/components/ConfirmDialog.tsx",
   "apps/timer-web/src/ui/components/EndSessionZone.tsx",

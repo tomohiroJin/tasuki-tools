@@ -1,0 +1,185 @@
+/* まとめの画面（`Summary.tsx`・#321）。Tailwind のユーティリティの写し。
+ * 値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。
+ * 写さなかった宣言（除去検査で dead）: 見出し・統計値の `text-[var(--bone)]`（親から継ぐので不要）、
+ * `instrument-label` の `text-[var(--signal)]`（レイヤー外の `base.css` が勝つ）、
+ * 統計カードの `p-3`、ドライバー別カードの `p-4`、アイコンの `lucide*` と、ボタンの `focus-visible:outline-none`。
+ * 行の高さ（`var(--timer-never-defined, calc(…))`）は status-strip.css 冒頭の注釈。 */
+
+.summary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  margin-inline: auto;
+  max-width: 28rem;
+  text-align: center;
+}
+
+.summary-title {
+  font-size: 1.875rem; /* scale-exempt: Tailwind の text-3xl の写し（#316 で段へ寄せる） */
+  line-height: 1.2;
+  font-weight: 900;
+}
+
+.summary-title-abort {
+  font-size: 1.5rem; /* scale-exempt: Tailwind の text-2xl の写し（#316 で段へ寄せる） */
+  line-height: var(--timer-never-defined, calc(2 / 1.5)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  font-weight: 700;
+  color: var(--bone-muted);
+}
+
+/* 達成バナー（完成時のみ） */
+.summary-banner {
+  width: 100%;
+  border-radius: var(--radius-md);
+  border-width: 1px;
+  border-color: var(--signal-edge);
+  background-color: var(--signal-tint);
+  padding: 1.25rem;
+  color: var(--signal);
+}
+
+.summary-banner-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 1.5rem; /* scale-exempt: Tailwind の text-2xl の写し（#316 で段へ寄せる） */
+  line-height: var(--timer-never-defined, calc(2 / 1.5)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  font-weight: 700;
+}
+
+.summary-banner-icon {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.summary-banner-note {
+  margin-top: 0.25rem;
+  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 で段へ寄せる） */
+  line-height: var(--timer-never-defined, calc(1.25 / 0.875)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  color: var(--bone-muted);
+}
+
+/* 3 列の統計カード */
+.summary-stats {
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+/* 640〜767px にだけ効く（Card 既定の 1.5rem を 1rem へ）。`.meter-panel` と詳細度が同じで、後に読まれて勝つ。 */
+@media (40rem <= width < 48rem) {
+  .summary-stat {
+    padding: 1rem;
+  }
+}
+
+.summary-stat-value {
+  white-space: nowrap;
+  font-size: 1.125rem; /* scale-exempt: Tailwind の text-lg の写し（#316 で段へ寄せる） */
+  line-height: var(--timer-never-defined, calc(1.75 / 1.125)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  font-weight: 700;
+}
+
+@media (width >= 40rem) {
+  .summary-stat-value {
+    font-size: 1.25rem; /* scale-exempt: Tailwind の text-xl の写し（#316 で段へ寄せる） */
+    line-height: 1.4;
+  }
+}
+
+/* ドライバー別の回数 */
+.summary-drivers {
+  width: 100%;
+  text-align: left;
+}
+
+.summary-drivers-label {
+  margin-bottom: 0.75rem;
+}
+
+:where(.summary-drivers-list > :not(:last-child)) {
+  margin-block-end: 0.5rem;
+}
+
+.summary-driver {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 で段へ寄せる） */
+  line-height: var(--timer-never-defined, calc(1.25 / 0.875)); /* 行の高さは status-strip.css 冒頭の注釈 */
+}
+
+.summary-driver-name {
+  width: 6rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--bone-muted);
+}
+
+.summary-driver-bar {
+  flex: 1 1 0%;
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background-color: var(--panel-2);
+}
+
+/* 幅は `style` が持つ（回数の比率） */
+.summary-driver-fill {
+  display: block;
+  height: 100%;
+  background-color: var(--signal);
+}
+
+.summary-driver-count {
+  width: 2.5rem;
+  text-align: right;
+  color: var(--bone-muted);
+}
+
+/* 保存の導線 */
+.summary-save {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.summary-button {
+  width: 100%;
+}
+
+.summary-button-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.summary-saved-icon {
+  width: 1rem;
+  height: 1rem;
+  color: var(--ok);
+}
+
+.summary-new-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.summary-hint {
+  font-size: 0.75rem; /* scale-exempt: Tailwind の text-xs の写し（#316 で段へ寄せる） */
+  line-height: var(--timer-never-defined, calc(1 / 0.75)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  color: var(--bone-subtle);
+}
+
+.summary-abort-note {
+  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 で段へ寄せる） */
+  line-height: var(--timer-never-defined, calc(1.25 / 0.875)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  color: var(--bone-subtle);
+}
