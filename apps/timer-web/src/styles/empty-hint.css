@@ -1,0 +1,27 @@
+/* 空の案内（`EmptyHint.tsx`・#321）。Tailwind のユーティリティの写し。履歴とロビーが使う。
+ * 値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。
+ * 行の高さ（`var(--timer-never-defined, calc(…))`）は status-strip.css 冒頭の注釈。 */
+
+.empty-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  border-radius: var(--radius-md);
+  border-width: 1px;
+  border-style: dashed;
+  border-color: var(--hairline-strong);
+  background-color: var(--panel-2);
+  padding-inline: 0.75rem;
+  padding-block: 0.5rem;
+  font-size: 0.75rem; /* scale-exempt: Tailwind の text-xs の写し（#316 で段へ寄せる） */
+  line-height: var(--timer-never-defined, calc(1 / 0.75)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  color: var(--bone-muted);
+}
+
+.empty-hint-icon {
+  margin-top: 0.125rem;
+  width: 0.875rem;
+  height: 0.875rem;
+  flex-shrink: 0;
+  color: var(--bone-subtle);
+}

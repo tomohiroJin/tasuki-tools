@@ -29,20 +29,20 @@ function Inline({ nodes, keyBase }: { nodes: readonly MdInline[]; keyBase: strin
             return (
               <code
                 key={key}
-                className="rounded bg-[var(--panel)] border border-[var(--hairline)] px-1 py-0.5 text-[0.85em] font-mono text-[var(--bone)]"
+                className="markdown-code"
               >
                 {n.text}
               </code>
             );
           case "strong":
             return (
-              <strong key={key} className="font-bold text-[var(--bone)]">
+              <strong key={key} className="markdown-strong">
                 <Inline nodes={n.children} keyBase={key} />
               </strong>
             );
           case "em":
             return (
-              <em key={key} className="italic">
+              <em key={key} className="markdown-em">
                 <Inline nodes={n.children} keyBase={key} />
               </em>
             );
@@ -55,7 +55,7 @@ function Inline({ nodes, keyBase }: { nodes: readonly MdInline[]; keyBase: strin
                 href={n.href}
                 target="_blank"
                 rel="noopener noreferrer nofollow"
-                className="text-[var(--signal)] underline decoration-[var(--signal)]/50 underline-offset-2 hover:decoration-[var(--signal)] break-all"
+                className="markdown-link"
               >
                 {n.text}
               </a>
@@ -79,11 +79,11 @@ function Lines({ lines, keyBase }: { lines: readonly MdInline[][]; keyBase: stri
   );
 }
 
-const HEADING_CLASS: Record<number, string> = {
-  1: "text-base font-bold text-[var(--bone)] mt-3 mb-1 first:mt-0",
-  2: "text-sm font-bold text-[var(--bone)] mt-3 mb-1 first:mt-0",
-  3: "text-sm font-semibold text-[var(--bone-muted)] mt-2 mb-1 first:mt-0",
-};
+const HEADING_CLASS = {
+  1: "markdown-heading markdown-heading-1",
+  2: "markdown-heading markdown-heading-2",
+  3: "markdown-heading markdown-heading-3",
+} as const;
 
 // 見出しの段: level 1〜3 に headingBase - 1 を足す（3 なら h3〜h5、4 なら h4〜h6）
 const tagFor = (level: 1 | 2 | 3, base: 3 | 4) => `h${level + base - 1}` as "h3" | "h4" | "h5" | "h6";
@@ -100,21 +100,19 @@ function Block({ block, keyBase, headingBase }: { block: MdBlock; keyBase: strin
     }
     case "code":
       return (
-        <pre
-          className="rounded-md bg-[var(--panel)] border border-[var(--hairline)] p-3 text-xs font-mono text-[var(--bone)] overflow-x-auto whitespace-pre-wrap"
-        >
+        <pre className="markdown-pre">
           {block.text}
         </pre>
       );
     case "quote":
       return (
-        <blockquote className="border-l-2 border-[var(--signal)] pl-3 text-[var(--bone-subtle)]">
+        <blockquote className="markdown-quote">
           <Lines lines={block.lines} keyBase={keyBase} />
         </blockquote>
       );
     case "ul":
       return (
-        <ul className="list-disc pl-5 space-y-0.5">
+        <ul className="markdown-ul">
           {block.items.map((item, j) => (
             <li key={`${keyBase}-${j}`}><Inline nodes={item} keyBase={`${keyBase}-${j}`} /></li>
           ))}
@@ -122,7 +120,7 @@ function Block({ block, keyBase, headingBase }: { block: MdBlock; keyBase: strin
       );
     case "ol":
       return (
-        <ol className="list-decimal pl-5 space-y-0.5">
+        <ol className="markdown-ol">
           {block.items.map((item, j) => (
             <li key={`${keyBase}-${j}`}><Inline nodes={item} keyBase={`${keyBase}-${j}`} /></li>
           ))}
@@ -130,7 +128,7 @@ function Block({ block, keyBase, headingBase }: { block: MdBlock; keyBase: strin
       );
     case "p":
       return (
-        <p className="text-[var(--bone-muted)]">
+        <p className="markdown-paragraph">
           <Lines lines={block.lines} keyBase={keyBase} />
         </p>
       );
@@ -150,7 +148,7 @@ interface MarkdownProps {
 /** Markdown サブセットを描画する。空文字なら何も描かない。 */
 export function Markdown({ source, className = "", headingBase = 3 }: MarkdownProps) {
   return (
-    <div className={`text-sm leading-relaxed text-[var(--bone-muted)] space-y-2 ${className}`}>
+    <div className={`markdown ${className}`}>
       {parseMarkdown(source).map((b, i) => (
         <Block key={`b${i}`} block={b} keyBase={`b${i}`} headingBase={headingBase} />
       ))}

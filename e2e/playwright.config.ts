@@ -5,9 +5,12 @@
  * Playwright が default export を要求するため。
  */
 import { defineConfig, devices } from '@playwright/test';
+import { assertNoLeftoverParityBuildSwitches } from './harness/parity-build-switches';
 import { resolveTarget } from './harness/target';
 
 const target = resolveTarget(process.env);
+// #321 の比較の仕組み（e2e/parity）の timer の CSS の切り替えが残っていたら止める（globalSetup のビルドへ届く）
+assertNoLeftoverParityBuildSwitches(process.env, 'playwright.config.ts');
 const isProduction = target.kind === 'production';
 const isCi = process.env['CI'] !== undefined;
 

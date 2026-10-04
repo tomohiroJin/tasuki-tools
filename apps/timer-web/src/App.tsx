@@ -200,7 +200,7 @@ export default function App() {
           セッション喪失時も出さない。ルームはもう無いのに「セッション中」と言い続けることになり、
           本文の「セッションが見つかりません」と矛盾する（#76 F-4）。 */}
       {mode !== null && !sessionLost && (
-        <div className="mb-4">
+        <div className="app-status-strip">
           <StatusStrip
             phase={mode}
             displayName={selfName}
@@ -214,11 +214,7 @@ export default function App() {
         <div
           role={banner.kind === "error" ? "alert" : "status"}
           aria-live={banner.kind === "error" ? "assertive" : "polite"}
-          className={`mb-4 rounded-md px-4 py-2 text-center text-sm border ${
-            banner.kind === "error"
-              ? "bg-[var(--urgent-tint)] border-[var(--urgent-edge)] text-[var(--urgent-pale)]"
-              : "bg-[var(--caution-tint)] border-[var(--caution-edge)] text-[var(--caution)]"
-          }`}
+          className={banner.kind === "error" ? "app-banner app-banner-error" : "app-banner app-banner-warn"}
         >
           {banner.text}
         </div>

@@ -573,6 +573,35 @@
       ]
     }
   },
+  "session-memo-markdown": {
+    "elements": {
+      "360": 316,
+      "640": 316,
+      "768": 316,
+      "1024": 316,
+      "1280": 316
+    },
+    "motionEntries": 310,
+    "keyframes": [
+      "chrono-sweep",
+      "fade-up",
+      "pop-in"
+    ],
+    "interactions": {
+      "counts": {
+        "hover": 27,
+        "active": 27,
+        "focus-visible": 24
+      },
+      "entries": 224,
+      "notEntered": [],
+      "skipped": [
+        "focus-visible: ゲスト を後の順番へ（Tab で届かない: 無効）",
+        "focus-visible: ホスト を前の順番へ（Tab で届かない: 無効）",
+        "focus-visible: ルーム（Tab で届かない: tabindex=\"-1\"（Tab の順に入らない））"
+      ]
+    }
+  },
   "session-navigator": {
     "elements": {
       "360": 293,

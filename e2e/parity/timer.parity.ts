@@ -8,21 +8,40 @@
  *
  * 差のほかに、基準側の要約を期待値（`expected/base-summary.json`・`expected.ts`）と突き合わせる（両側で同じように
  * 空になっても緑にしないため）。各テストの先頭で、`-u` で流していないことを断定する（`context.ts`）。
+ *
+ * 規則の使用状況（E8）の設定（`parity.usage.config.ts`）で流したときだけ、ブランチの側で当たった CSS の規則を
+ * `out/<キー>/usage.json` に書く（`usage.ts`・照合は `e2e/tests/usage-summary.test.ts`）。前の実行の `usage.json` は
+ * テストの先頭で消す。この設定では、最小化しないビルドの見た目の差（差の件数と画素）を合否に数えず、`usage.json` を
+ * 書けたことと基準側の期待値の突き合わせだけを合否にする（`run-mode.ts` の `gatedDiff` / `gatesPixels`）。
  */
-import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test, type Browser, type BrowserContext, type Page, type TestInfo } from '@playwright/test';
 import { BASE_DIST, type BaseServing } from './base-dist';
 import { captureKeyframes, captureMotion, captureStyles } from './capture';
 import { assertSnapshotsNotUpdated, newParityContext, type ParityRole } from './context';
 import { diffEntries, diffKeyframes, themeVarNamesFromCss, type StyleDiff, type StyleEntry } from './compare-lib';
-import { BASE_EXPECTATION_FILE, checkExpectation, expectedKeyProblems, loadExpected } from './expected';
+import {
+  BASE_EXPECTATION_FILE,
+  BASE_EXPECTATION_META_FILE,
+  checkExpectation,
+  expectedKeyProblems,
+  loadExpected,
+  type ExpectationMeta,
+} from './expected';
+import { repoGeneration } from './git-head';
+import { gatedDiff, gatesPixels, runModeOf, type RunMode } from './run-mode';
 import { captureInteractions, type InteractionCapture } from './interaction';
+import { APPROVED } from './approved';
 import { NOISE } from './noise';
 import { scrollToTop, settleAtWidth, waitForInviteQr } from './settle';
 import { METER_ARC_SELECTOR, SCREENSHOT_STYLE, STATES, WIDTHS, type ParityState } from './states';
+import { startRuleUsage, stopRuleUsage, type RuleUsageSession } from './usage';
+import { USAGE_FILE, type UsageRecord } from './usage-summary';
 
 const OUT = path.join(path.dirname(new URL(import.meta.url).pathname), 'out');
+/** 作業ツリーの世代（基準側の要約の控えに書き、期待値の作り直しが揃いを断定する・`expected.ts`）。 */
+const GENERATION = repoGeneration();
 const HEIGHT = 900;
 /** 操作の状態を書き出す幅。 */
 const INTERACTION_WIDTH = 1280;
@@ -38,6 +57,8 @@ interface Capture {
   readonly interactions: InteractionCapture;
   /** 基準の dist から返した件数（ブランチの側は 0）。 */
   readonly served: number;
+  /** 当たった CSS の規則の鍵（規則の使用状況の設定で流したときの、ブランチの側だけ・`usage.ts`）。 */
+  readonly used?: string[];
 }
 
 /** 基準の dist の CSS から、Tailwind の theme 層の変数の名簿を導く（§5.4 の類 1）。 */
@@ -79,19 +100,48 @@ function onlyOnOneSide(base: readonly string[], branch: readonly string[]): stri
   return extra;
 }
 
-/** 対照実行の設定（`parity.control.config.ts`）が付ける project の名前。list の行頭に `[対照実行]` と出る。 */
-const CONTROL_PROJECT = '対照実行';
+/** 実行の種類を設定ファイルから読む（`run-mode.ts`。`metadata` と project の名前が食い違ったら止める）。 */
+function runMode(testInfo: TestInfo): RunMode {
+  return runModeOf(testInfo.config.metadata, testInfo.project.name);
+}
 
 /**
- * 対照実行かを設定ファイルから読む（`metadata.parityControl`・環境変数は読まない・`context.ts`）。
- * project の名前（行頭の明記）と食い違ったら止める（片方だけ書き換えた設定で、明記と中身がずれないように）。
+ * 規則の使用状況の追跡（ブランチの側で、規則の使用状況の設定で流したときだけ）。**ページを開いた直後（最初の遷移より前）に
+ * 始める**（`usage.ts`。追跡より前に読み込んだ `<link>` の CSS の当たりは返らない）。状態の作り方は参加者ごとにページを
+ * 開くので、開いたページの全部で始め、目印のあるページ（`setup` が返したページ）の分だけを止めて読む。
  */
-function isControlRun(testInfo: TestInfo): boolean {
-  const control = testInfo.config.metadata['parityControl'] === true;
-  if (control !== (testInfo.project.name === CONTROL_PROJECT)) {
-    throw new Error(`metadata.parityControl（${String(control)}）と project の名前（${testInfo.project.name}）が食い違う`);
+class UsageTracker {
+  private readonly sessions = new Map<Page, RuleUsageSession>();
+  constructor(private readonly enabled: boolean) {}
+
+  async opened(page: Page): Promise<void> {
+    if (this.enabled) this.sessions.set(page, await startRuleUsage(page));
   }
-  return control;
+
+  /** 目印のあるページの当たり。追跡していなければ undefined。 */
+  async stop(page: Page): Promise<string[] | undefined> {
+    if (!this.enabled) return undefined;
+    const session = this.sessions.get(page);
+    if (session === undefined) throw new Error('目印のあるページで規則の使用状況を追跡していない（open を通さずに開いた）');
+    return stopRuleUsage(session);
+  }
+}
+
+/** 前の実行の `usage.json` を消す（流し損ねた回の古い当たりを束ねない。書くのは `stopRuleUsage` の後）。 */
+function removeUsage(dir: string): void {
+  rmSync(path.join(dir, USAGE_FILE), { force: true });
+}
+
+/**
+ * 当たった規則の鍵を `usage.json` に書く（規則の使用状況の設定で流したときだけ・`usage-summary.ts` が束ねる）。
+ * 規則の使用状況の実行では、当たりが取れていない（undefined・0 件）なら止める（この実行の合否の 1 つ）。
+ */
+function writeUsage(dir: string, usage: boolean, used: readonly string[] | undefined): void {
+  if (!usage) return;
+  expect(used?.length ?? 0, `規則の使用状況の当たりが取れていない（${path.join(dir, USAGE_FILE)} を書けない）`).toBeGreaterThan(0);
+  if (used === undefined) return;
+  const record: UsageRecord = { generation: GENERATION, used: [...used] };
+  writeFileSync(path.join(dir, USAGE_FILE), JSON.stringify(record, null, 2));
 }
 
 /**
@@ -136,10 +186,11 @@ async function screenshotOf(page: Page, state: ParityState): Promise<Buffer> {
   return page.screenshot({ fullPage: true, animations: 'disabled', mask: state.mask(page), style: SCREENSHOT_STYLE });
 }
 
-async function captureSide(browser: Browser, state: ParityState, role: ParityRole): Promise<Capture> {
+async function captureSide(browser: Browser, state: ParityState, role: ParityRole, usage: boolean): Promise<Capture> {
   const { side } = role;
   const contexts: BrowserContext[] = [];
   const servings: BaseServing[] = [];
+  const tracker = new UsageTracker(usage && role.side === 'branch');
   const open = async (): Promise<Page> => {
     const { context, serving } = await newParityContext(browser, role, {
       viewport: { width: 1280, height: HEIGHT },
@@ -147,7 +198,9 @@ async function captureSide(browser: Browser, state: ParityState, role: ParityRol
     });
     if (serving !== null) servings.push(serving);
     contexts.push(context);
-    return context.newPage();
+    const page = await context.newPage();
+    await tracker.opened(page);
+    return page;
   };
   try {
     const page = await state.setup(open);
@@ -178,7 +231,9 @@ async function captureSide(browser: Browser, state: ParityState, role: ParityRol
     // 3. 操作の状態: 静止の読みを全部終えてから行う（押下や Tab で残るフォーカス・スクロールを、静止の読みへ持ち込まない）
     const interactions = await captureInteractionsAt(page, state, INTERACTION_WIDTH);
     const served = servings.reduce((n, s) => n + s.served(), 0);
-    return { styles, screenshots, motion, keyframes, interactions, served };
+    const captured = { styles, screenshots, motion, keyframes, interactions, served };
+    const used = await tracker.stop(page);
+    return used === undefined ? captured : { ...captured, used };
   } finally {
     for (const c of contexts) await c.close();
   }
@@ -187,8 +242,8 @@ async function captureSide(browser: Browser, state: ParityState, role: ParityRol
 const themeVars = tailwindThemeVars();
 
 /**
- * テストのタイトル。通常の比較でも対照実行でも正しい言い方にする（対照実行は list の行頭の `[対照実行]` と
- * summary.json の `control` で明記する・`parity.control.config.ts`）。
+ * テストのタイトル。通常の比較でも対照実行でも正しい言い方にする（実行の種類は list の行頭の `[対照実行]` などと
+ * summary.json の `control` / `unlayered` / `usage` で明記する・`run-mode.ts`）。
  */
 const VERDICT = '基準と並べて一致する';
 
@@ -220,20 +275,28 @@ function expectationOf(
   };
 }
 
-/** 期待値を突き合わせ、基準側の要約をその置き場へ書く（期待値の作り直しはこれを束ねる・README）。 */
-function checkBaseExpectation(dir: string, key: string, expectation: Record<string, unknown>): string[] {
+/**
+ * 期待値を突き合わせ、基準側の要約をその置き場へ書く（期待値の作り直しはこれを束ねる・README）。
+ * 隣に世代と下限の控えを書く（束ねるときに、前の世代の要約の混在と 0 や空の要約を止めるため）。
+ */
+function checkBaseExpectation(dir: string, key: string, expectation: Record<string, unknown>, minElements: number): string[] {
   writeFileSync(path.join(dir, BASE_EXPECTATION_FILE), JSON.stringify(expectation, null, 2));
+  const meta: ExpectationMeta = { generation: GENERATION, minElements };
+  writeFileSync(path.join(dir, BASE_EXPECTATION_META_FILE), JSON.stringify(meta, null, 2));
   return checkExpectation(EXPECTED, key, expectation);
 }
 
 for (const state of STATES) {
   test(`${state.name}: ${VERDICT}`, async ({ browser }, testInfo) => {
     assertSnapshotsNotUpdated(testInfo);
-    const control = isControlRun(testInfo);
-    const base = await captureSide(browser, state, { side: 'base', control });
-    const branch = await captureSide(browser, state, { side: 'branch', control });
+    const mode = runMode(testInfo);
+    const { control } = mode;
+    const dir = path.join(OUT, testInfo.repeatEachIndex === 0 ? state.name : `${state.name}-r${testInfo.repeatEachIndex}`);
+    removeUsage(dir);
+    const base = await captureSide(browser, state, { side: 'base', control }, mode.usage);
+    const branch = await captureSide(browser, state, { side: 'branch', control }, mode.usage);
 
-    const options = { tailwindThemeVars: themeVars, ignore: NOISE };
+    const options = { tailwindThemeVars: themeVars, ignore: [...NOISE, ...APPROVED] };
     const report: Record<string, StyleDiff[] | string[]> = {
       motion: diffEntries(base.motion, branch.motion, options),
       keyframes: diffKeyframes(base.keyframes, branch.keyframes),
@@ -248,9 +311,9 @@ for (const state of STATES) {
       ...branch.interactions.notEntered.map((s) => `branch ${s}`),
     ];
     report['skipped'] = onlyOnOneSide(base.interactions.skipped, branch.interactions.skipped);
-    // `--repeat-each` の 2 回目以降は別の置き場へ書く（上書きすると、揺れた回の中身が残らない）
-    const dir = path.join(OUT, testInfo.repeatEachIndex === 0 ? state.name : `${state.name}-r${testInfo.repeatEachIndex}`);
+    // `--repeat-each` の 2 回目以降は別の置き場へ書く（上書きすると、揺れた回の中身が残らない。置き場はテストの先頭で決めた）
     mkdirSync(dir, { recursive: true });
+    writeUsage(dir, mode.usage, branch.used);
     // 撮れた中身の要約（状態を作り損ねていないか・キーフレームを実際に拾えたかを後から読む）
     const summary = (c: Capture): Record<string, unknown> => ({
       served: c.served,
@@ -261,11 +324,16 @@ for (const state of STATES) {
     });
     writeFileSync(
       path.join(dir, 'summary.json'),
-      JSON.stringify({ control, base: summary(base), branch: summary(branch) }, null, 2),
+      JSON.stringify({ ...mode, base: summary(base), branch: summary(branch) }, null, 2),
     );
     // 基準側の要約を期待値と突き合わせる（両側で同じように空でも緑にしない）
     const elements = Object.fromEntries(WIDTHS.map((w) => [w, base.styles.get(w)?.length ?? 0]));
-    report['expected'] = checkBaseExpectation(dir, state.name, expectationOf(elements, base.motion, base.keyframes, base.interactions));
+    report['expected'] = checkBaseExpectation(
+      dir,
+      state.name,
+      expectationOf(elements, base.motion, base.keyframes, base.interactions),
+      state.minElements,
+    );
     writeFileSync(path.join(dir, 'diff.json'), JSON.stringify(report, null, 2));
 
     // 画素: 基準の画像を snapshot の置き場へ書き、ブランチの画像を照合する（maxDiffPixels: 0）
@@ -274,10 +342,11 @@ for (const state of STATES) {
       const snapshot = testInfo.snapshotPath(name);
       mkdirSync(path.dirname(snapshot), { recursive: true });
       writeFileSync(snapshot, base.screenshots.get(width) ?? Buffer.alloc(0));
-      expect.soft(branch.screenshots.get(width), `画素 ${name}`).toMatchSnapshot(name, { maxDiffPixels: 0 });
+      if (gatesPixels(mode)) expect.soft(branch.screenshots.get(width), `画素 ${name}`).toMatchSnapshot(name, { maxDiffPixels: 0 });
     }
 
-    const total = Object.values(report).reduce((n, list) => n + list.length, 0);
+    // 規則の使用状況では、基準側の期待値の突き合わせだけを数える（`run-mode.ts`。差は diff.json に書いてある）
+    const total = Object.values(gatedDiff(mode, report)).reduce((n, list) => n + list.length, 0);
     expect(total, `${state.name} の差（${path.join(dir, 'diff.json')}）`).toBe(0);
   });
 }
@@ -309,16 +378,19 @@ interface TouchCapture {
   readonly interactions: InteractionCapture;
   /** 基準の dist から返した件数（ブランチの側は 0）。 */
   readonly served: number;
+  /** 当たった CSS の規則の鍵（本体の `Capture` と同じ）。 */
+  readonly used?: string[];
 }
 
 /**
  * タッチの文脈で 1 側を撮る。本体と同じ 2 通りの読み方をする（`no-preference` で動きのプロパティとキーフレーム、
  * `reduce` で全プロパティと画素）。その後に操作の状態を書き出す。
  */
-async function captureTouchSide(browser: Browser, state: ParityState, role: ParityRole): Promise<TouchCapture> {
+async function captureTouchSide(browser: Browser, state: ParityState, role: ParityRole, usage: boolean): Promise<TouchCapture> {
   const { side } = role;
   const contexts: BrowserContext[] = [];
   const servings: BaseServing[] = [];
+  const tracker = new UsageTracker(usage && role.side === 'branch');
   const open = async (): Promise<Page> => {
     const { context, serving } = await newParityContext(browser, role, {
       viewport: { width: TOUCH_WIDTH, height: HEIGHT },
@@ -327,7 +399,9 @@ async function captureTouchSide(browser: Browser, state: ParityState, role: Pari
     });
     if (serving !== null) servings.push(serving);
     contexts.push(context);
-    return context.newPage();
+    const page = await context.newPage();
+    await tracker.opened(page);
+    return page;
   };
   try {
     const page = await state.setup(open);
@@ -351,7 +425,9 @@ async function captureTouchSide(browser: Browser, state: ParityState, role: Pari
     // 3. 操作の状態
     const interactions = await captureInteractionsAt(page, state, TOUCH_WIDTH);
     const served = servings.reduce((n, s) => n + s.served(), 0);
-    return { styles, screenshot, motion, keyframes, interactions, served };
+    const captured = { styles, screenshot, motion, keyframes, interactions, served };
+    const used = await tracker.stop(page);
+    return used === undefined ? captured : { ...captured, used };
   } finally {
     for (const c of contexts) await c.close();
   }
@@ -360,10 +436,14 @@ async function captureTouchSide(browser: Browser, state: ParityState, role: Pari
 for (const state of STATES.filter((s) => TOUCH_STATES.has(s.name))) {
   test(`${state.name}（タッチ・${TOUCH_WIDTH}px）: ${VERDICT}`, async ({ browser }, testInfo) => {
     assertSnapshotsNotUpdated(testInfo);
-    const control = isControlRun(testInfo);
-    const base = await captureTouchSide(browser, state, { side: 'base', control });
-    const branch = await captureTouchSide(browser, state, { side: 'branch', control });
-    const options = { tailwindThemeVars: themeVars, ignore: NOISE };
+    const mode = runMode(testInfo);
+    const { control } = mode;
+    const name = touchKey(state.name);
+    const dir = path.join(OUT, testInfo.repeatEachIndex === 0 ? name : `${name}-r${testInfo.repeatEachIndex}`);
+    removeUsage(dir);
+    const base = await captureTouchSide(browser, state, { side: 'base', control }, mode.usage);
+    const branch = await captureTouchSide(browser, state, { side: 'branch', control }, mode.usage);
+    const options = { tailwindThemeVars: themeVars, ignore: [...NOISE, ...APPROVED] };
     const report: Record<string, StyleDiff[] | string[]> = {
       motion: diffEntries(base.motion, branch.motion, options),
       keyframes: diffKeyframes(base.keyframes, branch.keyframes),
@@ -375,10 +455,9 @@ for (const state of STATES.filter((s) => TOUCH_STATES.has(s.name))) {
       ],
       skipped: onlyOnOneSide(base.interactions.skipped, branch.interactions.skipped),
     };
-    // `--repeat-each` の 2 回目以降は別の置き場へ書く（本体と同じ）
-    const name = touchKey(state.name);
-    const dir = path.join(OUT, testInfo.repeatEachIndex === 0 ? name : `${name}-r${testInfo.repeatEachIndex}`);
+    // `--repeat-each` の 2 回目以降は別の置き場へ書く（本体と同じ。置き場はテストの先頭で決めた）
     mkdirSync(dir, { recursive: true });
+    writeUsage(dir, mode.usage, branch.used);
     const summary = (c: TouchCapture): Record<string, unknown> => ({
       served: c.served,
       elements: c.styles.length,
@@ -388,10 +467,15 @@ for (const state of STATES.filter((s) => TOUCH_STATES.has(s.name))) {
     });
     writeFileSync(
       path.join(dir, 'summary.json'),
-      JSON.stringify({ control, base: summary(base), branch: summary(branch) }, null, 2),
+      JSON.stringify({ ...mode, base: summary(base), branch: summary(branch) }, null, 2),
     );
     // 基準側の要約を期待値と突き合わせる（本体と同じ）
-    report['expected'] = checkBaseExpectation(dir, name, expectationOf(base.styles.length, base.motion, base.keyframes, base.interactions));
+    report['expected'] = checkBaseExpectation(
+      dir,
+      name,
+      expectationOf(base.styles.length, base.motion, base.keyframes, base.interactions),
+      state.minElements,
+    );
     writeFileSync(path.join(dir, 'diff.json'), JSON.stringify(report, null, 2));
 
     // 画素: 本体と同じく、基準の画像を snapshot の置き場へ書き、ブランチの画像を照合する（maxDiffPixels: 0）
@@ -399,9 +483,10 @@ for (const state of STATES.filter((s) => TOUCH_STATES.has(s.name))) {
     const snapshot = testInfo.snapshotPath(png);
     mkdirSync(path.dirname(snapshot), { recursive: true });
     writeFileSync(snapshot, base.screenshot);
-    expect.soft(branch.screenshot, `画素 ${png}`).toMatchSnapshot(png, { maxDiffPixels: 0 });
+    if (gatesPixels(mode)) expect.soft(branch.screenshot, `画素 ${png}`).toMatchSnapshot(png, { maxDiffPixels: 0 });
 
-    const total = Object.values(report).reduce((n, list) => n + list.length, 0);
+    // 本体と同じく、規則の使用状況では基準側の期待値の突き合わせだけを数える
+    const total = Object.values(gatedDiff(mode, report)).reduce((n, list) => n + list.length, 0);
     expect(total, `${state.name}（タッチ）の差（${path.join(dir, 'diff.json')}）`).toBe(0);
   });
 }

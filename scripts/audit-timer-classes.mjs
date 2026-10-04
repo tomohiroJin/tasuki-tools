@@ -8,7 +8,7 @@
  *      「まだ移していないファイル」の一覧（{@link UNMIGRATED}）に、実在しないファイルと、**一覧から外しても 1 と 2 を通る
  *      ファイル**があれば落とす（古い一覧が、移したファイルを免除し続けるのを止める）。ただし、クラス名を書く場所
  *      （`className` の属性・キー）も字面のクラス名も無く、本文に `className` / `_CLASS` / 語末の `Class` の字面だけがある
- *      ファイル（関数でクラス名を返す `presence.ts`）は、中身を検査できないので落とさない
+ *      ファイル（関数でクラス名を返す `.ts`）は、中身を検査できないので落とさない
  *   1. **書き方**（一覧に無いファイルだけ）: `className` の属性と、オブジェクトの `className` キー（スプレッドや
  *      `createElement` の props）に渡してよいのは、文字列リテラル・置換の無いテンプレート・それらを枝に持つ条件式・
  *      名前が `_CLASS` で終わる表の要素・`className` という名前の値（部品の受け渡し）と、それを置換に持つテンプレートだけ。
@@ -25,6 +25,11 @@
  *      `tailwind.config.js` で足したものを含む）と重ならない
  *      （{@link KNOWN_COLLISIONS} に理由つきで載せたものを除く。使われていない例外は落とす）。
  *      部品層の接頭辞 `ui-` で始まるクラスも定義しない（部品層に在るか無いかを問わない）
+ *   4. **宣言禁止の変数**: `--timer-never-defined` は、timer の CSS・部品層・要素層のどこでも宣言しない（参照だけ許す。
+ *      宣言すると、行の高さの `var(--timer-never-defined, calc(…))` を使う全箇所が黙って入れ替わる）
+ *   5. **借り物のキーフレームの出どころ**: timer の CSS の `animation` / `animation-name` が名指しするキーフレームは、
+ *      timer の CSS が `@keyframes` で定義するか、`UNMIGRATED` のファイルに `animate-<名前>` の字面があるか（Tailwind が出す）
+ *      のどちらかでなければ落とす（出どころの `animate-*` を消した瞬間にアニメーションが黙って止まるのを防ぐ）
  *
  * ## 何を見ていないか —— 「足りる」とは言わない
  *
@@ -34,7 +39,7 @@
  * - timer の画面の CSS が部品層（`.ui-*`）を持つ要素のプロパティを上書きしていないか（設計正本 D3。PR ごとに人が見る）
  * - `className` 以外の名前の属性・props でクラス名を渡す書き方（`cls={x}` を部品の中で `className` へ渡す形。
  *   部品の中の `className={cls}` は落ちるが、部品の外の `cls={x}` の値は見ない）
- * - `.ts` の関数がクラス名を返す形（`presence.ts`）。一覧に載っている間は「古い一覧」の判定からも外れ、一覧から外した後は
+ * - `.ts` の関数がクラス名を返す形。一覧に載っている間は「古い一覧」の判定からも外れ、一覧から外した後は
  *   書き方の検査にも掛からない（`className` の場所が無いため）。外すときに人が見る
  * - `{...props}` のスプレッドの中身（`className` キーを字面で持つオブジェクトリテラルだけを見る）
  * - 宣言の無い `className`（ファイルのどこにも束縛が無いまま `className={className}` と書く形。型検査が落とす）
@@ -62,36 +67,17 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..
  * 一覧に載っているのに、外しても書き方と定義の検査を通るファイルは、検査が「古い一覧」として落とす。
  */
 export const UNMIGRATED = [
-  "apps/timer-web/src/App.tsx",
-  "apps/timer-web/src/ui/History.tsx",
-  "apps/timer-web/src/ui/Loading.tsx",
-  "apps/timer-web/src/ui/Lobby.tsx",
   "apps/timer-web/src/ui/Session.tsx",
-  "apps/timer-web/src/ui/SessionLost.tsx",
-  "apps/timer-web/src/ui/Summary.tsx",
-  "apps/timer-web/src/ui/presence.ts",
-  "apps/timer-web/src/ui/primitives.tsx",
   "apps/timer-web/src/ui/components/CircularProgress.tsx",
-  "apps/timer-web/src/ui/components/ConfirmDialog.tsx",
-  "apps/timer-web/src/ui/components/EmptyHint.tsx",
   "apps/timer-web/src/ui/components/EndSessionZone.tsx",
-  "apps/timer-web/src/ui/components/InvitePanel.tsx",
-  "apps/timer-web/src/ui/components/Markdown.tsx",
   "apps/timer-web/src/ui/components/NotifyHint.tsx",
-  "apps/timer-web/src/ui/components/NotifySettings.tsx",
-  "apps/timer-web/src/ui/components/NotifySettingsPanel.tsx",
-  "apps/timer-web/src/ui/components/PassphrasePanel.tsx",
-  "apps/timer-web/src/ui/components/PresenceDot.tsx",
   "apps/timer-web/src/ui/components/RosterPanel.tsx",
   "apps/timer-web/src/ui/components/RotationLineup.tsx",
   "apps/timer-web/src/ui/components/SelfDriverToggle.tsx",
-  "apps/timer-web/src/ui/components/SessionConfigPanel.tsx",
   "apps/timer-web/src/ui/components/SharedMemo.tsx",
-  "apps/timer-web/src/ui/components/StatusStrip.tsx",
   "apps/timer-web/src/ui/components/SwitchAlert.tsx",
   "apps/timer-web/src/ui/components/Tabs.tsx",
   "apps/timer-web/src/ui/components/TeamOrbit.tsx",
-  "apps/timer-web/src/ui/components/TopicCard.tsx",
 ];
 
 /** Tailwind のユーティリティ名と重なることを許すクラス名（移行中だけ。PR 4 で消す）。 */
@@ -309,7 +295,7 @@ export function classUsagesIn(fileName, text) {
 
 /**
  * クラス名を扱う字面があるか（`className` / `_CLASS` / 語末の `Class`）。
- * 一覧の「古い」判定で、関数でクラス名を返すファイル（`presenceDotClass` など）を誤って落とさないために使う。
+ * 一覧の「古い」判定で、関数でクラス名を返すファイルを誤って落とさないために使う。
  */
 const mentionsClasses = (text) => /className|_CLASS|Class\b/.test(text);
 
@@ -319,6 +305,51 @@ function resolveImport(fromRel, specifier, byRel) {
   const base = path.posix.join(path.posix.dirname(fromRel), specifier);
   const stem = base.replace(/\.(js|jsx|ts|tsx)$/, "");
   return [base, `${stem}.ts`, `${stem}.tsx`, `${stem}/index.ts`, `${stem}/index.tsx`].find((rel) => byRel.has(rel));
+}
+
+/** CSS 全域キーワード。名前ではない。 */
+const CSS_WIDE_KEYWORDS = new Set(["inherit", "initial", "unset", "revert", "revert-layer"]);
+/** `animation` の短縮形で名前以外の語（時間・イージング・回数・向き・fill・再生状態）。 */
+const ANIMATION_NON_NAME = new Set([
+  "ease", "ease-in", "ease-out", "ease-in-out", "linear", "step-start", "step-end",
+  "infinite", "normal", "reverse", "alternate", "alternate-reverse",
+  "none", "forwards", "backwards", "both", "running", "paused",
+]);
+
+/** 括弧の外のカンマ（または空白）で分ける。 */
+function splitTopLevel(text, sep) {
+  const out = [];
+  let depth = 0;
+  let cur = "";
+  for (const ch of text) {
+    if (ch === "(") depth += 1;
+    if (ch === ")") depth -= 1;
+    const isSep = depth === 0 && (sep === "," ? ch === "," : /\s/.test(ch));
+    if (isSep) {
+      if (cur.trim() !== "") out.push(cur.trim());
+      cur = "";
+    } else {
+      cur += ch;
+    }
+  }
+  if (cur.trim() !== "") out.push(cur.trim());
+  return out;
+}
+
+/** `animation` / `animation-name` の値が名指しするキーフレームの名前（`none`・全域キーワード・`var()` は除く）。 */
+export function animationNamesOf(prop, value) {
+  const names = [];
+  for (const layer of splitTopLevel(value, ",")) {
+    const tokens = prop === "animation-name" ? [layer] : splitTopLevel(layer, " ");
+    for (const t of tokens) {
+      const lower = t.toLowerCase();
+      if (CSS_WIDE_KEYWORDS.has(lower) || ANIMATION_NON_NAME.has(lower)) continue;
+      if (t.includes("(")) continue; // cubic-bezier() / steps() / var() など
+      if (/^[+-]?(\d|\.\d)/.test(t)) continue; // 時間・回数
+      names.push(t);
+    }
+  }
+  return names;
 }
 
 /** 判定の本体（純粋関数）。 */
@@ -356,7 +387,7 @@ export function checkTimerClasses({ sources, timerCss, componentCss, elementCss,
       continue;
     }
     // 一覧に載ったファイルにも検査を試しに当て、外しても通るなら「古い」と落とす。
-    // クラス名を書く場所が無く `Class` の字面だけがあるファイル（関数でクラス名を返す presence.ts）は、
+    // クラス名を書く場所が無く `Class` の字面だけがあるファイル（関数でクラス名を返す `.ts`）は、
     // 検査が中身を見られないので外せない —— 落とさない
     const usage = usages.get(rel);
     const writesClasses = usage.classes.length > 0 || usage.classNameSites > 0;
@@ -378,6 +409,46 @@ export function checkTimerClasses({ sources, timerCss, componentCss, elementCss,
   }
   for (const name of collisions.keys()) {
     if (!defined.has(name)) problems.push(`[衝突の例外] .${name} は timer の CSS に定義されていません。例外から外す`);
+  }
+  // `--timer-never-defined` は「決して宣言しない」変数（行の高さの calc を最小化で畳ませないための代替値の入れ物・
+  // `styles/status-strip.css` の注釈）。参照は許し、宣言（どこかの祖先や `:root` を含む）は落とす
+  for (const f of [...timerCss, ...componentCss, ...elementCss]) {
+    let declared = false;
+    const root = postcss.parse(f.text);
+    root.walkDecls((d) => {
+      if (d.prop === "--timer-never-defined") declared = true;
+    });
+    // `@property --timer-never-defined { … }` の登録も宣言と同じ（initial-value が var の代替値より勝つ）
+    // at-rule の名前は大文字小文字を区別しない（`@PROPERTY` でもブラウザは登録する）。変数名は区別する
+    root.walkAtRules((r) => {
+      if (r.name.toLowerCase() === "property" && r.params.trim() === "--timer-never-defined") declared = true;
+    });
+    if (declared) problems.push(`[宣言禁止] ${f.rel} が --timer-never-defined を宣言しています。参照（var の代替値）だけ許します`);
+  }
+  // 借り物のキーフレームの出どころ。`animation` / `animation-name` が名指しするキーフレームは、timer の CSS が
+  // `@keyframes` を持つか、まだ移していないファイルの `animate-<名前>`（Tailwind が `@keyframes` を出す）が出どころでなければならない。
+  // 後者だけが出どころのとき、そのファイルを移して `animate-<名前>` が消えると、アニメーションが黙って止まる
+  const keyframesDefined = new Set();
+  for (const f of timerCss) {
+    postcss.parse(f.text).walkAtRules((r) => {
+      if (r.name.toLowerCase().endsWith("keyframes")) keyframesDefined.add(r.params.trim());
+    });
+  }
+  const borrowed = new Map();
+  for (const f of timerCss) {
+    postcss.parse(f.text).walkDecls((d) => {
+      const prop = d.prop.toLowerCase();
+      if (prop !== "animation" && prop !== "animation-name") return;
+      for (const name of animationNamesOf(prop, d.value)) if (!borrowed.has(name)) borrowed.set(name, f.rel);
+    });
+  }
+  for (const [name, rel] of borrowed) {
+    if (keyframesDefined.has(name)) continue;
+    const re = new RegExp(`(?<![\\w-])animate-${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w-])`);
+    const origin = sources.some((src) => listed.has(src.rel) && re.test(src.text));
+    if (!origin) {
+      problems.push(`[キーフレーム] 借り物のキーフレームの出どころが消えた: ${name}（${rel} が使っています。timer の CSS に @keyframes を置く）`);
+    }
   }
   // 接頭辞 `ui-` は部品層のもの。timer の CSS が定義すると、部品を定義し直す（読み込み順で部品に勝つ・設計正本 D3）
   for (const name of defined) {

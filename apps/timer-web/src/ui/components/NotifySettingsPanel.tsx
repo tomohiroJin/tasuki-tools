@@ -26,18 +26,18 @@ export function NotifySettingsPanel({ prefs, onChange, onPreview }: NotifySettin
   const countdownVoiceFieldId = `${fieldId}-countdown-voice`;
 
   return (
-    <div className="text-sm text-[var(--bone)]">
+    <div className="notify-settings">
       {/* 現在状態（ON/OFF と選択中の音名）を見出しに表示する。 */}
-      <p className="mb-3 text-base font-semibold">
+      <p className="notify-settings-heading">
         通知:{" "}
-        <span className={prefs.enabled ? "text-[var(--ok)]" : "text-[var(--bone-subtle)]"}>
+        <span className={prefs.enabled ? "notify-settings-state-on" : "notify-settings-state-off"}>
           {prefs.enabled ? "ON" : "OFF"}
         </span>
-        <span className="text-[var(--bone-subtle)]"> / 音: {currentLabel}</span>
+        <span className="notify-settings-muted"> / 音: {currentLabel}</span>
       </p>
 
       {/* ON/OFF トグル（role="switch" + aria-checked で a11y 準拠） */}
-      <label className="flex items-center justify-between gap-2">
+      <label className="notify-settings-row">
         <span>交代を音で知らせる</span>
         <button
           type="button"
@@ -45,26 +45,26 @@ export function NotifySettingsPanel({ prefs, onChange, onPreview }: NotifySettin
           aria-label="交代を音で知らせる"
           aria-checked={prefs.enabled}
           onClick={() => onChange({ enabled: !prefs.enabled })}
-          className={`h-5 w-9 rounded-full transition-colors ${prefs.enabled ? "bg-[var(--signal)]" : "bg-[var(--panel-2)]"}`}
+          className={prefs.enabled ? "notify-settings-switch-on" : "notify-settings-switch-off"}
         >
           <span
-            className={`block h-4 w-4 rounded-full bg-[var(--bone)] transition-transform ${prefs.enabled ? "translate-x-4" : "translate-x-0.5"}`}
+            className={prefs.enabled ? "notify-settings-knob-on" : "notify-settings-knob-off"}
           />
         </button>
       </label>
 
       {/* 通知音セレクト＋試聴ボタン */}
-      <div className="mt-3">
+      <div className="notify-settings-block">
         <label htmlFor={soundFieldId} className="instrument-label">
           通知音
         </label>
-        <div className="mt-1 flex items-center gap-2">
+        <div className="notify-settings-field-row">
           <select
             id={soundFieldId}
             aria-label="通知音"
             value={prefs.soundId}
             onChange={(e) => onChange({ soundId: e.target.value })}
-            className="ui-select flex-1"
+            className="ui-select notify-settings-select-grow"
           >
             {CHIMES.map((c) => (
               <option key={c.id} value={c.id} disabled={!c.isReady}>
@@ -76,15 +76,15 @@ export function NotifySettingsPanel({ prefs, onChange, onPreview }: NotifySettin
             type="button"
             aria-label="試聴"
             onClick={onPreview}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[var(--hairline)] text-[var(--bone-muted)] hover:bg-[var(--panel-2)]"
+            className="notify-settings-preview"
           >
-            <Volume2 className="h-4 w-4" aria-hidden="true" />
+            <Volume2 className="notify-settings-icon" aria-hidden="true" />
           </button>
         </div>
       </div>
 
       {/* 音量スライダー */}
-      <div className="mt-3">
+      <div className="notify-settings-block">
         <label htmlFor={volumeFieldId} className="instrument-label">
           音量
         </label>
@@ -97,12 +97,12 @@ export function NotifySettingsPanel({ prefs, onChange, onPreview }: NotifySettin
           step={0.05}
           value={prefs.volume}
           onChange={(e) => onChange({ volume: Number(e.target.value) })}
-          className="mt-1 w-full"
+          className="notify-settings-range"
         />
       </div>
 
       {/* カウントダウン予告音トグル（Issue #2） */}
-      <label className="mt-3 flex items-center justify-between gap-2">
+      <label className="notify-settings-row notify-settings-block">
         <span>交代前にカウントダウン音を鳴らす</span>
         <button
           type="button"
@@ -110,16 +110,16 @@ export function NotifySettingsPanel({ prefs, onChange, onPreview }: NotifySettin
           aria-label="交代前にカウントダウン音を鳴らす"
           aria-checked={prefs.countdownEnabled}
           onClick={() => onChange({ countdownEnabled: !prefs.countdownEnabled })}
-          className={`h-5 w-9 rounded-full transition-colors ${prefs.countdownEnabled ? "bg-[var(--signal)]" : "bg-[var(--panel-2)]"}`}
+          className={prefs.countdownEnabled ? "notify-settings-switch-on" : "notify-settings-switch-off"}
         >
           <span
-            className={`block h-4 w-4 rounded-full bg-[var(--bone)] transition-transform ${prefs.countdownEnabled ? "translate-x-4" : "translate-x-0.5"}`}
+            className={prefs.countdownEnabled ? "notify-settings-knob-on" : "notify-settings-knob-off"}
           />
         </button>
       </label>
 
       {/* カウントダウン予告秒数スライダー（5〜15秒・Issue #2） */}
-      <div className="mt-3">
+      <div className="notify-settings-block">
         <label htmlFor={countdownSecondsFieldId} className="instrument-label">
           カウントダウン予告秒数: {prefs.countdownSeconds}秒
         </label>
@@ -132,16 +132,16 @@ export function NotifySettingsPanel({ prefs, onChange, onPreview }: NotifySettin
           step={1}
           value={prefs.countdownSeconds}
           onChange={(e) => onChange({ countdownSeconds: Number(e.target.value) })}
-          className="mt-1 w-full"
+          className="notify-settings-range"
         />
       </div>
 
       {/* カウントダウン方式（トーン音/音声読み上げ）・countdownEnabled 時のみ表示（Issue #5） */}
       {prefs.countdownEnabled && (
-        <div className="mt-3">
+        <div className="notify-settings-block">
           <p className="instrument-label">カウントダウン方式</p>
-          <div className="mt-1 flex gap-4">
-            <label htmlFor={countdownModeToneId} className="flex items-center gap-1.5">
+          <div className="notify-settings-radio-group">
+            <label htmlFor={countdownModeToneId} className="notify-settings-radio">
               <input
                 type="radio"
                 id={countdownModeToneId}
@@ -152,7 +152,7 @@ export function NotifySettingsPanel({ prefs, onChange, onPreview }: NotifySettin
               />
               トーン音
             </label>
-            <label htmlFor={countdownModeVoiceId} className="flex items-center gap-1.5">
+            <label htmlFor={countdownModeVoiceId} className="notify-settings-radio">
               <input
                 type="radio"
                 id={countdownModeVoiceId}
@@ -165,7 +165,7 @@ export function NotifySettingsPanel({ prefs, onChange, onPreview }: NotifySettin
             </label>
           </div>
           {prefs.countdownMode === "voice" && (
-            <div className="mt-2">
+            <div className="notify-settings-voice">
               <label htmlFor={countdownVoiceFieldId} className="instrument-label">
                 読み上げ話者
               </label>
@@ -174,7 +174,7 @@ export function NotifySettingsPanel({ prefs, onChange, onPreview }: NotifySettin
                 aria-label="読み上げ話者"
                 value={prefs.countdownVoiceId}
                 onChange={(e) => onChange({ countdownVoiceId: e.target.value as "voice-male" | "voice-female" })}
-                className="ui-select mt-1"
+                className="ui-select notify-settings-voice-select"
               >
                 <option value="voice-male">男声</option>
                 <option value="voice-female">女声</option>
@@ -185,7 +185,7 @@ export function NotifySettingsPanel({ prefs, onChange, onPreview }: NotifySettin
       )}
 
       {/* OS 通知トグル */}
-      <label className="mt-3 flex items-center justify-between gap-2">
+      <label className="notify-settings-row notify-settings-block">
         <span>背面タブで OS 通知</span>
         <input
           type="checkbox"

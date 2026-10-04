@@ -13,15 +13,15 @@
 #       git apply scripts/mutations/m102-*.patch
 # 復元: git apply -R scripts/mutations/m102-*.patch
 diff --git a/apps/timer-web/src/ui/History.tsx b/apps/timer-web/src/ui/History.tsx
-index 49cd453..d0d2ce9 100644
+index 0da4207..30ca5ae 100644
 --- a/apps/timer-web/src/ui/History.tsx
 +++ b/apps/timer-web/src/ui/History.tsx
-@@ -112,7 +112,7 @@ export function History({ onBack }: HistoryProps) {
+@@ -111,7 +111,7 @@
                        onClick={() => handleDelete(record.id)}
                        // **完了日時を名前に入れる**（E23）。タイトルだけだと、お題なしの記録や同じお題の記録が
                        // 並んだとき、支援技術から削除ボタンを区別できない。
 -                      aria-label={`${formatCompletedAt(record.completedAt)} に完了した「${record.topicTitle ?? NO_TOPIC_LABEL}」の記録を削除`}
 +                      aria-label={`「${record.topicTitle ?? NO_TOPIC_LABEL}」の記録を削除`}
-                       className="shrink-0"
+                       className="history-delete"
                      >
-                       <span className="flex items-center gap-1.5">
+                       <span className="history-delete-label">

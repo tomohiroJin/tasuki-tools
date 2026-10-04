@@ -3,7 +3,8 @@ export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {
-      // セマンティックカラー。**在室状況の 3 色だけ**を残している。
+      // セマンティックカラー。在室の色は `styles/presence-dot.css` が塗る。ここの `presence-*` は使い手が無く、
+      // PR 4 で設定ごと消える（#321）。
       // 旧 chrome（bg/surface/fg/line/ring）と intent（primary/success/warning/
       // danger/accent）は参照が絶えていたため #78 で撤去した。計器のパレット
       // （--panel / --bone / --signal 等）は任意値記法 `[var(--*)]` で直接参照する。

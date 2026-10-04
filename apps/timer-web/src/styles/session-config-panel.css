@@ -1,0 +1,129 @@
+/* ロビーのセッション設定パネル（`SessionConfigPanel.tsx`・#321）。Tailwind のユーティリティの写し。
+ * 値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。
+ * 写さなかった宣言（除去検査で dead）: 見出し行・トグルの `text-[var(--bone)]`（親から継ぐので不要）、チェックボックスの `accent-color`。
+ * 先頭の見出し行（`.section-header`）の下は自前の `margin-bottom`（1rem・詳細度 0,1,0）が `:where()`（0）に勝つので、
+ * 根の `:where(> :not(:last-child))` の 1.25rem は交代間隔のブロックにだけ効く。
+ * 行の高さ（`var(--timer-never-defined, calc(…))`）は status-strip.css 冒頭の注釈。 */
+
+:where(.session-config-panel > :not(:last-child)) {
+  margin-block-end: 1.25rem;
+}
+
+.session-config-label {
+  margin-bottom: 0.5rem;
+}
+
+.session-config-intervals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.session-config-interval {
+  padding-inline: 1rem;
+  padding-block: 0.625rem;
+  border-radius: var(--radius-md);
+  border-width: 1px;
+  font-weight: 700;
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.session-config-interval-selected {
+  background-color: var(--signal);
+  color: var(--on-signal);
+  border-color: var(--signal);
+  box-shadow:
+    0 0 0 1px var(--signal-edge),
+    0 4px 16px var(--signal-glow);
+}
+
+.session-config-interval-idle {
+  background-color: var(--panel-2);
+  color: var(--bone-muted);
+  border-color: var(--hairline);
+}
+
+@media (hover: hover) {
+  .session-config-interval-idle:hover {
+    background-color: var(--panel-hover);
+  }
+}
+
+.session-config-hint {
+  margin-top: 0.5rem;
+  font-size: 0.75rem; /* scale-exempt: Tailwind の text-xs の写し（#316 で段へ寄せる） */
+  line-height: var(--timer-never-defined, calc(1 / 0.75)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  color: var(--bone-subtle);
+}
+
+.session-config-details {
+  border-radius: var(--radius-md);
+  background-color: var(--panel-2);
+  border-width: 1px;
+  border-color: var(--hairline);
+}
+
+.session-config-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  user-select: none;
+  padding-inline: 1rem;
+  padding-block: 0.75rem;
+  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 で段へ寄せる） */
+  line-height: var(--timer-never-defined, calc(1.25 / 0.875)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  font-weight: 500;
+}
+
+.session-config-summary-icon {
+  width: 1rem;
+  height: 1rem;
+  color: var(--signal);
+}
+
+.session-config-summary-chevron {
+  width: 1rem;
+  height: 1rem;
+  margin-left: auto;
+  color: var(--bone-subtle);
+}
+
+.session-config-toggles {
+  padding-inline: 1rem;
+  padding-bottom: 1rem;
+}
+
+:where(.session-config-toggles > :not(:last-child)) {
+  margin-block-end: 0.75rem;
+}
+
+.session-config-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  cursor: pointer;
+}
+
+.session-config-toggle-input {
+  margin-top: 0.25rem;
+  height: 1.25rem;
+  width: 1.25rem;
+  flex-shrink: 0;
+}
+
+.session-config-toggle-label {
+  display: block;
+  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 で段へ寄せる） */
+  line-height: var(--timer-never-defined, calc(1.25 / 0.875)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  font-weight: 500;
+}
+
+.session-config-toggle-hint {
+  display: block;
+  font-size: 0.75rem; /* scale-exempt: Tailwind の text-xs の写し（#316 で段へ寄せる） */
+  line-height: var(--timer-never-defined, calc(1 / 0.75)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  color: var(--bone-subtle);
+}

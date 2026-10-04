@@ -1,0 +1,17 @@
+/* いまのお題の札（`TopicCard.tsx`・#321）。Tailwind のユーティリティの写し。
+ * 値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。
+ * 写さなかった宣言（除去検査で dead）: タイトルの `text-[var(--bone)]`（親から継ぐので不要）。
+ * 行の高さ（`var(--timer-never-defined, calc(…))`）は status-strip.css 冒頭の注釈。 */
+
+/* 区切りの無い長いタイトルが横へはみ出さないように折り返す（PR 2 の実画面で topic-web が踏んだ） */
+.topic-card-title {
+  font-size: 1.125rem; /* scale-exempt: Tailwind の text-lg の写し（#316 で段へ寄せる） */
+  line-height: var(--timer-never-defined, calc(1.75 / 1.125)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+/* `Markdown` へ `className` で渡す。 */
+.topic-card-body {
+  margin-top: 0.75rem;
+}

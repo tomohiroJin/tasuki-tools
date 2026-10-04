@@ -39,6 +39,7 @@ import {
   type ProbeResult,
   type ProbeStatus,
 } from './removal-probe';
+import { repoGeneration } from './git-head';
 import { REMOVAL_DIR, removalFile, type ProbeHit, type StateRemoval } from './removal-summary';
 import { scrollToTop, settleAtWidth, waitForInviteQr } from './settle';
 import { STATES, WIDTHS, type ParityState } from './states';
@@ -47,6 +48,8 @@ const HEIGHT = 900;
 /** 状態の変種を判定する幅（比較の本体の操作の書き出しと同じ）。 */
 const VARIANT_WIDTH = 1280;
 const UNSTABLE = '外して戻しても読み値が元に戻らない（揺れ）';
+/** 作業ツリーの世代（結果に書き、`loadRemovalProbe` が全状態の揃いを断定する。`-g` で一部だけ流し直した混在を止める）。 */
+const GENERATION = repoGeneration();
 
 /** 1 状態の判定を積む先。 */
 type Collector = StateRemoval;
@@ -364,7 +367,7 @@ function assertServedBase(name: string, servings: readonly BaseServing[]): void 
 }
 
 async function probeState(browser: Browser, state: ParityState): Promise<Collector> {
-  const out: Collector = { state: state.name, dead: [], alive: [], undecided: [] };
+  const out: Collector = { state: state.name, generation: GENERATION, dead: [], alive: [], undecided: [] };
   const contexts: BrowserContext[] = [];
   const servings: BaseServing[] = [];
   const open = async (): Promise<Page> => {

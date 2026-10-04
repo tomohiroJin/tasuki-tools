@@ -75,16 +75,15 @@ export function History({ onBack }: HistoryProps) {
   };
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-6">
+    <div className="history">
       <Card>
         <SectionHeader
           icon={HistoryIcon}
-          color="text-[var(--signal)]"
           title="完了記録の履歴"
           right={
             <GhostButton onClick={onBack}>
-              <span className="flex items-center gap-2">
-                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+              <span className="history-back">
+                <ArrowLeft className="history-icon" aria-hidden="true" />
                 戻る
               </span>
             </GhostButton>
@@ -92,19 +91,19 @@ export function History({ onBack }: HistoryProps) {
         />
 
         {loading ? (
-          <p className="text-sm text-[var(--bone-muted)]">読み込み中...</p>
+          <p className="history-loading">読み込み中...</p>
         ) : records.length === 0 ? (
           <EmptyHint>
             まだ記録がありません。セッションを完了すると、この端末に記録が残ります。
           </EmptyHint>
         ) : (
-          <ul className="flex flex-col gap-3" aria-label="完了記録の一覧">
+          <ul className="history-list" aria-label="完了記録の一覧">
             {records.map((record) => (
               <li key={record.id}>
-                <Card className="p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate font-bold text-[var(--bone)]">
+                <Card>
+                  <div className="history-record-head">
+                    <div className="history-record-main">
+                      <p className="history-record-title">
                         {record.topicTitle ?? NO_TOPIC_LABEL}
                       </p>
                     </div>
@@ -113,33 +112,33 @@ export function History({ onBack }: HistoryProps) {
                       // **完了日時を名前に入れる**（E23）。タイトルだけだと、お題なしの記録や同じお題の記録が
                       // 並んだとき、支援技術から削除ボタンを区別できない。
                       aria-label={`${formatCompletedAt(record.completedAt)} に完了した「${record.topicTitle ?? NO_TOPIC_LABEL}」の記録を削除`}
-                      className="shrink-0"
+                      className="history-delete"
                     >
-                      <span className="flex items-center gap-1.5">
-                        <Trash2 className="h-4 w-4" aria-hidden="true" />
+                      <span className="history-delete-label">
+                        <Trash2 className="history-icon" aria-hidden="true" />
                         削除
                       </span>
                     </GhostButton>
                   </div>
 
-                  <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm sm:grid-cols-4">
+                  <dl className="history-facts">
                     <div>
                       <dt className="instrument-label">所要時間</dt>
-                      <dd className="tabular text-[var(--bone)]">
+                      <dd className="tabular">
                         {formatDuration(record.elapsedSeconds)}
                       </dd>
                     </div>
                     <div>
                       <dt className="instrument-label">交代回数</dt>
-                      <dd className="tabular text-[var(--bone)]">{record.totalSwitches}回</dd>
+                      <dd className="tabular">{record.totalSwitches}回</dd>
                     </div>
                     <div>
                       <dt className="instrument-label">メンバー</dt>
-                      <dd className="tabular text-[var(--bone)]">{record.members.length}人</dd>
+                      <dd className="tabular">{record.members.length}人</dd>
                     </div>
                     <div>
                       <dt className="instrument-label">日時</dt>
-                      <dd className="text-[var(--bone-muted)]">
+                      <dd className="history-fact-muted">
                         {formatCompletedAt(record.completedAt)}
                       </dd>
                     </div>

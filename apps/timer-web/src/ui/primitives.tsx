@@ -14,23 +14,21 @@ import type { LucideIcon } from "lucide-react";
 /** 全画面共通の舞台。計器盤面（grid+grain+vignette は CSS の ::before/::after）＋中央寄せコンテナ。 */
 export function Stage({ children }: { children: React.ReactNode }) {
   return (
-    <div className="instrument-stage text-[var(--bone)]">
-      {/* PC を主役にするため広めに。Summary・History は内側で max-w-md 等を維持。 */}
-      <div className="relative max-w-6xl mx-auto px-4 py-10 md:py-12">{children}</div>
+    <div className="instrument-stage stage">
+      {/* PC を主役にするため広めに。Summary・History は内側で最大幅を持つ。 */}
+      <div className="stage-inner">{children}</div>
     </div>
   );
 }
 
 /** 計器パネルの四隅に置く小さなコーナーティック（盤面の位置決めマーク）。装飾なので aria-hidden。 */
 function CornerTicks() {
-  const base = "pointer-events-none absolute h-2.5 w-2.5";
-  const c = "border-[var(--hairline-strong)]";
   return (
     <>
-      <span className={`${base} left-2 top-2 border-l border-t ${c}`} aria-hidden="true" />
-      <span className={`${base} right-2 top-2 border-r border-t ${c}`} aria-hidden="true" />
-      <span className={`${base} left-2 bottom-2 border-l border-b ${c}`} aria-hidden="true" />
-      <span className={`${base} right-2 bottom-2 border-r border-b ${c}`} aria-hidden="true" />
+      <span className="corner-tick corner-tick-tl" aria-hidden="true" />
+      <span className="corner-tick corner-tick-tr" aria-hidden="true" />
+      <span className="corner-tick corner-tick-bl" aria-hidden="true" />
+      <span className="corner-tick corner-tick-br" aria-hidden="true" />
     </>
   );
 }
@@ -45,7 +43,7 @@ export function Card({
 }) {
   return (
     <div
-      className={`relative rounded-lg border border-[var(--hairline)] bg-[var(--panel)] p-6 md:p-7 shadow-[inset_0_1px_0_var(--inset-highlight),0_10px_30px_rgba(0,0,0,0.5)] ${className}`}
+      className={`meter-panel ${className}`}
     >
       <CornerTicks />
       {children}
@@ -62,7 +60,7 @@ export function PrimaryButton({ children, className = "", ...rest }: BtnProps) {
   return (
     <button
       type="button"
-      className={`inline-flex items-center justify-center px-6 py-3 rounded-md font-bold tracking-wide text-[var(--on-signal)] bg-[var(--signal)] hover:bg-[var(--signal-hover)] disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-[0_0_0_1px_var(--signal-edge),0_6px_20px_var(--signal-glow)] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)] ${className}`}
+      className={`signal-button ${className}`}
       {...rest}
     >
       {children}
@@ -75,27 +73,7 @@ export function GhostButton({ children, className = "", ...rest }: BtnProps) {
   return (
     <button
       type="button"
-      className={`inline-flex items-center justify-center px-4 py-2 min-h-[44px] sm:min-h-0 rounded-md font-medium text-[var(--bone)] bg-[var(--panel-2)] hover:bg-[var(--panel-hover)] disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95 border border-[var(--hairline-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)] ${className}`}
-      {...rest}
-    >
-      {children}
-    </button>
-  );
-}
-
-/** アイコンのみの正方ボタン。 */
-export function IconButton({
-  children,
-  title,
-  className = "",
-  ...rest
-}: BtnProps & { title?: string }) {
-  return (
-    <button
-      type="button"
-      title={title}
-      aria-label={title}
-      className={`w-11 h-11 sm:w-9 sm:h-9 rounded-md bg-[var(--panel-2)] hover:bg-[var(--panel-hover)] flex items-center justify-center text-[var(--bone-muted)] transition-all border border-[var(--hairline)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)] ${className}`}
+      className={`ghost-button ${className}`}
       {...rest}
     >
       {children}
@@ -106,20 +84,18 @@ export function IconButton({
 /** カード見出し（アイコン＋計器ラベル、右に補助操作）。タイトルは大文字トラッキングの刻印調。 */
 export function SectionHeader({
   icon: Icon,
-  color,
   title,
   right,
 }: {
   icon: LucideIcon;
-  color: string;
   title: string;
   right?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between mb-4">
-      <div className="flex items-center gap-2.5">
-        <Icon className={`w-4 h-4 ${color}`} />
-        <h2 className="font-bold text-base tracking-wide text-[var(--bone)]">{title}</h2>
+    <div className="section-header">
+      <div className="section-header-lead">
+        <Icon className="section-header-icon" />
+        <h2 className="section-header-title">{title}</h2>
       </div>
       {right}
     </div>

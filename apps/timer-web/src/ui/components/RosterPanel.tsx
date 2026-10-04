@@ -554,7 +554,6 @@ export function RosterPanel({
       )}
       <SectionHeader
         icon={Users}
-        color="text-[var(--signal)]"
         title="参加者"
         right={
           <GhostButton
@@ -596,7 +595,7 @@ export function RosterPanel({
               aria-describedby={activeProxyRejection !== null ? proxyErrorId : undefined}
               className="flex-1 rounded-md border border-[var(--hairline-strong)] bg-[var(--panel-2)] px-3 py-2 text-sm text-[var(--bone)] outline-none focus:border-[var(--signal)] focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]"
             />
-            <PrimaryButton onClick={handleAddProxy} className="px-4 py-2 text-sm">追加</PrimaryButton>
+            <PrimaryButton onClick={handleAddProxy} className="text-sm">追加</PrimaryButton>
           </div>
           {activeProxyRejection !== null && (
             // `role="alert"` にして、目で追っていない人にも即時に読み上げさせる。

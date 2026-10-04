@@ -1,0 +1,87 @@
+/* セッション喪失の画面（`SessionLost.tsx`・#321）。Tailwind のユーティリティの写し。
+ * 値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。
+ * 見出し・ラベルの文字色は書かない（`.brand-title` / `.instrument-label` の色が勝っていて、Tailwind の色は効いていなかった）。
+ * 行の高さ（`var(--timer-never-defined, calc(…))`）は status-strip.css 冒頭の注釈。 */
+.session-lost {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2rem;
+  margin-inline: auto;
+  min-height: 60vh;
+  max-width: 32rem;
+}
+
+.session-lost-header {
+  text-align: center;
+}
+
+.session-lost-label {
+  margin-bottom: 0.5rem;
+}
+
+.session-lost-title {
+  font-weight: 900;
+}
+
+.session-lost-code {
+  margin-top: 0.5rem;
+  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 で段へ寄せる） */
+  line-height: var(--timer-never-defined, calc(1.25 / 0.875)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  color: var(--bone-muted);
+}
+
+.session-lost-code-value {
+  font-weight: 700;
+}
+
+.session-lost-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 で段へ寄せる） */
+  line-height: var(--timer-never-defined, calc(1.25 / 0.875)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  color: var(--bone-muted);
+}
+
+.session-lost-notice-icon {
+  margin-top: 0.125rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+  color: var(--urgent);
+}
+
+.session-lost-emphasis {
+  color: var(--bone);
+}
+
+.session-lost-new {
+  width: 100%;
+  margin-top: 1.25rem;
+  padding-block: 0.75rem;
+  font-size: 1.125rem; /* scale-exempt: Tailwind の text-lg の写し（#316 で段へ寄せる） */
+  line-height: var(--timer-never-defined, calc(1.75 / 1.125)); /* 行の高さは status-strip.css 冒頭の注釈 */
+}
+
+.session-lost-history {
+  width: 100%;
+  margin-top: 0.75rem;
+}
+
+.session-lost-button-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.session-lost-button-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.session-lost-button-icon-lg {
+  width: 1.25rem;
+  height: 1.25rem;
+}

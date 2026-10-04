@@ -17,6 +17,25 @@
 /* 土台（レイヤーに入れない）。**`@config` より前に置く**（後ろに書くと中身が黙って消える）。 */
 @import './styles/base.css';
 
+/* 移した画面・部品の CSS（`timer` レイヤー。移行中は Tailwind のユーティリティに負ける）。 */
+@import './styles/primitives.css' layer(timer);
+@import './styles/presence-dot.css' layer(timer);
+@import './styles/status-strip.css' layer(timer);
+@import './styles/notify-settings.css' layer(timer);
+@import './styles/loading.css' layer(timer);
+@import './styles/session-lost.css' layer(timer);
+@import './styles/empty-hint.css' layer(timer);
+@import './styles/history.css' layer(timer);
+@import './styles/summary.css' layer(timer);
+@import './styles/invite-panel.css' layer(timer);
+@import './styles/passphrase-panel.css' layer(timer);
+@import './styles/topic-card.css' layer(timer);
+@import './styles/markdown.css' layer(timer);
+@import './styles/confirm-dialog.css' layer(timer);
+@import './styles/session-config-panel.css' layer(timer);
+@import './styles/lobby.css' layer(timer);
+@import './styles/app.css' layer(timer);
+
 /* 既存の JS 設定（tailwind.config.js）を読み込む。**振る舞い不変を最優先し、
  * CSS-first（@theme）への全面移行は行わない** —— #78 で確立したトークン設計に
  * 踏み込むため、必要になったら別 Issue で扱う。 */

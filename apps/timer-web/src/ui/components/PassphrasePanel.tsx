@@ -24,18 +24,18 @@ export function PassphrasePanel({ protectedNow, onSet }: PassphrasePanelProps) {
     setValue("");
   };
   return (
-    <div className="w-full">
-      <SectionHeader icon={Lock} color="text-[var(--signal)]" title="パスフレーズ" />
+    <div>
+      <SectionHeader icon={Lock} title="パスフレーズ" />
       {protectedNow ? (
-        <div className="flex items-center justify-between gap-2 text-sm">
+        <div className="passphrase-panel-active">
           {/* 状態は色ではなくテキストで明示（アイコンは SectionHeader の Lock に統一）。 */}
-          <span className="text-[var(--bone-muted)]">パスフレーズ設定中</span>
-          <GhostButton onClick={() => onSet("")} className="text-sm">
+          <span className="passphrase-panel-status">パスフレーズ設定中</span>
+          <GhostButton onClick={() => onSet("")} className="passphrase-panel-button">
             解除
           </GhostButton>
         </div>
       ) : (
-        <div className="flex gap-2">
+        <div className="passphrase-panel-form">
           <input
             type="password"
             value={value}
@@ -46,9 +46,9 @@ export function PassphrasePanel({ protectedNow, onSet }: PassphrasePanelProps) {
             aria-label="パスフレーズ"
             maxLength={MAX_PASSPHRASE}
             placeholder="任意。設定すると参加に必要"
-            className="flex-1 rounded-md border border-[var(--hairline-strong)] bg-[var(--panel-2)] px-3 py-2 text-sm text-[var(--bone)] outline-none focus:border-[var(--signal)] focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]"
+            className="passphrase-panel-input"
           />
-          <PrimaryButton onClick={submit} disabled={!value} className="px-4 py-2 text-sm">
+          <PrimaryButton onClick={submit} disabled={!value} className="passphrase-panel-button">
             設定
           </PrimaryButton>
         </div>

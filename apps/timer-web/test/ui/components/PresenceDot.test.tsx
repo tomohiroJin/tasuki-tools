@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";
 import React from "react";
 import { PresenceDot } from "../../../src/ui/components/PresenceDot.js";
-import { presenceDotClass, type Presence } from "../../../src/ui/presence.js";
+import type { Presence } from "../../../src/ui/presence.js";
 
 describe("PresenceDot", () => {
   /**
@@ -13,14 +13,14 @@ describe("PresenceDot", () => {
     const cases: Presence[] = ["online", "idle", "offline"];
 
     cases.forEach((presence) => {
-      it(`presence が ${presence} のとき、状態に対応するクラスを持つドットが描画される`, () => {
+      it(`presence が ${presence} のとき、data-presence に ${presence} を持つ点が描画される`, () => {
         // Given
         const { container } = render(<PresenceDot presence={presence} />);
         // When
         const dot = container.querySelector("span");
         // Then
-        expect(dot).not.toBeNull();
-        expect(dot?.className).toContain(presenceDotClass(presence));
+        expect(dot?.getAttribute("data-presence")).toBe(presence);
+        expect(dot?.classList.contains("presence-dot")).toBe(true);
       });
     });
 

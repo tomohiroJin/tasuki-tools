@@ -1,0 +1,85 @@
+/* 招待パネル（`InvitePanel.tsx`・#321）。Tailwind のユーティリティの写し。
+ * 値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。
+ * 写さなかった宣言（除去検査で dead）: ルームコードの `tracking-wider`（`.tabular` の字間が勝つ）。
+ * QR の `h-52` と `w-52` は組で効く（片方ずつ外すと dead に見える）ので両方写す。
+ * 行の高さ（`var(--timer-never-defined, calc(…))`）は status-strip.css 冒頭の注釈。 */
+
+.invite-panel {
+  text-align: center;
+}
+
+.invite-panel-label {
+  margin-bottom: 0.5rem;
+}
+
+.invite-panel-code-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.invite-panel-code {
+  font-size: 2.25rem; /* scale-exempt: Tailwind の text-4xl の写し（#316 で段へ寄せる） */
+  line-height: var(--timer-never-defined, calc(2.5 / 2.25)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  font-weight: 900;
+  word-break: break-all;
+  color: var(--signal);
+}
+
+@media (width >= 48rem) {
+  .invite-panel-code {
+    font-size: 3rem; /* scale-exempt: Tailwind の text-5xl の写し（#316 で段へ寄せる） */
+    line-height: 1;
+  }
+}
+
+.invite-panel-button-label {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 で段へ寄せる） */
+  line-height: var(--timer-never-defined, calc(1.25 / 0.875)); /* 行の高さは status-strip.css 冒頭の注釈 */
+}
+
+.invite-panel-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.invite-panel-icon-done {
+  color: var(--ok);
+}
+
+/* ui-exempt: QR は明暗で読むので地は白でなければならない */
+.invite-panel-qr {
+  margin-inline: auto;
+  margin-top: 1rem;
+  height: 13rem;
+  width: 13rem;
+  border-radius: 0.75rem;
+  background-color: #fff;
+  padding: 0.625rem;
+}
+
+/* コピーの方法がどちらも使えない環境でも、手で選んで共有できる（#76 F-1）。 */
+.invite-panel-url {
+  margin-top: 1rem;
+  word-break: break-all;
+  font-size: 0.75rem; /* scale-exempt: Tailwind の text-xs の写し（#316 で段へ寄せる） */
+  line-height: var(--timer-never-defined, calc(1 / 0.75)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  color: var(--bone-muted);
+  user-select: all;
+}
+
+.invite-panel-url-action {
+  margin-top: 0.5rem;
+}
+
+.invite-panel-status {
+  margin-top: 0.5rem;
+  font-size: 0.75rem; /* scale-exempt: Tailwind の text-xs の写し（#316 で段へ寄せる） */
+  line-height: var(--timer-never-defined, calc(1 / 0.75)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  color: var(--bone-muted);
+}

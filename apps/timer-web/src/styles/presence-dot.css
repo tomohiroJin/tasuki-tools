@@ -1,0 +1,20 @@
+/* 在室の点（`PresenceDot.tsx`・#321）。状態は `data-presence` 属性で塗り分ける（色だけで伝えず、隣に文字のラベルがある）。
+ * Tailwind の `h-2 w-2 shrink-0 rounded-full bg-presence-*` の写し。 */
+.presence-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  flex-shrink: 0;
+  border-radius: calc(infinity * 1px);
+}
+
+.presence-dot[data-presence='online'] {
+  background-color: var(--color-presence-online);
+}
+
+.presence-dot[data-presence='idle'] {
+  background-color: var(--color-presence-idle);
+}
+
+.presence-dot[data-presence='offline'] {
+  background-color: var(--color-presence-offline);
+}

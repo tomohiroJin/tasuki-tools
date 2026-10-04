@@ -16,10 +16,10 @@ export function TopicCard({ topic }: { topic: Topic }) {
   return (
     <Card>
       <section aria-label={TOPIC_CARD_HEADING}>
-        <SectionHeader icon={Code} color="text-[var(--signal)]" title={TOPIC_CARD_HEADING} />
+        <SectionHeader icon={Code} title={TOPIC_CARD_HEADING} />
         {/* 区切りの無い長いタイトルが横へはみ出さないように折り返す（PR 2 の実画面で topic-web が踏んだ） */}
-        <h3 className="text-lg font-bold text-[var(--bone)] [overflow-wrap:anywhere]">{topic.title}</h3>
-        {topic.body !== "" && <Markdown source={topic.body} headingBase={4} className="mt-3" />}
+        <h3 className="topic-card-title">{topic.title}</h3>
+        {topic.body !== "" && <Markdown source={topic.body} headingBase={4} className="topic-card-body" />}
       </section>
     </Card>
   );

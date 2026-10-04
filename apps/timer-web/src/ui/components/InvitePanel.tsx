@@ -18,15 +18,15 @@ export function InvitePanel({ code, roomUrl }: { code: string; roomUrl: string }
   const qr = useInviteQr(roomUrl, true);
 
   return (
-    <Card className="text-center">
-      <p className="instrument-label mb-2">ルームコード</p>
-      <div className="flex flex-wrap items-center justify-center gap-3">
-        <span className="tabular text-4xl md:text-5xl font-black tracking-wider break-all text-[var(--signal)]">
+    <Card className="invite-panel">
+      <p className="instrument-label invite-panel-label">ルームコード</p>
+      <div className="invite-panel-code-row">
+        <span className="tabular invite-panel-code">
           {code}
         </span>
         <GhostButton onClick={codeCopy.copy} aria-label="ルームコードをコピー">
-          <span className="flex items-center gap-1 text-sm">
-            {codeCopy.state === 'done' ? <Check className="w-4 h-4 text-[var(--ok)]" aria-hidden="true" /> : <Copy className="w-4 h-4" aria-hidden="true" />}
+          <span className="invite-panel-button-label">
+            {codeCopy.state === 'done' ? <Check className="invite-panel-icon invite-panel-icon-done" aria-hidden="true" /> : <Copy className="invite-panel-icon" aria-hidden="true" />}
             {codeCopy.state === 'done' ? "コピーしました" : "コピー"}
           </span>
         </GhostButton>
@@ -37,19 +37,19 @@ export function InvitePanel({ code, roomUrl }: { code: string; roomUrl: string }
           alt={`ルーム ${code} の QR コード`}
           /* 地は白のまま。QR は明暗のコントラストで読むため、卓の色に寄せると
              読み取り率が落ちる（装飾ではなく機能上の要請）。 */
-          className="h-52 w-52 rounded-xl bg-white p-2.5 mx-auto mt-4"
+          className="invite-panel-qr"
         />
       )}
       {/* コピーの方法がどちらも使えない環境でも、手で選んで共有できる（#76 F-1）。 */}
-      <p className="tabular mt-4 break-all text-xs text-[var(--bone-muted)] select-all">
+      <p className="tabular invite-panel-url">
         {roomUrl}
       </p>
-      <div className="mt-2">
+      <div className="invite-panel-url-action">
         <GhostButton onClick={urlCopy.copy}>
-          <span className="flex items-center gap-1 text-sm"><Copy className="w-4 h-4" aria-hidden="true" /> 参加 URL をコピー</span>
+          <span className="invite-panel-button-label"><Copy className="invite-panel-icon" aria-hidden="true" /> 参加 URL をコピー</span>
         </GhostButton>
       </div>
-      <p role="status" className="mt-2 text-xs text-[var(--bone-muted)]">
+      <p role="status" className="invite-panel-status">
         {urlCopy.state === 'done' && '参加 URL をコピーしました。'}
         {(urlCopy.state === 'failed' || codeCopy.state === 'failed') && 'コピーできません。URL またはルームコードを選んでコピーしてください。'}
       </p>

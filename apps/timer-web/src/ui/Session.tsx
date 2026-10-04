@@ -424,7 +424,7 @@ export function Session({
                     <div className="mb-3 flex justify-end">
                       <GhostButton
                         onClick={() => onRemoveParticipant(currentParticipant.participantId)}
-                        className="text-xs px-3 py-1.5"
+                        className="text-xs"
                         title="この端末をルームから外します。招待から再参加できます。"
                       >
                         ルームから抜ける

@@ -163,6 +163,56 @@ test.describe('timer は後から参加した人が開始前に設定を変更�
 });
 
 /**
+ * 在室の点の色（#321 PR 2）。点は `data-presence` 属性で塗り分ける（`styles/presence-dot.css`）。
+ * 3 状態がそれぞれトークンの色で塗られることを、計算済みの背景色で測る。
+ */
+test.describe('timer の在室の点は状態ごとにトークンの色で塗られる', () => {
+  test('Given ホストとゲストのロビー / When 在室の点を読む / Then 状態ごとにトークンの色で塗られる', async ({
+    page,
+    openPeer,
+  }) => {
+    // Given: 作成者のルームに 2 人目が入り、名簿に両方の行が出ている
+    const code = await createRoom(page, HOST);
+    const guest = await openPeer('timer-presence-dot');
+    await joinAsDriver(guest.page, code, GUEST);
+    await expect(lobbyRotationRow(page, GUEST, 2)).toHaveCount(1);
+
+    // When: 描画済みの点を読む
+    const dot = page.locator('[data-presence]').first();
+    await expect(dot).toHaveAttribute('data-presence', 'online');
+    // idle（離席）は代入する経路が無く状態を作れない（設計正本 §2 の 13）。
+    // 描画済みの点の属性を書き換え、CSS の対応だけを測る
+    const colors = await dot.evaluate((el) => {
+      const resolve = (name: string): string => {
+        const probe = document.createElement('span');
+        probe.style.backgroundColor = `var(${name})`;
+        document.body.append(probe);
+        const value = getComputedStyle(probe).backgroundColor;
+        probe.remove();
+        return value;
+      };
+      const read = (presence: string): string => {
+        el.setAttribute('data-presence', presence);
+        return getComputedStyle(el).backgroundColor;
+      };
+      const out = {
+        online: { want: resolve('--color-presence-online'), got: read('online') },
+        idle: { want: resolve('--color-presence-idle'), got: read('idle') },
+        offline: { want: resolve('--color-presence-offline'), got: read('offline') },
+      };
+      el.setAttribute('data-presence', 'online');
+      return out;
+    });
+
+    // Then: 3 色が互いに違うことを先に断定する（同じなら、取り違えても緑になる）
+    expect(new Set([colors.online.want, colors.idle.want, colors.offline.want]).size).toBe(3);
+    expect(colors.online.got).toBe(colors.online.want);
+    expect(colors.idle.got).toBe(colors.idle.want);
+    expect(colors.offline.got).toBe(colors.offline.want);
+  });
+});
+
+/**
  * 招待パネルに出た URL でそのまま参加できること（#11・#76 F-1 の回帰防止）。
  *
  * **向き先は #95 S5a で変わった。** 入口が LP（ハブ）に一本化されたので、招待 URL は

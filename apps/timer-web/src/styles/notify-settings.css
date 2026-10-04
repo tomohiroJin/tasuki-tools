@@ -1,0 +1,183 @@
+/* 交代通知の個人設定（`NotifySettings.tsx`・`NotifySettingsPanel.tsx`・#321）。Tailwind のユーティリティの写し。
+ * 値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。
+ * `.ui-select` は部品層でレイヤー外。`flex` と `margin-top` は `.ui-select` が書かないので衝突しない。 */
+
+/* --- ポップオーバー（`NotifySettings.tsx`） --- */
+.notify-settings-container {
+  position: relative;
+}
+
+.notify-settings-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: var(--radius-md);
+  padding-inline: 0.5rem;
+  padding-block: 0.25rem;
+  color: var(--bone-muted);
+}
+
+@media (hover: hover) {
+  .notify-settings-trigger:hover {
+    background-color: var(--panel-2);
+  }
+}
+
+.notify-settings-trigger:focus-visible {
+  box-shadow: 0 0 0 2px var(--signal);
+}
+
+.notify-settings-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.notify-settings-popover {
+  position: absolute;
+  right: 0;
+  z-index: 20;
+  margin-top: 0.5rem;
+  width: 20rem;
+  border-radius: var(--radius-md);
+  border-width: 1px;
+  border-color: var(--hairline-strong);
+  background-color: var(--panel);
+  padding: 0.75rem;
+  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 で段へ寄せる） */
+  line-height: var(--timer-never-defined, calc(1.25 / 0.875)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  color: var(--bone);
+  box-shadow: var(--shadow-popover);
+}
+
+.notify-settings-warning {
+  margin-top: 0.5rem;
+  font-size: 0.75rem; /* scale-exempt: Tailwind の text-xs の写し（#316 で段へ寄せる） */
+  line-height: var(--timer-never-defined, calc(1 / 0.75)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  color: var(--caution);
+}
+
+/* --- パネル（`NotifySettingsPanel.tsx`。ポップオーバーとロビーのカードで共用） --- */
+.notify-settings {
+  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 で段へ寄せる） */
+  line-height: var(--timer-never-defined, calc(1.25 / 0.875)); /* 行の高さは status-strip.css 冒頭の注釈 */
+}
+
+.notify-settings-heading {
+  margin-bottom: 0.75rem;
+  font-size: 1rem; /* scale-exempt: Tailwind の text-base の写し（#316 で段へ寄せる） */
+  line-height: 1.5;
+  font-weight: 600;
+}
+
+.notify-settings-state-on {
+  color: var(--ok);
+}
+
+.notify-settings-state-off,
+.notify-settings-muted {
+  color: var(--bone-subtle);
+}
+
+.notify-settings-block {
+  margin-top: 0.75rem;
+}
+
+.notify-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.notify-settings-field-row {
+  margin-top: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.notify-settings-select-grow {
+  flex: 1;
+}
+
+.notify-settings-preview {
+  display: inline-flex;
+  height: 2rem;
+  width: 2rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  border-width: 1px;
+  border-color: var(--hairline);
+  color: var(--bone-muted);
+}
+
+@media (hover: hover) {
+  .notify-settings-preview:hover {
+    background-color: var(--panel-2);
+  }
+}
+
+.notify-settings-range {
+  margin-top: 0.25rem;
+  width: 100%;
+}
+
+.notify-settings-radio-group {
+  margin-top: 0.25rem;
+  display: flex;
+  gap: 1rem;
+}
+
+.notify-settings-radio {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.notify-settings-voice {
+  margin-top: 0.5rem;
+}
+
+.notify-settings-voice-select {
+  margin-top: 0.25rem;
+}
+
+/* スイッチ（`role="switch"`）。つまみは個別の `translate` で動かす。 */
+.notify-settings-switch-on,
+.notify-settings-switch-off {
+  height: 1.25rem;
+  width: 2.25rem;
+  border-radius: calc(infinity * 1px);
+  transition-property: color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, --tw-gradient-from, --tw-gradient-via, --tw-gradient-to;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.notify-settings-switch-on {
+  background-color: var(--signal);
+}
+
+.notify-settings-switch-off {
+  background-color: var(--panel-2);
+}
+
+.notify-settings-knob-on,
+.notify-settings-knob-off {
+  display: block;
+  height: 1rem;
+  width: 1rem;
+  border-radius: calc(infinity * 1px);
+  background-color: var(--bone);
+  transition-property: transform, translate, scale, rotate;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.notify-settings-knob-on {
+  translate: 1rem 0;
+}
+
+.notify-settings-knob-off {
+  translate: 0.125rem 0;
+}

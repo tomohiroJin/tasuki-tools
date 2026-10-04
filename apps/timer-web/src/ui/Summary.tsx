@@ -33,29 +33,29 @@ export function Summary({ endType, record, onNewSession, onSaveRecord }: Summary
   const [saved, setSaved] = useState(false);
 
   return (
-    <div className="mx-auto flex max-w-md flex-col items-center gap-6 text-center">
+    <div className="summary">
       {/* タイトル: 完成/中断で明確に出し分け（完成はシグナル朱で達成感） */}
       {isComplete ? (
         <>
-          <p className="instrument-label text-[var(--signal)]">Session Complete</p>
-          <h2 className="text-3xl font-black text-[var(--bone)]">
+          <p className="instrument-label">Session Complete</p>
+          <h2 className="summary-title">
             セッション完了
           </h2>
         </>
       ) : (
-        <h2 className="text-2xl font-bold text-[var(--bone-muted)]">セッション終了（中断）</h2>
+        <h2 className="summary-title-abort">セッション終了（中断）</h2>
       )}
 
       {/* 達成バナー（完成時のみ・S1）。中断では出さない（達成として扱わない）。 */}
       {isComplete && (
         <div
           aria-label="達成"
-          className="w-full rounded-md border border-[var(--signal-edge)] bg-[var(--signal-tint)] p-5 text-[var(--signal)]"
+          className="summary-banner"
         >
-          <p className="text-2xl font-bold flex items-center justify-center gap-2">
-            <Trophy className="w-7 h-7" aria-hidden="true" /> ナイスワーク！
+          <p className="summary-banner-title">
+            <Trophy className="summary-banner-icon" aria-hidden="true" /> ナイスワーク！
           </p>
-          <p className="mt-1 text-sm text-[var(--bone-muted)]">
+          <p className="summary-banner-note">
             お題をやり遂げました。お疲れさまでした。
           </p>
         </div>
@@ -67,39 +67,39 @@ export function Summary({ endType, record, onNewSession, onSaveRecord }: Summary
           {/* 3 列の統計カード。360px 幅では 1 列あたり実質 ~70px しかないため、
               所要時間（「120分00秒」等）が whitespace-nowrap ではみ出さないよう、
               モバイルは text-lg、sm 以上で text-xl に上げる（R5-3）。 */}
-          <div className="grid w-full grid-cols-3 gap-3">
-            <Card className="p-3 sm:p-4">
+          <div className="summary-stats">
+            <Card className="summary-stat">
               <p className="instrument-label">所要時間</p>
-              <p className="whitespace-nowrap text-lg sm:text-xl font-bold tabular text-[var(--bone)]">{formatTime(record.elapsedSeconds)}</p>
+              <p className="summary-stat-value tabular">{formatTime(record.elapsedSeconds)}</p>
             </Card>
-            <Card className="p-3 sm:p-4">
+            <Card className="summary-stat">
               <p className="instrument-label">交代回数</p>
-              <p className="whitespace-nowrap text-lg sm:text-xl font-bold tabular text-[var(--bone)]">{record.totalSwitches}回</p>
+              <p className="summary-stat-value tabular">{record.totalSwitches}回</p>
             </Card>
-            <Card className="p-3 sm:p-4">
+            <Card className="summary-stat">
               <p className="instrument-label">周回数</p>
-              <p className="whitespace-nowrap text-lg sm:text-xl font-bold tabular text-[var(--bone)]">{record.rounds ?? 0}周</p>
+              <p className="summary-stat-value tabular">{record.rounds ?? 0}周</p>
             </Card>
           </div>
 
           {/* 個人別ドライバー回数（偏りが一目で分かるバー・UX 再設計の振り返り） */}
           {record.driverCounts && record.driverCounts.length > 0 && (
-            <Card className="w-full p-4 text-left">
-              <p className="instrument-label mb-3">ドライバー別の回数</p>
-              <ul className="space-y-2">
+            <Card className="summary-drivers">
+              <p className="instrument-label summary-drivers-label">ドライバー別の回数</p>
+              <ul className="summary-drivers-list">
                 {record.members.map((name, i) => {
                   const count = record.driverCounts?.[i] ?? 0;
                   const max = Math.max(1, ...(record.driverCounts ?? [1]));
                   return (
-                    <li key={`${name}-${i}`} className="flex items-center gap-3 text-sm">
-                      <span className="w-24 truncate text-[var(--bone-muted)]">{name}</span>
-                      <span className="flex-1 h-2 rounded-sm bg-[var(--panel-2)] overflow-hidden">
+                    <li key={`${name}-${i}`} className="summary-driver">
+                      <span className="summary-driver-name">{name}</span>
+                      <span className="summary-driver-bar">
                         <span
-                          className="block h-full bg-[var(--signal)]"
+                          className="summary-driver-fill"
                           style={{ width: `${(count / max) * 100}%` }}
                         />
                       </span>
-                      <span className="w-10 text-right tabular text-[var(--bone-muted)]">{count}回</span>
+                      <span className="summary-driver-count tabular">{count}回</span>
                     </li>
                   );
                 })}
@@ -107,20 +107,20 @@ export function Summary({ endType, record, onNewSession, onSaveRecord }: Summary
             </Card>
           )}
 
-          <div className="flex w-full flex-col items-center gap-1">
+          <div className="summary-save">
             <GhostButton
-              className="w-full"
+              className="summary-button"
               onClick={() => {
                 onSaveRecord(record);
                 setSaved(true);
               }}
             >
-              <span className="flex items-center justify-center gap-2">
-                {saved ? <Check className="w-4 h-4 text-[var(--ok)]" aria-hidden="true" /> : null}
+              <span className="summary-button-label">
+                {saved ? <Check className="summary-saved-icon" aria-hidden="true" /> : null}
                 {saved ? "保存しました" : "記録を保存"}
               </span>
             </GhostButton>
-            <p className="text-xs text-[var(--bone-subtle)]">
+            <p className="summary-hint">
               完了時に自動保存されています。手動で再保存もできます。
             </p>
           </div>
@@ -129,15 +129,15 @@ export function Summary({ endType, record, onNewSession, onSaveRecord }: Summary
 
       {/* 中断時のメッセージ */}
       {!isComplete && (
-        <p className="text-[var(--bone-subtle)] text-sm">
+        <p className="summary-abort-note">
           記録は残りません。お疲れさまでした。
         </p>
       )}
 
       {/* 次の行動導線（共通） */}
-      <PrimaryButton className="w-full" onClick={onNewSession}>
-        <span className="flex items-center justify-center gap-2">
-          <Sparkles className="w-5 h-5" aria-hidden="true" /> 新しいセッション
+      <PrimaryButton className="summary-button" onClick={onNewSession}>
+        <span className="summary-button-label">
+          <Sparkles className="summary-new-icon" aria-hidden="true" /> 新しいセッション
         </span>
       </PrimaryButton>
     </div>

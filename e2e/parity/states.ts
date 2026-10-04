@@ -408,6 +408,35 @@ async function holdEndNotice(host: Page, text: RegExp): Promise<void> {
   await expect(notice).toBeVisible();
 }
 
+/**
+ * `session-memo-markdown` の共有メモの本文。`markdown.css` の全規則が当たるよう、`@tasuki/markdown` が描く
+ * ブロック（見出し 1〜3 段・段落・`- `・`1. `・`> `・コードの囲み）と行内（`` `code` ``・`**太字**`・`*斜体*`・
+ * `[文字](URL)`）を 1 つずつ以上入れる。段落の 2 行目は行内の改行（`<br>`）を当てる。
+ */
+const RICH_MEMO = [
+  '# Parity heading one',
+  'Intro with `inline code`, **strong text** and *emphasis*.',
+  'Second line of the same paragraph.',
+  '',
+  '## Parity heading two',
+  'Read [the example link](https://example.com) before rotating.',
+  '',
+  '### Parity heading three',
+  '- first bullet',
+  '- second bullet',
+  '',
+  '1. first step',
+  '2. second step',
+  '',
+  '> quoted line one',
+  '> quoted line two',
+  '',
+  '```',
+  'const parity = 1;',
+  'console.log(parity);',
+  '```',
+].join('\n');
+
 export const STATES: readonly ParityState[] = [
   {
     name: 'lobby-alone',
@@ -609,6 +638,29 @@ export const STATES: readonly ParityState[] = [
       return host;
     },
     marker: (p) => p.getByText('共有メモが更新されました'),
+    minElements: 60,
+    mask: roomMask,
+  },
+  {
+    // `session-memo` の本文は 1 段落だけで、`markdown.css` の規則の大半（見出し 3 段・箇条書き・番号つき・
+    // 引用・コードの囲み・行内コード・太字・斜体・リンク・ブロックの間隔）が比較にも E8 にも掛からない（#321 PR 2）。
+    // 本文は `@tasuki/markdown` が描く記法だけで組む。見出しを先頭に置くのは `.markdown-heading:first-child` を当てるため、
+    // 箇条書き・番号つきを 2 項目にするのは項目の間隔（`:not(:last-child)`）を当てるため。
+    // 文字は ASCII に寄せる（書体の層を追加で引かせず、撮る時刻で字形が揃わない揺れを作らない）
+    name: 'session-memo-markdown',
+    async setup(open) {
+      const { host, guest } = await lobbyWithGuest(open, { clock: true });
+      await startSession(host);
+      await guest.getByRole('button', { name: '編集', exact: true }).click();
+      await guest.getByLabel('共有メモ').fill(RICH_MEMO);
+      await guest.getByRole('button', { name: 'プレビューに戻る' }).click();
+      // 受け取った側は 1.5 秒だけ強調する（`SharedMemo.tsx`）。見えたところで時計を止める
+      await expect(host.getByText('共有メモが更新されました')).toBeAttached();
+      await freezeClock(host);
+      await expect(host.getByRole('heading', { name: 'Parity heading three' })).toBeVisible();
+      return host;
+    },
+    marker: (p) => p.getByRole('heading', { name: 'Parity heading three' }),
     minElements: 60,
     mask: roomMask,
   },

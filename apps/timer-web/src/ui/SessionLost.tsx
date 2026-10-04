@@ -29,41 +29,41 @@ interface SessionLostProps {
 
 export function SessionLost({ code, onNewSession, onShowHistory }: SessionLostProps) {
   return (
-    <div className="mx-auto flex min-h-[60vh] max-w-lg flex-col justify-center gap-8">
-      <header className="text-center">
-        <p className="instrument-label mb-2 text-[var(--urgent)]">Session Lost</p>
-        <h1 className="brand-title font-black text-[var(--bone)]">
+    <div className="session-lost">
+      <header className="session-lost-header">
+        <p className="instrument-label session-lost-label">Session Lost</p>
+        <h1 className="brand-title session-lost-title">
           セッションが見つかりません
         </h1>
         {code && (
-          <p className="text-[var(--bone-muted)] mt-2 text-sm">
-            ルーム <span className="tabular font-bold">{code}</span>
+          <p className="session-lost-code">
+            ルーム <span className="tabular session-lost-code-value">{code}</span>
           </p>
         )}
       </header>
 
       <Card>
-        <p className="flex items-start gap-3 text-sm text-[var(--bone-muted)]">
-          <CloudOff className="mt-0.5 w-5 h-5 shrink-0 text-[var(--urgent)]" aria-hidden="true" />
+        <p className="session-lost-notice">
+          <CloudOff className="session-lost-notice-icon" aria-hidden="true" />
           <span>
             同期サーバーが再起動したか、ルームが終了しました。ルームの状態はサーバー上にのみ
             置かれているため、元のセッションには戻れません。
             <br />
-            <strong className="text-[var(--bone)]">
+            <strong className="session-lost-emphasis">
               この端末に保存された完了の記録は保持されています。
             </strong>
           </span>
         </p>
 
-        <PrimaryButton onClick={onNewSession} className="w-full mt-5 text-lg py-3">
-          <span className="flex items-center justify-center gap-2">
-            <Sparkles className="w-5 h-5" aria-hidden="true" />
+        <PrimaryButton onClick={onNewSession} className="session-lost-new">
+          <span className="session-lost-button-label">
+            <Sparkles className="session-lost-button-icon-lg" aria-hidden="true" />
             新しいセッションを始める
           </span>
         </PrimaryButton>
-        <GhostButton onClick={onShowHistory} className="w-full mt-3">
-          <span className="flex items-center justify-center gap-2">
-            <HistoryIcon className="w-4 h-4" aria-hidden="true" />
+        <GhostButton onClick={onShowHistory} className="session-lost-history">
+          <span className="session-lost-button-label">
+            <HistoryIcon className="session-lost-button-icon" aria-hidden="true" />
             記録を見る
           </span>
         </GhostButton>
