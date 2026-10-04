@@ -25,6 +25,8 @@
  *      `tailwind.config.js` で足したものを含む）と重ならない
  *      （{@link KNOWN_COLLISIONS} に理由つきで載せたものを除く。使われていない例外は落とす）。
  *      部品層の接頭辞 `ui-` で始まるクラスも定義しない（部品層に在るか無いかを問わない）
+ *   4. **宣言禁止の変数**: `--timer-never-defined` は、timer の CSS・部品層・要素層のどこでも宣言しない（参照だけ許す。
+ *      宣言すると、行の高さの `var(--timer-never-defined, calc(…))` を使う全箇所が黙って入れ替わる）
  *
  * ## 何を見ていないか —— 「足りる」とは言わない
  *
@@ -372,6 +374,15 @@ export function checkTimerClasses({ sources, timerCss, componentCss, elementCss,
   }
   for (const name of collisions.keys()) {
     if (!defined.has(name)) problems.push(`[衝突の例外] .${name} は timer の CSS に定義されていません。例外から外す`);
+  }
+  // `--timer-never-defined` は「決して宣言しない」変数（行の高さの calc を最小化で畳ませないための代替値の入れ物・
+  // `styles/status-strip.css` の注釈）。参照は許し、宣言（どこかの祖先や `:root` を含む）は落とす
+  for (const f of [...timerCss, ...componentCss, ...elementCss]) {
+    let declared = false;
+    postcss.parse(f.text).walkDecls((d) => {
+      if (d.prop === "--timer-never-defined") declared = true;
+    });
+    if (declared) problems.push(`[宣言禁止] ${f.rel} が --timer-never-defined を宣言しています。参照（var の代替値）だけ許します`);
   }
   // 接頭辞 `ui-` は部品層のもの。timer の CSS が定義すると、部品を定義し直す（読み込み順で部品に勝つ・設計正本 D3）
   for (const name of defined) {

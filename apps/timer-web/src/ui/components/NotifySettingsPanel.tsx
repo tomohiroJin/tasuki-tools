@@ -33,7 +33,7 @@ export function NotifySettingsPanel({ prefs, onChange, onPreview }: NotifySettin
         <span className={prefs.enabled ? "notify-settings-state-on" : "notify-settings-state-off"}>
           {prefs.enabled ? "ON" : "OFF"}
         </span>
-        <span className="notify-settings-state-off"> / 音: {currentLabel}</span>
+        <span className="notify-settings-muted"> / 音: {currentLabel}</span>
       </p>
 
       {/* ON/OFF トグル（role="switch" + aria-checked で a11y 準拠） */}
