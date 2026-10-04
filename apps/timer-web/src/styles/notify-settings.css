@@ -44,7 +44,8 @@
   background-color: var(--panel);
   padding: 0.75rem;
   font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 で段へ寄せる） */
-  line-height: 1.428572; /* Tailwind の calc(1.25 / 0.875)。畳まれて 14px × 1.42857 = 19.984px になるのを避け、端数を上へ丸めて書く（実測）。数値のまま子へ継承される */
+  --notify-settings-popover-leading: calc(1.25 / 0.875); /* 直書きの calc はビルドが畳み、基準の寸法とずれる。カスタムプロパティなら畳まれない（実測） */
+  line-height: var(--notify-settings-popover-leading);
   color: var(--bone);
   box-shadow: var(--shadow-popover);
 }
@@ -52,14 +53,16 @@
 .notify-settings-warning {
   margin-top: 0.5rem;
   font-size: 0.75rem; /* scale-exempt: Tailwind の text-xs の写し（#316 で段へ寄せる） */
-  line-height: 1.333334; /* Tailwind の calc(1 / 0.75)。ビルドが畳むと 1.33333 になり 12px × 1.33333 = 15.984px と基準の 16px からずれるので、端数を上へ丸めて書く（実測） */
+  --notify-settings-warning-leading: calc(1 / 0.75); /* 直書きの calc はビルドが畳み、基準の寸法とずれる。カスタムプロパティなら畳まれない（実測。status-strip.css と同じ） */
+  line-height: var(--notify-settings-warning-leading);
   color: var(--caution);
 }
 
 /* --- パネル（`NotifySettingsPanel.tsx`。ポップオーバーとロビーのカードで共用） --- */
 .notify-settings {
   font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 で段へ寄せる） */
-  line-height: 1.428572; /* Tailwind の calc(1.25 / 0.875)。畳まれて 14px × 1.42857 = 19.984px になるのを避け、端数を上へ丸めて書く（実測）。数値のまま子へ継承される */
+  --notify-settings-leading: calc(1.25 / 0.875); /* 直書きの calc はビルドが畳み、基準の寸法とずれる。カスタムプロパティなら畳まれない（実測） */
+  line-height: var(--notify-settings-leading);
 }
 
 .notify-settings-heading {
