@@ -207,6 +207,15 @@ describe("checkTimerClasses: 定義・一覧・衝突（設計正本 D10）", ()
       assert.match(problems[0], /timer-never-defined/);
     }
   });
+  test("`--timer-never-defined` を @property で登録したら落とす（initial-value が代替値より勝つ）", () => {
+    const reg = "@property --timer-never-defined { syntax: '<number>'; inherits: false; initial-value: 1.5; }";
+    for (const key of ["timerCss", "componentCss", "elementCss"]) {
+      const files = [...base[key], { rel: "x/y.css", text: reg }];
+      const problems = checkTimerClasses({ ...base, [key]: files });
+      assert.equal(problems.length, 1, key);
+      assert.match(problems[0], /timer-never-defined/);
+    }
+  });
   test("timer の CSS が部品層の接頭辞 ui- のクラスを定義したら落とす（部品の定義し直し）", () => {
     const timerCss = [{ rel: "apps/timer-web/src/styles/x.css", text: ".tabular{} .sr-only{} .ui-panel{}" }];
     const problems = checkTimerClasses({ ...base, timerCss });

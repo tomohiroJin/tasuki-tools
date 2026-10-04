@@ -376,8 +376,13 @@ export function checkTimerClasses({ sources, timerCss, componentCss, elementCss,
   // `styles/status-strip.css` の注釈）。参照は許し、宣言（どこかの祖先や `:root` を含む）は落とす
   for (const f of [...timerCss, ...componentCss, ...elementCss]) {
     let declared = false;
-    postcss.parse(f.text).walkDecls((d) => {
+    const root = postcss.parse(f.text);
+    root.walkDecls((d) => {
       if (d.prop === "--timer-never-defined") declared = true;
+    });
+    // `@property --timer-never-defined { … }` の登録も宣言と同じ（initial-value が var の代替値より勝つ）
+    root.walkAtRules("property", (r) => {
+      if (r.params.trim() === "--timer-never-defined") declared = true;
     });
     if (declared) problems.push(`[宣言禁止] ${f.rel} が --timer-never-defined を宣言しています。参照（var の代替値）だけ許します`);
   }
