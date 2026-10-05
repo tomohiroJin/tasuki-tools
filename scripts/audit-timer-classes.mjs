@@ -70,9 +70,7 @@ export const UNMIGRATED = [
   "apps/timer-web/src/ui/Session.tsx",
   "apps/timer-web/src/ui/components/EndSessionZone.tsx",
   "apps/timer-web/src/ui/components/RosterPanel.tsx",
-  "apps/timer-web/src/ui/components/SelfDriverToggle.tsx",
   "apps/timer-web/src/ui/components/SharedMemo.tsx",
-  "apps/timer-web/src/ui/components/SwitchAlert.tsx",
 ];
 
 /** Tailwind のユーティリティ名と重なることを許すクラス名（移行中だけ。PR 4 で消す）。 */

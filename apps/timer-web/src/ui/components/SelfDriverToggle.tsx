@@ -50,7 +50,7 @@ export function SelfDriverToggle({
   const leaveRoomButton = onLeaveRoom ? (
     <GhostButton
       onClick={() => onLeaveRoom(participantId)}
-      className="text-xs"
+      className="self-driver-toggle-button-xs"
       title="この端末をルームから外します。招待から再参加できます。"
     >
       ルームから抜ける
@@ -59,16 +59,16 @@ export function SelfDriverToggle({
   // rotation 外の場合は目立つバナーを表示（加入を促す）
   if (!inRotation) {
     return (
-      <div className="mb-3 rounded-md border border-[var(--signal)] bg-[var(--signal-tint)] px-3 py-3">
+      <div className="self-driver-toggle-outside">
         {/* ここはローテーション外を表す。かつては「役割が見学者である状態」を表す別の盤
             （SpectatorSelfActions）があり、同じ文言だと読み分けられなかったため書き分けていた。
             #95 S3 でその状態自体が消え、いま「輪の外」はこの 1 つだけである。 */}
-        <p className="text-sm font-semibold text-[var(--bone)]">あなたはドライバーの輪の外です</p>
-        <p className="mt-0.5 text-xs text-[var(--bone-muted)]">
+        <p className="self-driver-toggle-outside-title">あなたはドライバーの輪の外です</p>
+        <p className="self-driver-toggle-outside-note">
           進行の操作はできます。交代の輪に入ると、ドライバーとして順番が回ってきます。
         </p>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <PrimaryButton onClick={() => onJoin?.(participantId)} className="text-sm">
+        <div className="self-driver-toggle-outside-actions">
+          <PrimaryButton onClick={() => onJoin?.(participantId)} className="self-driver-toggle-button-sm">
             ドライバーに加わる
           </PrimaryButton>
           {/* 輪の外でも部屋からは抜けられる。ここに導線が無いと取り残される。 */}
@@ -80,21 +80,21 @@ export function SelfDriverToggle({
 
   // rotation 内の場合は従来の状態表示＋操作ボタン
   const status = isSkipping ? (
-    <span className="font-semibold text-[var(--caution)]">離脱中</span>
+    <span className="self-driver-toggle-status-skipping">離脱中</span>
   ) : (
-    <span className="font-semibold text-[var(--signal)]">ドライバー</span>
+    <span className="self-driver-toggle-status-driver">ドライバー</span>
   );
   return (
-    <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-md bg-[var(--panel-2)] border border-[var(--hairline)] px-3 py-2">
-      <span className="text-sm">あなた: {status}</span>
-      <span className="flex flex-wrap items-center gap-1.5">
+    <div className="self-driver-toggle-row">
+      <span className="self-driver-toggle-label">あなた: {status}</span>
+      <span className="self-driver-toggle-actions">
         {isSkipping && (
-          <PrimaryButton onClick={() => onResume?.(participantId)} className="text-xs">
+          <PrimaryButton onClick={() => onResume?.(participantId)} className="self-driver-toggle-button-xs">
             復帰
           </PrimaryButton>
         )}
         {!isSkipping && (
-          <GhostButton onClick={() => onSkip?.(participantId)} className="text-xs">
+          <GhostButton onClick={() => onSkip?.(participantId)} className="self-driver-toggle-button-xs">
             一時離脱
           </GhostButton>
         )}
@@ -102,7 +102,7 @@ export function SelfDriverToggle({
           onClick={() => onLeave?.(participantId)}
           disabled={!canLeave}
           title={canLeave ? undefined : "最後のドライバーは外れられません"}
-          className="text-xs"
+          className="self-driver-toggle-button-xs"
         >
           列から外れる
         </GhostButton>

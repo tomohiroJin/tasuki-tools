@@ -39,6 +39,8 @@
 @import './styles/circular-progress.css' layer(timer);
 @import './styles/team-orbit.css' layer(timer);
 @import './styles/rotation-lineup.css' layer(timer);
+@import './styles/switch-alert.css' layer(timer);
+@import './styles/self-driver-toggle.css' layer(timer);
 @import './styles/session.css' layer(timer);
 @import './styles/app.css' layer(timer);
 
