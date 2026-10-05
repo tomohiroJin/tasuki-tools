@@ -42,6 +42,7 @@
 @import './styles/switch-alert.css' layer(timer);
 @import './styles/self-driver-toggle.css' layer(timer);
 @import './styles/shared-memo.css' layer(timer);
+@import './styles/end-session-zone.css' layer(timer);
 @import './styles/session.css' layer(timer);
 @import './styles/app.css' layer(timer);
 
