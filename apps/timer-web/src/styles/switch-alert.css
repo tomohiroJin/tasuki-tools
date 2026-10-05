@@ -1,7 +1,7 @@
 /* 強い交代通知の全画面オーバーレイ（`SwitchAlert.tsx`・#321）。Tailwind のユーティリティの写し。
  * 値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。
  * 登場の `animate-pop-in` と `animate-fade-up` は `base.css` のクラスのまま使う。
- * 写さなかった宣言（除去検査で dead）: ラベルの `text-[var(--signal)]`（`.instrument-label` の色が勝つ）。
+ * 写さなかった宣言（除去検査で dead）: ラベルの `text-[var(--signal)]`（`.instrument-label` の色が勝つ）、ドライバー名の `text-[var(--bone)]`（body の色を継ぐので不要）。
  * 王冠の幅と高さは `md:` で 4rem に切り替わる。
  * 行の高さ（`var(--timer-never-defined, calc(…))`）は status-strip.css 冒頭の注釈。 */
 
@@ -29,7 +29,6 @@
   font-size: 3rem; /* scale-exempt: Tailwind の text-5xl の写し（#316 で段へ寄せる） */
   line-height: 1;
   font-weight: 900;
-  color: var(--bone);
 }
 
 @media (width >= 48rem) {
