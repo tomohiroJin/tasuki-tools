@@ -1,7 +1,8 @@
 /* チームの円周配置（`TeamOrbit.tsx`・#321）。Tailwind のユーティリティの写し。
  * 値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。
  * 周回アバターの `animate-pop-in` は `base.css` のクラスのまま使う。`tabular` も同じ（`base.css`）。
- * 写さなかった宣言（除去検査で dead）: 輪の層の `inset-0`（svg）、アバターの `text-[var(--bone)]`（次ドライバーの色・親から継ぐので不要）。
+ * 写さなかった宣言（除去検査で dead）: 輪の層の `inset-0`（svg）、アバターの `text-[var(--bone)]`（次ドライバーの色・親から継ぐので不要）、
+ * 王冠の `text-[var(--on-signal)]`（`lucide-crown` の行が session-driver など 10 状態すべてで dead）。
  * 行の高さ（`var(--timer-never-defined, calc(…))`）は status-strip.css 冒頭の注釈。 */
 
 .team-orbit {
@@ -72,7 +73,6 @@
   right: -0.25rem;
   width: 0.875rem;
   height: 0.875rem;
-  color: var(--on-signal);
   filter: var(--shadow-crown);
   rotate: 12deg;
 }

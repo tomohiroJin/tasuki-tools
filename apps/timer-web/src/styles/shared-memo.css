@@ -2,8 +2,9 @@
  * 値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。
  * メモの本文は `Markdown`（`markdown.css`）が描く。外枠の `Card` の更新時の強調は `.meter-panel-highlight`（`primitives.css`）。
  * 写さなかった宣言: 見出しの `text-[var(--bone)]`（除去検査で dead・親から継ぐ）、
- * 編集中のテキストエリアの `text-[var(--bone)]` と `outline-none`（同じ入力欄の形の `PassphrasePanel` で dead だった。
- * `outline-none` はレイヤー外のグローバルな `:focus-visible` に負ける・設計正本 §2 の 5）、
+ * 編集中のテキストエリアの `text-[var(--bone)]` と `outline-none`（文字色は preflight の `textarea { color: inherit }` で親の `Card` から継ぎ、
+ * 同じ `Card` の子の見出しの `text-[var(--bone)]` が除去検査で dead。輪郭はレイヤー外のグローバルな `:focus-visible { outline: … }` が
+ * utilities の `outline-none` に常に勝つ・設計正本 §2 の 5）、
  * 切替ボタンの `segClass(true)` の枝（呼び出しが無く描かれない）。
  * 編集中のテキストエリアは比較に描かれない（#321 PR 3 の Q5）。除去検査に行が無いので写す側へ倒した。
  * 行の高さ（`var(--timer-never-defined, calc(…))`）は status-strip.css 冒頭の注釈。 */

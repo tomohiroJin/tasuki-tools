@@ -11,8 +11,8 @@
  * **`animation` の一括指定で書かない**: Tailwind は `animation` の値に自分のテーマのキーフレーム名（`pulse`）を見つけると
  * 同じ `@keyframes` を出し、定義が 2 つ連なって比較が差を出す。`animation-name` などの個別のプロパティなら出さない（実測）。 */
 
-/* 「セッション」タブの根の縦の間隔。子の margin は持たない（移した部品の根は margin-block-end を書かない）。
- * ただし `NotifyHint` の根は `margin-bottom` を持ち、`:where()`（詳細度 0）に詳細度で勝つ（基準も同じ並びで勝っていた）。 */
+/* 「セッション」タブの根の縦の間隔。`:where()` は詳細度 0 なので、子の根が書く margin が勝つ（基準の `space-y-6` も同じ並び）。
+ * 例: `NotifyHint` の根は `margin-bottom` を持ち、この規則に勝つ。 */
 :where(.session-panel > :not(:last-child)) {
   margin-block-end: 1.5rem;
 }
