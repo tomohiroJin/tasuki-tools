@@ -64,9 +64,6 @@ export function SharedMemo({ note, onCommit }: SharedMemoProps) {
   // 編集/プレビュー切替。内容の有無に依らず常にプレビュー始まり（読み手優先）。
   const [mode, setMode] = useState<"edit" | "preview">("preview");
 
-  // 更新時のハイライトクラス
-  const highlightClass = updated ? "meter-panel-highlight" : "";
-
   // 外部更新アナウンス（aria-live）。両分岐で共通利用する sr-only スパン。
   const updateAnnouncement = (
     <span className="sr-only" aria-live="polite">
@@ -74,19 +71,12 @@ export function SharedMemo({ note, onCommit }: SharedMemoProps) {
     </span>
   );
 
-  const segClass = (active: boolean) =>
-    `px-3 py-1.5 transition-colors ${
-      active
-        ? "bg-[var(--signal)] text-[var(--on-signal)] font-semibold"
-        : "bg-[var(--panel-2)] text-[var(--bone-muted)] hover:bg-[var(--panel-hover)]"
-    }`;
-
   return (
-    <Card className={highlightClass}>
+    <Card className={updated ? "meter-panel-highlight" : ""}>
       {updateAnnouncement}
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <span className="flex items-center gap-2 text-sm font-semibold text-[var(--bone)]">
-          <ArrowRight className="w-4 h-4 text-[var(--signal)]" aria-hidden="true" />
+      <div className="shared-memo-header">
+        <span className="shared-memo-title">
+          <ArrowRight className="shared-memo-icon" aria-hidden="true" />
           共有メモ
           <span className="instrument-label">Markdown</span>
         </span>
@@ -95,7 +85,7 @@ export function SharedMemo({ note, onCommit }: SharedMemoProps) {
           <button
             type="button"
             onClick={() => setMode("edit")}
-            className={segClass(false)}
+            className="shared-memo-toggle"
           >
             編集
           </button>
@@ -103,7 +93,7 @@ export function SharedMemo({ note, onCommit }: SharedMemoProps) {
           <button
             type="button"
             onClick={() => { commit(); setMode("preview"); }}
-            className={segClass(false)}
+            className="shared-memo-toggle"
           >
             プレビューに戻る
           </button>
@@ -119,14 +109,14 @@ export function SharedMemo({ note, onCommit }: SharedMemoProps) {
           rows={10}
           maxLength={MAX_HANDOFF_NOTE}
           placeholder={"例（Markdown 可）:\n## 参加方法\nVSCode Live Share に参加してください:\nhttps://prod.liveshare.vsengsaas.visualstudio.com/...\n\n## ルール\n- 5分で交代\n- 困ったら一時停止"}
-          className="w-full min-h-[200px] resize-y rounded-md bg-[var(--panel-2)] border border-[var(--hairline-strong)] px-3 py-2 text-sm font-mono text-[var(--bone)] outline-none focus:border-[var(--signal)] transition-colors focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]"
+          className="shared-memo-editor"
         />
       ) : (
-        <div className="min-h-[200px] rounded-md bg-[var(--panel-2)] border border-[var(--hairline)] px-3 py-2" aria-live="polite">
+        <div className="shared-memo-preview" aria-live="polite">
           {note.trim() ? (
             <Markdown source={note} />
           ) : (
-            <p className="text-sm text-[var(--bone-subtle)]">
+            <p className="shared-memo-empty">
               メモはまだありません。「編集」ボタンから Markdown で記入できます（リンク・箇条書き・見出しなど）。
             </p>
           )}
