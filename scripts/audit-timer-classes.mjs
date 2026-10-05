@@ -68,7 +68,6 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..
  */
 export const UNMIGRATED = [
   "apps/timer-web/src/ui/Session.tsx",
-  "apps/timer-web/src/ui/components/RosterPanel.tsx",
 ];
 
 /** Tailwind のユーティリティ名と重なることを許すクラス名（移行中だけ。PR 4 で消す）。 */

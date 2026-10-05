@@ -388,9 +388,7 @@ describe("RosterPanel", () => {
         />,
       );
       // Then
-      const list = screen.getByRole("list");
-      expect(list.className).toContain("overflow-y-auto");
-      expect(list.className).toContain("max-h-[20rem]");
+      expect(screen.getByRole("list")).toHaveAttribute("data-scrollable");
     });
 
     it("scrollable 未指定ならスクロールを付けない", () => {
@@ -406,7 +404,7 @@ describe("RosterPanel", () => {
         />,
       );
       // Then
-      expect(screen.getByRole("list").className).not.toContain("overflow-y-auto");
+      expect(screen.getByRole("list")).not.toHaveAttribute("data-scrollable");
     });
   });
 });

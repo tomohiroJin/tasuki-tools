@@ -44,7 +44,7 @@ function MiniButton({
       onClick={handleClick}
       disabled={disabled || pending}
       aria-busy={pending || undefined}
-      className="px-3 py-2 min-h-[44px] sm:min-h-[36px] shrink-0 whitespace-nowrap rounded-md text-xs font-medium text-[var(--bone-muted)] bg-[var(--panel-2)] hover:bg-[var(--panel-hover)] border border-[var(--hairline)] transition-all active:scale-95 disabled:opacity-50 disabled:cursor-wait focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]"
+      className="roster-panel-mini-button"
       {...rest}
     >
       {children}
@@ -338,9 +338,6 @@ export function RosterPanel({
   // 見学グループ: rotation 外（元の相対順を保持）
   const watchers = participants.filter((p) => !inRot(p));
 
-  // リストのクラス（scrollable 対応）
-  const listClass = `flex flex-col gap-1.5 ${scrollable ? "max-h-[20rem] overflow-y-auto pr-1" : ""}`;
-
   /** 参加者行の共通レンダリング関数。全アクション（改名/離脱/復帰/譲る/外す/並べ替え）を維持する。 */
   const renderRow = (p: Participant) => {
     const isCurrentDriver = currentDriverId !== "" && p.participantId === currentDriverId;
@@ -365,17 +362,17 @@ export function RosterPanel({
         // 現ドライバーになった瞬間だけ key を変えて再マウントし、入場アニメ(animate-pop-in)を
         // 再生させる＝交代で先頭に入れ替わった「感」を出す（reduced-motion では index.css で抑制）。
         key={isCurrentDriver ? `${p.participantId}-current` : p.participantId}
-        className={`rounded-md px-3 py-2 text-sm transition-colors ${
+        className={
           isCurrentDriver
-            ? "bg-[var(--signal-tint)] border border-[var(--signal-edge)] animate-pop-in"
-            : "bg-[var(--panel-2)] border border-[var(--hairline)]"
-        }`}
+            ? "roster-panel-row roster-panel-row-current animate-pop-in"
+            : "roster-panel-row"
+        }
       >
         {isEditing ? (
           /* 改名中は入力＋保存/キャンセルで行を専有する。
              受け付けられなかった理由も**この行の中**に出す（#291 レビュー指摘2）。 */
-          <div className="w-full min-w-0">
-            <div className="flex w-full min-w-0 gap-1">
+          <div className="roster-panel-edit">
+            <div className="roster-panel-edit-row">
               <input
                 type="text"
                 value={editName}
@@ -389,7 +386,7 @@ export function RosterPanel({
                 maxLength={MAX_DISPLAY_NAME}
                 aria-invalid={activeRenameRejection !== null ? true : undefined}
                 aria-describedby={activeRenameRejection !== null ? renameErrorId : undefined}
-                className="min-w-0 flex-1 rounded-md border border-[var(--hairline-strong)] bg-[var(--panel-2)] px-2 py-1 text-sm text-[var(--bone)] outline-none focus:border-[var(--signal)] focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]"
+                className="roster-panel-edit-input"
               />
               <MiniButton onClick={() => submitRename(p.participantId)}>保存</MiniButton>
               <MiniButton onClick={cancelRename}>取消</MiniButton>
@@ -401,7 +398,7 @@ export function RosterPanel({
                 key={activeRenameRejection.attempt}
                 id={renameErrorId}
                 role="alert"
-                className="mt-2 text-sm text-[var(--caution)]"
+                className="roster-panel-error"
               >
                 {`「${activeRenameRejection.typed}」へは変えられませんでした。同じ名前の人がすでに居ます。` +
                   `所属やイニシャルなどを添えて、呼び分けの付く名前にすると変えられます。`}
@@ -416,10 +413,10 @@ export function RosterPanel({
                 在席「オンライン」テキストチップは廃止しドット＋sr-only のみに（FR-032 色併記は
                 ドットで維持し、スクリーンリーダーには sr-only テキストで伝える）。
                 かつてはここに「主催者」「観覧」の役割バッジも並べていた（#95 S3 で廃止）。 */}
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 [&>span.chip]:whitespace-nowrap">
+            <div className="roster-panel-meta">
               {inRotation && (
                 <span
-                  className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold tabular bg-[var(--panel)] text-[var(--bone-subtle)] border border-[var(--hairline)]"
+                  className="roster-panel-order tabular"
                   aria-label={`順番 ${rotationIndex + 1}`}
                 >
                   {rotationIndex + 1}
@@ -430,14 +427,14 @@ export function RosterPanel({
               <span className="sr-only">{presenceLabel(p.presence)}</span>
               {/* 名前: text-base font-medium で情報階層の最上位に。
                   同名が並ぶときは識別子を添える（目で見ても行を区別できるように）。 */}
-              <span className="min-w-0 font-medium text-base text-[var(--bone)] break-words">
+              <span className="roster-panel-name">
                 {label}
               </span>
               {p.isPlaceholder && (
-                <span className="chip text-xs text-[var(--caution)]">代理</span>
+                <span className="roster-panel-chip roster-panel-chip-proxy">代理</span>
               )}
               {isSkipping && (
-                <span className="chip text-xs text-[var(--bone-subtle)]">離脱中</span>
+                <span className="roster-panel-chip roster-panel-chip-skipping">離脱中</span>
               )}
               {isCurrentDriver && (
                 // 「▶ 今」だけでは読み上げても意味が伝わらないので名前を与える。
@@ -446,7 +443,7 @@ export function RosterPanel({
                 <span
                   role="img"
                   aria-label="現在のドライバー"
-                  className="chip text-xs text-[var(--signal)] font-semibold"
+                  className="roster-panel-chip roster-panel-chip-current"
                 >
                   ▶ 今
                 </span>
@@ -457,7 +454,7 @@ export function RosterPanel({
                 操作が増えても枠からはみ出さないようにする。「外す」はアイコン化して幅を圧縮
                 （Lobby と同じ X）。**操作は全員の行に出す**（#95 S3）。
                 一時離脱/復帰は driver.skip で、自分の分は外部の自己トグルがあるなら出さず重複を避ける（#1）。 */}
-            <div className="mt-1.5 flex flex-wrap items-center justify-end gap-1 pl-4">
+            <div className="roster-panel-actions">
               <MiniButton
                 onClick={() => startRename(p.participantId, p.displayName)}
                 aria-label={`${label} を改名`}
@@ -503,7 +500,7 @@ export function RosterPanel({
                     aria-label={`${label} を前の順番へ`}
                     title="前の順番へ"
                   >
-                    <ChevronUp className="w-4 h-4" aria-hidden="true" />
+                    <ChevronUp className="roster-panel-icon" aria-hidden="true" />
                   </MiniButton>
                   <MiniButton
                     onClick={() => onMove!(rotationIndex, rotationIndex + 1)}
@@ -511,7 +508,7 @@ export function RosterPanel({
                     aria-label={`${label} を後の順番へ`}
                     title="後の順番へ"
                   >
-                    <ChevronDown className="w-4 h-4" aria-hidden="true" />
+                    <ChevronDown className="roster-panel-icon" aria-hidden="true" />
                   </MiniButton>
                 </>
               )}
@@ -526,7 +523,7 @@ export function RosterPanel({
                   aria-label={`${label} を退出させる`}
                   title="退出させる"
                 >
-                  <X className="w-4 h-4" aria-hidden="true" />
+                  <X className="roster-panel-icon" aria-hidden="true" />
                 </MiniButton>
               )}
             </div>
@@ -537,7 +534,7 @@ export function RosterPanel({
   };
 
   return (
-    <div className="w-full">
+    <div>
       {/* 退出の確認。対象者の名前と、招待から再参加できることを明示する（FR-075）。
           共有ルームでは他の参加者の画面にも反映されることを添える（FR-076）。 */}
       {pendingRemoval && onRemove && (
@@ -567,7 +564,7 @@ export function RosterPanel({
               setShowProxyInput((v) => !v);
             }}
             aria-label="代理参加者を追加"
-            className="text-sm"
+            className="roster-panel-proxy-toggle"
           >
             代理追加
           </GhostButton>
@@ -576,8 +573,8 @@ export function RosterPanel({
 
       {/* 代理追加フォーム。受け付けられなかった理由は**この中**に出す（#291）。 */}
       {showProxyInput && (
-        <div className="mb-3">
-          <div className="flex gap-2">
+        <div className="roster-panel-proxy-form">
+          <div className="roster-panel-proxy-row">
             <input
               type="text"
               value={proxyName}
@@ -593,9 +590,9 @@ export function RosterPanel({
               maxLength={MAX_DISPLAY_NAME}
               aria-invalid={activeProxyRejection !== null ? true : undefined}
               aria-describedby={activeProxyRejection !== null ? proxyErrorId : undefined}
-              className="flex-1 rounded-md border border-[var(--hairline-strong)] bg-[var(--panel-2)] px-3 py-2 text-sm text-[var(--bone)] outline-none focus:border-[var(--signal)] focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]"
+              className="roster-panel-proxy-input"
             />
-            <PrimaryButton onClick={handleAddProxy} className="text-sm">追加</PrimaryButton>
+            <PrimaryButton onClick={handleAddProxy} className="roster-panel-proxy-add">追加</PrimaryButton>
           </div>
           {activeProxyRejection !== null && (
             // `role="alert"` にして、目で追っていない人にも即時に読み上げさせる。
@@ -605,7 +602,7 @@ export function RosterPanel({
               key={activeProxyRejection.attempt}
               id={proxyErrorId}
               role="alert"
-              className="mt-2 text-sm text-[var(--caution)]"
+              className="roster-panel-error"
             >
               {`「${activeProxyRejection.typed}」は追加できませんでした。同じ名前の人がすでに居ます。` +
                 `所属やイニシャルなどを添えて、呼び分けの付く名前にすると追加できます。`}
@@ -617,8 +614,12 @@ export function RosterPanel({
       {/* ドライバーセクション（rotation 内）: 現ドライバー → rotation 順 */}
       {drivers.length > 0 && (
         <>
-          <p className="mt-2 mb-1 text-xs font-semibold text-[var(--bone-subtle)] uppercase tracking-wide">ドライバー</p>
-          <ul aria-label="ドライバー一覧" className={listClass}>
+          <p className="roster-panel-heading">ドライバー</p>
+          <ul
+            aria-label="ドライバー一覧"
+            className="roster-panel-list"
+            data-scrollable={scrollable ? "" : undefined}
+          >
             {drivers.map(renderRow)}
           </ul>
         </>
@@ -627,8 +628,12 @@ export function RosterPanel({
       {/* 見学セクション（rotation 外）: 元の相対順 */}
       {watchers.length > 0 && (
         <>
-          <p className="mt-3 mb-1 text-xs font-semibold text-[var(--bone-subtle)] uppercase tracking-wide">見学</p>
-          <ul aria-label="見学一覧" className={listClass}>
+          <p className="roster-panel-heading roster-panel-heading-watchers">見学</p>
+          <ul
+            aria-label="見学一覧"
+            className="roster-panel-list"
+            data-scrollable={scrollable ? "" : undefined}
+          >
             {watchers.map(renderRow)}
           </ul>
         </>
