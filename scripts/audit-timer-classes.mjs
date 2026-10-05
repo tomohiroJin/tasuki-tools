@@ -35,7 +35,7 @@
  *
  * - `data-*` 属性の値と CSS の対応（比較の仕組みと E2E が見る・設計正本 D10）
  * - `style={{}}`
- * - 一覧に載ったファイルの書き方と定義（移行中の免除。PR 4 で一覧は空になる）
+ * - 一覧に載ったファイルの書き方と定義（移行中の免除。PR 3 で一覧は空になった。PR 4 で一覧ごと消す）
  * - timer の画面の CSS が部品層（`.ui-*`）を持つ要素のプロパティを上書きしていないか（設計正本 D3。PR ごとに人が見る）
  * - `className` 以外の名前の属性・props でクラス名を渡す書き方（`cls={x}` を部品の中で `className` へ渡す形。
  *   部品の中の `className={cls}` は落ちるが、部品の外の `cls={x}` の値は見ない）
@@ -63,12 +63,10 @@ import { isDirectRun } from "./lib/direct-run.mjs";
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 /**
- * まだ移していないファイル（設計正本 D10 の 3）。**PR 2・3 で移したら消す。PR 4 で空にして、この一覧ごと消す。**
+ * まだ移していないファイル（設計正本 D10 の 3）。**PR 3 で空になった。PR 4 でこの一覧ごと消す。**
  * 一覧に載っているのに、外しても書き方と定義の検査を通るファイルは、検査が「古い一覧」として落とす。
  */
-export const UNMIGRATED = [
-  "apps/timer-web/src/ui/Session.tsx",
-];
+export const UNMIGRATED = [];
 
 /** Tailwind のユーティリティ名と重なることを許すクラス名（移行中だけ。PR 4 で消す）。 */
 export const KNOWN_COLLISIONS = new Map([

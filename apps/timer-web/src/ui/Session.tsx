@@ -219,25 +219,25 @@ export function Session({
       {!hintDismissed && !notifyPrefs.enabled && <NotifyHint onDismiss={dismissHint} />}
 
       {/* PC（lg+）は「左＝タイマー主役＋進行の操作 / 右＝参加者・引き継ぎ」の2カラム。
-          モバイルは素直に縦積み（space-y-6）になる。 */}
-      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-6 lg:items-start space-y-6 lg:space-y-0">
+          モバイルは素直に縦積みになる。 */}
+      <div className="session-layout">
       {/* ── 左（メイン）: タイマー＋進行の操作 ── */}
-      <div className="space-y-6 lg:min-w-0">
+      <div className="session-column">
       {/* ドライバーパネル（タイマー＝円形プログレス、人＝円周配置、現ドライバー＝Crown） */}
-      <Card className={`relative overflow-hidden transition-all`}>
+      <Card className="session-driver-card">
         {/* 現ドライバー背後の微かな朱の発光（計器の照明）。虹色グラデは廃止。 */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_22%,var(--signal-tint),transparent_58%)] pointer-events-none" />
-        <div className="relative text-center py-4">
-          <div className="instrument-label mb-3">Current Driver</div>
+        <div className="session-driver-glow" />
+        <div className="session-driver-body">
+          <div className="instrument-label session-driver-label">Current Driver</div>
           <div
             key={currentDriverName}
-            className="driver-name-fluid font-black mb-5 text-[var(--bone)] animate-fade-up drop-shadow-[0_0_8px_var(--signal-edge)]"
+            className="driver-name-fluid animate-fade-up session-driver-name"
           >
-            <Crown className="w-10 h-10 md:w-12 md:h-12 inline mr-3 text-[var(--signal)]" aria-hidden="true" />
+            <Crown className="session-driver-crown" aria-hidden="true" />
             {currentDriverName}
           </div>
 
-          <div className="flex justify-center mb-4 boot-reveal" style={{ animationDelay: "60ms" }}>
+          <div className="session-orbit boot-reveal" style={{ animationDelay: "60ms" }}>
             <TeamOrbit members={rotation} currentIndex={room.session.currentIndex} nextIndex={nextIndex} size={orbitSize}>
               <CircularProgress
                 progress={progress}
@@ -251,32 +251,32 @@ export function Session({
                   role="timer"
                   aria-live="off"
                   aria-label={`残り時間 ${formatRemaining(displayRemaining)}`}
-                  className={`text-6xl lg:text-7xl font-black tabular tracking-tight ${
-                    isUrgent ? "text-[var(--urgent)] animate-pulse" : "text-[var(--bone)]"
-                  } ${isPaused ? "opacity-50" : ""}`}
+                  className="session-timer tabular"
+                  data-urgent={isUrgent ? "" : undefined}
+                  data-paused={isPaused ? "" : undefined}
                 >
                   {formatRemaining(displayRemaining)}
                 </div>
                 {isPaused && (
-                  <div className="instrument-label mt-1 text-[10px]">Paused</div>
+                  <div className="instrument-label session-paused-label">Paused</div>
                 )}
               </CircularProgress>
             </TeamOrbit>
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-2 text-lg text-[var(--bone-muted)] boot-reveal" style={{ animationDelay: "150ms" }}>
-            <ArrowRight className="w-5 h-5 text-[var(--steel)]" aria-hidden="true" />
-            次: <span className="text-[var(--bone)] font-bold text-lg">{nextDriverName}</span>
+          <div className="session-next boot-reveal" style={{ animationDelay: "150ms" }}>
+            <ArrowRight className="session-next-arrow" aria-hidden="true" />
+            次: <span className="session-next-name">{nextDriverName}</span>
             {nextIndex === null && (
-              <span className="text-[var(--bone-subtle)]">（交代できる人がいません）</span>
+              <span className="session-next-note">（交代できる人がいません）</span>
             )}
             {room.config.navigatorEnabled && navigatorName && (
-              <span className="ml-3 text-[var(--bone-subtle)]">ナビ: <span className="text-[var(--bone-muted)]">{navigatorName}</span></span>
+              <span className="session-navigator">ナビ: <span className="session-navigator-name">{navigatorName}</span></span>
             )}
           </div>
 
           {/* 交代順ストリップ（読み取り専用・「自分はいつ？」確認用） */}
-          <div className="mt-3">
+          <div className="session-lineup">
             <RotationLineup
               rotation={rotation}
               currentIndex={room.session.currentIndex}
@@ -288,25 +288,25 @@ export function Session({
           </div>
 
           {/* 統計（等幅タビュラーで計測値らしく） */}
-          <div className="mt-4 flex justify-center gap-6 text-base text-[var(--bone-subtle)]">
-            <span>経過 <span className="tabular text-[var(--bone-muted)]">{formatElapsed(elapsed)}</span></span>
-            <span>交代 <span className="tabular text-[var(--bone-muted)]">{room.session.totalSwitches}</span>回</span>
+          <div className="session-stats">
+            <span>経過 <span className="tabular session-stat-value">{formatElapsed(elapsed)}</span></span>
+            <span>交代 <span className="tabular session-stat-value">{room.session.totalSwitches}</span>回</span>
           </div>
         </div>
 
         {/* 操作（スキップ／一時停止・再開）。誰でも操作できる（#95 S3）。 */}
-        <div className="relative flex flex-wrap justify-center gap-2 pt-2 boot-reveal" style={{ animationDelay: "230ms" }}>
+        <div className="session-actions boot-reveal" style={{ animationDelay: "230ms" }}>
           {isPaused || !running ? (
             <PrimaryButton onClick={onResume} disabled={!isPaused}>
-              <span className="flex items-center gap-2"><Play className="w-5 h-5" aria-hidden="true" /> 再開</span>
+              <span className="session-action-label"><Play className="session-action-icon-lg" aria-hidden="true" /> 再開</span>
             </PrimaryButton>
           ) : (
             <GhostButton onClick={onPause}>
-              <span className="flex items-center gap-2"><Pause className="w-4 h-4" aria-hidden="true" /> 一時停止</span>
+              <span className="session-action-label"><Pause className="session-action-icon" aria-hidden="true" /> 一時停止</span>
             </GhostButton>
           )}
           <GhostButton onClick={onSkip} disabled={!running}>
-            <span className="flex items-center gap-2"><SkipForward className="w-4 h-4" aria-hidden="true" /> スキップ</span>
+            <span className="session-action-label"><SkipForward className="session-action-icon" aria-hidden="true" /> スキップ</span>
           </GhostButton>
           {/* 「時間リセット」＝持ち時間のやり直し（Issue #14）。人は変えず、現ドライバーの
               時間だけ満タンから走り直す。「最初から」（先頭ドライバーへ戻す全体リセット・
@@ -317,7 +317,7 @@ export function Session({
             onClick={onRestartTimer}
             title="同じドライバーのまま、持ち時間を最初からやり直します"
           >
-            <span className="flex items-center gap-2"><TimerReset className="w-4 h-4" aria-hidden="true" /> 時間リセット</span>
+            <span className="session-action-label"><TimerReset className="session-action-icon" aria-hidden="true" /> 時間リセット</span>
           </GhostButton>
         </div>
       </Card>
@@ -335,7 +335,7 @@ export function Session({
       </div>{/* /左（メイン） */}
 
       {/* ── 右（サイド）: 参加者一覧＋引き継ぎメモ ── */}
-      <div className="space-y-6 lg:min-w-0">
+      <div className="session-column">
       {/* 在席一覧（RosterPanel）。改名・一時離脱・代理追加・現ドライバー
           ハイライト（FR-046/047/048/050/051/061）。現ドライバーは rotation の識別子で判定。 */}
       <Card>
@@ -360,9 +360,9 @@ export function Session({
         {/* セッション中でもロスターからドライバー順をランダム化できる（v2.3 #1）。
             2人以上で意味を持つ。RosterPanel 内の上/下並べ替え（onMove）と対で配置。 */}
         {onShuffle && rotationLen > 1 && (
-          <div className="mb-3 flex justify-end">
-            <GhostButton onClick={onShuffle} aria-label="ドライバー順をランダムに並べ替える" className="text-sm">
-              <span className="flex items-center gap-1.5"><Shuffle className="w-4 h-4" aria-hidden="true" /> ランダム</span>
+          <div className="session-toolbar">
+            <GhostButton onClick={onShuffle} aria-label="ドライバー順をランダムに並べ替える" className="session-button-sm">
+              <span className="session-shuffle-label"><Shuffle className="session-action-icon" aria-hidden="true" /> ランダム</span>
             </GhostButton>
           </div>
         )}
@@ -404,7 +404,7 @@ export function Session({
             id: "room",
             label: "ルーム",
             content: (
-              <div className="space-y-6">
+              <div className="session-room">
                 <InvitePanel code={room.code} roomUrl={inviteUrl} />
                 {/* ルームのパスフレーズ設定/解除（R4-2）。招待のすぐ下に置く。 */}
                 {onSetPassphrase && (
@@ -421,10 +421,10 @@ export function Session({
                   {/* 自己退出は Session タブの SelfDriverToggle が担うが、
                       Room タブだけを見ている場合に導線が消えないよう、ここにも出す。 */}
                   {currentParticipant && onRemoveParticipant && (
-                    <div className="mb-3 flex justify-end">
+                    <div className="session-toolbar">
                       <GhostButton
                         onClick={() => onRemoveParticipant(currentParticipant.participantId)}
-                        className="text-xs"
+                        className="session-button-xs"
                         title="この端末をルームから外します。招待から再参加できます。"
                       >
                         ルームから抜ける
@@ -433,9 +433,9 @@ export function Session({
                   )}
                   {/* ルームタブでもランダム化できる（v2.3 #1・セッションタブと同等）。 */}
                   {onShuffle && rotationLen > 1 && (
-                    <div className="mb-3 flex justify-end">
-                      <GhostButton onClick={onShuffle} aria-label="ドライバー順をランダムに並べ替える" className="text-sm">
-                        <span className="flex items-center gap-1.5"><Shuffle className="w-4 h-4" aria-hidden="true" /> ランダム</span>
+                    <div className="session-toolbar">
+                      <GhostButton onClick={onShuffle} aria-label="ドライバー順をランダムに並べ替える" className="session-button-sm">
+                        <span className="session-shuffle-label"><Shuffle className="session-action-icon" aria-hidden="true" /> ランダム</span>
                       </GhostButton>
                     </div>
                   )}

@@ -2,8 +2,8 @@
  * 値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。
  * 見出し・ラベルの文字色は書かない（`.brand-title` / `.instrument-label` の色が勝っていて、Tailwind の色は効いていなかった）。
  * 行の高さ（`var(--timer-never-defined, calc(…))`）は status-strip.css 冒頭の注釈。
- * 点滅（`animation: pulse …`）は Tailwind の `animate-pulse` の写し。`@keyframes pulse` は Tailwind から借りている
- * （ここに書くと同名が 2 つ連なり比較が差を出す）。出どころは検査（`scripts/audit-timer-classes.mjs`）が強制する。 */
+ * 点滅は Tailwind の `animate-pulse` の写し。`@keyframes pulse` は `session.css` が定義する（ここに書くと同名が 2 つ連なり比較が差を出す）。
+ * `animation` の一括指定で書かない理由は `session.css` の冒頭。出どころは検査（`scripts/audit-timer-classes.mjs`）が強制する。 */
 
 /* 待ち表示 */
 .loading-waiting {
@@ -19,7 +19,10 @@
   border-radius: calc(infinity * 1px);
   background-color: var(--signal);
   margin-bottom: 0.5rem;
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  animation-name: pulse;
+  animation-duration: 2s;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1);
+  animation-iteration-count: infinite;
 }
 
 .loading-waiting-connection {
