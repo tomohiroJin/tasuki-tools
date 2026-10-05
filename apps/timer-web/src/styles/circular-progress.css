@@ -1,0 +1,35 @@
+/* クロノグラフ・ダイヤル（`CircularProgress.tsx`・#321）。Tailwind のユーティリティの写し。
+ * 値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。
+ * 写さなかった宣言（除去検査で dead）: 目盛り盤・計測弧・運針の層の `inset-0`、計測弧の `transition-all`（`transition-property` の初期値が `all` で同じ）。
+ * `chrono-hand`（運針）は `base.css` の定義のまま使う（`e2e/specs/timer-a11y.spec.ts` がセレクタに使う）。 */
+
+.circular-progress {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.circular-progress-layer {
+  position: absolute;
+}
+
+/* 12 時起点で時計回りに進めるため -90deg 回転する。 */
+.circular-progress-arc-layer {
+  position: absolute;
+  rotate: -90deg;
+}
+
+.circular-progress-arc {
+  transition-duration: 1s;
+  transition-timing-function: linear;
+}
+
+.circular-progress-content {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}

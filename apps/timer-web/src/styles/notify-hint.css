@@ -1,0 +1,47 @@
+/* 初回の通知案内（`NotifyHint.tsx`・#321）。Tailwind のユーティリティの写し。
+ * 値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。
+ * 写さなかった宣言（除去検査で dead）: 根の `text-[var(--bone)]`（親から継ぐので不要）。
+ * 行の高さ（`var(--timer-never-defined, calc(…))`）は status-strip.css 冒頭の注釈。 */
+
+.notify-hint {
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  border-radius: var(--radius-md);
+  border-width: 1px;
+  border-color: var(--signal);
+  background-color: var(--signal-tint);
+  padding-inline: 0.75rem;
+  padding-block: 0.5rem;
+  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 で段へ寄せる） */
+  line-height: var(--timer-never-defined, calc(1.25 / 0.875)); /* 行の高さは status-strip.css 冒頭の注釈 */
+}
+
+.notify-hint-icon {
+  margin-top: 0.125rem;
+  height: 1rem;
+  width: 1rem;
+  flex-shrink: 0;
+  color: var(--signal);
+}
+
+.notify-hint-text {
+  flex: 1;
+}
+
+.notify-hint-close {
+  flex-shrink: 0;
+  color: var(--bone-muted);
+}
+
+@media (hover: hover) {
+  .notify-hint-close:hover {
+    color: var(--bone);
+  }
+}
+
+.notify-hint-close-icon {
+  height: 1rem;
+  width: 1rem;
+}

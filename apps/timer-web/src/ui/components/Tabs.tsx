@@ -39,7 +39,7 @@ export function Tabs({ items, ariaLabel, defaultTabId }: TabsProps) {
       <div
         role="tablist"
         aria-label={ariaLabel}
-        className="flex gap-1 border-b border-[var(--hairline)] mb-4"
+        className="tabs-list"
       >
         {items.map((it, i) => {
           const selected = it.id === active;
@@ -54,11 +54,7 @@ export function Tabs({ items, ariaLabel, defaultTabId }: TabsProps) {
               tabIndex={selected ? 0 : -1}
               onClick={() => setActive(it.id)}
               onKeyDown={(e) => onKeyDown(e, i)}
-              className={`px-4 py-2 min-h-[44px] sm:min-h-0 text-sm font-semibold rounded-t-md -mb-px border-b-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)] ${
-                selected
-                  ? "border-[var(--signal)] text-[var(--bone)]"
-                  : "border-transparent text-[var(--bone-subtle)] hover:text-[var(--bone-muted)]"
-              }`}
+              className={selected ? "tab tab-selected" : "tab tab-idle"}
             >
               {it.label}
             </button>

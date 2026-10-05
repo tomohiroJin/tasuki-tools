@@ -212,7 +212,7 @@ export function Session({
 
   // 「セッション」タブのコンテンツ（既存 UI をそのまま移動）。
   const sessionPanel = (
-    <div className="space-y-6">
+    <div className="session-panel">
       {/* いまのお題（#91）。timer は読むだけで、変えるのはお題ツールの仕事（spec T4）。 */}
       {topic && <TopicCard topic={topic} />}
       {/* 初回ヒント（未読かつ通知 OFF のときのみ）。閉じる or 通知 ON で消える。 */}

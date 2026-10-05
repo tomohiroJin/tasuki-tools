@@ -1,0 +1,8 @@
+/* セッションの画面（`Session.tsx`・#321）。Tailwind のユーティリティの写し。値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。
+ * この段（PR 3 Task 1）では「セッション」タブの縦積みだけを置く。残りは Task 6 で育てる。 */
+
+/* 「セッション」タブの根の縦の間隔。子の margin は持たない（移した部品の根は margin-block-end を書かない）。
+ * ただし `NotifyHint` の根は `margin-bottom` を持ち、`:where()`（詳細度 0）に詳細度で勝つ（基準も同じ並びで勝っていた）。 */
+:where(.session-panel > :not(:last-child)) {
+  margin-block-end: 1.5rem;
+}

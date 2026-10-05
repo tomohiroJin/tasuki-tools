@@ -68,16 +68,11 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..
  */
 export const UNMIGRATED = [
   "apps/timer-web/src/ui/Session.tsx",
-  "apps/timer-web/src/ui/components/CircularProgress.tsx",
   "apps/timer-web/src/ui/components/EndSessionZone.tsx",
-  "apps/timer-web/src/ui/components/NotifyHint.tsx",
   "apps/timer-web/src/ui/components/RosterPanel.tsx",
-  "apps/timer-web/src/ui/components/RotationLineup.tsx",
   "apps/timer-web/src/ui/components/SelfDriverToggle.tsx",
   "apps/timer-web/src/ui/components/SharedMemo.tsx",
   "apps/timer-web/src/ui/components/SwitchAlert.tsx",
-  "apps/timer-web/src/ui/components/Tabs.tsx",
-  "apps/timer-web/src/ui/components/TeamOrbit.tsx",
 ];
 
 /** Tailwind のユーティリティ名と重なることを許すクラス名（移行中だけ。PR 4 で消す）。 */

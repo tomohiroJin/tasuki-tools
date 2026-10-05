@@ -51,42 +51,42 @@ export function RotationLineup({ rotation, currentIndex, nextIndex, intervalSeco
   const selfSummary = self ? buildSelfSummary(self) : null;
 
   return (
-    <div className="mt-3">
+    <div className="rotation-lineup">
       {selfSummary && (
         <p
-          className="mb-2 text-center text-lg font-bold text-[var(--signal)]"
+          className="rotation-lineup-summary"
           aria-live="polite"
         >
           {selfSummary}
         </p>
       )}
-      <ol className="flex flex-wrap justify-center gap-1.5">
+      <ol className="rotation-lineup-list">
         {members.map((m) => (
           <li
             // 同名参加者が居ても行を取り違えないよう識別子を key にする（表示名は一意でない）
             key={m.participantId}
-            className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm ${
-              m.skipReason !== null ? "opacity-70 " : ""
-            }${
+            className={
               m.isCurrent
-                ? "bg-[var(--signal-tint)] border border-[var(--signal-edge)] text-[var(--bone)]"
+                ? "rotation-lineup-row rotation-lineup-row-current"
                 : m.isSelf
-                ? "bg-[var(--panel-2)] border border-[var(--signal)] text-[var(--bone)]"
-                : "bg-[var(--panel-2)] border border-[var(--hairline)] text-[var(--bone-muted)]"
-            }`}
+                ? "rotation-lineup-row rotation-lineup-row-self"
+                : "rotation-lineup-row rotation-lineup-row-other"
+            }
+            // 番が回らない席は薄く置く（CSS が属性で分ける）。
+            data-skipped={m.skipReason !== null ? "true" : undefined}
           >
             {/* 番号バッジ */}
-            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[var(--panel)] text-xs font-bold tabular">
+            <span className="rotation-lineup-badge tabular">
               {m.order}
             </span>
             {/* 名前 */}
-            <span className="font-medium">{m.name}</span>
+            <span className="rotation-lineup-name">{m.name}</span>
             {/* 自分マーカー */}
-            {m.isSelf && <span className="text-[var(--signal)]">（あなた）</span>}
+            {m.isSelf && <span className="rotation-lineup-self-mark">（あなた）</span>}
             {/* 番が回らない理由の印（#276 D11）。現ドライバーには「運転中である」言い方にする。 */}
             {m.skipReason !== null && (
               <span
-                className="text-[var(--bone-subtle)]"
+                className="rotation-lineup-skip-reason"
                 title={m.isCurrent ? SKIP_TEXT[m.skipReason].current : SKIP_TEXT[m.skipReason].reason}
               >
                 {SKIP_TEXT[m.skipReason].label}
@@ -94,7 +94,7 @@ export function RotationLineup({ rotation, currentIndex, nextIndex, intervalSeco
             )}
             {/* いつ番が来るか。飛ばされる席には回ってこないので、現ドライバー以外は予告しない。 */}
             {(m.skipReason === null || m.isCurrent) && (
-              <span className={m.isCurrent ? "font-semibold text-[var(--signal)]" : "text-[var(--bone-subtle)]"}>
+              <span className={m.isCurrent ? "rotation-lineup-when-current" : "rotation-lineup-when"}>
                 {whenLabel(m)}
               </span>
             )}
