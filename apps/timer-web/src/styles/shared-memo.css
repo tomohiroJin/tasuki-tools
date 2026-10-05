@@ -25,7 +25,7 @@
   font-weight: 600;
 }
 
-/* アイコン（比較に描かれない・除去検査に行が無い） */
+/* アイコン（除去検査で alive・lucide のクラスつきの行） */
 .shared-memo-icon {
   width: 1rem;
   height: 1rem;
