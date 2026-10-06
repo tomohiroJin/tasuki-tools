@@ -242,8 +242,8 @@ jobs:
       - run: node scripts/audit-ui-components.mjs
         if: steps.scope.outputs.code == 'true'
 
-      # timer のクラス名。書き方（字面か _CLASS の表）・定義（timer の CSS か部品層）・Tailwind と要素層との衝突を見る
-      # （ADR 0023・#321）。typescript と tailwindcss を読むので install の後ろに置く。
+      # timer のクラス名。書き方（字面か _CLASS の表）・定義（timer の CSS か部品層）・要素層との衝突を見る
+      # （ADR 0023・#321）。typescript を読むので install の後ろに置く。
       - run: node scripts/audit-timer-classes.mjs
         if: steps.scope.outputs.code == 'true'
 

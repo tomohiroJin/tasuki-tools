@@ -5,11 +5,7 @@
  * ## 何を見るか
  *
  *   0. **走査対象の健全性**（`docs/adr/0014`）: timer の `.tsx` / `.ts`・timer の CSS・部品層と要素層の CSS の件数が 0 なら落とす。
- *      「まだ移していないファイル」の一覧（{@link UNMIGRATED}）に、実在しないファイルと、**一覧から外しても 1 と 2 を通る
- *      ファイル**があれば落とす（古い一覧が、移したファイルを免除し続けるのを止める）。ただし、クラス名を書く場所
- *      （`className` の属性・キー）も字面のクラス名も無く、本文に `className` / `_CLASS` / 語末の `Class` の字面だけがある
- *      ファイル（関数でクラス名を返す `.ts`）は、中身を検査できないので落とさない
- *   1. **書き方**（一覧に無いファイルだけ）: `className` の属性と、オブジェクトの `className` キー（スプレッドや
+ *   1. **書き方**（timer の `.tsx` / `.ts` すべて）: `className` の属性と、オブジェクトの `className` キー（スプレッドや
  *      `createElement` の props）に渡してよいのは、文字列リテラル・置換の無いテンプレート・それらを枝に持つ条件式・
  *      名前が `_CLASS` で終わる表の要素・`className` という名前の値（部品の受け渡し）と、それを置換に持つテンプレートだけ。
  *      - `className` という名前の束縛は、関数の最初の引数のオブジェクトの分割代入で、プロパティ名も `className` のもの
@@ -17,43 +13,36 @@
  *        import（別名・既定・名前空間を含む）・関数の宣言と関数式の名前・クラスの名前は落とす
  *      - `className` と `_CLASS` への書き込みは、代入（複合代入を含む）・分割代入・`X_CLASS.y = …`・`++` / `--`・
  *        `for (… of …)` の左辺のどれでも落とす
- *      - `_CLASS` の表は、同じファイルの `const` の宣言（値は字面だけ）か、一覧に無い timer のファイルが `const` で
+ *      - `_CLASS` の表は、同じファイルの `const` の宣言（値は字面だけ）か、別の timer のファイルが `const` で
  *        宣言したものの import だけ。`let`・引数・分割代入・再代入で作る `_CLASS` と、宣言の見えない `_CLASS` は落とす
- *   2. **定義**（一覧に無いファイルだけ）: 1 の形から字面で取り出したクラス名は、timer の CSS か部品層に定義されている。
- *      Tailwind のクラスはどちらにも定義されないので、移したファイルに残った Tailwind のクラスもここで落ちる（計画 P8）
- *   3. **衝突**: timer の CSS が定義したクラス名は、要素層のクラス名・Tailwind のユーティリティ名（timer の
- *      `tailwind.config.js` で足したものを含む）と重ならない
- *      （{@link KNOWN_COLLISIONS} に理由つきで載せたものを除く。使われていない例外は落とす）。
+ *   2. **定義**: 1 の形から字面で取り出したクラス名は、timer の CSS か部品層に定義されている。
+ *      どちらにも定義されないクラス（消えた Tailwind のユーティリティの字面など）はここで落ちる
+ *   3. **衝突**: timer の CSS が定義したクラス名は、要素層のクラス名と重ならない。
  *      部品層の接頭辞 `ui-` で始まるクラスも定義しない（部品層に在るか無いかを問わない）
  *   4. **宣言禁止の変数**: `--timer-never-defined` は、timer の CSS・部品層・要素層のどこでも宣言しない（参照だけ許す。
  *      宣言すると、行の高さの `var(--timer-never-defined, calc(…))` を使う全箇所が黙って入れ替わる）
  *   5. **借り物のキーフレームの出どころ**: timer の CSS の `animation` / `animation-name` が名指しするキーフレームは、
- *      timer の CSS が `@keyframes` で定義するか、`UNMIGRATED` のファイルに `animate-<名前>` の字面があるか（Tailwind が出す）
- *      のどちらかでなければ落とす（出どころの `animate-*` を消した瞬間にアニメーションが黙って止まるのを防ぐ）
+ *      timer の CSS が `@keyframes` で定義していなければ落とす（名指しだけが残ってアニメーションが黙って止まるのを防ぐ）
  *
  * ## 何を見ていないか —— 「足りる」とは言わない
  *
  * - `data-*` 属性の値と CSS の対応（比較の仕組みと E2E が見る・設計正本 D10）
  * - `style={{}}`
- * - 一覧に載ったファイルの書き方と定義（移行中の免除。PR 3 で一覧は空になった。PR 4 で一覧ごと消す）
  * - timer の画面の CSS が部品層（`.ui-*`）を持つ要素のプロパティを上書きしていないか（設計正本 D3。PR ごとに人が見る）
  * - `className` 以外の名前の属性・props でクラス名を渡す書き方（`cls={x}` を部品の中で `className` へ渡す形。
  *   部品の中の `className={cls}` は落ちるが、部品の外の `cls={x}` の値は見ない）
- * - `.ts` の関数がクラス名を返す形。一覧に載っている間は「古い一覧」の判定からも外れ、一覧から外した後は
- *   書き方の検査にも掛からない（`className` の場所が無いため）。外すときに人が見る
+ * - `.ts` の関数がクラス名を返す形。書き方の検査に掛からない（`className` の場所が無いため）。人が見る
  * - `{...props}` のスプレッドの中身（`className` キーを字面で持つオブジェクトリテラルだけを見る）
  * - 宣言の無い `className`（ファイルのどこにも束縛が無いまま `className={className}` と書く形。型検査が落とす）
  * - `Object.assign(T_CLASS, …)` など、関数の呼び出しを通した `_CLASS` の表への書き込み
  * - `xs.map(({ className }) => …)`。コールバックの最初の引数のオブジェクトの分割代入は、部品の props と形が同じなので許してしまう
  *
  * 依存: postcss・postcss-selector-parser（ADR 0022 決定 7）と typescript（ルートの devDependencies）。
- * Tailwind のユーティリティ名の判定は `apps/timer-web` の `tailwindcss` を解決して使う（移行中だけ。ADR 0023・計画 P7）。
  * 設計方針: 判定は純粋関数、実 I/O と `process.exit` は `main()` の薄い配線だけに置く。
  */
 import fs from "node:fs";
 import path from "node:path";
-import { createRequire } from "node:module";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 import postcss from "postcss";
 import selectorParser from "postcss-selector-parser";
 import ts from "typescript";
@@ -61,17 +50,6 @@ import { findEmptyScanDimensions, listRepoFiles } from "./lib/scan-targets.mjs";
 import { isDirectRun } from "./lib/direct-run.mjs";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-
-/**
- * まだ移していないファイル（設計正本 D10 の 3）。**PR 3 で空になった。PR 4 でこの一覧ごと消す。**
- * 一覧に載っているのに、外しても書き方と定義の検査を通るファイルは、検査が「古い一覧」として落とす。
- */
-export const UNMIGRATED = [];
-
-/** Tailwind のユーティリティ名と重なることを許すクラス名（移行中だけ。PR 4 で消す）。 */
-export const KNOWN_COLLISIONS = new Map([
-  ["sr-only", "Tailwind 版とレイヤー外の版がそれぞれ別の宣言で効いている。PR 2 で両方の宣言の和を残す（設計正本 D2）"],
-]);
 
 /** CSS の識別子のエスケープを解く（`px-1\.5` → `px-1.5`）。 */
 function unescapeIdent(s) {
@@ -140,7 +118,6 @@ const isAssignmentOperator = (kind) => kind >= ts.SyntaxKind.FirstAssignment && 
  *
  * - `classes`: 字面で取り出したクラス名（定義の検査に回す）
  * - `problems`: 許さない書き方
- * - `classNameSites`: `className` の属性とオブジェクトの `className` キーの数（クラス名を書く場所の数）
  * - `tableImports`: import した `_CLASS` の表（`{ local, imported, from, line }`）。宣言した側の検査は {@link checkTimerClasses} が引く
  * - `tableExports`: このファイルが `const` で宣言した `_CLASS` の表の名前
  */
@@ -155,7 +132,6 @@ export function classUsagesIn(fileName, text) {
   // 名前が _CLASS の束縛（許さない形も含む）。許さない束縛は宣言の側で 1 度だけ落とし、引く側では重ねない
   const tableBindings = new Set();
   const reportedWrites = new Set();
-  let classNameSites = 0;
   const lineOf = (node) => sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
   const addLiteral = (node, value) => {
     for (const name of tokensOf(value)) classes.push({ name, line: lineOf(node) });
@@ -219,7 +195,6 @@ export function classUsagesIn(fileName, text) {
 
   const visit = (node) => {
     if (ts.isJsxAttribute(node) && node.name.getText(sf) === "className") {
-      classNameSites += 1;
       const init = node.initializer;
       if (init === undefined) reject(node, "値の無い className");
       else if (ts.isStringLiteral(init)) addLiteral(init, init.text);
@@ -228,10 +203,8 @@ export function classUsagesIn(fileName, text) {
     }
     // オブジェクトの className キー（スプレッドの `{...{ className: x }}`・createElement の props）も同じ形に限る
     if (ts.isPropertyAssignment(node) && propNameOf(node.name) === "className") {
-      classNameSites += 1;
       checkExpr(node.initializer);
     }
-    if (ts.isShorthandPropertyAssignment(node) && node.name.text === "className") classNameSites += 1;
     if ((ts.isVariableDeclaration(node) || ts.isParameter(node)) && ts.isIdentifier(node.name)) checkBinding(node, node.name.text);
     if (ts.isBindingElement(node) && ts.isIdentifier(node.name)) checkBinding(node, node.name.text);
     // className という名前を import・関数・クラスで作る形（部品の props 以外から値が来る）。`_CLASS` の import は下で引く
@@ -278,14 +251,8 @@ export function classUsagesIn(fileName, text) {
   for (const ref of tableRefs) {
     if (!tableBindings.has(ref.text) && !imported.has(ref.text)) reject(ref, `宣言の無い _CLASS の表（${ref.text}）を引く書き方`);
   }
-  return { classes, problems, classNameSites, tableImports, tableExports };
+  return { classes, problems, tableImports, tableExports };
 }
-
-/**
- * クラス名を扱う字面があるか（`className` / `_CLASS` / 語末の `Class`）。
- * 一覧の「古い」判定で、関数でクラス名を返すファイルを誤って落とさないために使う。
- */
-const mentionsClasses = (text) => /className|_CLASS|Class\b/.test(text);
 
 /** import の指定子を timer のファイルへ解く（相対パスだけ。拡張子は省略・明示の両方）。 */
 function resolveImport(fromRel, specifier, byRel) {
@@ -341,24 +308,23 @@ export function animationNamesOf(prop, value) {
 }
 
 /** 判定の本体（純粋関数）。 */
-export function checkTimerClasses({ sources, timerCss, componentCss, elementCss, unmigrated, collisions, isTailwindUtility }) {
+export function checkTimerClasses({ sources, timerCss, componentCss, elementCss }) {
   const problems = [];
   const defined = new Set(timerCss.flatMap((f) => [...cssClassNames(f.text)]));
   const parts = new Set(componentCss.flatMap((f) => [...cssClassNames(f.text)]).filter((n) => n.startsWith("ui-")));
   const elementNames = new Set(elementCss.flatMap((f) => [...cssClassNames(f.text)]));
-  const listed = new Set(unmigrated);
   const byRel = new Map(sources.map((s) => [s.rel, s]));
   const usages = new Map(sources.map((s) => [s.rel, classUsagesIn(s.rel, s.text)]));
 
-  /** 書き方と定義の違反（一覧に無いファイルとして見たとき）。 */
+  /** 書き方と定義の違反。 */
   const fileProblems = (rel) => {
     const usage = usages.get(rel);
     const out = usage.problems.map((p) => `[書き方] ${rel}:${p.line} ${p.message}`);
-    // import した _CLASS の表は、宣言した側が一覧に無い timer のファイルなら値を検査済みなので許す
+    // import した _CLASS の表は、宣言した側が timer のファイルなら値を検査済みなので許す
     for (const imp of usage.tableImports) {
       const target = resolveImport(rel, imp.from, byRel);
-      if (target === undefined || listed.has(target) || !usages.get(target).tableExports.has(imp.imported)) {
-        out.push(`[書き方] ${rel}:${imp.line} import した ${imp.local} は、一覧に無い timer のファイルが const で宣言した _CLASS の表ではありません（値を検査できない）`);
+      if (target === undefined || !usages.get(target).tableExports.has(imp.imported)) {
+        out.push(`[書き方] ${rel}:${imp.line} import した ${imp.local} は、timer のファイルが const で宣言した _CLASS の表ではありません（値を検査できない）`);
       }
     }
     for (const c of usage.classes) {
@@ -369,34 +335,10 @@ export function checkTimerClasses({ sources, timerCss, componentCss, elementCss,
     return out;
   };
 
-  for (const rel of unmigrated) {
-    if (!byRel.has(rel)) {
-      problems.push(`[移行の一覧] ${rel} は実在しません。一覧から外す`);
-      continue;
-    }
-    // 一覧に載ったファイルにも検査を試しに当て、外しても通るなら「古い」と落とす。
-    // クラス名を書く場所が無く `Class` の字面だけがあるファイル（関数でクラス名を返す `.ts`）は、
-    // 検査が中身を見られないので外せない —— 落とさない
-    const usage = usages.get(rel);
-    const writesClasses = usage.classes.length > 0 || usage.classNameSites > 0;
-    if (fileProblems(rel).length === 0 && (writesClasses || !mentionsClasses(byRel.get(rel).text))) {
-      problems.push(`[移行の一覧] ${rel} は一覧から外しても検査を通ります。移し終えたなら一覧から外す`);
-    }
-  }
-
-  for (const source of sources) {
-    if (listed.has(source.rel)) continue;
-    problems.push(...fileProblems(source.rel));
-  }
+  for (const source of sources) problems.push(...fileProblems(source.rel));
 
   for (const name of defined) {
     if (elementNames.has(name)) problems.push(`[衝突] timer の CSS の .${name} は要素層のクラスと同じ名前です（設計正本 D1）`);
-    if (isTailwindUtility(name) && !collisions.has(name)) {
-      problems.push(`[衝突] timer の CSS の .${name} は Tailwind のユーティリティと同じ名前です。移行中は Tailwind が勝つ（設計正本 D1）`);
-    }
-  }
-  for (const name of collisions.keys()) {
-    if (!defined.has(name)) problems.push(`[衝突の例外] .${name} は timer の CSS に定義されていません。例外から外す`);
   }
   // `--timer-never-defined` は「決して宣言しない」変数（行の高さの calc を最小化で畳ませないための代替値の入れ物・
   // `styles/status-strip.css` の注釈）。参照は許し、宣言（どこかの祖先や `:root` を含む）は落とす
@@ -413,9 +355,8 @@ export function checkTimerClasses({ sources, timerCss, componentCss, elementCss,
     });
     if (declared) problems.push(`[宣言禁止] ${f.rel} が --timer-never-defined を宣言しています。参照（var の代替値）だけ許します`);
   }
-  // 借り物のキーフレームの出どころ。`animation` / `animation-name` が名指しするキーフレームは、timer の CSS が
-  // `@keyframes` を持つか、まだ移していないファイルの `animate-<名前>`（Tailwind が `@keyframes` を出す）が出どころでなければならない。
-  // 後者だけが出どころのとき、そのファイルを移して `animate-<名前>` が消えると、アニメーションが黙って止まる
+  // キーフレームの出どころ。`animation` / `animation-name` が名指しするキーフレームは、timer の CSS が
+  // `@keyframes` を持たなければならない。持たないと、名指しだけが残ってアニメーションが黙って止まる
   const keyframesDefined = new Set();
   for (const f of timerCss) {
     postcss.parse(f.text).walkAtRules((r) => {
@@ -431,10 +372,7 @@ export function checkTimerClasses({ sources, timerCss, componentCss, elementCss,
     });
   }
   for (const [name, rel] of borrowed) {
-    if (keyframesDefined.has(name)) continue;
-    const re = new RegExp(`(?<![\\w-])animate-${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w-])`);
-    const origin = sources.some((src) => listed.has(src.rel) && re.test(src.text));
-    if (!origin) {
+    if (!keyframesDefined.has(name)) {
       problems.push(`[キーフレーム] 借り物のキーフレームの出どころが消えた: ${name}（${rel} が使っています。timer の CSS に @keyframes を置く）`);
     }
   }
@@ -445,55 +383,11 @@ export function checkTimerClasses({ sources, timerCss, componentCss, elementCss,
   return problems;
 }
 
-/**
- * Tailwind のユーティリティ名か（`apps/timer-web` の tailwindcss の compile() で判定する・計画 P7）。
- *
- * timer の `index.css` と同じテーマで判定するため、`apps/timer-web` を基点に `@config '../tailwind.config.js'` 相当
- * （`@config "./tailwind.config.js"`）を読む。読まないと設定で足したユーティリティ（`bg-presence-online` など）を
- * 「Tailwind ではない」と返し、timer の CSS が同名のクラスを定義しても衝突を見逃す。
- *
- * `compiler.build()` は呼ぶたびに候補が溜まり、出力は累積になる（`hover:underline` の後では `.hover` が字面に現れる）。
- * そのため「この名前を足して出力が増え、かつその名前のセレクタが増えたか」で判定し、結果は名前ごとに覚える。
- */
-export async function loadTailwindDetector(repoRoot = REPO_ROOT) {
-  const appDir = path.join(repoRoot, "apps/timer-web");
-  const require = createRequire(path.join(appDir, "package.json"));
-  const mod = await import(pathToFileURL(require.resolve("tailwindcss")).href);
-  const tw = typeof mod.compile === "function" ? mod : mod.default;
-  const resolveFrom = (id, base) => (id.startsWith(".") ? path.resolve(base, id) : require.resolve(id === "tailwindcss" ? "tailwindcss/index.css" : id));
-  const compiler = await tw.compile('@import "tailwindcss";\n@config "./tailwind.config.js";\n', {
-    base: appDir,
-    async loadStylesheet(id, base) {
-      const file = resolveFrom(id, base);
-      return { path: file, base: path.dirname(file), content: fs.readFileSync(file, "utf8") };
-    },
-    async loadModule(id, base) {
-      const file = resolveFrom(id, base);
-      const loaded = await import(pathToFileURL(file).href);
-      return { path: file, base: path.dirname(file), module: loaded.default ?? loaded };
-    },
-  });
-  const escapeCss = (n) => n.replace(/[^a-zA-Z0-9_-]/g, (ch) => `\\${ch}`);
-  const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const memo = new Map();
-  let previous = compiler.build([]);
-  return (name) => {
-    if (memo.has(name)) return memo.get(name);
-    const selector = new RegExp(`\\.${escapeRe(escapeCss(name))}(?![\\w-])`, "g");
-    const before = (previous.match(selector) ?? []).length;
-    const next = compiler.build([name]);
-    const isUtility = next !== previous && (next.match(selector) ?? []).length > before;
-    previous = next;
-    memo.set(name, isUtility);
-    return isUtility;
-  };
-}
-
 function readAll(rels) {
   return rels.map((rel) => ({ rel, text: fs.readFileSync(path.join(REPO_ROOT, rel), "utf8") }));
 }
 
-async function main() {
+function main() {
   const sources = readAll(listRepoFiles(REPO_ROOT, ["apps/timer-web/src/*.tsx", "apps/timer-web/src/*.ts"]));
   const timerCss = readAll(listRepoFiles(REPO_ROOT, ["apps/timer-web/src/*.css"]));
   const componentCss = readAll(listRepoFiles(REPO_ROOT, ["packages/ui/src/components/*.css"]));
@@ -504,16 +398,13 @@ async function main() {
     { label: "部品の CSS", count: componentCss.length },
     { label: "要素層の CSS", count: elementCss.length },
   ];
-  console.log(`[audit-timer-classes] 走査対象: ${volume.map((v) => `${v.label} ${v.count} 件`).join(" / ")}（移行中 ${UNMIGRATED.length} 件）`);
+  console.log(`[audit-timer-classes] 走査対象: ${volume.map((v) => `${v.label} ${v.count} 件`).join(" / ")}`);
 
   const problems = checkTimerClasses({
     sources,
     timerCss,
     componentCss,
     elementCss,
-    unmigrated: UNMIGRATED,
-    collisions: KNOWN_COLLISIONS,
-    isTailwindUtility: await loadTailwindDetector(),
   });
   const empty = findEmptyScanDimensions(volume);
   if (empty.length > 0) problems.push(`[走査対象] 走査対象が 0 件です（${empty.join(" / ")}）。検査が空振りしています`);
@@ -526,5 +417,5 @@ async function main() {
   console.log("[audit-timer-classes] OK（違反 0 件）");
 }
 
-// main は非同期だが正準形（entry-point-wiring.test.mjs）に合わせて await しない。拒否は未処理の拒否として exit 1 になる
+// 正準形（entry-point-wiring.test.mjs）
 if (isDirectRun(import.meta.url, process.argv[1])) main();
