@@ -264,16 +264,17 @@ E8 は網羅の確認で、効いているかは比較が見る（正本 §5.5�
 | `src/ui/components/SharedMemo.tsx` | 切替ボタン segClass(true) の枝 | `bg-[var(--signal)] text-[var(--on-signal)] font-semibold` | （呼び出しの無い枝を関数ごと消した） |
 | `src/ui/components/EndSessionZone.tsx` | 完成ボタン（除去検査で dead・グローバルな :focus-visible に負ける） | `px-5 py-2 … focus-visible:outline-none …` | `focus-visible:outline-none` |
 | `src/ui/components/EndSessionZone.tsx` | 最初から（リセット）ボタン（除去検査で dead・グローバルな :focus-visible に負ける） | `px-4 py-2 … focus-visible:outline-none …` | `focus-visible:outline-none` |
-| `src/ui/components/RosterPanel.tsx` | — | `名前（min-w-0 font-medium text-base text-[var(--bone)] break-words）` | `text-[var(--bone)]` |
-| `src/ui/components/RosterPanel.tsx` | — | `代理追加の入力欄（flex-1 rounded-md … text-sm text-[var(--bone)] outline-none …）` | `text-[var(--bone)]` |
-| `src/ui/components/RosterPanel.tsx` | — | `代理追加の入力欄（flex-1 rounded-md … text-sm text-[var(--bone)] outline-none …）` | `outline-none` |
-| `src/ui/components/RosterPanel.tsx` | — | `ルートの div（w-full）` | `w-full` |
-| `src/ui/components/RosterPanel.tsx` | — | `行の操作ボタン MiniButton（… focus-visible:outline-none …）` | `focus-visible:outline-none` |
+| `src/ui/components/RosterPanel.tsx` | 名前 | `min-w-0 font-medium text-base text-[var(--bone)] break-words` | `text-[var(--bone)]` |
+| `src/ui/components/RosterPanel.tsx` | 代理追加の入力欄 | `flex-1 rounded-md … text-sm text-[var(--bone)] outline-none …` | `text-[var(--bone)]` |
+| `src/ui/components/RosterPanel.tsx` | 代理追加の入力欄 | `flex-1 rounded-md … text-sm text-[var(--bone)] outline-none …` | `outline-none` |
+| `src/ui/components/RosterPanel.tsx` | ルートの div | `w-full` | `w-full` |
+| `src/ui/components/RosterPanel.tsx` | 行の操作ボタン（MiniButton） | `… focus-visible:outline-none …` | `focus-visible:outline-none` |
 | `src/ui/Session.tsx` | ドライバーの名前 | `driver-name-fluid font-black mb-5 text-[var(--bone)] animate-fade-up …` | `text-[var(--bone)]` |
 | `src/ui/Session.tsx` | タイマーの数字（通常・一時停止） | `text-6xl lg:text-7xl font-black tabular tracking-tight text-[var(--bone)]` | `text-[var(--bone)]` |
 | `src/ui/Session.tsx` | タイマーの数字 | `text-6xl lg:text-7xl font-black tabular tracking-tight …` | `tracking-tight` |
 | `src/ui/Session.tsx` | Paused のラベル | `instrument-label mt-1 text-[10px]` | `text-[10px]` |
 | `src/ui/Session.tsx` | 次の名前 | `text-[var(--bone)] font-bold text-lg` | `text-lg` |
+| `src/ui/Session.tsx` | 駆動パネル（Card） | `relative overflow-hidden transition-all` | `relative`（`.meter-panel` の `position: relative` と同じ値） |
 | `src/ui/components/TeamOrbit.tsx` | 王冠（lucide-crown・除去検査で session-driver など 10 状態すべて dead） | `lucide lucide-crown w-3.5 h-3.5 absolute -top-2 -right-1 text-[var(--on-signal)] drop-shadow rotate-12` | `text-[var(--on-signal)]` |
 
 ### dead だが写したもの
@@ -288,4 +289,4 @@ E8 は網羅の確認で、効いているかは比較が見る（正本 §5.5�
 - `scripts/audit-timer-classes.mjs` の `UNMIGRATED` は PR 3 で空になった。一覧ごと消すのは PR 4
 - PR 2 で残した E8 の道具の Minor 3 件（`usage.ts` の `cdp.detach()`・`timer.parity.ts` の `writeUsage` の到達しない `return`・`usage-summary.ts` の `startsNestedDeclarations`）は、PR 4 の前の E8 の決め直しへ送った（計画 Q4・利用者の判断 2026-10-05）。計画の検証で分かったこと: `startsNestedDeclarations` の直しのテストは、本体の無い at-rule を規則の中に置かないと直す前から緑になる／前提の Chromium の挙動は実測していない／`finally` の `detach` は元の例外を隠しうる／`writeUsage` を `throw` にすると失敗の出力から `Expected` / `Received` の行が消える
 - 手元の `pnpm audit` は `braces`（GHSA-vfj7-8cjw-p6xm・直る版なし）で赤。ADR 0024 により PR の合否に使わない
-- **見積もりと実際**（計画の「検証の時間の見積もり」）: 機械の待ちは見積もり 3〜5 時間に対し約 2.4 時間（タスクごとの比較 約 1.4 時間・対照と通常の全件 約 49 分・手元の検査 約 4 分・`mutation-check` 約 8 分）。タスクごとの比較は Task 1・5 が 2 回、Task 6 が 4 回で、ほかは 1 回。実時間は 2026-10-05 08:01〜10-06 09:00 で、そのうち何も動いていない時間が 3 回・合わせて約 20 時間あった（原因は分かっていない）。それを除くと約 5 時間
+- **見積もりと実際**（計画の「検証の時間の見積もり」）: 機械の待ちは見積もり 3〜5 時間に対し約 2.4 時間（タスクごとの比較 約 1.4 時間・対照と通常の全件 約 49 分・手元の検査 約 4 分・`mutation-check` 約 8 分）。タスクごとの比較は Task 1・2・5 が 2 回（Task 2 の 2 回目は修正の後の 1 状態だけ）、Task 6 が 4 回で、ほかは 1 回。実時間は 2026-10-05 08:01〜10-06 09:00 で、そのうち何も動いていない時間が 3 回・合わせて約 20 時間あった（原因は分かっていない）。それを除くと約 5 時間

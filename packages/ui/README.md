@@ -147,7 +147,7 @@ Tailwind が `@import` を展開すると、入れ子の `fonts.css` の `url('.
 | `--font-size-xs` 〜 `--font-size-xl` | 流動的タイポスケール（`clamp`） |
 | `--space-1` 〜 `--space-6` | 8px ベースのスペーシング |
 | `--radius-sm/md/lg/full` / `--card-radius` | 角丸 |
-| `--shadow-card` / `--shadow-popover` / `--shadow-panel` / `--shadow-dialog` / `--shadow-crown` | 影 |
+| `--shadow-card` / `--shadow-popover` / `--shadow-panel` / `--shadow-dialog` / `--shadow-crown` | 影（`--shadow-crown` は `filter` の値） |
 
 ### アクセントの派生
 
