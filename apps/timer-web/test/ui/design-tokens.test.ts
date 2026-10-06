@@ -34,6 +34,8 @@ const COLOR_UTILITIES = "text|bg|border|ring|fill|stroke|from|to|via|divide|outl
 
 /**
  * 生の色の書き方（16 進・rgba・`text-white` のような白黒の名前）。
+ * 白黒の名前を残す理由: `audit-timer-classes` の定義の検査は `className` の場所しか見ないので、
+ * `.ts` の関数が返す文字列や `className` 以外に書いた色の名前はこのテストだけが拾う。
  */
 const RAW_COLOR = new RegExp(
   [

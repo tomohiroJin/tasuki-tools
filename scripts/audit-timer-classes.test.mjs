@@ -184,7 +184,9 @@ describe("checkTimerClasses: 定義・衝突（設計正本 D10）", () => {
     const timerCss = [...base.timerCss, { rel: "apps/timer-web/src/styles/l.css", text: ".l{animation-name: pulse}" }];
     const sources = [{ rel: "apps/timer-web/src/ui/S.tsx", text: '<p className="tabular animate-pulse" />' }];
     const problems = checkTimerClasses({ ...base, timerCss, sources });
-    assert.ok(problems.some((p) => /借り物のキーフレームの出どころが消えた: pulse/.test(p)), problems.join("\n"));
+    const kf = problems.filter((p) => /\[キーフレーム\]/.test(p));
+    assert.equal(kf.length, 1, problems.join("\n"));
+    assert.match(kf[0], /借り物のキーフレームの出どころが消えた: pulse/);
   });
   test("timer の CSS が部品層の接頭辞 ui- のクラスを定義したら落とす（部品の定義し直し）", () => {
     const timerCss = [{ rel: "apps/timer-web/src/styles/x.css", text: ".tabular{} .ui-panel{}" }];

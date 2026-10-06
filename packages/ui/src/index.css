@@ -10,8 +10,8 @@
    上書きできる（同じ詳細度なら後勝ち）。
 
      @import '@tasuki/ui';            -- tokens + elements + components（poker-web / landing / topic-web）
-     import '@tasuki/ui/tokens.css';  -- tokens（timer-web。JS から読む。README 参照）
-     import '@tasuki/ui/components.css';  -- components（timer-web。tokens の後・index.css の前。合わせて tokens + components）
+     @import '@tasuki/ui/tokens.css';      -- tokens（timer-web。src/index.css の CSS の @import。reset レイヤーの次。README 参照）
+     @import '@tasuki/ui/components.css';  -- components（timer-web。tokens の次・画面の CSS の前。合わせて tokens + components）
    ============================================================ */
 
 @import './tokens/index.css';
