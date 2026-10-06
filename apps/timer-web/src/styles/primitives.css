@@ -1,6 +1,6 @@
 /* 計器 UI の共通プリミティブ（`primitives.tsx`・#321）。Tailwind のユーティリティの写し。
  * 値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。
- * `focus-visible:outline-none` は写さない（レイヤー外のグローバルな `:focus-visible` に負けて、いまも効いていない・設計正本 §2 の 5）。 */
+ * `focus-visible:outline-none` は写さない（基準（`ba9249d`）ではレイヤー外のグローバルな `:focus-visible` に負けて効いていなかった・設計正本 §2 の 5）。 */
 
 /* 舞台。地は `base.css` の `.instrument-stage`。 */
 .stage {

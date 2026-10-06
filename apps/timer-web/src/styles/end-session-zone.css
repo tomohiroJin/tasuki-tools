@@ -1,7 +1,7 @@
 /* セッションの終了の操作（`EndSessionZone.tsx`・#321）。Tailwind のユーティリティの写し。
  * 値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。
  * 確認ダイアログは `ConfirmDialog`（`confirm-dialog.css`）が描く。「途中で終える」は `GhostButton`（`primitives.css`）。
- * 写さなかった宣言（除去検査で dead）: 完成・リセットの `focus-visible:outline-none`（レイヤー外のグローバルな `:focus-visible` に負ける・設計正本 §2 の 5）。
+ * 写さなかった宣言（除去検査で dead）: 完成・リセットの `focus-visible:outline-none`（基準（`ba9249d`）ではレイヤー外のグローバルな `:focus-visible` に負けて効いていなかった・設計正本 §2 の 5）。
  * ボタン内のアイコンの `w-4 h-4` は除去検査で alive（lucide が付ける `lucide lucide-<名前>` つきの className の行。5 幅すべて）。 */
 
 .end-session-zone {

@@ -1,6 +1,6 @@
 /* アクセシブルなタブ（`Tabs.tsx`・#321）。Tailwind のユーティリティの写し。
  * 値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。
- * 写さなかった宣言（除去検査で dead）: `focus-visible:outline-none`（レイヤー外のグローバルな `:focus-visible` に負けて、いまも効いていない・設計正本 §2 の 5）、
+ * 写さなかった宣言（除去検査で dead）: `focus-visible:outline-none`（基準（`ba9249d`）ではレイヤー外のグローバルな `:focus-visible` に負けて効いていなかった・設計正本 §2 の 5）、
  * 選択タブの `text-[var(--bone)]`（親から継ぐので不要）。
  * 行の高さ（`var(--timer-never-defined, calc(…))`）は status-strip.css 冒頭の注釈。 */
 

@@ -27,7 +27,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../src");
  */
 const ALLOW: { file: string; pattern: RegExp }[] = [
   // いまは無い。QR の白地と影の黒は、素の CSS へ移した（`.invite-panel-qr` は `ui-exempt:` つき・影は `--shadow-dialog`）。
-  // 移していない画面に残る生の色の例外を足すなら、ここへ理由つきで書く。
+  // 生の色の例外をやむを得ず足すなら、ここへ file と pattern を理由つきで書く（足した例外が使われなくなれば、未使用として落ちる）。
 ];
 
 const COLOR_UTILITIES = "text|bg|border|ring|fill|stroke|from|to|via|divide|outline|shadow|accent|caret|decoration";

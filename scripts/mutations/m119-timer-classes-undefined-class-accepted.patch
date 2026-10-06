@@ -9,7 +9,7 @@
 # 復元: git apply -R scripts/mutations/m119-*.patch
 #
 # #321 PR 1・設計正本 D1・計画 P8。字面のクラス名が timer の CSS にも部品層にも定義されていなくても落とさない（定義の族）。
-# Tailwind のクラスはどちらにも定義されないので、移したファイルに取り残した Tailwind のクラスが黙って通る。
+# 定義の無いクラス名（打ち間違い・消した CSS の取り残し）が黙って通る。Tailwind のクラスはどちらにも定義されないので、書き戻したときもここで落ちる。
 diff --git a/scripts/audit-timer-classes.mjs b/scripts/audit-timer-classes.mjs
 index 9a5df3f7..b7df42b0 100644
 --- a/scripts/audit-timer-classes.mjs

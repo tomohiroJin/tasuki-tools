@@ -1267,13 +1267,13 @@ export const MUTATIONS = [
   },
   {
     id: 119,
-    label: "audit-timer-classes が移したファイルに残った Tailwind のクラスを見逃す",
+    label: "audit-timer-classes が timer の CSS にも部品層にも定義の無いクラス名を見逃す",
     patch: "m119-timer-classes-undefined-class-accepted.patch",
     pkg: "scripts",
     tests: ["audit-timer-classes.test.mjs"],
     note:
       "#321 PR 1・設計正本 D1・計画 P8。字面のクラス名が timer の CSS にも部品層にも無くても落とさない。" +
-      "Tailwind のクラスはどちらにも定義されないので、移したファイルに取り残した Tailwind のクラスが黙って通る。",
+      "定義の無いクラス名（打ち間違い・消した CSS の取り残し）が黙って通る。Tailwind のクラスはどちらにも定義されないので、書き戻したときもここで落ちる。",
   },
   {
     id: 120,
