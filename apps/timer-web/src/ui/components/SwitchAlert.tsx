@@ -21,20 +21,16 @@ export function SwitchAlert({ driverName, reducedMotion, onDismiss }: SwitchAler
       aria-label="ドライバー交代通知"
       data-reduced-motion={reducedMotion ? "true" : "false"}
       onClick={onDismiss}
-      className={`fixed inset-0 z-50 flex flex-col items-center justify-center bg-[var(--scrim)] backdrop-blur-sm cursor-pointer ${
-        reducedMotion ? "" : "animate-pop-in"
-      }`}
+      className={reducedMotion ? "switch-alert" : "switch-alert animate-pop-in"}
     >
-      <div className="instrument-label mb-3 text-[var(--signal)]">ドライバー交代</div>
+      <div className="instrument-label switch-alert-label">ドライバー交代</div>
       <div
-        className={`flex items-center gap-4 text-5xl md:text-7xl font-black text-[var(--bone)] ${
-          reducedMotion ? "" : "animate-fade-up"
-        }`}
+        className={reducedMotion ? "switch-alert-driver" : "switch-alert-driver animate-fade-up"}
       >
-        <Crown className="w-12 h-12 md:w-16 md:h-16 text-[var(--signal)] shrink-0" aria-hidden="true" />
+        <Crown className="switch-alert-crown" aria-hidden="true" />
         {driverName}
       </div>
-      <p className="mt-8 text-[var(--bone-subtle)] text-sm">画面をタップで閉じる</p>
+      <p className="switch-alert-hint">画面をタップで閉じる</p>
     </div>
   );
 }

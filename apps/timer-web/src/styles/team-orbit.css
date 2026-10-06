@@ -1,0 +1,82 @@
+/* チームの円周配置（`TeamOrbit.tsx`・#321）。Tailwind のユーティリティの写し。
+ * 値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。
+ * 周回アバターの `animate-pop-in` は `base.css` のクラスのまま使う。`tabular` も同じ（`base.css`）。
+ * 写さなかった宣言（除去検査で dead）: 輪の層の `inset-0`（svg）、アバターの `text-[var(--bone)]`（次ドライバーの色・親から継ぐので不要）、
+ * 王冠の `text-[var(--on-signal)]`（`lucide-crown` の行が session-driver など 10 状態すべてで dead）。
+ * 行の高さ（`var(--timer-never-defined, calc(…))`）は status-strip.css 冒頭の注釈。 */
+
+.team-orbit {
+  position: relative;
+  margin-inline: auto;
+}
+
+.team-orbit-ring {
+  position: absolute;
+}
+
+.team-orbit-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 周回アバター。拡大・影・色は状態の変種（current / next / other）が持つ。 */
+.team-orbit-avatar {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: calc(infinity * 1px);
+  font-weight: 700;
+  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 で段へ寄せる） */
+  line-height: var(--timer-never-defined, calc(1.25 / 0.875)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 700ms;
+}
+
+/* 番が回らない席は薄く置く。 */
+.team-orbit-avatar-skipped {
+  opacity: 0.5;
+}
+
+.team-orbit-avatar-current {
+  background-color: var(--signal);
+  color: var(--on-signal);
+  scale: 125% 125%;
+  box-shadow:
+    0 0 0 2px var(--signal-edge),
+    0 6px 18px var(--signal-glow);
+  z-index: 20;
+}
+
+.team-orbit-avatar-next {
+  background-color: var(--panel-2);
+  border-width: 2px;
+  border-color: var(--signal-edge);
+  z-index: 10;
+}
+
+.team-orbit-avatar-other {
+  background-color: var(--panel-2);
+  color: var(--bone-subtle);
+  border-width: 1px;
+  border-color: var(--hairline-strong);
+}
+
+/* 現ドライバーの王冠。 */
+.team-orbit-crown {
+  position: absolute;
+  top: -0.5rem;
+  right: -0.25rem;
+  width: 0.875rem;
+  height: 0.875rem;
+  filter: var(--shadow-crown);
+  rotate: 12deg;
+}
+
+.team-orbit-initial {
+  user-select: none;
+}

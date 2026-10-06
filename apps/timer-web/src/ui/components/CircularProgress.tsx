@@ -83,15 +83,15 @@ export function CircularProgress({
 
   return (
     <div
-      className="relative inline-flex items-center justify-center"
+      className="circular-progress"
       style={{ width: size, height: size }}
     >
       {/* 目盛り盤（回転なし。12 時に主目盛りが来る） */}
-      <svg width={size} height={size} className="absolute inset-0">
+      <svg width={size} height={size} className="circular-progress-layer">
         <DialTicks size={size} tickOuterR={tickOuterR} />
       </svg>
       {/* 計測弧（12 時起点で時計回りに進めるため -90deg 回転） */}
-      <svg width={size} height={size} className="absolute inset-0 -rotate-90">
+      <svg width={size} height={size} className="circular-progress-arc-layer">
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -110,7 +110,7 @@ export function CircularProgress({
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={shownOffset}
-          className="transition-all duration-1000 ease-linear"
+          className="circular-progress-arc"
           style={{
             filter: warning
               ? "drop-shadow(0 0 10px var(--urgent-glow))"
@@ -120,7 +120,7 @@ export function CircularProgress({
       </svg>
       {/* 運針ピップ: 稼働中は rim を 60s/周で回り「計測している」生命感を出す。
           停止中は静止（animation-play-state）、reduced-motion では CSS 側で非表示。 */}
-      <svg width={size} height={size} className="absolute inset-0" aria-hidden="true">
+      <svg width={size} height={size} className="circular-progress-layer" aria-hidden="true">
         <g
           className="chrono-hand"
           data-running={running ? "true" : "false"}
@@ -135,7 +135,7 @@ export function CircularProgress({
           />
         </g>
       </svg>
-      <div className="relative z-10 flex flex-col items-center justify-center">
+      <div className="circular-progress-content">
         {children}
       </div>
     </div>

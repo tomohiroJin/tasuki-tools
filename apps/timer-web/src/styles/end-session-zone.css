@@ -1,0 +1,92 @@
+/* セッションの終了の操作（`EndSessionZone.tsx`・#321）。Tailwind のユーティリティの写し。
+ * 値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。
+ * 確認ダイアログは `ConfirmDialog`（`confirm-dialog.css`）が描く。「途中で終える」は `GhostButton`（`primitives.css`）。
+ * 写さなかった宣言（除去検査で dead）: 完成・リセットの `focus-visible:outline-none`（レイヤー外のグローバルな `:focus-visible` に負ける・設計正本 §2 の 5）。
+ * ボタン内のアイコンの `w-4 h-4` は除去検査で alive（lucide が付ける `lucide lucide-<名前>` つきの className の行。5 幅すべて）。 */
+
+.end-session-zone {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+/* ボタンの中の「アイコン + 文言」の並び */
+.end-session-zone-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* アイコン（除去検査で alive・lucide のクラスつきの行） */
+.end-session-zone-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* 完成（計器の安全色） */
+.end-session-zone-complete {
+  padding-inline: 1.25rem;
+  padding-block: 0.5rem;
+  border-radius: var(--radius-md);
+  font-weight: 700;
+  background-color: var(--ok);
+  color: var(--on-ok);
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+  box-shadow:
+    0 0 0 1px var(--ok-edge),
+    0 4px 16px var(--ok-veil);
+}
+
+@media (hover: hover) {
+  .end-session-zone-complete:hover {
+    background-color: var(--ok-hover);
+  }
+}
+
+.end-session-zone-complete:active {
+  scale: 95% 95%;
+}
+
+/* ring-offset → ring → 自前の影の順に合成する（Tailwind の `box-shadow` の並び） */
+.end-session-zone-complete:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--ink),
+    0 0 0 4px var(--ok),
+    0 0 0 1px var(--ok-edge),
+    0 4px 16px var(--ok-veil);
+}
+
+/* 最初から（リセット） */
+.end-session-zone-reset {
+  padding-inline: 1rem;
+  padding-block: 0.5rem;
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  background-color: var(--urgent);
+  color: var(--on-urgent);
+  border-width: 1px;
+  border-color: var(--urgent-edge);
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+@media (hover: hover) {
+  .end-session-zone-reset:hover {
+    background-color: var(--urgent-hover);
+  }
+}
+
+.end-session-zone-reset:active {
+  scale: 95% 95%;
+}
+
+/* ring-offset → ring の順に合成する（Tailwind の `box-shadow` の並び） */
+.end-session-zone-reset:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--ink),
+    0 0 0 4px var(--urgent);
+}

@@ -14,9 +14,10 @@ const ROOT_HTML = /^html$/;
 export const APPROVED: readonly IgnoreRule[] = [
   {
     path: ROOT_HTML,
-    prop: /^--shadow-(panel|dialog)$/,
+    prop: /^--shadow-(panel|dialog|crown)$/,
     reason:
       'トークン層に新しく足したトークン（Card の落ち影・確認ダイアログの落ち影）。基準には無い。' +
-      '利用者が 2026-10-04 に個別に承認した（台帳）。使う側の box-shadow は比べ続ける',
+      '利用者が 2026-10-04 に個別に承認した（台帳）。使う側の box-shadow は比べ続ける。' +
+      '`--shadow-crown`（王冠の落ち影）は利用者が 2026-10-05 に承認した',
   },
 ];

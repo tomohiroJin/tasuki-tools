@@ -28,8 +28,8 @@ export function TeamOrbit({ members, currentIndex, nextIndex, size = 340, childr
   const len = members.length;
 
   return (
-    <div className="relative mx-auto" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="absolute inset-0" aria-hidden="true">
+    <div className="team-orbit" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="team-orbit-ring" aria-hidden="true">
         <circle
           cx={center}
           cy={center}
@@ -40,7 +40,7 @@ export function TeamOrbit({ members, currentIndex, nextIndex, size = 340, childr
           strokeDasharray="2 7"
         />
       </svg>
-      <div className="absolute inset-0 flex items-center justify-center">{children}</div>
+      <div className="team-orbit-center">{children}</div>
       {/* 1 人だけのときは周回アバターを出さない（文字盤 12 時上に孤立した点が乗るのを避ける）。
           現ドライバーは中央の Crown＋名前で十分に伝わる。複数人で初めて周回を可視化する。 */}
       {len > 1 && members.map(({ participantId, displayName, label, skipReason }, i) => {
@@ -52,15 +52,19 @@ export function TeamOrbit({ members, currentIndex, nextIndex, size = 340, childr
         return (
           <div
             key={participantId}
-            className={`absolute flex items-center justify-center rounded-full font-bold text-sm tabular transition-all duration-700 animate-pop-in ${
-              skipReason !== null ? "opacity-50 " : ""
-            }${
-              isCurrent
-                ? "bg-[var(--signal)] text-[var(--on-signal)] scale-125 shadow-[0_0_0_2px_var(--signal-edge),0_6px_18px_var(--signal-glow)] z-20"
-                : isNext
-                  ? "bg-[var(--panel-2)] text-[var(--bone)] border-2 border-[var(--signal-edge)] z-10"
-                  : "bg-[var(--panel-2)] text-[var(--bone-subtle)] border border-[var(--hairline-strong)]"
-            }`}
+            className={
+              skipReason !== null
+                ? isCurrent
+                  ? "team-orbit-avatar team-orbit-avatar-skipped team-orbit-avatar-current tabular animate-pop-in"
+                  : isNext
+                    ? "team-orbit-avatar team-orbit-avatar-skipped team-orbit-avatar-next tabular animate-pop-in"
+                    : "team-orbit-avatar team-orbit-avatar-skipped team-orbit-avatar-other tabular animate-pop-in"
+                : isCurrent
+                  ? "team-orbit-avatar team-orbit-avatar-current tabular animate-pop-in"
+                  : isNext
+                    ? "team-orbit-avatar team-orbit-avatar-next tabular animate-pop-in"
+                    : "team-orbit-avatar team-orbit-avatar-other tabular animate-pop-in"
+            }
             style={{
               width: avatarSize,
               height: avatarSize,
@@ -78,9 +82,9 @@ export function TeamOrbit({ members, currentIndex, nextIndex, size = 340, childr
             }
           >
             {isCurrent && (
-              <Crown className="w-3.5 h-3.5 absolute -top-2 -right-1 text-[var(--on-signal)] drop-shadow rotate-12" />
+              <Crown className="team-orbit-crown" />
             )}
-            <span className="select-none">{displayName.charAt(0).toUpperCase()}</span>
+            <span className="team-orbit-initial">{displayName.charAt(0).toUpperCase()}</span>
           </div>
         );
       })}

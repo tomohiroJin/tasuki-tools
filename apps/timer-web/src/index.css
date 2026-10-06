@@ -34,6 +34,17 @@
 @import './styles/confirm-dialog.css' layer(timer);
 @import './styles/session-config-panel.css' layer(timer);
 @import './styles/lobby.css' layer(timer);
+@import './styles/notify-hint.css' layer(timer);
+@import './styles/tabs.css' layer(timer);
+@import './styles/circular-progress.css' layer(timer);
+@import './styles/team-orbit.css' layer(timer);
+@import './styles/rotation-lineup.css' layer(timer);
+@import './styles/switch-alert.css' layer(timer);
+@import './styles/self-driver-toggle.css' layer(timer);
+@import './styles/shared-memo.css' layer(timer);
+@import './styles/end-session-zone.css' layer(timer);
+@import './styles/roster-panel.css' layer(timer);
+@import './styles/session.css' layer(timer);
 @import './styles/app.css' layer(timer);
 
 /* 既存の JS 設定（tailwind.config.js）を読み込む。**振る舞い不変を最優先し、
