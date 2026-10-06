@@ -6,7 +6,7 @@
 
 - **基準**: `ba9249d`（固定）
 - **無害として扱う差**: 設計正本 §5.4 の 2 類だけ（ここに写さない）
-- **比較の仕組み**: `e2e/parity/`。流し方は [`e2e/parity/README.md`](../../../e2e/parity/README.md) が正本（ここに写さない）。PR 4 で消すときは、関連する箇所を一覧で持たず `git grep -n parity` で引き直して消す（`e2e/parity/` のほかに自己テスト・tsconfig の include・lint の引数・`.gitignore` に在る）。消した後は、下の各 PR の「比較の仕組みの SHA」で `git checkout <SHA> -- e2e/parity` して再現する
+- **比較の仕組み**: `e2e/parity/`。流し方は、撤去の直前の SHA（`777df1ab85e4118aa537df60a6860c662ea148de`）の `e2e/parity/README.md` が正本（`git fetch origin pull/346/head` で取る）（ここに写さない）。PR 4 で消すときは、関連する箇所を一覧で持たず `git grep -n parity` で引き直して消す（`e2e/parity/` のほかに自己テスト・tsconfig の include・lint の引数・`.gitignore` に在る）。消した後は、下の各 PR の「比較の仕組みの SHA」で `git checkout <SHA> -- e2e/parity` して再現する
 - **配り方**: 正本 §5.1 の「`/var/www/*` の symlink を差し替え、書き出しをオフラインで突き合わせる」ではなく、基準の側のブラウザの文脈で `/timer/` を `context.route` で基準の dist から返し、その場で両側を比べる（計画 P1）。**代償**: 対照実行では両側とも route で配るので、Caddy が付けるヘッダの非対称（基準は route・ブランチは Caddy）は対照実行で確かめていない。非対称が見た目を変えるなら通常の比較が赤に倒れる向き（緑に倒れる向きではない）
 
 ## 利用者が個別に承認した差
@@ -40,7 +40,7 @@
   - 揺れを固定した後・雑音が空の実行: 15 緑 / 11 赤。赤の中身は計測弧の `stroke-dashoffset`（と一部の画素）と、同期を落とした状態（banner-warn-reconnecting）で交代間隔が切り替わらないチェックの例外（時刻の揺れではない）
   - 名指しと skipped 化の後: 26 / 26 緑（差 0・画素一致・notEntered 0・skipped 両側一致）。**ただしこれは計測弧の画素の扱いを撮影時の長さの固定（`SCREENSHOT_STYLE`）へ変える前の実行**。計測弧を `SCREENSHOT_STYLE` で扱う形にした後の対照実行は 28 テスト（26 状態 ＋ タッチ 2 本）が 28 緑（差 0・画素一致・notEntered 0・skipped 両側一致。所要 23.2 分）。**最終のコード（QR の出現を待つ直しの後・`50ca6575`）での対照実行も 28 / 28 緑**（差 0・画素一致・notEntered 0・skipped 両側一致・全件 `control: true`。所要 25.3 分）
   - 以後の対照実行は設定ファイルで選ぶ（`parity.control.config.ts`・README 参照）
-- 状態ごとの比較要素数・動きの件数・キーフレームの名前・操作の書き出し件数・skipped の名前: **数の正本は [`e2e/parity/expected/base-summary.json`](../../../e2e/parity/expected/base-summary.json)**（基準側の要約。比較は毎回これと突き合わせ、違えば赤。作り直しは README の「期待値を作り直す」の手順だけ）。ここには写さない
+- 状態ごとの比較要素数・動きの件数・キーフレームの名前・操作の書き出し件数・skipped の名前: **数の正本は 撤去の直前の SHA（`777df1ab85e4118aa537df60a6860c662ea148de`）の `e2e/parity/expected/base-summary.json`（`git fetch origin pull/346/head` で取る）**（基準側の要約。比較は毎回これと突き合わせ、違えば赤。作り直しは README の「期待値を作り直す」の手順だけ）。ここには写さない
 
 - 雑音として名指ししたもの（`noise.ts`）: 計測弧の円の `stroke-dashoffset` の 1 件だけ（弧の長さは経過率で決まり、両側は別の時刻に撮るので揃わない）。画素は撮影のときだけ弧の長さを固定して比べる（`SCREENSHOT_STYLE`）。**代償**: 弧の長さの画素は見ない（弧の発光・線幅はスタイルの比較で見ている）
 - 画素のマスク（`e2e/parity/states.ts` の `roomMask`）。正本 §5.3 が挙げるのはルームコード・QR・招待 URL・経過時間で、それより広く隠しているものも理由と代償を書く:
@@ -99,7 +99,7 @@
 
 - ブランチの SHA（比較を流した時点の HEAD）: `c121757aa92d38aaad607edaed1af2c0094d387e`（4 設定とも作業ツリーは clean）
 - 比較の仕組みの SHA: `c121757aa92d38aaad607edaed1af2c0094d387e`（`e2e/parity` の最後の変更も同じ。再現は `git checkout c121757aa92d38aaad607edaed1af2c0094d387e -- e2e/parity`）。squash マージなので、この SHA は main から辿れない（2026-10-06 に確かめた）。`git fetch origin pull/343/head` で取ってから戻す
-- 目録: 29 テスト（PR 1 の 28 に `session-memo-markdown` を足した。Markdown の全要素を描く共有メモ）。期待値の JSON は README の手順で作り直した。既存の 28 キーは前の期待値と同一で、増えたのは 1 キーだけ。**数の正本は [`e2e/parity/expected/base-summary.json`](../../../e2e/parity/expected/base-summary.json)**
+- 目録: 29 テスト（PR 1 の 28 に `session-memo-markdown` を足した。Markdown の全要素を描く共有メモ）。期待値の JSON は README の手順で作り直した。既存の 28 キーは前の期待値と同一で、増えたのは 1 キーだけ。**数の正本は 撤去の直前の SHA（`777df1ab85e4118aa537df60a6860c662ea148de`）の `e2e/parity/expected/base-summary.json`（`git fetch origin pull/346/head` で取る）**
 - 比較の結果（HEAD `c121757`）:
 
 | 設定 | 結果 | 所要 |
@@ -203,7 +203,7 @@ E8 は網羅の確認で、効いているかは比較が見る（正本 §5.5�
 
 - ブランチの SHA（比較を流した時点の HEAD）: `6f9b2e994ff355137d9ef0617448fa1f420f19bd`（作業ツリーは clean）
 - 比較の仕組みの SHA: `eb6d3e39202514dd6ce423077be20d30b7562b52`（PR 3 で変えたのは `e2e/parity/approved.ts` の承認 1 項目だけ。再現は `git checkout 6f9b2e994ff355137d9ef0617448fa1f420f19bd -- e2e/parity`）。squash マージなので、この SHA は main から辿れない（2026-10-06 に確かめた）。`git fetch origin pull/345/head` で取ってから戻す
-- 目録: PR 2 と同じ（状態を足していない）。**数の正本は [`e2e/parity/expected/base-summary.json`](../../../e2e/parity/expected/base-summary.json)**（作り直していない）
+- 目録: PR 2 と同じ（状態を足していない）。**数の正本は 撤去の直前の SHA（`777df1ab85e4118aa537df60a6860c662ea148de`）の `e2e/parity/expected/base-summary.json`（`git fetch origin pull/346/head` で取る）**（作り直していない）
 - 比較の結果（HEAD `6f9b2e9`）:
 
 | 設定 | 結果 | 所要 |
