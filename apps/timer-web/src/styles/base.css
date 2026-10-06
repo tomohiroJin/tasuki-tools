@@ -140,6 +140,8 @@ body {
   margin: -1px;
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
+  /* Tailwind 版の `.sr-only` が足していた宣言（設計正本 D2「両版で勝っている宣言の和を残す」） */
+  clip-path: inset(50%);
   white-space: nowrap;
   border-width: 0;
 }

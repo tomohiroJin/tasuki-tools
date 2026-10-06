@@ -327,6 +327,11 @@ export const MISSING_PATH_EXCEPTIONS = [
     reason: "gitignore 対象。deploy/timer/NOTES.md は、この実 env を各自で作る手順を案内している",
   },
   {
+    doc: "docs/adr/0001-design-system-scope.md",
+    path: "apps/timer-web/postcss.config.js",
+    reason: "#321 PR 4 で Tailwind と一緒に消した。ADR 本文の言及は記録として正しい（ADR 0002）",
+  },
+  {
     doc: "docs/adr/0018-single-entry-and-url-scheme.md",
     path: "deploy/timer/caddy/40-timer-legacy-room.conf",
     reason:
