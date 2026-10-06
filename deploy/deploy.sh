@@ -22,8 +22,6 @@ if [ -z "$APP" ]; then
 fi
 
 load_app "$APP"
-# #321 の比較の仕組み（e2e/parity）の timer の CSS の切り替えが残っていたら止める（囲い無し・最小化しない CSS を配らない）
-[ -z "${TASUKI_TIMER_UNLAYERED:-}${TASUKI_TIMER_CSS_UNMINIFIED:-}" ] || die "比較の仕組みの切り替え TASUKI_TIMER_UNLAYERED / TASUKI_TIMER_CSS_UNMINIFIED が立っています。unset してから配ってください"
 # 接続先の解決は**ビルドより先**に行う。長いビルドを走らせた後で
 # 「接続先が未設定」と言われるのは時間の無駄なので、先に落とす（#51 B）。
 require_ssh_host

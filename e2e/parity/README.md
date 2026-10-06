@@ -46,56 +46,9 @@ pnpm exec playwright test -c parity/parity.control.config.ts
 - 8787・18080 を使う。終わったら `ss -tlnp | grep -E ':(8787|18080)\b'` が空であることを見る
 - 結果は比較の出力置き場 out/（このディレクトリの中・無視している）。**正本は台帳**（`docs/superpowers/specs/2026-09-29-timer-without-tailwind-parity-ledger.md`）
 
-**ビルドの切り替え（`TASUKI_TIMER_UNLAYERED` / `TASUKI_TIMER_CSS_UNMINIFIED`）は下の 2 つの設定ファイルが自分で立てる。**
-シェルに残っていると、通常の比較・対照実行（`parity.config.ts`）・`pnpm e2e`（`e2e/playwright.config.ts`）・`deploy/deploy.sh` は
-取り残しとみなして止まる（`harness/parity-build-switches.ts`。囲い無し・最小化しない CSS を通常の比較で緑にしない・本番へ配らない）。
 `summary.json` の `control` / `unlayered` / `usage` で、どの種類で流した出力かを見分ける（`run-mode.ts`。`metadata` と project の名前が食い違えば止まる）。
 
-### 囲いを外した一時ビルド
-
-```bash
-cd e2e
-TASUKI_E2E_TARGET=local \
-TASUKI_PARITY_BASE_DIST=$HOME/.cache/tasuki-parity/base-ba9249d/apps/timer-web/dist \
-pnpm exec playwright test -c parity/parity.unlayered.config.ts
-```
-
-- ブランチの timer を、入口（`apps/timer-web/src/index.css`）の `@import … layer(timer)` から `layer(timer)` を外してビルドし、基準と比べる（設計正本 D3）。レイヤーを外しても見た目が変わらないことを PR 4 より前に確かめる
-- 残してよい差は、親を先に移したとき、レイヤー外になった親の `:where(.x > :not(:last-child))` が、まだ Tailwind のままの子の margin に勝つ型だけ（既知の偽陽性）。ほかの差は直す
-- 設定ファイルが `TASUKI_TIMER_UNLAYERED=1` を立て、`globalSetup` のビルドが turbo 経由で受け取る（`turbo.json` の `@tasuki/timer-web#build` の `env`）。切り替えの本体は `apps/timer-web/vite-timer-css.ts`。**`layer(timer)` の `@import` が 0 本ならビルドが止まる**（外し損ねた普通のビルドを比べて緑にしない）
-- 行頭に `[囲いを外した一時ビルド]` と出て、`out/<状態>/summary.json` の `unlayered` が `true` になる。**流した後は dist が一時ビルドのまま残る**ので、次の比較の `globalSetup` が既定のビルドへ戻す（turbo のキャッシュは環境変数で鍵が分かれている）
-
-### 規則の使用状況（E8）
-
-```bash
-cd e2e
-TASUKI_E2E_TARGET=local \
-TASUKI_PARITY_BASE_DIST=$HOME/.cache/tasuki-parity/base-ba9249d/apps/timer-web/dist \
-pnpm exec playwright test -c parity/parity.usage.config.ts
-```
-
-流した**直後に**（dist が最小化しないビルドのうちに）、当たりを束ねて照合する:
-
-```bash
-cd e2e
-TASUKI_PARITY_USAGE_CHECK=1 pnpm exec vitest run tests/usage-summary.test.ts
-```
-
-- ブランチの timer を、CSS の最小化（Vite の `build.cssMinify`）と Tailwind の最適化（`@tailwindcss/postcss` の `optimize`）を止めてビルドする。足した CSS の規則が実行中に 1 回以上当たるかを、ソースの規則と鍵で突き合わせる（E8）
-- 設定ファイルが `TASUKI_TIMER_CSS_UNMINIFIED=1` を立てる。渡り方は上と同じ
-- 行頭に `[規則の使用状況]` と出て、`summary.json` の `usage` が `true` になる。ブランチの側で、ページを開いた直後（最初の遷移より前）から操作の書き出しの後まで CDP の規則の使用状況を取り（`usage.ts`）、`out/<キー>/usage.json` に当たった規則の鍵と世代を書く。**追跡より前に読み込んだ `<link>` の CSS の当たりは返らない**（実測）ので、目印が見えてから始めると全部「当たらなかった」になる。前の実行の `usage.json` はテストの先頭で消す
-- **限界: 状態を作る途中の画面で当たった規則も数える**（たとえばロビーを経てセッションへ進む状態では、ロビーでだけ当たる規則も「当たった」になる）。E8 の趣旨（比べた状態で当たったか）より緩い。目印の時点で `CSS.takeCoverageDelta` を呼んで途中の分を捨てる形は、**delta で一度返した規則は、その後に当たり続けても（当て直しても）stop で二度と返らない**ため使えない（目印の後も当たっている規則が両方から消え、偽の赤になる。素の Chromium で実測・2026-10-03）
-- **この実行の合否は、`usage.json` を書けたこと（当たりが 1 件以上）と基準側の期待値の突き合わせだけ**。最小化と最適化をしないビルドは計算済みスタイルが基準と必ず違うので、差の件数と画素は合否に数えず `diff.json` に書くだけにする（見た目の合否は通常の比較が担う・`run-mode.ts` の `gatedDiff` / `gatesPixels`）
-- 数えるのは timer のビルドの CSS（`/timer/assets/*.css`）のシートの当たりだけ。撮影が差し込む一時の `<style>` など別のシートで同じ鍵が当たっても数えない。止めた時点で読めるシートが 1 本でなければ止まる（遷移・再読み込みの前の文書のシートは読めなくなるので数えない。`DOM.documentUpdated` は 1 回の遷移で 2 度来て新しいシートの追加と前後するので、控えを空にする合図には使わない）。規則の中の入れ子の `@supports` などの中の宣言と後ろに続く宣言（暗黙の規則）の当たりは、最も近い祖先の規則の当たりとして数える。どこにも引き当てられない当たりは止める
-- **全件を流す**（`-g` で絞らない）。照合（`usage-summary.ts` の `collectUsage`）は、期待値の JSON の全キーの `usage.json` が揃い、世代が揃い、`-dirty` でなく、いまの HEAD と同じであることを断定してから束ねる
-- **分母**は `git ls-files 'apps/timer-web/src/styles/*.css'` のうち `base.css`（PR 1 で移しただけ）と `reset.css`（PR 4）を除いたもの。`@keyframes` の中の段は数えない（キーフレームは比較の本体が突き合わせる）。分母が空なら赤（空振りを緑にしない）
-- **鍵**は `@layer` を除いた祖先の at-rule とセレクタ（空白を畳む）。ビルドは `@layer timer` の囲いを足すがソースには無いので、`@layer` は鍵に入れない。分母の鍵がビルドの CSS にちょうど 1 回ずつ現れること（0 回なら写し損ね、2 回以上なら鍵で見分けられない）も断定する。ソースの中で鍵が重複したら止まる
-- 「当たった」はセレクタが一致したことで、宣言が勝ったことではない（効いているかは比較と除去検査が見る）
-- **当たらなかった規則の扱い**:
-  - 撮っていない状態で当たる規則なら、目録（`states.ts`）に状態を足す（期待値の作り直しが要る）
-  - どの状態でも当たらない「死んだ CSS」なら、規則を消す
-  - 状態を作れない（ハーネスで再現できない）なら、勝手に除外せず利用者に報告する
-- **dist の CSS は `assets/index-*.css` の glob ではなく `index.html` が参照するものを読む。** turbo はキャッシュから dist を戻すとき古い資産を消さないので、切り替えを行き来すると別のビルドの CSS が同じ場所に残る（実測）。参照が 1 本でなければ、最小化されていれば（100 行未満）止まる
+囲いを外した一時ビルドと規則の使用状況（E8）は PR 4 で外した（正本 §7.2）。
 
 ## 除去検査（基準で効いていないクラス）
 

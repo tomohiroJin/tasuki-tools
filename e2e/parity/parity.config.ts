@@ -10,16 +10,12 @@
  * **このファイルの export は規約（名前付きエクスポート優先）の例外。** Playwright が default export を要求するため。
  */
 import { defineConfig, devices } from '@playwright/test';
-import { assertNoLeftoverParityBuildSwitches } from '../harness/parity-build-switches';
 import { resolveTarget } from '../harness/target';
 
 const target = resolveTarget(process.env);
 if (target.kind === 'production') {
   throw new Error('比較の仕組みは local でだけ動かす（TASUKI_E2E_TARGET=local）。');
 }
-// timer の CSS のビルドの切り替えは、派生の設定（parity.unlayered / parity.usage）が自分で立てる。シェルの取り残しは止める
-// （派生の設定はこのファイルを読み込んでから立てるので、ここでは「読み込みの時点で既に立っている」を見る）
-assertNoLeftoverParityBuildSwitches(process.env, 'parity/parity.config.ts');
 
 export default defineConfig({
   testDir: '.',
