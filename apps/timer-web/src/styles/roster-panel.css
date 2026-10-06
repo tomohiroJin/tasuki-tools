@@ -7,7 +7,7 @@
  *     utilities 層の `.focus-visible\:outline-none:focus-visible` に勝つ。除去検査も undecided）
  * 比較の目録に描かれない要素（#321 PR 3 の Q5・除去検査に行が無いので写す側へ倒した）: 改名の入力欄・行と理由の行（`-edit` 系）・
  * 「代理」のチップ・代理追加の誤りの行・「見学」の見出しと一覧。**改名の入力欄の `color` と `outline-style` は、
- * 代理追加の入力欄の同形が dead だが、行が無いので写した**（`outline-style: none` は PR 4 で消した。`layer(timer)` を外すと、`base.css` の `:focus-visible` に勝つため）。
+ * 代理追加の入力欄の同形が dead だが、行が無いので写した**（`outline-style: none` は PR 4 で消した。画面の CSS がレイヤーを外れ、`base.css` の `:focus-visible` に勝つようになるため）。
  * 一覧のスクロールは `data-scrollable` 属性で分ける（Q3）。アイコンの `w-4 h-4` は除去検査で alive（lucide のクラスつきの行）。
  * 行の高さ（`var(--timer-never-defined, calc(…))`）は status-strip.css 冒頭の注釈。 */
 

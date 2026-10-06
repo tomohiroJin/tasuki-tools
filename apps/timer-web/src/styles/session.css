@@ -7,9 +7,7 @@
  * 比較の目録に描かれない要素（#321 PR 3 の Q5・除去検査に行が無いので写す側へ倒した）: 「ナビ:」の表示・「ルーム」タブの中身すべて
  * （縦積み・「ルームから抜ける」とランダムの帯と、その中のボタンの大きさ）。
  * 行の高さ（`var(--timer-never-defined, calc(…))`）は status-strip.css 冒頭の注釈。
- * 点滅は Tailwind の `animate-pulse` の写し。`@keyframes pulse` はここが唯一の定義（`loading.css` の点も同じ名前を使う）。
- * **`animation` の一括指定で書かない**: Tailwind は `animation` の値に自分のテーマのキーフレーム名（`pulse`）を見つけると
- * 同じ `@keyframes` を出し、定義が 2 つ連なって比較が差を出す。`animation-name` などの個別のプロパティなら出さない（実測）。 */
+ * 点滅は Tailwind の `animate-pulse` の写し。`@keyframes pulse` の定義はここが唯一（`loading.css` の点も同じ名前を使う）。 */
 
 /* 「セッション」タブの根の縦の間隔。`:where()` は詳細度 0 なので、子の根が書く margin が勝つ（基準の `space-y-6` も同じ並び）。
  * 例: `NotifyHint` の根は `margin-bottom` を持ち、この規則に勝つ。 */
