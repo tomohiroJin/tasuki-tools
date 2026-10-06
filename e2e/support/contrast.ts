@@ -164,8 +164,8 @@ export interface Sample {
  * `groundCandidates` が一手に引き受ける —— 判定が 2 箇所にあると食い違う。
  *
  * ⚠ **残っている穴: 兄弟が敷いた面は見えない。** 遡るのは `parentElement` だけなので、
- * **絶対配置の兄弟**（`<div class="absolute inset-0 bg-[radial-gradient(…)]">` のような
- * 照明）は地に入らない。どの兄弟が字の下に来るかは幾何を見ないと決まらず、
+ * **絶対配置の兄弟**（`position: absolute; inset: 0` で `radial-gradient(…)` を敷く
+ * 照明のような要素）は地に入らない。どの兄弟が字の下に来るかは幾何を見ないと決まらず、
  * 幾何を見始めると検査が賢くなって穴が増えるため、#296 では扱わないと決めた。
  * 実測（2026-09-23・`apps/timer-web/src/ui/Session.tsx` の計器の照明 `--signal-tint`）:
  * 検査は 11.27:1 と出すが実際は 8.66:1、計器ラベルは 8.10:1 に対し 6.44:1 で、

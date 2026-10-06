@@ -14,7 +14,7 @@ export default {
       rules: {
         // トークン層に要素・クラス・ID を選ばせない。
         // ここが崩れると、トークンだけを読んでいるつもりの timer-web に
-        // `button { 真鍮のグラデーション }` のような定義が流れ込み、Tailwind と衝突する。
+        // `button { 真鍮のグラデーション }` のような定義が流れ込む（timer は要素層を読まない・ADR-0023 決定 4）。
         'selector-max-type': 0,
         'selector-max-class': 0,
         'selector-max-id': 0,

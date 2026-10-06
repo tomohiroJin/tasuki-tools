@@ -22,7 +22,7 @@ src/
 | 利用側 | 読むもの | 理由 |
 |---|---|---|
 | `apps/poker-web` / `apps/landing` / `apps/topic-web` | `@import '@tasuki/ui';`（3 層とも） | 素の CSS で組んでいるので要素層がそのまま効く |
-| `apps/timer-web` | `import '@tasuki/ui/tokens.css';` の次に `import '@tasuki/ui/components.css';`（トークン層と部品層・`main.tsx` から。要素層は読まない） | Tailwind のユーティリティで全操作要素を組んでいる。要素層を読むと `button { 真鍮のグラデーション }` が下地に敷かれ、両者が部分的に上書きし合う。部品層はクラスを当てたときだけ効くので衝突しない |
+| `apps/timer-web` | `src/index.css` から `@import '@tasuki/ui/tokens.css';` の次に `@import '@tasuki/ui/components.css';`（トークン層と部品層。要素層は読まない） | 要素層を読むと `button { 真鍮のグラデーション }` が下地に敷かれ、見た目を変えないためには timer のボタンや見出しの一つひとつに打ち消す規則が要る。読ませるかは #316 で判断する（ADR-0023 決定 4）。部品層はクラスを当てたときだけ効くので衝突しない |
 
 **この境界は stylelint が機械的に守る。** `src/tokens/` では `selector-max-type` /
 `-class` / `-id` を 0 にしてあるので、うっかり `h2 {}` を足すと lint が落ちる。
@@ -45,8 +45,8 @@ src/
 
 **使い方**
 
-- 読み込み: poker-web / landing / topic-web は `@import '@tasuki/ui';` に含まれます。timer-web は `main.tsx` で
-  `@tasuki/ui/tokens.css` の次・`./index.css` の前に `import '@tasuki/ui/components.css';` を置きます
+- 読み込み: poker-web / landing / topic-web は `@import '@tasuki/ui';` に含まれます。timer-web は `src/index.css` で
+  `@tasuki/ui/tokens.css` の次・画面の CSS の前に `@import '@tasuki/ui/components.css';` を置きます
 - 画面が持つのは配置（幅の割り付け・並び・外側の余白）と画面固有の上書きです。**配置もクラスで書きます**
   （画面の CSS で `select` / `input` / `textarea` / `option` の型を含むセレクタを書くと、検査が落とします）
 - つまみは画面の `:root` か容器で宣言します。**欄の地を変える画面は、ホバーの地も変えます**（同じ色だと選択の目印が消えます）
@@ -105,12 +105,6 @@ src/
 @import '@tasuki/ui/card.css';        /* カード表現だけ */
 @import '@tasuki/ui/components.css';  /* `.ui-` の部品だけ */
 ```
-
-**Tailwind 4（`@tailwindcss/postcss`）と併用する場合は、CSS から `@import` しない。**
-JS の入口（`main.tsx` など）で、アプリの CSS より先に `import '@tasuki/ui/tokens.css'` と読む。
-Tailwind が `@import` を展開すると、入れ子の `fonts.css` の `url('../fonts/…')` の基準が
-付け替えられず、Vite は解決できないまま素通しする（ビルドに `didn't resolve at build time`
-の警告が出る）。timer-web はこれで**書体が 1 本も読めていなかった**（#297）。
 
 ## 書体
 

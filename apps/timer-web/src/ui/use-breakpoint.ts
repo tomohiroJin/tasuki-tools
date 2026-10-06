@@ -1,6 +1,7 @@
 /**
  * 画面幅ブレークポイント購読フック（PC 主役のレイアウト切替に使う）。
- * 既定は Tailwind の lg（1024px）。SSR/テスト（window 無し）では false を返す。
+ * 既定は 1024px。画面の CSS の `64rem` の境界と揃える（JS は px なので、既定の文字の大きさでだけ一致する）。
+ * SSR/テスト（window 無し）では false を返す。
  */
 
 import { useEffect, useState } from "react";
