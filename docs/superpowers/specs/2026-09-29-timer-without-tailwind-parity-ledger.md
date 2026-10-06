@@ -15,6 +15,7 @@
 |---|---|---|
 | autoprefixer を外すと `-moz-column-gap` 2 件が消える（Firefox は 63 以降、前置詞なしの `gap` で効く） | 2026-09-29 | 4 |
 | トークン層に新しく足したトークン `--shadow-panel`・`--shadow-dialog` が `html` のカスタムプロパティとして増える（使う側の `box-shadow` は比べ続ける。除外は `e2e/parity/approved.ts`） | 2026-10-04 | 2 |
+| トークン層に新しく足したトークン `--shadow-crown`（王冠の落ち影。`filter` の値）が `html` のカスタムプロパティとして増える（使う側の `filter` は比べ続ける。除外は `e2e/parity/approved.ts`） | 2026-10-05 | 3 |
 
 ## 利用者が認めた例外
 
@@ -194,6 +195,97 @@ E8 は網羅の確認で、効いているかは比較が見る（正本 §5.5�
 - 変異: 当たらなくなった m63・m102・m118 を作り直した（壊し方は元と同じ）。`mutation-check` 全 106 件が検出
 
 
-## PR 3（記入は PR 3 で）
+## PR 3（Session と子の部品）
 
-PR 2・3 で消した「効いていない宣言」は、ここに書く。
+計画: [`2026-10-05-timer-without-tailwind-pr3-session.md`](../plans/2026-10-05-timer-without-tailwind-pr3-session.md)。検証の範囲は正本 §7.1（PR 3・4 の検証を軽くする・2026-10-04 の利用者の判断）に従った。
+
+- ブランチの SHA（比較を流した時点の HEAD）: `6f9b2e994ff355137d9ef0617448fa1f420f19bd`（作業ツリーは clean）
+- 比較の仕組みの SHA: `eb6d3e39202514dd6ce423077be20d30b7562b52`（PR 3 で変えたのは `e2e/parity/approved.ts` の承認 1 項目だけ。再現は `git checkout 6f9b2e994ff355137d9ef0617448fa1f420f19bd -- e2e/parity`）
+- 目録: PR 2 と同じ（状態を足していない）。**数の正本は [`e2e/parity/expected/base-summary.json`](../../../e2e/parity/expected/base-summary.json)**（作り直していない）
+- 比較の結果（HEAD `6f9b2e9`）:
+
+| 設定 | 結果 | 所要 |
+|---|---|---|
+| 対照実行（`approved.ts` を変えたので流した・§7.1） | 全件緑 | 24.4 分 |
+| 通常の比較 | 全件緑（差 0・画素一致・期待値と一致） | 24.3 分 |
+
+- **流さなかったもの**（正本 §7.1）: 囲いを外した一時ビルド（PR 4 の通しの比較が担う）・規則の使用状況（E8。PR 4 の前に、PR 2 で当たらなかった規則と下の「比較に掛からない要素」と合わせて扱いを決める）・タスクごとの全件の比較（タスクごとに対象の状態だけを流した）
+- 除去検査は取り直していない（基準が固定で、PR 3 のファイルの DOM は基準のまま）。PR 2 の取り直し（HEAD `0e87abb`）の全件の書き出しを読んだ
+- 利用者が個別に承認した差: `--shadow-crown`（上の表）
+- 破壊検証（どれも赤を見て戻した。コミットしていない）: `RosterPanel.test.tsx` の書き直し（`data-scrollable` を常に付ける／常に付けない → それぞれ反対側の 1 本が赤）・`session.css` に生の色（`audit-ui-components` が赤・E5）・`Session.tsx` に Tailwind のクラス（`audit-timer-classes` が赤・E6）・`session.css` の `@keyframes pulse` を消す（`audit-timer-classes` の借り物のキーフレームの検査が赤）
+- 変異: PR 3 で当たらなくなったパッチは無かった（作り直し 0）。`mutation-check` は全件が検出（手元 7.6 分）
+
+### PR 3 で比較に掛からない要素（2026-10-05 の利用者の判断で状態を足さずに写した・計画 Q5）
+
+目録の状態に描かれない要素と、描かれない分岐の組み合わせ。除去検査に行が無いので、元の Tailwind のクラスをそのまま写した（写し方はタスクごとのレビューが元のクラスと 1 つずつ突き合わせた）。PR 4 の前に、PR 2 の「E8 で当たらなかった規則」と合わせて扱いを決める。
+
+| ファイル | 要素・組み合わせ | 扱い |
+|---|---|---|
+| `src/ui/components/SelfDriverToggle.tsx` | 62〜71 行の輪の外の加入の盤（根・見出し・説明・操作の並び・加入ボタンと「ルームから抜ける」の並び） | 除去検査に行が無い（比較の状態に描かれない・Q5）。写した |
+| `src/ui/components/SelfDriverToggle.tsx` | 輪の外の盤の「ルームから抜ける」ボタン（text-xs）の組み合わせ | 描かれない分岐の組み合わせ（!inRotation かつ onLeaveRoom）。写した |
+| `src/ui/components/SelfDriverToggle.tsx` | 輪の外の盤の加入ボタン（PrimaryButton text-sm） | 描かれない（!inRotation）。写した |
+| `src/ui/components/SwitchAlert.tsx` | reducedMotion=true の分岐（animate-pop-in・animate-fade-up を外した版） | 比較が描くのは reducedMotion=false の側のみ（除去検査の行は animate-pop-in 付き）。クラス名の組み合わせを字面の条件式で写した |
+| `src/ui/components/SharedMemo.tsx` | 編集中のテキストエリア（rows=10・placeholder 付き） | 除去検査に行が無い（編集モードは描かれない・Q5）。写した（ring・focus は box-shadow を合成） |
+| `src/ui/components/SharedMemo.tsx` | 編集モードの「プレビューに戻る」ボタン | 描かれない分岐（mode=edit）。プレビューの「編集」と同じ shared-memo-toggle |
+| `src/ui/components/RosterPanel.tsx` | 改名中の行の入力欄・保存/取消の並び・専有の div（w-full min-w-0 / flex w-full min-w-0 gap-1 / min-w-0 flex-1 … px-2 py-1 …） | 除去検査に行が無い（改名中は描かれない・Q5）。写した。入力欄の text-[var(--bone)] と outline-none は、代理追加の入力欄の同形が dead だが行が無いので写した（outline-style はレイヤー外の :focus-visible に負けて無害） |
+| `src/ui/components/RosterPanel.tsx` | 改名・代理追加の誤りの理由の行（mt-2 text-sm text-[var(--caution)]） | 除去検査に行が無い（role=alert の行は描かれない・Q5）。写した（roster-panel-error） |
+| `src/ui/components/RosterPanel.tsx` | 「代理」のチップ（chip text-xs text-[var(--caution)]） | 除去検査に行が無い（isPlaceholder が描かれない・Q5）。写した。親の [&>span.chip]:whitespace-nowrap は子セレクタで写した |
+| `src/ui/components/RosterPanel.tsx` | 「見学」の見出しと見学一覧（mt-3 mb-1 …・listClass） | 除去検査に行が無い（rotation 外の人が描かれない・Q5）。写した（見出しの上の余白 0.75rem は roster-panel-heading-watchers） |
+| `src/ui/components/RosterPanel.tsx` | 一覧の scrollable 未指定の側（flex flex-col gap-1.5 のみ） | 除去検査に行が無い（比較が描くのは scrollable の側のみ）。data-scrollable が無いときの roster-panel-list の宣言（flex・gap）で写した（Q3） |
+| `src/ui/components/RosterPanel.tsx` | 送信中の MiniButton の disabled の見た目（disabled:opacity-50 disabled:cursor-wait） | 描かれない（押した直後の 450ms）。除去検査は 1280 で alive の行あり。写した |
+| `src/ui/Session.tsx` | 274 行の「ナビ:」の表示（session-navigator・inner を含む） | 除去検査に行が無い（比較の状態に描かれない・Q5）。写した |
+| `src/ui/Session.tsx` | 403〜460 行付近の「ルーム」タブの中身すべて（縦積み・「ルームから抜ける」の帯とボタン text-xs・ランダムの帯とボタン text-sm） | タブを押す状態が目録に無い（Q5）。写した |
+| `src/ui/components/RotationLineup.tsx` | 飛ばされる現ドライバーの行（rotation-lineup-row-current に data-skipped） | 描かれない組み合わせ。opacity-70 の alive 行は自分の行（border-[var(--signal)]）で session-guest-skipping のみ・現ドライバーの形の行は無い。属性セレクタの組み合わせで写した |
+| `src/ui/components/RotationLineup.tsx` | 飛ばされる「ほか」の行（rotation-lineup-row-other に data-skipped） | 描かれない組み合わせ。opacity-70 の行は自分の行の形のみ。属性セレクタの組み合わせで写した |
+| `src/ui/components/RotationLineup.tsx` | 現ドライバーの行の中の rotation-lineup-skip-reason（現ドライバーが飛ばされる） | 描かれない組み合わせ。skip-reason は自分の行（session-guest-skipping）にしか描かれない |
+| `src/ui/components/TeamOrbit.tsx` | 飛ばされる現ドライバーのアバター（team-orbit-avatar-skipped team-orbit-avatar-current・不在の現ドライバー） | 描かれない組み合わせ。opacity-50 のアバターの alive 行は other の形（bg-[var(--panel-2)] text-[var(--bone-subtle)]）で session-guest-skipping のみ |
+| `src/ui/components/TeamOrbit.tsx` | 飛ばされる「次」のアバター（team-orbit-avatar-skipped team-orbit-avatar-next） | 描かれない組み合わせ。opacity-50 のアバターの alive 行は other の形のみ |
+
+### 消した効いていない宣言（PR 3・#316 への申し送りの一覧）
+
+基準の除去検査で dead と判定したか、除去検査に行が無いものは基準の dist のカスケードで効いていないと確かめ、写さなかったもの。
+
+| ファイル | 要素 | 元の className | 写さなかった token |
+|---|---|---|---|
+| `src/ui/components/NotifyHint.tsx` | 根 | `mb-3 flex … text-sm text-[var(--bone)]` | `text-[var(--bone)]` |
+| `src/ui/components/Tabs.tsx` | タブ | `px-4 py-2 min-h-[44px] … focus-visible:outline-none …` | `focus-visible:outline-none` |
+| `src/ui/components/Tabs.tsx` | 選択タブ | `px-4 py-2 min-h-[44px] … border-[var(--signal)] text-[var(--bone)]` | `text-[var(--bone)]` |
+| `src/ui/components/CircularProgress.tsx` | 目盛り盤 | `absolute inset-0` | `inset-0` |
+| `src/ui/components/CircularProgress.tsx` | 計測弧の層・運針の層 | `absolute inset-0 -rotate-90` | `inset-0` |
+| `src/ui/components/CircularProgress.tsx` | 計測弧 | `transition-all duration-1000 ease-linear` | `transition-all` |
+| `src/ui/components/TeamOrbit.tsx` | 次のアバター | `… bg-[var(--panel-2)] text-[var(--bone)] border-2 …` | `text-[var(--bone)]` |
+| `src/ui/components/RotationLineup.tsx` | サマリ | `mb-2 text-center text-lg font-bold text-[var(--signal)]` | `text-center` |
+| `src/ui/components/RotationLineup.tsx` | 現ドライバー・自分の行 | `flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm … text-[var(--bone)]` | `text-[var(--bone)]` |
+| `src/ui/components/SwitchAlert.tsx` | ラベル（instrument-label） | `instrument-label mb-3 text-[var(--signal)]` | `text-[var(--signal)]` |
+| `src/ui/components/SwitchAlert.tsx` | ドライバー名 | `flex items-center gap-4 text-5xl md:text-7xl font-black text-[var(--bone)]` | `text-[var(--bone)]` |
+| `src/ui/components/SharedMemo.tsx` | 見出し | `flex items-center gap-2 text-sm font-semibold text-[var(--bone)]` | `text-[var(--bone)]` |
+| `src/ui/components/SharedMemo.tsx` | 編集中のテキストエリア（文字色は preflight の textarea{color:inherit} で親の Card から継ぐ。同じ Card の子の見出しの text-[var(--bone)] が除去検査で dead） | `w-full min-h-[200px] … text-[var(--bone)] outline-none …` | `text-[var(--bone)]` |
+| `src/ui/components/SharedMemo.tsx` | 編集中のテキストエリア（レイヤー外の :focus-visible{outline:…} が utilities の outline-none に常に勝つ） | `… outline-none …` | `outline-none` |
+| `src/ui/components/SharedMemo.tsx` | 切替ボタン segClass(true) の枝 | `bg-[var(--signal)] text-[var(--on-signal)] font-semibold` | （呼び出しの無い枝を関数ごと消した） |
+| `src/ui/components/EndSessionZone.tsx` | 完成ボタン（除去検査で dead・グローバルな :focus-visible に負ける） | `px-5 py-2 … focus-visible:outline-none …` | `focus-visible:outline-none` |
+| `src/ui/components/EndSessionZone.tsx` | 最初から（リセット）ボタン（除去検査で dead・グローバルな :focus-visible に負ける） | `px-4 py-2 … focus-visible:outline-none …` | `focus-visible:outline-none` |
+| `src/ui/components/RosterPanel.tsx` | — | `名前（min-w-0 font-medium text-base text-[var(--bone)] break-words）` | `text-[var(--bone)]` |
+| `src/ui/components/RosterPanel.tsx` | — | `代理追加の入力欄（flex-1 rounded-md … text-sm text-[var(--bone)] outline-none …）` | `text-[var(--bone)]` |
+| `src/ui/components/RosterPanel.tsx` | — | `代理追加の入力欄（flex-1 rounded-md … text-sm text-[var(--bone)] outline-none …）` | `outline-none` |
+| `src/ui/components/RosterPanel.tsx` | — | `ルートの div（w-full）` | `w-full` |
+| `src/ui/components/RosterPanel.tsx` | — | `行の操作ボタン MiniButton（… focus-visible:outline-none …）` | `focus-visible:outline-none` |
+| `src/ui/Session.tsx` | ドライバーの名前 | `driver-name-fluid font-black mb-5 text-[var(--bone)] animate-fade-up …` | `text-[var(--bone)]` |
+| `src/ui/Session.tsx` | タイマーの数字（通常・一時停止） | `text-6xl lg:text-7xl font-black tabular tracking-tight text-[var(--bone)]` | `text-[var(--bone)]` |
+| `src/ui/Session.tsx` | タイマーの数字 | `text-6xl lg:text-7xl font-black tabular tracking-tight …` | `tracking-tight` |
+| `src/ui/Session.tsx` | Paused のラベル | `instrument-label mt-1 text-[10px]` | `text-[10px]` |
+| `src/ui/Session.tsx` | 次の名前 | `text-[var(--bone)] font-bold text-lg` | `text-lg` |
+| `src/ui/components/TeamOrbit.tsx` | 王冠（lucide-crown・除去検査で session-driver など 10 状態すべて dead） | `lucide lucide-crown w-3.5 h-3.5 absolute -top-2 -right-1 text-[var(--on-signal)] drop-shadow rotate-12` | `text-[var(--on-signal)]` |
+
+### dead だが写したもの
+
+- `RosterPanel` の改名中の入力欄の `text-[var(--bone)]`・`outline-none`: 除去検査に行が無いので写した（計画 Q5）。代理追加の入力欄の同形は dead で、写しても見た目は変わらない。`SharedMemo` の編集中のテキストエリアの同形は、カスケードの根拠（上の表）で写さなかった。どちらも見た目は同じなので揃えていない
+
+### その他の記録
+
+- **借り物のキーフレームの解消**: `@keyframes pulse` は `session.css` が唯一の定義になった（`loading.css` も同じ名前を使う）。**`animation` の一括指定で書かない**: Tailwind 4.3.3 は CSS の `animation` の値にテーマのキーフレーム名（`pulse`）を見つけると同じ `@keyframes` を出し、定義が 2 つ連なって比較が差を出す（実測。Tailwind の実装・最小のビルド・dist の 3 通りで確かめた）。`session.css` と `loading.css` は `animation-name` などの個別のプロパティで書いた。**PR 4 で Tailwind を外したら、`session.css` の「一括指定で書かない」の注釈を消すか書き換える**（一括指定に戻されても `audit-timer-classes` は捕まえない。Tailwind が無くなれば罠ごと消える）
+- `NotifyHint` の根の余白は、親 `Session.tsx` の `space-y-6` に詳細度で勝っていたので、親の縦積み（`.session-panel`）を子と同じタスクで移した（計画 Q1）
+- `RosterPanel.test.tsx` のクラス名で書いたアサーションは、`data-scrollable` 属性を見る形に書き直した（計画 Q3・正本 D10）。見学一覧の側は元のテストと同じく見ていない
+- `scripts/audit-timer-classes.mjs` の `UNMIGRATED` は PR 3 で空になった。一覧ごと消すのは PR 4
+- PR 2 で残した E8 の道具の Minor 3 件（`usage.ts` の `cdp.detach()`・`timer.parity.ts` の `writeUsage` の到達しない `return`・`usage-summary.ts` の `startsNestedDeclarations`）は、PR 4 の前の E8 の決め直しへ送った（計画 Q4・利用者の判断 2026-10-05）。計画の検証で分かったこと: `startsNestedDeclarations` の直しのテストは、本体の無い at-rule を規則の中に置かないと直す前から緑になる／前提の Chromium の挙動は実測していない／`finally` の `detach` は元の例外を隠しうる／`writeUsage` を `throw` にすると失敗の出力から `Expected` / `Received` の行が消える
+- 手元の `pnpm audit` は `braces`（GHSA-vfj7-8cjw-p6xm・直る版なし）で赤。ADR 0024 により PR の合否に使わない
+- **見積もりと実際**（計画の「検証の時間の見積もり」）: 機械の待ちは見積もり 3〜5 時間に対し約 2.4 時間（タスクごとの比較 約 1.4 時間・対照と通常の全件 約 49 分・手元の検査 約 4 分・`mutation-check` 約 8 分）。タスクごとの比較は Task 1・5 が 2 回、Task 6 が 4 回で、ほかは 1 回。実時間は 2026-10-05 08:01〜10-06 09:00 で、そのうち何も動いていない時間が 3 回・合わせて約 20 時間あった（原因は分かっていない）。それを除くと約 5 時間
