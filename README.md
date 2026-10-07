@@ -111,7 +111,7 @@ pnpm test    # 全パッケージのテストを実行する
 
 ## 技術スタック
 
-TypeScript / React 19 + Vite / Tailwind CSS（timer） / Bun / WebSocket / Valibot / neverthrow / Vitest / bun:test / Playwright（E2E） / turbo
+TypeScript / React 19 + Vite / Bun / WebSocket / Valibot / neverthrow / Vitest / bun:test / Playwright（E2E） / turbo
 
 ## ステータス
 

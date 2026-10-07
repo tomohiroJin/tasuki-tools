@@ -13,14 +13,14 @@
 # 生の色を走査する側のテストは緑のまま、「使われていない例外」の族だけが赤になるべき。
 # PR 2 で ALLOW は空になった（QR の白地と影の黒を素の CSS へ移した）ので、空の配列へ 1 件足す形にした。
 diff --git a/apps/timer-web/test/ui/design-tokens.test.ts b/apps/timer-web/test/ui/design-tokens.test.ts
-index a228fcba..b48c3971 100644
+index 34d83b9c..45e7c530 100644
 --- a/apps/timer-web/test/ui/design-tokens.test.ts
 +++ b/apps/timer-web/test/ui/design-tokens.test.ts
 @@ -28,6 +28,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../src");
  const ALLOW: { file: string; pattern: RegExp }[] = [
    // いまは無い。QR の白地と影の黒は、素の CSS へ移した（`.invite-panel-qr` は `ui-exempt:` つき・影は `--shadow-dialog`）。
-   // 移していない画面に残る生の色の例外を足すなら、ここへ理由つきで書く。
+   // 生の色の例外をやむを得ず足すなら、ここへ file と pattern を理由つきで書く（足した例外が使われなくなれば、未使用として落ちる）。
 +  { file: "ui/Nope.tsx", pattern: /bg-black/ },
  ];
  
- /** Tailwind に同梱の色（卓のパレットの外にある色相）。 */
+ const COLOR_UTILITIES = "text|bg|border|ring|fill|stroke|from|to|via|divide|outline|shadow|accent|caret|decoration";

@@ -22,7 +22,7 @@
  *
  * - **クラス名で書いた写し**（`.hub-input` の形・帯・一言・パネルなど）。CSS だけからは、そのクラスを
  *   どの要素に当てるか分からない。レビューと `packages/ui/README.md` が担う（ADR 0022 決定 6）
- * - `index.html` の `<style>` と `style` 属性、TSX の `style={{}}`、Tailwind のクラス（設計正本 D8 の残る穴）
+ * - `index.html` の `<style>` と `style` 属性、TSX の `style={{}}`（設計正本 D8 の残る穴）
  * - 属性だけのセレクタ（`[type='text']`）。型を名指ししない書き方は、画面の CSS では見逃す
  * - **属性セレクタで部品を名指しする書き方**（`[class~=ui-input] { font-size: … }`）は D10 の 2 を素通りする
  *   （{@link screenRuleViolations} の `onPart` はクラス選択子だけを見る）

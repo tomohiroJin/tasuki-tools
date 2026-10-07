@@ -1257,26 +1257,6 @@ export const MUTATIONS = [
       "取り残したクラスを字面で数えられなくなる。",
   },
   {
-    id: 116,
-    label: "audit-timer-classes が古い移行の一覧を見逃す",
-    patch: "m116-timer-classes-stale-unmigrated.patch",
-    pkg: "scripts",
-    tests: ["audit-timer-classes.test.mjs"],
-    note:
-      "#321 PR 1・設計正本 D10 の 3。一覧に載ったファイルが外しても検査を通る（移し終えた）のに落とさない。" +
-      "移し終えたファイルが一覧に残ると、書き方と定義の検査を免除され続ける。",
-  },
-  {
-    id: 117,
-    label: "audit-timer-classes が Tailwind と同名のクラスを見逃す",
-    patch: "m117-timer-classes-tailwind-collision.patch",
-    pkg: "scripts",
-    tests: ["audit-timer-classes.test.mjs"],
-    note:
-      "#321 PR 1・設計正本 D1。移行中は同名のユーティリティが生成されて @layer timer に勝つ。見た目の比較では、" +
-      "その要素に Tailwind の値がたまたま一致すると見えない。",
-  },
-  {
     id: 118,
     label: "design-tokens.test の ALLOW に使われない項目が残る",
     patch: "m118-design-tokens-unused-allow.patch",
@@ -1287,13 +1267,13 @@ export const MUTATIONS = [
   },
   {
     id: 119,
-    label: "audit-timer-classes が移したファイルに残った Tailwind のクラスを見逃す",
+    label: "audit-timer-classes が timer の CSS にも部品層にも定義の無いクラス名を見逃す",
     patch: "m119-timer-classes-undefined-class-accepted.patch",
     pkg: "scripts",
     tests: ["audit-timer-classes.test.mjs"],
     note:
       "#321 PR 1・設計正本 D1・計画 P8。字面のクラス名が timer の CSS にも部品層にも無くても落とさない。" +
-      "Tailwind のクラスはどちらにも定義されないので、移したファイルに取り残した Tailwind のクラスが黙って通る。",
+      "定義の無いクラス名（打ち間違い・消した CSS の取り残し）が黙って通る。Tailwind のクラスはどちらにも定義されないので、書き戻したときもここで落ちる。",
   },
   {
     id: 120,

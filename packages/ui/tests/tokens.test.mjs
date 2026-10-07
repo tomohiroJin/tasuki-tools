@@ -54,7 +54,7 @@ test('トークン層に --ink を定義しない（timer の --ink と意味が
   assert.ok(!/^\s*--ink\s*:/m.test(css), '--ink が復活している。ADR-0001 を参照');
 });
 
-test('トークン層が素の要素セレクタを持たない（timer の Tailwind と衝突するため）', () => {
+test('トークン層が素の要素セレクタを持たない（要素層を読まない timer に流れ込むため）', () => {
   // Given / When
   const css = tokensLayer()
     .replace(/\/\*[\s\S]*?\*\//g, '') // コメントを落とす

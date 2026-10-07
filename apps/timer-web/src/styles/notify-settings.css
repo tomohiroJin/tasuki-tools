@@ -1,6 +1,6 @@
 /* 交代通知の個人設定（`NotifySettings.tsx`・`NotifySettingsPanel.tsx`・#321）。Tailwind のユーティリティの写し。
  * 値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。
- * `.ui-select` は部品層でレイヤー外。`flex` と `margin-top` は `.ui-select` が書かないので衝突しない。 */
+ * `.ui-select` は部品層。`flex` と `margin-top` は `.ui-select` が書かないので衝突しない。 */
 
 /* --- ポップオーバー（`NotifySettings.tsx`） --- */
 .notify-settings-container {

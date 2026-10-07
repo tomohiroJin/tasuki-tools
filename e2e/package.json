@@ -7,7 +7,7 @@
     "test": "vitest run",
     "e2e": "TASUKI_E2E_TARGET=local playwright test",
     "e2e:prod": "TASUKI_E2E_TARGET=production playwright test --grep \"@smoke|@core\"",
-    "lint": "eslint harness fixtures support specs tests parity --no-error-on-unmatched-pattern",
+    "lint": "eslint harness fixtures support specs tests --no-error-on-unmatched-pattern",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -20,7 +20,6 @@
     "@playwright/test": "1.63.0",
     "@types/node": "^26.1.2",
     "playwright-core": "1.63.0",
-    "postcss": "^8.5.25",
     "typescript": "^6.0.3",
     "vitest": "^4.1.11"
   }

@@ -1,7 +1,7 @@
 /* まとめの画面（`Summary.tsx`・#321）。Tailwind のユーティリティの写し。
  * 値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。
  * 写さなかった宣言（除去検査で dead）: 見出し・統計値の `text-[var(--bone)]`（親から継ぐので不要）、
- * `instrument-label` の `text-[var(--signal)]`（レイヤー外の `base.css` が勝つ）、
+ * `instrument-label` の `text-[var(--signal)]`（基準（`ba9249d`）ではレイヤー外の `.instrument-label`（当時は `index.css`）が勝っていたので写さなかった）、
  * 統計カードの `p-3`、ドライバー別カードの `p-4`、アイコンの `lucide*` と、ボタンの `focus-visible:outline-none`。
  * 行の高さ（`var(--timer-never-defined, calc(…))`）は status-strip.css 冒頭の注釈。 */
 

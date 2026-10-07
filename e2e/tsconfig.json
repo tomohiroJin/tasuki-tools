@@ -9,7 +9,6 @@
     "fixtures",
     "support",
     "specs",
-    "parity",
     "tests",
     "playwright.config.ts",
     "vitest.config.ts"

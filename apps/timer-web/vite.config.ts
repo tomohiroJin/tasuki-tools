@@ -2,7 +2,6 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 import { hubRedirectPlugin } from "@tasuki/dev-hub-redirect";
-import { timerCssPlugin, timerCssSwitches } from "./vite-timer-css";
 
 // vite 8 は `configLoader: 'native'` を将来の既定にする予定で、その下では `__dirname` が
 // 使えない（build 時に警告が出る）。`import.meta.dirname` は Node 20.11 以降で使え、
@@ -17,10 +16,7 @@ export default defineConfig({
   // @tasuki/dev-hub-redirect）。旧入口撤去（#95 S5c）で行き場の無い URL は `/` へ
   // 送られるが、:5173 では `/` はこのサーバー自身（base リダイレクトで `/timer/` へ
   // 戻る）なのでループする。`/` を玄関（:5175）へ送って断つ。
-  // timerCssPlugin: 比較の仕組みの「囲いを外した一時ビルド」の切り替え（`vite-timer-css.ts`・#321 計画 P3）。変数なしでは何もしない
-  plugins: [timerCssPlugin(), react(), hubRedirectPlugin()],
-  // 比較の仕組みの E8 のためだけに、CSS を最小化しないビルドを作る（`vite-timer-css.ts`・#321 計画 P4）
-  build: timerCssSwitches(process.env).unminified ? { cssMinify: false } : {},
+  plugins: [react(), hubRedirectPlugin()],
   resolve: {
     alias: [
       { find: "@tasuki/timer-core/aggregate", replacement: path.join(coreRoot, "aggregate.ts") },

@@ -1,13 +1,13 @@
 /* 参加者の名簿（`RosterPanel.tsx`・#321）。Tailwind のユーティリティの写し。
  * 値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。
  * 写さなかった宣言（除去検査で dead）:
- *   - 名前（`.roster-panel-name`）の `text-[var(--bone)]`・代理追加の入力欄の `text-[var(--bone)]` と `outline-none`（body から継ぐ色・レイヤー外のグローバルな `:focus-visible` に負ける）
+ *   - 名前（`.roster-panel-name`）の `text-[var(--bone)]`・代理追加の入力欄の `text-[var(--bone)]` と `outline-none`（body から継ぐ色・基準（`ba9249d`）ではレイヤー外のグローバルな `:focus-visible` に負けていた）
  *   - ルートの `w-full`（ブロックの div で幅は変わらない）・`PrimaryButton` への `px-4 py-2`（PR 2 で呼び出し側から外した）
  *   - 行の操作ボタンの `focus-visible:outline-none`（基準の dist で、レイヤー外のグローバルな `:focus-visible { outline: … }` が
  *     utilities 層の `.focus-visible\:outline-none:focus-visible` に勝つ。除去検査も undecided）
  * 比較の目録に描かれない要素（#321 PR 3 の Q5・除去検査に行が無いので写す側へ倒した）: 改名の入力欄・行と理由の行（`-edit` 系）・
  * 「代理」のチップ・代理追加の誤りの行・「見学」の見出しと一覧。**改名の入力欄の `color` と `outline-style` は、
- * 代理追加の入力欄の同形が dead だが、行が無いので写した**（`outline-style` はレイヤー外の `:focus-visible` に負けて無害）。
+ * 代理追加の入力欄の同形が dead だが、行が無いので写した**（`outline-style: none` は PR 4 で消した。画面の CSS がレイヤーを外れ、`base.css` の `:focus-visible` に勝つようになるため）。
  * 一覧のスクロールは `data-scrollable` 属性で分ける（Q3）。アイコンの `w-4 h-4` は除去検査で alive（lucide のクラスつきの行）。
  * 行の高さ（`var(--timer-never-defined, calc(…))`）は status-strip.css 冒頭の注釈。 */
 
@@ -259,7 +259,6 @@
   font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 で段へ寄せる） */
   line-height: var(--timer-never-defined, calc(1.25 / 0.875)); /* 行の高さは status-strip.css 冒頭の注釈 */
   color: var(--bone);
-  outline-style: none;
 }
 
 .roster-panel-edit-input:focus {

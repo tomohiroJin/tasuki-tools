@@ -2,7 +2,7 @@
  * 値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。
  * 写さなかった宣言（除去検査で dead）: 通知見出しと参加者行の `text-[var(--bone)]`（親から継ぐので不要）、
  * 輪の外の「ドライバーに加わる」の上書き（Task 6 で消し済み）。
- * `focus-visible:outline-none` は写さない（レイヤー外のグローバルな `:focus-visible` に負けて、いまも効いていない・設計正本 §2 の 5）。
+ * `focus-visible:outline-none` は写さない（基準（`ba9249d`）ではレイヤー外のグローバルな `:focus-visible` に負けて効いていなかった・設計正本 §2 の 5）。
  * 行の高さ（`var(--timer-never-defined, calc(…))`）は status-strip.css 冒頭の注釈。 */
 
 /* 根の縦の間隔。子の margin は持たない（移した部品の根は margin-block-end を書かない）。 */

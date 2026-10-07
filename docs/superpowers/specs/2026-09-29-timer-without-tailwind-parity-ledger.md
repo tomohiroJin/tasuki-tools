@@ -6,7 +6,7 @@
 
 - **基準**: `ba9249d`（固定）
 - **無害として扱う差**: 設計正本 §5.4 の 2 類だけ（ここに写さない）
-- **比較の仕組み**: `e2e/parity/`。流し方は [`e2e/parity/README.md`](../../../e2e/parity/README.md) が正本（ここに写さない）。PR 4 で消すときは、関連する箇所を一覧で持たず `git grep -n parity` で引き直して消す（`e2e/parity/` のほかに自己テスト・tsconfig の include・lint の引数・`.gitignore` に在る）。消した後は、下の各 PR の「比較の仕組みの SHA」で `git checkout <SHA> -- e2e/parity` して再現する
+- **比較の仕組み**: `e2e/parity/`。流し方は、撤去の直前の SHA（`777df1ab85e4118aa537df60a6860c662ea148de`）の `e2e/parity/README.md` が正本（`git fetch origin pull/346/head` で取る）（ここに写さない）。PR 4 で消すときは、関連する箇所を一覧で持たず `git grep -n parity` で引き直して消す（`e2e/parity/` のほかに自己テスト・tsconfig の include・lint の引数・`.gitignore` に在る）。消した後は、下の各 PR の「比較の仕組みの SHA」で `git checkout <SHA> -- e2e/parity` して再現する。**PR 4 で撤去した**（2026-10-07）。再現の手順は「PR 4」の節
 - **配り方**: 正本 §5.1 の「`/var/www/*` の symlink を差し替え、書き出しをオフラインで突き合わせる」ではなく、基準の側のブラウザの文脈で `/timer/` を `context.route` で基準の dist から返し、その場で両側を比べる（計画 P1）。**代償**: 対照実行では両側とも route で配るので、Caddy が付けるヘッダの非対称（基準は route・ブランチは Caddy）は対照実行で確かめていない。非対称が見た目を変えるなら通常の比較が赤に倒れる向き（緑に倒れる向きではない）
 
 ## 利用者が個別に承認した差
@@ -26,7 +26,7 @@
 ## PR 1（見た目を移さない土台）
 
 - ブランチの SHA（比較を流した時点の HEAD）: 最初の通し 3 本（通常・対照・除去）は `969e350a3e3e89c9cc7d2284b738a4c02e604758`（作業ツリーは clean）。QR の直しの後は、通常の比較を `8376947c0d9ce5a8f9b23efd845d27bdfead45b5` に直しを載せた作業ツリー（`e2e/parity` の中身は `50ca65754a0b339dcafbcef7befda8bfb29d64cc` と同じ）で、対照実行と除去検査を `50ca65754a0b339dcafbcef7befda8bfb29d64cc`（作業ツリーは clean）で流した
-- 比較の仕組みの SHA: `5c109b7b3741f3c8fa2cd08ac0dab5b8353c1937`（`e2e/parity` の最後の変更。最終レビューの直し（基準の出所の断定・`-u` の停止・基準側の期待値）の後に期待値の JSON を固定したコミット。再現は `git checkout 5c109b7b3741f3c8fa2cd08ac0dab5b8353c1937 -- e2e/parity`）。その前は `50ca65754a0b339dcafbcef7befda8bfb29d64cc`（QR の出現を待つ直し）。直す前の通しは `969e350a3e3e89c9cc7d2284b738a4c02e604758`（`e2e/parity` の最後の変更は `7709fd0f`）
+- 比較の仕組みの SHA: `5c109b7b3741f3c8fa2cd08ac0dab5b8353c1937`（`e2e/parity` の最後の変更。最終レビューの直し（基準の出所の断定・`-u` の停止・基準側の期待値）の後に期待値の JSON を固定したコミット。再現は `git checkout 5c109b7b3741f3c8fa2cd08ac0dab5b8353c1937 -- e2e/parity`）。その前は `50ca65754a0b339dcafbcef7befda8bfb29d64cc`（QR の出現を待つ直し）。直す前の通しは `969e350a3e3e89c9cc7d2284b738a4c02e604758`（`e2e/parity` の最後の変更は `7709fd0f`）。squash マージなので、この SHA は main から辿れない（2026-10-06 に確かめた）。`git fetch origin pull/333/head` で取ってから戻す
 - 比較: 状態数・幅・差の件数: 全 26 状態 × 静止 5 幅 ＋ タッチ 2 本 ＝ 28 テスト。通常の比較は初回 27 緑 / 1 赤（`lobby-guest-outside` の動きに 1 件。基準側にだけ `img` の動き（`*`）が 1 件多い。基準 201・ブランチ 200 件）。**原因は招待パネルの QR の `<img>` の出現の遅れ**: QR は `useInviteQr` が `qrcode` を動的に読み込んで非同期に作り、できるまで `<img>` が DOM に無い。目印が見えた直後の最初の読み（動き）で、ブランチの側だけまだ描かれていなかった（後の静止の読みでは両側 207 件で揃っていた）。QR のチャンクを片側だけ 3 秒遅らせると、同じ形の差（動き 1 件・静止の 360 / 640 にも）が毎回出ることを確かめた。**直し方は状態を決定的にする形**（雑音として名指ししない）: 両側とも目印の直後に、描かれた招待パネルの数と読み込み済み（`complete` かつ `naturalWidth > 0`）の QR の数が一致するまで待つ（`e2e/parity/settle.ts` の `waitForInviteQr`。タッチの側と除去検査も同じ）。直した後: 同じ遅延を掛けても緑、`lobby-guest-outside` を `--repeat-each 8` で 8 回とも緑（差 0・動き両側 201）、続けて全 28 テストの通しで 28 緑（25.9 分。差 0・画素一致・notEntered 0・skipped 両側一致。状態ごとの件数は当時の summary.json と全件同じ値。いまの正本は下の期待値の JSON）。直す前に同じ状態だけを `--repeat-each 8` で流したときは自然には再現しなかった（7 回は差 0。1 回は側の後始末での Playwright の trace の書き出しの失敗で、比べる前に落ちた）。目録は 26 状態（輪の外のゲストのロビー・離脱中のセッションのゲスト画面・詳細設定を開いたロビーを含む）。静止は 5 幅（360・640・768・1024・1280）、動きとキーフレームと画素と操作（ホバー・押下・フォーカス・チェック）を比べ、タッチ 2 本（360px）を足す
 - main を取り込んだ後の通し（通常の比較）: HEAD `01eaace52539e7b7b3c1f33656b69e42e17a2bd6`（main の #313・#330・#332 を取り込んだマージ。作業ツリーは clean）で既定の設定を流し、28 テスト全 28 緑（所要 27.9 分）。状態ごとの数は直す前の通しと同じ値だった（いまの正本は下の期待値の JSON）。
 - 最終レビューの直しの後の通し（3 本と通常の比較の流し直し。順に流した）:
@@ -40,7 +40,7 @@
   - 揺れを固定した後・雑音が空の実行: 15 緑 / 11 赤。赤の中身は計測弧の `stroke-dashoffset`（と一部の画素）と、同期を落とした状態（banner-warn-reconnecting）で交代間隔が切り替わらないチェックの例外（時刻の揺れではない）
   - 名指しと skipped 化の後: 26 / 26 緑（差 0・画素一致・notEntered 0・skipped 両側一致）。**ただしこれは計測弧の画素の扱いを撮影時の長さの固定（`SCREENSHOT_STYLE`）へ変える前の実行**。計測弧を `SCREENSHOT_STYLE` で扱う形にした後の対照実行は 28 テスト（26 状態 ＋ タッチ 2 本）が 28 緑（差 0・画素一致・notEntered 0・skipped 両側一致。所要 23.2 分）。**最終のコード（QR の出現を待つ直しの後・`50ca6575`）での対照実行も 28 / 28 緑**（差 0・画素一致・notEntered 0・skipped 両側一致・全件 `control: true`。所要 25.3 分）
   - 以後の対照実行は設定ファイルで選ぶ（`parity.control.config.ts`・README 参照）
-- 状態ごとの比較要素数・動きの件数・キーフレームの名前・操作の書き出し件数・skipped の名前: **数の正本は [`e2e/parity/expected/base-summary.json`](../../../e2e/parity/expected/base-summary.json)**（基準側の要約。比較は毎回これと突き合わせ、違えば赤。作り直しは README の「期待値を作り直す」の手順だけ）。ここには写さない
+- 状態ごとの比較要素数・動きの件数・キーフレームの名前・操作の書き出し件数・skipped の名前: **数の正本は 撤去の直前の SHA（`777df1ab85e4118aa537df60a6860c662ea148de`）の `e2e/parity/expected/base-summary.json`（`git fetch origin pull/346/head` で取る）**（基準側の要約。比較は毎回これと突き合わせ、違えば赤。作り直しは README の「期待値を作り直す」の手順だけ）。ここには写さない
 
 - 雑音として名指ししたもの（`noise.ts`）: 計測弧の円の `stroke-dashoffset` の 1 件だけ（弧の長さは経過率で決まり、両側は別の時刻に撮るので揃わない）。画素は撮影のときだけ弧の長さを固定して比べる（`SCREENSHOT_STYLE`）。**代償**: 弧の長さの画素は見ない（弧の発光・線幅はスタイルの比較で見ている）
 - 画素のマスク（`e2e/parity/states.ts` の `roomMask`）。正本 §5.3 が挙げるのはルームコード・QR・招待 URL・経過時間で、それより広く隠しているものも理由と代償を書く:
@@ -98,8 +98,8 @@
 ## PR 2（primitives と呼び出し側・5 画面と共有部品）
 
 - ブランチの SHA（比較を流した時点の HEAD）: `c121757aa92d38aaad607edaed1af2c0094d387e`（4 設定とも作業ツリーは clean）
-- 比較の仕組みの SHA: `c121757aa92d38aaad607edaed1af2c0094d387e`（`e2e/parity` の最後の変更も同じ。再現は `git checkout c121757aa92d38aaad607edaed1af2c0094d387e -- e2e/parity`）
-- 目録: 29 テスト（PR 1 の 28 に `session-memo-markdown` を足した。Markdown の全要素を描く共有メモ）。期待値の JSON は README の手順で作り直した。既存の 28 キーは前の期待値と同一で、増えたのは 1 キーだけ。**数の正本は [`e2e/parity/expected/base-summary.json`](../../../e2e/parity/expected/base-summary.json)**
+- 比較の仕組みの SHA: `c121757aa92d38aaad607edaed1af2c0094d387e`（`e2e/parity` の最後の変更も同じ。再現は `git checkout c121757aa92d38aaad607edaed1af2c0094d387e -- e2e/parity`）。squash マージなので、この SHA は main から辿れない（2026-10-06 に確かめた）。`git fetch origin pull/343/head` で取ってから戻す
+- 目録: 29 テスト（PR 1 の 28 に `session-memo-markdown` を足した。Markdown の全要素を描く共有メモ）。期待値の JSON は README の手順で作り直した。既存の 28 キーは前の期待値と同一で、増えたのは 1 キーだけ。**数の正本は 撤去の直前の SHA（`777df1ab85e4118aa537df60a6860c662ea148de`）の `e2e/parity/expected/base-summary.json`（`git fetch origin pull/346/head` で取る）**
 - 比較の結果（HEAD `c121757`）:
 
 | 設定 | 結果 | 所要 |
@@ -115,6 +115,8 @@
 - 利用者が個別に承認した差: `--shadow-panel`・`--shadow-dialog`（上の表）。除外は `e2e/parity/approved.ts`
 
 ### E8 で当たらなかった規則（2026-10-04 の利用者の判断で状態を足さずに記録）
+
+2026-10-06 の利用者の判断で、状態を足さずに受け入れた（正本 §7.2）。
 
 E8 は網羅の確認で、効いているかは比較が見る（正本 §5.5）。目録に状態を足すと、期待値の作り直しと 4 設定の比較のやり直しが要り、時間に見合わないため、PR 2 では状態を足さない。PR 4 の通しの比較の前に扱いを決める。
 
@@ -200,8 +202,8 @@ E8 は網羅の確認で、効いているかは比較が見る（正本 §5.5�
 計画: [`2026-10-05-timer-without-tailwind-pr3-session.md`](../plans/2026-10-05-timer-without-tailwind-pr3-session.md)。検証の範囲は正本 §7.1（PR 3・4 の検証を軽くする・2026-10-04 の利用者の判断）に従った。
 
 - ブランチの SHA（比較を流した時点の HEAD）: `6f9b2e994ff355137d9ef0617448fa1f420f19bd`（作業ツリーは clean）
-- 比較の仕組みの SHA: `eb6d3e39202514dd6ce423077be20d30b7562b52`（PR 3 で変えたのは `e2e/parity/approved.ts` の承認 1 項目だけ。再現は `git checkout 6f9b2e994ff355137d9ef0617448fa1f420f19bd -- e2e/parity`）
-- 目録: PR 2 と同じ（状態を足していない）。**数の正本は [`e2e/parity/expected/base-summary.json`](../../../e2e/parity/expected/base-summary.json)**（作り直していない）
+- 比較の仕組みの SHA: `eb6d3e39202514dd6ce423077be20d30b7562b52`（PR 3 で変えたのは `e2e/parity/approved.ts` の承認 1 項目だけ。再現は `git checkout 6f9b2e994ff355137d9ef0617448fa1f420f19bd -- e2e/parity`）。squash マージなので、この SHA は main から辿れない（2026-10-06 に確かめた）。`git fetch origin pull/345/head` で取ってから戻す
+- 目録: PR 2 と同じ（状態を足していない）。**数の正本は 撤去の直前の SHA（`777df1ab85e4118aa537df60a6860c662ea148de`）の `e2e/parity/expected/base-summary.json`（`git fetch origin pull/346/head` で取る）**（作り直していない）
 - 比較の結果（HEAD `6f9b2e9`）:
 
 | 設定 | 結果 | 所要 |
@@ -217,6 +219,8 @@ E8 は網羅の確認で、効いているかは比較が見る（正本 §5.5�
 
 ### PR 3 で比較に掛からない要素（2026-10-05 の利用者の判断で状態を足さずに写した・計画 Q5）
 
+2026-10-06 の利用者の判断で、状態を足さずに受け入れた（正本 §7.2）。
+
 目録の状態に描かれない要素と、描かれない分岐の組み合わせ。除去検査に行が無いので、元の Tailwind のクラスをそのまま写した（写し方はタスクごとのレビューが元のクラスと 1 つずつ突き合わせた）。PR 4 の前に、PR 2 の「E8 で当たらなかった規則」と合わせて扱いを決める。
 
 | ファイル | 要素・組み合わせ | 扱い |
@@ -227,7 +231,7 @@ E8 は網羅の確認で、効いているかは比較が見る（正本 §5.5�
 | `src/ui/components/SwitchAlert.tsx` | reducedMotion=true の分岐（animate-pop-in・animate-fade-up を外した版） | 比較が描くのは reducedMotion=false の側のみ（除去検査の行は animate-pop-in 付き）。クラス名の組み合わせを字面の条件式で写した |
 | `src/ui/components/SharedMemo.tsx` | 編集中のテキストエリア（rows=10・placeholder 付き） | 除去検査に行が無い（編集モードは描かれない・Q5）。写した（ring・focus は box-shadow を合成） |
 | `src/ui/components/SharedMemo.tsx` | 編集モードの「プレビューに戻る」ボタン | 描かれない分岐（mode=edit）。プレビューの「編集」と同じ shared-memo-toggle |
-| `src/ui/components/RosterPanel.tsx` | 改名中の行の入力欄・保存/取消の並び・専有の div（w-full min-w-0 / flex w-full min-w-0 gap-1 / min-w-0 flex-1 … px-2 py-1 …） | 除去検査に行が無い（改名中は描かれない・Q5）。写した。入力欄の text-[var(--bone)] と outline-none は、代理追加の入力欄の同形が dead だが行が無いので写した（outline-style はレイヤー外の :focus-visible に負けて無害） |
+| `src/ui/components/RosterPanel.tsx` | 改名中の行の入力欄・保存/取消の並び・専有の div（w-full min-w-0 / flex w-full min-w-0 gap-1 / min-w-0 flex-1 … px-2 py-1 …） | 除去検査に行が無い（改名中は描かれない・Q5）。写した。入力欄の text-[var(--bone)] と outline-none は、代理追加の入力欄の同形が dead だが行が無いので写した（outline-style はレイヤー外の :focus-visible に負けて無害。PR 4 で `layer(timer)` を外すと勝つので消した） |
 | `src/ui/components/RosterPanel.tsx` | 改名・代理追加の誤りの理由の行（mt-2 text-sm text-[var(--caution)]） | 除去検査に行が無い（role=alert の行は描かれない・Q5）。写した（roster-panel-error） |
 | `src/ui/components/RosterPanel.tsx` | 「代理」のチップ（chip text-xs text-[var(--caution)]） | 除去検査に行が無い（isPlaceholder が描かれない・Q5）。写した。親の [&>span.chip]:whitespace-nowrap は子セレクタで写した |
 | `src/ui/components/RosterPanel.tsx` | 「見学」の見出しと見学一覧（mt-3 mb-1 …・listClass） | 除去検査に行が無い（rotation 外の人が描かれない・Q5）。写した（見出しの上の余白 0.75rem は roster-panel-heading-watchers） |
@@ -290,3 +294,76 @@ E8 は網羅の確認で、効いているかは比較が見る（正本 §5.5�
 - PR 2 で残した E8 の道具の Minor 3 件（`usage.ts` の `cdp.detach()`・`timer.parity.ts` の `writeUsage` の到達しない `return`・`usage-summary.ts` の `startsNestedDeclarations`）は、PR 4 の前の E8 の決め直しへ送った（計画 Q4・利用者の判断 2026-10-05）。計画の検証で分かったこと: `startsNestedDeclarations` の直しのテストは、本体の無い at-rule を規則の中に置かないと直す前から緑になる／前提の Chromium の挙動は実測していない／`finally` の `detach` は元の例外を隠しうる／`writeUsage` を `throw` にすると失敗の出力から `Expected` / `Received` の行が消える
 - 手元の `pnpm audit` は `braces`（GHSA-vfj7-8cjw-p6xm・直る版なし）で赤。ADR 0024 により PR の合否に使わない
 - **見積もりと実際**（計画の「検証の時間の見積もり」）: 機械の待ちは見積もり 3〜5 時間に対し約 2.4 時間（タスクごとの比較 約 1.4 時間・対照と通常の全件 約 49 分・手元の検査 約 4 分・`mutation-check` 約 8 分）。タスクごとの比較は Task 1・2・5 が 2 回（Task 2 の 2 回目は修正の後の 1 状態だけ）、Task 6 が 4 回で、ほかは 1 回。実時間は 2026-10-05 08:01〜10-06 09:00 で、そのうち何も動いていない時間が 3 回・合わせて約 20 時間あった（原因は分かっていない）。それを除くと約 5 時間
+
+## PR 4（片付け）
+
+計画: [`2026-10-06-timer-without-tailwind-pr4-cleanup.md`](../plans/2026-10-06-timer-without-tailwind-pr4-cleanup.md)（文脈を共有しない 3 人の敵対的検証を反映した 2 版）。PR: #346。検証の範囲は正本 §7.1・§7.2 に従った。
+
+- **通しの比較**（基準 `ba9249d`）: ブランチの HEAD `0538924f`（Tailwind を外したコミット・作業ツリーは clean）で、通常の比較の全件が緑（差 0・画素一致・期待値と一致。27.1 分。1 回目で緑）。期待値の JSON は変えていない。**これが #321 の完了条件の通しの比較**（正本 §1.2）
+- その後のコミット（注釈・文書・テスト・比較の仕組みの撤去）では、timer の dist が `0538924f` の dist と `diff -r` で同一であることを確かめた（最後は比較の仕組みを撤去した `07efc39d` の後）。製品の CSS の宣言を変えたコミットは無い
+- 対照実行: 比較用のビルドの切り替えを外した後（`befd41af`）に `lobby` と `session-driver` に絞って流し、緑（8.5 分）
+- **Tailwind を外して直した 2 件**（計画の検証で見つけた。見た目は変わらない）:
+  - `roster-panel.css` の改名欄の `outline-style: none` を消した（`layer(timer)` を外すと同じ詳細度の後勝ちで `:focus-visible` に勝ち、フォーカスの輪郭が消える。改名中は比較に描かれない）
+  - `base.css` の `.sr-only` に `clip-path: inset(50%)` を足した（Tailwind 版の `.sr-only` が足していた宣言。正本 D2）
+- **勝ち負けの点検**（`layer(timer)` を外した影響・正本 §7.2 の代わりの突き合わせ）: `base.css` の全セレクタ・部品層（`.ui-*`）と、画面の CSS の同じ要素の同じプロパティを突き合わせた。重なりは `.stage` / `.instrument-stage` の `color`（どちらも `var(--bone)`）だけ。「E8 で当たらなかった規則」と「PR 3 で比較に掛からない要素」の表の各行も見た（上の改名欄の 1 件のほかは無し）。タスクのレビューと `/code-review` も独立に同じ結論
+- **ビルド出力**（Tailwind を外す直前の dist と比べた）: `@font-face` は同じ 7 本・重複なし・`url()` はすべて `/timer/assets/`（E4）。前置詞は `-webkit-text-decoration`・`-webkit-text-decoration-color` の回数が減るだけ（`-moz-column-gap` は PR 2・3 の時点で既に消えていた）
+- **利用者が承認した差**（2026-10-06・U3）: `color-mix()` の `@supports` の逃げ道が 1 本に畳まれる・`not all and (…)` が範囲構文のまま出る。どちらも Safari 16.4 未満だけに効き、Chromium の物差しには映らない
+- **無害として扱った差**（正本 §5.4 の類 1）: Tailwind の `@layer properties`（古い Safari / Firefox 向けに `--tw-*` の初期値を置く `@supports (((-webkit-hyphens:none))…)`）が消えた。timer の CSS は `--tw-*` を `var()` で参照していない
+- 破壊検証（どれも赤を見て Edit で戻した。コミットしていない）: `session.css` に生の色（`audit-ui-components`・E5）・`Session.tsx` に `px-4`（`audit-timer-classes` の「定義されていません」・E6）・`.tsx` に `#ff0000`（`design-tokens.test.ts`・E5）・`@keyframes pulse` を消す（借り物のキーフレーム）・トークン層の `@import` を消す（`@font-face` 7 本が差に出る・E4）・キーフレームのテストの件数の断定（違反を 2 回出すと赤）
+- 変異: m116（古い一覧）・m117（Tailwind との衝突）は、守っていた判定と一緒に引退させた（ID は再利用しない）。m118 は文脈の行が変わったので作り直した（変異の行は同じ）。`mutation-check` は全件検出（`7ed1acb` の後・手元）
+- 依存: `apps/timer-web` から `tailwindcss`・`@tailwindcss/postcss`・`autoprefixer`・`postcss`、`e2e` から `postcss` を外した（E3）。lockfile に新しいパッケージ・版は無い
+- 手元の `pnpm audit --audit-level high` は `braces`（GHSA-vfj7-8cjw-p6xm）と `source-map-js`（GHSA-68fv-2mgg-jv7q）で赤。どちらも main の lockfile に同じ版があり、この PR が持ち込んだものではない。ADR 0024 により PR の合否に使わない
+- 手元の `install-with-supply-chain-check` は、検証キャッシュによる短絡で「検証が走っていません」になった（`--config.optimistic-repeat-install=false` でも同じ）。合否は新しい環境で走る CI に任せた
+- **流さなかったもの**: E8 の規則の使用状況（正本 §7.2 で記録として受け入れた）・囲いを外した一時ビルド（PR 4 で囲いそのものを外し、通常の比較がそれを測った）
+
+### 比較の仕組みの再現の手順
+
+撤去の直前の SHA は `777df1ab85e4118aa537df60a6860c662ea148de`（PR #346 の枝。squash マージなので main からは辿れない）。
+
+```bash
+git fetch origin pull/346/head
+git restore --source=777df1ab85e4118aa537df60a6860c662ea148de --worktree -- e2e/parity
+# 流し方は戻した e2e/parity/README.md。戻したものはコミットしない。終わったら rm -rf e2e/parity
+```
+
+`e2e/tests` の自己テストと、`e2e/tsconfig.json` の `include`・`e2e/package.json` の `lint` の `parity` は戻さなくても流せる（型検査と lint を通したいときだけ戻す）。比較用のビルドの切り替え（囲いを外した一時ビルド・最小化しない CSS）は `befd41af` で外したので、その SHA より前（`5aced845`）からでないと戻らない。
+
+### 現況の記述の仕分け（E9・2026-10-06 の利用者の判断でファイル単位の表）
+
+正本 D8 の検索（`git grep -inE 'tailwind|postcss|autoprefixer|ユーティリティ|任意値|preflight|\[var\(--|[a-z]-\['`。`pnpm-lock.yaml` と過去の記録を除く）を 1 件ずつ仕分けた。
+
+| ファイル | 扱い | 理由 |
+|---|---|---|
+| `README.md`（技術一覧） | 書き直した | 「Tailwind CSS（timer）」を消した |
+| `apps/timer-web/src/ui/use-breakpoint.ts` | 書き直した | 「Tailwind の lg」→ 画面の CSS の `64rem` の境界と揃える |
+| `packages/ui/README.md` | 書き直した | timer の行と使い方を `src/index.css` の `@import` に。「Tailwind と併用する場合は `@import` しない」の節を消した（正本 D8） |
+| `packages/ui/src/elements/index.css`・`src/tokens/index.css`・`src/tokens/palette.css`・`stylelint.config.mjs`・`tests/tokens.test.mjs` | 書き直した | 理由を「timer が要素層を読まないため」（ADR-0023 決定 4）にした。規則そのものは残す |
+| `scripts/audit-ui-components.mjs`（「何を見ていないか」） | 書き直した | 「Tailwind のクラス」の穴を消した（Tailwind が無い） |
+| `e2e/support/contrast.ts` | 書き直した | 照明の例を Tailwind のクラスから CSS の宣言にした |
+| `apps/timer-web/src/styles/base.css:16` | 書き直した | 「任意値記法 `[var(--*)]` で参照」→「画面の CSS が `var(--*)` で参照」 |
+| `apps/timer-web/src/index.css`・`main.tsx`・`styles/*.css` の勝ち負けの注釈 | 書き直した（Task 4・6） | 現況の構成（レイヤー外・`reset` レイヤー）と時点の明示 |
+| `apps/timer-web/src/styles/*.css` の見出し「Tailwind のユーティリティの写し」・`scale-exempt:`・写さなかった宣言の記録・`box-shadow` の並び・`.sr-only` の出どころ | 残す | 写しの出どころの記録で、#316 で段へ寄せる手がかり（正本 D2） |
+| `apps/timer-web/src/styles/reset.css` | 残す | preflight の逐語と出典・許諾（正本 D4） |
+| `packages/ui/src/tokens/shape.css`（`--shadow-crown`） | 残す | 値の出どころ |
+| `apps/topic-web/src/index.css`（「Tailwind と併用しない（#297）」） | 残す | 規範として今も正しい |
+| `docs/adr/*`（0001・0008・0022・0023 ほか） | 残す | ADR の本文と日付つきの追記は書き換えない（ADR 0002）。0023 には実施状況を追記した |
+| ルートの `package.json`・`pnpm-workspace.yaml`・`.github/workflows/ci.yml`・`scripts/audit-*.mjs` の `postcss`・`docs/guides/development.md` の `postcss` の実測・`scripts/audit-supply-chain-config.test.mjs` | 残す | ルートの `postcss`（ADR 0022 決定 7）と日付つきの実測の記録 |
+| `scripts/audit-timer-classes(.test).mjs`・`scripts/mutation-check.mjs`・`scripts/mutations/m119-*.patch` | 残す | Tailwind のクラスを書き戻したときに「定義が無い」で落ちる網の説明 |
+| `scripts/check-links.mjs` | 残す | 消したパスの例外の理由 |
+| e2e のハーネス・`e2e/README.md`・`.vscode/settings.json`・`turbo.json`・`deploy/firewall/connlimit.sh` の `preflight` | 残す | 起動前の検査という別の意味 |
+| `format-time.ts`・`format-time.test.ts`・`docs/guides/architecture.md`・`scripts/audit-domain-side-effects.mjs`・`scripts/audit-structure.mjs` の「ユーティリティ」 | 残す | 関数・モジュールの意味 |
+| `apps/tasuki-sync`（3 ファイル）・`deploy/README.md`・`deploy/deploy.sh`・`packages/ui/tests/typography-scale.test.mjs`・`scripts/audit-ui-components(.test).mjs` の正規表現・拡張子 | 残す | 検索の `[a-z]-\[` と `postcss` の拡張子の偶然の一致 |
+| `e2e/parity/`・`e2e/tests/parity-*`・`*-summary.test.ts`・`e2e/package.json` の `postcss` | 消した（Task 9） | 比較の仕組みの撤去 |
+
+### #316 への申し送り（PR 4 で増えたもの）
+
+- `data-*` の値の不揃い（`data-skipped="true"` と他は `""`）・`TeamOrbit` の「飛ばされる」をクラスで表す 6 枝の三項（`data-skipped` にすれば 3 枝）。PR 4 では直さない（利用者の判断・2026-10-06・U4）
+- 大きさで付けた名前（`session-button-sm` / `-xs` など）は、段へ寄せるときに消える
+- `transition-property` に写した `--tw-gradient-from` / `-via` / `-to`（`notify-settings.css`・`roster-panel.css`・`shared-memo.css`）。Tailwind の `transition` の値の逐語で、今はどこにも無い名前。消すと計算済みの `transition-property` が基準と変わるので PR 4 では残した
+- `use-breakpoint.ts` の `useIsWide` は `innerWidth >= 1024`（px）、画面の CSS は `64rem`。既定の文字の大きさを変えた利用者では食い違う（基準の時点から同じ。`matchMedia('(width >= 64rem)')` で揃えられる）
+
+### 見積もりと実際
+
+- 機械の待ち: 見積もり 2.5〜4 時間に対し約 1 時間（対照実行の一部 8.5 分・通常の比較 27.1 分・手元の CI 一式 約 10 分・`mutation-check` 約 14 分ほか）。比較が 1 回目で緑だった（計画の検証が `.sr-only` と改名欄を先に見つけていた）
+- 実時間: 2026-10-06 22:54 開始。**何も動かない空白がまた出た**（比較の仕組みを撤去する実装役が、作業は数分なのに約 5.8 時間戻らなかった）
+
