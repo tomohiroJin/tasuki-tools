@@ -29,8 +29,9 @@
   max-width: 96rem;
 }
 
-/* 段組み。compact と medium は DOM の順（左脇 → 主 → 右脇）に縦へ積む。
-   **狭い幅で区画へ配置を書かない** —— 無い区画の行と gap が空きを作る。 */
+/* 段組み（#316 §9・ADR 0025 決定 3）。操作の面（-main）と脇（-side）の 2 区画。
+   狭い幅では DOM の順に縦へ積む（DOM は狭い幅で見せたい順に書く）。64rem 以上で横に並べる。
+   脇は既定で左・22rem。--side-end で右へ、--reader で脇を読む面（操作の面と釣り合う比）にする。 */
 .ui-workspace {
   box-sizing: border-box;
   display: grid;
@@ -39,81 +40,45 @@
   align-items: start;
 }
 
-.ui-workspace-rail,
 .ui-workspace-main,
-.ui-workspace-aside {
+.ui-workspace-side {
   box-sizing: border-box;
   min-width: 0;
 }
 
-/* wide: 主の右に 1 本の列を立て、左脇を上・右脇を下に積む。
-   右の列の 2 行目を 1fr にして、主の背が高いときの余りを右脇の行へ寄せる（左脇と右脇の間を開けない）。
-   左脇も右脇も無ければ主だけの 1 列になる（下の規則）。 */
 @media (width >= 64rem) {
   .ui-workspace {
-    grid-template-columns: minmax(0, 1fr) 22rem;
-    grid-template-rows: auto 1fr;
+    grid-template-columns: 22rem minmax(0, 1fr);
+  }
+
+  .ui-workspace-side {
+    grid-column: 1;
+    grid-row: 1;
   }
 
   .ui-workspace-main {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .ui-workspace--side-end {
+    grid-template-columns: minmax(0, 1fr) 22rem;
+  }
+
+  .ui-workspace--side-end > .ui-workspace-side {
+    grid-column: 2;
+  }
+
+  .ui-workspace--side-end > .ui-workspace-main {
     grid-column: 1;
-    grid-row: 1 / span 2;
   }
 
-  .ui-workspace-rail {
-    grid-column: 2;
-    grid-row: 1;
+  /* 読む面は 1 行 35〜45 字に収まる比。操作の面を押しつぶさない。 */
+  .ui-workspace--reader {
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1fr);
   }
 
-  .ui-workspace-aside {
-    grid-column: 2;
-    grid-row: 2;
-  }
-
-  /* 左脇も右脇も無ければ、主だけの 1 列にする（空の 22rem の列を右に残さない）。 */
-  .ui-workspace:where(:not(:has(> .ui-workspace-rail, > .ui-workspace-aside))) {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  /* 左脇が無ければ行を 1 本にし、右脇を 1 行目へ上げる（上にも下にも gap だけの空き行を作らない。
-     2 行のままだと、右脇が主より背が高いとき、空の 2 行目の前の gap が 2 列の下に残る）。 */
-  .ui-workspace:where(:not(:has(> .ui-workspace-rail))) {
-    grid-template-rows: auto;
-  }
-
-  .ui-workspace:where(:not(:has(> .ui-workspace-rail))) > .ui-workspace-main {
-    grid-row: 1;
-  }
-
-  .ui-workspace:where(:not(:has(> .ui-workspace-rail))) > .ui-workspace-aside {
-    grid-row: 1;
-  }
-}
-
-/* ultra: 左脇を主の左へ出す。左脇が無い画面は wide の並びのまま。 */
-@media (width >= 90rem) {
-  .ui-workspace:where(:has(> .ui-workspace-rail)) {
-    grid-template-columns: 18rem minmax(0, 1fr) 22rem;
-    grid-template-rows: auto;
-  }
-
-  /* 右脇が無ければ右の列を作らない（空の 22rem を残さない）。 */
-  .ui-workspace:where(:has(> .ui-workspace-rail):not(:has(> .ui-workspace-aside))) {
-    grid-template-columns: 18rem minmax(0, 1fr);
-  }
-
-  .ui-workspace:where(:has(> .ui-workspace-rail)) > .ui-workspace-rail {
-    grid-column: 1;
-    grid-row: 1;
-  }
-
-  .ui-workspace:where(:has(> .ui-workspace-rail)) > .ui-workspace-main {
-    grid-column: 2;
-    grid-row: 1;
-  }
-
-  .ui-workspace:where(:has(> .ui-workspace-rail)) > .ui-workspace-aside {
-    grid-column: 3;
-    grid-row: 1;
+  .ui-workspace--reader.ui-workspace--side-end {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr);
   }
 }

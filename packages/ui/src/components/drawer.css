@@ -1,0 +1,42 @@
+/* 下からのシート（#316 §9・D3''）。<dialog> に当て、showModal() で開く。
+   狭い幅で読む面の全文を出す。閉じるボタンと Esc で閉じ、開いたボタンへフォーカスを戻す（画面の側）。 */
+.ui-drawer {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 40rem;
+  max-height: 85dvh;
+  margin: auto auto 0;
+  padding: 0;
+  border: 1px solid var(--card-edge);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: linear-gradient(160deg, var(--card-sheen), var(--card-shade));
+  color: var(--coal);
+  box-shadow: var(--shadow-dialog);
+}
+
+.ui-drawer[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.ui-drawer::backdrop {
+  background: var(--felt-shade);
+}
+
+.ui-drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--card-inline);
+}
+
+.ui-drawer-body {
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-4) var(--space-5) calc(var(--space-5) + env(safe-area-inset-bottom));
+  overflow-wrap: anywhere;
+}

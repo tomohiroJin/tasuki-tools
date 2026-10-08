@@ -1,0 +1,64 @@
+/* 読む面（#316 §9・D3''）。象牙の札に見出し（固定）と本文（札の中でスクロール）を載せる。
+   64rem 以上では画面の高さに収め、説明が長くてもページ全体を伸ばさない。
+   64rem 未満では本文を 3 行で切り、.ui-reader-more（続きを読む）で .ui-drawer に全文を出す。
+   札の上の字の色（--coal）は .ui-sheet と同じ知識なので、札の地と字をここで持つ。 */
+.ui-reader {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--card-edge);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(160deg, var(--card-sheen), var(--card-shade));
+  color: var(--coal);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.ui-reader-head {
+  box-sizing: border-box;
+  padding: var(--space-5) var(--space-5) var(--space-3);
+  border-bottom: 1px solid var(--card-inline);
+}
+
+.ui-reader-tabs {
+  display: flex;
+  gap: var(--space-1);
+  padding: 0 var(--space-3);
+  border-bottom: 1px solid var(--card-inline);
+}
+
+.ui-reader-body {
+  box-sizing: border-box;
+  padding: var(--space-4) var(--space-5);
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+.ui-reader-more {
+  align-self: flex-start;
+  margin: 0 var(--space-5) var(--space-4);
+}
+
+@media (width >= 64rem) {
+  .ui-reader {
+    position: sticky;
+    top: var(--space-4);
+    max-height: calc(100dvh - var(--space-4) * 2);
+  }
+
+  .ui-reader-body {
+    display: block;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    /* 下端をぼかして続きがあることを示す（スクロールの終わりでもぼかしは残るが、本文の下の余白に掛かる） */
+    mask-image: linear-gradient(to bottom, var(--coal) calc(100% - var(--space-6)), transparent);
+  }
+
+  .ui-reader-more {
+    display: none;
+  }
+}
