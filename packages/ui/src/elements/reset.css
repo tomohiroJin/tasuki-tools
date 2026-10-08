@@ -113,6 +113,13 @@ a {
   outline-offset: 3px;
 }
 
+/* 象牙の札の上では金の輪が 3:1 を割る（WCAG 1.4.11）。部品層は outline を書けないので、
+ * 輪の色を持つ要素層に置く。 */
+.ui-reader :focus-visible,
+.ui-drawer :focus-visible {
+  outline-color: var(--coal);
+}
+
 /* 動きを抑えたい環境では演出を止める */
 @media (prefers-reduced-motion: reduce) {
   *,

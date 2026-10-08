@@ -64,12 +64,14 @@ beforeEach(() => {
 });
 
 const proto = HTMLDialogElement.prototype;
+let showModal = vi.fn();
 const original = { showModal: proto.showModal, close: proto.close };
 
 beforeEach(() => {
-  proto.showModal = function (this: HTMLDialogElement) {
+  showModal = vi.fn(function (this: HTMLDialogElement) {
     this.setAttribute('open', '');
-  };
+  });
+  proto.showModal = showModal;
   proto.close = function (this: HTMLDialogElement) {
     this.removeAttribute('open');
     this.dispatchEvent(new Event('close'));
@@ -107,6 +109,7 @@ describe('poker のルーム画面がいまのお題を出す(#91・#316)', () =
     // When
     fireEvent.click(screen.getByRole('button', { name: READ_MORE }));
     // Then
+    expect(showModal).toHaveBeenCalledTimes(1);
     expect(dialog.hasAttribute('open')).toBe(true);
     expect(dialog.getAttribute('aria-labelledby')).toBe('poker-topic-drawer-title');
     expect(dialog.querySelector('#poker-topic-drawer-title')?.textContent).toBe('FizzBuzz');
@@ -124,6 +127,20 @@ describe('poker のルーム画面がいまのお題を出す(#91・#316)', () =
     fireEvent.click(closeButton as HTMLButtonElement);
     // Then
     expect(dialog.hasAttribute('open')).toBe(false);
+    expect(document.activeElement).toBe(more);
+  });
+
+  it('Given シートが開いている / When close イベントだけが届く（Esc） / Then フォーカスが「続きを読む」へ戻る', () => {
+    // Given
+    render(<RoomPage roomId={ROOM_ID} sync={makeSync(topic)} />);
+    const more = screen.getByRole('button', { name: READ_MORE });
+    const dialog = document.querySelector('dialog.ui-drawer') as HTMLDialogElement;
+    fireEvent.click(more);
+    (document.body as HTMLElement).focus();
+    expect(document.activeElement).not.toBe(more);
+    // When: ブラウザは Esc で `close()` を呼ばずに close イベントだけを送る
+    dialog.dispatchEvent(new Event('close'));
+    // Then
     expect(document.activeElement).toBe(more);
   });
 

@@ -12,6 +12,8 @@
  * 象牙地の上で読めるように決めてある（暗い地へ直接乗せると約 2.07:1 まで落ちる。#91 PR 3）。
  * 本文の `tabIndex={0}` は 64rem 以上で本文をキーボードでスクロールするため
  * （64rem 未満は切って見せるだけだが、フォーカスは受けるので害は無い）。
+ * **受け入れた限界**: シートを開いたまま 64rem 以上へ広げたとき、またはお題が下ろされて
+ * アンマウントされたときは、フォーカスが body に落ちる（直さない）。
  */
 import { useRef } from 'react';
 import type { Topic } from '@tasuki/topic-core';
@@ -25,19 +27,17 @@ export function CurrentTopic({ topic }: { topic: Topic }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const moreRef = useRef<HTMLButtonElement>(null);
   const hasBody = topic.body !== '';
-  const close = () => {
-    dialogRef.current?.close();
-    moreRef.current?.focus();
-  };
+  // フォーカスを「続きを読む」へ戻す経路は `onClose` の 1 本（閉じるボタンも Esc も `close` イベントを通る）
+  const close = () => dialogRef.current?.close();
   return (
     <section className="topic ui-reader" aria-labelledby="poker-topic-heading">
       <div className="ui-reader-head">
         <h2 id="poker-topic-heading">{TOPIC_HEADING}</h2>
-        <h3 className="topic-title">{topic.title}</h3>
+        <h3 id="poker-topic-title" className="topic-title">{topic.title}</h3>
       </div>
       {hasBody && (
         <>
-          <div className="ui-reader-body" role="region" aria-label={topic.title} tabIndex={0}>
+          <div className="ui-reader-body" role="region" aria-labelledby="poker-topic-title" tabIndex={0}>
             <Markdown source={topic.body} />
           </div>
           <button

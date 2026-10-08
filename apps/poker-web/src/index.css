@@ -46,12 +46,23 @@
   background: var(--felt-900);
 }
 
+/* 招待の行と段組みの間（読む面の札が行に接しない） */
+.room > header {
+  margin-block-end: var(--space-5);
+}
+
 /* ---------- 参加者（席） ---------- */
 
 /* 操作の面の最上段に「場」として並べる（#316）。席は伏せた札・名前・状態を縦に積み、横に折り返す。 */
 .room-main {
   display: grid;
   gap: var(--space-5);
+}
+
+/* 節の間は gap だけで取る。要素層の h2 の上の余白（2.2rem）が重なると間が開きすぎ、
+   最初の節の上端も左の札の上端より下がる。 */
+.room-main section > h2 {
+  margin-top: 0;
 }
 
 .participants {
@@ -71,7 +82,7 @@
   text-align: center;
   gap: 0.4rem;
   box-sizing: border-box;
-  width: 5.5rem;
+  width: 6.5rem;
   min-width: 0;
   padding: 0.55rem 0.4rem;
   background: var(--felt-sink);
@@ -85,6 +96,15 @@
 }
 
 /* 名前は区切りの無い長い名前（上限 40 字）でも席の幅に収め、どこでも折り返す。 */
+.participants .you-mark {
+  display: block;
+  white-space: nowrap;
+}
+
+.participants .badge {
+  white-space: nowrap;
+}
+
 .participants .name {
   font-weight: 500;
   min-width: 0;
@@ -139,6 +159,14 @@
   flex-wrap: wrap;
   gap: 0.55rem;
   perspective: 800px;
+}
+
+/* 広い幅の操作の面（半分の幅）では 10 枚が 9 + 1 に割れるので、5 枚 × 2 段に揃える */
+@media (width >= 64rem) {
+  .card-hand {
+    display: grid;
+    grid-template-columns: repeat(5, max-content);
+  }
 }
 
 /* 結果一覧の小カードのめくり遅延（何番目かは poker の都合） */
@@ -240,7 +268,7 @@
   color: var(--coal-soft);
 }
 
-/* 札の上の副ボタン（続きを読む・閉じる）。既定の金の字は象牙の上で読めないので札の字の色にし、
+/* **PR 2 で `.ui-button` の役割に置き換えて消す一時的な規則。** 札の上の副ボタン（続きを読む・閉じる）。既定の金の字は象牙の上で読めないので札の字の色にし、
  * シートの狭い頭で縦に割れないよう折り返さない。 */
 .topic .secondary {
   color: var(--coal);

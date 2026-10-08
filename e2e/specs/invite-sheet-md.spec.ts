@@ -58,8 +58,8 @@ async function expectInvite(page: Page, url: Locator, label: string): Promise<vo
   expect((await styleOf(url.locator('..'), ['font-size']))['font-size'], `${label} の招待リンクの字の大きさ`).toBe(sm);
 }
 
-/** 札は象牙の地に `--coal` の字、中の Markdown は部品の値。 */
-async function expectSheetAndMarkdown(page: Page, sheet: Locator, label: string, checkCard = true): Promise<void> {
+/** 札は象牙の地に `--coal` の字、中の Markdown は部品の値。`card` は札自身（Markdown を包む箱と別のとき）。 */
+async function expectSheetAndMarkdown(page: Page, sheet: Locator, label: string, card?: Locator): Promise<void> {
   await expect(sheet, label).toBeVisible();
   const [ivory, coal, coalSoft] = await resolveColors(page, ['--ivory', '--coal', '--coal-soft']);
   const radius = await resolveStyle(page, 'border-top-left-radius', '--radius-lg');
@@ -67,12 +67,19 @@ async function expectSheetAndMarkdown(page: Page, sheet: Locator, label: string,
   const base = await resolveStyle(page, 'font-size', '--font-size-base');
   const mono = await resolveStyle(page, 'font-family', '--font-mono');
 
-  // poker の読む面の本文は札（`.ui-reader`）の中の箱で、自分では地・角丸・余白を持たない（札の側は a11y の走査が測る）
-  if (checkCard) {
+  if (card === undefined) {
     expect(
       await styleOf(sheet, ['background-color', 'color', 'border-top-left-radius', 'padding-top']),
       `${label} の札`,
     ).toEqual({ 'background-color': ivory, color: coal, 'border-top-left-radius': radius, 'padding-top': space5 });
+  } else {
+    // poker の読む面（`.ui-reader`）はグラデーションの札。地は単色でなく `background-image` に出る
+    const own = await styleOf(card, ['background-image', 'color', 'border-top-left-radius']);
+    expect(own['background-image'], `${label} の読む面の地`).toContain('linear-gradient');
+    expect({ color: own['color'], radius: own['border-top-left-radius'] }, `${label} の読む面`).toEqual({
+      color: coal,
+      radius,
+    });
   }
 
   const link = sheet.getByRole('link', { name: 'example', exact: true });
@@ -124,11 +131,54 @@ test.describe('招待リンクの表示・象牙の札・Markdown の見た目�
 
     // Then その1: 招待リンク（main の poker は半透明の黒の地・金の点線・12.8px で、ここが赤になる）
     await expectInvite(poker.page, invitedUrlText(poker.page), 'poker');
-    // Then その2: Markdown（読む面の本文。札の地は走査で測る）
-    await expectSheetAndMarkdown(poker.page, body, 'poker', false);
+    // Then その2: 読む面（札）と、その本文の Markdown
+    await expectSheetAndMarkdown(poker.page, body, 'poker', topic);
     // Then その3: 札の上の字（読む面の地はグラデーション）
     const [coal, sheen, shade] = await resolveColors(poker.page, ['--coal', '--card-sheen', '--card-shade']);
     const cardGround = `rgba(0, 0, 0, 0) + linear-gradient(160deg, ${sheen}, ${shade})`;
     expectReadable(await scanContrast(poker.page, 10), 8, [pairKey(coal!, cardGround)]);
+  });
+
+  test('Given 狭い幅の poker / When 「続きを読む」を開いて Esc で閉じる / Then シートが閉じ、フォーカスが「続きを読む」へ戻る', async ({
+    page,
+    openPeer,
+  }) => {
+    // Given
+    const inviteUrl = await openTopicTool(page, 'esc-host');
+    await setTopic(page, TITLE, BODY);
+    const poker = await openPeer('esc-poker');
+    await joinRoom(poker.page, inviteUrl, 'esc-poker');
+    await poker.page.setViewportSize({ width: 390, height: 800 });
+    const more = poker.page.getByRole('button', { name: '続きを読む' });
+    const drawer = poker.page.getByRole('dialog', { name: TITLE });
+    // When
+    await more.click();
+    await expect(drawer).toBeVisible();
+    await poker.page.keyboard.press('Escape');
+    // Then
+    await expect(drawer).toBeHidden();
+    await expect(more).toBeFocused();
+  });
+
+  test('Given 象牙の札の上 / When Tab で本文と「続きを読む」へフォーカスが来る / Then 輪の色は `--coal`', async ({ page, openPeer }) => {
+    // Given: 本文は 64rem 以上、「続きを読む」は 64rem 未満で出るので、幅を替えて 1 つずつ測る
+    const inviteUrl = await openTopicTool(page, 'ring-host');
+    await setTopic(page, TITLE, BODY);
+    const poker = await openPeer('ring-poker');
+    await joinRoom(poker.page, inviteUrl, 'ring-poker');
+    const [coal] = await resolveColors(poker.page, ['--coal']);
+    const tabTo = async (target: Locator): Promise<string> => {
+      for (let i = 0; i < 60; i += 1) {
+        await poker.page.keyboard.press('Tab');
+        if (await target.evaluate((el) => el === document.activeElement)) break;
+      }
+      await expect(target).toBeFocused();
+      return (await styleOf(target, ['outline-color']))['outline-color']!;
+    };
+    // When / Then
+    await poker.page.setViewportSize({ width: 1280, height: 800 });
+    expect(await tabTo(poker.page.getByRole('region', { name: TITLE, exact: true })), '本文の輪').toBe(coal);
+    await poker.page.setViewportSize({ width: 390, height: 800 });
+    expect(await tabTo(poker.page.getByRole('button', { name: '続きを読む' })), '「続きを読む」の輪').toBe(coal);
   });
 });
