@@ -48,20 +48,32 @@
 
 /* ---------- 参加者（席） ---------- */
 
+/* 操作の面の最上段に「場」として並べる（#316）。席は伏せた札・名前・状態を縦に積み、横に折り返す。 */
+.room-main {
+  display: grid;
+  gap: var(--space-5);
+}
+
 .participants {
   list-style: none;
   padding: 0;
   margin: 0;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  flex-wrap: wrap;
   gap: 0.45rem;
 }
 
 .participants li {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 0.7rem;
-  padding: 0.55rem 0.8rem;
+  text-align: center;
+  gap: 0.4rem;
+  box-sizing: border-box;
+  width: 5.5rem;
+  min-width: 0;
+  padding: 0.55rem 0.4rem;
   background: var(--felt-sink);
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -72,11 +84,11 @@
   opacity: 0.45;
 }
 
-/* 名前は flex の子で、既定の min-width: auto のままだと区切りの無い長い名前（上限 40 字）が縮まず、
-   バッジごと左脇（18rem）から主の列へはみ出す。縮められるようにし、どこでも折り返す。 */
+/* 名前は区切りの無い長い名前（上限 40 字）でも席の幅に収め、どこでも折り返す。 */
 .participants .name {
   font-weight: 500;
   min-width: 0;
+  max-width: 100%;
   overflow-wrap: anywhere;
 }
 
@@ -221,11 +233,19 @@
 
 /* ---------- いまのお題（#91 PR 3・spec §5.5。poker は読むだけ） ---------- */
 
-/* 面（不透明な地・枠・角丸・内側の余白）は部品（`.ui-panel`）が持つ。地を持たない h2（`--gold`）は
- * 羅紗の最も明るい停止点（felt-700）の上で AA を割るので、お題はパネルに載せる。ここには並びだけを置く。 */
-.topic {
-  display: grid;
-  gap: var(--space-3);
+/* 札の地・枠・影・字の色（`--coal`）と本文のスクロールは部品（`.ui-reader`・#316）が持つ。
+ * 札は象牙なので、要素層の金（`--gold`）の h2 は読めない。深い金（`--gold-deep`）も 3.30:1 で割れたので `--coal-soft` にする（`poker-a11y.spec.ts` の走査で確かめる）。 */
+.topic h2 {
+  margin-top: 0;
+  color: var(--coal-soft);
+}
+
+/* 札の上の副ボタン（続きを読む・閉じる）。既定の金の字は象牙の上で読めないので札の字の色にし、
+ * シートの狭い頭で縦に割れないよう折り返さない。 */
+.topic .secondary {
+  color: var(--coal);
+  border-color: var(--coal-soft);
+  white-space: nowrap;
 }
 
 .topic-title {

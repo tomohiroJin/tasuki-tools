@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { baseFaces, outsideBase } from './support/font-base';
-import { TOPIC_BODY_TOGGLE, TOPIC_HEADING } from '../src/components/CurrentTopic';
+import { CLOSE, READ_MORE, TOPIC_HEADING } from '../src/components/CurrentTopic';
 
 describe('いまのお題の文言は書体の常用の層に収まる', () => {
   it('Given fonts.css / When 常用の層の面を読む / Then 3 つの太さが見つかる', () => {
@@ -15,9 +15,9 @@ describe('いまのお題の文言は書体の常用の層に収まる', () => {
     expect(faces).toEqual(['zkgn-400-base.woff2', 'zkgn-500-base.woff2', 'zkgn-700-base.woff2']);
   });
 
-  it('Given お題の見出しと開閉ボタンの文言 / When 常用の層の範囲に当てる / Then 外れる字は無い', () => {
+  it('Given お題の見出しと「続きを読む」「閉じる」の文言 / When 常用の層の範囲に当てる / Then 外れる字は無い', () => {
     // Given / When
-    const outside = outsideBase([TOPIC_HEADING, TOPIC_BODY_TOGGLE]);
+    const outside = outsideBase([TOPIC_HEADING, READ_MORE, CLOSE]);
     // Then
     expect(outside).toEqual([]);
   });

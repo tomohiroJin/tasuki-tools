@@ -215,24 +215,25 @@ export function RoomPage({ roomId, sync }: Props) {
         <InviteLink url={inviteUrl} />
       </header>
       <ErrorNote error={sync.error} onClose={sync.clearError} />
-      {/* 段組み（#316・ADR 0025）。DOM は 左脇 → 主 → 右脇。狭い幅ではこの順に縦へ積む。 */}
-      <div className="ui-workspace">
-        <section className="ui-workspace-rail">
-          <h2>参加者（{snapshot.participants.length}人）</h2>
-          <ParticipantList participants={snapshot.participants} you={snapshot.you} />
-        </section>
-        <div className="ui-workspace-main">
+      {/* 段組み（#316・ADR 0025）。64rem 以上は左に読む面（お題）・右に操作の面（場 → 手札 → 結果）。
+          DOM は狭い幅で見せたい順（お題 → 場 → 手札）。お題が無ければ脇が無く、部品が主を 1 列にする。 */}
+      <div className="ui-workspace ui-workspace--reader">
+        {sync.topic && (
+          <div className="ui-workspace-side">
+            <CurrentTopic topic={sync.topic} />
+          </div>
+        )}
+        <div className="ui-workspace-main room-main">
+          <section>
+            <h2>参加者（{snapshot.participants.length}人）</h2>
+            <ParticipantList participants={snapshot.participants} you={snapshot.you} />
+          </section>
           {isVoting ? (
             <VotingSection snapshot={snapshot} sync={sync} />
           ) : (
             <RevealedSection snapshot={snapshot} sync={sync} />
           )}
         </div>
-        {sync.topic && (
-          <div className="ui-workspace-aside">
-            <CurrentTopic topic={sync.topic} />
-          </div>
-        )}
       </div>
     </main>
   );

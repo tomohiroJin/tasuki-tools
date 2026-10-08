@@ -59,7 +59,7 @@ async function expectInvite(page: Page, url: Locator, label: string): Promise<vo
 }
 
 /** 札は象牙の地に `--coal` の字、中の Markdown は部品の値。 */
-async function expectSheetAndMarkdown(page: Page, sheet: Locator, label: string): Promise<void> {
+async function expectSheetAndMarkdown(page: Page, sheet: Locator, label: string, checkCard = true): Promise<void> {
   await expect(sheet, label).toBeVisible();
   const [ivory, coal, coalSoft] = await resolveColors(page, ['--ivory', '--coal', '--coal-soft']);
   const radius = await resolveStyle(page, 'border-top-left-radius', '--radius-lg');
@@ -67,10 +67,13 @@ async function expectSheetAndMarkdown(page: Page, sheet: Locator, label: string)
   const base = await resolveStyle(page, 'font-size', '--font-size-base');
   const mono = await resolveStyle(page, 'font-family', '--font-mono');
 
-  expect(
-    await styleOf(sheet, ['background-color', 'color', 'border-top-left-radius', 'padding-top']),
-    `${label} の札`,
-  ).toEqual({ 'background-color': ivory, color: coal, 'border-top-left-radius': radius, 'padding-top': space5 });
+  // poker の読む面の本文は札（`.ui-reader`）の中の箱で、自分では地・角丸・余白を持たない（札の側は a11y の走査が測る）
+  if (checkCard) {
+    expect(
+      await styleOf(sheet, ['background-color', 'color', 'border-top-left-radius', 'padding-top']),
+      `${label} の札`,
+    ).toEqual({ 'background-color': ivory, color: coal, 'border-top-left-radius': radius, 'padding-top': space5 });
+  }
 
   const link = sheet.getByRole('link', { name: 'example', exact: true });
   expect(await styleOf(link, ['color', 'text-decoration-line']), `${label} のリンク`).toEqual({
@@ -107,7 +110,7 @@ test.describe('招待リンクの表示・象牙の札・Markdown の見た目�
     expectReadable(await scanContrast(page, 5), 5, [pairKey(coal!, ivory!)]);
   });
 
-  test('Given お題を掲げたルーム / When poker で説明を開いて測る / Then 部品の値で、札の上の字はすべて読める', async ({
+  test('Given お題を掲げたルーム / When poker の読む面を測る / Then 部品の値で、札の上の字はすべて読める', async ({
     page,
     openPeer,
   }) => {
@@ -117,14 +120,15 @@ test.describe('招待リンクの表示・象牙の札・Markdown の見た目�
     const poker = await openPeer('sheet-poker');
     await joinRoom(poker.page, inviteUrl, 'sheet-poker');
     const topic = poker.page.getByRole('region', { name: 'お題', exact: true });
-    await topic.getByText('説明を見る', { exact: true }).click();
+    const body = topic.getByRole('region', { name: TITLE, exact: true });
 
     // Then その1: 招待リンク（main の poker は半透明の黒の地・金の点線・12.8px で、ここが赤になる）
     await expectInvite(poker.page, invitedUrlText(poker.page), 'poker');
-    // Then その2: 札と Markdown（札は説明の中の、Markdown を包む箱）
-    await expectSheetAndMarkdown(poker.page, topic.locator('details > div'), 'poker');
-    // Then その3
-    const [coal, ivory] = await resolveColors(poker.page, ['--coal', '--ivory']);
-    expectReadable(await scanContrast(poker.page, 10), 8, [pairKey(coal!, ivory!)]);
+    // Then その2: Markdown（読む面の本文。札の地は走査で測る）
+    await expectSheetAndMarkdown(poker.page, body, 'poker', false);
+    // Then その3: 札の上の字（読む面の地はグラデーション）
+    const [coal, sheen, shade] = await resolveColors(poker.page, ['--coal', '--card-sheen', '--card-shade']);
+    const cardGround = `rgba(0, 0, 0, 0) + linear-gradient(160deg, ${sheen}, ${shade})`;
+    expectReadable(await scanContrast(poker.page, 10), 8, [pairKey(coal!, cardGround)]);
   });
 });
