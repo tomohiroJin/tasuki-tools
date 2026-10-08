@@ -7,10 +7,7 @@
   max-height: 85dvh;
   margin: auto auto 0;
   padding: 0;
-  border: 1px solid var(--card-edge);
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  background: linear-gradient(160deg, var(--card-sheen), var(--card-shade));
-  color: var(--coal);
   box-shadow: var(--shadow-dialog);
 }
 
@@ -39,4 +36,5 @@
   overflow-y: auto;
   padding: var(--space-4) var(--space-5) calc(var(--space-5) + env(safe-area-inset-bottom));
   overflow-wrap: anywhere;
+  overscroll-behavior: contain;
 }

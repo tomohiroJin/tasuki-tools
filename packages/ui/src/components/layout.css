@@ -4,8 +4,8 @@
    幅の段の境目は 40rem / 64rem / 90rem の 3 つだけ（`scripts/audit-ui-components.mjs` が守る）。
      compact < 40rem ≤ medium < 64rem ≤ wide < 90rem ≤ ultra
 
-   器（.ui-page）は画面の用途で 3 段から選ぶ。左脇を置く段組み（.ui-workspace）は --wide の器の中で使う
-   （主の 32rem は --wide の器と段の境目の計算で保たれる。72rem の器で最も広い段の 3 列になると、主が 32rem を割る）。
+   器（.ui-page）は画面の用途で 3 段から選ぶ。段組み（.ui-workspace）は操作の面（-main）と脇（-side）の
+   2 区画で、64rem 以上で横に並べる。脇を読む面（.ui-reader）にするときは --reader で操作の面と釣り合う比にする。
    区画に何を置くかは画面が決める。部品が持つのは区画の幅と並び替えだけ。
    ============================================================ */
 
@@ -79,6 +79,22 @@
   }
 
   .ui-workspace--reader.ui-workspace--side-end {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.85fr);
+  }
+
+  /* 読む面を載せる脇は画面に留める（sticky は札でなく区画に掛ける。区画が札と同じ背丈だと動ける余地が無い） */
+  .ui-workspace--reader > .ui-workspace-side {
+    position: sticky;
+    top: var(--space-4);
+    align-self: start;
+  }
+
+  /* 脇が無ければ操作の面を器いっぱいの 1 列にする（空の列を残さない）。--side-end / --reader の (0,2,0) に負けないよう :where を使わない。 */
+  .ui-workspace:not(:has(> .ui-workspace-side)) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ui-workspace:not(:has(> .ui-workspace-side)) > .ui-workspace-main {
+    grid-column: 1;
   }
 }
