@@ -36,7 +36,7 @@ export function RoomChoice({ code, inviteUrl, roster, connection, topicTitle }: 
   const qrId = useId();
 
   return (
-    <main className="page landing landing-choice">
+    <main className="ui-page landing landing-choice">
       <header className="landing-hero">
         <h1 className="wordmark">Tasuki</h1>
         <div className="hub-room-summary">

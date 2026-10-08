@@ -83,7 +83,7 @@ async function checkText(page: Page, expectedCards: number): Promise<void> {
   expect(measured).toBeGreaterThan(5);
 }
 
-for (const width of [1280, 1024, 768, 320]) {
+for (const width of [1280, 1024, 768, 640, 320]) {
   test(`Given 玄関 / When 作成・参加・選択を幅 ${width} で表示 / Then 読めて横にはみ出さない`, async ({ page, openPeer }, testInfo) => {
     // Given: 実サーバーを通り、UI 文言だけで書体の追加取得を起こさない。
     const fonts: string[] = [];

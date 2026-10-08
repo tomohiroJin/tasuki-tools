@@ -43,7 +43,7 @@ export function JoinRoom({
   };
 
   return (
-    <main className="page landing">
+    <main className="ui-page ui-page--prose landing">
       <header className="landing-hero">
         <h1 className="wordmark">Tasuki</h1>
         <p className="tagline">
