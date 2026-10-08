@@ -169,9 +169,14 @@ test.describe('timer のセッションは右脇を持ち、左脇を持たな�
     await createTimerRoom(page, 'layout-timer');
     await page.getByRole('button', { name: 'セッションを開始' }).click();
     await expect(page.getByRole('timer')).toBeVisible();
+    // 右脇が主より背が高い場面を作る（実際の参加者の盤は主より低く、人数を増やすと主の方が先に伸びる）。
+    await page.locator('.ui-workspace-aside').evaluate((el) => { el.style.minHeight = '3000px'; });
     const main = await boxOf(page, '.ui-workspace-main');
     const aside = await boxOf(page, '.ui-workspace-aside');
     expect(main.x + main.width).toBeLessThanOrEqual(aside.x);
     expect(aside.y).toBeCloseTo(main.y, 0);
+    // 行は 1 本: 段組みの下端は主と右脇の低い方で、gap だけの空き行を下に残さない。
+    const ws = await boxOf(page, '.ui-workspace');
+    expect(ws.y + ws.height).toBeCloseTo(Math.max(main.y + main.height, aside.y + aside.height), 0);
   });
 });

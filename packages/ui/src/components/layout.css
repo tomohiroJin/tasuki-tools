@@ -70,7 +70,16 @@
     grid-row: 2;
   }
 
-  /* 左脇が無ければ右脇を 1 行目へ上げる（上に gap だけの空きを作らない）。 */
+  /* 左脇が無ければ行を 1 本にし、右脇を 1 行目へ上げる（上にも下にも gap だけの空き行を作らない。
+     2 行のままだと、右脇が主より背が高いとき、空の 2 行目の前の gap が 2 列の下に残る）。 */
+  .ui-workspace:where(:not(:has(> .ui-workspace-rail))) {
+    grid-template-rows: auto;
+  }
+
+  .ui-workspace:where(:not(:has(> .ui-workspace-rail))) > .ui-workspace-main {
+    grid-row: 1;
+  }
+
   .ui-workspace:where(:not(:has(> .ui-workspace-rail))) > .ui-workspace-aside {
     grid-row: 1;
   }
