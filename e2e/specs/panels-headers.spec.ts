@@ -7,6 +7,9 @@
  * 画面の CSS から面の宣言を消した後にだけ値が分かれる。赤は破壊検証で見る（計画 Task 6）。
  * 文字の走査（`scanContrast`）に任せないのは、玄関のパネルの見出しが象牙色で、地が消えても AA を割らないから。
  *
+ * **お題の面（お題ツールの「いまのお題」と poker の「お題」）は #316 で読む面（部品 `.ui-reader`）になった**
+ * （設計正本 §9）。`.ui-panel` の面ではないので、`expectReaderFace` で読む面の値を測る。
+ *
  * **見出しの判定は main で赤になる**: poker の戻る導線は 5 段の外の `0.8rem`、お題ツールの入室を待つ画面の
  * 戻る導線は見出しの下の行にある。
  */
@@ -54,6 +57,33 @@ async function expectPanelFace(page: Page, panel: Locator, label: string): Promi
   expect(face, `${label} の面`).toEqual({ background: felt900, border: `1px solid ${lineStrong}`, radius });
 }
 
+/**
+ * お題の面（読む面 `.ui-reader`・#316）の値が当たっていること。`.ui-panel` ではなく、象牙の札の地
+ * （`--card-sheen` から `--card-shade` への `linear-gradient`）・枠 `--card-edge`・角丸 `--radius-lg`・字の色 `--coal`。
+ */
+async function expectReaderFace(page: Page, reader: Locator, label: string): Promise<void> {
+  await expect(reader, label).toBeVisible();
+  const [sheen, shade, edge, coal] = await resolveColors(page, ['--card-sheen', '--card-shade', '--card-edge', '--coal']);
+  const radius = await resolveStyle(page, 'border-top-left-radius', '--radius-lg');
+  const face = await reader.evaluate((el) => {
+    const s = getComputedStyle(el);
+    return {
+      image: s.backgroundImage,
+      border: `${s.borderTopWidth} ${s.borderTopStyle} ${s.borderTopColor}`,
+      radius: s.borderTopLeftRadius,
+      color: s.color,
+    };
+  });
+  expect(face.image, `${label} の地は linear-gradient`).toContain('linear-gradient');
+  expect(face.image, `${label} の地に --card-sheen`).toContain(sheen);
+  expect(face.image, `${label} の地に --card-shade`).toContain(shade);
+  expect({ border: face.border, radius: face.radius, color: face.color }, `${label} の面`).toEqual({
+    border: `1px solid ${edge}`,
+    radius,
+    color: coal,
+  });
+}
+
 /** 戻る導線が見出しと同じ行の右にあり、字の大きさが `--font-size-sm` であること。 */
 async function expectBackBesideHeading(page: Page, heading: Locator, label: string): Promise<void> {
   const back = page.getByRole('link', { name: BACK_LINK, exact: true });
@@ -85,7 +115,8 @@ test.describe('パネルの面と、見出し・戻る導線（#320 PR 3）', ()
     // When その3: お題ツールのルーム画面
     await toolCard(page, 'Topic Board').click();
     await expectBackBesideHeading(page, page.getByRole('heading', { level: 1, name: 'お題', exact: true }), 'お題ツール');
-    for (const name of ['いまのお題', '書く', '作る']) {
+    await expectReaderFace(page, page.getByRole('region', { name: 'いまのお題', exact: true }), 'お題ツールの「いまのお題」');
+    for (const name of ['書く', '作る']) {
       await expectPanelFace(page, page.getByRole('region', { name, exact: true }), `お題ツールの「${name}」`);
     }
   });
@@ -105,7 +136,7 @@ test.describe('パネルの面と、見出し・戻る導線（#320 PR 3）', ()
 
     // When その2: poker のルーム画面
     await joinRoom(poker.page, inviteUrl, 'panel-poker');
-    await expectPanelFace(poker.page, poker.page.getByRole('region', { name: 'お題', exact: true }), 'poker のお題');
+    await expectReaderFace(poker.page, poker.page.getByRole('region', { name: 'お題', exact: true }), 'poker のお題');
     await expectBackBesideHeading(
       poker.page,
       poker.page.getByRole('heading', { level: 1, name: 'プランニングポーカー' }),
