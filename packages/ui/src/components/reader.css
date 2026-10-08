@@ -43,7 +43,7 @@
     display: block;
     flex: 1 1 auto;
     min-height: 0;
-    /* 本文の下端を角丸の高さぶん上げる（ぼかしやスクロールバーが角の外へはみ出さない） */
+    /* 本文の下端を角丸の高さぶん上げる（スクロールバーが角の外へはみ出さない） */
     margin-block: 0 var(--radius-lg);
     padding: var(--space-4) var(--space-5);
     overflow-y: auto;

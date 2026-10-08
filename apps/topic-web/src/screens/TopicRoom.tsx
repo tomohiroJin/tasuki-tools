@@ -73,13 +73,16 @@ export function TopicRoom({ roomCode }: { roomCode: string }) {
     <>
       {banner}
       <main className="ui-page ui-page--wide">
-        <header className="ui-page-header">
-          <h1>{PAGE_HEADING}</h1>
-          <a className="ui-page-header-back" href={hubPathFor(roomCode)}>
-            {BACK_LINK}
-          </a>
-        </header>
-        <InviteLink url={sync.inviteUrl} />
+        {/* 見出しと招待リンクを 1 つの塊にし、下の段組みとの間に余白を取る（poker の `.room > header` と同じ・#316） */}
+        <div className="topic-room-header">
+          <header className="ui-page-header">
+            <h1>{PAGE_HEADING}</h1>
+            <a className="ui-page-header-back" href={hubPathFor(roomCode)}>
+              {BACK_LINK}
+            </a>
+          </header>
+          <InviteLink url={sync.inviteUrl} />
+        </div>
         {/* 入り直しの途中の混雑も、この画面で伝える（伝えないと、ボタンが黙って押せなくなる） */}
         {sync.retryNotice && <p className="topic-notice ui-note" role="status">{sync.retryNotice}</p>}
         {sync.error && <p className="ui-note ui-note--error" role="alert">{sync.error}</p>}

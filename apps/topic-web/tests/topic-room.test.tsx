@@ -87,6 +87,7 @@ describe('いまのお題', () => {
     enterWith({ ...IDLE_STATE, generating: true, aiUnlocked: true, topic: FIZZ });
     // When
     fireEvent.change(screen.getByLabelText(copy.TITLE_LABEL), { target: { value: 'FizzBuzz' } });
+    fireEvent.click(screen.getByRole('tab', { name: copy.TAB_CURRENT }));
     // Then: 生成中も押せる（押すと進行中の生成をサーバーが中断する・E11 はサーバー側の単体が見る）
     expect(screen.getByRole('region', { name: copy.CURRENT_HEADING })).toHaveAttribute('aria-busy', 'true');
     expect(screen.getByText(copy.GENERATING_TEXT)).toBeInTheDocument();
@@ -437,6 +438,8 @@ describe('操作できない間', () => {
     vi.useFakeTimers();
     enterWith({ ...IDLE_STATE, aiUnlocked: true, topic: FIZZ });
     fireEvent.change(screen.getByLabelText(copy.TITLE_LABEL), { target: { value: 'FizzBuzz' } });
+    // 書き始めると読む面は下書きへ移り「お題を下ろす」は隠れる。押せるかを見るので いまのお題 のタブへ戻す
+    fireEvent.click(screen.getByRole('tab', { name: copy.TAB_CURRENT }));
     const buttons = () => [
       setButton(),
       screen.getByRole('button', { name: copy.CLEAR_BUTTON }),
@@ -740,6 +743,54 @@ describe('読む面のタブ', () => {
     fireEvent.click(setButton());
     // Then
     expect(tab(copy.TAB_CURRENT)).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('Given お題がある / When タブを切り替える / Then お題を下ろすは いまのお題 のタブにだけある', () => {
+    // Given
+    enterWith({ ...IDLE_STATE, topic: FIZZ });
+    expect(screen.getByRole('button', { name: copy.CLEAR_BUTTON })).toBeInTheDocument();
+    // When: 下書きのタブへ（下書きの本文の真下に出ると「下書きを捨てる」と読み違えて全員のお題が消える）
+    fireEvent.click(tab(copy.TAB_DRAFT));
+    // Then
+    expect(screen.queryByRole('button', { name: copy.CLEAR_BUTTON })).toBeNull();
+    fireEvent.click(tab(copy.TAB_CURRENT));
+    expect(screen.getByRole('button', { name: copy.CLEAR_BUTTON })).toBeInTheDocument();
+  });
+
+  it('Given 画面 / When パネルを見る / Then 選ばれていない方は hidden で DOM に残り、aria-controls の宛先が実在する', () => {
+    // Given / When
+    enterWith({ ...IDLE_STATE, topic: FIZZ });
+    // Then
+    for (const name of [copy.TAB_CURRENT, copy.TAB_DRAFT]) {
+      const target = document.getElementById(tab(name).getAttribute('aria-controls') ?? '');
+      expect(target, `${name} の aria-controls の宛先`).not.toBeNull();
+      expect(target).toHaveAttribute('role', 'tabpanel');
+    }
+    const hidden = document.getElementById(tab(copy.TAB_DRAFT).getAttribute('aria-controls') ?? '');
+    expect(hidden).toHaveAttribute('hidden');
+    expect(document.getElementById(tab(copy.TAB_CURRENT).getAttribute('aria-controls') ?? '')).not.toHaveAttribute('hidden');
+  });
+
+  it('Given 止まり先の無いパネル / When 見る / Then パネル自身が tabindex 0。本文があるときは付けない', () => {
+    // Given: お題なし（現在のパネルに本文の領域が無い）
+    enterWith();
+    // Then
+    expect(panel()).toHaveAttribute('tabindex', '0');
+    // When: 下書きのタブ（空）→ 同じく止まり先が無い
+    fireEvent.click(tab(copy.TAB_DRAFT));
+    expect(panel()).toHaveAttribute('tabindex', '0');
+    // When: 書くと本文の領域ができ、パネルには付けない
+    fireEvent.change(bodyField(), { target: { value: '説明' } });
+    expect(panel()).not.toHaveAttribute('tabindex');
+  });
+
+  it('Given 下書きにタイトルがある / When 下書きのタブを見る / Then 本文の領域はタイトルで名付けられる', () => {
+    // Given / When
+    enterWith();
+    fireEvent.change(titleField(), { target: { value: '書きかけ' } });
+    fireEvent.change(bodyField(), { target: { value: '説明' } });
+    // Then
+    expect(within(panel()).getByRole('region', { name: '書きかけ' })).toBeInTheDocument();
   });
 
   it('Given 下書きが空 / When 下書きの見え方を選ぶ / Then 書くと見え方が出ると伝える', () => {

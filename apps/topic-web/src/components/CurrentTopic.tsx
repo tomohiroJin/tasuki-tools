@@ -45,6 +45,9 @@ const TABS: readonly { readonly id: TabId; readonly label: string }[] = [
  * section の中に置くと「作っています…」が読み上げられない恐れがある（レビュー指摘）。
  * `aria-busy` 自体は section に残す（既存テストが region の aria-busy を見ている）。
  *
+ * 狭い幅（64rem 未満）の「下書きの見え方」のタブは本文を 3 行で切り、「続きを読む」は持たない
+ * （全文は書く欄の中のプレビューで見る。シートはいまのお題だけ）。
+ *
  * **自動切り替えの規則**: 下書きが「空 → 空でない」に変わった瞬間だけ「下書きの見え方」へ、
  * 「空でない → 空」（送った・消した）に変わった瞬間だけ「いまのお題」へ戻す。それ以外
  * （毎打鍵）は利用者の選択を保つ。空の判定はプレビューと同じく前後の空白を無視する。
@@ -135,6 +138,8 @@ export function CurrentTopic({ state, notice, enabled, draft, onClear }: Props) 
             aria-labelledby={tabId(t.id)}
             className="topic-reader-panel"
             hidden={t.id !== active}
+            // フォーカスの止まり先（本文の領域）が無いパネルには、パネル自身を止まり先にする（WAI-ARIA Tabs の作法）
+            tabIndex={t.id === 'current' ? (hasBody ? undefined : 0) : draftBlank ? 0 : undefined}
           >
             {t.id === 'current' && active === 'current' && (
               <>
@@ -175,7 +180,7 @@ export function CurrentTopic({ state, notice, enabled, draft, onClear }: Props) 
                     <div
                       className="ui-reader-body"
                       role="region"
-                      aria-label={TAB_DRAFT}
+                      {...(draftTitle.trim() !== '' ? { 'aria-labelledby': draftTitleId } : { 'aria-label': TAB_DRAFT })}
                       tabIndex={0}
                     >
                       <Markdown source={draftBody} className="topic-body" />
@@ -186,7 +191,8 @@ export function CurrentTopic({ state, notice, enabled, draft, onClear }: Props) 
             )}
           </div>
         ))}
-        {topic !== null && (
+        {/* 「お題を下ろす」は いまのお題 のタブのときだけ出す。下書きの本文の真下にあると「下書きを捨てる」と読み違え、全員のお題が消える */}
+        {topic !== null && active === 'current' && (
           <div className="topic-reader-foot">
             <button type="button" className="secondary" onClick={onClear} disabled={!enabled}>
               {CLEAR_BUTTON}

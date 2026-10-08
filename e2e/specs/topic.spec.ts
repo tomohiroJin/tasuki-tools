@@ -338,7 +338,7 @@ test.describe('説明のプレビュー（#313 PR 2）', () => {
     await page.getByLabel('タイトル', { exact: true }).fill(TITLE);
     await field.fill(MD_BODY);
     // Then その1: 両方が見える
-    const draft = reader.getByRole('region', { name: '下書きの見え方' });
+    const draft = reader.getByRole('region', { name: TITLE, exact: true });
     await expect(reader.getByRole('tab', { name: '下書きの見え方' })).toHaveAttribute('aria-selected', 'true');
     await expect(draft.getByRole('heading', { level: 4, name: 'Rules' })).toBeVisible();
     await expect(field).toBeVisible();
@@ -389,7 +389,7 @@ test.describe('説明のプレビュー（#313 PR 2）', () => {
       const shown =
         width === 390
           ? page.getByRole('region', { name: 'プレビュー' })
-          : currentTopic(page).getByRole('region', { name: '下書きの見え方' });
+          : currentTopic(page).getByRole('region', { name: TITLE, exact: true });
       if (width === 390) await page.getByRole('button', { name: 'プレビュー', exact: true }).click();
       await expect(shown.getByRole('heading', { level: 4, name: 'Rules' })).toBeVisible();
       // When / Then: 札の字を測ったことを固定する（390 は象牙の札と読む面の両方・1280 は読む面）

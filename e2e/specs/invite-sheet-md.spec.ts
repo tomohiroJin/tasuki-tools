@@ -118,6 +118,17 @@ test.describe('招待リンクの表示・象牙の札・Markdown の見た目�
     expectReadable(await scanContrast(page, 5), 5, [pairKey(coal!, cardGround)]);
   });
 
+  test('Given 幅 390 のお題ツール / When 書くのプレビューの札を測る / Then 象牙の札の値と、中の Markdown の部品の値になる', async ({ page }) => {
+    // Given: 64rem 未満では書くの中のプレビュー（`.topic-sheet`）が見える。単色の札の値はここだけが測る
+    await page.setViewportSize({ width: 390, height: 900 });
+    await openTopicTool(page, 'sheet-preview');
+    await page.getByLabel('タイトル', { exact: true }).fill(TITLE);
+    await page.getByLabel('説明（なくてもよい）').fill(BODY);
+    await page.getByRole('button', { name: 'プレビュー', exact: true }).click();
+    // Then
+    await expectSheetAndMarkdown(page, page.getByRole('region', { name: 'プレビュー' }).getByRole('article'), 'お題ツールのプレビュー');
+  });
+
   test('Given お題を掲げたルーム / When poker の読む面を測る / Then 部品の値で、札の上の字はすべて読める', async ({
     page,
     openPeer,
