@@ -1,7 +1,11 @@
 /**
- * 器の幅と段組み（#316 PR 1・設計正本 D1〜D3・E3・E4）。
+ * 器の幅と段組み・読む面（#316 PR 1・設計正本 D1〜D3・E3・E4）。
  *
  * **タグを付けない（`local` 専用）。** 本番のルーム枠を消費して確かめる種類のものではない。
+ *
+ * 段組みは 2 区画（操作の面 `.ui-workspace-main`・脇 `.ui-workspace-side`）。poker は脇が左の読む面、
+ * お題ツールは脇が右の読む面（タブつき）、timer は脇が右の参加者・メモ。
+ * 狭い幅の「続きを読む」→ シート → Esc → フォーカスが戻る検査は `invite-sheet-md.spec.ts` にあるので、ここでは重ねない。
  *
  * 区画の位置は**区画どうしの相対位置**で見る（px の直値で見ると器の余白を変えるたびに壊れる）。
  * 押せる大きさ（44px）は PR 1 では合否にせず、件数を注釈に出すだけにする（設計正本 D9）。
@@ -51,12 +55,17 @@ async function noteSmallTargets(page: Page, testInfo: TestInfo, label: string): 
   testInfo.annotations.push({ type: `44px 未満（${label}）`, description: `${small.length} 件: ${small.join(' / ')}` });
 }
 
-/** poker のルームにお題を掲げ、右脇（お題）まで描かれた状態にする。返すのは参加用 URL。 */
-async function openPokerWithTopic(page: Page, openPeer: (label: string) => Promise<{ page: Page }>): Promise<string> {
+/** 40 行ほどの長い説明（Markdown の段落）。読む面の本文が札の中でスクロールすることを見る。 */
+const LONG_BODY = Array.from({ length: 40 }, (_, i) => `${i + 1} 行目の説明です。`).join('\n\n');
+
+type OpenPeer = (label: string) => Promise<{ page: Page }>;
+
+/** poker のルームにお題を掲げ、脇（読む面）まで描かれた状態にする。返すのは参加用 URL。 */
+async function openPokerWithTopic(page: Page, openPeer: OpenPeer, body = '3 のときは Fizz を出す'): Promise<string> {
   const url = await createPokerRoom(page, 'layout-a');
   const topic = await openPeer('layout-topic');
   await joinTopicTool(topic.page, url, 'layout-t');
-  await setTopic(topic.page, 'FizzBuzz', '3 のときは Fizz を出す');
+  await setTopic(topic.page, 'FizzBuzz', body);
   await expect(page.getByRole('region', { name: 'お題', exact: true })).toBeVisible();
   return url;
 }
@@ -65,107 +74,155 @@ async function openPokerWithTopic(page: Page, openPeer: (label: string) => Promi
 const LONG_NAME = 'A'.repeat(30);
 
 /**
- * 長い名前のゲストを入れて投票させ、左脇（参加者）の行に「投票済み」のバッジまで並んだ状態にする。
+ * 長い名前のゲストを入れて投票させ、場（参加者）の席に「投票済み」のバッジまで並んだ状態にする。
  * ホストは投票しない（全員が投票すると自動で公開され、バッジが消える）。
  */
-async function addLongNameVoter(page: Page, url: string, openPeer: (label: string) => Promise<{ page: Page }>): Promise<void> {
+async function addLongNameVoter(page: Page, url: string, openPeer: OpenPeer): Promise<void> {
   const guest = await openPeer('layout-long-name');
   await joinPokerRoom(guest.page, url, LONG_NAME);
   await chooseCard(guest.page, '5');
   await expect(participantRow(page, LONG_NAME).getByText('投票済み')).toBeVisible();
 }
 
-/** 左脇の参加者の行の中身で、右端がいちばん遠いもの（左脇の右端と比べる）。 */
-async function rightmostInRail(page: Page): Promise<number> {
-  return page.locator('.ui-workspace-rail .participants li').evaluateAll((lis) =>
-    Math.max(...lis.flatMap((li) => [li, ...Array.from(li.querySelectorAll('*'))]).map((el) => el.getBoundingClientRect().right)),
-  );
+/** 場（参加者の一覧）の右端と、各席の中身でいちばん遠い右端。席は場の右端を越えない。 */
+async function seatsAndTableRight(page: Page): Promise<{ table: number; seats: number }> {
+  return page.locator('.participants').evaluate((ul) => ({
+    table: ul.getBoundingClientRect().right,
+    seats: Math.max(...Array.from(ul.querySelectorAll('li, li *')).map((el) => el.getBoundingClientRect().right)),
+  }));
 }
 
-test.describe('poker のルームは広い画面で 3 つの区画を並べる', () => {
-  test('Given 幅 1920・長い名前の参加者 / When ルームを開く / Then 器は 1536px で、左脇・主・右脇が横に並び、名前は左脇に収まる', async ({ page, openPeer }, testInfo) => {
+/** 読む面の本文が札の中でスクロールしている（本文の中身が枠より高い）。 */
+async function expectBodyScrolls(page: Page): Promise<void> {
+  expect(await page.locator('.ui-reader-body:visible').first().evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
+}
+
+/**
+ * 長い説明でページを伸ばさない。読む面は画面の高さ（-2rem）に収まり、ページ全体は読む面の下端 + 器の下の余白（4rem）まで。
+ * （ページ全体を `innerHeight + 2rem` で測ると、読む面の上にある見出し・招待リンクの背丈だけで超える。読む面の高さで測る。）
+ */
+async function expectPageFitsScreen(page: Page): Promise<void> {
+  const { reader, pageHeight, readerBottom } = await page.evaluate(() => {
+    const r = document.querySelector('.ui-reader')!.getBoundingClientRect();
+    return { reader: r.height, pageHeight: document.documentElement.scrollHeight, readerBottom: r.bottom + scrollY };
+  });
+  const viewportHeight = page.viewportSize()?.height ?? 0;
+  expect(reader).toBeLessThanOrEqual(viewportHeight - 2 * REM + 0.5);
+  expect(pageHeight).toBeLessThanOrEqual(readerBottom + 4 * REM + 0.5);
+}
+
+/**
+ * ページを下近くまでスクロールしても、読む面は画面の中に留まる（脇が sticky）。
+ * 最下端までは行かない: 器の下の余白（4rem）のぶん段組みの下端が画面の下端より上に来て、読む面が押し上げられる。
+ */
+async function expectReaderStaysOnScreen(page: Page): Promise<void> {
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight - innerHeight - 8 * 16));
+  const box = await boxOf(page, '.ui-reader');
+  const viewportHeight = page.viewportSize()?.height ?? 0;
+  expect(box.y).toBeGreaterThanOrEqual(0);
+  expect(box.y + box.height).toBeLessThanOrEqual(viewportHeight + 0.5);
+}
+
+test.describe('poker のルームは広い画面で読む面と操作の面を並べる', () => {
+  test('Given 幅 1920・長い説明 / When ルームを開く / Then 器は 1536px で、読む面が左・操作の面が右に揃い、ページは伸びず本文が札の中でスクロールする', async ({ page, openPeer }, testInfo) => {
     await page.setViewportSize({ width: 1920, height: 900 });
-    const url = await openPokerWithTopic(page, openPeer);
-    await addLongNameVoter(page, url, openPeer);
+    await openPokerWithTopic(page, openPeer, LONG_BODY);
     expect((await pageBox(page)).outer).toBe(96 * REM);
-    const rail = await boxOf(page, '.ui-workspace-rail');
-    // 長い名前でも、行の中身（名前・バッジ）は左脇（18rem）の右端を越えない（主の列へはみ出さない）
-    expect(await rightmostInRail(page)).toBeLessThanOrEqual(rail.x + rail.width + 0.5);
+    const reader = await boxOf(page, '.ui-reader');
     const main = await boxOf(page, '.ui-workspace-main');
-    const aside = await boxOf(page, '.ui-workspace-aside');
-    expect(rail.x + rail.width).toBeLessThanOrEqual(main.x);
-    expect(main.x + main.width).toBeLessThanOrEqual(aside.x);
+    expect(reader.x + reader.width).toBeLessThanOrEqual(main.x);
     expect(main.width).toBeGreaterThanOrEqual(MAIN_MIN);
-    // ultra は 1 行に並ぶ（縦位置が揃う）
-    expect(rail.y).toBeCloseTo(main.y, 0);
-    expect(aside.y).toBeCloseTo(main.y, 0);
+    expect(reader.y).toBeCloseTo(main.y, 0);
+    await expectPageFitsScreen(page);
+    await expectBodyScrolls(page);
     await noteSmallTargets(page, testInfo, 'poker 1920');
   });
 
-  test('Given 幅 1280 / When ルームを開く / Then 器の内側は 1152px 以上で、左脇は右の列の上・右脇はそのすぐ下', async ({ page, openPeer }) => {
+  test('Given 幅 1280・長い説明・長い名前の参加者 / When ルームを開く / Then 器の内側は 1152px 以上で、読む面が左・操作の面が右に揃い、席は場の右端を越えない', async ({ page, openPeer }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
-    await openPokerWithTopic(page, openPeer);
+    const url = await openPokerWithTopic(page, openPeer, LONG_BODY);
+    await addLongNameVoter(page, url, openPeer);
     expect((await pageBox(page)).inner).toBeGreaterThanOrEqual(72 * REM);
-    const rail = await boxOf(page, '.ui-workspace-rail');
+    const reader = await boxOf(page, '.ui-reader');
     const main = await boxOf(page, '.ui-workspace-main');
-    const aside = await boxOf(page, '.ui-workspace-aside');
-    expect(main.x + main.width).toBeLessThanOrEqual(rail.x);
-    expect(rail.x).toBeCloseTo(aside.x, 0);
-    expect(rail.y + rail.height).toBeLessThanOrEqual(aside.y);
-    // 右脇は左脇のすぐ下（間は gap の 2rem）。主が 2 行をまたがないと、右脇の行が主の下端より下から始まり空きができる
-    expect(aside.y).toBeCloseTo(rail.y + rail.height + 2 * REM, 0);
+    expect(reader.x + reader.width).toBeLessThanOrEqual(main.x);
+    expect(reader.y).toBeCloseTo(main.y, 0);
     expect(main.width).toBeGreaterThanOrEqual(MAIN_MIN);
+    // 長い名前でも、席の中身（名前・バッジ）は場の右端を越えない（操作の面の外へはみ出さない）
+    const { table, seats } = await seatsAndTableRight(page);
+    expect(seats).toBeLessThanOrEqual(table + 0.5);
+    await expectPageFitsScreen(page);
+    await expectBodyScrolls(page);
   });
 
-  test('Given 幅 320・長い名前の参加者 / When ルームを開く / Then 横に溢れず、左脇・主・右脇の順に縦へ積む', async ({ page, openPeer }, testInfo) => {
+  test('Given 幅 1280・お題が無い / When ルームを開く / Then 脇が無く、操作の面は器の内側の幅いっぱい（空の列を残さない）', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await createPokerRoom(page, 'layout-no-topic');
+    expect(await page.locator('.ui-workspace-side').count()).toBe(0);
+    const inner = await pageBox(page);
+    const main = await boxOf(page, '.ui-workspace-main');
+    expect(main.width).toBeCloseTo(inner.inner, 0);
+    expect(main.x + main.width).toBeCloseTo(inner.innerRight, 0);
+  });
+
+  test('Given 幅 320・長い説明・長い名前の参加者 / When ルームを開く / Then 横に溢れず、お題 → 操作の面の順に積み、本文は 3 行で切れる', async ({ page, openPeer }, testInfo) => {
     await page.setViewportSize({ width: 320, height: 900 });
-    const url = await openPokerWithTopic(page, openPeer);
+    const url = await openPokerWithTopic(page, openPeer, LONG_BODY);
     await addLongNameVoter(page, url, openPeer);
     await expectNoHorizontalOverflow(page);
-    const rail = await boxOf(page, '.ui-workspace-rail');
+    const side = await boxOf(page, '.ui-workspace-side');
     const main = await boxOf(page, '.ui-workspace-main');
-    const aside = await boxOf(page, '.ui-workspace-aside');
-    expect(rail.y + rail.height).toBeLessThanOrEqual(main.y);
-    expect(main.y + main.height).toBeLessThanOrEqual(aside.y);
-    expect(main.x).toBeCloseTo(rail.x, 0);
-    expect(aside.x).toBeCloseTo(rail.x, 0);
+    expect(side.y + side.height).toBeLessThanOrEqual(main.y);
+    expect(main.x).toBeCloseTo(side.x, 0);
+    // 本文は 3 行で切れる（行の高さ × 3.5 まで）。続きは「続きを読む」のシート（invite-sheet-md.spec.ts が見る）
+    const { height, lineHeight } = await page.locator('.ui-reader-body').evaluate((el) => ({
+      height: el.getBoundingClientRect().height,
+      lineHeight: parseFloat(getComputedStyle(el).lineHeight),
+    }));
+    expect(height).toBeLessThanOrEqual(lineHeight * 3.5);
     await noteSmallTargets(page, testInfo, 'poker 320');
   });
 });
 
-test.describe('お題ツールの部屋は右脇を持たない', () => {
-  test('Given 幅 1920 / When 部屋を開く / Then 左脇の右に主が並び、主の右端は器の内側の右端に揃う（空の列を残さない）', async ({ page }, testInfo) => {
+test.describe('お題ツールの部屋は読む面を右に持つ', () => {
+  test('Given 幅 1920 / When 部屋を開く / Then 器は 1536px で、操作の面の右に読む面が並び、読む面の右端は器の内側の右端に揃う', async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 1920, height: 900 });
     await openTopicTool(page, 'layout-topic-wide');
     const box = await pageBox(page);
     expect(box.outer).toBe(96 * REM);
-    const rail = await boxOf(page, '.ui-workspace-rail');
+    const reader = await boxOf(page, '.ui-reader');
     const main = await boxOf(page, '.ui-workspace-main');
-    expect(rail.x + rail.width).toBeLessThanOrEqual(main.x);
-    expect(main.x + main.width).toBeCloseTo(box.innerRight, 0);
+    expect(main.x + main.width).toBeLessThanOrEqual(reader.x);
+    expect(reader.x + reader.width).toBeCloseTo(box.innerRight, 0);
+    expect(reader.y).toBeCloseTo(main.y, 0);
     await noteSmallTargets(page, testInfo, 'お題ツール 1920');
   });
 
-  test('Given 幅 1280 / When 部屋を開く / Then 器の内側は 1152px 以上で、主の右に左脇（いまのお題）が並ぶ', async ({ page }) => {
+  test('Given 幅 1280・長い説明 / When お題を掲げる / Then 器の内側は 1152px 以上で、操作の面が左・読む面が右。本文は札の中でスクロールし、下までスクロールしても読む面は画面に留まる', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await openTopicTool(page, 'layout-topic-mid');
+    await setTopic(page, 'FizzBuzz', LONG_BODY);
     expect((await pageBox(page)).inner).toBeGreaterThanOrEqual(72 * REM);
-    const rail = await boxOf(page, '.ui-workspace-rail');
+    const reader = await boxOf(page, '.ui-reader');
     const main = await boxOf(page, '.ui-workspace-main');
-    expect(main.x + main.width).toBeLessThanOrEqual(rail.x);
+    expect(main.x + main.width).toBeLessThanOrEqual(reader.x);
     expect(main.width).toBeGreaterThanOrEqual(MAIN_MIN);
+    await expectBodyScrolls(page);
+    // 操作の面が長いのはお題ツール（作る・書く）。実画面で足りなければ背を伸ばして、下までスクロールできる場面を必ず作る
+    await page.locator('.ui-workspace-main').evaluate((el) => { el.style.minHeight = '3000px'; });
+    expect(await page.evaluate(() => document.documentElement.scrollHeight > innerHeight)).toBe(true);
+    await expectReaderStaysOnScreen(page);
   });
 
-  test('Given 幅 320 / When 部屋を開く / Then 横に溢れず、いまのお題 → 主の順に積み、下に空きを残さない', async ({ page }, testInfo) => {
+  test('Given 幅 320 / When 部屋を開く / Then 横に溢れず、いまのお題 → 作るの順に積み、下に空きを残さない', async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 320, height: 900 });
     await openTopicTool(page, 'layout-topic-narrow');
     await expectNoHorizontalOverflow(page);
-    const rail = await boxOf(page, '.ui-workspace-rail');
+    const side = await boxOf(page, '.ui-workspace-side');
     const main = await boxOf(page, '.ui-workspace-main');
     const workspace = await boxOf(page, '.ui-workspace');
-    expect(rail.y + rail.height).toBeLessThanOrEqual(main.y);
-    expect(main.x).toBeCloseTo(rail.x, 0);
-    // 右脇が無いので、無い区画の行と gap が下に空きを作っていない
+    expect(side.y + side.height).toBeLessThanOrEqual(main.y);
+    expect(main.x).toBeCloseTo(side.x, 0);
     expect(workspace.y + workspace.height).toBeCloseTo(main.y + main.height, 0);
     await noteSmallTargets(page, testInfo, 'お題ツール 320');
   });
@@ -190,20 +247,22 @@ test.describe('玄関の器', () => {
   });
 });
 
-test.describe('timer のセッションは右脇を持ち、左脇を持たない', () => {
-  test('Given 幅 1280 / When セッションを始める / Then 右脇は主の右にあり、上端は主の上端に揃う（上に空きを作らない）', async ({ page }) => {
+test.describe('timer のセッションは脇を右に持つ', () => {
+  test('Given 幅 1280 / When セッションを始める / Then 脇は右・22rem・間 2rem で、上端は操作の面の上端に揃う（上に空きを作らない）', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await createTimerRoom(page, 'layout-timer');
     await page.getByRole('button', { name: 'セッションを開始' }).click();
     await expect(page.getByRole('timer')).toBeVisible();
-    // 右脇が主より背が高い場面を作る（実際の参加者の盤は主より低く、人数を増やすと主の方が先に伸びる）。
-    await page.locator('.ui-workspace-aside').evaluate((el) => { el.style.minHeight = '3000px'; });
+    // 脇が操作の面より背が高い場面を作る（実際の参加者の盤は主より低く、人数を増やすと主の方が先に伸びる）。
+    await page.locator('.ui-workspace-side').evaluate((el) => { el.style.minHeight = '3000px'; });
     const main = await boxOf(page, '.ui-workspace-main');
-    const aside = await boxOf(page, '.ui-workspace-aside');
-    expect(main.x + main.width).toBeLessThanOrEqual(aside.x);
-    expect(aside.y).toBeCloseTo(main.y, 0);
-    // 行は 1 本: 段組みの下端は主と右脇の低い方で、gap だけの空き行を下に残さない。
+    const side = await boxOf(page, '.ui-workspace-side');
+    expect(main.x + main.width).toBeLessThanOrEqual(side.x);
+    expect(side.width).toBeCloseTo(22 * REM, 0);
+    expect(side.x - (main.x + main.width)).toBeCloseTo(2 * REM, 0);
+    expect(side.y).toBeCloseTo(main.y, 0);
+    // 行は 1 本: 段組みの下端は主と脇の低い方で、gap だけの空き行を下に残さない。
     const ws = await boxOf(page, '.ui-workspace');
-    expect(ws.y + ws.height).toBeCloseTo(Math.max(main.y + main.height, aside.y + aside.height), 0);
+    expect(ws.y + ws.height).toBeCloseTo(Math.max(main.y + main.height, side.y + side.height), 0);
   });
 });
