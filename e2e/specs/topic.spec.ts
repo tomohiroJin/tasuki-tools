@@ -273,7 +273,7 @@ test.describe('長いタイトルと広いページ（#313 PR 1）', () => {
     expect(size.height).toBeGreaterThanOrEqual(size.line * 2);
   });
 
-  test('Given 幅 1920 / When お題ツールを開く / Then ページは 1120px で、書くは中身の幅いっぱい', async ({ page, consoleWatcher }) => {
+  test('Given 幅 1920 / When お題ツールを開く / Then ページは 1536px で、書くは主の区画の幅いっぱい', async ({ page, consoleWatcher }) => {
     // Given
     await page.setViewportSize({ width: 1920, height: 900 });
     // When
@@ -286,9 +286,10 @@ test.describe('長いタイトルと広いページ（#313 PR 1）', () => {
         inner: el.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight),
       };
     });
-    expect(main.width).toBe(1120);
+    expect(main.width).toBe(1536);
     const write = await page.getByRole('region', { name: '書く' }).boundingBox();
-    expect(write?.width).toBeCloseTo(main.inner, 0);
+    const column = await page.locator('.ui-workspace-main').boundingBox();
+    expect(write?.width).toBeCloseTo(column?.width ?? -1, 0);
     // 画面は例外を出していない
     expect(consoleWatcher.errors).toEqual([]);
   });

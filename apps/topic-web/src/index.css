@@ -7,12 +7,6 @@
 
 @import '@tasuki/ui';
 
-/* ページの最大幅（#313 正本 D1）。玄関の選択画面（1120px）に揃える。`@tasuki/ui` の `.page` は
-   poker も使うので変えない。幅の揃え方は #316 が決める（写し元は玄関とお題ツールの 2 つ）。 */
-.topic-page {
-  max-width: 1120px;
-}
-
 /* 遷移中・参加中の一言。卓の上で控えめに置く（poker-web と同じ置き方）。色は部品（`.ui-note`）が持つ。 */
 .loading-note {
   margin: 0;
@@ -75,7 +69,9 @@
 
 /* ---------- 作る（#313 構成案 1） ----------
    ボタン 1 つで済む操作なので、広いときは 1 行の帯に並べる。狭いときはこれまでどおり縦に積む。
-   帯にするかは「作る」の面の幅で決める（閾値は「書く」の並べる幅と同じ 48rem）。 */
+   帯にするかは「作る」の面の幅で決める（閾値は「書く」の並べる幅と同じ 46rem）。
+   46rem：#316 で道具の部屋の器を広げ、1280px では右の列（22rem）の横で主の区画が約 50rem になるため下げた。
+   768px の画面では箱が約 41rem で切り替わる（#313 D7 を保つ）。 */
 .topic-make {
   container: make / inline-size;
 }
@@ -88,7 +84,7 @@
   min-width: 0;
 }
 
-@container make (width >= 48rem) {
+@container make (width >= 46rem) {
   .topic-make .topic-make-row {
     display: flex;
     flex-wrap: wrap;
@@ -194,9 +190,10 @@
   display: none;
 }
 
-/* 並べる。閾値 48rem は正本 D7（1120px のページで各列 約 500px、768px の画面では切り替え）。
+/* 並べる。閾値 46rem（#313 D7 の 48rem から下げた）。#316 で道具の部屋の器を広げ、1280px では右の列（22rem）の横で
+   主の区画が約 50rem になるため。768px の画面では箱が約 41rem で切り替わる（#313 D7 を保つ）。
    **上の規則と同じ詳細度で、後に書いてあるので勝つ。順序を入れ替えないこと。** */
-@container compose (width >= 48rem) {
+@container compose (width >= 46rem) {
   .topic-compose .topic-compose-toggle {
     display: none;
   }

@@ -31,7 +31,7 @@ interface Props {
  */
 function JoiningView({ sync, notice }: { sync: PokerSync; notice: string | null }) {
   return (
-    <main className="page">
+    <main className="ui-page ui-page--prose">
       <h1>ルームに参加しています</h1>
       {/* 混雑で弾かれている間、この画面には何の手がかりも出ていなかった（#147）。 */}
       {notice && (
@@ -178,7 +178,7 @@ export function RoomPage({ roomId, sync }: Props) {
   // room-not-found はページ全体をエラー表示に（FR-015 / US1-AS3）
   if (sync.error?.code === 'room-not-found') {
     return (
-      <main className="page">
+      <main className="ui-page ui-page--prose">
         <h1>ルームが見つかりません</h1>
         <p>ルームは終了したか、リンクが正しくない可能性があります。</p>
         {/* **消えたルームの選択画面へは送らない。** ハブはそこで存在しないルームの
@@ -197,7 +197,7 @@ export function RoomPage({ roomId, sync }: Props) {
   const inviteUrl = sync.inviteUrl(roomId);
 
   return (
-    <main className="page room">
+    <main className="ui-page ui-page--wide room">
       <header>
         {/* 見出しと戻る導線を 1 行に組む（#95 S5c 追補・利用者の実画面フィードバック）。
             素のリンクを招待リンクの塊の上へ置くと、どこへ属する操作か分からず浮いていた。
@@ -214,17 +214,26 @@ export function RoomPage({ roomId, sync }: Props) {
         </div>
         <InviteLink url={inviteUrl} />
       </header>
-      {sync.topic && <CurrentTopic topic={sync.topic} />}
       <ErrorNote error={sync.error} onClose={sync.clearError} />
-      <section>
-        <h2>参加者（{snapshot.participants.length}人）</h2>
-        <ParticipantList participants={snapshot.participants} you={snapshot.you} />
-      </section>
-      {isVoting ? (
-        <VotingSection snapshot={snapshot} sync={sync} />
-      ) : (
-        <RevealedSection snapshot={snapshot} sync={sync} />
-      )}
+      {/* 段組み（#316・ADR 0025）。DOM は 左脇 → 主 → 右脇。狭い幅ではこの順に縦へ積む。 */}
+      <div className="ui-workspace">
+        <section className="ui-workspace-rail">
+          <h2>参加者（{snapshot.participants.length}人）</h2>
+          <ParticipantList participants={snapshot.participants} you={snapshot.you} />
+        </section>
+        <div className="ui-workspace-main">
+          {isVoting ? (
+            <VotingSection snapshot={snapshot} sync={sync} />
+          ) : (
+            <RevealedSection snapshot={snapshot} sync={sync} />
+          )}
+        </div>
+        {sync.topic && (
+          <div className="ui-workspace-aside">
+            <CurrentTopic topic={sync.topic} />
+          </div>
+        )}
+      </div>
     </main>
   );
 }

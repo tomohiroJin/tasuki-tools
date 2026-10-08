@@ -33,7 +33,7 @@ export function TopicRoom({ roomCode }: { roomCode: string }) {
 
   if (sync.gone) {
     return (
-      <main className="page">
+      <main className="ui-page ui-page--prose">
         <h1>{GONE_HEADING}</h1>
         <p>{GONE_TEXT}</p>
         {/* 消えたルームの選択画面へは送らない（そこで名乗っても必ず失敗する・poker と同じ扱い） */}
@@ -47,7 +47,7 @@ export function TopicRoom({ roomCode }: { roomCode: string }) {
     return (
       <>
         {banner}
-        <main className="page">
+        <main className="ui-page ui-page--prose">
           <header className="ui-page-header">
             <h1>{JOINING_HEADING}</h1>
             {/* 参加の返事が来ないまま待つ期限は無い（spec §10.1）。待たされた人が自分で戻れるように。 */}
@@ -66,7 +66,7 @@ export function TopicRoom({ roomCode }: { roomCode: string }) {
   return (
     <>
       {banner}
-      <main className="page topic-page">
+      <main className="ui-page ui-page--wide">
         <header className="ui-page-header">
           <h1>{PAGE_HEADING}</h1>
           <a className="ui-page-header-back" href={hubPathFor(roomCode)}>
@@ -77,11 +77,16 @@ export function TopicRoom({ roomCode }: { roomCode: string }) {
         {/* 入り直しの途中の混雑も、この画面で伝える（伝えないと、ボタンが黙って押せなくなる） */}
         {sync.retryNotice && <p className="topic-notice ui-note" role="status">{sync.retryNotice}</p>}
         {sync.error && <p className="ui-note ui-note--error" role="alert">{sync.error}</p>}
-        <CurrentTopic state={sync.topicState} notice={generationNotice(sync.topicState)} enabled={enabled} onClear={sync.clearTopic} />
-        <div className="topic-tools">
-          {/* 作るはボタン 1 つで済む操作なので、長く書く「書く」より先に置く（#313 構成案 1） */}
-          <TopicMaker aiUnlocked={sync.topicState?.aiUnlocked ?? false} enabled={enabled} onGenerate={sync.generate} onUnlock={sync.unlock} />
-          <TopicEditor current={sync.topicState?.topic ?? null} enabled={enabled} onSubmit={sync.setTopic} />
+        {/* 段組み（#316・ADR 0025）。いまのお題を左脇に置く（狭い幅では先頭・広い幅では右の列の上・最も広い幅では左）。 */}
+        <div className="ui-workspace">
+          <div className="ui-workspace-rail">
+            <CurrentTopic state={sync.topicState} notice={generationNotice(sync.topicState)} enabled={enabled} onClear={sync.clearTopic} />
+          </div>
+          <div className="ui-workspace-main topic-tools">
+            {/* 作るはボタン 1 つで済む操作なので、長く書く「書く」より先に置く（#313 構成案 1） */}
+            <TopicMaker aiUnlocked={sync.topicState?.aiUnlocked ?? false} enabled={enabled} onGenerate={sync.generate} onUnlock={sync.unlock} />
+            <TopicEditor current={sync.topicState?.topic ?? null} enabled={enabled} onSubmit={sync.setTopic} />
+          </div>
         </div>
       </main>
     </>
