@@ -147,6 +147,39 @@ async function expectReaderStaysOnScreen(page: Page): Promise<void> {
   expect(box.y + box.height).toBeLessThanOrEqual(viewportHeight + 0.5);
 }
 
+/**
+ * 脇の区画（sticky で画面に留まるもの全体）の背丈が読む面の札と同じで、最下端までスクロールしても画面に収まる。
+ * 札の最大の高さ（reader.css）は区画に札しか載らない前提で画面の高さから引いてある。脇に札以外の物（知らせなど）が
+ * 載ると区画はその背丈ぶん画面の予算を超える（最終レビュー I3。1 行の知らせなら 32px の余りに収まって見えてしまうので、
+ * 「収まる」だけでなく背丈の一致で見る）。
+ */
+async function expectSideIsReaderOnly(page: Page): Promise<void> {
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  const side = await boxOf(page, '.ui-workspace-side');
+  const reader = await boxOf(page, '.ui-reader');
+  const viewportHeight = page.viewportSize()?.height ?? 0;
+  expect(side.height, '脇の区画に読む面の札以外の物が載っている').toBeCloseTo(reader.height, 0);
+  expect(side.y).toBeGreaterThanOrEqual(0);
+  expect(side.y + side.height).toBeLessThanOrEqual(viewportHeight + 0.5);
+}
+
+/**
+ * お題ツールの WS を実サーバーへ中継し、サーバーから届く `topic` フレームを「定型に落ちた」（`degraded: true`）に書き換える。
+ * 実サーバーで定型に落とすには AI の失敗が要るので、届く状態の 1 項目だけを変える（製品コードにテスト用の経路は作らない・
+ * `notices-a11y.spec.ts` と同じ方針）。中継はツールを開く前に掛けること（掛ける前に張られた接続は掴めない）。
+ */
+async function relayTopicSyncAsDegraded(page: Page): Promise<void> {
+  await page.routeWebSocket(/\/ws\?.*\btool=topic\b/, (ws) => {
+    const server = ws.connectToServer();
+    ws.onMessage((message) => server.send(message));
+    server.onMessage((message) => {
+      const frame = JSON.parse(String(message)) as { type?: string; state?: { degraded?: boolean } };
+      if (frame.type === 'topic' && frame.state !== undefined) frame.state.degraded = true;
+      ws.send(JSON.stringify(frame));
+    });
+  });
+}
+
 test.describe('poker のルームは広い画面で読む面と操作の面を並べる', () => {
   test('Given 幅 1920・長い説明 / When ルームを開く / Then 器は 1536px で、読む面が左・操作の面が右に揃い、ページは伸びず本文が札の中でスクロールする', async ({ page, openPeer }, testInfo) => {
     await page.setViewportSize({ width: 1920, height: 900 });
@@ -241,6 +274,20 @@ test.describe('お題ツールの部屋は読む面を右に持つ', () => {
     await page.locator('.ui-workspace-main').evaluate((el) => { el.style.minHeight = '3000px'; });
     expect(await page.evaluate(() => document.documentElement.scrollHeight > innerHeight)).toBe(true);
     await expectReaderStaysOnScreen(page);
+  });
+
+  test('Given 幅 1280・長い説明 / When 定型に落ちた知らせが出ている / Then 知らせは操作の面にあり、下までスクロールしても読む面と脇の区画が画面に留まる', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    // Given: 届く状態を「定型に落ちた」に書き換える中継を掛けてから開く（知らせは立っている間ずっと出る）
+    await relayTopicSyncAsDegraded(page);
+    await openTopicTool(page, 'layout-topic-notice');
+    // When: 長い説明のお題を掲げる
+    await setTopic(page, 'FizzBuzz', LONG_BODY);
+    await expect(page.getByRole('status').filter({ hasText: '定型のお題にしました' })).toBeVisible();
+    await page.locator('.ui-workspace-main').evaluate((el) => { el.style.minHeight = '3000px'; });
+    // Then
+    await expectReaderStaysOnScreen(page);
+    await expectSideIsReaderOnly(page);
   });
 
   test('Given 幅 320 / When 部屋を開く / Then 横に溢れず、いまのお題 → 作るの順に積み、下に空きを残さない', async ({ page }, testInfo) => {

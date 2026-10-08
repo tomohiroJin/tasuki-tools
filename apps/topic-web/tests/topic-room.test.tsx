@@ -64,7 +64,7 @@ describe('いまのお題', () => {
     // Given: お題がある
     // When: 画面を開く
     enterWith({ ...IDLE_STATE, topic: FIZZ });
-    const current = screen.getByRole('region', { name: copy.CURRENT_HEADING });
+    const current = screen.getByRole('region', { name: copy.READER_HEADING });
     // Then
     expect(within(current).getByRole('heading', { name: 'FizzBuzz' })).toBeInTheDocument();
     // 説明は読む面の本文に出る（狭い幅のシートにも同じ全文が入っているので、本文の領域で引く）
@@ -78,7 +78,7 @@ describe('いまのお題', () => {
     // When: 画面を見る（aria-busy を常に true にする誤りを捕まえる）
     enterWith({ ...IDLE_STATE, topic: FIZZ });
     // Then
-    expect(screen.getByRole('region', { name: copy.CURRENT_HEADING })).toHaveAttribute('aria-busy', 'false');
+    expect(screen.getByRole('region', { name: copy.READER_HEADING })).toHaveAttribute('aria-busy', 'false');
     expect(screen.queryByText(copy.GENERATING_TEXT)).toBeNull();
   });
 
@@ -89,7 +89,7 @@ describe('いまのお題', () => {
     fireEvent.change(screen.getByLabelText(copy.TITLE_LABEL), { target: { value: 'FizzBuzz' } });
     fireEvent.click(screen.getByRole('tab', { name: copy.TAB_CURRENT }));
     // Then: 生成中も押せる（押すと進行中の生成をサーバーが中断する・E11 はサーバー側の単体が見る）
-    expect(screen.getByRole('region', { name: copy.CURRENT_HEADING })).toHaveAttribute('aria-busy', 'true');
+    expect(screen.getByRole('region', { name: copy.READER_HEADING })).toHaveAttribute('aria-busy', 'true');
     expect(screen.getByText(copy.GENERATING_TEXT)).toBeInTheDocument();
     expect(setButton()).toBeEnabled();
     expect(screen.getByRole('button', { name: copy.CLEAR_BUTTON })).toBeEnabled();
@@ -110,12 +110,28 @@ describe('いまのお題', () => {
     expect(screen.getByText(copy.DEGRADED_TEXT)).toBeInTheDocument();
   });
 
+  it.each([
+    ['生成中', { generating: true }, copy.GENERATING_TEXT],
+    ['定型に落ちた', { degraded: true }, copy.DEGRADED_TEXT],
+  ] as const)('Given %s / When 画面を見る / Then 知らせは読む面の外・操作の面の先頭（作るより前）にある', (_, flags, text) => {
+    // Given / When: 読む面の札の最大の高さは脇に札しか載らない前提で決めてある（#316 最終レビュー I3）
+    enterWith({ ...IDLE_STATE, ...flags, topic: FIZZ });
+    // Then
+    const notice = screen.getByText(text);
+    expect(notice).toHaveAttribute('role', 'status');
+    const reader = screen.getByRole('region', { name: copy.READER_HEADING });
+    const make = screen.getByRole('region', { name: copy.MAKE_HEADING });
+    expect(reader.contains(notice)).toBe(false);
+    expect(reader.compareDocumentPosition(notice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(notice.compareDocumentPosition(make) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('Given 説明が Markdown 記法を含む / When 画面を見る / Then 見出し・箇条書きとして出て、記法の文字は出ない', () => {
     // Given: 定型バンクの説明は Markdown で書かれている（見出し・箇条書き）
     const md = { title: 'FizzBuzz', body: '## 背景\n\n- 一\n- 二', source: 'manual' as const };
     // When
     enterWith({ ...IDLE_STATE, topic: md });
-    const current = screen.getByRole('region', { name: copy.CURRENT_HEADING });
+    const current = screen.getByRole('region', { name: copy.READER_HEADING });
     // Then
     expect(within(current).getByRole('heading', { name: '背景' })).toBeInTheDocument();
     expect(within(current).getAllByRole('listitem')).toHaveLength(2);
@@ -586,7 +602,7 @@ describe('プレビュー', () => {
     fireEvent.click(setButton());
     act(() => latestSocket().deliver({ type: 'topic', state: { ...IDLE_STATE, topic: { title: 'FizzBuzz', body, source: 'manual' } } }));
     // Then
-    const current = screen.getByRole('region', { name: copy.CURRENT_HEADING });
+    const current = screen.getByRole('region', { name: copy.READER_HEADING });
     // 札の枠は読む面に替わったので、説明の描画（共有の Markdown）が同じであることを見る
     expect(previewed).toBeTruthy();
     expect(within(current).getByRole('region', { name: 'FizzBuzz' }).querySelector('.ui-md')?.outerHTML).toBe(previewed);
@@ -884,7 +900,7 @@ describe('続きを読む（シート）', () => {
     // Given / When
     enterWith({ ...IDLE_STATE, topic: FIZZ });
     // Then
-    const current = screen.getByRole('region', { name: copy.CURRENT_HEADING });
+    const current = screen.getByRole('region', { name: copy.READER_HEADING });
     const make = screen.getByRole('region', { name: copy.MAKE_HEADING });
     expect(current.compareDocumentPosition(make) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });

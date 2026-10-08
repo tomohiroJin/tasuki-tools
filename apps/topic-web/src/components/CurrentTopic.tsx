@@ -3,11 +3,11 @@ import type { TopicState } from '@tasuki/topic-core';
 import {
   CLEAR_BUTTON,
   CLOSE,
-  CURRENT_HEADING,
   DRAFT_STAMP,
   EMPTY_TEXT,
   PREVIEW_EMPTY,
   READER_TABS_LABEL,
+  READER_HEADING,
   READ_MORE,
   TAB_CURRENT,
   TAB_DRAFT,
@@ -21,7 +21,6 @@ export interface Draft {
 
 interface Props {
   readonly state: TopicState | null;
-  readonly notice: string | null;
   readonly enabled: boolean;
   readonly draft: Draft;
   onClear(): void;
@@ -40,9 +39,10 @@ const TABS: readonly { readonly id: TabId; readonly label: string }[] = [
  * いまのお題の全文を出す（poker の `CurrentTopic` と同じ作り。部品は共有、React は各アプリ）。
  *
  * **生成中は全員の画面で `aria-busy` を立てる**（spec §5.4・E10）。
- * 知らせ（`role="status"`）は section の**外**（直前の兄弟）に置く。ARIA 1.2 では
- * `aria-busy` の要素の内容変化は支援技術が busy の間は無視してよい（MAY）ため、
- * section の中に置くと「作っています…」が読み上げられない恐れがある（レビュー指摘）。
+ * 生成の知らせ（「作っています…」「定型にしました」・`role="status"`）は**ここに置かない**（`TopicRoom` が操作の面の先頭に置く）。
+ * ARIA 1.2 では `aria-busy` の要素の内容変化は支援技術が busy の間は無視してよい（MAY）ため、
+ * section の外に置く（レビュー指摘）。加えて、読む面の札の最大の高さ（`reader.css`）は脇の区画に札しか載らない前提で
+ * 画面の高さから引いてあり、札の上に知らせを載せると区画がその背丈ぶん画面を超える（#316 最終レビュー I3）。
  * `aria-busy` 自体は section に残す（既存テストが region の aria-busy を見ている）。
  *
  * 狭い幅（64rem 未満）の「下書きの見え方」のタブは本文を 3 行で切り、「続きを読む」は持たない
@@ -58,7 +58,7 @@ const TABS: readonly { readonly id: TabId; readonly label: string }[] = [
  * **受け入れた限界**: シートを開いたまま 64rem 以上へ広げたとき、またはお題が下ろされて
  * アンマウントされたときは、フォーカスが body に落ちる（poker と同じ・直さない）。
  */
-export function CurrentTopic({ state, notice, enabled, draft, onClear }: Props) {
+export function CurrentTopic({ state, enabled, draft, onClear }: Props) {
   const topic = state?.topic ?? null;
   const baseId = useId();
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -95,129 +95,123 @@ export function CurrentTopic({ state, notice, enabled, draft, onClear }: Props) 
   const draftBlank = draftTitle.trim() === '' && draftBody.trim() === '';
 
   return (
-    <>
-      {notice && (
-        <p className="topic-notice ui-note" role="status">
-          {notice}
-        </p>
-      )}
-      <section
-        className="topic-current ui-reader"
-        aria-labelledby={`${baseId}-heading`}
-        aria-busy={state?.generating ?? false}
-      >
-        {/* 見出しは region の名前と読み上げのために残し、目には出さない（すぐ下のタブ「いまのお題」と重複するため） */}
-        <h2 id={`${baseId}-heading`} className="topic-visually-hidden">{CURRENT_HEADING}</h2>
-        <div className="topic-reader-tabs" role="tablist" aria-label={READER_TABS_LABEL}>
-          {TABS.map((t, i) => {
-            const selected = t.id === active;
-            return (
-              <button
-                key={t.id}
-                type="button"
-                role="tab"
-                id={tabId(t.id)}
-                className="topic-tab"
-                aria-selected={selected}
-                aria-controls={panelId(t.id)}
-                tabIndex={selected ? 0 : -1}
-                onClick={() => setActive(t.id)}
-                onKeyDown={(e) => onTabKeyDown(e, i)}
-              >
-                {t.label}
-              </button>
-            );
-          })}
+    <section
+      className="topic-current ui-reader"
+      aria-labelledby={`${baseId}-heading`}
+      aria-busy={state?.generating ?? false}
+    >
+      {/* 見出しは region の名前と読み上げのために残し、目には出さない（すぐ下のタブが何を見ているかを示すので）。
+          名前は「お題」で、どちらのタブを見ていても当たる（「いまのお題」だと下書きの間に食い違う） */}
+      <h2 id={`${baseId}-heading`} className="topic-visually-hidden">{READER_HEADING}</h2>
+      <div className="topic-reader-tabs" role="tablist" aria-label={READER_TABS_LABEL}>
+        {TABS.map((t, i) => {
+          const selected = t.id === active;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              id={tabId(t.id)}
+              className="topic-tab"
+              aria-selected={selected}
+              aria-controls={panelId(t.id)}
+              tabIndex={selected ? 0 : -1}
+              onClick={() => setActive(t.id)}
+              onKeyDown={(e) => onTabKeyDown(e, i)}
+            >
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+      {/* 選ばれていないパネルは描かない（同じタイトルが 2 つの見出しにならない）。属性だけ残して hidden にする */}
+      {TABS.map((t) => (
+        <div
+          key={t.id}
+          role="tabpanel"
+          id={panelId(t.id)}
+          aria-labelledby={tabId(t.id)}
+          className="topic-reader-panel"
+          hidden={t.id !== active}
+          // フォーカスの止まり先（本文の領域）が無いパネルには、パネル自身を止まり先にする（WAI-ARIA Tabs の作法）
+          tabIndex={t.id === 'current' ? (hasBody ? undefined : 0) : draftBlank ? 0 : undefined}
+        >
+          {t.id === 'current' && active === 'current' && (
+            <>
+              {topic === null ? (
+                <p className="topic-empty ui-note topic-reader-pad">{EMPTY_TEXT}</p>
+              ) : (
+                <>
+                  <h3 id={titleId} className="topic-title topic-reader-pad">{topic.title}</h3>
+                  {hasBody && (
+                    <>
+                      <div className="ui-reader-body" role="region" aria-labelledby={titleId} tabIndex={0}>
+                        <Markdown source={topic.body} className="topic-body" />
+                      </div>
+                      <button
+                        ref={moreRef}
+                        type="button"
+                        className="secondary ui-reader-more"
+                        onClick={() => dialogRef.current?.showModal()}
+                      >
+                        {READ_MORE}
+                      </button>
+                    </>
+                  )}
+                </>
+              )}
+            </>
+          )}
+          {t.id === 'draft' && active === 'draft' && (
+            <>
+              <p className="topic-draft-stamp topic-reader-pad">{DRAFT_STAMP}</p>
+              {draftBlank ? (
+                <p className="topic-empty ui-note topic-reader-pad">{PREVIEW_EMPTY}</p>
+              ) : (
+                <>
+                  {draftTitle.trim() !== '' && (
+                    <h3 id={draftTitleId} className="topic-title topic-reader-pad">{draftTitle}</h3>
+                  )}
+                  <div
+                    className="ui-reader-body"
+                    role="region"
+                    {...(draftTitle.trim() !== '' ? { 'aria-labelledby': draftTitleId } : { 'aria-label': TAB_DRAFT })}
+                    tabIndex={0}
+                  >
+                    <Markdown source={draftBody} className="topic-body" />
+                  </div>
+                </>
+              )}
+            </>
+          )}
         </div>
-        {/* 選ばれていないパネルは描かない（同じタイトルが 2 つの見出しにならない）。属性だけ残して hidden にする */}
-        {TABS.map((t) => (
-          <div
-            key={t.id}
-            role="tabpanel"
-            id={panelId(t.id)}
-            aria-labelledby={tabId(t.id)}
-            className="topic-reader-panel"
-            hidden={t.id !== active}
-            // フォーカスの止まり先（本文の領域）が無いパネルには、パネル自身を止まり先にする（WAI-ARIA Tabs の作法）
-            tabIndex={t.id === 'current' ? (hasBody ? undefined : 0) : draftBlank ? 0 : undefined}
-          >
-            {t.id === 'current' && active === 'current' && (
-              <>
-                {topic === null ? (
-                  <p className="topic-empty ui-note topic-reader-pad">{EMPTY_TEXT}</p>
-                ) : (
-                  <>
-                    <h3 id={titleId} className="topic-title topic-reader-pad">{topic.title}</h3>
-                    {hasBody && (
-                      <>
-                        <div className="ui-reader-body" role="region" aria-labelledby={titleId} tabIndex={0}>
-                          <Markdown source={topic.body} className="topic-body" />
-                        </div>
-                        <button
-                          ref={moreRef}
-                          type="button"
-                          className="secondary ui-reader-more"
-                          onClick={() => dialogRef.current?.showModal()}
-                        >
-                          {READ_MORE}
-                        </button>
-                      </>
-                    )}
-                  </>
-                )}
-              </>
-            )}
-            {t.id === 'draft' && active === 'draft' && (
-              <>
-                <p className="topic-draft-stamp topic-reader-pad">{DRAFT_STAMP}</p>
-                {draftBlank ? (
-                  <p className="topic-empty ui-note topic-reader-pad">{PREVIEW_EMPTY}</p>
-                ) : (
-                  <>
-                    {draftTitle.trim() !== '' && (
-                      <h3 id={draftTitleId} className="topic-title topic-reader-pad">{draftTitle}</h3>
-                    )}
-                    <div
-                      className="ui-reader-body"
-                      role="region"
-                      {...(draftTitle.trim() !== '' ? { 'aria-labelledby': draftTitleId } : { 'aria-label': TAB_DRAFT })}
-                      tabIndex={0}
-                    >
-                      <Markdown source={draftBody} className="topic-body" />
-                    </div>
-                  </>
-                )}
-              </>
-            )}
-          </div>
-        ))}
-        {/* 「お題を下ろす」は いまのお題 のタブのときだけ出す。下書きの本文の真下にあると「下書きを捨てる」と読み違え、全員のお題が消える */}
-        {topic !== null && active === 'current' && (
-          <div className="topic-reader-foot">
-            <button type="button" className="secondary" onClick={onClear} disabled={!enabled}>
-              {CLEAR_BUTTON}
+      ))}
+      {/* 「お題を下ろす」は いまのお題 のタブのときだけ出す。下書きの本文の真下にあると「下書きを捨てる」と読み違え、全員のお題が消える */}
+      {topic !== null && active === 'current' && (
+        <div className="topic-reader-foot">
+          <button type="button" className="secondary" onClick={onClear} disabled={!enabled}>
+            {CLEAR_BUTTON}
+          </button>
+        </div>
+      )}
+      {topic !== null && hasBody && (
+        <dialog
+          ref={dialogRef}
+          className="ui-drawer"
+          aria-labelledby={`${baseId}-drawer-title`}
+          onClose={() => moreRef.current?.focus()}
+        >
+          <div className="ui-drawer-head">
+            <h3 id={`${baseId}-drawer-title`}>{topic.title}</h3>
+            <button type="button" className="secondary" onClick={closeDrawer}>
+              {CLOSE}
             </button>
           </div>
-        )}
-        {topic !== null && hasBody && (
-          <dialog
-            ref={dialogRef}
-            className="ui-drawer"
-            aria-labelledby={`${baseId}-drawer-title`}
-            onClose={() => moreRef.current?.focus()}
-          >
-            <div className="ui-drawer-head">
-              <h3 id={`${baseId}-drawer-title`}>{topic.title}</h3>
-              <button type="button" className="secondary" onClick={closeDrawer}>
-                {CLOSE}
-              </button>
-            </div>
-            <div className="ui-drawer-body">
-              <Markdown source={topic.body} className="topic-body" />
-            </div>
-          </dialog>
-        )}
-      </section>
-    </>
+          <div className="ui-drawer-body">
+            <Markdown source={topic.body} className="topic-body" />
+          </div>
+        </dialog>
+      )}
+    </section>
   );
 }

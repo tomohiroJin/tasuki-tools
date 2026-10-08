@@ -69,6 +69,7 @@ export function TopicRoom({ roomCode }: { roomCode: string }) {
   }
 
   const enabled = canOperate(sync.status, sync.joined);
+  const generation = generationNotice(sync.topicState);
   return (
     <>
       {banner}
@@ -90,9 +91,12 @@ export function TopicRoom({ roomCode }: { roomCode: string }) {
             いまのお題 → 作る・書く。64rem 以上では -side-end で右の列へ、画面に留まる。 */}
         <div className="ui-workspace ui-workspace--reader ui-workspace--side-end">
           <div className="ui-workspace-side">
-            <CurrentTopic state={sync.topicState} notice={generationNotice(sync.topicState)} enabled={enabled} draft={draft} onClear={sync.clearTopic} />
+            <CurrentTopic state={sync.topicState} enabled={enabled} draft={draft} onClear={sync.clearTopic} />
           </div>
           <div className="ui-workspace-main topic-tools">
+            {/* 生成の知らせは操作の面の先頭に置く。読む面の札の最大の高さは脇に札しか載らない前提で決めてあり、
+                札の上に置くと脇の区画が画面の高さを超える（#316 最終レビュー I3）。aria-busy の section の外にも当たる */}
+            {generation && <p className="topic-notice ui-note" role="status">{generation}</p>}
             {/* 作るはボタン 1 つで済む操作なので、長く書く「書く」より先に置く（#313 構成案 1） */}
             <TopicMaker aiUnlocked={sync.topicState?.aiUnlocked ?? false} enabled={enabled} onGenerate={sync.generate} onUnlock={sync.unlock} />
             <TopicEditor current={sync.topicState?.topic ?? null} enabled={enabled} onDraftChange={onDraftChange} onSubmit={sync.setTopic} />
