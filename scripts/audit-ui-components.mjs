@@ -326,15 +326,39 @@ const LEGACY_WIDTH = /(?:^|[^\w-])(?:min-|max-|(?:min-|max-)?device-)width\b/;
 /** 幅の条件（範囲構文の `width` を含む）。 */
 const ANY_WIDTH = /(?:^|[^\w-])(?:min-|max-)?(?:device-)?width\b/;
 
+/** 括弧の深さを数え、深さ 0 から開いた最外の括弧の中身を順に返す。 */
+function topLevelGroups(text) {
+  const out = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === "(") {
+      if (depth === 0) start = i + 1;
+      depth++;
+    } else if (text[i] === ")" && depth > 0) {
+      depth--;
+      if (depth === 0) out.push(text.slice(start, i));
+    }
+  }
+  return out;
+}
+
 /**
  * `@media` の条件のうち、幅の段の約束を破っている箇所（#316 D1）。空なら守っている。
  *
  * **括弧ごとに見る。** `(width >= 40rem) and (width < 48rem)` は後ろ側だけが外れている。
+ * 括弧は 1 文字ずつ深さを数えて最外のものを取り出す（正規表現は入れ子の段数に限りがあり、
+ * `calc((40rem))` のような二重括弧を素通りさせた）。中身がさらに括弧で始まる条件の入れ子
+ * （`not ((width < 48rem))`・`((a) or (b))`）は、その中身へ再帰する。
  * 旧構文は**値が段でも落とす**（書き方を 1 つにして、目で突き合わせられるようにする）。
  */
 export function mediaWidthViolations(params) {
   const out = [];
-  for (const [, feature] of params.matchAll(/\(((?:[^()]|\([^()]*\))*)\)/g)) {
+  for (const feature of topLevelGroups(params)) {
+    if (feature.trim().startsWith("(")) {
+      out.push(...mediaWidthViolations(feature));
+      continue;
+    }
     const f = feature.toLowerCase();
     if (!ANY_WIDTH.test(f)) continue;
     if (LEGACY_WIDTH.test(f)) {
@@ -356,6 +380,7 @@ export function mediaWidthViolations(params) {
 
 /**
  * TSX の `className` に書いた裸の `page`（#316 D2 で消した要素層の器）。
+ * 返すのは `{ value, line }` の一覧（`line` は 1 始まり。`file:line` で報告するため）。
  * 見るのは文字列・波括弧の文字列・テンプレート文字列の 3 形。`clsx("page")` のような関数の引数は見ない。
  */
 export function legacyPageClassUses(text) {
@@ -363,7 +388,10 @@ export function legacyPageClassUses(text) {
   const re = /className\s*=\s*(?:"([^"]*)"|'([^']*)'|\{\s*"([^"]*)"\s*\}|\{\s*`([^`]*)`\s*\})/g;
   for (const m of text.matchAll(re)) {
     const value = m[1] ?? m[2] ?? m[3] ?? m[4];
-    if (value.split(/\s+/).includes("page")) out.push(value);
+    if (value.split(/\s+/).includes("page")) {
+      const line = text.slice(0, m.index).split("\n").length;
+      out.push({ value, line });
+    }
   }
   return out;
 }

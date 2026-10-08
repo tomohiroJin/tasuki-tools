@@ -444,6 +444,7 @@ describe("mediaWidthViolations: 幅の境目は 40rem / 64rem / 90rem だけ（#
     ["(height >= 48rem)", "高さは対象外"],
     ["(min-height: 420px)", "高さの旧構文も対象外"],
     ["(orientation: landscape)", "向き"],
+    ["((width >= 40rem) and (hover: hover))", "and の入れ子"],
   ];
   for (const [params, why] of ok) {
     test(`${why}: ${params} は通す`, () => assert.deepEqual(mediaWidthViolations(params), []));
@@ -462,6 +463,10 @@ describe("mediaWidthViolations: 幅の境目は 40rem / 64rem / 90rem だけ（#
     ["(width >= 40rem) and (width < 48rem)", "and の後ろ側"],
     ["not all and (max-width: 720px)", "not の中"],
     ["(40rem <= width < 48rem)", "範囲の片側だけが外れる"],
+    ["(width >= calc((40rem)))", "二重括弧の計算"],
+    ["(width >= calc(1px + (40rem)))", "計算の中の括弧"],
+    ["not ((width < 48rem))", "条件の入れ子"],
+    ["((width >= 48rem) or (hover: hover))", "or の入れ子"],
   ];
   for (const [params, why] of ng) {
     test(`${why}: ${params} は落とす`, () => assert.ok(mediaWidthViolations(params).length > 0));
@@ -491,4 +496,12 @@ describe("legacyPageClassUses: 要素層の .page を TSX が使っていない�
   for (const [text, why] of misses) {
     test(`${why}: ${text} は拾わない`, () => assert.deepEqual(legacyPageClassUses(text), []));
   }
+  test("2 行目の className=\"page\" は line: 2 を返す", () => {
+    const r = legacyPageClassUses('<div>\n<main className="page">');
+    assert.deepEqual(r, [{ value: "page", line: 2 }]);
+  });
+  test("同じ本文の 2 か所は 2 件で、行が別々", () => {
+    const r = legacyPageClassUses('<main className="page">\n<p>x</p>\n<main className="page">');
+    assert.deepEqual(r.map((x) => x.line), [1, 3]);
+  });
 });
