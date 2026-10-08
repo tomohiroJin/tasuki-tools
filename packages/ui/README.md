@@ -22,7 +22,7 @@ src/
 | 利用側 | 読むもの | 理由 |
 |---|---|---|
 | `apps/poker-web` / `apps/landing` / `apps/topic-web` | `@import '@tasuki/ui';`（3 層とも） | 素の CSS で組んでいるので要素層がそのまま効く |
-| `apps/timer-web` | `src/index.css` から `@import '@tasuki/ui/tokens.css';` の次に `@import '@tasuki/ui/components.css';`（トークン層と部品層。要素層は読まない） | 要素層を読むと `button { 真鍮のグラデーション }` が下地に敷かれ、見た目を変えないためには timer のボタンや見出しの一つひとつに打ち消す規則が要る。読ませるかは #316 で判断する（ADR-0023 決定 4）。部品層はクラスを当てたときだけ効くので衝突しない |
+| `apps/timer-web` | `src/index.css` から `@import '@tasuki/ui/tokens.css';` の次に `@import '@tasuki/ui/components.css';`（トークン層と部品層。要素層は読まない） | 要素層を読むと `button { 真鍮のグラデーション }` が下地に敷かれ、見た目を変えないためには timer のボタンや見出しの一つひとつに打ち消す規則が要る。#316 でも読ませないと決めた（ADR 0025 決定 6）。ボタンの見た目は部品層から来る。部品層はクラスを当てたときだけ効くので衝突しない |
 
 **この境界は stylelint が機械的に守る。** `src/tokens/` では `selector-max-type` /
 `-class` / `-id` を 0 にしてあるので、うっかり `h2 {}` を足すと lint が落ちる。
@@ -42,6 +42,8 @@ src/
 | `.ui-invite` | 参加用 URL とコピーのボタンを 1 行に組む容器。URL の `<span>` に `.ui-invite-url` を当てる | なし |
 | `.ui-sheet` | お題の本文を載せる象牙の札。札の上の字の色（`--coal`）まで持つ | なし |
 | `.ui-md` | Markdown の根。各要素に `.ui-md-h`・`.ui-md-p`・`.ui-md-ul`・`.ui-md-ol`・`.ui-md-quote`・`.ui-md-code`・`.ui-md-pre`・`.ui-md-link` を当てる | なし |
+| `.ui-page` | 画面の器（`<main>`）。最大幅・中央寄せ・外の余白を持つ。`--prose`（`40rem`）・既定（`72rem`）・`--wide`（`96rem`）の 3 段 | なし |
+| `.ui-workspace` | 区画を並べる段組みの根。`.ui-workspace-rail`（左脇）・`.ui-workspace-main`（主）・`.ui-workspace-aside`（右脇）を子に置く。使い方は下の「画面を組む」 | なし |
 
 **使い方**
 
@@ -86,6 +88,49 @@ src/
 
 **機械で止めていないもの**: クラス名で書いた写し（例: 入力欄に独自のクラスを当てて同じ見た目を書く）。
 新しい画面を作るときは、まずこの表を見てください。
+
+## 画面を組む（#316・ADR 0025）
+
+**新しい画面や機能を足すときは、器の段と区画を選ぶ。** 幅の値と並び替えは書かない。
+
+### 幅の段
+
+| 段 | 幅 | 想定する端末 |
+|---|---|---|
+| compact | `< 40rem` | スマホの縦持ち |
+| medium | `40rem` 〜 `64rem` | タブレットの縦持ち・小さい窓 |
+| wide | `64rem` 〜 `90rem` | ノート PC |
+| ultra | `≥ 90rem` | 大きなモニター |
+
+画面の CSS に `@media` を書くときは、この 3 つの境目だけを範囲構文で書く（`@media (width >= 64rem)`）。
+`min-width` / `max-width` / px / em は検査（`scripts/audit-ui-components.mjs`）が落とす。JS で幅を判定するときも
+`matchMedia('(width >= 64rem)')` の形で同じ境目を使う。部品の内側の並び替えはコンテナクエリで書いてよい（段の約束の外）。
+
+### 器（`.ui-page`）の選び方
+
+| 画面の用途 | 器 | 最大幅 |
+|---|---|---|
+| 読む・入力する（名乗る・待つ・見つからない・まとめ） | `.ui-page .ui-page--prose` | `40rem` |
+| 選ぶ・一覧する（道具を選ぶ・履歴） | `.ui-page` | `72rem` |
+| 道具の部屋（区画を横に並べる） | `.ui-page .ui-page--wide` | `96rem` |
+
+器は `<main>` に当てる。外の余白も器が持つので、画面の CSS で `<main>` に `padding` や `max-width` を書かない。
+
+### 段組み（`.ui-workspace`）
+
+区画は 3 つ。**DOM は 左脇 → 主 → 右脇 の順に書く**（狭い幅ではこの順に積まれ、読み上げの順とも揃う）。
+
+| 区画 | 置くもの | wide | ultra |
+|---|---|---|---|
+| `.ui-workspace-rail`（左脇・`18rem`） | 主の前に知っておきたいもの（参加者・いまのお題） | 右の列の上 | 主の左 |
+| `.ui-workspace-main`（主） | この画面の操作の主役 | 左の広い列 | 中央 |
+| `.ui-workspace-aside`（右脇・`22rem`） | 主の脇で参照するもの（お題・メモ） | 右の列の下 | 主の右 |
+
+- 段組みは `--wide` の器の中で使う。主の幅（`32rem` 以上）は器と段の境目の計算で保たれる
+- 左脇か右脇の少なくとも 1 つを置く。両方が無いと、wide で右の列が空のまま残る
+- 左脇が無い画面は、wide でも主と右脇が 1 行に並ぶ（下に空きを残さない）
+- 使わない区画は書かなくてよい。空の列は作られない
+- どの画面がどの器・区画を使っているかは `git grep -n "ui-page\|ui-workspace" apps` で引ける
 
 ## 使い方
 
