@@ -84,12 +84,26 @@ async function addLongNameVoter(page: Page, url: string, openPeer: OpenPeer): Pr
   await expect(participantRow(page, LONG_NAME).getByText('投票済み')).toBeVisible();
 }
 
-/** 場（参加者の一覧）の右端と、各席の中身でいちばん遠い右端。席は場の右端を越えない。 */
-async function seatsAndTableRight(page: Page): Promise<{ table: number; seats: number }> {
-  return page.locator('.participants').evaluate((ul) => ({
-    table: ul.getBoundingClientRect().right,
-    seats: Math.max(...Array.from(ul.querySelectorAll('li, li *')).map((el) => el.getBoundingClientRect().right)),
-  }));
+/**
+ * 席ごとに、名前の箱が席（li）の左右に収まり、文字も名前の箱からはみ出さない。
+ * 席は 6.5rem 固定で左から並ぶので、場（.participants）の右端と比べても、名前が席から溢れる誤りは見えない
+ * （箱が広がっても場の右端に届かず、`overflow-wrap` を消した場合は箱でなく文字だけがはみ出す）。
+ */
+async function expectNamesFitSeats(page: Page): Promise<void> {
+  const seats = await page.locator('.participants li').evaluateAll((lis) =>
+    lis.flatMap((li) => {
+      const name = li.querySelector('.name');
+      if (name === null) return [];
+      const l = li.getBoundingClientRect();
+      const n = name.getBoundingClientRect();
+      return [{ text: (name.textContent ?? '').slice(0, 20), inBox: n.left >= l.left - 0.5 && n.right <= l.right + 0.5, textFits: name.scrollWidth <= name.clientWidth }];
+    }),
+  );
+  expect(seats.length).toBeGreaterThan(0);
+  for (const seat of seats) {
+    expect(seat.inBox, `${seat.text} の箱が席に収まる`).toBe(true);
+    expect(seat.textFits, `${seat.text} の文字が名前の箱に収まる`).toBe(true);
+  }
 }
 
 /** 読む面の本文が札の中でスクロールしている（本文の中身が枠より高い）。 */
@@ -98,17 +112,26 @@ async function expectBodyScrolls(page: Page): Promise<void> {
 }
 
 /**
- * 長い説明でページを伸ばさない。読む面の高さは 100dvh - 6rem（上の 1rem + 下の 1rem + 器の下の余白 4rem）に収まり、
- * ページ全体は読む面の下端 + 器の下の余白（4rem）まで。
- * （ページ全体を `innerHeight + 2rem` で測ると、読む面の上にある見出し・招待リンクの背丈だけで超える。読む面の高さで測る。）
+ * 読む面の高さが画面に収まる: 100dvh - 6rem（上の 1rem + 下の 1rem + 器の下の余白 4rem）以下。
+ * 長い説明で読む面そのものが伸びていないことを守る。操作の面が長い画面でも成り立つ。
+ */
+async function expectReaderFitsScreen(page: Page): Promise<void> {
+  const height = await page.locator('.ui-reader').first().evaluate((el) => el.getBoundingClientRect().height);
+  expect(height).toBeLessThanOrEqual((page.viewportSize()?.height ?? 0) - 6 * REM + 0.5);
+}
+
+/**
+ * 長い説明でページを伸ばさない。1 つ目（expectReaderFitsScreen）は読む面が伸びないこと、
+ * 2 つ目は「操作の面が読む面より短い」画面で、ページ全体が読む面の下端 + 器の下の余白（4rem）に収まること（画面 1 枚ぶん）。
+ * 操作の面が読む面より伸びる画面（お題ツール、参加者が多い poker）では 2 つ目を使わない（ページは操作の面の背丈で決まる）。
+ * （ページ全体を `innerHeight + 2rem` で測ると、読む面の上にある見出し・招待リンクの背丈だけで超える。）
  */
 async function expectPageFitsScreen(page: Page): Promise<void> {
-  const { reader, pageHeight, readerBottom } = await page.evaluate(() => {
+  await expectReaderFitsScreen(page);
+  const { pageHeight, readerBottom } = await page.evaluate(() => {
     const r = document.querySelector('.ui-reader')!.getBoundingClientRect();
-    return { reader: r.height, pageHeight: document.documentElement.scrollHeight, readerBottom: r.bottom + scrollY };
+    return { pageHeight: document.documentElement.scrollHeight, readerBottom: r.bottom + scrollY };
   });
-  const viewportHeight = page.viewportSize()?.height ?? 0;
-  expect(reader).toBeLessThanOrEqual(viewportHeight - 6 * REM + 0.5);
   expect(pageHeight).toBeLessThanOrEqual(readerBottom + 4 * REM + 0.5);
 }
 
@@ -149,11 +172,14 @@ test.describe('poker のルームは広い画面で読む面と操作の面を�
     expect(reader.x + reader.width).toBeLessThanOrEqual(main.x);
     expect(reader.y).toBeCloseTo(main.y, 0);
     expect(main.width).toBeGreaterThanOrEqual(MAIN_MIN);
-    // 長い名前でも、席の中身（名前・バッジ）は場の右端を越えない（操作の面の外へはみ出さない）
-    const { table, seats } = await seatsAndTableRight(page);
-    expect(seats).toBeLessThanOrEqual(table + 0.5);
+    // 長い名前でも、名前は席（6.5rem）に収まる
+    await expectNamesFitSeats(page);
     await expectPageFitsScreen(page);
     await expectBodyScrolls(page);
+    // 操作の面が読む面より長い場面でも、読む面は伸びず、最下端まで画面に留まる
+    await page.locator('.ui-workspace-main').evaluate((el) => { el.style.minHeight = '3000px'; });
+    await expectReaderFitsScreen(page);
+    await expectReaderStaysOnScreen(page);
   });
 
   test('Given 幅 1280・お題が無い / When ルームを開く / Then 脇が無く、操作の面は器の内側の幅いっぱい（空の列を残さない）', async ({ page }) => {
@@ -171,6 +197,7 @@ test.describe('poker のルームは広い画面で読む面と操作の面を�
     const url = await openPokerWithTopic(page, openPeer, LONG_BODY);
     await addLongNameVoter(page, url, openPeer);
     await expectNoHorizontalOverflow(page);
+    await expectNamesFitSeats(page);
     const side = await boxOf(page, '.ui-workspace-side');
     const main = await boxOf(page, '.ui-workspace-main');
     expect(side.y + side.height).toBeLessThanOrEqual(main.y);
@@ -209,6 +236,7 @@ test.describe('お題ツールの部屋は読む面を右に持つ', () => {
     expect(main.x + main.width).toBeLessThanOrEqual(reader.x);
     expect(main.width).toBeGreaterThanOrEqual(MAIN_MIN);
     await expectBodyScrolls(page);
+    await expectReaderFitsScreen(page);
     // 操作の面が長いのはお題ツール（作る・書く）。実画面で足りなければ背を伸ばして、下までスクロールできる場面を必ず作る
     await page.locator('.ui-workspace-main').evaluate((el) => { el.style.minHeight = '3000px'; });
     expect(await page.evaluate(() => document.documentElement.scrollHeight > innerHeight)).toBe(true);
