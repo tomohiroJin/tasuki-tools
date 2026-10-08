@@ -14,6 +14,8 @@ import {
   definedPartClasses,
   findDeadParts,
   findRawColors,
+  legacyPageClassUses,
+  mediaWidthViolations,
   touchesFieldElement,
   uiTokensIn,
   unescapeIdent,
@@ -427,4 +429,66 @@ describe("checkScreenCss: 生の色（設計正本 D10 の 3・#320 PR 5）", ()
   test("@keyframes の段も直前の ui-exempt: で外せる", () => {
     assert.deepEqual(messagesOf("@keyframes k { /* ui-exempt: 光の明滅 */\n from { color: #fff; } }"), []);
   });
+});
+
+describe("mediaWidthViolations: 幅の境目は 40rem / 64rem / 90rem だけ（#316 D1）", () => {
+  const ok = [
+    ["(width >= 40rem)", "範囲構文"],
+    ["(width < 64rem)", "未満"],
+    ["(40rem <= width < 64rem)", "両側の範囲"],
+    ["(width>=90rem)", "空白なし"],
+    ["(WIDTH >= 40REM)", "大文字"],
+    ["screen and (width >= 64rem)", "媒体の種類つき"],
+    ["(hover: hover)", "幅ではない条件"],
+    ["(prefers-reduced-motion: reduce)", "幅ではない条件"],
+    ["(height >= 48rem)", "高さは対象外"],
+    ["(min-height: 420px)", "高さの旧構文も対象外"],
+    ["(orientation: landscape)", "向き"],
+  ];
+  for (const [params, why] of ok) {
+    test(`${why}: ${params} は通す`, () => assert.deepEqual(mediaWidthViolations(params), []));
+  }
+  const ng = [
+    ["(max-width: 420px)", "旧構文と px"],
+    ["(min-width: 40rem)", "旧構文は値が段でも落とす"],
+    ["(max-width: 64rem)", "旧構文の max も"],
+    ["(min-device-width: 40rem)", "device-width"],
+    ["(width >= 48rem)", "段ではない rem"],
+    ["(width >= 40em)", "em"],
+    ["(width >= 640px)", "px"],
+    ["(width >= calc(40rem))", "計算"],
+    ["(width >= var(--x))", "変数"],
+    ["(width >= 0)", "単位なし"],
+    ["(width >= 40rem) and (width < 48rem)", "and の後ろ側"],
+    ["not all and (max-width: 720px)", "not の中"],
+    ["(40rem <= width < 48rem)", "範囲の片側だけが外れる"],
+  ];
+  for (const [params, why] of ng) {
+    test(`${why}: ${params} は落とす`, () => assert.ok(mediaWidthViolations(params).length > 0));
+  }
+});
+
+describe("legacyPageClassUses: 要素層の .page を TSX が使っていないか（#316 D2）", () => {
+  const hits = [
+    ['<main className="page">', "単独"],
+    ['<main className="page landing">', "先頭"],
+    ['<main className="x page">', "末尾"],
+    ["<main className='page'>", "単引用符"],
+    ['<main className={"page"}>', "波括弧の文字列"],
+    ["<main className={`page ${x}`}>", "テンプレート文字列"],
+    ['<main className = "page">', "= の前後の空白"],
+  ];
+  for (const [text, why] of hits) {
+    test(`${why}: ${text} を拾う`, () => assert.equal(legacyPageClassUses(text).length, 1));
+  }
+  const misses = [
+    ['<main className="ui-page">', "部品の器"],
+    ['<div className="ui-page-header">', "部品の見出し"],
+    ['<main className="topic-page">', "画面のクラス"],
+    ['<main className="page-x">', "接頭辞"],
+    ["<p>このページ page です</p>", "本文の語"],
+  ];
+  for (const [text, why] of misses) {
+    test(`${why}: ${text} は拾わない`, () => assert.deepEqual(legacyPageClassUses(text), []));
+  }
 });

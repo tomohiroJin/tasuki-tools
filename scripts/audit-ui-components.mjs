@@ -318,6 +318,56 @@ export function findRawColors(value) {
   return found;
 }
 
+/** 画面の幅の段の境目（rem）。#316・ADR 0025 決定 1。CSS のカスタムプロパティはメディアクエリに使えないので、値を直書きして検査で守る。 */
+export const BREAKPOINTS_REM = new Set([40, 64, 90]);
+
+/** 幅の旧構文（`min-width` / `max-width` / `device-width` 系）。高さ（`min-height`）は見ない。 */
+const LEGACY_WIDTH = /(?:^|[^\w-])(?:min-|max-|(?:min-|max-)?device-)width\b/;
+/** 幅の条件（範囲構文の `width` を含む）。 */
+const ANY_WIDTH = /(?:^|[^\w-])(?:min-|max-)?(?:device-)?width\b/;
+
+/**
+ * `@media` の条件のうち、幅の段の約束を破っている箇所（#316 D1）。空なら守っている。
+ *
+ * **括弧ごとに見る。** `(width >= 40rem) and (width < 48rem)` は後ろ側だけが外れている。
+ * 旧構文は**値が段でも落とす**（書き方を 1 つにして、目で突き合わせられるようにする）。
+ */
+export function mediaWidthViolations(params) {
+  const out = [];
+  for (const [, feature] of params.matchAll(/\(((?:[^()]|\([^()]*\))*)\)/g)) {
+    const f = feature.toLowerCase();
+    if (!ANY_WIDTH.test(f)) continue;
+    if (LEGACY_WIDTH.test(f)) {
+      out.push(`幅の旧構文です: (${feature.trim()})    ← (width >= 40rem) の形で書く`);
+      continue;
+    }
+    if (/(?:calc|var|env|min|max|clamp)\(/.test(f)) {
+      out.push(`境目を計算しています: (${feature.trim()})    ← 40rem / 64rem / 90rem を直書きする`);
+      continue;
+    }
+    for (const [len, num, unit] of f.matchAll(/(-?\d*\.?\d+)([a-z%]*)/g)) {
+      if (unit !== "rem" || !BREAKPOINTS_REM.has(Number(num))) {
+        out.push(`幅の段の境目ではありません: ${len}    ← 40rem / 64rem / 90rem のどれか（ADR 0025 決定 1）`);
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * TSX の `className` に書いた裸の `page`（#316 D2 で消した要素層の器）。
+ * 見るのは文字列・波括弧の文字列・テンプレート文字列の 3 形。`clsx("page")` のような関数の引数は見ない。
+ */
+export function legacyPageClassUses(text) {
+  const out = [];
+  const re = /className\s*=\s*(?:"([^"]*)"|'([^']*)'|\{\s*"([^"]*)"\s*\}|\{\s*`([^`]*)`\s*\})/g;
+  for (const m of text.matchAll(re)) {
+    const value = m[1] ?? m[2] ?? m[3] ?? m[4];
+    if (value.split(/\s+/).includes("page")) out.push(value);
+  }
+  return out;
+}
+
 /** セレクタの先頭の複合セレクタ（最初の結合子の手前まで）に `.ui-` のクラスがあるか。 */
 function firstCompoundHasPart(selector) {
   const [sel] = parseSelector(selector).nodes;
