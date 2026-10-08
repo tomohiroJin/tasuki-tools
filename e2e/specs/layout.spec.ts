@@ -77,7 +77,7 @@ test.describe('poker のルームは広い画面で 3 つの区画を並べる',
     await noteSmallTargets(page, testInfo, 'poker 1920');
   });
 
-  test('Given 幅 1280 / When ルームを開く / Then 器の内側は 1152px 以上で、左脇は右の列の上・右脇はその下', async ({ page, openPeer }) => {
+  test('Given 幅 1280 / When ルームを開く / Then 器の内側は 1152px 以上で、左脇は右の列の上・右脇はそのすぐ下', async ({ page, openPeer }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await openPokerWithTopic(page, openPeer);
     expect((await pageBox(page)).inner).toBeGreaterThanOrEqual(72 * REM);
@@ -87,6 +87,8 @@ test.describe('poker のルームは広い画面で 3 つの区画を並べる',
     expect(main.x + main.width).toBeLessThanOrEqual(rail.x);
     expect(rail.x).toBeCloseTo(aside.x, 0);
     expect(rail.y + rail.height).toBeLessThanOrEqual(aside.y);
+    // 右脇は左脇のすぐ下（間は gap の 2rem）。主が 2 行をまたがないと、右脇の行が主の下端より下から始まり空きができる
+    expect(aside.y).toBeCloseTo(rail.y + rail.height + 2 * REM, 0);
     expect(main.width).toBeGreaterThanOrEqual(MAIN_MIN);
   });
 
