@@ -70,6 +70,7 @@
 }
 
 /* 640〜767px にだけ効く（Card 既定の 1.5rem を 1rem へ）。`.meter-panel` と詳細度が同じで、後に読まれて勝つ。 */
+/* ui-exempt: #316 PR 3 で段へ寄せる */
 @media (40rem <= width < 48rem) {
   .summary-stat {
     padding: 1rem;

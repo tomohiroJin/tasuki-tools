@@ -28,6 +28,7 @@
   color: var(--signal);
 }
 
+/* ui-exempt: #316 PR 3 で段へ寄せる */
 @media (width >= 48rem) {
   .invite-panel-code {
     font-size: 3rem; /* scale-exempt: Tailwind の text-5xl の写し（#316 で段へ寄せる） */

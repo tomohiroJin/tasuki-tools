@@ -15,8 +15,8 @@ import type { LucideIcon } from "lucide-react";
 export function Stage({ children }: { children: React.ReactNode }) {
   return (
     <div className="instrument-stage stage">
-      {/* PC を主役にするため広めに。Summary・History は内側で最大幅を持つ。 */}
-      <div className="stage-inner">{children}</div>
+      {/* 器は部品層の `.ui-page`（72rem・#316）。`stage-inner` は timer の計器の縦の余白と重なりの基準だけを持つ。 */}
+      <div className="ui-page stage-inner">{children}</div>
     </div>
   );
 }

@@ -15,31 +15,9 @@
   margin-block-end: 1.5rem;
 }
 
-/* 2 カラムの外側。モバイル（lg 未満）は縦積み、lg 以上は左右の 2 カラム。 */
-@media (width < 64rem) {
-  :where(.session-layout > :not(:last-child)) {
-    margin-block-end: 1.5rem;
-  }
-}
-
-@media (width >= 64rem) {
-  .session-layout {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 360px;
-    gap: 1.5rem;
-    align-items: flex-start;
-  }
-}
-
-/* 左右のカラム。中は縦積み。lg 以上は grid の子として縮められるようにする。 */
+/* 左右のカラム。中は縦積み。`min-width: 0` は部品層の区画（`.ui-workspace-*`）が持つ。 */
 :where(.session-column > :not(:last-child)) {
   margin-block-end: 1.5rem;
-}
-
-@media (width >= 64rem) {
-  .session-column {
-    min-width: 0;
-  }
 }
 
 /* 「ルーム」タブの根の縦の間隔 */
@@ -87,6 +65,7 @@
   color: var(--signal);
 }
 
+/* ui-exempt: #316 PR 3 で段へ寄せる */
 @media (width >= 48rem) {
   .session-driver-crown {
     width: 3rem;
