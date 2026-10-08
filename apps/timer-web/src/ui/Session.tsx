@@ -218,10 +218,9 @@ export function Session({
       {/* 初回ヒント（未読かつ通知 OFF のときのみ）。閉じる or 通知 ON で消える。 */}
       {!hintDismissed && !notifyPrefs.enabled && <NotifyHint onDismiss={dismissHint} />}
 
-      {/* PC（lg+）は「左＝タイマー主役＋進行の操作 / 右＝参加者・引き継ぎ」の2カラム。
-          モバイルは素直に縦積みになる。段組みは部品層の `.ui-workspace`（#316）。
-          左脇を置かないので 72rem の器でよい（左脇を足すなら --wide の器へ。部品の前提）。 */}
-      <div className="ui-workspace">
+      {/* PC（lg+）は「左＝タイマー主役＋進行の操作（操作の面） / 右＝参加者・引き継ぎ（脇・22rem）」の2カラム。
+          モバイルは素直に縦積みになる。段組みは部品層の `.ui-workspace`（#316）。脇は右（--side-end）。 */}
+      <div className="ui-workspace ui-workspace--side-end">
       {/* ── 左（メイン）: タイマー＋進行の操作 ── */}
       <div className="ui-workspace-main session-column">
       {/* ドライバーパネル（タイマー＝円形プログレス、人＝円周配置、現ドライバー＝Crown） */}
@@ -336,7 +335,7 @@ export function Session({
       </div>{/* /左（メイン） */}
 
       {/* ── 右（サイド）: 参加者一覧＋引き継ぎメモ ── */}
-      <div className="ui-workspace-aside session-column">
+      <div className="ui-workspace-side session-column">
       {/* 在席一覧（RosterPanel）。改名・一時離脱・代理追加・現ドライバー
           ハイライト（FR-046/047/048/050/051/061）。現ドライバーは rotation の識別子で判定。 */}
       <Card>
