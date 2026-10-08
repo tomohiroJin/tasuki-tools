@@ -61,6 +61,11 @@
     grid-row: 1;
   }
 
+  /* 脇が無ければ主を 1 列目へ（既定の -main より後ろ。--side-end の -main も同じ 1 列目なので順序は結果を変えない） */
+  .ui-workspace-main:where(.ui-workspace:not(:has(> .ui-workspace-side)) > *) {
+    grid-column: 1;
+  }
+
   .ui-workspace--side-end {
     grid-template-columns: minmax(0, 1fr) 22rem;
   }
@@ -89,12 +94,8 @@
     align-self: start;
   }
 
-  /* 脇が無ければ操作の面を器いっぱいの 1 列にする（空の列を残さない）。--side-end / --reader の (0,2,0) に負けないよう :where を使わない。 */
+  /* 脇が無ければ操作の面を器いっぱいの 1 列にする（空の列を残さない）。列の指定は (0,2,0)（--side-end / --reader の (0,2,0) より後ろで勝つ）、区画の位置は :where で (0,1,0) に収める（部品層の詳細度の約束）。 */
   .ui-workspace:not(:has(> .ui-workspace-side)) {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .ui-workspace:not(:has(> .ui-workspace-side)) > .ui-workspace-main {
-    grid-column: 1;
   }
 }
