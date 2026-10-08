@@ -11,7 +11,8 @@
  *      - 入力欄の型（`select` / `input` / `textarea` / `option`）か `::picker(` を含むセレクタの規則は落とす
  *      - 部品の入力欄（`.ui-input` / `.ui-select`）に字の大きさを書いたら落とす（16px の下限）
  *      - 生の色（`#…`・`rgb()` などの関数・名前の色）を値に書いた宣言は落とす。`@keyframes` の段も見る（設計正本 D10 の 3）
- *      - `@media` の幅の境目は `40rem` / `64rem` / `90rem` だけ。`.page` のセレクタ（#316 D2 で消した要素層の器）は落とす
+ *      - `@media` の幅の境目は `40rem` / `64rem` / `90rem` だけ。演算子は `width >=`（下限）と `width <`（上限）だけ
+ *        （左に置く下限 `40rem <= width` は許す）。`.page` のセレクタ（#316 D2 で消した要素層の器）は落とす
  *      - いずれも直前の `/* ui-exempt: 理由 *\/` で外せる。理由が空・何も免除していない申告は落とす
  *   2. **部品の CSS**（`packages/ui/src/components/`）: セレクタは `.ui-` のクラスから始める・入れ子と
  *      `@scope` / `@layer` を使わない・`::picker(` を一覧に同居させない・`outline` は選択肢だけ・
@@ -385,8 +386,27 @@ export function mediaWidthViolations(params) {
         out.push(`幅の段の境目ではありません: ${len}    ← 40rem / 64rem / 90rem のどれか（ADR 0025 決定 1）`);
       }
     }
+    if (!widthOperatorsAllowed(f)) {
+      out.push(
+        `範囲構文は width >= と width < だけです: (${feature.trim()})    ← 境目ちょうどの扱いを 1 つにする（左に置く下限は 40rem <= width）`,
+      );
+    }
   }
   return out;
+}
+
+/**
+ * 幅の条件の演算子が「下限は `>=`・上限は `<`」だけか（最終レビュー F4）。
+ * `width` の右に置けるのは `>=`（下限）と `<`（上限）、左に置けるのは `<=`（`40rem <= width` は下限）だけ。
+ * `(width: 40rem)` は 1 点にしか効かず、`<=` / `>` を混ぜると境目ちょうどで両方の段が効くか、どちらも効かない。
+ * 演算子の無い `(width)` は真偽の形で、境目を持たないので通す。
+ */
+function widthOperatorsAllowed(f) {
+  const right = f.match(/\bwidth\s*(>=|<=|>|<|=|:)/);
+  const left = f.match(/(>=|<=|>|<|=)\s*width\b/);
+  if (right && right[1] !== ">=" && right[1] !== "<") return false;
+  if (left && left[1] !== "<=") return false;
+  return true;
 }
 
 /**

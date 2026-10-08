@@ -445,6 +445,8 @@ describe("mediaWidthViolations: 幅の境目は 40rem / 64rem / 90rem だけ（#
     ["(min-height: 420px)", "高さの旧構文も対象外"],
     ["(orientation: landscape)", "向き"],
     ["((width >= 40rem) and (hover: hover))", "and の入れ子"],
+    ["(40rem <= width)", "左に置いた下限"],
+    ["(40rem<=width<64rem)", "両側の範囲・空白なし"],
   ];
   for (const [params, why] of ok) {
     test(`${why}: ${params} は通す`, () => assert.deepEqual(mediaWidthViolations(params), []));
@@ -467,10 +469,26 @@ describe("mediaWidthViolations: 幅の境目は 40rem / 64rem / 90rem だけ（#
     ["(width >= calc(1px + (40rem)))", "計算の中の括弧"],
     ["not ((width < 48rem))", "条件の入れ子"],
     ["((width >= 48rem) or (hover: hover))", "or の入れ子"],
+    // 演算子は >= と < だけ（境目ちょうどの扱いを 1 つにする。最終レビュー F4）
+    ["(width: 40rem)", "等号の形は 1 点にしか効かない"],
+    ["(width <= 64rem)", "上限に <= を使う"],
+    ["(width > 40rem)", "下限に > を使う"],
+    ["(width = 40rem)", "= の形"],
+    ["(40rem < width < 64rem)", "左が < は下限を含まない"],
+    ["(40rem <= width <= 64rem)", "右側の上限に <="],
+    ["(64rem > width)", "左に置いた上限"],
   ];
   for (const [params, why] of ng) {
     test(`${why}: ${params} は落とす`, () => assert.ok(mediaWidthViolations(params).length > 0));
   }
+  // `(min-width: 40rem)` は演算子の検査（`:`）でも落ちる。旧構文の判定が消えても件数では気づけないので、
+  // 書き直しの案内が旧構文のものであることを見る（m122）
+  test("値が段の旧構文は、旧構文として落とす: (min-width: 40rem)", () => {
+    assert.deepEqual(
+      mediaWidthViolations("(min-width: 40rem)").map((m) => m.startsWith("幅の旧構文です")),
+      [true],
+    );
+  });
 });
 
 describe("legacyPageClassUses: 要素層の .page を TSX が使っていないか（#316 D2）", () => {
