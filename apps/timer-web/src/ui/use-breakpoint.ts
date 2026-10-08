@@ -2,7 +2,7 @@
  * 画面幅ブレークポイント購読フック（PC 主役のレイアウト切替に使う）。
  * **画面の CSS と同じ問い合わせ `(width >= 64rem)` で判定する**（#316 D1・ADR 0025 決定 1）。
  * px（`innerWidth >= 1024`）で判定すると、既定の文字の大きさを変えた利用者で CSS とずれた。
- * `matchMedia` が無い環境（jsdom の既定）では、従来どおり `innerWidth >= 1024` で答える。
+ * `matchMedia` が無い環境では初期値だけを `innerWidth >= 1024` で答える（`resize` は購読しない。`matchMedia` が無いのは jsdom だけ）。
  */
 
 import { useEffect, useState } from "react";

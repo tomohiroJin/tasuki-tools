@@ -219,7 +219,8 @@ export function Session({
       {!hintDismissed && !notifyPrefs.enabled && <NotifyHint onDismiss={dismissHint} />}
 
       {/* PC（lg+）は「左＝タイマー主役＋進行の操作 / 右＝参加者・引き継ぎ」の2カラム。
-          モバイルは素直に縦積みになる。段組みは部品層の `.ui-workspace`（#316）。 */}
+          モバイルは素直に縦積みになる。段組みは部品層の `.ui-workspace`（#316）。
+          左脇を置かないので 72rem の器でよい（左脇を足すなら --wide の器へ。部品の前提）。 */}
       <div className="ui-workspace">
       {/* ── 左（メイン）: タイマー＋進行の操作 ── */}
       <div className="ui-workspace-main session-column">
