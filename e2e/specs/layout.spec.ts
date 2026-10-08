@@ -8,7 +8,7 @@
  */
 import type { Page, TestInfo } from '@playwright/test';
 import { expect, test } from '../fixtures/test';
-import { createRoom as createPokerRoom } from '../support/poker';
+import { chooseCard, createRoom as createPokerRoom, joinRoom as joinPokerRoom, participantRow } from '../support/poker';
 import { createRoom as createTimerRoom } from '../support/timer';
 import { joinTopicTool, openTopicTool, setTopic } from '../support/topic';
 
@@ -51,21 +51,46 @@ async function noteSmallTargets(page: Page, testInfo: TestInfo, label: string): 
   testInfo.annotations.push({ type: `44px 未満（${label}）`, description: `${small.length} 件: ${small.join(' / ')}` });
 }
 
-/** poker のルームにお題を掲げ、右脇（お題）まで描かれた状態にする。 */
-async function openPokerWithTopic(page: Page, openPeer: (label: string) => Promise<{ page: Page }>): Promise<void> {
+/** poker のルームにお題を掲げ、右脇（お題）まで描かれた状態にする。返すのは参加用 URL。 */
+async function openPokerWithTopic(page: Page, openPeer: (label: string) => Promise<{ page: Page }>): Promise<string> {
   const url = await createPokerRoom(page, 'layout-a');
   const topic = await openPeer('layout-topic');
   await joinTopicTool(topic.page, url, 'layout-t');
   await setTopic(topic.page, 'FizzBuzz', '3 のときは Fizz を出す');
   await expect(page.getByRole('region', { name: 'お題', exact: true })).toBeVisible();
+  return url;
+}
+
+/** 区切りの無い ASCII の長い名前（表示名の上限 40 字の内）。折り返す場所が無く、flex の子が縮まないと行からはみ出す。 */
+const LONG_NAME = 'A'.repeat(30);
+
+/**
+ * 長い名前のゲストを入れて投票させ、左脇（参加者）の行に「投票済み」のバッジまで並んだ状態にする。
+ * ホストは投票しない（全員が投票すると自動で公開され、バッジが消える）。
+ */
+async function addLongNameVoter(page: Page, url: string, openPeer: (label: string) => Promise<{ page: Page }>): Promise<void> {
+  const guest = await openPeer('layout-long-name');
+  await joinPokerRoom(guest.page, url, LONG_NAME);
+  await chooseCard(guest.page, '5');
+  await expect(participantRow(page, LONG_NAME).getByText('投票済み')).toBeVisible();
+}
+
+/** 左脇の参加者の行の中身で、右端がいちばん遠いもの（左脇の右端と比べる）。 */
+async function rightmostInRail(page: Page): Promise<number> {
+  return page.locator('.ui-workspace-rail .participants li').evaluateAll((lis) =>
+    Math.max(...lis.flatMap((li) => [li, ...Array.from(li.querySelectorAll('*'))]).map((el) => el.getBoundingClientRect().right)),
+  );
 }
 
 test.describe('poker のルームは広い画面で 3 つの区画を並べる', () => {
-  test('Given 幅 1920 / When ルームを開く / Then 器は 1536px で、左脇・主・右脇が横に並ぶ', async ({ page, openPeer }, testInfo) => {
+  test('Given 幅 1920・長い名前の参加者 / When ルームを開く / Then 器は 1536px で、左脇・主・右脇が横に並び、名前は左脇に収まる', async ({ page, openPeer }, testInfo) => {
     await page.setViewportSize({ width: 1920, height: 900 });
-    await openPokerWithTopic(page, openPeer);
+    const url = await openPokerWithTopic(page, openPeer);
+    await addLongNameVoter(page, url, openPeer);
     expect((await pageBox(page)).outer).toBe(96 * REM);
     const rail = await boxOf(page, '.ui-workspace-rail');
+    // 長い名前でも、行の中身（名前・バッジ）は左脇（18rem）の右端を越えない（主の列へはみ出さない）
+    expect(await rightmostInRail(page)).toBeLessThanOrEqual(rail.x + rail.width + 0.5);
     const main = await boxOf(page, '.ui-workspace-main');
     const aside = await boxOf(page, '.ui-workspace-aside');
     expect(rail.x + rail.width).toBeLessThanOrEqual(main.x);
@@ -92,9 +117,10 @@ test.describe('poker のルームは広い画面で 3 つの区画を並べる',
     expect(main.width).toBeGreaterThanOrEqual(MAIN_MIN);
   });
 
-  test('Given 幅 320 / When ルームを開く / Then 横に溢れず、左脇・主・右脇の順に縦へ積む', async ({ page, openPeer }, testInfo) => {
+  test('Given 幅 320・長い名前の参加者 / When ルームを開く / Then 横に溢れず、左脇・主・右脇の順に縦へ積む', async ({ page, openPeer }, testInfo) => {
     await page.setViewportSize({ width: 320, height: 900 });
-    await openPokerWithTopic(page, openPeer);
+    const url = await openPokerWithTopic(page, openPeer);
+    await addLongNameVoter(page, url, openPeer);
     await expectNoHorizontalOverflow(page);
     const rail = await boxOf(page, '.ui-workspace-rail');
     const main = await boxOf(page, '.ui-workspace-main');

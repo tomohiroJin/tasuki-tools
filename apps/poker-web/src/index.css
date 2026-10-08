@@ -72,8 +72,12 @@
   opacity: 0.45;
 }
 
+/* 名前は flex の子で、既定の min-width: auto のままだと区切りの無い長い名前（上限 40 字）が縮まず、
+   バッジごと左脇（18rem）から主の列へはみ出す。縮められるようにし、どこでも折り返す。 */
 .participants .name {
   font-weight: 500;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .you-mark {
