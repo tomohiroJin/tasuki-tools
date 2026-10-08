@@ -404,11 +404,12 @@ test.describe('説明のプレビュー（#313 PR 2）', () => {
 });
 
 test.describe('作るを横帯に（#313 構成案 1）', () => {
-  test('Given 幅 1920 / When お題ツールを開く / Then 作るは書くの上で行いっぱいに広がり、言語・難易度・ボタンが 1 行に並ぶ', async ({ page, consoleWatcher }) => {
+  for (const width of [1280, 1920]) {
+  test(`Given 幅 ${width} / When お題ツールを開く / Then 作るは書くの上で行いっぱいに広がり、言語・難易度・ボタンが 1 行目、合言葉が 2 行目に並ぶ`, async ({ page, consoleWatcher }) => {
     // Given
-    // 読む面を右に置いたので、1280px の主の区画は約 573px で 44rem の境目に届かない（縦に積む）。
-    // 帯になるのは主の区画が 44rem 以上の 1920px から（#316 PR 1。境目は変えない）
-    await page.setViewportSize({ width: 1920, height: 900 });
+    // 読む面を右に置くと、1280px の主の区画は約 573px で 44rem の境目に届かない。
+    // 64rem 以上では並びを `@media` で決め、2 行にする（#316 PR 1。容器の境目は変えない）
+    await page.setViewportSize({ width, height: 900 });
     // When
     await openTopicTool(page, 'band-topic');
     // Then その1: 作るは書くの上にあり、どちらも中身の幅いっぱい
@@ -426,6 +427,9 @@ test.describe('作るを横帯に（#313 構成案 1）', () => {
       ),
     );
     expect(Math.max(...bottoms) - Math.min(...bottoms), '作るの操作が 1 行に並んでいない').toBeLessThan(8);
+    // Then その2b: 合言葉の欄は 1 行目の下にある（2 行目）
+    const key = await page.getByLabel('AI 生成の合言葉').boundingBox();
+    expect(key!.y, '合言葉が 2 行目に無い').toBeGreaterThanOrEqual(Math.max(...bottoms));
     // Then その3: 帯に詰めても、ボタンは潰れて折り返さない（「解錠する」が 2 行になった・実画面で発見）
     const fallback = await page.getByRole('button', { name: '定型から選ぶ' }).boundingBox();
     const unlock = await page.getByRole('button', { name: '解錠する' }).boundingBox();
@@ -433,6 +437,7 @@ test.describe('作るを横帯に（#313 構成案 1）', () => {
     // 画面は例外を出していない
     expect(consoleWatcher.errors).toEqual([]);
   });
+  }
 
   test('Given 幅 390 / When お題ツールを開く / Then 作るの言語と難易度は縦に積む', async ({ page, consoleWatcher }) => {
     // Given

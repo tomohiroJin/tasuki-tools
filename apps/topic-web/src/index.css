@@ -20,10 +20,18 @@
    札の地・枠・影・字の色（`--coal`）・本文のスクロール・狭い幅の 3 行切りは部品（`.ui-reader`）が持つ。
    ここには、タブと札の上の見出し・ボタンの色、パネルの並びだけを置く。 */
 
-/* 札は象牙なので、要素層の金（`--gold`）の h2 は読めない。poker の `.topic h2` と同じく `--coal-soft` にする
-   （`e2e/specs/topic.spec.ts` の走査で確かめる）。要素層の h2 の上下の余白は読む面の頭には要らない。 */
-.topic-current h2 {
-  margin: 0;
+/* 目に出さず、支援技術には残す（読む面の h2「いまのお題」。タブと同じ字が重なるため）。
+   隠す h2 は札の中で場所を取らない。色は `--coal-soft`（隠さなくなったときも象牙の上で読める値にしてある）。 */
+.topic-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
   color: var(--coal-soft);
 }
 
@@ -69,7 +77,7 @@
 .topic-reader-tabs {
   display: flex;
   gap: var(--space-1);
-  padding: 0 var(--space-3);
+  padding: var(--space-2) var(--space-3) 0;
   border-bottom: 1px solid var(--card-inline);
 }
 
@@ -341,5 +349,42 @@
 
   .topic-compose[data-mode] .topic-compose-write {
     display: grid;
+  }
+}
+
+/* 作るは 2 行（#316）。1 行目に 言語・難易度・定型から選ぶ、2 行目に 合言葉・解錠する。
+   読む面を右に置くと主の区画は 1280px で約 573px になり、`@container make` の 44rem に届かず縦に積んでいた。
+   容器クエリの境目は変えず、64rem 以上では並びをここで決める（容器クエリの規則と同じ詳細度で、後に書いてあるので勝つ）。 */
+@media (width >= 64rem) {
+  .topic-make .topic-make-row {
+    display: grid;
+    grid-template-columns: minmax(0, 14rem) minmax(0, 10rem) auto;
+    justify-content: start;
+    align-items: end;
+    gap: var(--space-3) var(--space-4);
+  }
+
+  .topic-make .topic-make-language,
+  .topic-make .topic-make-difficulty {
+    inline-size: auto;
+  }
+
+  .topic-make .topic-unlock {
+    grid-column: 1 / -1;
+    margin-inline-start: 0;
+    inline-size: min(100%, 28rem);
+  }
+
+  .topic-make .topic-unlock-row {
+    display: flex;
+    align-items: center;
+  }
+
+  .topic-make .topic-unlock-row > :first-child {
+    flex: 1 1 auto;
+  }
+
+  .topic-make .topic-unlock-row > :last-child {
+    flex: none;
   }
 }

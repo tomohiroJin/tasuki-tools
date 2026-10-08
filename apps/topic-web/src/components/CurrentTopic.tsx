@@ -103,9 +103,8 @@ export function CurrentTopic({ state, notice, enabled, draft, onClear }: Props) 
         aria-labelledby={`${baseId}-heading`}
         aria-busy={state?.generating ?? false}
       >
-        <div className="ui-reader-head">
-          <h2 id={`${baseId}-heading`}>{CURRENT_HEADING}</h2>
-        </div>
+        {/* 見出しは region の名前と読み上げのために残し、目には出さない（すぐ下のタブ「いまのお題」と重複するため） */}
+        <h2 id={`${baseId}-heading`} className="topic-visually-hidden">{CURRENT_HEADING}</h2>
         <div className="topic-reader-tabs" role="tablist" aria-label={READER_TABS_LABEL}>
           {TABS.map((t, i) => {
             const selected = t.id === active;
