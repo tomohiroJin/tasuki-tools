@@ -1,0 +1,15 @@
+diff --git a/scripts/audit-ui-components.mjs b/scripts/audit-ui-components.mjs
+index 2e59a06f..d784d709 100644
+--- a/scripts/audit-ui-components.mjs
++++ b/scripts/audit-ui-components.mjs
+@@ -372,10 +372,6 @@ export function mediaWidthViolations(params) {
+     }
+     const f = feature.toLowerCase();
+     if (!ANY_WIDTH.test(f)) continue;
+-    if (LEGACY_WIDTH.test(f)) {
+-      out.push(`幅の旧構文です: (${feature.trim()})    ← (width >= 40rem) の形で書く`);
+-      continue;
+-    }
+     if (/(?:calc|var|env|min|max|clamp)\(/.test(f)) {
+       out.push(`境目を計算しています: (${feature.trim()})    ← 40rem / 64rem / 90rem を直書きする`);
+       continue;
