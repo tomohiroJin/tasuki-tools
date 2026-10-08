@@ -166,7 +166,7 @@ test.describe('お題ツールの文字と書体', () => {
     await expect(currentTopic(page)).toContainText(BODY);
     // 測ったことを固定する 2 組: 卓の上の見出し（`--gold` on `--felt-900`）と、
     //   読む面（グラデーションの札）の上の字（`--coal`）を測ったことを固定する（レビュー指摘・修正ラウンド 1）。
-    //   札の上の見出し（h2「いまのお題」の `--coal-soft`）・タブ・「お題を下ろす」もこの走査に入る（#316）
+    //   札の上の見出し（h2「お題」の `--coal-soft`）・タブ・「お題を下ろす」もこの走査に入る（#316）
     const [gold, felt900, coal, sheen, shade] = await resolveColors(page, ['--gold', '--felt-900', '--coal', '--card-sheen', '--card-shade']);
     const cardGround = `rgba(0, 0, 0, 0) + linear-gradient(160deg, ${sheen}, ${shade})`;
 

@@ -22,12 +22,13 @@ export const INVITE_COPY_BUTTON = '招待リンクをコピー';
 export const INVITE_COPIED = 'コピーしました';
 export const INVITE_COPY_FAILED = 'コピーできません（URL を選択してください）';
 
-export const CURRENT_HEADING = 'いまのお題';
+// 読む面（region）の名前。タブ（いまのお題・下書きの見え方）のどちらを見ていても当たる名前にする（#316 最終レビュー M2）
+export const READER_HEADING = 'お題';
 export const EMPTY_TEXT = 'お題はまだありません。書くか、作ってください。';
 export const CLEAR_BUTTON = 'お題を下ろす';
 // 読む面（#316）。右の札に 2 つのタブを持つ。書き始めると下書きの見え方へ切り替わる
 export const READER_TABS_LABEL = '読む面の切り替え';
-export const TAB_CURRENT = CURRENT_HEADING;
+export const TAB_CURRENT = 'いまのお題';
 export const TAB_DRAFT = '下書きの見え方';
 export const DRAFT_STAMP = '下書き（まだ公開していません）';
 export const READ_MORE = '続きを読む';

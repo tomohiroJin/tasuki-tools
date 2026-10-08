@@ -36,9 +36,9 @@ export async function joinTopicTool(page: Page, url: string, name: string): Prom
   await expect(page.getByRole('heading', { level: 1, name: 'お題', exact: true })).toBeVisible();
 }
 
-/** いまのお題の領域。 */
+/** お題ツールの読む面の領域（名前は「お題」。タブ「いまのお題」「下書きの見え方」のどちらでも同じ・#316）。 */
 export function currentTopic(page: Page): Locator {
-  return page.getByRole('region', { name: 'いまのお題' });
+  return page.getByRole('region', { name: 'お題', exact: true });
 }
 
 /** 手で書いてお題にし、**自分の画面に出るまで待つ**。 */

@@ -7,7 +7,7 @@
  * 画面の CSS から面の宣言を消した後にだけ値が分かれる。赤は破壊検証で見る（計画 Task 6）。
  * 文字の走査（`scanContrast`）に任せないのは、玄関のパネルの見出しが象牙色で、地が消えても AA を割らないから。
  *
- * **お題の面（お題ツールの「いまのお題」と poker の「お題」）は #316 で読む面（部品 `.ui-reader`）になった**
+ * **お題の面（お題ツールと poker の「お題」）は #316 で読む面（部品 `.ui-reader`）になった**
  * （設計正本 §9）。`.ui-panel` の面ではないので、`expectReaderFace` で読む面の値を測る。
  *
  * **見出しの判定は main で赤になる**: poker の戻る導線は 5 段の外の `0.8rem`、お題ツールの入室を待つ画面の
@@ -115,7 +115,7 @@ test.describe('パネルの面と、見出し・戻る導線（#320 PR 3）', ()
     // When その3: お題ツールのルーム画面
     await toolCard(page, 'Topic Board').click();
     await expectBackBesideHeading(page, page.getByRole('heading', { level: 1, name: 'お題', exact: true }), 'お題ツール');
-    await expectReaderFace(page, page.getByRole('region', { name: 'いまのお題', exact: true }), 'お題ツールの「いまのお題」');
+    await expectReaderFace(page, page.getByRole('region', { name: 'お題', exact: true }), 'お題ツールの読む面（「お題」）');
     for (const name of ['書く', '作る']) {
       await expectPanelFace(page, page.getByRole('region', { name, exact: true }), `お題ツールの「${name}」`);
     }
