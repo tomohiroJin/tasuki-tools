@@ -131,7 +131,7 @@ src/
 
 **選び方（性質で決める）**
 
-- 画面の主役が「読む物（お題の説明など）」と「操作」の両方なら、`--reader` で脇を読む面（`.ui-reader`）にする。1 行が 35〜45 字に収まる幅が要るので、既定の `22rem` では細すぎる
+- 画面の主役が「読む物（お題の説明など）」と「操作」の両方なら、`--reader` で脇を読む面（`.ui-reader`）にする。既定の `22rem` では 1 行が短すぎる（`--reader` の読む面は最も広い段で 1 行 35 字前後・64rem では約 22 字）
 - 脇が参加者の一覧のような細いものなら、既定（`22rem`）のままにする
 - 脇を左に置くか右に置くかは**読む順**で決める。読んでから操作するなら左（既定）、操作の合間に横目で見るなら右（`--side-end`）
 - 脇が無ければ、操作の面だけが器いっぱいの 1 列になる（空の列は残らない）
@@ -139,7 +139,8 @@ src/
 **守ること**
 
 - **区画は `.ui-workspace` の直下に置く**（区画を `<form>` などで包むと、並び替えも脇の有無の判定も効かない）
-- 主の幅（`32rem` 以上）は器と段の境目の計算で保たれる。脇を置く段組みは `--wide` の器で使う
+- 脇が既定の `22rem` なら、既定の器（`72rem`）でも 64rem 以上で主は `32rem` 以上残る（器と段の境目の計算で保たれる）
+- `--reader` は `--wide` の器で使う。比で分けるので、主は 64rem の画面で約 `30rem` まで縮む（`32rem` は保たれない）
 - どの画面がどの器・区画を使っているかは `git grep -n "ui-page\|ui-workspace" apps` で引ける
 
 ### 読む面（`.ui-reader`）とシート（`.ui-drawer`）
@@ -148,16 +149,24 @@ src/
 
 ```html
 <div class="ui-workspace ui-workspace--reader">
-  <aside class="ui-workspace-side">
-    <section class="ui-reader">
-      <h2>見出し（固定）</h2>
-      <div class="ui-reader-body">本文</div>
+  <div class="ui-workspace-side">
+    <section class="ui-reader" aria-labelledby="topic-heading">
+      <!-- 見出しの容器は画面のクラス（例: poker の .topic-head）。余白・下の区切り線・h2 の margin: 0 と色（--coal-soft）を画面の CSS が持つ -->
+      <div class="topic-head">
+        <h2 id="topic-heading">お題</h2>
+        <h3 id="topic-title">タイトル</h3>
+      </div>
+      <!-- 本文は名前つきの region にし、tabindex="0" でキーボードから届かせる（64rem 以上で本文が札の中でスクロールするため） -->
+      <div class="ui-reader-body" role="region" aria-labelledby="topic-title" tabindex="0">本文</div>
+      <!-- 札の上のボタンは --coal 系の色にする（既定の金の字は象牙の地で AA を割る。PR 2 で .ui-button の役割に移す） -->
       <button type="button" class="ui-reader-more">続きを読む</button>
     </section>
-  </aside>
+  </div>
   <div class="ui-workspace-main">操作の面</div>
 </div>
 ```
+
+（実際の作りは `apps/poker-web/src/components/CurrentTopic.tsx` が正。区画は `<aside>` ではなく `<div>` にする。読む面の `<section>` が名前つきの region になるので、区画で目印を重ねない）
 
 - **64rem 以上**: 読む面は画面の高さに収まり、本文だけが札の中でスクロールする。**ページを伸ばさない**のは、説明が長いと操作が下へ押し出されるため。続きがあることはスクロールバーが知らせる。`.ui-reader-more` は出ない
 - **64rem 未満**: 本文を 3 行で切り、`.ui-reader-more` で `<dialog class="ui-drawer">` を `showModal()` で開いて全文を出す。閉じるボタンと Esc で閉じ、開いたボタンへフォーカスを戻すのは画面の側の仕事
