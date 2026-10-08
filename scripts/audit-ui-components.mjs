@@ -11,12 +11,14 @@
  *      - 入力欄の型（`select` / `input` / `textarea` / `option`）か `::picker(` を含むセレクタの規則は落とす
  *      - 部品の入力欄（`.ui-input` / `.ui-select`）に字の大きさを書いたら落とす（16px の下限）
  *      - 生の色（`#…`・`rgb()` などの関数・名前の色）を値に書いた宣言は落とす。`@keyframes` の段も見る（設計正本 D10 の 3）
+ *      - `@media` の幅の境目は `40rem` / `64rem` / `90rem` だけ。`.page` のセレクタ（#316 D2 で消した要素層の器）は落とす
  *      - いずれも直前の `/* ui-exempt: 理由 *\/` で外せる。理由が空・何も免除していない申告は落とす
  *   2. **部品の CSS**（`packages/ui/src/components/`）: セレクタは `.ui-` のクラスから始める・入れ子と
  *      `@scope` / `@layer` を使わない・`::picker(` を一覧に同居させない・`outline` は選択肢だけ・
  *      つまみ（`--*`）を宣言しない・生の色を書かない・`@import` は同じディレクトリの部品ファイルだけ許す
- *      （`../elements/index.css` のような他層への `@import` は落とす）。**申告では外せない**
+ *      （`../elements/index.css` のような他層への `@import` は落とす）・`@media` の幅の境目は段だけ。**申告では外せない**
  *   3. **死んだ部品**: 部品の CSS に定義した `.ui-*` を、2 つ以上のアプリの `src` 配下の `.tsx` が使う
+ *   4. **要素層の `.page`**: 各アプリの TSX の `className` に裸の `page` を書いたら落とす
  *
  * ## 何を見ていないか —— 「足りる」とは言わない
  *
@@ -35,6 +37,8 @@
  * - 旧来のシステムの色（`ActiveBorder` 等）は {@link findRawColors} の辞書（{@link NAMED_COLORS}）に無い
  * - 規則の外にある宣言（`@font-face` / `@page` の記述子）の生の色は見ない（画面の CSS にはいま無い）
  * - `@property` の記述子（`syntax` の `<color>` など）・`@import … layer(…)` は見ていない
+ * - `clsx("page")` のような関数の引数に書いた `page`
+ * - `@container` の境目（部品の内側の並び替えは器の幅で決まるので、段の約束の外）
  * - {@link uiTokensIn} は TSX のコメントやテンプレート文字列の前半に書いた `ui-` も使用として数える（字面だけを見る）
  * - {@link findDeadParts} は `.ts`（`.tsx` ではない）の定数に書いた部品名を使用として数えない。
  *   実際は使われていても死んでいると誤報しうる（安全側 —— 見逃すより過検出を選ぶ）
@@ -178,9 +182,9 @@ export function classifyStyleFiles(rels) {
 
 const EXEMPT_RE = /^ui-exempt:([\s\S]*)$/;
 
-/** 規則の直前の申告の理由。申告が無ければ `undefined`、理由が空なら `""`。 */
-function exemptReasonOf(rule) {
-  const prev = rule.prev();
+/** 規則か `@media` の直前の申告の理由。申告が無ければ `undefined`、理由が空なら `""`。 */
+function exemptReasonOf(node) {
+  const prev = node.prev();
   if (!prev || prev.type !== "comment") return undefined;
   const m = EXEMPT_RE.exec(prev.text.trim());
   return m ? m[1].trim() : undefined;
@@ -232,6 +236,9 @@ function screenRuleViolations(rule) {
   if (onPart && setsSize) {
     found.push(`部品の入力欄の字の大きさを上書きしています（16px の下限を崩す）: ${rule.selector}`);
   }
+  if (resolved.some((s) => classesOf(s).has("page"))) {
+    found.push(`要素層の .page は消しました（#316 D2）: ${rule.selector}    ← 器は .ui-page / .ui-page--prose / .ui-page--wide を使う`);
+  }
   return found;
 }
 
@@ -250,18 +257,22 @@ export function checkScreenCss(file, css) {
   const root = postcss.parse(css, { from: file });
   const problems = [];
   const usedExempts = new Set();
-  root.walkRules((rule) => {
-    const violations = inKeyframes(rule)
-      ? rawColorViolations(rule)
-      : [...screenRuleViolations(rule), ...rawColorViolations(rule)];
+  // 規則にも @media にも同じ申告の作法を当てる（直前の /* ui-exempt: 理由 */ が 1 つだけを免除する）。
+  const reportWithExempt = (node, violations) => {
     if (violations.length === 0) return;
-    const reason = exemptReasonOf(rule);
+    const reason = exemptReasonOf(node);
     if (reason === undefined || reason === "") {
-      for (const message of violations) problems.push({ ...where(file, rule), message });
+      for (const message of violations) problems.push({ ...where(file, node), message });
     }
-    if (reason !== undefined) usedExempts.add(rule.prev());
-    if (reason === "") problems.push({ ...where(file, rule), message: "ui-exempt: の理由が空です" });
+    if (reason !== undefined) usedExempts.add(node.prev());
+    if (reason === "") problems.push({ ...where(file, node), message: "ui-exempt: の理由が空です" });
+  };
+  root.walkRules((rule) => {
+    reportWithExempt(rule, inKeyframes(rule)
+      ? rawColorViolations(rule)
+      : [...screenRuleViolations(rule), ...rawColorViolations(rule)]);
   });
+  root.walkAtRules(/^media$/i, (at) => reportWithExempt(at, mediaWidthViolations(at.params)));
   root.walkComments((comment) => {
     if (!EXEMPT_RE.test(comment.text.trim()) || usedExempts.has(comment)) return;
     problems.push({ ...where(file, comment), message: "何も免除していない ui-exempt: です    ← 直したなら消す" });
@@ -491,6 +502,9 @@ export function checkComponentCss(file, css) {
   const report = (node, message) => problems.push({ ...where(file, node), message });
   root.walkAtRules((at) => {
     if (/^(scope|layer)$/i.test(at.name)) report(at, `@${at.name} を使わない（設計正本 D5・D11）`);
+    if (/^media$/i.test(at.name)) {
+      for (const message of mediaWidthViolations(at.params)) report(at, message);
+    }
     if (/^import$/i.test(at.name)) {
       const target = importTargetOf(at.params);
       if (!isSameDirComponentImport(target)) {
@@ -623,6 +637,11 @@ function main() {
   for (const app of WEB_APPS) {
     const tsx = readExisting(listRepoFiles(REPO_ROOT, [`${app}/src/*.tsx`]), problems);
     volume.push({ label: `${app} の TSX`, count: tsx.length });
+    for (const f of tsx) {
+      for (const { value, line } of legacyPageClassUses(f.text)) {
+        problems.push(`[要素層の .page] ${f.rel}:${line} の className="${value}"    ← .ui-page / .ui-page--prose / .ui-page--wide を使う（#316 D2）`);
+      }
+    }
     usageByApp.set(app, new Set(tsx.flatMap((f) => [...uiTokensIn(f.text)])));
   }
   for (const c of findDeadParts(defined, usageByApp)) {

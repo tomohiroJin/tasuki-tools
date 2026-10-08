@@ -70,7 +70,7 @@ describe("checkScreenCss: 写しの検出", () => {
     assert.equal(messagesOf(".a, select { color: var(--x); }").length, 1);
   });
   test("@media の中の規則も落とす", () => {
-    assert.equal(messagesOf("@media (min-width: 1px) { select { color: var(--x); } }").length, 1);
+    assert.equal(messagesOf("@media (width >= 40rem) { select { color: var(--x); } }").length, 1);
   });
   test("入れ子の子の規則も落とす", () => {
     assert.equal(messagesOf(".a { & select { color: var(--x); } }").length, 1);
@@ -503,5 +503,50 @@ describe("legacyPageClassUses: 要素層の .page を TSX が使っていない�
   test("同じ本文の 2 か所は 2 件で、行が別々", () => {
     const r = legacyPageClassUses('<main className="page">\n<p>x</p>\n<main className="page">');
     assert.deepEqual(r.map((x) => x.line), [1, 3]);
+  });
+});
+
+describe("checkScreenCss: @media の幅の段（#316 D1）", () => {
+  test("段ではない境目の @media を落とす", () => {
+    assert.equal(messagesOf("@media (width >= 48rem) { .a { color: inherit; } }").length, 1);
+  });
+  test("直前の申告があれば通す", () => {
+    assert.deepEqual(messagesOf("/* ui-exempt: #316 PR 3 で段へ寄せる */\n@media (width >= 48rem) { .a { color: inherit; } }"), []);
+  });
+  test("説明のコメントと @media の間に申告を書けば通す", () => {
+    assert.deepEqual(messagesOf("/* 説明 */\n/* ui-exempt: 理由 */\n@media (max-width: 420px) { .a { color: inherit; } }"), []);
+  });
+  test("申告と @media の間に説明があれば、どちらも落とす", () => {
+    const m = messagesOf("/* ui-exempt: 理由 */\n/* 説明 */\n@media (max-width: 420px) { .a { color: inherit; } }");
+    assert.ok(m.some((x) => x.includes("幅")));
+    assert.ok(m.some((x) => x.includes("何も免除していない")));
+  });
+  test("段の境目の @media は落とさない（申告も要らない）", () => {
+    assert.deepEqual(messagesOf("@media (width >= 64rem) { .a { color: inherit; } }"), []);
+  });
+  test("規則の中に入れ子にした @media も見る", () => {
+    assert.equal(messagesOf(".a { @media (width >= 48rem) { color: inherit; } }").length, 1);
+  });
+});
+
+describe("checkScreenCss: 要素層の .page（#316 D2）", () => {
+  test(".page のセレクタを落とす", () => {
+    assert.equal(messagesOf(".page { margin: 0; }").length, 1);
+  });
+  test("子孫の位置の .page も落とす", () => {
+    assert.equal(messagesOf("main .page > h1 { margin: 0; }").length, 1);
+  });
+  test(".ui-page と .topic-page は落とさない", () => {
+    assert.deepEqual(messagesOf(".ui-page, .topic-page { margin: 0; }"), []);
+  });
+});
+
+describe("checkComponentCss: @media の幅の段（#316 D1）", () => {
+  const compMessages = (css) => checkComponentCss("packages/ui/src/components/x.css", css).map((p) => p.message);
+  test("段ではない境目は申告があっても落とす", () => {
+    assert.ok(compMessages("/* ui-exempt: x */\n@media (width >= 48rem) { .ui-x { color: inherit; } }").some((m) => m.includes("境目")));
+  });
+  test("段の境目は通す", () => {
+    assert.deepEqual(compMessages("@media (width >= 90rem) { .ui-x { color: inherit; } }"), []);
   });
 });
