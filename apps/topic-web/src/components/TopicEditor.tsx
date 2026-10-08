@@ -1,4 +1,4 @@
-import { useDeferredValue, useId, useLayoutEffect, useRef, useState } from 'react';
+import { useDeferredValue, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { MAX_TOPIC_BODY, MAX_TOPIC_TITLE, type Topic } from '@tasuki/topic-core';
 import {
   BODY_HINT,
@@ -18,6 +18,8 @@ import { TopicSheet } from './TopicSheet';
 interface Props {
   readonly current: Topic | null;
   readonly enabled: boolean;
+  /** 打つたびに呼ぶ（送って欄を空にしたときも空で呼ぶ）。読む面の「下書きの見え方」がこれを描く（#316） */
+  onDraftChange?(draft: { title: string; body: string }): void;
   onSubmit(title: string, body: string): void;
 }
 
@@ -33,11 +35,14 @@ interface Props {
  * **プレビューはいまのお題と同じ札（`TopicSheet`）で描く**（#313 正本 D6）。打つたびの Markdown の解析で
  * 入力が止まらないよう、描く値は `useDeferredValue` を通す。打つたびに読み上げないよう `aria-live` にしない。
  *
+ * **64rem 以上では、プレビューは右の読む面（「下書きの見え方」のタブ）が受け持つ**（#316）。ここのプレビューと
+ * 切り替えは CSS で隠し、64rem 未満（読む面が先頭に積まれ、書く欄から遠い幅）のためだけに残す。
+ *
  * **並べるか切り替えるかは CSS が決める**（#313 正本 D7）。「書く」の容器が広ければ説明の欄とプレビューを並べ、
  * 切り替えのボタンを隠す。React の木は幅によらず同じで、ここが持つのは狭いときにどちらを出すか（`mode`）だけ。
  * 切り替えのボタンは要素層のボタン（押している方）と `.secondary`（押していない方）で組み、部品層に置かない（D8）。
  */
-export function TopicEditor({ current, enabled, onSubmit }: Props) {
+export function TopicEditor({ current, enabled, onDraftChange, onSubmit }: Props) {
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [mode, setMode] = useState<'write' | 'preview'>('write');
@@ -51,6 +56,10 @@ export function TopicEditor({ current, enabled, onSubmit }: Props) {
   const previewTitle = useDeferredValue(title);
   const previewBody = useDeferredValue(body);
   const previewBlank = previewTitle.trim() === '' && previewBody.trim() === '';
+
+  useEffect(() => {
+    onDraftChange?.({ title, body });
+  }, [title, body, onDraftChange]);
 
   useLayoutEffect(() => {
     const caret = titleCaret.current;

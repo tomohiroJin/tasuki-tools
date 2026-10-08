@@ -164,12 +164,14 @@ test.describe('お題ツールの文字と書体', () => {
     await openTopicTool(page, 'a11y-topic');
     await setTopic(page, TITLE, BODY);
     await expect(currentTopic(page)).toContainText(BODY);
-    // 測ったことを固定する 2 組: 「いまのお題」の見出し（`--gold` on `--felt-900`）と、
-    //   象牙の札の文字（`--coal` on `--ivory`）を測ったことを固定する（レビュー指摘・修正ラウンド 1）
-    const [gold, felt900, coal, ivory] = await resolveColors(page, ['--gold', '--felt-900', '--coal', '--ivory']);
+    // 測ったことを固定する 2 組: 卓の上の見出し（`--gold` on `--felt-900`）と、
+    //   読む面（グラデーションの札）の上の字（`--coal`）を測ったことを固定する（レビュー指摘・修正ラウンド 1）。
+    //   札の上の見出し（h2「いまのお題」の `--coal-soft`）・タブ・「お題を下ろす」もこの走査に入る（#316）
+    const [gold, felt900, coal, sheen, shade] = await resolveColors(page, ['--gold', '--felt-900', '--coal', '--card-sheen', '--card-shade']);
+    const cardGround = `rgba(0, 0, 0, 0) + linear-gradient(160deg, ${sheen}, ${shade})`;
 
-    // When / Then その1: 文字が読める（象牙の札の上の字も含む）
-    expectReadable(await scanContrast(page, 10), 8, [pairKey(gold!, felt900!), pairKey(coal!, ivory!)]);
+    // When / Then その1: 文字が読める（読む面の上の字も含む）
+    expectReadable(await scanContrast(page, 10), 8, [pairKey(gold!, felt900!), pairKey(coal!, cardGround)]);
 
     // Then その2: 何かは取っていて、拡張の層を引いていない
     expect(fonts.length, `書体を 1 つも取っていない（${fonts.join(', ')}）`).toBeGreaterThan(0);
@@ -326,24 +328,26 @@ test.describe('長いタイトルと広いページ（#313 PR 1）', () => {
 const MD_BODY = ['# Rules', '', '- fizz', '- buzz'].join('\n');
 
 test.describe('説明のプレビュー（#313 PR 2）', () => {
-  test('Given 幅 1280 / When 説明を書く / Then 説明の欄とプレビューが並び、切り替えは出ない', async ({ page, consoleWatcher }) => {
+  test('Given 幅 1280 / When 説明を書く / Then 下書きの見え方が右の読む面に出て、欄の中のプレビューと切り替えは出ない', async ({ page, consoleWatcher }) => {
     // Given
     await page.setViewportSize({ width: 1280, height: 900 });
     await openTopicTool(page, 'side-topic');
-    await page.getByLabel('タイトル', { exact: true }).fill(TITLE);
     const field = page.getByLabel('説明（なくてもよい）');
-    const preview = page.getByRole('region', { name: 'プレビュー' });
-    // When
+    const reader = currentTopic(page);
+    // When: 書き始めると、読む面が下書きの見え方へ切り替わる
+    await page.getByLabel('タイトル', { exact: true }).fill(TITLE);
     await field.fill(MD_BODY);
     // Then その1: 両方が見える
-    await expect(preview.getByRole('heading', { level: 4, name: 'Rules' })).toBeVisible();
+    const draft = reader.getByRole('region', { name: '下書きの見え方' });
+    await expect(reader.getByRole('tab', { name: '下書きの見え方' })).toHaveAttribute('aria-selected', 'true');
+    await expect(draft.getByRole('heading', { level: 4, name: 'Rules' })).toBeVisible();
     await expect(field).toBeVisible();
-    // Then その2: プレビューは説明の欄の右の、同じ行にある
+    // Then その2: 読む面は説明の欄の右にある
     const f = await field.boundingBox();
-    const p = await preview.boundingBox();
-    expect(p!.x, 'プレビューが説明の欄の右に無い').toBeGreaterThanOrEqual(f!.x + f!.width);
-    expect(Math.abs(p!.y - f!.y), 'プレビューが説明の欄と同じ行に無い').toBeLessThan(40);
-    // Then その3: 切り替えは出ない
+    const r = await reader.boundingBox();
+    expect(r!.x, '読む面が説明の欄の右に無い').toBeGreaterThanOrEqual(f!.x + f!.width);
+    // Then その3: 欄の中のプレビューと切り替えは出ない（読む面が受け持つ）
+    await expect(page.getByRole('region', { name: 'プレビュー' })).toBeHidden();
     await expect(page.getByRole('group', { name: '説明の出し方' })).toBeHidden();
     // 画面は例外を出していない
     expect(consoleWatcher.errors).toEqual([]);
@@ -377,16 +381,22 @@ test.describe('説明のプレビュー（#313 PR 2）', () => {
 
   for (const width of [390, 1280]) {
     test(`Given 幅 ${width} でプレビューを出す / When 文字を測る / Then 切り替えと札の字はすべて AA を満たす`, async ({ page, consoleWatcher }) => {
-      // Given
+      // Given: 1280 は右の読む面（下書きの見え方）、390 は欄の中のプレビュー（象牙の札）を測る
       await page.setViewportSize({ width, height: 900 });
       await openTopicTool(page, `preview-a11y-${width}`);
       await page.getByLabel('タイトル', { exact: true }).fill(TITLE);
       await page.getByLabel('説明（なくてもよい）').fill(MD_BODY);
+      const shown =
+        width === 390
+          ? page.getByRole('region', { name: 'プレビュー' })
+          : currentTopic(page).getByRole('region', { name: '下書きの見え方' });
       if (width === 390) await page.getByRole('button', { name: 'プレビュー', exact: true }).click();
-      await expect(page.getByRole('region', { name: 'プレビュー' }).getByRole('heading', { level: 4, name: 'Rules' })).toBeVisible();
-      // When / Then: 札の字（coal on ivory）を測ったことを固定する
-      const [coal, ivory] = await resolveColors(page, ['--coal', '--ivory']);
-      expectReadable(await scanContrast(page, 10), 8, [pairKey(coal!, ivory!)]);
+      await expect(shown.getByRole('heading', { level: 4, name: 'Rules' })).toBeVisible();
+      // When / Then: 札の字を測ったことを固定する（390 は象牙の札と読む面の両方・1280 は読む面）
+      const [coal, ivory, sheen, shade] = await resolveColors(page, ['--coal', '--ivory', '--card-sheen', '--card-shade']);
+      const cardGround = `rgba(0, 0, 0, 0) + linear-gradient(160deg, ${sheen}, ${shade})`;
+      const measured = width === 390 ? [pairKey(coal!, ivory!), pairKey(coal!, cardGround)] : [pairKey(coal!, cardGround)];
+      expectReadable(await scanContrast(page, 10), 8, measured);
       // 画面は例外を出していない
       expect(consoleWatcher.errors).toEqual([]);
     });
@@ -394,9 +404,11 @@ test.describe('説明のプレビュー（#313 PR 2）', () => {
 });
 
 test.describe('作るを横帯に（#313 構成案 1）', () => {
-  test('Given 幅 1280 / When お題ツールを開く / Then 作るは書くの上で行いっぱいに広がり、言語・難易度・ボタンが 1 行に並ぶ', async ({ page, consoleWatcher }) => {
+  test('Given 幅 1920 / When お題ツールを開く / Then 作るは書くの上で行いっぱいに広がり、言語・難易度・ボタンが 1 行に並ぶ', async ({ page, consoleWatcher }) => {
     // Given
-    await page.setViewportSize({ width: 1280, height: 900 });
+    // 読む面を右に置いたので、1280px の主の区画は約 573px で 44rem の境目に届かない（縦に積む）。
+    // 帯になるのは主の区画が 44rem 以上の 1920px から（#316 PR 1。境目は変えない）
+    await page.setViewportSize({ width: 1920, height: 900 });
     // When
     await openTopicTool(page, 'band-topic');
     // Then その1: 作るは書くの上にあり、どちらも中身の幅いっぱい

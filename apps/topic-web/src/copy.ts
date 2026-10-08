@@ -25,6 +25,13 @@ export const INVITE_COPY_FAILED = 'コピーできません（URL を選択し�
 export const CURRENT_HEADING = 'いまのお題';
 export const EMPTY_TEXT = 'お題はまだありません。書くか、作ってください。';
 export const CLEAR_BUTTON = 'お題を下ろす';
+// 読む面（#316）。右の札に 2 つのタブを持つ。書き始めると下書きの見え方へ切り替わる
+export const READER_TABS_LABEL = '読む面の切り替え';
+export const TAB_CURRENT = CURRENT_HEADING;
+export const TAB_DRAFT = '下書きの見え方';
+export const DRAFT_STAMP = '下書き（まだ公開していません）';
+export const READ_MORE = '続きを読む';
+export const CLOSE = '閉じる';
 export const GENERATING_TEXT = '作っています…';
 export const DEGRADED_TEXT = 'AI で作れなかったため、定型のお題にしました。';
 

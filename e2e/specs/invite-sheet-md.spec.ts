@@ -111,10 +111,11 @@ test.describe('招待リンクの表示・象牙の札・Markdown の見た目�
     // Then その1: 招待リンク
     await expectInvite(page, page.getByText(inviteUrl, { exact: true }), 'お題ツール');
     // Then その2: 札と Markdown
-    await expectSheetAndMarkdown(page, currentTopic(page).getByRole('article'), 'お題ツール');
-    // Then その3: 札の上の字（`--coal` on `--ivory`）を測ったことを固定する
-    const [coal, ivory] = await resolveColors(page, ['--coal', '--ivory']);
-    expectReadable(await scanContrast(page, 5), 5, [pairKey(coal!, ivory!)]);
+    await expectSheetAndMarkdown(page, currentTopic(page).getByRole('region', { name: TITLE, exact: true }), 'お題ツール', currentTopic(page));
+    // Then その3: 札の上の字を測ったことを固定する（お題ツールの札も poker と同じ読む面。地はグラデーション・#316）
+    const [coal, sheen, shade] = await resolveColors(page, ['--coal', '--card-sheen', '--card-shade']);
+    const cardGround = `rgba(0, 0, 0, 0) + linear-gradient(160deg, ${sheen}, ${shade})`;
+    expectReadable(await scanContrast(page, 5), 5, [pairKey(coal!, cardGround)]);
   });
 
   test('Given お題を掲げたルーム / When poker の読む面を測る / Then 部品の値で、札の上の字はすべて読める', async ({

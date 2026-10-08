@@ -67,7 +67,8 @@ describe('いまのお題', () => {
     const current = screen.getByRole('region', { name: copy.CURRENT_HEADING });
     // Then
     expect(within(current).getByRole('heading', { name: 'FizzBuzz' })).toBeInTheDocument();
-    expect(within(current).getByText('3 のときは Fizz を出す')).toBeInTheDocument();
+    // 説明は読む面の本文に出る（狭い幅のシートにも同じ全文が入っているので、本文の領域で引く）
+    expect(within(within(current).getByRole('region', { name: 'FizzBuzz' })).getByText('3 のときは Fizz を出す')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: copy.CLEAR_BUTTON }));
     expect(lastSent()).toEqual({ command: 'topic.clear' });
   });
@@ -577,13 +578,15 @@ describe('プレビュー', () => {
     enterWith();
     fireEvent.change(titleField(), { target: { value: 'FizzBuzz' } });
     fireEvent.change(bodyField(), { target: { value: body } });
-    const previewed = within(preview()).getByRole('article').outerHTML;
+    const previewed = within(preview()).getByRole('article').querySelector('.ui-md')?.outerHTML;
     // When
     fireEvent.click(setButton());
     act(() => latestSocket().deliver({ type: 'topic', state: { ...IDLE_STATE, topic: { title: 'FizzBuzz', body, source: 'manual' } } }));
     // Then
     const current = screen.getByRole('region', { name: copy.CURRENT_HEADING });
-    expect(within(current).getByRole('article').outerHTML).toBe(previewed);
+    // 札の枠は読む面に替わったので、説明の描画（共有の Markdown）が同じであることを見る
+    expect(previewed).toBeTruthy();
+    expect(within(current).getByRole('region', { name: 'FizzBuzz' }).querySelector('.ui-md')?.outerHTML).toBe(previewed);
   });
 
   it('Given プレビュー / When 領域を見る / Then 打つたびに読み上げる印を持たない', () => {
@@ -667,5 +670,171 @@ describe('説明の出し方の切り替え', () => {
     fireEvent.click(modeButton(copy.WRITE_MODE_BUTTON));
     // Then
     expect(latestSocket().sentJson()).toHaveLength(before);
+  });
+});
+
+const tab = (name: string) => screen.getByRole('tab', { name });
+const panel = () => screen.getByRole('tabpanel');
+
+/**
+ * 読む面（右）のタブ。書き始めると下書きの見え方へ切り替わり、利用者の選択は毎打鍵で上書きしない（#316）。
+ *
+ * @requirements #316 PR 1（D3''）
+ */
+describe('読む面のタブ', () => {
+  it('Given いまのお題がある / When 画面を開く / Then いまのお題のタブが選ばれ、お題が出る', () => {
+    // Given / When
+    enterWith({ ...IDLE_STATE, topic: FIZZ });
+    // Then
+    expect(screen.getByRole('tablist')).toBeInTheDocument();
+    expect(tab(copy.TAB_CURRENT)).toHaveAttribute('aria-selected', 'true');
+    expect(tab(copy.TAB_DRAFT)).toHaveAttribute('aria-selected', 'false');
+    expect(within(panel()).getByRole('heading', { name: 'FizzBuzz' })).toBeInTheDocument();
+    expect(panel()).toHaveAttribute('aria-labelledby', tab(copy.TAB_CURRENT).id);
+    expect(tab(copy.TAB_CURRENT)).toHaveAttribute('aria-controls', panel().id);
+  });
+
+  it('Given いまのお題のタブ / When タイトルに打つ / Then 下書きの見え方へ切り替わり、印と打った文が出る', () => {
+    // Given
+    enterWith({ ...IDLE_STATE, topic: FIZZ });
+    // When
+    fireEvent.change(titleField(), { target: { value: '書きかけ' } });
+    // Then
+    expect(tab(copy.TAB_DRAFT)).toHaveAttribute('aria-selected', 'true');
+    expect(within(panel()).getByText(copy.DRAFT_STAMP)).toBeInTheDocument();
+    expect(within(panel()).getByRole('heading', { name: '書きかけ' })).toBeInTheDocument();
+    expect(within(panel()).queryByRole('heading', { name: 'FizzBuzz' })).toBeNull();
+  });
+
+  it('Given 下書きを見ている / When 手でいまのお題を選んで続けて打つ / Then いまのお題のまま', () => {
+    // Given
+    enterWith({ ...IDLE_STATE, topic: FIZZ });
+    fireEvent.change(titleField(), { target: { value: '書' } });
+    // When
+    fireEvent.click(tab(copy.TAB_CURRENT));
+    fireEvent.change(titleField(), { target: { value: '書き' } });
+    fireEvent.change(bodyField(), { target: { value: '説明' } });
+    // Then: 毎打鍵で上書きしない
+    expect(tab(copy.TAB_CURRENT)).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('Given 手でいまのお題を選んだ / When 下書きを空にしてまた打ち始める / Then 自動で下書きへ切り替わる', () => {
+    // Given
+    enterWith({ ...IDLE_STATE, topic: FIZZ });
+    fireEvent.change(titleField(), { target: { value: '書' } });
+    fireEvent.click(tab(copy.TAB_CURRENT));
+    // When: 空にする（いまのお題へ戻る）→ 打ち始める
+    fireEvent.change(titleField(), { target: { value: '' } });
+    expect(tab(copy.TAB_CURRENT)).toHaveAttribute('aria-selected', 'true');
+    fireEvent.change(titleField(), { target: { value: '新' } });
+    // Then
+    expect(tab(copy.TAB_DRAFT)).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('Given 下書きを見ている / When このお題にする / Then いまのお題へ戻る', () => {
+    // Given
+    enterWith();
+    fireEvent.change(titleField(), { target: { value: 'FizzBuzz' } });
+    expect(tab(copy.TAB_DRAFT)).toHaveAttribute('aria-selected', 'true');
+    // When
+    fireEvent.click(setButton());
+    // Then
+    expect(tab(copy.TAB_CURRENT)).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('Given 下書きが空 / When 下書きの見え方を選ぶ / Then 書くと見え方が出ると伝える', () => {
+    // Given
+    enterWith();
+    // When
+    fireEvent.click(tab(copy.TAB_DRAFT));
+    // Then
+    expect(within(panel()).getByText(copy.PREVIEW_EMPTY)).toBeInTheDocument();
+  });
+
+  it('Given 下書きが空白だけ / When 画面を見る / Then 切り替えない', () => {
+    // Given / When
+    enterWith({ ...IDLE_STATE, topic: FIZZ });
+    fireEvent.change(titleField(), { target: { value: '   ' } });
+    // Then
+    expect(tab(copy.TAB_CURRENT)).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('Given タブ / When 左右の矢印を押す / Then 隣へ移り、フォーカスも付いてくる。選んだタブだけが tabindex 0', () => {
+    // Given
+    enterWith({ ...IDLE_STATE, topic: FIZZ });
+    expect(tab(copy.TAB_CURRENT)).toHaveAttribute('tabindex', '0');
+    expect(tab(copy.TAB_DRAFT)).toHaveAttribute('tabindex', '-1');
+    // When
+    tab(copy.TAB_CURRENT).focus();
+    fireEvent.keyDown(tab(copy.TAB_CURRENT), { key: 'ArrowRight' });
+    // Then
+    expect(tab(copy.TAB_DRAFT)).toHaveAttribute('aria-selected', 'true');
+    expect(tab(copy.TAB_DRAFT)).toHaveAttribute('tabindex', '0');
+    expect(document.activeElement).toBe(tab(copy.TAB_DRAFT));
+    // When: 端からの左右は反対側へ回る
+    fireEvent.keyDown(tab(copy.TAB_DRAFT), { key: 'ArrowRight' });
+    expect(tab(copy.TAB_CURRENT)).toHaveAttribute('aria-selected', 'true');
+    fireEvent.keyDown(tab(copy.TAB_CURRENT), { key: 'ArrowLeft' });
+    expect(tab(copy.TAB_DRAFT)).toHaveAttribute('aria-selected', 'true');
+  });
+});
+
+const proto = HTMLDialogElement.prototype;
+const original = { showModal: proto.showModal, close: proto.close };
+
+/**
+ * 狭い幅では説明を 3 行で切り、「続きを読む」から下からのシートに全文を出す（poker と同じ作り）。
+ * jsdom は `showModal` / `close` を持たないので差し替える。
+ *
+ * @requirements #316 PR 1（D3''）
+ */
+describe('続きを読む（シート）', () => {
+  beforeEach(() => {
+    proto.showModal = function (this: HTMLDialogElement) {
+      this.setAttribute('open', '');
+    };
+    proto.close = function (this: HTMLDialogElement) {
+      this.removeAttribute('open');
+      this.dispatchEvent(new Event('close'));
+    };
+  });
+  afterEach(() => {
+    proto.showModal = original.showModal;
+    proto.close = original.close;
+  });
+
+  it('Given 説明のあるお題 / When 続きを読む / Then シートが開いて全文が出る。閉じるとフォーカスが戻る', () => {
+    // Given
+    enterWith({ ...IDLE_STATE, topic: FIZZ });
+    const more = screen.getByRole('button', { name: copy.READ_MORE });
+    const dialog = document.querySelector('dialog.ui-drawer') as HTMLDialogElement;
+    expect(dialog.hasAttribute('open')).toBe(false);
+    // When
+    fireEvent.click(more);
+    // Then
+    expect(dialog.hasAttribute('open')).toBe(true);
+    expect(dialog.querySelector('.ui-drawer-body')?.textContent).toContain('3 のときは Fizz を出す');
+    // When: Esc は close イベントだけが届く
+    document.body.focus();
+    dialog.dispatchEvent(new Event('close'));
+    // Then
+    expect(document.activeElement).toBe(more);
+  });
+
+  it('Given 説明が空のお題 / When 画面を見る / Then 続きを読むもシートも出ない', () => {
+    // Given / When
+    enterWith({ ...IDLE_STATE, topic: { ...FIZZ, body: '' } });
+    // Then
+    expect(screen.queryByRole('button', { name: copy.READ_MORE })).toBeNull();
+    expect(document.querySelector('dialog')).toBeNull();
+  });
+
+  it('Given 画面 / When 並びを見る / Then いまのお題は作る・書くより先にある（狭い幅の順）', () => {
+    // Given / When
+    enterWith({ ...IDLE_STATE, topic: FIZZ });
+    // Then
+    const current = screen.getByRole('region', { name: copy.CURRENT_HEADING });
+    const make = screen.getByRole('region', { name: copy.MAKE_HEADING });
+    expect(current.compareDocumentPosition(make) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });

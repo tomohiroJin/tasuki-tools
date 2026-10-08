@@ -16,12 +16,99 @@
 
 /* ---------- 見出しと戻る導線は部品層（`.ui-page-header`・ADR 0022）が持つ ---------- */
 
-/* ---------- いまのお題（札の見た目は部品層の `.ui-sheet` が持つ） ---------- */
+/* ---------- いまのお題（#316。読む面は部品層の `.ui-reader` が持つ） ----------
+   札の地・枠・影・字の色（`--coal`）・本文のスクロール・狭い幅の 3 行切りは部品（`.ui-reader`）が持つ。
+   ここには、タブと札の上の見出し・ボタンの色、パネルの並びだけを置く。 */
 
-/* 面（不透明な地・枠・角丸・内側の余白）は部品（`.ui-panel`）が持つ。ここには並びだけを置く。 */
-.topic-current {
-  display: grid;
-  gap: var(--space-3);
+/* 札は象牙なので、要素層の金（`--gold`）の h2 は読めない。poker の `.topic h2` と同じく `--coal-soft` にする
+   （`e2e/specs/topic.spec.ts` の走査で確かめる）。要素層の h2 の上下の余白は読む面の頭には要らない。 */
+.topic-current h2 {
+  margin: 0;
+  color: var(--coal-soft);
+}
+
+/* **PR 2 で `.ui-button` の役割に置き換えて消す一時的な規則**（poker の `.topic .secondary` と同じ）。
+   札の上の副ボタン（お題を下ろす・続きを読む・閉じる）。既定の金の字は象牙の上で読めないので札の字の色にし、
+   シートの狭い頭で縦に割れないよう折り返さない。 */
+.topic-current .secondary,
+.ui-drawer .secondary {
+  color: var(--coal);
+  border-color: var(--coal-soft);
+  white-space: nowrap;
+}
+
+/* タブ。要素層のボタン（金の丸薬）を、札の上の下線のタブに打ち消す。
+   **PR 2 で `.ui-button` / タブの部品に寄せる。** 選んだタブは太い下線で示す（色だけに頼らない）。 */
+.topic-tab {
+  padding: var(--space-3) var(--space-3);
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--coal);
+  letter-spacing: normal;
+  white-space: nowrap;
+}
+
+.topic-tab[aria-selected='true'] {
+  border-bottom-color: var(--coal);
+}
+
+.topic-tab:hover:not(:disabled) {
+  filter: none;
+  background: var(--card-inline);
+}
+
+.topic-tab:active:not(:disabled) {
+  transform: none;
+  box-shadow: none;
+}
+
+/* パネルは札の残りの高さを取り、本文だけが札の中でスクロールする（`hidden` は display に負けるので明示する）。 */
+.topic-reader-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.topic-reader-panel[hidden] {
+  display: none;
+}
+
+.topic-reader-pad {
+  margin: 0;
+  padding: var(--space-4) var(--space-5) 0;
+}
+
+/* 札の上の一言は暗い地用の `.ui-note` の色では読めない。札の字の色に揃える。 */
+.topic-reader-panel .ui-note {
+  color: var(--coal-soft);
+}
+
+.topic-draft-stamp {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--coal-soft);
+}
+
+/* タイトルの下の説明は札の余白で置く（`.topic-body` の上の余白は札の外のためのもの） */
+.topic-current .topic-body,
+.ui-drawer .topic-body {
+  margin: 0;
+}
+
+@media (width < 64rem) {
+  .topic-reader-panel > .ui-reader-body {
+    margin-top: var(--space-2);
+  }
+}
+
+/* 「お題を下ろす」は危険の操作。PR 2 で `.ui-button--danger` になる。いまは読む面の下端に置く。 */
+.topic-reader-foot {
+  padding: var(--space-3) var(--space-5) var(--space-4);
+  border-top: 1px solid var(--card-inline);
 }
 
 .topic-title {
@@ -216,4 +303,22 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
+}
+
+/* 64rem 以上では、説明のプレビューは右の読む面（「下書きの見え方」のタブ）が受け持つ（#316）。
+   欄の中のプレビューと切り替えは、読む面が書く欄から遠い 64rem 未満のためにだけ残す。
+   **容器クエリの規則（上）と同じ詳細度で、後に書いてあるので勝つ。順序を入れ替えないこと。** */
+@media (width >= 64rem) {
+  .topic-compose .topic-compose-toggle,
+  .topic-compose[data-mode] .topic-compose-preview {
+    display: none;
+  }
+
+  .topic-compose .topic-compose-panes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .topic-compose[data-mode] .topic-compose-write {
+    display: grid;
+  }
 }

@@ -264,7 +264,8 @@
 /* 札の地・枠・影・字の色（`--coal`）と本文のスクロールは部品（`.ui-reader`・#316）が持つ。
  * 札は象牙なので、要素層の金（`--gold`）の h2 は読めない。深い金（`--gold-deep`）も 3.30:1 で割れたので `--coal-soft` にする（`poker-a11y.spec.ts` の走査で確かめる）。 */
 .topic h2 {
-  margin-top: 0;
+  /* 読む面の頭（`.ui-reader-head`）が余白を持つので、要素層の h2 の上下の余白は受けない */
+  margin: 0;
   color: var(--coal-soft);
 }
 

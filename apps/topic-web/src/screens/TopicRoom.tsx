@@ -4,8 +4,8 @@
  * **ここで名前は聞かない**（名乗りは玄関に 1 つだけ・`docs/adr/0018`）。端末に同一性が無い・
  * 合言葉を求められたら、玄関のそのルームへ送り返す（コードは落とさない）。
  */
-import { useEffect } from 'react';
-import { CurrentTopic } from '../components/CurrentTopic';
+import { useCallback, useEffect, useState } from 'react';
+import { CurrentTopic, type Draft } from '../components/CurrentTopic';
 import { InviteLink } from '../components/InviteLink';
 import { LoadingView } from '../components/LoadingView';
 import { TopicEditor } from '../components/TopicEditor';
@@ -17,6 +17,12 @@ import { canOperate, connectionNotice, generationNotice } from '../topic-view';
 
 export function TopicRoom({ roomCode }: { roomCode: string }) {
   const sync = useTopicSync(roomCode);
+  // 書きかけは編集欄が持つが、右の読む面（「下書きの見え方」）が描くので、ここへ持ち上げる（#316）。
+  // 同じ中身なら同じ参照を返す（編集欄の effect が初回に空で呼んでも描き直さない）
+  const [draft, setDraft] = useState<Draft>({ title: '', body: '' });
+  const onDraftChange = useCallback((next: Draft) => {
+    setDraft((prev) => (prev.title === next.title && prev.body === next.body ? prev : next));
+  }, []);
 
   // 玄関へ戻す。抜けた・外されたときは理由を運ぶ（玄関が告知を出す・#290）。
   useEffect(() => {
@@ -77,15 +83,16 @@ export function TopicRoom({ roomCode }: { roomCode: string }) {
         {/* 入り直しの途中の混雑も、この画面で伝える（伝えないと、ボタンが黙って押せなくなる） */}
         {sync.retryNotice && <p className="topic-notice ui-note" role="status">{sync.retryNotice}</p>}
         {sync.error && <p className="ui-note ui-note--error" role="alert">{sync.error}</p>}
-        {/* 段組み（#316・ADR 0025）。いまのお題を左脇に置く（狭い幅では先頭・広い幅では右の列の上・最も広い幅では左）。 */}
-        <div className="ui-workspace">
-          <div className="ui-workspace-rail">
-            <CurrentTopic state={sync.topicState} notice={generationNotice(sync.topicState)} enabled={enabled} onClear={sync.clearTopic} />
+        {/* 段組み（#316・ADR 0025）。いまのお題は右の読む面（広い幅）。DOM は狭い幅で見せたい順に書く:
+            いまのお題 → 作る・書く。64rem 以上では -side-end で右の列へ、画面に留まる。 */}
+        <div className="ui-workspace ui-workspace--reader ui-workspace--side-end">
+          <div className="ui-workspace-side">
+            <CurrentTopic state={sync.topicState} notice={generationNotice(sync.topicState)} enabled={enabled} draft={draft} onClear={sync.clearTopic} />
           </div>
           <div className="ui-workspace-main topic-tools">
             {/* 作るはボタン 1 つで済む操作なので、長く書く「書く」より先に置く（#313 構成案 1） */}
             <TopicMaker aiUnlocked={sync.topicState?.aiUnlocked ?? false} enabled={enabled} onGenerate={sync.generate} onUnlock={sync.unlock} />
-            <TopicEditor current={sync.topicState?.topic ?? null} enabled={enabled} onSubmit={sync.setTopic} />
+            <TopicEditor current={sync.topicState?.topic ?? null} enabled={enabled} onDraftChange={onDraftChange} onSubmit={sync.setTopic} />
           </div>
         </div>
       </main>
