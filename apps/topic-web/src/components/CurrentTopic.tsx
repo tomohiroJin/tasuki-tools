@@ -106,7 +106,7 @@ export function CurrentTopic({ state, notice, enabled, draft, onClear }: Props) 
         <div className="ui-reader-head">
           <h2 id={`${baseId}-heading`}>{CURRENT_HEADING}</h2>
         </div>
-        <div className="ui-reader-tabs" role="tablist" aria-label={READER_TABS_LABEL}>
+        <div className="topic-reader-tabs" role="tablist" aria-label={READER_TABS_LABEL}>
           {TABS.map((t, i) => {
             const selected = t.id === active;
             return (

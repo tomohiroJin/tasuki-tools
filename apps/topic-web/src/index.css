@@ -65,6 +65,27 @@
   box-shadow: none;
 }
 
+/* 読む面のタブの並び（かつて部品層の `.ui-reader-tabs`。使うのがお題ツールだけになったのでここへ移した・#316） */
+.topic-reader-tabs {
+  display: flex;
+  gap: var(--space-1);
+  padding: 0 var(--space-3);
+  border-bottom: 1px solid var(--card-inline);
+}
+
+/* 象牙の札（かつて部品層の `.ui-sheet`。使うのがお題ツール（書くのプレビュー）だけになったのでここへ移した・#316）。
+   **札の上の字の色は札が決める。** Markdown のリンクは札の字の色を継ぐ。札が要るのは、Markdown のコード・引用の枠の色
+   （`--coal-soft`）が象牙の上でしか読めないため（暗いパネルの上では約 2.07:1。#91 PR 3 のレビュー指摘）。 */
+.topic-sheet {
+  box-sizing: border-box;
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--ivory);
+  color: var(--coal);
+  /* グリッドの子は既定で中身の最小幅まで伸びる。区切りの無い長いタイトルや URL で、札を包むグリッドごと横にはみ出す */
+  min-width: 0;
+}
+
 /* パネルは札の残りの高さを取り、本文だけが札の中でスクロールする（`hidden` は display に負けるので明示する）。 */
 .topic-reader-panel {
   display: flex;

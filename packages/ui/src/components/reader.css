@@ -1,7 +1,7 @@
 /* 読む面（#316 §9・D3''）。象牙の札に見出し（固定）と本文（札の中でスクロール）を載せる。
    64rem 以上では画面の高さに収め、説明が長くてもページ全体を伸ばさない（画面に留めるのは区画の側。layout.css）。
    64rem 未満では本文を 3 行で切り、.ui-reader-more（続きを読む）で .ui-drawer に全文を出す。
-   札の地と字は .ui-drawer と共有する。.ui-sheet の単色の地とは別の、グラデーションの札。 */
+   札の地と字は .ui-drawer と共有する。 */
 .ui-reader,
 .ui-drawer {
   border: 1px solid var(--card-edge);
@@ -20,13 +20,6 @@
 .ui-reader-head {
   box-sizing: border-box;
   padding: var(--space-5) var(--space-5) var(--space-3);
-  border-bottom: 1px solid var(--card-inline);
-}
-
-.ui-reader-tabs {
-  display: flex;
-  gap: var(--space-1);
-  padding: 0 var(--space-3);
   border-bottom: 1px solid var(--card-inline);
 }
 

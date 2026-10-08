@@ -12,7 +12,7 @@ interface Props {
  */
 export function TopicSheet({ title, body }: Props) {
   return (
-    <article className="ui-sheet">
+    <article className="topic-sheet">
       {title.trim() !== '' && <h3 className="topic-title">{title}</h3>}
       {body !== '' && <Markdown source={body} className="topic-body" />}
     </article>
