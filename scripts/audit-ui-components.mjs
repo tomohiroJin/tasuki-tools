@@ -38,7 +38,14 @@
  * - 旧来のシステムの色（`ActiveBorder` 等）は {@link findRawColors} の辞書（{@link NAMED_COLORS}）に無い
  * - 規則の外にある宣言（`@font-face` / `@page` の記述子）の生の色は見ない（画面の CSS にはいま無い）
  * - `@property` の記述子（`syntax` の `<color>` など）・`@import … layer(…)` は見ていない
- * - `clsx("page")` のような関数の引数に書いた `page`
+ * - `clsx("page")` のような関数の引数に書いた `page`。{@link legacyPageClassUses} は三項演算子
+ *   （`className={a ? "page" : "x"}`）と入れ子のテンプレート文字列（`` {`${`page`}`} ``）も見ない
+ * - 属性セレクタで書いた `.page`（`[class~=page]`）。逆に疑似クラスの引数の `.page`（`.a:not(.page)`）は
+ *   当てる要素が `.page` でなくても落とす（安全側 —— 見逃すより過検出を選ぶ）
+ * - **JS の幅判定**（TSX の `matchMedia(…)`・`innerWidth >= N` など）。README は同じ境目（40rem / 64rem / 90rem）を
+ *   求めているが、機械では見ない。レビューが担う
+ * - CSS の規則の外のメディアクエリ（`index.html` の `<link media="…">`・`@import "x.css" (max-width: …)`）。
+ *   見るのは `@media` の at 規則だけ
  * - `@container` の境目（部品の内側の並び替えは器の幅で決まるので、段の約束の外）
  * - {@link uiTokensIn} は TSX のコメントやテンプレート文字列の前半に書いた `ui-` も使用として数える（字面だけを見る）
  * - {@link findDeadParts} は `.ts`（`.tsx` ではない）の定数に書いた部品名を使用として数えない。
