@@ -4,8 +4,8 @@
    幅の段の境目は 40rem / 64rem / 90rem の 3 つだけ（`scripts/audit-ui-components.mjs` が守る）。
      compact < 40rem ≤ medium < 64rem ≤ wide < 90rem ≤ ultra
 
-   器（.ui-page）は画面の用途で 3 段から選ぶ。段組み（.ui-workspace）は --wide の器の中で使う
-   （主の 32rem は --wide の器と段の境目の計算で保たれる。72rem の器の中で ultra の 3 列にすると溢れる）。
+   器（.ui-page）は画面の用途で 3 段から選ぶ。左脇を置く段組み（.ui-workspace）は --wide の器の中で使う
+   （主の 32rem は --wide の器と段の境目の計算で保たれる。72rem の器で最も広い段の 3 列になると、主が 32rem を割る）。
    区画に何を置くかは画面が決める。部品が持つのは区画の幅と並び替えだけ。
    ============================================================ */
 
@@ -48,7 +48,7 @@
 
 /* wide: 主の右に 1 本の列を立て、左脇を上・右脇を下に積む。
    右の列の 2 行目を 1fr にして、主の背が高いときの余りを右脇の行へ寄せる（左脇と右脇の間を開けない）。
-   左脇か右脇の少なくとも 1 つを置く前提（両方が無いと右の列が空のまま残る）。 */
+   左脇も右脇も無ければ主だけの 1 列になる（下の規則）。 */
 @media (width >= 64rem) {
   .ui-workspace {
     grid-template-columns: minmax(0, 1fr) 22rem;
@@ -68,6 +68,11 @@
   .ui-workspace-aside {
     grid-column: 2;
     grid-row: 2;
+  }
+
+  /* 左脇も右脇も無ければ、主だけの 1 列にする（空の 22rem の列を右に残さない）。 */
+  .ui-workspace:where(:not(:has(> .ui-workspace-rail, > .ui-workspace-aside))) {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   /* 左脇が無ければ行を 1 本にし、右脇を 1 行目へ上げる（上にも下にも gap だけの空き行を作らない。
