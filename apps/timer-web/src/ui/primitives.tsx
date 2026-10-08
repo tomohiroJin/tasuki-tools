@@ -15,7 +15,9 @@ import type { LucideIcon } from "lucide-react";
 export function Stage({ children }: { children: React.ReactNode }) {
   return (
     <div className="instrument-stage stage">
-      {/* 器は部品層の `.ui-page`（72rem・#316）。`stage-inner` は timer の計器の縦の余白と重なりの基準だけを持つ。 */}
+      {/* 器は部品層の `.ui-page`（72rem・#316）。`stage-inner` は timer の計器の縦の余白と重なりの基準だけを持つ。
+          timer は `<main>` ではなくこの `<div>` に器を当てる（`<main>` は各画面が持つ）。縦の余白は計器の都合で
+          `.stage-inner` が器の `padding-block` を上書きする。#316 PR 3 で `--wide` へ寄せるときに見直す。 */}
       <div className="ui-page stage-inner">{children}</div>
     </div>
   );
