@@ -71,6 +71,9 @@ test.describe('poker のルームは広い画面で 3 つの区画を並べる',
     expect(rail.x + rail.width).toBeLessThanOrEqual(main.x);
     expect(main.x + main.width).toBeLessThanOrEqual(aside.x);
     expect(main.width).toBeGreaterThanOrEqual(MAIN_MIN);
+    // ultra は 1 行に並ぶ（縦位置が揃う）
+    expect(rail.y).toBeCloseTo(main.y, 0);
+    expect(aside.y).toBeCloseTo(main.y, 0);
     await noteSmallTargets(page, testInfo, 'poker 1920');
   });
 
@@ -87,7 +90,7 @@ test.describe('poker のルームは広い画面で 3 つの区画を並べる',
     expect(main.width).toBeGreaterThanOrEqual(MAIN_MIN);
   });
 
-  test('Given 幅 320 / When ルームを開く / Then 横に溢れず、左脇・主・右脇の順に縦へ積む', async ({ page, openPeer }) => {
+  test('Given 幅 320 / When ルームを開く / Then 横に溢れず、左脇・主・右脇の順に縦へ積む', async ({ page, openPeer }, testInfo) => {
     await page.setViewportSize({ width: 320, height: 900 });
     await openPokerWithTopic(page, openPeer);
     await expectNoHorizontalOverflow(page);
@@ -98,6 +101,7 @@ test.describe('poker のルームは広い画面で 3 つの区画を並べる',
     expect(main.y + main.height).toBeLessThanOrEqual(aside.y);
     expect(main.x).toBeCloseTo(rail.x, 0);
     expect(aside.x).toBeCloseTo(rail.x, 0);
+    await noteSmallTargets(page, testInfo, 'poker 320');
   });
 });
 
@@ -123,10 +127,18 @@ test.describe('お題ツールの部屋は右脇を持たない', () => {
     expect(main.width).toBeGreaterThanOrEqual(MAIN_MIN);
   });
 
-  test('Given 幅 320 / When 部屋を開く / Then 横に溢れない', async ({ page }) => {
+  test('Given 幅 320 / When 部屋を開く / Then 横に溢れず、いまのお題 → 主の順に積み、下に空きを残さない', async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 320, height: 900 });
     await openTopicTool(page, 'layout-topic-narrow');
     await expectNoHorizontalOverflow(page);
+    const rail = await boxOf(page, '.ui-workspace-rail');
+    const main = await boxOf(page, '.ui-workspace-main');
+    const workspace = await boxOf(page, '.ui-workspace');
+    expect(rail.y + rail.height).toBeLessThanOrEqual(main.y);
+    expect(main.x).toBeCloseTo(rail.x, 0);
+    // 右脇が無いので、無い区画の行と gap が下に空きを作っていない
+    expect(workspace.y + workspace.height).toBeCloseTo(main.y + main.height, 0);
+    await noteSmallTargets(page, testInfo, 'お題ツール 320');
   });
 });
 
