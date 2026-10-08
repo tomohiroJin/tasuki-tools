@@ -146,9 +146,10 @@ test.describe('お題ツールの部屋は右脇を持たない', () => {
     await noteSmallTargets(page, testInfo, 'お題ツール 1920');
   });
 
-  test('Given 幅 1280 / When 部屋を開く / Then 主の右に左脇（いまのお題）が並ぶ', async ({ page }) => {
+  test('Given 幅 1280 / When 部屋を開く / Then 器の内側は 1152px 以上で、主の右に左脇（いまのお題）が並ぶ', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await openTopicTool(page, 'layout-topic-mid');
+    expect((await pageBox(page)).inner).toBeGreaterThanOrEqual(72 * REM);
     const rail = await boxOf(page, '.ui-workspace-rail');
     const main = await boxOf(page, '.ui-workspace-main');
     expect(main.x + main.width).toBeLessThanOrEqual(rail.x);
