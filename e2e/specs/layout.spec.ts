@@ -98,7 +98,8 @@ async function expectBodyScrolls(page: Page): Promise<void> {
 }
 
 /**
- * 長い説明でページを伸ばさない。読む面は画面の高さ（-2rem）に収まり、ページ全体は読む面の下端 + 器の下の余白（4rem）まで。
+ * 長い説明でページを伸ばさない。読む面の高さは 100dvh - 6rem（上の 1rem + 下の 1rem + 器の下の余白 4rem）に収まり、
+ * ページ全体は読む面の下端 + 器の下の余白（4rem）まで。
  * （ページ全体を `innerHeight + 2rem` で測ると、読む面の上にある見出し・招待リンクの背丈だけで超える。読む面の高さで測る。）
  */
 async function expectPageFitsScreen(page: Page): Promise<void> {
@@ -107,16 +108,16 @@ async function expectPageFitsScreen(page: Page): Promise<void> {
     return { reader: r.height, pageHeight: document.documentElement.scrollHeight, readerBottom: r.bottom + scrollY };
   });
   const viewportHeight = page.viewportSize()?.height ?? 0;
-  expect(reader).toBeLessThanOrEqual(viewportHeight - 2 * REM + 0.5);
+  expect(reader).toBeLessThanOrEqual(viewportHeight - 6 * REM + 0.5);
   expect(pageHeight).toBeLessThanOrEqual(readerBottom + 4 * REM + 0.5);
 }
 
 /**
- * ページを下近くまでスクロールしても、読む面は画面の中に留まる（脇が sticky）。
- * 最下端までは行かない: 器の下の余白（4rem）のぶん段組みの下端が画面の下端より上に来て、読む面が押し上げられる。
+ * ページを本当の最下端までスクロールしても、読む面は画面の中に留まる（脇が sticky）。
+ * 読む面の高さが器の下の余白（4rem）を引いていないと、最下端で段組みの下端が持ち上がり、上端が画面の外へ押し出される。
  */
 async function expectReaderStaysOnScreen(page: Page): Promise<void> {
-  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight - innerHeight - 8 * 16));
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
   const box = await boxOf(page, '.ui-reader');
   const viewportHeight = page.viewportSize()?.height ?? 0;
   expect(box.y).toBeGreaterThanOrEqual(0);
