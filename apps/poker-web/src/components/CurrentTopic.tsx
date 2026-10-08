@@ -31,7 +31,7 @@ export function CurrentTopic({ topic }: { topic: Topic }) {
   const close = () => dialogRef.current?.close();
   return (
     <section className="topic ui-reader" aria-labelledby="poker-topic-heading">
-      <div className="ui-reader-head">
+      <div className="topic-head">
         <h2 id="poker-topic-heading">{TOPIC_HEADING}</h2>
         <h3 id="poker-topic-title" className="topic-title">{topic.title}</h3>
       </div>

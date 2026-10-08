@@ -17,12 +17,6 @@
   box-shadow: var(--shadow-card);
 }
 
-.ui-reader-head {
-  box-sizing: border-box;
-  padding: var(--space-5) var(--space-5) var(--space-3);
-  border-bottom: 1px solid var(--card-inline);
-}
-
 /* 縦の余白は padding でなく margin で取る（padding の帯に 4 行目の上端が覗くため） */
 .ui-reader-body {
   box-sizing: border-box;

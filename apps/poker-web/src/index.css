@@ -261,10 +261,17 @@
 
 /* ---------- いまのお題（#91 PR 3・spec §5.5。poker は読むだけ） ---------- */
 
-/* 札の地・枠・影・字の色（`--coal`）と本文のスクロールは部品（`.ui-reader`・#316）が持つ。
+/* 読む面の頭は poker だけが使うのでここに置く（かつて部品層の `.ui-reader-head`。お題ツールは見出しを隠してタブを頭にした・#316）。
+ * 札の地・枠・影・字の色（`--coal`）と本文のスクロールは部品（`.ui-reader`・#316）が持つ。
  * 札は象牙なので、要素層の金（`--gold`）の h2 は読めない。深い金（`--gold-deep`）も 3.30:1 で割れたので `--coal-soft` にする（`poker-a11y.spec.ts` の走査で確かめる）。 */
+.topic-head {
+  box-sizing: border-box;
+  padding: var(--space-5) var(--space-5) var(--space-3);
+  border-bottom: 1px solid var(--card-inline);
+}
+
 .topic h2 {
-  /* 読む面の頭（`.ui-reader-head`）が余白を持つので、要素層の h2 の上下の余白は受けない */
+  /* 読む面の頭（`.topic-head`）が余白を持つので、要素層の h2 の上下の余白は受けない */
   margin: 0;
   color: var(--coal-soft);
 }
