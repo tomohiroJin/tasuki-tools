@@ -26,6 +26,8 @@ interface Props {
  * 未解錠なら合言葉の欄を出し、「AI で作る」は出さない。合言葉は送ったら欄から消す
  * （平文を画面の状態に残さない）。
  *
+ * **最初はたたんでおく**（`<details>`・#316 PR 1 の手直し。書くが主役）。
+ *
  * **広いときは 1 行の帯に並べる**（#313 構成案 1）。ボタン 1 つで済む操作に、書くと同じ高さの面は要らない。
  * 並べるかどうかは CSS が面の幅で決める（`.topic-make` の容器クエリ）。
  */
@@ -37,7 +39,12 @@ export function TopicMaker({ aiUnlocked, enabled, onGenerate, onUnlock }: Props)
 
   return (
     <section className="topic-panel topic-make ui-panel" aria-labelledby={`${id}-heading`}>
-      <h2 id={`${id}-heading`}>{MAKE_HEADING}</h2>
+      {/* 書くが主役なので、作るは最初たたむ（`<details>`）。見出しは summary の中に置き、region の名前を保つ。
+          生成中・定型に切り替えた知らせは `TopicRoom` が操作の面の先頭に置くので、たたんだままでも見える。 */}
+      <details className="topic-make-fold">
+        <summary>
+          <h2 id={`${id}-heading`}>{MAKE_HEADING}</h2>
+        </summary>
       <div className="topic-make-row">
         <div className="topic-make-field topic-make-language">
           <label htmlFor={`${id}-language`}>{LANGUAGE_LABEL}</label>
@@ -113,6 +120,7 @@ export function TopicMaker({ aiUnlocked, enabled, onGenerate, onUnlock }: Props)
           </form>
         )}
       </div>
+      </details>
     </section>
   );
 }

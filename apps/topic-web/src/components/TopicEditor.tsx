@@ -1,12 +1,11 @@
 import { useDeferredValue, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
-import { MAX_TOPIC_BODY, MAX_TOPIC_TITLE, type Topic } from '@tasuki/topic-core';
+import { MAX_TOPIC_BODY, MAX_TOPIC_TITLE } from '@tasuki/topic-core';
 import {
   BODY_HINT,
   BODY_LABEL,
   COMPOSE_MODE_LABEL,
   PREVIEW_BUTTON,
   PREVIEW_EMPTY,
-  REWRITE_BUTTON,
   SET_BUTTON,
   TITLE_LABEL,
   WRITE_HEADING,
@@ -15,8 +14,18 @@ import {
 import { canSubmitTopic, toSingleLine } from '../topic-view';
 import { TopicSheet } from './TopicSheet';
 
+/**
+ * 「下書きに写す」の要求（札の側のボタンが `TopicRoom` を通して出す）。**押すたびに新しい object を作る**
+ * （同じ中身でも、2 度目の要求を別物として受け取るため。比べるのは中身でなく同一性）。
+ */
+export interface FillRequest {
+  readonly title: string;
+  readonly body: string;
+}
+
 interface Props {
-  readonly current: Topic | null;
+  /** 欄へ写す要求。null か、前と同じ object のあいだは何もしない */
+  readonly fillRequest?: FillRequest | null;
   readonly enabled: boolean;
   /** 打つたびに呼ぶ（送って欄を空にしたときも空で呼ぶ）。読む面の「下書きの見え方」がこれを描く（#316） */
   onDraftChange?(draft: { title: string; body: string }): void;
@@ -27,7 +36,9 @@ interface Props {
  * 手で書いてお題にする（spec §5.4 の「書く」）。
  *
  * **下書きはこの部品だけが持ち、届いたお題で上書きしない。** 書いている途中に別の人がお題を
- * 変えても、入力は消さない。いまのお題を下書きへ写すのは「書き直す」を押したときだけ。
+ * 変えても、入力は消さない。いまのお題を下書きへ写すのは、札の側の「下書きに写す」を押したとき（`fillRequest`）だけ。
+ * **届いたお題そのものはこの部品に渡さない**（`current` の prop は持たない）。写す中身は押した瞬間に札の側が要求へ詰めるので、届いたお題が変わっても欄は動かない。
+ * 写したら、書くのタイトルの欄へフォーカスを移す（写したのに入力位置が分からない、を防ぐ）。
  *
  * **タイトルは複数行の欄だが、改行は持たせない**（#313 正本 D3）。長い文を折り返して全体を見せるための
  * 欄で、タイトル自体は各画面で見出しの素の文字として出る。Enter は 1 行の欄のときと同じく送信にする。
@@ -42,7 +53,7 @@ interface Props {
  * 切り替えのボタンを隠す。React の木は幅によらず同じで、ここが持つのは狭いときにどちらを出すか（`mode`）だけ。
  * 切り替えのボタンは要素層のボタン（押している方）と `.secondary`（押していない方）で組み、部品層に置かない（D8）。
  */
-export function TopicEditor({ current, enabled, onDraftChange, onSubmit }: Props) {
+export function TopicEditor({ fillRequest = null, enabled, onDraftChange, onSubmit }: Props) {
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [mode, setMode] = useState<'write' | 'preview'>('write');
@@ -60,6 +71,15 @@ export function TopicEditor({ current, enabled, onDraftChange, onSubmit }: Props
   useEffect(() => {
     onDraftChange?.({ title, body });
   }, [title, body, onDraftChange]);
+
+  // 写す要求が届いたとき（要求の同一性が変わったときだけ）。境界スキーマは改行を拒まないので、
+  // AI や別の接続から届いたタイトルも 1 行にして写す（正本 D3）
+  useEffect(() => {
+    if (fillRequest === null) return;
+    setTitle(toSingleLine(fillRequest.title));
+    setBody(fillRequest.body);
+    titleRef.current?.focus();
+  }, [fillRequest]);
 
   useLayoutEffect(() => {
     const caret = titleCaret.current;
@@ -159,19 +179,6 @@ export function TopicEditor({ current, enabled, onDraftChange, onSubmit }: Props
           <button type="submit" disabled={!canSubmit}>
             {SET_BUTTON}
           </button>
-          {current !== null && (
-            <button
-              type="button"
-              className="secondary"
-              onClick={() => {
-                // 境界スキーマは改行を拒まないので、AI や別の接続から届いたタイトルも 1 行にして写す（正本 D3）
-                setTitle(toSingleLine(current.title));
-                setBody(current.body);
-              }}
-            >
-              {REWRITE_BUTTON}
-            </button>
-          )}
         </div>
       </form>
     </section>

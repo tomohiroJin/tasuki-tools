@@ -3,10 +3,12 @@ import type { TopicState } from '@tasuki/topic-core';
 import {
   CLEAR_BUTTON,
   CLOSE,
+  DRAFT_FOOT_NOTE,
   DRAFT_STAMP,
   EMPTY_TEXT,
   PREVIEW_EMPTY,
   READER_TABS_LABEL,
+  REWRITE_BUTTON,
   READER_HEADING,
   READ_MORE,
   TAB_CURRENT,
@@ -23,6 +25,8 @@ interface Props {
   readonly state: TopicState | null;
   readonly enabled: boolean;
   readonly draft: Draft;
+  /** 場のお題を書く欄へ写す。押した時点のお題を渡す（書く欄は届いたお題では動かない） */
+  onCopyToDraft(topic: { title: string; body: string }): void;
   onClear(): void;
 }
 
@@ -34,7 +38,7 @@ const TABS: readonly { readonly id: TabId; readonly label: string }[] = [
 
 /**
  * いまのお題。**読む面（部品 `.ui-reader`・#316）にする。** 象牙の札に見出し（h2）とタブを固定し、
- * 本文は札の中でスクロールする。タブは「いまのお題」と「下書きの見え方」の 2 つ。
+ * 本文は札の中でスクロールする。タブは「場のお題」と「下書き」の 2 つ。
  * 64rem 未満では本文を 3 行で切り、「続きを読む」から下からのシート（`.ui-drawer` の `<dialog>`）に
  * いまのお題の全文を出す（poker の `CurrentTopic` と同じ作り。部品は共有、React は各アプリ）。
  *
@@ -45,11 +49,11 @@ const TABS: readonly { readonly id: TabId; readonly label: string }[] = [
  * 画面の高さから引いてあり、札の上に知らせを載せると区画がその背丈ぶん画面を超える（#316 最終レビュー I3）。
  * `aria-busy` 自体は section に残す（既存テストが region の aria-busy を見ている）。
  *
- * 狭い幅（64rem 未満）の「下書きの見え方」のタブは本文を 3 行で切り、「続きを読む」は持たない
+ * 狭い幅（64rem 未満）の「下書き」のタブは本文を 3 行で切り、「続きを読む」は持たない
  * （全文は書く欄の中のプレビューで見る。シートはいまのお題だけ）。
  *
- * **自動切り替えの規則**: 下書きが「空 → 空でない」に変わった瞬間だけ「下書きの見え方」へ、
- * 「空でない → 空」（送った・消した）に変わった瞬間だけ「いまのお題」へ戻す。それ以外
+ * **自動切り替えの規則**: 下書きが「空 → 空でない」に変わった瞬間だけ「下書き」へ、
+ * 「空でない → 空」（送った・消した）に変わった瞬間だけ「場のお題」へ戻す。それ以外
  * （毎打鍵）は利用者の選択を保つ。空の判定はプレビューと同じく前後の空白を無視する。
  * 状態の遷移は描画中に「前の値」と比べて起こす（effect だと 1 描画ぶん古いタブが見える）。
  *
@@ -58,7 +62,7 @@ const TABS: readonly { readonly id: TabId; readonly label: string }[] = [
  * **受け入れた限界**: シートを開いたまま 64rem 以上へ広げたとき、またはお題が下ろされて
  * アンマウントされたときは、フォーカスが body に落ちる（poker と同じ・直さない）。
  */
-export function CurrentTopic({ state, enabled, draft, onClear }: Props) {
+export function CurrentTopic({ state, enabled, draft, onCopyToDraft, onClear }: Props) {
   const topic = state?.topic ?? null;
   const baseId = useId();
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -186,12 +190,22 @@ export function CurrentTopic({ state, enabled, draft, onClear }: Props) {
           )}
         </div>
       ))}
-      {/* 「お題を下ろす」は いまのお題 のタブのときだけ出す。下書きの本文の真下にあると「下書きを捨てる」と読み違え、全員のお題が消える */}
-      {topic !== null && active === 'current' && (
+      {/* 札の下端。場のお題のタブには「下書きに写す」（左）と「場から下げる」（右）、下書きのタブには添え書きだけを置く。
+          「場から下げる」が下書きの本文の真下にあると「下書きを捨てる」と読み違え、全員のお題が消える。
+          「下書きに写す」は書く側でなく札の側にある（書く側の操作は「場に出す」だけ）。 */}
+      {active === 'current' && topic !== null && (
         <div className="topic-reader-foot">
+          <button type="button" className="secondary" onClick={() => onCopyToDraft({ title: topic.title, body: topic.body })}>
+            {REWRITE_BUTTON}
+          </button>
           <button type="button" className="secondary" onClick={onClear} disabled={!enabled}>
             {CLEAR_BUTTON}
           </button>
+        </div>
+      )}
+      {active === 'draft' && (
+        <div className="topic-reader-foot">
+          <p className="topic-foot-note">{DRAFT_FOOT_NOTE}</p>
         </div>
       )}
       {topic !== null && hasBody && (

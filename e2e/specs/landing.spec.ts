@@ -59,8 +59,8 @@ test.describe('選択画面の札から各ツールへ移動できる', () => {
     // ラウンドが無く、S5a までは入口の門に阻まれて入れなかった。
     { card: 'TDD Mob Pro Timer', path: '/timer/', landmark: 'セッションを開始' },
     { card: 'Planning Poker', path: '/poker/', landmark: '票を公開する' },
-    // お題ツール（#91 PR 2）。目印は「このお題にする」—— 玄関にも timer・poker にも無い
-    { card: 'Topic Board', path: '/topic/', landmark: 'このお題にする' },
+    // お題ツール（#91 PR 2）。目印は「場に出す」—— 玄関にも timer・poker にも無い
+    { card: 'Topic Board', path: '/topic/', landmark: '場に出す' },
   ] as const;
 
   for (const tool of TOOLS) {

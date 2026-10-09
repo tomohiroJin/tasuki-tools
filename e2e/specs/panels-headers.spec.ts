@@ -116,7 +116,7 @@ test.describe('パネルの面と、見出し・戻る導線（#320 PR 3）', ()
     await toolCard(page, 'Topic Board').click();
     await expectBackBesideHeading(page, page.getByRole('heading', { level: 1, name: 'お題', exact: true }), 'お題ツール');
     await expectReaderFace(page, page.getByRole('region', { name: 'お題', exact: true }), 'お題ツールの読む面（「お題」）');
-    for (const name of ['書く', '作る']) {
+    for (const name of ['お題を書く', '定型や AI で作る']) {
       await expectPanelFace(page, page.getByRole('region', { name, exact: true }), `お題ツールの「${name}」`);
     }
   });

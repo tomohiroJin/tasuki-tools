@@ -1,7 +1,7 @@
 /* ============================================================
    Tasuki お題（#91）
    共通の世界観「夜のカードテーブル」は @tasuki/ui が持つ。
-   ここにはお題ツール固有のもの（いまのお題・書く・作る）だけを置く。
+   ここにはお題ツール固有のもの（場のお題・書く・作る）だけを置く。
    **Tailwind と併用しない**（#297：`@import` の書体の url() が解決されず全滅した）。
    ============================================================ */
 
@@ -36,7 +36,7 @@
 }
 
 /* **PR 2 で `.ui-button` の役割に置き換えて消す一時的な規則**（poker の `.topic .secondary` と同じ）。
-   札の上の副ボタン（お題を下ろす・続きを読む・閉じる）。既定の金の字は象牙の上で読めないので札の字の色にし、
+   札の上の副ボタン（下書きにコピー・場から下げる・続きを読む・閉じる）。既定の金の字は象牙の上で読めないので札の字の色にし、
    シートの狭い頭で縦に割れないよう折り返さない。 */
 .topic-current .secondary,
 .ui-drawer .secondary {
@@ -134,10 +134,33 @@
   }
 }
 
-/* 「お題を下ろす」は危険の操作。PR 2 で `.ui-button--danger` になる。いまは読む面の下端に置く。 */
+/* 札の下端。場のお題のタブは「下書きにコピー」（左）と「場から下げる」（右）、下書きのタブは添え書きだけ。
+   「場から下げる」は危険の操作で、PR 2 で `.ui-button--danger` になる。 */
 .topic-reader-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  /* 320px の幅では 2 つのボタンが並ばない（折り返さない副ボタンが横にはみ出す）。折り返して縦に積む */
+  flex-wrap: wrap;
+  gap: var(--space-3);
   padding: var(--space-3) var(--space-5) var(--space-4);
   border-top: 1px solid var(--card-inline);
+}
+
+.topic-foot-note {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--coal-soft);
+}
+
+/* 64rem 以上では札の高さを画面いっぱいに固定する（中身で枠の高さが変わらない）。短い本文でも長い本文でも同じ高さで、
+   余った高さは本文の領域が取る（`.ui-reader-body` が `flex: 1 1 auto`）。
+   **部品（`.ui-reader`）の `max-height` と同じ式にする**（器の上下の余白も引いてあり、sticky の札の上端が押し出されない）。
+   部品の式を変えたらここも変える。64rem 未満は固定しない（3 行＋続きを読む のまま）。 */
+@media (width >= 64rem) {
+  .topic-current.ui-reader {
+    height: calc(100dvh - var(--space-4) * 2 - var(--space-6) * 2);
+  }
 }
 
 .topic-title {
@@ -183,7 +206,9 @@
   gap: var(--space-2);
 }
 
-/* ---------- 作る（#313 構成案 1） ----------
+/* ---------- 作る（#313 構成案 1。#316 PR 1 の手直しで、書くの下のたためる欄にした） ----------
+   `<details>` の `summary` に見出し（h2）を置く。開閉の三角は消さず、見出しと同じ行に並べる。
+   中の行（`.topic-make-row`）の規則は、`<details>` の中でも効く（子孫のセレクタなので包みに影響されない）。
    ボタン 1 つで済む操作なので、広いときは 1 行の帯に並べる。狭いときはこれまでどおり縦に積む。
    帯にするかは「作る」の面の幅で決める（閾値は「書く」の並べる幅と同じ 44rem）。
    44rem：境目は箱の内側で測る。余裕は常時表示のスクロールバー（約 17px）より
@@ -193,6 +218,22 @@
    この境目が効くのは 64rem 未満の幅（768px の約 656px など、一部は 44rem 未満）と、箱が 44rem を超える最も広い画面。 */
 .topic-make {
   container: make / inline-size;
+}
+
+.topic-make-fold > summary {
+  cursor: pointer;
+  /* 開閉の三角（既定の list-item の印）を残す。`display: flex` にすると三角が消える */
+  min-height: 2.75rem;
+}
+
+/* 見出しは三角と同じ行に置く（block のままだと次の行へ落ちる） */
+.topic-make-fold > summary h2 {
+  display: inline;
+  margin: 0;
+}
+
+.topic-make-fold[open] > summary {
+  margin-block-end: var(--space-3);
 }
 
 .topic-make-row,
@@ -337,6 +378,11 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
+}
+
+/* 書く欄の操作は「場に出す」だけで、右端に置く（札の側の「下げる」と左右で役目が分かれる）。 */
+.topic-panel form > .topic-actions {
+  justify-content: flex-end;
 }
 
 /* お題ツールの頭（見出しと招待リンク）と段組みの間（読む面の札が行に接しない）。poker の `.room > header` と同じ値 */

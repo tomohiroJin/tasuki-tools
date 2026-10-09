@@ -44,7 +44,7 @@ test.describe('@core お題を玄関へ配る', () => {
 
     // Then その2: 下ろすと消える（**出ていたことを上で確かめてから**消えたことを見る。
     //   領域ごと消えても否定は通るので、領域と札が見えていることも合わせて見る）
-    await page.getByRole('button', { name: 'お題を下ろす' }).click();
+    await page.getByRole('button', { name: '場から下げる' }).click();
     await expect(tools.getByText(TITLE, { exact: true })).toHaveCount(0);
     await expect(tools.getByRole('list', { name: 'ツール' })).toBeVisible();
 
@@ -102,7 +102,7 @@ test.describe('@core お題をツールへ配る', () => {
     await expect(pokerTopic.getByRole('region', { name: TITLE, exact: true }).getByText(BODY, { exact: true })).toBeVisible();
 
     // When その2: お題を下ろす
-    await page.getByRole('button', { name: 'お題を下ろす' }).click();
+    await page.getByRole('button', { name: '場から下げる' }).click();
 
     // Then その2: どちらの画面からもお題の領域が消える（**出ていたことを上で確かめてから**消えたことを見る。
     //   画面ごと消えても否定は通るので、それぞれの画面が残っていることも合わせて見る）
@@ -202,6 +202,8 @@ test.describe('お題ツールの文字と書体', () => {
   test('Given お題ツール / When 言語と難易度のプルダウンを開く / Then 一覧がページの中に卓の地で開く', async ({ page, consoleWatcher }) => {
     // Given
     await openTopicTool(page, 'picker-topic');
+    // 作る欄は最初たたまれている（開かないと言語・難易度の欄が見えない）
+    await page.getByRole('region', { name: '定型や AI で作る' }).locator('summary').click();
     // When / Then（#317：別の窓で開くと、開いた一瞬が白く光る）
     for (const label of ['言語', '難易度']) {
       await expectPickerInPage(page.getByLabel(label, { exact: true }), '--felt-950');
@@ -287,7 +289,7 @@ test.describe('長いタイトルと広いページ（#313 PR 1）', () => {
       };
     });
     expect(main.width).toBe(1536);
-    const write = await page.getByRole('region', { name: '書く' }).boundingBox();
+    const write = await page.getByRole('region', { name: 'お題を書く' }).boundingBox();
     const column = await page.locator('.ui-workspace-main').boundingBox();
     expect(write?.width).toBeCloseTo(column?.width ?? -1, 0);
     // 画面は例外を出していない
@@ -309,7 +311,7 @@ test.describe('長いタイトルと広いページ（#313 PR 1）', () => {
     expect(consoleWatcher.errors).toEqual([]);
   });
 
-  test('Given タイトルを書いた / When タイトルの欄で Enter / Then このお題になる', async ({ page, consoleWatcher }) => {
+  test('Given タイトルを書いた / When タイトルの欄で Enter / Then 場に出る', async ({ page, consoleWatcher }) => {
     // Given
     await openTopicTool(page, 'enter-topic');
     const field = page.getByLabel('タイトル', { exact: true });
@@ -339,7 +341,7 @@ test.describe('説明のプレビュー（#313 PR 2）', () => {
     await field.fill(MD_BODY);
     // Then その1: 両方が見える
     const draft = reader.getByRole('region', { name: TITLE, exact: true });
-    await expect(reader.getByRole('tab', { name: '下書きの見え方' })).toHaveAttribute('aria-selected', 'true');
+    await expect(reader.getByRole('tab', { name: '下書き' })).toHaveAttribute('aria-selected', 'true');
     await expect(draft.getByRole('heading', { level: 4, name: 'Rules' })).toBeVisible();
     await expect(field).toBeVisible();
     // Then その2: 読む面は説明の欄の右にある
@@ -369,7 +371,7 @@ test.describe('説明のプレビュー（#313 PR 2）', () => {
       await expect(preview.getByRole('heading', { level: 4, name: 'Rules' })).toBeVisible();
       await expect(field).toBeHidden();
       // Then その2: 送ると、次に書く欄が出る
-      await page.getByRole('button', { name: 'このお題にする' }).click();
+      await page.getByRole('button', { name: '場に出す' }).click();
       await expect(currentTopic(page).getByRole('heading', { name: TITLE })).toBeVisible();
       await expect(field).toBeVisible();
       // Then その3: 画面は横にはみ出さない
@@ -405,18 +407,23 @@ test.describe('説明のプレビュー（#313 PR 2）', () => {
 
 test.describe('作るを横帯に（#313 構成案 1）', () => {
   for (const width of [1280, 1920]) {
-  test(`Given 幅 ${width} / When お題ツールを開く / Then 作るは書くの上で行いっぱいに広がり、言語・難易度・ボタンが 1 行目、合言葉が 2 行目に並ぶ`, async ({ page, consoleWatcher }) => {
+  test(`Given 幅 ${width} / When お題ツールを開き作る欄を開く / Then 作るは書くの下で行いっぱいに広がり、言語・難易度・ボタンが 1 行目、合言葉が 2 行目に並ぶ`, async ({ page, consoleWatcher }) => {
     // Given
     // 読む面を右に置くと、1280px の主の区画は約 573px で 44rem の境目に届かない。
-    // 64rem 以上では並びを `@media` で決め、2 行にする（#316 PR 1。容器の境目は変えない）
+    // 64rem 以上では並びを `@media` で決め、2 行にする（#316 PR 1。容器の境目は変えない）。
+    // 作る欄は書くの下のたためる欄（`<details>`・最初はたたむ）なので、開いてから測る
     await page.setViewportSize({ width, height: 900 });
     // When
     await openTopicTool(page, 'band-topic');
-    // Then その1: 作るは書くの上にあり、どちらも中身の幅いっぱい
-    const make = await page.getByRole('region', { name: '作る' }).boundingBox();
-    const write = await page.getByRole('region', { name: '書く' }).boundingBox();
-    expect(make!.y + make!.height, '作るが書くの上に無い').toBeLessThanOrEqual(write!.y);
-    expect(make!.width).toBeCloseTo(write!.width, 0);
+    const make = page.getByRole('region', { name: '定型や AI で作る' });
+    await expect(make.locator('details')).not.toHaveAttribute('open', '');
+    await expect(page.getByLabel('言語', { exact: true })).toBeHidden();
+    await make.locator('summary').click();
+    // Then その1: 作るは書くの下にあり、どちらも中身の幅いっぱい
+    const makeBox = await make.boundingBox();
+    const write = await page.getByRole('region', { name: 'お題を書く' }).boundingBox();
+    expect(write!.y + write!.height, '作るが書くの下に無い').toBeLessThanOrEqual(makeBox!.y);
+    expect(makeBox!.width).toBeCloseTo(write!.width, 0);
     // Then その2: 言語・難易度・定型から選ぶが同じ行にある（下端がそろう）
     const bottoms = await Promise.all(
       [page.getByLabel('言語', { exact: true }), page.getByLabel('難易度', { exact: true }), page.getByRole('button', { name: '定型から選ぶ' })].map(
@@ -444,12 +451,97 @@ test.describe('作るを横帯に（#313 構成案 1）', () => {
     await page.setViewportSize({ width: 390, height: 900 });
     // When
     await openTopicTool(page, 'band-narrow-topic');
+    await page.getByRole('region', { name: '定型や AI で作る' }).locator('summary').click();
     // Then
     const language = await page.getByLabel('言語', { exact: true }).boundingBox();
     const difficulty = await page.getByLabel('難易度', { exact: true }).boundingBox();
     expect(difficulty!.y).toBeGreaterThanOrEqual(language!.y + language!.height);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     // 画面は例外を出していない
+    expect(consoleWatcher.errors).toEqual([]);
+  });
+});
+
+const SHORT_BODY = 'FizzBuzz';
+const TALL_BODY = Array.from({ length: 40 }, (_, i) => `Paragraph ${i + 1}: keep the code for six digits and lock after five failures.`).join('\n\n');
+
+test.describe('お題ツールを書く主役にする（#316 PR 1 の手直し）', () => {
+  test('Given 幅 1280 / When 短い本文と長い本文のお題を出す / Then 札の高さは同じで、画面いっぱいに固定される', async ({ page, consoleWatcher }) => {
+    // Given
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await openTopicTool(page, 'fixed-height-topic');
+    const reader = currentTopic(page);
+    // When その1: 短い本文
+    await setTopic(page, TITLE, SHORT_BODY);
+    const short = (await reader.boundingBox())!.height;
+    // When その2: 長い本文
+    await setTopic(page, TITLE, TALL_BODY);
+    const tall = (await reader.boundingBox())!.height;
+    // Then: 中身で枠の高さが変わらない。画面の高さ − 器の上下の余白（space-4 × 2 + space-6 × 2）に等しい
+    expect(tall, '札の高さが中身で変わっている').toBeCloseTo(short, 0);
+    const expected = await page.evaluate(() => {
+      const probe = document.createElement('div');
+      probe.style.height = 'calc(100dvh - var(--space-4) * 2 - var(--space-6) * 2)';
+      document.body.append(probe);
+      const h = probe.getBoundingClientRect().height;
+      probe.remove();
+      return h;
+    });
+    expect(short).toBeCloseTo(expected, 0);
+    // 画面は例外を出していない
+    expect(consoleWatcher.errors).toEqual([]);
+  });
+
+  test('Given 幅 390 / When 短い本文のお題を出す / Then 札の高さは固定されない（3 行＋続きを読むのまま）', async ({ page }) => {
+    // Given
+    await page.setViewportSize({ width: 390, height: 800 });
+    await openTopicTool(page, 'narrow-height-topic');
+    // When
+    await setTopic(page, TITLE, SHORT_BODY);
+    // Then: 画面いっぱい（800 − 余白）にはならず、中身の高さで収まる
+    const box = await currentTopic(page).boundingBox();
+    expect(box!.height).toBeLessThan(400);
+  });
+
+  test('Given 幅 1280 でお題がある / When 札の下端を見る / Then 下書きにコピーは左・場から下げるは右、書く側の操作は場に出すが右端', async ({ page, consoleWatcher }) => {
+    // Given
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await openTopicTool(page, 'foot-topic');
+    await setTopic(page, TITLE, SHORT_BODY);
+    const reader = currentTopic(page);
+    // When
+    const copy = await reader.getByRole('button', { name: '下書きにコピー' }).boundingBox();
+    const clear = await reader.getByRole('button', { name: '場から下げる' }).boundingBox();
+    const card = await reader.boundingBox();
+    // Then その1: 左右に分かれ、札の下端に並ぶ（同じ行）
+    expect(copy!.x + copy!.width, '下書きにコピーが場から下げるの左に無い').toBeLessThan(clear!.x);
+    expect(Math.abs(copy!.y - clear!.y)).toBeLessThan(4);
+    expect(copy!.x - card!.x, '下書きにコピーが左端に寄っていない').toBeLessThan(40);
+    expect(card!.x + card!.width - (clear!.x + clear!.width), '場から下げるが右端に寄っていない').toBeLessThan(40);
+    expect(copy!.y + copy!.height, '札の下端に無い').toBeGreaterThan(card!.y + card!.height - 40);
+    // Then その2: 書く側には無い。書く側の操作は場に出すだけ（右端）
+    const write = page.getByRole('region', { name: 'お題を書く' });
+    await expect(write.getByRole('button', { name: '下書きにコピー' })).toHaveCount(0);
+    const submit = await write.getByRole('button', { name: '場に出す' }).boundingBox();
+    const writeBox = await write.boundingBox();
+    expect(submit!.x + submit!.width, '場に出すが右端に無い').toBeGreaterThan(writeBox!.x + writeBox!.width - 40);
+    expect(consoleWatcher.errors).toEqual([]);
+  });
+
+  test('Given お題がある / When 下書きにコピーを押す / Then 書く欄にお題が入り、タイトルの欄にフォーカスが移って、札は下書きへ移る', async ({ page, consoleWatcher }) => {
+    // Given
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await openTopicTool(page, 'copy-topic');
+    await setTopic(page, TITLE, SHORT_BODY);
+    // When
+    await currentTopic(page).getByRole('button', { name: '下書きにコピー' }).click();
+    // Then
+    const field = page.getByLabel('タイトル', { exact: true });
+    await expect(field).toHaveValue(TITLE);
+    await expect(field).toBeFocused();
+    await expect(currentTopic(page).getByRole('tab', { name: '下書き' })).toHaveAttribute('aria-selected', 'true');
+    await expect(currentTopic(page).getByText('まだ場に出していません')).toBeVisible();
+    await expect(currentTopic(page).getByText('場に出すと、同じルームの timer と poker にも表示されます')).toBeVisible();
     expect(consoleWatcher.errors).toEqual([]);
   });
 });

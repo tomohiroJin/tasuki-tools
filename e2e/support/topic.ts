@@ -36,7 +36,7 @@ export async function joinTopicTool(page: Page, url: string, name: string): Prom
   await expect(page.getByRole('heading', { level: 1, name: 'お題', exact: true })).toBeVisible();
 }
 
-/** お題ツールの読む面の領域（名前は「お題」。タブ「いまのお題」「下書きの見え方」のどちらでも同じ・#316）。 */
+/** お題ツールの読む面の領域（名前は「お題」。タブ「場のお題」「下書き」のどちらでも同じ・#316）。 */
 export function currentTopic(page: Page): Locator {
   return page.getByRole('region', { name: 'お題', exact: true });
 }
@@ -45,6 +45,6 @@ export function currentTopic(page: Page): Locator {
 export async function setTopic(page: Page, title: string, body: string): Promise<void> {
   await page.getByLabel('タイトル').fill(title);
   await page.getByLabel('説明（なくてもよい）').fill(body);
-  await page.getByRole('button', { name: 'このお題にする' }).click();
+  await page.getByRole('button', { name: '場に出す' }).click();
   await expect(currentTopic(page).getByRole('heading', { name: title })).toBeVisible();
 }
