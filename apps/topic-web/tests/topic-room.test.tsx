@@ -199,22 +199,22 @@ describe('書く', () => {
     expect(screen.getByLabelText(copy.TITLE_LABEL)).toHaveValue('書きかけ');
   });
 
-  it('Given いまのお題がある / When 下書きに写す / Then 欄にいまのお題が入り、タイトルの欄にフォーカスが移る', () => {
+  it('Given いまのお題がある / When 下書きにコピー / Then 欄にいまのお題が入り、タイトルの欄にフォーカスが移る', () => {
     // Given
     enterWith({ ...IDLE_STATE, topic: FIZZ });
     // When
-    fireEvent.click(screen.getByRole('button', { name: copy.REWRITE_BUTTON }));
+    fireEvent.click(screen.getByRole('button', { name: copy.COPY_TO_DRAFT_BUTTON }));
     // Then: 写したのに入力位置が分からない、を防ぐ（Review Focus 2）
     expect(screen.getByLabelText(copy.TITLE_LABEL)).toHaveValue('FizzBuzz');
     expect(screen.getByLabelText(copy.BODY_LABEL)).toHaveValue('3 のときは Fizz を出す');
     expect(document.activeElement).toBe(screen.getByLabelText(copy.TITLE_LABEL));
   });
 
-  it('Given いまのお題がある / When 下書きに写す / Then 札は下書きのタブへ移り、下書きの印が出る', () => {
+  it('Given いまのお題がある / When 下書きにコピー / Then 札は下書きのタブへ移り、下書きの印が出る', () => {
     // Given
     enterWith({ ...IDLE_STATE, topic: FIZZ });
     // When
-    fireEvent.click(screen.getByRole('button', { name: copy.REWRITE_BUTTON }));
+    fireEvent.click(screen.getByRole('button', { name: copy.COPY_TO_DRAFT_BUTTON }));
     // Then: 下書きが空 → 空でないの規則のまま
     expect(screen.getByRole('tab', { name: copy.TAB_DRAFT })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByText(copy.DRAFT_STAMP)).toBeInTheDocument();
@@ -223,40 +223,65 @@ describe('書く', () => {
   it('Given 同じお題を 2 度写す / When 書き換えたあとにもう一度写す / Then 2 度目も欄が写したお題に戻る', () => {
     // Given: 1 度目の写しのあとで欄を書き換えた
     enterWith({ ...IDLE_STATE, topic: FIZZ });
-    fireEvent.click(screen.getByRole('button', { name: copy.REWRITE_BUTTON }));
+    fireEvent.click(screen.getByRole('button', { name: copy.COPY_TO_DRAFT_BUTTON }));
     fireEvent.change(screen.getByLabelText(copy.TITLE_LABEL), { target: { value: '別のお題' } });
-    // 下書きのタブにいるので、いまのお題のタブへ戻す
+    // 下書きのタブにいるので、場のお題のタブへ戻す
     fireEvent.click(screen.getByRole('tab', { name: copy.TAB_CURRENT }));
     // When
-    fireEvent.click(screen.getByRole('button', { name: copy.REWRITE_BUTTON }));
+    fireEvent.click(screen.getByRole('button', { name: copy.COPY_TO_DRAFT_BUTTON }));
     // Then: 要求が前と同じ中身でも効く（押すたびに新しい要求になる）
     expect(screen.getByLabelText(copy.TITLE_LABEL)).toHaveValue('FizzBuzz');
   });
 
-  it('Given お題がある / When 位置を見る / Then 下書きに写すは札の側にだけあり、書く側の操作は場に出すだけ', () => {
+  it('Given 書きかけがあって場のお題のタブを見ている / When 下書きにコピー / Then 書きかけは置き換わり、札は必ず下書きのタブへ切り替わる', () => {
+    // Given: 欄が空でないので、自動切り替え（空 → 空でない）は働かない
+    enterWith({ ...IDLE_STATE, topic: FIZZ });
+    fireEvent.change(screen.getByLabelText(copy.TITLE_LABEL), { target: { value: '書きかけ' } });
+    fireEvent.click(screen.getByRole('tab', { name: copy.TAB_CURRENT }));
+    expect(screen.getByRole('tab', { name: copy.TAB_CURRENT })).toHaveAttribute('aria-selected', 'true');
+    // When
+    fireEvent.click(screen.getByRole('button', { name: copy.COPY_TO_DRAFT_BUTTON }));
+    // Then: 置き換わったことを見せる
+    expect(screen.getByLabelText(copy.TITLE_LABEL)).toHaveValue('FizzBuzz');
+    expect(screen.getByRole('tab', { name: copy.TAB_DRAFT })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('Given 1 度コピーした / When 別のお題が届く / Then 欄は動かない（コピーは押した時だけ）', () => {
+    // Given
+    enterWith({ ...IDLE_STATE, topic: FIZZ });
+    fireEvent.click(screen.getByRole('button', { name: copy.COPY_TO_DRAFT_BUTTON }));
+    expect(screen.getByLabelText(copy.TITLE_LABEL)).toHaveValue('FizzBuzz');
+    // When
+    act(() => latestSocket().deliver({ type: 'topic', state: { ...IDLE_STATE, topic: { title: '別のお題', body: '別の説明', source: 'manual' as const } } }));
+    // Then
+    expect(screen.getByLabelText(copy.TITLE_LABEL)).toHaveValue('FizzBuzz');
+    expect(screen.getByLabelText(copy.BODY_LABEL)).toHaveValue('3 のときは Fizz を出す');
+  });
+
+  it('Given お題がある / When 位置を見る / Then 下書きにコピーは札の側にだけあり、書く側の操作は場に出すだけ', () => {
     // Given
     enterWith({ ...IDLE_STATE, topic: FIZZ });
     // When
     const reader = screen.getByRole('region', { name: copy.READER_HEADING });
     const write = screen.getByRole('region', { name: copy.WRITE_HEADING });
     // Then
-    expect(within(reader).getByRole('button', { name: copy.REWRITE_BUTTON })).toBeInTheDocument();
-    expect(within(write).queryByRole('button', { name: copy.REWRITE_BUTTON })).toBeNull();
+    expect(within(reader).getByRole('button', { name: copy.COPY_TO_DRAFT_BUTTON })).toBeInTheDocument();
+    expect(within(write).queryByRole('button', { name: copy.COPY_TO_DRAFT_BUTTON })).toBeNull();
     expect(within(write).getAllByRole('button').filter((b) => !b.closest('.topic-compose-toggle'))).toEqual([setButton()]);
   });
 
-  it('Given お題がある / When いまのお題のタブを見る / Then 下端に 下書きに写す（左）と 場から下げる（右）が並ぶ', () => {
+  it('Given お題がある / When 場のお題のタブを見る / Then 下端に 下書きにコピー（左）と 場から下げる（右）が並ぶ', () => {
     // Given / When
     enterWith({ ...IDLE_STATE, topic: FIZZ });
     const reader = screen.getByRole('region', { name: copy.READER_HEADING });
-    const foot = within(reader).getByRole('button', { name: copy.REWRITE_BUTTON }).parentElement;
+    const foot = within(reader).getByRole('button', { name: copy.COPY_TO_DRAFT_BUTTON }).parentElement;
     // Then: DOM の順が左から右の順
     expect(foot).toBe(within(reader).getByRole('button', { name: copy.CLEAR_BUTTON }).parentElement);
     const buttons = within(foot as HTMLElement).getAllByRole('button');
-    expect(buttons.map((b) => b.textContent)).toEqual([copy.REWRITE_BUTTON, copy.CLEAR_BUTTON]);
+    expect(buttons.map((b) => b.textContent)).toEqual([copy.COPY_TO_DRAFT_BUTTON, copy.CLEAR_BUTTON]);
   });
 
-  it('Given 下書きのタブ / When 下端を見る / Then 添え書きだけが出て、下書きに写すも場から下げるも無い', () => {
+  it('Given 下書きのタブ / When 下端を見る / Then 添え書きだけが出て、下書きにコピーも場から下げるも無い', () => {
     // Given
     enterWith({ ...IDLE_STATE, topic: FIZZ });
     // When
@@ -264,7 +289,7 @@ describe('書く', () => {
     // Then
     const reader = screen.getByRole('region', { name: copy.READER_HEADING });
     expect(within(reader).getByText(copy.DRAFT_FOOT_NOTE)).toBeVisible();
-    expect(within(reader).queryByRole('button', { name: copy.REWRITE_BUTTON })).toBeNull();
+    expect(within(reader).queryByRole('button', { name: copy.COPY_TO_DRAFT_BUTTON })).toBeNull();
     expect(within(reader).queryByRole('button', { name: copy.CLEAR_BUTTON })).toBeNull();
   });
 });
@@ -380,11 +405,11 @@ describe('書く（長いタイトル）', () => {
     expect(field.selectionEnd).toBe(6);
   });
 
-  it('Given いまのお題のタイトルが改行を含む / When 下書きに写す / Then 欄には改行を空白にして写す', () => {
+  it('Given いまのお題のタイトルが改行を含む / When 下書きにコピー / Then 欄には改行を空白にして写す', () => {
     // Given: 境界スキーマは改行を拒まないので、AI や別の接続から改行入りのタイトルが届きうる
     enterWith({ ...IDLE_STATE, topic: { ...FIZZ, title: 'Fizz\nBuzz' } });
     // When
-    fireEvent.click(screen.getByRole('button', { name: copy.REWRITE_BUTTON }));
+    fireEvent.click(screen.getByRole('button', { name: copy.COPY_TO_DRAFT_BUTTON }));
     // Then
     expect(titleField()).toHaveValue('Fizz Buzz');
     fireEvent.click(setButton());
@@ -523,7 +548,7 @@ describe('操作できない間', () => {
     vi.useFakeTimers();
     enterWith({ ...IDLE_STATE, aiUnlocked: true, topic: FIZZ });
     fireEvent.change(screen.getByLabelText(copy.TITLE_LABEL), { target: { value: 'FizzBuzz' } });
-    // 書き始めると読む面は下書きへ移り「お題を下ろす」は隠れる。押せるかを見るので いまのお題 のタブへ戻す
+    // 書き始めると読む面は下書きへ移り「場から下げる」は隠れる。押せるかを見るので 場のお題 のタブへ戻す
     fireEvent.click(screen.getByRole('tab', { name: copy.TAB_CURRENT }));
     const buttons = () => [
       setButton(),
@@ -624,7 +649,7 @@ describe('操作できない間', () => {
 const preview = () => screen.getByRole('region', { name: copy.PREVIEW_BUTTON });
 
 /**
- * 説明がどう見えるかを、このお題にする前に確かめられる。
+ * 説明がどう見えるかを、場に出す前に確かめられる。
  *
  * @requirements #313 正本 D6・FR-007・FR-008・SC-004
  */
@@ -660,7 +685,7 @@ describe('プレビュー', () => {
     expect(within(preview()).getByText('fizz')).toBeInTheDocument();
   });
 
-  it('Given 書いた / When 場に出して、いまのお題に出る / Then プレビューの札と同じ中身で出る', () => {
+  it('Given 書いた / When 場に出して、場のお題に出る / Then プレビューの札と同じ中身で出る', () => {
     // Given
     const body = '# Rules\n\n- **fizz**\n\n> note';
     enterWith();
@@ -737,12 +762,12 @@ describe('説明の出し方の切り替え', () => {
     expect(compose()).toHaveAttribute('data-mode', 'write');
   });
 
-  it('Given プレビューを出している / When 下書きに写す / Then プレビューのまま、いまのお題が出る', () => {
+  it('Given プレビューを出している / When 下書きにコピー / Then プレビューのまま、いまのお題が出る', () => {
     // Given
     enterWith({ ...IDLE_STATE, topic: FIZZ });
     fireEvent.click(modeButton(copy.PREVIEW_BUTTON));
     // When
-    fireEvent.click(screen.getByRole('button', { name: copy.REWRITE_BUTTON }));
+    fireEvent.click(screen.getByRole('button', { name: copy.COPY_TO_DRAFT_BUTTON }));
     // Then
     expect(compose()).toHaveAttribute('data-mode', 'preview');
     expect(within(preview()).getByRole('heading', { level: 3, name: 'FizzBuzz' })).toBeInTheDocument();
@@ -765,7 +790,7 @@ const tab = (name: string) => screen.getByRole('tab', { name });
 const panel = () => screen.getByRole('tabpanel');
 
 /**
- * 読む面（右）のタブ。書き始めると下書きの見え方へ切り替わり、利用者の選択は毎打鍵で上書きしない（#316）。
+ * 読む面（右）のタブ。書き始めると下書きへ切り替わり、利用者の選択は毎打鍵で上書きしない（#316）。
  *
  * @requirements #316 PR 1（D3''）
  */
@@ -782,7 +807,7 @@ describe('読む面のタブ', () => {
     expect(tab(copy.TAB_CURRENT)).toHaveAttribute('aria-controls', panel().id);
   });
 
-  it('Given いまのお題のタブ / When タイトルに打つ / Then 下書きの見え方へ切り替わり、印と打った文が出る', () => {
+  it('Given 場のお題のタブ / When タイトルに打つ / Then 下書きへ切り替わり、印と打った文が出る', () => {
     // Given
     enterWith({ ...IDLE_STATE, topic: FIZZ });
     // When
@@ -794,7 +819,7 @@ describe('読む面のタブ', () => {
     expect(within(panel()).queryByRole('heading', { name: 'FizzBuzz' })).toBeNull();
   });
 
-  it('Given 下書きを見ている / When 手でいまのお題を選んで続けて打つ / Then いまのお題のまま', () => {
+  it('Given 下書きを見ている / When 手で場のお題を選んで続けて打つ / Then 場のお題のまま', () => {
     // Given
     enterWith({ ...IDLE_STATE, topic: FIZZ });
     fireEvent.change(titleField(), { target: { value: '書' } });
@@ -806,12 +831,12 @@ describe('読む面のタブ', () => {
     expect(tab(copy.TAB_CURRENT)).toHaveAttribute('aria-selected', 'true');
   });
 
-  it('Given 手でいまのお題を選んだ / When 下書きを空にしてまた打ち始める / Then 自動で下書きへ切り替わる', () => {
+  it('Given 手で場のお題を選んだ / When 下書きを空にしてまた打ち始める / Then 自動で下書きへ切り替わる', () => {
     // Given
     enterWith({ ...IDLE_STATE, topic: FIZZ });
     fireEvent.change(titleField(), { target: { value: '書' } });
     fireEvent.click(tab(copy.TAB_CURRENT));
-    // When: 空にする（いまのお題へ戻る）→ 打ち始める
+    // When: 空にする（場のお題へ戻る）→ 打ち始める
     fireEvent.change(titleField(), { target: { value: '' } });
     expect(tab(copy.TAB_CURRENT)).toHaveAttribute('aria-selected', 'true');
     fireEvent.change(titleField(), { target: { value: '新' } });
@@ -819,7 +844,7 @@ describe('読む面のタブ', () => {
     expect(tab(copy.TAB_DRAFT)).toHaveAttribute('aria-selected', 'true');
   });
 
-  it('Given 下書きを見ている / When 場に出す / Then いまのお題へ戻る', () => {
+  it('Given 下書きを見ている / When 場に出す / Then 場のお題へ戻る', () => {
     // Given
     enterWith();
     fireEvent.change(titleField(), { target: { value: 'FizzBuzz' } });
@@ -878,7 +903,7 @@ describe('読む面のタブ', () => {
     expect(within(panel()).getByRole('region', { name: '書きかけ' })).toBeInTheDocument();
   });
 
-  it('Given 下書きが空 / When 下書きの見え方を選ぶ / Then 書くと見え方が出ると伝える', () => {
+  it('Given 下書きが空 / When 下書きのタブを選ぶ / Then 書くと見え方が出ると伝える', () => {
     // Given
     enterWith();
     // When

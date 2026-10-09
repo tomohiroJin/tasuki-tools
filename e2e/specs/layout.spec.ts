@@ -112,12 +112,12 @@ async function expectBodyScrolls(page: Page): Promise<void> {
 }
 
 /**
- * 読む面の高さが画面に収まる: 100dvh - 6rem（上の 1rem + 下の 1rem + 器の下の余白 4rem）以下。
+ * 読む面の高さが画面に収まる: 100dvh - 10rem（見出しと招待の行 約 9.5rem + 器の下の余白 4rem を含む）以下。
  * 長い説明で読む面そのものが伸びていないことを守る。操作の面が長い画面でも成り立つ。
  */
 async function expectReaderFitsScreen(page: Page): Promise<void> {
   const height = await page.locator('.ui-reader').first().evaluate((el) => el.getBoundingClientRect().height);
-  expect(height).toBeLessThanOrEqual((page.viewportSize()?.height ?? 0) - 6 * REM + 0.5);
+  expect(height).toBeLessThanOrEqual((page.viewportSize()?.height ?? 0) - 10 * REM + 0.5);
 }
 
 /**
@@ -334,7 +334,7 @@ test.describe('お題ツールの部屋は読む面を右に持つ', () => {
     await expectSideIsReaderOnly(page);
   });
 
-  test('Given 幅 320 / When 部屋を開く / Then 横に溢れず、いまのお題 → 作るの順に積み、下に空きを残さない', async ({ page }, testInfo) => {
+  test('Given 幅 320 / When 部屋を開く / Then 横に溢れず、場のお題 → 書く → 作るの順に積み、下に空きを残さない', async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 320, height: 900 });
     await openTopicTool(page, 'layout-topic-narrow');
     await expectNoHorizontalOverflow(page);

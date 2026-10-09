@@ -147,6 +147,11 @@
   border-top: 1px solid var(--card-inline);
 }
 
+/* 折り返して縦に積んでも、右のボタン（場から下げる）は右端に残す（`space-between` だけだと左端へ寄る） */
+.topic-reader-foot > button:last-child {
+  margin-inline-start: auto;
+}
+
 .topic-foot-note {
   margin: 0;
   font-size: var(--font-size-sm);
@@ -155,11 +160,12 @@
 
 /* 64rem 以上では札の高さを画面いっぱいに固定する（中身で枠の高さが変わらない）。短い本文でも長い本文でも同じ高さで、
    余った高さは本文の領域が取る（`.ui-reader-body` が `flex: 1 1 auto`）。
-   **部品（`.ui-reader`）の `max-height` と同じ式にする**（器の上下の余白も引いてあり、sticky の札の上端が押し出されない）。
-   部品の式を変えたらここも変える。64rem 未満は固定しない（3 行＋続きを読む のまま）。 */
+   **部品（`.ui-reader`）の `max-height` と同じ式にする。** 見出しと招待の行（約 9.5rem）も引き、ページを開いた直後でも
+   札の下端が画面に収まる。最下端の条件（器の下の余白 4rem）も満たす。部品の式を変えたらここも変える。
+   64rem 未満は固定しない（3 行＋続きを読む のまま）。 */
 @media (width >= 64rem) {
   .topic-current.ui-reader {
-    height: calc(100dvh - var(--space-4) * 2 - var(--space-6) * 2);
+    height: calc(100dvh - 10rem);
   }
 }
 
@@ -390,7 +396,7 @@
   margin-block-end: var(--space-5);
 }
 
-/* 64rem 以上では、説明のプレビューは右の読む面（「下書きの見え方」のタブ）が受け持つ（#316）。
+/* 64rem 以上では、説明のプレビューは右の読む面（「下書き」のタブ）が受け持つ（#316）。
    欄の中のプレビューと切り替えは、読む面が書く欄から遠い 64rem 未満のためにだけ残す。
    **容器クエリの規則（上）と同じ詳細度で、後に書いてあるので勝つ。順序を入れ替えないこと。** */
 @media (width >= 64rem) {

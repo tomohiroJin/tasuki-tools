@@ -16,7 +16,7 @@ export function canOperate(status: ConnectionStatus, joined: boolean): boolean {
   return status === 'open' && joined;
 }
 
-/** タイトルを書いてあれば「このお題にする」を押せる（空白だけはサーバーも拒む・topic-core の `titleStr`）。 */
+/** タイトルを書いてあれば「場に出す」を押せる（空白だけはサーバーも拒む・topic-core の `titleStr`）。 */
 export function canSubmitTopic(title: string, enabled: boolean): boolean {
   return enabled && title.trim() !== '';
 }

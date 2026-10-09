@@ -8,7 +8,7 @@ import {
   EMPTY_TEXT,
   PREVIEW_EMPTY,
   READER_TABS_LABEL,
-  REWRITE_BUTTON,
+  COPY_TO_DRAFT_BUTTON,
   READER_HEADING,
   READ_MORE,
   TAB_CURRENT,
@@ -55,6 +55,7 @@ const TABS: readonly { readonly id: TabId; readonly label: string }[] = [
  * **自動切り替えの規則**: 下書きが「空 → 空でない」に変わった瞬間だけ「下書き」へ、
  * 「空でない → 空」（送った・消した）に変わった瞬間だけ「場のお題」へ戻す。それ以外
  * （毎打鍵）は利用者の選択を保つ。空の判定はプレビューと同じく前後の空白を無視する。
+ * **例外**: 「下書きにコピー」は常に「下書き」のタブへ切り替える（欄が空でないときも。書きかけが置き換わったことを見せる）。
  * 状態の遷移は描画中に「前の値」と比べて起こす（effect だと 1 描画ぶん古いタブが見える）。
  *
  * タブは WAI-ARIA Tabs（矢印で移動・選んだタブだけ `tabIndex=0`）。timer-web の `Tabs` と同じ作法だが
@@ -190,13 +191,17 @@ export function CurrentTopic({ state, enabled, draft, onCopyToDraft, onClear }: 
           )}
         </div>
       ))}
-      {/* 札の下端。場のお題のタブには「下書きに写す」（左）と「場から下げる」（右）、下書きのタブには添え書きだけを置く。
+      {/* 札の下端。場のお題のタブには「下書きにコピー」（左）と「場から下げる」（右）、下書きのタブには添え書きだけを置く。
           「場から下げる」が下書きの本文の真下にあると「下書きを捨てる」と読み違え、全員のお題が消える。
-          「下書きに写す」は書く側でなく札の側にある（書く側の操作は「場に出す」だけ）。 */}
+          「下書きにコピー」は書く側でなく札の側にある（書く側の操作は「場に出す」だけ）。 */}
       {active === 'current' && topic !== null && (
         <div className="topic-reader-foot">
-          <button type="button" className="secondary" onClick={() => onCopyToDraft({ title: topic.title, body: topic.body })}>
-            {REWRITE_BUTTON}
+          <button type="button" className="secondary" onClick={() => {
+              onCopyToDraft({ title: topic.title, body: topic.body });
+              // コピーは常に下書きのタブへ（書きかけが置き換わったことを見せる。欄が空でないときは自動切り替えが働かない）
+              setActive('draft');
+            }}>
+            {COPY_TO_DRAFT_BUTTON}
           </button>
           <button type="button" className="secondary" onClick={onClear} disabled={!enabled}>
             {CLEAR_BUTTON}

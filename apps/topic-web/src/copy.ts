@@ -50,7 +50,7 @@ export const PREVIEW_BUTTON = 'プレビュー';
 export const PREVIEW_EMPTY = '説明を書くと、ここに見え方が出ます';
 export const SET_BUTTON = '場に出す';
 /** 場のお題を書く欄へ写す。**「写」は書体の base 層に無いので、ボタンの字は「下書きにコピー」**（招待リンクをコピーと同じ言い方）。札の側（場のお題のタブの下端）に置く。書く側の操作は「場に出す」だけ */
-export const REWRITE_BUTTON = '下書きにコピー';
+export const COPY_TO_DRAFT_BUTTON = '下書きにコピー';
 
 export const MAKE_HEADING = '定型や AI で作る';
 export const LANGUAGE_LABEL = '言語';

@@ -101,7 +101,7 @@ test.describe('@core お題をツールへ配る', () => {
     await expect(pokerTopic.getByRole('heading', { level: 3, name: TITLE, exact: true })).toBeVisible();
     await expect(pokerTopic.getByRole('region', { name: TITLE, exact: true }).getByText(BODY, { exact: true })).toBeVisible();
 
-    // When その2: お題を下ろす
+    // When その2: 場から下げる
     await page.getByRole('button', { name: '場から下げる' }).click();
 
     // Then その2: どちらの画面からもお題の領域が消える（**出ていたことを上で確かめてから**消えたことを見る。
@@ -166,7 +166,7 @@ test.describe('お題ツールの文字と書体', () => {
     await expect(currentTopic(page)).toContainText(BODY);
     // 測ったことを固定する 2 組: 卓の上の見出し（`--gold` on `--felt-900`）と、
     //   読む面（グラデーションの札）の上の字（`--coal`）を測ったことを固定する（レビュー指摘・修正ラウンド 1）。
-    //   札の上の見出し（h2「お題」の `--coal-soft`）・タブ・「お題を下ろす」もこの走査に入る（#316）
+    //   札の上の見出し（h2「お題」の `--coal-soft`）・タブ・「場から下げる」もこの走査に入る（#316）
     const [gold, felt900, coal, sheen, shade] = await resolveColors(page, ['--gold', '--felt-900', '--coal', '--card-sheen', '--card-shade']);
     const cardGround = `rgba(0, 0, 0, 0) + linear-gradient(160deg, ${sheen}, ${shade})`;
 
@@ -330,13 +330,13 @@ test.describe('長いタイトルと広いページ（#313 PR 1）', () => {
 const MD_BODY = ['# Rules', '', '- fizz', '- buzz'].join('\n');
 
 test.describe('説明のプレビュー（#313 PR 2）', () => {
-  test('Given 幅 1280 / When 説明を書く / Then 下書きの見え方が右の読む面に出て、欄の中のプレビューと切り替えは出ない', async ({ page, consoleWatcher }) => {
+  test('Given 幅 1280 / When 説明を書く / Then 下書きが右の読む面に出て、欄の中のプレビューと切り替えは出ない', async ({ page, consoleWatcher }) => {
     // Given
     await page.setViewportSize({ width: 1280, height: 900 });
     await openTopicTool(page, 'side-topic');
     const field = page.getByLabel('説明（なくてもよい）');
     const reader = currentTopic(page);
-    // When: 書き始めると、読む面が下書きの見え方へ切り替わる
+    // When: 書き始めると、読む面が下書きへ切り替わる
     await page.getByLabel('タイトル', { exact: true }).fill(TITLE);
     await field.fill(MD_BODY);
     // Then その1: 両方が見える
@@ -383,7 +383,7 @@ test.describe('説明のプレビュー（#313 PR 2）', () => {
 
   for (const width of [390, 1280]) {
     test(`Given 幅 ${width} でプレビューを出す / When 文字を測る / Then 切り替えと札の字はすべて AA を満たす`, async ({ page, consoleWatcher }) => {
-      // Given: 1280 は右の読む面（下書きの見え方）、390 は欄の中のプレビュー（象牙の札）を測る
+      // Given: 1280 は右の読む面（下書き）、390 は欄の中のプレビュー（象牙の札）を測る
       await page.setViewportSize({ width, height: 900 });
       await openTopicTool(page, `preview-a11y-${width}`);
       await page.getByLabel('タイトル', { exact: true }).fill(TITLE);
@@ -477,11 +477,11 @@ test.describe('お題ツールを書く主役にする（#316 PR 1 の手直し�
     // When その2: 長い本文
     await setTopic(page, TITLE, TALL_BODY);
     const tall = (await reader.boundingBox())!.height;
-    // Then: 中身で枠の高さが変わらない。画面の高さ − 器の上下の余白（space-4 × 2 + space-6 × 2）に等しい
+    // Then: 中身で枠の高さが変わらない。画面の高さ − 10rem（見出しと招待の行・器の下の余白を含む）に等しい
     expect(tall, '札の高さが中身で変わっている').toBeCloseTo(short, 0);
     const expected = await page.evaluate(() => {
       const probe = document.createElement('div');
-      probe.style.height = 'calc(100dvh - var(--space-4) * 2 - var(--space-6) * 2)';
+      probe.style.height = 'calc(100dvh - 10rem)';
       document.body.append(probe);
       const h = probe.getBoundingClientRect().height;
       probe.remove();
@@ -542,6 +542,41 @@ test.describe('お題ツールを書く主役にする（#316 PR 1 の手直し�
     await expect(currentTopic(page).getByRole('tab', { name: '下書き' })).toHaveAttribute('aria-selected', 'true');
     await expect(currentTopic(page).getByText('まだ場に出していません')).toBeVisible();
     await expect(currentTopic(page).getByText('場に出すと、同じルームの timer と poker にも表示されます')).toBeVisible();
+    expect(consoleWatcher.errors).toEqual([]);
+  });
+
+  test('Given 幅 320 でお題がある / When 札の下端を見る / Then 2 つのボタンが折り返しても、下書きにコピーは左端・場から下げるは右端に残る', async ({ page, consoleWatcher }) => {
+    // Given
+    await page.setViewportSize({ width: 320, height: 800 });
+    await openTopicTool(page, 'foot-narrow-topic');
+    await setTopic(page, TITLE, SHORT_BODY);
+    const reader = currentTopic(page);
+    // When
+    const copy = await reader.getByRole('button', { name: '下書きにコピー' }).boundingBox();
+    const clear = await reader.getByRole('button', { name: '場から下げる' }).boundingBox();
+    const foot = await reader.locator('.topic-reader-foot').evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const s = getComputedStyle(el);
+      return { left: r.left + parseFloat(s.paddingLeft), right: r.right - parseFloat(s.paddingRight) };
+    });
+    // Then: 折り返して縦に積んでも、左のボタンは内側の左端・右のボタンは内側の右端（縦に隣り合って左へ寄らない）
+    expect(copy!.x, '下書きにコピーが内側の左端に無い').toBeCloseTo(foot.left, 0);
+    expect(clear!.x + clear!.width, '場から下げるが内側の右端に無い').toBeCloseTo(foot.right, 0);
+    expect(consoleWatcher.errors).toEqual([]);
+  });
+
+  test('Given 幅 1280・高さ 800 / When お題ツールを開いた直後 / Then スクロール前に札の下端（ボタン）が画面に収まる', async ({ page, consoleWatcher }) => {
+    // Given
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await openTopicTool(page, 'fits-topic');
+    // When
+    await setTopic(page, TITLE, SHORT_BODY);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    // Then
+    const clear = await currentTopic(page).getByRole('button', { name: '場から下げる' }).boundingBox();
+    const card = await currentTopic(page).boundingBox();
+    expect(clear!.y + clear!.height, '下端のボタンが画面の外').toBeLessThanOrEqual(800);
+    expect(card!.y + card!.height, '札の下端が画面の外').toBeLessThanOrEqual(800);
     expect(consoleWatcher.errors).toEqual([]);
   });
 });

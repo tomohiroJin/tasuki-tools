@@ -17,14 +17,14 @@ import { canOperate, connectionNotice, generationNotice } from '../topic-view';
 
 export function TopicRoom({ roomCode }: { roomCode: string }) {
   const sync = useTopicSync(roomCode);
-  // 書きかけは編集欄が持つが、右の読む面（「下書きの見え方」）が描くので、ここへ持ち上げる（#316）。
+  // 書きかけは編集欄が持つが、右の読む面（「下書き」）が描くので、ここへ持ち上げる（#316）。
   // 同じ中身なら同じ参照を返す（編集欄の effect が初回に空で呼んでも描き直さない）
   const [draft, setDraft] = useState<Draft>({ title: '', body: '' });
   const onDraftChange = useCallback((next: Draft) => {
     setDraft((prev) => (prev.title === next.title && prev.body === next.body ? prev : next));
   }, []);
 
-  // 「下書きに写す」の要求。札の側のボタンが押した時点のお題を詰めて新しい object を作る（`TopicEditor` が同一性で受ける）。
+  // 「下書きにコピー」の要求。札の側のボタンが押した時点のお題を詰めて新しい object を作る（`TopicEditor` が同一性で受ける）。
   // 届いたお題の変化では作らない —— 書いている途中に別の人がお題を変えても、書く欄は動かさない
   const [fillRequest, setFillRequest] = useState<FillRequest | null>(null);
 

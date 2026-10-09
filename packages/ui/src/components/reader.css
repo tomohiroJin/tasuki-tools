@@ -35,11 +35,12 @@
 }
 
 @media (width >= 64rem) {
-  /* 上下の 1rem に加え、器の下の余白（.ui-page の padding-block-end・space-6 の 2 倍）も引く。
-     引かないとページの最下端で段組みの下端が持ち上がり、sticky の読む面の上端が画面の外へ押し出される。
-     .ui-page の余白の式を変えたら、ここも変える。 */
+  /* 画面の高さから 10rem を引く。見出しと招待の行（約 9.5rem）も引くので、ページを開いた直後でも札の下端が画面に収まる。
+     最下端の条件（器の下の余白 4rem。引かないとページの最下端で段組みの下端が持ち上がり、sticky の読む面の上端が
+     画面の外へ押し出される）も満たす。見出しの行や .ui-page の余白を変えたら、ここも変える。
+     お題ツールの札の固定の高さ（apps/topic-web/src/index.css）と同じ式。 */
   .ui-reader {
-    max-height: calc(100dvh - var(--space-4) * 2 - var(--space-6) * 2);
+    max-height: calc(100dvh - 10rem);
   }
 
   .ui-reader-body {
