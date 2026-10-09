@@ -230,6 +230,22 @@ test.describe('poker のルームは広い画面で読む面と操作の面を�
     await createPokerRoom(page, 'layout-no-topic');
     expect(await page.locator('.ui-workspace-side').count()).toBe(0);
     await expectMainCentered(page);
+    // 手札は列の幅を使って 1 段に並ぶ（5 列の grid が 46rem の列の左へ寄って右半分が空かない）
+    const tops = await page.locator('.card-hand .card').evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().top)));
+    expect(tops.length).toBe(10);
+    expect(new Set(tops).size).toBe(1);
+  });
+
+  test('Given 幅 1280・お題を開いている / When ルームを開く / Then 「お題を隠す」は見出しと同じ行で、h1 の右隣にある', async ({ page, openPeer }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await openPokerWithTopic(page, openPeer);
+    const h1 = await boxOf(page, '.room header h1');
+    const toggle = await page.getByRole('button', { name: 'お題を隠す' }).boundingBox();
+    if (toggle === null) throw new Error('「お題を隠す」が描かれていない');
+    expect(Math.abs(toggle.y + toggle.height / 2 - (h1.y + h1.height / 2))).toBeLessThanOrEqual(16);
+    const gap = toggle.x - (h1.x + h1.width);
+    expect(gap).toBeGreaterThanOrEqual(0);
+    expect(gap).toBeLessThanOrEqual(48);
   });
 
   test('Given 幅 1280・お題を開いている / When ルームを開く / Then 札は操作の面より狭い（約 43%）', async ({ page, openPeer }) => {

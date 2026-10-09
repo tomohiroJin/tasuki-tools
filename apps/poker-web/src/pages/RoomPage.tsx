@@ -207,7 +207,24 @@ export function RoomPage({ roomId, sync }: Props) {
             素のリンクを招待リンクの塊の上へ置くと、どこへ属する操作か分からず浮いていた。
             timer は `StatusStrip` の中に収めてあるので、こちらも見出しの相方にする。 */}
         <div className="ui-page-header">
-          <h1>プランニングポーカー</h1>
+          {/* 見出しと切り替えを 1 つの塊にする。`.ui-page-header` は子を両端に振り分けるので、
+              子が 3 つだと戻る導線が真ん中に浮く（#316 PR 1）。 */}
+          <div className="room-title">
+            <h1>プランニングポーカー</h1>
+            {/* お題があるときだけ。隠すのは札ごと（React で描かない）。シートは札の中の `<dialog>` で、
+                開いている間はモーダルなので、この切り替えは押せない（フォーカスが失われる経路が無い）。 */}
+            {sync.topic && (
+              <button
+                type="button"
+                className="secondary"
+                aria-expanded={topicOpen}
+                aria-controls={TOPIC_CARD_ID}
+                onClick={() => setTopicOpen((open) => !open)}
+              >
+                {topicOpen ? TOPIC_HIDE : TOPIC_SHOW}
+              </button>
+            )}
+          </div>
           {/* 選択画面へ戻る導線。旧入口（poker のトップ画面等）が撤去され、他に戻る
               手段が無い（利用者の申し送り・2026-09-14）。行き先は招待リンクと同じ
               **同じルームの選択画面**（玄関まで戻すとルームから出たことになる）ので、
@@ -215,19 +232,6 @@ export function RoomPage({ roomId, sync }: Props) {
           <a className="ui-page-header-back" href={inviteUrl}>
             選択画面へ戻る
           </a>
-          {/* お題があるときだけ。隠すのは札ごと（React で描かない）。シートは札の中の `<dialog>` で、
-              開いている間はモーダルなので、この切り替えは押せない（フォーカスが失われる経路が無い）。 */}
-          {sync.topic && (
-            <button
-              type="button"
-              className="secondary"
-              aria-expanded={topicOpen}
-              aria-controls={TOPIC_CARD_ID}
-              onClick={() => setTopicOpen((open) => !open)}
-            >
-              {topicOpen ? TOPIC_HIDE : TOPIC_SHOW}
-            </button>
-          )}
         </div>
         <InviteLink url={inviteUrl} />
       </header>

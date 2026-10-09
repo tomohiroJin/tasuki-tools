@@ -25,6 +25,14 @@
   font-size: 1.6rem;
 }
 
+/* 見出しと「お題を隠す」を 1 つの塊にして、`.ui-page-header` の子を 2 つ（この塊と戻る導線）に保つ。 */
+.room-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+}
+
 /* 招待リンクの並び・URL の枠は部品（`.ui-invite`・ADR 0022）が持つ。ボタンの大きさだけを poker に置く（ボタンの段は #316）。 */
 .invite button {
   font-size: 0.78rem;
@@ -178,9 +186,10 @@
   perspective: 800px;
 }
 
-/* 広い幅の操作の面（半分の幅）では 10 枚が 9 + 1 に割れるので、5 枚 × 2 段に揃える */
+/* 広い幅の操作の面（半分の幅）では 10 枚が 9 + 1 に割れるので、5 枚 × 2 段に揃える。
+   脇（お題の札）があるときだけ。脇が無い 1 列（46rem）では 5 列の grid が左へ寄って右半分が空くので、flex-wrap のまま列の幅を使う。 */
 @media (width >= 64rem) {
-  .card-hand {
+  .ui-workspace:has(> .ui-workspace-side) .card-hand {
     display: grid;
     grid-template-columns: repeat(5, max-content);
   }
