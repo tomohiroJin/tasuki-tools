@@ -224,7 +224,7 @@ describe('ハブの同期', () => {
     expect(localStorage.getItem('tasuki:resume:R1')).toBeNull();
   });
 
-  it('Given 参加の応答 / When お題の状態が届く / Then 選択画面にいまのお題のタイトルが出る', () => {
+  it('Given 参加の応答 / When お題の状態が届く / Then 選択画面に場のお題のタイトルが出る', () => {
     // Given（準備）
     window.history.replaceState(null, '', '/?room=R1');
     render(<App />);
@@ -249,7 +249,7 @@ describe('ハブの同期', () => {
     expect(screen.queryByText('説明は出さない')).toBeNull();
   });
 
-  it('Given いまのお題が出ている / When お題が下ろされる / Then 行が消える', () => {
+  it('Given 場のお題が出ている / When お題が下ろされる / Then 行が消える', () => {
     // Given（準備）
     window.history.replaceState(null, '', '/?room=R1');
     render(<App />);
@@ -265,7 +265,7 @@ describe('ハブの同期', () => {
     act(() => socket().deliver({ type: 'topic', state: { ...state, topic: null } }));
 
     // Then
-    expect(screen.queryByText('いまのお題')).toBeNull();
+    expect(screen.queryByText('場のお題')).toBeNull();
   });
 });
 

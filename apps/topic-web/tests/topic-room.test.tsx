@@ -48,7 +48,7 @@ const setButton = () => screen.getByRole('button', { name: copy.SET_BUTTON });
 /**
  * @requirements #91 E10 spec §5.4
  */
-describe('いまのお題', () => {
+describe('場のお題', () => {
   it('Given お題なし / When 画面を開く / Then 書く・作るへ誘い、下ろすボタンは無い', () => {
     // Given: お題なし（既定の IDLE_STATE）
     // When: 画面を開く
@@ -73,7 +73,7 @@ describe('いまのお題', () => {
     expect(lastSent()).toEqual({ command: 'topic.clear' });
   });
 
-  it('Given 生成していない / When 画面を見る / Then いまのお題は忙しい印を持たない', () => {
+  it('Given 生成していない / When 画面を見る / Then 場のお題は忙しい印を持たない', () => {
     // Given: 生成していない
     // When: 画面を見る（aria-busy を常に true にする誤りを捕まえる）
     enterWith({ ...IDLE_STATE, topic: FIZZ });
@@ -199,7 +199,7 @@ describe('書く', () => {
     expect(screen.getByLabelText(copy.TITLE_LABEL)).toHaveValue('書きかけ');
   });
 
-  it('Given いまのお題がある / When 下書きにコピー / Then 欄にいまのお題が入り、タイトルの欄にフォーカスが移る', () => {
+  it('Given 場のお題がある / When 下書きにコピー / Then 欄に場のお題が入り、タイトルの欄にフォーカスが移る', () => {
     // Given
     enterWith({ ...IDLE_STATE, topic: FIZZ });
     // When
@@ -210,7 +210,7 @@ describe('書く', () => {
     expect(document.activeElement).toBe(screen.getByLabelText(copy.TITLE_LABEL));
   });
 
-  it('Given いまのお題がある / When 下書きにコピー / Then 札は下書きのタブへ移り、下書きの印が出る', () => {
+  it('Given 場のお題がある / When 下書きにコピー / Then 札は下書きのタブへ移り、下書きの印が出る', () => {
     // Given
     enterWith({ ...IDLE_STATE, topic: FIZZ });
     // When
@@ -405,7 +405,7 @@ describe('書く（長いタイトル）', () => {
     expect(field.selectionEnd).toBe(6);
   });
 
-  it('Given いまのお題のタイトルが改行を含む / When 下書きにコピー / Then 欄には改行を空白にして写す', () => {
+  it('Given 場のお題のタイトルが改行を含む / When 下書きにコピー / Then 欄には改行を空白にして写す', () => {
     // Given: 境界スキーマは改行を拒まないので、AI や別の接続から改行入りのタイトルが届きうる
     enterWith({ ...IDLE_STATE, topic: { ...FIZZ, title: 'Fizz\nBuzz' } });
     // When
@@ -762,7 +762,7 @@ describe('説明の出し方の切り替え', () => {
     expect(compose()).toHaveAttribute('data-mode', 'write');
   });
 
-  it('Given プレビューを出している / When 下書きにコピー / Then プレビューのまま、いまのお題が出る', () => {
+  it('Given プレビューを出している / When 下書きにコピー / Then プレビューのまま、場のお題が出る', () => {
     // Given
     enterWith({ ...IDLE_STATE, topic: FIZZ });
     fireEvent.click(modeButton(copy.PREVIEW_BUTTON));
@@ -795,7 +795,7 @@ const panel = () => screen.getByRole('tabpanel');
  * @requirements #316 PR 1（D3''）
  */
 describe('読む面のタブ', () => {
-  it('Given いまのお題がある / When 画面を開く / Then 場のお題のタブが選ばれ、お題が出る', () => {
+  it('Given 場のお題がある / When 画面を開く / Then 場のお題のタブが選ばれ、お題が出る', () => {
     // Given / When
     enterWith({ ...IDLE_STATE, topic: FIZZ });
     // Then
@@ -990,7 +990,7 @@ describe('続きを読む（シート）', () => {
     expect(document.querySelector('dialog')).toBeNull();
   });
 
-  it('Given 画面 / When 並びを見る / Then いまのお題は作る・書くより先にある（狭い幅の順）', () => {
+  it('Given 画面 / When 並びを見る / Then 場のお題は作る・書くより先にある（狭い幅の順）', () => {
     // Given / When
     enterWith({ ...IDLE_STATE, topic: FIZZ });
     // Then

@@ -48,12 +48,12 @@ test.describe('@core お題を玄関へ配る', () => {
     await expect(tools.getByText(TITLE, { exact: true })).toHaveCount(0);
     await expect(tools.getByRole('list', { name: 'ツール' })).toBeVisible();
 
-    // Then その3: 後から開いた玄関にも、いまのお題が届く（参加・復帰の直後に 1 通）
+    // Then その3: 後から開いた玄関にも、場のお題が届く（参加・復帰の直後に 1 通）
     await setTopic(page, TITLE, BODY);
     await guest.page.reload();
     await expect(guest.page.getByRole('region', { name: '道具を選ぶ' }).getByText(TITLE, { exact: true })).toBeVisible();
 
-    // Then その4: 新規参加でも、いまのお題が届く（その3 は reload による復帰の経路。
+    // Then その4: 新規参加でも、場のお題が届く（その3 は reload による復帰の経路。
     //   こちらは別の文脈から招待 URL で初めて参加する経路で、届く仕組みが違う）
     const newcomer = await openPeer('topic-newcomer');
     await newcomer.page.goto(inviteUrl);
@@ -223,7 +223,7 @@ test.describe('お題ツールの文字と書体', () => {
       // When
       await openTopicTool(page, `overflow-topic-${width}`);
       await setTopic(page, longTitle, longBody);
-      // Then その1: 先に正しく掲げられたことを確かめる（「いまのお題」に出た）
+      // Then その1: 先に正しく掲げられたことを確かめる（「場のお題」に出た）
       await expect(currentTopic(page).getByRole('heading', { name: longTitle })).toBeVisible();
       // Then その2: 画面が横にはみ出さない
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -541,7 +541,7 @@ test.describe('お題ツールを書く主役にする（#316 PR 1 の手直し�
     await expect(field).toBeFocused();
     await expect(currentTopic(page).getByRole('tab', { name: '下書き' })).toHaveAttribute('aria-selected', 'true');
     await expect(currentTopic(page).getByText('まだ場に出していません')).toBeVisible();
-    await expect(currentTopic(page).getByText('場に出すと、同じルームの timer と poker にも表示されます')).toBeVisible();
+    await expect(currentTopic(page).getByText('場に出すと、同じルームのほかの道具にも表示されます')).toBeVisible();
     expect(consoleWatcher.errors).toEqual([]);
   });
 

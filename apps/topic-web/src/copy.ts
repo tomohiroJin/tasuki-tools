@@ -31,8 +31,8 @@ export const READER_TABS_LABEL = '読む面の切り替え';
 export const TAB_CURRENT = '場のお題';
 export const TAB_DRAFT = '下書き';
 export const DRAFT_STAMP = 'まだ場に出していません';
-/** 札の下端（下書きのタブ）の添え書き。下書きを出す先が同じルームの timer と poker であることを伝える */
-export const DRAFT_FOOT_NOTE = '場に出すと、同じルームの timer と poker にも表示されます';
+/** 札の下端（下書きのタブ）の添え書き。下書きの出す先が同じルームのほかの道具にも及ぶことを伝える */
+export const DRAFT_FOOT_NOTE = '場に出すと、同じルームのほかの道具にも表示されます';
 export const READ_MORE = '続きを読む';
 export const CLOSE = '閉じる';
 export const GENERATING_TEXT = '作っています…';

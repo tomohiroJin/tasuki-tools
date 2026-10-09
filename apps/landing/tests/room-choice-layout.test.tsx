@@ -42,19 +42,19 @@ describe('どのツールに居るか', () => {
 /**
  * @requirements #91 E15 E16
  */
-describe('玄関のいまのお題', () => {
+describe('玄関の場のお題', () => {
   it('Given ルームにお題がある / When 選択画面を開く / Then 札の近くにタイトルだけが出る', () => {
     // Given: ルームにお題がある
     // When: 選択画面を開く
     render(<RoomChoice code="R1" inviteUrl="https://example.test/?room=R1" roster={null} connection="online" topicTitle="FizzBuzz" />);
     const tools = within(screen.getByRole('region', { name: '道具を選ぶ' }));
     // Then
-    expect(tools.getByText('いまのお題')).toBeVisible();
+    expect(tools.getByText('場のお題')).toBeVisible();
     expect(tools.getByText('FizzBuzz')).toBeVisible();
   });
 
   it('Given ルームにお題が無い / When 選択画面を開く / Then お題の行は出ない', () => {
     render(<RoomChoice code="R1" inviteUrl="https://example.test/?room=R1" roster={null} connection="online" topicTitle={null} />);
-    expect(screen.queryByText('いまのお題')).toBeNull();
+    expect(screen.queryByText('場のお題')).toBeNull();
   });
 });

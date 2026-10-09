@@ -61,8 +61,8 @@ describe('お題ツールのルームへの入り方', () => {
   /**
    * @requirements #91 E4
    */
-  describe('いまのお題の反映', () => {
-    it('Given 入れた / When いまのお題が届く / Then 画面にタイトルが出る', () => {
+  describe('場のお題の反映', () => {
+    it('Given 入れた / When 場のお題が届く / Then 画面にタイトルが出る', () => {
       // Given
       saveResumeIdentity(RESUME);
       render(<App />);
