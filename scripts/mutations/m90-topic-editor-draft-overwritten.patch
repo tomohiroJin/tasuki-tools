@@ -10,14 +10,41 @@
 # 復元: git apply -R scripts/mutations/m90-*.patch
 #
 # #91 PR 2。`TopicEditor` に `current`（届いたお題）が変わるたび下書きを上書きする
-# `useEffect` を足す。書いている途中に別の人がお題を変えると、打ちかけの下書きが
+# `useEffect` を足す。#316 PR 1 の手直しで `TopicEditor` は届いたお題の prop を持たなくなった
+# （写す中身は札の側が `fillRequest` に詰める）ので、このパッチは `current` の prop の追加
+# （`TopicEditor.tsx`）と `TopicRoom.tsx` からの受け渡しも一緒に足す。壊し方（届いたお題で
+# 下書きを上書きする）は変えていない。書いている途中に別の人がお題を変えると、打ちかけの下書きが
 # 黙って消える —— コンポーネント冒頭のコメントが禁じている性質そのもの
 # （「届いたお題で上書きしない」）。
 diff --git a/apps/topic-web/src/components/TopicEditor.tsx b/apps/topic-web/src/components/TopicEditor.tsx
-index 96bcead2..6c909218 100644
+index 9b294bfc..7aa279f4 100644
 --- a/apps/topic-web/src/components/TopicEditor.tsx
 +++ b/apps/topic-web/src/components/TopicEditor.tsx
-@@ -53,6 +53,12 @@ export function TopicEditor({ current, enabled, onDraftChange, onSubmit }: Props
+@@ -1,5 +1,5 @@
+ import { useDeferredValue, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+-import { MAX_TOPIC_BODY, MAX_TOPIC_TITLE } from '@tasuki/topic-core';
++import { MAX_TOPIC_BODY, MAX_TOPIC_TITLE, type Topic } from '@tasuki/topic-core';
+ import {
+   BODY_HINT,
+   BODY_LABEL,
+@@ -24,6 +24,7 @@ export interface FillRequest {
+ }
+ 
+ interface Props {
++  readonly current?: Topic | null;
+   /** 欄へ写す要求。null か、前と同じ object のあいだは何もしない */
+   readonly fillRequest?: FillRequest | null;
+   readonly enabled: boolean;
+@@ -53,7 +54,7 @@ interface Props {
+  * 切り替えのボタンを隠す。React の木は幅によらず同じで、ここが持つのは狭いときにどちらを出すか（`mode`）だけ。
+  * 切り替えのボタンは要素層のボタン（押している方）と `.secondary`（押していない方）で組み、部品層に置かない（D8）。
+  */
+-export function TopicEditor({ fillRequest = null, enabled, onDraftChange, onSubmit }: Props) {
++export function TopicEditor({ current, fillRequest = null, enabled, onDraftChange, onSubmit }: Props) {
+   const [title, setTitle] = useState('');
+   const [body, setBody] = useState('');
+   const [mode, setMode] = useState<'write' | 'preview'>('write');
+@@ -64,6 +65,12 @@ export function TopicEditor({ fillRequest = null, enabled, onDraftChange, onSubm
    const bodyId = useId();
    const previewId = useId();
    const canSubmit = canSubmitTopic(title, enabled);
@@ -30,3 +57,16 @@ index 96bcead2..6c909218 100644
    const previewTitle = useDeferredValue(title);
    const previewBody = useDeferredValue(body);
    const previewBlank = previewTitle.trim() === '' && previewBody.trim() === '';
+diff --git a/apps/topic-web/src/screens/TopicRoom.tsx b/apps/topic-web/src/screens/TopicRoom.tsx
+index 071f611b..32506c67 100644
+--- a/apps/topic-web/src/screens/TopicRoom.tsx
++++ b/apps/topic-web/src/screens/TopicRoom.tsx
+@@ -103,7 +103,7 @@ export function TopicRoom({ roomCode }: { roomCode: string }) {
+             {generation && <p className="topic-notice ui-note" role="status">{generation}</p>}
+             {/* 書くが主役。作るはその下のたためる欄（最初はたたむ）。#313 構成案 1 は作るが先だったが、
+                 利用者が実物を見て #316 PR 1 で逆にした（設計正本 §10.1） */}
+-            <TopicEditor fillRequest={fillRequest} enabled={enabled} onDraftChange={onDraftChange} onSubmit={sync.setTopic} />
++            <TopicEditor current={sync.topicState?.topic ?? null} fillRequest={fillRequest} enabled={enabled} onDraftChange={onDraftChange} onSubmit={sync.setTopic} />
+             <TopicMaker aiUnlocked={sync.topicState?.aiUnlocked ?? false} enabled={enabled} onGenerate={sync.generate} onUnlock={sync.unlock} />
+           </div>
+         </div>
