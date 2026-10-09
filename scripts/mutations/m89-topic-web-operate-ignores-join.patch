@@ -31,4 +31,4 @@ diff --git a/apps/topic-web/src/topic-view.ts b/apps/topic-web/src/topic-view.ts
 +  return status === 'open';
  }
 
- /** タイトルを書いてあれば「このお題にする」を押せる（空白だけはサーバーも拒む・topic-core の `titleStr`）。 */
+ /** タイトルを書いてあれば「場に出す」を押せる（空白だけはサーバーも拒む・topic-core の `titleStr`）。 */
