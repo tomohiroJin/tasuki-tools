@@ -20,7 +20,7 @@
 /* 見出しと「選択画面へ戻る」を 1 行に組む並びは部品（`.ui-page-header`・ADR 0022）が持つ（#95 S5c 追補）。
    ここには poker の見出し自身の大きさと余白だけを置く。 */
 .room header h1 {
-  margin: 0 0 0.4rem;
+  margin: 0;
   font-style: italic;
   font-size: 1.6rem;
 }
@@ -31,6 +31,11 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-4);
+}
+
+/* 見出しの行と招待の行の間（h1 の下の余白を 0 にして、切り替えのボタンの中心を字の中心に揃えた分をここで取る） */
+.room .ui-page-header {
+  margin-block-end: 0.4rem;
 }
 
 /* 招待リンクの並び・URL の枠は部品（`.ui-invite`・ADR 0022）が持つ。ボタンの大きさだけを poker に置く（ボタンの段は #316）。 */

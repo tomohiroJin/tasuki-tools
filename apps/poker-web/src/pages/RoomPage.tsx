@@ -196,7 +196,6 @@ export function RoomPage({ roomId, sync }: Props) {
     return <JoiningView sync={sync} notice={retryNotice} />;
   }
 
-  const topicShown = sync.topic !== null && topicOpen;
   const isVoting = snapshot.round.status === 'voting';
   const inviteUrl = sync.inviteUrl(roomId);
 
@@ -218,7 +217,8 @@ export function RoomPage({ roomId, sync }: Props) {
                 type="button"
                 className="secondary"
                 aria-expanded={topicOpen}
-                aria-controls={TOPIC_CARD_ID}
+                // 隠している間は札が DOM に無い。消えた id を指さない
+                aria-controls={topicOpen ? TOPIC_CARD_ID : undefined}
                 onClick={() => setTopicOpen((open) => !open)}
               >
                 {topicOpen ? TOPIC_HIDE : TOPIC_SHOW}
@@ -240,7 +240,7 @@ export function RoomPage({ roomId, sync }: Props) {
           DOM は狭い幅で見せたい順（お題 → 場 → 手札）。お題が無い・隠したときは脇が無く、部品が主を 1 列にし、
           幅と中央寄せは index.css の `.room-main` が持つ。 */}
       <div className="ui-workspace ui-workspace--reader">
-        {sync.topic && topicShown && (
+        {sync.topic && topicOpen && (
           <div className="ui-workspace-side">
             <CurrentTopic topic={sync.topic} />
           </div>

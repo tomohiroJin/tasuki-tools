@@ -181,6 +181,8 @@ describe('poker のお題は手元で隠せる（#316 PR 1）', () => {
     expect(document.querySelector('.ui-workspace-side')).toBeNull();
     const show = screen.getByRole('button', { name: TOPIC_SHOW });
     expect(show.getAttribute('aria-expanded')).toBe('false');
+    // 隠している間は、DOM から消えた id を指さない
+    expect(show.hasAttribute('aria-controls')).toBe(false);
     fireEvent.click(show);
     expect(document.getElementById(TOPIC_CARD_ID)).not.toBeNull();
     expect(screen.getByRole('button', { name: TOPIC_HIDE }).getAttribute('aria-expanded')).toBe('true');
