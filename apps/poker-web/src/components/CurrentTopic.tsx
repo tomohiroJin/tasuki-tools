@@ -24,6 +24,10 @@ import { Markdown } from './Markdown';
 export const TOPIC_HEADING = 'お題';
 export const READ_MORE = '続きを読む';
 export const CLOSE = '閉じる';
+/** 切り替えのボタン（RoomPage）の文言と、それが指す札の id。書体の検査が文言を拾う。 */
+export const TOPIC_HIDE = 'お題を隠す';
+export const TOPIC_SHOW = 'お題を見る';
+export const TOPIC_CARD_ID = 'poker-topic-card';
 
 export function CurrentTopic({ topic }: { topic: Topic }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -32,7 +36,7 @@ export function CurrentTopic({ topic }: { topic: Topic }) {
   // フォーカスを「続きを読む」へ戻す経路は `onClose` の 1 本（閉じるボタンも Esc も `close` イベントを通る）
   const close = () => dialogRef.current?.close();
   return (
-    <section className="topic ui-reader" aria-labelledby="poker-topic-heading">
+    <section id={TOPIC_CARD_ID} className="topic ui-reader" aria-labelledby="poker-topic-heading">
       <div className="topic-head">
         <h2 id="poker-topic-heading">{TOPIC_HEADING}</h2>
         <h3 id="poker-topic-title" className="topic-title">{topic.title}</h3>

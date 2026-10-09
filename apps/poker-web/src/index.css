@@ -59,6 +59,23 @@
   gap: var(--space-5);
 }
 
+/* 脇（お題の札）を隠したとき・お題が無いときは、部品が操作の面を器いっぱいの 1 列にする。
+   広い画面で場と手札が左へ寄って見えるので、約 46rem の幅で中央に寄せる（#316 PR 1・利用者の指摘）。 */
+.ui-workspace:not(:has(> .ui-workspace-side)) > .room-main {
+  width: 100%;
+  max-width: 46rem;
+  margin-inline: auto;
+}
+
+/* 札を開いたときの比。部品の 0.85fr（札約 46%）より札を狭く（約 43%）して、手札の側を広げる。
+   poker は手札が横に並ぶので、お題は「あれば見られる程度」に留める。
+   **脇があるときだけ**当てる。脇が無いときの 1 列は部品の規則が決める（同じ詳細度で、ここが後ろだと 2 列に戻してしまう）。 */
+@media (width >= 64rem) {
+  .room .ui-workspace--reader:has(> .ui-workspace-side) {
+    grid-template-columns: minmax(0, 0.75fr) minmax(0, 1fr);
+  }
+}
+
 /* 節の間は gap だけで取る。要素層の h2 の上の余白（2.2rem）が重なると間が開きすぎ、
    最初の節の上端も左の札の上端より下がる。 */
 .room-main section > h2 {

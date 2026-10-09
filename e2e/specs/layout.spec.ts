@@ -180,6 +180,16 @@ async function relayTopicSyncAsDegraded(page: Page): Promise<void> {
   });
 }
 
+/** 操作の面が約 46rem で、器の内側の中央にある（左右の余白の差が 2px 以内）。 */
+async function expectMainCentered(page: Page): Promise<void> {
+  const inner = await pageBox(page);
+  const main = await boxOf(page, '.ui-workspace-main');
+  expect(Math.abs(main.width - 46 * REM)).toBeLessThanOrEqual(2);
+  const left = main.x - (inner.innerRight - inner.inner);
+  const right = inner.innerRight - (main.x + main.width);
+  expect(Math.abs(left - right)).toBeLessThanOrEqual(2);
+}
+
 test.describe('poker のルームは広い画面で読む面と操作の面を並べる', () => {
   test('Given 幅 1920・長い説明 / When ルームを開く / Then 器は 1536px で、読む面が左・操作の面が右に揃い、ページは伸びず本文が札の中でスクロールする', async ({ page, openPeer }, testInfo) => {
     await page.setViewportSize({ width: 1920, height: 900 });
@@ -215,14 +225,32 @@ test.describe('poker のルームは広い画面で読む面と操作の面を�
     await expectReaderStaysOnScreen(page);
   });
 
-  test('Given 幅 1280・お題が無い / When ルームを開く / Then 脇が無く、操作の面は器の内側の幅いっぱい（空の列を残さない）', async ({ page }) => {
+  test('Given 幅 1280・お題が無い / When ルームを開く / Then 脇が無く、場と手札は約 46rem で器の内側の中央にある', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await createPokerRoom(page, 'layout-no-topic');
     expect(await page.locator('.ui-workspace-side').count()).toBe(0);
-    const inner = await pageBox(page);
+    await expectMainCentered(page);
+  });
+
+  test('Given 幅 1280・お題を開いている / When ルームを開く / Then 札は操作の面より狭い（約 43%）', async ({ page, openPeer }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await openPokerWithTopic(page, openPeer);
+    const reader = await boxOf(page, '.ui-workspace-side');
     const main = await boxOf(page, '.ui-workspace-main');
-    expect(main.width).toBeCloseTo(inner.inner, 0);
-    expect(main.x + main.width).toBeCloseTo(inner.innerRight, 0);
+    expect(reader.width).toBeLessThan(main.width);
+    const ratio = reader.width / (reader.width + main.width);
+    expect(ratio).toBeGreaterThan(0.41);
+    expect(ratio).toBeLessThan(0.45);
+  });
+
+  test('Given 幅 1280・お題を開いている / When 「お題を隠す」を押す / Then 場と手札は約 46rem で中央に寄り、「お題を見る」で札が戻る', async ({ page, openPeer }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await openPokerWithTopic(page, openPeer);
+    await page.getByRole('button', { name: 'お題を隠す' }).click();
+    await expect(page.getByRole('region', { name: 'お題', exact: true })).toHaveCount(0);
+    await expectMainCentered(page);
+    await page.getByRole('button', { name: 'お題を見る' }).click();
+    await expect(page.getByRole('region', { name: 'お題', exact: true })).toBeVisible();
   });
 
   test('Given 幅 320・長い説明・長い名前の参加者 / When ルームを開く / Then 横に溢れず、お題 → 操作の面の順に積み、本文は 3 行で切れる', async ({ page, openPeer }, testInfo) => {

@@ -15,7 +15,7 @@ import type { RoomStateMessage } from '@tasuki/poker-core';
 import type { Topic } from '@tasuki/topic-core';
 import { RoomPage } from '../src/pages/RoomPage';
 import type { PokerSync } from '../src/hooks/useSync';
-import { CLOSE, READ_MORE, TOPIC_HEADING } from '../src/components/CurrentTopic';
+import { CLOSE, READ_MORE, TOPIC_CARD_ID, TOPIC_HIDE, TOPIC_HEADING, TOPIC_SHOW } from '../src/components/CurrentTopic';
 
 const ROOM_ID = 'ABCD1234';
 
@@ -159,5 +159,44 @@ describe('poker のルーム画面がいまのお題を出す(#91・#316)', () =
     render(<RoomPage roomId={ROOM_ID} sync={makeSync(null)} />);
     // Then（#91 E16）
     expect(screen.queryByRole('heading', { name: TOPIC_HEADING })).toBeNull();
+  });
+});
+
+describe('poker のお題は手元で隠せる（#316 PR 1）', () => {
+  const topic: Topic = { title: 'FizzBuzz', body: '3 のときは Fizz', source: 'manual' };
+
+  it('Given お題がある / When ルームを開く / Then 見出しの横に「お題を隠す」があり、札の id を指して開いている', () => {
+    render(<RoomPage roomId={ROOM_ID} sync={makeSync(topic)} />);
+    const toggle = screen.getByRole('button', { name: TOPIC_HIDE });
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(toggle.getAttribute('aria-controls')).toBe(TOPIC_CARD_ID);
+    expect(document.getElementById(TOPIC_CARD_ID)).not.toBeNull();
+    expect(toggle.closest('.ui-page-header')).not.toBeNull();
+  });
+
+  it('Given お題が開いている / When 「お題を隠す」を押す / Then 札が描かれず、「お題を見る」になる。もう一度押すと札が戻る', () => {
+    render(<RoomPage roomId={ROOM_ID} sync={makeSync(topic)} />);
+    fireEvent.click(screen.getByRole('button', { name: TOPIC_HIDE }));
+    expect(document.getElementById(TOPIC_CARD_ID)).toBeNull();
+    expect(document.querySelector('.ui-workspace-side')).toBeNull();
+    const show = screen.getByRole('button', { name: TOPIC_SHOW });
+    expect(show.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(show);
+    expect(document.getElementById(TOPIC_CARD_ID)).not.toBeNull();
+    expect(screen.getByRole('button', { name: TOPIC_HIDE }).getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('Given お題が無い / When ルームを開く / Then 切り替えのボタンが無い', () => {
+    render(<RoomPage roomId={ROOM_ID} sync={makeSync(null)} />);
+    expect(screen.queryByRole('button', { name: TOPIC_HIDE })).toBeNull();
+    expect(screen.queryByRole('button', { name: TOPIC_SHOW })).toBeNull();
+  });
+
+  it('Given 隠している / When お題が差し替わる / Then 隠したまま', () => {
+    const { rerender } = render(<RoomPage roomId={ROOM_ID} sync={makeSync(topic)} />);
+    fireEvent.click(screen.getByRole('button', { name: TOPIC_HIDE }));
+    rerender(<RoomPage roomId={ROOM_ID} sync={makeSync({ ...topic, title: '次のお題' })} />);
+    expect(document.getElementById(TOPIC_CARD_ID)).toBeNull();
+    expect(screen.getByRole('button', { name: TOPIC_SHOW })).not.toBeNull();
   });
 });

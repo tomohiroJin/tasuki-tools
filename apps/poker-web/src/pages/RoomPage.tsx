@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useCopyText } from '@tasuki/invite-ui';
 import type { RoomStateMessage } from '@tasuki/poker-core';
 import { CardHand } from '../components/CardHand';
-import { CurrentTopic } from '../components/CurrentTopic';
+import { CurrentTopic, TOPIC_CARD_ID, TOPIC_HIDE, TOPIC_SHOW } from '../components/CurrentTopic';
 import { ErrorNote } from '../components/ErrorNote';
 import { ParticipantList } from '../components/ParticipantList';
 import { Results } from '../components/Results';
@@ -71,6 +71,9 @@ function InviteLink({ url }: { url: string }) {
 }
 
 export function RoomPage({ roomId, sync }: Props) {
+  // お題の札を見せるか。**手元だけの状態**で、他の人の画面には影響しない。お題が差し替わっても保つ
+  // （お題は無いことが多く、あれば見られる程度でよい・#316 PR 1 の利用者の指摘）。
+  const [topicOpen, setTopicOpen] = useState(true);
   // 端末に同一性が無ければ、**玄関の参加画面へ送り返す**（#95 S5c・R9）。
   //
   // **接続を待たない。** timer は同じ決定を mount 時の効果で、接続状態を見ずに適用する
@@ -193,6 +196,7 @@ export function RoomPage({ roomId, sync }: Props) {
     return <JoiningView sync={sync} notice={retryNotice} />;
   }
 
+  const topicShown = sync.topic !== null && topicOpen;
   const isVoting = snapshot.round.status === 'voting';
   const inviteUrl = sync.inviteUrl(roomId);
 
@@ -211,14 +215,28 @@ export function RoomPage({ roomId, sync }: Props) {
           <a className="ui-page-header-back" href={inviteUrl}>
             選択画面へ戻る
           </a>
+          {/* お題があるときだけ。隠すのは札ごと（React で描かない）。シートは札の中の `<dialog>` で、
+              開いている間はモーダルなので、この切り替えは押せない（フォーカスが失われる経路が無い）。 */}
+          {sync.topic && (
+            <button
+              type="button"
+              className="secondary"
+              aria-expanded={topicOpen}
+              aria-controls={TOPIC_CARD_ID}
+              onClick={() => setTopicOpen((open) => !open)}
+            >
+              {topicOpen ? TOPIC_HIDE : TOPIC_SHOW}
+            </button>
+          )}
         </div>
         <InviteLink url={inviteUrl} />
       </header>
       <ErrorNote error={sync.error} onClose={sync.clearError} />
       {/* 段組み（#316・ADR 0025）。64rem 以上は左に読む面（お題）・右に操作の面（場 → 手札 → 結果）。
-          DOM は狭い幅で見せたい順（お題 → 場 → 手札）。お題が無ければ脇が無く、部品が主を 1 列にする。 */}
+          DOM は狭い幅で見せたい順（お題 → 場 → 手札）。お題が無い・隠したときは脇が無く、部品が主を 1 列にし、
+          幅と中央寄せは index.css の `.room-main` が持つ。 */}
       <div className="ui-workspace ui-workspace--reader">
-        {sync.topic && (
+        {sync.topic && topicShown && (
           <div className="ui-workspace-side">
             <CurrentTopic topic={sync.topic} />
           </div>
