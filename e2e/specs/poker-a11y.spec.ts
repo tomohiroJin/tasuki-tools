@@ -34,6 +34,7 @@ test.describe('poker の文字が背景に対して読める（WCAG AA）', () =
     await joinRoom(poker.page, inviteUrl, 'a11y-poker');
     const topic = poker.page.getByRole('region', { name: 'お題', exact: true });
     await expect(topic.getByRole('region', { name: TITLE, exact: true }).getByText(BODY, { exact: true })).toBeVisible();
+    await expect(topic.getByRole('button', { name: '続きを読む' })).toBeHidden();
     // 固定する組: 象牙の札の上の字（`--coal` on `--ivory`）と、札の上のお題の見出し（`--coal-soft` on 札の地）。
     //   画面の作りが変わって測らなくなったら落とす
     //   読む面の札の地は単色でなくグラデーション（`.ui-reader`）なので、地の記述はその形で組む

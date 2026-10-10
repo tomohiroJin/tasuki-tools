@@ -15,3 +15,8 @@
      felt-900 の上では約 6.4:1。 */
   background: var(--felt-900);
 }
+
+/* パネルの先頭の子（見出しなど）の上の余白を消す。パネルの padding と要素層の h2 の上の余白が重ならないように */
+.ui-panel > :first-child {
+  margin-top: 0;
+}

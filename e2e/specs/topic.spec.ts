@@ -511,6 +511,8 @@ test.describe('お題ツールを書く主役にする（#316 PR 1 の手直し�
     await openTopicTool(page, 'foot-topic');
     await setTopic(page, TITLE, SHORT_BODY);
     const reader = currentTopic(page);
+    // 64rem 以上では全文が札に出るので「続きを読む」は出ない（`.ui-button` の display に負けない）
+    await expect(reader.getByRole('button', { name: '続きを読む' })).toBeHidden();
     // When
     const copy = await reader.getByRole('button', { name: '下書きにコピー' }).boundingBox();
     const clear = await reader.getByRole('button', { name: '場から下げる' }).boundingBox();

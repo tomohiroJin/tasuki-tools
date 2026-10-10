@@ -94,11 +94,13 @@ export function RoomChoice({ code, inviteUrl, roster, connection, topicTitle }: 
           <section className="hub-panel ui-panel" aria-labelledby="hub-invite-heading">
             <h2 className="hub-heading" id="hub-invite-heading">仲間を招く</h2>
             <input className="ui-input hub-invite" readOnly value={inviteUrl} aria-label="参加用 URL" />
-            <div className="hub-invite-actions">
+            <div className="hub-invite-actions ui-actions">
+              <div className="ui-actions-start">
+                <button type="button" className="ui-button ui-button--secondary" aria-expanded={showQr} aria-controls={qrId} onClick={() => setShowQr(!showQr)}>
+                  {showQr ? 'QR コードを閉じる' : 'QR コードを表示'}
+                </button>
+              </div>
               <button type="button" className="ui-button ui-button--secondary" onClick={copy.copy}>参加用 URL をコピー</button>
-              <button type="button" className="ui-button ui-button--secondary" aria-expanded={showQr} aria-controls={qrId} onClick={() => setShowQr(!showQr)}>
-                {showQr ? 'QR コードを閉じる' : 'QR コードを表示'}
-              </button>
             </div>
             <p className="hub-invite-status ui-note" role="status">
               {copy.state === 'done' && 'コピーしました。'}

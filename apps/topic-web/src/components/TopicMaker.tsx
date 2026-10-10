@@ -82,7 +82,7 @@ export function TopicMaker({ aiUnlocked, enabled, onGenerate, onUnlock }: Props)
               ))}
             </select>
           </div>
-          <div className="topic-actions">
+          <div className="ui-actions">
             {aiUnlocked && (
               <button type="button" className="ui-button ui-button--secondary" onClick={() => onGenerate('ai', language, difficulty)} disabled={!enabled}>
                 {AI_BUTTON}

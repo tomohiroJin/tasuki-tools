@@ -175,7 +175,7 @@ export function TopicEditor({ fillRequest = null, enabled, onDraftChange, onSubm
             </section>
           </div>
         </div>
-        <div className="topic-actions">
+        <div className="ui-actions ui-actions--dock">
           <button type="submit" className="ui-button ui-button--lg" disabled={!canSubmit}>
             {SET_BUTTON}
           </button>

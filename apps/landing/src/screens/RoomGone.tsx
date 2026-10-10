@@ -42,9 +42,9 @@ export function RoomGone({ code }: RoomGoneProps) {
       </p>
 
       {/* **戻る道。** これが無いと行き止まりになる。
-          リンクの形をする操作は部品層の `ui-button ui-button--quiet`（下線の字）で飾る（`HistoryLink` と同じ）。
+          この画面の主の操作なので部品層の `ui-button`（主）で飾る。記録への入口（`HistoryLink`）は `--quiet`（下線の字）なので、主は 1 つだけ。
           poker の同じ画面も、戻る道は素のリンクにしてある。 */}
-      <a className="ui-button ui-button--quiet" href="/">
+      <a className="ui-button" href="/">
         新しいルームを作る
       </a>
 

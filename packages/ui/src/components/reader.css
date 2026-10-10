@@ -54,7 +54,9 @@
     -webkit-line-clamp: unset;
   }
 
-  .ui-reader-more {
+  /* `.ui-reader .ui-reader-more`（(0,2,0)）にするのは、`.ui-button` の `display: inline-flex`（後に読み込まれる・
+     同じ詳細度）に勝って 64rem 以上で隠すため */
+  .ui-reader .ui-reader-more {
     display: none;
   }
 }

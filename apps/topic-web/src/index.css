@@ -46,7 +46,6 @@
   color: var(--coal);
   font-size: var(--font-size-sm);
   font-weight: 700;
-  letter-spacing: normal;
   white-space: nowrap;
 }
 
@@ -56,11 +55,6 @@
 
 .topic-tab:hover:not(:disabled) {
   background: var(--card-inline);
-}
-
-.topic-tab:active:not(:disabled) {
-  transform: none;
-  box-shadow: none;
 }
 
 /* 読む面のタブの並び（かつて部品層の `.ui-reader-tabs`。使うのがお題ツールだけになったのでここへ移した・#316） */
@@ -124,27 +118,26 @@
   }
 }
 
-/* 札の下端。場のお題のタブは「下書きにコピー」（左）と「場から下げる」（右）、下書きのタブは添え書きだけ。
-   「場から下げる」は危険の操作（`.ui-button--danger`）。札の上の副ボタンは折り返さない（シートの狭い頭で縦に割れないように）。 */
+/* 札の下端。場のお題のタブは `.ui-actions`（左に「下書きにコピー」・右に「場から下げる」）、下書きのタブは添え書きだけ。
+   札の上の副ボタンは折り返さない（シートの狭い頭で縦に割れないように）。 */
 .topic-reader-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  /* 320px の幅では 2 つのボタンが並ばない（折り返さない副ボタンが横にはみ出す）。折り返して縦に積む */
-  flex-wrap: wrap;
-  gap: var(--space-3);
   padding: var(--space-3) var(--space-5) var(--space-4);
   border-top: 1px solid var(--card-inline);
 }
 
-/* 折り返して縦に積んでも、右のボタン（場から下げる）は右端に残す（`space-between` だけだと左端へ寄る） */
-.topic-reader-foot > button:last-child {
-  margin-inline-start: auto;
+.topic-reader-foot .ui-button {
+  white-space: nowrap;
 }
 
-.topic-reader-foot .ui-button,
-.ui-drawer-head .ui-button {
-  white-space: nowrap;
+/* 取り消せない操作（場から下げる）。札の上の朱の枠。部品層の `--danger` は使うのがここだけなので画面が持つ
+   （PR 3 で timer が使うときに部品へ戻す）。札の上の副ボタン（`.ui-reader .ui-button--secondary`）に勝つよう (0,2,0)。 */
+.topic-reader-foot .topic-danger {
+  border-color: var(--card-back);
+  color: var(--card-back);
+}
+
+.topic-reader-foot .topic-danger:where(:hover:not(:disabled)) {
+  background: var(--rose-tint);
 }
 
 .topic-foot-note {
@@ -324,12 +317,11 @@
   gap: var(--space-2);
 }
 
-/* 選んだ側は `aria-pressed="true"`。見た目は `--secondary` のまま、太い枠と地（金の薄い敷き）で区別する。
-   色だけに頼らないよう枠の太さも変える。太さが変わっても大きさが動かないよう余白で釣り合わせる。 */
+/* 選んだ側は `aria-pressed="true"`。見た目は `--secondary` のまま、地（金の薄い敷き）と内側の線で区別する。
+   内側の線（inset の影）で枠を太らせるので、大きさは動かない。 */
 .topic-compose-toggle .ui-button[aria-pressed='true'] {
-  border-width: 2px;
-  padding-inline: calc(1rem - 1px);
   background: var(--gold-tint);
+  box-shadow: inset 0 0 0 1px var(--gold-deep);
 }
 
 .topic-compose-panes {
@@ -381,17 +373,6 @@
   .topic-compose .topic-compose-caption {
     display: block;
   }
-}
-
-.topic-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-}
-
-/* 書く欄の操作は「場に出す」だけで、右端に置く（札の側の「下げる」と左右で役目が分かれる）。 */
-.topic-panel form > .topic-actions {
-  justify-content: flex-end;
 }
 
 /* お題ツールの頭（見出しと招待リンク）と段組みの間（読む面の札が行に接しない）。poker の `.room > header` と同じ値 */

@@ -1,7 +1,7 @@
 /* ============================================================
    ボタン（#316 PR 2・設計正本 D4・D5）
-   形は真鍮のチップ（丸）1 つ。役割 4 種（既定=主・--secondary・--quiet・--danger）・大きさ 3 段
-   （--sm / 既定 / --lg）・--icon（正方形）。見た目は要素層の `button` から移した。
+   形は真鍮のチップ（丸）1 つ。役割 3 種（既定=主・--secondary・--quiet）・大きさ 3 段
+   （--sm / 既定 / --lg）。見た目は要素層の `button` から移した。
    **要素層の `button` は見た目を持たない**（初期化だけ）。ボタンの形をする `<button>` と `<a>` には必ずこのクラスを当てる。
 
    - 押せる高さは常に 44px 以上。--sm は見た目 36px で、当たりを ::before で上下に広げる。
@@ -75,14 +75,6 @@
   font-size: var(--font-size-base);
 }
 
-/* アイコンだけ。正方形・44px。aria-label を必ず付ける */
-.ui-button--icon {
-  width: 2.75rem;
-  min-width: 0;
-  min-height: 2.75rem;
-  padding: 0;
-}
-
 /* --- 役割 -------------------------------------------------- */
 
 .ui-button--secondary {
@@ -115,28 +107,10 @@
   box-shadow: none;
 }
 
-/* 取り消せない操作。朱の枠。felt-800 の上で字 4.95:1。felt-700 の上は 3.55:1 で AA を割るので置かない */
-.ui-button--danger {
-  border-color: var(--rose-edge);
-  background: transparent;
-  box-shadow: none;
-  color: var(--rose-bright);
-}
-
-/* 朱の敷きの上では rose-bright が 4.00:1 に落ちるので、字を rose-pale（6.67:1）に上げる */
-.ui-button--danger:where(:hover:not(:disabled)) {
-  background: var(--rose-tint);
-  color: var(--rose-pale);
-}
-
-.ui-button--danger:where(:active:not(:disabled)) {
-  box-shadow: none;
-}
-
 /* --- 象牙の札の上 -------------------------------------------
    金の字は札の上で AA を割る（gold-deep 4.23:1 / 3.30:1）ので、字を札の色、枠を coal-soft にする。
    札の地（card-sheen〜card-shade）の上で: coal 15.38 / 12.01・coal-soft 7.22 / 5.64・card-back 8.07 / 6.30。
-   ホバーの敷きは gold-tint（coal 14.60 / 11.71）と rose-tint（card-back 7.09 / 5.70。ホバーの色は札の上の危険の字をそのまま継ぐ）。
+   ホバーの敷きは gold-tint（coal 14.60 / 11.71）。
    主（金の地に coal）は札の上でもそのまま読めるので上書きしない。 */
 
 .ui-reader .ui-button--secondary,
@@ -148,10 +122,4 @@
 .ui-reader .ui-button--quiet,
 .ui-drawer .ui-button--quiet {
   color: var(--coal);
-}
-
-.ui-reader .ui-button--danger,
-.ui-drawer .ui-button--danger {
-  border-color: var(--card-back);
-  color: var(--card-back);
 }
