@@ -207,7 +207,10 @@ test.describe('玄関と poker のボタンは部品で、押せる大きさが�
     await expect(dock).toBeVisible();
     await page.setViewportSize({ width: 390, height: 460 });
     await expectDockPinned(page, dock, 'poker（投票中）');
-    await expectFocusNotHiddenByDock(page, dock, '☕', 'poker（投票中）');
+    // 帯が Tab の行き先を隠さない。手札が帯のすぐ上で折り返す幅（320）で測る（390 では隠れる局面が出ない）
+    await page.setViewportSize({ width: 320, height: 568 });
+    await expectFocusNotHiddenByDock(page, dock, '☕', 'poker（投票中・320）');
+    await page.setViewportSize({ width: 390, height: 460 });
 
     // 全員が投票すると自動で公開される（ホストの 8 で 2 人目が揃う）。公開ボタンは押さない
     await chooseCard(page, '8');
