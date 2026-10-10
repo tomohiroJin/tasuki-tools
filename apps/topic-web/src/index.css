@@ -35,26 +35,17 @@
   color: var(--coal-soft);
 }
 
-/* **PR 2 で `.ui-button` の役割に置き換えて消す一時的な規則**（poker の `.topic .secondary` と同じ）。
-   札の上の副ボタン（下書きにコピー・場から下げる・続きを読む・閉じる）。既定の金の字は象牙の上で読めないので札の字の色にし、
-   シートの狭い頭で縦に割れないよう折り返さない。 */
-.topic-current .secondary,
-.ui-drawer .secondary {
-  color: var(--coal);
-  border-color: var(--coal-soft);
-  white-space: nowrap;
-}
-
-/* タブ。要素層のボタン（金の丸薬）を、札の上の下線のタブに打ち消す。
-   **PR 2 で `.ui-button` / タブの部品に寄せる。** 選んだタブは太い下線で示す（色だけに頼らない）。 */
+/* タブ。札の上の下線のタブで、ボタンの形をしない操作なので `.ui-button` にしない。
+   要素層の `button` は見た目を持たない（#316 PR 2）ので、字・地・枠は全部ここで持つ。選んだタブは太い下線で示す（色だけに頼らない）。 */
 .topic-tab {
   padding: var(--space-3) var(--space-3);
   border: 0;
   border-bottom: 3px solid transparent;
   border-radius: 0;
   background: transparent;
-  box-shadow: none;
   color: var(--coal);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
   letter-spacing: normal;
   white-space: nowrap;
 }
@@ -64,7 +55,6 @@
 }
 
 .topic-tab:hover:not(:disabled) {
-  filter: none;
   background: var(--card-inline);
 }
 
@@ -135,7 +125,7 @@
 }
 
 /* 札の下端。場のお題のタブは「下書きにコピー」（左）と「場から下げる」（右）、下書きのタブは添え書きだけ。
-   「場から下げる」は危険の操作で、PR 2 で `.ui-button--danger` になる。 */
+   「場から下げる」は危険の操作（`.ui-button--danger`）。札の上の副ボタンは折り返さない（シートの狭い頭で縦に割れないように）。 */
 .topic-reader-foot {
   display: flex;
   align-items: center;
@@ -150,6 +140,11 @@
 /* 折り返して縦に積んでも、右のボタン（場から下げる）は右端に残す（`space-between` だけだと左端へ寄る） */
 .topic-reader-foot > button:last-child {
   margin-inline-start: auto;
+}
+
+.topic-reader-foot .ui-button,
+.ui-drawer-head .ui-button {
+  white-space: nowrap;
 }
 
 .topic-foot-note {
@@ -327,6 +322,14 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+}
+
+/* 選んだ側は `aria-pressed="true"`。見た目は `--secondary` のまま、太い枠と地（金の薄い敷き）で区別する。
+   色だけに頼らないよう枠の太さも変える。太さが変わっても大きさが動かないよう余白で釣り合わせる。 */
+.topic-compose-toggle .ui-button[aria-pressed='true'] {
+  border-width: 2px;
+  padding-inline: calc(1rem - 1px);
+  background: var(--gold-tint);
 }
 
 .topic-compose-panes {

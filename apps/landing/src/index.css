@@ -216,12 +216,9 @@
   box-shadow: var(--shadow-popover);
 }
 
+/* 区画の見出しの大きさ・色・太さは要素層の h2（設計正本 §11）が持つ。ここは余白だけ（フォームの札の頭は上の余白を持たない） */
 .hub-section-title {
   margin: 0;
-  font-size: var(--font-size-lg);
-  line-height: var(--line-tight);
-  letter-spacing: 0;
-  color: var(--ivory);
 }
 
 .hub-field {
@@ -235,34 +232,7 @@
   color: var(--ivory-dim);
 }
 
-.hub-submit {
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--gold-deep);
-  border-radius: var(--radius-md);
-  background: var(--gold);
-  color: var(--coal);
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-/* **押せないボタンを押せると見せない**（#95 S5c・C-I2）。
-   地の灰色化と `cursor: not-allowed` は基底層（`@tasuki/ui` の `button:disabled`）が
-   与えるが、**下の :hover は詳細度 (0,2,0) でそれ (0,1,1) に勝つ** —— `:not(:disabled)` を
-   付けないと、押せないボタンがホバーで明るくなり、有効なボタンと見分けが付かなくなる。
-   基底層の `button:hover:not(:disabled)` が同じ理由でガードされている。
-   `cursor` をここでも書くのは、`.hub-submit` が `cursor: pointer` を明示している以上、
-   基底層の勝ち負けに頼らず同じ場所で打ち消しておくためである。
-
-   ⚠ **この 2 つの規則は検査に掛からない。** 単体テストも E2E も `toBeDisabled()`
-   （＝属性）しか見ないので、消しても緑のまま通る。 */
-.hub-submit:disabled {
-  cursor: not-allowed;
-}
-.hub-submit:hover:not(:disabled),
-.hub-submit:focus-visible:not(:disabled) {
-  background: var(--gold-bright);
-}
+/* 作る・参加するのボタンは部品層の `.ui-button--lg`（主）が見た目を持つ。フォームの縦並びで幅いっぱいに伸びる。 */
 /* 一言の色は部品（`.ui-note` / `.ui-note--error`）が持つ。ここに色を書くと、後に読まれるこちらが勝って部品の色を潰す。 */
 .hub-error {
   font-size: var(--font-size-sm);
@@ -364,12 +334,9 @@
 .hub-panel {
   min-width: 0;
 }
+/* パネルの見出し。大きさ・色・太さは要素層の h2（§11・lg）に揃える（以前は base で §11 より小さかった）。余白だけ持つ */
 .hub-heading {
   margin: 0 0 var(--space-4);
-  font-size: var(--font-size-base);
-  line-height: var(--line-tight);
-  letter-spacing: 0;
-  color: var(--ivory);
 }
 .hub-roster {
   list-style: none;
@@ -417,19 +384,6 @@
   gap: var(--space-2);
   margin-top: var(--space-3);
 }
-.hub-invite-actions button {
-  padding: var(--space-3);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-md);
-  background: var(--felt-800);
-  color: var(--ivory);
-  box-shadow: none;
-  font-size: var(--font-size-sm);
-  letter-spacing: 0;
-}
-.hub-invite-actions button:hover:not(:disabled) {
-  background: var(--felt-700);
-}
 /* コピーの結果は空 → 文字 → 空と入れ替わる（#269）。**高さを先に確保しておく** ——
    確保しないと文字が出た瞬間に直下の `.hub-invite-qr` が押し下がり、QR を開いたまま
    コピーした人の手元で的が動く。`:empty` の余白調整では高さが埋まらないので効かない。
@@ -453,16 +407,6 @@
   max-width: 100%;
   height: auto;
 }
-.hub-secondary {
-  padding: var(--space-2) var(--space-4);
-  color: var(--ivory-dim);
-  text-align: center;
-  text-underline-offset: var(--space-1);
-}
-.hub-secondary:hover, .hub-secondary:focus-visible {
-  color: var(--ivory);
-}
-
 /* 札の寸法は基底の `.hub-tools .tool-card`（同じ詳細度）より後ろに置かないと負ける。上の縦積みと同じ 64rem 未満。 */
 @media (width < 64rem) {
   /* 札は基底の `.hand` と同じく縦に積む。**横に並べると文字が入らない** ——

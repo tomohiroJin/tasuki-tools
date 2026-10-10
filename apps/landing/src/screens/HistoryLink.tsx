@@ -25,7 +25,7 @@ export function HistoryLink({ roomCode }: HistoryLinkProps) {
       : `${TIMER_BASE}?view=history&room=${encodeURIComponent(roomCode)}`;
 
   return (
-    <a className="hub-secondary" href={href}>
+    <a className="ui-button ui-button--quiet" href={href}>
       記録を見る
     </a>
   );

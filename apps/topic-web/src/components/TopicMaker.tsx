@@ -84,11 +84,11 @@ export function TopicMaker({ aiUnlocked, enabled, onGenerate, onUnlock }: Props)
           </div>
           <div className="topic-actions">
             {aiUnlocked && (
-              <button type="button" onClick={() => onGenerate('ai', language, difficulty)} disabled={!enabled}>
+              <button type="button" className="ui-button ui-button--secondary" onClick={() => onGenerate('ai', language, difficulty)} disabled={!enabled}>
                 {AI_BUTTON}
               </button>
             )}
-            <button type="button" className="secondary" onClick={() => onGenerate('fallback', language, difficulty)} disabled={!enabled}>
+            <button type="button" className="ui-button ui-button--secondary" onClick={() => onGenerate('fallback', language, difficulty)} disabled={!enabled}>
               {FALLBACK_BUTTON}
             </button>
           </div>
@@ -113,7 +113,7 @@ export function TopicMaker({ aiUnlocked, enabled, onGenerate, onUnlock }: Props)
                   value={key}
                   onChange={(e) => setKey(e.target.value)}
                 />
-                <button type="submit" disabled={!canUnlock(key, enabled)}>
+                <button type="submit" className="ui-button ui-button--secondary" disabled={!canUnlock(key, enabled)}>
                   {UNLOCK_BUTTON}
                 </button>
               </div>

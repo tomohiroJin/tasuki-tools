@@ -164,10 +164,12 @@ test.describe('お題ツールの文字と書体', () => {
     await openTopicTool(page, 'a11y-topic');
     await setTopic(page, TITLE, BODY);
     await expect(currentTopic(page)).toContainText(BODY);
-    // 測ったことを固定する 2 組: 卓の上の見出し（`--gold` on `--felt-900`）と、
+    // 作る欄は閉じている。副ボタン（金の字・透明の地）が卓の上（`--felt-900`）に出る組を測るために開く
+    await page.getByRole('group').filter({ has: page.getByRole('heading', { name: '定型や AI で作る' }) }).first().evaluate((el) => ((el as HTMLDetailsElement).open = true));
+    // 測ったことを固定する 2 組: 卓の上の金の字（戻る導線・副ボタン・リンクの `--gold-bright` on `--felt-900`。見出し h2 は象牙になり、`--gold` の字は無くなった・#316 PR 2）と、
     //   読む面（グラデーションの札）の上の字（`--coal`）を測ったことを固定する（レビュー指摘・修正ラウンド 1）。
     //   札の上の見出し（h2「お題」の `--coal-soft`）・タブ・「場から下げる」もこの走査に入る（#316）
-    const [gold, felt900, coal, sheen, shade] = await resolveColors(page, ['--gold', '--felt-900', '--coal', '--card-sheen', '--card-shade']);
+    const [gold, felt900, coal, sheen, shade] = await resolveColors(page, ['--gold-bright', '--felt-900', '--coal', '--card-sheen', '--card-shade']);
     const cardGround = `rgba(0, 0, 0, 0) + linear-gradient(160deg, ${sheen}, ${shade})`;
 
     // When / Then その1: 文字が読める（読む面の上の字も含む）

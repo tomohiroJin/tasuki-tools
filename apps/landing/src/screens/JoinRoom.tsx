@@ -107,7 +107,7 @@ export function JoinRoom({
           </p>
         )}
 
-        <button className="hub-submit" type="submit" disabled={connection !== 'online'}>
+        <button className="ui-button ui-button--lg" type="submit" disabled={connection !== 'online'}>
           参加する
         </button>
       </form>
