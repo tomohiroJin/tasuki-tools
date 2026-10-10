@@ -1,6 +1,6 @@
 /* ============================================================
    Tasuki UI — 操作系（ラベル・ボタン・バッジ）
-   ボタンは真鍮のチップ。
+   ボタンの見た目は部品層 `.ui-button`。
    ※ `input[type='text']` の規則はここで一度も画面に当たらないと分かり削除した（#280）。
      利用側が `type="text"` を明示する日が来れば、そのとき実需として改めて置く
      （設計正本 §12・憲法 原則 X）。
@@ -15,45 +15,16 @@ label {
   text-align: left;
 }
 
+/* ボタンは見た目を持たない（#316 PR 2・設計正本 D5）。見た目は部品層の `.ui-button` だけが持つ。
+ * ここは初期化（書体を継ぐ・カーソル）に留める。クラスの無い `<button>` はブラウザ既定の灰色で出るので、
+ * 必ず `.ui-button` か画面固有のクラスを当てる（E2E の走査が落とす）。 */
 button {
-  font-family: var(--font-body);
-  font-weight: 700;
-  font-size: var(--font-size-sm);
-  letter-spacing: 0.06em;
-  padding: 0.7rem 1.4rem;
-  border-radius: 999px;
-  border: 1px solid var(--gold-deep);
-  color: var(--coal);
-  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
-  box-shadow: 0 2px 0 var(--gold-deep), var(--shadow-button);
+  font-family: inherit;
   cursor: pointer;
-  transition: transform 0.12s, box-shadow 0.12s, filter 0.2s;
 }
 
 button:disabled {
-  filter: grayscale(0.6) brightness(0.75);
   cursor: not-allowed;
-}
-
-button:hover:not(:disabled) {
-  filter: brightness(1.06);
-}
-
-/* 押し込みは影の厚みを削って表現する（チップを卓へ押す感じ） */
-button:active:not(:disabled) {
-  transform: translateY(2px);
-  box-shadow: 0 0 0 var(--gold-deep), var(--shadow-button-pressed);
-}
-
-button.secondary {
-  background: transparent;
-  color: var(--gold-bright);
-  border: 1px solid var(--gold-deep);
-  box-shadow: none;
-}
-
-button.secondary:hover:not(:disabled) {
-  background: var(--gold-tint);
 }
 
 .badge {

@@ -1,0 +1,52 @@
+/* ============================================================
+   操作の並び（#316 PR 2・設計正本 D6）
+   主は常に最後。40rem 以上は横に並べて右寄せ（折り返しても右から詰める）、
+   40rem 未満は幅いっぱいに縦へ積む（主が最下段＝親指に最も近い）。
+   控え（--quiet など）は .ui-actions-start に入れて左端へ離す。
+   gap は 12px（--sm の当たりの拡張 4px が隣に重ならない）。
+   ============================================================ */
+
+.ui-actions {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-3);
+}
+
+.ui-actions-start {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-3);
+}
+
+@media (width >= 40rem) {
+  .ui-actions {
+    flex-flow: row wrap;
+    align-items: center;
+    justify-content: flex-end;
+  }
+
+  .ui-actions-start {
+    flex-direction: row;
+    align-items: center;
+    margin-inline-end: auto;
+  }
+}
+
+/* 狭い幅でだけ画面の下端に留まる帯。`position: fixed` でなく `sticky` にしたのは、帯の高さが画面ごとに違い
+   （縦積みの段数）、fixed では「帯の高さぶんの余白」を部品が知れないため。sticky は流れの中に居るので
+   帯は中身を隠さず、器の下の余白（.ui-page の padding）の手前で止まる。並びは器の最後に置くこと。
+   器の左右の余白（最小 1rem）まで帯を広げ、iOS の画面下のバーに重ならないよう下に safe-area を足す。 */
+@media (width < 40rem) {
+  .ui-actions--dock {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    margin-inline: calc(var(--space-4) * -1);
+    padding: var(--space-3) var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--line-strong);
+    background: var(--felt-scrim);
+  }
+}

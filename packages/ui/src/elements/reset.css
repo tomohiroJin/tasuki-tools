@@ -76,22 +76,24 @@ h1 {
   margin: 0 0 0.75rem;
 }
 
-/* セクション見出し: 小さく詰めた金の大文字 + 右へ消える罫 */
+/* 区画の見出し（設計正本 §11）: lg・象牙・700。字間を詰めず、大文字にせず、罫を引かない。
+ * 金の字間の広い大文字は添え書き（xs）にだけ使う。 */
 h2 {
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-lg);
   font-weight: 700;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--gold);
-  margin: 2.2rem 0 0.9rem;
+  color: var(--ivory);
+  letter-spacing: 0;
+  text-transform: none;
+  margin: var(--space-5) 0 var(--space-3);
+  line-height: var(--line-tight);
 }
 
-h2::after {
-  content: '';
-  display: block;
-  margin-top: 0.5rem;
-  height: 1px;
-  background: linear-gradient(to right, var(--line), transparent 70%);
+/* 小見出し */
+h3 {
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  margin: 0 0 var(--space-2);
+  line-height: var(--line-tight);
 }
 
 a {
