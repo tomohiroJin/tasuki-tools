@@ -3,7 +3,7 @@
    主は常に最後。40rem 以上は横に並べて右寄せ（折り返しても右から詰める）、
    40rem 未満は幅いっぱいに縦へ積む（主が最下段＝親指に最も近い）。
    控え（--quiet など）は .ui-actions-start に入れて左端へ離す。
-   gap は 12px（--sm の当たりの拡張 4px が隣に重ならない）。
+   gap は 12px（--sm の当たりの拡張 5px×2 が隣に重ならない。10px 以上）。
    ============================================================ */
 
 .ui-actions {
@@ -44,8 +44,9 @@
     position: sticky;
     bottom: 0;
     z-index: 1;
-    margin-inline: calc(var(--space-4) * -1);
-    padding: var(--space-3) var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom));
+    /* 器（.ui-page）の padding-inline と同じ式。固定の 1rem だと 400〜640px で帯が器の余白に届かない */
+    margin-inline: calc(clamp(var(--space-4), 4vw, calc(var(--space-6) * 1.5)) * -1);
+    padding: var(--space-3) clamp(var(--space-4), 4vw, calc(var(--space-6) * 1.5)) calc(var(--space-3) + env(safe-area-inset-bottom));
     border-top: 1px solid var(--line-strong);
     background: var(--felt-scrim);
   }

@@ -20,6 +20,10 @@ label {
  * 必ず `.ui-button` か画面固有のクラスを当てる（E2E の走査が落とす）。 */
 button {
   font-family: inherit;
+  font-size: inherit; /* scale-exempt: 要素の初期化。親の字を継ぐ */
+  font-weight: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
   cursor: pointer;
 }
 
