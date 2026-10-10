@@ -10,9 +10,8 @@
   padding: var(--space-5);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-lg);
-  /* 地は不透明にする。body の羅紗グラデーション（felt-700〜felt-950）へ直接乗せると、地を持たない h2 の
-     `--gold` は最も明るい停止点（felt-700）の上で約 3.92:1 と AA を割る（#91 PR 2 の実測）。
-     felt-900 の上では約 6.4:1。 */
+  /* 地は不透明にする。地を持たない字（金の添え書き・エラーの一言など）を羅紗グラデーション（felt-700〜felt-950）の
+     明るい停止点に直接乗せると AA を割る（当時の金の h2 は felt-700 の上で約 3.92:1・#91 PR 2 の実測。felt-900 の上では約 6.4:1）。 */
   background: var(--felt-900);
 }
 

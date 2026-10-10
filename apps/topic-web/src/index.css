@@ -130,7 +130,7 @@
 }
 
 /* 取り消せない操作（場から下げる）。札の上の朱の枠。部品層の `--danger` は使うのがここだけなので画面が持つ
-   （PR 3 で timer が使うときに部品へ戻す）。札の上の副ボタン（`.ui-reader .ui-button--secondary`）に勝つよう (0,2,0)。 */
+   （PR 3 で timer が使うときに部品へ戻す）。札の上の副ボタン（`.ui-reader .ui-button--secondary`）と同じ (0,2,0) で、後に読まれる画面の CSS が勝つ。 */
 .topic-reader-foot .topic-danger {
   border-color: var(--card-back);
   color: var(--card-back);

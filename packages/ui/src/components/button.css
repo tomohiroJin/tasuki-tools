@@ -76,6 +76,7 @@
 }
 
 /* --- 役割 -------------------------------------------------- */
+/* 役割は大きさより後ろに置く。重ねたとき（例: `--quiet --sm`）の `padding-inline` は役割が勝つ */
 
 .ui-button--secondary {
   background: transparent;

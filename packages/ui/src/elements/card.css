@@ -54,7 +54,6 @@
 .card:hover:not(:disabled) {
   transform: translateY(-8px) rotate(-1.5deg);
   box-shadow: var(--shadow-lift-near), var(--shadow-lift-far);
-  filter: none;
 }
 
 .card.selected {

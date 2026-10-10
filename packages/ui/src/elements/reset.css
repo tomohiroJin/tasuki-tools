@@ -16,6 +16,14 @@ html {
   accent-color: var(--gold);
 }
 
+/* 40rem 未満では操作の並び（`.ui-actions--dock`・高さ約 5rem）が画面の下端に留まる。Tab で辿った先が帯の下に
+   隠れないよう、フォーカスで送るときの下の余白を帯の高さぶん取る（WCAG 2.4.11）。部品層は要素を飾れないのでここに置く */
+@media (width < 40rem) {
+  html {
+    scroll-padding-block-end: 6rem;
+  }
+}
+
 body {
   margin: 0;
   min-height: 100dvh;

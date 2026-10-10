@@ -86,8 +86,8 @@ async function expectHitTargets(page: Page, label: string, minButtons: number): 
   const { hits } = await scanButtons(page);
   expect(hits.length, `${label}: 描かれたボタンが少ない（判定が空振りする）`).toBeGreaterThanOrEqual(minButtons);
   for (const h of hits) {
-    expect(h.rect.width, `${label}: ${h.name} の当たりの幅`).toBeGreaterThanOrEqual(44 - 0.5);
-    expect(h.rect.height, `${label}: ${h.name} の当たりの高さ`).toBeGreaterThanOrEqual(44 - 0.5);
+    expect(h.rect.width, `${label}: ${h.name} の当たりの幅`).toBeGreaterThanOrEqual(44 - 0.01);
+    expect(h.rect.height, `${label}: ${h.name} の当たりの高さ`).toBeGreaterThanOrEqual(44 - 0.01);
   }
   const overlap = (a: Rect, b: Rect) =>
     Math.min(a.left + a.width, b.left + b.width) - Math.max(a.left, b.left) > 0.5 &&
@@ -147,6 +147,24 @@ async function expectDockPinned(page: Page, dock: Locator, label: string, anchor
   expect(end.bottom, `${label}: 最下部で帯が画面から出ている`).toBeLessThanOrEqual(end.viewport + 0.5);
 }
 
+/**
+ * 帯が Tab で辿った先を隠さない（WCAG 2.4.11）。先頭から Tab で `name` のボタンまで進み、帯と重ならないことを見る。
+ * 手札の最後の札は帯のすぐ上に来るので、`scroll-padding` が無いと帯の下に丸ごと隠れる（実測 69px 中 69px）。
+ */
+async function expectFocusNotHiddenByDock(page: Page, dock: Locator, name: string, label: string): Promise<void> {
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.locator('body').focus();
+  let reached = false;
+  for (let i = 0; i < 60 && !reached; i += 1) {
+    await page.keyboard.press('Tab');
+    reached = await page.evaluate((n) => document.activeElement?.textContent?.trim() === n, name);
+  }
+  expect(reached, `${label}: Tab で「${name}」に届かない`).toBe(true);
+  const focused = await page.evaluate(() => document.activeElement!.getBoundingClientRect().bottom);
+  const { top } = await measureDock(dock);
+  expect(focused, `${label}: Tab で辿った「${name}」が帯の下に隠れる`).toBeLessThanOrEqual(top + 0.5);
+}
+
 test.describe('玄関と poker のボタンは部品で、押せる大きさがあり、下端の帯が留まる', () => {
   test('Given 幅 390 / When 名乗る・道具を選ぶ・参加を名乗る・投票中・公開後の画面を開く / Then 素のボタンは手札だけで、主は 1 つ以下で最後にあり、当たりが 44px 以上で重ならず、低い画面では帯が下端に接する', async ({ page, openPeer }) => {
     await page.setViewportSize({ width: 390, height: 800 });
@@ -159,6 +177,7 @@ test.describe('玄関と poker のボタンは部品で、押せる大きさが�
     await expect(page.getByRole('list', { name: 'ツール' })).toBeVisible();
     await expect(page.getByRole('button', { name: '参加用 URL をコピー' })).toBeVisible();
     await expectScreen(page, '玄関（道具選び）', 2);
+    expect((await scanButtons(page)).groups.some((g) => g.names.includes('参加用 URL をコピー')), '玄関（道具選び）: 招待の操作の並びが描かれていない').toBe(true);
     const url = await page.getByLabel('参加用 URL').inputValue();
 
     const guest = await openPeer('buttons-p2');
@@ -188,6 +207,7 @@ test.describe('玄関と poker のボタンは部品で、押せる大きさが�
     await expect(dock).toBeVisible();
     await page.setViewportSize({ width: 390, height: 460 });
     await expectDockPinned(page, dock, 'poker（投票中）');
+    await expectFocusNotHiddenByDock(page, dock, '☕', 'poker（投票中）');
 
     // 全員が投票すると自動で公開される（ホストの 8 で 2 人目が揃う）。公開ボタンは押さない
     await chooseCard(page, '8');
@@ -202,7 +222,7 @@ test.describe('玄関と poker のボタンは部品で、押せる大きさが�
     // 40rem 以上では帯は流れの中にあり、画面に貼りつかない
     await page.setViewportSize({ width: 1280, height: 800 });
     await expect(page.getByRole('button', { name: '再投票' })).toBeVisible();
-    expect((await measureDock(dock)).position).toBe('static');
+    expect((await measureDock(dock)).position, '40rem 以上で帯が流れの中に戻っていない').toBe('static');
   });
 });
 
@@ -215,6 +235,7 @@ test.describe('お題ツールのボタンは部品で、押せる大きさが�
 
     await page.setViewportSize({ width: 390, height: 800 });
     await expectScreen(page, 'お題ツール（お題なし）', 2);
+    expect((await scanButtons(page)).groups.some((g) => g.names.includes('場に出す')), 'お題ツール: 場に出すの並びが描かれていない').toBe(true);
 
     // 作る欄（たたまれた <details>）を開く。開いて言語・難易度・作るボタンが見えるのを待つ
     await page.getByRole('region', { name: '定型や AI で作る' }).locator('summary').click();
