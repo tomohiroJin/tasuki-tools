@@ -47,15 +47,19 @@ test.describe('poker の文字が背景に対して読める（WCAG AA）', () =
     // When / Then その1: 投票中の画面
     const voting = await scanContrast(poker.page, 10);
     expectReadable(voting, 8, thinnest);
-    //   節の見出し（象牙の字）が羅紗の上で測られていること（帯を外したので地は羅紗の重なり。先頭の組で照合する）
-    const ivoryOnFelt = pairKey(ivory!, 'rgb(10, 43, 33)').split(' on ')[0] + ' on ::after';
+    //   節の見出し（象牙の字）が羅紗の上で測られていること。帯を外したので地は羅紗の重なりで、その先頭は
+    //   body の羅紗（`::after`）になる。重なりの残りは画面の作りで変わるので、先頭までで照合する
+    const ivoryOnFelt = `${ivory!} on ::after`;
     expect([...voting.pairs].some((p) => p.startsWith(ivoryOnFelt)), `節の見出し（${ivoryOnFelt}）を測っていない`).toBe(true);
 
     // When / Then その2: 公開後の画面（「結果」の見出しと集計は公開後にしか出ない）。
     //   poker に居るのは 1 人なので、1 票で全員が投じたことになり自動で公開される
     await chooseCard(poker.page, '5');
     await expect(resultsSection(poker.page)).toBeVisible();
-    expectReadable(await scanContrast(poker.page, 10), 8, []);
+    const revealed = await scanContrast(poker.page, 10);
+    expectReadable(revealed, 8, []);
+    //   公開後にだけ出る「結果」の見出しも羅紗の上で測られていること
+    expect([...revealed.pairs].some((p) => p.startsWith(ivoryOnFelt)), `公開後の見出し（${ivoryOnFelt}）を測っていない`).toBe(true);
   });
 
   test('Given 2 人のルームで 1 人だけが投票 / When 票を公開する / Then 未投票の印も AA を満たす', async ({ page, openPeer }) => {

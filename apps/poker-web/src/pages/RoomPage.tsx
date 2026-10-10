@@ -59,7 +59,7 @@ function InviteLink({ url }: { url: string }) {
   const { state: copyState, copy } = useCopyText(url);
 
   return (
-    <div className="invite ui-invite">
+    <div className="ui-invite">
       <span className="ui-invite-url">{url}</span>
       <button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={copy}>
         {copyState === 'done' && 'コピーしました'}
@@ -231,7 +231,7 @@ export function RoomPage({ roomId, sync }: Props) {
               手段が無い（利用者の申し送り・2026-09-14）。行き先は招待リンクと同じ
               **同じルームの選択画面**（玄関まで戻すとルームから出たことになる）ので、
               組み立ては増やさず sync.inviteUrl を再利用する。 */}
-          <a className="ui-button ui-button--quiet" href={inviteUrl}>
+          <a className="ui-page-header-back ui-button ui-button--quiet" href={inviteUrl}>
             選択画面へ戻る
           </a>
         </div>
