@@ -49,7 +49,7 @@ export function CurrentTopic({ topic }: { topic: Topic }) {
           <button
             ref={moreRef}
             type="button"
-            className="secondary ui-reader-more"
+            className="ui-button ui-button--secondary ui-button--sm ui-reader-more"
             onClick={() => dialogRef.current?.showModal()}
           >
             {READ_MORE}
@@ -62,7 +62,7 @@ export function CurrentTopic({ topic }: { topic: Topic }) {
           >
             <div className="ui-drawer-head">
               <h3 id="poker-topic-drawer-title">{topic.title}</h3>
-              <button type="button" className="secondary" onClick={close}>
+              <button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={close}>
                 {CLOSE}
               </button>
             </div>

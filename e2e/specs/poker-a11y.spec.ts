@@ -9,8 +9,9 @@
  * 札の上の字（`--coal` on `--ivory`）と見出し（`--coal-soft` on 札の地）を測る（#316）。
  *
  * **初回の走査（探索）で既存の要素が 2 件 AA を割った**: 節の見出し「参加者（1人）」「あなたのカード」
- * （`@tasuki/ui` の既定の h2・`--gold` を地の無いまま body の羅紗グラデーションに置く）が 3.92:1。
- * poker の CSS で節の見出しに felt-900 の地を与えて直した（`apps/poker-web/src/index.css`）。
+ * （当時の h2 は `--gold` の字を地の無いまま body の羅紗グラデーションに置いていた）が 3.92:1。
+ * 当時は poker の CSS で見出しに felt-900 の帯を敷いて直した。#316 PR 2 で要素層の h2 が象牙（`--ivory`）になり、
+ * 帯は外した。節の見出しは羅紗の上の象牙として測る（地は羅紗の重なりまで続くので、先頭の組で照合する）。
  */
 import { expect, test } from '../fixtures/test';
 import { expectReadable, pairKey, resolveColors, scanContrast } from '../support/a11y';
@@ -33,24 +34,27 @@ test.describe('poker の文字が背景に対して読める（WCAG AA）', () =
     await joinRoom(poker.page, inviteUrl, 'a11y-poker');
     const topic = poker.page.getByRole('region', { name: 'お題', exact: true });
     await expect(topic.getByRole('region', { name: TITLE, exact: true }).getByText(BODY, { exact: true })).toBeVisible();
-    // 固定する 2 組: 節の見出し（`--gold` on `--felt-900`。初回の走査で地が無く 3.92:1 だった）と、
-    //   象牙の札の上の字（`--coal` on `--ivory`）と、札の上のお題の見出し（`--coal-soft` on 札の地）。
+    // 固定する組: 象牙の札の上の字（`--coal` on `--ivory`）と、札の上のお題の見出し（`--coal-soft` on 札の地）。
     //   画面の作りが変わって測らなくなったら落とす
     //   読む面の札の地は単色でなくグラデーション（`.ui-reader`）なので、地の記述はその形で組む
-    const [gold, felt900, coal, coalSoft, sheen, shade] = await resolveColors(poker.page, [
-      '--gold', '--felt-900', '--coal', '--coal-soft', '--card-sheen', '--card-shade',
+    const [ivory, coal, coalSoft, sheen, shade] = await resolveColors(poker.page, [
+      '--ivory', '--coal', '--coal-soft', '--card-sheen', '--card-shade',
     ]);
     const cardGround = `rgba(0, 0, 0, 0) + linear-gradient(160deg, ${sheen}, ${shade})`;
-    const thinnest = [pairKey(gold!, felt900!), pairKey(coal!, cardGround), pairKey(coalSoft!, cardGround)];
+    const thinnest = [pairKey(coal!, cardGround), pairKey(coalSoft!, cardGround)];
 
     // When / Then その1: 投票中の画面
-    expectReadable(await scanContrast(poker.page, 10), 8, thinnest);
+    const voting = await scanContrast(poker.page, 10);
+    expectReadable(voting, 8, thinnest);
+    //   節の見出し（象牙の字）が羅紗の上で測られていること（帯を外したので地は羅紗の重なり。先頭の組で照合する）
+    const ivoryOnFelt = pairKey(ivory!, 'rgb(10, 43, 33)').split(' on ')[0] + ' on ::after';
+    expect([...voting.pairs].some((p) => p.startsWith(ivoryOnFelt)), `節の見出し（${ivoryOnFelt}）を測っていない`).toBe(true);
 
     // When / Then その2: 公開後の画面（「結果」の見出しと集計は公開後にしか出ない）。
     //   poker に居るのは 1 人なので、1 票で全員が投じたことになり自動で公開される
     await chooseCard(poker.page, '5');
     await expect(resultsSection(poker.page)).toBeVisible();
-    expectReadable(await scanContrast(poker.page, 10), 8, [pairKey(gold!, felt900!)]);
+    expectReadable(await scanContrast(poker.page, 10), 8, []);
   });
 
   test('Given 2 人のルームで 1 人だけが投票 / When 票を公開する / Then 未投票の印も AA を満たす', async ({ page, openPeer }) => {

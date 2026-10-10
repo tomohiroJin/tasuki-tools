@@ -38,26 +38,13 @@
   margin-block-end: 0.4rem;
 }
 
-/* 招待リンクの並び・URL の枠は部品（`.ui-invite`・ADR 0022）が持つ。ボタンの大きさだけを poker に置く（ボタンの段は #316）。 */
-.invite button {
-  font-size: 0.78rem;
-  padding: 0.45rem 0.95rem;
-}
+/* 招待リンクの並び・URL の枠は部品（`.ui-invite`・ADR 0022）が、コピーのボタンは `.ui-button` が持つ。 */
 
 /* ---------- 節の見出し ---------- */
 
-/* 節の見出し（「参加者」「あなたのカード」「結果」）に不透明な地（felt-900）を与える（#91 PR 3）。
- * `@tasuki/ui` の既定の h2 は地を持たない `--gold` の字で、body の羅紗グラデーションの
- * 最も明るい停止点（felt-700）の上では約 3.92:1 と AA を割る（`e2e/specs/poker-a11y.spec.ts` の
- * 初回の走査で実測。felt-900 の上ではトークンの値からの計算で約 6.4:1）。お題の見出しはパネル（`.topic` に重ねた `.ui-panel`）の地に乗るので外す。
- * 見出しだけに地を敷く形は poker にしか無いので、部品（`.ui-panel`）へは寄せない（#320 PR 3）。
- * 節は段組み（`.ui-workspace`）の区画の中にあるので子孫で選ぶ（#316）。 */
-.room section:not(.topic) > h2 {
-  width: fit-content;
-  padding: var(--space-1) var(--space-3);
-  border-radius: var(--radius-md);
-  background: var(--felt-900);
-}
+/* 節の見出し（「参加者」「あなたのカード」「結果」）は要素層の h2（lg・象牙）のままにする（#316 PR 2・設計正本 §11）。
+ * かつては `--gold` の字が卓の明るい停止点の上で AA を割るため、見出しに不透明な地（felt-900）の帯を敷いていた。
+ * 要素層の h2 が象牙になり、地を敷かなくても読めるので帯は要らない。 */
 
 /* 招待の行と段組みの間（読む面の札が行に接しない） */
 .room > header {
@@ -89,7 +76,7 @@
   }
 }
 
-/* 節の間は gap だけで取る。要素層の h2 の上の余白（2.2rem）が重なると間が開きすぎ、
+/* 節の間は gap だけで取る。要素層の h2 の上の余白（`--space-5`）が重なると間が開きすぎ、
    最初の節の上端も左の札の上端より下がる。 */
 .room-main section > h2 {
   margin-top: 0;
@@ -264,13 +251,6 @@
   text-shadow: 0 0 24px var(--gold-glow);
 }
 
-.round-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-  margin-top: 1.6rem;
-}
-
 /* ---------- エラーの一言の枠（色は部品の .ui-note--error が持つ） ---------- */
 
 .error-note {
@@ -285,16 +265,11 @@
   font-size: 0.85rem;
 }
 
-.error-note button {
-  font-size: 0.72rem;
-  padding: 0.25rem 0.7rem;
-}
-
 /* ---------- いまのお題（#91 PR 3・spec §5.5。poker は読むだけ） ---------- */
 
 /* 読む面の頭は poker だけが使うのでここに置く（かつて部品層の `.ui-reader-head`。お題ツールは見出しを隠してタブを頭にした・#316）。
  * 札の地・枠・影・字の色（`--coal`）と本文のスクロールは部品（`.ui-reader`・#316）が持つ。
- * 札は象牙なので、要素層の金（`--gold`）の h2 は読めない。深い金（`--gold-deep`）も 3.30:1 で割れたので `--coal-soft` にする（`poker-a11y.spec.ts` の走査で確かめる）。 */
+ * 札は象牙なので、要素層の h2 の象牙（`--ivory`）の字は読めない。深い金（`--gold-deep`）も 3.30:1 で割れたので `--coal-soft` にする（`poker-a11y.spec.ts` の走査で確かめる）。 */
 .topic-head {
   box-sizing: border-box;
   padding: var(--space-5) var(--space-5) var(--space-3);
@@ -305,14 +280,6 @@
   /* 読む面の頭（`.topic-head`）が余白を持つので、要素層の h2 の上下の余白は受けない */
   margin: 0;
   color: var(--coal-soft);
-}
-
-/* **PR 2 で `.ui-button` の役割に置き換えて消す一時的な規則。** 札の上の副ボタン（続きを読む・閉じる）。既定の金の字は象牙の上で読めないので札の字の色にし、
- * シートの狭い頭で縦に割れないよう折り返さない。 */
-.topic .secondary {
-  color: var(--coal);
-  border-color: var(--coal-soft);
-  white-space: nowrap;
 }
 
 .topic-title {
