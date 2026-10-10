@@ -14,6 +14,8 @@ import {
   definedPartClasses,
   findDeadParts,
   findRawColors,
+  legacyPageClassUses,
+  mediaWidthViolations,
   touchesFieldElement,
   uiTokensIn,
   unescapeIdent,
@@ -68,7 +70,7 @@ describe("checkScreenCss: 写しの検出", () => {
     assert.equal(messagesOf(".a, select { color: var(--x); }").length, 1);
   });
   test("@media の中の規則も落とす", () => {
-    assert.equal(messagesOf("@media (min-width: 1px) { select { color: var(--x); } }").length, 1);
+    assert.equal(messagesOf("@media (width >= 40rem) { select { color: var(--x); } }").length, 1);
   });
   test("入れ子の子の規則も落とす", () => {
     assert.equal(messagesOf(".a { & select { color: var(--x); } }").length, 1);
@@ -426,5 +428,143 @@ describe("checkScreenCss: 生の色（設計正本 D10 の 3・#320 PR 5）", ()
   });
   test("@keyframes の段も直前の ui-exempt: で外せる", () => {
     assert.deepEqual(messagesOf("@keyframes k { /* ui-exempt: 光の明滅 */\n from { color: #fff; } }"), []);
+  });
+});
+
+describe("mediaWidthViolations: 幅の境目は 40rem / 64rem / 90rem だけ（#316 D1）", () => {
+  const ok = [
+    ["(width >= 40rem)", "範囲構文"],
+    ["(width < 64rem)", "未満"],
+    ["(40rem <= width < 64rem)", "両側の範囲"],
+    ["(width>=90rem)", "空白なし"],
+    ["(WIDTH >= 40REM)", "大文字"],
+    ["screen and (width >= 64rem)", "媒体の種類つき"],
+    ["(hover: hover)", "幅ではない条件"],
+    ["(prefers-reduced-motion: reduce)", "幅ではない条件"],
+    ["(height >= 48rem)", "高さは対象外"],
+    ["(min-height: 420px)", "高さの旧構文も対象外"],
+    ["(orientation: landscape)", "向き"],
+    ["((width >= 40rem) and (hover: hover))", "and の入れ子"],
+    ["(40rem <= width)", "左に置いた下限"],
+    ["(40rem<=width<64rem)", "両側の範囲・空白なし"],
+  ];
+  for (const [params, why] of ok) {
+    test(`${why}: ${params} は通す`, () => assert.deepEqual(mediaWidthViolations(params), []));
+  }
+  const ng = [
+    ["(max-width: 420px)", "旧構文と px"],
+    ["(min-width: 40rem)", "旧構文は値が段でも落とす"],
+    ["(max-width: 64rem)", "旧構文の max も"],
+    ["(min-device-width: 40rem)", "device-width"],
+    ["(width >= 48rem)", "段ではない rem"],
+    ["(width >= 40em)", "em"],
+    ["(width >= 640px)", "px"],
+    ["(width >= calc(40rem))", "計算"],
+    ["(width >= var(--x))", "変数"],
+    ["(width >= 0)", "単位なし"],
+    ["(width >= 40rem) and (width < 48rem)", "and の後ろ側"],
+    ["not all and (max-width: 720px)", "not の中"],
+    ["(40rem <= width < 48rem)", "範囲の片側だけが外れる"],
+    ["(width >= calc((40rem)))", "二重括弧の計算"],
+    ["(width >= calc(1px + (40rem)))", "計算の中の括弧"],
+    ["not ((width < 48rem))", "条件の入れ子"],
+    ["((width >= 48rem) or (hover: hover))", "or の入れ子"],
+    // 演算子は >= と < だけ（境目ちょうどの扱いを 1 つにする。最終レビュー F4）
+    ["(width: 40rem)", "等号の形は 1 点にしか効かない"],
+    ["(width <= 64rem)", "上限に <= を使う"],
+    ["(width > 40rem)", "下限に > を使う"],
+    ["(width = 40rem)", "= の形"],
+    ["(40rem < width < 64rem)", "左が < は下限を含まない"],
+    ["(40rem <= width <= 64rem)", "右側の上限に <="],
+    ["(64rem > width)", "左に置いた上限"],
+  ];
+  for (const [params, why] of ng) {
+    test(`${why}: ${params} は落とす`, () => assert.ok(mediaWidthViolations(params).length > 0));
+  }
+  // `(min-width: 40rem)` は演算子の検査（`:`）でも落ちる。旧構文の判定が消えても件数では気づけないので、
+  // 書き直しの案内が旧構文のものであることを見る（m122）
+  test("値が段の旧構文は、旧構文として落とす: (min-width: 40rem)", () => {
+    assert.deepEqual(
+      mediaWidthViolations("(min-width: 40rem)").map((m) => m.startsWith("幅の旧構文です")),
+      [true],
+    );
+  });
+});
+
+describe("legacyPageClassUses: 要素層の .page を TSX が使っていないか（#316 D2）", () => {
+  const hits = [
+    ['<main className="page">', "単独"],
+    ['<main className="page landing">', "先頭"],
+    ['<main className="x page">', "末尾"],
+    ["<main className='page'>", "単引用符"],
+    ['<main className={"page"}>', "波括弧の文字列"],
+    ["<main className={`page ${x}`}>", "テンプレート文字列"],
+    ['<main className = "page">', "= の前後の空白"],
+  ];
+  for (const [text, why] of hits) {
+    test(`${why}: ${text} を拾う`, () => assert.equal(legacyPageClassUses(text).length, 1));
+  }
+  const misses = [
+    ['<main className="ui-page">', "部品の器"],
+    ['<div className="ui-page-header">', "部品の見出し"],
+    ['<main className="topic-page">', "画面のクラス"],
+    ['<main className="page-x">', "接頭辞"],
+    ["<p>このページ page です</p>", "本文の語"],
+  ];
+  for (const [text, why] of misses) {
+    test(`${why}: ${text} は拾わない`, () => assert.deepEqual(legacyPageClassUses(text), []));
+  }
+  test("2 行目の className=\"page\" は line: 2 を返す", () => {
+    const r = legacyPageClassUses('<div>\n<main className="page">');
+    assert.deepEqual(r, [{ value: "page", line: 2 }]);
+  });
+  test("同じ本文の 2 か所は 2 件で、行が別々", () => {
+    const r = legacyPageClassUses('<main className="page">\n<p>x</p>\n<main className="page">');
+    assert.deepEqual(r.map((x) => x.line), [1, 3]);
+  });
+});
+
+describe("checkScreenCss: @media の幅の段（#316 D1）", () => {
+  test("段ではない境目の @media を落とす", () => {
+    assert.equal(messagesOf("@media (width >= 48rem) { .a { color: inherit; } }").length, 1);
+  });
+  test("直前の申告があれば通す", () => {
+    assert.deepEqual(messagesOf("/* ui-exempt: #316 PR 3 で段へ寄せる */\n@media (width >= 48rem) { .a { color: inherit; } }"), []);
+  });
+  test("説明のコメントと @media の間に申告を書けば通す", () => {
+    assert.deepEqual(messagesOf("/* 説明 */\n/* ui-exempt: 理由 */\n@media (max-width: 420px) { .a { color: inherit; } }"), []);
+  });
+  test("申告と @media の間に説明があれば、どちらも落とす", () => {
+    const m = messagesOf("/* ui-exempt: 理由 */\n/* 説明 */\n@media (max-width: 420px) { .a { color: inherit; } }");
+    assert.ok(m.some((x) => x.includes("幅")));
+    assert.ok(m.some((x) => x.includes("何も免除していない")));
+  });
+  test("段の境目の @media は落とさない（申告も要らない）", () => {
+    assert.deepEqual(messagesOf("@media (width >= 64rem) { .a { color: inherit; } }"), []);
+  });
+  test("規則の中に入れ子にした @media も見る", () => {
+    assert.equal(messagesOf(".a { @media (width >= 48rem) { color: inherit; } }").length, 1);
+  });
+});
+
+describe("checkScreenCss: 要素層の .page（#316 D2）", () => {
+  test(".page のセレクタを落とす", () => {
+    assert.equal(messagesOf(".page { margin: 0; }").length, 1);
+  });
+  test("子孫の位置の .page も落とす", () => {
+    assert.equal(messagesOf("main .page > h1 { margin: 0; }").length, 1);
+  });
+  test(".ui-page と .topic-page は落とさない", () => {
+    assert.deepEqual(messagesOf(".ui-page, .topic-page { margin: 0; }"), []);
+  });
+});
+
+describe("checkComponentCss: @media の幅の段（#316 D1）", () => {
+  const compMessages = (css) => checkComponentCss("packages/ui/src/components/x.css", css).map((p) => p.message);
+  test("段ではない境目は申告があっても落とす", () => {
+    assert.ok(compMessages("/* ui-exempt: x */\n@media (width >= 48rem) { .ui-x { color: inherit; } }").some((m) => m.includes("境目")));
+  });
+  test("段の境目は通す", () => {
+    assert.deepEqual(compMessages("@media (width >= 90rem) { .ui-x { color: inherit; } }"), []);
   });
 });

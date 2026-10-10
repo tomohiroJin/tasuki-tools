@@ -1286,6 +1286,38 @@ export const MUTATIONS = [
       "書かなければ脆弱性の PR だけが待機期間を素通りする。本番の renovate.json は正しく書いてあるので、" +
       "この検出が消えても検査結果は変わらない（id 20 と同じ型）。",
   },
+  {
+    id: 121,
+    label: "audit-ui-components が @media の幅の境目の値を見ない",
+    patch: "m121-ui-components-media-width-any-length.patch",
+    pkg: "scripts",
+    tests: ["audit-ui-components.test.mjs"],
+    note: "#316 PR 1・ADR 0025 決定 1。48rem・px・em の境目が黙って通り、段の約束が崩れる。",
+  },
+  {
+    id: 122,
+    label: "audit-ui-components が幅の旧構文（min-width / max-width）を値だけで見る",
+    patch: "m122-ui-components-media-legacy-syntax-accepted.patch",
+    pkg: "scripts",
+    tests: ["audit-ui-components.test.mjs"],
+    note: "#316 PR 1。値が段（40rem）なら旧構文が通る。書き方が 2 つになり、目で突き合わせられなくなる。",
+  },
+  {
+    id: 123,
+    label: "audit-ui-components が TSX の要素層の .page を見ない",
+    patch: "m123-ui-components-legacy-page-class-ignored.patch",
+    pkg: "scripts",
+    tests: ["audit-ui-components.test.mjs"],
+    note: "#316 PR 1・設計正本 D2。消した .page を書き戻すと、器の幅を持たない素の main になる。",
+  },
+  {
+    id: 124,
+    label: "audit-ui-components が画面の CSS の @media を見ない",
+    patch: "m124-ui-components-screen-media-ignored.patch",
+    pkg: "scripts",
+    tests: ["audit-ui-components.test.mjs"],
+    note: "#316 PR 1。述語は正しくても、画面の CSS へ配線されていなければ検査は死んでいる。",
+  },
 ];
 
 /**

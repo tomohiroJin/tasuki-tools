@@ -83,7 +83,7 @@ async function checkText(page: Page, expectedCards: number): Promise<void> {
   expect(measured).toBeGreaterThan(5);
 }
 
-for (const width of [1280, 1024, 768, 320]) {
+for (const width of [1280, 1024, 768, 640, 320]) {
   test(`Given 玄関 / When 作成・参加・選択を幅 ${width} で表示 / Then 読めて横にはみ出さない`, async ({ page, openPeer }, testInfo) => {
     // Given: 実サーバーを通り、UI 文言だけで書体の追加取得を起こさない。
     const fonts: string[] = [];
@@ -131,6 +131,12 @@ for (const width of [1280, 1024, 768, 320]) {
     const toolBox = await tools.boundingBox();
     const inviteBox = await invite.boundingBox();
     expect(toolBox!.y).toBeLessThan(inviteBox!.y);
+    // 縦に積む幅（64rem 未満）では、札の幅が 3 枚とも揃う（寸法の規則が積む境目と同じ幅で効く）。
+    if (width < 1024) {
+      const widths = await page.locator('.hub-tools .tool-card').evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().width)));
+      expect(widths.length).toBe(3);
+      expect(new Set(widths).size, `札の幅 ${widths.join(',')}`).toBe(1);
+    }
     for (const p of [page, guest.page]) {
       expect(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     }

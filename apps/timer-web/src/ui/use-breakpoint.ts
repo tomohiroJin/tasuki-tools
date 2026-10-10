@@ -1,21 +1,30 @@
 /**
  * 画面幅ブレークポイント購読フック（PC 主役のレイアウト切替に使う）。
- * 既定は 1024px。画面の CSS の `64rem` の境界と揃える（JS は px なので、既定の文字の大きさでだけ一致する）。
- * SSR/テスト（window 無し）では false を返す。
+ * **画面の CSS と同じ問い合わせ `(width >= 64rem)` で判定する**（#316 D1・ADR 0025 決定 1）。
+ * px（`innerWidth >= 1024`）で判定すると、既定の文字の大きさを変えた利用者で CSS とずれた。
+ * `matchMedia` が無い環境では初期値だけを `innerWidth >= 1024` で答える（`resize` は購読しない。`matchMedia` が無いのは jsdom だけ）。
  */
 
 import { useEffect, useState } from "react";
 
-export function useIsWide(minWidth = 1024): boolean {
-  const read = () => typeof window !== "undefined" && window.innerWidth >= minWidth;
-  const [wide, setWide] = useState(read);
+const WIDE_QUERY = "(width >= 64rem)";
+const FALLBACK_WIDE_PX = 1024;
+
+function readWide(): boolean {
+  if (typeof window === "undefined") return false;
+  if (typeof window.matchMedia !== "function") return window.innerWidth >= FALLBACK_WIDE_PX;
+  return window.matchMedia(WIDE_QUERY).matches;
+}
+
+export function useIsWide(): boolean {
+  const [wide, setWide] = useState(readWide);
   useEffect(() => {
-    const onResize = () => setWide(read());
-    window.addEventListener("resize", onResize);
-    onResize();
-    return () => window.removeEventListener("resize", onResize);
-    // minWidth は固定運用（呼び出し側で定数）なので依存に含めない。
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia(WIDE_QUERY);
+    const onChange = (e: { matches: boolean }) => setWide(e.matches);
+    mq.addEventListener("change", onChange);
+    setWide(mq.matches);
+    return () => mq.removeEventListener("change", onChange);
   }, []);
   return wide;
 }

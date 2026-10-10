@@ -1,0 +1,60 @@
+/* 読む面（#316 §9・D3''）。象牙の札に見出し（固定）と本文（札の中でスクロール）を載せる。
+   64rem 以上では画面の高さに収め、説明が長くてもページ全体を伸ばさない（画面に留めるのは区画の側。layout.css）。
+   64rem 未満では本文を 3 行で切り、.ui-reader-more（続きを読む）で .ui-drawer に全文を出す。
+   札の地と字は .ui-drawer と共有する。 */
+.ui-reader,
+.ui-drawer {
+  border: 1px solid var(--card-edge);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(160deg, var(--card-sheen), var(--card-shade));
+  color: var(--coal);
+}
+
+.ui-reader {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-card);
+}
+
+/* 縦の余白は padding でなく margin で取る（padding の帯に 4 行目の上端が覗くため） */
+.ui-reader-body {
+  box-sizing: border-box;
+  margin-block: var(--space-4);
+  padding: 0 var(--space-5);
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+.ui-reader-more {
+  align-self: flex-start;
+  margin: 0 var(--space-5) var(--space-4);
+}
+
+@media (width >= 64rem) {
+  /* 画面の高さから 10rem を引く。見出しと招待の行（約 9.5rem）も引くので、ページを開いた直後でも札の下端が画面に収まる。
+     最下端の条件（器の下の余白 4rem。引かないとページの最下端で段組みの下端が持ち上がり、sticky の読む面の上端が
+     画面の外へ押し出される）も満たす。見出しの行や .ui-page の余白を変えたら、ここも変える。
+     お題ツールの札の固定の高さ（apps/topic-web/src/index.css）と同じ式。 */
+  .ui-reader {
+    max-height: calc(100dvh - 10rem);
+  }
+
+  .ui-reader-body {
+    display: block;
+    flex: 1 1 auto;
+    min-height: 0;
+    /* 本文の下端を角丸の高さぶん上げる（スクロールバーが角の外へはみ出さない） */
+    margin-block: 0 var(--radius-lg);
+    padding: var(--space-4) var(--space-5);
+    overflow-y: auto;
+    -webkit-line-clamp: unset;
+  }
+
+  .ui-reader-more {
+    display: none;
+  }
+}

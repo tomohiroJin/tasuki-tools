@@ -26,6 +26,8 @@ interface Props {
  * 未解錠なら合言葉の欄を出し、「AI で作る」は出さない。合言葉は送ったら欄から消す
  * （平文を画面の状態に残さない）。
  *
+ * **最初はたたんでおく**（`<details>`・#316 PR 1 の手直し。書くが主役）。
+ *
  * **広いときは 1 行の帯に並べる**（#313 構成案 1）。ボタン 1 つで済む操作に、書くと同じ高さの面は要らない。
  * 並べるかどうかは CSS が面の幅で決める（`.topic-make` の容器クエリ）。
  */
@@ -37,82 +39,88 @@ export function TopicMaker({ aiUnlocked, enabled, onGenerate, onUnlock }: Props)
 
   return (
     <section className="topic-panel topic-make ui-panel" aria-labelledby={`${id}-heading`}>
-      <h2 id={`${id}-heading`}>{MAKE_HEADING}</h2>
-      <div className="topic-make-row">
-        <div className="topic-make-field topic-make-language">
-          <label htmlFor={`${id}-language`}>{LANGUAGE_LABEL}</label>
-          <select
-            id={`${id}-language`}
-            className="ui-select"
-            value={language}
-            onChange={(e) => {
-              const next = LANGUAGES.find((l) => l === e.target.value);
-              if (next !== undefined) setLanguage(next);
-            }}
-          >
-            {LANGUAGES.map((l) => (
-              <option key={l} value={l}>
-                {l}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="topic-make-field topic-make-difficulty">
-          <label htmlFor={`${id}-difficulty`}>{DIFFICULTY_LABEL}</label>
-          <select
-            id={`${id}-difficulty`}
-            className="ui-select"
-            value={difficulty}
-            onChange={(e) => {
-              const next = DIFFICULTIES.find((d) => d === e.target.value);
-              if (next !== undefined) setDifficulty(next);
-            }}
-          >
-            {DIFFICULTIES.map((d) => (
-              <option key={d} value={d}>
-                {DIFFICULTY_NAMES[d]}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="topic-actions">
-          {aiUnlocked && (
-            <button type="button" onClick={() => onGenerate('ai', language, difficulty)} disabled={!enabled}>
-              {AI_BUTTON}
-            </button>
-          )}
-          <button type="button" className="secondary" onClick={() => onGenerate('fallback', language, difficulty)} disabled={!enabled}>
-            {FALLBACK_BUTTON}
-          </button>
-        </div>
-        {!aiUnlocked && (
-          <form
-            className="topic-unlock"
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (!canUnlock(key, enabled)) return;
-              onUnlock(key);
-              setKey('');
-            }}
-          >
-            <label htmlFor={`${id}-key`}>{UNLOCK_LABEL}</label>
-            <div className="topic-unlock-row">
-              <input
-                id={`${id}-key`}
-                className="ui-input"
-                type="password"
-                autoComplete="off"
-                maxLength={MAX_AI_UNLOCK_KEY}
-                value={key}
-                onChange={(e) => setKey(e.target.value)}
-              />
-              <button type="submit" disabled={!canUnlock(key, enabled)}>
-                {UNLOCK_BUTTON}
+      {/* 書くが主役なので、作るは最初たたむ（`<details>`）。見出しは summary の中に置き、region の名前を保つ。
+          生成中・定型に切り替えた知らせは `TopicRoom` が操作の面の先頭に置くので、たたんだままでも見える。 */}
+      <details className="topic-make-fold">
+        <summary>
+          <h2 id={`${id}-heading`}>{MAKE_HEADING}</h2>
+        </summary>
+        <div className="topic-make-row">
+          <div className="topic-make-field topic-make-language">
+            <label htmlFor={`${id}-language`}>{LANGUAGE_LABEL}</label>
+            <select
+              id={`${id}-language`}
+              className="ui-select"
+              value={language}
+              onChange={(e) => {
+                const next = LANGUAGES.find((l) => l === e.target.value);
+                if (next !== undefined) setLanguage(next);
+              }}
+            >
+              {LANGUAGES.map((l) => (
+                <option key={l} value={l}>
+                  {l}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="topic-make-field topic-make-difficulty">
+            <label htmlFor={`${id}-difficulty`}>{DIFFICULTY_LABEL}</label>
+            <select
+              id={`${id}-difficulty`}
+              className="ui-select"
+              value={difficulty}
+              onChange={(e) => {
+                const next = DIFFICULTIES.find((d) => d === e.target.value);
+                if (next !== undefined) setDifficulty(next);
+              }}
+            >
+              {DIFFICULTIES.map((d) => (
+                <option key={d} value={d}>
+                  {DIFFICULTY_NAMES[d]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="topic-actions">
+            {aiUnlocked && (
+              <button type="button" onClick={() => onGenerate('ai', language, difficulty)} disabled={!enabled}>
+                {AI_BUTTON}
               </button>
-            </div>
-          </form>
-        )}
-      </div>
+            )}
+            <button type="button" className="secondary" onClick={() => onGenerate('fallback', language, difficulty)} disabled={!enabled}>
+              {FALLBACK_BUTTON}
+            </button>
+          </div>
+          {!aiUnlocked && (
+            <form
+              className="topic-unlock"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (!canUnlock(key, enabled)) return;
+                onUnlock(key);
+                setKey('');
+              }}
+            >
+              <label htmlFor={`${id}-key`}>{UNLOCK_LABEL}</label>
+              <div className="topic-unlock-row">
+                <input
+                  id={`${id}-key`}
+                  className="ui-input"
+                  type="password"
+                  autoComplete="off"
+                  maxLength={MAX_AI_UNLOCK_KEY}
+                  value={key}
+                  onChange={(e) => setKey(e.target.value)}
+                />
+                <button type="submit" disabled={!canUnlock(key, enabled)}>
+                  {UNLOCK_BUTTON}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      </details>
     </section>
   );
 }

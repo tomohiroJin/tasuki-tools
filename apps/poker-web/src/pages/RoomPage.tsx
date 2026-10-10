@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useCopyText } from '@tasuki/invite-ui';
 import type { RoomStateMessage } from '@tasuki/poker-core';
 import { CardHand } from '../components/CardHand';
-import { CurrentTopic } from '../components/CurrentTopic';
+import { CurrentTopic, TOPIC_CARD_ID, TOPIC_HIDE, TOPIC_SHOW } from '../components/CurrentTopic';
 import { ErrorNote } from '../components/ErrorNote';
 import { ParticipantList } from '../components/ParticipantList';
 import { Results } from '../components/Results';
@@ -31,7 +31,7 @@ interface Props {
  */
 function JoiningView({ sync, notice }: { sync: PokerSync; notice: string | null }) {
   return (
-    <main className="page">
+    <main className="ui-page ui-page--prose">
       <h1>ルームに参加しています</h1>
       {/* 混雑で弾かれている間、この画面には何の手がかりも出ていなかった（#147）。 */}
       {notice && (
@@ -71,6 +71,9 @@ function InviteLink({ url }: { url: string }) {
 }
 
 export function RoomPage({ roomId, sync }: Props) {
+  // お題の札を見せるか。**手元だけの状態**で、他の人の画面には影響しない。お題が差し替わっても保つ
+  // （お題は無いことが多く、あれば見られる程度でよい・#316 PR 1 の利用者の指摘）。
+  const [topicOpen, setTopicOpen] = useState(true);
   // 端末に同一性が無ければ、**玄関の参加画面へ送り返す**（#95 S5c・R9）。
   //
   // **接続を待たない。** timer は同じ決定を mount 時の効果で、接続状態を見ずに適用する
@@ -178,7 +181,7 @@ export function RoomPage({ roomId, sync }: Props) {
   // room-not-found はページ全体をエラー表示に（FR-015 / US1-AS3）
   if (sync.error?.code === 'room-not-found') {
     return (
-      <main className="page">
+      <main className="ui-page ui-page--prose">
         <h1>ルームが見つかりません</h1>
         <p>ルームは終了したか、リンクが正しくない可能性があります。</p>
         {/* **消えたルームの選択画面へは送らない。** ハブはそこで存在しないルームの
@@ -197,13 +200,33 @@ export function RoomPage({ roomId, sync }: Props) {
   const inviteUrl = sync.inviteUrl(roomId);
 
   return (
-    <main className="page room">
+    <main className="ui-page ui-page--wide room">
       <header>
         {/* 見出しと戻る導線を 1 行に組む（#95 S5c 追補・利用者の実画面フィードバック）。
             素のリンクを招待リンクの塊の上へ置くと、どこへ属する操作か分からず浮いていた。
             timer は `StatusStrip` の中に収めてあるので、こちらも見出しの相方にする。 */}
         <div className="ui-page-header">
-          <h1>プランニングポーカー</h1>
+          {/* 見出しと切り替えを 1 つの塊にする。`.ui-page-header` は子を両端に振り分けるので、
+              子が 3 つだと戻る導線が真ん中に浮く（#316 PR 1）。 */}
+          <div className="room-title">
+            <h1>プランニングポーカー</h1>
+            {/* お題があるときだけ。隠すのは札ごと（React で描かない）。シートは札の中の `<dialog>` で、
+                開いている間はモーダルなので、この切り替えは押せない（フォーカスが失われる経路が無い）。
+                ただし切り替えのボタンにフォーカスがあるまま他の人がお題を下ろすと、ボタンごと消えて
+                フォーカスが body に落ちる（受け入れた限界・札の場合と同じ）。 */}
+            {sync.topic && (
+              <button
+                type="button"
+                className="secondary"
+                aria-expanded={topicOpen}
+                // 隠している間は札が DOM に無い。消えた id を指さない
+                aria-controls={topicOpen ? TOPIC_CARD_ID : undefined}
+                onClick={() => setTopicOpen((open) => !open)}
+              >
+                {topicOpen ? TOPIC_HIDE : TOPIC_SHOW}
+              </button>
+            )}
+          </div>
           {/* 選択画面へ戻る導線。旧入口（poker のトップ画面等）が撤去され、他に戻る
               手段が無い（利用者の申し送り・2026-09-14）。行き先は招待リンクと同じ
               **同じルームの選択画面**（玄関まで戻すとルームから出たことになる）ので、
@@ -214,17 +237,28 @@ export function RoomPage({ roomId, sync }: Props) {
         </div>
         <InviteLink url={inviteUrl} />
       </header>
-      {sync.topic && <CurrentTopic topic={sync.topic} />}
       <ErrorNote error={sync.error} onClose={sync.clearError} />
-      <section>
-        <h2>参加者（{snapshot.participants.length}人）</h2>
-        <ParticipantList participants={snapshot.participants} you={snapshot.you} />
-      </section>
-      {isVoting ? (
-        <VotingSection snapshot={snapshot} sync={sync} />
-      ) : (
-        <RevealedSection snapshot={snapshot} sync={sync} />
-      )}
+      {/* 段組み（#316・ADR 0025）。64rem 以上は左に読む面（お題）・右に操作の面（場 → 手札 → 結果）。
+          DOM は狭い幅で見せたい順（お題 → 場 → 手札）。お題が無い・隠したときは脇が無く、部品が主を 1 列にし、
+          幅と中央寄せは index.css の `.room-main` が持つ。 */}
+      <div className="ui-workspace ui-workspace--reader">
+        {sync.topic && topicOpen && (
+          <div className="ui-workspace-side">
+            <CurrentTopic topic={sync.topic} />
+          </div>
+        )}
+        <div className="ui-workspace-main room-main">
+          <section>
+            <h2>参加者（{snapshot.participants.length}人）</h2>
+            <ParticipantList participants={snapshot.participants} you={snapshot.you} />
+          </section>
+          {isVoting ? (
+            <VotingSection snapshot={snapshot} sync={sync} />
+          ) : (
+            <RevealedSection snapshot={snapshot} sync={sync} />
+          )}
+        </div>
+      </div>
     </main>
   );
 }

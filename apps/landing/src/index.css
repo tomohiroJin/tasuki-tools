@@ -17,7 +17,6 @@
   min-height: 100dvh;
   justify-content: center;
   gap: var(--space-6);
-  padding: var(--space-6) var(--space-5);
   overflow-wrap: anywhere;
 }
 
@@ -180,8 +179,12 @@
 /*
   縦積みにして、傾きは外す。狭い幅で傾けると角が見切れ、
   タップ領域も重なるため。
+  #316 で境目を段へ寄せたとき、640px で 3 枚を横に並べると名前が 2 行になったので、
+  64rem 未満は縦に積む。
+  札の並びと寸法は 64rem 未満、器の内側の余白（フォーム・札の列の外側）は 40rem 未満が受け持つ。
+  寸法の規則は基底より後ろに要るので、下の `.hub-tools` の節に別の 64rem の @media で置いてある。
 */
-@media (max-width: 720px) {
+@media (width < 64rem) {
   .hand {
     flex-direction: column;
     align-items: center;
@@ -278,7 +281,6 @@
 
 /* ---------- 選択画面の作業領域（ルーム → 道具 → 参加者・招待） ---------- */
 .landing-choice {
-  max-width: 1120px;
   justify-content: flex-start;
 }
 
@@ -461,19 +463,8 @@
   color: var(--ivory);
 }
 
-@media (max-width: 720px) {
-  .landing {
-    padding: var(--space-5) var(--space-4);
-  }
-  .hub-form {
-    padding: var(--space-5);
-  }
-  .hub-workspace {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .hub-tools {
-    padding: 0;
-  }
+/* 札の寸法は基底の `.hub-tools .tool-card`（同じ詳細度）より後ろに置かないと負ける。上の縦積みと同じ 64rem 未満。 */
+@media (width < 64rem) {
   /* 札は基底の `.hand` と同じく縦に積む。**横に並べると文字が入らない** ——
      320px では札が 131px しか取れず、一行説明に 133px 必要で最後の 1 文字だけが
      次行へ落ちた。横並びのまま収めるには 10.5px まで縮める必要があり、
@@ -493,5 +484,17 @@
   }
   .hub-tools .hub-section-title {
     margin-bottom: var(--space-5);
+  }
+}
+
+@media (width < 40rem) {
+  .hub-form {
+    padding: var(--space-5);
+  }
+  .hub-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .hub-tools {
+    padding: 0;
   }
 }

@@ -64,13 +64,7 @@ body::after {
   mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
-/* ---------- レイアウト ---------- */
-
-.page {
-  max-width: 680px;
-  margin: 0 auto;
-  padding: 2rem 1.25rem 4rem;
-}
+/* 器（旧 `.page`）は部品層の `.ui-page` が持つ（#316・ADR 0025）。 */
 
 h1 {
   font-family: var(--font-display);
@@ -119,12 +113,11 @@ a {
   outline-offset: 3px;
 }
 
-/* ---------- モバイル ---------- */
-
-@media (max-width: 420px) {
-  .page {
-    padding: 1.4rem 1rem 3rem;
-  }
+/* 象牙の札の上では金の輪が 3:1 を割る（WCAG 1.4.11）。部品層は outline を書けないので、
+ * 輪の色を持つ要素層に置く。 */
+.ui-reader :focus-visible,
+.ui-drawer :focus-visible {
+  outline-color: var(--coal);
 }
 
 /* 動きを抑えたい環境では演出を止める */

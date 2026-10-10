@@ -22,7 +22,7 @@ src/
 | 利用側 | 読むもの | 理由 |
 |---|---|---|
 | `apps/poker-web` / `apps/landing` / `apps/topic-web` | `@import '@tasuki/ui';`（3 層とも） | 素の CSS で組んでいるので要素層がそのまま効く |
-| `apps/timer-web` | `src/index.css` から `@import '@tasuki/ui/tokens.css';` の次に `@import '@tasuki/ui/components.css';`（トークン層と部品層。要素層は読まない） | 要素層を読むと `button { 真鍮のグラデーション }` が下地に敷かれ、見た目を変えないためには timer のボタンや見出しの一つひとつに打ち消す規則が要る。読ませるかは #316 で判断する（ADR-0023 決定 4）。部品層はクラスを当てたときだけ効くので衝突しない |
+| `apps/timer-web` | `src/index.css` から `@import '@tasuki/ui/tokens.css';` の次に `@import '@tasuki/ui/components.css';`（トークン層と部品層。要素層は読まない） | 要素層を読むと `button { 真鍮のグラデーション }` が下地に敷かれ、見た目を変えないためには timer のボタンや見出しの一つひとつに打ち消す規則が要る。#316 でも読ませないと決めた（ADR 0025 決定 6）。ボタンの見た目は部品層から来る。部品層はクラスを当てたときだけ効くので衝突しない |
 
 **この境界は stylelint が機械的に守る。** `src/tokens/` では `selector-max-type` /
 `-class` / `-id` を 0 にしてあるので、うっかり `h2 {}` を足すと lint が落ちる。
@@ -40,8 +40,11 @@ src/
 | `.ui-panel` | 見出しを持つまとまりの面（`<section>`・`<form>`）。地・枠・角丸・内側の余白を持つ | なし |
 | `.ui-page-header` | 画面の見出し（h1）と戻る導線を 1 行の両端に組む容器。戻る導線の `<a>` に `.ui-page-header-back` を当てる | なし |
 | `.ui-invite` | 参加用 URL とコピーのボタンを 1 行に組む容器。URL の `<span>` に `.ui-invite-url` を当てる | なし |
-| `.ui-sheet` | お題の本文を載せる象牙の札。札の上の字の色（`--coal`）まで持つ | なし |
 | `.ui-md` | Markdown の根。各要素に `.ui-md-h`・`.ui-md-p`・`.ui-md-ul`・`.ui-md-ol`・`.ui-md-quote`・`.ui-md-code`・`.ui-md-pre`・`.ui-md-link` を当てる | なし |
+| `.ui-page` | 画面の器（`<main>`）。最大幅・中央寄せ・外の余白を持つ。`--prose`（`40rem`）・既定（`72rem`）・`--wide`（`96rem`）の 3 段 | なし |
+| `.ui-workspace` | 操作の面と脇を並べる段組みの根。`.ui-workspace-main`（操作の面）・`.ui-workspace-side`（脇）を子に置く。`--side-end`・`--reader` で脇の側と幅を変える。使い方は下の「画面を組む」 | なし |
+| `.ui-reader` | 読む面。象牙の札に見出し（固定）と本文 `.ui-reader-body`（札の中でスクロール）を載せる。64rem 未満は本文を 3 行で切り、`.ui-reader-more`（続きを読む）で `.ui-drawer` を開く | なし |
+| `.ui-drawer` | 下からせり上がるシート（`<dialog>`）。`.ui-drawer-head`（見出しと閉じる）・`.ui-drawer-body`（スクロールする本文）を持つ。地と字は `.ui-reader` と同じ | なし |
 
 **使い方**
 
@@ -64,7 +67,7 @@ src/
   見出しを持つまとまりはパネルに載せます
 - **見出しの行は、行の中の並びまで部品が持ちます**（配置は画面が持つ、の例外）。見出し自身の大きさ・余白は画面が持ちます
 - **招待リンクは、行の並びと字の大きさまで部品が持ちます。** コピーのボタンの見た目は画面が持ちます
-- **Markdown は象牙の札（`.ui-sheet`）の上に置きます。** コード・引用の枠の色は象牙の上でしか読めません。
+- **Markdown は象牙の札（読む面・シート・お題ツールの `.topic-sheet`）の上に置きます。** コード・引用の枠の色は象牙の上でしか読めません。
   リンクは札の字の色を継ぐので、画面のクラスで色を書きません。描画（React）は各アプリの `Markdown.tsx` が持ち、
   クラス名は字面で書きます（組み立てた名前は検査が数えられず、死んだ部品として落ちます）
 
@@ -86,6 +89,92 @@ src/
 
 **機械で止めていないもの**: クラス名で書いた写し（例: 入力欄に独自のクラスを当てて同じ見た目を書く）。
 新しい画面を作るときは、まずこの表を見てください。
+
+## 画面を組む（#316・ADR 0025）
+
+**新しい画面や機能を足すときは、器の段と区画を選ぶ。** 幅の値と並び替えは書かない。
+
+### 幅の段
+
+| 段 | 幅 | 想定する端末 |
+|---|---|---|
+| compact | `< 40rem` | スマホの縦持ち |
+| medium | `40rem ≤ w < 64rem` | タブレットの縦持ち・小さい窓 |
+| wide | `64rem ≤ w < 90rem` | ノート PC |
+| ultra | `≥ 90rem` | 大きなモニター |
+
+画面の CSS に `@media` を書くときは、この 3 つの境目だけを範囲構文で書く（`@media (width >= 64rem)`）。
+`min-width` / `max-width` / px / em は検査（`scripts/audit-ui-components.mjs`）が落とす。JS で幅を判定するときも
+`matchMedia('(width >= 64rem)')` の形で同じ境目を使う。部品の内側の並び替えはコンテナクエリで書いてよい（段の約束の外）。
+
+### 器（`.ui-page`）の選び方
+
+| 画面の用途 | 器 | 最大幅 |
+|---|---|---|
+| 読む・入力する（名乗る・待つ・見つからない・まとめ） | `.ui-page .ui-page--prose` | `40rem` |
+| 選ぶ・一覧する（道具を選ぶ・履歴） | `.ui-page` | `72rem` |
+| 道具の部屋（区画を横に並べる） | `.ui-page .ui-page--wide` | `96rem` |
+
+器は `<main>` に当てる。`<main>` を画面ごとに持たない構成では、ページ全体を包む要素に当てる。外の余白も器が持つので、画面の CSS で `<main>` に `padding` や `max-width` を書かない。
+
+### 段組み（`.ui-workspace`）
+
+区画は 2 つ。**操作の面（`.ui-workspace-main`）が画面の主役**で、**脇（`.ui-workspace-side`）が参照するもの**を載せる。
+**DOM は狭い幅で見せたい順に書く**（狭い幅ではその順に縦へ積まれ、読み上げの順とも揃う）。64rem 以上で横に並ぶ。
+
+| クラス | 効くこと |
+|---|---|
+| `.ui-workspace-main` | 操作の面。残りの幅をすべて取る |
+| `.ui-workspace-side` | 脇。既定は左・`22rem` |
+| `.ui-workspace--side-end` | 脇を右へ置く |
+| `.ui-workspace--reader` | 脇を読む面にする。幅を操作の面と釣り合う比（読む面が約 45%）にし、脇を画面に留める（`position: sticky`） |
+
+脇は画面が描かなければ隠せる（脇が無いと部品が 1 列にする）。1 列のときの操作の面の幅は画面が決める（読みやすい幅で中央に寄せてよい）。
+
+**選び方（性質で決める）**
+
+- 画面の主役が「読む物（お題の説明など）」と「操作」の両方なら、`--reader` で脇を読む面（`.ui-reader`）にする。既定の `22rem` では 1 行が短すぎる（`--reader` の読む面は最も広い段で 1 行 35 字前後・64rem では約 22 字）
+- 脇が参加者の一覧のような細いものなら、既定（`22rem`）のままにする
+- 脇を左に置くか右に置くかは**読む順**で決める。読んでから操作するなら左（既定）、操作の合間に横目で見るなら右（`--side-end`）
+- 脇が無ければ、操作の面だけが器いっぱいの 1 列になる（空の列は残らない）
+
+**守ること**
+
+- **区画は `.ui-workspace` の直下に置く**（区画を `<form>` などで包むと、並び替えも脇の有無の判定も効かない）
+- 脇が既定の `22rem` なら、既定の器（`72rem`）でも 64rem 以上で主は `32rem` 以上残る（器と段の境目の計算で保たれる）
+- `--reader` は `--wide` の器で使う。比で分けるので、主は 64rem の画面で約 `30rem` まで縮む（`32rem` は保たれない）
+- どの画面がどの器・区画を使っているかは `git grep -n "ui-page\|ui-workspace" apps` で引ける
+
+### 読む面（`.ui-reader`）とシート（`.ui-drawer`）
+
+長さの決まらない文章（お題の説明など）を、操作の面を押し出さずに見せる部品。
+
+```html
+<div class="ui-workspace ui-workspace--reader">
+  <div class="ui-workspace-side">
+    <section class="ui-reader" aria-labelledby="topic-heading">
+      <!-- 見出しの容器は画面のクラス（例: poker の .topic-head）。余白・下の区切り線・h2 の margin: 0 と色（--coal-soft）を画面の CSS が持つ -->
+      <div class="topic-head">
+        <h2 id="topic-heading">お題</h2>
+        <h3 id="topic-title">タイトル</h3>
+      </div>
+      <!-- 本文は名前つきの region にし、tabindex="0" でキーボードから届かせる（64rem 以上で本文が札の中でスクロールするため） -->
+      <div class="ui-reader-body" role="region" aria-labelledby="topic-title" tabindex="0">本文</div>
+      <!-- 札の上のボタンは --coal 系の色にする（既定の金の字は象牙の地で AA を割る。PR 2 で .ui-button の役割に移す） -->
+      <button type="button" class="ui-reader-more">続きを読む</button>
+    </section>
+  </div>
+  <div class="ui-workspace-main">操作の面</div>
+</div>
+```
+
+（実際の作りは `apps/poker-web/src/components/CurrentTopic.tsx` が正。区画は `<aside>` ではなく `<div>` にする。読む面の `<section>` が名前つきの region になるので、区画で目印を重ねない）
+
+- **64rem 以上**: 読む面は画面の高さに収まり、本文だけが札の中でスクロールする。**ページを伸ばさない**のは、説明が長いと操作が下へ押し出されるため。続きがあることはスクロールバーが知らせる。`.ui-reader-more` は出ない。上に見出しと招待の行（約 9.5rem）がある画面を前提にした高さ（`100dvh - 10rem`）。見出しの低い画面で使うと札が短くなる。
+- **64rem 未満**: 本文を 3 行で切り、`.ui-reader-more` で `<dialog class="ui-drawer">` を `showModal()` で開いて全文を出す。閉じるボタンと Esc で閉じ、開いたボタンへフォーカスを戻すのは画面の側の仕事
+- 読む面の見出し行やタブは画面が `.ui-reader` の中に置く（部品は札・本文・続きを読むだけを持つ）
+- 札の上の字とボタンは象牙の地で AA を満たす色にする（金は札の上で AA を割る）。フォーカスの輪の色は要素層が持つので、画面で `outline` を書かない
+- 画面の文言は書体の base 層に収める（`apps/*/tests/*fits-font-base*` が測る）
 
 ## 使い方
 

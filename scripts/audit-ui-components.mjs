@@ -11,12 +11,15 @@
  *      - 入力欄の型（`select` / `input` / `textarea` / `option`）か `::picker(` を含むセレクタの規則は落とす
  *      - 部品の入力欄（`.ui-input` / `.ui-select`）に字の大きさを書いたら落とす（16px の下限）
  *      - 生の色（`#…`・`rgb()` などの関数・名前の色）を値に書いた宣言は落とす。`@keyframes` の段も見る（設計正本 D10 の 3）
+ *      - `@media` の幅の境目は `40rem` / `64rem` / `90rem` だけ。演算子は `width >=`（下限）と `width <`（上限）だけ
+ *        （左に置く下限 `40rem <= width` は許す）。`.page` のセレクタ（#316 D2 で消した要素層の器）は落とす
  *      - いずれも直前の `/* ui-exempt: 理由 *\/` で外せる。理由が空・何も免除していない申告は落とす
  *   2. **部品の CSS**（`packages/ui/src/components/`）: セレクタは `.ui-` のクラスから始める・入れ子と
  *      `@scope` / `@layer` を使わない・`::picker(` を一覧に同居させない・`outline` は選択肢だけ・
  *      つまみ（`--*`）を宣言しない・生の色を書かない・`@import` は同じディレクトリの部品ファイルだけ許す
- *      （`../elements/index.css` のような他層への `@import` は落とす）。**申告では外せない**
+ *      （`../elements/index.css` のような他層への `@import` は落とす）・`@media` の幅の境目は段だけ。**申告では外せない**
  *   3. **死んだ部品**: 部品の CSS に定義した `.ui-*` を、2 つ以上のアプリの `src` 配下の `.tsx` が使う
+ *   4. **要素層の `.page`**: 各アプリの TSX の `className` に裸の `page` を書いたら落とす
  *
  * ## 何を見ていないか —— 「足りる」とは言わない
  *
@@ -35,6 +38,15 @@
  * - 旧来のシステムの色（`ActiveBorder` 等）は {@link findRawColors} の辞書（{@link NAMED_COLORS}）に無い
  * - 規則の外にある宣言（`@font-face` / `@page` の記述子）の生の色は見ない（画面の CSS にはいま無い）
  * - `@property` の記述子（`syntax` の `<color>` など）・`@import … layer(…)` は見ていない
+ * - `clsx("page")` のような関数の引数に書いた `page`。{@link legacyPageClassUses} は三項演算子
+ *   （`className={a ? "page" : "x"}`）と入れ子のテンプレート文字列（`` {`${`page`}`} ``）も見ない
+ * - 属性セレクタで書いた `.page`（`[class~=page]`）。逆に疑似クラスの引数の `.page`（`.a:not(.page)`）は
+ *   当てる要素が `.page` でなくても落とす（安全側 —— 見逃すより過検出を選ぶ）
+ * - **JS の幅判定**（TSX の `matchMedia(…)`・`innerWidth >= N` など）。README は同じ境目（40rem / 64rem / 90rem）を
+ *   求めているが、機械では見ない。レビューが担う
+ * - CSS の規則の外のメディアクエリ（`index.html` の `<link media="…">`・`@import "x.css" (max-width: …)`）。
+ *   見るのは `@media` の at 規則だけ
+ * - `@container` の境目（部品の内側の並び替えは器の幅で決まるので、段の約束の外）
  * - {@link uiTokensIn} は TSX のコメントやテンプレート文字列の前半に書いた `ui-` も使用として数える（字面だけを見る）
  * - {@link findDeadParts} は `.ts`（`.tsx` ではない）の定数に書いた部品名を使用として数えない。
  *   実際は使われていても死んでいると誤報しうる（安全側 —— 見逃すより過検出を選ぶ）
@@ -178,9 +190,9 @@ export function classifyStyleFiles(rels) {
 
 const EXEMPT_RE = /^ui-exempt:([\s\S]*)$/;
 
-/** 規則の直前の申告の理由。申告が無ければ `undefined`、理由が空なら `""`。 */
-function exemptReasonOf(rule) {
-  const prev = rule.prev();
+/** 規則か `@media` の直前の申告の理由。申告が無ければ `undefined`、理由が空なら `""`。 */
+function exemptReasonOf(node) {
+  const prev = node.prev();
   if (!prev || prev.type !== "comment") return undefined;
   const m = EXEMPT_RE.exec(prev.text.trim());
   return m ? m[1].trim() : undefined;
@@ -232,6 +244,9 @@ function screenRuleViolations(rule) {
   if (onPart && setsSize) {
     found.push(`部品の入力欄の字の大きさを上書きしています（16px の下限を崩す）: ${rule.selector}`);
   }
+  if (resolved.some((s) => classesOf(s).has("page"))) {
+    found.push(`要素層の .page は消しました（#316 D2）: ${rule.selector}    ← 器は .ui-page / .ui-page--prose / .ui-page--wide を使う`);
+  }
   return found;
 }
 
@@ -250,18 +265,22 @@ export function checkScreenCss(file, css) {
   const root = postcss.parse(css, { from: file });
   const problems = [];
   const usedExempts = new Set();
-  root.walkRules((rule) => {
-    const violations = inKeyframes(rule)
-      ? rawColorViolations(rule)
-      : [...screenRuleViolations(rule), ...rawColorViolations(rule)];
+  // 規則にも @media にも同じ申告の作法を当てる（直前の /* ui-exempt: 理由 */ が 1 つだけを免除する）。
+  const reportWithExempt = (node, violations) => {
     if (violations.length === 0) return;
-    const reason = exemptReasonOf(rule);
+    const reason = exemptReasonOf(node);
     if (reason === undefined || reason === "") {
-      for (const message of violations) problems.push({ ...where(file, rule), message });
+      for (const message of violations) problems.push({ ...where(file, node), message });
     }
-    if (reason !== undefined) usedExempts.add(rule.prev());
-    if (reason === "") problems.push({ ...where(file, rule), message: "ui-exempt: の理由が空です" });
+    if (reason !== undefined) usedExempts.add(node.prev());
+    if (reason === "") problems.push({ ...where(file, node), message: "ui-exempt: の理由が空です" });
+  };
+  root.walkRules((rule) => {
+    reportWithExempt(rule, inKeyframes(rule)
+      ? rawColorViolations(rule)
+      : [...screenRuleViolations(rule), ...rawColorViolations(rule)]);
   });
+  root.walkAtRules(/^media$/i, (at) => reportWithExempt(at, mediaWidthViolations(at.params)));
   root.walkComments((comment) => {
     if (!EXEMPT_RE.test(comment.text.trim()) || usedExempts.has(comment)) return;
     problems.push({ ...where(file, comment), message: "何も免除していない ui-exempt: です    ← 直したなら消す" });
@@ -316,6 +335,103 @@ export function findRawColors(value) {
     if (NAMED_COLORS.has(m[0].toLowerCase())) found.push(m[0]);
   }
   return found;
+}
+
+/** 画面の幅の段の境目（rem）。#316・ADR 0025 決定 1。CSS のカスタムプロパティはメディアクエリに使えないので、値を直書きして検査で守る。 */
+export const BREAKPOINTS_REM = new Set([40, 64, 90]);
+
+/** 幅の旧構文（`min-width` / `max-width` / `device-width` 系）。高さ（`min-height`）は見ない。 */
+const LEGACY_WIDTH = /(?:^|[^\w-])(?:min-|max-|(?:min-|max-)?device-)width\b/;
+/** 幅の条件（範囲構文の `width` を含む）。 */
+const ANY_WIDTH = /(?:^|[^\w-])(?:min-|max-)?(?:device-)?width\b/;
+
+/** 括弧の深さを数え、深さ 0 から開いた最外の括弧の中身を順に返す。 */
+function topLevelGroups(text) {
+  const out = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === "(") {
+      if (depth === 0) start = i + 1;
+      depth++;
+    } else if (text[i] === ")" && depth > 0) {
+      depth--;
+      if (depth === 0) out.push(text.slice(start, i));
+    }
+  }
+  return out;
+}
+
+/**
+ * `@media` の条件のうち、幅の段の約束を破っている箇所（#316 D1）。空なら守っている。
+ *
+ * **括弧ごとに見る。** `(width >= 40rem) and (width < 48rem)` は後ろ側だけが外れている。
+ * 括弧は 1 文字ずつ深さを数えて最外のものを取り出す（正規表現は入れ子の段数に限りがあり、
+ * `calc((40rem))` のような二重括弧を素通りさせた）。中身がさらに括弧で始まる条件の入れ子
+ * （`not ((width < 48rem))`・`((a) or (b))`）は、その中身へ再帰する。
+ * 旧構文は**値が段でも落とす**（書き方を 1 つにして、目で突き合わせられるようにする）。
+ */
+export function mediaWidthViolations(params) {
+  const out = [];
+  for (const feature of topLevelGroups(params)) {
+    if (feature.trim().startsWith("(")) {
+      out.push(...mediaWidthViolations(feature));
+      continue;
+    }
+    const f = feature.toLowerCase();
+    if (!ANY_WIDTH.test(f)) continue;
+    if (LEGACY_WIDTH.test(f)) {
+      out.push(`幅の旧構文です: (${feature.trim()})    ← (width >= 40rem) の形で書く`);
+      continue;
+    }
+    if (/(?:calc|var|env|min|max|clamp)\(/.test(f)) {
+      out.push(`境目を計算しています: (${feature.trim()})    ← 40rem / 64rem / 90rem を直書きする`);
+      continue;
+    }
+    for (const [len, num, unit] of f.matchAll(/(-?\d*\.?\d+)([a-z%]*)/g)) {
+      if (unit !== "rem" || !BREAKPOINTS_REM.has(Number(num))) {
+        out.push(`幅の段の境目ではありません: ${len}    ← 40rem / 64rem / 90rem のどれか（ADR 0025 決定 1）`);
+      }
+    }
+    if (!widthOperatorsAllowed(f)) {
+      out.push(
+        `範囲構文は width >= と width < だけです: (${feature.trim()})    ← 境目ちょうどの扱いを 1 つにする（左に置く下限は 40rem <= width）`,
+      );
+    }
+  }
+  return out;
+}
+
+/**
+ * 幅の条件の演算子が「下限は `>=`・上限は `<`」だけか（最終レビュー F4）。
+ * `width` の右に置けるのは `>=`（下限）と `<`（上限）、左に置けるのは `<=`（`40rem <= width` は下限）だけ。
+ * `(width: 40rem)` は 1 点にしか効かず、`<=` / `>` を混ぜると境目ちょうどで両方の段が効くか、どちらも効かない。
+ * 演算子の無い `(width)` は真偽の形で、境目を持たないので通す。
+ */
+function widthOperatorsAllowed(f) {
+  const right = f.match(/\bwidth\s*(>=|<=|>|<|=|:)/);
+  const left = f.match(/(>=|<=|>|<|=)\s*width\b/);
+  if (right && right[1] !== ">=" && right[1] !== "<") return false;
+  if (left && left[1] !== "<=") return false;
+  return true;
+}
+
+/**
+ * TSX の `className` に書いた裸の `page`（#316 D2 で消した要素層の器）。
+ * 返すのは `{ value, line }` の一覧（`line` は 1 始まり。`file:line` で報告するため）。
+ * 見るのは文字列・波括弧の文字列・テンプレート文字列の 3 形。`clsx("page")` のような関数の引数は見ない。
+ */
+export function legacyPageClassUses(text) {
+  const out = [];
+  const re = /className\s*=\s*(?:"([^"]*)"|'([^']*)'|\{\s*"([^"]*)"\s*\}|\{\s*`([^`]*)`\s*\})/g;
+  for (const m of text.matchAll(re)) {
+    const value = m[1] ?? m[2] ?? m[3] ?? m[4];
+    if (value.split(/\s+/).includes("page")) {
+      const line = text.slice(0, m.index).split("\n").length;
+      out.push({ value, line });
+    }
+  }
+  return out;
 }
 
 /** セレクタの先頭の複合セレクタ（最初の結合子の手前まで）に `.ui-` のクラスがあるか。 */
@@ -413,6 +529,9 @@ export function checkComponentCss(file, css) {
   const report = (node, message) => problems.push({ ...where(file, node), message });
   root.walkAtRules((at) => {
     if (/^(scope|layer)$/i.test(at.name)) report(at, `@${at.name} を使わない（設計正本 D5・D11）`);
+    if (/^media$/i.test(at.name)) {
+      for (const message of mediaWidthViolations(at.params)) report(at, message);
+    }
     if (/^import$/i.test(at.name)) {
       const target = importTargetOf(at.params);
       if (!isSameDirComponentImport(target)) {
@@ -545,6 +664,11 @@ function main() {
   for (const app of WEB_APPS) {
     const tsx = readExisting(listRepoFiles(REPO_ROOT, [`${app}/src/*.tsx`]), problems);
     volume.push({ label: `${app} の TSX`, count: tsx.length });
+    for (const f of tsx) {
+      for (const { value, line } of legacyPageClassUses(f.text)) {
+        problems.push(`[要素層の .page] ${f.rel}:${line} の className="${value}"    ← .ui-page / .ui-page--prose / .ui-page--wide を使う（#316 D2）`);
+      }
+    }
     usageByApp.set(app, new Set(tsx.flatMap((f) => [...uiTokensIn(f.text)])));
   }
   for (const c of findDeadParts(defined, usageByApp)) {

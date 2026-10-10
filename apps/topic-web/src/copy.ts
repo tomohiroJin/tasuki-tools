@@ -5,7 +5,7 @@
  * 文言だけを書体の常用の層（base）に当てて守っている。直書きした文言はその検査を素通りする。
  *
  * spec の「掲げる」「本文」は base 層に無い字（掲・本・文）を含むので、画面では
- * 「このお題にする」「説明」と言う（計画「実測で spec から外したこと」・spec §10）。
+ * 「場に出す」「説明」と言う（計画「実測で spec から外したこと」・spec §10）。
  */
 import type { Difficulty } from '@tasuki/topic-core';
 
@@ -22,13 +22,23 @@ export const INVITE_COPY_BUTTON = '招待リンクをコピー';
 export const INVITE_COPIED = 'コピーしました';
 export const INVITE_COPY_FAILED = 'コピーできません（URL を選択してください）';
 
-export const CURRENT_HEADING = 'いまのお題';
+// 読む面（region）の名前。タブ（場のお題・下書き）のどちらを見ていても当たる名前にする（#316 最終レビュー M2）
+export const READER_HEADING = 'お題';
 export const EMPTY_TEXT = 'お題はまだありません。書くか、作ってください。';
-export const CLEAR_BUTTON = 'お題を下ろす';
+export const CLEAR_BUTTON = '場から下げる';
+// 読む面（#316）。右の札に 2 つのタブを持つ。書き始めると下書きへ切り替わる
+export const READER_TABS_LABEL = '読む面の切り替え';
+export const TAB_CURRENT = '場のお題';
+export const TAB_DRAFT = '下書き';
+export const DRAFT_STAMP = 'まだ場に出していません';
+/** 札の下端（下書きのタブ）の添え書き。下書きの出す先が同じルームのほかの道具にも及ぶことを伝える */
+export const DRAFT_FOOT_NOTE = '場に出すと、同じルームのほかの道具にも表示されます';
+export const READ_MORE = '続きを読む';
+export const CLOSE = '閉じる';
 export const GENERATING_TEXT = '作っています…';
 export const DEGRADED_TEXT = 'AI で作れなかったため、定型のお題にしました。';
 
-export const WRITE_HEADING = '書く';
+export const WRITE_HEADING = 'お題を書く';
 export const TITLE_LABEL = 'タイトル';
 export const BODY_LABEL = '説明（なくてもよい）';
 /** 説明の欄の下の添え書き（#313）。「字」「文」は base 層の外なので使わない。 */
@@ -38,10 +48,11 @@ export const COMPOSE_MODE_LABEL = '説明の出し方';
 export const WRITE_MODE_BUTTON = '書く';
 export const PREVIEW_BUTTON = 'プレビュー';
 export const PREVIEW_EMPTY = '説明を書くと、ここに見え方が出ます';
-export const SET_BUTTON = 'このお題にする';
-export const REWRITE_BUTTON = '書き直す';
+export const SET_BUTTON = '場に出す';
+/** 場のお題を書く欄へ写す。**「写」は書体の base 層に無いので、ボタンの字は「下書きにコピー」**（招待リンクをコピーと同じ言い方）。札の側（場のお題のタブの下端）に置く。書く側の操作は「場に出す」だけ */
+export const COPY_TO_DRAFT_BUTTON = '下書きにコピー';
 
-export const MAKE_HEADING = '作る';
+export const MAKE_HEADING = '定型や AI で作る';
 export const LANGUAGE_LABEL = '言語';
 export const DIFFICULTY_LABEL = '難易度';
 export const DIFFICULTY_NAMES: Record<Difficulty, string> = {

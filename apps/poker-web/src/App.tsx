@@ -25,7 +25,7 @@ function useRoute() {
  */
 function RedirectingView() {
   return (
-    <main className="page">
+    <main className="ui-page ui-page--prose">
       <p className="loading-note ui-note" role="status">
         読み込んでいます…
       </p>

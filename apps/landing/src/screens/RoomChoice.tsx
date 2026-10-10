@@ -22,7 +22,7 @@ export interface RoomChoiceProps {
   readonly roster: RosterRoom | null;
   readonly connection: 'online' | 'reconnecting';
   /**
-   * いまのお題のタイトル（無ければ null）。**説明は受け取らない**
+   * 場のお題のタイトル（無ければ null）。**説明は受け取らない**
    * （玄関はタイトルだけを出す・spec §5.5）。
    */
   readonly topicTitle: string | null;
@@ -36,7 +36,7 @@ export function RoomChoice({ code, inviteUrl, roster, connection, topicTitle }: 
   const qrId = useId();
 
   return (
-    <main className="page landing landing-choice">
+    <main className="ui-page landing landing-choice">
       <header className="landing-hero">
         <h1 className="wordmark">Tasuki</h1>
         <div className="hub-room-summary">
@@ -70,7 +70,7 @@ export function RoomChoice({ code, inviteUrl, roster, connection, topicTitle }: 
           </ul>
           {topicTitle !== null && (
             <p className="hub-topic">
-              <span className="hub-label">いまのお題</span>
+              <span className="hub-label">場のお題</span>
               <span className="hub-topic-title">{topicTitle}</span>
             </p>
           )}

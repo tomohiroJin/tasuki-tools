@@ -1,0 +1,102 @@
+/* ============================================================
+   器と段組み（#316・ADR 0025）
+
+   幅の段の境目は 40rem / 64rem / 90rem の 3 つだけ（`scripts/audit-ui-components.mjs` が守る）。
+     compact < 40rem ≤ medium < 64rem ≤ wide < 90rem ≤ ultra
+
+   器（.ui-page）は画面の用途で 3 段から選ぶ。段組み（.ui-workspace）は操作の面（-main）と脇（-side）の
+   2 区画で、64rem 以上で横に並べる。脇を読む面（.ui-reader）にするときは --reader で操作の面と釣り合う比にする。
+   区画に何を置くかは画面が決める。部品が持つのは区画の幅と並び替えだけ。
+   ============================================================ */
+
+/* 器。既定は「選ぶ・一覧する」画面の 72rem。最大幅を超える画面では中央に寄せ、両脇は卓の地を見せる。 */
+.ui-page {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 72rem;
+  margin-inline: auto;
+  padding-block: var(--space-6) calc(var(--space-6) * 2);
+  padding-inline: clamp(var(--space-4), 4vw, calc(var(--space-6) * 1.5));
+}
+
+/* 読む・入力する画面。1 行の長さを抑える。 */
+.ui-page--prose {
+  max-width: 40rem;
+}
+
+/* 道具の部屋。区画を横に並べる。 */
+.ui-page--wide {
+  max-width: 96rem;
+}
+
+/* 段組み（#316 §9・ADR 0025 決定 3）。操作の面（-main）と脇（-side）の 2 区画。
+   狭い幅では DOM の順に縦へ積む（DOM は狭い幅で見せたい順に書く）。64rem 以上で横に並べる。
+   脇は既定で左・22rem。--side-end で右へ、--reader で脇を読む面（操作の面と釣り合う比）にする。 */
+.ui-workspace {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.ui-workspace-main,
+.ui-workspace-side {
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+@media (width >= 64rem) {
+  .ui-workspace {
+    grid-template-columns: 22rem minmax(0, 1fr);
+  }
+
+  .ui-workspace-side {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .ui-workspace-main {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  /* 脇が無ければ主を 1 列目へ（既定の -main より後ろ。--side-end の -main も同じ 1 列目なので順序は結果を変えない） */
+  .ui-workspace-main:where(.ui-workspace:not(:has(> .ui-workspace-side)) > *) {
+    grid-column: 1;
+  }
+
+  .ui-workspace--side-end {
+    grid-template-columns: minmax(0, 1fr) 22rem;
+  }
+
+  .ui-workspace--side-end > .ui-workspace-side {
+    grid-column: 2;
+  }
+
+  .ui-workspace--side-end > .ui-workspace-main {
+    grid-column: 1;
+  }
+
+  /* 読む面と操作の面を比で分ける（読む面が約 45%）。1 行は最も広い段で 35 字前後、64rem では約 22 字まで縮む。
+     比で分けるので主の 32rem は保たれない（64rem で約 30rem）。--wide の器で使う。 */
+  .ui-workspace--reader {
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1fr);
+  }
+
+  .ui-workspace--reader.ui-workspace--side-end {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.85fr);
+  }
+
+  /* 読む面を載せる脇は画面に留める（sticky は札でなく区画に掛ける。区画が札と同じ背丈だと動ける余地が無い） */
+  .ui-workspace--reader > .ui-workspace-side {
+    position: sticky;
+    top: var(--space-4);
+    align-self: start;
+  }
+
+  /* 脇が無ければ操作の面を器いっぱいの 1 列にする（空の列を残さない）。列の指定は (0,2,0)（--side-end / --reader の (0,2,0) より後ろで勝つ）、区画の位置は :where で (0,1,0) に収める（部品層の詳細度の約束）。 */
+  .ui-workspace:not(:has(> .ui-workspace-side)) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

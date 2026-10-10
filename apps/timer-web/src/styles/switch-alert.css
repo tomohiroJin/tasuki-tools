@@ -31,6 +31,7 @@
   font-weight: 900;
 }
 
+/* ui-exempt: #316 PR 3 で段へ寄せる */
 @media (width >= 48rem) {
   .switch-alert-driver {
     font-size: 4.5rem; /* scale-exempt: Tailwind の text-7xl の写し（#316 で段へ寄せる） */
@@ -45,6 +46,7 @@
   color: var(--signal);
 }
 
+/* ui-exempt: #316 PR 3 で段へ寄せる */
 @media (width >= 48rem) {
   .switch-alert-crown {
     height: 4rem;

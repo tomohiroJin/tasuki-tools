@@ -5,8 +5,8 @@
  * （`PRODUCTION_TAGS` は `@smoke` / `@core` だけ。見るのはスタイルの健全性）。
  *
  * poker にはこれまで文字の走査が無かった（PR #311 の申し送り）。お題の表示（`CurrentTopic`）を
- * 足したのを機に、**お題を出したルーム画面**を測る。説明（象牙の札）は開いてから測る ——
- * 畳んだままだと `:visible` から外れ、札の上の字（`--coal` on `--ivory`）を誰も見ない。
+ * 足したのを機に、**お題を出したルーム画面**を測る。お題は読む面（象牙の札）に畳まずに出るので、
+ * 札の上の字（`--coal` on `--ivory`）と見出し（`--coal-soft` on 札の地）を測る（#316）。
  *
  * **初回の走査（探索）で既存の要素が 2 件 AA を割った**: 節の見出し「参加者（1人）」「あなたのカード」
  * （`@tasuki/ui` の既定の h2・`--gold` を地の無いまま body の羅紗グラデーションに置く）が 3.92:1。
@@ -22,22 +22,26 @@ const TITLE = 'FizzBuzz';
 const BODY = '3 のときは Fizz を出す';
 
 test.describe('poker の文字が背景に対して読める（WCAG AA）', () => {
-  test('Given お題を出した poker のルーム / When 説明を開いて文字を測り、票を公開して測る / Then すべて AA を満たす', async ({
+  test('Given お題を出した poker のルーム / When 読む面の文字を測り、票を公開して測る / Then すべて AA を満たす', async ({
     page,
     openPeer,
   }) => {
-    // Given: お題ツールでお題を掲げ、別の文脈で poker を開いて説明を開く
+    // Given: お題ツールでお題を掲げ、別の文脈で poker を開く
     const inviteUrl = await openTopicTool(page, 'a11y-topic');
     await setTopic(page, TITLE, BODY);
     const poker = await openPeer('a11y-poker');
     await joinRoom(poker.page, inviteUrl, 'a11y-poker');
     const topic = poker.page.getByRole('region', { name: 'お題', exact: true });
-    await topic.getByText('説明を見る', { exact: true }).click();
-    await expect(topic.getByText(BODY, { exact: true })).toBeVisible();
+    await expect(topic.getByRole('region', { name: TITLE, exact: true }).getByText(BODY, { exact: true })).toBeVisible();
     // 固定する 2 組: 節の見出し（`--gold` on `--felt-900`。初回の走査で地が無く 3.92:1 だった）と、
-    //   象牙の札の上の字（`--coal` on `--ivory`）。画面の作りが変わって測らなくなったら落とす
-    const [gold, felt900, coal, ivory] = await resolveColors(poker.page, ['--gold', '--felt-900', '--coal', '--ivory']);
-    const thinnest = [pairKey(gold!, felt900!), pairKey(coal!, ivory!)];
+    //   象牙の札の上の字（`--coal` on `--ivory`）と、札の上のお題の見出し（`--coal-soft` on 札の地）。
+    //   画面の作りが変わって測らなくなったら落とす
+    //   読む面の札の地は単色でなくグラデーション（`.ui-reader`）なので、地の記述はその形で組む
+    const [gold, felt900, coal, coalSoft, sheen, shade] = await resolveColors(poker.page, [
+      '--gold', '--felt-900', '--coal', '--coal-soft', '--card-sheen', '--card-shade',
+    ]);
+    const cardGround = `rgba(0, 0, 0, 0) + linear-gradient(160deg, ${sheen}, ${shade})`;
+    const thinnest = [pairKey(gold!, felt900!), pairKey(coal!, cardGround), pairKey(coalSoft!, cardGround)];
 
     // When / Then その1: 投票中の画面
     expectReadable(await scanContrast(poker.page, 10), 8, thinnest);

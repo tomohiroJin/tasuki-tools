@@ -1,17 +1,11 @@
 /* ============================================================
    Tasuki お題（#91）
    共通の世界観「夜のカードテーブル」は @tasuki/ui が持つ。
-   ここにはお題ツール固有のもの（いまのお題・書く・作る）だけを置く。
+   ここにはお題ツール固有のもの（場のお題・書く・作る）だけを置く。
    **Tailwind と併用しない**（#297：`@import` の書体の url() が解決されず全滅した）。
    ============================================================ */
 
 @import '@tasuki/ui';
-
-/* ページの最大幅（#313 正本 D1）。玄関の選択画面（1120px）に揃える。`@tasuki/ui` の `.page` は
-   poker も使うので変えない。幅の揃え方は #316 が決める（写し元は玄関とお題ツールの 2 つ）。 */
-.topic-page {
-  max-width: 1120px;
-}
 
 /* 遷移中・参加中の一言。卓の上で控えめに置く（poker-web と同じ置き方）。色は部品（`.ui-note`）が持つ。 */
 .loading-note {
@@ -22,12 +16,157 @@
 
 /* ---------- 見出しと戻る導線は部品層（`.ui-page-header`・ADR 0022）が持つ ---------- */
 
-/* ---------- いまのお題（札の見た目は部品層の `.ui-sheet` が持つ） ---------- */
+/* ---------- いまのお題（#316。読む面は部品層の `.ui-reader` が持つ） ----------
+   札の地・枠・影・字の色（`--coal`）・本文のスクロール・狭い幅の 3 行切りは部品（`.ui-reader`）が持つ。
+   ここには、タブと札の上の見出し・ボタンの色、パネルの並びだけを置く。 */
 
-/* 面（不透明な地・枠・角丸・内側の余白）は部品（`.ui-panel`）が持つ。ここには並びだけを置く。 */
-.topic-current {
-  display: grid;
+/* 目に出さず、支援技術には残す（読む面の h2「お題」。region の名前で、すぐ下のタブと役目が重なるため）。
+   隠す h2 は札の中で場所を取らない。色は `--coal-soft`（隠さなくなったときも象牙の上で読める値にしてある）。 */
+.topic-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+  color: var(--coal-soft);
+}
+
+/* **PR 2 で `.ui-button` の役割に置き換えて消す一時的な規則**（poker の `.topic .secondary` と同じ）。
+   札の上の副ボタン（下書きにコピー・場から下げる・続きを読む・閉じる）。既定の金の字は象牙の上で読めないので札の字の色にし、
+   シートの狭い頭で縦に割れないよう折り返さない。 */
+.topic-current .secondary,
+.ui-drawer .secondary {
+  color: var(--coal);
+  border-color: var(--coal-soft);
+  white-space: nowrap;
+}
+
+/* タブ。要素層のボタン（金の丸薬）を、札の上の下線のタブに打ち消す。
+   **PR 2 で `.ui-button` / タブの部品に寄せる。** 選んだタブは太い下線で示す（色だけに頼らない）。 */
+.topic-tab {
+  padding: var(--space-3) var(--space-3);
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--coal);
+  letter-spacing: normal;
+  white-space: nowrap;
+}
+
+.topic-tab[aria-selected='true'] {
+  border-bottom-color: var(--coal);
+}
+
+.topic-tab:hover:not(:disabled) {
+  filter: none;
+  background: var(--card-inline);
+}
+
+.topic-tab:active:not(:disabled) {
+  transform: none;
+  box-shadow: none;
+}
+
+/* 読む面のタブの並び（かつて部品層の `.ui-reader-tabs`。使うのがお題ツールだけになったのでここへ移した・#316） */
+.topic-reader-tabs {
+  display: flex;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3) 0;
+  border-bottom: 1px solid var(--card-inline);
+}
+
+/* 象牙の札（かつて部品層の `.ui-sheet`。使うのがお題ツール（書くのプレビュー）だけになったのでここへ移した・#316）。
+   **札の上の字の色は札が決める。** Markdown のリンクは札の字の色を継ぐ。札が要るのは、Markdown のコード・引用の枠の色
+   （`--coal-soft`）が象牙の上でしか読めないため（暗いパネルの上では約 2.07:1。#91 PR 3 のレビュー指摘）。 */
+.topic-sheet {
+  box-sizing: border-box;
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--ivory);
+  color: var(--coal);
+  /* グリッドの子は既定で中身の最小幅まで伸びる。区切りの無い長いタイトルや URL で、札を包むグリッドごと横にはみ出す */
+  min-width: 0;
+}
+
+/* パネルは札の残りの高さを取り、本文だけが札の中でスクロールする（`hidden` は display に負けるので明示する）。 */
+.topic-reader-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.topic-reader-panel[hidden] {
+  display: none;
+}
+
+.topic-reader-pad {
+  margin: 0;
+  padding: var(--space-4) var(--space-5) 0;
+}
+
+/* 札の上の一言は暗い地用の `.ui-note` の色では読めない。札の字の色に揃える。 */
+.topic-reader-panel .ui-note {
+  color: var(--coal-soft);
+}
+
+.topic-draft-stamp {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--coal-soft);
+}
+
+/* タイトルの下の説明は札の余白で置く（`.topic-body` の上の余白は札の外のためのもの） */
+.topic-current .topic-body,
+.ui-drawer .topic-body {
+  margin: 0;
+}
+
+@media (width < 64rem) {
+  .topic-reader-panel > .ui-reader-body {
+    margin-top: var(--space-2);
+  }
+}
+
+/* 札の下端。場のお題のタブは「下書きにコピー」（左）と「場から下げる」（右）、下書きのタブは添え書きだけ。
+   「場から下げる」は危険の操作で、PR 2 で `.ui-button--danger` になる。 */
+.topic-reader-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  /* 320px の幅では 2 つのボタンが並ばない（折り返さない副ボタンが横にはみ出す）。折り返して縦に積む */
+  flex-wrap: wrap;
   gap: var(--space-3);
+  padding: var(--space-3) var(--space-5) var(--space-4);
+  border-top: 1px solid var(--card-inline);
+}
+
+/* 折り返して縦に積んでも、右のボタン（場から下げる）は右端に残す（`space-between` だけだと左端へ寄る） */
+.topic-reader-foot > button:last-child {
+  margin-inline-start: auto;
+}
+
+.topic-foot-note {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--coal-soft);
+}
+
+/* 64rem 以上では札の高さを画面いっぱいに固定する（中身で枠の高さが変わらない）。短い本文でも長い本文でも同じ高さで、
+   余った高さは本文の領域が取る（`.ui-reader-body` が `flex: 1 1 auto`）。
+   **部品（`.ui-reader`）の `max-height` と同じ式にする。** 見出しと招待の行（約 9.5rem）も引き、ページを開いた直後でも
+   札の下端が画面に収まる。最下端の条件（器の下の余白 4rem）も満たす。部品の式を変えたらここも変える。
+   64rem 未満は固定しない（3 行＋続きを読む のまま）。 */
+@media (width >= 64rem) {
+  .topic-current.ui-reader {
+    height: calc(100dvh - 10rem);
+  }
 }
 
 .topic-title {
@@ -73,11 +212,34 @@
   gap: var(--space-2);
 }
 
-/* ---------- 作る（#313 構成案 1） ----------
+/* ---------- 作る（#313 構成案 1。#316 PR 1 の手直しで、書くの下のたためる欄にした） ----------
+   `<details>` の `summary` に見出し（h2）を置く。開閉の三角は消さず、見出しと同じ行に並べる。
+   中の行（`.topic-make-row`）の規則は、`<details>` の中でも効く（子孫のセレクタなので包みに影響されない）。
    ボタン 1 つで済む操作なので、広いときは 1 行の帯に並べる。狭いときはこれまでどおり縦に積む。
-   帯にするかは「作る」の面の幅で決める（閾値は「書く」の並べる幅と同じ 48rem）。 */
+   帯にするかは「作る」の面の幅で決める（閾値は「書く」の並べる幅と同じ 44rem）。
+   44rem：境目は箱の内側で測る。余裕は常時表示のスクロールバー（約 17px）より
+   大きく取る。768px の画面では箱が約 656px で切り替わる（#313 D7 を保つ）。
+   **いまの配置での実測（#316）**: 読む面を右に置くので、1280px の画面で主の区画（この箱）は約 573px で 44rem を割る。
+   64rem 以上の作るは、この容器クエリでなく下の `@media (width >= 64rem)` が 2 行に組む。
+   この境目が効くのは 64rem 未満の幅（768px の約 656px など、一部は 44rem 未満）と、箱が 44rem を超える最も広い画面。 */
 .topic-make {
   container: make / inline-size;
+}
+
+.topic-make-fold > summary {
+  cursor: pointer;
+  /* 開閉の三角（既定の list-item の印）を残す。`display: flex` にすると三角が消える */
+  min-height: 2.75rem;
+}
+
+/* 見出しは三角と同じ行に置く（block のままだと次の行へ落ちる） */
+.topic-make-fold > summary h2 {
+  display: inline;
+  margin: 0;
+}
+
+.topic-make-fold[open] > summary {
+  margin-block-end: var(--space-3);
 }
 
 .topic-make-row,
@@ -88,7 +250,7 @@
   min-width: 0;
 }
 
-@container make (width >= 48rem) {
+@container make (width >= 44rem) {
   .topic-make .topic-make-row {
     display: flex;
     flex-wrap: wrap;
@@ -194,9 +356,12 @@
   display: none;
 }
 
-/* 並べる。閾値 48rem は正本 D7（1120px のページで各列 約 500px、768px の画面では切り替え）。
+/* 並べる。閾値 44rem（#313 D7 の 48rem から下げた）。境目は箱の内側で測る。
+   余裕は常時表示のスクロールバー（約 17px）より大きく取る。768px の画面では箱が約 656px で切り替わる（#313 D7 を保つ）。
+   1280px の画面では箱が約 573px で 44rem を割るが、64rem 以上ではプレビューを右の読む面が受け持つので並べる必要が無く、
+   下の `@media (width >= 64rem)` が説明の欄を 1 列にする（この境目が効くのは 44rem 以上になる 64rem 未満の幅だけ）。
    **上の規則と同じ詳細度で、後に書いてあるので勝つ。順序を入れ替えないこと。** */
-@container compose (width >= 48rem) {
+@container compose (width >= 44rem) {
   .topic-compose .topic-compose-toggle {
     display: none;
   }
@@ -219,4 +384,69 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
+}
+
+/* 書く欄の操作は「場に出す」だけで、右端に置く（札の側の「下げる」と左右で役目が分かれる）。 */
+.topic-panel form > .topic-actions {
+  justify-content: flex-end;
+}
+
+/* お題ツールの頭（見出しと招待リンク）と段組みの間（読む面の札が行に接しない）。poker の `.room > header` と同じ値 */
+.topic-room-header {
+  margin-block-end: var(--space-5);
+}
+
+/* 64rem 以上では、説明のプレビューは右の読む面（「下書き」のタブ）が受け持つ（#316）。
+   欄の中のプレビューと切り替えは、読む面が書く欄から遠い 64rem 未満のためにだけ残す。
+   **容器クエリの規則（上）と同じ詳細度で、後に書いてあるので勝つ。順序を入れ替えないこと。** */
+@media (width >= 64rem) {
+  .topic-compose .topic-compose-toggle,
+  .topic-compose[data-mode] .topic-compose-preview {
+    display: none;
+  }
+
+  .topic-compose .topic-compose-panes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .topic-compose[data-mode] .topic-compose-write {
+    display: grid;
+  }
+}
+
+/* 作るは 2 行（#316）。1 行目に 言語・難易度・定型から選ぶ、2 行目に 合言葉・解錠する。
+   読む面を右に置くと主の区画は 1280px で約 573px になり、`@container make` の 44rem に届かず縦に積んでいた。
+   容器クエリの境目は変えず、64rem 以上では並びをここで決める（容器クエリの規則と同じ詳細度で、後に書いてあるので勝つ）。 */
+@media (width >= 64rem) {
+  .topic-make .topic-make-row {
+    display: grid;
+    grid-template-columns: minmax(0, 14rem) minmax(0, 10rem) auto;
+    justify-content: start;
+    align-items: end;
+    gap: var(--space-3) var(--space-4);
+  }
+
+  .topic-make .topic-make-language,
+  .topic-make .topic-make-difficulty {
+    inline-size: auto;
+  }
+
+  .topic-make .topic-unlock {
+    grid-column: 1 / -1;
+    margin-inline-start: 0;
+    inline-size: min(100%, 28rem);
+  }
+
+  .topic-make .topic-unlock-row {
+    display: flex;
+    align-items: center;
+  }
+
+  .topic-make .topic-unlock-row > :first-child {
+    flex: 1 1 auto;
+  }
+
+  .topic-make .topic-unlock-row > :last-child {
+    flex: none;
+  }
 }
