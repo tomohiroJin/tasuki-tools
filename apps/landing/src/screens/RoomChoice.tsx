@@ -95,6 +95,7 @@ export function RoomChoice({ code, inviteUrl, roster, connection, topicTitle }: 
             <h2 className="hub-heading" id="hub-invite-heading">仲間を招く</h2>
             <input className="ui-input hub-invite" readOnly value={inviteUrl} aria-label="参加用 URL" />
             <div className="hub-invite-actions ui-actions">
+              {/* よく使うコピーを並びの末尾（主の位置・40rem 以上は右端）に置き、QR は左へ離す */}
               <div className="ui-actions-start">
                 <button type="button" className="ui-button ui-button--secondary" aria-expanded={showQr} aria-controls={qrId} onClick={() => setShowQr(!showQr)}>
                   {showQr ? 'QR コードを閉じる' : 'QR コードを表示'}

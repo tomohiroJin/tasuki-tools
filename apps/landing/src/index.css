@@ -378,10 +378,8 @@
      大きさを書くと検査（scripts/audit-ui-components.mjs）が落とす。画面のクラス（`.hub-invite`
      自身）で書いた上書きは検査に掛からず、計算後の値を E2E（`expectFieldsAtLeast16px`）が測る。** */
 }
+/* 並び（flex・間隔・幅ごとの寄せ）は部品の `.ui-actions` が持つ。ここは URL の枠との間だけ */
 .hub-invite-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
   margin-top: var(--space-3);
 }
 /* コピーの結果は空 → 文字 → 空と入れ替わる（#269）。**高さを先に確保しておく** ——
