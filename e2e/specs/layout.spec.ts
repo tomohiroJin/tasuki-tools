@@ -112,27 +112,24 @@ async function expectBodyScrolls(page: Page): Promise<void> {
 }
 
 /**
- * 読む面の高さが画面に収まる: 100dvh - 10rem（見出しと招待の行 約 9.5rem + 器の下の余白 4rem を含む）以下。
+ * 読む面の高さが画面に収まる: 100dvh - 14rem（見出しと招待の行 約 9.5rem + 器の下の余白 4rem）以下。
  * 長い説明で読む面そのものが伸びていないことを守る。操作の面が長い画面でも成り立つ。
  */
 async function expectReaderFitsScreen(page: Page): Promise<void> {
   const height = await page.locator('.ui-reader').first().evaluate((el) => el.getBoundingClientRect().height);
-  expect(height).toBeLessThanOrEqual((page.viewportSize()?.height ?? 0) - 10 * REM + 0.5);
+  expect(height).toBeLessThanOrEqual((page.viewportSize()?.height ?? 0) - 14 * REM + 0.5);
 }
 
 /**
  * 長い説明でページを伸ばさない。1 つ目（expectReaderFitsScreen）は読む面が伸びないこと、
- * 2 つ目は「操作の面が読む面より短い」画面で、ページ全体が読む面の下端 + 器の下の余白（4rem）に収まること（画面 1 枚ぶん）。
+ * 2 つ目は「操作の面が読む面より短い」画面で、ページ全体が画面 1 枚に収まること（スクロールバーが出ない）。
  * 操作の面が読む面より伸びる画面（お題ツール、参加者が多い poker）では 2 つ目を使わない（ページは操作の面の背丈で決まる）。
- * （ページ全体を `innerHeight + 2rem` で測ると、読む面の上にある見出し・招待リンクの背丈だけで超える。）
+ * （読む面の高さの式が器の下の余白を引いていなかった間は、どの高さでもページが約 3.5rem はみ出していた。2026-10-11 に利用者が指摘）
  */
 async function expectPageFitsScreen(page: Page): Promise<void> {
   await expectReaderFitsScreen(page);
-  const { pageHeight, readerBottom } = await page.evaluate(() => {
-    const r = document.querySelector('.ui-reader')!.getBoundingClientRect();
-    return { pageHeight: document.documentElement.scrollHeight, readerBottom: r.bottom + scrollY };
-  });
-  expect(pageHeight).toBeLessThanOrEqual(readerBottom + 4 * REM + 0.5);
+  const { pageHeight, viewport } = await page.evaluate(() => ({ pageHeight: document.documentElement.scrollHeight, viewport: innerHeight }));
+  expect(pageHeight, 'ページが画面より高く、スクロールバーが出る').toBeLessThanOrEqual(viewport);
 }
 
 /**

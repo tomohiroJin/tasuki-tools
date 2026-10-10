@@ -479,11 +479,11 @@ test.describe('お題ツールを書く主役にする（#316 PR 1 の手直し�
     // When その2: 長い本文
     await setTopic(page, TITLE, TALL_BODY);
     const tall = (await reader.boundingBox())!.height;
-    // Then: 中身で枠の高さが変わらない。画面の高さ − 10rem（見出しと招待の行・器の下の余白を含む）に等しい
+    // Then: 中身で枠の高さが変わらない。画面の高さ − 14rem（見出しと招待の行・器の下の余白）に等しい
     expect(tall, '札の高さが中身で変わっている').toBeCloseTo(short, 0);
     const expected = await page.evaluate(() => {
       const probe = document.createElement('div');
-      probe.style.height = 'calc(100dvh - 10rem)';
+      probe.style.height = 'calc(100dvh - 14rem)';
       document.body.append(probe);
       const h = probe.getBoundingClientRect().height;
       probe.remove();
@@ -568,6 +568,19 @@ test.describe('お題ツールを書く主役にする（#316 PR 1 の手直し�
     // Then: 折り返して縦に積んでも、左のボタンは内側の左端・右のボタンは内側の右端（縦に隣り合って左へ寄らない）
     expect(copy!.x, '下書きにコピーが内側の左端に無い').toBeCloseTo(foot.left, 0);
     expect(clear!.x + clear!.width, '場から下げるが内側の右端に無い').toBeCloseTo(foot.right, 0);
+    expect(consoleWatcher.errors).toEqual([]);
+  });
+
+  test('Given 幅 1920・高さ 1080（操作の面が札より短い） / When 短い本文のお題を出す / Then ページは画面 1 枚に収まり、スクロールバーが出ない', async ({ page, consoleWatcher }) => {
+    // Given: 書く欄と作る欄を合わせても札より短い高さ
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await openTopicTool(page, 'no-scroll-topic');
+    // When
+    await setTopic(page, TITLE, SHORT_BODY);
+    await expect(currentTopic(page).getByRole('region', { name: TITLE, exact: true }).getByText(SHORT_BODY, { exact: true })).toBeVisible();
+    // Then: 札の高さの式が器の下の余白を引いていないと、どの高さでもページが約 3.5rem はみ出す（2026-10-11 に利用者が指摘）
+    const { pageHeight, viewport } = await page.evaluate(() => ({ pageHeight: document.documentElement.scrollHeight, viewport: innerHeight }));
+    expect(pageHeight, 'ページが画面より高く、スクロールバーが出る').toBeLessThanOrEqual(viewport);
     expect(consoleWatcher.errors).toEqual([]);
   });
 
