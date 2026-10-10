@@ -156,7 +156,7 @@ export function CurrentTopic({ state, enabled, draft, onCopyToDraft, onClear }: 
                       <button
                         ref={moreRef}
                         type="button"
-                        className="secondary ui-reader-more"
+                        className="ui-button ui-button--secondary ui-button--sm ui-reader-more"
                         onClick={() => dialogRef.current?.showModal()}
                       >
                         {READ_MORE}
@@ -195,15 +195,17 @@ export function CurrentTopic({ state, enabled, draft, onCopyToDraft, onClear }: 
           「場から下げる」が下書きの本文の真下にあると「下書きを捨てる」と読み違え、全員のお題が消える。
           「下書きにコピー」は書く側でなく札の側にある（書く側の操作は「場に出す」だけ）。 */}
       {active === 'current' && topic !== null && (
-        <div className="topic-reader-foot">
-          <button type="button" className="secondary" onClick={() => {
+        <div className="topic-reader-foot ui-actions">
+          <div className="ui-actions-start">
+          <button type="button" className="ui-button ui-button--secondary" onClick={() => {
               onCopyToDraft({ title: topic.title, body: topic.body });
               // コピーは常に下書きのタブへ（書きかけが置き換わったことを見せる。欄が空でないときは自動切り替えが働かない）
               setActive('draft');
             }}>
             {COPY_TO_DRAFT_BUTTON}
           </button>
-          <button type="button" className="secondary" onClick={onClear} disabled={!enabled}>
+          </div>
+          <button type="button" className="ui-button ui-button--secondary topic-danger" onClick={onClear} disabled={!enabled}>
             {CLEAR_BUTTON}
           </button>
         </div>
@@ -222,7 +224,7 @@ export function CurrentTopic({ state, enabled, draft, onCopyToDraft, onClear }: 
         >
           <div className="ui-drawer-head">
             <h3 id={`${baseId}-drawer-title`}>{topic.title}</h3>
-            <button type="button" className="secondary" onClick={closeDrawer}>
+            <button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={closeDrawer}>
               {CLOSE}
             </button>
           </div>

@@ -104,7 +104,7 @@ export function CreateRoom({
           </p>
         )}
 
-        <button className="hub-submit" type="submit" disabled={connection !== 'online'}>
+        <button className="ui-button ui-button--lg" type="submit" disabled={connection !== 'online'}>
           ルームを作る
         </button>
       </form>

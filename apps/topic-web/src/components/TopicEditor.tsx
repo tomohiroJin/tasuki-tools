@@ -51,7 +51,7 @@ interface Props {
  *
  * **並べるか切り替えるかは CSS が決める**（#313 正本 D7）。「書く」の容器が広ければ説明の欄とプレビューを並べ、
  * 切り替えのボタンを隠す。React の木は幅によらず同じで、ここが持つのは狭いときにどちらを出すか（`mode`）だけ。
- * 切り替えのボタンは要素層のボタン（押している方）と `.secondary`（押していない方）で組み、部品層に置かない（D8）。
+ * 切り替えのボタンは `.ui-button--secondary --sm` で、選んだ側は `aria-pressed="true"` で示す（見た目は画面の CSS が太い枠と地で区別する）。
  */
 export function TopicEditor({ fillRequest = null, enabled, onDraftChange, onSubmit }: Props) {
   const [title, setTitle] = useState('');
@@ -135,7 +135,7 @@ export function TopicEditor({ fillRequest = null, enabled, onDraftChange, onSubm
           <div className="topic-compose-toggle" role="group" aria-label={COMPOSE_MODE_LABEL}>
             <button
               type="button"
-              className={mode === 'write' ? undefined : 'secondary'}
+              className="ui-button ui-button--secondary ui-button--sm"
               aria-pressed={mode === 'write'}
               onClick={() => setMode('write')}
             >
@@ -143,7 +143,7 @@ export function TopicEditor({ fillRequest = null, enabled, onDraftChange, onSubm
             </button>
             <button
               type="button"
-              className={mode === 'preview' ? undefined : 'secondary'}
+              className="ui-button ui-button--secondary ui-button--sm"
               aria-pressed={mode === 'preview'}
               onClick={() => setMode('preview')}
             >
@@ -175,8 +175,8 @@ export function TopicEditor({ fillRequest = null, enabled, onDraftChange, onSubm
             </section>
           </div>
         </div>
-        <div className="topic-actions">
-          <button type="submit" disabled={!canSubmit}>
+        <div className="ui-actions ui-actions--dock">
+          <button type="submit" className="ui-button ui-button--lg" disabled={!canSubmit}>
             {SET_BUTTON}
           </button>
         </div>

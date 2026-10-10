@@ -37,7 +37,7 @@ index 9b294bfc..7aa279f4 100644
    readonly enabled: boolean;
 @@ -53,7 +54,7 @@ interface Props {
   * 切り替えのボタンを隠す。React の木は幅によらず同じで、ここが持つのは狭いときにどちらを出すか（`mode`）だけ。
-  * 切り替えのボタンは要素層のボタン（押している方）と `.secondary`（押していない方）で組み、部品層に置かない（D8）。
+  * 切り替えのボタンは `.ui-button--secondary --sm` で、選んだ側は `aria-pressed="true"` で示す（見た目は画面の CSS が太い枠と地で区別する）。
   */
 -export function TopicEditor({ fillRequest = null, enabled, onDraftChange, onSubmit }: Props) {
 +export function TopicEditor({ current, fillRequest = null, enabled, onDraftChange, onSubmit }: Props) {

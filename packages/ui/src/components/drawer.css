@@ -29,6 +29,16 @@
   border-bottom: 1px solid var(--card-inline);
 }
 
+/* 閉じるボタンなど。狭い頭で字が縦に割れないよう折り返さない。`.ui-button` の規則に勝つ (0,2,0) */
+.ui-drawer-head .ui-button {
+  white-space: nowrap;
+}
+
+/* 頭の見出し（先頭の子）は閉じるボタンと上下の中心を揃える。要素層の h3 の下の余白を受けない */
+.ui-drawer-head > :first-child {
+  margin: 0;
+}
+
 .ui-drawer-body {
   box-sizing: border-box;
   flex: 1 1 auto;

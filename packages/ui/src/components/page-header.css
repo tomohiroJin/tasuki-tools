@@ -16,9 +16,8 @@
   gap: var(--space-3);
 }
 
-/* 戻る導線は見出しより一段小さく、折り返させない（行の右端に置く）。
-   色は要素層の素の `a`（真鍮の明色）をそのまま継ぐ。 */
+/* 戻る導線は折り返させない（行の右端に置く）。
+   `<a>` には `.ui-button .ui-button--quiet` も当てる。色・字の大きさ・当たりの高さはそちらが持つ。 */
 .ui-page-header-back {
   flex: none;
-  font-size: var(--font-size-sm);
 }

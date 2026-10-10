@@ -6,7 +6,7 @@ export function InviteLink({ url }: { url: string }) {
   return (
     <div className="ui-invite">
       <span className="ui-invite-url">{url}</span>
-      <button type="button" className="secondary" onClick={copy}>
+      <button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={copy}>
         {state === 'done' && INVITE_COPIED}
         {state === 'failed' && INVITE_COPY_FAILED}
         {state === 'idle' && INVITE_COPY_BUTTON}

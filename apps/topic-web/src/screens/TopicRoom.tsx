@@ -47,7 +47,7 @@ export function TopicRoom({ roomCode }: { roomCode: string }) {
         <h1>{GONE_HEADING}</h1>
         <p>{GONE_TEXT}</p>
         {/* 消えたルームの選択画面へは送らない（そこで名乗っても必ず失敗する・poker と同じ扱い） */}
-        <a href="/">{GONE_LINK}</a>
+        <a className="ui-button ui-button--quiet" href="/">{GONE_LINK}</a>
       </main>
     );
   }
@@ -61,7 +61,7 @@ export function TopicRoom({ roomCode }: { roomCode: string }) {
           <header className="ui-page-header">
             <h1>{JOINING_HEADING}</h1>
             {/* 参加の返事が来ないまま待つ期限は無い（spec §10.1）。待たされた人が自分で戻れるように。 */}
-            <a className="ui-page-header-back" href={hubPathFor(roomCode)}>
+            <a className="ui-page-header-back ui-button ui-button--quiet" href={hubPathFor(roomCode)}>
               {BACK_LINK}
             </a>
           </header>
@@ -82,7 +82,7 @@ export function TopicRoom({ roomCode }: { roomCode: string }) {
         <div className="topic-room-header">
           <header className="ui-page-header">
             <h1>{PAGE_HEADING}</h1>
-            <a className="ui-page-header-back" href={hubPathFor(roomCode)}>
+            <a className="ui-page-header-back ui-button ui-button--quiet" href={hubPathFor(roomCode)}>
               {BACK_LINK}
             </a>
           </header>

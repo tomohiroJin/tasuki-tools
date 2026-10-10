@@ -274,9 +274,9 @@ describe('書く', () => {
     // Given / When
     enterWith({ ...IDLE_STATE, topic: FIZZ });
     const reader = screen.getByRole('region', { name: copy.READER_HEADING });
-    const foot = within(reader).getByRole('button', { name: copy.COPY_TO_DRAFT_BUTTON }).parentElement;
-    // Then: DOM の順が左から右の順
-    expect(foot).toBe(within(reader).getByRole('button', { name: copy.CLEAR_BUTTON }).parentElement);
+    const foot = within(reader).getByRole('button', { name: copy.COPY_TO_DRAFT_BUTTON }).closest('.ui-actions');
+    // Then: DOM の順が左から右の順（下書きにコピーは `.ui-actions-start` の中で左端に離れる）
+    expect(foot).toBe(within(reader).getByRole('button', { name: copy.CLEAR_BUTTON }).closest('.ui-actions'));
     const buttons = within(foot as HTMLElement).getAllByRole('button');
     expect(buttons.map((b) => b.textContent)).toEqual([copy.COPY_TO_DRAFT_BUTTON, copy.CLEAR_BUTTON]);
   });

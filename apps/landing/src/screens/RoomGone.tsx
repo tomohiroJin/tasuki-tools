@@ -42,10 +42,9 @@ export function RoomGone({ code }: RoomGoneProps) {
       </p>
 
       {/* **戻る道。** これが無いと行き止まりになる。
-          `hub-submit` は `<button>` 専用（下線が消えず、影も要素セレクタ `button` にしか
-          掛からない）。**ハブでリンクを飾るのは `hub-secondary` である**（`HistoryLink` と同じ）。
-          poker の同じ画面も、戻る道は素のリンクにしてある。 */}
-      <a className="hub-secondary" href="/">
+          この画面の主の操作なので部品層の `ui-button`（主）で飾る。記録への入口（`HistoryLink`）は `--quiet`（下線の字）なので、主は 1 つだけ。
+          poker の同じ画面（ルームが無い）は、控え（`--quiet`）の「トップへ戻る」にしてある。 */}
+      <a className="ui-button" href="/">
         新しいルームを作る
       </a>
 

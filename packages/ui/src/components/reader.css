@@ -35,12 +35,12 @@
 }
 
 @media (width >= 64rem) {
-  /* 画面の高さから 10rem を引く。見出しと招待の行（約 9.5rem）も引くので、ページを開いた直後でも札の下端が画面に収まる。
-     最下端の条件（器の下の余白 4rem。引かないとページの最下端で段組みの下端が持ち上がり、sticky の読む面の上端が
-     画面の外へ押し出される）も満たす。見出しの行や .ui-page の余白を変えたら、ここも変える。
+  /* 画面の高さから 14rem を引く。上の見出しと招待の行（器の上の余白を含め約 9.5rem）と、器の下の余白（4rem）の両方を引く。
+     下の余白を引かないと、読む面だけで ページ＝画面＋約 3.5rem になり、どの高さの画面でもページのスクロールバーが出続ける
+     （#316 PR 2 で利用者が指摘。10rem だった）。見出しの行や .ui-page の余白を変えたら、ここも変える。
      お題ツールの札の固定の高さ（apps/topic-web/src/index.css）と同じ式。 */
   .ui-reader {
-    max-height: calc(100dvh - 10rem);
+    max-height: calc(100dvh - 14rem);
   }
 
   .ui-reader-body {
@@ -54,7 +54,9 @@
     -webkit-line-clamp: unset;
   }
 
-  .ui-reader-more {
+  /* `.ui-reader .ui-reader-more`（(0,2,0)）にするのは、`.ui-button` の `display: inline-flex`（後に読み込まれる・
+     同じ詳細度）に勝って 64rem 以上で隠すため */
+  .ui-reader .ui-reader-more {
     display: none;
   }
 }

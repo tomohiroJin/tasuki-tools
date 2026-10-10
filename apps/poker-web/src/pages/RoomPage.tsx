@@ -59,9 +59,9 @@ function InviteLink({ url }: { url: string }) {
   const { state: copyState, copy } = useCopyText(url);
 
   return (
-    <div className="invite ui-invite">
+    <div className="ui-invite">
       <span className="ui-invite-url">{url}</span>
-      <button type="button" onClick={copy}>
+      <button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={copy}>
         {copyState === 'done' && 'コピーしました'}
         {copyState === 'failed' && 'コピーできません（URL を選択してください）'}
         {copyState === 'idle' && '招待リンクをコピー'}
@@ -186,7 +186,7 @@ export function RoomPage({ roomId, sync }: Props) {
         <p>ルームは終了したか、リンクが正しくない可能性があります。</p>
         {/* **消えたルームの選択画面へは送らない。** ハブはそこで存在しないルームの
             参加画面を出し、名乗っても必ず失敗する（timer の `SessionLost` と同じ扱い）。 */}
-        <a href="/">トップへ戻る</a>
+        <a className="ui-button ui-button--quiet" href="/">トップへ戻る</a>
       </main>
     );
   }
@@ -217,7 +217,7 @@ export function RoomPage({ roomId, sync }: Props) {
             {sync.topic && (
               <button
                 type="button"
-                className="secondary"
+                className="ui-button ui-button--secondary ui-button--sm"
                 aria-expanded={topicOpen}
                 // 隠している間は札が DOM に無い。消えた id を指さない
                 aria-controls={topicOpen ? TOPIC_CARD_ID : undefined}
@@ -231,7 +231,7 @@ export function RoomPage({ roomId, sync }: Props) {
               手段が無い（利用者の申し送り・2026-09-14）。行き先は招待リンクと同じ
               **同じルームの選択画面**（玄関まで戻すとルームから出たことになる）ので、
               組み立ては増やさず sync.inviteUrl を再利用する。 */}
-          <a className="ui-page-header-back" href={inviteUrl}>
+          <a className="ui-page-header-back ui-button ui-button--quiet" href={inviteUrl}>
             選択画面へ戻る
           </a>
         </div>
@@ -273,16 +273,19 @@ function VotingSection({
   // 切断・再接続中は操作を受け付けない（送信しても届かないため）
   const offline = sync.status !== 'open';
   return (
-    <section>
-      <h2>あなたのカード</h2>
-      <CardHand selected={snapshot.yourVote} onSelect={sync.vote} disabled={offline} />
-      {/* かつてはホストだけに出ていたが、#95 S3 でホストを廃止し全参加者へ開放した */}
-      <p>
-        <button type="button" className="secondary" onClick={sync.reveal} disabled={offline}>
+    <>
+      <section>
+        <h2>あなたのカード</h2>
+        <CardHand selected={snapshot.yourVote} onSelect={sync.vote} disabled={offline} />
+      </section>
+      {/* かつてはホストだけに出ていたが、#95 S3 でホストを廃止し全参加者へ開放した。
+          下端の帯（sticky）は親の範囲の中でしか留まらないので、節の中ではなく操作の面（`.room-main`）の最後の子に置く。 */}
+      <div className="ui-actions ui-actions--dock">
+        <button type="button" className="ui-button ui-button--lg" onClick={sync.reveal} disabled={offline}>
           票を公開する
         </button>
-      </p>
-    </section>
+      </div>
+    </>
   );
 }
 
@@ -301,15 +304,15 @@ function RevealedSection({
     <>
       <Results participants={snapshot.participants} votes={votes} stats={stats} />
       {/* かつてはホストだけに出ていたが、#95 S3 でホストを廃止し全参加者へ開放した */}
-      <p className="round-actions">
-        {/* 再投票と次ラウンドはドメイン上同一操作（next-round）。ラベルのみ区別（FR-011） */}
-        <button type="button" onClick={sync.nextRound} disabled={offline}>
-          再投票
-        </button>
-        <button type="button" className="secondary" onClick={sync.nextRound} disabled={offline}>
+      <div className="ui-actions ui-actions--dock">
+        {/* 再投票と次ラウンドはドメイン上同一操作（next-round）。ラベルのみ区別（FR-011）。主は最後 */}
+        <button type="button" className="ui-button ui-button--secondary ui-button--lg" onClick={sync.nextRound} disabled={offline}>
           次のラウンドへ
         </button>
-      </p>
+        <button type="button" className="ui-button ui-button--lg" onClick={sync.nextRound} disabled={offline}>
+          再投票
+        </button>
+      </div>
     </>
   );
 }

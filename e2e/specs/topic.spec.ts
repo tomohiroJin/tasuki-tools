@@ -164,10 +164,12 @@ test.describe('お題ツールの文字と書体', () => {
     await openTopicTool(page, 'a11y-topic');
     await setTopic(page, TITLE, BODY);
     await expect(currentTopic(page)).toContainText(BODY);
-    // 測ったことを固定する 2 組: 卓の上の見出し（`--gold` on `--felt-900`）と、
+    // 作る欄は閉じている。副ボタン（金の字・透明の地）が卓の上（`--felt-900`）に出る組を測るために開く
+    await page.getByRole('group').filter({ has: page.getByRole('heading', { name: '定型や AI で作る' }) }).first().evaluate((el) => ((el as HTMLDetailsElement).open = true));
+    // 測ったことを固定する 2 組: 卓の上の金の字（戻る導線・副ボタン・リンクの `--gold-bright` on `--felt-900`。見出し h2 は象牙になり、`--gold` の字は無くなった・#316 PR 2）と、
     //   読む面（グラデーションの札）の上の字（`--coal`）を測ったことを固定する（レビュー指摘・修正ラウンド 1）。
     //   札の上の見出し（h2「お題」の `--coal-soft`）・タブ・「場から下げる」もこの走査に入る（#316）
-    const [gold, felt900, coal, sheen, shade] = await resolveColors(page, ['--gold', '--felt-900', '--coal', '--card-sheen', '--card-shade']);
+    const [gold, felt900, coal, sheen, shade] = await resolveColors(page, ['--gold-bright', '--felt-900', '--coal', '--card-sheen', '--card-shade']);
     const cardGround = `rgba(0, 0, 0, 0) + linear-gradient(160deg, ${sheen}, ${shade})`;
 
     // When / Then その1: 文字が読める（読む面の上の字も含む）
@@ -477,11 +479,11 @@ test.describe('お題ツールを書く主役にする（#316 PR 1 の手直し�
     // When その2: 長い本文
     await setTopic(page, TITLE, TALL_BODY);
     const tall = (await reader.boundingBox())!.height;
-    // Then: 中身で枠の高さが変わらない。画面の高さ − 10rem（見出しと招待の行・器の下の余白を含む）に等しい
+    // Then: 中身で枠の高さが変わらない。画面の高さ − 14rem（見出しと招待の行・器の下の余白）に等しい
     expect(tall, '札の高さが中身で変わっている').toBeCloseTo(short, 0);
     const expected = await page.evaluate(() => {
       const probe = document.createElement('div');
-      probe.style.height = 'calc(100dvh - 10rem)';
+      probe.style.height = 'calc(100dvh - 14rem)';
       document.body.append(probe);
       const h = probe.getBoundingClientRect().height;
       probe.remove();
@@ -509,6 +511,10 @@ test.describe('お題ツールを書く主役にする（#316 PR 1 の手直し�
     await openTopicTool(page, 'foot-topic');
     await setTopic(page, TITLE, SHORT_BODY);
     const reader = currentTopic(page);
+    // 64rem 以上では全文が札に出るので「続きを読む」は出ない（`.ui-button` の display に負けない）。
+    //   本文が描かれる前に測ると、ボタンもまだ無いので壊れていても緑になる。本文を待ってから測る
+    await expect(reader.getByRole('region', { name: TITLE, exact: true }).getByText(SHORT_BODY, { exact: true })).toBeVisible();
+    await expect(reader.getByRole('button', { name: '続きを読む' })).toBeHidden();
     // When
     const copy = await reader.getByRole('button', { name: '下書きにコピー' }).boundingBox();
     const clear = await reader.getByRole('button', { name: '場から下げる' }).boundingBox();
@@ -562,6 +568,19 @@ test.describe('お題ツールを書く主役にする（#316 PR 1 の手直し�
     // Then: 折り返して縦に積んでも、左のボタンは内側の左端・右のボタンは内側の右端（縦に隣り合って左へ寄らない）
     expect(copy!.x, '下書きにコピーが内側の左端に無い').toBeCloseTo(foot.left, 0);
     expect(clear!.x + clear!.width, '場から下げるが内側の右端に無い').toBeCloseTo(foot.right, 0);
+    expect(consoleWatcher.errors).toEqual([]);
+  });
+
+  test('Given 幅 1920・高さ 1080（操作の面が札より短い） / When 短い本文のお題を出す / Then ページは画面 1 枚に収まり、スクロールバーが出ない', async ({ page, consoleWatcher }) => {
+    // Given: 書く欄と作る欄を合わせても札より短い高さ
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await openTopicTool(page, 'no-scroll-topic');
+    // When
+    await setTopic(page, TITLE, SHORT_BODY);
+    await expect(currentTopic(page).getByRole('region', { name: TITLE, exact: true }).getByText(SHORT_BODY, { exact: true })).toBeVisible();
+    // Then: 札の高さの式が器の下の余白を引いていないと、どの高さでもページが約 3.5rem はみ出す（2026-10-11 に利用者が指摘）
+    const { pageHeight, viewport } = await page.evaluate(() => ({ pageHeight: document.documentElement.scrollHeight, viewport: innerHeight }));
+    expect(pageHeight, 'ページが画面より高く、スクロールバーが出る').toBeLessThanOrEqual(viewport);
     expect(consoleWatcher.errors).toEqual([]);
   });
 

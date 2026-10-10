@@ -34,7 +34,7 @@ export function ErrorNote({ error, onClose }: Props) {
   return (
     <p className="error-note ui-note ui-note--error" role="alert">
       {error.message}
-      <button type="button" className="secondary" onClick={onClose}>
+      <button type="button" className="ui-button ui-button--quiet ui-button--sm" onClick={onClose}>
         閉じる
       </button>
     </p>

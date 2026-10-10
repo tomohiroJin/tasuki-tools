@@ -35,27 +35,17 @@
   color: var(--coal-soft);
 }
 
-/* **PR 2 で `.ui-button` の役割に置き換えて消す一時的な規則**（poker の `.topic .secondary` と同じ）。
-   札の上の副ボタン（下書きにコピー・場から下げる・続きを読む・閉じる）。既定の金の字は象牙の上で読めないので札の字の色にし、
-   シートの狭い頭で縦に割れないよう折り返さない。 */
-.topic-current .secondary,
-.ui-drawer .secondary {
-  color: var(--coal);
-  border-color: var(--coal-soft);
-  white-space: nowrap;
-}
-
-/* タブ。要素層のボタン（金の丸薬）を、札の上の下線のタブに打ち消す。
-   **PR 2 で `.ui-button` / タブの部品に寄せる。** 選んだタブは太い下線で示す（色だけに頼らない）。 */
+/* タブ。札の上の下線のタブで、ボタンの形をしない操作なので `.ui-button` にしない。
+   要素層の `button` は見た目を持たない（#316 PR 2）ので、字・地・枠は全部ここで持つ。選んだタブは太い下線で示す（色だけに頼らない）。 */
 .topic-tab {
   padding: var(--space-3) var(--space-3);
   border: 0;
   border-bottom: 3px solid transparent;
   border-radius: 0;
   background: transparent;
-  box-shadow: none;
   color: var(--coal);
-  letter-spacing: normal;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
   white-space: nowrap;
 }
 
@@ -64,13 +54,7 @@
 }
 
 .topic-tab:hover:not(:disabled) {
-  filter: none;
   background: var(--card-inline);
-}
-
-.topic-tab:active:not(:disabled) {
-  transform: none;
-  box-shadow: none;
 }
 
 /* 読む面のタブの並び（かつて部品層の `.ui-reader-tabs`。使うのがお題ツールだけになったのでここへ移した・#316） */
@@ -134,22 +118,26 @@
   }
 }
 
-/* 札の下端。場のお題のタブは「下書きにコピー」（左）と「場から下げる」（右）、下書きのタブは添え書きだけ。
-   「場から下げる」は危険の操作で、PR 2 で `.ui-button--danger` になる。 */
+/* 札の下端。場のお題のタブは `.ui-actions`（左に「下書きにコピー」・右に「場から下げる」）、下書きのタブは添え書きだけ。
+   札の上の副ボタンは折り返さない（シートの狭い頭で縦に割れないように）。 */
 .topic-reader-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  /* 320px の幅では 2 つのボタンが並ばない（折り返さない副ボタンが横にはみ出す）。折り返して縦に積む */
-  flex-wrap: wrap;
-  gap: var(--space-3);
   padding: var(--space-3) var(--space-5) var(--space-4);
   border-top: 1px solid var(--card-inline);
 }
 
-/* 折り返して縦に積んでも、右のボタン（場から下げる）は右端に残す（`space-between` だけだと左端へ寄る） */
-.topic-reader-foot > button:last-child {
-  margin-inline-start: auto;
+.topic-reader-foot .ui-button {
+  white-space: nowrap;
+}
+
+/* 取り消せない操作（場から下げる）。札の上の朱の枠。部品層の `--danger` は使うのがここだけなので画面が持つ
+   （PR 3 で timer が使うときに部品へ戻す）。札の上の副ボタン（`.ui-reader .ui-button--secondary`）と同じ (0,2,0) で、後に読まれる画面の CSS が勝つ。 */
+.topic-reader-foot .topic-danger {
+  border-color: var(--card-back);
+  color: var(--card-back);
+}
+
+.topic-reader-foot .topic-danger:where(:hover:not(:disabled)) {
+  background: var(--rose-tint);
 }
 
 .topic-foot-note {
@@ -160,12 +148,12 @@
 
 /* 64rem 以上では札の高さを画面いっぱいに固定する（中身で枠の高さが変わらない）。短い本文でも長い本文でも同じ高さで、
    余った高さは本文の領域が取る（`.ui-reader-body` が `flex: 1 1 auto`）。
-   **部品（`.ui-reader`）の `max-height` と同じ式にする。** 見出しと招待の行（約 9.5rem）も引き、ページを開いた直後でも
-   札の下端が画面に収まる。最下端の条件（器の下の余白 4rem）も満たす。部品の式を変えたらここも変える。
+   **部品（`.ui-reader`）の `max-height` と同じ式にする。** 見出しと招待の行（約 9.5rem）と器の下の余白（4rem）を引き、
+   操作の面が札より短ければページが画面 1 枚に収まる（スクロールバーが出ない）。部品の式を変えたらここも変える。
    64rem 未満は固定しない（3 行＋続きを読む のまま）。 */
 @media (width >= 64rem) {
   .topic-current.ui-reader {
-    height: calc(100dvh - 10rem);
+    height: calc(100dvh - 14rem);
   }
 }
 
@@ -329,6 +317,13 @@
   gap: var(--space-2);
 }
 
+/* 選んだ側は `aria-pressed="true"`。見た目は `--secondary` のまま、地（金の薄い敷き）と内側の線で区別する。
+   内側の線（inset の影）で枠を太らせるので、大きさは動かない。 */
+.topic-compose-toggle .ui-button[aria-pressed='true'] {
+  background: var(--gold-tint);
+  box-shadow: inset 0 0 0 1px var(--gold-deep);
+}
+
 .topic-compose-panes {
   display: grid;
   gap: var(--space-4);
@@ -378,17 +373,6 @@
   .topic-compose .topic-compose-caption {
     display: block;
   }
-}
-
-.topic-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-}
-
-/* 書く欄の操作は「場に出す」だけで、右端に置く（札の側の「下げる」と左右で役目が分かれる）。 */
-.topic-panel form > .topic-actions {
-  justify-content: flex-end;
 }
 
 /* お題ツールの頭（見出しと招待リンク）と段組みの間（読む面の札が行に接しない）。poker の `.room > header` と同じ値 */

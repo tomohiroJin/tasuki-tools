@@ -1,0 +1,126 @@
+/* ============================================================
+   ボタン（#316 PR 2・設計正本 D4・D5）
+   形は真鍮のチップ（丸）1 つ。役割 3 種（既定=主・--secondary・--quiet）・大きさ 3 段
+   （--sm / 既定 / --lg）。見た目は要素層の `button` から移した。
+   **要素層の `button` は見た目を持たない**（初期化だけ）。ボタンの形をする `<button>` と `<a>` には必ずこのクラスを当てる。
+
+   - 押せる高さは常に 44px 以上。--sm は見た目 36px で、当たりを ::before で上下に広げる。
+     広げた当たりが隣に重ならないよう、並びの gap は 10px 以上にする（.ui-actions が持つ）。
+   - フォーカスのリングは書かない（要素層の :focus-visible。象牙の札の上は reader.css の隣の要素層が色を変える）。
+   - 状態（:hover / :active）は :where() で包んで詳細度を (0,1,0) に抑える。擬似クラスの並びで (0,3,0) になって
+     部品層の約束（(0,2,0) まで）を超えるのを避け、役割の規則（同じ詳細度で後ろ）が確実に上書きできるようにする。
+   ============================================================ */
+
+.ui-button {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 6rem;
+  min-height: 2.75rem;
+  padding: 0 1.4rem;
+  border: 1px solid var(--gold-deep);
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+  box-shadow: 0 2px 0 var(--gold-deep), var(--shadow-button);
+  color: var(--coal);
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: var(--line-tight);
+  text-align: center;
+  text-decoration: none;
+  transition: transform 0.12s, box-shadow 0.12s, filter 0.2s;
+}
+
+.ui-button:where(:hover:not(:disabled)) {
+  filter: brightness(1.06);
+}
+
+/* 押し込みは影の厚みを削って表現する（チップを卓へ押す感じ） */
+.ui-button:where(:active:not(:disabled)) {
+  transform: translateY(2px);
+  box-shadow: 0 0 0 var(--gold-deep), var(--shadow-button-pressed);
+}
+
+/* 無効は最後（hover / active より後ろ。:disabled は :where の外なので詳細度 (0,2,0) で hover に勝つ） */
+.ui-button:disabled {
+  filter: grayscale(0.6) brightness(0.75);
+  cursor: not-allowed;
+}
+
+/* --- 大きさ ------------------------------------------------ */
+
+.ui-button--sm {
+  position: relative;
+  min-height: 2.25rem;
+  padding-inline: 1rem;
+  font-size: var(--font-size-xs);
+}
+
+/* 当たりの拡張。見た目は 36px のまま、押せる高さを 44px にする。絶対配置の ::before は枠の内側が基準なので、
+   上下に 4px ずつ + 枠 1px の分を足して -5px（36 + 5×2 - 枠 2 = 44） */
+.ui-button--sm::before {
+  content: '';
+  position: absolute;
+  inset-block: -5px;
+  inset-inline: 0;
+}
+
+.ui-button--lg {
+  min-height: 3.25rem;
+  padding-inline: 1.8rem;
+  font-size: var(--font-size-base);
+}
+
+/* --- 役割 -------------------------------------------------- */
+/* 役割は大きさより後ろに置く。重ねたとき（例: `--quiet --sm`）の `padding-inline` は役割が勝つ */
+
+.ui-button--secondary {
+  background: transparent;
+  box-shadow: none;
+  color: var(--gold-bright);
+}
+
+.ui-button--secondary:where(:hover:not(:disabled)) {
+  background: var(--gold-tint);
+}
+
+.ui-button--secondary:where(:active:not(:disabled)) {
+  box-shadow: none;
+}
+
+/* 下線の字。戻る・閉じる・設定。<a> にも当ててよい。地も枠も影も最小幅も持たず、高さは 44px */
+.ui-button--quiet {
+  min-width: 0;
+  padding-inline: var(--space-2);
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  color: var(--gold-bright);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.ui-button--quiet:where(:active:not(:disabled)) {
+  box-shadow: none;
+}
+
+/* --- 象牙の札の上 -------------------------------------------
+   金の字は札の上で AA を割る（gold-deep 4.23:1 / 3.30:1）ので、字を札の色、枠を coal-soft にする。
+   札の地（card-sheen〜card-shade）の上で: coal 15.38 / 12.01・coal-soft 7.22 / 5.64・card-back 8.07 / 6.30。
+   ホバーの敷きは gold-tint（coal 14.60 / 11.71）。
+   主（金の地に coal）は札の上でもそのまま読めるので上書きしない。 */
+
+.ui-reader .ui-button--secondary,
+.ui-drawer .ui-button--secondary {
+  border-color: var(--coal-soft);
+  color: var(--coal);
+}
+
+.ui-reader .ui-button--quiet,
+.ui-drawer .ui-button--quiet {
+  color: var(--coal);
+}
