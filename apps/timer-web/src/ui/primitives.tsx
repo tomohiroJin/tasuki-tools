@@ -65,36 +65,6 @@ export function Card({
   );
 }
 
-interface BtnProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  children: React.ReactNode;
-}
-
-/** 主操作ボタン（シグナル朱・実体ボタン＝計測開始/確定の唯一の朱）。 */
-export function PrimaryButton({ children, className = "", ...rest }: BtnProps) {
-  return (
-    <button
-      type="button"
-      className={`signal-button ${className}`}
-      {...rest}
-    >
-      {children}
-    </button>
-  );
-}
-
-/** 副操作ボタン（スチール枠のゴースト）。 */
-export function GhostButton({ children, className = "", ...rest }: BtnProps) {
-  return (
-    <button
-      type="button"
-      className={`ghost-button ${className}`}
-      {...rest}
-    >
-      {children}
-    </button>
-  );
-}
-
 /** カード見出し（アイコン＋計器ラベル、右に補助操作）。タイトルは大文字トラッキングの刻印調。 */
 export function SectionHeader({
   icon: Icon,

@@ -5,7 +5,7 @@
 import React from "react";
 import { useCopyText, useInviteQr } from "@tasuki/invite-ui";
 import { Copy, Check } from "lucide-react";
-import { Card, GhostButton } from "../primitives.js";
+import { Card } from "../primitives.js";
 
 /**
  * `roomUrl` は**同期フックが組み立てたものを受け取る**（#95 S5b）。
@@ -24,12 +24,12 @@ export function InvitePanel({ code, roomUrl }: { code: string; roomUrl: string }
         <span className="tabular invite-panel-code">
           {code}
         </span>
-        <GhostButton onClick={codeCopy.copy} aria-label="ルームコードをコピー">
+        <button type="button" onClick={codeCopy.copy} aria-label="ルームコードをコピー" className="ui-button ui-button--secondary ui-button--sm">
           <span className="invite-panel-button-label">
             {codeCopy.state === 'done' ? <Check className="invite-panel-icon invite-panel-icon-done" aria-hidden="true" /> : <Copy className="invite-panel-icon" aria-hidden="true" />}
             {codeCopy.state === 'done' ? "コピーしました" : "コピー"}
           </span>
-        </GhostButton>
+        </button>
       </div>
       {qr.dataUrl && (
         <img
@@ -45,9 +45,9 @@ export function InvitePanel({ code, roomUrl }: { code: string; roomUrl: string }
         {roomUrl}
       </p>
       <div className="invite-panel-url-action">
-        <GhostButton onClick={urlCopy.copy}>
+        <button type="button" onClick={urlCopy.copy} className="ui-button ui-button--secondary ui-button--sm">
           <span className="invite-panel-button-label"><Copy className="invite-panel-icon" aria-hidden="true" /> 参加 URL をコピー</span>
-        </GhostButton>
+        </button>
       </div>
       <p role="status" className="invite-panel-status">
         {urlCopy.state === 'done' && '参加 URL をコピーしました。'}

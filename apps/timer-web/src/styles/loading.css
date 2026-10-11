@@ -99,14 +99,9 @@
   color: var(--bone-subtle);
 }
 
-.loading-reload {
-  width: 100%;
+/* 戻る・再読み込みの並び（部品の `.ui-actions`） */
+.loading-actions {
   margin-top: 0.5rem;
-}
-
-.loading-leave {
-  width: 100%;
-  margin-top: 0.75rem;
 }
 
 .loading-button-label {

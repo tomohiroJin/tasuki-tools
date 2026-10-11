@@ -8,7 +8,7 @@ import React, { useState } from "react";
 import { Users, Play, UserPlus, UserMinus, ChevronUp, ChevronDown, X, Shuffle, Bell } from "lucide-react";
 import type { Room } from "@tasuki/timer-core";
 import type { Topic } from "@tasuki/topic-core";
-import { Card, PrimaryButton, GhostButton, SectionHeader } from "./primitives.js";
+import { Card, SectionHeader } from "./primitives.js";
 import { TopicCard } from "./components/TopicCard.js";
 import { SessionConfigPanel } from "./components/SessionConfigPanel.js";
 import { InvitePanel } from "./components/InvitePanel.js";
@@ -113,9 +113,9 @@ export function Lobby({
   // **お題の有無では止めない**（#91 PR 3）。お題はお題ツールが配る任意の札になり、
   // 無いのが既定になったので、待つと誰も始められなくなる。
   const startButton = (
-    <PrimaryButton className="lobby-start" onClick={onStartSession}>
+    <button type="button" className="ui-button ui-button--lg lobby-start" onClick={onStartSession}>
       <span className="lobby-start-label"><Play className="lobby-start-icon" aria-hidden="true" /> セッションを開始</span>
-    </PrimaryButton>
+    </button>
   );
 
   return (
@@ -173,9 +173,9 @@ export function Lobby({
             right={
               /* ドライバー順をランダムに（v2.3 #1）。2人以上で意味を持つ。 */
               onShuffle && room.session.rotation.length > 1 ? (
-                <GhostButton onClick={onShuffle} aria-label="ドライバー順をランダムに並べ替える" className="lobby-shuffle">
+                <button type="button" onClick={onShuffle} aria-label="ドライバー順をランダムに並べ替える" className="ui-button ui-button--secondary ui-button--sm">
                   <span className="lobby-shuffle-label"><Shuffle className="lobby-shuffle-icon" aria-hidden="true" /> ランダム</span>
-                </GhostButton>
+                </button>
               ) : undefined
             }
           />
@@ -216,31 +216,33 @@ export function Lobby({
                   <span className="lobby-participant-actions">
                     {isMe && (
                       inRotation ? (
-                        <GhostButton
+                        <button
+                          type="button"
                           onClick={() => onLeaveRotation?.(p.participantId)}
                           disabled={isLastDriver}
                           title={isLastDriver ? "最後のドライバーは外れられません" : undefined}
-                          className="lobby-row-action"
+                          className="ui-button ui-button--secondary ui-button--sm"
                         >
                           列から外れる
-                        </GhostButton>
+                        </button>
                       ) : (
-                        <PrimaryButton onClick={() => onJoinRotation?.(p.participantId)} className="lobby-row-action lobby-row-join">
+                        <button type="button" onClick={() => onJoinRotation?.(p.participantId)} className="ui-button ui-button--secondary ui-button--sm">
                           ドライバーに加わる
-                        </PrimaryButton>
+                        </button>
                       )
                     )}
                     {/* ルームから抜ける（自己退出・Issue #37）。自分の操作なので確認は課さない（FR-079）。
                         かつては「編集者以上が1名以上残る」という不変条件で無効化していた
                         （#95 S3 でその不変条件ごと消え、いつでも抜けられる）。 */}
                     {isMe && onRemoveParticipant && (
-                      <GhostButton
+                      <button
+                        type="button"
                         onClick={() => onRemoveParticipant(p.participantId)}
                         title="この端末をルームから外します。招待から再参加できます。"
-                        className="lobby-row-action"
+                        className="ui-button ui-button--quiet ui-button--sm"
                       >
                         ルームから抜ける
-                      </GhostButton>
+                      </button>
                     )}
                     {/* 他参加者のドライバー加入/離脱を制御できる（②） */}
                     {!isMe && (

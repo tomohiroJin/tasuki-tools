@@ -205,7 +205,7 @@ export function CurrentTopic({ state, enabled, draft, onCopyToDraft, onClear }: 
             {COPY_TO_DRAFT_BUTTON}
           </button>
           </div>
-          <button type="button" className="ui-button ui-button--secondary topic-danger" onClick={onClear} disabled={!enabled}>
+          <button type="button" className="ui-button ui-button--danger" onClick={onClear} disabled={!enabled}>
             {CLEAR_BUTTON}
           </button>
         </div>

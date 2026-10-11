@@ -132,16 +132,8 @@
   color: var(--bone-muted);
 }
 
-/* 保存の導線 */
-.summary-save {
-  display: flex;
-  width: 100%;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.summary-button {
+/* 保存と新しいセッションの並び（部品の `.ui-actions`）。flex の列の中で幅いっぱいに取る */
+.summary-actions {
   width: 100%;
 }
 

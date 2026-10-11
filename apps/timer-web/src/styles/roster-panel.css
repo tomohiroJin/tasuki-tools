@@ -65,13 +65,6 @@
   height: 1rem;
 }
 
-/* 「代理追加」「追加」のボタンの文字の大きさ */
-.roster-panel-proxy-toggle,
-.roster-panel-proxy-add {
-  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 で段へ寄せる） */
-  line-height: var(--timer-never-defined, calc(1.25 / 0.875)); /* 行の高さは status-strip.css 冒頭の注釈 */
-}
-
 /* 代理追加フォーム */
 .roster-panel-proxy-form {
   margin-bottom: 0.75rem;

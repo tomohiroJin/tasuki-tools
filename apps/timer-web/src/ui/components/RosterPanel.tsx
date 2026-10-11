@@ -15,7 +15,7 @@ import React, { useState, useEffect, useId, useRef } from "react";
 import { Users, ChevronUp, ChevronDown, X } from "lucide-react";
 import type { Participant, Seat } from "@tasuki/timer-core";
 import { conflictsWithExisting, MAX_DISPLAY_NAME, normalizeDisplayName } from "@tasuki/room-core";
-import { GhostButton, PrimaryButton, SectionHeader } from "../primitives.js";
+import { SectionHeader } from "../primitives.js";
 import { presenceLabel } from "../presence.js";
 import { PresenceDot } from "./PresenceDot.js";
 import { RemovalConfirmDialog } from "./RemovalConfirmDialog.js";
@@ -553,7 +553,8 @@ export function RosterPanel({
         icon={Users}
         title="参加者"
         right={
-          <GhostButton
+          <button
+            type="button"
             onClick={() => {
               // 開閉で理由は持ち越さない。閉じて開き直した先に前回の赤が残っていると、
               // いま打っている名前について言っているように読める（#291）。
@@ -564,10 +565,10 @@ export function RosterPanel({
               setShowProxyInput((v) => !v);
             }}
             aria-label="代理参加者を追加"
-            className="roster-panel-proxy-toggle"
+            className="ui-button ui-button--secondary ui-button--sm"
           >
             代理追加
-          </GhostButton>
+          </button>
         }
       />
 
@@ -592,7 +593,7 @@ export function RosterPanel({
               aria-describedby={activeProxyRejection !== null ? proxyErrorId : undefined}
               className="roster-panel-proxy-input"
             />
-            <PrimaryButton onClick={handleAddProxy} className="roster-panel-proxy-add">追加</PrimaryButton>
+            <button type="button" onClick={handleAddProxy} className="ui-button ui-button--secondary ui-button--sm">追加</button>
           </div>
           {activeProxyRejection !== null && (
             // `role="alert"` にして、目で追っていない人にも即時に読み上げさせる。

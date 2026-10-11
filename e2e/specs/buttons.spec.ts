@@ -37,7 +37,7 @@ async function scanButtons(page: Page) {
       .filter((b) => !b.classList.contains('ui-button') && !allowed.some((sel) => b.matches(sel)))
       .map((b) => `${name(b)}（class="${b.className}"）`);
 
-    const isPrimary = (el: Element) => !el.classList.contains('ui-button--secondary') && !el.classList.contains('ui-button--quiet');
+    const isPrimary = (el: Element) => !el.classList.contains('ui-button--secondary') && !el.classList.contains('ui-button--quiet') && !el.classList.contains('ui-button--danger');
     const groups = Array.from(document.querySelectorAll('.ui-actions')).map((group) => {
       const buttons = Array.from(group.querySelectorAll('.ui-button'));
       const primaries = buttons.filter(isPrimary);

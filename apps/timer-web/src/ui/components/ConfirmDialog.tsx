@@ -12,7 +12,7 @@ interface ConfirmDialogProps {
   description?: string;
   confirmLabel: string;
   cancelLabel?: string;
-  /** 確認ボタンの色味。"danger"（赤・既定）か "primary"（シグナル朱）。 */
+  /** 確認ボタンの役割。"danger"（朱の枠・既定）か "primary"（主・真鍮）。 */
   confirmIntent?: "danger" | "primary";
   onConfirm: () => void;
   onCancel: () => void;
@@ -61,12 +61,12 @@ export function ConfirmDialog({
         {description && (
           <p className="confirm-dialog-description">{description}</p>
         )}
-        <div className="confirm-dialog-actions">
+        <div className="ui-actions confirm-dialog-actions">
           <button
             ref={cancelRef}
             type="button"
             onClick={onCancel}
-            className="confirm-dialog-cancel"
+            className="ui-button ui-button--secondary"
           >
             {cancelLabel}
           </button>
@@ -75,8 +75,8 @@ export function ConfirmDialog({
             onClick={onConfirm}
             className={
               confirmIntent === "primary"
-                ? "confirm-dialog-confirm confirm-dialog-confirm-primary"
-                : "confirm-dialog-confirm confirm-dialog-confirm-danger"
+                ? "ui-button"
+                : "ui-button ui-button--danger"
             }
           >
             {confirmLabel}

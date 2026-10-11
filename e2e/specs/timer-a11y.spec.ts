@@ -165,6 +165,37 @@ test.describe('文字が背景に対して読める（WCAG AA）', () => {
   });
 });
 
+test.describe('危険の確認ダイアログが暗い面の上で読める（#316 PR 3）', () => {
+  test('Given セッション中に「途中で終える」を押した / When ダイアログを測る / Then 取り消しへ最初のフォーカスが来て、朱の枠の確定も AA を満たす', async ({
+    page,
+  }) => {
+    // Given: 危険の確定（`ui-button--danger`・字 `--rose-bright`）はダイアログの面（`--panel`）に載る
+    await createRoom(page, HOST);
+    await page.getByRole('button', { name: 'セッションを開始' }).click();
+    await expect(page.getByRole('timer')).toBeVisible();
+
+    // When
+    await page.getByRole('button', { name: /途中で終える/ }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+
+    // Then その1: 最初のフォーカスは安全側（取り消し）
+    await expect(dialog.getByRole('button', { name: 'キャンセル' })).toBeFocused();
+
+    // Then その2: 朱の枠の確定が測られ、AA を満たす（走査は画面全体。ダイアログの外も同じ基準）
+    const confirm = dialog.locator('.ui-button--danger');
+    await expect(confirm, '朱の枠の確定ボタンが無い（判定が空振りする）').toHaveCount(1);
+    const scan = await scanContrast(page);
+    expectReadable(scan, 10, []);
+
+    // Then その3: 朱の枠の確定もキーボードのフォーカスが見える
+    await page.keyboard.press('Tab');
+    await expect(confirm).toBeFocused();
+    const ringed = await confirm.evaluate((el) => getComputedStyle(el).outlineStyle !== 'none');
+    expect(ringed, '朱の枠の確定にフォーカスの輪郭が出ていない').toBe(true);
+  });
+});
+
 test.describe('書体は常用の層だけを取る', () => {
   test('Given 初回訪問 / When 玄関からセッションまで進む / Then 拡張の字形を取りにいかない', async ({
     page,

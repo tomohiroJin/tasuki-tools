@@ -8,7 +8,6 @@
 
 import React, { useState } from "react";
 import { Flag, XCircle, RotateCcw } from "lucide-react";
-import { GhostButton } from "../primitives.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 
 interface EndSessionZoneProps {
@@ -76,21 +75,21 @@ export function EndSessionZone({
       <button
         type="button"
         onClick={() => setPending("complete")}
-        className="end-session-zone-complete"
+        className="ui-button"
       >
         <span className="end-session-zone-label"><Flag className="end-session-zone-icon" aria-hidden="true" /> 完成!</span>
       </button>
 
       {/* 途中で終える（記録なし・確認あり）*/}
-      <GhostButton onClick={() => setPending("abort")}>
+      <button type="button" className="ui-button ui-button--danger" onClick={() => setPending("abort")}>
         <span className="end-session-zone-label"><XCircle className="end-session-zone-icon" aria-hidden="true" /> 途中で終える</span>
-      </GhostButton>
+      </button>
 
       {/* 最初から（先頭・満タンへ戻して走り直す・確認あり・v2.3 #3）*/}
       <button
         type="button"
         onClick={() => setPending("reset")}
-        className="end-session-zone-reset"
+        className="ui-button ui-button--danger"
       >
         <span className="end-session-zone-label"><RotateCcw className="end-session-zone-icon" aria-hidden="true" /> 最初から</span>
       </button>

@@ -11,7 +11,7 @@
 
 import React from "react";
 import { CloudOff, Sparkles, History as HistoryIcon } from "lucide-react";
-import { Card, PrimaryButton, GhostButton } from "./primitives.js";
+import { Card } from "./primitives.js";
 
 interface SessionLostProps {
   /** 消えたルームのコード（分かる場合のみ表示する） */
@@ -55,18 +55,21 @@ export function SessionLost({ code, onNewSession, onShowHistory }: SessionLostPr
           </span>
         </p>
 
-        <PrimaryButton onClick={onNewSession} className="session-lost-new">
-          <span className="session-lost-button-label">
-            <Sparkles className="session-lost-button-icon-lg" aria-hidden="true" />
-            新しいセッションを始める
-          </span>
-        </PrimaryButton>
-        <GhostButton onClick={onShowHistory} className="session-lost-history">
-          <span className="session-lost-button-label">
-            <HistoryIcon className="session-lost-button-icon" aria-hidden="true" />
-            記録を見る
-          </span>
-        </GhostButton>
+        {/* 並びは履歴 → 新しいセッション（主は最後） */}
+        <div className="ui-actions session-lost-actions">
+          <button type="button" onClick={onShowHistory} className="ui-button ui-button--secondary">
+            <span className="session-lost-button-label">
+              <HistoryIcon className="session-lost-button-icon" aria-hidden="true" />
+              記録を見る
+            </span>
+          </button>
+          <button type="button" onClick={onNewSession} className="ui-button">
+            <span className="session-lost-button-label">
+              <Sparkles className="session-lost-button-icon" aria-hidden="true" />
+              新しいセッションを始める
+            </span>
+          </button>
+        </div>
       </Card>
     </div>
   );
