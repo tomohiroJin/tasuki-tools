@@ -63,18 +63,14 @@
   padding: 0.625rem;
 }
 
-/* コピーの方法がどちらも使えない環境でも、手で選んで共有できる（#76 F-1）。 */
-.invite-panel-url {
+/* 参加 URL の行は部品の `.ui-invite` が組む。ここは余白と、手で選んでコピーする経路（#76 F-1）だけ。 */
+.invite-panel-invite {
   margin-top: 1rem;
-  word-break: break-all;
-  font-size: 0.75rem; /* scale-exempt: Tailwind の text-xs の写し（#316 PR 4 で段へ寄せる） */
-  line-height: var(--timer-never-defined, calc(1 / 0.75)); /* 行の高さは status-strip.css 冒頭の注釈 */
-  color: var(--bone-muted);
-  user-select: all;
+  justify-content: center;
 }
 
-.invite-panel-url-action {
-  margin-top: 0.5rem;
+.invite-panel-url {
+  user-select: all;
 }
 
 .invite-panel-status {

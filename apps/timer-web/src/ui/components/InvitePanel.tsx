@@ -41,10 +41,8 @@ export function InvitePanel({ code, roomUrl }: { code: string; roomUrl: string }
         />
       )}
       {/* コピーの方法がどちらも使えない環境でも、手で選んで共有できる（#76 F-1）。 */}
-      <p className="tabular invite-panel-url">
-        {roomUrl}
-      </p>
-      <div className="invite-panel-url-action">
+      <div className="ui-invite invite-panel-invite">
+        <span className="tabular invite-panel-url">{roomUrl}</span>
         <button type="button" onClick={urlCopy.copy} className="ui-button ui-button--secondary ui-button--sm">
           <span className="invite-panel-button-label"><Copy className="invite-panel-icon" aria-hidden="true" /> 参加 URL をコピー</span>
         </button>
