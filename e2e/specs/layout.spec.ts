@@ -368,109 +368,15 @@ test.describe('玄関の器', () => {
   });
 });
 
-test.describe('timer のセッションは脇を右に持つ', () => {
-  test('Given 幅 1280 / When セッションを始める / Then 脇は右・22rem・間 2rem で、上端は操作の面の上端に揃う（上に空きを作らない）', async ({ page }) => {
-    await page.setViewportSize({ width: 1280, height: 900 });
-    await createTimerRoom(page, 'layout-timer');
-    await page.getByRole('button', { name: 'セッションを開始' }).click();
-    await expect(page.getByRole('timer')).toBeVisible();
-    // 脇が操作の面より背が高い場面を作る（実際の参加者の盤は主より低く、人数を増やすと主の方が先に伸びる）。
-    await page.locator('.ui-workspace-side').evaluate((el) => { el.style.minHeight = '3000px'; });
-    const main = await boxOf(page, '.ui-workspace-main');
-    const side = await boxOf(page, '.ui-workspace-side');
-    expect(main.x + main.width).toBeLessThanOrEqual(side.x);
-    expect(side.width).toBeCloseTo(22 * REM, 0);
-    expect(side.x - (main.x + main.width)).toBeCloseTo(2 * REM, 0);
-    expect(side.y).toBeCloseTo(main.y, 0);
-    // 行は 1 本: 段組みの下端は主と脇の低い方で、gap だけの空き行を下に残さない。
-    const ws = await boxOf(page, '.ui-workspace');
-    expect(ws.y + ws.height).toBeCloseTo(Math.max(main.y + main.height, side.y + side.height), 0);
-  });
-
-  test('Given timer / When 幅 1920 のロビー・幅 1280 のロビー・セッション・まとめ / Then 器は画面の用途の段（ロビー・セッションは wide・まとめは prose）', async ({ page }) => {
+test.describe('timer は 1 つのルームでロビー・セッション・お題・まとめの順に画面を見る', () => {
+  test('Given 幅 320 のロビー（参加者 2 人） / When 幅 1920・1280 のロビー・セッション・長いお題・幅 390・まとめと開く / Then ロビーは脇が右・22rem で先頭がお題、セッションの脇は上端が揃い、お題は脇の先頭でタイマーは最初の画面に収まり、器は画面の用途の段（ロビー・セッションは wide・まとめは prose）', async ({ page, openPeer }) => {
+    // 同期サーバーのルーム枠が逼迫しているので、timer は 1 室で画面の流れの順に全てを見る
+    // （ロビー → セッション → お題の読む面 → まとめ。前の段階を戻す必要がある検査は置かない）。
     const TIMER_PAGE = 'div.ui-page.stage-inner';
-    await page.setViewportSize({ width: 1920, height: 1080 });
-    await createTimerRoom(page, 'layout-timer-tier');
-    expect((await pageBox(page, TIMER_PAGE)).outer).toBe(96 * REM);
-    await page.setViewportSize({ width: 1280, height: 900 });
-    expect((await pageBox(page, TIMER_PAGE)).inner).toBeGreaterThanOrEqual(72 * REM);
-    await page.getByRole('button', { name: 'セッションを開始' }).click();
-    await expect(page.getByRole('timer')).toBeVisible();
-    expect((await pageBox(page, TIMER_PAGE)).inner).toBeGreaterThanOrEqual(72 * REM);
-    await page.getByRole('button', { name: /完成!/ }).click();
-    await page.getByRole('dialog').getByRole('button', { name: '完成として記録する' }).click();
-    await expect(page.locator('.summary')).toBeVisible();
-    expect((await pageBox(page, TIMER_PAGE)).outer).toBe(40 * REM);
-  });
-});
-
-test.describe('timer のお題は脇の先頭の読む面に置く', () => {
-  test('Given 長いお題を掲げたセッション / When 幅 1280 と 390 で開く / Then お題は脇の先頭で、タイマーは最初の画面に収まり、ページは説明の長さで伸びない', async ({ page, openPeer }) => {
-    // Given 幅 1280。同じルームで、40 段落 → 80 段落の順に掲げる（高さを同じ部屋で比べる）。
-    // 札には高さの上限があるので、上限に届かない短い説明と比べると札のぶんだけ伸びて当然になる。
-    // どちらも上限を超える長さで比べ、「上限で止まり、それ以上はページを伸ばさない」を見る。
-    await page.setViewportSize({ width: 1280, height: 900 });
-    const code = await createTimerRoom(page, 'layout-timer-topic');
-    await page.getByRole('button', { name: 'セッションを開始' }).click();
-    await expect(page.getByRole('timer')).toBeVisible();
-    const tool = await openPeer('layout-timer-topic-tool');
-    await joinTopicTool(tool.page, `/?room=${encodeURIComponent(code)}`, 'layout-tt');
-    const card = page.getByRole('region', { name: 'お題', exact: true });
-    await setTopic(tool.page, 'FizzBuzz', LONG_BODY);
-    await expect(card).toContainText('40 行目の説明です。');
-
-    // Then 札は脇（.ui-workspace-side）の先頭にあり、本文は札の中でスクロールし、札は上限（24rem）を超えない
-    const placement = await card.evaluate((el) => {
-      const side = el.closest('.ui-workspace-side');
-      return { inSide: side !== null, first: side?.firstElementChild === el };
-    });
-    expect(placement).toEqual({ inSide: true, first: true });
-    await expectBodyScrolls(page);
-    expect((await boxOf(page, 'section.timer-topic')).height).toBeLessThanOrEqual(24 * REM + 0.5);
-    // タイマーの下端は最初の画面（900）に収まる。お題が長くても主役を押し下げない
-    const timer = await boxOf(page, '[role="timer"]');
-    expect(timer.y + timer.height).toBeLessThanOrEqual(900);
-    const longHeight = await page.evaluate(() => document.documentElement.scrollHeight);
-
-    // When 80 段落の説明に差し替える
-    await setTopic(tool.page, 'FizzBuzz', `${LONG_BODY}\n\n${LONG_BODY.replaceAll('行目', '行目（続き）')}`);
-    await expect(card).toContainText('40 行目（続き）の説明です。');
-    // Then ページの高さは説明の長さで伸びない（40 段落と 80 段落で 1px 以内）
-    const longerHeight = await page.evaluate(() => document.documentElement.scrollHeight);
-    expect(Math.abs(longerHeight - longHeight)).toBeLessThanOrEqual(1);
-
-    // When 幅 390
-    await page.setViewportSize({ width: 390, height: 844 });
-    // Then 札は 3 行で切れ、タイマーは最初の画面に収まる
-    const clamp = await page.locator('.ui-reader-body').first().evaluate((el) => ({
-      client: el.clientHeight,
-      line: parseFloat(getComputedStyle(el).lineHeight),
-      scroll: el.scrollHeight,
-    }));
-    expect(clamp.client).toBeLessThanOrEqual(clamp.line * 3 + 1);
-    expect(clamp.scroll).toBeGreaterThan(clamp.client);
-    const narrowTimer = await boxOf(page, '[role="timer"]');
-    expect(narrowTimer.y + narrowTimer.height).toBeLessThanOrEqual(844);
-    await expectNoHorizontalOverflow(page);
-
-    // 「続きを読む」でシートに全文が出て、Esc で閉じるとフォーカスが戻る
-    const more = page.getByRole('button', { name: '続きを読む' });
-    await more.click();
-    const sheet = page.locator('dialog.ui-drawer');
-    await expect(sheet).toBeVisible();
-    await expect(sheet).toContainText('40 行目の説明です。');
-    await page.keyboard.press('Escape');
-    await expect(sheet).toBeHidden();
-    await expect(more).toBeFocused();
-  });
-});
-
-test.describe('timer のロビーは操作の面と脇に分ける', () => {
-  test('Given 参加者 2 人のロビー / When 幅 320 と 1280 で開く / Then 横に溢れず、脇は右・22rem で先頭がお題、開始は押し下げられず、行のアイコンの当たりは 44px で重ならない', async ({ page, openPeer }) => {
-    // Given 幅 320。ホスト + ドライバーで加わる 1 人（ルームの枠が逼迫しているので 1 室で 320 と 1280 を見る）
+    // Given 幅 320 のロビー。ホスト + ドライバーで加わる 1 人（ルームの枠が逼迫しているので、timer は 1 室で全ての画面を順に見る）
     await page.setViewportSize({ width: 320, height: 640 });
-    const code = await createTimerRoom(page, 'layout-lobby');
-    const guest = await openPeer('layout-lobby-guest');
+    const code = await createTimerRoom(page, 'layout-timer');
+    const guest = await openPeer('layout-timer-guest');
     // 区切りのない 30 字の名前。名前が行の幅を使い切ると、操作が次の行へ折り返す（行の flex-wrap）ので、折り返しが無いと 320 で溢れる
     const guestName = 'W'.repeat(30);
     await joinAsDriver(guest.page, code, guestName);
@@ -490,10 +396,13 @@ test.describe('timer のロビーは操作の面と脇に分ける', () => {
     });
     expect(setLines).toBe(1); // 「設／定」と 2 行に折れると 2 になる
 
-    // When 幅 1280（お題も掲げる）
+    // When 幅 1280（お題も掲げる）。段の判定は幅 1920 を先に測る（お題の有無で器の段は変わらない）
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    expect((await pageBox(page, TIMER_PAGE)).outer).toBe(96 * REM);
     await page.setViewportSize({ width: 1280, height: 900 });
-    const tool = await openPeer('layout-lobby-tool');
-    await joinTopicTool(tool.page, `/?room=${encodeURIComponent(code)}`, 'layout-lobby-t');
+    expect((await pageBox(page, TIMER_PAGE)).inner).toBeGreaterThanOrEqual(72 * REM);
+    const tool = await openPeer('layout-timer-tool');
+    await joinTopicTool(tool.page, `/?room=${encodeURIComponent(code)}`, 'layout-timer-t');
     await setTopic(tool.page, 'FizzBuzz', LONG_BODY);
     const card = page.getByRole('region', { name: 'お題', exact: true });
     await expect(card).toContainText('40 行目の説明です。');
@@ -551,10 +460,82 @@ test.describe('timer のロビーは操作の面と脇に分ける', () => {
     }
     expect(sameRowPairs).toBeGreaterThan(0);
 
-    // 幅 320 でセッションも横に溢れない
-    await page.setViewportSize({ width: 320, height: 640 });
+    // 幅 1280 でセッションを始める
     await page.getByRole('button', { name: 'セッションを開始' }).click();
     await expect(page.getByRole('timer')).toBeVisible();
+    expect((await pageBox(page, TIMER_PAGE)).inner).toBeGreaterThanOrEqual(72 * REM);
+
+    // Then セッションの脇は右・22rem・間 2rem で、上端は操作の面の上端に揃う（上に空きを作らない）
+    // 脇が操作の面より背が高い場面を作る（実際の参加者の盤は主より低く、人数を増やすと主の方が先に伸びる）。
+    // 後の高さの比較に残らないよう、測ったら戻す。
+    await page.locator('.ui-workspace-side').evaluate((el) => { el.style.minHeight = '3000px'; });
+    const sMain = await boxOf(page, '.ui-workspace-main');
+    const sSide = await boxOf(page, '.ui-workspace-side');
+    expect(sMain.x + sMain.width).toBeLessThanOrEqual(sSide.x);
+    expect(sSide.width).toBeCloseTo(22 * REM, 0);
+    expect(sSide.x - (sMain.x + sMain.width)).toBeCloseTo(2 * REM, 0);
+    expect(sSide.y).toBeCloseTo(sMain.y, 0);
+    // 行は 1 本: 段組みの下端は主と脇の低い方で、gap だけの空き行を下に残さない。
+    const ws = await boxOf(page, '.ui-workspace');
+    expect(ws.y + ws.height).toBeCloseTo(Math.max(sMain.y + sMain.height, sSide.y + sSide.height), 0);
+    await page.locator('.ui-workspace-side').evaluate((el) => { el.style.minHeight = ''; });
+
+    // Then お題は脇の先頭で、本文は札の中でスクロールし、札は上限（24rem）を超えない
+    // 同じルームで、40 段落 → 80 段落の順に高さを比べる。札には高さの上限があるので、上限に届かない短い説明と比べると
+    // 札のぶんだけ伸びて当然になる。どちらも上限を超える長さで比べ、「上限で止まり、それ以上はページを伸ばさない」を見る。
+    await expect(card).toContainText('40 行目の説明です。');
+    const sessionPlacement = await card.evaluate((el) => {
+      const side = el.closest('.ui-workspace-side');
+      return { inSide: side !== null, first: side?.firstElementChild === el };
+    });
+    expect(sessionPlacement).toEqual({ inSide: true, first: true });
+    await expectBodyScrolls(page);
+    expect((await boxOf(page, 'section.timer-topic')).height).toBeLessThanOrEqual(24 * REM + 0.5);
+    // タイマーの下端は最初の画面（900）に収まる。お題が長くても主役を押し下げない
+    const timer = await boxOf(page, '[role="timer"]');
+    expect(timer.y + timer.height).toBeLessThanOrEqual(900);
+    const longHeight = await page.evaluate(() => document.documentElement.scrollHeight);
+
+    // When 80 段落の説明に差し替える
+    await setTopic(tool.page, 'FizzBuzz', `${LONG_BODY}\n\n${LONG_BODY.replaceAll('行目', '行目（続き）')}`);
+    await expect(card).toContainText('40 行目（続き）の説明です。');
+    // Then ページの高さは説明の長さで伸びない（40 段落と 80 段落で 1px 以内）
+    const longerHeight = await page.evaluate(() => document.documentElement.scrollHeight);
+    expect(Math.abs(longerHeight - longHeight)).toBeLessThanOrEqual(1);
+
+    // When 幅 390
+    await page.setViewportSize({ width: 390, height: 844 });
+    // Then 札は 3 行で切れ、タイマーは最初の画面に収まる
+    const clamp = await page.locator('.ui-reader-body').first().evaluate((el) => ({
+      client: el.clientHeight,
+      line: parseFloat(getComputedStyle(el).lineHeight),
+      scroll: el.scrollHeight,
+    }));
+    expect(clamp.client).toBeLessThanOrEqual(clamp.line * 3 + 1);
+    expect(clamp.scroll).toBeGreaterThan(clamp.client);
+    const narrowTimer = await boxOf(page, '[role="timer"]');
+    expect(narrowTimer.y + narrowTimer.height).toBeLessThanOrEqual(844);
     await expectNoHorizontalOverflow(page);
+
+    // 「続きを読む」でシートに全文が出て、Esc で閉じるとフォーカスが戻る
+    const more = page.getByRole('button', { name: '続きを読む' });
+    await more.click();
+    const sheet = page.locator('dialog.ui-drawer');
+    await expect(sheet).toBeVisible();
+    await expect(sheet).toContainText('40 行目の説明です。');
+    await page.keyboard.press('Escape');
+    await expect(sheet).toBeHidden();
+    await expect(more).toBeFocused();
+
+    // 幅 320 でセッションも横に溢れない
+    await page.setViewportSize({ width: 320, height: 640 });
+    await expectNoHorizontalOverflow(page);
+
+    // 最後にまとめ（prose の段）。完成にすると戻れないので末尾に置く
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.getByRole('button', { name: /完成!/ }).click();
+    await page.getByRole('dialog').getByRole('button', { name: '完成として記録する' }).click();
+    await expect(page.locator('.summary')).toBeVisible();
+    expect((await pageBox(page, TIMER_PAGE)).outer).toBe(40 * REM);
   });
 });

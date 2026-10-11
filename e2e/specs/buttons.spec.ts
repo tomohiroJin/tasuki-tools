@@ -119,9 +119,10 @@ async function expectScreen(page: Page, label: string, minButtons: number, hitSc
 }
 
 /*
- * **ルームは 2 つしか作らない。** 同期サーバーのルームの枠（既定 100・アイドル 30 分で解放）を E2E 全件が使い切りに近い。
+ * **ルームは画面の種類ごとに 1 つ（玄関・poker・帯 / お題ツール / timer の 3 つ）しか作らない。** 同期サーバーのルームの枠（既定 100・アイドル 30 分で解放）を E2E 全件が使い切りに近い。
  * 画面ごとにルームを作ると、全件を流したときに末尾のテストが「操作を完了できませんでした」で落ちる（実測: 6 ルーム足して 2 件落ちた）。
- * そのため、玄関・poker・帯は 1 つのルームで、お題ツールは別の 1 つで、幅を変えながら続けて測る。
+ * そのため、玄関・poker・帯は 1 つのルームで、お題ツールは別の 1 つで、timer も 1 つ（ロビー → セッション → 確認 → まとめの順）で、
+ * 幅を変えながら続けて測る。timer は layout.spec.ts にも 1 室ある（#316 PR 3 で 6 室から 2 室に減らした。main は 1 室）。
  */
 
 /** 帯の箱と、帯の外にある中身の最下端、画面の高さ・スクロール位置を測る。 */
@@ -271,7 +272,7 @@ test.describe('お題ツールのボタンは部品で、押せる大きさが�
 });
 
 /**
- * timer のセッション（#316 PR 3・Task 4b）。ルームは 1 つ。参加者 6 人（うち 1 人は 30 字の名前）は代理追加で作る
+ * timer の各画面（#316 PR 3・Task 4b）。ルームは 1 つ。参加者 6 人（うち 1 人は 30 字の名前）は代理追加で作る
  * （ページを増やさずに、名簿の行と操作を同じに描かせる）。
  *
  * 帯は計器のカード（`.session-driver-card`）の最後の子で、**カードの範囲の中でだけ**留まる。
@@ -284,10 +285,15 @@ const LONG_NAME = 'W'.repeat(30);
 async function addProxies(page: Page, names: string[]): Promise<void> {
   for (const name of names) {
     const input = page.getByLabel('代理参加者の名前');
-    if (!(await input.isVisible())) await page.getByRole('button', { name: '代理参加者を追加' }).click();
+    // 追加フォームは「名簿に載った次の描画の後」で閉じる（RosterPanel の効果）。行が見えた直後は
+    // まだ開いて見えるので、そのまま次の名前で `isVisible()` を見ると「開いている」と読んで押さず、
+    // その後に閉じて `fill` が待ち続ける。毎回、閉じるのを待ってから次の名前へ進む。
+    await expect(input, '代理の追加フォームが閉じていない（前の代理が名簿に届いていない）').toBeHidden();
+    await page.getByRole('button', { name: '代理参加者を追加' }).click();
     await input.fill(name);
     await input.press('Enter');
     await expect(page.locator('.roster-panel-name', { hasText: name }).first(), `代理 ${name} が名簿に載らない`).toBeVisible();
+    await expect(input, `代理 ${name} を載せたあとフォームが閉じない`).toBeHidden();
   }
 }
 
@@ -370,10 +376,16 @@ async function expectTabNeverUnderDock(page: Page, target: string, label: string
   expect(sawAboveWhilePinned, `${label}: 帯が留まっている間に帯の上の要素を通っていない（判定が空振りする）\n${trace.join('\n')}`).toBeGreaterThan(0);
 }
 
-test.describe('timer のセッションの操作は下端の帯と終える区画で、名簿は内側でスクロールしない', () => {
-  test('Given 参加者 6 人（30 字の名前を含む）のセッション / When 幅 1280 と 390 で開く / Then 名簿に内側のスクロールが無く行は横に溢れず、帯は計器のカードの中で留まり、終える区画の主は最後で危険は左に離れ、Tab は帯に隠れない', async ({ page }) => {
-    await page.setViewportSize({ width: 1280, height: 900 });
+test.describe('timer の各画面（ロビー・セッション・確認・まとめ）のボタンは部品で、押せる大きさがあり、帯は留まり、名簿は内側でスクロールしない', () => {
+  test('Given 幅 390 の timer のロビー / When セッション（参加者 6 人・30 字の名前を含む。1280 と 390）・「途中で終える」の確認・まとめの順に開く / Then 素のボタンは許可したものだけで、主は 1 つ以下で最後にあり、当たりが 44px 以上で重ならず、名簿に内側のスクロールが無く行は横に溢れず、帯は計器のカードの中で留まり、終える区画の主は最後で危険は左に離れ、Tab は帯に隠れない', async ({ page }) => {
+    // ルームの枠が逼迫しているので、timer は 1 室で画面の流れの順に全てを見る（まとめは戻れないので最後）。
+    // ロビー: 開始ボタンが見えてから測る
+    await page.setViewportSize({ width: 390, height: 800 });
     await createTimerRoom(page, 'buttons-timer');
+    await expect(page.getByRole('button', { name: 'セッションを開始' })).toBeVisible();
+    await expectScreen(page, 'timer ロビー（390）', 2);
+
+    await page.setViewportSize({ width: 1280, height: 900 });
     await page.getByRole('button', { name: 'セッションを開始' }).click();
     await expect(page.getByRole('timer')).toBeVisible();
     await addProxies(page, [LONG_NAME, 'proxy-b', 'proxy-c', 'proxy-e', 'proxy-f']);
@@ -450,37 +462,9 @@ test.describe('timer のセッションの操作は下端の帯と終える区�
     await page.setViewportSize({ width: 1280, height: 900 });
     expect((await measureDock(dock)).position, '40rem 以上で帯が流れの中に戻っていない').toBe('static');
     expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollPaddingBottom), '1280: scroll-padding は 40rem 以上に掛けない').not.toBe('96px');
-  });
-});
 
-/** 帯が計器のカードの中で留まる: 先頭で下端に接し、最下部ではカードの中身（円盤・統計）の下に出る。 */
-async function expectTimerDockPinned(page: Page, dock: Locator): Promise<void> {
-  await page.locator('.session-driver-card').evaluate((el) => el.scrollIntoView({ block: 'start' }));
-  const top = await measureDock(dock);
-  expect(top.position, '帯が sticky でない').toBe('sticky');
-  expect(top.bottom, '先頭で帯が画面の下端に接していない').toBeCloseTo(top.viewport, 0);
-  await scrollToBottom(page);
-  const end = await page.evaluate(() => {
-    const d = document.querySelector('.ui-actions--dock')!.getBoundingClientRect();
-    const body = document.querySelector('.session-driver-body')!.getBoundingClientRect();
-    return { dockTop: d.top, dockBottom: d.bottom, bodyBottom: body.bottom, viewport: innerHeight };
-  });
-  expect(end.bodyBottom, '最下部で計器の中身が帯に隠れる').toBeLessThanOrEqual(end.dockTop + 0.5);
-  expect(end.dockBottom, '最下部で帯が画面から出ている').toBeLessThanOrEqual(end.viewport + 0.5);
-}
-
-test.describe('timer の各画面（ロビー・セッション・確認・まとめ）のボタンは部品で、主は 1 つ以下で、押せる大きさがある', () => {
-  test('Given 幅 390 の timer / When ロビー・セッション・「途中で終える」の確認・まとめを開く / Then 素のボタンは許可したものだけで、主は 1 つ以下で最後にあり、当たりが 44px 以上で重ならない', async ({ page }) => {
+    // セッション（390・高い画面）: 計器の帯の主（一時停止）と終える区画の「完成!」が見えてから測る
     await page.setViewportSize({ width: 390, height: 800 });
-    await createTimerRoom(page, 'buttons-timer-screens');
-
-    // ロビー: 開始ボタンが見えてから測る
-    await expect(page.getByRole('button', { name: 'セッションを開始' })).toBeVisible();
-    await expectScreen(page, 'timer ロビー（390）', 2);
-
-    // セッション: 計器の帯の主（一時停止）と終える区画の「完成!」が見えてから測る
-    await page.getByRole('button', { name: 'セッションを開始' }).click();
-    await expect(page.getByRole('timer')).toBeVisible();
     await expect(page.getByRole('button', { name: '一時停止', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: '完成!', exact: true })).toBeVisible();
     await expectScreen(page, 'timer セッション（390）', 6);
@@ -504,3 +488,18 @@ test.describe('timer の各画面（ロビー・セッション・確認・ま�
     await expectScreen(page, 'timer まとめ（390）', 1);
   });
 });
+/** 帯が計器のカードの中で留まる: 先頭で下端に接し、最下部ではカードの中身（円盤・統計）の下に出る。 */
+async function expectTimerDockPinned(page: Page, dock: Locator): Promise<void> {
+  await page.locator('.session-driver-card').evaluate((el) => el.scrollIntoView({ block: 'start' }));
+  const top = await measureDock(dock);
+  expect(top.position, '帯が sticky でない').toBe('sticky');
+  expect(top.bottom, '先頭で帯が画面の下端に接していない').toBeCloseTo(top.viewport, 0);
+  await scrollToBottom(page);
+  const end = await page.evaluate(() => {
+    const d = document.querySelector('.ui-actions--dock')!.getBoundingClientRect();
+    const body = document.querySelector('.session-driver-body')!.getBoundingClientRect();
+    return { dockTop: d.top, dockBottom: d.bottom, bodyBottom: body.bottom, viewport: innerHeight };
+  });
+  expect(end.bodyBottom, '最下部で計器の中身が帯に隠れる').toBeLessThanOrEqual(end.dockTop + 0.5);
+  expect(end.dockBottom, '最下部で帯が画面から出ている').toBeLessThanOrEqual(end.viewport + 0.5);
+}
