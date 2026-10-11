@@ -5,8 +5,9 @@
  * `focus-visible:outline-none` は写さない（基準（`ba9249d`）ではレイヤー外のグローバルな `:focus-visible` に負けて効いていなかった・設計正本 §2 の 5）。
  * 行の高さ（`var(--timer-never-defined, calc(…))`）は status-strip.css 冒頭の注釈。 */
 
-/* 根の縦の間隔。子の margin は持たない（移した部品の根は margin-block-end を書かない）。 */
-:where(.lobby > :not(:last-child)) {
+/* 操作の面と脇の縦の間隔（段組みは部品層の `.ui-workspace-*`・`min-width: 0` もそちらが持つ）。
+ * 子の margin は持たない（移した部品の根は margin-block-end を書かない）。 */
+:where(.lobby-column > :not(:last-child)) {
   margin-block-end: 1.5rem;
 }
 
@@ -81,7 +82,9 @@
 
 .lobby-participant-name {
   min-width: 0;
-  flex: 1 1 0%;
+  /* 基準を 0 にすると、名前が 0 幅のまま操作が同じ行に居座って狭い幅で溢れる（B1）。
+   * 6rem を基準にして、足りなければ操作の行が次の行へ折り返す。 */
+  flex: 1 1 6rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -112,17 +115,21 @@
   border-color: var(--hairline);
 }
 
-/* 操作エリア。狭い幅では行の右端へ寄せる（広い幅では名前が余白を取るので効かない）。 */
+/* 操作エリア。名前とバッジの行に収まらなければ次の行へ折り返し、行の右端へ寄せる。
+ * 隣り合うアイコンの当たり（44px）が重ならないよう、見た目 2rem との差の分（0.75rem）を gap に取る。
+ * 40rem 未満はアイコンの見た目が 44px なので 0.25rem でよい。 */
 .lobby-participant-actions {
   display: flex;
-  flex-shrink: 0;
+  min-width: 0; /* 行より広い操作は、次の行へ折り返したうえで行の幅へ縮める（溢れない） */
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.25rem;
+  margin-inline-start: auto;
 }
 
-@media (width < 40rem) {
+@media (width >= 40rem) {
   .lobby-participant-actions {
-    margin-left: auto;
+    gap: 0.75rem;
   }
 }
 
@@ -143,6 +150,7 @@
 
 /* 行のコンパクトなアイコンボタン */
 .lobby-row-icon-button {
+  position: relative;
   display: grid;
   width: 2.75rem;
   height: 2.75rem;
@@ -178,6 +186,14 @@
   box-shadow:
     0 0 0 2px var(--ink),
     0 0 0 4px var(--signal);
+}
+
+/* 見た目は保ち、当たりだけ 44×44 に広げる（D7）。inset の % は包含ブロック（ボタン自身）の辺に対する割合で、
+ * 辺が 44px 未満のとき負の値になり、上下左右へ均等に広がる。 */
+.lobby-row-icon-button::before {
+  content: "";
+  position: absolute;
+  inset: calc((100% - 2.75rem) / 2);
 }
 
 .lobby-row-icon {

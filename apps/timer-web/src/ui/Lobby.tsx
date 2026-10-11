@@ -134,9 +134,10 @@ export function Lobby({
           onCancel={() => setPendingRemovalId(null)}
         />
       )}
-      <div className="lobby">
-        {/* いまのお題（#91）。timer は読むだけで、変えるのはお題ツールの仕事（spec T4）。 */}
-        {topic && <TopicCard topic={topic} />}
+      {/* 段組みは部品層の `.ui-workspace`（#316 PR 3）。操作の面＝開始・設定・通知（狭い幅でも先に見える）、
+          脇（右・22rem）＝お題・参加者・招待・パスフレーズ。 */}
+      <div className="ui-workspace ui-workspace--side-end">
+        <div className="ui-workspace-main lobby-column">
         {startButton}
         {/* セッション設定（交代間隔・詳細設定）。誰でも変更できる。 */}
         <Card>
@@ -145,16 +146,6 @@ export function Lobby({
             onChange={(patch) => onConfigSet?.(patch)}
           />
         </Card>
-        <InvitePanel code={room.code} roomUrl={inviteUrl} />
-        {/* ルームのパスフレーズ設定/解除（R4-2）。招待のすぐ下に置く。 */}
-        {onSetPassphrase && (
-          <Card>
-            <PassphrasePanel
-              protectedNow={!!room.passphraseProtected}
-              onSet={onSetPassphrase}
-            />
-          </Card>
-        )}
         {/* 通知設定カード。セッション開始前に音通知を整えておける。 */}
         <Card>
           <div className="lobby-notify-heading">
@@ -170,6 +161,10 @@ export function Lobby({
             onPreview={() => playChime(notifyPrefs.soundId, notifyPrefs.volume)}
           />
         </Card>
+        </div>
+        <div className="ui-workspace-side lobby-column">
+        {/* いまのお題（#91）。timer は読むだけで、変えるのはお題ツールの仕事（spec T4）。 */}
+        {topic && <TopicCard topic={topic} />}
         {/* 参加者一覧 */}
         <Card>
           <SectionHeader
@@ -303,6 +298,17 @@ export function Lobby({
             </div>
           )}
         </Card>
+        <InvitePanel code={room.code} roomUrl={inviteUrl} />
+        {/* ルームのパスフレーズ設定/解除（R4-2）。招待のすぐ下に置く。 */}
+        {onSetPassphrase && (
+          <Card>
+            <PassphrasePanel
+              protectedNow={!!room.passphraseProtected}
+              onSet={onSetPassphrase}
+            />
+          </Card>
+        )}
+        </div>
       </div>
     </>
   );

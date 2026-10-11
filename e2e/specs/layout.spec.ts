@@ -13,7 +13,7 @@
 import type { Page, TestInfo } from '@playwright/test';
 import { expect, test } from '../fixtures/test';
 import { chooseCard, createRoom as createPokerRoom, joinRoom as joinPokerRoom, participantRow } from '../support/poker';
-import { createRoom as createTimerRoom } from '../support/timer';
+import { createRoom as createTimerRoom, joinAsDriver } from '../support/timer';
 import { joinTopicTool, openTopicTool, setTopic } from '../support/topic';
 
 const REM = 16;
@@ -462,5 +462,83 @@ test.describe('timer のお題は脇の先頭の読む面に置く', () => {
     await page.keyboard.press('Escape');
     await expect(sheet).toBeHidden();
     await expect(more).toBeFocused();
+  });
+});
+
+test.describe('timer のロビーは操作の面と脇に分ける', () => {
+  test('Given 参加者 2 人のロビー / When 幅 320 と 1280 で開く / Then 横に溢れず、脇は右・22rem で先頭がお題、開始は押し下げられず、行のアイコンの当たりは 44px で重ならない', async ({ page, openPeer }) => {
+    // Given 幅 320。ホスト + ドライバーで加わる 1 人（ルームの枠が逼迫しているので 1 室で 320 と 1280 を見る）
+    await page.setViewportSize({ width: 320, height: 640 });
+    const code = await createTimerRoom(page, 'layout-lobby');
+    const guest = await openPeer('layout-lobby-guest');
+    await joinAsDriver(guest.page, code, 'layout-lobby-g');
+    await expect(page.getByRole('listitem').filter({ hasText: 'layout-lobby-g' })).toBeVisible();
+    await expect(page.getByLabel('パスフレーズ', { exact: true })).toBeVisible();
+
+    // Then 320: ロビーは横に溢れない（B1）。パスフレーズの「設定」は縦に積まれ、字が折れない
+    await expectNoHorizontalOverflow(page);
+    const setBtn = page.getByRole('button', { name: '設定', exact: true });
+    const setBox = await boxOf(page, 'button:has-text("設定")');
+    expect(setBox.height).toBeLessThan(2 * 24 + 16); // 「設／定」と 2 行に折れると背が伸びる
+    await expect(setBtn).toBeVisible();
+
+    // When 幅 1280（お題も掲げる）
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const tool = await openPeer('layout-lobby-tool');
+    await joinTopicTool(tool.page, `/?room=${encodeURIComponent(code)}`, 'layout-lobby-t');
+    await setTopic(tool.page, 'FizzBuzz', LONG_BODY);
+    const card = page.getByRole('region', { name: 'お題', exact: true });
+    await expect(card).toContainText('40 行目の説明です。');
+    await expectNoHorizontalOverflow(page);
+
+    // Then 脇は右・22rem・間 2rem。操作の面に「セッションを開始」、脇に「参加者」
+    const main = await boxOf(page, '.ui-workspace-main');
+    const side = await boxOf(page, '.ui-workspace-side');
+    expect(main.x + main.width).toBeLessThanOrEqual(side.x);
+    expect(side.width).toBeCloseTo(22 * REM, 0);
+    expect(side.x - (main.x + main.width)).toBeCloseTo(2 * REM, 0);
+    await expect(page.locator('.ui-workspace-main').getByRole('button', { name: 'セッションを開始' })).toBeVisible();
+    await expect(page.locator('.ui-workspace-side').getByText(/^参加者 \(/)).toBeVisible();
+    // お題は脇の先頭。長くても主役の操作を押し下げない（開始の上端 ≤ 札の上端・下端は最初の画面に収まる）
+    const placement = await card.evaluate((el) => {
+      const s = el.closest('.ui-workspace-side');
+      return { inSide: s !== null, first: s?.firstElementChild === el };
+    });
+    expect(placement).toEqual({ inSide: true, first: true });
+    const start = await page.getByRole('button', { name: 'セッションを開始' }).boundingBox();
+    const topicBox = await card.boundingBox();
+    if (start === null || topicBox === null) throw new Error('開始ボタンかお題が描かれていない');
+    expect(start.y).toBeLessThanOrEqual(topicBox.y);
+    expect(start.y + start.height).toBeLessThanOrEqual(900);
+
+    // Then 行のアイコンの当たり（::before）は 44×44 で、隣の当たりと重ならない
+    const hits = await page.locator('.lobby-row-icon-button').evaluateAll((els) =>
+      els.map((el) => {
+        const r = el.getBoundingClientRect();
+        const b = getComputedStyle(el, '::before');
+        const px = (v: string): number => parseFloat(v);
+        // 絶対配置の擬似要素の used 値（top/left は px で返る）。幅・高さは inset から決まる
+        const left = r.left + px(b.left) - px(getComputedStyle(el).borderLeftWidth);
+        const top = r.top + px(b.top) - px(getComputedStyle(el).borderTopWidth);
+        return { visible: r.width, left, top, width: px(b.width), height: px(b.height) };
+      }),
+    );
+    expect(hits.length).toBeGreaterThanOrEqual(2);
+    for (const h of hits) {
+      expect(h.width).toBeGreaterThanOrEqual(44);
+      expect(h.height).toBeGreaterThanOrEqual(44);
+    }
+    // 同じ行の隣り合う当たりは重ならない（左右）。丸め誤差 0.5px を許す
+    for (let i = 1; i < hits.length; i++) {
+      const prev = hits[i - 1]!;
+      const cur = hits[i]!;
+      if (Math.abs(prev.top - cur.top) < 1) expect(cur.left).toBeGreaterThanOrEqual(prev.left + prev.width - 0.5);
+    }
+
+    // 幅 320 でセッションも横に溢れない
+    await page.setViewportSize({ width: 320, height: 640 });
+    await page.getByRole('button', { name: 'セッションを開始' }).click();
+    await expect(page.getByRole('timer')).toBeVisible();
+    await expectNoHorizontalOverflow(page);
   });
 });
