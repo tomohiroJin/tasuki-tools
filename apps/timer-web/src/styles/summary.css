@@ -133,6 +133,14 @@
 }
 
 /* 保存と新しいセッションの並び（部品の `.ui-actions`）。flex の列の中で幅いっぱいに取る */
+.summary-next {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
 .summary-actions {
   width: 100%;
 }

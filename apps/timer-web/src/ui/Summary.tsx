@@ -117,6 +117,7 @@ export function Summary({ endType, record, onNewSession, onSaveRecord }: Summary
       )}
 
       {/* 次の行動導線。並びは保存 → 新しいセッション（主は最後）。保存の添え書きは並びの下。 */}
+      <div className="summary-next">
       <div className="ui-actions summary-actions">
         {isComplete && record && (
           <button
@@ -144,6 +145,7 @@ export function Summary({ endType, record, onNewSession, onSaveRecord }: Summary
           完了時に自動保存されています。手動で再保存もできます。
         </p>
       )}
+      </div>
     </div>
   );
 }

@@ -71,7 +71,7 @@ export function EndSessionZone({
       aria-label="セッションを終える"
       className="end-session-zone"
     >
-      {/* 完成（達成として記録する）。正常完了は計器の安全色（緑）で強調し、危険操作と峻別する。 */}
+      {/* 完成（達成として記録する）。正常完了は主（金）、中断・リセットは朱の枠（危険）で峻別する。 */}
       <button
         type="button"
         onClick={() => setPending("complete")}

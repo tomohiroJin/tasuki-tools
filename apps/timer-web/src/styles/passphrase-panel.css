@@ -16,26 +16,16 @@
   color: var(--bone-muted);
 }
 
+/* 入力と「設定」は常に縦に積む。パスフレーズは 22rem の脇か狭い札に入るので、横に並べると入力が潰れ、ボタンの字が「設／定」に折れる（B1） */
 .passphrase-panel-form {
   display: flex;
+  flex-direction: column;
   gap: 0.5rem;
-}
-
-/* 40rem 未満は入力と「設定」を縦に積む。横に並べると 320px で入力が潰れ、ボタンの字が「設／定」に折れる（B1）。 */
-@media (width < 40rem) {
-  .passphrase-panel-form {
-    flex-direction: column;
-  }
-
-  /* 縦では basis 0 が「高さ 0」になるので、中身の高さに戻す */
-  .passphrase-panel-input {
-    flex: 0 0 auto;
-  }
 }
 
 .passphrase-panel-input {
   min-width: 0;
-  flex: 1 1 0%;
+  flex: 0 0 auto;
   border-radius: var(--radius-md);
   border-width: 1px;
   border-color: var(--hairline-strong);

@@ -480,13 +480,13 @@ test.describe('timer のロビーは操作の面と脇に分ける', () => {
     // 「詳細設定」を拾わないよう名前は完全一致。高さは自分の 1 行ぶん（行の高さ + 縦の padding と枠）以下
     const setBtn = page.getByRole('button', { name: '設定', exact: true });
     await expect(setBtn).toBeVisible();
-    const setFit = await setBtn.evaluate((el) => {
-      const s = getComputedStyle(el);
-      const px = (v: string): number => parseFloat(v);
-      const oneLine = px(s.lineHeight) + px(s.paddingTop) + px(s.paddingBottom) + px(s.borderTopWidth) + px(s.borderBottomWidth);
-      return { height: el.getBoundingClientRect().height, oneLine };
+    // 字の行数を数える（`.ui-button` は高さを min-height で持つので、高さでは 2 行に折れても気づけない）
+    const setLines = await setBtn.evaluate((el) => {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      return new Set(Array.from(range.getClientRects()).map((r) => Math.round(r.top))).size;
     });
-    expect(setFit.height).toBeLessThanOrEqual(setFit.oneLine + 1); // 「設／定」と 2 行に折れると 1 行ぶんを超える
+    expect(setLines).toBe(1); // 「設／定」と 2 行に折れると 2 になる
 
     // When 幅 1280（お題も掲げる）
     await page.setViewportSize({ width: 1280, height: 900 });

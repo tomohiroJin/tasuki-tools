@@ -185,8 +185,10 @@ test.describe('危険の確認ダイアログが暗い面の上で読める（#3
     // Then その2: 朱の枠の確定が測られ、AA を満たす（走査は画面全体。ダイアログの外も同じ基準）
     const confirm = dialog.locator('.ui-button--danger');
     await expect(confirm, '朱の枠の確定ボタンが無い（判定が空振りする）').toHaveCount(1);
+    //   朱の字（`--rose-bright`）がダイアログの面（`--panel`）に載る組を測ったことも固定する
+    const [rose, panel] = await resolveColors(page, ['--rose-bright', '--panel']);
     const scan = await scanContrast(page);
-    expectReadable(scan, 10, []);
+    expectReadable(scan, 10, [pairKey(rose!, panel!)]);
 
     // Then その3: 朱の枠の確定もキーボードのフォーカスが見える
     await page.keyboard.press('Tab');
