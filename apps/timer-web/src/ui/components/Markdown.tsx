@@ -131,7 +131,8 @@ function Block({ block, keyBase, headingBase, surface }: { block: MdBlock; keyBa
     }
     case "code":
       return (
-        <pre className={MARKDOWN_CLASS[`${surface}-pre`]}>
+        // 札の上のコードは横へスクロールするので、キーボードで届くよう Tab に載せる（poker の部品と同じ）
+        <pre className={MARKDOWN_CLASS[`${surface}-pre`]} tabIndex={surface === "card" ? 0 : undefined}>
           {block.text}
         </pre>
       );

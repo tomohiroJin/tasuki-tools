@@ -95,6 +95,11 @@ describe("見出しの段を下げる", () => {
     expect(screen.getByRole("heading", { level: 4, name: "見出し" })).toBeInTheDocument();
   });
 
+  it("surface=panel のコードブロックは tabindex を持たない", () => {
+    const { container } = render(<Markdown source={"```\ncode\n```"} />);
+    expect(container.querySelector("pre")?.hasAttribute("tabindex")).toBe(false);
+  });
+
   it("Given 指定なし / When # 見出しを描く / Then 従来どおり h3 になる", () => {
     render(<Markdown source={"# 見出し"} />);
     expect(screen.getByRole("heading", { level: 3, name: "見出し" })).toBeInTheDocument();
@@ -110,6 +115,7 @@ describe("見出しの段を下げる", () => {
     expect(container.querySelector("p")?.className).toBe("ui-md-p");
     expect(container.querySelector("code")?.className).toBe("ui-md-code");
     expect(container.querySelector("pre")?.className).toBe("ui-md-pre");
+    expect(container.querySelector("pre")?.getAttribute("tabindex")).toBe("0");
     expect(container.querySelector("blockquote")?.className).toBe("ui-md-quote");
     expect(container.querySelector("ul")?.className).toBe("ui-md-ul");
     expect(container.querySelector("ol")?.className).toBe("ui-md-ol");

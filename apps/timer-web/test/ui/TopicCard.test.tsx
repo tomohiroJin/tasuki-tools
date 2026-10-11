@@ -37,6 +37,18 @@ describe("お題の札", () => {
     expect(container.querySelector("dialog.ui-drawer")).not.toBeNull();
   });
 
+  it("Given 本文がある / When 描く / Then シートの h3 も札の h3 と同じ文字の段のクラスを持つ（reset.css が h3 を本文の字に戻すため）", () => {
+    // Given
+    const topic = { title: "FizzBuzz", body: "本文です", source: "manual" as const };
+    // When
+    const { container } = render(<TopicCard topic={topic} />);
+    // Then
+    const titles = Array.from(container.querySelectorAll("h3"));
+    expect(titles).toHaveLength(2);
+    for (const h of titles) expect(h).toHaveClass("timer-topic-title");
+    expect(container.querySelector(".ui-drawer-head h3")).toHaveClass("timer-topic-title");
+  });
+
   it("Given 本文が空 / When 描く / Then 「続きを読む」もシートも本文の領域も描かない", () => {
     // Given
     const topic = { title: "FizzBuzz", body: "", source: "manual" as const };

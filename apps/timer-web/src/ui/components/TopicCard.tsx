@@ -56,7 +56,7 @@ export function TopicCard({ topic }: { topic: Topic }) {
             onClose={() => moreRef.current?.focus()}
           >
             <div className="ui-drawer-head">
-              <h3 id={drawerTitleId}>{topic.title}</h3>
+              <h3 id={drawerTitleId} className="timer-topic-title">{topic.title}</h3>
               <button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={close}>
                 {TOPIC_CLOSE}
               </button>
