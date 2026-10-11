@@ -163,6 +163,9 @@ export function Lobby({
         <div className="ui-workspace-side lobby-column">
         {/* いまのお題（#91）。timer は読むだけで、変えるのはお題ツールの仕事（spec T4）。 */}
         {topic && <TopicCard topic={topic} />}
+        {/* 招待はお題のすぐ下（#316 PR 3）。狭い幅では脇が操作の面の後に積まれるので、参加者の一覧より後ろに置くと
+            ルームを作った直後にコードを探してスクロールすることになる（下の一覧のヒントも「上の招待リンク」を指す）。 */}
+        <InvitePanel code={room.code} roomUrl={inviteUrl} />
         {/* 参加者一覧 */}
         <Card>
           <SectionHeader
@@ -298,8 +301,7 @@ export function Lobby({
             </div>
           )}
         </Card>
-        <InvitePanel code={room.code} roomUrl={inviteUrl} />
-        {/* ルームのパスフレーズ設定/解除（R4-2）。招待のすぐ下に置く。 */}
+        {/* ルームのパスフレーズ設定/解除（R4-2）。設定はまれなので脇の最後に置く（#316 PR 3）。 */}
         {onSetPassphrase && (
           <Card>
             <PassphrasePanel
