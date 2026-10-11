@@ -104,9 +104,12 @@
 }
 
 .section-header-title {
+  /* 区画の見出し（§11）。timer は要素層を読まないので、h2 の段をここで当てる */
+  margin: 0;
+  font-size: var(--font-size-lg);
+  line-height: var(--line-tight);
   font-weight: 700;
-  font-size: 1rem; /* scale-exempt: Tailwind の text-base の写し（#316 で段へ寄せる） */
-  line-height: 1.5;
-  letter-spacing: 0.025em;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--bone);
 }

@@ -22,7 +22,7 @@
 }
 
 .history-loading {
-  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 で段へ寄せる） */
+  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 PR 4 で段へ寄せる） */
   line-height: var(--timer-never-defined, calc(1.25 / 0.875)); /* 行の高さは status-strip.css 冒頭の注釈 */
   color: var(--bone-muted);
 }
@@ -67,7 +67,7 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   column-gap: 1rem;
   row-gap: 0.375rem;
-  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 で段へ寄せる） */
+  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 PR 4 で段へ寄せる） */
   line-height: var(--timer-never-defined, calc(1.25 / 0.875)); /* 行の高さは status-strip.css 冒頭の注釈 */
 }
 

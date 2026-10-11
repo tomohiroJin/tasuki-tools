@@ -148,9 +148,7 @@ export function Lobby({
         </Card>
         {/* 通知設定カード。セッション開始前に音通知を整えておける。 */}
         <Card>
-          <div className="lobby-notify-heading">
-            <Bell className="lobby-notify-icon" aria-hidden="true" /> 交代通知
-          </div>
+          <SectionHeader icon={Bell} title="交代通知" />
           <NotifySettingsPanel
             prefs={notifyPrefs}
             onChange={(patch) => {

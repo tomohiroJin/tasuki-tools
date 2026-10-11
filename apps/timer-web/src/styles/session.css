@@ -82,14 +82,14 @@
 
 /* タイマーの数字。緊急（残り 10 秒以下）は朱の点滅、一時停止は半透明（`data-urgent` / `data-paused`） */
 .session-timer {
-  font-size: 3.75rem; /* scale-exempt: Tailwind の text-6xl の写し（#316 で段へ寄せる） */
+  font-size: 3.75rem; /* scale-exempt: Tailwind の text-6xl の写し（計器の数字は段の外） */
   line-height: 1;
   font-weight: 900;
 }
 
 @media (width >= 64rem) {
   .session-timer {
-    font-size: 4.5rem; /* scale-exempt: Tailwind の text-7xl の写し（#316 で段へ寄せる） */
+    font-size: 4.5rem; /* scale-exempt: Tailwind の text-7xl の写し（計器の数字は段の外） */
     line-height: 1;
   }
 }
@@ -123,7 +123,7 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  font-size: 1.125rem; /* scale-exempt: Tailwind の text-lg の写し（#316 で段へ寄せる） */
+  font-size: 1.125rem; /* scale-exempt: Tailwind の text-lg の写し（#316 PR 4 で段へ寄せる） */
   line-height: var(--timer-never-defined, calc(1.75 / 1.125)); /* 行の高さは status-strip.css 冒頭の注釈 */
   color: var(--bone-muted);
 }
@@ -166,7 +166,7 @@
   display: flex;
   justify-content: center;
   gap: 1.5rem;
-  font-size: 1rem; /* scale-exempt: Tailwind の text-base の写し（#316 で段へ寄せる） */
+  font-size: 1rem; /* scale-exempt: Tailwind の text-base の写し（#316 PR 4 で段へ寄せる） */
   line-height: 1.5;
   color: var(--bone-subtle);
 }

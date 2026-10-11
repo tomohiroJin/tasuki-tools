@@ -24,7 +24,7 @@
 
 .session-lost-code {
   margin-top: 0.5rem;
-  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 で段へ寄せる） */
+  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 PR 4 で段へ寄せる） */
   line-height: var(--timer-never-defined, calc(1.25 / 0.875)); /* 行の高さは status-strip.css 冒頭の注釈 */
   color: var(--bone-muted);
 }
@@ -37,7 +37,7 @@
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
-  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 で段へ寄せる） */
+  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 PR 4 で段へ寄せる） */
   line-height: var(--timer-never-defined, calc(1.25 / 0.875)); /* 行の高さは status-strip.css 冒頭の注釈 */
   color: var(--bone-muted);
 }
