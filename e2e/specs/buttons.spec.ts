@@ -26,14 +26,20 @@ import { createRoom as createTimerRoom } from '../support/timer';
  * - `.tab`: timer のセッション／ルームのタブ（`role="tab"`）
  * - `.roster-panel-mini-button`: timer の名簿の行の小さな操作（見た目を保ち、当たりだけ 44px に広げる・Task 4b で別に測る）
  * - `.notify-hint-close`・`.notify-settings-trigger`: timer の通知のヒントの閉じる・ステータスの「通知」（ボタンの形をしない操作）
+ * - `.session-config-interval`: timer の交代間隔の選択肢（排他の選択肢の札。ボタンの形をした操作ではない）
+ * - `.notify-settings-switch-on`・`.notify-settings-switch-off`: timer の通知の ON/OFF（`role="switch"` のスイッチ）
+ * - `.notify-settings-preview`: timer の通知音の「試聴」（設定の行の中の小さな文字の操作で、画面の操作の並びに入らない）
  */
-const BARE_ALLOWED = ['.card', '.topic-tab', '.tab', '.roster-panel-mini-button', '.notify-hint-close', '.notify-settings-trigger'];
+const BARE_ALLOWED = [
+  '.card', '.topic-tab', '.tab', '.roster-panel-mini-button', '.notify-hint-close', '.notify-settings-trigger',
+  '.session-config-interval', '.notify-settings-switch-on', '.notify-settings-switch-off', '.notify-settings-preview',
+];
 
 interface Rect { left: number; top: number; width: number; height: number }
 
 /** 画面に描かれた（箱を持つ）ボタンを集め、素のもの・並びごとの主・当たりを返す。 */
-async function scanButtons(page: Page) {
-  return page.evaluate((allowed) => {
+async function scanButtons(page: Page, hitScope = 'body') {
+  return page.evaluate(([allowed, scope]) => {
     const visible = (el: Element) => el.getClientRects().length > 0 && el.getBoundingClientRect().width > 0;
     const name = (el: Element) => (el.getAttribute('aria-label') ?? el.textContent ?? '').trim().slice(0, 24);
 
@@ -43,7 +49,8 @@ async function scanButtons(page: Page) {
 
     const isPrimary = (el: Element) => !el.classList.contains('ui-button--secondary') && !el.classList.contains('ui-button--quiet') && !el.classList.contains('ui-button--danger');
     const groups = Array.from(document.querySelectorAll('.ui-actions')).map((group) => {
-      const buttons = Array.from(group.querySelectorAll('.ui-button'));
+      // 入れ子の並び（timer は確認ダイアログを「終える区画」の DOM の中に描く）のボタンは、内側の並びだけに数える
+      const buttons = Array.from(group.querySelectorAll('.ui-button')).filter((b) => b.closest('.ui-actions') === group);
       const primaries = buttons.filter(isPrimary);
       const last = buttons[buttons.length - 1];
       return {
@@ -54,7 +61,7 @@ async function scanButtons(page: Page) {
     });
 
     // 当たり: 見た目の箱。::before が絶対配置なら、その広がりを含める（--sm の上下 +4px）
-    const hits = Array.from(document.querySelectorAll('.ui-button'))
+    const hits = Array.from(document.querySelectorAll(`${scope} .ui-button`))
       .filter(visible)
       .map((el) => {
         const r = el.getBoundingClientRect();
@@ -71,7 +78,7 @@ async function scanButtons(page: Page) {
       });
 
     return { bare, groups, hits, uiButtons: document.querySelectorAll('.ui-button').length };
-  }, BARE_ALLOWED);
+  }, [BARE_ALLOWED, hitScope] as const);
 }
 
 /** E6・E7: 素のボタンが無く、並びごとの主が 1 つ以下で最後にある。`minButtons` は測ったボタンの数の下限。 */
@@ -86,8 +93,8 @@ async function expectButtonContract(page: Page, label: string, minButtons: numbe
 }
 
 /** 当たりが 44×44 以上で、どの 2 つも重ならない。 */
-async function expectHitTargets(page: Page, label: string, minButtons: number): Promise<void> {
-  const { hits } = await scanButtons(page);
+async function expectHitTargets(page: Page, label: string, minButtons: number, hitScope = 'body'): Promise<void> {
+  const { hits } = await scanButtons(page, hitScope);
   expect(hits.length, `${label}: 描かれたボタンが少ない（判定が空振りする）`).toBeGreaterThanOrEqual(minButtons);
   for (const h of hits) {
     expect(h.rect.width, `${label}: ${h.name} の当たりの幅`).toBeGreaterThanOrEqual(44 - 0.01);
@@ -105,9 +112,10 @@ async function expectHitTargets(page: Page, label: string, minButtons: number): 
   }
 }
 
-async function expectScreen(page: Page, label: string, minButtons: number): Promise<void> {
+/** `hitScope`: 当たりを測る範囲。モーダルの確認ダイアログは背景の画面の上に重なるので、ダイアログの中だけで測る。 */
+async function expectScreen(page: Page, label: string, minButtons: number, hitScope = 'body'): Promise<void> {
   await expectButtonContract(page, label, minButtons);
-  await expectHitTargets(page, label, minButtons);
+  await expectHitTargets(page, label, minButtons, hitScope);
 }
 
 /*
@@ -460,3 +468,39 @@ async function expectTimerDockPinned(page: Page, dock: Locator): Promise<void> {
   expect(end.bodyBottom, '最下部で計器の中身が帯に隠れる').toBeLessThanOrEqual(end.dockTop + 0.5);
   expect(end.dockBottom, '最下部で帯が画面から出ている').toBeLessThanOrEqual(end.viewport + 0.5);
 }
+
+test.describe('timer の各画面（ロビー・セッション・確認・まとめ）のボタンは部品で、主は 1 つ以下で、押せる大きさがある', () => {
+  test('Given 幅 390 の timer / When ロビー・セッション・「途中で終える」の確認・まとめを開く / Then 素のボタンは許可したものだけで、主は 1 つ以下で最後にあり、当たりが 44px 以上で重ならない', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 800 });
+    await createTimerRoom(page, 'buttons-timer-screens');
+
+    // ロビー: 開始ボタンが見えてから測る
+    await expect(page.getByRole('button', { name: 'セッションを開始' })).toBeVisible();
+    await expectScreen(page, 'timer ロビー（390）', 2);
+
+    // セッション: 計器の帯の主（一時停止）と終える区画の「完成!」が見えてから測る
+    await page.getByRole('button', { name: 'セッションを開始' }).click();
+    await expect(page.getByRole('timer')).toBeVisible();
+    await expect(page.getByRole('button', { name: '一時停止', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: '完成!', exact: true })).toBeVisible();
+    await expectScreen(page, 'timer セッション（390）', 6);
+
+    // 確認ダイアログ（「途中で終える」）: 取消と確定が見えてから測る。測ったら取り消す
+    await page.getByRole('button', { name: '途中で終える' }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByRole('button', { name: '終える（記録なし）' })).toBeVisible();
+    // 最小数は当たりを測るダイアログの中のボタン数（取消と確定の 2 つ）。背景の画面のボタンは別に数える
+    await expectScreen(page, 'timer 確認ダイアログ（390）', 2, '[role="dialog"]');
+    expect((await scanButtons(page)).uiButtons, '確認ダイアログ: 背景の画面のボタンが描かれていない').toBeGreaterThanOrEqual(8);
+    expect((await scanButtons(page, '[role="dialog"]')).hits, '確認ダイアログの当たりは取消と確定の 2 つ').toHaveLength(2);
+    await dialog.getByRole('button', { name: 'キャンセル' }).click();
+    await expect(dialog).toBeHidden();
+
+    // まとめ: 完成! → 確認 → まとめ画面（新しいセッション）が見えてから測る
+    await page.getByRole('button', { name: '完成!', exact: true }).click();
+    await page.getByRole('dialog').getByRole('button', { name: '完成として記録する' }).click();
+    await expect(page.locator('.summary')).toBeVisible();
+    await expect(page.getByRole('button', { name: /新しいセッション/ })).toBeVisible();
+    await expectScreen(page, 'timer まとめ（390）', 1);
+  });
+});
