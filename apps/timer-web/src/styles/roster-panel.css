@@ -232,15 +232,14 @@
 
 /* 2 段目: 操作 */
 .roster-panel-actions {
-  /* 上の段のアイコンの操作の当たり（44px）と重ならない間隔（見た目 36px の幅 ≥40rem で 8px 要る） */
+  /* 上の段のアイコンの操作の当たり（44px）と重ならない間隔（見た目 36px の幅 ≥40rem で 8px 要る）。
+   * 守っているのは E2E の当たりの重なり検査。狭い幅で文字の操作が折れる場合は受容（段の間隔は守らない） */
   margin-top: 0.5rem;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
-  /* 縦は当たり（44px）が隣の段と重ならない間隔（見た目 36px の幅 ≥40rem で 8px 要る） */
   column-gap: 0.25rem;
-  row-gap: 0.5rem;
 }
 
 /* 改名中の行（比較に描かれない） */
