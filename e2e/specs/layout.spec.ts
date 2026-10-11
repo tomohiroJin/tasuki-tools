@@ -403,3 +403,64 @@ test.describe('timer のセッションは脇を右に持つ', () => {
     expect((await pageBox(page, TIMER_PAGE)).outer).toBe(40 * REM);
   });
 });
+
+test.describe('timer のお題は脇の先頭の読む面に置く', () => {
+  test('Given 長いお題を掲げたセッション / When 幅 1280 と 390 で開く / Then お題は脇の先頭で、タイマーは最初の画面に収まり、ページは説明の長さで伸びない', async ({ page, openPeer }) => {
+    // Given 幅 1280。同じルームで、40 段落 → 80 段落の順に掲げる（高さを同じ部屋で比べる）。
+    // 札には高さの上限があるので、上限に届かない短い説明と比べると札のぶんだけ伸びて当然になる。
+    // どちらも上限を超える長さで比べ、「上限で止まり、それ以上はページを伸ばさない」を見る。
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const code = await createTimerRoom(page, 'layout-timer-topic');
+    await page.getByRole('button', { name: 'セッションを開始' }).click();
+    await expect(page.getByRole('timer')).toBeVisible();
+    const tool = await openPeer('layout-timer-topic-tool');
+    await joinTopicTool(tool.page, `/?room=${encodeURIComponent(code)}`, 'layout-tt');
+    const card = page.getByRole('region', { name: 'お題', exact: true });
+    await setTopic(tool.page, 'FizzBuzz', LONG_BODY);
+    await expect(card).toContainText('40 行目の説明です。');
+
+    // Then 札は脇（.ui-workspace-side）の先頭にあり、本文は札の中でスクロールし、札は上限（24rem）を超えない
+    const placement = await card.evaluate((el) => {
+      const side = el.closest('.ui-workspace-side');
+      return { inSide: side !== null, first: side?.firstElementChild === el };
+    });
+    expect(placement).toEqual({ inSide: true, first: true });
+    await expectBodyScrolls(page);
+    expect((await boxOf(page, 'section.timer-topic')).height).toBeLessThanOrEqual(24 * REM + 0.5);
+    // タイマーの下端は最初の画面（900）に収まる。お題が長くても主役を押し下げない
+    const timer = await boxOf(page, '[role="timer"]');
+    expect(timer.y + timer.height).toBeLessThanOrEqual(900);
+    const longHeight = await page.evaluate(() => document.documentElement.scrollHeight);
+
+    // When 80 段落の説明に差し替える
+    await setTopic(tool.page, 'FizzBuzz', `${LONG_BODY}\n\n${LONG_BODY.replaceAll('行目', '行目（続き）')}`);
+    await expect(card).toContainText('40 行目（続き）の説明です。');
+    // Then ページの高さは説明の長さで伸びない（40 段落と 80 段落で 1px 以内）
+    const longerHeight = await page.evaluate(() => document.documentElement.scrollHeight);
+    expect(Math.abs(longerHeight - longHeight)).toBeLessThanOrEqual(1);
+
+    // When 幅 390
+    await page.setViewportSize({ width: 390, height: 844 });
+    // Then 札は 3 行で切れ、タイマーは最初の画面に収まる
+    const clamp = await page.locator('.ui-reader-body').first().evaluate((el) => ({
+      client: el.clientHeight,
+      line: parseFloat(getComputedStyle(el).lineHeight),
+      scroll: el.scrollHeight,
+    }));
+    expect(clamp.client).toBeLessThanOrEqual(clamp.line * 3 + 1);
+    expect(clamp.scroll).toBeGreaterThan(clamp.client);
+    const narrowTimer = await boxOf(page, '[role="timer"]');
+    expect(narrowTimer.y + narrowTimer.height).toBeLessThanOrEqual(844);
+    await expectNoHorizontalOverflow(page);
+
+    // 「続きを読む」でシートに全文が出て、Esc で閉じるとフォーカスが戻る
+    const more = page.getByRole('button', { name: '続きを読む' });
+    await more.click();
+    const sheet = page.locator('dialog.ui-drawer');
+    await expect(sheet).toBeVisible();
+    await expect(sheet).toContainText('40 行目の説明です。');
+    await page.keyboard.press('Escape');
+    await expect(sheet).toBeHidden();
+    await expect(more).toBeFocused();
+  });
+});

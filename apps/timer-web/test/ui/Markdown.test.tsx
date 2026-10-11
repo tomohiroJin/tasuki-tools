@@ -99,4 +99,38 @@ describe("見出しの段を下げる", () => {
     render(<Markdown source={"# 見出し"} />);
     expect(screen.getByRole("heading", { level: 3, name: "見出し" })).toBeInTheDocument();
   });
+
+  it("surface=card では部品の .ui-md-* で描き、markdown-* を持たない", () => {
+    // Given
+    const source = "段落 `コード`\n\n```\npre\n```\n\n> 引用\n\n- 項目\n\n1. 番号\n\n[Google](https://google.com)";
+    // When
+    const { container } = render(<Markdown source={source} surface="card" />);
+    // Then
+    expect(container.firstElementChild?.className).toBe("ui-md");
+    expect(container.querySelector("p")?.className).toBe("ui-md-p");
+    expect(container.querySelector("code")?.className).toBe("ui-md-code");
+    expect(container.querySelector("pre")?.className).toBe("ui-md-pre");
+    expect(container.querySelector("blockquote")?.className).toBe("ui-md-quote");
+    expect(container.querySelector("ul")?.className).toBe("ui-md-ul");
+    expect(container.querySelector("ol")?.className).toBe("ui-md-ol");
+    expect(container.querySelector("a")?.className).toBe("ui-md-link");
+    expect(container.innerHTML).not.toContain("markdown");
+  });
+
+  it("surface=card の見出しは .ui-md-h（headingBase に従う）", () => {
+    // Given / When
+    const { container } = render(<Markdown source="# 見出し" surface="card" headingBase={4} />);
+    // Then
+    expect(container.querySelector("h4")?.className).toBe("ui-md-h");
+  });
+
+  it("既定（panel）は今の markdown-*", () => {
+    // Given / When
+    const { container } = render(<Markdown source={"段落 `コード`"} />);
+    // Then
+    expect(container.firstElementChild?.className).toBe("markdown");
+    expect(container.querySelector("p")?.className).toBe("markdown-paragraph");
+    expect(container.querySelector("code")?.className).toBe("markdown-code");
+    expect(container.innerHTML).not.toContain("ui-md");
+  });
 });

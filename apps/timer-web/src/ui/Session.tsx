@@ -213,8 +213,6 @@ export function Session({
   // 「セッション」タブのコンテンツ（既存 UI をそのまま移動）。
   const sessionPanel = (
     <div className="session-panel">
-      {/* いまのお題（#91）。timer は読むだけで、変えるのはお題ツールの仕事（spec T4）。 */}
-      {topic && <TopicCard topic={topic} />}
       {/* 初回ヒント（未読かつ通知 OFF のときのみ）。閉じる or 通知 ON で消える。 */}
       {!hintDismissed && !notifyPrefs.enabled && <NotifyHint onDismiss={dismissHint} />}
 
@@ -336,6 +334,9 @@ export function Session({
 
       {/* ── 右（サイド）: 参加者一覧＋引き継ぎメモ ── */}
       <div className="ui-workspace-side session-column">
+      {/* いまのお題（#91）。timer は読むだけで、変えるのはお題ツールの仕事（spec T4）。
+          脇の先頭に置く読む面（#316 PR 3・#314）。長い説明はここで切れるので、タイマーを押し下げない。 */}
+      {topic && <TopicCard topic={topic} />}
       {/* 在席一覧（RosterPanel）。改名・一時離脱・代理追加・現ドライバー
           ハイライト（FR-046/047/048/050/051/061）。現ドライバーは rotation の識別子で判定。 */}
       <Card>
