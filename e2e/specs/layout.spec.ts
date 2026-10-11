@@ -471,8 +471,10 @@ test.describe('timer のロビーは操作の面と脇に分ける', () => {
     await page.setViewportSize({ width: 320, height: 640 });
     const code = await createTimerRoom(page, 'layout-lobby');
     const guest = await openPeer('layout-lobby-guest');
-    await joinAsDriver(guest.page, code, 'layout-lobby-g');
-    await expect(page.getByRole('listitem').filter({ hasText: 'layout-lobby-g' })).toBeVisible();
+    // 区切りのない 30 字の名前。名前が行の幅を使い切ると、操作が次の行へ折り返す（行の flex-wrap）ので、折り返しが無いと 320 で溢れる
+    const guestName = 'W'.repeat(30);
+    await joinAsDriver(guest.page, code, guestName);
+    await expect(page.getByRole('listitem').filter({ hasText: guestName })).toBeVisible();
     await expect(page.getByLabel('パスフレーズ', { exact: true })).toBeVisible();
 
     // Then 320: ロビーは横に溢れない（B1）。パスフレーズの「設定」は縦に積まれ、字が折れない
