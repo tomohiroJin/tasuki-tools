@@ -477,10 +477,16 @@ test.describe('timer のロビーは操作の面と脇に分ける', () => {
 
     // Then 320: ロビーは横に溢れない（B1）。パスフレーズの「設定」は縦に積まれ、字が折れない
     await expectNoHorizontalOverflow(page);
+    // 「詳細設定」を拾わないよう名前は完全一致。高さは自分の 1 行ぶん（行の高さ + 縦の padding と枠）以下
     const setBtn = page.getByRole('button', { name: '設定', exact: true });
-    const setBox = await boxOf(page, 'button:has-text("設定")');
-    expect(setBox.height).toBeLessThan(2 * 24 + 16); // 「設／定」と 2 行に折れると背が伸びる
     await expect(setBtn).toBeVisible();
+    const setFit = await setBtn.evaluate((el) => {
+      const s = getComputedStyle(el);
+      const px = (v: string): number => parseFloat(v);
+      const oneLine = px(s.lineHeight) + px(s.paddingTop) + px(s.paddingBottom) + px(s.borderTopWidth) + px(s.borderBottomWidth);
+      return { height: el.getBoundingClientRect().height, oneLine };
+    });
+    expect(setFit.height).toBeLessThanOrEqual(setFit.oneLine + 1); // 「設／定」と 2 行に折れると 1 行ぶんを超える
 
     // When 幅 1280（お題も掲げる）
     await page.setViewportSize({ width: 1280, height: 900 });
@@ -528,12 +534,20 @@ test.describe('timer のロビーは操作の面と脇に分ける', () => {
       expect(h.width).toBeGreaterThanOrEqual(44);
       expect(h.height).toBeGreaterThanOrEqual(44);
     }
-    // 同じ行の隣り合う当たりは重ならない（左右）。丸め誤差 0.5px を許す
-    for (let i = 1; i < hits.length; i++) {
-      const prev = hits[i - 1]!;
-      const cur = hits[i]!;
-      if (Math.abs(prev.top - cur.top) < 1) expect(cur.left).toBeGreaterThanOrEqual(prev.left + prev.width - 0.5);
+    // どの 2 つの当たりも、横と縦の両方で重ならない（折り返した行どうしも含む）。丸め誤差 0.5px を許す。
+    // 同じ行の組が 1 つも無いと横の検査が空振りするので、組の数も数える。
+    let sameRowPairs = 0;
+    for (let i = 0; i < hits.length; i++) {
+      for (let j = i + 1; j < hits.length; j++) {
+        const a = hits[i]!;
+        const b = hits[j]!;
+        const overlapX = Math.min(a.left + a.width, b.left + b.width) - Math.max(a.left, b.left);
+        const overlapY = Math.min(a.top + a.height, b.top + b.height) - Math.max(a.top, b.top);
+        if (Math.abs(a.top - b.top) < 1) sameRowPairs++;
+        expect(overlapX > 0.5 && overlapY > 0.5, `当たり ${String(i)} と ${String(j)} が重なる（x ${String(overlapX)} / y ${String(overlapY)}）`).toBe(false);
+      }
     }
+    expect(sameRowPairs).toBeGreaterThan(0);
 
     // 幅 320 でセッションも横に溢れない
     await page.setViewportSize({ width: 320, height: 640 });

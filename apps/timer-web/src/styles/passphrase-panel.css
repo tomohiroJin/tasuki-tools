@@ -33,6 +33,11 @@
   .passphrase-panel-form {
     flex-direction: column;
   }
+
+  /* 縦では basis 0 が「高さ 0」になるので、中身の高さに戻す */
+  .passphrase-panel-input {
+    flex: 0 0 auto;
+  }
 }
 
 .passphrase-panel-input {
