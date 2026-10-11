@@ -8,7 +8,7 @@ import { render, screen } from "@testing-library/react";
 import React from "react";
 import { ConfirmDialog } from "../../src/ui/components/ConfirmDialog.js";
 
-function renderDialog(confirmIntent?: "danger" | "primary") {
+function renderDialog(confirmIntent: "danger" | "primary") {
   return render(
     <ConfirmDialog
       open
