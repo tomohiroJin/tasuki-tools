@@ -494,6 +494,22 @@ test.describe('timer は 1 つのルームでロビー・セッション・お�
     // タイマーの下端は最初の画面（900）に収まる。お題が長くても主役を押し下げない
     const timer = await boxOf(page, '[role="timer"]');
     expect(timer.y + timer.height).toBeLessThanOrEqual(900);
+    // お題の札の本文に Tab で入ると、フォーカスの輪は象牙の上で読める濃い色（--coal）になる（WCAG 1.4.11。金だと 1.2〜1.6:1）。
+    // timer は要素層の `.ui-reader :focus-visible` を読まないので、timer 自身の規則が当たっていることを見る。
+    await page.keyboard.press('Shift'); // キーボード操作のあとの focus() は :focus-visible になる
+    const ringColors = await page.evaluate(() => {
+      const probe = document.createElement('span');
+      probe.style.color = 'var(--coal)';
+      document.body.append(probe);
+      const coal = getComputedStyle(probe).color;
+      probe.remove();
+      const body = document.querySelector<HTMLElement>('section.timer-topic .ui-reader-body');
+      if (body === null) return { coal, ring: 'なし', focused: false };
+      body.focus();
+      return { coal, ring: getComputedStyle(body).outlineColor, focused: document.activeElement === body };
+    });
+    expect(ringColors.focused).toBe(true);
+    expect(ringColors.ring).toBe(ringColors.coal);
     const longHeight = await page.evaluate(() => document.documentElement.scrollHeight);
 
     // When 80 段落の説明に差し替える
@@ -514,7 +530,9 @@ test.describe('timer は 1 つのルームでロビー・セッション・お�
     expect(clamp.client).toBeLessThanOrEqual(clamp.line * 3 + 1);
     expect(clamp.scroll).toBeGreaterThan(clamp.client);
     const narrowTimer = await boxOf(page, '[role="timer"]');
-    expect(narrowTimer.y + narrowTimer.height).toBeLessThanOrEqual(844);
+    // 下端の帯（.ui-actions--dock）の裏に隠れないこと（画面の高さではなく帯の上端と比べる）
+    const dockBox = await boxOf(page, '.ui-actions--dock');
+    expect(narrowTimer.y + narrowTimer.height).toBeLessThanOrEqual(dockBox.y);
     await expectNoHorizontalOverflow(page);
 
     // 「続きを読む」でシートに全文が出て、Esc で閉じるとフォーカスが戻る

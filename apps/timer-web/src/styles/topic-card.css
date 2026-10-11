@@ -33,3 +33,10 @@
     max-height: min(24rem, 45dvh);
   }
 }
+
+/* 札の上のフォーカスの輪は濃い色（`--coal`）にする。既定の金（`--signal`）は象牙の上で 1.2〜1.6:1 しかなく、
+ * 3:1（WCAG 1.4.11）を割る。timer は要素層の `.ui-reader :focus-visible` を読まないのでここで当てる。
+ * 続きを読むのシート（`dialog.ui-drawer`）も `section.timer-topic` の中にあるので、同じ規則が届く。 */
+.timer-topic :focus-visible {
+  outline-color: var(--coal);
+}
